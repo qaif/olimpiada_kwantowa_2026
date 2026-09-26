@@ -1,0 +1,25 @@
+# Nakładka wersji porównawczej na django CMS (dj.<SITE_DOMAIN>, docs/tasks/DJ-01.md, docs/OPERACJE.md
+# § 22). Włączana WYŁĄCZNIE przy DJCMS_ENABLED=1: scripts/deploy.sh dopisuje wtedy do .env serwera
+#   COMPOSE_FILE=docker-compose.yml:docker-compose.djcms.yml
+#   COMPOSE_PROFILES=djcms
+# a docker compose czyta obie zmienne z .env sam – każde polecenie compose'a w katalogu instalacji
+# (wdrożenie, scripts/backup.sh, ręczne `docker compose up -d proxy`) widzi tę nakładkę i usługę djcms.
+#
+# Dlaczego osobny plik, a nie montaż w docker-compose.yml (jak zakładała pierwsza wersja DJ-01 § 8.7):
+# wpis w `proxy.volumes` pliku podstawowego zmieniałby `docker compose config` usługi `proxy` na KAŻDEJ
+# instalacji, także tej, na której dj. nigdy nie włączono, i proxy byłoby odtwarzane przy najbliższym
+# `up`. Kontrakt DJ-01 § 1.2 p. 9 jest odwrotny: bez przełącznika konfiguracja compose'a jest co do
+# linijki ta, co przed DJ-01 (scripts/tests/compose_profiles_test.sh). Zmienna w ścieżce montażu nie
+# pomaga – wpis istniałby zawsze, zmieniałaby się tylko jego wartość.
+#
+# Alternatywa odrzucona: pliki redaktorów podawane przez samego djcms (widok Django albo WhiteNoise).
+# Widok `django.views.static.serve` jest wprost „nie do produkcji” (każdy plik przez gunicorna, 2×2
+# wątki na cały serwis), a WhiteNoise indeksuje katalog przy starcie procesu – plik wgrany po starcie
+# nie istniałby do restartu. Caddy podaje pliki sam, z nagłówkami z reguły 12 (CSP `sandbox`, nosniff).
+services:
+  proxy:
+    volumes:
+      # Pliki wgrane przez redaktorów dj. (filer) – tylko do odczytu; pisze do wolumenu wyłącznie djcms.
+      # Blok `dj.{$SITE_DOMAIN}` w deploy/Caddyfile.generated (scripts/render_caddyfile.sh) podaje je
+      # pod /media/*.
+      - djcms_media:/srv/djcms-media:ro

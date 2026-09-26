@@ -19,15 +19,25 @@
 # wyłącznie konkursy, które naprawdę istnieją. Bez tego przełącznika droga przez `EXTRA_DOMAINS`
 # zostaje jedyną i wynik generatora jest dokładnie ten, co dotąd.
 #
+# `DJCMS_ENABLED=1` – wersja porównawcza serwisu na django CMS pod `dj.<SITE_DOMAIN>`
+# (docs/tasks/DJ-01.md § 8.8), **wyłączona domyślnie**. Wtedy (i tylko wtedy) generator dokłada na
+# końcu pliku blok `dj.{$SITE_DOMAIN}` (proxy do usługi `djcms`, pliki redaktorów z wolumenu
+# `djcms_media`, `X-Robots-Tag: noindex`) oraz odmowę `/internal/*` w bloku domeny głównej i w każdym
+# bloku aplikacji z `EXTRA_DOMAINS`: pod `/internal/djcms/v1/` aplikacja główna oddaje djcms-owi dane
+# zawodów i ten adres nie może odpowiadać z żadnej nazwy publicznej.
+#
 # Kontrakt, na którym stoi test `scripts/tests/render_caddyfile_test.sh`:
-# **przy pustym `EXTRA_DOMAINS` i wyłączonym `PLATFORM_SUBDOMAINS` wynik jest bajt w bajt kopią
-# `deploy/Caddyfile`.** Dzięki temu instalacja jednokonkursowa – czyli dziś działająca produkcja –
-# dostaje dokładnie tę konfigurację, którą ma, a nie „taką samą”.
+# **przy pustym `EXTRA_DOMAINS` i wyłączonych `PLATFORM_SUBDOMAINS` oraz `DJCMS_ENABLED` wynik jest
+# bajt w bajt kopią `deploy/Caddyfile`.** Dzięki temu instalacja jednokonkursowa – czyli dziś
+# działająca produkcja – dostaje dokładnie tę konfigurację, którą ma, a nie „taką samą”. Wyłączony
+# `DJCMS_ENABLED` nie zmienia też ani bajtu wyniku przy **dowolnych** wartościach dwóch pozostałych
+# zmiennych (ten sam test: wynik z włączonym minus wstawki djcms = wynik z wyłączonym).
 #
 # Użycie:
 #   scripts/render_caddyfile.sh                  # EXTRA_DOMAINS ze środowiska albo z ./.env
 #   EXTRA_DOMAINS="a.pl www.a.pl" scripts/render_caddyfile.sh
 #   PLATFORM_SUBDOMAINS=1 scripts/render_caddyfile.sh
+#   DJCMS_ENABLED=1 scripts/render_caddyfile.sh
 #   CADDYFILE_OUT=/tmp/x scripts/render_caddyfile.sh
 set -euo pipefail
 
@@ -65,6 +75,26 @@ case "$(printf '%s' "${PLATFORM_SUBDOMAINS:-}" | tr '[:upper:]' '[:lower:]' | tr
     ;;
 esac
 
+# `DJCMS_ENABLED` – odczyt i walidacja **identyczne** jak `PLATFORM_SUBDOMAINS` wyżej (DJ-01 § 8.8):
+# środowisko wygrywa z `.env`, wartość spoza listy zatrzymuje generator. Ta sama zmienna w `.env`
+# steruje wdrożeniem (scripts/deploy.sh) – jedno źródło prawdy o tym, czy `dj.` istnieje.
+if [ -z "${DJCMS_ENABLED+x}" ] && [ -f "$ROOT/.env" ]; then
+  DJCMS_ENABLED="$(sed -n 's/^DJCMS_ENABLED=//p' "$ROOT/.env" | tail -n 1 | tr -d '\r\042\047')"
+fi
+case "$(printf '%s' "${DJCMS_ENABLED:-}" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')" in
+  1|true|yes|on)   DJCMS_ON=1 ;;
+  ''|0|false|no|off) DJCMS_ON=0 ;;
+  *)
+    echo "render_caddyfile: nie rozumiem DJCMS_ENABLED=„${DJCMS_ENABLED:-}” (użyj 1/true albo 0/false)" >&2
+    exit 1
+    ;;
+esac
+
+# Odmowa `/internal/*` w blokach aplikacji: potrzebna, gdy pod `/internal/` jest cokolwiek poza
+# siecią compose'a do ochrony – zgoda na certyfikat (subdomeny) albo API dla djcms. Jedna zmienna
+# dla obu przełączników, więc przy obu włączonych reguła trafia do każdego bloku **raz**.
+if [ "$SUBDOMAINS_ON" = "1" ] || [ "$DJCMS_ON" = "1" ]; then GUARD_ON=1; else GUARD_ON=0; fi
+
 [ -f "$SRC" ] || { echo "render_caddyfile: brak pliku źródłowego $SRC" >&2; exit 1; }
 
 # Nazwa hosta trafia do pliku konfiguracyjnego jako **składnia**, więc jest sprawdzana, zanim tam
@@ -90,9 +120,10 @@ apex_listed() {
 
 internal_guard() {
   # Odmowa dla `/internal/*` na **każdej** publicznej nazwie. Ten adres istnieje wyłącznie po to,
-  # żeby Caddy mógł zapytać aplikację o zgodę na certyfikat (`on_demand_tls ask`), i jest wołany
-  # po sieci wewnętrznej compose, pod hostem `web:8000`. Aplikacja odmawia publicznym hostom sama
-  # (endpoint odpowiada tylko na `Host: web:8000`) – to jest druga zapora, nie jedyna.
+  # żeby Caddy mógł zapytać aplikację o zgodę na certyfikat (`on_demand_tls ask`), a djcms pobrać
+  # dane zawodów (`/internal/djcms/v1/`, token w nagłówku), i jest wołany po sieci wewnętrznej
+  # compose, pod hostem `web:8000`. Aplikacja odmawia publicznym hostom sama (endpointy odpowiadają
+  # tylko na `Host: web:8000`) – to jest druga zapora, nie jedyna.
   #
   # `handle`, a nie samo `respond`: w bloku aplikacji stoi niżej `handle` bez matchera, czyli
   # łapiący wszystko, a w kolejności dyrektyw Caddy'ego `respond` idzie **po** `handle`, więc
@@ -109,26 +140,44 @@ tmp="$(mktemp "${TMPDIR:-/tmp}/caddyfile.XXXXXX")"
 trap 'rm -f "$tmp" "$tmp.sub"' EXIT
 cat "$SRC" > "$tmp"
 
-if [ "$SUBDOMAINS_ON" = "1" ]; then
-  # Dwie wstawki w pliku źródłowym, obie zakotwiczone na dosłownej linijce `deploy/Caddyfile`:
-  # opcja globalna `on_demand_tls` (po `email {$ACME_EMAIL}`) i odmowa `/internal/*` w bloku domeny
-  # głównej (przed `handle_path /static/*`). Brak którejkolwiek kotwicy zatrzymuje generator –
-  # cicha zmiana w pliku źródłowym dałaby konfigurację bez pytania o zgodę na certyfikat albo
+if [ "$GUARD_ON" = "1" ]; then
+  # Wstawki w pliku źródłowym, zakotwiczone na dosłownych linijkach `deploy/Caddyfile`: odmowa
+  # `/internal/*` w bloku domeny głównej (przed `handle_path /static/*`) – przy każdym z dwóch
+  # przełączników – i opcja globalna `on_demand_tls` (po `email {$ACME_EMAIL}`) – wyłącznie przy
+  # PLATFORM_SUBDOMAINS=1. Brak którejkolwiek potrzebnej kotwicy zatrzymuje generator – cicha
+  # zmiana w pliku źródłowym dałaby konfigurację bez pytania o zgodę na certyfikat albo
   # z endpointem wystawionym publicznie, a jedno i drugie wychodzi na jaw dopiero na produkcji.
-  awk '
+  #
+  # Komentarz nad odmową mówi, **po co** ona jest, więc zależy od przełączników. Wariant samych
+  # subdomen jest dosłownie ten sprzed DJ-01 – wyłączony DJCMS_ENABLED nie zmienia ani bajtu.
+  if [ "$SUBDOMAINS_ON" = "1" ] && [ "$DJCMS_ON" = "1" ]; then
+    why1="    # \`/internal/*\` jest wyłącznie dla sieci compose'a (zgoda na certyfikat, API danych"
+    why2="    # dla djcms) i nie ma prawa odpowiadać z nazwy publicznej. Wstawiane przez"
+    why3="    # scripts/render_caddyfile.sh przy PLATFORM_SUBDOMAINS=1 i DJCMS_ENABLED=1."
+  elif [ "$SUBDOMAINS_ON" = "1" ]; then
+    why1="    # \`/internal/*\` jest wyłącznie dla Caddy'ego (pytanie o zgodę na certyfikat)"
+    why2="    # i nie ma prawa odpowiadać z nazwy publicznej. Wstawiane przez"
+    why3="    # scripts/render_caddyfile.sh przy PLATFORM_SUBDOMAINS=1."
+  else
+    why1="    # \`/internal/*\` jest wyłącznie dla sieci compose'a (API danych dla djcms)"
+    why2="    # i nie ma prawa odpowiadać z nazwy publicznej. Wstawiane przez"
+    why3="    # scripts/render_caddyfile.sh przy DJCMS_ENABLED=1."
+  fi
+  # Komentarze przez ENVIRON, a nie `awk -v`: `-v` interpretuje sekwencje z odwrotnym ukośnikiem.
+  WHY1="$why1" WHY2="$why2" WHY3="$why3" awk -v want_opts="$SUBDOMAINS_ON" '
     BEGIN { opts = 0; guard = 0 }
     {
       if (!guard && $0 == "    handle_path /static/* {") {
-        print "    # `/internal/*` jest wyłącznie dla Caddy'\''ego (pytanie o zgodę na certyfikat)"
-        print "    # i nie ma prawa odpowiadać z nazwy publicznej. Wstawiane przez"
-        print "    # scripts/render_caddyfile.sh przy PLATFORM_SUBDOMAINS=1."
+        print ENVIRON["WHY1"]
+        print ENVIRON["WHY2"]
+        print ENVIRON["WHY3"]
         print "    handle /internal/* {"
         print "        respond 404"
         print "    }"
         guard = 1
       }
       print
-      if (!opts && $0 == "    email {$ACME_EMAIL}") {
+      if (want_opts == "1" && !opts && $0 == "    email {$ACME_EMAIL}") {
         print ""
         print "    # Subdomeny konkursów platformy (PLATFORM_SUBDOMAINS=1, scripts/render_caddyfile.sh)."
         print "    # Certyfikat dla `<slug>.<SITE_DOMAIN>` powstaje przy pierwszym wejściu, ale wyłącznie"
@@ -142,9 +191,9 @@ if [ "$SUBDOMAINS_ON" = "1" ]; then
         opts = 1
       }
     }
-    END { if (!opts || !guard) exit 3 }
+    END { if ((want_opts == "1" && !opts) || !guard) exit 3 }
   ' "$tmp" > "$tmp.sub" || {
-    echo "render_caddyfile: nie znalazłem kotwic dla PLATFORM_SUBDOMAINS w $SRC – popraw generator razem z plikiem źródłowym" >&2
+    echo "render_caddyfile: nie znalazłem kotwic dla PLATFORM_SUBDOMAINS/DJCMS_ENABLED w $SRC – popraw generator razem z plikiem źródłowym" >&2
     exit 1
   }
   cat "$tmp.sub" > "$tmp"
@@ -176,9 +225,9 @@ EOF
 # Wygenerowane przez scripts/render_caddyfile.sh z EXTRA_DOMAINS – nie edytuj tego pliku.
 $host {
 EOF
-    # Odmowa `/internal/*` tylko przy włączonym przełączniku: przy wyłączonym ten plik ma być
-    # kopią `deploy/Caddyfile` co do bajtu, a endpoint i tak nie istnieje w konfiguracji proxy.
-    if [ "$SUBDOMAINS_ON" = "1" ]; then internal_guard >> "$tmp"; fi
+    # Odmowa `/internal/*` tylko przy włączonym przełączniku (PLATFORM_SUBDOMAINS albo
+    # DJCMS_ENABLED): przy wyłączonych ten plik ma być kopią `deploy/Caddyfile` co do bajtu.
+    if [ "$GUARD_ON" = "1" ]; then internal_guard >> "$tmp"; fi
     cat >> "$tmp" <<EOF
     import maintenance
     encode gzip zstd
@@ -253,10 +302,81 @@ EOF
 EOF
 fi
 
+if [ "$DJCMS_ON" = "1" ]; then
+  # Blok `dj.` na samym końcu pliku – za blokiem `*.`, jeśli jest. Kolejność nie decyduje
+  # o wyborze witryny (patrz komentarz przy bloku wieloznacznym): nazwa dosłowna `dj.<domena>`
+  # zawsze wygrywa z `*.<domena>`, więc przy obu przełącznikach `dj.` nie trafia do aplikacji
+  # głównej jako „konkurs o slugu dj” (slug `dj` jest zresztą zarezerwowany w formularzu konkursu).
+  #
+  # Czego tu świadomie NIE ma:
+  # - `import maintenance` – przerwa techniczna głównego serwisu nie wyłącza `dj.`; djcms, gdy
+  #   API aplikacji głównej nie odpowiada, sam pokazuje stronę z komunikatem (DJ-01 § 8.3);
+  # - `tls { on_demand }` – zwykły certyfikat (HTTP-01) wystawiany przy starcie proxy; rekord DNS
+  #   `*.<domena>` już wskazuje serwer (deploy/dns-olimpiadakwantowa.pl.zone);
+  # - `/static/*` z wolumenu – statyki djcms serwuje WhiteNoise z obrazu djcms (DJ-01 § 1.1).
+  #
+  # `/media/*` (pliki wgrane przez redaktorów w filerze) podaje Caddy z wolumenu `djcms_media`
+  # zamontowanego do proxy tylko do odczytu przez nakładkę `docker-compose.djcms.yml` – montaż
+  # istnieje wyłącznie przy DJCMS_ENABLED=1 (scripts/deploy.sh dopisuje ją do COMPOSE_FILE
+  # w .env), więc przy wyłączonym przełączniku konfiguracja `proxy` jest ta sama co przed DJ-01.
+  # Plik od redaktora nie może wykonać skryptu w domenie `dj.` (reguła 12 z DJ-01 § 7):
+  # `nosniff` dla wszystkich i CSP z `sandbox` dla wszystkich **poza PDF** – plik otwarty wprost
+  # dostaje wtedy unikalny, pusty origin bez skryptów. Odwrócona lista (wszystko poza PDF), a nie
+  # lista typów aktywnych z DJ-01 § 8.8 (`path /media/*.svg …`), z dwóch powodów:
+  # 1. `*` w środku wzorca `path` Caddy'ego nie przechodzi przez `/` (semantyka `path.Match`),
+  #    a filer trzyma pliki w podkatalogach (`/media/filer_public/ab/cd/<uuid>/x.svg`) – wzorzec
+  #    ze specyfikacji nie pasował do żadnego prawdziwego pliku (sprawdzone na caddy:2.8,
+  #    test: scripts/tests/render_caddyfile_test.sh, przypadek z działającym Caddym);
+  # 2. typów, które przeglądarka wykona jako dokument, jest więcej niż sześć (XML z arkuszem
+  #    XSLT, `.xht`, `.shtml`, `.rdf`, `.mml` …), a obrazy i filmy CSP odpowiedzi nie dotyczy
+  #    (osadzone w `<img>`/`<video>` ignorują ją, otwarte wprost wyświetlają się bez skryptów).
+  # PDF-a nie: z `sandbox` przeglądarka (Chrome) odmawia wyświetlenia go w swoim podglądzie.
+  # `path_regexp` z `(?i)` – `.PDF` też jest PDF-em; `path` i tak nie rozróżnia wielkości liter.
+  cat >> "$tmp" <<'EOF'
+
+# Wygenerowane przez scripts/render_caddyfile.sh przy DJCMS_ENABLED=1 – nie edytuj tego pliku.
+# Wersja porównawcza na django CMS (docs/tasks/DJ-01.md). Nieindeksowana. Nazwa dosłowna wygrywa
+# z blokiem `*.{$SITE_DOMAIN}`; certyfikat zwykły (HTTP-01), rekord DNS `*` już wskazuje serwer.
+dj.{$SITE_DOMAIN} {
+    encode gzip zstd
+    request_body {
+        max_size {$MAX_UPLOAD_MB}MB
+    }
+EOF
+  internal_guard >> "$tmp"
+  cat >> "$tmp" <<'EOF'
+    @dj_active_media {
+        path /media/*
+        not path_regexp (?i)\.pdf$
+    }
+    header @dj_active_media Content-Security-Policy "default-src 'none'; style-src 'unsafe-inline'; sandbox"
+    handle_path /media/* {
+        header Cache-Control "public, max-age=86400"
+        root * /srv/djcms-media
+        file_server
+    }
+    handle {
+        reverse_proxy djcms:8000 {
+            header_up X-Forwarded-Proto {scheme}
+            # Adres klienta dla blokady prób logowania (djcms ufa mu tylko z adresu proxy).
+            header_up X-Real-IP {remote_host}
+        }
+    }
+    header {
+        Strict-Transport-Security "max-age=31536000"
+        X-Content-Type-Options "nosniff"
+        Referrer-Policy "same-origin"
+        X-Robots-Tag "noindex, nofollow, noarchive"
+    }
+}
+EOF
+fi
+
 mkdir -p "$(dirname "$OUT")"
 cat "$tmp" > "$OUT"
-if [ "$SUBDOMAINS_ON" = "1" ]; then
-  echo "render_caddyfile: $OUT (domen dodatkowych: $added, subdomeny platformy: włączone)"
-else
-  echo "render_caddyfile: $OUT (domen dodatkowych: $added)"
-fi
+# Podsumowanie rozszerzane tylko o przełączniki włączone – przy wyłączonych linijka jest ta sama
+# co dotąd (log wdrożenia wygląda tak, jak wyglądał).
+extras=""
+[ "$SUBDOMAINS_ON" = "1" ] && extras="$extras, subdomeny platformy: włączone"
+[ "$DJCMS_ON" = "1" ] && extras="$extras, dj. (django CMS): włączone"
+echo "render_caddyfile: $OUT (domen dodatkowych: $added$extras)"

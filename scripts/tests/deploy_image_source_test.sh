@@ -38,8 +38,11 @@ bash -n "$DEPLOY"
 check "scripts/deploy.sh przechodzi bash -n" $?
 
 # Ciało zdalnego skryptu kroku 4/8: od linii `bash -s <<'REMOTE'` po zamykające `REMOTE`.
+# `bash -s"?`: od v0.37.0 polecenie kroku 4/8 jest jednym zacytowanym napisem
+# (`"env $REMOTE_ENV bash -s" <<'REMOTE'`) – wzorzec bez cudzysłowu łapał dopiero skrypt kroku 4a
+# i test padał na pierwszym sprawdzeniu (naprawione przy DJ-01h).
 awk '/log "4\/8 Konfiguracja proxy/ { seen = 1 }
-     seen && /bash -s <<.REMOTE.$/ { inside = 1; next }
+     seen && /bash -s"? <<.REMOTE.$/ { inside = 1; next }
      inside && /^REMOTE$/ { exit }
      inside { print }' "$DEPLOY" >"$WORK/krok4.sh"
 [ -s "$WORK/krok4.sh" ] && grep -q 'docker compose up -d db' "$WORK/krok4.sh"

@@ -2787,3 +2787,149 @@ uv venv --python 3.14 .venv
 uv pip install --python .venv -r pyproject.toml --extra dev
 .venv/Scripts/ruff.exe check . && .venv/Scripts/ruff.exe format --check .   # Linux: .venv/bin/ruff
 ```
+
+---
+
+## 22. Wersja porównawcza na django CMS (`dj.<domena>`, docs/tasks/DJ-01.md)
+
+Równoległa, publiczna, ale **nieindeksowana** wersja części informacyjnej serwisu pod
+`dj.olimpiadakwantowa.pl`, redagowana w django CMS – do porównania z Wagtailem (`/cms/`). Treść
+redakcyjna żyje w osobnej bazie `olimpiada_djcms` (stan początkowy z importu drzewa Wagtaila), dane
+zawodów (terminy, zadania, wyniki, komunikaty) djcms pobiera na żywo z wewnętrznego API aplikacji
+głównej (`/internal/djcms/v1/`, token w nagłówku). Logowanie, rejestracja i panele zostają na
+domenie głównej.
+
+**Domyślnie wyłączone.** Bez `DJCMS_ENABLED=1` w `/opt/olimpiada/.env` konfiguracja proxy,
+`docker compose config` i przebieg `scripts/deploy.sh` są co do polecenia takie jak przed DJ-01
+(pilnują tego `scripts/tests/render_caddyfile_test.sh`, `compose_profiles_test.sh`
+i `deploy_djcms_test.sh`). **Włączenie na produkcji wymaga zgody organizatora** (DJ-01 § 11 p. 6).
+
+### 22.1. Co robi przełącznik `DJCMS_ENABLED=1`
+
+| Miejsce | Zmiana |
+|---|---|
+| Caddy (`scripts/render_caddyfile.sh`) | blok `dj.{$SITE_DOMAIN}` na końcu pliku: proxy do `djcms:8000`, `/media/*` z wolumenu `djcms_media`, `X-Robots-Tag: noindex, nofollow, noarchive`, bez strony „Prace techniczne”; odmowa `/internal/*` (404) w bloku domeny głównej, w każdym bloku z `EXTRA_DOMAINS` i w `dj.` |
+| `.env` (krok 4/8 wdrożenia, tylko dopisuje) | `DJCMS_SECRET_KEY` (64), `DJCMS_DB_PASSWORD` (32), `DJCMS_INTERNAL_TOKEN` (48) – istniejących nie rusza; `DJCMS_INITIAL_IMPORT=pending`; `COMPOSE_FILE=docker-compose.yml:docker-compose.djcms.yml`; `COMPOSE_PROFILES=djcms` |
+| compose | usługa `djcms` (profil `djcms`) i nakładka `docker-compose.djcms.yml` – montaż `djcms_media` do `proxy` tylko do odczytu. Oba przez `COMPOSE_FILE`/`COMPOSE_PROFILES` w `.env`, więc **każde** `docker compose …` w `/opt/olimpiada` (także ręczne i `scripts/backup.sh`) widzi djcms |
+| baza | rola i baza `olimpiada_djcms` w tym samym kontenerze `db` (`scripts/djcms_db.sh`, idempotentnie, przy każdym wdrożeniu) |
+| wdrożenie | build obrazu `djcms` (albo `DJCMS_IMAGE` z rejestru), kopia `djcms-db-pre-<stamp>.dump` obok `pre-deploy-*` (10 ostatnich), start `djcms` w 4b (migracje w entrypoincie), czekanie na `djcms=healthy`, na końcu krok „dj.”: grupa „Redaktorzy”, konto administratora (gdy podano), **jednorazowy** import treści |
+
+Pliki redaktorów (`/media/*`) podaje Caddy z nagłówkiem `X-Content-Type-Options: nosniff`,
+a wszystko poza PDF-em dodatkowo z `Content-Security-Policy: default-src 'none'; …; sandbox` –
+wgrany SVG albo HTML otwarty wprost nie wykona skryptu w domenie `dj.` (DJ-01 § 7, reguła 12).
+
+### 22.2. Włączenie (jednorazowo, z komputera operatora)
+
+1. **DNS.** Rekord `*` (albo `dj`) → adres serwera. Dla olimpiadakwantowa.pl `*` już istnieje
+   (`deploy/dns-olimpiadakwantowa.pl.zone`); sprawdzenie: `dig +short dj.olimpiadakwantowa.pl`.
+2. **Wdrożenie z przełącznikiem i kontem administratora dj.** (konto tylko djcms – osobne od kont
+   aplikacji głównej; hasło przechodzi przez stdin ssh, nie przez argumenty procesów):
+
+   ```bash
+   DJCMS_ENABLE=1 DJCMS_ADMIN_EMAIL=redakcja@qaif.org DJCMS_ADMIN_PASSWORD='…' \
+     SSH_KEY=~/.ssh/olimpiada_deploy scripts/deploy.sh root@169.58.242.197
+   ```
+
+   `DJCMS_ENABLE=1` dopisuje `DJCMS_ENABLED=1` do `.env` – kolejne wdrożenia idą już bez tej
+   zmiennej (i bez `DJCMS_ADMIN_*`, chyba że trzeba dołożyć konto). Inna wartość niż `1/true`
+   zatrzymuje wdrożenie, zanim cokolwiek dotknie serwera – wyłączenia nie robi się tą zmienną
+   (§ 22.6).
+3. Co zobaczysz w logu: `dj.: wygenerowano DJCMS_…` (krok 4/8), budowanie obrazu djcms,
+   `djcms_db: rola i baza olimpiada_djcms gotowe`, kopię `djcms-db-pre-*.dump` (4a), a na końcu
+   krok `==> dj. Wersja porównawcza django CMS…` z importem i adresem.
+   **Pierwsze włączenie odtwarza kontener `proxy`** (nowy montaż) – kilka sekund bez HTTPS na
+   wszystkich domenach, jak przy każdej zmianie konfiguracji proxy; certyfikat `dj.` (HTTP-01)
+   powstaje zaraz po jego starcie.
+4. **Sprawdzenie:**
+
+   ```bash
+   curl -sI https://dj.olimpiadakwantowa.pl/ | grep -iE '^(HTTP|x-robots-tag)'   # 200, noindex
+   curl -s https://dj.olimpiadakwantowa.pl/robots.txt                             # Disallow: /
+   curl -s -o /dev/null -w '%{http_code}\n' https://olimpiadakwantowa.pl/internal/djcms/v1/chrome      # 404
+   curl -s -o /dev/null -w '%{http_code}\n' https://dj.olimpiadakwantowa.pl/internal/djcms/v1/chrome   # 404
+   # na serwerze, w /opt/olimpiada:
+   docker compose ps djcms                     # healthy
+   grep '^DJCMS_INITIAL_IMPORT=' .env          # done
+   ```
+
+Gdy import się nie uda (najczęściej: brak konta superusera djcms, bo nie podano `DJCMS_ADMIN_*`),
+wdrożenie kończy się kodem ≠ 0 **po** wszystkich krokach głównego serwisu, a `.env` zostaje
+z `DJCMS_INITIAL_IMPORT=pending` – kolejne wdrożenie (z `DJCMS_ADMIN_*`) spróbuje ponownie.
+
+### 22.3. Konta redaktorów
+
+Administrator (superuser djcms) zakłada konta w `https://dj.<domena>/admin/` → Użytkownicy:
+zaznacz „W zespole” (`is_staff`) i dodaj do grupy **Redaktorzy**. Uprawnienia grupy wynikają
+z kodu (`manage.py setup_djcms_groups`) i są odtwarzane przy każdym wdrożeniu – ręcznie dodane
+uprawnienie grupy zniknie. Hasło administratora zmienione w panelu **nie** jest nadpisywane
+kolejnym wdrożeniem z `DJCMS_ADMIN_*` (ręcznie: `bootstrap_djcms_admin --reset-password`).
+Po 5 nieudanych próbach logowania na parę (IP, login) logowanie jest blokowane na 15 minut.
+
+### 22.4. Import treści z Wagtaila
+
+Wdrożenie importuje **raz** (`DJCMS_INITIAL_IMPORT=pending` → `done`), komendą
+`import_cms_bundle --from-api --if-empty` – istniejących stron dj. nigdy nie nadpisuje. Pełny
+ponowny import (kasuje strony dj. i obrazy z folderu „Import z Wagtaila”, **cała redakcja w dj.
+przepada**) – wyłącznie ręcznie, po kopii:
+
+```bash
+cd /opt/olimpiada
+docker compose exec -T djcms python manage.py import_cms_bundle --from-api --dry-run   # raport bez zapisu
+docker compose exec -T djcms python manage.py import_cms_bundle --from-api --replace
+```
+
+Zmieniając szablon w `backend/templates/cms/`, zmień też port w `djcms/templates/dj/` – wygląd
+dwóch wersji nie synchronizuje się sam (DJ-01 § 13, ryzyko 3).
+
+### 22.5. Kopie
+
+Przed każdą migracją wdrożenie robi `djcms-db-pre-<stamp>.dump` w katalogu kopii (10 ostatnich);
+polecenie odtworzenia wypisuje log kroku 4a. Kopie nocne bazy i plików djcms: § 1 (DJ-01i).
+
+### 22.6. Wyłączenie i usunięcie
+
+Wyłączenie (dane zostają – ponowne `DJCMS_ENABLE=1` wraca do tego samego stanu; sekrety bazy
+i klucz zostają w `.env`, token API trzeba wtedy wygenerować od nowa – wdrożenie zrobi to samo):
+
+```bash
+cd /opt/olimpiada
+docker compose stop djcms && docker compose rm -f djcms       # póki COMPOSE_* jeszcze są w .env
+sed -i 's/^DJCMS_ENABLED=.*/DJCMS_ENABLED=0/' .env
+sed -i '/^COMPOSE_FILE=docker-compose.yml:docker-compose.djcms.yml$/d; /^COMPOSE_PROFILES=djcms$/d' .env
+sed -i '/^DJCMS_INTERNAL_TOKEN=/d' .env                        # brak tokenu = API wyłączone w web
+./scripts/render_caddyfile.sh && docker compose up -d proxy web
+```
+
+Od tej chwili konfiguracja proxy i compose'a jest ta sama co przed DJ-01, a wdrożenia nie wykonują
+żadnego polecenia djcms. `COMPOSE_FILE`/`COMPOSE_PROFILES`, które operator zmienił ręcznie (np.
+dopisany profil `monitoring`), popraw ręcznie zamiast drugiego `sed`.
+
+Usunięcie danych (po decyzji organizatora, po ostatniej kopii z § 22.5):
+
+```bash
+cd /opt/olimpiada
+docker compose exec -T db psql -U olimpiada -d olimpiada -c 'DROP DATABASE olimpiada_djcms' -c 'DROP ROLE olimpiada_djcms'
+docker volume rm olimpiada_djcms_media
+sed -i '/^DJCMS_/d' .env                                       # po wyłączeniu wyżej
+docker image ls 'olimpiada/djcms' -q | xargs -r docker rmi
+```
+
+### 22.7. Jak to jest zbudowane (dla utrzymującego skrypty)
+
+- `scripts/render_caddyfile.sh` czyta `DJCMS_ENABLED` jak `PLATFORM_SUBDOMAINS` (środowisko > `.env`,
+  `1|true|yes|on` / `''|0|false|no|off`, inna wartość = błąd). Przy obu włączonych odmowa
+  `/internal/*` trafia do bloku głównego **raz**; `dj.` jako nazwa dosłowna wygrywa z `*.`.
+- CSP `sandbox` dla `/media/*` poza PDF-em, a nie dla listy rozszerzeń z DJ-01 § 8.8: `*` w środku
+  wzorca `path` Caddy'ego nie przechodzi przez `/`, więc `path /media/*.svg` nie pasował do żadnego
+  pliku filera (`/media/filer_public/…/x.svg`) – sprawdzone na działającym caddy:2.8 w teście.
+- Montaż mediów w nakładce, a nie w `docker-compose.yml`: wpis w pliku podstawowym zmieniałby
+  konfigurację `proxy` na każdej instalacji (i odtwarzał proxy), także bez dj. Serwowanie mediów
+  przez samego djcms odrzucone – `static.serve` przez gunicorna nie jest do produkcji, a WhiteNoise
+  nie widzi plików wgranych po starcie procesu.
+- `scripts/deploy.sh` czyta przełącznik z `.env` serwera raz, po kroku 4/8 (jedno `ssh … sed`, bez
+  dockera); przy wyłączonym każde kolejne polecenie jest znak w znak dzisiejsze. Krok „dj.” stoi
+  na samym końcu (DJ-01 § 8.10 przewidywał krok 6), żeby błąd wersji porównawczej nie zatrzymał
+  kroków 6a–8/8 głównego serwisu.
+- `--maintenance`: `djcms` jest zatrzymywany razem z `web/worker/beat` (inaczej kontrola „zero
+  klientów bazy” by nie przeszła); `dj.` nie ma strony prac technicznych – na czas przerwy
+  odpowiada błędem proxy.

@@ -14,7 +14,10 @@
 #      a z profilem `full` oddaje go z powrotem **na równość** (warunek z § 1.7.3) i nie rusza przy
 #      okazji żadnej innej linijki konfiguracji;
 #   3. bez zmiennej `WEB_IMAGE` obraz `web`/`worker`/`beat` jest ten, co był
-#      (`olimpiada/web:$APP_VERSION`), a z nią — ten z rejestru.
+#      (`olimpiada/web:$APP_VERSION`), a z nią — ten z rejestru;
+#   4. wersja porównawcza dj. (docs/tasks/DJ-01.md): profil `djcms` dokłada jedną usługę, a nakładka
+#      `docker-compose.djcms.yml` (włączana przez COMPOSE_FILE w .env) – wyłącznie montaż mediów
+#      w `proxy`; bez nich konfiguracja jest ta sama co przed DJ-01.
 #
 # Wszystko przez `docker compose config`, czyli bez demona, bez sieci i bez budowania czegokolwiek:
 # sprawdzamy złożenie plików, a nie działającą instalację. Zmienne bierzemy z `.env.example`,
@@ -125,6 +128,43 @@ grep -qE '^      (POSTGRES_|MINIO_|S3_|DJANGO_SECRET|REDIS|CELERY)' "$WORK/djcms
   && problemy="$problemy zmienne aplikacji głównej;"
 [ -s "$WORK/djcms.yml" ] && [ -z "$problemy" ]
 check "djcms: bez env_file, read_only, cap_drop [ALL], tylko sieć internal, bez sekretów backendu [${problemy:-ok}]" $?
+
+# 10. Nakładka docker-compose.djcms.yml (DJ-01h): dokłada do konfiguracji WYŁĄCZNIE montaż wolumenu
+#     `djcms_media` do `proxy` (tylko do odczytu) – pliki redaktorów pod dj.<domena>/media/. Bez niej
+#     (dj. wyłączone) `proxy` jest ten sam co przed DJ-01; przypadek 1 i ten niżej razem to kontrakt.
+DJ_OVERLAY="$ROOT/docker-compose.djcms.yml"
+docker compose --env-file "$ENV_FILE" -f "$BASE" --profile djcms config >"$WORK/dj-bez.yml" 2>/dev/null
+docker compose --env-file "$ENV_FILE" -f "$BASE" -f "$DJ_OVERLAY" --profile djcms config >"$WORK/dj-z.yml" 2>"$WORK/stderr"
+diff "$WORK/dj-bez.yml" "$WORK/dj-z.yml" | grep -E '^[<>]' >"$WORK/dj-diff.txt"
+[ "$(sed 's/^> *//' "$WORK/dj-diff.txt" | tr '\n' '|')" = "- type: volume|source: djcms_media|target: /srv/djcms-media|read_only: true|volume: {}|" ]
+rc=$?
+check "nakładka djcms dokłada tylko montaż djcms_media:/srv/djcms-media:ro" $rc
+[ $rc -eq 0 ] || sed 's/^/     /' "$WORK/dj-diff.txt"
+awk '/^  proxy:$/ {on=1; next} on && /^  [^ ]/ {on=0} on' "$WORK/dj-z.yml" | grep -q 'target: /srv/djcms-media'
+check "montaż djcms_media trafia do usługi proxy" $?
+got="$(uslugi -f "$BASE" -f "$DJ_OVERLAY")"
+[ "$got" = "$DZISIAJ" ]
+check "sama nakładka (bez profilu) nie dokłada usług [$got]" $?
+
+# 11. Włączenie przez .env – dokładnie te linijki, które dopisuje scripts/deploy.sh przy
+#     DJCMS_ENABLED=1 (wycięte z deploy.sh, nie przepisane): docker compose czyta COMPOSE_FILE
+#     i COMPOSE_PROFILES z .env sam, więc gołe `docker compose` w katalogu instalacji widzi djcms
+#     i montaż w proxy. Separator ścieżek ustawiony na `:` jak na serwerze (Windows domyślnie `;`).
+SANDBOX="$WORK/instalacja"
+mkdir -p "$SANDBOX"
+cp "$BASE" "$DJ_OVERLAY" "$SANDBOX/"
+{
+  cat "$ENV_FILE"
+  grep -oE '"(COMPOSE_FILE|COMPOSE_PROFILES)=[^"]+"' "$ROOT/scripts/deploy.sh" | tr -d '"' | sort -u
+} >"$SANDBOX/.env"
+[ "$(grep -cE '^COMPOSE_(FILE|PROFILES)=' "$SANDBOX/.env")" = "2" ]
+check "deploy.sh zawiera linijki COMPOSE_FILE i COMPOSE_PROFILES dla dj." $?
+got="$(cd "$SANDBOX" && env -u COMPOSE_FILE -u COMPOSE_PROFILES COMPOSE_PATH_SEPARATOR=: docker compose config --services 2>"$WORK/stderr" | sort | tr '\n' ' ' | sed 's/ $//')"
+[ "$got" = "$(printf '%s\n' $DZISIAJ djcms | sort | tr '\n' ' ' | sed 's/ $//')" ]
+check "gołe docker compose z .env po włączeniu dj. = zestaw dzisiejszy + djcms [$got]" $?
+(cd "$SANDBOX" && env -u COMPOSE_FILE -u COMPOSE_PROFILES COMPOSE_PATH_SEPARATOR=: docker compose config 2>/dev/null) \
+  | awk '/^  proxy:$/ {on=1; next} on && /^  [^ ]/ {on=0} on' | grep -q 'target: /srv/djcms-media'
+check "…i proxy z montażem djcms_media" $?
 
 if [ "$failures" -ne 0 ]; then
   printf '\n%d test(ów) nie przeszło.\n' "$failures"
