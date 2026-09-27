@@ -48,7 +48,7 @@ def consenting_participant(*, publish_full_name: bool, guardian_consent: bool = 
 
 
 def make_final(**kwargs):
-    """Finał – jedyny etap, w którym wolno w ogóle rozważać tryb ``FULL``."""
+    """Finał – etap, w którym ``qualified`` znaczy „laureat”."""
     return make_stage(kind=StageKind.FINAL, **kwargs)
 
 
@@ -102,17 +102,80 @@ def test_full_snapshot_needs_participant_consent():
     assert EMAIL not in json.dumps(publication.snapshot, ensure_ascii=False)
 
 
-def test_full_anonymization_is_rejected_outside_the_final():
-    """1 (przegląd). FULL poza finałem → 400 i żadnej publikacji: to nie jest tabela laureatów."""
-    stage = make_stage(problems=1)
+def test_full_names_are_allowed_after_every_stage_of_the_competition():
+    """Nazwiska awansujących (za zgodą) wolno ogłosić po każdym etapie, nie tylko po finale."""
+    stage = make_stage(problems=1, mode=QualificationMode.MIN_POINTS, min_points=5)
     graded_entry(stage, [6], participant=consenting_participant(publish_full_name=True))
 
-    with pytest.raises(DomainError) as error:
-        publish(stage, Anonymization.FULL)
+    publication = publish(stage, Anonymization.FULL)
 
-    assert error.value.machine_code == "ANONYMIZATION_NOT_ALLOWED_FOR_STAGE"
-    assert error.value.status_code == 400
-    assert not ResultsPublication.objects.exists()
+    assert publication.snapshot[0]["display"] == FULL_NAME
+    assert publication.snapshot[0]["qualified"] is True
+
+
+def test_full_all_names_every_consenting_participant_regardless_of_the_result():
+    """``FULL_ALL``: nazwisko przy każdym, kto się zgodził – także przy tym, kto nie awansował."""
+    stage = make_stage(problems=1, mode=QualificationMode.MIN_POINTS, min_points=5)
+    graded_entry(stage, [6], participant=consenting_participant(publish_full_name=True))
+    graded_entry(
+        stage,
+        [2],
+        participant=ParticipantFactory(
+            user=UserFactory(first_name="Bogdan", last_name="Przegrany"),
+            publish_full_name=True,
+            guardian_consent=True,
+        ),
+    )
+    refusing = graded_entry(stage, [0], participant=ParticipantFactory(publish_full_name=False))
+
+    publication = publish(stage, Anonymization.FULL_ALL)
+
+    displays = {row["rank"]: row["display"] for row in publication.snapshot}
+    assert displays[1] == FULL_NAME
+    assert displays[2] == "Bogdan Przegrany"
+    assert displays[3] == refusing.participant.public_code
+
+
+def test_full_all_still_needs_guardian_consent_for_a_minor():
+    """Zgoda małoletniego bez zgody opiekuna nie wystarcza także w ``FULL_ALL``."""
+    stage = make_stage(problems=1)
+    minor = graded_entry(
+        stage,
+        [6],
+        participant=consenting_participant(
+            publish_full_name=True, guardian_consent=False, birth_year=minor_year()
+        ),
+    )
+
+    publication = publish(stage, Anonymization.FULL_ALL)
+
+    assert publication.snapshot[0]["display"] == minor.participant.public_code
+    assert LAST_NAME not in json.dumps(publication.snapshot, ensure_ascii=False)
+
+
+def test_qualified_only_publishes_just_the_list_of_advancing_participants():
+    """Lista awansujących: w snapshocie są wyłącznie wiersze ``qualified``, z miejscem z tabeli."""
+    stage = make_stage(problems=1, mode=QualificationMode.MIN_POINTS, min_points=5)
+    advancing = graded_entry(stage, [6], participant=consenting_participant(publish_full_name=True))
+    beaten = graded_entry(
+        stage,
+        [2],
+        participant=ParticipantFactory(
+            user=UserFactory(first_name="Bogdan", last_name="Przegrany"),
+            publish_full_name=True,
+            guardian_consent=True,
+        ),
+    )
+
+    publication = publish_results(stage, None, Anonymization.FULL_ALL, qualified_only=True)
+
+    assert publication.qualified_only is True
+    assert [(row["rank"], row["display"]) for row in publication.snapshot] == [(1, FULL_NAME)]
+    raw = json.dumps(publication.snapshot, ensure_ascii=False)
+    assert "Przegrany" not in raw
+    assert beaten.participant.public_code not in raw
+    # „Mój wynik” działa także dla osoby spoza listy – sumy obejmują każdy wpis.
+    assert set(publication.entry_totals) == {str(advancing.pk), str(beaten.pk)}
 
 
 def test_full_name_only_for_laureates_of_the_final():

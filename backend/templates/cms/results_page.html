@@ -20,6 +20,7 @@
         {% if table.stage.is_training %}<span class="badge badge--neutral">trening</span>{% endif %}</h2>
       <p class="hint">Ogłoszone {{ table.publication.published_at|local_time }}, tryb prezentacji:
         {{ table.publication.get_anonymization_display }}.
+        {% if table.publication.qualified_only %}{% if table.stage.kind == "FINAL" %}Lista laureatów.{% else %}Lista osób zakwalifikowanych do następnego etapu.{% endif %}{% endif %}
         <a href="{% url 'web:results' table.stage.pk %}">wersja pełnoekranowa</a></p>
     </div>
     <div class="scroll" role="region" tabindex="0" aria-label="Tabela wyników: {{ table.stage.display_name }}">

@@ -26,7 +26,7 @@
       <dt>Publikacja</dt>
       <dd>
         {% if publication %}
-          ogłoszona {{ publication.published_at|local_datetime }} ({{ publication.rows|length }} wierszy)
+          ogłoszona {{ publication.published_at|local_datetime }} ({{ publication.rows|length }} wierszy{% if publication.qualified_only %}, tylko awansujący{% endif %}; {{ publication.get_anonymization_display }})
         {% else %}
           wyniki nie są jeszcze ogłoszone
         {% endif %}

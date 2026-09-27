@@ -961,7 +961,13 @@ Ekran **„Wyniki: <etap>”**.
 |---|---|---|
 | kod uczestnika | `OLM-XXXXXX`, punkty, miejsce, województwo | domyślny, każdy etap |
 | inicjały i szkoła | inicjały + nazwa szkoły, z progiem k-anonimowości 3 | gdy organizator chce wyniku czytelnego dla szkół |
-| pełne dane | imię i nazwisko | **tylko finał, tylko laureaci, tylko za zgodą** na publikację nazwiska |
+| imię i nazwisko awansujących, za zgodą | imię i nazwisko przy osobach, które awansowały (w finale — laureatach); reszta pod kodem | **każdy etap zawodów** (nie trening), **tylko za zgodą** na publikację nazwiska |
+| imię i nazwisko wszystkich, za zgodą | imię i nazwisko przy każdym, kto wyraził zgodę, niezależnie od wyniku; reszta pod kodem | **każdy etap zawodów** (nie trening), **tylko za zgodą** na publikację nazwiska |
+
+   Niepełnoletni uczestnik pojawia się z nazwiskiem tylko wtedy, gdy jest też **zgoda opiekuna**.
+   Pole **„Opublikuj tylko listę awansujących”** (łączy się z każdym trybem) ogłasza samą listę osób
+   zakwalifikowanych do następnego etapu — w finale listę laureatów. Pozostałych uczestników w
+   ogłoszeniu nie ma wcale; swoje punkty nadal widzą w panelu.
 
 3. **Ponowna publikacja nadpisuje** snapshot tego samego etapu i zostawia wpis w audycie.
 

@@ -82,12 +82,13 @@ def test_publish_freezes_a_training_table(training_stage):
 
 
 def test_full_names_are_never_published_in_training(training_stage):
-    """Nazwiska wolno ogłaszać wyłącznie w finale – piaskownica tego nie obchodzi."""
+    """Nazwiska ogłasza się po etapach zawodów – w żadnym trybie imiennym nie w piaskownicy."""
     from apps.core.api import DomainError
 
     graded_entry(training_stage, [6, 6], public_code="OLM-TRAIN5")
 
-    with pytest.raises(DomainError) as exc:
-        publish_results(training_stage, None, Anonymization.FULL)
+    for anonymization in (Anonymization.FULL, Anonymization.FULL_ALL):
+        with pytest.raises(DomainError) as exc:
+            publish_results(training_stage, None, anonymization)
 
-    assert exc.value.machine_code == "ANONYMIZATION_NOT_ALLOWED_FOR_STAGE"
+        assert exc.value.machine_code == "ANONYMIZATION_NOT_ALLOWED_FOR_STAGE"

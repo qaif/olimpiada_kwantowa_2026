@@ -1380,7 +1380,19 @@ class BulkInvitationForm(forms.Form):
 class PublishResultsForm(forms.Form):
     """Publikacja wyników etapu wraz z wyborem trybu anonimizacji."""
 
-    anonymization = forms.ChoiceField(label="Anonimizacja", choices=Anonymization.choices)
+    anonymization = forms.ChoiceField(
+        label="Anonimizacja",
+        choices=Anonymization.choices,
+        help_text=(
+            "Tryby z imieniem i nazwiskiem podpisują tylko uczestników, którzy wyrazili zgodę "
+            "(niepełnoletnich – także za zgodą opiekuna); pozostali zostają pod kodem."
+        ),
+    )
+    qualified_only = forms.BooleanField(
+        label="Opublikuj tylko listę awansujących",
+        required=False,
+        help_text="W finale – listę laureatów. Osoby spoza listy nie pojawią się w ogłoszeniu.",
+    )
 
 
 # --- etapy i zadania w panelu koordynatora -----------------------------------------------------

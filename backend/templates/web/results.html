@@ -9,6 +9,10 @@
     {% if stage.is_training %}<span class="badge badge--neutral">trening</span>{% endif %}</h1>
   <p class="lead">Ogłoszone {{ publication.published_at|local_time }}, tryb prezentacji:
     {{ publication.get_anonymization_display }}.</p>
+  {% if publication.qualified_only %}
+    <p class="hint">{% if stage.kind == "FINAL" %}Lista laureatów{% else %}Lista osób zakwalifikowanych do następnego etapu{% endif %} –
+      tabela nie obejmuje pozostałych uczestników.</p>
+  {% endif %}
   <p class="hint">Tabela pochodzi z zamrożonego snapshotu z chwili publikacji – nie jest przeliczana
     w locie, więc późniejsze decyzje komisji nie zmieniają jej po cichu.</p>
   {% comment %}

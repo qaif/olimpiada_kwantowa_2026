@@ -41,6 +41,24 @@ def test_publish_creates_results_publication(web_client, coordinator, elim_stage
     publication = ResultsPublication.objects.get(stage=elim_stage)
     assert publication.anonymization == "CODE"
     assert publication.rows[0]["display"] == entry.participant.public_code
+    assert publication.qualified_only is False
+
+
+def test_publish_named_list_of_advancing_participants(web_client, coordinator, elim_stage, entry):
+    """Po eliminacjach koordynator ogłasza listę awansujących z nazwiskami (za zgodą)."""
+    close_stage_timeline(elim_stage)
+    web_client.force_login(coordinator)
+
+    response = web_client.post(
+        f"/coordinator/stages/{elim_stage.pk}/results/publish/",
+        {"anonymization": "FULL_ALL", "qualified_only": "on"},
+    )
+
+    assert response.status_code == 302
+    publication = ResultsPublication.objects.get(stage=elim_stage)
+    assert publication.anonymization == "FULL_ALL"
+    assert publication.qualified_only is True
+    assert all(row["qualified"] for row in publication.rows)
 
 
 def test_close_stage_locks_submissions(web_client, coordinator, elim_stage, entry, problems):

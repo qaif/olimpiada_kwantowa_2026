@@ -21,6 +21,7 @@ class ResultsPublicationAdmin(admin.ModelAdmin):
         "published_at",
         "published_by",
         "anonymization",
+        "qualified_only",
         "snapshot",
         "entry_totals",
     )
