@@ -1,55 +1,132 @@
 {% extends "base.html" %}
-{% load wagtailcore_tags wagtailimages_tags web_extras %}
+{% load static wagtailcore_tags wagtailimages_tags web_extras %}
 {# Strona główna jest witryną – tytuł karty to sama nazwa serwisu, bez powtórzenia. #}
 {% block title %}{{ settings.cms.SiteSettings.site_name }}{% endblock %}
+{% block page_scripts %}
+  <script defer nonce="{{ request.csp_nonce }}" src="{% static 'js/hero-slider.js' %}"></script>
+{% endblock %}
 {% block content %}
 
-<section class="hero">
-  <div class="hero__inner">
-    {% if edition %}<span class="eyebrow">{{ edition.year_label|edition_title:"Edycja" }}</span>{% endif %}
-    <h1>{{ page.hero_title|default:page.title }}</h1>
-    {% if page.hero_text %}<div class="hero__text">{{ page.hero_text|richtext }}</div>{% endif %}
+{% comment %}
+  Slider w nagłówku (``HomePage.hero_slides`` + ``hero_show_news``). Kolejność plansz: plakaty
+  redakcji (np. „Rozpoczęliśmy rejestrację!”), plansza z hasłem serwisu, najnowsze aktualności.
 
-    <div class="hero__actions">
-      {% if user.is_authenticated %}
-        {% if is_participant %}
-          <a class="btn btn--accent" href="{% url 'web:me' %}">Mój panel</a>
-        {% elif is_reviewer %}
-          <a class="btn btn--accent" href="{% url 'web:review-list' %}">Moje recenzje</a>
-        {% elif is_coordinator %}
-          <a class="btn btn--accent" href="{% url 'web:coordinator' %}">Panel koordynatora</a>
-        {% endif %}
-      {% else %}
-        {% comment %}
-          Przycisk rejestracji zależy od okna ustawionego przez koordynatora
-          (``apps.web.context_processors.registration``): przed terminem jest zapowiedzią z datą,
-          poza oknem znika. „Zaloguj się” zostaje zawsze – konta założone wcześniej działają
-          niezależnie od tego, czy przyjmujemy nowe.
-        {% endcomment %}
-        {% if registration.is_open %}
-          <a class="btn btn--accent" href="{% url 'web:register' %}">Zarejestruj się</a>
-        {% elif registration.reason == "not_yet" %}
-          <a class="btn btn--accent" href="{% url 'web:register' %}">Rejestracja rusza {{ registration.opens_at|date:"j E Y" }}</a>
-        {% endif %}
-        <a class="btn btn--secondary" href="{% url 'web:login' %}">Zaloguj się</a>
+  Slider działa **bez JavaScriptu**: plansze leżą w rzędzie w pudełku z ``scroll-snap`` – palcem,
+  kółkiem albo klawiaturą przewija się je natywnie. ``static/js/hero-slider.js`` dokłada wyłącznie
+  przyciski, kropki i automatyczne przewijanie (z pauzą pod kursorem, przy fokusie, w ukrytej
+  karcie i bez ruchu przy ``prefers-reduced-motion``). Jedna plansza = zwykły nagłówek bez
+  kontrolek.
+{% endcomment %}
+<section class="hero hero--slider" data-hero-slider aria-roledescription="karuzela" aria-label="Najważniejsze informacje">
+  <div class="hero-slider__viewport" data-hero-slider-viewport tabindex="-1">
+    {% for block in page.hero_slides %}
+      {% if block.block_type == "poster" %}
+        {% with poster=block.value %}
+          <div class="hero-slide hero-poster hero-poster--{{ poster.theme|default:'czerwony' }}" data-hero-slide
+               role="group" aria-roledescription="plansza" aria-label="{{ poster.title }}">
+            <div class="hero-poster__body">
+              {% if poster.kicker %}<p class="hero-poster__kicker"><span>{{ poster.kicker }}</span></p>{% endif %}
+              <h2 class="hero-poster__title">{{ poster.title }}</h2>
+              {% if poster.text %}<p class="hero-poster__text">{{ poster.text }}</p>{% endif %}
+              {% if poster.button_label and poster.button_url %}
+                <p class="hero-poster__actions">
+                  <a class="btn hero-poster__button" href="{{ poster.button_url }}">{{ poster.button_label }}</a>
+                </p>
+              {% endif %}
+            </div>
+            <div class="hero-poster__art" aria-hidden="true">
+              <svg class="hero-poster__atom" viewBox="0 0 200 200" focusable="false">
+                <g fill="none" stroke="currentColor" stroke-width="5">
+                  <ellipse cx="100" cy="100" rx="92" ry="34"/>
+                  <ellipse cx="100" cy="100" rx="92" ry="34" transform="rotate(60 100 100)"/>
+                  <ellipse cx="100" cy="100" rx="92" ry="34" transform="rotate(120 100 100)"/>
+                </g>
+                <circle cx="100" cy="100" r="14" class="hero-poster__nucleus"/>
+                <circle cx="192" cy="100" r="7" class="hero-poster__electron"/>
+                <circle cx="54" cy="20" r="7" class="hero-poster__electron"/>
+                <circle cx="54" cy="180" r="7" class="hero-poster__electron"/>
+              </svg>
+              {% if poster.stamp %}<span class="hero-poster__stamp">{{ poster.stamp }}</span>{% endif %}
+            </div>
+          </div>
+        {% endwith %}
       {% endif %}
+    {% endfor %}
+
+    <div class="hero-slide hero-slide--intro" data-hero-slide role="group" aria-roledescription="plansza"
+         aria-label="{{ page.hero_title|default:page.title }}">
+      <div class="hero__inner">
+        {% if edition %}<span class="eyebrow">{{ edition.year_label|edition_title:"Edycja" }}</span>{% endif %}
+        <h1>{{ page.hero_title|default:page.title }}</h1>
+        {% if page.hero_text %}<div class="hero__text">{{ page.hero_text|richtext }}</div>{% endif %}
+
+        <div class="hero__actions">
+          {% if user.is_authenticated %}
+            {% if is_participant %}
+              <a class="btn btn--accent" href="{% url 'web:me' %}">Mój panel</a>
+            {% elif is_reviewer %}
+              <a class="btn btn--accent" href="{% url 'web:review-list' %}">Moje recenzje</a>
+            {% elif is_coordinator %}
+              <a class="btn btn--accent" href="{% url 'web:coordinator' %}">Panel koordynatora</a>
+            {% endif %}
+          {% else %}
+            {% comment %}
+              Przycisk rejestracji zależy od okna ustawionego przez koordynatora
+              (``apps.web.context_processors.registration``): przed terminem jest zapowiedzią z datą,
+              poza oknem znika. „Zaloguj się” zostaje zawsze – konta założone wcześniej działają
+              niezależnie od tego, czy przyjmujemy nowe.
+            {% endcomment %}
+            {% if registration.is_open %}
+              <a class="btn btn--accent" href="{% url 'web:register' %}">Zarejestruj się</a>
+            {% elif registration.reason == "not_yet" %}
+              <a class="btn btn--accent" href="{% url 'web:register' %}">Rejestracja rusza {{ registration.opens_at|date:"j E Y" }}</a>
+            {% endif %}
+            <a class="btn btn--secondary" href="{% url 'web:login' %}">Zaloguj się</a>
+          {% endif %}
+        </div>
+
+        {% comment %}
+          Zapowiedź oficjalnego startu rejestracji (``cms.SiteSettings.registration_note``). Stoi pod
+          przyciskami, bo dotyczy tego, do czego prowadzi przycisk – a nie jest kolejnym wezwaniem do
+          działania. To **tylko tekst redakcyjny**: o tym, czy formularz przyjmuje zgłoszenia,
+          rozstrzyga okno rejestracji edycji (panel koordynatora). Rozdział jest celowy, bo organizator
+          trzyma formularz otwarty do testów, zanim ogłoszona data nadejdzie.
+        {% endcomment %}
+        {% if settings.cms.SiteSettings.registration_note %}
+          <p class="hero__note">{{ settings.cms.SiteSettings.registration_note }}</p>
+        {% endif %}
+
+        {% if current_stage %}
+          <p class="hero__status">Etap bieżący: <strong>{{ current_stage.display_name }}</strong>
+            · termin oddania rozwiązań {{ current_stage.deadline_at|local_time }}</p>
+        {% endif %}
+      </div>
     </div>
 
-    {% comment %}
-      Zapowiedź oficjalnego startu rejestracji (``cms.SiteSettings.registration_note``). Stoi pod
-      przyciskami, bo dotyczy tego, do czego prowadzi przycisk – a nie jest kolejnym wezwaniem do
-      działania. To **tylko tekst redakcyjny**: o tym, czy formularz przyjmuje zgłoszenia,
-      rozstrzyga okno rejestracji edycji (panel koordynatora). Rozdział jest celowy, bo organizator
-      trzyma formularz otwarty do testów, zanim ogłoszona data nadejdzie.
-    {% endcomment %}
-    {% if settings.cms.SiteSettings.registration_note %}
-      <p class="hero__note">{{ settings.cms.SiteSettings.registration_note }}</p>
+    {% if page.hero_show_news %}
+      {% for item in latest_news %}
+        <div class="hero-slide hero-slide--news" data-hero-slide role="group" aria-roledescription="plansza"
+             aria-label="Aktualność: {{ item.title }}">
+          <div class="hero__inner">
+            <span class="eyebrow">Aktualności · {{ item.date }}</span>
+            <h2 class="hero-news__title">{{ item.title }}</h2>
+            {% if item.lead %}<p class="hero__text">{{ item.lead }}</p>{% endif %}
+            <div class="hero__actions">
+              <a class="btn btn--accent" href="{% pageurl item %}">Czytaj dalej</a>
+              {% if news_index %}<a class="btn btn--secondary" href="{% pageurl news_index %}">Wszystkie aktualności</a>{% endif %}
+            </div>
+          </div>
+        </div>
+      {% endfor %}
     {% endif %}
+  </div>
 
-    {% if current_stage %}
-      <p class="hero__status">Etap bieżący: <strong>{{ current_stage.display_name }}</strong>
-        · termin oddania rozwiązań {{ current_stage.deadline_at|local_time }}</p>
-    {% endif %}
+  {# Kontrolki odsłania skrypt – bez niego byłyby atrapą (przewijanie i tak działa natywnie). #}
+  <div class="hero-slider__controls" data-hero-slider-controls hidden>
+    <button type="button" class="hero-slider__arrow" data-hero-slider-prev aria-label="Poprzednia plansza">&#8249;</button>
+    <div class="hero-slider__dots" data-hero-slider-dots></div>
+    <button type="button" class="hero-slider__arrow" data-hero-slider-next aria-label="Następna plansza">&#8250;</button>
+    <button type="button" class="hero-slider__pause" data-hero-slider-pause aria-pressed="false">Wstrzymaj</button>
   </div>
 </section>
 

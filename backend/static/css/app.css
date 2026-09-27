@@ -3876,6 +3876,355 @@ td.empty,
   color: #f4f1e8;
 }
 
+/* 7.1 (c.d.) Slider w nagłówku strony głównej (templates/cms/home_page.html, js/hero-slider.js).
+   Plansze leżą w jednym rzędzie w pudełku z ``scroll-snap`` – bez skryptu przewija się je
+   natywnie, skrypt dokłada tylko kontrolki i automat. Wiersz siatki wyrównuje wysokość plansz do
+   najwyższej, więc przejście nie „skacze” treścią pod sliderem. */
+.hero.hero--slider {
+  padding: 0;
+}
+
+.hero.hero--slider::after {
+  display: none;
+}
+
+.hero-slider__viewport {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+}
+
+.hero-slider__viewport::-webkit-scrollbar {
+  display: none;
+}
+
+.hero-slide {
+  position: relative;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+  padding: var(--sp-12) var(--sp-8) calc(var(--sp-12) + var(--sp-4));
+  overflow: hidden;
+  min-width: 0;
+}
+
+/* Plansza z hasłem serwisu zachowuje dotychczasową poświatę nagłówka. */
+.hero-slide--intro::after,
+.hero-slide--news::after {
+  content: "";
+  position: absolute;
+  inset: auto -60px -120px auto;
+  width: 320px;
+  height: 320px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(212, 50, 40, 0.42), transparent 65%);
+  pointer-events: none;
+}
+
+.hero-news__title {
+  color: #fff;
+  font-size: clamp(1.6rem, 1.2rem + 1.6vw, 2.4rem);
+  margin-bottom: var(--sp-4);
+}
+
+.hero-slider__controls {
+  position: absolute;
+  right: var(--sp-4);
+  bottom: var(--sp-4);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-1) var(--sp-2);
+  border-radius: 999px;
+  background: rgba(11, 23, 41, 0.6);
+}
+
+.hero-slider__controls[hidden] {
+  display: none;
+}
+
+.hero-slider__arrow,
+.hero-slider__pause {
+  border: 0;
+  background: transparent;
+  color: #fff;
+  cursor: pointer;
+  font: inherit;
+  line-height: 1;
+  border-radius: 999px;
+}
+
+.hero-slider__arrow {
+  width: 2rem;
+  height: 2rem;
+  font-size: 1.5rem;
+}
+
+.hero-slider__pause {
+  padding: var(--sp-1) var(--sp-2);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.hero-slider__pause[hidden] {
+  display: none;
+}
+
+.hero-slider__arrow:hover,
+.hero-slider__pause:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.hero-slider__dots {
+  display: flex;
+  gap: var(--sp-2);
+}
+
+.hero-slider__dot {
+  width: 0.75rem;
+  height: 0.75rem;
+  padding: 0;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+}
+
+.hero-slider__dot[aria-current="true"] {
+  background: #fff;
+}
+
+.hero-slider__arrow:focus-visible,
+.hero-slider__pause:focus-visible,
+.hero-slider__dot:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 2px;
+}
+
+/* Plakat. Afisz ma trzy warstwy: raster kropek (druk offsetowy), orbitę atomu i wielkie hasło
+   na pierwszym planie. Kolory pochodzą wyłącznie z palety marki – wariant wybiera redakcja. */
+.hero-poster {
+  --poster-bg: var(--red-600);
+  --poster-bg-deep: var(--red-800);
+  --poster-ink: #fff;
+  --poster-band: var(--navy-900);
+  --poster-band-ink: #fff;
+  --poster-dot: rgba(255, 255, 255, 0.14);
+  --poster-art: rgba(255, 255, 255, 0.9);
+  --poster-button-bg: #fff;
+  --poster-button-ink: var(--red-700);
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+  align-items: center;
+  gap: var(--sp-8);
+  color: var(--poster-ink);
+  background:
+    radial-gradient(circle at 1px 1px, var(--poster-dot) 1.5px, transparent 2px) 0 0 / 14px 14px,
+    linear-gradient(160deg, var(--poster-bg) 0%, var(--poster-bg) 55%, var(--poster-bg-deep) 100%);
+}
+
+.hero-poster--granatowy {
+  --poster-bg: var(--navy-700);
+  --poster-bg-deep: var(--navy-900);
+  --poster-band: var(--red-600);
+  --poster-dot: rgba(239, 138, 130, 0.16);
+  --poster-art: var(--red-300);
+  --poster-button-bg: var(--red-600);
+  --poster-button-ink: #fff;
+}
+
+.hero-poster--papier {
+  --poster-bg: #f6f1e4;
+  --poster-bg-deep: #e9e0c9;
+  --poster-ink: var(--navy-900);
+  --poster-band: var(--red-600);
+  --poster-dot: rgba(161, 15, 15, 0.12);
+  --poster-art: var(--red-600);
+  --poster-button-bg: var(--navy-900);
+  --poster-button-ink: #fff;
+}
+
+.hero-poster__body {
+  position: relative;
+  z-index: 1;
+}
+
+/* Taśma z nadtytułem – przekrzywiony pasek jak naklejka na afiszu. */
+.hero-poster__kicker {
+  display: inline-block;
+  margin: 0 0 var(--sp-6);
+  padding: var(--sp-1) var(--sp-4);
+  background: var(--poster-band);
+  color: var(--poster-band-ink);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  transform: rotate(-2deg);
+  box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.25);
+}
+
+.hero-poster__title {
+  margin: 0 0 var(--sp-4);
+  color: var(--poster-ink);
+  font-family: var(--font-sans);
+  font-size: clamp(2.4rem, 1.2rem + 4.8vw, 4.75rem);
+  font-weight: 900;
+  line-height: 0.95;
+  letter-spacing: -0.03em;
+  text-transform: uppercase;
+  text-wrap: balance;
+  text-shadow: 4px 4px 0 rgba(0, 0, 0, 0.18);
+}
+
+.hero-poster__text {
+  max-width: 40ch;
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+.hero-poster__actions {
+  margin: var(--sp-6) 0 0;
+}
+
+.hero-poster__button {
+  padding: var(--sp-3) var(--sp-8);
+  border: 3px solid var(--poster-button-bg);
+  background: var(--poster-button-bg);
+  color: var(--poster-button-ink);
+  font-size: 1.0625rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  box-shadow: 5px 5px 0 rgba(0, 0, 0, 0.3);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.hero-poster__button:hover,
+.hero-poster__button:focus-visible {
+  color: var(--poster-button-ink);
+  background: var(--poster-button-bg);
+  border-color: var(--poster-button-bg);
+  transform: translate(-2px, -2px);
+  box-shadow: 7px 7px 0 rgba(0, 0, 0, 0.3);
+}
+
+.hero-poster__button:focus-visible {
+  outline: 3px solid var(--poster-ink);
+  outline-offset: 3px;
+}
+
+.hero-poster__art {
+  position: relative;
+  display: grid;
+  place-items: center;
+  color: var(--poster-art);
+}
+
+.hero-poster__atom {
+  width: min(100%, 17rem);
+  height: auto;
+  animation: hero-poster-spin 40s linear infinite;
+}
+
+.hero-poster__nucleus,
+.hero-poster__electron {
+  fill: currentColor;
+}
+
+/* Pieczątka: okrągły stempel przybity ukośnie na orbitę. */
+.hero-poster__stamp {
+  position: absolute;
+  right: 4%;
+  bottom: 6%;
+  display: grid;
+  place-items: center;
+  width: 7.5rem;
+  height: 7.5rem;
+  padding: var(--sp-2);
+  border: 3px dashed var(--poster-band-ink);
+  border-radius: 50%;
+  background: var(--poster-band);
+  color: var(--poster-band-ink);
+  font-size: 0.875rem;
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: 0.06em;
+  text-align: center;
+  text-transform: uppercase;
+  transform: rotate(-12deg);
+  box-shadow: 0 0 0 5px var(--poster-band);
+}
+
+@keyframes hero-poster-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-poster__atom {
+    animation: none;
+  }
+
+  .hero-poster__button {
+    transition: none;
+  }
+}
+
+@media (max-width: 760px) {
+  .hero-slide {
+    padding: var(--sp-8) var(--sp-4) calc(var(--sp-12) + var(--sp-4));
+  }
+
+  .hero-poster {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--sp-4);
+  }
+
+  /* Na telefonie orbita schodzi za tekst jako znak wodny, pieczątka znika. */
+  .hero-poster__art {
+    position: absolute;
+    inset: 0;
+    opacity: 0.2;
+  }
+
+  .hero-poster__stamp {
+    display: none;
+  }
+
+  .hero-slider__controls {
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+  }
+}
+
+:root[data-contrast="high"] .hero-poster {
+  --poster-bg: #000;
+  --poster-bg-deep: #000;
+  --poster-ink: #fff;
+  --poster-band: #ffe500;
+  --poster-band-ink: #000;
+  --poster-dot: transparent;
+  --poster-art: #ffe500;
+  --poster-button-bg: #ffe500;
+  --poster-button-ink: #000;
+}
+
+@media print {
+  .hero-slider__controls,
+  .hero-poster__art {
+    display: none;
+  }
+}
+
 .news-card__date {
   display: block;
   font-size: 0.8125rem;
