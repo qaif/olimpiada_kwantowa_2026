@@ -1450,7 +1450,7 @@ def _school_key(value: str | None) -> str:
     return (value or "").strip().casefold()
 
 
-def _may_show_full_name(row: dict, anonymization: str) -> bool:
+def _may_show_full_name(row: dict, anonymization: str = Anonymization.FULL) -> bool:
     """Czy wolno podpisać ten wiersz imieniem i nazwiskiem (PROJEKT.md 2.4).
 
     Warunki, wszystkie muszą być spełnione:
