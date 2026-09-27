@@ -317,6 +317,12 @@ POSTER_THEMES = [
 ]
 
 
+#: Adres przycisku plakatu: ścieżka w serwisie albo https. Bez ``javascript:``/``data:``, bez
+#: ``//obcy.host`` i bez sztuczek, które przeglądarka czyta jak ``//`` (``/\host``, tabulator czy
+#: nowa linia między ukośnikami) – stąd zakaz odwrotnych ukośników i białych znaków w całym adresie.
+SAFE_POSTER_URL = re.compile(r"(?:/(?![/\\])|https://)[^\s\\\x00-\x1f\x7f]*")
+
+
 class PosterSlideBlock(blocks.StructBlock):
     """Plansza-plakat w sliderze strony głównej (np. „Rozpoczęliśmy rejestrację!”).
 
@@ -348,15 +354,19 @@ class PosterSlideBlock(blocks.StructBlock):
         help_text="Adres w serwisie (np. /register/) albo pełny adres https://…",
     )
     theme = blocks.ChoiceBlock(label="kolorystyka", choices=POSTER_THEMES, default="czerwony")
+    registration_only = blocks.BooleanBlock(
+        label="tylko przy otwartej rejestracji",
+        required=False,
+        help_text=(
+            "Plakat znika sam, gdy okno rejestracji bieżącej edycji jest zamknięte albo jeszcze "
+            "się nie zaczęło – np. dla „Rozpoczęliśmy rejestrację!”."
+        ),
+    )
 
     def clean(self, value):
         value = super().clean(value)
-        url = (value.get("button_url") or "").strip()
-        # Adres w serwisie albo https – nic innego (``javascript:``, ``data:``, ``//obcy.host``)
-        # nie ma prawa trafić do ``href`` na stronie głównej.
-        if url and not (
-            (url.startswith("/") and not url.startswith("//")) or url.startswith(("https://", "http://"))
-        ):
+        url = value.get("button_url") or ""
+        if url and not SAFE_POSTER_URL.fullmatch(url):
             raise StructBlockValidationError(
                 block_errors={
                     "button_url": ValidationError(

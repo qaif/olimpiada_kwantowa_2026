@@ -128,6 +128,9 @@ class V1ResultsSerializer(serializers.Serializer):
     edition_id = serializers.IntegerField()
     published_at = serializers.DateTimeField()
     anonymization = serializers.CharField()
+    # ``true`` = ogłoszono samą listę awansujących (w finale laureatów); wierszy pozostałych
+    # uczestników w tej publikacji nie ma.
+    qualified_only = serializers.BooleanField()
     count = serializers.IntegerField()
 
 

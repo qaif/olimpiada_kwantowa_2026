@@ -76,15 +76,11 @@
           dot.removeAttribute("aria-current");
         }
       });
+      // Plansz poza kadrem **nie** chowamy przed czytnikiem (``inert``/``aria-hidden``): jedyny
+      // ``<h1>`` strony stoi na planszy z hasłem, a ta nie musi być pierwsza. Fokus klawiatury na
+      // odnośniku spoza kadru przewija do niego pudełko samo, a ``scroll`` niżej poprawia kropkę.
       slides.forEach(function (slide, index) {
-        // Plansza poza kadrem nie może łapać fokusu klawiatury ani czytnika.
-        if (index === active) {
-          slide.removeAttribute("inert");
-          slide.removeAttribute("aria-hidden");
-        } else {
-          slide.setAttribute("inert", "");
-          slide.setAttribute("aria-hidden", "true");
-        }
+        slide.setAttribute("data-hero-slide-active", index === active ? "true" : "false");
       });
     }
 
@@ -145,8 +141,17 @@
     root.addEventListener("mouseleave", function () {
       setReason("hover", false);
     });
-    root.addEventListener("focusin", function () {
-      setReason("focus", true);
+    root.addEventListener("focusin", function (event) {
+      // Pauza tylko dla fokusu z klawiatury: kliknięcie strzałki zostawia na niej fokus i bez tego
+      // warunku automat stałby do pierwszego kliknięcia poza sliderem.
+      var target = event.target;
+      var keyboard = true;
+      try {
+        keyboard = target.matches(":focus-visible");
+      } catch (error) {
+        keyboard = true;
+      }
+      setReason("focus", keyboard);
     });
     root.addEventListener("focusout", function (event) {
       if (!root.contains(event.relatedTarget)) {

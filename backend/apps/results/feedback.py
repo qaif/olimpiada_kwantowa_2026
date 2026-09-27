@@ -265,6 +265,10 @@ def participant_feedback(participant, stage: Stage) -> StageFeedback | None:
         )
 
     published_total = to_points((publication.entry_totals or {}).get(str(entry.pk)))
+    qualified = entry.status == StageEntryStatus.QUALIFIED
+    # Lista awansujących nie ma wierszy pozostałych uczestników: miejsca z niej nie da się
+    # odczytać komuś, kogo na liście nie ma, a „z ilu” liczymy po wszystkich wpisach etapu.
+    off_the_list = publication.qualified_only and not qualified
     return StageFeedback(
         stage=entry.stage,
         publication=publication,
@@ -272,9 +276,9 @@ def participant_feedback(participant, stage: Stage) -> StageFeedback | None:
         problems=problems,
         total=total,
         published_total=published_total,
-        rank=_rank_from_snapshot(publication, published_total),
-        rank_of=len(publication.rows),
-        qualified=entry.status == StageEntryStatus.QUALIFIED,
+        rank=None if off_the_list else _rank_from_snapshot(publication, published_total),
+        rank_of=len(publication.entry_totals or {}) if publication.qualified_only else len(publication.rows),
+        qualified=qualified,
         status_label=entry.get_status_display(),
         threshold=describe_threshold(stage),
         cutoff_total=_cutoff_from_snapshot(publication),

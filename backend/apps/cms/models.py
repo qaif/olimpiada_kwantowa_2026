@@ -637,9 +637,11 @@ class HomePage(CMSPage):
     # najnowsze aktualności. Bez plakatów i bez aktualności slider jest jedną planszą, czyli
     # dokładnie dotychczasowym nagłówkiem.
     hero_slides = StreamField(HeroSlidesStreamBlock(), verbose_name="plakaty w sliderze", blank=True)
+    # Domyślnie wyłączone: strona główna konkursu, który slidera nie zamawiał, zostaje nieruchomym
+    # nagłówkiem. Migracja ``cms.0029`` włącza je wyłącznie na stronie głównej domyślnej witryny.
     hero_show_news = models.BooleanField(
         "aktualności w sliderze",
-        default=True,
+        default=False,
         help_text="Trzy najnowsze aktualności jako kolejne plansze slidera.",
     )
     # „O Olimpiadzie” była osobną pozycją menu i osobną stroną, na którą trafiał co czterdziesty

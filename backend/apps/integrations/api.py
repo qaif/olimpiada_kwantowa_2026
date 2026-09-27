@@ -269,6 +269,7 @@ class StageResultsView(ApiKeyViewMixin, GenericAPIView):
             "edition_id": stage.edition_id,
             "published_at": publication.published_at,
             "anonymization": publication.anonymization,
+            "qualified_only": publication.qualified_only,
             "count": len(rows),
         }
         return response

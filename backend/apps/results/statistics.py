@@ -232,9 +232,16 @@ def stage_statistics(publication: ResultsPublication) -> dict:
 
 
 def build_statistics() -> list[dict]:
-    """Statystyki wszystkich ogłoszonych etapów, od najnowszej publikacji. Bez pamięci podręcznej."""
-    publications = ResultsPublication.objects.select_related("stage", "stage__edition").order_by(
-        "-published_at", "-id"
+    """Statystyki wszystkich ogłoszonych etapów, od najnowszej publikacji. Bez pamięci podręcznej.
+
+    Lista samych awansujących (``qualified_only``) nie wchodzi do statystyk: ze snapshotu, który
+    ma tylko zakwalifikowanych, wyszłoby „100 % awansowało”, a średnia i rozkłady opisywałyby
+    czołówkę zamiast etapu. Pełnych liczb takiego etapu nie ogłaszamy.
+    """
+    publications = (
+        ResultsPublication.objects.filter(qualified_only=False)
+        .select_related("stage", "stage__edition")
+        .order_by("-published_at", "-id")
     )
     return [stage_statistics(publication) for publication in publications]
 

@@ -20,13 +20,15 @@
 <section class="hero hero--slider" data-hero-slider aria-roledescription="karuzela" aria-label="Najważniejsze informacje">
   <div class="hero-slider__viewport" data-hero-slider-viewport tabindex="-1">
     {% for block in page.hero_slides %}
-      {% if block.block_type == "poster" %}
+      {# Plakat „tylko przy otwartej rejestracji” znika sam poza oknem rejestracji edycji. #}
+      {% if block.block_type == "poster" %}{% if not block.value.registration_only or registration.is_open %}
         {% with poster=block.value %}
           <div class="hero-slide hero-poster hero-poster--{{ poster.theme|default:'czerwony' }}" data-hero-slide
                role="group" aria-roledescription="plansza" aria-label="{{ poster.title }}">
             <div class="hero-poster__body">
               {% if poster.kicker %}<p class="hero-poster__kicker"><span>{{ poster.kicker }}</span></p>{% endif %}
-              <h2 class="hero-poster__title">{{ poster.title }}</h2>
+              {# Akapit, nie nagłówek: plakat stoi przed planszą z jedynym <h1> strony. #}
+              <p class="hero-poster__title">{{ poster.title }}</p>
               {% if poster.text %}<p class="hero-poster__text">{{ poster.text }}</p>{% endif %}
               {% if poster.button_label and poster.button_url %}
                 <p class="hero-poster__actions">
@@ -50,7 +52,7 @@
             </div>
           </div>
         {% endwith %}
-      {% endif %}
+      {% endif %}{% endif %}
     {% endfor %}
 
     <div class="hero-slide hero-slide--intro" data-hero-slide role="group" aria-roledescription="plansza"

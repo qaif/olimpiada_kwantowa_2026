@@ -615,6 +615,7 @@ def _stage_export(stage, publications: dict, entries_by_stage: dict) -> dict:
         "results": {
             "published_at": publication.published_at.isoformat(),
             "anonymization": publication.anonymization,
+            "qualified_only": publication.qualified_only,
             "rows": publication.snapshot or [],
         }
         if publication is not None

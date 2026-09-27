@@ -253,17 +253,20 @@ def _published_result(entry) -> dict | None:
     # ``to_points`` po obu stronach: snapshot sprzed 0.35.0 niesie ``int``, nowszy także ``float``
     # (4.25), a porównanie ma być porównaniem liczb, a nie typów JSON-a.
     total = to_points(totals.get(str(entry.pk)))
+    qualified = entry.status == StageEntryStatus.QUALIFIED
+    # Lista samych awansujących nie ma wiersza osoby, która nie awansowała.
+    in_table = total is not None and not (publication.qualified_only and not qualified)
     rank = None
-    if total is not None:
+    if in_table:
         rank = next(
             (row.get("rank") for row in publication.rows if to_points(row.get("total")) == total), None
         )
     return {
         "publication": publication,
-        "in_table": total is not None,
+        "in_table": in_table,
         "total": total,
         "rank": rank,
-        "qualified": entry.status == StageEntryStatus.QUALIFIED,
+        "qualified": qualified,
     }
 
 

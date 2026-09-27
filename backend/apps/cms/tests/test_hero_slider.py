@@ -21,6 +21,7 @@ POSTER = {
     "button_label": "Zarejestruj się",
     "button_url": "/register/",
     "theme": "czerwony",
+    "registration_only": False,
 }
 
 
@@ -34,6 +35,8 @@ def test_migration_puts_the_registration_poster_on_the_home_page():
     assert [slide.block_type for slide in slides] == ["poster"]
     assert slides[0].value["title"] == "Rozpoczęliśmy rejestrację!"
     assert slides[0].value["button_url"] == "/register/"
+    assert slides[0].value["registration_only"] is True
+    assert home().hero_show_news is True
 
 
 def test_poster_is_the_first_slide_and_the_tagline_slide_stays(web_client):
@@ -74,7 +77,17 @@ def test_latest_news_become_slides_and_can_be_switched_off(web_client):
     assert "Aktualność: Ruszyły warsztaty online" not in content
 
 
-@pytest.mark.parametrize("url", ["javascript:alert(1)", "//evil.example/", "data:text/html,x"])
+@pytest.mark.parametrize(
+    "url",
+    [
+        "javascript:alert(1)",
+        "//evil.example/",
+        "data:text/html,x",
+        "/\\evil.example",
+        "/\t/evil.example",
+        "http://x.pl",
+    ],
+)
 def test_poster_button_rejects_non_http_addresses(url):
     block = PosterSlideBlock()
 
@@ -87,3 +100,14 @@ def test_poster_button_accepts_site_and_https_addresses(url):
     block = PosterSlideBlock()
 
     assert block.clean(block.to_python({**POSTER, "button_url": url}))["button_url"] == url
+
+
+def test_registration_poster_disappears_when_registration_is_not_open(web_client):
+    """Plakat „tylko przy otwartej rejestracji” nie zapowiada formularza, który nie przyjmuje zgłoszeń."""
+    page = home()
+    page.hero_slides = [("poster", {**POSTER, "registration_only": True})]
+    page.save()
+
+    content = web_client.get("/").content.decode()
+
+    assert "Rozpoczęliśmy rejestrację!" not in content
