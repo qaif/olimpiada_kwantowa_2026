@@ -51,7 +51,8 @@
                 Znak Olimpiady w ruchu: sfera Blocha (okrąg, równik, południki) i czerwona strzałka
                 stanu, która razem z dwoma ramionami składa się w literę „K” – tak jak w logotypie
                 (static/img/logo-olimpiada-kwantowa.svg). Obraca się sama sfera: dwa południki
-                przesunięte o ćwierć obrotu „przetaczają się” jak na globusie, a „K” stoi w miejscu.
+                przesunięte o ćwierć obrotu „przetaczają się” jak na globusie. Strzałka jest osią
+                obrotu, a ramiona „K” leżą na pierwszym południku i obracają się razem z nim.
               {% endcomment %}
               <svg class="hero-poster__sphere" viewBox="0 0 200 200" focusable="false">
                 <g fill="none" stroke="currentColor">
@@ -62,9 +63,11 @@
                 </g>
                 <g class="hero-poster__k">
                   <line x1="100" y1="184" x2="100" y2="30" stroke-width="10"/>
-                  <polygon points="100,4 85,33 115,33"/>
-                  <line x1="100" y1="106" x2="155" y2="51" stroke-width="10"/>
-                  <line x1="100" y1="106" x2="155" y2="161" stroke-width="10"/>
+                  <polygon class="hero-poster__arrowhead" points="100,4 85,33 115,33"/>
+                  <g class="hero-poster__k-arms">
+                    <line x1="100" y1="106" x2="155" y2="51" stroke-width="10"/>
+                    <line x1="100" y1="106" x2="155" y2="161" stroke-width="10"/>
+                  </g>
                 </g>
               </svg>
               {% if poster.stamp %}<span class="hero-poster__stamp">{{ poster.stamp }}</span>{% endif %}

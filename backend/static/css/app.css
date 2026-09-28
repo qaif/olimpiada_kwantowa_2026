@@ -4187,11 +4187,23 @@ td.empty,
   overflow: visible;
 }
 
-.hero-poster__meridian {
+.hero-poster__meridian,
+.hero-poster__k-arms {
   transform-box: view-box;
   transform-origin: 100px 106px;
-  vector-effect: non-scaling-stroke;
   animation: hero-poster-sphere-turn 9s ease-in-out infinite;
+}
+
+.hero-poster__meridian,
+.hero-poster__k-arms line {
+  vector-effect: non-scaling-stroke;
+}
+
+/* Grot strzałki stanu „oddycha” – delikatnie, żeby nie konkurował z hasłem plakatu. */
+.hero-poster__arrowhead {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: hero-poster-arrow-pulse 3s ease-in-out infinite;
 }
 
 .hero-poster__meridian--late {
@@ -4232,6 +4244,17 @@ td.empty,
   box-shadow: 0 0 0 5px var(--poster-band);
 }
 
+@keyframes hero-poster-arrow-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.15);
+  }
+}
+
 @keyframes hero-poster-sphere-turn {
   0%,
   100% {
@@ -4252,6 +4275,11 @@ td.empty,
 
   .hero-poster__meridian--late {
     display: none;
+  }
+
+  .hero-poster__k-arms,
+  .hero-poster__arrowhead {
+    animation: none;
   }
 
   .hero-poster__button {
