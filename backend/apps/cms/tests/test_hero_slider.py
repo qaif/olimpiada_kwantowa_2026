@@ -191,7 +191,9 @@ def test_intro_slide_can_be_switched_off_but_the_h1_stays(web_client):
 
     assert "hero-slide--intro" not in content
     assert "Rozpoczęliśmy rejestrację!" in content
-    assert '<h1 class="visually-hidden">Przyszłość ma naturę kwantową.</h1>' in content
+    # Nagłówek strony w testowej bazie zależy od drzewa z migracji – porównujemy z nim, nie z hasłem.
+    heading = page.hero_title or page.title
+    assert f'<h1 class="visually-hidden">{heading}</h1>' in content
     assert len(re.findall(r"<h1\b", content)) == 1
 
 
@@ -205,7 +207,7 @@ def test_intro_slide_comes_back_when_the_slider_would_be_empty(web_client):
     content = web_client.get("/").content.decode()
 
     assert "hero-slide--intro" in content
-    assert 'visually-hidden">Przyszłość' not in content
+    assert '<h1 class="visually-hidden">' not in content
 
 
 def test_poster_shows_the_registration_end_from_the_edition(web_client, edition):
