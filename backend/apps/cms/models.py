@@ -637,6 +637,18 @@ class HomePage(CMSPage):
     # najnowsze aktualności. Bez plakatów i bez aktualności slider jest jedną planszą, czyli
     # dokładnie dotychczasowym nagłówkiem.
     hero_slides = StreamField(HeroSlidesStreamBlock(), verbose_name="plakaty w sliderze", blank=True)
+    # Plansza z hasłem serwisu (``hero_title``, ``hero_text``, przyciski konta, stan rejestracji
+    # i etapu). Wyłączona znika ze slidera, a hasło zostaje na stronie jako ukryty ``<h1>`` –
+    # strona główna nadal ma nagłówek dla wyszukiwarki i czytnika ekranu. Gdy poza nią slider
+    # nie ma ani jednej planszy do pokazania, wraca mimo wyłączenia: nagłówek nie może być pusty.
+    hero_show_intro = models.BooleanField(
+        "plansza z hasłem w sliderze",
+        default=True,
+        help_text=(
+            "Plansza z nagłówkiem, wprowadzeniem i przyciskami „Zarejestruj się / Zaloguj się”. "
+            "Wyłączona wraca sama, gdy slider nie ma żadnej innej planszy."
+        ),
+    )
     # Domyślnie wyłączone: strona główna konkursu, który slidera nie zamawiał, zostaje nieruchomym
     # nagłówkiem. Migracja ``cms.0029`` włącza je wyłącznie na stronie głównej domyślnej witryny.
     hero_show_news = models.BooleanField(
@@ -674,7 +686,10 @@ class HomePage(CMSPage):
     content_panels = Page.content_panels + [
         FieldPanel("hero_title"),
         FieldPanel("hero_text"),
-        MultiFieldPanel([FieldPanel("hero_slides"), FieldPanel("hero_show_news")], heading="Slider"),
+        MultiFieldPanel(
+            [FieldPanel("hero_slides"), FieldPanel("hero_show_news"), FieldPanel("hero_show_intro")],
+            heading="Slider",
+        ),
         MultiFieldPanel([FieldPanel("about_title"), FieldPanel("about_body")], heading="O Olimpiadzie"),
         FieldPanel("show_timeline"),
         MultiFieldPanel([FieldPanel("steps_title"), FieldPanel("steps")], heading="Jak zacząć"),
@@ -740,7 +755,30 @@ class HomePage(CMSPage):
             }
         )
         context.update(self._workshops_context(now))
+        context.update(self._hero_context(request, context["latest_news"]))
         return context
+
+    def _hero_context(self, request, latest_news) -> dict:
+        """Plansze slidera, które faktycznie się pokażą, i to, czy stoi wśród nich plansza z hasłem.
+
+        Plansza „tylko przy otwartej rejestracji” odpada tutaj, a nie w szablonie, bo od liczby
+        widocznych plansz zależy, czy wyłączona plansza z hasłem musi mimo to wrócić. Stan
+        rejestracji bierzemy z tej samej funkcji, co szablon bazowy (wynik jest zapamiętany
+        w żądaniu, więc to nie jest drugie zapytanie).
+        """
+        from apps.web.context_processors import registration
+
+        registration_open = bool(registration(request)["registration"]["is_open"])
+        slides = [
+            block
+            for block in self.hero_slides
+            if not block.value.get("registration_only") or registration_open
+        ]
+        has_news = bool(self.hero_show_news and latest_news)
+        return {
+            "hero_slides_visible": slides,
+            "hero_show_intro": self.hero_show_intro or not (slides or has_news),
+        }
 
     def _workshops_context(self, now) -> dict:
         """Trzy najbliższe warsztaty online – z tabeli na stronie „Warsztaty”, nie z własnej listy.

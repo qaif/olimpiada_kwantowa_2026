@@ -4,6 +4,7 @@ Plakat „Rozpoczęliśmy rejestrację!” wstawia migracja ``cms.0029`` na stro
 witryny – na produkcji ma się pokazać zaraz po wdrożeniu, bez wizyty redakcji w ``/cms/``.
 """
 
+import re
 from io import BytesIO
 
 import pytest
@@ -176,3 +177,31 @@ def test_image_slide_requires_alt_text(settings, tmp_path):
         block.clean(block.to_python(value))
 
     assert set(error.value.block_errors) == {"alt"}
+
+
+def test_intro_slide_can_be_switched_off_but_the_h1_stays(web_client):
+    """Bez planszy z hasłem strona nadal ma dokładnie jeden <h1> – ukryty dla oka."""
+    page = home()
+    page.hero_slides = [("poster", POSTER)]
+    page.hero_show_intro = False
+    page.save()
+
+    content = web_client.get("/").content.decode()
+
+    assert "hero-slide--intro" not in content
+    assert "Rozpoczęliśmy rejestrację!" in content
+    assert '<h1 class="visually-hidden">Przyszłość ma naturę kwantową.</h1>' in content
+    assert len(re.findall(r"<h1\b", content)) == 1
+
+
+def test_intro_slide_comes_back_when_the_slider_would_be_empty(web_client):
+    page = home()
+    page.hero_slides = []
+    page.hero_show_news = False
+    page.hero_show_intro = False
+    page.save()
+
+    content = web_client.get("/").content.decode()
+
+    assert "hero-slide--intro" in content
+    assert 'visually-hidden">Przyszłość' not in content

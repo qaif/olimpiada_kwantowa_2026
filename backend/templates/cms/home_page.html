@@ -18,10 +18,11 @@
   kontrolek.
 {% endcomment %}
 <section class="hero hero--slider" data-hero-slider aria-roledescription="karuzela" aria-label="Najważniejsze informacje">
+  {# Plansza z hasłem wyłączona w /cms/ – hasło zostaje jako jedyny <h1> strony, ukryty dla oka. #}
+  {% if not hero_show_intro %}<h1 class="visually-hidden">{{ page.hero_title|default:page.title }}</h1>{% endif %}
   <div class="hero-slider__viewport" data-hero-slider-viewport tabindex="-1">
-    {% for block in page.hero_slides %}
-      {# Plansza „tylko przy otwartej rejestracji” znika sama poza oknem rejestracji edycji. #}
-      {% if not block.value.registration_only or registration.is_open %}
+    {# ``hero_slides_visible`` – bez plansz „tylko przy otwartej rejestracji” poza oknem rejestracji. #}
+    {% for block in hero_slides_visible %}
       {% if block.block_type == "poster" %}
         {% with poster=block.value %}
           <div class="hero-slide hero-poster hero-poster--{{ poster.theme|default:'czerwony' }}" data-hero-slide
@@ -72,9 +73,9 @@
           </div>
         {% endwith %}
       {% endif %}
-      {% endif %}
     {% endfor %}
 
+    {% if hero_show_intro %}
     <div class="hero-slide hero-slide--intro" data-hero-slide role="group" aria-roledescription="plansza"
          aria-label="{{ page.hero_title|default:page.title }}">
       <div class="hero__inner">
@@ -124,6 +125,8 @@
         {% endif %}
       </div>
     </div>
+
+    {% endif %}
 
     {% if page.hero_show_news %}
       {% for item in latest_news %}
