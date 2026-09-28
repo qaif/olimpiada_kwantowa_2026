@@ -53,7 +53,7 @@ class PublicResultsSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ResultsPublication
-        fields = ("stage_id", "stage_kind", "anonymization", "published_at", "rows")
+        fields = ("stage_id", "stage_kind", "anonymization", "qualified_only", "published_at", "rows")
         read_only_fields = fields
 
 
@@ -84,9 +84,10 @@ class StageResultsPreviewSerializer(serializers.Serializer):
 
 
 class PublishResultsSerializer(serializers.Serializer):
-    """Wejście publikacji. Tryb anonimizacji jest jedynym parametrem decyzji koordynatora."""
+    """Wejście publikacji: tryb anonimizacji i to, czy ogłosić samą listę awansujących."""
 
     anonymization = serializers.ChoiceField(choices=Anonymization.choices, default=Anonymization.CODE)
+    qualified_only = serializers.BooleanField(required=False, default=False)
 
 
 class AnnotationSerializer(serializers.Serializer):

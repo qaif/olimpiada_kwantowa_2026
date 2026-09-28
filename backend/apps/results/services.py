@@ -8,8 +8,10 @@ Widoki tylko orkiestrują. Zasady wspólne dla modułu:
   **na żywo** wraz z ``published_total`` i znacznikiem ``differs_from_published`` (PROJEKT.md 2.4),
 - **RODO**: snapshot przechodzi przez ``_display_name`` i zawiera wyłącznie ``rank``, ``display``,
   ``district`` (tylko przy ``CODE``), ``points``, ``total`` i ``qualified``. Nigdy e-maila, roku
-  urodzenia ani id użytkownika; imię i nazwisko wyłącznie przy ``FULL``, tylko w finale, tylko dla
-  laureata i tylko za zgodą uczestnika (oraz opiekuna, jeśli uczestnik jest niepełnoletni),
+  urodzenia ani id użytkownika; imię i nazwisko wyłącznie w trybie imiennym (``FULL`` – tylko
+  awansujący, ``FULL_ALL`` – każdy), w etapie zawodów (nie w treningu) i tylko za zgodą
+  uczestnika (oraz opiekuna, jeśli uczestnik jest niepełnoletni); ``qualified_only`` publikuje
+  samą listę awansujących,
 - **kolejność w czasie**: progi i publikacja liczą się dopiero po zamknięciu okna reklamacji
   (PROJEKT.md 2.4: „nigdy wcześniej”). Podgląd koordynatora (``compute``) wolno robić zawsze,
 - **brak N+1**: przeliczenie etapu to stała liczba zapytań niezależnie od liczby wpisów – wpisy,
@@ -55,7 +57,7 @@ from apps.grading.models import Review, ReviewStatus
 from apps.submissions.models import Submission, SubmissionStatus
 from apps.submissions.notifications import notify_results_published
 
-from .models import Anonymization, ResultsPublication
+from .models import NAMED_ANONYMIZATIONS, Anonymization, ResultsPublication
 
 logger = logging.getLogger(__name__)
 
@@ -1448,17 +1450,21 @@ def _school_key(value: str | None) -> str:
     return (value or "").strip().casefold()
 
 
-def _may_show_full_name(row: dict) -> bool:
+def _may_show_full_name(row: dict, anonymization: str = Anonymization.FULL) -> bool:
     """Czy wolno podpisać ten wiersz imieniem i nazwiskiem (PROJEKT.md 2.4).
 
-    Trzy warunki naraz, wszystkie muszą być spełnione:
+    Warunki, wszystkie muszą być spełnione:
 
-    - **laureat** – nazwisko publikujemy tylko przy wyniku, który jest wyróżnieniem
-      (``qualified``); przegranych finalistów tabela wymienia pod pseudonimem,
+    - **tryb imienny** (``FULL`` albo ``FULL_ALL``),
+    - **awans** – wyłącznie w ``FULL``: nazwisko stoi tylko przy wierszu ``qualified`` (awans
+      do następnego etapu, w finale tytuł laureata), reszta tabeli zostaje pod pseudonimem.
+      ``FULL_ALL`` tego warunku nie ma – o publikacji rozstrzyga sama zgoda,
     - **zgoda uczestnika** (``publish_full_name``),
     - **zgoda opiekuna** dla niepełnoletniego – małoletni nie udziela jej sam skutecznie.
     """
-    if not row.get("qualified") or not row.get("publish_full_name"):
+    if anonymization not in NAMED_ANONYMIZATIONS or not row.get("publish_full_name"):
+        return False
+    if anonymization == Anonymization.FULL and not row.get("qualified"):
         return False
     return bool(row.get("guardian_consent") or row.get("is_adult"))
 
@@ -1467,8 +1473,8 @@ def _display_name(row: dict, anonymization: str, school_sizes: dict[str, int]) -
     """Jedyne miejsce, w którym powstaje etykieta uczestnika w publikowanej tabeli.
 
     Reguła domyślnie zamknięta: każdy tryb, który nie ma kompletu danych albo zgód, spada do
-    pseudonimu. ``FULL`` przepuszcza tylko wiersze z ``_may_show_full_name`` (a sam tryb jest
-    dopuszczony wyłącznie w finale – patrz ``publish_results``). ``INITIALS_SCHOOL`` wymaga do tego
+    pseudonimu. Tryby imienne przepuszczają tylko wiersze z ``_may_show_full_name`` (a same tryby
+    są niedopuszczalne w treningu – patrz ``publish_results``). ``INITIALS_SCHOOL`` wymaga do tego
     grupy co najmniej ``MIN_SCHOOL_GROUP`` uczestników z tej szkoły w tym etapie: „J.K., XIV LO”
     przy jednym uczestniku z XIV LO to nie anonimizacja, tylko wskazanie palcem.
 
@@ -1482,8 +1488,8 @@ def _display_name(row: dict, anonymization: str, school_sizes: dict[str, int]) -
     code = row["public_code"]
     if row.get("team_name"):
         return code if anonymization == Anonymization.CODE else (row["team_name"] or code)
-    if anonymization == Anonymization.FULL:
-        if not _may_show_full_name(row):
+    if anonymization in NAMED_ANONYMIZATIONS:
+        if not _may_show_full_name(row, anonymization):
             return code
         full = " ".join(part for part in (row["first_name"], row["last_name"]) if part).strip()
         return full or code
@@ -1498,7 +1504,7 @@ def _display_name(row: dict, anonymization: str, school_sizes: dict[str, int]) -
     return code
 
 
-def build_snapshot(rows: list[dict], anonymization: str) -> list[dict]:
+def build_snapshot(rows: list[dict], anonymization: str, *, qualified_only: bool = False) -> list[dict]:
     """Zamrożona tabela: ``rank``, ``display``, ``points``, ``total``, ``qualified``, ``manual``
     i – wyłącznie przy ``CODE`` – ``district``.
 
@@ -1516,10 +1522,18 @@ def build_snapshot(rows: list[dict], anonymization: str) -> list[dict]:
     Kategoria nie jest przy tym cechą quasi-identyfikującą w rozumieniu okręgu: jest nią grupa
     startowa ogłoszona w regulaminie, w której tabela i tak jest publikowana osobno – bez niej
     czytelnik nie wie, czyje miejsce „1” właśnie czyta.
+
+    **Lista awansujących** (``qualified_only``) zostawia wyłącznie wiersze ``qualified``, z ich
+    miejscem z pełnej tabeli – lista mówi, kto przeszedł dalej, a nie układa nowego rankingu.
+    Próg k-anonimowości szkół liczymy nadal po **całym** etapie: inicjały „J.K., XIV LO” wskazują
+    osobę tak samo mocno bez względu na to, ilu kolegów z XIV LO trafiło na listę, bo czytelnik
+    zna liczbę uczestników ze szkoły z tabeli tego samego etapu albo z ogłoszenia szkoły.
     """
     school_sizes = Counter(_school_key(row.get("school")) for row in rows)
     snapshot = []
     for row in rows:
+        if qualified_only and not row.get("qualified"):
+            continue
         item = {
             "rank": row["rank"],
             "display": _display_name(row, anonymization, school_sizes),
@@ -1544,30 +1558,37 @@ def build_snapshot(rows: list[dict], anonymization: str) -> list[dict]:
 
 
 @transaction.atomic
-def publish_results(stage: Stage, actor, anonymization: str, *, request=None) -> ResultsPublication:
+def publish_results(
+    stage: Stage, actor, anonymization: str, *, qualified_only: bool = False, request=None
+) -> ResultsPublication:
     """Publikuje wyniki etapu: przelicza, kwalifikuje i zamraża zanonimizowaną tabelę.
 
     Ponowna publikacja nadpisuje snapshot tego samego rekordu (jeden etap = jedna tabela w mocy)
     i zostawia wpis w audycie. ``diff`` audytu ma wyłącznie liczniki – tabela wyników z nazwiskami
     nie może wylądować w logu czytanym przez osoby bez prawa do danych osobowych.
 
-    Bramki wejściowe: znany tryb anonimizacji, ``FULL`` wyłącznie w finale i zamknięte okno
-    reklamacji. Każda z nich wypada przed zapisem, więc odrzucona publikacja nie zostawia śladu.
+    Bramki wejściowe: znany tryb anonimizacji, tryb imienny wyłącznie w etapie zawodów (nie
+    w treningu) i zamknięte okno reklamacji. Każda z nich wypada przed zapisem, więc odrzucona
+    publikacja nie zostawia śladu.
+
+    ``qualified_only`` ogłasza samą listę awansujących (w finale – laureatów). ``entry_totals``
+    obejmuje mimo to każdy wpis: uczestnik spoza listy nadal widzi u siebie ogłoszoną sumę.
     """
     if anonymization not in Anonymization.values:
         raise _bad_request(f"Nieznany tryb anonimizacji: {anonymization}.", "INVALID_ANONYMIZATION")
     stage = _locked_stage(stage)
-    if anonymization == Anonymization.FULL and stage.kind != StageKind.FINAL:
-        # Nazwiska publikuje się przy laureatach finału i nigdzie indziej: tabela eliminacji
-        # z nazwiskami to lista kilkunastu tysięcy uczniów wraz z ich porażkami (PROJEKT.md 2.4).
+    if anonymization in NAMED_ANONYMIZATIONS and stage.is_training:
+        # Nazwiska ogłasza się po etapach zawodów, zawsze za zgodą. Trening jest piaskownicą poza
+        # olimpiadą: wynik z niego niczego nie poświadcza, a zgoda dotyczy „list wyników
+        # i laureatów” olimpiady, nie ćwiczeń (PROJEKT.md 2.4).
         raise _bad_request(
-            "Pełne nazwiska wolno publikować wyłącznie w wynikach finału.",
+            "Imion i nazwisk nie publikuje się w wynikach etapu treningowego.",
             "ANONYMIZATION_NOT_ALLOWED_FOR_STAGE",
         )
     _assert_appeal_window_closed(stage)
 
     summary = apply_qualification(stage, actor=actor, request=request)
-    snapshot = build_snapshot(summary["rows"], anonymization)
+    snapshot = build_snapshot(summary["rows"], anonymization, qualified_only=qualified_only)
     now = timezone.now()
 
     publication, created = ResultsPublication.objects.update_or_create(
@@ -1576,6 +1597,7 @@ def publish_results(stage: Stage, actor, anonymization: str, *, request=None) ->
             "published_at": now,
             "published_by": actor if getattr(actor, "is_authenticated", False) else None,
             "anonymization": anonymization,
+            "qualified_only": qualified_only,
             "snapshot": snapshot,
             # Klucz do „mojego wyniku” w ogłoszonej tabeli. Wierszy snapshotu nie da się przypisać
             # do osoby (i dobrze), a uczestnik musi wiedzieć, z czym porównać swoje bieżące punkty.
@@ -1597,6 +1619,7 @@ def publish_results(stage: Stage, actor, anonymization: str, *, request=None) ->
         {
             "stage_id": stage.pk,
             "anonymization": anonymization,
+            "qualified_only": qualified_only,
             "rows": len(snapshot),
             "qualified": summary["qualified"],
             "republished": not created,

@@ -46,6 +46,7 @@ from .blocks import (
     RICH_TEXT_FEATURES,
     ArticleStreamBlock,
     DocumentStreamBlock,
+    HeroSlidesStreamBlock,
     PartnersStreamBlock,
     StepsStreamBlock,
 )
@@ -632,6 +633,17 @@ class HomePage(CMSPage):
 
     hero_title = models.CharField("nagłówek", max_length=200, blank=True)
     hero_text = RichTextField("wprowadzenie", features=RICH_TEXT_FEATURES, blank=True)
+    # Slider w nagłówku: plakaty redakcji, potem plansza z hasłem serwisu (``hero_title``), potem
+    # najnowsze aktualności. Bez plakatów i bez aktualności slider jest jedną planszą, czyli
+    # dokładnie dotychczasowym nagłówkiem.
+    hero_slides = StreamField(HeroSlidesStreamBlock(), verbose_name="plakaty w sliderze", blank=True)
+    # Domyślnie wyłączone: strona główna konkursu, który slidera nie zamawiał, zostaje nieruchomym
+    # nagłówkiem. Migracja ``cms.0029`` włącza je wyłącznie na stronie głównej domyślnej witryny.
+    hero_show_news = models.BooleanField(
+        "aktualności w sliderze",
+        default=False,
+        help_text="Trzy najnowsze aktualności jako kolejne plansze slidera.",
+    )
     # „O Olimpiadzie” była osobną pozycją menu i osobną stroną, na którą trafiał co czterdziesty
     # czytelnik: odpowiedź na „co to jest i kto to organizuje” stała jedno kliknięcie za hasłem,
     # które tę ciekawość wzbudzało. Treść wraca więc na stronę główną jako sekcja pod kotwicą
@@ -662,6 +674,7 @@ class HomePage(CMSPage):
     content_panels = Page.content_panels + [
         FieldPanel("hero_title"),
         FieldPanel("hero_text"),
+        MultiFieldPanel([FieldPanel("hero_slides"), FieldPanel("hero_show_news")], heading="Slider"),
         MultiFieldPanel([FieldPanel("about_title"), FieldPanel("about_body")], heading="O Olimpiadzie"),
         FieldPanel("show_timeline"),
         MultiFieldPanel([FieldPanel("steps_title"), FieldPanel("steps")], heading="Jak zacząć"),

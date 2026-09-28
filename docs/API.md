@@ -174,6 +174,7 @@ curl -s https://olimpiadakwantowa.pl/api/v1/stages/12/results/ -H "Authorization
     "edition_id": 4,
     "published_at": "2027-01-15T18:00:00Z",
     "anonymization": "CODE",
+    "qualified_only": false,
     "count": 341
   },
   "results": [
@@ -244,7 +245,7 @@ odbiorcy.
 
 | Zdarzenie | Kiedy | Ładunek (`data`) |
 |---|---|---|
-| `results.published` | ogłoszono wyniki etapu | `publication_id`, `stage_id`, `edition_id`, `anonymization`, `rows`, `published_at` |
+| `results.published` | ogłoszono wyniki etapu | `publication_id`, `stage_id`, `edition_id`, `anonymization`, `qualified_only`, `rows`, `published_at` |
 | `stage.closed` | etap zamknięty (deadline albo koordynator) | `stage_id`, `edition_id`, `closed_at`, `locked_submissions`, `manual` |
 | `submission.received` | uczestnik oddał pracę | `submission_id`, `stage_id`, `edition_id`, `problem_number`, `participant_code`, `version`, `is_late`, `submitted_at` |
 | `appeal.decided` | komisja rozstrzygnęła reklamację | `appeal_id`, `submission_id`, `stage_id`, `edition_id`, `participant_code`, `status`, `score_changed`, `decided_at` |

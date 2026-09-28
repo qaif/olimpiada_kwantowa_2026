@@ -8,7 +8,9 @@ przez ``|safe`` – patrz docstring ``apps/cms/models.py``.
 
 import re
 
+from django.core.exceptions import ValidationError
 from wagtail import blocks
+from wagtail.blocks.struct_block import StructBlockValidationError
 from wagtail.documents.blocks import DocumentChooserBlock
 from wagtail.embeds.blocks import EmbedBlock
 from wagtail.images.blocks import ImageChooserBlock
@@ -301,6 +303,88 @@ class StepsStreamBlock(blocks.StreamBlock):
     """Lista kroków. Bez innych bloków – to sekcja o stałym układzie, nie dowolna treść."""
 
     step = StepBlock()
+
+    class Meta:
+        required = False
+
+
+#: Warianty kolorystyczne plakatu w sliderze strony głównej. Klucz trafia do klasy CSS
+#: (``hero-poster--<klucz>``), więc zmiana etykiety nie rusza zapisanych plansz.
+POSTER_THEMES = [
+    ("czerwony", "czerwony plakat na granacie"),
+    ("granatowy", "granatowy plakat z czerwonym akcentem"),
+    ("papier", "jasny papier z czerwonym nadrukiem"),
+]
+
+
+#: Adres przycisku plakatu: ścieżka w serwisie albo https. Bez ``javascript:``/``data:``, bez
+#: ``//obcy.host`` i bez sztuczek, które przeglądarka czyta jak ``//`` (``/\host``, tabulator czy
+#: nowa linia między ukośnikami) – stąd zakaz odwrotnych ukośników i białych znaków w całym adresie.
+SAFE_POSTER_URL = re.compile(r"(?:/(?![/\\])|https://)[^\s\\\x00-\x1f\x7f]*")
+
+
+class PosterSlideBlock(blocks.StructBlock):
+    """Plansza-plakat w sliderze strony głównej (np. „Rozpoczęliśmy rejestrację!”).
+
+    Układ jest stały i zaprojektowany jak afisz: wielki napis, pasek z hasłem, pieczątka z datą
+    i jeden przycisk. Redakcja wybiera słowa i wariant kolorystyczny, a nie czcionki – dzięki
+    temu każda plansza trzyma kontrast i styl serwisu bez udziału grafika.
+    """
+
+    kicker = blocks.CharBlock(
+        label="nadtytuł", max_length=60, required=False, help_text="Np. „Olimpiada Kwantowa 2026/2027”."
+    )
+    title = blocks.CharBlock(
+        label="hasło plakatu",
+        max_length=80,
+        help_text="Krótko – 2–4 słowa, np. „Rozpoczęliśmy rejestrację!”.",
+    )
+    text = blocks.TextBlock(label="tekst", max_length=240, required=False)
+    stamp = blocks.CharBlock(
+        label="pieczątka",
+        max_length=30,
+        required=False,
+        help_text="Krótki napis w kółku, np. „udział bezpłatny” albo data.",
+    )
+    button_label = blocks.CharBlock(label="napis na przycisku", max_length=40, required=False)
+    button_url = blocks.CharBlock(
+        label="adres przycisku",
+        max_length=300,
+        required=False,
+        help_text="Adres w serwisie (np. /register/) albo pełny adres https://…",
+    )
+    theme = blocks.ChoiceBlock(label="kolorystyka", choices=POSTER_THEMES, default="czerwony")
+    registration_only = blocks.BooleanBlock(
+        label="tylko przy otwartej rejestracji",
+        required=False,
+        help_text=(
+            "Plakat znika sam, gdy okno rejestracji bieżącej edycji jest zamknięte albo jeszcze "
+            "się nie zaczęło – np. dla „Rozpoczęliśmy rejestrację!”."
+        ),
+    )
+
+    def clean(self, value):
+        value = super().clean(value)
+        url = value.get("button_url") or ""
+        if url and not SAFE_POSTER_URL.fullmatch(url):
+            raise StructBlockValidationError(
+                block_errors={
+                    "button_url": ValidationError(
+                        "Podaj adres w serwisie (od „/”) albo pełny adres https://…"
+                    )
+                }
+            )
+        return value
+
+    class Meta:
+        icon = "pick"
+        label = "plakat"
+
+
+class HeroSlidesStreamBlock(blocks.StreamBlock):
+    """Plansze slidera w nagłówku strony głównej – obok stałej planszy z hasłem serwisu."""
+
+    poster = PosterSlideBlock()
 
     class Meta:
         required = False

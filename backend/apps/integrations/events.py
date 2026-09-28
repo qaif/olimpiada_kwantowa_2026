@@ -45,6 +45,7 @@ def results_published(publication, *, rows: int) -> None:
             "stage_id": stage.pk,
             "edition_id": stage.edition_id,
             "anonymization": publication.anonymization,
+            "qualified_only": publication.qualified_only,
             "rows": rows,
             "published_at": publication.published_at.isoformat(),
         },

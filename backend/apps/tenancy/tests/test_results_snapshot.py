@@ -373,6 +373,7 @@ def test_the_snapshot_keys_are_unchanged_without_categories(world, world_stages)
     expected = {"CODE": {"rank", "display", "points", "total", "qualified", "manual", "district"}}
     expected["INITIALS_SCHOOL"] = expected["CODE"] - {"district"}
     expected["FULL"] = expected["INITIALS_SCHOOL"]
+    expected["FULL_ALL"] = expected["INITIALS_SCHOOL"]
 
     for flags in ({}, {PROCESS_EDITOR_FLAG: True}):
         tables = run_pass(world.competition.pk, world_stages, **flags)

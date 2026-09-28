@@ -19,6 +19,7 @@
         {% if table.stage.is_training %}<span class="badge badge--neutral">trening</span>{% endif %}</h2>
       <p class="hint">Ogłoszone {{ table.publication.published_at_local_time }}, tryb prezentacji:
         {{ table.publication.anonymization_display }}.
+        {% if table.publication.qualified_only %}Lista osób zakwalifikowanych do następnego etapu.{% endif %}
         {% if table.stage.results_url %}<a href="{{ table.stage.results_url }}">wersja pełnoekranowa</a>{% endif %}</p>
     </div>
     <div class="scroll" role="region" tabindex="0" aria-label="Tabela wyników: {{ table.stage.display_name }}">

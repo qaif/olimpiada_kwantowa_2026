@@ -961,7 +961,13 @@ Ekran **„Wyniki: <etap>”**.
 |---|---|---|
 | kod uczestnika | `OLM-XXXXXX`, punkty, miejsce, województwo | domyślny, każdy etap |
 | inicjały i szkoła | inicjały + nazwa szkoły, z progiem k-anonimowości 3 | gdy organizator chce wyniku czytelnego dla szkół |
-| pełne dane | imię i nazwisko | **tylko finał, tylko laureaci, tylko za zgodą** na publikację nazwiska |
+| imię i nazwisko awansujących, za zgodą | imię i nazwisko przy osobach, które awansowały (w finale — laureatach); reszta pod kodem | **każdy etap zawodów** (nie trening), **tylko za zgodą** na publikację nazwiska |
+| imię i nazwisko wszystkich, za zgodą | imię i nazwisko przy każdym, kto wyraził zgodę, niezależnie od wyniku; reszta pod kodem | **każdy etap zawodów** (nie trening), **tylko za zgodą** na publikację nazwiska |
+
+   Niepełnoletni uczestnik pojawia się z nazwiskiem tylko wtedy, gdy jest też **zgoda opiekuna**.
+   Pole **„Opublikuj tylko listę awansujących”** (łączy się z każdym trybem) ogłasza samą listę osób
+   zakwalifikowanych do następnego etapu — w finale listę laureatów. Pozostałych uczestników w
+   ogłoszeniu nie ma wcale; swoje punkty nadal widzą w panelu.
 
 3. **Ponowna publikacja nadpisuje** snapshot tego samego etapu i zostawia wpis w audycie.
 
@@ -1067,6 +1073,24 @@ adresów**. Ten sam opis grupy trafia do audytu (`broadcast.sent`). Stan „prze
 **Załączników nie ma.** Plik (regulamin, instrukcja) wstaw do biblioteki dokumentów w `/cms/`
 i wklej do treści komunikatu odnośnik — jeden plik na serwerze zamiast kilku tysięcy kopii
 w skrzynkach i bez ryzyka, że duży załącznik zatrzyma list w filtrze antyspamowym.
+
+### 6.1a Slider na stronie głównej — plakaty i aktualności
+
+Nagłówek strony głównej (tam, gdzie stoi „Przyszłość ma naturę kwantową.”) jest sliderem. Kolejność
+plansz: **plakaty** redakcji → plansza z hasłem serwisu i przyciskami → **trzy najnowsze aktualności**.
+Plansze zmieniają się same co 7 s (pauza pod kursorem, przy fokusie i przyciskiem „Wstrzymaj”; przy
+ograniczonym ruchu w systemie slider stoi), a bez JavaScriptu przewija się je palcem lub kółkiem.
+
+Edycja: `/cms/` → **Strona główna** → panel **„Slider”**:
+
+| Pole | Znaczenie |
+|---|---|
+| Plakaty w sliderze | plansze w stylu afisza: nadtytuł (taśma), hasło (2–4 słowa, wielkimi literami), tekst, pieczątka w kółku, przycisk z adresem (`/register/` albo `https://…`) i kolorystyka (czerwony / granatowy / papier) |
+| Aktualności w sliderze | włącza trzy najnowsze aktualności jako kolejne plansze |
+
+Po wdrożeniu slider ma już jeden plakat: **„Rozpoczęliśmy rejestrację!”** z przyciskiem „Zarejestruj
+się”. Gdy rejestracja się zamknie, zdejmij go albo zmień treść — plakat jest tekstem redakcyjnym i nie
+zależy od okna rejestracji.
 
 ### 6.2 Ogłoszenia — pasek w serwisie
 

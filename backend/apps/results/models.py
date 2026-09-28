@@ -6,7 +6,9 @@ Zasady:
   przepisać ogłoszonych wyników. Nowa tabela wymaga nowej publikacji, a ta zostawia ślad w audycie,
 - ``snapshot`` jest zanonimizowany zgodnie z ``anonymization`` i **nigdy** nie zawiera e-maila,
   roku urodzenia ani identyfikatora użytkownika. Imię i nazwisko wolno w nim umieścić wyłącznie
-  przy ``FULL`` i wyłącznie dla uczestnika, który wyraził zgodę (``publish_full_name``),
+  w trybach imiennych (``FULL``, ``FULL_ALL``) i wyłącznie dla uczestnika, który wyraził zgodę
+  (``publish_full_name``, a niepełnoletni także zgodę opiekuna),
+- ``qualified_only`` zawęża tabelę do listy awansujących – pozostałych wierszy w snapshocie nie ma,
 - czas zawsze przez ``django.utils.timezone.now()``.
 """
 
@@ -37,9 +39,24 @@ def default_entry_totals() -> dict:
 
 
 class Anonymization(models.TextChoices):
+    """Tryb podpisu wierszy ogłoszonej tabeli.
+
+    Oba tryby imienne działają po każdym etapie zawodów (nie w treningu) i oba są „za zgodą”:
+    wiersz bez zgody uczestnika – a niepełnoletniego także opiekuna – zostaje pod kodem.
+    ``FULL`` zachowuje dotychczasowe znaczenie (nazwisko wyłącznie przy wierszu ``qualified``:
+    awans do następnego etapu, a w finale tytuł laureata), dzięki czemu opublikowane wcześniej
+    tabele ``FULL`` nadal opisuje prawdziwa etykieta. ``FULL_ALL`` podpisuje nazwiskiem każdego,
+    kto się zgodził, niezależnie od wyniku.
+    """
+
     CODE = "CODE", "kod uczestnika"
     INITIALS_SCHOOL = "INITIALS_SCHOOL", "inicjały i szkoła"
-    FULL = "FULL", "pełne dane – finał, za zgodą"
+    FULL = "FULL", "imię i nazwisko awansujących, za zgodą"
+    FULL_ALL = "FULL_ALL", "imię i nazwisko wszystkich, za zgodą"
+
+
+#: Tryby, w których do snapshotu może trafić imię i nazwisko.
+NAMED_ANONYMIZATIONS = frozenset({Anonymization.FULL, Anonymization.FULL_ALL})
 
 
 class ResultsPublication(models.Model):
@@ -61,6 +78,9 @@ class ResultsPublication(models.Model):
     anonymization = models.CharField(
         "anonimizacja", max_length=24, choices=Anonymization.choices, default=Anonymization.CODE
     )
+    # Lista awansujących zamiast pełnej tabeli: snapshot ma wyłącznie wiersze ``qualified``.
+    # Kto nie awansował, tego w ogłoszeniu nie ma wcale – ani nazwiskiem, ani kodem, ani wynikiem.
+    qualified_only = models.BooleanField("tylko awansujący", default=False)
     snapshot = models.JSONField("zamrożona tabela", default=default_snapshot, blank=True)
     # Mapa ``{str(StageEntry.pk): suma}`` z chwili publikacji. Nie jest częścią publicznej tabeli
     # (serializery wypisują pola jawnie) i nie zawiera danych osobowych – identyfikator wpisu plus

@@ -1240,6 +1240,10 @@ class PublishResultsView(CoordinatorActionView):
         if not form.is_valid():
             raise DomainError("Wybierz tryb anonimizacji.", "INVALID_ANONYMIZATION")
         publication = publish_results(
-            stage, request.user, form.cleaned_data["anonymization"], request=request
+            stage,
+            request.user,
+            form.cleaned_data["anonymization"],
+            qualified_only=form.cleaned_data["qualified_only"],
+            request=request,
         )
         return f"Opublikowano wyniki etapu ({len(publication.rows)} wierszy)."

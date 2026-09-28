@@ -119,6 +119,28 @@
           "qualified": false,
           "manual": false
         }
+      ],
+      "FULL_ALL": [
+        {
+          "rank": 1,
+          "display": "Uczestnik Testowy 0001",
+          "points": {
+            "1": 6
+          },
+          "total": 6,
+          "qualified": true,
+          "manual": false
+        },
+        {
+          "rank": 2,
+          "display": "OLM-0007",
+          "points": {
+            "1": 0
+          },
+          "total": 0,
+          "qualified": false,
+          "manual": false
+        }
       ]
     },
     "next_stage_kind": null,
@@ -769,6 +791,116 @@
           "qualified": false,
           "manual": false
         }
+      ],
+      "FULL_ALL": [
+        {
+          "rank": 1,
+          "display": "Uczestnik Testowy 0001",
+          "points": {
+            "1": 6,
+            "2": 6,
+            "3": 6
+          },
+          "total": 18,
+          "qualified": true,
+          "manual": false
+        },
+        {
+          "rank": 1,
+          "display": "OLM-0009",
+          "points": {
+            "1": 6,
+            "2": 6,
+            "3": 6
+          },
+          "total": 18,
+          "qualified": false,
+          "manual": false
+        },
+        {
+          "rank": 3,
+          "display": "OLM-0005",
+          "points": {
+            "1": 6,
+            "2": 6,
+            "3": 5
+          },
+          "total": 17,
+          "qualified": true,
+          "manual": false
+        },
+        {
+          "rank": 4,
+          "display": "OLM-0006",
+          "points": {
+            "1": 5,
+            "2": 5,
+            "3": 5
+          },
+          "total": 15,
+          "qualified": false,
+          "manual": true
+        },
+        {
+          "rank": 5,
+          "display": "OLM-0002",
+          "points": {
+            "1": 6,
+            "2": 5,
+            "3": 2
+          },
+          "total": 13,
+          "qualified": true,
+          "manual": false
+        },
+        {
+          "rank": 5,
+          "display": "OLM-0003",
+          "points": {
+            "1": 5,
+            "2": 6,
+            "3": 2
+          },
+          "total": 13,
+          "qualified": true,
+          "manual": false
+        },
+        {
+          "rank": 7,
+          "display": "OLM-0004",
+          "points": {
+            "1": 2,
+            "2": 2,
+            "3": 0
+          },
+          "total": 4,
+          "qualified": true,
+          "manual": true
+        },
+        {
+          "rank": 8,
+          "display": "OLM-0007",
+          "points": {
+            "1": 0,
+            "2": 0,
+            "3": 0
+          },
+          "total": 0,
+          "qualified": false,
+          "manual": false
+        },
+        {
+          "rank": 8,
+          "display": "OLM-0008",
+          "points": {
+            "1": 0,
+            "2": 0,
+            "3": 0
+          },
+          "total": 0,
+          "qualified": false,
+          "manual": false
+        }
       ]
     },
     "next_stage_kind": "DISTRICT",
@@ -1267,6 +1399,48 @@
           "qualified": true,
           "manual": true
         }
+      ],
+      "FULL_ALL": [
+        {
+          "rank": 1,
+          "display": "Uczestnik Testowy 0001",
+          "points": {},
+          "total": 0,
+          "qualified": true,
+          "manual": true
+        },
+        {
+          "rank": 1,
+          "display": "OLM-0002",
+          "points": {},
+          "total": 0,
+          "qualified": true,
+          "manual": true
+        },
+        {
+          "rank": 1,
+          "display": "OLM-0003",
+          "points": {},
+          "total": 0,
+          "qualified": false,
+          "manual": true
+        },
+        {
+          "rank": 1,
+          "display": "OLM-0004",
+          "points": {},
+          "total": 0,
+          "qualified": false,
+          "manual": false
+        },
+        {
+          "rank": 1,
+          "display": "OLM-0005",
+          "points": {},
+          "total": 0,
+          "qualified": true,
+          "manual": true
+        }
       ]
     },
     "next_stage_kind": "FINAL",
@@ -1507,6 +1681,41 @@
         }
       ],
       "FULL": [
+        {
+          "rank": 1,
+          "display": "Uczestnik Testowy 0001",
+          "points": {
+            "1": 6,
+            "2": 6
+          },
+          "total": 12,
+          "qualified": true,
+          "manual": false
+        },
+        {
+          "rank": 2,
+          "display": "OLM-0002",
+          "points": {
+            "1": 6,
+            "2": 2
+          },
+          "total": 8,
+          "qualified": true,
+          "manual": false
+        },
+        {
+          "rank": 3,
+          "display": "OLM-0005",
+          "points": {
+            "1": 2,
+            "2": 0
+          },
+          "total": 2,
+          "qualified": false,
+          "manual": false
+        }
+      ],
+      "FULL_ALL": [
         {
           "rank": 1,
           "display": "Uczestnik Testowy 0001",

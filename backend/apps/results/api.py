@@ -115,6 +115,7 @@ class StageResultsPublishView(CoordinatorStageMixin, GenericAPIView):
             stage,
             request.user,
             serializer.validated_data["anonymization"],
+            qualified_only=serializer.validated_data["qualified_only"],
             request=request,
         )
         return Response(PublicResultsSerializer(publication).data, status=status.HTTP_201_CREATED)

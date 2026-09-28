@@ -347,6 +347,7 @@ def publication_dto(publication) -> dict:
         **datetime_fields("published_at", publication.published_at),
         "anonymization": publication.anonymization,
         "anonymization_display": publication.get_anonymization_display(),
+        "qualified_only": publication.qualified_only,
     }
 
 
