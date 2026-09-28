@@ -27,6 +27,7 @@ POSTER = {
     "button_label": "Zarejestruj się",
     "button_url": "/register/",
     "theme": "czerwony",
+    "show_registration_end": False,
     "registration_only": False,
 }
 
@@ -205,3 +206,32 @@ def test_intro_slide_comes_back_when_the_slider_would_be_empty(web_client):
 
     assert "hero-slide--intro" in content
     assert 'visually-hidden">Przyszłość' not in content
+
+
+def test_poster_shows_the_registration_end_from_the_edition(web_client, edition):
+    """Koniec rejestracji na plakacie pochodzi z okna rejestracji edycji, a nie z treści plakatu."""
+    from datetime import datetime
+
+    from django.utils import timezone
+
+    from apps.competitions.models import Edition
+
+    Edition.objects.filter(pk=edition.pk).update(
+        registration_closes_at=timezone.make_aware(datetime(2099, 2, 28, 23, 59))
+    )
+    page = home()
+    page.hero_slides = [("poster", {**POSTER, "show_registration_end": True})]
+    page.save()
+
+    content = web_client.get("/").content.decode()
+
+    assert 'class="hero-poster__deadline"' in content
+    assert "28 lutego 2099" in content
+
+
+def test_poster_without_the_switch_has_no_deadline_bar(web_client):
+    page = home()
+    page.hero_slides = [("poster", POSTER)]
+    page.save()
+
+    assert "hero-poster__deadline" not in web_client.get("/").content.decode()

@@ -32,6 +32,14 @@
               {# Akapit, nie nagłówek: plakat stoi przed planszą z jedynym <h1> strony. #}
               <p class="hero-poster__title">{{ poster.title }}</p>
               {% if poster.text %}<p class="hero-poster__text">{{ poster.text }}</p>{% endif %}
+              {% comment %}
+                Data z okna rejestracji edycji (``registration.closes_at``), a nie z treści plakatu:
+                po zmianie terminu w panelu koordynatora plakat mówi nowy termin sam.
+              {% endcomment %}
+              {% if poster.show_registration_end and registration.closes_at %}
+                <p class="hero-poster__deadline">Rejestracja trwa do
+                  <strong>{{ registration.closes_at|date:"j E Y" }}</strong></p>
+              {% endif %}
               {% if poster.button_label and poster.button_url %}
                 <p class="hero-poster__actions">
                   <a class="btn hero-poster__button" href="{{ poster.button_url }}">{{ poster.button_label }}</a>

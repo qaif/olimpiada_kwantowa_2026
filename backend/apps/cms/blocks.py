@@ -354,6 +354,14 @@ class PosterSlideBlock(blocks.StructBlock):
         help_text="Adres w serwisie (np. /register/) albo pełny adres https://…",
     )
     theme = blocks.ChoiceBlock(label="kolorystyka", choices=POSTER_THEMES, default="czerwony")
+    show_registration_end = blocks.BooleanBlock(
+        label="pokaż koniec rejestracji",
+        required=False,
+        help_text=(
+            "Pasek „Rejestracja trwa do …” z datą zamknięcia rejestracji bieżącej edycji "
+            "(panel koordynatora → edycja). Bez wpisanej daty pasek się nie pokazuje."
+        ),
+    )
     registration_only = blocks.BooleanBlock(
         label="tylko przy otwartej rejestracji",
         required=False,

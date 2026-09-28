@@ -4117,6 +4117,25 @@ td.empty,
   line-height: 1.45;
 }
 
+/* Pasek z końcem rejestracji: kontrastowa naklejka jak data na afiszu. */
+.hero-poster__deadline {
+  display: inline-block;
+  margin: var(--sp-4) 0 0;
+  padding: var(--sp-2) var(--sp-4);
+  background: var(--poster-band);
+  color: var(--poster-band-ink);
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.25);
+}
+
+.hero-poster__deadline strong {
+  font-weight: 900;
+  white-space: nowrap;
+}
+
 .hero-poster__actions {
   margin: var(--sp-6) 0 0;
 }
