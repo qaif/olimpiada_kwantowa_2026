@@ -1086,6 +1086,7 @@ Edycja: `/cms/` → **Strona główna** → panel **„Slider”**:
 | Pole | Znaczenie |
 |---|---|
 | Plakaty w sliderze | plansze w stylu afisza: nadtytuł (taśma), hasło (2–4 słowa, wielkimi literami), tekst, pieczątka w kółku, przycisk z adresem (`/register/` albo `https://…`) i kolorystyka (czerwony / granatowy / papier) |
+| Obraz (JPG) w sliderze | gotowa grafika z biblioteki obrazów (JPG, PNG, WebP; najlepiej poziomo, ok. 1600×700 px), pokazywana w całości bez przycinania. Wymagany **opis obrazu** (co widać i co jest napisane — czyta go czytnik ekranu); opcjonalnie adres po kliknięciu i „tylko przy otwartej rejestracji” |
 | Aktualności w sliderze | włącza trzy najnowsze aktualności jako kolejne plansze |
 
 Po wdrożeniu slider ma już jeden plakat: **„Rozpoczęliśmy rejestrację!”** z przyciskiem „Zarejestruj

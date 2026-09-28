@@ -4005,6 +4005,34 @@ td.empty,
   outline-offset: 2px;
 }
 
+/* Plansza z gotowym obrazem (JPG z biblioteki). Obraz w całości, wyśrodkowany na granacie –
+   gotowy plakat ma napisy przy krawędziach, więc ``contain``, a nie ``cover``. */
+.hero-slide.hero-slide--image {
+  display: grid;
+  place-items: center;
+  padding: 0;
+  background: var(--navy-900);
+}
+
+.hero-image__link {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.hero-image__link:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: -6px;
+}
+
+.hero-image__img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-height: 34rem;
+  object-fit: contain;
+}
+
 /* Plakat. Afisz ma trzy warstwy: raster kropek (druk offsetowy), orbitę atomu i wielkie hasło
    na pierwszym planie. Kolory pochodzą wyłącznie z palety marki – wariant wybiera redakcja. */
 .hero-poster {

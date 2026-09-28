@@ -20,8 +20,9 @@
 <section class="hero hero--slider" data-hero-slider aria-roledescription="karuzela" aria-label="Najważniejsze informacje">
   <div class="hero-slider__viewport" data-hero-slider-viewport tabindex="-1">
     {% for block in page.hero_slides %}
-      {# Plakat „tylko przy otwartej rejestracji” znika sam poza oknem rejestracji edycji. #}
-      {% if block.block_type == "poster" %}{% if not block.value.registration_only or registration.is_open %}
+      {# Plansza „tylko przy otwartej rejestracji” znika sama poza oknem rejestracji edycji. #}
+      {% if not block.value.registration_only or registration.is_open %}
+      {% if block.block_type == "poster" %}
         {% with poster=block.value %}
           <div class="hero-slide hero-poster hero-poster--{{ poster.theme|default:'czerwony' }}" data-hero-slide
                role="group" aria-roledescription="plansza" aria-label="{{ poster.title }}">
@@ -52,7 +53,26 @@
             </div>
           </div>
         {% endwith %}
-      {% endif %}{% endif %}
+      {% elif block.block_type == "image" %}
+        {% comment %}
+          Gotowy obraz (np. plakat w JPG). ``max-1600x900`` zachowuje proporcje – obraz stoi
+          w całości na granatowym tle, bez przycinania. Pierwsza plansza ładuje się od razu,
+          dalsze leniwie.
+        {% endcomment %}
+        {% with slide=block.value %}
+          <div class="hero-slide hero-slide--image" data-hero-slide
+               role="group" aria-roledescription="plansza" aria-label="{{ slide.alt }}">
+            {% if slide.link_url %}<a class="hero-image__link" href="{{ slide.link_url }}">{% endif %}
+            {% if forloop.first %}
+              {% image slide.image max-1600x900 alt=slide.alt class="hero-image__img" decoding="async" %}
+            {% else %}
+              {% image slide.image max-1600x900 alt=slide.alt class="hero-image__img" decoding="async" loading="lazy" %}
+            {% endif %}
+            {% if slide.link_url %}</a>{% endif %}
+          </div>
+        {% endwith %}
+      {% endif %}
+      {% endif %}
     {% endfor %}
 
     <div class="hero-slide hero-slide--intro" data-hero-slide role="group" aria-roledescription="plansza"

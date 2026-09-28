@@ -4,11 +4,16 @@ Plakat „Rozpoczęliśmy rejestrację!” wstawia migracja ``cms.0029`` na stro
 witryny – na produkcji ma się pokazać zaraz po wdrożeniu, bez wizyty redakcji w ``/cms/``.
 """
 
+from io import BytesIO
+
 import pytest
 from django.core.exceptions import ValidationError
+from django.core.files.images import ImageFile
+from PIL import Image as PILImage
 from wagtail.blocks.struct_block import StructBlockValidationError
+from wagtail.images import get_image_model
 
-from apps.cms.blocks import PosterSlideBlock
+from apps.cms.blocks import ImageSlideBlock, PosterSlideBlock
 from apps.cms.models import HomePage, NewsIndexPage, NewsPage
 
 pytestmark = pytest.mark.django_db
@@ -111,3 +116,63 @@ def test_registration_poster_disappears_when_registration_is_not_open(web_client
     content = web_client.get("/").content.decode()
 
     assert "Rozpoczęliśmy rejestrację!" not in content
+
+
+def make_jpeg(title: str = "Plakat grafika"):
+    buffer = BytesIO()
+    PILImage.new("RGB", (160, 70), (161, 15, 15)).save(buffer, format="JPEG")
+    buffer.seek(0)
+    return get_image_model().objects.create(title=title, file=ImageFile(buffer, name="plakat.jpg"))
+
+
+def test_uploaded_jpg_becomes_a_slide_with_alt_text_and_link(web_client, settings, tmp_path):
+    settings.MEDIA_ROOT = str(tmp_path)
+    page = home()
+    page.hero_slides = [
+        (
+            "image",
+            {
+                "image": make_jpeg(),
+                "alt": "Plakat: rejestracja do 28 lutego 2027",
+                "link_url": "/register/",
+                "registration_only": False,
+            },
+        )
+    ]
+    page.save()
+
+    content = web_client.get("/").content.decode()
+
+    assert 'class="hero-slide hero-slide--image"' in content
+    assert 'alt="Plakat: rejestracja do 28 lutego 2027"' in content
+    assert 'class="hero-image__link" href="/register/"' in content
+    # Pierwsza plansza ładuje się od razu – leniwe ładowanie dostają dopiero dalsze.
+    slide = content[content.index("hero-slide--image") :]
+    assert 'loading="lazy"' not in slide[: slide.index("</div>")]
+
+
+def test_image_slide_link_is_validated_like_the_poster_button(settings, tmp_path):
+    settings.MEDIA_ROOT = str(tmp_path)
+    block = ImageSlideBlock()
+    value = {
+        "image": make_jpeg(),
+        "alt": "Plakat",
+        "link_url": "javascript:alert(1)",
+        "registration_only": False,
+    }
+
+    with pytest.raises(StructBlockValidationError) as error:
+        block.clean(block.to_python({**value, "image": value["image"].pk}))
+
+    assert set(error.value.block_errors) == {"link_url"}
+
+
+def test_image_slide_requires_alt_text(settings, tmp_path):
+    settings.MEDIA_ROOT = str(tmp_path)
+    block = ImageSlideBlock()
+    value = {"image": make_jpeg().pk, "alt": "", "link_url": "", "registration_only": False}
+
+    with pytest.raises(StructBlockValidationError) as error:
+        block.clean(block.to_python(value))
+
+    assert set(error.value.block_errors) == {"alt"}
