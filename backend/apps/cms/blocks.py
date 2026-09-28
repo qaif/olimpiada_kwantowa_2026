@@ -354,6 +354,14 @@ class PosterSlideBlock(blocks.StructBlock):
         help_text="Adres w serwisie (np. /register/) albo pełny adres https://…",
     )
     theme = blocks.ChoiceBlock(label="kolorystyka", choices=POSTER_THEMES, default="czerwony")
+    show_registration_end = blocks.BooleanBlock(
+        label="pokaż koniec rejestracji",
+        required=False,
+        help_text=(
+            "Pasek „Rejestracja trwa do …” z datą zamknięcia rejestracji bieżącej edycji "
+            "(panel koordynatora → edycja). Bez wpisanej daty pasek się nie pokazuje."
+        ),
+    )
     registration_only = blocks.BooleanBlock(
         label="tylko przy otwartej rejestracji",
         required=False,
@@ -381,10 +389,59 @@ class PosterSlideBlock(blocks.StructBlock):
         label = "plakat"
 
 
+class ImageSlideBlock(blocks.StructBlock):
+    """Plansza z gotowym obrazem (np. plakat od grafika w JPG) w sliderze strony głównej.
+
+    Obraz pokazujemy **w całości** (bez przycinania) na granatowym tle: gotowy plakat ma napisy
+    przy krawędziach, a przycięcie zjadłoby datę albo logotyp. Opis alternatywny jest wymagany –
+    napis wtopiony w JPG jest dla czytnika ekranu niewidoczny, więc opis musi go powtórzyć.
+    """
+
+    image = ImageChooserBlock(
+        label="obraz",
+        help_text=(
+            "JPG, PNG albo WebP z biblioteki obrazów. Najlepiej poziomy, ok. 1600×700 px – "
+            "obraz pokazuje się w całości, bez przycinania."
+        ),
+    )
+    alt = blocks.CharBlock(
+        label="opis obrazu",
+        max_length=250,
+        help_text="Co widać i co jest napisane na obrazie – czyta to czytnik ekranu.",
+    )
+    link_url = blocks.CharBlock(
+        label="adres po kliknięciu",
+        max_length=300,
+        required=False,
+        help_text="Opcjonalnie: adres w serwisie (np. /register/) albo pełny adres https://…",
+    )
+    registration_only = blocks.BooleanBlock(
+        label="tylko przy otwartej rejestracji",
+        required=False,
+        help_text="Obraz znika sam, gdy okno rejestracji bieżącej edycji jest zamknięte.",
+    )
+
+    def clean(self, value):
+        value = super().clean(value)
+        url = value.get("link_url") or ""
+        if url and not SAFE_POSTER_URL.fullmatch(url):
+            raise StructBlockValidationError(
+                block_errors={
+                    "link_url": ValidationError("Podaj adres w serwisie (od „/”) albo pełny adres https://…")
+                }
+            )
+        return value
+
+    class Meta:
+        icon = "image"
+        label = "obraz (JPG)"
+
+
 class HeroSlidesStreamBlock(blocks.StreamBlock):
     """Plansze slidera w nagłówku strony głównej – obok stałej planszy z hasłem serwisu."""
 
     poster = PosterSlideBlock()
+    image = ImageSlideBlock()
 
     class Meta:
         required = False

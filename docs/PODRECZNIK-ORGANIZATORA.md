@@ -1085,8 +1085,10 @@ Edycja: `/cms/` → **Strona główna** → panel **„Slider”**:
 
 | Pole | Znaczenie |
 |---|---|
-| Plakaty w sliderze | plansze w stylu afisza: nadtytuł (taśma), hasło (2–4 słowa, wielkimi literami), tekst, pieczątka w kółku, przycisk z adresem (`/register/` albo `https://…`) i kolorystyka (czerwony / granatowy / papier) |
+| Plakaty w sliderze | plansze w stylu afisza: nadtytuł (taśma), hasło (2–4 słowa, wielkimi literami), tekst, pieczątka w kółku, przycisk z adresem (`/register/` albo `https://…`), kolorystyka (czerwony / granatowy / papier) i **„pokaż koniec rejestracji”** – pasek „Rejestracja trwa do …” z datą zamknięcia rejestracji ustawioną w panelu koordynatora (zmiana terminu w panelu zmienia plakat sama) |
+| Obraz (JPG) w sliderze | gotowa grafika z biblioteki obrazów (JPG, PNG, WebP; najlepiej poziomo, ok. 1600×700 px), pokazywana w całości bez przycinania. Wymagany **opis obrazu** (co widać i co jest napisane — czyta go czytnik ekranu); opcjonalnie adres po kliknięciu i „tylko przy otwartej rejestracji” |
 | Aktualności w sliderze | włącza trzy najnowsze aktualności jako kolejne plansze |
+| Plansza z hasłem w sliderze | plansza „Przyszłość ma naturę kwantową.” z wprowadzeniem, przyciskami „Zarejestruj się / Zaloguj się”, datą końca rejestracji i bieżącym etapem. Wyłączona znika ze slidera (hasło zostaje na stronie jako niewidoczny nagłówek dla wyszukiwarek i czytników ekranu); wraca sama, gdy slider nie ma żadnej innej planszy |
 
 Po wdrożeniu slider ma już jeden plakat: **„Rozpoczęliśmy rejestrację!”** z przyciskiem „Zarejestruj
 się”. Gdy rejestracja się zamknie, zdejmij go albo zmień treść — plakat jest tekstem redakcyjnym i nie

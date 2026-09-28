@@ -4,11 +4,17 @@ Plakat „Rozpoczęliśmy rejestrację!” wstawia migracja ``cms.0029`` na stro
 witryny – na produkcji ma się pokazać zaraz po wdrożeniu, bez wizyty redakcji w ``/cms/``.
 """
 
+import re
+from io import BytesIO
+
 import pytest
 from django.core.exceptions import ValidationError
+from django.core.files.images import ImageFile
+from PIL import Image as PILImage
 from wagtail.blocks.struct_block import StructBlockValidationError
+from wagtail.images import get_image_model
 
-from apps.cms.blocks import PosterSlideBlock
+from apps.cms.blocks import ImageSlideBlock, PosterSlideBlock
 from apps.cms.models import HomePage, NewsIndexPage, NewsPage
 
 pytestmark = pytest.mark.django_db
@@ -21,6 +27,7 @@ POSTER = {
     "button_label": "Zarejestruj się",
     "button_url": "/register/",
     "theme": "czerwony",
+    "show_registration_end": False,
     "registration_only": False,
 }
 
@@ -111,3 +118,122 @@ def test_registration_poster_disappears_when_registration_is_not_open(web_client
     content = web_client.get("/").content.decode()
 
     assert "Rozpoczęliśmy rejestrację!" not in content
+
+
+def make_jpeg(title: str = "Plakat grafika"):
+    buffer = BytesIO()
+    PILImage.new("RGB", (160, 70), (161, 15, 15)).save(buffer, format="JPEG")
+    buffer.seek(0)
+    return get_image_model().objects.create(title=title, file=ImageFile(buffer, name="plakat.jpg"))
+
+
+def test_uploaded_jpg_becomes_a_slide_with_alt_text_and_link(web_client, settings, tmp_path):
+    settings.MEDIA_ROOT = str(tmp_path)
+    page = home()
+    page.hero_slides = [
+        (
+            "image",
+            {
+                "image": make_jpeg(),
+                "alt": "Plakat: rejestracja do 28 lutego 2027",
+                "link_url": "/register/",
+                "registration_only": False,
+            },
+        )
+    ]
+    page.save()
+
+    content = web_client.get("/").content.decode()
+
+    assert 'class="hero-slide hero-slide--image"' in content
+    assert 'alt="Plakat: rejestracja do 28 lutego 2027"' in content
+    assert 'class="hero-image__link" href="/register/"' in content
+    # Pierwsza plansza ładuje się od razu – leniwe ładowanie dostają dopiero dalsze.
+    slide = content[content.index("hero-slide--image") :]
+    assert 'loading="lazy"' not in slide[: slide.index("</div>")]
+
+
+def test_image_slide_link_is_validated_like_the_poster_button(settings, tmp_path):
+    settings.MEDIA_ROOT = str(tmp_path)
+    block = ImageSlideBlock()
+    value = {
+        "image": make_jpeg(),
+        "alt": "Plakat",
+        "link_url": "javascript:alert(1)",
+        "registration_only": False,
+    }
+
+    with pytest.raises(StructBlockValidationError) as error:
+        block.clean(block.to_python({**value, "image": value["image"].pk}))
+
+    assert set(error.value.block_errors) == {"link_url"}
+
+
+def test_image_slide_requires_alt_text(settings, tmp_path):
+    settings.MEDIA_ROOT = str(tmp_path)
+    block = ImageSlideBlock()
+    value = {"image": make_jpeg().pk, "alt": "", "link_url": "", "registration_only": False}
+
+    with pytest.raises(StructBlockValidationError) as error:
+        block.clean(block.to_python(value))
+
+    assert set(error.value.block_errors) == {"alt"}
+
+
+def test_intro_slide_can_be_switched_off_but_the_h1_stays(web_client):
+    """Bez planszy z hasłem strona nadal ma dokładnie jeden <h1> – ukryty dla oka."""
+    page = home()
+    page.hero_slides = [("poster", POSTER)]
+    page.hero_show_intro = False
+    page.save()
+
+    content = web_client.get("/").content.decode()
+
+    assert "hero-slide--intro" not in content
+    assert "Rozpoczęliśmy rejestrację!" in content
+    # Nagłówek strony w testowej bazie zależy od drzewa z migracji – porównujemy z nim, nie z hasłem.
+    heading = page.hero_title or page.title
+    assert f'<h1 class="visually-hidden">{heading}</h1>' in content
+    assert len(re.findall(r"<h1\b", content)) == 1
+
+
+def test_intro_slide_comes_back_when_the_slider_would_be_empty(web_client):
+    page = home()
+    page.hero_slides = []
+    page.hero_show_news = False
+    page.hero_show_intro = False
+    page.save()
+
+    content = web_client.get("/").content.decode()
+
+    assert "hero-slide--intro" in content
+    assert '<h1 class="visually-hidden">' not in content
+
+
+def test_poster_shows_the_registration_end_from_the_edition(web_client, edition):
+    """Koniec rejestracji na plakacie pochodzi z okna rejestracji edycji, a nie z treści plakatu."""
+    from datetime import datetime
+
+    from django.utils import timezone
+
+    from apps.competitions.models import Edition
+
+    Edition.objects.filter(pk=edition.pk).update(
+        registration_closes_at=timezone.make_aware(datetime(2099, 2, 28, 23, 59))
+    )
+    page = home()
+    page.hero_slides = [("poster", {**POSTER, "show_registration_end": True})]
+    page.save()
+
+    content = web_client.get("/").content.decode()
+
+    assert 'class="hero-poster__deadline"' in content
+    assert "28 lutego 2099" in content
+
+
+def test_poster_without_the_switch_has_no_deadline_bar(web_client):
+    page = home()
+    page.hero_slides = [("poster", POSTER)]
+    page.save()
+
+    assert "hero-poster__deadline" not in web_client.get("/").content.decode()

@@ -4005,6 +4005,34 @@ td.empty,
   outline-offset: 2px;
 }
 
+/* Plansza z gotowym obrazem (JPG z biblioteki). Obraz w całości, wyśrodkowany na granacie –
+   gotowy plakat ma napisy przy krawędziach, więc ``contain``, a nie ``cover``. */
+.hero-slide.hero-slide--image {
+  display: grid;
+  place-items: center;
+  padding: 0;
+  background: var(--navy-900);
+}
+
+.hero-image__link {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.hero-image__link:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: -6px;
+}
+
+.hero-image__img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-height: 34rem;
+  object-fit: contain;
+}
+
 /* Plakat. Afisz ma trzy warstwy: raster kropek (druk offsetowy), orbitę atomu i wielkie hasło
    na pierwszym planie. Kolory pochodzą wyłącznie z palety marki – wariant wybiera redakcja. */
 .hero-poster {
@@ -4015,6 +4043,7 @@ td.empty,
   --poster-band-ink: #fff;
   --poster-dot: rgba(255, 255, 255, 0.14);
   --poster-art: rgba(255, 255, 255, 0.9);
+  --poster-logo-k: var(--navy-900);
   --poster-button-bg: #fff;
   --poster-button-ink: var(--red-700);
   display: grid;
@@ -4032,7 +4061,8 @@ td.empty,
   --poster-bg-deep: var(--navy-900);
   --poster-band: var(--red-600);
   --poster-dot: rgba(239, 138, 130, 0.16);
-  --poster-art: var(--red-300);
+  --poster-art: rgba(244, 241, 232, 0.9);
+  --poster-logo-k: var(--red-500);
   --poster-button-bg: var(--red-600);
   --poster-button-ink: #fff;
 }
@@ -4043,7 +4073,8 @@ td.empty,
   --poster-ink: var(--navy-900);
   --poster-band: var(--red-600);
   --poster-dot: rgba(161, 15, 15, 0.12);
-  --poster-art: var(--red-600);
+  --poster-art: var(--navy-900);
+  --poster-logo-k: var(--red-700);
   --poster-button-bg: var(--navy-900);
   --poster-button-ink: #fff;
 }
@@ -4089,6 +4120,25 @@ td.empty,
   line-height: 1.45;
 }
 
+/* Pasek z końcem rejestracji: kontrastowa naklejka jak data na afiszu. */
+.hero-poster__deadline {
+  display: inline-block;
+  margin: var(--sp-4) 0 0;
+  padding: var(--sp-2) var(--sp-4);
+  background: var(--poster-band);
+  color: var(--poster-band-ink);
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.25);
+}
+
+.hero-poster__deadline strong {
+  font-weight: 900;
+  white-space: nowrap;
+}
+
 .hero-poster__actions {
   margin: var(--sp-6) 0 0;
 }
@@ -4127,22 +4177,54 @@ td.empty,
   color: var(--poster-art);
 }
 
-.hero-poster__atom {
+/* Znak Olimpiady: sfera Blocha z literą „K” (logotyp). Obraca się sfera – południk, którego
+   rzut ma szerokość ``r·cos θ``, to elipsa skalowana w poziomie od 1 przez 0 do −1 i z powrotem;
+   drugi południk idzie ćwierć obrotu później. ``non-scaling-stroke`` trzyma grubość kreski
+   niezależnie od skali. „K” (strzałka stanu i dwa ramiona) stoi w miejscu jak w logotypie. */
+.hero-poster__sphere {
   width: min(100%, 17rem);
   height: auto;
-  animation: hero-poster-spin 40s linear infinite;
+  overflow: visible;
 }
 
-.hero-poster__nucleus,
-.hero-poster__electron {
-  fill: currentColor;
+.hero-poster__meridian,
+.hero-poster__k-arms {
+  transform-box: view-box;
+  transform-origin: 100px 106px;
+  animation: hero-poster-sphere-turn 9s ease-in-out infinite;
 }
 
-/* Pieczątka: okrągły stempel przybity ukośnie na orbitę. */
+.hero-poster__meridian,
+.hero-poster__k-arms line {
+  vector-effect: non-scaling-stroke;
+}
+
+/* Grot strzałki stanu „oddycha” – delikatnie, żeby nie konkurował z hasłem plakatu. */
+.hero-poster__arrowhead {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: hero-poster-arrow-pulse 3s ease-in-out infinite;
+}
+
+.hero-poster__meridian--late {
+  animation-delay: -2.25s;
+}
+
+.hero-poster__k {
+  stroke: var(--poster-logo-k);
+  fill: var(--poster-logo-k);
+}
+
+.hero-poster__k line {
+  stroke-linecap: butt;
+}
+
+/* Pieczątka: okrągły stempel przybity ukośnie na sferę – po lewej, bo po prawej stoją ramiona
+   litery „K” ze znaku i stempel zasłoniłby logotyp. */
 .hero-poster__stamp {
   position: absolute;
-  right: 4%;
-  bottom: 6%;
+  left: 0;
+  bottom: 4%;
   display: grid;
   place-items: center;
   width: 7.5rem;
@@ -4162,14 +4244,41 @@ td.empty,
   box-shadow: 0 0 0 5px var(--poster-band);
 }
 
-@keyframes hero-poster-spin {
-  to {
-    transform: rotate(360deg);
+@keyframes hero-poster-arrow-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.15);
+  }
+}
+
+@keyframes hero-poster-sphere-turn {
+  0%,
+  100% {
+    transform: scaleX(1);
+  }
+
+  50% {
+    transform: scaleX(-1);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .hero-poster__atom {
+  /* Bez ruchu sfera stoi tak, jak w logotypie: jeden wąski południk. */
+  .hero-poster__meridian {
+    animation: none;
+    transform: scaleX(0.18);
+  }
+
+  .hero-poster__meridian--late {
+    display: none;
+  }
+
+  .hero-poster__k-arms,
+  .hero-poster__arrowhead {
     animation: none;
   }
 
@@ -4213,7 +4322,8 @@ td.empty,
   --poster-band: #ffe500;
   --poster-band-ink: #000;
   --poster-dot: transparent;
-  --poster-art: #ffe500;
+  --poster-art: #fff;
+  --poster-logo-k: #ffe500;
   --poster-button-bg: #ffe500;
   --poster-button-ink: #000;
 }
