@@ -1222,8 +1222,9 @@ Listy są dodatkiem, nie jedynym sygnałem:
 **1.9** rejestru nowego odbiorcę (dostawca poczty wychodzącej) i kategorię danych (obserwowane wątki,
 ustawienia powiadomień). Wypis jednym kliknięciem jest formą prawa sprzeciwu z art. 21.
 
-**Czego forum nie ma i w wersji pierwszej mieć nie będzie:** wiadomości prywatnych (rozmowa
-niepełnoletnich bez świadków jest dokładnie tym, czego moderacja nie widzi), załączników i HTML-a
+**Czego forum nie ma i w wersji pierwszej mieć nie będzie:** wiadomości prywatnych na forum (rozmowa
+niepełnoletnich bez świadków jest dokładnie tym, czego moderacja nie widzi – rozmowy 1:1 prowadzi osobny
+moduł Wiadomości z własnymi trybami moderacji, § 6.4a), załączników i HTML-a
 (wypowiedź jest tekstem, odnośniki stają się klikalne same), polubień i rankingów (zawody mają już jeden
 ranking i jest anonimowy), awatarów i podpisów.
 
@@ -1242,6 +1243,77 @@ natychmiast, ale wiersz zostaje — żeby zgłoszona wypowiedź nie mogła znikn
 **bez kopii treści wypowiedzi**. RODO: forum ma własny wiersz w rejestrze czynności przetwarzania
 (wersja 1.2), wpisy uczestnika wchodzą do paczki `/account/export/`, a anonimizacja konta zdejmuje podpis
 (zostaje „Użytkownik usunięty”), zostawiając rozmowę czytelną.
+
+### 6.4a Wiadomości — `/coordinator/chat/`
+
+Rozmowy 1:1 na platformie, jak w komunikatorze LinkedIn: lista rozmów po lewej, wątek po prawej.
+Wiadomości czyta się **w serwisie** — e-mail jest tylko sygnałem „masz nową wiadomość” (bez treści)
+i każdy może go wyłączyć. Dwa kanały:
+
+| Kanał | Kto zaczyna | Moderacja |
+|---|---|---|
+| **Organizator ↔ uczestnik** | Ty („Napisz wiadomość” na karcie uczestnika) albo uczestnik („Napisz do organizatora”) | nigdy |
+| **Uczestnik ↔ uczestnik** | uczestnik – do osoby z katalogu, gdy tryb nie jest „wyłączone” | zależnie od trybu |
+
+**Skrzynka organizatora jest wspólna.** Każdy koordynator konkursu widzi każdą rozmowę organizatorską
+i odpowiada w imieniu zespołu — uczestnik widzi podpis „Organizator · Imię N.”. Otwarcie wątku oznacza go
+jako przeczytany dla wszystkich. Tutaj widzisz **pełne** dane uczestnika (imię, nazwisko, kod) i odnośnik
+do jego karty. Odznaka przy „Komunikacja → Wiadomości” liczy nieprzeczytane rozmowy i kolejkę moderacji.
+
+| Kto | Gdzie |
+|---|---|
+| Uczestnik | „Wiadomości” w pasku konta i w pasku panelu `/me/` (z liczbą nieprzeczytanych) → `/me/messages/` |
+| Koordynator | `/coordinator/chat/` — skrzynka (filtr „Nieprzeczytane”); `/coordinator/chat/<id>/` — wątek |
+| Koordynator | `/coordinator/chat/moderation/` — kolejka; `/coordinator/chat/settings/` — ustawienia |
+
+**Tryby rozmów między uczestnikami** (`/coordinator/chat/settings/`, domyślnie **wyłączone**):
+
+- **wyłączone** — katalogu nie ma, nowych rozmów nie da się zacząć, istniejące są tylko do odczytu,
+- **premoderacja** — każda wiadomość czeka na Twoją akceptację; odbiorca nie widzi jej wcześniej.
+  Odrzucenie wymaga notatki, którą zobaczy nadawca,
+- **postmoderacja** — wiadomość dochodzi od razu, a Ty przeglądasz ją po fakcie: „Przejrzane” albo „Ukryj”
+  (odbiorca widzi wtedy „Wiadomość ukryta przez moderatora”),
+- **bez moderacji** — wiadomość dochodzi od razu i nikt jej nie czyta; widzisz **wyłącznie zgłoszone**.
+
+**W czasie etapu przyjmującego rozwiązania** (poza treningiem) tryby „postmoderacja” i „bez moderacji”
+zamieniają się same w **premoderację** — ta sama reguła, co na forum: rozmowa 1:1 w trakcie zawodów jest
+najprostszą drogą do zmowy. Ekran ustawień mówi wtedy wprost, który etap wymusił zmianę, a uczestnik
+widzi to samo zdanie nad formularzem. „Wyłączone” zostaje wyłączone.
+
+**Kolejka moderacji** ma trzy listy: czekające (premoderacja; „Akceptuj”, „Odrzuć” z notatką,
+„Akceptuj zaznaczone”), do przejrzenia (postmoderacja) i zgłoszone (każdy tryb; „Ukryj wiadomość” —
+zamyka też zgłoszenie — albo „Zamknij zgłoszenie”). Przy pozycji stoi nadawca, odbiorca i kilka
+poprzednich wiadomości rozmowy. Każda decyzja trafia do dziennika zdarzeń (`chat.*`) **bez treści**.
+
+**Prywatność — czego nie zobaczysz.** Nie ma ekranu „przeglądaj rozmowy uczestników”. Treść rozmowy
+między uczestnikami widzisz wyłącznie w kolejce i wyłącznie w zakresie, o którym nadawca wiedział, pisząc:
+nad formularzem czyta „Wiadomości mogą być czytane przez organizatora w ramach moderacji” (premoderacja,
+postmoderacja) albo „Organizator widzi tylko zgłoszone wiadomości” (bez moderacji). Wiadomości wysłane
+bez moderacji nie wchodzą nawet do kontekstu zgłoszenia innej wiadomości tej samej rozmowy.
+
+**Katalog uczestników jest dobrowolny.** Do nowej rozmowy można zaprosić tylko osobę, która sama włączyła
+„Inni uczestnicy mogą mnie znaleźć i do mnie napisać”. Katalog pokazuje imię, pierwszą literę nazwiska
+i województwo — nigdy e-mail, szkołę ani kod `OLM-…`. Uczestnik może **zablokować** drugiego uczestnika
+(ten dostaje neutralne „Nie można wysłać wiadomości do tej osoby”) i **zgłosić** wiadomość — zgłoszenie
+działa w każdym trybie, także w rozmowie, która po wyłączeniu kanału jest tylko do odczytu.
+
+**Szyfrowanie end-to-end (opcjonalne).** Przełącznik na ekranie ustawień, dostępny **tylko w trybie „bez
+moderacji”** — zmiana trybu przy włączonym szyfrowaniu jest odrzucana („najpierw wyłącz szyfrowanie”).
+Nowe rozmowy między uczestnikami są wtedy szyfrowane w przeglądarkach (WebCrypto): serwer i Ty widzicie
+wyłącznie szyfrogram. Uczestnik ustawia własne **hasło do wiadomości** (inne niż hasło konta; nie znamy
+go i nie zresetujemy — „Utwórz nowy klucz” oznacza utratę dostępu do starych wiadomości szyfrowanych).
+Rozmowy szyfrowane są **tylko do odczytu** w czasie etapu wymuszającego premoderację i po wyłączeniu
+szyfrowania. Zgłoszenie wiadomości szyfrowanej niesie treść odszyfrowaną przez zgłaszającego — przy
+pozycji stoi dopisek, że serwer nie może potwierdzić jej autentyczności. Kanał organizatora nie jest
+szyfrowany nigdy.
+
+**Wyłączenie modułu** („Wiadomości włączone” na ekranie ustawień) chowa go uczestnikom (pozycje menu
+znikają, adresy odpowiadają 404); rozmowy zostają w bazie. Pozycja w Twoim menu prowadzi wtedy do ustawień.
+
+**RODO:** Wiadomości mają własny wiersz w rejestrze czynności („Wiadomości na platformie”, wersja 1.10),
+wysłane wiadomości wchodzą do paczki `/account/export/` (szyfrowane — jako szyfrogram z adnotacją), a
+anonimizacja konta zostawia wiadomości w rozmowie drugiej strony z podpisem „Użytkownik usunięty”
+i usuwa profil katalogu, klucz szyfrowania, blokady i ustawienia powiadomień.
 
 ### 6.5 FAQ
 

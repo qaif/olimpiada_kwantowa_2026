@@ -546,6 +546,13 @@ def anonymise_account(user: User, *, actor: User | None = None, request=None) ->
 
     erase_forum_notifications(user)
 
+    # Wiadomości (zadanie CZ-01): wiadomości zostają w rozmowie drugiej strony z podpisem
+    # „Użytkownik usunięty” (``display_author`` po wytarciu imienia), a profil katalogu, klucz
+    # szyfrowania, blokady i ustawienie listów znikają – nie są częścią niczyjej rozmowy.
+    from apps.chat.services import erase_for_user as erase_chat_state
+
+    erase_chat_state(user)
+
     _drop_credentials(user)
     audit(actor or user, "account.anonymised", user, {"user_id": user.pk}, request=request)
     return user

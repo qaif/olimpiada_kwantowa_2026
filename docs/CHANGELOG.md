@@ -8,6 +8,36 @@ dokładnie jednemu wierszowi tej tabeli.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## [Unreleased] – Wiadomości (czat)
+
+- **Nowe:** Wiadomości 1:1 na platformie (`apps/chat`, zadanie CZ-01) – lista rozmów i wątek jak
+  w komunikatorze LinkedIn, odświeżanie wątku co 15 s i wysyłka bez przeładowania (htmx, bez skryptu
+  w treści strony). Kanał **organizator ↔ uczestnik** (wspólna skrzynka koordynatorów, podpis
+  „Organizator · Imię N.”, „Napisz wiadomość” na karcie uczestnika) jest domyślnie włączony i nigdy
+  nie jest moderowany; kanał **uczestnik ↔ uczestnik** ma tryby wyłączone (domyślnie) / premoderacja /
+  postmoderacja / bez moderacji, a w czasie etapu przyjmującego rozwiązania zaostrza się do premoderacji
+  (reguła forum, `stage_forcing_pre_moderation`).
+- **Nowe:** katalog uczestników opt-in (tylko „Imię N.” i województwo, token zamiast identyfikatora
+  w adresie), blokowanie i zgłaszanie wiadomości, kolejka moderacji `/coordinator/chat/moderation/`
+  (akceptacja, odrzucenie z notatką, ukrycie, „przejrzane”, akceptacja zbiorcza), ustawienia
+  `/coordinator/chat/settings/`; każda decyzja w audycie (`chat.*`) bez treści.
+- **Nowe:** odznaka „Komunikacja → Wiadomości” (nieprzeczytane rozmowy + kolejka, jedno zapytanie)
+  i licznik nieprzeczytanych w pasku konta i panelu `/me/` (jedno zapytanie; budżety `/me/` 51,
+  `/coordinator/` 52).
+- **Nowe:** list „masz nową wiadomość” bez treści (`ChatNotificationSettings`, domyślnie włączony),
+  najwyżej jeden na rozmowę na 3 h i kolejny dopiero po otwarciu wątku; wiadomość do organizatora –
+  do każdego koordynatora wg jego ustawienia. Ustawienia (katalog, list) w sekcji „Wiadomości” ekranu
+  „Edycja danych”.
+- **Nowe:** opcjonalne szyfrowanie end-to-end rozmów między uczestnikami (tylko w trybie „bez
+  moderacji”): WebCrypto ECDH P-256 → HKDF-SHA-256 → AES-GCM, kopia klucza prywatnego chroniona
+  PBKDF2-SHA-256 (600 000 iteracji) hasłem do wiadomości, którego serwer nie zna (`static/js/chat-e2e.js`,
+  `chat-ui.js`; testy `node --test backend/js_tests`). Rozmowy szyfrowane tylko do odczytu w czasie
+  etapu; zgłoszenie niesie kopię odszyfrowaną przez zgłaszającego.
+- **RODO:** rejestr czynności 1.10 – nowy wiersz „Wiadomości na platformie”, doprecyzowane zdanie forum
+  o wiadomościach prywatnych; eksport konta: `wiadomosci_wyslane`, `ustawienia_wiadomosci`;
+  anonimizacja zostawia wiadomości („Użytkownik usunięty”) i usuwa profil katalogu, klucz, blokady
+  i ustawienia.
+
 ## [Unreleased] – konfiguracja proxy przy każdym wdrożeniu (`caddy reload`)
 
 - **Poprawka:** zmiany `deploy/Caddyfile` (nagłówki, trasy, domeny) nie docierały na produkcję –
