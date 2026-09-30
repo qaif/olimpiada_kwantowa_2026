@@ -96,6 +96,22 @@
     }
   });
 
+  /* Wylogowanie zamyka też rozmowy szyfrowane (zadanie CZ-01, § 11): odblokowany klucz prywatny
+   * leży w IndexedDB przeglądarki (``static/js/chat-ui.js``) i nie może przeżyć sesji, z której
+   * ktoś właśnie wyszedł – np. na wspólnym komputerze w szkolnej pracowni. Tutaj, a nie w skrypcie
+   * czatu, bo przycisk „Wyloguj” stoi na każdej stronie serwisu. */
+  document.addEventListener("submit", function (event) {
+    const form = event.target;
+    const action = form && form.getAttribute ? form.getAttribute("action") || "" : "";
+    if (/\/logout\/$/.test(action) && window.indexedDB) {
+      try {
+        window.indexedDB.deleteDatabase("olimpiada-chat");
+      } catch (error) {
+        /* Przeglądarka bez IndexedDB (tryb prywatny) nie ma czego czyścić. */
+      }
+    }
+  });
+
   /* HTMX: błąd sieci nie może zostawić użytkownika bez informacji. */
   document.addEventListener("htmx:responseError", function (event) {
     const status = event.detail && event.detail.xhr ? event.detail.xhr.status : "?";
