@@ -32,6 +32,7 @@ import base64
 import binascii
 import hashlib
 import logging
+from datetime import timedelta
 
 from django.db import IntegrityError, transaction
 from django.db.models import Count, Exists, Max, OuterRef, Q, Subquery
@@ -45,10 +46,13 @@ from . import notifications
 from .models import (
     MAX_BODY_LENGTH,
     MAX_CIPHERTEXT_LENGTH,
+    MAX_DAILY_NEW_CONVERSATIONS,
     MAX_KDF_ITERATIONS,
     MAX_REASON_LENGTH,
+    MIN_DAILY_NEW_CONVERSATIONS,
     MIN_KDF_ITERATIONS,
     MODERATED_MODES,
+    AgePolicy,
     ChatBlock,
     ChatKey,
     ChatNotificationSettings,
@@ -57,10 +61,12 @@ from .models import (
     Conversation,
     ConversationKind,
     ConversationMember,
+    ConversationStatus,
     Message,
     MessageReport,
     MessageStatus,
     PeerMode,
+    ReplyTemplate,
     SenderRole,
 )
 
@@ -73,6 +79,10 @@ AUDIT_MESSAGE_HIDDEN = "chat.message_hidden"
 AUDIT_MESSAGE_REVIEWED = "chat.message_reviewed"
 AUDIT_REPORT_RESOLVED = "chat.report_resolved"
 AUDIT_SETTINGS_CHANGED = "chat.settings_changed"
+AUDIT_ASSIGNED = "chat.assigned"
+AUDIT_STATUS_CHANGED = "chat.status_changed"
+AUDIT_TEMPLATE_SAVED = "chat.template_saved"
+AUDIT_TEMPLATE_DELETED = "chat.template_deleted"
 
 #: Odmowa, która **nie zdradza powodu**. Zablokowany uczestnik, konto usunięte i osoba, która
 #: wypisała się z katalogu, dostają to samo zdanie: „zablokował cię” byłoby informacją, której
@@ -82,6 +92,10 @@ CANNOT_SEND = "Nie można wysłać wiadomości do tej osoby."
 PEER_OFF = "Organizator wyłączył rozmowy między uczestnikami – ta rozmowa jest teraz tylko do odczytu."
 BLOCKED_BY_ME = "Zablokowałeś tę osobę. Odblokuj ją, jeśli chcesz napisać."
 NEEDS_KEY = "Ta rozmowa jest szyfrowana – skonfiguruj szyfrowanie, żeby w niej pisać."
+#: Rozmowa zamknięta przez zasadę grupy wiekowej (§ 12.3). Neutralnie – bez „ta osoba jest
+#: pełnoletnia”: wiek drugiej strony nie jest informacją, którą czat komukolwiek podaje.
+AGE_CLOSED = "Ta rozmowa została zamknięta zgodnie z zasadami konkursu."
+DAILY_LIMIT = "Osiągnięto dzienny limit nowych rozmów – spróbuj jutro."
 
 #: Stany wiadomości, które odbiorca **w ogóle** widzi w wątku. Ukryta zostaje na swoim miejscu
 #: z informacją, że zdjął ją moderator – wycięcie jej bez śladu robiłoby z odpowiedzi drugiej
@@ -145,7 +159,15 @@ def e2e_writable(row: ChatSettings, mode: PeerMode) -> bool:
 
 @transaction.atomic
 def save_settings(
-    *, competition, actor, enabled: bool, peer_mode: str, e2e_enabled: bool = False, request=None
+    *,
+    competition,
+    actor,
+    enabled: bool,
+    peer_mode: str,
+    e2e_enabled: bool = False,
+    age_policy: str | None = None,
+    daily_new_conversations: int | None = None,
+    request=None,
 ) -> ChatSettings:
     """Zapisuje ustawienia modułu. Wiersz powstaje przy pierwszym zapisie; zmiana idzie do audytu.
 
@@ -169,12 +191,44 @@ def save_settings(
             "CHAT_E2E_NEEDS_NONE",
             http.HTTP_400_BAD_REQUEST,
         )
-    before = {"enabled": row.enabled, "peer_mode": row.peer_mode, "e2e_enabled": row.e2e_enabled}
+    age_policy = age_policy or row.age_policy
+    if age_policy not in AgePolicy.values:
+        raise DomainError("Nieznana zasada wieku.", "CHAT_AGE_POLICY_UNKNOWN", http.HTTP_400_BAD_REQUEST)
+    limit = row.daily_new_conversations if daily_new_conversations is None else daily_new_conversations
+    try:
+        limit = int(limit)
+    except TypeError, ValueError:
+        limit = 0
+    if not MIN_DAILY_NEW_CONVERSATIONS <= limit <= MAX_DAILY_NEW_CONVERSATIONS:
+        raise DomainError(
+            f"Dzienny limit nowych rozmów musi być liczbą od {MIN_DAILY_NEW_CONVERSATIONS} "
+            f"do {MAX_DAILY_NEW_CONVERSATIONS}.",
+            "CHAT_DAILY_LIMIT_RANGE",
+            http.HTTP_400_BAD_REQUEST,
+        )
+    before = {
+        "enabled": row.enabled,
+        "peer_mode": row.peer_mode,
+        "e2e_enabled": row.e2e_enabled,
+        "age_policy": row.age_policy,
+        "daily_new_conversations": row.daily_new_conversations,
+    }
     row.enabled = bool(enabled)
     row.peer_mode = peer_mode
     row.e2e_enabled = bool(e2e_enabled)
+    row.age_policy = age_policy
+    row.daily_new_conversations = limit
     row.updated_at = timezone.now()
-    row.save(update_fields=["enabled", "peer_mode", "e2e_enabled", "updated_at"])
+    row.save(
+        update_fields=[
+            "enabled",
+            "peer_mode",
+            "e2e_enabled",
+            "age_policy",
+            "daily_new_conversations",
+            "updated_at",
+        ]
+    )
     audit(
         actor,
         AUDIT_SETTINGS_CHANGED,
@@ -184,10 +238,61 @@ def save_settings(
             "enabled": row.enabled,
             "peer_mode": row.peer_mode,
             "e2e_enabled": row.e2e_enabled,
+            "age_policy": row.age_policy,
+            "daily_new_conversations": row.daily_new_conversations,
         },
         request=request,
     )
     return row
+
+
+# --- grupa wiekowa (§ 12.3) ----------------------------------------------------------------------------
+
+
+def _adult_cutoff(today):
+    """Najpóźniejsza data urodzenia osoby, która **dziś** ma skończone 18 lat.
+
+    29 lutego bez odpowiednika w roku sprzed 18 lat zamienia się na 28 lutego – urodzony
+    29.02 kończy 18 lat 1 marca, więc 28.02 jest ostatnim dniem, który się dziś „łapie”.
+    """
+    try:
+        return today.replace(year=today.year - 18)
+    except ValueError:
+        return today.replace(year=today.year - 18, day=28)
+
+
+def is_adult(participant, today=None) -> bool:
+    """Czy uczestnik jest **dziś** pełnoletni. Jedyne miejsce tej reguły w Wiadomościach.
+
+    Z pełnej daty urodzenia – dokładnie. Z samego rocznika – **ostrożnie**: osoba jest traktowana
+    jako niepełnoletnia, dopóki ``rok_bieżący − rocznik > 18`` nie jest prawdą, czyli przez cały rok,
+    w którym kończy 18 lat (nie wiemy, czy urodziny już były). Rocznik nieznany (``0``) albo
+    nieprawdopodobny – niepełnoletnia. Pomyłka w tę stronę kosztuje dorosłego jedną zamkniętą
+    rozmowę; w drugą – rozmowę dziecka z dorosłym bez świadków.
+    """
+    today = today or timezone.localdate()
+    if participant.birth_date is not None:
+        return participant.birth_date <= _adult_cutoff(today)
+    year = participant.birth_year or 0
+    if year < 1900:
+        return False
+    return today.year - year > 18
+
+
+def adult_q(prefix: str = "", today=None) -> Q:
+    """:func:`is_adult` zapisane jako warunek SQL – do filtrowania katalogu jednym zapytaniem."""
+    today = today or timezone.localdate()
+    return Q(**{f"{prefix}birth_date__isnull": False, f"{prefix}birth_date__lte": _adult_cutoff(today)}) | Q(
+        **{
+            f"{prefix}birth_date__isnull": True,
+            f"{prefix}birth_year__gte": 1900,
+            f"{prefix}birth_year__lt": today.year - 18,
+        }
+    )
+
+
+def same_age_group(a, b, today=None) -> bool:
+    return is_adult(a, today) == is_adult(b, today)
 
 
 # --- dostęp ----------------------------------------------------------------------------------------
@@ -298,6 +403,11 @@ def directory(participant, query: str = ""):
         # Przy szyfrowaniu nowa rozmowa jest zawsze szyfrowana, a do tego obie strony muszą mieć
         # klucz. Osoba bez klucza w katalogu byłaby przyciskiem „Napisz”, który nie może zadziałać.
         rows = rows.filter(participant__chat_key__isnull=False)
+    if settings_for(competition).age_policy == AgePolicy.SAME_GROUP:
+        # Katalog pokazuje wyłącznie osoby z tej samej grupy wiekowej – i niczego nie mówi o wieku:
+        # osoba z drugiej grupy po prostu w nim nie występuje.
+        adults = adult_q("participant__")
+        rows = rows.filter(adults) if is_adult(participant) else rows.exclude(adults)
     text = (query or "").strip()
     if text:
         rows = rows.filter(participant__user__first_name__icontains=text)
@@ -478,6 +588,16 @@ def _organizer_conversation(participant) -> Conversation:
         return organizer_conversation_of(participant)
 
 
+def _check_daily_limit(participant, row: ChatSettings, now=None) -> None:
+    """Dzienny limit **nowych** rozmów między uczestnikami (§ 12.4) – okno kroczące 24 h."""
+    now = now or timezone.now()
+    started = Conversation.objects.filter(
+        kind=ConversationKind.PEER, started_by=participant, created_at__gte=now - timedelta(hours=24)
+    ).count()
+    if started >= row.daily_new_conversations:
+        raise DomainError(DAILY_LIMIT, "CHAT_DAILY_LIMIT", http.HTTP_400_BAD_REQUEST)
+
+
 def _peer_conversation(a, b, *, encrypted: bool = False) -> Conversation:
     """Rozmowa pary uczestników – istniejąca albo nowa. ``encrypted`` liczy się **wyłącznie** przy
     zakładaniu: istniejąca rozmowa zostaje taka, jaka była (``Conversation.is_encrypted``)."""
@@ -493,6 +613,7 @@ def _peer_conversation(a, b, *, encrypted: bool = False) -> Conversation:
                 participant_low=low,
                 participant_high=high,
                 is_encrypted=encrypted,
+                started_by=a,
             )
             ConversationMember.objects.bulk_create(
                 [
@@ -640,6 +761,11 @@ def peer_write_refusal(
     other = other_participant(conversation, participant)
     if other is None or not other.user.is_active:
         return CANNOT_SEND
+    row = row or settings_for(conversation.competition)
+    if row.age_policy == AgePolicy.SAME_GROUP and not same_age_group(participant, other):
+        # Sprawdzane przy **każdej** wiadomości, nie tylko przy zaczęciu rozmowy: w trakcie rozmowy
+        # jedna ze stron mogła skończyć 18 lat.
+        return AGE_CLOSED
     if has_blocked(participant, other):
         return BLOCKED_BY_ME
     if has_blocked(other, participant):
@@ -820,6 +946,9 @@ def send_participant_message(
         **content,
     )
     _mark_sender_side_read(conversation, participant=participant, now=now)
+    if conversation.is_organizer:
+        # Wiadomość uczestnika zawsze czeka na zespół – także w rozmowie zamkniętej (§ 12.2).
+        _set_status(conversation, ConversationStatus.OPEN, now)
     if status == MessageStatus.PUBLISHED:
         _deliver(message, now, request)
     return message
@@ -883,6 +1012,7 @@ def start_peer_conversation(*, user, competition, token: str, body: str, request
         if not can_start_with(participant, profile) or has_blocked(participant, other):
             raise DomainError(CANNOT_SEND, "CHAT_CANNOT_START", http.HTTP_400_BAD_REQUEST)
         _clean_body(body)
+        _check_daily_limit(participant, row)
         existing = _peer_conversation(participant, other)
     return send_participant_message(
         user=user, competition=competition, conversation=existing, body=body, request=request
@@ -918,6 +1048,7 @@ def open_encrypted_conversation(*, user, competition, token: str, request=None) 
         raise DomainError(NEEDS_KEY, "CHAT_E2E_NO_KEY", http.HTTP_400_BAD_REQUEST)
     if not can_start_with(participant, profile) or has_blocked(participant, other):
         raise DomainError(CANNOT_SEND, "CHAT_CANNOT_START", http.HTTP_400_BAD_REQUEST)
+    _check_daily_limit(participant, row)
     return _peer_conversation(participant, other, encrypted=True)
 
 
@@ -941,7 +1072,50 @@ def organizer_conversation(competition, pk) -> Conversation:
     return conversation
 
 
-def organizer_inbox(competition, *, unread_only: bool = False):
+#: Filtry skrzynki organizatora (§ 12.2): kto, a osobno – w jakim stanie.
+INBOX_MINE = "mine"
+INBOX_UNASSIGNED = "unassigned"
+INBOX_UNREAD = "unread"
+STATUS_ALL = "all"
+
+
+def _organizer_rows(competition):
+    return Conversation.objects.for_competition(competition).filter(kind=ConversationKind.ORGANIZER)
+
+
+def _inbox_filter(rows, *, user, who: str = "", status: str = ConversationStatus.OPEN):
+    if status in ConversationStatus.values:
+        rows = rows.filter(status=status)
+    if who == INBOX_MINE:
+        rows = rows.filter(assigned_to=user)
+    elif who == INBOX_UNASSIGNED:
+        rows = rows.filter(assigned_to__isnull=True)
+    elif who == INBOX_UNREAD:
+        rows = rows.filter(organizer_unread_since__isnull=False)
+    return rows
+
+
+def organizer_inbox_counts(competition, *, user, status: str = ConversationStatus.OPEN) -> dict:
+    """Liczniki przy filtrach skrzynki – **jednym** zapytaniem agregującym.
+
+    Stany liczą wszystkie rozmowy; „moje”, „nieprzypisane” i „nieprzeczytane” – w obrębie
+    wybranego stanu, bo tyle wierszy pokaże kliknięcie w dany filtr.
+    """
+    in_status = Q(status=status) if status in ConversationStatus.values else Q()
+    counts = _organizer_rows(competition).aggregate(
+        **{value.lower(): Count("pk", filter=Q(status=value)) for value in ConversationStatus.values},
+        total=Count("pk"),
+        mine=Count("pk", filter=in_status & Q(assigned_to=user)),
+        unassigned=Count("pk", filter=in_status & Q(assigned_to__isnull=True)),
+        unread=Count("pk", filter=in_status & Q(organizer_unread_since__isnull=False)),
+        everyone=Count("pk", filter=in_status),
+    )
+    return counts
+
+
+def organizer_inbox(
+    competition, *, unread_only: bool = False, user=None, who: str = "", status: str = STATUS_ALL
+):
     last = Message.objects.filter(conversation=OuterRef("pk"), status__in=DELIVERED_STATUSES).order_by(
         "-created_at", "-id"
     )
@@ -954,12 +1128,12 @@ def organizer_inbox(competition, *, unread_only: bool = False):
             last_role=Subquery(last.values("sender_role")[:1]),
             last_created_at=Subquery(last.values("created_at")[:1]),
         )
-        .select_related("participant__user")
+        .select_related("participant__user", "assigned_to")
         .order_by("-last_message_at", "-id")
     )
     if unread_only:
         rows = rows.filter(organizer_unread_since__isnull=False)
-    return rows
+    return _inbox_filter(rows, user=user, who=who, status=status)
 
 
 def organizer_messages(conversation: Conversation):
@@ -972,9 +1146,13 @@ def organizer_messages(conversation: Conversation):
 
 @transaction.atomic
 def send_organizer_message(
-    *, user, competition, conversation: Conversation, body: str, request=None
+    *, user, competition, conversation: Conversation, body: str, close: bool = False, request=None
 ) -> Message:
-    """Odpowiedź zespołu organizatora. Kanał organizatora nie ma moderacji – nigdy."""
+    """Odpowiedź zespołu organizatora. Kanał organizatora nie ma moderacji – nigdy.
+
+    Odpowiedź przestawia rozmowę na „czeka na uczestnika” (albo „zamknięta” przy „Odpowiedz
+    i zamknij”) – piłka jest po drugiej stronie, a w skrzynce „otwarte” zostaje to, co czeka na zespół.
+    """
     ensure_organizer(user, competition)
     ensure_enabled(competition)
     if not conversation.is_organizer or conversation.competition_id != competition.pk:
@@ -996,8 +1174,112 @@ def send_organizer_message(
         created_at=now,
     )
     _mark_sender_side_read(conversation, now=now)
+    _set_status(conversation, ConversationStatus.CLOSED if close else ConversationStatus.WAITING, now)
     _deliver(message, now, request)
     return message
+
+
+def _set_status(conversation: Conversation, status: str, now=None) -> bool:
+    """Automatyczne przejście stanu rozmowy organizatorskiej. Oddaje, czy stan się zmienił."""
+    if conversation.status == status:
+        return False
+    now = now or timezone.now()
+    Conversation.objects.filter(pk=conversation.pk).update(status=status, status_changed_at=now)
+    conversation.status = status
+    conversation.status_changed_at = now
+    return True
+
+
+@transaction.atomic
+def set_status(*, conversation: Conversation, actor, competition, status: str, request=None) -> Conversation:
+    """Ręczna zmiana stanu rozmowy organizatorskiej (skrzynka koordynatora). Audyt."""
+    ensure_organizer(actor, competition)
+    if not conversation.is_organizer or conversation.competition_id != competition.pk:
+        raise _not_found()
+    if status not in ConversationStatus.values:
+        raise DomainError("Nieznany stan rozmowy.", "CHAT_STATUS_UNKNOWN", http.HTTP_400_BAD_REQUEST)
+    before = conversation.status
+    if _set_status(conversation, status):
+        audit(actor, AUDIT_STATUS_CHANGED, conversation, {"before": before, "after": status}, request=request)
+    return conversation
+
+
+@transaction.atomic
+def assign(*, conversation: Conversation, actor, competition, assignee, request=None) -> Conversation:
+    """Przypisuje rozmowę organizatorską koordynatorowi **tego** konkursu (albo zdejmuje przypisanie).
+
+    Walidacja w serwisie, nie tylko w liście wyboru: przypisanie osobie spoza zespołu (recenzentowi,
+    koordynatorowi innej olimpiady) byłoby wskazaniem kogoś, kto tej rozmowy nie może nawet otworzyć.
+    """
+    ensure_organizer(actor, competition)
+    if not conversation.is_organizer or conversation.competition_id != competition.pk:
+        raise _not_found()
+    if assignee is not None and not is_organizer(assignee, competition):
+        raise DomainError(
+            "Rozmowę można przypisać wyłącznie koordynatorowi tego konkursu.",
+            "CHAT_ASSIGNEE_NOT_COORDINATOR",
+            http.HTTP_400_BAD_REQUEST,
+        )
+    before = conversation.assigned_to_id
+    conversation.assigned_to = assignee
+    Conversation.objects.filter(pk=conversation.pk).update(assigned_to=assignee)
+    audit(
+        actor,
+        AUDIT_ASSIGNED,
+        conversation,
+        {"before": before, "after": getattr(assignee, "pk", None)},
+        request=request,
+    )
+    return conversation
+
+
+def team_members(competition):
+    """Koordynatorzy tego konkursu – lista „przypisz do” (ta sama reguła roli, co odbiorcy listów)."""
+    from apps.accounts.messaging import _role_filter
+    from apps.accounts.models import CompetitionRole, User
+
+    return (
+        User.objects.filter(_role_filter(competition, CompetitionRole.COORDINATOR), is_active=True)
+        .distinct()
+        .order_by("first_name", "last_name", "pk")
+    )
+
+
+# --- szablony odpowiedzi (§ 12.1) ------------------------------------------------------------------------
+
+
+def reply_templates(competition):
+    return ReplyTemplate.objects.for_competition(competition).order_by("title", "id")
+
+
+@transaction.atomic
+def save_template(
+    *, competition, actor, title: str, body: str, template: ReplyTemplate | None = None, request=None
+) -> ReplyTemplate:
+    ensure_organizer(actor, competition)
+    clean_title = (title or "").strip()
+    if not clean_title or len(clean_title) > 120:
+        raise DomainError("Nazwa szablonu: 1–120 znaków.", "CHAT_TEMPLATE_TITLE", http.HTTP_400_BAD_REQUEST)
+    text = _clean_body(body)
+    if template is None:
+        template = ReplyTemplate(competition=competition, created_by=actor)
+    elif template.competition_id != competition.pk:
+        raise _not_found("Nie ma takiego szablonu.")
+    template.title = clean_title
+    template.body = text
+    template.updated_at = timezone.now()
+    template.save()
+    audit(actor, AUDIT_TEMPLATE_SAVED, template, {"title": template.title}, request=request)
+    return template
+
+
+@transaction.atomic
+def delete_template(*, competition, actor, template: ReplyTemplate, request=None) -> None:
+    ensure_organizer(actor, competition)
+    if template.competition_id != competition.pk:
+        raise _not_found("Nie ma takiego szablonu.")
+    audit(actor, AUDIT_TEMPLATE_DELETED, template, {"title": template.title}, request=request)
+    template.delete()
 
 
 @transaction.atomic
@@ -1207,7 +1489,11 @@ def moderation_count(competition) -> int:
 def organizer_unread_count(competition) -> int:
     return (
         Conversation.objects.for_competition(competition)
-        .filter(kind=ConversationKind.ORGANIZER, organizer_unread_since__isnull=False)
+        .filter(
+            kind=ConversationKind.ORGANIZER,
+            status=ConversationStatus.OPEN,
+            organizer_unread_since__isnull=False,
+        )
         .count()
     )
 
@@ -1241,7 +1527,10 @@ def coordinator_attention(competition) -> int:
             chat_enabled=Subquery(ChatSettings.objects.filter(competition=here).values("enabled")[:1]),
             chat_unread=counted(
                 Conversation.objects.filter(
-                    competition=here, kind=ConversationKind.ORGANIZER, organizer_unread_since__isnull=False
+                    competition=here,
+                    kind=ConversationKind.ORGANIZER,
+                    status=ConversationStatus.OPEN,
+                    organizer_unread_since__isnull=False,
                 ),
                 "competition",
             ),

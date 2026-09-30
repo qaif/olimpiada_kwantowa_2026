@@ -355,6 +355,12 @@ i zawsze jest napisane **nad formularzem**:
 - **w czasie etapu przyjmującego rozwiązania** każda wiadomość do innego uczestnika czeka na akceptację
   organizatora. O zadaniach otwartego etapu nie wolno rozmawiać (regulamin § 10 ust. 2 i § 17).
 
+**Kto jest w katalogu.** Domyślnie rozmawiasz wyłącznie z osobami z **tej samej grupy wiekowej**
+(niepełnoletni z niepełnoletnimi, pełnoletni z pełnoletnimi) – tak ustawia to organizator. Jeśli ktoś
+w trakcie rozmowy skończy 18 lat, rozmowa zostanie zamknięta („Ta rozmowa została zamknięta zgodnie
+z zasadami konkursu”). Nowych rozmów możesz zacząć najwyżej kilka na dobę (limit ustala organizator,
+zwykle 5); odpowiadać w trwających rozmowach możesz bez tego limitu.
+
 **Zgłoś i Zablokuj.** „Zgłoś” przy wiadomości drugiej osoby wysyła organizatorowi jedno zdanie i tę
 wiadomość. „Zablokuj” w rozmowie sprawia, że ta osoba nie napisze do Ciebie ani nie zacznie nowej rozmowy
 (zobaczy tylko „Nie można wysłać wiadomości do tej osoby”); „Odblokuj” stoi w tym samym miejscu.

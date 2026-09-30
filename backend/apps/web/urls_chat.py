@@ -34,6 +34,11 @@ urlpatterns = [
         name="coordinator-chat-moderation",
     ),
     path(
+        "coordinator/chat/templates/",
+        coordinator_chat.CoordinatorChatTemplatesView.as_view(),
+        name="coordinator-chat-templates",
+    ),
+    path(
         "coordinator/chat/settings/",
         coordinator_chat.CoordinatorChatSettingsView.as_view(),
         name="coordinator-chat-settings",

@@ -1266,6 +1266,20 @@ do jego karty. Odznaka przy „Komunikacja → Wiadomości” liczy nieprzeczyta
 | Koordynator | `/coordinator/chat/` — skrzynka (filtr „Nieprzeczytane”); `/coordinator/chat/<id>/` — wątek |
 | Koordynator | `/coordinator/chat/moderation/` — kolejka; `/coordinator/chat/settings/` — ustawienia |
 
+**Stan i przypisanie rozmowy.** Każda rozmowa organizatorska ma stan: **otwarta** (czeka na zespół),
+**czeka na uczestnika**, **zamknięta**. Przejścia są automatyczne: wiadomość uczestnika otwiera rozmowę
+(także zamkniętą), Twoja odpowiedź przestawia ją na „czeka na uczestnika”, a przycisk **„Odpowiedz
+i zamknij”** – na „zamknięta”. W wątku możesz ją **przypisać do siebie** albo innemu koordynatorowi
+i ręcznie zmienić stan (każda zmiana w audycie `chat.assigned` / `chat.status_changed`). Skrzynka ma
+filtry stanu (domyślnie „otwarta”) i „Moje / Nieprzypisane / Nieprzeczytane” z licznikami; odznaka w menu
+liczy otwarte rozmowy z nieprzeczytaną wiadomością uczestnika (plus kolejkę moderacji). Uczestnik nie
+widzi ani stanu, ani przypisania – dla niego zawsze pisze „Organizator”.
+
+**Szablony odpowiedzi** — `/coordinator/chat/templates/` (przycisk „Szablony odpowiedzi” w skrzynce):
+gotowe teksty na powtarzające się pytania. W wątku „Wstaw szablon” wkleja treść w miejscu kursora,
+a znacznik `{imie}` zamienia się na imię uczestnika tej rozmowy. Szablony działają wyłącznie w kanale
+organizatora.
+
 **Tryby rozmów między uczestnikami** (`/coordinator/chat/settings/`, domyślnie **wyłączone**):
 
 - **wyłączone** — katalogu nie ma, nowych rozmów nie da się zacząć, istniejące są tylko do odczytu,
@@ -1290,6 +1304,18 @@ między uczestnikami widzisz wyłącznie w kolejce i wyłącznie w zakresie, o k
 nad formularzem czyta „Wiadomości mogą być czytane przez organizatora w ramach moderacji” (premoderacja,
 postmoderacja) albo „Organizator widzi tylko zgłoszone wiadomości” (bez moderacji). Wiadomości wysłane
 bez moderacji nie wchodzą nawet do kontekstu zgłoszenia innej wiadomości tej samej rozmowy.
+
+**Grupa wiekowa** (ustawienia, domyślnie **„tylko w tej samej grupie wiekowej”**): niepełnoletni
+rozmawiają wyłącznie z niepełnoletnimi, pełnoletni – z pełnoletnimi. Pełnoletność liczymy **dziś**
+z daty urodzenia, a przy samym roczniku ostrożnie: osoba jest niepełnoletnia przez cały rok, w którym
+kończy 18 lat. Zasada działa w katalogu, przy zaczęciu rozmowy i przy **każdej** wiadomości – gdy
+ktoś w trakcie rozmowy skończy 18 lat, rozmowa zamyka się z neutralnym zdaniem „Ta rozmowa została
+zamknięta zgodnie z zasadami konkursu” (wieku drugiej osoby nie pokazujemy nigdzie). „Bez ograniczeń
+wieku” wybieraj świadomie – ekran ostrzega, że dorośli będą mogli rozmawiać 1:1 z niepełnoletnimi.
+
+**Dzienny limit nowych rozmów** (ustawienia, domyślnie **5**, zakres 1–50): ile nowych rozmów z innymi
+uczestnikami jedna osoba może zacząć w ciągu ostatnich 24 h. Odpowiedzi w trwających rozmowach
+i rozmowy z organizatorem limitu nie mają (ogranicza je ogólny limit żądań).
 
 **Katalog uczestników jest dobrowolny.** Do nowej rozmowy można zaprosić tylko osobę, która sama włączyła
 „Inni uczestnicy mogą mnie znaleźć i do mnie napisać”. Katalog pokazuje imię, pierwszą literę nazwiska

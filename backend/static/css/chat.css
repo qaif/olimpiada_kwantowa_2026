@@ -307,3 +307,44 @@
   min-width: 0;
   max-width: 100%;
 }
+
+/* --- skrzynka organizatora: stan, przypisanie, szablony (§ 12.1–12.2) ------------------------------ */
+
+.chat-list__meta {
+  grid-column: 1 / -1;
+  font-size: 0.8125rem;
+}
+
+.chat-thread__manage {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-top: var(--sp-2);
+}
+
+.chat-thread__manage select {
+  max-width: 100%;
+}
+
+.chat-templates {
+  margin-bottom: var(--sp-2);
+}
+
+.chat-templates summary {
+  cursor: pointer;
+  color: var(--link);
+}
+
+.chat-templates__list {
+  list-style: none;
+  margin: var(--sp-2) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.chat-templates__body {
+  overflow-wrap: anywhere;
+}

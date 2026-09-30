@@ -10,6 +10,7 @@
       <a class="chat-list__link" href="{{ row.url }}"{% if row.current %} aria-current="page"{% endif %}>
         <span class="chat-list__name">{{ row.label }}{% if row.unread %}<span class="chat-dot" aria-hidden="true"></span><span class="visually-hidden"> – nieprzeczytane</span>{% endif %}</span>
         {% if row.at %}<span class="chat-list__time">{{ row.at|local_datetime }}</span>{% endif %}
+        {% if row.status_label %}<span class="chat-list__meta hint">{{ row.status_label }}{% if row.assigned %} · {{ row.assigned }}{% endif %}</span>{% endif %}
         <span class="chat-list__snippet">{% if row.own %}Ty: {% endif %}{% if row.hidden %}Wiadomość ukryta przez moderatora{% elif row.encrypted %}<span data-e2e-message data-e2e-snippet data-conversation-id="{{ row.conversation.pk }}" data-sender-key="{{ row.sender_key }}" data-recipient-key="{{ row.recipient_key }}" data-ciphertext="{{ row.ciphertext }}" data-iv="{{ row.iv }}"><span data-e2e-plaintext>Wiadomość zaszyfrowana</span></span>{% else %}{{ row.snippet|snippet }}{% endif %}</span>
       </a>
     </li>

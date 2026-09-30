@@ -99,6 +99,38 @@ class PeerMode(models.TextChoices):
 MODERATED_MODES = (PeerMode.PRE, PeerMode.POST)
 
 
+class AgePolicy(models.TextChoices):
+    """Kto z kim może rozmawiać w kanale między uczestnikami (§ 12.3 zadania).
+
+    Domyślnie ``SAME_GROUP``: niepełnoletni piszą wyłącznie z niepełnoletnimi, pełnoletni –
+    z pełnoletnimi. Rozmowa 1:1 dorosłego z dzieckiem bez świadków jest tym, czego organizator
+    zawodów dla młodzieży nie ma prawa ułatwiać bez świadomej decyzji; ``ANY`` jest tą decyzją
+    (ekran ustawień ostrzega przed nią wprost).
+    """
+
+    SAME_GROUP = "SAME_GROUP", "tylko w tej samej grupie wiekowej"
+    ANY = "ANY", "bez ograniczeń wieku"
+
+
+#: Domyślny i graniczne limity nowych rozmów między uczestnikami na dobę (§ 12.4).
+DEFAULT_DAILY_NEW_CONVERSATIONS = 5
+MIN_DAILY_NEW_CONVERSATIONS = 1
+MAX_DAILY_NEW_CONVERSATIONS = 50
+
+
+class ConversationStatus(models.TextChoices):
+    """Stan rozmowy organizatorskiej w skrzynce zespołu (§ 12.2). Uczestnik go nie widzi.
+
+    Przejścia automatyczne: wiadomość uczestnika → ``OPEN`` (także z ``CLOSED`` – zamknięta sprawa,
+    do której ktoś dopisał, znów czeka na zespół), odpowiedź koordynatora → ``WAITING`` (albo
+    ``CLOSED`` przy „Odpowiedz i zamknij”).
+    """
+
+    OPEN = "OPEN", "otwarta"
+    WAITING = "WAITING", "czeka na uczestnika"
+    CLOSED = "CLOSED", "zamknięta"
+
+
 class ConversationKind(models.TextChoices):
     ORGANIZER = "ORGANIZER", "z organizatorem"
     PEER = "PEER", "między uczestnikami"
@@ -158,6 +190,18 @@ class ChatSettings(models.Model):
     #: szyfrowanie jest uczciwe tylko tam, gdzie organizator i tak obiecał, że treści nie czyta.
     #: Regułę pilnuje serwis (``apps.chat.services.save_settings``), nie tylko formularz.
     e2e_enabled = models.BooleanField("szyfrowanie end-to-end", default=False)
+    age_policy = models.CharField(
+        "grupa wiekowa w rozmowach uczestników",
+        max_length=12,
+        choices=AgePolicy.choices,
+        default=AgePolicy.SAME_GROUP,
+    )
+    #: Ile **nowych** rozmów z innymi uczestnikami można zacząć w ciągu 24 h (okno kroczące). Limit
+    #: chroni przed masowym „zagadywaniem” całego katalogu; odpowiedzi w istniejących rozmowach
+    #: ogranicza osobno limit żądań ``chat``.
+    daily_new_conversations = models.PositiveSmallIntegerField(
+        "nowe rozmowy uczestnika na dobę", default=DEFAULT_DAILY_NEW_CONVERSATIONS
+    )
     updated_at = models.DateTimeField("zmienione", default=timezone.now)
 
     objects = competition_scoped_manager("competition")
@@ -252,6 +296,33 @@ class Conversation(models.Model):
     #: chwili) i nigdy potem nie zmieniane: rozmowa nie może w połowie przestać być szyfrowana (ani
     #: zacząć), bo obie strony czytały nad formularzem, jaka jest. Kanał organizatora – nigdy.
     is_encrypted = models.BooleanField("szyfrowana end-to-end", default=False)
+    #: Kto zaczął rozmowę między uczestnikami – podstawa dziennego limitu nowych rozmów (§ 12.4).
+    started_by = models.ForeignKey(
+        "accounts.Participant",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name="rozpoczął",
+    )
+    #: Rozmowa organizatorska w skrzynce zespołu (§ 12.2): komu przypisana i w jakim stanie. Pola
+    #: istnieją na każdej rozmowie, ale czyta je wyłącznie panel koordynatora – uczestnik widzi
+    #: zawsze tylko „Organizator”.
+    assigned_to = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="chat_assigned_conversations",
+        verbose_name="przypisana do",
+    )
+    status = models.CharField(
+        "stan (skrzynka organizatora)",
+        max_length=8,
+        choices=ConversationStatus.choices,
+        default=ConversationStatus.OPEN,
+    )
+    status_changed_at = models.DateTimeField("stan zmieniony", null=True, blank=True)
     created_at = models.DateTimeField("rozpoczęta", default=timezone.now)
     last_message_at = models.DateTimeField("ostatnia wiadomość", default=timezone.now, db_index=True)
     #: Strona organizatora: jeden stan na rozmowę, bo skrzynka jest wspólna dla koordynatorów.
@@ -309,6 +380,7 @@ class Conversation(models.Model):
             models.Index(
                 fields=["competition", "kind", "-last_message_at"], name="chat_conversation_list_idx"
             ),
+            models.Index(fields=["started_by", "created_at"], name="chat_conversation_started_idx"),
         ]
 
     def __str__(self) -> str:
@@ -541,6 +613,42 @@ class ChatBlock(models.Model):
 
     def __str__(self) -> str:
         return f"{self.blocker_id} blokuje {self.blocked_id}"
+
+
+class ReplyTemplate(models.Model):
+    """Szablon odpowiedzi koordynatora (§ 12.1) – tylko do kanału organizatora.
+
+    Znacznik ``{imie}`` podmienia przeglądarka na imię uczestnika rozmowy w chwili wstawienia do
+    pola wiadomości (``static/js/chat-templates.js``); w bazie szablon zostaje tekstem ze znacznikiem.
+    """
+
+    competition = models.ForeignKey(
+        "tenancy.Competition",
+        on_delete=models.CASCADE,
+        related_name="chat_reply_templates",
+        verbose_name="konkurs",
+    )
+    title = models.CharField("nazwa", max_length=120)
+    body = models.TextField("treść", max_length=MAX_BODY_LENGTH)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name="autor",
+    )
+    updated_at = models.DateTimeField("zmieniony", default=timezone.now)
+
+    objects = competition_scoped_manager("competition")
+
+    class Meta:
+        verbose_name = "szablon odpowiedzi"
+        verbose_name_plural = "szablony odpowiedzi"
+        ordering = ("title", "id")
+
+    def __str__(self) -> str:
+        return self.title
 
 
 class ChatKey(models.Model):

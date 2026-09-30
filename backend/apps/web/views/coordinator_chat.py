@@ -23,12 +23,26 @@ from django.http import Http404, HttpResponse
 from django.shortcuts import redirect
 from django.template.response import TemplateResponse
 from django.urls import reverse
+from django.utils.http import urlencode
 from django.views.generic import View
 
 from apps.accounts.models import Participant
 from apps.chat import services as chat
-from apps.chat.forms import PEER_MODE_HELP, ChatSettingsForm, MessageForm
-from apps.chat.models import MessageReport, MessageStatus, PeerMode, SenderRole
+from apps.chat.forms import (
+    AGE_POLICY_HELP,
+    PEER_MODE_HELP,
+    ChatSettingsForm,
+    MessageForm,
+    ReplyTemplateForm,
+)
+from apps.chat.models import (
+    AgePolicy,
+    ConversationStatus,
+    MessageReport,
+    MessageStatus,
+    PeerMode,
+    SenderRole,
+)
 from apps.core.api import DomainError
 from apps.web.coordinator_nav import invalidate_counters
 from apps.web.mixins import CoordinatorRequiredMixin
@@ -40,6 +54,7 @@ THREAD_FRAGMENT = "web/chat/_thread.html"
 MESSAGES_FRAGMENT = "web/chat/_messages.html"
 MODERATION_TEMPLATE = "web/coordinator/chat_moderation.html"
 SETTINGS_TEMPLATE = "web/coordinator/chat_settings.html"
+TEMPLATES_TEMPLATE = "web/coordinator/chat_templates.html"
 
 #: Ile pozycji kolejki naraz – bez stronicowania, jak kolejka forum: ma być pusta, nie przewijana.
 QUEUE_LIMIT = 200
@@ -95,9 +110,39 @@ class CoordinatorChatMixin(CoordinatorRequiredMixin):
 
 
 class CoordinatorInboxMixin(CoordinatorChatMixin):
-    def inbox_rows(self, *, unread_only: bool = False, current_pk=None) -> list[dict]:
+    def inbox_state(self) -> dict:
+        """Filtry skrzynki z adresu: kto (``?filter=``) i stan (``?status=``, domyślnie otwarte).
+
+        Parametry adresu, nie formularz: adres z filtrem ma dać się zapisać w zakładkach (reguła
+        kolejki zgłoszeń). Nieznana wartość to wartość domyślna, a nie 404.
+        """
+        who = self.request.GET.get("filter") or ""
+        if who not in (chat.INBOX_MINE, chat.INBOX_UNASSIGNED, chat.INBOX_UNREAD):
+            who = ""
+        status = self.request.GET.get("status") or ConversationStatus.OPEN
+        if status not in (*ConversationStatus.values, chat.STATUS_ALL):
+            status = ConversationStatus.OPEN
+        query = urlencode({key: value for key, value in (("filter", who), ("status", status)) if value})
+        return {"who": who, "status": status, "query": query}
+
+    def inbox_rows(self, *, current=None) -> list[dict]:
+        state = self.inbox_state()
+        conversations = list(
+            chat.organizer_inbox(
+                self.competition, user=self.request.user, who=state["who"], status=state["status"]
+            )[:INBOX_LIMIT]
+        )
+        current_pk = getattr(current, "pk", None)
+        if current is not None and current_pk not in {row.pk for row in conversations}:
+            # Otwarty wątek stoi na liście także wtedy, gdy nie pasuje do filtra (np. właśnie
+            # przeszedł w „czeka na uczestnika”) – inaczej lista udawałaby, że go nie ma.
+            conversations = [
+                *chat.organizer_inbox(self.competition, user=self.request.user).filter(pk=current_pk),
+                *conversations,
+            ]
+        suffix = f"?{state['query']}" if state["query"] else ""
         rows = []
-        for conversation in chat.organizer_inbox(self.competition, unread_only=unread_only)[:INBOX_LIMIT]:
+        for conversation in conversations:
             rows.append(
                 {
                     "conversation": conversation,
@@ -110,10 +155,47 @@ class CoordinatorInboxMixin(CoordinatorChatMixin):
                     "unread": conversation.organizer_unread_since is not None
                     and conversation.pk != current_pk,
                     "current": conversation.pk == current_pk,
-                    "url": reverse("web:coordinator-chat-thread", args=[conversation.pk]),
+                    "url": reverse("web:coordinator-chat-thread", args=[conversation.pk]) + suffix,
+                    "assigned": conversation.assigned_to.first_name if conversation.assigned_to_id else "",
+                    "status_label": conversation.get_status_display(),
+                    "status": conversation.status,
                 }
             )
         return rows
+
+    def inbox_context(self) -> dict:
+        state = self.inbox_state()
+        counts = chat.organizer_inbox_counts(self.competition, user=self.request.user, status=state["status"])
+        status_query = f"&status={state['status']}"
+        who_query = f"filter={state['who']}&" if state["who"] else ""
+        return {
+            "inbox_who": state["who"],
+            "inbox_status": state["status"],
+            "who_filters": [
+                {"key": "", "label": "Wszystkie", "count": counts["everyone"], "query": status_query[1:]},
+                {"key": chat.INBOX_MINE, "label": "Moje", "count": counts["mine"]},
+                {"key": chat.INBOX_UNASSIGNED, "label": "Nieprzypisane", "count": counts["unassigned"]},
+                {"key": chat.INBOX_UNREAD, "label": "Nieprzeczytane", "count": counts["unread"]},
+            ],
+            "status_filters": [
+                *(
+                    {
+                        "key": value,
+                        "label": label,
+                        "count": counts[value.lower()],
+                        "query": f"{who_query}status={value}",
+                    }
+                    for value, label in ConversationStatus.choices
+                ),
+                {
+                    "key": chat.STATUS_ALL,
+                    "label": "Wszystkie stany",
+                    "count": counts["total"],
+                    "query": f"{who_query}status={chat.STATUS_ALL}",
+                },
+            ],
+            "status_query": status_query,
+        }
 
     def entries(self, conversation) -> list[dict]:
         rows = list(chat.organizer_messages(conversation).order_by("-created_at", "-id")[:200])
@@ -166,17 +248,29 @@ class CoordinatorInboxMixin(CoordinatorChatMixin):
                 if conversation is not None and conversation.participant_id
                 else ""
             ),
+            # § 12.1–12.2: szablony odpowiedzi (z imieniem uczestnika do znacznika ``{imie}``)
+            # oraz przypisanie i stan rozmowy – wyłącznie w wątku istniejącej rozmowy.
+            "reply_templates": list(chat.reply_templates(self.competition)),
+            "participant_first_name": (
+                conversation.participant.user.first_name
+                if conversation is not None and conversation.participant_id
+                else label.split(" ")[0]
+                if label
+                else ""
+            ),
+            "team": list(chat.team_members(self.competition)) if conversation is not None else [],
+            "status_choices": ConversationStatus.choices,
+            "can_close": True,
         }
 
 
 class CoordinatorChatView(CoordinatorInboxMixin, View):
-    """``/coordinator/chat/`` – skrzynka rozmów organizatorskich; ``?filter=unread`` – nieprzeczytane."""
+    """``/coordinator/chat/`` – skrzynka rozmów organizatorskich z filtrami „kto” i „stan” (§ 12.2)."""
 
     def get(self, request):
-        unread_only = request.GET.get("filter") == "unread"
         context = {
-            "rows": self.inbox_rows(unread_only=unread_only),
-            "unread_only": unread_only,
+            "rows": self.inbox_rows(),
+            **self.inbox_context(),
             "thread_open": False,
         }
         return TemplateResponse(request, INBOX_TEMPLATE, context)
@@ -212,14 +306,63 @@ class CoordinatorChatThreadView(CoordinatorInboxMixin, ThrottledFormMixin, View)
                 return HttpResponse(status=204)
             return TemplateResponse(request, MESSAGES_FRAGMENT, self.thread_context(conversation))
         context = {
-            "rows": self.inbox_rows(current_pk=conversation.pk),
+            "rows": self.inbox_rows(current=conversation),
+            **self.inbox_context(),
             **self.thread_context(conversation),
             "thread_open": True,
         }
         return TemplateResponse(request, INBOX_TEMPLATE, context)
 
+    def _manage(self, request, conversation, action: str):
+        """Przypisanie i stan rozmowy (§ 12.2) – zwykły ``POST`` z przekierowaniem, nie htmx."""
+        try:
+            if action == "assign-me":
+                chat.assign(
+                    conversation=conversation,
+                    actor=request.user,
+                    competition=self.competition,
+                    assignee=request.user,
+                    request=request,
+                )
+                messages.success(request, "Rozmowa jest przypisana do Ciebie.")
+            elif action == "assign":
+                raw = request.POST.get("assignee") or ""
+                assignee = None
+                if raw:
+                    assignee = chat.team_members(self.competition).filter(pk=_pk(raw)).first()
+                    if assignee is None:
+                        raise DomainError(
+                            "Rozmowę można przypisać wyłącznie koordynatorowi tego konkursu.",
+                            "CHAT_ASSIGNEE_NOT_COORDINATOR",
+                        )
+                chat.assign(
+                    conversation=conversation,
+                    actor=request.user,
+                    competition=self.competition,
+                    assignee=assignee,
+                    request=request,
+                )
+                messages.success(request, "Przypisanie zostało zapisane.")
+            else:
+                chat.set_status(
+                    conversation=conversation,
+                    actor=request.user,
+                    competition=self.competition,
+                    status=request.POST.get("status") or "",
+                    request=request,
+                )
+                messages.success(request, "Stan rozmowy został zmieniony.")
+        except DomainError as exc:
+            messages.error(request, str(exc.detail))
+        invalidate_counters(self.competition)
+        query = f"?{request.GET.urlencode()}" if request.GET else ""
+        return redirect(reverse("web:coordinator-chat-thread", args=[conversation.pk]) + query)
+
     def post(self, request, pk: int):
         conversation = self._conversation(pk)
+        action = request.POST.get("action") or ""
+        if action in ("assign", "assign-me", "status"):
+            return self._manage(request, conversation, action)
         form = MessageForm(request.POST)
         error = ""
         if form.is_valid():
@@ -229,6 +372,7 @@ class CoordinatorChatThreadView(CoordinatorInboxMixin, ThrottledFormMixin, View)
                     competition=self.competition,
                     conversation=conversation,
                     body=form.cleaned_data["body"],
+                    close=request.POST.get("close") == "1",
                     request=request,
                 )
             except DomainError as exc:
@@ -245,7 +389,8 @@ class CoordinatorChatThreadView(CoordinatorInboxMixin, ThrottledFormMixin, View)
         if error:
             messages.error(request, error)
         context = {
-            "rows": self.inbox_rows(current_pk=conversation.pk),
+            "rows": self.inbox_rows(current=conversation),
+            **self.inbox_context(),
             **self.thread_context(conversation, form, error=error),
             "thread_open": True,
         }
@@ -274,6 +419,7 @@ class CoordinatorChatNewView(CoordinatorInboxMixin, ThrottledFormMixin, View):
     def _render(self, request, participant, form=None, *, status=200):
         context = {
             "rows": self.inbox_rows(),
+            **self.inbox_context(),
             **self.thread_context(None, form, form_action=request.path, label=full_name(participant)),
             "participant_card_url": reverse("web:coordinator-participant", args=[participant.pk]),
             "thread_open": True,
@@ -423,7 +569,13 @@ class CoordinatorChatSettingsView(CoordinatorChatMixin, View):
     def get(self, request):
         row = chat.settings_for(self.competition)
         form = ChatSettingsForm(
-            initial={"enabled": row.enabled, "peer_mode": row.peer_mode, "e2e_enabled": row.e2e_enabled}
+            initial={
+                "enabled": row.enabled,
+                "peer_mode": row.peer_mode,
+                "e2e_enabled": row.e2e_enabled,
+                "age_policy": row.age_policy,
+                "daily_new_conversations": row.daily_new_conversations,
+            }
         )
         return self._render(request, form, row)
 
@@ -438,6 +590,8 @@ class CoordinatorChatSettingsView(CoordinatorChatMixin, View):
                 enabled=form.cleaned_data["enabled"],
                 peer_mode=form.cleaned_data["peer_mode"],
                 e2e_enabled=form.cleaned_data["e2e_enabled"],
+                age_policy=form.cleaned_data["age_policy"],
+                daily_new_conversations=form.cleaned_data["daily_new_conversations"],
                 request=request,
             )
         except DomainError as exc:
@@ -464,5 +618,68 @@ class CoordinatorChatSettingsView(CoordinatorChatMixin, View):
                 }
                 for value, label in PeerMode.choices
             ],
+            "age_policies": [
+                {
+                    "value": value,
+                    "label": label,
+                    "help": AGE_POLICY_HELP[AgePolicy(value)],
+                    "checked": value == (form["age_policy"].value() or row.age_policy),
+                    "warning": value == AgePolicy.ANY,
+                }
+                for value, label in AgePolicy.choices
+            ],
         }
         return TemplateResponse(request, SETTINGS_TEMPLATE, context, status=status)
+
+
+class CoordinatorChatTemplatesView(CoordinatorChatMixin, View):
+    """``/coordinator/chat/templates/`` – szablony odpowiedzi (§ 12.1): lista, dodaj, edytuj, usuń.
+
+    Jeden ekran, jak działy forum: szablon ma dwa pola, a pisze się go, patrząc na te, które już są.
+    Edycja – ``?edit=<id>``; usunięcie – ``POST`` z ``action=delete``. Każdy zapis w audycie.
+    """
+
+    def _template(self, raw):
+        template = chat.reply_templates(self.competition).filter(pk=_pk(raw)).first()
+        if template is None:
+            raise Http404("Nie ma takiego szablonu.")
+        return template
+
+    def get(self, request):
+        template = self._template(request.GET["edit"]) if request.GET.get("edit") else None
+        initial = {"title": template.title, "body": template.body} if template else None
+        return self._render(request, ReplyTemplateForm(initial=initial), template)
+
+    def post(self, request):
+        template = self._template(request.POST["template"]) if request.POST.get("template") else None
+        if request.POST.get("action") == "delete" and template is not None:
+            chat.delete_template(
+                competition=self.competition, actor=request.user, template=template, request=request
+            )
+            messages.success(request, "Szablon został usunięty.")
+            return redirect(reverse("web:coordinator-chat-templates"))
+        form = ReplyTemplateForm(request.POST)
+        if not form.is_valid():
+            return self._render(request, form, template, status=400)
+        try:
+            chat.save_template(
+                competition=self.competition,
+                actor=request.user,
+                title=form.cleaned_data["title"],
+                body=form.cleaned_data["body"],
+                template=template,
+                request=request,
+            )
+        except DomainError as exc:
+            form.add_error(None, str(exc.detail))
+            return self._render(request, form, template, status=exc.status_code)
+        messages.success(request, "Szablon został zapisany.")
+        return redirect(reverse("web:coordinator-chat-templates"))
+
+    def _render(self, request, form, template, *, status: int = 200):
+        context = {
+            "form": form,
+            "template": template,
+            "templates": list(chat.reply_templates(self.competition)),
+        }
+        return TemplateResponse(request, TEMPLATES_TEMPLATE, context, status=status)

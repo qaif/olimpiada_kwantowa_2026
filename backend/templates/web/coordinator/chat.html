@@ -13,6 +13,7 @@
 {% block title %}Wiadomości – panel koordynatora{% endblock %}
 {% block scripts %}{{ block.super }}
   <script nonce="{{ request.csp_nonce }}" src="{% static 'js/chat.js' %}" defer></script>
+  <script nonce="{{ request.csp_nonce }}" src="{% static 'js/chat-templates.js' %}" defer></script>
 {% endblock %}
 {% block panel_head %}<link rel="stylesheet" href="{% static 'css/chat.css' %}">{% endblock %}
 {% block panel_title %}Wiadomości{% endblock %}
@@ -22,12 +23,25 @@
 {% endblock %}
 {% block panel_actions %}
   <a class="btn btn--small btn--secondary" href="{% url 'web:coordinator-chat-moderation' %}">Moderacja rozmów uczestników</a>
+  <a class="btn btn--small btn--ghost" href="{% url 'web:coordinator-chat-templates' %}">Szablony odpowiedzi</a>
   <a class="btn btn--small btn--ghost" href="{% url 'web:coordinator-chat-settings' %}">Ustawienia</a>
 {% endblock %}
 {% block panel_content %}
+{% comment %}
+  Filtry (§ 12.2): stan rozmowy (domyślnie otwarte – te czekają na zespół) i „kto”. Liczniki przy
+  filtrach liczy jedno zapytanie agregujące (``apps.chat.services.organizer_inbox_counts``).
+{% endcomment %}
+<nav class="row" aria-label="Stan rozmów">
+  {% for item in status_filters %}
+    <a class="btn btn--small {% if inbox_status == item.key %}btn--primary{% else %}btn--ghost{% endif %}"
+       href="{% url 'web:coordinator-chat' %}?{{ item.query }}">{{ item.label }} ({{ item.count }})</a>
+  {% endfor %}
+</nav>
 <nav class="row" aria-label="Filtr rozmów">
-  <a class="btn btn--small {% if not unread_only %}btn--primary{% else %}btn--ghost{% endif %}" href="{% url 'web:coordinator-chat' %}">Wszystkie</a>
-  <a class="btn btn--small {% if unread_only %}btn--primary{% else %}btn--ghost{% endif %}" href="{% url 'web:coordinator-chat' %}?filter=unread">Nieprzeczytane</a>
+  {% for item in who_filters %}
+    <a class="btn btn--small {% if inbox_who == item.key %}btn--primary{% else %}btn--ghost{% endif %}"
+       href="{% url 'web:coordinator-chat' %}?{% if item.key %}filter={{ item.key }}{% endif %}{{ status_query }}">{{ item.label }} ({{ item.count }})</a>
+  {% endfor %}
 </nav>
 
 <div class="chat chat--panel{% if thread_open %} chat--thread-open{% endif %}">
@@ -39,7 +53,7 @@
       {% include "web/chat/_thread.html" %}
     {% else %}
       <div class="empty">
-        <span class="empty__title">{% if rows %}Wybierz rozmowę z listy{% elif unread_only %}Nie ma nieprzeczytanych rozmów{% else %}Nikt jeszcze nie napisał{% endif %}</span>
+        <span class="empty__title">{% if rows %}Wybierz rozmowę z listy{% else %}Nie ma rozmów w tym zestawieniu{% endif %}</span>
         <p class="empty__text">Rozmowę z wybranym uczestnikiem zaczniesz przyciskiem „Napisz wiadomość” na jego
           karcie (Konta → karta uczestnika).</p>
       </div>

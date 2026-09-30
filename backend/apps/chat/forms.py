@@ -5,7 +5,28 @@ from __future__ import annotations
 from django import forms
 from django.utils.translation import gettext_lazy
 
-from .models import MAX_BODY_LENGTH, MAX_CIPHERTEXT_LENGTH, MAX_REASON_LENGTH, PeerMode
+from .models import (
+    DEFAULT_DAILY_NEW_CONVERSATIONS,
+    MAX_BODY_LENGTH,
+    MAX_CIPHERTEXT_LENGTH,
+    MAX_DAILY_NEW_CONVERSATIONS,
+    MAX_REASON_LENGTH,
+    MIN_DAILY_NEW_CONVERSATIONS,
+    AgePolicy,
+    PeerMode,
+)
+
+#: Opisy zasad wieku na ekranie ustawień – przy ``ANY`` ostrzeżenie wprost (§ 12.3).
+AGE_POLICY_HELP = {
+    AgePolicy.SAME_GROUP: (
+        "Niepełnoletni piszą wyłącznie z niepełnoletnimi, pełnoletni – z pełnoletnimi. Przy samym "
+        "roczniku osoba jest traktowana jako niepełnoletnia przez cały rok, w którym kończy 18 lat."
+    ),
+    AgePolicy.ANY: (
+        "Uwaga: dorośli uczestnicy będą mogli rozmawiać 1:1 z niepełnoletnimi. Wybieraj świadomie – "
+        "najlepiej razem z moderacją (premoderacja albo postmoderacja)."
+    ),
+}
 
 REQUIRED_CSS_CLASS = "required"
 
@@ -97,6 +118,24 @@ class ChatSettingsForm(forms.Form):
         choices=PeerMode.choices,
         widget=forms.RadioSelect,
     )
+    age_policy = forms.ChoiceField(
+        label="Grupa wiekowa w rozmowach uczestników",
+        choices=AgePolicy.choices,
+        widget=forms.RadioSelect,
+        initial=AgePolicy.SAME_GROUP,
+        # Nieobowiązkowe w formularzu: brak wartości znaczy „bez zmian” (serwis bierze zapisaną).
+        required=False,
+    )
+    daily_new_conversations = forms.IntegerField(
+        label="Nowe rozmowy jednego uczestnika na dobę",
+        min_value=MIN_DAILY_NEW_CONVERSATIONS,
+        max_value=MAX_DAILY_NEW_CONVERSATIONS,
+        initial=DEFAULT_DAILY_NEW_CONVERSATIONS,
+        required=False,
+        help_text=(
+            "Okno kroczące 24 h; nie dotyczy odpowiedzi w istniejących rozmowach ani rozmowy z organizatorem."
+        ),
+    )
     e2e_enabled = forms.BooleanField(
         label="Szyfrowanie end-to-end nowych rozmów między uczestnikami",
         required=False,
@@ -104,6 +143,20 @@ class ChatSettingsForm(forms.Form):
             "Tylko w trybie „bez moderacji”. Treści rozmów szyfrowanych nie zna serwer ani organizator – "
             "zobaczysz wyłącznie wiadomości zgłoszone, w postaci przekazanej przez zgłaszającego."
         ),
+    )
+
+
+class ReplyTemplateForm(forms.Form):
+    """Szablon odpowiedzi koordynatora. ``{imie}`` podmienia się na imię uczestnika przy wstawianiu."""
+
+    required_css_class = REQUIRED_CSS_CLASS
+
+    title = forms.CharField(label="Nazwa", max_length=120)
+    body = forms.CharField(
+        label="Treść",
+        max_length=MAX_BODY_LENGTH,
+        widget=forms.Textarea(attrs={"rows": 6}),
+        help_text="Znacznik {imie} zostanie zastąpiony imieniem uczestnika rozmowy.",
     )
 
 

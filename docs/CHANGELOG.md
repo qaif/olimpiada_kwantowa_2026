@@ -36,6 +36,12 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
   etapu; zgłoszenie niesie kopię odszyfrowaną przez zgłaszającego. AAD wiąże szyfrogram z kluczem
   publicznym nadawcy (nie z kontem), więc historia przeżywa usunięcie konta; odblokowany klucz żyje
   w przeglądarce najwyżej 12 h i znika po wylogowaniu albo wygaśnięciu sesji.
+- **Nowe (§ 12):** szablony odpowiedzi koordynatora (`/coordinator/chat/templates/`, znacznik
+  `{imie}`), stan (otwarta / czeka na uczestnika / zamknięta) i przypisanie rozmów organizatora
+  z automatycznymi przejściami, „Odpowiedz i zamknij” i filtrami skrzynki z licznikami; rozmowy
+  uczestników tylko w tej samej grupie wiekowej (domyślnie; pełnoletność ostrożnie z rocznika,
+  sprawdzana także przy każdej wiadomości); dzienny limit nowych rozmów (domyślnie 5, okno 24 h);
+  test przeglądarkowy obiegu szyfrowanego `e2e/test_chat_e2e.py`.
 - **RODO:** rejestr czynności 1.10 – nowy wiersz „Wiadomości na platformie”, doprecyzowane zdanie forum
   o wiadomościach prywatnych; eksport konta: `wiadomosci_wyslane`, `ustawienia_wiadomosci`;
   anonimizacja zostawia wiadomości („Użytkownik usunięty”) i usuwa profil katalogu, klucz, blokady

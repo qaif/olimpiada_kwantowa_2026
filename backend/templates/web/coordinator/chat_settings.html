@@ -25,7 +25,7 @@
 
 {% if forcing_stage %}
   <p class="notice notice--warning">
-    Trwa etap „{{ forcing_stage.display_name }}” i przyjmuje rozwiązania, więc <strong>niezależnie od
+    Trwa etap „<a href="{% url 'web:coordinator-stage-edit' forcing_stage.pk %}" data-forcing-stage="{{ forcing_stage.pk }}">{{ forcing_stage.display_name }}</a>” i przyjmuje rozwiązania, więc <strong>niezależnie od
     ustawienia niżej</strong> wiadomości między uczestnikami czekają teraz na Twoją akceptację
     (premoderacja), a rozmowy szyfrowane są wstrzymane – tylko do odczytu, bo ich treści nie da się
     moderować. Rozmowa 1:1 w czasie zawodów jest najprostszą drogą do zmowy. Ustawienie wróci do gry
@@ -57,6 +57,22 @@
       </p>
     {% endfor %}
   </fieldset>
+  <fieldset>
+    <legend>{{ form.age_policy.label }}</legend>
+    {{ form.age_policy.errors }}
+    {% for policy in age_policies %}
+      <p>
+        <label><input type="radio" name="age_policy" value="{{ policy.value }}"{% if policy.checked %} checked{% endif %} required>
+          <strong>{{ policy.label }}</strong></label><br>
+        <span class="{% if policy.warning %}notice notice--warning{% else %}hint{% endif %}">{{ policy.help }}</span>
+      </p>
+    {% endfor %}
+  </fieldset>
+  <p>
+    {{ form.daily_new_conversations.errors }}
+    {{ form.daily_new_conversations.label_tag }} {{ form.daily_new_conversations }}
+    <span class="helptext">{{ form.daily_new_conversations.help_text }}</span>
+  </p>
   <p>
     {{ form.e2e_enabled }} {{ form.e2e_enabled.label_tag }}
     <span class="helptext">{{ form.e2e_enabled.help_text }}</span>
