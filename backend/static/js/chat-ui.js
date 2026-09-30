@@ -21,6 +21,9 @@
   const DB_NAME = "olimpiada-chat";
   const STORE = "keys";
   const SNIPPET = 80;
+  /* Odblokowany klucz żyje w przeglądarce najwyżej tyle – potem trzeba znów podać hasło do
+   * wiadomości. Ogranicza szkodę, gdy nikt się nie wylogował (sesja wygasła, zamknięta karta). */
+  const MAX_AGE_MS = 12 * 60 * 60 * 1000;
   const MAX_LENGTH = 4000;
   const config = document.getElementById("chat-e2e");
   if (!E2E || !config || !window.indexedDB || !window.crypto || !window.crypto.subtle) return;
@@ -75,7 +78,13 @@
       .then(function (record) {
         // Klucz z innego odcisku to klucz sprzed „Utwórz nowy klucz” – nie pasuje do bieżącego
         // klucza publicznego, więc nie odszyfruje niczego nowego. Traktujemy go jak brak klucza.
-        return record && record.fingerprint === data.fingerprint ? record.key : null;
+        if (!record || record.fingerprint !== data.fingerprint) return null;
+        if (!record.storedAt || Date.now() - record.storedAt > MAX_AGE_MS) {
+          return forgetKey().then(function () {
+            return null;
+          });
+        }
+        return record.key;
       })
       .catch(function () {
         return null;
@@ -84,7 +93,7 @@
 
   function storeKey(key, fingerprint) {
     return withStore("readwrite", function (store) {
-      return store.put({ key: key, fingerprint: fingerprint }, recordId());
+      return store.put({ key: key, fingerprint: fingerprint, storedAt: Date.now() }, recordId());
     });
   }
 
@@ -128,17 +137,26 @@
     const item = element.dataset;
     const target = element.querySelector("[data-e2e-plaintext]") || element;
     if (!state.privateKey || item.e2eDone) return Promise.resolve();
-    const own = item.senderId === data.userId;
-    const myKeyUsed = own ? item.senderKey : item.recipientKey;
-    const otherKey = own ? item.recipientKey : item.senderKey;
+    // Strona rozmowy wynika z **kluczy** zapisanych na wiadomości, a nie z identyfikatora konta
+    // nadawcy – ten znika po usunięciu konta, a klucze zostają (``Message.sender_public_key``).
     element.dataset.e2eDone = "1";
-    if (myKeyUsed !== data.publicKey) {
+    let otherKey;
+    if (item.senderKey === data.publicKey) {
+      otherKey = item.recipientKey;
+    } else if (item.recipientKey === data.publicKey) {
+      otherKey = item.senderKey;
+    } else {
       target.textContent = "Wiadomość zaszyfrowana poprzednim kluczem – nie da się jej już odczytać.";
       return Promise.resolve();
     }
     return conversationKey(item.conversationId, otherKey)
       .then(function (key) {
-        return E2E.decryptMessage(key, { ciphertext: item.ciphertext, iv: item.iv }, item.conversationId, item.senderId);
+        return E2E.decryptMessage(
+          key,
+          { ciphertext: item.ciphertext, iv: item.iv },
+          item.conversationId,
+          item.senderKey,
+        );
       })
       .then(function (text) {
         const snippet = element.hasAttribute("data-e2e-snippet");
@@ -177,7 +195,9 @@
     const conversation = form.dataset.conversationId;
     return conversationKey(conversation, form.dataset.otherKey)
       .then(function (key) {
-        return E2E.encryptMessage(key, text, conversation, data.userId);
+        // AAD z **własnym** kluczem publicznym – tym samym, który serwer wpisze na wiadomość jako
+        // ``sender_public_key`` (odcisk w ukrytym polu formularza pilnuje, że to bieżący klucz).
+        return E2E.encryptMessage(key, text, conversation, data.publicKey);
       })
       .then(function (payload) {
         form.querySelector('input[name="ciphertext"]').value = payload.ciphertext;
@@ -290,11 +310,6 @@
         return E2E.unwrapPrivateKey(bundle, first, false);
       })
       .then(function (key) {
-        return E2E.fingerprint(identity.publicKey).then(function (fingerprint) {
-          return storeKey(key, fingerprint);
-        });
-      })
-      .then(function () {
         form.querySelector('input[name="public_key"]').value = identity.publicKey;
         form.querySelector('input[name="wrapped_private_key"]').value = bundle.wrapped;
         form.querySelector('input[name="kdf_salt"]').value = bundle.salt;
@@ -303,7 +318,26 @@
         inputs.forEach(function (input) {
           input.value = "";
         });
-        HTMLFormElement.prototype.submit.call(form);
+        // Klucz trafia do IndexedDB **dopiero po** przyjęciu przez serwer: odrzucony klucz
+        // zostawiony w przeglądarce udawałby „odblokowane” z kluczem, którego nikt inny nie zna.
+        return fetch(form.action, {
+          method: "POST",
+          body: new FormData(form),
+          credentials: "same-origin",
+          headers: { Accept: "text/html" },
+        }).then(function (response) {
+          if (!response.ok || !response.redirected) {
+            window.location.reload();
+            return null;
+          }
+          return E2E.fingerprint(identity.publicKey)
+            .then(function (fingerprint) {
+              return storeKey(key, fingerprint);
+            })
+            .then(function () {
+              window.location.href = response.url;
+            });
+        });
       })
       .catch(function (error) {
         if (button) button.disabled = false;

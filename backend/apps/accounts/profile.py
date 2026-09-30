@@ -336,6 +336,13 @@ def competition_footprint(user: User) -> dict:
     „co zabierze skasowanie konta”, a konto jest platformowe i kaskada nie zna granicy konkursu
     (§ 3.3). Zawężenie do konkursu z żądania pokazywałoby uczestnikowi dwóch olimpiad zero prac
     do stracenia w chwili, gdy traci komplet.
+
+    **Wiadomości (``apps.chat``) świadomie tu nie wchodzą.** Kaskada ich nie zabiera: nadawca jest
+    ``SET_NULL``, strona rozmowy ``SET_NULL``, więc druga strona zachowuje historię z podpisem
+    „Użytkownik usunięty” – także szyfrowaną, bo szyfrogram jest związany z kluczem publicznym
+    nadawcy zapisanym na wiadomości, a nie z jego kontem. Liczenie wiadomości zamieniałoby usunięcie
+    konta w anonimizację (wiersz konta zostaje) wyłącznie z powodu prywatnej rozmowy – czyli
+    zawężało prawo do usunięcia danych bez żadnej dokumentacji zawodów do ochrony.
     """
     from apps.competitions.models import StageEntry
     from apps.grading.models import Review

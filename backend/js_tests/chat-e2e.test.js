@@ -27,9 +27,9 @@ test("owinięcie hasłem i odwinięcie tym samym hasłem daje działający klucz
   const unwrapped = await E2E.unwrapPrivateKey(bundle, "dlugie-haslo-do-wiadomosci", false);
   assert.equal(unwrapped.extractable, false);
   const key = await E2E.conversationKey(unwrapped, bob.publicKey, 7);
-  const payload = await E2E.encryptMessage(key, "cześć", 7, 1);
+  const payload = await E2E.encryptMessage(key, "cześć", 7, alice.publicKey);
   const bobKey = await E2E.conversationKey(bob.privateKey, alice.publicKey, 7);
-  assert.equal(await E2E.decryptMessage(bobKey, payload, 7, 1), "cześć");
+  assert.equal(await E2E.decryptMessage(bobKey, payload, 7, alice.publicKey), "cześć");
 });
 
 test("złe hasło kończy się błędem", async () => {
@@ -56,19 +56,37 @@ test("dwie pary: obie strony wyprowadzają ten sam klucz rozmowy", async () => {
   const bob = await E2E.generateIdentity();
   const aliceKey = await E2E.conversationKey(alice.privateKey, bob.publicKey, 42);
   const bobKey = await E2E.conversationKey(bob.privateKey, alice.publicKey, 42);
-  const payload = await E2E.encryptMessage(aliceKey, "Zadanie 3 jest trudne\nale da się.", 42, 10);
-  assert.equal(await E2E.decryptMessage(bobKey, payload, 42, 10), "Zadanie 3 jest trudne\nale da się.");
+  const payload = await E2E.encryptMessage(aliceKey, "Zadanie 3 jest trudne\nale da się.", 42, alice.publicKey);
+  assert.equal(
+    await E2E.decryptMessage(bobKey, payload, 42, alice.publicKey),
+    "Zadanie 3 jest trudne\nale da się.",
+  );
   assert.equal(E2E.fromB64(payload.iv).length, 12);
 });
 
-test("zła AAD (inny nadawca albo inna rozmowa) kończy się błędem", async () => {
+test("zła AAD (inny klucz nadawcy albo inna rozmowa) kończy się błędem", async () => {
   const alice = await E2E.generateIdentity();
   const bob = await E2E.generateIdentity();
   const key = await E2E.conversationKey(alice.privateKey, bob.publicKey, 42);
-  const payload = await E2E.encryptMessage(key, "tajne", 42, 10);
-  await assert.rejects(() => E2E.decryptMessage(key, payload, 42, 11));
+  const payload = await E2E.encryptMessage(key, "tajne", 42, alice.publicKey);
+  // Ta sama treść podpisana jako wiadomość Boba – AAD z jego kluczem nie pasuje.
+  await assert.rejects(() => E2E.decryptMessage(key, payload, 42, bob.publicKey));
   const otherConversation = await E2E.conversationKey(alice.privateKey, bob.publicKey, 43);
-  await assert.rejects(() => E2E.decryptMessage(otherConversation, payload, 43, 10));
+  await assert.rejects(() => E2E.decryptMessage(otherConversation, payload, 43, alice.publicKey));
+});
+
+test("odszyfrowanie nie potrzebuje identyfikatora konta nadawcy (konto usunięte)", async () => {
+  // Odbiorca ma na wiadomości wyłącznie to, co zapisał serwer: klucze obu stron, szyfrogram i IV.
+  const alice = await E2E.generateIdentity();
+  const bob = await E2E.generateIdentity();
+  const aliceKey = await E2E.conversationKey(alice.privateKey, bob.publicKey, 9);
+  const stored = {
+    senderKey: alice.publicKey,
+    recipientKey: bob.publicKey,
+    ...(await E2E.encryptMessage(aliceKey, "zostaję po usunięciu konta", 9, alice.publicKey)),
+  };
+  const bobKey = await E2E.conversationKey(bob.privateKey, stored.senderKey, 9);
+  assert.equal(await E2E.decryptMessage(bobKey, stored, 9, stored.senderKey), "zostaję po usunięciu konta");
 });
 
 test("trzecia osoba nie odszyfruje rozmowy dwóch innych", async () => {
@@ -76,7 +94,7 @@ test("trzecia osoba nie odszyfruje rozmowy dwóch innych", async () => {
   const bob = await E2E.generateIdentity();
   const eve = await E2E.generateIdentity();
   const key = await E2E.conversationKey(alice.privateKey, bob.publicKey, 5);
-  const payload = await E2E.encryptMessage(key, "tylko dla Boba", 5, 1);
+  const payload = await E2E.encryptMessage(key, "tylko dla Boba", 5, alice.publicKey);
   const eveKey = await E2E.conversationKey(eve.privateKey, alice.publicKey, 5);
-  await assert.rejects(() => E2E.decryptMessage(eveKey, payload, 5, 1));
+  await assert.rejects(() => E2E.decryptMessage(eveKey, payload, 5, alice.publicKey));
 });

@@ -9,8 +9,12 @@
  * - klucz rozmowy: ECDH(mój prywatny, jego publiczny) → HKDF-SHA-256 (sól = identyfikator rozmowy,
  *   info = "olimpiada-chat-v1") → AES-GCM 256. Sól z identyfikatora rozmowy sprawia, że ta sama para
  *   osób ma w każdej rozmowie (i w każdym konkursie) inny klucz,
- * - wiadomość: AES-GCM z losowym IV (12 B) i AAD = "<id rozmowy>:<id nadawcy>" – szyfrogramu nie da
- *   się przenieść do innej rozmowy ani podpisać jako wiadomość drugiej strony,
+ * - wiadomość: AES-GCM z losowym IV (12 B) i AAD = "v1|<id rozmowy>|<klucz publiczny nadawcy>" –
+ *   szyfrogramu nie da się przenieść do innej rozmowy ani podpisać jako wiadomość drugiej strony.
+ *   Nadawcę wiąże jego **klucz publiczny** (SPKI, base64), a nie identyfikator konta: klucz stoi na
+ *   każdej wiadomości (serwer wpisuje go z bieżącego ``ChatKey``) i przeżywa usunięcie konta
+ *   nadawcy, a ``Message.sender`` jest wtedy ``NULL`` – AAD z identyfikatorem konta robiłaby
+ *   z historii drugiej strony nieczytelny szyfrogram,
  * - kopia klucza prywatnego na serwerze: PKCS8 zaszyfrowany AES-GCM kluczem z PBKDF2-SHA-256
  *   (≥ 600 000 iteracji, losowa sól 16 B) z hasła do wiadomości, którego serwer nie zna.
  *
@@ -123,26 +127,26 @@
     );
   }
 
-  function additionalData(conversationId, senderId) {
-    return encoder.encode(String(conversationId) + ":" + String(senderId));
+  function additionalData(conversationId, senderPublicKey) {
+    return encoder.encode("v1|" + String(conversationId) + "|" + String(senderPublicKey));
   }
 
-  async function encryptMessage(key, plaintext, conversationId, senderId) {
+  async function encryptMessage(key, plaintext, conversationId, senderPublicKey) {
     const iv = random(12);
     const ciphertext = await subtle.encrypt(
-      { name: "AES-GCM", iv: iv, additionalData: additionalData(conversationId, senderId) },
+      { name: "AES-GCM", iv: iv, additionalData: additionalData(conversationId, senderPublicKey) },
       key,
       encoder.encode(plaintext),
     );
     return { ciphertext: toB64(ciphertext), iv: toB64(iv) };
   }
 
-  async function decryptMessage(key, payload, conversationId, senderId) {
+  async function decryptMessage(key, payload, conversationId, senderPublicKey) {
     const plaintext = await subtle.decrypt(
       {
         name: "AES-GCM",
         iv: fromB64(payload.iv),
-        additionalData: additionalData(conversationId, senderId),
+        additionalData: additionalData(conversationId, senderPublicKey),
       },
       key,
       fromB64(payload.ciphertext),
