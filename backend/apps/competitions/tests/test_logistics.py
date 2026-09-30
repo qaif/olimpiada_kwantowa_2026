@@ -19,7 +19,7 @@ from datetime import date
 import pytest
 from django.core.exceptions import ValidationError
 
-from apps.accounts.processing_register import ACTIVITIES, activities_for, as_rows
+from apps.accounts.processing_register import ACTIVITIES, CHAT_ACTIVITY, activities_for, as_rows
 from apps.competitions.logistics import (
     ArrivalForm,
     AttendanceRecord,
@@ -295,22 +295,27 @@ def test_switching_collection_is_refused_without_the_flag(competition):
 
 
 def test_the_register_of_competition_one_is_unchanged(competition):
-    """Konkurs #1 nie zbiera danych logistycznych, więc jego rejestr nie rośnie o ani jeden wiersz."""
-    assert activities_for(competition) == ACTIVITIES
+    """Konkurs #1 nie zbiera danych logistycznych, więc jego rejestr nie rośnie o ani jeden wiersz.
+
+    Jedyny wiersz warunkowy, który ma tu od 30.09.2026, to Wiadomości (zadanie CZ-01) – moduł jest
+    domyślnie włączony w każdym konkursie, więc jego czynność stoi w rejestrze od razu.
+    """
+    assert activities_for(competition) == (*ACTIVITIES, CHAT_ACTIVITY)
     assert len(as_rows()) == len(ACTIVITIES)
 
 
 def test_the_register_grows_only_where_special_needs_are_collected(onsite):
-    assert activities_for(onsite) == ACTIVITIES
+    # Wiersz Wiadomości (domyślnie włączonych, zadanie CZ-01) stoi zawsze na końcu.
+    assert activities_for(onsite) == (*ACTIVITIES, CHAT_ACTIVITY)
 
     set_special_needs_collection(onsite, enabled=True)
     activities = activities_for(onsite)
 
-    assert len(activities) == len(ACTIVITIES) + 1
-    entry = activities[-1]
+    assert len(activities) == len(ACTIVITIES) + 2
+    entry = activities[len(ACTIVITIES)]
     assert entry.key == "logistyka"
     assert "art. 9" in entry.legal_basis
-    assert len(as_rows(activities)) == len(ACTIVITIES) + 1
+    assert len(as_rows(activities)) == len(ACTIVITIES) + 2
 
 
 # --- obecność ---------------------------------------------------------------------------------------
