@@ -26,7 +26,23 @@
   const MAX_AGE_MS = 12 * 60 * 60 * 1000;
   const MAX_LENGTH = 4000;
   const config = document.getElementById("chat-e2e");
-  if (!E2E || !config || !window.indexedDB || !window.crypto || !window.crypto.subtle) return;
+  if (!config) return;
+  if (!E2E || !window.indexedDB || !window.crypto || !window.crypto.subtle) {
+    /* Bez WebCrypto (stara przeglądarka albo strona otwarta nie przez HTTPS) szyfrowanie nie
+     * zadziała – formularze klucza i rozmowy szyfrowanej mówią to wprost, zamiast wysyłać puste
+     * pola, na które serwer odpowie niejasnym błędem. */
+    document.addEventListener("submit", function (event) {
+      const form = event.target;
+      if (!form.matches || !form.matches("form[data-e2e-setup], form[data-e2e-unlock], form[data-e2e-form]")) return;
+      event.preventDefault();
+      const target = form.querySelector("[data-e2e-error]");
+      if (target) {
+        target.textContent = "Ta przeglądarka nie obsługuje szyfrowania wiadomości (potrzebne jest połączenie HTTPS i aktualna przeglądarka).";
+        target.hidden = false;
+      }
+    });
+    return;
+  }
 
   const data = config.dataset;
   const state = { privateKey: null };
