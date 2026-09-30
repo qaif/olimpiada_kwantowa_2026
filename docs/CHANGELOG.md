@@ -8,7 +8,7 @@ dokładnie jednemu wierszowi tej tabeli.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
-## [Unreleased] – Wiadomości (czat)
+## v0.38.0 – 2026-10-01 – Wiadomości (czat)
 
 - **Nowe:** Wiadomości 1:1 na platformie (`apps/chat`, zadanie CZ-01) – lista rozmów i wątek jak
   w komunikatorze LinkedIn, odświeżanie wątku co 15 s i wysyłka bez przeładowania (htmx, bez skryptu
