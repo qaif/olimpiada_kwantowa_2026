@@ -1,0 +1,46 @@
+{% extends "web/coordinator/base.html" %}
+{% load static %}
+{% comment %}
+  Wspólna skrzynka organizatora: rozmowy uczestników z zespołem organizatora tego konkursu.
+
+  Każdy koordynator widzi każdą rozmowę i odpowiada w imieniu zespołu – uczestnik widzi podpis
+  „Organizator · Imię N.”. Tutaj stoją **pełne** dane uczestnika (imię, nazwisko, kod), tak jak na
+  karcie uczestnika: skrót „Imię N.” chroni uczestników przed sobą nawzajem, nie przed organizatorem.
+
+  Rozmów między uczestnikami tu nie ma i nie będzie – ich treść dociera do koordynatora wyłącznie
+  przez kolejkę moderacji (``apps.web.views.coordinator_chat``).
+{% endcomment %}
+{% block title %}Wiadomości – panel koordynatora{% endblock %}
+{% block panel_head %}<link rel="stylesheet" href="{% static 'css/chat.css' %}">{% endblock %}
+{% block panel_title %}Wiadomości{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Rozmowy uczestników z organizatorem – wspólna skrzynka wszystkich koordynatorów
+    konkursu. Otwarcie wątku oznacza go jako przeczytany dla całego zespołu.</p>
+{% endblock %}
+{% block panel_actions %}
+  <a class="btn btn--small btn--secondary" href="{% url 'web:coordinator-chat-moderation' %}">Moderacja rozmów uczestników</a>
+  <a class="btn btn--small btn--ghost" href="{% url 'web:coordinator-chat-settings' %}">Ustawienia</a>
+{% endblock %}
+{% block panel_content %}
+<nav class="row" aria-label="Filtr rozmów">
+  <a class="btn btn--small {% if not unread_only %}btn--primary{% else %}btn--ghost{% endif %}" href="{% url 'web:coordinator-chat' %}">Wszystkie</a>
+  <a class="btn btn--small {% if unread_only %}btn--primary{% else %}btn--ghost{% endif %}" href="{% url 'web:coordinator-chat' %}?filter=unread">Nieprzeczytane</a>
+</nav>
+
+<div class="chat chat--panel{% if thread_open %} chat--thread-open{% endif %}">
+  <nav class="chat__list" aria-label="Rozmowy">
+    {% include "web/chat/_list.html" %}
+  </nav>
+  <section class="chat__pane" aria-label="Wątek">
+    {% if thread_open %}
+      {% include "web/chat/_thread.html" %}
+    {% else %}
+      <div class="empty">
+        <span class="empty__title">{% if rows %}Wybierz rozmowę z listy{% elif unread_only %}Nie ma nieprzeczytanych rozmów{% else %}Nikt jeszcze nie napisał{% endif %}</span>
+        <p class="empty__text">Rozmowę z wybranym uczestnikiem zaczniesz przyciskiem „Napisz wiadomość” na jego
+          karcie (Konta → karta uczestnika).</p>
+      </div>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

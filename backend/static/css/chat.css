@@ -1,0 +1,309 @@
+/* Wiadomości (zadanie CZ-01): lista rozmów + wątek, jak w komunikatorze LinkedIn.
+ *
+ * Wyłącznie tokeny z ``app.css`` (``docs/UI.md`` § 1) – żadnych kolorów ani odstępów spoza skali.
+ * Na szerokim ekranie dwie kolumny; na wąskim jedna: bez otwartego wątku widać listę, z otwartym –
+ * wątek (``.chat--thread-open``) i odnośnik „Wszystkie rozmowy” nad nim.
+ *
+ * Lista wiadomości stoi w kontenerze ``flex-direction: column-reverse``: przeglądarka sama trzyma
+ * widok przy najnowszej wiadomości (także po podmianie fragmentu przez htmx), bez skryptu
+ * przewijającego – a skryptu w treści strony CSP i tak nie wpuści.
+ */
+
+.chat {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--sp-4);
+  margin-top: var(--sp-4);
+}
+
+.chat__list,
+.chat__pane {
+  min-width: 0;
+}
+
+.chat--thread-open .chat__list {
+  display: none;
+}
+
+.chat-thread__back {
+  display: inline-block;
+  margin-bottom: var(--sp-2);
+}
+
+@media (min-width: 900px) {
+  .chat {
+    grid-template-columns: minmax(220px, 320px) minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .chat--thread-open .chat__list {
+    display: block;
+  }
+
+  .chat-thread__back {
+    display: none;
+  }
+}
+
+/* --- lista rozmów --------------------------------------------------------------------------------- */
+
+.chat-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.chat-list__item + .chat-list__item {
+  border-top: 1px solid var(--line);
+}
+
+.chat-list__link {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--sp-1) var(--sp-2);
+  padding: var(--sp-3) var(--sp-4);
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.chat-list__link:hover,
+.chat-list__link:focus-visible {
+  background: var(--surface-inset);
+}
+
+.chat-list__item.is-current .chat-list__link {
+  background: var(--brand-soft);
+}
+
+.chat-list__name {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.chat-list__item.is-unread .chat-list__name {
+  font-weight: 700;
+}
+
+.chat-list__time {
+  color: var(--muted);
+  font-size: 0.8125rem;
+  white-space: nowrap;
+}
+
+.chat-list__snippet {
+  grid-column: 1 / -1;
+  color: var(--ink-soft);
+  font-size: 0.875rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-list__empty {
+  padding: var(--sp-4);
+}
+
+.chat-dot {
+  display: inline-block;
+  width: 0.5rem;
+  height: 0.5rem;
+  margin-left: var(--sp-2);
+  border-radius: 50%;
+  background: var(--accent);
+  vertical-align: middle;
+}
+
+/* --- wątek ------------------------------------------------------------------------------------------ */
+
+.chat-thread {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: var(--sp-4);
+}
+
+.chat-thread__title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.chat-thread__title {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.chat-thread__tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin-top: var(--sp-2);
+}
+
+.chat-thread__details {
+  margin-top: var(--sp-2);
+}
+
+.chat-fingerprint {
+  overflow-wrap: anywhere;
+  font-size: 0.8125rem;
+}
+
+.chat-messages {
+  display: flex;
+  flex-direction: column-reverse;
+  max-height: 60vh;
+  overflow-y: auto;
+  padding: var(--sp-2);
+  background: var(--surface-inset);
+  border-radius: var(--radius-sm);
+}
+
+.chat-messages__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.chat-msg {
+  max-width: 85%;
+  align-self: flex-start;
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.chat-msg--own {
+  align-self: flex-end;
+  background: var(--brand-soft);
+}
+
+.chat-msg--organizer {
+  border-left: 4px solid var(--accent);
+}
+
+.chat-msg--context {
+  max-width: 100%;
+}
+
+.chat-msg__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1) var(--sp-2);
+  margin: 0 0 var(--sp-1);
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+.chat-msg__author {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.chat-msg__body {
+  overflow-wrap: anywhere;
+}
+
+.chat-msg__body > :last-child {
+  margin-bottom: 0;
+}
+
+/* Treść odszyfrowana przychodzi przez ``textContent`` – złamania wierszy robi CSS, nie znaczniki. */
+.chat-msg__plaintext {
+  display: block;
+  white-space: pre-wrap;
+}
+
+.chat-msg__body--muted {
+  color: var(--muted);
+  font-style: italic;
+}
+
+.chat-msg__body--quoted {
+  padding: var(--sp-2) var(--sp-3);
+  border-left: 3px solid var(--line-strong);
+  background: var(--surface-inset);
+}
+
+.chat-notice {
+  align-self: center;
+  max-width: 100%;
+  padding: var(--sp-1) var(--sp-3);
+  border-radius: var(--radius-sm);
+  background: var(--warn-soft);
+  color: var(--warn-ink);
+  font-size: 0.8125rem;
+}
+
+.chat-report {
+  margin-top: var(--sp-2);
+  font-size: 0.875rem;
+}
+
+.chat-report summary {
+  cursor: pointer;
+  color: var(--link);
+}
+
+.chat-compose textarea {
+  width: 100%;
+}
+
+/* --- katalog i szyfrowanie --------------------------------------------------------------------------- */
+
+.chat-search {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--sp-2);
+}
+
+.chat-directory {
+  list-style: none;
+  margin: var(--sp-4) 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--sp-3);
+}
+
+.chat-directory__item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  margin: 0;
+}
+
+.chat-directory__name {
+  font-weight: 600;
+}
+
+.chat-e2e-bar__form,
+.chat-e2e-bar__state {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+  margin: 0;
+}
+
+.chat-queue-item__who {
+  overflow-wrap: anywhere;
+}
+
+.chat-queue-note input[type="text"] {
+  min-width: 0;
+  max-width: 100%;
+}

@@ -118,6 +118,14 @@ def two_factor_section_visible() -> bool:
     return is_enabled()
 
 
+def chat_preferences_context(request) -> dict:
+    """Sekcja „Wiadomości” – ta sama na obu ekranach profilu. Import lokalny z tego samego powodu,
+    co przy forum: moduł widoków wiadomości importuje ten moduł (``profile_url``) przy zapisie."""
+    from apps.web.views.chat import preferences_context
+
+    return preferences_context(request)
+
+
 def forum_notification_context(request) -> dict:
     """Blok ustawień powiadomień z forum – ten sam na obu ekranach profilu (``web/account/profile.html``).
 
@@ -147,6 +155,7 @@ class ParticipantProfileView(ParticipantRequiredMixin, ServiceFormMixin, FormVie
         context.setdefault("email_form", EmailChangeForm())
         context["two_factor_enabled"] = two_factor_section_visible()
         context.update(forum_notification_context(self.request))
+        context.update(chat_preferences_context(self.request))
         return context
 
     def call_service(self, form):
@@ -181,6 +190,7 @@ class AccountProfileView(LoginRequiredMixin, ServiceFormMixin, FormView):
         context.setdefault("email_form", EmailChangeForm())
         context["two_factor_enabled"] = two_factor_section_visible()
         context.update(forum_notification_context(self.request))
+        context.update(chat_preferences_context(self.request))
         return context
 
     def call_service(self, form):

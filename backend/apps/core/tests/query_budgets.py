@@ -68,9 +68,15 @@ QUERY_BUDGETS: dict[str, int] = {
     # +2 od 21.09.2026: slider sponsorów – ``SiteSettings.for_site`` i ``PartnersPage…first()``,
     # patrz komentarz przy ``"/"`` wyżej.
     # +1 od 23.09.2026: odnośnik „Plakaty do pobrania” w stopce – patrz komentarz przy ``"/"``.
-    "/me/": 50,
+    # +1 od 30.09.2026: pozycja „Wiadomości” w pasku konta uczestnika z licznikiem nieprzeczytanych
+    # (zadanie CZ-01, ``apps.chat.services.nav_state``) – przełącznik modułu i licznik jako dwa
+    # podzapytania **jednego** ``SELECT``-a, liczone wyłącznie dla konta z profilem uczestnika.
+    "/me/": 51,
     # 50 + 1 od 23.09.2026: odnośnik „Plakaty do pobrania” w stopce – patrz komentarz przy ``"/"``.
-    "/coordinator/": 51,
+    # +1 od 30.09.2026: odznaka „Wiadomości” w menu panelu (zadanie CZ-01,
+    # ``apps.chat.services.coordinator_attention``) – przełącznik i cztery liczby jednym zapytaniem,
+    # w tej samej minutowej pamięci liczników, co pozostałe odznaki (próg mierzy stan zimny).
+    "/coordinator/": 52,
     # --- karty i listy panelu koordynatora ---------------------------------------------------------
     # Bezpieczniki „rzędu wielkości” obok asercji o niezmienności kosztu względem danych: sama
     # asercja porównuje dwa pomiary ze sobą, sufit łapie regresję, która podniosła oba naraz.

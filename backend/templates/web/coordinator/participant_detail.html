@@ -43,6 +43,8 @@
 
 {% block panel_actions %}
   <a class="btn btn--secondary" href="{% url 'web:coordinator-account-edit' account.pk %}">Edytuj dane</a>
+  {# Wiadomość do uczestnika (zadanie CZ-01): otwiera istniejącą rozmowę albo zaczyna nową. #}
+  <a class="btn btn--secondary" href="{% url 'web:coordinator-chat-new' participant.pk %}">Napisz wiadomość</a>
   {% comment %}
     Aktywacja i ponowny list to dwie różne czynności dla dwóch różnych stanów konta, więc każdy
     przycisk stoi tylko wtedy, gdy ma co zrobić: konto z potwierdzonym adresem nie ma czego

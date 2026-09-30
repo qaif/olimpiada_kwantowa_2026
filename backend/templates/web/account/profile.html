@@ -98,6 +98,26 @@
 {% endif %}
 
 {% comment %}
+  Wiadomości (zadanie CZ-01) – tuż pod powiadomieniami z forum, bo to ta sama skrzynka i ten sam
+  rodzaj decyzji. Blok jest tylko tam, gdzie moduł działa i ta osoba w nim pisze (uczestnik albo
+  koordynator) – kontekst z ``apps.web.views.chat.preferences_context``. Przełącznik katalogu ma
+  wyłącznie uczestnik. Ten sam formularz otwiera odnośnik „Ustawienia wiadomości” z ``/me/messages/``.
+{% endcomment %}
+{% if chat_preferences_form %}
+<section class="section" id="wiadomosci">
+  <div class="card">
+    <h2 class="mt-0">{% translate "Wiadomości" %}</h2>
+    <p class="hint">{% translate "Ustawienia rozmów z organizatorem i z innymi uczestnikami. List o nowej wiadomości nie zawiera jej treści – tylko informację, od kogo jest, i odnośnik." %}</p>
+    <form method="post" action="{% url 'web:chat-preferences' %}" class="form">
+      {% csrf_token %}
+      {{ chat_preferences_form.as_p }}
+      <button type="submit" class="btn btn--secondary">{% translate "Zapisz ustawienia wiadomości" %}</button>
+    </form>
+  </div>
+</section>
+{% endif %}
+
+{% comment %}
   Drugi składnik logowania stoi **przed** eksportem i usunięciem konta, bo to jedyna pozycja na
   tej stronie, która coś na koncie poprawia, a nie kończy. Sam ekran jest osobny (kod QR, kody
   zapasowe), więc tutaj jest wyłącznie odnośnik – rozwinięcie tego bloku w miejscu znaczyłoby

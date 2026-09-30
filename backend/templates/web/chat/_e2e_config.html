@@ -1,0 +1,34 @@
+{% comment %}
+  Konfiguracja skryptu rozmów szyfrowanych (``static/js/chat-ui.js``) i pasek „odblokuj / zablokuj”.
+
+  W atrybutach ``data-*`` stoi wyłącznie to, co należy do **tej** osoby: jej klucz publiczny, odcisk
+  i owinięta kopia klucza prywatnego (bez hasła do wiadomości jest bezużyteczna – serwer też go nie
+  zna). Pole hasła nie ma atrybutu ``name`` i formularz ma ``method="get"`` bez celu: gdy skrypt nie
+  zadziała, przeglądarka przeładuje stronę, a hasło nigdzie nie wyjdzie.
+{% endcomment %}
+{% if e2e %}
+  <div id="chat-e2e" hidden
+       data-user-id="{{ e2e.user_id }}" data-competition-id="{{ e2e.competition_id }}"
+       {% if e2e.key %}data-public-key="{{ e2e.key.public_key }}" data-fingerprint="{{ e2e.key.fingerprint }}"
+       data-wrapped="{{ e2e.key.wrapped_private_key }}" data-salt="{{ e2e.key.kdf_salt }}"
+       data-iv="{{ e2e.key.wrap_iv }}" data-iterations="{{ e2e.key.kdf_iterations }}"{% endif %}></div>
+  {% if e2e.key %}
+    <div class="card card--quiet chat-e2e-bar">
+      <div data-e2e-when="locked">
+        <form method="get" class="chat-e2e-bar__form" data-e2e-unlock>
+          <label for="chat-passphrase">Hasło do wiadomości</label>
+          <input type="password" id="chat-passphrase" autocomplete="off" data-e2e-passphrase>
+          <button type="submit" class="btn btn--small btn--primary">Odblokuj rozmowy szyfrowane</button>
+          <p class="msg msg-error" data-e2e-error hidden></p>
+        </form>
+      </div>
+      <p data-e2e-when="unlocked" hidden class="chat-e2e-bar__state">
+        Rozmowy szyfrowane są odblokowane na tym urządzeniu.
+        <button type="button" class="btn btn--small btn--ghost" data-e2e-lock>Zablokuj wiadomości</button>
+      </p>
+    </div>
+  {% elif e2e.enabled %}
+    <p class="notice">Organizator włączył szyfrowane rozmowy między uczestnikami.
+      <a href="{{ e2e.key_url }}">Skonfiguruj szyfrowanie</a>, żeby zaczynać nowe rozmowy i w nich pisać.</p>
+  {% endif %}
+{% endif %}

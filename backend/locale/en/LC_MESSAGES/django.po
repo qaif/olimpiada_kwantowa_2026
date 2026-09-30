@@ -4127,3 +4127,71 @@ msgstr "Stage results announced – %(competition)s"
 #, python-format
 msgid "Decyzja w sprawie reklamacji – %(competition)s"
 msgstr "Decision on your appeal – %(competition)s"
+
+#: apps/chat/notifications.py
+msgid "Nowa wiadomość – Olimpiada Kwantowa"
+msgstr "New message – Quantum Olympiad"
+
+#: apps/chat/notifications.py
+#, python-format
+msgid "Nowa wiadomość – %(competition)s"
+msgstr "New message – %(competition)s"
+
+#: apps/chat/notifications.py
+#, python-format
+msgid "Masz nową wiadomość od %(sender)s na platformie %(competition)s."
+msgstr "You have a new message from %(sender)s on the %(competition)s platform."
+
+#: apps/chat/notifications.py
+#, python-format
+msgid "Przeczytaj: %(link)s"
+msgstr "Read it here: %(link)s"
+
+#: apps/chat/notifications.py
+msgid "Treści wiadomości nie przesyłamy pocztą – przeczytasz ją po zalogowaniu."
+msgstr "We never send the message itself by e-mail – you can read it after signing in."
+
+#: apps/web/views/participant.py templates/web/account/profile.html
+msgid "Wiadomości"
+msgstr "Messages"
+
+#: templates/web/participant/_tabs.html
+msgid "nieprzeczytane rozmowy:"
+msgstr "unread conversations:"
+
+#: apps/chat/forms.py
+msgid "Inni uczestnicy mogą mnie znaleźć i do mnie napisać"
+msgstr "Other participants can find me and message me"
+
+#: apps/chat/forms.py
+msgid ""
+"W katalogu widać wyłącznie imię, pierwszą literę nazwiska i województwo – "
+"nigdy adres e-mail, szkołę ani kod uczestnika."
+msgstr ""
+"The directory shows only your first name, the initial of your surname and "
+"your province – never your e-mail address, school or participant code."
+
+#: apps/chat/forms.py
+msgid "Wysyłaj mi e-mail, gdy dostanę nową wiadomość"
+msgstr "E-mail me when I get a new message"
+
+#: apps/chat/forms.py
+msgid ""
+"List nie zawiera treści wiadomości – tylko informację, od kogo jest, i "
+"odnośnik."
+msgstr ""
+"The e-mail does not contain the message – only who it is from and a link."
+
+#: templates/web/account/profile.html
+msgid ""
+"Ustawienia rozmów z organizatorem i z innymi uczestnikami. List o nowej "
+"wiadomości nie zawiera jej treści – tylko informację, od kogo jest, i "
+"odnośnik."
+msgstr ""
+"Settings for conversations with the organiser and other participants. The "
+"new-message e-mail does not contain the message – only who it is from and a "
+"link."
+
+#: templates/web/account/profile.html
+msgid "Zapisz ustawienia wiadomości"
+msgstr "Save message settings"

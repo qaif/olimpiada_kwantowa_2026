@@ -1,0 +1,131 @@
+{% extends "web/coordinator/base.html" %}
+{% load static web_extras chat_extras %}
+{% comment %}
+  Kolejka moderacji rozmów między uczestnikami: czekające (premoderacja), nieprzejrzane
+  (postmoderacja) i zgłoszone (każdy tryb).
+
+  Tu jest **cała** treść rozmów uczestników, jaką koordynator może zobaczyć – i tylko w zakresie,
+  który nadawca znał w chwili wysłania (``apps.chat.services.moderator_visible_q``). Kontekst przy
+  pozycji to kilka poprzednich wiadomości tej rozmowy, też wyłącznie spośród widocznych dla
+  moderatora. W trybie „bez moderacji” kolejka zawiera wyłącznie zgłoszenia.
+
+  Zgłoszenie wiadomości szyfrowanej niesie treść przekazaną przez zgłaszającego – serwer nie ma
+  klucza, więc nie może potwierdzić, że to ta treść. Mówi to dopisek przy pozycji.
+
+  „Akceptuj zaznaczone” to osobny formularz, a kratki są z nim związane atrybutem ``form`` – kratka
+  stoi przy wiadomości, a formularze pojedynczych decyzji nie mogą być zagnieżdżone w zbiorczym.
+{% endcomment %}
+{% block title %}Moderacja wiadomości – panel koordynatora{% endblock %}
+{% block panel_head %}<link rel="stylesheet" href="{% static 'css/chat.css' %}">{% endblock %}
+{% block panel_eyebrow %}<a href="{% url 'web:coordinator-chat' %}">Wiadomości</a>{% endblock %}
+{% block panel_title %}Moderacja rozmów uczestników{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Wiadomości między uczestnikami, które czekają na Twoją decyzję, oraz te, które ktoś
+    zgłosił. Obowiązujący tryb: <strong>{{ peer_mode.label }}</strong>.</p>
+{% endblock %}
+{% block panel_actions %}
+  <a class="btn btn--small btn--ghost" href="{% url 'web:coordinator-chat-settings' %}">Ustawienia</a>
+{% endblock %}
+{% block panel_content %}
+
+{% if peer_mode == mode_none %}
+  <p class="hint">Tryb „bez moderacji”: nie przeglądasz treści rozmów – widzisz tylko wiadomości zgłoszone
+    przez odbiorcę.</p>
+{% endif %}
+
+{% if not queue_total %}
+  <div class="empty">
+    <span class="empty__title">Kolejka jest pusta</span>
+    <p class="empty__text">Nie ma wiadomości czekających na akceptację, do przejrzenia ani zgłoszonych.</p>
+  </div>
+{% endif %}
+
+{% if pending %}
+  <section class="section">
+    <div class="section__head"><h2>Czekają na akceptację ({{ pending|length }})</h2></div>
+    <form method="post" id="chat-bulk-approve" class="row">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="bulk-approve">
+      <button type="submit" class="btn btn--small btn--primary">Akceptuj zaznaczone</button>
+    </form>
+    {% for item in pending %}
+      <article class="card chat-queue-item">
+        <label class="row"><input type="checkbox" name="message" value="{{ item.message.pk }}" form="chat-bulk-approve">
+          zaznacz</label>
+        {% include "web/coordinator/_chat_queue_item.html" %}
+        <div class="row">
+          <form method="post" class="inline">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="approve">
+            <input type="hidden" name="message" value="{{ item.message.pk }}">
+            <button type="submit" class="btn btn--small btn--primary">Akceptuj</button>
+          </form>
+          <form method="post" class="inline chat-queue-note">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="reject">
+            <input type="hidden" name="message" value="{{ item.message.pk }}">
+            <label for="odrzucenie-{{ item.message.pk }}" class="visually-hidden">Uzasadnienie odrzucenia</label>
+            <input type="text" id="odrzucenie-{{ item.message.pk }}" name="note" maxlength="500" required
+                   placeholder="Uzasadnienie – zobaczy je nadawca">
+            <button type="submit" class="btn btn--small btn--secondary">Odrzuć</button>
+          </form>
+        </div>
+      </article>
+    {% endfor %}
+  </section>
+{% endif %}
+
+{% if review %}
+  <section class="section">
+    <div class="section__head"><h2>Do przejrzenia ({{ review|length }})</h2></div>
+    <p class="hint">Postmoderacja: te wiadomości już doszły. Oznacz je jako przejrzane albo ukryj.</p>
+    {% for item in review %}
+      <article class="card chat-queue-item">
+        {% include "web/coordinator/_chat_queue_item.html" %}
+        <div class="row">
+          <form method="post" class="inline">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="reviewed">
+            <input type="hidden" name="message" value="{{ item.message.pk }}">
+            <button type="submit" class="btn btn--small btn--primary">Przejrzane</button>
+          </form>
+          <form method="post" class="inline">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="hide">
+            <input type="hidden" name="message" value="{{ item.message.pk }}">
+            <button type="submit" class="btn btn--small btn--secondary">Ukryj</button>
+          </form>
+        </div>
+      </article>
+    {% endfor %}
+  </section>
+{% endif %}
+
+{% if reports %}
+  <section class="section">
+    <div class="section__head"><h2>Zgłoszone ({{ reports|length }})</h2></div>
+    {% for item in reports %}
+      <article class="card chat-queue-item">
+        <p class="hint">Zgłoszenie z {{ item.report.created_at|local_datetime }}. Powód: <q>{{ item.report.reason }}</q></p>
+        {% include "web/coordinator/_chat_queue_item.html" %}
+        <div class="row">
+          {% if item.message.is_published %}
+            <form method="post" class="inline">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="hide">
+              <input type="hidden" name="message" value="{{ item.message.pk }}">
+              <button type="submit" class="btn btn--small btn--secondary">Ukryj wiadomość</button>
+            </form>
+          {% endif %}
+          <form method="post" class="inline">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="resolve-report">
+            <input type="hidden" name="report" value="{{ item.report.pk }}">
+            <button type="submit" class="btn btn--small btn--ghost">Zamknij zgłoszenie</button>
+          </form>
+        </div>
+      </article>
+    {% endfor %}
+  </section>
+{% endif %}
+{% endblock %}

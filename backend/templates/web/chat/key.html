@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% load static %}
+{% comment %}
+  Klucz szyfrowania rozmów między uczestnikami (§ 11 zadania).
+
+  Parę kluczy tworzy przeglądarka (``chat-ui.js``, WebCrypto). Pola hasła do wiadomości **nie mają
+  atrybutu name** – hasło nie ma prawa wyjść z przeglądarki, także wtedy, gdy skrypt nie zadziała;
+  na serwer idą wyłącznie ukryte pola: klucz publiczny i kopia prywatnego zaszyfrowana tym hasłem.
+
+  „Utwórz nowy klucz” jest drogą dla kogoś, kto zapomniał hasła. Ostrzeżenie stoi przed przyciskiem,
+  a nie po nim: stare wiadomości szyfrowane przestaną być czytelne dla tej osoby i żadna pomoc
+  organizatora tego nie odwróci – serwer klucza nie ma.
+{% endcomment %}
+{% block title %}Szyfrowanie – Wiadomości{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/chat.css' %}">{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow"><a href="{% url 'web:chat' %}">Wiadomości</a></span>
+  <h1>Szyfrowanie rozmów</h1>
+  <p class="lead">Rozmowy szyfrowane end-to-end czytają tylko ich strony. Serwer i organizator widzą
+    wyłącznie szyfrogram.</p>
+</div>
+
+{% include "web/chat/_e2e_config.html" %}
+
+{% if key %}
+  <section class="section">
+    <div class="card">
+      <h2 class="mt-0">Twój klucz</h2>
+      <p>Odcisk klucza: <code class="chat-fingerprint">{{ e2e.fingerprint }}</code></p>
+      <p class="hint">Utworzony {{ key.created_at|date:"j E Y, H:i" }}. Porównaj odcisk z tym, który widzi
+        druga strona rozmowy („Szczegóły szyfrowania” w wątku).</p>
+    </div>
+  </section>
+
+  <section class="section">
+    <details class="card">
+      <summary><strong>Zapomniałem hasła do wiadomości – utwórz nowy klucz</strong></summary>
+      <p class="notice notice--warning">Nowy klucz nie odzyska starych wiadomości: rozmowy szyfrowane
+        starym kluczem staną się dla Ciebie nieczytelne. Druga strona zobaczy w wątku informację, że Twój
+        klucz się zmienił.</p>
+      {% include "web/chat/_key_form.html" with replace=True %}
+    </details>
+  </section>
+{% else %}
+  <section class="section">
+    <div class="card">
+      <h2 class="mt-0">Skonfiguruj szyfrowanie</h2>
+      <p>Wymyśl <strong>hasło do wiadomości</strong> – inne niż hasło do konta. Chroni kopię Twojego klucza,
+        dzięki której przeczytasz rozmowy także na innym urządzeniu. Nie znamy go i nie możemy go
+        przypomnieć ani zresetować: bez niego stare wiadomości szyfrowane przepadną.</p>
+      {% include "web/chat/_key_form.html" with replace=False %}
+    </div>
+  </section>
+{% endif %}
+{% endblock %}
+{% block scripts %}{{ block.super }}
+  <script nonce="{{ request.csp_nonce }}" src="{% static 'js/chat-e2e.js' %}" defer></script>
+  <script nonce="{{ request.csp_nonce }}" src="{% static 'js/chat-ui.js' %}" defer></script>
+{% endblock %}

@@ -1,0 +1,84 @@
+{% extends "web/coordinator/base.html" %}
+{% comment %}
+  Ustawienia Wiadomości: moduł włączony/wyłączony, tryb rozmów między uczestnikami i szyfrowanie.
+
+  Tryby są opisane **skutkami**, nie nazwami – przy każdym stoi zdanie o tym, kto widzi treść.
+  Ekran mówi wprost, gdy tryb jest w tej chwili zaostrzony przez etap przyjmujący rozwiązania:
+  pole pokazujące „bez moderacji”, gdy każda wiadomość i tak czeka w kolejce, byłoby ustawieniem,
+  które kłamie (``apps.chat.services.effective_peer_mode``).
+
+  Ekran jest dostępny także przy wyłączonym module – to jedyne miejsce, w którym da się go włączyć.
+{% endcomment %}
+{% block title %}Ustawienia wiadomości – panel koordynatora{% endblock %}
+{% block panel_eyebrow %}<a href="{% url 'web:coordinator-chat' %}">Wiadomości</a>{% endblock %}
+{% block panel_title %}Ustawienia wiadomości{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Czy uczestnicy mogą pisać do organizatora i do siebie nawzajem – i kto czyta ich
+    rozmowy.</p>
+{% endblock %}
+{% block panel_actions %}
+  {% if chat_settings.enabled %}
+    <a class="btn btn--small btn--secondary" href="{% url 'web:coordinator-chat-moderation' %}">Moderacja</a>
+  {% endif %}
+{% endblock %}
+{% block panel_content %}
+
+{% if forcing_stage %}
+  <p class="notice notice--warning">
+    Trwa etap „{{ forcing_stage.display_name }}” i przyjmuje rozwiązania, więc <strong>niezależnie od
+    ustawienia niżej</strong> wiadomości między uczestnikami czekają teraz na Twoją akceptację
+    (premoderacja), a rozmowy szyfrowane są wstrzymane – tylko do odczytu, bo ich treści nie da się
+    moderować. Rozmowa 1:1 w czasie zawodów jest najprostszą drogą do zmowy. Ustawienie wróci do gry
+    po zamknięciu etapu.
+  </p>
+{% endif %}
+
+<p class="hint">Obowiązujący w tej chwili tryb rozmów między uczestnikami:
+  <span class="badge {% if effective_mode == 'OFF' %}badge--neutral{% elif effective_mode == 'NONE' %}badge--info{% else %}badge--warn{% endif %}">{{ effective_mode.label }}</span>
+  {% if not chat_settings.enabled %}<span class="badge badge--neutral">moduł wyłączony</span>{% endif %}
+  {% if chat_settings.e2e_enabled %}<span class="badge badge--ok">szyfrowanie włączone</span>{% endif %}
+</p>
+
+<form class="form" method="post" action="{% url 'web:coordinator-chat-settings' %}">
+  {% csrf_token %}
+  {{ form.non_field_errors }}
+  <p>
+    {{ form.enabled }} {{ form.enabled.label_tag }}
+    <span class="helptext">{{ form.enabled.help_text }}</span>
+  </p>
+  <fieldset>
+    <legend>{{ form.peer_mode.label }}</legend>
+    {{ form.peer_mode.errors }}
+    {% for mode in modes %}
+      <p>
+        <label><input type="radio" name="peer_mode" value="{{ mode.value }}"{% if mode.checked %} checked{% endif %} required>
+          <strong>{{ mode.label }}</strong></label><br>
+        <span class="hint">{{ mode.help }}</span>
+      </p>
+    {% endfor %}
+  </fieldset>
+  <p>
+    {{ form.e2e_enabled }} {{ form.e2e_enabled.label_tag }}
+    <span class="helptext">{{ form.e2e_enabled.help_text }}</span>
+  </p>
+  <p class="actions">
+    <button type="submit" class="btn btn--primary">Zapisz ustawienia</button>
+  </p>
+</form>
+
+<section class="section">
+  <div class="section__head"><h2>Co warto wiedzieć</h2></div>
+  <ul>
+    <li><strong>Rozmowa z organizatorem nie jest moderowana ani szyfrowana.</strong> Widzi ją każdy koordynator
+      konkursu; uczestnik widzi podpis „Organizator · Imię N.”.</li>
+    <li><strong>Treść rozmów między uczestnikami</strong> widzisz tylko w kolejce moderacji: w premoderacji
+      i postmoderacji – wiadomości wysłane w tych trybach, w trybie „bez moderacji” – wyłącznie zgłoszone.
+      Uczestnik czyta nad formularzem, który z tych przypadków go dotyczy.</li>
+    <li><strong>Katalog jest dobrowolny.</strong> Do nowej rozmowy można zaprosić tylko osobę, która sama się
+      do niego zapisała; widać w nim imię, pierwszą literę nazwiska i województwo.</li>
+    <li><strong>Szyfrowanie end-to-end</strong> działa tylko w trybie „bez moderacji”. Aby zmienić tryb,
+      najpierw wyłącz szyfrowanie; istniejące rozmowy szyfrowane staną się wtedy tylko do odczytu.</li>
+    <li><strong>Listy e-mail</strong> nie zawierają treści wiadomości – tylko informację, od kogo jest, i odnośnik.</li>
+  </ul>
+</section>
+{% endblock %}

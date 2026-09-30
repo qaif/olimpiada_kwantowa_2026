@@ -1,0 +1,25 @@
+{% comment %}
+  Formularz nowego klucza. Pola hasła bez ``name`` – patrz komentarz w ``key.html``. Ukryte pola
+  wypełnia ``chat-ui.js`` tuż przed wysłaniem; bez skryptu formularz wysłałby puste pola i serwer
+  by odmówił.
+{% endcomment %}
+<form method="post" action="{% url 'web:chat-key' %}" class="form" data-e2e-setup>
+  {% csrf_token %}
+  <input type="hidden" name="public_key" value="">
+  <input type="hidden" name="wrapped_private_key" value="">
+  <input type="hidden" name="kdf_salt" value="">
+  <input type="hidden" name="wrap_iv" value="">
+  <input type="hidden" name="kdf_iterations" value="">
+  {% if replace %}<input type="hidden" name="replace" value="on">{% endif %}
+  <p>
+    <label for="chat-new-passphrase{{ replace|yesno:'-new,' }}">Hasło do wiadomości (co najmniej 10 znaków)</label>
+    <input type="password" id="chat-new-passphrase{{ replace|yesno:'-new,' }}" autocomplete="new-password" minlength="10" data-e2e-new-passphrase>
+  </p>
+  <p>
+    <label for="chat-new-passphrase2{{ replace|yesno:'-new,' }}">Powtórz hasło</label>
+    <input type="password" id="chat-new-passphrase2{{ replace|yesno:'-new,' }}" autocomplete="new-password" minlength="10" data-e2e-new-passphrase>
+  </p>
+  <p class="hint">Użyj innego hasła niż do konta – nie sprawdzimy tego, bo żadnego z nich nie znamy w postaci jawnej.</p>
+  <p class="msg msg-error" data-e2e-error hidden></p>
+  <button type="submit" class="btn {% if replace %}btn--secondary{% else %}btn--primary{% endif %}">{% if replace %}Utwórz nowy klucz{% else %}Utwórz klucz{% endif %}</button>
+</form>
