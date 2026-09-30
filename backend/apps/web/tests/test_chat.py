@@ -139,7 +139,7 @@ def test_polling_returns_204_when_nothing_changed(web_client, competition):
     assert unchanged.status_code == 204
     assert changed.status_code == 200
     assert "Odpowiedź" in changed.content.decode()
-    assert 'hx-trigger="every 15s"' in changed.content.decode()
+    assert 'hx-trigger="every 15s, chat-visible from:document"' in changed.content.decode()
 
 
 def test_script_in_a_message_is_escaped(web_client, competition):

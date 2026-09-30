@@ -49,6 +49,9 @@ logger = logging.getLogger(__name__)
 SUBJECT = gettext_lazy("Nowa wiadomość – Olimpiada Kwantowa")
 SUBJECT_TEMPLATE = gettext_lazy("Nowa wiadomość – %(competition)s")
 
+#: Ile minut po ostatnim odczycie wątku odbiorca uchodzi za obecnego w rozmowie (bez listu).
+LIVE_WINDOW_MINUTES = 10
+
 #: Kotwica sekcji ustawień na ekranie „Edycja danych”.
 SETTINGS_ANCHOR = "#wiadomosci"
 
@@ -74,7 +77,15 @@ def save_preferences(user, *, email_on_message: bool) -> ChatNotificationSetting
 
 
 def is_due(notified_at, last_read_at, now) -> bool:
-    """Czy wolno wysłać list o tej rozmowie do tej strony – reguła opisana w docstringu modułu."""
+    """Czy wolno wysłać list o tej rozmowie do tej strony – reguła opisana w docstringu modułu.
+
+    Odbiorca, który czytał wątek przed chwilą (:data:`LIVE_WINDOW_MINUTES`), jest **w rozmowie** –
+    list „masz nową wiadomość” przyszedłby do skrzynki kogoś, kto właśnie patrzy na tę wiadomość.
+    Odczyt liczy się wyłącznie z widocznej karty (``static/js/chat.js``), więc karta w tle tej reguły
+    nie uruchamia.
+    """
+    if last_read_at is not None and now - last_read_at < timedelta(minutes=LIVE_WINDOW_MINUTES):
+        return False
     if notified_at is None:
         return True
     if now - notified_at < timedelta(hours=NOTIFY_INTERVAL_HOURS):

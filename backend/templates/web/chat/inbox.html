@@ -57,6 +57,7 @@
 </div>
 {% endblock %}
 {% block scripts %}{{ block.super }}
+  <script nonce="{{ request.csp_nonce }}" src="{% static 'js/chat.js' %}" defer></script>
   {% if e2e %}
     <script nonce="{{ request.csp_nonce }}" src="{% static 'js/chat-e2e.js' %}" defer></script>
     <script nonce="{{ request.csp_nonce }}" src="{% static 'js/chat-ui.js' %}" defer></script>

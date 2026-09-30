@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator
 from django.http import Http404, HttpResponse
 from django.shortcuts import redirect
@@ -86,6 +87,11 @@ KEY_CHANGED_NOTICE = (
 def _grouped(fingerprint: str) -> str:
     """Odcisk klucza w grupach po cztery znaki – do porównania na głos albo na dwóch ekranach."""
     return " ".join(fingerprint[index : index + 4] for index in range(0, len(fingerprint), 4))
+
+
+def seen_by_human(request) -> bool:
+    """Czy odpytanie wątku przyszło z widocznej karty z fokusem (``static/js/chat.js``)."""
+    return request.headers.get("X-Chat-Seen") == "1"
 
 
 def organizer_author(user) -> str:
@@ -341,15 +347,20 @@ class ChatThreadView(ChatParticipantMixin, ThrottledFormMixin, View):
 
     def get(self, request, pk: int):
         member = self._member(pk)
-        chat.mark_read(member)
         conversation = member.conversation
         if request.GET.get("fragment") == "messages":
+            # Odpytanie w tle nie jest przeczytaniem: odczyt tylko z nagłówkiem od ``chat.js``
+            # (karta widoczna i z fokusem). Przed sprawdzeniem wersji – 204 też może być
+            # odpowiedzią na „spojrzałem na wątek”.
+            if seen_by_human(request):
+                chat.mark_read(member)
             # Nic się nie zmieniło od poprzedniego odpytania – 204, htmx niczego nie podmienia
             # (``apps.chat.services.thread_version``).
             if request.GET.get("v") == chat.thread_version(conversation, self.me):
                 return HttpResponse(status=204)
             context = self.thread_context(conversation)
             return TemplateResponse(request, MESSAGES_FRAGMENT, context)
+        chat.mark_read(member)
         context = {
             **self.page_context(current_pk=conversation.pk),
             **self.thread_context(conversation),
@@ -707,6 +718,10 @@ class ChatPreferencesView(LoginRequiredMixin, View):
 
         competition = getattr(request, "competition", None)
         participant = chat.chat_participant(request.user, competition)
+        # Ta sama bramka, co sekcja na ekranie „Edycja danych”: ustawienia Wiadomości ma wyłącznie
+        # ktoś, kto w tym konkursie w nich pisze. Recenzent czy opiekun nie ma tu czego zapisywać.
+        if participant is None and not chat.is_organizer(request.user, competition):
+            raise PermissionDenied("Wiadomości są dostępne dla uczestników i organizatora tego konkursu.")
         form = ChatPreferencesForm(request.POST, participant=participant is not None)
         target = f"{profile_url(request)}#wiadomosci"
         if not form.is_valid():

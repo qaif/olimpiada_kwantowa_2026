@@ -25,14 +25,17 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
   i licznik nieprzeczytanych w pasku konta i panelu `/me/` (jedno zapytanie; budżety `/me/` 51,
   `/coordinator/` 52).
 - **Nowe:** list „masz nową wiadomość” bez treści (`ChatNotificationSettings`, domyślnie włączony),
-  najwyżej jeden na rozmowę na 3 h i kolejny dopiero po otwarciu wątku; wiadomość do organizatora –
+  najwyżej jeden na rozmowę na 3 h i kolejny dopiero po otwarciu wątku, żaden do osoby, która czytała
+  wątek w ostatnich 10 minutach (odczyt liczy się tylko z widocznej karty); wiadomość do organizatora –
   do każdego koordynatora wg jego ustawienia. Ustawienia (katalog, list) w sekcji „Wiadomości” ekranu
   „Edycja danych”.
 - **Nowe:** opcjonalne szyfrowanie end-to-end rozmów między uczestnikami (tylko w trybie „bez
   moderacji”): WebCrypto ECDH P-256 → HKDF-SHA-256 → AES-GCM, kopia klucza prywatnego chroniona
   PBKDF2-SHA-256 (600 000 iteracji) hasłem do wiadomości, którego serwer nie zna (`static/js/chat-e2e.js`,
   `chat-ui.js`; testy `node --test backend/js_tests`). Rozmowy szyfrowane tylko do odczytu w czasie
-  etapu; zgłoszenie niesie kopię odszyfrowaną przez zgłaszającego.
+  etapu; zgłoszenie niesie kopię odszyfrowaną przez zgłaszającego. AAD wiąże szyfrogram z kluczem
+  publicznym nadawcy (nie z kontem), więc historia przeżywa usunięcie konta; odblokowany klucz żyje
+  w przeglądarce najwyżej 12 h i znika po wylogowaniu albo wygaśnięciu sesji.
 - **RODO:** rejestr czynności 1.10 – nowy wiersz „Wiadomości na platformie”, doprecyzowane zdanie forum
   o wiadomościach prywatnych; eksport konta: `wiadomosci_wyslane`, `ustawienia_wiadomosci`;
   anonimizacja zostawia wiadomości („Użytkownik usunięty”) i usuwa profil katalogu, klucz, blokady

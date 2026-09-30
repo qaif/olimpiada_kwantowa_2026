@@ -11,6 +11,9 @@
   przez kolejkę moderacji (``apps.web.views.coordinator_chat``).
 {% endcomment %}
 {% block title %}Wiadomości – panel koordynatora{% endblock %}
+{% block scripts %}{{ block.super }}
+  <script nonce="{{ request.csp_nonce }}" src="{% static 'js/chat.js' %}" defer></script>
+{% endblock %}
 {% block panel_head %}<link rel="stylesheet" href="{% static 'css/chat.css' %}">{% endblock %}
 {% block panel_title %}Wiadomości{% endblock %}
 {% block panel_lead %}

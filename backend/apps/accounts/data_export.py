@@ -377,6 +377,7 @@ def export_payload(user: User) -> dict:
         "wpisy_na_forum": _forum_section(user),
         "powiadomienia_z_forum": _forum_notifications_section(user),
         "wiadomosci_wyslane": _chat_messages_section(user),
+        "zgloszenia_wiadomosci": _chat_reports_section(user),
         "ustawienia_wiadomosci": _chat_settings_section(user),
         "zaswiadczenia_statusu_ucznia": _student_status_section(participant),
         "oceny_ai": _ai_section(participant),
@@ -516,6 +517,32 @@ def _chat_messages_section(user: User) -> list[dict]:
             entry["tresc"] = message.body
         section.append(entry)
     return section
+
+
+def _chat_reports_section(user: User) -> list[dict]:
+    """Zgłoszenia wiadomości wysłane przez tę osobę: powód, data i stan – bez treści wiadomości.
+
+    Powód jest zdaniem tej osoby, więc wchodzi. Treść zgłoszonej wiadomości – także kopia jawna
+    wiadomości szyfrowanej przekazana moderatorowi – jest wypowiedzią **drugiej strony** i nie
+    wychodzi w paczce (ta sama granica, co przy zgłoszeniach wpisów na forum).
+    """
+    from apps.chat.models import MessageReport
+
+    rows = (
+        MessageReport.objects.filter(reporter=user)
+        .select_related("message__conversation__competition")
+        .order_by("created_at", "id")
+    )
+    return [
+        {
+            "konkurs": report.message.conversation.competition.name,
+            "powod": report.reason,
+            "zgloszono": _moment(report.created_at),
+            "stan": "rozpatrzone" if report.resolved_at else "czeka na organizatora",
+            "rozpatrzono": _moment(report.resolved_at),
+        }
+        for report in rows
+    ]
 
 
 def _chat_settings_section(user: User) -> dict:

@@ -415,6 +415,14 @@ def block(*, participant, conversation: Conversation) -> ChatBlock:
     if other is None:
         raise DomainError(CANNOT_SEND, "CHAT_NO_OTHER_SIDE", http.HTTP_400_BAD_REQUEST)
     row, _ = ChatBlock.objects.get_or_create(blocker=participant, blocked=other)
+    # Wiadomości zablokowanej osoby, które jeszcze czekają na premoderację, nie mogą dojść po
+    # blokadzie tylko dlatego, że moderator zajrzy do kolejki później. Odrzucenie z neutralną
+    # notatką – nadawca nie dowiaduje się z niej, że został zablokowany.
+    _withdraw_pending(
+        Message.objects.filter(
+            conversation=conversation, sender_id=other.user_id, status=MessageStatus.PENDING
+        )
+    )
     return row
 
 
@@ -1268,14 +1276,41 @@ def coordinator_attention(competition) -> int:
 
 def moderation_context(message: Message, limit: int = 5) -> list[Message]:
     """Kilka poprzednich wiadomości tej rozmowy – **tylko** tych, które moderator może czytać."""
-    rows = (
-        Message.objects.filter(conversation_id=message.conversation_id, created_at__lte=message.created_at)
-        .exclude(pk=message.pk)
+    return moderation_contexts([message], limit)[message.pk]
+
+
+def moderation_contexts(messages, limit: int = 5) -> dict[int, list[Message]]:
+    """Kontekst dla **całej** kolejki naraz – stała liczba zapytań, niezależnie od jej długości.
+
+    Kolejka ma do trzech list po dwieście pozycji; kontekst liczony osobno przy każdej to kilkaset
+    zapytań na jedno wejście na ekran. Tutaj są dwa: lekkie (identyfikator, rozmowa, czas) po
+    wiadomościach **widocznych dla moderatora** w rozmowach z kolejki, a potem treść wyłącznie tych,
+    które faktycznie stoją w czyimś kontekście. „Poprzednia” znaczy wcześniejsza w porządku
+    ``(created_at, id)`` – tym samym, w którym wątek wyświetla wiadomości.
+    """
+    messages = list(messages)
+    contexts: dict[int, list[Message]] = {message.pk: [] for message in messages}
+    if not messages:
+        return contexts
+    conversation_ids = {message.conversation_id for message in messages}
+    timeline: dict[int, list[tuple]] = {}
+    for pk, conversation_id, created_at in (
+        Message.objects.filter(conversation_id__in=conversation_ids)
         .filter(moderator_visible_q())
-        .select_related("sender")
-        .order_by("-created_at", "-id")[:limit]
-    )
-    return list(reversed(rows))
+        .order_by("created_at", "id")
+        .values_list("pk", "conversation_id", "created_at")
+    ):
+        timeline.setdefault(conversation_id, []).append(((created_at, pk), pk))
+    wanted: dict[int, list[int]] = {}
+    for message in messages:
+        key = (message.created_at, message.pk)
+        earlier = [pk for order, pk in timeline.get(message.conversation_id, []) if order < key]
+        wanted[message.pk] = earlier[-limit:]
+    needed = {pk for pks in wanted.values() for pk in pks}
+    rows = {row.pk: row for row in Message.objects.filter(pk__in=needed).select_related("sender")}
+    for message_pk, pks in wanted.items():
+        contexts[message_pk] = [rows[pk] for pk in pks if pk in rows]
+    return contexts
 
 
 def peer_message(competition, pk) -> Message:
@@ -1303,11 +1338,22 @@ def _moderation_diff(message: Message, before: str, **extra) -> dict:
 
 @transaction.atomic
 def approve(*, message: Message, actor, request=None) -> Message:
-    """Akceptacja wiadomości z premoderacji: dopiero teraz odbiorca ją widzi i dostaje list."""
+    """Akceptacja wiadomości z premoderacji: dopiero teraz odbiorca ją widzi i dostaje list.
+
+    Reguły pisania sprawdzamy **jeszcze raz**, w chwili akceptacji: między wysłaniem a decyzją
+    moderatora odbiorca mógł zablokować nadawcę, konto mogło zniknąć, a kanał – zostać wyłączony.
+    Akceptacja nie może być drogą obejścia blokady. Wiadomość, której nie wolno już doręczyć,
+    zostaje odrzucona z neutralną notatką (:data:`UNDELIVERABLE_NOTE`) – wołający widzi to po
+    stanie zwróconej wiadomości (``REJECTED``), a nadawca nie dowiaduje się, **dlaczego**.
+    """
     if message.status != MessageStatus.PENDING:
         raise DomainError(
             "Ta wiadomość nie czeka na akceptację.", "CHAT_NOT_PENDING", http.HTTP_400_BAD_REQUEST
         )
+    if _delivery_refusal(message):
+        _withdraw_pending(Message.objects.filter(pk=message.pk), actor=actor, request=request)
+        message.refresh_from_db()
+        return message
     before = message.status
     now = timezone.now()
     message.status = MessageStatus.PUBLISHED
@@ -1318,6 +1364,61 @@ def approve(*, message: Message, actor, request=None) -> Message:
     _deliver(message, now, request)
     audit(actor, AUDIT_MESSAGE_APPROVED, message, _moderation_diff(message, before), request=request)
     return message
+
+
+#: Notatka przy wiadomości, której nie wolno już doręczyć (blokada, usunięte konto, wyłączony
+#: kanał). Neutralna z rozmysłem – ta sama reguła, co :data:`CANNOT_SEND`: nadawca nie ma się
+#: z niej dowiedzieć, że został zablokowany.
+UNDELIVERABLE_NOTE = "Tej wiadomości nie można już doręczyć."
+
+
+def _delivery_refusal(message: Message) -> str:
+    """Czy tę czekającą wiadomość wolno **teraz** doręczyć – ta sama reguła, co przy wysłaniu."""
+    conversation = message.conversation
+    sender = next(
+        (
+            member.participant
+            for member in ConversationMember.objects.filter(conversation=conversation).select_related(
+                "participant__user"
+            )
+            if message.sender_id is not None and member.participant.user_id == message.sender_id
+        ),
+        None,
+    )
+    if sender is None:
+        return CANNOT_SEND
+    row = settings_for(conversation.competition)
+    mode, stage = mode_and_stage(conversation.competition, row=row)
+    return peer_write_refusal(conversation, sender, mode=mode, row=row, stage=stage)
+
+
+def _withdraw_pending(rows, *, actor=None, request=None) -> int:
+    """Odrzuca czekające wiadomości, których nie wolno już doręczyć – z neutralną notatką.
+
+    Z moderatorem (akceptacja, która trafiła na blokadę) zostaje wpis w audycie; bez niego
+    (blokada założona przez uczestnika) – nie, bo to nie jest decyzja moderacyjna.
+    """
+    now = timezone.now()
+    withdrawn = 0
+    for message in rows.filter(status=MessageStatus.PENDING):
+        message.status = MessageStatus.REJECTED
+        message.moderated_by = actor
+        message.moderated_at = now
+        message.moderation_note = UNDELIVERABLE_NOTE
+        message.reviewed_at = now
+        message.save(
+            update_fields=["status", "moderated_by", "moderated_at", "moderation_note", "reviewed_at"]
+        )
+        if actor is not None:
+            audit(
+                actor,
+                AUDIT_MESSAGE_REJECTED,
+                message,
+                _moderation_diff(message, MessageStatus.PENDING, has_note=True, undeliverable=True),
+                request=request,
+            )
+        withdrawn += 1
+    return withdrawn
 
 
 @transaction.atomic
@@ -1402,8 +1503,8 @@ def bulk_approve(*, competition, actor, ids, request=None) -> int:
     """„Akceptuj zaznaczone” – przez tę samą funkcję, co pojedyncza akceptacja (wpis audytu na każdą)."""
     approved = 0
     for message in pending_messages(competition).filter(pk__in=list(ids)):
-        approve(message=message, actor=actor, request=request)
-        approved += 1
+        if approve(message=message, actor=actor, request=request).status == MessageStatus.PUBLISHED:
+            approved += 1
     return approved
 
 

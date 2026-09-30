@@ -11,8 +11,12 @@
 
   Lista w kontenerze ``column-reverse`` (``chat.css``) – przeglądarka sama trzyma widok przy
   najnowszej wiadomości, bez skryptu przewijającego.
+
+  Odpytanie oznacza rozmowę jako przeczytaną **tylko** z nagłówkiem ``X-Chat-Seen`` – dokłada go
+  ``static/js/chat.js``, gdy karta jest widoczna i ma fokus; ``chat-visible`` to odpytanie od razu
+  po powrocie do karty.
 {% endcomment %}
-<div class="chat-messages" id="chat-messages"{% if poll_url %} hx-get="{{ poll_url }}" hx-trigger="every 15s" hx-swap="outerHTML"{% endif %}>
+<div class="chat-messages" id="chat-messages"{% if poll_url %} hx-get="{{ poll_url }}" hx-trigger="every 15s, chat-visible from:document" hx-swap="outerHTML"{% endif %}>
   <ol class="chat-messages__list">
     {% for entry in entries %}
       {% if entry.notice %}
@@ -30,7 +34,7 @@
               <p class="chat-msg__body chat-msg__body--muted">Wiadomość ukryta przez moderatora.</p>
             {% elif message.is_encrypted %}
               <div class="chat-msg__body chat-msg__body--e2e" data-e2e-message
-                   data-conversation-id="{{ message.conversation_id }}" data-sender-id="{{ message.sender_id|default:'' }}"
+                   data-conversation-id="{{ message.conversation_id }}"
                    data-sender-key="{{ message.sender_public_key }}" data-recipient-key="{{ message.recipient_public_key }}"
                    data-ciphertext="{{ message.ciphertext }}" data-iv="{{ message.iv }}">
                 <span class="chat-msg__plaintext" data-e2e-plaintext>Wiadomość zaszyfrowana – odblokuj rozmowy szyfrowane, żeby ją przeczytać.</span>

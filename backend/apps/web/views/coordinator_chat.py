@@ -32,7 +32,8 @@ from apps.chat.models import MessageReport, MessageStatus, PeerMode, SenderRole
 from apps.core.api import DomainError
 from apps.web.coordinator_nav import invalidate_counters
 from apps.web.mixins import CoordinatorRequiredMixin
-from apps.web.views.chat import organizer_author
+from apps.web.throttle import ThrottledFormMixin
+from apps.web.views.chat import organizer_author, seen_by_human
 
 INBOX_TEMPLATE = "web/coordinator/chat.html"
 THREAD_FRAGMENT = "web/chat/_thread.html"
@@ -181,8 +182,14 @@ class CoordinatorChatView(CoordinatorInboxMixin, View):
         return TemplateResponse(request, INBOX_TEMPLATE, context)
 
 
-class CoordinatorChatThreadView(CoordinatorInboxMixin, View):
-    """``/coordinator/chat/<id>/`` – wątek z uczestnikiem. Rozmowa między uczestnikami tu nie wejdzie."""
+class CoordinatorChatThreadView(CoordinatorInboxMixin, ThrottledFormMixin, View):
+    """``/coordinator/chat/<id>/`` – wątek z uczestnikiem. Rozmowa między uczestnikami tu nie wejdzie.
+
+    Limit ``chat`` także po stronie organizatora: konto koordynatora przejęte albo skrypt w jego
+    przeglądarce nie może zasypać uczestników wiadomościami (i listami o nich).
+    """
+
+    throttle_scope = "chat"
 
     def _conversation(self, pk):
         try:
@@ -192,11 +199,15 @@ class CoordinatorChatThreadView(CoordinatorInboxMixin, View):
 
     def get(self, request, pk: int):
         conversation = self._conversation(pk)
-        was_unread = conversation.organizer_unread_since is not None
-        chat.mark_organizer_read(conversation)
-        if was_unread:
-            invalidate_counters(self.competition)
-        if request.GET.get("fragment") == "messages":
+        fragment = request.GET.get("fragment") == "messages"
+        # Odczyt jest wspólny dla całego zespołu, więc schowana karta jednego koordynatora nie może
+        # gasić odznaki pozostałym: odpytanie w tle nie oznacza przeczytania (``seen_by_human``).
+        if not fragment or seen_by_human(request):
+            was_unread = conversation.organizer_unread_since is not None
+            chat.mark_organizer_read(conversation)
+            if was_unread:
+                invalidate_counters(self.competition)
+        if fragment:
             if request.GET.get("v") == chat.thread_version(conversation):
                 return HttpResponse(status=204)
             return TemplateResponse(request, MESSAGES_FRAGMENT, self.thread_context(conversation))
@@ -241,12 +252,14 @@ class CoordinatorChatThreadView(CoordinatorInboxMixin, View):
         return TemplateResponse(request, INBOX_TEMPLATE, context, status=400)
 
 
-class CoordinatorChatNewView(CoordinatorInboxMixin, View):
+class CoordinatorChatNewView(CoordinatorInboxMixin, ThrottledFormMixin, View):
     """``/coordinator/chat/new/<participant_pk>/`` – „Napisz wiadomość” z karty uczestnika.
 
     Istniejąca rozmowa z tym uczestnikiem – przekierowanie do niej. Rozmowa powstaje dopiero
     z pierwszą wiadomością, jak po stronie uczestnika. Uczestnik innego konkursu – 404.
     """
+
+    throttle_scope = "chat"
 
     def _participant(self, participant_pk):
         participant = (
@@ -297,7 +310,7 @@ class CoordinatorChatModerationView(CoordinatorChatMixin, View):
     """``/coordinator/chat/moderation/`` – czekające, nieprzejrzane i zgłoszone wiadomości.
 
     Przy każdej pozycji stoi nadawca, odbiorca i kilka poprzednich wiadomości rozmowy – wyłącznie
-    tych, które koordynator ma prawo czytać (``apps.chat.services.moderation_context``).
+    tych, które koordynator ma prawo czytać (``apps.chat.services.moderation_contexts``).
     """
 
     def get(self, request):
@@ -306,6 +319,8 @@ class CoordinatorChatModerationView(CoordinatorChatMixin, View):
         review = list(chat.review_messages(competition)[:QUEUE_LIMIT])
         reports = list(chat.open_reports(competition)[:QUEUE_LIMIT])
         row = chat.settings_for(competition)
+        # Kontekst całej kolejki jednym przebiegiem (``moderation_contexts``) – nie zapytanie na pozycję.
+        self.contexts = chat.moderation_contexts([*pending, *review, *(report.message for report in reports)])
         context = {
             "pending": [self._item(message) for message in pending],
             "review": [self._item(message) for message in review],
@@ -332,7 +347,7 @@ class CoordinatorChatModerationView(CoordinatorChatMixin, View):
             "recipient": full_name(recipient),
             "context": [
                 {"message": prior, "author": full_name(_side(conversation, prior))}
-                for prior in chat.moderation_context(message)
+                for prior in self.contexts.get(message.pk, [])
             ],
         }
 
@@ -369,7 +384,13 @@ class CoordinatorChatModerationView(CoordinatorChatMixin, View):
         message = chat.peer_message(competition, _pk(request.POST.get("message")))
         note = request.POST.get("note") or ""
         if action == "approve":
-            chat.approve(message=message, actor=request.user, request=request)
+            result = chat.approve(message=message, actor=request.user, request=request)
+            if result.status != MessageStatus.PUBLISHED:
+                raise DomainError(
+                    "Tej wiadomości nie można już doręczyć (odbiorca jej nie przyjmuje, konto nie "
+                    "istnieje albo kanał jest wyłączony) – została odrzucona.",
+                    "CHAT_UNDELIVERABLE",
+                )
             return "Wiadomość została doręczona."
         if action == "reject":
             chat.reject(message=message, actor=request.user, note=note, request=request)
