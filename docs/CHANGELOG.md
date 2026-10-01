@@ -8,6 +8,21 @@ dokładnie jednemu wierszowi tej tabeli.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## v0.38.2 – 2026-10-01 – Poprawki po audycie bezpieczeństwa (pakiet 1)
+
+- **Poprawka:** `/cms/login/` i `/admin/login/` nie przyjmują hasła – odsyłają na `/login/`, jedyny
+  formularz z limitem prób; reset hasła Wagtaila (`/cms/password_reset/`) wyłączony (404).
+- **Poprawka (testy online):** odpowiedź liczbowa o skrajnym wykładniku (`9e1000000`) jest brakiem
+  odpowiedzi, a nie wyjątkiem w ocenianiu; `finalise_overdue` domyka każde podejście osobno, a strona
+  startowa testu – tylko podejścia wchodzącego; lista wariantów z autozapisu ma limit długości.
+- **Poprawka:** eksporty CSV/XLSX zapisują tekst zaczynający się od `=`, `+`, `-`, `@` z apostrofem
+  (nie jako formułę) i usuwają znaki sterujące (`apps/core/exports.py`).
+- **Poprawka:** cache stron publicznych nie zapisuje odpowiedzi oznaczonej przez widok
+  `Cache-Control: private/no-store/no-cache` (strona Wagtaila z hasłem).
+- **Poprawka (forum):** ekran „Zgłoś wpis” nie pokazuje wpisów z wątku ukrytego albo odrzuconego.
+- **Poprawka:** `pypdf` 6.x; globalny limit czasu zadań Celery (`CELERY_TASK_SOFT_TIME_LIMIT` 30 min,
+  `CELERY_TASK_TIME_LIMIT` 35 min).
+
 ## v0.38.0 – 2026-10-01 – Wiadomości (czat)
 
 - **Nowe:** Wiadomości 1:1 na platformie (`apps/chat`, zadanie CZ-01) – lista rozmów i wątek jak

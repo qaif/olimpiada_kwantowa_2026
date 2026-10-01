@@ -76,6 +76,11 @@ _THOUSANDS_SEPARATORS = (" ", " ", " ", "_")
 
 ZERO = Decimal("0")
 
+#: Największy rząd wielkości (wykładnik dziesiętny) liczby przyjmowanej jako odpowiedź.
+MAX_NUMBER_MAGNITUDE = 100
+#: Ile pozycji listy wariantów czytamy z jednej odpowiedzi – reszta jest odcinana.
+MAX_SELECTED_OPTIONS = 200
+
 
 @dataclass(frozen=True)
 class QuestionScore:
@@ -166,6 +171,11 @@ def parse_number(value) -> Decimal | None:
     # których ktokolwiek oczekuje w odpowiedzi – odrzucamy je tak samo jak „trzy”.
     if not number.is_finite():
         return None
+    # „9e1000000” jest skończone, ale odjęcie od niego oczekiwanej wartości kończy się
+    # ``decimal.Overflow`` – wyjątkiem w ocenianiu, czyli podejściem, którego nie da się domknąć.
+    # Żadna odpowiedź w zawodach nie ma rzędu wielkości spoza tego zakresu.
+    if abs(number.adjusted()) > MAX_NUMBER_MAGNITUDE:
+        return None
     return number
 
 
@@ -183,13 +193,18 @@ def selected_option_ids(payload) -> list[int]:
     raw = payload.get("options")
     if not isinstance(raw, (list, tuple)):
         return []
+    # Zbiór obok listy i limit długości: lista przychodzi z sieci, a ``value not in result`` na
+    # liście jest kwadratowe – kilkaset tysięcy liczb w jednym autozapisie zajmowałoby wątek na
+    # minuty. Żadne pytanie nie ma tylu wariantów, więc nadmiar po prostu odcinamy.
     result: list[int] = []
-    for item in raw:
+    seen: set[int] = set()
+    for item in raw[:MAX_SELECTED_OPTIONS]:
         try:
             value = int(item)
-        except TypeError, ValueError:
+        except TypeError, ValueError, OverflowError:
             continue
-        if value not in result:
+        if value not in seen:
+            seen.add(value)
             result.append(value)
     return result
 
@@ -283,8 +298,13 @@ def grade_numeric(payload, settings: dict) -> QuestionScore:
         return QuestionScore(ZERO, False)
     tolerance_abs = parse_number(settings.get("tolerance_abs")) or ZERO
     tolerance_rel = parse_number(settings.get("tolerance_rel")) or ZERO
-    distance = abs(given - expected)
-    allowed = max(abs(tolerance_abs), abs(expected) * abs(tolerance_rel))
+    try:
+        distance = abs(given - expected)
+        allowed = max(abs(tolerance_abs), abs(expected) * abs(tolerance_rel))
+    except ArithmeticError:
+        # Druga linia obrony za ``parse_number``: liczba, której nie da się porównać, jest
+        # odpowiedzią błędną, a nie awarią oceniania całego podejścia.
+        return QuestionScore(ZERO, False)
     if distance <= allowed:
         return QuestionScore(ZERO, True, Decimal("1"))
     return QuestionScore(ZERO, False)

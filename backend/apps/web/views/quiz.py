@@ -476,7 +476,7 @@ class QuizStartView(_ParticipantQuizMixin, View):
         now = timezone.now()
         # Domknięcie **własnego** porzuconego podejścia przy wejściu: ktoś, kto zamknął kartę,
         # ma tu zobaczyć wynik albo kolejne podejście, a nie licznik sprzed godziny.
-        quiz_services.finalise_overdue(quiz=quiz, now=now)
+        quiz_services.finalise_overdue(quiz=quiz, entry=entry, now=now)
         active = quiz_services.active_attempt(quiz, entry)
         opens, closes = quiz.window
         return TemplateResponse(

@@ -22,6 +22,8 @@ from django.contrib.auth.views import PasswordResetCompleteView as DjangoPasswor
 from django.contrib.auth.views import PasswordResetConfirmView as DjangoPasswordResetConfirmView
 from django.contrib.auth.views import PasswordResetDoneView as DjangoPasswordResetDoneView
 from django.contrib.auth.views import PasswordResetView as DjangoPasswordResetView
+from django.contrib.auth.views import redirect_to_login
+from django.core.exceptions import PermissionDenied
 from django.http import Http404, HttpResponse
 from django.shortcuts import redirect
 from django.urls import get_script_prefix, reverse_lazy
@@ -103,6 +105,23 @@ class LoginView(ThrottledFormMixin, DjangoLoginView):
         walidowany przez Django, więc otwarte przekierowanie nie wchodzi w grę.
         """
         return default_panel_url(self.request)
+
+
+def panel_login_redirect(request):
+    """``/admin/login/`` i ``/cms/login/`` – odesłanie do jedynego formularza logowania (``/login/``).
+
+    Oba panele przynoszą własny widok logowania (zwykły ``LoginView`` Django), który uwierzytelnia
+    **każde** aktywne konto i nie przechodzi przez ``apps.web.throttle`` – byłaby to druga droga
+    zgadywania haseł, bez limitu prób. Dlatego żaden z nich nie przyjmuje hasła: każda metoda
+    (także POST) kończy się przekierowaniem, a hasło sprawdza wyłącznie ``LoginView`` powyżej.
+
+    Zalogowany bez uprawnień do panelu dostaje 403, a nie przekierowanie: ``LoginView`` odsyła
+    zalogowanego prosto pod ``next``, więc przekierowanie byłoby pętlą panel → logowanie → panel.
+    """
+    if request.user.is_authenticated:
+        raise PermissionDenied
+    panel_root = request.path.rsplit("login/", 1)[0]
+    return redirect_to_login(request.GET.get("next") or panel_root, str(reverse_lazy("web:login")))
 
 
 class LogoutView(DjangoLogoutView):

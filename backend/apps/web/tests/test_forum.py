@@ -512,6 +512,20 @@ def test_a_post_that_is_not_published_cannot_be_reported(web_client, competition
     assert web_client.get(report_url(post)).status_code == 404
 
 
+def test_a_post_in_a_hidden_thread_cannot_be_read_through_the_report_page(web_client, competition):
+    """Ukrycie wątku zostawia jego wpisy „opublikowane”, a ekran zgłoszenia pokazuje ich treść."""
+    with_forum(competition)
+    reporter = participant_of(competition)
+    thread = ForumThreadFactory(competition=competition, status=ModerationStatus.HIDDEN)
+    post = ForumPostFactory(competition=competition, thread=thread, body="TRESC-UKRYTEGO-WATKU")
+    web_client.force_login(reporter.user)
+
+    response = web_client.get(report_url(post))
+
+    assert response.status_code == 404
+    assert web_client.post(report_url(post), {"reason": "Sprawdzam, czy wpis istnieje."}).status_code == 404
+
+
 @override_settings(REST_FRAMEWORK=rest_framework_with(forum="3/hour"))
 def test_replies_are_throttled_like_every_other_form(web_client, competition):
     """Limit nie chroni tu cudzej skrzynki – listy forum są zbiorcze – tylko kolejkę moderacyjną.

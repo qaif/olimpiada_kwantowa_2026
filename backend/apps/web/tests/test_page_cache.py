@@ -524,3 +524,13 @@ def test_stage_save_invalidates_its_competition(competition, elim_stage):
     elim_stage.save()
 
     assert _site_version(competition) == before + 1
+
+
+@pytest.mark.parametrize("value", ["private", "max-age=0, no-cache, no-store, must-revalidate, private"])
+def test_storable_rejects_response_the_view_marked_as_uncacheable(value):
+    """Tak Wagtail oznacza stronę z ograniczeniem widoczności (hasło strony w sesji gościa)."""
+    request = RequestFactory().get("/")
+    response = HttpResponse("<html></html>", content_type="text/html")
+    response["Cache-Control"] = value
+
+    assert page_cache._storable(request, response) is False

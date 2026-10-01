@@ -71,3 +71,31 @@ def test_web_urls_still_win_over_wagtail_catch_all(web_client, coordinator):
     assert web_client.get("/api/schema/").status_code == 200
     # Adres, którego nie zna ani apps.web, ani drzewo stron.
     assert web_client.get("/nie-ma-takiej-strony/").status_code == 404
+
+
+@pytest.mark.parametrize("panel", ["/cms/", "/admin/"])
+def test_panel_login_does_not_take_a_password(web_client, coordinator, panel):
+    """Hasło sprawdza wyłącznie ``/login/`` – jedyny formularz objęty limitem prób."""
+    response = web_client.post(
+        f"{panel}login/",
+        {"username": coordinator.email, "password": DEFAULT_PASSWORD},
+    )
+
+    assert response.status_code == 302
+    assert response.headers["Location"].startswith("/login/?next=")
+    assert "_auth_user_id" not in web_client.session
+
+    followed = web_client.get(f"{panel}login/?next={panel}")
+    assert followed.headers["Location"] == f"/login/?next={panel}"
+
+
+@pytest.mark.parametrize("panel", ["/cms/", "/admin/"])
+def test_panel_login_refuses_a_logged_in_account_instead_of_looping(web_client, participant, panel):
+    login(web_client, participant.user)
+
+    assert web_client.get(f"{panel}login/").status_code == 403
+
+
+def test_wagtail_password_reset_is_switched_off(web_client):
+    assert web_client.get("/cms/password_reset/").status_code == 404
+    assert web_client.post("/cms/password_reset/", {"email": "ktos@example.test"}).status_code == 404
