@@ -15,7 +15,7 @@ from wagtail import urls as wagtail_urls
 from wagtail.admin import urls as wagtailadmin_urls
 
 from apps.web.views.docs import NonceSwaggerView
-from apps.web.views.public import site_verification
+from apps.web.views.public import panel_login_redirect, site_verification
 from apps.web.views.statistics import StatisticsView
 from apps.web.views.status import StatusJsonView, StatusView
 
@@ -25,6 +25,11 @@ from apps.web.views.status import StatusJsonView, StatusView
 handler500 = "apps.web.views.errors.server_error"
 
 urlpatterns = [
+    # Logowanie obu paneli idzie przez ``/login/`` – jedyny formularz hasła objęty limitem prób
+    # (apps/web/throttle.py). Wzorce stoją **przed** ``include``-ami paneli, więc ich własne widoki
+    # logowania nie są osiągalne.
+    path("admin/login/", panel_login_redirect),
+    path("cms/login/", panel_login_redirect),
     path("admin/", admin.site.urls),
     path("healthz/", include("apps.core.urls")),
     path("api/auth/", include("apps.accounts.urls")),

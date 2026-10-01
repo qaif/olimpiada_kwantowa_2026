@@ -390,7 +390,13 @@ class ForumPostReportView(ForumAccessMixin, ThrottledFormMixin, View):
     def _post(self, request, pk: int) -> ForumPost:
         post = (
             ForumPost.objects.for_competition(self.competition)
-            .filter(pk=pk, status=ModerationStatus.PUBLISHED)
+            # Wątek musi być dla tej osoby widoczny: ukrycie wątku zostawia jego wpisy w stanie
+            # „opublikowany”, a ten ekran pokazuje pełną treść wpisu i tytuł wątku.
+            .filter(
+                pk=pk,
+                status=ModerationStatus.PUBLISHED,
+                thread__in=visible_threads(self.competition, request.user),
+            )
             .select_related("thread")
             .first()
         )

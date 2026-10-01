@@ -170,6 +170,8 @@ PAGE_CACHE_MAX_BYTES = 512 * 1024
 #: Nagłówek, który ta warstwa dokłada każdej odpowiedzi HIT/MISS, gdy widok sam żadnego nie ustawił
 #: (patrz docstring modułu, sekcja „Nagłówki”).
 CACHE_CONTROL_VALUE = "private, no-store"
+#: Dyrektywy ``Cache-Control`` ustawione przez widok, przy których odpowiedzi nie zapisujemy.
+UNCACHEABLE_DIRECTIVES = ("private", "no-store", "no-cache")
 
 
 def _ttl_seconds() -> int:
@@ -370,6 +372,12 @@ def _storable(request, response) -> bool:
     if response.cookies:
         return False
     if response.get("Vary"):
+        return False
+    # Widok, który sam oznaczył odpowiedź jako nie do przechowania, ma ostatnie słowo. Tak robi
+    # Wagtail przy stronie z ograniczeniem widoczności (hasło strony zapamiętane w sesji gościa):
+    # bez tego warunku treść oddana posiadaczowi hasła trafiałaby do wszystkich anonimowych.
+    cache_control = response.get("Cache-Control", "").lower()
+    if any(directive in cache_control for directive in UNCACHEABLE_DIRECTIVES):
         return False
     content_type = response.get("Content-Type", "").split(";")[0].strip().lower()
     if content_type != "text/html":

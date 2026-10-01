@@ -469,3 +469,52 @@ def test_edytor_zapisuje_punkty_pytania_wpisane_z_przecinkiem(web_client, coordi
     assert response.status_code == 302
     question = QuizQuestion.objects.get(quiz=quiz)
     assert (question.points, question.negative_points) == (Decimal("0.5"), Decimal("0.25"))
+
+
+def test_podejscie_ktorego_nie_da_sie_ocenic_nie_blokuje_pozostalych(
+    web_client, participant, quiz, quiz_entry, monkeypatch
+):
+    """Jedno zepsute podejście nie zatrzymuje domykania reszty ani strony startowej testu."""
+    choice_question(quiz)
+    zepsute = services.start_attempt(quiz=quiz, entry=StageEntryFactory(stage=quiz.stage))
+    zdrowe = services.start_attempt(quiz=quiz, entry=StageEntryFactory(stage=quiz.stage))
+    _rewind(zepsute, deadline_ago=timedelta(hours=1))
+    _rewind(zdrowe, deadline_ago=timedelta(hours=1))
+    grade = services.grade_attempt
+
+    def _grade(attempt):
+        if attempt.pk == zepsute.pk:
+            raise ArithmeticError("nie do policzenia")
+        return grade(attempt)
+
+    monkeypatch.setattr(services, "grade_attempt", _grade)
+
+    assert services.finalise_overdue(quiz=quiz) == 1
+
+    zepsute.refresh_from_db()
+    zdrowe.refresh_from_db()
+    assert zepsute.status == AttemptStatus.IN_PROGRESS
+    assert zdrowe.status == AttemptStatus.EXPIRED
+    _login(web_client, participant)
+    assert web_client.get(reverse("web:quiz-start", args=[quiz.stage.pk])).status_code == 200
+
+
+def test_odpowiedz_liczbowa_o_skrajnym_wykladniku_nie_wywraca_domkniecia(
+    web_client, participant, quiz, quiz_entry
+):
+    question = numeric_question(quiz)
+    _login(web_client, participant)
+    web_client.post(reverse("web:quiz-start", args=[quiz.stage.pk]))
+    attempt = QuizAttempt.objects.get(entry=quiz_entry)
+    web_client.post(
+        reverse("web:quiz-autosave", args=[attempt.pk]),
+        data=json.dumps({"answers": {str(question.pk): {"value": "9e1000000"}}}),
+        content_type="application/json",
+    )
+    _rewind(attempt, deadline_ago=timedelta(hours=1))
+
+    assert services.finalise_overdue(quiz=quiz) == 1
+
+    attempt.refresh_from_db()
+    assert attempt.status == AttemptStatus.EXPIRED
+    assert attempt.score == Decimal("0.00")
