@@ -13,7 +13,7 @@
 #   scripts/tests/maintenance_pg18_rehearsal.sh --keep     # stos zostaje (ręczne sprawdzenia)
 #
 # Stos jest osobny: własna nazwa projektu compose, własne podsieci i porty proxy tylko na 127.0.0.1
-# (REHEARSAL_PROJECT, REHEARSAL_HTTPS_PORT, REHEARSAL_SUBNET_EDGE/INTERNAL) – współdzielony stos
+# (REHEARSAL_PROJECT, REHEARSAL_HTTPS_PORT, REHEARSAL_SUBNET_EDGE/INTERNAL/CACHE/CLAMAV_EGRESS) – współdzielony stos
 # deweloperski zostaje nietknięty. Obraz aplikacji: REHEARSAL_WEB_IMAGE (brak = budowany z backend/).
 # Kod (docker-compose.yml, deploy/, scripts/) jest kopiowany do katalogu tymczasowego, bo skrypt
 # przejścia pracuje na `.env` i wolumenach projektu – a tego nie wolno robić w katalogu repozytorium.
@@ -28,6 +28,9 @@ HTTP_PORT="${REHEARSAL_HTTP_PORT:-18080}"
 HTTPS_PORT="${REHEARSAL_HTTPS_PORT:-18443}"
 SUBNET_EDGE="${REHEARSAL_SUBNET_EDGE:-172.30.81.0/24}"
 SUBNET_INTERNAL="${REHEARSAL_SUBNET_INTERNAL:-172.30.82.0/24}"
+# Sieć Redisa i wyjście ClamAV-a (od 1.10.2026) – też własne, bo dev ma 172.30.3.0/24 i 172.30.4.0/24.
+SUBNET_CACHE="${REHEARSAL_SUBNET_CACHE:-172.30.83.0/24}"
+SUBNET_CLAMAV_EGRESS="${REHEARSAL_SUBNET_CLAMAV_EGRESS:-172.30.84.0/24}"
 WEB_IMAGE="${REHEARSAL_WEB_IMAGE:-olimpiada/web:maint-rehearsal}"
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/maint-pg18-rehearsal.XXXXXX")"
 APP="$WORK/app"
@@ -78,6 +81,14 @@ networks:
     ipam:
       config: !override
         - subnet: ${SUBNET_INTERNAL}
+  cache:
+    ipam:
+      config: !override
+        - subnet: ${SUBNET_CACHE}
+  clamav_egress:
+    ipam:
+      config: !override
+        - subnet: ${SUBNET_CLAMAV_EGRESS}
 EOF
 TOKEN="$(rnd 40)"
 cat > "$APP/.env" <<EOF
@@ -97,6 +108,7 @@ CELERY_CONCURRENCY=1
 POSTGRES_DB=olimpiada
 POSTGRES_USER=olimpiada
 POSTGRES_PASSWORD=$(rnd 32)
+REDIS_PASSWORD=$(rnd 32)
 MINIO_ROOT_USER=minio-root
 MINIO_ROOT_PASSWORD=$(rnd 32)
 S3_PRESIGNED_TTL_SECONDS=600

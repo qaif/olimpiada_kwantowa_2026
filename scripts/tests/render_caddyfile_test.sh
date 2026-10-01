@@ -12,8 +12,10 @@
 # To jest jedyne zabezpieczenie przed tym, żeby dołożenie wielokonkursowości zmieniło konfigurację
 # proxy działającej produkcji (docs/UNIWERSALNY-ETAP-1.md § 0). Ta sama gwarancja dla
 # `DJCMS_ENABLED` (docs/tasks/DJ-01.md § 8.8) – przypadki 14–18; `DJCMS_PRIMARY` i sekcja tras djcms
-# w każdym bloku aplikacji (docs/tasks/DJ-02.md § 3) – 20–27; przy dostępnym Dockerze (19) także
-# `caddy validate`/`adapt`, a na końcu scripts/tests/djcms_routing_test.sh (żywy Caddy, tablica tras).
+# w każdym bloku aplikacji (docs/tasks/DJ-02.md § 3) – 20–27; blok S3 (odmowa API MinIO, nagłówki
+# bezpieczeństwa – audyt z 1.10.2026) – 25; przy dostępnym Dockerze (19) także `caddy validate`/
+# `adapt`, a na końcu scripts/tests/djcms_routing_test.sh (żywy Caddy, tablica tras) i
+# scripts/tests/s3_proxy_test.sh (żywy Caddy z atrapą MinIO, blok S3).
 set -uo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -502,6 +504,40 @@ else
   printf 'skip zapis w miejscu (system plików bez twardych dowiązań)\n'
 fi
 
+# 25. Blok S3 (`{$S3_PUBLIC_ADDRESS}`, audyt z 1.10.2026): odmowa API MinIO spod /minio/* poza sondami
+#     życia, nagłówki bezpieczeństwa z `defer` (po nagłówkach MinIO), CSP `sandbox` poza PDF-em,
+#     a zwykłe ścieżki bucketów – do MinIO. Działanie na żywym Caddym: scripts/tests/s3_proxy_test.sh
+#     (wołany niżej, przy dostępnym Dockerze).
+block_body "$SRC" '{$S3_PUBLIC_ADDRESS} {' >"$WORK/s3-block.txt"
+for needle in '    @s3_minio_api {' \
+              '        path /minio /minio/*' \
+              '        not path /minio/health/live /minio/health/ready' \
+              '    handle @s3_minio_api {' \
+              '        respond 404' \
+              '        defer' \
+              '        X-Content-Type-Options "nosniff"' \
+              '        Strict-Transport-Security "max-age=31536000"' \
+              '    @s3_active_content not path_regexp (?i)\.pdf$' \
+              "        Content-Security-Policy \"default-src 'none'; img-src 'self' data:; media-src 'self'; style-src 'unsafe-inline'; sandbox\"" \
+              '        reverse_proxy minio:9000'; do
+  grep -qxF -- "$needle" "$WORK/s3-block.txt"
+  check "blok S3 zawiera linijkę „${needle#"${needle%%[! ]*}"}”" $?
+done
+# Obie dyrektywy `header` z `defer` (bez niego MinIO dokłada własne HSTS z includeSubDomains i CSP).
+[ "$(grep -cxF '        defer' "$WORK/s3-block.txt")" -eq 2 ]
+check "blok S3: oba bloki header z defer" $?
+# Odmowa przed proxy: `handle` z odmową stoi przed `handle` z reverse_proxy (bloki rozłączne,
+# wygrywa pierwszy pasujący), a reverse_proxy nie stoi gołe poza `handle`.
+awk '$0 == "    handle @s3_minio_api {" { d = NR } $0 == "        reverse_proxy minio:9000" { p = NR } $0 == "    reverse_proxy minio:9000" { bare = 1 }
+     END { exit !(d && p && d < p && !bare) }' "$WORK/s3-block.txt"
+check "blok S3: odmowa /minio/* przed reverse_proxy, proxy wyłącznie w handle" $?
+# Ten sam blok (z tymi samymi regułami) w każdym wariancie generatora – przełączniki go nie ruszają.
+for f in "$WORK/sub-extra.caddy" "$WORK/dj-both.caddy" "$WORK/pr-on.caddy"; do
+  block_body "$f" '{$S3_PUBLIC_ADDRESS} {' | grep -vE '^    # Zwykły certyfikat |^    tls \{$|^        key_type p256$|^    \}$' \
+    | cmp -s - <(grep -vE '^    \}$' "$WORK/s3-block.txt")
+  check "blok S3 w ${f##*/} = blok z deploy/Caddyfile (poza przypięciem TLS)" $?
+done
+
 # 19. Caddy sam: `caddy validate` i kolejność tras po `caddy adapt` (obraz z docker-compose.yml).
 # Pomijane bez Dockera albo przy SKIP_CADDY_VALIDATE=1 – reszta testu nie potrzebuje sieci.
 CADDY_IMAGE="${CADDY_IMAGE:-$(sed -n 's/^    image: \(caddy:.*\)$/\1/p' "$ROOT/docker-compose.yml" | head -1)}"
@@ -670,6 +706,13 @@ PY
     rc=$?
     check "scripts/tests/djcms_routing_test.sh (żywy Caddy, tablica tras djcms, $(grep -c '^ok ' "$WORK/routing.out") przypadków)" $rc
     [ $rc -eq 0 ] || grep -vE '^ok ' "$WORK/routing.out" | sed 's/^/     /'
+  fi
+  # Blok S3 na żywym Caddym z atrapą MinIO (§ 25 wyżej – tu działanie, tam treść pliku).
+  if [ "${SKIP_S3_PROXY:-0}" != "1" ]; then
+    bash "$ROOT/scripts/tests/s3_proxy_test.sh" >"$WORK/s3proxy.out" 2>&1
+    rc=$?
+    check "scripts/tests/s3_proxy_test.sh (żywy Caddy, blok S3, $(grep -c '^ok ' "$WORK/s3proxy.out") przypadków)" $rc
+    [ $rc -eq 0 ] || grep -vE '^ok ' "$WORK/s3proxy.out" | sed 's/^/     /'
   fi
 else
   printf 'skip caddy validate/adapt (brak Dockera albo SKIP_CADDY_VALIDATE=1)\n'

@@ -179,6 +179,7 @@ DJANGO_SECRET_KEY=abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789
 POSTGRES_DB=olimpiada
 POSTGRES_USER=olimpiada
 POSTGRES_PASSWORD=pgpassword0123456789abcdefghijkl
+REDIS_PASSWORD=redispassword0123456789abcdefghi
 S3_PUBLIC_ENDPOINT_URL=https://olimpiada.example:9000
 
 # Przepustka operatora
@@ -232,6 +233,7 @@ volume inspect olimpiada_pg_data
 compose ps -q --status running proxy
 compose exec -T proxy sh -c cat > /tmp/Caddyfile.next && caddy validate --config /tmp/Caddyfile.next --adapter caddyfile
 compose build --pull web
+compose pull --ignore-buildable --quiet
 compose up -d db
 compose ps --format {{.Service}}={{.Health}}
 compose ps --format {{.Service}}={{.Health}}
@@ -356,6 +358,7 @@ volume inspect olimpiada_pg_data
 compose ps -q --status running proxy
 compose build --pull web
 compose --profile djcms build --pull djcms
+compose pull --ignore-buildable --quiet
 compose up -d db
 compose ps --format {{.Service}}={{.Health}}
 compose ps --format {{.Service}}={{.Health}}

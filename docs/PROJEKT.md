@@ -65,7 +65,7 @@ Wagtail 8.0 działa w tym samym procesie co aplikacja (`INSTALLED_APPS`), bez dr
 
 **Drzewo stron i uprawnienia powstają w migracjach danych**, nie w komendzie: `cms.0002_initial_tree` (Root → HomePage → Aktualności / Zadania / Archiwum / Wyniki, plus domyślna `Site` z `SITE_DOMAIN`), `cms.0003_coordinator_permissions` (grupa `coordinator` dostaje komplet uprawnień wbudowanych grup Wagtaila `Editors` + `Moderators`, w tym `access_admin`). Kopiowanie zamiast wypisywania kodowych nazw uprawnień jest odporne na zmiany między wersjami Wagtaila. Uczestnik i recenzent na `/cms/` dostają przekierowanie albo 403.
 
-**Storage mediów.** Po wprowadzeniu Wagtaila `default` storage jest w produkcji publicznym bucketem `public-media` (polityka MinIO `download`) – tam trafiają obrazy i dokumenty redakcyjne. To wymusiło rozdzielenie:
+**Storage mediów.** Po wprowadzeniu Wagtaila `default` storage jest w produkcji publicznym bucketem `public-media` (anonimowo wyłącznie `s3:GetObject`, bez listowania – od v0.38.3; wcześniej polityka MinIO `download`) – tam trafiają obrazy i dokumenty redakcyjne. To wymusiło rozdzielenie:
 
 | Alias `STORAGES` | Produkcja | Zawartość |
 |---|---|---|

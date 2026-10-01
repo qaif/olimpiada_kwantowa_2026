@@ -17,7 +17,11 @@
 #      (`olimpiada/web:$APP_VERSION`), a z nią — ten z rejestru;
 #   4. wersja porównawcza dj. (docs/tasks/DJ-01.md): profil `djcms` dokłada jedną usługę, a nakładka
 #      `docker-compose.djcms.yml` (włączana przez COMPOSE_FILE w .env) – wyłącznie montaż mediów
-#      w `proxy`; bez nich konfiguracja jest ta sama co przed DJ-01.
+#      w `proxy`; bez nich konfiguracja jest ta sama co przed DJ-01;
+#   5. audyt z 1.10.2026 (przypadki 12–17): Redis wyłącznie w sieci `cache` z web/worker/beat,
+#      ClamAV z wyjściem przez osobną `clamav_egress`, żadna z nich w TRUSTED_PROXY_IPS ani
+#      `mynetworks`; hasło Redisa opcjonalne (bez niego – konfiguracja jak dotąd); porty nakładki
+#      deweloperskiej tylko na 127.0.0.1; nakładka E2E na podsieciach rozłącznych z dev.
 #
 # Wszystko przez `docker compose config`, czyli bez demona, bez sieci i bez budowania czegokolwiek:
 # sprawdzamy złożenie plików, a nie działającą instalację. Zmienne bierzemy z `.env.example`,
@@ -191,6 +195,111 @@ check "gołe docker compose z .env po włączeniu dj. = zestaw dzisiejszy + djcm
 (cd "$SANDBOX" && env -u COMPOSE_FILE -u COMPOSE_PROFILES COMPOSE_PATH_SEPARATOR=: docker compose config 2>/dev/null) \
   | awk '/^  proxy:$/ {on=1; next} on && /^  [^ ]/ {on=0} on' | grep -q 'target: /srv/djcms-media'
 check "…i proxy z montażem djcms_media" $?
+
+# --- Audyt bezpieczeństwa z 1.10.2026: sieci, Redis z hasłem, porty deweloperskie ----------------
+
+# sieci_uslug <plik config> – „usługa:sieć” dla każdej usługi (blok `networks:` usługi), posortowane.
+sieci_uslug() {
+  awk '/^services:/ {s=1; next} /^[a-z]/ {s=0} s && /^  [a-z]/ {svc=$1; sub(":", "", svc)}
+       s && /^    networks:/ {n=1; next} n && /^    [^ ]/ {n=0}
+       n && /^      [^ ]/ {net=$1; sub(":", "", net); print svc ":" net}' "$1" | sort
+}
+# siec <plik config> <nazwa> – blok sieci z sekcji `networks:` najwyższego poziomu.
+siec() { awk -v want="  $2:" '/^networks:/ {n=1; next} /^[a-z]/ {n=0} n && $0 == want {on=1; next} n && /^  [^ ]/ {on=0} on' "$1"; }
+
+# 12. Redis: wyłącznie sieć `cache`, a w niej wyłącznie redis, web, worker i beat – także przy
+#     profilach djcms i monitoring (djcms ma własny cache LocMem, monitor sprawdza po HTTP).
+docker compose --env-file "$ENV_FILE" -f "$BASE" --profile djcms --profile monitoring config >"$WORK/pelny.yml" 2>/dev/null
+sieci_uslug "$WORK/pelny.yml" >"$WORK/sieci.txt"
+got="$(grep ':cache$' "$WORK/sieci.txt" | cut -d: -f1 | tr '\n' ' ' | sed 's/ $//')"
+[ "$got" = "beat redis web worker" ]
+check "sieć cache: wyłącznie beat, redis, web, worker [$got]" $?
+got="$(grep '^redis:' "$WORK/sieci.txt" | cut -d: -f2 | tr '\n' ' ' | sed 's/ $//')"
+[ "$got" = "cache" ]
+check "redis wyłącznie w sieci cache (nie w internal) [$got]" $?
+siec "$WORK/pelny.yml" cache >"$WORK/cache.yml"
+grep -qx '    internal: true' "$WORK/cache.yml" && grep -qx '        - subnet: 172.30.3.0/24' "$WORK/cache.yml"
+check "sieć cache: internal: true, podsieć 172.30.3.0/24" $?
+
+# 13. ClamAV: `internal` (web/worker) + `clamav_egress` (freshclam), w której nie ma nikogo innego.
+got="$(grep '^clamav:' "$WORK/sieci.txt" | cut -d: -f2 | tr '\n' ' ' | sed 's/ $//')"
+[ "$got" = "clamav_egress internal" ]
+check "clamav w sieciach clamav_egress i internal [$got]" $?
+got="$(grep ':clamav_egress$' "$WORK/sieci.txt" | cut -d: -f1 | tr '\n' ' ' | sed 's/ $//')"
+[ "$got" = "clamav" ]
+check "sieć clamav_egress: wyłącznie clamav [$got]" $?
+siec "$WORK/pelny.yml" clamav_egress >"$WORK/egress.yml"
+! grep -q 'internal: true' "$WORK/egress.yml" && grep -qx '        - subnet: 172.30.4.0/24' "$WORK/egress.yml"
+check "sieć clamav_egress: z wyjściem do internetu (bez internal: true), podsieć 172.30.4.0/24" $?
+awk '/^  clamav:$/ {on=1; next} on && /^  [^ ]/ {on=0} on' "$WORK/pelny.yml" | grep -qE '^    ports:'
+[ $? -ne 0 ]
+check "clamav bez publikowanych portów" $?
+
+# 14. Nowe sieci NIE są zaufanymi proxy aplikacji ani klientami relaya poczty (ta sama lista).
+awk '/^  web:$/ {on=1; next} on && /^  [^ ]/ {on=0} on' "$WORK/pelny.yml" | sed -n 's/^      TRUSTED_PROXY_IPS: //p' >"$WORK/trusted.txt"
+awk '/^  mail:$/ {on=1; next} on && /^  [^ ]/ {on=0} on' "$WORK/pelny.yml" | sed -n 's/^      POSTFIX_mynetworks: //p' >>"$WORK/trusted.txt"
+[ "$(wc -l <"$WORK/trusted.txt")" -eq 2 ] && ! grep -qE '172\.30\.(3|4)\.' "$WORK/trusted.txt"
+check "TRUSTED_PROXY_IPS (web) i mynetworks (mail) bez 172.30.3.0/24 i 172.30.4.0/24" $?
+# Podsieci czterech sieci – rozłączne (każda inna /24 z 172.30.x).
+for f in "$WORK/pelny.yml"; do
+  awk '/^networks:/ {n=1} n && /subnet: / {print $NF}' "$f" | sort >"$WORK/podsieci.txt"
+done
+[ "$(sort -u "$WORK/podsieci.txt" | wc -l)" -eq 4 ] && [ "$(wc -l <"$WORK/podsieci.txt")" -eq 4 ]
+check "cztery sieci, cztery różne podsieci [$(tr '\n' ' ' <"$WORK/podsieci.txt")]" $?
+
+# 15. Hasło Redisa: bez REDIS_PASSWORD (serwer sprzed zmiany, .env.example) adresy są dotychczasowe
+#     i Redis bez `requirepass`; z hasłem – `:hasło@` w obu adresach, `requirepass` i healthcheck
+#     z REDISCLI_AUTH, który sprawdza PONG (a nie sam kod wyjścia redis-cli).
+redis_cfg() {  # redis_cfg <plik> – "REDIS_URL|CELERY_BROKER_URL|requirepass" usługi worker/redis
+  local url broker pass
+  url="$(awk '/^  worker:$/ {on=1; next} on && /^  [^ ]/ {on=0} on' "$1" | sed -n 's/^      REDIS_URL: //p')"
+  broker="$(awk '/^  worker:$/ {on=1; next} on && /^  [^ ]/ {on=0} on' "$1" | sed -n 's/^      CELERY_BROKER_URL: //p')"
+  pass="$(awk '/^  redis:$/ {on=1; next} on && /^  [^ ]/ {on=0} on' "$1" | awk '/- --requirepass$/ {getline; sub(/^ *- /, ""); print; exit}')"
+  printf '%s|%s|%s' "$url" "$broker" "$pass"
+}
+got="$(redis_cfg "$WORK/pelny.yml")"
+[ "$got" = 'redis://redis:6379/0|redis://redis:6379/1|""' ]
+check "bez REDIS_PASSWORD: adresy bez hasła, requirepass pusty (Redis bez hasła, jak dotąd) [$got]" $?
+REDIS_PASSWORD=Abc123def456GHI789 docker compose --env-file "$ENV_FILE" -f "$BASE" config >"$WORK/redis-pw.yml" 2>/dev/null
+got="$(redis_cfg "$WORK/redis-pw.yml")"
+[ "$got" = 'redis://:Abc123def456GHI789@redis:6379/0|redis://:Abc123def456GHI789@redis:6379/1|Abc123def456GHI789' ]
+check "z REDIS_PASSWORD: :hasło@ w REDIS_URL i CELERY_BROKER_URL, requirepass = hasło [$got]" $?
+awk '/^  redis:$/ {on=1; next} on && /^  [^ ]/ {on=0} on' "$WORK/redis-pw.yml" | grep -q 'REDISCLI_AUTH' &&
+  awk '/^  redis:$/ {on=1; next} on && /^  [^ ]/ {on=0} on' "$WORK/redis-pw.yml" | grep -q 'grep -qx PONG'
+check "healthcheck redisa uwierzytelnia się (REDISCLI_AUTH) i sprawdza odpowiedź PONG" $?
+# Bez ostrzeżeń „variable is not set” przy braku REDIS_PASSWORD (serwer sprzed zmiany ma czysty log).
+! docker compose --env-file "$ENV_FILE" -f "$BASE" config -q 2>&1 | grep -q 'REDIS_PASSWORD'
+check "brak REDIS_PASSWORD nie daje ostrzeżeń compose'a" $?
+
+# 16. Nakładka deweloperska: każdy publikowany port wyłącznie na 127.0.0.1 (także proxy, djcms,
+#     mailpit z profilu dev). W pliku podstawowym publiczne zostają WYŁĄCZNIE porty proxy.
+docker compose --env-file "$ENV_FILE" -f "$BASE" -f "$ROOT/docker-compose.dev.yml" --profile dev --profile djcms config >"$WORK/dev.yml" 2>/dev/null
+porty() {  # porty <plik> – „usługa host_ip” dla każdego publikowanego portu (host_ip pusty = 0.0.0.0)
+  # Wpis wypisywany przy następnym wpisie albo końcu bloku `ports:` – ZANIM reguła niżej przestawi
+  # `svc` na następną usługę (`docker compose config` sortuje usługi, a `ports:` bywa ostatnim kluczem).
+  awk 'function flush() { if (n) print svc, ip; n = 0 }
+       p && /^ {0,4}[^ ]/ { flush(); p = 0 }
+       /^services:/ {s=1; next} /^[a-z]/ {s=0} s && /^  [a-z]/ {svc=$1; sub(":", "", svc)}
+       s && /^    ports:/ {p=1; next}
+       p && /^      - / {flush(); n=1; ip="0.0.0.0"} p && /^        host_ip: / {ip=$2}
+       END {flush()}' "$1" | sort -u
+}
+porty "$WORK/dev.yml" >"$WORK/dev-porty.txt"
+[ -s "$WORK/dev-porty.txt" ] && ! grep -v ' 127\.0\.0\.1$' "$WORK/dev-porty.txt" | grep -q .
+check "nakładka dev: wszystkie porty na 127.0.0.1 [$(tr '\n' ',' <"$WORK/dev-porty.txt")]" $?
+docker compose --env-file "$ENV_FILE" -f "$BASE" --profile dev config >"$WORK/base-dev.yml" 2>/dev/null
+got="$(porty "$WORK/base-dev.yml" | tr '\n' ',')"
+[ "$got" = "mailpit 127.0.0.1,proxy 0.0.0.0," ]
+check "plik podstawowy: publicznie wyłącznie proxy, mailpit na 127.0.0.1 [$got]" $?
+
+# 17. Nakładka E2E djcms (projekt obok deweloperskiego): wszystkie cztery sieci przesunięte z 172.30.x,
+#     inaczej Docker nie założy sieci na podsieci, którą ma już projekt dev.
+E2E_REPO_DIR="$ROOT" docker compose --env-file "$ENV_FILE" -f "$BASE" -f "$DJ_OVERLAY" -f "$ROOT/docker-compose.e2e-djcms.yml" \
+  --profile djcms config >"$WORK/e2e.yml" 2>/dev/null
+awk '/^networks:/ {n=1} n && /subnet: / {print $NF}' "$WORK/e2e.yml" | sort >"$WORK/e2e-podsieci.txt"
+[ "$(wc -l <"$WORK/e2e-podsieci.txt")" -eq 4 ] && ! grep -q '^172\.30\.' "$WORK/e2e-podsieci.txt" &&
+  [ -z "$(comm -12 "$WORK/podsieci.txt" "$WORK/e2e-podsieci.txt")" ]
+check "nakładka E2E: cztery sieci, żadna na podsieci projektu dev [$(tr '\n' ' ' <"$WORK/e2e-podsieci.txt")]" $?
 
 if [ "$failures" -ne 0 ]; then
   printf '\n%d test(ów) nie przeszło.\n' "$failures"
