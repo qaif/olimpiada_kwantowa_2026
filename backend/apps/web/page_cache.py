@@ -110,6 +110,7 @@ from __future__ import annotations
 
 import logging
 import re
+import secrets
 
 from django.conf import settings
 from django.core.cache import cache
@@ -393,9 +394,18 @@ def _storable(request, response) -> bool:
 
 
 # --- Nonce CSP i token CSRF: placeholder przy zapisie, świeża wartość przy odtworzeniu ------------
+#
+# Placeholder jest **losowy dla każdego wpisu** i zapisany w samym wpisie (``payload["marks"]``)
+# – pakiet 5 po audycie. Do tej zmiany był stałym napisem (``@@page-cache-csrf@@``), a odtworzenie
+# zamieniało **każde** jego wystąpienie w treści na token CSRF bieżącego gościa. Redaktor (albo
+# ktokolwiek, kto potrafi wstawić tekst na stronę z allow-listy) mógł więc wpisać ten napis
+# w adres odnośnika czy obrazka do własnego serwera i zbierać tokeny CSRF każdego odwiedzającego.
+# Losowego znacznika nikt nie zna przed zapisem wpisu, więc nie da się go zawczasu umieścić
+# w treści, a wpis zapisany bez znaczników (sprzed tej zmiany) jest traktowany jak chybienie.
 
-NONCE_PLACEHOLDER = b"@@page-cache-nonce@@"
-CSRF_PLACEHOLDER = b"@@page-cache-csrf@@"
+#: Przedrostki znaczników; właściwa wartość dostaje losowy sufiks w ``_new_marks``.
+NONCE_MARK_PREFIX = "@@page-cache-nonce-"
+CSRF_MARK_PREFIX = "@@page-cache-csrf-"
 
 #: Token CSRF stoi w treści dokładnie w jednym miejscu – atrybucie ``hx-headers`` znacznika
 #: ``<body>`` (``templates/base.html``). Wzorzec jest wąski celowo: łapie **ten** token, a nie
@@ -406,7 +416,13 @@ CSRF_PLACEHOLDER = b"@@page-cache-csrf@@"
 _CSRF_TOKEN_RE = re.compile(rb'"X-CSRFToken":\s*"([^"]+)"')
 
 
-def _placeholder_body(request, content: bytes) -> bytes | None:
+def _new_marks() -> dict[str, str]:
+    """Para znaczników jednego wpisu – 128 losowych bitów, nie do odgadnięcia przez autora treści."""
+    token = secrets.token_hex(16)
+    return {"nonce": f"{NONCE_MARK_PREFIX}{token}@@", "csrf": f"{CSRF_MARK_PREFIX}{token}@@"}
+
+
+def _placeholder_body(request, content: bytes, marks: dict[str, str]) -> bytes | None:
     """Treść gotowa do zapisania w cache'u, albo ``None``, gdy tej odpowiedzi nie wolno zapisać.
 
     ``None`` wyłącznie wtedy, gdy token CSRF wystąpił **więcej niż raz** – nie wiadomo wtedy, który
@@ -416,34 +432,35 @@ def _placeholder_body(request, content: bytes) -> bytes | None:
     """
     nonce = getattr(request, "csp_nonce", "")
     if nonce:
-        content = content.replace(nonce.encode(), NONCE_PLACEHOLDER)
+        content = content.replace(nonce.encode(), marks["nonce"].encode())
     matches = _CSRF_TOKEN_RE.findall(content)
     if len(matches) > 1:
         return None
     if len(matches) == 1:
-        content = content.replace(matches[0], CSRF_PLACEHOLDER)
+        content = content.replace(matches[0], marks["csrf"].encode())
     return content
 
 
-def _placeholder_header(nonce: str, header: str) -> str:
-    return header.replace(nonce, NONCE_PLACEHOLDER.decode()) if nonce else header
+def _placeholder_header(nonce: str, header: str, marks: dict[str, str]) -> str:
+    return header.replace(nonce, marks["nonce"]) if nonce else header
 
 
-def _materialize_body(request, content: bytes) -> bytes:
+def _materialize_body(request, content: bytes, marks: dict[str, str]) -> bytes:
     nonce = getattr(request, "csp_nonce", "")
     if nonce:
-        content = content.replace(NONCE_PLACEHOLDER, nonce.encode())
-    if CSRF_PLACEHOLDER in content:
+        content = content.replace(marks["nonce"].encode(), nonce.encode())
+    csrf_mark = marks["csrf"].encode()
+    if csrf_mark in content:
         # ``get_token`` – ta sama funkcja publiczna, na której stoi ``@ensure_csrf_cookie`` – zwraca
         # świeżo zamaskowany token i oznacza w ``request.META``, że ciasteczko ma zostać odświeżone;
         # samo ciasteczko dokłada ``CsrfViewMiddleware`` w swojej fazie odpowiedzi, wyżej w łańcuchu
         # (patrz docstring modułu, punkt o miejscu w ``MIDDLEWARE``).
-        content = content.replace(CSRF_PLACEHOLDER, get_token(request).encode())
+        content = content.replace(csrf_mark, get_token(request).encode())
     return content
 
 
-def _materialize_header(nonce: str, header: str) -> str:
-    return header.replace(NONCE_PLACEHOLDER.decode(), nonce) if nonce else header
+def _materialize_header(nonce: str, header: str, marks: dict[str, str]) -> str:
+    return header.replace(marks["nonce"], nonce) if nonce else header
 
 
 # --- Metryki (opcjonalne, tanie) -------------------------------------------------------------------
@@ -485,7 +502,9 @@ class PageCacheMiddleware:
             return response
 
         cached = _safe_get(key)
-        if cached is not None:
+        # Wpis bez własnych znaczników (zapisany przed pakietem 5) jest chybieniem, a nie trafieniem:
+        # jego stały placeholder mógł stać w treści także z ręki autora strony.
+        if isinstance(cached, dict) and cached.get("marks"):
             _increment_metric("hit")
             return self._serve_hit(request, cached)
 
@@ -497,13 +516,14 @@ class PageCacheMiddleware:
         return response
 
     def _serve_hit(self, request, cached: dict) -> HttpResponse:
-        body = _materialize_body(request, cached["body"])
+        marks = cached["marks"]
+        body = _materialize_body(request, cached["body"], marks)
         response = HttpResponse(body, content_type=cached["content_type"])
         if cached.get("content_language"):
             response["Content-Language"] = cached["content_language"]
         if cached.get("csp"):
             nonce = getattr(request, "csp_nonce", "")
-            response["Content-Security-Policy"] = _materialize_header(nonce, cached["csp"])
+            response["Content-Security-Policy"] = _materialize_header(nonce, cached["csp"], marks)
         response["X-Page-Cache"] = "HIT"
         response["Cache-Control"] = CACHE_CONTROL_VALUE
         return response
@@ -511,7 +531,8 @@ class PageCacheMiddleware:
     def _maybe_store(self, request, key: str, response) -> None:
         if not _storable(request, response):
             return
-        body = _placeholder_body(request, response.content)
+        marks = _new_marks()
+        body = _placeholder_body(request, response.content, marks)
         if body is None:
             return
         nonce = getattr(request, "csp_nonce", "")
@@ -520,7 +541,8 @@ class PageCacheMiddleware:
             "body": body,
             "content_type": response.get("Content-Type", "text/html"),
             "content_language": response.get("Content-Language", ""),
-            "csp": _placeholder_header(nonce, csp) if csp else "",
+            "csp": _placeholder_header(nonce, csp, marks) if csp else "",
+            "marks": marks,
         }
         _safe_set(key, payload, _ttl_seconds())
 
