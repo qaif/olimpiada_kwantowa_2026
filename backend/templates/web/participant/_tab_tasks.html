@@ -89,8 +89,18 @@
         {% for row in problem_rows %}
           {% include "web/participant/_problem_card.html" with row=row stage=stage entry=entry upload_open=upload_open error=None %}
         {% empty %}
-          <p class="empty"><span class="empty__title">{% translate "Brak zadań" %}</span>
-            {% translate "Ten etap nie ma jeszcze opublikowanych zadań." %}</p>
+          {% comment %}
+            Przed ``opens_at`` widok nie oddaje kart wcale (``_problem_rows``) – tytuł zadania
+            bywa zdradą tematu. Komunikat mówi wtedy, kiedy zadania się pojawią, zamiast sugerować,
+            że organizator ich jeszcze nie przygotował.
+          {% endcomment %}
+          {% if not stage.has_opened %}
+            <p class="empty"><span class="empty__title">{% translate "Zadania pojawią się po otwarciu etapu" %}</span>
+              {{ stage.opens_at|date:"j E Y, H:i" }}</p>
+          {% else %}
+            <p class="empty"><span class="empty__title">{% translate "Brak zadań" %}</span>
+              {% translate "Ten etap nie ma jeszcze opublikowanych zadań." %}</p>
+          {% endif %}
         {% endfor %}
       </section>
     {% endif %}

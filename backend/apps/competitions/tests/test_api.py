@@ -101,6 +101,27 @@ def test_kryterium_8_biezaca_edycja_bez_logowania_zwraca_etapy(api):
 
 
 @pytest.mark.django_db
+def test_problem_titles_of_a_stage_that_has_not_opened_are_not_public(api):
+    """Pakiet 5, C6: przed ``opens_at`` etap bieżący nie wydaje anonimowi ani jednego tytułu zadania."""
+    edition = CurrentEditionFactory()
+    upcoming = StageFactory(
+        edition=edition,
+        kind=StageKind.ELIM,
+        opens_at=timezone.now() + timedelta(days=3),
+        deadline_at=timezone.now() + timedelta(days=17),
+    )
+    ProblemFactory(stage=upcoming, number=1, title="Tajny-Temat-Zadania")
+
+    resp = api.get(CURRENT_EDITION_URL)
+
+    assert resp.status_code == 200, resp.data
+    data = resp.json()
+    assert data["current_stage"]["id"] == upcoming.pk
+    assert data["problems"] == []
+    assert "Tajny-Temat-Zadania" not in resp.content.decode()
+
+
+@pytest.mark.django_db
 def test_kryterium_8_edycja_archiwalna_nie_jest_biezaca(api):
     """8. Publiczny endpoint pokazuje wyłącznie edycję `is_current`; brak bieżącej → 404."""
     archived = EditionFactory(year_label="XIV (2025/2026)")
@@ -119,7 +140,11 @@ def test_kryterium_8_edycja_archiwalna_nie_jest_biezaca(api):
 
 @pytest.mark.django_db
 def test_kryterium_8_tresc_zadania_jest_ukryta_przed_otwarciem_etapu(api):
-    """8. `statement_pdf` jest ujawniany dopiero po `opens_at` – wcześniej `None`."""
+    """8. Treść zadania jest ujawniana dopiero po `opens_at`.
+
+    Od pakietu 5 przed otwarciem nie ma ani PDF-a, ani samej pozycji na liście (tytuł bywa
+    zdradą tematu) – patrz ``test_problem_titles_of_a_stage_that_has_not_opened_are_not_public``.
+    """
     edition = CurrentEditionFactory()
     now = timezone.now()
     stage = StageFactory(
@@ -134,9 +159,7 @@ def test_kryterium_8_tresc_zadania_jest_ukryta_przed_otwarciem_etapu(api):
         statement_pdf=SimpleUploadedFile("tresc.pdf", b"%PDF-1.4 demo", content_type="application/pdf"),
     )
 
-    hidden = api.get(CURRENT_EDITION_URL).json()["problems"][0]
-    assert hidden["statement_pdf"] is None
-    assert hidden["number"] == 1
+    assert api.get(CURRENT_EDITION_URL).json()["problems"] == []
 
     stage.opens_at = now - timedelta(days=1)
     stage.save(update_fields=["opens_at"])

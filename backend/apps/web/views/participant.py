@@ -140,13 +140,20 @@ def _under_review(versions: list) -> bool:
     return bool(versions) and versions[0].status in UNDER_REVIEW_STATUSES
 
 
-def _problem_rows(user, entry: StageEntry | None, competition=None) -> list[dict]:
+def _problem_rows(user, entry: StageEntry | None, competition=None, now=None) -> list[dict]:
     """Zadania etapu wraz z własnymi wersjami rozwiązań (najnowsza pierwsza).
 
     Rozwiązania biorą się z ``Submission.objects.for_user`` – filtr roli siedzi w queryseckie,
     a nie w tym widoku (PROJEKT.md 2.3).
+
+    **Przed otwarciem etapu kart nie ma wcale** (pakiet 5 po audycie). Uczestnik zakwalifikowany
+    do kolejnego etapu ma wpis na długo przed ``opens_at``, a karta niosła tytuł zadania – tytuł
+    potrafi zdradzić temat przed startem zawodów (PDF i tak dawał 404). Reguła jest ta sama, co
+    w części informacyjnej (``apps.cms.live_data.problems_state``) i w API bieżącej edycji, także
+    dla treningu: jego ``opens_at`` przypada na chwilę posiania, więc w praktyce nic się tam nie
+    zmienia.
     """
-    if entry is None:
+    if entry is None or not entry.stage.has_opened(now):
         return []
     problems = list(Problem.objects.filter(stage=entry.stage).order_by("number", "id"))
     versions: dict[int, list] = defaultdict(list)
@@ -486,7 +493,7 @@ class MeView(ParticipantRequiredMixin, TemplateView):
             }
         context = {
             "upload_form": SubmissionUploadForm(),
-            "problem_rows": _problem_rows(user, entry, self.competition),
+            "problem_rows": _problem_rows(user, entry, self.competition, now),
         }
         context.update(self._training_context(user, edition, now))
         return context
@@ -551,7 +558,7 @@ class MeView(ParticipantRequiredMixin, TemplateView):
             "training_upload_open": (
                 entry is not None and stage.is_open_for_submissions(now) and stage.closed_at is None
             ),
-            "training_problem_rows": _problem_rows(user, entry, self.competition),
+            "training_problem_rows": _problem_rows(user, entry, self.competition, now),
         }
 
 
