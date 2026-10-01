@@ -18,8 +18,9 @@ import pytest
 from django.utils import timezone
 
 from apps.accounts.tests.factories import ActiveReviewerFactory, CoordinatorFactory
-from apps.competitions.tests.factories import ProblemFactory, StageFactory
+from apps.competitions.tests.factories import ProblemFactory, ScoringScaleFactory, StageFactory
 from apps.competitions.tests.scope_helpers import api_client_factory
+from apps.core.api import DomainError
 from apps.grading.models import (
     CommentSnippet,
     FinalGrade,
@@ -31,11 +32,24 @@ from apps.grading.models import (
     RubricCriterion,
     WorkIssue,
 )
-from apps.grading.services import moderation_queue, reviews_for_reviewer
+from apps.grading.reports import reviewer_rows
+from apps.grading.services import (
+    add_problem_reviewer_rule,
+    assign_reviewer_to_submission,
+    assign_reviewers,
+    is_coordinator,
+    moderation_queue,
+    problem_rule_reviewers,
+    resolve_moderation,
+    reviewer_pool,
+    reviews_for_reviewer,
+)
 from apps.grading.tasks import remind_overdue_reviews
 from apps.submissions.models import SubmissionStatus
 from apps.submissions.tests.factories import SubmissionFactory
+from apps.tenancy.tests.factories import enforce_memberships, grant_membership
 
+from .conftest import locked_submission
 from .factories import FinalGradeFactory, ReviewFactory
 
 pytestmark = pytest.mark.django_db
@@ -184,3 +198,115 @@ def test_reminders_are_sent_per_competition(competition, other_competition):
     result = remind_overdue_reviews()
 
     assert result == {"reviewers": 2, "reviews": 2}
+
+
+# --- pula recenzentów i przydział (poprawka po audycie izolacji, 01.10.2026) -----------------------
+#
+# ``reviewer_pool`` liczył pulę całej instalacji: grupa ``reviewer`` jest globalna, a profilu
+# komitetu nikt nie pytał o konkurs. Przydział automatyczny dawał wtedy prace konkursu A członkom
+# komitetu konkursu B – a razem z nimi pliki, pseudonimy i punktację cudzych zawodów.
+
+
+def test_reviewer_pool_holds_only_reviewers_of_the_given_competition(competition, other_competition):
+    mine = ActiveReviewerFactory(competition=competition)
+    theirs = ActiveReviewerFactory(competition=other_competition)
+
+    assert reviewer_pool(competition) == [mine]
+    assert reviewer_pool(other_competition) == [theirs]
+    # Klucz konkursu znaczy to samo, co wiersz (karta uczestnika ma pod ręką sam klucz).
+    assert reviewer_pool(competition.pk) == [mine]
+    # Brak konkursu to pusta pula – domyślnie zamknięte, jak ``for_competition(None)``.
+    assert reviewer_pool(None) == []
+
+
+def test_automatic_assignment_never_gives_work_to_a_reviewer_of_another_competition(
+    competition, other_competition
+):
+    stage = StageFactory(competition=competition)
+    ScoringScaleFactory(stage=stage)
+    submission = locked_submission(stage)
+    # Recenzent B powstaje pierwszy: przy równym (zerowym) obciążeniu automat bierze niższy klucz,
+    # więc przed poprawką to on dostałby jedyne miejsce przy tej pracy.
+    ActiveReviewerFactory(competition=other_competition)
+    mine = ActiveReviewerFactory(competition=competition)
+
+    assign_reviewers(stage, per_submission=1)
+
+    assigned = set(Review.objects.filter(submission=submission).values_list("reviewer_id", flat=True))
+    assert assigned == {mine.pk}
+
+
+def test_assignment_without_enough_reviewers_here_does_not_borrow_from_another_competition(
+    competition, other_competition
+):
+    """Brak drugiego recenzenta w konkursie to 409 i lista spraw – a nie pożyczka z komitetu B."""
+    stage = StageFactory(competition=competition)
+    ScoringScaleFactory(stage=stage)
+    submission = locked_submission(stage)
+    ActiveReviewerFactory(competition=competition)
+    ActiveReviewerFactory(competition=other_competition)
+
+    with pytest.raises(DomainError) as refused:
+        assign_reviewers(stage, per_submission=2)
+
+    assert refused.value.machine_code == "NOT_ENOUGH_REVIEWERS"
+    assert not Review.objects.filter(submission=submission).exists()
+
+
+def test_a_rule_pointing_at_a_reviewer_of_another_competition_assigns_nothing(competition, other_competition):
+    """Reguła sprzed poprawki (albo dopisana w ``/admin/``) nie otwiera drogi do cudzego komitetu."""
+    problem = ProblemFactory(competition=competition)
+    theirs = ActiveReviewerFactory(competition=other_competition)
+    ProblemReviewerRule.objects.create(problem=problem, reviewer=theirs)
+
+    assert problem_rule_reviewers({problem.pk}, competition) == {}
+
+
+def test_manual_assignment_refuses_a_reviewer_of_another_competition(competition, other_competition):
+    """Serwis sprawdza konkurs sam – nie polega wyłącznie na zawężonym querysecie widoku."""
+    submission = SubmissionFactory(competition=competition, status=SubmissionStatus.LOCKED)
+    theirs = ActiveReviewerFactory(competition=other_competition)
+
+    with pytest.raises(DomainError) as refused:
+        assign_reviewer_to_submission(submission, theirs)
+    assert refused.value.machine_code == "REVIEWER_NOT_ELIGIBLE"
+    with pytest.raises(DomainError) as refused_rule:
+        add_problem_reviewer_rule(submission.problem, theirs)
+    assert refused_rule.value.machine_code == "REVIEWER_NOT_ELIGIBLE"
+    assert not Review.objects.filter(submission=submission).exists()
+    assert not ProblemReviewerRule.objects.filter(reviewer=theirs).exists()
+
+
+def test_reviewer_progress_table_lists_only_reviewers_of_the_stage_competition(
+    competition, other_competition
+):
+    stage = StageFactory(competition=competition)
+    mine = ActiveReviewerFactory(competition=competition)
+    ActiveReviewerFactory(competition=other_competition)
+
+    assert [row["member"] for row in reviewer_rows(stage)] == [mine]
+
+
+# --- koordynator w moderacji: rola w konkursie pracy, nie globalna grupa ---------------------------
+
+
+def test_moderation_by_a_coordinator_of_another_competition_is_refused_with_memberships_on(
+    competition, other_competition
+):
+    """Przy włączonym ``memberships_enforced`` grupa ``coordinator`` nie jest rolą w konkursie A."""
+    enforce_memberships(competition)
+    coordinator_b = CoordinatorFactory()
+    grant_membership(coordinator_b, other_competition, "coordinator")
+    submission = SubmissionFactory(competition=competition, status=SubmissionStatus.MODERATION)
+
+    assert is_coordinator(coordinator_b, other_competition) is True
+    assert is_coordinator(coordinator_b, competition) is False
+    with pytest.raises(DomainError) as refused:
+        resolve_moderation(submission, coordinator_b, 5, rationale="rozstrzygam cudzy rozjazd")
+    assert refused.value.machine_code == "NOT_ALLOWED_TO_RESOLVE"
+    assert not FinalGrade.objects.filter(submission=submission).exists()
+
+
+def test_with_memberships_off_the_coordinator_group_still_decides_as_before(competition):
+    """Konkurs #1 bez przełącznika: zachowanie sprzed poprawki, bajt w bajt (grupa Django)."""
+    assert is_coordinator(CoordinatorFactory(), competition) is True

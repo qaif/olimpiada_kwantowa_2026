@@ -197,7 +197,9 @@ def problem_card(problem: Problem, *, query: str = "") -> dict:
 
     stage = problem.stage
     scale = _scale(problem)
-    pool = reviewer_pool()
+    # Konkurs zadania przez etap i edycję – widok dociąga obie relacje ``select_related``, więc
+    # zawężenie puli nie kosztuje tu zapytania.
+    pool = reviewer_pool(stage.edition.competition_id)
     return {
         "problem": problem,
         "stage": stage,

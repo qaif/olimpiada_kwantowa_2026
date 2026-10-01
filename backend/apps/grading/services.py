@@ -25,14 +25,14 @@ from django.utils import timezone
 from rest_framework import status as http
 
 from apps.accounts.models import (
-    COORDINATOR_GROUPS,
     GROUP_REVIEWER,
     CommitteeMember,
     CommitteeStatus,
+    CompetitionRole,
     Region,
     region_for_district,
 )
-from apps.accounts.services import active_reviewer_profile
+from apps.accounts.services import active_reviewer_profile, has_role
 from apps.competitions.models import Problem, Stage, StageKind
 from apps.competitions.scoring import safe_score_rule, score_rule
 from apps.core.api import DomainError
@@ -135,10 +135,15 @@ def _cancel_review(review: Review, *, reason: str) -> None:
     review.save(update_fields=["status", "cancel_reason"])
 
 
-def is_coordinator(user) -> bool:
-    if not user or not user.is_authenticated or not user.is_active:
-        return False
-    return user.groups.filter(name__in=COORDINATOR_GROUPS).exists()
+def is_coordinator(user, competition) -> bool:
+    """Czy ``user`` jest koordynatorem konkursu ``competition`` – przez ``has_role``, nie przez grupę.
+
+    Do poprawki po audycie izolacji (01.10.2026) pytała o globalną grupę Django ``coordinator``,
+    czyli z pominięciem ``has_role`` także przy włączonym ``memberships_enforced``: koordynator
+    konkursu B rozstrzygał wtedy moderację pracy konkursu A. Konkurs jest argumentem
+    obowiązkowym, bo rola koordynatora jest rolą **w konkursie**, a nie w instalacji.
+    """
+    return has_role(user, competition, CompetitionRole.COORDINATOR)
 
 
 def _lock_stage_for_assignment(stage: Stage) -> None:
@@ -161,10 +166,25 @@ def _lock_stage_for_assignment(stage: Stage) -> None:
         )
 
 
-def reviewer_pool() -> list[CommitteeMember]:
-    """Aktywni recenzenci: status ACTIVE, konto aktywne, grupa ``reviewer``."""
+def reviewer_pool(competition) -> list[CommitteeMember]:
+    """Aktywni recenzenci **tego konkursu**: status ACTIVE, konto aktywne, grupa ``reviewer``.
+
+    Konkurs jest argumentem **obowiązkowym** i to jest cała poprawka po audycie izolacji
+    (01.10.2026): pula liczona bez niego oddawała recenzentów całej instalacji, a przydział
+    automatyczny (``assign_reviewers``) dawał wtedy prace konkursu A członkom komitetu konkursu B.
+    Grupa ``reviewer`` jest globalna (przy wyłączonym ``memberships_enforced`` to ona jest rolą),
+    więc sama nie mówi, **czyim** recenzentem ktoś jest – mówi to ``CommitteeMember.competition``.
+
+    ``competition`` przyjmuje obiekt konkursu albo jego klucz: część wołających (karta uczestnika)
+    ma pod ręką wyłącznie ``competition_id`` profilu i dociąganie wiersza konkursu tylko po to,
+    żeby oddać jego ``pk``, byłoby zapytaniem na stronę bez żadnej korzyści. ``None`` oddaje pustą
+    pulę – domyślnie zamknięte, tak samo jak ``for_competition(None)``.
+    """
+    if competition is None:
+        return []
     return list(
         CommitteeMember.objects.filter(
+            competition=competition,
             status=CommitteeStatus.ACTIVE,
             user__is_active=True,
             user__groups__name=GROUP_REVIEWER,
@@ -278,13 +298,20 @@ def has_district_conflict(
     return member_region is not None and member_region.pk == participant_region.pk
 
 
-def _assert_reviewer_eligible(reviewer: CommitteeMember) -> None:
-    """Czy tę osobę w ogóle wolno przydzielić do oceniania.
+def _assert_reviewer_eligible(reviewer: CommitteeMember, competition_id: int) -> None:
+    """Czy tę osobę w ogóle wolno przydzielić do oceniania w konkursie ``competition_id``.
 
     Ta sama bramka, co filtr ``reviewer_pool`` – wypisana osobno, bo przydział ręczny nie przechodzi
     przez pulę: koordynator wskazuje konkretną osobę z listy i musi dostać powód odmowy, a nie
     „tej osoby nie ma w puli”.
+
+    Konkurs sprawdzamy **także tutaj**, choć widoki panelu i API wyszukują recenzenta zawężonym
+    querysetem (``CommitteeMember.objects.for_competition``): serwis jest wołany też z powłoki
+    i z kodu, który zawężenia może nie mieć, a przydział cudzego recenzenta to wyciek pracy
+    uczestnika do innego organizatora. Porównanie identyfikatorów nie kosztuje zapytania.
     """
+    if reviewer.competition_id != competition_id:
+        raise _bad_request("Wskazana osoba nie należy do komitetu tego konkursu.", "REVIEWER_NOT_ELIGIBLE")
     if reviewer.status != CommitteeStatus.ACTIVE or not reviewer.user.is_active:
         raise _bad_request("Recenzent nie jest aktywny.", "REVIEWER_NOT_ELIGIBLE")
     if not reviewer.user.groups.filter(name=GROUP_REVIEWER).exists():
@@ -487,18 +514,20 @@ def is_assignable(submission: Submission) -> bool:
     )
 
 
-def problem_rule_reviewers(problem_ids) -> dict[int, list[CommitteeMember]]:
+def problem_rule_reviewers(problem_ids, competition) -> dict[int, list[CommitteeMember]]:
     """Recenzenci z reguł „z góry”, pogrupowani po zadaniu, w kolejności utworzenia reguł.
 
     Pula reguł jest zawężona do osób, które nadal wolno przydzielać: recenzent zawieszony albo
     z wyłączonym kontem nie może dostać pracy dlatego, że kiedyś powstała dla niego reguła.
+    ``competition`` to konkurs zadań – reguła wskazująca członka komitetu innego konkursu (wiersz
+    sprzed poprawki izolacji albo dopisany w ``/admin/``) nie przydziela mu niczego.
     """
     rules = (
         ProblemReviewerRule.objects.filter(problem_id__in=list(problem_ids))
         .select_related("reviewer", "reviewer__user")
         .order_by("created_at", "id")
     )
-    eligible_ids = {member.pk for member in reviewer_pool()}
+    eligible_ids = {member.pk for member in reviewer_pool(competition)}
     grouped: dict[int, list[CommitteeMember]] = {}
     for rule in rules:
         if rule.reviewer_id in eligible_ids:
@@ -583,8 +612,11 @@ def assign_reviewers(stage: Stage, per_submission: int = 2, *, actor=None, reque
 
     _lock_stage_for_assignment(stage)
     submissions = _assignable_submissions(stage)
-    pool = reviewer_pool()
-    rules = problem_rule_reviewers({submission.problem_id for submission in submissions})
+    # Pula **konkursu etapu** – ``_competition_of`` nie kosztuje tu zapytania, bo ``_role_slots``
+    # wyżej już sięgnął po konkurs tego samego obiektu etapu.
+    competition = _competition_of(stage)
+    pool = reviewer_pool(competition)
+    rules = problem_rule_reviewers({submission.problem_id for submission in submissions}, competition)
     loads: Counter[int] = Counter({member.pk: 0 for member in pool})
     for reviewer_id in Review.objects.filter(submission__entry__stage=stage).values_list(
         "reviewer_id", flat=True
@@ -770,11 +802,11 @@ def add_problem_reviewer_rule(problem, reviewer: CommitteeMember, *, actor=None,
     które nadaje się jeszcze przydzielać, i zwraca liczniki – ile dopisano, ile pominięto z powodu
     konfliktu województwa i ile miało tego recenzenta już wcześniej.
     """
-    _assert_reviewer_eligible(reviewer)
+    stage = problem.stage
+    _assert_reviewer_eligible(reviewer, _competition_of(stage).pk)
     if ProblemReviewerRule.objects.filter(problem=problem, reviewer=reviewer).exists():
         raise _conflict("Ta reguła już istnieje.", "RULE_ALREADY_EXISTS")
 
-    stage = problem.stage
     rule = ProblemReviewerRule.objects.create(
         problem=problem,
         reviewer=reviewer,
@@ -862,7 +894,7 @@ def assign_reviewer_to_submission(
     decyzją organizacyjną, a nie zwolnieniem z procedury (PROJEKT.md 2.2).
     """
     locked = _locked_submission(submission.pk)
-    _assert_reviewer_eligible(reviewer)
+    _assert_reviewer_eligible(reviewer, locked.competition_id)
     if not is_assignable(locked):
         raise _conflict(
             f"Rozwiązanie w stanie {locked.status} nie przyjmuje przydziałów.", "SUBMISSION_NOT_ASSIGNABLE"
@@ -951,7 +983,7 @@ def assign_third_reviewer(submission: Submission, reviewer: CommitteeMember, *, 
     locked = _locked_submission(submission.pk)
     if locked.status != SubmissionStatus.MODERATION:
         raise _conflict("Rozwiązanie nie jest w moderacji.", "NOT_IN_MODERATION")
-    _assert_reviewer_eligible(reviewer)
+    _assert_reviewer_eligible(reviewer, locked.competition_id)
     if Review.objects.filter(submission=locked, reviewer=reviewer, round=ROUND_BLIND).exists():
         raise _conflict(
             "Trzecim recenzentem nie może być autor oceny z rundy 1.", "REVIEWER_CONFLICT_OF_INTEREST"
@@ -1815,10 +1847,16 @@ def supersede_earlier_versions(entry, problem, new_submission: Submission, *, re
 
 
 def _resolution_method(submission: Submission, actor) -> tuple[str, Review | None]:
-    """Tryb rozstrzygnięcia dostępny dla tego aktora: koordynator albo trzeci recenzent."""
-    if is_coordinator(actor):
+    """Tryb rozstrzygnięcia dostępny dla tego aktora: koordynator albo trzeci recenzent.
+
+    Obie role liczą się w **konkursie pracy** (``submission.competition``), a nie w konkursie
+    kontekstu: serwis bywa wołany poza żądaniem, a o tym, kto rozstrzyga rozjazd, decyduje to,
+    czyja jest praca.
+    """
+    competition = submission.competition
+    if is_coordinator(actor, competition):
         return GradeMethod.MODERATION, None
-    member = active_reviewer_profile(actor)
+    member = active_reviewer_profile(actor, competition)
     if member is not None:
         third = (
             Review.objects.filter(submission=submission, reviewer=member, round=ROUND_TIEBREAK)
