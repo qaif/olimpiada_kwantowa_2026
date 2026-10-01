@@ -8,6 +8,33 @@ dokładnie jednemu wierszowi tej tabeli.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## v0.38.5 – 2026-10-02 – Poprawki po audycie bezpieczeństwa (pakiet 5)
+
+- **Zmiana niezgodna wstecz (API):** `POST /api/auth/register/participant/` i `…/committee/`
+  wymagają pary CAPTCHY (`captcha_key` + `captcha_value`, wyzwanie z `GET /captcha/refresh/`);
+  odmowa `400 CAPTCHA_INVALID`. `POST /api/auth/login/` przyjmuje wyłącznie `application/json`
+  (inny typ → `415`). Opis: `docs/API.md` § 6.1a–6.1b.
+- **Poprawka:** limit prób formularzy jest atomowy (`cache.add`, bez wyścigu `check`/`consume`);
+  logowanie rezerwuje miejsce przed sprawdzeniem hasła; awaria Redisa nie wyłącza limitów po cichu
+  (błąd w logu raz na minutę); czat i forum liczone per konto zamiast per adres IP.
+- **Poprawka:** prośba o zgodę opiekuna (`/me/guardian/`) ma limit `password_reset` – wspólny budżet
+  listów na cudze adresy.
+- **Poprawka:** reset hasła i zablokowanie konta przez koordynatora kasują token API konta.
+- **Poprawka (webhooki):** wyłącznie adresy publiczne (zapis i każde doręczenie, IPv4 i IPv6, bez
+  sieci compose'a), bez przekierowań; „ostatni błąd” bez treści wyjątku.
+- **Poprawka:** tytuły zadań etapu przed jego otwarciem nie wychodzą w API bieżącej edycji ani na
+  pulpicie uczestnika; strona weryfikacji dyplomu nie pokazuje nazwiska małoletniego bez zgody
+  opiekuna; rachunek PDF nie interpretuje imienia ani szkoły jako znaczników; treść zgody edytowana
+  w panelu jest escapowana (HTML-em jest tylko odnośnik do dokumentu).
+- **Poprawka (testy online):** zdyskwalifikowany wpis nie rozpoczyna testu ani nie zapisuje
+  odpowiedzi; zapis, zakończenie i domknięcie podejścia pod blokadą wiersza.
+- **Poprawka:** odznaka „Organizator” w czacie jest osobnym elementem (nie da się jej udać imieniem);
+  imię i nazwisko bez kropki środkowej `·`.
+- **Poprawka:** losowy placeholder per wpis w cache'u stron (treść nie wyłudzi tokenu CSRF), audyt
+  odczytu danych osobowych przez klucz API (`apikey.pii_read`), limity wyszukiwarki szkół (100 znaków,
+  6 wyrazów, offset ≤ 5000), głęboko zagnieżdżony notatnik to odmowa 400, a nie 500, ścieżka „/\…”
+  w odnośniku wydarzenia odrzucana.
+
 ## v0.38.2 – 2026-10-01 – Poprawki po audycie bezpieczeństwa (pakiet 1)
 
 - **Poprawka:** `/cms/login/` i `/admin/login/` nie przyjmują hasła – odsyłają na `/login/`, jedyny
