@@ -571,10 +571,13 @@ class QuizAttemptView(_ParticipantQuizMixin, View):
             quiz_services.save_answers(attempt=attempt, answers=_answers_from_post(request.POST))
             quiz_services.submit_attempt(attempt=attempt)
         except DomainError as exc:
-            # Jedyny powód, dla którego tu się trafia, to „czas minął”. Podejście jest już wtedy
-            # domknięte razem z zapisanymi odpowiedziami, więc kierujemy na wynik – strona
-            # z komunikatem i przyciskiem „spróbuj ponownie” nie miałaby czego ponawiać.
+            # Zwykle „czas minął”. Podejście jest już wtedy domknięte razem z zapisanymi
+            # odpowiedziami, więc kierujemy na wynik – strona z komunikatem i przyciskiem „spróbuj
+            # ponownie” nie miałaby czego ponawiać. Drugi powód (pakiet 5) to dyskwalifikacja
+            # wpisu w trakcie podejścia: wtedy wyniku nie ma, więc wracamy na stronę startową.
             messages.warning(request, str(exc.detail))
+            if exc.machine_code == "ENTRY_DISQUALIFIED":
+                return redirect(reverse("web:quiz-start", args=[attempt.quiz.stage_id]))
         return redirect(reverse("web:quiz-result", args=[attempt.pk]))
 
 
