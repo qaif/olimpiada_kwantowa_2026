@@ -1,0 +1,48 @@
+{% load i18n %}{% autoescape off %}{% comment %}
+  Treść listu z prośbą o zgodę na opiekuna szkolnego (v0.38.6, ``apps.accounts.supervisor_consent``).
+  Wersja HTML tego samego listu: ``supervisor_consent_body.html`` obok.
+
+  ``autoescape off`` jest poprawnością, a nie obejściem: to jest plik tekstowy, nie HTML, więc
+  encje (``&amp;`` zamiast ``&``) byłyby w wiadomości po prostu widoczne. Ten sam wybór, co
+  w ``invite_student_body.txt`` i ``password_reset_email.txt``.
+
+  Imię, nazwisko i adres **nauczyciela** są tu wyjątkowo na miejscu, choć gdzie indziej list do
+  ucznia danych osób trzecich nie niesie: uczeń ma zdecydować, czy tej konkretnej osobie dać
+  wgląd w swój przebieg zawodów, a bez nazwiska i adresu nie ma czego rozpoznać. Nazwisko pochodzi
+  z konta opiekuna (aktywowanego linkiem na ten adres), a nie z pliku – pusty napis znaczy, że
+  nauczyciel konta jeszcze nie ma.
+
+  Nazwiska ucznia nie ma: adres przepisał z listy klasowej ktoś inny, więc list bywa doręczony
+  pod zły adres, a imię i nazwa konkursu w zupełności wystarczają do rozpoznania sprawy.
+  Zdanie „bez kliknięcia nic się nie zmieni” jest obowiązkowe – uczeń, który nie zna tej osoby,
+  ma wiedzieć, że wystarczy list zignorować.
+{% endcomment %}{% blocktranslate trimmed with name=first_name %}
+Cześć {{ name }}!
+{% endblocktranslate %}
+
+{% if via_coordinator %}{% if supervisor_name %}{% blocktranslate trimmed with teacher=supervisor_name email=supervisor_email competition=competition_name %}
+Organizator konkursu {{ competition }}, wgrywając listę uczniów, wskazał nauczyciela {{ teacher }} ({{ email }}) jako Twojego opiekuna szkolnego.
+{% endblocktranslate %}{% else %}{% blocktranslate trimmed with email=supervisor_email competition=competition_name %}
+Organizator konkursu {{ competition }}, wgrywając listę uczniów, wskazał nauczyciela z adresem {{ email }} jako Twojego opiekuna szkolnego.
+{% endblocktranslate %}{% endif %}{% else %}{% if supervisor_name %}{% blocktranslate trimmed with teacher=supervisor_name email=supervisor_email competition=competition_name %}
+Nauczyciel {{ teacher }} ({{ email }}) prosi o dopisanie jako Twój opiekun szkolny w konkursie {{ competition }}.
+{% endblocktranslate %}{% else %}{% blocktranslate trimmed with email=supervisor_email competition=competition_name %}
+Nauczyciel z adresem {{ email }} prosi o dopisanie jako Twój opiekun szkolny w konkursie {{ competition }}.
+{% endblocktranslate %}{% endif %}{% endif %}
+
+{% translate "Opiekun szkolny widzi Twoje imię i nazwisko, kod uczestnika, szkołę, klasę i to, na jakim etapie procedury są Twoje prace – punkty dopiero po ogłoszeniu wyników. Nie widzi Twoich prac ani komentarzy recenzentów." %}
+
+{% translate "Decyzja należy do Ciebie. Zaloguj się na swoje konto i otwórz poniższy adres – zobaczysz tam szczegóły i dwa przyciski: „Zgadzam się” i „Nie zgadzam się”:" %}
+
+{{ link }}
+
+{% blocktranslate trimmed with days=days %}
+Link jest ważny {{ days }} dni. Jeśli masz już opiekuna szkolnego, zgoda go zastąpi – strona powie to wprost.
+{% endblocktranslate %}
+
+{% translate "Jeśli nie znasz tej osoby albo nie chcesz jej dopisywać – zignoruj tę wiadomość. Bez Twojego kliknięcia nic się nie zmieni." %}
+
+--
+{{ signature }}
+{% translate "Wiadomość wysłana automatycznie; prosimy na nią nie odpowiadać." %}
+{% endautoescape %}

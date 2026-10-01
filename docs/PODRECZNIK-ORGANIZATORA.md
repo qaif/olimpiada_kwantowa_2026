@@ -1750,6 +1750,31 @@ przypisywania po nazwie szkoły — oba wyglądają porządniej, ale oba znaczy�
 dostęp do danych ucznia bez jego udziału. Opiekun widzi kod, imię, nazwisko, szkołę i klasę ucznia oraz
 ścieżkę statusu pracy; **nie widzi punktów przed ogłoszeniem wyników, prac ani komentarzy recenzentów**.
 
+**Import listy uczniów a konta, które już istnieją (od v0.38.6, decyzja właściciela platformy).**
+Import — nauczyciela (`/supervisor/import/`) i Twój (`/coordinator/accounts/import/`, kolumna
+„e-mail opiekuna szkolnego”) — **zakłada** konta zaproszonych tak jak dotąd: nowy uczeń dostaje adres
+opiekuna od razu, bo i tak uruchamia konto sam, przyjmując zaproszenie. Adresu, który ma już konto,
+import **nie zmienia**: do v0.38.5 nadpisywał uczniowi opiekuna adresem z pliku, a przy otwartej
+rejestracji opiekunów każdy mógł w ten sposób dopisać się do dowolnego ucznia i wypchnąć jego
+prawdziwego nauczyciela. Teraz uczeń **tego** konkursu dostaje list z prośbą o zgodę (link ważny
+14 dni, strona wymaga zalogowania jako ten uczeń, dwa przyciski „Zgadzam się” / „Nie zgadzam się”)
+i dopiero jego zgoda zapisuje adres. Zasada obowiązuje **także Twój import**: kolumna opiekuna
+przypisuje nauczyciela od razu wyłącznie nowym kontom, a pusta komórka u istniejącego ucznia
+**nie czyści** już opiekuna, którego wpisał sam. Szczegóły dla Ciebie:
+
+- **podgląd mówi o każdym zajętym adresie jednym zdaniem** („adres ma już konto – jeśli to uczeń
+  tego konkursu, dostanie prośbę o zgodę”) — bez odróżniania ucznia od recenzenta czy koordynatora,
+  a komunikat po zapisie podaje trzy liczby: zaproszeni, adresy z istniejącym kontem, pominięci.
+  Ile próśb naprawdę wyszło, mówi wpis audytu `accounts.students_imported` (`consent_requested`),
+- **jedna prośba na parę (uczeń, nauczyciel) na dobę**; import nauczyciela ma limit żądań
+  (scope `upload`, każdy podgląd i każde zatwierdzenie),
+- **ślad w audycie** karty uczestnika: `participant.supervisor_consent_requested` (kto wgrał plik),
+  `participant.supervisor_consented` albo `participant.supervisor_consent_refused` (uczeń) — bez
+  adresów, z polem `via` (`supervisor` / `coordinator`),
+- **dowiązania sprzed v0.38.6 zostały w bazie bez zmian** (bez migracji danych). Każde z nich ma
+  w audycie wpis `participant.supervisor_email_set`, którego wykonawcą jest osoba wgrywająca plik,
+  a nie uczeń — jeśli trzeba je przejrzeć, poproś operatora o listę.
+
 **Włączenie rejestracji opiekunów szkolnych.** Konto opiekuna zakłada się samoobsługowo pod adresem
 `/register/supervisor/`, ale sam adres jest domyślnie **ukryty** (organizator wyłączył go w wydaniu
 z 19.09.2026 na wyraźną prośbę — rola nie była jeszcze ogłaszana). Żeby go pokazać:
@@ -1777,8 +1802,8 @@ jak u uczestnika), telefon kontaktowy (opcjonalny) oraz zgody na regulamin i ROD
 i wersje, co u uczestnika. Po wysłaniu formularza konto **czeka na aktywację**, dokładnie jak konto
 ucznia: list z linkiem aktywacyjnym, 4 godziny na kliknięcie, w razie potrzeby ponowna wysyłka z ekranu
 logowania. Strona „Konto zostało założone” tłumaczy nauczycielowi, co dalej: panel „Moi uczniowie” będzie
-pusty, dopóki uczniowie sami nie wpiszą jego adresu e-mail w swoim profilu — to oni decydują, kto widzi
-ich postęp, nie organizator ani nauczyciel.
+pusty, dopóki uczniowie sami nie wpiszą jego adresu e-mail w swoim profilu albo nie zgodzą się na jego
+prośbę z importu listy — to oni decydują, kto widzi ich postęp, nie organizator ani nauczyciel.
 
 ---
 

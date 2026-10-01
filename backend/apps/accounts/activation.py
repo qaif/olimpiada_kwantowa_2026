@@ -330,7 +330,13 @@ def email_changed_notice(new_email: str, competition=None) -> str:
 
 
 def queue_mail(
-    subject: str, message: str, recipient: str, *, competition=None, headers: dict[str, str] | None = None
+    subject: str,
+    message: str,
+    recipient: str,
+    *,
+    competition=None,
+    headers: dict[str, str] | None = None,
+    html_message: str | None = None,
 ) -> None:
     """Kolejkuje list **po commicie** – wzorzec z ``apps.competitions.interviews._send_confirmation``.
 
@@ -348,6 +354,11 @@ def queue_mail(
     ``headers`` – dodatkowe nagłówki listu (``List-Unsubscribe`` powiadomień forum). Brak znaczy
     „jak dotąd”: zadanie dostaje wtedy dokładnie te same argumenty, co przed tą zmianą, więc testy
     i listy, które nagłówków nie potrzebują, nie widzą różnicy.
+
+    ``html_message`` – wersja HTML jako alternatywa ``text/html`` (od v0.38.6: prośba o zgodę na
+    opiekuna szkolnego, ``apps.accounts.supervisor_consent``). Ta sama umowa, co przy nagłówkach:
+    bez niej zadanie dostaje dokładnie te argumenty, co dotąd, a z nią – słowo kluczowe, nigdy
+    pozycję (piąty argument pozycyjny zadania to właśnie ``html_message``).
     """
     if not recipient:
         return
@@ -365,11 +376,19 @@ def queue_mail(
     # obowiązywał w chwili operacji, a nie ten, który akurat będzie aktywny w workerze.
     subject_text = str(subject)
     message_text = str(message)
+    # ``str.__str__``, a nie ``str(...)``: wynik ``render_to_string`` to ``SafeString``, którego
+    # ``__str__`` zwraca samego siebie – a przez JSON brokera ma jechać zwykły napis.
+    html_text = str.__str__(html_message) if html_message else None
 
     def _enqueue() -> None:
         from apps.core.tasks import send_mail_task
 
-        if headers:
+        if html_text:
+            extra: dict = {"html_message": html_text}
+            if headers:
+                extra["headers"] = dict(headers)
+            send_mail_task.delay(subject_text, message_text, [recipient], from_email, **extra)
+        elif headers:
             # Słowem kluczowym, nie pozycyjnie: piąty argument pozycyjny zadania to ``html_message``
             # (list resetu hasła, wydanie 0.36.0) – nagłówki podane pozycyjnie trafiłyby w treść HTML.
             send_mail_task.delay(subject_text, message_text, [recipient], from_email, headers=dict(headers))

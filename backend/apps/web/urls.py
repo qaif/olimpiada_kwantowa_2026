@@ -61,6 +61,7 @@ from .views import (
     reviewer_extras,
     reviewer_tools,
     supervisor,
+    supervisor_consent,
     support,
     twofactor,
 )
@@ -120,6 +121,14 @@ urlpatterns = [
         name="student-invite-done",
     ),
     path("zaproszenie/<str:token>/", invite.StudentInviteView.as_view(), name="student-invite"),
+    # Zgoda ucznia na opiekuna szkolnego, który poprosił o nią importem listy (v0.38.6,
+    # ``apps.accounts.supervisor_consent``). Adres polski, bo trafia do listu do ucznia; w odróżnieniu
+    # od dwóch wyżej strona wymaga **zalogowania** jako adresat – token sam nie jest uprawnieniem.
+    path(
+        "opiekun/zgoda/<str:token>/",
+        supervisor_consent.SupervisorConsentView.as_view(),
+        name="supervisor-consent",
+    ),
     # --- własne konto (wszystkie role) -------------------------------------------------------
     # ``/me/profile/`` jest przy panelu uczestnika, bo edytuje **profil uczestnika**;
     # ``/account/…`` obsługuje to, co ma każde konto: nazwisko, adres e-mail, usunięcie konta.

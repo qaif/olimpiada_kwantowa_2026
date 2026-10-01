@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% comment %}
+  Zgoda ucznia na opiekuna szkolnego, który poprosił o nią importem listy uczniów (v0.38.6,
+  ``apps.accounts.supervisor_consent``). Stronę widzi wyłącznie zalogowany właściciel profilu –
+  widok sprawdza to przed renderem, więc ten szablon może pokazać obecny adres opiekuna (to jest
+  własna dana ucznia).
+
+  Kolejność treści jest celowa: najpierw **kto prosi**, potem **co zobaczy**, potem **co się stanie
+  z obecnym opiekunem**, a dopiero na końcu przyciski. Zgoda bez tej wiedzy nie byłaby świadoma.
+  Lista „co zobaczy / czego nie zobaczy” jest przepisana z tego, co naprawdę renderuje panel
+  ``/supervisor/`` (``web/supervisor/dashboard.html`` i ``students.html``) – przy zmianie panelu
+  trzeba zmienić i ją.
+
+  Dwa przyciski w **jednym** formularzu z polem ``decision``: GET niczego nie zmienia (klienty
+  pocztowe i skanery otwierają linki same), a ``csrf_token`` jest ten sam, co w każdym POST-cie
+  serwisu.
+{% endcomment %}
+{% block title %}{% translate "Prośba o dopisanie opiekuna szkolnego" %}{% endblock %}
+{% block timeline_strip %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow">{% translate "Opiekun szkolny" %}</span>
+  <h1>{% translate "Prośba o dopisanie opiekuna szkolnego" %}</h1>
+  <p class="lead">
+    {% if requester.name %}
+      {% blocktranslate trimmed with name=requester.name email=requester.email competition=competition %}
+        Nauczyciel <strong>{{ name }}</strong> ({{ email }}) prosi o dopisanie jako Twój opiekun
+        szkolny w konkursie {{ competition }}.
+      {% endblocktranslate %}
+    {% else %}
+      {% blocktranslate trimmed with email=requester.email competition=competition %}
+        Nauczyciel z adresem <strong>{{ email }}</strong> prosi o dopisanie jako Twój opiekun
+        szkolny w konkursie {{ competition }}.
+      {% endblocktranslate %}
+    {% endif %}
+  </p>
+  {% if requester.school %}
+    <p class="hint">{% blocktranslate trimmed with school=requester.school %}
+      Szkoła podana przez nauczyciela przy rejestracji: {{ school }}.
+    {% endblocktranslate %}</p>
+  {% endif %}
+  {% if via_coordinator %}
+    <p class="hint">{% translate "Prośba przyszła z listy uczniów wgranej przez organizatora konkursu, który wskazał tego nauczyciela jako Twojego opiekuna." %}</p>
+  {% endif %}
+  {% if not requester.has_account %}
+    <p class="hint">{% translate "Ten adres nie ma jeszcze konta opiekuna w serwisie – nauczyciel zobaczy Cię na swojej liście dopiero wtedy, gdy je założy." %}</p>
+  {% endif %}
+</div>
+
+<section class="section">
+  <div class="card">
+    <h2 class="mt-0">{% translate "Co zobaczy nauczyciel, jeśli się zgodzisz" %}</h2>
+    <ul>
+      <li>{% translate "Twoje imię i nazwisko, kod uczestnika, szkołę i klasę;" %}</li>
+      <li>{% translate "na jakim etapie procedury są Twoje prace w każdym etapie: oddane, w ocenie, ocenione, wyniki;" %}</li>
+      <li>{% translate "liczbę punktów – wyłącznie po ogłoszeniu wyników etapu, czyli tę samą, którą widać w publicznej tabeli;" %}</li>
+      <li>{% translate "czy Twoje konto jest już aktywne." %}</li>
+    </ul>
+    <p>{% translate "Nauczyciel nie zobaczy Twoich prac, komentarzy recenzentów, punktów przed ogłoszeniem wyników ani Twoich danych kontaktowych i zgód." %}</p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="card">
+    {% if current_email %}
+      <p class="msg msg-warning">{% blocktranslate trimmed with current=current_email %}
+        Masz już opiekuna szkolnego: <strong>{{ current }}</strong>. Opiekun jest jeden – jeśli się
+        zgodzisz, nowy nauczyciel <strong>zastąpi</strong> obecnego, a obecny przestanie widzieć Twój
+        przebieg zawodów.
+      {% endblocktranslate %}</p>
+    {% endif %}
+    {% if missing_decision %}
+      <p class="msg msg-error">{% translate "Wybierz jedną z dwóch odpowiedzi." %}</p>
+    {% endif %}
+    <form method="post" class="form">
+      {% csrf_token %}
+      <div class="actions">
+        <button type="submit" name="decision" value="{{ decision_accept }}" class="btn btn--primary">{% translate "Zgadzam się" %}</button>
+        <button type="submit" name="decision" value="{{ decision_refuse }}" class="btn btn--secondary">{% translate "Nie zgadzam się" %}</button>
+      </div>
+    </form>
+    <p class="hint">
+      {% blocktranslate trimmed with days=valid_days %}
+        Link jest ważny {{ days }} dni. Decyzję możesz zmienić w każdej chwili w swoim profilu –
+        polem „Adres e-mail opiekuna szkolnego”. Jeśli nie znasz tej osoby, wybierz „Nie zgadzam się”
+        i daj znać organizatorowi.
+      {% endblocktranslate %}
+    </p>
+  </div>
+</section>
+{% endblock %}

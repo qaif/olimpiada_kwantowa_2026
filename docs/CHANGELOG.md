@@ -8,6 +8,19 @@ dokładnie jednemu wierszowi tej tabeli.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## v0.38.6 – 2026-10-02 – Zgoda ucznia na opiekuna, oceny dopiero po ogłoszeniu wyników
+
+- **Poprawka (bezpieczeństwo, decyzja właściciela):** import listy uczniów nie dopisuje już opiekuna
+  szkolnego do **istniejącego** konta. Uczeń dostaje list z prośbą o zgodę (link 14 dni,
+  `/opiekun/zgoda/<token>/`, wymaga zalogowania jako ten uczeń, przyciski „Zgadzam się” / „Nie zgadzam
+  się”, strona mówi, co nauczyciel zobaczy i że zastąpi obecnego opiekuna); adres zapisuje dopiero zgoda
+  (`apps/accounts/supervisor_consent.py`). Dotyczy importu nauczyciela i koordynatora; pusta kolumna
+  opiekuna u koordynatora nie czyści już adresu ucznia. Podgląd mówi o każdym zajętym adresie jednym
+  zdaniem (bez rozróżniania ucznia od recenzenta/koordynatora), komunikat po zapisie podaje trzy liczby.
+  Najwyżej jedna prośba na parę (uczeń, opiekun) na dobę; import nauczyciela ma limit żądań (`upload`).
+  Konta **zakładane** importem – bez zmian (zgodą jest przyjęcie zaproszenia). Dowiązania sprzed tej
+  wersji zostają w bazie bez zmian.
+
 ## v0.38.2 – 2026-10-01 – Poprawki po audycie bezpieczeństwa (pakiet 1)
 
 - **Poprawka:** `/cms/login/` i `/admin/login/` nie przyjmują hasła – odsyłają na `/login/`, jedyny
