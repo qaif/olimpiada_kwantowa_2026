@@ -80,7 +80,8 @@ class AppealsCommitteeMixin:
         return competition_of(self.request)
 
     def get_member(self):
-        return appeals_committee_profile(self.request.user)
+        # Profil komisji **tego** konkursu – ten sam, który sprawdza ``IsAppealsCommittee``.
+        return appeals_committee_profile(self.request.user, self.competition)
 
     def get_queryset(self):
         return appeals_queue(self.get_member(), self.competition)

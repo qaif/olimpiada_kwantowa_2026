@@ -24,6 +24,7 @@ from django.utils import timezone
 from rest_framework import status as http
 
 from apps.accounts.models import CommitteeMember, CommitteeStatus
+from apps.accounts.services import committee_profile_in
 from apps.competitions.models import Stage
 from apps.competitions.scoring import score_rule
 from apps.core.api import DomainError
@@ -31,6 +32,7 @@ from apps.core.models import audit
 from apps.grading.models import ROUND_BLIND, FinalGrade, GradeMethod, Review
 from apps.submissions.models import Submission, SubmissionFile, SubmissionStatus
 from apps.submissions.notifications import notify_appeal_decided
+from apps.tenancy.context import current_competition
 
 from .models import (
     CONFLICTING_ROUNDS,
@@ -102,15 +104,19 @@ def _locked_submission(submission_id: int) -> Submission:
     )
 
 
-def appeals_committee_profile(user) -> CommitteeMember | None:
+def appeals_committee_profile(user, competition=None) -> CommitteeMember | None:
     """Profil członka komisji odwoławczej: aktywny ``CommitteeMember`` z ``is_appeals_committee``.
 
     Grupę ``appeals`` sprawdza klasa uprawnień (``IsAppealsCommittee``); serwis pilnuje samego
     profilu, żeby działał także wołany poza HTTP (shell, zadania).
+
+    Profil musi należeć do konkursu ``competition`` (``None`` = konkurs z kontekstu, jak
+    w ``active_reviewer_profile``) – komisja odwoławcza jest komisją **jednego** organizatora,
+    a przy wyłączonym ``memberships_enforced`` grupa ``appeals`` jest globalna i o tym nie mówi.
     """
     if not user or not user.is_authenticated or not user.is_active:
         return None
-    member = getattr(user, "committee_member", None)
+    member = committee_profile_in(user, competition or current_competition())
     if member is None or member.status != CommitteeStatus.ACTIVE or not member.is_appeals_committee:
         return None
     return member
@@ -240,6 +246,14 @@ def decide_appeal(
 
     locked = _locked_submission(appeal.submission_id)
     appeal = Appeal.objects.select_related("filed_by").get(pk=appeal.pk)
+
+    # Komisja odwoławcza jest komisją **konkursu pracy** (poprawka po audycie izolacji,
+    # 01.10.2026). Widok wyszukuje reklamację w zakresie konkursu żądania, a bramka sprawdza profil
+    # w tym samym konkursie – ale serwis bywa wołany bez widoku (shell, zadania), a decyzja
+    # członka cudzej komisji byłaby rozstrzygnięciem sprawy uczestnika przez obcego organizatora.
+    # Porównanie kluczy nie kosztuje zapytania: obie kolumny są już w pamięci.
+    if actor_member.competition_id != locked.competition_id:
+        raise _forbidden("Konto nie należy do komisji odwoławczej tego konkursu.", "NOT_APPEALS_COMMITTEE")
 
     if has_conflict_of_interest(actor_member, locked):
         raise _forbidden(
@@ -421,9 +435,17 @@ def appeals_queue(member: CommitteeMember | None, competition=None):
     Trzy zawężenia i każde odpowiada na inne pytanie: konkurs – „czyje to sprawy”, ``pending`` –
     „czy jest co rozstrzygać”, konflikt interesów – „czy ta osoba może”. Zakres konkursu idzie
     pierwszy (§ 3.5), bo jest własnością, a nie uprawnieniem.
-    """
-    from apps.competitions.scoping import scope_to_competition
 
+    Członek komisji **innego** konkursu dostaje pustą kolejkę – nawet gdyby przeszedł bramkę
+    (grupa ``appeals`` jest przy wyłączonym ``memberships_enforced`` globalna), cudze sprawy nie są
+    jego sprawami. ``competition=None`` znaczy konkurs z kontekstu – ten sam, którym zawęża
+    ``scope_to_competition``, więc obie reguły pytają o jeden konkurs.
+    """
+    from apps.competitions.scoping import resolve_competition, scope_to_competition
+
+    resolved = resolve_competition(competition)
+    if member is not None and resolved is not None and member.competition_id != resolved.pk:
+        return Appeal.objects.none()
     return (
         scope_to_competition(Appeal.objects.pending(), competition)
         .without_conflict_for(member)

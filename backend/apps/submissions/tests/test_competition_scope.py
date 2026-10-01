@@ -21,6 +21,7 @@ from apps.grading.tests.factories import ReviewFactory
 from apps.submissions.models import Submission, SubmissionFile, SubmissionSimilarity
 from apps.submissions.tasks import close_due_stages
 from apps.submissions.tests.factories import SubmissionFactory, SubmissionFileFactory
+from apps.tenancy.tests.factories import enforce_memberships, grant_membership
 
 pytestmark = pytest.mark.django_db
 
@@ -144,6 +145,40 @@ def test_participant_of_another_competition_sees_nothing_here(competition, other
     SubmissionFactory(competition=other_competition, entry__participant=participant_b)
 
     assert list(Submission.objects.for_user(participant_b.user, competition)) == []
+
+
+# --- role liczone w konkursie, nie w instalacji (poprawka po audycie izolacji, 01.10.2026) -------
+
+
+def test_coordinator_of_another_competition_sees_nothing_here_with_memberships_on(
+    competition, other_competition
+):
+    """Do poprawki gałąź koordynatora pytała o globalną grupę z pominięciem ``has_role``.
+
+    Przy włączonym ``memberships_enforced`` koordynatorem konkursu A jest wyłącznie ktoś
+    z członkostwem w A – grupa ``coordinator`` (nadana w B) nie otwiera tu niczego.
+    """
+    enforce_memberships(competition)
+    mine = SubmissionFactory(competition=competition)
+    coordinator_b = CoordinatorFactory()
+    grant_membership(coordinator_b, other_competition, "coordinator")
+    coordinator_a = CoordinatorFactory()
+    grant_membership(coordinator_a, competition, "coordinator")
+
+    assert list(Submission.objects.for_user(coordinator_b, competition)) == []
+    assert list(Submission.objects.for_user(coordinator_a, competition)) == [mine]
+
+
+def test_reviewer_of_another_competition_does_not_see_work_assigned_here(competition, other_competition):
+    """Przydział sprzed zawężenia puli recenzentów nie otwiera prac konkursu A członkowi komitetu B.
+
+    Profil komitetu musi należeć do konkursu zapytania (``committee_profile_in``) – sama grupa
+    ``reviewer`` przy wyłączonym przełączniku jest globalna.
+    """
+    reviewer_b = ActiveReviewerFactory(competition=other_competition)
+    ReviewFactory(competition=competition, reviewer=reviewer_b)
+
+    assert list(Submission.objects.for_user(reviewer_b.user, competition)) == []
 
 
 # --- reguła krzyżowa w API ----------------------------------------------------------------------
