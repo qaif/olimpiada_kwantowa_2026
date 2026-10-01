@@ -461,6 +461,14 @@ CELERY_BROKER_URL = env("CELERY_BROKER_URL", default="redis://localhost:6379/1")
 CELERY_RESULT_BACKEND = None
 CELERY_TASK_ALWAYS_EAGER = False
 CELERY_TASK_DEFAULT_QUEUE = "default"
+# Górna granica czasu każdego zadania. Worker ma dwa procesy (``CELERY_CONCURRENCY``) na trzy
+# kolejki, więc dwa zadania, które nigdy się nie kończą – np. biblioteka zapętlona na spreparowanym
+# pliku od uczestnika – zatrzymywałyby skan antywirusowy i pocztę do restartu. Miękki limit rzuca
+# w zadaniu ``SoftTimeLimitExceeded`` (zwykła obsługa błędu, ponowienia), twardy zabija proces
+# i worker stawia nowy. Wartości są sufitem dla zadań rzadkich i długich (przeliczenie podobieństw
+# całego etapu); zadanie z własnym limitem (``apps.ai_grading.tasks``) zachowuje swój.
+CELERY_TASK_SOFT_TIME_LIMIT = env.int("CELERY_TASK_SOFT_TIME_LIMIT", default=30 * 60)
+CELERY_TASK_TIME_LIMIT = env.int("CELERY_TASK_TIME_LIMIT", default=35 * 60)
 CELERY_TASK_ROUTES = {
     "apps.submissions.tasks.scan_submission_file": {"queue": "scan"},
     "apps.core.tasks.send_mail_task": {"queue": "mail"},
@@ -945,6 +953,10 @@ DJCMS_SSO_KEY = env("DJCMS_SSO_KEY", default="")
 
 WAGTAIL_SITE_NAME = env("WAGTAIL_SITE_NAME", default="Olimpiada Kwantowa")
 WAGTAILADMIN_BASE_URL = env("WAGTAILADMIN_BASE_URL", default=f"https://{SITE_DOMAIN}")
+# Reset hasła ma jedną drogę: ``/password-reset/`` (limit prób, wysyłka w tle, audyt). Własny reset
+# panelu (``/cms/password_reset/``) działa dla **każdego** konta i żadnej z tych rzeczy nie ma –
+# wyłączony odpowiada 404. Logowanie panelu: ``apps.web.views.public.panel_login_redirect``.
+WAGTAIL_PASSWORD_RESET_ENABLED = False
 # Whitelist rozszerzeń dokumentów: bez niej redaktor mógłby wrzucić do publicznego bucketu plik
 # wykonywalny albo HTML (XSS z tej samej domeny, gdyby kiedyś serwować go bez pośrednictwa widoku).
 WAGTAILDOCS_EXTENSIONS = ["pdf", "doc", "docx", "odt", "ods", "odp", "xls", "xlsx", "csv", "txt", "zip"]

@@ -559,7 +559,9 @@ def expire_attempt(attempt: QuizAttempt, *, now=None) -> QuizAttempt:
     return attempt
 
 
-def finalise_overdue(*, quiz: Quiz | None = None, stage: Stage | None = None, now=None) -> int:
+def finalise_overdue(
+    *, quiz: Quiz | None = None, stage: Stage | None = None, entry: StageEntry | None = None, now=None
+) -> int:
     """Domknięcie wszystkich porzuconych podejść, którym minął czas. Zwraca ich liczbę.
 
     Potrzebne, bo podejście kończy się na dwa sposoby, a tylko jeden z nich generuje żądanie:
@@ -577,10 +579,21 @@ def finalise_overdue(*, quiz: Quiz | None = None, stage: Stage | None = None, no
         queryset = queryset.filter(quiz=quiz)
     if stage is not None:
         queryset = queryset.filter(quiz__stage=stage)
+    if entry is not None:
+        queryset = queryset.filter(entry=entry)
     overdue = list(queryset.filter(deadline_at__lt=now - timedelta(seconds=SUBMIT_GRACE_SECONDS)))
+    closed = 0
     for attempt in overdue:
-        expire_attempt(attempt, now=now)
-    return len(overdue)
+        # Każde podejście osobno: ``expire_attempt`` jest atomowe, więc błąd cofa tylko jego
+        # własny zapis. Jedno podejście, którego nie da się ocenić, nie może zatrzymać domykania
+        # pozostałych ani wywrócić ekranu, który to przejście wywołał.
+        try:
+            expire_attempt(attempt, now=now)
+        except Exception:
+            logger.exception("quiz.attempt_expire_failed attempt=%s", attempt.pk)
+            continue
+        closed += 1
+    return closed
 
 
 # --- ocena ------------------------------------------------------------------------------------

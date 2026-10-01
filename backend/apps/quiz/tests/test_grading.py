@@ -358,3 +358,23 @@ def test_walidacja_ustawien_tekstowych_przepuszcza_flagi_i_przycina_puste_warian
 def test_score_question_odmawia_nieznanego_rodzaju():
     with pytest.raises(ValueError, match="Nieznany rodzaj"):
         grading.score_question(kind="COS_INNEGO", settings={}, payload={}, correct_ids=set(), all_ids=set())
+
+
+@pytest.mark.parametrize("given", ["9e1000000", "1e999999999", "-5e101", "1e-101"])
+def test_parse_number_odrzuca_liczby_o_skrajnym_wykladniku(given):
+    """Skończona, ale nie do odjęcia: ``Decimal`` rzuca na niej ``Overflow`` w ocenianiu."""
+    assert grading.parse_number(given) is None
+
+
+def test_liczba_o_skrajnym_wykladniku_to_brak_odpowiedzi_a_nie_wyjatek():
+    settings = {"answer": "9.81", "tolerance_abs": "0", "tolerance_rel": "0.01"}
+    assert grading.grade_numeric({"value": "9e1000000"}, settings).is_correct is None
+
+
+def test_lista_wariantow_jest_odcinana_i_bez_powtorzen():
+    payload = {"options": [1, 1, "2", "x", *range(3, 5000)]}
+
+    ids = grading.selected_option_ids(payload)
+
+    assert ids[:3] == [1, 2, 3]
+    assert len(ids) <= grading.MAX_SELECTED_OPTIONS
