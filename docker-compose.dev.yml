@@ -1,6 +1,21 @@
 # Override developerski: kod z hosta montowany do kontenera, zapis dozwolony, porty pomocnicze.
 # Użycie: docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+#
+# Każdy port publikowany WYŁĄCZNIE na 127.0.0.1 (od 1.10.2026; wcześniej na wszystkich interfejsach).
+# Środowisko deweloperskie ma jawne hasła z .env.example, konta demo i E2E_MODE=1 (wyłączona CAPTCHA),
+# a `"8000:8000"` publikuje port na 0.0.0.0 (na Linuksie regułami iptables Dockera, z pominięciem
+# ufw) – czyli baza, MinIO z konsolą i aplikacja w trybie testowym byłyby osiągalne z sieci kawiarni
+# czy biura. docker-compose.e2e-djcms.yml i mailpit w docker-compose.yml trzymają się tej samej zasady.
+# Przeglądarka i narzędzia na tym samym komputerze działają bez zmian (localhost).
 services:
+  proxy:
+    # Caddy w devie zwykle nie startuje (pracuje się na web:8000 i minio:9000 wprost), ale jeśli już –
+    # też tylko na pętli zwrotnej. Bez 9000: ten port ma tu MinIO (S3_PUBLIC_ENDPOINT_URL niżej), a dwa
+    # publikowane 9000 i tak by się wykluczały (z 0.0.0.0:9000 z pliku podstawowego proxy w devie nie
+    # wstawało wcale).
+    ports: !override
+      - "127.0.0.1:80:80"
+      - "127.0.0.1:443:443"
   web:
     read_only: false
     volumes:
@@ -14,7 +29,7 @@ services:
       # scenariusza E2E). Żadnej reguły domenowej nie zmienia; w produkcji nie jest ustawiane.
       E2E_MODE: "1"
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
   worker:
     read_only: false
     volumes:
@@ -25,13 +40,13 @@ services:
       - ./backend:/app
   db:
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
   minio:
     # Sieć `internal` ma internal:true, więc publikacja portu wymaga dodatkowo sieci `edge`.
     networks: [internal, edge]
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
   e2e:
     # Testy end-to-end (Playwright) uruchamiane w sieci compose: docker compose -f ... --profile e2e run --rm e2e
     profiles: [e2e]
@@ -80,7 +95,7 @@ services:
       - ./backend/djcms_contract:/opt/djcms_contract:ro
       - djcms_media:/app/media
     ports:
-      - "8100:8000"
+      - "127.0.0.1:8100:8000"
     # Jak minio: publikacja portu wymaga sieci nie-`internal`.
     networks: [internal, edge]
 

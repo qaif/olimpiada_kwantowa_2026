@@ -147,11 +147,56 @@ www.{$SITE_DOMAIN} {
 # Oglądanie idzie tym samym adresem (GET z podpisem, przewijanie żądaniami `Range`), bez `encode`:
 # film jest już skompresowany, a kompresja w locie psułaby odpowiedzi częściowe (206).
 # Access logu Caddy nie włączamy (brak dyrektywy `log`) – adresy z podpisem nie lądują w żadnym pliku.
+#
+# Utwardzenie (1.10.2026, audyt bezpieczeństwa):
+# 1. `/minio/*` – 404 z proxy, poza dwiema sondami życia. Pod tym prefiksem MinIO ma WYŁĄCZNIE własne
+#    API: administracyjne (`/minio/admin/` – konta, polityki, konfiguracja; chronione kluczem roota,
+#    ale nie ma powodu wystawiać go na świat), metryki (`/minio/v2|v3/metrics/`, `/minio/prometheus/`),
+#    KMS, RPC węzłów. Żaden klient S3 tam nie chodzi: nazwa bucketu `minio` jest w MinIO zarezerwowana,
+#    więc ścieżka `/minio/…` nigdy nie jest obiektem, a presigned GET/PUT, wgrywanie wieloczęściowe
+#    (`?uploads`, `?partNumber=&uploadId=` – apps/workshop_materials/storage.py) i żądania `Range`
+#    idą na `/<bucket>/<klucz>` i tej reguły nie dotykają. Zostają `/minio/health/live` i `/ready`:
+#    monitor nr 4 z deploy/monitoring/README.md sprawdza właśnie tę publiczną drogę (adresy presigned
+#    omijają aplikację, więc awaria tylko tej trasy nie zapaliłaby niczego innego), a odpowiedź
+#    to sam kod 200/503 bez treści. `/minio/health/cluster*` (kworum) – zamknięte razem z resztą.
+# 2. Nagłówki bezpieczeństwa: `nosniff`, HSTS jak w bloku domeny głównej i CSP `sandbox` – obiekt
+#    `public-media` (wgrany przez redaktora SVG albo HTML) otwarty wprost w karcie nie wykona skryptu.
+#    To jest ten sam origin co reszta serwisu dla ciasteczek (ciasteczka nie rozróżniają portów –
+#    produkcja ma S3 pod `<domena>:9000`), więc skrypt stąd czytałby np. `csrftoken`. Wyjątek: PDF
+#    (`path_regexp (?i)\.pdf$`, to samo podejście co dla plików redaktorów serwisu na django CMS
+#    w scripts/render_caddyfile.sh) – wbudowane przeglądarki PDF nie działają pod `sandbox`. CSP
+#    odpowiedzi nie dotyczy żądań `fetch`/XHR (dotyczy dokumentu, który się z niej buduje), więc
+#    wgrywanie z przeglądarki koordynatora i odtwarzacz `<video>` działają bez zmian.
+#    `defer`: nagłówki ustawiane PO odpowiedzi MinIO, które wysyła własne `X-Content-Type-Options`,
+#    HSTS (z `includeSubDomains`) i CSP `block-all-mixed-content` – bez `defer` dostałby je klient
+#    obok naszych albo zamiast nich (PDF zostaje z CSP MinIO – samo `block-all-mixed-content`,
+#    nieszkodliwe). CORS, `ETag`, `Content-Range`, `Accept-Ranges` i pozostałe nagłówki MinIO
+#    przechodzą nietknięte (żadnego `-` ani podmiany). Działanie na żywym Caddym z atrapą MinIO
+#    (ścieżki, nagłówki każdy dokładnie raz, `Range` → 206): scripts/tests/s3_proxy_test.sh.
 {$S3_PUBLIC_ADDRESS} {
     request_body {
         max_size {$MAX_UPLOAD_MB}MB
     }
-    reverse_proxy minio:9000
+    @s3_minio_api {
+        path /minio /minio/*
+        not path /minio/health/live /minio/health/ready
+    }
+    handle @s3_minio_api {
+        respond 404
+    }
+    header {
+        defer
+        X-Content-Type-Options "nosniff"
+        Strict-Transport-Security "max-age=31536000"
+    }
+    @s3_active_content not path_regexp (?i)\.pdf$
+    header @s3_active_content {
+        defer
+        Content-Security-Policy "default-src 'none'; img-src 'self' data:; media-src 'self'; style-src 'unsafe-inline'; sandbox"
+    }
+    handle {
+        reverse_proxy minio:9000
+    }
 }
 
 # Własne Jitsi Meet (rozmowy kwalifikacyjne): osobny projekt compose (deploy/jitsi, scripts/deploy_jitsi.sh);

@@ -166,6 +166,8 @@ PAGE_CACHE_ENABLED=1
 POSTGRES_DB=olimpiada
 POSTGRES_USER=olimpiada
 POSTGRES_PASSWORD=$(rand 16)
+# Redis z hasłem (jak na produkcji po 1.10.2026) – E2E przechodzi drogę REDIS_URL z `:hasło@`.
+REDIS_PASSWORD=$(rand 16)
 MINIO_ROOT_USER=e2eroot$(rand 4)
 MINIO_ROOT_PASSWORD=$(rand 16)
 S3_PUBLIC_ACCESS_KEY=e2epub$(rand 4)
