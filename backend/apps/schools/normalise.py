@@ -87,6 +87,28 @@ WESOLA_POSTAL_PREFIX = "05-07"
 #: więc zapytanie o gminę „Nowe” brałoby też „Nowe Miasto”. Uzasadnienie przy ``city_search_for``.
 DISTRICT_SEPARATOR = "|"
 
+#: Ile znaków zapytania wyszukiwarki szkół w ogóle czytamy (pakiet 5 po audycie). Najdłuższa
+#: nazwa w wykazie ma ich ponad sto, ale nikt jej nie wpisuje w całości – podpowiedź działa po
+#: kilku wyrazach. Bez limitu publiczny, nieuwierzytelniony adres przyjmował dowolnie długi tekst.
+MAX_SEARCH_QUERY_LENGTH = 100
+
+#: Ile **różnych** wyrazów zapytania zamienia się na warunki. Każdy wyraz to osobne
+#: ``LIKE '%…%'`` po całej tabeli, więc zapytanie z tysiącem spacji było tysiącem przejść naraz;
+#: sześć wyrazów zawęża każdą szkołę w Polsce do jednej pozycji z dużym zapasem.
+MAX_SEARCH_TOKENS = 6
+
+
+def search_tokens(query: str) -> list[str]:
+    """Wyrazy zapytania wyszukiwarki: złożone ``fold``-em, bez powtórzeń, najwyżej ``MAX_SEARCH_TOKENS``.
+
+    Jedna funkcja dla wykazu publicznego (``apps.schools.api.search_schools``) i słownika
+    organizatora (``apps.schools.custom.search_custom_institutions``) – ta sama fraza ma w obu
+    zawężać tak samo. Powtórzony wyraz nic nie zawęża, więc wypada przed limitem, a nie zabiera
+    miejsca wyrazowi, który coś znaczy.
+    """
+    folded = fold((query or "")[:MAX_SEARCH_QUERY_LENGTH])
+    return list(dict.fromkeys(folded.split()))[:MAX_SEARCH_TOKENS]
+
 
 def _is_warsaw_address(city_folded: str, postal_code: str) -> bool:
     """Czy adres o tej nazwie dzielnicy i tym kodzie pocztowym leży w Warszawie."""

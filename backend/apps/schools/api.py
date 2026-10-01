@@ -65,7 +65,7 @@ from apps.core.text import fold
 
 from .custom import CustomInstitution, search_custom_institutions
 from .models import KIND_ORDER, InstitutionType, School
-from .normalise import DISTRICT_SEPARATOR
+from .normalise import DISTRICT_SEPARATOR, MAX_SEARCH_QUERY_LENGTH, search_tokens
 from .serializers import (
     SOURCE_CUSTOM,
     SOURCE_DIRECTORY,
@@ -88,6 +88,12 @@ MAX_RESULTS = 20
 #: **Nie obowiązuje**, gdy wskazana jest miejscowość: tam pusty tekst znaczy „pokaż wszystkie”
 #: i zbiór jest z góry ograniczony do jednego miasta.
 MIN_QUERY_LENGTH = 2
+
+#: Najdalsze przesunięcie listy (pakiet 5). Pełna lista szkół największego miasta to około
+#: półtora tysiąca wierszy, czyli kilkadziesiąt doczytań po ``MAX_RESULTS``; ``OFFSET`` ponad to
+#: nie odpowiada żadnemu przewijaniu, a każe bazie przejść i wyrzucić tyle wierszy, ile zażąda
+#: nadawca. Dalej lista jest po prostu pusta (``has_more = False``).
+MAX_OFFSET = 5000
 
 
 def _kind_rank():
@@ -204,9 +210,13 @@ def search_schools(
     umową, co w :func:`search_cities`: ``None`` to dzisiejsze zapytanie bez ani jednego warunku
     więcej, pusta krotka to pusta lista.
     """
-    tokens = fold(query or "").split()
-    city_key = fold(city or "").strip()
-    if not city_key and (not tokens or len(fold(query or "").strip()) < MIN_QUERY_LENGTH):
+    # Długość, liczba wyrazów i przesunięcie są przycięte (pakiet 5): każdy wyraz to osobne
+    # ``LIKE`` po całej tabeli, a adres jest publiczny i bez logowania (``normalise.search_tokens``).
+    tokens = search_tokens(query)
+    city_key = fold((city or "")[:MAX_SEARCH_QUERY_LENGTH]).strip()
+    if not city_key and (not tokens or len(" ".join(tokens)) < MIN_QUERY_LENGTH):
+        return [], False
+    if offset > MAX_OFFSET:
         return [], False
     queryset = School.objects.filter(is_active=True)
     if institution_types is not None:

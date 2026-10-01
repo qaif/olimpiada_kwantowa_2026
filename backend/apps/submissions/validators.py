@@ -122,7 +122,10 @@ def _validate_notebook(upload) -> None:
         raise _invalid_type("Notatnik musi być tekstem UTF-8.") from exc
     try:
         document = json.loads(text)
-    except ValueError as exc:
+    except (ValueError, RecursionError) as exc:
+        # ``RecursionError`` (pakiet 5): kilka tysięcy zagnieżdżonych ``[`` to kilkanaście
+        # kilobajtów, a parser JSON schodzi rekurencyjnie – bez tej gałęzi taki plik kończył
+        # upload pięćsetką zamiast odmową ``INVALID_FILE_TYPE``.
         raise _invalid_type("Notatnik nie jest poprawnym dokumentem JSON.") from exc
     if not isinstance(document, dict):
         raise _invalid_type("Notatnik musi być obiektem JSON.")
@@ -138,7 +141,12 @@ def _validate_notebook(upload) -> None:
         nbformat.validate(notebook)
     except Exception as exc:  # nbformat rzuca kilka różnych klas wyjątków
         raise _invalid_type("Notatnik nie przechodzi walidacji nbformat.") from exc
-    if _notebook_outputs_bytes(notebook) > MAX_NOTEBOOK_OUTPUTS_BYTES:
+    try:
+        outputs_bytes = _notebook_outputs_bytes(notebook)
+    except RecursionError as exc:
+        # Ten sam powód, co przy ``json.loads`` wyżej: serializacja zagnieżdżonego outputu.
+        raise _invalid_type("Notatnik nie jest poprawnym dokumentem JSON.") from exc
+    if outputs_bytes > MAX_NOTEBOOK_OUTPUTS_BYTES:
         raise _invalid_type("Sumaryczny rozmiar outputów w notatniku przekracza 2 MB.")
 
 

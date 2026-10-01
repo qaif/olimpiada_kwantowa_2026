@@ -209,6 +209,43 @@ def test_the_full_city_list_is_paged_by_offset(api):
 
 
 @pytest.mark.django_db
+def test_query_with_many_words_costs_at_most_six_like_conditions(api):
+    """Pakiet 5, E14: każdy wyraz to osobny ``LIKE`` – publiczny adres nie może ich mnożyć bez końca."""
+    from django.db import connection
+    from django.test.utils import CaptureQueriesContext
+
+    SchoolFactory(name="LICEUM IM. MICKIEWICZA", city="Kraków")
+    words = " ".join(f"slowo{index}" for index in range(500))
+
+    with CaptureQueriesContext(connection) as captured:
+        body = api.get(URL, {"q": f"mickiewicza {words}"}).json()
+
+    assert body["results"] == []
+    search_sql = [query["sql"] for query in captured.captured_queries if "schools_school" in query["sql"]]
+    assert search_sql
+    assert max(sql.count("LIKE") for sql in search_sql) <= 6
+
+
+@pytest.mark.django_db
+def test_repeated_words_do_not_push_out_the_meaningful_ones(api):
+    SchoolFactory(name="LICEUM IM. MICKIEWICZA", city="Kraków")
+    SchoolFactory(name="LICEUM IM. MICKIEWICZA", city="Gdańsk")
+
+    body = api.get(URL, {"q": "liceum " * 10 + "krakow"}).json()
+
+    assert [row["city"] for row in body["results"]] == ["Kraków"]
+
+
+@pytest.mark.django_db
+def test_offset_beyond_any_real_list_is_an_empty_page(api):
+    SchoolFactory.create_batch(3, city="Kielce")
+
+    body = api.get(URL, {"city": "Kielce", "offset": "100000000"}).json()
+
+    assert body == {"results": [], "has_more": False}
+
+
+@pytest.mark.django_db
 def test_inactive_schools_are_absent_from_the_full_city_list(api):
     SchoolFactory(name="LICEUM ŻYWE", city="Kielce")
     SchoolFactory(name="LICEUM ZLIKWIDOWANE", city="Kielce", is_active=False)

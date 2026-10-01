@@ -5,6 +5,7 @@ from django.urls import reverse
 
 from apps.competitions.models import EditionEvent, StageEntryStatus
 from apps.competitions.tests.factories import EditionFactory, StageFactory
+from apps.core.api import DomainError
 from apps.integrations.models import (
     SCOPE_READ_PARTICIPANTS,
     SCOPE_READ_PARTICIPANTS_PII,
@@ -268,6 +269,27 @@ def test_event_respects_domain_rules(authed, edition):
 
     assert response.status_code == 400
     assert response.data["code"] == "EVENT_URL_INVALID"
+
+
+@pytest.mark.parametrize(
+    "url", ["/\\evil.example", "/\\/evil.example", "/\t/evil.example", "/\n/evil.example"]
+)
+def test_event_path_that_a_browser_reads_as_a_foreign_host_is_refused(url):
+    """Pakiet 5, E13: przeglądarka czyta ``/\\`` jak ``//`` i wycina tabulator – obcy host w ``href``."""
+    from apps.competitions.events import validate_url
+
+    with pytest.raises(DomainError) as exc:
+        validate_url(url)
+    assert exc.value.machine_code == "EVENT_URL_INVALID"
+
+
+@pytest.mark.parametrize(
+    "url", ["/warsztaty/", "/dokumenty/regulamin/?wersja=2#par-3", "https://example.org/a"]
+)
+def test_event_local_paths_and_absolute_urls_still_pass(url):
+    from apps.competitions.events import validate_url
+
+    assert validate_url(url) == url
 
 
 def test_event_cannot_be_written_to_another_edition(authed, edition):

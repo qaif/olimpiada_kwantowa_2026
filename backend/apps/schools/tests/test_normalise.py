@@ -162,3 +162,12 @@ def test_derived_fields_trims_values_to_the_width_of_the_columns():
     assert len(fields["search_text"]) == 400
     assert len(fields["city_parent"]) == 120
     assert len(fields["city_search"]) == 120
+
+
+def test_search_tokens_are_folded_unique_and_capped():
+    """Pakiet 5, E14: wspólna reguła obu wyszukiwarek – wykazu publicznego i słownika organizatora."""
+    from apps.schools.normalise import MAX_SEARCH_QUERY_LENGTH, MAX_SEARCH_TOKENS, search_tokens
+
+    assert search_tokens("Łódź łódź  LICEUM") == ["lodz", "liceum"]
+    assert len(search_tokens(" ".join(f"w{index}" for index in range(50)))) == MAX_SEARCH_TOKENS
+    assert search_tokens("a" * (MAX_SEARCH_QUERY_LENGTH + 50)) == ["a" * MAX_SEARCH_QUERY_LENGTH]
