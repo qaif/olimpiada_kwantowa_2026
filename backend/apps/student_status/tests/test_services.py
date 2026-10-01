@@ -302,21 +302,43 @@ def test_decision_on_a_superseded_version_is_refused(participant, edition):
 # --- lista koordynatora ---------------------------------------------------------------------------
 
 
-def test_coordinator_rows_cover_the_edition_and_count_every_state(participant, edition, competition):
-    stage = StageFactory(competition=competition, edition=edition)
-    entered = ParticipantFactory(competition=competition)
+def test_coordinator_rows_of_current_edition_cover_every_participant(participant, edition, competition):
+    """Edycja bieżąca: liczniki sumują się do liczby uczestników konkursu (błąd z prod 1.10.2026).
+
+    Uczestnik bez wpisu do etapu też może wgrać zaświadczenie, więc też stoi na liście – jako „brak”.
+    """
     from apps.competitions.tests.factories import StageEntryFactory
 
+    stage = StageFactory(competition=competition, edition=edition)
+    entered = ParticipantFactory(competition=competition)
     StageEntryFactory(participant=entered, stage=stage)
-    ParticipantFactory(competition=competition)  # konto bez udziału w edycji – nie jest na liście
+    not_entered = ParticipantFactory(competition=competition)
     make_certificate(participant, edition, status=CertificateStatus.ACCEPTED)
 
     rows, counts = services.coordinator_rows(edition)
 
+    assert {row.participant.pk for row in rows} == {participant.pk, entered.pk, not_entered.pk}
+    assert counts == {"oczekujace": 0, "zaakceptowane": 1, "odrzucone": 0, "brak": 2}
+    assert sum(counts.values()) == len(rows)
+    missing, _ = services.coordinator_rows(edition, state="brak")
+    assert {row.participant.pk for row in missing} == {entered.pk, not_entered.pk}
+
+
+def test_coordinator_rows_of_archived_edition_cover_only_its_entrants(participant, competition):
+    """Edycja archiwalna: tylko zapisani do jej etapu albo z zaświadczeniem tej edycji."""
+    from apps.competitions.tests.factories import EditionFactory, StageEntryFactory
+
+    archived = EditionFactory(competition=competition, year_label="2025/2026", is_current=False)
+    stage = StageFactory(competition=competition, edition=archived)
+    entered = ParticipantFactory(competition=competition)
+    StageEntryFactory(participant=entered, stage=stage)
+    ParticipantFactory(competition=competition)  # konto bez udziału w tamtej edycji – nie jest na liście
+    make_certificate(participant, archived, status=CertificateStatus.ACCEPTED)
+
+    rows, counts = services.coordinator_rows(archived)
+
     assert {row.participant.pk for row in rows} == {participant.pk, entered.pk}
     assert counts == {"oczekujace": 0, "zaakceptowane": 1, "odrzucone": 0, "brak": 1}
-    missing, _ = services.coordinator_rows(edition, state="brak")
-    assert [row.participant.pk for row in missing] == [entered.pk]
 
 
 def test_coordinator_rows_skip_deleted_accounts(participant, edition, competition):

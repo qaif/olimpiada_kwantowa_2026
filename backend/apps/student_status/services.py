@@ -516,12 +516,19 @@ class Row:
 
 
 def edition_participants(edition):
-    """Uczestnicy edycji: zapisani do któregokolwiek jej etapu **albo** z wgranym zaświadczeniem.
+    """Uczestnicy edycji, od których koordynator może dostać zaświadczenie.
 
-    Ta sama definicja „uczestnika edycji”, co w komunikatach organizatora
-    (``apps.accounts.messaging.resolve_recipients``): ktoś, kto się do niej zapisał, a nie ktoś, kto
-    kiedyś założył konto. Druga połowa warunku jest dla osoby, która wgrała zaświadczenie przed
-    zapisem do etapu – jej plik musi dać się rozpatrzyć, nawet jeśli do zawodów jeszcze nie stanęła.
+    **Edycja bieżąca:** wszyscy uczestnicy konkursu. Wgrać zaświadczenie może każdy profil uczestnika
+    bieżącej edycji (``participant_student_status``), także ten, kto jeszcze nie kliknął „zapisz
+    się” przy Eliminacjach – więc tyle samo osób musi stać na liście, inaczej liczniki nie sumują się
+    do liczby uczestników. Na produkcji 1.10.2026 lista liczyła 92 osoby z 297: brakowało 205 kont
+    bez wpisu do etapu, a licznik „brak” udawał, że od nich nikt nie czeka na papier.
+
+    **Edycja archiwalna:** zapisani do któregokolwiek jej etapu **albo** z wgranym zaświadczeniem –
+    ta sama definicja, co w komunikatach organizatora (``apps.accounts.messaging``). Profil
+    uczestnika jest per konkurs, nie per edycja, więc „wszyscy” znaczyłoby tam także osoby, które
+    zarejestrowały się dopiero rok później. Druga połowa warunku jest dla osoby, która wgrała
+    zaświadczenie przed zapisem do etapu – jej plik musi dać się rozpatrzyć.
 
     Bez kont po anonimizacji (v0.34.0, ``exclude_anonymised``): ich zaświadczenia znikają razem
     z kontem (:func:`erase_for_user`), więc na liście stałyby wyłącznie jako „brak zaświadczenia”
@@ -529,12 +536,12 @@ def edition_participants(edition):
     """
     from apps.accounts.models import Participant
 
-    return (
-        Participant.objects.filter(competition_id=edition.competition_id)
-        .exclude_anonymised()
-        .filter(Q(stage_entries__stage__edition=edition) | Q(student_status_certificates__edition=edition))
-        .distinct()
-    )
+    participants = Participant.objects.filter(competition_id=edition.competition_id).exclude_anonymised()
+    if edition.is_current:
+        return participants
+    return participants.filter(
+        Q(stage_entries__stage__edition=edition) | Q(student_status_certificates__edition=edition)
+    ).distinct()
 
 
 def coordinator_rows(edition, *, state: str = "", query: str = "") -> tuple[list[Row], dict[str, int]]:
