@@ -520,3 +520,78 @@ def test_accounts_list_shows_the_role_of_this_competition(coordinator_a, competi
 
     assert "członek komitetu" in content
     assert elsewhere.public_code not in content
+
+
+# --- poprawka po audycie izolacji (01.10.2026): profile komitetu i opiekuna są dowodem własności ---
+#
+# Członek komitetu **oczekujący** na zatwierdzenie nie ma jeszcze ani jednego ``Membership`` (rolę
+# nadaje dopiero zatwierdzenie), a opiekun szkolny bywa dopisany bez niego. Do poprawki takie konto
+# konkursu B było dla koordynatora A „niczyje”: widoczne na liście i otwarte na zmianę adresu,
+# aktywację, reset hasła i usunięcie.
+
+
+def _pending_account(competition, email: str):
+    """Konto członka komitetu, który zgłosił się kodem i czeka – nieaktywne, bez członkostwa."""
+    from apps.accounts.tests.factories import CommitteeMemberFactory
+
+    member = CommitteeMemberFactory(
+        competition=competition,
+        status=CommitteeStatus.PENDING,
+        user=UserFactory(email=email, is_active=False, email_verified_at=None),
+    )
+    return member.user
+
+
+def test_pending_committee_member_of_another_competition_is_out_of_reach(
+    coordinator_a, competition, other_competition
+):
+    from django.core import mail
+
+    stranger = _pending_account(other_competition, "oczekujacy-u-sasiada@example.invalid")
+    mine = _pending_account(competition, "oczekujacy-tutaj@example.invalid")
+
+    listing = coordinator_a.get("/coordinator/accounts/").content.decode()
+    assert mine.email in listing
+    assert stranger.email not in listing
+
+    base = f"/coordinator/accounts/{stranger.pk}"
+    assert coordinator_a.get(f"{base}/").status_code == 404
+    assert coordinator_a.post(f"{base}/", {"email": "przejete@example.invalid"}).status_code == 404
+    assert coordinator_a.post(f"{base}/activate/").status_code == 404
+    assert coordinator_a.post(f"{base}/resend-activation/").status_code == 404
+    assert coordinator_a.post(f"{base}/password-reset/").status_code == 404
+    assert coordinator_a.get(f"{base}/delete/").status_code == 404
+    assert coordinator_a.post(f"{base}/delete/").status_code == 404
+
+    stranger.refresh_from_db()
+    assert stranger.email == "oczekujacy-u-sasiada@example.invalid"
+    assert stranger.email_verified_at is None
+    assert len(mail.outbox) == 0
+    # Własny oczekujący członek komitetu zostaje w zasięgu koordynatora – także bez członkostwa.
+    assert coordinator_a.get(f"/coordinator/accounts/{mine.pk}/").status_code == 200
+
+
+def test_school_supervisor_of_another_competition_is_out_of_reach(coordinator_a, other_competition):
+    """Profil opiekuna bez członkostwa (dopisany w ``/admin/`` albo sprzed backfillu) też ma właściciela."""
+    user = UserFactory(email="opiekun-u-sasiada@example.invalid")
+    SchoolSupervisor.objects.create(user=user, school="LO u sąsiada", competition=other_competition)
+
+    assert user.email not in coordinator_a.get("/coordinator/accounts/").content.decode()
+    assert coordinator_a.get(f"/coordinator/accounts/{user.pk}/").status_code == 404
+
+
+def test_supervisor_dashboard_lists_students_of_this_competition_only(
+    client_for, competition, other_competition
+):
+    """``students_of`` zawęża sam – do poprawki zawężał wyłącznie ekran listy uczniów, pulpit nie."""
+    from apps.accounts.supervisors import students_of
+
+    user = UserFactory(email="nauczyciel-pulpit@example.invalid", groups=["supervisor"])
+    supervisor = SchoolSupervisor.objects.create(user=user, school="XIV LO", competition=competition)
+    grant_membership(user, competition, CompetitionRole.SUPERVISOR)
+    mine = ParticipantFactory(competition=competition, supervisor_email=user.email)
+    stranger = ParticipantFactory(competition=other_competition, supervisor_email=user.email)
+
+    assert students_of(supervisor) == [mine]
+    content = logged_in(client_for, competition, user).get("/supervisor/").content.decode()
+    assert stranger.public_code not in content

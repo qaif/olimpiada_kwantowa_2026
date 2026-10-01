@@ -312,23 +312,34 @@ def users_for_competition(competition):
     wyłącznie w cudzym konkursie jest więc wykluczone wprost, a konto z profilem tutaj – widoczne
     nawet bez członkostwa.
 
+    **Trzeci i czwarty dowód: profil komitetu i profil opiekuna** (poprawka po audycie izolacji,
+    01.10.2026). Oba profile mają własny konkurs, a członek komitetu **oczekujący** na
+    zatwierdzenie nie ma jeszcze ani jednego ``Membership`` (rolę nadaje dopiero zatwierdzenie –
+    ``apps.accounts.services.register_committee``). Bez tych dowodów taki człowiek konkursu B był
+    dla koordynatora A „niczyj”: widoczny na liście i do zmiany adresu e-mail, aktywacji, resetu
+    hasła i usunięcia. Profil w cudzym konkursie wyklucza konto tak samo, jak profil uczestnika
+    sąsiada; profil tutaj – pokazuje je także bez członkostwa.
+
     ``__in`` z podzapytaniem, a nie ``JOIN`` przez ``memberships``/``participations``: osoba
     z dwiema rolami w jednym konkursie (recenzent i członek komisji odwoławczej) albo startująca
     w dwóch olimpiadach pojawiłaby się przy złączeniu dwa razy, a ``distinct()`` na liście ze
-    stronicowaniem kosztuje sortowanie całego wyniku.
+    stronicowaniem kosztuje sortowanie całego wyniku. Podzapytania profili nie dokładają zapytań
+    – wchodzą do tego samego ``WHERE``.
     """
-    from apps.accounts.models import Membership
+    from apps.accounts.models import CommitteeMember, Membership, SchoolSupervisor
 
     mine = Membership.objects.for_competition(competition).values("user_id")
     claimed_by_anyone = Membership.objects.values("user_id")
-    starts_here = participant_ids(competition)
-    starts_elsewhere = (
-        Participant.objects.none().values("user_id")
-        if competition is None
-        else Participant.objects.exclude(competition=competition).values("user_id")
-    )
-    visible = Q(pk__in=mine) | Q(pk__in=starts_here) | ~Q(pk__in=claimed_by_anyone)
-    stranger = Q(pk__in=starts_elsewhere) & ~Q(pk__in=mine) & ~Q(pk__in=starts_here)
+    if competition is None:
+        # Żądanie bez konkursu: jak przed wielokonkursowością – nikt nie jest „cudzy”.
+        return User.objects.filter(Q(pk__in=participant_ids(None)) | ~Q(pk__in=claimed_by_anyone))
+    here = Q(pk__in=mine)
+    elsewhere = Q()
+    for model in (Participant, CommitteeMember, SchoolSupervisor):
+        here |= Q(pk__in=model.objects.filter(competition=competition).values("user_id"))
+        elsewhere |= Q(pk__in=model.objects.exclude(competition=competition).values("user_id"))
+    visible = here | ~Q(pk__in=claimed_by_anyone)
+    stranger = elsewhere & ~here
     return User.objects.filter(visible).exclude(stranger)
 
 
