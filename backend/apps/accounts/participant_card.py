@@ -66,8 +66,8 @@ def card_queryset():
     return Participant.objects.select_related("user", "school_ref")
 
 
-def support_tickets(user) -> list[dict] | None:
-    """Zgłoszenia pomocy tej osoby albo ``None``, gdy aplikacji zgłoszeń w tej instalacji nie ma.
+def support_tickets(user, competition) -> list[dict] | None:
+    """Zgłoszenia pomocy tej osoby **w tym konkursie** albo ``None``, gdy aplikacji zgłoszeń nie ma.
 
     ``None`` znaczy „nie ma czego pokazać, bo nie ma takiej funkcji”, i różni się od pustej listy,
     która znaczy „ta osoba nie zgłaszała niczego”. Karta na tej różnicy opiera decyzję, czy sekcja
@@ -80,6 +80,12 @@ def support_tickets(user) -> list[dict] | None:
     Adres sprawy rozwiązujemy tutaj, a nie w szablonie, i z zabezpieczeniem: ekran zgłoszeń należy
     do innej części panelu, a karta ma przeżyć jego przebudowę bez odnośnika, a nie wywalić się
     na ``NoReverseMatch`` w środku renderowania.
+
+    Zakres jest **ścisły** (``for_competition``, poprawka po audycie izolacji, 01.10.2026): konto
+    jest jedno na platformę, więc bez zawężenia koordynator konkursu A czytał na karcie uczestnika
+    tematy spraw, które ta sama osoba zgłosiła organizatorowi B – i dostawał do nich odnośniki.
+    Zgłoszenia bez konkursu (do operatora platformy) też tu nie należą: adresatem jest operator,
+    a nie organizator. ``competition`` przyjmuje obiekt albo klucz konkursu.
     """
     if not django_apps.is_installed(SUPPORT_APP):
         return None
@@ -87,7 +93,11 @@ def support_tickets(user) -> list[dict] | None:
         from apps.support.models import SupportTicket
     except ImportError:
         return None
-    tickets = SupportTicket.objects.filter(user=user).order_by("-created_at", "-id")[:AUDIT_LIMIT]
+    tickets = (
+        SupportTicket.objects.for_competition(competition)
+        .filter(user=user)
+        .order_by("-created_at", "-id")[:AUDIT_LIMIT]
+    )
     rows = []
     for ticket in tickets:
         try:
@@ -204,7 +214,7 @@ def _certificates(participant: Participant) -> list:
 
 
 def _audit(participant: Participant, submission_ids: list[int]) -> list[AuditLog]:
-    """Ostatnie wpisy audytu, w których ta osoba jest wykonawcą **albo** przedmiotem.
+    """Ostatnie wpisy audytu **tego konkursu**, w których ta osoba jest wykonawcą **albo** przedmiotem.
 
     Obie role są tu potrzebne i znaczą co innego: „uczestnik oddał pracę” to jego czynność,
     a „koordynator poprawił dane konta” – czynność na nim. Strona, która pokazywałaby tylko
@@ -212,6 +222,11 @@ def _audit(participant: Participant, submission_ids: list[int]) -> list[AuditLog
 
     Identyfikatory są porównywane jako tekst, bo ``AuditLog.target_id`` jest polem tekstowym
     (wpis audytowy musi przeżyć skasowanie obiektu, na który wskazuje).
+
+    Zawężenie ``visible_to`` – ta sama reguła, co w przeglądarce audytu koordynatora: wpisy
+    konkursu profilu i wpisy platformowe (bez konkursu: konto, logowanie). Do poprawki po audycie
+    izolacji (01.10.2026) warunek „wykonawcą jest to konto” zbierał też wszystko, co ta osoba
+    robiła w innym konkursie – z nazwami czynności i identyfikatorami cudzych obiektów.
     """
     condition = (
         Q(actor_id=participant.user_id)
@@ -220,7 +235,12 @@ def _audit(participant: Participant, submission_ids: list[int]) -> list[AuditLog
     )
     if submission_ids:
         condition |= Q(target_type=TARGET_SUBMISSION, target_id__in=[str(pk) for pk in submission_ids])
-    entries = AuditLog.objects.filter(condition).select_related("actor").order_by("-at", "-id")
+    entries = (
+        AuditLog.objects.visible_to(participant.competition_id)
+        .filter(condition)
+        .select_related("actor")
+        .order_by("-at", "-id")
+    )
     return list(entries[:AUDIT_LIMIT])
 
 
@@ -389,11 +409,12 @@ def participant_card(participant: Participant) -> dict:
         "certificates": certificates,
         "appeals": appeals,
         # ``None`` = aplikacji zgłoszeń jeszcze nie ma, więc sekcja się nie renderuje.
-        "tickets": support_tickets(participant.user),
+        "tickets": support_tickets(participant.user, participant.competition_id),
         "audit_entries": _audit(participant, [submission.pk for submission in submissions]),
         # Materiał do formularzy czynności. Pula recenzentów jest ta sama, co na ekranie
         # przydziałów etapu – lista wyboru nie może pokazywać osoby, której serwis nie przepuści.
-        "reviewer_pool": reviewer_pool(),
+        # Pula konkursu **tego profilu** (klucz, a nie wiersz konkursu – patrz ``reviewer_pool``).
+        "reviewer_pool": reviewer_pool(participant.competition_id),
         "assigned_status": ReviewStatus.ASSIGNED,
         # Odebrać wolno recenzję w każdym stanie poza anulowaną – także wystawioną. Czy w tej
         # konkretnej sprawie wolno, rozstrzyga serwis; ekran po prostu nie chowa przycisku.

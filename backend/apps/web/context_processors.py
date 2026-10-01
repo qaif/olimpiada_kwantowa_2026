@@ -104,7 +104,7 @@ def roles(request) -> dict:
         "is_reviewer": active_reviewer_profile(user, competition) is not None,
         "is_coordinator": CompetitionRole.COORDINATOR in names,
         "is_appeals_committee": CompetitionRole.APPEALS in names
-        and appeals_committee_profile(user) is not None,
+        and appeals_committee_profile(user, competition) is not None,
         # Opiekun szkolny – ta sama definicja, co w mixinie widoku i w przekierowaniu po
         # zalogowaniu (``apps.accounts.supervisors.supervisor_profile``).
         "is_supervisor": supervisor_profile(user, competition) is not None,

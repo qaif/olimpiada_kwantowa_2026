@@ -20,6 +20,7 @@ from apps.accounts.tests.factories import (
 from apps.competitions.services import update_problem
 from apps.competitions.storage import PRIVATE_MEDIA_ALIAS
 from apps.competitions.tests.factories import ProblemFactory
+from apps.tenancy.tests.factories import enforce_memberships, grant_membership
 
 pytestmark = pytest.mark.django_db
 
@@ -90,6 +91,38 @@ def test_problem_without_model_solution_is_404(stage):
 
     url = reverse("web:problem-model-solution", kwargs={"pk": empty.pk})
     assert client.get(url).status_code == 404
+
+
+def test_committee_member_of_another_competition_is_refused(url, competition, other_competition, client_for):
+    """Poprawka po audycie izolacji (01.10.2026): profil komitetu konkursu B nie otwiera wzorcówki A.
+
+    Przy wyłączonym ``memberships_enforced`` grupa ``reviewer`` jest globalna, więc do poprawki
+    wystarczał aktywny profil komitetu **dowolnego** konkursu – klucz odpowiedzi w trakcie zawodów
+    A trafiał do członka komitetu B.
+    """
+    client = client_for(competition)
+    client.force_login(ActiveReviewerFactory(competition=other_competition).user)
+
+    assert client.get(url).status_code == 403
+
+
+def test_coordinator_of_another_competition_is_refused_with_memberships_on(
+    url, competition, other_competition, client_for
+):
+    """Globalna grupa ``coordinator`` nie jest rolą w konkursie z włączonym ``memberships_enforced``."""
+    enforce_memberships(competition)
+    coordinator_b = CoordinatorFactory()
+    grant_membership(coordinator_b, other_competition, "coordinator")
+    coordinator_a = CoordinatorFactory()
+    grant_membership(coordinator_a, competition, "coordinator")
+
+    refused = client_for(competition)
+    refused.force_login(coordinator_b)
+    allowed = client_for(competition)
+    allowed.force_login(coordinator_a)
+
+    assert refused.get(url).status_code == 403
+    assert allowed.get(url).status_code == 200
 
 
 def test_coordinator_service_stores_the_model_solution_and_reviewer_notes(stage):

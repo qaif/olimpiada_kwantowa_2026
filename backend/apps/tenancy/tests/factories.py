@@ -121,6 +121,40 @@ def create_scoped(model, competition, **kwargs):
     return model.objects.create(**without_unknown_competition(model, {**kwargs, "competition": competition}))
 
 
+def enforce_memberships(competition):
+    """Przestawia konkurs na role z członkostw (``memberships_enforced``) – wartością w bazie.
+
+    Wspólny skrót dla testów izolacji po audycie (01.10.2026), które sprawdzają tę samą regułę
+    przy fladze wyłączonej i włączonej. Zapis przez ``feature_flags``, a nie podmiana
+    ``has_feature``: przełącznik ma być sprawdzony tą samą drogą, którą przestawia go operator.
+    """
+    competition.feature_flags = {**(competition.feature_flags or {}), "memberships_enforced": True}
+    competition.save(update_fields=["feature_flags"])
+    return competition
+
+
+def enforce_memberships_everywhere():
+    """``memberships_enforced`` dla **każdego** konkursu w bazie – stan wymagany przed założeniem kolejnego.
+
+    Od poprawki po audycie izolacji (01.10.2026) ``create_competition_from_template`` odmawia
+    założenia konkursu obok aktywnego konkursu, który liczy role z globalnych grup. Testy zakładania
+    konkursu zaczynają więc od tego, co według ``docs/OPERACJE.md`` § 6.1 robi operator: od
+    przełączenia istniejących konkursów na członkostwa.
+
+    Najpierw obiekt związany z kontekstem (fikstura ``competition`` albo ``existing_competition``
+    z autouse ``_bind_competition``): test zapisujący potem **ten** obiekt (np. dokładając sobie
+    inną flagę) nadpisałby całe ``feature_flags`` wartością sprzed przełączenia.
+    """
+    from apps.tenancy.context import current_competition
+    from apps.tenancy.models import Competition
+
+    bound = current_competition()
+    if bound is not None:
+        enforce_memberships(bound)
+    for competition in Competition.objects.exclude(pk=getattr(bound, "pk", None)):
+        enforce_memberships(competition)
+
+
 def grant_membership(user, competition, role: str):
     """Nadaje rolę w konkursie, o ile model członkostw już istnieje (T2).
 

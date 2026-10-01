@@ -39,9 +39,17 @@ def _has_role(request, role: str) -> bool:
     return has_role(request.user, _competition(request), role)
 
 
-def _active_committee_member(user):
-    """Profil komitetu użytkownika, o ile istnieje i jest aktywny."""
-    member = getattr(user, "committee_member", None)
+def _active_committee_member(user, competition):
+    """Profil komitetu użytkownika **w tym konkursie**, o ile istnieje i jest aktywny.
+
+    Konkurs profilu sprawdza ``committee_profile_in`` – ta sama funkcja, co w bramce recenzenta
+    i w widoczności prac komisji (``Submission.objects.for_user``). Bez tego członek komisji
+    konkursu B przechodził tę bramkę pod adresem konkursu A, bo przy wyłączonym
+    ``memberships_enforced`` grupa ``appeals`` jest globalna.
+    """
+    from .services import committee_profile_in
+
+    member = committee_profile_in(user, competition)
     if member is None or member.status != CommitteeStatus.ACTIVE:
         return None
     return member
@@ -90,7 +98,7 @@ class IsAppealsCommittee(BasePermission):
     def has_permission(self, request, view) -> bool:
         if not _has_role(request, CompetitionRole.APPEALS):
             return False
-        member = _active_committee_member(request.user)
+        member = _active_committee_member(request.user, _competition(request))
         return member is not None and member.is_appeals_committee
 
 

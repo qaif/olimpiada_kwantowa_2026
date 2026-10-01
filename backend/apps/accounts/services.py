@@ -533,15 +533,45 @@ def active_reviewer_profile(user, competition=None) -> CommitteeMember | None:
     konkursu”: funkcję woła kilkudziesięciu klientów w czterech aplikacjach, z których większość
     ma konkurs w żądaniu i nie ma po co go tu przepisywać. Wskazanie wprost jest dla zadań Celery
     i dla kodu, który chodzi po wielu konkursach po kolei.
+
+    Profil musi należeć do **tego** konkursu (``committee_profile_in``) – sama rola ``reviewer``
+    nie wystarcza, bo przy wyłączonym ``memberships_enforced`` jest globalną grupą Django.
     """
     if not user or not user.is_authenticated or not user.is_active:
         return None
-    member = getattr(user, "committee_member", None)
+    competition = competition or current_competition()
+    member = committee_profile_in(user, competition)
     if member is None or member.status != CommitteeStatus.ACTIVE:
         return None
-    if not has_role(user, competition or current_competition(), CompetitionRole.REVIEWER):
+    if not has_role(user, competition, CompetitionRole.REVIEWER):
         return None
     return member
+
+
+def committee_profile_in(user, competition) -> CommitteeMember | None:
+    """Profil komitetu tej osoby, o ile należy do **tego** konkursu. Bez sprawdzania statusu.
+
+    ``CommitteeMember`` jest jeden na konto (``OneToOne``) i ma własny konkurs: „zweryfikowany
+    recenzent” jest oświadczeniem jednego organizatora o jednej osobie. Do poprawki po audycie
+    izolacji (01.10.2026) bramki recenzenta i komisji odwoławczej brały ``user.committee_member``
+    bez patrzenia, czyj to profil – a przy wyłączonym ``memberships_enforced`` rolą jest globalna
+    grupa Django, więc recenzent konkursu B przechodził bramkę recenzenta konkursu A z profilem B.
+    Wtedy przydziałów w A nie miał, ale panel się przed nim otwierał, a komisja odwoławcza B
+    widziała i rozstrzygała reklamacje A.
+
+    Jedna funkcja dla wszystkich bramek komitetu: ``active_reviewer_profile``,
+    ``apps.appeals.services.appeals_committee_profile``, ``IsAppealsCommittee`` i gałąź komisji
+    w ``Submission.objects.for_user``. Rozjazd między nimi byłby dokładnie tym błędem, który ta
+    funkcja zamyka.
+
+    ``competition=None`` (żądanie pod hostem bez konkursu, kod poza żądaniem bez kontekstu) oddaje
+    profil bez zawężenia – to jest zachowanie sprzed wielokonkursowości, takie samo jak zejście
+    ``has_role`` do grup Django. Wołający, który zna konkurs, podaje go zawsze.
+    """
+    member = getattr(user, "committee_member", None)
+    if member is None or competition is None:
+        return member
+    return member if member.competition_id == competition.pk else None
 
 
 # --- konkurs i role w konkursie -------------------------------------------------------------------
@@ -1758,10 +1788,33 @@ def _grant_reviewer_groups(member: CommitteeMember) -> None:
         grant_role(member.user, CompetitionRole.APPEALS, competition=competition)
 
 
+def _assert_member_of(member: CommitteeMember, competition) -> None:
+    """Członek komitetu należy do konkursu, w którym działa koordynator – inaczej 404.
+
+    Druga zapora za zawężonym querysetem widoku (``for_competition``), dopisana po audycie
+    izolacji (01.10.2026): w API zatwierdzenie i województwo szły z niezawężonego
+    ``CommitteeMember.objects``, a serwis przyjmował każdego członka. Zatwierdzenie nadaje rolę
+    recenzenta **w konkursie profilu** (``_grant_reviewer_groups``), więc koordynator konkursu A
+    mógł nią obdarzyć kogoś w konkursie B. 404, a nie 403 – tak samo jak w widoku: istnienie
+    cudzego członka nie jest informacją dla tego koordynatora.
+
+    ``competition=None`` niczego nie sprawdza i to jest świadome: wołają tak komendy i seedy
+    (``seed_demo``) oraz ekran konta (``accounts.profile``), które konkurs mają już rozstrzygnięty
+    zawężonym zapytaniem albo chodzą na bazie jednokonkursowej.
+    """
+    if competition is not None and member.competition_id != competition.pk:
+        raise DomainError("Nie ma takiego członka komitetu.", "NOT_FOUND", status.HTTP_404_NOT_FOUND)
+
+
 @transaction.atomic
-def approve_committee_member(member: CommitteeMember, *, actor: User) -> CommitteeMember:
-    """Koordynator zatwierdza członka komitetu: status ACTIVE + grupy ``reviewer``/``appeals``."""
+def approve_committee_member(member: CommitteeMember, *, actor: User, competition=None) -> CommitteeMember:
+    """Koordynator zatwierdza członka komitetu: status ACTIVE + grupy ``reviewer``/``appeals``.
+
+    ``competition`` to konkurs działającego koordynatora; członek innego konkursu dostaje 404
+    (``_assert_member_of``).
+    """
     member = CommitteeMember.objects.select_for_update().get(pk=member.pk)
+    _assert_member_of(member, competition)
     if member.status != CommitteeStatus.PENDING:
         # Zawieszonego nie odwiesza się ścieżką "approve" – to osobna, świadoma decyzja z własnym audytem.
         raise DomainError(
@@ -1777,7 +1830,7 @@ def approve_committee_member(member: CommitteeMember, *, actor: User) -> Committ
 
 @transaction.atomic
 def verify_committee_district(
-    member: CommitteeMember, *, district: str | None, actor: User, request=None
+    member: CommitteeMember, *, district: str | None, actor: User, request=None, competition=None
 ) -> CommitteeMember:
     """Koordynator ustala województwo członka komitetu – albo je usuwa.
 
@@ -1785,9 +1838,12 @@ def verify_committee_district(
     etapie wojewódzkim (recenzent nie ocenia prac ze swojego województwa). Dlatego pusta wartość
     jest tu poprawnym wejściem: czyści pole i zdejmuje ``district_verified``, bo nie ma już czego
     potwierdzać – bez tego koordynator nie miałby jak cofnąć województwa wpisanego pomyłkowo.
+
+    ``competition`` – jak w ``approve_committee_member``: członek innego konkursu to 404.
     """
     district = _require_voivodeship(district, required=False)
     member = CommitteeMember.objects.select_for_update().get(pk=member.pk)
+    _assert_member_of(member, competition)
     if member.status != CommitteeStatus.ACTIVE:
         # Województwo ma znaczenie tylko dla kogoś, kto realnie ocenia prace. Ustawianie go
         # profilowi oczekującemu albo zawieszonemu sugerowałoby, że jest on już w puli recenzentów.
