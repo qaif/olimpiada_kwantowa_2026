@@ -3,12 +3,51 @@
 Hasła i kody zaproszeń są wyłącznie ``write_only`` – nigdy nie pojawiają się w odpowiedzi.
 """
 
-from rest_framework import serializers
+from rest_framework import serializers, status
+
+from apps.core.api import DomainError
 
 from .models import GRADE_CHOICES, CommitteeMember, ConsentRecord, Participant, User, Voivodeship
 
+#: Komunikat odmowy CAPTCHY w API. Mówi, skąd wziąć nowe wyzwanie, bo para jest jednorazowa –
+#: ponowienie żądania z tą samą parą zawsze skończy się tym samym błędem.
+CAPTCHA_INVALID_MESSAGE = (
+    "Wynik działania jest niepoprawny albo wyzwanie wygasło. Pobierz nowe wyzwanie "
+    "(GET /captcha/refresh/) i wyślij rejestrację jeszcze raz."
+)
 
-class ParticipantRegisterSerializer(serializers.Serializer):
+
+class CaptchaPairMixin(serializers.Serializer):
+    """Para CAPTCHY w rejestracji JSON: ``captcha_key`` + ``captcha_value`` (pakiet 5 po audycie).
+
+    Do tej zmiany publiczne ``POST /api/auth/register/…`` nie miało żadnej z trzech warstw
+    antyspamowych formularza HTML (SECURITY_CHECKLIST 8.1) – wystarczyła pętla ``curl``-a, żeby
+    zakładać konta i wysyłać link aktywacyjny na dowolny adres, z jedynym ograniczeniem w postaci
+    limitu ``register`` per IP. Klient API pobiera wyzwanie tak samo, jak przeglądarka:
+    ``GET /captcha/refresh/`` (nagłówek ``X-Requested-With: XMLHttpRequest``) zwraca klucz
+    i adres obrazka, człowiek wpisuje wynik. Sprawdzenie robi ``apps.web.captcha.captcha_pair_is_valid``,
+    czyli to samo pole, co w formularzu – łącznie z obejściem trybu testowego (testy, ``E2E_MODE``).
+
+    Oba pola są ``write_only`` i znikają z ``validated_data``: widoki wołają serwisy przez
+    ``**validated_data``, więc nadmiarowy klucz byłby ``TypeError`` (ta sama reguła, co 8.1.5).
+    Odmowa to ``400 CAPTCHA_INVALID`` – stały kod maszynowy, a nie słownik błędów pól.
+    """
+
+    captcha_key = serializers.CharField(write_only=True, max_length=64)
+    captcha_value = serializers.CharField(write_only=True, max_length=32)
+
+    def validate(self, attrs):
+        from apps.web.captcha import captcha_pair_is_valid
+
+        attrs = super().validate(attrs)
+        key = attrs.pop("captcha_key", "")
+        value = attrs.pop("captcha_value", "")
+        if not captcha_pair_is_valid(key, value):
+            raise DomainError(CAPTCHA_INVALID_MESSAGE, "CAPTCHA_INVALID", status.HTTP_400_BAD_REQUEST)
+        return attrs
+
+
+class ParticipantRegisterSerializer(CaptchaPairMixin, serializers.Serializer):
     """Wejście ``POST /api/auth/register/participant/``.
 
     Szkoła ma dwie postacie i **żadna nie jest wymagana osobno**: ``school_id`` wskazuje wiersz
@@ -55,7 +94,9 @@ class ParticipantRegisterSerializer(serializers.Serializer):
             raise serializers.ValidationError(
                 {"school": "Podaj identyfikator szkoły z rejestru (school_id) albo jej nazwę (school)."}
             )
-        return attrs
+        # CAPTCHA na końcu (``CaptchaPairMixin.validate``): błąd kształtu danych nie zużywa
+        # jednorazowego wyzwania, więc klient poprawia pole i wysyła tę samą parę jeszcze raz.
+        return super().validate(attrs)
 
 
 class ParticipantRegisteredSerializer(serializers.ModelSerializer):
@@ -79,7 +120,9 @@ class ParticipantRegisteredSerializer(serializers.ModelSerializer):
         return obj.user.email_verified_at is None
 
 
-class CommitteeRegisterSerializer(serializers.Serializer):
+class CommitteeRegisterSerializer(CaptchaPairMixin, serializers.Serializer):
+    """Wejście ``POST /api/auth/register/committee/`` – CAPTCHA jak przy uczestniku (``CaptchaPairMixin``)."""
+
     email = serializers.EmailField()
     password = serializers.CharField(write_only=True, trim_whitespace=False, max_length=128)
     first_name = serializers.CharField(max_length=150)
