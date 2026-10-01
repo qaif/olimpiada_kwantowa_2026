@@ -123,7 +123,10 @@ def test_reply_by_htmx_returns_the_fragment_signed_by_the_organizer(web_client, 
 
     assert response.status_code == 200
     assert "Sala 101" in response.content.decode()
-    assert f"Organizator · {boss.first_name}" in response.content.decode()
+    body = response.content.decode()
+    # Od pakietu 5 rola jest odznaką, a imię – osobnym elementem obok (``chat.organizer_author``).
+    assert 'data-sender-role="organizer">Organizator</span>' in body
+    assert f'<span class="chat-msg__author">{boss.first_name}' in body
 
 
 def test_peer_conversation_is_not_reachable_from_the_panel(web_client, competition):

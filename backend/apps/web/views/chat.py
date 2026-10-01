@@ -95,10 +95,18 @@ def seen_by_human(request) -> bool:
 
 
 def organizer_author(user) -> str:
-    """„Organizator · Imię N.” – podpis wiadomości zespołu organizatora."""
+    """Imię członka zespołu organizatora pod jego wiadomością – **bez** słowa „Organizator”.
+
+    Do pakietu 5 podpis był napisem „Organizator · Imię N.”, czyli zwykłym tekstem w tym samym
+    miejscu, w którym stoi imię uczestnika. Uczestnik z imieniem „Organizator · Anna” wyglądał
+    więc w rozmowie dokładnie jak organizator. Znacznik roli jest teraz **osobnym elementem**
+    szablonu (odznaka w ``templates/web/chat/_messages.html``), sterowanym wyłącznie przez
+    ``sender_role`` wiadomości – żadne pole, które wpisuje użytkownik, nie może go wytworzyć.
+    Konto skasowane (``None``) zostaje z samą odznaką.
+    """
     if user is None:
-        return ORGANIZER_LABEL
-    return f"{ORGANIZER_LABEL} · {display_author(user)}"
+        return ""
+    return display_author(user)
 
 
 def conversation_label(conversation, participant) -> str:

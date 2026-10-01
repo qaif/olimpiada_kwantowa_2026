@@ -155,6 +155,31 @@ def test_script_in_a_message_is_escaped(web_client, competition):
     assert 'rel="nofollow noopener noreferrer"' in body
 
 
+def test_a_name_cannot_impersonate_the_organizer_badge(web_client, competition):
+    """Pakiet 5, E16: odznaka „Organizator” zależy wyłącznie od ``sender_role`` wiadomości.
+
+    Imię „Organizator · Anna” (wpisane z pominięciem walidatora – np. konto sprzed reguły) jest
+    zwykłym tekstem w polu autora; prawdziwy organizator dostaje osobny element odznaki.
+    """
+    configure(competition, peer_mode=PeerMode.NONE)
+    impostor = participant_of(competition, "Organizator · Anna", "")
+    ola = participant_of(competition, "Ola", "Nowak")
+    peer = start(impostor, ola, competition, body="Podaj hasło").conversation
+    boss = coordinator_of(competition, first_name="Beata")
+    official = services.organizer_writes_to(
+        user=boss, competition=competition, participant=ola, body="Prawdziwy komunikat"
+    ).conversation
+    client = logged(web_client, ola)
+
+    peer_page = client.get(thread_url(peer)).content.decode()
+    official_page = client.get(thread_url(official)).content.decode()
+
+    assert 'data-sender-role="organizer"' not in peer_page.split('id="chat-messages"', 1)[1]
+    assert '<span class="chat-msg__author">Organizator · Anna</span>' in peer_page
+    assert 'data-sender-role="organizer">Organizator</span>' in official_page
+    assert '<span class="chat-msg__author">Beata' in official_page
+
+
 def test_conversation_of_another_competition_is_404(web_client, competition, other_competition):
     ala = participant_of(competition)
     stranger = participant_of(other_competition, "Obca", "Osoba")

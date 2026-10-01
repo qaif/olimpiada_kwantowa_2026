@@ -8,6 +8,7 @@ from rest_framework import serializers, status
 from apps.core.api import DomainError
 
 from .models import GRADE_CHOICES, CommitteeMember, ConsentRecord, Participant, User, Voivodeship
+from .names import validate_person_name
 
 #: Komunikat odmowy CAPTCHY w API. Mówi, skąd wziąć nowe wyzwanie, bo para jest jednorazowa –
 #: ponowienie żądania z tą samą parą zawsze skończy się tym samym błędem.
@@ -59,8 +60,8 @@ class ParticipantRegisterSerializer(CaptchaPairMixin, serializers.Serializer):
 
     email = serializers.EmailField()
     password = serializers.CharField(write_only=True, trim_whitespace=False, max_length=128)
-    first_name = serializers.CharField(max_length=150)
-    last_name = serializers.CharField(max_length=150)
+    first_name = serializers.CharField(max_length=150, validators=[validate_person_name])
+    last_name = serializers.CharField(max_length=150, validators=[validate_person_name])
     # Telefon kontaktowy – wymagany od każdego nowego uczestnika. Kształt numeru sprowadza do jednej
     # postaci ``accounts.phones.normalize_phone`` w serwisie: ta sama reguła obowiązuje formularz
     # WWW i rejestrację przez dostawcę zewnętrznego, więc nie ma jej tutaj w drugiej kopii.
@@ -125,8 +126,8 @@ class CommitteeRegisterSerializer(CaptchaPairMixin, serializers.Serializer):
 
     email = serializers.EmailField()
     password = serializers.CharField(write_only=True, trim_whitespace=False, max_length=128)
-    first_name = serializers.CharField(max_length=150)
-    last_name = serializers.CharField(max_length=150)
+    first_name = serializers.CharField(max_length=150, validators=[validate_person_name])
+    last_name = serializers.CharField(max_length=150, validators=[validate_person_name])
     invitation_code = serializers.CharField(write_only=True, max_length=128)
     district = serializers.ChoiceField(
         choices=Voivodeship.choices, required=False, allow_blank=True, allow_null=True
@@ -302,8 +303,8 @@ class MeUpdateSerializer(serializers.Serializer):
     tabelach wyników) oraz zgód (mają własną historię dowodową i własne endpointy).
     """
 
-    first_name = serializers.CharField(max_length=150, required=False)
-    last_name = serializers.CharField(max_length=150, required=False)
+    first_name = serializers.CharField(max_length=150, required=False, validators=[validate_person_name])
+    last_name = serializers.CharField(max_length=150, required=False, validators=[validate_person_name])
     phone = serializers.CharField(max_length=32, required=False)
     school = serializers.CharField(max_length=255, required=False, allow_blank=True)
     school_id = serializers.IntegerField(min_value=1, required=False, allow_null=True)

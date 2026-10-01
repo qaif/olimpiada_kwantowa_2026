@@ -37,6 +37,7 @@ from apps.accounts.models import (
     User,
     Voivodeship,
 )
+from apps.accounts.names import validate_person_name
 from apps.accounts.services import (
     MAX_INVITATION_EMAILS,
     MAX_INVITATION_NOTE_LENGTH,
@@ -823,8 +824,8 @@ class ParticipantRegisterForm(CaptchaFormMixin, ConsentFieldsMixin, SchoolChoice
     email = forms.EmailField(label="Adres e-mail", max_length=254)
     password = password_field()
     password2 = password_field("Powtórz hasło")
-    first_name = forms.CharField(label="Imię", max_length=150)
-    last_name = forms.CharField(label="Nazwisko", max_length=150)
+    first_name = forms.CharField(label="Imię", max_length=150, validators=[validate_person_name])
+    last_name = forms.CharField(label="Nazwisko", max_length=150, validators=[validate_person_name])
     phone = phone_field()
     district = voivodeship_field("Województwo")
     grade = grade_field()
@@ -855,8 +856,8 @@ class SocialParticipantSignupForm(ConsentFieldsMixin, SchoolChoiceMixin):
         name for name in PARTICIPANT_FIELD_ORDER if name not in ("email", "password", PASSWORD_CONFIRM_FIELD)
     ]
 
-    first_name = forms.CharField(label="Imię", max_length=150)
-    last_name = forms.CharField(label="Nazwisko", max_length=150)
+    first_name = forms.CharField(label="Imię", max_length=150, validators=[validate_person_name])
+    last_name = forms.CharField(label="Nazwisko", max_length=150, validators=[validate_person_name])
     phone = phone_field()
     district = voivodeship_field("Województwo")
     grade = grade_field()
@@ -886,8 +887,8 @@ class CommitteeRegisterForm(CaptchaFormMixin):
     email = forms.EmailField(label="Adres e-mail", max_length=254)
     password = password_field()
     password2 = password_field("Powtórz hasło")
-    first_name = forms.CharField(label="Imię", max_length=150)
-    last_name = forms.CharField(label="Nazwisko", max_length=150)
+    first_name = forms.CharField(label="Imię", max_length=150, validators=[validate_person_name])
+    last_name = forms.CharField(label="Nazwisko", max_length=150, validators=[validate_person_name])
     invitation_code = forms.CharField(label="Kod zaproszenia", max_length=200)
     district = voivodeship_field("Województwo (deklarowane)", required=False)
 
@@ -963,8 +964,8 @@ class ParticipantProfileForm(SchoolChoiceMixin):
     profile_driven = False
     field_order = [name for name in PARTICIPANT_PROFILE_FIELD_ORDER]
 
-    first_name = forms.CharField(label="Imię", max_length=150)
-    last_name = forms.CharField(label="Nazwisko", max_length=150)
+    first_name = forms.CharField(label="Imię", max_length=150, validators=[validate_person_name])
+    last_name = forms.CharField(label="Nazwisko", max_length=150, validators=[validate_person_name])
     phone = phone_field()
     district = voivodeship_field("Województwo")
     grade = grade_field()
@@ -1023,8 +1024,8 @@ class AccountNamesForm(forms.Form):
     wejść na prace ze swojego województwa. Zmiana (i usunięcie) zostaje u koordynatora.
     """
 
-    first_name = forms.CharField(label="Imię", max_length=150)
-    last_name = forms.CharField(label="Nazwisko", max_length=150)
+    first_name = forms.CharField(label="Imię", max_length=150, validators=[validate_person_name])
+    last_name = forms.CharField(label="Nazwisko", max_length=150, validators=[validate_person_name])
 
 
 class EmailChangeForm(forms.Form):

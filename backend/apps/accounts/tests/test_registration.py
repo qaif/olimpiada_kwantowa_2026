@@ -336,3 +336,14 @@ def test_api_committee_registration_requires_the_captcha_and_keeps_the_code(api)
     invitation.refresh_from_db()
     assert invitation.used_count == 0
     assert not CommitteeMember.objects.exists()
+
+
+@pytest.mark.django_db
+def test_api_registration_refuses_a_middle_dot_in_the_name(api, open_registration):
+    """Pakiet 5, E16: ta sama reguła imienia w JSON-ie, co w formularzu (``accounts.names``)."""
+    resp = api.post(
+        REGISTER_PARTICIPANT_URL, participant_payload(first_name="Organizator · Anna"), format="json"
+    )
+
+    assert resp.status_code == 400
+    assert not User.objects.filter(email="uczestnik@example.test").exists()
