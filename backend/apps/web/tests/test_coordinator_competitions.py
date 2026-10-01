@@ -25,10 +25,25 @@ from apps.accounts.models import CompetitionRole, Membership
 from apps.accounts.tests.factories import CoordinatorFactory, ParticipantFactory
 from apps.core.models import AuditLog
 from apps.tenancy.models import Competition
-from apps.tenancy.tests.factories import grant_membership
+from apps.tenancy.tests.factories import enforce_memberships_everywhere, grant_membership
 from apps.web.views.coordinator_competitions import CONFIRM_FIELD, FEATURE
 
 pytestmark = pytest.mark.django_db
+
+
+@pytest.fixture(autouse=True)
+def _existing_competitions_enforce_memberships(request, db):  # noqa: ARG001 - fikstura bazy, efekt uboczny
+    """Konkurs #1 z ``memberships_enforced`` – bez tego ekran „Nowy konkurs” odpowiada odmową.
+
+    Warunek wstępny od poprawki po audycie izolacji (01.10.2026); odmowę przy wyłączonej fladze
+    pilnuje ``test_the_form_refuses_while_a_competition_counts_roles_from_groups``.
+    """
+    # Konkurs #2 testu (fikstura ``other_competition``) ma powstać **przed** przełączeniem:
+    # fikstury autouse biegną pierwsze, a konkurs dopisany po nich zostałby z flagą wyłączoną.
+    if "other_competition" in request.fixturenames:
+        request.getfixturevalue("other_competition")
+    enforce_memberships_everywhere()
+
 
 LIST_URL = "/coordinator/competitions/"
 NEW_URL = "/coordinator/competitions/new/"
@@ -289,6 +304,39 @@ def test_the_creator_gets_a_role_in_the_new_competition_and_nowhere_else(
     assert after - before == {created.pk}
     assert competition.pk in after
     assert other_competition.pk not in after
+
+
+def test_the_form_refuses_while_a_competition_counts_roles_from_groups(coordinator_client, competition):
+    """Konkurs #1 w dzisiejszym stanie (role z grup): ani podgląd, ani potwierdzenie niczego nie zakładają.
+
+    Poprawka po audycie izolacji (01.10.2026): przy wyłączonym ``memberships_enforced`` koordynator,
+    recenzenci i komisja Konkursu #1 mieliby role także w nowym konkursie. Odmowa przychodzi jako
+    błąd formularza ze zdaniem dla człowieka – a nie jako 500 albo cichy brak efektu.
+    """
+    client, _ = coordinator_client
+    competition.feature_flags = {**competition.feature_flags, "memberships_enforced": False}
+    competition.save(update_fields=["feature_flags"])
+    before = row_counts()
+
+    preview = client.post(NEW_URL, payload())
+    confirmed = client.post(NEW_URL, {**payload(), CONFIRM_FIELD: "1"})
+
+    assert "memberships_enforced" in preview.content.decode()
+    assert "memberships_enforced" in confirmed.content.decode()
+    assert row_counts() == before
+    assert not Competition.objects.filter(slug="fizyczna").exists()
+
+
+def test_the_new_competition_counts_roles_from_memberships(coordinator_client):
+    client, user = coordinator_client
+
+    client.post(NEW_URL, {**payload(), CONFIRM_FIELD: "1"})
+
+    created = Competition.objects.get(slug="fizyczna")
+    assert created.has_feature("memberships_enforced") is True
+    assert Membership.objects.filter(
+        user=user, competition=created, role=CompetitionRole.COORDINATOR
+    ).exists()
 
 
 def test_the_audit_entry_belongs_to_the_new_competition(coordinator_client, competition):

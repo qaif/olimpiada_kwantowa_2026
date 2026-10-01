@@ -27,6 +27,7 @@ from apps.accounts.models import GROUP_COORDINATOR
 from apps.cms.tests.test_cms_scope import _snapshot as cms_permission_snapshot
 from apps.submissions.models import Submission
 from apps.tenancy.models import FEATURE_DEFAULTS
+from apps.tenancy.tests.factories import enforce_memberships_everywhere
 from apps.tenancy.tests.golden import build_golden, file_appeal, publish_results
 from apps.web.urls_competitions import urlpatterns as competition_urlpatterns
 from apps.web.urls_consents import urlpatterns as consent_urlpatterns
@@ -460,6 +461,8 @@ def test_the_coordinator_cms_permissions_survive_a_second_competition(competitio
     definicje „kompletu uprawnień grupy” rozjechałyby się przy pierwszym dołożeniu rodzaju prawa,
     a objawem byłby zielony test niezmienności obok czerwonej produkcji.
     """
+    # Warunek wstępny założenia drugiego konkursu od poprawki po audycie izolacji (01.10.2026).
+    enforce_memberships_everywhere()
     coordinator = Group.objects.get(name=GROUP_COORDINATOR)
     before = cms_permission_snapshot(coordinator)
 
@@ -485,6 +488,8 @@ def test_create_competition_dry_run_leaves_every_table_untouched(competition, no
     także tabele, o których nikt nie pomyślał – definicje zgód, szablony dokumentów, regiony,
     grupy, kolekcje mediów i dziennik audytu.
     """
+    # Warunek wstępny założenia drugiego konkursu od poprawki po audycie izolacji (01.10.2026).
+    enforce_memberships_everywhere()
     before = row_counts()
 
     call_command(
