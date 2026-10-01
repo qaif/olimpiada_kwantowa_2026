@@ -20,6 +20,15 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
   Najwyżej jedna prośba na parę (uczeń, opiekun) na dobę; import nauczyciela ma limit żądań (`upload`).
   Konta **zakładane** importem – bez zmian (zgodą jest przyjęcie zaproszenia). Dowiązania sprzed tej
   wersji zostają w bazie bez zmian.
+- **Poprawka (bezpieczeństwo, decyzja właściciela):** uczeń widzi oceny dopiero po ogłoszeniu wyników
+  etapu także w API – `GET /api/me/submissions/` (`final_grade.score`, `decided_at`,
+  `appeal.new_score`) i `GET /api/competitions/me/entries/` (`total_points`, zapisywane już przez
+  podgląd koordynatora) oddają `null` do `Stage.results_published_at` (ten sam sygnał, co panel; bez
+  wyjątku dla treningu). `final_grade.method` ma dla uczestnika wartości `REVIEW`/`APPEAL` – bez
+  `THIRD_REVIEW`/`MODERATION` zdradzających rozbieżność recenzentów. Klucze odpowiedzi bez zmian
+  (`docs/API.md` § 6.3). List o decyzji w sprawie reklamacji nie obiecuje już „aktualnej punktacji”
+  w panelu. **Skutek dla reklamacji:** okno reklamacyjne zamyka się przed ogłoszeniem wyników, więc
+  uczestnik składa reklamację, nie znając punktów (w panelu było tak już wcześniej).
 
 ## v0.38.2 – 2026-10-01 – Poprawki po audycie bezpieczeństwa (pakiet 1)
 

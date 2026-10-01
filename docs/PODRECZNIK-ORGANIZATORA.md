@@ -919,6 +919,12 @@ ekranie **„Reklamacje do rozpatrzenia”**: widzi „Argument uczestnika”, �
 z uzasadnieniem („Zapisz decyzję”). Autorzy recenzji rundy 1 tej pracy nie rozstrzygają jej reklamacji.
 Uczestnik dostaje list z rozstrzygnięciem i uzasadnieniem.
 
+**Uczestnik nie widzi punktów w oknie reklamacji** (od v0.38.6 także w API aplikacji – decyzja
+właściciela: oceny dopiero po ostatecznym zatwierdzeniu). Punkty, również te po reklamacji, pokazują
+się dopiero po **„Opublikuj wyniki”**, a publikacja jest możliwa wyłącznie po zamknięciu okna. Kto
+reklamuje, wie więc tylko, że praca jest oceniona – jeśli regulamin zakłada reklamację „od znanej
+oceny”, trzeba to rozstrzygnąć osobno (np. przekazać punkty wstępne innym kanałem).
+
 ### 5.2 Symulacja progu — `/coordinator/stages/<id>/simulation/`
 
 Ekran **„Symulacja kwalifikacji: <etap>”** odpowiada na pytanie „co by było, gdyby próg wyglądał tak”.

@@ -240,7 +240,9 @@ Po ogłoszeniu wyników etapu:
 **Reklamacja** — zakładka **„Reklamacje”**, przycisk **„Złóż reklamację”** przy pracy. Jest możliwa
 wyłącznie w **oknie reklamacyjnym** wyznaczonym przez organizatora i dotyczy własnej, ocenionej pracy.
 Rozpatruje ją komisja odwoławcza — **inne osoby** niż te, które pracę oceniały. Rozstrzygnięcie
-z uzasadnieniem dostajesz listem i widzisz w tej samej zakładce.
+z uzasadnieniem dostajesz listem i widzisz w tej samej zakładce. Punkty — także te po reklamacji —
+widać dopiero **po ogłoszeniu wyników etapu**, a okno reklamacyjne zamyka się wcześniej (od v0.38.6
+tak samo w panelu i w API aplikacji).
 
 ---
 

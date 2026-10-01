@@ -287,7 +287,9 @@ def appeal_decided_message(appeal, decision, link: str, competition=None) -> str
     """Treść listu o rozstrzygnięciu reklamacji – z uzasadnieniem, bo to ono jest tu treścią.
 
     Nowa punktacja w liście **nie** stoi: decyzja bywa zmianą oceny w obie strony, a liczba
-    wyrwana z kontekstu tabeli mówi mniej niż uzasadnienie. Panel pokazuje jedno i drugie.
+    wyrwana z kontekstu tabeli mówi mniej niż uzasadnienie. Od v0.38.6 nie obiecujemy jej też „w
+    panelu”: decyzja zapada przed ogłoszeniem wyników, a punkty uczestnik widzi dopiero po nim
+    (panel i API – ``apps.submissions.serializers.results_published``).
     """
     submission = appeal.submission
     return _message(
@@ -300,7 +302,8 @@ def appeal_decided_message(appeal, decision, link: str, competition=None) -> str
         "Uzasadnienie komisji:",
         decision.justification,
         "",
-        f"Szczegóły i aktualną punktację znajdziesz w panelu uczestnika: {link}",
+        f"Szczegóły znajdziesz w panelu uczestnika: {link}",
+        "Punktację zobaczysz tam po ogłoszeniu wyników etapu.",
         competition=competition,
     )
 

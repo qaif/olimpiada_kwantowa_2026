@@ -127,6 +127,15 @@ class StageEntrySerializer(serializers.ModelSerializer):
     oddawałoby ``null`` – czyli wpis bez identyfikatora w tabeli wyników. Dla wpisu uczestnika
     funkcja oddaje dokładnie ten sam napis, co dotąd, i nie dokłada ani jednego zapytania
     (``participant`` jest w ``select_related`` querysetu).
+
+    ``total_points`` jest ``None`` do ogłoszenia wyników etapu (v0.38.6, decyzja właściciela:
+    uczeń widzi oceny dopiero po ostatecznym zatwierdzeniu). Kolumnę zapisuje już **podgląd**
+    wyników koordynatora (``compute_stage_results`` bez ``preview=True``), więc bez tej bramki API
+    oddawało sumę w trakcie procedury – także w teście z ``show_results_after=NEVER``. Sygnał jest
+    ten sam, co w panelu i w ``GET /api/me/results/``: ``stage.results_published_at``; etap jest
+    w ``select_related`` querysetu (``entries_for_user``), więc bramka nie kosztuje zapytania.
+    ``status`` zostaje bez zmian, jak w panelu: ``QUALIFIED``/``NOT_QUALIFIED`` nadaje dopiero
+    publikacja (``apply_qualification`` woła tylko ``publish_results``).
     """
 
     stage = PublicStageSerializer(read_only=True)
@@ -140,3 +149,9 @@ class StageEntrySerializer(serializers.ModelSerializer):
 
     def get_public_code(self, obj: StageEntry) -> str:
         return entry_owner(obj).public_code
+
+    def to_representation(self, instance) -> dict:
+        data = super().to_representation(instance)
+        if instance.stage.results_published_at is None:
+            data["total_points"] = None
+        return data
