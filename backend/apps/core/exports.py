@@ -31,6 +31,7 @@ from __future__ import annotations
 
 import csv
 import logging
+import re
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -86,6 +87,14 @@ def _stamp(now=None) -> str:
     return timezone.localtime(now or timezone.now()).strftime("%Y%m%d-%H%M")
 
 
+#: Pierwszy znak, po którym arkusz kalkulacyjny czyta komórkę jako formułę.
+_FORMULA_PREFIXES = ("=", "+", "-", "@")
+#: Znaki sterujące, których ``openpyxl`` nie zapisuje (``ILLEGAL_CHARACTERS_RE``), oraz tabulator
+#: i powrót karetki – w komórce eksportu nie mają czego szukać, a na początku też otwierają formułę.
+_CONTROL_CHARACTERS = re.compile(r"[\x00-\x09\x0b-\x1f]")
+_PLAIN_NUMBER = re.compile(r"[+\-]?[\d\s().,\-]+")
+
+
 def _cell(value) -> str | int | Decimal:
     """Wartość do komórki: ``None`` jako pusta, data w czasie lokalnym, prawda/fałsz po polsku.
 
@@ -112,7 +121,26 @@ def _cell(value) -> str | int | Decimal:
         return value
     if isinstance(value, Decimal):
         return int(value) if is_whole(value) else Decimal(points_csv(value))
-    return str(value)
+    return _safe_text(str(value))
+
+
+def _safe_text(text: str) -> str:
+    """Tekst, którego arkusz nie potraktuje jak formuły ani nie odrzuci jako uszkodzonego.
+
+    Imię, nazwisko i szkoła są wolnym tekstem od uczestnika, a plik otwiera koordynator albo
+    kuratorium. Komórka zaczynająca się od ``=``, ``+``, ``-`` albo ``@`` jest dla Excela formułą
+    (``openpyxl`` zapisuje napis z ``=`` jako formułę wprost), więc dostaje z przodu apostrof –
+    arkusz pokazuje wtedy treść dosłownie. Znaki sterujące znikają: ``openpyxl`` odmawia ich
+    zapisu wyjątkiem, czyli jedno nazwisko wywracałoby cały eksport.
+    """
+    text = _CONTROL_CHARACTERS.sub("", text)
+    if text.lstrip()[:1] not in _FORMULA_PREFIXES:
+        return text
+    # Numer telefonu („+48 600 100 200”) i liczba ze znakiem zostają bez apostrofu: z samych cyfr
+    # i znaków działań nie da się złożyć wywołania funkcji, a plik czytają też skrypty.
+    if _PLAIN_NUMBER.fullmatch(text):
+        return text
+    return "'" + text
 
 
 def csv_response(dataset: Dataset) -> StreamingHttpResponse:

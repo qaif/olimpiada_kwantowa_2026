@@ -97,7 +97,9 @@ dependencies = [
     # **wyłącznie** tablicę stron – biblioteka niczego nie renderuje i nie wykonuje, a sam odczyt
     # idzie dopiero po czystym skanie antywirusowym. W zwykłych zależnościach, a nie w ekstrze
     # dev, bo liczbę stron pokazuje panel uczestnika, czyli produkcja.
-    "pypdf>=4,<6",
+    # Od 6.x: linia 5.x nie dostaje poprawek zapętleń i wyczerpania pamięci na spreparowanych
+    # plikach, a ten odczyt dostaje dokumenty od uczestników.
+    "pypdf>=6,<7",
     # Pieczęć elektroniczna dokumentów w formacie PAdES (``apps.results.signing``). W zwykłych
     # zależnościach, bo podpisuje **produkcja** – dokument powstaje przy każdym pobraniu i to
     # wtedy trafia na niego pieczęć. Sama funkcja jest jednak wyłączona, dopóki nie ma klucza
