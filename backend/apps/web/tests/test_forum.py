@@ -549,6 +549,37 @@ def test_replies_are_throttled_like_every_other_form(web_client, competition):
     assert int(blocked.headers["Retry-After"]) >= 1
 
 
+@override_settings(REST_FRAMEWORK=rest_framework_with(forum="3/hour"))
+def test_forum_limit_follows_the_account_and_not_the_address(web_client, competition):
+    """Pakiet 5, A15: kubełek forum jest per konto (``apps.web.throttle.PER_USER_SCOPES``).
+
+    Dwie połowy regresji: jedno konto zmieniające adres IP nie dostaje nowego budżetu z każdym
+    adresem, a druga osoba za tym samym NAT-em szkoły nie jest karana za cudze wpisy.
+    """
+    with_forum(competition)
+    closed_edition(competition)
+    author = participant_of(competition)
+    classmate = participant_of(competition)
+    thread = ForumThreadFactory(competition=competition)
+    web_client.force_login(author.user)
+    for attempt in range(3):
+        response = web_client.post(
+            thread_url(thread), {"body": f"Odpowiedź numer {attempt}"}, REMOTE_ADDR=f"203.0.113.{attempt + 1}"
+        )
+        assert response.status_code == 302, attempt
+
+    from_new_address = web_client.post(
+        thread_url(thread), {"body": "Z kolejnego adresu"}, REMOTE_ADDR="203.0.113.99"
+    )
+    assert from_new_address.status_code == 429
+
+    web_client.force_login(classmate.user)
+    same_school_address = web_client.post(
+        thread_url(thread), {"body": "Kolega z pracowni"}, REMOTE_ADDR="203.0.113.1"
+    )
+    assert same_school_address.status_code == 302
+
+
 # --- „Twoje wpisy” -------------------------------------------------------------------------------------
 
 

@@ -19,6 +19,7 @@ from rest_framework.throttling import ScopedRateThrottle
 
 from apps.accounts.tests.factories import DEFAULT_PASSWORD
 from apps.submissions.tests.factories import pdf_upload
+from apps.web import throttle
 from apps.web.throttle import form_rate, parse_rate
 
 from .conftest import captcha_fields, password_fields
@@ -174,6 +175,143 @@ def test_successful_login_does_not_consume_the_limit(web_client, participant):
     for attempt in range(3):
         assert web_client.post(LOGIN_URL, {"username": email, "password": "zle"}).status_code == 200, attempt
     assert web_client.post(LOGIN_URL, {"username": email, "password": "zle"}).status_code == 429
+
+
+@override_settings(REST_FRAMEWORK=rest_framework_with(login="3/min"))
+def test_parallel_login_attempts_cannot_exceed_the_rate(web_client, participant, monkeypatch):
+    """Pakiet 5, A2: próby „w locie” liczą się, zanim hasło zostanie sprawdzone.
+
+    Do tej zmiany ``check()`` stał przed ``consume()``, a zużycie przychodziło dopiero po
+    porażce – każda z równoległych prób widziała pusty kubełek i przechodziła. Test odtwarza
+    równoległość deterministycznie: **w trakcie** sprawdzania hasła pierwszego żądania (zanim
+    cokolwiek zostanie rozstrzygnięte) z tego samego adresu idą trzy kolejne. Stara implementacja
+    przepuszczała wszystkie trzy; teraz pierwsze żądanie trzyma rezerwację, więc mieszczą się dwa.
+    """
+    from django.contrib.auth import forms as auth_forms
+    from django.test import Client
+
+    original = auth_forms.authenticate
+    inner_statuses: list[int] = []
+    state = {"nested": False}
+    email = participant.user.email
+
+    def authenticate_while_others_are_in_flight(request=None, **credentials):
+        if not state["nested"]:
+            state["nested"] = True
+            other = Client()
+            for _ in range(3):
+                inner = other.post(LOGIN_URL, {"username": email, "password": "zle-haslo"})
+                inner_statuses.append(inner.status_code)
+        return original(request, **credentials)
+
+    monkeypatch.setattr(auth_forms, "authenticate", authenticate_while_others_are_in_flight)
+
+    outer = web_client.post(LOGIN_URL, {"username": email, "password": "zle-haslo"})
+
+    assert outer.status_code == 200
+    assert inner_statuses == [200, 200, 429]
+    # Wszystkie trzy miejsca są zajęte nieudanymi próbami – kolejna dostaje 429.
+    assert web_client.post(LOGIN_URL, {"username": email, "password": "zle-haslo"}).status_code == 429
+
+
+@override_settings(REST_FRAMEWORK=rest_framework_with(register="3/min"))
+def test_acquire_never_hands_out_more_slots_than_the_rate_even_with_a_stale_view():
+    """Zajęcie miejsca rozstrzyga ``cache.add``, a nie wcześniejszy odczyt.
+
+    Odczyt jest tu celowo „przeterminowany” (każde żądanie widzi pusty kubełek – tak, jak widziały
+    go równoległe żądania przy starym ``cache.get`` → ``cache.set``). Mimo to przechodzą dokładnie
+    trzy, bo każde miejsce da się zająć tylko raz.
+    """
+    keys = ["web-throttle:register:ip:test-bucket"]
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(throttle.cache, "get_many", lambda *args, **kwargs: {})
+        results = [throttle.acquire("register", keys) for _ in range(5)]
+
+    granted = [slots for wait, slots in results if wait is None]
+    assert len(granted) == 3
+    assert all(wait is not None and wait > 0 for wait, _ in results[3:])
+
+
+@override_settings(REST_FRAMEWORK=rest_framework_with(competition_create="2/day"))
+def test_unsettled_reservation_goes_back_to_the_pool(rf):
+    """Widok z ``throttle_on_request = False``, który nie rozstrzygnął próby, niczego nie zużywa."""
+    from django.http import HttpResponse
+    from django.views.generic import View
+
+    class PreviewOnly(throttle.ThrottledFormMixin, View):
+        throttle_scope = "competition_create"
+        throttle_on_request = False
+
+        def post(self, request):
+            return HttpResponse("podgląd")
+
+    view = PreviewOnly.as_view()
+    for attempt in range(5):
+        assert view(rf.post("/x/", REMOTE_ADDR="198.51.100.5")).status_code == 200, attempt
+
+    keys = throttle.throttle_keys("competition_create", rf.post("/x/", REMOTE_ADDR="198.51.100.5"))
+    assert throttle.check("competition_create", keys) is None
+
+
+@override_settings(REST_FRAMEWORK=rest_framework_with(login="3/min"))
+def test_retry_after_still_counts_from_the_oldest_attempt(web_client, participant):
+    """Okno pozostaje przesuwne i dokładne: ``Retry-After`` ≈ pełne okno od pierwszej próby."""
+    email = participant.user.email
+    for _ in range(3):
+        web_client.post(LOGIN_URL, {"username": email, "password": "zle-haslo"})
+
+    blocked = web_client.post(LOGIN_URL, {"username": email, "password": "zle-haslo"})
+
+    assert blocked.status_code == 429
+    assert 55 <= int(blocked.headers["Retry-After"]) <= 61
+
+
+@override_settings(REST_FRAMEWORK=rest_framework_with(login="3/min"))
+def test_cache_holds_neither_the_address_nor_the_email(web_client, participant):
+    """Klucze to skróty, a wartością miejsca jest sam znacznik czasu (checklista 8.3)."""
+    email = participant.user.email
+    web_client.post(LOGIN_URL, {"username": email, "password": "zle-haslo"}, REMOTE_ADDR="198.51.100.77")
+
+    stored = {key: value for key, value in throttle.cache._cache.items() if "web-throttle" in key}
+    assert stored
+    for key in stored:
+        assert email not in key
+        assert "198.51.100.77" not in key
+    for key in stored:
+        assert isinstance(throttle.cache.get(key.split(":", 2)[2]), float)
+
+
+@override_settings(REST_FRAMEWORK=rest_framework_with(login="3/min"))
+def test_cache_outage_lets_requests_through_but_is_logged_once(web_client, participant, monkeypatch, caplog):
+    """Awaria Redisa (``IGNORE_EXCEPTIONS`` → ``add`` zwraca ``None``) nie zamyka logowania,
+    ale zostawia ślad w logu – raz na minutę na proces, a nie przy każdym żądaniu."""
+    monkeypatch.setattr(throttle.cache, "add", lambda *args, **kwargs: None)
+    monkeypatch.setattr(throttle, "_last_outage_report", None)
+    email = participant.user.email
+
+    with caplog.at_level("ERROR", logger="apps.web.throttle"):
+        for attempt in range(6):
+            response = web_client.post(LOGIN_URL, {"username": email, "password": "zle-haslo"})
+            assert response.status_code == 200, attempt
+
+    outage_records = [record for record in caplog.records if record.name == "apps.web.throttle"]
+    assert len(outage_records) == 1
+    assert "cache nie odpowiada" in outage_records[0].getMessage()
+    assert email not in outage_records[0].getMessage()
+
+
+def test_chat_and_forum_are_counted_per_account_without_the_address(rf, participant):
+    """Pakiet 5, A15: ``chat`` i ``forum`` – jeden kubełek na konto, ten sam z każdego adresu."""
+    first = rf.post("/x/", REMOTE_ADDR="198.51.100.1")
+    second = rf.post("/x/", REMOTE_ADDR="203.0.113.9")
+    first.user = second.user = participant.user
+
+    for scope in ("chat", "forum"):
+        assert throttle.user_throttle_keys(scope, first) == throttle.user_throttle_keys(scope, second)
+        assert ":user:" in throttle.user_throttle_keys(scope, first)[0]
+        assert scope in throttle.PER_USER_SCOPES
+    # Pozostałe scope'y zostają przy kubełkach adresu.
+    assert "login" not in throttle.PER_USER_SCOPES
 
 
 def test_rate_none_disables_the_form_limit(web_client, participant):
