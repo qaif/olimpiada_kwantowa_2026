@@ -320,6 +320,53 @@ def test_document_is_issued_and_downloaded(coordinator_client, competition, fee)
     assert AuditLog.objects.filter(action="fee.document_issued").exists()
 
 
+@pytest.mark.parametrize(
+    ("first_name", "school"),
+    [
+        # Niedomknięty znacznik – do pakietu 5 ReportLab wywracał pobranie pięćsetką.
+        ("Jan <b", "LO <i>nr 1"),
+        # Obraz z dysku serwera i odnośnik w rachunku – markup z danych uczestnika.
+        ('<img src="/etc/hostname" width="10" height="10"/>', '<link href="https://evil.example">LO</link>'),
+    ],
+)
+def test_participant_data_is_not_markup_in_the_fee_document(
+    coordinator_client, competition, fee, participant, monkeypatch, first_name, school
+):
+    """Pakiet 5, C8: imię i szkoła są tekstem w akapicie ReportLaba, a nie znacznikami."""
+    from reportlab.platypus import Paragraph
+
+    enable(competition, DOCUMENTS_FLAG)
+    set_current_template(
+        competition,
+        DocumentKind.INVOICE,
+        version="1.0",
+        title="Rachunek dla {recipient}",
+        statement="Uczestnik {recipient}, szkoła {school}: do zapłaty {amount} {currency}.",
+    )
+    participant.user.first_name = first_name
+    participant.user.save(update_fields=["first_name"])
+    participant.school = school
+    participant.save(update_fields=["school"])
+    paragraphs: list[str] = []
+    original_init = Paragraph.__init__
+
+    def spy(self, text, *args, **kwargs):
+        paragraphs.append(text)
+        original_init(self, text, *args, **kwargs)
+
+    monkeypatch.setattr(Paragraph, "__init__", spy)
+
+    response = coordinator_client.get(f"{REGISTER_URL}{fee.pk}/document/")
+
+    assert response.status_code == 200
+    assert response.content.startswith(b"%PDF")
+    composed = " ".join(paragraphs)
+    assert "<img" not in composed
+    assert "<link" not in composed
+    assert "<b" not in composed
+    assert "&lt;" in composed
+
+
 def test_document_filename_carries_no_surname(coordinator_client, competition, fee, participant):
     enable(competition, DOCUMENTS_FLAG)
     set_current_template(

@@ -1117,6 +1117,13 @@ def _may_show_name(certificate: Certificate) -> bool:
     a nie wygodne pole – a dowód potrafi być wycofany bez dotknięcia projekcji przez kogoś,
     kto pisze do bazy z boku.
 
+    Dla małoletniego dodatkowo **zgoda opiekuna** (pakiet 5 po audycie) – ta sama reguła, co
+    w publicznej tabeli wyników (``apps.results.services._may_show_full_name``): małoletni nie
+    udziela zgody na publikację swojego nazwiska skutecznie sam. Do tej zmiany strona
+    ``/dyplomy/<kod>/`` – publiczna, otwierana przez każdego, kto przepisze kod z papieru – była
+    luźniejsza od tabeli i podawała pełne nazwisko dziecka bez zgody rodzica. Pełnoletność liczy
+    ten sam helper (``_is_adult``), więc granica wieku nie może się rozjechać z tabelą.
+
     Dla opiekuna: nigdy. Opiekun nie przechodzi przez blok zgód rejestracji uczestnika, więc
     nie ma czego sprawdzać – a milczenie nie jest zgodą.
     """
@@ -1124,6 +1131,13 @@ def _may_show_name(certificate: Certificate) -> bool:
         return False
     participant = certificate.entry.participant
     if not participant.publish_full_name:
+        return False
+    from apps.results.services import _is_adult
+
+    if not (
+        participant.guardian_consent
+        or _is_adult(participant.birth_date, participant.birth_year, timezone.localdate())
+    ):
         return False
     from apps.accounts.consents import ConsentKind
 

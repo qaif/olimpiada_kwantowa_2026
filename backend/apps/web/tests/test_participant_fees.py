@@ -166,6 +166,30 @@ def test_document_comes_from_the_remembered_version(participant_client, competit
     assert participant_client.get(DOCUMENT_URL).status_code == 200
 
 
+def test_participant_download_escapes_its_own_data(participant_client, competition, fee, entry, participant):
+    """Pakiet 5, C8: pobranie przez uczestnika idzie tym samym escapującym składaczem."""
+    from apps.web.views.coordinator_fees import render_fee_document
+
+    enable(competition, DOCUMENTS_FLAG)
+    set_current_template(
+        competition,
+        DocumentKind.INVOICE,
+        version="1.0",
+        title="Rachunek",
+        statement="Uczestnik {recipient}, szkoła {school}.",
+    )
+    participant.school = "LO <b>nr 1"
+    participant.save(update_fields=["school"])
+    participant.user.first_name = "Jan <font"
+    participant.user.save(update_fields=["first_name"])
+    issue_fee_document(fee, render_fee_document)
+
+    response = participant_client.get(DOCUMENT_URL)
+
+    assert response.status_code == 200
+    assert response.content.startswith(b"%PDF")
+
+
 # --- kafel „Formularz przyjazdu” ---------------------------------------------------------------------
 
 

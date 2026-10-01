@@ -36,6 +36,7 @@ go wpisał; ekran nie liczy z niego ani grosza.
 
 from __future__ import annotations
 
+from html import escape
 from io import BytesIO
 
 from django import forms
@@ -227,6 +228,28 @@ class PaymentEndpointForm(forms.Form):
 
 
 # --- dokument rozliczeniowy ----------------------------------------------------------------------
+
+
+def render_fee_document(competition, kind, *, version=None, fallback=None, **context):
+    """``render_document`` z **wartościami** podstawień zescapowanymi dla ReportLaba (pakiet 5).
+
+    ``Paragraph`` czyta tekst jak mini-HTML. Imię, nazwisko i nazwa szkoły pochodzą od uczestnika
+    i do tej zmiany trafiały do akapitu dosłownie (podstawienie robi ``str.format_map``
+    w ``apps.tenancy.documents``): ``<link href=…>`` wstawiał do rachunku klikalny odnośnik,
+    niedomknięty znacznik wywracał pobranie pięćsetką, a ``<img src="/ścieżka">`` kazał ReportLabowi
+    otworzyć plik z dysku serwera. Escape'ujemy wyłącznie **wartości** (ta sama funkcja, co
+    ``apps.student_status.pdf._para``), a nie tekst szablonu: ten pisze koordynator w panelu
+    szablonów i jego formatowanie zostaje takie, jak było.
+
+    Funkcja ma podpis ``render_document``, bo wchodzi w jego miejsce – i jako wstrzykiwany
+    składacz ``issue_fee_document``, i w pobraniu rachunku przez uczestnika
+    (``participant_fees.FeeDocumentView``). Jedno miejsce, więc obie drogi nie mogą się rozjechać.
+    """
+    safe = {
+        name: escape(value, quote=False) if isinstance(value, str) else value
+        for name, value in context.items()
+    }
+    return render_document(competition, kind, version=version, fallback=fallback, **safe)
 
 
 def fee_document_pdf(rendered, fee: ParticipantFee) -> bytes:
@@ -637,7 +660,7 @@ class FeeDocumentView(FeeScreenMixin, View):
         competition = self.competition_or_404(request)
         fee = self.fee_or_404(competition, pk)
         try:
-            rendered = issue_fee_document(fee, render_document, actor=request.user, request=request)
+            rendered = issue_fee_document(fee, render_fee_document, actor=request.user, request=request)
         except DomainError as exc:
             messages.error(request, f"{exc.detail} {DOCUMENT_HINT}")
             return self.register_redirect(request)
