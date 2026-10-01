@@ -376,6 +376,9 @@ def export_payload(user: User) -> dict:
         "wyniki_ogloszone": _results_section(participant),
         "wpisy_na_forum": _forum_section(user),
         "powiadomienia_z_forum": _forum_notifications_section(user),
+        "wiadomosci_wyslane": _chat_messages_section(user),
+        "zgloszenia_wiadomosci": _chat_reports_section(user),
+        "ustawienia_wiadomosci": _chat_settings_section(user),
         "zaswiadczenia_statusu_ucznia": _student_status_section(participant),
         "oceny_ai": _ai_section(participant),
         "ustawienia_interfejsu": _preferences_section(user),
@@ -475,6 +478,104 @@ def _forum_section(user: User) -> list[dict]:
         }
         for post in posts
     ]
+
+
+def _chat_messages_section(user: User) -> list[dict]:
+    """Wiadomości wysłane przez tę osobę (zadanie CZ-01) – **wyłącznie jej własne**, ze stanem moderacji.
+
+    Ta sama granica, co przy forum: art. 15 pyta o dane tej osoby, a nie o rozmowę – więc nie ma tu
+    ani jednego zdania drugiej strony ani jej podpisu, tylko rodzaj rozmowy („z organizatorem” / „z innym
+    uczestnikiem”). Notatka moderatora przy odrzuceniu **jest** – decyzja dotyczy tej osoby.
+
+    Wiadomość szyfrowana end-to-end jedzie jako szyfrogram z adnotacją: serwer nie ma klucza, więc nie
+    ma czego wydać w postaci jawnej – treść zna wyłącznie przeglądarka nadawcy i odbiorcy.
+    """
+    from apps.chat.models import Message
+
+    rows = (
+        Message.objects.filter(sender=user)
+        .select_related("conversation", "conversation__competition")
+        .order_by("created_at", "id")
+    )
+    section = []
+    for message in rows:
+        entry = {
+            "konkurs": message.conversation.competition.name,
+            "rozmowa": message.conversation.get_kind_display(),
+            "wyslana": _moment(message.created_at),
+            "stan": message.get_status_display(),
+            "uzasadnienie_moderatora": message.moderation_note or None,
+        }
+        if message.is_encrypted:
+            entry["tresc"] = None
+            entry["szyfrogram"] = {
+                "szyfrogram_base64": message.ciphertext,
+                "iv_base64": message.iv,
+                "uwaga": "Wiadomość szyfrowana end-to-end – serwer nie ma klucza i nie zna jej treści.",
+            }
+        else:
+            entry["tresc"] = message.body
+        section.append(entry)
+    return section
+
+
+def _chat_reports_section(user: User) -> list[dict]:
+    """Zgłoszenia wiadomości wysłane przez tę osobę: powód, data i stan – bez treści wiadomości.
+
+    Powód jest zdaniem tej osoby, więc wchodzi. Treść zgłoszonej wiadomości – także kopia jawna
+    wiadomości szyfrowanej przekazana moderatorowi – jest wypowiedzią **drugiej strony** i nie
+    wychodzi w paczce (ta sama granica, co przy zgłoszeniach wpisów na forum).
+    """
+    from apps.chat.models import MessageReport
+
+    rows = (
+        MessageReport.objects.filter(reporter=user)
+        .select_related("message__conversation__competition")
+        .order_by("created_at", "id")
+    )
+    return [
+        {
+            "konkurs": report.message.conversation.competition.name,
+            "powod": report.reason,
+            "zgloszono": _moment(report.created_at),
+            "stan": "rozpatrzone" if report.resolved_at else "czeka na organizatora",
+            "rozpatrzono": _moment(report.resolved_at),
+        }
+        for report in rows
+    ]
+
+
+def _chat_settings_section(user: User) -> dict:
+    """Ustawienia Wiadomości: list o nowej wiadomości (konto) i – per konkurs – katalog i klucz.
+
+    Blokady innych uczestników nie wchodzą: lista osób, z którymi ktoś nie chce rozmawiać, jest
+    tu liczbą, a nie wykazem – wykaz byłby wydaniem danych tych osób.
+    """
+    from apps.chat.models import ChatBlock, ChatKey, ChatProfile
+    from apps.chat.notifications import preferences_for
+
+    preferences = preferences_for(user)
+    profiles = {row.participant_id: row for row in ChatProfile.objects.filter(participant__user=user)}
+    keys = {row.participant_id: row for row in ChatKey.objects.filter(participant__user=user)}
+    konkursy = []
+    for participant in user.participations.select_related("competition").order_by("competition_id"):
+        profile = profiles.get(participant.pk)
+        key = keys.get(participant.pk)
+        konkursy.append(
+            {
+                "konkurs": participant.competition.name,
+                "w_katalogu_uczestnikow": bool(profile and profile.discoverable),
+                "zablokowane_osoby": ChatBlock.objects.filter(blocker=participant).count(),
+                "klucz_szyfrowania": (
+                    {"odcisk_sha256": key.fingerprint, "utworzony": _moment(key.created_at)} if key else None
+                ),
+            }
+        )
+    return {
+        "list_o_nowej_wiadomosci": preferences.email_on_message,
+        "zmienione": _moment(preferences.updated_at) if preferences.pk else None,
+        "konkursy": konkursy,
+    }
 
 
 def _forum_notifications_section(user: User) -> dict:

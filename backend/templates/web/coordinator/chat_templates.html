@@ -1,0 +1,57 @@
+{% extends "web/coordinator/base.html" %}
+{% comment %}
+  Szablony odpowiedzi koordynatora (§ 12.1 zadania CZ-01). Lista i formularz na jednym ekranie –
+  szablon pisze się, patrząc na te, które już są. Treść jest zwykłym tekstem; znacznik {imie}
+  podmienia przeglądarka przy wstawianiu do odpowiedzi (``static/js/chat-templates.js``).
+{% endcomment %}
+{% block title %}Szablony odpowiedzi – panel koordynatora{% endblock %}
+{% block panel_eyebrow %}<a href="{% url 'web:coordinator-chat' %}">Wiadomości</a>{% endblock %}
+{% block panel_title %}Szablony odpowiedzi{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Gotowe odpowiedzi na powtarzające się pytania uczestników. W wątku wstawisz je
+    przyciskiem „Wstaw szablon”; znacznik <code>{imie}</code> zamieni się na imię uczestnika.</p>
+{% endblock %}
+{% block panel_content %}
+
+<section class="section">
+  <div class="card">
+    <h2 class="mt-0">{% if template %}Edytuj szablon „{{ template.title }}”{% else %}Nowy szablon{% endif %}</h2>
+    <form method="post" class="form" action="{% url 'web:coordinator-chat-templates' %}">
+      {% csrf_token %}
+      {% if template %}<input type="hidden" name="template" value="{{ template.pk }}">{% endif %}
+      {{ form.non_field_errors }}
+      {{ form.as_p }}
+      <p class="actions">
+        <button type="submit" class="btn btn--primary">Zapisz szablon</button>
+        {% if template %}<a class="btn btn--ghost" href="{% url 'web:coordinator-chat-templates' %}">Anuluj</a>{% endif %}
+      </p>
+    </form>
+  </div>
+</section>
+
+<section class="section">
+  <div class="section__head"><h2>Szablony ({{ templates|length }})</h2></div>
+  {% for item in templates %}
+    <article class="card card--quiet">
+      <div class="card__head">
+        <h3 class="card__title">{{ item.title }}</h3>
+        <div class="row">
+          <a class="btn btn--small btn--ghost" href="?edit={{ item.pk }}">Edytuj</a>
+          <form method="post" class="inline" action="{% url 'web:coordinator-chat-templates' %}">
+            {% csrf_token %}
+            <input type="hidden" name="template" value="{{ item.pk }}">
+            <input type="hidden" name="action" value="delete">
+            <button type="submit" class="btn btn--small btn--ghost">Usuń</button>
+          </form>
+        </div>
+      </div>
+      <p class="hint">{{ item.body|linebreaksbr }}</p>
+    </article>
+  {% empty %}
+    <div class="empty">
+      <span class="empty__title">Nie ma jeszcze szablonów</span>
+      <p class="empty__text">Dodaj pierwszy formularzem wyżej – np. odpowiedź o terminach etapów.</p>
+    </div>
+  {% endfor %}
+</section>
+{% endblock %}

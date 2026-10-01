@@ -132,6 +132,12 @@ INSTALLED_APPS = [
     # łączy ją jeden **odczyt** – „czy trwa etap przyjmujący rozwiązania”, od którego zależy
     # wymuszona moderacja wstępna (``apps.forum.services.effective_mode``).
     "apps.forum",
+    # Wiadomości 1:1 organizator–uczestnik i uczestnik–uczestnik (zadanie CZ-01, 30.09.2026).
+    # Osobna aplikacja, a nie tryb forum: inni odbiorcy (dwie strony, nie cały konkurs), inna
+    # prywatność i inna poczta. **Po** ``apps.forum``, bo bierze z niego dwie czyste funkcje
+    # (podpis ``display_author`` i regułę etapu wymuszającego premoderację), a forum nie wie o niej
+    # nic; **przed** ``apps.web``, który ją wyświetla.
+    "apps.chat",
     # Plakaty do pobrania i statystyka ich pobrań (prośba organizatora z 23.09.2026). Osobna
     # aplikacja, a nie model w ``apps.cms``: plakat nie jest stroną ani snippetem Wagtaila, ma własny
     # plik w storage prywatnym, własne zdarzenia (pobrania) i własne reguły prywatności liczenia
@@ -1096,6 +1102,11 @@ REST_FRAMEWORK = {
         # a mniej, niż potrzeba, żeby zasypać dział albo wyczerpać dyżur koordynatora. Stawka jest
         # wyższa niż przy zgłoszeniach, bo tam jedno zdanie kończy sprawę, a tu toczy się rozmowa.
         "forum": "30/hour",
+        # Wiadomości 1:1 (``apps.chat``): wysłanie, zgłoszenie, blokada. Wyżej niż forum, bo
+        # rozmowa dwóch osób to krótkie zdania jedno po drugim, a nie przemyślany wpis – ale nadal
+        # za mało, żeby zasypać cudzą skrzynkę albo kolejkę premoderacji. Listy o wiadomościach
+        # i tak są zbijane (``apps.chat.notifications``), więc limit chroni rozmowę, nie pocztę.
+        "chat": "60/hour",
         # Podpowiedzi szkół w formularzu rejestracji. Limit jest wysoki, bo jedno wypełnienie
         # formularza to kilkanaście żądań (jedno na przerwę w pisaniu), a dane są jawnym
         # rejestrem publicznym – chronimy tu koszt zapytania, nie treść.

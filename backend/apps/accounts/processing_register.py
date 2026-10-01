@@ -77,8 +77,13 @@ from apps.competitions.models import DEFAULT_RETENTION_MONTHS
 #: temat wątku i sam fakt udziału w rozmowie) i nową **kategorię danych** (obserwowane wątki,
 #: ustawienia powiadomień, znaczniki wysyłki). Nowy odbiorca to zmiana materialna – ta sama
 #: reguła, co przy wersji 1.8.
-REGISTER_VERSION = "1.9"
-REGISTER_DATE = date(2026, 9, 25)
+#: 1.10 (30.09.2026, zadanie CZ-01) – Wiadomości: rozmowy 1:1 uczestnika z organizatorem i (za
+#: decyzją koordynatora) uczestników między sobą. Nowa czynność z własnym celem i nowym kręgiem
+#: odbiorców (druga strona rozmowy, moderator w trybach z moderacją i przy zgłoszeniach), w tym
+#: opcjonalne szyfrowanie end-to-end rozmów między uczestnikami. Zdanie w wierszu forum „forum nie
+#: ma wiadomości prywatnych” zostało doprecyzowane: forum ich nadal nie ma, ale serwis – tak.
+REGISTER_VERSION = "1.10"
+REGISTER_DATE = date(2026, 9, 30)
 
 #: Zdanie o okresie przechowywania danych uczestnika. Liczba pochodzi z tego samego miejsca, co
 #: domyślna wartość ``Edition.data_retention_months`` – gdyby organizator zmienił ją dla rocznika,
@@ -581,8 +586,9 @@ FORUM_ACTIVITY = _activity(
         "**zawsze**, niezależnie od ustawienia konkursu",
         "wypowiedź jest tekstem: forum nie przyjmuje załączników ani HTML-a, więc nie jest drogą "
         "wnoszenia plików do serwisu",
-        "forum nie ma wiadomości prywatnych – rozmowa osób niepełnoletnich zawsze odbywa się "
-        "w miejscu, które widzi moderator",
+        "forum nie ma wiadomości prywatnych – rozmowa na forum zawsze odbywa się w miejscu, które "
+        "widzi moderator; rozmowy 1:1 prowadzi osobny moduł Wiadomości z własnymi zasadami moderacji "
+        "(osobny wiersz rejestru)",
         "usunięcie własnej wypowiedzi jest natychmiastowe dla czytelników; wiersz zostaje wyłącznie "
         "po to, żeby zgłoszony wpis nie znikał na żądanie autora",
         "każda decyzja moderatora zostawia wpis w dzienniku zdarzeń **bez kopii treści** wypowiedzi",
@@ -590,6 +596,71 @@ FORUM_ACTIVITY = _activity(
         "wyłącznie po zalogowaniu także wtedy, gdy list trafi do cudzej skrzynki; nic "
         "niepublikowanego nie wychodzi pocztą, a każdy list ma wypis jednym kliknięciem (bez "
         "logowania) – to jest forma prawa sprzeciwu z art. 21 RODO",
+    ],
+)
+
+
+#: Czynność **warunkowa**: Wiadomości (zadanie CZ-01, 30.09.2026) – wchodzi do rejestru, gdy moduł
+#: jest w konkursie włączony (``ChatSettings.enabled``, domyślnie tak: kanał „napisz do organizatora”
+#: działa od razu). Tak jak przy forum, kategorią danych jest tekst pisany przez osoby niepełnoletnie,
+#: tylko że tutaj **bez świadków**, więc wśród środków stoi to, kto i kiedy może tę treść przeczytać –
+#: i to jest obietnica, którą nadawca czyta nad formularzem (``apps.chat.services.moderator_visible_q``).
+CHAT_ACTIVITY = _activity(
+    key="wiadomosci",
+    name="Wiadomości na platformie (rozmowy 1:1)",
+    purpose=(
+        "Umożliwienie uczestnikom kontaktu z organizatorem konkursu w sprawach zawodów, a – jeśli "
+        "organizator to włączy – rozmów uczestników między sobą, wraz z moderacją tych rozmów "
+        "i obsługą zgłoszeń."
+    ),
+    legal_basis=(
+        "art. 6 ust. 1 lit. f RODO (prawnie uzasadniony interes administratora i uczestników – sprawna "
+        "komunikacja w sprawach zawodów oraz bezpieczeństwo rozmów osób niepełnoletnich); korzystanie "
+        "z wiadomości jest dobrowolne i nie warunkuje udziału w zawodach"
+    ),
+    subjects="uczestnicy konkursu i koordynatorzy (zespół organizatora), którzy piszą wiadomości",
+    categories=[
+        "treść wiadomości napisana przez użytkownika (tekst, bez załączników i bez HTML-a) – w rozmowie "
+        "szyfrowanej end-to-end wyłącznie szyfrogram, którego serwer nie umie odczytać",
+        "metadane: strony rozmowy, data wysłania, stan moderacji, znaczniki odczytu i powiadomień",
+        "podpis przy wiadomości: imię i pierwsza litera nazwiska (wobec innych uczestników); organizator "
+        "widzi pełne dane uczestnika, jak w całym panelu",
+        "zgoda na obecność w katalogu uczestników (imię, inicjał nazwiska, województwo) i blokady innych "
+        "uczestników",
+        "zgłoszenia wiadomości wraz z tożsamością zgłaszającego; przy wiadomości szyfrowanej – treść "
+        "odszyfrowana i przekazana przez zgłaszającego",
+        "rozmowy szyfrowane: klucz publiczny i kopia klucza prywatnego zaszyfrowana hasłem, którego "
+        "serwer nie zna",
+        "ustawienie powiadomień e-mail o nowej wiadomości",
+    ],
+    recipients=[
+        HOSTING_RECIPIENT,
+        MAIL_RECIPIENT + " – powiadomienie „masz nową wiadomość” z podpisem nadawcy i odnośnikiem; nigdy "
+        "treść wiadomości",
+        "druga strona rozmowy; w rozmowie z organizatorem – każdy koordynator konkursu (wspólna skrzynka)",
+        "koordynator jako moderator rozmów między uczestnikami – wyłącznie wiadomości wysłane w trybie "
+        "z moderacją (premoderacja, postmoderacja) oraz wiadomości zgłoszone; w trybie „bez moderacji” "
+        "tylko zgłoszone, a w rozmowie szyfrowanej – tylko treść przekazana przez zgłaszającego",
+    ],
+    retention=(
+        "wiadomości zostają w rozmowie, bo są jej częścią dla drugiej strony; po anonimizacji albo "
+        "usunięciu konta znika podpis (zostaje napis „Użytkownik usunięty”), a profil katalogu, klucz "
+        "szyfrowania, blokady i ustawienia powiadomień są usuwane"
+    ),
+    measures=[
+        "rozmowy między uczestnikami są domyślnie **wyłączone**; tryb (premoderacja, postmoderacja, bez "
+        "moderacji) wybiera organizator, a w czasie etapu przyjmującego rozwiązania obowiązuje "
+        "premoderacja niezależnie od ustawienia (rozmowy szyfrowane są wtedy tylko do odczytu)",
+        "nad formularzem nadawca czyta, kto może przeczytać jego wiadomość; moderator widzi treść "
+        "wyłącznie w tym zakresie – nie ma ekranu przeglądania rozmów uczestników",
+        "katalog uczestników jest dobrowolny (zgoda wyrażana przełącznikiem) i pokazuje tylko imię, "
+        "inicjał nazwiska i województwo – nigdy adres e-mail, szkołę ani kod publiczny",
+        "blokowanie innych uczestników i zgłaszanie wiadomości do organizatora w każdym trybie",
+        "opcjonalne szyfrowanie end-to-end (WebCrypto: ECDH P-256, HKDF-SHA-256, AES-GCM; kopia klucza "
+        "prywatnego chroniona PBKDF2-SHA-256 z hasłem, którego serwer nie zna) – dopuszczalne tylko "
+        "w trybie bez moderacji; kanał organizatora nie jest nigdy szyfrowany",
+        "wiadomość jest tekstem: bez załączników i bez HTML-a; listy e-mail nie niosą treści",
+        "każda decyzja moderatora zostawia wpis w dzienniku zdarzeń **bez kopii treści** wiadomości",
     ],
 )
 
@@ -813,6 +884,10 @@ def activities_for(competition=None) -> tuple[ProcessingActivity, ...]:
         activities = (*activities, ONSITE_LOGISTICS_ACTIVITY)
     if competition is not None and competition.has_feature(FORUM_FLAG):
         activities = (*activities, FORUM_ACTIVITY)
+    from apps.chat.services import is_enabled as chat_enabled
+
+    if chat_enabled(competition):
+        activities = (*activities, CHAT_ACTIVITY)
     from apps.student_status.models import enabled as student_status_enabled
 
     if student_status_enabled(competition):

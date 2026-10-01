@@ -88,6 +88,8 @@ def roles(request) -> dict:
             "is_appeals_committee": False,
             "is_supervisor": False,
             "can_use_forum": False,
+            "chat_visible": False,
+            "chat_unread": 0,
         }
     competition = getattr(request, "competition", None)
     names = roles_for(user, competition)
@@ -112,7 +114,24 @@ def roles(request) -> dict:
         # ``participant``, które już mamy, więc pasek konta nie płaci za tę pozycję ani jednym
         # dodatkowym zapytaniem.
         "can_use_forum": _forum_visible(competition, names, participant),
+        **_chat_state(participant),
     }
+
+
+def _chat_state(participant) -> dict:
+    """Pozycja „Wiadomości” w pasku konta uczestnika i liczba rozmów z nieprzeczytanymi wiadomościami.
+
+    Tylko dla uczestnika tego konkursu (profil przychodzi gotowy z ``roles()``) i za **jednym**
+    zapytaniem (``apps.chat.services.nav_state`` – ustawienia konkursu i licznik jako podzapytania
+    jednego ``SELECT``-a). Konto bez profilu uczestnika nie płaci za tę pozycję nic. Koordynator ma
+    swoją pozycję w menu panelu (z odznaką), a nie w pasku konta.
+    """
+    if participant is None:
+        return {"chat_visible": False, "chat_unread": 0}
+    from apps.chat.services import nav_state
+
+    visible, unread = nav_state(participant)
+    return {"chat_visible": visible, "chat_unread": unread}
 
 
 def _forum_visible(competition, names: set[str], participant) -> bool:

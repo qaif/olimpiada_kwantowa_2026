@@ -134,6 +134,8 @@ EXPECTED_SUBJECTS = {
     # Zaproszenie ucznia założonego przez nauczyciela (``apps.accounts.bulk_registration``). Temat
     # stoi w pliku szablonu, a nie w stałej – z tego samego powodu nikt go dotąd nie porównywał.
     "student_invitation": "Zaproszenie do Olimpiady Kwantowej",
+    # Wiadomości (zadanie CZ-01, ``apps.chat.notifications``): list „masz nową wiadomość” – bez treści.
+    "chat_message": "Nowa wiadomość – Olimpiada Kwantowa",
 }
 
 #: Znaczniki podstawień w tematach składanych w serwisie. Porównujemy **wzorzec**, a nie wynik:
@@ -229,6 +231,8 @@ SUBJECT_CONSTANTS = {
     "apps.accounts.guardian.GUARDIAN_CONFIRMED_SUBJECT_TEMPLATE": "guardian_confirmed",
     "apps.accounts.services.INVITATION_SUBJECT": "invitation",
     "apps.accounts.services.INVITATION_SUBJECT_TEMPLATE": "invitation",
+    "apps.chat.notifications.SUBJECT": "chat_message",
+    "apps.chat.notifications.SUBJECT_TEMPLATE": "chat_message",
     "apps.forum.notifications.SUBJECT_MODERATION": "forum_moderation",
     "apps.forum.notifications.SUBJECT_REPLY": "forum_reply",
     "apps.forum.notifications.SUBJECT_REPLY_COORDINATOR": "forum_reply_coordinator",

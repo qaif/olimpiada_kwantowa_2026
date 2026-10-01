@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% load static %}
+{% comment %}
+  Katalog uczestników do nowej rozmowy – wyłącznie osoby, które same się do niego zapisały.
+
+  Wiersz to **tylko** podpis „Imię N.” i województwo. Nigdy adres e-mail, kod publiczny, szkoła,
+  rocznik ani klasa: kod publiczny jest kluczem anonimowego oceniania, a szkoła z imieniem
+  wystarcza, żeby rozpoznać osobę (``apps.forum.models.display_author``). Szablon dostaje gotowe
+  napisy i adres z losowym tokenem – nie profil i nie konto – więc nie ma czego wypisać przez pomyłkę.
+{% endcomment %}
+{% block title %}Nowa rozmowa – Wiadomości{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/chat.css' %}">{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow"><a href="{% url 'web:chat' %}">Wiadomości</a></span>
+  <h1>Nowa rozmowa</h1>
+  <p class="lead">Uczestnicy tego konkursu, którzy zgodzili się, żeby inni mogli ich znaleźć i do nich
+    napisać. Widzisz tylko imię, pierwszą literę nazwiska i województwo.</p>
+</div>
+
+{% include "web/chat/_e2e_config.html" %}
+
+{% if not own_profile.discoverable %}
+  <p class="notice">Ciebie w katalogu nie ma – inni nie mogą zacząć z Tobą rozmowy. Możesz to zmienić w
+    <a href="{{ settings_url }}">ustawieniach wiadomości</a>.</p>
+{% endif %}
+
+<form method="get" class="form chat-search" role="search">
+  <label for="chat-search">Szukaj po imieniu</label>
+  <input type="search" id="chat-search" name="q" value="{{ query }}" maxlength="60">
+  <button type="submit" class="btn btn--small btn--secondary">Szukaj</button>
+</form>
+
+{% if people %}
+  <ul class="chat-directory">
+    {% for person in people %}
+      <li class="chat-directory__item card">
+        <span class="chat-directory__name">{{ person.label }}</span>
+        <span class="chat-directory__district hint">{{ person.district }}</span>
+        <a class="btn btn--small btn--primary" href="{{ person.url }}">Napisz</a>
+      </li>
+    {% endfor %}
+  </ul>
+  {% if page_obj.has_other_pages %}
+    <nav class="row" aria-label="Strony katalogu">
+      {% if page_obj.has_previous %}
+        <a class="btn btn--small btn--ghost" href="?page={{ page_obj.previous_page_number }}{% if query %}&amp;q={{ query|urlencode }}{% endif %}">Poprzednia</a>
+      {% endif %}
+      <span class="hint">Strona {{ page_obj.number }} z {{ paginator.num_pages }}</span>
+      {% if page_obj.has_next %}
+        <a class="btn btn--small btn--ghost" href="?page={{ page_obj.next_page_number }}{% if query %}&amp;q={{ query|urlencode }}{% endif %}">Następna</a>
+      {% endif %}
+    </nav>
+  {% endif %}
+{% else %}
+  <div class="empty">
+    <span class="empty__title">{% if query %}Nikt o tym imieniu nie jest w katalogu{% else %}Katalog jest pusty{% endif %}</span>
+    <p class="empty__text">W katalogu są wyłącznie osoby, które same się do niego zapisały{% if e2e.enabled %} i mają
+      skonfigurowane szyfrowanie{% endif %}.</p>
+  </div>
+{% endif %}
+{% endblock %}
+{% block scripts %}{{ block.super }}
+  {% if e2e %}
+    <script nonce="{{ request.csp_nonce }}" src="{% static 'js/chat-e2e.js' %}" defer></script>
+    <script nonce="{{ request.csp_nonce }}" src="{% static 'js/chat-ui.js' %}" defer></script>
+  {% endif %}
+{% endblock %}

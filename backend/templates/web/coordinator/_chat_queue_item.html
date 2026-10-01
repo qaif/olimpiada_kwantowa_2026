@@ -1,0 +1,37 @@
+{% load web_extras chat_extras %}
+{% comment %}
+  Jedna pozycja kolejki moderacji: nadawca → odbiorca, kontekst i treść. Treść jawna idzie przez
+  ``message_body``; wiadomość szyfrowana ma tu wyłącznie kopię przekazaną przez zgłaszającego.
+{% endcomment %}
+<p class="chat-queue-item__who"><strong>{{ item.sender }}</strong> → {{ item.recipient }}
+  · <time datetime="{{ item.message.created_at|date:'c' }}">{{ item.message.created_at|local_datetime }}</time>
+  <span class="badge badge--neutral">{{ item.message.get_status_display }}</span></p>
+{% if item.context %}
+  <details class="chat-queue-item__context">
+    <summary>Poprzednie wiadomości ({{ item.context|length }})</summary>
+    <ol class="chat-messages__list">
+      {% for prior in item.context %}
+        <li class="chat-msg chat-msg--context">
+          <p class="chat-msg__meta"><span class="chat-msg__author">{{ prior.author }}</span>
+            <time>{{ prior.message.created_at|local_datetime }}</time></p>
+          {% if prior.message.is_encrypted %}
+            <p class="chat-msg__body chat-msg__body--muted">Wiadomość szyfrowana – treść niedostępna dla serwera.</p>
+          {% else %}
+            <div class="chat-msg__body">{{ prior.message.body|message_body }}</div>
+          {% endif %}
+        </li>
+      {% endfor %}
+    </ol>
+  </details>
+{% endif %}
+{% if item.message.is_encrypted %}
+  {% if item.report.reported_plaintext %}
+    <div class="chat-msg__body chat-msg__body--quoted">{{ item.report.reported_plaintext|message_body }}</div>
+    <p class="hint">Treść przekazana przez zgłaszającego – serwer nie może potwierdzić jej autentyczności
+      (wiadomość jest szyfrowana end-to-end).</p>
+  {% else %}
+    <p class="chat-msg__body chat-msg__body--muted">Wiadomość szyfrowana – treść niedostępna dla serwera.</p>
+  {% endif %}
+{% else %}
+  <div class="chat-msg__body chat-msg__body--quoted">{{ item.message.body|message_body }}</div>
+{% endif %}

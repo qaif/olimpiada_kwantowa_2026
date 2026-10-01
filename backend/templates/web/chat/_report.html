@@ -1,0 +1,22 @@
+{% comment %}
+  „Zgłoś” pod wiadomością drugiej strony. ``<details>``, a nie okno ``confirm()`` – strict CSP nie
+  dopuszcza skryptu w treści strony (ten sam powód, co przy usuwaniu wpisu na forum).
+
+  Wiadomość szyfrowana: ukryte pole ``reported_plaintext`` wypełnia ``chat-ui.js`` odszyfrowaną
+  treścią, a zdanie nad polem mówi wprost, że ta treść trafi do organizatora.
+{% endcomment %}
+<details class="chat-report">
+  <summary>Zgłoś</summary>
+  <form method="post" action="{% url 'web:chat-report' conversation.pk %}" class="form"{% if message.is_encrypted %} data-e2e-report{% endif %}>
+    {% csrf_token %}
+    <input type="hidden" name="message" value="{{ message.pk }}">
+    {% if message.is_encrypted %}
+      <input type="hidden" name="reported_plaintext" value="">
+      <p class="hint">Odszyfrowana treść tej wiadomości trafi do organizatora razem ze zgłoszeniem.</p>
+    {% endif %}
+    <label for="zgloszenie-{{ message.pk }}">Dlaczego zgłaszasz tę wiadomość</label>
+    <textarea id="zgloszenie-{{ message.pk }}" name="reason" rows="2" maxlength="500" required></textarea>
+    <p class="msg msg-error" data-e2e-error hidden></p>
+    <button type="submit" class="btn btn--small btn--secondary">Wyślij zgłoszenie</button>
+  </form>
+</details>

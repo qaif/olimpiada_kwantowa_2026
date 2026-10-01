@@ -23,9 +23,11 @@
       </li>
     {% endfor %}
     {% for link in panel_links %}
+      {% if not link.chat or chat_visible %}
       <li class="p-tabs__item p-tabs__item--aside">
-        <a class="p-tabs__link p-tabs__link--aside" href="{{ link.url }}">{{ link.label }}</a>
+        <a class="p-tabs__link p-tabs__link--aside" href="{{ link.url }}">{{ link.label }}{% if link.chat and chat_unread %} <span class="badge badge--count"><span class="visually-hidden">{% translate "nieprzeczytane rozmowy:" %} </span>{{ chat_unread }}</span>{% endif %}</a>
       </li>
+      {% endif %}
     {% endfor %}
   </ul>
 </nav>

@@ -107,6 +107,11 @@ PANEL_TABS: tuple[tuple[str, object], ...] = (
 #: w bloku ``try``: dyplomy są młodszą częścią panelu i pasek nie może się wywrócić tam, gdzie
 #: tego adresu (jeszcze) nie ma.
 PANEL_LINKS: tuple[tuple[str, object], ...] = (
+    # „Wiadomości” (zadanie CZ-01) – pierwsza, bo to jedyna pozycja paska, przy której może czekać
+    # coś od drugiego człowieka. Szablon pokazuje ją tylko przy włączonym module i dokleja licznik
+    # nieprzeczytanych – oba z procesora kontekstu (``chat_visible``, ``chat_unread``), bez
+    # dodatkowego zapytania w tym widoku.
+    ("web:chat", gettext_lazy("Wiadomości")),
     ("web:participant-calendar", gettext_lazy("Kalendarz")),
     ("web:participant-archive", gettext_lazy("Archiwum")),
     ("web:participant-certificates", gettext_lazy("Dyplomy")),
@@ -328,7 +333,7 @@ def _panel_links() -> list[dict]:
             url = reverse(name)
         except NoReverseMatch:  # pragma: no cover - adres dołożony później albo wyłączony
             continue
-        links.append({"url": url, "label": label})
+        links.append({"url": url, "label": label, "chat": name == "web:chat"})
     return links
 
 

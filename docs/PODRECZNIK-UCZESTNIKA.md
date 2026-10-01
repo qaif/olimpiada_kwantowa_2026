@@ -84,7 +84,8 @@ nich przyciskiem „wstecz”:
 | **Reklamacje** | `/me/?tab=reklamacje` | formularz przy pracy podlegającej reklamacji i lista własnych zgłoszeń |
 | **Zgody** | `/me/?tab=zgody` | zgoda opiekuna, historia zgód, przełącznik publikacji nazwiska |
 
-Obok nich, w tym samym pasku, cztery osobne ekrany: **Kalendarz**, **Archiwum**, **Dyplomy**, **Profil**.
+Obok nich, w tym samym pasku, osobne ekrany: **Wiadomości** (z liczbą nieprzeczytanych rozmów –
+rozdział 8a), **Kalendarz**, **Archiwum**, **Dyplomy**, **Profil**.
 
 **Zapis do etapu.** Przycisk **„Zgłoś się do tego etapu”** (w treningu: „Zgłoś się do treningu”). Bez
 wpisu nie ma ani zadań, ani wysyłki. Do etapów po eliminacjach zapisuje się **wyłącznie osoba
@@ -318,8 +319,60 @@ listy wyłączysz.
 - **„Usuń”** zdejmuje Twój wpis z wątku natychmiast,
 - **„Zgłoś”** przy cudzym wpisie wysyła jedno zdanie do organizatora. Zgłoszenie widzi wyłącznie on
   i samo w sobie niczego nie ukrywa — decyduje człowiek,
-- forum **nie ma wiadomości prywatnych**. To jest decyzja, nie brak: rozmowa ma się toczyć tam, gdzie
-  widzi ją moderator.
+- forum **nie ma wiadomości prywatnych** – na forum rozmowa toczy się tam, gdzie widzi ją moderator.
+  Rozmowy 1:1 z organizatorem (i, jeśli organizator je włączył, z innymi uczestnikami) prowadzisz
+  w osobnym module **Wiadomości** – patrz rozdział 8a.
+
+## 8a. Wiadomości — `/me/messages/`
+
+Rozmowy 1:1 na platformie: z **organizatorem** zawsze, a z **innymi uczestnikami** — jeżeli organizator
+je włączył. Pozycja **„Wiadomości”** stoi w pasku konta i w pasku panelu `/me/`; liczba obok mówi, w ilu
+rozmowach czeka coś nieprzeczytanego. Wiadomości czytasz w serwisie — e-mail mówi tylko, **że** i **od
+kogo** coś przyszło (bez treści), i możesz go wyłączyć.
+
+| Ekran | Adres | Co w nim jest |
+|---|---|---|
+| Skrzynka | `/me/messages/` | lista rozmów (kropka = nieprzeczytane) i otwarty wątek |
+| Napisz do organizatora | `/me/messages/organizer/` | Twoja rozmowa z zespołem organizatora — zawsze jedna |
+| Nowa rozmowa | `/me/messages/new/` | katalog uczestników, którzy zgodzili się, żeby do nich pisać |
+| Szyfrowanie | `/me/messages/key/` | klucz do rozmów szyfrowanych (gdy organizator je włączył) |
+
+**Organizator** odpowiada jako zespół — przy wiadomości zobaczysz „Organizator · Imię N.”.
+
+**Katalog jest dobrowolny.** Domyślnie **nie ma Cię** w katalogu i nikt z uczestników nie może zacząć z Tobą
+rozmowy. Włączysz to przełącznikiem „Inni uczestnicy mogą mnie znaleźć i do mnie napisać” w sekcji
+**Wiadomości** na ekranie „Edycja danych” (`/me/profile/#wiadomosci`, odnośnik „Ustawienia wiadomości”
+w skrzynce). W katalogu widać tylko imię, pierwszą literę nazwiska i województwo — nigdy e-mail, szkołę
+ani kod `OLM-…`. Rozmowę, która już trwa, możesz prowadzić dalej także po wypisaniu się z katalogu.
+
+**Kto czyta Twoje rozmowy z innymi uczestnikami** — to zależy od trybu wybranego przez organizatora
+i zawsze jest napisane **nad formularzem**:
+
+- „Wiadomości mogą być czytane przez organizatora w ramach moderacji” — w premoderacji wiadomość dochodzi
+  dopiero po akceptacji organizatora (do tego czasu widzisz ją z etykietą „czeka na akceptację”; odrzuconą
+  — z uzasadnieniem), w postmoderacji dochodzi od razu, a organizator może ją ukryć,
+- „Organizator widzi tylko zgłoszone wiadomości” — bez moderacji,
+- **w czasie etapu przyjmującego rozwiązania** każda wiadomość do innego uczestnika czeka na akceptację
+  organizatora. O zadaniach otwartego etapu nie wolno rozmawiać (regulamin § 10 ust. 2 i § 17).
+
+**Kto jest w katalogu.** Domyślnie rozmawiasz wyłącznie z osobami z **tej samej grupy wiekowej**
+(niepełnoletni z niepełnoletnimi, pełnoletni z pełnoletnimi) – tak ustawia to organizator. Jeśli ktoś
+w trakcie rozmowy skończy 18 lat, rozmowa zostanie zamknięta („Ta rozmowa została zamknięta zgodnie
+z zasadami konkursu”). Nowych rozmów możesz zacząć najwyżej kilka na dobę (limit ustala organizator,
+zwykle 5); odpowiadać w trwających rozmowach możesz bez tego limitu.
+
+**Zgłoś i Zablokuj.** „Zgłoś” przy wiadomości drugiej osoby wysyła organizatorowi jedno zdanie i tę
+wiadomość. „Zablokuj” w rozmowie sprawia, że ta osoba nie napisze do Ciebie ani nie zacznie nowej rozmowy
+(zobaczy tylko „Nie można wysłać wiadomości do tej osoby”); „Odblokuj” stoi w tym samym miejscu.
+Organizatora zablokować się nie da.
+
+**Rozmowy szyfrowane end-to-end** (tylko gdy organizator je włączył, tylko między uczestnikami): na
+`/me/messages/key/` ustawiasz **hasło do wiadomości** — inne niż hasło do konta. Treść takich rozmów znają
+tylko Wasze przeglądarki; serwer i organizator widzą szyfrogram. Na nowym urządzeniu odblokujesz rozmowy
+tym hasłem; „Zablokuj wiadomości” i wylogowanie usuwają odblokowany klucz z przeglądarki. **Hasła nie
+znamy i nie przypomnimy** — „Utwórz nowy klucz” oznacza, że starych wiadomości szyfrowanych już nie
+odczytasz (druga strona zobaczy informację o zmianie klucza; odciski kluczy porównacie w „Szczegółach
+szyfrowania”). Jeśli zgłosisz wiadomość szyfrowaną, jej odszyfrowana treść trafi do organizatora.
 
 ---
 

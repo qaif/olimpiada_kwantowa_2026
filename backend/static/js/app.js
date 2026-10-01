@@ -96,6 +96,33 @@
     }
   });
 
+  /* Wylogowanie zamyka też rozmowy szyfrowane (zadanie CZ-01, § 11): odblokowany klucz prywatny
+   * leży w IndexedDB przeglądarki (``static/js/chat-ui.js``) i nie może przeżyć sesji, z której
+   * ktoś właśnie wyszedł – np. na wspólnym komputerze w szkolnej pracowni. Tutaj, a nie w skrypcie
+   * czatu, bo przycisk „Wyloguj” stoi na każdej stronie serwisu. */
+  function forgetChatKeys() {
+    if (!window.indexedDB) return;
+    try {
+      window.indexedDB.deleteDatabase("olimpiada-chat");
+    } catch (error) {
+      /* Przeglądarka bez IndexedDB (tryb prywatny) nie ma czego czyścić. */
+    }
+  }
+
+  document.addEventListener("submit", function (event) {
+    const form = event.target;
+    const action = form && form.getAttribute ? form.getAttribute("action") || "" : "";
+    if (/\/logout\/$/.test(action)) forgetChatKeys();
+  });
+
+  /* Sesja wygasła albo wylogowanie w innej karcie: strona bez przycisku „Wyloguj” w pasku konta
+   * jest stroną osoby niezalogowanej – klucz z poprzedniej sesji nie ma tu czego szukać. Sprawdzamy
+   * obecność formularza wylogowania, a nie znacznik w ``base.html``: strony publiczne leżą
+   * w pamięci podręcznej (``apps.web.page_cache``) i znacznik byłby tam i tak zawsze „anonimowy”. */
+  document.addEventListener("DOMContentLoaded", function () {
+    if (!document.querySelector('form[action$="/logout/"]')) forgetChatKeys();
+  });
+
   /* HTMX: błąd sieci nie może zostawić użytkownika bez informacji. */
   document.addEventListener("htmx:responseError", function (event) {
     const status = event.detail && event.detail.xhr ? event.detail.xhr.status : "?";

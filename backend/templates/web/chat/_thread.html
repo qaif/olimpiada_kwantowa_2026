@@ -1,0 +1,171 @@
+{% comment %}
+  Wątek rozmowy: nagłówek, wiadomości i formularz. Wspólny dla uczestnika i koordynatora
+  (``organizer_view``) – różnią się podpisem drugiej strony, który przychodzi gotowy z widoku.
+
+  Cały ``#chat-thread`` jest celem ``hx-post``: odpowiedź to ten sam fragment z nową wiadomością
+  i pustym formularzem, więc nie ma skryptu, który czyściłby pole po wysłaniu.
+
+  Gdy pisać nie wolno, zamiast formularza stoi **zdanie z powodem** (``refusal``) – ta sama funkcja,
+  która odmawia zapisu w serwisie (``apps.chat.services.peer_write_refusal``), więc ekran i serwer
+  nie mogą się rozjechać.
+
+  Rozmowa szyfrowana (§ 11): pole wiadomości **nie ma atrybutu name**. Skrypt szyfruje tekst,
+  wpisuje szyfrogram do ukrytych pól i dopiero wtedy wysyła formularz; bez skryptu jawna treść
+  nie opuści przeglądarki.
+{% endcomment %}
+<div class="chat-thread" id="chat-thread">
+  <header class="chat-thread__head">
+    <a class="chat-thread__back" href="{% if organizer_view %}{% url 'web:coordinator-chat' %}{% else %}{% url 'web:chat' %}{% endif %}">← Wszystkie rozmowy</a>
+    <div class="chat-thread__title-row">
+      <h2 class="chat-thread__title">{{ thread_label }}</h2>
+      {% if is_encrypted %}<span class="badge badge--ok">szyfrowana end-to-end</span>
+      {% elif e2e and is_peer and conversation %}<span class="badge badge--neutral">bez szyfrowania</span>{% endif %}
+    </div>
+    <div class="chat-thread__tools">
+      {% if participant_card_url %}<a class="btn btn--small btn--ghost" href="{{ participant_card_url }}">Karta uczestnika</a>{% endif %}
+      {% if can_block %}
+        <form method="post" action="{% url 'web:chat-block' conversation.pk %}" class="inline">
+          {% csrf_token %}
+          {% if blocked_by_me %}
+            <input type="hidden" name="action" value="unblock">
+            <button type="submit" class="btn btn--small btn--ghost">Odblokuj</button>
+          {% else %}
+            <input type="hidden" name="action" value="block">
+            <button type="submit" class="btn btn--small btn--ghost">Zablokuj</button>
+          {% endif %}
+        </form>
+      {% endif %}
+    </div>
+    {% if organizer_view and conversation %}
+      {% comment %}
+        Przypisanie i stan rozmowy (§ 12.2) – wyłącznie w panelu koordynatora. Zwykły ``POST``
+        z przekierowaniem: zmiana dotyczy listy rozmów po lewej, więc podmiana samego wątku
+        zostawiłaby listę nieaktualną.
+      {% endcomment %}
+      <div class="chat-thread__manage">
+        <span class="badge {% if conversation.status == 'OPEN' %}badge--warn{% elif conversation.status == 'WAITING' %}badge--info{% else %}badge--neutral{% endif %}">{{ conversation.get_status_display }}</span>
+        <span class="hint">{% if conversation.assigned_to %}przypisana: {{ conversation.assigned_to.first_name|default:conversation.assigned_to.email }}{% else %}nieprzypisana{% endif %}</span>
+        {% if conversation.assigned_to_id != request.user.pk %}
+          <form method="post" action="{{ request.get_full_path }}" class="inline">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="assign-me">
+            <button type="submit" class="btn btn--small btn--secondary">Przypisz do mnie</button>
+          </form>
+        {% endif %}
+        <form method="post" action="{{ request.get_full_path }}" class="inline chat-thread__assign">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="assign">
+          <label for="chat-assignee" class="visually-hidden">Przypisz do</label>
+          <select id="chat-assignee" name="assignee">
+            <option value="">— nieprzypisana —</option>
+            {% for member in team %}
+              <option value="{{ member.pk }}"{% if member.pk == conversation.assigned_to_id %} selected{% endif %}>{{ member.get_full_name|default:member.email }}</option>
+            {% endfor %}
+          </select>
+          <button type="submit" class="btn btn--small btn--ghost">Przypisz</button>
+        </form>
+        <form method="post" action="{{ request.get_full_path }}" class="inline">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="status">
+          <label for="chat-status" class="visually-hidden">Stan rozmowy</label>
+          <select id="chat-status" name="status">
+            {% for value, label in status_choices %}
+              <option value="{{ value }}"{% if value == conversation.status %} selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+          <button type="submit" class="btn btn--small btn--ghost">Zmień stan</button>
+        </form>
+      </div>
+    {% endif %}
+    {% if is_encrypted %}
+      <details class="chat-thread__details">
+        <summary>Szczegóły szyfrowania</summary>
+        <p class="hint">Porównajcie odciski kluczy na żywo (np. na zajęciach albo przez telefon). Jeśli się
+          zgadzają, nikt nie podmienił kluczy po drodze.</p>
+        <dl class="meta-list">
+          <dt>Twój klucz</dt><dd><code class="chat-fingerprint">{{ my_fingerprint|default:"brak klucza" }}</code></dd>
+          <dt>Klucz drugiej strony</dt><dd><code class="chat-fingerprint">{{ other_fingerprint|default:"brak klucza" }}</code></dd>
+        </dl>
+      </details>
+    {% endif %}
+  </header>
+
+  {% include "web/chat/_messages.html" %}
+
+  <div class="chat-compose">
+    {% if refusal %}
+      <p class="notice">{{ refusal }}{% if needs_key %} <a href="{% url 'web:chat-key' %}">Skonfiguruj szyfrowanie</a>{% endif %}</p>
+    {% elif start_encrypted %}
+      {% if has_key %}
+        <form method="post" action="{{ form_action }}" class="form">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="open-encrypted">
+          <p class="hint">Nowe rozmowy między uczestnikami są szyfrowane end-to-end: treść znają tylko Wasze
+            przeglądarki. Najpierw zakładamy rozmowę, potem napiszesz pierwszą wiadomość.</p>
+          <button type="submit" class="btn btn--primary">Rozpocznij rozmowę szyfrowaną</button>
+        </form>
+      {% else %}
+        <p class="notice">Nowe rozmowy między uczestnikami są szyfrowane.
+          <a href="{% url 'web:chat-key' %}">Skonfiguruj szyfrowanie</a>, żeby napisać.</p>
+      {% endif %}
+    {% else %}
+      {% if forcing_stage %}
+        <p class="notice notice--warning">Trwa etap „{{ forcing_stage.display_name }}” – do jego zamknięcia
+          każda wiadomość czeka na akceptację organizatora.</p>
+      {% endif %}
+      {% if privacy_notice %}<p class="hint">{{ privacy_notice }}</p>{% endif %}
+      {% if form_error %}<p class="msg msg-error" role="alert">{{ form_error }}</p>{% endif %}
+      {% if is_encrypted %}
+        <form method="post" action="{{ form_action }}" class="form chat-form" data-e2e-form
+              data-conversation-id="{{ conversation.pk }}" data-other-key="{{ other_key.public_key }}"
+              hx-post="{{ form_action }}" hx-target="#chat-thread" hx-swap="outerHTML">
+          {% csrf_token %}
+          <input type="hidden" name="ciphertext" value="">
+          <input type="hidden" name="iv" value="">
+          <input type="hidden" name="sender_fingerprint" value="{{ my_key.fingerprint }}">
+          <input type="hidden" name="recipient_fingerprint" value="{{ other_key.fingerprint }}">
+          <p data-e2e-when="locked" class="hint">Odblokuj rozmowy szyfrowane (pole „Hasło do wiadomości” nad
+            listą rozmów), żeby pisać.</p>
+          <div data-e2e-when="unlocked" hidden>
+            <label for="chat-body">Wiadomość</label>
+            <textarea id="chat-body" rows="3" maxlength="4000" data-e2e-input></textarea>
+            <p class="msg msg-error" data-e2e-error hidden></p>
+            <button type="submit" class="btn btn--primary">Wyślij</button>
+          </div>
+        </form>
+      {% else %}
+        {% if organizer_view and reply_templates %}
+          {% comment %}
+            Szablony odpowiedzi (§ 12.1). Bez skryptu ``<details>`` pokazuje treść każdego szablonu do
+            przepisania; ze skryptem (``chat-templates.js``) „Wstaw” wkleja ją do pola w miejscu kursora,
+            podmieniając ``{imie}`` na imię z ``data-first-name`` – wyłącznie przez ``textarea.value``.
+          {% endcomment %}
+          <details class="chat-templates">
+            <summary>Wstaw szablon</summary>
+            <ul class="chat-templates__list">
+              {% for template in reply_templates %}
+                <li>
+                  <strong>{{ template.title }}</strong>
+                  <button type="button" class="btn btn--small btn--ghost" data-chat-template="{{ template.body }}">Wstaw</button>
+                  <div class="chat-templates__body hint">{{ template.body|linebreaksbr }}</div>
+                </li>
+              {% endfor %}
+            </ul>
+          </details>
+        {% endif %}
+        <form method="post" action="{{ form_action }}" class="form chat-form"
+              {% if organizer_view %}data-first-name="{{ participant_first_name }}"{% endif %}
+              {% if conversation %}hx-post="{{ form_action }}" hx-target="#chat-thread" hx-swap="outerHTML"{% endif %}>
+          {% csrf_token %}
+          {{ form.body.errors }}
+          {{ form.body.label_tag }}
+          {{ form.body }}
+          <button type="submit" class="btn btn--primary">Wyślij</button>
+          {% if organizer_view and conversation %}
+            <button type="submit" name="close" value="1" class="btn btn--secondary">Odpowiedz i zamknij</button>
+          {% endif %}
+        </form>
+      {% endif %}
+    {% endif %}
+  </div>
+</div>

@@ -242,4 +242,6 @@ def test_the_csv_export_has_the_header_and_one_row_per_activity(client_, coordin
     assert response["Content-Type"].startswith("text/csv")
     assert CSV_HEADERS[0] in body
     # Nagłówek plus po wierszu na czynność; separator średnik, bo tak czyta polski Excel.
-    assert body.count("\r\n") == len(ACTIVITIES) + 1
+    # Jedna czynność warunkowa stoi tu zawsze: Wiadomości (zadanie CZ-01) są domyślnie włączone,
+    # więc wiersz ``CHAT_ACTIVITY`` jest w rejestrze każdego konkursu, który ich nie wyłączył.
+    assert body.count("\r\n") == len(ACTIVITIES) + 1 + 1

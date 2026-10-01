@@ -1,0 +1,15 @@
+{% comment %}
+  „Wiadomości” w pasku konta – wyłącznie dla uczestnika tego konkursu i tylko przy włączonym module
+  (``chat_visible``), z liczbą rozmów, w których coś czeka (``chat_unread``). Obie wartości liczy
+  ``apps.web.context_processors.roles`` jednym zapytaniem (``apps.chat.services.nav_state``).
+
+  Osobny plik, a nie wiersze w ``base.html`` – ta sama reguła, co ``_forum_link.html``: szablon
+  bazowy jest współwłasnością całego serwisu i dokładamy do niego jedną linijkę.
+
+  Nawigacja nie jest zabezpieczeniem: dostęp rozstrzyga ``ChatParticipantMixin`` w widoku.
+{% endcomment %}
+{% if chat_visible %}
+  {% url 'web:chat' as chat_url %}
+  <a class="account-bar__link" href="{{ chat_url }}"
+     {% if request.path == chat_url %}aria-current="page"{% endif %}>Wiadomości{% if chat_unread %} <span class="badge badge--count"><span class="visually-hidden">nieprzeczytane rozmowy: </span>{{ chat_unread }}</span>{% endif %}</a>
+{% endif %}

@@ -61,7 +61,9 @@ EXPECTED_MENU_WITHOUT_FLAGS: tuple[tuple[str, tuple[str, ...]], ...] = (
         ("Uczestnicy", "Wszystkie konta", "Opiekunowie szkolni", "Aktywacje"),
     ),
     ("Komitet", ("Członkowie", "Zatwierdzenia", "Zaproszenia", "Województwa")),
-    ("Komunikacja", ("Komunikaty", "Zgłoszenia", "Ogłoszenia")),
+    # „Wiadomości” – zadanie CZ-01 z 30.09.2026 (polecenie organizatora: pozycja w „Komunikacji”
+    # z odznaką). Bez flagi, bo moduł jest domyślnie włączony (kanał „napisz do organizatora”).
+    ("Komunikacja", ("Komunikaty", "Zgłoszenia", "Ogłoszenia", "Wiadomości")),
     (
         "Raporty",
         (
@@ -197,7 +199,10 @@ STAGE_TWO_FLAGS = frozenset(
 #:   sygnałem, że pod adresem czekają wpisy, których nikt jeszcze nie widział. Ekran bez odznaki
 #:   znaczyłby kolejkę moderacyjną, do której trzeba pamiętać, żeby zaglądać – a przy domyślnej
 #:   moderacji wstępnej „zapomniałem zajrzeć” równa się „forum milczy”.
-EXPECTED_BADGES = frozenset({"moderation", "issues", "activations", "committee", "tickets", "forum"})
+#: - ``chat`` (zadanie CZ-01, 30.09.2026) – odznakę zamówił organizator wprost: nieprzeczytane
+#:   rozmowy organizatorskie plus kolejka moderacji rozmów uczestników. Koszt stoi w tej samej
+#:   minutowej pamięci liczników, co pozostałe, a przy wyłączonym module to jeden odczyt ustawień.
+EXPECTED_BADGES = frozenset({"moderation", "issues", "activations", "committee", "tickets", "forum", "chat"})
 
 #: Wzorce wydań G–K, po jednej liście na wydanie – tak, jak stoją w ``apps/web/urls.py``.
 RELEASE_PATTERNS = {

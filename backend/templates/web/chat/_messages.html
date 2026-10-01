@@ -1,0 +1,58 @@
+{% load web_extras chat_extras %}
+{% comment %}
+  Lista wiadomości wątku. Ten sam fragment wydaje widok pod ``?fragment=messages``: element sam
+  odpytuje go co 15 s (htmx, bez własnego skryptu – wzorzec ``_ai_problem.html``). Odpowiedź 204
+  (nic się nie zmieniło, ``apps.chat.services.thread_version``) niczego nie podmienia, więc otwarty
+  formularz „Zgłoś” nie znika w połowie pisania.
+
+  Treść jawna wychodzi **wyłącznie** przez filtr ``message_body`` (escape → urlize → linebreaksbr).
+  Treść szyfrowana w ogóle nie ma tu postaci jawnej: jest szyfrogramem w atrybutach ``data-*``,
+  a odszyfrowany tekst wstawia ``chat-ui.js`` przez ``textContent``.
+
+  Lista w kontenerze ``column-reverse`` (``chat.css``) – przeglądarka sama trzyma widok przy
+  najnowszej wiadomości, bez skryptu przewijającego.
+
+  Odpytanie oznacza rozmowę jako przeczytaną **tylko** z nagłówkiem ``X-Chat-Seen`` – dokłada go
+  ``static/js/chat.js``, gdy karta jest widoczna i ma fokus; ``chat-visible`` to odpytanie od razu
+  po powrocie do karty.
+{% endcomment %}
+<div class="chat-messages" id="chat-messages"{% if poll_url %} hx-get="{{ poll_url }}" hx-trigger="every 15s, chat-visible from:document" hx-swap="outerHTML"{% endif %}>
+  <ol class="chat-messages__list">
+    {% for entry in entries %}
+      {% if entry.notice %}
+        <li class="chat-notice" role="note">{{ entry.notice }}</li>
+      {% else %}
+        {% with message=entry.message %}
+          <li class="chat-msg{% if entry.own %} chat-msg--own{% endif %}{% if entry.organizer %} chat-msg--organizer{% endif %}" id="wiadomosc-{{ message.pk }}">
+            <p class="chat-msg__meta">
+              <span class="chat-msg__author">{{ entry.author }}</span>
+              <time datetime="{{ message.created_at|date:'c' }}">{{ message.created_at|local_datetime }}</time>
+              {% if message.is_pending %}<span class="badge badge--warn">czeka na akceptację</span>{% endif %}
+              {% if message.is_rejected %}<span class="badge badge--danger">odrzucona</span>{% endif %}
+            </p>
+            {% if message.is_hidden %}
+              <p class="chat-msg__body chat-msg__body--muted">Wiadomość ukryta przez moderatora.</p>
+            {% elif message.is_encrypted %}
+              <div class="chat-msg__body chat-msg__body--e2e" data-e2e-message
+                   data-conversation-id="{{ message.conversation_id }}"
+                   data-sender-key="{{ message.sender_public_key }}" data-recipient-key="{{ message.recipient_public_key }}"
+                   data-ciphertext="{{ message.ciphertext }}" data-iv="{{ message.iv }}">
+                <span class="chat-msg__plaintext" data-e2e-plaintext>Wiadomość zaszyfrowana – odblokuj rozmowy szyfrowane, żeby ją przeczytać.</span>
+                {% if entry.can_report %}{% include "web/chat/_report.html" %}{% endif %}
+              </div>
+            {% else %}
+              <div class="chat-msg__body">{{ message.body|message_body }}</div>
+            {% endif %}
+            {% if message.is_rejected and message.moderation_note %}
+              <p class="hint">Uzasadnienie organizatora: {{ message.moderation_note }}</p>
+            {% endif %}
+            {% if entry.can_report and not message.is_encrypted %}{% include "web/chat/_report.html" %}{% endif %}
+            {% if entry.reported %}<p class="hint">Zgłosiłeś tę wiadomość organizatorowi.</p>{% endif %}
+          </li>
+        {% endwith %}
+      {% endif %}
+    {% empty %}
+      <li class="chat-messages__empty hint">{% if conversation %}Nie ma jeszcze wiadomości – napisz pierwszą.{% else %}Napisz pierwszą wiadomość.{% endif %}</li>
+    {% endfor %}
+  </ol>
+</div>

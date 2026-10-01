@@ -54,6 +54,7 @@ EMPTY_COUNTERS: dict[str, int] = {
     "issues": 0,
     "tickets": 0,
     "forum": 0,
+    "chat": 0,
 }
 
 
@@ -132,6 +133,7 @@ def attention_counters(stage_ids: list[int] | None = None, competition=None) -> 
         return cached
     from apps.accounts.anonymised import anonymised_q
     from apps.accounts.models import CommitteeMember, CommitteeStatus
+    from apps.chat.services import coordinator_attention
     from apps.forum.services import moderation_count
     from apps.grading.issues import open_issue_count
     from apps.submissions.models import Submission, SubmissionStatus
@@ -161,6 +163,9 @@ def attention_counters(stage_ids: list[int] | None = None, competition=None) -> 
             # pole wiersza, który już trzymamy), więc ta pozycja nie zmienia kosztu panelu
             # w konkursie z domyślnymi przełącznikami.
             "forum": moderation_count(competition),
+            # Wiadomości (zadanie CZ-01): nieprzeczytane rozmowy organizatorskie + kolejka moderacji
+            # rozmów uczestników. Wyłączony moduł oddaje zero po jednym odczycie ustawień.
+            "chat": coordinator_attention(competition),
         }
     except DatabaseError:  # pragma: no cover - baza bez migracji
         return dict(EMPTY_COUNTERS)
@@ -673,6 +678,15 @@ def groups(stages: list, competition=None) -> list[Group]:
             "Ogłoszenia",
             ("web:coordinator-announcements", "web:coordinator-announcement-list"),
             match=("coordinator-announcements", "coordinator-announcement-"),
+        ),
+        # Wiadomości 1:1 (zadanie CZ-01) – zawsze w menu, także przy wyłączonym module: wtedy
+        # skrzynka przekierowuje na ekran ustawień, bo tylko koordynator może moduł włączyć.
+        # Jeden przedrostek łapie skrzynkę, wątek, kolejkę moderacji i ustawienia.
+        Item(
+            "Wiadomości",
+            ("web:coordinator-chat",),
+            match=("coordinator-chat", "coordinator-chat-"),
+            badge="chat",
         ),
     )
     if competition is not None and competition.has_feature("participant_forum"):
