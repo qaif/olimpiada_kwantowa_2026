@@ -180,6 +180,27 @@ def test_upload_creates_a_pending_certificate(web_client, flag_on, participant, 
     assert "oczekuje na weryfikację" in body
 
 
+def test_a_participant_not_registered_for_any_stage_uploads_and_is_counted(
+    web_client, flag_on, participant, edition, coordinator
+):
+    """Zapis do etapu nie jest warunkiem: zaświadczenie wysyła każdy uczestnik konkursu (prod 1.10.2026).
+
+    Ktoś bez wpisu do Eliminacji stoi na liście koordynatora jako „brak”, a po wgraniu – „oczekuje”.
+    """
+    from apps.student_status import services
+
+    assert not participant.stage_entries.exists()
+    _, before = services.coordinator_rows(edition)
+    assert before["brak"] == 1
+
+    web_client.force_login(participant.user)
+    response = web_client.post(PAGE, {"file": upload("skan.png", PNG_BYTES, "image/png"), "confirmed": "on"})
+
+    assert response.status_code == 302
+    _, after = services.coordinator_rows(edition)
+    assert after == {"oczekujace": 1, "zaakceptowane": 0, "odrzucone": 0, "brak": 0}
+
+
 def test_a_spoofed_file_is_refused_with_a_message(web_client, flag_on, participant, edition):
     web_client.force_login(participant.user)
 
