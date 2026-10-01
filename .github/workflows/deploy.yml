@@ -8,6 +8,23 @@
 # Skrypt jest ten sam, co przy wdrożeniu z laptopa (`scripts/deploy.sh`) – tutaj nie ma ani jednej
 # osobnej ścieżki wdrożeniowej. Gdyby była, różniłaby się od tej używanej ręcznie w awarii, czyli
 # dokładnie wtedy, gdy nikt nie ma czasu na niespodzianki.
+#
+# PRZED PIERWSZYM UŻYCIEM (Settings repozytorium – bez tego workflow nie jest bezpieczny albo nie ruszy):
+#   1. Environments → `production` z „Required reviewers” (osoba zatwierdzająca każde wdrożenie)
+#      i, najlepiej, ograniczeniem gałęzi do `main`. Nieistniejące środowisko GitHub zakłada samo,
+#      ale BEZ żadnej reguły – wtedy każdy z prawem zapisu wdraża produkcję jednym kliknięciem.
+#   2. Secrets (w środowisku `production`): DEPLOY_SSH_KEY (klucz prywatny), opcjonalnie
+#      COORDINATOR_EMAIL / COORDINATOR_PASSWORD.
+#   3. Variables: SITE_DOMAIN, ACME_EMAIL oraz DEPLOY_SSH_KNOWN_HOSTS – linijki known_hosts serwera
+#      dla KAŻDEJ nazwy, która bywa wpisywana w `target` (domena i/lub adres IP; ssh porównuje klucz
+#      z wpisem dla dokładnie tej nazwy). Np. `ssh-keyscan -t ed25519 olimpiadakwantowa.pl` z zaufanej
+#      sieci, porównane z odciskiem z konsoli dostawcy (`ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub`
+#      na serwerze) albo wprost z ~/.ssh/known_hosts laptopa, z którego wdrożenia już szły.
+#      Bez tej zmiennej krok „Klucz hosta” kończy workflow błędem – zamiast przyjąć na ślepo klucz,
+#      który poda ktokolwiek stojący między runnerem a serwerem.
+#
+# Akcje (`actions/checkout@v4`) są przypięte tagiem, nie skrótem commita: skrótów nie zweryfikowano
+# przy tej zmianie, a wpisany na pamięć skrót jest gorszy niż tag. Do zrobienia osobno (z `gh api`).
 name: Deploy
 
 on:
@@ -22,6 +39,11 @@ on:
         required: false
         default: "0"
 
+# Najmniejsze uprawnienia `GITHUB_TOKEN`: wdrożenie tylko czyta repozytorium (checkout). Bez tej
+# linijki token dostaje domyślne uprawnienia repozytorium/organizacji – nierzadko zapis.
+permissions:
+  contents: read
+
 # Dwa wdrożenia naraz na tę samą maszynę kończą się przeplecionymi krokami compose'a.
 # `cancel-in-progress: false` – przebiegu, który już zaczął zmieniać serwer, nie wolno przerwać
 # w połowie; drugi po prostu czeka.
@@ -35,7 +57,8 @@ jobs:
     runs-on: ubuntu-latest
     # Środowisko GitHuba („Environment”) jest tu po coś konkretnego: to w nim włącza się wymóg
     # zatwierdzenia przez wskazaną osobę przed uruchomieniem zadania. Bez tego każdy z prawem do
-    # zapisu w repozytorium wdraża produkcję jednym kliknięciem.
+    # zapisu w repozytorium wdraża produkcję jednym kliknięciem. Środowisko z regułą musi ISTNIEĆ
+    # przed pierwszym uruchomieniem – patrz nagłówek pliku, punkt 1.
     environment: production
 
     steps:
@@ -44,6 +67,21 @@ jobs:
           # `git archive HEAD` w kroku 2/7 skryptu wysyła na serwer **to, co jest w HEAD**, więc
           # płytkie sklonowanie wystarcza. Znaczniki są potrzebne osobno – patrz krok niżej.
           fetch-depth: 0
+
+      # Cel SSH jest tekstem wpisanym w formularzu – trafia do polecenia przez zmienną środowiskową,
+      # a nie przez `${{ }}` wklejone w treść skryptu (tam byłby wstrzyknięciem poleceń powłoki),
+      # i tylko w postaci `użytkownik@host`: litery, cyfry, kropka, myślnik, podkreślnik. Nic, co ssh
+      # mógłby wziąć za opcję (`-oProxyCommand=…`), ani spacji, średnika czy znaku nowej linii.
+      - name: Cel SSH
+        env:
+          DEPLOY_TARGET: ${{ inputs.target }}
+        run: |
+          set -eu
+          if ! printf '%s' "$DEPLOY_TARGET" | grep -Eqx '[a-z_][a-z0-9_-]{0,31}@[A-Za-z0-9]([A-Za-z0-9.-]{0,251}[A-Za-z0-9])?'; then
+            echo "Cel SSH „$DEPLOY_TARGET” nie ma postaci użytkownik@host (litery, cyfry, . - _)."
+            exit 1
+          fi
+          case "$DEPLOY_TARGET" in *$'\n'*) echo "Cel SSH zawiera znak nowej linii."; exit 1 ;; esac
 
       - name: Klucz SSH
         env:
@@ -57,9 +95,26 @@ jobs:
           printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/olimpiada_deploy
           chmod 600 ~/.ssh/olimpiada_deploy
 
+      # Klucz hosta przypięty w zmiennej repozytorium, a nie przyjmowany przy pierwszym połączeniu:
+      # runner jest za każdym razem świeży, więc `accept-new` (domyślne w scripts/deploy.sh – na
+      # laptopie operatora zapamiętuje klucz raz) zaufałoby tu KAŻDEMU kluczowi, także podstawionemu.
+      # Ze zmiennej do ~/.ssh/known_hosts, a skrypt dostaje SSH_STRICT_HOST_KEY_CHECKING=yes.
+      - name: Klucz hosta
+        env:
+          DEPLOY_SSH_KNOWN_HOSTS: ${{ vars.DEPLOY_SSH_KNOWN_HOSTS }}
+        run: |
+          set -eu
+          test -n "$DEPLOY_SSH_KNOWN_HOSTS" || { echo "Brak zmiennej DEPLOY_SSH_KNOWN_HOSTS (linijki known_hosts serwera) – patrz nagłówek deploy.yml"; exit 1; }
+          printf '%s\n' "$DEPLOY_SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+          # Odciski do logu – ten, kto zatwierdza wdrożenie, może je porównać z konsolą dostawcy.
+          ssh-keygen -lf ~/.ssh/known_hosts
+
       - name: Wdrożenie
         env:
           SSH_KEY: ~/.ssh/olimpiada_deploy
+          SSH_STRICT_HOST_KEY_CHECKING: "yes"
+          DEPLOY_TARGET: ${{ inputs.target }}
           # Przy PIERWSZYM wdrożeniu skrypt tworzy .env na serwerze i wymaga tych dwóch wartości;
           # przy kolejnych są ignorowane (plik .env nie jest nadpisywany). Trzymamy je jako
           # zmienne środowiska GitHuba, a nie sekrety, bo nie są tajne – to domena i adres e-mail.
@@ -72,7 +127,7 @@ jobs:
           # Wersja pokazywana w stopce i w /status.json. `git describe` – ten sam sposób, co przy
           # wdrożeniu z laptopa (stąd `fetch-depth: 0`: bez znaczników byłby tu sam skrót commita).
           APP_VERSION: ${{ github.sha }}
-        run: scripts/deploy.sh "${{ inputs.target }}"
+        run: scripts/deploy.sh "$DEPLOY_TARGET"
 
       - name: Czy serwis odpowiada
         env:

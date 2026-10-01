@@ -18,8 +18,12 @@ x-logging: &default-logging
 x-app-env: &app-env
   DJANGO_SETTINGS_MODULE: config.settings.production
   DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
-  REDIS_URL: redis://redis:6379/0
-  CELERY_BROKER_URL: redis://redis:6379/1
+  # Hasło Redisa (REDIS_PASSWORD w .env) wchodzi do adresu jako `:<hasło>@` tylko wtedy, gdy jest
+  # niepuste – serwer, którego .env jeszcze go nie ma, dostaje adres co do znaku dotychczasowy
+  # (i Redis bez `requirepass`, patrz usługa `redis`). Hasło wyłącznie [A-Za-z0-9] (generuje je
+  # scripts/deploy.sh): wklejone do URL-a bez kodowania, więc `@ : / # ? %` zmieniłyby jego znaczenie.
+  REDIS_URL: redis://${REDIS_PASSWORD:+:${REDIS_PASSWORD:-}@}redis:6379/0
+  CELERY_BROKER_URL: redis://${REDIS_PASSWORD:+:${REDIS_PASSWORD:-}@}redis:6379/1
   S3_ENDPOINT_URL: http://minio:9000
   # Host, pod którym przeglądarka widzi MinIO (Caddy: s3.<SITE_DOMAIN>); dev override podaje localhost:9000.
   S3_PUBLIC_ENDPOINT_URL: ${S3_PUBLIC_ENDPOINT_URL:-https://s3.${SITE_DOMAIN:-localhost}}
@@ -28,6 +32,9 @@ x-app-env: &app-env
   CLAMAV_HOST: clamav
   CLAMAV_PORT: "3310"
   # Backend honoruje X-Real-IP tylko z tych adresów (sieci compose poniżej mają stałe podsieci).
+  # Celowo BEZ sieci `cache` (Redis) i `clamav_egress` (wyjście ClamAV-a do aktualizacji sygnatur):
+  # proxy w nich nie stoi, więc żaden prawdziwy nagłówek X-Real-IP stamtąd nie przychodzi – wpisane
+  # tutaj (i do `mynetworks` Postfiksa, który bierze tę samą listę) tylko poszerzałyby zaufanie.
   TRUSTED_PROXY_IPS: ${TRUSTED_PROXY_IPS:-172.30.1.0/24,172.30.2.0/24}
   # Nazwa usługi w `pg_stat_activity.application_name` – `worker` i `beat` nadpisują ją niżej.
   # Po niej `manage.py db_connections` i list alarmowy mówią, **który** kontener trzyma połączenia.
@@ -45,7 +52,9 @@ x-app-base: &app-base
   image: ${WEB_IMAGE:-olimpiada/web:${APP_VERSION:-dev}}
   env_file: .env
   environment: *app-env
-  networks: [internal]
+  # `cache` – osobna sieć Redisa (patrz `networks:` na końcu pliku): web, worker i beat to jedyni
+  # jego klienci, więc tylko oni do niej należą.
+  networks: [internal, cache]
   restart: unless-stopped
   logging: *default-logging
   read_only: true
@@ -134,7 +143,7 @@ services:
     mem_limit: 2g
     volumes:
       - static_files:/app/staticfiles
-    networks: [edge, internal]
+    networks: [edge, internal, cache]
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/healthz/', timeout=3).status==200 else 1)"]
       interval: 15s
@@ -239,12 +248,38 @@ services:
     image: redis:7-alpine
     restart: unless-stopped
     logging: *default-logging
-    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru"]
+    # Hasło (`requirepass`) z REDIS_PASSWORD w .env – generuje je scripts/deploy.sh, także na serwerze,
+    # którego .env powstał wcześniej. Pusta wartość = `--requirepass ""` = bez hasła (Redis 7 traktuje
+    # pusty napis jak brak: `EMPTY_STRING_IS_NULL`, sprawdzone na redis:7-alpine), więc instalacja bez
+    # tego wpisu wstaje jak dotąd. Polecenie zaczyna się od `redis-server`, a nie od `sh -c`: entrypoint
+    # obrazu zrzuca wtedy uprawnienia do użytkownika `redis` (inne polecenie uruchomiłby jako root).
+    # Hasło w argumentach nie wisi w `ps` hosta: Redis nadpisuje swój tytuł procesu
+    # („redis-server *:6379”) przy starcie. Widać je w `docker inspect` – ale tam widać i całe .env.
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --maxmemory
+      - 256mb
+      - --maxmemory-policy
+      - allkeys-lru
+      - --requirepass
+      - "${REDIS_PASSWORD:-}"
+    environment:
+      # Tylko dla healthchecku niżej (redis-cli czyta hasło z REDISCLI_AUTH, nie z argumentu).
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
     volumes:
       - redis_data:/data
-    networks: [internal]
+    # Wyłącznie sieć `cache` (do 1.10.2026 – wspólna `internal`, w której Redis był osiągalny dla
+    # każdej usługi: minio, clamav, poczty, djcms, monitora). Redis jest i cache'em, i brokerem
+    # Celery – kto go dosięga, ten może wrzucić zadanie do kolejki workera.
+    networks: [cache]
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      # `grep -qx PONG`, a nie sam kod wyjścia: `redis-cli ping` bez hasła odpowiada
+      # „NOAUTH Authentication required.” z kodem 0, czyli usługa z hasłem, którego healthcheck nie
+      # zna, uchodziłaby za zdrową. REDISCLI_AUTH tylko przy niepustym haśle – puste dawałoby
+      # ostrzeżenie „AUTH failed” w każdym przebiegu.
+      test: ["CMD-SHELL", "if [ -n \"$$REDIS_PASSWORD\" ]; then export REDISCLI_AUTH=\"$$REDIS_PASSWORD\"; fi; redis-cli ping | grep -qx PONG"]
       interval: 10s
       timeout: 3s
       retries: 5
@@ -267,8 +302,15 @@ services:
       retries: 5
 
   minio-init:
-    # Jednorazowo: buckety, polityki anonimowe oraz dwa konta serwisowe z dostępem tylko do
-    # własnego bucketu (separacja kryptograficzna mediów publicznych i danych prywatnych).
+    # Przy każdym `up` (krok 4b/8 wdrożenia wymienia tę usługę z nazwy, więc zakończony kontener
+    # startuje znowu): buckety, polityki anonimowe oraz dwa konta serwisowe z dostępem tylko do
+    # własnego bucketu (separacja kryptograficzna mediów publicznych i danych prywatnych). Każdy krok
+    # jest idempotentny, więc zmiana polityki w deploy/minio/ dociera na serwer z najbliższym wdrożeniem.
+    #
+    # Anonimowo `public-media` – WYŁĄCZNIE `s3:GetObject` (deploy/minio/policy-anonymous-public-media.json),
+    # a nie gotowe `mc anonymous set download`: tamto daje też `s3:ListBucket`, czyli każdy mógł
+    # wylistować wszystkie obiekty bucketu (także dokumenty, do których strona nigdzie nie linkuje).
+    # `set-json` zastępuje politykę bucketu w całości – dawna znika przy pierwszym przebiegu.
     image: minio/mc:RELEASE.2025-04-16T18-13-26Z
     logging: *default-logging
     entrypoint: >
@@ -277,7 +319,7 @@ services:
       mc mb --ignore-existing local/submissions &&
       mc mb --ignore-existing local/public-media &&
       mc anonymous set none local/submissions &&
-      mc anonymous set download local/public-media &&
+      mc anonymous set-json /policies/policy-anonymous-public-media.json local/public-media &&
       mc admin policy create local public-media-rw /policies/policy-public-media.json &&
       mc admin policy create local submissions-rw /policies/policy-submissions.json &&
       (mc admin user info local $$S3_PUBLIC_ACCESS_KEY >/dev/null 2>&1 || mc admin user add local $$S3_PUBLIC_ACCESS_KEY $$S3_PUBLIC_SECRET_KEY) &&
@@ -315,7 +357,19 @@ services:
       CLAMAV_NO_FRESHCLAMD: "false"
     volumes:
       - clamav_db:/var/lib/clamav
-    networks: [internal]
+    # `internal` – tu sięgają go web i worker (clamav:3310). `clamav_egress` – wyjście do internetu dla
+    # freshclam: sama `internal` ma internal:true, więc do 1.10.2026 każda aktualizacja sygnatur
+    # kończyła się błędem i skaner pracował na bazie z dnia startu kontenera (na produkcji – sprzed
+    # 25 dni). Osobna sieć, a nie `edge`: `edge` jest w TRUSTED_PROXY_IPS aplikacji i w `mynetworks`
+    # Postfiksa, a ClamAV nie ma powodu być ani zaufanym proxy, ani klientem relaya; w `clamav_egress`
+    # nie stoi nic innego. Portów nie publikujemy – sieć daje wyłącznie ruch wychodzący.
+    networks: [internal, clamav_egress]
+    # Bezpieczne przy tym obrazie: /init (entrypoint clamav/clamav:1.4, przeczytany 1.10.2026) biegnie
+    # jako root i robi wyłącznie install/chown/sed, a uprawnienia zrzucają same procesy – `freshclam
+    # --user=clamav` i clamd (`User clamav` w clamd.conf) wywołaniem setuid() z roota. Żadnego pliku
+    # z bitem setuid ani capabilities plikowych, czyli niczego, co no-new-privileges blokuje.
+    security_opt:
+      - no-new-privileges:true
     healthcheck:
       test: ["CMD", "clamdcheck.sh"]
       interval: 60s
@@ -495,8 +549,10 @@ services:
     profiles: [dev]
     image: axllent/mailpit:v1.24
     logging: *default-logging
+    # Wyłącznie na pętli zwrotnej hosta: podgląd poczty deweloperskiej (z linkami aktywacji i resetu
+    # hasła) nie ma być widoczny z sieci, w której stoi laptop – tak jak porty z docker-compose.dev.yml.
     ports:
-      - "8025:8025"
+      - "127.0.0.1:8025:8025"
     networks: [internal]
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8025/livez"]
@@ -516,6 +572,21 @@ networks:
     ipam:
       config:
         - subnet: 172.30.2.0/24
+  # Redis (cache + broker Celery) i wyłącznie jego klienci: web, worker, beat. Bez wyjścia do
+  # internetu. Nie należy do TRUSTED_PROXY_IPS ani do `mynetworks` Postfiksa (komentarz w x-app-env).
+  cache:
+    driver: bridge
+    internal: true
+    ipam:
+      config:
+        - subnet: 172.30.3.0/24
+  # Wyjście do internetu dla ClamAV-a (freshclam – aktualizacje sygnatur). Jedyny członek: `clamav`.
+  # Nie `internal` (to jest cały jej sens) i nie w TRUSTED_PROXY_IPS / `mynetworks`.
+  clamav_egress:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.30.4.0/24
 
 volumes:
   # PostgreSQL 18 – dane bazy (patrz komentarz przy usłudze `db`).

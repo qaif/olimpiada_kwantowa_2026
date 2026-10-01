@@ -2,7 +2,8 @@
 
 Storage (T-09):
 
-- ``default`` → bucket ``S3_PUBLIC_BUCKET`` (``public-media``, polityka MinIO „download”). Tu żyją
+- ``default`` → bucket ``S3_PUBLIC_BUCKET`` (``public-media``, anonimowo wyłącznie ``s3:GetObject`` –
+  deploy/minio/policy-anonymous-public-media.json; do 1.10.2026 „download”, z listowaniem). Tu żyją
   **wyłącznie** media redakcyjne Wagtaila: obrazy i dokumenty, które i tak mają być publiczne.
   URL-e są budowane bez podpisu (``querystring_auth=False``) i wskazują ``S3_PUBLIC_ENDPOINT_URL``,
   czyli host widoczny dla przeglądarki (wewnętrzne ``http://minio:9000`` nie rozwiązuje się poza
@@ -27,6 +28,9 @@ from django.core.exceptions import ImproperlyConfigured
 
 from .base import *  # noqa: F401,F403
 from .base import (
+    DATABASES,
+    DEBUG,
+    E2E_MODE,
     MAILERS,
     S3_ENDPOINT_URL,
     S3_PRIVATE_ACCESS_KEY,
@@ -36,6 +40,7 @@ from .base import (
     S3_PUBLIC_ENDPOINT_URL,
     S3_PUBLIC_SECRET_KEY,
     S3_REGION,
+    S3_SECRET_KEY,
     S3_SUBMISSIONS_BUCKET,
     STORAGES,
     env,
@@ -48,6 +53,47 @@ if SECRET_KEY == "insecure-dev-key-change-me" or len(SECRET_KEY) < 50:  # noqa: 
     )
 if not S3_ACCESS_KEY or not S3_SECRET_KEY:
     raise ImproperlyConfigured("MINIO_ROOT_USER/MINIO_ROOT_PASSWORD (lub konta serwisowe S3_*) są wymagane.")
+
+# Sekrety z .env.example (audyt z 1.10.2026) – ta sama zasada co DJANGO_SECRET_KEY wyżej, więc też
+# bezwarunkowo: instalacja postawiona z przykładowego pliku bez podmiany haseł ma hasło bazy i klucze
+# MinIO znane z publicznego repozytorium. Wszystkie placeholdery .env.example zaczynają się od
+# ``change-me`` – i tak samo DJANGO_SECRET_KEY z tego pliku (28 znaków), który bezpiecznik wyżej
+# odrzuca od dawna, więc nikt nie uruchamia tego modułu (także w devie) na czystej kopii .env.example.
+# Sprawdzamy to, co Django faktycznie widzi: hasło z ``DATABASE_URL`` (compose składa je
+# z POSTGRES_PASSWORD), ``POSTGRES_PASSWORD`` (z ``env_file``), ``MINIO_ROOT_PASSWORD`` i sekrety
+# kont serwisowych S3. Nazwy w komunikacie, wartości – nigdy.
+PLACEHOLDER_SECRET_PREFIX = "change-me"
+_secrets_to_check = {
+    "DATABASE_URL (hasło bazy)": DATABASES["default"].get("PASSWORD") or "",
+    "POSTGRES_PASSWORD": env("POSTGRES_PASSWORD", default=""),
+    "MINIO_ROOT_PASSWORD": S3_SECRET_KEY,
+    "S3_PUBLIC_SECRET_KEY": S3_PUBLIC_SECRET_KEY,
+    "S3_PRIVATE_SECRET_KEY": S3_PRIVATE_SECRET_KEY,
+}
+_placeholders = sorted(
+    name
+    for name, value in _secrets_to_check.items()
+    if str(value).strip().lower().startswith(PLACEHOLDER_SECRET_PREFIX)
+)
+if _placeholders:
+    raise ImproperlyConfigured(
+        "Sekrety z .env.example („change-me…”) w środowisku produkcyjnym: "
+        + ", ".join(_placeholders)
+        + ". Wygeneruj własne wartości (scripts/deploy.sh robi to przy pierwszej instalacji)."
+    )
+
+# ``E2E_MODE`` zeruje próg antyspamowy rejestracji, włącza tryb testowy CAPTCHY (odpowiedź „PASSED”)
+# i odblokowuje ``manage.py e2e_timeline`` (przesuwanie terminów etapu). Ustawione na serwerze przez
+# pomyłkę (skopiowany .env deweloperski) nie daje żadnego widocznego objawu – stąd odmowa startu.
+# Wyłącznie przy ``DEBUG`` wyłączonym: środowisko deweloperskie też chodzi na tym module ustawień,
+# z ``E2E_MODE=1`` i ``DJANGO_DEBUG=1`` dla `web` (docker-compose.dev.yml, scripts/e2e.sh), i ma
+# działać dalej. ``DEBUG=1`` na serwerze jest awarią samą w sobie (strony błędów z kodem
+# i ustawieniami), więc ten wyjątek nie otwiera niczego, co nie byłoby już otwarte.
+if E2E_MODE and not DEBUG:
+    raise ImproperlyConfigured(
+        "E2E_MODE=1 przy DJANGO_DEBUG=0 – tryb scenariusza E2E (CAPTCHA w trybie testowym, zerowy próg "
+        "antyspamowy, przesuwanie terminów etapu) nie może działać na produkcji. Usuń E2E_MODE z .env."
+    )
 
 # Poczta: ostrzeżenie, nie wyjątek. Brak SMTP wyłącza wyłącznie reset hasła (reszta systemu nie
 # wysyła listów), więc nie ma powodu, żeby z tego powodu nie dało się wdrożyć aplikacji – ale musi
@@ -91,10 +137,15 @@ _s3_common = {
     "default_acl": None,
 }
 
+#: ``S3Storage`` z typem pliku z rozszerzenia, a nie z nagłówka od przeglądarki, i z wymuszonym
+#: pobraniem dla wszystkiego poza obrazem, filmem, dźwiękiem i PDF-em (apps/core/storage.py – audyt
+#: z 1.10.2026: ``x.txt`` wgrane jako ``text/html`` wracało z ``public-media`` jako HTML).
+S3_STORAGE_BACKEND = "apps.core.storage.ExtensionContentTypeS3Storage"
+
 STORAGES = {
     **STORAGES,
     "default": {
-        "BACKEND": "storages.backends.s3.S3Storage",
+        "BACKEND": S3_STORAGE_BACKEND,
         "OPTIONS": {
             **_s3_common,
             # Konto z polityką wyłącznie na ``public-media``: Wagtail nie ma czym dosięgnąć
@@ -110,7 +161,9 @@ STORAGES = {
         },
     },
     "private_media": {
-        "BACKEND": "storages.backends.s3.S3Storage",
+        # Ta sama klasa: bucket jest prywatny (plik podaje ``ProblemStatementView``), ale zapisany typ
+        # i tak nie ma pochodzić od klienta – obiekt bywa pobierany także poza aplikacją (``mc``, kopie).
+        "BACKEND": S3_STORAGE_BACKEND,
         "OPTIONS": {
             **_s3_common,
             # Konto z polityką wyłącznie na ``submissions`` – to samo, którego używa
