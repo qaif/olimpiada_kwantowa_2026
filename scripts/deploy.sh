@@ -338,7 +338,16 @@ if ! grep -qE '^REDIS_PASSWORD=.' .env; then
   chmod 600 .env
   echo "Redis: wygenerowano REDIS_PASSWORD (krok 4b odtworzy redis, web, worker i beat)"
 fi
-sed -n 's/^REDIS_PASSWORD=//p' .env | tail -n 1 | tr -d '\r' | grep -Eq '^[A-Za-z0-9]{16,}$' \
+# Do zmiennej, a nie `| grep -q` (SIGPIPE pod pipefail – komentarz przy `docker compose ps` niżej).
+# Odczyt jak w scripts/render_caddyfile.sh: ostatnie wystąpienie, bez cudzysłowów i CR (compose
+# czyta .env tak samo).
+REDIS_PW="$(sed -n 's/^REDIS_PASSWORD=//p' .env | tail -n 1 | tr -d '\r\042\047')"
+case "$REDIS_PW" in
+  *[!A-Za-z0-9]*) REDIS_PW_OK=0 ;;
+  *) if [ "${#REDIS_PW}" -ge 16 ]; then REDIS_PW_OK=1; else REDIS_PW_OK=0; fi ;;
+esac
+unset REDIS_PW
+[ "$REDIS_PW_OK" = 1 ] \
   || { echo "BŁĄD: REDIS_PASSWORD w .env – wyłącznie [A-Za-z0-9], co najmniej 16 znaków (trafia do REDIS_URL bez kodowania)"; exit 1; }
 # Treść strony do katalogu stanu (<REMOTE_DIR>/maintenance/page), który krok 2/8 omija: działające
 # proxy widzi nową wersję strony bez restartu (scripts/maintenance.sh, funkcja sync_page).

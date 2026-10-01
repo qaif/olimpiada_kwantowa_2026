@@ -765,7 +765,8 @@ WHITENOISE_USE_FINDERS = DEBUG
 WHITENOISE_AUTOREFRESH = DEBUG
 STORAGES = {
     # ``default`` obsługuje media redakcyjne Wagtaila (obrazy, dokumenty) – produkcyjnie bucket
-    # ``public-media`` (polityka „download”). Wszystko, co nie może być publiczne, MUSI mieć
+    # ``public-media`` (anonimowo czytelny: ``s3:GetObject``, bez listowania – od v0.38.3; obiekt
+    # da się pobrać, znając jego adres). Wszystko, co nie może być publiczne, MUSI mieć
     # jawnie wskazany inny storage – patrz alias ``private_media`` niżej.
     "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
     # Media aplikacyjne, których nie wolno oddać anonimowi: treści zadań (``Problem.statement_pdf``)

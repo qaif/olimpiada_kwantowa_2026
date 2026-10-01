@@ -8,6 +8,27 @@ dokładnie jednemu wierszowi tej tabeli.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## v0.38.3 – 2026-10-01 – Poprawki po audycie bezpieczeństwa (infrastruktura)
+
+- **Poprawka (Redis):** hasło (`REDIS_PASSWORD` – `scripts/deploy.sh` generuje je i dopisuje do
+  istniejącego `.env`; puste = bez hasła, jak dotąd) i własna sieć `cache` tylko z web/worker/beat
+  zamiast wspólnej `internal`; healthcheck uwierzytelnia się i sprawdza `PONG`. Serializator cache'a
+  zostaje `pickle` (cache trzyma obiekty modeli, `bytes`, odpowiedzi HTTP – uzasadnienie w `base.py`).
+- **Poprawka (ClamAV):** `freshclam` ma wyjście do internetu przez osobną sieć `clamav_egress` – na
+  produkcji sygnatury nie aktualizowały się od startu kontenera (25 dni); `no-new-privileges`.
+- **Poprawka (MinIO):** `public-media` anonimowo wyłącznie `s3:GetObject` – koniec listowania całego
+  bucketu (`deploy/minio/policy-anonymous-public-media.json`, `mc anonymous set-json`).
+- **Poprawka (Caddy, blok S3):** 404 dla API MinIO spod `/minio/*` (poza `/minio/health/live|ready`),
+  `nosniff`, HSTS i CSP `sandbox` (poza PDF-em); test na żywym Caddym `scripts/tests/s3_proxy_test.sh`.
+- **Poprawka:** media Wagtaila i treści zadań w S3 dostają `Content-Type` z rozszerzenia, nie od
+  przeglądarki, i `Content-Disposition: attachment` poza obrazem/filmem/dźwiękiem/PDF-em
+  (`apps/core/storage.py`); produkcja nie startuje z sekretami `change-me…` z `.env.example` ani
+  z `E2E_MODE` przy `DJANGO_DEBUG=0`.
+- **Poprawka (wdrożenie):** `docker compose pull --ignore-buildable` przed startem usług (obrazy
+  cudze dotąd nigdy nieodświeżane); workflow `deploy.yml` z `permissions: contents: read`, walidacją
+  celu SSH i przypiętym kluczem hosta (`vars.DEPLOY_SSH_KNOWN_HOSTS` – do ustawienia w GitHubie);
+  porty `docker-compose.dev.yml` i mailpita tylko na `127.0.0.1`. Kroki operatora: `docs/OPERACJE.md` § 24.
+
 ## v0.38.2 – 2026-10-01 – Poprawki po audycie bezpieczeństwa (pakiet 1)
 
 - **Poprawka:** `/cms/login/` i `/admin/login/` nie przyjmują hasła – odsyłają na `/login/`, jedyny

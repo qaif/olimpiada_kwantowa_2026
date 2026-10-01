@@ -365,9 +365,11 @@ services:
     # nie stoi nic innego. Portów nie publikujemy – sieć daje wyłącznie ruch wychodzący.
     networks: [internal, clamav_egress]
     # Bezpieczne przy tym obrazie: /init (entrypoint clamav/clamav:1.4, przeczytany 1.10.2026) biegnie
-    # jako root i robi wyłącznie install/chown/sed, a uprawnienia zrzucają same procesy – `freshclam
-    # --user=clamav` i clamd (`User clamav` w clamd.conf) wywołaniem setuid() z roota. Żadnego pliku
-    # z bitem setuid ani capabilities plikowych, czyli niczego, co no-new-privileges blokuje.
+    # jako root i robi wyłącznie install/chown/sed, a uprawnienia zrzucają same procesy (`freshclam
+    # --user=clamav`, clamd) wywołaniem setuid() z roota – bez pliku z bitem setuid i bez capabilities
+    # plikowych, czyli bez niczego, co no-new-privileges blokuje. Sprawdzone 1.10.2026 na tym obrazie
+    # z tą opcją: `NoNewPrivs: 1`, freshclam i clamd jako nie-root, freshclam połączył się z mirrorem,
+    # `clamdcheck.sh` → „Clamd is up”.
     security_opt:
       - no-new-privileges:true
     healthcheck:
