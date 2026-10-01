@@ -830,9 +830,20 @@ Platforma prowadzi wiele niezależnych konkursów z jednej bazy i jednego wdroż
 samej komendy i wariantu z prefiksem ścieżki jest w README § 3 („Kolejny konkurs na tej samej
 instalacji”), a tutaj stoi to, czego README nie zna: co sprawdzić **przed** i czym przełączyć flagi.
 
-Kolejność nie jest dowolna. Konkurs założony przed pre-flightem członkostw nadal zadziała, ale
-przełącznik ról zostanie wtedy przestawiony na bazie, o której nikt nie sprawdził, czy backfill
-jej nie pominął — a objaw tego wychodzi dopiero wtedy, gdy recenzent nie widzi przydziałów.
+Kolejność nie jest dowolna i od v0.38.4 (poprawki po audycie izolacji) **pilnuje jej kod**:
+`create_competition` (komenda, ekran „Nowy konkurs” z § 6.5 i krok 6a wdrożenia) odmawia założenia
+konkursu, dopóki którykolwiek **aktywny** konkurs ma wyłączone `memberships_enforced`. Powód: przy
+wyłączonej fladze rolą jest globalna grupa Django, więc koordynator, recenzenci i komisja odwoławcza
+istniejącego konkursu mieliby od pierwszej chwili role także w nowym (i odwrotnie). Odmowa przychodzi
+przed jakimkolwiek zapisem, także przy `--dry-run`. Stąd kolejność: § 6.1 (pre-flight **i**
+przełączenie flagi istniejącego konkursu), dopiero potem § 6.2.
+
+Nowy konkurs dostaje `memberships_enforced` **włączone od założenia** (niezależnie od szablonu), a
+koordynator wskazany przy zakładaniu – członkostwo w nim; dla niego pre-flight nie jest potrzebny.
+Gdyby mimo to dwa aktywne konkursy liczyły role z grup (konkurs dopisany w `/admin/`, ponownie
+włączony konkurs nieaktywny, ręcznie zdjęta flaga), zgłasza to kontrola systemowa `tenancy.E001`:
+`docker compose exec -T web python manage.py check --database default`. Ta sama kontrola zatrzymuje
+`migrate` (także start kontenera z `RUN_MIGRATIONS=1`); na czas naprawy: `migrate --skip-checks`.
 
 ### 6.1. Pre-flight: czy wolno przełączyć role na członkostwa
 
@@ -860,7 +871,17 @@ Przy **jednym** konkursie w bazie komenda przyjmuje, że każdy członek globaln
 niego (bo innego nie ma). Od drugiego konkursu przypisuje wyłącznie osoby, które mają w konkursie
 ślad: profil uczestnika, profil opiekuna szkolnego albo jakiekolwiek członkostwo. Członek grupy bez
 takiego śladu nie jest przypisywany nigdzie — i to jest właściwa odpowiedź, bo zgadywanie dałoby
-recenzentowi jednego konkursu wgląd w prace drugiego.
+recenzentowi jednego konkursu wgląd w prace drugiego. Dlatego pre-flight i `--fix` robi się **przy
+jednym konkursie**, zanim powstanie drugi.
+
+Po zielonym wyniku (zero brakujących członkostw) **włącz `memberships_enforced` istniejącemu
+konkursowi** – w panelu („Ustawienia konkursu” → „Role z członkostw w konkursie”) albo w `/admin/`
+(§ 6.4) – i sprawdź logowanie jednej osoby z każdej roli. Bez tego kroku § 6.2 kończy się odmową:
+
+```text
+CommandError: Nie można założyć kolejnego konkursu: konkurs „kwantowa” ma wyłączony przełącznik
+memberships_enforced, …
+```
 
 ### 6.2. Założenie konkursu — najpierw na sucho
 
@@ -936,7 +957,10 @@ z **różnicami** wobec wartości domyślnych. Pusty słownik `{}` znaczy „jak
 
 - **`memberships_enforced`** — przełącza autoryzację z globalnych grup Django na `Membership` tego
   konkursu. Przełączaj **wyłącznie po zielonym `check_memberships`** (§ 6.1). Cofnięcie to ta sama
-  jedna wartość, bez wdrożenia: flaga zostaje w kodzie jeden sezon właśnie po to.
+  jedna wartość, bez wdrożenia: flaga zostaje w kodzie jeden sezon właśnie po to. **Cofać wolno
+  tylko w instalacji z jednym aktywnym konkursem** – przy dwóch wyłączona flaga to role jednego
+  organizatora w panelach drugiego (kontrola `tenancy.E001`). Konkurs zakładany komendą albo
+  z panelu dostaje ją włączoną sam (v0.38.4).
 - **`competition_settings_page`** — pokazuje koordynatorowi ekran „Ustawienia konkursu”
   (`/coordinator/competition/`): marka, organizator, kontakt. Adresowania (witryna, identyfikator,
   tryb, prefiks) nie ma tam z założenia — zmiana domeny wymaga dostępu do serwera, więc należy do
@@ -983,6 +1007,10 @@ rekordu DNS.
 
 Konkurs z **własną** domeną (`olimpiadafizyczna.pl`) idzie nadal drogą z § 6.3 — tej ten tryb nie
 zastępuje ani nie zmienia.
+
+Ekran podlega tej samej odmowie, co komenda (§ 6, wstęp): dopóki konkurs, z którego się zakłada
+(albo którykolwiek inny aktywny), ma wyłączone `memberships_enforced`, podgląd i potwierdzenie
+kończą się komunikatem w formularzu i niczego nie zapisują. Najpierw § 6.1.
 
 #### Jednorazowe przygotowanie (operator, raz na instalację)
 

@@ -8,6 +8,39 @@ dokładnie jednemu wierszowi tej tabeli.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## v0.38.4 – 2026-10-01 – Poprawki po audycie bezpieczeństwa (izolacja konkursów)
+
+Audyt izolacji między konkursami jednej instalacji. Produkcja prowadzi dziś **jeden** konkurs
+z wyłączonym `memberships_enforced`, więc żadna z luk nie była osiągalna – ale każda otwierała się
+z chwilą założenia drugiego konkursu. Zachowanie instalacji jednokonkursowej (role z globalnych grup
+Django) się nie zmienia.
+
+- **Bezpieczeństwo:** pula recenzentów (`apps.grading.services.reviewer_pool`) bierze konkurs
+  obowiązkowo – przydział automatyczny, reguły zadań, raport postępu, karty zadania i uczestnika
+  nie podsuwają już członków komitetu innego konkursu; przydział ręczny, reguła i trzeci recenzent
+  odmawiają takiej osoby w serwisie (`REVIEWER_NOT_ELIGIBLE`).
+- **Bezpieczeństwo:** API komitetu (`/api/auth/committee/pending/`, `…/<id>/approve/`,
+  `…/<id>/verify-district/`) zawężone do konkursu żądania – członek innego konkursu to 404; serwisy
+  zatwierdzenia i województwa sprawdzają konkurs członka także same.
+- **Bezpieczeństwo:** profil komitetu musi należeć do konkursu, w którym działa
+  (`accounts.services.committee_profile_in`): bramki recenzenta i komisji odwoławczej (API i HTML),
+  kolejka i decyzja reklamacji, widoczność prac komisji w `Submission.objects.for_user` i wzorcówka
+  zadania. Rolę koordynatora w `Submission`/`StageEntry.for_user`, w moderacji
+  (`grading.services.is_coordinator`) i przy wzorcówce rozstrzyga `has_role`, a nie globalna grupa.
+- **Bezpieczeństwo:** lista i ekrany kont koordynatora liczą profil komitetu i profil opiekuna jako
+  dowód własności konta – oczekujący członek komitetu albo opiekun innego konkursu nie jest już
+  „niczyj” (edycja, aktywacja, reset hasła, usunięcie dają 404).
+- **Bezpieczeństwo:** karta uczestnika (zgłoszenia pomocy, audyt, pula recenzentów) i karta członka
+  komisji (recenzje, reguły, zgłoszenia, audyt) pokazują wyłącznie dane swojego konkursu; pulpit
+  opiekuna szkolnego – uczniów swojego konkursu (`students_of`); retencja nie anonimizuje konta, które
+  ma rolę albo profil w innym konkursie (nowa przeszkoda `other_competition`).
+- **Zmiana:** nowy konkurs (komenda `create_competition`, ekran „Nowy konkurs”, kreator `/setup/`)
+  powstaje z `memberships_enforced` włączonym; założenie konkursu obok aktywnego konkursu z tą flagą
+  wyłączoną jest odmawiane z instrukcją (`check_memberships --fix`, potem flaga). Nowa kontrola
+  systemowa `tenancy.E001` (`manage.py check --database default` i `migrate`): więcej niż jeden
+  aktywny konkurs, a któryś liczy role z grup. `OPERACJE.md` § 6.1–6.2, § 6.5,
+  `SECURITY_CHECKLIST.md` § 3 i § 3.3.
+
 ## v0.38.0 – 2026-10-01 – Wiadomości (czat)
 
 - **Nowe:** Wiadomości 1:1 na platformie (`apps/chat`, zadanie CZ-01) – lista rozmów i wątek jak
