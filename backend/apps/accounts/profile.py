@@ -829,6 +829,15 @@ def update_account_by_coordinator(
         setattr(user, name, values[name])
     if updates:
         user.save(update_fields=updates)
+    if values.get("is_active") is False:
+        # Zablokowane konto traci token API (pakiet 5 po audycie). ``TokenAuthentication`` i tak
+        # odrzuca konto ``is_active=False``, ale wiersz tokenu zostawał – po odblokowaniu stary
+        # token, być może dawno wyniesiony, znowu by działał. Sesje nie potrzebują tego kroku:
+        # ``ModelBackend.get_user`` nie zwraca nieaktywnego konta, więc wylogowanie jest
+        # natychmiastowe, a po odblokowaniu człowiek loguje się od nowa.
+        from rest_framework.authtoken.models import Token
+
+        Token.objects.filter(user=user).delete()
     if user.email != previous_email:
         _forget_allauth_addresses(user, previous_email)
         # Wprost, bo to inna droga niż ``account.email_changed``: adres nie został potwierdzony
