@@ -221,8 +221,39 @@ class StageParticipantListView(ApiKeyViewMixin, ListAPIView):
             return V1ParticipantPiiSerializer
         return V1ParticipantSerializer
 
+    def list(self, request, *args, **kwargs):
+        """Lista jak w ``ListAPIView`` – plus wpis audytowy, gdy odpowiedź niesie dane osobowe.
+
+        Pakiet 5 po audycie: odczyt listy uczniów z imionami i adresami przez klucz partnera nie
+        zostawiał śladu, więc po wycieku nie dało się powiedzieć, który klucz, kiedy i ile wierszy
+        pobrał. Wpis jest **jeden na żądanie** (stronę), a nie na wiersz, i nie ma w nim danych
+        osobowych: przedrostek klucza, etap, edycja i liczba wierszy – tyle, ile trzeba, żeby
+        odtworzyć zasięg odczytu. Odpowiedź bez danych osobowych (zakres bez PII albo pusta strona)
+        wpisu nie zostawia.
+        """
+        response = super().list(request, *args, **kwargs)
+        if self.get_serializer_class() is V1ParticipantPiiSerializer and response.status_code == 200:
+            data = response.data
+            rows = data.get("results", []) if isinstance(data, dict) else data
+            if rows:
+                stage = self._stage
+                audit(
+                    None,
+                    "apikey.pii_read",
+                    self.api_key,
+                    {
+                        "key": self.api_key.prefix,
+                        "stage_id": stage.pk,
+                        "edition_id": stage.edition_id,
+                        "rows": len(rows),
+                    },
+                    request=request,
+                )
+        return response
+
     def get_queryset(self):
         stage = self.stage_in_scope(self.kwargs["stage_id"])
+        self._stage = stage
         queryset = StageEntry.objects.filter(stage=stage).select_related(
             "participant", "participant__user", "participant__school_ref"
         )
