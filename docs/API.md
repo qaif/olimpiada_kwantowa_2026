@@ -509,6 +509,33 @@ w API panelu (`score`, `new_score`, `total_points`, `published_total`) i w zrzuc
 - **eksporty CSV** z panelu (lista dla kuratorium, wyniki i recenzje etapu) zapisują punkty z
   **kropką** dziesiętną (`4.25`) niezależnie od języka interfejsu; XLSX niesie je jako liczby.
 
+### 6.3. Punkty uczestnika dopiero po ogłoszeniu wyników (od wydania `v0.38.7`)
+
+Decyzja właściciela platformy: uczeń widzi oceny dopiero po ostatecznym zatwierdzeniu, czyli po
+**ogłoszeniu wyników etapu** (`Stage.results_published_at` – ten sam znacznik, który rozstrzyga
+w panelu WWW i w `GET /api/me/results/`; zdjęcie go przez koordynatora, czyli wycofanie ogłoszenia,
+znów chowa punkty). Etap treningowy **nie** ma wyjątku – panel też go nie robi. Dotyczy API panelu
+uczestnika; klucze odpowiedzi się nie zmieniają, zmieniają się wartości:
+
+| Pole | Przed ogłoszeniem | Po ogłoszeniu |
+|---|---|---|
+| `GET /api/me/submissions/` (i odpowiedź `201` uploadu) → `final_grade.score` | `null` | punkty, jak dotąd |
+| `final_grade.decided_at` | `null` | data decyzji, jak dotąd |
+| `final_grade.method` | `"REVIEW"` albo `"APPEAL"` | `"REVIEW"` albo `"APPEAL"` |
+| `final_grade.rationale` | uzasadnienie komisji odwoławczej przy `"APPEAL"`, inaczej `null` | bez zmian |
+| `appeal.new_score` | `null` | punkty po reklamacji |
+| `GET /api/me/appeals/` → `decision.new_score` | `null` | punkty po reklamacji |
+| `appeal.status`, `appeal.justification`, `appeal.decided_at` | jak dotąd (to samo pokazuje zakładka „Reklamacje”) | jak dotąd |
+| `GET /api/competitions/me/entries/` → `total_points` | `null` (kolumnę zapisuje już podgląd wyników koordynatora) | suma etapu, jak dotąd |
+| `… /me/entries/` → `status` | bez zmian – `QUALIFIED`/`NOT_QUALIFIED` nadaje dopiero publikacja | bez zmian |
+
+`final_grade.method` nie oddaje już wewnętrznych trybów (`CONSENSUS`, `THIRD_REVIEW`, `MODERATION`,
+`OVERRIDE`) – mówiły o przebiegu oceniania (rozbieżność recenzentów), a nie o pracy. Klient, który
+na nich rozgałęział logikę, dostaje jedną wartość `"REVIEW"`; `"APPEAL"` zostaje, bo przy nim
+`rationale` jest tekstem pisanym do uczestnika. Obecność `final_grade` (obiekt zamiast `null`)
+nadal mówi „praca oceniona” – to samo, co status `GRADED_PROVISIONAL`/`FINAL` i ścieżka statusu
+w panelu.
+
 ### 6.1. Rejestracja uczestnika (`POST /api/auth/register/participant/`)
 
 To jest API **konta**, a nie integracji — opisujemy je tutaj, bo od wydania `v0.30.0` zmienił się

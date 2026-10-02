@@ -60,6 +60,17 @@ Po rejestracji strona `/register/done/` mówi „sprawdź skrzynkę”. Na podan
 | **Pobranie wszystkich swoich danych** (art. 20 RODO) | `/account/export/` — paczka ZIP z `dane.json` i wgranymi plikami, jedna na 10 minut |
 | Usunięcie konta | `/account/delete/` — patrz niżej |
 
+**Prośba nauczyciela o dopisanie jako opiekun szkolny** (od v0.38.7). Nauczyciel albo organizator,
+który wgrywa listę uczniów, nie może już sam wpisać się w Twój profil. Jeśli na liście jest adres
+Twojego konta, dostajesz list „Prośba o zgodę na opiekuna szkolnego” z imieniem, nazwiskiem i adresem
+nauczyciela oraz linkiem `/opiekun/zgoda/…` (ważnym 14 dni). Strona po kliknięciu **wymaga zalogowania
+na Twoje konto** — nikt inny, także nauczyciel, nie zgodzi się za Ciebie — i pokazuje, kto prosi, co
+zobaczy (imię i nazwisko, kod, szkołę, klasę, stan prac; punkty dopiero po ogłoszeniu wyników) oraz,
+jeśli masz już opiekuna, że nowy go **zastąpi**. Decydujesz przyciskiem **„Zgadzam się”** albo
+**„Nie zgadzam się”**; samo otwarcie strony niczego nie zmienia, a zignorowanie listu też jest
+odmową. Na kolejną prośbę tej samej osoby trzeba czekać co najmniej dobę. Decyzję zmienisz w każdej
+chwili polem „Adres e-mail opiekuna szkolnego” w `/me/profile/`.
+
 **Usunięcie konta.** Jeśli brałeś już udział w zawodach (zgłoszenie, praca, recenzja), konto jest
 **anonimizowane**: znikają imię, nazwisko, adres, telefon, szkoła i data urodzenia, a w ogłoszonych tabelach
 zostaje sam kod uczestnika. Konto bez takiego śladu jest kasowane w całości, a adres wraca do puli.
@@ -229,7 +240,9 @@ Po ogłoszeniu wyników etapu:
 **Reklamacja** — zakładka **„Reklamacje”**, przycisk **„Złóż reklamację”** przy pracy. Jest możliwa
 wyłącznie w **oknie reklamacyjnym** wyznaczonym przez organizatora i dotyczy własnej, ocenionej pracy.
 Rozpatruje ją komisja odwoławcza — **inne osoby** niż te, które pracę oceniały. Rozstrzygnięcie
-z uzasadnieniem dostajesz listem i widzisz w tej samej zakładce.
+z uzasadnieniem dostajesz listem i widzisz w tej samej zakładce. Punkty — także te po reklamacji —
+widać dopiero **po ogłoszeniu wyników etapu**, a okno reklamacyjne zamyka się wcześniej (od v0.38.7
+tak samo w panelu i w API aplikacji).
 
 ---
 

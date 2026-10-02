@@ -8,6 +8,28 @@ dokładnie jednemu wierszowi tej tabeli.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## v0.38.7 – 2026-10-02 – Zgoda ucznia na opiekuna, oceny dopiero po ogłoszeniu wyników
+
+- **Poprawka (bezpieczeństwo, decyzja właściciela):** import listy uczniów nie dopisuje już opiekuna
+  szkolnego do **istniejącego** konta. Uczeń dostaje list z prośbą o zgodę (link 14 dni,
+  `/opiekun/zgoda/<token>/`, wymaga zalogowania jako ten uczeń, przyciski „Zgadzam się” / „Nie zgadzam
+  się”, strona mówi, co nauczyciel zobaczy i że zastąpi obecnego opiekuna); adres zapisuje dopiero zgoda
+  (`apps/accounts/supervisor_consent.py`). Dotyczy importu nauczyciela i koordynatora; pusta kolumna
+  opiekuna u koordynatora nie czyści już adresu ucznia. Podgląd mówi o każdym zajętym adresie jednym
+  zdaniem (bez rozróżniania ucznia od recenzenta/koordynatora), komunikat po zapisie podaje trzy liczby.
+  Najwyżej jedna prośba na parę (uczeń, opiekun) na dobę; import nauczyciela ma limit żądań (`upload`).
+  Konta **zakładane** importem – bez zmian (zgodą jest przyjęcie zaproszenia). Dowiązania sprzed tej
+  wersji zostają w bazie bez zmian.
+- **Poprawka (bezpieczeństwo, decyzja właściciela):** uczeń widzi oceny dopiero po ogłoszeniu wyników
+  etapu także w API – `GET /api/me/submissions/` (`final_grade.score`, `decided_at`,
+  `appeal.new_score`) i `GET /api/competitions/me/entries/` (`total_points`, zapisywane już przez
+  podgląd koordynatora) oddają `null` do `Stage.results_published_at` (ten sam sygnał, co panel; bez
+  wyjątku dla treningu). `final_grade.method` ma dla uczestnika wartości `REVIEW`/`APPEAL` – bez
+  `THIRD_REVIEW`/`MODERATION` zdradzających rozbieżność recenzentów. Klucze odpowiedzi bez zmian
+  (`docs/API.md` § 6.3). List o decyzji w sprawie reklamacji nie obiecuje już „aktualnej punktacji”
+  w panelu. **Skutek dla reklamacji:** okno reklamacyjne zamyka się przed ogłoszeniem wyników, więc
+  uczestnik składa reklamację, nie znając punktów (w panelu było tak już wcześniej).
+
 ## v0.38.6 – 2026-10-02 – Drugi składnik logowania obejmuje API
 
 - **Poprawka:** przy włączonym `TWO_FACTOR_ENABLED` `POST /api/auth/login/` wymaga od konta

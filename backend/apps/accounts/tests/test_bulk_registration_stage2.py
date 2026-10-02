@@ -403,4 +403,4 @@ def test_audyt_niesie_dalej_same_liczby(competition):
     import_students(rows, school_name="XIV LO")
 
     entry = AuditLog.objects.get(action="accounts.students_imported")
-    assert entry.diff == {"created": 1, "linked": 0, "skipped": 0}
+    assert entry.diff == {"created": 1, "existing": 0, "consent_requested": 0, "skipped": 0}

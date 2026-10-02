@@ -136,6 +136,9 @@ EXPECTED_SUBJECTS = {
     "student_invitation": "Zaproszenie do Olimpiady Kwantowej",
     # Wiadomości (zadanie CZ-01, ``apps.chat.notifications``): list „masz nową wiadomość” – bez treści.
     "chat_message": "Nowa wiadomość – Olimpiada Kwantowa",
+    # Prośba o zgodę ucznia na opiekuna szkolnego z importu listy (v0.38.7,
+    # ``apps.accounts.supervisor_consent``).
+    "supervisor_consent": "Prośba o zgodę na opiekuna szkolnego – Olimpiada Kwantowa",
 }
 
 #: Znaczniki podstawień w tematach składanych w serwisie. Porównujemy **wzorzec**, a nie wynik:
@@ -230,6 +233,8 @@ SUBJECT_CONSTANTS = {
     "apps.accounts.guardian.GUARDIAN_CONFIRMED_SUBJECT": "guardian_confirmed",
     "apps.accounts.guardian.GUARDIAN_CONFIRMED_SUBJECT_TEMPLATE": "guardian_confirmed",
     "apps.accounts.services.INVITATION_SUBJECT": "invitation",
+    "apps.accounts.supervisor_consent.SUPERVISOR_CONSENT_SUBJECT": "supervisor_consent",
+    "apps.accounts.supervisor_consent.SUPERVISOR_CONSENT_SUBJECT_TEMPLATE": "supervisor_consent",
     "apps.accounts.services.INVITATION_SUBJECT_TEMPLATE": "invitation",
     "apps.chat.notifications.SUBJECT": "chat_message",
     "apps.chat.notifications.SUBJECT_TEMPLATE": "chat_message",

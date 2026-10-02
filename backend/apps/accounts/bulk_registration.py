@@ -32,9 +32,14 @@ nauczyciel od pierwszej chwili widzi listę swoich uczniów i to, kto zaproszeni
 
 Czego import **nie** robi:
 
-- **nie zakłada kont, które już istnieją.** Adres zajęty przez konto uczestnika jest
-  *dowiązywany*: w profilu tego uczestnika staje się adres opiekuna szkolnego i tyle. Nauczyciel
-  dostaje o tym notkę w podglądzie, bo inaczej wyglądałoby to na cichy błąd,
+- **nie zakłada kont, które już istnieją – i nie dopisuje do nich opiekuna.** Do v0.38.5 adres
+  zajęty przez konto uczestnika był *dowiązywany*: w profilu ucznia stawał się adresem opiekuna
+  szkolnego ten, kto wgrał plik. Przy otwartej rejestracji opiekunów znaczyło to, że każdy mógł
+  dopisać się do dowolnego ucznia znanego z adresu e-mail i zobaczyć jego dane. Od v0.38.7 uczeń
+  dostaje zamiast tego **prośbę o zgodę** (``apps.accounts.supervisor_consent``) i dopiero jego
+  „Zgadzam się” zapisuje adres. Podgląd mówi o każdym zajętym adresie **jednym** neutralnym
+  zdaniem – nie rozróżnia konta ucznia od konta recenzenta czy koordynatora, bo to rozróżnienie
+  było wyszukiwarką ról w serwisie,
 - **nie zbiera zgód i nie ustawia haseł.** Patrz wyżej,
 - **nie wpisuje danych osobowych do audytu.** Wpisy niosą liczby i identyfikatory wierszy; kogo
   dotyczą, mówi ``target_id``. Audyt czytają osoby, które nie mają wglądu w listy klasowe.
@@ -77,6 +82,8 @@ from .models import (
     User,
 )
 from .phones import normalize_phone
+from .supervisor_consent import VIA_SUPERVISOR
+from .supervisor_consent import request_consent as request_supervisor_consent
 from .supervisors import normalize_supervisor_email
 
 logger = logging.getLogger(__name__)
@@ -264,10 +271,23 @@ def header_line(*, with_supervisor: bool, competition=None) -> str:
 # --- wiersz i jego rozstrzygnięcie ------------------------------------------------------------
 
 #: Co import zrobi z wierszem. Trzy wartości, bo tyle jest różnych zdarzeń – i każde znaczy dla
-#: nauczyciela co innego: „założę konto”, „dopiszę się do istniejącego”, „pomijam i oto dlaczego”.
+#: nauczyciela co innego: „założę konto”, „adres ma już konto” i „pomijam i oto dlaczego”.
+#:
+#: Druga wartość nazywała się do v0.38.5 ``link`` („dopiszę się do istniejącego”) i znaczyła zapis
+#: w cudzym profilu. Teraz znaczy wyłącznie „adres jest zajęty”: konto ucznia **tego** konkursu
+#: dostaje prośbę o zgodę, każde inne – nic, a podgląd i podsumowanie nie mówią, który z tych
+#: przypadków zaszedł (``EXISTING_NOTE``).
 ACTION_CREATE = "create"
-ACTION_LINK = "link"
+ACTION_EXISTING = "existing"
 ACTION_SKIP = "skip"
+
+#: Jedno zdanie dla **każdego** zajętego adresu – konto ucznia, recenzenta, koordynatora, opiekuna,
+#: ucznia innego konkursu. Rozróżnianie ich w podglądzie (jak do v0.38.5: „dopisanie” kontra
+#: „konto, które nie jest kontem uczestnika”) czyniło z importu wyszukiwarkę ról: wystarczyło
+#: wgrać plik z jednym adresem, żeby się dowiedzieć, czy należy do członka komitetu.
+EXISTING_NOTE = gettext_lazy(
+    "adres ma już konto – jeśli to uczeń tego konkursu, dostanie prośbę o zgodę na dopisanie opiekuna"
+)
 
 
 @dataclass
@@ -303,7 +323,7 @@ class ImportRow:
     notes: list[str] = field(default_factory=list)
     #: Rozstrzygnięcia liczone przez :func:`validate_rows` – **nie** jadą w koszyku i nie wchodzą
     #: do ``payload``: między podglądem a zatwierdzeniem region mógł zostać wygaszony, a kategoria
-    #: przestawiona, więc zapis liczy je od nowa (tak samo jak decyzję „założyć czy dowiązać”).
+    #: przestawiona, więc zapis liczy je od nowa (tak samo jak decyzję „założyć czy adres zajęty”).
     district: str = ""
     region: object | None = None
     category: object | None = None
@@ -387,8 +407,8 @@ class ImportPreview:
         return sum(1 for row in self.rows if row.action == ACTION_CREATE)
 
     @property
-    def to_link(self) -> int:
-        return sum(1 for row in self.rows if row.action == ACTION_LINK)
+    def existing(self) -> int:
+        return sum(1 for row in self.rows if row.action == ACTION_EXISTING)
 
     @property
     def skipped(self) -> int:
@@ -396,7 +416,7 @@ class ImportPreview:
 
     @property
     def has_importable(self) -> bool:
-        return bool(self.to_create or self.to_link)
+        return bool(self.to_create or self.existing)
 
 
 # --- czytanie pliku -------------------------------------------------------------------------
@@ -771,7 +791,7 @@ def _resolve_row_context(rows: list[ImportRow], competition) -> None:
     formularz nie potrzebuje: wskazanie rubryki i wartości, bo błąd dotyczy wiersza w arkuszu.
 
     Wyniki są **na wiersz** i nie jadą w koszyku: zapis liczy je od nowa, tak samo jak decyzję
-    „założyć czy dowiązać”.
+    „założyć czy adres zajęty”.
     """
     if competition is None:
         return
@@ -928,23 +948,25 @@ def _resolve_rows_institution(rows: list[ImportRow], competition, profile) -> No
 
 
 def validate_rows(rows: list[ImportRow], *, competition=None) -> list[ImportRow]:
-    """Dopisuje każdemu wierszowi rozstrzygnięcie: założyć, dowiązać czy pominąć.
+    """Dopisuje każdemu wierszowi rozstrzygnięcie: założyć, „adres zajęty” czy pominąć.
 
-    Trzy reguły, wszystkie wymuszone tutaj, a nie w widoku, bo droga jest jedna dla nauczyciela
+    Dwie reguły, obie wymuszone tutaj, a nie w widoku, bo droga jest jedna dla nauczyciela
     i koordynatora, a podgląd musi pokazywać **dokładnie to**, co zrobi zatwierdzenie:
 
     1. **adres powtórzony w pliku** liczy się raz. Porównanie bez względu na wielkość liter, bo
        „Jan.Kowalski@…” i „jan.kowalski@…” to jedna skrzynka i jedno konto,
-    2. **adres zajęty przez konto uczestnika** nie zakłada drugiego konta – dopisuje opiekuna do
-       istniejącego profilu. Uczeń, który zarejestrował się sam tydzień wcześniej, nie może przez
-       import stracić swojego konta ani dostać drugiego,
-    3. **adres zajęty przez konto bez profilu uczestnika** (recenzent, koordynator, opiekun)
-       zostaje pominięty. Dorobienie takiemu koncu profilu uczestnika zmieniałoby komuś rolę
-       w zawodach na podstawie pliku wgranego przez osobę trzecią.
+    2. **adres zajęty przez jakiekolwiek konto** nie zakłada drugiego konta i dostaje jedno,
+       zawsze to samo rozstrzygnięcie (``ACTION_EXISTING``) i jedną, zawsze tę samą notkę
+       (``EXISTING_NOTE``). Do v0.38.5 były tu dwie reguły – konto ucznia „dowiązać”, konto bez
+       profilu ucznia „pominąć z powodem” – i ich różnica mówiła nauczycielowi, czy adres należy
+       do recenzenta albo koordynatora. Co się z zajętym adresem dzieje naprawdę, rozstrzyga
+       dopiero zapis (:func:`import_students`): uczeń **tego** konkursu dostaje prośbę o zgodę,
+       każde inne konto – nic. Uczeń, który zarejestrował się sam tydzień wcześniej, nadal nie może
+       przez import stracić konta ani dostać drugiego, a konto recenzenta nadal nie dostaje profilu
+       uczestnika z cudzego pliku.
 
-    „Konto uczestnika” znaczy od tej zmiany „konto z profilem **w tym konkursie**”: nauczyciel
-    importujący klasę do olimpiady A nie może dostać wiersza „dowiązać” dlatego, że uczeń startuje
-    w olimpiadzie B – tam jest jego profil, jego zgody i jego opiekun, a tutaj nie ma jeszcze nic.
+    Zapytanie jest jedno i dotyczy wyłącznie **istnienia** adresu – podgląd o profilach uczestnika
+    w ogóle nie pyta, więc nie ma czego zdradzić nawet czasem odpowiedzi.
     ``competition=None`` bierze konkurs z kontekstu (``default_competition``), tak samo jak zapis.
 
     Przed rozstrzygnięciem idzie :func:`_resolve_row_context`, czyli kolumny dokładane przez
@@ -957,15 +979,9 @@ def validate_rows(rows: list[ImportRow], *, competition=None) -> list[ImportRow]
         competition = default_competition()
     _resolve_row_context(rows, competition)
     emails = [row.email for row in rows if row.email and not row.errors]
-    # Jedno zapytanie na cały plik: zbiór adresów, które mają w **tym** konkursie profil
-    # uczestnika, i zbiór adresów zajętych w ogóle. Dwa zbiory, bo prowadzą do dwóch różnych
-    # rozstrzygnięć (dowiązać / pominąć), a nie do jednego z warunkiem.
+    # Jedno zapytanie na cały plik: zbiór adresów zajętych w ogóle. Profilów uczestnika podgląd nie
+    # sprawdza – patrz punkt 2 docstringu.
     taken = set(User.objects.filter(email__in=emails).values_list("email", flat=True))
-    with_profile = set(
-        Participant.objects.filter(user__email__in=emails, competition=competition).values_list(
-            "user__email", flat=True
-        )
-    )
     seen: set[str] = set()
     for row in rows:
         if row.errors:
@@ -985,12 +1001,8 @@ def validate_rows(rows: list[ImportRow], *, competition=None) -> list[ImportRow]
                     "sam po przyjęciu zaproszenia"
                 )
             continue
-        if row.email not in with_profile:
-            row.action = ACTION_SKIP
-            row.errors.append("adres należy do konta, które nie jest kontem uczestnika")
-            continue
-        row.action = ACTION_LINK
-        row.notes.append("konto już istnieje – zostanie dopisane do opiekuna, bez zakładania nowego")
+        row.action = ACTION_EXISTING
+        row.notes.append(str(EXISTING_NOTE))
     return rows
 
 
@@ -1169,10 +1181,21 @@ def import_students(
     school_ref=None,
     default_supervisor_email: str = "",
     stage=None,
+    via: str = VIA_SUPERVISOR,
     actor=None,
     request=None,
 ) -> dict:
-    """Zakłada konta zaproszonych i dowiązuje istniejące. Zwraca licznik rozstrzygnięć.
+    """Zakłada konta zaproszonych, a uczniom z istniejącym kontem wysyła prośbę o zgodę.
+
+    Zwraca licznik ``{"created", "existing", "consent_requested", "skipped"}``. Ekran pokazuje
+    z niego trzy liczby – bez ``consent_requested`` (uzasadnienie przy wpisie audytowym niżej).
+
+    ``via`` mówi, kto wgrał plik: ``"supervisor"`` (nauczyciel, adres opiekuna = jego własny) albo
+    ``"coordinator"`` (organizator, adres opiekuna z kolumny pliku). Zgody wymagamy **w obu**
+    drogach. Koordynator jest zaufany w swoim konkursie, ale reguła z ``apps.accounts.supervisors``
+    mówi wprost, że wgląd nadaje uczeń, „a nie organizator” – a koordynator nadawałby go tu nie
+    sobie, tylko **trzeciej** osobie wskazanej w arkuszu, której adresu nikt nie sprawdził. Jedna
+    droga dla obu importów to też jedna reguła do przeczytania i jeden test do utrzymania.
 
     Szkoła jest jedna dla całego pliku i tak ma być: nauczyciel importuje **swoją** klasę, a nazwa
     szkoły wchodzi do grupowania w publikowanych wynikach (próg k-anonimowości), więc musi być
@@ -1192,7 +1215,6 @@ def import_students(
     czyli dokładnie to, po co koordynator wgrywa listę z kolumną „kategoria” do trwającej edycji.
     """
     from .services import create_participant_with_public_code, default_competition, grant_role
-    from .supervisors import set_supervisor_email
 
     # Konkurs importu ustalamy **raz** dla całego pliku, i to **przed** rozstrzygnięciem wierszy:
     # jedna lista klasowa nie ma prawa rozsypać się po dwóch konkursach, a podgląd i zapis mają
@@ -1202,8 +1224,19 @@ def import_students(
     district = getattr(school_ref, "voivodeship", "") or ""
     now = timezone.now()
     created = 0
-    linked = 0
+    existing = 0
+    consent_requested = 0
     categorised: list[tuple[int, object]] = []
+    # Profile uczniów **tego** konkursu pod zajętymi adresami – jednym zapytaniem na cały plik, a nie
+    # jednym na wiersz. Po wydaniu D jedno konto ma tyle profili, w ilu konkursach startuje, więc
+    # zawężenie do konkursu jest tu warunkiem poprawności, a nie optymalizacją.
+    participants = {
+        participant.user.email: participant
+        for participant in Participant.objects.select_related("user", "competition").filter(
+            user__email__in=[row.email for row in rows if row.action == ACTION_EXISTING],
+            competition=competition,
+        )
+    }
     for row in rows:
         if row.action == ACTION_CREATE:
             user = _create_invited_user(row)
@@ -1230,38 +1263,55 @@ def import_students(
             # nazwiska – kogo dotyczy, mówi ``target_id``.
             audit(actor, "participant.invited_by_import", participant, {"row": row.number}, request=request)
             created += 1
-        elif row.action == ACTION_LINK:
-            # Profil **tego** konkursu: po zmianie z wydania D jedno konto ma tyle profili,
-            # w ilu konkursach startuje, więc ``get`` bez zawężenia podniósłby
-            # ``MultipleObjectsReturned`` na uczniu dwóch olimpiad.
-            participant = Participant.objects.select_related("user").get(
-                user__email=row.email, competition=competition
-            )
-            set_supervisor_email(
+        elif row.action == ACTION_EXISTING:
+            existing += 1
+            # Brak profilu w tym konkursie (recenzent, koordynator, uczeń innej olimpiady) to
+            # **cisza** – ani listu, ani śladu w podsumowaniu (patrz ``EXISTING_NOTE``).
+            participant = participants.get(row.email)
+            if participant is None:
+                continue
+            # Profilu **nie** nadpisujemy – ani szkoły, ani regionu, ani (od v0.38.7) adresu
+            # opiekuna. Uczeń dostaje prośbę o zgodę i dopiero jego „Zgadzam się” zapisuje adres
+            # (``apps.accounts.supervisor_consent``). Pusty adres w wierszu koordynatora znaczy
+            # „bez opiekuna” i **nie** czyści już adresu, który uczeń wpisał sam – do v0.38.5
+            # import bez kolumny opiekuna cicho odpinał uczniów od ich nauczycieli.
+            if request_supervisor_consent(
                 participant,
                 row.supervisor_email or default_supervisor_email,
+                via=via,
                 actor=actor,
                 request=request,
-            )
-            # Profilu **nie** nadpisujemy: uczeń, który zarejestrował się sam, podał swoją szkołę,
-            # swój region i swoją placówkę, a plik nauczyciela nie jest powodem, żeby mu je zmienić
-            # (§ 0.1). Dowiązanie dopisuje opiekuna szkolnego i tyle – tak samo, jak przed etapem 2.
+            ):
+                consent_requested += 1
             categorised.append((participant.pk, row.category))
-            linked += 1
     if stage is not None:
         _assign_categories(stage, categorised)
     skipped = sum(1 for row in rows if row.action == ACTION_SKIP)
     # Drugi wpis opisuje **przebieg**, a nie konto: to on odpowiada na pytanie „kto i kiedy wgrał
     # listę”. Same liczby, zero adresów – audyt czytają także osoby bez wglądu w listy klasowe.
+    # Liczba **wysłanych** próśb jest tu, a nie na ekranie nauczyciela: tam byłaby wyrocznią
+    # „ten adres jest uczniem tego konkursu” (plik z jednym wierszem → 0 albo 1).
+    summary = {
+        "created": created,
+        "existing": existing,
+        "consent_requested": consent_requested,
+        "skipped": skipped,
+    }
     audit(
         actor,
         "accounts.students_imported",
         actor if actor is not None else User(pk=0),
-        {"created": created, "linked": linked, "skipped": skipped},
+        summary,
         request=request,
     )
-    logger.info("Import uczniów: założono %s, dowiązano %s, pominięto %s.", created, linked, skipped)
-    return {"created": created, "linked": linked, "skipped": skipped}
+    logger.info(
+        "Import uczniów: założono %s, adresów zajętych %s (próśb o zgodę %s), pominięto %s.",
+        created,
+        existing,
+        consent_requested,
+        skipped,
+    )
+    return summary
 
 
 # --- zaproszenie ------------------------------------------------------------------------------

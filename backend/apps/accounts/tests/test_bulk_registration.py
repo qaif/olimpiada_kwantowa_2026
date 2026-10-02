@@ -16,8 +16,9 @@ from django.utils import timezone
 
 from apps.accounts.bulk_registration import (
     ACTION_CREATE,
-    ACTION_LINK,
+    ACTION_EXISTING,
     ACTION_SKIP,
+    EXISTING_NOTE,
     INVITE_SALT,
     MAX_ROWS,
     STATE_ACTIVE,
@@ -172,24 +173,34 @@ def test_adres_powtorzony_w_pliku_liczy_sie_raz():
     assert "powtórzony" in " ".join(result.rows[1].errors)
 
 
-def test_istniejace_konto_uczestnika_jest_dowiazywane_a_nie_zakladane_drugi_raz():
+def test_istniejace_konto_uczestnika_nie_jest_zakladane_drugi_raz():
     """Uczeń, który zapisał się sam tydzień wcześniej, nie traci konta i nie dostaje drugiego."""
     ParticipantFactory(user=UserFactory(email="ola@example.test"))
     result = preview(row("ola@example.test"))
-    assert result.rows[0].action == ACTION_LINK
+    assert result.rows[0].action == ACTION_EXISTING
     assert result.to_create == 0
+    assert result.existing == 1
 
 
-def test_adres_konta_bez_profilu_uczestnika_jest_pomijany():
-    """Konto recenzenta albo koordynatora nie dostaje profilu uczestnika z cudzego pliku.
+def test_zajety_adres_ma_jedna_etykiete_bez_wzgledu_na_to_czyje_to_konto():
+    """Podgląd nie odróżnia konta ucznia od konta recenzenta (v0.38.7).
 
-    Dorobienie profilu zmieniałoby komuś rolę w zawodach na podstawie arkusza wgranego przez
-    osobę trzecią – a rolę w komitecie nadaje kod zaproszenia, nie lista klasowa.
+    Do v0.38.5 adres recenzenta albo koordynatora dostawał „pominięty – konto nie jest kontem
+    uczestnika”, a adres ucznia „dopisanie do listy”: plik z jednym wierszem był wyszukiwarką ról
+    w serwisie. Teraz oba wiersze mają **identyczne** rozstrzygnięcie, notkę i liczniki – a konto
+    recenzenta nadal nie dostaje z cudzego pliku profilu uczestnika (sprawdza to test zapisu).
     """
+    ParticipantFactory(user=UserFactory(email="uczen@example.test"))
     UserFactory(email="recenzent@example.test")
-    result = preview(row("recenzent@example.test"))
-    assert result.rows[0].action == ACTION_SKIP
-    assert "nie jest kontem uczestnika" in " ".join(result.rows[0].errors)
+    student = preview(row("uczen@example.test")).rows[0]
+    reviewer = preview(row("recenzent@example.test")).rows[0]
+    assert (student.action, student.errors, student.notes) == (
+        reviewer.action,
+        reviewer.errors,
+        reviewer.notes,
+    )
+    assert student.action == ACTION_EXISTING
+    assert student.notes == [str(EXISTING_NOTE)]
 
 
 def test_niepelnoletni_bez_adresu_opiekuna_jest_oznaczony_ale_nie_odrzucony():
@@ -264,7 +275,7 @@ def test_zaproszone_konto_jest_nieaktywne_bez_hasla_i_bez_zgod(django_capture_on
     """Sedno przepływu: konto istnieje, ale nie da się na nie wejść i nikt się za nikogo nie zgodził."""
     with django_capture_on_commit_callbacks(execute=True):
         summary = do_import(row("kasia@example.test", grade=3))
-    assert summary == {"created": 1, "linked": 0, "skipped": 0}
+    assert summary == {"created": 1, "existing": 0, "consent_requested": 0, "skipped": 0}
     user = User.objects.get(email="kasia@example.test")
     assert user.is_active is False
     assert user.email_verified_at is None
@@ -301,19 +312,41 @@ def test_import_wysyla_kazdemu_uczniowi_list_bez_danych_osob_trzecich(
     assert SUPERVISOR_EMAIL not in message.body
 
 
-def test_dowiazanie_istniejacego_konta_ustawia_opiekuna_i_nie_rusza_zgod(
+def test_istniejace_konto_dostaje_prosbe_o_zgode_a_nie_opiekuna(
     django_capture_on_commit_callbacks, mailoutbox
 ):
-    """Konto, które już istnieje, dostaje wyłącznie adres opiekuna – żadnego listu i żadnej zmiany zgód."""
-    participant = ParticipantFactory(user=UserFactory(email="ola@example.test"))
+    """Import nie zapisuje nic w profilu istniejącego ucznia – wysyła mu prośbę o zgodę (v0.38.7).
+
+    Do v0.38.5 ten test sprawdzał coś odwrotnego: adres osoby wgrywającej plik stawał się adresem
+    opiekuna ucznia od razu, bez jego wiedzy. Teraz adres i zgody zostają nietknięte, a uczeń dostaje
+    dokładnie jeden list – z linkiem do strony, na której sam zdecyduje.
+    """
+    participant = ParticipantFactory(user=UserFactory(email="ola@example.test"), supervisor_email="")
     consents_before = participant.gdpr_consent_at
     with django_capture_on_commit_callbacks(execute=True):
         summary = do_import(row("ola@example.test"))
     participant.refresh_from_db()
-    assert summary == {"created": 0, "linked": 1, "skipped": 0}
-    assert participant.supervisor_email == SUPERVISOR_EMAIL
+    assert summary == {"created": 0, "existing": 1, "consent_requested": 1, "skipped": 0}
+    assert participant.supervisor_email == ""
     assert participant.gdpr_consent_at == consents_before
     assert participant.invited_at is None
+    assert [message.to for message in mailoutbox] == [["ola@example.test"]]
+    assert "/opiekun/zgoda/" in mailoutbox[0].body
+
+
+def test_konto_bez_profilu_uczestnika_nie_dostaje_ani_profilu_ani_listu(
+    django_capture_on_commit_callbacks, mailoutbox
+):
+    """Zajęty adres recenzenta przechodzi przez podgląd jak każdy inny, ale zapis nic z nim nie robi.
+
+    Ani profilu uczestnika (zmieniałby komuś rolę w zawodach na podstawie cudzego arkusza), ani
+    listu – prośba o zgodę na opiekuna nie ma czego dotyczyć u kogoś, kto nie startuje.
+    """
+    reviewer = UserFactory(email="recenzent@example.test")
+    with django_capture_on_commit_callbacks(execute=True):
+        summary = do_import(row("recenzent@example.test"))
+    assert summary == {"created": 0, "existing": 1, "consent_requested": 0, "skipped": 0}
+    assert not Participant.objects.filter(user=reviewer).exists()
     assert mailoutbox == []
 
 

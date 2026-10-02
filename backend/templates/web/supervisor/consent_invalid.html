@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% comment %}
+  Prośba o zgodę na opiekuna, której nie da się już rozpatrzyć: link zły, wygasły, nieaktualny
+  (uczeń w międzyczasie zmienił opiekuna albo już się zgodził) albo otwarty na **innym** koncie.
+  Komunikat przychodzi z serwisu i dla pierwszych trzech powodów jest jeden – rozróżnienie
+  zamieniłoby stronę w narzędzie do sprawdzania, czy dany token kiedyś istniał.
+{% endcomment %}
+{% block title %}{% translate "Link jest nieprawidłowy" %}{% endblock %}
+{% block timeline_strip %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow">{% translate "Opiekun szkolny" %}</span>
+  <h1>{% translate "Ten link nie działa" %}</h1>
+  <p class="lead">{{ detail }}</p>
+  <p class="hint">
+    {% translate "Opiekuna szkolnego możesz w każdej chwili wpisać albo usunąć sam – w swoim profilu uczestnika." %}
+  </p>
+</div>
+{% endblock %}

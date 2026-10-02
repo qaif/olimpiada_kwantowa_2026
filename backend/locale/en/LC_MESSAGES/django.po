@@ -3514,8 +3514,8 @@ msgid "Gotowy wiersz nagłówka do skopiowania do arkusza:"
 msgstr "A ready heading row to copy into your spreadsheet:"
 
 #: templates/web/supervisor/_import_form.html
-msgid "Uczniów, którzy mają już konto w serwisie, nie zakładamy drugi raz – zostaną tylko dopisani do Twojej listy. Nikomu nie ustawiasz hasła: każdy uczeń dostaje list z linkiem, pod którym sam ustala hasło i sam składa wymagane oświadczenia."
-msgstr "Students who already have an account are not created a second time – they are only added to your list. You do not set anybody's password: every student gets an e-mail with a link where they set their own password and make the required declarations themselves."
+msgid "Uczniów, którzy mają już konto w serwisie, nie zakładamy drugi raz i nie zmieniamy ich profilu – dostaną list z prośbą o zgodę na dopisanie opiekuna i pojawią się na liście dopiero po jej wyrażeniu. Nikomu nie ustawiasz hasła: każdy nowy uczeń dostaje list z linkiem, pod którym sam ustala hasło i sam składa wymagane oświadczenia."
+msgstr "Students who already have an account are not created a second time and their profile is not changed – they get an e-mail asking for consent to add you as their school supervisor and appear on your list only after they agree. You do not set anybody's password: every new student gets an e-mail with a link where they set their own password and make the required declarations themselves."
 
 #: templates/web/supervisor/_import_form.html
 msgid "Wgraj listę"
@@ -3536,8 +3536,8 @@ msgstr "What happens once you confirm"
 
 #: templates/web/supervisor/_import_preview.html
 #, python-format
-msgid "Nowe zaproszenia: %(created)s · dopisani do Twojej listy: %(linked)s · pominięci: %(skipped)s."
-msgstr "New invitations: %(created)s · added to your list: %(linked)s · skipped: %(skipped)s."
+msgid "Nowe zaproszenia: %(created)s · adresy z istniejącym kontem: %(existing)s · pominięci: %(skipped)s."
+msgstr "New invitations: %(created)s · addresses with an existing account: %(existing)s · skipped: %(skipped)s."
 
 #: templates/web/supervisor/_import_preview.html
 #, python-format
@@ -3575,8 +3575,8 @@ msgid "zaproszenie"
 msgstr "invitation"
 
 #: templates/web/supervisor/_import_preview.html
-msgid "dopisanie do listy"
-msgstr "added to the list"
+msgid "adres ma już konto"
+msgstr "address already has an account"
 
 #: templates/web/supervisor/_import_preview.html
 msgid "pominięty"
@@ -4195,3 +4195,188 @@ msgstr ""
 #: templates/web/account/profile.html
 msgid "Zapisz ustawienia wiadomości"
 msgstr "Save message settings"
+
+# --- v0.38.6: zgoda ucznia na opiekuna szkolnego (apps.accounts.supervisor_consent) ---
+#: apps/accounts/supervisor_consent.py
+msgid "Prośba o zgodę na opiekuna szkolnego – Olimpiada Kwantowa"
+msgstr "Request for consent to a school supervisor – Olimpiada Kwantowa"
+
+#: apps/accounts/supervisor_consent.py
+#, python-format
+msgid "Prośba o zgodę na opiekuna szkolnego – %(competition)s"
+msgstr "Request for consent to a school supervisor – %(competition)s"
+
+#: apps/accounts/supervisor_consent.py
+msgid "Link z prośbą o zgodę jest nieprawidłowy, wygasł albo jest już nieaktualny."
+msgstr "The consent request link is invalid, has expired or is no longer current."
+
+#: apps/accounts/supervisor_consent.py
+msgid "Ta prośba jest adresowana do innego konta. Zaloguj się na konto, na które przyszedł list."
+msgstr "This request is addressed to a different account. Log in to the account the e-mail was sent to."
+
+#: apps/accounts/bulk_registration.py
+msgid "adres ma już konto – jeśli to uczeń tego konkursu, dostanie prośbę o zgodę na dopisanie opiekuna"
+msgstr "the address already has an account – if it belongs to a student of this competition, they will be asked to consent to adding a supervisor"
+
+#: templates/web/supervisor/_import_preview.html
+msgid "Konta, które już istnieją, nie są zakładane drugi raz ani zmieniane. Jeśli adres należy do ucznia tego konkursu, dostanie on list z prośbą o zgodę na dopisanie opiekuna – zobaczysz go na swojej liście dopiero po jego zgodzie."
+msgstr "Existing accounts are neither created again nor changed. If an address belongs to a student of this competition, they will get an e-mail asking for consent to add a supervisor – you will see them on your list only after they agree."
+
+#: templates/web/supervisor/consent.html
+msgid "Prośba o dopisanie opiekuna szkolnego"
+msgstr "Request to add a school supervisor"
+
+#: templates/web/supervisor/consent.html
+msgid "Opiekun szkolny"
+msgstr "School supervisor"
+
+#: templates/web/supervisor/consent.html
+#, python-format
+msgid "Nauczyciel <strong>%(name)s</strong> (%(email)s) prosi o dopisanie jako Twój opiekun szkolny w konkursie %(competition)s."
+msgstr "Teacher <strong>%(name)s</strong> (%(email)s) asks to be added as your school supervisor in %(competition)s."
+
+#: templates/web/supervisor/consent.html
+#, python-format
+msgid "Nauczyciel z adresem <strong>%(email)s</strong> prosi o dopisanie jako Twój opiekun szkolny w konkursie %(competition)s."
+msgstr "A teacher with the address <strong>%(email)s</strong> asks to be added as your school supervisor in %(competition)s."
+
+#: templates/web/supervisor/consent.html
+#, python-format
+msgid "Szkoła podana przez nauczyciela przy rejestracji: %(school)s."
+msgstr "School given by the teacher at registration: %(school)s."
+
+#: templates/web/supervisor/consent.html
+msgid "Prośba przyszła z listy uczniów wgranej przez organizatora konkursu, który wskazał tego nauczyciela jako Twojego opiekuna."
+msgstr "The request comes from a student list uploaded by the competition organiser, who named this teacher as your supervisor."
+
+#: templates/web/supervisor/consent.html
+msgid "Ten adres nie ma jeszcze konta opiekuna w serwisie – nauczyciel zobaczy Cię na swojej liście dopiero wtedy, gdy je założy."
+msgstr "This address does not have a supervisor account yet – the teacher will see you on their list only once they create one."
+
+#: templates/web/supervisor/consent.html
+msgid "Co zobaczy nauczyciel, jeśli się zgodzisz"
+msgstr "What the teacher will see if you agree"
+
+#: templates/web/supervisor/consent.html
+msgid "Twoje imię i nazwisko, kod uczestnika, szkołę i klasę;"
+msgstr "your first and last name, participant code, school and grade;"
+
+#: templates/web/supervisor/consent.html
+msgid "na jakim etapie procedury są Twoje prace w każdym etapie: oddane, w ocenie, ocenione, wyniki;"
+msgstr "where your work is in the procedure at every stage: submitted, under review, graded, results;"
+
+#: templates/web/supervisor/consent.html
+msgid "liczbę punktów – wyłącznie po ogłoszeniu wyników etapu, czyli tę samą, którą widać w publicznej tabeli;"
+msgstr "your points – only after the stage results are announced, i.e. the same number as in the public table;"
+
+#: templates/web/supervisor/consent.html
+msgid "czy Twoje konto jest już aktywne."
+msgstr "whether your account is already active."
+
+#: templates/web/supervisor/consent.html
+msgid "Nauczyciel nie zobaczy Twoich prac, komentarzy recenzentów, punktów przed ogłoszeniem wyników ani Twoich danych kontaktowych i zgód."
+msgstr "The teacher will not see your work, reviewers' comments, points before the results are announced, or your contact details and consents."
+
+#: templates/web/supervisor/consent.html
+#, python-format
+msgid "Masz już opiekuna szkolnego: <strong>%(current)s</strong>. Opiekun jest jeden – jeśli się zgodzisz, nowy nauczyciel <strong>zastąpi</strong> obecnego, a obecny przestanie widzieć Twój przebieg zawodów."
+msgstr "You already have a school supervisor: <strong>%(current)s</strong>. There is only one – if you agree, the new teacher <strong>replaces</strong> the current one, who will no longer see your progress in the competition."
+
+#: templates/web/supervisor/consent.html
+msgid "Wybierz jedną z dwóch odpowiedzi."
+msgstr "Choose one of the two answers."
+
+#: templates/web/supervisor/consent.html
+msgid "Zgadzam się"
+msgstr "I agree"
+
+#: templates/web/supervisor/consent.html
+msgid "Nie zgadzam się"
+msgstr "I do not agree"
+
+#: templates/web/supervisor/consent.html
+#, python-format
+msgid "Link jest ważny %(days)s dni. Decyzję możesz zmienić w każdej chwili w swoim profilu – polem „Adres e-mail opiekuna szkolnego”. Jeśli nie znasz tej osoby, wybierz „Nie zgadzam się” i daj znać organizatorowi."
+msgstr "The link is valid for %(days)s days. You can change your decision at any time in your profile – in the “School supervisor e-mail address” field. If you do not know this person, choose “I do not agree” and let the organiser know."
+
+#: templates/web/supervisor/consent_invalid.html
+msgid "Opiekuna szkolnego możesz w każdej chwili wpisać albo usunąć sam – w swoim profilu uczestnika."
+msgstr "You can add or remove your school supervisor yourself at any time – in your participant profile."
+
+#: templates/registration/supervisor_consent_body.txt
+#, python-format
+msgid "Cześć %(name)s!"
+msgstr "Hi %(name)s!"
+
+#: templates/registration/supervisor_consent_body.txt
+#, python-format
+msgid "Organizator konkursu %(competition)s, wgrywając listę uczniów, wskazał nauczyciela %(teacher)s (%(email)s) jako Twojego opiekuna szkolnego."
+msgstr "While uploading a student list, the organiser of %(competition)s named teacher %(teacher)s (%(email)s) as your school supervisor."
+
+#: templates/registration/supervisor_consent_body.txt
+#, python-format
+msgid "Organizator konkursu %(competition)s, wgrywając listę uczniów, wskazał nauczyciela z adresem %(email)s jako Twojego opiekuna szkolnego."
+msgstr "While uploading a student list, the organiser of %(competition)s named a teacher with the address %(email)s as your school supervisor."
+
+#: templates/registration/supervisor_consent_body.txt
+#, python-format
+msgid "Nauczyciel %(teacher)s (%(email)s) prosi o dopisanie jako Twój opiekun szkolny w konkursie %(competition)s."
+msgstr "Teacher %(teacher)s (%(email)s) asks to be added as your school supervisor in %(competition)s."
+
+#: templates/registration/supervisor_consent_body.txt
+#, python-format
+msgid "Nauczyciel z adresem %(email)s prosi o dopisanie jako Twój opiekun szkolny w konkursie %(competition)s."
+msgstr "A teacher with the address %(email)s asks to be added as your school supervisor in %(competition)s."
+
+#: templates/registration/supervisor_consent_body.txt
+msgid "Opiekun szkolny widzi Twoje imię i nazwisko, kod uczestnika, szkołę, klasę i to, na jakim etapie procedury są Twoje prace – punkty dopiero po ogłoszeniu wyników. Nie widzi Twoich prac ani komentarzy recenzentów."
+msgstr "A school supervisor sees your name, participant code, school, grade and where your work is in the procedure – points only after the results are announced. They do not see your work or reviewers' comments."
+
+#: templates/registration/supervisor_consent_body.txt
+msgid "Decyzja należy do Ciebie. Zaloguj się na swoje konto i otwórz poniższy adres – zobaczysz tam szczegóły i dwa przyciski: „Zgadzam się” i „Nie zgadzam się”:"
+msgstr "The decision is yours. Log in to your account and open the address below – you will see the details and two buttons: “I agree” and “I do not agree”:"
+
+#: templates/registration/supervisor_consent_body.txt
+#, python-format
+msgid "Link jest ważny %(days)s dni. Jeśli masz już opiekuna szkolnego, zgoda go zastąpi – strona powie to wprost."
+msgstr "The link is valid for %(days)s days. If you already have a school supervisor, agreeing replaces them – the page says so explicitly."
+
+#: templates/registration/supervisor_consent_body.txt
+msgid "Jeśli nie znasz tej osoby albo nie chcesz jej dopisywać – zignoruj tę wiadomość. Bez Twojego kliknięcia nic się nie zmieni."
+msgstr "If you do not know this person or do not want to add them – ignore this message. Nothing changes without your click."
+
+#: templates/registration/supervisor_consent_body.html
+msgid "Prośba o zgodę na opiekuna szkolnego"
+msgstr "Request for consent to a school supervisor"
+
+#: templates/registration/supervisor_consent_body.html
+#, python-format
+msgid "Organizator konkursu %(competition)s, wgrywając listę uczniów, wskazał nauczyciela <strong>%(teacher)s</strong> (%(email)s) jako Twojego opiekuna szkolnego."
+msgstr "While uploading a student list, the organiser of %(competition)s named teacher <strong>%(teacher)s</strong> (%(email)s) as your school supervisor."
+
+#: templates/registration/supervisor_consent_body.html
+#, python-format
+msgid "Organizator konkursu %(competition)s, wgrywając listę uczniów, wskazał nauczyciela z adresem <strong>%(email)s</strong> jako Twojego opiekuna szkolnego."
+msgstr "While uploading a student list, the organiser of %(competition)s named a teacher with the address <strong>%(email)s</strong> as your school supervisor."
+
+#: templates/registration/supervisor_consent_body.html
+#, python-format
+msgid "Nauczyciel <strong>%(teacher)s</strong> (%(email)s) prosi o dopisanie jako Twój opiekun szkolny w konkursie %(competition)s."
+msgstr "Teacher <strong>%(teacher)s</strong> (%(email)s) asks to be added as your school supervisor in %(competition)s."
+
+#: templates/registration/supervisor_consent_body.html
+msgid "Zobacz prośbę i zdecyduj"
+msgstr "See the request and decide"
+
+#: templates/registration/supervisor_consent_body.html
+msgid "Strona wymaga zalogowania na Twoje konto. Jeśli przycisk nie działa, skopiuj ten adres do przeglądarki:"
+msgstr "The page requires you to log in to your account. If the button does not work, copy this address into your browser:"
+
+#: templates/registration/supervisor_consent_body.html
+#, python-format
+msgid "Link jest ważny <strong>%(days)s dni</strong>. Jeśli masz już opiekuna szkolnego, zgoda go zastąpi – strona powie to wprost."
+msgstr "The link is valid for <strong>%(days)s days</strong>. If you already have a school supervisor, agreeing replaces them – the page says so explicitly."
+
+#: templates/registration/supervisor_consent_body.html
+msgid "wiadomość wysłana automatycznie, prosimy na nią nie odpowiadać."
+msgstr "automated message, please do not reply."

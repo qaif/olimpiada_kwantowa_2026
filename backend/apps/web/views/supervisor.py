@@ -46,6 +46,7 @@ from apps.accounts.bulk_registration import (
 )
 from apps.accounts.consents import ConsentSource
 from apps.accounts.models import Participant
+from apps.accounts.supervisor_consent import VIA_COORDINATOR, VIA_SUPERVISOR
 from apps.accounts.supervisors import (
     confirm_participation,
     has_confirmed,
@@ -262,6 +263,9 @@ class BaseStudentImportView(View):
 
     #: Czy plik może nieść kolumnę „e-mail opiekuna szkolnego” (import koordynatora).
     with_supervisor_column = False
+    #: Kto prosi ucznia z istniejącym kontem o zgodę na opiekuna – trafia do listu, na stronę
+    #: zgody i do audytu (``apps.accounts.supervisor_consent``). Zgody wymagają **obie** drogi.
+    consent_via = VIA_SUPERVISOR
     #: Rama strony. Treść obu ekranów jest wspólna (fragmenty ``_import_*.html``); różni je
     #: wyłącznie to, w co jest oprawiona.
     import_template = IMPORT_TEMPLATE
@@ -332,15 +336,20 @@ class BaseStudentImportView(View):
                 school_name=school_name,
                 school_ref=school_ref,
                 default_supervisor_email=self.default_supervisor_email(),
+                via=self.consent_via,
                 actor=request.user,
                 request=request,
             )
         except DomainError as exc:
             messages.error(request, str(exc.detail))
             return redirect(request.path)
+        # Trzy liczby i **żadnej** czwartej: ile próśb o zgodę naprawdę wyszło, wie audyt
+        # (``accounts.students_imported``), a nie ekran – plik z jednym adresem zamieniałby tę liczbę
+        # w odpowiedź „to jest / nie jest uczeń tego konkursu”, którą podgląd przestał dawać.
         messages.success(
             request,
-            "Import zakończony: zaproszono {created}, dopisano do istniejących kont {linked}, "
+            "Import zakończony: zaproszono {created}, adresów z istniejącym kontem {existing} "
+            "(uczniowie tego konkursu dostali prośbę o zgodę na dopisanie opiekuna), "
             "pominięto {skipped}.".format(**summary),
         )
         return redirect(self.success_url())
@@ -388,13 +397,23 @@ class BaseStudentImportView(View):
         )
 
 
-class SupervisorImportView(SupervisorRequiredMixin, BaseStudentImportView):
+class SupervisorImportView(SupervisorRequiredMixin, ThrottledFormMixin, BaseStudentImportView):
     """``/supervisor/import/`` – nauczyciel wgrywa listę swojej klasy.
 
     CAPTCHY tu nie ma i nie będzie: opiekun jest zalogowany, a jego konto przeszło rejestrację
     z CAPTCHĄ i aktywacją adresu. Dokładanie obrazka przed każdą czynnością zalogowanego
     użytkownika chroniłoby przed niczym, a kosztowałoby dostępność.
+
+    **Limit żądań** jest (od v0.38.7) i liczy każdy POST – podgląd i zatwierdzenie. Zatwierdzenie
+    wysyła do pięciuset listów (zaproszenia i prośby o zgodę), a rejestracja opiekunów jest otwarta,
+    więc bez limitu konto opiekuna byłoby tanim wysyłaczem poczty na adresy z dowolnego arkusza.
+    Scope ``upload`` (30/godz.), bo to jest wgranie pliku, i to właśnie jego stawka pasuje do
+    człowieka: nauczyciel poprawiający arkusz robi kilka podglądów, nie kilkadziesiąt. Mixin stoi
+    **za** bramką roli, więc anonimowy POST dostaje przekierowanie na logowanie, a nie zużywa limitu.
+    Import koordynatora limitu nie ma – rola jest nadawana ręcznie i nie da się jej założyć samemu.
     """
+
+    throttle_scope = "upload"
 
     def default_supervisor_email(self) -> str:
         # Adres bierzemy z **konta** opiekuna, a nie z pola formularza: to ten sam adres, po którym
@@ -419,9 +438,15 @@ class CoordinatorStudentImportView(CoordinatorRequiredMixin, BaseStudentImportVi
       uczniów komuś innemu,
     - szkoła jest **obowiązkowa** w formularzu: koordynator nie ma „własnej” szkoły, a domyślenie
       się jej z czegokolwiek byłoby zgadywaniem.
+
+    Czego różnicą **nie** jest (od v0.38.7): zgody ucznia. Kolumna opiekuna przypisuje nauczyciela
+    od razu wyłącznie kontom, które import zakłada; uczeń z istniejącym kontem dostaje prośbę
+    o zgodę, tak samo jak przy imporcie nauczyciela – uzasadnienie w
+    ``apps.accounts.bulk_registration.import_students``.
     """
 
     with_supervisor_column = True
+    consent_via = VIA_COORDINATOR
     import_template = IMPORT_TEMPLATE_COORDINATOR
     preview_template = IMPORT_PREVIEW_TEMPLATE_COORDINATOR
 

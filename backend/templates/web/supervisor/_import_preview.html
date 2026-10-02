@@ -13,10 +13,19 @@
   <div class="section__head">
     <h2 class="mt-0">{% translate "Co się stanie po zatwierdzeniu" %}</h2>
     <p class="hint">
-      {% blocktranslate trimmed with created=preview.to_create linked=preview.to_link skipped=preview.skipped %}
-        Nowe zaproszenia: {{ created }} · dopisani do Twojej listy: {{ linked }} · pominięci: {{ skipped }}.
+      {% blocktranslate trimmed with created=preview.to_create existing=preview.existing skipped=preview.skipped %}
+        Nowe zaproszenia: {{ created }} · adresy z istniejącym kontem: {{ existing }} · pominięci: {{ skipped }}.
       {% endblocktranslate %}
     </p>
+    {% comment %}
+      Jedno zdanie o **każdym** zajętym adresie (v0.38.7). Podgląd nie mówi, czy adres należy do
+      ucznia tego konkursu, czy do kogoś innego (recenzenta, koordynatora) – to rozróżnienie było
+      wyszukiwarką ról w serwisie. Uczeń dostaje prośbę o zgodę i dopiero jego decyzja dopisuje
+      opiekuna (``apps.accounts.supervisor_consent``); nauczyciel nie dowiaduje się, jaka zapadła.
+    {% endcomment %}
+    {% if preview.existing %}
+      <p class="hint">{% translate "Konta, które już istnieją, nie są zakładane drugi raz ani zmieniane. Jeśli adres należy do ucznia tego konkursu, dostanie on list z prośbą o zgodę na dopisanie opiekuna – zobaczysz go na swojej liście dopiero po jego zgodzie." %}</p>
+    {% endif %}
   </div>
   <div class="card">
     <p>{% blocktranslate trimmed with school=school_name %}
@@ -65,8 +74,8 @@
             <td>
               {% if row.action == "create" %}
                 <span class="badge badge--ok">{% translate "zaproszenie" %}</span>
-              {% elif row.action == "link" %}
-                <span class="badge badge--info">{% translate "dopisanie do listy" %}</span>
+              {% elif row.action == "existing" %}
+                <span class="badge badge--info">{% translate "adres ma już konto" %}</span>
               {% else %}
                 <span class="badge badge--warn">{% translate "pominięty" %}</span>
               {% endif %}
