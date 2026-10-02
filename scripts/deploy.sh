@@ -581,9 +581,24 @@ fi
 # Przed stroną prac technicznych, jak build: pobieranie nie wymaga zatrzymania czegokolwiek.
 # Rejestr niedostępny (awaria Docker Hub, limit pobrań) NIE zatrzymuje wdrożenia: obrazy z poprzedniego
 # pobrania leżą na serwerze i usługi wstaną na nich, jak wstawały dotąd – ostrzeżenie w logu.
+#
+# Jedno polecenie dla wszystkich usług jest drogą szybką, ale `docker compose pull` przerywa CAŁE
+# pobieranie, gdy rejestr odmówi jednego obrazu (wdrożenie v0.38.3, 2.10.2026: `minio/minio` nie jest
+# już do pobrania z Docker Hub – „repository does not exist” – i przez to nie odświeżył się żaden
+# z pozostałych). Po błędzie próbujemy więc każdej usługi osobno: odmowa dla jednej nie zabiera
+# poprawek pozostałym, a ostrzeżenie mówi, której usługi dotyczy.
 if ! docker compose pull --ignore-buildable --quiet; then
-  echo "UWAGA: nie udało się pobrać obrazów cudzych usług (rejestr?) – wdrożenie idzie dalej na obrazach,"
-  echo "       które są już na serwerze. Ponów później: docker compose pull --ignore-buildable && docker compose up -d"
+  PULL_FAILED=""
+  PULL_SERVICES="$(docker compose config --services 2>/dev/null || true)"
+  for pull_service in $PULL_SERVICES; do
+    docker compose pull --ignore-buildable --quiet "$pull_service" >/dev/null 2>&1 \
+      || PULL_FAILED="$PULL_FAILED $pull_service"
+  done
+  if [ -z "$PULL_SERVICES" ] || [ -n "$PULL_FAILED" ]; then
+    echo "UWAGA: nie udało się pobrać obrazów cudzych usług${PULL_FAILED:+ (${PULL_FAILED# })} – wdrożenie idzie dalej"
+    echo "       na obrazach, które są już na serwerze. Pozostałe usługi pobrano osobno."
+    echo "       Ponów później: docker compose pull --ignore-buildable <usługa> && docker compose up -d"
+  fi
 fi
 if [ "${MAINTENANCE:-0}" = "1" ]; then
   # --maintenance: strona włączona, zanim cokolwiek z aplikacji zostanie zatrzymane, i PRZED kopią

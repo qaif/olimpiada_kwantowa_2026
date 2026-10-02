@@ -62,6 +62,11 @@ case "$*" in
   "compose config") echo "name: olimpiada" ;;
   # Pobranie obrazów cudzych usług – STUB_PULL_RC≠0 udaje niedostępny rejestr.
   "compose pull --ignore-buildable --quiet") exit "${STUB_PULL_RC:-0}" ;;
+  # Droga zapasowa po nieudanym pobraniu zbiorczym: lista usług i pobranie każdej osobno;
+  # STUB_PULL_FAIL wymienia usługi, których obrazu rejestr odmawia.
+  "compose config --services") printf 'db\nredis\nminio\n' ;;
+  "compose pull --ignore-buildable --quiet "*)
+    case " ${STUB_PULL_FAIL:-} " in *" $5 "*) exit 1 ;; esac ;;
   "volume inspect "*)
     case " ${DOCKER_VOLUMES:-} " in *" $3 "*) exit 0 ;; *) exit 1 ;; esac ;;
 esac
@@ -90,7 +95,8 @@ krok4() {
   # zwraca kod wyjścia skryptu.
   : >"$LOG"
   ( cd "$SRV" && PATH="$WORK/bin:$PATH" DOCKER_LOG="$LOG" REMOTE_DIR="$SRV" WEB_IMAGE="$1" \
-      DOCKER_VOLUMES="${2:-}" MAINTENANCE="${MAINTENANCE:-0}" STUB_PULL_RC="${STUB_PULL_RC:-0}" MAINTENANCE_MESSAGE="Test." \
+      DOCKER_VOLUMES="${2:-}" MAINTENANCE="${MAINTENANCE:-0}" STUB_PULL_RC="${STUB_PULL_RC:-0}" \
+      STUB_PULL_FAIL="${STUB_PULL_FAIL:-}" MAINTENANCE_MESSAGE="Test." \
       MAINTENANCE_MINUTES=10 bash "$WORK/krok4.sh" ) >"$WORK/stdout" 2>&1
 }
 
@@ -193,10 +199,26 @@ cp "$WORK/env.redis-ok" "$SRV/.env"
 
 # 4c. Obrazy cudzych usług: niedostępny rejestr to ostrzeżenie, nie przerwane wdrożenie – reszta
 #     kroku (start bazy) idzie dalej na obrazach, które już są na serwerze.
+#     Po nieudanym pobraniu zbiorczym każda usługa jest pobierana osobno, więc odmowa dla jednego
+#     obrazu (2.10.2026: `minio/minio` zniknął z Docker Hub) nie blokuje odświeżenia pozostałych.
+PO_BLEDZIE="${DZISIAJ/compose pull --ignore-buildable --quiet/compose pull --ignore-buildable --quiet
+compose config --services
+compose pull --ignore-buildable --quiet db
+compose pull --ignore-buildable --quiet redis
+compose pull --ignore-buildable --quiet minio}"
+STUB_PULL_RC=1 STUB_PULL_FAIL="minio" krok4 ""
+rc=$?
+[ $rc -eq 0 ] && [ "$(cat "$LOG")" = "$PO_BLEDZIE" ] && grep -q 'UWAGA: nie udało się pobrać obrazów cudzych usług (minio)' "$WORK/stdout"
+check "obraz jednej usługi niedostępny: pozostałe pobrane osobno, ostrzeżenie wymienia tę usługę, krok 4/8 kończy się powodzeniem" $?
+[ "$(cat "$LOG")" = "$PO_BLEDZIE" ] || { printf -- '--- wykonane:\n'; sed 's/^/     /' "$LOG"; }
+STUB_PULL_RC=1 STUB_PULL_FAIL="db redis minio" krok4 ""
+rc=$?
+[ $rc -eq 0 ] && grep -q 'UWAGA: nie udało się pobrać obrazów cudzych usług (db redis minio)' "$WORK/stdout"
+check "rejestr niedostępny dla wszystkich usług: ostrzeżenie, krok 4/8 kończy się powodzeniem" $?
 STUB_PULL_RC=1 krok4 ""
 rc=$?
-[ $rc -eq 0 ] && [ "$(cat "$LOG")" = "$DZISIAJ" ] && grep -q 'UWAGA: nie udało się pobrać obrazów' "$WORK/stdout"
-check "nieudane docker compose pull --ignore-buildable: ostrzeżenie, krok 4/8 kończy się powodzeniem" $?
+[ $rc -eq 0 ] && ! grep -q 'UWAGA: nie udało się pobrać obrazów' "$WORK/stdout"
+check "pobranie zbiorcze nieudane, ale każda usługa osobno pobrana: bez ostrzeżenia" $?
 
 # 5. Nagłówek skryptu opisuje zmienną – wdrożenie bywa czytane wtedy, gdy nie ma czasu na docs/.
 grep -q 'WEB_IMAGE=ghcr.io/' "$DEPLOY"
