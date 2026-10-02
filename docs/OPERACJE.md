@@ -3555,6 +3555,14 @@ generatora) i `scripts/tests/s3_proxy_test.sh` (żywy Caddy z atrapą MinIO: 25 
   idzie dalej na obrazach z serwera. `--ignore-buildable` wymaga Compose ≥ 2.x z tą flagą – sprawdzenie
   (tylko odczyt): `docker compose pull --help | grep ignore-buildable`; bez niej pobranie kończy się
   tym samym ostrzeżeniem przy każdym wdrożeniu.
+- Gdy pobranie zbiorcze się nie uda, krok pobiera **każdą usługę osobno** (`docker compose config
+  --services`, potem `pull --ignore-buildable --quiet <usługa>`), a ostrzeżenie wymienia tylko te,
+  których obrazu rejestr odmówił. Powód: `docker compose pull` przerywa całe pobieranie na pierwszej
+  odmowie. Tak było przy wdrożeniu v0.38.3 (2.10.2026): `minio/minio` nie jest już do pobrania
+  z Docker Hub („repository does not exist”), więc nie odświeżył się żaden obraz. Ostrzeżenie
+  „…(minio)” jest od tej pory **stanem oczekiwanym**, dopóki MinIO nie zostanie zastąpione; serwer
+  działa na obrazie, który ma lokalnie – nie usuwać go (`docker image prune -a`), bo nowa instalacja
+  ani serwer po utracie obrazu go nie pobiorą.
 - Workflow GitHuba (§ 4.2): przypięty klucz hosta (`DEPLOY_SSH_KNOWN_HOSTS`) i
   `SSH_STRICT_HOST_KEY_CHECKING=yes`; `scripts/deploy.sh` przyjmuje wyłącznie `yes` albo `accept-new`.
 
