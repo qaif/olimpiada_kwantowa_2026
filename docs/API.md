@@ -572,6 +572,22 @@ sesji, a te trzy typy wysyła zwykły formularz z obcej strony bez wiedzy użytk
 zalogowanie przeglądarki ofiary na konto napastnika). JSON z obcego pochodzenia wymaga preflightu
 CORS, którego serwis nie przepuszcza. Odpowiedź (`{"token": …}`) i kody błędów bez zmian.
 
+### 6.1c. Logowanie a drugi składnik (od wydania `v0.38.6`)
+
+Dotyczy wyłącznie instalacji z włączonym logowaniem dwuskładnikowym (`TWO_FACTOR_ENABLED=1`);
+przy wyłączonym nic się nie zmienia.
+
+- Konto z potwierdzonym drugim składnikiem podaje w tym samym żądaniu pole `code`: sześć cyfr
+  z aplikacji uwierzytelniającej albo kod zapasowy. Bez pola: `400 TWO_FACTOR_REQUIRED`; zły kod:
+  `400 TWO_FACTOR_INVALID`. W obu wypadkach nie powstaje ani token, ani sesja. Próby liczy ten sam
+  limit `login`.
+- Każde udane logowanie z kodem wydaje **nowy** token; poprzedni przestaje działać.
+- Włączenie drugiego składnika na koncie kasuje tokeny wydane wcześniej (`401` przy następnym
+  użyciu) – trzeba zalogować się ponownie, z kodem.
+- Konto, od którego organizator wymaga drugiego składnika (`TWO_FACTOR_REQUIRED_ROLES`), a które go
+  jeszcze nie skonfigurowało, dostaje `403 TWO_FACTOR_SETUP_REQUIRED`, a jego dotychczasowy token –
+  `401`. Konfiguracja jest w przeglądarce (`/account/2fa/`).
+
 ---
 
 ## 7. Kontakt

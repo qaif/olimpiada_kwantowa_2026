@@ -158,6 +158,9 @@ class CommitteeRegisteredSerializer(serializers.ModelSerializer):
 class LoginSerializer(serializers.Serializer):
     email = serializers.EmailField()
     password = serializers.CharField(write_only=True, trim_whitespace=False, max_length=128)
+    # Kod drugiego składnika (z aplikacji albo zapasowy) – wymagany tylko od konta, które ma
+    # potwierdzone urządzenie, i tylko przy włączonej funkcji (``apps.accounts.api.LoginView``).
+    code = serializers.CharField(write_only=True, required=False, allow_blank=True, max_length=32)
 
 
 class TokenSerializer(serializers.Serializer):

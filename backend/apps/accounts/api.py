@@ -16,6 +16,7 @@ from rest_framework.throttling import ScopedRateThrottle
 
 from apps.core.api import DomainError
 
+from . import twofactor
 from .consents import ConsentSource, descriptions
 from .models import CommitteeMember, CommitteeStatus
 from .permissions import IsCoordinator
@@ -127,9 +128,56 @@ class LoginView(GenericAPIView):
             raise DomainError(
                 "Nieprawidłowy e-mail lub hasło.", "INVALID_CREDENTIALS", status.HTTP_400_BAD_REQUEST
             )
-        token, _ = Token.objects.get_or_create(user=user)
+        second_factor = self._second_factor(request, user, serializer.validated_data.get("code", ""))
+        if second_factor:
+            # Nowy token, a nie ``get_or_create``: token sprzed drugiego składnika nie może po
+            # tym logowaniu dalej działać, a ``TwoFactorTokenAuthentication`` przyjmuje wyłącznie
+            # token młodszy od potwierdzenia urządzenia.
+            Token.objects.filter(user=user).delete()
+            token = Token.objects.create(user=user)
+        else:
+            token, _ = Token.objects.get_or_create(user=user)
         login(request._request, user)
+        if second_factor:
+            twofactor.mark_verified(request._request)
         return Response({"token": token.key})
+
+    def _second_factor(self, request, user, code: str) -> bool:
+        """Drugi składnik przy logowaniu przez API. Zwraca, czy konto go przeszło.
+
+        Bez tego kroku token wydany po samym haśle omijał ``TwoFactorMiddleware``, która pilnuje
+        wyłącznie sesji (``apps.accounts.authentication``). Odmowy są **po** sprawdzeniu hasła,
+        więc nie mówią nic komuś, kto hasła nie zna; próby kodu liczy ten sam limit ``login``.
+
+        - konto z potwierdzonym urządzeniem: bez kodu ``TWO_FACTOR_REQUIRED``, ze złym
+          ``TWO_FACTOR_INVALID`` (kod z aplikacji albo kod zapasowy – ``twofactor.verify``),
+        - konto, od którego drugi składnik jest wymagany, a go nie ma: ``TWO_FACTOR_SETUP_REQUIRED``
+          – konfiguracja jest w przeglądarce, API jej nie zastępuje,
+        - pozostałe konta i wyłączona funkcja: bez zmian.
+        """
+        if not twofactor.is_enabled():
+            return False
+        if twofactor.confirmed_device(user) is None:
+            if twofactor.is_required_for(user):
+                raise DomainError(
+                    "To konto musi mieć logowanie dwuskładnikowe. Skonfiguruj je w przeglądarce.",
+                    "TWO_FACTOR_SETUP_REQUIRED",
+                    status.HTTP_403_FORBIDDEN,
+                )
+            return False
+        if not code:
+            raise DomainError(
+                "Podaj kod z aplikacji uwierzytelniającej (pole „code”).",
+                "TWO_FACTOR_REQUIRED",
+                status.HTTP_400_BAD_REQUEST,
+            )
+        if not twofactor.verify(user, code, request=request._request):
+            raise DomainError(
+                "Nieprawidłowy kod logowania dwuskładnikowego.",
+                "TWO_FACTOR_INVALID",
+                status.HTTP_400_BAD_REQUEST,
+            )
+        return True
 
 
 class LogoutView(GenericAPIView):
