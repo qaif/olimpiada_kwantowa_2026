@@ -1,0 +1,35 @@
+{% load web_extras %}{% comment %}
+  Pokoje wideo udostępnione komisji (v0.39.0) – karta w panelu recenzenta i komisji odwoławczej.
+
+  „Dołącz” wystawia **krótką** przepustkę w chwili kliknięcia (``committee-video-room-join``), więc
+  członek komisji nie trzyma i nie przekazuje żadnego długiego linku: wejście działa przez całą
+  ważność pokoju i kończy się w chwili, w której koordynator go zamknie. Bez skonfigurowanych
+  przepustek widok nie liczy tej listy wcale (``rooms_for_committee`` oddaje pustą listę bez
+  zapytania) i karta się nie pojawia.
+
+  Zmienne: ``committee_rooms``, ``video_room_issuer`` (czy pokazać odnośnik do własnych pokoi).
+{% endcomment %}
+{% if committee_rooms or video_room_issuer %}
+  <section class="section" aria-labelledby="committee-rooms-title">
+    <div class="section__head">
+      <h2 class="mt-0" id="committee-rooms-title">Pokoje wideo komisji</h2>
+      {% if video_room_issuer %}
+        <a class="btn btn--secondary btn--small" href="{% url 'web:committee-video-rooms' %}">Moje pokoje i linki</a>
+      {% endif %}
+    </div>
+    {% if committee_rooms %}
+      <ul class="list">
+        {% for room in committee_rooms %}
+          <li>
+            <strong>{{ room.label }}</strong>
+            <span class="hint">do {{ room.expires_at|local_datetime }}{% if room.committee_as_moderator %} · wchodzisz jako gospodarz{% endif %}</span>
+            <a class="btn btn--primary btn--small" href="{% url 'web:committee-video-room-join' room.pk %}"
+               target="_blank" rel="noopener noreferrer nofollow">Dołącz</a>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="hint">Koordynator nie udostępnił komisji żadnego pokoju.</p>
+    {% endif %}
+  </section>
+{% endif %}

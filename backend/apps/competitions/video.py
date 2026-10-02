@@ -27,6 +27,14 @@ Nazwa pokoju: ``olimpiada-<edycja>-<prefiks identyfikatora terminu>-<6 losowych 
   (``InterviewBooking.meeting_url``), bo to zapis jest tym, co uczestnik widzi i co idzie w liście –
   a przeniesienie zapisu na inny termin ma dać inny adres, nie ten sam.
 
+**Własne Jitsi z przepustkami (v0.39.0).** Gdy pokój leży na ``JITSI_JWT_HOST`` i platforma ma
+sekret przepustek (``apps.competitions.jitsi_jwt``), nazwa pokoju **przestaje** być poświadczeniem:
+Jitsi wpuszcza wyłącznie z tokenem wystawionym przez platformę w chwili kliknięcia „Dołącz”.
+Zapisany adres (``InterviewBooking.meeting_url``) zostaje wtedy **identyfikatorem pokoju**, a nie
+linkiem do kliknięcia – panel, ekrany komisji i listy prowadzą do widoków wejścia platformy
+(``apps.web.views.video``), a nie wprost do pokoju (:func:`letter_link_lines`). Pokój gdzie indziej
+(publiczne ``meet.jit.si``, BBB uczelni wpisane ręcznie) działa dokładnie jak przed tą zmianą.
+
 Czego tu **nie ma i nie będzie**: osadzenia wideo na naszej stronie. Ramka z obcej domeny wymagałaby
 rozluźnienia ``frame-src`` w CSP (dziś: wyłącznie YouTube i Vimeo dla osadzeń redakcyjnych), a wideo
 w ``<iframe>`` prosi przeglądarkę o kamerę i mikrofon **w kontekście naszej domeny**. Link otwiera
@@ -41,6 +49,7 @@ import secrets
 import uuid
 from datetime import timedelta
 
+from django.conf import settings
 from django.db import models
 from django.utils import timezone
 from django.utils.translation import gettext as _
@@ -174,6 +183,94 @@ def precheck_url(meeting_url: str) -> str:
     return f"{cleaned}{PRECHECK_SUFFIX}" if cleaned else ""
 
 
+def booking_meeting_url(booking) -> str:
+    """Adres pokoju zapisu: z zapisu, a dla zapisów sprzed pokoi generowanych – z terminu."""
+    return (booking.meeting_url or booking.slot.meeting_url or "").strip()
+
+
+def slot_meeting_url(slot) -> str:
+    """Adres pokoju terminu: ręczny przy terminie albo ten, który dostał pierwszy zapis.
+
+    Ta sama reguła, co dotąd w szablonie ekranu terminów. Zapisy czytamy przez ``bookings.all()``,
+    więc lista z ``prefetch_related`` (``slots_for_coordinator``) nie płaci tu zapytania.
+    """
+    if slot.meeting_url:
+        return slot.meeting_url.strip()
+    for booking in slot.bookings.all():
+        if booking.meeting_url:
+            return booking.meeting_url.strip()
+    return ""
+
+
+def interview_access(booking, now=None) -> dict:
+    """Jak uczestnik wchodzi na **swoją** rozmowę – jedno rozstrzygnięcie dla karty panelu.
+
+    - ``mode = "platform"`` – pokój na naszym Jitsi z przepustkami: panel pokazuje przycisk
+      „Dołącz do rozmowy” (widok wejścia), nigdy adresu pokoju; ``opens_at``/``closes_at`` to okno
+      wejścia (``jitsi_jwt.interview_window``),
+    - ``mode = "link"`` – pokój gdzie indziej: adres wprost, jak przed v0.39.0,
+    - ``mode = "none"`` – brak adresu („koordynator poda link przed rozmową”).
+
+    Bez zapytań: zapis przychodzi z terminem (``booking_for_participant`` robi ``select_related``).
+    """
+    from .jitsi_jwt import interview_window, is_platform_room
+
+    url = booking_meeting_url(booking)
+    if not url:
+        return {"mode": "none", "url": ""}
+    if not is_platform_room(url):
+        return {"mode": "link", "url": url}
+    now = now or timezone.now()
+    opens_at, closes_at = interview_window(booking.slot)
+    return {
+        "mode": "platform",
+        "url": "",
+        "opens_at": opens_at,
+        "closes_at": closes_at,
+        "is_open": opens_at <= now < closes_at,
+        "is_over": now >= closes_at,
+    }
+
+
+def letter_link_lines(stage, link: str, *, request=None, competition=None) -> list[str]:
+    """Linijki listu o tym, **jak wejść** na rozmowę – wspólne dla potwierdzenia i przypomnienia.
+
+    Pokój na naszym Jitsi z przepustkami: list niesie adresy **widoków wejścia w panelu**
+    (wymagają zalogowania i wystawiają przepustkę na miejscu), nigdy adresu pokoju ani tokenu –
+    list leży w skrzynce latami, bywa przekazywany dalej, a token w nim byłby przepustką dla
+    każdego, kto go przeczyta. Pokój gdzie indziej: adres wprost, jak przed v0.39.0.
+    """
+    from django.urls import reverse
+
+    from apps.accounts.activation import absolute_url
+
+    from .jitsi_jwt import is_platform_room
+
+    if not link:
+        return []
+    if is_platform_room(link):
+        join = absolute_url(
+            reverse("web:interview-join", args=[stage.pk]), request=request, competition=competition
+        )
+        check = absolute_url(
+            reverse("web:interview-precheck", args=[stage.pk]), request=request, competition=competition
+        )
+        return [
+            _("Wejście na rozmowę (przez panel uczestnika, po zalogowaniu): %(url)s") % {"url": join},
+            _("Sprawdź kamerę i mikrofon: %(url)s") % {"url": check},
+            _(
+                "Pokój rozmowy otwiera się na %(minutes)s minut przed terminem. Wchodzi się wyłącznie "
+                "z panelu uczestnika – sam adres pokoju bez przepustki z panelu nie zadziała, więc "
+                "nie przepisuj go i nie przekazuj dalej."
+            )
+            % {"minutes": settings.JITSI_JWT_LEAD_MINUTES},
+        ]
+    return [
+        _("Link do rozmowy: %(url)s") % {"url": link},
+        _("Sprawdź kamerę i mikrofon: %(url)s") % {"url": precheck_url(link)},
+    ]
+
+
 #: Krótka instrukcja przed rozmową. Jedno miejsce dla panelu i dla listu – inaczej zdanie
 #: „sprawdź kamerę” istniałoby w dwóch brzmieniach i jedno z nich byłoby nieaktualne.
 PRECHECK_TEXT = gettext_lazy(
@@ -207,9 +304,9 @@ def reminder_message(stage, booking, competition=None) -> tuple[str, str]:
     ]
     if booking.slot.note:
         lines.append(_("Oznaczenie: %(note)s") % {"note": booking.slot.note})
-    if booking.meeting_url:
-        lines.append(_("Link do rozmowy: %(url)s") % {"url": booking.meeting_url})
-        lines.append(_("Sprawdź kamerę i mikrofon: %(url)s") % {"url": precheck_url(booking.meeting_url)})
+    # Adres wyłącznie z zapisu – tak jak przed v0.39.0 (bez odwrotu na pole terminu, żeby przy
+    # wyłączonych przepustkach list był co do linijki taki sam, jak był).
+    lines += letter_link_lines(stage, booking.meeting_url, competition=competition)
     lines += [
         "",
         str(PRECHECK_TEXT),

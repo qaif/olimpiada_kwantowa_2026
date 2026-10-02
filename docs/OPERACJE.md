@@ -3593,3 +3593,200 @@ zmienić się obraz Postgresa – punkt 1); bez flagi też zadziała, z krótkim
 `docker-compose.yml` go nie czyta – Redis i adresy wracają do wersji bez hasła, spójnie. Sieci `cache`
 i `clamav_egress` zostają jako nieużywane (nieszkodliwe; `docker network prune` je zdejmie). Stary
 `minio-init` przywraca politykę `download` (z listowaniem).
+
+## 25. Jitsi tylko z przepustką platformy (JWT, v0.39.0, „wariant A”)
+
+Do v0.38 własne Jitsi (`meet.<domena>`, `deploy/jitsi/`) było otwarte: każdy, kto otworzył
+`meet.<domena>/<cokolwiek>`, zakładał pokój. Ochroną pokoju rozmowy była wyłącznie losowa końcówka
+nazwy. Od v0.39.0 Prosody wpuszcza **wyłącznie** z tokenem JWT (HS256) podpisanym sekretem, który zna
+portal. Token powstaje w chwili kliknięcia „Dołącz” w panelu albo „Dołącz” na stronie
+linku-zaproszenia – po sprawdzeniu, kto wchodzi i czy wolno mu teraz wejść.
+
+### 25.1. Co się zmienia dla ludzi
+
+- **Uczestnik:** w panelu (karta „Rozmowa kwalifikacyjna”) zamiast adresu pokoju są dwa przyciski:
+  „Dołącz do rozmowy” i „Sprawdź kamerę i mikrofon”. Rozmowa otwiera się `JITSI_JWT_LEAD_MINUTES`
+  (15) minut przed terminem i działa do `JITSI_JWT_GRACE_MINUTES` (60) minut po jego końcu. Listy
+  (potwierdzenie, przypomnienie) niosą adres widoku wejścia w panelu, a nie adres pokoju.
+  **Adresu pokoju nie da się już podyktować przez telefon** – bez przepustki nie zadziała.
+- **Koordynator:** na ekranie terminów („Rozmowy”) w kolumnie „Link” jest „dołącz jako gospodarz”
+  (moderator) i „test sprzętu”. Ekran „Komunikacja → Pokoje wideo” – pokoje bez terminu (§ 25.8).
+- **Komisja prowadzi rozmowy:** karta „Rozmowy kwalifikacyjne” w panelu recenzenta i komisji
+  odwoławczej (terminy z zapisami na 14 dni, uczestnicy jako imię i inicjał) z „Dołącz jako gospodarz”
+  (`/review/interview-slots/<id>/join/`, okno i prawa jak koordynatora, audyt `interview.joined`
+  z rolą `committee`).
+- **Komisja:** karta „Pokoje wideo komisji” w panelu recenzenta i komisji odwoławczej (pokoje
+  udostępnione przez koordynatora); z uprawnieniem od koordynatora – własny ekran
+  `/review/video-rooms/`.
+- Pokój **poza** naszym Jitsi (publiczne `meet.jit.si`, BBB uczelni wpisane ręcznie przy terminie)
+  i etap bez dostawcy wideo działają dokładnie jak przed v0.39.0.
+
+### 25.2. Konfiguracja
+
+Portal (`/opt/olimpiada/.env`, czyta `web`; szczegóły w `.env.example`):
+
+| Zmienna | Domyślnie | Znaczenie |
+|---|---|---|
+| `JITSI_JWT_APP_SECRET` | pusty = funkcja wyłączona | sekret HS256; ≥ 32 znaki (skrypt generuje 64); ten sam co `JWT_APP_SECRET` w `jitsi/.env` |
+| `JITSI_JWT_APP_ID` | `olimpiada` | claim `iss` = `JWT_APP_ID` Jitsi |
+| `JITSI_JWT_HOST` | `meet.<SITE_DOMAIN>` | przepustki dostają wyłącznie pokoje pod tym hostem |
+| `JITSI_JWT_AUDIENCE` / `JITSI_JWT_SUBJECT` | `jitsi` / `meet.jitsi` | claimy `aud` i `sub` (`XMPP_DOMAIN`) |
+| `JITSI_JWT_LEAD_MINUTES` / `GRACE_MINUTES` | 15 / 60 | okno wejścia na rozmowę |
+| `JITSI_JWT_PRECHECK_MINUTES` | 30 | przepustka do pokoju „na próbę” (`…-test`) |
+| `JITSI_JWT_SESSION_MINUTES` | 180 | wejście z panelu do pokoju bez terminu |
+| `JITSI_JWT_GATEWAY_MINUTES` | 10 | wejście linkiem-zaproszeniem (czas na przejście do pokoju) |
+| `JITSI_JWT_ROOM_MAX_DAYS` / `COMMITTEE_ROOM_MAX_DAYS` | 60 / 30 | najdłuższa ważność pokoju bez terminu |
+
+Kontrola `manage.py check`: `competitions.W001` – sekret niepusty, ale krótszy niż 32 znaki (działa
+jak pusty) albo równy `SECRET_KEY` / `DJCMS_INTERNAL_TOKEN` / `DJCMS_SSO_KEY`.
+
+Jitsi (`/opt/olimpiada/jitsi/.env`, czyta `docker-compose.jitsi.yml`): `ENABLE_AUTH` (1 = przepustki),
+`JWT_APP_SECRET`, `JWT_APP_ID`, `JWT_ACCEPTED_AUDIENCES`, `ENABLE_AUTO_OWNER` (0), `JITSI_IMAGE_VERSION`
+(**przypięte** `stable-11031` zamiast pływającego `stable`), opcjonalnie `TOKEN_AUTH_URL` (adres,
+na który Jitsi odsyła wejście bez tokenu – domyślnie pusty, niesprawdzony). Compose ustawia na stałe
+`AUTH_TYPE=jwt`, `ENABLE_GUESTS=0`, `JWT_ALLOW_EMPTY=0`, `XMPP_MUC_MODULES=token_affiliation`,
+w jicofo `JICOFO_ENABLE_AUTH=0`.
+
+**Moderator** (sprawdzone na stable-11031, § 25.6): nadaje go wyłącznie `mod_token_affiliation`
+tokenowi z `context.user.moderator = true` (komisja, koordynator, link gospodarza). Jicofo musi mieć
+**wyłączone** i „pierwszy zostaje moderatorem” (`ENABLE_AUTO_OWNER=0`), i własne uwierzytelnianie
+(`JICOFO_ENABLE_AUTH=0`): jicofo z `authentication.type = JWT` po kilku sekundach nadawał właściciela
+**każdemu** zalogowanemu tokenem – także uczestnikowi rozmowy.
+
+**Gdzie jest token:** we fragmencie adresu (`https://meet…/<pokój>#jwt="<token>"`), nie w zapytaniu
+– fragment nie jedzie do serwera (nginx w `jitsi-web`, Caddy), a front Jitsi stable-11031 czyta go
+w pierwszej kolejności (sprawdzone w przeglądarce). Caddy nie ma access logu, blok `meet.` dostał
+`Referrer-Policy: no-referrer`, a odpowiedzi platformy z przepustką są `no-store` i `no-referrer`.
+
+### 25.3. Wdrożenie na produkcji – kolejność, która nikogo nie zamyka
+
+1. `scripts/deploy.sh root@olimpiadakwantowa.pl` – nowy kod (migracje `accounts.0035`,
+   `competitions.0033`: jedna kolumna z wartością domyślną i jedna nowa tabela, bez blokad na
+   dłużej niż chwila) i nowy `deploy/Caddyfile` (krok 4/8 składa i przeładowuje konfigurację proxy
+   – blok `meet.` dostaje `Referrer-Policy`). Sekretu jeszcze nie ma: portal zachowuje się **dokładnie**
+   jak v0.38.
+2. `scripts/deploy_jitsi.sh root@olimpiadakwantowa.pl`:
+   - krok 2/5: generuje `JITSI_JWT_APP_SECRET` w `/opt/olimpiada/.env` (raz; potem nie rusza),
+     przepisuje go do `jitsi/.env` (`JWT_APP_SECRET`, przy każdym przebiegu – rozjazd naprawia się
+     sam), dopisuje brakujące `JWT_APP_ID`, `JWT_ACCEPTED_AUDIENCES`, `ENABLE_AUTO_OWNER=0`, zamienia
+     `JITSI_IMAGE_VERSION=stable` na `stable-11031`. Sekret nie jest nigdzie wypisywany.
+   - krok 3/5: sprawdza (po SHA-256), czy działający `web` widzi ten sam sekret; jeśli nie –
+     `docker compose up -d --no-deps web worker beat` (kilka sekund przerwy, zasłania ją strona
+     zastępcza proxy) i ponowne sprawdzenie. **Dopiero potem** dopisuje `ENABLE_AUTH=1` do `jitsi/.env`.
+     Gdy `web` nie widzi sekretu, skrypt kończy się błędem, a Jitsi zostaje otwarte – nikt nie traci
+     wejścia. Od tej chwili portal wystawia przepustki, które otwarte jeszcze Jitsi ignoruje.
+   - krok 4/5: `pull` (obrazy stable-11031 – kilka minut przy pierwszym razie) i `up -d`: prosody,
+     jicofo, web, jvb są **odtwarzane**. **Trwające rozmowy zostają przerwane** (kilkadziesiąt
+     sekund); po starcie wejście tylko przez platformę. Uruchamiaj poza godzinami rozmów.
+3. Koordynator nic nie przestawia: etapy z `video_base_url = https://meet.<domena>/` dostają
+   przepustki same; zapisy sprzed wdrożenia też (adres pokoju jest ten sam, zmienia się droga wejścia).
+
+Uczestnik, który ma w skrzynce list sprzed wdrożenia z gołym adresem pokoju, po kliknięciu zobaczy
+w Jitsi prośbę o zalogowanie – wchodzi z panelu. Przypomnienie dzień przed rozmową, wysłane już po
+wdrożeniu, niesie adres panelu.
+
+### 25.4. Jak sprawdzić (wyłącznie odczyt)
+
+```sh
+cd /opt/olimpiada/jitsi
+# Prosody: uwierzytelnianie tokenem, identyfikator aplikacji, moduły MUC (wartość sekretu zakryta).
+docker compose -p olimpiada-jitsi exec -T prosody grep -nE 'authentication|app_id|asap_accepted|token_' \
+  /config/conf.d/jitsi-meet.cfg.lua | sed 's/app_secret = .*/app_secret = <ukryty>/'
+# Jicofo: bez własnego uwierzytelniania i bez auto-właściciela.
+docker compose -p olimpiada-jitsi exec -T jicofo grep -nE 'enable-auto-owner|authentication' /config/jicofo.conf
+# Portal widzi sekret (skrót, nie wartość) i ten sam skrót ma Jitsi:
+cd /opt/olimpiada && docker compose exec -T web python -c \
+  'import hashlib,os;print(hashlib.sha256(os.environ["JITSI_JWT_APP_SECRET"].encode()).hexdigest())'
+printf '%s' "$(sed -n 's/^JWT_APP_SECRET=//p' jitsi/.env | tail -n1)" | sha256sum
+docker compose exec -T web python manage.py check --tag security   # bez competitions.W001
+```
+
+Oczekiwane: `authentication = "token"`, `app_id = "olimpiada"`, `asap_accepted_issuers = { "olimpiada" }`,
+`asap_accepted_audiences = { "jitsi" }`, w komponencie MUC `token_affiliation` i `token_verification`;
+w jicofo `enable-auto-owner = false` i brak bloku `authentication {`; dwa identyczne skróty.
+Ręcznie: `https://meet.<domena>/test-bez-tokenu` w przeglądarce prosi o logowanie i nie otwiera pokoju;
+koordynator na ekranie „Rozmowy” klika „dołącz jako gospodarz” przy terminie w oknie – wchodzi
+z prawami moderatora; konto testowe uczestnika wchodzi bez nich.
+
+### 25.5. Rotacja sekretu
+
+Zmiana sekretu unieważnia **wszystkie** wydane przepustki (rozmowy, próby, wejścia z panelu
+i z linków-zaproszeń – każda żyje najwyżej kilka godzin, więc szkoda jest mała). Linki-zaproszenia
+pokoi bez terminu **nie** są tokenami (§ 25.8) i rotacja ich nie dotyczy – działają dalej.
+
+1. Poza godzinami rozmów. W `/opt/olimpiada/.env` usuń linię `JITSI_JWT_APP_SECRET=…`.
+2. `scripts/deploy_jitsi.sh root@…` – wygeneruje nowy sekret, przepisze go do `jitsi/.env`, odtworzy
+   `web worker beat` (bo widzą stary) i odtworzy kontenery Jitsi z nowym `JWT_APP_SECRET`.
+3. Kontrole z § 25.4 (dwa identyczne skróty).
+
+Między krokiem 3/5 a 4/5 skryptu (kilkadziesiąt sekund) portal wystawia przepustki z nowym sekretem,
+a Jitsi zna jeszcze stary – wejścia w tej chwili się nie udadzą; po kroku 4/5 trzeba kliknąć „Dołącz”
+jeszcze raz. Dlatego poza godzinami rozmów.
+
+### 25.6. Co sprawdzono uruchomieniem (2.10.2026, lokalnie, obrazy stable-11031)
+
+Osobny projekt compose (`-p jitsi-jwt-test`, własna sieć zamiast `edge`, porty tylko na 127.0.0.1),
+klient XMPP po WebSocket (uwierzytelnienie SASL z tokenem w adresie, jak robi to front Jitsi), potem
+`down -v`:
+
+- odmowa uwierzytelnienia: bez tokenu („token required”), zły podpis, `exp` w przeszłości, `nbf`
+  w przyszłości, obce `aud`, obce `iss`,
+- odmowa wejścia do pokoju („room-mismatch”): token na pokój A w pokoju B, token pokoju w pokoju
+  `…-test` i odwrotnie; wejście z tokenem na właściwy pokój – przyjęte,
+- role: token z `context.user.moderator = true` → `owner`/`moderator`; bez – `member`/`participant`,
+  także po kilku sekundach samotności w pokoju i po wejściu moderatora (z `JICOFO_ENABLE_AUTH=0`;
+  z uwierzytelnianiem jicofo uczestnik dostawał `owner` – stąd ta zmienna),
+- tokeny wystawione **kodem platformy** (`apps.competitions.jitsi_jwt.issue`) – przyjęte, role jak wyżej,
+- front: `…/pokój#jwt="<token>"` – stan aplikacji Jitsi ma token i nazwę z `context.user.name`,
+- wycofanie `ENABLE_AUTH=0` – wejście bez tokenu znowu działa.
+
+Nie sprawdzono uruchomieniem: pełnej rozmowy z mediami (JVB), aplikacji mobilnej Jitsi (przejście
+z przeglądarki telefonu do aplikacji z tokenem we fragmencie) i `TOKEN_AUTH_URL`.
+
+### 25.7. Wycofanie
+
+Otwarte pokoje jak przed v0.39.0, bez cofania kodu portalu:
+
+```sh
+cd /opt/olimpiada/jitsi
+sed -i 's/^ENABLE_AUTH=.*/ENABLE_AUTH=0/; s/^ENABLE_AUTO_OWNER=.*/ENABLE_AUTO_OWNER=1/' .env
+docker compose -p olimpiada-jitsi --env-file .env -f docker-compose.jitsi.yml up -d
+```
+
+`ENABLE_AUTO_OWNER=1` przywraca „pierwszy w pokoju zostaje moderatorem” – bez tokenów nikt inny
+moderatora by nie nadał. Portal dalej przekierowuje z przepustką (otwarte Jitsi ją ignoruje), więc
+nic po jego stronie nie trzeba zmieniać. Pełne wyłączenie po stronie portalu: usuń
+`JITSI_JWT_APP_SECRET` z `.env` i odtwórz `web worker beat` – panel pokazuje wtedy znowu adresy
+pokoi, a ekrany „Pokoje wideo” znikają (wiersze pokoi zostają w bazie).
+
+### 25.8. Pokoje bez terminu i linki-zaproszenia
+
+Model `competitions.VideoRoom` (konkurs, etykieta, nazwa pokoju, dwa klucze linków, kto i w jakiej
+roli założył, ważność, dostęp komisji, zamknięcie). **Tokenów w bazie nie ma.** Link-zaproszenie to
+adres na platformie, `https://<domena>/zaproszenie/wideo/<klucz>/` (klucz: 192 bity z `secrets`),
+osobny dla gospodarza i gościa. Bramka: GET pokazuje stronę z etykietą i polem nazwy (nic nie
+wystawia – podglądy linków i skanery poczty nie otwierają pokoju), POST „Dołącz” (CSRF, limit
+`video_gateway` 120/h na adres IP) wystawia przepustkę na `JITSI_JWT_GATEWAY_MINUTES` minut.
+Skutki:
+
+- **zamknięcie pokoju, wygaśnięcie i „Wygeneruj nowy link” działają od razu** dla każdego, kto
+  jeszcze nie wszedł; kto jest w trwającej rozmowie, zostaje do jej opuszczenia (Jitsi nie pyta
+  platformy drugi raz),
+- klucze są przechowywane jawnie (koordynator ma widzieć linki także później) – traktujemy je jak
+  poświadczenie: nie trafiają do audytu, logów ani eksportów; pokazanie linków to osobna czynność
+  (POST, `no-store`, wpis `video.room_links_viewed`),
+- uprawnienie członka komisji do zakładania pokoi (`CommitteeMember.video_room_issuer`) nadaje
+  i odbiera koordynator. Odebranie albo zawieszenie członka od razu zamyka mu ekran i wejście
+  z panelu do jego pokoi; jego linki-zaproszenia działają, dopóki koordynator nie zamknie jego pokoi
+  (przycisk „Zamknij pokoje tej osoby” w tym samym wierszu) – to celowo osobna decyzja,
+- limity: zakładanie pokoi i wymiana linków `video_rooms` 10/h na konto, wejścia z panelu `video`
+  60/h na konto.
+
+Audyt (bez tokenów, kluczy i nazw gości): `video.room_created`, `video.room_links_viewed`,
+`video.room_link_rotated`, `video.room_closed`, `video.room_joined` (rola: `coordinator`,
+`committee`, `creator`, `host_link`, `guest_link`), `video.issuer_granted`, `video.issuer_revoked`;
+wejścia na rozmowy: `interview.joined` (`participant`/`coordinator`, `interview`/`precheck`).
+
+**Retencja:** wiersze `VideoRoom` są danymi operacyjnymi; jedyną daną osobową jest `created_by`
+(znika razem z kontem – `SET_NULL`). Etykieta pokoju jest tekstem koordynatora – podręcznik prosi,
+żeby nie wpisywać w nią nazwisk gości.

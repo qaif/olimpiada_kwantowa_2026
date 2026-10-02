@@ -26,6 +26,7 @@ from django.views.generic import TemplateView, View
 
 from apps.ai_grading.services import reviewer_context as ai_reviewer_context
 from apps.competitions.scoring import safe_score_rule
+from apps.competitions.video_rooms import committee_rooms_context
 from apps.core.api import DomainError
 from apps.grading.code_view import code_listing, line_notes
 from apps.grading.comparison import comparison_context
@@ -180,6 +181,7 @@ class ReviewListView(ReviewerScopedMixin, TemplateView):
                 }
             )
         context["tabs"] = tabs
+        context.update(committee_rooms_context(self.request.user, self.competition))
         # Zakładka otwierana przy wejściu: pierwsza niepusta, czyli zwykle „Do zrobienia”.
         # Otwieranie pustej zakładki tylko dlatego, że stoi pierwsza, pokazywałoby recenzentowi
         # komunikat „nic tu nie ma” nad listą, w której coś jest.

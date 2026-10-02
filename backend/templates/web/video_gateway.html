@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% comment %}
+  Bramka linku-zaproszenia do pokoju wideo (v0.39.0, ``apps.web.views.video.VideoGatewayView``).
+
+  Strona dla osoby **bez konta**. GET niczego nie wystawia – pokazuje etykietę pokoju i pole na
+  nazwę; przepustkę na kilka minut wystawia dopiero POST „Dołącz” (CSRF). Pokój zamknięty albo
+  wygasły: jedno zdanie, **bez etykiety** (``room`` jest wtedy ``None``) – link bywa przekazywany
+  dalej, a nazwa spotkania nie jest informacją dla kogoś, kto nie ma już wstępu.
+{% endcomment %}
+{% block title %}{% translate "Zaproszenie do rozmowy wideo" %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow">{% translate "Rozmowa wideo" %}</span>
+  {% if room %}
+    <h1>{{ room.label }}</h1>
+    <p class="lead">{% translate "Zaproszenie do pokoju wideo olimpiady. Wpisz, jak mają Cię widzieć inni, i kliknij „Dołącz” – otworzymy pokój w tej karcie." %}</p>
+  {% else %}
+    <h1>{% translate "Ten pokój jest zamknięty" %}</h1>
+    <p class="lead">{% translate "Zaproszenie straciło ważność albo organizator zamknął pokój. Jeśli spotkanie nadal trwa, poproś osobę, która Cię zaprosiła, o nowy link." %}</p>
+  {% endif %}
+</div>
+
+{% if room %}
+  <div class="card">
+    <form method="post" class="form" novalidate>
+      {% csrf_token %}
+      {% if error %}<p class="form__error" role="alert">{{ error }}</p>{% endif %}
+      <p>
+        <label for="gateway-name">{% translate "Imię i nazwisko (albo nazwa) widoczne w pokoju" %}</label>
+        <input id="gateway-name" type="text" name="name" maxlength="{{ name_max_length }}"
+               value="{{ name|default:account_name }}" autocomplete="name"
+               {% if not account_name %}required{% endif %}>
+        {% if account_name %}
+          <span class="hint">{% blocktranslate trimmed with name=account_name %}
+            Jesteś zalogowany – jeśli zostawisz pole bez zmian, w pokoju zobaczą Cię jako „{{ name }}”.
+          {% endblocktranslate %}</span>
+        {% endif %}
+      </p>
+      {% if variant == "host" %}
+        <p class="hint">{% translate "To link gospodarza: wejdziesz z prawami moderatora (wyciszanie, poczekalnia, usuwanie z pokoju)." %}</p>
+      {% endif %}
+      <p class="hint">{% translate "Najlepiej z komputera, w przeglądarce Chrome, Edge albo Firefox. Przeglądarka zapyta o dostęp do kamery i mikrofonu." %}</p>
+      <div class="actions">
+        <button type="submit" class="btn btn--primary">{% translate "Dołącz" %}</button>
+      </div>
+    </form>
+  </div>
+{% endif %}
+{% endblock %}

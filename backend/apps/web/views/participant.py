@@ -63,7 +63,7 @@ from apps.competitions.services import (
     register_for_stage,
     training_stage,
 )
-from apps.competitions.video import PRECHECK_TEXT
+from apps.competitions.video import PRECHECK_TEXT, interview_access
 from apps.core.api import DomainError
 from apps.quiz.services import quiz_for_stage
 from apps.results.services import published_results, results_for_participant
@@ -443,6 +443,10 @@ class MeView(ParticipantRequiredMixin, TemplateView):
                 "countdown_words": countdown_words(),
             }
         )
+        # Jak wejść na rozmowę (v0.39.0): przycisk przez platformę, zwykły link albo nic – liczone
+        # z zapisu, który już jest w kontekście, bez żadnego zapytania (``video.interview_access``).
+        booking = context["interview_booking"]
+        context["interview_video"] = interview_access(booking, now) if booking is not None else None
         context.update(self._tab_context(tab, user, edition, now, stage, entry, upload_open))
         # Kafle wydania K – wpisowe i deklaracja przyjazdu. Warunek stoi **przed** wywołaniem,
         # a nie tylko w środku funkcji, i to nie jest ostrożność na wyrost: samo sięgnięcie po

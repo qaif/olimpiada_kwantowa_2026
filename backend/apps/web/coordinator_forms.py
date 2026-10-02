@@ -1056,3 +1056,39 @@ class RegistrationProfileForm(forms.ModelForm):
         """
         chosen = set(self.cleaned_data.get("allowed_institution_types") or ())
         return [value for value in InstitutionType.values if value in chosen]
+
+
+class VideoRoomForm(forms.Form):
+    """Nowy pokój wideo bez terminu (v0.39.0, ``apps.competitions.video_rooms``).
+
+    Jeden formularz dla koordynatora i dla członka komisji z uprawnieniem – różni ich wyłącznie
+    lista ważności (``committee=True`` przycina ją limitem komisji). Pełnej nazwy pokoju nie ma
+    tu celowo: powstaje z etykiety i losowej końcówki w serwisie. Ważność spoza listy odrzuca już
+    formularz, a drugi raz – serwis (``create_room``), bo serwis nie ufa ekranowi.
+    """
+
+    label = forms.CharField(
+        label="Etykieta pokoju",
+        max_length=80,
+        help_text="Krótko, po co jest ten pokój, np. „zebranie komisji okręgowej”. Wchodzi do nazwy "
+        "pokoju (bez polskich znaków) – nie wpisuj tu nazwisk gości.",
+    )
+    validity_days = forms.TypedChoiceField(label="Ważność pokoju i linków", coerce=int, choices=())
+    committee_access = forms.BooleanField(
+        label="Dostępny dla członków komisji (wejście z ich panelu)",
+        required=False,
+    )
+    committee_as_moderator = forms.BooleanField(
+        label="Członkowie komisji wchodzą z panelu jako gospodarze (moderatorzy)",
+        required=False,
+    )
+
+    def __init__(self, *args, committee: bool = False, **kwargs):
+        super().__init__(*args, **kwargs)
+        from apps.competitions.video_rooms import validity_choices
+
+        days = validity_choices(committee=committee)
+        self.fields["validity_days"].choices = [
+            (value, "1 dzień" if value == 1 else f"{value} dni") for value in days
+        ]
+        self.fields["validity_days"].initial = 7 if 7 in days else days[0]

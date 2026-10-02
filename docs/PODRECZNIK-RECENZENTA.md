@@ -299,6 +299,52 @@ kolejce pojawia się marker. Koordynator rozstrzyga sprawę albo odbiera Ci prac
 
 ---
 
+## 9a. Rozmowy kwalifikacyjne – prowadzi je komisja
+
+Jeśli olimpiada prowadzi rozmowy na własnym serwerze wideo (`meet.<domena>`), w kolejce `/review/`
+(i w panelu komisji odwoławczej `/appeals/`) jest karta **„Rozmowy kwalifikacyjne”**: terminy z zapisami
+na dziś i najbliższe dwa tygodnie, godziny (czas polski), etap i zapisani uczestnicy — **wyłącznie imię
+i inicjał nazwiska**, tak jak zobaczysz ich w pokoju (bez nazwiska, e-maila, szkoły i kodu: prace
+oceniasz anonimowo i ta lista nie może tego zmieniać).
+
+- **„Dołącz jako gospodarz”** — działa od 15 minut przed terminem do godziny po jego końcu i wpuszcza
+  Cię z prawami moderatora (wyciszanie, poczekalnia, usuwanie z pokoju). Kliknięte wcześniej wraca do
+  panelu z godziną otwarcia pokoju. Uczestnik wchodzi bez tych praw.
+- **„test sprzętu”** — pusty pokój „na próbę”, dostępny wcześniej.
+- Pokój poza serwerem olimpiady (np. BBB uczelni wpisane przez koordynatora) stoi na liście bez
+  odnośnika — adres takiego pokoju podaje koordynator.
+
+Do pokoju nie da się wejść samym adresem — zawsze przez ten przycisk, po zalogowaniu. Po zerwaniu
+połączenia kliknij go jeszcze raz.
+
+## 9b. Pokoje wideo komisji
+
+Obok może pojawić się karta **„Pokoje wideo komisji”** — pokoje, które koordynator
+udostępnił komisji (np. narada przed ogłoszeniem wyników). Przy każdym jest przycisk **„Dołącz”**:
+kliknięcie wystawia przepustkę na kilka godzin i otwiera pokój w nowej karcie. Nie musisz trzymać ani
+przekazywać żadnego linku; wejście działa, dopóki pokój jest ważny i koordynator go nie zamknie.
+Czy wchodzisz jako gospodarz (moderator), decyduje koordynator przy zakładaniu pokoju.
+
+**Własne pokoje (za zgodą koordynatora).** Koordynator może Ci nadać prawo zakładania pokoi — wtedy
+w karcie jest przycisk **„Moje pokoje i linki”** (`/review/video-rooms/`). Zakładasz pokój: krótka
+etykieta (bez nazwisk gości), ważność **1, 7 albo 30 dni**, ewentualnie dostęp dla reszty komisji.
+Dostajesz dwa **linki-zaproszenia**:
+
+- **link gospodarza** — wchodzi się z prawami moderatora (wyciszanie, poczekalnia, usuwanie z pokoju);
+  dla Ciebie, nie do rozsyłania,
+- **link gościa** — do wysłania uczestnikom spotkania, także osobom bez konta. Gość otwiera link,
+  wpisuje swoje imię i klika „Dołącz”.
+
+Linki zobaczysz ponownie przyciskiem **„Pokaż linki”**; przyciskiem **„Wygeneruj nowy link”**
+unieważnisz link, który trafił w niepowołane ręce, a **„Zamknij pokój”** od razu zamyka wejście
+wszystkim, którzy jeszcze nie weszli (kto jest w rozmowie, zostaje do jej końca). Widzisz i zamykasz
+tylko **swoje** pokoje; koordynator widzi wszystkie (także Twoje linki) i może je zamknąć. Linki
+przekazuj jak hasło — do końca ważności wpuszczają każdego, kto je ma. Gdy koordynator odbierze Ci
+uprawnienie, ekran znika, a wejście z panelu do Twoich pokoi przestaje działać; o linkach-zaproszeniach
+decyduje wtedy koordynator.
+
+---
+
 ## 10. Zasady, o których warto pamiętać
 
 - **uczestnik czyta Twój komentarz.** Po ogłoszeniu wyników trafia do niego „Komentarz dla uczestnika”

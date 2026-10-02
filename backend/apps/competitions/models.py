@@ -2351,3 +2351,7 @@ from .logistics import (  # noqa: E402,F401  (import dla rejestracji modeli)
     LogisticsSettings,
     Venue,
 )
+
+# Pokoje wideo poza terminami rozmów (v0.39.0) – model razem ze swoimi czynnościami
+# w ``apps.competitions.video_rooms``, z tego samego powodu, co logistyka wyżej.
+from .video_rooms import VideoRoom  # noqa: E402,F401  (import dla rejestracji modelu)

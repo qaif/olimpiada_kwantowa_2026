@@ -13,6 +13,7 @@ from django.views.generic import TemplateView, View
 
 from apps.appeals.models import Appeal
 from apps.appeals.services import appeals_queue, decide_appeal
+from apps.competitions.video_rooms import committee_rooms_context
 from apps.core.api import DomainError
 from apps.grading.models import ROUND_BLIND, ReviewStatus
 from apps.web.forms import AppealDecideForm
@@ -50,6 +51,8 @@ class AppealsQueueView(AppealsCommitteeRequiredMixin, TemplateView):
             )
         context["rows"] = rows
         context["decide_form"] = AppealDecideForm()
+        # Pokoje wideo udostępnione komisji (v0.39.0) – pusty słownik bez zapytań bez przepustek.
+        context.update(committee_rooms_context(self.request.user, self.competition))
         return context
 
 

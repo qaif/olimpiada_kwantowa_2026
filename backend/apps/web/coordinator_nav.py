@@ -25,6 +25,8 @@ from django.db import DatabaseError
 from django.urls import NoReverseMatch, reverse
 from django.utils.text import slugify
 
+from apps.competitions.jitsi_jwt import jwt_enabled as jitsi_jwt_enabled
+
 #: Wspólny przedrostek i czas życia liczników. Minuta, bo to rytm pracy koordynatora: badge ma
 #: powiedzieć „jest tu coś do zrobienia”, a nie służyć za zegar. Krótszy czas zamieniłby każde
 #: wejście na dowolny ekran panelu w cztery zapytania agregujące.
@@ -704,6 +706,18 @@ def groups(stages: list, competition=None) -> list[Group]:
                 ("web:coordinator-forum",),
                 match=("coordinator-forum", "coordinator-forum-"),
                 badge="forum",
+            ),
+        )
+    if jitsi_jwt_enabled():
+        # Pokoje wideo bez terminu (v0.39.0). Bramką nie jest flaga konkursu, tylko ustawienie
+        # instalacji – sekret przepustek do własnego Jitsi (``apps.competitions.jitsi_jwt``): bez
+        # niego ekran oddaje 404, więc pozycja prowadziłaby donikąd. Instalacja bez sekretu ma menu
+        # co do bajtu takie, jak przed tą wersją. W „Komunikacji”, bo to jest kanał rozmowy.
+        communication += (
+            Item(
+                "Pokoje wideo",
+                ("web:coordinator-video-rooms",),
+                match=("coordinator-video-rooms", "coordinator-video-room-", "coordinator-video-issuer"),
             ),
         )
     people_items: tuple[Item, ...] = ()

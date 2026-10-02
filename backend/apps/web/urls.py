@@ -20,6 +20,7 @@ from .urls_pipeline import urlpatterns as pipeline_urlpatterns
 from .urls_regions import urlpatterns as region_urlpatterns
 from .urls_scoring import urlpatterns as scoring_urlpatterns
 from .urls_student_status import urlpatterns as student_status_urlpatterns
+from .urls_video import urlpatterns as video_urlpatterns
 from .urls_workshop_materials import urlpatterns as workshop_material_urlpatterns
 from .views import (
     account,
@@ -1119,4 +1120,6 @@ urlpatterns = [
     *ai_grading_urlpatterns,
     # --- wiadomości 1:1 (zadanie CZ-01, 30.09.2026) ---------------------------------------------
     *chat_urlpatterns,
+    # --- wejście do pokoi wideo przez platformę, pokoje bez terminu (v0.39.0) -------------------
+    *video_urlpatterns,
 ]

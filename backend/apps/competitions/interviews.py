@@ -41,7 +41,7 @@ from .models import (
     StageEntryStatus,
 )
 from .scoring import score_rule
-from .video import PRECHECK_TEXT, meeting_url_for_slot, precheck_url
+from .video import PRECHECK_TEXT, letter_link_lines, meeting_url_for_slot
 
 logger = logging.getLogger(__name__)
 
@@ -257,7 +257,9 @@ def _assert_bookable(stage: Stage) -> None:
     _assert_stage_open(stage)
 
 
-def _confirmation_message(stage: Stage, slot: InterviewSlot, meeting_url: str = "") -> tuple[str, str]:
+def _confirmation_message(
+    stage: Stage, slot: InterviewSlot, meeting_url: str = "", *, request=None
+) -> tuple[str, str]:
     """Treść listu potwierdzającego. Bez danych osobowych – adresat i tak wie, kim jest.
 
     Godziny idą w czasie polskim: uczestnik ma przepisać je do kalendarza, a nie przeliczać
@@ -268,6 +270,10 @@ def _confirmation_message(stage: Stage, slot: InterviewSlot, meeting_url: str = 
     od wprowadzenia pokoi generowanych automatycznie (``apps.competitions.video``) to zapis niesie
     adres, który uczestnik dostał, i ten sam adres ma stać w liście. Domyślna pustka zostawia
     zachowanie sprzed tej zmiany dla wołających, którzy adresu nie znają.
+
+    Pokój na własnym Jitsi z przepustkami (v0.39.0): zamiast adresu pokoju list niesie adresy
+    wejścia przez panel (``video.letter_link_lines``) – bezwzględne, zbudowane z ``request``,
+    żeby prowadziły pod domenę konkursu, w którym uczestnik się zapisał.
     """
     starts = timezone.localtime(slot.starts_at)
     ends = timezone.localtime(slot.ends_at)
@@ -282,10 +288,9 @@ def _confirmation_message(stage: Stage, slot: InterviewSlot, meeting_url: str = 
         lines.append(_("Oznaczenie: %(note)s") % {"note": slot.note})
     link = meeting_url or slot.meeting_url
     if link:
-        lines.append(_("Link do rozmowy: %(url)s") % {"url": link})
         # Test sprzętu tuż pod linkiem do rozmowy, a nie w osobnym akapicie: to jedna czynność
         # rozłożona na dwa dni („sprawdź dziś, wejdź jutro”), a nie dwie różne sprawy.
-        lines.append(_("Sprawdź kamerę i mikrofon: %(url)s") % {"url": precheck_url(link)})
+        lines += letter_link_lines(stage, link, request=request)
         lines.append("")
         lines.append(str(PRECHECK_TEXT))
     lines.append(
@@ -297,7 +302,9 @@ def _confirmation_message(stage: Stage, slot: InterviewSlot, meeting_url: str = 
     return subject, "\n".join(lines)
 
 
-def _send_confirmation(entry: StageEntry, stage: Stage, slot: InterviewSlot, meeting_url: str = "") -> None:
+def _send_confirmation(
+    entry: StageEntry, stage: Stage, slot: InterviewSlot, meeting_url: str = "", *, request=None
+) -> None:
     """Kolejkuje potwierdzenie **po commicie** – worker nie może czytać stanu, którego nie ma.
 
     Wysyłka jest zadaniem na kolejce ``mail``, a nie ``send_mail`` w środku żądania: niedostępny
@@ -314,7 +321,7 @@ def _send_confirmation(entry: StageEntry, stage: Stage, slot: InterviewSlot, mee
         # Wcześniejsze wyjście, bo odczyt konkursu kosztuje zapytanie – a konto bez adresu nie ma
         # dokąd dostać listu i nie ma po co składać ani treści, ani koperty.
         return
-    subject, message = _confirmation_message(stage, slot, meeting_url)
+    subject, message = _confirmation_message(stage, slot, meeting_url, request=request)
     from_email = mail_from(stage.edition.competition)
 
     def _enqueue() -> None:
@@ -386,7 +393,7 @@ def book_slot(participant, slot: InterviewSlot, *, now=None, request=None) -> In
     # Cel wpisu to ``StageEntry``, a nie uczestnik: historia zapisu należy do udziału w etapie
     # i czyta się ją razem z resztą jego przebiegu. W ``diff`` idą wyłącznie identyfikatory.
     audit(participant.user, action, entry, diff, request=request)
-    _send_confirmation(entry, stage, locked, meeting_url)
+    _send_confirmation(entry, stage, locked, meeting_url, request=request)
     return booking
 
 
@@ -488,6 +495,72 @@ def slots_for_coordinator(stage: Stage) -> list[InterviewSlot]:
         "entry", "entry__participant", "entry__participant__user"
     ).order_by("created_at", "id")
     return list(_slots_with_counts(stage).prefetch_related(Prefetch("bookings", queryset=bookings)))
+
+
+#: Ile dni naprzód sięga lista rozmów w panelu komisji i ile terminów najwyżej pokazuje. Panel
+#: odpowiada na pytanie „które rozmowy prowadzę teraz i wkrótce”, a nie jest kalendarzem edycji –
+#: pełną listę ma koordynator. Dwa tygodnie i pięćdziesiąt terminów to więcej, niż komisja
+#: przeprowadzi w tym czasie, więc ucięcie niczego realnie nie chowa.
+COMMITTEE_SLOTS_DAYS = 14
+COMMITTEE_SLOTS_LIMIT = 50
+
+
+def slots_for_committee(competition, now=None) -> list[dict]:
+    """Terminy rozmów do przeprowadzenia przez komisję: z zapisami, których okno wejścia trwa albo nadejdzie.
+
+    Rozmowę prowadzi **komisja** (decyzja właściciela z 2.10.2026), a do v0.39.0 terminy widział
+    wyłącznie koordynator – przy zamkniętym Jitsi komisja nie miałaby jak wejść. Wiersz niesie
+    **wyłącznie** to, co członek komisji i tak zobaczy w pokoju: nazwę etapu, godziny, liczbę osób
+    i ich imiona z inicjałem nazwiska (``jitsi_jwt.short_name`` – dokładnie nazwa z przepustki).
+    Bez nazwiska, e-maila, szkoły i kodu publicznego: ta sama komisja ocenia gdzie indziej prace
+    **anonimowo**, więc lista rozmów nie może być kluczem do tamtej anonimowości.
+
+    Zakres: terminy etapów w formie rozmowy **tego** konkursu (``for_competition``), z co najmniej
+    jednym zapisem uczestnika niezdyskwalifikowanego, kończące się (z zapasem ``GRACE``) nie
+    wcześniej niż teraz i zaczynające się w ciągu :data:`COMMITTEE_SLOTS_DAYS` dni; najwyżej
+    :data:`COMMITTEE_SLOTS_LIMIT` terminów, po godzinie rozpoczęcia. Trzy zapytania niezależnie od
+    liczby terminów (terminy z etapem, zapisy z kontem uczestnika).
+    """
+    from .jitsi_jwt import grace, interview_window, is_platform_room, short_name
+    from .models import StageFormat
+    from .video import slot_meeting_url
+
+    now = now or timezone.now()
+    active = InterviewBooking.objects.exclude(entry__status=StageEntryStatus.DISQUALIFIED)
+    slots = list(
+        InterviewSlot.objects.for_competition(competition)
+        .filter(
+            stage__format=StageFormat.INTERVIEW,
+            ends_at__gt=now - grace(),
+            starts_at__lt=now + timedelta(days=COMMITTEE_SLOTS_DAYS),
+            bookings__in=active,
+        )
+        .distinct()
+        .select_related("stage")
+        .prefetch_related(
+            Prefetch(
+                "bookings",
+                queryset=active.select_related("entry__participant__user").order_by("created_at", "id"),
+            )
+        )
+        .order_by("starts_at", "id")[:COMMITTEE_SLOTS_LIMIT]
+    )
+    rows = []
+    for slot in slots:
+        opens_at, closes_at = interview_window(slot)
+        bookings = list(slot.bookings.all())
+        rows.append(
+            {
+                "slot": slot,
+                "stage": slot.stage,
+                "count": len(bookings),
+                "names": [short_name(booking.entry.participant.user) or "—" for booking in bookings],
+                "platform": is_platform_room(slot_meeting_url(slot)),
+                "opens_at": opens_at,
+                "is_open": opens_at <= now < closes_at,
+            }
+        )
+    return rows
 
 
 def booking_for_participant(stage: Stage, participant) -> InterviewBooking | None:

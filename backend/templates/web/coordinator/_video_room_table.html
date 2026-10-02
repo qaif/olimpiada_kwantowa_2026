@@ -1,0 +1,71 @@
+{% load web_extras coordinator_extras %}{% comment %}
+  Tabela pokoi wideo – wspólna dla ekranu koordynatora (wszystkie pokoje konkursu, z kolumną
+  „założył”) i ekranu członka komisji (wyłącznie jego pokoje). Linków **nie ma** w tabeli: pokazuje
+  je dopiero przycisk „Pokaż linki” (POST, odpowiedź ``no-store``, wpis w audycie), żeby rzut oka
+  na listę albo strona z pamięci przeglądarki nie wystawiały poświadczeń.
+
+  Zmienne: ``rooms``, ``with_creator``, ``actions`` (czy pokazać czynności – historia ich nie ma),
+  ``url_names``, ``now``.
+{% endcomment %}
+<div class="scroll">
+  <table class="table">
+    <thead>
+      <tr>
+        <th scope="col">Etykieta</th>
+        {% if with_creator %}<th scope="col">Założył</th>{% endif %}
+        <th scope="col">Założony</th>
+        <th scope="col">Ważny do</th>
+        <th scope="col">Stan</th>
+        <th scope="col">Komisja</th>
+        {% if actions %}<th scope="col"><span class="visually-hidden">Operacje</span></th>{% endif %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for room in rooms %}
+        <tr>
+          <th scope="row">{{ room.label }}<br><span class="hint"><code>{{ room.room_name }}</code></span></th>
+          {% if with_creator %}
+            <td>
+              {% if room.created_by %}{{ room.created_by|person }}{% else %}—{% endif %}
+              <br><span class="hint">{{ room.get_created_as_display }}</span>
+            </td>
+          {% endif %}
+          <td>{{ room.created_at|local_datetime }}</td>
+          <td>{{ room.expires_at|local_datetime }}</td>
+          <td>
+            {% with state=room.state %}
+              {% if state == "active" %}<span class="badge badge--ok">otwarty</span>
+              {% elif state == "closed" %}<span class="badge">zamknięty {{ room.closed_at|local_datetime }}</span>
+              {% else %}<span class="badge">wygasł</span>{% endif %}
+            {% endwith %}
+          </td>
+          <td>
+            {% if room.committee_access %}
+              tak{% if room.committee_as_moderator %} – jako gospodarze{% endif %}
+            {% else %}—{% endif %}
+          </td>
+          {% if actions %}
+            <td>
+              <div class="actions">
+                <form method="post" action="{% url url_names.links room.pk %}">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn--secondary btn--small">Pokaż linki</button>
+                </form>
+                <a class="btn btn--secondary btn--small" href="{% url url_names.join room.pk %}" target="_blank"
+                   rel="noopener noreferrer nofollow">Dołącz jako gospodarz</a>
+                <form method="post" action="{% url url_names.close room.pk %}"
+                      x-data="confirmSubmit" x-on:submit="check"
+                      data-confirm="Zamknąć pokój „{{ room.label }}”? Linki przestaną działać od razu – także te już rozesłane.">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn--danger btn--small">Zamknij pokój</button>
+                </form>
+              </div>
+            </td>
+          {% endif %}
+        </tr>
+      {% empty %}
+        <tr><td colspan="7" class="empty">Brak pokoi.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

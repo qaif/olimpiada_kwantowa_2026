@@ -6,15 +6,35 @@
 # `jitsi-web`, a sam serwuje zwykły HTTP. Media (JVB) idą bezpośrednio po UDP 10000 – to jedyny
 # port publikowany na hoście; wymaga reguły `ufw allow 10000/udp` (robi ją scripts/deploy_jitsi.sh).
 #
-# Pokoje są otwarte (bez logowania), ale nazwy losowe generuje portal przy zapisie na termin –
-# adres pokoju jest sekretem znanym uczestnikowi i komisji. Poczekalnia (lobby) i strona
-# „przed wejściem” są włączone, więc obcy z linkiem i tak nie wejdzie bez wpuszczenia.
+# Wejście WYŁĄCZNIE z przepustką platformy (v0.39.0, „wariant A”, docs/OPERACJE.md § 25):
+# `ENABLE_AUTH=1` + `AUTH_TYPE=jwt`, bez gości. Prosody (`mod_auth_token`) przyjmuje tylko token
+# HS256 podpisany `JWT_APP_SECRET`, z `iss` = `JWT_APP_ID`, `aud` z `JWT_ACCEPTED_AUDIENCES`,
+# niewygasły (`exp`, `nbf`) i z `room` równym nazwie pokoju, do którego ktoś wchodzi
+# (`mod_token_verification`, porównanie dokładne – token na inny pokój dostaje „room-mismatch”).
+# Tokeny wystawia portal (`apps.competitions.jitsi_jwt`) w chwili kliknięcia „Dołącz” – nikt nie
+# zakłada pokoju ręcznie pod `meet.<domena>/<cokolwiek>`, a sama nazwa pokoju przestaje być
+# poświadczeniem.
 #
-# Uruchomienie: scripts/deploy_jitsi.sh user@host (tworzy .env z sekretami, otwiera port, startuje).
+# Moderator: `mod_token_affiliation` (XMPP_MUC_MODULES) nadaje właściciela pokoju wyłącznie
+# tokenowi z `context.user.moderator = true` (komisja, koordynator, gospodarz pokoju), każdemu
+# innemu tokenowi – członka. `ENABLE_AUTO_OWNER=0` w jicofo wyłącza regułę „pierwszy w pokoju
+# zostaje moderatorem”: bez tego uczestnik, który wszedł przed komisją, dostawałby moderatora.
+# Poczekalnia (lobby) zostaje: gospodarz może nią nadal bramkować wejście.
+#
+# Wycofanie (otwarte pokoje jak przed v0.39.0): `ENABLE_AUTH=0` i `ENABLE_AUTO_OWNER=1`
+# w jitsi/.env, potem `up -d` – reszta zmiennych JWT jest wtedy martwa (szablony obrazów czytają je
+# wyłącznie przy `ENABLE_AUTH=1`). Sprawdzone na stable-11031: wejście bez tokenu znowu działa.
+#
+# Obrazy przypięte do konkretnego wydania (`JITSI_IMAGE_VERSION`, domyślnie stable-11031 – to, na
+# którym sprawdzono nazwy zmiennych i zachowanie tokenów). Pływający tag `stable` znaczyłby, że
+# `pull` w dowolnym dniu może zmienić szablony konfiguracji, a z nimi znaczenie zmiennych niżej.
+#
+# Uruchomienie: scripts/deploy_jitsi.sh user@host (tworzy .env z sekretami, przekazuje sekret
+# tokenów portalowi, otwiera port, startuje).
 
 services:
   jitsi-web:
-    image: jitsi/web:${JITSI_IMAGE_VERSION:-stable}
+    image: jitsi/web:${JITSI_IMAGE_VERSION:-stable-11031}
     restart: unless-stopped
     volumes:
       - jitsi-web-config:/config
@@ -34,6 +54,15 @@ services:
       - ENABLE_RECORDING=0
       - ENABLE_TRANSCRIPTIONS=0
       - DEFAULT_LANGUAGE=pl
+      # Front musi wiedzieć, że logowanie jest tokenem (bez domeny gości): inaczej próbuje wejść
+      # anonimowo i pokazuje okno „zaloguj się”, którego nikt nie umie wypełnić.
+      - ENABLE_AUTH=${ENABLE_AUTH:-1}
+      - AUTH_TYPE=jwt
+      - ENABLE_GUESTS=0
+      # Opcjonalnie: dokąd odesłać kogoś, kto otworzył goły adres pokoju (np. ze starego listu),
+      # np. `https://<domena>/login/`. Domyślnie pusty – zachowania Jitsi z tym ustawieniem nie
+      # sprawdzaliśmy na stable-11031, więc nie włącza go żaden skrypt (docs/OPERACJE.md § 25.2).
+      - TOKEN_AUTH_URL=${TOKEN_AUTH_URL:-}
       - XMPP_DOMAIN=${XMPP_DOMAIN:-meet.jitsi}
       - XMPP_AUTH_DOMAIN=auth.${XMPP_DOMAIN:-meet.jitsi}
       - XMPP_BOSH_URL_BASE=http://xmpp.${XMPP_DOMAIN:-meet.jitsi}:5280
@@ -49,7 +78,7 @@ services:
     depends_on: [prosody]
 
   prosody:
-    image: jitsi/prosody:${JITSI_IMAGE_VERSION:-stable}
+    image: jitsi/prosody:${JITSI_IMAGE_VERSION:-stable-11031}
     restart: unless-stopped
     expose: ["5222", "5347", "5280"]
     volumes:
@@ -58,8 +87,18 @@ services:
     environment:
       - PUBLIC_URL=${PUBLIC_URL}
       - TZ=${TZ:-Europe/Warsaw}
-      - ENABLE_AUTH=0
-      - ENABLE_GUESTS=1
+      - ENABLE_AUTH=${ENABLE_AUTH:-1}
+      - AUTH_TYPE=jwt
+      - ENABLE_GUESTS=0
+      # Przepustki platformy (docs/OPERACJE.md § 25). Sekret jest TEN SAM, co
+      # `JITSI_JWT_APP_SECRET` w <REMOTE_DIR>/.env portalu – przekazuje go scripts/deploy_jitsi.sh.
+      # `:?` zamiast cichego pustego: Prosody bez sekretu przy `ENABLE_AUTH=1` odrzucałby każdy
+      # token, czyli zamknąłby wszystkie rozmowy bez słowa wyjaśnienia.
+      - JWT_APP_ID=${JWT_APP_ID:-olimpiada}
+      - JWT_APP_SECRET=${JWT_APP_SECRET:?brak JWT_APP_SECRET w jitsi/.env – uruchom scripts/deploy_jitsi.sh}
+      - JWT_ACCEPTED_ISSUERS=${JWT_APP_ID:-olimpiada}
+      - JWT_ACCEPTED_AUDIENCES=${JWT_ACCEPTED_AUDIENCES:-jitsi}
+      - JWT_ALLOW_EMPTY=0
       - ENABLE_LOBBY=1
       - ENABLE_XMPP_WEBSOCKET=1
       - XMPP_DOMAIN=${XMPP_DOMAIN:-meet.jitsi}
@@ -69,7 +108,8 @@ services:
       - XMPP_INTERNAL_MUC_DOMAIN=internal-muc.${XMPP_DOMAIN:-meet.jitsi}
       - XMPP_RECORDER_DOMAIN=recorder.${XMPP_DOMAIN:-meet.jitsi}
       - XMPP_MODULES=
-      - XMPP_MUC_MODULES=
+      # Moderator wyłącznie z tokenu (`context.user.moderator`) – opis na górze pliku.
+      - XMPP_MUC_MODULES=token_affiliation
       - XMPP_INTERNAL_MUC_MODULES=
       - JICOFO_AUTH_USER=focus
       - JICOFO_AUTH_PASSWORD=${JICOFO_AUTH_PASSWORD}
@@ -81,12 +121,23 @@ services:
           - xmpp.${XMPP_DOMAIN:-meet.jitsi}
 
   jicofo:
-    image: jitsi/jicofo:${JITSI_IMAGE_VERSION:-stable}
+    image: jitsi/jicofo:${JITSI_IMAGE_VERSION:-stable-11031}
     restart: unless-stopped
     volumes:
       - jitsi-jicofo-config:/config
     environment:
       - TZ=${TZ:-Europe/Warsaw}
+      # Jicofo **bez** własnego uwierzytelniania, choć Prosody go wymaga – i to jest celowe,
+      # sprawdzone na stable-11031 (docs/OPERACJE.md § 25.6). Jicofo z `authentication.type = JWT`
+      # uznaje KAŻDEGO zalogowanego tokenem za „uwierzytelnionego” i po chwili nadaje mu
+      # właściciela pokoju – czyli uczestnik rozmowy zostawał moderatorem kilka sekund po wejściu,
+      # niezależnie od `context.user.moderator`. Bramką wejścia jest Prosody (token, pokój, czas),
+      # a moderatora nadaje wyłącznie `mod_token_affiliation`.
+      - JICOFO_ENABLE_AUTH=0
+      # „Pierwszy w pokoju zostaje moderatorem” – wyłączone z tego samego powodu. Przy wycofaniu
+      # do otwartych pokoi (`ENABLE_AUTH=0`) ustaw w jitsi/.env także `ENABLE_AUTO_OWNER=1`: bez
+      # tokenów nikt inny moderatora nie nada, a pokój bez moderatora nie ma kto zamknąć w lobby.
+      - ENABLE_AUTO_OWNER=${ENABLE_AUTO_OWNER:-0}
       - XMPP_DOMAIN=${XMPP_DOMAIN:-meet.jitsi}
       - XMPP_AUTH_DOMAIN=auth.${XMPP_DOMAIN:-meet.jitsi}
       - XMPP_INTERNAL_MUC_DOMAIN=internal-muc.${XMPP_DOMAIN:-meet.jitsi}
@@ -100,7 +151,7 @@ services:
     depends_on: [prosody]
 
   jvb:
-    image: jitsi/jvb:${JITSI_IMAGE_VERSION:-stable}
+    image: jitsi/jvb:${JITSI_IMAGE_VERSION:-stable-11031}
     restart: unless-stopped
     ports:
       - "${JVB_PORT:-10000}:${JVB_PORT:-10000}/udp"

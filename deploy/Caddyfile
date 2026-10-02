@@ -202,6 +202,12 @@ www.{$SITE_DOMAIN} {
 # Własne Jitsi Meet (rozmowy kwalifikacyjne): osobny projekt compose (deploy/jitsi, scripts/deploy_jitsi.sh);
 # kontener `jitsi-web` dołącza do sieci `edge` pod tą nazwą. WebSocket (XMPP) przechodzi przez reverse_proxy
 # bez dodatkowej konfiguracji. Dopóki nie ma rekordu DNS `meet.<domena>`, ten blok tylko czeka na certyfikat.
+#
+# Przepustki platformy (v0.39.0, docs/OPERACJE.md § 25): portal przekierowuje do pokoju z tokenem JWT we
+# fragmencie adresu (`#jwt="…"`), który nie jedzie do serwera. `Referrer-Policy: no-referrer` zamyka drugą
+# drogę wycieku na wypadek adresu z `?jwt=` (stare zakładki, ręcznie sklejone linki): strona pokoju nie
+# wyśle swojego adresu w `Referer` do nikogo (czcionki, zasoby zewnętrzne). Access logu nie ma (brak
+# dyrektywy `log`, jak w całym pliku) – adres z tokenem nie ląduje w żadnym pliku Caddy'ego.
 meet.{$SITE_DOMAIN} {
     encode gzip zstd
     reverse_proxy jitsi-web:80 {
@@ -210,6 +216,7 @@ meet.{$SITE_DOMAIN} {
     header {
         Strict-Transport-Security "max-age=31536000"
         X-Content-Type-Options "nosniff"
+        Referrer-Policy "no-referrer"
     }
 }
 

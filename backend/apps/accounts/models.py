@@ -1188,6 +1188,15 @@ class CommitteeMember(models.Model):
         "status", max_length=16, choices=CommitteeStatus.choices, default=CommitteeStatus.PENDING
     )
     is_appeals_committee = models.BooleanField("komisja odwoławcza", default=False)
+    # Uprawnienie nadawane przez koordynatora tego konkursu (v0.39.0, ekran „Pokoje wideo”):
+    # członek komisji może sam zakładać pokoje na własnym Jitsi i wystawiać do nich **długie**
+    # linki dla osób spoza platformy (``apps.competitions.video_rooms``). Pole profilu, a nie
+    # osobny model nadania – z tego samego powodu, co ``is_appeals_committee`` obok: to jest
+    # oświadczenie jednego organizatora o jednej osobie w jednym konkursie, profil jest już
+    # przypisany do konkursu, a historię „kto i kiedy nadał” niesie audyt
+    # (``video.issuer_granted`` / ``video.issuer_revoked``). Działa wyłącznie razem ze statusem
+    # ACTIVE: zawieszenie członka zamyka mu ekran bez dotykania tej flagi.
+    video_room_issuer = models.BooleanField("może tworzyć pokoje wideo", default=False)
     created_at = models.DateTimeField("utworzony", default=timezone.now)
     approved_at = models.DateTimeField("zatwierdzony", null=True, blank=True)
     approved_by = models.ForeignKey(
