@@ -295,3 +295,36 @@ def test_list_query_count_does_not_grow_with_members(web_client, coordinator, dj
         assert web_client.get(MEMBERS_URL).status_code == 200
 
     assert len(many.captured_queries) == len(few.captured_queries)
+
+
+# --- izolacja konkursów (poprawka po audycie, 01.10.2026) -----------------------------------------
+
+
+def test_card_shows_no_reviews_rules_or_audit_from_another_competition(competition, other_competition):
+    """Karta członka komitetu A nie niesie śladów konkursu B – nawet gdy przy jego profilu są.
+
+    Recenzja pracy konkursu B przy członku komitetu A to ślad przydziału sprzed zawężenia puli
+    recenzentów; wpis audytu o jego koncie zapisany w B dotyczy tego, co ta osoba robi u sąsiada.
+    """
+    from apps.accounts.member_card import member_card
+    from apps.competitions.tests.factories import ProblemFactory
+    from apps.tenancy.context import competition_context
+
+    member = ActiveReviewerFactory(competition=competition)
+    mine = ReviewFactory(competition=competition, reviewer=member)
+    theirs = ReviewFactory(competition=other_competition, reviewer=member)
+    ProblemReviewerRule.objects.create(problem=ProblemFactory(competition=other_competition), reviewer=member)
+    with competition_context(competition):
+        audit(None, "committee.district_verified", member)
+    with competition_context(other_competition):
+        audit(None, "account.updated_by_coordinator", member.user)
+
+    card = member_card(member)
+
+    shown = [row["review"].pk for row in card["reviews"]]
+    assert mine.pk in shown
+    assert theirs.pk not in shown
+    assert card["rules"]["rows"] == []
+    actions = {entry.action for entry in card["audit_entries"]}
+    assert "committee.district_verified" in actions
+    assert "account.updated_by_coordinator" not in actions

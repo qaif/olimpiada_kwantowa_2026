@@ -28,6 +28,7 @@ from apps.accounts.preferences import (
 )
 from apps.core.api import DomainError
 from apps.web.mixins import ActionViewMixin, ParticipantRequiredMixin
+from apps.web.throttle import ThrottledFormMixin
 
 
 def _form_error(message: str) -> DomainError:
@@ -48,17 +49,25 @@ class GuardianEmailForm(forms.Form):
     )
 
 
-class GuardianRequestView(ActionViewMixin, ParticipantRequiredMixin, View):
+class GuardianRequestView(ActionViewMixin, ParticipantRequiredMixin, ThrottledFormMixin, View):
     """``POST /me/guardian/`` – zapisuje adres opiekuna i wysyła na niego prośbę o zgodę.
 
     Jeden adres na dwa przypadki (pierwsza prośba i „wyślij ponownie”), bo z punktu widzenia
     uczestnika to jedna czynność: „poproś opiekuna”. Powtórna wysyłka jest zamierzona i nie jest
     błędem – list ginie w spamie częściej, niż ktokolwiek chciałby przyznać.
 
+    **Limit: scope ``password_reset``, konsumowany przez każdy POST** (SECURITY_CHECKLIST 8.8).
+    Formularz wysyła list z domeny organizatora na adres wpisany przez nadawcę żądania – bez
+    limitu pętla POST-ów z jednego konta uczestnika była gotowym wysyłaczem listów na dowolne
+    skrzynki. Budżet jest **wspólny** z resetem hasła, ponowną aktywacją i zmianą adresu: osobny
+    pozwalałby zasypać ten sam adres drugim formularzem. Mixin stoi **za** ``ParticipantRequiredMixin``,
+    więc anonim i obca rola dostają odmowę, zanim cokolwiek zużyją z budżetu.
+
     Powrót idzie na **zakładkę zgód** pulpitu, czyli tam, skąd przyszło kliknięcie: odesłanie na
     zakładkę domyślną kazałoby uczestnikowi szukać bloku, który właśnie zmienił stan.
     """
 
+    throttle_scope = "password_reset"
     success_url = reverse_lazy("web:me")
 
     def get_success_url(self, *args, **kwargs) -> str:

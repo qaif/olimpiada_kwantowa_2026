@@ -25,7 +25,12 @@
         {% with message=entry.message %}
           <li class="chat-msg{% if entry.own %} chat-msg--own{% endif %}{% if entry.organizer %} chat-msg--organizer{% endif %}" id="wiadomosc-{{ message.pk }}">
             <p class="chat-msg__meta">
-              <span class="chat-msg__author">{{ entry.author }}</span>
+              {% comment %}
+                Odznaka roli to osobny element, zależny wyłącznie od ``sender_role`` (``entry.organizer``)
+                – imię nadawcy jest zwykłym tekstem obok i nie może jej udawać (pakiet 5).
+              {% endcomment %}
+              {% if entry.organizer %}<span class="badge badge--accent chat-msg__role" data-sender-role="organizer">Organizator</span>{% endif %}
+              {% if entry.author %}<span class="chat-msg__author">{{ entry.author }}</span>{% endif %}
               <time datetime="{{ message.created_at|date:'c' }}">{{ message.created_at|local_datetime }}</time>
               {% if message.is_pending %}<span class="badge badge--warn">czeka na akceptację</span>{% endif %}
               {% if message.is_rejected %}<span class="badge badge--danger">odrzucona</span>{% endif %}

@@ -23,6 +23,7 @@ from allauth.socialaccount.providers.google.views import GoogleOAuth2Adapter
 from django.utils import timezone
 
 from apps.accounts.models import Participant, User
+from apps.accounts.tests.conftest import api_captcha_fields
 from apps.competitions.models import DEFAULT_RETENTION_MONTHS, Edition
 from apps.core.models import AuditLog
 
@@ -73,6 +74,7 @@ def registration_payload(email: str = "nowy@example.test") -> dict:
         "terms_consent": True,
         "gdpr_consent": True,
         "guardian_consent": True,
+        **api_captcha_fields(),
     }
 
 

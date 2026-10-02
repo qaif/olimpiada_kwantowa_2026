@@ -25,10 +25,9 @@ from django.http import Http404
 from django.views.generic import View
 
 from apps.competitions.services import current_edition
-from apps.tenancy.documents import render_document
 from apps.tenancy.fees import DOCUMENT_KIND, FeeStatus, fee_document_context, fee_for, fees_enabled
 from apps.web.mixins import ParticipantRequiredMixin
-from apps.web.views.coordinator_fees import fee_document_response
+from apps.web.views.coordinator_fees import fee_document_response, render_fee_document
 
 
 def fee_card_context(competition, participant, edition) -> dict:
@@ -75,7 +74,8 @@ class FeeDocumentView(ParticipantRequiredMixin, View):
         fee = fee_for(self.participant, edition)
         if fee is None or not fee.document_version:
             raise Http404("Nie wydano jeszcze rachunku za to wpisowe.")
-        rendered = render_document(
+        # Wartości podstawień zescapowane dla ReportLaba – ta sama funkcja, co przy wydaniu.
+        rendered = render_fee_document(
             self.competition,
             DOCUMENT_KIND,
             version=fee.document_version,

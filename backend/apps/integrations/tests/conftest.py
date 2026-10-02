@@ -37,6 +37,26 @@ def api_client() -> APIClient:
     return APIClient()
 
 
+#: Adres publiczny, pod który „rozwiązują się” nazwy odbiorców w testach. ``*.example.test`` nie
+#: istnieje w żadnym DNS-ie, a doręczenie od pakietu 5 rozwiązuje nazwę przed wysłaniem
+#: (``apps.integrations.targets``). Żądania i tak nie wychodzą – ``requests.post`` jest podstawiany.
+PUBLIC_TEST_ADDRESS = "93.184.215.14"
+
+
+@pytest.fixture(autouse=True)
+def public_dns(monkeypatch):
+    """Rozwiązywanie nazw odbiorców bez sieci: każda nazwa → jeden adres publiczny.
+
+    Podmieniona jest **sama funkcja DNS**, a nie reguła: test, który sprawdza odmowę dla adresu
+    wewnętrznego, podstawia tu własną odpowiedź i przechodzi przez tę samą ścieżkę, co produkcja.
+    """
+    import ipaddress
+
+    monkeypatch.setattr(
+        "apps.integrations.targets.resolve", lambda host, port: [ipaddress.ip_address(PUBLIC_TEST_ADDRESS)]
+    )
+
+
 @pytest.fixture
 def coordinator():
     return CoordinatorFactory()

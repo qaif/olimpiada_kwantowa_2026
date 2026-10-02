@@ -88,11 +88,17 @@ def _member_reviews(member: CommitteeMember) -> list:
     ``select_related`` sięga aż do skali punktacji etapu, bo przy każdej recenzji stoi lista
     wyboru punktów („Zmień punkty”), a skala bywa nadpisana przy zadaniu. Bez tego karta robiłaby
     dwa zapytania na wiersz: jedno po zadanie, drugie po skalę jego etapu.
+
+    Wyłącznie recenzje prac **konkursu tego profilu** (poprawka po audycie izolacji, 01.10.2026).
+    Recenzja pracy innego konkursu przy tym członku jest śladem przydziału sprzed zawężenia puli
+    recenzentów (``apps.grading.services.reviewer_pool``) – karta pokazywałaby wtedy koordynatorowi
+    pseudonimy, zadania i punkty cudzych zawodów, a jej przyciski działałyby na cudzych pracach.
     """
     from apps.grading.models import Review
 
     return list(
-        Review.objects.filter(reviewer=member)
+        Review.objects.for_competition(member.competition_id)
+        .filter(reviewer=member)
         .select_related(
             "submission",
             "submission__entry",
@@ -259,8 +265,10 @@ def _rules(member: CommitteeMember) -> dict:
     from apps.competitions.services import current_edition
     from apps.grading.models import ProblemReviewerRule
 
+    # Reguły zadań konkursu tego profilu – zakres jak w ``_member_reviews``.
     rules = list(
-        ProblemReviewerRule.objects.filter(reviewer=member)
+        ProblemReviewerRule.objects.for_competition(member.competition_id)
+        .filter(reviewer=member)
         .select_related("problem", "problem__stage")
         .order_by("problem__stage__opens_at", "problem__number", "id")
     )
@@ -316,20 +324,29 @@ def _issues(member: CommitteeMember) -> list | None:
         from apps.grading.models import WorkIssue
     except ImportError:  # pragma: no cover - model zgłoszeń jest opcjonalny
         return None
+    # Zakres jak w ``_member_reviews``: zgłoszenia przy pracach konkursu tego profilu.
     return list(
-        WorkIssue.objects.filter(review__reviewer=member)
+        WorkIssue.objects.for_competition(member.competition_id)
+        .filter(review__reviewer=member)
         .select_related("submission", "submission__entry", "submission__problem")
         .order_by("-created_at", "-id")[:AUDIT_LIMIT]
     )
 
 
 def _audit_entries(member: CommitteeMember) -> list:
-    """Ostatnie decyzje zapisane o tym koncie i o tym profilu – bez wpisów o cudzych pracach."""
+    """Ostatnie decyzje zapisane o tym koncie i o tym profilu – bez wpisów o cudzych pracach.
+
+    Zakres ``visible_to`` konkursu profilu (poprawka po audycie izolacji, 01.10.2026): konto jest
+    jedno na platformę, więc wpisy o nim zapisane w innym konkursie (zmiana danych przez tamtego
+    koordynatora, tamtejsze role) nie są historią tej osoby **w tym** komitecie. Wpisy platformowe
+    (bez konkursu) zostają – jak w przeglądarce audytu.
+    """
     from apps.core.models import AuditLog
 
     user_type, member_type = AUDIT_TARGET_TYPES
     return list(
-        AuditLog.objects.filter(
+        AuditLog.objects.visible_to(member.competition_id)
+        .filter(
             Q(target_type=user_type, target_id=str(member.user_id))
             | Q(target_type=member_type, target_id=str(member.pk))
         )

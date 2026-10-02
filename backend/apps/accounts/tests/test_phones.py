@@ -13,6 +13,8 @@ from apps.accounts.phones import MAX_DIGITS, normalize_phone
 from apps.accounts.services import register_participant
 from apps.core.api import DomainError
 
+from .conftest import api_captcha_fields
+
 REGISTER_URL = "/api/auth/register/participant/"
 PASSWORD = "Poprawne-Haslo-2026"
 
@@ -88,6 +90,7 @@ def test_api_refuses_a_registration_without_a_phone(open_registration):
     response = APIClient().post(
         REGISTER_URL,
         {
+            **api_captcha_fields(),
             "email": "bez-telefonu@example.test",
             "password": PASSWORD,
             "first_name": "Anna",

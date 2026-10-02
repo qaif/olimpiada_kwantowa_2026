@@ -9,6 +9,7 @@ from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.authtoken.models import Token
 from rest_framework.generics import GenericAPIView
+from rest_framework.parsers import JSONParser
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
@@ -42,7 +43,7 @@ from .services import (
 
 
 class RegisterParticipantView(GenericAPIView):
-    """Rejestracja otwarta uczestnika."""
+    """Rejestracja otwarta uczestnika. Wymaga pary CAPTCHY (``serializers.CaptchaPairMixin``)."""
 
     authentication_classes: list = []
     permission_classes = [AllowAny]
@@ -79,7 +80,7 @@ class ConsentSetView(GenericAPIView):
 
 
 class RegisterCommitteeView(GenericAPIView):
-    """Rejestracja członka komitetu na kod zaproszenia."""
+    """Rejestracja członka komitetu na kod zaproszenia. Wymaga pary CAPTCHY, jak uczestnik."""
 
     authentication_classes: list = []
     permission_classes = [AllowAny]
@@ -96,10 +97,22 @@ class RegisterCommitteeView(GenericAPIView):
 
 
 class LoginView(GenericAPIView):
-    """Logowanie: token DRF + sesja."""
+    """Logowanie: token DRF + sesja.
+
+    **Wyłącznie JSON** (``parser_classes``; pakiet 5 po audycie). Widok DRF nie sprawdza CSRF dla
+    niezalogowanego żądania, a kończy się ``django.contrib.auth.login()`` – czyli ustawia ciasteczko
+    sesji. Z parserami domyślnymi przyjmował też ``application/x-www-form-urlencoded``
+    i ``multipart/form-data``, a takie żądanie wysyła **zwykły formularz z obcej strony**, bez
+    zgody przeglądarki: napastnik logował przeglądarkę ofiary na **własne** konto (login CSRF)
+    i czekał, aż ofiara wpisze tam swoje dane albo wgra pracę. ``application/json`` z obcego
+    pochodzenia wymaga preflightu CORS, którego serwis nie przepuszcza – formularz HTML tego typu
+    treści wysłać nie umie. Inny typ treści dostaje ``415 UNSUPPORTED_MEDIA_TYPE``, zanim
+    cokolwiek zostanie sprawdzone. Formularz ``/login/`` (HTML) ma własny widok z CSRF.
+    """
 
     permission_classes = [AllowAny]
     serializer_class = LoginSerializer
+    parser_classes = [JSONParser]
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = "login"
 
@@ -177,14 +190,29 @@ class MeView(GenericAPIView):
         return Response(MeSerializer(request.user).data)
 
 
+def committee_of(request):
+    """Członkowie komitetu **konkursu żądania** – jedyne wejście trzech widoków poniżej.
+
+    Do poprawki po audycie izolacji (01.10.2026) te trzy widoki szukały w ``CommitteeMember.objects``
+    bez zawężenia: koordynator konkursu A widział oczekujących członków komitetu B i mógł ich
+    zatwierdzić (czyli nadać im rolę recenzenta **w konkursie B**) albo zmienić im województwo.
+    Odpowiedniki HTML (``apps.web.views.coordinator``) zawężały od zawsze – API dostaje tę samą
+    regułę: członek cudzego konkursu to 404, bo jego istnienie nie jest informacją dla tego
+    koordynatora. Żądanie bez konkursu nie widzi nikogo (``for_competition(None)``).
+    """
+    return CommitteeMember.objects.for_competition(getattr(request, "competition", None)).select_related(
+        "user"
+    )
+
+
 class CommitteePendingListView(GenericAPIView):
-    """Lista członków komitetu oczekujących na zatwierdzenie – tylko koordynator."""
+    """Lista członków komitetu oczekujących na zatwierdzenie – tylko koordynator tego konkursu."""
 
     permission_classes = [IsCoordinator]
     serializer_class = PendingCommitteeMemberSerializer
 
     def get_queryset(self):
-        return CommitteeMember.objects.select_related("user").filter(status=CommitteeStatus.PENDING)
+        return committee_of(self.request).filter(status=CommitteeStatus.PENDING)
 
     @extend_schema(responses={200: PendingCommitteeMemberSerializer(many=True)})
     def get(self, request):
@@ -199,8 +227,10 @@ class CommitteeApproveView(GenericAPIView):
 
     @extend_schema(request=None, responses={200: PendingCommitteeMemberSerializer})
     def post(self, request, pk: int):
-        member = get_object_or_404(CommitteeMember.objects.select_related("user"), pk=pk)
-        member = approve_committee_member(member, actor=request.user)
+        member = get_object_or_404(committee_of(request), pk=pk)
+        member = approve_committee_member(
+            member, actor=request.user, competition=getattr(request, "competition", None)
+        )
         return Response(self.get_serializer(member).data)
 
 
@@ -228,11 +258,12 @@ class CommitteeVerifyDistrictView(GenericAPIView):
     def post(self, request, pk: int):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        member = get_object_or_404(CommitteeMember.objects.select_related("user"), pk=pk)
+        member = get_object_or_404(committee_of(request), pk=pk)
         member = verify_committee_district(
             member,
             district=serializer.validated_data.get("district") or None,
             actor=request.user,
             request=request,
+            competition=getattr(request, "competition", None),
         )
         return Response(PendingCommitteeMemberSerializer(member).data)

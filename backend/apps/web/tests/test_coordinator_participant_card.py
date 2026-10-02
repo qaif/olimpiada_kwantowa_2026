@@ -267,7 +267,7 @@ def test_missing_support_app_hides_the_section(web_client, coordinator, particip
     """
     from apps.accounts import participant_card as card_module
 
-    monkeypatch.setattr(card_module, "support_tickets", lambda user: None)
+    monkeypatch.setattr(card_module, "support_tickets", lambda user, competition: None)
     web_client.force_login(coordinator)
     html = web_client.get(card_url(participant)).content.decode()
 
@@ -278,7 +278,11 @@ def test_support_tickets_section_renders_when_app_is_installed(web_client, coord
     """Aplikacja zgłoszeń jest zainstalowana, więc sekcja stoi – z treścią zgłoszenia tej osoby."""
     from apps.support.models import SupportTicket
 
-    SupportTicket.objects.create(user=participant.user, subject="Nie działa upload pracy")
+    # Zgłoszenie **do organizatora tego konkursu**: sprawa bez konkursu jest sprawą do operatora
+    # platformy i na karcie koordynatora nie stoi (zawężenie po audycie izolacji, 01.10.2026).
+    SupportTicket.objects.create(
+        user=participant.user, subject="Nie działa upload pracy", competition=participant.competition
+    )
 
     web_client.force_login(coordinator)
     html = web_client.get(card_url(participant)).content.decode()
@@ -383,3 +387,33 @@ def test_page_query_budget_is_bounded(
     web_client.force_login(coordinator)
     with django_assert_max_num_queries(budget("coordinator/participant-card")):
         assert web_client.get(card_url(participant)).status_code == 200
+
+
+def test_card_shows_no_tickets_audit_or_reviewers_of_another_competition(
+    participant, competition, other_competition
+):
+    """Poprawka po audycie izolacji (01.10.2026): konto jest jedno na platformę, karta – na konkurs.
+
+    Do poprawki karta zbierała zgłoszenia pomocy tej osoby **ze wszystkich** konkursów, wpisy audytu
+    o wszystkim, co robiła gdzie indziej, i pulę recenzentów całej instalacji do formularzy przydziału.
+    """
+    from apps.accounts.participant_card import participant_card
+    from apps.support.tests.factories import SupportTicketFactory
+    from apps.tenancy.context import competition_context
+
+    mine = SupportTicketFactory(competition=competition, user=participant.user, subject="Sprawa tutejsza")
+    SupportTicketFactory(competition=other_competition, user=participant.user, subject="Sprawa u sąsiada")
+    with competition_context(competition):
+        audit(participant.user, "participant.profile_updated", participant)
+    with competition_context(other_competition):
+        audit(participant.user, "forum.thread_created", participant.user)
+    reviewer_here = ActiveReviewerFactory(competition=competition)
+    ActiveReviewerFactory(competition=other_competition)
+
+    card = participant_card(participant)
+
+    assert [row["ticket"] for row in card["tickets"]] == [mine]
+    actions = {entry.action for entry in card["audit_entries"]}
+    assert "participant.profile_updated" in actions
+    assert "forum.thread_created" not in actions
+    assert card["reviewer_pool"] == [reviewer_here]

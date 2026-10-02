@@ -31,6 +31,7 @@ from django import forms
 
 from apps.accounts.consents import ConsentKind, consent_set, organizer_name
 from apps.accounts.consents import label as consent_label
+from apps.accounts.names import validate_person_name
 from apps.web.captcha import CaptchaFormMixin
 from apps.web.forms import (
     PASSWORD_CONFIRM_FIELD,
@@ -75,8 +76,8 @@ class SupervisorRegisterForm(CaptchaFormMixin):
     )
     password = password_field()
     password2 = password_field("Powtórz hasło")
-    first_name = forms.CharField(label="Imię", max_length=150)
-    last_name = forms.CharField(label="Nazwisko", max_length=150)
+    first_name = forms.CharField(label="Imię", max_length=150, validators=[validate_person_name])
+    last_name = forms.CharField(label="Nazwisko", max_length=150, validators=[validate_person_name])
     school = forms.CharField(label="Szkoła", max_length=255, required=False)
     phone = phone_field(required=False)
 

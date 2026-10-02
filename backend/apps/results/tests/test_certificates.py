@@ -181,6 +181,38 @@ def test_wycofana_zgoda_znowu_chowa_nazwisko(stage):
     assert verify(certificate.code)["recipient"] is None
 
 
+def _with_publish_consent(participant) -> None:
+    participant.publish_full_name = True
+    participant.save(update_fields=["publish_full_name"])
+    ConsentRecord.objects.create(
+        participant=participant, kind=ConsentKind.PUBLISH_NAME, source=ConsentSource.PANEL
+    )
+
+
+def test_weryfikacja_maloletniego_bez_zgody_opiekuna_nie_wydaje_nazwiska(stage):
+    """Pakiet 5, C7: ta sama reguła, co w tabeli wyników – małoletni sam zgody nie udziela."""
+    from django.utils import timezone
+
+    entry = entry_with_name(stage, birth_year=timezone.localdate().year - 16, guardian_consent=False)
+    _with_publish_consent(entry.participant)
+    certificate, _ = issue_certificate(edition=stage.edition, kind=CertificateKind.LAUREAT, entry=entry)
+
+    result = verify(certificate.code)
+
+    assert result["valid"] is True
+    assert result["recipient"] is None
+
+
+def test_weryfikacja_pelnoletniego_nie_wymaga_zgody_opiekuna(stage):
+    from django.utils import timezone
+
+    entry = entry_with_name(stage, birth_year=timezone.localdate().year - 25, guardian_consent=False)
+    _with_publish_consent(entry.participant)
+    certificate, _ = issue_certificate(edition=stage.edition, kind=CertificateKind.LAUREAT, entry=entry)
+
+    assert verify(certificate.code)["recipient"] == "Łucja Śniadecka"
+
+
 def test_nieznany_kod_nie_wywraca_strony():
     """Nieznany kod jest normalnym stanem strony publicznej, a nie awarią."""
     assert verify("NIEISTNIEJACY") is None

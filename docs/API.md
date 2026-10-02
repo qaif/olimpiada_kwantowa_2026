@@ -560,6 +560,44 @@ Zasady:
 - `PATCH /api/auth/me/` przyjmuje `birth_date` tą samą drogą; `GET /api/auth/me/` zwraca obie
   wartości, a `birth_date` bywa `null` w profilach założonych przed `v0.30.0`.
 
+### 6.1a. CAPTCHA w rejestracji (od wydania `v0.38.5`) — **zmiana niezgodna wstecz**
+
+`POST /api/auth/register/participant/` i `POST /api/auth/register/committee/` wymagają pary
+CAPTCHY — tej samej, którą rozwiązuje człowiek w formularzu `/register/`. Do tego wydania JSON
+omijał wszystkie warstwy antyspamowe formularza, a każde wywołanie wysyłało link aktywacyjny na
+dowolny adres. Klient, który rejestruje konta, musi pokazać człowiekowi obrazek.
+
+1. `GET /captcha/refresh/` z nagłówkiem `X-Requested-With: XMLHttpRequest` (bez niego `404`) zwraca
+   `{"key": "<klucz>", "image_url": "/captcha/image/<klucz>/", "audio_url": null}`,
+2. człowiek wpisuje wynik działania z obrazka `image_url` (wyzwanie arytmetyczne, np. `3 × 5 =`),
+3. do JSON-a rejestracji dochodzą dwa pola:
+
+| Pole | Typ | Uwagi |
+|---|---|---|
+| `captcha_key` | `string` | `key` z kroku 1 |
+| `captcha_value` | `string` | wynik wpisany przez człowieka |
+
+Zasady:
+
+- wyzwanie żyje **10 minut** i jest **jednorazowe**: każda próba je kasuje, także nieudana. Po
+  odmowie pobierz nowe wyzwanie — ponowienie z tą samą parą zawsze skończy się tym samym błędem,
+- zła, wygasła albo użyta para: `400 CAPTCHA_INVALID`. Brak któregoś z pól: `400` z błędem pola
+  (`captcha_key` / `captcha_value`),
+- błąd kształtu pozostałych danych (np. brak szkoły) zgłaszany na poziomie serializera **nie**
+  zużywa wyzwania; reguły serwisu (`EMAIL_TAKEN`, `CONSENT_REQUIRED`, `WEAK_PASSWORD` …) sprawdzane
+  są **po** CAPTCHY, więc wymagają nowej pary,
+- limit `register` (10/h z adresu IP, § 5) obowiązuje jak dotąd — CAPTCHA podnosi koszt jednego
+  zgłoszenia, limit ogranicza ich liczbę.
+
+### 6.1b. Logowanie `POST /api/auth/login/` — wyłącznie JSON (od wydania `v0.38.5`)
+
+Ciało żądania musi mieć `Content-Type: application/json` (`{"email": …, "password": …}`). Inny typ
+treści — `application/x-www-form-urlencoded`, `multipart/form-data`, `text/plain` — dostaje
+`415 UNSUPPORTED_MEDIA_TYPE`, zanim hasło zostanie sprawdzone. Powód: endpoint ustawia ciasteczko
+sesji, a te trzy typy wysyła zwykły formularz z obcej strony bez wiedzy użytkownika (login CSRF —
+zalogowanie przeglądarki ofiary na konto napastnika). JSON z obcego pochodzenia wymaga preflightu
+CORS, którego serwis nie przepuszcza. Odpowiedź (`{"token": …}`) i kody błędów bez zmian.
+
 ---
 
 ## 7. Kontakt

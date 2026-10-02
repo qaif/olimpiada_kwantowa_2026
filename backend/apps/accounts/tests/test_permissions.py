@@ -12,6 +12,15 @@ from apps.accounts.permissions import (
     IsCoordinator,
     IsParticipant,
 )
+from apps.accounts.services import (
+    active_reviewer_profile,
+    approve_committee_member,
+    committee_profile_in,
+    verify_committee_district,
+)
+from apps.competitions.tests.scope_helpers import api_client_factory
+from apps.core.api import DomainError
+from apps.tenancy.tests.factories import enforce_memberships, grant_membership
 
 from .factories import (
     ActiveReviewerFactory,
@@ -172,3 +181,107 @@ def test_superuser_nie_jest_automatycznie_koordynatorem():
     request = APIRequestFactory().get("/test/")
     request.user = UserFactory(is_staff=True, is_superuser=True)
     assert IsCoordinator().has_permission(request, None) is False
+
+
+# --- izolacja konkursów (poprawka po audycie bezpieczeństwa, 01.10.2026) --------------------------
+#
+# Profil komitetu jest jeden na konto i ma własny konkurs, a role przy wyłączonym
+# ``memberships_enforced`` są globalnymi grupami Django. Testy niżej pilnują, żeby o tym, **czyj**
+# jest członek komitetu, rozstrzygał jego profil – w bramkach i w endpointach koordynatora.
+
+
+def _allows(permission, user, competition) -> bool:
+    """Uprawnienie DRF wołane tak, jak w żądaniu: z konkursem ustawionym przez warstwę."""
+    request = APIRequestFactory().get("/test/")
+    request.user = user
+    request.competition = competition
+    return permission().has_permission(request, None)
+
+
+@pytest.fixture(params=[False, True], ids=["memberships_off", "memberships_on"])
+def coordinator_a(request, competition):
+    """Koordynator konkursu A – przy włączonej fladze z członkostwem, bo bez niego nie jest nim."""
+    coordinator = CoordinatorFactory()
+    if request.param:
+        enforce_memberships(competition)
+        grant_membership(coordinator, competition, "coordinator")
+    return coordinator
+
+
+@pytest.mark.django_db
+def test_profil_komitetu_innego_konkursu_nie_otwiera_bramek_recenzenta_i_komisji(
+    competition, other_competition
+):
+    """Grupy ``reviewer``/``appeals`` są globalne – o konkursie mówi wyłącznie profil komitetu."""
+    reviewer_b = ActiveReviewerFactory(competition=other_competition)
+    appeals_b = ActiveReviewerFactory(
+        competition=other_competition,
+        user=UserFactory(groups=[GROUP_REVIEWER, GROUP_APPEALS]),
+        is_appeals_committee=True,
+    )
+
+    assert _allows(IsActiveReviewer, reviewer_b.user, other_competition) is True
+    assert _allows(IsActiveReviewer, reviewer_b.user, competition) is False
+    assert _allows(IsAppealsCommittee, appeals_b.user, other_competition) is True
+    assert _allows(IsAppealsCommittee, appeals_b.user, competition) is False
+    assert active_reviewer_profile(reviewer_b.user, other_competition) == reviewer_b
+    assert active_reviewer_profile(reviewer_b.user, competition) is None
+    assert committee_profile_in(reviewer_b.user, competition) is None
+    # Bez konkursu (host spoza listy) – zachowanie sprzed wielokonkursowości, profil bez zawężenia.
+    assert committee_profile_in(reviewer_b.user, None) == reviewer_b
+
+
+@pytest.mark.django_db
+def test_kryterium_5_koordynator_nie_widzi_i_nie_zatwierdza_komitetu_innego_konkursu(
+    settings, competition, other_competition, coordinator_a
+):
+    """API zatwierdzania szukało w niezawężonym ``CommitteeMember.objects`` – teraz cudzy członek to 404."""
+    api = api_client_factory(settings)(competition, coordinator_a)
+    mine = CommitteeMemberFactory(competition=competition, status=CommitteeStatus.PENDING)
+    theirs = CommitteeMemberFactory(competition=other_competition, status=CommitteeStatus.PENDING)
+
+    listing = api.get("/api/auth/committee/pending/")
+    assert listing.status_code == 200
+    assert [row["id"] for row in listing.json()] == [mine.id]
+
+    assert api.post(f"/api/auth/committee/{theirs.id}/approve/").status_code == 404
+    theirs.refresh_from_db()
+    assert theirs.status == CommitteeStatus.PENDING
+    assert not theirs.user.groups.filter(name=GROUP_REVIEWER).exists()
+
+
+@pytest.mark.django_db
+def test_koordynator_nie_ustala_wojewodztwa_czlonkowi_innego_konkursu(
+    settings, competition, other_competition, coordinator_a
+):
+    api = api_client_factory(settings)(competition, coordinator_a)
+    theirs = ActiveReviewerFactory(competition=other_competition, district=None, district_verified=False)
+
+    response = api.post(
+        f"/api/auth/committee/{theirs.id}/verify-district/", {"district": "podlaskie"}, format="json"
+    )
+
+    assert response.status_code == 404
+    theirs.refresh_from_db()
+    assert theirs.district is None
+    assert theirs.district_verified is False
+
+
+@pytest.mark.django_db
+def test_serwisy_komitetu_odmawiaja_czlonkowi_innego_konkursu(competition, other_competition):
+    """Druga zapora: serwis sam porównuje konkurs członka z konkursem koordynatora (404)."""
+    coordinator = CoordinatorFactory()
+    pending_b = CommitteeMemberFactory(competition=other_competition, status=CommitteeStatus.PENDING)
+    active_b = ActiveReviewerFactory(competition=other_competition, district=None)
+
+    with pytest.raises(DomainError) as refused:
+        approve_committee_member(pending_b, actor=coordinator, competition=competition)
+    assert refused.value.machine_code == "NOT_FOUND"
+    assert refused.value.status_code == 404
+    with pytest.raises(DomainError):
+        verify_committee_district(active_b, district="podlaskie", actor=coordinator, competition=competition)
+
+    pending_b.refresh_from_db()
+    active_b.refresh_from_db()
+    assert pending_b.status == CommitteeStatus.PENDING
+    assert active_b.district is None

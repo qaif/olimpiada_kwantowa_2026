@@ -18,12 +18,19 @@ import pytest
 from django.utils import timezone
 
 from apps.appeals.models import Appeal, AppealDecision, AppealDecisionCommitteeMember, AppealStatus
-from apps.appeals.services import appeals_for_participant, appeals_queue
+from apps.appeals.services import (
+    appeals_committee_profile,
+    appeals_for_participant,
+    appeals_queue,
+    decide_appeal,
+)
 from apps.appeals.tasks import finalize_closed_appeal_windows
 from apps.competitions.tests.factories import StageEntryFactory, StageFactory
-from apps.competitions.tests.scope_helpers import api_client_factory
-from apps.submissions.models import SubmissionStatus
+from apps.competitions.tests.scope_helpers import api_client_factory, host_of
+from apps.core.api import DomainError
+from apps.submissions.models import Submission, SubmissionStatus
 from apps.submissions.tests.factories import SubmissionFactory
+from apps.tenancy.tests.factories import enforce_memberships, grant_membership
 
 from .factories import VALID_ARGUMENT, AppealFactory, AppealsCommitteeMemberFactory
 
@@ -34,6 +41,16 @@ pytestmark = pytest.mark.django_db
 def api_for(settings):
     """Klient DRF pod domeną wskazanego konkursu – reguła stoi w ``scope_helpers``."""
     return api_client_factory(settings)
+
+
+def client_for_html(competition, user):
+    """Klient panelu HTML pod domeną konkursu, zalogowany bez formularza (jak ``api_for``)."""
+    from django.test import Client
+
+    host = host_of(competition)
+    client = Client(HTTP_HOST=host, SERVER_NAME=host)
+    client.force_login(user)
+    return client
 
 
 @pytest.mark.parametrize(
@@ -138,3 +155,72 @@ def test_finalization_covers_every_competition(competition, other_competition):
         expected[str(stage.pk)] = 1
 
     assert finalize_closed_appeal_windows() == expected
+
+
+# --- komisja innego konkursu (poprawka po audycie izolacji, 01.10.2026) ----------------------------
+#
+# Profil komitetu jest jeden na konto i ma własny konkurs, a grupa ``appeals`` jest przy wyłączonym
+# ``memberships_enforced`` globalna. Do poprawki członek komisji konkursu B przechodził bramkę komisji
+# pod adresem konkursu A z profilem B: widział kolejkę spraw A, ich pliki i mógł je rozstrzygać.
+# Każdy test sprawdza oba stany przełącznika – przy włączonym rolę w B daje członkostwo.
+
+
+@pytest.fixture(params=[False, True], ids=["memberships_off", "memberships_on"])
+def committee_b(request, competition, other_competition):
+    """Członek komisji odwoławczej konkursu B; przy włączonej fladze – z członkostwami w B."""
+    if request.param:
+        enforce_memberships(competition)
+        enforce_memberships(other_competition)
+    member = AppealsCommitteeMemberFactory(competition=other_competition)
+    for role in ("reviewer", "appeals"):
+        grant_membership(member.user, other_competition, role)
+    return member
+
+
+def test_committee_of_another_competition_is_refused_at_the_gate(api_for, competition, committee_b):
+    appeal = AppealFactory(competition=competition)
+    client = api_for(competition, committee_b.user)
+
+    assert client.get("/api/appeals/").status_code == 403
+    response = client.post(
+        f"/api/appeals/{appeal.pk}/decide/",
+        {"status": AppealStatus.REJECTED, "new_score": None, "justification": "x" * 60},
+        format="json",
+    )
+    assert response.status_code == 403
+    appeal.refresh_from_db()
+    assert appeal.status == AppealStatus.OPEN
+    # Panel HTML ma tę samą bramkę (``AppealsCommitteeRequiredMixin``).
+    html = client_for_html(competition, committee_b.user)
+    assert html.get("/appeals/").status_code == 403
+
+
+def test_committee_profile_of_another_competition_is_not_a_profile_here(competition, committee_b):
+    assert appeals_committee_profile(committee_b.user, competition) is None
+    assert appeals_committee_profile(committee_b.user, committee_b.competition) == committee_b
+    # Kolejka dla takiego profilu jest pusta, nawet gdyby ktoś zawołał ją z pominięciem bramki.
+    AppealFactory(competition=competition)
+    assert list(appeals_queue(committee_b, competition)) == []
+
+
+def test_decision_by_a_member_of_another_competition_is_refused_by_the_service(competition, committee_b):
+    """Serwis nie polega na bramce widoku: decyzja cudzej komisji to 403, a sprawa zostaje otwarta."""
+    appeal = AppealFactory(competition=competition)
+
+    with pytest.raises(DomainError) as refused:
+        decide_appeal(appeal, committee_b, AppealStatus.REJECTED, None, "x" * 60)
+
+    assert refused.value.machine_code == "NOT_APPEALS_COMMITTEE"
+    appeal.refresh_from_db()
+    assert appeal.status == AppealStatus.OPEN
+    assert not AppealDecision.objects.filter(appeal=appeal).exists()
+
+
+def test_appealed_work_is_not_visible_to_the_committee_of_another_competition(competition, committee_b):
+    """Gałąź komisji w ``Submission.objects.for_user`` – ta sama reguła, co bramka."""
+    appeal = AppealFactory(competition=competition)
+
+    assert list(Submission.objects.for_user(committee_b.user, competition)) == []
+    mine = AppealsCommitteeMemberFactory(competition=competition)
+    grant_membership(mine.user, competition, "appeals")
+    assert list(Submission.objects.for_user(mine.user, competition)) == [appeal.submission]

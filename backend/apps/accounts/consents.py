@@ -47,7 +47,7 @@ from datetime import date
 from django.db import models
 from django.urls import get_script_prefix
 from django.utils import timezone
-from django.utils.html import format_html
+from django.utils.html import escape, format_html
 from django.utils.safestring import SafeString
 
 logger = logging.getLogger(__name__)
@@ -95,8 +95,12 @@ class Consent:
     """Jedna zgoda: treść oświadczenia, dokument, wersja i reguła wymagalności.
 
     ``text`` jest szablonem z nazwanymi miejscami ``{link}`` (odnośnik do dokumentu) i
-    ``{organizer}`` (nazwa organizatora z ``cms.SiteSettings``). Składa go ``label`` przez
-    ``format_html``, więc do HTML-a trafia wyłącznie ten odnośnik – reszta jest escapowana.
+    ``{organizer}`` (nazwa organizatora z ``cms.SiteSettings``). Składa go ``label``: **sam tekst
+    jest najpierw escapowany**, a dopiero potem ``format_html`` podstawia odnośnik (jedyny
+    znacznik, który wychodzi jako HTML) i nazwę organizatora (escapowaną). Treść bywa edytowana
+    przez koordynatora (``ConsentDefinition.text``), więc jest daną, a nie zaufanym HTML-em –
+    do pakietu 5 ``format_html(consent.text, …)`` traktował ją jak bezpieczny szablon i każdy
+    znacznik z panelu trafiał dosłownie na publiczny formularz rejestracji.
 
     ``field_name`` to nazwa pola w formularzu i w serializerze rejestracji. Trzymamy ją tutaj,
     bo inaczej mapowanie „pole → rodzaj zgody” istniałoby osobno w formularzu, osobno
@@ -512,7 +516,11 @@ def label(consent: Consent, *, organizer: str | None = None) -> SafeString:
         if url and consent.link_text
         else ""
     )
-    return format_html(consent.text, link=link, organizer=organizer or organizer_name())
+    # ``escape`` **przed** ``format_html``: ten ostatni ufa swojemu pierwszemu argumentowi
+    # (escapuje wyłącznie podstawiane wartości), a tekst zgody pochodzi z panelu koordynatora.
+    # Klamry ``{link}``/``{organizer}`` przechodzą przez ``escape`` nietknięte, więc podstawienie
+    # działa tak samo jak dotąd; ``&`` w treści wraca do przeglądarki jako ``&``.
+    return format_html(str(escape(consent.text)), link=link, organizer=organizer or organizer_name())
 
 
 def labels(*, organizer: str | None = None, competition=None) -> dict[str, SafeString]:

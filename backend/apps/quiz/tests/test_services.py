@@ -232,6 +232,71 @@ def test_zapis_po_terminie_jest_odrzucany_i_domyka_podejscie(quiz, entry):
     assert attempt.score == Decimal("1.00")
 
 
+def test_start_odmawia_wpisowi_zdyskwalifikowanemu(quiz, entry):
+    """Pakiet 5, D10: ta sama reguła, co przy wysyłce pliku – w stylu tego modułu (409)."""
+    choice_question(quiz)
+    entry.status = StageEntryStatus.DISQUALIFIED
+    entry.save(update_fields=["status"])
+
+    with pytest.raises(DomainError) as exc:
+        services.start_attempt(quiz=quiz, entry=entry)
+
+    assert exc.value.machine_code == "ENTRY_DISQUALIFIED"
+    assert exc.value.status_code == 409
+    assert not QuizAttempt.objects.exists()
+
+
+def test_dyskwalifikacja_w_trakcie_podejscia_zatrzymuje_zapis_i_powrot(quiz, entry):
+    question = choice_question(quiz)
+    attempt = services.start_attempt(quiz=quiz, entry=entry)
+    type(entry).objects.filter(pk=entry.pk).update(status=StageEntryStatus.DISQUALIFIED)
+
+    with pytest.raises(DomainError) as exc:
+        _answer(attempt, question, {"options": [_correct_option(question).pk]})
+    assert exc.value.machine_code == "ENTRY_DISQUALIFIED"
+    assert not QuizAnswer.objects.filter(attempt=attempt).exists()
+
+    # „Rozpocznij” nie oddaje też trwającego podejścia.
+    entry.refresh_from_db()
+    with pytest.raises(DomainError):
+        services.start_attempt(quiz=quiz, entry=entry)
+
+
+def test_autozapis_ze_starym_stanem_nie_dopisuje_do_ocenionego_podejscia(quiz, entry):
+    """Pakiet 5, D11: decyzja zapada pod blokadą wiersza, na stanie z bazy – nie z pamięci.
+
+    ``stale`` to obiekt wczytany przez widok autozapisu **przed** tym, jak równoległe „Zakończ”
+    oceniło podejście. Dawniej jego ``accepts_answers_at`` mówiło „tak” i odpowiedź lądowała
+    w podejściu już ocenionym (punkty ze starej odpowiedzi, eksport z nowej).
+    """
+    question = choice_question(quiz)
+    attempt = services.start_attempt(quiz=quiz, entry=entry)
+    stale = QuizAttempt.objects.get(pk=attempt.pk)
+    services.submit_attempt(attempt=attempt)
+
+    with pytest.raises(DomainError) as exc:
+        services.save_answers(
+            attempt=stale, answers={str(question.pk): {"options": [_correct_option(question).pk]}}
+        )
+
+    assert exc.value.machine_code == "QUIZ_ATTEMPT_EXPIRED"
+    assert not QuizAnswer.objects.filter(attempt=attempt, question=question).exclude(payload={}).exists()
+    assert stale.status == AttemptStatus.SUBMITTED
+
+
+def test_domkniecie_ze_starym_stanem_nie_przestemplowuje_zakonczonego_podejscia(quiz, entry):
+    choice_question(quiz)
+    attempt = services.start_attempt(quiz=quiz, entry=entry)
+    stale = QuizAttempt.objects.get(pk=attempt.pk)
+    services.submit_attempt(attempt=attempt)
+    _rewind(attempt, deadline_ago=timedelta(minutes=5))
+
+    services.expire_attempt(stale)
+
+    attempt.refresh_from_db()
+    assert attempt.status == AttemptStatus.SUBMITTED
+
+
 def test_zapis_w_oknie_tolerancji_sieciowej_jest_przyjmowany(quiz, entry):
     """Kto kliknął o czasie, nie może dostać odmowy za cudzy problem z łączem."""
     question = choice_question(quiz)

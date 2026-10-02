@@ -8,7 +8,7 @@ dokładnie jednemu wierszowi tej tabeli.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
-## v0.38.6 – 2026-10-02 – Zgoda ucznia na opiekuna, oceny dopiero po ogłoszeniu wyników
+## v0.38.7 – 2026-10-02 – Zgoda ucznia na opiekuna, oceny dopiero po ogłoszeniu wyników
 
 - **Poprawka (bezpieczeństwo, decyzja właściciela):** import listy uczniów nie dopisuje już opiekuna
   szkolnego do **istniejącego** konta. Uczeń dostaje list z prośbą o zgodę (link 14 dni,
@@ -29,6 +29,87 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
   (`docs/API.md` § 6.3). List o decyzji w sprawie reklamacji nie obiecuje już „aktualnej punktacji”
   w panelu. **Skutek dla reklamacji:** okno reklamacyjne zamyka się przed ogłoszeniem wyników, więc
   uczestnik składa reklamację, nie znając punktów (w panelu było tak już wcześniej).
+
+## v0.38.5 – 2026-10-02 – Poprawki po audycie bezpieczeństwa (pakiet 5)
+
+- **Zmiana niezgodna wstecz (API):** `POST /api/auth/register/participant/` i `…/committee/`
+  wymagają pary CAPTCHY (`captcha_key` + `captcha_value`, wyzwanie z `GET /captcha/refresh/`);
+  odmowa `400 CAPTCHA_INVALID`. `POST /api/auth/login/` przyjmuje wyłącznie `application/json`
+  (inny typ → `415`). Opis: `docs/API.md` § 6.1a–6.1b.
+- **Poprawka:** limit prób formularzy jest atomowy (`cache.add`, bez wyścigu `check`/`consume`);
+  logowanie rezerwuje miejsce przed sprawdzeniem hasła; awaria Redisa nie wyłącza limitów po cichu
+  (błąd w logu raz na minutę); czat i forum liczone per konto zamiast per adres IP.
+- **Poprawka:** prośba o zgodę opiekuna (`/me/guardian/`) ma limit `password_reset` – wspólny budżet
+  listów na cudze adresy.
+- **Poprawka:** reset hasła i zablokowanie konta przez koordynatora kasują token API konta.
+- **Poprawka (webhooki):** wyłącznie adresy publiczne (zapis i każde doręczenie, IPv4 i IPv6, bez
+  sieci compose'a), bez przekierowań; „ostatni błąd” bez treści wyjątku.
+- **Poprawka:** tytuły zadań etapu przed jego otwarciem nie wychodzą w API bieżącej edycji ani na
+  pulpicie uczestnika; strona weryfikacji dyplomu nie pokazuje nazwiska małoletniego bez zgody
+  opiekuna; rachunek PDF nie interpretuje imienia ani szkoły jako znaczników; treść zgody edytowana
+  w panelu jest escapowana (HTML-em jest tylko odnośnik do dokumentu).
+- **Poprawka (testy online):** zdyskwalifikowany wpis nie rozpoczyna testu ani nie zapisuje
+  odpowiedzi; zapis, zakończenie i domknięcie podejścia pod blokadą wiersza.
+- **Poprawka:** odznaka „Organizator” w czacie jest osobnym elementem (nie da się jej udać imieniem);
+  imię i nazwisko bez kropki środkowej `·`.
+- **Poprawka:** losowy placeholder per wpis w cache'u stron (treść nie wyłudzi tokenu CSRF), audyt
+  odczytu danych osobowych przez klucz API (`apikey.pii_read`), limity wyszukiwarki szkół (100 znaków,
+  6 wyrazów, offset ≤ 5000), głęboko zagnieżdżony notatnik to odmowa 400, a nie 500, ścieżka „/\…”
+  w odnośniku wydarzenia odrzucana.
+
+## v0.38.4 – 2026-10-01 – Poprawki po audycie bezpieczeństwa (izolacja konkursów)
+
+Audyt izolacji między konkursami jednej instalacji. Produkcja prowadzi dziś **jeden** konkurs
+z wyłączonym `memberships_enforced`, więc żadna z luk nie była osiągalna – ale każda otwierała się
+z chwilą założenia drugiego konkursu. Zachowanie instalacji jednokonkursowej (role z globalnych grup
+Django) się nie zmienia.
+
+- **Bezpieczeństwo:** pula recenzentów (`apps.grading.services.reviewer_pool`) bierze konkurs
+  obowiązkowo – przydział automatyczny, reguły zadań, raport postępu, karty zadania i uczestnika
+  nie podsuwają już członków komitetu innego konkursu; przydział ręczny, reguła i trzeci recenzent
+  odmawiają takiej osoby w serwisie (`REVIEWER_NOT_ELIGIBLE`).
+- **Bezpieczeństwo:** API komitetu (`/api/auth/committee/pending/`, `…/<id>/approve/`,
+  `…/<id>/verify-district/`) zawężone do konkursu żądania – członek innego konkursu to 404; serwisy
+  zatwierdzenia i województwa sprawdzają konkurs członka także same.
+- **Bezpieczeństwo:** profil komitetu musi należeć do konkursu, w którym działa
+  (`accounts.services.committee_profile_in`): bramki recenzenta i komisji odwoławczej (API i HTML),
+  kolejka i decyzja reklamacji, widoczność prac komisji w `Submission.objects.for_user` i wzorcówka
+  zadania. Rolę koordynatora w `Submission`/`StageEntry.for_user`, w moderacji
+  (`grading.services.is_coordinator`) i przy wzorcówce rozstrzyga `has_role`, a nie globalna grupa.
+- **Bezpieczeństwo:** lista i ekrany kont koordynatora liczą profil komitetu i profil opiekuna jako
+  dowód własności konta – oczekujący członek komitetu albo opiekun innego konkursu nie jest już
+  „niczyj” (edycja, aktywacja, reset hasła, usunięcie dają 404).
+- **Bezpieczeństwo:** karta uczestnika (zgłoszenia pomocy, audyt, pula recenzentów) i karta członka
+  komisji (recenzje, reguły, zgłoszenia, audyt) pokazują wyłącznie dane swojego konkursu; pulpit
+  opiekuna szkolnego – uczniów swojego konkursu (`students_of`); retencja nie anonimizuje konta, które
+  ma rolę albo profil w innym konkursie (nowa przeszkoda `other_competition`).
+- **Zmiana:** nowy konkurs (komenda `create_competition`, ekran „Nowy konkurs”, kreator `/setup/`)
+  powstaje z `memberships_enforced` włączonym; założenie konkursu obok aktywnego konkursu z tą flagą
+  wyłączoną jest odmawiane z instrukcją (`check_memberships --fix`, potem flaga). Nowa kontrola
+  systemowa `tenancy.E001` (`manage.py check --database default` i `migrate`): więcej niż jeden
+  aktywny konkurs, a któryś liczy role z grup. `OPERACJE.md` § 6.1–6.2, § 6.5,
+  `SECURITY_CHECKLIST.md` § 3 i § 3.3.
+
+## v0.38.3 – 2026-10-01 – Poprawki po audycie bezpieczeństwa (infrastruktura)
+
+- **Poprawka (Redis):** hasło (`REDIS_PASSWORD` – `scripts/deploy.sh` generuje je i dopisuje do
+  istniejącego `.env`; puste = bez hasła, jak dotąd) i własna sieć `cache` tylko z web/worker/beat
+  zamiast wspólnej `internal`; healthcheck uwierzytelnia się i sprawdza `PONG`. Serializator cache'a
+  zostaje `pickle` (cache trzyma obiekty modeli, `bytes`, odpowiedzi HTTP – uzasadnienie w `base.py`).
+- **Poprawka (ClamAV):** `freshclam` ma wyjście do internetu przez osobną sieć `clamav_egress` – na
+  produkcji sygnatury nie aktualizowały się od startu kontenera (25 dni); `no-new-privileges`.
+- **Poprawka (MinIO):** `public-media` anonimowo wyłącznie `s3:GetObject` – koniec listowania całego
+  bucketu (`deploy/minio/policy-anonymous-public-media.json`, `mc anonymous set-json`).
+- **Poprawka (Caddy, blok S3):** 404 dla API MinIO spod `/minio/*` (poza `/minio/health/live|ready`),
+  `nosniff`, HSTS i CSP `sandbox` (poza PDF-em); test na żywym Caddym `scripts/tests/s3_proxy_test.sh`.
+- **Poprawka:** media Wagtaila i treści zadań w S3 dostają `Content-Type` z rozszerzenia, nie od
+  przeglądarki, i `Content-Disposition: attachment` poza obrazem/filmem/dźwiękiem/PDF-em
+  (`apps/core/storage.py`); produkcja nie startuje z sekretami `change-me…` z `.env.example` ani
+  z `E2E_MODE` przy `DJANGO_DEBUG=0`.
+- **Poprawka (wdrożenie):** `docker compose pull --ignore-buildable` przed startem usług (obrazy
+  cudze dotąd nigdy nieodświeżane); workflow `deploy.yml` z `permissions: contents: read`, walidacją
+  celu SSH i przypiętym kluczem hosta (`vars.DEPLOY_SSH_KNOWN_HOSTS` – do ustawienia w GitHubie);
+  porty `docker-compose.dev.yml` i mailpita tylko na `127.0.0.1`. Kroki operatora: `docs/OPERACJE.md` § 24.
 
 ## v0.38.2 – 2026-10-01 – Poprawki po audycie bezpieczeństwa (pakiet 1)
 

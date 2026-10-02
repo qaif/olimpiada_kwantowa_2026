@@ -1,6 +1,10 @@
 """T-02, kryteria 7-8: `GET me/`, logowanie tokenem i wylogowanie."""
 
+import json
+from urllib.parse import urlencode
+
 import pytest
+from django.test import Client
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APIClient
 
@@ -136,3 +140,40 @@ def test_logout_usuwa_token_i_konczy_sesje(api):
 @pytest.mark.django_db
 def test_logout_dla_niezalogowanego_zwraca_401(api):
     assert api.post(LOGOUT_URL).status_code == 401
+
+
+# --- logowanie wyłącznie JSON-em (pakiet 5 po audycie: login CSRF) --------------------------------
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("fmt", ["form", "multipart"])
+def test_login_refuses_a_body_that_a_cross_site_form_can_send(fmt):
+    """Formularz z obcej strony wysyła ``x-www-form-urlencoded``/``multipart`` bez preflightu.
+
+    Takie logowanie (widok DRF bez CSRF + ``auth.login``) zalogowałoby przeglądarkę ofiary na
+    konto napastnika. Odpowiedź ``415`` zapada, zanim hasło zostanie sprawdzone – nie ma tokenu
+    ani ciasteczka sesji.
+    """
+    participant = ParticipantFactory()
+    client = Client(enforce_csrf_checks=True)
+    data = {"email": participant.user.email, "password": DEFAULT_PASSWORD}
+    if fmt == "form":
+        resp = client.post(LOGIN_URL, urlencode(data), content_type="application/x-www-form-urlencoded")
+    else:
+        resp = client.post(LOGIN_URL, data)
+
+    assert resp.status_code == 415
+    assert "sessionid" not in resp.cookies
+    assert not Token.objects.filter(user=participant.user).exists()
+
+
+@pytest.mark.django_db
+def test_login_with_json_still_works_and_text_plain_does_not(api):
+    """``text/plain`` to trzeci typ, który formularz HTML umie wysłać bez preflightu."""
+    participant = ParticipantFactory()
+    body = {"email": participant.user.email, "password": DEFAULT_PASSWORD}
+
+    as_text = api.post(LOGIN_URL, json.dumps(body), content_type="text/plain")
+    assert as_text.status_code == 415
+
+    assert api.post(LOGIN_URL, body, format="json").status_code == 200

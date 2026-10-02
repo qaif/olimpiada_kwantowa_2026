@@ -23,6 +23,10 @@ Czego ten moduł **nie** kasuje i dlaczego:
 - **kont, które startują w edycji późniejszej.** Uczestnik trzeciej klasy wraca w kolejnym roku
   i to jego konto, a nie nowe – zabranie mu danych osobowych w trakcie drugiego startu byłoby
   anonimizacją czynnego uczestnika,
+- **kont, które mają rolę albo profil w innym konkursie** (od poprawki po audycie izolacji,
+  01.10.2026). Konto jest jedno na platformę, a anonimizacja wyciera je dla wszystkich konkursów
+  naraz – przedawniony rocznik w olimpiadzie A nie jest powodem, żeby odebrać dane recenzentowi,
+  opiekunowi albo zapisanemu uczestnikowi olimpiady B (``_active_in_another_competition``),
 - **kont komitetu i koordynatora.** Recenzent nie jest osobą, której dane zbieramy „do zawodów
   rocznika X”: jego konto jest kontem funkcyjnym, żyje między edycjami i odpowiada za nie
   organizator. Retencja dotyczy uczestników.
@@ -151,6 +155,7 @@ BLOCKED_LATER_EDITION = "later_edition"
 BLOCKED_OPEN_APPEAL = "open_appeal"
 BLOCKED_UNPUBLISHED_RESULTS = "unpublished_results"
 BLOCKED_ALREADY_ANONYMISED = "already_anonymised"
+BLOCKED_OTHER_COMPETITION = "other_competition"
 
 #: Zdania dla człowieka. Osobno od kodów, bo kod idzie do audytu i do liczników, a zdanie na ekran.
 BLOCKED_LABELS = {
@@ -158,6 +163,7 @@ BLOCKED_LABELS = {
     BLOCKED_OPEN_APPEAL: "ma nierozstrzygniętą reklamację",
     BLOCKED_UNPUBLISHED_RESULTS: "ma etap bez ogłoszonych wyników",
     BLOCKED_ALREADY_ANONYMISED: "już zanonimizowane",
+    BLOCKED_OTHER_COMPETITION: "ma rolę albo profil w innym konkursie",
 }
 
 
@@ -225,11 +231,60 @@ def _blocked_reason(participant: Participant, *, expired_ids: set[int]) -> str:
     entries_of_account = StageEntry.objects.filter(participant__user_id=participant.user_id)
     if entries_of_account.exclude(stage__edition_id__in=expired_ids).exists():
         return BLOCKED_LATER_EDITION
+    if _active_in_another_competition(participant):
+        return BLOCKED_OTHER_COMPETITION
     if Appeal.objects.filter(filed_by=participant, status__in=PENDING_STATUSES).exists():
         return BLOCKED_OPEN_APPEAL
     if entries.filter(stage__results_published_at__isnull=True).exists():
         return BLOCKED_UNPUBLISHED_RESULTS
     return ""
+
+
+def _active_in_another_competition(participant: Participant) -> bool:
+    """Czy to konto robi coś w **innym** konkursie niż profil, którego dotyczy plan. Jedno zapytanie.
+
+    Dopisane po audycie izolacji (01.10.2026). Przeszkoda „startuje w późniejszej edycji” patrzy
+    wyłącznie na wpisy do etapów, a anonimizacja wyciera **konto** – adres, imię, hasło – czyli
+    zabiera dostęp do wszystkich konkursów naraz. Bez tej przeszkody retencja konkursu A (także
+    uruchomiona przez koordynatora A z jego ekranu) anonimizowała osobę, która w konkursie B jest
+    recenzentem, opiekunem albo świeżo zapisanym uczestnikiem bez ani jednego wpisu.
+
+    Co się liczy jako „robi coś w innym konkursie”:
+
+    - wiersz ``Membership`` innej roli niż ``participant`` – rola uczestnika w B ma swój dowód
+      w profilu i wpisach, a liczona tutaj blokowałaby na zawsze konto uczestnika obu olimpiad,
+      którego roczniki przedawniły się w obu (retencja A czekałaby na B, a B na A),
+    - profil komitetu albo profil opiekuna szkolnego w innym konkursie,
+    - profil uczestnika w innym konkursie **bez ani jednego wpisu** – zapisał się, a zawody
+      jeszcze się dla niego nie zaczęły; profil z wpisami rozstrzyga ``BLOCKED_LATER_EDITION``.
+
+    ``Exists`` w jednym ``filter`` zamiast czterech ``exists()``: plan liczy się dla każdego
+    uczestnika edycji, więc cztery zapytania na wiersz byłyby kosztem rosnącym z rocznikiem.
+    """
+    from django.db.models import Exists, OuterRef
+
+    from .models import CommitteeMember, CompetitionRole, Membership, SchoolSupervisor
+
+    here = participant.competition_id
+    elsewhere = {"user_id": OuterRef("pk")}
+    return (
+        User.objects.filter(pk=participant.user_id)
+        .filter(
+            Exists(
+                Membership.objects.filter(**elsewhere)
+                .exclude(competition_id=here)
+                .exclude(role=CompetitionRole.PARTICIPANT)
+            )
+            | Exists(CommitteeMember.objects.filter(**elsewhere).exclude(competition_id=here))
+            | Exists(SchoolSupervisor.objects.filter(**elsewhere).exclude(competition_id=here))
+            | Exists(
+                Participant.objects.filter(**elsewhere, stage_entries__isnull=True).exclude(
+                    competition_id=here
+                )
+            )
+        )
+        .exists()
+    )
 
 
 def candidates(edition, *, expired_ids: set[int] | None = None) -> list[RetentionCandidate]:

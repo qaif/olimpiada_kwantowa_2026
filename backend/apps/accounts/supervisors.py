@@ -338,12 +338,17 @@ def students_of(supervisor: SchoolSupervisor) -> list[Participant]:
     ``anonymise_account`` czyści też ``supervisor_email``, więc nowe anonimizacje wypadają stąd
     same; filtr zostaje dla profili wytartych wcześniej i jako druga zapora na wypadek, gdyby
     adres wrócił do profilu inną drogą.
+
+    Wyłącznie uczestnicy **konkursu tego profilu opiekuna** (poprawka po audycie izolacji,
+    01.10.2026). Profil opiekuna jest per konkurs, a adres – per konto: bez zawężenia nauczyciel
+    zapisany jako opiekun w olimpiadzie A widział w jej panelu uczniów, którzy wpisali jego adres
+    w olimpiadzie B (nazwiska, szkoły, postęp prac), choć organizator B nigdy go nie zweryfikował.
     """
     email = normalize_supervisor_email(supervisor.user.email)
     if not email:
         return []
     return list(
-        Participant.objects.filter(supervisor_email__iexact=email)
+        Participant.objects.filter(competition_id=supervisor.competition_id, supervisor_email__iexact=email)
         .exclude_anonymised()
         .select_related("user")
         .order_by("user__last_name", "user__first_name", "public_code")

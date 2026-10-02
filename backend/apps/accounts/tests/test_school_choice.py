@@ -12,6 +12,8 @@ from apps.accounts.services import register_participant, register_social_partici
 from apps.core.api import DomainError
 from apps.schools.tests.factories import SchoolFactory
 
+from .conftest import api_captcha_fields
+
 REGISTER_URL = "/api/auth/register/participant/"
 PASSWORD = "Poprawne-Haslo-2026"
 
@@ -162,6 +164,7 @@ def test_api_accepts_school_id(api, open_registration):
     response = api.post(
         REGISTER_URL,
         {
+            **api_captcha_fields(),
             "email": "api@example.test",
             "password": PASSWORD,
             "first_name": "Jan",
@@ -190,6 +193,7 @@ def test_api_still_accepts_plain_school_text(api, open_registration):
     response = api.post(
         REGISTER_URL,
         {
+            **api_captcha_fields(),
             "email": "stary-klient@example.test",
             "password": PASSWORD,
             "first_name": "Jan",
@@ -215,6 +219,7 @@ def test_api_refuses_a_payload_without_any_school(api, open_registration):
     response = api.post(
         REGISTER_URL,
         {
+            **api_captcha_fields(),
             "email": "bez-szkoly@example.test",
             "password": PASSWORD,
             "first_name": "Jan",
@@ -239,6 +244,7 @@ def test_api_requires_the_grade(api, open_registration):
     response = api.post(
         REGISTER_URL,
         {
+            **api_captcha_fields(),
             "email": "bez-klasy@example.test",
             "password": PASSWORD,
             "first_name": "Jan",

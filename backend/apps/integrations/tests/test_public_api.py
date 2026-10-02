@@ -5,6 +5,7 @@ from django.urls import reverse
 
 from apps.competitions.models import EditionEvent, StageEntryStatus
 from apps.competitions.tests.factories import EditionFactory, StageFactory
+from apps.core.api import DomainError
 from apps.integrations.models import (
     SCOPE_READ_PARTICIPANTS,
     SCOPE_READ_PARTICIPANTS_PII,
@@ -117,6 +118,30 @@ def test_participants_show_personal_data_with_both_consents(authed, stage, entry
     row = response.data["results"][0]
     assert row["last_name"] == LAST_NAME
     assert row["email"] == EMAIL
+
+
+def test_reading_personal_data_leaves_one_audit_entry_without_personal_data(authed, stage, entry):
+    """Pakiet 5, E18: kto (który klucz), kiedy, z jakiego etapu i ile wierszy – bez samych danych."""
+    from apps.core.models import AuditLog
+
+    client, key = authed(scopes=[SCOPE_READ_PARTICIPANTS, SCOPE_READ_PARTICIPANTS_PII], pii_allowed=True)
+    client.get(participants_url(stage))
+
+    record = AuditLog.objects.get(action="apikey.pii_read")
+    assert record.target_id == str(key.pk)
+    assert record.diff == {"key": key.prefix, "stage_id": stage.pk, "edition_id": stage.edition_id, "rows": 1}
+    serialized = str(record.diff)
+    assert LAST_NAME not in serialized
+    assert EMAIL not in serialized
+
+
+def test_reading_without_personal_data_is_not_audited_as_a_pii_read(authed, stage, entry):
+    client, _ = authed(scopes=[SCOPE_READ_PARTICIPANTS], pii_allowed=False)
+    client.get(participants_url(stage))
+
+    from apps.core.models import AuditLog
+
+    assert not AuditLog.objects.filter(action="apikey.pii_read").exists()
 
 
 def test_pii_scope_without_flag_falls_back_to_anonymous_shape(authed, stage, entry):
@@ -268,6 +293,27 @@ def test_event_respects_domain_rules(authed, edition):
 
     assert response.status_code == 400
     assert response.data["code"] == "EVENT_URL_INVALID"
+
+
+@pytest.mark.parametrize(
+    "url", ["/\\evil.example", "/\\/evil.example", "/\t/evil.example", "/\n/evil.example"]
+)
+def test_event_path_that_a_browser_reads_as_a_foreign_host_is_refused(url):
+    """Pakiet 5, E13: przeglądarka czyta ``/\\`` jak ``//`` i wycina tabulator – obcy host w ``href``."""
+    from apps.competitions.events import validate_url
+
+    with pytest.raises(DomainError) as exc:
+        validate_url(url)
+    assert exc.value.machine_code == "EVENT_URL_INVALID"
+
+
+@pytest.mark.parametrize(
+    "url", ["/warsztaty/", "/dokumenty/regulamin/?wersja=2#par-3", "https://example.org/a"]
+)
+def test_event_local_paths_and_absolute_urls_still_pass(url):
+    from apps.competitions.events import validate_url
+
+    assert validate_url(url) == url
 
 
 def test_event_cannot_be_written_to_another_edition(authed, edition):

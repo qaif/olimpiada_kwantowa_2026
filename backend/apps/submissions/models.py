@@ -14,7 +14,7 @@ from django.db import models
 from django.db.models import F, Q
 from django.utils import timezone
 
-from apps.accounts.models import COORDINATOR_GROUPS, CommitteeStatus
+from apps.accounts.models import CompetitionRole
 from apps.competitions.models import Problem, Stage, StageEntry
 from apps.competitions.scoping import (
     competition_scoped_manager,
@@ -75,6 +75,13 @@ class SubmissionQuerySet(CompetitionScopedQuerySet):
         Definicja „aktywnego recenzenta” (status ACTIVE **i** grupa ``reviewer``) jest jedna dla
         całego systemu i mieszka w ``apps.accounts.services.active_reviewer_profile`` – widoczność
         plików nie może być luźniejsza niż uprawnienie, które wpuszcza do ``/api/grading/reviews/``.
+        Tak samo komisja odwoławcza: ``apps.appeals.services.appeals_committee_profile``.
+
+        Obie role i rola koordynatora są rolami **w tym konkursie** (poprawka po audycie izolacji,
+        01.10.2026). Do niej koordynator był tu rozpoznawany po globalnej grupie Django – także
+        przy włączonym ``memberships_enforced``, czyli z pominięciem ``has_role`` – a profil
+        komitetu brany bez sprawdzenia, czyj jest. Zakres konkursu i tak zawężał wynik, ale
+        koordynator innego konkursu widział komplet prac tego konkursu pod jego adresem.
 
         **Zakres konkursu idzie przed rolą** (§ 3.5) i to jest najważniejsza linia tej zmiany:
         ``for_user`` rozstrzyga *rolę*, ``for_competition`` – *własność*. Do etapu 1 koordynator
@@ -86,15 +93,16 @@ class SubmissionQuerySet(CompetitionScopedQuerySet):
         # jest ładowany podczas rejestrowania aplikacji. ``apps.appeals`` i ``apps.grading`` zależą
         # od ``apps.submissions``, więc import na poziomie modułu byłby cyklem – stąd tutaj, gdzie
         # obie aplikacje są już załadowane.
-        from apps.accounts.services import active_reviewer_profile, participant_for
+        from apps.accounts.services import active_reviewer_profile, has_role, participant_for
         from apps.appeals.models import CONFLICTING_ROUNDS
+        from apps.appeals.services import appeals_committee_profile
         from apps.grading.models import Review
 
         competition = resolve_competition(competition)
         scoped = scope_to_competition(self, competition)
         if not user or not user.is_authenticated or not user.is_active:
             return scoped.none()
-        if user.groups.filter(name__in=COORDINATOR_GROUPS).exists():
+        if has_role(user, competition, CompetitionRole.COORDINATOR):
             return scoped
         conditions = []
         participant = participant_for(user, competition)
@@ -103,12 +111,7 @@ class SubmissionQuerySet(CompetitionScopedQuerySet):
         reviewer = active_reviewer_profile(user, competition)
         if reviewer is not None:
             conditions.append(Q(reviews__reviewer=reviewer))
-        member = getattr(user, "committee_member", None)
-        appeals_member = (
-            member
-            if member is not None and member.status == CommitteeStatus.ACTIVE and member.is_appeals_committee
-            else None
-        )
+        appeals_member = appeals_committee_profile(user, competition)
         if appeals_member is not None:
             # Konflikt interesów wyklucza się podzapytaniem po kluczu głównym, a nie negacją na
             # złączeniu ``reviews``. Dwa powody:

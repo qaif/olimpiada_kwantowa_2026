@@ -169,14 +169,46 @@ def emit(event: str, payload: dict, edition=None, competition=None) -> list[int]
     return delivery_ids
 
 
+def _error_class(exc: Exception) -> str:
+    """Ogólna klasa błędu sieci do ``last_error`` – **bez** treści wyjątku.
+
+    Komunikat ``requests`` niesie host, port i powód odmowy („Connection refused”, „Name or service
+    not known”). W panelu koordynatora to był gotowy skaner sieci wewnętrznej (pakiet 5 po
+    audycie), a odbiorcy, który naprawdę nie działa, wystarcza wiedza „limit czasu” / „połączenie” /
+    „TLS” – szczegóły ma operator w logu workera.
+    """
+    import requests
+
+    if isinstance(exc, requests.Timeout):
+        return "Timeout"
+    if isinstance(exc, requests.exceptions.SSLError):
+        return "SSLError"
+    if isinstance(exc, requests.ConnectionError):
+        return "ConnectionError"
+    return "RequestException"
+
+
 def post_payload(endpoint: WebhookEndpoint, envelope: dict) -> tuple[bool, str]:
     """Jedno żądanie HTTP. Zwraca parę (udało się, opis błędu).
 
     Wyjątek biblioteki **nie leci** wyżej: doręczenie jest stanem w bazie, a nie wyjątkiem
     w workerze, i o ponowieniu decyduje zadanie, patrząc na liczbę prób. Treść odpowiedzi jest
     pomijana – webhook to powiadomienie, a nie zapytanie.
+
+    Przed żądaniem adres przechodzi ``targets.check_delivery_target`` (każdy adres nazwy musi być
+    publiczny), a ``allow_redirects=False`` nie pozwala serwerowi odbiorcy odesłać workera pod
+    adres, którego nikt nie sprawdził – 3xx jest zwykłą porażką doręczenia. Opis błędu to wyłącznie
+    ogólna klasa (``HTTP <kod>``, ``Timeout``, …), nigdy treść wyjątku (patrz ``_error_class``).
     """
     import requests
+
+    from .targets import TargetRefused, check_delivery_target
+
+    try:
+        check_delivery_target(endpoint.url)
+    except TargetRefused as refused:
+        logger.warning("Doręczenie webhooka do odbiorcy %s odrzucone: %s.", endpoint.pk, refused.code)
+        return False, refused.code
 
     body = canonical_body(envelope)
     timestamp = int(timezone.now().timestamp())
@@ -188,9 +220,12 @@ def post_payload(endpoint: WebhookEndpoint, envelope: dict) -> tuple[bool, str]:
         SIGNATURE_HEADER: signature_header(endpoint.secret, body, timestamp),
     }
     try:
-        response = requests.post(endpoint.url, data=body, headers=headers, timeout=TIMEOUT_SECONDS)
+        response = requests.post(
+            endpoint.url, data=body, headers=headers, timeout=TIMEOUT_SECONDS, allow_redirects=False
+        )
     except requests.RequestException as exc:
-        return False, f"{type(exc).__name__}: {exc}"[:300]
+        logger.info("Doręczenie webhooka do odbiorcy %s: %s.", endpoint.pk, type(exc).__name__)
+        return False, _error_class(exc)
     if response.status_code in SUCCESS_RANGE:
         return True, ""
     return False, f"HTTP {response.status_code}"

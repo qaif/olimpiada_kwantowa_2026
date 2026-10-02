@@ -33,7 +33,7 @@ from django.views.generic import View
 from apps.promo.availability import public_materials
 from apps.promo.cards import build_cards
 from apps.promo.tracking import record_download
-from apps.web.throttle import ThrottledFormMixin, check, consume, throttle_keys
+from apps.web.throttle import ThrottledFormMixin, acquire, throttle_keys
 
 logger = logging.getLogger(__name__)
 
@@ -86,11 +86,11 @@ class PosterDownloadView(ThrottledFormMixin, View):
 
     def dispatch(self, request, *args, **kwargs):
         if request.method in ("GET", "HEAD"):
-            keys = throttle_keys(self.throttle_scope, request)
-            wait = check(self.throttle_scope, keys)
+            # Sprawdzenie i zużycie w jednym, atomowym kroku (``acquire``) – osobne ``check``
+            # i ``consume`` przepuszczały serię równoległych żądań ponad stawkę.
+            wait, _ = acquire(self.throttle_scope, throttle_keys(self.throttle_scope, request))
             if wait is not None:
                 return self._no_store(self.throttled_response(request, wait))
-            consume(self.throttle_scope, keys)
         return super().dispatch(request, *args, **kwargs)
 
     def get(self, request, pk: int):

@@ -236,6 +236,22 @@ def test_new_password_logs_in_and_the_old_one_does_not(web_client, participant, 
     assert web_client.post(LOGIN_URL, {"username": email, "password": NEW_PASSWORD}).status_code == 302
 
 
+def test_reset_revokes_the_api_token(web_client, participant, request_reset):
+    """Pakiet 5, A5: token DRF nie przeżywa resetu hasła (sesje unieważnia już Django)."""
+    from rest_framework.authtoken.models import Token
+    from rest_framework.test import APIClient
+
+    stolen = Token.objects.create(user=participant.user)
+    request_reset(participant.user.email)
+    form_url = web_client.get(reset_link_from_outbox(), follow=True).request["PATH_INFO"]
+    web_client.post(form_url, {"new_password1": NEW_PASSWORD, "new_password2": NEW_PASSWORD})
+
+    assert not Token.objects.filter(user=participant.user).exists()
+    api = APIClient()
+    api.credentials(HTTP_AUTHORIZATION=f"Token {stolen.key}")
+    assert api.get("/api/auth/me/").status_code == 401
+
+
 def test_token_is_single_use(web_client, participant, request_reset):
     request_reset(participant.user.email)
     link = reset_link_from_outbox()

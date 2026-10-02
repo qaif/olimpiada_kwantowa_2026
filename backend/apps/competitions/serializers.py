@@ -110,8 +110,17 @@ class CurrentEditionSerializer(serializers.ModelSerializer):
         return PublicStageSerializer(stage, context=self.context).data if stage else None
 
     def get_problems(self, obj: Edition) -> list[dict]:
+        """Zadania etapu bieżącego – **dopiero po jego otwarciu** (pakiet 5 po audycie).
+
+        Etap bieżący bywa jeszcze przed ``opens_at`` (najbliższy zapowiedziany). Do tej zmiany
+        anonimowy ``GET`` oddawał wtedy listę zadań z tytułami – ``statement_pdf`` był pusty, ale sam
+        tytuł („Nierówność ze średnimi”) potrafi zdradzić temat zadania przed startem zawodów.
+        Reguła jest ta sama, co w części informacyjnej (``apps.cms.live_data.problems_state``):
+        przed otwarciem lista jest pusta, a klient ma ``current_stage.opens_at``, żeby powiedzieć,
+        kiedy się pojawi.
+        """
         stage = self.context.get("stage")
-        if stage is None:
+        if stage is None or not stage.has_opened(self.context.get("now")):
             return []
         problems = stage.problems.all().order_by("number")
         return PublicProblemSerializer(problems, many=True, context=self.context).data

@@ -138,3 +138,88 @@ def test_membership_in_one_competition_ties_the_person_to_it_only(competition, o
 def test_unknown_slug_refuses(competition):  # noqa: ARG001 - fikstura konkursu
     with pytest.raises(CommandError, match="Nie ma konkursu"):
         run(competition="nieistniejacy")
+
+
+# --- kontrola systemowa ``tenancy.E001`` (poprawka po audycie izolacji, 01.10.2026) -------------------
+#
+# Komenda wyżej odpowiada na pytanie „czy wolno przełączyć”; kontrola – „czy instalacja nie stoi
+# w stanie, w którym przełączyć było trzeba”. Dwa aktywne konkursy z rolami z globalnych grup to
+# role jednego organizatora w panelach drugiego.
+
+
+def system_check_ids(*, with_database: bool = True) -> list[str]:
+    from django.core import checks
+
+    from apps.tenancy.checks import check_memberships_enforced
+
+    databases = ["default"] if with_database else None
+    return [
+        message.id
+        for message in check_memberships_enforced(databases=databases)
+        if message.level >= checks.ERROR
+    ]
+
+
+def test_a_single_competition_with_groups_is_the_safe_state_of_today(competition):  # noqa: ARG001
+    """Dzisiejsza produkcja: jeden konkurs, flaga wyłączona – kontrola milczy."""
+    assert system_check_ids() == []
+
+
+def test_two_active_competitions_with_the_flag_off_are_an_error(competition, other_competition):  # noqa: ARG001
+    assert system_check_ids() == ["tenancy.E001"]
+
+
+def test_the_error_names_only_the_competitions_that_need_switching(competition, other_competition):
+    from apps.tenancy.checks import check_memberships_enforced
+    from apps.tenancy.tests.factories import enforce_memberships
+
+    enforce_memberships(other_competition)
+
+    [message] = check_memberships_enforced(databases=["default"])
+    assert competition.slug in message.msg
+    assert other_competition.slug not in message.msg
+    assert "check_memberships" in message.hint
+
+
+def test_every_competition_with_the_flag_on_is_quiet(competition, other_competition):
+    from apps.tenancy.tests.factories import enforce_memberships
+
+    enforce_memberships(competition)
+    enforce_memberships(other_competition)
+
+    assert system_check_ids() == []
+
+
+def test_an_inactive_competition_does_not_count(competition, other_competition):  # noqa: ARG001
+    """Pod adresem konkursu nieaktywnego nikt nie dostaje paneli – jego flaga niczego nie otwiera."""
+    other_competition.is_active = False
+    other_competition.save(update_fields=["is_active"])
+
+    assert system_check_ids() == []
+
+
+def test_the_check_runs_only_with_the_database(competition, other_competition):  # noqa: ARG001
+    """``Tags.database``: zwykłe ``manage.py check`` (i każda komenda, w tym ``check_memberships``) jej
+    nie uruchamia – tylko ``migrate`` i ``check --database default``."""
+    assert system_check_ids(with_database=False) == []
+
+
+def test_a_database_without_tables_is_not_an_error(competition, monkeypatch):  # noqa: ARG001
+    """Pierwsze ``migrate``: tabeli konkursów jeszcze nie ma, a to nie jest błąd konfiguracji."""
+    from django.db import ProgrammingError
+
+    from apps.tenancy import checks as tenancy_checks
+
+    def missing_table():
+        raise ProgrammingError('relation "tenancy_competition" does not exist')
+
+    monkeypatch.setattr(tenancy_checks, "unscoped_competitions", missing_table)
+
+    assert system_check_ids() == []
+
+
+def test_check_command_with_the_database_reports_the_error(competition, other_competition):  # noqa: ARG001
+    from django.core.management.base import SystemCheckError
+
+    with pytest.raises(SystemCheckError, match="tenancy.E001"):
+        call_command("check", "--database", "default")

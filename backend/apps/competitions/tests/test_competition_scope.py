@@ -203,6 +203,27 @@ def test_participant_sees_only_his_entries_in_his_competition(competition, other
     assert list(StageEntry.objects.for_user(participant.user, other_competition)) == []
 
 
+def test_coordinator_of_another_competition_sees_no_entries_here_with_memberships_on(
+    competition, other_competition
+):
+    """Poprawka po audycie izolacji (01.10.2026): koordynatora rozpoznaje ``has_role``, nie grupa.
+
+    Przy włączonym ``memberships_enforced`` grupa ``coordinator`` nadana w konkursie B nie jest rolą
+    w konkursie A – do poprawki ta gałąź pytała o grupę wprost i oddawała wszystkie wpisy A.
+    """
+    from apps.tenancy.tests.factories import enforce_memberships, grant_membership
+
+    enforce_memberships(competition)
+    entry_a = StageEntryFactory(competition=competition)
+    coordinator_b = CoordinatorFactory()
+    grant_membership(coordinator_b, other_competition, "coordinator")
+    coordinator_a = CoordinatorFactory()
+    grant_membership(coordinator_a, competition, "coordinator")
+
+    assert list(StageEntry.objects.for_user(coordinator_b, competition)) == []
+    assert list(StageEntry.objects.for_user(coordinator_a, competition)) == [entry_a]
+
+
 # --- reguła krzyżowa w API ----------------------------------------------------------------------
 
 
