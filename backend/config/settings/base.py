@@ -1099,7 +1099,9 @@ REST_FRAMEWORK = {
     # Token pierwszy: dzięki temu brak uwierzytelnienia daje 401 (nagłówek WWW-Authenticate),
     # a nie 403. Sesja nadal działa dla panelu i widoków przeglądarkowych.
     "DEFAULT_AUTHENTICATION_CLASSES": [
-        "rest_framework.authentication.TokenAuthentication",
+        # Token DRF z regułami drugiego składnika (apps/accounts/authentication.py); przy
+        # wyłączonym ``TWO_FACTOR_ENABLED`` zachowuje się jak ``TokenAuthentication``.
+        "apps.accounts.authentication.TwoFactorTokenAuthentication",
         "rest_framework.authentication.SessionAuthentication",
     ],
     "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAuthenticated"],

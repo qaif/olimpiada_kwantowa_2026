@@ -30,6 +30,15 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
   w panelu. **Skutek dla reklamacji:** okno reklamacyjne zamyka się przed ogłoszeniem wyników, więc
   uczestnik składa reklamację, nie znając punktów (w panelu było tak już wcześniej).
 
+## v0.38.6 – 2026-10-02 – Drugi składnik logowania obejmuje API
+
+- **Poprawka:** przy włączonym `TWO_FACTOR_ENABLED` `POST /api/auth/login/` wymaga od konta
+  z potwierdzonym urządzeniem pola `code` (kod z aplikacji albo zapasowy) i wydaje nowy token;
+  token starszy niż potwierdzenie urządzenia oraz token konta, które drugi składnik musi mieć,
+  a go nie ma, nie uwierzytelnia (`apps/accounts/authentication.py`). Włączenie drugiego składnika
+  kasuje wcześniejsze tokeny. Dotąd token wydany po samym haśle omijał drugi składnik w całym
+  `/api/`. Przy wyłączonej funkcji bez zmian. `docs/API.md` § 6.1c.
+
 ## v0.38.5 – 2026-10-02 – Poprawki po audycie bezpieczeństwa (pakiet 5)
 
 - **Zmiana niezgodna wstecz (API):** `POST /api/auth/register/participant/` i `…/committee/`
