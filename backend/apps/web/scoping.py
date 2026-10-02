@@ -11,8 +11,10 @@ został z tego modułu **jeden** wyjątek, bo dwa poprzednie zamknęły się wł
   jest zapisana tam, gdzie jest używana (``apps.web.views.coordinator_accounts``).
 
 Zostaje ``grading.CommitteeMember`` w roli „puli recenzentów”: samą pulę liczy serwis oceniania
-(``apps.grading.services.reviewer_pool``, wspólny z przydziałem automatycznym), więc zawężamy jego
-**wynik**, zamiast dopisywać drugą definicję „aktywnego recenzenta” w panelu.
+(``apps.grading.services.reviewer_pool``, wspólny z przydziałem automatycznym). Od poprawki po
+audycie izolacji (01.10.2026) serwis bierze konkurs **sam** – do tego czasu liczył pulę całej
+instalacji, a panel zawężał ją dopiero tutaj, na wyniku; przydział automatyczny takiego zawężenia
+nie miał. Funkcja niżej jest już tylko skrótem panelu, a nie drugim filtrem.
 
 Wszystko, co ma własną drogę do konkursu, zawęża się w widoku wprost
 (``Model.objects.for_competition(request.competition)``) i tutaj nie trafia.
@@ -28,18 +30,11 @@ def reviewer_pool_for(competition) -> list:
     oceniania: ta sama lista rozstrzyga o przydziale automatycznym, więc druga jej definicja
     w panelu znaczyłaby ekran proponujący osoby, którym serwis i tak odmówi (albo odwrotnie).
 
-    Zawężamy więc **wynik**, a nie zapytanie – i robimy to po ``competition_id``, czyli po kolumnie,
-    którą serwis i tak przywiózł razem z wierszem. Ani jednego zapytania więcej: ekran przydziałów
-    ma budżet zapytań pilnowany testem (``apps/web/tests/test_coordinator_assignments_ux.py``),
-    a lista wyboru recenzentów nie jest miejscem, w którym warto go wydać.
-
-    Porównanie jest **ścisłe**: wierszy bez konkursu już nie ma, bo wydanie D domknęło kolumnę na
-    ``NOT NULL`` (``accounts.0022_competition_not_null``). Tolerancja z wydania B znikła razem
-    z powodem, dla którego istniała – zostawiona byłaby wyłącznie luką czekającą na wiersz
-    dopisany poza serwisem.
+    Zawężenie do konkursu robi teraz sam serwis, jednym zapytaniem – tyle samo, ile kosztowała
+    pula całej instalacji przefiltrowana tutaj na wyniku, więc budżet zapytań ekranu przydziałów
+    (``apps/web/tests/test_coordinator_assignments_ux.py``) się nie zmienia. ``None`` oddaje pustą
+    listę – tę samą odpowiedź daje serwis.
     """
     from apps.grading.services import reviewer_pool
 
-    if competition is None:
-        return []
-    return [member for member in reviewer_pool() if member.competition_id == competition.pk]
+    return reviewer_pool(competition)

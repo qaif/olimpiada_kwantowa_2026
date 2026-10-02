@@ -594,10 +594,18 @@ krzyżykiem.
 | `COORDINATOR_PASSWORD` | secret | jego hasło (jw.) |
 | `SITE_DOMAIN` | variable | `olimpiadakwantowa.pl` |
 | `ACME_EMAIL` | variable | adres do Let's Encrypt |
+| `DEPLOY_SSH_KNOWN_HOSTS` | variable | linijki `known_hosts` serwera dla każdej nazwy wpisywanej w `target` (domena i/lub IP) – od v0.38.3 **wymagane** (§ 24.6) |
 
 Dodatkowo załóż środowisko **`production`** (*Settings → Environments*) i włącz w nim
 *Required reviewers*. Bez tego każdy z prawem zapisu w repozytorium wdraża produkcję jednym
-kliknięciem.
+kliknięciem. Środowisko musi istnieć z tą regułą **przed** pierwszym uruchomieniem: GitHub zakłada
+nieistniejące środowisko sam, ale bez żadnej reguły.
+
+Od v0.38.3 workflow ma `permissions: contents: read`, cel SSH (`target`) przechodzi przez zmienną
+środowiskową i musi mieć postać `użytkownik@host` (inaczej workflow kończy się przed wdrożeniem),
+a klucz hosta nie jest przyjmowany „przy pierwszym kontakcie”: krok „Klucz hosta” zapisuje
+`DEPLOY_SSH_KNOWN_HOSTS` do `~/.ssh/known_hosts`, a `scripts/deploy.sh` dostaje
+`SSH_STRICT_HOST_KEY_CHECKING=yes`. Na laptopie operatora domyślne zostaje `accept-new`.
 
 Klucz wdrożeniowy ma na serwerze pełne uprawnienia roota. Jeśli kiedykolwiek wyciekł – wymień go:
 `ssh-keygen -t ed25519 -f ~/.ssh/olimpiada_deploy`, wpisz nowy klucz publiczny do
@@ -830,9 +838,20 @@ Platforma prowadzi wiele niezależnych konkursów z jednej bazy i jednego wdroż
 samej komendy i wariantu z prefiksem ścieżki jest w README § 3 („Kolejny konkurs na tej samej
 instalacji”), a tutaj stoi to, czego README nie zna: co sprawdzić **przed** i czym przełączyć flagi.
 
-Kolejność nie jest dowolna. Konkurs założony przed pre-flightem członkostw nadal zadziała, ale
-przełącznik ról zostanie wtedy przestawiony na bazie, o której nikt nie sprawdził, czy backfill
-jej nie pominął — a objaw tego wychodzi dopiero wtedy, gdy recenzent nie widzi przydziałów.
+Kolejność nie jest dowolna i od v0.38.4 (poprawki po audycie izolacji) **pilnuje jej kod**:
+`create_competition` (komenda, ekran „Nowy konkurs” z § 6.5 i krok 6a wdrożenia) odmawia założenia
+konkursu, dopóki którykolwiek **aktywny** konkurs ma wyłączone `memberships_enforced`. Powód: przy
+wyłączonej fladze rolą jest globalna grupa Django, więc koordynator, recenzenci i komisja odwoławcza
+istniejącego konkursu mieliby od pierwszej chwili role także w nowym (i odwrotnie). Odmowa przychodzi
+przed jakimkolwiek zapisem, także przy `--dry-run`. Stąd kolejność: § 6.1 (pre-flight **i**
+przełączenie flagi istniejącego konkursu), dopiero potem § 6.2.
+
+Nowy konkurs dostaje `memberships_enforced` **włączone od założenia** (niezależnie od szablonu), a
+koordynator wskazany przy zakładaniu – członkostwo w nim; dla niego pre-flight nie jest potrzebny.
+Gdyby mimo to dwa aktywne konkursy liczyły role z grup (konkurs dopisany w `/admin/`, ponownie
+włączony konkurs nieaktywny, ręcznie zdjęta flaga), zgłasza to kontrola systemowa `tenancy.E001`:
+`docker compose exec -T web python manage.py check --database default`. Ta sama kontrola zatrzymuje
+`migrate` (także start kontenera z `RUN_MIGRATIONS=1`); na czas naprawy: `migrate --skip-checks`.
 
 ### 6.1. Pre-flight: czy wolno przełączyć role na członkostwa
 
@@ -860,7 +879,17 @@ Przy **jednym** konkursie w bazie komenda przyjmuje, że każdy członek globaln
 niego (bo innego nie ma). Od drugiego konkursu przypisuje wyłącznie osoby, które mają w konkursie
 ślad: profil uczestnika, profil opiekuna szkolnego albo jakiekolwiek członkostwo. Członek grupy bez
 takiego śladu nie jest przypisywany nigdzie — i to jest właściwa odpowiedź, bo zgadywanie dałoby
-recenzentowi jednego konkursu wgląd w prace drugiego.
+recenzentowi jednego konkursu wgląd w prace drugiego. Dlatego pre-flight i `--fix` robi się **przy
+jednym konkursie**, zanim powstanie drugi.
+
+Po zielonym wyniku (zero brakujących członkostw) **włącz `memberships_enforced` istniejącemu
+konkursowi** – w panelu („Ustawienia konkursu” → „Role z członkostw w konkursie”) albo w `/admin/`
+(§ 6.4) – i sprawdź logowanie jednej osoby z każdej roli. Bez tego kroku § 6.2 kończy się odmową:
+
+```text
+CommandError: Nie można założyć kolejnego konkursu: konkurs „kwantowa” ma wyłączony przełącznik
+memberships_enforced, …
+```
 
 ### 6.2. Założenie konkursu — najpierw na sucho
 
@@ -936,7 +965,10 @@ z **różnicami** wobec wartości domyślnych. Pusty słownik `{}` znaczy „jak
 
 - **`memberships_enforced`** — przełącza autoryzację z globalnych grup Django na `Membership` tego
   konkursu. Przełączaj **wyłącznie po zielonym `check_memberships`** (§ 6.1). Cofnięcie to ta sama
-  jedna wartość, bez wdrożenia: flaga zostaje w kodzie jeden sezon właśnie po to.
+  jedna wartość, bez wdrożenia: flaga zostaje w kodzie jeden sezon właśnie po to. **Cofać wolno
+  tylko w instalacji z jednym aktywnym konkursem** – przy dwóch wyłączona flaga to role jednego
+  organizatora w panelach drugiego (kontrola `tenancy.E001`). Konkurs zakładany komendą albo
+  z panelu dostaje ją włączoną sam (v0.38.4).
 - **`competition_settings_page`** — pokazuje koordynatorowi ekran „Ustawienia konkursu”
   (`/coordinator/competition/`): marka, organizator, kontakt. Adresowania (witryna, identyfikator,
   tryb, prefiks) nie ma tam z założenia — zmiana domeny wymaga dostępu do serwera, więc należy do
@@ -983,6 +1015,10 @@ rekordu DNS.
 
 Konkurs z **własną** domeną (`olimpiadafizyczna.pl`) idzie nadal drogą z § 6.3 — tej ten tryb nie
 zastępuje ani nie zmienia.
+
+Ekran podlega tej samej odmowie, co komenda (§ 6, wstęp): dopóki konkurs, z którego się zakłada
+(albo którykolwiek inny aktywny), ma wyłączone `memberships_enforced`, podgląd i potwierdzenie
+kończą się komunikatem w formularzu i niczego nie zapisują. Najpierw § 6.1.
 
 #### Jednorazowe przygotowanie (operator, raz na instalację)
 
@@ -2080,7 +2116,10 @@ Oglądanie: adres podpisany na **2 h** (film, osadzony w `<video>`) albo **5 min
 - **Caddy** (`deploy/Caddyfile`, blok `{$S3_PUBLIC_ADDRESS}`): `request_body max_size {$MAX_UPLOAD_MB}MB`
   dotyczy **jednej części** (16 MB), nie całego filmu – `MAX_UPLOAD_MB` musi zostać **> 16** (domyślnie
   25). Bez zmian w konfiguracji. Bez `encode` w tym bloku (kompresja psułaby odpowiedzi 206) i bez
-  `log` – podpisane adresy nie lądują w logu dostępu.
+  `log` – podpisane adresy nie lądują w logu dostępu. Od v0.38.3 blok odmawia (404) API MinIO spod
+  `/minio/*` i dokłada `nosniff`, HSTS oraz CSP `sandbox` (§ 24.5) – ścieżek bucketów, `Range`,
+  CORS ani `ETag` to nie dotyka (`scripts/tests/s3_proxy_test.sh`), a CSP odpowiedzi nie dotyczy
+  `PUT` części ani `<video>` (CSP działa na dokument budowany z odpowiedzi, nie na `fetch`).
 - **CSP** (`apps/web/middleware.py`): `connect-src` (PUT części) i `media-src` (`<video>`) zawierają
   origin `S3_PUBLIC_ENDPOINT_URL` od dawna (ta sama reguła co pdf.js przy rozwiązaniach) – bez zmian.
   Sprawdzenie na produkcji: w nagłówku `Content-Security-Policy` strony
@@ -3357,3 +3396,192 @@ Testy: `scripts/tests/proxy_config_test.sh` (skrypt na atrapie dockera) i
 `scripts/tests/deploy_djcms_test.sh` część 10 (całe wdrożenie na atrapach ssh/dockera: zmiana
 `deploy/Caddyfile` dochodzi do proxy przez reload, stary montaż, migracja `.env`, odrzucona
 walidacja i odrzucony reload – także z `--maintenance`).
+
+---
+
+## 24. Utwardzenie infrastruktury po audycie bezpieczeństwa (v0.38.3, 1.10.2026)
+
+Pakiet „infrastruktura” audytu: sieci compose'a, Redis, ClamAV, MinIO, blok S3 w Caddym, obrazy
+usług i workflow wdrożenia. Każda zmiana jest zgodna wstecz z działającym serwerem – wdrożenie
+robi wszystko samo (§ 24.7), a ręcznie zostaje tylko konfiguracja GitHuba i kontrole po wdrożeniu.
+Wiersze checklisty: `docs/SECURITY_CHECKLIST.md` 2.4, 2.9, 5.8–5.10, 9.2, 9.5–9.8, 11.4.
+
+### 24.1. Sieci compose'a
+
+| Sieć | Podsieć | `internal` | Członkowie | W `TRUSTED_PROXY_IPS` i `mynetworks` |
+|------|---------|------------|------------|--------------------------------------|
+| `edge` | 172.30.1.0/24 | nie | proxy, web, mail, monitor (+ `jitsi-web` z osobnego projektu) | tak |
+| `internal` | 172.30.2.0/24 | tak | proxy, web, worker, beat, db, minio, minio-init, clamav, mail, monitor, djcms | tak |
+| `cache` | 172.30.3.0/24 | tak | **redis**, web, worker, beat | **nie** |
+| `clamav_egress` | 172.30.4.0/24 | nie | **clamav** | **nie** |
+
+- Redis wyszedł z `internal`: był tam osiągalny dla każdej usługi (minio, clamav, poczta, djcms,
+  monitor), a jest i cache'em z serializacją `pickle` (zapis = wykonanie kodu przy odczycie), i brokerem
+  Celery (zapis = zadanie w kolejce workera). Teraz sięgają go wyłącznie jego klienci.
+- `clamav_egress` istnieje po to, żeby `freshclam` miał wyjście do internetu (§ 24.3). Nie `edge`,
+  bo `edge` jest na liście zaufanych proxy aplikacji i klientów relaya poczty.
+- Obu nowych sieci **nie** dopisujemy do `TRUSTED_PROXY_IPS` (`.env`) – proxy w nich nie stoi.
+- Projekty testowe obok deweloperskiego przesuwają podsieci: `docker-compose.e2e-djcms.yml`
+  (172.31.1–4.0/24, zmienne `E2E_*_SUBNET`) i `scripts/tests/maintenance_pg18_rehearsal.sh`
+  (172.30.81–84.0/24, `REHEARSAL_SUBNET_*`). Docker nie założy dwóch sieci na tej samej podsieci.
+- Pilnuje tego `scripts/tests/compose_profiles_test.sh` (przypadki 12–17).
+
+### 24.2. Redis z hasłem
+
+`REDIS_PASSWORD` w `.env` (wyłącznie `[A-Za-z0-9]`, ≥ 16 znaków – wklejane do adresu bez kodowania).
+`docker-compose.yml` przekazuje je Redisowi jako `--requirepass` i dokleja `:<hasło>@` do `REDIS_URL`
+i `CELERY_BROKER_URL` – **tylko wtedy, gdy jest niepuste**: pusta wartość (albo brak linijki) daje
+Redisa bez hasła i adresy co do znaku sprzed zmiany, więc serwer z dawnym `.env` wstaje bez zmian.
+Hasło generuje `scripts/deploy.sh` (nowa instalacja – krok 3/8, istniejąca – krok 4/8, raz; wartości
+istniejącej nie rusza, wartość spoza `[A-Za-z0-9]` zatrzymuje wdrożenie przed budowaniem).
+
+Healthcheck uwierzytelnia się (`REDISCLI_AUTH`) i sprawdza odpowiedź `PONG` – samo `redis-cli ping`
+kończy się kodem 0 także przy `NOAUTH`, więc dawny healthcheck nie odróżniał „działa” od „odmawia”.
+
+Serializator cache'a zostaje `pickle` – audyt pokazał, że cache przechowuje obiekty modeli,
+renditions Wagtaila, odpowiedzi HTTP, `bytes`, `Decimal`/`datetime` i słowniki z kluczami `int`, których
+`JSONSerializer` nie przeniesie (lista z miejscami: komentarz przy `CACHES` w
+`backend/config/settings/base.py`). Ochroną przed wstrzyknięciem `pickle` jest więc to, kto może
+pisać do Redisa: hasło i sieć `cache`.
+
+Zmiana hasła (rotacja): nowa wartość w `.env`, potem `docker compose up -d redis web worker beat`
+(wszystkie cztery naraz – kto zostanie ze starym adresem, dostaje `NOAUTH`). Cache startuje pusty
+(strony publiczne chwilę idą bez bufora); zadania Celery czekające w kolejce zostają – leżą
+w wolumenie `redis_data`, nie w haśle.
+
+Sprawdzenie na serwerze:
+
+```bash
+cd /opt/olimpiada
+docker compose ps redis                                   # (healthy)
+docker compose exec redis redis-cli ping                  # NOAUTH Authentication required.
+docker compose exec -T web python manage.py shell -c "from django.core.cache import cache; cache.set('audyt', 1, 5); print(cache.get('audyt'))"   # 1
+docker compose ps worker beat                             # worker (healthy): jego healthcheck to `celery inspect ping` przez broker z hasłem
+```
+
+### 24.3. ClamAV: aktualizacje sygnatur
+
+Do v0.38.3 `clamav` stał wyłącznie w `internal` (`internal: true`, bez wyjścia na świat), więc
+`freshclam` od startu kontenera nie dosięgał mirrorów – na produkcji 1.10.2026 baza miała 25 dni.
+Teraz kontener jest też w `clamav_egress` (§ 24.1) i ma `no-new-privileges` (entrypoint `/init` obrazu
+`clamav/clamav:1.4` biegnie jako root i niczego nie uruchamia z bitem setuid; `freshclam --user=clamav`
+i clamd zrzucają uprawnienia same – sprawdzone 1.10.2026 na tym obrazie: freshclam i clamd działają
+jako nie-root, `NoNewPrivs: 1`, `clamdcheck.sh` → „Clamd is up”, freshclam połączył się z mirrorem
+i zgłosił nowszą bazę `daily`). Po wdrożeniu:
+
+```bash
+docker compose logs clamav --since 2h | grep -iE 'daily|updated|up-to-date|fail|connect'   # bez „Can't connect”
+docker compose exec clamav sh -c 'sigtool --info /var/lib/clamav/daily.c[lv]d | grep -E "Build time|Version"'
+```
+
+`freshclam` sprawdza aktualizacje raz na dobę (`FRESHCLAM_CHECKS=1` – domyślna wartość obrazu).
+Pierwsze sprawdzenie idzie zaraz po starcie kontenera, więc kilkudziesięciomegabajtowe pobranie
+zaległej bazy `daily` i przeładowanie clamd (chwilowo ~2 GB pamięci – limit `3g`) zdarzy się
+w trakcie wdrożenia.
+
+### 24.4. MinIO: bez listowania `public-media`, typ pliku z rozszerzenia
+
+**Polityka anonimowa.** `mc anonymous set download` (do v0.38.3) daje `s3:GetObject` **i**
+`s3:ListBucket` – `https://<domena>:9000/public-media/` zwracało każdemu XML z listą wszystkich
+obiektów (także dokumentów, do których strona nigdzie nie linkuje). Teraz `minio-init` ustawia
+`deploy/minio/policy-anonymous-public-media.json` (`mc anonymous set-json`): wyłącznie
+`s3:GetObject` na `public-media/*`. `set-json` zastępuje politykę w całości, `minio-init` biegnie przy
+każdym wdrożeniu (krok 4b wymienia go z nazwy), więc nic ręcznie. Sprawdzone 1.10.2026 na tym
+samym obrazie MinIO i `mc`: po zmianie anonimowy GET obiektu działa, listowanie – „Access Denied”.
+
+```bash
+curl -s -o /dev/null -w '%{http_code}\n' https://olimpiadakwantowa.pl:9000/public-media/      # 403 (było 200 z listą)
+curl -s -o /dev/null -w '%{http_code}\n' "https://olimpiadakwantowa.pl:9000/public-media/<ścieżka obrazu ze strony>"   # 200
+```
+
+**Typ pliku.** Media zapisywane przez django-storages (alias `default` – obrazy i dokumenty Wagtaila
+w `public-media`; `private_media` – treści zadań) dostają `Content-Type` z rozszerzenia nazwy,
+a nie z nagłówka przeglądarki, i `Content-Disposition: attachment` dla wszystkiego poza obrazem,
+filmem, dźwiękiem i PDF-em (SVG też `attachment`) – `backend/apps/core/storage.py`. Dotyczy plików
+wgranych **po** wdrożeniu. Obiekty starsze mają typ, jaki podała wtedy przeglądarka; przed skryptem
+w nich chroni już CSP `sandbox` z bloku S3 (§ 24.5), ale warto je przejrzeć. Lista obiektów
+`public-media` z typem innym niż obraz/film/dźwięk/PDF (**tylko odczyt**; `run --no-deps` zakłada
+jednorazowy kontener `mc`, nie dotyka działających usług):
+
+```bash
+cd /opt/olimpiada
+docker compose run --rm --no-deps -T --entrypoint sh minio-init -c \
+  'mc alias set local http://minio:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null && mc stat --recursive --json local/public-media' \
+  | grep -oE '"name":"[^"]*"|"Content-Type":"[^"]*"' | paste - - \
+  | grep -vE '"Content-Type":"(image/(png|jpeg|gif|webp|avif|x-icon|vnd\.microsoft\.icon)|video/[^"]*|audio/[^"]*|application/pdf)"'
+# Najgroźniejsze z nich (aktywna treść): dopisz na końcu  | grep -iE 'html|svg|xml|javascript'
+```
+
+Wynik to pary `"name":"public-media/<klucz>"  "Content-Type":"<typ>"`. Zwykłe dokumenty (`.docx`,
+`.xlsx`) z poprawnym typem są niegroźne. Obiekt z typem aktywnym, który nie pasuje do rozszerzenia,
+zgłoś przed zmianą – poprawka to ponowne wgranie pliku w `/cms/` albo, po uzgodnieniu,
+`mc cp --attr "Content-Type=<typ>;Content-Disposition=attachment" local/public-media/<klucz> local/public-media/<klucz>`
+(kopia w miejscu z nowymi metadanymi; poza tym poleceniem nic tu nie zmienia danych).
+
+### 24.5. Blok S3 w Caddym (`{$S3_PUBLIC_ADDRESS}`)
+
+Produkcja ma S3 pod **`olimpiadakwantowa.pl:9000`** (brak rekordu DNS `s3.`), czyli pod tą samą
+nazwą co serwis – a ciasteczka nie rozróżniają portów. Dlatego blok (`deploy/Caddyfile`):
+
+- odpowiada **404** na `/minio/*` (API administracyjne, metryki v2/v3/prometheus, KMS, kworum
+  `/minio/health/cluster`) – poza `/minio/health/live` i `/minio/health/ready`, które sprawdza
+  monitor nr 4 (`deploy/monitoring/README.md`; na produkcji adres
+  `https://olimpiadakwantowa.pl:9000/minio/health/live`). Nazwa bucketu `minio` jest w MinIO
+  zarezerwowana, więc żaden obiekt nie leży pod tym prefiksem;
+- dokłada `X-Content-Type-Options: nosniff`, `Strict-Transport-Security: max-age=31536000` (MinIO
+  wysyła własne z `includeSubDomains` – zastąpione) i `Content-Security-Policy: default-src 'none';
+  img-src 'self' data:; media-src 'self'; style-src 'unsafe-inline'; sandbox` dla wszystkiego poza
+  PDF-em (wbudowane przeglądarki PDF nie działają pod `sandbox`) – z `defer`, czyli po nagłówkach
+  MinIO, każdy dokładnie raz;
+- nie rusza ścieżek bucketów, zapytań (podpis, `uploadId`, `partNumber`), `Range`, CORS ani `ETag`.
+
+```bash
+curl -s -o /dev/null -w '%{http_code}\n' https://olimpiadakwantowa.pl:9000/minio/admin/v3/info     # 404
+curl -s -o /dev/null -w '%{http_code}\n' https://olimpiadakwantowa.pl:9000/minio/health/live       # 200
+curl -sI "https://olimpiadakwantowa.pl:9000/public-media/<ścieżka obrazu>" | grep -iE 'content-security|nosniff|strict-transport'
+```
+
+Testy: `scripts/tests/render_caddyfile_test.sh` § 25 (treść bloku we wszystkich wariantach
+generatora) i `scripts/tests/s3_proxy_test.sh` (żywy Caddy z atrapą MinIO: 25 żądań, w tym warianty
+`/MINIO/`, `%2F`, `//`, `/./` i `Range` → 206).
+
+### 24.6. Wdrożenie: świeże obrazy i przypięty klucz hosta
+
+- Krok 4/8 wykonuje `docker compose pull --ignore-buildable --quiet` (po zbudowaniu `web`, przed
+  stroną prac technicznych): caddy, postgres, redis, minio, mc, clamav, postfix i – przy profilu –
+  pozostałe obrazy bez `build:`. Dotąd obrazy cudze nie były nigdy pobierane ponownie: tag pływający
+  (`caddy:2.8`, `redis:7-alpine`, `clamav/clamav:1.4`, `postgres:18-alpine`) stał na łatce z dnia
+  instalacji. Niedostępny rejestr = ostrzeżenie „UWAGA: nie udało się pobrać obrazów…”, a wdrożenie
+  idzie dalej na obrazach z serwera. `--ignore-buildable` wymaga Compose ≥ 2.x z tą flagą – sprawdzenie
+  (tylko odczyt): `docker compose pull --help | grep ignore-buildable`; bez niej pobranie kończy się
+  tym samym ostrzeżeniem przy każdym wdrożeniu.
+- Workflow GitHuba (§ 4.2): przypięty klucz hosta (`DEPLOY_SSH_KNOWN_HOSTS`) i
+  `SSH_STRICT_HOST_KEY_CHECKING=yes`; `scripts/deploy.sh` przyjmuje wyłącznie `yes` albo `accept-new`.
+
+### 24.7. Pierwsze wdrożenie tej wersji na produkcji – co się stanie
+
+Zalecane `scripts/deploy.sh --maintenance root@olimpiadakwantowa.pl` (zmienia się Redis i może
+zmienić się obraz Postgresa – punkt 1); bez flagi też zadziała, z krótkimi błędami w trakcie
+(zapytania w chwili restartu bazy albo Redisa).
+
+1. **Krok 4/8:** do `.env` dopisuje się `REDIS_PASSWORD` (w logu: „Redis: wygenerowano
+   REDIS_PASSWORD…”); konfiguracja proxy z nowym blokiem S3 przechodzi `caddy validate` w działającym
+   proxy; `pull --ignore-buildable` pobiera nowsze łatki obrazów (kilka minut; to normalne).
+   `up -d db` odtworzy Postgresa **tylko**, jeśli pobrał się nowszy `postgres:18-alpine` – kilka
+   sekund bez bazy (przy `--maintenance` aplikacja już wtedy stoi).
+2. **Krok 4b/8 (`up -d`):** odtwarzane są `redis` (polecenie, środowisko, sieć – cache startuje
+   pusty, kolejka Celery zostaje w wolumenie), `web`/`worker`/`beat` (nowe adresy Redisa i sieć `cache`;
+   jak przy każdym wdrożeniu), `clamav` (sieci, `no-new-privileges`; clamd wczytuje bazę 1–2 min,
+   a `worker` czeka na jego `healthy` – skany z tego czasu czekają w kolejce), `minio-init` (nowa
+   polityka), a `proxy`, `mail`, `minio` – tylko przy nowym obrazie z kroku 4/8. Docker zakłada dwie
+   nowe sieci; stara `internal` zostaje. Krok 4b trwa o 1–2 min dłużej niż zwykle (czekanie na ClamAV).
+3. **Krok 4c/8:** `caddy reload` ładuje nowy blok S3 bez restartu proxy.
+4. **Ręcznie po wdrożeniu (tylko odczyt):** kontrole z § 24.2–24.5; lista obiektów z § 24.4.
+5. **Ręcznie w GitHubie, przed następnym użyciem workflow:** zmienna `DEPLOY_SSH_KNOWN_HOSTS`
+   i środowisko `production` z *Required reviewers* (§ 4.2). Bez zmiennej workflow kończy się błędem
+   w kroku „Klucz hosta” – nic nie dotyka serwera.
+
+**Wycofanie** (wdrożenie poprzedniej wersji): `REDIS_PASSWORD` zostaje w `.env`, ale stary
+`docker-compose.yml` go nie czyta – Redis i adresy wracają do wersji bez hasła, spójnie. Sieci `cache`
+i `clamav_egress` zostają jako nieużywane (nieszkodliwe; `docker network prune` je zdejmie). Stary
+`minio-init` przywraca politykę `download` (z listowaniem).

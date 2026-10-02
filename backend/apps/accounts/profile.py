@@ -796,7 +796,7 @@ def update_account_by_coordinator(
     """
     from apps.tenancy.context import current_competition
 
-    from .services import participant_for
+    from .services import committee_profile_in, participant_for
 
     _assert_not_coordinator(user)
     # Najpierw **cała** walidacja – trzech obiektów naraz, więc bez tego rozdziału zły numer
@@ -807,7 +807,9 @@ def update_account_by_coordinator(
     # Profil z konkursu, którego panel koordynator ma przed sobą: koordynator olimpiady A nie
     # poprawia szkoły uczestnikowi w olimpiadzie B, nawet jeżeli to jedno konto (§ 3.3).
     profile = participant_for(user, current_competition())
-    member = getattr(user, "committee_member", None)
+    # Ta sama reguła dla profilu komitetu (poprawka po audycie izolacji, 01.10.2026): członek
+    # komitetu konkursu B nie dostaje statusu ani województwa od koordynatora A.
+    member = committee_profile_in(user, current_competition())
     participant_values = _participant_values(participant) if participant else {}
     committee_values = _committee_values(committee) if committee else {}
     if participant_values and profile is None:

@@ -18,7 +18,7 @@ from django.db import models
 from django.db.models import F, Q
 from django.utils import timezone
 
-from apps.accounts.models import COORDINATOR_GROUPS, Participant, generate_public_code
+from apps.accounts.models import CompetitionRole, Participant, generate_public_code
 from apps.core.points import POINTS_PLACES, SCORE_MAX_DIGITS, TOTAL_MAX_DIGITS
 from apps.tenancy.managers import CompetitionScopedQuerySet
 
@@ -1425,17 +1425,21 @@ class StageEntryQuerySet(CompetitionScopedQuerySet):
         – bez drugiego złączenia i bez szansy, że ``team IS NULL`` po obu stronach zrówna dwa
         wpisy niczyje. Konkurs #1 nie ma ani jednej drużyny **i** nie ma flagi, więc wychodzi
         stąd tą samą drogą, co dotąd.
+
+        Koordynatora rozpoznaje ``has_role`` w konkursie zakresu, a nie globalna grupa Django
+        (poprawka po audycie izolacji, 01.10.2026): przy włączonym ``memberships_enforced`` grupa
+        nie jest już rolą, a koordynator konkursu B widziałby tu wszystkie wpisy konkursu A.
         """
+        # ``participant_for`` zamiast ``user.participant``: profil jest odtąd profilem **w tym
+        # konkursie**, a relacja jeden-do-jednego oddawałaby po wydaniu D dowolny z nich.
+        from apps.accounts.services import has_role, participant_for
+
         scoped = scope_to_competition(self, competition)
         if not user or not user.is_authenticated or not user.is_active:
             return scoped.none()
-        if user.groups.filter(name__in=COORDINATOR_GROUPS).exists():
-            return scoped
-        # ``participant_for`` zamiast ``user.participant``: profil jest odtąd profilem **w tym
-        # konkursie**, a relacja jeden-do-jednego oddawałaby po wydaniu D dowolny z nich.
-        from apps.accounts.services import participant_for
-
         resolved = resolve_competition(competition)
+        if has_role(user, resolved, CompetitionRole.COORDINATOR):
+            return scoped
         participant = participant_for(user, resolved)
         if participant is None:
             return scoped.none()

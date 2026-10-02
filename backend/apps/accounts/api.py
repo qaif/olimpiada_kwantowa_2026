@@ -190,14 +190,29 @@ class MeView(GenericAPIView):
         return Response(MeSerializer(request.user).data)
 
 
+def committee_of(request):
+    """Członkowie komitetu **konkursu żądania** – jedyne wejście trzech widoków poniżej.
+
+    Do poprawki po audycie izolacji (01.10.2026) te trzy widoki szukały w ``CommitteeMember.objects``
+    bez zawężenia: koordynator konkursu A widział oczekujących członków komitetu B i mógł ich
+    zatwierdzić (czyli nadać im rolę recenzenta **w konkursie B**) albo zmienić im województwo.
+    Odpowiedniki HTML (``apps.web.views.coordinator``) zawężały od zawsze – API dostaje tę samą
+    regułę: członek cudzego konkursu to 404, bo jego istnienie nie jest informacją dla tego
+    koordynatora. Żądanie bez konkursu nie widzi nikogo (``for_competition(None)``).
+    """
+    return CommitteeMember.objects.for_competition(getattr(request, "competition", None)).select_related(
+        "user"
+    )
+
+
 class CommitteePendingListView(GenericAPIView):
-    """Lista członków komitetu oczekujących na zatwierdzenie – tylko koordynator."""
+    """Lista członków komitetu oczekujących na zatwierdzenie – tylko koordynator tego konkursu."""
 
     permission_classes = [IsCoordinator]
     serializer_class = PendingCommitteeMemberSerializer
 
     def get_queryset(self):
-        return CommitteeMember.objects.select_related("user").filter(status=CommitteeStatus.PENDING)
+        return committee_of(self.request).filter(status=CommitteeStatus.PENDING)
 
     @extend_schema(responses={200: PendingCommitteeMemberSerializer(many=True)})
     def get(self, request):
@@ -212,8 +227,10 @@ class CommitteeApproveView(GenericAPIView):
 
     @extend_schema(request=None, responses={200: PendingCommitteeMemberSerializer})
     def post(self, request, pk: int):
-        member = get_object_or_404(CommitteeMember.objects.select_related("user"), pk=pk)
-        member = approve_committee_member(member, actor=request.user)
+        member = get_object_or_404(committee_of(request), pk=pk)
+        member = approve_committee_member(
+            member, actor=request.user, competition=getattr(request, "competition", None)
+        )
         return Response(self.get_serializer(member).data)
 
 
@@ -241,11 +258,12 @@ class CommitteeVerifyDistrictView(GenericAPIView):
     def post(self, request, pk: int):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        member = get_object_or_404(CommitteeMember.objects.select_related("user"), pk=pk)
+        member = get_object_or_404(committee_of(request), pk=pk)
         member = verify_committee_district(
             member,
             district=serializer.validated_data.get("district") or None,
             actor=request.user,
             request=request,
+            competition=getattr(request, "competition", None),
         )
         return Response(PendingCommitteeMemberSerializer(member).data)

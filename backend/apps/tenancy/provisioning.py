@@ -151,6 +151,14 @@ INITIAL_DOCUMENT_STATEMENTS: dict[str, str] = {
 #: Linia podpisu — ``SIGNATURE_LINE`` z tą samą zamianą i z tego samego powodu.
 INITIAL_SIGNATURE_LINE = "Przewodniczący Komitetu Sterującego {competition_genitive}"
 
+#: Przełącznik, który nowy konkurs dostaje **zawsze włączony**, niezależnie od szablonu (poprawka
+#: po audycie izolacji, 01.10.2026). ``FEATURE_DEFAULTS`` trzyma go wyłączonego, bo tak żyje
+#: Konkurs #1 (role z globalnych grup Django do czasu przełączenia po ``check_memberships``) –
+#: ale konkurs zakładany dziś nie ma żadnej historii grup, którą trzeba by migrować, a z flagą
+#: wyłączoną jego role byłyby rolami w **każdym** konkursie instalacji: koordynator, recenzent
+#: i komisja odwoławcza jednego konkursu przechodziliby bramki drugiego.
+MEMBERSHIPS_FLAG = "memberships_enforced"
+
 
 class ProvisioningError(Exception):
     """Odmowa założenia konkursu wypowiedziana zdaniem dla człowieka.
@@ -272,6 +280,7 @@ def create_competition_from_template(
         raise ProvisioningError(f"Witryna dla hosta „{hostname}:{port}” już istnieje.")
     if Competition.objects.filter(primary_domain__iexact=hostname).exists():
         raise ProvisioningError(f"Domena „{hostname}” należy już do innego konkursu.")
+    _refuse_next_to_unscoped_roles()
 
     today = timezone.localtime(timezone.now(), WARSAW).date()
     label = (edition_label or "").strip() or EDITION_LABEL_PATTERN.format(school_year=school_year(today))
@@ -407,7 +416,11 @@ def _create(
         routing_mode=RoutingMode.PATH if path_prefix else RoutingMode.DOMAIN,
         primary_domain=hostname,
         path_prefix=path_prefix,
-        feature_flags=dict(template["feature_flags"]),
+        # Szablon może dorzucić własne różnice, ale ``memberships_enforced`` nie jest do wyboru –
+        # powód przy :data:`MEMBERSHIPS_FLAG`. Koordynator zakładający konkurs dostaje swoje
+        # członkostwo w ``_grant_coordinator`` (w tej samej transakcji), więc z flagą włączoną
+        # od pierwszej chwili nikt z ról tego konkursu nie zostaje za drzwiami.
+        feature_flags={**template["feature_flags"], MEMBERSHIPS_FLAG: True},
         # Własne przedrostki od pierwszego dnia: ``OLM-``/``OK`` należą do Konkursu #1, a kod
         # publiczny jest identyfikatorem w tabelach wyników **jednego** konkursu (etap 1 § 3.3).
         public_code_prefix=public_code_prefix,
@@ -459,6 +472,39 @@ def _open_platform_for_prefix(competition: Competition) -> tuple[Competition | N
     Competition.objects.filter(pk=platform.pk).update(feature_flags=flags)
     platform.feature_flags = flags
     return platform, True
+
+
+def _refuse_next_to_unscoped_roles() -> None:
+    """Odmowa założenia **kolejnego** konkursu, dopóki któryś aktywny liczy role z grup Django.
+
+    Przy wyłączonym ``memberships_enforced`` rolą jest globalna grupa (``has_role``), więc każdy
+    koordynator, recenzent i członek komisji tamtego konkursu byłby od chwili założenia nowego
+    konkursu koordynatorem, recenzentem i komisją **także w nim** – a na odwrót: role nadane
+    w nowym konkursie (``grant_role`` zawsze dopisuje grupę) otwierałyby panele tamtego. W bazie
+    z jednym konkursem to jest stan poprawny i tak żyje dziś produkcja; w bazie z dwoma – wyciek
+    między organizatorami od pierwszego zapisu. Dlatego zakładanie zatrzymuje się **przed**
+    jakimkolwiek zapisem, z instrukcją, a nie przełącza flagi samo: przełączenie bez
+    ``check_memberships`` odcina osoby bez członkostwa, a o tym decyduje operator.
+
+    Pierwszy konkurs instalacji (kreator ``/setup/``, pusta baza) przechodzi bez pytań – nie ma
+    obok kogo przeciekać. Konkurs nieaktywny się nie liczy: pod jego adresem nikt nie dostaje
+    paneli; jego ponowne włączenie z wyłączoną flagą zgłasza kontrola systemowa ``tenancy.E001``.
+    """
+    unscoped = [
+        competition
+        for competition in Competition.objects.filter(is_active=True).order_by("slug")
+        if not competition.has_feature(MEMBERSHIPS_FLAG)
+    ]
+    if not unscoped:
+        return
+    names = ", ".join(f"„{competition.slug}”" for competition in unscoped)
+    raise ProvisioningError(
+        f"Nie można założyć kolejnego konkursu: konkurs {names} ma wyłączony przełącznik "
+        f"memberships_enforced, więc role liczą się w nim z globalnych grup kont i obowiązywałyby "
+        f"także w nowym konkursie. Najpierw uruchom „manage.py check_memberships --fix” (dopisuje "
+        f"brakujące członkostwa), a po zielonym wyniku włącz memberships_enforced temu konkursowi "
+        f"(„Ustawienia konkursu” w panelu albo /admin/, docs/OPERACJE.md § 6.1)."
+    )
 
 
 # --- edycja i etapy -----------------------------------------------------------------------------

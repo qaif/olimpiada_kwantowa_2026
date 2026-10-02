@@ -35,6 +35,7 @@ from apps.accounts.services import grant_role
 from apps.accounts.tests.factories import ParticipantFactory, UserFactory
 from apps.competitions.models import Edition, PipelineStep, Stage, TransitionMode
 from apps.tenancy.models import Competition
+from apps.tenancy.tests.factories import enforce_memberships_everywhere
 
 pytestmark = pytest.mark.django_db
 
@@ -88,9 +89,10 @@ def no_seeds(monkeypatch):
 def coordinator(competition):
     """Koordynator z **globalnej** grupy Django — czyli tak, jak wygląda dzisiejsza produkcja.
 
-    Rola jest globalna dopóki ``memberships_enforced`` jest wyłączone, i to jest tu celowe:
-    dzięki temu ta sama osoba przechodzi bramkę roli w **obu** konkursach, więc różnica
-    „200 tam, 404 tu” pochodzi wyłącznie z flagi konkursu, a nie z braku uprawnień.
+    Ta sama osoba przechodzi bramkę roli w **obu** konkursach, więc różnica „200 tam, 404 tu”
+    pochodzi wyłącznie z flagi konkursu, a nie z braku uprawnień. Od poprawki po audycie izolacji
+    (01.10.2026) drugi konkurs powstaje wyłącznie obok konkursów z ``memberships_enforced``, więc
+    tę samą rolę w obu daje członkostwo: tutaj ``grant_role``, w drugim – ``coordinator_email``.
     """
     user = UserFactory()
     grant_role(user, CompetitionRole.COORDINATOR, competition=competition)
@@ -100,6 +102,9 @@ def coordinator(competition):
 @pytest.fixture
 def second(competition, coordinator, no_seeds):  # noqa: ARG001 - no_seeds działa efektem ubocznym
     """Drugi konkurs założony komendą, w trybie prefiksu ścieżki, z flagami etapu 2."""
+    # Kolejność z ``docs/OPERACJE.md`` § 6.1: najpierw role Konkursu #1 na członkostwa, potem
+    # drugi konkurs – inaczej komenda odmawia (poprawka po audycie izolacji, 01.10.2026).
+    enforce_memberships_everywhere()
     call_command(
         "create_competition",
         slug=SECOND_SLUG,
@@ -110,7 +115,8 @@ def second(competition, coordinator, no_seeds):  # noqa: ARG001 - no_seeds dzia�
         coordinator_email=coordinator.email,
     )
     row = Competition.objects.get(slug=SECOND_SLUG)
-    row.feature_flags = dict(SECOND_FLAGS)
+    # Dokładamy flagi etapu 2 do tych, z którymi konkurs powstał (``memberships_enforced``).
+    row.feature_flags = {**row.feature_flags, **SECOND_FLAGS}
     row.save(update_fields=["feature_flags"])
     return row
 

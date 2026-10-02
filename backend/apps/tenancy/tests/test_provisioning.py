@@ -28,8 +28,25 @@ from apps.tenancy.provisioning import (
     coordinator_from_email,
     create_competition_from_template,
 )
+from apps.tenancy.tests.factories import enforce_memberships_everywhere
 
 pytestmark = pytest.mark.django_db
+
+
+@pytest.fixture(autouse=True)
+def _existing_competitions_enforce_memberships(request, db):  # noqa: ARG001 - fikstura bazy, efekt uboczny
+    """Konkurs #1 z ``memberships_enforced`` – inaczej założenie kolejnego konkursu jest odmową.
+
+    Od poprawki po audycie izolacji (01.10.2026) to jest warunek wstępny każdego zakładania
+    konkursu obok istniejącego (``docs/OPERACJE.md`` § 6.1); sama odmowa ma własne testy
+    w ``test_provisioning.py``.
+    """
+    # Konkurs #2 testu (fikstura ``other_competition``) ma powstać **przed** przełączeniem:
+    # fikstury autouse biegną pierwsze, a konkurs dopisany po nich zostałby z flagą wyłączoną.
+    if "other_competition" in request.fixturenames:
+        request.getfixturevalue("other_competition")
+    enforce_memberships_everywhere()
+
 
 #: Zamrożony zegar, bo oznaczenie edycji liczy się z dnia uruchomienia. Ten sam dzień, co
 #: w ``test_create_competition.py`` — obie drogi mają wyjść na to samo.
@@ -325,3 +342,95 @@ def test_env_lines_are_empty_for_a_platform_subdomain(settings):
     )
 
     assert result.env_lines == ()
+
+
+# --- role z członkostw od pierwszego dnia (poprawka po audycie izolacji, 01.10.2026) ---------------
+
+
+def switch_groups_back_on():
+    """Konkurs #1 w dzisiejszym stanie produkcji: role z globalnych grup (flaga wyłączona).
+
+    Autouse tego modułu przełącza go na członkostwa; testy odmowy cofają to, bo odmowa jest
+    właśnie odpowiedzią na stan, w którym produkcja żyje dziś.
+    """
+    from apps.tenancy.context import current_competition
+
+    row = current_competition()
+    row.feature_flags = {**(row.feature_flags or {}), "memberships_enforced": False}
+    row.save(update_fields=["feature_flags"])
+    return row
+
+
+@freeze_time(TODAY)
+def test_a_new_competition_counts_roles_from_memberships_from_the_first_day(monkeypatch):
+    """Także wtedy, gdy szablon próbowałby przełącznik wyłączyć – to nie jest pole do wyboru."""
+    from apps.accounts.models import CompetitionRole
+    from apps.accounts.services import has_role
+    from apps.tenancy import templates_catalog
+
+    monkeypatch.setitem(
+        templates_catalog.TEMPLATES,
+        TEMPLATE,
+        {**templates_catalog.TEMPLATES[TEMPLATE], "feature_flags": {"memberships_enforced": False}},
+    )
+    user = make_user()
+
+    result = create_competition_from_template(
+        slug="fizyczna",
+        name="Olimpiada Fizyczna",
+        domain="olimpiadafizyczna.invalid",
+        template=TEMPLATE,
+        coordinator=user,
+    )
+
+    competition = Competition.objects.get(slug="fizyczna")
+    assert competition.has_feature("memberships_enforced") is True
+    assert result.competition.has_feature("memberships_enforced") is True
+    # Koordynator zakładający konkurs ma w nim działającą rolę – z członkostwa, nie z grupy.
+    assert has_role(user, competition, CompetitionRole.COORDINATOR) is True
+
+
+@freeze_time(TODAY)
+def test_a_second_competition_is_refused_while_another_counts_roles_from_groups():
+    """Odmowa przed jakimkolwiek zapisem, z instrukcją – także na sucho i z komendy."""
+    from django.core.management import CommandError
+
+    first = switch_groups_back_on()
+    before = row_counts()
+
+    for dry_run in (True, False):
+        with pytest.raises(ProvisioningError, match="memberships_enforced") as refused:
+            create_competition_from_template(
+                slug="fizyczna",
+                name="Olimpiada Fizyczna",
+                domain="olimpiadafizyczna.invalid",
+                template=TEMPLATE,
+                dry_run=dry_run,
+            )
+        assert "check_memberships" in str(refused.value)
+        assert f"„{first.slug}”" in str(refused.value)
+    with pytest.raises(CommandError, match="memberships_enforced"):
+        call_command(
+            "create_competition",
+            slug="fizyczna",
+            name="Olimpiada Fizyczna",
+            domain="olimpiadafizyczna.invalid",
+            from_template=TEMPLATE,
+        )
+
+    assert row_counts() == before
+    assert not Competition.objects.filter(slug="fizyczna").exists()
+
+
+@freeze_time(TODAY)
+def test_an_inactive_competition_with_groups_does_not_block():
+    """Konkurs wyłączony nikomu nie otwiera paneli; jego włączenie z powrotem zgłasza ``tenancy.E001``."""
+    first = switch_groups_back_on()
+    first.is_active = False
+    first.save(update_fields=["is_active"])
+
+    result = create_competition_from_template(
+        slug="fizyczna", name="Olimpiada Fizyczna", domain="olimpiadafizyczna.invalid", template=TEMPLATE
+    )
+
+    assert result.competition.has_feature("memberships_enforced") is True

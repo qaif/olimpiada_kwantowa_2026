@@ -25,10 +25,27 @@ from apps.tenancy import page_urls
 from apps.tenancy.models import Competition, RoutingMode
 from apps.tenancy.provisioning import create_competition_from_template
 from apps.tenancy.templates_catalog import TEMPLATE_PUSTY
+from apps.tenancy.tests.factories import enforce_memberships_everywhere
 
 from .conftest import HOST_A
 
 pytestmark = pytest.mark.django_db
+
+
+@pytest.fixture(autouse=True)
+def _existing_competitions_enforce_memberships(request, db):  # noqa: ARG001 - fikstura bazy, efekt uboczny
+    """Konkurs #1 z ``memberships_enforced`` – inaczej założenie kolejnego konkursu jest odmową.
+
+    Od poprawki po audycie izolacji (01.10.2026) to jest warunek wstępny każdego zakładania
+    konkursu obok istniejącego (``docs/OPERACJE.md`` § 6.1); sama odmowa ma własne testy
+    w ``test_provisioning.py``.
+    """
+    # Konkurs #2 testu (fikstura ``other_competition``) ma powstać **przed** przełączeniem:
+    # fikstury autouse biegną pierwsze, a konkurs dopisany po nich zostałby z flagą wyłączoną.
+    if "other_competition" in request.fixturenames:
+        request.getfixturevalue("other_competition")
+    enforce_memberships_everywhere()
+
 
 PREFIX = "druga"
 SECOND_DOMAIN = "druga.test"
@@ -407,6 +424,8 @@ def test_data_migration_opens_the_platform_only_when_a_prefixed_competition_exis
     migration.open_platform(django_apps, None)
     competition.refresh_from_db()
     assert competition.feature_flags.get("path_prefix_routing") is None
+    # Pozostałe przełączniki (tu ``memberships_enforced`` z autouse modułu) migracja zostawia.
+    before = dict(competition.feature_flags)
 
     Competition.objects.filter(pk=other_competition.pk).update(
         routing_mode=RoutingMode.PATH, path_prefix="inny"
@@ -414,7 +433,7 @@ def test_data_migration_opens_the_platform_only_when_a_prefixed_competition_exis
     migration.open_platform(django_apps, None)
     migration.open_platform(django_apps, None)  # idempotentnie
     competition.refresh_from_db()
-    assert competition.feature_flags == {"path_prefix_routing": True}
+    assert competition.feature_flags == {**before, "path_prefix_routing": True}
 
 
 def test_prefixed_tree_is_a_separate_subtree(second, competition):

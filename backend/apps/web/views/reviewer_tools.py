@@ -19,8 +19,8 @@ from django.template.response import TemplateResponse
 from django.urls import reverse
 from django.views.generic import View
 
-from apps.accounts.models import COORDINATOR_GROUPS
-from apps.accounts.services import active_reviewer_profile
+from apps.accounts.models import CompetitionRole
+from apps.accounts.services import active_reviewer_profile, has_role
 from apps.competitions.models import Problem
 from apps.core.api import DomainError
 from apps.grading.comparison import add_review_note, can_read_notes, comparison_context
@@ -35,14 +35,20 @@ class CommitteeMaterialsMixin(RoleRequiredMixin):
     koordynator i musi móc sprawdzić, co wgrał, a czyta ją recenzent. Nikt inny – w szczególności
     uczestnik, który o istnieniu tego adresu i tak się nie dowie, ale trafiwszy na niego dostaje
     403, a nie plik z kluczem odpowiedzi w trakcie zawodów.
+
+    Obie role są rolami **tego** konkursu (poprawka po audycie izolacji, 01.10.2026): recenzent
+    przez profil komitetu tego konkursu (``active_reviewer_profile`` z konkursem żądania),
+    koordynator przez ``has_role``. Do niej wystarczała globalna grupa ``coordinator`` albo profil
+    komitetu dowolnego konkursu – czyli wzorcówka zadania konkursu A otwierała się członkowi
+    komitetu i koordynatorowi konkursu B w trakcie zawodów A.
     """
 
     role_denied_message = "Rozwiązania wzorcowe są dostępne wyłącznie dla komitetu."
 
     def has_role(self, user) -> bool:
-        if active_reviewer_profile(user) is not None:
+        if active_reviewer_profile(user, self.competition) is not None:
             return True
-        return bool(user.is_active and user.groups.filter(name__in=COORDINATOR_GROUPS).exists())
+        return has_role(user, self.competition, CompetitionRole.COORDINATOR)
 
 
 class ProblemModelSolutionView(CommitteeMaterialsMixin, View):

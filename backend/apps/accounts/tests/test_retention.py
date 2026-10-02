@@ -30,6 +30,7 @@ from apps.accounts.profile import ANONYMISED_EMAIL_DOMAIN, ANONYMISED_SCHOOL
 from apps.accounts.retention import (
     BLOCKED_LATER_EDITION,
     BLOCKED_OPEN_APPEAL,
+    BLOCKED_OTHER_COMPETITION,
     BLOCKED_UNPUBLISHED_RESULTS,
     add_months,
     anonymise_expired_editions,
@@ -193,6 +194,65 @@ def test_an_account_with_an_unpublished_stage_is_blocked():
     blocked = {item.participant.pk: item.blocked for item in candidates(edition)}
 
     assert blocked[participant.pk] == BLOCKED_UNPUBLISHED_RESULTS
+
+
+# --- konto czynne w innym konkursie (poprawka po audycie izolacji, 01.10.2026) -----------------------
+#
+# Anonimizacja wyciera **konto**, czyli zabiera osobie dostęp do wszystkich konkursów naraz. Do
+# poprawki przeszkody patrzyły wyłącznie na wpisy do etapów, więc retencja konkursu A (także z ekranu
+# koordynatora A) anonimizowała recenzenta, opiekuna albo świeżo zapisanego uczestnika konkursu B.
+
+
+@pytest.mark.parametrize(
+    "activity",
+    ["reviewer_membership", "committee_profile", "supervisor_profile", "participant_without_entries"],
+)
+def test_an_account_active_in_another_competition_is_blocked(competition, other_competition, activity):
+    from apps.accounts.models import SchoolSupervisor
+    from apps.accounts.tests.factories import CommitteeMemberFactory
+    from apps.tenancy.tests.factories import grant_membership
+
+    edition = old_edition()
+    participant = participant_of(edition)
+    user = participant.user
+    if activity == "reviewer_membership":
+        grant_membership(user, other_competition, "reviewer")
+    elif activity == "committee_profile":
+        CommitteeMemberFactory(competition=other_competition, user=user)
+    elif activity == "supervisor_profile":
+        SchoolSupervisor.objects.create(user=user, school="LO u sąsiada", competition=other_competition)
+    else:
+        ParticipantFactory(competition=other_competition, user=user)
+
+    blocked = {item.participant.pk: item.blocked for item in candidates(edition)}
+
+    assert blocked[participant.pk] == BLOCKED_OTHER_COMPETITION
+    anonymise_expired_editions()
+    user.refresh_from_db()
+    assert ANONYMISED_EMAIL_DOMAIN not in user.email
+
+
+def test_an_account_whose_editions_expired_in_both_competitions_is_still_due(
+    competition, other_competition, as_competition
+):
+    """Rola uczestnika u sąsiada sama nie blokuje – inaczej konto z obu olimpiad nie znikłoby nigdy.
+
+    Udział w B rozstrzygają wpisy (``BLOCKED_LATER_EDITION``): gdy rocznik B też się przedawnił,
+    a przebieg obejmuje oba konkursy, konto jest do anonimizacji – retencja A nie czeka na B, a B na A.
+    """
+    from apps.tenancy.tests.factories import grant_membership
+
+    edition_a = old_edition()
+    participant = participant_of(edition_a)
+    with as_competition(other_competition):
+        edition_b = old_edition()
+        participant_of(edition_b, user=participant.user)
+    grant_membership(participant.user, other_competition, "participant")
+
+    expired_ids = {edition_a.pk, edition_b.pk}
+    due = [item.participant.pk for item in candidates(edition_a, expired_ids=expired_ids) if item.is_due]
+
+    assert due == [participant.pk]
 
 
 def _submission_for(participant, edition):

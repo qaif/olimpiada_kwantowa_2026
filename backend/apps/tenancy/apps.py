@@ -16,10 +16,18 @@ class TenancyConfig(AppConfig):
         podział własności plików etapu 2 § 4.3), a Django rejestruje modele przez wykonanie ich
         modułu. Bez tej linijki tabela nie powstałaby w migracjach, a błąd wyglądałby jak brak
         modelu, nie jak brak importu.
+
+        Tym samym importem rejestruje się kontrola ``tenancy.E001`` (``apps/tenancy/checks.py``):
+        ``checks.register`` działa przez wykonanie modułu, tak jak w ``apps.cms``.
         """
         from wagtail.models import Page
 
-        from . import aliases, documents, signals  # noqa: F401 - rejestracja przez import, patrz docstring
+        from . import (  # noqa: F401 - rejestracja przez import, patrz docstring
+            aliases,
+            checks,
+            documents,
+            signals,
+        )
         from .page_urls import install as install_page_urls
         from .setup import announce_setup_token
 

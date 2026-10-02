@@ -1033,7 +1033,7 @@ class ApproveCommitteeMemberView(CoordinatorActionView):
         member = get_object_or_404(
             CommitteeMember.objects.for_competition(request.competition).select_related("user"), pk=pk
         )
-        approve_committee_member(member, actor=request.user)
+        approve_committee_member(member, actor=request.user, competition=request.competition)
         return "Członek komitetu został zatwierdzony."
 
 
@@ -1097,6 +1097,7 @@ class VerifyDistrictView(CoordinatorActionView):
             district=form.cleaned_data["district"] or None,
             actor=request.user,
             request=request,
+            competition=request.competition,
         )
         if not member.district:
             return "Województwo zostało usunięte – ten członek komitetu ocenia prace z całego kraju."

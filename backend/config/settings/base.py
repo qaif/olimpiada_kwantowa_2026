@@ -429,6 +429,18 @@ CACHES = {
         # połączenia do wołającego; ``apps.web.page_cache`` ma dodatkowo **własne**, niezależne
         # zabezpieczenie (patrz ``_safe_get``/``_safe_set``/``_safe_incr``) na wypadek, gdyby ta
         # opcja kiedyś zniknęła albo backend się zmienił.
+        #
+        # Serializator zostaje domyślny (pickle) – świadomie, po audycie z 1.10.2026. Pickle znaczy:
+        # kto może PISAĆ do Redisa, ten wykonuje kod w web/worker przy najbliższym odczycie – dlatego
+        # Redis ma hasło (REDIS_PASSWORD) i własną sieć `cache` tylko z web/worker/beat
+        # (docker-compose.yml). JSONSerializer django-redis nie przechodzi dziś przez to, co cache
+        # przechowuje: obiekty modeli (apps/cms/announcements.py, renditions Wagtaila), odpowiedzi
+        # HTTP (``cache_page`` w apps/web/views/status.py), ``bytes`` (apps/web/page_cache.py),
+        # ``Decimal``/``datetime`` (apps/results/statistics.py), słowniki z kluczami ``int``
+        # (apps/tenancy/page_urls.py), dataclass (apps/core/dbconnections.py). Do tego stary wpis
+        # pickle odczytany serializatorem JSON kończy się ``UnicodeDecodeError``, którego
+        # ``IGNORE_EXCEPTIONS`` nie łapie (łapie wyłącznie błędy połączenia) – przejście wymagałoby
+        # zmiany ``KEY_PREFIX``/FLUSHDB razem ze zmianą wszystkich tych miejsc.
         "OPTIONS": {"IGNORE_EXCEPTIONS": True},
     }
 }
@@ -753,7 +765,8 @@ WHITENOISE_USE_FINDERS = DEBUG
 WHITENOISE_AUTOREFRESH = DEBUG
 STORAGES = {
     # ``default`` obsługuje media redakcyjne Wagtaila (obrazy, dokumenty) – produkcyjnie bucket
-    # ``public-media`` (polityka „download”). Wszystko, co nie może być publiczne, MUSI mieć
+    # ``public-media`` (anonimowo czytelny: ``s3:GetObject``, bez listowania – od v0.38.3; obiekt
+    # da się pobrać, znając jego adres). Wszystko, co nie może być publiczne, MUSI mieć
     # jawnie wskazany inny storage – patrz alias ``private_media`` niżej.
     "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
     # Media aplikacyjne, których nie wolno oddać anonimowi: treści zadań (``Problem.statement_pdf``)

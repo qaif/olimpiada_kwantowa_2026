@@ -175,7 +175,8 @@ def reviewer_rows(stage: Stage, now=None) -> list[dict]:
         )
     }
     rows = []
-    for member in reviewer_pool():
+    # Pula konkursu **tego etapu** – recenzent innego konkursu nie jest wierszem tej tabeli.
+    for member in reviewer_pool(stage.edition.competition_id):
         counts = counters.get(member.pk, {})
         rows.append(
             {

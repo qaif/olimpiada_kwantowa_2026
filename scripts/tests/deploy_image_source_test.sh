@@ -60,6 +60,8 @@ case "$*" in
   *"compose ps"*) echo "db=healthy" ;;
   *"exec -T db psql"*) echo 0 ;;   # liczba klientów bazy przy --maintenance
   "compose config") echo "name: olimpiada" ;;
+  # Pobranie obrazów cudzych usług – STUB_PULL_RC≠0 udaje niedostępny rejestr.
+  "compose pull --ignore-buildable --quiet") exit "${STUB_PULL_RC:-0}" ;;
   "volume inspect "*)
     case " ${DOCKER_VOLUMES:-} " in *" $3 "*) exit 0 ;; *) exit 1 ;; esac ;;
 esac
@@ -88,7 +90,7 @@ krok4() {
   # zwraca kod wyjścia skryptu.
   : >"$LOG"
   ( cd "$SRV" && PATH="$WORK/bin:$PATH" DOCKER_LOG="$LOG" REMOTE_DIR="$SRV" WEB_IMAGE="$1" \
-      DOCKER_VOLUMES="${2:-}" MAINTENANCE="${MAINTENANCE:-0}" MAINTENANCE_MESSAGE="Test." \
+      DOCKER_VOLUMES="${2:-}" MAINTENANCE="${MAINTENANCE:-0}" STUB_PULL_RC="${STUB_PULL_RC:-0}" MAINTENANCE_MESSAGE="Test." \
       MAINTENANCE_MINUTES=10 bash "$WORK/krok4.sh" ) >"$WORK/stdout" 2>&1
 }
 
@@ -99,12 +101,14 @@ krok4() {
 DZISIAJ='compose config
 volume inspect olimpiada_pg_data
 compose build --pull web
+compose pull --ignore-buildable --quiet
 compose up -d db
 compose ps --format {{.Service}}={{.Health}}
 compose ps --format {{.Service}}={{.Health}}'
 Z_REJESTRU='compose config
 volume inspect olimpiada_pg_data
 compose pull web
+compose pull --ignore-buildable --quiet
 compose up -d db
 compose ps --format {{.Service}}={{.Health}}
 compose ps --format {{.Service}}={{.Health}}'
@@ -157,11 +161,42 @@ check "--maintenance: flaga prac technicznych i znacznik czasu włączenia są n
 stop_line="$(grep -n '^compose stop web worker beat$' "$LOG" | cut -d: -f1)"
 up_line="$(grep -n '^compose up -d db$' "$LOG" | cut -d: -f1)"
 build_line="$(grep -n '^compose build --pull web$' "$LOG" | cut -d: -f1)"
-[ -n "$stop_line" ] && [ -n "$up_line" ] && [ "$build_line" -lt "$stop_line" ] && [ "$stop_line" -lt "$up_line" ]
-check "--maintenance: build -> stop web/worker/beat -> up -d db (kolejność w logu docker)" $?
+pull_line="$(grep -n '^compose pull --ignore-buildable --quiet$' "$LOG" | cut -d: -f1)"
+[ -n "$stop_line" ] && [ -n "$up_line" ] && [ -n "$pull_line" ] && [ "$build_line" -lt "$stop_line" ] &&
+  [ "$pull_line" -lt "$stop_line" ] && [ "$stop_line" -lt "$up_line" ]
+check "--maintenance: build i pobranie obrazów cudzych -> stop web/worker/beat -> up -d db (kolejność w logu docker)" $?
 grep -q 'exec -T db psql' "$LOG" && grep -q 'zero klientów' "$WORK/stdout"
 check "--maintenance: kontrola klientów bazy przed kopią" $?
 rm -f "$SRV/maintenance/on" "$SRV/maintenance/.deploy-maintenance-on" "$SRV/maintenance/info.html"
+
+# 4b. Hasło Redisa (audyt z 1.10.2026): .env sprzed tej zmiany (tu: bez wpisu) dostaje REDIS_PASSWORD
+#     raz, 32 znaki [A-Za-z0-9]; kolejne wdrożenia go nie zmieniają ani nie dublują.
+grep -qE '^REDIS_PASSWORD=[A-Za-z0-9]{32}$' "$SRV/.env" && [ "$(grep -c '^REDIS_PASSWORD=' "$SRV/.env")" = "1" ]
+check "krok dopisuje do .env REDIS_PASSWORD (32 znaki [A-Za-z0-9]) dokładnie raz" $?
+redis_before="$(grep '^REDIS_PASSWORD=' "$SRV/.env")"
+krok4 ""
+[ "$(grep -c '^REDIS_PASSWORD=' "$SRV/.env")" = "1" ] && [ "$(grep '^REDIS_PASSWORD=' "$SRV/.env")" = "$redis_before" ]
+check "kolejne wdrożenie nie zmienia ani nie dubluje REDIS_PASSWORD" $?
+# Pusta linijka (kopia .env.example) – zastąpiona wygenerowaną wartością, a nie zostawiona obok.
+sed -i 's/^REDIS_PASSWORD=.*/REDIS_PASSWORD=/' "$SRV/.env"
+krok4 ""
+[ "$(grep -c '^REDIS_PASSWORD=' "$SRV/.env")" = "1" ] && grep -qE '^REDIS_PASSWORD=[A-Za-z0-9]{32}$' "$SRV/.env"
+check "pusta linijka REDIS_PASSWORD= zastąpiona wygenerowanym hasłem" $?
+# Wartość ręczna, która rozbiłaby REDIS_URL (znak spoza [A-Za-z0-9]) – odmowa przed budowaniem.
+cp "$SRV/.env" "$WORK/env.redis-ok"
+sed -i 's/^REDIS_PASSWORD=.*/REDIS_PASSWORD=abc@def:0123456789xyz/' "$SRV/.env"
+krok4 ""
+rc=$?
+[ $rc -ne 0 ] && ! grep -q 'build' "$LOG" && grep -q 'REDIS_PASSWORD' "$WORK/stdout" && grep -qx 'REDIS_PASSWORD=abc@def:0123456789xyz' "$SRV/.env"
+check "REDIS_PASSWORD ze znakiem spoza [A-Za-z0-9] – odmowa przed budowaniem, wartość nietknięta" $?
+cp "$WORK/env.redis-ok" "$SRV/.env"
+
+# 4c. Obrazy cudzych usług: niedostępny rejestr to ostrzeżenie, nie przerwane wdrożenie – reszta
+#     kroku (start bazy) idzie dalej na obrazach, które już są na serwerze.
+STUB_PULL_RC=1 krok4 ""
+rc=$?
+[ $rc -eq 0 ] && [ "$(cat "$LOG")" = "$DZISIAJ" ] && grep -q 'UWAGA: nie udało się pobrać obrazów' "$WORK/stdout"
+check "nieudane docker compose pull --ignore-buildable: ostrzeżenie, krok 4/8 kończy się powodzeniem" $?
 
 # 5. Nagłówek skryptu opisuje zmienną – wdrożenie bywa czytane wtedy, gdy nie ma czasu na docs/.
 grep -q 'WEB_IMAGE=ghcr.io/' "$DEPLOY"

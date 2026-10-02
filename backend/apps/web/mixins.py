@@ -101,12 +101,12 @@ class AppealsCommitteeRequiredMixin(RoleRequiredMixin):
     def has_role(self, user) -> bool:
         return (
             has_role(user, self.competition, CompetitionRole.APPEALS)
-            and appeals_committee_profile(user) is not None
+            and appeals_committee_profile(user, self.competition) is not None
         )
 
     @property
     def member(self):
-        return appeals_committee_profile(self.request.user)
+        return appeals_committee_profile(self.request.user, self.competition)
 
 
 class ActionViewMixin:

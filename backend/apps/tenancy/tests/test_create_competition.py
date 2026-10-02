@@ -27,8 +27,25 @@ from apps.cms.models import HomePage, SiteSettings
 from apps.competitions.models import TRAINING_DEADLINE, Edition, QualificationRule, ScoringScale
 from apps.tenancy.models import Competition, RoutingMode
 from apps.tenancy.templates_catalog import DEFAULT_PAGES, TEMPLATES
+from apps.tenancy.tests.factories import enforce_memberships_everywhere
 
 pytestmark = pytest.mark.django_db
+
+
+@pytest.fixture(autouse=True)
+def _existing_competitions_enforce_memberships(request, db):  # noqa: ARG001 - fikstura bazy, efekt uboczny
+    """Konkurs #1 z ``memberships_enforced`` – inaczej założenie kolejnego konkursu jest odmową.
+
+    Od poprawki po audycie izolacji (01.10.2026) to jest warunek wstępny każdego zakładania
+    konkursu obok istniejącego (``docs/OPERACJE.md`` § 6.1); sama odmowa ma własne testy
+    w ``test_provisioning.py``.
+    """
+    # Konkurs #2 testu (fikstura ``other_competition``) ma powstać **przed** przełączeniem:
+    # fikstury autouse biegną pierwsze, a konkurs dopisany po nich zostałby z flagą wyłączoną.
+    if "other_competition" in request.fixturenames:
+        request.getfixturevalue("other_competition")
+    enforce_memberships_everywhere()
+
 
 WARSAW = ZoneInfo("Europe/Warsaw")
 

@@ -14,7 +14,13 @@
 #             MAKE_EDITION_CURRENT=1 (edycja „I edycja 2026/2027” jako bieżąca), APP_VERSION,
 #             DMARC_RUA (adres raportów DMARC, domyślnie contact@qaif.org),
 #             MAIL_PUBLIC_IP (adres do rekordu SPF, gdy serwer wychodzi przez inny IP niż własny),
-#             BACKUP_DIR (katalog kopii przed migracjami, domyślnie /opt/olimpiada-backups).
+#             BACKUP_DIR (katalog kopii przed migracjami, domyślnie /opt/olimpiada-backups),
+#             SSH_STRICT_HOST_KEY_CHECKING (yes | accept-new – domyślnie; workflow GitHuba: yes).
+#
+# Przy KAŻDYM wdrożeniu (od 1.10.2026, audyt bezpieczeństwa): krok 4/8 dopisuje do istniejącego .env
+# brakujące REDIS_PASSWORD (Redis z hasłem) i pobiera świeże obrazy usług bez `build:` (caddy,
+# postgres, redis, minio, mc, clamav, postfix – `docker compose pull --ignore-buildable`; rejestr
+# niedostępny = ostrzeżenie, nie błąd), a 4b uruchamia znów `minio-init` (polityki bucketów).
 #
 # Gotowy obraz zamiast budowania na serwerze (opcjonalnie, docs/UNIWERSALNY-ETAP-2.md § 1.7.2):
 #   WEB_IMAGE=ghcr.io/qaif/olimpiada-web:v0.24.0 scripts/deploy.sh root@<host>
@@ -103,7 +109,17 @@ set -- "${ARGS[@]+"${ARGS[@]}"}"
 TARGET="${1:?użycie: scripts/deploy.sh [--maintenance] user@host}"
 SSH_KEY="${SSH_KEY:-$HOME/.ssh/olimpiada_deploy}"
 REMOTE_DIR="${REMOTE_DIR:-/opt/olimpiada}"
-SSH=(ssh -i "$SSH_KEY" -o BatchMode=yes -o StrictHostKeyChecking=accept-new "$TARGET")
+# Weryfikacja klucza hosta. Domyślnie `accept-new` (laptop operatora: pierwszy kontakt zapisuje klucz
+# w ~/.ssh/known_hosts, każdy późniejszy MUSI się z nim zgadzać). Workflow GitHuba ustawia `yes`:
+# runner jest za każdym razem świeży, więc `accept-new` przyjęłoby na ślepo dowolny klucz – także
+# podstawiony – a klucz przypięty w zmiennej repozytorium zapisuje do known_hosts krok przed tym
+# skryptem (.github/workflows/deploy.yml). Innych wartości (zwłaszcza `no`) nie przyjmujemy.
+SSH_HOST_KEY_CHECKING="${SSH_STRICT_HOST_KEY_CHECKING:-accept-new}"
+case "$SSH_HOST_KEY_CHECKING" in
+  yes|accept-new) ;;
+  *) echo "deploy: SSH_STRICT_HOST_KEY_CHECKING=„$SSH_HOST_KEY_CHECKING” – dozwolone wyłącznie yes albo accept-new" >&2; exit 2 ;;
+esac
+SSH=(ssh -i "$SSH_KEY" -o BatchMode=yes -o StrictHostKeyChecking="$SSH_HOST_KEY_CHECKING" "$TARGET")
 APP_VERSION="${APP_VERSION:-$(git describe --tags --always)}"
 
 log() { printf '\n==> %s\n' "$*"; }
@@ -229,6 +245,10 @@ POSTGRES_DB=olimpiada
 POSTGRES_USER=olimpiada
 POSTGRES_PASSWORD=$(gen 32)
 
+# Hasło Redisa (cache + broker Celery) – docker-compose.yml wkleja je do REDIS_URL/CELERY_BROKER_URL
+# bez kodowania, więc wyłącznie [A-Za-z0-9].
+REDIS_PASSWORD=$(gen 32)
+
 MINIO_ROOT_USER=minio-root
 MINIO_ROOT_PASSWORD=$(gen 32)
 S3_PRESIGNED_TTL_SECONDS=600
@@ -302,6 +322,33 @@ if ! grep -qE '^MAINTENANCE_BYPASS_TOKEN=.' .env; then
   } >> .env
   chmod 600 .env
 fi
+# Hasło Redisa (audyt z 1.10.2026) – ten sam wzorzec: tworzone raz, istniejącej wartości skrypt nie
+# rusza, pusta linijka (np. z kopii .env.example) jest zastępowana. Serwer, którego .env powstał
+# wcześniej, dostaje je przy pierwszym wdrożeniu tej wersji; krok 4b odtwarza wtedy redis, web,
+# worker i beat z nowym środowiskiem (Redis z `requirepass`, adresy z `:hasło@`). Wartość ręczną
+# sprawdzamy od razu, a nie przy starcie: znak spoza [A-Za-z0-9] rozbiłby REDIS_URL w compose.
+if ! grep -qE '^REDIS_PASSWORD=.' .env; then
+  sed -i '/^REDIS_PASSWORD=$/d' .env
+  {
+    echo
+    echo "# Hasło Redisa (cache i broker Celery; docker-compose.yml wkleja je do REDIS_URL bez kodowania,"
+    echo "# więc wyłącznie [A-Za-z0-9]). Wygenerowane przez scripts/deploy.sh."
+    echo "REDIS_PASSWORD=$(tr -dc 'A-Za-z0-9' </dev/urandom | head -c 32)"
+  } >> .env
+  chmod 600 .env
+  echo "Redis: wygenerowano REDIS_PASSWORD (krok 4b odtworzy redis, web, worker i beat)"
+fi
+# Do zmiennej, a nie `| grep -q` (SIGPIPE pod pipefail – komentarz przy `docker compose ps` niżej).
+# Odczyt jak w scripts/render_caddyfile.sh: ostatnie wystąpienie, bez cudzysłowów i CR (compose
+# czyta .env tak samo).
+REDIS_PW="$(sed -n 's/^REDIS_PASSWORD=//p' .env | tail -n 1 | tr -d '\r\042\047')"
+case "$REDIS_PW" in
+  *[!A-Za-z0-9]*) REDIS_PW_OK=0 ;;
+  *) if [ "${#REDIS_PW}" -ge 16 ]; then REDIS_PW_OK=1; else REDIS_PW_OK=0; fi ;;
+esac
+unset REDIS_PW
+[ "$REDIS_PW_OK" = 1 ] \
+  || { echo "BŁĄD: REDIS_PASSWORD w .env – wyłącznie [A-Za-z0-9], co najmniej 16 znaków (trafia do REDIS_URL bez kodowania)"; exit 1; }
 # Treść strony do katalogu stanu (<REMOTE_DIR>/maintenance/page), który krok 2/8 omija: działające
 # proxy widzi nową wersję strony bez restartu (scripts/maintenance.sh, funkcja sync_page).
 bash scripts/maintenance.sh sync
@@ -522,6 +569,21 @@ if [ "$DJCMS_ON" = "1" ]; then
     fi
     docker compose --profile djcms build --pull djcms
   fi
+fi
+# Obrazy cudze (caddy, postgres, redis, minio, mc, clamav, postfix – wszystko bez `build:`; zestaw
+# usług jak przy każdym `docker compose` tutaj, czyli z COMPOSE_FILE/COMPOSE_PROFILES z .env, więc
+# z djcms, gdy jest włączony) – świeże przy każdym wdrożeniu (audyt z 1.10.2026). Bez tego `up -d`
+# brał wyłącznie to, co już leżało na serwerze: tag pływający (`caddy:2.8`, `redis:7-alpine`,
+# `clamav/clamav:1.4`, `postgres:18-alpine`) zostawał na łatce z dnia pierwszej instalacji, a poprawki
+# bezpieczeństwa wydane pod tym samym tagiem nie docierały nigdy. Obraz, który się zmienił, krok 4b
+# odtwarza (`up -d`), obraz bazy – już `up -d db` niżej (restart Postgresa na kilka sekund).
+# `--ignore-buildable`: web/worker/beat/djcms budujemy albo pobieramy wyżej (WEB_IMAGE/DJCMS_IMAGE).
+# Przed stroną prac technicznych, jak build: pobieranie nie wymaga zatrzymania czegokolwiek.
+# Rejestr niedostępny (awaria Docker Hub, limit pobrań) NIE zatrzymuje wdrożenia: obrazy z poprzedniego
+# pobrania leżą na serwerze i usługi wstaną na nich, jak wstawały dotąd – ostrzeżenie w logu.
+if ! docker compose pull --ignore-buildable --quiet; then
+  echo "UWAGA: nie udało się pobrać obrazów cudzych usług (rejestr?) – wdrożenie idzie dalej na obrazach,"
+  echo "       które są już na serwerze. Ponów później: docker compose pull --ignore-buildable && docker compose up -d"
 fi
 if [ "${MAINTENANCE:-0}" = "1" ]; then
   # --maintenance: strona włączona, zanim cokolwiek z aplikacji zostanie zatrzymane, i PRZED kopią
