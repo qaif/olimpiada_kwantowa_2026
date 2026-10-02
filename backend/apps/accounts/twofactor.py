@@ -409,6 +409,11 @@ def confirm_setup(user, code: str, *, request=None) -> list[str]:
     device.last_counter = current_counter()
     device.last_used_at = timezone.now()
     device.save(update_fields=["confirmed_at", "backup_codes", "last_counter", "last_used_at"])
+    # Token API wydany po samym haśle traci ważność razem z włączeniem drugiego składnika:
+    # następny powstaje dopiero w logowaniu z kodem (``apps.accounts.api.LoginView``).
+    from rest_framework.authtoken.models import Token
+
+    Token.objects.filter(user=user).delete()
     audit(user, "2fa.enabled", user, {"backup_codes": len(hashed)}, request)
     return plain
 
