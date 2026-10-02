@@ -99,7 +99,11 @@ IDENTITY_FIELDS = ("email", "username")
 #:   kosztuje więcej niż sześćdziesiąt wiadomości, które przynosi.
 #:
 #: Stawki zostają w ``REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]`` – zmienia się wyłącznie klucz.
-PER_USER_SCOPES = frozenset({"chat", "forum"})
+#:
+#: ``video`` i ``video_rooms`` (v0.39.0) – wejście do pokoju wideo i zakładanie pokoi z długimi
+#: linkami. Też wyłącznie za logowaniem, a koszt (wystawione przepustki) też przypada na konto:
+#: komisja rozmawiająca z jednej sali za jednym NAT-em nie może dzielić jednego budżetu wejść.
+PER_USER_SCOPES = frozenset({"chat", "forum", "video", "video_rooms"})
 
 #: Jak często (sekundy) wolno zalogować awarię cache'a jednym procesem – patrz ``_report_outage``.
 OUTAGE_LOG_INTERVAL = 60
@@ -352,6 +356,10 @@ class ThrottledFormMixin:
     throttle_scope: str = ""
     #: Czy sam POST konsumuje limit (rejestracja, upload), czy dopiero nieudana próba (logowanie).
     throttle_on_request: bool = True
+    #: Metody, które liczy limit. Domyślnie wyłącznie POST – formularz HTML. Widok, który wystawia
+    #: coś cennego w odpowiedzi na GET (wejście do pokoju wideo: przepustka w przekierowaniu),
+    #: dopisuje tu ``"GET"``; GET pozostałych widoków nie zmienia się ani o bajt.
+    throttle_methods: tuple[str, ...] = ("POST",)
     throttle_template_name = "web/throttled.html"
     #: Odpowiedź na żądanie HTMX to fragment – pełna strona wylądowałaby w środku karty zadania.
     throttle_template_name_partial = "web/_throttled.html"
@@ -364,7 +372,7 @@ class ThrottledFormMixin:
     def dispatch(self, request, *args, **kwargs):
         self.throttle_bucket_keys: list[str] = []
         self._throttle_reserved: list[str] = []
-        if request.method == "POST" and self.throttle_scope:
+        if request.method in self.throttle_methods and self.throttle_scope:
             self.throttle_bucket_keys = self.get_throttle_keys(request)
             # Sprawdzenie i zużycie w jednym, atomowym kroku – także dla logowania, gdzie miejsce
             # jest na razie tylko rezerwacją (docstring modułu).

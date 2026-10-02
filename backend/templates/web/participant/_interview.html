@@ -7,9 +7,10 @@
   i nie dawało się jej ogarnąć wzrokiem na telefonie. Zapis idzie jednym POST-em na
   ``web:interview-choose`` z identyfikatorem terminu w polu formularza.
 
-  Adres pokoju wideo stoi **wyłącznie** przy własnym terminie: wejście do pokoju nie wymaga
-  logowania, więc sam adres jest de facto poświadczeniem i lista pokazywana wszystkim
-  zakwalifikowanym nie może go nieść.
+  Adres pokoju wideo stoi **wyłącznie** przy własnym terminie: na publicznym Jitsi wejście do
+  pokoju nie wymaga logowania, więc sam adres jest de facto poświadczeniem i lista pokazywana
+  wszystkim zakwalifikowanym nie może go nieść. Na własnym Jitsi z przepustkami (v0.39.0) adresu
+  nie ma nawet przy własnym terminie – są przyciski wejścia przez platformę.
 {% endcomment %}
 <section class="section" id="rozmowa">
   <div class="section__head">
@@ -35,6 +36,37 @@
           dostał w liście potwierdzającym. Odwrót na pole terminu zostaje dla zapisów sprzed tej
           zmiany i dla linków wpisanych ręcznie.
         {% endcomment %}
+        {% comment %}
+          Własne Jitsi z przepustkami (v0.39.0, ``interview_video.mode == "platform"``): adresu pokoju
+          **nie** pokazujemy – sam adres nikogo już nie wpuści, a pokazany zachęcałby do przepisania go
+          i przesłania dalej. Zamiast niego dwa przyciski do widoków wejścia, które wystawiają
+          przepustkę w chwili kliknięcia (``apps.web.views.video``). Przycisk rozmowy stoi zawsze –
+          kliknięty przed czasem wraca tu z komunikatem, o której pokój się otworzy – bo panel nie
+          odświeża się sam, a uczestnik, który otworzył go pół godziny wcześniej, ma mieć czym wejść.
+        {% endcomment %}
+        {% if interview_video.mode == "platform" %}
+          <dt>{% translate "Rozmowa wideo" %}</dt>
+          <dd>
+            {% if interview_video.is_over %}
+              <span class="hint">{% translate "Czas tej rozmowy minął." %}</span>
+            {% else %}
+              <a class="btn btn--primary btn--small" href="{% url 'web:interview-join' stage.pk %}"
+                 target="_blank" rel="noopener noreferrer nofollow">{% translate "Dołącz do rozmowy" %}</a>
+              <span class="hint">{% blocktranslate trimmed with opens=interview_video.opens_at|local_datetime %}
+                Pokój otwiera się {{ opens }} (czas polski). Wchodzi się wyłącznie tym przyciskiem –
+                adresu pokoju nie da się podać przez telefon ani przesłać dalej.
+              {% endblocktranslate %}</span>
+            {% endif %}
+          </dd>
+          {% if not interview_video.is_over %}
+            <dt>{% translate "Przed rozmową" %}</dt>
+            <dd>
+              <a class="btn btn--secondary btn--small" href="{% url 'web:interview-precheck' stage.pk %}"
+                 target="_blank" rel="noopener noreferrer nofollow">{% translate "Sprawdź kamerę i mikrofon" %}</a>
+              <span class="hint">{{ interview_precheck_text }}</span>
+            </dd>
+          {% endif %}
+        {% else %}
         {% with meeting_url=interview_booking.meeting_url|default:interview_booking.slot.meeting_url %}
           <dt>{% translate "Link do rozmowy" %}</dt>
           <dd>
@@ -53,6 +85,7 @@
             </dd>
           {% endif %}
         {% endwith %}
+        {% endif %}
       </dl>
       {% if interview_booking.slot.starts_at > now %}
         {% comment %}

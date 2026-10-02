@@ -952,6 +952,42 @@ DJCMS_MAIN_PUBLIC_URL = env("DJCMS_MAIN_PUBLIC_URL", default=f"https://{SITE_DOM
 # przejście wyłączone (pozycja menu „Edytuj w django CMS” znika).
 DJCMS_SSO_KEY = env("DJCMS_SSO_KEY", default="")
 
+# --- przepustki do własnego Jitsi (JWT, v0.39.0, ``apps.competitions.jitsi_jwt``) ---------------
+# Własne Jitsi (``deploy/jitsi``) przyjmuje wyłącznie uczestników z tokenem podpisanym tym samym
+# sekretem, co ``JWT_APP_SECRET`` w ``jitsi/.env`` – przekazuje go ``scripts/deploy_jitsi.sh``.
+# Token wystawia platforma w chwili kliknięcia „Dołącz” i wyłącznie wtedy, gdy:
+#
+# - sekret ma co najmniej 32 znaki (krótszy albo pusty = funkcja wyłączona, wszystko działa tak,
+#   jak przed v0.39.0: link do pokoju jest zwykłym linkiem; krótki-niepusty zgłasza
+#   ``competitions.W001``),
+# - adres pokoju leży na ``JITSI_JWT_HOST`` (domyślnie ``meet.<SITE_DOMAIN>``). Pokój na publicznym
+#   ``meet.jit.si`` albo w BBB uczelni nie dostaje tokenu – tam wchodzi się linkiem, jak dotąd.
+#
+# ``JITSI_JWT_SUBJECT`` to domena XMPP instancji (``XMPP_DOMAIN`` w ``jitsi/.env``), a nie domena
+# publiczna – tak czyta ``sub`` moduł ``token_verification`` (bez weryfikacji domeny wystarczy,
+# żeby był, ale wartość prawdziwa zostaje poprawna także po jej włączeniu). Okna czasowe: wejście
+# na rozmowę od ``LEAD`` minut przed początkiem do ``GRACE`` minut po końcu terminu; pokój „na
+# próbę” – token na ``PRECHECK`` minut; wejście z panelu do pokoju bez terminu – token na
+# ``SESSION`` minut; wejście linkiem-zaproszeniem (bramka ``/zaproszenie/wideo/…``) – token na
+# ``GATEWAY`` minut (tyle, ile trwa przejście ze strony bramki do pokoju). Żaden token nie żyje
+# dłużej niż pokój. Ważność samego pokoju (a z nim linków-zaproszeń) – najwyżej ``ROOM_MAX_DAYS``
+# dni u koordynatora (domyślnie 60) i ``COMMITTEE_ROOM_MAX_DAYS`` u członka komisji (domyślnie 30,
+# nigdy więcej niż limit koordynatora) – decyzja właściciela z 2.10.2026. Lista do wyboru jest
+# zamknięta (1/7/30/60 dni, ``apps.competitions.video_rooms.VALIDITY_DAYS``) i przycinana limitem.
+# Uzasadnienie wartości: docs/OPERACJE.md § 25.
+JITSI_JWT_APP_ID = env("JITSI_JWT_APP_ID", default="olimpiada")
+JITSI_JWT_APP_SECRET = env("JITSI_JWT_APP_SECRET", default="")
+JITSI_JWT_HOST = env("JITSI_JWT_HOST", default=f"meet.{SITE_DOMAIN}")
+JITSI_JWT_AUDIENCE = env("JITSI_JWT_AUDIENCE", default="jitsi")
+JITSI_JWT_SUBJECT = env("JITSI_JWT_SUBJECT", default="meet.jitsi")
+JITSI_JWT_LEAD_MINUTES = env.int("JITSI_JWT_LEAD_MINUTES", default=15)
+JITSI_JWT_GRACE_MINUTES = env.int("JITSI_JWT_GRACE_MINUTES", default=60)
+JITSI_JWT_PRECHECK_MINUTES = env.int("JITSI_JWT_PRECHECK_MINUTES", default=30)
+JITSI_JWT_SESSION_MINUTES = env.int("JITSI_JWT_SESSION_MINUTES", default=180)
+JITSI_JWT_GATEWAY_MINUTES = env.int("JITSI_JWT_GATEWAY_MINUTES", default=10)
+JITSI_JWT_ROOM_MAX_DAYS = env.int("JITSI_JWT_ROOM_MAX_DAYS", default=60)
+JITSI_JWT_COMMITTEE_ROOM_MAX_DAYS = env.int("JITSI_JWT_COMMITTEE_ROOM_MAX_DAYS", default=30)
+
 WAGTAIL_SITE_NAME = env("WAGTAIL_SITE_NAME", default="Olimpiada Kwantowa")
 WAGTAILADMIN_BASE_URL = env("WAGTAILADMIN_BASE_URL", default=f"https://{SITE_DOMAIN}")
 # Reset hasła ma jedną drogę: ``/password-reset/`` (limit prób, wysyłka w tle, audyt). Własny reset
@@ -1148,6 +1184,22 @@ REST_FRAMEWORK = {
         # z zapasem dostawcę ponawiającego doręczenia całej edycji naraz i jednocześnie zamyka
         # dobieranie podpisu: milion prób na minutę byłoby atakiem, tysiąc dziennie nie jest.
         "payments": "60/min",
+        # Wejście do pokoju wideo przez platformę (``apps.web.views.video``): każde kliknięcie
+        # „Dołącz” wystawia przepustkę JWT, a koordynator – długie linki pokoju. Liczone per konto
+        # (``apps.web.throttle.PER_USER_SCOPES``). Sześćdziesiąt na godzinę mieści z zapasem
+        # uczestnika, któremu przeglądarka zrywa połączenie co kilka minut, a zamyka seryjne
+        # wystawianie przepustek skryptem z cudzej sesji.
+        "video": "60/hour",
+        # Zakładanie pokoju wideo z linkami-zaproszeniami (koordynator, członek komisji
+        # z uprawnieniem), wymiana linku na nowy. Osobny, niższy limit niż wejścia: każde
+        # założenie to dwa zaproszenia ważne do 60 dni – dziesięć na godzinę mieści każdą prawdziwą
+        # potrzebę (seria zebrań na tydzień), a nie pozwala jednemu kontu nadrukować ich setek.
+        "video_rooms": "10/hour",
+        # Bramka linku-zaproszenia (``/zaproszenie/wideo/<klucz>/``, POST „Dołącz”) – bez konta,
+        # więc liczona po adresie IP, jak każdy publiczny formularz. Wysoko, bo za jednym NAT-em
+        # bywa cała sala gości wchodzących na to samo zebranie naraz; nisko na tyle, żeby
+        # przeszukiwanie kluczy (192 bity) i tak nie miało sensu, a pętla „Dołącz” – kosztu.
+        "video_gateway": "120/hour",
         # Zakładanie konkursu z panelu koordynatora (``/coordinator/competitions/new/``). Stawka
         # jest **dzienna i niska**, bo taka jest ta czynność: konkurs zakłada się raz na sezon,
         # a każde założenie to nowa witryna, nowe drzewo stron, nowa edycja i wniosek o certyfikat

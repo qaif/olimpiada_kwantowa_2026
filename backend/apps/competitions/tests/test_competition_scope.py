@@ -35,6 +35,7 @@ from apps.competitions.models import (
 from apps.competitions.scoping import CompetitionNotResolved, each_competition, scope_to_competition
 from apps.competitions.services import current_edition
 from apps.competitions.tasks import remind_interviews
+from apps.competitions.video_rooms import VideoRoom
 from apps.tenancy.context import current_competition
 
 from .factories import (
@@ -89,6 +90,8 @@ def test_edition_keeps_the_owner_given_explicitly(competition, other_competition
         (InterviewSlot, "stage__edition__competition"),
         (InterviewBooking, "entry__stage__edition__competition"),
         (EditionEvent, "edition__competition"),
+        # Pokój wideo bez terminu (v0.39.0) – własna kolumna konkursu, jak edycja.
+        (VideoRoom, "competition"),
     ],
 )
 def test_every_model_declares_its_way_to_the_competition(model, path):

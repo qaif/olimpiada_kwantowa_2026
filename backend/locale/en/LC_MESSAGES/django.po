@@ -4380,3 +4380,115 @@ msgstr "The link is valid for <strong>%(days)s days</strong>. If you already hav
 #: templates/registration/supervisor_consent_body.html
 msgid "wiadomość wysłana automatycznie, prosimy na nią nie odpowiadać."
 msgstr "automated message, please do not reply."
+
+#: apps/competitions/video.py (v0.39.0 – wejście przez platformę)
+#, python-format
+msgid "Wejście na rozmowę (przez panel uczestnika, po zalogowaniu): %(url)s"
+msgstr "Join the interview (through the participant panel, after signing in): %(url)s"
+
+#: apps/competitions/video.py
+#, python-format
+msgid ""
+"Pokój rozmowy otwiera się na %(minutes)s minut przed terminem. Wchodzi się "
+"wyłącznie z panelu uczestnika – sam adres pokoju bez przepustki z panelu nie "
+"zadziała, więc nie przepisuj go i nie przekazuj dalej."
+msgstr ""
+"The interview room opens %(minutes)s minutes before the slot. You can only "
+"enter from the participant panel – the room address alone will not work "
+"without a pass from the panel, so do not copy it or forward it."
+
+#: apps/web/views/video.py
+#, python-format
+msgid "Pokój rozmowy otworzy się %(when)s (czas polski) – wróć wtedy do panelu."
+msgstr "The interview room opens at %(when)s (Polish time) – come back to the panel then."
+
+#: apps/web/views/video.py
+msgid "Czas tej rozmowy minął – pokój jest już zamknięty."
+msgstr "The time of this interview has passed – the room is closed."
+
+#: apps/web/views/video.py
+msgid "Czas tej rozmowy minął – próba sprzętu nie jest już potrzebna."
+msgstr "The time of this interview has passed – no equipment check is needed any more."
+
+#: apps/web/views/video.py
+msgid "Podaj imię i nazwisko albo nazwę, pod którą zobaczą Cię inni."
+msgstr "Enter your name, or the name others should see you under."
+
+#: templates/web/participant/_interview.html templates/web/video_gateway.html
+msgid "Rozmowa wideo"
+msgstr "Video call"
+
+#: templates/web/participant/_interview.html
+msgid "Czas tej rozmowy minął."
+msgstr "The time of this interview has passed."
+
+#: templates/web/participant/_interview.html
+msgid "Dołącz do rozmowy"
+msgstr "Join the interview"
+
+#: templates/web/participant/_interview.html
+#, python-format
+msgid ""
+"Pokój otwiera się %(opens)s (czas polski). Wchodzi się wyłącznie tym "
+"przyciskiem – adresu pokoju nie da się podać przez telefon ani przesłać "
+"dalej."
+msgstr ""
+"The room opens at %(opens)s (Polish time). You can only enter with this "
+"button – the room address cannot be dictated over the phone or forwarded."
+
+#: templates/web/video_gateway.html
+msgid "Zaproszenie do rozmowy wideo"
+msgstr "Invitation to a video call"
+
+#: templates/web/video_gateway.html
+msgid ""
+"Zaproszenie do pokoju wideo olimpiady. Wpisz, jak mają Cię widzieć inni, i "
+"kliknij „Dołącz” – otworzymy pokój w tej karcie."
+msgstr ""
+"An invitation to an olympiad video room. Enter how others should see you and "
+"click “Join” – we will open the room in this tab."
+
+#: templates/web/video_gateway.html
+msgid "Ten pokój jest zamknięty"
+msgstr "This room is closed"
+
+#: templates/web/video_gateway.html
+msgid ""
+"Zaproszenie straciło ważność albo organizator zamknął pokój. Jeśli spotkanie "
+"nadal trwa, poproś osobę, która Cię zaprosiła, o nowy link."
+msgstr ""
+"The invitation has expired or the organiser has closed the room. If the "
+"meeting is still on, ask the person who invited you for a new link."
+
+#: templates/web/video_gateway.html
+msgid "Imię i nazwisko (albo nazwa) widoczne w pokoju"
+msgstr "Name shown in the room"
+
+#: templates/web/video_gateway.html
+#, python-format
+msgid ""
+"Jesteś zalogowany – jeśli zostawisz pole bez zmian, w pokoju zobaczą Cię "
+"jako „%(name)s”."
+msgstr ""
+"You are signed in – if you leave the field unchanged, others will see you as "
+"“%(name)s”."
+
+#: templates/web/video_gateway.html
+msgid ""
+"To link gospodarza: wejdziesz z prawami moderatora (wyciszanie, poczekalnia, "
+"usuwanie z pokoju)."
+msgstr ""
+"This is the host link: you will join with moderator rights (muting, lobby, "
+"removing people from the room)."
+
+#: templates/web/video_gateway.html
+msgid ""
+"Najlepiej z komputera, w przeglądarce Chrome, Edge albo Firefox. Przeglądarka "
+"zapyta o dostęp do kamery i mikrofonu."
+msgstr ""
+"Preferably from a computer, in Chrome, Edge or Firefox. The browser will ask "
+"for access to your camera and microphone."
+
+#: templates/web/video_gateway.html
+msgid "Dołącz"
+msgstr "Join"

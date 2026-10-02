@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% load web_extras coordinator_extras %}
+{% comment %}
+  Własne pokoje wideo członka komisji (v0.39.0, ``apps.web.views.video.CommitteeVideoRoomsView``).
+
+  Ekran istnieje wyłącznie dla członka komisji z uprawnieniem nadanym przez koordynatora (inaczej
+  404). Widać tu **tylko własne** pokoje; koordynator widzi je wszystkie na swoim ekranie. Linki
+  pokazuje dopiero przycisk „Pokaż linki” (POST, ``no-store``, audyt).
+{% endcomment %}
+{% block title %}Pokoje wideo – panel komisji{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow">Panel komisji</span>
+  <h1>Moje pokoje wideo</h1>
+  <p class="lead">Pokoje na Jitsi olimpiady na zebrania i konsultacje – także z osobami bez konta.
+    Każdy pokój ma dwa linki-zaproszenia: gospodarza (z prawami moderatora, dla Ciebie) i gościa
+    (do rozesłania). Link prowadzi przez platformę, więc <strong>zamknięcie pokoju albo wygenerowanie
+    nowego linku działa od razu</strong>. Koordynator widzi Twoje pokoje i może je zamknąć.</p>
+</div>
+
+{% if links and shown %}
+  {% include "web/coordinator/_video_room_links.html" %}
+{% endif %}
+
+<section class="section">
+  <div class="section__head"><h2 class="mt-0">Nowy pokój</h2></div>
+  <div class="card">
+    <form method="post" class="form" novalidate>
+      {% csrf_token %}
+      {{ form.as_p }}
+      <p class="hint">Ważność pokoju jest zarazem ważnością jego linków (najwyżej
+        {{ validity_choices|last }} dni).</p>
+      <div class="actions">
+        <button type="submit" class="btn btn--primary">Załóż pokój</button>
+      </div>
+    </form>
+  </div>
+</section>
+
+<section class="section">
+  <div class="section__head"><h2 class="mt-0">Otwarte pokoje</h2></div>
+  {% include "web/coordinator/_video_room_table.html" with rooms=active_rooms with_creator=False actions=True %}
+</section>
+
+{% if history_rooms %}
+  <section class="section">
+    <div class="section__head"><h2 class="mt-0">Zamknięte i wygasłe</h2></div>
+    {% include "web/coordinator/_video_room_table.html" with rooms=history_rooms with_creator=False actions=False %}
+  </section>
+{% endif %}
+{% endblock %}

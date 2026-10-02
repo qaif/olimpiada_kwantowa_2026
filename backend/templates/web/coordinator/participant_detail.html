@@ -271,11 +271,15 @@
           <dt>Rozmowa kwalifikacyjna</dt>
           <dd>{{ block.booking.slot.starts_at|local_time }} – {{ block.booking.slot.ends_at|local_datetime }}
             {% if block.booking.slot.note %} · {{ block.booking.slot.note }}{% endif %}
-            {% if block.booking.meeting_url %}
+            {% comment %} Własne Jitsi z przepustkami (v0.39.0): wejście przez platformę, nie adres. {% endcomment %}
+            {% with room=block.booking.meeting_url|default:block.booking.slot.meeting_url %}{% if room|platform_room %}
+              · <a href="{% url 'web:coordinator-interview-slot-join' block.booking.slot_id %}" target="_blank"
+                   rel="noopener noreferrer nofollow">dołącz do rozmowy</a>
+            {% elif block.booking.meeting_url %}
               · <a href="{{ block.booking.meeting_url }}">link do rozmowy</a>
             {% elif block.booking.slot.meeting_url %}
               · <a href="{{ block.booking.slot.meeting_url }}">link do rozmowy</a>
-            {% endif %}
+            {% endif %}{% endwith %}
             {% if block.booking.reminder_sent_at %}
               · <span class="hint">przypomnienie wysłane {{ block.booking.reminder_sent_at|local_datetime }}</span>
             {% endif %}

@@ -1,0 +1,41 @@
+{% load web_extras %}{% comment %}
+  Linki-zaproszenia jednego pokoju (v0.39.0). Wstawiane **wyłącznie** w odpowiedzi na jawną
+  czynność („Pokaż linki” albo założenie pokoju) – nigdy w zwykłą listę – a odpowiedź jest
+  ``no-store``. Kopiowanie bez skryptu: pole tylko do odczytu, które da się zaznaczyć (w serwisie
+  nie ma wzorca „kopiuj do schowka”, a skrypt inline złamałby CSP).
+
+  Zmienne: ``shown`` (pokój), ``links`` (``{"host": …, "guest": …}``), ``url_names`` (nazwy
+  adresów czynności ekranu – koordynatora albo komisji).
+{% endcomment %}
+{% url url_names.rotate shown.pk as rotate_url %}
+<section class="section" id="linki">
+  <div class="card card--accent">
+    <h2 class="mt-0">Linki do pokoju „{{ shown.label }}”</h2>
+    <p>Ważne do <strong>{{ shown.expires_at|local_datetime }}</strong> (czas polski). Link otwiera
+      stronę platformy, na której gość wpisuje swoje imię i klika „Dołącz” – dopiero wtedy platforma
+      wpuszcza go do pokoju. <strong>Zamknięcie pokoju albo wygenerowanie nowego linku działa od razu</strong>:
+      nikt, kto jeszcze nie wszedł, już nim nie wejdzie (kto jest w trwającej rozmowie, zostaje do wyjścia).</p>
+    <p><label for="link-host"><strong>Link gospodarza</strong> – z prawami moderatora (wyciszanie, poczekalnia,
+      usuwanie z pokoju). Dla prowadzącego, nie do rozsyłania.</label></p>
+    <p><input id="link-host" class="input input--wide" type="text" readonly value="{{ links.host }}"
+              aria-describedby="link-hint"></p>
+    <p><label for="link-guest"><strong>Link gościa</strong> – bez praw moderatora. Ten wysyłasz uczestnikom
+      spotkania.</label></p>
+    <p><input id="link-guest" class="input input--wide" type="text" readonly value="{{ links.guest }}"
+              aria-describedby="link-hint"></p>
+    <p class="hint" id="link-hint">Zaznacz pole i skopiuj (Ctrl+C). Link przekazuj jak hasło: działa dla każdego,
+      kto go ma, aż do końca ważności pokoju albo do wymiany na nowy.</p>
+    <div class="actions">
+      <form method="post" action="{{ rotate_url }}">
+        {% csrf_token %}
+        <input type="hidden" name="link" value="guest">
+        <button type="submit" class="btn btn--secondary btn--small">Wygeneruj nowy link gościa</button>
+      </form>
+      <form method="post" action="{{ rotate_url }}">
+        {% csrf_token %}
+        <input type="hidden" name="link" value="host">
+        <button type="submit" class="btn btn--secondary btn--small">Wygeneruj nowy link gospodarza</button>
+      </form>
+    </div>
+  </div>
+</section>

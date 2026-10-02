@@ -109,11 +109,26 @@ def make_participant(competition, district: str):
     )
 
 
+@functools.cache
+def members_at(target):
+    """Model ``CommitteeMember`` **ze stanu** migracji – ten sam powód, co przy ``participants_at``.
+
+    Od ``accounts.0035`` (v0.39.0, ``video_room_issuer``) tabela profilu komitetu też ma kolumnę
+    dołożoną po ``0026``, więc model na żywo wstawiałby ją do przewiniętej bazy.
+    """
+    executor = MigrationExecutor(connection)
+    executor.loader.build_graph()
+    return executor.loader.project_state(target).apps.get_model("accounts", "CommitteeMember")
+
+
 def make_member(competition, district: str | None) -> CommitteeMember:
     from apps.accounts.models import User
 
     user = User.objects.create(email=f"komitet-{district or 'brak'}-{competition.slug}@example.test")
-    return CommitteeMember.objects.create(user=user, competition=competition, district=district)
+    # Klucze obce przez ``*_id``: model historyczny przyjmuje wyłącznie swoje, historyczne klasy.
+    return members_at(BEFORE).objects.create(
+        user_id=user.pk, competition_id=competition.pk, district=district
+    )
 
 
 def codes_of(competition) -> list[str]:

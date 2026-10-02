@@ -158,6 +158,26 @@ def precheck_link(meeting_url):
 
 
 @register.filter
+def platform_room(meeting_url) -> bool:
+    """Czy do tego pokoju wchodzi się przepustką platformy (v0.39.0), a nie zwykłym linkiem.
+
+    Gdy tak, ekran **nie** pokazuje adresu pokoju jako odnośnika – prowadzi do widoku wejścia
+    (``apps.web.views.video``). Reguła mieszka w ``apps.competitions.jitsi_jwt.is_platform_room``.
+    """
+    from apps.competitions.jitsi_jwt import is_platform_room
+
+    return is_platform_room(str(meeting_url or ""))
+
+
+@register.filter
+def slot_room(slot) -> str:
+    """Adres pokoju terminu: ręczny przy terminie albo pierwszego zapisu (``video.slot_meeting_url``)."""
+    from apps.competitions.video import slot_meeting_url
+
+    return slot_meeting_url(slot) if slot is not None else ""
+
+
+@register.filter
 def points(value) -> str:
     """Punkty do pokazania: „5”, „4,25”, „3,5” (po angielsku „4.25”); brak wartości → „”.
 

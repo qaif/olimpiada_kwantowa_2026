@@ -1,0 +1,116 @@
+{% extends "web/coordinator/base.html" %}
+{% load web_extras coordinator_extras %}
+{% comment %}
+  Pokoje wideo bez terminu rozmowy (v0.39.0, ``apps.web.views.video.CoordinatorVideoRoomsView``).
+
+  Ekran istnieje wyłącznie przy skonfigurowanych przepustkach Jitsi (inaczej 404 i brak pozycji
+  w menu). Koordynator widzi **wszystkie** pokoje konkursu – także założone przez członków komisji –
+  może pokazać ich linki, wymienić link, zamknąć pokój i nadać albo odebrać członkom komisji prawo
+  zakładania własnych pokoi. Każda czynność jest POST-em z CSRF; strona jest ``no-store``.
+{% endcomment %}
+{% block title %}Pokoje wideo – panel koordynatora{% endblock %}
+{% block panel_title %}Pokoje wideo{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Pokoje na własnym Jitsi poza terminami rozmów: zebrania komisji, konsultacje,
+    goście bez konta. Każdy pokój ma dwa linki-zaproszenia – gospodarza (z prawami moderatora)
+    i gościa. Link prowadzi przez platformę, więc <strong>zamknięcie pokoju albo wygenerowanie nowego
+    linku działa od razu</strong>; kto jest w trwającej rozmowie, zostaje w niej do wyjścia.</p>
+{% endblock %}
+{% block panel_content %}
+
+{% if links and shown %}
+  {% include "web/coordinator/_video_room_links.html" %}
+{% endif %}
+
+<section class="section">
+  <div class="section__head"><h2 class="mt-0">Nowy pokój</h2></div>
+  <div class="card">
+    <form method="post" class="form" novalidate>
+      {% csrf_token %}
+      {{ form.as_p }}
+      <p class="hint">Ważność pokoju jest zarazem ważnością jego linków (najwyżej
+        {{ validity_choices|last }} dni). Pełnej nazwy pokoju nie wpisuje się – powstaje z etykiety
+        i losowej końcówki.</p>
+      <div class="actions">
+        <button type="submit" class="btn btn--primary">Załóż pokój</button>
+      </div>
+    </form>
+  </div>
+</section>
+
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">Otwarte pokoje</h2>
+    <span class="badge badge--warn">dostęp do rozmów</span>
+  </div>
+  {% include "web/coordinator/_video_room_table.html" with rooms=active_rooms with_creator=True actions=True %}
+</section>
+
+{% if history_rooms %}
+  <section class="section">
+    <div class="section__head"><h2 class="mt-0">Zamknięte i wygasłe</h2></div>
+    <p class="hint">Linki tych pokoi już nikogo nie wpuszczą, więc ich nie pokazujemy.</p>
+    {% include "web/coordinator/_video_room_table.html" with rooms=history_rooms with_creator=True actions=False %}
+  </section>
+{% endif %}
+
+<section class="section" id="komisja">
+  <div class="section__head"><h2 class="mt-0">Kto z komisji może zakładać pokoje</h2></div>
+  <div class="card">
+    <p>Członek komisji (recenzent albo komisja odwoławcza tego konkursu) z tym uprawnieniem ma w swoim
+      panelu ekran „Pokoje wideo”: zakłada własne pokoje (najwyżej {{ committee_cap }} dni), widzi
+      i zamyka wyłącznie swoje. Ty widzisz i zamykasz wszystkie.</p>
+    <p class="hint">Odebranie uprawnienia albo zawieszenie członka komisji od razu zamyka mu ten ekran
+      i wejście z panelu do jego pokoi. Jego linki-zaproszenia działają dalej, dopóki nie zamkniesz
+      jego pokoi – służy do tego przycisk w tym samym wierszu.</p>
+    {% if issuers %}
+      <div class="scroll">
+        <table class="table">
+          <thead>
+            <tr>
+              <th scope="col">Członek komisji</th>
+              <th scope="col">Uprawnienie</th>
+              <th scope="col">Otwarte pokoje</th>
+              <th scope="col"><span class="visually-hidden">Operacje</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in issuers %}
+              <tr>
+                <th scope="row">{{ row.member.user|person }}
+                  {% if row.member.is_appeals_committee %}<span class="hint">komisja odwoławcza</span>{% endif %}</th>
+                <td>{% if row.member.video_room_issuer %}<span class="badge badge--ok">może zakładać</span>{% else %}—{% endif %}</td>
+                <td class="num">{{ row.open_rooms }}</td>
+                <td>
+                  <div class="actions">
+                    <form method="post" action="{% url 'web:coordinator-video-issuer' row.member.pk %}">
+                      {% csrf_token %}
+                      {% if row.member.video_room_issuer %}
+                        <input type="hidden" name="granted" value="0">
+                        <button type="submit" class="btn btn--secondary btn--small">Odbierz uprawnienie</button>
+                      {% else %}
+                        <input type="hidden" name="granted" value="1">
+                        <button type="submit" class="btn btn--secondary btn--small">Nadaj uprawnienie</button>
+                      {% endif %}
+                    </form>
+                    {% if row.open_rooms %}
+                      <form method="post" action="{% url 'web:coordinator-video-issuer-close-rooms' row.member.pk %}"
+                            x-data="confirmSubmit" x-on:submit="check"
+                            data-confirm="Zamknąć wszystkie otwarte pokoje tej osoby? Ich linki przestaną działać od razu.">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn--danger btn--small">Zamknij pokoje tej osoby</button>
+                      </form>
+                    {% endif %}
+                  </div>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="empty">Ten konkurs nie ma jeszcze aktywnych członków komisji.</p>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}
