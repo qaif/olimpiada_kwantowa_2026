@@ -1,6 +1,6 @@
 """Zgoda ucznia na opiekuna szkolnego, który dopisał się do niego **importem listy**.
 
-Skąd ten moduł (v0.38.6, decyzja właściciela platformy z 2.10.2026: „opiekun szkolny jest
+Skąd ten moduł (v0.38.7, decyzja właściciela platformy z 2.10.2026: „opiekun szkolny jest
 dowiązywany do istniejącego ucznia wyłącznie za jego zgodą”). Reguła z ``apps.accounts.supervisors``
 – wgląd w przebieg zawodów ucznia nadaje **uczeń**, wpisując adres nauczyciela w swoim profilu –
 miała jeden wyjątek, którego nikt nie nazwał po imieniu: import listy uczniów. Adres zajęty przez
@@ -30,7 +30,7 @@ Wolumen listów pilnują dwa progi: jedna prośba na parę (uczestnik, opiekun) 
 w cache'u pod kluczem ze skrótu SHA-256, jak w ``apps.web.throttle``, więc w Redisie nie leżą
 adresy – oraz limit żądań na widokach importu opiekuna (``SupervisorImportView``).
 
-Czego moduł **nie** robi: nie rusza dowiązań zapisanych przed v0.38.6 (bez migracji danych – jak je
+Czego moduł **nie** robi: nie rusza dowiązań zapisanych przed v0.38.7 (bez migracji danych – jak je
 wylistować, mówi ``docs/SECURITY_CHECKLIST.md``) i nie dotyczy kont **zakładanych** importem:
 tam zgodą jest przyjęcie zaproszenia (``apps.accounts.bulk_registration``) – konto bez niego
 w ogóle nie działa, a uczeń, który je uruchomił, może adres nauczyciela wyczyścić w profilu.

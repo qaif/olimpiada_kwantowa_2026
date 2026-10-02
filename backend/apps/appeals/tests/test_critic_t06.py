@@ -16,6 +16,7 @@ Cztery obszary:
 
 import pytest
 from django.db.models import ProtectedError
+from django.utils import timezone
 
 from apps.accounts.models import GROUP_APPEALS, CommitteeStatus
 from apps.accounts.tests.factories import (
@@ -36,6 +37,7 @@ from apps.appeals.services import (
     finalize_unappealed,
     stages_with_closed_appeal_window,
 )
+from apps.competitions.models import Stage
 from apps.competitions.tests.factories import ProblemFactory, StageEntryFactory
 from apps.core.api import DomainError
 from apps.core.models import AuditLog
@@ -43,7 +45,7 @@ from apps.grading.models import ROUND_BLIND, ROUND_TIEBREAK, FinalGrade, GradeMe
 from apps.grading.services import submit_review
 from apps.grading.tests.factories import ReviewFactory
 from apps.submissions.models import AvStatus, Submission, SubmissionStatus
-from apps.submissions.serializers import GRADE_METHOD_APPEAL
+from apps.submissions.serializers import GRADE_METHOD_APPEAL, PARTICIPANT_GRADE_METHOD_REVIEW
 from apps.submissions.tests.factories import SubmissionFactory, SubmissionFileFactory
 
 from .conftest import graded_submission, round_one_reviews
@@ -107,9 +109,17 @@ def test_third_review_rationale_is_never_serialized_to_participant(client, open_
     assert response.status_code == 200
     assert SECRET_INTERNAL not in response.content.decode()
     latest = response.data[0]["latest"]
-    assert latest["final_grade"]["score"] == 5
-    assert latest["final_grade"]["method"] == GradeMethod.THIRD_REVIEW
+    # Od v0.38.7 punkty dopiero po ogłoszeniu wyników etapu, a tryb jest zawsze neutralny – ``THIRD_REVIEW``
+    # zdradzałby rozbieżność recenzentów (``apps/submissions/tests/test_grade_visibility.py``).
+    assert latest["final_grade"]["score"] is None
+    assert latest["final_grade"]["method"] == PARTICIPANT_GRADE_METHOD_REVIEW
     assert latest["final_grade"]["rationale"] is None
+
+    Stage.objects.filter(pk=open_stage.pk).update(results_published_at=timezone.now())
+    published = client.get(MY_SUBMISSIONS_URL)
+    assert SECRET_INTERNAL not in published.content.decode()
+    grade = published.data[0]["latest"]["final_grade"]
+    assert (grade["score"], grade["method"], grade["rationale"]) == (5, PARTICIPANT_GRADE_METHOD_REVIEW, None)
 
 
 def test_consensus_rationale_is_hidden_but_appeal_justification_is_visible(client, open_stage):
@@ -127,8 +137,13 @@ def test_consensus_rationale_is_hidden_but_appeal_justification_is_visible(clien
     after = client.get(MY_SUBMISSIONS_URL)
 
     grade = after.data[0]["latest"]["final_grade"]
-    assert (grade["score"], grade["method"]) == (6, GradeMethod.APPEAL)
+    # Uzasadnienie komisji widać od decyzji (jak w zakładce „Reklamacje”), punkty – po ogłoszeniu.
+    assert (grade["score"], grade["method"]) == (None, GradeMethod.APPEAL)
     assert grade["rationale"] == "Zarzut zasadny."
+
+    Stage.objects.filter(pk=open_stage.pk).update(results_published_at=timezone.now())
+    grade = client.get(MY_SUBMISSIONS_URL).data[0]["latest"]["final_grade"]
+    assert (grade["score"], grade["method"], grade["rationale"]) == (6, GradeMethod.APPEAL, "Zarzut zasadny.")
 
 
 def test_appeal_method_constant_matches_grading_choice():

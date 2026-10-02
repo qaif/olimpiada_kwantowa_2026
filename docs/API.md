@@ -509,7 +509,7 @@ w API panelu (`score`, `new_score`, `total_points`, `published_total`) i w zrzuc
 - **eksporty CSV** z panelu (lista dla kuratorium, wyniki i recenzje etapu) zapisują punkty z
   **kropką** dziesiętną (`4.25`) niezależnie od języka interfejsu; XLSX niesie je jako liczby.
 
-### 6.3. Punkty uczestnika dopiero po ogłoszeniu wyników (od wydania `v0.38.6`)
+### 6.3. Punkty uczestnika dopiero po ogłoszeniu wyników (od wydania `v0.38.7`)
 
 Decyzja właściciela platformy: uczeń widzi oceny dopiero po ostatecznym zatwierdzeniu, czyli po
 **ogłoszeniu wyników etapu** (`Stage.results_published_at` – ten sam znacznik, który rozstrzyga
@@ -524,6 +524,7 @@ uczestnika; klucze odpowiedzi się nie zmieniają, zmieniają się wartości:
 | `final_grade.method` | `"REVIEW"` albo `"APPEAL"` | `"REVIEW"` albo `"APPEAL"` |
 | `final_grade.rationale` | uzasadnienie komisji odwoławczej przy `"APPEAL"`, inaczej `null` | bez zmian |
 | `appeal.new_score` | `null` | punkty po reklamacji |
+| `GET /api/me/appeals/` → `decision.new_score` | `null` | punkty po reklamacji |
 | `appeal.status`, `appeal.justification`, `appeal.decided_at` | jak dotąd (to samo pokazuje zakładka „Reklamacje”) | jak dotąd |
 | `GET /api/competitions/me/entries/` → `total_points` | `null` (kolumnę zapisuje już podgląd wyników koordynatora) | suma etapu, jak dotąd |
 | `… /me/entries/` → `status` | bez zmian – `QUALIFIED`/`NOT_QUALIFIED` nadaje dopiero publikacja | bez zmian |

@@ -919,7 +919,7 @@ ekranie **„Reklamacje do rozpatrzenia”**: widzi „Argument uczestnika”, �
 z uzasadnieniem („Zapisz decyzję”). Autorzy recenzji rundy 1 tej pracy nie rozstrzygają jej reklamacji.
 Uczestnik dostaje list z rozstrzygnięciem i uzasadnieniem.
 
-**Uczestnik nie widzi punktów w oknie reklamacji** (od v0.38.6 także w API aplikacji – decyzja
+**Uczestnik nie widzi punktów w oknie reklamacji** (od v0.38.7 także w API aplikacji – decyzja
 właściciela: oceny dopiero po ostatecznym zatwierdzeniu). Punkty, również te po reklamacji, pokazują
 się dopiero po **„Opublikuj wyniki”**, a publikacja jest możliwa wyłącznie po zamknięciu okna. Kto
 reklamuje, wie więc tylko, że praca jest oceniona – jeśli regulamin zakłada reklamację „od znanej
@@ -1756,7 +1756,7 @@ przypisywania po nazwie szkoły — oba wyglądają porządniej, ale oba znaczy�
 dostęp do danych ucznia bez jego udziału. Opiekun widzi kod, imię, nazwisko, szkołę i klasę ucznia oraz
 ścieżkę statusu pracy; **nie widzi punktów przed ogłoszeniem wyników, prac ani komentarzy recenzentów**.
 
-**Import listy uczniów a konta, które już istnieją (od v0.38.6, decyzja właściciela platformy).**
+**Import listy uczniów a konta, które już istnieją (od v0.38.7, decyzja właściciela platformy).**
 Import — nauczyciela (`/supervisor/import/`) i Twój (`/coordinator/accounts/import/`, kolumna
 „e-mail opiekuna szkolnego”) — **zakłada** konta zaproszonych tak jak dotąd: nowy uczeń dostaje adres
 opiekuna od razu, bo i tak uruchamia konto sam, przyjmując zaproszenie. Adresu, który ma już konto,
@@ -1777,7 +1777,7 @@ przypisuje nauczyciela od razu wyłącznie nowym kontom, a pusta komórka u istn
 - **ślad w audycie** karty uczestnika: `participant.supervisor_consent_requested` (kto wgrał plik),
   `participant.supervisor_consented` albo `participant.supervisor_consent_refused` (uczeń) — bez
   adresów, z polem `via` (`supervisor` / `coordinator`),
-- **dowiązania sprzed v0.38.6 zostały w bazie bez zmian** (bez migracji danych). Każde z nich ma
+- **dowiązania sprzed v0.38.7 zostały w bazie bez zmian** (bez migracji danych). Każde z nich ma
   w audycie wpis `participant.supervisor_email_set`, którego wykonawcą jest osoba wgrywająca plik,
   a nie uczeń — jeśli trzeba je przejrzeć, poproś operatora o listę.
 

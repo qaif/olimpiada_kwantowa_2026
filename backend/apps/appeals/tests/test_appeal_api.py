@@ -4,10 +4,12 @@ from datetime import timedelta
 from io import BytesIO
 
 import pytest
+from django.utils import timezone
 from freezegun import freeze_time
 
 from apps.accounts.tests.factories import ActiveReviewerFactory, ParticipantFactory
 from apps.appeals.models import Appeal, AppealDecision, AppealStatus
+from apps.competitions.models import Stage
 from apps.grading.models import ROUND_BLIND, FinalGrade, GradeMethod
 from apps.grading.tests.factories import ReviewFactory
 from apps.submissions.models import AvStatus, SubmissionStatus
@@ -207,9 +209,11 @@ def test_accepted_appeal_updates_grade_and_is_visible_to_participant(client, ope
     client.force_authenticate(submission.entry.participant.user)
     mine = client.get(MY_APPEALS_URL)
     assert mine.status_code == 200
+    # Decyzja i jej uzasadnienie są widoczne od razu; nowa punktacja – dopiero po ogłoszeniu
+    # wyników etapu (ta sama bramka, co w ``me/submissions`` niżej).
     assert mine.data[0]["decision"] == {
         "status": AppealStatus.ACCEPTED,
-        "new_score": 6,
+        "new_score": None,
         "justification": "Dowód jest pełny.",
         "decided_at": response.data["decision"]["decided_at"],
     }
@@ -217,11 +221,19 @@ def test_accepted_appeal_updates_grade_and_is_visible_to_participant(client, ope
     submissions = client.get("/api/me/submissions/")
     assert submissions.status_code == 200
     latest = submissions.data[0]["latest"]
-    assert latest["final_grade"]["score"] == 6
+    # Od v0.38.7 punkty w ``me/submissions`` dopiero po ogłoszeniu wyników etapu; status, tryb ``APPEAL``
+    # i uzasadnienie – od decyzji (``apps/submissions/tests/test_grade_visibility.py``).
+    assert latest["final_grade"]["score"] is None
     assert latest["final_grade"]["method"] == GradeMethod.APPEAL
     assert latest["appeal"]["status"] == AppealStatus.ACCEPTED
-    assert latest["appeal"]["new_score"] == 6
+    assert latest["appeal"]["new_score"] is None
     assert "comment_internal" not in submissions.content.decode()
+
+    Stage.objects.filter(pk=submission.entry.stage_id).update(results_published_at=timezone.now())
+    latest = client.get("/api/me/submissions/").data[0]["latest"]
+    assert latest["final_grade"]["score"] == 6
+    assert latest["appeal"]["new_score"] == 6
+    assert client.get(MY_APPEALS_URL).data[0]["decision"]["new_score"] == 6
 
 
 def test_score_outside_scale_is_rejected(client, open_stage):

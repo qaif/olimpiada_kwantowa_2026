@@ -355,7 +355,7 @@ def queue_mail(
     „jak dotąd”: zadanie dostaje wtedy dokładnie te same argumenty, co przed tą zmianą, więc testy
     i listy, które nagłówków nie potrzebują, nie widzą różnicy.
 
-    ``html_message`` – wersja HTML jako alternatywa ``text/html`` (od v0.38.6: prośba o zgodę na
+    ``html_message`` – wersja HTML jako alternatywa ``text/html`` (od v0.38.7: prośba o zgodę na
     opiekuna szkolnego, ``apps.accounts.supervisor_consent``). Ta sama umowa, co przy nagłówkach:
     bez niej zadanie dostaje dokładnie te argumenty, co dotąd, a z nią – słowo kluczowe, nigdy
     pozycję (piąty argument pozycyjny zadania to właśnie ``html_message``).

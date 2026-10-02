@@ -404,7 +404,7 @@ class SupervisorImportView(SupervisorRequiredMixin, ThrottledFormMixin, BaseStud
     z CAPTCHĄ i aktywacją adresu. Dokładanie obrazka przed każdą czynnością zalogowanego
     użytkownika chroniłoby przed niczym, a kosztowałoby dostępność.
 
-    **Limit żądań** jest (od v0.38.6) i liczy każdy POST – podgląd i zatwierdzenie. Zatwierdzenie
+    **Limit żądań** jest (od v0.38.7) i liczy każdy POST – podgląd i zatwierdzenie. Zatwierdzenie
     wysyła do pięciuset listów (zaproszenia i prośby o zgodę), a rejestracja opiekunów jest otwarta,
     więc bez limitu konto opiekuna byłoby tanim wysyłaczem poczty na adresy z dowolnego arkusza.
     Scope ``upload`` (30/godz.), bo to jest wgranie pliku, i to właśnie jego stawka pasuje do
@@ -439,7 +439,7 @@ class CoordinatorStudentImportView(CoordinatorRequiredMixin, BaseStudentImportVi
     - szkoła jest **obowiązkowa** w formularzu: koordynator nie ma „własnej” szkoły, a domyślenie
       się jej z czegokolwiek byłoby zgadywaniem.
 
-    Czego różnicą **nie** jest (od v0.38.6): zgody ucznia. Kolumna opiekuna przypisuje nauczyciela
+    Czego różnicą **nie** jest (od v0.38.7): zgody ucznia. Kolumna opiekuna przypisuje nauczyciela
     od razu wyłącznie kontom, które import zakłada; uczeń z istniejącym kontem dostaje prośbę
     o zgodę, tak samo jak przy imporcie nauczyciela – uzasadnienie w
     ``apps.accounts.bulk_registration.import_students``.

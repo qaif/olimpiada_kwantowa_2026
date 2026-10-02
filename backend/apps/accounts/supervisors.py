@@ -7,7 +7,7 @@ bo wyglądają na porządniejsze, ale oba znaczyłyby, że nauczyciel dostaje wg
 bez jego udziału. Dopisanie adresu w profilu jest odwracalne jednym kliknięciem i to właśnie
 uczeń jest stroną, która tę decyzję podejmuje.
 
-Import listy uczniów tej reguły nie omija (od v0.38.6): konto, które import **zakłada**, dostaje
+Import listy uczniów tej reguły nie omija (od v0.38.7): konto, które import **zakłada**, dostaje
 adres nauczyciela, bo uczeń i tak uruchamia je sam, przyjmując zaproszenie; uczeń z **istniejącym**
 kontem dostaje prośbę o zgodę (``apps.accounts.supervisor_consent``) i dopiero jego „Zgadzam się”
 woła :func:`set_supervisor_email`.

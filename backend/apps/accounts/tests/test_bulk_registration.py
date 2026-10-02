@@ -183,7 +183,7 @@ def test_istniejace_konto_uczestnika_nie_jest_zakladane_drugi_raz():
 
 
 def test_zajety_adres_ma_jedna_etykiete_bez_wzgledu_na_to_czyje_to_konto():
-    """Podgląd nie odróżnia konta ucznia od konta recenzenta (v0.38.6).
+    """Podgląd nie odróżnia konta ucznia od konta recenzenta (v0.38.7).
 
     Do v0.38.5 adres recenzenta albo koordynatora dostawał „pominięty – konto nie jest kontem
     uczestnika”, a adres ucznia „dopisanie do listy”: plik z jednym wierszem był wyszukiwarką ról
@@ -315,7 +315,7 @@ def test_import_wysyla_kazdemu_uczniowi_list_bez_danych_osob_trzecich(
 def test_istniejace_konto_dostaje_prosbe_o_zgode_a_nie_opiekuna(
     django_capture_on_commit_callbacks, mailoutbox
 ):
-    """Import nie zapisuje nic w profilu istniejącego ucznia – wysyła mu prośbę o zgodę (v0.38.6).
+    """Import nie zapisuje nic w profilu istniejącego ucznia – wysyła mu prośbę o zgodę (v0.38.7).
 
     Do v0.38.5 ten test sprawdzał coś odwrotnego: adres osoby wgrywającej plik stawał się adresem
     opiekuna ucznia od razu, bez jego wiedzy. Teraz adres i zgody zostają nietknięte, a uczeń dostaje

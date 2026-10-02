@@ -60,7 +60,7 @@ Po rejestracji strona `/register/done/` mówi „sprawdź skrzynkę”. Na podan
 | **Pobranie wszystkich swoich danych** (art. 20 RODO) | `/account/export/` — paczka ZIP z `dane.json` i wgranymi plikami, jedna na 10 minut |
 | Usunięcie konta | `/account/delete/` — patrz niżej |
 
-**Prośba nauczyciela o dopisanie jako opiekun szkolny** (od v0.38.6). Nauczyciel albo organizator,
+**Prośba nauczyciela o dopisanie jako opiekun szkolny** (od v0.38.7). Nauczyciel albo organizator,
 który wgrywa listę uczniów, nie może już sam wpisać się w Twój profil. Jeśli na liście jest adres
 Twojego konta, dostajesz list „Prośba o zgodę na opiekuna szkolnego” z imieniem, nazwiskiem i adresem
 nauczyciela oraz linkiem `/opiekun/zgoda/…` (ważnym 14 dni). Strona po kliknięciu **wymaga zalogowania
@@ -241,7 +241,7 @@ Po ogłoszeniu wyników etapu:
 wyłącznie w **oknie reklamacyjnym** wyznaczonym przez organizatora i dotyczy własnej, ocenionej pracy.
 Rozpatruje ją komisja odwoławcza — **inne osoby** niż te, które pracę oceniały. Rozstrzygnięcie
 z uzasadnieniem dostajesz listem i widzisz w tej samej zakładce. Punkty — także te po reklamacji —
-widać dopiero **po ogłoszeniu wyników etapu**, a okno reklamacyjne zamyka się wcześniej (od v0.38.6
+widać dopiero **po ogłoszeniu wyników etapu**, a okno reklamacyjne zamyka się wcześniej (od v0.38.7
 tak samo w panelu i w API aplikacji).
 
 ---

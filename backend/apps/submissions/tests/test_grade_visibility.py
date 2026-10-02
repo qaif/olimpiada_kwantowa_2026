@@ -1,4 +1,4 @@
-"""Oceny w API uczestnika dopiero po ogłoszeniu wyników etapu (v0.38.6).
+"""Oceny w API uczestnika dopiero po ogłoszeniu wyników etapu (v0.38.7).
 
 Decyzja właściciela platformy: „na razie uczeń widzi oceny dopiero po ostatecznym zatwierdzeniu”,
 czyli po publikacji wyników etapu (``Stage.results_published_at`` – ten sam sygnał, co zakładka

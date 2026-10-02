@@ -1,5 +1,5 @@
 {% load i18n %}{% autoescape off %}{% comment %}
-  Treść listu z prośbą o zgodę na opiekuna szkolnego (v0.38.6, ``apps.accounts.supervisor_consent``).
+  Treść listu z prośbą o zgodę na opiekuna szkolnego (v0.38.7, ``apps.accounts.supervisor_consent``).
   Wersja HTML tego samego listu: ``supervisor_consent_body.html`` obok.
 
   ``autoescape off`` jest poprawnością, a nie obejściem: to jest plik tekstowy, nie HTML, więc

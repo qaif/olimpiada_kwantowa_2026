@@ -59,7 +59,16 @@ class MyAppealSerializer(serializers.ModelSerializer):
         decision = getattr(obj, "decision", None)
         if decision is None:
             return None
-        return {"status": obj.status, **AppealDecisionSerializer(decision).data}
+        data = {"status": obj.status, **AppealDecisionSerializer(decision).data}
+        # Punktacja po reklamacji jest oceną jak każda inna: uczestnik poznaje ją dopiero po
+        # ogłoszeniu wyników etapu – ta sama bramka, co w ``GET /api/me/submissions/``.
+        # Status i uzasadnienie decyzji zostają widoczne, tak jak w zakładce „Reklamacje”.
+        # Import lokalny: ``apps.submissions.serializers`` sięga do reklamacji w drugą stronę.
+        from apps.submissions.serializers import results_published
+
+        if not results_published(obj.submission):
+            data["new_score"] = None
+        return data
 
 
 class AppealFileSerializer(serializers.Serializer):

@@ -1,4 +1,4 @@
-"""Strona zgody ucznia na opiekuna szkolnego (``/opiekun/zgoda/<token>/``, v0.38.6).
+"""Strona zgody ucznia na opiekuna szkolnego (``/opiekun/zgoda/<token>/``, v0.38.7).
 
 Prowadzi tu link z listu wysłanego przez import listy uczniów (``apps.accounts.supervisor_consent``).
 Inaczej niż przy zgodzie opiekuna prawnego (``apps.web.views.guardian``) token **nie** wystarcza:

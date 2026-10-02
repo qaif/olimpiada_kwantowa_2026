@@ -137,7 +137,7 @@ class StageEntrySerializer(serializers.ModelSerializer):
     funkcja oddaje dokładnie ten sam napis, co dotąd, i nie dokłada ani jednego zapytania
     (``participant`` jest w ``select_related`` querysetu).
 
-    ``total_points`` jest ``None`` do ogłoszenia wyników etapu (v0.38.6, decyzja właściciela:
+    ``total_points`` jest ``None`` do ogłoszenia wyników etapu (v0.38.7, decyzja właściciela:
     uczeń widzi oceny dopiero po ostatecznym zatwierdzeniu). Kolumnę zapisuje już **podgląd**
     wyników koordynatora (``compute_stage_results`` bez ``preview=True``), więc bez tej bramki API
     oddawało sumę w trakcie procedury – także w teście z ``show_results_after=NEVER``. Sygnał jest

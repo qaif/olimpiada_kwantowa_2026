@@ -11,7 +11,7 @@ komisji (PROJEKT.md 2.4) – także pośrednio, przez ``FinalGrade.rationale``, 
 Relacje ``final_grade`` i ``appeals`` są odwrotnymi stronami FK z ``apps.grading`` i ``apps.appeals``
 – celowo przez nazwę, bez importu w drugą stronę.
 
-**Punkty dopiero po ogłoszeniu wyników etapu** (v0.38.6, decyzja właściciela platformy: „na razie
+**Punkty dopiero po ogłoszeniu wyników etapu** (v0.38.7, decyzja właściciela platformy: „na razie
 uczeń widzi oceny dopiero po ostatecznym zatwierdzeniu”). Panel HTML trzymał tę regułę od zawsze –
 wynik pokazuje wyłącznie zakładka „Wyniki” (``results_for_participant``), czyli etapy z
 ``Stage.results_published_at`` – a API oddawało ``final_grade.score`` od chwili, w której

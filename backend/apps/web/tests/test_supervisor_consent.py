@@ -1,4 +1,4 @@
-"""Zgoda ucznia na opiekuna szkolnego dopisującego się importem listy (v0.38.6).
+"""Zgoda ucznia na opiekuna szkolnego dopisującego się importem listy (v0.38.7).
 
 Decyzja właściciela platformy: opiekun szkolny jest dowiązywany do **istniejącego** ucznia wyłącznie
 za jego zgodą. Do v0.38.5 import listy nadpisywał ``supervisor_email`` ucznia adresem osoby, która

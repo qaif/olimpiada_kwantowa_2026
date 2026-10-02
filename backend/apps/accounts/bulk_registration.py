@@ -35,7 +35,7 @@ Czego import **nie** robi:
 - **nie zakłada kont, które już istnieją – i nie dopisuje do nich opiekuna.** Do v0.38.5 adres
   zajęty przez konto uczestnika był *dowiązywany*: w profilu ucznia stawał się adresem opiekuna
   szkolnego ten, kto wgrał plik. Przy otwartej rejestracji opiekunów znaczyło to, że każdy mógł
-  dopisać się do dowolnego ucznia znanego z adresu e-mail i zobaczyć jego dane. Od v0.38.6 uczeń
+  dopisać się do dowolnego ucznia znanego z adresu e-mail i zobaczyć jego dane. Od v0.38.7 uczeń
   dostaje zamiast tego **prośbę o zgodę** (``apps.accounts.supervisor_consent``) i dopiero jego
   „Zgadzam się” zapisuje adres. Podgląd mówi o każdym zajętym adresie **jednym** neutralnym
   zdaniem – nie rozróżnia konta ucznia od konta recenzenta czy koordynatora, bo to rozróżnienie
@@ -1270,7 +1270,7 @@ def import_students(
             participant = participants.get(row.email)
             if participant is None:
                 continue
-            # Profilu **nie** nadpisujemy – ani szkoły, ani regionu, ani (od v0.38.6) adresu
+            # Profilu **nie** nadpisujemy – ani szkoły, ani regionu, ani (od v0.38.7) adresu
             # opiekuna. Uczeń dostaje prośbę o zgodę i dopiero jego „Zgadzam się” zapisuje adres
             # (``apps.accounts.supervisor_consent``). Pusty adres w wierszu koordynatora znaczy
             # „bez opiekuna” i **nie** czyści już adresu, który uczeń wpisał sam – do v0.38.5

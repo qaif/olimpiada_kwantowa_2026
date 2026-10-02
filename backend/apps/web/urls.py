@@ -121,7 +121,7 @@ urlpatterns = [
         name="student-invite-done",
     ),
     path("zaproszenie/<str:token>/", invite.StudentInviteView.as_view(), name="student-invite"),
-    # Zgoda ucznia na opiekuna szkolnego, który poprosił o nią importem listy (v0.38.6,
+    # Zgoda ucznia na opiekuna szkolnego, który poprosił o nią importem listy (v0.38.7,
     # ``apps.accounts.supervisor_consent``). Adres polski, bo trafia do listu do ucznia; w odróżnieniu
     # od dwóch wyżej strona wymaga **zalogowania** jako adresat – token sam nie jest uprawnieniem.
     path(
