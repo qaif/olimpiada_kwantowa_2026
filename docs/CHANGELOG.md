@@ -8,6 +8,14 @@ dokładnie jednemu wierszowi tej tabeli.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## v0.39.1 – 2026-10-02 – Formularze pokoi wideo przechodzą CSRF
+
+- **Poprawka:** ekran „Pokoje wideo” i strona linku-zaproszenia miały `Referrer-Policy: no-referrer`,
+  przez co przeglądarka wysyłała formularz z `Origin: null`, a „Utwórz pokój”, „Pokaż linki”
+  i „Dołącz” kończyły się stroną „Formularz wymaga odświeżenia”. Strony z formularzem mają teraz
+  `same-origin`; przekierowanie z przepustką zostaje przy `no-referrer`. Test naśladujący
+  przeglądarkę (CSRF + `Origin`) w `apps/web/tests/test_video_rooms.py`.
+
 ## v0.39.0 – 2026-10-02 – Rozmowy wideo tylko z przepustką platformy (Jitsi JWT)
 
 - **Bezpieczeństwo (decyzja właściciela, „wariant A”):** własne Jitsi (`meet.<domena>`) wpuszcza

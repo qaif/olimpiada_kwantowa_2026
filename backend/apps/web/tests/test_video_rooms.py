@@ -272,7 +272,9 @@ def test_gateway_get_issues_nothing(room):
     assert room.label in response.content.decode()
     assert "jwt" not in response.content.decode()
     assert "no-store" in response["Cache-Control"]
-    assert response["Referrer-Policy"] == "no-referrer"
+    # Strona z formularzem: ``same-origin``, nie ``no-referrer`` – przy tej drugiej przeglądarka
+    # wysyła POST z ``Origin: null`` i formularz „Dołącz” odbija się od CSRF.
+    assert response["Referrer-Policy"] == "same-origin"
     assert not AuditLog.objects.filter(action="video.room_joined").exists()
 
 
@@ -505,3 +507,53 @@ def test_revoked_creator_stops_panel_joins_but_not_gateway_until_closed(jitsi):
     assert "#jwt=" not in panel_join["Location"]
     assert gateway_before.status_code == 302
     assert gateway_after.status_code == 410
+
+
+# --- formularze w prawdziwej przeglądarce (Origin + CSRF) ------------------------------------------
+
+
+def _browser(user=None) -> Client:
+    """Klient zachowujący się jak przeglądarka: sprawdza CSRF i chodzi po HTTPS."""
+    client = Client(enforce_csrf_checks=True)
+    if user is not None:
+        client.force_login(user)
+    return client
+
+
+def _csrf(response) -> str:
+    return response.context["csrf_token"].__str__()
+
+
+def test_rooms_screen_does_not_make_the_browser_send_a_null_origin(jitsi):
+    """Błąd z v0.39.0: ``Referrer-Policy: no-referrer`` na stronie z formularzem = ``Origin: null``
+    przy POST i odmowa CSRF („Formularz wymaga odświeżenia”) na „Utwórz pokój”."""
+    client = _browser(CoordinatorFactory())
+
+    page = client.get(ROOMS, secure=True)
+
+    assert page.status_code == 200
+    assert page["Referrer-Policy"] == "same-origin"
+    created = client.post(
+        ROOMS,
+        {"label": "Zebranie komisji", "validity_days": 7, "csrfmiddlewaretoken": _csrf(page)},
+        secure=True,
+        headers={"origin": "https://testserver"},
+    )
+    assert created.status_code in (200, 302), created.status_code
+    assert VideoRoom.objects.count() == 1
+
+
+def test_a_form_posted_with_a_null_origin_is_refused(jitsi):
+    """Dowód, że to ``Origin: null`` było przyczyną – i że strażnik CSRF dalej działa."""
+    client = _browser(CoordinatorFactory())
+    page = client.get(ROOMS, secure=True)
+
+    refused = client.post(
+        ROOMS,
+        {"label": "Zebranie komisji", "validity_days": 7, "csrfmiddlewaretoken": _csrf(page)},
+        secure=True,
+        headers={"origin": "null"},
+    )
+
+    assert refused.status_code == 403
+    assert VideoRoom.objects.count() == 0
