@@ -128,6 +128,21 @@ def _no_referrer(response):
     return response
 
 
+def _form_page(response):
+    """Strona **z formularzem** (ekran pokoi, bramka linku): ``Referrer-Policy: same-origin``.
+
+    Nie ``no-referrer``: przy tej polityce przeglądarka wysyła formularz POST z nagłówkiem
+    ``Origin: null``, a ``CsrfViewMiddleware`` porównuje ``Origin`` z hostem żądania – każde
+    „Utwórz pokój”, „Pokaż linki” i „Dołącz” kończyło się więc stroną „Formularz wymaga
+    odświeżenia” (błąd z wdrożenia v0.39.0; klient testowy Django nagłówka ``Origin`` nie wysyła,
+    więc testy tego nie widziały). ``same-origin`` zostawia ``Origin`` i ``Referer`` wyłącznie dla
+    naszej domeny, a na zewnątrz – także do Jitsi – nie wychodzi nic, czyli klucz z adresu bramki
+    dalej nie wycieka. Ten sam powód stoi w ``apps.cms.djcms_sso`` przy przekazaniu do django CMS.
+    """
+    response["Referrer-Policy"] = "same-origin"
+    return response
+
+
 def _redirect_to_room(url: str) -> HttpResponseRedirect:
     """302 do pokoju (adres z przepustką we fragmencie)."""
     return _no_referrer(HttpResponseRedirect(url))
@@ -355,7 +370,7 @@ class _RoomsScreen(VideoFeatureMixin, ThrottledFormMixin, View):
             **_rooms_context(rooms, now),
             **self.extra_context(request),
         }
-        return _no_referrer(TemplateResponse(request, self.template_name, context, status=status))
+        return _form_page(TemplateResponse(request, self.template_name, context, status=status))
 
     def get(self, request):
         return self.render(request)
@@ -734,8 +749,10 @@ class VideoGatewayView(VideoFeatureMixin, ThrottledFormMixin, View):
       POST „Dołącz”: przepustka na ``JITSI_JWT_GATEWAY_MINUTES``, moderator wyłącznie z linku
       gospodarza, 302 do pokoju.
 
-    Limit po adresie IP (``video_gateway``) liczy wyłącznie POST. ``never_cache`` i
-    ``Referrer-Policy: no-referrer`` na stronie i na przekierowaniu: adres strony **jest** linkiem.
+    Limit po adresie IP (``video_gateway``) liczy wyłącznie POST. ``never_cache`` na stronie
+    i na przekierowaniu; ``Referrer-Policy``: ``same-origin`` na stronie (formularz – patrz
+    ``_form_page``), ``no-referrer`` na przekierowaniu. Adres strony **jest** linkiem, a przy
+    ``same-origin`` nie wychodzi w ``Referer`` poza naszą domenę.
     """
 
     throttle_scope = "video_gateway"
@@ -755,7 +772,7 @@ class VideoGatewayView(VideoFeatureMixin, ThrottledFormMixin, View):
             "error": error,
             "name_max_length": DISPLAY_NAME_MAX_LENGTH,
         }
-        return _no_referrer(TemplateResponse(request, GATEWAY_TEMPLATE, context, status=status))
+        return _form_page(TemplateResponse(request, GATEWAY_TEMPLATE, context, status=status))
 
     def get(self, request, key: str):
         room, variant = self.resolve(request, key)
