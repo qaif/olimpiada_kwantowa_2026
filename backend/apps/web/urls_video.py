@@ -80,6 +80,17 @@ urlpatterns = [
     # Komisja (recenzent albo komisja odwoławcza tego konkursu). Pod ``/review/``, bo tam jest
     # panel komisji; członek samej komisji odwoławczej przechodzi tę samą bramkę
     # (``CommitteeRequiredMixin``), a wraca do ``/appeals/``.
+    # Komisja prowadzi rozmowy kwalifikacyjne: wejście do pokoju terminu jako gospodarz.
+    path(
+        "review/interview-slots/<int:pk>/join/",
+        video.CommitteeSlotJoinView.as_view(),
+        name="committee-interview-slot-join",
+    ),
+    path(
+        "review/interview-slots/<int:pk>/precheck/",
+        video.CommitteeSlotPrecheckView.as_view(),
+        name="committee-interview-slot-precheck",
+    ),
     path("review/video-rooms/", video.CommitteeVideoRoomsView.as_view(), name="committee-video-rooms"),
     path(
         "review/video-rooms/<int:pk>/links/",

@@ -449,6 +449,11 @@ Dla etapu w formie rozmowy (§ 2.2). Ekran **„Rozmowy kwalifikacyjne: <etap>�
    przepustki nie zadziała; uczestnik, który dzwoni, że nie może wejść, ma zalogować się i kliknąć
    przycisk w panelu. Link wpisany ręcznie przy terminie, prowadzący gdzie indziej (np. BBB uczelni),
    działa jak dawniej.
+   **Rozmowy prowadzi komisja.** Każdy aktywny recenzent i członek komisji odwoławczej tego konkursu ma
+   w swoim panelu kartę „Rozmowy kwalifikacyjne” (terminy z zapisami na dziś i dwa tygodnie naprzód,
+   uczestnicy jako imię i inicjał) z przyciskiem „Dołącz jako gospodarz” — w tym samym oknie czasowym
+   i z tymi samymi prawami, co Ty. Ty nadal możesz wejść do każdego pokoju z ekranu terminów. Komisja
+   nie widzi tu surowych adresów pokoi spoza serwera olimpiady — te przekazujesz jej sam, jak dotąd.
 5. Tabela terminów pokazuje **dane osobowe** zapisanych (kod, imię i nazwisko, e-mail) — to obok podglądu
    wyników jedyny taki ekran w serwisie, stąd odznaka „dane osobowe”.
 6. **Termin da się usunąć tylko dopóki nikt się na niego nie zapisał.**

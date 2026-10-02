@@ -15,7 +15,10 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
   (`room` nigdy `*`), z oknem `nbf`/`exp`, nazwą wyświetlaną (imię i inicjał) i bez e-maila.
   Uczestnik wchodzi przyciskami **„Dołącz do rozmowy”** (od 15 min przed terminem do 60 min po nim)
   i **„Sprawdź kamerę i mikrofon”** w panelu, koordynator – „dołącz jako gospodarz” (moderator) na
-  ekranie terminów. Moderatora nadaje wyłącznie token (`token_affiliation`; jicofo bez
+  ekranie terminów. **Rozmowy prowadzi komisja:** aktywni recenzenci i członkowie komisji odwoławczej
+  konkursu mają w panelu kartę „Rozmowy kwalifikacyjne” (terminy z zapisami na 14 dni, uczestnicy
+  wyłącznie jako imię i inicjał) z „Dołącz jako gospodarz” (`/review/interview-slots/<id>/join/`,
+  to samo okno i te same prawa, co koordynator). Moderatora nadaje wyłącznie token (`token_affiliation`; jicofo bez
   auto-właściciela i bez własnego uwierzytelniania – z nim uczestnik dostawał moderatora). Token we
   fragmencie adresu (`#jwt=`), odpowiedzi `no-store` i `no-referrer`, blok `meet.` w Caddym
   z `Referrer-Policy: no-referrer`. Listy (potwierdzenie, przypomnienie) niosą adres widoku wejścia

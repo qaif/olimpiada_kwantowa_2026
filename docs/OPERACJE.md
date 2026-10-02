@@ -3611,6 +3611,10 @@ linku-zaproszenia – po sprawdzeniu, kto wchodzi i czy wolno mu teraz wejść.
   **Adresu pokoju nie da się już podyktować przez telefon** – bez przepustki nie zadziała.
 - **Koordynator:** na ekranie terminów („Rozmowy”) w kolumnie „Link” jest „dołącz jako gospodarz”
   (moderator) i „test sprzętu”. Ekran „Komunikacja → Pokoje wideo” – pokoje bez terminu (§ 25.8).
+- **Komisja prowadzi rozmowy:** karta „Rozmowy kwalifikacyjne” w panelu recenzenta i komisji
+  odwoławczej (terminy z zapisami na 14 dni, uczestnicy jako imię i inicjał) z „Dołącz jako gospodarz”
+  (`/review/interview-slots/<id>/join/`, okno i prawa jak koordynatora, audyt `interview.joined`
+  z rolą `committee`).
 - **Komisja:** karta „Pokoje wideo komisji” w panelu recenzenta i komisji odwoławczej (pokoje
   udostępnione przez koordynatora); z uprawnieniem od koordynatora – własny ekran
   `/review/video-rooms/`.

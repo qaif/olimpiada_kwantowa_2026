@@ -1,0 +1,56 @@
+{% load web_extras %}{% comment %}
+  Rozmowy kwalifikacyjne do przeprowadzenia przez komisję (v0.39.0) – karta w panelu recenzenta
+  i komisji odwoławczej. Wiersz pokazuje **wyłącznie** to, co członek komisji zobaczy w pokoju:
+  etap, godziny, liczbę osób i imię z inicjałem nazwiska. Bez nazwiska, e-maila, szkoły i kodu
+  publicznego – ta sama komisja ocenia gdzie indziej prace anonimowo.
+
+  „Dołącz jako gospodarz” wystawia przepustkę moderatora w chwili kliknięcia
+  (``committee-interview-slot-join``). Pokój spoza Jitsi olimpiady (link wpisany ręcznie przez
+  koordynatora) nie ma tu odnośnika: adresy takich pokoi komisja dostaje od koordynatora, jak
+  dotąd – ta karta nie poszerza dostępu do surowych adresów.
+
+  Zmienne: ``committee_interviews`` (``interviews.slots_for_committee``).
+{% endcomment %}
+{% if committee_interviews %}
+  <section class="section" aria-labelledby="committee-interviews-title">
+    <div class="section__head">
+      <h2 class="mt-0" id="committee-interviews-title">Rozmowy kwalifikacyjne</h2>
+      <span class="hint">dziś i w najbliższych dwóch tygodniach · czas polski</span>
+    </div>
+    <div class="scroll">
+      <table class="table">
+        <thead>
+          <tr>
+            <th scope="col">Termin</th>
+            <th scope="col">Etap</th>
+            <th scope="col">Uczestnicy</th>
+            <th scope="col"><span class="visually-hidden">Wejście</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in committee_interviews %}
+            <tr>
+              <th scope="row">{{ row.slot.starts_at|local_datetime }}–{{ row.slot.ends_at|time:"H:i" }}
+                {% if row.slot.note %}<br><span class="hint">{{ row.slot.note }}</span>{% endif %}</th>
+              <td>{{ row.stage.display_name }}</td>
+              <td>{{ row.count }}: {{ row.names|join:", " }}</td>
+              <td>
+                {% if row.platform %}
+                  <div class="actions">
+                    <a class="btn btn--primary btn--small" href="{% url 'web:committee-interview-slot-join' row.slot.pk %}"
+                       target="_blank" rel="noopener noreferrer nofollow">Dołącz jako gospodarz</a>
+                    <a class="btn btn--secondary btn--small" href="{% url 'web:committee-interview-slot-precheck' row.slot.pk %}"
+                       target="_blank" rel="noopener noreferrer nofollow">test sprzętu</a>
+                  </div>
+                  {% if not row.is_open %}<span class="hint">pokój otwiera się {{ row.opens_at|local_datetime }}</span>{% endif %}
+                {% else %}
+                  <span class="hint">pokój poza Jitsi olimpiady – adres podaje koordynator</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+{% endif %}

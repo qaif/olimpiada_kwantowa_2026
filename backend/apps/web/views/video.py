@@ -218,16 +218,18 @@ class InterviewPrecheckView(_ParticipantInterviewMixin, View):
         return _redirect_to_room(join_url(test_url, token))
 
 
-# --- koordynator: pokój terminu ------------------------------------------------------------------
+# --- pokój terminu: koordynator i komisja ---------------------------------------------------------
 
 
-class _SlotJoinMixin(CoordinatorRequiredMixin, JoinViewMixin):
-    """Termin **tego** konkursu i jego pokój na naszym Jitsi – inaczej 404.
+class _SlotRoomMixin(JoinViewMixin):
+    """Termin **tego** konkursu i jego pokój na naszym Jitsi – inaczej 404. Wejście jako gospodarz.
 
-    Prawo wejścia jest tym samym prawem, które pokazuje ekran terminów: rolą koordynatora konkursu
-    (``CoordinatorRequiredMixin`` + zawężony queryset). Recenzenci terminów rozmów nie widzą, więc
-    i wejścia z panelu do pokoju rozmowy nie dostają.
+    Wspólne dla koordynatora (ekran terminów) i komisji (panel recenzenta i komisji odwoławczej):
+    rozmowę prowadzi komisja, a koordynator może wejść zawsze. Różni je wyłącznie bramka roli
+    (mixin przed tym w MRO), rola w audycie (``join_role``) i strona powrotu (:meth:`back`).
     """
+
+    join_role = ""
 
     def slot(self, request, pk: int):
         slot = get_object_or_404(
@@ -241,14 +243,11 @@ class _SlotJoinMixin(CoordinatorRequiredMixin, JoinViewMixin):
             raise Http404("Ten termin nie ma pokoju na Jitsi platformy.")
         return slot, url
 
-    def back(self, slot):
-        return redirect(reverse("web:coordinator-stage-interviews", args=[slot.stage_id]))
+    def back(self, slot):  # pragma: no cover - klasa abstrakcyjna
+        raise NotImplementedError
 
-
-class SlotJoinView(_SlotJoinMixin, View):
-    """``GET /coordinator/interview-slots/<id>/join/`` – wejście komisji jako moderator, w oknie terminu."""
-
-    def get(self, request, pk: int):
+    def join(self, request, pk: int):
+        """Przepustka moderatora w oknie terminu (to samo okno, co uczestnika)."""
         slot, url = self.slot(request, pk)
         now = timezone.now()
         opens_at, closes_at = interview_window(slot)
@@ -265,14 +264,11 @@ class SlotJoinView(_SlotJoinMixin, View):
             display_name=short_name(request.user) or "Komisja",
             moderator=True,
         )
-        _audit_join(request.user, slot, role="coordinator", kind="interview", request=request)
+        _audit_join(request.user, slot, role=self.join_role, kind="interview", request=request)
         return _redirect_to_room(join_url(url, token))
 
-
-class SlotPrecheckView(_SlotJoinMixin, View):
-    """``GET /coordinator/interview-slots/<id>/precheck/`` – pokój „na próbę” terminu, bez moderatora."""
-
-    def get(self, request, pk: int):
+    def precheck(self, request, pk: int):
+        """Pokój „na próbę” terminu (``…-test``), krótka przepustka bez moderatora."""
         slot, url = self.slot(request, pk)
         now = timezone.now()
         test_url = f"{url}{PRECHECK_SUFFIX}"
@@ -282,8 +278,31 @@ class SlotPrecheckView(_SlotJoinMixin, View):
             expires_at=now + precheck_lifetime(),
             display_name=short_name(request.user) or "Komisja",
         )
-        _audit_join(request.user, slot, role="coordinator", kind="precheck", request=request)
+        _audit_join(request.user, slot, role=self.join_role, kind="precheck", request=request)
         return _redirect_to_room(join_url(test_url, token))
+
+
+class _SlotJoinMixin(CoordinatorRequiredMixin, _SlotRoomMixin):
+    """Koordynator: prawo z ekranu terminów (rola koordynatora konkursu + zawężony queryset)."""
+
+    join_role = "coordinator"
+
+    def back(self, slot):
+        return redirect(reverse("web:coordinator-stage-interviews", args=[slot.stage_id]))
+
+
+class SlotJoinView(_SlotJoinMixin, View):
+    """``GET /coordinator/interview-slots/<id>/join/`` – koordynator jako moderator, w oknie terminu."""
+
+    def get(self, request, pk: int):
+        return self.join(request, pk)
+
+
+class SlotPrecheckView(_SlotJoinMixin, View):
+    """``GET /coordinator/interview-slots/<id>/precheck/`` – pokój „na próbę” terminu, bez moderatora."""
+
+    def get(self, request, pk: int):
+        return self.precheck(request, pk)
 
 
 # --- pokoje bez terminu: wspólne dla koordynatora i autora ---------------------------------------
@@ -670,6 +689,34 @@ class CommitteeVideoRoomJoinView(CommitteeRequiredMixin, JoinViewMixin, View):
             request=request,
         )
         return _redirect_to_room(url)
+
+
+# --- komisja: pokój terminu rozmowy --------------------------------------------------------------
+
+
+class _CommitteeSlotMixin(CommitteeRequiredMixin, _SlotRoomMixin):
+    """Komisja prowadzi rozmowy (decyzja właściciela z 2.10.2026): każdy aktywny członek komisji
+    **tego** konkursu – recenzent albo komisja odwoławcza – wchodzi do pokoju dowolnego terminu
+    jako gospodarz. Termin innego konkursu – 404 (zawężony queryset), obca rola – 403."""
+
+    join_role = "committee"
+
+    def back(self, slot):
+        return redirect(_committee_home(self.request))
+
+
+class CommitteeSlotJoinView(_CommitteeSlotMixin, View):
+    """``GET /review/interview-slots/<id>/join/`` – członek komisji wchodzi na rozmowę jako moderator."""
+
+    def get(self, request, pk: int):
+        return self.join(request, pk)
+
+
+class CommitteeSlotPrecheckView(_CommitteeSlotMixin, View):
+    """``GET /review/interview-slots/<id>/precheck/`` – próba sprzętu członka komisji."""
+
+    def get(self, request, pk: int):
+        return self.precheck(request, pk)
 
 
 # --- bramka linku-zaproszenia (bez konta) ---------------------------------------------------------

@@ -497,6 +497,72 @@ def slots_for_coordinator(stage: Stage) -> list[InterviewSlot]:
     return list(_slots_with_counts(stage).prefetch_related(Prefetch("bookings", queryset=bookings)))
 
 
+#: Ile dni naprzód sięga lista rozmów w panelu komisji i ile terminów najwyżej pokazuje. Panel
+#: odpowiada na pytanie „które rozmowy prowadzę teraz i wkrótce”, a nie jest kalendarzem edycji –
+#: pełną listę ma koordynator. Dwa tygodnie i pięćdziesiąt terminów to więcej, niż komisja
+#: przeprowadzi w tym czasie, więc ucięcie niczego realnie nie chowa.
+COMMITTEE_SLOTS_DAYS = 14
+COMMITTEE_SLOTS_LIMIT = 50
+
+
+def slots_for_committee(competition, now=None) -> list[dict]:
+    """Terminy rozmów do przeprowadzenia przez komisję: z zapisami, których okno wejścia trwa albo nadejdzie.
+
+    Rozmowę prowadzi **komisja** (decyzja właściciela z 2.10.2026), a do v0.39.0 terminy widział
+    wyłącznie koordynator – przy zamkniętym Jitsi komisja nie miałaby jak wejść. Wiersz niesie
+    **wyłącznie** to, co członek komisji i tak zobaczy w pokoju: nazwę etapu, godziny, liczbę osób
+    i ich imiona z inicjałem nazwiska (``jitsi_jwt.short_name`` – dokładnie nazwa z przepustki).
+    Bez nazwiska, e-maila, szkoły i kodu publicznego: ta sama komisja ocenia gdzie indziej prace
+    **anonimowo**, więc lista rozmów nie może być kluczem do tamtej anonimowości.
+
+    Zakres: terminy etapów w formie rozmowy **tego** konkursu (``for_competition``), z co najmniej
+    jednym zapisem uczestnika niezdyskwalifikowanego, kończące się (z zapasem ``GRACE``) nie
+    wcześniej niż teraz i zaczynające się w ciągu :data:`COMMITTEE_SLOTS_DAYS` dni; najwyżej
+    :data:`COMMITTEE_SLOTS_LIMIT` terminów, po godzinie rozpoczęcia. Trzy zapytania niezależnie od
+    liczby terminów (terminy z etapem, zapisy z kontem uczestnika).
+    """
+    from .jitsi_jwt import grace, interview_window, is_platform_room, short_name
+    from .models import StageFormat
+    from .video import slot_meeting_url
+
+    now = now or timezone.now()
+    active = InterviewBooking.objects.exclude(entry__status=StageEntryStatus.DISQUALIFIED)
+    slots = list(
+        InterviewSlot.objects.for_competition(competition)
+        .filter(
+            stage__format=StageFormat.INTERVIEW,
+            ends_at__gt=now - grace(),
+            starts_at__lt=now + timedelta(days=COMMITTEE_SLOTS_DAYS),
+            bookings__in=active,
+        )
+        .distinct()
+        .select_related("stage")
+        .prefetch_related(
+            Prefetch(
+                "bookings",
+                queryset=active.select_related("entry__participant__user").order_by("created_at", "id"),
+            )
+        )
+        .order_by("starts_at", "id")[:COMMITTEE_SLOTS_LIMIT]
+    )
+    rows = []
+    for slot in slots:
+        opens_at, closes_at = interview_window(slot)
+        bookings = list(slot.bookings.all())
+        rows.append(
+            {
+                "slot": slot,
+                "stage": slot.stage,
+                "count": len(bookings),
+                "names": [short_name(booking.entry.participant.user) or "—" for booking in bookings],
+                "platform": is_platform_room(slot_meeting_url(slot)),
+                "opens_at": opens_at,
+                "is_open": opens_at <= now < closes_at,
+            }
+        )
+    return rows
+
+
 def booking_for_participant(stage: Stage, participant) -> InterviewBooking | None:
     """Zapis uczestnika w tym etapie albo ``None`` – do karty „Rozmowa kwalifikacyjna”."""
     return (

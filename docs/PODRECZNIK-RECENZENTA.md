@@ -299,10 +299,27 @@ kolejce pojawia się marker. Koordynator rozstrzyga sprawę albo odbiera Ci prac
 
 ---
 
-## 9a. Pokoje wideo komisji
+## 9a. Rozmowy kwalifikacyjne – prowadzi je komisja
 
-Jeśli olimpiada ma własny serwer wideo (`meet.<domena>`), w kolejce `/review/` (i w panelu komisji
-odwoławczej `/appeals/`) może pojawić się karta **„Pokoje wideo komisji”** — pokoje, które koordynator
+Jeśli olimpiada prowadzi rozmowy na własnym serwerze wideo (`meet.<domena>`), w kolejce `/review/`
+(i w panelu komisji odwoławczej `/appeals/`) jest karta **„Rozmowy kwalifikacyjne”**: terminy z zapisami
+na dziś i najbliższe dwa tygodnie, godziny (czas polski), etap i zapisani uczestnicy — **wyłącznie imię
+i inicjał nazwiska**, tak jak zobaczysz ich w pokoju (bez nazwiska, e-maila, szkoły i kodu: prace
+oceniasz anonimowo i ta lista nie może tego zmieniać).
+
+- **„Dołącz jako gospodarz”** — działa od 15 minut przed terminem do godziny po jego końcu i wpuszcza
+  Cię z prawami moderatora (wyciszanie, poczekalnia, usuwanie z pokoju). Kliknięte wcześniej wraca do
+  panelu z godziną otwarcia pokoju. Uczestnik wchodzi bez tych praw.
+- **„test sprzętu”** — pusty pokój „na próbę”, dostępny wcześniej.
+- Pokój poza serwerem olimpiady (np. BBB uczelni wpisane przez koordynatora) stoi na liście bez
+  odnośnika — adres takiego pokoju podaje koordynator.
+
+Do pokoju nie da się wejść samym adresem — zawsze przez ten przycisk, po zalogowaniu. Po zerwaniu
+połączenia kliknij go jeszcze raz.
+
+## 9b. Pokoje wideo komisji
+
+Obok może pojawić się karta **„Pokoje wideo komisji”** — pokoje, które koordynator
 udostępnił komisji (np. narada przed ogłoszeniem wyników). Przy każdym jest przycisk **„Dołącz”**:
 kliknięcie wystawia przepustkę na kilka godzin i otwiera pokój w nowej karcie. Nie musisz trzymać ani
 przekazywać żadnego linku; wejście działa, dopóki pokój jest ważny i koordynator go nie zamknie.

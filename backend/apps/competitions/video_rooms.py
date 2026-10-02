@@ -526,7 +526,15 @@ def committee_rooms_context(user, competition) -> dict:
     gdy przepustki są wyłączone – panele mają wtedy co do zapytania ten sam budżet, co przed v0.39.0."""
     if not jwt_enabled():
         return {}
+    from .interviews import slots_for_committee
+
+    if committee_member(user, competition) is None:
+        return {}
     return {
         "committee_rooms": rooms_for_committee(user, competition),
         "video_room_issuer": room_issuer(user, competition) is not None,
+        # Rozmowy kwalifikacyjne prowadzi komisja (v0.39.0): terminy z zapisami, bez danych ponad
+        # to, co widać w pokoju (``interviews.slots_for_committee``). Tylko przy przepustkach – bez
+        # nich komisja dostaje adresy pokoi od koordynatora, jak przed tą wersją.
+        "committee_interviews": slots_for_committee(competition) if competition is not None else [],
     }
