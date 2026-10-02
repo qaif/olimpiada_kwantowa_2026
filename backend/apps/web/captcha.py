@@ -143,6 +143,25 @@ def elapsed_seconds(signed: str) -> int | None:
         return None
 
 
+def captcha_pair_is_valid(key: str, value: str) -> bool:
+    """Para (klucz wyzwania, odpowiedź) z JSON-a API – sprawdzona **tym samym** polem, co formularz.
+
+    Rejestracja przez ``POST /api/auth/register/…`` nie ma strony z formularzem, więc pułapki
+    i podpisanego znacznika czasu (warstwy 2 i 3) nie da się tam postawić – zostaje warstwa 1,
+    i to ona musi być prawdziwa (pakiet 5 po audycie: do tej zmiany JSON omijał wszystkie trzy).
+    Nie przepisujemy logiki ``django-simple-captcha``: woła ją ``CaptchaField.clean``, więc
+    obowiązuje dokładnie to samo, co w formularzu – wyzwanie z ``CaptchaStore``, nieprzeterminowane,
+    **kasowane przy każdej próbie** (także nieudanej, więc jednej pary nie da się zgadywać), a tryb
+    testowy (``CAPTCHA_TEST_MODE``: odpowiedź ``PASSED``) działa wyłącznie tam, gdzie działa
+    w formularzu – w testach i przy ``E2E_MODE`` (SECURITY_CHECKLIST 8.1.6).
+    """
+    try:
+        CaptchaField().clean([str(key or ""), str(value or "")])
+    except forms.ValidationError:
+        return False
+    return True
+
+
 class CaptchaFormMixin(forms.Form):
     """Dokłada formularzowi CAPTCHĘ, pułapkę i próg czasu. Pierwszy na liście baz.
 

@@ -355,3 +355,35 @@ def test_the_profile_endpoint_exposes_the_phone(participant):
     body = api.get("/api/auth/me/").json()
 
     assert body["participant"]["phone"] == participant.phone
+
+
+@pytest.mark.parametrize("name", ["Organizator · Anna", "Anna•Nowak", "Jan・Kowalski"])
+def test_names_with_a_middle_dot_are_refused_on_every_participant_form(name):
+    """Pakiet 5, E16: separator roli z czatu („Organizator · …”) nie daje się wpisać w imię."""
+    from django.core.exceptions import ValidationError
+
+    from apps.web.forms import (
+        AccountNamesForm,
+        CommitteeRegisterForm,
+        ParticipantProfileForm,
+        ParticipantRegisterForm,
+        SocialParticipantSignupForm,
+    )
+
+    assert not AccountNamesForm(data={"first_name": name, "last_name": "Nowak"}).is_valid()
+    assert not AccountNamesForm(data={"first_name": "Anna", "last_name": name}).is_valid()
+    for form_class in (
+        ParticipantRegisterForm,
+        SocialParticipantSignupForm,
+        CommitteeRegisterForm,
+        ParticipantProfileForm,
+    ):
+        for field in ("first_name", "last_name"):
+            with pytest.raises(ValidationError):
+                form_class.base_fields[field].clean(name)
+
+
+def test_an_ordinary_polish_name_still_passes():
+    from apps.web.forms import AccountNamesForm
+
+    assert AccountNamesForm(data={"first_name": "Żaneta-Łucja", "last_name": "O'Brien Śląska"}).is_valid()

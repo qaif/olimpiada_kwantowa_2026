@@ -222,8 +222,16 @@ class PasswordResetConfirmView(DjangoPasswordResetConfirmView):
     post_reset_login = False
 
     def form_valid(self, form):
+        # Import lokalny: zmiana dotyczy wyłącznie tej klasy (pakiet 5 po audycie).
+        from rest_framework.authtoken.models import Token
+
         response = super().form_valid(form)
         user = form.user
+        # Token API nie ma w sobie skrótu hasła, więc – inaczej niż sesje, które Django unieważnia
+        # przez ``get_session_auth_hash`` – przeżyłby reset. Reset jest zwykle odpowiedzią na
+        # „ktoś zna moje hasło”, a wtedy wykradziony token byłby furtką, której zmiana hasła nie
+        # zamyka. Klient API loguje się po resecie od nowa i dostaje nowy token.
+        Token.objects.filter(user=user).delete()
         # Kto zapomniał hasła, zwykle najpierw wyczerpał limit logowania zgadywaniem. Bez tego
         # zerowania reset „działałby”, a zaraz po nim logowanie odbijałoby się o 429.
         reset_for_identity("login", self.request, user.email)

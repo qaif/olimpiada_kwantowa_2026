@@ -26,6 +26,7 @@ from apps.accounts.services import (
 )
 from apps.core.models import AuditLog
 
+from .conftest import api_captcha_fields
 from .factories import ParticipantFactory, activate
 
 REGISTER_URL = "/api/auth/register/participant/"
@@ -46,6 +47,7 @@ def payload(**overrides) -> dict:
         "phone": "600 100 200",
         "terms_consent": True,
         "gdpr_consent": True,
+        **api_captcha_fields(),
     }
     data.update(overrides)
     return data

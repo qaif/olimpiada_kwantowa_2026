@@ -194,6 +194,38 @@ def test_unchecking_the_active_box_blocks_the_login_without_deleting_anything(
     assert Participant.objects.filter(pk=participant.pk).exists()
 
 
+def test_blocking_an_account_revokes_its_api_token(web_client, coordinator, participant):
+    """Pakiet 5, A5: po odblokowaniu stary (może wyniesiony) token nie może znowu zadziałać."""
+    from rest_framework.authtoken.models import Token
+    from rest_framework.test import APIClient
+
+    old = Token.objects.create(user=participant.user)
+    web_client.force_login(coordinator)
+
+    web_client.post(
+        edit_url(participant.user),
+        {
+            **account_fields(participant.user, **{"account-is_active": ""}),
+            **participant_fields(participant),
+        },
+    )
+    assert not Token.objects.filter(user=participant.user).exists()
+
+    participant.user.refresh_from_db()
+    web_client.post(
+        edit_url(participant.user),
+        {
+            **account_fields(participant.user, **{"account-is_active": "on"}),
+            **participant_fields(participant),
+        },
+    )
+    participant.user.refresh_from_db()
+    assert participant.user.is_active is True
+    api = APIClient()
+    api.credentials(HTTP_AUTHORIZATION=f"Token {old.key}")
+    assert api.get("/api/auth/me/").status_code == 401
+
+
 def test_the_email_changes_at_once_and_allauth_forgets_the_old_address(web_client, coordinator, participant):
     from allauth.account.models import EmailAddress
 

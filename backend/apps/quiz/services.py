@@ -31,7 +31,7 @@ from django.db.models import Prefetch
 from django.utils import timezone
 from rest_framework import status as http
 
-from apps.competitions.models import Stage, StageEntry, StageFormat
+from apps.competitions.models import Stage, StageEntry, StageEntryStatus, StageFormat
 from apps.core.api import DomainError
 from apps.core.models import audit
 from apps.core.points import POINTS_QUANTUM, WHOLE_POINTS, points_csv, round_points
@@ -87,6 +87,43 @@ def _conflict(detail: str, code: str) -> DomainError:
     zawodów: test zamknięty, podejścia wyczerpane, czas minął, arkusz zamrożony podejściami.
     """
     return DomainError(detail, code, http.HTTP_409_CONFLICT)
+
+
+def _assert_entry_not_disqualified(entry_id: int) -> None:
+    """Zdyskwalifikowany wpis nie rozpoczyna podejścia i nie zapisuje odpowiedzi (pakiet 5).
+
+    Ta sama reguła, co przy wysyłce pliku (``apps.submissions.services._locked_entry`` –
+    ``ENTRY_DISQUALIFIED``), w stylu tego modułu: konflikt ze stanem zawodów, 409. Status czytamy
+    z bazy, a nie z obiektu wołającego – dyskwalifikacja w trakcie podejścia ma działać od
+    następnego autozapisu, a nie od następnego wejścia na stronę.
+    """
+    status = StageEntry.objects.filter(pk=entry_id).values_list("status", flat=True).first()
+    if status == StageEntryStatus.DISQUALIFIED:
+        raise _conflict("Wpis do etapu jest zdyskwalifikowany.", "ENTRY_DISQUALIFIED")
+
+
+def _lock_attempt(attempt: QuizAttempt) -> None:
+    """Blokuje wiersz podejścia i odświeża **ten sam** obiekt jego bieżącym stanem (pakiet 5).
+
+    Woła się wyłącznie wewnątrz transakcji. Autozapis, „Zakończ” i domknięcie po terminie biegną
+    równolegle (karta z autozapisem co 20 s, drugi przycisk, ``finalise_overdue`` z ekranu
+    koordynatora), a każda z tych dróg decydowała na podstawie stanu wczytanego **przed**
+    transakcją: autozapis, który przeczytał „w trakcie” tuż przed oceną, dopisywał odpowiedzi do
+    podejścia już ocenionego – punkty liczyły się ze starych odpowiedzi, a eksport pokazywał nowe.
+    Po blokadzie decyzja zapada na stanie, którego nikt inny nie zmieni do końca transakcji.
+
+    Obiekt jest odświeżany w miejscu (``refresh_from_db``), a nie podmieniany, bo wołający
+    (widoki) po powrocie czytają ``attempt.is_open`` z instancji, którą przekazali. Odświeżamy
+    wyłącznie pola własne podejścia: pełne ``refresh_from_db`` zrzuca też zapamiętane relacje
+    (``attempt.quiz``, ``attempt.entry``), a wołający bywa właścicielem tych obiektów i oczekuje,
+    że podejście dalej na nie wskazuje.
+    """
+    own_fields = [
+        field.attname
+        for field in QuizAttempt._meta.concrete_fields
+        if not field.is_relation and not field.primary_key
+    ]
+    attempt.refresh_from_db(fields=own_fields, from_queryset=QuizAttempt.objects.select_for_update())
 
 
 # --- edytor testu -----------------------------------------------------------------------------
@@ -358,6 +395,9 @@ def start_attempt(*, quiz: Quiz, entry: StageEntry, now=None, request=None) -> Q
     stronę startową z licznikiem, który dawno minął.
     """
     now = now or timezone.now()
+    # Dyskwalifikacja przed wszystkim innym, także przed powrotem do trwającego podejścia: żadna
+    # z dalszych odpowiedzi („test zamknięty”, „limit podejść”) nie jest dla tej osoby prawdziwa.
+    _assert_entry_not_disqualified(entry.pk)
     questions = _questions_with_options(quiz)
     if not questions:
         raise _conflict("Ten test nie ma jeszcze pytań.", "QUIZ_EMPTY")
@@ -464,36 +504,53 @@ def save_answers(*, attempt: QuizAttempt, answers: dict, now=None) -> int:
     funkcja była jedną transakcją, wyjątek rzucony po ``expire_attempt`` wycofałby także jego
     zapis – podejście zostałoby „w trakcie” na zawsze, a razem z nim wynik, którego nikt by nie
     policzył. To jest ten rzadki przypadek, w którym skutek uboczny **musi** przeżyć błąd.
+
+    Decyzja „czy jeszcze wolno” zapada **pod blokadą wiersza podejścia** (``_lock_attempt``,
+    pakiet 5), w tej samej transakcji co zapis: stan wczytany przez widok przed transakcją bywa
+    nieaktualny, gdy równolegle biegnie „Zakończ” albo domknięcie po terminie. Gdy po blokadzie
+    okaże się, że czas minął, transakcja zapisu kończy się bez zapisu, a domknięcie
+    (``expire_attempt``) idzie – jak dotąd – **po** niej, we własnej transakcji, i przeżywa
+    rzucony potem wyjątek.
     """
     now = now or timezone.now()
-    if not attempt.accepts_answers_at(now):
+    saved = 0
+    with transaction.atomic():
+        _lock_attempt(attempt)
+        _assert_entry_not_disqualified(attempt.entry_id)
+        accepts = attempt.accepts_answers_at(now)
+        if accepts:
+            saved = _write_answers(attempt, answers)
+    if not accepts:
         if attempt.is_open:
             expire_attempt(attempt, now=now)
         raise _conflict("Czas na rozwiązanie testu minął.", "QUIZ_ATTEMPT_EXPIRED")
+    return saved
 
+
+def _write_answers(attempt: QuizAttempt, answers: dict) -> int:
+    """Zapis odpowiedzi podejścia – wołany wyłącznie z ``save_answers``, pod blokadą wiersza."""
     questions = {question.pk: question for question in attempt_questions(attempt)}
     saved = 0
-    with transaction.atomic():
-        for raw_id, payload in (answers or {}).items():
-            try:
-                question_id = int(raw_id)
-            except TypeError, ValueError:
-                continue
-            question = questions.get(question_id)
-            if question is None:
-                # Odpowiedź na pytanie spoza **własnego** wylosowanego zestawu. Cicho pomijana,
-                # a nie odrzucana z błędem: wylosowany zestaw jest po stronie serwera i nie ma
-                # powodu informować nadawcy, czy takie pytanie w ogóle istnieje.
-                continue
-            cleaned = _clean_payload(question, payload)
-            QuizAnswer.objects.update_or_create(
-                attempt=attempt,
-                question=question,
-                # Nadpisanie zeruje werdykt: odpowiedź zmieniona po ocenie (zdarza się przy
-                # przeliczaniu w trakcie) nie może zostawić po sobie punktów za poprzednią treść.
-                defaults={"payload": cleaned, "is_correct": None, "points_awarded": None},
-            )
-            saved += 1
+    for raw_id, payload in (answers or {}).items():
+        try:
+            question_id = int(raw_id)
+        except TypeError, ValueError:
+            continue
+        question = questions.get(question_id)
+        if question is None:
+            # Odpowiedź na pytanie spoza **własnego** wylosowanego zestawu. Cicho pomijana,
+            # a nie odrzucana z błędem: wylosowany zestaw jest po stronie serwera i nie ma
+            # powodu informować nadawcy, czy takie pytanie w ogóle istnieje.
+            continue
+        cleaned = _clean_payload(question, payload)
+        QuizAnswer.objects.update_or_create(
+            attempt=attempt,
+            question=question,
+            # Nadpisanie zeruje werdykt: odpowiedź zmieniona po ocenie (zdarza się przy
+            # przeliczaniu w trakcie) nie może zostawić po sobie punktów za poprzednią treść.
+            defaults={"payload": cleaned, "is_correct": None, "points_awarded": None},
+        )
+        saved += 1
     return saved
 
 
@@ -526,8 +583,12 @@ def submit_attempt(*, attempt: QuizAttempt, now=None) -> QuizAttempt:
     Idempotentne: ponowne wysłanie tego samego formularza (podwójne kliknięcie, przycisk „wstecz”
     i jeszcze raz „Zakończ”) oddaje podejście już zakończone, zamiast rzucać błędem w twarz komuś,
     kto właśnie skończył zawody.
+
+    Stan sprawdzany pod blokadą wiersza (``_lock_attempt``): dwa równoległe „Zakończ” albo
+    „Zakończ” razem z domknięciem po terminie nie ocenią podejścia dwa razy z dwóch różnych stanów.
     """
     now = now or timezone.now()
+    _lock_attempt(attempt)
     if not attempt.is_open:
         return attempt
     if not attempt.accepts_answers_at(now):
@@ -547,8 +608,12 @@ def expire_attempt(attempt: QuizAttempt, *, now=None) -> QuizAttempt:
     ``submitted_at`` dostaje **termin podejścia**, a nie chwilę obecną. Ta data jest odpowiedzią
     na pytanie „kiedy przestał pisać”, a nie „kiedy serwer to zauważył”; ta druga bywa o dobę
     późniejsza, bo podejście porzucone domyka się dopiero przy przeliczaniu wyników.
+
+    Pod blokadą wiersza (``_lock_attempt``) – podejście zakończone chwilę wcześniej przez
+    „Zakończ” nie zostanie tu przestemplowane na „przeterminowane”.
     """
     now = now or timezone.now()
+    _lock_attempt(attempt)
     if not attempt.is_open:
         return attempt
     attempt.status = AttemptStatus.EXPIRED

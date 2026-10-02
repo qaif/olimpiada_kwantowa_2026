@@ -226,6 +226,62 @@ def test_the_registration_form_shows_the_text_from_the_definitions(client_for, c
     assert "Akceptuję" in str(form.fields["terms_consent"].label)
 
 
+HOSTILE_TEXT = 'Akceptuję {link} <img src=x onerror="alert(1)"> & <script>zle()</script>.'
+
+
+def test_a_definition_text_is_data_and_only_the_document_link_is_markup(client_for, competition):
+    """Pakiet 5, C9: tekst zgody z panelu nie jest zaufanym HTML-em – na żadnej powierzchni.
+
+    ``format_html(consent.text, …)`` ufał pierwszemu argumentowi, więc znacznik wpisany
+    w ``ConsentDefinition.text`` trafiał dosłownie na publiczny formularz rejestracji (formularz
+    wypełniają osoby niepełnoletnie). Odnośnik do dokumentu ma przy tym zostać prawdziwym ``<a>``.
+    """
+    from apps.competitions.tests.factories import CurrentEditionFactory
+
+    enable_flag(competition)
+    ConsentDefinition.objects.for_competition(competition).filter(kind=ConsentKind.TERMS).update(
+        text=HOSTILE_TEXT
+    )
+    # Otwarta rejestracja – inaczej strona pokazuje powód zamiast formularza i etykiety nie ma w HTML-u.
+    CurrentEditionFactory(competition=competition)
+    client = client_for(competition)
+
+    form = client.get("/register/").context["form"]
+    label = str(form.fields["terms_consent"].label)
+    page = client.get("/register/").content.decode()
+    api_label = next(
+        row for row in client.get("/api/auth/consents/").json() if row["kind"] == ConsentKind.TERMS
+    )["label"]
+
+    for html in (label, page, api_label):
+        assert "<img src=x" not in html
+        assert "<script>zle()" not in html
+        assert "&lt;img src=x" in html
+    assert '<a href="' in label and 'target="_blank"' in label
+    assert '<a href="' in api_label
+    # ``&`` z treści wychodzi jako jedna encja, a nie podwójnie zescapowane ``&amp;amp;``.
+    assert "&amp; &lt;script&gt;" in label
+
+
+def test_the_participant_consent_rows_carry_an_escaped_label(competition):
+    """Wiersze zakładki zgód (``_consent_rows``) składają etykietę tym samym ``consents.label``.
+
+    Szablon zakładki pokazuje dziś samą nazwę rodzaju (``row.name``), ale etykieta jest w danych
+    wiersza – gdy ktoś ją kiedyś wyrenderuje, ma już być bezpieczna.
+    """
+    from apps.web.views.participant import _consent_rows
+
+    enable_flag(competition)
+    ConsentDefinition.objects.for_competition(competition).filter(kind=ConsentKind.TERMS).update(
+        text=HOSTILE_TEXT
+    )
+
+    rows = {row["kind"]: str(row["label"]) for row in _consent_rows([], competition)}
+
+    assert "<img" not in rows[ConsentKind.TERMS]
+    assert "&lt;img" in rows[ConsentKind.TERMS]
+
+
 # --- izolacja -------------------------------------------------------------------------------------
 
 

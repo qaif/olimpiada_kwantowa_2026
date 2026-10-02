@@ -176,7 +176,112 @@ def test_network_error_is_recorded_not_raised(endpoint):
         assert attempt_delivery(delivery) is False
 
     delivery.refresh_from_db()
-    assert "ConnectionError" in delivery.last_error
+    assert delivery.last_error == "ConnectionError"
+    # Pakiet 5: treść wyjątku (host, port, powód odmowy) nie trafia do panelu.
+    assert "brak trasy" not in delivery.last_error
+
+
+# --- SSRF: dokąd worker nie może wysłać żądania (pakiet 5 po audycie) -----------------------------
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://127.0.0.1/hook",
+        "https://10.0.0.5/hook",
+        "https://172.30.1.4:8000/hook",
+        "https://169.254.169.254/latest/meta-data/",
+        "https://[::1]/hook",
+        "https://[::ffff:10.0.0.1]/hook",
+        "https://[fd00::1]/hook",
+        "https://db/hook",
+        "https://minio:9000/hook",
+        "https://web:8000/internal/",
+        "https://localhost/hook",
+        "https://api.localhost/hook",
+    ],
+)
+def test_internal_targets_are_refused_when_the_endpoint_is_saved(url):
+    with pytest.raises(DomainError) as exc:
+        create_endpoint(url=url, events=[EVENT_STAGE_CLOSED])
+    assert exc.value.machine_code == "INVALID_WEBHOOK"
+    assert not WebhookEndpoint.objects.exists()
+
+
+def test_a_public_ip_literal_is_still_accepted():
+    create_endpoint(url="https://93.184.215.14/hook", events=[EVENT_STAGE_CLOSED])
+
+
+@pytest.mark.parametrize(
+    "resolved",
+    [
+        ["10.1.2.3"],
+        ["172.30.2.10"],
+        ["93.184.215.14", "127.0.0.1"],
+        ["93.184.215.14", "fe80::1"],
+        ["169.254.169.254"],
+    ],
+)
+def test_delivery_is_refused_when_any_resolved_address_is_internal(endpoint, monkeypatch, resolved):
+    """Nazwa „publiczna” rozwiązana na adres wewnętrzny – żądanie w ogóle nie wychodzi."""
+    import ipaddress
+
+    from apps.integrations.targets import REFUSED_ADDRESS
+
+    monkeypatch.setattr(
+        "apps.integrations.targets.resolve", lambda host, port: [ipaddress.ip_address(a) for a in resolved]
+    )
+    delivery = WebhookDelivery.objects.create(endpoint=endpoint, event=EVENT_STAGE_CLOSED, payload={})
+
+    with patch("requests.post") as mocked:
+        assert attempt_delivery(delivery) is False
+        assert not mocked.called
+
+    delivery.refresh_from_db()
+    assert delivery.last_error == REFUSED_ADDRESS
+    assert endpoint.url not in delivery.last_error
+
+
+def test_endpoint_saved_before_the_rule_is_refused_at_delivery(endpoint):
+    """Wiersz zapisany z pominięciem ``full_clean`` (np. sprzed tej zmiany) nie omija reguły."""
+    WebhookEndpoint.objects.filter(pk=endpoint.pk).update(url="https://redis:6379/")
+    endpoint.refresh_from_db()
+    delivery = WebhookDelivery.objects.create(endpoint=endpoint, event=EVENT_STAGE_CLOSED, payload={})
+
+    with patch("requests.post") as mocked:
+        assert attempt_delivery(delivery) is False
+        assert not mocked.called
+
+
+def test_unresolvable_name_is_a_generic_failure(endpoint, monkeypatch):
+    import socket
+
+    from apps.integrations.targets import UNRESOLVED_ADDRESS
+
+    def no_such_host(host, port):
+        raise socket.gaierror("Name or service not known: partner.example.test")
+
+    monkeypatch.setattr("apps.integrations.targets.resolve", no_such_host)
+    delivery = WebhookDelivery.objects.create(endpoint=endpoint, event=EVENT_STAGE_CLOSED, payload={})
+
+    with patch("requests.post") as mocked:
+        attempt_delivery(delivery)
+        assert not mocked.called
+
+    delivery.refresh_from_db()
+    assert delivery.last_error == UNRESOLVED_ADDRESS
+
+
+def test_redirects_are_not_followed(endpoint):
+    """3xx to porażka doręczenia, a nie zaproszenie pod niesprawdzony adres."""
+    delivery = WebhookDelivery.objects.create(endpoint=endpoint, event=EVENT_STAGE_CLOSED, payload={})
+
+    with _post(302) as mocked:
+        assert attempt_delivery(delivery) is False
+
+    assert mocked.call_args.kwargs["allow_redirects"] is False
+    delivery.refresh_from_db()
+    assert delivery.last_error == "HTTP 302"
 
 
 def test_endpoint_is_disabled_after_too_many_failures(endpoint):

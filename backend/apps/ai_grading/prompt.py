@@ -291,7 +291,9 @@ def notebook_text(raw: bytes) -> str:
     """
     try:
         document = json.loads(raw.decode("utf-8", errors="replace"))
-    except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+    except (json.JSONDecodeError, UnicodeDecodeError, RecursionError) as exc:
+        # ``RecursionError`` – zbyt głęboko zagnieżdżony JSON (pakiet 5); ten sam stan, co plik
+        # nieczytelny, a nie awaria zadania oceny.
         raise MaterialError("unreadable", "Notatnika nie da się odczytać jako JSON.") from exc
     if not isinstance(document, dict):
         raise MaterialError("unreadable", "Notatnika nie da się odczytać jako JSON.")

@@ -45,6 +45,7 @@ from apps.accounts.profile import anonymise_account, update_participant_profile
 from apps.core.models import AuditLog
 from apps.results.services import _is_adult
 
+from .conftest import api_captcha_fields
 from .factories import ParticipantFactory, UserFactory
 
 pytestmark = pytest.mark.django_db
@@ -217,6 +218,7 @@ def api_payload(**overrides) -> dict:
         "phone": "600 100 200",
         "terms_consent": True,
         "gdpr_consent": True,
+        **api_captcha_fields(),
     }
     data.update(overrides)
     return data

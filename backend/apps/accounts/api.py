@@ -9,6 +9,7 @@ from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.authtoken.models import Token
 from rest_framework.generics import GenericAPIView
+from rest_framework.parsers import JSONParser
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
@@ -42,7 +43,7 @@ from .services import (
 
 
 class RegisterParticipantView(GenericAPIView):
-    """Rejestracja otwarta uczestnika."""
+    """Rejestracja otwarta uczestnika. Wymaga pary CAPTCHY (``serializers.CaptchaPairMixin``)."""
 
     authentication_classes: list = []
     permission_classes = [AllowAny]
@@ -79,7 +80,7 @@ class ConsentSetView(GenericAPIView):
 
 
 class RegisterCommitteeView(GenericAPIView):
-    """Rejestracja członka komitetu na kod zaproszenia."""
+    """Rejestracja członka komitetu na kod zaproszenia. Wymaga pary CAPTCHY, jak uczestnik."""
 
     authentication_classes: list = []
     permission_classes = [AllowAny]
@@ -96,10 +97,22 @@ class RegisterCommitteeView(GenericAPIView):
 
 
 class LoginView(GenericAPIView):
-    """Logowanie: token DRF + sesja."""
+    """Logowanie: token DRF + sesja.
+
+    **Wyłącznie JSON** (``parser_classes``; pakiet 5 po audycie). Widok DRF nie sprawdza CSRF dla
+    niezalogowanego żądania, a kończy się ``django.contrib.auth.login()`` – czyli ustawia ciasteczko
+    sesji. Z parserami domyślnymi przyjmował też ``application/x-www-form-urlencoded``
+    i ``multipart/form-data``, a takie żądanie wysyła **zwykły formularz z obcej strony**, bez
+    zgody przeglądarki: napastnik logował przeglądarkę ofiary na **własne** konto (login CSRF)
+    i czekał, aż ofiara wpisze tam swoje dane albo wgra pracę. ``application/json`` z obcego
+    pochodzenia wymaga preflightu CORS, którego serwis nie przepuszcza – formularz HTML tego typu
+    treści wysłać nie umie. Inny typ treści dostaje ``415 UNSUPPORTED_MEDIA_TYPE``, zanim
+    cokolwiek zostanie sprawdzone. Formularz ``/login/`` (HTML) ma własny widok z CSRF.
+    """
 
     permission_classes = [AllowAny]
     serializer_class = LoginSerializer
+    parser_classes = [JSONParser]
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = "login"
 

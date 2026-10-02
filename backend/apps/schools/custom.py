@@ -35,7 +35,7 @@ from apps.core.models import audit
 from apps.core.text import fold
 
 from .models import InstitutionType
-from .normalise import DISTRICT_SEPARATOR, derived_fields
+from .normalise import DISTRICT_SEPARATOR, MAX_SEARCH_QUERY_LENGTH, derived_fields, search_tokens
 
 #: Ile wierszy przyjmujemy z jednego pliku (§ 1.3.3). Dziesięć razy więcej niż przy imporcie
 #: uczniów (``apps.accounts.bulk_registration.MAX_ROWS``), bo to jest inny zbiór: tam plik opisuje
@@ -624,9 +624,10 @@ def search_custom_institutions(
 
     if not custom_directory_enabled(competition):
         return []
-    tokens = fold(query or "").split()
-    city_key = fold(city or "").strip()
-    if not city_key and (not tokens or len(fold(query or "").strip()) < MIN_QUERY_LENGTH):
+    # Te same limity długości i liczby wyrazów, co w wykazie publicznym (pakiet 5).
+    tokens = search_tokens(query)
+    city_key = fold((city or "")[:MAX_SEARCH_QUERY_LENGTH]).strip()
+    if not city_key and (not tokens or len(" ".join(tokens)) < MIN_QUERY_LENGTH):
         return []
     queryset = CustomInstitution.objects.for_competition(competition).filter(is_active=True)
     if city_key:

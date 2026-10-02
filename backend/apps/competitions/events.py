@@ -51,12 +51,22 @@ def validate_url(value: str) -> str:
     się od litery i też przeszedłby przez naiwny test, a wstawiony w ``href`` wykonuje się po
     kliknięciu. Ścieżka musi zaczynać się pojedynczym ukośnikiem – ``//example.com`` jest w HTML
     adresem **obcego hosta** (schemat dziedziczony ze strony), a wyglądałby jak ścieżka lokalna.
+
+    Pakiet 5: przeglądarki czytają ``\\`` jak ``/`` i po cichu wycinają z adresu tabulator i znaki
+    nowej linii, więc ``/\\evil.tld`` albo ``/<TAB>/evil.tld`` to w praktyce ten sam ``//evil.tld``.
+    Ścieżka lokalna nie może więc nieść ani odwrotnego ukośnika, ani znaków sterujących, a po
+    rozbiorze nie może mieć hosta (``netloc``).
     """
     value = (value or "").strip()
     if not value:
         return ""
     if value.startswith("/"):
-        if value.startswith("//"):
+        if (
+            value.startswith("//")
+            or "\\" in value
+            or any(ord(char) < 0x20 or ord(char) == 0x7F for char in value)
+            or urlsplit(value).netloc
+        ):
             raise _bad_request(
                 "Odnośnik zaczynający się od „//” prowadzi do obcego serwisu. Wpisz pełny adres "
                 "z „https://” albo ścieżkę w tym serwisie, np. „/warsztaty/”.",

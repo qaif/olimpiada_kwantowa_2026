@@ -65,6 +65,31 @@ def test_notebook_must_be_json():
     assert_code(excinfo, "INVALID_FILE_TYPE")
 
 
+def test_deeply_nested_notebook_is_refused_not_a_server_error():
+    """Pakiet 5, E12: ``json.loads`` na głęboko zagnieżdżonym pliku rzuca ``RecursionError``.
+
+    Kilkanaście kilobajtów nawiasów kończyło upload pięćsetką; ma to być zwykła odmowa 400.
+    """
+    nested = b'{"nbformat": 4, "cells": ' + b"[" * 100_000 + b"]" * 100_000 + b"}"
+
+    with pytest.raises(DomainError) as excinfo:
+        validate_upload(upload("a.ipynb", nested, "application/json"), ["ipynb"], 20)
+
+    assert_code(excinfo, "INVALID_FILE_TYPE")
+
+
+def test_deeply_nested_notebook_does_not_break_the_other_readers():
+    """Porównywarka podobieństw i ocena AI czytają ten sam plik – też bez wyjątku na wierzch."""
+    from apps.ai_grading.prompt import MaterialError, notebook_text
+    from apps.submissions.similarity import notebook_source
+
+    nested = b"[" * 100_000 + b"]" * 100_000
+
+    assert notebook_source(nested) == ""
+    with pytest.raises(MaterialError):
+        notebook_text(nested)
+
+
 def test_valid_notebook_returns_notebook_mime():
     ext, mime = validate_upload(upload("a.ipynb", notebook_bytes(), "text/plain"), ["ipynb"], 20)
 

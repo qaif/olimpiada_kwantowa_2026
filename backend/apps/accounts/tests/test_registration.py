@@ -3,6 +3,7 @@
 from datetime import timedelta
 
 import pytest
+from captcha.models import CaptchaStore
 from django.utils import timezone
 from rest_framework.test import APIClient
 
@@ -19,6 +20,7 @@ from apps.accounts.models import (
     hash_invitation_code,
 )
 
+from .conftest import api_captcha_fields
 from .factories import InvitationCodeFactory
 
 REGISTER_PARTICIPANT_URL = "/api/auth/register/participant/"
@@ -42,6 +44,7 @@ def participant_payload(**overrides):
         "terms_consent": True,
         "gdpr_consent": True,
         "guardian_consent": True,
+        **api_captcha_fields(),
     }
     payload.update(overrides)
     return payload
@@ -55,6 +58,7 @@ def committee_payload(**overrides):
         "last_name": "Wiśniewski",
         "invitation_code": "kod-testowy-0001",
         "district": "mazowieckie",
+        **api_captcha_fields(),
     }
     payload.update(overrides)
     return payload
@@ -244,4 +248,102 @@ def test_slabe_haslo_jest_odrzucane_i_konto_nie_powstaje(api, open_registration)
 
     assert resp.status_code == 400
     assert resp.json()["code"] == "WEAK_PASSWORD"
+    assert not User.objects.filter(email="uczestnik@example.test").exists()
+
+
+# --- CAPTCHA w rejestracji JSON (pakiet 5 po audycie, SECURITY_CHECKLIST 8.1.9) -------------------
+
+
+def _without_captcha(payload: dict) -> dict:
+    return {key: value for key, value in payload.items() if not key.startswith("captcha_")}
+
+
+@pytest.fixture
+def real_captcha(monkeypatch):
+    """Wyłącza tryb testowy CAPTCHY w module, z którego pakiet faktycznie go czyta.
+
+    To samo, co w ``apps/web/tests/test_antispam.py``: pakiet kopiuje ustawienie do własnego modułu
+    przy imporcie, więc ``settings.CAPTCHA_TEST_MODE = False`` w teście nie zmieniłoby niczego.
+    """
+    monkeypatch.setattr("captcha.conf.settings.CAPTCHA_TEST_MODE", False)
+
+
+def _challenge() -> tuple[str, str]:
+    key = CaptchaStore.generate_key()
+    return key, CaptchaStore.objects.get(hashkey=key).response
+
+
+@pytest.mark.django_db
+def test_api_registration_without_a_captcha_pair_creates_nothing(api, open_registration, mailoutbox):
+    """Do tej zmiany sam JSON omijał wszystkie trzy warstwy formularza i wysyłał link aktywacyjny."""
+    resp = api.post(REGISTER_PARTICIPANT_URL, _without_captcha(participant_payload()), format="json")
+
+    assert resp.status_code == 400
+    assert not User.objects.filter(email="uczestnik@example.test").exists()
+    assert mailoutbox == []
+
+
+@pytest.mark.django_db
+def test_api_registration_checks_the_answer_against_the_stored_challenge(
+    api, open_registration, real_captcha
+):
+    """Zła odpowiedź → ``CAPTCHA_INVALID``; wyzwanie jest jednorazowe także po porażce."""
+    key, answer = _challenge()
+    wrong = api.post(
+        REGISTER_PARTICIPANT_URL,
+        {**participant_payload(), "captcha_key": key, "captcha_value": str(int(answer) + 1)},
+        format="json",
+    )
+    assert wrong.status_code == 400
+    assert wrong.json()["code"] == "CAPTCHA_INVALID"
+    assert not CaptchaStore.objects.filter(hashkey=key).exists()
+    assert not User.objects.exists()
+
+    key, answer = _challenge()
+    accepted = api.post(
+        REGISTER_PARTICIPANT_URL,
+        {**participant_payload(), "captcha_key": key, "captcha_value": answer},
+        format="json",
+    )
+    assert accepted.status_code == 201, accepted.data
+
+    replayed = api.post(
+        REGISTER_PARTICIPANT_URL,
+        {**participant_payload(email="drugi@example.test"), "captcha_key": key, "captcha_value": answer},
+        format="json",
+    )
+    assert replayed.status_code == 400
+    assert replayed.json()["code"] == "CAPTCHA_INVALID"
+    assert not User.objects.filter(email="drugi@example.test").exists()
+
+
+@pytest.mark.django_db
+def test_test_mode_answer_is_refused_once_the_test_mode_is_off(api, open_registration, real_captcha):
+    """Obejście ``PASSED`` działa tylko tam, gdzie w formularzu – nie jest furtką API."""
+    resp = api.post(REGISTER_PARTICIPANT_URL, participant_payload(), format="json")
+
+    assert resp.status_code == 400
+    assert resp.json()["code"] == "CAPTCHA_INVALID"
+
+
+@pytest.mark.django_db
+def test_api_committee_registration_requires_the_captcha_and_keeps_the_code(api):
+    invitation = InvitationCodeFactory(plain_code="kod-testowy-0001", max_uses=1)
+
+    resp = api.post(REGISTER_COMMITTEE_URL, _without_captcha(committee_payload()), format="json")
+
+    assert resp.status_code == 400
+    invitation.refresh_from_db()
+    assert invitation.used_count == 0
+    assert not CommitteeMember.objects.exists()
+
+
+@pytest.mark.django_db
+def test_api_registration_refuses_a_middle_dot_in_the_name(api, open_registration):
+    """Pakiet 5, E16: ta sama reguła imienia w JSON-ie, co w formularzu (``accounts.names``)."""
+    resp = api.post(
+        REGISTER_PARTICIPANT_URL, participant_payload(first_name="Organizator · Anna"), format="json"
+    )
+
+    assert resp.status_code == 400
     assert not User.objects.filter(email="uczestnik@example.test").exists()

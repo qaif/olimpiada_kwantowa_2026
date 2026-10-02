@@ -15,8 +15,9 @@ from __future__ import annotations
 from datetime import timedelta
 
 import pytest
+from django.conf import settings
 from django.core import mail
-from django.test import Client
+from django.test import Client, override_settings
 from django.utils import timezone
 from freezegun import freeze_time
 
@@ -231,3 +232,35 @@ def test_adult_panel_has_no_guardian_section(client, adult):
     client.force_login(adult.user)
 
     assert "Wyślij prośbę o zgodę" not in client.get(CONSENTS_TAB).content.decode()
+
+
+def _rest_framework_with(**rates) -> dict:
+    """Kopia ``REST_FRAMEWORK`` z podmienionymi stawkami – jak w ``apps/web/tests/test_activation.py``."""
+    config = dict(settings.REST_FRAMEWORK)
+    config["DEFAULT_THROTTLE_RATES"] = {**config["DEFAULT_THROTTLE_RATES"], **rates}
+    return config
+
+
+@override_settings(REST_FRAMEWORK=_rest_framework_with(password_reset="2/hour"))
+def test_guardian_request_is_throttled_with_the_shared_mail_budget(
+    client, minor, django_capture_on_commit_callbacks
+):
+    """Pakiet 5, A1: pętla POST-ów nie może być wysyłaczem listów na dowolne adresy.
+
+    Każdy POST zmienia adres – limit liczony po adresie odbiorcy dałby się obejść, a ma go pilnować
+    budżet nadawcy (scope ``password_reset``, wspólny z resetem hasła i aktywacją, 8.8).
+    """
+    client.force_login(minor.user)
+
+    with django_capture_on_commit_callbacks(execute=True):
+        for attempt in range(2):
+            response = client.post("/me/guardian/", {"guardian_email": f"ofiara{attempt}@example.test"})
+            assert response.status_code == 302, attempt
+        blocked = client.post("/me/guardian/", {"guardian_email": "ofiara9@example.test"})
+
+    assert blocked.status_code == 429
+    assert blocked["Retry-After"]
+    sent_to = {address for item in mail.outbox if item.subject == GUARDIAN_SUBJECT for address in item.to}
+    assert sent_to == {"ofiara0@example.test", "ofiara1@example.test"}
+    minor.refresh_from_db()
+    assert minor.guardian_email == "ofiara1@example.test"

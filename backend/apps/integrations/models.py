@@ -385,6 +385,11 @@ class WebhookEndpoint(models.Model):
             # dowodzi autorstwa, nie poufności: po HTTP każdy po drodze czytałby zdarzenia
             # olimpiady i widział, kto co oddał, zanim wyniki zostaną ogłoszone.
             raise ValidationError({"url": "Adres webhooka musi zaczynać się od „https://”."})
+        # Adres wewnętrzny (literał IP spoza internetu, nazwa jednoczłonowa z DNS-u compose'a) –
+        # odmowa już przy zapisie. Pełna reguła i jej granice: ``apps.integrations.targets``.
+        from .targets import validate_target_url
+
+        validate_target_url(self.url)
 
 
 class DeliveryStatus(models.TextChoices):

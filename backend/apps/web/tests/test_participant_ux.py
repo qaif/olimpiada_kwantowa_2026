@@ -511,3 +511,22 @@ def test_guardian_consent_is_counted_only_by_its_own_chip(web_client, participan
 
     assert "zgody kompletne" in content
     assert "brak zgody opiekuna" in content
+
+
+def test_problem_titles_stay_hidden_until_the_stage_opens(web_client, participant, entry, problems):
+    """Pakiet 5, C6: wpis do etapu, który jeszcze się nie zaczął, nie odsłania tytułów zadań.
+
+    Typowy przypadek to uczestnik zakwalifikowany do kolejnego etapu – ma wpis na tygodnie przed
+    ``opens_at``. Po otwarciu karty wracają bez żadnej zmiany po stronie organizatora.
+    """
+    shift_stage(entry.stage, opens=3, deadline=17, review=24, appeal_opens=25, appeal_closes=32)
+
+    before = logged(web_client, participant).get(ME).content.decode()
+
+    for problem in problems:
+        assert problem.title not in before
+    assert "Zadania pojawią się po otwarciu etapu" in before
+
+    shift_stage(entry.stage, opens=-1, deadline=13, review=20, appeal_opens=21, appeal_closes=28)
+    after = web_client.get(ME).content.decode()
+    assert all(problem.title in after for problem in problems)

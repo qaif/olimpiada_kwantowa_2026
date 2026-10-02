@@ -137,7 +137,8 @@ def notebook_source(raw: bytes) -> str:
     """
     try:
         document = json.loads(raw.decode("utf-8", errors="replace"))
-    except json.JSONDecodeError, UnicodeDecodeError:
+    except json.JSONDecodeError, UnicodeDecodeError, RecursionError:
+        # ``RecursionError`` – zbyt głęboko zagnieżdżony JSON (pakiet 5): tak samo „bez odcisku”.
         return ""
     if not isinstance(document, dict):
         return ""
