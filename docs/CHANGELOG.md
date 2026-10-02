@@ -8,6 +8,35 @@ dokładnie jednemu wierszowi tej tabeli.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## v0.39.0 – 2026-10-02 – Rozmowy wideo tylko z przepustką platformy (Jitsi JWT)
+
+- **Bezpieczeństwo (decyzja właściciela, „wariant A”):** własne Jitsi (`meet.<domena>`) wpuszcza
+  wyłącznie z przepustką JWT (HS256) wystawianą przez platformę w chwili kliknięcia – na jeden pokój
+  (`room` nigdy `*`), z oknem `nbf`/`exp`, nazwą wyświetlaną (imię i inicjał) i bez e-maila.
+  Uczestnik wchodzi przyciskami **„Dołącz do rozmowy”** (od 15 min przed terminem do 60 min po nim)
+  i **„Sprawdź kamerę i mikrofon”** w panelu, koordynator – „dołącz jako gospodarz” (moderator) na
+  ekranie terminów. Moderatora nadaje wyłącznie token (`token_affiliation`; jicofo bez
+  auto-właściciela i bez własnego uwierzytelniania – z nim uczestnik dostawał moderatora). Token we
+  fragmencie adresu (`#jwt=`), odpowiedzi `no-store` i `no-referrer`, blok `meet.` w Caddym
+  z `Referrer-Policy: no-referrer`. Listy (potwierdzenie, przypomnienie) niosą adres widoku wejścia
+  w panelu, a nie adres pokoju. Obrazy Jitsi przypięte do `stable-11031`. Zachowanie sprawdzone
+  uruchomieniem obrazów (`docs/OPERACJE.md` § 25.6).
+- **Bez sekretu (`JITSI_JWT_APP_SECRET`) i dla pokoi poza naszym Jitsi** (publiczne `meet.jit.si`,
+  BBB wpisane ręcznie, etap bez wideo) wszystko działa jak w v0.38.7. Nowa kontrola
+  `competitions.W001` (sekret krótszy niż 32 znaki albo równy innemu sekretowi).
+- **Pokoje wideo bez terminu** (`/coordinator/video-rooms/`, Komunikacja → Pokoje wideo): koordynator
+  zakłada pokój (etykieta, ważność 1/7/30/60 dni), dostaje link gospodarza i gościa – adresy **na
+  platformie** (`/zaproszenie/wideo/<klucz>/`), które przy wejściu proszą o imię i wystawiają przepustkę
+  na 10 minut. Zamknięcie pokoju i „Wygeneruj nowy link” działają od razu; „Pokaż linki” na żądanie
+  (z wpisem w dzienniku). Pokój może być udostępniony komisji – recenzenci i komisja odwoławcza
+  wchodzą z panelu przyciskiem „Dołącz”. Koordynator może nadać członkowi komisji prawo zakładania
+  własnych pokoi (ważność do 30 dni, `/review/video-rooms/`); odebranie zamyka mu ekran od razu.
+- **Wdrożenie:** najpierw `scripts/deploy.sh` (migracje `accounts.0035`, `competitions.0033`), potem
+  `scripts/deploy_jitsi.sh` – generuje sekret w `.env` portalu, przepisuje go do `jitsi/.env`,
+  odtwarza `web worker beat`, sprawdza, że `web` go widzi, i dopiero wtedy przełącza Jitsi na
+  przepustki (trwające rozmowy zostają przerwane – poza godzinami rozmów). Sprawdzenie, rotacja
+  sekretu, wycofanie (`ENABLE_AUTH=0`, `ENABLE_AUTO_OWNER=1`): `docs/OPERACJE.md` § 25.
+
 ## v0.38.7 – 2026-10-02 – Zgoda ucznia na opiekuna, oceny dopiero po ogłoszeniu wyników
 
 - **Poprawka (bezpieczeństwo, decyzja właściciela):** import listy uczniów nie dopisuje już opiekuna

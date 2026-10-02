@@ -170,6 +170,19 @@ z listy pogrupowanej po dniach (**„Wybierz termin rozmowy”**) i potwierdzasz
   ma. Wejdź do niego wcześniej, z komputera, w Chrome, Edge albo Firefoksie,
 - dzień wcześniej idzie automatyczne przypomnienie.
 
+**Rozmowa na Jitsi olimpiady** (`meet.<domena>`). Jeśli organizator prowadzi rozmowy na własnym
+serwerze wideo, w karcie nie ma adresu pokoju, tylko dwa przyciski:
+
+- **„Dołącz do rozmowy”** — działa od **15 minut przed** terminem do godziny po jego końcu. Kliknięty
+  wcześniej wraca do panelu z informacją, o której pokój się otworzy,
+- **„Sprawdź kamerę i mikrofon”** — pusty pokój „na próbę”, dostępny wcześniej.
+
+Do pokoju wchodzi się **wyłącznie tymi przyciskami, po zalogowaniu**: przycisk wystawia jednorazową
+przepustkę na Twój pokój. Sam adres pokoju nie zadziała — nie da się go podyktować przez telefon ani
+przesłać dalej. Listy (potwierdzenie i przypomnienie) prowadzą do tych przycisków w panelu. W pokoju
+widać Cię jako imię i inicjał nazwiska. Gdy połączenie się zerwie po dłuższej przerwie, wróć do panelu
+i kliknij „Dołącz do rozmowy” jeszcze raz.
+
 ---
 
 ## 5. Zgoda opiekuna (dla niepełnoletnich)

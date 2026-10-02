@@ -440,12 +440,22 @@ Dla etapu w formie rozmowy (§ 2.2). Ekran **„Rozmowy kwalifikacyjne: <etap>�
    **„Oznaczenie”** (np. „komisja A”), a liczbę osób — „Miejsc w jednym terminie”.
 4. **Link do rozmowy** widzi wyłącznie osoba zapisana na dany termin. Pokój powstaje sam w chwili zapisu,
    z losowym sufiksem w nazwie — na publicznej instancji wideo nazwa pokoju **jest** poświadczeniem.
+   **Na własnym Jitsi olimpiady (`meet.<domena>`, od v0.39.0) linków się nie rozdaje**: Jitsi wpuszcza
+   wyłącznie z przepustką wystawianą przez platformę w chwili kliknięcia. Uczestnik ma w panelu
+   przyciski „Dołącz do rozmowy” (działa od 15 minut przed terminem do godziny po jego końcu)
+   i „Sprawdź kamerę i mikrofon”; Ty w kolumnie „Link” masz **„dołącz jako gospodarz”** (wchodzisz
+   z prawami moderatora — wyciszanie, poczekalnia, usuwanie z pokoju; uczestnik tych praw nie ma)
+   i „test sprzętu”. **Adresu pokoju nie da się podyktować przez telefon** ani wysłać mailem — bez
+   przepustki nie zadziała; uczestnik, który dzwoni, że nie może wejść, ma zalogować się i kliknąć
+   przycisk w panelu. Link wpisany ręcznie przy terminie, prowadzący gdzie indziej (np. BBB uczelni),
+   działa jak dawniej.
 5. Tabela terminów pokazuje **dane osobowe** zapisanych (kod, imię i nazwisko, e-mail) — to obok podglądu
    wyników jedyny taki ekran w serwisie, stąd odznaka „dane osobowe”.
 6. **Termin da się usunąć tylko dopóki nikt się na niego nie zapisał.**
 
 Uczestnik zapisuje się z `/me/`, ma w etapie **jeden** termin, a „Zmień na ten termin” przenosi zapis
-w jednej transakcji. Dzień wcześniej idzie automatyczne przypomnienie z linkiem i linkiem testowym.
+w jednej transakcji. Dzień wcześniej idzie automatyczne przypomnienie z linkiem i linkiem testowym
+(na własnym Jitsi: z adresem przycisków w panelu — nigdy z adresem pokoju ani przepustką).
 
 > **Etap w formie rozmowy nie ma ścieżki oceniania w systemie** — punkty wpisuje koordynator poza nim.
 
@@ -1022,6 +1032,7 @@ decyzja człowieka, a nie wynik obliczenia.
 | **Ogłoszenia** (pasek w serwisie) | `/coordinator/announcements/` | zdanie widoczne na **każdej** stronie, także dla niezalogowanych |
 | **Zgłoszenia** (support desk) | `/coordinator/support/` | kolejka spraw od ludzi, z wątkiem i odpowiedzią |
 | **Forum uczestników** | `/coordinator/forum/` | rozmowa uczestników między sobą, moderowana przez Ciebie |
+| **Pokoje wideo** | `/coordinator/video-rooms/` | pokoje na Jitsi olimpiady poza terminami rozmów: zebrania komisji, konsultacje, goście bez konta (§ 6.4b) |
 | **FAQ** | `/faq/` (redakcja w `/cms/`) | odpowiedzi, które mają wyprzedzić zgłoszenia |
 | **Strona statusu** | `/status/` | „nie mogę wysłać pracy — to u was, czy u mnie?” |
 
@@ -1346,6 +1357,50 @@ znikają, adresy odpowiadają 404); rozmowy zostają w bazie. Pozycja w Twoim me
 wysłane wiadomości wchodzą do paczki `/account/export/` (szyfrowane — jako szyfrogram z adnotacją), a
 anonimizacja konta zostawia wiadomości w rozmowie drugiej strony z podpisem „Użytkownik usunięty”
 i usuwa profil katalogu, klucz szyfrowania, blokady i ustawienia powiadomień.
+
+### 6.4b Pokoje wideo — `/coordinator/video-rooms/`
+
+Menu **Komunikacja → Pokoje wideo**. Pozycja jest tylko wtedy, gdy olimpiada ma własne Jitsi
+z przepustkami (administrator: `docs/OPERACJE.md` § 25) — inaczej ekranu nie ma.
+
+**Założenie pokoju.** Wpisujesz krótką **etykietę** („zebranie komisji okręgowej” — bez nazwisk gości:
+etykieta wchodzi do nazwy pokoju i widać ją na stronie zaproszenia), wybierasz **ważność** z listy
+**1 / 7 / 30 / 60 dni** i zaznaczasz, czy pokój ma być **dostępny dla członków komisji** (wtedy widzą go
+w swoim panelu z przyciskiem „Dołącz”) i czy wchodzą **jako gospodarze**. Pełnej nazwy pokoju nie
+wpisuje się — powstaje sama z etykiety i losowej końcówki.
+
+**Dwa linki-zaproszenia.** Po założeniu dostajesz od razu:
+
+- **link gospodarza** — wchodzi się z prawami moderatora (wyciszanie, poczekalnia, usuwanie z pokoju);
+  dla prowadzącego, nie do rozsyłania,
+- **link gościa** — bez tych praw; ten wysyłasz uczestnikom spotkania, także osobom bez konta.
+
+Link prowadzi na stronę platformy (`/zaproszenie/wideo/…`), na której gość wpisuje swoje imię
+i klika „Dołącz” — dopiero wtedy platforma wpuszcza go do pokoju. Linki zobaczysz ponownie
+przyciskiem **„Pokaż linki”** przy pokoju (każde pokazanie zostaje w dzienniku zdarzeń). Kopiujesz je
+z pola (zaznacz, Ctrl+C).
+
+**Zamykanie i wymiana linku działają od razu.** „Zamknij pokój” sprawia, że nikt — ani z panelu, ani
+z linku — już do niego nie wejdzie; „Wygeneruj nowy link gościa/gospodarza” unieważnia stary link
+(np. gdy trafił tam, gdzie nie powinien) bez zamykania pokoju. Osoby, które są w tej chwili
+w rozmowie, zostają w niej do wyjścia — Jitsi nie wyrzuca nikogo w trakcie. Po upływie ważności pokój
+zamyka się sam.
+
+**Linki przekazuj jak hasło**: do końca ważności (albo do zamknięcia/wymiany) wpuszczają każdego,
+kto je ma. Dlatego ważność jest ograniczona (Ty: najwyżej 60 dni, komisja: najwyżej 30).
+
+**Uprawnienia komisji** (sekcja „Kto z komisji może zakładać pokoje”). Członkowi komisji (recenzent
+albo komisja odwoławcza **tego** konkursu) możesz nadać prawo zakładania własnych pokoi — dostaje
+wtedy w swoim panelu ekran „Moje pokoje wideo” z tym samym formularzem (ważność 1 / 7 / 30 dni). Widzi
+i zamyka **tylko swoje** pokoje; Ty widzisz na liście **wszystkie** pokoje konkursu (kto założył, kiedy,
+do kiedy, stan) i możesz każdy zamknąć, pokazać jego linki albo je wymienić. **Odebranie
+uprawnienia** (albo zawieszenie członka komisji) od razu zamyka mu ten ekran i wejście z panelu do jego
+pokoi; jego **linki-zaproszenia działają dalej**, dopóki nie zamkniesz jego pokoi — przycisk
+„Zamknij pokoje tej osoby” stoi w tym samym wierszu (to osobna decyzja, bo goście mogą być umówieni).
+
+Co zostaje w dzienniku zdarzeń (bez linków, przepustek i nazw gości): założenie pokoju, pokazanie
+linków, wymiana linku, zamknięcie, każde wejście (rola: koordynator, komisja, autor, link gospodarza,
+link gościa), nadanie i odebranie uprawnienia.
 
 ### 6.5 FAQ
 

@@ -226,6 +226,12 @@ koordynator ustawia w etapie z rozmowami dostawcę wideo na „własna instancja
 `https://meet.<domena>/`. Wideo jest **wyłącznie linkiem** — osadzenia w `<iframe>` nie ma i nie będzie
 (wymagałoby rozluźnienia `frame-src` w CSP i proszenia o kamerę w kontekście naszej domeny).
 
+Od v0.39.0 własne Jitsi wpuszcza **wyłącznie z przepustką platformy** (JWT): skrypt generuje sekret
+`JITSI_JWT_APP_SECRET` w `/opt/olimpiada/.env`, przepisuje go do `jitsi/.env`, odtwarza `web worker
+beat`, jeśli jeszcze go nie widzą, i dopiero wtedy zamyka Jitsi (`ENABLE_AUTH=1`). Obrazy są przypięte
+(`JITSI_IMAGE_VERSION=stable-11031`). Kolejność wdrożenia, sprawdzenie, rotacja sekretu i wycofanie:
+`docs/OPERACJE.md` § 25.
+
 ---
 
 ## 5. Aktualizacje i migracje
