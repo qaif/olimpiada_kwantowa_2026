@@ -57,7 +57,8 @@ Formularz: **aktualne hasło**, **nowe hasło**, **powtórz nowe hasło**.
    znacznikiem drugiego składnika – człowiek nie jest wylogowany z urządzenia, na którym zmienia
    hasło.
 6. Nieudana próba (złe aktualne hasło) zostawia wpis `password.change_failed`
-   (`{"reason": "wrong_current"}`), bez wpisanego tekstu.
+   (`{"reason": "wrong_current", "consecutive": n, "session_ended": bool}`), bez wpisanego tekstu.
+   Piąta pomyłka z rzędu w jednej sesji kończy sesję (§ 9).
 7. Po sukcesie: przekierowanie na ekran edycji danych z komunikatem.
 
 ## 3. Pozostałe urządzenia
@@ -75,7 +76,10 @@ Do właściciela konta (adres konta) idzie list „Hasło do konta zostało zmie
 
 - w języku żądania, w którym nastąpiła zmiana (to żądanie adresata, więc aktywny język jest jego –
   `apps.accounts.activation.recipient_language`), z nadawcą i marką konkursu żądania
-  (`mail_competition`, `queue_mail`),
+  (`mail_competition`), kolejkowany po commicie **odporny na awarię brokera** (błąd kolejki jest
+  logowany po kluczu konta, zmiana i sesja zostają),
+- godzina zmiany w strefie ucznia (TZ-01, `participant_timezone`), a bez niej w strefie konkursu
+  (`Competition.time_zone`), zapisana jednoznacznie: `(Asia/Tokyo, UTC+09:00)`, nie „CEST”,
 - treść: co się stało i kiedy, że pozostałe urządzenia zostały wylogowane, a gdy to nie Ty –
   **link do „Nie pamiętasz hasła?”** pod hostem konkursu żądania (dla konkursu pod prefiksem
   ścieżki – z prefiksem) i prośba o kontakt z organizatorem,
@@ -109,7 +113,7 @@ Kod 2FA **nie jest** wymagany ponownie na ekranie zmiany hasła – spójnie z p
 `TwoFactorMiddleware` nie wpuszcza sesji czekającej na kod nigdzie poza ekranem kodu, więc do
 `/account/password/` dochodzi wyłącznie sesja, która przeszła **cały** drugi składnik (konto
 z urządzeniem albo z roli objętej `TWO_FACTOR_REQUIRED_ROLES`). Tą samą zasadą kieruje się
-wyłączenie 2FA (`TwoFactorDisableView`), które nie pyta nawet o hasło; zmiana hasła pyta dodatkowo
+wyłączenie 2FA (`TwoFactorDisableView`; PR #71 dokłada tam hasło i kod); zmiana hasła pyta
 o hasło aktualne. Zmiana hasła **nie** dotyka urządzenia 2FA ani kodów zapasowych, a znacznik
 weryfikacji w sesji przeżywa zmianę klucza sesji.
 
@@ -133,3 +137,27 @@ angielski IQO), bez hasła; audyt bez sekretów; limit 429; gość → logowanie
 liście page cache; konto bez hasła – brak formularza, link wysłany na własny adres, odmowa dla
 konta z hasłem; 2FA – sesja bez kodu nie dochodzi, po zmianie znacznik zostaje; odnośnik w pasku
 konta i sekcja na ekranie edycji danych; nagłówek motywu IQO z fragmentem przechodzi lint paczki.
+
+## 9. Poprawki po przeglądzie (PR #70)
+
+- **H1 – inne drogi do hasła i adresu.** Samo „wymagaj aktualnego hasła” na tym ekranie nie zamyka
+  przejęcia konta z cudzej sesji, dopóki obok istnieją drogi bez tego wymogu:
+  - `/cms/account/` Wagtaila: panele „Hasło” i pole e-mail wyłączone
+    (`WAGTAIL_PASSWORD_MANAGEMENT_ENABLED = False`, `WAGTAIL_EMAIL_MANAGEMENT_ENABLED = False`),
+  - `/admin/password_change/` (i `done/`) Django: przekierowanie na `/account/password/`,
+  - `/account/email/`: **aktualne hasło** w formularzu i w serwisie (`request_email_change`);
+    konto bez hasła najpierw ustawia hasło (§ 5). Limit `password_reset` liczony per konto, pomyłki
+    w audycie `account.email_change_failed`,
+  - `/account/2fa/disable/` – PR #71 (hasło i kod), poza tym zadaniem.
+- **Wspólne potwierdzenie hasłem** – `apps.accounts.reauth.confirm_current_password`: jeden
+  `check_password`, licznik kolejnych pomyłek w sesji wspólny dla obu ekranów (5 → `logout`,
+  dalej przez logowanie z limitem prób i 2FA), audyt, a przy podniesieniu skrótu hasła
+  (`PASSWORD_HASHERS`) – `update_session_auth_hash` **przed** jakąkolwiek inną odmową (L1).
+- **M1** – list kolejkowany odpornie na awarię brokera; `update_session_auth_hash` przed kolejkowaniem.
+- **L2** – sesji edytora django CMS (osobna baza, `DJCMS_SSO_SESSION_SECONDS`) zmiana hasła nie
+  kończy; redaktor (SSO włączone + dostęp do `/cms/`) dostaje o tym zdanie na ekranie i w liście.
+- **L3** – komunikat limitu per konto mówi „na tym koncie” (`PerAccountThrottleMixin` w
+  `apps.web.throttle`). Dodatkowy kubełek per adres IP – świadomie pominięty: seria pomyłek i tak
+  kończy sesję, a nowa sesja to logowanie z limitem per IP i per (IP, e-mail).
+- **L6** – IQO 1.1.1 ma `min_app_version` 0.45.0; testy instalują prawdziwą paczkę z fikstury.
+- **L8** – strefa w liście (§ 4).

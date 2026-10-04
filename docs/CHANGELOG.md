@@ -22,8 +22,16 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
   audyt `password.set_link_sent`. Bez ustawiania hasła w samej sesji.
 - **Pasek konta:** adres e-mail jest odnośnikiem do ustawień konta (`web/_account_who.html`, także dla
   nagłówka motywu); ekran edycji danych ma sekcję „Hasło”. Motyw `iqo-quantum` 1.1.1 dołącza ten fragment.
+- Poprawki po przeglądzie (PR #70): **zmiana adresu e-mail wymaga aktualnego hasła** (konto bez hasła
+  ustawia je najpierw); w `/cms/account/` nie ma już paneli hasła i e-maila
+  (`WAGTAIL_PASSWORD_MANAGEMENT_ENABLED`/`WAGTAIL_EMAIL_MANAGEMENT_ENABLED = False`), a
+  `/admin/password_change/` przekierowuje na `/account/password/`; 5 kolejnych złych haseł w sesji kończy
+  sesję (`apps.accounts.reauth`, wspólne dla obu ekranów); podniesienie skrótu hasła nie wylogowuje;
+  list odporny na awarię brokera, z godziną w strefie ucznia/konkursu (`Asia/Tokyo, UTC+09:00`);
+  uczciwe zdanie o sesjach edytora django CMS; limit zmiany adresu per konto, komunikat „na tym koncie”;
+  IQO 1.1.1 wymaga aplikacji 0.45.0 (fikstura paczki w testach).
 - Tłumaczenia w 10 katalogach `apps/password_change/locale`. Dokumentacja: `docs/tasks/AUTH-01b.md`,
-  `docs/OPERACJE.md` § 39, podręczniki uczestnika (§ 1) i organizatora (§ 9.3).
+  `docs/OPERACJE.md` § 45, podręczniki uczestnika (§ 1) i organizatora (§ 9.3).
 
 ## [Unreleased] – LiveKit: jeden port UDP z multipleksacją
 

@@ -4863,24 +4863,42 @@ włączonym mentoringu z małoletnimi organizator musi mieć dyżur moderacyjny.
 **Definitywne wycofanie funkcji:** wyłączenie flagi (skutki wyżej) i – bo zgoda dotyczyła działającej
 sieci – usunięcie profili (`AlumniProfile.objects.filter(participant__competition=c).delete()`).
 
-## 39. Zmiana hasła w panelu konta (AUTH-01b, `docs/tasks/AUTH-01b.md`)
+## 45. Zmiana hasła w panelu konta (AUTH-01b, `docs/tasks/AUTH-01b.md`)
 
 Nowa aplikacja `apps.password_change` – **bez migracji, bez zmiennych środowiskowych, bez flagi**:
 ekran `/account/password/` działa po wdrożeniu dla każdego zalogowanego konta, we wszystkich konkursach
 (także pod prefiksem ścieżki).
 
+- **Jedna droga do hasła i adresu.** Zmiana hasła i adresu e-mail żąda **aktualnego hasła**
+  (`apps.accounts.reauth`); konto bez hasła (Google/Facebook) ustawia je najpierw linkiem na obecny
+  adres. Pozostałe drogi są zamknięte: `WAGTAIL_PASSWORD_MANAGEMENT_ENABLED = False` i
+  `WAGTAIL_EMAIL_MANAGEMENT_ENABLED = False` (w `/cms/account/` nie ma paneli „Hasło” ani pola e-mail),
+  `/admin/password_change/` i `/admin/password_change/done/` przekierowują na `/account/password/`.
+  Superużytkownik zmienia **cudze** hasło w `/admin/` jak dotąd (formularz użytkownika) – to czynność
+  operatora, nie samoobsługa.
+- **Seria pomyłek:** 5 kolejnych złych haseł w jednej sesji (wspólnie: zmiana hasła i zmiana adresu)
+  kończy sesję – dalsze próby idą przez logowanie (limit `login`, 2FA). W audycie `diff.consecutive`
+  i `diff.session_ended`. Licznik żyje w sesji, nie trzeba go czyścić.
 - **Limit:** `password_change` – 10 POST-ów na godzinę **na konto** (`REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]`,
-  licznik `apps.web.throttle` w Redisie). Przycisk „Wyślij mi link do ustawienia hasła” (konto bez hasła)
-  liczy się w scope `password_reset` (5/h, też na konto).
-- **Sesje:** zmiana hasła wylogowuje pozostałe sesje konta (skrót hasła w sesji Django) i kasuje tokeny
-  API; bieżąca sesja i znacznik 2FA zostają. Nie trzeba nic czyścić ręcznie (`clearsessions` jak dotąd).
+  licznik `apps.web.throttle` w Redisie). Zmiana adresu e-mail i przycisk „Wyślij mi link do ustawienia
+  hasła” liczą się w scope `password_reset` (5/h) – od AUTH-01b też **na konto**, nie na adres IP.
+  Odmowa mówi „na tym koncie”, nie „z tego adresu”.
+- **Sesje:** zmiana hasła wylogowuje pozostałe sesje konta w aplikacji (skrót hasła w sesji Django) i kasuje
+  tokeny API; bieżąca sesja i znacznik 2FA zostają (także gdy `check_password` podniósł skrót po zmianie
+  `PASSWORD_HASHERS`). **Sesje edytora django CMS** (osobna baza, ciasteczko `djcms_sessionid`) zmiana
+  hasła **nie** kończy – wygasają po `DJCMS_SSO_SESSION_SECONDS` (domyślnie 2 h). Redaktor dostaje o tym
+  zdanie na ekranie i w liście; przy podejrzeniu przejęcia zablokuj konto w django CMS (§ 22.3).
 - **Poczta:** list „Hasło do konta zostało zmienione” idzie kolejką `mail` (worker) w języku żądania,
-  od nadawcy konkursu, z linkiem do `/password-reset/` pod hostem konkursu. Brak listu przy działającej
-  zmianie = sprawdź workera i relay, jak przy innych listach.
-- **Audyt:** `password.changed`, `password.change_failed`, `password.set_link_sent` – bez sekretów.
-- **Motyw IQO:** w pasku konta adres e-mail jest teraz odnośnikiem do ustawień konta (fragment
+  od nadawcy konkursu, z godziną w strefie ucznia (TZ-01) albo konkursu (`Competition.time_zone`) i
+  linkiem do `/password-reset/` pod hostem konkursu. Kolejkowanie jest odporne na awarię brokera:
+  zmiana się udaje, a w logu `web` zostaje `Nie udało się zakolejkować listu o zmianie hasła dla konta <id>`
+  – wtedy sprawdź Redis/worker jak przy innych listach.
+- **Audyt:** `password.changed`, `password.change_failed`, `account.email_change_failed`,
+  `password.set_link_sent` – bez sekretów.
+- **Motyw IQO:** w pasku konta adres e-mail jest odnośnikiem do ustawień konta (fragment
   `web/_account_who.html`). Panele mają to od razu; na **stronach publicznych** z motywem `iqo-quantum`
-  odnośnik pojawi się po wgraniu paczki **1.1.1** (zmiana wyłącznie nagłówka i jednej reguły CSS):
+  odnośnik pojawi się po wgraniu paczki **1.1.1** (nagłówek i jedna reguła CSS; `min_app_version`
+  **0.45.0**, czyli dopiero po wdrożeniu wydania z AUTH-01b – na starszej aplikacji wgranie jest odrzucane):
 
 ```sh
 python themes/iqo-quantum/build_zip.py   # → themes/iqo-quantum/dist/iqo-quantum-1.1.1.zip (laptop)
@@ -4892,4 +4910,5 @@ docker compose exec -T web python manage.py theme_install - --activate iqo < /tm
   (§ 30.1).
 - **Wycofanie funkcji:** usunięcie wiersza `apps.password_change` z `INSTALLED_APPS` i rozwinięcia
   wzorców w `apps/web/urls.py` oraz sekcji „Hasło” w `web/account/profile.html` (danych do sprzątania
-  nie ma – funkcja niczego nie przechowuje poza `accounts.User.password` i audytem).
+  nie ma – funkcja niczego nie przechowuje poza `accounts.User.password` i audytem). Wymóg hasła przy
+  zmianie adresu i zamknięcie dróg Wagtaila/admina zostają – to poprawki bezpieczeństwa, nie część ekranu.
