@@ -2647,6 +2647,14 @@ msgstr "অ্যাকাউন্ট"
 msgid "Mój panel"
 msgstr "আমার প্যানেল"
 
+#: apps/themes/slots.py
+msgid "Koordynator"
+msgstr "সমন্বয়কারী"
+
+#: apps/themes/slots.py
+msgid "Panel koordynatora"
+msgstr "সমন্বয়কারী প্যানেল"
+
 #: templates/base.html:210
 msgid "Recenzje"
 msgstr "পর্যালোচনা"

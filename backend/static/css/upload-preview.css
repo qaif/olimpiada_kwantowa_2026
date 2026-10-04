@@ -87,7 +87,7 @@
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   background: var(--surface-inset);
-  font-family: ui-monospace, "Cascadia Code", "Source Code Pro", Menlo, Consolas, monospace;
+  font-family: var(--t-font-mono, ui-monospace, "Cascadia Code", "Source Code Pro", Menlo, Consolas, monospace);
   font-size: 0.85rem;
   line-height: 1.5;
   white-space: pre;

@@ -2618,6 +2618,14 @@ msgstr "الحساب"
 msgid "Mój panel"
 msgstr "لوحتي"
 
+#: apps/themes/slots.py
+msgid "Koordynator"
+msgstr "المنسق"
+
+#: apps/themes/slots.py
+msgid "Panel koordynatora"
+msgstr "لوحة المنسق"
+
 #: templates/base.html:210
 msgid "Recenzje"
 msgstr "المراجعات"
