@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% comment %}
+  ``/me/alumni/`` przy wyłączonej sieci (M4): organizator wyłączył funkcję, ale profil tej osoby
+  wciąż jest w bazie – więc jedyne, co tu stoi, to wycofanie zgody.
+{% endcomment %}
+{% block title %}{% translate "Absolwenci" %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>{% translate "Sieć absolwentów" %}</h1>
+  <p class="lead">{% blocktranslate trimmed %}Organizator wyłączył sieć absolwentów. Twój profil nie jest nikomu pokazywany, nie dostajesz
+    zaproszeń, a rozmowy mentorskie są tylko do odczytu. Dane profilu zostają do czasu wycofania zgody
+    albo usunięcia ich przez organizatora.{% endblocktranslate %}</p>
+</div>
+<form method="post" action="{% url 'web:alumni-withdraw' %}">
+  {% csrf_token %}
+  <button type="submit" class="btn btn--danger">{% translate "Wycofaj zgodę i usuń profil" %}</button>
+</form>
+{% endblock %}

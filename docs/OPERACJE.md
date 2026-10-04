@@ -4017,6 +4017,161 @@ Przestawienie trybu z powrotem na `OPEN` otwiera samodzielną rejestrację i ukr
 dane delegacji, opiekunów i uczniów zostają w bazie. Migracje `accounts.0036`–`0038` i `tenancy.0013` są
 odwracalne (nowe tabele i kolumny nullowalne albo z wartością domyślną).
 
+## 31. Logistyka finału dla delegacji (LOG-01, `docs/tasks/LOG-01.md`)
+
+Aplikacja `apps.delegation_logistics`: dane pobytu członków delegacji (paszport do wizy, przylot,
+pokój, dieta, koszulka, kontakt alarmowy, zdjęcie), listy zapraszające do wizy z rejestrem numerów,
+identyfikatory z kodem QR i odhaczanie obsługi na telefonach. Działa **wyłącznie** w konkursie
+w trybie `DELEGATIONS` (§ 28) **z** flagą `onsite_logistics`. Olimpiada Kwantowa nie widzi niczego.
+
+### 31.1. Włączenie dla `iqo` (kolejność)
+
+1. Migracje wydania: `delegation_logistics.0001`–`0002` (nowe tabele; dieta szyfrowana) i
+   `tenancy.0015_document_kind_visa_invitation` (nowy rodzaj szablonu dokumentu „list zapraszający
+   (wiza)” – sama lista wyboru, po `tenancy.0014_merge_20261004_1935`). `scripts/deploy.sh` je wykona.
+2. Flaga konkursu (jedna z dróg):
+   - `/admin/` → Konkursy → `iqo` → `feature_flags`: dopisać `"onsite_logistics": true`,
+   - powłoka:
+     ```sh
+     docker compose exec web python manage.py shell -c "from apps.tenancy.models import Competition; c = Competition.objects.get(slug='iqo'); c.feature_flags = {**(c.feature_flags or {}), 'onsite_logistics': True}; c.save(update_fields=['feature_flags'])"
+     ```
+   Flaga włącza też istniejące ekrany logistyki etapu (`/coordinator/venues/`, przyjazdy i obecność
+   etapu) – w `iqo` nieszkodliwe, a przełącznik „zbieraj potrzeby szczególne” na ekranie
+   `/coordinator/venues/` jest **tą samą** decyzją D21 dla danych o zdrowiu w logistyce finału.
+3. Panel `iqo` → „Uczestnicy i konta → Logistyka finału” (`/coordinator/logistics/`) → „Ustawienia
+   i dostęp”: nazwa, miasto, daty finału, terminy pięciu sekcji, retencja (dni po ostatnim dniu,
+   domyślnie 30), prefiks numeru listów (np. `IQO`). **Bez ostatniego dnia finału serwis nie przyjmuje
+   danych paszportowych ani o zdrowiu** – retencja nie miałaby od czego liczyć terminu usunięcia.
+4. **Oficer logistyki** – przydział „oficer logistyki” dla 1–2 koordynatorów (pierwszy przydział może
+   nadać dowolny koordynator; kolejne – superkoordynator albo oficer). Tylko oficer widzi dane osób.
+5. **Obsługa rejestracji** – przydział „obsługa rejestracji” dla kont wolontariuszy (konto musi
+   istnieć; rola w konkursie niepotrzebna). Nadaje go **oficer** (albo superkoordynator), nigdy samemu
+   sobie. Przypomnienia o brakach wysyła również wyłącznie oficer. Punkty kontroli („Przyjazd”, „Ceremonia otwarcia”…)
+   w tej samej zakładce.
+6. Dane o zdrowiu (dieta, alergie, uwagi medyczne) – dopiero po decyzji organizatora: `/coordinator/venues/`
+   → „zbieraj potrzeby szczególne”. Bez niej sekcja „Wyżywienie i zdrowie” nie istnieje.
+7. Tekst listu wizowego: przy fladze `document_templates` – „Szablony dokumentów” → „list zapraszający
+   (wiza)” (znaczniki `{event}`, `{event_dates}`, `{city}`, `{venue}`, `{country}`, `{number}`, `{date}`,
+   `{organizer}`). Bez szablonu obowiązuje tekst wbudowany po angielsku. Podpisy: bloki podpisu
+   z szablonu graficznego dyplomów (rodzaj „wszystkie”); pieczęć elektroniczna – jak dyplomy
+   (`CERT_SIGN_P12_PATH`).
+
+### 31.2. Szyfrowanie i klucz
+
+Numer, data ważności i nazwisko z paszportu, data urodzenia, dane o zdrowiu (z dietą) i kontakt alarmowy są
+szyfrowane w bazie (Fernet, klucz wyprowadzony z `SECRET_KEY` z etykietą `delegation-logistics`).
+**Rotacja `SECRET_KEY`**: stary klucz **musi** zostać w `SECRET_KEY_FALLBACKS` do końca retencji
+finału – inaczej zapisane dane stają się nieczytelne (ekran pokaże puste pola, w logu ostrzeżenie
+„nie udało się odszyfrować pola”). Kopia zapasowa bazy bez `SECRET_KEY` nie odsłania tych danych.
+
+### 31.3. Zdjęcia i skan
+
+Zdjęcia do identyfikatorów idą do prywatnego magazynu rozwiązań (`final-badges/…`) i przez ClamAV
+(kolejka `scan`, zadanie `apps.delegation_logistics.tasks.scan_badge_photo`) – worker `scan` musi
+działać. Zdjęcie jest widoczne dopiero po czystym skanie; zainfekowane jest usuwane. Po czystym skanie
+jest przekodowywane (Pillow) do JPEG-a najwyżej 600×800 bez metadanych EXIF; obraz ponad 40 Mpx jest
+odrzucany już przy wgraniu, a plik nieczytelny dla Pillow kończy jak błąd skanu. Skan porzucony po
+wyczerpaniu ponowień (ClamAV niedostępny) też kończy się błędem – opiekun widzi prośbę o ponowne wgranie.
+
+### 31.4. Retencja
+
+Zadanie dobowe `delegation-logistics-purge-expired` (`CELERY_BEAT_SCHEDULE`, `DatabaseScheduler`
+dopisze je przy starcie beat) usuwa po `ends_on + retencja` wszystkie dane członków delegacji edycji
+(z plikami zdjęć) i migawki osób z listów; rejestr listów zostaje (numer, kraj, data, liczba osób).
+Ręcznie (np. test na kopii):
+```sh
+docker compose exec web python manage.py shell -c "from apps.delegation_logistics.privacy import purge_expired; print(purge_expired())"
+```
+
+### 31.5. Obsługa na miejscu
+
+Identyfikatory: „Osoby” → wybór kraju → „Identyfikatory PDF (ten kraj)” albo karta osoby (A4, cztery
+karty A6). Wydruku wszystkich naraz nie ma – kilkaset kart ze zdjęciami w jednym żądaniu WWW to
+pamięć i limit czasu workera. Kod QR zawiera wyłącznie adres
+`/coordinator/logistics/checkin/<token>/` – bez danych osobowych; aparat telefonu otwiera go sam
+(obsługa musi być zalogowana). Zgubiona karta: karta osoby → „Wydaj nowy identyfikator” (stary kod
+przestaje działać). Limity żądań: `onsite_logistics` 600/h i `onsite_checkin` 3000/h na konto.
+
+### 31.6. Wycofanie
+
+Wyłączenie flagi ukrywa ekrany (404) i pozycję menu; dane zostają do retencji albo do ręcznego
+`purge_event`. Migracje są odwracalne (nowe tabele; `tenancy.0015` zmienia wyłącznie listę wyboru).
+
+### 31.7. Pokoje po zmianie danych albo daty finału
+
+Zmiana płci, daty urodzenia albo „bez noclegu” u osoby z pokojem **zdejmuje przydział**, gdy osoba
+przestaje spełniać zasady pokoju (wpis audytu `logistics.room_unassigned`, komunikat dla zapisującego).
+Zmiana pierwszego dnia finału niczego nie przenosi sama – pokoje z naruszeniem są oznaczone na
+zakładce „Pokoje” i w kolumnie „naruszenie zasad pokoju” rooming listy CSV, a komunikat po zapisie
+ustawień podaje ich liczbę. Niepełnoletni z płcią „inna” mieszka w pokoju jednoosobowym.
+
+### 31.8. Listy zapraszające – wnioski, weryfikacja, unieważnienie (VISA-01, `docs/tasks/VISA-01.md`)
+
+Ekrany wniosków stoją na tej samej bramce (flaga `onsite_logistics` + tryb `DELEGATIONS`) – **nic do
+włączenia** poza krokami § 31.1. Strona weryfikacji ma bramkę własną: istnieje w konkursie, który
+wystawił choć jeden list – także po wyłączeniu logistyki albo zmianie trybu rejestracji (list leży
+w konsulacie dłużej niż trwa logistyka finału). Wdrożenie:
+
+0. **Przed wdrożeniem – slug `visa` na produkcji.** Adres `/visa/…` należy od tego wydania do aplikacji;
+   strona CMS o slugu `visa` na drugim poziomie drzewa stałaby się nieosiągalna pod `/visa/verify/…`.
+   W repozytorium (seed, fikstury) takiej strony nie ma; na produkcji sprawdź:
+   ```sh
+   docker compose exec web python manage.py shell -c "from wagtail.models import Page; print(list(Page.objects.filter(slug='visa').values_list('url_path', flat=True)))"
+   ```
+   Wynik z `…/visa/` na trzecim poziomie (`/home/visa/`) – zmień slug strony przed wdrożeniem.
+1. Migracja `delegation_logistics.0003_visa_letter_workflow` (`scripts/deploy.sh`): nowa tabela
+   wniosków, nowe kolumny rejestru listów; listy wystawione wcześniej dostają kod weryfikacyjny
+   i migawkę wydarzenia z ustawień finału (adres weryfikacji tych listów liczy się z bieżącego
+   adresowania). **Nie cofaj tej migracji po wystawieniu pierwszego listu**: cofnięcie usuwa kolumnę
+   z kodami, a ponowne zastosowanie nadaje kody **nowe** – kody wydrukowane na listach przestają działać.
+2. **Kontrakt tras:** nowy pierwszy segment adresu `visa/` (`/visa/verify/`, `/visa/verify/<kod>/`) –
+   `RESERVED_SLUGS` i `backend/djcms_contract/` zaktualizowane w tym wydaniu. Jeśli Caddyfile jest
+   renderowany z `app_routes.env` osobno, wyrenderuj go ponownie (inaczej po przełączeniu na djcms
+   adres weryfikacji trafi do djcms i kod QR na listach przestanie działać).
+3. Limit żądań `visa_verify` – 60/h na adres IP (`REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]`).
+   Konsulat sprawdzający kolejkę wnioskodawców za jednym adresem mieści się z zapasem.
+4. **Teksty listów w 7 językach** (`apps/delegation_logistics/letter_texts.py`: en, pl, es, fr, pt, ru,
+   id) są tłumaczeniem maszynowym poza angielskim – przed pierwszym listem w danym języku daj tekst do
+   przejrzenia prawnikowi organizatora. Chiński, hindi, bengalski i arabski nie są dostępne (krój
+   DejaVu nie ma tych znaków). Szablon z bazy (`document_templates`, „list zapraszający (wiza)”) jest
+   jednojęzyczny i ma pierwszeństwo – wtedy język zmienia tylko etykiety tabeli i ramkę weryfikacji;
+   w szablonie można użyć `{code}` (kod weryfikacyjny).
+5. Przydział oficera logistyki (§ 31.1 p. 4) jest warunkiem decyzji – zwykły koordynator dostaje 403.
+   Oficer klikający kody w rejestrze listów nie zużywa limitu `visa_verify`.
+6. Strony `/visa/verify/…` i `/dyplomy/<kod>/` nie ładują tagu Google Analytics (`no_analytics`
+   w `base.html`) – kod z dokumentu w adresie nie trafia do statystyk.
+
+**Reguły, które warto znać przy obsłudze zgłoszeń:**
+- nowy list imienny (z wniosku albo wystawiony przez oficera z karty osoby) unieważnia wcześniejszy
+  list tej osoby **tylko**, gdy zmienił się numer paszportu, nazwisko z paszportu albo obywatelstwo;
+  przy tych samych danych oba listy zostają ważne. Ekran wniosków pokazuje „unieważni list …” przed
+  zatwierdzeniem; list **delegacji** z nieaktualnymi danymi nie jest unieważniany sam – rejestr listów
+  oznacza go „nieaktualne dane: …”,
+- wypisanie osoby z delegacji (uczeń odpięty, opiekun odwołany, gość usunięty) unieważnia jej listy
+  imienne z powodem „osoba wypisana z delegacji”; usunięcie konta przed końcem wydarzenia czyści dane
+  osoby z listu, a strona weryfikacji pokazuje list jako „nieważny”. Retencja po finale tylko czyści
+  dane (i powody unieważnień) – strona mówi wtedy „dane usunięte”.
+
+**Zmiana domeny albo prefiksu konkursu po wystawieniu listów.** Kod QR niesie adres z chwili wystawienia
+(`InvitationLetter.verification_base_url`), także w PDF-ie pobranym ponownie. Po zmianie adresowania:
+```sh
+docker compose exec web python manage.py visa_letter_redirects iqo --dry-run   # ile listów ma stary adres
+docker compose exec web python manage.py visa_letter_redirects iqo             # przekierowania Wagtaila
+```
+Komenda zakłada przekierowania ze starej ścieżki z kodem (np. `/stary-prefiks/visa/verify/<kod>/`) na
+dzisiejszy adres listu; działa, dopóki stary host trafia na nasz serwer. Gdy stara **domena** trafia do
+innego konkursu z listami, widok weryfikacji przekierowuje sam (po zapamiętanym adresie listu). Domena
+porzucona całkiem (DNS wskazuje gdzie indziej) – kody działają już tylko przez nowy adres i formularz
+`/visa/verify/` (kod przepisany ręcznie).
+
+Sprawdzenie po wdrożeniu (na `iqo`, z oficerem): wystaw list próbny z karty osoby → pobierz PDF → zeskanuj
+QR telefonem (ma otworzyć `https://<domena iqo>/visa/verify/<kod>/` ze stanem „ważny”) → „Unieważnij”
+z powodem „test” → strona pokazuje „unieważniony”.
+
+Wycofanie: wyłączenie flagi ukrywa ekrany wniosków i rejestru, ale **nie** strony weryfikacji (te
+istnieją, dopóki konkurs ma wystawione listy). Migracja jest odwracalna schematem (nowa tabela, nowe
+kolumny nullowalne albo z wartością domyślną) – z zastrzeżeniem kodów z punktu 1.
+
 ## 36. Webinary w LiveKit (WEB-01, `docs/tasks/WEB-01.md`)
 
 Koordynator planuje webinary w panelu (`Komunikacja → Webinary`); uczestnicy, komisja i (opcjonalnie)
@@ -4560,3 +4715,67 @@ zadanie robi dwa puste zapytania.
   w `.env` usługi `web`.
 - Wycofanie: wyłączenie flagi `fees` ukrywa ekrany (404); dane zostają. Migracje `payments.0001`–`0002` są
   odwracalna, ale **dokumenty księgowe** trzeba przed tym wyeksportować (5 lat przechowywania).
+
+## 38. Sieć absolwentów i mentoring (ALUM-01, `docs/tasks/ALUM-01.md`)
+
+Funkcja jest za flagą konkursu **`alumni`** (domyślnie wyłączona) i nie ma jej w ekranie
+„Ustawienia konkursu” – to nowa czynność przetwarzania na podstawie zgody i kontakt dorosłych
+mentorów z małoletnimi, więc włącza ją operator po decyzji organizatora (jak forum, § 6.4):
+
+```sh
+docker compose exec web python manage.py shell -c "from apps.tenancy.models import Competition as C; c=C.objects.get(slug='kwantowa'); c.feature_flags={**(c.feature_flags or {}), 'alumni': True}; c.save(update_fields=['feature_flags'])"
+```
+
+Po włączeniu koordynator ustawia w `/coordinator/alumni/`: kto może dołączyć (domyślnie finaliści),
+mentoring (domyślnie wyłączony) i publiczną ścianę (domyślnie wyłączona). Mentoring wymaga
+włączonych Wiadomości (`/coordinator/chat/settings/`).
+
+**Wdrożenie:** migracje `alumni.0001_initial` i `alumni.0002_review_safeguards` (nowe tabele
+i kolumny wyłącznie w `alumni_*`, bez zmian w istniejących), nowy segment
+adresu `/alumni/` w kontrakcie tras (`backend/djcms_contract/app_routes.*` – generator Caddy'ego
+wkleja go przy wdrożeniu, § 23), nowy zakres limitu `alumni` w `REST_FRAMEWORK`. Nic do zrobienia
+ręcznie poza ewentualnym włączeniem flagi.
+
+**Retencja:** aktywna zgoda absolwenta (profil nieukryty, konto aktywne) wstrzymuje **pełną**
+anonimizację konta (`apps.accounts.retention`, przeszkoda „należy do sieci absolwentów (zgoda)” na
+ekranie `/coordinator/retention/`, sprawdzana **po** reklamacjach i nieogłoszonych wynikach). Przebieg
+retencji robi wtedy **minimalizację** (`apps.alumni.services.minimise_participant`, wpis audytu
+`account.minimised_by_retention`): czyści telefon, szkołę (nazwę i powiązania ze słownikami), region
+i województwo, klasę, adresy opiekuna szkolnego i rodzica oraz dzień urodzenia (zostaje rocznik).
+Zostają imię, nazwisko, adres e-mail, kod publiczny, wpisy do etapów i dyplomy (z nich liczą się
+osiągnięcia) i wiersze sieci. Pełnoletność potrzebna regułom mentoringu jest zapisana na profilu
+absolwenta (`adult_confirmed_at`). Wycofanie zgody, ukrycie profilu albo wyłączenie flagi przywraca
+zwykłą retencję przy najbliższym przebiegu nocnym.
+
+**Co dzieje się z danymi po wyłączeniu flagi (dokładnie):** adresy `/alumni/…`, katalog, prośby,
+zaproszenia i ekrany koordynatora dają 404; `/me/alumni/` zostaje **wyłącznie** dla osób z profilem
+i pokazuje jedno – wycofanie zgody (działa także przy wyłączonej fladze). Profile, dowody zgody,
+relacje i zgłoszenia zostają w bazie bez zmian, ale nikomu nie są pokazywane ani używane (nie ma
+zaproszeń, statystyk ani katalogu). Rozmowy mentorskie w Wiadomościach są tylko do odczytu („Organizator
+wstrzymał mentoring”) – sprawdzenie kosztuje jedno zapytanie przy wiadomości P2P wyłącznie w konkursie,
+który flagę **kiedyś** zapisał (konkurs, który jej nigdy nie włączał, nie płaci nic). Wstrzymanie
+retencji przestaje działać – przy najbliższym przebiegu przeterminowane konta są anonimizowane, a wraz
+z nimi znikają profile absolwentów (`erase_for_user`). Ponowne włączenie flagi przywraca wszystko
+w stanie sprzed wyłączenia.
+
+**Dokumentacja bezpieczeństwa mentoringu:** strony relacji, daty, kanał, powód zakończenia, notatka
+organizatora, zgłoszenia (także automatyczne: wzorce danych kontaktowych w notatce, zmiana daty
+urodzenia osoby w otwartej relacji, rozmowa szyfrowana pod wymuszoną moderacją) i wpisy dziennika
+zdarzeń zostają do anonimizacji kont stron. Przy anonimizacji znika notatka prośby, treść zgłoszeń tej
+osoby i zapisana przy akceptacji data urodzenia mentee. **Zakończonej relacji nie da się wznowić**
+(także koordynatorowi): mentee wysyła nową prośbę, a po akceptacji rozmowa sprzed relacji znów
+przyjmuje wiadomości na zasadach mentoringu.
+
+**Zmiana treści zgody:** podbicie `ALUMNI_CONSENT_VERSION` (`apps/alumni/models.py`) usypia profile
+z poprzednią wersją (znikają z katalogu, ściany i zaproszeń) do czasu potwierdzenia nowej treści na
+`/me/alumni/`. Dowód zgody zapisuje wersję, język i skrót SHA-256 pokazanej treści.
+
+**Moderacja mentoringu:** wiadomości rozmów mentorskich trafiają do istniejącej kolejki
+`/coordinator/chat/moderation/` (premoderacja przy małoletnim mentee i zasadzie „ta sama grupa
+wiekowa” albo przy wyłączonych rozmowach uczestników; przy „bez ograniczeń” premoderacja pierwszych
+5 wiadomości nowej pary, potem postmoderacja). Notatki próśb małoletnich i opisy mentorów widoczne dla
+małoletnich czekają na akceptację w `/coordinator/alumni/mentoring/` i `/coordinator/alumni/`. Przy
+włączonym mentoringu z małoletnimi organizator musi mieć dyżur moderacyjny.
+
+**Definitywne wycofanie funkcji:** wyłączenie flagi (skutki wyżej) i – bo zgoda dotyczyła działającej
+sieci – usunięcie profili (`AlumniProfile.objects.filter(participant__competition=c).delete()`).

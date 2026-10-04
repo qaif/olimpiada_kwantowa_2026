@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% load i18n static %}
+{% comment %}
+  Listy zapraszające do wizy – panel opiekuna drużyny (VISA-01). Opiekun zaznacza osoby z kompletnym
+  dokumentem podróży, wybiera język i składa wniosek; oficer logistyki zatwierdza (wystawia list)
+  albo odrzuca z powodem. Ważny list pobiera się tutaj (widok LOG-01), unieważniony – nie.
+
+  Formularz bez JavaScriptu (CSP bez skryptów inline): zwykłe pola wyboru i jeden przycisk.
+{% endcomment %}
+{% block title %}{% translate "Listy zapraszające (wiza)" %}{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/coordinator-tools.css' %}">{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow"><a href="{% url 'web:delegation-logistics' %}">{% translate "Logistyka finału" %}</a></span>
+  <h1>{% translate "Listy zapraszające (wiza)" %}</h1>
+  <p class="lead">{% translate "Osoby, które potrzebują wizy, dostają od organizatora imienny list zapraszający w PDF. Zaznacz osoby, wybierz język listu i złóż wniosek – po decyzji organizatora dostaniesz e-mail. List ma kod weryfikacyjny, który konsulat sprawdza na stronie organizatora." %}</p>
+  <p class="hint">{% translate "Wniosek można złożyć dla osoby z kompletnymi danymi dokumentu podróży (imię i nazwisko jak w paszporcie, obywatelstwo, data urodzenia, numer i ważność paszportu)." %}</p>
+</div>
+
+{% if purged %}
+  <p class="notice">{% translate "Finał się zakończył, a dane delegacji zostały usunięte." %}</p>
+{% else %}
+<section class="section">
+  <form method="post" class="form" novalidate>
+    {% csrf_token %}
+    <div class="scroll">
+      <table class="table">
+        <caption class="visually-hidden">{% translate "Osoby w delegacji" %}</caption>
+        <thead>
+          <tr>
+            <th scope="col"><span class="visually-hidden">{% translate "Zaznacz" %}</span></th>
+            <th scope="col">{% translate "Imię i nazwisko" %}</th>
+            <th scope="col">{% translate "Rola" %}</th>
+            <th scope="col">{% translate "Dokument podróży" %}</th>
+            <th scope="col">{% translate "Wniosek" %}</th>
+            <th scope="col">{% translate "Ważny list" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+            <tr>
+              <td>
+                {% if row.complete and row.request.status != pending %}
+                  <input type="checkbox" name="member" value="{{ row.member.pk }}" id="member-{{ row.member.pk }}">
+                {% endif %}
+              </td>
+              <th scope="row"><label for="member-{{ row.member.pk }}">{{ row.member.full_name }}</label></th>
+              <td>{{ row.member.role_label }}</td>
+              <td>
+                {% if row.complete %}<span class="badge badge--ok">{% translate "komplet" %}</span>
+                {% else %}<a href="{% url 'web:delegation-logistics-member' row.member.pk %}">{% translate "uzupełnij" %}</a>{% endif %}
+              </td>
+              <td>
+                {% if row.request %}
+                  {{ row.request.get_status_display }} ({{ row.request.requested_at|date:"j.m.Y" }})
+                  {% if row.request.status == rejected and row.request.reject_reason %}<br><span class="hint">{% translate "Powód:" %} {{ row.request.reject_reason }}</span>{% endif %}
+                  {% if row.request.status == pending %}
+                    <button type="submit" class="btn btn--ghost btn--small" formaction="{% url 'web:delegation-logistics-letter-request-withdraw' row.request.pk %}">{% translate "Wycofaj" %}</button>
+                  {% endif %}
+                {% else %}—{% endif %}
+              </td>
+              <td>
+                {% for letter in row.letters %}<a href="{% url 'web:delegation-logistics-letter' letter.pk %}">{{ letter.number }}</a>{% if not forloop.last %}, {% endif %}{% empty %}—{% endfor %}
+                {% if row.would_revoke %}<br><span class="badge badge--warn">{% blocktranslate trimmed with numbers=row.would_revoke|join:", " %}Dane paszportowe zmieniły się – nowy list unieważni list {{ numbers }}.{% endblocktranslate %}</span>
+                {% elif row.letters %}<br><span class="hint">{% translate "Ma już ważny list – nowy list z tymi samymi danymi nie unieważni poprzedniego." %}</span>{% endif %}
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="6" class="empty">{% translate "Delegacja nie ma jeszcze członków." %}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p>
+      <label for="letter-language">{% translate "Język listu" %}</label>
+      <select id="letter-language" name="language">
+        {% for code, name in languages %}<option value="{{ code }}"{% if code == default_language %} selected{% endif %}>{{ name }}</option>{% endfor %}
+      </select>
+    </p>
+    <div class="actions">
+      <button type="submit" class="btn btn--primary">{% translate "Poproś o list dla zaznaczonych" %}</button>
+    </div>
+  </form>
+</section>
+{% endif %}
+
+<section class="section">
+  <div class="section__head"><h2 class="mt-0">{% translate "Wszystkie listy delegacji" %}</h2></div>
+  <ul>
+    {% for letter in letters %}
+      <li>
+        {% if letter.content and not letter.revoked_at %}<a href="{% url 'web:delegation-logistics-letter' letter.pk %}">{{ letter.number }}</a>{% else %}{{ letter.number }}{% endif %}
+        – {{ letter.issued_at|date:"j.m.Y" }} ({{ letter.people_count }})
+        {% if letter.revoked_at %}<span class="badge badge--warn">{% translate "unieważniony" %}</span>{% if letter.revoke_reason %} <span class="hint">{{ letter.revoke_reason }}</span>{% endif %}{% endif %}
+      </li>
+    {% empty %}
+      <li>{% translate "Brak wystawionych listów." %}</li>
+    {% endfor %}
+  </ul>
+</section>
+{% endblock %}

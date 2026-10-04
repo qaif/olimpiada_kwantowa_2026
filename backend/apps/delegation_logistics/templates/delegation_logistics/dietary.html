@@ -1,0 +1,57 @@
+{% extends "web/coordinator/base.html" %}
+{% comment %}
+  Wyżywienie (oficer logistyki): liczby diet i lista alergii/uwag dla kuchni. Dane o zdrowiu istnieją
+  wyłącznie przy decyzji D21 (zbieranie potrzeb szczególnych) – bez niej ekran mówi, jak ją włączyć.
+{% endcomment %}
+{% block title %}Logistyka finału – wyżywienie{% endblock %}
+{% block panel_title %}Wyżywienie{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Liczby posiłków według diety i lista osób z alergią lub uwagą – do przekazania firmie
+    cateringowej. Uwagi medyczne nie trafiają do eksportu dla kuchni.</p>
+{% endblock %}
+{% block panel_actions %}
+  {% if health %}<a class="btn btn--secondary" href="{% url 'web:coordinator-onsite-export' 'dietary' %}">Eksport CSV</a>{% endif %}
+{% endblock %}
+{% block panel_content %}
+{% include "delegation_logistics/_tabs.html" %}
+
+{% if not health %}
+  <p class="notice">Konkurs nie zbiera danych o wyżywieniu i zdrowiu (art. 9 RODO). Włączenie to osobna decyzja
+    organizatora: „Miejsca zawodów” → „zbieraj potrzeby szczególne”.</p>
+{% else %}
+  <section class="section">
+    <table class="table">
+      <caption class="visually-hidden">Diety</caption>
+      <thead><tr><th scope="col">Dieta</th><th scope="col">Osoby</th></tr></thead>
+      <tbody>
+        {% for label, count in summary.counts %}<tr><th scope="row">{{ label }}</th><td class="num">{{ count }}</td></tr>{% endfor %}
+        <tr><th scope="row">brak odpowiedzi</th><td class="num">{{ summary.unknown }}</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="section">
+    <div class="section__head"><h2 class="mt-0">Alergie i uwagi</h2></div>
+    <div class="scroll">
+      <table class="table">
+        <caption class="visually-hidden">Alergie i uwagi</caption>
+        <thead><tr><th scope="col">Osoba</th><th scope="col">Kraj</th><th scope="col">Dieta</th><th scope="col">Uwagi do diety</th><th scope="col">Alergie</th><th scope="col">Medyczne</th></tr></thead>
+        <tbody>
+          {% for member in summary.rows %}
+            <tr>
+              <th scope="row"><a href="{% url 'web:coordinator-onsite-member' member.pk %}">{{ member.full_name }}</a></th>
+              <td>{{ member.delegation.country.name }}</td>
+              <td>{{ member.get_diet_display|default:"—" }}</td>
+              <td>{{ member.diet_notes|default:"—" }}</td>
+              <td>{{ member.allergies|default:"—" }}</td>
+              <td>{% if member.medical_notes %}<span class="badge badge--info">tak – karta osoby</span>{% else %}—{% endif %}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="6" class="empty">Nikt nie zgłosił diety ani alergii.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+{% endif %}
+{% endblock %}
