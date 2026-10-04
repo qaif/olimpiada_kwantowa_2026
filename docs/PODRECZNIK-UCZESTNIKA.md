@@ -291,6 +291,11 @@ tak samo w panelu i w API aplikacji).
 Dokument pobiera się w PDF-ie; strona weryfikacyjna **nie pokazuje imienia i nazwiska**, dopóki nie
 wyraziłeś zgody na publikację pełnych danych.
 
+**Olimpiada międzynarodowa (medale).** W konkursie z medalami (`iqo`) w „Dyplomach” znajdziesz dyplom
+medalowy (złoty, srebrny, brązowy medal albo wyróżnienie) i zaświadczenie o udziale **w języku, który
+wybrałeś w ustawieniach konta** — język jest zapisywany w chwili wystawienia dokumentu. Medale i ranking
+krajów są pod odnośnikami „Medale” i „Ranking krajów” na stronie wyników etapu.
+
 ### Materiały z warsztatów — `/warsztaty/materialy/`
 
 Nagrania warsztatów, slajdy i pliki do ćwiczeń są pod adresem `/warsztaty/materialy/`. Trafisz tam

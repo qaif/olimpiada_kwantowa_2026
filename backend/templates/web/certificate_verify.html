@@ -24,7 +24,8 @@
   <div class="card">
     {% if certificate %}
       <p class="msg msg-success">{% blocktranslate trimmed %}Dokument o tym kodzie został wystawiony przez organizatora
-        olimpiady.{% endblocktranslate %}</p>
+        olimpiady.{% endblocktranslate %}</p>{% if certificate.current is False %}<p class="msg msg-warning">{% blocktranslate trimmed %}Ten dokument nie jest już aktualny: nagroda,
+        którą poświadcza, została zmieniona albo jest w trakcie korekty. Aktualny dokument wydaje organizator.{% endblocktranslate %}</p>{% endif %}
       <dl class="meta-list">
         <dt>{% translate "Rodzaj" %}</dt><dd>{{ certificate.title }} ({{ certificate.kind }})</dd>
         <dt>{% translate "Edycja" %}</dt><dd>{{ certificate.edition }}</dd>
