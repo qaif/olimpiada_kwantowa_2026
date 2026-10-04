@@ -401,7 +401,15 @@ services:
       # dla kogoś, kto trafi do sieci compose). Ta sama zmienna ogranicza nadawców konkursów
       # w aplikacji (``MAIL_ALLOWED_SENDER_DOMAINS``, AUTH-01a): druga domena nadawcy = dopisana
       # tutaj spacją (np. "olimpiadakwantowa.pl iqo-official.org") razem z jej SPF/DKIM.
+      # Każda domena z listy dostaje własny klucz DKIM i własny wiersz KeyTable/SigningTable
+      # (obsługa wielu domen jest w obrazie). Dodawanie domeny: scripts/mail_add_domain.sh
+      # (MAIL-01, docs/OPERACJE.md § 49) – generuje klucz na serwerze i wypisuje rekordy DNS.
       ALLOWED_SENDER_DOMAINS: ${ALLOWED_SENDER_DOMAINS:-${SITE_DOMAIN:-localhost}}
+      # Poczta zwrotna na noreply@ (i podwójne odbicia na postmaster@): `discard` albo adres
+      # skrzynki operatora. Bez tego odbicia krążą („loops back to myself”) – skrypt
+      # deploy/mail/docker-init.d/50-bounces.sh, docs/OPERACJE.md § 49.6.
+      MAIL_BOUNCE_TARGET: ${MAIL_BOUNCE_TARGET:-discard}
+      MAIL_BOUNCE_ADDRESSES: ${MAIL_BOUNCE_ADDRESSES:-}
       POSTFIX_myhostname: mail.${SITE_DOMAIN:-localhost}
       # Klienci SMTP: wyłącznie podsieci compose (edge + internal). Bez SASL – poza tymi
       # podsieciami port 587 nie jest osiągalny (brak `ports:`), więc hasło niczego by nie dodało.
@@ -431,6 +439,9 @@ services:
       # aktualizować rekord TXT w DNS-ie.
       - mail_dkim:/etc/opendkim/keys
       - mail_spool:/var/spool/postfix
+      # Skrypty startowe obrazu (wykonywane przy każdym starcie, po konfiguracji z env): poczta
+      # zwrotna (MAIL-01). Tylko do odczytu – kontener ich nie zmienia.
+      - ./deploy/mail/docker-init.d:/docker-init.d:ro
     # `internal` – tu sięgają web/worker/beat. `edge` – bo `internal` ma internal:true, a doręczenie
     # wprost do MX-a odbiorcy wymaga wyjścia na świat. Portów nie publikujemy: relay jest widoczny
     # tylko z sieci compose.
