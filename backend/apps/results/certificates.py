@@ -1054,6 +1054,28 @@ def register_composer(handles, compose) -> None:
         _COMPOSERS.append((handles, compose))
 
 
+#: Sprawdzenia „czy ten dokument jest nadal aktualny” spoza tego modułu (MED-01): dyplom medalowy
+#: przestaje poświadczać prawdę, gdy ogłoszoną nagrodę zmieniono albo medale są w korekcie.
+#: Rejestr z tego samego powodu, co ``_COMPOSERS`` – dokumenty Olimpiady Kwantowej nie przechodzą
+#: przez żadne sprawdzenie i są zawsze aktualne, jak dotąd.
+_CURRENCY_CHECKS: list = []
+
+
+def register_currency_check(check) -> None:
+    """Dopisuje sprawdzenie ``check(certificate) -> bool | None`` (``None`` = „nie mój dokument”)."""
+    if check not in _CURRENCY_CHECKS:
+        _CURRENCY_CHECKS.append(check)
+
+
+def certificate_is_current(certificate: Certificate) -> bool:
+    """Czy dokument nadal poświadcza stan rzeczy. Bez zarejestrowanych sprawdzeń – zawsze tak."""
+    for check in _CURRENCY_CHECKS:
+        answer = check(certificate)
+        if answer is not None:
+            return bool(answer)
+    return True
+
+
 def render_pdf(certificate: Certificate) -> bytes:
     """Składa dokument, pieczętuje go (gdy skonfigurowano) i zwraca bajty PDF-a.
 
@@ -1218,6 +1240,9 @@ def verify(code: str) -> dict | None:
         # a jej obecność odpowiada dodatkowo na pytanie „czy tego PDF-a nie ruszono”.
         "signed": certificate.signed,
         "signer_name": certificate.signer_name,
+        # ``False`` dla dyplomu, którego nagrody już nie ma w ogłoszeniu (MED-01) – strona mówi to
+        # wprost zamiast potwierdzać dokument, który przestał być prawdą.
+        "current": certificate_is_current(certificate),
     }
 
 

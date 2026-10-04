@@ -247,9 +247,12 @@ def test_disqualified_entry_gets_nothing_and_is_not_in_the_public_table(iqo, coo
     assert len(row.public_rows) == 2
 
 
-def test_issue_certificates_freezes_the_students_language(field, coordinator, iqo):
+def test_issue_certificates_freezes_the_students_language(field, coordinator, iqo, monkeypatch):
     from apps.accounts.models import UserPreference
+    from apps.medals import typesetting
 
+    # Przypięcie języka nie składa dokumentu – potrzebna jest tylko odpowiedź „pismo dostępne”.
+    monkeypatch.setattr(typesetting, "shaping_available", lambda: True)
     stage, entries = field
     iqo.interface_languages = ["en", "ar", "hi", "pl"]
     iqo.default_language = "en"
@@ -320,3 +323,163 @@ def test_override_cascades_with_the_entry(field, coordinator):
     entries[9].delete()
 
     assert not MedalOverride.objects.exists()
+
+
+# --- M1: kraj przy wierszu w każdym trybie anonimizacji ----------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("mode", "countries_shown"),
+    [
+        (Anonymization.CODE, "all"),
+        (Anonymization.INITIALS_SCHOOL, "none"),
+        (Anonymization.FULL, "consenting"),
+        (Anonymization.FULL_ALL, "consenting"),
+    ],
+)
+def test_country_column_follows_the_publication_mode_and_consent(field, coordinator, mode, countries_shown):
+    stage, entries = field
+    consenting = entries[0].participant
+    consenting.publish_full_name = True
+    consenting.guardian_consent = True
+    consenting.save(update_fields=["publish_full_name", "guardian_consent"])
+    publish(stage, coordinator, mode)
+
+    row = services.freeze(services.scheme_for(stage, create=True), actor=coordinator)
+
+    shown = [bool(item["country"]) for item in row.public_rows]
+    if countries_shown == "all":
+        assert all(shown)
+    elif countries_shown == "none":
+        # „Inicjały i szkoła” zmieniają podpis, ale nie są zgodą – kraj przy nich zawęża do osoby.
+        assert not any(shown)
+        assert row.public_rows[0]["display"] != consenting.public_code
+    else:
+        assert shown[0] and not any(shown[1:])
+        assert row.public_rows[0]["display"] == consenting.user.get_full_name()
+
+
+# --- M4: zmiana stanów po publikacji ------------------------------------------------------------------
+
+
+def test_disqualification_after_publication_blocks_the_freeze(field, coordinator):
+    stage, entries = field
+    publish(stage, coordinator)
+    entries[3].status = StageEntryStatus.DISQUALIFIED
+    entries[3].save(update_fields=["status"])
+
+    with pytest.raises(DomainError) as error:
+        services.freeze(services.scheme_for(stage, create=True), actor=coordinator)
+
+    assert error.value.machine_code == "RESULTS_CHANGED"
+    assert "stany" in str(error.value.detail)
+
+
+def test_republishing_after_a_disqualification_unblocks_the_freeze(field, coordinator):
+    stage, entries = field
+    publish(stage, coordinator)
+    entries[3].status = StageEntryStatus.DISQUALIFIED
+    entries[3].save(update_fields=["status"])
+    publish(stage, coordinator)
+
+    row = services.freeze(services.scheme_for(stage, create=True), actor=coordinator)
+
+    assert str(entries[3].pk) not in row.awards
+
+
+def test_entry_added_after_publication_blocks_the_freeze(field, coordinator, iqo):
+    stage, _entries = field
+    publish(stage, coordinator)
+    contestant(stage, (1, 1))
+
+    with pytest.raises(DomainError) as error:
+        services.freeze(services.scheme_for(stage, create=True), actor=coordinator)
+    assert error.value.machine_code == "RESULTS_CHANGED"
+
+
+# --- L2: zdyskwalifikowany bez ręcznej nagrody -------------------------------------------------------
+
+
+def test_override_of_a_disqualified_entry_is_refused(iqo, coordinator):
+    stage = final_stage(iqo)
+    banned = contestant(stage, (6, 6), status=StageEntryStatus.DISQUALIFIED)
+
+    with pytest.raises(DomainError) as error:
+        services.set_override(
+            services.scheme_for(stage, create=True),
+            entry_id=banned.pk,
+            award=Award.GOLD,
+            justification="x",
+            actor=coordinator,
+        )
+    assert error.value.machine_code == "ENTRY_DISQUALIFIED"
+    assert not MedalOverride.objects.exists()
+
+
+# --- M3: ranking krajów przy publikacji „tylko awansujący” ------------------------------------------
+
+
+def test_country_table_with_qualified_only_publication_sums_awarded_results_only(field, coordinator):
+    stage, entries = field
+    publish(stage, coordinator, qualified_only=True)
+
+    row = services.freeze(services.scheme_for(stage, create=True), actor=coordinator)
+
+    france = next(item for item in row.country_table if item["code"] == "fr")
+    # Francja: 8 (brąz), 7 (wyróżnienie), 4 i 3 (bez nagrody) – do sumy idą tylko dwa nagrodzone,
+    # a dwa wyniki to za mało, żeby sumę w ogóle pokazać.
+    assert france["contestants"] == 4
+    assert france["total"] is None and france["rank"] is None
+    assert france["BRONZE"] == 1 and france["HM"] == 1
+
+
+# --- M5: dyplom nieaktualny po zmianie nagrody ------------------------------------------------------
+
+
+def test_medal_certificate_stops_being_current_after_a_change(field, coordinator):
+    from apps.results.certificates import certificate_is_current, verify
+
+    stage, entries = field
+    publish(stage, coordinator)
+    row = services.freeze(services.scheme_for(stage, create=True), actor=coordinator)
+    services.issue_certificates(row, participation=True, actor=coordinator)
+    gold = Certificate.objects.get(entry=entries[0], kind=CertificateKind.MEDAL_GOLD)
+    participation = Certificate.objects.get(entry=entries[0], kind=CertificateKind.UCZESTNIK)
+    assert certificate_is_current(gold) and verify(gold.code)["current"] is True
+
+    services.unfreeze(row, justification="Korekta", actor=coordinator)
+    assert verify(gold.code)["current"] is False  # w trakcie korekty
+
+    services.set_override(
+        row, entry_id=entries[0].pk, award=Award.SILVER, justification="x", actor=coordinator
+    )
+    services.freeze(row, actor=coordinator)
+    assert verify(gold.code)["current"] is False  # ogłoszona nagroda jest inna
+    # Zaświadczenie o udziale nie zależy od nagrody.
+    assert certificate_is_current(participation) is True
+    services.unfreeze(row, justification="Powrót", actor=coordinator)
+    services.remove_override(row, entry_id=entries[0].pk, actor=coordinator)
+    services.freeze(row, actor=coordinator)
+    assert verify(gold.code)["current"] is True
+
+
+def test_issue_reports_language_fallbacks(field, coordinator, iqo, monkeypatch):
+    from apps.accounts.models import UserPreference
+    from apps.medals import typesetting
+
+    monkeypatch.setattr(typesetting, "shaping_available", lambda: False)
+    stage, entries = field
+    iqo.interface_languages = ["en", "hi"]
+    iqo.default_language = "en"
+    iqo.save(update_fields=["interface_languages", "default_language"])
+    UserPreference.objects.create(user=entries[0].participant.user, language="hi")
+    stage = Stage.objects.select_related("edition__competition").get(pk=stage.pk)
+    publish(stage, coordinator)
+    row = services.freeze(services.scheme_for(stage, create=True), actor=coordinator)
+
+    report = services.issue_certificates(row, participation=False, actor=coordinator)
+
+    gold = Certificate.objects.get(entry=entries[0], kind=CertificateKind.MEDAL_GOLD)
+    assert report.fallbacks == [gold.number]
+    assert CertificateLanguage.objects.get(certificate=gold).language == "en"
+    assert AuditLog.objects.get(action="medals.certificates_issued").diff["language_fallbacks"] == 1

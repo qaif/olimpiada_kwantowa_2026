@@ -138,3 +138,13 @@ msgstr "कांस्य"
 
 msgid "Wyróżnienia"
 msgstr "सम्माननीय उल्लेख"
+
+msgid "Średnia"
+msgstr "औसत"
+
+#, python-format
+msgid "Suma i średnia punktów są podane tylko dla krajów z co najmniej %(minimum)s wynikami – przy mniejszej drużynie byłyby wynikiem konkretnej osoby."
+msgstr "कुल और औसत अंक केवल उन देशों के लिए दिखाए जाते हैं जिनके कम से कम %(minimum)s परिणाम हैं – छोटी टीम में ये किसी व्यक्ति का परिणाम उजागर कर देते।"
+
+msgid "Ten dokument nie jest już aktualny: nagroda, którą poświadcza, została zmieniona albo jest w trakcie korekty. Aktualny dokument wydaje organizator."
+msgstr "यह दस्तावेज़ अब मान्य नहीं है: जिस पुरस्कार को यह प्रमाणित करता है, उसे बदल दिया गया है या उसमें सुधार चल रहा है। मान्य दस्तावेज़ आयोजक जारी करता है।"

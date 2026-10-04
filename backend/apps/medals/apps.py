@@ -12,8 +12,10 @@ class MedalsConfig(AppConfig):
         # Skład dokumentów medalowych i zaświadczeń w języku ucznia wpina się w ``render_pdf``
         # przez rejestr rodzajów w ``apps.results.certificates`` – zależność idzie od medali do
         # wyników, a nie odwrotnie (wyniki nie importują tej aplikacji).
-        from apps.results.certificates import register_composer
+        from apps.results.certificates import register_composer, register_currency_check
 
-        from .documents import compose_certificate, handles
+        from .documents import compose_certificate, handles, is_current
 
         register_composer(handles, compose_certificate)
+        # Dyplom medalowy po zmianie nagrody przestaje być aktualny (strona weryfikacji, „Moje dyplomy”).
+        register_currency_check(is_current)

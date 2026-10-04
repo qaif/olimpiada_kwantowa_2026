@@ -190,20 +190,38 @@ def award_sort_key(award: str) -> int:
 # --- ranking krajów ------------------------------------------------------------------------------
 
 
+#: Najmniejsza liczba wyników kraju, przy której wolno pokazać jego sumę i średnią punktów. Suma
+#: delegacji jedno- albo dwuosobowej jest de facto wynikiem konkretnej osoby (albo da się go z niej
+#: odjąć, znając wynik drugiej) – ta sama myśl, co ``MIN_SCHOOL_GROUP`` przy inicjałach ze szkołą.
+#: Liczby medali zostają: medal jest ogłoszeniem samym w sobie.
+MIN_COUNTRY_GROUP = 3
+
+
 def country_table(
-    rows: list[dict], awards: dict[int, str], countries: dict[int, tuple[str, str]]
+    rows: list[dict],
+    awards: dict[int, str],
+    countries: dict[int, tuple[str, str]],
+    *,
+    awarded_only: bool = False,
+    min_group: int = MIN_COUNTRY_GROUP,
 ) -> list[dict]:
-    """Agregaty per kraj: uczestnicy, medale, wyróżnienia i suma punktów – z miejscem po sumie.
+    """Agregaty per kraj: uczestnicy, medale, wyróżnienia, suma i średnia punktów – z miejscem po sumie.
 
     ``countries`` to ``{entry_id: (kod, nazwa)}``; wpis bez kraju trafia do grupy o pustym kodzie.
     Zdyskwalifikowany liczy się do uczestników kraju (startował), ale jego punkty nie wchodzą do
     sumy – ta sama reguła, co w tabeli: dyskwalifikacja nie jest wynikiem punktowym.
 
+    **Suma i średnia tylko dla kraju z co najmniej ``min_group`` wynikami** (``None`` → „—” na
+    stronie); mniejszy kraj ma same liczby medali i nie ma miejsca. ``awarded_only`` (publikacja
+    wyników „tylko awansujący”) liczy sumę wyłącznie z wyników nagrodzonych – wyników reszty pola
+    wyniki tego etapu nie ogłosiły, więc ranking krajów nie może ich ujawnić w sumie.
+
     Miejsce jest **po sumie punktów** (nieoficjalny ranking IMO), remis = to samo miejsce. Kolejność
-    wierszy: miejsce, potem liczba złotych, srebrnych i brązowych medali, potem nazwa – tabela ma
-    być powtarzalna co do wiersza.
+    wierszy: kraje z sumą po miejscu, potem kraje bez sumy; w obu grupach dalej liczba złotych,
+    srebrnych i brązowych medali i nazwa – tabela ma być powtarzalna co do wiersza.
     """
     table: dict[str, dict] = {}
+    scored: dict[str, list[Decimal]] = {}
     for row in rows:
         code, name = countries.get(row["entry_id"], ("", ""))
         item = table.setdefault(
@@ -216,32 +234,48 @@ def country_table(
                 str(Award.SILVER): 0,
                 str(Award.BRONZE): 0,
                 str(Award.HONOURABLE): 0,
-                "total": Decimal(0),
             },
         )
         item["contestants"] += 1
         award = awards.get(row["entry_id"], Award.NONE)
         if award != Award.NONE:
             item[str(award)] += 1
-        if row.get("status") != StageEntryStatus.DISQUALIFIED:
-            item["total"] += to_points(row.get("total")) or Decimal(0)
-    ordered = sorted(
-        table.values(),
-        key=lambda item: (
-            -item["total"],
+        if row.get("status") == StageEntryStatus.DISQUALIFIED:
+            continue
+        if awarded_only and award == Award.NONE:
+            continue
+        scored.setdefault(code, []).append(to_points(row.get("total")) or Decimal(0))
+    for code, item in table.items():
+        values = scored.get(code, [])
+        shown = len(values) >= min_group
+        item["total"] = sum(values, Decimal(0)) if shown else None
+        item["average"] = (item["total"] / len(values)).quantize(Decimal("0.01")) if shown else None
+
+    def medals_key(item):
+        return (
             -item[str(Award.GOLD)],
             -item[str(Award.SILVER)],
             -item[str(Award.BRONZE)],
             item["name"].casefold(),
-        ),
+        )
+
+    ranked = sorted(
+        (item for item in table.values() if item["total"] is not None),
+        key=lambda item: (-item["total"], *medals_key(item)),
     )
+    unranked = sorted((item for item in table.values() if item["total"] is None), key=medals_key)
     previous = None
     rank = 0
-    for index, item in enumerate(ordered, start=1):
+    for index, item in enumerate(ranked, start=1):
         if item["total"] != previous:
             rank, previous = index, item["total"]
         item["rank"] = rank
+    for item in unranked:
+        item["rank"] = None
+    ordered = ranked + unranked
+    for item in ordered:
         item["total"] = points_json(item["total"])
+        item["average"] = points_json(item["average"])
     return ordered
 
 

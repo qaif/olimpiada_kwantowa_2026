@@ -945,8 +945,10 @@ MEDALS_ACTIVITY = _activity(
     recipients=[
         HOSTING_RECIPIENT,
         "publiczność serwisu – medal przy kodzie albo przy nazwisku (za zgodą); kraj przy wierszu "
-        "wyłącznie tam, gdzie tabela wyników i tak go pokazuje, albo przy nazwisku opublikowanym za zgodą",
-        "ranking krajów – wyłącznie liczby zagregowane per kraj, bez danych pojedynczych osób",
+        "wyłącznie w trybie „kod uczestnika” albo przy nazwisku opublikowanym za zgodą w trybie imiennym",
+        "ranking krajów – wyłącznie liczby zagregowane per kraj, bez danych pojedynczych osób; suma "
+        "i średnia punktów tylko dla kraju z co najmniej 3 wynikami (przy publikacji „tylko awansujący” – "
+        "wyłącznie z wyników nagrodzonych)",
     ],
     retention=(
         "ogłoszone medale są zamrożonym dokumentem zawodów, jak tabela wyników, i zostają bezterminowo "

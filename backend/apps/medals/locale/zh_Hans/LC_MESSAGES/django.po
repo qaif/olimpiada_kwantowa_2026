@@ -138,3 +138,13 @@ msgstr "铜"
 
 msgid "Wyróżnienia"
 msgstr "荣誉提名"
+
+msgid "Średnia"
+msgstr "平均分"
+
+#, python-format
+msgid "Suma i średnia punktów są podane tylko dla krajów z co najmniej %(minimum)s wynikami – przy mniejszej drużynie byłyby wynikiem konkretnej osoby."
+msgstr "仅对至少有 %(minimum)s 个成绩的国家显示总分和平均分——队伍更小时，这些数字会暴露个人成绩。"
+
+msgid "Ten dokument nie jest już aktualny: nagroda, którą poświadcza, została zmieniona albo jest w trakcie korekty. Aktualny dokument wydaje organizator."
+msgstr "此文件已不再有效：其证明的奖项已被更改或正在更正。有效文件由主办方颁发。"

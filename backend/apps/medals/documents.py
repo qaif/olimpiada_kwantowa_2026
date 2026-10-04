@@ -12,9 +12,14 @@ Które dokumenty składa ten moduł (``handles``):
 - zaświadczenie o udziale (``UCZESTNIK``) – wyłącznie w konkursie z flagą ``medals``. Olimpiada
   Kwantowa składa je dalej po staremu, co do bajtu.
 
-Język dokumentu jest zamrażany przy wystawieniu (``CertificateLanguage``). Dokument bez tego
-wiersza (zaświadczenie wystawione z dotychczasowego panelu) bierze język ucznia z chwili pobrania.
-Pismo, którego nie da się złożyć, daje dokument po angielsku – jawnie, z wpisem w logu.
+Język dokumentu jest **przypinany** (``CertificateLanguage``): przy wystawieniu z ekranu medali – ten,
+w którym dokument naprawdę się złoży (pismo niedostępne → angielski i ostrzeżenie w raporcie); dokument
+bez wiersza (zaświadczenie z dotychczasowego panelu) – przy pierwszym składzie, z językiem ucznia.
+Dokument przypięty do pisma, którego serwer **już** nie składa, nie wychodzi po cichu w innym języku:
+skład podnosi ``DocumentLanguageUnavailable`` (503, wpis ``ERROR``), a ekran medali to pokazuje.
+
+Dyplom medalowy, którego rodzaj nie zgadza się z ogłoszoną nagrodą (albo medale są odmrożone), jest
+nieaktualny (``is_current``, rejestr sprawdzeń w ``apps.results.certificates``).
 """
 
 from __future__ import annotations
@@ -27,7 +32,9 @@ from django.conf import settings
 from django.utils import timezone, translation
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_noop
+from rest_framework import status as http
 
+from apps.core.api import DomainError
 from apps.results.certificate_layout import DEFAULT_LAYOUT, block, is_visible
 from apps.results.certificates import (
     _draw_background,
@@ -112,19 +119,78 @@ def student_language(user, competition) -> str:
     return language
 
 
+class DocumentLanguageUnavailable(DomainError):
+    """Dokumentu w zapisanym języku nie da się teraz złożyć (brak kroju albo ``uharfbuzz``).
+
+    Celowo **błąd**, a nie cichy odwrót: dokument wystawiony po arabsku ma wychodzić po arabsku –
+    ten sam numer w innym języku przy każdym pobraniu byłby dwoma różnymi dokumentami. Brak modułu
+    na serwerze to awaria wdrożenia do naprawienia (``docs/OPERACJE.md`` § 37.2), a ekran medali
+    pokazuje ją koordynatorowi.
+    """
+
+    status_code = http.HTTP_503_SERVICE_UNAVAILABLE
+    default_code = "DOCUMENT_LANGUAGE_UNAVAILABLE"
+
+
 def certificate_language(certificate: Certificate) -> str:
-    """Język zapisany przy wystawieniu albo – bez wiersza – język ucznia z tej chwili."""
+    """Język dokumentu: zapisany przy wystawieniu; bez wiersza – przypinany przy pierwszym składzie.
+
+    Zaświadczenie wystawione z dotychczasowego panelu (bez ekranu medali) nie ma wiersza – dostaje go
+    przy pierwszym pobraniu, z językiem ucznia z tej chwili, i od tej pory wychodzi zawsze w nim.
+    """
     stored = (
         CertificateLanguage.objects.filter(certificate=certificate).values_list("language", flat=True).first()
     )
     if stored:
         return stored
-    return student_language(certificate.entry.participant.user, certificate.edition.competition)
+    language = student_language(certificate.entry.participant.user, certificate.edition.competition)
+    row, _created = CertificateLanguage.objects.get_or_create(
+        certificate=certificate, defaults={"language": language}
+    )
+    return row.language
 
 
-def remember_language(certificate: Certificate, language: str) -> None:
-    """Zamraża język dokumentu – tylko przy pierwszym wystawieniu (powtórne „Wystaw” go nie zmienia)."""
-    CertificateLanguage.objects.get_or_create(certificate=certificate, defaults={"language": language})
+def remember_language(certificate: Certificate, requested: str) -> tuple[str, bool]:
+    """Przypina język dokumentu przy wystawieniu. Zwraca ``(język, czy był odwrót)``.
+
+    Przypinamy język, w którym dokument **naprawdę** się złoży (``renderable_language``): gdy pisma
+    ucznia nie da się złożyć w chwili wystawienia, dokument dostaje angielski od razu, a koordynator
+    – ostrzeżenie w raporcie „Wystaw dokumenty”. Powtórne „Wystaw” nie zmienia języka już przypiętego.
+    """
+    rendered = typesetting.renderable_language(requested)
+    row, _created = CertificateLanguage.objects.get_or_create(
+        certificate=certificate, defaults={"language": rendered}
+    )
+    return row.language, row.language != requested
+
+
+def unavailable_languages(certificates) -> list[str]:
+    """Przypięte języki tych dokumentów, których **dziś** nie da się złożyć – do ostrzeżenia na ekranie."""
+    languages = set(
+        CertificateLanguage.objects.filter(certificate__in=certificates).values_list("language", flat=True)
+    )
+    return sorted(language for language in languages if not typesetting.language_support(language).ok)
+
+
+def is_current(certificate: Certificate) -> bool | None:
+    """Czy dyplom medalowy nadal poświadcza ogłoszoną nagrodę (``results.certificate_is_current``).
+
+    ``None`` dla dokumentów spoza medali („nie mój dokument”). Dyplom medalowy jest nieaktualny,
+    gdy medale etapu są odmrożone (korekta w toku) albo ogłoszona nagroda wpisu jest inna niż rodzaj
+    dokumentu – wtedy strona weryfikacji mówi to wprost, a „Moje dyplomy” go nie pokazują.
+    """
+    from .models import MedalScheme
+
+    if certificate.kind not in KIND_AWARDS or certificate.entry_id is None:
+        return None
+    scheme = (
+        MedalScheme.objects.filter(stage_id=certificate.entry.stage_id).only("frozen_at", "awards").first()
+    )
+    if scheme is None or not scheme.is_frozen:
+        return False
+    return (scheme.awards or {}).get(str(certificate.entry_id), {}).get("award") == KIND_AWARDS[
+        certificate.kind
+    ]
 
 
 # --- treść ---------------------------------------------------------------------------------------
@@ -201,12 +267,20 @@ def _recipient(certificate: Certificate) -> str:
 
 
 def localized_content(certificate: Certificate, language: str | None = None) -> LocalizedContent:
-    """Treść dokumentu w języku ucznia (albo w ``language``), z odwrotem na angielski."""
+    """Treść dokumentu w przypiętym języku (albo w ``language``). Język niedostępny – błąd, nie odwrót."""
     from apps.tenancy.branding import competition_name
 
     competition = certificate.edition.competition
-    requested = language or certificate_language(certificate)
-    language = typesetting.renderable_language(requested)
+    language = language or certificate_language(certificate)
+    support = typesetting.language_support(language)
+    if not support.ok:
+        logger.error(
+            "Dokumentu %s nie da się złożyć w języku %s: %s.", certificate.number, language, support.reason
+        )
+        raise DocumentLanguageUnavailable(
+            f"Dokumentu {certificate.number} nie da się teraz złożyć w języku {language} ({support.reason}). "
+            "Skontaktuj się z organizatorem."
+        )
     participant = certificate.entry.participant
     name = competition_name(competition)
     school = ", ".join(

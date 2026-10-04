@@ -138,3 +138,13 @@ msgstr "Perunggu"
 
 msgid "Wyróżnienia"
 msgstr "Penghargaan kehormatan"
+
+msgid "Średnia"
+msgstr "Rata-rata"
+
+#, python-format
+msgid "Suma i średnia punktów są podane tylko dla krajów z co najmniej %(minimum)s wynikami – przy mniejszej drużynie byłyby wynikiem konkretnej osoby."
+msgstr "Total dan rata-rata nilai hanya ditampilkan untuk negara dengan sedikitnya %(minimum)s hasil – pada tim yang lebih kecil angka itu akan mengungkap hasil perorangan."
+
+msgid "Ten dokument nie jest już aktualny: nagroda, którą poświadcza, została zmieniona albo jest w trakcie korekty. Aktualny dokument wydaje organizator."
+msgstr "Dokumen ini sudah tidak berlaku: penghargaan yang dinyatakannya telah diubah atau sedang dikoreksi. Dokumen yang berlaku diterbitkan oleh penyelenggara."

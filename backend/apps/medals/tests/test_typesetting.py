@@ -15,7 +15,40 @@ from pypdf import PdfReader
 
 from apps.medals import typesetting as t
 
+#: Testy wymagające HarfBuzza (``uharfbuzz`` z ``pyproject.toml``). Obraz CI go ma; kontener bez
+#: niego pomija tylko te testy – zachowanie bez kształtowania sprawdzają testy odwrotu niżej.
+requires_shaping = pytest.mark.skipif(not t.shaping_available(), reason="brak uharfbuzz w tym środowisku")
 
+
+def test_reportlab_shaping_internals_are_still_there():
+    """Kontrakt z wnętrzem ReportLaba, na którym stoi ``typesetting`` (pin ``uharfbuzz`` w pyproject).
+
+    ``shapeStr``/``ShapedStr``/``ttfonts.uharfbuzz`` nie są publicznym API ReportLaba – gdy aktualizacja
+    je zmieni, ten test ma paść pierwszy, zanim zrobi to dyplom w dniu gali.
+    """
+    import inspect
+
+    from reportlab.pdfbase import ttfonts
+
+    assert hasattr(ttfonts, "uharfbuzz")
+    assert callable(ttfonts.shapeStr)
+    assert issubclass(ttfonts.ShapedStr, str)
+    assert "shapable" in inspect.signature(ttfonts.TTFont.__init__).parameters
+
+
+@requires_shaping
+def test_shaped_text_carries_advances_for_the_width():
+    from reportlab.pdfbase.ttfonts import ShapedStr
+
+    line = t.layout_line("स्वर्ण पदक", size=12)
+
+    shaped = line.runs[0].text
+    assert isinstance(shaped, ShapedStr)
+    assert all(hasattr(item, "x_advance") for item in shaped.__shapeData__)
+    assert line.width > 0
+
+
+@requires_shaping
 def test_every_interface_language_has_a_script_and_a_working_pipeline():
     from django.conf import settings
 
@@ -58,6 +91,23 @@ def test_latin_name_in_an_rtl_paragraph_keeps_its_bracket_with_the_country():
     assert levels[-1] == levels[text.index("P")] == 2
 
 
+@pytest.mark.parametrize(
+    ("text", "digits"),
+    [("مدرسة ١٢٥", "١٢٥"), ("Gold Medal ٢٠٢٦", "٢٠٢٦"), ("المدرسة ۱۲۵", "۱۲۵")],
+)
+def test_arabic_indic_and_persian_digits_keep_their_order(text, digits):
+    """Cyfry arabsko-indyjskie i perskie są pismem arabskim, ale czyta się je od lewej.
+
+    HarfBuzz zgadłby dla nich kierunek RTL i odwrócił liczbę („٥٢١”) – przebieg parzysty (LTR) ze
+    znakami arabskimi idzie więc bez kształtowania, w kolejności logicznej, krojem arabskim.
+    """
+    line = t.layout_line(text, size=12)
+
+    run = next(run for run in line.runs if any(char in str(run.text) for char in digits))
+    assert str(run.text).strip() == digits
+    assert run.font.startswith("MedNotoSansArabic")
+
+
 def test_runs_are_reordered_visually_in_an_rtl_line():
     line = t.layout_line("محمد Jan", size=12)
 
@@ -85,8 +135,9 @@ def test_each_script_gets_its_own_font(text, font):
     assert line.missing == ()
 
 
+@requires_shaping
 def test_complex_scripts_are_shaped():
-    """Dewanagari z ligaturą spółgłoskową: po kształtowaniu glifów jest mniej niż znaków."""
+    """Dewanagari z ligaturą spółgłoskową przechodzi przez HarfBuzz (``ShapedStr`` z pozycjami glifów)."""
     from reportlab.pdfbase.ttfonts import ShapedStr
 
     line = t.layout_line("स्वर्ण", size=12)

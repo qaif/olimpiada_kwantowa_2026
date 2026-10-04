@@ -27,8 +27,8 @@ from apps.web.throttle import ThrottledFormMixin
 
 from . import exports
 from . import services as service
-from .awards import medal_order
-from .documents import language_overview
+from .awards import MIN_COUNTRY_GROUP, medal_order
+from .documents import DocumentLanguageUnavailable, language_overview, unavailable_languages
 from .forms import IssueForm, OverrideForm, SchemeForm, UnfreezeForm
 from .models import Award
 
@@ -125,6 +125,10 @@ class MedalSchemeView(MedalScreenMixin, ThrottledFormMixin, View):
             "republished": service.republished_since_freeze(scheme, publication),
             "medal_choices": Award.choices,
             "shares": {award: result.thresholds.share(award) for award in Award.values},
+            "empty_pools": service.empty_pools(scheme, result.thresholds),
+            "unavailable_languages": unavailable_languages(service.stage_certificates(scheme))
+            if scheme.pk is not None
+            else [],
         }
         return TemplateResponse(request, DETAIL_TEMPLATE, context, status=status)
 
@@ -157,8 +161,10 @@ class OverrideSetView(MedalScreenMixin, ThrottledFormMixin, View):
         return self.back(stage.pk)
 
 
-class OverrideRemoveView(MedalScreenMixin, View):
+class OverrideRemoveView(MedalScreenMixin, ThrottledFormMixin, View):
     """``POST /coordinator/medals/<etap>/overrides/<wpis>/remove/`` – powrót do nagrody wyliczonej."""
+
+    throttle_scope = "medals"
 
     def post(self, request, stage_id: int, entry_id: int):
         stage = self.stage_or_404(request, stage_id)
@@ -239,6 +245,12 @@ class IssueCertificatesView(MedalScreenMixin, ThrottledFormMixin, View):
                 f"Dokumenty gotowe: medalowe {report.medals}, zaświadczenia o udziale {report.participation} "
                 f"(nowych: {report.created}).",
             )
+            if report.fallbacks:
+                messages.warning(
+                    request,
+                    "Pisma ucznia nie dało się złożyć na serwerze – te dokumenty wystawiono po angielsku "
+                    "(sprawdź stan składu na liście medali): " + ", ".join(report.fallbacks[:20]),
+                )
             if report.stale:
                 messages.warning(
                     request,
@@ -261,7 +273,12 @@ class CertificatesZipView(MedalScreenMixin, ThrottledFormMixin, View):
         if not certificates:
             messages.error(request, "Nie ma jeszcze żadnych dokumentów – najpierw je wystaw.")
             return self.back(stage.pk)
-        archive = build_certificates_zip(certificates)
+        try:
+            archive = build_certificates_zip(certificates)
+        except DocumentLanguageUnavailable as exc:
+            # Głośno, a nie po cichu w innym języku – patrz ``documents.DocumentLanguageUnavailable``.
+            messages.error(request, str(exc.detail))
+            return self.back(stage.pk)
         if scheme.pk is not None:
             service.audit_export(scheme, "zip", archive.count, actor=request.user, request=request)
         return FileResponse(
@@ -282,8 +299,15 @@ class _ExportMixin(MedalScreenMixin):
         return stage, scheme, None
 
 
-class ExportCsvView(_ExportMixin, View):
-    """``GET /coordinator/medals/<etap>/export.csv`` – pełna lista z nazwiskami (dane osobowe, audyt)."""
+class ExportCsvView(_ExportMixin, ThrottledFormMixin, View):
+    """``GET /coordinator/medals/<etap>/export.csv`` – pełna lista z nazwiskami (dane osobowe, audyt).
+
+    Limit także na GET: każde pobranie wynosi listę ludzi z serwisu, a pętla pobierań to wyciek,
+    nie praca biura.
+    """
+
+    throttle_scope = "medals"
+    throttle_methods = ("GET",)
 
     def get(self, request, stage_id: int):
         stage, scheme, refusal = self.frozen_or_back(request, stage_id)
@@ -362,5 +386,6 @@ class PublicCountriesView(View):
             "rows": medal_order(table) if by_medals else table,
             "by_medals": by_medals,
             "awards": Award,
+            "min_group": MIN_COUNTRY_GROUP,
         }
         return TemplateResponse(request, COUNTRIES_TEMPLATE, context)

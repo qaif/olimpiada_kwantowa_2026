@@ -199,7 +199,7 @@ def test_country_table_aggregates_and_ranks_by_total():
     awards = {1: G, 2: S, 3: HM, 4: NONE}
     countries = {1: ("de", "Germany"), 2: ("de", "Germany"), 3: ("pl", "Poland"), 4: ("pl", "Poland")}
 
-    table = country_table(rows, awards, countries)
+    table = country_table(rows, awards, countries, min_group=1)
 
     assert [item["code"] for item in table] == ["de", "pl"]
     germany, poland = table
@@ -214,7 +214,97 @@ def test_country_table_shares_rank_on_equal_totals_and_medal_order_is_olympic():
     awards = {1: S, 2: B, 3: G}
     countries = {1: ("a", "Alpha"), 2: ("b", "Beta"), 3: ("c", "Gamma")}
 
-    table = country_table(rows, awards, countries)
+    table = country_table(rows, awards, countries, min_group=1)
 
     assert [item["rank"] for item in table] == [1, 1, 3]
     assert [item["code"] for item in medal_order(table)] == ["c", "a", "b"]
+
+
+def test_country_totals_and_averages_only_for_three_or_more_results():
+    """Suma dwuosobowej drużyny jest de facto wynikiem osoby – zostają same medale, bez miejsca."""
+    rows = rows_for([30, 20, 10, 25, 5])
+    awards = {1: G, 2: S, 3: NONE, 4: B, 5: NONE}
+    countries = {
+        1: ("de", "Germany"),
+        2: ("de", "Germany"),
+        3: ("de", "Germany"),
+        4: ("pl", "Poland"),
+        5: ("pl", "Poland"),
+    }
+
+    germany, poland = country_table(rows, awards, countries)
+
+    assert (germany["total"], germany["average"], germany["rank"]) == (60, 20, 1)
+    assert (poland["total"], poland["average"], poland["rank"]) == (None, None, None)
+    assert (poland["contestants"], poland[B]) == (2, 1)  # liczby medali zostają
+
+
+def test_awarded_only_counts_totals_of_awarded_results_only():
+    """Publikacja „tylko awansujący”: sumy nienagrodzonych nie trafiają do rankingu krajów."""
+    rows = rows_for([30, 20, 10, 9, 8])
+    awards = {1: G, 2: S, 3: HM, 4: NONE, 5: NONE}
+    countries = {index: ("de", "Germany") for index in range(1, 6)}
+
+    [germany] = country_table(rows, awards, countries, awarded_only=True)
+    [everyone] = country_table(rows, awards, countries)
+
+    assert germany["total"] == 60 and germany["contestants"] == 5
+    assert everyone["total"] == 77
+
+
+def test_awarded_only_below_the_threshold_hides_the_total():
+    rows = rows_for([30, 20, 10])
+    awards = {1: G, 2: NONE, 3: NONE}
+    countries = {index: ("de", "Germany") for index in range(1, 4)}
+
+    [germany] = country_table(rows, awards, countries, awarded_only=True)
+
+    assert germany["total"] is None and germany[G] == 1
+
+
+# --- polityka EXCLUSIVE na małych i remisowych polach (L4) -------------------------------------------
+
+
+EXCLUSIVE = SchemeParams(tie_policy=TiePolicy.EXCLUSIVE, hm_full_solution=False)
+
+
+def test_exclusive_on_a_single_contestant_gives_gold():
+    awards, thresholds = awards_of([7], EXCLUSIVE)
+
+    assert awards == [G]
+    assert thresholds.slots[G] == 1
+
+
+def test_exclusive_on_an_all_tied_field_gives_no_medal_at_all():
+    """Trzy równe wyniki, pule po 1–2 miejsca: żadna grupa się nie mieści – zostaje wyróżnienie."""
+    awards, thresholds = awards_of([5, 5, 5], EXCLUSIVE)
+
+    assert awards == [HM, HM, HM]
+    assert thresholds.cutoffs == {G: None, S: None, B: None}
+
+
+def test_inclusive_on_an_all_tied_field_gives_everyone_gold():
+    awards, _ = awards_of([5, 5, 5], SchemeParams(hm_full_solution=False))
+
+    assert awards == [G, G, G]
+
+
+def test_exclusive_two_tied_on_top_of_a_tiny_field():
+    awards, _ = awards_of([9, 9, 1], EXCLUSIVE)
+
+    # Złoto (pula 1) i srebro (pula łączna 1) się nie mieszczą; brąz (pula łączna 2) mieści parę.
+    assert awards == [B, B, NONE]
+
+
+def test_empty_pools_are_reported_for_the_screen():
+    from apps.medals.models import MedalScheme
+    from apps.medals.services import empty_pools
+
+    _awards, thresholds = awards_of([5, 5, 5], EXCLUSIVE)
+
+    assert empty_pools(MedalScheme(tie_policy=TiePolicy.EXCLUSIVE), thresholds) == [
+        "złoty medal",
+        "srebrny medal",
+        "brązowy medal",
+    ]
+    assert empty_pools(MedalScheme(tie_policy=TiePolicy.INCLUSIVE), thresholds) == []

@@ -468,7 +468,13 @@ def _shape(text: str, font: str, size: float, *, rtl: bool, needs_shaping: bool)
         # Przebieg od prawej do lewej bez pisma arabskiego (hebrajski w DejaVu, sama interpunkcja):
         # HarfBuzz zgadłby kierunek LTR, więc odwracamy sami i odbijamy nawiasy.
         text = text[::-1].translate(_MIRROR)
-    if needs_shaping and shaping_available():
+    # Przebieg na poziomie parzystym (LTR) ze znakami pisma arabskiego to wyłącznie cyfry
+    # arabsko-indyjskie i perskie („١٢٥”, „٢٠٢٦”) oraz ich separatory: litery arabskie są zawsze na
+    # poziomie nieparzystym. ``shapeStr`` woła ``guess_segment_properties``, które dla pisma
+    # arabskiego zgaduje kierunek RTL – i odwróciłoby liczbę. Kierunku nie da się tam podać, więc
+    # wymuszamy LTR, nie kształtując takiego przebiegu: cyfry nie mają form łączonych.
+    forced_ltr = not rtl and any(script_of(char) == ARABIC for char in text)
+    if needs_shaping and shaping_available() and not forced_ltr:
         shaped = shapeStr(text, font, size)
         if isinstance(shaped, ShapedStr):
             return shaped, sum(item.x_advance for item in shaped.__shapeData__) * size / 1000

@@ -13,6 +13,15 @@
 {% block panel_lead %}
   <p class="lead">Edycja {{ stage.edition.year_label }}.
     {% if scheme.is_frozen %}Medale ogłoszone {{ scheme.frozen_at|local_datetime }}.{% elif publication %}Wyniki opublikowane {{ publication.published_at|local_datetime }} – medale czekają na ogłoszenie.{% else %}Wyniki etapu nie są jeszcze opublikowane – podgląd liczy się z bieżących ocen.{% endif %}</p>
+  {% if empty_pools %}
+    <p class="notice">Polityka „w granicach puli”: grupa równych wyników większa od puli nie dostaje nagrody –
+      w tym polu nikt nie dostaje: {{ empty_pools|join:", " }}. Zmień politykę remisu albo odsetki, jeśli to nie jest zamierzone.</p>
+  {% endif %}
+  {% if unavailable_languages %}
+    <p class="notice">Serwer nie składa teraz dokumentów w językach: {{ unavailable_languages|join:", " }} (brak kroju
+      albo modułu uharfbuzz – OPERACJE § 37.2). Te dokumenty się nie pobiorą, dopóki skład nie wróci; nie są
+      podmieniane na inny język.</p>
+  {% endif %}
   {% if republished %}
     <p class="notice">Wyniki etapu opublikowano ponownie po ogłoszeniu medali. Medale zostały przy poprzedniej
       tabeli – jeśli sumy się zmieniły, odmroź medale i ogłoś je jeszcze raz.</p>

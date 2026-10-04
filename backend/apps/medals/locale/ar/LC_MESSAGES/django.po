@@ -138,3 +138,13 @@ msgstr "برونز"
 
 msgid "Wyróżnienia"
 msgstr "تنويهات شرفية"
+
+msgid "Średnia"
+msgstr "المتوسط"
+
+#, python-format
+msgid "Suma i średnia punktów są podane tylko dla krajów z co najmniej %(minimum)s wynikami – przy mniejszej drużynie byłyby wynikiem konkretnej osoby."
+msgstr "يُعرض مجموع النقاط ومتوسطها فقط للدول التي لديها %(minimum)s نتائج على الأقل – ففي الفريق الأصغر قد يكشفان نتيجة شخص بعينه."
+
+msgid "Ten dokument nie jest już aktualny: nagroda, którą poświadcza, została zmieniona albo jest w trakcie korekty. Aktualny dokument wydaje organizator."
+msgstr "لم تعد هذه الوثيقة سارية: الجائزة التي تشهد بها قد تغيّرت أو قيد التصحيح. يُصدر المنظِّم الوثيقة السارية."

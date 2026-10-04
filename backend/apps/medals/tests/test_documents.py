@@ -2,8 +2,9 @@
 
 Dokument przechodzi przez **tę samą** drogę, co każdy dyplom (``results.certificates.render_pdf``):
 rejestr, pieczęć, nazwa pliku. Sprawdzamy, że skład medali przejmuje wyłącznie swoje dokumenty,
-że treść jest w języku ucznia (11 języków), że pismo bez kształtowania spada na angielski i że
-Olimpiada Kwantowa składa zaświadczenie o udziale dokładnie jak przed MED-01.
+że treść jest w języku ucznia (11 języków), że język przypina się przy wystawieniu, że dokument
+w przypiętym języku bez kształtowania jest **błędem** (nie cichym angielskim) i że Olimpiada Kwantowa
+składa zaświadczenie o udziale dokładnie jak przed MED-01.
 """
 
 from __future__ import annotations
@@ -24,7 +25,17 @@ from .conftest import contestant, enable_medals, final_stage
 
 pytestmark = pytest.mark.django_db
 
-LANGUAGE_CODES = [code for code, _label in settings.LANGUAGES]
+#: Pisma wymagające HarfBuzza – w kontenerze bez ``uharfbuzz`` ich składu nie da się sprawdzić.
+COMPLEX = {"ar", "hi", "bn"}
+LANGUAGE_CODES = [
+    pytest.param(
+        code,
+        marks=pytest.mark.skipif(
+            code in COMPLEX and not typesetting.shaping_available(), reason="brak uharfbuzz w tym środowisku"
+        ),
+    )
+    for code, _label in settings.LANGUAGES
+]
 
 
 def medal_certificate(stage, kind=CertificateKind.MEDAL_GOLD, language=None):
@@ -80,7 +91,7 @@ def test_latin_documents_have_extractable_text(iqo):
     assert "Śniadecka" in text
 
 
-def test_document_without_a_frozen_language_takes_the_students_current_one(iqo):
+def test_document_without_a_pinned_language_pins_the_students_current_one(iqo):
     from apps.accounts.models import UserPreference
 
     iqo.interface_languages = ["en", "ru"]
@@ -90,6 +101,10 @@ def test_document_without_a_frozen_language_takes_the_students_current_one(iqo):
     UserPreference.objects.create(user=certificate.entry.participant.user, language="ru")
     certificate.edition.competition.refresh_from_db()
 
+    assert documents.certificate_language(certificate) == "ru"
+    # Przypięty przy pierwszym składzie – zmiana konta później już go nie zmienia (L1).
+    assert CertificateLanguage.objects.get(certificate=certificate).language == "ru"
+    UserPreference.objects.filter(user=certificate.entry.participant.user).update(language="en")
     assert documents.certificate_language(certificate) == "ru"
 
 
@@ -106,15 +121,28 @@ def test_language_outside_the_competition_offer_falls_back_to_its_default(iqo):
     assert documents.certificate_language(certificate) == "en"
 
 
-def test_without_shaping_an_arabic_document_falls_back_to_english(iqo, monkeypatch):
+def test_a_pinned_arabic_document_without_shaping_fails_loudly(iqo, monkeypatch, caplog):
+    """L1: dokument przypięty po arabsku nie wychodzi po cichu po angielsku – błąd i wpis ERROR."""
     monkeypatch.setattr(typesetting, "shaping_available", lambda: False)
     certificate = medal_certificate(final_stage(iqo), language="ar")
 
-    content = documents.localized_content(certificate)
+    with pytest.raises(documents.DocumentLanguageUnavailable) as error:
+        render_pdf(certificate)
 
-    assert content.language == "en"
-    assert content.title == "Gold Medal"
-    assert render_pdf(certificate).startswith(b"%PDF")
+    assert error.value.status_code == 503
+    assert certificate.number in str(error.value.detail)
+    assert any(record.levelname == "ERROR" for record in caplog.records)
+
+
+def test_issue_time_fallback_pins_english_and_reports_it(iqo, monkeypatch):
+    """Przy wystawieniu (L1): pismo niedostępne → przypięty angielski i informacja „był odwrót”."""
+    monkeypatch.setattr(typesetting, "shaping_available", lambda: False)
+    certificate = medal_certificate(final_stage(iqo))
+
+    language, fell_back = documents.remember_language(certificate, "bn")
+
+    assert (language, fell_back) == ("en", True)
+    assert documents.localized_content(certificate).title == "Gold Medal"
 
 
 def test_participation_certificate_is_localised_only_with_the_medals_flag(iqo):

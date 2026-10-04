@@ -138,3 +138,13 @@ msgstr "ব্রোঞ্জ"
 
 msgid "Wyróżnienia"
 msgstr "সম্মানজনক উল্লেখ"
+
+msgid "Średnia"
+msgstr "গড়"
+
+#, python-format
+msgid "Suma i średnia punktów są podane tylko dla krajów z co najmniej %(minimum)s wynikami – przy mniejszej drużynie byłyby wynikiem konkretnej osoby."
+msgstr "মোট ও গড় নম্বর কেবল সেই দেশগুলোর জন্য দেখানো হয় যাদের অন্তত %(minimum)sটি ফলাফল আছে – ছোট দলে এগুলো কোনো ব্যক্তির ফলাফল প্রকাশ করে দিত।"
+
+msgid "Ten dokument nie jest już aktualny: nagroda, którą poświadcza, została zmieniona albo jest w trakcie korekty. Aktualny dokument wydaje organizator."
+msgstr "এই নথিটি আর বর্তমান নয়: এটি যে পুরস্কার প্রত্যয়ন করে তা বদলানো হয়েছে বা সংশোধন চলছে। বর্তমান নথি আয়োজক প্রদান করেন।"

@@ -13,6 +13,8 @@
   <h1>{{ stage.display_name }} ({{ stage.edition.year_label }})</h1>
   <p class="lead">{% blocktranslate trimmed %}Ranking nieoficjalny: olimpiada jest zawodami indywidualnymi. Tabela pokazuje
     wyłącznie sumy dla kraju – bez wyników poszczególnych uczestników.{% endblocktranslate %}</p>
+  <p class="hint">{% blocktranslate trimmed with minimum=min_group %}Suma i średnia punktów są podane tylko dla krajów
+    z co najmniej {{ minimum }} wynikami – przy mniejszej drużynie byłyby wynikiem konkretnej osoby.{% endblocktranslate %}</p>
   <p class="actions">
     <a class="btn btn--secondary btn--small" href="{% url 'web:results-medals' stage.pk %}">{% translate "Medale" %}</a>
     {% if by_medals %}
@@ -35,22 +37,24 @@
       <th scope="col"><span class="badge medal medal--bronze">{% translate "Brąz" %}</span></th>
       <th scope="col"><span class="badge medal medal--hm">{% translate "Wyróżnienia" %}</span></th>
       <th scope="col">{% translate "Suma punktów" %}</th>
+      <th scope="col">{% translate "Średnia" %}</th>
     </tr>
   </thead>
   <tbody>
     {% for row in rows %}
       <tr>
-        <td class="num">{{ row.rank }}</td>
+        <td class="num">{{ row.rank|default_if_none:"—" }}</td>
         <th scope="row">{{ row.name|default:"—" }}</th>
         <td class="num">{{ row.contestants }}</td>
         <td class="num">{{ row.GOLD }}</td>
         <td class="num">{{ row.SILVER }}</td>
         <td class="num">{{ row.BRONZE }}</td>
         <td class="num">{{ row.HM }}</td>
-        <td class="num total">{{ row.total|points }}</td>
+        <td class="num total">{% if row.total is None %}—{% else %}{{ row.total|points }}{% endif %}</td>
+        <td class="num">{% if row.average is None %}—{% else %}{{ row.average|points }}{% endif %}</td>
       </tr>
     {% empty %}
-      <tr><td colspan="8" class="empty">{% translate "Tabela jest pusta." %}</td></tr>
+      <tr><td colspan="9" class="empty">{% translate "Tabela jest pusta." %}</td></tr>
     {% endfor %}
   </tbody>
 </table>

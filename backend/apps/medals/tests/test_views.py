@@ -217,7 +217,10 @@ def test_country_ranking_shows_aggregates_only(client_for, iqo, announced):
 
     assert "Germany" in content and "France" in content
     assert all(entry.participant.public_code not in content for entry in entries)
-    assert content.index("France") < content.index("Germany")  # suma 19 > 12
+    # Żaden kraj nie ma trzech wyników – sumy i miejsca to „—”, a kolejność idzie po medalach (M3).
+    assert "—" in content
+    assert "co najmniej 3 wynikami" in content
+    assert content.index("Germany") < content.index("France")
     assert by_medals.index("Germany") < by_medals.index("France")  # złoto przed brązem
 
 
@@ -280,3 +283,62 @@ def test_issue_and_zip_through_the_screen(coordinator_client, announced):
 
     assert response.status_code == 200
     assert response["Content-Type"] == "application/zip"
+
+
+# --- M5: dyplom nieaktualny – strona weryfikacji i „Moje dyplomy” -------------------------------------
+
+
+def test_outdated_medal_certificate_is_flagged_and_hidden_from_the_student(
+    client_for, iqo, announced, coordinator
+):
+    from apps.results.models import Certificate, CertificateKind
+
+    stage, entries = announced
+    scheme = services.scheme_for(stage)
+    services.issue_certificates(scheme, participation=True, actor=coordinator)
+    gold = Certificate.objects.get(entry=entries[0], kind=CertificateKind.MEDAL_GOLD)
+    student = client_for(iqo)
+    student.force_login(entries[0].participant.user)
+    assert gold.number in student.get("/me/certificates/").content.decode()
+
+    services.unfreeze(scheme, justification="Korekta", actor=coordinator)
+
+    verify_page = client_for(iqo).get(f"/dyplomy/{gold.code}/").content.decode()
+    assert "nie jest już aktualny" in verify_page
+    listing = student.get("/me/certificates/").content.decode()
+    assert gold.number not in listing
+    assert student.get(f"/me/certificates/{gold.pk}/").status_code == 404
+
+
+def test_current_certificate_verification_has_no_warning(client_for, iqo, announced, coordinator):
+    from apps.results.models import Certificate, CertificateKind
+
+    stage, entries = announced
+    services.issue_certificates(services.scheme_for(stage), participation=False, actor=coordinator)
+    gold = Certificate.objects.get(entry=entries[0], kind=CertificateKind.MEDAL_GOLD)
+
+    assert "nie jest już aktualny" not in client_for(iqo).get(f"/dyplomy/{gold.code}/").content.decode()
+
+
+# --- L4/L5: ostrzeżenie EXCLUSIVE, limity żądań ------------------------------------------------------
+
+
+def test_screen_warns_when_exclusive_policy_leaves_a_pool_empty(coordinator_client, iqo):
+    stage = final_stage(iqo)
+    for _ in range(3):
+        contestant(stage, (5, 5))
+    scheme = services.scheme_for(stage, create=True)
+    scheme.tie_policy = "EXCLUSIVE"
+    scheme.save(update_fields=["tie_policy"])
+
+    content = coordinator_client.get(f"/coordinator/medals/{stage.pk}/").content.decode()
+
+    assert "nikt nie dostaje" in content and "złoty medal" in content
+
+
+def test_override_removal_and_csv_export_are_throttled():
+    from apps.medals import views
+
+    assert views.OverrideRemoveView.throttle_scope == "medals"
+    assert views.ExportCsvView.throttle_scope == "medals"
+    assert "GET" in views.ExportCsvView.throttle_methods

@@ -25,13 +25,13 @@ from apps.accounts.models import CompetitionRole
 from apps.competitions.models import Stage, StageEntry, StageEntryStatus
 from apps.competitions.scoring import problem_maxima_by_number
 from apps.core.api import DomainError
-from apps.core.models import audit
+from apps.core.models import AuditLog, audit
 from apps.core.points import points_json, to_points
-from apps.results.models import Anonymization, ResultsPublication
+from apps.results.models import NAMED_ANONYMIZATIONS, Anonymization, ResultsPublication
 from apps.results.services import build_snapshot, compute_stage_results
 
 from .awards import SchemeParams, Thresholds, compute_awards, count_awards, country_table, final_awards
-from .models import Award, MedalOverride, MedalScheme, enabled
+from .models import Award, MedalOverride, MedalScheme, TiePolicy, enabled
 
 logger = logging.getLogger(__name__)
 
@@ -220,6 +220,23 @@ def preview(scheme: MedalScheme, rows: list[dict] | None = None) -> Preview:
     )
 
 
+def empty_pools(scheme: MedalScheme, thresholds: Thresholds) -> list[str]:
+    """Nagrody, których pula jest niezerowa, a próg pusty – ostrzeżenie na ekranie (``EXCLUSIVE``).
+
+    W polityce „w granicach puli” grupa remisowa większa od puli nie dostaje tej nagrody wcale:
+    w polu trzech równych wyników nikt nie dostaje złota. To jest poprawny skutek reguły, ale
+    koordynator ma go zobaczyć przed ogłoszeniem, a nie po nim.
+    """
+    if scheme.tie_policy != TiePolicy.EXCLUSIVE:
+        return []
+    labels = dict(Award.choices)
+    return [
+        str(labels[award])
+        for award in (Award.GOLD, Award.SILVER, Award.BRONZE)
+        if thresholds.slots.get(award) and thresholds.cutoffs.get(award) is None
+    ]
+
+
 # --- ręczne zmiany -------------------------------------------------------------------------------
 
 
@@ -240,6 +257,11 @@ def set_override(scheme: MedalScheme, *, entry_id: int, award: str, justificatio
     if award not in Award.values:
         raise _error("Nieznana nagroda.", "INVALID_AWARD", http.HTTP_400_BAD_REQUEST)
     entry = _entry_of(scheme, entry_id)
+    if entry.status == StageEntryStatus.DISQUALIFIED:
+        raise _error(
+            "Zdyskwalifikowany uczestnik nie dostaje nagrody – najpierw zmień decyzję o dyskwalifikacji.",
+            "ENTRY_DISQUALIFIED",
+        )
     text = _justification(justification)
     now = timezone.now()
     override, created = MedalOverride.objects.update_or_create(
@@ -307,8 +329,9 @@ def _public_rows(rows, final, overrides, publication, countries) -> list[dict]:
 
     Podpis liczy **ta sama** funkcja, co ogłoszona tabela wyników, więc zgody na publikację
     nazwiska są te same co do wiersza. Kraj stoi przy wierszu tylko tam, gdzie tabela wyników
-    i tak go pokazuje (tryb ``CODE``), albo przy wierszu podpisanym nazwiskiem za zgodą; przy
-    pozostałych – sam kod: kod, kraj i wynik w sześcioosobowej delegacji wskazują osobę.
+    i tak go pokazuje (tryb ``CODE``), albo przy wierszu podpisanym nazwiskiem za zgodą w trybie
+    imiennym (``FULL``/``FULL_ALL``); przy pozostałych – w tym przy „inicjałach i szkole” – sam podpis
+    bez kraju: kod (albo inicjały), kraj i wynik w sześcioosobowej delegacji wskazują osobę.
 
     Publikacja „tylko awansujący” zostawia w tabeli medali wyłącznie wiersze z nagrodą: medal jest
     ogłoszeniem sam w sobie, ale reszty pola wyniki tego etapu nie ogłosiły.
@@ -322,7 +345,9 @@ def _public_rows(rows, final, overrides, publication, countries) -> list[dict]:
         award = final.get(row["entry_id"], Award.NONE)
         if publication.qualified_only and award == Award.NONE:
             continue
-        named = item["display"] != row["public_code"]
+        # Nazwisko za zgodą wyłącznie w trybie imiennym; „inicjały i szkoła” (INITIALS_SCHOOL) też
+        # zmienia podpis, ale nie jest zgodą na nic – kraj przy inicjałach i szkole zawęża do osoby.
+        named = publication.anonymization in NAMED_ANONYMIZATIONS and item["display"] != row["public_code"]
         show_country = publication.anonymization == Anonymization.CODE or named
         code, name = countries.get(row["entry_id"], ("", ""))
         public.append(
@@ -337,6 +362,65 @@ def _public_rows(rows, final, overrides, publication, countries) -> list[dict]:
             }
         )
     return public
+
+
+#: Stany wpisu po publikacji wyników: ``apply_qualification`` ustawia każdemu niezdyskwalifikowanemu
+#: albo „zakwalifikowany”, albo „niezakwalifikowany”. Każdy inny stan znaczy zmianę po publikacji.
+PUBLISHED_STATUSES = frozenset(
+    {StageEntryStatus.QUALIFIED, StageEntryStatus.NOT_QUALIFIED, StageEntryStatus.DISQUALIFIED}
+)
+
+
+def changes_since_publication(stage: Stage, publication: ResultsPublication, rows: list[dict]) -> str:
+    """Opis rozjazdu bieżącej tabeli z ogłoszoną albo pusty napis, gdy tabela jest ta sama.
+
+    Trzy sprawdzenia, bo medal liczony z innej tabeli niż ogłoszona byłby nagrodą bez pokrycia:
+
+    - **te same wpisy** – identyfikatory z ``entry_totals`` publikacji,
+    - **te same sumy** – jak dotąd,
+    - **te same stany** – publikacja nie przechowuje stanu wiersza (snapshot jest zanonimizowany),
+      więc porównujemy liczności stanów z wpisem audytu ``results.qualification_applied``, który
+      ``publish_results`` zapisuje w tej samej transakcji. Dyskwalifikacja po publikacji zmienia
+      pole i pule medali – i zmienia te liczności. Publikacja bez takiego wpisu (dane sprzed audytu)
+      przechodzi bez tego sprawdzenia, z ostrzeżeniem w logu.
+    """
+    published = publication.entry_totals or {}
+    current_ids = {row["entry_id"] for row in rows}
+    published_ids = {int(key) for key in published}
+    if current_ids != published_ids:
+        return f"wpisy: {len(current_ids ^ published_ids)} dodanych albo usuniętych"
+    totals = [
+        row["entry_id"]
+        for row in rows
+        if to_points(published.get(str(row["entry_id"]))) != to_points(row["total"])
+    ]
+    if totals:
+        return f"sumy punktów: {len(totals)} wpisów"
+    if any(row["status"] not in PUBLISHED_STATUSES for row in rows):
+        return "stany wpisów: wpis bez rozstrzygnięcia kwalifikacji"
+    applied = (
+        AuditLog.objects.filter(
+            action="results.qualification_applied",
+            target_type="competitions.stage",
+            target_id=str(stage.pk),
+            at__lte=publication.published_at,
+        )
+        .order_by("-at", "-id")
+        .first()
+    )
+    if applied is None:
+        logger.warning(
+            "Etap %s: brak wpisu audytu kwalifikacji – stanów wpisów nie da się porównać.", stage.pk
+        )
+        return ""
+    counts = {
+        "qualified": sum(1 for row in rows if row["status"] == StageEntryStatus.QUALIFIED),
+        "not_qualified": sum(1 for row in rows if row["status"] == StageEntryStatus.NOT_QUALIFIED),
+        "disqualified": sum(1 for row in rows if row["status"] == StageEntryStatus.DISQUALIFIED),
+    }
+    if any(applied.diff.get(key) != value for key, value in counts.items()):
+        return "stany wpisów: kwalifikacja albo dyskwalifikacja zmieniona po publikacji"
+    return ""
 
 
 @transaction.atomic
@@ -355,15 +439,10 @@ def freeze(scheme: MedalScheme, *, actor, request=None) -> MedalScheme:
             "RESULTS_NOT_PUBLISHED",
         )
     rows = _ranking(stage)
-    published = publication.entry_totals or {}
-    changed = [
-        row["entry_id"]
-        for row in rows
-        if to_points(published.get(str(row["entry_id"]))) != to_points(row["total"])
-    ]
+    changed = changes_since_publication(stage, publication, rows)
     if changed:
         raise _error(
-            f"Wyniki zmieniły się po publikacji ({len(changed)} wpisów). Opublikuj wyniki ponownie, "
+            f"Wyniki zmieniły się po publikacji ({changed}). Opublikuj wyniki ponownie, "
             "a dopiero potem ogłoś medale.",
             "RESULTS_CHANGED",
         )
@@ -382,7 +461,9 @@ def freeze(scheme: MedalScheme, *, actor, request=None) -> MedalScheme:
     }
     scheme.thresholds = result.thresholds.as_json() | {"final_counts": result.final_counts}
     scheme.public_rows = _public_rows(rows, result.final, result.overrides, publication, countries)
-    scheme.country_table = country_table(eligible, result.final, countries)
+    scheme.country_table = country_table(
+        eligible, result.final, countries, awarded_only=publication.qualified_only
+    )
     scheme.frozen_at = timezone.now()
     scheme.frozen_by = actor if getattr(actor, "is_authenticated", False) else None
     scheme.publication_published_at = publication.published_at
@@ -480,6 +561,9 @@ class IssueReport:
     participation: int = 0
     created: int = 0
     stale: list[str] = field(default_factory=list)
+    #: Dokumenty, których język ucznia trzeba było zastąpić angielskim w chwili wystawienia
+    #: (pismo niedostępne na serwerze) – koordynator dostaje ostrzeżenie z ich numerami.
+    fallbacks: list[str] = field(default_factory=list)
 
 
 @transaction.atomic
@@ -487,7 +571,8 @@ def issue_certificates(scheme: MedalScheme, *, participation: bool, actor, reque
     """Dyplomy medalowe (z zamrożonych nagród) i – opcjonalnie – zaświadczenia o udziale.
 
     Idempotentne jak każde „Wystaw” (``results.certificates.issue_certificate``): drugi przebieg oddaje
-    te same numery. Język dokumentu zamraża się przy pierwszym wystawieniu. Dyplom medalowy, którego
+    te same numery. Język dokumentu przypina się przy pierwszym wystawieniu – ten, w którym dokument
+    naprawdę się złoży (odwrót na angielski trafia do raportu). Dyplom medalowy, którego
     rodzaj nie zgadza się już z ogłoszoną nagrodą (medale odmrożono i zmieniono), trafia do raportu –
     dokumentu wydanego komuś do ręki system sam nie unieważnia.
     """
@@ -522,7 +607,9 @@ def issue_certificates(scheme: MedalScheme, *, participation: bool, actor, reque
             certificate, created = issue_certificate(
                 edition=stage.edition, kind=kind, entry=entry, actor=actor, request=request
             )
-            remember_language(certificate, language)
+            _pinned, fell_back = remember_language(certificate, language)
+            if fell_back and created:
+                report.fallbacks.append(certificate.number)
             report.created += int(created)
             if kind == PARTICIPATION_KIND:
                 report.participation += 1
@@ -544,6 +631,7 @@ def issue_certificates(scheme: MedalScheme, *, participation: bool, actor, reque
             "participation": report.participation,
             "created": report.created,
             "stale": len(report.stale),
+            "language_fallbacks": len(report.fallbacks),
         },
         request=request,
     )

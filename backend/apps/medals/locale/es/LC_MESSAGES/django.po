@@ -138,3 +138,13 @@ msgstr "Bronce"
 
 msgid "Wyróżnienia"
 msgstr "Menciones honoríficas"
+
+msgid "Średnia"
+msgstr "Media"
+
+#, python-format
+msgid "Suma i średnia punktów są podane tylko dla krajów z co najmniej %(minimum)s wynikami – przy mniejszej drużynie byłyby wynikiem konkretnej osoby."
+msgstr "La suma y la media de puntos solo se muestran para países con al menos %(minimum)s resultados; en un equipo más pequeño revelarían el resultado de una persona."
+
+msgid "Ten dokument nie jest już aktualny: nagroda, którą poświadcza, została zmieniona albo jest w trakcie korekty. Aktualny dokument wydaje organizator."
+msgstr "Este documento ya no está vigente: el premio que acredita se ha modificado o está en corrección. El documento vigente lo emite la organización."
