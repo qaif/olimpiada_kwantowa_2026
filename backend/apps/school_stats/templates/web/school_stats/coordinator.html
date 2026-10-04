@@ -1,0 +1,166 @@
+{% extends "web/coordinator/base.html" %}
+{% load static i18n web_extras %}
+{% comment %}
+  Statystyki szkół w panelu koordynatora (STAT-01): ranking, województwa i szkoły „do odzyskania”.
+
+  Liczby udziału są żywe (to dane operacyjne), wyniki – wyłącznie z ogłoszonych etapów i dopiero od
+  progu k-anonimowości. Próg pilnuje serwis (``services.coordinator_cell``); szablon czyta ``hidden``
+  i ``None``. Ten sam próg obowiązuje w CSV i w PDF, bo oba pliki z założenia wędrują dalej.
+{% endcomment %}
+{% block title %}{% translate "Statystyki szkół" %} – {% translate "panel koordynatora" %}{% endblock %}
+{% block panel_head %}
+  <link rel="stylesheet" href="{% static 'css/statistics.css' %}">
+  <link rel="stylesheet" href="{% static 'css/school-stats.css' %}">
+{% endblock %}
+{% block panel_title %}{% translate "Statystyki szkół" %}{% endblock %}
+{% block panel_lead %}
+  <p class="lead">{% translate "Udział szkół w edycji, porównanie z poprzednią edycją i – po ogłoszeniu wyników – średnie oraz liczba zakwalifikowanych." %}</p>
+  <p class="hint">{% blocktranslate trimmed with k=k_anonymity %}
+    Średnie i liczby zakwalifikowanych grup mniejszych niż {{ k }} wpisów są ukryte – także w eksporcie CSV i w raportach PDF.
+  {% endblocktranslate %}</p>
+{% endblock %}
+{% block panel_actions %}
+  {% if edition %}
+    <a class="btn btn--secondary" href="{% url 'web:coordinator-school-stats-export' %}?edition={{ edition.pk }}">{% translate "Eksport CSV" %}</a>
+  {% endif %}
+{% endblock %}
+{% block panel_content %}
+
+{% if not edition %}
+  <div class="card"><p class="empty">{% translate "Ten konkurs nie ma jeszcze żadnej edycji." %}</p></div>
+{% else %}
+
+<form method="get" class="actions ss-filter">
+  <label for="ss-edition">{% translate "Edycja" %}</label>
+  <select id="ss-edition" name="edition">
+    {% for item in editions %}
+      <option value="{{ item.pk }}"{% if item.pk == edition.pk %} selected{% endif %}>{{ item.year_label }}</option>
+    {% endfor %}
+  </select>
+  <label for="ss-sort">{% translate "Kolejność" %}</label>
+  <select id="ss-sort" name="sort">
+    {% for key, label in sorts %}
+      <option value="{{ key }}"{% if key == sort %} selected{% endif %}>{{ label }}</option>
+    {% endfor %}
+  </select>
+  <button type="submit" class="btn btn--secondary btn--small">{% translate "Pokaż" %}</button>
+</form>
+
+<dl class="stat-facts">
+  <div><dt>{% translate "Uczestnicy" %}</dt><dd>{{ summary.participants }}</dd></div>
+  <div><dt>{% translate "Szkoły z uczestnikami" %}</dt><dd>{{ summary.groups|length }}</dd></div>
+  {% if previous %}
+    <div><dt>{% blocktranslate trimmed with edition=previous.year_label %}Szkoły w edycji {{ edition }}{% endblocktranslate %}</dt><dd>{{ previous_summary.groups|length }}</dd></div>
+    <div><dt>{% translate "Szkoły bez uczestników w tej edycji" %}</dt><dd>{{ lost|length }}</dd></div>
+  {% endif %}
+</dl>
+
+<section class="section">
+  <h2>{% translate "Ranking szkół" %}</h2>
+  {% if ranking %}
+    <div class="table-scroll">
+      <table class="table ss-table">
+        <thead>
+          <tr>
+            <th scope="col">{% translate "Szkoła" %}</th>
+            <th scope="col">{% translate "Województwo" %}</th>
+            <th scope="col" class="num">{% translate "Uczestnicy" %}</th>
+            {% if previous %}<th scope="col" class="num">{% translate "Zmiana" %}</th>{% endif %}
+            {% for stage in published %}
+              <th scope="col" class="num">{{ stage.name }}: {% translate "średnia" %}</th>
+              <th scope="col" class="num">{{ stage.name }}: {% translate "awans" %}</th>
+            {% endfor %}
+            <th scope="col"><span class="visually-hidden">{% translate "Raport" %}</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in ranking %}
+            <tr>
+              <th scope="row">{{ row.group.label }}{% if row.group.city %}<span class="hint">, {{ row.group.city }}</span>{% endif %}
+                {% if not row.group.school_id %}<span class="badge badge--neutral">{% translate "spoza wykazu" %}</span>{% endif %}</th>
+              <td>{{ row.region_label }}</td>
+              <td class="num">{{ row.participants }}</td>
+              {% if previous %}
+                <td class="num">{% if row.change is None %}—{% elif row.change > 0 %}+{{ row.change }}{% else %}{{ row.change }}{% endif %}</td>
+              {% endif %}
+              {% for cell in row.cells %}
+                <td class="num">{% if cell.mean is not None %}{{ cell.mean|points }}{% elif cell.hidden %}<span class="hint" title="{% translate 'grupa pod progiem' %}">&lt;{{ k_anonymity }}</span>{% else %}—{% endif %}</td>
+                <td class="num">{% if cell.qualified is not None %}{{ cell.qualified }}{% elif cell.hidden %}<span class="hint">&lt;{{ k_anonymity }}</span>{% else %}—{% endif %}</td>
+              {% endfor %}
+              <td>{% if row.group.school_id %}<a href="{% url 'web:coordinator-school-stats-report' row.group.school_id %}?edition={{ edition.pk }}">PDF</a>{% endif %}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="card"><p class="empty">{% translate "W tej edycji nikt jeszcze nie jest zapisany do etapu." %}</p></div>
+  {% endif %}
+</section>
+
+<section class="section">
+  <h2>{% translate "Województwa" %}</h2>
+  {% if regions %}
+    <div class="table-scroll">
+      <table class="table ss-table stat-table">
+        <thead>
+          <tr>
+            <th scope="col">{% translate "Województwo" %}</th>
+            <th scope="col" class="num">{% translate "Szkoły" %}</th>
+            <th scope="col" class="num">{% translate "Średnia pkt" %}{% if first_stage %} ({{ first_stage.name }}){% endif %}</th>
+            <th scope="col" class="num">{% translate "Zakwalifikowani" %}</th>
+            <th scope="col">{% translate "Uczestnicy" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in regions %}
+            <tr>
+              <th scope="row">{{ item.region.label|default:_("brak województwa") }}</th>
+              <td class="num">{{ item.region.groups }}</td>
+              <td class="num">{% if item.cell.mean is not None %}{{ item.cell.mean|points }}{% elif item.cell.hidden %}<span class="hint">&lt;{{ k_anonymity }}</span>{% else %}—{% endif %}</td>
+              <td class="num">{% if item.cell.qualified is not None %}{{ item.cell.qualified }}{% elif item.cell.hidden %}<span class="hint">&lt;{{ k_anonymity }}</span>{% else %}—{% endif %}</td>
+              <td><span class="stat-bar" aria-hidden="true"><span class="stat-bar__fill stat-bar__fill--{{ item.share_width }}"></span></span><span class="stat-bar__value">{{ item.region.participants }}</span></td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="card"><p class="empty">{% translate "Brak danych." %}</p></div>
+  {% endif %}
+</section>
+
+{% if previous %}
+<section class="section">
+  <h2>{% translate "Szkoły do odzyskania" %}</h2>
+  <p class="hint">{% blocktranslate trimmed with edition=previous.year_label %}
+    Szkoły, które miały uczestników w edycji {{ edition }}, a w tej edycji nie mają nikogo – adresaci akcji promocyjnej.
+  {% endblocktranslate %}</p>
+  {% if lost %}
+    <div class="table-scroll">
+      <table class="table ss-table">
+        <thead>
+          <tr>
+            <th scope="col">{% translate "Szkoła" %}</th>
+            <th scope="col">{% translate "RSPO" %}</th>
+            <th scope="col" class="num">{% translate "Uczestnicy w poprzedniej edycji" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for info in lost %}
+            <tr>
+              <th scope="row">{{ info.label }}{% if info.city %}<span class="hint">, {{ info.city }}</span>{% endif %}</th>
+              <td>{{ info.rspo|default:"—" }}</td>
+              <td class="num">{{ info.participants }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="card"><p class="empty">{% translate "Każda szkoła z poprzedniej edycji ma uczestników także w tej." %}</p></div>
+  {% endif %}
+</section>
+{% endif %}
+{% endif %}
+{% endblock %}

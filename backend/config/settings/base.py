@@ -164,6 +164,8 @@ INSTALLED_APPS = [
     # **Po** aplikacjach domeny, bo czyta je wszystkie (edycje, wyniki, zgłoszenia), a żadna z nich
     # nie czyta jej – zależność idzie w jedną stronę i kolejność w tej liście ma to pokazywać.
     "apps.integrations",
+    # Statystyki szkół i opiekunów szkolnych (STAT-01, flaga ``school_statistics``) – bez modeli, sam odczyt.
+    "apps.school_stats",
     "apps.web",
     # Logowanie przez dostawców zewnętrznych (Google, Facebook). ``allauth.account`` jest wymagane
     # przez ``allauth.socialaccount`` (model ``EmailAddress``, adaptery) – jego **widoki** nie są

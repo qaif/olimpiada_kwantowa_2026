@@ -2,6 +2,9 @@
 
 from django.urls import path
 
+# Statystyki szkół (STAT-01) – widoki mieszkają w nowej aplikacji, montaż jak u pozostałych wydań.
+from apps.school_stats.urls import urlpatterns as school_stats_urlpatterns
+
 # Wzorce ekranów wydań E–K stoją w osobnych modułach, bo powstały równolegle (T11, T13, T20, T23,
 # T27, T34, T42), a ten plik ma w etapie 2 **jednego** właściciela na wydanie
 # (``docs/UNIWERSALNY-ETAP-2.md`` § 4.1). Montaż jest rozwinięciem tych list na **końcu**
@@ -1125,4 +1128,6 @@ urlpatterns = [
     *video_urlpatterns,
     # --- delegacje krajowe: opiekun drużyny i ekran koordynatora (DEL-01, 4.10.2026) ------------
     *delegation_urlpatterns,
+    # --- statystyki szkół i opiekunów (STAT-01, flaga ``school_statistics``) ----------------------
+    *school_stats_urlpatterns,
 ]

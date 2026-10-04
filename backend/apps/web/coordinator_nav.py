@@ -652,6 +652,16 @@ def groups(stages: list, competition=None) -> list[Group]:
                 match=("coordinator-workshop-materials", "coordinator-workshop-material-"),
             ),
         )
+    if competition is not None and competition.has_feature("school_statistics"):
+        # Statystyki szkół (STAT-01) – raport, więc w „Raportach”, przed zaświadczeniami opiekunów.
+        # Bramka ta sama, co w widoku: przy wyłączonej fladze ekran oddaje 404.
+        reports += (
+            Item(
+                "Statystyki szkół",
+                ("web:coordinator-school-stats",),
+                match=("coordinator-school-stats", "coordinator-school-stats-"),
+            ),
+        )
     reports += (
         Item(
             "Zaświadczenia opiekunów",

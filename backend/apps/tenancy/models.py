@@ -273,6 +273,13 @@ FEATURE_DEFAULTS: dict[str, bool] = {
     # prace uczestników wychodzą wtedy do podmiotu przetwarzającego (Anthropic) poza organizatorem,
     # co wymaga umowy powierzenia i zmiany polityki prywatności (``docs/OPERACJE.md``).
     "ai_grading": False,
+    # --- statystyki szkół (STAT-01) -----------------------------------------------------------------
+    # Ranking szkół dla koordynatora i statystyki uczniów dla opiekuna szkolnego (``apps.school_stats``).
+    # Wyłączona znaczy, że adresów ``/supervisor/statistics/`` i ``/coordinator/school-stats/`` nie ma
+    # (404), a menu i pulpit opiekuna wyglądają co do bajtu jak dziś. Domyślnie wyłączona, bo opiekun
+    # zaczyna widzieć wyniki uczniów przez kolejne edycje – organizator włącza to świadomie, razem
+    # z wierszem rejestru czynności, który flaga dokłada (``apps.accounts.processing_register``).
+    "school_statistics": False,
 }
 
 
