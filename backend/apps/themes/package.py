@@ -75,7 +75,16 @@ MANIFEST_KEYS = {
     "layouts",
     "color_scheme",
     "min_app_version",
+    # THEME-02 § 2.1 – opcjonalne listy wariantów do wyboru przez koordynatora.
+    "logos",
+    "fonts",
 }
+
+#: Identyfikator wariantu logo/krojów w manifeście (trafia do ``theme_options`` i do adresu arkusza).
+OPTION_ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,31}$")
+MAX_OPTIONS = 8
+LOGO_TYPES = (".svg", ".png", ".webp", ".jpg", ".jpeg")
+FONT_ROLES = ("body", "display", "mono")
 
 
 @dataclass
@@ -239,6 +248,87 @@ def _layouts(raw, result: PackageResult) -> dict[str, list[str]]:
     return layouts
 
 
+def _options_list(raw, key: str, result: PackageResult) -> list[dict] | None:
+    """Wspólna część ``logos``/``fonts``: lista obiektów z unikalnym ``id`` i ``label`` (≤ 60)."""
+    if raw is None:
+        return []
+    if not isinstance(raw, list) or not raw or len(raw) > MAX_OPTIONS:
+        result.errors.append(f"manifest.json: „{key}” – niepusta lista do {MAX_OPTIONS} obiektów.")
+        return None
+    seen: set[str] = set()
+    for entry in raw:
+        if not isinstance(entry, dict):
+            result.errors.append(f"manifest.json: każdy wpis „{key}” musi być obiektem.")
+            return None
+        ident, label = entry.get("id"), entry.get("label")
+        if not isinstance(ident, str) or not OPTION_ID_RE.match(ident) or ident in seen:
+            result.errors.append(
+                f"manifest.json: „{key}” – „id” unikalne, małe litery, cyfry i myślniki (do 32 znaków)."
+            )
+            return None
+        if not isinstance(label, str) or not label.strip() or len(label) > 60:
+            result.errors.append(f"manifest.json: „{key}.{ident}” – „label” to niepusty napis do 60 znaków.")
+            return None
+        seen.add(ident)
+    return raw
+
+
+def _logos(raw, result: PackageResult) -> list[dict]:
+    """``[{"id", "label", "light", "dark"}]`` – pliki sprawdzane później (:func:`_check_logo_files`)."""
+    entries = _options_list(raw, "logos", result)
+    out = []
+    for entry in entries or []:
+        files = {
+            variant: entry.get(variant) for variant in ("light", "dark") if entry.get(variant) is not None
+        }
+        if not files or not all(isinstance(path, str) for path in files.values()):
+            result.errors.append(
+                f"manifest.json: logo „{entry['id']}” musi wskazywać plik „light” i/lub „dark” "
+                "(ścieżki w assets/)."
+            )
+            continue
+        out.append({"id": entry["id"], "label": entry["label"].strip(), **files})
+    return out
+
+
+def _fonts(raw, result: PackageResult) -> list[dict]:
+    """``[{"id", "label", "body", "display", "mono"}]`` – stosy krojów jak wartości tokenów."""
+    from .tokens import _check_value
+
+    entries = _options_list(raw, "fonts", result)
+    out = []
+    for entry in entries or []:
+        cleaned = {"id": entry["id"], "label": entry["label"].strip()}
+        for role in FONT_ROLES:
+            if role not in entry:
+                continue
+            value = _check_value(f"fonts.{entry['id']}.{role}", entry[role], result.errors)
+            if value is not None:
+                cleaned[role] = value
+        if not any(role in cleaned for role in FONT_ROLES):
+            result.errors.append(f"manifest.json: para krojów „{entry['id']}” bez „body”/„display”/„mono”.")
+            continue
+        out.append(cleaned)
+    return out
+
+
+def _check_logo_files(manifest: dict, assets: set[str], result: PackageResult) -> None:
+    for entry in manifest.get("logos") or []:
+        for variant in ("light", "dark"):
+            path = entry.get(variant)
+            if path is None:
+                continue
+            if (
+                not path.startswith("assets/")
+                or posixpath.splitext(path)[1].lower() not in LOGO_TYPES
+                or path not in assets
+            ):
+                result.errors.append(
+                    f"manifest.json: logo „{entry['id']}” ({variant}) wskazuje {path!r} – "
+                    "potrzebny obraz z katalogu assets/ tej paczki."
+                )
+
+
 def _version_tuple(value: str) -> tuple[int, ...] | None:
     match = re.match(r"^v?(\d+)\.(\d+)\.(\d+)", value or "")
     return tuple(int(x) for x in match.groups()) if match else None
@@ -304,6 +394,8 @@ def parse_manifest(raw: bytes, result: PackageResult, *, app_version: str = "dev
         "layouts": _layouts(data.get("layouts"), result),
         "color_scheme": scheme,
         "min_app_version": minimum if isinstance(minimum, str) else "",
+        "logos": _logos(data.get("logos"), result),
+        "fonts": _fonts(data.get("fonts"), result),
     }
 
 
@@ -401,6 +493,8 @@ def validate_package(data: bytes, *, app_version: str = "dev", scan=None) -> Pac
                 result.warnings.append(f"{path}: usunięto {', '.join(sorted(set(cleaned.removed)))}.")
             content = cleaned.data
         published.append(PublicFile(path=path, data=content, content_type=ASSET_TYPES[ext]))
+
+    _check_logo_files(result.manifest, set(assets), result)
 
     # Arkusz motywu.
     try:

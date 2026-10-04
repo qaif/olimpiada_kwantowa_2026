@@ -32,6 +32,11 @@ logger = logging.getLogger(__name__)
 AUDIT_UPLOADED = "theme.uploaded"
 AUDIT_ACTIVATED = "theme.activated"
 AUDIT_DELETED = "theme.version_deleted"
+# THEME-02: dostosowanie wersji w konkursie i menu serwisu.
+AUDIT_CUSTOMIZED = "theme.customized"
+AUDIT_CUSTOMIZATION_RESET = "theme.customization_reset"
+AUDIT_MENU_SAVED = "theme.menu_saved"
+AUDIT_MENU_RESET = "theme.menu_reset"
 
 
 class ThemeError(Exception):
@@ -227,9 +232,11 @@ def activate(
         runtime = runtime_for(version.pk)
         if runtime is None:
             raise ThemeError("Wersja motywu jest niedostępna.")
-        cleaned = clean_options(runtime, options)
+        # Dostosowanie zapisane wcześniej dla tej wersji (THEME-02 § 2.4) wraca razem z nią;
+        # opcje z formularza galerii (układy, akcent marki) mają pierwszeństwo.
+        cleaned = clean_options(runtime, with_customization(competition, version, options))
     competition.theme_version = version
-    competition.theme_options = cleaned
+    competition.theme_options = _keep_menu(competition, cleaned)
     competition.save(update_fields=["theme_version", "theme_options"])
     audit(
         actor,
@@ -248,6 +255,199 @@ def activate(
     # strony tego konkursu muszą się wyrenderować od nowa.
     invalidate_competition(competition.pk)
     return competition
+
+
+def _keep_menu(competition, options: dict) -> dict:
+    """``theme_options`` z zachowaną rewizją menu – menu nie zależy od wybranego motywu."""
+    from .menu import OPTIONS_KEY
+
+    revision = (competition.theme_options or {}).get(OPTIONS_KEY)
+    return {**options, OPTIONS_KEY: revision} if revision else options
+
+
+def with_customization(competition, version: ThemeVersion | None, options: dict | None) -> dict:
+    """Opcje ``options`` uzupełnione o dostosowanie zapisane dla (konkurs, wersja)."""
+    from .models import ThemeCustomization
+
+    options = dict(options or {})
+    if version is None:
+        return options
+    stored = (
+        ThemeCustomization.objects.filter(competition=competition, theme_version=version)
+        .values_list("options", flat=True)
+        .first()
+    )
+    return {**(stored or {}), **options}
+
+
+def customization_report(runtime, options: dict) -> tuple[list[str], list[str]]:
+    """Kontrola kontrastu oczyszczonych opcji (``customize.contrast_report``) dla widoku i zapisu."""
+    from . import customize
+
+    scheme = options.get("scheme") or runtime.color_scheme
+    return customize.contrast_report(runtime, scheme, options.get("colors") or {})
+
+
+def save_customization(
+    competition, version: ThemeVersion, options: dict, *, actor=None, request=None
+) -> dict:
+    """Zapisuje dostosowanie wersji w konkursie (THEME-02 § 2). Zwraca oczyszczone opcje.
+
+    Kontrast poniżej WCAG AA w parze, którą zmienił koordynator, **blokuje** zapis
+    (``customize.CustomizationError`` z listą komunikatów). Wersja aktywna dostaje opcje od razu
+    (kopia w ``Competition.theme_options``) i pełnostronicowy cache gościa jest unieważniany; wersja
+    nieaktywna – tylko wiersz ``ThemeCustomization``, użyty przy jej aktywacji.
+    """
+    from apps.web.page_cache import invalidate_competition
+
+    from .customize import CustomizationError
+    from .models import ThemeCustomization
+
+    if not version.is_valid:
+        raise ThemeError("Nie można dostosować odrzuconej wersji motywu.")
+    runtime = runtime_for(version.pk)
+    if runtime is None:
+        raise ThemeError("Wersja motywu jest niedostępna.")
+    cleaned = clean_options(runtime, options)
+    errors, _warnings = customization_report(runtime, cleaned)
+    if errors:
+        raise CustomizationError(errors)
+    with transaction.atomic():
+        row, _created = ThemeCustomization.objects.select_for_update().get_or_create(
+            competition=competition, theme_version=version
+        )
+        before = dict(row.options or {})
+        row.options = cleaned
+        row.updated_by = actor if getattr(actor, "is_authenticated", False) else None
+        row.save()
+        active = competition.theme_version_id == version.pk
+        if active:
+            competition.theme_options = _keep_menu(competition, cleaned)
+            competition.save(update_fields=["theme_options"])
+        audit(
+            actor,
+            AUDIT_CUSTOMIZED,
+            competition,
+            {
+                "theme": version.theme.slug,
+                "version": version.version,
+                "version_id": version.pk,
+                "active": active,
+                "before": before,
+                "after": cleaned,
+            },
+            request=request,
+        )
+    if active:
+        invalidate_competition(competition.pk)
+    return cleaned
+
+
+def reset_customization(competition, version: ThemeVersion, *, actor=None, request=None) -> None:
+    """„Przywróć domyślne”: kolory, schemat, logo i kroje wersji wracają do wartości z paczki.
+
+    Układy i akcent marki zostają (to wybory z galerii, nie dostosowanie kolorów).
+    """
+    from apps.web.page_cache import invalidate_competition
+
+    from .models import ThemeCustomization
+    from .runtime import CUSTOM_KEYS
+
+    with transaction.atomic():
+        row = (
+            ThemeCustomization.objects.select_for_update()
+            .filter(competition=competition, theme_version=version)
+            .first()
+        )
+        before = dict(row.options or {}) if row is not None else {}
+        if row is not None:
+            kept = {key: value for key, value in before.items() if key not in CUSTOM_KEYS}
+            row.options = kept
+            row.updated_by = actor if getattr(actor, "is_authenticated", False) else None
+            row.save()
+        active = competition.theme_version_id == version.pk
+        if active:
+            options = {k: v for k, v in (competition.theme_options or {}).items() if k not in CUSTOM_KEYS}
+            competition.theme_options = options
+            competition.save(update_fields=["theme_options"])
+        audit(
+            actor,
+            AUDIT_CUSTOMIZATION_RESET,
+            competition,
+            {
+                "theme": version.theme.slug,
+                "version": version.version,
+                "version_id": version.pk,
+                "before": before,
+            },
+            request=request,
+        )
+    if active:
+        invalidate_competition(competition.pk)
+
+
+def save_menu(
+    competition, raw_items: list, *, auto_keys: dict, default_keys: list[str], actor=None, request=None
+):
+    """Zapisuje nadpisania menu (THEME-02 § 1). ``menu.MenuError`` = odrzucone z komunikatem.
+
+    Lista niczego niezmieniająca (kolejność domyślna, bez etykiet, ukryć i własnych pozycji) usuwa
+    nadpisania w ogóle – konkurs wraca do menu bez zapytania (``theme_options`` bez klucza ``menu``).
+    """
+    from apps.web.page_cache import invalidate_competition
+
+    from . import menu as menu_mod
+    from .models import SiteMenu
+
+    items = menu_mod.clean_items(competition, raw_items, auto_keys=auto_keys)
+    if menu_mod.is_default(items, default_keys):
+        reset_menu(competition, actor=actor, request=request)
+        return None
+    with transaction.atomic():
+        row = SiteMenu.objects.select_for_update().filter(competition=competition).first()
+        before = list(row.items) if row is not None else []
+        if row is None:
+            row = SiteMenu(competition=competition, revision=1)
+        else:
+            row.revision += 1
+        row.items = items
+        row.updated_by = actor if getattr(actor, "is_authenticated", False) else None
+        row.save()
+        competition.theme_options = {**(competition.theme_options or {}), menu_mod.OPTIONS_KEY: row.revision}
+        competition.save(update_fields=["theme_options"])
+        audit(
+            actor,
+            AUDIT_MENU_SAVED,
+            competition,
+            {"revision": row.revision, "before": before, "after": items},
+            request=request,
+        )
+    menu_mod.forget(competition.pk)
+    invalidate_competition(competition.pk)
+    return row
+
+
+def reset_menu(competition, *, actor=None, request=None) -> None:
+    """Usuwa nadpisania menu – menu wraca do drzewa stron (bez zapytania na stronach)."""
+    from apps.web.page_cache import invalidate_competition
+
+    from . import menu as menu_mod
+    from .models import SiteMenu
+
+    with transaction.atomic():
+        row = SiteMenu.objects.select_for_update().filter(competition=competition).first()
+        before = list(row.items) if row is not None else []
+        if row is not None:
+            row.delete()
+        options = dict(competition.theme_options or {})
+        had_marker = options.pop(menu_mod.OPTIONS_KEY, None) is not None
+        if had_marker:
+            competition.theme_options = options
+            competition.save(update_fields=["theme_options"])
+        if row is not None or had_marker:
+            audit(actor, AUDIT_MENU_RESET, competition, {"before": before}, request=request)
+    menu_mod.forget(competition.pk)
+    invalidate_competition(competition.pk)
 
 
 def delete_version(version: ThemeVersion, *, actor=None, request=None) -> None:
