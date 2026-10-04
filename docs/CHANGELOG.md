@@ -8,6 +8,30 @@ dokładnie jednemu wierszowi tej tabeli.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## [Unreleased] – Logistyka finału dla delegacji (LOG-01)
+
+- **Nowa aplikacja `apps.delegation_logistics`** za flagą `onsite_logistics` w trybie `DELEGATIONS`:
+  formularz opiekuna drużyny dla każdej osoby delegacji (dokument podróży, przyjazd/wyjazd,
+  zakwaterowanie, wyżywienie i zdrowie za decyzją D21 i wyraźną zgodą, koszulka, kontakt alarmowy,
+  zdjęcie ze skanem ClamAV), goście/obserwatorzy delegacji, terminy per sekcja z blokadą i audytem
+  zmian (nazwy pól, bez wartości).
+- **Oficer logistyki i obsługa rejestracji** – przydziały ponad rolę koordynatora; dane osób widzi
+  wyłącznie oficer. Ekrany: przegląd kompletności, osoby, tablica przylotów/odlotów, lista pokoi
+  (zasady: niepełnoletni nigdy z dorosłym, płeć pokoju, pojemność), wyżywienie, koszulki, eksporty CSV,
+  przypomnienia e-mail w języku opiekuna.
+- **Listy zapraszające do wizy** – PDF z rejestrem numerów `PREFIKS/ROK/NNNN`, zaszyfrowana migawka
+  danych, nowy rodzaj szablonu dokumentu `VISA_INVITATION` (`tenancy.0014`), podpisy i pieczęć jak dyplomy.
+- **Identyfikatory** PDF (A6, zdjęcie, kraj, rola, QR z losowym tokenem bez danych osobowych) i ekran
+  odhaczania na telefonie (punkty kontroli, wyszukiwarka, skaner w przeglądarce z `BarcodeDetector`).
+- **RODO:** szyfrowanie pól wrażliwych (Fernet z obsługą `SECRET_KEY_FALLBACKS`), retencja dobowa po
+  końcu finału, sekcja w eksporcie danych konta, usuwanie przy usunięciu konta, warunkowa czynność
+  w rejestrze (wersja 1.12).
+- **i18n:** katalogi tłumaczeń w aplikacji (`apps/<nazwa>/locale`) – kompilowane przez `Dockerfile`,
+  CI i `conftest.py`, sprawdzane przez `test_translations.py`; 125 nowych napisów w 10 językach
+  (maszynowe, do przeglądu).
+- Dokumentacja: `docs/OPERACJE.md` § 29, `docs/PODRECZNIK-ORGANIZATORA.md` § 10c,
+  `docs/PODRECZNIK-OPIEKUNA-DRUZYNY.md` § 7, `docs/tasks/LOG-01.md`.
+
 ## [Unreleased] – Delegacje krajowe: rejestracja przez opiekunów drużyn narodowych (DEL-01)
 
 - **Tryb rejestracji konkursu** `Competition.registration_mode`: `OPEN` (domyślnie – każdy istniejący

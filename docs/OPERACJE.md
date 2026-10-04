@@ -3947,3 +3947,75 @@ jest renderowany z `app_routes.env` osobno, trzeba go wyrenderować ponownie.
 Przestawienie trybu z powrotem na `OPEN` otwiera samodzielną rejestrację i ukrywa ekrany delegacji (404);
 dane delegacji, opiekunów i uczniów zostają w bazie. Migracje `accounts.0036`–`0038` i `tenancy.0013` są
 odwracalne (nowe tabele i kolumny nullowalne albo z wartością domyślną).
+
+## 29. Logistyka finału dla delegacji (LOG-01, `docs/tasks/LOG-01.md`)
+
+Aplikacja `apps.delegation_logistics`: dane pobytu członków delegacji (paszport do wizy, przylot,
+pokój, dieta, koszulka, kontakt alarmowy, zdjęcie), listy zapraszające do wizy z rejestrem numerów,
+identyfikatory z kodem QR i odhaczanie obsługi na telefonach. Działa **wyłącznie** w konkursie
+w trybie `DELEGATIONS` (§ 28) **z** flagą `onsite_logistics`. Olimpiada Kwantowa nie widzi niczego.
+
+### 29.1. Włączenie dla `iqo` (kolejność)
+
+1. Migracje wydania: `delegation_logistics.0001` (nowe, puste tabele) i `tenancy.0014` (nowy rodzaj
+   szablonu dokumentu „list zapraszający (wiza)” – sama lista wyboru). `scripts/deploy.sh` je wykona.
+2. Flaga konkursu (jedna z dróg):
+   - `/admin/` → Konkursy → `iqo` → `feature_flags`: dopisać `"onsite_logistics": true`,
+   - powłoka:
+     ```sh
+     docker compose exec web python manage.py shell -c "from apps.tenancy.models import Competition; c = Competition.objects.get(slug='iqo'); c.feature_flags = {**(c.feature_flags or {}), 'onsite_logistics': True}; c.save(update_fields=['feature_flags'])"
+     ```
+   Flaga włącza też istniejące ekrany logistyki etapu (`/coordinator/venues/`, przyjazdy i obecność
+   etapu) – w `iqo` nieszkodliwe, a przełącznik „zbieraj potrzeby szczególne” na ekranie
+   `/coordinator/venues/` jest **tą samą** decyzją D21 dla danych o zdrowiu w logistyce finału.
+3. Panel `iqo` → „Uczestnicy i konta → Logistyka finału” (`/coordinator/logistics/`) → „Ustawienia
+   i dostęp”: nazwa, miasto, daty finału, terminy pięciu sekcji, retencja (dni po ostatnim dniu,
+   domyślnie 30), prefiks numeru listów (np. `IQO`).
+4. **Oficer logistyki** – przydział „oficer logistyki” dla 1–2 koordynatorów (pierwszy przydział może
+   nadać dowolny koordynator; kolejne – superkoordynator albo oficer). Tylko oficer widzi dane osób.
+5. **Obsługa rejestracji** – przydział „obsługa rejestracji” dla kont wolontariuszy (konto musi
+   istnieć; rola w konkursie niepotrzebna). Punkty kontroli („Przyjazd”, „Ceremonia otwarcia”…)
+   w tej samej zakładce.
+6. Dane o zdrowiu (dieta, alergie, uwagi medyczne) – dopiero po decyzji organizatora: `/coordinator/venues/`
+   → „zbieraj potrzeby szczególne”. Bez niej sekcja „Wyżywienie i zdrowie” nie istnieje.
+7. Tekst listu wizowego: przy fladze `document_templates` – „Szablony dokumentów” → „list zapraszający
+   (wiza)” (znaczniki `{event}`, `{event_dates}`, `{city}`, `{venue}`, `{country}`, `{number}`, `{date}`,
+   `{organizer}`). Bez szablonu obowiązuje tekst wbudowany po angielsku. Podpisy: bloki podpisu
+   z szablonu graficznego dyplomów (rodzaj „wszystkie”); pieczęć elektroniczna – jak dyplomy
+   (`CERT_SIGN_P12_PATH`).
+
+### 29.2. Szyfrowanie i klucz
+
+Numer, data ważności i nazwisko z paszportu, data urodzenia, dane o zdrowiu i kontakt alarmowy są
+szyfrowane w bazie (Fernet, klucz wyprowadzony z `SECRET_KEY` z etykietą `delegation-logistics`).
+**Rotacja `SECRET_KEY`**: stary klucz **musi** zostać w `SECRET_KEY_FALLBACKS` do końca retencji
+finału – inaczej zapisane dane stają się nieczytelne (ekran pokaże puste pola, w logu ostrzeżenie
+„nie udało się odszyfrować pola”). Kopia zapasowa bazy bez `SECRET_KEY` nie odsłania tych danych.
+
+### 29.3. Zdjęcia i skan
+
+Zdjęcia do identyfikatorów idą do prywatnego magazynu rozwiązań (`final-badges/…`) i przez ClamAV
+(kolejka `scan`, zadanie `apps.delegation_logistics.tasks.scan_badge_photo`) – worker `scan` musi
+działać. Zdjęcie jest widoczne dopiero po czystym skanie; zainfekowane jest usuwane.
+
+### 29.4. Retencja
+
+Zadanie dobowe `delegation-logistics-purge-expired` (`CELERY_BEAT_SCHEDULE`, `DatabaseScheduler`
+dopisze je przy starcie beat) usuwa po `ends_on + retencja` wszystkie dane członków delegacji edycji
+(z plikami zdjęć) i migawki osób z listów; rejestr listów zostaje (numer, kraj, data, liczba osób).
+Ręcznie (np. test na kopii):
+```sh
+docker compose exec web python manage.py shell -c "from apps.delegation_logistics.privacy import purge_expired; print(purge_expired())"
+```
+
+### 29.5. Obsługa na miejscu
+
+Identyfikatory: „Osoby” → „Identyfikatory PDF” (A4, cztery karty A6). Kod QR zawiera wyłącznie adres
+`/coordinator/logistics/checkin/<token>/` – bez danych osobowych; aparat telefonu otwiera go sam
+(obsługa musi być zalogowana). Zgubiona karta: karta osoby → „Wydaj nowy identyfikator” (stary kod
+przestaje działać). Limity żądań: `onsite_logistics` 600/h i `onsite_checkin` 3000/h na konto.
+
+### 29.6. Wycofanie
+
+Wyłączenie flagi ukrywa ekrany (404) i pozycję menu; dane zostają do retencji albo do ręcznego
+`purge_event`. Migracje są odwracalne (nowe tabele; `tenancy.0014` zmienia wyłącznie listę wyboru).

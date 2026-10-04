@@ -67,3 +67,31 @@ that case.
 
 You can download or delete your own account data under *Account*. Deleting your account removes your
 team leader role and your invitations; the students you registered stay in the team.
+
+## 7. Final logistics (on-site final)
+
+When the organiser opens the logistics of the on-site final, your team page shows **Final logistics**.
+For every person in your delegation – students, team leaders and the observers or guests you add there
+– fill in:
+
+- **Travel document** – full name exactly as in the passport, nationality, date of birth, passport number
+  and expiry date. The organiser uses it for the visa invitation letter; the passport must be valid during
+  the whole stay,
+- **Arrival and departure** – date, local time, means of transport, flight or train number, airport or
+  station (used to plan airport pick-ups),
+- **Accommodation** – whether the person needs a bed, gender (only for room allocation; minors never share
+  a room with adults), preferred roommate,
+- **Meals and health** (only if the organiser collects it) – diet, allergies and medical information
+  needed on site. It is saved only after you confirm that the person, or their parent for a minor, gave
+  explicit consent; you can withdraw the consent at any time and the data is deleted at once,
+- **Badge and emergency contact** – T-shirt size, emergency contact (name and phone), a passport-style photo
+  (JPG or PNG, up to 5 MB; it appears after an automatic virus check).
+
+Each section has its own **deadline**. After it, the section becomes read-only and changes go through the
+organiser. You will receive a reminder e-mail when something is missing. **Invitation letters** for visa
+applications are issued by the organiser; you can download the letters of your delegation from the same
+page.
+
+The data is visible only to the team leaders of your country and to the organiser's logistics officers,
+it is encrypted in the database and **deleted automatically after the final** (by default 30 days after
+the last day). The QR code on the badge contains only a random code – no personal data.

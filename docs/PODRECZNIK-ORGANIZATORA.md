@@ -1944,6 +1944,51 @@ niepełnoletni zbiera sam po uruchomieniu konta (zgoda opiekuna online).
 
 ---
 
+## 10c. Logistyka finału — `/coordinator/logistics/`
+
+**Tylko w konkursie z delegacjami i włączoną logistyką** (`OPERACJE.md` § 29). Opiekunowie drużyn
+uzupełniają dane każdej osoby z delegacji – uczniów, siebie i dopisanych przez siebie obserwatorów
+i gości: dokument podróży (do zaproszenia wizowego), przyjazd i wyjazd, zakwaterowanie, (za decyzją
+organizatora) wyżywienie i zdrowie, rozmiar koszulki, kontakt alarmowy i zdjęcie do identyfikatora.
+
+**Kto co widzi.** Każdy koordynator widzi zakładkę „Przegląd” (ile osób w kraju ma braki w każdej
+sekcji, ostatnie przypomnienie, obecność) i „Ustawienia i dostęp”. **Dane osób** (paszporty, zdrowie,
+przyloty, pokoje) widzi wyłącznie **oficer logistyki** – koordynator z przydziałem. Pierwszego oficera
+nadaje dowolny koordynator, kolejnych – superkoordynator albo oficer; każde nadanie i odebranie jest
+w dzienniku zdarzeń. **Obsługa rejestracji** (wolontariusze z kontem w serwisie) dostaje osobny
+przydział i widzi tylko ekran skanowania: imię, nazwisko, kraj, rolę i zdjęcie.
+
+**Terminy.** Każda z pięciu sekcji ma własny termin. Po terminie opiekun widzi sekcję tylko do odczytu;
+poprawki wprowadza oficer na karcie osoby (zmiana zostaje w historii karty – nazwy pól, bez wartości).
+„Przypomnij” wysyła opiekunom kraju e-mail w ich języku z listą osób i sekcji z brakami (bez danych).
+
+**Zakładki oficera.**
+- *Osoby* – wszyscy z brakami, filtr kraju, karta osoby (pełne dane, zdjęcie, pokój, nowy identyfikator,
+  list imienny, historia zmian), „Identyfikatory PDF”, „Eksport pełny CSV” (z paszportami – w audycie).
+- *Przyjazdy* – tablica przylotów i odlotów per dzień, zgrupowana po godzinie, lotnisku i numerze lotu
+  (jeden wiersz = jeden odbiór), CSV.
+- *Pokoje* – pokoje (budynek, numer, liczba miejsc, płeć: kobiety / mężczyźni / dowolna – tylko
+  dorośli), przydziały, nieprzydzieleni. Serwis nie pozwoli: przekroczyć liczby miejsc, położyć
+  **niepełnoletniego w pokoju z dorosłym**, osoby niepełnoletniej w pokoju „dowolna płeć” ani osoby
+  innej płci w pokoju z płcią. Wiek liczony na pierwszy dzień finału; uczeń bez daty urodzenia jest
+  traktowany jak niepełnoletni. Rooming list CSV dla hotelu.
+- *Wyżywienie* – liczby diet, lista alergii i uwag do diety dla kuchni (CSV bez uwag medycznych).
+- *Koszulki* – rozmiar × rola, CSV dla drukarni.
+- *Listy wizowe* – „Wystaw list dla delegacji” (osoby z kompletnym dokumentem podróży) albo imienny
+  z karty osoby; numer `PREFIKS/ROK/NNNN`, rejestr z datą i wystawcą. List to PDF z angielskim tekstem
+  (albo szablon „list zapraszający (wiza)” na ekranie „Szablony dokumentów”), tabelą osób, podpisami
+  z szablonu graficznego dyplomów i pieczęcią elektroniczną, jeśli jest skonfigurowana. Opiekun pobiera
+  listy swojej delegacji ze swojego panelu.
+
+**Dane o zdrowiu.** Sekcja „Wyżywienie i zdrowie” pojawia się dopiero po włączeniu „zbieraj potrzeby
+szczególne” (`/coordinator/venues/`). Opiekun zapisuje ją wyłącznie po zaznaczeniu, że osoba (albo jej
+rodzic) wyraziła wyraźną zgodę; zgodę można wycofać – dane znikają od razu.
+
+**Po finale.** Po ostatnim dniu finału i okresie retencji (domyślnie 30 dni) wszystkie dane osób,
+zdjęcia i dane paszportowe z listów są usuwane automatycznie; zostaje rejestr numerów listów.
+
+---
+
 ## 10a. Zaświadczenia o statusie ucznia — `/coordinator/student-status/`
 
 **Tylko w konkursie z włączonymi zaświadczeniami** (przełącznik `student_status_certificate`, włącza go
