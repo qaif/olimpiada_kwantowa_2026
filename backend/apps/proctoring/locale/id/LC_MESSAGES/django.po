@@ -660,3 +660,37 @@ msgstr "peringatan"
 
 msgid "poważny"
 msgstr "serius"
+
+msgid "Treść tego etapu jest w trakcie zawodów dostępna wyłącznie dla jego uczestników."
+msgstr "Selama kompetisi, isi tahap ini hanya tersedia bagi pesertanya."
+
+msgid "Mój rodzic lub opiekun prawny zna tę informację o nadzorze zdalnym i zgadza się na niego."
+msgstr "Orang tua atau wali sah saya mengetahui informasi tentang pengawasan jarak jauh ini dan menyetujuinya."
+
+msgid "Zaznacz też oświadczenie o wiedzy i zgodzie rodzica lub opiekuna prawnego."
+msgstr "Centang juga pernyataan tentang pengetahuan dan persetujuan orang tua atau wali sah Anda."
+
+msgid "Serwer nadzoru działa – spróbuj połączyć się jeszcze raz. Jeśli nie możesz użyć kamery, poproś o inną formę nadzoru."
+msgstr "Server pengawasan berfungsi – coba sambungkan lagi. Jika Anda tidak dapat menggunakan kamera, ajukan bentuk pengawasan lain."
+
+msgid "serwer nadzoru nieskonfigurowany"
+msgstr "server pengawasan belum dikonfigurasi"
+
+msgid "serwer nadzoru niedostępny"
+msgstr "server pengawasan tidak tersedia"
+
+msgid "nieudane połączenia ucznia – serwer działał"
+msgstr "sambungan siswa gagal – server berfungsi"
+
+msgid "Praca bez nadzoru – awaria serwera nadzoru została odnotowana."
+msgstr "Bekerja tanpa pengawasan – gangguan server pengawasan telah dicatat."
+
+msgid "Ustawienia etapu w chwili zgody"
+msgstr "Pengaturan tahap saat persetujuan"
+
+#, python-format
+msgid "późny start: %(minutes)s min"
+msgstr "mulai terlambat: %(minutes)s mnt"
+
+msgid "Kamera nie działa albo nie masz do niej dostępu. Jeśli nie możesz jej użyć, poproś o inną formę nadzoru (na dole strony)."
+msgstr "Kamera tidak berfungsi atau Anda tidak memiliki akses ke kamera. Jika tidak dapat menggunakannya, ajukan bentuk pengawasan lain (di bagian bawah halaman)."

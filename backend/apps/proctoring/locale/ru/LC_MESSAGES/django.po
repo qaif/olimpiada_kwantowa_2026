@@ -724,3 +724,37 @@ msgstr "предупреждение"
 
 msgid "poważny"
 msgstr "серьёзный"
+
+msgid "Treść tego etapu jest w trakcie zawodów dostępna wyłącznie dla jego uczestników."
+msgstr "Во время соревнования материалы этого этапа доступны только его участникам."
+
+msgid "Mój rodzic lub opiekun prawny zna tę informację o nadzorze zdalnym i zgadza się na niego."
+msgstr "Мой родитель или законный представитель ознакомлен с этой информацией о дистанционном наблюдении и согласен с ним."
+
+msgid "Zaznacz też oświadczenie o wiedzy i zgodzie rodzica lub opiekuna prawnego."
+msgstr "Отметьте также заявление об осведомлённости и согласии родителя или законного представителя."
+
+msgid "Serwer nadzoru działa – spróbuj połączyć się jeszcze raz. Jeśli nie możesz użyć kamery, poproś o inną formę nadzoru."
+msgstr "Сервер наблюдения работает – попробуйте подключиться ещё раз. Если вы не можете использовать камеру, запросите другую форму наблюдения."
+
+msgid "serwer nadzoru nieskonfigurowany"
+msgstr "сервер наблюдения не настроен"
+
+msgid "serwer nadzoru niedostępny"
+msgstr "сервер наблюдения недоступен"
+
+msgid "nieudane połączenia ucznia – serwer działał"
+msgstr "неудачные подключения ученика – сервер работал"
+
+msgid "Praca bez nadzoru – awaria serwera nadzoru została odnotowana."
+msgstr "Работа без наблюдения – сбой сервера наблюдения зафиксирован."
+
+msgid "Ustawienia etapu w chwili zgody"
+msgstr "Настройки этапа на момент согласия"
+
+#, python-format
+msgid "późny start: %(minutes)s min"
+msgstr "поздний старт: %(minutes)s мин"
+
+msgid "Kamera nie działa albo nie masz do niej dostępu. Jeśli nie możesz jej użyć, poproś o inną formę nadzoru (na dole strony)."
+msgstr "Камера не работает или у вас нет к ней доступа. Если вы не можете её использовать, запросите другую форму наблюдения (внизу страницы)."

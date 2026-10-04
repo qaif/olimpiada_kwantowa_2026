@@ -658,3 +658,37 @@ msgstr "चेतावनी"
 
 msgid "poważny"
 msgstr "गंभीर"
+
+msgid "Treść tego etapu jest w trakcie zawodów dostępna wyłącznie dla jego uczestników."
+msgstr "प्रतियोगिता के दौरान इस चरण की सामग्री केवल इसके प्रतिभागियों के लिए उपलब्ध है।"
+
+msgid "Mój rodzic lub opiekun prawny zna tę informację o nadzorze zdalnym i zgadza się na niego."
+msgstr "मेरे माता-पिता या कानूनी अभिभावक को दूरस्थ निगरानी की यह जानकारी है और वे इसके लिए सहमत हैं।"
+
+msgid "Zaznacz też oświadczenie o wiedzy i zgodzie rodzica lub opiekuna prawnego."
+msgstr "अपने माता-पिता या कानूनी अभिभावक की जानकारी और सहमति वाले कथन को भी चिह्नित करें।"
+
+msgid "Serwer nadzoru działa – spróbuj połączyć się jeszcze raz. Jeśli nie możesz użyć kamery, poproś o inną formę nadzoru."
+msgstr "निगरानी सर्वर काम कर रहा है – फिर से जुड़ने का प्रयास करें। यदि आप कैमरे का उपयोग नहीं कर सकते, तो निगरानी के किसी अन्य रूप का अनुरोध करें।"
+
+msgid "serwer nadzoru nieskonfigurowany"
+msgstr "निगरानी सर्वर कॉन्फ़िगर नहीं है"
+
+msgid "serwer nadzoru niedostępny"
+msgstr "निगरानी सर्वर उपलब्ध नहीं है"
+
+msgid "nieudane połączenia ucznia – serwer działał"
+msgstr "विद्यार्थी के कनेक्शन विफल रहे – सर्वर काम कर रहा था"
+
+msgid "Praca bez nadzoru – awaria serwera nadzoru została odnotowana."
+msgstr "बिना निगरानी के कार्य – निगरानी सर्वर की विफलता दर्ज की गई है।"
+
+msgid "Ustawienia etapu w chwili zgody"
+msgstr "सहमति के समय चरण की सेटिंग्स"
+
+#, python-format
+msgid "późny start: %(minutes)s min"
+msgstr "देर से शुरुआत: %(minutes)s मिनट"
+
+msgid "Kamera nie działa albo nie masz do niej dostępu. Jeśli nie możesz jej użyć, poproś o inną formę nadzoru (na dole strony)."
+msgstr "कैमरा काम नहीं कर रहा है या आपके पास उसकी पहुँच नहीं है। यदि आप इसका उपयोग नहीं कर सकते, तो निगरानी के किसी अन्य रूप का अनुरोध करें (पृष्ठ के नीचे)।"

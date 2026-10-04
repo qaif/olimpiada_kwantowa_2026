@@ -702,3 +702,37 @@ msgstr "تحذير"
 
 msgid "poważny"
 msgstr "خطير"
+
+msgid "Treść tego etapu jest w trakcie zawodów dostępna wyłącznie dla jego uczestników."
+msgstr "خلال المسابقة، يقتصر الاطلاع على محتوى هذه المرحلة على المشاركين فيها."
+
+msgid "Mój rodzic lub opiekun prawny zna tę informację o nadzorze zdalnym i zgadza się na niego."
+msgstr "وليّ أمري على علم بهذه المعلومات عن المراقبة عن بُعد ويوافق عليها."
+
+msgid "Zaznacz też oświadczenie o wiedzy i zgodzie rodzica lub opiekuna prawnego."
+msgstr "حدّد أيضًا الإقرار بعلم وليّ أمرك وموافقته."
+
+msgid "Serwer nadzoru działa – spróbuj połączyć się jeszcze raz. Jeśli nie możesz użyć kamery, poproś o inną formę nadzoru."
+msgstr "خادم المراقبة يعمل – حاول الاتصال مرة أخرى. إذا لم تتمكن من استخدام الكاميرا، فاطلب شكلًا آخر من المراقبة."
+
+msgid "serwer nadzoru nieskonfigurowany"
+msgstr "خادم المراقبة غير مُهيّأ"
+
+msgid "serwer nadzoru niedostępny"
+msgstr "خادم المراقبة غير متاح"
+
+msgid "nieudane połączenia ucznia – serwer działał"
+msgstr "فشلت محاولات اتصال الطالب – كان الخادم يعمل"
+
+msgid "Praca bez nadzoru – awaria serwera nadzoru została odnotowana."
+msgstr "العمل دون مراقبة – تم تسجيل عطل خادم المراقبة."
+
+msgid "Ustawienia etapu w chwili zgody"
+msgstr "إعدادات المرحلة وقت الموافقة"
+
+#, python-format
+msgid "późny start: %(minutes)s min"
+msgstr "بدء متأخر: %(minutes)s دقيقة"
+
+msgid "Kamera nie działa albo nie masz do niej dostępu. Jeśli nie możesz jej użyć, poproś o inną formę nadzoru (na dole strony)."
+msgstr "الكاميرا لا تعمل أو لا تملك صلاحية الوصول إليها. إذا لم تتمكن من استخدامها، فاطلب شكلًا آخر من المراقبة (أسفل الصفحة)."

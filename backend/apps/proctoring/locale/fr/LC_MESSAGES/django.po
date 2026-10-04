@@ -737,3 +737,37 @@ msgstr "avertissement"
 
 msgid "poważny"
 msgstr "grave"
+
+msgid "Treść tego etapu jest w trakcie zawodów dostępna wyłącznie dla jego uczestników."
+msgstr "Pendant l’épreuve, le contenu de cette étape est réservé à ses participants."
+
+msgid "Mój rodzic lub opiekun prawny zna tę informację o nadzorze zdalnym i zgadza się na niego."
+msgstr "Mon parent ou représentant légal connaît cette information sur la surveillance à distance et y consent."
+
+msgid "Zaznacz też oświadczenie o wiedzy i zgodzie rodzica lub opiekuna prawnego."
+msgstr "Cochez aussi la déclaration relative à la connaissance et au consentement de votre parent ou représentant légal."
+
+msgid "Serwer nadzoru działa – spróbuj połączyć się jeszcze raz. Jeśli nie możesz użyć kamery, poproś o inną formę nadzoru."
+msgstr "Le serveur de surveillance fonctionne – essayez de vous reconnecter. Si vous ne pouvez pas utiliser de caméra, demandez une autre forme de surveillance."
+
+msgid "serwer nadzoru nieskonfigurowany"
+msgstr "serveur de surveillance non configuré"
+
+msgid "serwer nadzoru niedostępny"
+msgstr "serveur de surveillance indisponible"
+
+msgid "nieudane połączenia ucznia – serwer działał"
+msgstr "échecs de connexion de l’élève – le serveur fonctionnait"
+
+msgid "Praca bez nadzoru – awaria serwera nadzoru została odnotowana."
+msgstr "Travail sans surveillance – la panne du serveur de surveillance a été enregistrée."
+
+msgid "Ustawienia etapu w chwili zgody"
+msgstr "Paramètres de l’étape au moment du consentement"
+
+#, python-format
+msgid "późny start: %(minutes)s min"
+msgstr "démarrage tardif : %(minutes)s min"
+
+msgid "Kamera nie działa albo nie masz do niej dostępu. Jeśli nie możesz jej użyć, poproś o inną formę nadzoru (na dole strony)."
+msgstr "La caméra ne fonctionne pas ou vous n’y avez pas accès. Si vous ne pouvez pas l’utiliser, demandez une autre forme de surveillance (en bas de la page)."

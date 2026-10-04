@@ -660,3 +660,37 @@ msgstr "警告"
 
 msgid "poważny"
 msgstr "严重"
+
+msgid "Treść tego etapu jest w trakcie zawodów dostępna wyłącznie dla jego uczestników."
+msgstr "比赛期间，本阶段的内容仅向其参赛者开放。"
+
+msgid "Mój rodzic lub opiekun prawny zna tę informację o nadzorze zdalnym i zgadza się na niego."
+msgstr "我的父母或法定监护人已了解有关远程监考的信息并表示同意。"
+
+msgid "Zaznacz też oświadczenie o wiedzy i zgodzie rodzica lub opiekuna prawnego."
+msgstr "请同时勾选关于您的父母或法定监护人知情并同意的声明。"
+
+msgid "Serwer nadzoru działa – spróbuj połączyć się jeszcze raz. Jeśli nie możesz użyć kamery, poproś o inną formę nadzoru."
+msgstr "监考服务器运行正常——请再次尝试连接。如果您无法使用摄像头，请申请其他监考方式。"
+
+msgid "serwer nadzoru nieskonfigurowany"
+msgstr "监考服务器未配置"
+
+msgid "serwer nadzoru niedostępny"
+msgstr "监考服务器不可用"
+
+msgid "nieudane połączenia ucznia – serwer działał"
+msgstr "学生连接失败——服务器运行正常"
+
+msgid "Praca bez nadzoru – awaria serwera nadzoru została odnotowana."
+msgstr "无监考作答——监考服务器故障已记录。"
+
+msgid "Ustawienia etapu w chwili zgody"
+msgstr "同意时的阶段设置"
+
+#, python-format
+msgid "późny start: %(minutes)s min"
+msgstr "迟开始：%(minutes)s 分钟"
+
+msgid "Kamera nie działa albo nie masz do niej dostępu. Jeśli nie możesz jej użyć, poproś o inną formę nadzoru (na dole strony)."
+msgstr "摄像头无法工作或您未授予访问权限。如果无法使用，请申请其他监考方式（页面底部）。"

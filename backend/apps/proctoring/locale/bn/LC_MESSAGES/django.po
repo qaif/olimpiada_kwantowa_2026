@@ -658,3 +658,37 @@ msgstr "সতর্কতা"
 
 msgid "poważny"
 msgstr "গুরুতর"
+
+msgid "Treść tego etapu jest w trakcie zawodów dostępna wyłącznie dla jego uczestników."
+msgstr "প্রতিযোগিতার সময় এই পর্বের বিষয়বস্তু কেবল এর অংশগ্রহণকারীদের জন্য উপলব্ধ।"
+
+msgid "Mój rodzic lub opiekun prawny zna tę informację o nadzorze zdalnym i zgadza się na niego."
+msgstr "আমার মা-বাবা বা আইনি অভিভাবক দূরবর্তী নজরদারি সম্পর্কে এই তথ্য জানেন এবং এতে সম্মত।"
+
+msgid "Zaznacz też oświadczenie o wiedzy i zgodzie rodzica lub opiekuna prawnego."
+msgstr "আপনার মা-বাবা বা আইনি অভিভাবকের অবগতি ও সম্মতি সংক্রান্ত বিবৃতিতেও টিক দিন।"
+
+msgid "Serwer nadzoru działa – spróbuj połączyć się jeszcze raz. Jeśli nie możesz użyć kamery, poproś o inną formę nadzoru."
+msgstr "নজরদারি সার্ভার কাজ করছে – আবার সংযোগের চেষ্টা করুন। আপনি ক্যামেরা ব্যবহার করতে না পারলে অন্য ধরনের নজরদারির অনুরোধ করুন।"
+
+msgid "serwer nadzoru nieskonfigurowany"
+msgstr "নজরদারি সার্ভার কনফিগার করা নেই"
+
+msgid "serwer nadzoru niedostępny"
+msgstr "নজরদারি সার্ভার উপলব্ধ নয়"
+
+msgid "nieudane połączenia ucznia – serwer działał"
+msgstr "শিক্ষার্থীর সংযোগ ব্যর্থ হয়েছে – সার্ভার কাজ করছিল"
+
+msgid "Praca bez nadzoru – awaria serwera nadzoru została odnotowana."
+msgstr "নজরদারি ছাড়া কাজ – নজরদারি সার্ভারের ত্রুটি নথিভুক্ত হয়েছে।"
+
+msgid "Ustawienia etapu w chwili zgody"
+msgstr "সম্মতির সময় পর্বের সেটিংস"
+
+#, python-format
+msgid "późny start: %(minutes)s min"
+msgstr "দেরিতে শুরু: %(minutes)s মিনিট"
+
+msgid "Kamera nie działa albo nie masz do niej dostępu. Jeśli nie możesz jej użyć, poproś o inną formę nadzoru (na dole strony)."
+msgstr "ক্যামেরা কাজ করছে না বা আপনার এতে অ্যাক্সেস নেই। আপনি এটি ব্যবহার করতে না পারলে অন্য ধরনের নজরদারির অনুরোধ করুন (পৃষ্ঠার নিচে)।"

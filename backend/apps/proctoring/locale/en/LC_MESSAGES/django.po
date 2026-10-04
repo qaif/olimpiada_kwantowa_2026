@@ -721,3 +721,37 @@ msgstr "warning"
 
 msgid "poważny"
 msgstr "serious"
+
+msgid "Treść tego etapu jest w trakcie zawodów dostępna wyłącznie dla jego uczestników."
+msgstr "During the competition, the content of this stage is available only to its participants."
+
+msgid "Mój rodzic lub opiekun prawny zna tę informację o nadzorze zdalnym i zgadza się na niego."
+msgstr "My parent or legal guardian knows this information about remote proctoring and agrees to it."
+
+msgid "Zaznacz też oświadczenie o wiedzy i zgodzie rodzica lub opiekuna prawnego."
+msgstr "Please also tick the statement about your parent or legal guardian's knowledge and consent."
+
+msgid "Serwer nadzoru działa – spróbuj połączyć się jeszcze raz. Jeśli nie możesz użyć kamery, poproś o inną formę nadzoru."
+msgstr "The proctoring server is working – try to connect again. If you cannot use a camera, request another form of proctoring."
+
+msgid "serwer nadzoru nieskonfigurowany"
+msgstr "proctoring server not configured"
+
+msgid "serwer nadzoru niedostępny"
+msgstr "proctoring server unavailable"
+
+msgid "nieudane połączenia ucznia – serwer działał"
+msgstr "student's connection attempts failed – the server was working"
+
+msgid "Praca bez nadzoru – awaria serwera nadzoru została odnotowana."
+msgstr "Working without proctoring – the proctoring server failure has been recorded."
+
+msgid "Ustawienia etapu w chwili zgody"
+msgstr "Stage settings at the time of consent"
+
+#, python-format
+msgid "późny start: %(minutes)s min"
+msgstr "late start: %(minutes)s min"
+
+msgid "Kamera nie działa albo nie masz do niej dostępu. Jeśli nie możesz jej użyć, poproś o inną formę nadzoru (na dole strony)."
+msgstr "Your camera is not working or you have not allowed access to it. If you cannot use it, request another form of proctoring (at the bottom of the page)."
