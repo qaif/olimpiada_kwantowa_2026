@@ -26,18 +26,26 @@ do chwili odebrania przez workera – tak samo jak link aktywacyjny (``apps.acco
 Redis stoi wyłącznie w sieci ``internal`` compose'a, bez portu na zewnątrz; token jest
 jednorazowy i ważny dobę (``PASSWORD_RESET_TIMEOUT``).
 
-**Które konta dostają link (AUTH-01a, 4.10.2026).**
+**Które konta dostają link (AUTH-01a, 4.10.2026; poprawki po przeglądzie 5.10.2026).**
+
+Reguła stoi w :func:`reset_eligible` i :func:`awaiting_activation`:
 
 - aktywne konto z hasłem – jak w Django,
-- aktywne konto **bez** hasła platformy (rejestracja przez Google/Facebooka, hasło wyczyszczone
-  przez allauth przy łączeniu po adresie) – też. Django takie konta pomija (``get_users``), a nasze
-  ekrany od początku obiecywały, że hasło ustawia się właśnie przez „Nie pamiętasz hasła?”
-  (``apps.accounts.services.register_social_participant``, ``apps.accounts.adapters``); bez tej
-  zmiany list po cichu nie wychodził. Link potwierdza dostęp do skrzynki – tę samą rzecz, którą
-  potwierdza logowanie u dostawcy po zweryfikowanym adresie,
-- konto **jeszcze nieuruchomione** (nieaktywne, adres niepotwierdzony) – nie dostaje linku resetu,
-  tylko link startowy: zaproszenie ucznia (import, delegacja) albo link aktywacyjny
-  (:func:`send_start_link`). Reset nie aktywuje konta sam, bo ominąłby zgody zbierane na ekranie
+- aktywne konto **bez** hasła platformy (rejestracja przez Google/Facebooka) – tak, ale tylko gdy
+  adres jest potwierdzony **naszą** drogą albo przez dostawcę: ``email_verified_at`` i wpis allauth
+  ``EmailAddress(verified=True)`` dla adresu konta (M2). Samo ``email_verified_at`` nie wystarcza,
+  bo migracja ``accounts.0010`` wpisała je hurtem kontom sprzed aktywacji, a koordynator może
+  włączyć konto bez potwierdzania adresu. Konto z zaproszenia, któremu brakuje wymaganych zgód
+  (ręcznie aktywowane przed poprawką H1), nie dostaje linku wcale – inaczej reset byłby drogą do
+  panelu z pominięciem zgód. Konto, któremu allauth wyczyścił hasło przy łączeniu z Google,
+  wpisu ``verified`` nie ma – loguje się Google'em i ustawia hasło z panelu konta (AUTH-01b),
+- konto z rejestracji **przed aktywacją** (nieaktywne, adres niepotwierdzony, bez zaproszenia)
+  dostaje zwykły link resetu, a zapisanie nowego hasła **aktywuje** konto (M1,
+  ``apps.web.views.public.PasswordResetConfirmView``). Nie wysyłamy linku aktywacyjnego: ten
+  uruchomiłby konto z hasłem wpisanym przy rejestracji – a rejestrować się na cudzy adres może
+  każdy. Po resecie obowiązuje wyłącznie hasło właściciela skrzynki,
+- zaproszony uczeń (import, delegacja) przed przyjęciem zaproszenia – zamiast linku resetu
+  ponowione zaproszenie (:func:`send_start_link`, z odstępem i audytem), bo zgody zbiera ekran
   zaproszenia,
 - konto zablokowane przez organizatora i konto zanonimizowane – nic (blokada znaczy „nie loguje
   się wcale”, a adres ``deleted-…@invalid.…`` nie ma skrzynki).
@@ -80,16 +88,21 @@ class QueuedPasswordResetForm(PasswordResetForm):
     _request = None
 
     def get_users(self, email):
-        """Aktywne konta o tym adresie – **także** bez hasła platformy (patrz docstring modułu).
+        """Konta o tym adresie, którym wolno wysłać link (``reset_eligible``, ``awaiting_activation``).
 
-        Kopia ``PasswordResetForm.get_users`` Django bez warunku ``has_usable_password()``.
-        Porównanie po normalizacji Unicode zostaje (``_unicode_ci_compare`` Django jest prywatne,
-        więc trzy linijki są tutaj): zapytanie ``iexact`` w bazie i porównanie w Pythonie
-        rozstrzygają się różnie dla znaków spoza ASCII, a list ma iść wyłącznie na adres konta.
+        Kopia ``PasswordResetForm.get_users`` Django z własną regułą zamiast ``is_active``
+        i ``has_usable_password()`` (docstring modułu). Porównanie po normalizacji Unicode zostaje
+        (``_unicode_ci_compare`` Django jest prywatne, więc trzy linijki są tutaj): zapytanie
+        ``iexact`` w bazie i porównanie w Pythonie rozstrzygają się różnie dla znaków spoza ASCII,
+        a list ma iść wyłącznie na adres konta.
         """
-        active_users = User._default_manager.filter(email__iexact=email, is_active=True)
+        candidates = User._default_manager.exclude_anonymised().filter(email__iexact=email)
         wanted = _casefolded(email)
-        return (user for user in active_users if _casefolded(user.email) == wanted)
+        return (
+            user
+            for user in candidates
+            if _casefolded(user.email) == wanted and (reset_eligible(user) or awaiting_activation(user))
+        )
 
     def save(self, *args, request=None, **kwargs):
         self._request = request
@@ -152,31 +165,84 @@ def _casefolded(value: str) -> str:
     return unicodedata.normalize("NFKC", value or "").casefold()
 
 
+def invited_without_consents(user) -> bool:
+    """Czy konto ma profil z zaproszenia, któremu brakuje wymaganej zgody (także zgody opiekuna).
+
+    Wymagane rodzaje liczy ta sama funkcja, co rejestracja (``consents.required_kinds``: wiek,
+    zestaw zgód konkursu ucznia); złożone – niewycofane wpisy ``ConsentRecord`` profilu.
+    """
+    from .consents import required_kinds
+    from .models import ConsentRecord, Participant
+
+    for participant in Participant.objects.filter(user=user, invited_at__isnull=False).select_related(
+        "competition"
+    ):
+        required = set(
+            required_kinds(
+                participant.birth_date, participant.birth_year, competition=participant.competition
+            )
+        )
+        given = set(
+            ConsentRecord.objects.filter(participant=participant, withdrawn_at__isnull=True).values_list(
+                "kind", flat=True
+            )
+        )
+        if not required <= given:
+            return True
+    return False
+
+
+def reset_eligible(user) -> bool:
+    """Czy **aktywnemu** kontu wolno wysłać link resetu – reguła z docstringu modułu."""
+    if not user.is_active:
+        return False
+    if user.has_usable_password():
+        return True
+    if user.email_verified_at is None:
+        return False
+    from allauth.account.models import EmailAddress
+
+    if not EmailAddress.objects.filter(user=user, email__iexact=user.email, verified=True).exists():
+        return False
+    return not invited_without_consents(user)
+
+
+def awaiting_activation(user) -> bool:
+    """Konto z rejestracji przed aktywacją: link resetu, którego zapisanie aktywuje konto (M1).
+
+    Bez kont z zaproszeniem – te dostają zaproszenie (:func:`send_start_link`).
+    """
+    from .activation import pending_invitation
+
+    if user.is_active or user.email_verified_at is not None:
+        return False
+    return pending_invitation(user) is None
+
+
 def send_start_link(email: str, *, request=None) -> bool:
-    """Konto jeszcze nieuruchomione – zamiast linku resetu idzie link, który je uruchamia.
+    """Zaproszony uczeń przed przyjęciem zaproszenia – zamiast linku resetu ponowione zaproszenie.
 
     „Nie pamiętasz hasła?” to pierwsze, co klika uczeń zgłoszony przez opiekuna drużyny albo
     zaimportowany z listy klasowej, gdy list zaproszenia zginął: konta nie da się zalogować, więc
-    zakłada, że zapomniał hasła. Do AUTH-01a formularz odpowiadał „sprawdź skrzynkę”, a list nie
-    wychodził wcale (Django pomija konta nieaktywne). Teraz idzie list, który faktycznie pomoże:
-    zaproszenie (ekran ze zgodami i hasłem) albo link aktywacyjny – oba przez
-    ``resend_activation``, czyli z tą samą logiką, co formularz „Wyślij link ponownie”.
-
-    Tylko konta **nieaktywne z niepotwierdzonym adresem**: aktywne dostały już link resetu,
-    a nieaktywne z potwierdzonym adresem są zablokowane przez organizatora. Konto zanonimizowane
-    pomijamy wprost. Wynik jest dla testów – przeglądarka widzi zawsze tę samą stronę.
+    zakłada, że zapomniał hasła. Zaproszenie (ekran ze zgodami i hasłem) idzie przez
+    ``resend_activation`` bez wykonawcy, czyli z odstępem ``INVITATION_RESEND_COOLDOWN``
+    i wpisem ``participant.invitation_resent``. Konto z rejestracji przed aktywacją obsługuje
+    sam formularz (:func:`awaiting_activation`). Wynik jest dla testów – przeglądarka widzi
+    zawsze tę samą stronę.
     """
+    from .activation import pending_invitation
+
     user = (
         User.objects.exclude_anonymised()
         .filter(email__iexact=(email or "").strip(), is_active=False, email_verified_at__isnull=True)
         .first()
     )
-    if user is None:
+    if user is None or pending_invitation(user) is None:
         return False
     try:
         return resend_activation(user.email, request=request)
     except Exception:  # noqa: BLE001 - ta sama wyrocznia, co przy ``send_mail`` wyżej
         # ``queue_mail`` nie połyka błędu brokera, a w autocommicie callback ``on_commit`` biegnie
         # od razu – bez tego konto nieuruchomione kończyłoby się 500, a nieistniejące 302.
-        logger.exception("Nie udało się zakolejkować linku startowego dla konta %s.", user.pk)
+        logger.exception("Nie udało się zakolejkować zaproszenia dla konta %s.", user.pk)
         return False

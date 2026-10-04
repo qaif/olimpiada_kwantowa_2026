@@ -207,6 +207,21 @@ def throttle_keys(scope: str, request, identity: str | None = None) -> list[str]
     return keys
 
 
+def recipient_throttle_keys(scope: str, request) -> list[str]:
+    """Kubełek **adresata** listu: sam e-mail z POST-a, bez adresu IP (AUTH-01a, L3).
+
+    Dla formularzy, które wysyłają list na adres wpisany przez anonima (reset hasła, ponowienie
+    aktywacji). Kubełki IP nie chronią skrzynki ofiary przed nadawcą, który zmienia adresy IP;
+    ten – tak. Zużywa go **każdy** POST, także na adres bez konta, więc pełny kubełek nie mówi
+    nic o tym, czy konto istnieje. Ceną jest to, że obcy może na godzinę wyczerpać komuś limit
+    resetu – świadomie: to mniejsze zło niż nielimitowane listy na cudzą skrzynkę.
+    """
+    value = posted_identity(request)
+    if not value:
+        return []
+    return [f"{CACHE_PREFIX}:{scope}:to:{_digest(value)}"]
+
+
 def user_throttle_keys(scope: str, request) -> list[str]:
     """Jedyny kubełek scope'u z ``PER_USER_SCOPES``: konto, bez adresu IP.
 

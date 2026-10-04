@@ -30,8 +30,9 @@ from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
 
 from apps.accounts.activation import activate_with_token, make_activation_token, resend_activation
-from apps.accounts.models import User
+from apps.accounts.models import Participant, User
 from apps.accounts.tests.factories import DEFAULT_PASSWORD, ParticipantFactory, UserFactory
+from apps.core.models import AuditLog
 from apps.core.tasks import mail_from
 from conftest import HOST_COMPETITION, HOST_OTHER_COMPETITION, allow_test_hosts
 
@@ -201,9 +202,7 @@ def test_social_only_account_without_a_password_gets_a_link_and_can_set_one(
     client_for, competition, post_reset
 ):
     """Obietnica z ``register_social_participant``: hasło ustawia się przez „Nie pamiętasz hasła?”."""
-    user = UserFactory(email="google@example.test")
-    user.set_unusable_password()
-    user.save(update_fields=["password"])
+    user = _social_user("google@example.test")
     client = client_for(competition)
 
     post_reset(client, user.email)
@@ -212,6 +211,30 @@ def test_social_only_account_without_a_password_gets_a_link_and_can_set_one(
     complete_reset(client, prefix, uid, token)
     user.refresh_from_db()
     assert user.has_usable_password() and user.check_password(NEW_PASSWORD)
+
+
+def _social_user(email, *, provider_verified=True):
+    """Konto z Google: bez hasła, aktywne; dostawca potwierdził adres (wpis allauth ``verified``)."""
+    from allauth.account.models import EmailAddress
+
+    user = UserFactory(email=email)
+    user.set_unusable_password()
+    user.save(update_fields=["password"])
+    if provider_verified:
+        EmailAddress.objects.create(user=user, email=email, verified=True, primary=True)
+    return user
+
+
+def test_passwordless_account_without_a_provider_verified_address_gets_nothing(
+    client_for, competition, post_reset
+):
+    """M2: ``email_verified_at`` z migracji 0010 albo z checkboksa koordynatora to nie dowód adresu."""
+    user = _social_user("bez-wpisu@example.test", provider_verified=False)
+
+    response = post_reset(client_for(competition), user.email)
+
+    assert response["Location"] == "/password-reset/sent/"
+    assert mail.outbox == []
 
 
 # --- konta nieuruchomione, zablokowane, zanonimizowane -------------------------------------------
@@ -255,24 +278,51 @@ def test_delegation_student_gets_the_delegation_invitation(client_for, competiti
     student = add(leader, email="kid@example.test")
     mail.outbox.clear()
 
+    # Zaproszenie wyszło przed chwilą – formularz publiczny nie wyśle drugiego (L3, odstęp).
+    post_reset(client_for(iqo), student.user.email)
+    assert mail.outbox == []
+
+    Participant.objects.filter(pk=student.pk).update(
+        invitation_sent_at=timezone.now() - timedelta(minutes=11)
+    )
     post_reset(client_for(iqo), student.user.email)
 
     message = only_message()
     assert message.to == ["kid@example.test"]
     assert not FULL_RESET_LINK.search(message.body)
     assert f"://{HOST_COMPETITION}/zaproszenie/" in message.body
+    assert (
+        AuditLog.objects.filter(action="participant.invitation_resent", target_id=str(student.pk)).count()
+        == 1
+    )
 
 
-def test_self_registered_unactivated_account_gets_the_activation_link(client_for, competition, post_reset):
+def test_unactivated_account_gets_a_reset_link_that_replaces_the_registration_password_and_activates(
+    client_for, competition, post_reset
+):
+    """M1: hasło z rejestracji mógł wpisać ktokolwiek – aktywacja tą drogą wymaga nowego hasła."""
     user = UserFactory(email="nowy@example.test", is_active=False, email_verified_at=None)
+    client = client_for(competition)
 
-    post_reset(client_for(competition), user.email)
+    post_reset(client, user.email)
 
     message = only_message()
-    assert f"://{HOST_COMPETITION}/activate/" in message.body
-    assert not FULL_RESET_LINK.search(message.body)
+    assert "/activate/" not in message.body
+    _, host, prefix, uid, token = link_parts(message)
+    assert host == HOST_COMPETITION
     user.refresh_from_db()
     assert not user.is_active
+
+    complete_reset(client, prefix, uid, token)
+
+    user.refresh_from_db()
+    assert user.is_active and user.email_verified_at is not None
+    assert not user.check_password(DEFAULT_PASSWORD) and user.check_password(NEW_PASSWORD)
+    assert AuditLog.objects.filter(
+        action="account.activated_by_password_reset", target_id=str(user.pk)
+    ).exists()
+    login = client.post("/login/", {"username": user.email, "password": NEW_PASSWORD})
+    assert login.status_code == 302
 
 
 @pytest.mark.parametrize("kind", ["blocked", "anonymised"])
@@ -303,6 +353,7 @@ def test_resend_activation_sends_the_invitation_to_an_invited_student(
 
     body = only_message().body
     assert "/zaproszenie/" in body and "/activate/" not in body
+    assert AuditLog.objects.filter(action="participant.invitation_resent").exists()
 
 
 def test_activation_link_does_not_start_an_invited_account(competition):
@@ -372,3 +423,157 @@ def test_iqo_theme_styles_reset_pages_with_application_slots(client_for, iqo, mo
 def test_user_model_is_still_one_account_per_address():
     """Założenie, na którym stoi „link pod host żądania”: konto nie należy do jednego konkursu."""
     assert User._meta.get_field("email").unique
+
+
+# --- poprawki po przeglądzie (5.10.2026): H1, M3, L1–L4 ----------------------------------------------
+
+
+@pytest.fixture
+def coordinator_client(client_for, competition):
+    from apps.accounts.tests.factories import CoordinatorFactory
+
+    client = client_for(competition)
+    coordinator = CoordinatorFactory()
+    client.force_login(coordinator)
+    client.coordinator = coordinator
+    return client
+
+
+def test_h1_coordinator_cannot_activate_an_invited_account_manually(coordinator_client, competition):
+    from django.urls import reverse
+
+    participant = _invited_student(competition)
+
+    response = coordinator_client.post(
+        reverse("web:coordinator-account-activate", args=[participant.user.pk]), follow=True
+    )
+
+    assert "powstało z zaproszenia" in response.content.decode()
+    participant.user.refresh_from_db()
+    assert not participant.user.is_active and participant.user.email_verified_at is None
+
+
+def test_h1_coordinator_cannot_tick_active_on_an_invited_account(coordinator_client, competition):
+    from apps.web.tests.test_coordinator_accounts import account_fields, edit_url, participant_fields
+
+    participant = _invited_student(competition)
+
+    response = coordinator_client.post(
+        edit_url(participant.user),
+        {
+            **account_fields(participant.user, **{"account-is_active": "on"}),
+            **participant_fields(participant),
+        },
+    )
+
+    assert response.status_code == 400
+    assert "czeka na przyjęcie zaproszenia" in response.content.decode()
+    participant.user.refresh_from_db()
+    assert not participant.user.is_active
+
+
+def test_h1_invited_account_activated_without_consents_gets_no_link_and_no_form(
+    client_for, competition, post_reset
+):
+    """Stan sprzed poprawki: konto z zaproszenia aktywowane ręcznie, bez zgód i bez hasła."""
+    from apps.accounts.activation import mark_activated
+
+    participant = _invited_student(competition)
+    user = mark_activated(participant.user)  # dopisuje też wpis allauth ``verified``
+    client = client_for(competition)
+
+    post_reset(client, user.email)
+    assert mail.outbox == []
+
+    # Link spoza formularza (np. z panelu konta) też nie otwiera formularza nowego hasła.
+    uid = urlsafe_base64_encode(force_bytes(user.pk))
+    token = PasswordResetTokenGenerator().make_token(user)
+    first = client.get(f"/reset/{uid}/{token}/")
+    assert first.status_code == 200 and first.context["validlink"] is False
+
+
+def test_l1_coordinator_resend_says_invitation_and_audits_it(
+    coordinator_client, competition, django_capture_on_commit_callbacks
+):
+    from django.urls import reverse
+
+    participant = _invited_student(competition)
+
+    with django_capture_on_commit_callbacks(execute=True):
+        response = coordinator_client.post(
+            reverse("web:coordinator-account-resend", args=[participant.user.pk]), follow=True
+        )
+
+    assert "Zaproszenie zostało wysłane ponownie." in response.content.decode()
+    assert "/zaproszenie/" in only_message().body
+    entry = AuditLog.objects.get(action="participant.invitation_resent")
+    assert entry.actor == coordinator_client.coordinator
+
+
+def test_l2_invitation_link_and_sender_come_from_the_students_competition(
+    client_for, competition, iqo, post_reset
+):
+    competition.from_email = "listy@kwantowa.invalid"
+    competition.save(update_fields=["from_email"])
+    participant = _invited_student(competition)
+
+    post_reset(client_for(iqo), participant.user.email)
+
+    message = only_message()
+    assert f"://{HOST_COMPETITION}/zaproszenie/" in message.body
+    assert HOST_OTHER_COMPETITION not in message.body
+    assert message.from_email == "listy@kwantowa.invalid"
+
+
+def test_l3_recipient_bucket_limits_resets_to_one_address_from_many_ips(client_for, competition, settings):
+    from apps.web.tests.test_password_reset import rest_framework_with
+
+    settings.REST_FRAMEWORK = rest_framework_with(password_reset="2/hour")
+    client = client_for(competition)
+
+    codes = [
+        client.post(
+            "/password-reset/", {"email": "ofiara@example.test"}, REMOTE_ADDR=f"10.0.0.{n}"
+        ).status_code
+        for n in (1, 2, 3)
+    ]
+    other = client.post("/password-reset/", {"email": "ktos@example.test"}, REMOTE_ADDR="10.0.0.4")
+
+    # Adres bez konta też zużywa kubełek – pełny kubełek nic nie mówi o istnieniu konta.
+    assert codes == [302, 302, 429]
+    assert other.status_code == 302
+
+
+def test_l4_coordinator_sends_the_link_to_a_provider_verified_passwordless_account(
+    coordinator_client, competition, django_capture_on_commit_callbacks
+):
+    from apps.web.tests.test_coordinator_accounts import edit_url, password_reset_url
+
+    user = _social_user("google-koord@example.test")
+    ParticipantFactory(user=user, competition=competition)
+
+    assert "Wyślij link do zmiany hasła" in coordinator_client.get(edit_url(user)).content.decode()
+    with django_capture_on_commit_callbacks(execute=True):
+        coordinator_client.post(password_reset_url(user))
+
+    assert FULL_RESET_LINK.search(only_message().body)
+
+
+def test_m3_competition_sender_outside_relay_domains_falls_back_once_with_a_warning(
+    client_for, iqo, post_reset, settings, caplog, monkeypatch
+):
+    from apps.core import tasks
+
+    monkeypatch.setattr(tasks, "_warned_senders", set())
+    settings.MAIL_ALLOWED_SENDER_DOMAINS = ["kwantowa.invalid"]
+    UserFactory(email="m3@example.test")
+
+    with caplog.at_level("WARNING", logger="apps.core.tasks"):
+        post_reset(client_for(iqo), "m3@example.test")
+        assert mail_from(iqo) is None
+
+    assert only_message().from_email == settings.DEFAULT_FROM_EMAIL
+    assert sum("ALLOWED_SENDER_DOMAINS" in record.getMessage() for record in caplog.records) == 1
+
+    settings.MAIL_ALLOWED_SENDER_DOMAINS = ["kwantowa.invalid", "iqo.test"]
+    assert mail_from(iqo) == IQO_SENDER
