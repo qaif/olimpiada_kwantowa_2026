@@ -407,6 +407,13 @@ def two_factor_device(user: User):
     return confirmed_device(user)
 
 
+def two_factor_may_reset(request, user: User) -> bool:
+    """Czy zalogowany koordynator może zdjąć drugi składnik z tego konta (SEC-01 § 4)."""
+    from apps.staff_mfa.policy import may_reset
+
+    return may_reset(request.user, user, request.competition)
+
+
 def profile_here(user: User, relation: str, competition):
     """Profil roli (``committee_member``, ``school_supervisor``) **tego** konkursu albo ``None``.
 
@@ -739,7 +746,10 @@ class CoordinatorAccountEditView(CoordinatorRequiredMixin, View):
             # zdjąć zgubiony (``CoordinatorTwoFactorResetView``). Przy wyłączonym
             # ``TWO_FACTOR_ENABLED`` cała sekcja znika z ekranu – patrz ``two_factor_feature``.
             "two_factor_enabled": two_factor_feature(),
-            "two_factor": two_factor_device(user),
+            "two_factor": (device := two_factor_device(user)),
+            # SEC-01: konto personelu resetuje wyłącznie superkoordynator – bez uprawnienia nie ma
+            # przycisku, tylko zdanie, do kogo się zwrócić (serwis i tak odmówi).
+            "two_factor_may_reset": device is not None and two_factor_may_reset(request, user),
             "account_form": forms.get("account"),
             "participant_form": forms.get("participant"),
             "committee_form": forms.get("committee"),

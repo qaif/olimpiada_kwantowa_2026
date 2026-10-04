@@ -1,0 +1,109 @@
+# Logowanie dwuskładnikowe personelu (SEC-01) – katalog aplikacji apps.staff_mfa.
+# Angielski przejrzany ręcznie; pozostałe języki maszynowe (do przeglądu native speakerów, I18N-01 § 8).
+msgid ""
+msgstr ""
+"Project-Id-Version: olimpiada\n"
+"Language: hi\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Włączono logowanie dwuskładnikowe"
+msgstr "दो-चरणीय लॉग इन चालू किया गया"
+
+msgid "Na Twoim koncie włączono logowanie dwuskładnikowe (kod z aplikacji w telefonie)."
+msgstr "आपके खाते पर दो-चरणीय लॉग इन चालू किया गया है (आपके फ़ोन के ऐप से कोड)।"
+
+msgid "Wyłączono logowanie dwuskładnikowe"
+msgstr "दो-चरणीय लॉग इन बंद किया गया"
+
+msgid "Na Twoim koncie wyłączono logowanie dwuskładnikowe. Konto chroni teraz samo hasło."
+msgstr "आपके खाते पर दो-चरणीय लॉग इन बंद कर दिया गया है। अब आपका खाता केवल पासवर्ड से सुरक्षित है।"
+
+msgid "Nowe kody zapasowe"
+msgstr "नए बैकअप कोड"
+
+msgid "Wygenerowano nowy komplet kodów zapasowych do logowania dwuskładnikowego. Poprzednie kody przestały działać."
+msgstr "दो-चरणीय लॉग इन के लिए बैकअप कोड का नया सेट बनाया गया है। पिछले कोड अब काम नहीं करते।"
+
+msgid "Użyto kodu zapasowego"
+msgstr "बैकअप कोड का उपयोग किया गया"
+
+msgid "Do zalogowania na Twoje konto użyto jednego z kodów zapasowych."
+msgstr "आपके खाते में लॉग इन करने के लिए आपके एक बैकअप कोड का उपयोग किया गया।"
+
+msgid "Organizator zdjął logowanie dwuskładnikowe"
+msgstr "आयोजक ने दो-चरणीय लॉग इन हटा दिया"
+
+msgid "Organizator zdjął logowanie dwuskładnikowe z Twojego konta (np. po zgłoszeniu zgubionego telefonu). Po zalogowaniu hasłem skonfiguruj je od nowa na nowym urządzeniu."
+msgstr "आयोजक ने आपके खाते से दो-चरणीय लॉग इन हटा दिया है (उदाहरण के लिए, फ़ोन खोने की सूचना के बाद)। पासवर्ड से लॉग इन करने के बाद इसे अपने नए डिवाइस पर फिर से सेट करें।"
+
+msgid "Wstrzymano logowanie po błędnych kodach"
+msgstr "गलत कोड के बाद लॉग इन रोका गया"
+
+#, python-format
+msgid "Na Twoje konto kilka razy z rzędu wpisano błędny kod logowania dwuskładnikowego. Logowanie kodem jest wstrzymane na %(minutes)s min."
+msgstr "आपके खाते पर लगातार कई बार गलत दो-चरणीय लॉग इन कोड डाला गया। कोड से लॉग इन %(minutes)s मिनट के लिए रोका गया है।"
+
+#, python-format
+msgid "Zostało kodów zapasowych: %(left)s."
+msgstr "बचे हुए बैकअप कोड: %(left)s।"
+
+#, python-format
+msgid "Konto: %(email)s"
+msgstr "खाता: %(email)s"
+
+#, python-format
+msgid "Kiedy: %(when)s"
+msgstr "कब: %(when)s"
+
+msgid "Jeśli ta wiadomość Cię zaskoczyła, natychmiast zmień hasło i skontaktuj się z organizatorem – ktoś może znać Twoje hasło."
+msgstr "यदि यह संदेश आपको अप्रत्याशित लगे, तो तुरंत अपना पासवर्ड बदलें और आयोजक से संपर्क करें – हो सकता है कि किसी को आपका पासवर्ड पता हो।"
+
+#, python-format
+msgid "%(what)s – %(competition)s"
+msgstr "%(what)s – %(competition)s"
+
+msgid "Hasło się nie zgadza."
+msgstr "पासवर्ड सही नहीं है।"
+
+#, python-format
+msgid "Zbyt wiele błędnych kodów. Spróbuj ponownie za %(minutes)s min."
+msgstr "बहुत अधिक गलत कोड। %(minutes)s मिनट बाद फिर से प्रयास करें।"
+
+msgid "Kod nie pasuje."
+msgstr "कोड मेल नहीं खाता।"
+
+#, python-format
+msgid "Zbyt wiele błędnych kodów z rzędu. Logowanie kodem jest wstrzymane na %(minutes)s min – wysłaliśmy też list na adres konta."
+msgstr "लगातार बहुत अधिक गलत कोड। कोड से लॉग इन %(minutes)s मिनट के लिए रोका गया है – हमने खाते के पते पर ईमेल भी भेजा है।"
+
+#, python-format
+msgid "Twoja rola w tym serwisie wymaga logowania dwuskładnikowego. Włącz je do %(deadline)s – potem bez niego nie wejdziesz do panelu."
+msgstr "इस साइट पर आपकी भूमिका के लिए दो-चरणीय लॉग इन आवश्यक है। इसे %(deadline)s तक चालू करें – उसके बाद इसके बिना आप पैनल में प्रवेश नहीं कर पाएँगे।"
+
+msgid "Twoja rola w tym serwisie wymaga logowania dwuskładnikowego. Włącz je teraz, żeby wrócić do panelu."
+msgstr "इस साइट पर आपकी भूमिका के लिए दो-चरणीय लॉग इन आवश्यक है। पैनल पर लौटने के लिए इसे अभी चालू करें।"
+
+msgid "Nowy komplet unieważnia wszystkie dotychczasowe kody. Potrzebne będą hasło i bieżący kod."
+msgstr "नया सेट आपके सभी मौजूदा कोड को अमान्य कर देता है। आपको अपना पासवर्ड और एक वर्तमान कोड चाहिए होगा।"
+
+msgid "Wygeneruj nowe kody zapasowe"
+msgstr "नए बैकअप कोड बनाएँ"
+
+msgid "Twoja rola wymaga logowania dwuskładnikowego – po wyłączeniu trzeba będzie od razu skonfigurować je ponownie."
+msgstr "आपकी भूमिका के लिए दो-चरणीय लॉग इन आवश्यक है – बंद करने के बाद आपको इसे तुरंत फिर से सेट करना होगा।"
+
+msgid "Kod z aplikacji albo kod zapasowy"
+msgstr "ऐप का कोड या बैकअप कोड"
+
+#, python-format
+msgid "Nie pytaj o kod na tym urządzeniu do %(until)s"
+msgstr "इस डिवाइस पर %(until)s तक कोड न पूछें"
+
+msgid "Zaznacz wyłącznie na własnym komputerze – nie na wspólnym w szkole ani w biurze."
+msgstr "इसे केवल अपने कंप्यूटर पर चुनें – स्कूल या कार्यालय के साझा कंप्यूटर पर नहीं।"
+
+msgid "Włącz teraz"
+msgstr "अभी चालू करें"

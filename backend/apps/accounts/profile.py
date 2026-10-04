@@ -400,9 +400,17 @@ def _drop_credentials(user: User) -> None:
     from allauth.socialaccount.models import SocialAccount
     from rest_framework.authtoken.models import Token
 
+    from apps.staff_mfa.models import TwoFactorGrace
+
+    from .twofactor import TwoFactorDevice
+
     Token.objects.filter(user=user).delete()
     SocialAccount.objects.filter(user=user).delete()
     EmailAddress.objects.filter(user=user).delete()
+    # Drugi składnik to też poświadczenie (zaszyfrowany sekret, skróty kodów zapasowych) – a okres
+    # przejściowy 2FA (SEC-01) to metadane konta, które po anonimizacji nie mają już czego dotyczyć.
+    TwoFactorDevice.objects.filter(user=user).delete()
+    TwoFactorGrace.objects.filter(user=user).delete()
     _delete_sessions(user)
 
 
