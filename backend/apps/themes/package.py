@@ -505,6 +505,17 @@ def validate_package(data: bytes, *, app_version: str = "dev", scan=None) -> Pac
     checked = css_mod.sanitize_css(css_text, assets=set(assets))
     result.errors += [f"theme.css: {e}" for e in checked.errors]
     result.theme_css = checked.css
+    own_tokens = sorted(set(re.findall(r"(--t-[a-z0-9-]+)\s*:", checked.css)))
+    if own_tokens:
+        # Ostrzeżenie, nie błąd (THEME-02, przegląd L5): tokeny ustala ``tokens.json``, a arkusz motywu
+        # ma je wyłącznie czytać – inaczej nadpisuje wartości z ``tokens.css`` i omija generator
+        # pochodnych oraz kontrolę kontrastu. Dostosowanie koordynatora i tak wygrywa kolejnością.
+        result.warnings.append(
+            "theme.css ustawia tokeny platformy ("
+            + ", ".join(own_tokens[:8])
+            + (" …" if len(own_tokens) > 8 else "")
+            + ") – tokeny należą do tokens.json; arkusz motywu powinien je tylko czytać (var(--t-…))."
+        )
 
     screenshot = files.get("screenshot.png")
     if screenshot is not None:

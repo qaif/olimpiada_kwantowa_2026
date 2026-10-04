@@ -105,7 +105,10 @@ def runtime_for(version_id: int | None) -> ThemeRuntime | None:
             assets_url=base[: -len("__base__")],
             meta_color=palette.get("primary", ""),
             palette=palette,
-            tokens={key: dict((version.tokens or {}).get(key) or {}) for key in TOKEN_GROUPS},
+            tokens={
+                **{key: dict((version.tokens or {}).get(key) or {}) for key in TOKEN_GROUPS},
+                "contrast": [list(pair) for pair in (version.tokens or {}).get("contrast") or []],
+            },
             logos=tuple(dict(entry) for entry in manifest.get("logos") or ()),
             fonts=tuple(dict(entry) for entry in manifest.get("fonts") or ()),
         )

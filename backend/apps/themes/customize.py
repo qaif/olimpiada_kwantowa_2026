@@ -24,6 +24,10 @@ from django.utils.translation import gettext as _
 from . import tokens as tk
 
 SIGN_SALT = "apps.themes.custom"
+#: Wersja generatora arkusza ``custom.css``. Arkusz ma ``Cache-Control: immutable``, więc zmiana
+#: tego, **jak** liczymy tokeny z tych samych opcji (nowe pochodne, poprawka reguły), musi zmienić
+#: adres – podnieś tę liczbę razem ze zmianą generatora (przegląd THEME-02, L2).
+GENERATOR_VERSION = 2
 SCHEMES = ("light", "dark", "auto")
 HEX6 = re.compile(r"^#[0-9a-f]{6}$")
 OPTION_ID = re.compile(r"^[a-z0-9][a-z0-9-]{0,31}$")
@@ -161,10 +165,28 @@ def merged_palette(runtime, mode: str, overrides: dict[str, str]) -> dict[str, s
 # --- kontrast -------------------------------------------------------------------------------------
 
 
-def _pairs(palette: dict[str, str]) -> list[tuple[str, str, str, float]]:
-    """Pary (pierwszy plan, tło, opis, próg) do sprawdzenia w pełnej palecie."""
+def _pairs(palette: dict[str, str], declared=()) -> list[tuple[str, str, str, float]]:
+    """Pary (pierwszy plan, tło, opis, próg) do sprawdzenia w pełnej palecie.
+
+    Źródła: ``CONTRAST_PAIRS`` platformy, pary zadeklarowane w ``tokens.json`` motywu (grupa
+    ``contrast`` – to, czego nie widać z nazw: biały napis na ``primary-fill`` w arkuszu) i reguły
+    nazw: ``X-contrast``/``X-text``/``X-ink``/``X-accent`` na ``X``, ``on-X`` i ``on-X-…`` na ``X``,
+    ``A-on-X`` na ``X``.
+    """
     pairs = [(fg, bg, label, tk.MIN_CONTRAST) for fg, bg, label in tk.CONTRAST_PAIRS]
+    pairs += [(str(fg), str(bg), "", float(threshold)) for fg, bg, threshold in declared]
     known = {(fg, bg) for fg, bg, *_ in pairs}
+    for name in sorted(palette):
+        bases = []
+        if "-on-" in name:
+            bases.append(name.split("-on-", 1)[1])
+        if name.startswith("on-"):
+            rest = name[3:]
+            bases += [base for base in palette if rest.startswith(base + "-")]
+        for base in bases:
+            if base in palette and (name, base) not in known:
+                pairs.append((name, base, f"{name} na {base}", tk.MIN_CONTRAST))
+                known.add((name, base))
     for name in sorted(palette):
         # ``-accent`` (np. ``cover-accent`` IQO) – wyróżnienie pisane na powierzchni bazowej;
         # ``accent-*`` z rejestru ``classic`` mają inne znaczenie i nie kończą się tak.
@@ -204,8 +226,11 @@ def contrast_report(runtime, scheme: str, colors: dict) -> tuple[list[str], list
         base = tk.complete_palette(merged_palette(runtime, mode, {}), dark=dark)
         full = tk.complete_palette(merged_palette(runtime, mode, overrides), dark=dark)
         label = _("ciemna") if mode == "dark" else _("jasna")
-        for fg, bg, _description, threshold in _pairs(full):
-            a, b = full.get(fg), full.get(bg)
+        declared = (runtime.tokens or {}).get("contrast") or ()
+        for fg, bg, _description, threshold in _pairs(full, declared):
+            # Element pary zadeklarowanej w motywie może być stałym kolorem (``#ffffff``).
+            a = fg if tk.HEX.match(fg) else full.get(fg)
+            b = bg if tk.HEX.match(bg) else full.get(bg)
             if not (a and b and tk.is_color(a) and tk.is_color(b)):
                 continue
             ratio = tk.contrast(a, b)
@@ -224,7 +249,7 @@ def contrast_report(runtime, scheme: str, colors: dict) -> tuple[list[str], list
                 "ratio": f"{ratio:.2f}",
                 "minimum": f"{threshold:g}",
             }
-            touched = base.get(fg) != a or base.get(bg) != b
+            touched = (base.get(fg, fg) != a) or (base.get(bg, bg) != b)
             (errors if touched else warnings).append(message)
     return errors, warnings
 
@@ -315,6 +340,26 @@ def css_for(runtime, options: dict) -> str:
     return cached
 
 
+def effective_palette(runtime, options: dict) -> dict[str, str]:
+    """Paleta główna (pierwszy tryb schematu) po dostosowaniu – podstawa arkusza akcentu marki."""
+    scheme = options.get("scheme") or runtime.color_scheme
+    colors = options.get("colors") or {}
+    mode = palette_modes(runtime, scheme)[0]
+    if scheme == runtime.color_scheme and not colors.get(mode):
+        return dict(runtime.palette)
+    dark = mode == "dark" or scheme == "dark"
+    return tk.complete_palette(merged_palette(runtime, mode, colors.get(mode) or {}), dark=dark)
+
+
+def options_digest(options: dict) -> str:
+    """Krótki skrót opcji dostosowania – część adresu arkusza akcentu (nowe kolory = nowy adres)."""
+    import hashlib
+
+    keys = ("scheme", "colors")
+    payload = json.dumps({key: options.get(key) for key in keys if options.get(key)}, sort_keys=True)
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:8] if payload != "{}" else ""
+
+
 def meta_color(runtime, options: dict) -> str:
     """Kolor paska przeglądarki (``<meta name="theme-color">``) po nadpisaniach – ``primary``."""
     scheme = options.get("scheme") or runtime.color_scheme
@@ -331,6 +376,7 @@ def meta_color(runtime, options: dict) -> str:
 
 def _payload(competition_id: int, runtime, options: dict) -> dict:
     return {
+        "g": GENERATOR_VERSION,
         "c": competition_id,
         "v": runtime.pk,
         "s": options.get("scheme") or runtime.color_scheme,

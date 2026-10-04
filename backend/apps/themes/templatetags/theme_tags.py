@@ -127,20 +127,27 @@ def theme_head(context):
     from django.urls import reverse
 
     rt = theme.runtime
-    links = [rt.tokens_url]
-    # Dostosowanie koordynatora (THEME-02 § 2.3) zaraz po tokenach wersji: nadpisuje ``--t-*``,
-    # a ``theme.css`` i arkusz akcentu marki (niżej) czytają już wartości po nadpisaniu. Bez
-    # dostosowania – ani znacznika więcej (strona co do bajtu jak w THEME-01).
+    links = [rt.tokens_url, rt.css_url]
+    # Dostosowanie koordynatora (THEME-02 § 2.3) **po** ``theme.css``: nadpisuje ``--t-*`` z ``:root``
+    # i wygrywa kolejnością także z motywem, który (wbrew zasadzie – ostrzeżenie przy wgraniu) sam
+    # ustawia ``--t-*``. Akcent marki stoi jeszcze dalej. Bez dostosowania – ani znacznika więcej
+    # (strona co do bajtu jak w THEME-01).
     token = theme.custom_css_token
     if token:
         links.append(reverse("web:theme-custom") + "?s=" + token)
-    links.append(rt.css_url)
     parts = [format_html_join("", '\n  <link rel="stylesheet" href="{}">', ((url,) for url in links))]
     if theme.brand_accent:
         from ..tokens import HEX
 
         if HEX.match(theme.brand_accent):
+            from ..customize import options_digest
+
             href = reverse("web:theme-overrides") + f"?v={rt.pk}-{theme.brand_accent.lstrip('#').lower()}"
+            # Arkusz akcentu liczy „soft” od powierzchni palety **po** dostosowaniu – inne kolory
+            # dostosowania = inny adres (arkusz jest ``immutable``).
+            digest = options_digest(theme.options)
+            if digest:
+                href += f"-{digest}"
             parts.append(format_html('\n  <link rel="stylesheet" href="{}">', href))
     meta_color = theme.meta_color
     if meta_color:
