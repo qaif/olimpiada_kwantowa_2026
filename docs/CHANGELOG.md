@@ -27,13 +27,50 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
   walidacja przy zatwierdzeniu i przy imporcie z JSON-a.
 - **`manage.py export_translations`:** nakładki → `msgstr` w `.po` (diff wyłącznie poprawionych wpisów +
   `# l10n-reviewed`), `--to-json`/`--from-json` (produkcja bez gita), `--prune` po wdrożeniu,
-  `--dry-run` (`docs/OPERACJE.md` § 28).
+  `--dry-run` (`docs/OPERACJE.md` § 33).
 - **„Zgłoś tłumaczenie” w stopce** dla zalogowanego tłumacza (konkurs wielojęzyczny, strona nie po
   polsku): ścieżka strony bez parametrów + fraza + uwaga; lista zgłoszeń dla recenzenta.
 - **Audyt** `translation.*`, throttling `translations` (120/h na konto), rejestr czynności **1.11**
   (wiersz warunkowy „Przegląd tłumaczeń interfejsu”), sekcja `tlumaczenia` w eksporcie danych konta,
   anonimizacja usuwa rolę, głosy i zgłoszenia. Obraz i testy kompilują teraz także katalogi aplikacji
   (`apps/*/locale`). Ocena wariantu Weblate: `docs/tasks/L10N-01.md` § 1.
+
+## [Unreleased] – Motywy wizualne wgrywane paczkami (THEME-01)
+
+- **Tokeny motywu:** arkusze (`static/css/*.css`) czytają kolory, kroje, promienie i odstępy przez
+  zmienne `--t-*`; wartości domyślne to wbudowany motyw „Klasyczny” (wygląd co do wartości wyliczonej
+  sprzed zmiany, Olimpiada Kwantowa co do bajtu HTML i zapytań). Tryb wysokiego kontrastu wygrywa
+  z każdym motywem.
+- **Paczki ZIP** (`manifest.json`, `theme.css`, `tokens.json`, `assets/`, sloty `templates/theme/*.html`):
+  walidacja przy wgraniu (ZIP-slip, bomba ZIP, typy plików, CSS parserem `tinycss2` bez `@import`
+  i zewnętrznych `url()`, SVG oczyszczane, lint szablonów i kompilacja ograniczonym silnikiem, tokeny
+  z ostrzeżeniami kontrastu, ClamAV), wersje niezmienne pod `themes/<slug>/<wersja>-<sha8>/`.
+- **Sloty:** `header`, `brand`, `footer`, `page_wrapper`, `home_hero`, `news_card`, `page_header`;
+  `base.html` zostaje właścicielem `<head>` (nonce CSP, skrypty, skip-link). CSP: origin bucketu
+  w `style-src`/`font-src` wyłącznie na stronach z motywem.
+- **Panele:** katalog motywów superkoordynatora (`/coordinator/platform/themes/`) i „Motyw serwisu”
+  koordynatora (`/coordinator/competition/theme/`, flaga `themes`) z podglądem tylko dla koordynatora,
+  wariantami układów, akcentem marki i aktywacją (audyt). Komenda `manage.py theme_install <zip|->
+  [--activate <slug>]` (`docs/OPERACJE.md` § 28).
+- **Wymaga przebudowy obrazu** (nowa zależność `tinycss2`).
+
+## [Unreleased] – Delegacje krajowe: rejestracja przez opiekunów drużyn narodowych (DEL-01)
+
+- **Tryb rejestracji konkursu** `Competition.registration_mode`: `OPEN` (domyślnie – każdy istniejący
+  i nowy konkurs) albo `DELEGATIONS` (olimpiada międzynarodowa). W `DELEGATIONS` samodzielna rejestracja
+  jest zamknięta na każdej drodze (formularz, API, Google/Facebook, import listy, rejestracja opiekuna
+  szkolnego) z osobnym powodem `delegations` i adresem kontaktowym organizatora na `/register/`.
+  `create_competition --registration open|delegations` (domyślnie `open`).
+- **Delegacje** (`accounts.Delegation`, `DelegationLeader`, `DelegationInvitation`, rola `team_leader`):
+  ekran koordynatora `/coordinator/delegations/` (zaproszenia opiekunów, limit, zamknięcie, eksport CSV),
+  przyjęcie zaproszenia `/delegation/accept/<token>/`, panel opiekuna `/delegation/` (kilku opiekunów
+  jednego kraju prowadzi jedną drużynę). Uczeń dostaje konto „zaproszone” i sam ustawia hasło oraz zgody.
+- **RODO:** nowa czynność w rejestrze (wersja 1.11, tylko konkursy w trybie delegacji), sekcja opiekuna
+  w eksporcie danych konta, sprzątanie roli i zaproszeń przy usunięciu/anonimizacji konta, trzeci
+  właściciel dowodu zgody (`ConsentRecord.team_leader`).
+- **i18n:** 70 nowych napisów ekranów opiekuna i listów w 10 katalogach (maszynowe, do przeglądu).
+- Dokumentacja: `docs/OPERACJE.md` § 28, `docs/PODRECZNIK-ORGANIZATORA.md` § 10b,
+  `docs/PODRECZNIK-OPIEKUNA-DRUZYNY.md`.
 
 ## [Unreleased] – Wielojęzyczność per konkurs (I18N-01) i kraje zamiast województw (REG-01)
 

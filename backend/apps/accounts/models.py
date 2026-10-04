@@ -32,12 +32,20 @@ GROUP_COORDINATOR = "coordinator"
 #: Rola jest **wyłącznie do odczytu**: opiekun nie ocenia, nie widzi punktów przed publikacją
 #: i niczego nie zmienia poza własnym potwierdzeniem udziału szkoły.
 GROUP_SUPERVISOR = "supervisor"
+#: Opiekun drużyny narodowej (team leader) w konkursie z rejestracją przez delegacje (DEL-01).
+#: Zgłasza uczniów **swojego kraju** i widzi wyłącznie ich – bez prac, ocen i danych innych krajów.
+#: Rola osobna od ``supervisor``, choć oba słowa znaczą po polsku „opiekun”: opiekun szkolny jest
+#: rolą do odczytu, której uprawnienie nadaje uczeń, a opiekun drużyny **zakłada konta** uczniów
+#: i dostaje uprawnienie z zaproszenia koordynatora. Jedna rola dla obu znaczyłaby, że nauczyciel
+#: z otwartej rejestracji opiekunów mógłby zakładać konta uczniom.
+GROUP_TEAM_LEADER = "team_leader"
 RBAC_GROUPS = (
     GROUP_PARTICIPANT,
     GROUP_REVIEWER,
     GROUP_APPEALS,
     GROUP_COORDINATOR,
     GROUP_SUPERVISOR,
+    GROUP_TEAM_LEADER,
 )
 #: Superkoordynator – rola **platformy**, a nie konkursu, i dlatego nie stoi w ``RBAC_GROUPS`` ani
 #: w ``CompetitionRole``: nie ma wiersza ``Membership``, bo nie należy do żadnego konkursu, tylko
@@ -70,6 +78,7 @@ class CompetitionRole(models.TextChoices):
     APPEALS = GROUP_APPEALS, "komisja odwoławcza"
     COORDINATOR = GROUP_COORDINATOR, "koordynator"
     SUPERVISOR = GROUP_SUPERVISOR, "opiekun szkolny"
+    TEAM_LEADER = GROUP_TEAM_LEADER, "opiekun drużyny narodowej"
 
 
 # Grupy Django **zostają** (patrz docstring ``Membership``), więc obie listy muszą opisywać ten sam
@@ -740,6 +749,43 @@ class Participant(models.Model):
     #: wolno wysłać ponownie (link żyje 14 dni, a uczeń bywa na wakacjach) – bez tego panel
     #: opiekuna nie umiałby odpowiedzieć „wysłano dziś czy trzy tygodnie temu”.
     invitation_sent_at = models.DateTimeField("zaproszenie wysłane", null=True, blank=True)
+    # --- zgłoszenie przez opiekuna drużyny narodowej (DEL-01, ``apps.accounts.delegation_services``) ---
+    #: Delegacja kraju, która zgłosiła ucznia. ``NULL`` w trybie otwartej rejestracji – czyli dla
+    #: każdego profilu Olimpiady Kwantowej. ``PROTECT``: delegacji z uczniami nie da się skasować
+    #: kaskadą, bo zabrałaby ze sobą ich profile razem ze zgodami; to jest ta sama granica, co przy
+    #: ``region`` – cudze dane zatrzymują kasowanie konfiguracji.
+    delegation = models.ForeignKey(
+        "accounts.Delegation",
+        verbose_name="delegacja",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="students",
+    )
+    #: Opiekun drużyny, który założył profil. ``SET_NULL``: usunięcie konta opiekuna (RODO) nie
+    #: może zabrać uczniów, których zgłosił – są uczestnikami zawodów, a nie jego danymi.
+    registered_by = models.ForeignKey(
+        "accounts.User",
+        verbose_name="zgłoszony przez",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="registered_participants",
+    )
+    #: Delegacja, z której opiekun **wypisał** ucznia z uruchomionym kontem (poprawka po przeglądzie
+    #: DEL-01). Konto takiego ucznia należy już do niego – opiekun nie może go skasować – więc profil
+    #: zostaje, ``delegation`` pustoszeje (miejsce w limicie się zwalnia), a ta kolumna mówi
+    #: koordynatorowi, skąd uczeń wypadł i że czeka na jego decyzję. ``SET_NULL``, bo to jest ślad
+    #: pochodzenia, a nie przynależność.
+    former_delegation = models.ForeignKey(
+        "accounts.Delegation",
+        verbose_name="wypisany z delegacji",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="unlinked_students",
+    )
+    delegation_unlinked_at = models.DateTimeField("kiedy wypisany z delegacji", null=True, blank=True)
 
     #: Własna kolumna konkursu, więc domyślna ścieżka ``competition`` z queryseta wystarcza.
     #: Queryset dokłada do zakresowania skróty reguły „konto po anonimizacji”.
@@ -862,6 +908,18 @@ class ConsentRecord(models.Model):
         null=True,
         blank=True,
     )
+    #: Zgoda opiekuna drużyny narodowej (regulamin, RODO) złożona przy przyjęciu zaproszenia
+    #: koordynatora (DEL-01). Trzeci właściciel z tego samego powodu, co ``supervisor``: dowód ma
+    #: mówić, **w jakiej roli** ktoś się zgodził. ``CASCADE`` – odwołanie opiekuna z delegacji
+    #: kasuje wiersz roli, a dowód zgody złożonej do tej roli nie ma bez niej czego dowodzić.
+    team_leader = models.ForeignKey(
+        "accounts.DelegationLeader",
+        on_delete=models.CASCADE,
+        related_name="consents",
+        verbose_name="opiekun drużyny",
+        null=True,
+        blank=True,
+    )
     kind = models.CharField("rodzaj", max_length=20, choices=ConsentKind.choices)
     document_version = models.CharField("wersja dokumentu", max_length=100, blank=True)
     given_at = models.DateTimeField("wyrażona", default=timezone.now)
@@ -886,14 +944,19 @@ class ConsentRecord(models.Model):
         indexes = [
             models.Index(fields=["participant", "kind"], name="accounts_consent_pk_idx"),
             models.Index(fields=["supervisor", "kind"], name="accounts_consent_sup_idx"),
+            models.Index(fields=["team_leader", "kind"], name="accounts_consent_tl_idx"),
         ]
         constraints = [
             # Wpis dowodowy ma dokładnie jednego właściciela – nigdy oba naraz (rozjazd, komu
             # naprawdę dotyczy zgoda) i nigdy żadnego (dowód bez adresata nie jest dowodem niczego).
+            # Trzeci właściciel (opiekun drużyny, DEL-01) wszedł do tego samego więzu, a nie do
+            # osobnego: reguła brzmi „dokładnie jeden”, a dwa więzy po dwa właścicieli dopuszczałyby
+            # wiersz z uczestnikiem i opiekunem drużyny naraz.
             models.CheckConstraint(
                 condition=(
-                    models.Q(participant__isnull=False, supervisor__isnull=True)
-                    | models.Q(participant__isnull=True, supervisor__isnull=False)
+                    models.Q(participant__isnull=False, supervisor__isnull=True, team_leader__isnull=True)
+                    | models.Q(participant__isnull=True, supervisor__isnull=False, team_leader__isnull=True)
+                    | models.Q(participant__isnull=True, supervisor__isnull=True, team_leader__isnull=False)
                 ),
                 name="accounts_consentrecord_exactly_one_owner",
             ),
@@ -1616,4 +1679,13 @@ class MessageBroadcast(models.Model):
 # ``makemigrations`` nie zobaczyłby tabeli. Import stoi na końcu pliku: ``twofactor`` nie sięga
 # do niczego z tego modułu w czasie importu (klucz obcy podaje przez ``settings.AUTH_USER_MODEL``),
 # ale kolejność i tak ma być jednoznaczna.
+#
+# Delegacje krajowe (DEL-01) – modele w osobnym pliku z tego samego powodu: czyta się je razem
+# z ich regułami, a ten plik ma już ponad półtora tysiąca linii. Moduł sięga tu wyłącznie przez
+# nazwy modeli („accounts.Region”, „tenancy.Competition”), więc import na końcu jest bezpieczny.
+from .delegations import (  # noqa: E402,F401  (import dla rejestracji modeli)
+    Delegation,
+    DelegationInvitation,
+    DelegationLeader,
+)
 from .twofactor import TwoFactorDevice  # noqa: E402,F401  (import dla rejestracji modelu)

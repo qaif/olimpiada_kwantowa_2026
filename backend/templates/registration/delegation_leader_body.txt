@@ -1,0 +1,26 @@
+{% load i18n %}{% autoescape off %}{% comment %}
+  Zaproszenie opiekuna drużyny narodowej (DEL-01, ``apps.accounts.delegation_services``).
+
+  Plik tekstowy, więc ``autoescape off`` – encje HTML byłyby w liście po prostu widoczne. Język
+  listu: zapisany na koncie adresata, a gdy konta nie ma – język domyślny konkursu (``language_for``).
+
+  Bez danych osobowych poza nazwą kraju: adres wpisał koordynator i bywa z literówką, a link jest
+  jedynym poświadczeniem – zdanie o zignorowaniu listu jest tu obowiązkowe.
+{% endcomment %}{% blocktranslate trimmed with competition=brand.competition|default:_("Olimpiada Kwantowa") country=country %}
+Organizator konkursu {{ competition }} zaprasza Cię do roli opiekuna drużyny narodowej: {{ country }}.
+{% endblocktranslate %}
+
+{% translate "Opiekun drużyny zgłasza uczniów swojego kraju i widzi ich listę. Jeśli z Twojego kraju jest kilku opiekunów, prowadzicie jedną wspólną drużynę. Aby przyjąć zaproszenie, otwórz poniższy adres – założysz konto albo zalogujesz się na istniejące:" %}
+
+{{ link }}
+
+{% blocktranslate trimmed with days=days %}
+Link jest ważny {{ days }} dni i działa tylko raz. Jeśli wygaśnie, poproś organizatora o nowe zaproszenie.
+{% endblocktranslate %}
+
+{% translate "Jeśli nie spodziewasz się tej wiadomości – zignoruj ją. Bez kliknięcia w link nic się nie stanie." %}
+
+--
+{{ brand.competition|default:_("Olimpiada Kwantowa") }}
+{% translate "Wiadomość wysłana automatycznie; prosimy na nią nie odpowiadać." %}
+{% endautoescape %}

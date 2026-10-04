@@ -1,0 +1,100 @@
+{% load static i18n web_extras cms_extras wagtailimages_tags %}{% comment %}
+  Slot motywu ``footer`` (THEME-01 § 3) – stopka serwisu.
+  Treść domyślna (motyw ``classic``) przeniesiona co do bajtu z szablonu, który ją zawierał;
+  paczka motywu nadpisuje ją plikiem ``templates/theme/footer.html``.
+{% endcomment %}<footer class="footer">
+  <div class="footer__inner">
+    {% with site=settings.cms.SiteSettings %}
+    <div>
+      <p><strong>{{ site.site_name }}</strong>{% if site.tagline %} – {{ site.tagline }}{% endif %}</p>
+      <p>{% translate "Dane osobowe uczestników są przetwarzane zgodnie z zasadą minimalizacji (RODO): w publicznych tabelach wyników występuje wyłącznie kod uczestnika, a pełne dane widzi jedynie koordynator." %}</p>
+      {% comment %}
+        Odnośniki do dokumentów formalnych. Adresy są stałymi ścieżkami stron w drzewie Wagtaila
+        (``/dokumenty/…``), bo stopka musi je pokazywać także wtedy, gdy strona dokumentu jest
+        dopiero w przygotowaniu – przy ``{% templatetag openblock %} url {% templatetag closeblock %}``
+        brak strony wywracałby cały szablon bazowy.
+      {% endcomment %}
+      <p class="footer__links">
+        <a href="{{ site_root|default:"/" }}dokumenty/rodo/">{% translate "Polityka prywatności (RODO)" %}</a>
+        <a href="{{ site_root|default:"/" }}dokumenty/cookies/">{% translate "Polityka plików cookie" %}</a>
+        {% comment %}
+          Stopka po uwagach organizatora z 21.09.2026: zniknęły z niej „Dokumenty”, „Najczęstsze
+          pytania”, „Statystyki” i „Rejestracja z kodem”. Dokumenty i FAQ mają własne pozycje
+          w menu u góry; statystyki i rejestracja z kodem zostają pod swoimi adresami
+          (``/statystyki/``, ``web:register-committee`` – zaproszenie prowadzi tam wprost z listu),
+          tylko bez odnośnika na każdej stronie. „Zgłoś problem” prowadzi pod **ten sam adres**,
+          co pozycja w pasku konta – oba odnośniki rysuje jeden fragment, żeby nie dało się ich
+          rozjechać.
+        {% endcomment %}
+        {% include "web/_support_link.html" with css_class="footer__link" %}
+        {% comment %}
+          „Zgłoś tłumaczenie” (L10N-01 § 8) – wyłącznie zalogowany tłumacz, na stronie w języku innym
+          niż polski, w konkursie z kilkoma językami interfejsu. Strona Konkursu #1 nie płaci za to
+          ani jednym zapytaniem (warunki w ``apps.translation_review.templatetags``).
+        {% endcomment %}
+        {% load translation_review %}{% translation_report_link "footer__link" %}
+        {% comment %}
+          „Plakaty do pobrania” (prośba organizatora z 23.09.2026) – wyłącznie wtedy, gdy konkurs
+          ma choć jeden opublikowany plakat, bo pusta lista oddaje 404. ``promo_available`` jest
+          leniwe i czytane z pamięci podręcznej unieważnianej przy zapisie plakatu
+          (``apps.promo.availability``), więc stopka nie dokłada zapytania na każdą odsłonę.
+        {% endcomment %}
+        {% if promo_available %}
+          <a href="{% url 'web:posters' %}">{% translate "Plakaty do pobrania" %}</a>
+        {% endif %}
+        {% comment %}
+          „Ustawienia cookies” otwierają pasek ponownie – to jedyna droga **wycofania** zgody
+          bez czyszczenia danych witryny w przeglądarce, a wycofanie musi być tak samo łatwe,
+          jak udzielenie (art. 7 ust. 3 RODO). Przycisk, a nie odnośnik: nie prowadzi pod żaden
+          adres, tylko zmienia stan tej strony. Bez identyfikatora GA nie ma go wcale – nie ma
+          wtedy czego cofać, a bez JavaScriptu pasek i tak nigdy nie znika, więc nie ma też
+          czego przywracać.
+        {% endcomment %}
+        {% if site.ga_measurement_id %}
+          <button type="button" class="footer__link-button" data-cookie-settings>{% translate "Ustawienia cookies" %}</button>
+        {% endif %}
+      </p>
+      {% comment %}
+        Profile organizatora stoją pod odnośnikami do dokumentów, a nie w kolumnie z danymi
+        rejestrowymi: to zaproszenie („śledź nas”), a nie dana identyfikacyjna fundacji, więc czyta
+        się razem z resztą nawigacji stopki. Adresy przychodzą z ``SiteSettings`` – te same, co
+        na stronie „Kontakt”. Pusty adres = brak ikony, więc wycofanie serwisu jest wpisem w ``/cms/``.
+      {% endcomment %}
+      {% include "cms/_social_links.html" with links=site.social_links css_class="footer__social" %}
+    </div>
+    <div>
+      {% comment %}
+        Znak fundacji stoi obok nazwy, na jasnej plakietce – tak samo jak logotyp serwisu
+        w granatowym nagłówku, bo oba są projektowane na białe tło i w ciemnym wariancie stopki
+        zniknęłyby. Obraz przychodzi z ``SiteSettings`` (``/cms/`` → Ustawienia → Dane serwisu),
+        więc podmiana logotypu nie jest wydaniem aplikacji; kiedy pola nie ma, zostaje sama nazwa.
+        ``alt`` jest pusty, bo nazwa organizatora stoi tuż obok jako tekst – powtórzony ``alt``
+        czytnik ekranu przeczytałby dwa razy.
+      {% endcomment %}
+      <p class="footer__meta footer__organizer">
+        {% if site.organizer_logo %}
+          <span class="footer__logo">{% image site.organizer_logo max-240x80 alt="" loading="lazy" %}</span>
+        {% endif %}
+        <span>{% translate "Organizator:" %} <strong>{{ site.organizer_name }}</strong></span>
+      </p>
+      {% if site.organizer_address %}<p class="footer__meta">{{ site.organizer_address }}</p>{% endif %}
+      {% if site.organizer_registry %}<p class="footer__meta">{{ site.organizer_registry }}</p>{% endif %}
+      <p class="footer__meta">
+        {% if site.contact_email %}<a href="mailto:{{ site.contact_email }}">{{ site.contact_email }}</a>{% endif %}
+        {% if site.contact_phone %}· <a href="tel:{{ site.contact_phone|cut:' ' }}">{{ site.contact_phone }}</a>{% endif %}
+        {% if site.contact_url %}· <a href="{{ site.contact_url }}">{{ site.contact_url }}</a>{% endif %}
+      </p>
+      {% comment %}
+        Sama wersja wydania i nic więcej – uwaga organizatora z 15.09. Zdanie o czasie polskim
+        stało w stopce każdej strony, a jest odpowiedzią na pytanie zadawane wyłącznie przy
+        terminach: godziny etapów opisuje ``/harmonogram/``, a każda data w panelu i tak jest
+        renderowana w strefie organizatora (``local_datetime``), więc stopka powtarzała regułę
+        w miejscu, w którym nikt jej nie szuka. Numer wersji zostaje dynamiczny
+        (``APP_VERSION`` z wydania, patrz ``apps.web.context_processors``): to po niego sięga
+        zgłaszający błąd i to on odróżnia „u mnie nie działa” od „to było w poprzednim wydaniu”.
+      {% endcomment %}
+      <p class="footer__meta">{% blocktranslate trimmed with version=app_version %}wersja {{ version }}{% endblocktranslate %}</p>
+    </div>
+    {% endwith %}
+  </div>
+</footer>

@@ -1,0 +1,78 @@
+{% extends "web/coordinator/base.html" %}
+{% comment %}
+  Motyw serwisu konkursu (THEME-01 § 6): galeria wersji motywów z katalogu platformy, warianty
+  układów z manifestu, akcent marki i dwa przyciski na każdej karcie – „Podgląd” (strona główna
+  w motywie, widoczna tylko dla zalogowanego koordynatora tego konkursu) i „Aktywuj” (od razu dla
+  wszystkich). Każda karta jest osobnym formularzem: wybrane warianty dotyczą tej jednej wersji.
+  Bez JavaScriptu i bez stylów w atrybutach – panel chodzi pod ścisłą polityką CSP.
+{% endcomment %}
+{% block title %}Motyw serwisu – panel koordynatora{% endblock %}
+{% block panel_title %}Motyw serwisu{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Wygląd stron {{ competition.genitive }}: kolory, kroje, nagłówek, plansza strony
+    głównej i stopka. Panele (uczestnika, recenzenta, koordynatora) dziedziczą kolory i kroje
+    motywu, ale nie jego układ. Poprzednie wersje zostają w katalogu – cofnięcie to aktywacja
+    wcześniejszej wersji.</p>
+{% endblock %}
+{% block panel_actions %}
+  {% if is_super %}<a class="btn btn--ghost" href="{% url 'web:coordinator-platform-themes' %}">Katalog motywów platformy</a>{% endif %}
+{% endblock %}
+{% block panel_content %}
+<ul class="theme-gallery">
+  <li class="card theme-card{% if classic_active %} theme-card--active{% endif %}">
+    <h2 class="theme-card__title">{{ classic.name|default:"Klasyczny" }} <span class="badge">wbudowany</span>
+      {% if classic_active %}<span class="badge badge--ok">aktywny</span>{% endif %}</h2>
+    <p class="hint">{{ classic.description }}</p>
+    <form method="post" class="form">
+      {% csrf_token %}
+      <input type="hidden" name="version" value="classic">
+      <div class="actions">
+        <button type="submit" name="action" value="preview" class="btn btn--secondary">Podgląd</button>
+        {% if not classic_active %}<button type="submit" name="action" value="activate" class="btn btn--primary">Aktywuj</button>{% endif %}
+      </div>
+    </form>
+  </li>
+  {% for card in cards %}
+    {% with version=card.version %}
+    <li class="card theme-card{% if card.active %} theme-card--active{% endif %}">
+      {% if version.screenshot_url %}
+        <img class="theme-card__shot" src="{{ version.screenshot_url }}" alt="Zrzut ekranu motywu {{ version.theme.name }}"
+             width="600" height="450" loading="lazy">
+      {% endif %}
+      <h2 class="theme-card__title">{{ version.theme.name }} <span class="badge">{{ version.version }}</span>
+        {% if card.active %}<span class="badge badge--ok">aktywny</span>{% endif %}</h2>
+      {% if version.theme.author %}<p class="hint">Autor: {{ version.theme.author }}</p>{% endif %}
+      {% if version.theme.description %}<p>{{ version.theme.description }}</p>{% endif %}
+      <p class="hint">Schemat kolorów: {{ version.color_scheme }} · wgrano {{ version.uploaded_at|date:"j E Y" }}</p>
+      <form method="post" class="form">
+        {% csrf_token %}
+        <input type="hidden" name="version" value="{{ version.pk }}">
+        {% for layout in card.layouts %}
+          <p>
+            <label for="layout-{{ version.pk }}-{{ layout.key }}">{{ layout.label }}</label>
+            <select id="layout-{{ version.pk }}-{{ layout.key }}" name="layout_{{ layout.key }}">
+              {% for option in layout.options %}
+                <option value="{{ option }}"{% if option == layout.selected %} selected{% endif %}>{{ option }}</option>
+              {% endfor %}
+            </select>
+          </p>
+        {% endfor %}
+        <div class="form__check">
+          <input type="checkbox" id="accent-{{ version.pk }}" name="brand_accent"{% if card.active and brand_accent %} checked{% endif %}{% if not competition.accent_colour %} disabled{% endif %}>
+          <label for="accent-{{ version.pk }}">Akcent w kolorze marki konkursu{% if competition.accent_colour %} ({{ competition.accent_colour }}){% endif %}</label>
+          <p class="hint">{% if competition.accent_colour %}Kolor z „Ustawień konkursu” zastępuje akcent motywu (przyciski, wyróżnienia). Obwódka fokusu zostaje kolorem motywu.{% else %}Konkurs nie ma koloru akcentu w „Ustawieniach konkursu”.{% endif %}</p>
+        </div>
+        <div class="actions">
+          <button type="submit" name="action" value="preview" class="btn btn--secondary">Podgląd</button>
+          <button type="submit" name="action" value="activate" class="btn btn--primary">{% if card.active %}Zapisz opcje{% else %}Aktywuj{% endif %}</button>
+        </div>
+      </form>
+    </li>
+    {% endwith %}
+  {% empty %}
+    <li class="card card--quiet"><p class="empty"><span class="empty__title">Brak motywów w katalogu</span>
+      Motywy wgrywa operator platformy (superkoordynator) – paczką ZIP w „Katalogu motywów platformy”
+      albo komendą <code>manage.py theme_install</code>.</p></li>
+  {% endfor %}
+</ul>
+{% endblock %}

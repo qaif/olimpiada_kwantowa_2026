@@ -1,0 +1,6 @@
+{% comment %}
+  Slot motywu ``page_wrapper`` (THEME-01 § 3) – opakowanie treści strony wewnątrz ``<main>``.
+  Motyw dostaje gotową treść w zmiennej ``slot_content`` (bezpieczny HTML). Bez nadpisania
+  znacznik ``theme_wrap`` w ``base.html`` oddaje treść bez żadnego opakowania – ten plik jest
+  wtedy nieużywany i służy za wzór dla autorów motywów.
+{% endcomment %}{{ slot_content }}

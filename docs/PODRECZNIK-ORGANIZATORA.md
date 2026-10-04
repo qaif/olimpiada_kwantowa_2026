@@ -1449,23 +1449,6 @@ zgłoszenie może odesłać do konkretnego pytania, a odnośnik przeżyje popraw
 dopisuje pytania w `/cms/`. Formularz zgłoszenia zaczyna się od odnośnika „Zanim zgłosisz: FAQ” — im
 lepsze FAQ, tym krótsza kolejka.
 
-### 6.6 Tłumacze interfejsu — `/coordinator/translators/`
-
-Tylko w konkursie z **więcej niż jednym językiem interfejsu** (np. IQO); pozycja „Tłumacze interfejsu”
-w sekcji „Ustawienia”. Tłumaczenia poza angielskim są maszynowe – ten ekran pozwala oddać ich przegląd
-ludziom, którzy znają język, np. kierownikom delegacji.
-
-- **Nadaj rolę:** adres e-mail konta, język, poziom „tłumacz”. Konto musi należeć do Twojego konkursu
-  (członkostwo albo profil uczestnika); w innym wypadku ekran odpowie, że konta nie znaleziono.
-- **Tłumacz** widzi pod `/translations/` listę napisów swojego języka (tekst polski, angielski, obecne
-  tłumaczenie, miejsce w kodzie), proponuje poprawki i głosuje na cudze. W stopce ma „Zgłoś tłumaczenie”.
-- **Recenzent tłumaczeń** (zatwierdza poprawki) – tę rolę nadaje wyłącznie **superkoordynator**, bo
-  zatwierdzona poprawka zmienia napis na **całej platformie**, we wszystkich konkursach.
-- **Odbierz** usuwa rolę od razu. Tłumacze nie widzą nawzajem swoich kont ani danych uczestników.
-
-Poprawki trafiają do repozytorium okresowo (operator, `docs/OPERACJE.md` § 28.2). Napisy ekranów
-koordynatora zostają po polsku i nie są przedmiotem przeglądu.
-
 ---
 
 ## 7. Dokumenty i zgody
@@ -1925,6 +1908,42 @@ prośbę z importu listy — to oni decydują, kto widzi ich postęp, nie organi
 
 ---
 
+## 10b. Delegacje krajowe — `/coordinator/delegations/`
+
+**Tylko w konkursie z trybem rejestracji „przez delegacje krajowe”** (olimpiada międzynarodowa `iqo`;
+`OPERACJE.md` § 28). W każdym innym konkursie — także w Olimpiadzie Kwantowej — tego ekranu nie ma,
+a uczestnicy rejestrują się sami jak dotąd.
+
+**Jak to działa.** Uczniów nie rejestruje uczeń, tylko **opiekun drużyny narodowej** (team leader).
+Zapraszasz opiekuna adresem e-mail i krajem; opiekun zakłada konto z zaproszenia i zgłasza uczniów
+swojego kraju; każdy uczeń dostaje list z linkiem, ustawia hasło i **sam** składa zgody. Kraj może mieć
+kilku opiekunów — prowadzą jedną drużynę, z jednym limitem, i widzą tych samych uczniów.
+
+**Lista delegacji.** Kraj, liczba opiekunów, zaproszenia oczekujące, uczniowie / limit, stan. Formularz
+„Zaproś opiekuna” zakłada delegację kraju przy pierwszym zaproszeniu. Ponowne zaproszenie tego samego
+adresu wysyła nowy link (stary przestaje działać). „Eksport CSV” – opiekunowie i uczniowie wszystkich
+krajów, jeden wiersz na osobę (zdarzenie w audycie).
+
+**Ekran delegacji.** Limit uczniów (nie niższy niż liczba zgłoszonych), stan „otwarta/zamknięta”
+(zamknięta zamraża listę: opiekun nie dodaje, nie poprawia i nie usuwa uczniów), notatka koordynatora
+(opiekun jej nie widzi). Opiekunowie (przycisk „Odwołaj z delegacji” – konto zostaje, uczniowie zostają
+w drużynie), zaproszenia nieprzyjęte („Wyślij ponownie”, „Cofnij”), uczniowie ze stanem konta
+(zaproszone / aktywne) i informacją, który opiekun ich zgłosił.
+
+**Co może opiekun.** Dodać ucznia (imię, nazwisko, e-mail, data urodzenia, szkoła, klasa, opcjonalnie
+e-mail rodzica), poprawić dane **przed** aktywacją konta ucznia, wypisać ucznia **przed startem
+pierwszego etapu** edycji, wysłać link ponownie. Wypisanie ucznia, który **uruchomił już konto**, nie
+usuwa konta: uczeń trafia do sekcji „Wypisani przez opiekuna – czekają na decyzję” na ekranie delegacji
+(i do kolumny „Wypisani” na liście), dostaje o tym wiadomość, a o dalszym losie konta decydujesz Ty. Nie widzi prac, ocen ani uczniów innych krajów.
+Okno rejestracji edycji (`/coordinator/registration/`) obowiązuje także opiekunów – pulpit pokazuje,
+czy jest teraz otwarte.
+
+**Czego opiekun nie może.** Zgłosić adresu, który ma już konto w serwisie (uczeń z istniejącym kontem
+trafia do drużyny przez organizatora), złożyć zgód za ucznia ani potwierdzić zgody rodzica — tę uczeń
+niepełnoletni zbiera sam po uruchomieniu konta (zgoda opiekuna online).
+
+---
+
 ## 10a. Zaświadczenia o statusie ucznia — `/coordinator/student-status/`
 
 **Tylko w konkursie z włączonymi zaświadczeniami** (przełącznik `student_status_certificate`, włącza go
@@ -1972,6 +1991,54 @@ powodu odrzucenia i bez nazwy pliku od uczestnika.
 **RODO.** Rejestr czynności dostaje przy włączonej funkcji wiersz „Weryfikacja statusu ucznia” (§ 9.2);
 eksport danych uczestnika (art. 15/20) niesie sekcję `zaswiadczenia_statusu_ucznia` i same pliki;
 retencja i usunięcie konta — § 9.1.
+
+---
+
+## 10b. Motyw serwisu — `/coordinator/competition/theme/`
+
+**Tylko w konkursie z włączonym przełącznikiem `themes`** (włącza operator — `OPERACJE.md` § 30). Bez
+niego ekranu nie ma, a serwis wygląda jak zawsze (motyw „Klasyczny”).
+
+**Co zmienia motyw.** Kolory, kroje, zaokrąglenia, nagłówek, planszę strony głównej i stopkę stron
+publicznych. Panele (uczestnika, recenzenta, Twój) biorą z motywu **kolory i kroje**, ale układ
+i formularze zostają takie same — funkcje paneli od motywu nie zależą. Tryb wysokiego kontrastu
+wybrany przez uczestnika zawsze wygrywa z motywem.
+
+**Ekran.** Menu → *Ustawienia* → **Motyw serwisu**. Każda karta galerii to jedna wersja motywu
+z katalogu platformy (zrzut ekranu, autor, schemat kolorów). Na karcie:
+
+- **warianty układu** (np. nagłówek „minimal” albo „split”) — tylko te, które motyw przewiduje,
+- **„Akcent w kolorze marki konkursu”** — kolor z „Ustawień konkursu” zastępuje akcent motywu
+  (przyciski, wyróżnienia); obwódka zaznaczenia klawiaturą zostaje kolorem motywu, bo musi być
+  widoczna na jego tle,
+- **„Podgląd”** — otwiera stronę główną w tym motywie i z tymi opcjami **tylko dla Ciebie** (pasek
+  „Podgląd motywu” na górze; inni odwiedzający i Twoje kolejne strony widzą motyw dotychczasowy).
+  Podgląd niczego nie zapisuje i wygasa po dobie,
+- **„Aktywuj”** — od tej chwili dla wszystkich. Zmiana zostaje w audycie (`theme.activated`).
+
+**Cofnięcie** to aktywacja poprzedniej wersji albo karty **„Klasyczny”** — wersje motywów nie znikają
+po wgraniu nowszej.
+
+**Nowy motyw albo poprawka motywu** to paczka ZIP wgrywana przez operatora platformy
+(superkoordynatora) w **„Katalogu motywów platformy”** — nie w tym ekranie. Paczka przechodzi
+kontrolę bezpieczeństwa i antywirusową; odrzucona zostaje w katalogu z raportem błędów.
+
+## 10f. Tłumacze interfejsu — `/coordinator/translators/`
+
+Tylko w konkursie z **więcej niż jednym językiem interfejsu** (np. IQO); pozycja „Tłumacze interfejsu”
+w sekcji „Ustawienia”. Tłumaczenia poza angielskim są maszynowe – ten ekran pozwala oddać ich przegląd
+ludziom, którzy znają język, np. kierownikom delegacji.
+
+- **Nadaj rolę:** adres e-mail konta, język, poziom „tłumacz”. Konto musi należeć do Twojego konkursu
+  (członkostwo albo profil uczestnika); w innym wypadku ekran odpowie, że konta nie znaleziono.
+- **Tłumacz** widzi pod `/translations/` listę napisów swojego języka (tekst polski, angielski, obecne
+  tłumaczenie, miejsce w kodzie), proponuje poprawki i głosuje na cudze. W stopce ma „Zgłoś tłumaczenie”.
+- **Recenzent tłumaczeń** (zatwierdza poprawki) – tę rolę nadaje wyłącznie **superkoordynator**, bo
+  zatwierdzona poprawka zmienia napis na **całej platformie**, we wszystkich konkursach.
+- **Odbierz** usuwa rolę od razu. Tłumacze nie widzą nawzajem swoich kont ani danych uczestników.
+
+Poprawki trafiają do repozytorium okresowo (operator, `docs/OPERACJE.md` § 33.2). Napisy ekranów
+koordynatora zostają po polsku i nie są przedmiotem przeglądu.
 
 ---
 

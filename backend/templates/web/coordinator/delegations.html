@@ -1,0 +1,85 @@
+{% extends "web/coordinator/base.html" %}
+{% comment %}
+  Delegacje krajowe (DEL-01): lista krajów bieżącej edycji i „Zaproś opiekuna”.
+
+  Delegacja kraju powstaje przy pierwszym zaproszeniu opiekuna tego kraju; kolejny opiekun tego
+  samego kraju dołącza do niej – prowadzą jedną drużynę, z jednym limitem. Liczniki w tabeli
+  idą jednym zapytaniem grupującym (``delegation_services.delegations_of``).
+{% endcomment %}
+{% block title %}Delegacje – panel koordynatora{% endblock %}
+{% block panel_title %}Delegacje{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Uczniów {{ competition.genitive }} zgłaszają opiekunowie drużyn narodowych.
+    Zaproś opiekuna adresem e-mail i krajem – założy konto z zaproszenia i zgłosi uczniów swojego
+    kraju (limit domyślny: {{ default_limit }}). Samodzielna rejestracja uczestników jest wyłączona.</p>
+{% endblock %}
+{% block panel_actions %}
+  {% if delegations %}<a class="btn btn--secondary" href="{% url 'web:coordinator-delegations-export' %}">Eksport CSV</a>{% endif %}
+{% endblock %}
+{% block panel_content %}
+
+{% if no_edition %}
+  <p class="notice">Konkurs nie ma bieżącej edycji – delegacje zakłada się w bieżącej edycji.</p>
+{% endif %}
+
+<section class="section">
+  <div class="card">
+    <h2 class="mt-0">Zaproś opiekuna drużyny</h2>
+    {% if no_countries %}
+      <p class="notice">Konkurs nie ma aktywnych krajów. Przestaw podział na kraje
+        (<code>manage.py regions_countries --competition {{ competition.slug }}</code>) albo dodaj kraje na ekranie „Regiony”.</p>
+    {% else %}
+      <form method="post" action="{% url 'web:coordinator-delegations-invite' %}" class="form" novalidate>
+        {% csrf_token %}
+        {{ form.as_p }}
+        <p class="hint">Zaproszenie jest ważne 14 dni. Ponowne zaproszenie tego samego adresu wysyła
+          nowy link, a poprzedni przestaje działać.</p>
+        <div class="actions">
+          <button type="submit" class="btn btn--primary">Wyślij zaproszenie</button>
+        </div>
+      </form>
+    {% endif %}
+  </div>
+</section>
+
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">Kraje</h2>
+  </div>
+  <div class="scroll">
+    <table class="table">
+      <caption class="visually-hidden">Delegacje bieżącej edycji</caption>
+      <thead>
+        <tr>
+          <th scope="col">Kraj</th>
+          <th scope="col">Opiekunowie</th>
+          <th scope="col">Zaproszenia oczekujące</th>
+          <th scope="col">Uczniowie / limit</th>
+          <th scope="col">Wypisani (decyzja)</th>
+          <th scope="col">Stan</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for delegation in delegations %}
+          <tr>
+            <th scope="row"><a href="{% url 'web:coordinator-delegation' delegation.pk %}">{{ delegation.country.name }}</a></th>
+            <td class="num">{{ delegation.leader_count }}</td>
+            <td class="num">{{ delegation.pending_count }}</td>
+            <td class="num">{{ delegation.student_count }} / {{ delegation.max_students }}</td>
+            <td class="num">{% if delegation.unlinked_count %}<span class="badge badge--warn">{{ delegation.unlinked_count }}</span>{% else %}0{% endif %}</td>
+            <td>
+              {% if delegation.is_open %}
+                <span class="badge badge--ok">otwarta</span>
+              {% else %}
+                <span class="badge badge--neutral">zamknięta</span>
+              {% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="6" class="empty">Nie ma jeszcze żadnej delegacji – zaproś pierwszego opiekuna.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

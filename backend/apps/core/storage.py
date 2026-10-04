@@ -36,6 +36,9 @@ import posixpath
 
 from storages.backends.s3 import S3Storage
 
+#: Prefiks plików motywów w buckecie publicznym (``apps.themes.services``).
+THEMES_PREFIX = "themes/"
+
 #: Typ zapisywany, gdy rozszerzenie nic nie mówi – przeglądarka niczego z nim nie renderuje.
 FALLBACK_CONTENT_TYPE = "application/octet-stream"
 
@@ -97,4 +100,8 @@ class ExtensionContentTypeS3Storage(S3Storage):
         params.pop("ContentEncoding", None)
         params.pop("ContentDisposition", None)
         params.update(object_parameters_for(name))
+        # Pliki motywów (``apps.themes``) leżą pod niezmiennym prefiksem ``themes/<slug>/<wersja>-<sha>/``
+        # – nowa wersja to nowy prefiks, więc przeglądarka może je trzymać bez pytania serwera.
+        if (name or "").startswith(THEMES_PREFIX):
+            params["CacheControl"] = "public, max-age=31536000, immutable"
         return params

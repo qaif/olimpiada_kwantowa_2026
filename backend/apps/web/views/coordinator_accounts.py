@@ -120,6 +120,8 @@ ROLE_APPEALS = "komisja odwoławcza"
 ROLE_COMMITTEE = "członek komitetu"
 ROLE_PARTICIPANT = "uczestnik"
 ROLE_SUPERVISOR = "opiekun szkolny"
+#: Opiekun drużyny narodowej (DEL-01) – wyłącznie w konkursie w trybie delegacji.
+ROLE_TEAM_LEADER = "opiekun drużyny"
 ROLE_NONE = "bez roli"
 
 STATUS_PENDING_ACTIVATION = "nieaktywowane"
@@ -454,7 +456,18 @@ def account_role(user: User, competition, participant) -> str:
     # wyłącznie tych uczniów, którzy sami wskazali jego adres.
     if profile_here(user, "school_supervisor", competition) is not None:
         return ROLE_SUPERVISOR
+    # Opiekun drużyny narodowej (DEL-01, poprawka po przeglądzie). Zapytanie pada wyłącznie w konkursie
+    # w trybie delegacji i wyłącznie dla konta bez żadnej z ról wyżej – lista kont Olimpiady Kwantowej
+    # nie płaci za tę etykietę nic.
+    if competition is not None and competition.uses_delegations and _leads_here(user, competition):
+        return ROLE_TEAM_LEADER
     return ROLE_NONE
+
+
+def _leads_here(user: User, competition) -> bool:
+    from apps.accounts.delegations import DelegationLeader
+
+    return DelegationLeader.objects.for_competition(competition).active().filter(user=user).exists()
 
 
 def account_status(user: User) -> str:
