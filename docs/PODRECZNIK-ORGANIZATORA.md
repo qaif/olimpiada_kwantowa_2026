@@ -1442,6 +1442,36 @@ Co zostaje w dzienniku zdarzeń (bez linków, przepustek i nazw gości): założ
 linków, wymiana linku, zamknięcie, każde wejście (rola: koordynator, komisja, autor, link gospodarza,
 link gościa), nadanie i odebranie uprawnienia.
 
+### 6.4c Absolwenci i mentoring — `/coordinator/alumni/`
+
+Sieć byłych uczestników (za flagą `alumni` – włącza ją operator, `docs/OPERACJE.md` § 31).
+
+- **Kto dołącza:** pełnoletni uczestnik z osiągnięciem w **zakończonej** edycji na poziomie co
+  najmniej tym z ustawień (laureat, finalista, awans do kolejnego etapu albo każdy uczestnik).
+  Osiągnięcia liczą się wyłącznie z **ogłoszonych** wyników i wystawionych dyplomów – cofnięcie
+  publikacji zdejmuje je z profili. Edycja bieżąca liczy się jako zakończona, gdy wszystkie jej
+  etapy mają ogłoszone wyniki.
+- **Zgoda:** osobna, z własną treścią; wycofanie jednym przyciskiem usuwa profil od razu.
+  Na liście widzisz pełne dane osoby (jak na karcie uczestnika) i możesz **ukryć** profil
+  (np. niestosowne bio) – znika z katalogu i ze ściany.
+- **Publiczna ściana** `/alumni/` – tylko profile, które absolwent sam oznaczył jako publiczne;
+  pokazuje podpis, osiągnięcia, uczelnię i kierunek.
+- **Mentoring** (`/coordinator/alumni/mentoring/`): uczestnik bieżącej edycji prosi mentora,
+  mentor przyjmuje, rozmowa otwiera się w Wiadomościach. Gdy uczestnik jest **niepełnoletni**:
+  przy zasadzie Wiadomości „ta sama grupa wiekowa” każdą wiadomość akceptujesz przed doręczeniem
+  (kolejka moderacji Wiadomości); przy „bez ograniczeń” wiadomości dochodzą od razu, ale trafiają
+  do przeglądu (postmoderacja). Przy wyłączonych rozmowach uczestników mentoring działa wyłącznie
+  z akceptacją każdej wiadomości. Treści rozmów nie ma na ekranie mentoringu – czytasz ją tylko
+  w kolejce moderacji. Możesz zakończyć każdą relację (notatka obowiązkowa, obie strony dostają list)
+  i zamykać zgłoszenia problemów – zgłoszenie przychodzi do Ciebie e-mailem od razu.
+- **Zaproszenia** (`/coordinator/alumni/invitations/`): warsztaty, webinar (wklej adres wydarzenia),
+  jury. Filtry: edycje, najniższe osiągnięcie, zainteresowania, tylko mentorzy. „Policz odbiorców”
+  niczego nie wysyła. List idzie w języku odbiorcy, z odnośnikiem wypisu; w historii zostaje liczba
+  odbiorców, nie ich lista.
+- **Gdzie są teraz** (`/coordinator/alumni/stats/`): kraje, uczelnie, kierunki, zainteresowania
+  i najwyższe osiągnięcie – grupy mniejsze niż 5 osób są łączone w „inne”, a przy sieci mniejszej
+  niż 5 osób rozkładów nie ma wcale.
+
 ### 6.5 FAQ
 
 Strona `/faq/` z pytaniami pogrupowanymi w sekcje; każde pytanie ma **trwałą kotwicę**, więc odpowiedź na

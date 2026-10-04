@@ -4010,3 +4010,38 @@ jest renderowany z `app_routes.env` osobno, trzeba go wyrenderować ponownie.
 Przestawienie trybu z powrotem na `OPEN` otwiera samodzielną rejestrację i ukrywa ekrany delegacji (404);
 dane delegacji, opiekunów i uczniów zostają w bazie. Migracje `accounts.0036`–`0038` i `tenancy.0013` są
 odwracalne (nowe tabele i kolumny nullowalne albo z wartością domyślną).
+
+## 31. Sieć absolwentów i mentoring (ALUM-01, `docs/tasks/ALUM-01.md`)
+
+Funkcja jest za flagą konkursu **`alumni`** (domyślnie wyłączona) i nie ma jej w ekranie
+„Ustawienia konkursu” – to nowa czynność przetwarzania na podstawie zgody i kontakt dorosłych
+mentorów z małoletnimi, więc włącza ją operator po decyzji organizatora (jak forum, § 6.4):
+
+```sh
+docker compose exec web python manage.py shell -c "from apps.tenancy.models import Competition as C; c=C.objects.get(slug='kwantowa'); c.feature_flags={**(c.feature_flags or {}), 'alumni': True}; c.save(update_fields=['feature_flags'])"
+```
+
+Po włączeniu koordynator ustawia w `/coordinator/alumni/`: kto może dołączyć (domyślnie finaliści),
+mentoring (domyślnie wyłączony) i publiczną ścianę (domyślnie wyłączona). Mentoring wymaga
+włączonych Wiadomości (`/coordinator/chat/settings/`).
+
+**Wdrożenie:** migracja `alumni.0001_initial` (nowe tabele, bez zmian w istniejących), nowy segment
+adresu `/alumni/` w kontrakcie tras (`backend/djcms_contract/app_routes.*` – generator Caddy'ego
+wkleja go przy wdrożeniu, § 23), nowy zakres limitu `alumni` w `REST_FRAMEWORK`. Nic do zrobienia
+ręcznie poza ewentualnym włączeniem flagi.
+
+**Retencja:** aktywna zgoda absolwenta wstrzymuje automatyczną anonimizację konta
+(`apps.accounts.retention`, przeszkoda „należy do sieci absolwentów (zgoda)” na ekranie
+`/coordinator/retention/`). Wycofanie zgody albo wyłączenie flagi przywraca zwykłą retencję przy
+najbliższym przebiegu nocnym. **Znany dług:** na czas wstrzymania zostaje cały profil uczestnika
+(szkoła, telefon), a nie tylko dane potrzebne sieci – minimalizacja tych pól to osobne zadanie.
+
+**Moderacja mentoringu:** wiadomości rozmów mentorskich trafiają do istniejącej kolejki
+`/coordinator/chat/moderation/` (premoderacja przy małoletnim mentee i zasadzie „ta sama grupa
+wiekowa” albo przy wyłączonych rozmowach uczestników; postmoderacja przy „bez ograniczeń”).
+Przy włączonym mentoringu z małoletnimi organizator musi mieć dyżur moderacyjny.
+
+**Wycofanie funkcji:** wyłączenie flagi zamyka wszystkie adresy (404), rozmowy mentorskie stają się
+tylko do odczytu, wiersz znika z rejestru czynności. Profile zostają w bazie – przy definitywnym
+końcu sieci organizator powinien je usunąć (`AlumniProfile.objects.filter(participant__competition=c).delete()`),
+bo zgoda dotyczyła działającej sieci.
