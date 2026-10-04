@@ -99,13 +99,16 @@ zaproszenia, zanim w ogóle mogą się zalogować.
 przejęta sesja dostałaby trwałe poświadczenie. Ekran pokazuje więc wyjaśnienie i przycisk
 „Wyślij mi link do ustawienia hasła”, który wysyła **zwykły list resetu hasła** (te same szablony,
 ten sam token, ten sam ekran `/reset/<uid>/<token>/` z walidatorami i audytem `password.reset`)
-– wyłącznie na adres **własnego** konta, wyłącznie dla konta aktywnego i bez hasła.
+– wyłącznie na adres **własnego** konta bez hasła.
 
-Dlaczego osobny przycisk, a nie odesłanie do „Nie pamiętasz hasła?”: `PasswordResetForm.get_users`
-Django **pomija** konta bez używalnego hasła, więc publiczny formularz po cichu nic takiemu kontu nie
-wysyła. Przycisk zalogowanej osoby wskazuje konto jawnie (bez wpisywania adresu, więc nie jest
-wyszukiwarką kont) i korzysta z tego samego listu. Limit: scope `password_reset` (5/h), ten sam
-co publiczny formularz – to ten sam list. Audyt: `password.set_link_sent`.
+Od AUTH-01a (PR #67) publiczny „Nie pamiętasz hasła?” też wysyła link kontom bez hasła, więc
+przycisk jest **wygodą** zalogowanego: konto wskazuje sesja (bez wpisywania adresu – nie jest
+wyszukiwarką kont), a limit liczy konto. **Własnej reguły nie ma:** o tym, komu wolno wysłać link,
+rozstrzyga reguła resetu (`apps.accounts.password_reset.reset_eligible` i
+`QueuedPasswordResetForm.get_users` – aktywne konto, adres potwierdzony naszą drogą i u dostawcy,
+bez zaproszenia z brakującymi zgodami); przycisk tylko zawęża jej wynik do konta z sesji bez hasła,
+a odmowę mówi wprost (pyta o własne konto). Limit: scope `password_reset` (5/h na konto). Audyt:
+`password.set_link_sent`.
 
 ## 6. Drugi składnik (TOTP)
 

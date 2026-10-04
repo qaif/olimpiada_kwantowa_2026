@@ -37,7 +37,7 @@ from django.views.decorators.debug import sensitive_variables
 from rest_framework import status
 
 from apps.accounts import reauth
-from apps.accounts.password_reset import QueuedPasswordResetForm
+from apps.accounts.password_reset import QueuedPasswordResetForm, reset_eligible
 from apps.core.api import DomainError
 from apps.core.models import audit
 from apps.web.views.public import PasswordResetView, service_name
@@ -111,10 +111,13 @@ def change_password(user, *, old_password: str, new_password: str, request=None)
 def send_set_password_link(user, *, request) -> None:
     """Wysyła kontu **bez hasła** zwykły list resetu hasła na jego własny adres (AUTH-01b § 5).
 
-    Dlaczego nie publiczny formularz „Nie pamiętasz hasła?”: ``PasswordResetForm.get_users`` Django
-    pomija konta bez używalnego hasła, więc tamten formularz takiemu kontu po cichu nic nie wysyła.
-    Tutaj konto jest wskazane przez sesję, a adres – przez konto, więc nikt nie wpisuje adresu
-    (formularz nie jest wyszukiwarką kont ani wysyłaczem listów na cudze skrzynki).
+    Od AUTH-01a publiczny „Nie pamiętasz hasła?” obsługuje też konta bez hasła – ten przycisk jest
+    **wygodą** dla zalogowanego (bez wpisywania adresu, limit per konto), a nie osobną regułą.
+    O tym, komu wolno wysłać link, rozstrzyga wyłącznie reguła resetu
+    (``apps.accounts.password_reset.reset_eligible`` i ``QueuedPasswordResetForm.get_users``:
+    aktywne konto, adres potwierdzony naszą drogą **i** u dostawcy, bez zaproszenia z brakującymi
+    zgodami) – tu dochodzi tylko zawężenie do konta z sesji i do kont bez hasła. Zmiana reguły resetu
+    zmienia więc ten przycisk bez dotykania tego modułu.
 
     List, token i ekran nowego hasła są **dokładnie** tymi z resetu (te same szablony, ten sam
     ``default_token_generator``, ``/reset/<uid>/<token>/`` z walidatorami i audytem
@@ -126,9 +129,9 @@ def send_set_password_link(user, *, request) -> None:
             CODE_HAS_PASSWORD,
             status.HTTP_400_BAD_REQUEST,
         )
-    if not user.is_active or user.email_verified_at is None:
-        # Konto zablokowane albo z niepotwierdzonym adresem nie powinno mieć sesji; gdyby jednak
-        # miało (blokada w trakcie sesji), link do hasła nie może być furtką obok blokady.
+    if not reset_eligible(user):
+        # Pytamy wprost (ta sama funkcja, której używa ``get_users`` resetu), żeby zalogowany dostał
+        # prawdziwą odpowiedź zamiast „wysłano”: pyta o własne konto, więc nie ma tu czego wyliczać.
         raise DomainError(
             _("Na to konto nie można teraz wysłać linku – skontaktuj się z organizatorem."),
             CODE_INACTIVE,
@@ -151,10 +154,11 @@ def send_set_password_link(user, *, request) -> None:
 
 
 class _OwnAccountResetForm(QueuedPasswordResetForm):
-    """``QueuedPasswordResetForm`` z jednym adresatem: kontem z sesji, i tylko wtedy, gdy nie ma hasła.
+    """``QueuedPasswordResetForm`` zawężony do konta z sesji, i tylko wtedy, gdy nie ma ono hasła.
 
-    Nadpisane jest wyłącznie ``get_users`` – reszta (token, kontekst, szablony, kolejka ``mail`` po
-    commicie, język odbiorcy) to kod resetu bez zmian.
+    ``get_users`` **filtruje** wynik reguły resetu, a nie zastępuje go – konto, którego reset by nie
+    obsłużył, nie dostanie listu także tędy. Reszta (token, kontekst, szablony, nadawca konkursu,
+    kolejka ``mail`` po commicie, język odbiorcy) to kod resetu bez zmian.
     """
 
     def __init__(self, account, *args, **kwargs):
@@ -162,6 +166,6 @@ class _OwnAccountResetForm(QueuedPasswordResetForm):
         super().__init__(*args, **kwargs)
 
     def get_users(self, email):
-        account = self.account
-        if account.is_active and not account.has_usable_password() and account.email == email.strip().lower():
-            yield account
+        for user in super().get_users(email):
+            if user.pk == self.account.pk and not user.has_usable_password():
+                yield user

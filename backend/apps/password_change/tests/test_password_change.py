@@ -313,12 +313,25 @@ def test_screen_is_never_cached(web, account):
 # --- konto bez hasła -------------------------------------------------------------------------------
 
 
-@pytest.fixture
-def social_account():
-    user = UserFactory(email="google@example.test")
+def passwordless(*, provider_verified: bool = True, **fields) -> User:
+    """Konto z logowania Google: bez hasła, adres potwierdzony u nas i (domyślnie) u dostawcy.
+
+    Wpis allauth ``EmailAddress(verified=True)`` jest warunkiem reguły resetu (AUTH-01a,
+    ``reset_eligible``) – ta sama reguła rozstrzyga o przycisku „Wyślij mi link”.
+    """
+    from allauth.account.models import EmailAddress
+
+    user = UserFactory(**fields)
     user.set_unusable_password()
     user.save(update_fields=["password"])
+    if provider_verified:
+        EmailAddress.objects.create(user=user, email=user.email, verified=True, primary=True)
     return user
+
+
+@pytest.fixture
+def social_account():
+    return passwordless(email="google@example.test")
 
 
 def test_account_without_password_gets_a_link_to_its_own_address_and_no_form(
@@ -628,9 +641,7 @@ def test_non_editor_letter_has_no_djcms_sentence(web, account, settings, django_
 
 def test_set_link_is_throttled_per_account(web, settings, django_capture_on_commit_callbacks):
     settings.REST_FRAMEWORK = _rest_framework_with(settings, password_reset="1/hour")
-    user = UserFactory()
-    user.set_unusable_password()
-    user.save(update_fields=["password"])
+    user = passwordless()
     web.force_login(user)
 
     with django_capture_on_commit_callbacks(execute=True):
@@ -641,12 +652,17 @@ def test_set_link_is_throttled_per_account(web, settings, django_capture_on_comm
     assert len(mail.outbox) == 1
 
 
-def test_set_link_is_refused_for_an_account_with_an_unconfirmed_address(
-    web, django_capture_on_commit_callbacks
-):
-    user = UserFactory(email_verified_at=None)
-    user.set_unusable_password()
-    user.save(update_fields=["password"])
+@pytest.mark.parametrize(
+    "fields",
+    [
+        {"email_verified_at": None},  # adres niepotwierdzony naszą drogą
+        {"provider_verified": False},  # adres niepotwierdzony u dostawcy (AUTH-01a, M2)
+    ],
+    ids=["not-verified-here", "not-verified-by-provider"],
+)
+def test_set_link_follows_the_reset_eligibility_rule(web, fields, django_capture_on_commit_callbacks):
+    """Przycisk nie ma własnej reguły – odmawia dokładnie tam, gdzie reset (``reset_eligible``)."""
+    user = passwordless(**fields)
     web.force_login(user)
 
     with django_capture_on_commit_callbacks(execute=True):
