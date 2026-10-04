@@ -104,6 +104,11 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
   biblioteka standardowa – kopia działa z crona na innej maszynie.
 - **Błędy JavaScriptu** (opcjonalnie, `SENTRY_BROWSER=1`): własny loader z `/static/` (bez SDK i CDN),
   origin `errors.<domena>` w `connect-src` tylko przy włączonej funkcji.
+- Poprawki po przeglądzie (`docs/tasks/OPS-02.md` § 9): tokeny w ścieżkach adresów (wzorzec trasy
+  albo maska), linie `DETAIL:` Postgresa, adresy IP, Redis bez kluczy, zamknięta lista integracji,
+  wyrażenia liniowe; GlitchTip poza `edge` – sieci `errors_front`/`errors_ingest`/`errors_egress`,
+  relay z jednym nadawcą (`MAIL_CLIENT_NETWORKS` oddzielone od `TRUSTED_PROXY_IPS`); opcjonalne
+  `ERRORS_UI_ALLOW`; ostrzeżenie w `deploy.sh`; wyciszenie `uptime` w przerwie planowej.
 - RODO: rejestr czynności 1.21 – wiersz warunkowy „Monitorowanie błędów aplikacji” (podmiot wewnętrzny,
   bez państwa trzeciego). Dokumentacja: `docs/OPERACJE.md` § 44, `docs/tasks/OPS-02.md`, rekord DNS
   `errors` w `deploy/dns-olimpiadakwantowa.pl.md`.

@@ -72,7 +72,7 @@ domyślnie 0. Nie wysyła nic poza serwer organizatora.
 
 | Usługa | Obraz | Sieci | Limit pamięci |
 |---|---|---|---|
-| `glitchtip` (web + worker w jednym procesie, `SERVER_ROLE=all_in_one`) | `glitchtip/glitchtip:6.2.6@sha256:…` | `edge` (Caddy, relay poczty, `web` z DSN wewnętrznym), `errors` | 768m |
+| `glitchtip` (web + worker w jednym procesie, `SERVER_ROLE=all_in_one`) | `glitchtip/glitchtip:6.2.6@sha256:…` | `errors_front` (Caddy), `errors_ingest` (web/worker/beat, DSN wewnętrzny), `errors_egress` (wyjście, relay z jednym nadawcą), `errors` – **nie** `edge` (§ 9) | 768m |
 | `glitchtip-db` | `postgres:18-alpine` | wyłącznie `errors` (`internal: true`) | 512m |
 
 Odstępstwo od „web + worker”: GlitchTip 6 łączy obie role w jednym procesie i wycofuje podział
@@ -135,7 +135,7 @@ na tym samym serwerze nie zauważy śmierci serwera (§ 44.5 OPERACJE).
 
 ## 6. RODO
 
-Rejestr czynności 1.20: wiersz warunkowy „Monitorowanie błędów aplikacji” (`apps.monitoring.register`)
+Rejestr czynności 1.21: wiersz warunkowy „Monitorowanie błędów aplikacji” (`apps.monitoring.register`)
 – wyłącznie przy niepustym `SENTRY_DSN`. Odbiorca: **wewnętrzny** podmiot przetwarzający (własna
 instancja GlitchTip na serwerze organizatora, hosting jak wszędzie – Contabo, Niemcy), bez przekazania
 do państwa trzeciego. Retencja 30 dni. Dane: techniczne (ślad stosu bez zmiennych, ścieżka, wydanie,
@@ -156,3 +156,24 @@ slug konkursu), bez IP, ciasteczek, treści żądań i identyfikatora konta.
 ## 8. Dokumentacja
 
 OPERACJE § 44 „Monitoring błędów i dostępności”, `.env.example`, CHANGELOG `[Unreleased]`.
+
+## 9. Poprawki po przeglądzie (krytyk, PR #72)
+
+| ID | Zmiana |
+|---|---|
+| H1 | Adres żądania = wzorzec trasy Django (`transaction`, źródło `route`); bez trasy – `mask_path`: segmenty-tokeny (≥ 12 znaków base64url z cyfrą/wielką literą/`_`/`=`) i wszystko po `reset/`, `zgoda/`, `zaproszenie/`, `activate/`, `unsubscribe/`, `verify/`, `dyplomy/`, `new/` …; to samo w okruszkach (`data.url`, webhooki), spanach, `next=`, `repr` żądania i w JS (`maskPath`). |
+| H2 | Cała linia `DETAIL:` i `Failing row contains (…)` → `[Filtered]`. |
+| H3 | Sieć `errors_ingest` (web, worker, beat, glitchtip) – DSN wewnętrzny działa z każdego procesu. |
+| H4 | GlitchTip poza `edge`: `errors_front` (proxy), `errors_ingest`, `errors_egress` (wyjście), `errors` (baza). Relay: `mynetworks` z własnej zmiennej `MAIL_CLIENT_NETWORKS` (domyślnie dotychczasowa wartość) + podsieć `errors_egress`, z której przechodzi **tylko** nadawca `glitchtip@<SITE_DOMAIN>` (Postfix `smtpd_sender_restrictions` z tabelami inline). |
+| H5 | Napis przycięty do 2 KB, wyrażenia zaczynają na granicy ciągu (spojrzenie wstecz), powtórzenia ograniczone; test czasu (< 50 ms). JS: bez spojrzeń wstecz (stare Safari), przycięcie 1000 znaków. |
+| M1 | `default_integrations=False`, `auto_enabling_integrations=False`; jawnie: logging, stdlib, excepthook, dedupe, atexit, threading, Django, Celery, Redis. |
+| M2 | Redis: sama nazwa polecenia; IPv4/IPv6 w `scrub_text`; uczciwy opis wiersza rejestru (pseudonimizacja). |
+| M3 | `uptime.py` bez `except A, B:` (stała krotki), test `ast.parse(feature_version=(3, 10))`. |
+| M4 | Limit zdarzeń klucza w GlitchTipie – obowiązkowy krok § 44.2; Caddy 2.8 bez modułu limitu (udokumentowane); dysk – alarm watchdoga. |
+| M5 | Wiersz rejestru przy `SENTRY_DSN` **albo** działającym loaderze przeglądarki. |
+| L1 | Kontrola liczby kont przed `ERRORS_PROXY=1`; `deploy.sh` ostrzega, gdy kont brak. |
+| L2 | TOTP w GlitchTipie; opcjonalne `ERRORS_UI_ALLOW` (403 dla panelu spoza listy); konto dyżurnego bez hasła w powłoce. |
+| L3 | `sys.argv`, `request`, `query`, `fragment` w filtrze kluczy; `ArgvIntegration` wyłączona. |
+| L4 | DSN przeglądarki tylko `https` i nazwa z kropką. |
+| L5 | `UPTIME_MAINTENANCE_FILE` (plik `on` przerwy planowej) wycisza porażki HTTP. |
+| L7 | Sprawdzone w obrazie 6.2.6: `GLITCHTIP_RETENTION_DAYS=30` ustawia retencję zdarzeń, transakcji, plików, logów i uptime; `/code/uploads` zapisywalny (uid 5000). |

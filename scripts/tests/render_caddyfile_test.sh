@@ -40,7 +40,7 @@ render() {
   # zwraca kod wyjścia generatora. Argumenty 3–5 są **zawsze** przekazywane (choćby puste), bo
   # zmienna nieustawiona każe generatorowi czytać `.env` – a test ma sprawdzać generator, a nie
   # czyjś plik konfiguracyjny.
-  EXTRA_DOMAINS="$1" PLATFORM_SUBDOMAINS="${3:-}" DJCMS_ENABLED="${4:-}" DJCMS_PRIMARY="${5:-}" LIVEKIT_PROXY="${6:-}" ERRORS_PROXY="${7:-}" CADDYFILE_OUT="$2"     bash "$RENDER" >"$WORK/stdout" 2>"$WORK/stderr"
+  EXTRA_DOMAINS="$1" PLATFORM_SUBDOMAINS="${3:-}" DJCMS_ENABLED="${4:-}" DJCMS_PRIMARY="${5:-}" LIVEKIT_PROXY="${6:-}" ERRORS_PROXY="${7:-}" ERRORS_UI_ALLOW="${8:-}" CADDYFILE_OUT="$2"     bash "$RENDER" >"$WORK/stdout" 2>"$WORK/stderr"
 }
 
 # 1. Pusta lista domen = dzisiejsza konfiguracja, co do bajtu.
@@ -757,8 +757,19 @@ check "ERRORS_PROXY=1 przy subdomenach i LiveKit: errors. ze zwykłym certyfikat
 render "" "$WORK/err-bad.caddy" "" "" "" "" "tak"
 [ $? -eq 1 ] && grep -qF 'ERRORS_PROXY' "$WORK/stderr"
 check "ERRORS_PROXY=tak zatrzymuje generator z komunikatem" $?
+! grep -q 'errors_ui' "$WORK/err-on.caddy"
+check "bez ERRORS_UI_ALLOW panel GlitchTipa bez listy adresów" $?
+render "" "$WORK/err-allow.caddy" "" "" "" "" "1" "203.0.113.7 2001:db8::/32"
+awk '/^errors\./,/^}/' "$WORK/err-allow.caddy" >"$WORK/err-allow.txt"
+grep -qxF '        not remote_ip 203.0.113.7 2001:db8::/32' "$WORK/err-allow.txt" \
+  && grep -qxF '        not path_regexp ^/api/[0-9]+/(envelope|store|minidump|security)/?$' "$WORK/err-allow.txt" \
+  && grep -qxF '    respond @errors_ui 403' "$WORK/err-allow.txt"
+check "ERRORS_UI_ALLOW: panel tylko z listy, koperty i /_health/ z każdego adresu" $?
+render "" "$WORK/err-allow-bad.caddy" "" "" "" "" "1" "10.0.0.1 } import x"
+[ $? -eq 1 ] && grep -qF 'ERRORS_UI_ALLOW' "$WORK/stderr"
+check "ERRORS_UI_ALLOW ze składnią Caddy'ego zatrzymuje generator" $?
 if [ "${SKIP_CADDY_VALIDATE:-0}" != "1" ] && command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
-  for f in "$WORK/err-on.caddy" "$WORK/err-sub.caddy"; do
+  for f in "$WORK/err-on.caddy" "$WORK/err-sub.caddy" "$WORK/err-allow.caddy"; do
     caddy_run "$f" validate >"$WORK/validate.out" 2>&1
     rc=$?
     check "caddy validate ($CADDY_IMAGE): ${f##*/}" "$rc"

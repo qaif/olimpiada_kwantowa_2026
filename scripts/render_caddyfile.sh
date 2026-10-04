@@ -157,6 +157,19 @@ case "$(printf '%s' "${ERRORS_PROXY:-}" | tr '[:upper:]' '[:lower:]' | tr -d '[:
     exit 1
     ;;
 esac
+# `ERRORS_UI_ALLOW` (opcjonalnie, OPS-02 L2) – adresy/podsieci (spacją), z których wolno otworzyć panel
+# GlitchTipa; puste = panel z każdego adresu (za logowaniem GlitchTipa). Wartość trafia do Caddyfile'a
+# jako składnia, więc dopuszczamy wyłącznie znaki adresu IP i maski.
+if [ -z "${ERRORS_UI_ALLOW+x}" ] && [ -f "$ROOT/.env" ]; then
+  ERRORS_UI_ALLOW="$(sed -n 's/^ERRORS_UI_ALLOW=//p' "$ROOT/.env" | tail -n 1 | tr -d '\r\042\047')"
+fi
+ERRORS_UI_ALLOW="$(printf '%s' "${ERRORS_UI_ALLOW:-}" | tr -s '[:space:]' ' ' | sed 's/^ //; s/ $//')"
+for ip in $ERRORS_UI_ALLOW; do
+  if ! [[ $ip =~ ^[0-9A-Fa-f:.]+(/[0-9]{1,3})?$ ]]; then
+    echo "render_caddyfile: „$ip” w ERRORS_UI_ALLOW nie jest adresem IP ani podsiecią" >&2
+    exit 1
+  fi
+done
 
 # Kontrakt tras aplikacji (DJ-02 § 6): dwa wyrażenia generowane z urlconfu `web` przez
 # `manage.py djcms_routes --write` i commitowane. Potrzebny wyłącznie przy DJCMS_ENABLED=1 – bez
@@ -629,6 +642,19 @@ EOF
     printf '%s\n' \
       '    # Zwykły certyfikat (nie on-demand bloku *.) – scripts/render_caddyfile.sh, PLATFORM_SUBDOMAINS=1.' \
       '    tls {' '        key_type p256' '    }' >> "$tmp"
+  fi
+  if [ -n "$ERRORS_UI_ALLOW" ]; then
+    # Panel GlitchTipa tylko z podanych adresów; przyjmowanie zdarzeń (koperta/store/minidump/raporty
+    # CSP) i sonda `/_health/` – z każdego, bo wysyłają przeglądarki uczestników i monitor dostępności.
+    # `respond` stoi w kolejności dyrektyw Caddy'ego przed `reverse_proxy`, więc odmowa wygrywa.
+    printf '%s\n' \
+      '    # Panel tylko z ERRORS_UI_ALLOW (scripts/render_caddyfile.sh) – przyjmowanie zdarzeń z każdego adresu.' \
+      '    @errors_ui {' \
+      '        not path_regexp ^/api/[0-9]+/(envelope|store|minidump|security)/?$' \
+      '        not path /_health/' \
+      "        not remote_ip $ERRORS_UI_ALLOW" \
+      '    }' \
+      '    respond @errors_ui 403' >> "$tmp"
   fi
   printf '%s\n' \
     '    encode gzip zstd' \
