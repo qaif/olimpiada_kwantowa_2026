@@ -3839,7 +3839,8 @@ Katalogi `backend/locale/<kod>/LC_MESSAGES/django.po` dla `zh_Hans`, `hi`, `es`,
 odniesieniem). Przed szeroką komunikacją do uczestników z danego kraju warto dać plik `.po` do
 przeglądu native speakerowi (każdy edytor PO, np. Poedit). Po poprawkach: `django-admin
 compilemessages` (obraz robi to przy budowaniu; testy `apps/core/tests/test_translations.py`
-pilnują kompilacji, kompletu tłumaczeń i zgodności placeholderów).
+pilnują kompilacji, kompletu tłumaczeń i zgodności placeholderów). Przegląd **w serwisie** przez
+wolontariuszy (kierowników delegacji) bez plików i bez gita: § 33.
 
 ### 26.4. Czego nie tłumaczymy
 
@@ -4148,3 +4149,230 @@ Awaryjnie bez wdrożenia: zdjąć flagę `webinars` (adresy 404) albo wyczyści�
 przerywa restart serwera LiveKit – poza godzinami webinarów). Zatrzymanie wariantu (b):
 `docker compose -f docker-compose.yml -f deploy/livekit/docker-compose.livekit.yml --profile livekit stop livekit livekit-egress livekit-redis`
 i `LIVEKIT_PROXY=0` + `scripts/proxy_config.sh update`.
+
+## 29. Statystyki szkół (STAT-01, flaga `school_statistics`)
+
+Funkcja liczy agregaty z istniejących danych; jedyna tabela to `school_stats_frozenmembership`
+(migracja `school_stats.0001_initial`, odwracalna) – przynależność wpisów do szkół zamrożona przy
+publikacji wyników (`docs/tasks/STAT-01.md` § 10, M3). Wdrożenie nie wymaga kroku ręcznego poza
+zwykłym `migrate`; etapy ogłoszone wcześniej zamrażają się same przy pierwszym wejściu na ekran.
+Flaga jest domyślnie **wyłączona** (adresy `/supervisor/statistics/…`
+i `/coordinator/school-stats/…` dają 404, menu i pulpit opiekuna bez zmian).
+
+**Zapalenie** (`/admin/ → Konkursy → <konkurs> → feature_flags`, § 6.4):
+
+```json
+{"school_statistics": true}
+```
+
+Razem z flagą rejestr czynności konkursu dostaje wiersz „Statystyki szkół i opiekunów szkolnych”
+(wersja 1.12) – zapalenie jest więc decyzją organizatora o nowym celu przetwarzania (opiekun widzi
+przebieg ucznia przez edycje), nie skutkiem wdrożenia. Przed zapaleniem warto zweryfikować opiekunów
+(`SchoolSupervisor.verified` + szkoła z wykazu) – bez tego opiekun widzi swoich uczniów, województwo
+i całość, ale nie agregat szkoły i nie pobierze raportu PDF.
+
+**Pamięć podręczna** (Redis): klucze `school_stats:v2:<oś>:<edycja>:<odcisk publikacji>`; doba dla
+edycji zamkniętej publikacjami albo nie bieżącej, 5 minut dla bieżącej w toku. Ponowna publikacja zmienia
+odcisk, więc nic nie trzeba czyścić ręcznie. W kluczach są wyłącznie agregaty (bez identyfikatorów
+osób).
+
+**Tłumaczenia:** napisy aplikacji mają własny katalog `backend/apps/school_stats/locale/` (maszynowe,
+jak § 26.3). Obraz kompiluje od tego wydania także katalogi aplikacji (`apps/*/locale`), a test
+`apps/core/tests/test_translations.py` sprawdza je tą samą miarą co katalog wspólny.
+
+**IQO:** oś grupowania to dziś szkoła z profilu uczestnika (`apps/school_stats/grouping.py`). Oś
+`delegation` (delegacje krajowe z § 28, region = kraj) jest przygotowanym punktem zaczepienia
+(`axis_for`) – dołożenie jej nie zmienia ekranów ani reguł progu.
+
+## 32. Okna czasowe etapu według stref (TZ-01, `docs/tasks/TZ-01.md`)
+
+Etap zdalny konkursu z flagą **`stage_time_windows`** może pracować w kilku oknach czasowych (np. trzy
+starty co 8 h, każdy po 5 h) z przydziałem krajów według strefy. Bez flagi (Olimpiada Kwantowa) nic się
+nie zmienia: żadna bramka okien nie pyta bazy, ekranu nie ma (404), menu i panel uczestnika są te same.
+
+### 32.1. Włączenie dla `iqo`
+
+1. Wdrożenie zakłada tabele aplikacji `time_windows` (migracja `time_windows.0001`, same nowe tabele –
+   żadna istniejąca tabela się nie zmienia). Nowych segmentów adresów nie ma (`coordinator/…`,
+   `delegation/…` są już w kontrakcie).
+2. Flaga – `/admin/` → Konkursy → `iqo` → „Feature flags”: dopisz `"stage_time_windows": true`, albo:
+   ```sh
+   docker compose exec web python manage.py shell -c "from apps.tenancy.models import Competition; c = Competition.objects.get(slug='iqo'); c.feature_flags = {**(c.feature_flags or {}), 'stage_time_windows': True}; c.save(update_fields=['feature_flags'])"
+   ```
+3. Koordynator ustawia okna **przed otwarciem etapu**: „Etapy → <etap> → Okna czasowe”
+   (`PODRECZNIK-ORGANIZATORA.md` § 10e). Rama etapu (otwarcie – termin oddania) musi obejmować wszystkie
+   okna razem z dodatkowym czasem uczniów; beat zamyka etap (`LOCKED`) dopiero po ramie.
+
+### 32.2. Czego nie robić
+
+- **Nie wyłączaj flagi, dopóki trwają okna** (od startu pierwszego okna do końca ostatniego z dodatkowym
+  czasem – „moment ujawnienia” na ekranie okien). Bez flagi etap wraca do jednej ramy: treść zadań staje
+  się jawna dla wszystkich od otwarcia ramy, a premoderacja forum/czatu trzyma się samej ramy.
+- Nie zmieniaj okien przez `/admin/` – modele są tam tylko do odczytu, bo reguły „po starcie nie wolno”
+  i audyt są w serwisie.
+
+### 32.3. Co pilnuje serwer
+
+Upload (HTML i `POST /api/submissions/…`), `is_late`, PDF treści (`/api/competitions/problems/<id>/statement/`),
+lista zadań w API bieżącej edycji, strona „Zadania” w CMS (i jej API dla django CMS), archiwum, test
+online (start podejścia, termin podejścia, wynik „po zamknięciu”), premoderacja forum i czatu, publikacja
+wyników (`WINDOWS_NOT_FINISHED`), zmiana ramy etapu (`STAGE_WINDOWS_OUTSIDE`). Strefę czasową ucznia
+aktywuje warstwa `apps.time_windows.middleware.ParticipantTimezoneMiddleware` (tylko konkurs z flagą
+i zalogowany uczestnik bez roli personelu, wyłącznie w widokach panelu uczestnika – panele koordynatora,
+recenzenta, `/admin/` i `/cms/` zostają w czasie polskim; podpis „czas polski” zamienia się wtedy na nazwę
+strefy). Od startu pierwszego okna przydział domyślny krajów jest zapisywany w bazie, więc aktualizacja
+`tzdata` albo mapy stref w trakcie zawodów nie przenosi kraju do innego okna. Migracja `time_windows.0002`
+zmienia wyłącznie zachowanie kluczy obcych (`RESTRICT`).
+
+### 32.4. RODO i tłumaczenia
+
+Nowa czynność w rejestrze „Okna czasowe etapu” (tylko konkursy z flagą), sekcja `okna_czasowe` w eksporcie
+danych konta; anonimizacja usuwa strefę ucznia i powód wyjątku (okno i dodatkowy czas zostają jako
+dokumentacja warunków pracy). Katalogi tłumaczeń aplikacji (`backend/apps/*/locale`) kompilują obraz
+(`backend/Dockerfile`), CI i `backend/conftest.py`.
+
+### 32.5. Wycofanie
+
+Usunięcie planu (ekran okien, przed otwarciem etapu) przywraca etapowi jedną ramę. Migracja
+`time_windows.0001` jest odwracalna (`migrate time_windows zero` usuwa wyłącznie tabele tej aplikacji).
+
+## 34. Tłumaczenia zadań przez delegacje (TR-01, `docs/tasks/TR-01.md`)
+
+Funkcja istnieje wyłącznie w konkursie w trybie **`DELEGATIONS`** (§ 28) – w Olimpiadzie Kwantowej
+nie ma ani ekranów (404), ani pozycji menu, ani odnośnika na karcie zadania. Nowa aplikacja
+`apps.problem_translations` (migracje `problem_translations.0001`–`0002`, same nowe tabele i kolumny – odwracalne).
+
+### 34.1. Wdrożenie
+
+- `scripts/deploy.sh` jak zwykle (migracja + `collectstatic`). KaTeX jest **zwendorowany**
+  (`apps/problem_translations/static/problem_translations/vendor/katex/`, wersja 0.19.0, MIT) – CSP bez
+  zmian (KaTeX nie idzie z CDN-u; htmx i Alpine strony bazowej – jak w całym serwisie – z CDN-ów przypiętych
+  SRI, bez treści zadania w żądaniu). Wersja, skróty i sposób przycięcia CSS: `vendor/katex/VERSION`.
+- Obraz kompiluje teraz także katalogi tłumaczeń aplikacji (`apps/*/locale/*/LC_MESSAGES/django.po`,
+  `backend/Dockerfile`) – bez przebudowy obrazu ekrany opiekuna byłyby po polsku.
+- Nowy scope throttlingu `translation` (1200/h na konto) – bez zmian w `.env`.
+- Wgranie PDF-u tłumaczenia skanuje clamd **synchronicznie**; gdy clamd nie odpowiada, wgranie jest
+  odrzucane (komunikat „spróbuj ponownie”), edytor tekstowy działa dalej. Przed nocą tłumaczeń:
+  `docker compose ps clamav` (healthy).
+
+### 34.2. Przebieg (koordynator)
+
+1. „Etapy → Tłumaczenia zadań” (`/coordinator/translations/`) → etap → **okno tłumaczeń** (otwarcie,
+   zamknięcie ≤ otwarcie etapu) i tryb: *osobne* (każda delegacja tłumaczy sama) albo *wspólne* (jedno
+   tłumaczenie na język). Trybu nie da się zmienić, gdy w etapie są już tłumaczenia.
+2. Wersja oficjalna: tytuł i PDF – jak dotąd na ekranie zadań etapu; **tekst** (Markdown + LaTeX) –
+   „Tekst oficjalny” przy zadaniu. Każda zmiana tekstu, tytułu albo PDF-u podnosi wersję; tłumaczenia
+   oparte na starszej dostają znacznik „nieaktualne”, a opiekunowie – list.
+3. Opiekunowie deklarują języki (`/delegation/translations/`) i w oknie tłumaczą (edytor z autozapisem
+   albo PDF), potem „Wyślij do akceptacji”.
+4. Kolejka „Do przeglądu” → „Zatwierdź” albo „Zwróć do poprawy” (komentarz obowiązkowy). Zatwierdzone
+   jest zablokowane; nieaktualnego nie da się zatwierdzić.
+5. Po otwarciu etapu uczeń ma na karcie zadania „Treść w języku: …” (zatwierdzona wersja) obok wersji
+   oficjalnej.
+6. Finał stacjonarny: ekran etapu → „Eksport do druku” → PDF (serwer) albo „Widok do druku”
+   (przeglądarka → „Zapisz jako PDF”; konieczny dla wzorów i pism CJK/indyjskich/arabskich).
+
+### 34.3. Poufność i dziennik
+
+Źródło przed otwarciem etapu widzi koordynator i opiekun z delegacją w bieżącej edycji – **tylko
+w otwartym oknie**. Odpowiedzi mają `Cache-Control: no-store`. Dziennik (`/coordinator/audit/`,
+akcje `translation.*`): `source_viewed`, `source_downloaded`, `file_downloaded`, `reviewed`,
+`file_reviewed`, `student_viewed`, `student_downloaded`, `exported`, `submitted`, `withdrawn`,
+`reopened`, `approved`, `returned`, `pdf_uploaded`, `languages_declared`, `student_language_set`,
+`window_set`, `source_changed`. Kto pobrał arkusz przed zawodami:
+
+```sh
+docker compose exec web python manage.py shell -c "from apps.core.models import AuditLog; [print(a.at, a.actor_id, a.action, a.target_id, a.diff) for a in AuditLog.objects.filter(action__in=['translation.source_downloaded','translation.file_downloaded','translation.source_viewed']).order_by('at')]"
+```
+
+PDF-y pobrane przez opiekuna mają znak wodny: kod kraju, „CONFIDENTIAL”, data i id konta.
+
+### 34.4. Wycofanie
+
+Wyłączenie trybu delegacji ukrywa wszystkie ekrany (404); dane zostają. Wycofanie kodu: `migrate
+problem_translations zero` (usuwa tabele tłumaczeń – najpierw eksport do druku, jeśli potrzebny).
+
+## 33. Przegląd tłumaczeń przez native speakerów (L10N-01, `docs/tasks/L10N-01.md`)
+
+Wolontariusze z rolą **tłumacza** (np. kierownicy delegacji `iqo`) przeglądają napisy interfejsu
+w swoim języku pod `/translations/`, proponują poprawki i głosują; **recenzent tłumaczeń** zatwierdza.
+Zatwierdzona poprawka działa bez wydania (nakładka z bazy na katalogi gettext), a do repozytorium
+trafia komendą `export_translations` jako zwykły PR. Kiedy ją widać: proces, który ją zatwierdził –
+od razu; pozostałe procesy `web`/`worker` – po najwyżej 5 s (`TRANSLATION_OVERRIDES_CHECK_SECONDS`);
+bufor stron dla gości (`apps.web.page_cache`, 120 s) jest czyszczony przy każdej zmianie. Dlaczego
+nie Weblate: spec § 1 (nowy serwer albo zasoby produkcji, klucz z prawem zapisu do repozytorium,
+drugi system kont). Serwis publiczny na django CMS (`djcms`) to osobny proces – nakładka go nie
+obejmuje.
+
+### 33.1. Role
+
+- **Tłumacz** (proponuje, głosuje, zgłasza błąd ze stopki) – nadaje koordynator konkursu z więcej niż
+  jednym językiem interfejsu: „Ustawienia → Tłumacze interfejsu” (`/coordinator/translators/`),
+  wyłącznie osobom związanym z konkursem (członkostwo albo profil uczestnika) i wyłącznie w językach
+  interfejsu tego konkursu.
+- **Nadanie koordynatora należy do konkursu**: widzi je i odbiera każdy koordynator tego konkursu
+  (także po odejściu nadającego), a działa **tylko dopóki** osoba jest z konkursem związana – po
+  wypisaniu, odebraniu roli albo usunięciu profilu rola tłumacza przestaje działać sama (wiersz
+  zostaje na liście koordynatora do usunięcia).
+- **Recenzent tłumaczeń** (zatwierdza, odrzuca, cofa, potwierdza, zamyka zgłoszenia) – nadaje
+  **wyłącznie superkoordynator** (ten sam ekran, pod adresem dowolnego konkursu); jego nadania są
+  platformowe (bez konkursu). Superkoordynator jest recenzentem każdego języka.
+- Każde nadanie, odebranie i każda decyzja – wpis audytu `translation.*` (bez treści zgłoszeń).
+
+### 33.2. Decyzje recenzenta – co trafia do serwisu
+
+- **Poprawka** (zatwierdzona propozycja) – trafia do gettext, ale tylko dopóki `msgstr` w katalogu
+  jest ten sam, co w chwili decyzji. Jeśli wydanie zmieni go w międzyczasie, wygrywa katalog,
+  a napis ma na liście znacznik „do ponownego przeglądu”.
+- **Potwierdzenie** („Obecne tłumaczenie jest poprawne”) – **nigdy** nie trafia do gettext; to sam
+  znacznik „przejrzane”, który eksport zapisuje jako `# l10n-reviewed`.
+
+### 33.3. Z bazy do repozytorium (po serii poprawek)
+
+```sh
+# produkcja – zrzut zatwierdzonych decyzji (sam tekst tłumaczeń, bez danych osób)
+docker compose exec -T web python manage.py export_translations --to-json - > overrides.json
+scp olimpiada:/opt/olimpiada/overrides.json backend/overrides.json   # do checkoutu dewelopera
+
+# checkout dewelopera (DEBUG=1, montowany backend, .git podpięty do kontenera) – zapis do .po, potem PR
+docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm -v "$PWD/.git:/.git:ro" \
+    web python manage.py export_translations --from-json /app/overrides.json --dry-run
+docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm -v "$PWD/.git:/.git:ro" \
+    web python manage.py export_translations --from-json /app/overrides.json
+rm backend/overrides.json
+
+# produkcja, PO wdrożeniu tego PR-a – usunięcie nakładek, które są już w skompilowanych katalogach
+docker compose exec web python manage.py export_translations --prune
+```
+
+- Zapis do `.po` jest **odmawiany** poza checkoutem dewelopera (`DEBUG` i katalog `.git` w `backend`
+  albo nad nim – stąd podpięte `.git` w poleceniu wyżej); w kontenerze produkcyjnym trafiłby do
+  warstwy obrazu i rozjechał z `.mo`. Świadome obejście: `--force`.
+- Eksport zmienia wyłącznie linie `msgstr` poprawek i dopisuje `# l10n-reviewed` (potwierdzenie:
+  sam znacznik). Tekst z JSON-a przechodzi tę samą walidację, co w panelu; poprawka podjęta wobec
+  innego `msgstr` niż dzisiejszy jest wypisana jako **konflikt** i nie nadpisuje nowszego tekstu;
+  wpis, którego nie ma już w katalogach – jako „nieaktualny”.
+- `--prune` usuwa poprawkę tylko wtedy, gdy **skompilowany** katalog (`.mo` – to on trafia do
+  gettext) oddaje już dokładnie jej tekst, a potwierdzenie – gdy wpis ma znacznik. Przed wdrożeniem
+  nie usunie niczego. Nakładki napisów usuniętych z kodu tylko wypisuje; usuwa je `--prune-stale`.
+
+### 33.4. Wyłączenie i awarie
+
+- `TRANSLATION_OVERRIDES_ENABLED=0` w `.env` + restart `web`, `worker`, `beat` – serwis wraca do samych
+  katalogów z repozytorium; decyzje zostają w bazie. Cofnięcie pojedynczej decyzji: „Przywróć
+  tłumaczenie z katalogu” na ekranie napisu (recenzent).
+- W Redisie stoi tylko numer wersji nakładki (bez terminu ważności); każdy proces po zmianie wersji
+  buduje nakładkę z bazy sam (jedno zapytanie). Po restarcie Redisa – nowa wersja i to samo. Błąd
+  nakładki nigdy nie psuje strony – log `apps.translation_review.runtime` i katalog z repozytorium.
+- Limit POST-ów w panelu tłumacza: scope `translations` (120/h na konto).
+
+### 33.5. Wdrożenie tej wersji
+
+`migrate` (`translation_review.0001`–`0002`, tylko nowe tabele i kolumny) – bez kroków ręcznych.
+Obraz kompiluje teraz także katalogi aplikacji (`apps/*/locale`). Zmienił się manifest adresów
+(`/translations/` – `backend/djcms_contract/app_routes.*`), więc konfiguracja proxy z § 23 musi
+zostać przeładowana (robi to `deploy.sh`). Odnośnik „Zgłoś tłumaczenie” stoi w domyślnej stopce
+(`templates/theme/footer.html`); paczka motywu, która nadpisuje slot `footer`, dołącza go tym samym
+fragmentem: `{% include "web/_translation_report_link.html" with css_class="footer__link" %}`. Olimpiada Kwantowa
+(sam polski) nie widzi żadnej zmiany: brak pozycji w menu, brak odnośnika w stopce, brak wiersza
+w rejestrze czynności.

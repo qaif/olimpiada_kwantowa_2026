@@ -118,9 +118,17 @@ def stage_forcing_pre_moderation(competition, now=None):
     if edition is None:
         return None
     now = now or timezone.now()
+    # Okna czasowe (TZ-01): etap z oknami wymusza premoderację od startu pierwszego okna do końca
+    # ostatniego (z dodatkowym czasem uczniów). Rama etapu i tak obejmuje okna, ale pytamy o nie
+    # jawnie – reguła „rozmowa zamknięta, dopóki ktoś pisze” nie może zależeć od tego, jak
+    # szeroko koordynator ustawił ramę. Bez flagi konkursu to pytanie nie kosztuje zapytania.
+    from apps.time_windows.access import windows_running
+
     stages = Stage.objects.filter(edition=edition).order_by("opens_at", "id")
     for stage in stages:
-        if not stage.is_training and stage.is_open_for_submissions(now):
+        if stage.is_training:
+            continue
+        if stage.is_open_for_submissions(now) or windows_running(stage, now, competition):
             return stage
     return None
 

@@ -1,0 +1,610 @@
+# Przegląd tłumaczeń interfejsu (apps.translation_review, zadanie L10N-01) – Russian.
+# Napisy tej aplikacji; Django scala ten katalog z katalogiem projektu (backend/locale).
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Olimpiada Kwantowa\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-04 19:12+0200\n"
+"PO-Revision-Date: 2026-10-04 19:30+0200\n"
+"Last-Translator: Olimpiada Kwantowa\n"
+"Language-Team: Russian\n"
+"Language: ru\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
+
+#: forms.py:19
+msgid "Pokaż"
+msgstr "Показать"
+
+#: forms.py:22
+msgid "wszystkie napisy"
+msgstr "все строки"
+
+#: forms.py:23
+msgid "bez tłumaczenia"
+msgstr "без перевода"
+
+#: forms.py:24
+msgid "tłumaczenie maszynowe (nieprzejrzane)"
+msgstr "машинный перевод (не проверен)"
+
+#: forms.py:25 templates/translation_review/detail.html:33
+#: templates/translation_review/detail.html:35
+#: templates/translation_review/list.html:50
+msgid "przejrzane"
+msgstr "проверенные"
+
+#: forms.py:26
+msgid "z oczekującą propozycją"
+msgstr "с ожидающим предложением"
+
+#: forms.py:29
+msgid "Szukaj"
+msgstr "Поиск"
+
+#: forms.py:34 templates/translation_review/detail.html:112
+msgid "Twoja propozycja"
+msgstr "Ваше предложение"
+
+#: forms.py:38
+msgid "Zatwierdź od razu (recenzent)"
+msgstr "Утвердить сразу (рецензент)"
+
+#: forms.py:42 forms.py:63
+#: templates/translation_review/coordinator_translators.html:32
+#: templates/translation_review/coordinator_translators.html:41
+msgid "Język"
+msgstr "Язык"
+
+#: forms.py:45 templates/translation_review/reports.html:21
+msgid "Napis na stronie"
+msgstr "Текст на странице"
+
+#: forms.py:48
+msgid "Skopiuj fragment źle przetłumaczonego tekstu – po nim znajdziemy napis."
+msgstr ""
+"Скопируйте фрагмент неверно переведённого текста – по нему мы найдём строку."
+
+#: forms.py:51
+msgid "Co jest nie tak / jak powinno brzmieć"
+msgstr "Что не так / как должно звучать"
+
+#: forms.py:62
+msgid "Adres e-mail konta"
+msgstr "Адрес e-mail учётной записи"
+
+#: forms.py:64 templates/translation_review/coordinator_translators.html:33
+#: templates/translation_review/coordinator_translators.html:42
+msgid "Poziom"
+msgstr "Уровень"
+
+#: forms.py:69
+msgid "tłumacz – proponuje i głosuje"
+msgstr "переводчик – предлагает и голосует"
+
+#: forms.py:71
+msgid "recenzent – także zatwierdza poprawki"
+msgstr "рецензент – также утверждает исправления"
+
+#: services.py:146 views.py:56
+msgid "Nie masz uprawnień do tłumaczeń tego języka."
+msgstr "У вас нет прав на перевод этого языка."
+
+#: services.py:201
+msgid "Nie możesz nadawać ról tłumaczy."
+msgstr "Вы не можете назначать роль переводчика."
+
+#: services.py:203
+msgid "Nieznany język."
+msgstr "Неизвестный язык."
+
+#: services.py:205
+msgid "Nieznany poziom uprawnień."
+msgstr "Неизвестный уровень прав."
+
+#: services.py:208
+msgid "Rolę recenzenta tłumaczeń nadaje wyłącznie superkoordynator."
+msgstr "Роль рецензента переводов назначает только суперкоординатор."
+
+#: services.py:210
+msgid "Ten język nie jest językiem interfejsu tego konkursu."
+msgstr "Этот язык не входит в языки интерфейса этого конкурса."
+
+#: services.py:215
+msgid "Nie znaleziono aktywnego konta z tym adresem w tym konkursie."
+msgstr "Активная учётная запись с этим адресом в этом конкурсе не найдена."
+
+#: services.py:244
+msgid "Nie możesz odbierać ról tłumaczy."
+msgstr "Вы не можете снимать роль переводчика."
+
+#: services.py:249
+msgid "Tę osobę może zmienić wyłącznie superkoordynator."
+msgstr "Изменить эту запись может только суперкоординатор."
+
+#: services.py:434
+msgid "Ta propozycja jest identyczna z obecnym tłumaczeniem."
+msgstr "Это предложение совпадает с текущим переводом."
+
+#: services.py:465
+msgid "Na rozstrzygniętą propozycję nie można już głosować."
+msgstr "За рассмотренное предложение голосовать уже нельзя."
+
+#: services.py:467
+msgid "Nie można głosować na własną propozycję."
+msgstr "Нельзя голосовать за собственное предложение."
+
+#: services.py:500 services.py:537
+msgid "Ta propozycja została już rozstrzygnięta."
+msgstr "Это предложение уже рассмотрено."
+
+#: services.py:554
+msgid "Ten napis nie ma jeszcze tłumaczenia – zaproponuj je."
+msgstr "У этой строки ещё нет перевода – предложите его."
+
+#: services.py:557
+msgid "To tłumaczenie jest już przejrzane."
+msgstr "Этот перевод уже проверен."
+
+#: services.py:614
+msgid "Opisz, co jest nie tak z tłumaczeniem."
+msgstr "Опишите, что не так с переводом."
+
+#: services.py:616
+msgid "Zgłoszenie jest za długie."
+msgstr "Сообщение слишком длинное."
+
+#: templates/translation_review/coordinator_translators.html:8
+#: templates/translation_review/coordinator_translators.html:27
+msgid "Tłumacze"
+msgstr "Переводчики"
+
+#: templates/translation_review/coordinator_translators.html:8
+msgid "panel koordynatora"
+msgstr "панель координатора"
+
+#: templates/translation_review/coordinator_translators.html:9
+msgid "Tłumacze interfejsu"
+msgstr "Переводчики интерфейса"
+
+#: templates/translation_review/coordinator_translators.html:11
+msgid ""
+"Osoby, które mogą przeglądać i poprawiać tłumaczenia napisów serwisu, np. "
+"kierownicy delegacji. Zatwierdzona poprawka działa w całym serwisie."
+msgstr ""
+"Люди, которые могут проверять и исправлять переводы строк сайта, например "
+"руководители делегаций. Утверждённое исправление действует на всём сайте."
+
+#: templates/translation_review/coordinator_translators.html:16
+msgid "Nadaj rolę"
+msgstr "Назначить роль"
+
+#: templates/translation_review/coordinator_translators.html:21
+msgid ""
+"Rolę recenzenta tłumaczeń nadaje superkoordynator. Konto musi należeć do "
+"tego konkursu."
+msgstr ""
+"Роль рецензента переводов назначает суперкоординатор. Учётная запись должна "
+"относиться к этому конкурсу."
+
+#: templates/translation_review/coordinator_translators.html:22
+msgid "Nadaj"
+msgstr "Назначить"
+
+#: templates/translation_review/coordinator_translators.html:31
+#: templates/translation_review/coordinator_translators.html:40
+msgid "Konto"
+msgstr "Учётная запись"
+
+#: templates/translation_review/coordinator_translators.html:34
+msgid "Czynności"
+msgstr "Действия"
+
+#: templates/translation_review/coordinator_translators.html:42
+#: templates/translation_review/home.html:20
+msgid "recenzent"
+msgstr "рецензент"
+
+#: templates/translation_review/coordinator_translators.html:42
+msgid "tłumacz"
+msgstr "переводчик"
+
+#: templates/translation_review/coordinator_translators.html:48
+msgid "Odbierz"
+msgstr "Снять"
+
+#: templates/translation_review/coordinator_translators.html:54
+msgid "Nikt nie ma jeszcze roli tłumacza."
+msgstr "Пока ни у кого нет роли переводчика."
+
+#: templates/translation_review/detail.html:10
+msgid "Napis"
+msgstr "Строка"
+
+#: templates/translation_review/detail.html:14
+msgid "Napis do przejrzenia"
+msgstr "Строка для проверки"
+
+#: templates/translation_review/detail.html:20
+#: templates/translation_review/list.html:33
+#: templates/translation_review/list.html:42
+msgid "Tekst źródłowy (polski)"
+msgstr "Исходный текст (польский)"
+
+#: templates/translation_review/detail.html:26
+#: templates/translation_review/list.html:35
+#: templates/translation_review/list.html:47
+msgid "Obecne tłumaczenie"
+msgstr "Текущий перевод"
+
+#: templates/translation_review/detail.html:29
+msgid "katalog zmienił się od decyzji – przejrzyj ponownie"
+msgstr "каталог изменился после решения – проверьте снова"
+
+#: templates/translation_review/detail.html:31
+msgid "zatwierdzone w serwisie, czeka na przeniesienie do repozytorium"
+msgstr "утверждено на сайте, ждёт переноса в репозиторий"
+
+#: templates/translation_review/detail.html:37
+#: templates/translation_review/list.html:51
+msgid "maszynowe"
+msgstr "машинный"
+
+#: templates/translation_review/detail.html:41
+msgid "Decyzja recenzenta (nieaktualna)"
+msgstr "Решение рецензента (устарело)"
+
+#: templates/translation_review/detail.html:45
+msgid "Tłumaczenie w katalogu"
+msgstr "Перевод в каталоге"
+
+#: templates/translation_review/detail.html:49
+msgid "Forma mnoga"
+msgstr "Форма множественного числа"
+
+#: templates/translation_review/detail.html:53
+msgid "Kontekst"
+msgstr "Контекст"
+
+#: templates/translation_review/detail.html:57
+msgid "Uwagi dla tłumacza"
+msgstr "Примечания для переводчика"
+
+#: templates/translation_review/detail.html:60
+msgid "Gdzie występuje"
+msgstr "Где встречается"
+
+#: templates/translation_review/detail.html:63
+msgid ""
+"Zmienne w nawiasach i znaczniki HTML muszą zostać dokładnie takie, jak w "
+"tekście źródłowym. Zamiast cudzysłowów prostych używaj typograficznych."
+msgstr ""
+"Переменные в скобках и HTML-теги должны остаться точно такими же, как в "
+"исходном тексте. Используйте типографские кавычки вместо прямых."
+
+#: templates/translation_review/detail.html:69
+msgid "Przywróć tłumaczenie z katalogu"
+msgstr "Вернуть перевод из каталога"
+
+#: templates/translation_review/detail.html:75
+msgid "Obecne tłumaczenie jest poprawne"
+msgstr "Текущий перевод верен"
+
+#: templates/translation_review/detail.html:85
+msgid "Zaproponuj poprawkę"
+msgstr "Предложить исправление"
+
+#: templates/translation_review/detail.html:97
+msgid "Wyślij propozycję"
+msgstr "Отправить предложение"
+
+#: templates/translation_review/detail.html:104
+msgid "Propozycje"
+msgstr "Предложения"
+
+#: templates/translation_review/detail.html:110
+msgid "czeka na recenzenta"
+msgstr "ждёт рецензента"
+
+#: templates/translation_review/detail.html:110
+msgid "zatwierdzona"
+msgstr "утверждено"
+
+#: templates/translation_review/detail.html:110
+msgid "odrzucona"
+msgstr "отклонено"
+
+#: templates/translation_review/detail.html:110
+msgid "zastąpiona"
+msgstr "заменено"
+
+#: templates/translation_review/detail.html:111
+msgid "głosy"
+msgstr "голоса"
+
+#: templates/translation_review/detail.html:112
+msgid "inny tłumacz"
+msgstr "другой переводчик"
+
+#: templates/translation_review/detail.html:122
+msgid "Cofnij głos"
+msgstr "Отозвать голос"
+
+#: templates/translation_review/detail.html:122
+msgid "Popieram"
+msgstr "Поддерживаю"
+
+#: templates/translation_review/detail.html:129
+msgid "Zatwierdź"
+msgstr "Утвердить"
+
+#: templates/translation_review/detail.html:134
+msgid "Odrzuć"
+msgstr "Отклонить"
+
+#: templates/translation_review/detail.html:141
+msgid "Nikt jeszcze nie zaproponował poprawki tego napisu."
+msgstr "Для этой строки ещё никто не предложил исправление."
+
+#: templates/translation_review/home.html:7
+#: templates/translation_review/home.html:11
+msgid "Tłumaczenia interfejsu"
+msgstr "Переводы интерфейса"
+
+#: templates/translation_review/home.html:10
+#: templates/translation_review/list.html:12
+#: templates/translation_review/report.html:10
+msgid "Tłumaczenia"
+msgstr "Переводы"
+
+#: templates/translation_review/home.html:12
+msgid ""
+"Sprawdź tłumaczenia napisów serwisu w swoim języku i zaproponuj poprawki. "
+"Tekst źródłowy jest po polsku; obok widzisz wersję angielską."
+msgstr ""
+"Проверьте переводы строк сайта на ваш язык и предложите исправления. "
+"Исходный текст на польском; рядом показана английская версия."
+
+#: templates/translation_review/home.html:21
+#: templates/translation_review/home.html:26
+msgid "Oczekujące propozycje"
+msgstr "Ожидающие предложения"
+
+#: templates/translation_review/home.html:25
+msgid "Przeglądaj napisy"
+msgstr "Просмотреть строки"
+
+#: templates/translation_review/home.html:28
+#: templates/translation_review/reports.html:9
+msgid "Zgłoszenia"
+msgstr "Сообщения"
+
+#: templates/translation_review/list.html:9
+#: templates/translation_review/list.html:29
+msgid "Napisy"
+msgstr "Строки"
+
+#: templates/translation_review/list.html:14
+msgid ""
+"Kliknij napis, żeby zobaczyć kontekst, zaproponować poprawkę albo zagłosować "
+"na cudzą."
+msgstr ""
+"Нажмите на строку, чтобы увидеть контекст, предложить исправление или "
+"проголосовать за чужое."
+
+#: templates/translation_review/list.html:21
+msgid "Filtruj"
+msgstr "Фильтровать"
+
+#: templates/translation_review/list.html:22
+msgid "Wyczyść"
+msgstr "Очистить"
+
+#: templates/translation_review/list.html:25
+msgid "Znalezione napisy"
+msgstr "Найдено строк"
+
+#: templates/translation_review/list.html:36
+#: templates/translation_review/list.html:48
+msgid "Stan"
+msgstr "Статус"
+
+#: templates/translation_review/list.html:44
+msgid "forma"
+msgstr "форма"
+
+#: templates/translation_review/list.html:49
+msgid "do ponownego przeglądu"
+msgstr "на повторную проверку"
+
+#: templates/translation_review/list.html:52
+msgid "brak"
+msgstr "нет"
+
+#: templates/translation_review/list.html:53
+msgid "propozycje"
+msgstr "предложения"
+
+#: templates/translation_review/list.html:57
+msgid "Brak napisów spełniających filtr."
+msgstr "Нет строк, подходящих под фильтр."
+
+#: templates/translation_review/list.html:65
+msgid "Poprzednia"
+msgstr "Предыдущая"
+
+#: templates/translation_review/list.html:67
+#, python-format
+msgid "Strona %(number)s z %(pages)s"
+msgstr "Страница %(number)s из %(pages)s"
+
+#: templates/translation_review/list.html:69
+msgid "Następna"
+msgstr "Следующая"
+
+#: templates/translation_review/report.html:7
+#: templates/translation_review/report.html:11
+#: templatetags/translation_review.py:37
+msgid "Zgłoś tłumaczenie"
+msgstr "Сообщить о переводе"
+
+#: templates/translation_review/report.html:12
+msgid ""
+"Napisz, który napis jest źle przetłumaczony i jak powinien brzmieć. "
+"Recenzent tłumaczeń Twojego języka poprawi go dla wszystkich."
+msgstr ""
+"Напишите, какой текст переведён неверно и как он должен звучать. Рецензент "
+"переводов вашего языка исправит его для всех."
+
+#: templates/translation_review/report.html:16
+#: templates/translation_review/reports.html:19
+msgid "Strona"
+msgstr "Страница"
+
+#: templates/translation_review/report.html:30
+msgid "Wyślij zgłoszenie"
+msgstr "Отправить сообщение"
+
+#: templates/translation_review/reports.html:13
+msgid "Zgłoszenia tłumaczeń"
+msgstr "Сообщения о переводах"
+
+#: templates/translation_review/reports.html:22
+msgid "szukaj na liście"
+msgstr "искать в списке"
+
+#: templates/translation_review/reports.html:24
+msgid "Uwaga"
+msgstr "Комментарий"
+
+#: templates/translation_review/reports.html:29
+msgid "Zamknij zgłoszenie"
+msgstr "Закрыть сообщение"
+
+#: templates/translation_review/reports.html:33
+msgid "Nie ma otwartych zgłoszeń."
+msgstr "Открытых сообщений нет."
+
+#: validation.py:110
+msgid "Tłumaczenie nie może być puste."
+msgstr "Перевод не может быть пустым."
+
+#: validation.py:121
+#, python-format
+msgid "Tłumaczenie jest za długie (najwyżej %(limit)d znaków)."
+msgstr "Перевод слишком длинный (не более %(limit)d символов)."
+
+#: validation.py:125
+msgid "Tłumaczenie zawiera niedozwolony znak sterujący kierunkiem tekstu."
+msgstr "Перевод содержит запрещённый управляющий символ направления текста."
+
+#: validation.py:129
+msgid "nowa linia"
+msgstr "перевод строки"
+
+#: validation.py:129
+msgid "tabulator"
+msgstr "табуляция"
+
+#: validation.py:130
+#, python-format
+msgid "Niedozwolony znak sterujący: %(char)s."
+msgstr "Запрещённый управляющий символ: %(char)s."
+
+#: validation.py:134 validation.py:150 validation.py:156
+msgid "(brak)"
+msgstr "(нет)"
+
+#: validation.py:136
+#, python-format
+msgid ""
+"Znaczniki HTML muszą być dokładnie takie, jak w tekście źródłowym: %(tags)s"
+msgstr "HTML-теги должны быть точно такими же, как в исходном тексте: %(tags)s"
+
+#: validation.py:141
+msgid ""
+"Znak „<” poza znacznikiem z tekstu źródłowego może stać tylko przed spacją "
+"albo cyfrą."
+msgstr ""
+"Вне тега из исходного текста символ «<» может стоять только перед пробелом "
+"или цифрой."
+
+#: validation.py:145
+#, python-format
+msgid ""
+"Użyj cudzysłowów typograficznych (np. “…”, «…», „…”) zamiast znaku %(char)s."
+msgstr ""
+"Используйте типографские кавычки (например, “…”, «…», „…”) вместо символа "
+"%(char)s."
+
+#: validation.py:152 validation.py:158
+#, python-format
+msgid ""
+"Tłumaczenie musi zawierać te same zmienne, co tekst źródłowy: "
+"%(placeholders)s"
+msgstr ""
+"Перевод должен содержать те же переменные, что и исходный текст: "
+"%(placeholders)s"
+
+#: validation.py:166
+msgid ""
+"Ten napis ma kilka zmiennych bez nazw – jego tłumaczenie można poprawić "
+"tylko w repozytorium; zgłoś je ze stopki."
+msgstr ""
+"В этой строке несколько безымянных переменных – её перевод можно исправить "
+"только в репозитории; сообщите о нём из подвала страницы."
+
+#: validation.py:173
+msgid ""
+"Znaki procentu i nawiasów klamrowych mają w tym napisie znaczenie techniczne "
+"– zapisz je dokładnie tak, jak w tekście źródłowym."
+msgstr ""
+"Знаки процента и фигурные скобки имеют в этой строке техническое значение – "
+"пишите их точно так же, как в исходном тексте."
+
+#: views.py:78 views.py:225
+msgid "Twoje konto nie ma roli tłumacza."
+msgstr "У вашей учётной записи нет роли переводчика."
+
+#: views.py:159
+msgid "Propozycja została zapisana."
+msgstr "Предложение сохранено."
+
+#: views.py:171
+msgid "Tłumaczenie zatwierdzone – działa w serwisie w ciągu kilku sekund."
+msgstr "Перевод утверждён – он появится на сайте через несколько секунд."
+
+#: views.py:175
+msgid "Propozycja została odrzucona."
+msgstr "Предложение отклонено."
+
+#: views.py:178
+msgid "Tłumaczenie oznaczone jako przejrzane."
+msgstr "Перевод отмечен как проверенный."
+
+#: views.py:181
+msgid "Przywrócono tłumaczenie z katalogu."
+msgstr "Перевод из каталога восстановлен."
+
+#: views.py:204
+msgid "Zgłoszenia przegląda recenzent tłumaczeń."
+msgstr "Сообщения просматривает рецензент переводов."
+
+#: views.py:215
+msgid "Zgłoszenie zamknięte."
+msgstr "Сообщение закрыто."
+
+#: views.py:257
+msgid "Dziękujemy – recenzent tłumaczeń zobaczy zgłoszenie."
+msgstr "Спасибо – рецензент переводов увидит ваше сообщение."
+
+#: views.py:313
+msgid "Rola tłumacza została odebrana."
+msgstr "Роль переводчика снята."
+
+#: views.py:330
+msgid "Rola tłumacza została nadana."
+msgstr "Роль переводчика назначена."

@@ -183,6 +183,13 @@ def _team_leader_section(user: User) -> list[dict]:
     return export_section(user)
 
 
+def _problem_translations_section(user: User) -> dict:
+    """Tłumaczenia zadań (TR-01): język przypisany uczniowi i wersje wysłane przez opiekuna – bez treści."""
+    from apps.problem_translations.services import export_section
+
+    return export_section(user)
+
+
 def _team_leader_consents(user: User) -> list[dict]:
     """Zgody złożone w roli opiekuna drużyny – trzeci właściciel ``ConsentRecord``."""
     from .models import ConsentRecord
@@ -385,6 +392,7 @@ def export_payload(user: User) -> dict:
         "profil_komitetu": _committee_section(getattr(user, "committee_member", None)),
         "profil_opiekuna_szkolnego": _supervisor_section(supervisor),
         "delegacje_opiekun_druzyny": _team_leader_section(user),
+        "tlumaczenia_zadan": _problem_translations_section(user),
         "zgody": _consents_section(participant, supervisor) + _team_leader_consents(user),
         "zgoda_opiekuna": _guardian_section(participant),
         "zgloszenia_do_etapow": _entries_section(participant),
@@ -397,8 +405,27 @@ def export_payload(user: User) -> dict:
         "webinary": _webinars_section(user),
         "zaswiadczenia_statusu_ucznia": _student_status_section(participant),
         "oceny_ai": _ai_section(participant),
+        "okna_czasowe": _time_windows_section(participant),
         "ustawienia_interfejsu": _preferences_section(user),
+        "tlumaczenia": _translation_review_section(user),
     }
+
+
+def _time_windows_section(participant) -> dict:
+    """Strefa czasowa i wyjątki w oknach czasowych (TZ-01) – reguła w ``apps.time_windows.privacy``."""
+    from apps.time_windows.privacy import export_section
+
+    return export_section(participant)
+
+
+def _translation_review_section(user: User) -> dict:
+    """Przegląd tłumaczeń (L10N-01): rola tłumacza, własne propozycje, liczba głosów i zgłoszenia.
+
+    Sekcja jest zawsze (pusta dla konta bez roli) – kształt pliku ma być ten sam dla każdego konta.
+    """
+    from apps.translation_review.services import export_section
+
+    return export_section(user)
 
 
 def _student_status_section(participant) -> list[dict]:

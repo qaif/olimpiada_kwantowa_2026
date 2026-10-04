@@ -280,6 +280,19 @@ FEATURE_DEFAULTS: dict[str, bool] = {
     # wyłączona, bo włączenie wymaga serwera LiveKit (``LIVEKIT_URL``, klucz i sekret API – krok
     # operatora, ``docs/OPERACJE.md`` § 36) i decyzji organizatora o nagrywaniu.
     "webinars": False,
+    # --- statystyki szkół (STAT-01) -----------------------------------------------------------------
+    # Ranking szkół dla koordynatora i statystyki uczniów dla opiekuna szkolnego (``apps.school_stats``).
+    # Wyłączona znaczy, że adresów ``/supervisor/statistics/`` i ``/coordinator/school-stats/`` nie ma
+    # (404), a menu i pulpit opiekuna wyglądają co do bajtu jak dziś. Domyślnie wyłączona, bo opiekun
+    # zaczyna widzieć wyniki uczniów przez kolejne edycje – organizator włącza to świadomie, razem
+    # z wierszem rejestru czynności, który flaga dokłada (``apps.accounts.processing_register``).
+    "school_statistics": False,
+    # --- okna czasowe etapu (TZ-01, 4.10.2026) -----------------------------------------------------
+    # Etap zdalny rozłożony na kilka startów według stref czasowych krajów (``apps.time_windows``).
+    # Wyłączona znaczy, że żadna bramka okien nie pyta bazy, ekranu „Okna czasowe” nie ma (404),
+    # a menu i panel uczestnika są co do bajtu takie, jak przed tą zmianą. Przełącza operator
+    # w ``/admin/``: wyłączenie w trakcie trwania okien ujawniłoby zadania wszystkim naraz.
+    "stage_time_windows": False,
     # --- motywy wizualne (THEME-01) ----------------------------------------------------------------
     # Ekran „Motyw serwisu” w panelu koordynatora (``/coordinator/competition/theme/``) i jego
     # pozycja w menu. Wyłączona znaczy, że adresu **nie ma** (404), a menu wygląda co do bajtu jak

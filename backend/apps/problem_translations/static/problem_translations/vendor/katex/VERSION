@@ -1,0 +1,27 @@
+KaTeX 0.19.0 – zwendorowany dla tłumaczeń zadań (TR-01), licencja MIT (plik LICENSE obok).
+
+Źródło: rejestr npm, pakiet katex@0.19.0 (npm pack, 4.10.2026)
+  npm integrity tarballa: sha512-v6Tznz3zJ7u3niRCoDTsumM2+HA2XXcCu+WAacCeHD2z3p9A9Ks987o5FzfTGBN0e8A0vjEgIDvLbICrXpdw/Q==
+  sha256 tarballa katex-0.19.0.tgz: d8e49f2fea6eeed7cdae2cf4fd48e2f1d348758aa9e5740715e4533c2c96d1ee
+
+Pliki:
+  katex.min.js   – bez zmian wobec dist/katex.min.js
+                   sha256 103a53763cc033bba8d175bf3f0ba597c3505c9b6747dd3f2c7bc2a6bfcc8ae7
+  katex.min.css  – ZMIENIONY wobec dist/katex.min.css
+                   upstream sha256 d4ab5b8ee16989b070cdb0ea24bd6ad48fc8df1b787f280f29d3ae4f959f2c00
+                   nasz     sha256 864f909fc1f3da0f140321d0e277ac0a444d8909e072cdbf174bcea93b95c089
+  fonts/*.woff2  – bez zmian wobec dist/fonts/*.woff2 (tylko woff2; woff i ttf pominięte)
+
+Dlaczego CSS jest zmieniony: z każdej reguły @font-face usunięto wpisy src z url(...woff) i url(...ttf),
+zostaje wyłącznie woff2 (obsługują go wszystkie wspierane przeglądarki). Produkcyjne
+ManifestStaticFilesStorage w collectstatic przepisuje każdy url() w CSS na nazwę ze skrótem i przerywa
+build, gdy wskazanego pliku nie ma – więc albo komplet trzech formatów (~1,2 MB), albo CSS bez
+odwołań do pominiętych. Test: apps/problem_translations/tests/test_vendor.py (każdy url() w CSS
+wskazuje istniejący plik, a JS jest bajt w bajt wersją z VERSION).
+
+Polecenie, którym zrobiono CSS z upstreamu:
+  sed -E 's/,url\(fonts\/[^)]*\.woff\) format\("woff"\),url\(fonts\/[^)]*\.ttf\) format\("truetype"\)//g' \
+      dist/katex.min.css > katex.min.css
+
+Aktualizacja: npm pack katex@<wersja>, te same trzy kroki (JS, woff2, CSS przez sed), nowe skróty tutaj
+i w teście.

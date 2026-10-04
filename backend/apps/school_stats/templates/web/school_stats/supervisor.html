@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+{% load static i18n web_extras %}
+{% comment %}
+  Statystyki opiekuna szkolnego (STAT-01). Wszystkie reguły – kto jest na liście, kiedy wolno
+  pokazać punkty, które agregaty są pod progiem k-anonimowości, czy szkoła jest zweryfikowana –
+  stoją w ``apps.school_stats.services``. Szablon czyta gotowe flagi (``visible``, ``published``,
+  ``off_list``) i nie ma jak ich obejść.
+
+  Bez JavaScriptu: wybór edycji jedzie zwykłym formularzem GET, wykres jest SVG rysowanym po stronie
+  serwera (``_chart.html``), a każda liczba z wykresu stoi też w tabeli.
+{% endcomment %}
+{% block title %}{% translate "Statystyki uczniów i szkoły" %}{% endblock %}
+{% block head %}
+  <link rel="stylesheet" href="{% static 'css/school-stats.css' %}">
+{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow">{% translate "Panel opiekuna szkolnego" %}</span>
+  <h1>{% translate "Statystyki uczniów i szkoły" %}</h1>
+  <p class="lead">{% translate "Udział Twoich uczniów w kolejnych etapach i edycjach. Punkty i kwalifikacja pojawiają się dopiero po oficjalnym ogłoszeniu wyników etapu." %}</p>
+  <p class="hint">{% blocktranslate trimmed with k=k_anonymity %}
+    Dane szkoły, województwa i całej olimpiady są zbiorcze. Grupy, z których dałoby się odczytać wynik konkretnej osoby (mniej niż {{ k }} uczestników poza Twoimi uczniami), są ukryte.
+  {% endblocktranslate %}</p>
+  <div class="actions">
+    <a class="btn btn--secondary" href="{% url 'web:supervisor' %}">{% translate "Wróć do listy uczniów" %}</a>
+    {% if report_available %}
+      <a class="btn btn--primary" href="{% url 'web:supervisor-statistics-report' %}?edition={{ edition.pk }}">{% translate "Raport szkoły (PDF)" %}</a>
+    {% endif %}
+  </div>
+</div>
+
+{% if editions|length > 1 %}
+  <form method="get" class="actions ss-filter">
+    <label for="ss-edition">{% translate "Edycja" %}</label>
+    <select id="ss-edition" name="edition">
+      {% for item in editions %}
+        <option value="{{ item.pk }}"{% if edition and item.pk == edition.pk %} selected{% endif %}>{{ item.year_label }}</option>
+      {% endfor %}
+    </select>
+    <button type="submit" class="btn btn--secondary btn--small">{% translate "Pokaż" %}</button>
+  </form>
+{% endif %}
+
+{% if not scope.school_key %}
+  <div class="card ss-note">
+    <p class="mt-0">{% translate "Porównanie z całą szkołą i raport dla dyrektora są dostępne, gdy Twoja szkoła jest wybrana z wykazu szkół i zweryfikowana przez organizatora. Do tego czasu widzisz swoich uczniów, województwo i całą olimpiadę." %}</p>
+  </div>
+{% endif %}
+
+{% if not edition %}
+  <div class="card"><p class="empty">{% translate "Olimpiada nie ma jeszcze żadnej edycji." %}</p></div>
+{% else %}
+
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">{% blocktranslate trimmed with edition=edition.year_label %}Uczniowie w edycji {{ edition }}{% endblocktranslate %}</h2>
+  </div>
+  {% if not table %}
+    <div class="card"><p class="empty">{% translate "Nikt jeszcze nie wskazał Twojego adresu jako adresu opiekuna." %}</p></div>
+  {% elif not summary.stages %}
+    <div class="card"><p class="empty">{% translate "Ta edycja nie ma jeszcze etapów." %}</p></div>
+  {% else %}
+    <div class="table-scroll">
+      <table class="table ss-table">
+        <thead>
+          <tr>
+            <th scope="col">{% translate "Uczeń" %}</th>
+            {% for stage in summary.stages %}<th scope="col">{{ stage.name }}</th>{% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in table %}
+            <tr>
+              <th scope="row">{{ row.participant.user.get_full_name|default:row.participant.public_code }}
+                <span class="code-chip">{{ row.participant.public_code }}</span></th>
+              {% for cell in row.cells %}
+                <td>
+                  {% if not cell.registered %}
+                    <span class="hint">{% translate "nie startuje" %}</span>
+                  {% else %}
+                    {% if cell.submitted is None %}
+                      <span>{% translate "zapisany" %}</span>
+                    {% elif cell.on_time %}
+                      <span class="badge badge--ok">{% translate "oddane w terminie" %}</span>
+                    {% elif cell.submitted %}
+                      <span class="badge badge--warn">{% translate "oddane po terminie" %}</span>
+                    {% else %}
+                      <span class="badge badge--neutral">{% translate "brak pracy" %}</span>
+                    {% endif %}
+                    {% if cell.published %}
+                      <div class="ss-cell__result">
+                        {% if cell.off_list %}
+                          {% translate "brak na liście awansujących" %}
+                        {% else %}
+                          <strong>{% if cell.total is not None %}{{ cell.total|points }} {% translate "pkt" %}{% else %}—{% endif %}</strong>
+                          {% if cell.qualified %}<span class="badge badge--info">{% translate "awans" %}</span>{% endif %}
+                        {% endif %}
+                      </div>
+                    {% else %}
+                      <div class="hint">{% translate "wyniki nieogłoszone" %}</div>
+                    {% endif %}
+                  {% endif %}
+                </td>
+              {% endfor %}
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}
+</section>
+
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">{% translate "Porównanie po ogłoszeniu wyników" %}</h2>
+  </div>
+  {% for item in comparisons %}
+    <div class="card">
+      <h3 class="mt-0">{{ item.stage.name }}{% if item.stage.qualified_only %} <span class="badge badge--neutral">{% translate "ogłoszono tylko listę awansujących" %}</span>{% endif %}</h3>
+      {% include "web/school_stats/_comparison.html" with stage=item.stage lines=item.lines %}
+    </div>
+  {% empty %}
+    <div class="card"><p class="empty">{% translate "W tej edycji żaden etap nie ma jeszcze ogłoszonych wyników." %}</p></div>
+  {% endfor %}
+</section>
+{% endif %}
+
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">{% translate "Postęp w kolejnych edycjach" %}</h2>
+    <p class="hint">{% translate "Średnia punktów w pierwszym etapie edycji z ogłoszoną pełną tabelą wyników." %}</p>
+  </div>
+  {% if chart %}
+    <div class="card">
+      {% translate "Średnia punktów w kolejnych edycjach" as chart_title %}
+      {% include "web/school_stats/_chart.html" with chart=chart chart_id="ss-progress" chart_title=chart_title %}
+    </div>
+  {% endif %}
+  {% if progress.rows %}
+    <div class="table-scroll">
+      <table class="table ss-table">
+        <thead>
+          <tr>
+            <th scope="col">{% translate "Edycja" %}</th>
+            <th scope="col" class="num">{% translate "Moich uczniów" %}</th>
+            <th scope="col" class="num">{{ series_labels.mine }}</th>
+            {% if scope.school_key %}<th scope="col" class="num">{{ series_labels.school }}</th>{% endif %}
+            {% if scope.region %}<th scope="col" class="num">{{ series_labels.region }}</th>{% endif %}
+            <th scope="col" class="num">{{ series_labels.all }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in progress.rows %}
+            <tr>
+              <th scope="row">{{ row.edition.year_label }}{% if row.stage %} <span class="hint">({{ row.stage.name }})</span>{% endif %}</th>
+              <td class="num">{{ row.participants }}</td>
+              <td class="num">{% if row.values.mine is not None %}{{ row.values.mine|points }}{% else %}—{% endif %}</td>
+              {% if scope.school_key %}<td class="num">{% if row.values.school is not None %}{{ row.values.school|points }}{% else %}—{% endif %}</td>{% endif %}
+              {% if scope.region %}<td class="num">{% if row.values.region is not None %}{{ row.values.region|points }}{% else %}—{% endif %}</td>{% endif %}
+              <td class="num">{% if row.values.all is not None %}{{ row.values.all|points }}{% else %}—{% endif %}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p class="hint">{% blocktranslate trimmed with k=k_anonymity %}
+      „—” oznacza brak ogłoszonych wyników albo grupę ukrytą, bo liczy mniej niż {{ k }} osób.
+    {% endblocktranslate %}</p>
+  {% else %}
+    <div class="card"><p class="empty">{% translate "Brak danych z poprzednich edycji." %}</p></div>
+  {% endif %}
+</section>
+{% endblock %}
