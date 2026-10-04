@@ -8,6 +8,23 @@ dokładnie jednemu wierszowi tej tabeli.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## [Unreleased] – Zmiana hasła w panelu konta (AUTH-01b)
+
+- **Ekran „Zmień hasło”** (`/account/password/`) dla każdej roli: aktualne hasło + nowe dwa razy,
+  walidatory `AUTH_PASSWORD_VALIDATORS`, nowe ≠ aktualne. Nowa aplikacja `apps.password_change`
+  (bez migracji); reguły w serwisie, `never_cache`, CSRF, limit `password_change` 10/h na konto.
+- Po zmianie: bieżąca sesja zostaje (także znacznik 2FA), **pozostałe urządzenia wylogowane**, tokeny
+  API skasowane, audyt `password.changed` (nieudane próby `password.change_failed`), list
+  bezpieczeństwa „Hasło do konta zostało zmienione” w języku i pod hostem konkursu (z prefiksem
+  ścieżki), z linkiem do „Nie pamiętasz hasła?”, bez hasła.
+- **Konto bez hasła** (Google/Facebook): zamiast formularza przycisk „Wyślij mi link do ustawienia
+  hasła” – zwykły list resetu na własny adres konta (publiczny formularz resetu takich kont nie obsługuje),
+  audyt `password.set_link_sent`. Bez ustawiania hasła w samej sesji.
+- **Pasek konta:** adres e-mail jest odnośnikiem do ustawień konta (`web/_account_who.html`, także dla
+  nagłówka motywu); ekran edycji danych ma sekcję „Hasło”. Motyw `iqo-quantum` 1.1.1 dołącza ten fragment.
+- Tłumaczenia w 10 katalogach `apps/password_change/locale`. Dokumentacja: `docs/tasks/AUTH-01b.md`,
+  `docs/OPERACJE.md` § 39, podręczniki uczestnika (§ 1) i organizatora (§ 9.3).
+
 ## [Unreleased] – LiveKit: jeden port UDP z multipleksacją
 
 - **Zmienione:** wariant „LiveKit na tym hoście” (OPERACJE § 36) – media przez jeden port UDP 7882

@@ -4862,3 +4862,34 @@ włączonym mentoringu z małoletnimi organizator musi mieć dyżur moderacyjny.
 
 **Definitywne wycofanie funkcji:** wyłączenie flagi (skutki wyżej) i – bo zgoda dotyczyła działającej
 sieci – usunięcie profili (`AlumniProfile.objects.filter(participant__competition=c).delete()`).
+
+## 39. Zmiana hasła w panelu konta (AUTH-01b, `docs/tasks/AUTH-01b.md`)
+
+Nowa aplikacja `apps.password_change` – **bez migracji, bez zmiennych środowiskowych, bez flagi**:
+ekran `/account/password/` działa po wdrożeniu dla każdego zalogowanego konta, we wszystkich konkursach
+(także pod prefiksem ścieżki).
+
+- **Limit:** `password_change` – 10 POST-ów na godzinę **na konto** (`REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]`,
+  licznik `apps.web.throttle` w Redisie). Przycisk „Wyślij mi link do ustawienia hasła” (konto bez hasła)
+  liczy się w scope `password_reset` (5/h, też na konto).
+- **Sesje:** zmiana hasła wylogowuje pozostałe sesje konta (skrót hasła w sesji Django) i kasuje tokeny
+  API; bieżąca sesja i znacznik 2FA zostają. Nie trzeba nic czyścić ręcznie (`clearsessions` jak dotąd).
+- **Poczta:** list „Hasło do konta zostało zmienione” idzie kolejką `mail` (worker) w języku żądania,
+  od nadawcy konkursu, z linkiem do `/password-reset/` pod hostem konkursu. Brak listu przy działającej
+  zmianie = sprawdź workera i relay, jak przy innych listach.
+- **Audyt:** `password.changed`, `password.change_failed`, `password.set_link_sent` – bez sekretów.
+- **Motyw IQO:** w pasku konta adres e-mail jest teraz odnośnikiem do ustawień konta (fragment
+  `web/_account_who.html`). Panele mają to od razu; na **stronach publicznych** z motywem `iqo-quantum`
+  odnośnik pojawi się po wgraniu paczki **1.1.1** (zmiana wyłącznie nagłówka i jednej reguły CSS):
+
+```sh
+python themes/iqo-quantum/build_zip.py   # → themes/iqo-quantum/dist/iqo-quantum-1.1.1.zip (laptop)
+scp -i ~/.ssh/olimpiada_deploy themes/iqo-quantum/dist/iqo-quantum-1.1.1.zip deploy@<serwer>:/tmp/
+docker compose exec -T web python manage.py theme_install - --activate iqo < /tmp/iqo-quantum-1.1.1.zip
+```
+
+  Bez tego kroku nic się nie psuje – 1.1.0 pokazuje adres jako zwykły tekst. Cofnięcie: aktywacja 1.1.0
+  (§ 30.1).
+- **Wycofanie funkcji:** usunięcie wiersza `apps.password_change` z `INSTALLED_APPS` i rozwinięcia
+  wzorców w `apps/web/urls.py` oraz sekcji „Hasło” w `web/account/profile.html` (danych do sprzątania
+  nie ma – funkcja niczego nie przechowuje poza `accounts.User.password` i audytem).
