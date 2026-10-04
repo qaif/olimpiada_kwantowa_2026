@@ -1,0 +1,12 @@
+from django.apps import AppConfig
+
+
+class SchoolStatsConfig(AppConfig):
+    default_auto_field = "django.db.models.BigAutoField"
+    name = "apps.school_stats"
+    label = "school_stats"
+    verbose_name = "statystyki szkół"
+
+    def ready(self):
+        # Odbiornik publikacji wyników – zamrożenie przynależności wpisów (``signals.py``).
+        from . import signals  # noqa: F401

@@ -158,6 +158,8 @@ FLAG_ITEMS: dict[str, tuple[frozenset[str], frozenset[str]]] = {
     "ai_grading": (frozenset({"Ocena AI"}), frozenset({"Ocena AI"})),
     # --- webinary LiveKit (zadanie WEB-01) – pozycja za samą flagą, także bez serwera LiveKit ------
     "webinars": (frozenset({"Webinary"}), frozenset({"Webinary"})),
+    # --- statystyki szkół (STAT-01, 04.10.2026) ----------------------------------------------------
+    "school_statistics": (frozenset({"Statystyki szkół"}), frozenset({"Statystyki szkół"})),
     # --- motywy wizualne (THEME-01) ------------------------------------------------------------
     "themes": (frozenset({"Motyw serwisu"}), frozenset({"Motyw serwisu"})),
 }

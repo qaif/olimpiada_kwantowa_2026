@@ -26,6 +26,25 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
 - Listy: zaproszenie (raz) i przypomnienie (beat co 5 min), z wyłączeniem; rejestr czynności
   „Webinary online (LiveKit)” przy fladze. Opis: `docs/tasks/WEB-01.md`, `docs/OPERACJE.md` § 36.
 
+## [Unreleased] – Statystyki szkół i opiekunów szkolnych (STAT-01)
+
+- **Flaga `school_statistics`** (domyślnie wyłączona), nowa aplikacja `apps.school_stats` bez modeli.
+  Opiekun szkolny (`/supervisor/statistics/`): jego uczniowie
+  w edycjach i etapach (zapis, oddanie, termin; punkty i awans **wyłącznie** z ogłoszonych publikacji,
+  lista „tylko awansujący” bez punktów osób spoza listy), porównanie ze szkołą (tylko szkoła z wykazu
+  zweryfikowana przez organizatora), województwem i całością z progiem k-anonimowości 5 i regułą
+  dopełnienia, wykres SVG postępu przez edycje (bez JS), raport PDF szkoły dla dyrektora (same
+  agregaty). Koordynator (`/coordinator/school-stats/`, menu „Raporty”): ranking szkół z porównaniem
+  rok do roku, województwa, „szkoły do odzyskania”, eksport CSV, raport PDF dowolnej szkoły. Agregaty
+  edycji w pamięci podręcznej z odciskiem publikacji (2 zapytania na edycję). Rejestr czynności 1.12
+  (wiersz warunkowy). Katalogi tłumaczeń aplikacji (`apps/<nazwa>/locale`) kompilowane w obrazie
+  i sprawdzane testem (`docs/tasks/STAT-01.md`, `docs/OPERACJE.md` § 29).
+- **Poprawki po przeglądzie:** reguła zagnieżdżenia (szkoła ⊂ województwo ⊂ całość; województwo minus
+  pokazane szkoły), dopełnienie wobec uczniów wszystkich opiekunów szkoły w CSV/PDF, średnia od 5
+  wyników, przynależność wpisów zamrażana przy publikacji (`FrozenMembership`, migracja
+  `school_stats.0001`), konta zanonimizowane poza szkołami, profil opiekuna z innego konkursu nie działa
+  w tym konkursie (`supervisor_profile`), CSV szkół do odzyskania, CI sprawdza katalogi `apps/*/locale`.
+
 ## [Unreleased] – Motywy wizualne wgrywane paczkami (THEME-01)
 
 - **Tokeny motywu:** arkusze (`static/css/*.css`) czytają kolory, kroje, promienie i odstępy przez

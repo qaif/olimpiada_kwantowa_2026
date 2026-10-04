@@ -86,7 +86,11 @@ from apps.competitions.models import DEFAULT_RETENTION_MONTHS
 #: uczniom swojego kraju. Nowa czynność (warunkowa – wyłącznie konkursy z trybem rejestracji
 #: ``DELEGATIONS``) z nowym kręgiem osób (opiekunowie drużyn) i nowym odbiorcą danych uczniów
 #: (współopiekunowie tego samego kraju widzą listę drużyny).
-REGISTER_VERSION = "1.11"
+#: 1.12 (04.10.2026, zadanie STAT-01) – statystyki szkół (flaga ``school_statistics``, wiersz warunkowy):
+#: opiekun szkolny widzi przebieg i ogłoszone wyniki swoich uczniów przez kolejne edycje, na tle
+#: agregatów szkoły i województwa. Nowych danych nie ma, ale jest nowy cel (informacja zwrotna dla
+#: szkoły) i nowy odbiorca (dyrektor – raport zbiorczy), więc zmiana jest materialna.
+REGISTER_VERSION = "1.12"
 REGISTER_DATE = date(2026, 10, 4)
 
 #: Zdanie o okresie przechowywania danych uczestnika. Liczba pochodzi z tego samego miejsca, co
@@ -1005,6 +1009,12 @@ def activities_for(competition=None) -> tuple[ProcessingActivity, ...]:
         activities = (*activities, WEBINARS_ACTIVITY)
     if competition is not None and competition.uses_delegations:
         activities = (*activities, DELEGATIONS_ACTIVITY)
+    from apps.school_stats.services import enabled as school_stats_enabled
+
+    if school_stats_enabled(competition):
+        from apps.school_stats.register import SCHOOL_STATISTICS_ACTIVITY
+
+        activities = (*activities, SCHOOL_STATISTICS_ACTIVITY)
     return activities
 
 
