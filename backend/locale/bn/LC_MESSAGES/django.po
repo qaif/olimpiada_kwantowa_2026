@@ -8958,3 +8958,303 @@ msgstr "স্কুল/শিক্ষকদের জন্য"
 #: apps/cms/context_processors.py
 msgid "Rejestracja nauczyciela"
 msgstr "শিক্ষক নিবন্ধন"
+
+#: apps/webinars/services.py
+msgid "Serwer webinarów nie odpowiada. Spróbuj za chwilę."
+msgstr "ওয়েবিনার সার্ভার সাড়া দিচ্ছে না। একটু পরে আবার চেষ্টা করুন।"
+
+#: apps/webinars/services.py
+#, python-format
+msgid "Wejście otworzy się %(when)s. Wróć wtedy na tę stronę."
+msgstr "প্রবেশ খুলবে %(when)s-এ। তখন এই পাতায় ফিরে আসুন।"
+
+#: apps/webinars/services.py
+msgid "Ten webinar już się zakończył."
+msgstr "এই ওয়েবিনার ইতিমধ্যে শেষ হয়ে গেছে।"
+
+#: apps/webinars/services.py
+msgid "Prowadzący jeszcze nie rozpoczął webinaru. Spróbuj ponownie za kilka minut."
+msgstr "উপস্থাপক এখনও ওয়েবিনার শুরু করেননি। কয়েক মিনিট পরে আবার চেষ্টা করুন।"
+
+#: apps/webinars/services.py
+msgid "Ten link nie jest już aktywny."
+msgstr "এই লিঙ্কটি আর সক্রিয় নেই।"
+
+#: apps/web/views/webinars.py
+msgid "Ta strona jest dostępna dla uczestników i komisji konkursu."
+msgstr "এই পাতাটি প্রতিযোগিতার অংশগ্রহণকারী ও কমিটির জন্য।"
+
+#: apps/web/views/webinars.py
+msgid "Listy o webinarach włączone."
+msgstr "ওয়েবিনার সম্পর্কিত ইমেল চালু করা হয়েছে।"
+
+#: apps/web/views/webinars.py
+msgid "Listy o webinarach wyłączone."
+msgstr "ওয়েবিনার সম্পর্কিত ইমেল বন্ধ করা হয়েছে।"
+
+#: apps/web/views/webinars.py
+msgid "Jako prowadzący wejdź przyciskiem „Rozpocznij” w panelu webinarów."
+msgstr "উপস্থাপক হিসেবে ওয়েবিনার পাতার «শুরু করুন» বোতাম দিয়ে প্রবেশ করুন।"
+
+#: apps/web/views/participant.py
+msgid "Webinary"
+msgstr "ওয়েবিনার"
+
+#: apps/webinars/notifications.py
+#, python-format
+msgid "Zaproszenie na webinar: %(title)s – Olimpiada Kwantowa"
+msgstr "ওয়েবিনারের আমন্ত্রণ: %(title)s – কোয়ান্টাম অলিম্পিয়াড"
+
+#: apps/webinars/notifications.py
+#, python-format
+msgid "Zaproszenie na webinar: %(title)s – %(competition)s"
+msgstr "ওয়েবিনারের আমন্ত্রণ: %(title)s – %(competition)s"
+
+#: apps/webinars/notifications.py
+#, python-format
+msgid "Przypomnienie o webinarze: %(title)s – Olimpiada Kwantowa"
+msgstr "ওয়েবিনারের অনুস্মারক: %(title)s – কোয়ান্টাম অলিম্পিয়াড"
+
+#: apps/webinars/notifications.py
+#, python-format
+msgid "Przypomnienie o webinarze: %(title)s – %(competition)s"
+msgstr "ওয়েবিনারের অনুস্মারক: %(title)s – %(competition)s"
+
+#: apps/webinars/notifications.py
+#, python-format
+msgid "Zapraszamy na webinar „%(title)s”."
+msgstr "আপনাকে «%(title)s» ওয়েবিনারে আমন্ত্রণ জানাচ্ছি।"
+
+#: apps/webinars/notifications.py
+#, python-format
+msgid "Przypominamy: webinar „%(title)s” zaczyna się wkrótce."
+msgstr "অনুস্মারক: «%(title)s» ওয়েবিনার শীঘ্রই শুরু হবে।"
+
+#: apps/webinars/notifications.py
+#, python-format
+msgid "Termin: %(when)s (strefa %(zone)s), czas trwania: %(minutes)s min."
+msgstr "সময়: %(when)s (সময় অঞ্চল %(zone)s), সময়কাল: %(minutes)s মিনিট।"
+
+#: apps/webinars/notifications.py
+#, python-format
+msgid "Dołączysz po zalogowaniu, przyciskiem „Dołącz” na stronie: %(link)s"
+msgstr "লগ ইন করে এই পাতার «যোগ দিন» বোতাম ব্যবহার করুন: %(link)s"
+
+#: apps/webinars/notifications.py
+msgid "Przycisk działa od kilkunastu minut przed początkiem webinaru."
+msgstr "ওয়েবিনার শুরুর প্রায় পনেরো মিনিট আগে থেকে বোতামটি কাজ করে।"
+
+#: apps/webinars/notifications.py
+#, python-format
+msgid "Nie chcesz dostawać listów o webinarach? Wyłącz je tutaj: %(link)s"
+msgstr "ওয়েবিনার সম্পর্কে ইমেল চান না? এখানে বন্ধ করুন: %(link)s"
+
+#: templates/web/webinars/list.html
+msgid "Spotkania online organizatora. Przycisk „Dołącz” działa od kilkunastu minut przed początkiem, gdy prowadzący rozpocznie webinar – spotkanie otworzy się w nowej karcie. Godziny w strefie %(zone)s."
+msgstr "আয়োজকের অনলাইন সভা। উপস্থাপক ওয়েবিনার শুরু করলে শুরুর প্রায় পনেরো মিনিট আগে থেকে «যোগ দিন» বোতাম কাজ করে – সভাটি নতুন ট্যাবে খুলবে। সময় %(zone)s অঞ্চলের।"
+
+#: templates/web/webinars/list.html
+msgid "Nadchodzące"
+msgstr "আসন্ন"
+
+#: templates/web/webinars/list.html
+msgid "u Ciebie:"
+msgstr "আপনার সময়:"
+
+#: templates/web/webinars/list.html
+msgid "Rozpocznij jako prowadzący"
+msgstr "উপস্থাপক হিসেবে শুরু করুন"
+
+#: templates/web/webinars/list.html
+msgid "Wejście od:"
+msgstr "প্রবেশ শুরু:"
+
+#: templates/web/webinars/list.html
+msgid "Nie ma zaplanowanych webinarów."
+msgstr "কোনো নির্ধারিত ওয়েবিনার নেই।"
+
+#: templates/web/webinars/list.html
+msgid "Nagrania"
+msgstr "রেকর্ডিং"
+
+#: templates/web/webinars/list.html
+msgid "Odtwórz nagranie %(number)s"
+msgstr "রেকর্ডিং %(number)s চালান"
+
+#: templates/web/webinars/list.html
+msgid "Odtwórz nagranie"
+msgstr "রেকর্ডিং চালান"
+
+#: templates/web/webinars/list.html
+msgid "Powiadomienia e-mail"
+msgstr "ইমেল বিজ্ঞপ্তি"
+
+#: templates/web/webinars/list.html
+msgid "Dostajesz zaproszenia i przypomnienia o webinarach."
+msgstr "আপনি ওয়েবিনারের আমন্ত্রণ ও অনুস্মারক পান।"
+
+#: templates/web/webinars/list.html
+msgid "Wyłącz listy o webinarach"
+msgstr "ওয়েবিনারের ইমেল বন্ধ করুন"
+
+#: templates/web/webinars/list.html
+msgid "Listy o webinarach są wyłączone – webinary widzisz tylko na tej stronie."
+msgstr "ওয়েবিনারের ইমেল বন্ধ – আপনি শুধু এই পাতায় ওয়েবিনার দেখবেন।"
+
+#: templates/web/webinars/list.html
+msgid "Włącz listy o webinarach"
+msgstr "ওয়েবিনারের ইমেল চালু করুন"
+
+#: templates/web/webinars/guest.html
+msgid "Zaproszenie na webinar"
+msgstr "ওয়েবিনারের আমন্ত্রণ"
+
+#: templates/web/webinars/guest.html
+msgid "Webinar"
+msgstr "ওয়েবিনার"
+
+#: templates/web/webinars/guest.html
+msgid "Imię i nazwisko (albo nazwa) widoczne w spotkaniu"
+msgstr "সভায় প্রদর্শিত নাম"
+
+
+#: templates/web/webinars/_committee_card.html
+msgid "Wszystkie webinary"
+msgstr "সব ওয়েবিনার"
+
+#: templates/web/webinars/list.html
+msgid "Panel"
+msgstr "প্যানেল"
+
+#: apps/web/views/webinars.py
+msgid "Łączenie…"
+msgstr "সংযোগ হচ্ছে…"
+
+#: apps/web/views/webinars.py
+msgid "Jesteś w pokoju."
+msgstr "আপনি কক্ষে আছেন।"
+
+#: apps/web/views/webinars.py
+msgid "Rozłączono. Odśwież stronę, żeby wrócić."
+msgstr "সংযোগ বিচ্ছিন্ন। ফিরে আসতে পাতাটি রিফ্রেশ করুন।"
+
+#: apps/web/views/webinars.py
+msgid "Spróbuj ponownie"
+msgstr "আবার চেষ্টা করুন"
+
+#: apps/web/views/webinars.py
+msgid "Nie udało się połączyć z pokojem."
+msgstr "কক্ষে সংযোগ করা যায়নি।"
+
+#: apps/web/views/webinars.py
+msgid "prowadzący"
+msgstr "উপস্থাপক"
+
+#: apps/web/views/webinars.py
+msgid "podniesiona ręka"
+msgstr "হাত তোলা"
+
+#: apps/web/views/webinars.py
+msgid "Podnieś rękę"
+msgstr "হাত তুলুন"
+
+#: apps/web/views/webinars.py
+msgid "Opuść rękę"
+msgstr "হাত নামান"
+
+#: apps/web/views/webinars.py
+msgid "Daj głos"
+msgstr "কথা বলতে দিন"
+
+#: apps/web/views/webinars.py
+msgid "Odbierz głos"
+msgstr "কথা বলা বন্ধ করুন"
+
+#: apps/web/views/webinars.py
+msgid "Usuń z pokoju"
+msgstr "কক্ষ থেকে সরান"
+
+#: apps/web/views/webinars.py
+msgid "Usunąć tę osobę z pokoju?"
+msgstr "এই ব্যক্তিকে কক্ষ থেকে সরাবেন?"
+
+#: apps/web/views/webinars.py
+msgid "Widok siatki"
+msgstr "গ্রিড ভিউ"
+
+#: apps/web/views/webinars.py
+msgid "Widok prelegenta"
+msgstr "বক্তা ভিউ"
+
+#: apps/web/views/webinars.py
+msgid "Nagrywaj"
+msgstr "রেকর্ড করুন"
+
+#: apps/web/views/webinars.py
+msgid "Zatrzymaj nagrywanie"
+msgstr "রেকর্ডিং বন্ধ করুন"
+
+#: apps/web/views/webinars.py
+msgid "Trwa nagrywanie"
+msgstr "রেকর্ডিং চলছে"
+
+#: apps/web/views/webinars.py
+msgid "Prowadzący dał Ci głos – możesz włączyć mikrofon i kamerę."
+msgstr "উপস্থাপক আপনাকে কথা বলার সুযোগ দিয়েছেন – মাইক্রোফোন ও ক্যামেরা চালু করতে পারেন।"
+
+#: apps/web/views/webinars.py
+msgid "Prowadzący odebrał Ci głos."
+msgstr "উপস্থাপক আপনার কথা বলা বন্ধ করেছেন।"
+
+#: apps/web/views/webinars.py
+msgid "Udostępnij ekran"
+msgstr "স্ক্রিন শেয়ার করুন"
+
+#: apps/web/views/webinars.py
+msgid "Zakończ udostępnianie"
+msgstr "শেয়ার বন্ধ করুন"
+
+#: apps/web/views/webinars.py
+#, python-format
+msgid "Ekran: %(name)s"
+msgstr "স্ক্রিন: %(name)s"
+
+#: apps/web/views/webinars.py
+msgid "Coś poszło nie tak. Spróbuj ponownie."
+msgstr "কিছু ভুল হয়েছে। আবার চেষ্টা করুন।"
+
+#: templates/web/webinars/room.html
+msgid "Wyjdź"
+msgstr "বেরিয়ে যান"
+
+#: templates/web/webinars/room.html
+msgid "Pokój webinaru wymaga włączonego JavaScriptu."
+msgstr "ওয়েবিনার কক্ষের জন্য JavaScript প্রয়োজন।"
+
+#: templates/web/webinars/room.html
+msgid "Pokój jest chwilowo niedostępny – brakuje komponentu wideo na serwerze. Daj znać organizatorowi."
+msgstr "কক্ষটি সাময়িকভাবে অনুপলব্ধ – সার্ভারে ভিডিও উপাদান নেই। আয়োজককে জানান।"
+
+#: templates/web/webinars/room.html
+msgid "Obraz uczestników"
+msgstr "অংশগ্রহণকারীদের ভিডিও"
+
+#: templates/web/webinars/room.html
+msgid "Czat"
+msgstr "চ্যাট"
+
+#: templates/web/webinars/room.html
+msgid "Sterowanie"
+msgstr "নিয়ন্ত্রণ"
+
+#: templates/web/webinars/room.html
+msgid "Mikrofon"
+msgstr "মাইক্রোফোন"
+
+#: templates/web/webinars/room.html
+msgid "Kamera"
+msgstr "ক্যামেরা"
+
+#: templates/web/webinars/guest.html
+msgid "Wejście działa od kilkunastu minut przed początkiem, gdy prowadzący rozpocznie webinar. Wchodzisz jako widz – głos daje prowadzący."
+msgstr "উপস্থাপক ওয়েবিনার শুরু করলে শুরুর প্রায় পনেরো মিনিট আগে থেকে প্রবেশ করা যায়। আপনি দর্শক হিসেবে প্রবেশ করবেন – কথা বলার সুযোগ দেন উপস্থাপক।"

@@ -772,6 +772,51 @@ WORKSHOP_MATERIALS_ACTIVITY = _activity(
 )
 
 
+#: Czynność **warunkowa**: webinary w LiveKit (zadanie WEB-01, przełącznik ``webinars``). Wchodzi
+#: do rejestru wyłącznie konkursom z włączonym przełącznikiem – ten sam powód, co forum. Serwer
+#: LiveKit jest **własny** (instalacja operatora platformy albo maszyna organizatora), nagrania leżą
+#: w prywatnym buckecie platformy – nie ma tu zewnętrznego dostawcy wideo.
+WEBINARS_ACTIVITY = _activity(
+    key="webinary",
+    name="Webinary online (LiveKit)",
+    purpose=(
+        "Prowadzenie spotkań online organizatora z uczestnikami i komisją (wykłady, konsultacje, "
+        "omówienia zadań), lista obecności, zaproszenia i przypomnienia oraz – gdy prowadzący włączy "
+        "nagrywanie – udostępnienie nagrań odbiorcom webinaru."
+    ),
+    legal_basis=(
+        "art. 6 ust. 1 lit. f RODO (prawnie uzasadniony interes administratora – prowadzenie zajęć "
+        "towarzyszących konkursowi); listy – z możliwością wyłączenia jednym przełącznikiem"
+    ),
+    subjects="uczestnicy, członkowie komisji i goście z linku, którzy wchodzą na webinar",
+    categories=[
+        "nazwa wyświetlana w pokoju (imię i inicjał nazwiska; gość – nazwa wpisana przez siebie)",
+        "pseudonim konta (HMAC – bez identyfikatora i adresu e-mail konta)",
+        "czas wejścia i wyjścia z pokoju (lista obecności)",
+        "obraz, głos i wiadomości czatu – wyłącznie gdy osoba je włączy; w nagraniu – gdy prowadzący nagrywa",
+        "adres e-mail – do zaproszenia i przypomnienia (bez tokenu wejścia)",
+    ],
+    recipients=[
+        HOSTING_RECIPIENT,
+        "serwer LiveKit operatora platformy (przekazywanie obrazu i dźwięku w czasie rzeczywistym)",
+        "koordynatorzy i prowadzący webinaru – lista obecnych i nagrania",
+        "YouTube (Google) – wyłącznie gdy koordynator włączy transmisję na żywo",
+    ],
+    retention=(
+        "obraz i dźwięk – nie są przechowywane poza nagraniem; nagrania – do usunięcia przez "
+        "koordynatora; lista obecności – razem z webinarem; wpisy audytu wejść – jak pozostały audyt"
+    ),
+    measures=[
+        "funkcja domyślnie wyłączona i wymaga własnego serwera LiveKit",
+        "token wejścia powstaje przy każdym wejściu po sprawdzeniu uprawnień, żyje kilka minut "
+        "i nie trafia do listów ani do stron",
+        "widz nie nadaje obrazu ani dźwięku, dopóki prowadzący nie da mu głosu",
+        "nagranie widzą odbiorcy webinaru dopiero po opublikowaniu, przez adres ważny dwie godziny",
+        "link dla gości domyślnie wyłączony",
+    ],
+)
+
+
 #: Czynność **warunkowa**: wchodzi do rejestru wyłącznie konkursom z włączoną oceną AI
 #: (przełącznik ``ai_grading``, prośba organizatora z 24.09.2026) – z tego samego powodu, co forum:
 #: rejestr opisuje przetwarzanie, które naprawdę zachodzi.
@@ -896,6 +941,8 @@ def activities_for(competition=None) -> tuple[ProcessingActivity, ...]:
         activities = (*activities, WORKSHOP_MATERIALS_ACTIVITY)
     if competition is not None and competition.has_feature(AI_GRADING_FLAG):
         activities = (*activities, ai_grading_activity(competition))
+    if competition is not None and competition.has_feature("webinars"):
+        activities = (*activities, WEBINARS_ACTIVITY)
     return activities
 
 

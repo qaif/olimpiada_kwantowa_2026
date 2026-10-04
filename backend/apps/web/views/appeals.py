@@ -19,6 +19,7 @@ from apps.grading.models import ROUND_BLIND, ReviewStatus
 from apps.web.forms import AppealDecideForm
 from apps.web.mixins import ActionViewMixin, AppealsCommitteeRequiredMixin
 from apps.web.points_fields import score_form_error
+from apps.webinars.services import committee_webinars_context
 
 
 def _round_one_reviews(appeal: Appeal) -> list[dict]:
@@ -53,6 +54,8 @@ class AppealsQueueView(AppealsCommitteeRequiredMixin, TemplateView):
         context["decide_form"] = AppealDecideForm()
         # Pokoje wideo udostępnione komisji (v0.39.0) – pusty słownik bez zapytań bez przepustek.
         context.update(committee_rooms_context(self.request.user, self.competition))
+        # Webinary (WEB-01) – pusty słownik bez zapytań w konkursie bez webinarów.
+        context.update(committee_webinars_context(self.request.user, self.competition))
         return context
 
 

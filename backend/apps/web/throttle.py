@@ -104,7 +104,9 @@ IDENTITY_FIELDS = ("email", "username")
 #: ``video`` i ``video_rooms`` (v0.39.0) – wejście do pokoju wideo i zakładanie pokoi z długimi
 #: linkami. Też wyłącznie za logowaniem, a koszt (wystawione przepustki) też przypada na konto:
 #: komisja rozmawiająca z jednej sali za jednym NAT-em nie może dzielić jednego budżetu wejść.
-PER_USER_SCOPES = frozenset({"chat", "forum", "video", "video_rooms"})
+#:
+#: ``webinar_join`` (WEB-01) – token wejścia na webinar i czynności prowadzącego, z tego samego powodu.
+PER_USER_SCOPES = frozenset({"chat", "forum", "video", "video_rooms", "webinar_join"})
 
 #: Jak często (sekundy) wolno zalogować awarię cache'a jednym procesem – patrz ``_report_outage``.
 OUTAGE_LOG_INTERVAL = 60

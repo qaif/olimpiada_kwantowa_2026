@@ -720,6 +720,18 @@ def groups(stages: list, competition=None) -> list[Group]:
                 match=("coordinator-video-rooms", "coordinator-video-room-", "coordinator-video-issuer"),
             ),
         )
+    if competition is not None and competition.has_feature("webinars"):
+        # Webinary w LiveKit (zadanie WEB-01). Bramką jest **flaga konkursu**, a nie konfiguracja
+        # serwera LiveKit: koordynator konkursu z flagą ma zobaczyć ekran także wtedy, gdy operator
+        # jeszcze nie wpisał ``LIVEKIT_URL`` – ekran mówi wtedy wprost, czego brakuje, zamiast
+        # funkcji, która po cichu nie istnieje. Bez flagi menu jest co do bajtu takie, jak dotąd.
+        communication += (
+            Item(
+                "Webinary",
+                ("web:coordinator-webinars",),
+                match=("coordinator-webinars", "coordinator-webinar", "coordinator-webinar-"),
+            ),
+        )
     people_items: tuple[Item, ...] = ()
     if competition is not None and competition.has_feature("team_entries"):
         # Drużyny (§ 1.2.3, T34) – **na końcu** sekcji „Uczestnicy i konta”, bo cztery pozycje

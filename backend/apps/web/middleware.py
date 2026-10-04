@@ -181,6 +181,23 @@ def form_action_sources() -> str:
     return " ".join(["'self'", *provider_form_action_sources()])
 
 
+def webinar_connect_sources() -> tuple[str, ...]:
+    """Serwer LiveKit (zadanie WEB-01) – **tylko** przy skonfigurowanym ``LIVEKIT_URL``/kluczu/sekrecie.
+
+    Jedyna zmiana polityki, której wymaga pokój webinaru na platformie, i to wyłącznie w
+    ``connect-src``: SDK ``livekit-client`` otwiera sygnalizację WebSocketem (``wss://host``), a przy
+    błędzie połączenia sprawdza serwer zwykłym ``fetch`` na ``https://host/rtc/validate``. Obraz
+    i dźwięk idą WebRTC (``RTCPeerConnection``), którego CSP nie obejmuje; ścieżki podpina się do
+    ``<video>`` przez ``srcObject`` (strumień, nie adres), więc ``media-src`` zostaje bez zmian, a
+    worker SDK jest potrzebny wyłącznie do szyfrowania E2EE, którego nie używamy – ``worker-src``
+    też bez zmian. ``frame-src`` bez zmian: pokój to nasza strona, nie ramka. Instalacja bez
+    LiveKit ma politykę bajt w bajt taką, jak przed tą funkcją.
+    """
+    from apps.webinars.livekit import csp_origins
+
+    return csp_origins()
+
+
 def build_policy(nonce: str, *, analytics: bool = False) -> str:
     """Buduje treść polityki dla jednego żądania (nonce jest jednorazowy).
 
@@ -197,7 +214,12 @@ def build_policy(nonce: str, *, analytics: bool = False) -> str:
     # obrazkiem, ale żaden plik audio ani wideo nie przychodzi z Google'a.
     img_sources = _with_storage(["'self'", "data:", "blob:", *(ANALYTICS_IMG_SOURCES if analytics else ())])
     connect_sources = _with_storage(
-        ["'self'", *SCRIPT_CDN_SOURCES, *(ANALYTICS_CONNECT_SOURCES if analytics else ())]
+        [
+            "'self'",
+            *SCRIPT_CDN_SOURCES,
+            *(ANALYTICS_CONNECT_SOURCES if analytics else ()),
+            *webinar_connect_sources(),
+        ]
     )
     directives = [
         "default-src 'self'",

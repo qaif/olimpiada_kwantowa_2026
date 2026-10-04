@@ -8924,3 +8924,303 @@ msgstr "विद्यालयों/शिक्षकों के लिए
 #: apps/cms/context_processors.py
 msgid "Rejestracja nauczyciela"
 msgstr "शिक्षक पंजीकरण"
+
+#: apps/webinars/services.py
+msgid "Serwer webinarów nie odpowiada. Spróbuj za chwilę."
+msgstr "वेबिनार सर्वर जवाब नहीं दे रहा है। कुछ देर बाद फिर से कोशिश करें।"
+
+#: apps/webinars/services.py
+#, python-format
+msgid "Wejście otworzy się %(when)s. Wróć wtedy na tę stronę."
+msgstr "प्रवेश %(when)s पर खुलेगा। तब इस पेज पर वापस आएँ।"
+
+#: apps/webinars/services.py
+msgid "Ten webinar już się zakończył."
+msgstr "यह वेबिनार पहले ही समाप्त हो चुका है।"
+
+#: apps/webinars/services.py
+msgid "Prowadzący jeszcze nie rozpoczął webinaru. Spróbuj ponownie za kilka minut."
+msgstr "होस्ट ने अभी तक वेबिनार शुरू नहीं किया है। कुछ मिनट बाद फिर से कोशिश करें।"
+
+#: apps/webinars/services.py
+msgid "Ten link nie jest już aktywny."
+msgstr "यह लिंक अब सक्रिय नहीं है।"
+
+#: apps/web/views/webinars.py
+msgid "Ta strona jest dostępna dla uczestników i komisji konkursu."
+msgstr "यह पेज प्रतियोगिता के प्रतिभागियों और समिति के लिए उपलब्ध है।"
+
+#: apps/web/views/webinars.py
+msgid "Listy o webinarach włączone."
+msgstr "वेबिनार संबंधी ईमेल चालू कर दिए गए।"
+
+#: apps/web/views/webinars.py
+msgid "Listy o webinarach wyłączone."
+msgstr "वेबिनार संबंधी ईमेल बंद कर दिए गए।"
+
+#: apps/web/views/webinars.py
+msgid "Jako prowadzący wejdź przyciskiem „Rozpocznij” w panelu webinarów."
+msgstr "होस्ट के रूप में, वेबिनार पेज पर «शुरू करें» बटन से प्रवेश करें।"
+
+#: apps/web/views/participant.py
+msgid "Webinary"
+msgstr "वेबिनार"
+
+#: apps/webinars/notifications.py
+#, python-format
+msgid "Zaproszenie na webinar: %(title)s – Olimpiada Kwantowa"
+msgstr "वेबिनार का निमंत्रण: %(title)s – क्वांटम ओलंपियाड"
+
+#: apps/webinars/notifications.py
+#, python-format
+msgid "Zaproszenie na webinar: %(title)s – %(competition)s"
+msgstr "वेबिनार का निमंत्रण: %(title)s – %(competition)s"
+
+#: apps/webinars/notifications.py
+#, python-format
+msgid "Przypomnienie o webinarze: %(title)s – Olimpiada Kwantowa"
+msgstr "वेबिनार अनुस्मारक: %(title)s – क्वांटम ओलंपियाड"
+
+#: apps/webinars/notifications.py
+#, python-format
+msgid "Przypomnienie o webinarze: %(title)s – %(competition)s"
+msgstr "वेबिनार अनुस्मारक: %(title)s – %(competition)s"
+
+#: apps/webinars/notifications.py
+#, python-format
+msgid "Zapraszamy na webinar „%(title)s”."
+msgstr "आपको «%(title)s» वेबिनार में आमंत्रित किया जाता है।"
+
+#: apps/webinars/notifications.py
+#, python-format
+msgid "Przypominamy: webinar „%(title)s” zaczyna się wkrótce."
+msgstr "अनुस्मारक: «%(title)s» वेबिनार जल्द शुरू होगा।"
+
+#: apps/webinars/notifications.py
+#, python-format
+msgid "Termin: %(when)s (strefa %(zone)s), czas trwania: %(minutes)s min."
+msgstr "समय: %(when)s (समय क्षेत्र %(zone)s), अवधि: %(minutes)s मिनट।"
+
+#: apps/webinars/notifications.py
+#, python-format
+msgid "Dołączysz po zalogowaniu, przyciskiem „Dołącz” na stronie: %(link)s"
+msgstr "लॉग इन करें और इस पेज पर «शामिल हों» बटन का उपयोग करें: %(link)s"
+
+#: apps/webinars/notifications.py
+msgid "Przycisk działa od kilkunastu minut przed początkiem webinaru."
+msgstr "बटन वेबिनार शुरू होने से लगभग पंद्रह मिनट पहले से काम करता है।"
+
+#: apps/webinars/notifications.py
+#, python-format
+msgid "Nie chcesz dostawać listów o webinarach? Wyłącz je tutaj: %(link)s"
+msgstr "वेबिनार के बारे में ईमेल नहीं चाहते? यहाँ बंद करें: %(link)s"
+
+#: templates/web/webinars/list.html
+msgid "Spotkania online organizatora. Przycisk „Dołącz” działa od kilkunastu minut przed początkiem, gdy prowadzący rozpocznie webinar – spotkanie otworzy się w nowej karcie. Godziny w strefie %(zone)s."
+msgstr "आयोजक की ऑनलाइन बैठकें। होस्ट द्वारा वेबिनार शुरू करने पर, शुरुआत से लगभग पंद्रह मिनट पहले से «शामिल हों» बटन काम करता है – बैठक नए टैब में खुलेगी। समय %(zone)s क्षेत्र के अनुसार।"
+
+#: templates/web/webinars/list.html
+msgid "Nadchodzące"
+msgstr "आगामी"
+
+#: templates/web/webinars/list.html
+msgid "u Ciebie:"
+msgstr "आपका समय:"
+
+#: templates/web/webinars/list.html
+msgid "Rozpocznij jako prowadzący"
+msgstr "होस्ट के रूप में शुरू करें"
+
+#: templates/web/webinars/list.html
+msgid "Wejście od:"
+msgstr "प्रवेश से:"
+
+#: templates/web/webinars/list.html
+msgid "Nie ma zaplanowanych webinarów."
+msgstr "कोई निर्धारित वेबिनार नहीं है।"
+
+#: templates/web/webinars/list.html
+msgid "Nagrania"
+msgstr "रिकॉर्डिंग"
+
+#: templates/web/webinars/list.html
+msgid "Odtwórz nagranie %(number)s"
+msgstr "रिकॉर्डिंग %(number)s चलाएँ"
+
+#: templates/web/webinars/list.html
+msgid "Odtwórz nagranie"
+msgstr "रिकॉर्डिंग चलाएँ"
+
+#: templates/web/webinars/list.html
+msgid "Powiadomienia e-mail"
+msgstr "ईमेल सूचनाएँ"
+
+#: templates/web/webinars/list.html
+msgid "Dostajesz zaproszenia i przypomnienia o webinarach."
+msgstr "आपको वेबिनार के निमंत्रण और अनुस्मारक मिलते हैं।"
+
+#: templates/web/webinars/list.html
+msgid "Wyłącz listy o webinarach"
+msgstr "वेबिनार ईमेल बंद करें"
+
+#: templates/web/webinars/list.html
+msgid "Listy o webinarach są wyłączone – webinary widzisz tylko na tej stronie."
+msgstr "वेबिनार ईमेल बंद हैं – वेबिनार आपको केवल इसी पेज पर दिखेंगे।"
+
+#: templates/web/webinars/list.html
+msgid "Włącz listy o webinarach"
+msgstr "वेबिनार ईमेल चालू करें"
+
+#: templates/web/webinars/guest.html
+msgid "Zaproszenie na webinar"
+msgstr "वेबिनार का निमंत्रण"
+
+#: templates/web/webinars/guest.html
+msgid "Webinar"
+msgstr "वेबिनार"
+
+#: templates/web/webinars/guest.html
+msgid "Imię i nazwisko (albo nazwa) widoczne w spotkaniu"
+msgstr "बैठक में दिखने वाला नाम"
+
+
+#: templates/web/webinars/_committee_card.html
+msgid "Wszystkie webinary"
+msgstr "सभी वेबिनार"
+
+#: templates/web/webinars/list.html
+msgid "Panel"
+msgstr "पैनल"
+
+#: apps/web/views/webinars.py
+msgid "Łączenie…"
+msgstr "कनेक्ट हो रहा है…"
+
+#: apps/web/views/webinars.py
+msgid "Jesteś w pokoju."
+msgstr "आप कमरे में हैं।"
+
+#: apps/web/views/webinars.py
+msgid "Rozłączono. Odśwież stronę, żeby wrócić."
+msgstr "कनेक्शन टूट गया। वापस आने के लिए पेज रीफ़्रेश करें।"
+
+#: apps/web/views/webinars.py
+msgid "Spróbuj ponownie"
+msgstr "फिर से कोशिश करें"
+
+#: apps/web/views/webinars.py
+msgid "Nie udało się połączyć z pokojem."
+msgstr "कमरे से कनेक्ट नहीं हो सका।"
+
+#: apps/web/views/webinars.py
+msgid "prowadzący"
+msgstr "होस्ट"
+
+#: apps/web/views/webinars.py
+msgid "podniesiona ręka"
+msgstr "हाथ उठाया"
+
+#: apps/web/views/webinars.py
+msgid "Podnieś rękę"
+msgstr "हाथ उठाएँ"
+
+#: apps/web/views/webinars.py
+msgid "Opuść rękę"
+msgstr "हाथ नीचे करें"
+
+#: apps/web/views/webinars.py
+msgid "Daj głos"
+msgstr "बोलने दें"
+
+#: apps/web/views/webinars.py
+msgid "Odbierz głos"
+msgstr "बोलने से रोकें"
+
+#: apps/web/views/webinars.py
+msgid "Usuń z pokoju"
+msgstr "कमरे से हटाएँ"
+
+#: apps/web/views/webinars.py
+msgid "Usunąć tę osobę z pokoju?"
+msgstr "इस व्यक्ति को कमरे से हटाएँ?"
+
+#: apps/web/views/webinars.py
+msgid "Widok siatki"
+msgstr "ग्रिड दृश्य"
+
+#: apps/web/views/webinars.py
+msgid "Widok prelegenta"
+msgstr "वक्ता दृश्य"
+
+#: apps/web/views/webinars.py
+msgid "Nagrywaj"
+msgstr "रिकॉर्ड करें"
+
+#: apps/web/views/webinars.py
+msgid "Zatrzymaj nagrywanie"
+msgstr "रिकॉर्डिंग रोकें"
+
+#: apps/web/views/webinars.py
+msgid "Trwa nagrywanie"
+msgstr "रिकॉर्डिंग जारी है"
+
+#: apps/web/views/webinars.py
+msgid "Prowadzący dał Ci głos – możesz włączyć mikrofon i kamerę."
+msgstr "होस्ट ने आपको बोलने दिया है – आप माइक्रोफ़ोन और कैमरा चालू कर सकते हैं।"
+
+#: apps/web/views/webinars.py
+msgid "Prowadzący odebrał Ci głos."
+msgstr "होस्ट ने आपको बोलने से रोक दिया।"
+
+#: apps/web/views/webinars.py
+msgid "Udostępnij ekran"
+msgstr "स्क्रीन साझा करें"
+
+#: apps/web/views/webinars.py
+msgid "Zakończ udostępnianie"
+msgstr "साझा करना बंद करें"
+
+#: apps/web/views/webinars.py
+#, python-format
+msgid "Ekran: %(name)s"
+msgstr "स्क्रीन: %(name)s"
+
+#: apps/web/views/webinars.py
+msgid "Coś poszło nie tak. Spróbuj ponownie."
+msgstr "कुछ गलत हो गया। फिर से कोशिश करें।"
+
+#: templates/web/webinars/room.html
+msgid "Wyjdź"
+msgstr "बाहर निकलें"
+
+#: templates/web/webinars/room.html
+msgid "Pokój webinaru wymaga włączonego JavaScriptu."
+msgstr "वेबिनार कक्ष के लिए JavaScript आवश्यक है।"
+
+#: templates/web/webinars/room.html
+msgid "Pokój jest chwilowo niedostępny – brakuje komponentu wideo na serwerze. Daj znać organizatorowi."
+msgstr "कमरा अस्थायी रूप से उपलब्ध नहीं है – सर्वर पर वीडियो घटक नहीं है। आयोजक को बताएँ।"
+
+#: templates/web/webinars/room.html
+msgid "Obraz uczestników"
+msgstr "प्रतिभागियों का वीडियो"
+
+#: templates/web/webinars/room.html
+msgid "Czat"
+msgstr "चैट"
+
+#: templates/web/webinars/room.html
+msgid "Sterowanie"
+msgstr "नियंत्रण"
+
+#: templates/web/webinars/room.html
+msgid "Mikrofon"
+msgstr "माइक्रोफ़ोन"
+
+#: templates/web/webinars/room.html
+msgid "Kamera"
+msgstr "कैमरा"
+
+#: templates/web/webinars/guest.html
+msgid "Wejście działa od kilkunastu minut przed początkiem, gdy prowadzący rozpocznie webinar. Wchodzisz jako widz – głos daje prowadzący."
+msgstr "होस्ट द्वारा वेबिनार शुरू करने पर, शुरुआत से लगभग पंद्रह मिनट पहले से प्रवेश संभव है। आप दर्शक के रूप में प्रवेश करते हैं – बोलने की अनुमति होस्ट देते हैं।"
