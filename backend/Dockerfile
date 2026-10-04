@@ -25,8 +25,8 @@ RUN mkdir -p /app/staticfiles && chown app:app /app/staticfiles && chmod +x /app
 # Katalogi tłumaczeń: ``msgfmt`` wprost, a nie ``manage.py compilemessages``. Powody są dwa:
 # komenda Django ładuje ustawienia (czyli wymagałaby kompletu zmiennych środowiskowych już na
 # etapie budowania obrazu) i przechodzi po **całym** drzewie, łącznie z katalogami tłumaczeń
-# bibliotek w wirtualnym środowisku. Tutaj kompilujemy dokładnie to, co jest nasze.
-# Także katalogi aplikacji (``apps/<nazwa>/locale``) – Django scala je z ``locale/`` (MED-01).
+# bibliotek w wirtualnym środowisku. Tutaj kompilujemy dokładnie to, co jest nasze: katalog główny
+# i katalogi aplikacji (``apps/<nazwa>/locale`` – Django scala je z głównym przy tłumaczeniu).
 RUN set -eu; for po in locale/*/LC_MESSAGES/django.po apps/*/locale/*/LC_MESSAGES/django.po; do \
         [ -e "$po" ] || continue; \
         msgfmt -o "${po%.po}.mo" "$po"; \

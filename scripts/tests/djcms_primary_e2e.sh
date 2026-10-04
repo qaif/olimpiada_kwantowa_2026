@@ -290,7 +290,7 @@ USER root
 RUN find /app -mindepth 1 -maxdepth 1 ! -name staticfiles -exec rm -rf {} +
 COPY --chown=app:app . /app
 RUN chmod +x /app/entrypoint.sh && mkdir -p /app/staticfiles && chown app:app /app/staticfiles \\
- && for po in /app/locale/*/LC_MESSAGES/django.po; do [ -e "\$po" ] || continue; msgfmt -o "\${po%.po}.mo" "\$po"; done
+ && for po in /app/locale/*/LC_MESSAGES/django.po /app/apps/*/locale/*/LC_MESSAGES/django.po; do [ -e "\$po" ] || continue; msgfmt -o "\${po%.po}.mo" "\$po"; done
 USER app
 EOF
     docker build -t olimpiada/web:e2e-djcms -f "$(host_path "$WORK/web-context/Dockerfile.e2e")" \
