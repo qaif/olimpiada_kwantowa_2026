@@ -1,0 +1,39 @@
+{% load i18n %}{% if show %}{% comment %}
+  Panel recenzenta (tag ``notebook_review_panel``): punkty za testy ukryte tej wersji pracy.
+  Bez danych uczestnika – anonimowość recenzji zostaje. Podpowiedź, nie ocena (QC-01 § 0).
+{% endcomment %}
+<details class="card card--quiet" open>
+  <summary><strong>{% translate "Testy automatyczne (notatnik)" %}</strong></summary>
+  {% if run is None %}
+    <p class="hint">{% translate "Ta wersja pracy nie została jeszcze sprawdzona testami." %}</p>
+  {% elif run.status == "DONE" %}
+    <p>{% blocktranslate trimmed with score=run.score|floatformat:"-2" total=run.max_score|floatformat:"-2" %}
+      Wynik testów ukrytych: <strong>{{ score }} z {{ total }} pkt</strong>.
+    {% endblocktranslate %}</p>
+    <div class="scroll">
+      <table class="table">
+        <thead><tr><th>{% translate "Test" %}</th><th>{% translate "Punkty" %}</th><th>{% translate "Komunikat" %}</th></tr></thead>
+        <tbody>
+          {% for item in run.results %}
+            <tr>
+              <td>{% if item.passed %}✔{% else %}✘{% endif %} {{ item.name }}</td>
+              <td class="num">{{ item.points|floatformat:"-2" }} / {{ item.max_points|floatformat:"-2" }}</td>
+              <td>{{ item.message }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if run.cell_errors %}
+      <p class="hint">{% blocktranslate trimmed count counter=run.cell_errors|length %}
+        {{ counter }} komórka zakończyła się błędem.{% plural %}{{ counter }} komórek zakończyło się błędem.
+      {% endblocktranslate %}</p>
+    {% endif %}
+    <p class="hint">{% translate "Punkty z testów są podpowiedzią – ocenę wystawiasz według skali zadania." %}</p>
+  {% elif run.status == "ERROR" %}
+    <p class="msg msg-warning">{{ error }}</p>
+  {% else %}
+    <p class="hint">{% translate "Sprawdzanie w toku." %}</p>
+  {% endif %}
+</details>
+{% endif %}

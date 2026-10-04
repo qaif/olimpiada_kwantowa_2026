@@ -287,6 +287,13 @@ FEATURE_DEFAULTS: dict[str, bool] = {
     # komendą ``theme_install --activate``) renderuje się w motywie także przy fladze wyłączonej –
     # flaga decyduje wyłącznie o tym, czy koordynator może motyw zmieniać sam.
     "themes": False,
+    # --- notatniki kwantowe ------------------------------------------------------------------------
+    # JupyterLite przy zadaniu i zadania sprawdzane automatycznie w piaskownicy (QC-01,
+    # ``apps.notebooks``). Wyłączona znaczy, że adresów ``/coordinator/notebooks/…`` i
+    # ``/me/notebooks/…`` **nie ma** (404), a karta zadania, panel recenzenta i menu wyglądają co do
+    # bajtu jak dziś. Domyślnie wyłączona, bo ocena automatyczna wymaga kroku operatora, którego
+    # wdrożenie samo nie zrobi: kontenera piaskownicy (profil compose ``notebooks``).
+    "quantum_notebooks": False,
 }
 
 

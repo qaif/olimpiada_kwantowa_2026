@@ -2,6 +2,9 @@
 
 from django.urls import path
 
+# Notatniki kwantowe (QC-01) – wzorce w module aplikacji, rozwinięte na końcu listy.
+from apps.notebooks.urls import urlpatterns as notebook_urlpatterns
+
 # Wzorce ekranów wydań E–K stoją w osobnych modułach, bo powstały równolegle (T11, T13, T20, T23,
 # T27, T34, T42), a ten plik ma w etapie 2 **jednego** właściciela na wydanie
 # (``docs/UNIWERSALNY-ETAP-2.md`` § 4.1). Montaż jest rozwinięciem tych list na **końcu**
@@ -1151,4 +1154,6 @@ urlpatterns = [
     *webinar_urlpatterns,
     # --- delegacje krajowe: opiekun drużyny i ekran koordynatora (DEL-01, 4.10.2026) ------------
     *delegation_urlpatterns,
+    # --- notatniki kwantowe w przeglądarce i ocena automatyczna (zadanie QC-01, flaga) ------------
+    *notebook_urlpatterns,
 ]

@@ -168,6 +168,8 @@ INSTALLED_APPS = [
     # na platformie, listę obecności z webhooków i nagrania. **Po** ``apps.competitions`` i ``apps.accounts``,
     # bo czyta etapy, drużyny i role; **przed** ``apps.web``, który ją wyświetla.
     "apps.webinars",
+    # Notatniki kwantowe w przeglądarce (JupyterLite) i zadania sprawdzane automatycznie (QC-01).
+    "apps.notebooks",
     # Warstwa integracyjna: klucze API dla systemów zewnętrznych, webhooki i eksporty na zewnątrz.
     # **Po** aplikacjach domeny, bo czyta je wszystkie (edycje, wyniki, zgłoszenia), a żadna z nich
     # nie czyta jej – zależność idzie w jedną stronę i kolejność w tej liście ma to pokazywać.
@@ -500,6 +502,12 @@ CELERY_TASK_ROUTES = {
 CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
 CELERY_TIMEZONE = "UTC"
 CELERY_BEAT_SCHEDULE = {
+    # Notatniki kwantowe (QC-01): przebiegi oceny dla nowych czystych plików .ipynb i domknięcie
+    # zgubionych. Bez zmian w ``apps.submissions`` – beat zauważa nowy plik sam, najpóźniej po minucie.
+    "notebooks-pump": {
+        "task": "apps.notebooks.tasks.pump_notebook_runs",
+        "schedule": 60.0,
+    },
     # Zamknięcie etapu po deadline: LOCKED na najnowszych wersjach + znacznik Stage.closed_at.
     "close-due-stages": {
         "task": "apps.submissions.tasks.close_due_stages",
@@ -1235,6 +1243,9 @@ REST_FRAMEWORK = {
         # za mało, żeby zasypać cudzą skrzynkę albo kolejkę premoderacji. Listy o wiadomościach
         # i tak są zbijane (``apps.chat.notifications``), więc limit chroni rozmowę, nie pocztę.
         "chat": "60/hour",
+        # Panel notatników kwantowych (QC-01): zapis ustawień zadania, „sprawdź wzorzec”, „przelicz
+        # wszystko”. Każde z dwóch ostatnich uruchamia kod w piaskownicy – limit chroni jej kolejkę.
+        "notebooks": "60/hour",
         # Podpowiedzi szkół w formularzu rejestracji. Limit jest wysoki, bo jedno wypełnienie
         # formularza to kilkanaście żądań (jedno na przerwę w pisaniu), a dane są jawnym
         # rejestrem publicznym – chronimy tu koszt zapytania, nie treść.
@@ -1399,6 +1410,21 @@ SPECTACULAR_SETTINGS = {
         "StageKindEnum": "apps.competitions.models.StageKind.choices",
     },
 }
+
+# --- notatniki kwantowe (apps.notebooks, QC-01) --------------------------------------------------
+# Katalog wymiany zadań z kontenerem piaskownicy ``notebook-runner`` (wolumen ``notebook_spool``
+# zamontowany w workerze i w piaskownicy). Bez kontenera – brak katalogu i przebiegi kończą się
+# błędem „środowisko sprawdzania niedostępne”, a nie wiszą.
+NOTEBOOK_SPOOL_DIR = env("NOTEBOOK_SPOOL_DIR", default="/spool")
+# Wykonanie w podprocesie workera zamiast w kontenerze (dev, testy). W produkcji zakazane –
+# brak izolacji sieci i sekretów (sprawdzenie ``notebooks.E001`` w ``apps/notebooks/checks.py``).
+NOTEBOOK_RUNNER_INLINE = env.bool("NOTEBOOK_RUNNER_INLINE", default=False)
+# Zbudowane JupyterLite (etap ``notebook-lab`` w backend/Dockerfile): ``<katalog>/<BUILD_ID>/…``
+# i ``<katalog>/current.json``. Proces web kopiuje go do ``STATIC_ROOT/notebook-lab`` (entrypoint.sh),
+# skąd w produkcji podaje go Caddy; w dev (DEBUG) – WhiteNoise przez findery, z tego katalogu.
+NOTEBOOK_LAB_DIR = env("NOTEBOOK_LAB_DIR", default=str(BASE_DIR / "notebook_lab_dist"))
+if DEBUG and Path(NOTEBOOK_LAB_DIR).is_dir():
+    STATICFILES_DIRS = [*STATICFILES_DIRS, ("notebook-lab", NOTEBOOK_LAB_DIR)]
 
 # --- pieczęć elektroniczna dyplomów (apps.results.signing) -------------------------------------
 # Bez ścieżki do pliku PKCS#12 podpisywanie jest **wyłączone** i dokumenty wychodzą niepodpisane –

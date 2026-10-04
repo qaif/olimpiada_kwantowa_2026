@@ -198,7 +198,13 @@ def webinar_connect_sources() -> tuple[str, ...]:
     return csp_origins()
 
 
-def build_policy(nonce: str, *, analytics: bool = False, theme_assets: bool = False) -> str:
+def build_policy(
+    nonce: str,
+    *,
+    analytics: bool = False,
+    theme_assets: bool = False,
+    extra_frame_sources: tuple[str, ...] = (),
+) -> str:
     """Buduje treść polityki dla jednego żądania (nonce jest jednorazowy).
 
     ``analytics`` dokłada hosty Google Analytics 4 – i tylko wtedy, gdy organizator wpisał
@@ -244,11 +250,35 @@ def build_policy(nonce: str, *, analytics: bool = False, theme_assets: bool = Fa
         f"script-src {' '.join(script_src)}",
         f"connect-src {connect_sources}",
         # Zamknięta lista dostawców osadzeń – ta sama, na którą zawężony jest WAGTAILEMBEDS_FINDERS.
-        f"frame-src {' '.join(EMBED_FRAME_SOURCES)}",
+        f"frame-src {' '.join([*EMBED_FRAME_SOURCES, *extra_frame_sources])}",
         # pdf.js uruchamia worker; przy CDN cross-origin robi to przez blob: (fallback biblioteki).
         "worker-src 'self' blob:",
     ]
     return "; ".join(directives)
+
+
+#: Polityka laboratorium notatników (JupyterLite, QC-01 § 3.2) – **wyłącznie** dla ścieżki
+#: ``STATIC_URL + "notebook-lab/"``. W produkcji ten sam napis wysyła Caddy (fragment
+#: ``(notebook_lab)`` w ``deploy/Caddyfile``), bo pliki statyczne podaje on, a nie Django; zgodność
+#: obu napisów pilnuje ``apps/notebooks/tests/test_labbuild.py``. Wyjątki wobec polityki serwisu:
+#: ``'wasm-unsafe-eval'`` (kompilacja WebAssembly Pyodide), ``'unsafe-eval'`` (Ajv w JupyterLab
+#: kompiluje schematy ustawień przez ``new Function`` – bez tego połowa wtyczek nie wstaje, sprawdzone
+#: w przeglądarce), ``worker-src blob:`` (jądro Pythona w Web Workerze), ``frame-ancestors 'self'``
+#: (osadzenie na stronie zadania). Bez ``'unsafe-inline'`` dla skryptów (skrypty startowe JupyterLite
+#: są wyniesione do plików przy budowie); ``connect-src 'self'`` – żadnego CDN-u w czasie działania.
+#: ``'unsafe-eval'`` dotyczy wyłącznie dokumentów laboratorium, w którym uczeń i tak wykonuje własny kod.
+NOTEBOOK_LAB_POLICY = (
+    "default-src 'self'; script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval'; "
+    "style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; "
+    "connect-src 'self'; worker-src 'self' blob:; "
+    "frame-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'none'; "
+    "frame-ancestors 'self'"
+)
+NOTEBOOK_LAB_SEGMENT = "notebook-lab/"
+
+
+def is_notebook_lab_path(path: str) -> bool:
+    return path.startswith(f"{settings.STATIC_URL}{NOTEBOOK_LAB_SEGMENT}")
 
 
 def build_admin_policy() -> str:
@@ -341,7 +371,9 @@ class ContentSecurityPolicyMiddleware:
         request.csp_nonce = nonce
         response = self.get_response(request)
         if self.header not in response:
-            if is_admin_request(request):
+            if is_notebook_lab_path(request.path):
+                response[self.header] = NOTEBOOK_LAB_POLICY
+            elif is_admin_request(request):
                 response[self.header] = build_admin_policy()
             else:
                 # Pytanie jest o **witrynę tego żądania**, a nie o instalację: konkurs, który
@@ -361,5 +393,8 @@ class ContentSecurityPolicyMiddleware:
                     analytics=analytics_enabled_for_request(request),
                     # Ustawia ``{% theme_head %}`` (apps.themes) – tylko gdy strona dołączyła motyw.
                     theme_assets=getattr(request, "_theme_assets_used", False),
+                    # Strona laboratorium notatników (QC-01) osadza JupyterLite z naszej domeny –
+                    # jedyna strona serwisu z dodatkowym ``'self'`` w ``frame-src``.
+                    extra_frame_sources=getattr(request, "_csp_extra_frame_sources", ()),
                 )
         return response

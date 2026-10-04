@@ -1,0 +1,56 @@
+{% extends "web/coordinator/base.html" %}
+{% load i18n static %}
+{% block title %}{% translate "Przebieg sprawdzania" %} – {% translate "panel koordynatora" %}{% endblock %}
+{% block panel_head %}<link rel="stylesheet" href="{% static 'notebooks/notebook-lab.css' %}">{% endblock %}
+{% block panel_eyebrow %}<a href="{% url 'web:coordinator-notebook-results' problem.pk %}">{% translate "Wyniki testów" %}</a>{% endblock %}
+{% block panel_title %}{% blocktranslate trimmed with id=run.pk %}Przebieg sprawdzania #{{ id }}{% endblocktranslate %}{% endblock %}
+{% block panel_lead %}
+  <p class="lead">{% translate "Szczegóły jednego sprawdzenia: wynik każdego testu, błędy komórek i początek wyjścia programu." %}</p>
+{% endblock %}
+{% block panel_content %}
+<section class="section">
+  <dl class="meta-list">
+    <dt>{% translate "Zadanie" %}</dt><dd>{{ problem.number }}. {{ problem.display_title }}</dd>
+    {% if run.submission %}
+      <dt>{% translate "Kod uczestnika" %}</dt><dd>{{ run.submission.entry.participant.public_code }}</dd>
+      <dt>{% translate "Wersja pracy" %}</dt><dd>{{ run.submission.version }}</dd>
+    {% else %}
+      <dt>{% translate "Rodzaj" %}</dt><dd>{% translate "rozwiązanie wzorcowe" %}</dd>
+    {% endif %}
+    <dt>{% translate "Status" %}</dt><dd>{{ run.get_status_display }}</dd>
+    {% if run.score is not None %}<dt>{% translate "Suma" %}</dt><dd>{{ run.score|floatformat:"-2" }} / {{ run.max_score|floatformat:"-2" }}</dd>{% endif %}
+  </dl>
+  {% if error %}<p class="msg msg-warning">{{ error }}</p>{% endif %}
+</section>
+{% if run.results or run.visible_results %}
+<section class="section">
+  <div class="scroll">
+    <table class="table">
+      <thead><tr><th>{% translate "Test" %}</th><th>{% translate "Rodzaj" %}</th><th>{% translate "Punkty" %}</th><th>{% translate "Komunikat" %}</th></tr></thead>
+      <tbody>
+        {% for item in run.results %}
+          <tr><td>{% if item.passed %}✔{% else %}✘{% endif %} {{ item.name }}</td><td>{% translate "ukryty" %}</td>
+            <td class="num">{{ item.points|floatformat:"-2" }} / {{ item.max_points|floatformat:"-2" }}</td><td>{{ item.message }}</td></tr>
+        {% endfor %}
+        {% for item in run.visible_results %}
+          <tr><td>{% if item.passed %}✔{% else %}✘{% endif %} {{ item.name }}</td><td>{% translate "widoczny" %}</td>
+            <td class="num">{{ item.points|floatformat:"-2" }} / {{ item.max_points|floatformat:"-2" }}</td><td>{{ item.message }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endif %}
+{% if run.cell_errors %}
+<section class="section">
+  <h2>{% translate "Błędy komórek" %}</h2>
+  <ul>{% for item in run.cell_errors %}<li>{% blocktranslate trimmed with cell=item.cell %}komórka {{ cell }}{% endblocktranslate %}: <code>{{ item.error }}</code></li>{% endfor %}</ul>
+</section>
+{% endif %}
+{% if run.output_tail %}
+<section class="section">
+  <h2>{% translate "Początek wyjścia programu" %}</h2>
+  <pre class="notebook-pre">{{ run.output_tail }}</pre>
+</section>
+{% endif %}
+{% endblock %}
