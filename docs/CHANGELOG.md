@@ -63,6 +63,26 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
 - Dokumentacja: `docs/OPERACJE.md` § 32, `docs/PODRECZNIK-ORGANIZATORA.md` § 10e,
   `docs/PODRECZNIK-UCZESTNIKA.md` § 3, `docs/PODRECZNIK-OPIEKUNA-DRUZYNY.md` § 5a.
 
+## [Unreleased] – Tłumaczenia zadań przez delegacje krajowe („noc tłumaczeń”, TR-01)
+
+- **Nowa aplikacja `apps.problem_translations`** (tylko konkursy w trybie `DELEGATIONS`): okno tłumaczeń
+  etapu (zamyka się najpóźniej z otwarciem etapu), tryb osobny/wspólny dla delegacji jednego języka,
+  wersja oficjalna jako tekst Markdown + LaTeX z numerem wersji, 1–2 języki delegacji i język ucznia
+  (domyślny + nadpisanie przez opiekuna).
+- **Opiekun** (`/delegation/translations/`): edytor obok wersji oficjalnej z autozapisem (HTMX) i
+  podglądem wzorów (KaTeX zwendorowany; htmx i Alpine strony bazowej nadal z CDN-ów z SRI), alternatywnie PDF (skan antywirusowy), wysłanie do
+  akceptacji, cofnięcie, aktualizacja po zmianie wersji oficjalnej z różnicami źródła.
+- **Komisja** (`/coordinator/translations/`): kolejka, przegląd z różnicami wersji, zatwierdzenie
+  (blokada) i zwrot z komentarzem; zmiana wersji oficjalnej (także PDF-u z ekranu zadań) oznacza
+  tłumaczenia jako nieaktualne i wysyła listy; eksport do druku per język (PDF i widok do druku).
+- **Uczeń:** po otwarciu etapu „Treść w języku: …” na karcie zadania obok wersji oficjalnej.
+- **Poufność:** źródło tylko w oknie i tylko dla opiekunów z delegacją w bieżącej edycji, `no-store`,
+  audyt każdego wglądu i pobrania, znak wodny kraju na PDF-ach opiekunów.
+- **Wspólne:** obraz kompiluje katalogi tłumaczeń aplikacji (`apps/*/locale`), test katalogów obejmuje
+  je; scope throttlingu `translation`; rejestr czynności 1.12; sekcja `tlumaczenia_zadan` w eksporcie
+  danych konta. Dokumentacja: `docs/tasks/TR-01.md`, `OPERACJE.md` § 34,
+  `PODRECZNIK-ORGANIZATORA.md` § 10g, `PODRECZNIK-OPIEKUNA-DRUZYNY.md` § 6, `PODRECZNIK-UCZESTNIKA.md` § 3.
+
 ## [Unreleased] – Motywy wizualne wgrywane paczkami (THEME-01)
 
 - **Tokeny motywu:** arkusze (`static/css/*.css`) czytają kolory, kroje, promienie i odstępy przez

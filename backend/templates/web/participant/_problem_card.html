@@ -1,4 +1,4 @@
-{% load i18n web_extras %}{% comment %}
+{% load i18n web_extras problem_translations %}{% comment %}
   Karta jednego zadania: treść, stan pracy, upload i historia wersji. Ten sam fragment renderuje
   pulpit i odpowiedź HTMX po uploadzie, więc jedno i drugie musi mówić to samo.
 
@@ -44,7 +44,7 @@
          href="{% url 'competitions:problem-statement' row.problem.pk %}">{% translate "Treść zadania (PDF)" %}</a>
     {% else %}
       <span class="badge badge--neutral">{% translate "treść jeszcze nieopublikowana" %}</span>
-    {% endif %}
+    {% endif %}{% student_translation_link row.problem %}
   </p>
 
   {% comment %}

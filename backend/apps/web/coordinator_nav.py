@@ -833,6 +833,21 @@ def groups(stages: list, competition=None) -> list[Group]:
                     ),
                 ),
             )
+    if competition is not None and competition.uses_delegations:
+        # Tłumaczenia zadań przez delegacje (TR-01) – na końcu sekcji „Etapy”, bo okno tłumaczeń
+        # jest terminem etapu. Ta sama bramka, co w widoku: poza trybem delegacji ekran oddaje 404.
+        stage_group += (
+            Item(
+                "Tłumaczenia zadań",
+                ("web:coordinator-translations",),
+                match=(
+                    "coordinator-translations",
+                    "coordinator-translations-",
+                    "coordinator-translation",
+                    "coordinator-translation-",
+                ),
+            ),
+        )
     return [
         Group("Pulpit", (Item("Co wymaga uwagi", ("web:coordinator",), match=("coordinator",)),)),
         Group("Etapy", stage_group),

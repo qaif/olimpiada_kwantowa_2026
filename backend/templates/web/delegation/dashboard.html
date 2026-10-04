@@ -27,6 +27,7 @@
     {% if time_windows_enabled %}
       <a class="btn btn--secondary" href="{% url 'web:delegation-time-windows' %}">{% translate "Okna czasowe i strefy uczniów" %}</a>
     {% endif %}
+    <a class="btn btn--secondary" href="{% url 'web:delegation-translations' %}">{% translate "Tłumaczenia zadań" %}</a>
   </div>
   {% if not delegation.is_open %}
     <p class="notice">{% translate "Delegacja jest zamknięta – lista uczniów nie może się już zmienić. W razie potrzeby skontaktuj się z organizatorem." %}</p>

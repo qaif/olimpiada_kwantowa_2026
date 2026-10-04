@@ -170,6 +170,7 @@ INSTALLED_APPS = [
     "apps.webinars",
     # Okna czasowe etapu według stref czasowych krajów (TZ-01, 4.10.2026, flaga ``stage_time_windows``).
     "apps.time_windows",
+    "apps.problem_translations",  # tłumaczenia zadań przez delegacje krajowe (TR-01, 4.10.2026)
     # Warstwa integracyjna: klucze API dla systemów zewnętrznych, webhooki i eksporty na zewnątrz.
     # **Po** aplikacjach domeny, bo czyta je wszystkie (edycje, wyniki, zgłoszenia), a żadna z nich
     # nie czyta jej – zależność idzie w jedną stronę i kolejność w tej liście ma to pokazywać.
@@ -1273,6 +1274,9 @@ REST_FRAMEWORK = {
         # przez opiekuna, więc limit chroni cudze skrzynki; sześćdziesiąt na godzinę mieści z zapasem
         # drużynę (kilka osób) i zaproszenia dla kilkudziesięciu krajów w jednym posiedzeniu.
         "delegation": "60/hour",
+        # Tłumaczenia zadań (TR-01): autozapis szkicu co ~3 s pisania, czynności opiekuna i komisji.
+        # Per konto (``PER_USER_SCOPES``) – sala tłumaczeń za jednym NAT-em nie dzieli budżetu.
+        "translation": "1200/hour",
         # Bramka linku-zaproszenia (``/zaproszenie/wideo/<klucz>/``, POST „Dołącz”) – bez konta,
         # więc liczona po adresie IP, jak każdy publiczny formularz. Wysoko, bo za jednym NAT-em
         # bywa cała sala gości wchodzących na to samo zebranie naraz; nisko na tyle, żeby

@@ -109,8 +109,9 @@ IDENTITY_FIELDS = ("email", "username")
 #: ``webinar_control`` – polecenia prowadzącego (osobny, wyższy kubełek).
 #: ``delegation`` (DEL-01) – opiekun drużyny i koordynator są zalogowani, a koszt (listy na wpisane
 #: adresy) przypada na konto: dwie delegacje z jednej szkoły za jednym NAT-em nie dzielą budżetu.
+#: ``translation`` (TR-01) – edytor tłumaczeń zadań: autozapis i czynności zalogowanych opiekunów.
 PER_USER_SCOPES = frozenset(
-    {"chat", "forum", "video", "video_rooms", "delegation", "webinar_join", "webinar_control"}
+    {"chat", "forum", "video", "video_rooms", "delegation", "webinar_join", "webinar_control", "translation"}
 )
 
 #: Jak często (sekundy) wolno zalogować awarię cache'a jednym procesem – patrz ``_report_outage``.

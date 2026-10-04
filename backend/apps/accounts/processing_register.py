@@ -90,6 +90,9 @@ from apps.competitions.models import DEFAULT_RETENTION_MONTHS
 #: opiekun szkolny widzi przebieg i ogłoszone wyniki swoich uczniów przez kolejne edycje, na tle
 #: agregatów szkoły i województwa. Nowych danych nie ma, ale jest nowy cel (informacja zwrotna dla
 #: szkoły) i nowy odbiorca (dyrektor – raport zbiorczy), więc zmiana jest materialna.
+#: 1.12 (04.10.2026, zadanie TR-01) – tłumaczenia zadań przez delegacje: czynność „Delegacje krajowe”
+#: dostaje nowe kategorie danych (język zadań przypisany uczniowi, autorstwo i daty wysłanych wersji
+#: tłumaczeń, dziennik wglądu w tajne zadania) i nowy środek (okno tłumaczeń, znak wodny, audyt).
 REGISTER_VERSION = "1.12"
 REGISTER_DATE = date(2026, 10, 4)
 
@@ -950,6 +953,8 @@ DELEGATIONS_ACTIVITY = _activity(
         "i cofnięcia",
         "uczeń: imię i nazwisko, adres e-mail, data urodzenia, szkoła, klasa, kraj, opcjonalnie "
         "adres e-mail rodzica, informacja, który opiekun zgłosił ucznia",
+        "tłumaczenia zadań (TR-01): język zadań przypisany uczniowi przez opiekuna, autorstwo i daty "
+        "wysłanych wersji tłumaczeń, dziennik wglądu opiekunów i uczniów w treść zadań",
     ],
     recipients=[
         HOSTING_RECIPIENT,
@@ -969,6 +974,8 @@ DELEGATIONS_ACTIVITY = _activity(
         "konto ucznia powstaje nieaktywne i bez hasła – hasło i zgody składa uczeń sam",
         "limit uczniów delegacji egzekwowany pod blokadą wiersza, okno rejestracji edycji, "
         "limit żądań per konto",
+        "tłumaczenia zadań: treść widoczna dla opiekuna wyłącznie w oknie tłumaczeń, pliki PDF ze znakiem "
+        "wodnym delegacji, wpis w dzienniku przy każdym wglądzie i pobraniu",
     ],
 )
 

@@ -2000,6 +2000,39 @@ zestaw zadań na okno (wariant przy zadaniu i przy oknie, ta sama skala), zwykle
 **Liczby na żywo.** Oś czasu pokazuje dla każdego okna: kraje, uczniów, „teraz piszą” i „oddali”; niżej
 lista „kto w którym oknie” ze źródłem przydziału (kraj, ręcznie, wyjątek).
 
+## 10g. Tłumaczenia zadań — `/coordinator/translations/`
+
+**Tylko w konkursie z delegacjami krajowymi** (menu „Etapy → Tłumaczenia zadań”; `OPERACJE.md` § 34).
+Opiekunowie drużyn tłumaczą zadania z wersji oficjalnej (angielskiej) na języki swoich delegacji,
+a Ty (komisja) zatwierdzasz tłumaczenia. Po otwarciu etapu uczeń widzi zadanie w zatwierdzonym języku
+swojej drużyny i zawsze także wersję oficjalną.
+
+**Okno tłumaczeń.** Dla każdego etapu ustalasz otwarcie i zamknięcie okna — zamknięcie najpóźniej
+w chwili otwarcia etapu (gdy przesuniesz etap wcześniej, okno zgaśnie razem z jego otwarciem). Tylko
+w oknie opiekun widzi treść zadań. Wybierasz też tryb: **osobne** (każda delegacja ma własne
+tłumaczenie) albo **wspólne** (delegacje jednego języka, np. Niemcy i Austria, pracują na jednym
+tekście). Tryb ustala się przed pierwszym tłumaczeniem.
+
+**Wersja oficjalna.** PDF i tytuł zmieniasz jak dotąd na ekranie zadań; przy zadaniu jest też
+„Tekst oficjalny” (Markdown, wzory w `$…$`), który tłumacz widzi obok edytora i może skopiować.
+Każda zmiana podnosi numer wersji — tłumaczenia starszej wersji dostają znacznik „nieaktualne”,
+a ich opiekunowie list. Nieaktualnego tłumaczenia nie zatwierdzisz: zwróć je do aktualizacji.
+
+**Przegląd.** „Do przeglądu” na ekranie głównym: tłumaczenie obok wersji oficjalnej, różnice wobec
+poprzedniej wysłanej wersji, historia. „Zatwierdź” blokuje tłumaczenie; „Zwróć do poprawy” wymaga
+komentarza (opiekun czyta go w panelu — list mówi tylko, że jest zwrot). Zwrot zatwierdzonego
+tłumaczenia nie zabiera go uczniom, dopóki nie zatwierdzisz nowej wersji.
+
+Jeśli opiekun wyśle nową wersję, gdy masz otwarty ekran przeglądu, „Zatwierdź”/„Zwróć” odmówi
+i pokaże bieżącą wersję — decyzja zawsze dotyczy tekstu, który widzisz.
+
+**Eksport na finał.** Ekran etapu → „Eksport do druku”: dla każdego języka (w trybie osobnym — każdej
+delegacji) **PDF** złożony z zatwierdzonych wersji albo **Widok do druku** w przeglądarce. Tekst ze
+wzorami albo po chińsku, w hindi, bengalsku czy arabsku drukuj z widoku do druku („Zapisz jako PDF”).
+
+**Poufność.** Każde otwarcie, pobranie i eksport jest w „Audycie” (akcje `translation.…`); pliki PDF
+pobrane przez opiekunów mają znak wodny kraju.
+
 ---
 
 ## 10a. Zaświadczenia o statusie ucznia — `/coordinator/student-status/`
