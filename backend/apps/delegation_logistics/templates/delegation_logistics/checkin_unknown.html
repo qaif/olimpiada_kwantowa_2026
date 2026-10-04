@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}{% translate "Nieznany identyfikator" %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>{% translate "Nieznany identyfikator" %}</h1>
+  <p class="lead">{% translate "Ten kod nie należy do żadnej osoby finału – identyfikator mógł zostać unieważniony. Wyszukaj osobę po nazwisku." %}</p>
+  <p><a class="btn btn--primary" href="{% url 'web:onsite-checkin' %}{% if selected %}?cp={{ selected.pk }}{% endif %}">{% translate "Wróć do skanowania" %}</a></p>
+</div>
+{% endblock %}

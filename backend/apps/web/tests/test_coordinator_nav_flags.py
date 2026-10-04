@@ -166,6 +166,8 @@ FLAG_ITEMS: dict[str, tuple[frozenset[str], frozenset[str]]] = {
     "stage_time_windows": (frozenset(), frozenset({"Okna czasowe"})),
     # --- motywy wizualne (THEME-01) ------------------------------------------------------------
     "themes": (frozenset({"Motyw serwisu"}), frozenset({"Motyw serwisu"})),
+    # --- sieć absolwentów (ALUM-01, 04.10.2026) ---------------------------------------------------
+    "alumni": (frozenset({"Absolwenci"}), frozenset({"Absolwenci"})),
     # --- nadzór zdalny etapów online (zadanie PROC-01) – w sekcji „Etapy” ---------------------------
     "proctoring": (frozenset({"Nadzór zdalny"}), frozenset({"Nadzór zdalny"})),
 }

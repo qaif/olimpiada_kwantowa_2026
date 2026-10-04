@@ -8,6 +8,63 @@ dokładnie jednemu wierszowi tej tabeli.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## [Unreleased] – Listy zapraszające do wizy: wnioski, weryfikacja, unieważnienie (VISA-01)
+
+- **Wnioski opiekuna drużyny** o list imienny (`/delegation/logistics/letters/`) dla osób z kompletnym
+  dokumentem podróży, z wyborem języka; wycofanie oczekującego wniosku. Jeden oczekujący wniosek na osobę.
+- **Decyzje oficera logistyki** (`/coordinator/logistics/letter-requests/`): filtry kraj/stan,
+  zatwierdzenie (= list imienny, poprzedni ważny list osoby unieważniony) i odrzucenie z powodem –
+  pojedynczo i hurtowo; CSV bez danych paszportowych; e-mail do opiekunów w ich języku (zbiorczy).
+- **Kod weryfikacyjny i QR** na każdym liście, **publiczna strona** `/visa/verify/<kod>/` (dane minimalne,
+  bez numeru paszportu, limit `visa_verify` 60/h na IP, `no-store`, `noindex`), nowy segment `visa`
+  w `RESERVED_SLUGS` i kontrakcie djcms.
+- **Unieważnienie listu** z powodem (audyt, strona weryfikacji „unieważniony”, PDF nie do pobrania).
+- **Język listu**: en, pl, es, fr, pt, ru, id (teksty w `letter_texts.py`); migawka wydarzenia w rejestrze.
+- RODO: wnioski w eksporcie danych konta i w retencji/usuwaniu razem z osobą; rejestr czynności 1.18
+  (nowy odbiorca – osoba znająca kod listu). Migracja `delegation_logistics.0003`.
+- Poprawki po przeglądzie: list imienny zastępuje wcześniejszy tylko przy zmianie numeru paszportu,
+  nazwiska albo obywatelstwa (ostrzeżenie u opiekuna, „unieważni list …” u oficera, ta sama reguła
+  przy wystawieniu z karty osoby; list delegacji z nieaktualnymi danymi oznaczony w rejestrze);
+  wypisanie osoby z delegacji unieważnia jej listy imienne; dane usunięte przed wydarzeniem = list
+  nieważny na stronie weryfikacji; strona weryfikacji za bramką „konkurs ma listy” (niezależnie od
+  flagi), adres weryfikacji zapamiętany na liście (`verification_base_url`) i komenda
+  `visa_letter_redirects`; bez Google Analytics na `/visa/verify/` i `/dyplomy/<kod>/`; limit także dla
+  HEAD, oficer bez limitu; daty w formacie języka listu, zdania pl/ru niezależne od przypadka nazwy
+  organizatora, przy szablonie z bazy list tylko po angielsku.
+- Dokumentacja: `docs/OPERACJE.md` § 31.8, `docs/PODRECZNIK-ORGANIZATORA.md` § 10d,
+  `docs/PODRECZNIK-OPIEKUNA-DRUZYNY.md` § 7, `docs/tasks/VISA-01.md`.
+
+## [Unreleased] – Logistyka finału dla delegacji (LOG-01)
+
+- **Nowa aplikacja `apps.delegation_logistics`** za flagą `onsite_logistics` w trybie `DELEGATIONS`:
+  formularz opiekuna drużyny dla każdej osoby delegacji (dokument podróży, przyjazd/wyjazd,
+  zakwaterowanie, wyżywienie i zdrowie za decyzją D21 i wyraźną zgodą, koszulka, kontakt alarmowy,
+  zdjęcie ze skanem ClamAV), goście/obserwatorzy delegacji, terminy per sekcja z blokadą i audytem
+  zmian (nazwy pól, bez wartości).
+- **Oficer logistyki i obsługa rejestracji** – przydziały ponad rolę koordynatora; dane osób widzi
+  wyłącznie oficer. Ekrany: przegląd kompletności, osoby, tablica przylotów/odlotów, lista pokoi
+  (zasady: niepełnoletni nigdy z dorosłym, płeć pokoju, pojemność), wyżywienie, koszulki, eksporty CSV,
+  przypomnienia e-mail w języku opiekuna.
+- **Listy zapraszające do wizy** – PDF z rejestrem numerów `PREFIKS/ROK/NNNN`, zaszyfrowana migawka
+  danych, nowy rodzaj szablonu dokumentu `VISA_INVITATION` (`tenancy.0015`), podpisy i pieczęć jak dyplomy.
+- **Identyfikatory** PDF (A6, zdjęcie, kraj, rola, QR z losowym tokenem bez danych osobowych) i ekran
+  odhaczania na telefonie (punkty kontroli, wyszukiwarka, skaner w przeglądarce z `BarcodeDetector`).
+- **RODO:** szyfrowanie pól wrażliwych (Fernet z obsługą `SECRET_KEY_FALLBACKS`), retencja dobowa po
+  końcu finału, sekcja w eksporcie danych konta, usuwanie przy usunięciu konta, warunkowa czynność
+  w rejestrze (wersja 1.17).
+- **i18n:** katalogi tłumaczeń w aplikacji (`apps/<nazwa>/locale`) – kompilowane przez `Dockerfile`,
+  CI i `conftest.py`, sprawdzane przez `test_translations.py`; 125 nowych napisów w 10 językach
+  (maszynowe, do przeglądu).
+- **Poprawki po przeglądzie:** reguły pokoi sprawdzane po zmianie danych osoby (zdjęcie przydziału)
+  i daty finału (oznaczenie naruszeń, kolumna CSV), niepełnoletni z płcią „inna” w pokoju
+  jednoosobowym; dane paszportowe i o zdrowiu tylko przy znanym końcu finału, po retencji żadnych
+  zapisów; dieta szyfrowana (`delegation_logistics.0002`); zdjęcia przekodowane bez EXIF, limit pikseli,
+  identyfikatory per kraj; usunięcie członka czyści migawki listów; obsługę rejestracji nadaje oficer;
+  przypomnienia tylko oficer; zapisy `update_fields`; numeracja listów pod blokadą (konkurs, rok);
+  eksport danych konta z obecnością i listami.
+- Dokumentacja: `docs/OPERACJE.md` § 31, `docs/PODRECZNIK-ORGANIZATORA.md` § 10d,
+  `docs/PODRECZNIK-OPIEKUNA-DRUZYNY.md` § 7, `docs/tasks/LOG-01.md`.
+
 ## [Unreleased] – Medale olimpiady międzynarodowej, dyplomy w języku ucznia i ranking krajów (MED-01)
 
 - **Medale z rankingu** (`apps.medals`, flaga konkursu `medals`, domyślnie wyłączona): schemat per etap
@@ -253,6 +310,42 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
 - **i18n:** 70 nowych napisów ekranów opiekuna i listów w 10 katalogach (maszynowe, do przeglądu).
 - Dokumentacja: `docs/OPERACJE.md` § 28, `docs/PODRECZNIK-ORGANIZATORA.md` § 10b,
   `docs/PODRECZNIK-OPIEKUNA-DRUZYNY.md`.
+
+## [Unreleased] – Sieć absolwentów i mentoring (ALUM-01)
+
+- **Absolwenci (`apps.alumni`, flaga `alumni`, domyślnie wyłączona):** byli uczestnicy z
+  osiągnięciem w zakończonej edycji (próg ustawia koordynator: laureat / finalista / awans /
+  każdy uczestnik) dołączają do sieci **za osobną zgodą** (wersjonowany dowód zgody, wycofanie
+  jednym przyciskiem usuwa profil). Tylko osoby pełnoletnie. Osiągnięcia liczone na żywo
+  wyłącznie z ogłoszonych wyników i wystawionych dyplomów; rejestr źródeł na medale.
+- **Profil:** podpis „Imię N.” (pełne nazwisko tylko z wyborem i zgodą na publikację nazwiska),
+  uczelnia, kierunek, miasto, kraj, bio, zainteresowania z listy zamkniętej, LinkedIn/GitHub
+  (tylko https, tylko te serwisy, `rel=nofollow`), gotowość do mentoringu z tematami i liczbą miejsc.
+  Katalog dla zalogowanych `/me/alumni/directory/`, publiczna ściana `/alumni/` (tylko profile
+  oznaczone jako publiczne, minimalne pola).
+- **Mentoring przez Wiadomości:** prośba → akceptacja → zwykła rozmowa P2P czatu. Nowy punkt
+  rozszerzenia czatu (`PeerPolicy`, `register_peer_policy`, `ensure_peer_conversation`): mentee
+  małoletni przy zasadzie „ta sama grupa wiekowa” albo wyłączonych rozmowach uczestników – każda
+  wiadomość czeka na akceptację organizatora (kanał nadzorowany); przy „bez ograniczeń” – co
+  najmniej postmoderacja. Zakończenie relacji zamyka rozmowę do odczytu. Nadzór koordynatora
+  `/coordinator/alumni/mentoring/` (zakończenie z notatką, zgłoszenia problemów – list do
+  koordynatorów od razu).
+- **Zaproszenia** `/coordinator/alumni/invitations/` (warsztaty, webinary, jury; filtry: edycja,
+  poziom, zainteresowania, mentorzy) w języku odbiorcy, z wypisem jednym kliknięciem (RFC 8058).
+  **Statystyki** „gdzie są teraz” z progiem k-anonimowości 5.
+- **RODO:** czynność `ALUMNI_ACTIVITY` w rejestrze (wersja 1.19, tylko przy fladze), sekcja
+  `absolwenci` w eksporcie danych konta, czyszczenie przy anonimizacji, wstrzymanie automatu
+  retencji na czas ważnej zgody (`BLOCKED_ALUMNI`). Nowy zakres limitu `alumni` (30/h, per konto).
+- **Po przeglądzie krytyka:** notatka prośby małoletniego i opis mentora dla małoletnich dopiero po
+  akceptacji koordynatora, automatyczne zgłoszenia (wzorce danych kontaktowych, zmiana daty urodzenia
+  w trakcie relacji, rozmowa szyfrowana pod wymuszoną moderacją); data urodzenia mentee zapisana przy
+  akceptacji i potwierdzona pełnoletność mentora; pierwsze 5 wiadomości nowej pary dorosły–małoletni
+  w premoderacji także przy „bez ograniczeń”; ukrycie profilu kończy relacje mentora; minimalizacja
+  zamiast pełnej anonimizacji przy wstrzymanej retencji; wycofanie zgody przy wyłączonej fladze;
+  dowód zgody z językiem i skrótem treści i odnowienie zgody po zmianie wersji; polityki rozmowy
+  łączone po najostrzejszej; statystyki bez komórek komplementarnych; limity próśb.
+- **Medale (MED-01) jako osiągnięcia absolwentów:** ogłoszony medal albo wyróżnienie widać na profilu
+  („2025/2026: złoty medal”) i liczy się do progu dołączenia (medal = laureat).
 
 ## [Unreleased] – Wielojęzyczność per konkurs (I18N-01) i kraje zamiast województw (REG-01)
 

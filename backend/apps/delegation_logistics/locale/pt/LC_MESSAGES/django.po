@@ -1,0 +1,809 @@
+# Logistyka finału (LOG-01) – katalog aplikacji apps.delegation_logistics.
+# Tłumaczenia maszynowe (do przeglądu native speakerów), jak w katalogu głównym (I18N-01 § 8).
+msgid ""
+msgstr ""
+"Project-Id-Version: olimpiada\n"
+"Language: pt\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: forms.py
+msgid "Imię i nazwisko dokładnie jak w paszporcie"
+msgstr "Nome completo exatamente como no passaporte"
+
+#: forms.py
+msgid "Obywatelstwo (dwuliterowy kod kraju, np. DE)"
+msgstr "Nacionalidade (código de país de duas letras, p. ex. DE)"
+
+#: forms.py
+msgid "Data urodzenia"
+msgstr "Data de nascimento"
+
+#: forms.py
+msgid "Numer paszportu"
+msgstr "Número do passaporte"
+
+#: forms.py
+msgid "Paszport ważny do"
+msgstr "Passaporte válido até"
+
+#: forms.py
+msgid "Dzień przyjazdu"
+msgstr "Data de chegada"
+
+#: forms.py
+msgid "Godzina przyjazdu (czas lokalny)"
+msgstr "Hora de chegada (hora local)"
+
+#: forms.py
+msgid "Środek transportu"
+msgstr "Meio de transporte"
+
+#: forms.py
+msgid "Numer lotu / pociągu"
+msgstr "Número do voo / comboio"
+
+#: forms.py
+msgid "Lotnisko / dworzec przyjazdu"
+msgstr "Aeroporto / estação de chegada"
+
+#: forms.py
+msgid "Dzień wyjazdu"
+msgstr "Data de partida"
+
+#: forms.py
+msgid "Godzina wyjazdu (czas lokalny)"
+msgstr "Hora de partida (hora local)"
+
+#: forms.py
+msgid "Środek transportu (wyjazd)"
+msgstr "Meio de transporte (partida)"
+
+#: forms.py
+msgid "Numer lotu / pociągu (wyjazd)"
+msgstr "Número do voo / comboio (partida)"
+
+#: forms.py
+msgid "Lotnisko / dworzec wyjazdu"
+msgstr "Aeroporto / estação de partida"
+
+#: forms.py
+msgid "Potrzebuje noclegu"
+msgstr "Precisa de alojamento"
+
+#: forms.py
+msgid "Płeć (wyłącznie do przydziału pokoi)"
+msgstr "Sexo (apenas para a atribuição de quartos)"
+
+#: forms.py
+msgid "Preferowany współlokator (imię i nazwisko)"
+msgstr "Colega de quarto preferido (nome completo)"
+
+#: forms.py
+msgid "Uwagi do zakwaterowania (bez informacji o zdrowiu)"
+msgstr "Observações sobre o alojamento (sem informações de saúde)"
+
+#: forms.py
+msgid "Dieta"
+msgstr "Dieta"
+
+#: forms.py
+msgid "Uwagi do diety"
+msgstr "Observações sobre a dieta"
+
+#: forms.py
+msgid "Alergie (pokarmowe i inne istotne)"
+msgstr "Alergias (alimentares e outras relevantes)"
+
+#: forms.py
+msgid "Informacje medyczne potrzebne na miejscu (np. stałe leki, postępowanie w nagłym wypadku)"
+msgstr "Informações médicas necessárias no local (p. ex. medicação habitual, o que fazer em caso de emergência)"
+
+#: forms.py
+msgid "Rozmiar koszulki"
+msgstr "Tamanho da T-shirt"
+
+#: forms.py
+msgid "Kontakt alarmowy – imię i nazwisko"
+msgstr "Contacto de emergência – nome completo"
+
+#: forms.py
+msgid "Kontakt alarmowy – telefon (z numerem kierunkowym kraju)"
+msgstr "Contacto de emergência – telefone (com indicativo do país)"
+
+#: forms.py
+msgid "Potwierdzam, że ta osoba – a jeśli jest niepełnoletnia, jej rodzic lub opiekun prawny – wyraziła wyraźną zgodę na przetwarzanie podanych danych o diecie i zdrowiu przez organizatora wyłącznie w celu zapewnienia jej bezpieczeństwa i wyżywienia podczas finału. Dane zostaną usunięte po zakończeniu finału; zgodę można w każdej chwili wycofać."
+msgstr "Confirmo que esta pessoa – ou, se for menor, o seu pai, mãe ou representante legal – deu consentimento explícito para o organizador tratar os dados de dieta e saúde indicados, exclusivamente para garantir a sua segurança e alimentação durante a final. Os dados serão apagados após a final; o consentimento pode ser retirado a qualquer momento."
+
+#: forms.py
+msgid "Imię"
+msgstr "Nome"
+
+#: forms.py
+msgid "Nazwisko"
+msgstr "Sobrenome"
+
+#: forms.py
+msgid "Adres e-mail (opcjonalnie)"
+msgstr "Endereço de e-mail (opcional)"
+
+#: forms.py
+msgid "Rola w delegacji"
+msgstr "Função na delegação"
+
+#: forms.py
+msgid "Zdjęcie do identyfikatora (JPG lub PNG, do 5 MB, twarz na wprost)"
+msgstr "Fotografia para o crachá (JPG ou PNG, até 5 MB, rosto de frente)"
+
+#: models.py
+msgid "Dokument podróży"
+msgstr "Documento de viagem"
+
+#: models.py
+msgid "Przyjazd i wyjazd"
+msgstr "Chegada e partida"
+
+#: models.py
+msgid "Zakwaterowanie"
+msgstr "Alojamento"
+
+#: models.py
+msgid "Wyżywienie i zdrowie"
+msgstr "Alimentação e saúde"
+
+#: models.py
+msgid "Identyfikator i kontakt alarmowy"
+msgstr "Crachá e contacto de emergência"
+
+#: models.py
+msgid "Uczeń"
+msgstr "Estudante"
+
+#: models.py
+msgid "Opiekun drużyny"
+msgstr "Chefe de equipa"
+
+#: models.py
+msgid "Gość"
+msgstr "Convidado"
+
+#: models.py
+msgid "Obserwator"
+msgstr "Observador"
+
+#: models.py
+msgid "Samolot"
+msgstr "Avião"
+
+#: models.py
+msgid "Pociąg"
+msgstr "Comboio"
+
+#: models.py
+msgid "Autobus"
+msgstr "Autocarro"
+
+#: models.py
+msgid "Samochód"
+msgstr "Carro"
+
+#: models.py
+msgid "Inny"
+msgstr "Outro"
+
+#: models.py
+msgid "Kobieta"
+msgstr "Feminino"
+
+#: models.py
+msgid "Mężczyzna"
+msgstr "Masculino"
+
+#: models.py
+msgid "Inna / wolę nie podawać"
+msgstr "Outro / prefiro não dizer"
+
+#: models.py
+msgid "Bez ograniczeń"
+msgstr "Sem restrições"
+
+#: models.py
+msgid "Wegetariańska"
+msgstr "Vegetariana"
+
+#: models.py
+msgid "Wegańska"
+msgstr "Vegana"
+
+#: models.py
+msgid "Halal"
+msgstr "Halal"
+
+#: models.py
+msgid "Koszerna"
+msgstr "Kosher"
+
+#: models.py
+msgid "Bezglutenowa"
+msgstr "Sem glúten"
+
+#: models.py
+msgid "Inna (opis w uwagach)"
+msgstr "Outra (descreva nas observações)"
+
+#: services.py templates/delegation_logistics/leader_dashboard.html
+msgid "Finał się zakończył, a dane delegacji zostały usunięte."
+msgstr "A final terminou e os dados da delegação foram apagados."
+
+#: services.py templates/delegation_logistics/leader_dashboard.html
+msgid "Organizator nie ustalił jeszcze dat finału – dane dokumentu podróży i o zdrowiu przyjmiemy po ich ustaleniu."
+msgstr "O organizador ainda não definiu as datas da final – os dados do documento de viagem e de saúde serão aceites depois de definidas."
+
+#: services.py
+#, python-format
+msgid "Termin na uzupełnienie sekcji „%(group)s” minął – zmiany wprowadza już tylko organizator."
+msgstr "O prazo da secção «%(group)s» terminou – agora só o organizador pode fazer alterações."
+
+#: services.py
+msgid "Obywatelstwo podaj dwuliterowym kodem kraju (np. DE, PL)."
+msgstr "Indique a nacionalidade com um código de país de duas letras (p. ex. DE, PL)."
+
+#: services.py
+msgid "Niepoprawna data."
+msgstr "Data inválida."
+
+#: services.py
+msgid "Paszport traci ważność przed końcem finału – podaj dokument ważny w czasie pobytu."
+msgstr "O passaporte expira antes do fim da final – indique um documento válido durante a estadia."
+
+#: services.py
+msgid "Wyjazd nie może być przed przyjazdem."
+msgstr "A partida não pode ser anterior à chegada."
+
+#: services.py
+msgid "Wybierz dietę z listy."
+msgstr "Escolha uma dieta da lista."
+
+#: services.py
+msgid "Dane o wyżywieniu i zdrowiu zapiszemy dopiero po zaznaczeniu zgody osoby (albo jej rodzica, jeśli jest niepełnoletnia) na ich przetwarzanie."
+msgstr "Os dados de alimentação e saúde só serão guardados depois de assinalar o consentimento da pessoa (ou do pai ou mãe, se for menor) para o seu tratamento."
+
+#: services.py
+msgid "Wybierz rolę z listy."
+msgstr "Escolha uma função da lista."
+
+#: services.py
+msgid "Podaj imię i nazwisko."
+msgstr "Indique o nome e o apelido."
+
+#: services.py
+#, python-format
+msgid "Delegacja może mieć najwyżej %(count)s gości."
+msgstr "Uma delegação pode ter no máximo %(count)s convidados."
+
+#: services.py
+msgid "Zdjęcie musi być plikiem JPG albo PNG."
+msgstr "A fotografia tem de ser um ficheiro JPG ou PNG."
+
+#: services.py
+msgid "Nie udało się odczytać zdjęcia – wgraj inny plik JPG lub PNG."
+msgstr "Não foi possível ler a fotografia – carregue outro ficheiro JPG ou PNG."
+
+#: services.py
+msgid "Zdjęcie ma zbyt dużą rozdzielczość."
+msgstr "A resolução da fotografia é demasiado alta."
+
+#: services.py
+msgid "Plik jest pusty."
+msgstr "O arquivo está vazio."
+
+#: services.py
+msgid "Zdjęcie może mieć najwyżej 5 MB."
+msgstr "A fotografia pode ter no máximo 5 MB."
+
+#: templates/delegation_logistics/_member_form.html
+#, python-format
+msgid "Termin: %(deadline)s"
+msgstr "Prazo: %(deadline)s"
+
+#: templates/delegation_logistics/_member_form.html
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "zamknięte"
+msgstr "fechado"
+
+#: templates/delegation_logistics/_member_form.html
+#, python-format
+msgid "Zgoda na przetwarzanie danych o wyżywieniu i zdrowiu złożona %(date)s."
+msgstr "Consentimento para o tratamento dos dados de alimentação e saúde dado em %(date)s."
+
+#: templates/delegation_logistics/_member_form.html
+#: templates/delegation_logistics/leader_member.html
+msgid "Zapisz"
+msgstr "Guardar"
+
+#: templates/delegation_logistics/_member_form.html
+msgid "Anuluj"
+msgstr "Cancelar"
+
+#: templates/delegation_logistics/checkin.html
+#: templates/delegation_logistics/checkin_member.html
+msgid "Rejestracja uczestników finału"
+msgstr "Registo de entrada na final"
+
+#: templates/delegation_logistics/checkin.html
+msgid "Zeskanuj kod QR z identyfikatora aparatem telefonu albo wyszukaj osobę po nazwisku."
+msgstr "Leia o código QR do crachá com a câmara do telemóvel ou procure a pessoa pelo nome."
+
+#: templates/delegation_logistics/checkin.html
+msgid "Punkt kontroli"
+msgstr "Ponto de controlo"
+
+#: templates/delegation_logistics/checkin.html
+msgid "Imię, nazwisko lub kraj"
+msgstr "Nome ou país"
+
+#: templates/delegation_logistics/checkin.html
+msgid "Szukaj"
+msgstr "Buscar"
+
+#: templates/delegation_logistics/checkin.html
+#: templates/delegation_logistics/checkin_member.html
+msgid "Organizator nie dodał jeszcze punktów kontroli."
+msgstr "O organizador ainda não adicionou pontos de controlo."
+
+#: templates/delegation_logistics/checkin.html
+msgid "Skieruj aparat na kod QR."
+msgstr "Aponte a câmara para o código QR."
+
+#: templates/delegation_logistics/checkin.html
+msgid "Skanuj w przeglądarce"
+msgstr "Ler no navegador"
+
+#: templates/delegation_logistics/checkin.html
+msgid "Nikogo nie znaleziono."
+msgstr "Ninguém encontrado."
+
+#: templates/delegation_logistics/checkin_member.html
+msgid "niepełnoletni"
+msgstr "menor"
+
+#: templates/delegation_logistics/checkin_member.html
+#: templates/delegation_logistics/leader_member.html
+msgid "Zdjęcie"
+msgstr "Fotografia"
+
+#: templates/delegation_logistics/checkin_member.html
+msgid "Brak zdjęcia – sprawdź tożsamość dokumentem."
+msgstr "Sem fotografia – confirme a identidade com um documento."
+
+#: templates/delegation_logistics/checkin_member.html
+#, python-format
+msgid "Odhaczono w punkcie „%(point)s” o %(time)s."
+msgstr "Registado em «%(point)s» às %(time)s."
+
+#: templates/delegation_logistics/checkin_member.html
+#, python-format
+msgid "Odhacz: %(point)s"
+msgstr "Registar: %(point)s"
+
+#: templates/delegation_logistics/checkin_member.html
+msgid "Cofnij"
+msgstr "Anular"
+
+#: templates/delegation_logistics/checkin_unknown.html
+msgid "Nieznany identyfikator"
+msgstr "Crachá desconhecido"
+
+#: templates/delegation_logistics/checkin_unknown.html
+msgid "Ten kod nie należy do żadnej osoby finału – identyfikator mógł zostać unieważniony. Wyszukaj osobę po nazwisku."
+msgstr "Este código não pertence a ninguém da final – o crachá pode ter sido anulado. Procure a pessoa pelo nome."
+
+#: templates/delegation_logistics/checkin_unknown.html
+msgid "Wróć do skanowania"
+msgstr "Voltar à leitura"
+
+#: templates/delegation_logistics/email/reminder_body.txt
+#, python-format
+msgid "Dzień dobry %(name)s,"
+msgstr "Olá, %(name)s,"
+
+#: templates/delegation_logistics/email/reminder_body.txt
+#, python-format
+msgid "w danych delegacji %(country)s na finał wciąż brakuje informacji:"
+msgstr "ainda faltam informações nos dados da delegação de %(country)s para a final:"
+
+#: templates/delegation_logistics/email/reminder_body.txt
+msgid "Terminy:"
+msgstr "Prazos:"
+
+#: templates/delegation_logistics/email/reminder_body.txt
+msgid "Uzupełnij dane w panelu opiekuna drużyny:"
+msgstr "Complete os dados no painel do chefe de equipa:"
+
+#: templates/delegation_logistics/email/reminder_body.txt
+msgid "Po terminie sekcja zostaje zamknięta i zmiany wprowadza już tylko organizator."
+msgstr "Após o prazo, a secção fica bloqueada e só o organizador pode fazer alterações."
+
+#: templates/delegation_logistics/email/reminder_body.txt
+#: templates/delegation_logistics/email/reminder_subject.txt
+msgid "Olimpiada Kwantowa"
+msgstr "Olimpíada Quântica"
+
+#: templates/delegation_logistics/email/reminder_body.txt
+msgid "Wiadomość wysłana automatycznie; prosimy na nią nie odpowiadać."
+msgstr "Mensagem enviada automaticamente; por favor, não responda."
+
+#: templates/delegation_logistics/email/reminder_subject.txt
+#, python-format
+msgid "Brakujące dane do logistyki finału – %(competition)s"
+msgstr "Dados em falta para a logística da final – %(competition)s"
+
+#: templates/delegation_logistics/leader_dashboard.html
+#: templates/delegation_logistics/leader_member.html
+msgid "Logistyka finału"
+msgstr "Logística da final"
+
+#: templates/delegation_logistics/leader_dashboard.html
+#, python-format
+msgid "Drużyna: %(country)s"
+msgstr "Equipa: %(country)s"
+
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "Uzupełnij dane każdej osoby z delegacji: dokument podróży (do zaproszenia wizowego), przyjazd i wyjazd, zakwaterowanie, rozmiar koszulki, kontakt alarmowy i zdjęcie do identyfikatora. Po terminie sekcja zostaje zamknięta – zmiany wprowadza wtedy organizator."
+msgstr "Complete os dados de cada pessoa da delegação: documento de viagem (para a carta-convite do visto), chegada e partida, alojamento, tamanho da T-shirt, contacto de emergência e fotografia do crachá. Após o prazo a secção fica bloqueada – as alterações passam a ser feitas pelo organizador."
+
+#: templates/delegation_logistics/leader_dashboard.html
+#, python-format
+msgid "Miejsce: %(city)s, %(start)s – %(end)s."
+msgstr "Local: %(city)s, %(start)s – %(end)s."
+
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "Terminy"
+msgstr "Prazos"
+
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "bez terminu"
+msgstr "sem prazo"
+
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "Osoby w delegacji"
+msgstr "Pessoas da delegação"
+
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "Imię i nazwisko"
+msgstr "Nome completo"
+
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "Rola"
+msgstr "Função"
+
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "Brakuje"
+msgstr "Em falta"
+
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "Operacje"
+msgstr "Ações"
+
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "komplet"
+msgstr "completo"
+
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "Uzupełnij"
+msgstr "Completar"
+
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "Delegacja nie ma jeszcze członków."
+msgstr "A delegação ainda não tem membros."
+
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "Dodaj obserwatora lub gościa"
+msgstr "Adicionar um observador ou convidado"
+
+#: templates/delegation_logistics/leader_dashboard.html
+#, python-format
+msgid "Osoby bez konta, które przyjeżdżają z delegacją (%(count)s z %(limit)s). Uczniów i opiekunów dodaje się na liście drużyny."
+msgstr "Pessoas sem conta que viajam com a delegação (%(count)s de %(limit)s). Os estudantes e chefes de equipa são adicionados na lista da equipa."
+
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "Dodaj"
+msgstr "Adicionar"
+
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "Listy zapraszające (wiza)"
+msgstr "Cartas-convite (visto)"
+
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "Listy wystawia organizator na podstawie danych dokumentu podróży."
+msgstr "As cartas são emitidas pelo organizador com base nos dados do documento de viagem."
+
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "Brak wystawionych listów."
+msgstr "Nenhuma carta emitida."
+
+#: templates/delegation_logistics/leader_member.html
+msgid "Dane widzą wyłącznie opiekunowie Twojej drużyny i organizator odpowiedzialny za logistykę. Zostaną usunięte po zakończeniu finału."
+msgstr "Estes dados só são visíveis para os chefes da tua equipa e para o organizador responsável pela logística. Serão apagados após a final."
+
+#: templates/delegation_logistics/leader_member.html
+msgid "Wycofaj zgodę i usuń dane o zdrowiu"
+msgstr "Retirar o consentimento e apagar os dados de saúde"
+
+#: templates/delegation_logistics/leader_member.html
+msgid "Zdjęcie do identyfikatora"
+msgstr "Fotografia do crachá"
+
+#: templates/delegation_logistics/leader_member.html
+msgid "Zdjęcie jest sprawdzane – pojawi się za chwilę."
+msgstr "A fotografia está a ser verificada – aparecerá em breve."
+
+#: templates/delegation_logistics/leader_member.html
+msgid "Poprzedni plik został odrzucony przy sprawdzaniu – wgraj zdjęcie ponownie."
+msgstr "O ficheiro anterior foi rejeitado na verificação – carregue a fotografia novamente."
+
+#: templates/delegation_logistics/leader_member.html
+msgid "Brak zdjęcia."
+msgstr "Sem fotografia."
+
+#: templates/delegation_logistics/leader_member.html
+msgid "Wgraj zdjęcie"
+msgstr "Carregar fotografia"
+
+#: templates/delegation_logistics/leader_member.html
+msgid "Dane gościa"
+msgstr "Dados do convidado"
+
+#: templates/delegation_logistics/leader_member.html
+msgid "Usuń z delegacji"
+msgstr "Remover da delegação"
+
+#: views.py
+msgid "Podaj imię, nazwisko i rolę gościa."
+msgstr "Indique o nome, o apelido e a função do convidado."
+
+#: views.py
+msgid "Dodano osobę do delegacji – uzupełnij jej dane."
+msgstr "A pessoa foi adicionada à delegação – complete os seus dados."
+
+#: views.py
+#, python-format
+msgid "Zapisano dane: %(name)s."
+msgstr "Dados guardados: %(name)s."
+
+#: views.py
+msgid "Przydział pokoju został zdjęty – osoba nie spełnia już zasad zakwaterowania tego pokoju."
+msgstr "A atribuição de quarto foi retirada – a pessoa já não cumpre as regras de alojamento desse quarto."
+
+#: views.py
+msgid "Wybierz plik ze zdjęciem."
+msgstr "Escolha um ficheiro de fotografia."
+
+#: views.py
+msgid "Zdjęcie przesłane – pojawi się po automatycznym sprawdzeniu pliku."
+msgstr "Fotografia carregada – aparecerá após a verificação automática do ficheiro."
+
+#: views.py
+msgid "Zapisano."
+msgstr "Guardado."
+
+#: views.py
+msgid "Usunięto osobę z delegacji razem z jej danymi."
+msgstr "A pessoa foi removida da delegação juntamente com os seus dados."
+
+#: views.py
+msgid "Zgoda wycofana – dane o wyżywieniu i zdrowiu tej osoby zostały usunięte."
+msgstr "Consentimento retirado – os dados de alimentação e saúde desta pessoa foram apagados."
+
+#: views.py
+msgid "Ten ekran jest dostępny wyłącznie dla obsługi rejestracji finału."
+msgstr "Este ecrã está disponível apenas para a equipa de registo da final."
+
+#: views.py
+msgid "Cofnięto odhaczenie."
+msgstr "Registo anulado."
+
+#: views.py
+#, python-format
+msgid "Odhaczono: %(name)s."
+msgstr "Registado: %(name)s."
+
+# --- VISA-01: wnioski o listy zapraszające, weryfikacja ---
+#: templates/delegation_logistics/leader_letters.html
+msgid "Osoby, które potrzebują wizy, dostają od organizatora imienny list zapraszający w PDF. Zaznacz osoby, wybierz język listu i złóż wniosek – po decyzji organizatora dostaniesz e-mail. List ma kod weryfikacyjny, który konsulat sprawdza na stronie organizatora."
+msgstr "As pessoas que precisam de visto recebem do organizador uma carta-convite nominativa em PDF. Selecione as pessoas, escolha o idioma da carta e envie o pedido – receberá um e-mail quando o organizador decidir. A carta tem um código de verificação que o consulado confirma no site do organizador."
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "Wniosek można złożyć dla osoby z kompletnymi danymi dokumentu podróży (imię i nazwisko jak w paszporcie, obywatelstwo, data urodzenia, numer i ważność paszportu)."
+msgstr "Só é possível pedir para pessoas com os dados do documento de viagem completos (nome completo como no passaporte, nacionalidade, data de nascimento, número e validade do passaporte)."
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "Zaznacz"
+msgstr "Selecionar"
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "Wniosek"
+msgstr "Pedido"
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "Ważny list"
+msgstr "Carta válida"
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "uzupełnij"
+msgstr "completar"
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "Powód:"
+msgstr "Motivo:"
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "Wycofaj"
+msgstr "Retirar"
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "Język listu"
+msgstr "Idioma da carta"
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "Poproś o list dla zaznaczonych"
+msgstr "Pedir carta para as pessoas selecionadas"
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "Wszystkie listy delegacji"
+msgstr "Todas as cartas da delegação"
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "unieważniony"
+msgstr "revogada"
+
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "Poproś o list zapraszający"
+msgstr "Pedir carta-convite"
+
+#: templates/delegation_logistics/verify.html
+msgid "Weryfikacja listu zapraszającego"
+msgstr "Verificação da carta-convite"
+
+#: templates/delegation_logistics/verify.html
+msgid "Kod z listu:"
+msgstr "Código da carta:"
+
+#: templates/delegation_logistics/verify.html
+msgid "List o tym kodzie został wystawiony przez organizatora i jest ważny."
+msgstr "A carta com este código foi emitida pelo organizador e é válida."
+
+#: templates/delegation_logistics/verify.html
+#, python-format
+msgid "List o tym kodzie został wystawiony przez organizatora, ale <strong>unieważniony</strong> %(day)s. Nie stanowi zaproszenia."
+msgstr "A carta com este código foi emitida pelo organizador, mas <strong>revogada</strong> em %(day)s. Não constitui um convite."
+
+#: templates/delegation_logistics/verify.html
+msgid "Numer listu"
+msgstr "Número da carta"
+
+#: templates/delegation_logistics/verify.html
+msgid "Osoby zaproszone"
+msgstr "Pessoas convidadas"
+
+#: templates/delegation_logistics/verify.html
+msgid "Dane osób z tego listu zostały usunięte po zakończeniu wydarzenia (ochrona danych osobowych)."
+msgstr "Os dados pessoais desta carta foram eliminados após o evento (proteção de dados)."
+
+#: templates/delegation_logistics/verify.html
+#, python-format
+msgid "obywatelstwo: %(country)s"
+msgstr "nacionalidade: %(country)s"
+
+#: templates/delegation_logistics/verify.html
+msgid "Strona nie pokazuje numerów paszportów ani innych danych z dokumentów podróży. Porównaj imię i nazwisko z paszportem osoby, która przedstawia list."
+msgstr "Esta página não mostra números de passaporte nem outros dados de documentos de viagem. Compare o nome com o passaporte da pessoa que apresenta a carta."
+
+#: templates/delegation_logistics/verify.html
+msgid "Nie mamy listu o takim kodzie."
+msgstr "Não temos nenhuma carta com este código."
+
+#: templates/delegation_logistics/verify.html
+msgid "Kod weryfikacyjny z listu"
+msgstr "Código de verificação da carta"
+
+#: templates/delegation_logistics/verify.html
+msgid "Sprawdź"
+msgstr "Verificar"
+
+#: templates/delegation_logistics/email/letter_decision_subject.txt
+#, python-format
+msgid "Decyzja w sprawie listów zapraszających – %(competition)s"
+msgstr "Decisão sobre as cartas-convite – %(competition)s"
+
+#: templates/delegation_logistics/email/letter_decision_body.txt
+#, python-format
+msgid "organizator rozpatrzył wnioski o listy zapraszające delegacji %(country)s."
+msgstr "o organizador decidiu sobre os pedidos de cartas-convite da delegação de %(country)s."
+
+#: templates/delegation_logistics/email/letter_decision_body.txt
+msgid "Zatwierdzone – list jest gotowy do pobrania:"
+msgstr "Aprovados – a carta está pronta para transferir:"
+
+#: templates/delegation_logistics/email/letter_decision_body.txt
+msgid "Odrzucone:"
+msgstr "Recusados:"
+
+#: templates/delegation_logistics/email/letter_decision_body.txt
+msgid "Po poprawieniu danych możesz złożyć nowy wniosek."
+msgstr "Depois de corrigir os dados pode enviar um novo pedido."
+
+#: templates/delegation_logistics/email/letter_decision_body.txt
+msgid "Listy pobierzesz w panelu opiekuna drużyny:"
+msgstr "Transfira as cartas no painel do chefe de equipa:"
+
+#: letter_requests.py
+msgid "Zaznacz co najmniej jedną osobę."
+msgstr "Selecione pelo menos uma pessoa."
+
+#: letter_requests.py
+#, python-format
+msgid "Uzupełnij dane dokumentu podróży: %(names)s."
+msgstr "Complete os dados do documento de viagem: %(names)s."
+
+#: letter_requests.py
+msgid "Ten wniosek został już rozpatrzony."
+msgstr "Este pedido já foi decidido."
+
+#: views_letters.py
+#, python-format
+msgid "Złożone wnioski o listy zapraszające: %(count)d."
+msgstr "Pedidos de cartas-convite enviados: %(count)d."
+
+#: views_letters.py
+#, python-format
+msgid "Pominięto osoby, które mają już wniosek oczekujący na decyzję: %(count)d."
+msgstr "Foram ignoradas pessoas que já têm um pedido a aguardar decisão: %(count)d."
+
+#: views_letters.py
+msgid "Wniosek został wycofany."
+msgstr "O pedido foi retirado."
+
+#: models.py
+msgid "oczekuje na decyzję"
+msgstr "a aguardar decisão"
+
+#: models.py
+msgid "zatwierdzony – list wystawiony"
+msgstr "aprovado – carta emitida"
+
+#: models.py
+msgid "odrzucony"
+msgstr "recusado"
+
+#: models.py
+msgid "wycofany"
+msgstr "retirado"
+
+# --- VISA-01: poprawki po przeglądzie ---
+#: letters.py
+msgid "Nieobsługiwany język listu."
+msgstr "Idioma da carta não suportado."
+
+#: letters.py
+msgid "Ten list został unieważniony – nie można go pobrać."
+msgstr "Esta carta foi revogada – não pode ser transferida."
+
+#: letters.py
+msgid "Dane osób z tego listu zostały usunięte – list nie może być ponownie pobrany."
+msgstr "Os dados pessoais desta carta foram eliminados – não pode ser transferida novamente."
+
+#: templates/delegation_logistics/leader_letters.html
+#, python-format
+msgid "Dane paszportowe zmieniły się – nowy list unieważni list %(numbers)s."
+msgstr "Os dados do passaporte mudaram – uma nova carta revogará a carta %(numbers)s."
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "Ma już ważny list – nowy list z tymi samymi danymi nie unieważni poprzedniego."
+msgstr "Já tem uma carta válida – uma nova carta com os mesmos dados não revogará a anterior."
+
+#: templates/delegation_logistics/verify.html
+msgid "List o tym kodzie został wystawiony przez organizatora, ale nie jest już ważny: dane osób usunięto przed wydarzeniem. Nie stanowi zaproszenia."
+msgstr "A carta com este código foi emitida pelo organizador, mas já não é válida: os dados pessoais foram eliminados antes do evento. Não constitui um convite."

@@ -1,0 +1,86 @@
+{% extends "web/coordinator/base.html" %}
+{% comment %}
+  Ustawienia finału (daty, miejsce, terminy grup, retencja, prefiks numeru listów), przydziały
+  dostępu i punkty kontroli obecności (LOG-01). Oficera nadaje superkoordynator albo inny oficer
+  (pierwszego – dowolny koordynator); reguła stoi w ``access.grant``, nie w tym szablonie.
+{% endcomment %}
+{% block title %}Logistyka finału – ustawienia{% endblock %}
+{% block panel_title %}Logistyka finału – ustawienia i dostęp{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Terminy blokują sekcje formularza opiekunów po upływie – później zmiany wprowadza już
+    tylko oficer logistyki. Po ostatnim dniu finału i okresie retencji dane osób znikają automatycznie.</p>
+{% endblock %}
+{% block panel_content %}
+{% include "delegation_logistics/_tabs.html" %}
+
+<section class="section">
+  <div class="card">
+    <h2 class="mt-0">Finał</h2>
+    <form method="post" class="form" novalidate>
+      {% csrf_token %}
+      {{ form.as_p }}
+      <div class="actions"><button type="submit" class="btn btn--primary">Zapisz</button></div>
+    </form>
+  </div>
+</section>
+
+<section class="section">
+  <div class="card">
+    <h2 class="mt-0">Dostęp do danych osób</h2>
+    <p class="hint">Paszporty, dane o zdrowiu, przyloty i pokoje widzi wyłącznie <strong>oficer logistyki</strong>
+      (koordynator z przydziałem). <strong>Obsługa rejestracji</strong> (dowolne konto, np. wolontariusz)
+      widzi tylko ekran skanowania identyfikatorów: imię, kraj, rolę i zdjęcie.</p>
+    <table class="table">
+      <caption class="visually-hidden">Przydziały</caption>
+      <thead><tr><th scope="col">Konto</th><th scope="col">Przydział</th><th scope="col">Nadano</th><th scope="col"><span class="visually-hidden">Operacje</span></th></tr></thead>
+      <tbody>
+        {% for grant in grants %}
+          <tr>
+            <th scope="row">{{ grant.user.get_full_name|default:grant.user.email }} ({{ grant.user.email }})</th>
+            <td>{{ grant.get_role_display }}</td>
+            <td>{{ grant.granted_at|date:"j.m.Y H:i" }}{% if grant.granted_by %} – {{ grant.granted_by.email }}{% endif %}</td>
+            <td class="actions">
+              <form method="post" action="{% url 'web:coordinator-onsite-access-revoke' grant.pk %}" class="inline">
+                {% csrf_token %}
+                <button type="submit" class="btn btn--ghost btn--small">Odbierz</button>
+              </form>
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="4" class="empty">Nikt nie ma jeszcze przydziału.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <form method="post" action="{% url 'web:coordinator-onsite-access' %}" class="form" novalidate>
+      {% csrf_token %}
+      {{ access_form.as_p }}
+      <div class="actions"><button type="submit" class="btn btn--secondary">Nadaj przydział</button></div>
+    </form>
+  </div>
+</section>
+
+<section class="section">
+  <div class="card">
+    <h2 class="mt-0">Punkty kontroli obecności</h2>
+    <p class="hint">Np. „Przyjazd do hotelu”, „Ceremonia otwarcia”, „Dzień zawodów 1”. Obsługa wybiera punkt
+      na ekranie skanowania.</p>
+    <ul>
+      {% for checkpoint in checkpoints %}
+        <li>{{ checkpoint.name }}
+          <form method="post" action="{% url 'web:coordinator-onsite-checkpoint-delete' checkpoint.pk %}" class="inline">
+            {% csrf_token %}
+            <button type="submit" class="btn btn--ghost btn--small">Usuń</button>
+          </form>
+        </li>
+      {% empty %}
+        <li>Brak punktów kontroli.</li>
+      {% endfor %}
+    </ul>
+    <form method="post" action="{% url 'web:coordinator-onsite-checkpoint-add' %}" class="form" novalidate>
+      {% csrf_token %}
+      {{ checkpoint_form.as_p }}
+      <div class="actions"><button type="submit" class="btn btn--secondary">Dodaj punkt</button></div>
+    </form>
+  </div>
+</section>
+{% endblock %}

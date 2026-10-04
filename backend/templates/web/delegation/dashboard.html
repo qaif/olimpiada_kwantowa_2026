@@ -24,6 +24,10 @@
     {% if can_add %}
       <a class="btn btn--primary" href="{% url 'web:delegation-student-add' %}">{% translate "Dodaj ucznia" %}</a>
     {% endif %}
+    {% load delegation_logistics %}{% final_logistics_enabled request.competition as logistics_on %}
+    {% if logistics_on %}
+      <a class="btn btn--secondary" href="{% url 'web:delegation-logistics' %}">{% translate "Logistyka finału" %}</a>
+    {% endif %}
     {% if time_windows_enabled %}
       <a class="btn btn--secondary" href="{% url 'web:delegation-time-windows' %}">{% translate "Okna czasowe i strefy uczniów" %}</a>
     {% endif %}
