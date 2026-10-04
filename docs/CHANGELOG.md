@@ -132,7 +132,7 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
   HEAD, oficer bez limitu; daty w formacie języka listu, zdania pl/ru niezależne od przypadka nazwy
   organizatora, przy szablonie z bazy list tylko po angielsku.
 - Dokumentacja: `docs/OPERACJE.md` § 31.8, `docs/PODRECZNIK-ORGANIZATORA.md` § 10d,
-  `docs/PODRECZNIK-OPIEKUNA-DRUZYNY.md` § 7, `docs/tasks/VISA-01.md`.
+  `docs/PODRECZNIK-OPIEKUNA-DRUZYNY.md` § 7a, `docs/tasks/VISA-01.md`.
 
 ## [Unreleased] – Logistyka finału dla delegacji (LOG-01)
 
@@ -163,7 +163,7 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
   przypomnienia tylko oficer; zapisy `update_fields`; numeracja listów pod blokadą (konkurs, rok);
   eksport danych konta z obecnością i listami.
 - Dokumentacja: `docs/OPERACJE.md` § 31, `docs/PODRECZNIK-ORGANIZATORA.md` § 10d,
-  `docs/PODRECZNIK-OPIEKUNA-DRUZYNY.md` § 7, `docs/tasks/LOG-01.md`.
+  `docs/PODRECZNIK-OPIEKUNA-DRUZYNY.md` § 7a, `docs/tasks/LOG-01.md`.
 
 ## [Unreleased] – Medale olimpiady międzynarodowej, dyplomy w języku ucznia i ranking krajów (MED-01)
 
@@ -190,7 +190,7 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
   przy wystawieniu, brak kształtowania przy pobraniu – błąd zamiast cichego angielskiego; `uharfbuzz`
   przypięty do 0.56.
 - Dokumentacja: `docs/OPERACJE.md` § 37, `docs/PODRECZNIK-ORGANIZATORA.md` § 10k, przewodnik opiekuna
-  drużyny § 5a, podręcznik uczestnika § 7.
+  drużyny § 5b, podręcznik uczestnika § 7.
 
 ## [Unreleased] – Rozmowy etapu w LiveKit jako alternatywa dla Jitsi (STAGE-LK-01)
 
@@ -307,7 +307,7 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
 - **Wspólne:** obraz kompiluje katalogi tłumaczeń aplikacji (`apps/*/locale`), test katalogów obejmuje
   je; scope throttlingu `translation`; rejestr czynności 1.13; sekcja `tlumaczenia_zadan` w eksporcie
   danych konta. Dokumentacja: `docs/tasks/TR-01.md`, `OPERACJE.md` § 34,
-  `PODRECZNIK-ORGANIZATORA.md` § 10g, `PODRECZNIK-OPIEKUNA-DRUZYNY.md` § 6, `PODRECZNIK-UCZESTNIKA.md` § 3.
+  `PODRECZNIK-ORGANIZATORA.md` § 10g, `PODRECZNIK-OPIEKUNA-DRUZYNY.md` § 6a, `PODRECZNIK-UCZESTNIKA.md` § 3.
 
 ## [Unreleased] – Przegląd tłumaczeń przez native speakerów (L10N-01)
 

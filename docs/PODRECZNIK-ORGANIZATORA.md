@@ -2292,7 +2292,7 @@ retencja i usunięcie konta — § 9.1.
 
 ---
 
-## 10b. Motyw serwisu — `/coordinator/competition/theme/`
+## 10j. Motyw serwisu — `/coordinator/competition/theme/`
 
 **Tylko w konkursie z włączonym przełącznikiem `themes`** (włącza operator — `OPERACJE.md` § 30). Bez
 niego ekranu nie ma, a serwis wygląda jak zawsze (motyw „Klasyczny”).

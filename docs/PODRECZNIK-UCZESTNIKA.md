@@ -464,7 +464,7 @@ konkursu (i w Twojej strefie, jeśli jest inna).
 
 ---
 
-## 8b. Przegląd tłumaczeń — `/translations/` (dla tłumaczy-wolontariuszy)
+## 8e. Przegląd tłumaczeń — `/translations/` (dla tłumaczy-wolontariuszy)
 
 Ten rozdział jest dla osób, którym organizator nadał rolę **tłumacza** (np. kierownik delegacji).
 Napisy serwisu są tłumaczone maszynowo z polskiego; Ty sprawdzasz je w swoim języku.
