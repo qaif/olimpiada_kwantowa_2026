@@ -183,6 +183,13 @@ def _team_leader_section(user: User) -> list[dict]:
     return export_section(user)
 
 
+def _problem_translations_section(user: User) -> dict:
+    """Tłumaczenia zadań (TR-01): język przypisany uczniowi i wersje wysłane przez opiekuna – bez treści."""
+    from apps.problem_translations.services import export_section
+
+    return export_section(user)
+
+
 def _team_leader_consents(user: User) -> list[dict]:
     """Zgody złożone w roli opiekuna drużyny – trzeci właściciel ``ConsentRecord``."""
     from .models import ConsentRecord
@@ -385,6 +392,7 @@ def export_payload(user: User) -> dict:
         "profil_komitetu": _committee_section(getattr(user, "committee_member", None)),
         "profil_opiekuna_szkolnego": _supervisor_section(supervisor),
         "delegacje_opiekun_druzyny": _team_leader_section(user),
+        "tlumaczenia_zadan": _problem_translations_section(user),
         "zgody": _consents_section(participant, supervisor) + _team_leader_consents(user),
         "zgoda_opiekuna": _guardian_section(participant),
         "zgloszenia_do_etapow": _entries_section(participant),
