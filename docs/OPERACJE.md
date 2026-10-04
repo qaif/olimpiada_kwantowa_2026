@@ -517,8 +517,8 @@ administratora – zrób to od razu, bo do tego czasu pulpit jest otwarty.
 
 **Ograniczenie, które trzeba znać:** ten monitor stoi na tej samej maszynie, co serwis. Awaria
 hosta, sieci u dostawcy albo zasilania zabiera go razem z serwisem. Dlatego **co najmniej jeden**
-monitor musi stać gdzie indziej: dowolna darmowa usługa odpytująca `https://<domena>/status.json`
-co 5 minut i szukająca w treści `"status": "ok"`.
+monitor musi stać gdzie indziej – od OPS-03 jest nim workflow GitHub Actions `uptime.yml` (§ 46),
+a drugą opinią może być darmowy pinger (§ 46.4).
 
 ### 3.2. Od środka: watchdog aplikacyjny
 
@@ -576,6 +576,7 @@ Pięć zadań równolegle, żadne nie wymaga sekretów (dzięki temu działa te�
 | `translations` | `msgfmt --check` na każdym `.po` | nieudanemu **budowaniu obrazu** (Dockerfile woła `msgfmt`) |
 | `tests` | pełny `pytest` z usługą Postgresa | regresjom |
 | `image` | `docker build --target runtime` | nieudanemu budowaniu na produkcji w środku wdrożenia |
+| `uptime-script` | `unittest` skryptu monitoringu z zewnątrz (bez sieci) | zepsutemu alarmowi, który wychodzi dopiero w dniu awarii (§ 46) |
 
 Redisa i MinIO w usługach CI nie ma świadomie: `config/settings/test.py` podmienia cache na
 lokalny, magazyn plików na dyskowy, a Celery na tryb `eager`, więc byłyby usługami, które nic nie
@@ -5793,3 +5794,78 @@ docker compose exec -T web python manage.py theme_install - --activate iqo < /tm
   wzorców w `apps/web/urls.py` oraz sekcji „Hasło” w `web/account/profile.html` (danych do sprzątania
   nie ma – funkcja niczego nie przechowuje poza `accounts.User.password` i audytem). Wymóg hasła przy
   zmianie adresu i zamknięcie dróg Wagtaila/admina zostają – to poprawki bezpieczeństwa, nie część ekranu.
+
+## 46. Monitoring z zewnątrz (OPS-03, `docs/tasks/OPS-03.md`)
+
+Watchdog (§ 3.2) i Uptime Kuma (§ 3.1) stoją na tym samym VPS-ie, co serwis – śmierć hosta, sieci
+u dostawcy albo zasilania zabiera je razem z nim. Workflow **`.github/workflows/uptime.yml`** chodzi
+na infrastrukturze GitHuba (repozytorium publiczne – zero kosztów, zero nowych kont, zero sekretów:
+tylko wbudowany `GITHUB_TOKEN` z `contents: read` i `issues: write`) i co 10 minut uruchamia
+`scripts/uptime_external.py` (sama biblioteka standardowa, Python ≥ 3.10).
+
+### 46.1. Co jest sprawdzane
+
+| Sprawdzenie | Awaria | Ostrzeżenie |
+|---|---|---|
+| `GET /` na `olimpiadakwantowa.pl` i `iqo-official.org` | brak odpowiedzi w 20 s, kod ≠ 200 | odpowiedź > 5 s |
+| `GET /healthz/` (obie witryny) | kod ≠ 200, `status` ≠ `ok` | > 5 s |
+| `GET /status.json` → `status` (obie) | ≠ `ok` (`degraded` z listą podsystemów, `maintenance`) | > 5 s |
+| `GET /status.json` → `backup_restore_check` | `failed`, `stale` (§ 43.5) | `unknown`/brak |
+| `GET https://live.olimpiadakwantowa.pl/` | kod ≠ 200 albo treść ≠ `OK` | > 5 s |
+| certyfikat TLS (3 hosty) | uzgodnienie nieudane (wygasły, zła nazwa), < 7 dni | < 14 dni |
+
+Awaria jest **potwierdzona**, gdy to samo sprawdzenie nie przejdzie w dwóch próbach odległych
+o 2 minuty w tym samym przebiegu (druga próba tylko wtedy, gdy pierwsza coś znalazła).
+Ostrzeżenia nie zakładają zgłoszenia – widać je w podsumowaniu przebiegu (*Actions → Uptime*) i
+w treści otwartego zgłoszenia. Inną listę adresów ustawia się bez zmiany kodu: *Settings → Secrets
+and variables → Actions → Variables* `UPTIME_SITES` / `UPTIME_LIVE` (adresy `https://` rozdzielone
+spacją; pusta zmienna = domyślne).
+
+### 46.2. Alarm: zgłoszenie `awaria`
+
+- **Potwierdzona awaria, brak otwartego zgłoszenia** → nowe zgłoszenie z etykietą `awaria` (etykietę
+  workflow zakłada sam). GitHub wysyła list **każdemu, kto obserwuje repozytorium** (*Watch → All
+  Activity* albo *Custom → Issues*) – dyżurni muszą obserwować repozytorium, inaczej list nie przyjdzie.
+- **Zgłoszenie otwarte, ten sam zestaw awarii** → nic (bez komentarza co 10 minut).
+- **Zgłoszenie otwarte, inny zestaw** → komentarz „Nowe/Wróciły” i odświeżona treść.
+- **Wszystko przechodzi** → komentarz i **zamknięcie**. Przy migotaniu (porażka w jednej z dwóch
+  prób) zgłoszenie zostaje otwarte.
+- Własne zgłoszenie workflow rozpoznaje po znaczniku `<!-- uptime-external -->` w treści; zgłoszeń
+  `awaria` zakładanych ręcznie nie dotyka. Zamknięcie zgłoszenia ręką przy trwającej awarii = nowe
+  zgłoszenie w następnym przebiegu.
+- Przebieg kończy się na zielono także przy awarii serwisu (alarmem jest zgłoszenie). **Czerwony
+  przebieg znaczy, że zepsuł się sam monitoring** (np. `gh` odmówił) – list o nim dostaje osoba,
+  która ostatnio zmieniła crona w `uptime.yml`.
+
+Ograniczenia, które trzeba znać:
+
+- cron GitHuba bywa **opóźniony** (kilkanaście–kilkadziesiąt minut w godzinach szczytu) i gubi
+  pojedyncze przebiegi – to alarm „w ciągu kwadransa–pół godziny”, nie „w ciągu minuty”,
+- po **60 dniach bez commitów** w repozytorium GitHub **wyłącza** zaplanowane workflow (jeden list do
+  osób z prawem zapisu). Sprawdzenie i włączenie: `gh workflow list --all` → `gh workflow enable uptime.yml`
+  (albo *Actions → Uptime → Enable workflow*). Między wydaniami olimpiady zajrzyj tam raz w miesiącu,
+- cron chodzi wyłącznie z `main` – workflow działa od scalenia; przebieg ręczny: *Actions → Uptime →
+  Run workflow* albo `gh workflow run uptime.yml`.
+
+### 46.3. Co zrobić, gdy przyszło zgłoszenie `awaria`
+
+1. Treść zgłoszenia mówi, **które** sprawdzenia padły. Wszystko naraz (`/`, `/healthz/`, TLS,
+   LiveKit) = host albo sieć: konsola dostawcy VPS (stan maszyny, restart), potem § 7.
+2. Tylko `/status.json`/`/healthz/` = aplikacja: `docker compose ps`, § 3.3.
+3. `tryb prac technicznych` = strona z § 20 jest włączona – zamierzenie albo zapomniane
+   `scripts/maintenance.sh off`. Na zaplanowane, dłuższe okno (np. § 19) można wyłączyć workflow
+   (`gh workflow disable uptime.yml`) i **włączyć z powrotem** po oknie – albo pozwolić mu założyć
+   zgłoszenie i samemu je zamknąć.
+4. `backup_restore_check = failed/stale` = § 43.5. TLS < 7 dni = Caddy nie odnawia certyfikatu:
+   `docker compose logs proxy | grep -i acme`, rekordy DNS, port 80.
+5. Zgłoszenie zamknie się samo po powrocie; zostaw w nim komentarz z przyczyną – to jest historia awarii.
+
+Lokalnie (laptop, dowolna maszyna z Pythonem ≥ 3.10): `python3 scripts/uptime_external.py`
+(bez `--issues` niczego nie zapisuje w GitHubie).
+
+### 46.4. Druga opinia: darmowy pinger (ręcznie, opcjonalnie)
+
+Workflow GitHuba to wciąż jedna firma i cichy wyłącznik po 60 dniach. Zalecany drugi, niezależny
+monitor – np. UptimeRobot (plan darmowy, *Keyword* `"status": "ok"` na `/status.json` obu witryn,
+co 5 min, powiadomienia na adres spoza domeny serwisu). Konto zakłada człowiek; instrukcja krok po
+kroku: `deploy/monitoring/README.md` § 5.
