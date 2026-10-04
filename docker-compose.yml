@@ -193,6 +193,82 @@ services:
       retries: 3
       start_period: 30s
 
+  # Piaskownica notatników kwantowych (QC-01, docs/tasks/QC-01.md § 6): wykonuje kod uczniów
+  # z oddanych plików .ipynb. Profil `notebooks` – instalacja bez sprawdzania automatycznego nie ma
+  # tego kontenera wcale (`COMPOSE_PROFILES=notebooks` w .env serwera, docs/OPERACJE.md).
+  # Izolacja jest tu najważniejszą warstwą i każda linijka ma powód:
+  # - `network_mode: none` – kod ucznia nie dosięga ani Redisa (broker Celery), ani bazy, ani internetu,
+  # - bez `env_file` i bez *app-env – w środowisku nie ma ani jednego sekretu,
+  # - `read_only` + tmpfs `/tmp` z `noexec` – nie da się zapisać i załadować własnego kodu natywnego,
+  # - `cap_drop: ALL` + SETUID/SETGID/KILL: nadzorca (root) uruchamia każde zadanie jako losowy,
+  #   nieużywany UID z puli `NOTEBOOK_RUNNER_UID_BASE` + 50 000 (bez grup), po zadaniu zabija
+  #   wszystkie procesy tego UID i kasuje jego pliki w /tmp – nic więcej nie potrafi,
+  # - `no-new-privileges`, `pids_limit`, `mem_limit`, `cpus` – fork-bomba i pętla nie zjedzą serwera,
+  # - jedyny wspólny zasób z resztą systemu to wolumen `notebook_spool` (pliki zadań i wyników);
+  #   nadzorca wchodzi do niego przez grupę workera (`group_add`), dzieci – wcale (2770).
+  notebook-runner:
+    image: ${WEB_IMAGE:-olimpiada/web:${APP_VERSION:-dev}}
+    profiles: [notebooks]
+    entrypoint: ["python", "-m", "apps.notebooks.runner.daemon"]
+    user: "0:0"
+    group_add: ["1000"]
+    network_mode: none
+    read_only: true
+    tmpfs:
+      - /tmp:size=512m,noexec,nosuid,nodev,mode=1777
+    cap_drop: [ALL]
+    cap_add: [SETUID, SETGID, KILL]
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 128
+    mem_limit: 1536m
+    cpus: 2
+    environment:
+      NOTEBOOK_SPOOL_DIR: /spool
+      NOTEBOOK_RUNNER_SLOTS: ${NOTEBOOK_RUNNER_SLOTS:-2}
+      NOTEBOOK_RUNNER_UID_BASE: "60000"
+      NOTEBOOK_RUNNER_MEMORY_MB: ${NOTEBOOK_RUNNER_MEMORY_MB:-768}
+      PYTHONDONTWRITEBYTECODE: "1"
+    volumes:
+      - notebook_spool:/spool
+    restart: unless-stopped
+    logging: *default-logging
+    # Pętla nadzorcy dotyka znacznika co pół sekundy; zawieszona pętla = kontener „unhealthy”.
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os,sys,time; sys.exit(0 if time.time() - os.path.getmtime('/tmp/notebook-runner.heartbeat') < 60 else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  # Worker Celery wyłącznie kolejki `notebooks` (QC-01): wysyła zadania do piaskownicy przez spool
+  # i ocenia wyniki testami (symulacja obwodu ucznia w budżecie `qclab.grader.MAX_RUN_WORK`, krótkie
+  # limity czasu zadań). Osobny, żeby ocena notatników nie zajmowała procesów skanu i poczty
+  # głównego `worker`. Jeden proces – zadania odbioru ponawiają się co 2 s i nie trzymają procesu.
+  notebook-worker:
+    <<: *app-base
+    profiles: [notebooks]
+    command: celery -A config worker -l info --concurrency 1 -Q notebooks --max-tasks-per-child 200
+    mem_limit: 768m
+    environment:
+      <<: *app-env
+      RUN_MIGRATIONS: "0"
+      RUN_COLLECTSTATIC: "0"
+      DB_POOL: "0"
+      DB_APPLICATION_NAME: olimpiada-notebook-worker
+    volumes:
+      - notebook_spool:/spool
+    depends_on:
+      db:     { condition: service_healthy }
+      redis:  { condition: service_healthy }
+      minio:  { condition: service_healthy }
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A config inspect ping -d celery@$$HOSTNAME --timeout 5"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
   beat:
     <<: *app-base
     command: celery -A config beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
@@ -625,6 +701,8 @@ volumes:
   mail_dkim:
   mail_spool:
   static_files:
+  # Pliki zadań i wyników piaskownicy notatników (QC-01) – wspólne dla `notebook-worker` i `notebook-runner`.
+  notebook_spool:
   caddy_data:
   caddy_config:
   # Baza Uptime Kuma (monitory, historia, konta). Wolumen nazwany, bo historia dostępności jest

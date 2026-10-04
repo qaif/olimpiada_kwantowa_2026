@@ -400,12 +400,35 @@ def groups(stages: list, competition=None) -> list[Group]:
                 match=("coordinator-ai-grading", "coordinator-ai-"),
             ),
         )
+    if competition is not None and competition.has_feature("quantum_notebooks"):
+        # Notatniki kwantowe (QC-01): testy i wyniki sprawdzania automatycznego – w „Ocenianiu”, obok
+        # oceny AI, bo to też podpowiedź punktów dla komisji. Przedrostek łapie ustawienia zadania,
+        # wyniki i szczegół przebiegu.
+        quality += (
+            Item(
+                "Notatniki kwantowe",
+                ("web:coordinator-notebooks",),
+                match=("coordinator-notebooks", "coordinator-notebook-"),
+            ),
+        )
     reports: tuple[Item, ...] = (
         Item(
             "Eksport danych", ("web:coordinator-export",), match=("coordinator-export", "coordinator-export-")
         ),
         Item("Audyt", ("web:coordinator-audit",), match=("coordinator-audit",)),
     )
+    from apps.accounts.twofactor import is_enabled as two_factor_enabled
+
+    if two_factor_enabled():
+        # SEC-01: polityka 2FA konkursu i stan personelu. Za wyłącznikiem instalacji, a nie flagą
+        # konkursu – przy ``TWO_FACTOR_ENABLED=0`` menu jest bajt w bajt dzisiejsze.
+        reports += (
+            Item(
+                "Bezpieczeństwo logowania",
+                ("web:coordinator-two-factor",),
+                match=("coordinator-two-factor",),
+            ),
+        )
     settings_items: tuple[Item, ...] = ()
     if competition is not None and competition.has_feature("competition_settings_page"):
         # Pierwsza pozycja sekcji, bo opisuje **konkurs**, a reszta sekcji – jego rocznik.

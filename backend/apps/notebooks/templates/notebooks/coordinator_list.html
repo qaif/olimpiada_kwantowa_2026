@@ -1,0 +1,54 @@
+{% extends "web/coordinator/base.html" %}
+{% load i18n %}
+{% block title %}{% translate "Notatniki kwantowe" %} – {% translate "panel koordynatora" %}{% endblock %}
+{% block panel_title %}{% translate "Notatniki kwantowe" %}{% endblock %}
+{% block panel_lead %}
+  <p class="lead">{% blocktranslate trimmed %}
+    Zadania z notatnikiem Jupytera w przeglądarce (JupyterLite, bez instalowania czegokolwiek).
+    Notatnik swobodny ocenia komisja; zadanie sprawdzane automatycznie liczy punkty za testy
+    w piaskownicy na serwerze – jako podpowiedź dla komisji, jak ocena AI.
+  {% endblocktranslate %}</p>
+{% endblock %}
+{% block panel_content %}
+{% include "notebooks/_security_warning.html" %}
+{% if not lab_built %}
+  <p class="msg msg-warning">{% translate "JupyterLite nie jest zbudowane na tym serwerze – uczestnicy zobaczą wyłącznie przycisk pobrania notatnika startowego. Patrz docs/OPERACJE.md (notatniki)." %}</p>
+{% endif %}
+<section class="section">
+  {% if rows %}
+    <div class="scroll">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>{% translate "Etap" %}</th>
+            <th>{% translate "Zadanie" %}</th>
+            <th>{% translate "Notatnik" %}</th>
+            <th>{% translate "Testy (widoczne / ukryte)" %}</th>
+            <th>{% translate "Sprawdzone prace" %}</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+            <tr>
+              <td>{{ row.problem.stage.display_name }}</td>
+              <td>{{ row.problem.number }}. {{ row.problem.display_title }}</td>
+              <td>{% if row.task %}{{ row.task.get_mode_display }}{% else %}<span class="hint">{% translate "brak" %}</span>{% endif %}</td>
+              <td class="num">{% if row.task %}{{ row.task.visible_tests|length }} / {{ row.task.hidden_tests|length }}{% else %}–{% endif %}</td>
+              <td class="num">{{ row.runs }}</td>
+              <td>
+                <a class="btn btn--secondary btn--small" href="{% url 'web:coordinator-notebook-task' row.problem.pk %}">{% if row.task %}{% translate "Ustawienia" %}{% else %}{% translate "Dodaj notatnik" %}{% endif %}</a>
+                {% if row.task and row.task.is_autograded %}
+                  <a class="btn btn--ghost btn--small" href="{% url 'web:coordinator-notebook-results' row.problem.pk %}">{% translate "Wyniki" %}</a>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="empty">{% translate "Bieżąca edycja nie ma jeszcze zadań." %}</p>
+  {% endif %}
+</section>
+{% endblock %}

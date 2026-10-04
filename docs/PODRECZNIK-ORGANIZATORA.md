@@ -2466,6 +2466,7 @@ koordynatora zostają po polsku i nie są przedmiotem przeglądu.
 
 ---
 
+
 ## 10l. Absolwenci i mentoring — `/coordinator/alumni/`
 
 Sieć byłych uczestników (za flagą `alumni` – włącza ją operator, `docs/OPERACJE.md` § 38).
@@ -2506,6 +2507,49 @@ Sieć byłych uczestników (za flagą `alumni` – włącza ją operator, `docs/
   i najwyższe osiągnięcie – grupy mniejsze niż 5 osób są łączone w „inne” (razem z najmniejszymi
   grupami, jeśli „inne” byłoby mniejsze niż 5), liczebność sieci jest zaokrąglona, profile ukryte
   się nie liczą, a przy sieci mniejszej niż 5 osób rozkładów nie ma wcale.
+
+## 10m. Bezpieczeństwo logowania — `/coordinator/security/2fa/`
+
+Logowanie dwuskładnikowe (2FA) to sześciocyfrowy kod z aplikacji w telefonie (Aegis, FreeOTP,
+Google Authenticator, menedżer haseł) podawany po haśle. Od SEC-01 serwis **wymaga** go od personelu
+konkursów, które przechowują dane wrażliwe: paszporty i dane o zdrowiu delegacji, płatności
+i faktury, nagrania nadzoru zdalnego. Ekran jest w menu „Raporty → Bezpieczeństwo logowania”, o ile
+operator włączył funkcję (`TWO_FACTOR_ENABLED`, `docs/OPERACJE.md` § 41).
+
+**Kto musi mieć 2FA.**
+
+- zawsze: superkoordynator i konta z dostępem do `/admin/` (ustawienie platformy),
+- w konkursie z delegacjami, płatnościami, logistyką finału albo nadzorem zdalnym (tryb
+  „automatycznie”): koordynatorzy (także oficer logistyki), opiekunowie drużyn narodowych i osoby
+  z przydziałem w logistyce finału (także obsługa rejestracji),
+- w trybie „wybrane role”: dokładnie role zaznaczone przez superkoordynatora (np. komitet i komisja
+  odwoławcza),
+- **nigdy uczestnicy** – mogą włączyć 2FA sami, ale serwis nigdy go od nich nie żąda.
+
+**Okres przejściowy.** Osoba objęta wymogiem ma domyślnie 14 dni od pierwszego wejścia: na każdej
+stronie widzi baner z terminem i odnośnikiem „Włącz teraz”. Po terminie serwis wpuszcza ją wyłącznie
+na ekran konfiguracji. Okres jest jednorazowy – wyłączenie 2FA go nie odnawia.
+
+**Co widzi koordynator na ekranie.** Obowiązujące role (platformy i konkursu), funkcje wrażliwe
+konkursu, długość okresu przejściowego, oraz listę personelu: kto ma 2FA, kto nie i do kiedy ma czas.
+Politykę **zmienia wyłącznie superkoordynator** – koordynator mógłby nią poluzować wymóg wobec samego
+siebie.
+
+**Twoje konto.** `Twoje konto → Logowanie dwuskładnikowe` (`/account/2fa/`): kod QR, potwierdzenie
+kodem, dziesięć kodów zapasowych pokazanych raz (wydrukuj, schowaj poza telefonem). Tam też: nowy
+komplet kodów zapasowych i wyłączenie – oba wymagają hasła **i** bieżącego kodu. Na własnym
+komputerze możesz zaznaczyć „Nie pytaj o kod na tym urządzeniu do …” (domyślnie 7 dni) – nigdy na
+komputerze wspólnym. Po pięciu błędnych kodach z rzędu logowanie kodem jest wstrzymane na 15 minut,
+a właściciel konta dostaje list. List przychodzi też po włączeniu, wyłączeniu, nowych kodach
+i użyciu kodu zapasowego – jeśli to nie Ty, zmień hasło i daj znać organizatorowi.
+
+**„Zgubiłem telefon”.** Najpierw kod zapasowy (wpisuje się go w to samo pole, co kod z aplikacji).
+Bez kodu: na ekranie konta w panelu „Zdejmij drugi składnik”. Konto personelu resetuje **wyłącznie
+superkoordynator** (koordynator zobaczy w tym miejscu tylko informację), konto uczestnika lub opiekuna
+szkolnego – koordynator. Zanim klikniesz, potwierdź tożsamość inną drogą niż e-mail z tego konta
+(telefon, wideo): prośba z przejętej skrzynki wygląda tak samo jak prawdziwa. Reset zostaje w audycie
+pod Twoim nazwiskiem, a właściciel dostaje list i po zalogowaniu hasłem od razu konfiguruje 2FA
+na nowym telefonie.
 
 ## 10m. Nadzór zdalny etapów online — `/coordinator/proctoring/`
 
@@ -2575,6 +2619,108 @@ danych) przeprowadza i dokumentuje ocenę skutków. Punkty, które platforma dos
   ucznia do wyjaśnień), praca bez nadzoru przy awarii (domyślnie `block`).
 - Wpis w rejestrze czynności („Nadzór zdalny etapów online”) pojawia się sam po włączeniu przełącznika.
 
+## 10n. Notatniki kwantowe — `/coordinator/notebooks/`
+
+Zadanie z notatnikiem Jupytera w przeglądarce (JupyterLite – uczestnik niczego nie instaluje).
+Ekran istnieje przy włączonej fladze konkursu `quantum_notebooks` (włącza operator, `docs/OPERACJE.md`
+§ 40). Lista pokazuje zadania bieżącej edycji; „Dodaj notatnik” / „Ustawienia” przy zadaniu.
+
+> **⚠ Bezpieczeństwo – przeczytaj, zanim włączysz notatniki.** Laboratorium (JupyterLab
+> w przeglądarce) wykonuje kod z notatnika **w domenie serwisu, w przeglądarce osoby, która je
+> otworzyła**. Polityka bezpieczeństwa blokuje z niego panele, API i formularze serwisu, ale to nie
+> jest pełna izolacja. Dlatego:
+>
+> - laboratorium otwiera się **wyłącznie na koncie uczestnika bez żadnej roli personelu**.
+>   Koordynator, recenzent, członek komisji, opiekun szkolny, opiekun delegacji, superużytkownik –
+>   w **którymkolwiek** konkursie na tym serwerze – zamiast laboratorium dostaje **podgląd tylko do
+>   odczytu** (kod się nie wykonuje, wyjścia HTML/JavaScript są pominięte);
+> - **nigdy nie otwieraj notatnika uczestnika w laboratorium** – ani swoim kontem (nie da się), ani
+>   „na chwilę” kontem uczestnika. Prace sprawdzasz podglądem („Podgląd notatnika (tylko do odczytu)”
+>   w ekranie oceny i w wynikach), a notatnik startowy i wzorcowy – podglądem w ustawieniach zadania;
+> - zadanie przetestuj jako uczestnik na **osobnym koncie testowym bez ról** (nie nadawaj mu potem
+>   roli – laboratorium z niego zniknie);
+> - uprzedź uczestników (komunikat, regulamin), żeby **nie wklejali do notatnika kodu od innych
+>   osób** – wykonuje się na ich koncie.
+>
+> Docelowo laboratorium ma dostać osobną domenę (`docs/OPERACJE.md` § 40.6); wtedy te ograniczenia
+> znikną.
+
+**Tryby:**
+
+- **Notatnik swobodny** – uczestnik dostaje notatnik startowy przy zadaniu, oddaje plik `.ipynb`,
+  ocenia komisja jak każdą pracę (podgląd kodu w ekranie recenzenta działa jak dotąd).
+- **Sprawdzanie automatyczne** – jak wyżej, a dodatkowo każda najnowsza wersja pracy jest w ciągu
+  minuty od czystego skanu antywirusowego wykonywana na serwerze w piaskownicy i liczona testami.
+  Punkty z testów są **podpowiedzią** dla komisji (panel „Testy automatyczne” w ekranie oceny,
+  tabela „Wyniki”), a nie oceną – skalę zadania stosują recenzenci. Zadanie musi przyjmować pliki
+  `.ipynb` (format w ustawieniach zadania).
+
+**Ustawienia:** język treści notatnika (polski/angielski – szablon notatnika startowego i komunikaty
+testów; interfejs JupyterLab jest angielski), limit czasu (5–60 s) i pamięci, kto widzi wynik testów
+ukrytych (domyślnie **tylko organizator i komisja**; „po zamknięciu etapu”; „od razu” – tylko na
+etapach treningowych, bo daje uczestnikowi wyrocznię), notatnik startowy (własny `.ipynb` do 1 MB
+albo szablon; wyjścia komórek są czyszczone) i notatnik wzorcowy.
+
+**Środowisko uczestnika:** `from qiskit import QuantumCircuit` działa, ale to **zgodny podzbiór
+Qiskita** (symulator `qclab`, wektor stanu do 20 kubitów, `Operator` do 10), a nie pełny Qiskit –
+pełnego nie da się uruchomić w przeglądarce (`docs/tasks/QC-01.md` § 1). Są: bramki
+`x y z h s sdg t tdg sx rx ry rz p u cx cy cz ch cp crx cry crz swap iswap rxx ryy rzz ccx ccz cswap
+mcx mcp unitary`, pomiar, reset, bariera, parametry, `compose`, `inverse`, `to_gate`, `QFT`,
+`Statevector`, `Operator`, `SparsePauliOp`, `StatevectorSampler`/`StatevectorEstimator`,
+`BasicSimulator`/`AerSimulator`, rysunek tekstowy, histogram tekstowy, NumPy. Nie ma: sprzętu IBM,
+szumu, transpilacji do bazy, OpenQASM, `if_test`, matplotlib. Zadanie układaj tak, żeby nie wymagało
+niczego spoza tej listy – i sprawdź to notatnikiem wzorcowym.
+
+**Testy** to lista obiektów JSON (pola „Testy widoczne” i „Testy ukryte”). Przykład:
+
+```json
+[
+  {"id": "bell", "name": "Stan Bella", "points": 2, "target": "qc",
+   "check": "statevector", "expected": {"00": "1/sqrt(2)", "11": "1/sqrt(2)"}},
+  {"id": "ghz", "name": "GHZ dla n=4", "points": 2, "target": {"call": "ghz", "args": [4]},
+   "check": "probabilities", "expected": {"0000": 0.5, "1111": 0.5}},
+  {"id": "depth", "name": "Płytki obwód", "points": 1, "target": "qc",
+   "check": "circuit", "max_depth": 2, "allowed_gates": ["h", "cx"]}
+]
+```
+
+- `target` – nazwa zmiennej z notatnika (`"qc"`) albo wywołanie funkcji ucznia
+  (`{"call": "ghz", "args": [4]}`; argumenty w JSON-ie),
+- `check`: `statevector` (lista amplitud albo `{"etykieta": amplituda}`; do fazy globalnej, chyba że
+  `"global_phase": false`), `probabilities` (`{"00": 0.5}`), `counts` (rozkład wyników pomiaru;
+  z obwodu liczony dokładnie, ze słownika zliczeń – z tolerancją odległości, domyślnie 0,05),
+  `unitary` (macierz do 6 kubitów), `value` (liczba, lista, napis, wartość logiczna),
+  `circuit` (`num_qubits`, `max_depth`, `max_size`, `max_gates` np. `{"cx": 2}`, `allowed_gates`,
+  `required_gates`, `measurements`: `required`/`forbidden`),
+- liczby można pisać wyrażeniami: `"1/sqrt(2)"`, `"exp(i*pi/4)"`, `"-0.5j"`; `tolerance` – dopuszczalna
+  różnica (domyślnie 1e-6),
+- etykiety bitów jak w Qiskicie: kubit 0 **z prawej** (`"01"` = kubit 0 w stanie 1),
+- test zaliczony = pełne `points`, niezaliczony = 0; wynik pracy = suma testów ukrytych (bez
+  ukrytych – widocznych).
+
+**Uczciwość:** testy ukryte nie trafiają ani do przeglądarki, ani do piaskownicy z kodem ucznia –
+piaskownica dostaje tylko listę celów („co odczytać”), oczekiwania zna wyłącznie serwer. Testy
+widoczne są w notatniku uczestnika (ostatnia komórka) – traktuj je jak przykład, nie jak ocenę.
+Błąd w jednej komórce nie przerywa pozostałych (przypadkowe `plot_histogram` nie zeruje zadania).
+
+**Sprawdź testy na wzorcu:** wgraj notatnik wzorcowy i kliknij „Sprawdź testy na wzorcu” – po kilku
+sekundach (odświeżenie strony) widać wynik każdego testu i błędy komórek. „Pobierz notatnik jak
+uczestnik” daje plik dokładnie w tej postaci, w jakiej dostanie go uczestnik; „Podgląd” pokazuje
+notatnik startowy i wzorcowy bez wykonywania.
+
+**Testy na zliczeniach** (`counts` ze słownikiem zliczeń ucznia) mają tolerancję co najmniej
+`√(liczba wyników / liczba strzałów)` – poprawne rozwiązanie z 1024 strzałami nie obleje testu przez
+szum losowania; poniżej 100 strzałów test nie przechodzi. Gdy potrzebujesz ciasnej tolerancji,
+testuj **obwód** (`"target": "qc"`) – jego rozkład serwer liczy dokładnie. Obwody bardzo duże
+(np. 20 kubitów i tysiące bramek) serwer odrzuca bez liczenia („obwód za duży do oceny”).
+
+**Komunikaty testów** (różnice, limity bramek) widzisz tylko Ty – w wynikach i szczególe
+przebiegu. Recenzent i uczestnik widzą nazwy testów i punkty.
+
+**Wyniki** (`…/results/`): najnowsza wersja każdego uczestnika, punkty za każdy test, suma, CSV,
+szczegół przebiegu (błędy komórek, początek wyjścia programu). Po zmianie testów wiersze dostają
+znacznik „testy zmienione” – „Przelicz wszystko” liczy je od nowa (wpis w audycie).
+
 ## 11. Kalendarz prowadzenia edycji — ściągawka
 
 | Kiedy | Co zrobić | Gdzie |
@@ -2614,10 +2760,8 @@ techniczne: **zgody wyraża osoba, a nie szkoła**, więc konto założone hurte
 przejść przez blok zgód i aktywację adresu przy pierwszym logowaniu. Do czasu wdrożenia jedyną drogą
 jest otwarta rejestracja z `/register/`.
 
-**Uwierzytelnianie dwuskładnikowe (`apps/accounts/twofactor.py`, w przygotowaniu).** Drugi składnik
-logowania dla kont funkcyjnych — koordynatora i komitetu, czyli tych, które widzą dane osobowe i mogą
-zmieniać oceny. Do tego czasu chroni je samo hasło i skrzynka pocztowa: trzymaj liczbę kont koordynatora
-przy minimum i wymagaj od komitetu długich, unikatowych haseł.
+**Uwierzytelnianie dwuskładnikowe** – już nie „w przygotowaniu”: działa za wyłącznikiem operatora
+(`TWO_FACTOR_ENABLED`) i od SEC-01 jest wymagane od personelu konkursów z danymi wrażliwymi – § 10m.
 
 **Integracje zewnętrzne (`apps/integrations`, w przygotowaniu).** Wymiana danych z systemami organizatora.
 Cokolwiek się w niej znajdzie, będzie **nowym odbiorcą danych** — czyli wymaga wiersza w rejestrze

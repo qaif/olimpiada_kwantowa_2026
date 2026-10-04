@@ -5,12 +5,16 @@ from django.urls import path
 from apps.alumni.urls import urlpatterns as alumni_urlpatterns
 from apps.delegation_logistics.urls import urlpatterns as final_logistics_urlpatterns
 from apps.medals.urls import urlpatterns as medal_urlpatterns  # MED-01
+
+# Notatniki kwantowe (QC-01) – wzorce w module aplikacji, rozwinięte na końcu listy.
+from apps.notebooks.urls import urlpatterns as notebook_urlpatterns
 from apps.password_change.urls import urlpatterns as password_change_urlpatterns  # AUTH-01b
 from apps.payments.urls import urlpatterns as payment_urlpatterns
 from apps.problem_translations.urls import urlpatterns as translation_urlpatterns
 
 # Statystyki szkół (STAT-01) – widoki mieszkają w nowej aplikacji, montaż jak u pozostałych wydań.
 from apps.school_stats.urls import urlpatterns as school_stats_urlpatterns
+from apps.staff_mfa.urls import urlpatterns as staff_mfa_urlpatterns  # SEC-01: 2FA personelu
 
 # Wzorce ekranów wydań E–K stoją w osobnych modułach, bo powstały równolegle (T11, T13, T20, T23,
 # T27, T34, T42), a ten plik ma w etapie 2 **jednego** właściciela na wydanie
@@ -1183,6 +1187,8 @@ urlpatterns = [
     *final_logistics_urlpatterns,
     # --- statystyki szkół i opiekunów (STAT-01, flaga ``school_statistics``) ----------------------
     *school_stats_urlpatterns,
+    # --- logowanie dwuskładnikowe personelu: nowe kody, polityka konkursu (SEC-01) -------------
+    *staff_mfa_urlpatterns,
     # --- okna czasowe etapu według stref (TZ-01, 4.10.2026; widoki w ``apps.time_windows``) -------
     *time_windows_urlpatterns,
     # --- tłumaczenia zadań przez delegacje (TR-01, 4.10.2026) -----------------------------------
@@ -1193,6 +1199,8 @@ urlpatterns = [
     *medal_urlpatterns,
     # --- płatności online za udział: Stripe, Przelewy24, przelew, faktury (PAY-01, 4.10.2026) ---
     *payment_urlpatterns,
+    # --- notatniki kwantowe w przeglądarce i ocena automatyczna (zadanie QC-01, flaga) ------------
+    *notebook_urlpatterns,
     # --- sieć absolwentów i mentoring (ALUM-01, za flagą ``alumni``) ---------------------------------
     *alumni_urlpatterns,
     # --- zmiana hasła w panelu konta (AUTH-01b, 4.10.2026) ------------------------------------------

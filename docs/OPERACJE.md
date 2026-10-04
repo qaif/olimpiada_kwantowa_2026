@@ -712,6 +712,10 @@ używa** tej nakładki: `scripts/deploy.sh` startuje komplet usług, tak jak dot
 
 ## 5. Logowanie dwuskładnikowe (2FA)
 
+> **SEC-01 (04.10.2026):** wymóg 2FA dla personelu (polityka platformy i konkursu, okres przejściowy,
+> blokada konta, „zapamiętaj to urządzenie”, reset konta personelu wyłącznie przez superkoordynatora)
+> opisuje **§ 41**. Ta sekcja zostaje opisem samego protokołu i wyłącznika.
+
 > ### Stan na tej instalacji: **WYŁĄCZONE**
 >
 > Decyzja organizatora („autoryzacja 2-etapowa wyłączona”). `TWO_FACTOR_ENABLED` jest domyślnie
@@ -5103,6 +5107,159 @@ Wydzielenie LiveKit jest konieczne niezależnie od liczby uczniów, jeśli etap 
 (PROC-01/STAGE-LK-01): SFU przy setkach strumieni zajmie całe vCPU i łącze tego hosta. Kolejny krok
 pomiarowy: § 42.6 na stagingu klasy docelowej, zanim organizator zamówi serwer.
 
+---
+
+## 41. Logowanie dwuskładnikowe personelu (SEC-01, `docs/tasks/SEC-01.md`)
+
+Rozszerza § 5 (protokół TOTP, kody zapasowe, poczekalnia, reset) o **politykę wymogu dla personelu**,
+okres przejściowy, blokadę konta, „zapamiętaj to urządzenie”, listy do właściciela i zawężenie resetu
+cudzego 2FA personelu do superkoordynatora. Kod: `apps/staff_mfa/` + `apps/accounts/twofactor.py`.
+
+### 41.1. Ustawienia (`/opt/olimpiada/.env`, wszystkie bez znaczenia przy `TWO_FACTOR_ENABLED=0`)
+
+```ini
+TWO_FACTOR_ENABLED=1                              # wyłącznik główny (§ 5), domyślnie 0
+TWO_FACTOR_REQUIRED_ROLES=superkoordynator,admin  # role PLATFORMY – wymagane w każdym konkursie
+TWO_FACTOR_GRACE_DAYS=14                          # okres przejściowy (dni)
+TWO_FACTOR_REMEMBER_DAYS=7                        # „zapamiętaj to urządzenie” (0 = bez tej opcji)
+```
+
+Klucze ról: `superkoordynator`, `admin` (`is_staff`/superuser – dostęp do `/admin/`), `coordinator`
+(także oficer logistyki), `team_leader`, `logistics` (przydział w logistyce finału, także obsługa
+rejestracji), `reviewer`, `appeals`, `supervisor`. **`participant` jest odrzucany** – uczestnika
+nie da się objąć wymogiem żadną drogą. Nieznany klucz jest pomijany z ostrzeżeniem w logu.
+
+> **Uwaga przy aktualizacji `.env`:** pusta wartość `TWO_FACTOR_REQUIRED_ROLES=` (stara wartość
+> z `.env.example`) **wyłącza** role platformy. Wpisz `superkoordynator,admin` jawnie.
+
+Po zmianie: `docker compose up -d web worker beat`.
+
+### 41.2. Polityka konkursu – `/coordinator/security/2fa/` („Raporty → Bezpieczeństwo logowania”)
+
+- tryb **automatyczny** (domyślny, także bez zapisanego wiersza): konkurs z funkcją wrażliwą –
+  tryb delegacji, `fees`, `onsite_logistics`, `proctoring` – wymaga 2FA od `coordinator`,
+  `team_leader`, `logistics`; konkurs bez nich nie wymaga niczego ponad role platformy
+  (Olimpiada Kwantowa bez płatności i logistyki: wymóg tylko dla superkoordynatora i `/admin/`),
+- tryb **wybrane role**: dokładnie zaznaczone role konkursu (pusta lista = nic ponad platformę),
+- okres przejściowy konkursu (puste = `TWO_FACTOR_GRACE_DAYS`, 0 = od razu, maks. 90),
+- „pozwól zapamiętać urządzenie” (wyłączone = kod przy każdym logowaniu).
+
+**Zmienia wyłącznie superkoordynator** (koordynator widzi samą politykę; POST = 403)
+albo operator w `/admin/` (`staff_mfa → polityki 2FA konkursów`). Zapis: audyt `2fa.policy_changed`
+(przed → po) i nowa wersja polityki – działające sesje liczą wymóg od następnego żądania.
+Lista personelu (role, 2FA tak/nie, termin okresu przejściowego, odnośnik do konta) – **wyłącznie
+dla superkoordynatora**: „kto nie ma 2FA” to lista najłatwiejszych celów.
+
+### 41.3. Okres przejściowy i wymuszanie
+
+- pierwsze żądanie konta objętego wymogiem bez urządzenia zakłada `TwoFactorGrace` (audyt
+  `2fa.grace_started`); do terminu – baner na każdej stronie serwisu (także w motywie IQO),
+- po terminie – poczekalnia „skonfiguruj” dla **całej** sesji (panel, `/cms/`, `/admin/`, `/api/`,
+  także `/account/…`); wolno tylko `/account/2fa/…`, wylogowanie, preferencje i `/status/`,
+- okres jest **jednorazowy**: wyłączenie 2FA ani reset go nie odnawiają (konto konfiguruje 2FA od razu
+  po zalogowaniu hasłem). Wydłużyć go można wyłącznie zmianą `grace_days` w polityce konkursu,
+- wymóg liczony per konkurs żądania: ten sam koordynator może musieć mieć 2FA na `iqo-official.org`,
+  a nie musieć na olimpiadakwantowa.pl. Urządzenie jest jedno dla konta – kto je ma, podaje kod wszędzie,
+- uczestnik nigdy nie dostaje banera ani poczekalni „skonfiguruj” (2FA włączone dobrowolnie działa jak dotąd),
+- termin dla ról **platformy** (`superkoordynator`, `admin`) liczy się wyłącznie z
+  `TWO_FACTOR_GRACE_DAYS` – polityka konkursu go nie wydłuży; przy rolach z obu źródeł – wcześniejszy,
+- zmiana ról w trakcie sesji: nadanie roli personelu (grupa, `Membership`, przydział logistyki,
+  opiekun delegacji) i zmiana przełączników konkursu podbijają wersję polityki – działające sesje
+  liczą wymóg od następnego żądania. Znacznik „nie musisz” żyje najwyżej 10 min; konto bez żadnej
+  roli personelu (uczestnik) nie czyta przy każdym żądaniu wersji z Redisa, więc rola nadana
+  uczestnikowi zadziała u niego najpóźniej po 10 min,
+- włączenie, wyłączenie i reset 2FA zamykają **inne** sesje konta (reset – wszystkie),
+- po wdrożeniu SEC-01 każda sesja przechodzi bramkę od nowa (klucz sesji `2fa_passed` zamiast
+  `2fa_verified`).
+
+### 41.4. Bezpieczeństwo kodów
+
+- **blokada konta**: 5 złych kodów w 15 min → 15 min blokady (w blokadzie nawet dobry kod jest
+  odrzucany); audyt `2fa.locked`, list do właściciela, API `429 TWO_FACTOR_LOCKED`. Próba jest
+  liczona **przed** sprawdzeniem kodu – równoległa seria nie przekroczy limitu. Licznik w Redisie –
+  awaria Redisa wyłącza blokadę (błąd w logu, logowanie działa; limit `two_factor` 10/min per IP też
+  stoi w Redisie),
+- jednorazowość kodu TOTP (warunkowy `UPDATE`) i kodu zapasowego (`select_for_update`) odporna na
+  równoległe żądania,
+- wyłączenie 2FA i nowy komplet kodów (`/account/2fa/codes/regenerate/`) wymagają hasła **i** kodu,
+- „zapamiętaj to urządzenie”: podpisane ciasteczko `2fa_trust` (`HttpOnly`, `SameSite=Lax`, `Secure`
+  jak sesja), ważne wyłącznie w konkursie, który je wydał (konkurs pod prefiksem ścieżki dzieli
+  ciasteczka z gospodarzem), unieważniane zmianą hasła, wyłączeniem i resetem 2FA oraz przyciskiem
+  „Zapomnij wszystkie urządzenia” na `/account/2fa/` (audyt `2fa.devices_forgotten`); audyt `2fa.remembered`,
+- ekrany 2FA: `Cache-Control: private, no-store`; pełnostronicowy cache ich nie dotyczy.
+
+### 41.5. „Zgubiłem telefon” – reset przez organizatora
+
+`Panel → Konta → (konto) → Logowanie dwuskładnikowe → Zdejmij drugi składnik`:
+
+- konto **personelu** – rola z § 41.1 poza `supervisor` w **dowolnym** konkursie (grupy, `Membership`,
+  przydział logistyki, opiekun delegacji, `is_staff`), także konto **zablokowane**: **wyłącznie
+  superkoordynator**; koordynator widzi zdanie „wyłącznie superkoordynator”, POST = 403,
+- wyjątek, gdy na platformie nie ma żadnego aktywnego superkoordynatora: koordynator może zresetować
+  personel **swojego** konkursu – nigdy konto `admin`/superkoordynatora ani personel innego konkursu.
+  Przy `migrate`/`manage.py check` pojawia się wtedy ostrzeżenie `staff_mfa.W002`,
+- uczestnik i opiekun szkolny: koordynator, jak dotąd,
+- zawsze: potwierdź tożsamość drogą inną niż e-mail z tego konta (§ 5.4); audyt `2fa.reset`; właściciel
+  dostaje list – także na **poprzedni** adres, jeśli adres konta zmieniono w ostatnich 30 dniach;
+  wszystkie sesje właściciela zostają zamknięte. Nadanie roli superkoordynatora: komenda
+  `superkoordynator` (`--help`),
+- **zmiana adresu e-mail** konta z 2FA albo konta personelu (przy `TWO_FACTOR_ENABLED=1`): wyłącznie
+  superkoordynator albo `/admin/`. Koordynator dostaje odmowę – zmiana adresu to pierwszy krok
+  przejęcia (nowy adres → reset hasła),
+- **reset z powłoki** (droga ostatnia, np. konto `admin` bez superkoordynatora):
+
+  ```bash
+  docker compose exec web python manage.py reset_2fa adres@example.org \
+    --note "zgłoszenie tel. 4.10, tożsamość potwierdzona wideo – J. Kowalski"
+  ```
+
+  Audyt `2fa.reset` bez wykonawcy z panelu (`via: cli`, notatka), list do właściciela, zamknięte sesje.
+
+### 41.6. Listy do właściciela konta
+
+Włączenie, wyłączenie, nowe kody zapasowe, użycie kodu zapasowego, reset przez organizatora,
+blokada po złych kodach – kolejka `mail`, w języku konta, bez sekretów i bez linków logowania.
+List o resecie i o wyłączeniu idzie też na poprzednie adresy konta z ostatnich 30 dni
+(`staff_mfa.PreviousEmail`, zapisywane przy zmianie adresu tylko przy `TWO_FACTOR_ENABLED=1`;
+znikają z kontem i przy anonimizacji).
+
+### 41.7. API
+
+- `POST /api/auth/login/`: konto wymagane bez urządzenia – w okresie przejściowym token jak dotąd,
+  po nim `403 TWO_FACTOR_SETUP_REQUIRED`; konto z urządzeniem – pole `code` (§ 5, `docs/API.md`),
+- token konta wymaganego bez urządzenia po terminie → `401`; token sprzed potwierdzenia urządzenia → `401`,
+- klucze integracji (`/api/v1/`, `apps.integrations`) to osobny mechanizm bez sesji – poza SEC-01.
+
+### 41.8. Wdrożenie na produkcji (kolejność)
+
+1. wdrożenie (migracje `staff_mfa.0001`–`0002` – cztery puste tabele, bez przerwy),
+2. `.env`: `TWO_FACTOR_REQUIRED_ROLES=superkoordynator,admin`, `TWO_FACTOR_GRACE_DAYS=14`,
+   `TWO_FACTOR_REMEMBER_DAYS=7`, a dopiero potem `TWO_FACTOR_ENABLED=1`; `docker compose up -d web worker beat`,
+3. komunikat do personelu (koordynatorzy, opiekunowie drużyn IQO, oficerowie logistyki): „w ciągu
+   14 dni włącz 2FA w `Twoje konto → Logowanie dwuskładnikowe`”,
+4. po kilku dniach: `/coordinator/security/2fa/` – kto jeszcze nie ma; w razie potrzeby polityka
+   `custom` z `reviewer`/`appeals`,
+5. wycofanie: `TWO_FACTOR_ENABLED=0` (urządzenia i okresy przejściowe zostają w bazie; § 5.6).
+
+Po kroku 2 sprawdź `docker compose exec web python manage.py check`: `staff_mfa.W001` = puste
+`TWO_FACTOR_REQUIRED_ROLES`, `staff_mfa.W002` = brak aktywnego superkoordynatora.
+
+### 41.9. Znane ograniczenia
+
+- **Redis** niesie licznik blokady, wersję polityki i limit `two_factor`: jego awaria wyłącza blokadę
+  i limit (logowanie działa, błąd w logu), a wyczyszczenie go to jednorazowe przeliczenie bramki
+  w każdej sesji,
+- **zmiana roli** dociera do sesji uczestnika (konta bez roli personelu) najpóźniej po 10 min,
+  do pozostałych – od następnego żądania (wersja polityki); zmiana `is_staff` – najpóźniej po 10 min,
+- **okres przejściowy** liczy się od pierwszego wejścia konta po objęciu wymogiem, a nie od
+  włączenia funkcji – konto, które nie loguje się miesiącami, dostanie pełne 14 dni przy pierwszym
+  logowaniu (także przejmujący z samym hasłem; hasło nadal jest potrzebne),
+- **klucze integracji** (`/api/v1/`, `apps.integrations`) nie podlegają 2FA – to osobny mechanizm
+  bez sesji użytkownika (§ 41.7),
+- **WebAuthn/passkeys** – brak (wymagałyby nowej zależności).
+
+---
+
 ## 43. Test odtwarzania kopii (OPS-01, `docs/tasks/OPS-01.md`)
 
 ### 43.1. Po co
@@ -5384,6 +5541,160 @@ egress to osobny proces – na 300 nagrań naraz zaplanuj 2–3 węzły egress (
 - Zmiana dostawcy etapu z LiveKit przy włączonym nadzorze – odmowa w formularzu; etap, który przestał
   być LiveKit (np. z `/admin/`), ma nadzór ignorowany.
 - Pojemność: rozmowa to kilka osób w pokoju – pomijalne obciążenie wobec § 39.3.
+
+## 40. Notatniki kwantowe: JupyterLite i piaskownica (QC-01, `docs/tasks/QC-01.md`)
+
+Zadania z notatnikiem Jupytera w przeglądarce i sprawdzaniem automatycznym. Trzy części, każda
+z innym krokiem operatora:
+
+| Część | Gdzie | Krok operatora |
+|---|---|---|
+| JupyterLite (statyczne, ~40 MB na dysku, do ~19 MB po kompresji przy pierwszym otwarciu) | etap `notebook-lab` w `backend/Dockerfile` → `/app/notebook_lab_dist` → `entrypoint.sh` kopiuje do `staticfiles/notebook-lab/<BUILD_ID>/` | nic – buduje się z obrazem (sieć **w czasie budowy**: PyPI, GitHub, cdn.jsdelivr.net; w czasie działania żadnej) |
+| CSP ścieżki laboratorium | fragment `(notebook_lab)` w `deploy/Caddyfile`, `import notebook_lab` w każdym bloku aplikacji | nic – krok 4/8 wdrożenia (§ 23) przeładowuje proxy |
+| Piaskownica `notebook-runner` i worker oceny `notebook-worker` (kolejka Celery `notebooks`) | `docker-compose.yml`, profil `notebooks`, wolumen `notebook_spool` (tylko te dwie usługi) | **dopisać** `COMPOSE_PROFILES=notebooks` w `.env` (obok `djcms`: `COMPOSE_PROFILES=djcms,notebooks`) |
+
+### 40.1. Włączenie
+
+1. `.env` serwera: `COMPOSE_PROFILES=notebooks` (z przecinkiem, jeśli jest już `djcms`), opcjonalnie
+   `NOTEBOOK_RUNNER_SLOTS` (domyślnie 2 zadania naraz) i `NOTEBOOK_RUNNER_MEMORY_MB` (768).
+   `NOTEBOOK_RUNNER_MEMORY_MB` jest **górną granicą operatora**: limit zadania to
+   `min(wartość nadzorcy, limit z ustawień zadania, sufit 2048)`, więc zadanie z ustawionym 1024 MB
+   dostanie 768 MB, dopóki nie podniesiesz tej zmiennej (pamiętaj o `mem_limit: 1536m` kontenera
+   przy kilku slotach). Tak samo czas: `NOTEBOOK_RUNNER_WALL_SECONDS` (75), `…_CPU_SECONDS` (60).
+2. Wdrożenie (`scripts/deploy.sh`) – zbuduje obraz z JupyterLite i podniesie `notebook-runner`
+   oraz `notebook-worker`. Ręcznie: `docker compose up -d notebook-worker notebook-runner`.
+   **Od wydania z poprawkami po przeglądzie** zadania oceny idą na kolejkę Celery `notebooks`, którą
+   obsługuje wyłącznie `notebook-worker` (jeden proces, `mem_limit 768m`, krótkie limity czasu zadań
+   60/75 s i 90/120 s); główny `worker` (`-Q default,scan,mail`) nie ma już wolumenu `notebook_spool`.
+   Po aktualizacji ze starszej konfiguracji: `docker compose up -d worker notebook-worker`
+   (worker traci wolumen, nowy worker wstaje).
+3. Flaga konkursu `quantum_notebooks` w `/admin/` (Konkursy → przełączniki), jak `ai_grading`.
+4. Sprawdzenie (wyłącznie odczyt):
+
+```sh
+docker compose ps notebook-runner notebook-worker   # oba "healthy" (runner: znacznik życia < 60 s)
+docker compose logs --tail 5 notebook-runner        # "notebook runner: spool /spool, 2 slot(s), uid switching True"
+docker compose exec web cat staticfiles/notebook-lab/current.json   # build_id, rozmiary, licencje
+curl -sI https://<domena>/static/notebook-lab/<build_id>/lab/index.html | grep -i content-security
+docker compose exec web python manage.py check      # notebooks.E001 = NOTEBOOK_RUNNER_INLINE w produkcji
+```
+
+Bez profilu `notebooks` wszystko poza sprawdzaniem działa (notatnik w przeglądarce, oddawanie
+`.ipynb`), a przebiegi oceny kończą się po `limit + 60 s` błędem „środowisko sprawdzania nie
+odpowiedziało na czas” – nic nie wisi.
+
+### 40.2. Izolacja piaskownicy (co gwarantuje kontener)
+
+`network_mode: none`, `read_only`, tmpfs `/tmp` z `noexec,nosuid,nodev` (512 MB), **bez** `env_file`
+(żadnego sekretu w środowisku), `cap_drop: ALL` + `SETUID, SETGID, KILL`, `no-new-privileges`,
+`pids_limit: 128`, `mem_limit: 1536m`, `cpus: 2`. Nadzorca (root bez innych uprawnień) uruchamia
+każde zadanie jako **losowy, nieużywany w tej chwili UID** z puli `60000 … 109999` bez grup,
+z limitami `setrlimit`; czas ścienny i `killpg` pilnuje nadzorca, a **po każdym zadaniu** uruchamia
+jako ten UID sprzątanie: `kill(-1, SIGKILL)` (każdy proces tego UID, także taki, który wyszedł
+z grupy procesów) i usunięcie plików tego UID w `/tmp`. Resztki zadania (gdyby sprzątanie zawiodło)
+należą do innego UID niż następne zadanie. Wolumen `notebook_spool` (`2770`, grupa workera) widzi
+`notebook-worker` i nadzorca – dziecko nie. Healthcheck: pętla nadzorcy dotyka
+`/tmp/notebook-runner.heartbeat` co pół sekundy; starszy niż 60 s = `unhealthy`.
+
+Hak audytowy w dziecku (sieć, podprocesy, `fork`, `ctypes`, wątki, pliki, rozszerzenia natywne
+spoza bibliotek) to **obrona w głąb, a nie granica bezpieczeństwa** – Python sam to zastrzega, a kod
+ucznia działa w tym samym procesie co hak. Granicą są kontener i osobny UID z limitami; hak daje
+czytelne błędy i utrudnia nadużycia. Szczegóły w `apps/notebooks/runner/__init__.py`.
+
+Ocena wyników (symulacja obwodu ucznia w `notebook-worker`) ma budżet: koszt `Σ 2^(n+k)` po
+operacjach liczony przed symulacją, najwyżej 2·10⁸ na artefakt i 10⁹ na przebieg – obwód ponad
+budżet kończy test błędem „obwód za duży do oceny” bez liczenia (`docs/tasks/QC-01.md` § 5).
+
+Odbiór z 4.10.2026 (lokalnie, obraz z pierwszej wersji – stałe UID slotów, przed losowaniem UID
+i sprzątaniem; ustawienia kontenera jak w compose): dziecko UID 60001 bez grup; `socket`, `os.fork`, `ctypes.CDLL`, zapis do `/app`, listowanie `/spool` –
+odmowa; pętla nieskończona – zabita po limicie. Bez haka (proces jako 60000 w sieci `none`):
+`/spool` – `Permission denied`, `1.1.1.1` – `Network is unreachable`, `redis`/`db` – brak nazwy.
+
+### 40.3. Rozwiązywanie problemów
+
+- **„Środowisko sprawdzania jest niedostępne”** – `notebook-worker` nie widzi `/spool` albo nie
+  działa wcale (zadania czekają w kolejce `notebooks`; beat zamyka przebiegi `PENDING` starsze niż
+  30 minut tym komunikatem): `docker compose ps notebook-worker`, `docker compose up -d notebook-worker`.
+  Po naprawie – „Przelicz wszystko” w wynikach zadania.
+- **„…nie odpowiedziało na czas”** – `notebook-runner` nie działa albo nie nadąża:
+  `docker compose ps notebook-runner`, `docker compose logs notebook-runner`; więcej slotów
+  `NOTEBOOK_RUNNER_SLOTS` (każdy slot to do `NOTEBOOK_RUNNER_MEMORY_MB` pamięci).
+- **Przeliczenie po awarii** – koordynator: „Przelicz wszystko” w wynikach zadania; zgubione
+  przebiegi `RUNNING` beat domyka po 15 minutach (`notebooks-pump`).
+- **Laboratorium „nie jest zainstalowane”** – obraz bez etapu `notebook-lab` albo `web`
+  wystartował z `RUN_COLLECTSTATIC=0`: `docker compose restart web`.
+- **Uczestnik widzi „Select Kernel” z samym „No Kernel”** – karta laboratorium ładowała się w tle
+  (JupyterLab nie odświeża listy jąder w ukrytej karcie). Nie jest to błąd serwera: *Kernel → Change
+  Kernel… → Python (Pyodide)* albo odświeżenie karty (podręcznik uczestnika § 3a).
+
+### 40.4. Aktualizacja JupyterLite / Pyodide
+
+Wersje są przypięte w `backend/apps/notebooks/labbuild/` – `requirements.in` → `requirements.txt`
+(`uv pip compile --generate-hashes`), `pyodide.json` (wersja, adres i SHA-256 rdzenia; pakiety
+z `pyodide-lock.json`). Wersje muszą pasować do tabeli zgodności `jupyterlite-pyodide-kernel`
+(0.8.x ↔ Pyodide 314.x), a NumPy w `backend/pyproject.toml` – do linii NumPy tej wersji Pyodide
+(testy widoczne w przeglądarce i ukryte na serwerze liczy ten sam kod). Nowa budowa = nowy
+`BUILD_ID` w adresie, więc pamięć podręczna przeglądarek (`immutable`) nie przeszkadza; praca
+uczniów w IndexedDB zostaje (stała nazwa magazynu).
+
+### 40.5. Dev i testy
+
+- Laboratorium lokalnie: `docker build --target notebook-lab -t notebook-lab backend`, potem
+  `docker create --name nl notebook-lab`, `docker cp nl:/opt/notebook-lab backend/notebook_lab_dist`,
+  `docker rm nl`. Przy `DJANGO_DEBUG=1` WhiteNoise podaje katalog spod `/static/notebook-lab/` z tą
+  samą polityką CSP (`apps/web/middleware.py`). Uwaga na `manage.py runserver`: jego własna obsługa
+  `/static/` omija middleware, więc laboratorium przychodzi **bez** polityki i COOP/COEP – do odbioru
+  laboratorium `runserver --nostatic` (albo gunicorn jak w compose).
+- Sprawdzanie bez kontenera piaskownicy: `NOTEBOOK_RUNNER_INLINE=1` (wyłącznie z `DJANGO_DEBUG=1`;
+  przy `DEBUG=0` start zatrzymuje `notebooks.E001`). Testy używają tego trybu.
+- Kolejka `notebooks` w dev: `docker compose --profile notebooks up -d notebook-worker`
+  (`docker-compose.dev.yml` montuje mu `./backend` jak pozostałym) – bez tego zadania oceny czekają
+  w Redisie, a dev-owy `worker` (`-Q default,scan,mail`) ich nie weźmie. Doraźnie można też
+  uruchomić `docker compose exec worker celery -A config worker -Q notebooks -c 1` (z trybem inline).
+- Testy zgodności `docker-compose.yml` i `deploy/Caddyfile` w CI (`CI=true`) **nie** dają się pominąć –
+  brak pliku to błąd. Testy z prawdziwym Qiskitem (`*_with_real_qiskit`) w CI są pominięte z powodem
+  `QISKIT-PARITY` (Qiskit nie jest zależnością); uruchom je w obrazie z `pip install qiskit` przy
+  zmianach `backend/qclab`.
+
+### 40.6. Personel bez laboratorium; docelowo osobna domena laboratorium
+
+Laboratorium działa na domenie serwisu, więc kod z notatnika wykonuje się w przeglądarce osoby,
+która je otworzyła, w originie serwisu. Polityka CSP ścieżki laboratorium (źródła zawężone do
+`/static/notebook-lab/` i `/notebook-starter/`, `form-action 'none'`, COOP/COEP) blokuje z niego API,
+panele i formularze serwisu, ale to nie jest pełna izolacja.
+
+Co blokuje polityka w tej samej domenie (odbiór w przeglądarce 4.10.2026, `docs/tasks/QC-01.md`
+§ 3.3a): `fetch`/XHR/obrazy do `/api/`, `/me/`, `/coordinator/` i obcych hostów – ze strony i z workera
+jądra (żądanie nie wychodzi), formularze (`form-action 'none'`), osadzanie w ramce; serwer dodatkowo
+odrzuca (403) żądania zmieniające stan, `/api/` i żądania skryptowe (`Sec-Fetch-Dest: empty`)
+z `Referer` laboratorium (pas bezpieczeństwa – `Referer` da się wyciąć). COOP `same-origin` + COEP
+`require-corp` dają `crossOriginIsolated`: okna serwisu otwarte z laboratorium trafiają do innej grupy
+kontekstów, a jądro synchronizuje pliki przez `SharedArrayBuffer` bez service workera – **nie zdejmuj
+COEP**, bo bez niego (i bez działającego service workera) pliki zapisane z Pythona nie trafią do
+JupyterLab. Czego polityka **nie** blokuje: odczytu magazynów całego originu (`localStorage`,
+IndexedDB, ciasteczka bez `HttpOnly`, np. `csrftoken`), nawigacji karty na dowolny adres (w tym obcy –
+dane mogą wyjść w adresie) i zwykłych nawigacji GET do stron serwisu. Dlatego flaga
+`quantum_notebooks` jest domyślnie wyłączona, a ekrany koordynatora pokazują ostrzeżenie.
+
+**Stan obecny (decyzja koordynatora):** laboratorium otwierają **wyłącznie konta uczestników bez
+żadnej roli personelu** (superużytkownik, `is_staff`, koordynator, recenzent, komisja, opiekun
+szkolny, opiekun delegacji – w **którymkolwiek** konkursie instalacji). Personel dostaje podgląd
+notatnika tylko do odczytu (nic się nie wykonuje; HTML/JS z wyjść pominięte). Operator nie ma tu nic
+do zrobienia, ale: **nie nadawaj ról personelu kontom, z których ktoś rozwiązuje zadania** – po
+nadaniu roli laboratorium znika z tego konta (osoba testująca zadania potrzebuje osobnego konta
+uczestnika).
+
+**Docelowa naprawa (niewdrożona): osobna domena rejestrowalna**, np. `olimpiada-lab.pl` –
+**nie** `lab.<domena serwisu>`. Subdomena nie wystarcza: `CSRF_TRUSTED_ORIGINS` zawiera
+`https://*.<SITE_DOMAIN>` (subdomeny konkursów, `config/settings/base.py`), więc kod z
+`lab.<domena>` byłby dla Django zaufanym originem żądań POST, a ta sama domena rejestrowalna to ten
+sam „site” dla ciasteczek `SameSite=Lax`. Kroki, gdy zapadnie decyzja: rekord DNS i certyfikat drugiej
+domeny; blok Caddy'ego tej domeny podający **wyłącznie** `/static/notebook-lab/*` z fragmentem
+`(notebook_lab)` (i nic z `web`); notatnik startowy dostępny z tej domeny bez sesji serwisu (token
+w adresie już jest podpisany – wystarczy CORS `Access-Control-Allow-Origin: https://olimpiada-lab.pl`
+na `/notebook-starter/` i `connect-src` laboratorium wskazujący domenę serwisu); adres laboratorium
+w `apps/notebooks/lab.py`; potem zdjęcie bramki ról (`services.has_staff_role`). Szczegóły i
+uzasadnienie: `docs/tasks/QC-01.md` § 3.5.
 
 ## 45. Zmiana hasła w panelu konta (AUTH-01b, `docs/tasks/AUTH-01b.md`)
 

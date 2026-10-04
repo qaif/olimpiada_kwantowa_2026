@@ -1,0 +1,15 @@
+{% load i18n %}{% comment %}
+  Ostrzeżenie przy ustawieniach notatników (QC-01 § 3.5): laboratorium leży w domenie serwisu.
+{% endcomment %}
+<div class="msg msg-warning">
+  <p class="mt-0"><strong>{% translate "Bezpieczeństwo: laboratorium działa w domenie serwisu." %}</strong></p>
+  <p>{% blocktranslate trimmed %}
+    Kod z notatnika wykonuje się w przeglądarce osoby, która otworzyła laboratorium, w domenie
+    serwisu. Polityka laboratorium blokuje z niego wywołania API i paneli serwisu oraz formularze, ale
+    nie jest to pełna izolacja. Dlatego laboratorium otwierają wyłącznie konta uczestników bez żadnej
+    roli personelu – koordynator, recenzent, komisja i opiekunowie oglądają notatniki w podglądzie
+    tylko do odczytu, w którym nic się nie wykonuje. Nie otwieraj cudzych notatników w laboratorium
+    z konta uczestnika, a uczestników uprzedź, żeby nie wklejali cudzego kodu. Pełną izolację da
+    osobna domena laboratorium – docs/OPERACJE.md § 40.6.
+  {% endblocktranslate %}</p>
+</div>
