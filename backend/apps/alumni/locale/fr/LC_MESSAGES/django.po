@@ -1,0 +1,816 @@
+# Sieć absolwentów (ALUM-01) – katalog aplikacji apps/alumni.
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-04 19:54+0200\n"
+"PO-Revision-Date: 2026-10-04 20:00+0200\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: fr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=3; plural=(n == 0 || n == 1) ? 0 : n != 0 && n % 1000000 == 0 ? 1 : 2;\n"
+
+msgid "Wyrażam zgodę opisaną wyżej."
+msgstr "Je donne le consentement décrit ci-dessus."
+
+msgid "Pokazuj moje pełne imię i nazwisko"
+msgstr "Afficher mon nom complet"
+
+msgid "Działa tylko wtedy, gdy masz w konkursie zgodę na publikację imienia i nazwiska."
+msgstr "Fonctionne uniquement si vous avez consenti à la publication de votre nom complet dans ce concours."
+
+msgid "Uczelnia albo miejsce pracy"
+msgstr "Université ou lieu de travail"
+
+msgid "Kierunek albo stanowisko"
+msgstr "Filière d’études ou poste"
+
+msgid "Miasto"
+msgstr "Ville"
+
+msgid "Kraj"
+msgstr "Pays"
+
+msgid "Kilka słów o sobie"
+msgstr "Quelques mots sur vous"
+
+msgid "Zainteresowania"
+msgstr "Centres d’intérêt"
+
+msgid "Chcę być mentorem"
+msgstr "Je souhaite être mentor"
+
+msgid "W czym mogę pomóc"
+msgstr "Ce sur quoi je peux aider"
+
+msgid "Ilu uczestników naraz"
+msgstr "Nombre de participants à la fois"
+
+msgid "Pokazuj mój profil w katalogu dla zalogowanych uczestników"
+msgstr "Afficher mon profil dans l’annuaire pour les participants connectés"
+
+msgid "Pokazuj mój profil na publicznej ścianie absolwentów"
+msgstr "Afficher mon profil sur le mur public des anciens"
+
+msgid "Na ścianie widać tylko podpis, osiągnięcia, uczelnię i kierunek."
+msgstr "Le mur affiche uniquement votre nom, vos résultats, votre université et votre filière d’études."
+
+msgid "Chcę dostawać zaproszenia od organizatora (warsztaty, webinary, jury)"
+msgstr "Je souhaite recevoir des invitations de l’organisateur (ateliers, webinaires, jury)"
+
+msgid "Temat"
+msgstr "Sujet"
+
+msgid "Krótko: w czym potrzebujesz pomocy?"
+msgstr "En bref : de quelle aide avez-vous besoin ?"
+
+msgid "Notatkę przeczyta mentor i organizator. Nie wpisuj tu danych kontaktowych."
+msgstr "La note sera lue par le mentor et l’organisateur. N’y indiquez pas de coordonnées."
+
+msgid "Co się stało?"
+msgstr "Que s’est-il passé ?"
+
+msgid "Notatka (powód zakończenia)"
+msgstr "Note (motif de la fin)"
+
+msgid "Kto może dołączyć"
+msgstr "Qui peut rejoindre"
+
+msgid "Mentoring włączony"
+msgstr "Mentorat activé"
+
+msgid "Publiczna ściana absolwentów"
+msgstr "Mur public des anciens"
+
+msgid "Rodzaj"
+msgstr "Type"
+
+msgid "Tytuł (temat listu)"
+msgstr "Titre (objet de l’e-mail)"
+
+msgid "Treść"
+msgstr "Contenu"
+
+msgid "Adres wydarzenia (https://…)"
+msgstr "Adresse de l’événement (https://…)"
+
+msgid "Edycje"
+msgstr "Éditions"
+
+msgid "Najniższe osiągnięcie"
+msgstr "Résultat minimal"
+
+msgid "dowolne"
+msgstr "indifférent"
+
+msgid "Zainteresowania (dowolne z)"
+msgstr "Centres d’intérêt (au moins un)"
+
+msgid "Tylko mentorzy"
+msgstr "Mentors uniquement"
+
+msgid "Wybierz rodzaj zaproszenia."
+msgstr "Choisissez le type d’invitation."
+
+msgid "Tytuł jest wymagany (do 150 znaków)."
+msgstr "Le titre est obligatoire (150 caractères maximum)."
+
+#, python-format
+msgid "Treść jest wymagana (do %(limit)s znaków)."
+msgstr "Le contenu est obligatoire (%(limit)s caractères maximum)."
+
+msgid "Dzień dobry,"
+msgstr "Bonjour,"
+
+#, python-format
+msgid "organizator konkursu %(competition)s zaprasza absolwentów: %(kind)s."
+msgstr "l’organisateur de %(competition)s invite les anciens : %(kind)s."
+
+#, python-format
+msgid "Szczegóły i zapisy: %(url)s"
+msgstr "Détails et inscription : %(url)s"
+
+msgid "Dostajesz ten list, bo należysz do sieci absolwentów i nie wyłączyłeś zaproszeń."
+msgstr "Vous recevez cet e-mail parce que vous faites partie du réseau des anciens et n’avez pas désactivé les invitations."
+
+#, python-format
+msgid "Wypisz się z zaproszeń: %(link)s"
+msgstr "Se désabonner des invitations : %(link)s"
+
+msgid "Żaden absolwent nie spełnia tych filtrów."
+msgstr "Aucun ancien ne correspond à ces filtres."
+
+msgid "Rozmowa mentorska. Każdą wiadomość czyta i akceptuje organizator, zanim trafi do drugiej osoby."
+msgstr "Conversation de mentorat. L’organisateur lit et approuve chaque message avant qu’il ne parvienne à l’autre personne."
+
+msgid "Rozmowa mentorska – obowiązują zasady Wiadomości tego konkursu."
+msgstr "Conversation de mentorat – les règles de Messages de ce concours s’appliquent."
+
+msgid "Rozmowa mentorska. Organizator przegląda wiadomości tej rozmowy (moderacja następcza)."
+msgstr "Conversation de mentorat. L’organisateur examine les messages de cette conversation (modération a posteriori)."
+
+msgid "Mentoring zakończył się – ta rozmowa jest teraz tylko do odczytu."
+msgstr "Le mentorat est terminé – cette conversation est désormais en lecture seule."
+
+msgid "Organizator wstrzymał mentoring – ta rozmowa jest teraz tylko do odczytu."
+msgstr "L’organisateur a suspendu le mentorat – cette conversation est désormais en lecture seule."
+
+msgid "Mentoring jest w tym konkursie wyłączony."
+msgstr "Le mentorat est désactivé dans ce concours."
+
+msgid "Mentoring wymaga modułu Wiadomości, który organizator wyłączył."
+msgstr "Le mentorat nécessite le module Messages, que l’organisateur a désactivé."
+
+msgid "Ta osoba nie przyjmuje teraz próśb o mentoring."
+msgstr "Cette personne n’accepte pas de demandes de mentorat pour le moment."
+
+#, python-format
+msgid "%(label)s nie może być puste."
+msgstr "%(label)s ne peut pas être vide."
+
+#, python-format
+msgid "%(label)s jest za długie (limit %(limit)s znaków)."
+msgstr "%(label)s est trop long (limite : %(limit)s caractères)."
+
+msgid "Nie możesz poprosić o mentoring samego siebie."
+msgstr "Vous ne pouvez pas vous demander un mentorat à vous-même."
+
+msgid "O mentora proszą uczestnicy bieżącej edycji."
+msgstr "Les mentors peuvent être sollicités par les participants de l’édition en cours."
+
+msgid "Wybierz temat z listy."
+msgstr "Choisissez un sujet dans la liste."
+
+msgid "Notatka"
+msgstr "Note"
+
+msgid "Masz już otwartą prośbę albo relację z tą osobą."
+msgstr "Vous avez déjà une demande en cours ou une relation de mentorat avec cette personne."
+
+#, python-format
+msgid "Możesz mieć naraz najwyżej %(limit)s otwarte prośby i relacje mentorskie."
+msgstr "Vous pouvez avoir au maximum %(limit)s demandes et relations de mentorat en cours à la fois."
+
+msgid "Ta osoba nie ma teraz wolnego miejsca na mentoring."
+msgstr "Cette personne n’a pas de place de mentorat disponible pour le moment."
+
+msgid "Nie ma takiej relacji mentorskiej."
+msgstr "Cette relation de mentorat n’existe pas."
+
+msgid "Na tę prośbę już odpowiedziano."
+msgstr "Une réponse a déjà été donnée à cette demande."
+
+msgid "Najpierw dołącz do sieci absolwentów."
+msgstr "Rejoignez d’abord le réseau des anciens."
+
+msgid "Masz już komplet mentee. Zwiększ liczbę miejsc w profilu albo zakończ inną relację."
+msgstr "Vous avez déjà le nombre maximal de mentorés. Augmentez le nombre de places dans votre profil ou mettez fin à une autre relation."
+
+msgid "Tę prośbę można już tylko zakończyć."
+msgstr "Cette demande ne peut plus qu’être clôturée."
+
+msgid "Ta relacja jest już zakończona."
+msgstr "Cette relation est déjà terminée."
+
+msgid "Powód"
+msgstr "Motif"
+
+msgid "Nie ma takiego zgłoszenia."
+msgstr "Ce signalement n’existe pas."
+
+msgid "uczestnik"
+msgstr "participant"
+
+msgid "awans do kolejnego etapu"
+msgstr "qualifié pour l’étape suivante"
+
+msgid "finalista"
+msgstr "finaliste"
+
+msgid "laureat"
+msgstr "lauréat"
+
+msgid "obliczenia kwantowe"
+msgstr "informatique quantique"
+
+msgid "fizyka kwantowa"
+msgstr "physique quantique"
+
+msgid "fizyka"
+msgstr "physique"
+
+msgid "informatyka"
+msgstr "informatique"
+
+msgid "matematyka"
+msgstr "mathématiques"
+
+msgid "inżynieria"
+msgstr "ingénierie"
+
+msgid "chemia"
+msgstr "chimie"
+
+msgid "badania naukowe"
+msgstr "recherche"
+
+msgid "praca w przemyśle"
+msgstr "industrie"
+
+msgid "edukacja i popularyzacja"
+msgstr "éducation et médiation scientifique"
+
+msgid "zgoda udzielona"
+msgstr "consentement donné"
+
+msgid "zgoda wycofana"
+msgstr "consentement retiré"
+
+msgid "prośba czeka na mentora"
+msgstr "demande en attente du mentor"
+
+msgid "trwa"
+msgstr "active"
+
+msgid "odrzucona przez mentora"
+msgstr "refusée par le mentor"
+
+msgid "wycofana przez uczestnika"
+msgstr "retirée par le participant"
+
+msgid "zakończona"
+msgstr "terminée"
+
+msgid "zakończył mentor"
+msgstr "terminée par le mentor"
+
+msgid "zakończył uczestnik"
+msgstr "terminée par le participant"
+
+msgid "zakończył organizator"
+msgstr "terminée par l’organisateur"
+
+msgid "mentor wycofał zgodę"
+msgstr "le mentor a retiré son consentement"
+
+msgid "konto usunięte"
+msgstr "compte supprimé"
+
+msgid "rozmowa według zasad Wiadomości"
+msgstr "conversation soumise aux règles de Messages"
+
+msgid "każdą wiadomość akceptuje organizator"
+msgstr "l’organisateur approuve chaque message"
+
+msgid "warsztaty"
+msgstr "atelier"
+
+msgid "webinar"
+msgstr "webinaire"
+
+msgid "jury"
+msgstr "jury"
+
+msgid "inne"
+msgstr "autre"
+
+msgid "Absolwenci: prośba o mentoring"
+msgstr "Anciens : demande de mentorat"
+
+msgid "Absolwenci: mentor przyjął Twoją prośbę"
+msgstr "Anciens : un mentor a accepté votre demande"
+
+msgid "Absolwenci: odpowiedź na prośbę o mentoring"
+msgstr "Anciens : réponse à votre demande de mentorat"
+
+msgid "Absolwenci: relacja mentorska zakończona"
+msgstr "Anciens : relation de mentorat terminée"
+
+msgid "Absolwenci: zgłoszono problem z relacją mentorską"
+msgstr "Anciens : un problème a été signalé dans une relation de mentorat"
+
+#, python-format
+msgid "%(name)s prosi Cię o mentoring w sieci absolwentów."
+msgstr "%(name)s vous demande un mentorat dans le réseau des anciens."
+
+msgid "Notatkę prośby przeczytasz i odpowiesz na nią po zalogowaniu:"
+msgstr "Vous pouvez lire la note de la demande et y répondre après vous être connecté :"
+
+#, python-format
+msgid "%(name)s zgadza się zostać Twoim mentorem."
+msgstr "%(name)s a accepté d’être votre mentor."
+
+msgid "Rozmowa czeka w Wiadomościach:"
+msgstr "La conversation vous attend dans Messages :"
+
+#, python-format
+msgid "%(name)s nie może teraz przyjąć Twojej prośby o mentoring."
+msgstr "%(name)s ne peut pas accepter votre demande de mentorat pour le moment."
+
+msgid "Możesz poprosić inną osobę z katalogu absolwentów:"
+msgstr "Vous pouvez solliciter une autre personne de l’annuaire des anciens :"
+
+msgid "Relacja mentorska w sieci absolwentów została zakończona."
+msgstr "Une relation de mentorat du réseau des anciens a pris fin."
+
+msgid "Rozmowa zostaje w Wiadomościach do odczytu. Szczegóły:"
+msgstr "La conversation reste dans Messages en lecture seule. Détails :"
+
+msgid "Jedna ze stron relacji mentorskiej zgłosiła problem. Powód przeczytasz w panelu:"
+msgstr "L’une des parties d’une relation de mentorat a signalé un problème. Vous pouvez lire le motif dans le panneau :"
+
+msgid "Do sieci absolwentów dołączają uczestnicy tego konkursu."
+msgstr "Le réseau des anciens est ouvert aux participants de ce concours."
+
+msgid "Do sieci absolwentów dołączają osoby pełnoletnie. Wróć tu po swoich 18. urodzinach – Twoje osiągnięcia poczekają."
+msgstr "Le réseau des anciens est ouvert aux personnes majeures. Revenez après vos 18 ans – vos résultats vous attendront."
+
+#, python-format
+msgid "Do sieci absolwentów dołączają osoby z osiągnięciem w zakończonej edycji na poziomie co najmniej: %(level)s."
+msgstr "Le réseau des anciens est ouvert aux personnes ayant obtenu, lors d’une édition terminée, un résultat d’au moins le niveau : %(level)s."
+
+msgid "Chcę należeć do sieci absolwentów tego konkursu. Zgadzam się, żeby organizator przetwarzał moje imię i inicjał nazwiska (pełne imię i nazwisko – tylko jeśli tak wybiorę i mam zgodę na publikację nazwiska), moje osiągnięcia z ogłoszonych wyników oraz dane, które sam wpiszę do profilu, w celu: pokazania profilu zalogowanym uczestnikom konkursu (a na publicznej ścianie – tylko jeśli to zaznaczę), kontaktu mentorskiego przez Wiadomości, wysyłania mi zaproszeń na warsztaty, webinary i do jury (mogę się wypisać w każdym liście) oraz zagregowanych statystyk „gdzie są teraz”, w których nikt nie jest rozpoznawalny. Zgodę mogę wycofać w każdej chwili – profil zniknie od razu."
+msgstr "Je souhaite faire partie du réseau des anciens de ce concours. J’accepte que l’organisateur traite mon prénom et l’initiale de mon nom (mon nom complet uniquement si je le choisis et si j’ai consenti à la publication de mon nom), mes résultats issus des classements publiés et les données que je saisis moi-même dans mon profil, afin de : présenter mon profil aux participants connectés du concours (et sur le mur public uniquement si je coche cette option), permettre un contact de mentorat via Messages, m’envoyer des invitations à des ateliers, des webinaires et des rôles de jury (je peux me désabonner dans chaque e-mail) et produire des statistiques agrégées « que sont-ils devenus » ne permettant d’identifier personne. Je peux retirer mon consentement à tout moment – mon profil disparaîtra immédiatement."
+
+msgid "Ta część serwisu jest dostępna dla uczestników tego konkursu."
+msgstr "Cette partie du site est réservée aux participants de ce concours."
+
+msgid "Ta część serwisu jest dostępna dla koordynatora."
+msgstr "Cette partie du site est réservée au coordinateur."
+
+msgid "Zaznacz zgodę, żeby dołączyć do sieci absolwentów."
+msgstr "Cochez la case de consentement pour rejoindre le réseau des anciens."
+
+msgid "nie podano"
+msgstr "non renseigné"
+
+msgid "Uczelnia"
+msgstr "Université"
+
+msgid "Kierunek"
+msgstr "Filière d’études"
+
+msgid "Zainteresowania (osoba może mieć kilka)"
+msgstr "Centres d’intérêt (une personne peut en avoir plusieurs)"
+
+msgid "Najwyższe osiągnięcie"
+msgstr "Meilleur résultat"
+
+msgid "Zainteresowania:"
+msgstr "Centres d’intérêt :"
+
+msgid "Mentor"
+msgstr "Mentor"
+
+#, python-format
+msgid "wolne miejsca: %(slots)s"
+msgstr "places disponibles : %(slots)s"
+
+msgid "brak wolnych miejsc"
+msgstr "aucune place disponible"
+
+msgid "Poproś o mentoring"
+msgstr "Demander un mentorat"
+
+msgid "Absolwenci"
+msgstr "Anciens"
+
+msgid "Mentoring"
+msgstr "Mentorat"
+
+msgid "Zaproszenia"
+msgstr "Invitations"
+
+msgid "Gdzie są teraz"
+msgstr "Que sont-ils devenus"
+
+msgid "Absolwenci – panel koordynatora"
+msgstr "Anciens – panneau du coordinateur"
+
+msgid "Sieć byłych uczestników, którzy wyrazili na to zgodę: profile, mentoring, zaproszenia i zagregowane statystyki."
+msgstr "Le réseau des anciens participants qui y ont consenti : profils, mentorat, invitations et statistiques agrégées."
+
+msgid "dane osobowe"
+msgstr "données personnelles"
+
+msgid "Podstawą jest zgoda absolwenta – wycofanie usuwa profil od razu. Osiągnięcia liczą się wyłącznie z ogłoszonych wyników i wystawionych dyplomów."
+msgstr "La base juridique est le consentement de l’ancien participant – son retrait supprime immédiatement le profil. Les résultats proviennent uniquement des classements publiés et des certificats délivrés."
+
+msgid "Ustawienia"
+msgstr "Paramètres"
+
+msgid "Mentoring wymaga włączonych Wiadomości – bez nich mentorzy nie mogą przyjmować próśb."
+msgstr "Le mentorat nécessite que Messages soit activé – sans cela, les mentors ne peuvent pas accepter de demandes."
+
+msgid "„Kto może dołączyć” to najniższe osiągnięcie w zakończonej edycji. Dołączają wyłącznie osoby pełnoletnie. Mentoring małoletnich toczy się zawsze z udziałem organizatora: przy zasadzie „ta sama grupa wiekowa” każdą wiadomość akceptujesz przed doręczeniem, a przy „bez ograniczeń” przeglądasz je po doręczeniu (kolejka moderacji Wiadomości)."
+msgstr "« Qui peut rejoindre » correspond au résultat minimal obtenu lors d’une édition terminée. Seules les personnes majeures peuvent rejoindre le réseau. Le mentorat de mineurs implique toujours l’organisateur : avec la règle « même tranche d’âge », vous approuvez chaque message avant sa remise, et avec « aucune restriction », vous examinez les messages après leur remise (la file de modération de Messages)."
+
+msgid "Zapisz ustawienia"
+msgstr "Enregistrer les paramètres"
+
+msgid "Profile absolwentów"
+msgstr "Profils des anciens"
+
+#, python-format
+msgid "Mogłoby jeszcze dołączyć (spełnia kryteria, nie dołączyło): %(count)s."
+msgstr "Pourraient encore rejoindre (remplissent les critères mais ne l’ont pas fait) : %(count)s."
+
+msgid "Szukaj"
+msgstr "Rechercher"
+
+msgid "Osoba"
+msgstr "Personne"
+
+msgid "Osiągnięcia"
+msgstr "Résultats"
+
+msgid "Widoczność"
+msgstr "Visibilité"
+
+msgid "ukryty"
+msgstr "masqué"
+
+msgid "katalog"
+msgstr "annuaire"
+
+msgid "ściana"
+msgstr "mur"
+
+msgid "Pokaż"
+msgstr "Afficher"
+
+msgid "Ukryj"
+msgstr "Masquer"
+
+msgid "Nikt jeszcze nie dołączył do sieci absolwentów."
+msgstr "Personne n’a encore rejoint le réseau des anciens."
+
+msgid "Poprzednia"
+msgstr "Précédent"
+
+msgid "Następna"
+msgstr "Suivant"
+
+msgid "Zaproszenia – panel koordynatora"
+msgstr "Invitations – panneau du coordinateur"
+
+msgid "Zaproszenia dla absolwentów"
+msgstr "Invitations pour les anciens"
+
+msgid "List do absolwentów, którzy nie wyłączyli zaproszeń – w ich języku, z odnośnikiem wypisu. Do webinaru wklej adres wydarzenia."
+msgstr "Un e-mail aux anciens qui n’ont pas désactivé les invitations – dans leur langue, avec un lien de désabonnement. Pour un webinaire, collez l’adresse de l’événement."
+
+#, python-format
+msgid "Odbiorców z tymi filtrami: %(count)s."
+msgstr "Destinataires avec ces filtres : %(count)s."
+
+msgid "Policz odbiorców"
+msgstr "Compter les destinataires"
+
+msgid "Wyślij zaproszenie"
+msgstr "Envoyer l’invitation"
+
+msgid "Wysłane"
+msgstr "Envoyée"
+
+msgid "Data"
+msgstr "Date"
+
+msgid "Tytuł"
+msgstr "Titre"
+
+msgid "Odbiorcy"
+msgstr "Destinataires"
+
+msgid "Nie wysłano jeszcze żadnego zaproszenia."
+msgstr "Aucune invitation n’a encore été envoyée."
+
+msgid "Mentoring – panel koordynatora"
+msgstr "Mentorat – panneau du coordinateur"
+
+msgid "Prośby i relacje mentor–uczestnik. Wiadomości rozmów mentorskich czytasz w kolejce moderacji Wiadomości."
+msgstr "Demandes et relations mentor–participant. Vous lisez les messages des conversations de mentorat dans la file de modération de Messages."
+
+msgid "Kolejka moderacji"
+msgstr "File de modération"
+
+msgid "Mentoring jest wyłączony – istniejące rozmowy mentorskie są tylko do odczytu."
+msgstr "Le mentorat est désactivé – les conversations de mentorat existantes sont en lecture seule."
+
+msgid "Zgłoszenia problemów"
+msgstr "Problèmes signalés"
+
+msgid "Relacja"
+msgstr "Relation"
+
+msgid "Zgłoszone"
+msgstr "Signalé le"
+
+msgid "Zamknij zgłoszenie"
+msgstr "Clôturer le signalement"
+
+msgid "Relacje"
+msgstr "Relations"
+
+msgid "wszystkie"
+msgstr "toutes"
+
+msgid "Uczestnik"
+msgstr "Participant"
+
+msgid "Stan"
+msgstr "Statut"
+
+msgid "Kanał"
+msgstr "Canal"
+
+msgid "Zgłoszenia"
+msgstr "Signalements"
+
+msgid "małoletni"
+msgstr "mineur"
+
+msgid "notatka prośby"
+msgstr "note de la demande"
+
+msgid "Powód zakończenia"
+msgstr "Motif de la fin"
+
+msgid "Zakończ relację"
+msgstr "Mettre fin à la relation"
+
+msgid "Brak relacji mentorskich."
+msgstr "Aucune relation de mentorat."
+
+msgid "Zgłoszenia: problemy z relacją / zgłoszone wiadomości w rozmowie (otwarte)."
+msgstr "Signalements : problèmes dans la relation / messages signalés dans la conversation (ouverts)."
+
+msgid "Gdzie są teraz – panel koordynatora"
+msgstr "Que sont-ils devenus – panneau du coordinateur"
+
+#, python-format
+msgid "Zagregowane dane z profili absolwentów. Grupy mniejsze niż %(k)s osób nie są pokazywane osobno – nikogo nie da się z tych tabel rozpoznać."
+msgstr "Données agrégées issues des profils des anciens. Les groupes de moins de %(k)s personnes ne sont pas présentés séparément – personne ne peut être identifié à partir de ces tableaux."
+
+#, python-format
+msgid "Absolwentów w sieci: %(total)s."
+msgstr "Anciens dans le réseau : %(total)s."
+
+#, python-format
+msgid "Mentorów: %(mentors)s."
+msgstr "Mentors : %(mentors)s."
+
+#, python-format
+msgid "Mentorów: mniej niż %(k)s."
+msgstr "Mentors : moins de %(k)s."
+
+#, python-format
+msgid "Sieć ma mniej niż %(k)s osób – rozkładów nie pokazujemy, bo każda liczba mówiłaby o konkretnych ludziach."
+msgstr "Le réseau compte moins de %(k)s personnes – nous n’affichons pas de répartitions, car chaque chiffre décrirait des personnes précises."
+
+msgid "Katalog absolwentów"
+msgstr "Annuaire des anciens"
+
+msgid "Absolwenci, którzy zgodzili się pokazać swój profil zalogowanym uczestnikom."
+msgstr "Anciens qui ont accepté de présenter leur profil aux participants connectés."
+
+msgid "Szukaj (imię, uczelnia, kierunek)"
+msgstr "Rechercher (prénom, université, filière d’études)"
+
+msgid "Zainteresowanie"
+msgstr "Centre d’intérêt"
+
+msgid "Tylko mentorzy z wolnym miejscem"
+msgstr "Uniquement les mentors ayant une place disponible"
+
+msgid "Strony katalogu"
+msgstr "Pages de l’annuaire"
+
+msgid "Nikogo tu jeszcze nie ma"
+msgstr "Personne pour le moment"
+
+msgid "Zgłoś problem z mentoringiem"
+msgstr "Signaler un problème de mentorat"
+
+msgid "Zgłoszenie trafi od razu do organizatora. Jeśli problem dotyczy konkretnej wiadomości, zgłoś ją także w Wiadomościach przyciskiem „Zgłoś”."
+msgstr "Le signalement est transmis directement à l’organisateur. Si le problème concerne un message précis, signalez-le également dans Messages avec le bouton « Signaler »."
+
+msgid "Wyślij zgłoszenie"
+msgstr "Envoyer le signalement"
+
+msgid "Sieć absolwentów"
+msgstr "Réseau des anciens"
+
+msgid "Byli uczestnicy, którzy pokazują, co robią dziś, pomagają obecnym uczestnikom jako mentorzy i dostają zaproszenia na warsztaty, webinary i do jury."
+msgstr "D’anciens participants qui montrent ce qu’ils font aujourd’hui, aident les participants actuels en tant que mentors et reçoivent des invitations à des ateliers, des webinaires et des rôles de jury."
+
+msgid "Publiczna ściana"
+msgstr "Mur public"
+
+msgid "Twój profil"
+msgstr "Votre profil"
+
+msgid "Organizator ukrył Twój profil – nie widać go w katalogu ani na ścianie. Napisz do organizatora, jeśli to pomyłka."
+msgstr "L’organisateur a masqué votre profil – il n’est visible ni dans l’annuaire ni sur le mur. Écrivez à l’organisateur s’il s’agit d’une erreur."
+
+msgid "Tak widzą Cię inni zalogowani uczestnicy:"
+msgstr "Voici comment les autres participants connectés vous voient :"
+
+msgid "Zapisz profil"
+msgstr "Enregistrer le profil"
+
+msgid "Wycofanie zgody"
+msgstr "Retrait du consentement"
+
+msgid "Po wycofaniu zgody Twój profil absolwenta zniknie od razu, a relacje, w których jesteś mentorem, zakończą się. Twoje wyniki i dyplomy zostają – to dokumentacja zawodów."
+msgstr "Si vous retirez votre consentement, votre profil d’ancien disparaîtra immédiatement et les relations dans lesquelles vous êtes mentor prendront fin. Vos résultats et certificats sont conservés – ils font partie des archives du concours."
+
+msgid "Wycofaj zgodę i usuń profil"
+msgstr "Retirer mon consentement et supprimer mon profil"
+
+msgid "Dołącz do sieci absolwentów"
+msgstr "Rejoindre le réseau des anciens"
+
+msgid "Twoje osiągnięcia z ogłoszonych wyników:"
+msgstr "Vos résultats issus des classements publiés :"
+
+msgid "Dołączam"
+msgstr "Rejoindre"
+
+msgid "Organizator nie włączył jeszcze mentoringu."
+msgstr "L’organisateur n’a pas encore activé le mentorat."
+
+msgid "Rola"
+msgstr "Rôle"
+
+msgid "Druga osoba"
+msgstr "Autre personne"
+
+msgid "jesteś mentorem"
+msgstr "vous êtes le mentor"
+
+msgid "Twój mentor"
+msgstr "votre mentor"
+
+msgid "Przyjmij"
+msgstr "Accepter"
+
+msgid "Odrzuć"
+msgstr "Refuser"
+
+msgid "Wycofaj prośbę"
+msgstr "Retirer la demande"
+
+msgid "Rozmowa"
+msgstr "Conversation"
+
+msgid "Zakończ"
+msgstr "Terminer"
+
+msgid "Zgłoś problem"
+msgstr "Signaler un problème"
+
+msgid "Nie masz jeszcze żadnej relacji mentorskiej. Mentora wybierzesz w katalogu absolwentów – przy osobach, które pomagają, stoi przycisk „Poproś o mentoring”."
+msgstr "Vous n’avez encore aucune relation de mentorat. Vous pouvez choisir un mentor dans l’annuaire des anciens – les personnes qui proposent leur aide ont un bouton « Demander un mentorat »."
+
+msgid "Rozmowa mentorska toczy się w Wiadomościach. Jeśli uczestnik jest niepełnoletni, organizator czyta wiadomości – zależnie od zasad konkursu przed doręczeniem albo po nim."
+msgstr "La conversation de mentorat a lieu dans Messages. Si le participant est mineur, l’organisateur lit les messages – avant ou après leur remise, selon les règles du concours."
+
+msgid "Prośba o mentoring"
+msgstr "Demande de mentorat"
+
+msgid "Jeśli mentor przyjmie prośbę, rozmowa otworzy się w Wiadomościach. Organizator widzi relacje mentorskie i – zależnie od zasad konkursu – czyta wiadomości."
+msgstr "Si le mentor accepte la demande, une conversation s’ouvrira dans Messages. L’organisateur voit les relations de mentorat et – selon les règles du concours – lit les messages."
+
+msgid "Wyślij prośbę"
+msgstr "Envoyer la demande"
+
+msgid "Wypis z zaproszeń"
+msgstr "Se désabonner des invitations"
+
+msgid "Wypis z zaproszeń dla absolwentów"
+msgstr "Se désabonner des invitations destinées aux anciens"
+
+msgid "Ten odnośnik jest nieprawidłowy. Zaproszenia wyłączysz też w swoim profilu absolwenta."
+msgstr "Ce lien n’est pas valide. Vous pouvez aussi désactiver les invitations dans votre profil d’ancien."
+
+msgid "Gotowe – nie będziesz już dostawać zaproszeń. Włączysz je z powrotem w profilu absolwenta."
+msgstr "C’est fait – vous ne recevrez plus d’invitations. Vous pouvez les réactiver dans votre profil d’ancien."
+
+msgid "Kliknij, żeby nie dostawać więcej zaproszeń od organizatora (warsztaty, webinary, jury)."
+msgstr "Cliquez pour ne plus recevoir d’invitations de l’organisateur (ateliers, webinaires, jury)."
+
+msgid "Wypisz mnie"
+msgstr "Me désabonner"
+
+msgid "Nasi absolwenci"
+msgstr "Nos anciens"
+
+msgid "Laureaci i finaliści poprzednich edycji – i to, co robią dziś."
+msgstr "Lauréats et finalistes des éditions précédentes – et ce qu’ils font aujourd’hui."
+
+msgid "Strony"
+msgstr "Pages"
+
+#, python-format
+msgid "Podaj adres profilu %(service)s zaczynający się od https://."
+msgstr "Saisissez l’adresse du profil %(service)s commençant par https://."
+
+#, python-format
+msgid "To nie wygląda na adres profilu %(service)s."
+msgstr "Cela ne ressemble pas à une adresse de profil %(service)s."
+
+msgid "Adres wydarzenia musi zaczynać się od https://."
+msgstr "L’adresse de l’événement doit commencer par https://."
+
+msgid "Witaj w sieci absolwentów! Uzupełnij profil – każde pole jest opcjonalne."
+msgstr "Bienvenue dans le réseau des anciens ! Complétez votre profil – tous les champs sont facultatifs."
+
+msgid "Profil zapisany."
+msgstr "Profil enregistré."
+
+msgid "Zgoda wycofana – Twój profil absolwenta został usunięty."
+msgstr "Consentement retiré – votre profil d’ancien a été supprimé."
+
+msgid "Prośba wysłana. Dostaniesz e-mail, gdy mentor odpowie."
+msgstr "Demande envoyée. Vous recevrez un e-mail lorsque le mentor répondra."
+
+msgid "Prośba przyjęta – rozmowa czeka w Wiadomościach."
+msgstr "Demande acceptée – la conversation vous attend dans Messages."
+
+msgid "Prośba odrzucona."
+msgstr "Demande refusée."
+
+msgid "Prośba wycofana."
+msgstr "Demande retirée."
+
+msgid "Relacja mentorska zakończona."
+msgstr "Relation de mentorat terminée."
+
+msgid "Zgłoszenie wysłane do organizatora."
+msgstr "Signalement envoyé à l’organisateur."
+
+msgid "Ustawienia zapisane."
+msgstr "Paramètres enregistrés."
+
+msgid "Profil ukryty."
+msgstr "Profil masqué."
+
+msgid "Profil znów jest widoczny."
+msgstr "Le profil est de nouveau visible."
+
+msgid "Podaj powód zakończenia relacji."
+msgstr "Indiquez le motif de la fin de la relation."
+
+msgid "Relacja zakończona. Obie strony dostały list."
+msgstr "Relation terminée. Les deux parties ont reçu un e-mail."
+
+msgid "Zgłoszenie zamknięte."
+msgstr "Signalement clôturé."
+
+#, python-format
+msgid "Zaproszenie wysłane. Liczba odbiorców: %(count)s."
+msgstr "Invitation envoyée. Nombre de destinataires : %(count)s."

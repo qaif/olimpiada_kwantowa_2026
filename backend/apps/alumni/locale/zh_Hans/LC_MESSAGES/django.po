@@ -1,0 +1,816 @@
+# Sieć absolwentów (ALUM-01) – katalog aplikacji apps/alumni.
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-04 19:54+0200\n"
+"PO-Revision-Date: 2026-10-04 20:00+0200\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: zh_Hans\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+msgid "Wyrażam zgodę opisaną wyżej."
+msgstr "我同意上述内容。"
+
+msgid "Pokazuj moje pełne imię i nazwisko"
+msgstr "显示我的全名"
+
+msgid "Działa tylko wtedy, gdy masz w konkursie zgodę na publikację imienia i nazwiska."
+msgstr "仅当你已同意在本竞赛中公开你的全名时有效。"
+
+msgid "Uczelnia albo miejsce pracy"
+msgstr "大学或工作单位"
+
+msgid "Kierunek albo stanowisko"
+msgstr "专业或职位"
+
+msgid "Miasto"
+msgstr "城市"
+
+msgid "Kraj"
+msgstr "国家"
+
+msgid "Kilka słów o sobie"
+msgstr "简单介绍一下自己"
+
+msgid "Zainteresowania"
+msgstr "兴趣"
+
+msgid "Chcę być mentorem"
+msgstr "我想成为导师"
+
+msgid "W czym mogę pomóc"
+msgstr "我可以提供帮助的方面"
+
+msgid "Ilu uczestników naraz"
+msgstr "同时指导的参赛者人数"
+
+msgid "Pokazuj mój profil w katalogu dla zalogowanych uczestników"
+msgstr "在面向已登录参赛者的名录中显示我的资料"
+
+msgid "Pokazuj mój profil na publicznej ścianie absolwentów"
+msgstr "在公开校友墙上显示我的资料"
+
+msgid "Na ścianie widać tylko podpis, osiągnięcia, uczelnię i kierunek."
+msgstr "校友墙上仅显示你的姓名、成绩、大学和专业。"
+
+msgid "Chcę dostawać zaproszenia od organizatora (warsztaty, webinary, jury)"
+msgstr "我希望收到主办方的邀请（研讨会、网络研讨会、评审团）"
+
+msgid "Temat"
+msgstr "主题"
+
+msgid "Krótko: w czym potrzebujesz pomocy?"
+msgstr "简要说明：你需要哪方面的帮助？"
+
+msgid "Notatkę przeczyta mentor i organizator. Nie wpisuj tu danych kontaktowych."
+msgstr "导师和主办方会阅读这条备注。请勿在此填写联系方式。"
+
+msgid "Co się stało?"
+msgstr "发生了什么？"
+
+msgid "Notatka (powód zakończenia)"
+msgstr "备注（结束原因）"
+
+msgid "Kto może dołączyć"
+msgstr "谁可以加入"
+
+msgid "Mentoring włączony"
+msgstr "已启用导师计划"
+
+msgid "Publiczna ściana absolwentów"
+msgstr "公开校友墙"
+
+msgid "Rodzaj"
+msgstr "类型"
+
+msgid "Tytuł (temat listu)"
+msgstr "标题（邮件主题）"
+
+msgid "Treść"
+msgstr "内容"
+
+msgid "Adres wydarzenia (https://…)"
+msgstr "活动地址（https://…）"
+
+msgid "Edycje"
+msgstr "届次"
+
+msgid "Najniższe osiągnięcie"
+msgstr "最低成绩"
+
+msgid "dowolne"
+msgstr "不限"
+
+msgid "Zainteresowania (dowolne z)"
+msgstr "兴趣（任一）"
+
+msgid "Tylko mentorzy"
+msgstr "仅限导师"
+
+msgid "Wybierz rodzaj zaproszenia."
+msgstr "请选择邀请类型。"
+
+msgid "Tytuł jest wymagany (do 150 znaków)."
+msgstr "标题为必填项（最多 150 个字符）。"
+
+#, python-format
+msgid "Treść jest wymagana (do %(limit)s znaków)."
+msgstr "内容为必填项（最多 %(limit)s 个字符）。"
+
+msgid "Dzień dobry,"
+msgstr "你好，"
+
+#, python-format
+msgid "organizator konkursu %(competition)s zaprasza absolwentów: %(kind)s."
+msgstr "%(competition)s 的主办方邀请校友参加：%(kind)s。"
+
+#, python-format
+msgid "Szczegóły i zapisy: %(url)s"
+msgstr "详情及报名：%(url)s"
+
+msgid "Dostajesz ten list, bo należysz do sieci absolwentów i nie wyłączyłeś zaproszeń."
+msgstr "你收到这封邮件，是因为你是校友网络的成员，且没有关闭邀请。"
+
+#, python-format
+msgid "Wypisz się z zaproszeń: %(link)s"
+msgstr "退订邀请：%(link)s"
+
+msgid "Żaden absolwent nie spełnia tych filtrów."
+msgstr "没有符合这些筛选条件的校友。"
+
+msgid "Rozmowa mentorska. Każdą wiadomość czyta i akceptuje organizator, zanim trafi do drugiej osoby."
+msgstr "导师对话。每条消息都由主办方阅读并批准后才会送达对方。"
+
+msgid "Rozmowa mentorska – obowiązują zasady Wiadomości tego konkursu."
+msgstr "导师对话——适用本竞赛的消息规则。"
+
+msgid "Rozmowa mentorska. Organizator przegląda wiadomości tej rozmowy (moderacja następcza)."
+msgstr "导师对话。主办方会审阅本对话中的消息（事后审核）。"
+
+msgid "Mentoring zakończył się – ta rozmowa jest teraz tylko do odczytu."
+msgstr "导师指导已结束——此对话现为只读。"
+
+msgid "Organizator wstrzymał mentoring – ta rozmowa jest teraz tylko do odczytu."
+msgstr "主办方已暂停导师计划——此对话现为只读。"
+
+msgid "Mentoring jest w tym konkursie wyłączony."
+msgstr "本竞赛已关闭导师计划。"
+
+msgid "Mentoring wymaga modułu Wiadomości, który organizator wyłączył."
+msgstr "导师计划需要消息模块，但主办方已将其关闭。"
+
+msgid "Ta osoba nie przyjmuje teraz próśb o mentoring."
+msgstr "此人目前不接受导师申请。"
+
+#, python-format
+msgid "%(label)s nie może być puste."
+msgstr "%(label)s 不能为空。"
+
+#, python-format
+msgid "%(label)s jest za długie (limit %(limit)s znaków)."
+msgstr "%(label)s 过长（上限 %(limit)s 个字符）。"
+
+msgid "Nie możesz poprosić o mentoring samego siebie."
+msgstr "你不能向自己申请导师指导。"
+
+msgid "O mentora proszą uczestnicy bieżącej edycji."
+msgstr "本届参赛者可以申请导师。"
+
+msgid "Wybierz temat z listy."
+msgstr "请从列表中选择主题。"
+
+msgid "Notatka"
+msgstr "备注"
+
+msgid "Masz już otwartą prośbę albo relację z tą osobą."
+msgstr "你与此人已有未结束的申请或导师关系。"
+
+#, python-format
+msgid "Możesz mieć naraz najwyżej %(limit)s otwarte prośby i relacje mentorskie."
+msgstr "你最多可同时有 %(limit)s 个未结束的导师申请和导师关系。"
+
+msgid "Ta osoba nie ma teraz wolnego miejsca na mentoring."
+msgstr "此人目前没有空余的导师名额。"
+
+msgid "Nie ma takiej relacji mentorskiej."
+msgstr "不存在该导师关系。"
+
+msgid "Na tę prośbę już odpowiedziano."
+msgstr "该申请已有答复。"
+
+msgid "Najpierw dołącz do sieci absolwentów."
+msgstr "请先加入校友网络。"
+
+msgid "Masz już komplet mentee. Zwiększ liczbę miejsc w profilu albo zakończ inną relację."
+msgstr "你的学员名额已满。请在个人资料中增加名额，或结束另一段导师关系。"
+
+msgid "Tę prośbę można już tylko zakończyć."
+msgstr "该申请现在只能结束。"
+
+msgid "Ta relacja jest już zakończona."
+msgstr "该导师关系已经结束。"
+
+msgid "Powód"
+msgstr "原因"
+
+msgid "Nie ma takiego zgłoszenia."
+msgstr "不存在该报告。"
+
+msgid "uczestnik"
+msgstr "参赛者"
+
+msgid "awans do kolejnego etapu"
+msgstr "晋级下一阶段"
+
+msgid "finalista"
+msgstr "决赛选手"
+
+msgid "laureat"
+msgstr "获奖者"
+
+msgid "obliczenia kwantowe"
+msgstr "量子计算"
+
+msgid "fizyka kwantowa"
+msgstr "量子物理"
+
+msgid "fizyka"
+msgstr "物理"
+
+msgid "informatyka"
+msgstr "计算机科学"
+
+msgid "matematyka"
+msgstr "数学"
+
+msgid "inżynieria"
+msgstr "工程"
+
+msgid "chemia"
+msgstr "化学"
+
+msgid "badania naukowe"
+msgstr "科学研究"
+
+msgid "praca w przemyśle"
+msgstr "产业界工作"
+
+msgid "edukacja i popularyzacja"
+msgstr "教育与科普"
+
+msgid "zgoda udzielona"
+msgstr "已同意"
+
+msgid "zgoda wycofana"
+msgstr "已撤回同意"
+
+msgid "prośba czeka na mentora"
+msgstr "申请等待导师处理"
+
+msgid "trwa"
+msgstr "进行中"
+
+msgid "odrzucona przez mentora"
+msgstr "被导师拒绝"
+
+msgid "wycofana przez uczestnika"
+msgstr "被参赛者撤回"
+
+msgid "zakończona"
+msgstr "已结束"
+
+msgid "zakończył mentor"
+msgstr "由导师结束"
+
+msgid "zakończył uczestnik"
+msgstr "由参赛者结束"
+
+msgid "zakończył organizator"
+msgstr "由主办方结束"
+
+msgid "mentor wycofał zgodę"
+msgstr "导师撤回了同意"
+
+msgid "konto usunięte"
+msgstr "账户已删除"
+
+msgid "rozmowa według zasad Wiadomości"
+msgstr "按消息规则进行对话"
+
+msgid "każdą wiadomość akceptuje organizator"
+msgstr "每条消息由主办方批准"
+
+msgid "warsztaty"
+msgstr "研讨会"
+
+msgid "webinar"
+msgstr "网络研讨会"
+
+msgid "jury"
+msgstr "评审团"
+
+msgid "inne"
+msgstr "其他"
+
+msgid "Absolwenci: prośba o mentoring"
+msgstr "校友：导师申请"
+
+msgid "Absolwenci: mentor przyjął Twoją prośbę"
+msgstr "校友：导师已接受你的申请"
+
+msgid "Absolwenci: odpowiedź na prośbę o mentoring"
+msgstr "校友：导师申请的答复"
+
+msgid "Absolwenci: relacja mentorska zakończona"
+msgstr "校友：导师关系已结束"
+
+msgid "Absolwenci: zgłoszono problem z relacją mentorską"
+msgstr "校友：有人报告了导师关系问题"
+
+#, python-format
+msgid "%(name)s prosi Cię o mentoring w sieci absolwentów."
+msgstr "%(name)s 在校友网络中向你申请导师指导。"
+
+msgid "Notatkę prośby przeczytasz i odpowiesz na nią po zalogowaniu:"
+msgstr "登录后即可阅读申请备注并答复："
+
+#, python-format
+msgid "%(name)s zgadza się zostać Twoim mentorem."
+msgstr "%(name)s 同意成为你的导师。"
+
+msgid "Rozmowa czeka w Wiadomościach:"
+msgstr "对话已在消息中等你："
+
+#, python-format
+msgid "%(name)s nie może teraz przyjąć Twojej prośby o mentoring."
+msgstr "%(name)s 目前无法接受你的导师申请。"
+
+msgid "Możesz poprosić inną osobę z katalogu absolwentów:"
+msgstr "你可以向校友名录中的其他人申请："
+
+msgid "Relacja mentorska w sieci absolwentów została zakończona."
+msgstr "校友网络中的一段导师关系已结束。"
+
+msgid "Rozmowa zostaje w Wiadomościach do odczytu. Szczegóły:"
+msgstr "对话以只读方式保留在消息中。详情："
+
+msgid "Jedna ze stron relacji mentorskiej zgłosiła problem. Powód przeczytasz w panelu:"
+msgstr "导师关系的一方报告了问题。你可以在管理面板中查看原因："
+
+msgid "Do sieci absolwentów dołączają uczestnicy tego konkursu."
+msgstr "本竞赛的参赛者可以加入校友网络。"
+
+msgid "Do sieci absolwentów dołączają osoby pełnoletnie. Wróć tu po swoich 18. urodzinach – Twoje osiągnięcia poczekają."
+msgstr "校友网络仅对成年人开放。请在年满 18 岁后再来——你的成绩会一直保留。"
+
+#, python-format
+msgid "Do sieci absolwentów dołączają osoby z osiągnięciem w zakończonej edycji na poziomie co najmniej: %(level)s."
+msgstr "在已结束的届次中取得至少以下级别成绩的人可以加入校友网络：%(level)s。"
+
+msgid "Chcę należeć do sieci absolwentów tego konkursu. Zgadzam się, żeby organizator przetwarzał moje imię i inicjał nazwiska (pełne imię i nazwisko – tylko jeśli tak wybiorę i mam zgodę na publikację nazwiska), moje osiągnięcia z ogłoszonych wyników oraz dane, które sam wpiszę do profilu, w celu: pokazania profilu zalogowanym uczestnikom konkursu (a na publicznej ścianie – tylko jeśli to zaznaczę), kontaktu mentorskiego przez Wiadomości, wysyłania mi zaproszeń na warsztaty, webinary i do jury (mogę się wypisać w każdym liście) oraz zagregowanych statystyk „gdzie są teraz”, w których nikt nie jest rozpoznawalny. Zgodę mogę wycofać w każdej chwili – profil zniknie od razu."
+msgstr "我希望加入本竞赛的校友网络。我同意主办方处理我的名字和姓氏首字母（仅当我选择且已同意公开姓名时才处理全名）、已公布成绩中我的成绩，以及我自己填写在个人资料中的数据，用于：向已登录的本竞赛参赛者展示我的资料（仅当我勾选时才在公开墙上展示）、通过消息进行导师联系、向我发送研讨会、网络研讨会和评审团邀请（我可以在每封邮件中退订），以及生成无法识别任何个人的汇总“他们现在在哪里”统计。我可以随时撤回同意——我的资料将立即消失。"
+
+msgid "Ta część serwisu jest dostępna dla uczestników tego konkursu."
+msgstr "网站的这一部分仅对本竞赛的参赛者开放。"
+
+msgid "Ta część serwisu jest dostępna dla koordynatora."
+msgstr "网站的这一部分仅对协调员开放。"
+
+msgid "Zaznacz zgodę, żeby dołączyć do sieci absolwentów."
+msgstr "请勾选同意以加入校友网络。"
+
+msgid "nie podano"
+msgstr "未填写"
+
+msgid "Uczelnia"
+msgstr "大学"
+
+msgid "Kierunek"
+msgstr "专业"
+
+msgid "Zainteresowania (osoba może mieć kilka)"
+msgstr "兴趣（每人可有多项）"
+
+msgid "Najwyższe osiągnięcie"
+msgstr "最高成绩"
+
+msgid "Zainteresowania:"
+msgstr "兴趣："
+
+msgid "Mentor"
+msgstr "导师"
+
+#, python-format
+msgid "wolne miejsca: %(slots)s"
+msgstr "空余名额：%(slots)s"
+
+msgid "brak wolnych miejsc"
+msgstr "无空余名额"
+
+msgid "Poproś o mentoring"
+msgstr "申请导师指导"
+
+msgid "Absolwenci"
+msgstr "校友"
+
+msgid "Mentoring"
+msgstr "导师计划"
+
+msgid "Zaproszenia"
+msgstr "邀请"
+
+msgid "Gdzie są teraz"
+msgstr "他们现在在哪里"
+
+msgid "Absolwenci – panel koordynatora"
+msgstr "校友——协调员面板"
+
+msgid "Sieć byłych uczestników, którzy wyrazili na to zgodę: profile, mentoring, zaproszenia i zagregowane statystyki."
+msgstr "已同意加入的往届参赛者网络：个人资料、导师计划、邀请和汇总统计。"
+
+msgid "dane osobowe"
+msgstr "个人数据"
+
+msgid "Podstawą jest zgoda absolwenta – wycofanie usuwa profil od razu. Osiągnięcia liczą się wyłącznie z ogłoszonych wyników i wystawionych dyplomów."
+msgstr "法律依据是校友的同意——撤回同意会立即删除资料。成绩仅依据已公布的结果和已颁发的证书计算。"
+
+msgid "Ustawienia"
+msgstr "设置"
+
+msgid "Mentoring wymaga włączonych Wiadomości – bez nich mentorzy nie mogą przyjmować próśb."
+msgstr "导师计划需要启用消息——否则导师无法接受申请。"
+
+msgid "„Kto może dołączyć” to najniższe osiągnięcie w zakończonej edycji. Dołączają wyłącznie osoby pełnoletnie. Mentoring małoletnich toczy się zawsze z udziałem organizatora: przy zasadzie „ta sama grupa wiekowa” każdą wiadomość akceptujesz przed doręczeniem, a przy „bez ograniczeń” przeglądasz je po doręczeniu (kolejka moderacji Wiadomości)."
+msgstr "“谁可以加入”是指在已结束届次中的最低成绩。仅成年人可以加入。未成年人的导师指导始终有主办方参与：在“相同年龄组”规则下，你需在送达前批准每条消息；在“无限制”规则下，你在送达后审阅消息（消息审核队列）。"
+
+msgid "Zapisz ustawienia"
+msgstr "保存设置"
+
+msgid "Profile absolwentów"
+msgstr "校友资料"
+
+#, python-format
+msgid "Mogłoby jeszcze dołączyć (spełnia kryteria, nie dołączyło): %(count)s."
+msgstr "尚可加入（符合条件但未加入）：%(count)s。"
+
+msgid "Szukaj"
+msgstr "搜索"
+
+msgid "Osoba"
+msgstr "人员"
+
+msgid "Osiągnięcia"
+msgstr "成绩"
+
+msgid "Widoczność"
+msgstr "可见性"
+
+msgid "ukryty"
+msgstr "已隐藏"
+
+msgid "katalog"
+msgstr "名录"
+
+msgid "ściana"
+msgstr "校友墙"
+
+msgid "Pokaż"
+msgstr "显示"
+
+msgid "Ukryj"
+msgstr "隐藏"
+
+msgid "Nikt jeszcze nie dołączył do sieci absolwentów."
+msgstr "还没有人加入校友网络。"
+
+msgid "Poprzednia"
+msgstr "上一页"
+
+msgid "Następna"
+msgstr "下一页"
+
+msgid "Zaproszenia – panel koordynatora"
+msgstr "邀请——协调员面板"
+
+msgid "Zaproszenia dla absolwentów"
+msgstr "校友邀请"
+
+msgid "List do absolwentów, którzy nie wyłączyli zaproszeń – w ich języku, z odnośnikiem wypisu. Do webinaru wklej adres wydarzenia."
+msgstr "发送给未关闭邀请的校友的邮件——使用他们的语言，并附退订链接。如为网络研讨会，请粘贴活动地址。"
+
+#, python-format
+msgid "Odbiorców z tymi filtrami: %(count)s."
+msgstr "符合这些筛选条件的收件人：%(count)s。"
+
+msgid "Policz odbiorców"
+msgstr "统计收件人"
+
+msgid "Wyślij zaproszenie"
+msgstr "发送邀请"
+
+msgid "Wysłane"
+msgstr "已发送"
+
+msgid "Data"
+msgstr "日期"
+
+msgid "Tytuł"
+msgstr "标题"
+
+msgid "Odbiorcy"
+msgstr "收件人"
+
+msgid "Nie wysłano jeszcze żadnego zaproszenia."
+msgstr "尚未发送任何邀请。"
+
+msgid "Mentoring – panel koordynatora"
+msgstr "导师计划——协调员面板"
+
+msgid "Prośby i relacje mentor–uczestnik. Wiadomości rozmów mentorskich czytasz w kolejce moderacji Wiadomości."
+msgstr "导师与参赛者之间的申请和关系。导师对话中的消息请在消息审核队列中阅读。"
+
+msgid "Kolejka moderacji"
+msgstr "审核队列"
+
+msgid "Mentoring jest wyłączony – istniejące rozmowy mentorskie są tylko do odczytu."
+msgstr "导师计划已关闭——现有导师对话为只读。"
+
+msgid "Zgłoszenia problemów"
+msgstr "已报告的问题"
+
+msgid "Relacja"
+msgstr "关系"
+
+msgid "Zgłoszone"
+msgstr "报告时间"
+
+msgid "Zamknij zgłoszenie"
+msgstr "关闭报告"
+
+msgid "Relacje"
+msgstr "导师关系"
+
+msgid "wszystkie"
+msgstr "全部"
+
+msgid "Uczestnik"
+msgstr "参赛者"
+
+msgid "Stan"
+msgstr "状态"
+
+msgid "Kanał"
+msgstr "渠道"
+
+msgid "Zgłoszenia"
+msgstr "报告"
+
+msgid "małoletni"
+msgstr "未成年"
+
+msgid "notatka prośby"
+msgstr "申请备注"
+
+msgid "Powód zakończenia"
+msgstr "结束原因"
+
+msgid "Zakończ relację"
+msgstr "结束关系"
+
+msgid "Brak relacji mentorskich."
+msgstr "没有导师关系。"
+
+msgid "Zgłoszenia: problemy z relacją / zgłoszone wiadomości w rozmowie (otwarte)."
+msgstr "报告：关系问题／对话中被举报的消息（未处理）。"
+
+msgid "Gdzie są teraz – panel koordynatora"
+msgstr "他们现在在哪里——协调员面板"
+
+#, python-format
+msgid "Zagregowane dane z profili absolwentów. Grupy mniejsze niż %(k)s osób nie są pokazywane osobno – nikogo nie da się z tych tabel rozpoznać."
+msgstr "来自校友资料的汇总数据。少于 %(k)s 人的群组不会单独显示——无法通过这些表格识别任何人。"
+
+#, python-format
+msgid "Absolwentów w sieci: %(total)s."
+msgstr "网络中的校友：%(total)s。"
+
+#, python-format
+msgid "Mentorów: %(mentors)s."
+msgstr "导师：%(mentors)s。"
+
+#, python-format
+msgid "Mentorów: mniej niż %(k)s."
+msgstr "导师：少于 %(k)s 人。"
+
+#, python-format
+msgid "Sieć ma mniej niż %(k)s osób – rozkładów nie pokazujemy, bo każda liczba mówiłaby o konkretnych ludziach."
+msgstr "网络成员少于 %(k)s 人——我们不显示分布情况，因为每个数字都会指向具体的人。"
+
+msgid "Katalog absolwentów"
+msgstr "校友名录"
+
+msgid "Absolwenci, którzy zgodzili się pokazać swój profil zalogowanym uczestnikom."
+msgstr "同意向已登录参赛者展示个人资料的校友。"
+
+msgid "Szukaj (imię, uczelnia, kierunek)"
+msgstr "搜索（名字、大学、专业）"
+
+msgid "Zainteresowanie"
+msgstr "兴趣"
+
+msgid "Tylko mentorzy z wolnym miejscem"
+msgstr "仅显示有空余名额的导师"
+
+msgid "Strony katalogu"
+msgstr "名录分页"
+
+msgid "Nikogo tu jeszcze nie ma"
+msgstr "这里还没有人"
+
+msgid "Zgłoś problem z mentoringiem"
+msgstr "报告导师指导问题"
+
+msgid "Zgłoszenie trafi od razu do organizatora. Jeśli problem dotyczy konkretnej wiadomości, zgłoś ją także w Wiadomościach przyciskiem „Zgłoś”."
+msgstr "报告将直接发送给主办方。如果问题涉及某条具体消息，也请在消息中用“举报”按钮举报。"
+
+msgid "Wyślij zgłoszenie"
+msgstr "发送报告"
+
+msgid "Sieć absolwentów"
+msgstr "校友网络"
+
+msgid "Byli uczestnicy, którzy pokazują, co robią dziś, pomagają obecnym uczestnikom jako mentorzy i dostają zaproszenia na warsztaty, webinary i do jury."
+msgstr "往届参赛者在这里展示他们如今的工作，作为导师帮助当前参赛者，并收到研讨会、网络研讨会和评审团的邀请。"
+
+msgid "Publiczna ściana"
+msgstr "公开校友墙"
+
+msgid "Twój profil"
+msgstr "你的资料"
+
+msgid "Organizator ukrył Twój profil – nie widać go w katalogu ani na ścianie. Napisz do organizatora, jeśli to pomyłka."
+msgstr "主办方隐藏了你的资料——它不会出现在名录或校友墙上。如有误，请联系主办方。"
+
+msgid "Tak widzą Cię inni zalogowani uczestnicy:"
+msgstr "其他已登录参赛者看到的你是这样的："
+
+msgid "Zapisz profil"
+msgstr "保存资料"
+
+msgid "Wycofanie zgody"
+msgstr "撤回同意"
+
+msgid "Po wycofaniu zgody Twój profil absolwenta zniknie od razu, a relacje, w których jesteś mentorem, zakończą się. Twoje wyniki i dyplomy zostają – to dokumentacja zawodów."
+msgstr "撤回同意后，你的校友资料将立即消失，你作为导师的关系也将结束。你的成绩和证书会保留——它们是竞赛档案的一部分。"
+
+msgid "Wycofaj zgodę i usuń profil"
+msgstr "撤回同意并删除资料"
+
+msgid "Dołącz do sieci absolwentów"
+msgstr "加入校友网络"
+
+msgid "Twoje osiągnięcia z ogłoszonych wyników:"
+msgstr "你在已公布结果中的成绩："
+
+msgid "Dołączam"
+msgstr "加入"
+
+msgid "Organizator nie włączył jeszcze mentoringu."
+msgstr "主办方尚未启用导师计划。"
+
+msgid "Rola"
+msgstr "角色"
+
+msgid "Druga osoba"
+msgstr "对方"
+
+msgid "jesteś mentorem"
+msgstr "你是导师"
+
+msgid "Twój mentor"
+msgstr "你的导师"
+
+msgid "Przyjmij"
+msgstr "接受"
+
+msgid "Odrzuć"
+msgstr "拒绝"
+
+msgid "Wycofaj prośbę"
+msgstr "撤回申请"
+
+msgid "Rozmowa"
+msgstr "对话"
+
+msgid "Zakończ"
+msgstr "结束"
+
+msgid "Zgłoś problem"
+msgstr "报告问题"
+
+msgid "Nie masz jeszcze żadnej relacji mentorskiej. Mentora wybierzesz w katalogu absolwentów – przy osobach, które pomagają, stoi przycisk „Poproś o mentoring”."
+msgstr "你还没有任何导师关系。你可以在校友名录中选择导师——提供帮助的人旁边有“申请导师指导”按钮。"
+
+msgid "Rozmowa mentorska toczy się w Wiadomościach. Jeśli uczestnik jest niepełnoletni, organizator czyta wiadomości – zależnie od zasad konkursu przed doręczeniem albo po nim."
+msgstr "导师对话在消息中进行。如果参赛者未成年，主办方会阅读消息——根据竞赛规则，在送达前或送达后。"
+
+msgid "Prośba o mentoring"
+msgstr "导师申请"
+
+msgid "Jeśli mentor przyjmie prośbę, rozmowa otworzy się w Wiadomościach. Organizator widzi relacje mentorskie i – zależnie od zasad konkursu – czyta wiadomości."
+msgstr "如果导师接受申请，对话将在消息中开启。主办方可以看到导师关系，并根据竞赛规则阅读消息。"
+
+msgid "Wyślij prośbę"
+msgstr "发送申请"
+
+msgid "Wypis z zaproszeń"
+msgstr "退订邀请"
+
+msgid "Wypis z zaproszeń dla absolwentów"
+msgstr "退订校友邀请"
+
+msgid "Ten odnośnik jest nieprawidłowy. Zaproszenia wyłączysz też w swoim profilu absolwenta."
+msgstr "此链接无效。你也可以在校友资料中关闭邀请。"
+
+msgid "Gotowe – nie będziesz już dostawać zaproszeń. Włączysz je z powrotem w profilu absolwenta."
+msgstr "完成——你将不再收到邀请。你可以在校友资料中重新开启。"
+
+msgid "Kliknij, żeby nie dostawać więcej zaproszeń od organizatora (warsztaty, webinary, jury)."
+msgstr "点击此处，不再接收主办方的邀请（研讨会、网络研讨会、评审团）。"
+
+msgid "Wypisz mnie"
+msgstr "为我退订"
+
+msgid "Nasi absolwenci"
+msgstr "我们的校友"
+
+msgid "Laureaci i finaliści poprzednich edycji – i to, co robią dziś."
+msgstr "往届的获奖者和决赛选手——以及他们如今在做什么。"
+
+msgid "Strony"
+msgstr "页面"
+
+#, python-format
+msgid "Podaj adres profilu %(service)s zaczynający się od https://."
+msgstr "请输入以 https:// 开头的 %(service)s 个人资料地址。"
+
+#, python-format
+msgid "To nie wygląda na adres profilu %(service)s."
+msgstr "这看起来不像 %(service)s 个人资料地址。"
+
+msgid "Adres wydarzenia musi zaczynać się od https://."
+msgstr "活动地址必须以 https:// 开头。"
+
+msgid "Witaj w sieci absolwentów! Uzupełnij profil – każde pole jest opcjonalne."
+msgstr "欢迎加入校友网络！请完善你的资料——所有字段均为选填。"
+
+msgid "Profil zapisany."
+msgstr "资料已保存。"
+
+msgid "Zgoda wycofana – Twój profil absolwenta został usunięty."
+msgstr "已撤回同意——你的校友资料已删除。"
+
+msgid "Prośba wysłana. Dostaniesz e-mail, gdy mentor odpowie."
+msgstr "申请已发送。导师答复后你会收到电子邮件。"
+
+msgid "Prośba przyjęta – rozmowa czeka w Wiadomościach."
+msgstr "申请已接受——对话已在消息中等你。"
+
+msgid "Prośba odrzucona."
+msgstr "申请已拒绝。"
+
+msgid "Prośba wycofana."
+msgstr "申请已撤回。"
+
+msgid "Relacja mentorska zakończona."
+msgstr "导师关系已结束。"
+
+msgid "Zgłoszenie wysłane do organizatora."
+msgstr "报告已发送给主办方。"
+
+msgid "Ustawienia zapisane."
+msgstr "设置已保存。"
+
+msgid "Profil ukryty."
+msgstr "资料已隐藏。"
+
+msgid "Profil znów jest widoczny."
+msgstr "资料已重新可见。"
+
+msgid "Podaj powód zakończenia relacji."
+msgstr "请填写结束关系的原因。"
+
+msgid "Relacja zakończona. Obie strony dostały list."
+msgstr "关系已结束。双方都已收到邮件。"
+
+msgid "Zgłoszenie zamknięte."
+msgstr "报告已关闭。"
+
+#, python-format
+msgid "Zaproszenie wysłane. Liczba odbiorców: %(count)s."
+msgstr "邀请已发送。收件人数：%(count)s。"

@@ -1,0 +1,816 @@
+# Sieć absolwentów (ALUM-01) – katalog aplikacji apps/alumni.
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-04 19:54+0200\n"
+"PO-Revision-Date: 2026-10-04 20:00+0200\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: ru\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=4; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && (n%100<12 || n%100>14) ? 1 : n%10==0 || (n%10>=5 && n%10<=9) || (n%100>=11 && n%100<=14)? 2 : 3);\n"
+
+msgid "Wyrażam zgodę opisaną wyżej."
+msgstr "Я даю согласие, описанное выше."
+
+msgid "Pokazuj moje pełne imię i nazwisko"
+msgstr "Показывать моё полное имя и фамилию"
+
+msgid "Działa tylko wtedy, gdy masz w konkursie zgodę na publikację imienia i nazwiska."
+msgstr "Работает, только если вы дали согласие на публикацию своего полного имени в этом конкурсе."
+
+msgid "Uczelnia albo miejsce pracy"
+msgstr "Вуз или место работы"
+
+msgid "Kierunek albo stanowisko"
+msgstr "Специальность или должность"
+
+msgid "Miasto"
+msgstr "Город"
+
+msgid "Kraj"
+msgstr "Страна"
+
+msgid "Kilka słów o sobie"
+msgstr "Несколько слов о себе"
+
+msgid "Zainteresowania"
+msgstr "Интересы"
+
+msgid "Chcę być mentorem"
+msgstr "Я хочу быть ментором"
+
+msgid "W czym mogę pomóc"
+msgstr "Чем я могу помочь"
+
+msgid "Ilu uczestników naraz"
+msgstr "Сколько участников одновременно"
+
+msgid "Pokazuj mój profil w katalogu dla zalogowanych uczestników"
+msgstr "Показывать мой профиль в каталоге для вошедших участников"
+
+msgid "Pokazuj mój profil na publicznej ścianie absolwentów"
+msgstr "Показывать мой профиль на публичной стене выпускников"
+
+msgid "Na ścianie widać tylko podpis, osiągnięcia, uczelnię i kierunek."
+msgstr "На стене видны только ваше имя, достижения, вуз и специальность."
+
+msgid "Chcę dostawać zaproszenia od organizatora (warsztaty, webinary, jury)"
+msgstr "Я хочу получать приглашения от организатора (мастер-классы, вебинары, жюри)"
+
+msgid "Temat"
+msgstr "Тема"
+
+msgid "Krótko: w czym potrzebujesz pomocy?"
+msgstr "Коротко: в чём вам нужна помощь?"
+
+msgid "Notatkę przeczyta mentor i organizator. Nie wpisuj tu danych kontaktowych."
+msgstr "Заметку прочитают ментор и организатор. Не указывайте здесь контактные данные."
+
+msgid "Co się stało?"
+msgstr "Что случилось?"
+
+msgid "Notatka (powód zakończenia)"
+msgstr "Заметка (причина завершения)"
+
+msgid "Kto może dołączyć"
+msgstr "Кто может присоединиться"
+
+msgid "Mentoring włączony"
+msgstr "Менторство включено"
+
+msgid "Publiczna ściana absolwentów"
+msgstr "Публичная стена выпускников"
+
+msgid "Rodzaj"
+msgstr "Тип"
+
+msgid "Tytuł (temat listu)"
+msgstr "Заголовок (тема письма)"
+
+msgid "Treść"
+msgstr "Содержание"
+
+msgid "Adres wydarzenia (https://…)"
+msgstr "Адрес мероприятия (https://…)"
+
+msgid "Edycje"
+msgstr "Выпуски"
+
+msgid "Najniższe osiągnięcie"
+msgstr "Минимальное достижение"
+
+msgid "dowolne"
+msgstr "любое"
+
+msgid "Zainteresowania (dowolne z)"
+msgstr "Интересы (любой из)"
+
+msgid "Tylko mentorzy"
+msgstr "Только менторы"
+
+msgid "Wybierz rodzaj zaproszenia."
+msgstr "Выберите тип приглашения."
+
+msgid "Tytuł jest wymagany (do 150 znaków)."
+msgstr "Заголовок обязателен (до 150 символов)."
+
+#, python-format
+msgid "Treść jest wymagana (do %(limit)s znaków)."
+msgstr "Содержание обязательно (до %(limit)s символов)."
+
+msgid "Dzień dobry,"
+msgstr "Здравствуйте!"
+
+#, python-format
+msgid "organizator konkursu %(competition)s zaprasza absolwentów: %(kind)s."
+msgstr "организатор конкурса %(competition)s приглашает выпускников: %(kind)s."
+
+#, python-format
+msgid "Szczegóły i zapisy: %(url)s"
+msgstr "Подробности и регистрация: %(url)s"
+
+msgid "Dostajesz ten list, bo należysz do sieci absolwentów i nie wyłączyłeś zaproszeń."
+msgstr "Вы получили это письмо, потому что состоите в сети выпускников и не отключили приглашения."
+
+#, python-format
+msgid "Wypisz się z zaproszeń: %(link)s"
+msgstr "Отписаться от приглашений: %(link)s"
+
+msgid "Żaden absolwent nie spełnia tych filtrów."
+msgstr "Ни один выпускник не соответствует этим фильтрам."
+
+msgid "Rozmowa mentorska. Każdą wiadomość czyta i akceptuje organizator, zanim trafi do drugiej osoby."
+msgstr "Менторская беседа. Организатор читает и одобряет каждое сообщение, прежде чем оно дойдёт до собеседника."
+
+msgid "Rozmowa mentorska – obowiązują zasady Wiadomości tego konkursu."
+msgstr "Менторская беседа – действуют правила раздела «Сообщения» этого конкурса."
+
+msgid "Rozmowa mentorska. Organizator przegląda wiadomości tej rozmowy (moderacja następcza)."
+msgstr "Менторская беседа. Организатор проверяет сообщения этой беседы (постмодерация)."
+
+msgid "Mentoring zakończył się – ta rozmowa jest teraz tylko do odczytu."
+msgstr "Менторство завершено – эта беседа теперь доступна только для чтения."
+
+msgid "Organizator wstrzymał mentoring – ta rozmowa jest teraz tylko do odczytu."
+msgstr "Организатор приостановил менторство – эта беседа теперь доступна только для чтения."
+
+msgid "Mentoring jest w tym konkursie wyłączony."
+msgstr "Менторство в этом конкурсе отключено."
+
+msgid "Mentoring wymaga modułu Wiadomości, który organizator wyłączył."
+msgstr "Для менторства нужен модуль «Сообщения», который организатор отключил."
+
+msgid "Ta osoba nie przyjmuje teraz próśb o mentoring."
+msgstr "Этот человек сейчас не принимает запросы на менторство."
+
+#, python-format
+msgid "%(label)s nie może być puste."
+msgstr "%(label)s: поле не может быть пустым."
+
+#, python-format
+msgid "%(label)s jest za długie (limit %(limit)s znaków)."
+msgstr "%(label)s: слишком длинный текст (лимит: %(limit)s символов)."
+
+msgid "Nie możesz poprosić o mentoring samego siebie."
+msgstr "Нельзя запросить менторство у самого себя."
+
+msgid "O mentora proszą uczestnicy bieżącej edycji."
+msgstr "Запросить ментора могут участники текущего выпуска."
+
+msgid "Wybierz temat z listy."
+msgstr "Выберите тему из списка."
+
+msgid "Notatka"
+msgstr "Заметка"
+
+msgid "Masz już otwartą prośbę albo relację z tą osobą."
+msgstr "У вас уже есть открытый запрос или менторская связь с этим человеком."
+
+#, python-format
+msgid "Możesz mieć naraz najwyżej %(limit)s otwarte prośby i relacje mentorskie."
+msgstr "Одновременно у вас может быть не более %(limit)s открытых запросов и менторских связей."
+
+msgid "Ta osoba nie ma teraz wolnego miejsca na mentoring."
+msgstr "У этого человека сейчас нет свободного места для менторства."
+
+msgid "Nie ma takiej relacji mentorskiej."
+msgstr "Такой менторской связи нет."
+
+msgid "Na tę prośbę już odpowiedziano."
+msgstr "На этот запрос уже ответили."
+
+msgid "Najpierw dołącz do sieci absolwentów."
+msgstr "Сначала присоединитесь к сети выпускников."
+
+msgid "Masz już komplet mentee. Zwiększ liczbę miejsc w profilu albo zakończ inną relację."
+msgstr "У вас уже максимальное число подопечных. Увеличьте число мест в профиле или завершите другую связь."
+
+msgid "Tę prośbę można już tylko zakończyć."
+msgstr "Этот запрос теперь можно только завершить."
+
+msgid "Ta relacja jest już zakończona."
+msgstr "Эта связь уже завершена."
+
+msgid "Powód"
+msgstr "Причина"
+
+msgid "Nie ma takiego zgłoszenia."
+msgstr "Такого обращения нет."
+
+msgid "uczestnik"
+msgstr "участник"
+
+msgid "awans do kolejnego etapu"
+msgstr "прохождение в следующий этап"
+
+msgid "finalista"
+msgstr "финалист"
+
+msgid "laureat"
+msgstr "лауреат"
+
+msgid "obliczenia kwantowe"
+msgstr "квантовые вычисления"
+
+msgid "fizyka kwantowa"
+msgstr "квантовая физика"
+
+msgid "fizyka"
+msgstr "физика"
+
+msgid "informatyka"
+msgstr "информатика"
+
+msgid "matematyka"
+msgstr "математика"
+
+msgid "inżynieria"
+msgstr "инженерия"
+
+msgid "chemia"
+msgstr "химия"
+
+msgid "badania naukowe"
+msgstr "научные исследования"
+
+msgid "praca w przemyśle"
+msgstr "работа в промышленности"
+
+msgid "edukacja i popularyzacja"
+msgstr "образование и популяризация науки"
+
+msgid "zgoda udzielona"
+msgstr "согласие дано"
+
+msgid "zgoda wycofana"
+msgstr "согласие отозвано"
+
+msgid "prośba czeka na mentora"
+msgstr "запрос ожидает ментора"
+
+msgid "trwa"
+msgstr "активна"
+
+msgid "odrzucona przez mentora"
+msgstr "отклонена ментором"
+
+msgid "wycofana przez uczestnika"
+msgstr "отозвана участником"
+
+msgid "zakończona"
+msgstr "завершена"
+
+msgid "zakończył mentor"
+msgstr "завершена ментором"
+
+msgid "zakończył uczestnik"
+msgstr "завершена участником"
+
+msgid "zakończył organizator"
+msgstr "завершена организатором"
+
+msgid "mentor wycofał zgodę"
+msgstr "ментор отозвал согласие"
+
+msgid "konto usunięte"
+msgstr "аккаунт удалён"
+
+msgid "rozmowa według zasad Wiadomości"
+msgstr "беседа по правилам раздела «Сообщения»"
+
+msgid "każdą wiadomość akceptuje organizator"
+msgstr "организатор одобряет каждое сообщение"
+
+msgid "warsztaty"
+msgstr "мастер-класс"
+
+msgid "webinar"
+msgstr "вебинар"
+
+msgid "jury"
+msgstr "жюри"
+
+msgid "inne"
+msgstr "другое"
+
+msgid "Absolwenci: prośba o mentoring"
+msgstr "Выпускники: запрос на менторство"
+
+msgid "Absolwenci: mentor przyjął Twoją prośbę"
+msgstr "Выпускники: ментор принял ваш запрос"
+
+msgid "Absolwenci: odpowiedź na prośbę o mentoring"
+msgstr "Выпускники: ответ на ваш запрос на менторство"
+
+msgid "Absolwenci: relacja mentorska zakończona"
+msgstr "Выпускники: менторская связь завершена"
+
+msgid "Absolwenci: zgłoszono problem z relacją mentorską"
+msgstr "Выпускники: сообщено о проблеме в менторской связи"
+
+#, python-format
+msgid "%(name)s prosi Cię o mentoring w sieci absolwentów."
+msgstr "%(name)s просит вас стать ментором в сети выпускников."
+
+msgid "Notatkę prośby przeczytasz i odpowiesz na nią po zalogowaniu:"
+msgstr "Прочитать заметку к запросу и ответить можно после входа:"
+
+#, python-format
+msgid "%(name)s zgadza się zostać Twoim mentorem."
+msgstr "%(name)s согласился(-ась) стать вашим ментором."
+
+msgid "Rozmowa czeka w Wiadomościach:"
+msgstr "Беседа ждёт вас в разделе «Сообщения»:"
+
+#, python-format
+msgid "%(name)s nie może teraz przyjąć Twojej prośby o mentoring."
+msgstr "%(name)s сейчас не может принять ваш запрос на менторство."
+
+msgid "Możesz poprosić inną osobę z katalogu absolwentów:"
+msgstr "Вы можете обратиться к другому человеку из каталога выпускников:"
+
+msgid "Relacja mentorska w sieci absolwentów została zakończona."
+msgstr "Менторская связь в сети выпускников завершена."
+
+msgid "Rozmowa zostaje w Wiadomościach do odczytu. Szczegóły:"
+msgstr "Беседа остаётся в разделе «Сообщения» в режиме только для чтения. Подробности:"
+
+msgid "Jedna ze stron relacji mentorskiej zgłosiła problem. Powód przeczytasz w panelu:"
+msgstr "Одна из сторон менторской связи сообщила о проблеме. Причину можно прочитать в панели:"
+
+msgid "Do sieci absolwentów dołączają uczestnicy tego konkursu."
+msgstr "Сеть выпускников открыта для участников этого конкурса."
+
+msgid "Do sieci absolwentów dołączają osoby pełnoletnie. Wróć tu po swoich 18. urodzinach – Twoje osiągnięcia poczekają."
+msgstr "Сеть выпускников открыта для совершеннолетних. Возвращайтесь после 18-летия – ваши достижения вас дождутся."
+
+#, python-format
+msgid "Do sieci absolwentów dołączają osoby z osiągnięciem w zakończonej edycji na poziomie co najmniej: %(level)s."
+msgstr "Сеть выпускников открыта для людей с достижением в завершённом выпуске не ниже уровня: %(level)s."
+
+msgid "Chcę należeć do sieci absolwentów tego konkursu. Zgadzam się, żeby organizator przetwarzał moje imię i inicjał nazwiska (pełne imię i nazwisko – tylko jeśli tak wybiorę i mam zgodę na publikację nazwiska), moje osiągnięcia z ogłoszonych wyników oraz dane, które sam wpiszę do profilu, w celu: pokazania profilu zalogowanym uczestnikom konkursu (a na publicznej ścianie – tylko jeśli to zaznaczę), kontaktu mentorskiego przez Wiadomości, wysyłania mi zaproszeń na warsztaty, webinary i do jury (mogę się wypisać w każdym liście) oraz zagregowanych statystyk „gdzie są teraz”, w których nikt nie jest rozpoznawalny. Zgodę mogę wycofać w każdej chwili – profil zniknie od razu."
+msgstr "Я хочу состоять в сети выпускников этого конкурса. Я согласен(-на), чтобы организатор обрабатывал моё имя и первую букву фамилии (полное имя и фамилию – только если я так решу и дал(а) согласие на публикацию своего имени), мои достижения из опубликованных результатов и данные, которые я сам(а) укажу в профиле, чтобы: показывать мой профиль вошедшим участникам конкурса (а на публичной стене – только если я отмечу эту опцию), обеспечить менторский контакт через раздел «Сообщения», присылать мне приглашения на мастер-классы, вебинары и в жюри (отписаться можно в каждом письме) и составлять обобщённую статистику «где они сейчас», по которой никого нельзя идентифицировать. Я могу в любой момент отозвать согласие – мой профиль сразу исчезнет."
+
+msgid "Ta część serwisu jest dostępna dla uczestników tego konkursu."
+msgstr "Этот раздел сайта доступен участникам этого конкурса."
+
+msgid "Ta część serwisu jest dostępna dla koordynatora."
+msgstr "Этот раздел сайта доступен координатору."
+
+msgid "Zaznacz zgodę, żeby dołączyć do sieci absolwentów."
+msgstr "Отметьте согласие, чтобы присоединиться к сети выпускников."
+
+msgid "nie podano"
+msgstr "не указано"
+
+msgid "Uczelnia"
+msgstr "Вуз"
+
+msgid "Kierunek"
+msgstr "Специальность"
+
+msgid "Zainteresowania (osoba może mieć kilka)"
+msgstr "Интересы (у одного человека может быть несколько)"
+
+msgid "Najwyższe osiągnięcie"
+msgstr "Высшее достижение"
+
+msgid "Zainteresowania:"
+msgstr "Интересы:"
+
+msgid "Mentor"
+msgstr "Ментор"
+
+#, python-format
+msgid "wolne miejsca: %(slots)s"
+msgstr "свободных мест: %(slots)s"
+
+msgid "brak wolnych miejsc"
+msgstr "нет свободных мест"
+
+msgid "Poproś o mentoring"
+msgstr "Попросить о менторстве"
+
+msgid "Absolwenci"
+msgstr "Выпускники"
+
+msgid "Mentoring"
+msgstr "Менторство"
+
+msgid "Zaproszenia"
+msgstr "Приглашения"
+
+msgid "Gdzie są teraz"
+msgstr "Где они сейчас"
+
+msgid "Absolwenci – panel koordynatora"
+msgstr "Выпускники – панель координатора"
+
+msgid "Sieć byłych uczestników, którzy wyrazili na to zgodę: profile, mentoring, zaproszenia i zagregowane statystyki."
+msgstr "Сеть бывших участников, давших на это согласие: профили, менторство, приглашения и обобщённая статистика."
+
+msgid "dane osobowe"
+msgstr "персональные данные"
+
+msgid "Podstawą jest zgoda absolwenta – wycofanie usuwa profil od razu. Osiągnięcia liczą się wyłącznie z ogłoszonych wyników i wystawionych dyplomów."
+msgstr "Правовое основание – согласие выпускника; его отзыв сразу удаляет профиль. Достижения берутся только из опубликованных результатов и выданных сертификатов."
+
+msgid "Ustawienia"
+msgstr "Настройки"
+
+msgid "Mentoring wymaga włączonych Wiadomości – bez nich mentorzy nie mogą przyjmować próśb."
+msgstr "Для менторства нужно включить раздел «Сообщения» – без него менторы не могут принимать запросы."
+
+msgid "„Kto może dołączyć” to najniższe osiągnięcie w zakończonej edycji. Dołączają wyłącznie osoby pełnoletnie. Mentoring małoletnich toczy się zawsze z udziałem organizatora: przy zasadzie „ta sama grupa wiekowa” każdą wiadomość akceptujesz przed doręczeniem, a przy „bez ograniczeń” przeglądasz je po doręczeniu (kolejka moderacji Wiadomości)."
+msgstr "«Кто может присоединиться» – это минимальное достижение в завершённом выпуске. Присоединиться могут только совершеннолетние. Менторство несовершеннолетних всегда проходит с участием организатора: при правиле «та же возрастная группа» вы одобряете каждое сообщение до доставки, а при правиле «без ограничений» проверяете сообщения после доставки (очередь модерации раздела «Сообщения»)."
+
+msgid "Zapisz ustawienia"
+msgstr "Сохранить настройки"
+
+msgid "Profile absolwentów"
+msgstr "Профили выпускников"
+
+#, python-format
+msgid "Mogłoby jeszcze dołączyć (spełnia kryteria, nie dołączyło): %(count)s."
+msgstr "Могли бы присоединиться (соответствуют критериям, но не присоединились): %(count)s."
+
+msgid "Szukaj"
+msgstr "Поиск"
+
+msgid "Osoba"
+msgstr "Человек"
+
+msgid "Osiągnięcia"
+msgstr "Достижения"
+
+msgid "Widoczność"
+msgstr "Видимость"
+
+msgid "ukryty"
+msgstr "скрыт"
+
+msgid "katalog"
+msgstr "каталог"
+
+msgid "ściana"
+msgstr "стена"
+
+msgid "Pokaż"
+msgstr "Показать"
+
+msgid "Ukryj"
+msgstr "Скрыть"
+
+msgid "Nikt jeszcze nie dołączył do sieci absolwentów."
+msgstr "К сети выпускников пока никто не присоединился."
+
+msgid "Poprzednia"
+msgstr "Назад"
+
+msgid "Następna"
+msgstr "Далее"
+
+msgid "Zaproszenia – panel koordynatora"
+msgstr "Приглашения – панель координатора"
+
+msgid "Zaproszenia dla absolwentów"
+msgstr "Приглашения для выпускников"
+
+msgid "List do absolwentów, którzy nie wyłączyli zaproszeń – w ich języku, z odnośnikiem wypisu. Do webinaru wklej adres wydarzenia."
+msgstr "Письмо выпускникам, которые не отключили приглашения, – на их языке и со ссылкой для отписки. Для вебинара вставьте адрес мероприятия."
+
+#, python-format
+msgid "Odbiorców z tymi filtrami: %(count)s."
+msgstr "Получателей с этими фильтрами: %(count)s."
+
+msgid "Policz odbiorców"
+msgstr "Подсчитать получателей"
+
+msgid "Wyślij zaproszenie"
+msgstr "Отправить приглашение"
+
+msgid "Wysłane"
+msgstr "Отправлено"
+
+msgid "Data"
+msgstr "Дата"
+
+msgid "Tytuł"
+msgstr "Заголовок"
+
+msgid "Odbiorcy"
+msgstr "Получатели"
+
+msgid "Nie wysłano jeszcze żadnego zaproszenia."
+msgstr "Приглашения ещё не отправлялись."
+
+msgid "Mentoring – panel koordynatora"
+msgstr "Менторство – панель координатора"
+
+msgid "Prośby i relacje mentor–uczestnik. Wiadomości rozmów mentorskich czytasz w kolejce moderacji Wiadomości."
+msgstr "Запросы и связи «ментор – участник». Сообщения менторских бесед вы читаете в очереди модерации раздела «Сообщения»."
+
+msgid "Kolejka moderacji"
+msgstr "Очередь модерации"
+
+msgid "Mentoring jest wyłączony – istniejące rozmowy mentorskie są tylko do odczytu."
+msgstr "Менторство отключено – существующие менторские беседы доступны только для чтения."
+
+msgid "Zgłoszenia problemów"
+msgstr "Обращения о проблемах"
+
+msgid "Relacja"
+msgstr "Связь"
+
+msgid "Zgłoszone"
+msgstr "Сообщено"
+
+msgid "Zamknij zgłoszenie"
+msgstr "Закрыть обращение"
+
+msgid "Relacje"
+msgstr "Связи"
+
+msgid "wszystkie"
+msgstr "все"
+
+msgid "Uczestnik"
+msgstr "Участник"
+
+msgid "Stan"
+msgstr "Статус"
+
+msgid "Kanał"
+msgstr "Канал"
+
+msgid "Zgłoszenia"
+msgstr "Жалобы"
+
+msgid "małoletni"
+msgstr "несовершеннолетний"
+
+msgid "notatka prośby"
+msgstr "заметка к запросу"
+
+msgid "Powód zakończenia"
+msgstr "Причина завершения"
+
+msgid "Zakończ relację"
+msgstr "Завершить связь"
+
+msgid "Brak relacji mentorskich."
+msgstr "Менторских связей нет."
+
+msgid "Zgłoszenia: problemy z relacją / zgłoszone wiadomości w rozmowie (otwarte)."
+msgstr "Жалобы: проблемы в связи / жалобы на сообщения в беседе (открытые)."
+
+msgid "Gdzie są teraz – panel koordynatora"
+msgstr "Где они сейчас – панель координатора"
+
+#, python-format
+msgid "Zagregowane dane z profili absolwentów. Grupy mniejsze niż %(k)s osób nie są pokazywane osobno – nikogo nie da się z tych tabel rozpoznać."
+msgstr "Обобщённые данные из профилей выпускников. Группы меньше %(k)s человек не показываются отдельно – по этим таблицам никого нельзя идентифицировать."
+
+#, python-format
+msgid "Absolwentów w sieci: %(total)s."
+msgstr "Выпускников в сети: %(total)s."
+
+#, python-format
+msgid "Mentorów: %(mentors)s."
+msgstr "Менторов: %(mentors)s."
+
+#, python-format
+msgid "Mentorów: mniej niż %(k)s."
+msgstr "Менторов: меньше %(k)s."
+
+#, python-format
+msgid "Sieć ma mniej niż %(k)s osób – rozkładów nie pokazujemy, bo każda liczba mówiłaby o konkretnych ludziach."
+msgstr "В сети меньше %(k)s человек – мы не показываем распределения, потому что каждое число описывало бы конкретных людей."
+
+msgid "Katalog absolwentów"
+msgstr "Каталог выпускников"
+
+msgid "Absolwenci, którzy zgodzili się pokazać swój profil zalogowanym uczestnikom."
+msgstr "Выпускники, согласившиеся показывать свой профиль вошедшим участникам."
+
+msgid "Szukaj (imię, uczelnia, kierunek)"
+msgstr "Поиск (имя, вуз, специальность)"
+
+msgid "Zainteresowanie"
+msgstr "Интерес"
+
+msgid "Tylko mentorzy z wolnym miejscem"
+msgstr "Только менторы со свободным местом"
+
+msgid "Strony katalogu"
+msgstr "Страницы каталога"
+
+msgid "Nikogo tu jeszcze nie ma"
+msgstr "Здесь пока никого нет"
+
+msgid "Zgłoś problem z mentoringiem"
+msgstr "Сообщить о проблеме с менторством"
+
+msgid "Zgłoszenie trafi od razu do organizatora. Jeśli problem dotyczy konkretnej wiadomości, zgłoś ją także w Wiadomościach przyciskiem „Zgłoś”."
+msgstr "Обращение сразу попадает к организатору. Если проблема касается конкретного сообщения, также пожалуйтесь на него в разделе «Сообщения» кнопкой «Пожаловаться»."
+
+msgid "Wyślij zgłoszenie"
+msgstr "Отправить обращение"
+
+msgid "Sieć absolwentów"
+msgstr "Сеть выпускников"
+
+msgid "Byli uczestnicy, którzy pokazują, co robią dziś, pomagają obecnym uczestnikom jako mentorzy i dostają zaproszenia na warsztaty, webinary i do jury."
+msgstr "Бывшие участники, которые рассказывают, чем занимаются сегодня, помогают нынешним участникам как менторы и получают приглашения на мастер-классы, вебинары и в жюри."
+
+msgid "Publiczna ściana"
+msgstr "Публичная стена"
+
+msgid "Twój profil"
+msgstr "Ваш профиль"
+
+msgid "Organizator ukrył Twój profil – nie widać go w katalogu ani na ścianie. Napisz do organizatora, jeśli to pomyłka."
+msgstr "Организатор скрыл ваш профиль – он не виден ни в каталоге, ни на стене. Если это ошибка, напишите организатору."
+
+msgid "Tak widzą Cię inni zalogowani uczestnicy:"
+msgstr "Так вас видят другие вошедшие участники:"
+
+msgid "Zapisz profil"
+msgstr "Сохранить профиль"
+
+msgid "Wycofanie zgody"
+msgstr "Отзыв согласия"
+
+msgid "Po wycofaniu zgody Twój profil absolwenta zniknie od razu, a relacje, w których jesteś mentorem, zakończą się. Twoje wyniki i dyplomy zostają – to dokumentacja zawodów."
+msgstr "После отзыва согласия ваш профиль выпускника сразу исчезнет, а связи, в которых вы ментор, завершатся. Ваши результаты и сертификаты сохранятся – они входят в документацию конкурса."
+
+msgid "Wycofaj zgodę i usuń profil"
+msgstr "Отозвать согласие и удалить профиль"
+
+msgid "Dołącz do sieci absolwentów"
+msgstr "Присоединиться к сети выпускников"
+
+msgid "Twoje osiągnięcia z ogłoszonych wyników:"
+msgstr "Ваши достижения из опубликованных результатов:"
+
+msgid "Dołączam"
+msgstr "Присоединиться"
+
+msgid "Organizator nie włączył jeszcze mentoringu."
+msgstr "Организатор ещё не включил менторство."
+
+msgid "Rola"
+msgstr "Роль"
+
+msgid "Druga osoba"
+msgstr "Другой человек"
+
+msgid "jesteś mentorem"
+msgstr "вы – ментор"
+
+msgid "Twój mentor"
+msgstr "ваш ментор"
+
+msgid "Przyjmij"
+msgstr "Принять"
+
+msgid "Odrzuć"
+msgstr "Отклонить"
+
+msgid "Wycofaj prośbę"
+msgstr "Отозвать запрос"
+
+msgid "Rozmowa"
+msgstr "Беседа"
+
+msgid "Zakończ"
+msgstr "Завершить"
+
+msgid "Zgłoś problem"
+msgstr "Сообщить о проблеме"
+
+msgid "Nie masz jeszcze żadnej relacji mentorskiej. Mentora wybierzesz w katalogu absolwentów – przy osobach, które pomagają, stoi przycisk „Poproś o mentoring”."
+msgstr "У вас пока нет менторских связей. Ментора можно выбрать в каталоге выпускников – у тех, кто помогает, есть кнопка «Попросить о менторстве»."
+
+msgid "Rozmowa mentorska toczy się w Wiadomościach. Jeśli uczestnik jest niepełnoletni, organizator czyta wiadomości – zależnie od zasad konkursu przed doręczeniem albo po nim."
+msgstr "Менторская беседа проходит в разделе «Сообщения». Если участник несовершеннолетний, организатор читает сообщения – до или после доставки, в зависимости от правил конкурса."
+
+msgid "Prośba o mentoring"
+msgstr "Запрос на менторство"
+
+msgid "Jeśli mentor przyjmie prośbę, rozmowa otworzy się w Wiadomościach. Organizator widzi relacje mentorskie i – zależnie od zasad konkursu – czyta wiadomości."
+msgstr "Если ментор примет запрос, в разделе «Сообщения» откроется беседа. Организатор видит менторские связи и – в зависимости от правил конкурса – читает сообщения."
+
+msgid "Wyślij prośbę"
+msgstr "Отправить запрос"
+
+msgid "Wypis z zaproszeń"
+msgstr "Отписка от приглашений"
+
+msgid "Wypis z zaproszeń dla absolwentów"
+msgstr "Отписка от приглашений для выпускников"
+
+msgid "Ten odnośnik jest nieprawidłowy. Zaproszenia wyłączysz też w swoim profilu absolwenta."
+msgstr "Эта ссылка недействительна. Приглашения также можно отключить в профиле выпускника."
+
+msgid "Gotowe – nie będziesz już dostawać zaproszeń. Włączysz je z powrotem w profilu absolwenta."
+msgstr "Готово – вы больше не будете получать приглашения. Их можно снова включить в профиле выпускника."
+
+msgid "Kliknij, żeby nie dostawać więcej zaproszeń od organizatora (warsztaty, webinary, jury)."
+msgstr "Нажмите, чтобы больше не получать приглашения от организатора (мастер-классы, вебинары, жюри)."
+
+msgid "Wypisz mnie"
+msgstr "Отписаться"
+
+msgid "Nasi absolwenci"
+msgstr "Наши выпускники"
+
+msgid "Laureaci i finaliści poprzednich edycji – i to, co robią dziś."
+msgstr "Лауреаты и финалисты прошлых выпусков – и чем они занимаются сегодня."
+
+msgid "Strony"
+msgstr "Страницы"
+
+#, python-format
+msgid "Podaj adres profilu %(service)s zaczynający się od https://."
+msgstr "Введите адрес профиля %(service)s, начинающийся с https://."
+
+#, python-format
+msgid "To nie wygląda na adres profilu %(service)s."
+msgstr "Это не похоже на адрес профиля %(service)s."
+
+msgid "Adres wydarzenia musi zaczynać się od https://."
+msgstr "Адрес мероприятия должен начинаться с https://."
+
+msgid "Witaj w sieci absolwentów! Uzupełnij profil – każde pole jest opcjonalne."
+msgstr "Добро пожаловать в сеть выпускников! Заполните профиль – все поля необязательны."
+
+msgid "Profil zapisany."
+msgstr "Профиль сохранён."
+
+msgid "Zgoda wycofana – Twój profil absolwenta został usunięty."
+msgstr "Согласие отозвано – ваш профиль выпускника удалён."
+
+msgid "Prośba wysłana. Dostaniesz e-mail, gdy mentor odpowie."
+msgstr "Запрос отправлен. Когда ментор ответит, вы получите письмо."
+
+msgid "Prośba przyjęta – rozmowa czeka w Wiadomościach."
+msgstr "Запрос принят – беседа ждёт в разделе «Сообщения»."
+
+msgid "Prośba odrzucona."
+msgstr "Запрос отклонён."
+
+msgid "Prośba wycofana."
+msgstr "Запрос отозван."
+
+msgid "Relacja mentorska zakończona."
+msgstr "Менторская связь завершена."
+
+msgid "Zgłoszenie wysłane do organizatora."
+msgstr "Обращение отправлено организатору."
+
+msgid "Ustawienia zapisane."
+msgstr "Настройки сохранены."
+
+msgid "Profil ukryty."
+msgstr "Профиль скрыт."
+
+msgid "Profil znów jest widoczny."
+msgstr "Профиль снова виден."
+
+msgid "Podaj powód zakończenia relacji."
+msgstr "Укажите причину завершения связи."
+
+msgid "Relacja zakończona. Obie strony dostały list."
+msgstr "Связь завершена. Обе стороны получили письмо."
+
+msgid "Zgłoszenie zamknięte."
+msgstr "Обращение закрыто."
+
+#, python-format
+msgid "Zaproszenie wysłane. Liczba odbiorców: %(count)s."
+msgstr "Приглашение отправлено. Число получателей: %(count)s."

@@ -1,0 +1,816 @@
+# Sieć absolwentów (ALUM-01) – katalog aplikacji apps/alumni.
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-04 19:54+0200\n"
+"PO-Revision-Date: 2026-10-04 20:00+0200\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: bn\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Wyrażam zgodę opisaną wyżej."
+msgstr "আমি উপরে বর্ণিত সম্মতি দিচ্ছি।"
+
+msgid "Pokazuj moje pełne imię i nazwisko"
+msgstr "আমার পুরো নাম দেখান"
+
+msgid "Działa tylko wtedy, gdy masz w konkursie zgodę na publikację imienia i nazwiska."
+msgstr "এটি তখনই কাজ করে, যখন আপনি এই প্রতিযোগিতায় আপনার পুরো নাম প্রকাশের সম্মতি দিয়েছেন।"
+
+msgid "Uczelnia albo miejsce pracy"
+msgstr "বিশ্ববিদ্যালয় বা কর্মস্থল"
+
+msgid "Kierunek albo stanowisko"
+msgstr "অধ্যয়নের বিষয় বা পদ"
+
+msgid "Miasto"
+msgstr "শহর"
+
+msgid "Kraj"
+msgstr "দেশ"
+
+msgid "Kilka słów o sobie"
+msgstr "নিজের সম্পর্কে কয়েকটি কথা"
+
+msgid "Zainteresowania"
+msgstr "আগ্রহ"
+
+msgid "Chcę być mentorem"
+msgstr "আমি মেন্টর হতে চাই"
+
+msgid "W czym mogę pomóc"
+msgstr "আমি কোন বিষয়ে সাহায্য করতে পারি"
+
+msgid "Ilu uczestników naraz"
+msgstr "একসঙ্গে কতজন অংশগ্রহণকারী"
+
+msgid "Pokazuj mój profil w katalogu dla zalogowanych uczestników"
+msgstr "লগ-ইন করা অংশগ্রহণকারীদের ডিরেক্টরিতে আমার প্রোফাইল দেখান"
+
+msgid "Pokazuj mój profil na publicznej ścianie absolwentów"
+msgstr "প্রাক্তন অংশগ্রহণকারীদের সর্বজনীন দেয়ালে আমার প্রোফাইল দেখান"
+
+msgid "Na ścianie widać tylko podpis, osiągnięcia, uczelnię i kierunek."
+msgstr "দেয়ালে শুধু আপনার নাম, অর্জন, বিশ্ববিদ্যালয় ও অধ্যয়নের বিষয় দেখা যায়।"
+
+msgid "Chcę dostawać zaproszenia od organizatora (warsztaty, webinary, jury)"
+msgstr "আমি আয়োজকের কাছ থেকে আমন্ত্রণ পেতে চাই (কর্মশালা, ওয়েবিনার, জুরি)"
+
+msgid "Temat"
+msgstr "বিষয়"
+
+msgid "Krótko: w czym potrzebujesz pomocy?"
+msgstr "সংক্ষেপে: আপনার কোন বিষয়ে সাহায্য দরকার?"
+
+msgid "Notatkę przeczyta mentor i organizator. Nie wpisuj tu danych kontaktowych."
+msgstr "নোটটি মেন্টর ও আয়োজক পড়বেন। এখানে যোগাযোগের তথ্য লিখবেন না।"
+
+msgid "Co się stało?"
+msgstr "কী হয়েছে?"
+
+msgid "Notatka (powód zakończenia)"
+msgstr "নোট (সমাপ্তির কারণ)"
+
+msgid "Kto może dołączyć"
+msgstr "কারা যোগ দিতে পারেন"
+
+msgid "Mentoring włączony"
+msgstr "মেন্টরিং চালু"
+
+msgid "Publiczna ściana absolwentów"
+msgstr "প্রাক্তন অংশগ্রহণকারীদের সর্বজনীন দেয়াল"
+
+msgid "Rodzaj"
+msgstr "ধরন"
+
+msgid "Tytuł (temat listu)"
+msgstr "শিরোনাম (ইমেলের বিষয়)"
+
+msgid "Treść"
+msgstr "বিষয়বস্তু"
+
+msgid "Adres wydarzenia (https://…)"
+msgstr "অনুষ্ঠানের ঠিকানা (https://…)"
+
+msgid "Edycje"
+msgstr "সংস্করণ"
+
+msgid "Najniższe osiągnięcie"
+msgstr "ন্যূনতম অর্জন"
+
+msgid "dowolne"
+msgstr "যেকোনো"
+
+msgid "Zainteresowania (dowolne z)"
+msgstr "আগ্রহ (যেকোনোটি)"
+
+msgid "Tylko mentorzy"
+msgstr "শুধু মেন্টর"
+
+msgid "Wybierz rodzaj zaproszenia."
+msgstr "আমন্ত্রণের ধরন বেছে নিন।"
+
+msgid "Tytuł jest wymagany (do 150 znaków)."
+msgstr "শিরোনাম আবশ্যক (সর্বোচ্চ ১৫০ অক্ষর)।"
+
+#, python-format
+msgid "Treść jest wymagana (do %(limit)s znaków)."
+msgstr "বিষয়বস্তু আবশ্যক (সর্বোচ্চ %(limit)s অক্ষর)।"
+
+msgid "Dzień dobry,"
+msgstr "নমস্কার,"
+
+#, python-format
+msgid "organizator konkursu %(competition)s zaprasza absolwentów: %(kind)s."
+msgstr "%(competition)s-এর আয়োজক প্রাক্তন অংশগ্রহণকারীদের আমন্ত্রণ জানাচ্ছেন: %(kind)s।"
+
+#, python-format
+msgid "Szczegóły i zapisy: %(url)s"
+msgstr "বিস্তারিত ও নিবন্ধন: %(url)s"
+
+msgid "Dostajesz ten list, bo należysz do sieci absolwentów i nie wyłączyłeś zaproszeń."
+msgstr "আপনি এই ইমেলটি পাচ্ছেন, কারণ আপনি প্রাক্তন অংশগ্রহণকারী নেটওয়ার্কের সদস্য এবং আমন্ত্রণ বন্ধ করেননি।"
+
+#, python-format
+msgid "Wypisz się z zaproszeń: %(link)s"
+msgstr "আমন্ত্রণ থেকে সদস্যতা ত্যাগ করুন: %(link)s"
+
+msgid "Żaden absolwent nie spełnia tych filtrów."
+msgstr "এই ফিল্টারগুলোর সঙ্গে কোনো প্রাক্তন অংশগ্রহণকারী মেলে না।"
+
+msgid "Rozmowa mentorska. Każdą wiadomość czyta i akceptuje organizator, zanim trafi do drugiej osoby."
+msgstr "মেন্টরিং কথোপকথন। প্রতিটি বার্তা অন্য ব্যক্তির কাছে পৌঁছানোর আগে আয়োজক তা পড়েন ও অনুমোদন করেন।"
+
+msgid "Rozmowa mentorska – obowiązują zasady Wiadomości tego konkursu."
+msgstr "মেন্টরিং কথোপকথন – এই প্রতিযোগিতার বার্তা-সংক্রান্ত নিয়ম প্রযোজ্য।"
+
+msgid "Rozmowa mentorska. Organizator przegląda wiadomości tej rozmowy (moderacja następcza)."
+msgstr "মেন্টরিং কথোপকথন। আয়োজক এই কথোপকথনের বার্তাগুলো পর্যালোচনা করেন (পরবর্তী মডারেশন)।"
+
+msgid "Mentoring zakończył się – ta rozmowa jest teraz tylko do odczytu."
+msgstr "মেন্টরিং শেষ হয়েছে – এই কথোপকথন এখন শুধু পড়া যাবে।"
+
+msgid "Organizator wstrzymał mentoring – ta rozmowa jest teraz tylko do odczytu."
+msgstr "আয়োজক মেন্টরিং স্থগিত করেছেন – এই কথোপকথন এখন শুধু পড়া যাবে।"
+
+msgid "Mentoring jest w tym konkursie wyłączony."
+msgstr "এই প্রতিযোগিতায় মেন্টরিং বন্ধ আছে।"
+
+msgid "Mentoring wymaga modułu Wiadomości, który organizator wyłączył."
+msgstr "মেন্টরিংয়ের জন্য বার্তা মডিউল প্রয়োজন, যা আয়োজক বন্ধ করে দিয়েছেন।"
+
+msgid "Ta osoba nie przyjmuje teraz próśb o mentoring."
+msgstr "এই ব্যক্তি এখন মেন্টরিংয়ের অনুরোধ গ্রহণ করছেন না।"
+
+#, python-format
+msgid "%(label)s nie może być puste."
+msgstr "%(label)s খালি রাখা যাবে না।"
+
+#, python-format
+msgid "%(label)s jest za długie (limit %(limit)s znaków)."
+msgstr "%(label)s অনেক দীর্ঘ (সীমা: %(limit)s অক্ষর)।"
+
+msgid "Nie możesz poprosić o mentoring samego siebie."
+msgstr "আপনি নিজের কাছে মেন্টরিংয়ের অনুরোধ করতে পারবেন না।"
+
+msgid "O mentora proszą uczestnicy bieżącej edycji."
+msgstr "বর্তমান সংস্করণের অংশগ্রহণকারীরা মেন্টরের অনুরোধ করতে পারেন।"
+
+msgid "Wybierz temat z listy."
+msgstr "তালিকা থেকে একটি বিষয় বেছে নিন।"
+
+msgid "Notatka"
+msgstr "নোট"
+
+msgid "Masz już otwartą prośbę albo relację z tą osobą."
+msgstr "এই ব্যক্তির সঙ্গে আপনার ইতিমধ্যে একটি খোলা অনুরোধ বা মেন্টরিং সম্পর্ক আছে।"
+
+#, python-format
+msgid "Możesz mieć naraz najwyżej %(limit)s otwarte prośby i relacje mentorskie."
+msgstr "একসঙ্গে আপনার সর্বোচ্চ %(limit)sটি খোলা মেন্টরিং অনুরোধ ও সম্পর্ক থাকতে পারে।"
+
+msgid "Ta osoba nie ma teraz wolnego miejsca na mentoring."
+msgstr "এই ব্যক্তির এখন মেন্টরিংয়ের জন্য কোনো খালি জায়গা নেই।"
+
+msgid "Nie ma takiej relacji mentorskiej."
+msgstr "এমন কোনো মেন্টরিং সম্পর্ক নেই।"
+
+msgid "Na tę prośbę już odpowiedziano."
+msgstr "এই অনুরোধের উত্তর ইতিমধ্যে দেওয়া হয়েছে।"
+
+msgid "Najpierw dołącz do sieci absolwentów."
+msgstr "আগে প্রাক্তন অংশগ্রহণকারী নেটওয়ার্কে যোগ দিন।"
+
+msgid "Masz już komplet mentee. Zwiększ liczbę miejsc w profilu albo zakończ inną relację."
+msgstr "আপনার মেন্টির সংখ্যা ইতিমধ্যে পূর্ণ। প্রোফাইলে জায়গার সংখ্যা বাড়ান অথবা অন্য একটি সম্পর্ক শেষ করুন।"
+
+msgid "Tę prośbę można już tylko zakończyć."
+msgstr "এই অনুরোধটি এখন শুধু শেষ করা যায়।"
+
+msgid "Ta relacja jest już zakończona."
+msgstr "এই সম্পর্ক ইতিমধ্যে শেষ হয়েছে।"
+
+msgid "Powód"
+msgstr "কারণ"
+
+msgid "Nie ma takiego zgłoszenia."
+msgstr "এমন কোনো রিপোর্ট নেই।"
+
+msgid "uczestnik"
+msgstr "অংশগ্রহণকারী"
+
+msgid "awans do kolejnego etapu"
+msgstr "পরবর্তী ধাপে উত্তীর্ণ"
+
+msgid "finalista"
+msgstr "ফাইনালিস্ট"
+
+msgid "laureat"
+msgstr "বিজয়ী"
+
+msgid "obliczenia kwantowe"
+msgstr "কোয়ান্টাম কম্পিউটিং"
+
+msgid "fizyka kwantowa"
+msgstr "কোয়ান্টাম পদার্থবিজ্ঞান"
+
+msgid "fizyka"
+msgstr "পদার্থবিজ্ঞান"
+
+msgid "informatyka"
+msgstr "কম্পিউটার বিজ্ঞান"
+
+msgid "matematyka"
+msgstr "গণিত"
+
+msgid "inżynieria"
+msgstr "প্রকৌশল"
+
+msgid "chemia"
+msgstr "রসায়ন"
+
+msgid "badania naukowe"
+msgstr "গবেষণা"
+
+msgid "praca w przemyśle"
+msgstr "শিল্পক্ষেত্র"
+
+msgid "edukacja i popularyzacja"
+msgstr "শিক্ষা ও বিজ্ঞান প্রসার"
+
+msgid "zgoda udzielona"
+msgstr "সম্মতি দেওয়া হয়েছে"
+
+msgid "zgoda wycofana"
+msgstr "সম্মতি প্রত্যাহার করা হয়েছে"
+
+msgid "prośba czeka na mentora"
+msgstr "অনুরোধ মেন্টরের অপেক্ষায়"
+
+msgid "trwa"
+msgstr "চলমান"
+
+msgid "odrzucona przez mentora"
+msgstr "মেন্টর প্রত্যাখ্যান করেছেন"
+
+msgid "wycofana przez uczestnika"
+msgstr "অংশগ্রহণকারী প্রত্যাহার করেছেন"
+
+msgid "zakończona"
+msgstr "শেষ"
+
+msgid "zakończył mentor"
+msgstr "মেন্টর শেষ করেছেন"
+
+msgid "zakończył uczestnik"
+msgstr "অংশগ্রহণকারী শেষ করেছেন"
+
+msgid "zakończył organizator"
+msgstr "আয়োজক শেষ করেছেন"
+
+msgid "mentor wycofał zgodę"
+msgstr "মেন্টর সম্মতি প্রত্যাহার করেছেন"
+
+msgid "konto usunięte"
+msgstr "অ্যাকাউন্ট মুছে ফেলা হয়েছে"
+
+msgid "rozmowa według zasad Wiadomości"
+msgstr "বার্তা-সংক্রান্ত নিয়ম অনুযায়ী কথোপকথন"
+
+msgid "każdą wiadomość akceptuje organizator"
+msgstr "প্রতিটি বার্তা আয়োজক অনুমোদন করেন"
+
+msgid "warsztaty"
+msgstr "কর্মশালা"
+
+msgid "webinar"
+msgstr "ওয়েবিনার"
+
+msgid "jury"
+msgstr "জুরি"
+
+msgid "inne"
+msgstr "অন্যান্য"
+
+msgid "Absolwenci: prośba o mentoring"
+msgstr "প্রাক্তন অংশগ্রহণকারী: মেন্টরিংয়ের অনুরোধ"
+
+msgid "Absolwenci: mentor przyjął Twoją prośbę"
+msgstr "প্রাক্তন অংশগ্রহণকারী: একজন মেন্টর আপনার অনুরোধ গ্রহণ করেছেন"
+
+msgid "Absolwenci: odpowiedź na prośbę o mentoring"
+msgstr "প্রাক্তন অংশগ্রহণকারী: আপনার মেন্টরিং অনুরোধের উত্তর"
+
+msgid "Absolwenci: relacja mentorska zakończona"
+msgstr "প্রাক্তন অংশগ্রহণকারী: মেন্টরিং সম্পর্ক শেষ হয়েছে"
+
+msgid "Absolwenci: zgłoszono problem z relacją mentorską"
+msgstr "প্রাক্তন অংশগ্রহণকারী: একটি মেন্টরিং সম্পর্কে সমস্যার রিপোর্ট করা হয়েছে"
+
+#, python-format
+msgid "%(name)s prosi Cię o mentoring w sieci absolwentów."
+msgstr "%(name)s প্রাক্তন অংশগ্রহণকারী নেটওয়ার্কে আপনার কাছে মেন্টরিংয়ের অনুরোধ করছেন।"
+
+msgid "Notatkę prośby przeczytasz i odpowiesz na nią po zalogowaniu:"
+msgstr "লগ ইন করার পর আপনি অনুরোধের নোট পড়তে ও উত্তর দিতে পারবেন:"
+
+#, python-format
+msgid "%(name)s zgadza się zostać Twoim mentorem."
+msgstr "%(name)s আপনার মেন্টর হতে সম্মত হয়েছেন।"
+
+msgid "Rozmowa czeka w Wiadomościach:"
+msgstr "কথোপকথনটি বার্তায় আপনার অপেক্ষায় আছে:"
+
+#, python-format
+msgid "%(name)s nie może teraz przyjąć Twojej prośby o mentoring."
+msgstr "%(name)s এখন আপনার মেন্টরিং অনুরোধ গ্রহণ করতে পারছেন না।"
+
+msgid "Możesz poprosić inną osobę z katalogu absolwentów:"
+msgstr "আপনি প্রাক্তন অংশগ্রহণকারী ডিরেক্টরি থেকে অন্য কাউকে অনুরোধ করতে পারেন:"
+
+msgid "Relacja mentorska w sieci absolwentów została zakończona."
+msgstr "প্রাক্তন অংশগ্রহণকারী নেটওয়ার্কে একটি মেন্টরিং সম্পর্ক শেষ হয়েছে।"
+
+msgid "Rozmowa zostaje w Wiadomościach do odczytu. Szczegóły:"
+msgstr "কথোপকথনটি বার্তায় শুধু পড়ার জন্য থেকে যাবে। বিস্তারিত:"
+
+msgid "Jedna ze stron relacji mentorskiej zgłosiła problem. Powód przeczytasz w panelu:"
+msgstr "একটি মেন্টরিং সম্পর্কের এক পক্ষ সমস্যার রিপোর্ট করেছেন। কারণটি প্যানেলে পড়তে পারবেন:"
+
+msgid "Do sieci absolwentów dołączają uczestnicy tego konkursu."
+msgstr "প্রাক্তন অংশগ্রহণকারী নেটওয়ার্ক এই প্রতিযোগিতার অংশগ্রহণকারীদের জন্য উন্মুক্ত।"
+
+msgid "Do sieci absolwentów dołączają osoby pełnoletnie. Wróć tu po swoich 18. urodzinach – Twoje osiągnięcia poczekają."
+msgstr "প্রাক্তন অংশগ্রহণকারী নেটওয়ার্ক প্রাপ্তবয়স্কদের জন্য উন্মুক্ত। আপনার ১৮তম জন্মদিনের পরে আবার আসুন – আপনার অর্জনগুলো আপনার অপেক্ষায় থাকবে।"
+
+#, python-format
+msgid "Do sieci absolwentów dołączają osoby z osiągnięciem w zakończonej edycji na poziomie co najmniej: %(level)s."
+msgstr "প্রাক্তন অংশগ্রহণকারী নেটওয়ার্ক তাঁদের জন্য উন্মুক্ত, যাঁদের কোনো সমাপ্ত সংস্করণে অন্তত এই স্তরের অর্জন আছে: %(level)s।"
+
+msgid "Chcę należeć do sieci absolwentów tego konkursu. Zgadzam się, żeby organizator przetwarzał moje imię i inicjał nazwiska (pełne imię i nazwisko – tylko jeśli tak wybiorę i mam zgodę na publikację nazwiska), moje osiągnięcia z ogłoszonych wyników oraz dane, które sam wpiszę do profilu, w celu: pokazania profilu zalogowanym uczestnikom konkursu (a na publicznej ścianie – tylko jeśli to zaznaczę), kontaktu mentorskiego przez Wiadomości, wysyłania mi zaproszeń na warsztaty, webinary i do jury (mogę się wypisać w każdym liście) oraz zagregowanych statystyk „gdzie są teraz”, w których nikt nie jest rozpoznawalny. Zgodę mogę wycofać w każdej chwili – profil zniknie od razu."
+msgstr "আমি এই প্রতিযোগিতার প্রাক্তন অংশগ্রহণকারী নেটওয়ার্কের সদস্য হতে চাই। আমি সম্মত যে আয়োজক আমার প্রথম নাম ও পদবির আদ্যক্ষর (পুরো নাম শুধু তখনই, যখন আমি তা বেছে নিই এবং নাম প্রকাশের সম্মতি দিয়েছি), প্রকাশিত ফলাফল থেকে আমার অর্জন এবং আমি নিজে প্রোফাইলে যে তথ্য দিই, তা প্রক্রিয়া করবেন এই উদ্দেশ্যে: প্রতিযোগিতার লগ-ইন করা অংশগ্রহণকারীদের আমার প্রোফাইল দেখানো (এবং সর্বজনীন দেয়ালে শুধু তখনই, যখন আমি সেই বিকল্পে টিক দিই), বার্তার মাধ্যমে মেন্টরিং যোগাযোগ সম্ভব করা, আমাকে কর্মশালা, ওয়েবিনার ও জুরির আমন্ত্রণ পাঠানো (আমি প্রতিটি ইমেল থেকে সদস্যতা ত্যাগ করতে পারি) এবং “তাঁরা এখন কোথায়” বিষয়ে সমষ্টিগত পরিসংখ্যান তৈরি করা, যাতে কাউকে শনাক্ত করা যায় না। আমি যেকোনো সময় সম্মতি প্রত্যাহার করতে পারি – আমার প্রোফাইল সঙ্গে সঙ্গে মুছে যাবে।"
+
+msgid "Ta część serwisu jest dostępna dla uczestników tego konkursu."
+msgstr "সাইটের এই অংশটি এই প্রতিযোগিতার অংশগ্রহণকারীদের জন্য।"
+
+msgid "Ta część serwisu jest dostępna dla koordynatora."
+msgstr "সাইটের এই অংশটি সমন্বয়কারীর জন্য।"
+
+msgid "Zaznacz zgodę, żeby dołączyć do sieci absolwentów."
+msgstr "প্রাক্তন অংশগ্রহণকারী নেটওয়ার্কে যোগ দিতে সম্মতির ঘরে টিক দিন।"
+
+msgid "nie podano"
+msgstr "দেওয়া হয়নি"
+
+msgid "Uczelnia"
+msgstr "বিশ্ববিদ্যালয়"
+
+msgid "Kierunek"
+msgstr "অধ্যয়নের বিষয়"
+
+msgid "Zainteresowania (osoba może mieć kilka)"
+msgstr "আগ্রহ (একজনের একাধিক থাকতে পারে)"
+
+msgid "Najwyższe osiągnięcie"
+msgstr "সর্বোচ্চ অর্জন"
+
+msgid "Zainteresowania:"
+msgstr "আগ্রহ:"
+
+msgid "Mentor"
+msgstr "মেন্টর"
+
+#, python-format
+msgid "wolne miejsca: %(slots)s"
+msgstr "খালি জায়গা: %(slots)s"
+
+msgid "brak wolnych miejsc"
+msgstr "কোনো খালি জায়গা নেই"
+
+msgid "Poproś o mentoring"
+msgstr "মেন্টরিংয়ের অনুরোধ করুন"
+
+msgid "Absolwenci"
+msgstr "প্রাক্তন অংশগ্রহণকারী"
+
+msgid "Mentoring"
+msgstr "মেন্টরিং"
+
+msgid "Zaproszenia"
+msgstr "আমন্ত্রণ"
+
+msgid "Gdzie są teraz"
+msgstr "তাঁরা এখন কোথায়"
+
+msgid "Absolwenci – panel koordynatora"
+msgstr "প্রাক্তন অংশগ্রহণকারী – সমন্বয়কারী প্যানেল"
+
+msgid "Sieć byłych uczestników, którzy wyrazili na to zgodę: profile, mentoring, zaproszenia i zagregowane statystyki."
+msgstr "সম্মতি দিয়েছেন এমন প্রাক্তন অংশগ্রহণকারীদের নেটওয়ার্ক: প্রোফাইল, মেন্টরিং, আমন্ত্রণ ও সমষ্টিগত পরিসংখ্যান।"
+
+msgid "dane osobowe"
+msgstr "ব্যক্তিগত তথ্য"
+
+msgid "Podstawą jest zgoda absolwenta – wycofanie usuwa profil od razu. Osiągnięcia liczą się wyłącznie z ogłoszonych wyników i wystawionych dyplomów."
+msgstr "আইনি ভিত্তি হলো প্রাক্তন অংশগ্রহণকারীর সম্মতি – সম্মতি প্রত্যাহার করলে প্রোফাইল সঙ্গে সঙ্গে মুছে যায়। অর্জন শুধু প্রকাশিত ফলাফল ও প্রদত্ত সনদ থেকে নেওয়া হয়।"
+
+msgid "Ustawienia"
+msgstr "সেটিংস"
+
+msgid "Mentoring wymaga włączonych Wiadomości – bez nich mentorzy nie mogą przyjmować próśb."
+msgstr "মেন্টরিংয়ের জন্য বার্তা চালু থাকা প্রয়োজন – তা ছাড়া মেন্টররা অনুরোধ গ্রহণ করতে পারেন না।"
+
+msgid "„Kto może dołączyć” to najniższe osiągnięcie w zakończonej edycji. Dołączają wyłącznie osoby pełnoletnie. Mentoring małoletnich toczy się zawsze z udziałem organizatora: przy zasadzie „ta sama grupa wiekowa” każdą wiadomość akceptujesz przed doręczeniem, a przy „bez ograniczeń” przeglądasz je po doręczeniu (kolejka moderacji Wiadomości)."
+msgstr "“কারা যোগ দিতে পারেন” হলো কোনো সমাপ্ত সংস্করণে ন্যূনতম অর্জন। শুধু প্রাপ্তবয়স্করা যোগ দিতে পারেন। অপ্রাপ্তবয়স্কদের মেন্টরিংয়ে সবসময় আয়োজক যুক্ত থাকেন: “একই বয়সগোষ্ঠী” নিয়মে আপনি প্রতিটি বার্তা পৌঁছানোর আগে অনুমোদন করেন, আর “কোনো সীমাবদ্ধতা নেই” নিয়মে পৌঁছানোর পরে বার্তাগুলো পর্যালোচনা করেন (বার্তার মডারেশন সারি)।"
+
+msgid "Zapisz ustawienia"
+msgstr "সেটিংস সংরক্ষণ করুন"
+
+msgid "Profile absolwentów"
+msgstr "প্রাক্তন অংশগ্রহণকারীদের প্রোফাইল"
+
+#, python-format
+msgid "Mogłoby jeszcze dołączyć (spełnia kryteria, nie dołączyło): %(count)s."
+msgstr "এখনও যোগ দিতে পারেন (শর্ত পূরণ করেন, কিন্তু যোগ দেননি): %(count)s।"
+
+msgid "Szukaj"
+msgstr "খুঁজুন"
+
+msgid "Osoba"
+msgstr "ব্যক্তি"
+
+msgid "Osiągnięcia"
+msgstr "অর্জন"
+
+msgid "Widoczność"
+msgstr "দৃশ্যমানতা"
+
+msgid "ukryty"
+msgstr "লুকানো"
+
+msgid "katalog"
+msgstr "ডিরেক্টরি"
+
+msgid "ściana"
+msgstr "দেয়াল"
+
+msgid "Pokaż"
+msgstr "দেখান"
+
+msgid "Ukryj"
+msgstr "লুকান"
+
+msgid "Nikt jeszcze nie dołączył do sieci absolwentów."
+msgstr "এখনও কেউ প্রাক্তন অংশগ্রহণকারী নেটওয়ার্কে যোগ দেননি।"
+
+msgid "Poprzednia"
+msgstr "আগের"
+
+msgid "Następna"
+msgstr "পরের"
+
+msgid "Zaproszenia – panel koordynatora"
+msgstr "আমন্ত্রণ – সমন্বয়কারী প্যানেল"
+
+msgid "Zaproszenia dla absolwentów"
+msgstr "প্রাক্তন অংশগ্রহণকারীদের জন্য আমন্ত্রণ"
+
+msgid "List do absolwentów, którzy nie wyłączyli zaproszeń – w ich języku, z odnośnikiem wypisu. Do webinaru wklej adres wydarzenia."
+msgstr "যেসব প্রাক্তন অংশগ্রহণকারী আমন্ত্রণ বন্ধ করেননি, তাঁদের কাছে ইমেল – তাঁদের ভাষায়, সদস্যতা ত্যাগের লিংকসহ। ওয়েবিনারের জন্য অনুষ্ঠানের ঠিকানা পেস্ট করুন।"
+
+#, python-format
+msgid "Odbiorców z tymi filtrami: %(count)s."
+msgstr "এই ফিল্টারগুলো অনুযায়ী প্রাপক: %(count)s।"
+
+msgid "Policz odbiorców"
+msgstr "প্রাপক গণনা করুন"
+
+msgid "Wyślij zaproszenie"
+msgstr "আমন্ত্রণ পাঠান"
+
+msgid "Wysłane"
+msgstr "পাঠানো হয়েছে"
+
+msgid "Data"
+msgstr "তারিখ"
+
+msgid "Tytuł"
+msgstr "শিরোনাম"
+
+msgid "Odbiorcy"
+msgstr "প্রাপক"
+
+msgid "Nie wysłano jeszcze żadnego zaproszenia."
+msgstr "এখনও কোনো আমন্ত্রণ পাঠানো হয়নি।"
+
+msgid "Mentoring – panel koordynatora"
+msgstr "মেন্টরিং – সমন্বয়কারী প্যানেল"
+
+msgid "Prośby i relacje mentor–uczestnik. Wiadomości rozmów mentorskich czytasz w kolejce moderacji Wiadomości."
+msgstr "মেন্টর–অংশগ্রহণকারী অনুরোধ ও সম্পর্ক। মেন্টরিং কথোপকথনের বার্তাগুলো আপনি বার্তার মডারেশন সারিতে পড়বেন।"
+
+msgid "Kolejka moderacji"
+msgstr "মডারেশন সারি"
+
+msgid "Mentoring jest wyłączony – istniejące rozmowy mentorskie są tylko do odczytu."
+msgstr "মেন্টরিং বন্ধ আছে – বিদ্যমান মেন্টরিং কথোপকথনগুলো শুধু পড়া যাবে।"
+
+msgid "Zgłoszenia problemów"
+msgstr "রিপোর্ট করা সমস্যা"
+
+msgid "Relacja"
+msgstr "সম্পর্ক"
+
+msgid "Zgłoszone"
+msgstr "রিপোর্টের সময়"
+
+msgid "Zamknij zgłoszenie"
+msgstr "রিপোর্ট বন্ধ করুন"
+
+msgid "Relacje"
+msgstr "সম্পর্কসমূহ"
+
+msgid "wszystkie"
+msgstr "সব"
+
+msgid "Uczestnik"
+msgstr "অংশগ্রহণকারী"
+
+msgid "Stan"
+msgstr "অবস্থা"
+
+msgid "Kanał"
+msgstr "চ্যানেল"
+
+msgid "Zgłoszenia"
+msgstr "রিপোর্ট"
+
+msgid "małoletni"
+msgstr "অপ্রাপ্তবয়স্ক"
+
+msgid "notatka prośby"
+msgstr "অনুরোধের নোট"
+
+msgid "Powód zakończenia"
+msgstr "সমাপ্তির কারণ"
+
+msgid "Zakończ relację"
+msgstr "সম্পর্ক শেষ করুন"
+
+msgid "Brak relacji mentorskich."
+msgstr "কোনো মেন্টরিং সম্পর্ক নেই।"
+
+msgid "Zgłoszenia: problemy z relacją / zgłoszone wiadomości w rozmowie (otwarte)."
+msgstr "রিপোর্ট: সম্পর্কের সমস্যা / কথোপকথনে রিপোর্ট করা বার্তা (খোলা)।"
+
+msgid "Gdzie są teraz – panel koordynatora"
+msgstr "তাঁরা এখন কোথায় – সমন্বয়কারী প্যানেল"
+
+#, python-format
+msgid "Zagregowane dane z profili absolwentów. Grupy mniejsze niż %(k)s osób nie są pokazywane osobno – nikogo nie da się z tych tabel rozpoznać."
+msgstr "প্রাক্তন অংশগ্রহণকারীদের প্রোফাইল থেকে সমষ্টিগত তথ্য। %(k)s জনের কম সদস্যের গোষ্ঠী আলাদাভাবে দেখানো হয় না – এই সারণিগুলো থেকে কাউকে শনাক্ত করা যায় না।"
+
+#, python-format
+msgid "Absolwentów w sieci: %(total)s."
+msgstr "নেটওয়ার্কে প্রাক্তন অংশগ্রহণকারী: %(total)s।"
+
+#, python-format
+msgid "Mentorów: %(mentors)s."
+msgstr "মেন্টর: %(mentors)s।"
+
+#, python-format
+msgid "Mentorów: mniej niż %(k)s."
+msgstr "মেন্টর: %(k)s জনের কম।"
+
+#, python-format
+msgid "Sieć ma mniej niż %(k)s osób – rozkładów nie pokazujemy, bo każda liczba mówiłaby o konkretnych ludziach."
+msgstr "নেটওয়ার্কে %(k)s জনের কম মানুষ আছেন – আমরা বণ্টন দেখাই না, কারণ প্রতিটি সংখ্যা নির্দিষ্ট মানুষদের সম্পর্কে তথ্য দেবে।"
+
+msgid "Katalog absolwentów"
+msgstr "প্রাক্তন অংশগ্রহণকারী ডিরেক্টরি"
+
+msgid "Absolwenci, którzy zgodzili się pokazać swój profil zalogowanym uczestnikom."
+msgstr "যেসব প্রাক্তন অংশগ্রহণকারী লগ-ইন করা অংশগ্রহণকারীদের নিজেদের প্রোফাইল দেখাতে সম্মত হয়েছেন।"
+
+msgid "Szukaj (imię, uczelnia, kierunek)"
+msgstr "খুঁজুন (প্রথম নাম, বিশ্ববিদ্যালয়, অধ্যয়নের বিষয়)"
+
+msgid "Zainteresowanie"
+msgstr "আগ্রহ"
+
+msgid "Tylko mentorzy z wolnym miejscem"
+msgstr "শুধু খালি জায়গা আছে এমন মেন্টর"
+
+msgid "Strony katalogu"
+msgstr "ডিরেক্টরির পৃষ্ঠা"
+
+msgid "Nikogo tu jeszcze nie ma"
+msgstr "এখানে এখনও কেউ নেই"
+
+msgid "Zgłoś problem z mentoringiem"
+msgstr "মেন্টরিং সংক্রান্ত সমস্যার রিপোর্ট করুন"
+
+msgid "Zgłoszenie trafi od razu do organizatora. Jeśli problem dotyczy konkretnej wiadomości, zgłoś ją także w Wiadomościach przyciskiem „Zgłoś”."
+msgstr "রিপোর্টটি সরাসরি আয়োজকের কাছে যাবে। সমস্যাটি কোনো নির্দিষ্ট বার্তা নিয়ে হলে, সেটি বার্তায় “রিপোর্ট করুন” বোতাম দিয়েও রিপোর্ট করুন।"
+
+msgid "Wyślij zgłoszenie"
+msgstr "রিপোর্ট পাঠান"
+
+msgid "Sieć absolwentów"
+msgstr "প্রাক্তন অংশগ্রহণকারী নেটওয়ার্ক"
+
+msgid "Byli uczestnicy, którzy pokazują, co robią dziś, pomagają obecnym uczestnikom jako mentorzy i dostają zaproszenia na warsztaty, webinary i do jury."
+msgstr "প্রাক্তন অংশগ্রহণকারীরা, যাঁরা দেখান আজ তাঁরা কী করছেন, মেন্টর হিসেবে বর্তমান অংশগ্রহণকারীদের সাহায্য করেন এবং কর্মশালা, ওয়েবিনার ও জুরির আমন্ত্রণ পান।"
+
+msgid "Publiczna ściana"
+msgstr "সর্বজনীন দেয়াল"
+
+msgid "Twój profil"
+msgstr "আপনার প্রোফাইল"
+
+msgid "Organizator ukrył Twój profil – nie widać go w katalogu ani na ścianie. Napisz do organizatora, jeśli to pomyłka."
+msgstr "আয়োজক আপনার প্রোফাইল লুকিয়ে রেখেছেন – এটি ডিরেক্টরি বা দেয়ালে দেখা যাচ্ছে না। এটি ভুল হলে আয়োজককে লিখুন।"
+
+msgid "Tak widzą Cię inni zalogowani uczestnicy:"
+msgstr "লগ-ইন করা অন্য অংশগ্রহণকারীরা আপনাকে এভাবে দেখেন:"
+
+msgid "Zapisz profil"
+msgstr "প্রোফাইল সংরক্ষণ করুন"
+
+msgid "Wycofanie zgody"
+msgstr "সম্মতি প্রত্যাহার"
+
+msgid "Po wycofaniu zgody Twój profil absolwenta zniknie od razu, a relacje, w których jesteś mentorem, zakończą się. Twoje wyniki i dyplomy zostają – to dokumentacja zawodów."
+msgstr "সম্মতি প্রত্যাহার করলে আপনার প্রাক্তন অংশগ্রহণকারী প্রোফাইল সঙ্গে সঙ্গে মুছে যাবে এবং যেসব সম্পর্কে আপনি মেন্টর, সেগুলো শেষ হয়ে যাবে। আপনার ফলাফল ও সনদ থেকে যাবে – সেগুলো প্রতিযোগিতার নথির অংশ।"
+
+msgid "Wycofaj zgodę i usuń profil"
+msgstr "সম্মতি প্রত্যাহার করুন ও প্রোফাইল মুছুন"
+
+msgid "Dołącz do sieci absolwentów"
+msgstr "প্রাক্তন অংশগ্রহণকারী নেটওয়ার্কে যোগ দিন"
+
+msgid "Twoje osiągnięcia z ogłoszonych wyników:"
+msgstr "প্রকাশিত ফলাফল থেকে আপনার অর্জন:"
+
+msgid "Dołączam"
+msgstr "যোগ দিন"
+
+msgid "Organizator nie włączył jeszcze mentoringu."
+msgstr "আয়োজক এখনও মেন্টরিং চালু করেননি।"
+
+msgid "Rola"
+msgstr "ভূমিকা"
+
+msgid "Druga osoba"
+msgstr "অন্য ব্যক্তি"
+
+msgid "jesteś mentorem"
+msgstr "আপনি মেন্টর"
+
+msgid "Twój mentor"
+msgstr "আপনার মেন্টর"
+
+msgid "Przyjmij"
+msgstr "গ্রহণ করুন"
+
+msgid "Odrzuć"
+msgstr "প্রত্যাখ্যান করুন"
+
+msgid "Wycofaj prośbę"
+msgstr "অনুরোধ প্রত্যাহার করুন"
+
+msgid "Rozmowa"
+msgstr "কথোপকথন"
+
+msgid "Zakończ"
+msgstr "শেষ করুন"
+
+msgid "Zgłoś problem"
+msgstr "সমস্যার রিপোর্ট করুন"
+
+msgid "Nie masz jeszcze żadnej relacji mentorskiej. Mentora wybierzesz w katalogu absolwentów – przy osobach, które pomagają, stoi przycisk „Poproś o mentoring”."
+msgstr "আপনার এখনও কোনো মেন্টরিং সম্পর্ক নেই। আপনি প্রাক্তন অংশগ্রহণকারী ডিরেক্টরিতে মেন্টর বেছে নিতে পারেন – যাঁরা সাহায্য করেন, তাঁদের পাশে “মেন্টরিংয়ের অনুরোধ করুন” বোতাম থাকে।"
+
+msgid "Rozmowa mentorska toczy się w Wiadomościach. Jeśli uczestnik jest niepełnoletni, organizator czyta wiadomości – zależnie od zasad konkursu przed doręczeniem albo po nim."
+msgstr "মেন্টরিং কথোপকথন বার্তায় হয়। অংশগ্রহণকারী অপ্রাপ্তবয়স্ক হলে আয়োজক বার্তাগুলো পড়েন – প্রতিযোগিতার নিয়ম অনুযায়ী পৌঁছানোর আগে বা পরে।"
+
+msgid "Prośba o mentoring"
+msgstr "মেন্টরিংয়ের অনুরোধ"
+
+msgid "Jeśli mentor przyjmie prośbę, rozmowa otworzy się w Wiadomościach. Organizator widzi relacje mentorskie i – zależnie od zasad konkursu – czyta wiadomości."
+msgstr "মেন্টর অনুরোধ গ্রহণ করলে বার্তায় একটি কথোপকথন খুলবে। আয়োজক মেন্টরিং সম্পর্কগুলো দেখতে পান এবং – প্রতিযোগিতার নিয়ম অনুযায়ী – বার্তাগুলো পড়েন।"
+
+msgid "Wyślij prośbę"
+msgstr "অনুরোধ পাঠান"
+
+msgid "Wypis z zaproszeń"
+msgstr "আমন্ত্রণ থেকে সদস্যতা ত্যাগ"
+
+msgid "Wypis z zaproszeń dla absolwentów"
+msgstr "প্রাক্তন অংশগ্রহণকারীদের আমন্ত্রণ থেকে সদস্যতা ত্যাগ"
+
+msgid "Ten odnośnik jest nieprawidłowy. Zaproszenia wyłączysz też w swoim profilu absolwenta."
+msgstr "এই লিংকটি অবৈধ। আপনি আপনার প্রাক্তন অংশগ্রহণকারী প্রোফাইলেও আমন্ত্রণ বন্ধ করতে পারেন।"
+
+msgid "Gotowe – nie będziesz już dostawać zaproszeń. Włączysz je z powrotem w profilu absolwenta."
+msgstr "হয়ে গেছে – আপনি আর আমন্ত্রণ পাবেন না। প্রাক্তন অংশগ্রহণকারী প্রোফাইলে আপনি সেগুলো আবার চালু করতে পারেন।"
+
+msgid "Kliknij, żeby nie dostawać więcej zaproszeń od organizatora (warsztaty, webinary, jury)."
+msgstr "আয়োজকের কাছ থেকে আর আমন্ত্রণ (কর্মশালা, ওয়েবিনার, জুরি) না পেতে ক্লিক করুন।"
+
+msgid "Wypisz mnie"
+msgstr "আমার সদস্যতা ত্যাগ করুন"
+
+msgid "Nasi absolwenci"
+msgstr "আমাদের প্রাক্তন অংশগ্রহণকারীরা"
+
+msgid "Laureaci i finaliści poprzednich edycji – i to, co robią dziś."
+msgstr "আগের সংস্করণগুলোর বিজয়ী ও ফাইনালিস্টরা – এবং আজ তাঁরা কী করছেন।"
+
+msgid "Strony"
+msgstr "পৃষ্ঠা"
+
+#, python-format
+msgid "Podaj adres profilu %(service)s zaczynający się od https://."
+msgstr "https:// দিয়ে শুরু হওয়া %(service)s প্রোফাইলের ঠিকানা লিখুন।"
+
+#, python-format
+msgid "To nie wygląda na adres profilu %(service)s."
+msgstr "এটি %(service)s প্রোফাইলের ঠিকানা বলে মনে হচ্ছে না।"
+
+msgid "Adres wydarzenia musi zaczynać się od https://."
+msgstr "অনুষ্ঠানের ঠিকানা অবশ্যই https:// দিয়ে শুরু হতে হবে।"
+
+msgid "Witaj w sieci absolwentów! Uzupełnij profil – każde pole jest opcjonalne."
+msgstr "প্রাক্তন অংশগ্রহণকারী নেটওয়ার্কে স্বাগতম! আপনার প্রোফাইল পূরণ করুন – প্রতিটি ঘর ঐচ্ছিক।"
+
+msgid "Profil zapisany."
+msgstr "প্রোফাইল সংরক্ষিত হয়েছে।"
+
+msgid "Zgoda wycofana – Twój profil absolwenta został usunięty."
+msgstr "সম্মতি প্রত্যাহার করা হয়েছে – আপনার প্রাক্তন অংশগ্রহণকারী প্রোফাইল মুছে ফেলা হয়েছে।"
+
+msgid "Prośba wysłana. Dostaniesz e-mail, gdy mentor odpowie."
+msgstr "অনুরোধ পাঠানো হয়েছে। মেন্টর উত্তর দিলে আপনি ইমেল পাবেন।"
+
+msgid "Prośba przyjęta – rozmowa czeka w Wiadomościach."
+msgstr "অনুরোধ গৃহীত হয়েছে – কথোপকথনটি বার্তায় আপনার অপেক্ষায় আছে।"
+
+msgid "Prośba odrzucona."
+msgstr "অনুরোধ প্রত্যাখ্যাত হয়েছে।"
+
+msgid "Prośba wycofana."
+msgstr "অনুরোধ প্রত্যাহার করা হয়েছে।"
+
+msgid "Relacja mentorska zakończona."
+msgstr "মেন্টরিং সম্পর্ক শেষ হয়েছে।"
+
+msgid "Zgłoszenie wysłane do organizatora."
+msgstr "রিপোর্ট আয়োজকের কাছে পাঠানো হয়েছে।"
+
+msgid "Ustawienia zapisane."
+msgstr "সেটিংস সংরক্ষিত হয়েছে।"
+
+msgid "Profil ukryty."
+msgstr "প্রোফাইল লুকানো হয়েছে।"
+
+msgid "Profil znów jest widoczny."
+msgstr "প্রোফাইল আবার দৃশ্যমান।"
+
+msgid "Podaj powód zakończenia relacji."
+msgstr "সম্পর্ক শেষ করার কারণ লিখুন।"
+
+msgid "Relacja zakończona. Obie strony dostały list."
+msgstr "সম্পর্ক শেষ হয়েছে। উভয় পক্ষকে ইমেল পাঠানো হয়েছে।"
+
+msgid "Zgłoszenie zamknięte."
+msgstr "রিপোর্ট বন্ধ করা হয়েছে।"
+
+#, python-format
+msgid "Zaproszenie wysłane. Liczba odbiorców: %(count)s."
+msgstr "আমন্ত্রণ পাঠানো হয়েছে। প্রাপকের সংখ্যা: %(count)s।"

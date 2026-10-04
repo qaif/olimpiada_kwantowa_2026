@@ -1,0 +1,816 @@
+# Sieć absolwentów (ALUM-01) – katalog aplikacji apps/alumni.
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-04 19:54+0200\n"
+"PO-Revision-Date: 2026-10-04 20:00+0200\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: en\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Wyrażam zgodę opisaną wyżej."
+msgstr "I give the consent described above."
+
+msgid "Pokazuj moje pełne imię i nazwisko"
+msgstr "Show my full name"
+
+msgid "Działa tylko wtedy, gdy masz w konkursie zgodę na publikację imienia i nazwiska."
+msgstr "Works only if you have consented to the publication of your full name in this competition."
+
+msgid "Uczelnia albo miejsce pracy"
+msgstr "University or workplace"
+
+msgid "Kierunek albo stanowisko"
+msgstr "Field of study or position"
+
+msgid "Miasto"
+msgstr "City"
+
+msgid "Kraj"
+msgstr "Country"
+
+msgid "Kilka słów o sobie"
+msgstr "A few words about yourself"
+
+msgid "Zainteresowania"
+msgstr "Interests"
+
+msgid "Chcę być mentorem"
+msgstr "I want to be a mentor"
+
+msgid "W czym mogę pomóc"
+msgstr "What I can help with"
+
+msgid "Ilu uczestników naraz"
+msgstr "How many participants at a time"
+
+msgid "Pokazuj mój profil w katalogu dla zalogowanych uczestników"
+msgstr "Show my profile in the directory for logged-in participants"
+
+msgid "Pokazuj mój profil na publicznej ścianie absolwentów"
+msgstr "Show my profile on the public alumni wall"
+
+msgid "Na ścianie widać tylko podpis, osiągnięcia, uczelnię i kierunek."
+msgstr "The wall shows only your name, achievements, university and field of study."
+
+msgid "Chcę dostawać zaproszenia od organizatora (warsztaty, webinary, jury)"
+msgstr "I want to receive invitations from the organiser (workshops, webinars, jury)"
+
+msgid "Temat"
+msgstr "Topic"
+
+msgid "Krótko: w czym potrzebujesz pomocy?"
+msgstr "Briefly: what do you need help with?"
+
+msgid "Notatkę przeczyta mentor i organizator. Nie wpisuj tu danych kontaktowych."
+msgstr "The note will be read by the mentor and the organiser. Do not enter contact details here."
+
+msgid "Co się stało?"
+msgstr "What happened?"
+
+msgid "Notatka (powód zakończenia)"
+msgstr "Note (reason for ending)"
+
+msgid "Kto może dołączyć"
+msgstr "Who can join"
+
+msgid "Mentoring włączony"
+msgstr "Mentoring enabled"
+
+msgid "Publiczna ściana absolwentów"
+msgstr "Public alumni wall"
+
+msgid "Rodzaj"
+msgstr "Type"
+
+msgid "Tytuł (temat listu)"
+msgstr "Title (email subject)"
+
+msgid "Treść"
+msgstr "Content"
+
+msgid "Adres wydarzenia (https://…)"
+msgstr "Event address (https://…)"
+
+msgid "Edycje"
+msgstr "Editions"
+
+msgid "Najniższe osiągnięcie"
+msgstr "Minimum achievement"
+
+msgid "dowolne"
+msgstr "any"
+
+msgid "Zainteresowania (dowolne z)"
+msgstr "Interests (any of)"
+
+msgid "Tylko mentorzy"
+msgstr "Mentors only"
+
+msgid "Wybierz rodzaj zaproszenia."
+msgstr "Choose the type of invitation."
+
+msgid "Tytuł jest wymagany (do 150 znaków)."
+msgstr "A title is required (up to 150 characters)."
+
+#, python-format
+msgid "Treść jest wymagana (do %(limit)s znaków)."
+msgstr "Content is required (up to %(limit)s characters)."
+
+msgid "Dzień dobry,"
+msgstr "Hello,"
+
+#, python-format
+msgid "organizator konkursu %(competition)s zaprasza absolwentów: %(kind)s."
+msgstr "the organiser of %(competition)s invites alumni: %(kind)s."
+
+#, python-format
+msgid "Szczegóły i zapisy: %(url)s"
+msgstr "Details and registration: %(url)s"
+
+msgid "Dostajesz ten list, bo należysz do sieci absolwentów i nie wyłączyłeś zaproszeń."
+msgstr "You are receiving this email because you belong to the alumni network and have not turned off invitations."
+
+#, python-format
+msgid "Wypisz się z zaproszeń: %(link)s"
+msgstr "Unsubscribe from invitations: %(link)s"
+
+msgid "Żaden absolwent nie spełnia tych filtrów."
+msgstr "No alumni match these filters."
+
+msgid "Rozmowa mentorska. Każdą wiadomość czyta i akceptuje organizator, zanim trafi do drugiej osoby."
+msgstr "Mentoring conversation. The organiser reads and approves every message before it reaches the other person."
+
+msgid "Rozmowa mentorska – obowiązują zasady Wiadomości tego konkursu."
+msgstr "Mentoring conversation – the Messages rules of this competition apply."
+
+msgid "Rozmowa mentorska. Organizator przegląda wiadomości tej rozmowy (moderacja następcza)."
+msgstr "Mentoring conversation. The organiser reviews the messages of this conversation (post-moderation)."
+
+msgid "Mentoring zakończył się – ta rozmowa jest teraz tylko do odczytu."
+msgstr "The mentoring has ended – this conversation is now read-only."
+
+msgid "Organizator wstrzymał mentoring – ta rozmowa jest teraz tylko do odczytu."
+msgstr "The organiser has paused mentoring – this conversation is now read-only."
+
+msgid "Mentoring jest w tym konkursie wyłączony."
+msgstr "Mentoring is turned off in this competition."
+
+msgid "Mentoring wymaga modułu Wiadomości, który organizator wyłączył."
+msgstr "Mentoring requires the Messages module, which the organiser has turned off."
+
+msgid "Ta osoba nie przyjmuje teraz próśb o mentoring."
+msgstr "This person is not accepting mentoring requests at the moment."
+
+#, python-format
+msgid "%(label)s nie może być puste."
+msgstr "%(label)s cannot be empty."
+
+#, python-format
+msgid "%(label)s jest za długie (limit %(limit)s znaków)."
+msgstr "%(label)s is too long (limit: %(limit)s characters)."
+
+msgid "Nie możesz poprosić o mentoring samego siebie."
+msgstr "You cannot ask yourself for mentoring."
+
+msgid "O mentora proszą uczestnicy bieżącej edycji."
+msgstr "Mentors can be requested by participants of the current edition."
+
+msgid "Wybierz temat z listy."
+msgstr "Choose a topic from the list."
+
+msgid "Notatka"
+msgstr "Note"
+
+msgid "Masz już otwartą prośbę albo relację z tą osobą."
+msgstr "You already have an open request or mentoring relationship with this person."
+
+#, python-format
+msgid "Możesz mieć naraz najwyżej %(limit)s otwarte prośby i relacje mentorskie."
+msgstr "You can have at most %(limit)s open mentoring requests and relationships at a time."
+
+msgid "Ta osoba nie ma teraz wolnego miejsca na mentoring."
+msgstr "This person has no free mentoring place at the moment."
+
+msgid "Nie ma takiej relacji mentorskiej."
+msgstr "No such mentoring relationship."
+
+msgid "Na tę prośbę już odpowiedziano."
+msgstr "This request has already been answered."
+
+msgid "Najpierw dołącz do sieci absolwentów."
+msgstr "Join the alumni network first."
+
+msgid "Masz już komplet mentee. Zwiększ liczbę miejsc w profilu albo zakończ inną relację."
+msgstr "You already have the full number of mentees. Increase the number of places in your profile or end another relationship."
+
+msgid "Tę prośbę można już tylko zakończyć."
+msgstr "This request can now only be ended."
+
+msgid "Ta relacja jest już zakończona."
+msgstr "This relationship has already ended."
+
+msgid "Powód"
+msgstr "Reason"
+
+msgid "Nie ma takiego zgłoszenia."
+msgstr "No such report."
+
+msgid "uczestnik"
+msgstr "participant"
+
+msgid "awans do kolejnego etapu"
+msgstr "advanced to the next stage"
+
+msgid "finalista"
+msgstr "finalist"
+
+msgid "laureat"
+msgstr "laureate"
+
+msgid "obliczenia kwantowe"
+msgstr "quantum computing"
+
+msgid "fizyka kwantowa"
+msgstr "quantum physics"
+
+msgid "fizyka"
+msgstr "physics"
+
+msgid "informatyka"
+msgstr "computer science"
+
+msgid "matematyka"
+msgstr "mathematics"
+
+msgid "inżynieria"
+msgstr "engineering"
+
+msgid "chemia"
+msgstr "chemistry"
+
+msgid "badania naukowe"
+msgstr "research"
+
+msgid "praca w przemyśle"
+msgstr "industry"
+
+msgid "edukacja i popularyzacja"
+msgstr "education and outreach"
+
+msgid "zgoda udzielona"
+msgstr "consent given"
+
+msgid "zgoda wycofana"
+msgstr "consent withdrawn"
+
+msgid "prośba czeka na mentora"
+msgstr "request awaiting the mentor"
+
+msgid "trwa"
+msgstr "active"
+
+msgid "odrzucona przez mentora"
+msgstr "declined by the mentor"
+
+msgid "wycofana przez uczestnika"
+msgstr "withdrawn by the participant"
+
+msgid "zakończona"
+msgstr "ended"
+
+msgid "zakończył mentor"
+msgstr "ended by the mentor"
+
+msgid "zakończył uczestnik"
+msgstr "ended by the participant"
+
+msgid "zakończył organizator"
+msgstr "ended by the organiser"
+
+msgid "mentor wycofał zgodę"
+msgstr "the mentor withdrew consent"
+
+msgid "konto usunięte"
+msgstr "account deleted"
+
+msgid "rozmowa według zasad Wiadomości"
+msgstr "conversation under the Messages rules"
+
+msgid "każdą wiadomość akceptuje organizator"
+msgstr "the organiser approves every message"
+
+msgid "warsztaty"
+msgstr "workshop"
+
+msgid "webinar"
+msgstr "webinar"
+
+msgid "jury"
+msgstr "jury"
+
+msgid "inne"
+msgstr "other"
+
+msgid "Absolwenci: prośba o mentoring"
+msgstr "Alumni: mentoring request"
+
+msgid "Absolwenci: mentor przyjął Twoją prośbę"
+msgstr "Alumni: a mentor has accepted your request"
+
+msgid "Absolwenci: odpowiedź na prośbę o mentoring"
+msgstr "Alumni: reply to your mentoring request"
+
+msgid "Absolwenci: relacja mentorska zakończona"
+msgstr "Alumni: mentoring relationship ended"
+
+msgid "Absolwenci: zgłoszono problem z relacją mentorską"
+msgstr "Alumni: a problem with a mentoring relationship was reported"
+
+#, python-format
+msgid "%(name)s prosi Cię o mentoring w sieci absolwentów."
+msgstr "%(name)s is asking you for mentoring in the alumni network."
+
+msgid "Notatkę prośby przeczytasz i odpowiesz na nią po zalogowaniu:"
+msgstr "You can read the request note and reply after logging in:"
+
+#, python-format
+msgid "%(name)s zgadza się zostać Twoim mentorem."
+msgstr "%(name)s has agreed to be your mentor."
+
+msgid "Rozmowa czeka w Wiadomościach:"
+msgstr "The conversation is waiting in Messages:"
+
+#, python-format
+msgid "%(name)s nie może teraz przyjąć Twojej prośby o mentoring."
+msgstr "%(name)s cannot accept your mentoring request at the moment."
+
+msgid "Możesz poprosić inną osobę z katalogu absolwentów:"
+msgstr "You can ask another person from the alumni directory:"
+
+msgid "Relacja mentorska w sieci absolwentów została zakończona."
+msgstr "A mentoring relationship in the alumni network has ended."
+
+msgid "Rozmowa zostaje w Wiadomościach do odczytu. Szczegóły:"
+msgstr "The conversation remains in Messages as read-only. Details:"
+
+msgid "Jedna ze stron relacji mentorskiej zgłosiła problem. Powód przeczytasz w panelu:"
+msgstr "One side of a mentoring relationship has reported a problem. You can read the reason in the panel:"
+
+msgid "Do sieci absolwentów dołączają uczestnicy tego konkursu."
+msgstr "The alumni network is open to participants of this competition."
+
+msgid "Do sieci absolwentów dołączają osoby pełnoletnie. Wróć tu po swoich 18. urodzinach – Twoje osiągnięcia poczekają."
+msgstr "The alumni network is open to adults. Come back after your 18th birthday – your achievements will wait for you."
+
+#, python-format
+msgid "Do sieci absolwentów dołączają osoby z osiągnięciem w zakończonej edycji na poziomie co najmniej: %(level)s."
+msgstr "The alumni network is open to people with an achievement in a completed edition at the level of at least: %(level)s."
+
+msgid "Chcę należeć do sieci absolwentów tego konkursu. Zgadzam się, żeby organizator przetwarzał moje imię i inicjał nazwiska (pełne imię i nazwisko – tylko jeśli tak wybiorę i mam zgodę na publikację nazwiska), moje osiągnięcia z ogłoszonych wyników oraz dane, które sam wpiszę do profilu, w celu: pokazania profilu zalogowanym uczestnikom konkursu (a na publicznej ścianie – tylko jeśli to zaznaczę), kontaktu mentorskiego przez Wiadomości, wysyłania mi zaproszeń na warsztaty, webinary i do jury (mogę się wypisać w każdym liście) oraz zagregowanych statystyk „gdzie są teraz”, w których nikt nie jest rozpoznawalny. Zgodę mogę wycofać w każdej chwili – profil zniknie od razu."
+msgstr "I want to belong to the alumni network of this competition. I agree that the organiser may process my first name and last-name initial (my full name only if I choose so and have consented to the publication of my name), my achievements from published results and the data I enter in my profile myself, in order to: show my profile to logged-in participants of the competition (and on the public wall only if I tick that option), enable mentoring contact through Messages, send me invitations to workshops, webinars and jury roles (I can unsubscribe in every email) and produce aggregated “where are they now” statistics in which nobody can be identified. I can withdraw my consent at any time – my profile will disappear immediately."
+
+msgid "Ta część serwisu jest dostępna dla uczestników tego konkursu."
+msgstr "This part of the site is available to participants of this competition."
+
+msgid "Ta część serwisu jest dostępna dla koordynatora."
+msgstr "This part of the site is available to the coordinator."
+
+msgid "Zaznacz zgodę, żeby dołączyć do sieci absolwentów."
+msgstr "Tick the consent box to join the alumni network."
+
+msgid "nie podano"
+msgstr "not provided"
+
+msgid "Uczelnia"
+msgstr "University"
+
+msgid "Kierunek"
+msgstr "Field of study"
+
+msgid "Zainteresowania (osoba może mieć kilka)"
+msgstr "Interests (one person may have several)"
+
+msgid "Najwyższe osiągnięcie"
+msgstr "Highest achievement"
+
+msgid "Zainteresowania:"
+msgstr "Interests:"
+
+msgid "Mentor"
+msgstr "Mentor"
+
+#, python-format
+msgid "wolne miejsca: %(slots)s"
+msgstr "free places: %(slots)s"
+
+msgid "brak wolnych miejsc"
+msgstr "no free places"
+
+msgid "Poproś o mentoring"
+msgstr "Ask for mentoring"
+
+msgid "Absolwenci"
+msgstr "Alumni"
+
+msgid "Mentoring"
+msgstr "Mentoring"
+
+msgid "Zaproszenia"
+msgstr "Invitations"
+
+msgid "Gdzie są teraz"
+msgstr "Where are they now"
+
+msgid "Absolwenci – panel koordynatora"
+msgstr "Alumni – coordinator panel"
+
+msgid "Sieć byłych uczestników, którzy wyrazili na to zgodę: profile, mentoring, zaproszenia i zagregowane statystyki."
+msgstr "The network of former participants who have consented to it: profiles, mentoring, invitations and aggregated statistics."
+
+msgid "dane osobowe"
+msgstr "personal data"
+
+msgid "Podstawą jest zgoda absolwenta – wycofanie usuwa profil od razu. Osiągnięcia liczą się wyłącznie z ogłoszonych wyników i wystawionych dyplomów."
+msgstr "The legal basis is the alumnus's consent – withdrawing it deletes the profile immediately. Achievements are derived only from published results and issued certificates."
+
+msgid "Ustawienia"
+msgstr "Settings"
+
+msgid "Mentoring wymaga włączonych Wiadomości – bez nich mentorzy nie mogą przyjmować próśb."
+msgstr "Mentoring requires Messages to be enabled – without them mentors cannot accept requests."
+
+msgid "„Kto może dołączyć” to najniższe osiągnięcie w zakończonej edycji. Dołączają wyłącznie osoby pełnoletnie. Mentoring małoletnich toczy się zawsze z udziałem organizatora: przy zasadzie „ta sama grupa wiekowa” każdą wiadomość akceptujesz przed doręczeniem, a przy „bez ograniczeń” przeglądasz je po doręczeniu (kolejka moderacji Wiadomości)."
+msgstr "“Who can join” is the minimum achievement in a completed edition. Only adults can join. Mentoring of minors always involves the organiser: under the “same age group” rule you approve every message before delivery, and under “no restrictions” you review messages after delivery (the Messages moderation queue)."
+
+msgid "Zapisz ustawienia"
+msgstr "Save settings"
+
+msgid "Profile absolwentów"
+msgstr "Alumni profiles"
+
+#, python-format
+msgid "Mogłoby jeszcze dołączyć (spełnia kryteria, nie dołączyło): %(count)s."
+msgstr "Could still join (meet the criteria but have not joined): %(count)s."
+
+msgid "Szukaj"
+msgstr "Search"
+
+msgid "Osoba"
+msgstr "Person"
+
+msgid "Osiągnięcia"
+msgstr "Achievements"
+
+msgid "Widoczność"
+msgstr "Visibility"
+
+msgid "ukryty"
+msgstr "hidden"
+
+msgid "katalog"
+msgstr "directory"
+
+msgid "ściana"
+msgstr "wall"
+
+msgid "Pokaż"
+msgstr "Show"
+
+msgid "Ukryj"
+msgstr "Hide"
+
+msgid "Nikt jeszcze nie dołączył do sieci absolwentów."
+msgstr "Nobody has joined the alumni network yet."
+
+msgid "Poprzednia"
+msgstr "Previous"
+
+msgid "Następna"
+msgstr "Next"
+
+msgid "Zaproszenia – panel koordynatora"
+msgstr "Invitations – coordinator panel"
+
+msgid "Zaproszenia dla absolwentów"
+msgstr "Invitations for alumni"
+
+msgid "List do absolwentów, którzy nie wyłączyli zaproszeń – w ich języku, z odnośnikiem wypisu. Do webinaru wklej adres wydarzenia."
+msgstr "An email to alumni who have not turned off invitations – in their language, with an unsubscribe link. For a webinar, paste the event address."
+
+#, python-format
+msgid "Odbiorców z tymi filtrami: %(count)s."
+msgstr "Recipients with these filters: %(count)s."
+
+msgid "Policz odbiorców"
+msgstr "Count recipients"
+
+msgid "Wyślij zaproszenie"
+msgstr "Send invitation"
+
+msgid "Wysłane"
+msgstr "Sent"
+
+msgid "Data"
+msgstr "Date"
+
+msgid "Tytuł"
+msgstr "Title"
+
+msgid "Odbiorcy"
+msgstr "Recipients"
+
+msgid "Nie wysłano jeszcze żadnego zaproszenia."
+msgstr "No invitations have been sent yet."
+
+msgid "Mentoring – panel koordynatora"
+msgstr "Mentoring – coordinator panel"
+
+msgid "Prośby i relacje mentor–uczestnik. Wiadomości rozmów mentorskich czytasz w kolejce moderacji Wiadomości."
+msgstr "Mentor–participant requests and relationships. You read the messages of mentoring conversations in the Messages moderation queue."
+
+msgid "Kolejka moderacji"
+msgstr "Moderation queue"
+
+msgid "Mentoring jest wyłączony – istniejące rozmowy mentorskie są tylko do odczytu."
+msgstr "Mentoring is turned off – existing mentoring conversations are read-only."
+
+msgid "Zgłoszenia problemów"
+msgstr "Reported problems"
+
+msgid "Relacja"
+msgstr "Relationship"
+
+msgid "Zgłoszone"
+msgstr "Reported"
+
+msgid "Zamknij zgłoszenie"
+msgstr "Close report"
+
+msgid "Relacje"
+msgstr "Relationships"
+
+msgid "wszystkie"
+msgstr "all"
+
+msgid "Uczestnik"
+msgstr "Participant"
+
+msgid "Stan"
+msgstr "Status"
+
+msgid "Kanał"
+msgstr "Channel"
+
+msgid "Zgłoszenia"
+msgstr "Reports"
+
+msgid "małoletni"
+msgstr "minor"
+
+msgid "notatka prośby"
+msgstr "request note"
+
+msgid "Powód zakończenia"
+msgstr "Reason for ending"
+
+msgid "Zakończ relację"
+msgstr "End relationship"
+
+msgid "Brak relacji mentorskich."
+msgstr "No mentoring relationships."
+
+msgid "Zgłoszenia: problemy z relacją / zgłoszone wiadomości w rozmowie (otwarte)."
+msgstr "Reports: relationship problems / reported messages in the conversation (open)."
+
+msgid "Gdzie są teraz – panel koordynatora"
+msgstr "Where are they now – coordinator panel"
+
+#, python-format
+msgid "Zagregowane dane z profili absolwentów. Grupy mniejsze niż %(k)s osób nie są pokazywane osobno – nikogo nie da się z tych tabel rozpoznać."
+msgstr "Aggregated data from alumni profiles. Groups smaller than %(k)s people are not shown separately – nobody can be identified from these tables."
+
+#, python-format
+msgid "Absolwentów w sieci: %(total)s."
+msgstr "Alumni in the network: %(total)s."
+
+#, python-format
+msgid "Mentorów: %(mentors)s."
+msgstr "Mentors: %(mentors)s."
+
+#, python-format
+msgid "Mentorów: mniej niż %(k)s."
+msgstr "Mentors: fewer than %(k)s."
+
+#, python-format
+msgid "Sieć ma mniej niż %(k)s osób – rozkładów nie pokazujemy, bo każda liczba mówiłaby o konkretnych ludziach."
+msgstr "The network has fewer than %(k)s people – we do not show distributions, because every number would describe specific people."
+
+msgid "Katalog absolwentów"
+msgstr "Alumni directory"
+
+msgid "Absolwenci, którzy zgodzili się pokazać swój profil zalogowanym uczestnikom."
+msgstr "Alumni who have agreed to show their profile to logged-in participants."
+
+msgid "Szukaj (imię, uczelnia, kierunek)"
+msgstr "Search (first name, university, field of study)"
+
+msgid "Zainteresowanie"
+msgstr "Interest"
+
+msgid "Tylko mentorzy z wolnym miejscem"
+msgstr "Only mentors with a free place"
+
+msgid "Strony katalogu"
+msgstr "Directory pages"
+
+msgid "Nikogo tu jeszcze nie ma"
+msgstr "Nobody here yet"
+
+msgid "Zgłoś problem z mentoringiem"
+msgstr "Report a problem with mentoring"
+
+msgid "Zgłoszenie trafi od razu do organizatora. Jeśli problem dotyczy konkretnej wiadomości, zgłoś ją także w Wiadomościach przyciskiem „Zgłoś”."
+msgstr "The report goes straight to the organiser. If the problem concerns a specific message, also report it in Messages with the “Report” button."
+
+msgid "Wyślij zgłoszenie"
+msgstr "Send report"
+
+msgid "Sieć absolwentów"
+msgstr "Alumni network"
+
+msgid "Byli uczestnicy, którzy pokazują, co robią dziś, pomagają obecnym uczestnikom jako mentorzy i dostają zaproszenia na warsztaty, webinary i do jury."
+msgstr "Former participants who show what they do today, help current participants as mentors and receive invitations to workshops, webinars and jury roles."
+
+msgid "Publiczna ściana"
+msgstr "Public wall"
+
+msgid "Twój profil"
+msgstr "Your profile"
+
+msgid "Organizator ukrył Twój profil – nie widać go w katalogu ani na ścianie. Napisz do organizatora, jeśli to pomyłka."
+msgstr "The organiser has hidden your profile – it is not visible in the directory or on the wall. Write to the organiser if this is a mistake."
+
+msgid "Tak widzą Cię inni zalogowani uczestnicy:"
+msgstr "This is how other logged-in participants see you:"
+
+msgid "Zapisz profil"
+msgstr "Save profile"
+
+msgid "Wycofanie zgody"
+msgstr "Withdrawing consent"
+
+msgid "Po wycofaniu zgody Twój profil absolwenta zniknie od razu, a relacje, w których jesteś mentorem, zakończą się. Twoje wyniki i dyplomy zostają – to dokumentacja zawodów."
+msgstr "After you withdraw consent, your alumni profile will disappear immediately and the relationships in which you are a mentor will end. Your results and certificates remain – they are part of the competition records."
+
+msgid "Wycofaj zgodę i usuń profil"
+msgstr "Withdraw consent and delete profile"
+
+msgid "Dołącz do sieci absolwentów"
+msgstr "Join the alumni network"
+
+msgid "Twoje osiągnięcia z ogłoszonych wyników:"
+msgstr "Your achievements from published results:"
+
+msgid "Dołączam"
+msgstr "Join"
+
+msgid "Organizator nie włączył jeszcze mentoringu."
+msgstr "The organiser has not enabled mentoring yet."
+
+msgid "Rola"
+msgstr "Role"
+
+msgid "Druga osoba"
+msgstr "Other person"
+
+msgid "jesteś mentorem"
+msgstr "you are the mentor"
+
+msgid "Twój mentor"
+msgstr "your mentor"
+
+msgid "Przyjmij"
+msgstr "Accept"
+
+msgid "Odrzuć"
+msgstr "Decline"
+
+msgid "Wycofaj prośbę"
+msgstr "Withdraw request"
+
+msgid "Rozmowa"
+msgstr "Conversation"
+
+msgid "Zakończ"
+msgstr "End"
+
+msgid "Zgłoś problem"
+msgstr "Report a problem"
+
+msgid "Nie masz jeszcze żadnej relacji mentorskiej. Mentora wybierzesz w katalogu absolwentów – przy osobach, które pomagają, stoi przycisk „Poproś o mentoring”."
+msgstr "You do not have any mentoring relationship yet. You can choose a mentor in the alumni directory – people who help have an “Ask for mentoring” button."
+
+msgid "Rozmowa mentorska toczy się w Wiadomościach. Jeśli uczestnik jest niepełnoletni, organizator czyta wiadomości – zależnie od zasad konkursu przed doręczeniem albo po nim."
+msgstr "The mentoring conversation takes place in Messages. If the participant is a minor, the organiser reads the messages – before or after delivery, depending on the competition's rules."
+
+msgid "Prośba o mentoring"
+msgstr "Mentoring request"
+
+msgid "Jeśli mentor przyjmie prośbę, rozmowa otworzy się w Wiadomościach. Organizator widzi relacje mentorskie i – zależnie od zasad konkursu – czyta wiadomości."
+msgstr "If the mentor accepts the request, a conversation will open in Messages. The organiser can see mentoring relationships and – depending on the competition's rules – reads the messages."
+
+msgid "Wyślij prośbę"
+msgstr "Send request"
+
+msgid "Wypis z zaproszeń"
+msgstr "Unsubscribe from invitations"
+
+msgid "Wypis z zaproszeń dla absolwentów"
+msgstr "Unsubscribe from alumni invitations"
+
+msgid "Ten odnośnik jest nieprawidłowy. Zaproszenia wyłączysz też w swoim profilu absolwenta."
+msgstr "This link is invalid. You can also turn off invitations in your alumni profile."
+
+msgid "Gotowe – nie będziesz już dostawać zaproszeń. Włączysz je z powrotem w profilu absolwenta."
+msgstr "Done – you will no longer receive invitations. You can turn them back on in your alumni profile."
+
+msgid "Kliknij, żeby nie dostawać więcej zaproszeń od organizatora (warsztaty, webinary, jury)."
+msgstr "Click to stop receiving invitations from the organiser (workshops, webinars, jury)."
+
+msgid "Wypisz mnie"
+msgstr "Unsubscribe me"
+
+msgid "Nasi absolwenci"
+msgstr "Our alumni"
+
+msgid "Laureaci i finaliści poprzednich edycji – i to, co robią dziś."
+msgstr "Laureates and finalists of previous editions – and what they do today."
+
+msgid "Strony"
+msgstr "Pages"
+
+#, python-format
+msgid "Podaj adres profilu %(service)s zaczynający się od https://."
+msgstr "Enter the %(service)s profile address starting with https://."
+
+#, python-format
+msgid "To nie wygląda na adres profilu %(service)s."
+msgstr "This does not look like a %(service)s profile address."
+
+msgid "Adres wydarzenia musi zaczynać się od https://."
+msgstr "The event address must start with https://."
+
+msgid "Witaj w sieci absolwentów! Uzupełnij profil – każde pole jest opcjonalne."
+msgstr "Welcome to the alumni network! Fill in your profile – every field is optional."
+
+msgid "Profil zapisany."
+msgstr "Profile saved."
+
+msgid "Zgoda wycofana – Twój profil absolwenta został usunięty."
+msgstr "Consent withdrawn – your alumni profile has been deleted."
+
+msgid "Prośba wysłana. Dostaniesz e-mail, gdy mentor odpowie."
+msgstr "Request sent. You will receive an email when the mentor replies."
+
+msgid "Prośba przyjęta – rozmowa czeka w Wiadomościach."
+msgstr "Request accepted – the conversation is waiting in Messages."
+
+msgid "Prośba odrzucona."
+msgstr "Request declined."
+
+msgid "Prośba wycofana."
+msgstr "Request withdrawn."
+
+msgid "Relacja mentorska zakończona."
+msgstr "Mentoring relationship ended."
+
+msgid "Zgłoszenie wysłane do organizatora."
+msgstr "Report sent to the organiser."
+
+msgid "Ustawienia zapisane."
+msgstr "Settings saved."
+
+msgid "Profil ukryty."
+msgstr "Profile hidden."
+
+msgid "Profil znów jest widoczny."
+msgstr "The profile is visible again."
+
+msgid "Podaj powód zakończenia relacji."
+msgstr "Give the reason for ending the relationship."
+
+msgid "Relacja zakończona. Obie strony dostały list."
+msgstr "Relationship ended. Both sides have received an email."
+
+msgid "Zgłoszenie zamknięte."
+msgstr "Report closed."
+
+#, python-format
+msgid "Zaproszenie wysłane. Liczba odbiorców: %(count)s."
+msgstr "Invitation sent. Number of recipients: %(count)s."

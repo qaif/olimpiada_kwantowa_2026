@@ -1,0 +1,816 @@
+# Sieć absolwentów (ALUM-01) – katalog aplikacji apps/alumni.
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-04 19:54+0200\n"
+"PO-Revision-Date: 2026-10-04 20:00+0200\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: id\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+msgid "Wyrażam zgodę opisaną wyżej."
+msgstr "Saya memberikan persetujuan sebagaimana dijelaskan di atas."
+
+msgid "Pokazuj moje pełne imię i nazwisko"
+msgstr "Tampilkan nama lengkap saya"
+
+msgid "Działa tylko wtedy, gdy masz w konkursie zgodę na publikację imienia i nazwiska."
+msgstr "Hanya berlaku jika Anda telah menyetujui publikasi nama lengkap Anda dalam kompetisi ini."
+
+msgid "Uczelnia albo miejsce pracy"
+msgstr "Universitas atau tempat kerja"
+
+msgid "Kierunek albo stanowisko"
+msgstr "Bidang studi atau jabatan"
+
+msgid "Miasto"
+msgstr "Kota"
+
+msgid "Kraj"
+msgstr "Negara"
+
+msgid "Kilka słów o sobie"
+msgstr "Sedikit tentang diri Anda"
+
+msgid "Zainteresowania"
+msgstr "Minat"
+
+msgid "Chcę być mentorem"
+msgstr "Saya ingin menjadi mentor"
+
+msgid "W czym mogę pomóc"
+msgstr "Hal yang dapat saya bantu"
+
+msgid "Ilu uczestników naraz"
+msgstr "Berapa peserta sekaligus"
+
+msgid "Pokazuj mój profil w katalogu dla zalogowanych uczestników"
+msgstr "Tampilkan profil saya di direktori untuk peserta yang sudah masuk"
+
+msgid "Pokazuj mój profil na publicznej ścianie absolwentów"
+msgstr "Tampilkan profil saya di dinding alumni publik"
+
+msgid "Na ścianie widać tylko podpis, osiągnięcia, uczelnię i kierunek."
+msgstr "Dinding hanya menampilkan nama, prestasi, universitas, dan bidang studi Anda."
+
+msgid "Chcę dostawać zaproszenia od organizatora (warsztaty, webinary, jury)"
+msgstr "Saya ingin menerima undangan dari penyelenggara (lokakarya, webinar, juri)"
+
+msgid "Temat"
+msgstr "Topik"
+
+msgid "Krótko: w czym potrzebujesz pomocy?"
+msgstr "Singkatnya: apa yang perlu dibantu?"
+
+msgid "Notatkę przeczyta mentor i organizator. Nie wpisuj tu danych kontaktowych."
+msgstr "Catatan ini akan dibaca oleh mentor dan penyelenggara. Jangan cantumkan data kontak di sini."
+
+msgid "Co się stało?"
+msgstr "Apa yang terjadi?"
+
+msgid "Notatka (powód zakończenia)"
+msgstr "Catatan (alasan pengakhiran)"
+
+msgid "Kto może dołączyć"
+msgstr "Siapa yang dapat bergabung"
+
+msgid "Mentoring włączony"
+msgstr "Mentoring diaktifkan"
+
+msgid "Publiczna ściana absolwentów"
+msgstr "Dinding alumni publik"
+
+msgid "Rodzaj"
+msgstr "Jenis"
+
+msgid "Tytuł (temat listu)"
+msgstr "Judul (subjek email)"
+
+msgid "Treść"
+msgstr "Isi"
+
+msgid "Adres wydarzenia (https://…)"
+msgstr "Alamat acara (https://…)"
+
+msgid "Edycje"
+msgstr "Edisi"
+
+msgid "Najniższe osiągnięcie"
+msgstr "Prestasi minimum"
+
+msgid "dowolne"
+msgstr "apa saja"
+
+msgid "Zainteresowania (dowolne z)"
+msgstr "Minat (salah satu dari)"
+
+msgid "Tylko mentorzy"
+msgstr "Hanya mentor"
+
+msgid "Wybierz rodzaj zaproszenia."
+msgstr "Pilih jenis undangan."
+
+msgid "Tytuł jest wymagany (do 150 znaków)."
+msgstr "Judul wajib diisi (maksimal 150 karakter)."
+
+#, python-format
+msgid "Treść jest wymagana (do %(limit)s znaków)."
+msgstr "Isi wajib diisi (maksimal %(limit)s karakter)."
+
+msgid "Dzień dobry,"
+msgstr "Halo,"
+
+#, python-format
+msgid "organizator konkursu %(competition)s zaprasza absolwentów: %(kind)s."
+msgstr "penyelenggara %(competition)s mengundang para alumni: %(kind)s."
+
+#, python-format
+msgid "Szczegóły i zapisy: %(url)s"
+msgstr "Detail dan pendaftaran: %(url)s"
+
+msgid "Dostajesz ten list, bo należysz do sieci absolwentów i nie wyłączyłeś zaproszeń."
+msgstr "Anda menerima email ini karena Anda tergabung dalam jaringan alumni dan belum menonaktifkan undangan."
+
+#, python-format
+msgid "Wypisz się z zaproszeń: %(link)s"
+msgstr "Berhenti berlangganan undangan: %(link)s"
+
+msgid "Żaden absolwent nie spełnia tych filtrów."
+msgstr "Tidak ada alumni yang sesuai dengan filter ini."
+
+msgid "Rozmowa mentorska. Każdą wiadomość czyta i akceptuje organizator, zanim trafi do drugiej osoby."
+msgstr "Percakapan mentoring. Penyelenggara membaca dan menyetujui setiap pesan sebelum sampai ke pihak lain."
+
+msgid "Rozmowa mentorska – obowiązują zasady Wiadomości tego konkursu."
+msgstr "Percakapan mentoring – berlaku aturan Pesan dari kompetisi ini."
+
+msgid "Rozmowa mentorska. Organizator przegląda wiadomości tej rozmowy (moderacja następcza)."
+msgstr "Percakapan mentoring. Penyelenggara meninjau pesan dalam percakapan ini (pascamoderasi)."
+
+msgid "Mentoring zakończył się – ta rozmowa jest teraz tylko do odczytu."
+msgstr "Mentoring telah berakhir – percakapan ini sekarang hanya dapat dibaca."
+
+msgid "Organizator wstrzymał mentoring – ta rozmowa jest teraz tylko do odczytu."
+msgstr "Penyelenggara telah menjeda mentoring – percakapan ini sekarang hanya dapat dibaca."
+
+msgid "Mentoring jest w tym konkursie wyłączony."
+msgstr "Mentoring dinonaktifkan dalam kompetisi ini."
+
+msgid "Mentoring wymaga modułu Wiadomości, który organizator wyłączył."
+msgstr "Mentoring memerlukan modul Pesan, yang telah dinonaktifkan oleh penyelenggara."
+
+msgid "Ta osoba nie przyjmuje teraz próśb o mentoring."
+msgstr "Orang ini sedang tidak menerima permintaan mentoring."
+
+#, python-format
+msgid "%(label)s nie może być puste."
+msgstr "%(label)s tidak boleh kosong."
+
+#, python-format
+msgid "%(label)s jest za długie (limit %(limit)s znaków)."
+msgstr "%(label)s terlalu panjang (batas: %(limit)s karakter)."
+
+msgid "Nie możesz poprosić o mentoring samego siebie."
+msgstr "Anda tidak dapat meminta mentoring kepada diri sendiri."
+
+msgid "O mentora proszą uczestnicy bieżącej edycji."
+msgstr "Mentor dapat diminta oleh peserta edisi saat ini."
+
+msgid "Wybierz temat z listy."
+msgstr "Pilih topik dari daftar."
+
+msgid "Notatka"
+msgstr "Catatan"
+
+msgid "Masz już otwartą prośbę albo relację z tą osobą."
+msgstr "Anda sudah memiliki permintaan terbuka atau hubungan mentoring dengan orang ini."
+
+#, python-format
+msgid "Możesz mieć naraz najwyżej %(limit)s otwarte prośby i relacje mentorskie."
+msgstr "Anda dapat memiliki paling banyak %(limit)s permintaan dan hubungan mentoring terbuka sekaligus."
+
+msgid "Ta osoba nie ma teraz wolnego miejsca na mentoring."
+msgstr "Orang ini sedang tidak memiliki tempat mentoring yang kosong."
+
+msgid "Nie ma takiej relacji mentorskiej."
+msgstr "Hubungan mentoring tersebut tidak ditemukan."
+
+msgid "Na tę prośbę już odpowiedziano."
+msgstr "Permintaan ini sudah dijawab."
+
+msgid "Najpierw dołącz do sieci absolwentów."
+msgstr "Bergabunglah dengan jaringan alumni terlebih dahulu."
+
+msgid "Masz już komplet mentee. Zwiększ liczbę miejsc w profilu albo zakończ inną relację."
+msgstr "Jumlah mentee Anda sudah penuh. Tambah jumlah tempat di profil Anda atau akhiri hubungan lain."
+
+msgid "Tę prośbę można już tylko zakończyć."
+msgstr "Permintaan ini sekarang hanya dapat diakhiri."
+
+msgid "Ta relacja jest już zakończona."
+msgstr "Hubungan ini sudah berakhir."
+
+msgid "Powód"
+msgstr "Alasan"
+
+msgid "Nie ma takiego zgłoszenia."
+msgstr "Laporan tersebut tidak ditemukan."
+
+msgid "uczestnik"
+msgstr "peserta"
+
+msgid "awans do kolejnego etapu"
+msgstr "lolos ke tahap berikutnya"
+
+msgid "finalista"
+msgstr "finalis"
+
+msgid "laureat"
+msgstr "pemenang"
+
+msgid "obliczenia kwantowe"
+msgstr "komputasi kuantum"
+
+msgid "fizyka kwantowa"
+msgstr "fisika kuantum"
+
+msgid "fizyka"
+msgstr "fisika"
+
+msgid "informatyka"
+msgstr "ilmu komputer"
+
+msgid "matematyka"
+msgstr "matematika"
+
+msgid "inżynieria"
+msgstr "teknik"
+
+msgid "chemia"
+msgstr "kimia"
+
+msgid "badania naukowe"
+msgstr "riset"
+
+msgid "praca w przemyśle"
+msgstr "industri"
+
+msgid "edukacja i popularyzacja"
+msgstr "pendidikan dan popularisasi sains"
+
+msgid "zgoda udzielona"
+msgstr "persetujuan diberikan"
+
+msgid "zgoda wycofana"
+msgstr "persetujuan ditarik"
+
+msgid "prośba czeka na mentora"
+msgstr "permintaan menunggu mentor"
+
+msgid "trwa"
+msgstr "aktif"
+
+msgid "odrzucona przez mentora"
+msgstr "ditolak oleh mentor"
+
+msgid "wycofana przez uczestnika"
+msgstr "ditarik oleh peserta"
+
+msgid "zakończona"
+msgstr "berakhir"
+
+msgid "zakończył mentor"
+msgstr "diakhiri oleh mentor"
+
+msgid "zakończył uczestnik"
+msgstr "diakhiri oleh peserta"
+
+msgid "zakończył organizator"
+msgstr "diakhiri oleh penyelenggara"
+
+msgid "mentor wycofał zgodę"
+msgstr "mentor menarik persetujuan"
+
+msgid "konto usunięte"
+msgstr "akun dihapus"
+
+msgid "rozmowa według zasad Wiadomości"
+msgstr "percakapan sesuai aturan Pesan"
+
+msgid "każdą wiadomość akceptuje organizator"
+msgstr "penyelenggara menyetujui setiap pesan"
+
+msgid "warsztaty"
+msgstr "lokakarya"
+
+msgid "webinar"
+msgstr "webinar"
+
+msgid "jury"
+msgstr "juri"
+
+msgid "inne"
+msgstr "lainnya"
+
+msgid "Absolwenci: prośba o mentoring"
+msgstr "Alumni: permintaan mentoring"
+
+msgid "Absolwenci: mentor przyjął Twoją prośbę"
+msgstr "Alumni: mentor telah menerima permintaan Anda"
+
+msgid "Absolwenci: odpowiedź na prośbę o mentoring"
+msgstr "Alumni: balasan atas permintaan mentoring Anda"
+
+msgid "Absolwenci: relacja mentorska zakończona"
+msgstr "Alumni: hubungan mentoring berakhir"
+
+msgid "Absolwenci: zgłoszono problem z relacją mentorską"
+msgstr "Alumni: masalah dalam hubungan mentoring dilaporkan"
+
+#, python-format
+msgid "%(name)s prosi Cię o mentoring w sieci absolwentów."
+msgstr "%(name)s meminta Anda menjadi mentor di jaringan alumni."
+
+msgid "Notatkę prośby przeczytasz i odpowiesz na nią po zalogowaniu:"
+msgstr "Anda dapat membaca catatan permintaan dan membalasnya setelah masuk:"
+
+#, python-format
+msgid "%(name)s zgadza się zostać Twoim mentorem."
+msgstr "%(name)s bersedia menjadi mentor Anda."
+
+msgid "Rozmowa czeka w Wiadomościach:"
+msgstr "Percakapan menunggu di Pesan:"
+
+#, python-format
+msgid "%(name)s nie może teraz przyjąć Twojej prośby o mentoring."
+msgstr "%(name)s saat ini tidak dapat menerima permintaan mentoring Anda."
+
+msgid "Możesz poprosić inną osobę z katalogu absolwentów:"
+msgstr "Anda dapat meminta kepada orang lain dari direktori alumni:"
+
+msgid "Relacja mentorska w sieci absolwentów została zakończona."
+msgstr "Sebuah hubungan mentoring di jaringan alumni telah berakhir."
+
+msgid "Rozmowa zostaje w Wiadomościach do odczytu. Szczegóły:"
+msgstr "Percakapan tetap ada di Pesan dalam mode hanya baca. Detail:"
+
+msgid "Jedna ze stron relacji mentorskiej zgłosiła problem. Powód przeczytasz w panelu:"
+msgstr "Salah satu pihak dalam hubungan mentoring melaporkan masalah. Anda dapat membaca alasannya di panel:"
+
+msgid "Do sieci absolwentów dołączają uczestnicy tego konkursu."
+msgstr "Jaringan alumni terbuka bagi peserta kompetisi ini."
+
+msgid "Do sieci absolwentów dołączają osoby pełnoletnie. Wróć tu po swoich 18. urodzinach – Twoje osiągnięcia poczekają."
+msgstr "Jaringan alumni terbuka bagi orang dewasa. Kembalilah setelah ulang tahun ke-18 Anda – prestasi Anda akan tetap menunggu."
+
+#, python-format
+msgid "Do sieci absolwentów dołączają osoby z osiągnięciem w zakończonej edycji na poziomie co najmniej: %(level)s."
+msgstr "Jaringan alumni terbuka bagi orang dengan prestasi dalam edisi yang telah selesai, minimal pada tingkat: %(level)s."
+
+msgid "Chcę należeć do sieci absolwentów tego konkursu. Zgadzam się, żeby organizator przetwarzał moje imię i inicjał nazwiska (pełne imię i nazwisko – tylko jeśli tak wybiorę i mam zgodę na publikację nazwiska), moje osiągnięcia z ogłoszonych wyników oraz dane, które sam wpiszę do profilu, w celu: pokazania profilu zalogowanym uczestnikom konkursu (a na publicznej ścianie – tylko jeśli to zaznaczę), kontaktu mentorskiego przez Wiadomości, wysyłania mi zaproszeń na warsztaty, webinary i do jury (mogę się wypisać w każdym liście) oraz zagregowanych statystyk „gdzie są teraz”, w których nikt nie jest rozpoznawalny. Zgodę mogę wycofać w każdej chwili – profil zniknie od razu."
+msgstr "Saya ingin tergabung dalam jaringan alumni kompetisi ini. Saya setuju bahwa penyelenggara dapat memproses nama depan dan inisial nama belakang saya (nama lengkap hanya jika saya memilihnya dan telah menyetujui publikasi nama saya), prestasi saya dari hasil yang telah diumumkan, serta data yang saya isi sendiri di profil, untuk: menampilkan profil saya kepada peserta kompetisi yang sudah masuk (dan di dinding publik hanya jika saya mencentang opsi tersebut), memungkinkan kontak mentoring melalui Pesan, mengirimi saya undangan ke lokakarya, webinar, dan peran juri (saya dapat berhenti berlangganan di setiap email), serta menyusun statistik gabungan “di mana mereka sekarang” yang tidak memungkinkan identifikasi siapa pun. Saya dapat menarik persetujuan kapan saja – profil saya akan segera hilang."
+
+msgid "Ta część serwisu jest dostępna dla uczestników tego konkursu."
+msgstr "Bagian situs ini tersedia bagi peserta kompetisi ini."
+
+msgid "Ta część serwisu jest dostępna dla koordynatora."
+msgstr "Bagian situs ini tersedia bagi koordinator."
+
+msgid "Zaznacz zgodę, żeby dołączyć do sieci absolwentów."
+msgstr "Centang kotak persetujuan untuk bergabung dengan jaringan alumni."
+
+msgid "nie podano"
+msgstr "tidak diisi"
+
+msgid "Uczelnia"
+msgstr "Universitas"
+
+msgid "Kierunek"
+msgstr "Bidang studi"
+
+msgid "Zainteresowania (osoba może mieć kilka)"
+msgstr "Minat (satu orang dapat memiliki beberapa)"
+
+msgid "Najwyższe osiągnięcie"
+msgstr "Prestasi tertinggi"
+
+msgid "Zainteresowania:"
+msgstr "Minat:"
+
+msgid "Mentor"
+msgstr "Mentor"
+
+#, python-format
+msgid "wolne miejsca: %(slots)s"
+msgstr "tempat kosong: %(slots)s"
+
+msgid "brak wolnych miejsc"
+msgstr "tidak ada tempat kosong"
+
+msgid "Poproś o mentoring"
+msgstr "Minta mentoring"
+
+msgid "Absolwenci"
+msgstr "Alumni"
+
+msgid "Mentoring"
+msgstr "Mentoring"
+
+msgid "Zaproszenia"
+msgstr "Undangan"
+
+msgid "Gdzie są teraz"
+msgstr "Di mana mereka sekarang"
+
+msgid "Absolwenci – panel koordynatora"
+msgstr "Alumni – panel koordinator"
+
+msgid "Sieć byłych uczestników, którzy wyrazili na to zgodę: profile, mentoring, zaproszenia i zagregowane statystyki."
+msgstr "Jaringan mantan peserta yang telah menyetujuinya: profil, mentoring, undangan, dan statistik gabungan."
+
+msgid "dane osobowe"
+msgstr "data pribadi"
+
+msgid "Podstawą jest zgoda absolwenta – wycofanie usuwa profil od razu. Osiągnięcia liczą się wyłącznie z ogłoszonych wyników i wystawionych dyplomów."
+msgstr "Dasar hukumnya adalah persetujuan alumni – penarikan persetujuan langsung menghapus profil. Prestasi hanya diambil dari hasil yang telah diumumkan dan sertifikat yang telah diterbitkan."
+
+msgid "Ustawienia"
+msgstr "Pengaturan"
+
+msgid "Mentoring wymaga włączonych Wiadomości – bez nich mentorzy nie mogą przyjmować próśb."
+msgstr "Mentoring memerlukan Pesan yang aktif – tanpanya mentor tidak dapat menerima permintaan."
+
+msgid "„Kto może dołączyć” to najniższe osiągnięcie w zakończonej edycji. Dołączają wyłącznie osoby pełnoletnie. Mentoring małoletnich toczy się zawsze z udziałem organizatora: przy zasadzie „ta sama grupa wiekowa” każdą wiadomość akceptujesz przed doręczeniem, a przy „bez ograniczeń” przeglądasz je po doręczeniu (kolejka moderacji Wiadomości)."
+msgstr "“Siapa yang dapat bergabung” adalah prestasi minimum dalam edisi yang telah selesai. Hanya orang dewasa yang dapat bergabung. Mentoring bagi peserta di bawah umur selalu melibatkan penyelenggara: dengan aturan “kelompok usia yang sama” Anda menyetujui setiap pesan sebelum dikirim, dan dengan aturan “tanpa batasan” Anda meninjau pesan setelah dikirim (antrean moderasi Pesan)."
+
+msgid "Zapisz ustawienia"
+msgstr "Simpan pengaturan"
+
+msgid "Profile absolwentów"
+msgstr "Profil alumni"
+
+#, python-format
+msgid "Mogłoby jeszcze dołączyć (spełnia kryteria, nie dołączyło): %(count)s."
+msgstr "Masih dapat bergabung (memenuhi kriteria tetapi belum bergabung): %(count)s."
+
+msgid "Szukaj"
+msgstr "Cari"
+
+msgid "Osoba"
+msgstr "Orang"
+
+msgid "Osiągnięcia"
+msgstr "Prestasi"
+
+msgid "Widoczność"
+msgstr "Visibilitas"
+
+msgid "ukryty"
+msgstr "disembunyikan"
+
+msgid "katalog"
+msgstr "direktori"
+
+msgid "ściana"
+msgstr "dinding"
+
+msgid "Pokaż"
+msgstr "Tampilkan"
+
+msgid "Ukryj"
+msgstr "Sembunyikan"
+
+msgid "Nikt jeszcze nie dołączył do sieci absolwentów."
+msgstr "Belum ada yang bergabung dengan jaringan alumni."
+
+msgid "Poprzednia"
+msgstr "Sebelumnya"
+
+msgid "Następna"
+msgstr "Berikutnya"
+
+msgid "Zaproszenia – panel koordynatora"
+msgstr "Undangan – panel koordinator"
+
+msgid "Zaproszenia dla absolwentów"
+msgstr "Undangan untuk alumni"
+
+msgid "List do absolwentów, którzy nie wyłączyli zaproszeń – w ich języku, z odnośnikiem wypisu. Do webinaru wklej adres wydarzenia."
+msgstr "Email kepada alumni yang belum menonaktifkan undangan – dalam bahasa mereka, dengan tautan berhenti berlangganan. Untuk webinar, tempelkan alamat acara."
+
+#, python-format
+msgid "Odbiorców z tymi filtrami: %(count)s."
+msgstr "Penerima dengan filter ini: %(count)s."
+
+msgid "Policz odbiorców"
+msgstr "Hitung penerima"
+
+msgid "Wyślij zaproszenie"
+msgstr "Kirim undangan"
+
+msgid "Wysłane"
+msgstr "Terkirim"
+
+msgid "Data"
+msgstr "Tanggal"
+
+msgid "Tytuł"
+msgstr "Judul"
+
+msgid "Odbiorcy"
+msgstr "Penerima"
+
+msgid "Nie wysłano jeszcze żadnego zaproszenia."
+msgstr "Belum ada undangan yang dikirim."
+
+msgid "Mentoring – panel koordynatora"
+msgstr "Mentoring – panel koordinator"
+
+msgid "Prośby i relacje mentor–uczestnik. Wiadomości rozmów mentorskich czytasz w kolejce moderacji Wiadomości."
+msgstr "Permintaan dan hubungan mentor–peserta. Pesan dalam percakapan mentoring Anda baca di antrean moderasi Pesan."
+
+msgid "Kolejka moderacji"
+msgstr "Antrean moderasi"
+
+msgid "Mentoring jest wyłączony – istniejące rozmowy mentorskie są tylko do odczytu."
+msgstr "Mentoring dinonaktifkan – percakapan mentoring yang ada hanya dapat dibaca."
+
+msgid "Zgłoszenia problemów"
+msgstr "Masalah yang dilaporkan"
+
+msgid "Relacja"
+msgstr "Hubungan"
+
+msgid "Zgłoszone"
+msgstr "Dilaporkan"
+
+msgid "Zamknij zgłoszenie"
+msgstr "Tutup laporan"
+
+msgid "Relacje"
+msgstr "Hubungan"
+
+msgid "wszystkie"
+msgstr "semua"
+
+msgid "Uczestnik"
+msgstr "Peserta"
+
+msgid "Stan"
+msgstr "Status"
+
+msgid "Kanał"
+msgstr "Saluran"
+
+msgid "Zgłoszenia"
+msgstr "Laporan"
+
+msgid "małoletni"
+msgstr "di bawah umur"
+
+msgid "notatka prośby"
+msgstr "catatan permintaan"
+
+msgid "Powód zakończenia"
+msgstr "Alasan pengakhiran"
+
+msgid "Zakończ relację"
+msgstr "Akhiri hubungan"
+
+msgid "Brak relacji mentorskich."
+msgstr "Tidak ada hubungan mentoring."
+
+msgid "Zgłoszenia: problemy z relacją / zgłoszone wiadomości w rozmowie (otwarte)."
+msgstr "Laporan: masalah hubungan / pesan yang dilaporkan dalam percakapan (terbuka)."
+
+msgid "Gdzie są teraz – panel koordynatora"
+msgstr "Di mana mereka sekarang – panel koordinator"
+
+#, python-format
+msgid "Zagregowane dane z profili absolwentów. Grupy mniejsze niż %(k)s osób nie są pokazywane osobno – nikogo nie da się z tych tabel rozpoznać."
+msgstr "Data gabungan dari profil alumni. Kelompok yang lebih kecil dari %(k)s orang tidak ditampilkan terpisah – tidak ada yang dapat diidentifikasi dari tabel ini."
+
+#, python-format
+msgid "Absolwentów w sieci: %(total)s."
+msgstr "Alumni dalam jaringan: %(total)s."
+
+#, python-format
+msgid "Mentorów: %(mentors)s."
+msgstr "Mentor: %(mentors)s."
+
+#, python-format
+msgid "Mentorów: mniej niż %(k)s."
+msgstr "Mentor: kurang dari %(k)s."
+
+#, python-format
+msgid "Sieć ma mniej niż %(k)s osób – rozkładów nie pokazujemy, bo każda liczba mówiłaby o konkretnych ludziach."
+msgstr "Jaringan ini beranggotakan kurang dari %(k)s orang – kami tidak menampilkan sebaran, karena setiap angka akan menggambarkan orang tertentu."
+
+msgid "Katalog absolwentów"
+msgstr "Direktori alumni"
+
+msgid "Absolwenci, którzy zgodzili się pokazać swój profil zalogowanym uczestnikom."
+msgstr "Alumni yang bersedia menampilkan profilnya kepada peserta yang sudah masuk."
+
+msgid "Szukaj (imię, uczelnia, kierunek)"
+msgstr "Cari (nama depan, universitas, bidang studi)"
+
+msgid "Zainteresowanie"
+msgstr "Minat"
+
+msgid "Tylko mentorzy z wolnym miejscem"
+msgstr "Hanya mentor dengan tempat kosong"
+
+msgid "Strony katalogu"
+msgstr "Halaman direktori"
+
+msgid "Nikogo tu jeszcze nie ma"
+msgstr "Belum ada siapa pun di sini"
+
+msgid "Zgłoś problem z mentoringiem"
+msgstr "Laporkan masalah mentoring"
+
+msgid "Zgłoszenie trafi od razu do organizatora. Jeśli problem dotyczy konkretnej wiadomości, zgłoś ją także w Wiadomościach przyciskiem „Zgłoś”."
+msgstr "Laporan langsung dikirim ke penyelenggara. Jika masalahnya menyangkut pesan tertentu, laporkan juga di Pesan dengan tombol “Laporkan”."
+
+msgid "Wyślij zgłoszenie"
+msgstr "Kirim laporan"
+
+msgid "Sieć absolwentów"
+msgstr "Jaringan alumni"
+
+msgid "Byli uczestnicy, którzy pokazują, co robią dziś, pomagają obecnym uczestnikom jako mentorzy i dostają zaproszenia na warsztaty, webinary i do jury."
+msgstr "Mantan peserta yang menunjukkan kegiatan mereka saat ini, membantu peserta saat ini sebagai mentor, dan menerima undangan ke lokakarya, webinar, dan peran juri."
+
+msgid "Publiczna ściana"
+msgstr "Dinding publik"
+
+msgid "Twój profil"
+msgstr "Profil Anda"
+
+msgid "Organizator ukrył Twój profil – nie widać go w katalogu ani na ścianie. Napisz do organizatora, jeśli to pomyłka."
+msgstr "Penyelenggara telah menyembunyikan profil Anda – profil tidak terlihat di direktori maupun di dinding. Hubungi penyelenggara jika ini suatu kesalahan."
+
+msgid "Tak widzą Cię inni zalogowani uczestnicy:"
+msgstr "Beginilah peserta lain yang sudah masuk melihat Anda:"
+
+msgid "Zapisz profil"
+msgstr "Simpan profil"
+
+msgid "Wycofanie zgody"
+msgstr "Penarikan persetujuan"
+
+msgid "Po wycofaniu zgody Twój profil absolwenta zniknie od razu, a relacje, w których jesteś mentorem, zakończą się. Twoje wyniki i dyplomy zostają – to dokumentacja zawodów."
+msgstr "Setelah Anda menarik persetujuan, profil alumni Anda akan segera hilang dan hubungan di mana Anda menjadi mentor akan berakhir. Hasil dan sertifikat Anda tetap ada – keduanya merupakan bagian dari arsip kompetisi."
+
+msgid "Wycofaj zgodę i usuń profil"
+msgstr "Tarik persetujuan dan hapus profil"
+
+msgid "Dołącz do sieci absolwentów"
+msgstr "Bergabung dengan jaringan alumni"
+
+msgid "Twoje osiągnięcia z ogłoszonych wyników:"
+msgstr "Prestasi Anda dari hasil yang telah diumumkan:"
+
+msgid "Dołączam"
+msgstr "Bergabung"
+
+msgid "Organizator nie włączył jeszcze mentoringu."
+msgstr "Penyelenggara belum mengaktifkan mentoring."
+
+msgid "Rola"
+msgstr "Peran"
+
+msgid "Druga osoba"
+msgstr "Pihak lain"
+
+msgid "jesteś mentorem"
+msgstr "Anda adalah mentor"
+
+msgid "Twój mentor"
+msgstr "mentor Anda"
+
+msgid "Przyjmij"
+msgstr "Terima"
+
+msgid "Odrzuć"
+msgstr "Tolak"
+
+msgid "Wycofaj prośbę"
+msgstr "Tarik permintaan"
+
+msgid "Rozmowa"
+msgstr "Percakapan"
+
+msgid "Zakończ"
+msgstr "Akhiri"
+
+msgid "Zgłoś problem"
+msgstr "Laporkan masalah"
+
+msgid "Nie masz jeszcze żadnej relacji mentorskiej. Mentora wybierzesz w katalogu absolwentów – przy osobach, które pomagają, stoi przycisk „Poproś o mentoring”."
+msgstr "Anda belum memiliki hubungan mentoring. Anda dapat memilih mentor di direktori alumni – orang yang bersedia membantu memiliki tombol “Minta mentoring”."
+
+msgid "Rozmowa mentorska toczy się w Wiadomościach. Jeśli uczestnik jest niepełnoletni, organizator czyta wiadomości – zależnie od zasad konkursu przed doręczeniem albo po nim."
+msgstr "Percakapan mentoring berlangsung di Pesan. Jika peserta masih di bawah umur, penyelenggara membaca pesan – sebelum atau setelah dikirim, tergantung aturan kompetisi."
+
+msgid "Prośba o mentoring"
+msgstr "Permintaan mentoring"
+
+msgid "Jeśli mentor przyjmie prośbę, rozmowa otworzy się w Wiadomościach. Organizator widzi relacje mentorskie i – zależnie od zasad konkursu – czyta wiadomości."
+msgstr "Jika mentor menerima permintaan, percakapan akan dibuka di Pesan. Penyelenggara dapat melihat hubungan mentoring dan – tergantung aturan kompetisi – membaca pesan."
+
+msgid "Wyślij prośbę"
+msgstr "Kirim permintaan"
+
+msgid "Wypis z zaproszeń"
+msgstr "Berhenti berlangganan undangan"
+
+msgid "Wypis z zaproszeń dla absolwentów"
+msgstr "Berhenti berlangganan undangan alumni"
+
+msgid "Ten odnośnik jest nieprawidłowy. Zaproszenia wyłączysz też w swoim profilu absolwenta."
+msgstr "Tautan ini tidak valid. Anda juga dapat menonaktifkan undangan di profil alumni Anda."
+
+msgid "Gotowe – nie będziesz już dostawać zaproszeń. Włączysz je z powrotem w profilu absolwenta."
+msgstr "Selesai – Anda tidak akan menerima undangan lagi. Anda dapat mengaktifkannya kembali di profil alumni Anda."
+
+msgid "Kliknij, żeby nie dostawać więcej zaproszeń od organizatora (warsztaty, webinary, jury)."
+msgstr "Klik untuk berhenti menerima undangan dari penyelenggara (lokakarya, webinar, juri)."
+
+msgid "Wypisz mnie"
+msgstr "Berhentikan langganan saya"
+
+msgid "Nasi absolwenci"
+msgstr "Alumni kami"
+
+msgid "Laureaci i finaliści poprzednich edycji – i to, co robią dziś."
+msgstr "Pemenang dan finalis edisi sebelumnya – dan kegiatan mereka saat ini."
+
+msgid "Strony"
+msgstr "Halaman"
+
+#, python-format
+msgid "Podaj adres profilu %(service)s zaczynający się od https://."
+msgstr "Masukkan alamat profil %(service)s yang diawali dengan https://."
+
+#, python-format
+msgid "To nie wygląda na adres profilu %(service)s."
+msgstr "Ini tidak tampak seperti alamat profil %(service)s."
+
+msgid "Adres wydarzenia musi zaczynać się od https://."
+msgstr "Alamat acara harus diawali dengan https://."
+
+msgid "Witaj w sieci absolwentów! Uzupełnij profil – każde pole jest opcjonalne."
+msgstr "Selamat datang di jaringan alumni! Lengkapi profil Anda – semua kolom bersifat opsional."
+
+msgid "Profil zapisany."
+msgstr "Profil disimpan."
+
+msgid "Zgoda wycofana – Twój profil absolwenta został usunięty."
+msgstr "Persetujuan ditarik – profil alumni Anda telah dihapus."
+
+msgid "Prośba wysłana. Dostaniesz e-mail, gdy mentor odpowie."
+msgstr "Permintaan terkirim. Anda akan menerima email saat mentor membalas."
+
+msgid "Prośba przyjęta – rozmowa czeka w Wiadomościach."
+msgstr "Permintaan diterima – percakapan menunggu di Pesan."
+
+msgid "Prośba odrzucona."
+msgstr "Permintaan ditolak."
+
+msgid "Prośba wycofana."
+msgstr "Permintaan ditarik."
+
+msgid "Relacja mentorska zakończona."
+msgstr "Hubungan mentoring berakhir."
+
+msgid "Zgłoszenie wysłane do organizatora."
+msgstr "Laporan dikirim ke penyelenggara."
+
+msgid "Ustawienia zapisane."
+msgstr "Pengaturan disimpan."
+
+msgid "Profil ukryty."
+msgstr "Profil disembunyikan."
+
+msgid "Profil znów jest widoczny."
+msgstr "Profil kembali terlihat."
+
+msgid "Podaj powód zakończenia relacji."
+msgstr "Berikan alasan pengakhiran hubungan."
+
+msgid "Relacja zakończona. Obie strony dostały list."
+msgstr "Hubungan diakhiri. Kedua pihak telah menerima email."
+
+msgid "Zgłoszenie zamknięte."
+msgstr "Laporan ditutup."
+
+#, python-format
+msgid "Zaproszenie wysłane. Liczba odbiorców: %(count)s."
+msgstr "Undangan terkirim. Jumlah penerima: %(count)s."
