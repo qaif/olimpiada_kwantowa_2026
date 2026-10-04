@@ -2,8 +2,8 @@
 
 from django.urls import path
 
-from apps.delegation_logistics.urls import urlpatterns as final_logistics_urlpatterns
 from apps.alumni.urls import urlpatterns as alumni_urlpatterns
+from apps.delegation_logistics.urls import urlpatterns as final_logistics_urlpatterns
 from apps.medals.urls import urlpatterns as medal_urlpatterns  # MED-01
 from apps.payments.urls import urlpatterns as payment_urlpatterns
 from apps.problem_translations.urls import urlpatterns as translation_urlpatterns
