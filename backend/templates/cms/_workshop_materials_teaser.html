@@ -1,4 +1,4 @@
-{% comment %}
+{% load i18n %}{% comment %}
   Zapowiedź materiałów z warsztatów na stronie „Warsztaty” (``{% workshop_materials_teaser %}``).
   Wersja dla gościa trafia do pamięci stron publicznych, więc nie ma w niej niczego poza liczbą
   i odnośnikiem do logowania – adresy plików powstają wyłącznie w widokach dla zalogowanych.
@@ -7,13 +7,13 @@
 {% if show %}
   {% url 'web:workshop-materials' as materials_url %}
   <aside class="card card--accent" aria-labelledby="materialy-z-warsztatow">
-    <h2 class="card__title" id="materialy-z-warsztatow">Materiały z warsztatów</h2>
-    <p>Do warsztatów są nagrania i materiały do pobrania ({{ count }}). Oglądać je można wyłącznie
-      po zalogowaniu na konto uczestnika albo opiekuna.</p>
+    <h2 class="card__title" id="materialy-z-warsztatow">{% translate "Materiały z warsztatów" %}</h2>
+    <p>{% blocktranslate trimmed with count=count %}Do warsztatów są nagrania i materiały do pobrania ({{ count }}). Oglądać je można wyłącznie
+      po zalogowaniu na konto uczestnika albo opiekuna.{% endblocktranslate %}</p>
     {% if authenticated %}
-      <p><a class="btn btn--primary" href="{{ materials_url }}">Zobacz materiały</a></p>
+      <p><a class="btn btn--primary" href="{{ materials_url }}">{% translate "Zobacz materiały" %}</a></p>
     {% else %}
-      <p><a class="btn btn--primary" href="{% url 'web:login' %}?next={{ materials_url|urlencode }}">Zaloguj się, aby obejrzeć</a></p>
+      <p><a class="btn btn--primary" href="{% url 'web:login' %}?next={{ materials_url|urlencode }}">{% translate "Zaloguj się, aby obejrzeć" %}</a></p>
     {% endif %}
   </aside>
 {% endif %}

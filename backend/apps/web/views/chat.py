@@ -25,6 +25,8 @@ from django.http import Http404, HttpResponse
 from django.shortcuts import redirect
 from django.template.response import TemplateResponse
 from django.urls import reverse
+from django.utils.translation import gettext as _
+from django.utils.translation import gettext_lazy
 from django.views.generic import View
 
 from apps.chat import notifications
@@ -54,32 +56,32 @@ DIRECTORY_TEMPLATE = "web/chat/directory.html"
 
 #: Nagłówek nad wiadomością organizatora. Uczestnik ma odróżnić zdanie organizatora od zdania
 #: kolegi – a przy wspólnej skrzynce także wiedzieć, **kto** z zespołu odpowiedział.
-ORGANIZER_LABEL = "Organizator"
+ORGANIZER_LABEL = gettext_lazy("Organizator")
 
 #: Zdania nad formularzem rozmowy między uczestnikami – zależne od trybu (§ 7 zadania). To jest
 #: obietnica dla nadawcy o tym, kto może przeczytać jego wiadomość, więc brzmi dokładnie tak,
 #: jak działa kolejka moderacji (``apps.chat.services.moderator_visible_q``).
 PRIVACY_NOTICE = {
-    PeerMode.PRE: (
+    PeerMode.PRE: gettext_lazy(
         "Wiadomości mogą być czytane przez organizatora w ramach moderacji. Każda wiadomość czeka "
         "na akceptację organizatora – odbiorca zobaczy ją dopiero po niej."
     ),
-    PeerMode.POST: (
+    PeerMode.POST: gettext_lazy(
         "Wiadomości mogą być czytane przez organizatora w ramach moderacji. Dochodzą od razu, "
         "a organizator przegląda je po fakcie."
     ),
-    PeerMode.NONE: "Organizator widzi tylko zgłoszone wiadomości.",
+    PeerMode.NONE: gettext_lazy("Organizator widzi tylko zgłoszone wiadomości."),
 }
 
 #: Zdanie nad formularzem rozmowy szyfrowanej (§ 11). Mówi też, co się dzieje przy zgłoszeniu –
 #: to jedyna chwila, w której treść takiej rozmowy trafia do kogokolwiek poza jej stronami.
-ENCRYPTED_NOTICE = (
+ENCRYPTED_NOTICE = gettext_lazy(
     "Rozmowa szyfrowana end-to-end: treść znają tylko Wasze przeglądarki – nie zna jej serwer ani "
     "organizator. Jeśli zgłosisz wiadomość, jej odszyfrowana treść trafi do organizatora."
 )
 
 #: Notka w wątku szyfrowanym, gdy druga strona zmieniła klucz (np. zapomniała hasła do wiadomości).
-KEY_CHANGED_NOTICE = (
+KEY_CHANGED_NOTICE = gettext_lazy(
     "Klucz szyfrowania tej osoby zmienił się. Jeśli to niespodzianka, porównajcie odciski kluczy na żywo."
 )
 
@@ -236,7 +238,7 @@ class ChatParticipantMixin(ParticipantRequiredMixin):
             if message.sender_role == SenderRole.ORGANIZER:
                 author = organizer_author(message.sender)
             else:
-                author = "Ty" if own else display_author(message.sender)
+                author = _("Ty") if own else display_author(message.sender)
             if message.is_encrypted:
                 other_key = message.recipient_public_key if own else message.sender_public_key
                 if other_key_seen and other_key != other_key_seen:
@@ -399,7 +401,7 @@ class ChatThreadView(ChatParticipantMixin, ThrottledFormMixin, View):
             else:
                 if not self.is_htmx():
                     if message.status == MessageStatus.PENDING:
-                        messages.success(request, "Wiadomość czeka na akceptację organizatora.")
+                        messages.success(request, _("Wiadomość czeka na akceptację organizatora."))
                     return redirect(reverse("web:chat-thread", args=[conversation.pk]))
                 form = MessageForm()
         if self.is_htmx():
@@ -576,7 +578,7 @@ class ChatStartView(ChatNewThreadMixin, ThrottledFormMixin, View):
             messages.error(request, str(exc.detail))
             return self.render_new(request, form, status=exc.status_code)
         if message.status == MessageStatus.PENDING:
-            messages.success(request, "Wiadomość czeka na akceptację organizatora.")
+            messages.success(request, _("Wiadomość czeka na akceptację organizatora."))
         return redirect(reverse("web:chat-thread", args=[message.conversation_id]))
 
 
@@ -593,7 +595,7 @@ class ChatReportView(ChatParticipantMixin, ThrottledFormMixin, View):
         form = ReportForm(request.POST)
         target = reverse("web:chat-thread", args=[pk])
         if not form.is_valid():
-            messages.error(request, "Napisz krótko, dlaczego zgłaszasz tę wiadomość.")
+            messages.error(request, _("Napisz krótko, dlaczego zgłaszasz tę wiadomość."))
             return redirect(target)
         message = Message.objects.filter(
             conversation=member.conversation, pk=form.cleaned_data["message"]
@@ -614,7 +616,7 @@ class ChatReportView(ChatParticipantMixin, ThrottledFormMixin, View):
                 raise Http404(str(exc.detail)) from exc
             messages.error(request, str(exc.detail))
         else:
-            messages.success(request, "Zgłoszenie trafiło do organizatora. Dziękujemy.")
+            messages.success(request, _("Zgłoszenie trafiło do organizatora. Dziękujemy."))
         return redirect(target)
 
 
@@ -634,11 +636,11 @@ class ChatBlockView(ChatParticipantMixin, ThrottledFormMixin, View):
         try:
             if request.POST.get("action") == "unblock":
                 chat.unblock(participant=self.me, conversation=conversation)
-                messages.success(request, "Odblokowano – ta osoba znów może do Ciebie pisać.")
+                messages.success(request, _("Odblokowano – ta osoba znów może do Ciebie pisać."))
             else:
                 chat.block(participant=self.me, conversation=conversation)
                 messages.success(
-                    request, "Zablokowano. Ta osoba nie może do Ciebie pisać ani zacząć nowej rozmowy."
+                    request, _("Zablokowano. Ta osoba nie może do Ciebie pisać ani zacząć nowej rozmowy.")
                 )
         except DomainError as exc:
             messages.error(request, str(exc.detail))
@@ -670,7 +672,7 @@ class ChatKeyView(ChatParticipantMixin, ThrottledFormMixin, View):
         self._check()
         form = ChatKeyForm(request.POST)
         if not form.is_valid():
-            messages.error(request, "Nie udało się zapisać klucza – spróbuj ponownie.")
+            messages.error(request, _("Nie udało się zapisać klucza – spróbuj ponownie."))
             return TemplateResponse(request, KEY_TEMPLATE, self._context(), status=400)
         try:
             chat.save_key(
@@ -687,7 +689,7 @@ class ChatKeyView(ChatParticipantMixin, ThrottledFormMixin, View):
         except DomainError as exc:
             messages.error(request, str(exc.detail))
             return TemplateResponse(request, KEY_TEMPLATE, self._context(), status=exc.status_code)
-        messages.success(request, "Klucz szyfrowania jest gotowy.")
+        messages.success(request, _("Klucz szyfrowania jest gotowy."))
         return redirect(reverse("web:chat-key"))
 
     def _context(self) -> dict:
@@ -733,10 +735,10 @@ class ChatPreferencesView(LoginRequiredMixin, View):
         form = ChatPreferencesForm(request.POST, participant=participant is not None)
         target = f"{profile_url(request)}#wiadomosci"
         if not form.is_valid():
-            messages.error(request, "Nie udało się zapisać ustawień wiadomości.")
+            messages.error(request, _("Nie udało się zapisać ustawień wiadomości."))
             return redirect(target)
         notifications.save_preferences(request.user, email_on_message=form.cleaned_data["email_on_message"])
         if participant is not None and "discoverable" in form.cleaned_data:
             chat.set_discoverable(participant, form.cleaned_data["discoverable"])
-        messages.success(request, "Ustawienia wiadomości zostały zapisane.")
+        messages.success(request, _("Ustawienia wiadomości zostały zapisane."))
         return redirect(target)

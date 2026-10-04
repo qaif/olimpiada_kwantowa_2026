@@ -41,6 +41,7 @@ from django.conf import settings
 from django.db import models
 from django.utils import timezone
 from django.utils.text import slugify
+from django.utils.translation import gettext_lazy as _
 
 from apps.cms.workshops import WORKSHOP_KEY_LENGTH
 from apps.competitions.scoping import competition_scoped_manager
@@ -55,9 +56,9 @@ FEATURE_FLAG = "workshop_materials"
 class MaterialKind(models.TextChoices):
     """Trzy rodzaje materiału – po jednym na każdą drogę, którą materiał dociera do widza."""
 
-    VIDEO = "video", "film"
-    FILE = "file", "plik"
-    LINK = "link", "odnośnik"
+    VIDEO = "video", _("film")
+    FILE = "file", _("plik")
+    LINK = "link", _("odnośnik")
 
 
 class MaterialStatus(models.TextChoices):

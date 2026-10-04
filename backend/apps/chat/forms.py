@@ -62,7 +62,7 @@ class MessageForm(forms.Form):
     required_css_class = REQUIRED_CSS_CLASS
 
     body = forms.CharField(
-        label="Wiadomość",
+        label=gettext_lazy("Wiadomość"),
         max_length=MAX_BODY_LENGTH,
         required=False,
         widget=forms.Textarea(attrs={"rows": 3, "maxlength": MAX_BODY_LENGTH}),
@@ -93,10 +93,10 @@ class ReportForm(forms.Form):
 
     message = forms.IntegerField(widget=forms.HiddenInput)
     reason = forms.CharField(
-        label="Dlaczego zgłaszasz tę wiadomość",
+        label=gettext_lazy("Dlaczego zgłaszasz tę wiadomość"),
         max_length=MAX_REASON_LENGTH,
         widget=forms.Textarea(attrs={"rows": 2}),
-        help_text="Zgłoszenie widzi wyłącznie organizator.",
+        help_text=gettext_lazy("Zgłoszenie widzi wyłącznie organizator."),
     )
     #: Kopia jawna wiadomości szyfrowanej – wpisuje ją skrypt po odszyfrowaniu (§ 11.3).
     reported_plaintext = forms.CharField(required=False, max_length=MAX_BODY_LENGTH, widget=forms.HiddenInput)

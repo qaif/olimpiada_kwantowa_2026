@@ -22,6 +22,7 @@ from __future__ import annotations
 
 from django.db import transaction
 from django.utils import timezone
+from django.utils.translation import gettext as _
 from django.views.decorators.debug import sensitive_variables
 from rest_framework import status
 
@@ -243,13 +244,13 @@ def _assert_email_free(email: str, *, exclude_pk: int | None = None) -> str:
     """Adres musi być wolny **bez względu na wielkość liter** (constraint ``accounts_user_email_ci_uniq``)."""
     normalized = (email or "").strip().lower()
     if not normalized:
-        raise DomainError("Podaj nowy adres e-mail.", "EMAIL_REQUIRED", status.HTTP_400_BAD_REQUEST)
+        raise DomainError(_("Podaj nowy adres e-mail."), "EMAIL_REQUIRED", status.HTTP_400_BAD_REQUEST)
     taken = User.objects.filter(email__iexact=normalized)
     if exclude_pk is not None:
         taken = taken.exclude(pk=exclude_pk)
     if taken.exists():
         raise DomainError(
-            "Konto z tym adresem e-mail już istnieje.", "EMAIL_TAKEN", status.HTTP_400_BAD_REQUEST
+            _("Konto z tym adresem e-mail już istnieje."), "EMAIL_TAKEN", status.HTTP_400_BAD_REQUEST
         )
     return normalized
 
@@ -264,7 +265,7 @@ def request_email_change(user: User, *, new_email: str, request=None) -> str:
     """
     normalized = _assert_email_free(new_email, exclude_pk=user.pk)
     if normalized == user.email:
-        raise DomainError("To już jest adres tego konta.", "EMAIL_UNCHANGED", status.HTTP_400_BAD_REQUEST)
+        raise DomainError(_("To już jest adres tego konta."), "EMAIL_UNCHANGED", status.HTTP_400_BAD_REQUEST)
     send_email_change_confirmation(user, normalized, request=request)
     audit(user, "account.email_change_requested", user, {"confirmation_sent": True}, request=request)
     return normalized
@@ -284,7 +285,7 @@ def confirm_email_change(token: str, *, request=None) -> User:
     new_email = (payload.get("new_email") or "").strip().lower()
     if user is None or not new_email or user.email != (payload.get("email") or "").strip().lower():
         raise DomainError(
-            "Link potwierdzający jest nieprawidłowy albo wygasł.",
+            _("Link potwierdzający jest nieprawidłowy albo wygasł."),
             "EMAIL_CHANGE_INVALID",
             status.HTTP_400_BAD_REQUEST,
         )
@@ -623,7 +624,7 @@ def delete_own_account(user: User, *, request=None) -> str:
     """
     if _is_coordinator(user):
         raise DomainError(
-            "Konta koordynatora nie można usunąć z panelu – skontaktuj się z administratorem serwisu.",
+            _("Konta koordynatora nie można usunąć z panelu – skontaktuj się z administratorem serwisu."),
             "COORDINATOR_SELF_DELETE",
             status.HTTP_400_BAD_REQUEST,
         )
@@ -645,11 +646,11 @@ def verify_self_deletion_credentials(user: User, *, password: str = "", email: s
     """
     if user.has_usable_password():
         if not password or not user.check_password(password):
-            raise DomainError("Nieprawidłowe hasło.", "INVALID_PASSWORD", status.HTTP_400_BAD_REQUEST)
+            raise DomainError(_("Nieprawidłowe hasło."), "INVALID_PASSWORD", status.HTTP_400_BAD_REQUEST)
         return
     if (email or "").strip().lower() != user.email:
         raise DomainError(
-            "Przepisz dokładnie adres e-mail swojego konta.",
+            _("Przepisz dokładnie adres e-mail swojego konta."),
             "EMAIL_MISMATCH",
             status.HTTP_400_BAD_REQUEST,
         )

@@ -1,18 +1,21 @@
 {% extends "base.html" %}
+{% load i18n %}
 {% comment %}
   „Materiały z warsztatów” dla zalogowanych. Warsztaty w kolejności harmonogramu, pod każdym jego
   materiały. Na tej stronie **nie ma** żadnego adresu pliku: film otwiera się na stronie materiału
   (tam powstaje podpisany adres), plik i odnośnik idą przez ``workshop-material-open``, który liczy
   wyświetlenie i dopiero wtedy przekierowuje.
 {% endcomment %}
-{% block title %}Materiały z warsztatów{% endblock %}
-{% block description %}Nagrania i materiały z warsztatów olimpiady – dla zalogowanych uczestników i opiekunów.{% endblock %}
+{% block title %}{% translate "Materiały z warsztatów" %}{% endblock %}
+{% block description %}{% translate "Nagrania i materiały z warsztatów olimpiady – dla zalogowanych uczestników i opiekunów." %}{% endblock %}
 {% block content %}
 <div class="page-head">
-  <span class="eyebrow"><a href="/warsztaty/">Warsztaty</a></span>
-  <h1>Materiały z warsztatów</h1>
-  <p class="lead">Nagrania zajęć, slajdy i pliki do ćwiczeń. Materiały są przeznaczone wyłącznie dla
-    uczestników olimpiady i ich opiekunów – prosimy nie udostępniać ich dalej.</p>
+  <span class="eyebrow"><a href="/warsztaty/">{% translate "Warsztaty" %}</a></span>
+  <h1>{% translate "Materiały z warsztatów" %}</h1>
+  <p class="lead">{% blocktranslate trimmed %}
+    Nagrania zajęć, slajdy i pliki do ćwiczeń. Materiały są przeznaczone wyłącznie dla
+    uczestników olimpiady i ich opiekunów – prosimy nie udostępniać ich dalej.
+  {% endblocktranslate %}</p>
 </div>
 
 {% for group in groups %}
@@ -30,11 +33,11 @@
             {% if material.description %}<p>{{ material.description|linebreaksbr }}</p>{% endif %}
             <p>
               {% if material.kind == kinds.VIDEO %}
-                <a class="btn btn--primary" href="{% url 'web:workshop-material' material.pk %}">Obejrzyj<span class="visually-hidden">: {{ material.title }}</span></a>
+                <a class="btn btn--primary" href="{% url 'web:workshop-material' material.pk %}">{% translate "Obejrzyj" %}<span class="visually-hidden">: {{ material.title }}</span></a>
               {% elif material.kind == kinds.FILE %}
-                <a class="btn btn--primary" href="{% url 'web:workshop-material-open' material.pk %}">{% if material.format.inline %}Otwórz{% else %}Pobierz{% endif %}<span class="visually-hidden">: {{ material.title }}</span></a>
+                <a class="btn btn--primary" href="{% url 'web:workshop-material-open' material.pk %}">{% if material.format.inline %}{% translate "Otwórz" %}{% else %}{% translate "Pobierz" %}{% endif %}<span class="visually-hidden">: {{ material.title }}</span></a>
               {% else %}
-                <a class="btn btn--primary" href="{% url 'web:workshop-material-open' material.pk %}" rel="noopener noreferrer">Przejdź do materiału<span class="visually-hidden">: {{ material.title }}</span></a>
+                <a class="btn btn--primary" href="{% url 'web:workshop-material-open' material.pk %}" rel="noopener noreferrer">{% translate "Przejdź do materiału" %}<span class="visually-hidden">: {{ material.title }}</span></a>
               {% endif %}
             </p>
           </article>
@@ -44,9 +47,11 @@
   </section>
 {% empty %}
   <div class="empty">
-    <span class="empty__title">Nie ma jeszcze materiałów</span>
-    <p class="empty__text">Nagrania i pliki pojawiają się tu zwykle kilka dni po warsztatach.
-      Harmonogram jest na stronie <a href="/warsztaty/">Warsztaty</a>.</p>
+    <span class="empty__title">{% translate "Nie ma jeszcze materiałów" %}</span>
+    <p class="empty__text">{% blocktranslate trimmed %}
+      Nagrania i pliki pojawiają się tu zwykle kilka dni po warsztatach.
+      Harmonogram jest na stronie <a href="/warsztaty/">Warsztaty</a>.
+    {% endblocktranslate %}</p>
   </div>
 {% endfor %}
 {% endblock %}

@@ -62,6 +62,7 @@ from django.conf import settings
 from django.db import models
 from django.shortcuts import redirect
 from django.utils import timezone
+from django.utils.translation import gettext as _
 
 logger = logging.getLogger(__name__)
 
@@ -299,8 +300,8 @@ def normalize_backup_code(code: str) -> str:
 def generate_backup_codes() -> tuple[list[str], list[str]]:
     """Komplet nowych kodów: postać do pokazania i skróty do zapisania w bazie."""
     plain = [
-        "".join(secrets.choice(BACKUP_CODE_ALPHABET) for _ in range(BACKUP_CODE_LENGTH))
-        for _ in range(BACKUP_CODE_COUNT)
+        "".join(secrets.choice(BACKUP_CODE_ALPHABET) for _pos in range(BACKUP_CODE_LENGTH))
+        for _index in range(BACKUP_CODE_COUNT)
     ]
     return [f"{code[:5]}-{code[5:]}" for code in plain], [hash_backup_code(code) for code in plain]
 
@@ -394,13 +395,13 @@ def confirm_setup(user, code: str, *, request=None) -> list[str]:
 
     device = device_for(user)
     if device is None:
-        raise DomainError("Najpierw zeskanuj kod QR – konfiguracja nie została rozpoczęta.")
+        raise DomainError(_("Najpierw zeskanuj kod QR – konfiguracja nie została rozpoczęta."))
     if device.is_confirmed:
-        raise DomainError("Drugi składnik jest już włączony na tym koncie.")
+        raise DomainError(_("Drugi składnik jest już włączony na tym koncie."))
     if not _check_totp(device, code, save=False):
         audit(user, "2fa.failed", user, {"stage": "setup"}, request)
         raise DomainError(
-            "Kod z aplikacji nie pasuje. Sprawdź, czy zegar w telefonie jest ustawiony automatycznie."
+            _("Kod z aplikacji nie pasuje. Sprawdź, czy zegar w telefonie jest ustawiony automatycznie.")
         )
 
     plain, hashed = generate_backup_codes()
@@ -604,7 +605,7 @@ class TwoFactorMiddleware:
 
         if request.path.startswith("/api/"):
             return JsonResponse(
-                {"detail": "Wymagane potwierdzenie drugiego składnika logowania."}, status=403
+                {"detail": _("Wymagane potwierdzenie drugiego składnika logowania.")}, status=403
             )
         return redirect(target)
 

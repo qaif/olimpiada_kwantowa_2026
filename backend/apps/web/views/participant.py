@@ -591,9 +591,9 @@ class ConsentPublishNameView(ActionViewMixin, ParticipantRequiredMixin, View):
         given = request.POST.get("given") == "1"
         set_publish_name_consent(self.participant, given=given, source=ConsentSource.PANEL, request=request)
         return (
-            "Zgoda na publikację imienia i nazwiska została zapisana."
+            _("Zgoda na publikację imienia i nazwiska została zapisana.")
             if given
-            else "Zgoda na publikację imienia i nazwiska została wycofana."
+            else _("Zgoda na publikację imienia i nazwiska została wycofana.")
         )
 
 
@@ -608,7 +608,7 @@ class StageRegisterView(ActionViewMixin, ParticipantRequiredMixin, View):
             pk=stage_id,
         )
         register_for_stage(self.participant, stage)
-        return "Zgłoszenie do etapu zostało przyjęte."
+        return _("Zgłoszenie do etapu zostało przyjęte.")
 
 
 class InterviewBookView(ActionViewMixin, ParticipantRequiredMixin, View):
@@ -629,7 +629,7 @@ class InterviewBookView(ActionViewMixin, ParticipantRequiredMixin, View):
             pk=slot_id,
         )
         book_slot(self.participant, slot, request=request)
-        return "Termin rozmowy został zapisany. Potwierdzenie wysyłamy e-mailem."
+        return _("Termin rozmowy został zapisany. Potwierdzenie wysyłamy e-mailem.")
 
 
 class InterviewChooseView(ActionViewMixin, ParticipantRequiredMixin, View):
@@ -650,7 +650,7 @@ class InterviewChooseView(ActionViewMixin, ParticipantRequiredMixin, View):
     def perform(self, request) -> str:
         slot_id = (request.POST.get("slot_id") or "").strip()
         if not slot_id.isdigit():
-            raise DomainError("Wybierz termin rozmowy z listy.", "INVALID_INPUT", HTTP_400_BAD_REQUEST)
+            raise DomainError(_("Wybierz termin rozmowy z listy."), "INVALID_INPUT", HTTP_400_BAD_REQUEST)
         slot = get_object_or_404(
             InterviewSlot.objects.for_competition(request.competition).select_related(
                 "stage", "stage__edition"
@@ -658,7 +658,7 @@ class InterviewChooseView(ActionViewMixin, ParticipantRequiredMixin, View):
             pk=int(slot_id),
         )
         book_slot(self.participant, slot, request=request)
-        return "Termin rozmowy został zapisany. Potwierdzenie wysyłamy e-mailem."
+        return _("Termin rozmowy został zapisany. Potwierdzenie wysyłamy e-mailem.")
 
 
 class InterviewCancelView(ActionViewMixin, ParticipantRequiredMixin, View):
@@ -672,7 +672,7 @@ class InterviewCancelView(ActionViewMixin, ParticipantRequiredMixin, View):
             pk=stage_id,
         )
         cancel_booking(self.participant, stage=stage, request=request)
-        return "Termin rozmowy został odwołany. Możesz wybrać inny."
+        return _("Termin rozmowy został odwołany. Możesz wybrać inny.")
 
 
 class ProblemUploadView(ParticipantRequiredMixin, ThrottledFormMixin, View):
@@ -743,12 +743,12 @@ class AppealCreateView(ParticipantRequiredMixin, View):
         target = f"{reverse('web:me')}?tab={TAB_APPEALS}"
         form = AppealForm(request.POST)
         if not form.is_valid():
-            messages.error(request, " ".join(form.errors.get("argument", ["Nieprawidłowe uzasadnienie."])))
+            messages.error(request, " ".join(form.errors.get("argument", [_("Nieprawidłowe uzasadnienie.")])))
             return redirect(target)
         try:
             file_appeal(request.user, submission, form.cleaned_data["argument"], request=request)
         except DomainError as exc:
             messages.error(request, str(exc.detail))
         else:
-            messages.success(request, "Reklamacja została złożona.")
+            messages.success(request, _("Reklamacja została złożona."))
         return redirect(target)

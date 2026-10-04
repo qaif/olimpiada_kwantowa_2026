@@ -15,6 +15,7 @@ arytmetycznego.
 from __future__ import annotations
 
 from django import forms
+from django.utils.translation import gettext_lazy
 
 from apps.web.captcha import CaptchaFormMixin
 
@@ -36,16 +37,16 @@ class SupportTicketForm(forms.Form):
     required_css_class = REQUIRED_CSS_CLASS
 
     category = forms.ChoiceField(
-        label="Czego dotyczy sprawa",
+        label=gettext_lazy("Czego dotyczy sprawa"),
         choices=SupportCategory.choices,
         initial=SupportCategory.OTHER,
     )
-    subject = forms.CharField(label="Temat", max_length=200)
+    subject = forms.CharField(label=gettext_lazy("Temat"), max_length=200)
     body = forms.CharField(
-        label="Opisz, co się dzieje",
+        label=gettext_lazy("Opisz, co się dzieje"),
         max_length=MAX_BODY_LENGTH,
         widget=forms.Textarea(attrs={"rows": 8}),
-        help_text=(
+        help_text=gettext_lazy(
             "Napisz, co próbowałeś zrobić i co się stało. Jeśli widziałeś komunikat błędu – "
             "przepisz go. Adres strony i przeglądarkę dołączamy automatycznie."
         ),
@@ -59,9 +60,9 @@ class SupportTicketForm(forms.Form):
             # Adres zwrotny stoi **przed** tematem: to pierwsza rzecz, której brak unieważnia
             # całe zgłoszenie (nie ma dokąd odpowiedzieć), a nie kolejne pole opisu sprawy.
             self.fields["email"] = forms.EmailField(
-                label="Twój adres e-mail",
+                label=gettext_lazy("Twój adres e-mail"),
                 max_length=254,
-                help_text="Na ten adres odpowie organizator. Zgłoszenie nie zakłada konta.",
+                help_text=gettext_lazy("Na ten adres odpowie organizator. Zgłoszenie nie zakłada konta."),
             )
             self.order_fields(["email", "category", "subject", "body"])
 
@@ -88,7 +89,7 @@ class SupportReplyForm(forms.Form):
     required_css_class = REQUIRED_CSS_CLASS
 
     body = forms.CharField(
-        label="Twoja odpowiedź",
+        label=gettext_lazy("Twoja odpowiedź"),
         max_length=MAX_BODY_LENGTH,
         widget=forms.Textarea(attrs={"rows": 5}),
     )

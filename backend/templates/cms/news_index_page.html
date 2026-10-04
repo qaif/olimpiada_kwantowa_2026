@@ -1,9 +1,9 @@
 {% extends "base.html" %}
-{% load wagtailcore_tags %}
+{% load i18n wagtailcore_tags %}
 {% block title %}{{ page.title }} – {{ settings.cms.SiteSettings.site_name }}{% endblock %}
 {% block content %}
 <div class="page-head">
-  <span class="eyebrow">Newsroom</span>
+  <span class="eyebrow">{% translate "Newsroom" %}</span>
   <h1>{{ page.title }}</h1>
   {% if page.intro %}<div class="lead">{{ page.intro|richtext }}</div>{% endif %}
 </div>
@@ -15,13 +15,13 @@
         <span class="news-card__date">{{ item.date }}</span>
         <h2><a href="{% pageurl item %}">{{ item.title }}</a></h2>
         {% if item.lead %}<p>{{ item.lead }}</p>{% endif %}
-        <p class="card__foot"><a href="{% pageurl item %}">Czytaj dalej</a></p>
+        <p class="card__foot"><a href="{% pageurl item %}">{% translate "Czytaj dalej" %}</a></p>
       </article>
     </li>
   {% empty %}
     <li>
-      <p class="empty"><span class="empty__title">Cisza w eterze</span>
-        Nie ma jeszcze żadnych aktualności.</p>
+      <p class="empty"><span class="empty__title">{% translate "Cisza w eterze" %}</span>
+        {% translate "Nie ma jeszcze żadnych aktualności." %}</p>
     </li>
   {% endfor %}
 </ul>

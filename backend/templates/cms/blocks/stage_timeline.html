@@ -1,4 +1,4 @@
-{% load web_extras %}
+{% load i18n web_extras %}
 {% comment %}
   Terminy etapów bieżącej edycji. Wiersze przychodzą z ``apps.cms.timeline.stage_rows`` – z bazy
   zawodów, nie z treści redakcyjnej. Trzy decyzje o tym znaczniku:
@@ -17,7 +17,7 @@
 {% endcomment %}
 {% if value.heading %}<h2 class="stage-timeline__heading">{{ value.heading }}</h2>{% endif %}
 {% if rows %}
-  <p class="hint">Terminy obowiązujące w systemie zawodów. Wszystkie godziny: czas polski.</p>
+  <p class="hint">{% translate "Terminy obowiązujące w systemie zawodów. Wszystkie godziny: czas polski." %}</p>
   <ol class="timeline">
     {% for row in rows %}
       <li class="timeline__item {% if row.is_open %}timeline__item--open{% elif row.has_opened %}timeline__item--done{% else %}timeline__item--next{% endif %}">
@@ -25,7 +25,7 @@
         <span class="{{ row.badge_class }}">{{ row.status_label }}</span>
         <dl class="timeline__dates">
           {% if row.stage.location %}
-            <div><dt>Miejsce</dt><dd>{{ row.stage.location }}</dd></div>
+            <div><dt>{% translate "Miejsce" %}</dt><dd>{{ row.stage.location }}</dd></div>
           {% endif %}
           {% comment %}
             Trzy warianty rubryk terminowych, bo etapy różnią się tym, co uczestnik w nich robi:
@@ -44,19 +44,19 @@
             głównej: termin finału ma mieć jedno brzmienie na całym serwisie.
           {% endcomment %}
           {% if row.is_onsite_event %}
-            <div><dt>Termin</dt><dd>{{ row.date_range }}</dd></div>
+            <div><dt>{% translate "Termin" %}</dt><dd>{{ row.date_range }}</dd></div>
           {% else %}
             {% if row.stage.is_interview %}
-              <div><dt>Forma</dt><dd>rozmowa kwalifikacyjna online</dd></div>
+              <div><dt>{% translate "Forma" %}</dt><dd>{% translate "rozmowa kwalifikacyjna online" %}</dd></div>
             {% endif %}
-            <div><dt>Otwarcie</dt><dd>{{ row.stage.opens_at|local_datetime }}</dd></div>
+            <div><dt>{% translate "Otwarcie" %}</dt><dd>{{ row.stage.opens_at|local_datetime }}</dd></div>
             {% if row.stage.is_interview %}
-              <div><dt>Rozmowy do</dt><dd>{{ row.stage.deadline_at|local_datetime }}</dd></div>
+              <div><dt>{% translate "Rozmowy do" %}</dt><dd>{{ row.stage.deadline_at|local_datetime }}</dd></div>
             {% else %}
-              <div><dt>Oddanie rozwiązań</dt><dd>{{ row.stage.deadline_at|local_datetime }}</dd></div>
+              <div><dt>{% translate "Oddanie rozwiązań" %}</dt><dd>{{ row.stage.deadline_at|local_datetime }}</dd></div>
               {% if row.stage.grace_seconds %}
                 {# Tolerancja bywa niezerowa i wtedy to ona, a nie deadline, zamyka upload. #}
-                <div><dt>Upload zamyka się</dt>
+                <div><dt>{% translate "Upload zamyka się" %}</dt>
                   <dd>{{ row.stage.submission_deadline|local_datetime }}</dd></div>
               {% endif %}
             {% endif %}
@@ -68,13 +68,13 @@
             dowie się wyniku. Termin egzekwuje serwer wobec recenzentów; tutaj jest obietnicą
             wobec uczestnika i tak ma być podpisany.
           {% endcomment %}
-          <div><dt>Wyniki do</dt><dd>{{ row.stage.review_deadline_at|local_datetime }}</dd></div>
+          <div><dt>{% translate "Wyniki do" %}</dt><dd>{{ row.stage.review_deadline_at|local_datetime }}</dd></div>
           {# Okna reklamacji harmonogram nie pokazuje (decyzja organizatora z 20.09.2026): tryb i terminy reklamacji opisuje § 16 Regulaminu, a uczestnik widzi swoje okno w panelu. #}
         </dl>
       </li>
     {% endfor %}
   </ol>
 {% else %}
-  <p class="empty"><span class="empty__title">Terminy zostaną ogłoszone</span>
-    Organizator nie wprowadził jeszcze terminów etapów bieżącej edycji.</p>
+  <p class="empty"><span class="empty__title">{% translate "Terminy zostaną ogłoszone" %}</span>
+    {% blocktranslate trimmed %}Organizator nie wprowadził jeszcze terminów etapów bieżącej edycji.{% endblocktranslate %}</p>
 {% endif %}

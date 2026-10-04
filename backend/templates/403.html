@@ -1,14 +1,15 @@
 {% extends "base.html" %}
-{% block title %}Brak dostępu{% endblock %}
+{% load i18n %}
+{% block title %}{% translate "Brak dostępu" %}{% endblock %}
 {% block content %}
 <div class="auth">
   <div class="card">
-    <h1>Brak dostępu</h1>
-    <p class="auth__intro">Ta strona jest dostępna tylko dla uprawnionej roli (uczestnika, członka
-      komisji albo koordynatora). Jeśli masz kilka kont, zaloguj się na właściwe.</p>
+    <h1>{% translate "Brak dostępu" %}</h1>
+    <p class="auth__intro">{% blocktranslate trimmed %}Ta strona jest dostępna tylko dla uprawnionej roli (uczestnika, członka
+      komisji albo koordynatora). Jeśli masz kilka kont, zaloguj się na właściwe.{% endblocktranslate %}</p>
     <p class="actions">
-      <a class="btn btn--primary" href="{% url 'web:login' %}">Zaloguj się</a>
-      <a class="btn btn--secondary" href="{{ site_root|default:"/" }}">Strona główna</a>
+      <a class="btn btn--primary" href="{% url 'web:login' %}">{% translate "Zaloguj się" %}</a>
+      <a class="btn btn--secondary" href="{{ site_root|default:"/" }}">{% translate "Strona główna" %}</a>
     </p>
   </div>
 </div>

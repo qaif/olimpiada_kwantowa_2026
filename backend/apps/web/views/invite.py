@@ -33,6 +33,7 @@ from __future__ import annotations
 from django.shortcuts import redirect
 from django.template.response import TemplateResponse
 from django.urls import reverse
+from django.utils.translation import gettext_lazy
 from django.views.generic import TemplateView, View
 
 from apps.accounts.bulk_registration import INVITE_DAYS, accept_invitation, read_invite_token
@@ -69,9 +70,9 @@ class InviteAcceptForm(ConsentFieldsMixin):
     field_order = ["password", PASSWORD_CONFIRM_FIELD, "phone", "district", *CONSENT_FIELD_NAMES]
 
     password = password_field()
-    password2 = password_field("Powtórz hasło")
+    password2 = password_field(gettext_lazy("Powtórz hasło"))
     phone = phone_field()
-    district = voivodeship_field("Województwo")
+    district = voivodeship_field(gettext_lazy("Województwo"))
 
     def clean(self):
         return clean_password_pair(self, super().clean())

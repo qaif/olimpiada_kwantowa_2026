@@ -28,6 +28,7 @@ from dataclasses import dataclass
 from django.db import transaction
 from django.db.models import Max, Q
 from django.utils import timezone
+from django.utils.translation import gettext as _
 from rest_framework import status as http
 
 from apps.core.api import DomainError
@@ -271,7 +272,7 @@ def upload_scan(participant, edition, upload, *, actor=None, request=None) -> St
     current = current_certificate(participant, edition)
     if current is not None and current.status == CertificateStatus.ACCEPTED:
         raise DomainError(
-            "Twoje zaświadczenie zostało już zaakceptowane – nie trzeba wgrywać go ponownie.",
+            _("Twoje zaświadczenie zostało już zaakceptowane – nie trzeba wgrywać go ponownie."),
             "STUDENT_STATUS_ALREADY_ACCEPTED",
             http.HTTP_409_CONFLICT,
         )
@@ -591,7 +592,7 @@ def erase_for_user(user) -> int:
     """
     rows = StudentStatusCertificate.objects.filter(participant__user=user)
     keys = list(rows.exclude(object_key="").values_list("object_key", flat=True))
-    deleted, _ = rows.delete()
+    deleted, _by_model = rows.delete()
     _delete_objects_on_commit(keys)
     return deleted
 

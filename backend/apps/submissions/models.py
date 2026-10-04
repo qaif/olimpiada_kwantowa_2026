@@ -13,6 +13,7 @@ from django.conf import settings
 from django.db import models
 from django.db.models import F, Q
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 
 from apps.accounts.models import CompetitionRole
 from apps.competitions.models import Problem, Stage, StageEntry
@@ -27,15 +28,15 @@ from apps.tenancy.managers import CompetitionScopedQuerySet
 class SubmissionStatus(models.TextChoices):
     """Cykl życia zgłoszenia (PROJEKT.md 2.4). T-04 używa czterech pierwszych wartości."""
 
-    SUBMITTED = "SUBMITTED", "oddane"
-    SCANNING = "SCANNING", "skanowanie"
-    REJECTED_INFECTED = "REJECTED_INFECTED", "odrzucone (wirus)"
-    LOCKED = "LOCKED", "zablokowane"
-    IN_REVIEW = "IN_REVIEW", "w ocenie"
-    MODERATION = "MODERATION", "moderacja"
-    GRADED_PROVISIONAL = "GRADED_PROVISIONAL", "ocena wstępna"
-    APPEALED = "APPEALED", "reklamacja"
-    FINAL = "FINAL", "ocena ostateczna"
+    SUBMITTED = "SUBMITTED", _("oddane")
+    SCANNING = "SCANNING", _("skanowanie")
+    REJECTED_INFECTED = "REJECTED_INFECTED", _("odrzucone (wirus)")
+    LOCKED = "LOCKED", _("zablokowane")
+    IN_REVIEW = "IN_REVIEW", _("w ocenie")
+    MODERATION = "MODERATION", _("moderacja")
+    GRADED_PROVISIONAL = "GRADED_PROVISIONAL", _("ocena wstępna")
+    APPEALED = "APPEALED", _("reklamacja")
+    FINAL = "FINAL", _("ocena ostateczna")
 
 
 class AvStatus(models.TextChoices):

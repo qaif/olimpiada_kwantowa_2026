@@ -1,19 +1,21 @@
 {% extends "base.html" %}
+{% load i18n %}
 {% comment %}
   Konto właśnie zostało aktywowane. Strona **nie loguje** – tak samo jak po resecie hasła: dostęp
   do skrzynki pocztowej nie ma zamieniać się jednym kliknięciem z listu w sesję w panelu, bo list
   bywa przekazany dalej, a skrzynka bywa otwarta na cudzym komputerze.
 {% endcomment %}
-{% block title %}Konto aktywne{% endblock %}
+{% block title %}{% translate "Konto aktywne" %}{% endblock %}
 {% block content %}
 <div class="auth">
   <div class="card">
-    <h1>Konto aktywne – zaloguj się</h1>
-    <p class="auth__intro">Adres e-mail został potwierdzony. Możesz zalogować się swoim adresem
-      i hasłem podanym przy rejestracji.</p>
-    <p><a class="btn btn--primary btn--block" href="{% url 'web:login' %}">Przejdź do logowania</a></p>
-    <p class="hint">Konto nie zostanie już usunięte automatycznie. Jeśli zapomniałeś hasła,
-      skorzystaj z <a href="{% url 'web:password-reset' %}">odzyskiwania hasła</a>.</p>
+    <h1>{% translate "Konto aktywne – zaloguj się" %}</h1>
+    <p class="auth__intro">{% blocktranslate trimmed %}Adres e-mail został potwierdzony. Możesz zalogować się swoim adresem
+      i hasłem podanym przy rejestracji.{% endblocktranslate %}</p>
+    <p><a class="btn btn--primary btn--block" href="{% url 'web:login' %}">{% translate "Przejdź do logowania" %}</a></p>
+    {% url 'web:password-reset' as reset_url %}
+    <p class="hint">{% blocktranslate trimmed %}Konto nie zostanie już usunięte automatycznie. Jeśli zapomniałeś hasła,
+      skorzystaj z <a href="{{ reset_url }}">odzyskiwania hasła</a>.{% endblocktranslate %}</p>
   </div>
 </div>
 {% endblock %}

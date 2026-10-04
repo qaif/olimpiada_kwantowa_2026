@@ -29,9 +29,10 @@ import logging
 
 from django.urls import reverse
 from django.utils.translation import gettext as _
-from django.utils.translation import gettext_lazy
+from django.utils.translation import gettext_lazy, pgettext_lazy
 
 from apps.accounts.activation import absolute_url, queue_mail
+from apps.accounts.preferences import language_for
 from apps.core.models import audit
 from apps.tenancy import branding
 
@@ -60,6 +61,15 @@ SUBMISSION_INFECTED_SUBJECT_TEMPLATE = gettext_lazy(
 )
 RESULTS_PUBLISHED_SUBJECT_TEMPLATE = gettext_lazy("Wyniki etapu ogłoszone – %(competition)s")
 APPEAL_DECIDED_SUBJECT_TEMPLATE = gettext_lazy("Decyzja w sprawie reklamacji – %(competition)s")
+
+#: Rozstrzygnięcie reklamacji w liście do uczestnika. Etykiety ``AppealStatus`` są dosłowne (ekrany
+#: komisji zostają po polsku), więc list ma własne, przetłumaczalne – te same słowa co do bajtu.
+APPEAL_STATUS_LABELS = {
+    "OPEN": pgettext_lazy("status reklamacji", "złożona"),
+    "REJECTED": pgettext_lazy("status reklamacji", "odrzucona"),
+    "ACCEPTED": pgettext_lazy("status reklamacji", "uwzględniona"),
+    "PARTIALLY_ACCEPTED": pgettext_lazy("status reklamacji", "częściowo uwzględniona"),
+}
 
 
 def _signature(competition=None) -> tuple[str, ...]:
@@ -189,10 +199,18 @@ def submission_infected_message(submission, submission_file, competition=None) -
 def notify_submission_infected(submission, submission_file) -> bool:
     """List o odrzuceniu zainfekowanego pliku. Czysty skan jest cichy – patrz nagłówek modułu."""
     competition = submission.competition
+    user = submission.entry.participant.user
+    # Werdykt skanu przychodzi z zadania w tle, a nie z żądania uczestnika – język bierze się więc
+    # z jego konta albo z konkursu (``language_for``), a nie z tego, co akurat aktywne w workerze.
+    with language_for(user, competition):
+        subject = str(
+            branding.subject(SUBMISSION_INFECTED_SUBJECT_TEMPLATE, SUBMISSION_INFECTED_SUBJECT, competition)
+        )
+        message = submission_infected_message(submission, submission_file, competition)
     return _send(
-        submission.entry.participant.user,
-        branding.subject(SUBMISSION_INFECTED_SUBJECT_TEMPLATE, SUBMISSION_INFECTED_SUBJECT, competition),
-        submission_infected_message(submission, submission_file, competition),
+        user,
+        subject,
+        message,
         kind=TYPE_SUBMISSION_INFECTED,
         target=submission,
         competition=competition,
@@ -209,13 +227,16 @@ def results_published_message(stage, link: str, feedback_link: str, competition=
     – a list wędruje przez serwery, których nie kontrolujemy, i zostaje w skrzynce na lata.
     """
     return _message(
-        f"Wyniki etapu „{stage.display_name}” ({stage.edition.year_label}) zostały ogłoszone.",
+        _("Wyniki etapu „%(stage)s” (%(edition)s) zostały ogłoszone.")
+        % {"stage": stage.display_name, "edition": stage.edition.year_label},
         "",
-        f"Tabela wyników: {link}",
-        f"Twoje punkty i komentarze recenzentów: {feedback_link}",
+        _("Tabela wyników: %(link)s") % {"link": link},
+        _("Twoje punkty i komentarze recenzentów: %(link)s") % {"link": feedback_link},
         "",
-        "Jeżeli nie zgadzasz się z oceną, reklamację składa się w panelu uczestnika w oknie "
-        "reklamacji wyznaczonym dla tego etapu.",
+        _(
+            "Jeżeli nie zgadzasz się z oceną, reklamację składa się w panelu uczestnika w oknie "
+            "reklamacji wyznaczonym dla tego etapu."
+        ),
         competition=competition,
     )
 
@@ -236,7 +257,6 @@ def notify_results_published(publication, *, request=None) -> int:
     """
     # Import lokalny: ``apps.competitions`` nie zależy od ``apps.submissions``, ale ten moduł
     # ładuje się przy rejestracji aplikacji i nie ma po co ciągnąć modeli zawodów na starcie.
-    from apps.accounts.preferences import language_for
     from apps.competitions.models import StageEntry
 
     stage = publication.stage
@@ -292,18 +312,20 @@ def appeal_decided_message(appeal, decision, link: str, competition=None) -> str
     (panel i API – ``apps.submissions.serializers.results_published``).
     """
     submission = appeal.submission
+    status_label = APPEAL_STATUS_LABELS.get(appeal.status) or appeal.get_status_display()
     return _message(
-        "Komisja odwoławcza rozstrzygnęła Twoją reklamację w Olimpiadzie Kwantowej.",
+        _("Komisja odwoławcza rozstrzygnęła Twoją reklamację w Olimpiadzie Kwantowej."),
         "",
-        f"Etap: {submission.entry.stage.display_name}",
-        f"Zadanie: {submission.problem.number}. {submission.problem.title}",
-        f"Rozstrzygnięcie: {appeal.get_status_display()}",
+        _("Etap: %(stage)s") % {"stage": submission.entry.stage.display_name},
+        _("Zadanie: %(number)s. %(title)s")
+        % {"number": submission.problem.number, "title": submission.problem.title},
+        _("Rozstrzygnięcie: %(status)s") % {"status": status_label},
         "",
-        "Uzasadnienie komisji:",
+        _("Uzasadnienie komisji:"),
         decision.justification,
         "",
-        f"Szczegóły znajdziesz w panelu uczestnika: {link}",
-        "Punktację zobaczysz tam po ogłoszeniu wyników etapu.",
+        _("Szczegóły znajdziesz w panelu uczestnika: %(link)s") % {"link": link},
+        _("Punktację zobaczysz tam po ogłoszeniu wyników etapu."),
         competition=competition,
     )
 
@@ -315,10 +337,15 @@ def notify_appeal_decided(appeal, decision, *, request=None) -> bool:
     # a do adresu podajemy tylko poza żądaniem, tak jak dotąd.
     competition = appeal.submission.competition
     link = absolute_url(reverse("web:me"), request, None if request is not None else competition)
+    # Decyzję zapisuje komisja – w **swoim** żądaniu. List czyta uczestnik, więc idzie w jego
+    # języku (``language_for``), a nie w języku członka komisji.
+    with language_for(user, competition):
+        subject = str(branding.subject(APPEAL_DECIDED_SUBJECT_TEMPLATE, APPEAL_DECIDED_SUBJECT, competition))
+        message = appeal_decided_message(appeal, decision, link, competition)
     return _send(
         user,
-        branding.subject(APPEAL_DECIDED_SUBJECT_TEMPLATE, APPEAL_DECIDED_SUBJECT, competition),
-        appeal_decided_message(appeal, decision, link, competition),
+        subject,
+        message,
         kind=TYPE_APPEAL_DECIDED,
         target=appeal,
         competition=competition,

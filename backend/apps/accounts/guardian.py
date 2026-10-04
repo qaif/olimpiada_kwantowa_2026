@@ -47,6 +47,7 @@ from apps.tenancy import branding
 from .activation import absolute_url, queue_mail, signature_lines
 from .consents import BY_KIND, ConsentKind, ConsentSource, is_minor, organizer_name, plain_text
 from .models import ConsentRecord, Participant
+from .preferences import language_for
 
 #: Sól podpisu. Osobna od aktywacji konta i od zmiany adresu: to trzecie, zupełnie inne
 #: uprawnienie i token jednego z nich nie może zadziałać w miejscu drugiego.
@@ -241,13 +242,13 @@ def request_consent(participant: Participant, email: str, *, actor=None, request
     normalized = (email or "").strip().lower()
     if not normalized:
         raise DomainError(
-            "Podaj adres e-mail rodzica lub opiekuna prawnego.",
+            _("Podaj adres e-mail rodzica lub opiekuna prawnego."),
             "GUARDIAN_EMAIL_REQUIRED",
             status.HTTP_400_BAD_REQUEST,
         )
     if not requires_guardian_consent(participant):
         raise DomainError(
-            "Zgoda opiekuna nie jest wymagana dla osoby pełnoletniej.",
+            _("Zgoda opiekuna nie jest wymagana dla osoby pełnoletniej."),
             "GUARDIAN_NOT_REQUIRED",
             status.HTTP_409_CONFLICT,
         )
@@ -256,7 +257,7 @@ def request_consent(participant: Participant, email: str, *, actor=None, request
         # do kliknięcia we własny link – czyli do tego samego oświadczenia o cudzej woli, od
         # którego ta zmiana odchodzi.
         raise DomainError(
-            "Adres opiekuna musi być inny niż Twój własny adres konta.",
+            _("Adres opiekuna musi być inny niż Twój własny adres konta."),
             "GUARDIAN_EMAIL_IS_OWN",
             status.HTTP_400_BAD_REQUEST,
         )
@@ -266,17 +267,17 @@ def request_consent(participant: Participant, email: str, *, actor=None, request
     # konkursie, w którym uczestnik jest zapisany, i to jego markę ma nieść list do opiekuna.
     competition = participant.competition
     link = absolute_url(reverse("web:guardian-consent", args=[make_token(participant)]), request, competition)
-    queue_mail(
-        branding.subject(GUARDIAN_SUBJECT_TEMPLATE, GUARDIAN_SUBJECT, competition),
-        request_message(
+    # Opiekun nie ma konta, więc nie ma też zapisanego języka: list idzie w języku konkursu
+    # (``language_for(None, …)``), a nie w języku, w którym akurat przegląda serwis uczestnik.
+    with language_for(None, competition):
+        subject = str(branding.subject(GUARDIAN_SUBJECT_TEMPLATE, GUARDIAN_SUBJECT, competition))
+        message = request_message(
             link,
-            participant.user.first_name or "uczestnik/uczestniczka",
+            participant.user.first_name or _("uczestnik/uczestniczka"),
             participant.school,
             competition,
-        ),
-        normalized,
-        competition=competition,
-    )
+        )
+    queue_mail(subject, message, normalized, competition=competition)
     # W ``diff`` nie ma adresu opiekuna: audyt czytają osoby, które nie muszą znać danych
     # kontaktowych rodziny uczestnika. Sam fakt wysyłki wystarczy, żeby wytłumaczyć późniejszy wpis
     # ``participant.guardian_consent_confirmed``.
@@ -325,10 +326,12 @@ def confirm_consent(participant: Participant, *, request=None) -> ConsentRecord:
         request=request,
     )
     competition = participant.competition
-    queue_mail(
-        branding.subject(GUARDIAN_CONFIRMED_SUBJECT_TEMPLATE, GUARDIAN_CONFIRMED_SUBJECT, competition),
-        confirmed_message(record.given_by_email, competition),
-        participant.user.email,
-        competition=competition,
-    )
+    # Potwierdzenie klika opiekun, więc list do uczestnika powstaje w **cudzym** żądaniu – w języku
+    # uczestnika, a nie w języku przeglądarki opiekuna.
+    with language_for(participant.user, competition):
+        subject = str(
+            branding.subject(GUARDIAN_CONFIRMED_SUBJECT_TEMPLATE, GUARDIAN_CONFIRMED_SUBJECT, competition)
+        )
+        message = confirmed_message(record.given_by_email, competition)
+    queue_mail(subject, message, participant.user.email, competition=competition)
     return record

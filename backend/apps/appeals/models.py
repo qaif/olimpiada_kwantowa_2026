@@ -19,6 +19,7 @@ from django.conf import settings
 from django.db import models
 from django.db.models import Q
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 
 from apps.accounts.models import CommitteeMember, Participant
 from apps.competitions.scoping import competition_scoped_manager
@@ -37,10 +38,10 @@ CONFLICTING_ROUNDS = (ROUND_BLIND, ROUND_TIEBREAK)
 
 
 class AppealStatus(models.TextChoices):
-    OPEN = "OPEN", "złożona"
-    REJECTED = "REJECTED", "odrzucona"
-    ACCEPTED = "ACCEPTED", "uwzględniona"
-    PARTIALLY_ACCEPTED = "PARTIALLY_ACCEPTED", "częściowo uwzględniona"
+    OPEN = "OPEN", _("złożona")
+    REJECTED = "REJECTED", _("odrzucona")
+    ACCEPTED = "ACCEPTED", _("uwzględniona")
+    PARTIALLY_ACCEPTED = "PARTIALLY_ACCEPTED", _("częściowo uwzględniona")
 
 
 #: Statusy reklamacji czekającej na rozstrzygnięcie – to one trafiają do kolejki komisji.

@@ -82,6 +82,7 @@ from .models import (
     User,
 )
 from .phones import normalize_phone
+from .preferences import language_for
 from .supervisor_consent import VIA_SUPERVISOR
 from .supervisor_consent import request_consent as request_supervisor_consent
 from .supervisors import normalize_supervisor_email
@@ -1376,8 +1377,13 @@ def send_invitation(participant: Participant, *, request=None) -> None:
         "link": link,
         "days": INVITE_DAYS,
     }
-    subject = render_to_string(INVITE_SUBJECT_TEMPLATE, context).strip().replace("\n", " ")
-    queue_mail(subject, render_to_string(INVITE_BODY_TEMPLATE, context), participant.user.email)
+    # Zaproszenie składa nauczyciel albo koordynator – w **swoim** żądaniu i w swoim języku. List
+    # czyta uczeń, więc idzie w języku ucznia (``language_for``): konto z importu nie ma jeszcze
+    # zapisanego wyboru, więc w praktyce w języku konkursu.
+    with language_for(participant.user, participant.competition):
+        subject = render_to_string(INVITE_SUBJECT_TEMPLATE, context).strip().replace("\n", " ")
+        body = render_to_string(INVITE_BODY_TEMPLATE, context)
+    queue_mail(subject, body, participant.user.email)
     Participant.objects.filter(pk=participant.pk).update(invitation_sent_at=timezone.now())
     participant.invitation_sent_at = timezone.now()
 

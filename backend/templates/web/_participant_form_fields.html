@@ -1,4 +1,4 @@
-{% comment %}
+{% load i18n %}{% comment %}
   Pola formularza uczestnika. Zamiast ``form.as_p`` jest tu pętla z trzema wyjątkami:
 
   - w miejscu, w którym w kolejności pól stoi ``school_id``, renderuje się cały blok wyboru
@@ -49,7 +49,7 @@
           data-birth-date-field="{{ form.birth_date.auto_id }}"
           data-minor-max-age="{{ minor_rule.max_age }}"
           data-current-date="{{ minor_rule.current_date }}">
-  <legend>Zgody</legend>
+  <legend>{% translate "Zgody" %}</legend>
   {% for field in form %}
     {% if field.name in form.consent_field_names %}
       {% comment %}
@@ -69,7 +69,7 @@
         {{ field }}
         {{ field.label_tag }}
         {% if field.name in required_consent_fields %}
-          <span class="consents__required">wymagane</span>
+          <span class="consents__required">{% translate "wymagane" %}</span>
         {% endif %}
         {{ field.errors }}
         {% if field.help_text %}<span class="helptext consents__note">{{ field.help_text }}</span>{% endif %}

@@ -1,14 +1,15 @@
 {% extends "base.html" %}
+{% load i18n %}
 {% comment %}
   Odpowiedź na przekroczenie limitu prób (HTTP 429). Świadomie nie mówi, czy konto istnieje ani
   ile prób zostało – komunikat jest ten sam dla każdego formularza objętego limitem.
 {% endcomment %}
-{% block title %}Zbyt wiele prób{% endblock %}
+{% block title %}{% translate "Zbyt wiele prób" %}{% endblock %}
 {% block content %}
 <div class="throttled">
   <p class="throttled__icon" aria-hidden="true">!</p>
-  <h1>Zbyt wiele prób</h1>
+  <h1>{% translate "Zbyt wiele prób" %}</h1>
   <p class="lead">{{ message }}</p>
-  <p class="throttled__retry">Ponowna próba będzie możliwa za około {{ retry_after }} s.</p>
+  <p class="throttled__retry">{% blocktranslate with seconds=retry_after %}Ponowna próba będzie możliwa za około {{ seconds }} s.{% endblocktranslate %}</p>
 </div>
 {% endblock %}

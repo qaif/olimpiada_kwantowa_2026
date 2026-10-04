@@ -1,4 +1,4 @@
-{% comment %}
+{% load i18n %}{% comment %}
   Blok „szkoła” w rejestracji uczestnika: miejscowość → wyszukiwarka słownika SIO → jawny wyjątek
   dla szkół, których w wykazie nie ma. Renderowany ręcznie (a nie pętlą po polach), bo pięć pól
   formularza składa się tu na jeden komponent i muszą stać w konkretnym układzie.
@@ -53,7 +53,7 @@
     <span class="school-picker__control">
       {{ form.school_city }}
       <ul class="school-picker__list" id="city-suggestions" role="listbox"
-          aria-label="Podpowiedzi miejscowości" data-picker="city-list" hidden></ul>
+          aria-label="{% translate 'Podpowiedzi miejscowości' %}" data-picker="city-list" hidden></ul>
     </span>
     {% comment %}
       ``id`` jest tu obowiązkowy, a nie kosmetyczny: Django samo dokleja do kontrolki
@@ -80,7 +80,7 @@
     <span class="school-picker__control">
       {{ form.school_query }}
       <ul class="school-picker__list" id="school-suggestions" role="listbox"
-          aria-label="Podpowiedzi szkół" data-picker="list" hidden></ul>
+          aria-label="{% translate 'Podpowiedzi szkół' %}" data-picker="list" hidden></ul>
     </span>
     {# ``id`` z tego samego powodu, co przy miejscowości wyżej: celuje w niego ``aria-describedby``. #}
     <span class="helptext" id="{{ form.school_query.auto_id }}_helptext">{{ form.school_query.help_text }}</span>

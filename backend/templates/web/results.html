@@ -1,20 +1,19 @@
 {% extends "base.html" %}
-{% load web_extras %}
-{% block title %}Wyniki etapu{% endblock %}
+{% load i18n web_extras %}
+{% block title %}{% translate "Wyniki etapu" %}{% endblock %}
 {% block content %}
 <div class="page-head">
-  <span class="eyebrow">Wyniki etapu</span>
+  <span class="eyebrow">{% translate "Wyniki etapu" %}</span>
   <h1>{{ stage.display_name }} ({{ stage.edition.year_label }})
     {# Trening ogłasza wyniki tak samo jak zawody, a zawodami nie jest – patrz cms/results_page.html. #}
-    {% if stage.is_training %}<span class="badge badge--neutral">trening</span>{% endif %}</h1>
-  <p class="lead">Ogłoszone {{ publication.published_at|local_time }}, tryb prezentacji:
-    {{ publication.get_anonymization_display }}.</p>
+    {% if stage.is_training %}<span class="badge badge--neutral">{% translate "trening" %}</span>{% endif %}</h1>
+  <p class="lead">{% blocktranslate trimmed with published=publication.published_at|local_time mode=publication.get_anonymization_display %}Ogłoszone {{ published }}, tryb prezentacji:
+    {{ mode }}.{% endblocktranslate %}</p>
   {% if publication.qualified_only %}
-    <p class="hint">{% if stage.kind == "FINAL" %}Lista laureatów{% else %}Lista osób zakwalifikowanych do następnego etapu{% endif %} –
-      tabela nie obejmuje pozostałych uczestników.</p>
+    <p class="hint">{% if stage.kind == "FINAL" %}{% translate "Lista laureatów – tabela nie obejmuje pozostałych uczestników." %}{% else %}{% translate "Lista osób zakwalifikowanych do następnego etapu – tabela nie obejmuje pozostałych uczestników." %}{% endif %}</p>
   {% endif %}
-  <p class="hint">Tabela pochodzi z zamrożonego snapshotu z chwili publikacji – nie jest przeliczana
-    w locie, więc późniejsze decyzje komisji nie zmieniają jej po cichu.</p>
+  <p class="hint">{% blocktranslate trimmed %}Tabela pochodzi z zamrożonego snapshotu z chwili publikacji – nie jest przeliczana
+    w locie, więc późniejsze decyzje komisji nie zmieniają jej po cichu.{% endblocktranslate %}</p>
   {% comment %}
     Wiersze tabeli są anonimowe i takie zostają – uczestnik nie odnajdzie w niej siebie po nazwie.
     Odnośnik prowadzi go tam, gdzie jego wynik jest podpisany: na własną stronę z punktami,
@@ -24,21 +23,21 @@
   {% if is_participant %}
     <p class="actions">
       <a class="btn btn--primary btn--small"
-         href="{% url 'web:participant-feedback' stage.pk %}">Twoje punkty i komentarze</a>
+         href="{% url 'web:participant-feedback' stage.pk %}">{% translate "Twoje punkty i komentarze" %}</a>
     </p>
   {% endif %}
 </div>
 
-<div class="scroll" role="region" tabindex="0" aria-label="Tabela wyników">
+<div class="scroll" role="region" tabindex="0" aria-label="{% translate 'Tabela wyników' %}">
 <table class="table table--rank table--sticky-rank">
   <thead>
     <tr>
-      <th>Miejsce</th>
-      <th>Uczestnik</th>
-      <th>Województwo</th>
-      {% for number in problem_numbers %}<th>Zad. {{ number }}{% with maximum=problem_maxima|dict_get:number %}{% if maximum is not None %} <span class="hint">(max {{ maximum|points }})</span>{% endif %}{% endwith %}</th>{% endfor %}
-      <th>Razem{% if max_total is not None %} <span class="hint">(max {{ max_total|points }})</span>{% endif %}</th>
-      <th>Kwalifikacja</th>
+      <th>{% translate "Miejsce" %}</th>
+      <th>{% translate "Uczestnik" %}</th>
+      <th>{% translate "Województwo" %}</th>
+      {% for number in problem_numbers %}<th>{% blocktranslate %}Zad. {{ number }}{% endblocktranslate %}{% with maximum=problem_maxima|dict_get:number %}{% if maximum is not None %} <span class="hint">{% blocktranslate with maximum=maximum|points %}(max {{ maximum }}){% endblocktranslate %}</span>{% endif %}{% endwith %}</th>{% endfor %}
+      <th>{% translate "Razem" %}{% if max_total is not None %} <span class="hint">{% blocktranslate with maximum=max_total|points %}(max {{ maximum }}){% endblocktranslate %}</span>{% endif %}</th>
+      <th>{% translate "Kwalifikacja" %}</th>
     </tr>
   </thead>
   <tbody>
@@ -51,9 +50,9 @@
         <td class="num total">{{ row.total|points }}</td>
         <td>
           {% if row.qualified %}
-            <span class="badge badge--ok">zakwalifikowany</span>
+            <span class="badge badge--ok">{% translate "zakwalifikowany" %}</span>
           {% else %}
-            <span class="badge badge--neutral">nie</span>
+            <span class="badge badge--neutral">{% translate "nie" %}</span>
           {% endif %}
           {% comment %}
             Odznaka decyzji komitetu stoi obok wyniku kwalifikacji, a nie zamiast niego: wiersz,
@@ -62,12 +61,12 @@
             a uczestnikiem, a tabela jest publiczna.
           {% endcomment %}
           {% if row.manual %}
-            <span class="badge badge--warn">kwalifikacja decyzją komitetu</span>
+            <span class="badge badge--warn">{% translate "kwalifikacja decyzją komitetu" %}</span>
           {% endif %}
         </td>
       </tr>
     {% empty %}
-      <tr><td colspan="{{ problem_numbers|length|add:5 }}" class="empty">Tabela jest pusta.</td></tr>
+      <tr><td colspan="{{ problem_numbers|length|add:5 }}" class="empty">{% translate "Tabela jest pusta." %}</td></tr>
     {% endfor %}
   </tbody>
 </table>

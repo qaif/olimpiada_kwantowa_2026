@@ -29,37 +29,42 @@ from django.middleware.csrf import (
     REASON_NO_REFERER,
 )
 from django.template.loader import render_to_string
+from django.utils.translation import gettext_lazy
 
 #: Wyjaśnienia dla człowieka, dobrane po powodzie odrzucenia z ``CsrfViewMiddleware``. Powody, których
 #: tu nie ma (np. niezgodny token), dostają zdanie domyślne – to właśnie przypadek „zalogowano się
 #: w innej karcie”.
 HINTS = {
-    REASON_NO_CSRF_COOKIE: (
+    REASON_NO_CSRF_COOKIE: gettext_lazy(
         "Przeglądarka nie przyjęła pliku cookie zabezpieczającego formularze (csrftoken). Sprawdź, "
         "czy nie blokujesz plików cookie dla tej strony, i spróbuj ponownie."
     ),
-    REASON_CSRF_TOKEN_MISSING: (
+    REASON_CSRF_TOKEN_MISSING: gettext_lazy(
         "Formularz został wysłany bez tokenu zabezpieczającego – odśwież stronę i wyślij go ponownie."
     ),
-    REASON_BAD_ORIGIN: (
+    REASON_BAD_ORIGIN: gettext_lazy(
         "Żądanie przyszło z innego adresu niż ten serwis. Jeśli otworzyłeś formularz z zapisanej "
         "kopii strony albo przez inny adres domeny, wejdź na stronę bezpośrednio."
     ),
-    REASON_BAD_REFERER: (
+    REASON_BAD_REFERER: gettext_lazy(
         "Żądanie przyszło z innego adresu niż ten serwis – wejdź na stronę bezpośrednio i spróbuj ponownie."
     ),
-    REASON_NO_REFERER: (
+    REASON_NO_REFERER: gettext_lazy(
         "Przeglądarka ukryła adres strony, z której wysłano formularz (np. rozszerzenie chroniące "
         "prywatność). Zezwól na nagłówek Referer dla tej strony albo spróbuj w innej przeglądarce."
     ),
-    REASON_MALFORMED_REFERER: (
+    REASON_MALFORMED_REFERER: gettext_lazy(
         "Przeglądarka wysłała nieprawidłowy adres źródłowy – odśwież stronę i spróbuj ponownie."
     ),
-    REASON_INCORRECT_LENGTH: "Token zabezpieczający jest uszkodzony – odśwież stronę i spróbuj ponownie.",
-    REASON_INVALID_CHARACTERS: "Token zabezpieczający jest uszkodzony – odśwież stronę i spróbuj ponownie.",
+    REASON_INCORRECT_LENGTH: gettext_lazy(
+        "Token zabezpieczający jest uszkodzony – odśwież stronę i spróbuj ponownie."
+    ),
+    REASON_INVALID_CHARACTERS: gettext_lazy(
+        "Token zabezpieczający jest uszkodzony – odśwież stronę i spróbuj ponownie."
+    ),
 }
 
-DEFAULT_HINT = (
+DEFAULT_HINT = gettext_lazy(
     "Najczęstsza przyczyna: w międzyczasie zalogowano się lub wylogowano w innej karcie tej samej "
     "przeglądarki albo strona z formularzem była otwarta bardzo długo. Zabezpieczenie formularza "
     "jest wtedy nieaktualne."

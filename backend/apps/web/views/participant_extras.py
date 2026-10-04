@@ -100,10 +100,10 @@ class PreferencesView(View):
 
     def post(self, request):
         language = request.POST.get("language") or ""
-        # Lista języków jest pytana **o to żądanie**: serwis z wyłączoną angielską wersją
-        # interfejsu (``cms.SiteSettings.english_interface_enabled``) odrzuca tu ``en`` tak samo,
-        # jak każdy inny kod spoza konfiguracji – przełącznika w pasku nie ma, ale samo żądanie
-        # da się wysłać z ręki i nie może obchodzić ustawienia organizatora.
+        # Lista języków jest pytana **o to żądanie**: konkurs, który danego języka nie oferuje
+        # (``tenancy.Competition.interface_languages`` – Olimpiada Kwantowa ma tam sam polski),
+        # odrzuca go tu tak samo, jak każdy inny kod spoza konfiguracji – przełącznika w pasku
+        # nie ma, ale samo żądanie da się wysłać z ręki i nie może obchodzić ustawienia organizatora.
         if language not in available_languages(request):
             language = ""
         high_contrast = request.POST.get("high_contrast") == "1"

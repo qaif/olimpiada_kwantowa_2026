@@ -77,16 +77,18 @@ def rejected_message(certificate, competition=None) -> str:
 
 def _send(certificate, subject_template, subject_fallback, message) -> None:
     from apps.accounts.activation import queue_mail
+    from apps.accounts.preferences import language_for
 
     # Konkurs z **edycji**, a nie z kontekstu żądania: decyzję podejmuje koordynator pod domeną
     # konkursu, ale skan antywirusowy kończy się w workerze, gdzie kontekstu żądania nie ma.
     competition = certificate.edition.competition
-    queue_mail(
-        branding.subject(subject_template, subject_fallback, competition),
-        message(certificate, competition),
-        certificate.participant.user.email,
-        competition=competition,
-    )
+    user = certificate.participant.user
+    # Decyzja zapada w żądaniu koordynatora albo w workerze skanera – w obu przypadkach **nie**
+    # w żądaniu uczestnika, więc list idzie w jego języku (``language_for``).
+    with language_for(user, competition):
+        subject = str(branding.subject(subject_template, subject_fallback, competition))
+        body = message(certificate, competition)
+    queue_mail(subject, body, user.email, competition=competition)
 
 
 def notify_accepted(certificate) -> None:

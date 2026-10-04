@@ -35,6 +35,7 @@ from __future__ import annotations
 from django.conf import settings
 from django.db import models
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 
 from apps.competitions.scoping import competition_scoped_manager
 
@@ -57,11 +58,11 @@ class SupportCategory(models.TextChoices):
     kolejki.
     """
 
-    ACCOUNT = "ACCOUNT", "konto i logowanie"
-    SUBMISSION = "SUBMISSION", "wysyłka pracy"
-    RESULTS = "RESULTS", "wyniki"
-    REGISTRATION = "REGISTRATION", "rejestracja"
-    OTHER = "OTHER", "inne"
+    ACCOUNT = "ACCOUNT", _("konto i logowanie")
+    SUBMISSION = "SUBMISSION", _("wysyłka pracy")
+    RESULTS = "RESULTS", _("wyniki")
+    REGISTRATION = "REGISTRATION", _("rejestracja")
+    OTHER = "OTHER", _("inne")
 
 
 class TicketStatus(models.TextChoices):
@@ -72,9 +73,9 @@ class TicketStatus(models.TextChoices):
     i zamyka też formularz odpowiedzi.
     """
 
-    OPEN = "OPEN", "otwarte"
-    ANSWERED = "ANSWERED", "odpowiedziane"
-    CLOSED = "CLOSED", "zamknięte"
+    OPEN = "OPEN", _("otwarte")
+    ANSWERED = "ANSWERED", _("odpowiedziane")
+    CLOSED = "CLOSED", _("zamknięte")
 
 
 #: Statusy sprawy, która czeka na organizatora – to one wyznaczają licznik na pulpicie i domyślne

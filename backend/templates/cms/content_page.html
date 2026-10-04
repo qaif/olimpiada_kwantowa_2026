@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load wagtailcore_tags workshop_materials %}
+{% load i18n wagtailcore_tags workshop_materials %}
 {% block title %}{{ page.title }} – {{ settings.cms.SiteSettings.site_name }}{% endblock %}
 {% block description %}{{ page.search_description|default:page.title }} – {{ settings.cms.SiteSettings.site_name }}.{% endblock %}
 {% block content %}
@@ -28,7 +28,7 @@
 
   {% if page.chapters %}
     <nav class="doc-toc" aria-labelledby="spis-sekcji">
-      <h2 class="doc-toc__title" id="spis-sekcji">Na tej stronie</h2>
+      <h2 class="doc-toc__title" id="spis-sekcji">{% translate "Na tej stronie" %}</h2>
       <ol class="doc-toc__list">
         {% for chapter in page.chapters %}
           <li><a href="#{{ chapter.anchor }}">{{ chapter.text }}</a></li>

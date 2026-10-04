@@ -56,6 +56,7 @@ from apps.tenancy import branding
 
 from .activation import absolute_url, queue_mail
 from .models import Participant, User
+from .preferences import language_for
 from .supervisors import normalize_supervisor_email, set_supervisor_email
 
 #: Sól podpisu. Osobna od aktywacji, zmiany adresu, zaproszenia i zgody opiekuna prawnego: token
@@ -240,24 +241,26 @@ def request_consent(
         competition,
     )
     who = requester(requested)
-    context = {
-        "first_name": participant.user.first_name,
-        "supervisor_name": who["name"],
-        "supervisor_email": who["email"],
-        "supervisor_school": who["school"],
-        "competition_name": _competition_label(competition),
-        "via_coordinator": via == VIA_COORDINATOR,
-        "link": link,
-        "days": SUPERVISOR_CONSENT_DAYS,
-        "signature": branding.signature(competition, fallback=_("Olimpiada Kwantowa")),
-    }
-    queue_mail(
-        branding.subject(SUPERVISOR_CONSENT_SUBJECT_TEMPLATE, SUPERVISOR_CONSENT_SUBJECT, competition),
-        render_to_string(BODY_TEMPLATE, context),
-        participant.user.email,
-        competition=competition,
-        html_message=render_to_string(BODY_HTML_TEMPLATE, context),
-    )
+    # Prośbę składa nauczyciel albo koordynator importem – w **swoim** żądaniu. List czyta uczeń,
+    # więc temat, treść i podpis powstają w języku ucznia (``language_for``).
+    with language_for(participant.user, competition):
+        context = {
+            "first_name": participant.user.first_name,
+            "supervisor_name": who["name"],
+            "supervisor_email": who["email"],
+            "supervisor_school": who["school"],
+            "competition_name": _competition_label(competition),
+            "via_coordinator": via == VIA_COORDINATOR,
+            "link": link,
+            "days": SUPERVISOR_CONSENT_DAYS,
+            "signature": branding.signature(competition, fallback=_("Olimpiada Kwantowa")),
+        }
+        subject = str(
+            branding.subject(SUPERVISOR_CONSENT_SUBJECT_TEMPLATE, SUPERVISOR_CONSENT_SUBJECT, competition)
+        )
+        body = render_to_string(BODY_TEMPLATE, context)
+        html_body = render_to_string(BODY_HTML_TEMPLATE, context)
+    queue_mail(subject, body, participant.user.email, competition=competition, html_message=html_body)
     # W ``diff`` nie ma adresu nauczyciela: adres opiekuna jest daną osobową osoby trzeciej, a audyt
     # czytają też osoby bez prawa do niej (ta sama zasada, co w ``set_supervisor_email``). Kto prosił,
     # mówi ``actor`` – konto, które wgrało plik.

@@ -13,13 +13,14 @@
   wpisuje szyfrogram do ukrytych pól i dopiero wtedy wysyła formularz; bez skryptu jawna treść
   nie opuści przeglądarki.
 {% endcomment %}
+{% load i18n %}
 <div class="chat-thread" id="chat-thread">
   <header class="chat-thread__head">
-    <a class="chat-thread__back" href="{% if organizer_view %}{% url 'web:coordinator-chat' %}{% else %}{% url 'web:chat' %}{% endif %}">← Wszystkie rozmowy</a>
+    <a class="chat-thread__back" href="{% if organizer_view %}{% url 'web:coordinator-chat' %}{% else %}{% url 'web:chat' %}{% endif %}">← {% translate "Wszystkie rozmowy" %}</a>
     <div class="chat-thread__title-row">
       <h2 class="chat-thread__title">{{ thread_label }}</h2>
-      {% if is_encrypted %}<span class="badge badge--ok">szyfrowana end-to-end</span>
-      {% elif e2e and is_peer and conversation %}<span class="badge badge--neutral">bez szyfrowania</span>{% endif %}
+      {% if is_encrypted %}<span class="badge badge--ok">{% translate "szyfrowana end-to-end" %}</span>
+      {% elif e2e and is_peer and conversation %}<span class="badge badge--neutral">{% translate "bez szyfrowania" %}</span>{% endif %}
     </div>
     <div class="chat-thread__tools">
       {% if participant_card_url %}<a class="btn btn--small btn--ghost" href="{{ participant_card_url }}">Karta uczestnika</a>{% endif %}
@@ -28,10 +29,10 @@
           {% csrf_token %}
           {% if blocked_by_me %}
             <input type="hidden" name="action" value="unblock">
-            <button type="submit" class="btn btn--small btn--ghost">Odblokuj</button>
+            <button type="submit" class="btn btn--small btn--ghost">{% translate "Odblokuj" %}</button>
           {% else %}
             <input type="hidden" name="action" value="block">
-            <button type="submit" class="btn btn--small btn--ghost">Zablokuj</button>
+            <button type="submit" class="btn btn--small btn--ghost">{% translate "Zablokuj" %}</button>
           {% endif %}
         </form>
       {% endif %}
@@ -79,12 +80,13 @@
     {% endif %}
     {% if is_encrypted %}
       <details class="chat-thread__details">
-        <summary>Szczegóły szyfrowania</summary>
-        <p class="hint">Porównajcie odciski kluczy na żywo (np. na zajęciach albo przez telefon). Jeśli się
-          zgadzają, nikt nie podmienił kluczy po drodze.</p>
+        <summary>{% translate "Szczegóły szyfrowania" %}</summary>
+        <p class="hint">{% blocktranslate trimmed %}Porównajcie odciski kluczy na żywo (np. na zajęciach albo przez telefon). Jeśli się
+          zgadzają, nikt nie podmienił kluczy po drodze.{% endblocktranslate %}</p>
+        {% translate "brak klucza" as no_key %}
         <dl class="meta-list">
-          <dt>Twój klucz</dt><dd><code class="chat-fingerprint">{{ my_fingerprint|default:"brak klucza" }}</code></dd>
-          <dt>Klucz drugiej strony</dt><dd><code class="chat-fingerprint">{{ other_fingerprint|default:"brak klucza" }}</code></dd>
+          <dt>{% translate "Twój klucz" %}</dt><dd><code class="chat-fingerprint">{{ my_fingerprint|default:no_key }}</code></dd>
+          <dt>{% translate "Klucz drugiej strony" %}</dt><dd><code class="chat-fingerprint">{{ other_fingerprint|default:no_key }}</code></dd>
         </dl>
       </details>
     {% endif %}
@@ -94,24 +96,25 @@
 
   <div class="chat-compose">
     {% if refusal %}
-      <p class="notice">{{ refusal }}{% if needs_key %} <a href="{% url 'web:chat-key' %}">Skonfiguruj szyfrowanie</a>{% endif %}</p>
+      <p class="notice">{{ refusal }}{% if needs_key %} <a href="{% url 'web:chat-key' %}">{% translate "Skonfiguruj szyfrowanie" %}</a>{% endif %}</p>
     {% elif start_encrypted %}
       {% if has_key %}
         <form method="post" action="{{ form_action }}" class="form">
           {% csrf_token %}
           <input type="hidden" name="action" value="open-encrypted">
-          <p class="hint">Nowe rozmowy między uczestnikami są szyfrowane end-to-end: treść znają tylko Wasze
-            przeglądarki. Najpierw zakładamy rozmowę, potem napiszesz pierwszą wiadomość.</p>
-          <button type="submit" class="btn btn--primary">Rozpocznij rozmowę szyfrowaną</button>
+          <p class="hint">{% blocktranslate trimmed %}Nowe rozmowy między uczestnikami są szyfrowane end-to-end: treść znają tylko Wasze
+            przeglądarki. Najpierw zakładamy rozmowę, potem napiszesz pierwszą wiadomość.{% endblocktranslate %}</p>
+          <button type="submit" class="btn btn--primary">{% translate "Rozpocznij rozmowę szyfrowaną" %}</button>
         </form>
       {% else %}
-        <p class="notice">Nowe rozmowy między uczestnikami są szyfrowane.
-          <a href="{% url 'web:chat-key' %}">Skonfiguruj szyfrowanie</a>, żeby napisać.</p>
+        {% url 'web:chat-key' as key_url %}
+        <p class="notice">{% blocktranslate trimmed %}Nowe rozmowy między uczestnikami są szyfrowane.
+          <a href="{{ key_url }}">Skonfiguruj szyfrowanie</a>, żeby napisać.{% endblocktranslate %}</p>
       {% endif %}
     {% else %}
       {% if forcing_stage %}
-        <p class="notice notice--warning">Trwa etap „{{ forcing_stage.display_name }}” – do jego zamknięcia
-          każda wiadomość czeka na akceptację organizatora.</p>
+        <p class="notice notice--warning">{% blocktranslate trimmed with stage=forcing_stage.display_name %}Trwa etap „{{ stage }}” – do jego zamknięcia
+          każda wiadomość czeka na akceptację organizatora.{% endblocktranslate %}</p>
       {% endif %}
       {% if privacy_notice %}<p class="hint">{{ privacy_notice }}</p>{% endif %}
       {% if form_error %}<p class="msg msg-error" role="alert">{{ form_error }}</p>{% endif %}
@@ -124,13 +127,13 @@
           <input type="hidden" name="iv" value="">
           <input type="hidden" name="sender_fingerprint" value="{{ my_key.fingerprint }}">
           <input type="hidden" name="recipient_fingerprint" value="{{ other_key.fingerprint }}">
-          <p data-e2e-when="locked" class="hint">Odblokuj rozmowy szyfrowane (pole „Hasło do wiadomości” nad
-            listą rozmów), żeby pisać.</p>
+          <p data-e2e-when="locked" class="hint">{% blocktranslate trimmed %}Odblokuj rozmowy szyfrowane (pole „Hasło do wiadomości” nad
+            listą rozmów), żeby pisać.{% endblocktranslate %}</p>
           <div data-e2e-when="unlocked" hidden>
-            <label for="chat-body">Wiadomość</label>
+            <label for="chat-body">{% translate "Wiadomość" %}</label>
             <textarea id="chat-body" rows="3" maxlength="4000" data-e2e-input></textarea>
             <p class="msg msg-error" data-e2e-error hidden></p>
-            <button type="submit" class="btn btn--primary">Wyślij</button>
+            <button type="submit" class="btn btn--primary">{% translate "Wyślij" %}</button>
           </div>
         </form>
       {% else %}
@@ -160,7 +163,7 @@
           {{ form.body.errors }}
           {{ form.body.label_tag }}
           {{ form.body }}
-          <button type="submit" class="btn btn--primary">Wyślij</button>
+          <button type="submit" class="btn btn--primary">{% translate "Wyślij" %}</button>
           {% if organizer_view and conversation %}
             <button type="submit" name="close" value="1" class="btn btn--secondary">Odpowiedz i zamknij</button>
           {% endif %}

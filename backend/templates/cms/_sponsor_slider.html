@@ -1,4 +1,4 @@
-{% comment %}
+{% load i18n %}{% comment %}
   Pasek rotujących logotypów w menu serwisu, po prawej stronie pozycji „FAQ” (templates/base.html,
   wewnątrz ``<nav class="nav nav--cms">``, po pętli po pozycjach menu – uwaga organizatora
   z 21.09.2026, „jak na Olimpiadzie Biologicznej”).
@@ -23,7 +23,7 @@
   {# Dok zajmuje wolne miejsce wiersza menu; sama taśma ma w nim szerokość pełnych pól – app.css. #}
   <div class="sponsor-slider-dock">
   <div class="sponsor-slider" data-sponsor-slider data-interval="{{ sponsor_slider.seconds }}"
-       aria-label="Partnerzy i sponsorzy">
+       aria-label="{% translate 'Partnerzy i sponsorzy' %}">
     <ul class="sponsor-slider__track" data-sponsor-slider-track>
       {% for entry in sponsor_slider.entries %}
         <li class="sponsor-slider__item">

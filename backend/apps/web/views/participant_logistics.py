@@ -28,6 +28,8 @@ from django import forms
 from django.contrib import messages
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
+from django.utils.translation import gettext as _
+from django.utils.translation import gettext_lazy
 from django.views.generic import View
 
 from apps.competitions.logistics import (
@@ -56,10 +58,10 @@ class ArrivalDeclarationForm(forms.Form):
 
     #: ``type="date"`` daje przeglądarce natywny wybór daty – bez skryptu, więc bez kolizji z CSP.
     arrives_on = forms.DateField(
-        label="Przyjazd", required=False, widget=forms.DateInput(attrs={"type": "date"})
+        label=gettext_lazy("Przyjazd"), required=False, widget=forms.DateInput(attrs={"type": "date"})
     )
     departs_on = forms.DateField(
-        label="Wyjazd", required=False, widget=forms.DateInput(attrs={"type": "date"})
+        label=gettext_lazy("Wyjazd"), required=False, widget=forms.DateInput(attrs={"type": "date"})
     )
 
     def __init__(self, *args, competition=None, **kwargs):
@@ -68,12 +70,12 @@ class ArrivalDeclarationForm(forms.Form):
         # ozdobą – bez zawężenia dałoby się jednym POST-em zadeklarować przyjazd pod cudzy adres.
         self.fields["venue"] = forms.ModelChoiceField(
             queryset=venues_for(competition).order_by("name", "id"),
-            label="Miejsce",
+            label=_("Miejsce"),
             required=False,
-            empty_label="— wybierz miejsce —",
+            empty_label=_("— wybierz miejsce —"),
         )
         self.fields["needs"] = forms.MultipleChoiceField(
-            label="Czego potrzebujesz",
+            label=_("Czego potrzebujesz"),
             choices=available_needs(competition),
             required=False,
             widget=forms.CheckboxSelectMultiple,
@@ -81,7 +83,7 @@ class ArrivalDeclarationForm(forms.Form):
         self.order_fields(["venue", "arrives_on", "departs_on", "needs"])
         if collects_special_needs(competition):
             self.fields["note"] = forms.CharField(
-                label="Uwagi",
+                label=_("Uwagi"),
                 required=False,
                 max_length=NOTE_MAX_LENGTH,
                 widget=forms.Textarea(attrs={"rows": 3}),
@@ -94,7 +96,7 @@ class ArrivalDeclarationForm(forms.Form):
         arrives_on = data.get("arrives_on")
         departs_on = data.get("departs_on")
         if arrives_on and departs_on and departs_on < arrives_on:
-            self.add_error("departs_on", "Wyjazd nie może być przed przyjazdem.")
+            self.add_error("departs_on", _("Wyjazd nie może być przed przyjazdem."))
         return data
 
 
@@ -150,8 +152,8 @@ class ArrivalFormView(ParticipantRequiredMixin, View):
         if not form.is_valid():
             messages.error(
                 request,
-                "Deklaracji nie zapisano: "
-                + "; ".join(text for errors in form.errors.values() for text in errors),
+                _("Deklaracji nie zapisano: %(errors)s")
+                % {"errors": "; ".join(text for errors in form.errors.values() for text in errors)},
             )
             return redirect(reverse("web:me"))
         data = form.cleaned_data
@@ -169,7 +171,7 @@ class ArrivalFormView(ParticipantRequiredMixin, View):
         except DomainError as exc:
             messages.error(request, str(exc.detail))
             return redirect(reverse("web:me"))
-        messages.success(request, "Deklaracja przyjazdu zapisana.")
+        messages.success(request, _("Deklaracja przyjazdu zapisana."))
         return redirect(reverse("web:me"))
 
 

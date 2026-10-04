@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load wagtailcore_tags %}
+{% load i18n wagtailcore_tags %}
 {% comment %}
   Najczęstsze pytania. Każde pytanie jest elementem ``<details>``, a nie przyciskiem ze skryptem –
   dokładnie z tego samego powodu, co rozwijana pozycja menu w szablonie bazowym: otwiera się
@@ -33,8 +33,8 @@
   </section>
 {% empty %}
   <p class="empty">
-    <span class="empty__title">Nie ma jeszcze żadnych pytań</span>
-    Redakcja dopisuje je w panelu treści.
+    <span class="empty__title">{% translate "Nie ma jeszcze żadnych pytań" %}</span>
+    {% translate "Redakcja dopisuje je w panelu treści." %}
   </p>
 {% endfor %}
 
@@ -43,7 +43,8 @@
   jest dokładnie tą osobą, która powinna napisać do organizatora.
 {% endcomment %}
 <div class="card card--quiet">
-  <p>Nie znalazłeś odpowiedzi? <a href="{% url 'web:support-new' %}">Zgłoś problem organizatorowi</a> –
-    opiszemy sprawę wspólnie, a odpowiedź dostaniesz e-mailem.</p>
+  {% url 'web:support-new' as support_url %}
+  <p>{% translate "Nie znalazłeś odpowiedzi?" %} {% blocktranslate trimmed %}<a href="{{ support_url }}">Zgłoś problem organizatorowi</a> –
+    opiszemy sprawę wspólnie, a odpowiedź dostaniesz e-mailem.{% endblocktranslate %}</p>
 </div>
 {% endblock %}

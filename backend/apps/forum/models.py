@@ -44,6 +44,7 @@ from __future__ import annotations
 from django.conf import settings
 from django.db import models
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 
 from apps.competitions.scoping import competition_scoped_manager
 
@@ -85,10 +86,10 @@ class ModerationStatus(models.TextChoices):
     obu do jednego stanu odbierałoby ekranowi „Twoje wpisy” możliwość powiedzenia, co się stało.
     """
 
-    PENDING = "PENDING", "czeka na moderację"
-    PUBLISHED = "PUBLISHED", "opublikowane"
-    REJECTED = "REJECTED", "odrzucone"
-    HIDDEN = "HIDDEN", "ukryte"
+    PENDING = "PENDING", _("czeka na moderację")
+    PUBLISHED = "PUBLISHED", _("opublikowane")
+    REJECTED = "REJECTED", _("odrzucone")
+    HIDDEN = "HIDDEN", _("ukryte")
 
 
 #: Stany, które czekają na koordynatora – to one wyznaczają kolejkę moderacji i odznakę w menu.
@@ -105,14 +106,14 @@ class ModerationMode(models.TextChoices):
     ma dyżur moderacyjny i woli rozmowę na żywo – wtedy moderator **ukrywa**, zamiast wpuszczać.
     """
 
-    PRE = "PRE", "przed publikacją"
-    POST = "POST", "po publikacji"
+    PRE = "PRE", _("przed publikacją")
+    POST = "POST", _("po publikacji")
 
 
 #: Podpis pod wpisem osoby, której konta już nie ma (skasowane) albo które przeszło anonimizację
 #: (``apps.accounts.profile.anonymise_account`` wyciera imię i nazwisko, a wiersz konta zostawia).
 #: Napis, a nie puste miejsce: wpis bez podpisu wyglądałby jak wpis organizatora.
-ANONYMISED_AUTHOR_LABEL = "Użytkownik usunięty"
+ANONYMISED_AUTHOR_LABEL = _("Użytkownik usunięty")
 
 
 def display_author(user) -> str:
@@ -134,11 +135,11 @@ def display_author(user) -> str:
     (``apps.forum.services.author_badge``), bo zależy od roli w konkursie, a nie od danych konta.
     """
     if user is None:
-        return ANONYMISED_AUTHOR_LABEL
+        return str(ANONYMISED_AUTHOR_LABEL)
     first = (getattr(user, "first_name", "") or "").strip()
     last = (getattr(user, "last_name", "") or "").strip()
     if not first:
-        return ANONYMISED_AUTHOR_LABEL
+        return str(ANONYMISED_AUTHOR_LABEL)
     return f"{first} {last[0]}." if last else first
 
 
@@ -452,9 +453,9 @@ class NotificationFrequency(models.TextChoices):
     jeden list na ``FORUM_THREAD_NOTIFY_INTERVAL_HOURS`` godzin.
     """
 
-    IMMEDIATE = "IMMEDIATE", "na bieżąco"
-    DAILY = "DAILY", "raz dziennie"
-    NEVER = "NEVER", "nigdy"
+    IMMEDIATE = "IMMEDIATE", _("na bieżąco")
+    DAILY = "DAILY", _("raz dziennie")
+    NEVER = "NEVER", _("nigdy")
 
 
 class ForumNotificationSettings(models.Model):
@@ -560,10 +561,10 @@ class ForumSubscription(models.Model):
 class DecisionKind(models.TextChoices):
     """Która decyzja moderatora czeka na list do autora."""
 
-    POST_APPROVED = "POST_APPROVED", "wpis zatwierdzony"
-    POST_REJECTED = "POST_REJECTED", "wpis odrzucony"
-    THREAD_APPROVED = "THREAD_APPROVED", "wątek zatwierdzony"
-    THREAD_REJECTED = "THREAD_REJECTED", "wątek odrzucony"
+    POST_APPROVED = "POST_APPROVED", _("wpis zatwierdzony")
+    POST_REJECTED = "POST_REJECTED", _("wpis odrzucony")
+    THREAD_APPROVED = "THREAD_APPROVED", _("wątek zatwierdzony")
+    THREAD_REJECTED = "THREAD_REJECTED", _("wątek odrzucony")
 
 
 class ForumDecisionNotice(models.Model):

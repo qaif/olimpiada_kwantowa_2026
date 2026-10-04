@@ -28,6 +28,8 @@ from django.shortcuts import redirect
 from django.template.response import TemplateResponse
 from django.urls import reverse
 from django.utils.decorators import method_decorator
+from django.utils.translation import gettext as _
+from django.utils.translation import gettext_lazy
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import View
 
@@ -82,7 +84,7 @@ THREADS_PER_PAGE = 30
 
 #: Zdanie, które stoi nad **każdym** formularzem pisania w czasie otwartego etapu. Jedna stała,
 #: bo to jest cytat z regulaminu, a nie treść ekranu – i ma brzmieć tak samo w trzech miejscach.
-OPEN_STAGE_WARNING = (
+OPEN_STAGE_WARNING = gettext_lazy(
     "Trwa etap przyjmujący rozwiązania. Regulamin zabrania omawiania zadań tego etapu "
     "(§ 10 ust. 2 i § 17) – wpisy o treści zadań będą odrzucane, a próba uzyskania lub podania "
     "rozwiązania jest podstawą do dyskwalifikacji. Do czasu zamknięcia etapu każdy wpis czeka "
@@ -223,8 +225,8 @@ class ForumThreadView(ForumAccessMixin, ThrottledFormMixin, View):
 
     def _posted_message(self) -> str:
         if effective_mode(self.competition) == ModerationMode.PRE:
-            return "Wpis czeka na zatwierdzenie przez organizatora. Widzisz go tylko Ty."
-        return "Wpis został dodany."
+            return _("Wpis czeka na zatwierdzenie przez organizatora. Widzisz go tylko Ty.")
+        return _("Wpis został dodany.")
 
     def _thread(self, request, pk: int) -> ForumThread:
         thread = (
@@ -292,8 +294,8 @@ class ForumThreadCreateView(ForumAccessMixin, ThrottledFormMixin, View):
 
     def _created_message(self) -> str:
         if effective_mode(self.competition) == ModerationMode.PRE:
-            return "Wątek czeka na zatwierdzenie przez organizatora. Widzisz go tylko Ty."
-        return "Wątek został założony."
+            return _("Wątek czeka na zatwierdzenie przez organizatora. Widzisz go tylko Ty.")
+        return _("Wątek został założony.")
 
     def _form(self, request, data=None) -> ThreadForm:
         categories = ForumCategory.objects.for_competition(self.competition).filter(is_open=True)
@@ -324,7 +326,7 @@ class ForumPostEditView(ForumAccessMixin, ThrottledFormMixin, View):
         except DomainError as exc:
             form.add_error(None, str(exc.detail))
             return self._render(request, post, form, status=exc.status_code)
-        messages.success(request, "Wpis został poprawiony.")
+        messages.success(request, _("Wpis został poprawiony."))
         return redirect(reverse("web:forum-thread", args=[post.thread_id]))
 
     def _post(self, request, pk: int) -> ForumPost:
@@ -362,7 +364,7 @@ class ForumPostDeleteView(ForumAccessMixin, ThrottledFormMixin, View):
         except DomainError as exc:
             messages.error(request, str(exc.detail))
         else:
-            messages.success(request, "Wpis został usunięty.")
+            messages.success(request, _("Wpis został usunięty."))
         return redirect(reverse("web:forum-thread", args=[post.thread_id]))
 
 
@@ -384,7 +386,7 @@ class ForumPostReportView(ForumAccessMixin, ThrottledFormMixin, View):
         except DomainError as exc:
             form.add_error(None, str(exc.detail))
             return self._render(request, post, form, status=exc.status_code)
-        messages.success(request, "Zgłoszenie trafiło do organizatora. Dziękujemy.")
+        messages.success(request, _("Zgłoszenie trafiło do organizatora. Dziękujemy."))
         return redirect(reverse("web:forum-thread", args=[post.thread_id]))
 
     def _post(self, request, pk: int) -> ForumPost:
@@ -476,9 +478,9 @@ class ForumThreadFollowView(ForumAccessMixin, View):
         follow = request.POST.get("follow") == "1"
         notifications.set_following(request.user, thread, follow)
         if follow:
-            messages.success(request, "Obserwujesz ten wątek – o nowych odpowiedziach napiszemy e-mailem.")
+            messages.success(request, _("Obserwujesz ten wątek – o nowych odpowiedziach napiszemy e-mailem."))
         else:
-            messages.success(request, "Nie obserwujesz już tego wątku.")
+            messages.success(request, _("Nie obserwujesz już tego wątku."))
         return redirect(reverse("web:forum-thread", args=[thread.pk]))
 
 
@@ -527,7 +529,7 @@ class ForumNotificationSettingsView(LoginRequiredMixin, View):
         form = NotificationSettingsForm(request.POST, moderator=moderator)
         target = f"{profile_url(request)}#powiadomienia-forum"
         if not form.is_valid():
-            messages.error(request, "Nie udało się zapisać ustawień powiadomień – wybierz jedną z opcji.")
+            messages.error(request, _("Nie udało się zapisać ustawień powiadomień – wybierz jedną z opcji."))
             return redirect(target)
         current = notifications.preferences_for(request.user)
         notifications.save_preferences(
@@ -536,7 +538,7 @@ class ForumNotificationSettingsView(LoginRequiredMixin, View):
             # Pole jest tylko w formularzu koordynatora; pozostali zachowują to, co mieli.
             moderation_digest=form.cleaned_data.get("moderation_digest", current.moderation_digest),
         )
-        messages.success(request, "Ustawienia powiadomień z forum zostały zapisane.")
+        messages.success(request, _("Ustawienia powiadomień z forum zostały zapisane."))
         return redirect(target)
 
 

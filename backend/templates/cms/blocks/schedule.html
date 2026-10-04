@@ -1,4 +1,4 @@
-{% comment %}
+{% load i18n %}{% comment %}
   Harmonogram redakcyjny jako tabela danych. Trzy decyzje o tym znaczniku:
 
   - ``<th scope="col">`` w nagłówku i ``<th scope="row">`` w pierwszej komórce wiersza: czytnik
@@ -16,10 +16,10 @@
     {% if value.caption %}<caption>{{ value.caption }}</caption>{% endif %}
     <thead>
       <tr>
-        <th scope="col">{{ value.topic_label|default:"Temat" }}</th>
-        <th scope="col">{{ value.date_label|default:"Termin" }}</th>
-        {% if value.has_time %}<th scope="col">{{ value.time_label|default:"Godziny" }}</th>{% endif %}
-        {% if value.has_lecturer %}<th scope="col">{{ value.lecturer_label|default:"Prowadzący" }}</th>{% endif %}
+        <th scope="col">{{ value.topic_label|default:_("Temat") }}</th>
+        <th scope="col">{{ value.date_label|default:_("Termin") }}</th>
+        {% if value.has_time %}<th scope="col">{{ value.time_label|default:_("Godziny") }}</th>{% endif %}
+        {% if value.has_lecturer %}<th scope="col">{{ value.lecturer_label|default:_("Prowadzący") }}</th>{% endif %}
       </tr>
     </thead>
     <tbody>
