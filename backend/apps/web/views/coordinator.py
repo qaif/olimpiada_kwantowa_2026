@@ -27,6 +27,7 @@ from django.views.generic import TemplateView, View
 from apps.accounts.activation import (
     ACTIVATION_MAX_AGE,
     mark_activated,
+    pending_invitation,
     resend_activation,
 )
 from apps.accounts.models import (
@@ -1053,6 +1054,14 @@ class ActivateAccountView(CoordinatorActionView):
         user = get_object_or_404(users_for_competition(request.competition), pk=pk)
         if user.email_verified_at is not None:
             raise DomainError("To konto jest już aktywne.", "ALREADY_ACTIVE")
+        if pending_invitation(user) is not None:
+            # AUTH-01a (H1): konto z zaproszenia uruchamia uczeń na ekranie zaproszenia – tam składa
+            # zgody (także opiekuna) i ustawia hasło. Ręczna aktywacja dałaby aktywne konto bez zgód.
+            raise DomainError(
+                "To konto powstało z zaproszenia – uczeń uruchamia je sam linkiem z listu (zgody, hasło). "
+                "Zamiast aktywacji wyślij zaproszenie ponownie.",
+                "INVITATION_PENDING",
+            )
         mark_activated(user, actor=request.user, action="account.activated_by_coordinator", request=request)
         return "Konto zostało aktywowane ręcznie."
 
@@ -1070,11 +1079,16 @@ class ResendActivationView(CoordinatorActionView):
         # organizatora wobec jego własnego uczestnika. Zawężenie jest to samo, co na liście kont
         # (``users_for_competition``), żeby dwa ekrany nie miały dwóch definicji „czyje to konto”.
         user = get_object_or_404(users_for_competition(request.competition), pk=pk)
-        if not resend_activation(user.email, request=request):
+        # Konto z zaproszenia dostaje zaproszenie, a nie link aktywacyjny (AUTH-01a) – komunikat
+        # ma mówić, co naprawdę wyszło.
+        invited = pending_invitation(user) is not None
+        if not resend_activation(user.email, request=request, actor=request.user):
             raise DomainError(
                 "Tego konta nie da się aktywować linkiem – adres jest już potwierdzony.",
                 "NOTHING_TO_SEND",
             )
+        if invited:
+            return "Zaproszenie zostało wysłane ponownie."
         return "Link aktywacyjny został wysłany ponownie."
 
 

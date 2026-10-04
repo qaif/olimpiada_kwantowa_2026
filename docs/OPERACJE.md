@@ -1689,6 +1689,41 @@ drogą z § 4.2) i odtwórz `web`, `worker` oraz `beat`. Migracji ani danych to 
 niczego nie zapisuje w bazie, a dokumenty powstają od nowa przy każdym pobraniu
 (`apps/results/certificates.py`), więc wycofanie jest natychmiastowe i bezstratne.
 
+### 9.7. Reset hasła: host, język, nadawca, konta bez hasła (AUTH-01a, `docs/tasks/AUTH-01a.md`)
+
+Jak działa: link w liście prowadzi pod **host, z którego przyszło żądanie** (`iqo-official.org`,
+`olimpiadakwantowa.pl`, `/<prefiks>/` konkursu pod prefiksem), list jest w języku interfejsu tego
+konkursu i – od AUTH-01a – wychodzi od **nadawcy konkursu** (`Competition.from_email`, pusty =
+`DEFAULT_FROM_EMAIL`), tak jak aktywacja i zaproszenia. List idzie zadaniem na kolejce `mail`.
+Konto z Google/Facebooka bez hasła dostaje link, gdy adres potwierdził dostawca albo nasza
+aktywacja; konto przed aktywacją dostaje link resetu, którego zapis aktywuje konto; zaproszony uczeń
+– ponowione zaproszenie (najwyżej raz na 10 min z formularzy publicznych); konto zablokowane
+i zanonimizowane – nic. Strona odpowiedzi jest zawsze ta sama. Limit: 5/h na IP, na IP+adres
+i **na adresata** (bez IP). Koordynator nie aktywuje ręcznie konta z niezaakceptowanym zaproszeniem
+– wysyła zaproszenie ponownie.
+
+**Nadawca a relay.** `ALLOWED_SENDER_DOMAINS` (domyślnie `SITE_DOMAIN`; lista rozdzielona spacją) czyta
+i usługa `mail`, i aplikacja: nadawca konkursu spoza listy jest pomijany – listy idą od
+`DEFAULT_FROM_EMAIL`, a w logu `web`/`worker` pada raz ostrzeżenie „Nadawca konkursu … jest spoza
+ALLOWED_SENDER_DOMAINS”. Dopisanie drugiej domeny (np. `olimpiadakwantowa.pl iqo-official.org`) wymaga
+rekordów SPF/DKIM/DMARC tej domeny (klucz DKIM generuje usługa `mail` przy starcie – rekord TXT
+z `docker compose exec mail cat /etc/opendkim/keys/<domena>.txt`) i odtworzenia `mail` oraz `web`/`worker`.
+W wariancie B (zewnętrzny dostawca) wolno ustawić `*` – wtedy aplikacja nie ogranicza nadawców.
+
+Do sprawdzenia na produkcji (jednorazowo i po każdej zmianie nadawcy konkursu):
+
+1. **Nadawca każdego konkursu jest w `ALLOWED_SENDER_DOMAINS`.** Inaczej aplikacja po cichu (poza
+   jednym ostrzeżeniem w logu) wysyła od `DEFAULT_FROM_EMAIL`. Sprawdzenie:
+   `docker compose exec web python manage.py shell -c "from apps.tenancy.models import Competition as C; print(list(C.objects.values_list('slug','from_email')))"`
+   i `docker compose logs web worker | grep ALLOWED_SENDER_DOMAINS`. Wyjście: pusty `from_email`
+   (nadawca instalacji) albo druga domena w `ALLOWED_SENDER_DOMAINS` razem z SPF/DKIM/DMARC.
+2. **Odwrotny DNS i SPF/DKIM** domeny nadawcy – README § 4.2 (bez zmian).
+3. **`https` w linku**: `SECURE_PROXY_SSL_HEADER` (production.py) + `X-Forwarded-Proto` z Caddy –
+   każda domena z `EXTRA_DOMAINS` ma blok proxy z tym nagłówkiem (`scripts/render_caddyfile.sh`).
+4. **Próba na żywo**: „Nie pamiętasz hasła?” na `https://iqo-official.org/password-reset/` i na
+   `https://olimpiadakwantowa.pl/password-reset/` na skrzynkę testową – list po angielsku/polsku,
+   link pod ten sam host, nadawca konkursu, worker loguje „Wysłano 1 wiadomości”.
+
 ## 10. CI: podział testów na shardy (v0.27.3)
 
 Zadanie `pytest` w `.github/workflows/ci.yml` idzie w pięciu równoległych shardach

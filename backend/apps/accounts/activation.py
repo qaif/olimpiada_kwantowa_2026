@@ -35,7 +35,8 @@ zajrzeć do skrzynki po lekcjach, a ponowna rejestracja od zera zniechęcała.
 from __future__ import annotations
 
 import logging
-from contextlib import nullcontext
+from contextlib import contextmanager, nullcontext
+from datetime import timedelta
 
 from django.conf import settings
 from django.core import signing
@@ -539,15 +540,109 @@ def activate_with_token(token: str, *, request=None) -> User:
             "ALREADY_ACTIVE",
             status.HTTP_400_BAD_REQUEST,
         )
+    if pending_invitation(user) is not None:
+        # Konto z zaproszenia (import listy klasowej, zgłoszenie przez opiekuna drużyny) startuje
+        # wyłącznie ekranem zaproszenia: tam uczeń składa zgody i ustawia hasło. Aktywacja zwykłym
+        # linkiem dałaby aktywne konto bez zgód – a od AUTH-01a reset hasła działa także dla kont
+        # bez hasła, więc byłaby to pełna droga do panelu z pominięciem zgód. Link sprzed poprawki
+        # (wydany przez ``resend_activation``) kończy się tu tym samym komunikatem, co każdy zły.
+        raise _invalid_token()
     return mark_activated(user, actor=user, request=request)
 
 
-def resend_activation(email: str, *, request=None) -> bool:
+def pending_invitation(user: User):
+    """Zaproszenie ucznia, którego konto jeszcze go nie przyjęło – ``Participant`` albo ``None``.
+
+    Takie konto powstaje bez hasła i nieaktywne (``bulk_registration._create_invited_user``,
+    ``delegation_services.add_student``) i jedyną drogą do jego uruchomienia jest link z listu
+    zaproszenia. Rozpoznajemy je po ``Participant.invited_at`` – tej samej kolumnie, po której
+    ``bulk_registration.read_invite_token`` szuka ucznia do ekranu zaproszenia.
+    """
+    if user.is_active or user.email_verified_at is not None:
+        return None
+    from .models import Participant
+
+    return (
+        Participant.objects.select_related("user", "delegation__country")
+        .filter(user=user, invited_at__isnull=False)
+        .order_by("-invited_at", "-pk")
+        .first()
+    )
+
+
+#: Najkrótszy odstęp między dwoma listami zaproszenia wysłanymi z formularzy **publicznych**
+#: („Nie pamiętasz hasła?”, „Wyślij link ponownie”). Każdy taki list odnawia token zaproszenia,
+#: więc bez odstępu anonim mógłby co chwilę zasypywać skrzynkę ucznia i przedłużać ważność linku.
+#: Koordynator i opiekun drużyny (``actor`` podany) tego odstępu nie mają – działają świadomie.
+INVITATION_RESEND_COOLDOWN = timedelta(minutes=10)
+
+
+@contextmanager
+def _mail_scope_of(competition):
+    """Konkurs ``competition`` w kontekście i prefiks skryptu ``/`` na czas składania listu.
+
+    Potrzebne, gdy list dotyczy konkursu innego niż konkurs żądania (AUTH-01a, L2): ``reverse()``
+    w żądaniu pod prefiksem ``/druga/`` dokleiłby cudzy prefiks, a ``absolute_url`` bez żądania
+    bierze podstawę adresu z konkursu w kontekście – tego, do którego należy uczeń.
+    """
+    from django.urls import get_script_prefix, set_script_prefix
+
+    from apps.tenancy.context import competition_context
+
+    previous = get_script_prefix()
+    set_script_prefix("/")
+    try:
+        with competition_context(competition):
+            yield
+    finally:
+        set_script_prefix(previous)
+
+
+def send_pending_invitation(participant, *, request=None, actor=None) -> bool:
+    """Ponawia list zaproszenia tą samą funkcją, którą wysłał je opiekun albo koordynator.
+
+    Uczeń delegacji dostaje list delegacji (kraj, opiekun drużyny), uczeń z importu – list szkolny;
+    oba prowadzą na ten sam ekran zaproszenia z nowym tokenem. Zwraca, czy list poszedł.
+
+    - **bez ``actor``** (formularz publiczny) obowiązuje :data:`INVITATION_RESEND_COOLDOWN`,
+    - link i nadawca pochodzą z **konkursu ucznia**: żądanie z hosta innego konkursu nie wyznacza
+      adresu (ekran zaproszenia zbiera zgody konkursu ucznia, a nie konkursu, z którego ktoś pyta),
+    - wpis audytowy ``participant.invitation_resent`` – ten sam, co przy ponowieniu z panelu.
+    """
+    if actor is None and participant.invitation_sent_at is not None:
+        if timezone.now() - participant.invitation_sent_at < INVITATION_RESEND_COOLDOWN:
+            return False
+    if participant.delegation_id is not None:
+        from .delegation_services import send_student_invitation as send
+    else:
+        from .bulk_registration import send_invitation as send
+    own = request is not None and getattr(getattr(request, "competition", None), "pk", None) == (
+        participant.competition_id
+    )
+    if own:
+        send(participant, request=request)
+    else:
+        with _mail_scope_of(participant.competition):
+            send(participant, request=None)
+    audit(
+        actor,
+        "participant.invitation_resent",
+        participant,
+        {"via": "self_service" if actor is None else "panel"},
+        request=request,
+    )
+    return True
+
+
+def resend_activation(email: str, *, request=None, actor=None) -> bool:
     """Wysyła link ponownie, jeśli jest po co. Zwraca, czy list poszedł – **nie do pokazania**.
 
     Wołający pokazuje zawsze ``RESEND_MESSAGE``: odpowiedź zależna od istnienia konta zamieniłaby
     formularz w wyszukiwarkę adresów zarejestrowanych w serwisie. Wartość zwracana jest dla testów
     i dla logu, nie dla przeglądarki.
+
+    Konto z niezaakceptowanym zaproszeniem dostaje **zaproszenie**, a nie link aktywacyjny – powód
+    przy :func:`activate_with_token` (AUTH-01a).
     """
     normalized = (email or "").strip().lower()
     if not normalized:
@@ -555,5 +650,8 @@ def resend_activation(email: str, *, request=None) -> bool:
     user = User.objects.filter(email=normalized).first()
     if user is None or user.email_verified_at is not None:
         return False
+    invited = pending_invitation(user)
+    if invited is not None:
+        return send_pending_invitation(invited, request=request, actor=actor)
     send_activation_email(user, request=request)
     return True
