@@ -187,8 +187,9 @@ def request_message(link: str, first_name: str, school: str, competition=None) -
         [
             _(
                 "Uczennica lub uczeń podał ten adres jako kontakt do rodzica albo opiekuna "
-                "prawnego w zgłoszeniu do Olimpiady Kwantowej."
-            ),
+                "prawnego w zgłoszeniu do %(competition_genitive)s."
+            )
+            % branding.brand_names(competition),
             "",
             _("Zgłoszenie dotyczy: %(name)s (%(school)s).") % {"name": first_name, "school": school},
             "",
@@ -216,10 +217,10 @@ def confirmed_message(guardian_email: str, competition=None) -> str:
     return "\n".join(
         [
             _(
-                "Zgoda rodzica lub opiekuna prawnego na Twój udział w Olimpiadzie Kwantowej "
+                "Zgoda rodzica lub opiekuna prawnego na Twój udział w %(competition_locative)s "
                 "została potwierdzona z adresu %(email)s."
             )
-            % {"email": guardian_email},
+            % {**branding.brand_names(competition), "email": guardian_email},
             "",
             _("Stan zgód widzisz po zalogowaniu w panelu uczestnika."),
             "",

@@ -426,11 +426,22 @@ class PreferencesMiddleware:
         translation.activate(state["language"])
         request.LANGUAGE_CODE = state["language"]
         request.high_contrast = state["high_contrast"]
-        response = self.get_response(request)
-        # Nagłówek ``Content-Language`` ma mówić o języku, który faktycznie wyszedł – a ten mogła
-        # zmienić ta warstwa już po tym, jak ``LocaleMiddleware`` ustawiło swój.
-        response.setdefault("Content-Language", state["language"])
-        return response
+        response = None
+        try:
+            response = self.get_response(request)
+            # Nagłówek ``Content-Language`` ma mówić o języku, który faktycznie wyszedł – a ten mogła
+            # zmienić ta warstwa już po tym, jak ``LocaleMiddleware`` ustawiło swój.
+            response.setdefault("Content-Language", state["language"])
+            return response
+        finally:
+            # Język jest ustawieniem **wątku**, a gunicorn w trybie ``gthread`` obsługuje w jednym
+            # wątku kolejne żądania i kod spoza nich (sygnały po odpowiedzi, zadania wołane
+            # synchronicznie). Bez sprzątania arabski z ostatniego żądania zostawałby aktywny do
+            # następnego ``activate`` – dla kodu, który języka nie ustawia sam (list do koordynatora,
+            # log), byłby to język przypadkowy. Wyjątkiem jest odpowiedź **strumieniowa**: jej treść
+            # powstaje dopiero przy wysyłaniu, już za tą warstwą, i ma powstać w języku żądania.
+            if response is None or not getattr(response, "streaming", False):
+                translation.deactivate()
 
 
 def interface(request) -> dict:

@@ -10,7 +10,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Olimpiada Kwantowa\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-04 13:47+0200\n"
+"POT-Creation-Date: 2026-10-04 15:08+0200\n"
 "PO-Revision-Date: 2026-10-04 15:00+0200\n"
 "Last-Translator: Olimpiada Kwantowa\n"
 "Language-Team: Chinese (Simplified)\n"
@@ -50,14 +50,21 @@ msgstr "账户电子邮箱地址已更改 – %(competition)s"
 #: apps/accounts/activation.py:97
 #, python-format
 msgid ""
-"Konto zostało założone. Sprawdź skrzynkę e-mail (także spam) i kliknij link aktywacyjny – bez tego logowanie nie zadziała. Link jest ważny %(hours)s godziny – po tym czasie konto zostanie usunięte i trzeba zarejestrować się ponownie."
+"Konto zostało założone. Sprawdź skrzynkę e-mail (także spam) i kliknij link "
+"aktywacyjny – bez tego logowanie nie zadziała. Link jest ważny %(hours)s "
+"godziny – po tym czasie konto zostanie usunięte i trzeba zarejestrować się "
+"ponownie."
 msgstr ""
-"账户已创建。请查看您的邮箱（包括垃圾邮件文件夹）并点击激活链接，否则无法登录。链接有效期为 %(hours)s 小时，过期后账户将被删除，需要重新注册。"
+"账户已创建。请查看您的邮箱（包括垃圾邮件文件夹）并点击激活链接，否则无法登"
+"录。链接有效期为 %(hours)s 小时，过期后账户将被删除，需要重新注册。"
 
 #: apps/accounts/activation.py:115
 msgid ""
-"Jeśli konto z tym adresem istnieje i czeka na aktywację, link został wysłany ponownie. Sprawdź też folder ze spamem."
-msgstr "如果该地址对应的账户存在且尚未激活，激活链接已重新发送。请同时检查垃圾邮件文件夹。"
+"Jeśli konto z tym adresem istnieje i czeka na aktywację, link został wysłany "
+"ponownie. Sprawdź też folder ze spamem."
+msgstr ""
+"如果该地址对应的账户存在且尚未激活，激活链接已重新发送。请同时检查垃圾邮件文"
+"件夹。"
 
 #: apps/accounts/activation.py:119
 msgid "Link aktywacyjny jest nieprawidłowy albo wygasł."
@@ -65,7 +72,7 @@ msgstr "激活链接无效或已过期。"
 
 #: apps/accounts/activation.py:272 apps/accounts/supervisor_consent.py:213
 #: apps/accounts/supervisor_consent.py:256 apps/submissions/notifications.py:85
-#: templates/registration/invite_student_body.txt:30
+#: apps/tenancy/branding.py:104
 msgid "Olimpiada Kwantowa"
 msgstr "量子奥林匹克"
 
@@ -77,60 +84,65 @@ msgid "Wiadomość wysłana automatycznie; prosimy na nią nie odpowiadać."
 msgstr "此邮件为系统自动发送，请勿回复。"
 
 #: apps/accounts/activation.py:281
+#, python-format
 msgid ""
-"Ktoś – prawdopodobnie Ty – założył konto w serwisie Olimpiady Kwantowej."
-msgstr "有人（很可能是您本人）在量子奥林匹克网站上注册了账户。"
+"Ktoś – prawdopodobnie Ty – założył konto w serwisie %(competition_genitive)s."
+msgstr "有人（可能是您）在%(competition_genitive)s网站上创建了账户。"
 
-#: apps/accounts/activation.py:283
+#: apps/accounts/activation.py:284
 msgid "Aby aktywować konto i móc się zalogować, otwórz poniższy adres:"
 msgstr "要激活账户并登录，请打开以下链接："
 
-#: apps/accounts/activation.py:288
+#: apps/accounts/activation.py:289
 #, python-format
 msgid ""
-"Link jest ważny %(hours)s godziny. Po tym czasie konto zostanie usunięte i rejestrację trzeba będzie powtórzyć."
+"Link jest ważny %(hours)s godziny. Po tym czasie konto zostanie usunięte i "
+"rejestrację trzeba będzie powtórzyć."
 msgstr "链接有效期为 %(hours)s 小时。过期后账户将被删除，需要重新注册。"
 
-#: apps/accounts/activation.py:294
+#: apps/accounts/activation.py:295
 msgid ""
-"Jeśli to nie Ty zakładałeś konto – zignoruj tę wiadomość. Bez kliknięcia w link konto nie zostanie aktywowane i zniknie samo."
-msgstr "如果您没有注册此账户，请忽略本邮件。不点击链接，账户就不会被激活，并会自动删除。"
+"Jeśli to nie Ty zakładałeś konto – zignoruj tę wiadomość. Bez kliknięcia w "
+"link konto nie zostanie aktywowane i zniknie samo."
+msgstr ""
+"如果您没有注册此账户，请忽略本邮件。不点击链接，账户就不会被激活，并会自动删"
+"除。"
 
-#: apps/accounts/activation.py:307
+#: apps/accounts/activation.py:308
 #, python-format
 msgid ""
-"Poproszono o zmianę adresu e-mail konta w serwisie Olimpiady Kwantowej na %(email)s."
-msgstr "有人请求将您在量子奥林匹克网站上的账户电子邮箱地址更改为 %(email)s。"
+"Poproszono o zmianę adresu e-mail konta w serwisie %(competition_genitive)s na %(email)s."
+msgstr "有人申请将%(competition_genitive)s网站上的账户电子邮箱更改为 %(email)s。"
 
-#: apps/accounts/activation.py:310
+#: apps/accounts/activation.py:311
 msgid "Aby potwierdzić nowy adres, otwórz poniższy adres:"
 msgstr "要确认新地址，请打开以下链接："
 
-#: apps/accounts/activation.py:314
+#: apps/accounts/activation.py:315
 msgid ""
 "Do potwierdzenia obowiązuje dotychczasowy adres – logowanie działa bez zmian."
 msgstr "在确认之前，当前地址仍然有效，登录不受影响。"
 
-#: apps/accounts/activation.py:315
+#: apps/accounts/activation.py:316
 msgid "Link jest ważny 24 godziny."
 msgstr "链接有效期为 24 小时。"
 
-#: apps/accounts/activation.py:317
+#: apps/accounts/activation.py:318
 msgid "Jeśli to nie Ty prosiłeś o zmianę – zignoruj tę wiadomość."
 msgstr "如果您没有请求此更改，请忽略本邮件。"
 
-#: apps/accounts/activation.py:333
+#: apps/accounts/activation.py:334
 #, python-format
 msgid ""
-"Adres e-mail konta w serwisie Olimpiady Kwantowej został zmieniony na %(email)s. Logowanie tym adresem przestaje działać."
-msgstr "您在量子奥林匹克网站上的账户电子邮箱地址已更改为 %(email)s。原地址将无法再用于登录。"
+"Adres e-mail konta w serwisie %(competition_genitive)s został zmieniony na %(email)s. Logowanie tym adresem przestaje działać."
+msgstr "%(competition_genitive)s网站上的账户电子邮箱已更改为 %(email)s。此地址将无法再用于登录。"
 
-#: apps/accounts/activation.py:338
+#: apps/accounts/activation.py:339
 msgid ""
 "Jeśli to nie Ty dokonałeś zmiany, natychmiast skontaktuj się z organizatorem."
 msgstr "如果此更改并非您本人所为，请立即联系组织方。"
 
-#: apps/accounts/activation.py:537
+#: apps/accounts/activation.py:538
 msgid "To konto jest już aktywne – możesz się zalogować."
 msgstr "此账户已激活，可以直接登录。"
 
@@ -146,13 +158,14 @@ msgstr "权限"
 msgid "Important dates"
 msgstr "重要日期"
 
-#: apps/accounts/bulk_registration.py:124
+#: apps/accounts/bulk_registration.py:125
 msgid "Link z zaproszeniem jest nieprawidłowy albo wygasł."
 msgstr "邀请链接无效或已过期。"
 
-#: apps/accounts/bulk_registration.py:290
+#: apps/accounts/bulk_registration.py:291
 msgid ""
-"adres ma już konto – jeśli to uczeń tego konkursu, dostanie prośbę o zgodę na dopisanie opiekuna"
+"adres ma już konto – jeśli to uczeń tego konkursu, dostanie prośbę o zgodę "
+"na dopisanie opiekuna"
 msgstr "该地址已有账户——如果属于本竞赛的学生，系统将请其同意添加指导老师"
 
 #: apps/accounts/guardian.py:62
@@ -178,98 +191,120 @@ msgid "Link do formularza zgody jest nieprawidłowy albo wygasł."
 msgstr "同意书表单链接无效或已过期。"
 
 #: apps/accounts/guardian.py:189
+#, python-format
 msgid ""
-"Uczennica lub uczeń podał ten adres jako kontakt do rodzica albo opiekuna prawnego w zgłoszeniu do Olimpiady Kwantowej."
-msgstr "一名学生在量子奥林匹克报名信息中将此地址填写为其父母或法定监护人的联系方式。"
+"Uczennica lub uczeń podał ten adres jako kontakt do rodzica albo opiekuna prawnego w zgłoszeniu do %(competition_genitive)s."
+msgstr "一名学生在报名%(competition_genitive)s时填写了此地址作为家长或法定监护人的联系方式。"
 
-#: apps/accounts/guardian.py:193
+#: apps/accounts/guardian.py:194
 #, python-format
 msgid "Zgłoszenie dotyczy: %(name)s (%(school)s)."
 msgstr "报名者：%(name)s（%(school)s）。"
 
-#: apps/accounts/guardian.py:196
+#: apps/accounts/guardian.py:197
 msgid ""
-"Udział osoby niepełnoletniej wymaga zgody opiekuna. Treść zgody i formularz potwierdzenia znajdują się pod poniższym adresem:"
+"Udział osoby niepełnoletniej wymaga zgody opiekuna. Treść zgody i formularz "
+"potwierdzenia znajdują się pod poniższym adresem:"
 msgstr "未成年人参赛须征得监护人同意。同意书内容及确认表单请见以下链接："
 
-#: apps/accounts/guardian.py:202
+#: apps/accounts/guardian.py:203
 #, python-format
 msgid "Link jest ważny %(days)s dni."
 msgstr "链接有效期为 %(days)s 天。"
 
-#: apps/accounts/guardian.py:205
+#: apps/accounts/guardian.py:206
 msgid ""
-"Jeśli nie jesteś opiekunem tej osoby albo nie wyrażasz zgody – zignoruj tę wiadomość. Bez potwierdzenia zgoda nie zostanie zapisana."
-msgstr "如果您不是此人的监护人，或不同意其参赛，请忽略本邮件。未经确认，系统不会记录同意。"
+"Jeśli nie jesteś opiekunem tej osoby albo nie wyrażasz zgody – zignoruj tę "
+"wiadomość. Bez potwierdzenia zgoda nie zostanie zapisana."
+msgstr ""
+"如果您不是此人的监护人，或不同意其参赛，请忽略本邮件。未经确认，系统不会记录"
+"同意。"
 
-#: apps/accounts/guardian.py:219
+#: apps/accounts/guardian.py:220
 #, python-format
 msgid ""
-"Zgoda rodzica lub opiekuna prawnego na Twój udział w Olimpiadzie Kwantowej została potwierdzona z adresu %(email)s."
-msgstr "您的父母或法定监护人已通过 %(email)s 确认同意您参加量子奥林匹克。"
+"Zgoda rodzica lub opiekuna prawnego na Twój udział w %(competition_locative)s została potwierdzona z adresu %(email)s."
+msgstr "家长或法定监护人同意您参加%(competition_locative)s的意见已通过 %(email)s 确认。"
 
-#: apps/accounts/guardian.py:224
+#: apps/accounts/guardian.py:225
 msgid "Stan zgód widzisz po zalogowaniu w panelu uczestnika."
 msgstr "登录参赛者面板后即可查看同意书状态。"
 
-#: apps/accounts/guardian.py:245 apps/web/views/participant_extras.py:48
+#: apps/accounts/guardian.py:246 apps/web/views/participant_extras.py:48
 msgid "Podaj adres e-mail rodzica lub opiekuna prawnego."
 msgstr "请输入父母或法定监护人的电子邮箱地址。"
 
-#: apps/accounts/guardian.py:251
+#: apps/accounts/guardian.py:252
 msgid "Zgoda opiekuna nie jest wymagana dla osoby pełnoletniej."
 msgstr "成年参赛者无需监护人同意。"
 
-#: apps/accounts/guardian.py:260
+#: apps/accounts/guardian.py:261
 msgid "Adres opiekuna musi być inny niż Twój własny adres konta."
 msgstr "监护人的邮箱地址不能与您自己的账户邮箱相同。"
 
-#: apps/accounts/guardian.py:276
+#: apps/accounts/guardian.py:277
 msgid "uczestnik/uczestniczka"
 msgstr "参赛者"
 
-#: apps/accounts/profile.py:247
+#: apps/accounts/profile.py:255
 msgid "Podaj nowy adres e-mail."
 msgstr "请输入新的电子邮箱地址。"
 
-#: apps/accounts/profile.py:253
+#: apps/accounts/profile.py:261
 msgid "Konto z tym adresem e-mail już istnieje."
 msgstr "该电子邮箱地址已被注册。"
 
-#: apps/accounts/profile.py:268
+#: apps/accounts/profile.py:276
 msgid "To już jest adres tego konta."
 msgstr "这已经是此账户的邮箱地址。"
 
-#: apps/accounts/profile.py:288
+#: apps/accounts/profile.py:296
 msgid "Link potwierdzający jest nieprawidłowy albo wygasł."
 msgstr "确认链接无效或已过期。"
 
-#: apps/accounts/profile.py:627
+#: apps/accounts/profile.py:635
 msgid ""
-"Konta koordynatora nie można usunąć z panelu – skontaktuj się z administratorem serwisu."
+"Konta koordynatora nie można usunąć z panelu – skontaktuj się z "
+"administratorem serwisu."
 msgstr "协调员账户无法在面板中删除，请联系网站管理员。"
 
-#: apps/accounts/profile.py:649
+#: apps/accounts/profile.py:657
 msgid "Nieprawidłowe hasło."
 msgstr "密码错误。"
 
-#: apps/accounts/profile.py:653
+#: apps/accounts/profile.py:661
 msgid "Przepisz dokładnie adres e-mail swojego konta."
 msgstr "请准确输入您的账户电子邮箱地址。"
 
-#: apps/accounts/regions.py:213 apps/web/forms.py:902 apps/web/forms.py:938
-#: apps/web/forms.py:1056 apps/web/forms.py:1379 apps/web/views/invite.py:75
+#: apps/accounts/regions.py:214 apps/web/forms.py:901 apps/web/forms.py:937
+#: apps/web/forms.py:1055 apps/web/forms.py:1378 apps/web/views/invite.py:75
 msgid "Województwo"
 msgstr "省（波兰）"
 
-#: apps/accounts/regions.py:224 apps/web/forms.py:558
+#: apps/accounts/regions.py:219 apps/web/forms.py:557
 msgid "Kraj"
 msgstr "国家"
 
-#: apps/accounts/regions.py:224
+#: apps/accounts/regions.py:219
 #: templates/web/supervisor/_import_preview.html:54
 msgid "Region"
 msgstr "地区"
+
+#: apps/accounts/services.py:172
+msgid "Nieznane województwo – wybierz jedno z listy."
+msgstr "未知的省份——请从列表中选择。"
+
+#: apps/accounts/services.py:178
+msgid "Województwo jest wymagane."
+msgstr "省份为必填项。"
+
+#: apps/accounts/services.py:224
+msgid "Wybierz pozycję z listy – to pole jest wymagane."
+msgstr "请从列表中选择——此项为必填项。"
+
+#: apps/accounts/services.py:232
+msgid "Nieznana pozycja – wybierz jedną z listy."
+msgstr "未知选项——请从列表中选择。"
 
 #: apps/accounts/supervisor_consent.py:88
 msgid "Prośba o zgodę na opiekuna szkolnego – Olimpiada Kwantowa"
@@ -287,7 +322,8 @@ msgstr "同意请求链接无效、已过期或已失效。"
 
 #: apps/accounts/supervisor_consent.py:100
 msgid ""
-"Ta prośba jest adresowana do innego konta. Zaloguj się na konto, na które przyszedł list."
+"Ta prośba jest adresowana do innego konta. Zaloguj się na konto, na które "
+"przyszedł list."
 msgstr "此请求是发给另一个账户的。请登录收到该邮件的账户。"
 
 #: apps/accounts/twofactor.py:398
@@ -300,7 +336,8 @@ msgstr "此账户已启用双重验证。"
 
 #: apps/accounts/twofactor.py:404
 msgid ""
-"Kod z aplikacji nie pasuje. Sprawdź, czy zegar w telefonie jest ustawiony automatycznie."
+"Kod z aplikacji nie pasuje. Sprawdź, czy zegar w telefonie jest ustawiony "
+"automatycznie."
 msgstr "应用中的验证码不正确。请检查手机时间是否设为自动同步。"
 
 #: apps/accounts/twofactor.py:608
@@ -332,7 +369,7 @@ msgstr "%(label)s 不能超过 %(limit)s 个字符。"
 msgid "Nie ma takiego rozwiązania."
 msgstr "该解答不存在。"
 
-#: apps/appeals/services.py:160 apps/web/forms.py:1245
+#: apps/appeals/services.py:160 apps/web/forms.py:1244
 msgid "Uzasadnienie reklamacji"
 msgstr "申诉理由"
 
@@ -372,8 +409,11 @@ msgstr "允许其他参赛者找到我并给我发消息"
 
 #: apps/chat/forms.py:170
 msgid ""
-"W katalogu widać wyłącznie imię, pierwszą literę nazwiska i województwo – nigdy adres e-mail, szkołę ani kod uczestnika."
-msgstr "名录中仅显示您的名字、姓氏首字母和所在省份，绝不显示电子邮箱、学校或参赛者编号。"
+"W katalogu widać wyłącznie imię, pierwszą literę nazwiska i województwo – "
+"nigdy adres e-mail, szkołę ani kod uczestnika."
+msgstr ""
+"名录中仅显示您的名字、姓氏首字母和所在省份，绝不显示电子邮箱、学校或参赛者编"
+"号。"
 
 #: apps/chat/forms.py:175
 msgid "Wysyłaj mi e-mail, gdy dostanę nową wiadomość"
@@ -381,7 +421,8 @@ msgstr "收到新消息时发邮件通知我"
 
 #: apps/chat/forms.py:178
 msgid ""
-"List nie zawiera treści wiadomości – tylko informację, od kogo jest, i odnośnik."
+"List nie zawiera treści wiadomości – tylko informację, od kogo jest, i "
+"odnośnik."
 msgstr "邮件不包含消息内容，只告知发件人并附上链接。"
 
 #: apps/chat/notifications.py:49
@@ -426,7 +467,8 @@ msgstr "无法向此人发送消息。"
 
 #: apps/chat/services.py:95
 msgid ""
-"Organizator wyłączył rozmowy między uczestnikami – ta rozmowa jest teraz tylko do odczytu."
+"Organizator wyłączył rozmowy między uczestnikami – ta rozmowa jest teraz "
+"tylko do odczytu."
 msgstr "组织方已关闭参赛者之间的对话，此对话现在为只读。"
 
 #: apps/chat/services.py:97
@@ -493,12 +535,16 @@ msgstr "PBKDF2 迭代次数过少（最少 %(minimum)s 次）。"
 #: apps/chat/services.py:751
 #, python-format
 msgid ""
-"Trwa etap „%(stage)s” – rozmowy szyfrowane są wstrzymane, bo organizator nie może ich moderować. Wrócą po zamknięciu etapu."
-msgstr "「%(stage)s」阶段正在进行中——由于组织方无法审核加密对话，加密对话暂停。阶段结束后将恢复。"
+"Trwa etap „%(stage)s” – rozmowy szyfrowane są wstrzymane, bo organizator nie "
+"może ich moderować. Wrócą po zamknięciu etapu."
+msgstr ""
+"「%(stage)s」阶段正在进行中——由于组织方无法审核加密对话，加密对话暂停。阶段结"
+"束后将恢复。"
 
 #: apps/chat/services.py:754
 msgid ""
-"Organizator wyłączył szyfrowane rozmowy – ta rozmowa jest teraz tylko do odczytu."
+"Organizator wyłączył szyfrowane rozmowy – ta rozmowa jest teraz tylko do "
+"odczytu."
 msgstr "组织方已关闭加密对话，此对话现在为只读。"
 
 #: apps/chat/services.py:796
@@ -532,7 +578,8 @@ msgstr "密文"
 
 #: apps/chat/services.py:896
 msgid ""
-"Klucz szyfrowania zmienił się, odkąd otworzyłeś tę stronę. Odśwież ją i napisz jeszcze raz."
+"Klucz szyfrowania zmienił się, odkąd otworzyłeś tę stronę. Odśwież ją i "
+"napisz jeszcze raz."
 msgstr "自您打开此页面以来，加密密钥已更改。请刷新页面后重新发送。"
 
 #: apps/chat/services.py:951
@@ -545,7 +592,8 @@ msgstr "不能给自己发消息。"
 
 #: apps/chat/services.py:1025
 msgid ""
-"Nowe rozmowy są szyfrowane – rozpocznij rozmowę przyciskiem „Rozpocznij rozmowę szyfrowaną”."
+"Nowe rozmowy są szyfrowane – rozpocznij rozmowę przyciskiem „Rozpocznij "
+"rozmowę szyfrowaną”."
 msgstr "新对话均为加密对话，请点击「开始加密对话」发起对话。"
 
 #: apps/chat/services.py:1412 apps/forum/services.py:509
@@ -555,7 +603,8 @@ msgstr "举报原因"
 
 #: apps/chat/services.py:1419
 msgid ""
-"Nie udało się odszyfrować wiadomości do zgłoszenia – odblokuj szyfrowanie i spróbuj ponownie."
+"Nie udało się odszyfrować wiadomości do zgłoszenia – odblokuj szyfrowanie i "
+"spróbuj ponownie."
 msgstr "无法解密要举报的消息，请解锁加密后重试。"
 
 #: apps/chat/services.py:1427
@@ -618,7 +667,8 @@ msgstr "本阶段已结束，无法再预约面试。"
 
 #: apps/competitions/interviews.py:253
 msgid ""
-"Ten etap należy do edycji archiwalnej – zapisy na rozmowy są w niej zamknięte."
+"Ten etap należy do edycji archiwalnej – zapisy na rozmowy są w niej "
+"zamknięte."
 msgstr "本阶段属于往届赛事，面试预约已关闭。"
 
 #: apps/competitions/interviews.py:280
@@ -643,8 +693,11 @@ msgstr "标注：%(note)s"
 
 #: apps/competitions/interviews.py:298
 msgid ""
-"Ten sam termin i link znajdziesz po zalogowaniu w panelu uczestnika. Termin możesz zmienić lub odwołać do chwili jego rozpoczęcia."
-msgstr "登录后可在参赛者面板中查看相同的时段和链接。面试开始前，您可以随时更改或取消预约。"
+"Ten sam termin i link znajdziesz po zalogowaniu w panelu uczestnika. Termin "
+"możesz zmienić lub odwołać do chwili jego rozpoczęcia."
+msgstr ""
+"登录后可在参赛者面板中查看相同的时段和链接。面试开始前，您可以随时更改或取消"
+"预约。"
 
 #: apps/competitions/interviews.py:358
 msgid "Ten termin już się rozpoczął – wybierz inny."
@@ -672,8 +725,12 @@ msgstr "面试已开始，无法取消预约。"
 
 #: apps/competitions/logistics.py:72
 msgid ""
-"Napisz wyłącznie to, co jest potrzebne do przygotowania pobytu (np. „dieta bezmięsna”, „pokój na parterze”). Nie podawaj diagnoz, nazw chorób, leków ani orzeczeń – tych informacji nie potrzebujemy i prosimy ich nie przesyłać."
-msgstr "请只填写安排住宿所需的信息（例如「素食」「一楼房间」）。请勿填写诊断、疾病名称、药物或医疗证明——我们不需要这些信息，请不要提供。"
+"Napisz wyłącznie to, co jest potrzebne do przygotowania pobytu (np. „dieta "
+"bezmięsna”, „pokój na parterze”). Nie podawaj diagnoz, nazw chorób, leków "
+"ani orzeczeń – tych informacji nie potrzebujemy i prosimy ich nie przesyłać."
+msgstr ""
+"请只填写安排住宿所需的信息（例如「素食」「一楼房间」）。请勿填写诊断、疾病名"
+"称、药物或医疗证明——我们不需要这些信息，请不要提供。"
 
 #: apps/competitions/logistics.py:86
 msgid "nocleg"
@@ -732,9 +789,12 @@ msgstr "检查摄像头和麦克风：%(url)s"
 #: apps/competitions/video.py:262
 #, python-format
 msgid ""
-"Pokój rozmowy otwiera się na %(minutes)s minut przed terminem. Wchodzi się wyłącznie z panelu uczestnika – sam adres pokoju bez przepustki z panelu nie zadziała, więc nie przepisuj go i nie przekazuj dalej."
+"Pokój rozmowy otwiera się na %(minutes)s minut przed terminem. Wchodzi się "
+"wyłącznie z panelu uczestnika – sam adres pokoju bez przepustki z panelu nie "
+"zadziała, więc nie przepisuj go i nie przekazuj dalej."
 msgstr ""
-"面试房间在预约时间前 %(minutes)s 分钟开放。只能通过参赛者面板进入——仅凭房间地址而没有面板发放的通行凭证将无法进入，因此请勿复制或转发该地址。"
+"面试房间在预约时间前 %(minutes)s 分钟开放。只能通过参赛者面板进入——仅凭房间地"
+"址而没有面板发放的通行凭证将无法进入，因此请勿复制或转发该地址。"
 
 #: apps/competitions/video.py:269
 #, python-format
@@ -743,9 +803,14 @@ msgstr "面试链接：%(url)s"
 
 #: apps/competitions/video.py:277
 msgid ""
-"Wejdź na rozmowę z komputera, w przeglądarce Chrome, Edge albo Firefox. Na kilka minut przed terminem otwórz link testowy i pozwól przeglądarce na dostęp do kamery i mikrofonu – to ten sam ekran, który zobaczysz przed wejściem do pokoju rozmowy."
+"Wejdź na rozmowę z komputera, w przeglądarce Chrome, Edge albo Firefox. Na "
+"kilka minut przed terminem otwórz link testowy i pozwól przeglądarce na "
+"dostęp do kamery i mikrofonu – to ten sam ekran, który zobaczysz przed "
+"wejściem do pokoju rozmowy."
 msgstr ""
-"请使用电脑，通过 Chrome、Edge 或 Firefox 浏览器参加面试。在预约时间前几分钟打开测试链接，并允许浏览器使用摄像头和麦克风——这与进入面试房间前看到的界面完全相同。"
+"请使用电脑，通过 Chrome、Edge 或 Firefox 浏览器参加面试。在预约时间前几分钟打"
+"开测试链接，并允许浏览器使用摄像头和麦克风——这与进入面试房间前看到的界面完全"
+"相同。"
 
 #: apps/competitions/video.py:297
 #, python-format
@@ -791,7 +856,8 @@ msgstr "内容"
 
 #: apps/forum/forms.py:40
 msgid ""
-"Zwykły tekst. Odnośniki zamieniamy na klikalne same – znaczników HTML i załączników forum nie przyjmuje."
+"Zwykły tekst. Odnośniki zamieniamy na klikalne same – znaczników HTML i "
+"załączników forum nie przyjmuje."
 msgstr "纯文本。链接会自动转为可点击链接；论坛不接受 HTML 标签和附件。"
 
 #: apps/forum/forms.py:49 apps/forum/services.py:370 apps/support/forms.py:44
@@ -809,8 +875,7 @@ msgid "Dlaczego zgłaszasz ten wpis"
 msgstr "举报此帖子的原因"
 
 #: apps/forum/forms.py:67
-msgid ""
-"Napisz krótko, co jest nie tak. Zgłoszenie widzi wyłącznie organizator."
+msgid "Napisz krótko, co jest nie tak. Zgłoszenie widzi wyłącznie organizator."
 msgstr "请简要说明问题所在。举报内容仅组织方可见。"
 
 #: apps/forum/forms.py:108
@@ -950,8 +1015,11 @@ msgstr "审核队列："
 #: apps/forum/notifications.py:503
 #, python-format
 msgid ""
-"Kolejny list o kolejce wyślemy najwcześniej za %(hours)s godz. – i tylko wtedy, gdy coś nadal będzie czekać."
-msgstr "关于审核队列的下一封邮件最早将在 %(hours)s 小时后发送，且仅在仍有待处理内容时发送。"
+"Kolejny list o kolejce wyślemy najwcześniej za %(hours)s godz. – i tylko "
+"wtedy, gdy coś nadal będzie czekać."
+msgstr ""
+"关于审核队列的下一封邮件最早将在 %(hours)s 小时后发送，且仅在仍有待处理内容时"
+"发送。"
 
 #: apps/forum/notifications.py:508
 #, python-format
@@ -961,7 +1029,8 @@ msgstr "关闭审核队列邮件：%(link)s"
 #: apps/forum/notifications.py:723
 #, python-format
 msgid ""
-"- Twój wpis w wątku „%(title)s” został zatwierdzony i jest widoczny dla innych."
+"- Twój wpis w wątku „%(title)s” został zatwierdzony i jest widoczny dla "
+"innych."
 msgstr "- 您在主题帖“%(title)s”中的帖子已通过审核，其他人现在可以看到。"
 
 #: apps/forum/notifications.py:729
@@ -1016,7 +1085,8 @@ msgstr "组织方对您帖子的处理决定："
 
 #: apps/forum/notifications.py:804
 msgid ""
-"Treści wpisów nie przesyłamy pocztą – forum można czytać wyłącznie po zalogowaniu."
+"Treści wpisów nie przesyłamy pocztą – forum można czytać wyłącznie po "
+"zalogowaniu."
 msgstr "我们不会通过邮件发送帖子内容——论坛仅限登录后阅读。"
 
 #: apps/forum/notifications.py:806
@@ -1121,12 +1191,14 @@ msgstr "证明的扫描件或照片（PDF、JPG 或 PNG，不超过 10 MB）"
 
 #: apps/student_status/forms.py:31
 msgid ""
-"Potwierdzam, że zaświadczenie ma pieczątkę szkoły i podpis, a plik jest czytelny"
+"Potwierdzam, że zaświadczenie ma pieczątkę szkoły i podpis, a plik jest "
+"czytelny"
 msgstr "我确认证明上盖有学校公章和签名，且文件清晰可辨"
 
 #: apps/student_status/forms.py:35
 msgid ""
-"Zaznacz potwierdzenie, że zaświadczenie jest podstemplowane i podpisane, a plik czytelny."
+"Zaznacz potwierdzenie, że zaświadczenie jest podstemplowane i podpisane, a "
+"plik czytelny."
 msgstr "请勾选确认：证明已盖章并签名，且文件清晰可辨。"
 
 #: apps/student_status/notifications.py:26
@@ -1150,7 +1222,8 @@ msgstr "在读学生证明未通过 – %(competition)s"
 #: apps/student_status/notifications.py:44
 #, python-format
 msgid ""
-"Twoje zaświadczenie o statusie ucznia (edycja %(edition)s) zostało sprawdzone i zaakceptowane. Nie musisz nic więcej robić."
+"Twoje zaświadczenie o statusie ucznia (edycja %(edition)s) zostało "
+"sprawdzone i zaakceptowane. Nie musisz nic więcej robić."
 msgstr "您的在读学生证明（%(edition)s 届）已审核通过，无需再做任何操作。"
 
 #: apps/student_status/notifications.py:49
@@ -1160,17 +1233,20 @@ msgstr "登录后可在参赛者面板中查看证明状态："
 #: apps/student_status/notifications.py:62
 #, python-format
 msgid ""
-"Twoje zaświadczenie o statusie ucznia (edycja %(edition)s) nie zostało zaakceptowane. Powód:"
+"Twoje zaświadczenie o statusie ucznia (edycja %(edition)s) nie zostało "
+"zaakceptowane. Powód:"
 msgstr "您的在读学生证明（%(edition)s 届）未通过审核。原因："
 
 #: apps/student_status/notifications.py:68
 msgid ""
-"Popraw zaświadczenie i wgraj nowy plik w panelu uczestnika. Brak zaświadczenia nie blokuje oddawania rozwiązań."
+"Popraw zaświadczenie i wgraj nowy plik w panelu uczestnika. Brak "
+"zaświadczenia nie blokuje oddawania rozwiązań."
 msgstr "请修改证明，并在参赛者面板中上传新文件。缺少证明不影响提交解答。"
 
 #: apps/student_status/services.py:275
 msgid ""
-"Twoje zaświadczenie zostało już zaakceptowane – nie trzeba wgrywać go ponownie."
+"Twoje zaświadczenie zostało już zaakceptowane – nie trzeba wgrywać go "
+"ponownie."
 msgstr "您的证明已通过审核，无需重新上传。"
 
 #: apps/student_status/validators.py:84 apps/submissions/validators.py:209
@@ -1181,14 +1257,20 @@ msgstr "文件为空。"
 #: apps/student_status/validators.py:88
 #, python-format
 msgid ""
-"Plik ma %(size)s MB – limit to %(limit)s MB. Zrób zdjęcie w niższej rozdzielczości albo zapisz skan jako PDF."
-msgstr "文件大小为 %(size)s MB，上限为 %(limit)s MB。请用较低分辨率拍照，或将扫描件保存为 PDF。"
+"Plik ma %(size)s MB – limit to %(limit)s MB. Zrób zdjęcie w niższej "
+"rozdzielczości albo zapisz skan jako PDF."
+msgstr ""
+"文件大小为 %(size)s MB，上限为 %(limit)s MB。请用较低分辨率拍照，或将扫描件保"
+"存为 PDF。"
 
 #: apps/student_status/validators.py:99
 msgid ""
-"Treść pliku nie jest ani PDF-em, ani zdjęciem JPG/PNG. Rozpoznajemy format po zawartości, nie po rozszerzeniu – zapisz skan ponownie jako PDF, JPG albo PNG."
+"Treść pliku nie jest ani PDF-em, ani zdjęciem JPG/PNG. Rozpoznajemy format "
+"po zawartości, nie po rozszerzeniu – zapisz skan ponownie jako PDF, JPG albo "
+"PNG."
 msgstr ""
-"文件内容既不是 PDF，也不是 JPG/PNG 图片。我们根据文件内容而非扩展名识别格式——请将扫描件重新保存为 PDF、JPG 或 PNG。"
+"文件内容既不是 PDF，也不是 JPG/PNG 图片。我们根据文件内容而非扩展名识别格式——"
+"请将扫描件重新保存为 PDF、JPG 或 PNG。"
 
 #: apps/submissions/models.py:31 apps/submissions/status_track.py:54
 msgid "oddane"
@@ -1285,16 +1367,16 @@ msgstr "部分采纳"
 #: apps/submissions/notifications.py:133
 #, python-format
 msgid ""
-"Twoje rozwiązanie zostało przyjęte przez serwis Olimpiady Kwantowej (%(stage)s)."
-msgstr "量子奥林匹克网站已接收您的解答（%(stage)s）。"
+"Twoje rozwiązanie zostało przyjęte przez serwis %(competition_genitive)s (%(stage)s)."
+msgstr "您的解答已被%(competition_genitive)s网站接收（%(stage)s）。"
 
-#: apps/submissions/notifications.py:136 apps/submissions/notifications.py:181
-#: apps/submissions/notifications.py:320
+#: apps/submissions/notifications.py:136 apps/submissions/notifications.py:182
+#: apps/submissions/notifications.py:322
 #, python-format
 msgid "Zadanie: %(number)s. %(title)s"
 msgstr "题目：%(number)s. %(title)s"
 
-#: apps/submissions/notifications.py:138 apps/submissions/notifications.py:183
+#: apps/submissions/notifications.py:138 apps/submissions/notifications.py:184
 #, python-format
 msgid "Wersja: %(version)s"
 msgstr "版本：%(version)s"
@@ -1304,80 +1386,92 @@ msgstr "版本：%(version)s"
 msgid "Czas przyjęcia (UTC): %(when)s"
 msgstr "接收时间（UTC）：%(when)s"
 
-#: apps/submissions/notifications.py:140 apps/submissions/notifications.py:184
+#: apps/submissions/notifications.py:140 apps/submissions/notifications.py:185
 #, python-format
 msgid "Suma kontrolna pliku (sha256): %(sha)s"
 msgstr "文件校验和（sha256）：%(sha)s"
 
 #: apps/submissions/notifications.py:143
 msgid ""
-"Plik trafił na skan antywirusowy. Jeśli skan go odrzuci, dostaniesz osobną wiadomość – w przeciwnym razie nie piszemy nic więcej i ta wersja idzie do oceny."
-msgstr "文件已进入病毒扫描。如果扫描未通过，您会收到单独的通知；否则我们不再另行通知，该版本将进入评分。"
+"Plik trafił na skan antywirusowy. Jeśli skan go odrzuci, dostaniesz osobną "
+"wiadomość – w przeciwnym razie nie piszemy nic więcej i ta wersja idzie do "
+"oceny."
+msgstr ""
+"文件已进入病毒扫描。如果扫描未通过，您会收到单独的通知；否则我们不再另行通"
+"知，该版本将进入评分。"
 
 #: apps/submissions/notifications.py:147
 msgid "Każda kolejna wysyłka tworzy nową wersję; oceniana jest ostatnia."
 msgstr "每次重新上传都会生成新版本，以最后一个版本为准进行评分。"
 
 #: apps/submissions/notifications.py:176
+#, python-format
 msgid ""
-"Plik, który wysłałeś do serwisu Olimpiady Kwantowej, został odrzucony przez skan antywirusowy i nie wejdzie do oceniania."
-msgstr "您上传到量子奥林匹克网站的文件未通过病毒扫描，将不会进入评分。"
+"Plik, który wysłałeś do serwisu %(competition_genitive)s, został odrzucony przez skan antywirusowy i nie wejdzie do oceniania."
+msgstr "您发送到%(competition_genitive)s网站的文件未通过病毒扫描，将不会参与评分。"
 
-#: apps/submissions/notifications.py:180 apps/submissions/notifications.py:319
+#: apps/submissions/notifications.py:181 apps/submissions/notifications.py:321
 #, python-format
 msgid "Etap: %(stage)s"
 msgstr "阶段：%(stage)s"
 
-#: apps/submissions/notifications.py:187
+#: apps/submissions/notifications.py:188
 msgid ""
-"Najczęstszą przyczyną jest zainfekowany komputer albo plik pobrany z nieznanego źródła, a nie treść samego rozwiązania."
+"Najczęstszą przyczyną jest zainfekowany komputer albo plik pobrany z "
+"nieznanego źródła, a nie treść samego rozwiązania."
 msgstr "最常见的原因是电脑感染病毒或文件来自不明来源，而不是解答内容本身。"
 
-#: apps/submissions/notifications.py:192
+#: apps/submissions/notifications.py:193
 msgid ""
-"Co zrobić: sprawdź komputer programem antywirusowym, wygeneruj plik ponownie i wyślij go jeszcze raz w panelu uczestnika. Liczy się ostatnia wersja przyjęta przed terminem."
-msgstr "处理方法：用杀毒软件扫描电脑，重新生成文件，然后在参赛者面板中再次上传。以截止时间前最后接收的版本为准。"
+"Co zrobić: sprawdź komputer programem antywirusowym, wygeneruj plik ponownie "
+"i wyślij go jeszcze raz w panelu uczestnika. Liczy się ostatnia wersja "
+"przyjęta przed terminem."
+msgstr ""
+"处理方法：用杀毒软件扫描电脑，重新生成文件，然后在参赛者面板中再次上传。以截"
+"止时间前最后接收的版本为准。"
 
-#: apps/submissions/notifications.py:230
+#: apps/submissions/notifications.py:231
 #, python-format
 msgid "Wyniki etapu „%(stage)s” (%(edition)s) zostały ogłoszone."
 msgstr "「%(stage)s」阶段（%(edition)s）的成绩已公布。"
 
-#: apps/submissions/notifications.py:233
+#: apps/submissions/notifications.py:234
 #, python-format
 msgid "Tabela wyników: %(link)s"
 msgstr "成绩表：%(link)s"
 
-#: apps/submissions/notifications.py:234
+#: apps/submissions/notifications.py:235
 #, python-format
 msgid "Twoje punkty i komentarze recenzentów: %(link)s"
 msgstr "您的得分和评审意见：%(link)s"
 
-#: apps/submissions/notifications.py:237
+#: apps/submissions/notifications.py:238
 msgid ""
-"Jeżeli nie zgadzasz się z oceną, reklamację składa się w panelu uczestnika w oknie reklamacji wyznaczonym dla tego etapu."
+"Jeżeli nie zgadzasz się z oceną, reklamację składa się w panelu uczestnika w "
+"oknie reklamacji wyznaczonym dla tego etapu."
 msgstr "如对评分有异议，请在本阶段规定的申诉期内通过参赛者面板提交申诉。"
 
-#: apps/submissions/notifications.py:317
+#: apps/submissions/notifications.py:318
+#, python-format
 msgid ""
-"Komisja odwoławcza rozstrzygnęła Twoją reklamację w Olimpiadzie Kwantowej."
-msgstr "申诉委员会已对您在量子奥林匹克中的申诉作出裁决。"
+"Komisja odwoławcza rozstrzygnęła Twoją reklamację w %(competition_locative)s."
+msgstr "申诉委员会已就您在%(competition_locative)s中的申诉作出决定。"
 
-#: apps/submissions/notifications.py:322
+#: apps/submissions/notifications.py:324
 #, python-format
 msgid "Rozstrzygnięcie: %(status)s"
 msgstr "裁决结果：%(status)s"
 
-#: apps/submissions/notifications.py:324
+#: apps/submissions/notifications.py:326
 msgid "Uzasadnienie komisji:"
 msgstr "委员会的理由："
 
-#: apps/submissions/notifications.py:327
+#: apps/submissions/notifications.py:329
 #, python-format
 msgid "Szczegóły znajdziesz w panelu uczestnika: %(link)s"
 msgstr "详情请见参赛者面板：%(link)s"
 
-#: apps/submissions/notifications.py:328
+#: apps/submissions/notifications.py:330
 msgid "Punktację zobaczysz tam po ogłoszeniu wyników etapu."
 msgstr "阶段成绩公布后，您可在那里查看得分。"
 
@@ -1417,7 +1511,8 @@ msgstr "仅支持 .pdf、.ipynb、.py 和 .jpg（.jpeg）文件。"
 #: apps/submissions/validators.py:57
 #, python-format
 msgid ""
-"Format .%(ext)s nie jest dopuszczony dla tego zadania (dozwolone: %(allowed)s)."
+"Format .%(ext)s nie jest dopuszczony dla tego zadania (dozwolone: "
+"%(allowed)s)."
 msgstr "此题目不允许使用 .%(ext)s 格式（允许的格式：%(allowed)s）。"
 
 #: apps/submissions/validators.py:93
@@ -1439,7 +1534,8 @@ msgstr "笔记本必须是 JSON 对象。"
 #: apps/submissions/validators.py:140
 #, python-format
 msgid ""
-"Obsługiwane są wyłącznie notatniki w formacie nbformat %(version)s lub nowszym."
+"Obsługiwane są wyłącznie notatniki w formacie nbformat %(version)s lub "
+"nowszym."
 msgstr "仅支持 nbformat %(version)s 或更高版本的笔记本。"
 
 #: apps/submissions/validators.py:147
@@ -1481,8 +1577,11 @@ msgstr "请描述遇到的问题"
 
 #: apps/support/forms.py:50
 msgid ""
-"Napisz, co próbowałeś zrobić i co się stało. Jeśli widziałeś komunikat błędu – przepisz go. Adres strony i przeglądarkę dołączamy automatycznie."
-msgstr "请说明您尝试做什么以及发生了什么。如果看到错误提示，请照抄下来。页面地址和浏览器信息会自动附上。"
+"Napisz, co próbowałeś zrobić i co się stało. Jeśli widziałeś komunikat błędu "
+"– przepisz go. Adres strony i przeglądarkę dołączamy automatycznie."
+msgstr ""
+"请说明您尝试做什么以及发生了什么。如果看到错误提示，请照抄下来。页面地址和浏"
+"览器信息会自动附上。"
 
 #: apps/support/forms.py:63
 msgid "Twój adres e-mail"
@@ -1572,10 +1671,21 @@ msgstr "此工单已关闭。如问题再次出现，请新建工单。"
 msgid "Treść odpowiedzi"
 msgstr "回复内容"
 
+#: apps/tenancy/branding.py:105
+msgid "Olimpiady Kwantowej"
+msgstr "量子奥林匹克竞赛"
+
+#: apps/tenancy/branding.py:106
+msgid "Olimpiadzie Kwantowej"
+msgstr "量子奥林匹克竞赛"
+
 #: apps/web/captcha.py:63
 msgid ""
-"Nie udało się potwierdzić, że formularz wypełnił człowiek. Wyślij go jeszcze raz, a jeśli błąd się powtarza – napisz do contact@qaif.org."
-msgstr "无法确认表单是由真人填写的。请重新提交；如果仍然出错，请发邮件至 contact@qaif.org。"
+"Nie udało się potwierdzić, że formularz wypełnił człowiek. Wyślij go jeszcze "
+"raz, a jeśli błąd się powtarza – napisz do contact@qaif.org."
+msgstr ""
+"无法确认表单是由真人填写的。请重新提交；如果仍然出错，请发邮件至 "
+"contact@qaif.org。"
 
 #: apps/web/captcha.py:67
 msgid "Zabezpieczenie antyspamowe"
@@ -1583,20 +1693,28 @@ msgstr "反垃圾验证"
 
 #: apps/web/captcha.py:73
 msgid ""
-"Wpisz wynik działania z obrazka. Nie widzisz obrazka (czytnik ekranu, brak grafiki)? Napisz do contact@qaif.org – konto założymy ręcznie."
-msgstr "请输入图片中算式的结果。看不到图片（使用读屏软件或图片无法显示）？请发邮件至 contact@qaif.org，我们将为您手动创建账户。"
+"Wpisz wynik działania z obrazka. Nie widzisz obrazka (czytnik ekranu, brak "
+"grafiki)? Napisz do contact@qaif.org – konto założymy ręcznie."
+msgstr ""
+"请输入图片中算式的结果。看不到图片（使用读屏软件或图片无法显示）？请发邮件至 "
+"contact@qaif.org，我们将为您手动创建账户。"
 
 #: apps/web/captcha.py:83
 #, python-format
 msgid ""
-"Nie udało się potwierdzić, że formularz wypełnił człowiek. Wyślij go jeszcze raz, a jeśli błąd się powtarza – napisz do %(contact)s."
-msgstr "无法确认表单是由真人填写的。请重新提交；如果仍然出错，请联系 %(contact)s。"
+"Nie udało się potwierdzić, że formularz wypełnił człowiek. Wyślij go jeszcze "
+"raz, a jeśli błąd się powtarza – napisz do %(contact)s."
+msgstr ""
+"无法确认表单是由真人填写的。请重新提交；如果仍然出错，请联系 %(contact)s。"
 
 #: apps/web/captcha.py:87
 #, python-format
 msgid ""
-"Wpisz wynik działania z obrazka. Nie widzisz obrazka (czytnik ekranu, brak grafiki)? Napisz do %(contact)s – konto założymy ręcznie."
-msgstr "请输入图片中算式的结果。看不到图片（使用读屏软件或图片无法显示）？请联系 %(contact)s，我们将为您手动创建账户。"
+"Wpisz wynik działania z obrazka. Nie widzisz obrazka (czytnik ekranu, brak "
+"grafiki)? Napisz do %(contact)s – konto założymy ręcznie."
+msgstr ""
+"请输入图片中算式的结果。看不到图片（使用读屏软件或图片无法显示）？请联系 "
+"%(contact)s，我们将为您手动创建账户。"
 
 #: apps/web/captcha.py:218
 msgid "Wynik działania jest niepoprawny. Spróbuj z nowym obrazkiem."
@@ -1606,196 +1724,206 @@ msgstr "计算结果不正确，请换一张图片重试。"
 msgid "— wybierz województwo —"
 msgstr "— 选择省份 —"
 
-#: apps/web/forms.py:119
+#: apps/web/forms.py:118
 msgid "— wybierz —"
 msgstr "— 请选择 —"
 
-#: apps/web/forms.py:167
+#: apps/web/forms.py:166
 msgid "Telefon"
 msgstr "电话"
 
-#: apps/web/forms.py:170
+#: apps/web/forms.py:169
 msgid "Do kontaktu w sprawach organizacyjnych, np. +48 600 000 000."
 msgstr "用于联系组织事务，例如 +48 600 000 000。"
 
-#: apps/web/forms.py:182
+#: apps/web/forms.py:181
 msgid ""
-"Osoby niepełnoletnie potrzebują zgody opiekuna – pole poniżej pojawi się automatycznie."
+"Osoby niepełnoletnie potrzebują zgody opiekuna – pole poniżej pojawi się "
+"automatycznie."
 msgstr "未成年人需要监护人同意——下方字段会自动显示。"
 
-#: apps/web/forms.py:214 templates/web/participant/dashboard.html:66
+#: apps/web/forms.py:213 templates/web/participant/dashboard.html:66
 #: templates/web/supervisor/_import_preview.html:45
 msgid "Data urodzenia"
 msgstr "出生日期"
 
-#: apps/web/forms.py:241
+#: apps/web/forms.py:240
 msgid "Data urodzenia nie może być z przyszłości."
 msgstr "出生日期不能晚于今天。"
 
-#: apps/web/forms.py:244
+#: apps/web/forms.py:243
 #, python-format
 msgid "Data urodzenia nie może być wcześniejsza niż %(date)s."
 msgstr "出生日期不能早于 %(date)s。"
 
-#: apps/web/forms.py:260
+#: apps/web/forms.py:259
 msgid "Hasło"
 msgstr "密码"
 
-#: apps/web/forms.py:277
+#: apps/web/forms.py:276
 msgid "Hasła nie są identyczne."
 msgstr "两次输入的密码不一致。"
 
-#: apps/web/forms.py:431
+#: apps/web/forms.py:430
 msgid "Miejscowość"
 msgstr "城市/城镇"
 
-#: apps/web/forms.py:435
+#: apps/web/forms.py:434
 msgid ""
-"Wpisz pierwsze litery i wybierz miejscowość z podpowiedzi. Pole „Szkoła” pokaże wtedy pełną listę szkół z tej miejscowości."
-msgstr "输入前几个字母，然后从提示中选择所在地。之后「学校」字段将显示该地的全部学校。"
+"Wpisz pierwsze litery i wybierz miejscowość z podpowiedzi. Pole „Szkoła” "
+"pokaże wtedy pełną listę szkół z tej miejscowości."
+msgstr ""
+"输入前几个字母，然后从提示中选择所在地。之后「学校」字段将显示该地的全部学"
+"校。"
 
-#: apps/web/forms.py:450
+#: apps/web/forms.py:449
 msgid "Szkoła"
 msgstr "学校"
 
-#: apps/web/forms.py:453
+#: apps/web/forms.py:452
 msgid "Zacznij pisać nazwę lub miejscowość i wybierz szkołę z podpowiedzi."
 msgstr "开始输入学校名称或所在地，然后从提示中选择学校。"
 
-#: apps/web/forms.py:466
+#: apps/web/forms.py:465
 msgid "Mojej szkoły nie ma na liście"
 msgstr "我的学校不在列表中"
 
-#: apps/web/forms.py:471
+#: apps/web/forms.py:470
 msgid "Nazwa szkoły"
 msgstr "学校名称"
 
-#: apps/web/forms.py:538
+#: apps/web/forms.py:537
 msgid "Rodzaj placówki"
 msgstr "机构类型"
 
-#: apps/web/forms.py:561
+#: apps/web/forms.py:560
 msgid ""
 "Dwuliterowy kod kraju (ISO 3166-1), na przykład „DE”. Puste znaczy Polska."
 msgstr "两位字母的国家代码（ISO 3166-1），例如“DE”。留空表示波兰。"
 
-#: apps/web/forms.py:566
+#: apps/web/forms.py:565
 msgid "Nazwa placówki"
 msgstr "机构名称"
 
-#: apps/web/forms.py:569
+#: apps/web/forms.py:568
 msgid "Wypełnij, jeżeli Twojej placówki nie ma w wykazie."
 msgstr "如果您的机构不在名录中，请填写此项。"
 
-#: apps/web/forms.py:587 apps/web/forms.py:850
+#: apps/web/forms.py:586 apps/web/forms.py:849
 msgid "— wybierz klasę —"
 msgstr "— 选择年级 —"
 
-#: apps/web/forms.py:657
+#: apps/web/forms.py:656
 msgid "Wybierz placówkę z listy."
 msgstr "请从列表中选择机构。"
 
-#: apps/web/forms.py:664
+#: apps/web/forms.py:663
 msgid "Podaj nazwę szkoły."
 msgstr "请填写学校名称。"
 
-#: apps/web/forms.py:676
+#: apps/web/forms.py:675
 msgid ""
-"Wybierz szkołę z podpowiedzi albo zaznacz „Mojej szkoły nie ma na liście” i wpisz jej nazwę."
+"Wybierz szkołę z podpowiedzi albo zaznacz „Mojej szkoły nie ma na liście” i "
+"wpisz jej nazwę."
 msgstr "请从提示中选择学校，或勾选「我的学校不在列表中」并填写学校名称。"
 
-#: apps/web/forms.py:680
+#: apps/web/forms.py:679
 msgid "Wybierz szkołę z listy albo zaznacz, że nie ma jej na liście."
 msgstr "请从列表中选择学校，或注明学校不在列表中。"
 
-#: apps/web/forms.py:725 apps/web/forms.py:749
+#: apps/web/forms.py:724 apps/web/forms.py:748
 msgid "Podaj kraj."
 msgstr "请填写国家。"
 
-#: apps/web/forms.py:746
+#: apps/web/forms.py:745
 msgid "Podaj nazwę placówki."
 msgstr "请填写机构名称。"
 
-#: apps/web/forms.py:836 apps/web/forms.py:892 apps/web/forms.py:963
-#: apps/web/forms.py:1137 templates/web/account/profile.html:68
+#: apps/web/forms.py:835 apps/web/forms.py:891 apps/web/forms.py:962
+#: apps/web/forms.py:1136 templates/web/account/profile.html:68
 msgid "Adres e-mail"
 msgstr "电子邮箱地址"
 
-#: apps/web/forms.py:848 templates/web/supervisor/_import_preview.html:46
+#: apps/web/forms.py:847 templates/web/supervisor/_import_preview.html:46
 #: templates/web/supervisor/students.html:43
 msgid "Klasa"
 msgstr "年级"
 
-#: apps/web/forms.py:894 apps/web/forms.py:965 apps/web/views/invite.py:73
+#: apps/web/forms.py:893 apps/web/forms.py:964 apps/web/views/invite.py:73
 #: templates/web/chat/_key_form.html:20
 msgid "Powtórz hasło"
 msgstr "确认密码"
 
-#: apps/web/forms.py:896 apps/web/forms.py:932 apps/web/forms.py:967
-#: apps/web/forms.py:1050 apps/web/forms.py:1114
+#: apps/web/forms.py:895 apps/web/forms.py:931 apps/web/forms.py:966
+#: apps/web/forms.py:1049 apps/web/forms.py:1113
 msgid "Imię"
 msgstr "名"
 
-#: apps/web/forms.py:899 apps/web/forms.py:935 apps/web/forms.py:970
-#: apps/web/forms.py:1053 apps/web/forms.py:1117
+#: apps/web/forms.py:898 apps/web/forms.py:934 apps/web/forms.py:969
+#: apps/web/forms.py:1052 apps/web/forms.py:1116
 msgid "Nazwisko"
 msgstr "姓"
 
-#: apps/web/forms.py:972
+#: apps/web/forms.py:971
 msgid "Kod zaproszenia"
 msgstr "邀请码"
 
-#: apps/web/forms.py:974
+#: apps/web/forms.py:973
 msgid "Województwo (deklarowane)"
 msgstr "省份（自行申报）"
 
-#: apps/web/forms.py:974
+#: apps/web/forms.py:973
 msgid "deklarowane"
 msgstr "自行填报"
 
-#: apps/web/forms.py:1064
+#: apps/web/forms.py:1063
 msgid "Adres e-mail opiekuna szkolnego"
 msgstr "指导老师的电子邮箱地址"
 
-#: apps/web/forms.py:1068
+#: apps/web/forms.py:1067
 msgid ""
-"Opcjonalnie. Opiekun z kontem w serwisie zobaczy Twój kod, imię, nazwisko i to, na jakim etapie procedury są Twoje prace – nigdy punktów przed ogłoszeniem wyników ani samych prac. Puste pole znaczy „nie mam opiekuna”."
+"Opcjonalnie. Opiekun z kontem w serwisie zobaczy Twój kod, imię, nazwisko i "
+"to, na jakim etapie procedury są Twoje prace – nigdy punktów przed "
+"ogłoszeniem wyników ani samych prac. Puste pole znaczy „nie mam opiekuna”."
 msgstr ""
-"选填。在本网站有账户的指导老师可以看到您的编号、姓名，以及您的作品处于哪个处理环节——但在成绩公布前绝对看不到分数，也看不到作品本身。留空表示“没有指导老师”。"
+"选填。在本网站有账户的指导老师可以看到您的编号、姓名，以及您的作品处于哪个处"
+"理环节——但在成绩公布前绝对看不到分数，也看不到作品本身。留空表示“没有指导老"
+"师”。"
 
-#: apps/web/forms.py:1125
+#: apps/web/forms.py:1124
 msgid "Nowy adres e-mail"
 msgstr "新的电子邮箱地址"
 
-#: apps/web/forms.py:1128
+#: apps/web/forms.py:1127
 msgid ""
-"Na ten adres wyślemy link potwierdzający. Do czasu potwierdzenia logujesz się dotychczasowym adresem."
+"Na ten adres wyślemy link potwierdzający. Do czasu potwierdzenia logujesz "
+"się dotychczasowym adresem."
 msgstr "我们将向此地址发送确认链接。确认之前，请继续使用原地址登录。"
 
-#: apps/web/forms.py:1153
+#: apps/web/forms.py:1152
 msgid "Aktualne hasło"
 msgstr "当前密码"
 
-#: apps/web/forms.py:1158
+#: apps/web/forms.py:1157
 msgid "Adres e-mail konta"
 msgstr "账户电子邮箱地址"
 
-#: apps/web/forms.py:1160
+#: apps/web/forms.py:1159
 msgid "Rozumiem, że tej operacji nie da się odwrócić."
 msgstr "我明白此操作无法撤销。"
 
-#: apps/web/forms.py:1175 templates/web/participant/_problem_card.html:107
+#: apps/web/forms.py:1174 templates/web/participant/_problem_card.html:107
 msgid "Plik rozwiązania"
 msgstr "解答文件"
 
-#: apps/web/forms.py:1177
-msgid ""
-"Potwierdzam, że to rozwiązanie właściwego zadania i plik jest czytelny"
+#: apps/web/forms.py:1176
+msgid "Potwierdzam, że to rozwiązanie właściwego zadania i plik jest czytelny"
 msgstr "我确认这是对应题目的解答，且文件清晰可读"
 
-#: apps/web/forms.py:1180
+#: apps/web/forms.py:1179
 msgid ""
-"Zaznacz potwierdzenie, że wysyłasz rozwiązanie właściwego zadania i że plik jest czytelny."
+"Zaznacz potwierdzenie, że wysyłasz rozwiązanie właściwego zadania i że plik "
+"jest czytelny."
 msgstr "请勾选确认：您上传的是对应题目的解答，且文件清晰可读。"
 
 #: apps/web/participant_now.py:118
@@ -1952,17 +2080,22 @@ msgstr "信息已保存。"
 
 #: apps/web/views/account.py:213
 msgid ""
-"Wysłaliśmy link potwierdzający na nowy adres. Do czasu potwierdzenia logujesz się dotychczasowym adresem."
+"Wysłaliśmy link potwierdzający na nowy adres. Do czasu potwierdzenia "
+"logujesz się dotychczasowym adresem."
 msgstr "确认链接已发送到新地址。确认之前，请继续使用原地址登录。"
 
 #: apps/web/views/chat.py:66
 msgid ""
-"Wiadomości mogą być czytane przez organizatora w ramach moderacji. Każda wiadomość czeka na akceptację organizatora – odbiorca zobaczy ją dopiero po niej."
-msgstr "组织方可能出于审核目的阅读消息。每条消息需经组织方批准后，收件人才能看到。"
+"Wiadomości mogą być czytane przez organizatora w ramach moderacji. Każda "
+"wiadomość czeka na akceptację organizatora – odbiorca zobaczy ją dopiero po "
+"niej."
+msgstr ""
+"组织方可能出于审核目的阅读消息。每条消息需经组织方批准后，收件人才能看到。"
 
 #: apps/web/views/chat.py:70
 msgid ""
-"Wiadomości mogą być czytane przez organizatora w ramach moderacji. Dochodzą od razu, a organizator przegląda je po fakcie."
+"Wiadomości mogą być czytane przez organizatora w ramach moderacji. Dochodzą "
+"od razu, a organizator przegląda je po fakcie."
 msgstr "组织方可能出于审核目的阅读消息。消息会立即送达，组织方事后进行审查。"
 
 #: apps/web/views/chat.py:73
@@ -1971,12 +2104,17 @@ msgstr "组织方只能看到被举报的消息。"
 
 #: apps/web/views/chat.py:79
 msgid ""
-"Rozmowa szyfrowana end-to-end: treść znają tylko Wasze przeglądarki – nie zna jej serwer ani organizator. Jeśli zgłosisz wiadomość, jej odszyfrowana treść trafi do organizatora."
-msgstr "端到端加密对话：只有你们双方的浏览器能读取内容，服务器和组织方都无法读取。如果您举报某条消息，其解密后的内容将发送给组织方。"
+"Rozmowa szyfrowana end-to-end: treść znają tylko Wasze przeglądarki – nie "
+"zna jej serwer ani organizator. Jeśli zgłosisz wiadomość, jej odszyfrowana "
+"treść trafi do organizatora."
+msgstr ""
+"端到端加密对话：只有你们双方的浏览器能读取内容，服务器和组织方都无法读取。如"
+"果您举报某条消息，其解密后的内容将发送给组织方。"
 
 #: apps/web/views/chat.py:85
 msgid ""
-"Klucz szyfrowania tej osoby zmienił się. Jeśli to niespodzianka, porównajcie odciski kluczy na żywo."
+"Klucz szyfrowania tej osoby zmienił się. Jeśli to niespodzianka, porównajcie "
+"odciski kluczy na żywo."
 msgstr "此人的加密密钥已更改。如果这出乎意料，请当面核对密钥指纹。"
 
 #: apps/web/views/chat.py:241 templates/web/reviewer/_comparison.html:28
@@ -2024,32 +2162,47 @@ msgstr "消息设置已保存。"
 
 #: apps/web/views/errors.py:39
 msgid ""
-"Przeglądarka nie przyjęła pliku cookie zabezpieczającego formularze (csrftoken). Sprawdź, czy nie blokujesz plików cookie dla tej strony, i spróbuj ponownie."
-msgstr "浏览器未接受用于保护表单的 Cookie（csrftoken）。请检查是否屏蔽了本网站的 Cookie，然后重试。"
+"Przeglądarka nie przyjęła pliku cookie zabezpieczającego formularze "
+"(csrftoken). Sprawdź, czy nie blokujesz plików cookie dla tej strony, i "
+"spróbuj ponownie."
+msgstr ""
+"浏览器未接受用于保护表单的 Cookie（csrftoken）。请检查是否屏蔽了本网站的 "
+"Cookie，然后重试。"
 
 #: apps/web/views/errors.py:43
 msgid ""
-"Formularz został wysłany bez tokenu zabezpieczającego – odśwież stronę i wyślij go ponownie."
+"Formularz został wysłany bez tokenu zabezpieczającego – odśwież stronę i "
+"wyślij go ponownie."
 msgstr "表单提交时缺少安全令牌——请刷新页面后重新提交。"
 
 #: apps/web/views/errors.py:46
 msgid ""
-"Żądanie przyszło z innego adresu niż ten serwis. Jeśli otworzyłeś formularz z zapisanej kopii strony albo przez inny adres domeny, wejdź na stronę bezpośrednio."
-msgstr "请求来自本网站以外的地址。如果您是从保存的网页副本或其他域名地址打开表单的，请直接访问本网站。"
+"Żądanie przyszło z innego adresu niż ten serwis. Jeśli otworzyłeś formularz "
+"z zapisanej kopii strony albo przez inny adres domeny, wejdź na stronę "
+"bezpośrednio."
+msgstr ""
+"请求来自本网站以外的地址。如果您是从保存的网页副本或其他域名地址打开表单的，"
+"请直接访问本网站。"
 
 #: apps/web/views/errors.py:50
 msgid ""
-"Żądanie przyszło z innego adresu niż ten serwis – wejdź na stronę bezpośrednio i spróbuj ponownie."
+"Żądanie przyszło z innego adresu niż ten serwis – wejdź na stronę "
+"bezpośrednio i spróbuj ponownie."
 msgstr "请求来自本网站以外的地址——请直接访问本网站后重试。"
 
 #: apps/web/views/errors.py:53
 msgid ""
-"Przeglądarka ukryła adres strony, z której wysłano formularz (np. rozszerzenie chroniące prywatność). Zezwól na nagłówek Referer dla tej strony albo spróbuj w innej przeglądarce."
-msgstr "浏览器隐藏了提交表单的页面地址（例如由隐私保护扩展导致）。请允许本网站发送 Referer 请求头，或换用其他浏览器重试。"
+"Przeglądarka ukryła adres strony, z której wysłano formularz (np. "
+"rozszerzenie chroniące prywatność). Zezwól na nagłówek Referer dla tej "
+"strony albo spróbuj w innej przeglądarce."
+msgstr ""
+"浏览器隐藏了提交表单的页面地址（例如由隐私保护扩展导致）。请允许本网站发送 "
+"Referer 请求头，或换用其他浏览器重试。"
 
 #: apps/web/views/errors.py:57
 msgid ""
-"Przeglądarka wysłała nieprawidłowy adres źródłowy – odśwież stronę i spróbuj ponownie."
+"Przeglądarka wysłała nieprawidłowy adres źródłowy – odśwież stronę i spróbuj "
+"ponownie."
 msgstr "浏览器发送的来源地址无效——请刷新页面后重试。"
 
 #: apps/web/views/errors.py:60 apps/web/views/errors.py:63
@@ -2059,14 +2212,23 @@ msgstr "安全令牌已损坏——请刷新页面后重试。"
 
 #: apps/web/views/errors.py:68
 msgid ""
-"Najczęstsza przyczyna: w międzyczasie zalogowano się lub wylogowano w innej karcie tej samej przeglądarki albo strona z formularzem była otwarta bardzo długo. Zabezpieczenie formularza jest wtedy nieaktualne."
-msgstr "最常见的原因：期间在同一浏览器的其他标签页中登录或退出了账户，或表单页面打开时间过长，导致表单安全验证失效。"
+"Najczęstsza przyczyna: w międzyczasie zalogowano się lub wylogowano w innej "
+"karcie tej samej przeglądarki albo strona z formularzem była otwarta bardzo "
+"długo. Zabezpieczenie formularza jest wtedy nieaktualne."
+msgstr ""
+"最常见的原因：期间在同一浏览器的其他标签页中登录或退出了账户，或表单页面打开"
+"时间过长，导致表单安全验证失效。"
 
 #: apps/web/views/forum.py:88
 msgid ""
-"Trwa etap przyjmujący rozwiązania. Regulamin zabrania omawiania zadań tego etapu (§ 10 ust. 2 i § 17) – wpisy o treści zadań będą odrzucane, a próba uzyskania lub podania rozwiązania jest podstawą do dyskwalifikacji. Do czasu zamknięcia etapu każdy wpis czeka na zatwierdzenie przez organizatora."
+"Trwa etap przyjmujący rozwiązania. Regulamin zabrania omawiania zadań tego "
+"etapu (§ 10 ust. 2 i § 17) – wpisy o treści zadań będą odrzucane, a próba "
+"uzyskania lub podania rozwiązania jest podstawą do dyskwalifikacji. Do czasu "
+"zamknięcia etapu każdy wpis czeka na zatwierdzenie przez organizatora."
 msgstr ""
-"当前阶段正在接收解答。根据竞赛规则（第 10 条第 2 款及第 17 条），禁止讨论本阶段的题目——涉及题目内容的帖子将被拒绝，试图获取或提供解答将导致取消资格。在本阶段结束前，所有帖子均需经组织方审核通过。"
+"当前阶段正在接收解答。根据竞赛规则（第 10 条第 2 款及第 17 条），禁止讨论本阶"
+"段的题目——涉及题目内容的帖子将被拒绝，试图获取或提供解答将导致取消资格。在本"
+"阶段结束前，所有帖子均需经组织方审核通过。"
 
 #: apps/web/views/forum.py:228
 msgid "Wpis czeka na zatwierdzenie przez organizatora. Widzisz go tylko Ty."
@@ -2245,7 +2407,8 @@ msgstr "抵达申报已保存。"
 
 #: apps/web/views/participant_student_status.py:101
 msgid ""
-"Zaświadczenie zostało wysłane. Koordynator sprawdzi je i poinformuje Cię e-mailem o decyzji."
+"Zaświadczenie zostało wysłane. Koordynator sprawdzi je i poinformuje Cię e-"
+"mailem o decyzji."
 msgstr "证明已提交。协调员审核后将通过邮件通知您结果。"
 
 #: apps/web/views/reviewer.py:84
@@ -2321,8 +2484,11 @@ msgstr "无访问权限"
 
 #: templates/403.html:8
 msgid ""
-"Ta strona jest dostępna tylko dla uprawnionej roli (uczestnika, członka komisji albo koordynatora). Jeśli masz kilka kont, zaloguj się na właściwe."
-msgstr "此页面仅对有相应权限的角色（参赛者、委员会成员或协调员）开放。如果您有多个账户，请登录正确的账户。"
+"Ta strona jest dostępna tylko dla uprawnionej roli (uczestnika, członka "
+"komisji albo koordynatora). Jeśli masz kilka kont, zaloguj się na właściwe."
+msgstr ""
+"此页面仅对有相应权限的角色（参赛者、委员会成员或协调员）开放。如果您有多个账"
+"户，请登录正确的账户。"
 
 #: templates/403.html:11 templates/base.html:245
 #: templates/cms/home_page.html:131 templates/web/activate_invalid.html:27
@@ -2341,13 +2507,17 @@ msgstr "表单需要刷新"
 
 #: templates/403_csrf.html:14
 msgid ""
-"Nie mogliśmy przyjąć tego żądania, bo zabezpieczenie formularza (token CSRF) nie zgadzało się z Twoją bieżącą sesją."
+"Nie mogliśmy przyjąć tego żądania, bo zabezpieczenie formularza (token CSRF) "
+"nie zgadzało się z Twoją bieżącą sesją."
 msgstr "无法处理此请求，因为表单安全验证（CSRF 令牌）与您当前的会话不匹配。"
 
 #: templates/403_csrf.html:17
 msgid ""
-"Otwórz formularz ponownie i wyślij go jeszcze raz. Jeśli masz otwartych kilka kart tego serwisu, odśwież każdą z nich po zalogowaniu lub wylogowaniu."
-msgstr "请重新打开表单并再次提交。如果您打开了本网站的多个标签页，请在登录或退出后逐一刷新。"
+"Otwórz formularz ponownie i wyślij go jeszcze raz. Jeśli masz otwartych "
+"kilka kart tego serwisu, odśwież każdą z nich po zalogowaniu lub wylogowaniu."
+msgstr ""
+"请重新打开表单并再次提交。如果您打开了本网站的多个标签页，请在登录或退出后逐"
+"一刷新。"
 
 #: templates/403_csrf.html:20
 msgid "Otwórz formularz ponownie"
@@ -2359,13 +2529,17 @@ msgstr "页面未找到"
 
 #: templates/404.html:15
 msgid ""
-"Pod tym adresem nic nie ma – strona mogła zostać przeniesiona albo adres zawiera literówkę."
+"Pod tym adresem nic nie ma – strona mogła zostać przeniesiona albo adres "
+"zawiera literówkę."
 msgstr "此地址没有内容——页面可能已移动，或地址有拼写错误。"
 
 #: templates/base.html:38
 msgid ""
-"Ogólnopolska olimpiada dla uczniów szkół ponadpodstawowych: terminy etapów, zadania, wyniki oraz panel uczestnika, recenzenta i komitetu."
-msgstr "面向波兰高中生的全国性奥林匹克竞赛：各阶段日程、题目、成绩，以及参赛者、评审和委员会面板。"
+"Ogólnopolska olimpiada dla uczniów szkół ponadpodstawowych: terminy etapów, "
+"zadania, wyniki oraz panel uczestnika, recenzenta i komitetu."
+msgstr ""
+"面向波兰高中生的全国性奥林匹克竞赛：各阶段日程、题目、成绩，以及参赛者、评审"
+"和委员会面板。"
 
 #: templates/base.html:142
 msgid "Przejdź do treści"
@@ -2420,8 +2594,12 @@ msgstr "网站"
 
 #: templates/base.html:379
 msgid ""
-"Dane osobowe uczestników są przetwarzane zgodnie z zasadą minimalizacji (RODO): w publicznych tabelach wyników występuje wyłącznie kod uczestnika, a pełne dane widzi jedynie koordynator."
-msgstr "参赛者个人数据按照数据最小化原则（GDPR）处理：公开成绩表中仅显示参赛者编号，完整数据仅协调员可见。"
+"Dane osobowe uczestników są przetwarzane zgodnie z zasadą minimalizacji "
+"(RODO): w publicznych tabelach wyników występuje wyłącznie kod uczestnika, a "
+"pełne dane widzi jedynie koordynator."
+msgstr ""
+"参赛者个人数据按照数据最小化原则（GDPR）处理：公开成绩表中仅显示参赛者编号，"
+"完整数据仅协调员可见。"
 
 #: templates/base.html:388
 msgid "Polityka prywatności (RODO)"
@@ -2457,8 +2635,11 @@ msgstr "Cookie 说明"
 
 #: templates/base.html:488
 msgid ""
-"Używamy plików cookie niezbędnych do działania serwisu oraz – za Twoją zgodą – Google Analytics do statystyk odwiedzin."
-msgstr "我们使用网站运行所必需的 Cookie，并在您同意后使用 Google Analytics 统计访问量。"
+"Używamy plików cookie niezbędnych do działania serwisu oraz – za Twoją zgodą "
+"– Google Analytics do statystyk odwiedzin."
+msgstr ""
+"我们使用网站运行所必需的 Cookie，并在您同意后使用 Google Analytics 统计访问"
+"量。"
 
 #: templates/base.html:500
 msgid "Akceptuję wszystkie"
@@ -2470,8 +2651,12 @@ msgstr "仅必要 Cookie"
 
 #: templates/base.html:505
 msgid ""
-"Ten serwis używa wyłącznie niezbędnych plików cookie (sesja logowania, zabezpieczenie formularzy). Nie używamy cookies reklamowych ani analitycznych."
-msgstr "本网站仅使用必要的 Cookie（登录会话、表单安全保护），不使用广告或分析类 Cookie。"
+"Ten serwis używa wyłącznie niezbędnych plików cookie (sesja logowania, "
+"zabezpieczenie formularzy). Nie używamy cookies reklamowych ani "
+"analitycznych."
+msgstr ""
+"本网站仅使用必要的 Cookie（登录会话、表单安全保护），不使用广告或分析类 "
+"Cookie。"
 
 #: templates/base.html:509
 msgid "Rozumiem"
@@ -2523,8 +2708,11 @@ msgstr "研习营资料"
 #: templates/cms/_workshop_materials_teaser.html:11
 #, python-format
 msgid ""
-"Do warsztatów są nagrania i materiały do pobrania (%(count)s). Oglądać je można wyłącznie po zalogowaniu na konto uczestnika albo opiekuna."
-msgstr "研习营提供录像和可下载资料（%(count)s 项），仅限登录参赛者或指导老师账户后观看。"
+"Do warsztatów są nagrania i materiały do pobrania (%(count)s). Oglądać je "
+"można wyłącznie po zalogowaniu na konto uczestnika albo opiekuna."
+msgstr ""
+"研习营提供录像和可下载资料（%(count)s 项），仅限登录参赛者或指导老师账户后观"
+"看。"
 
 #: templates/cms/_workshop_materials_teaser.html:14
 #: templates/web/participant/_workshop_materials_card.html:16
@@ -2639,8 +2827,11 @@ msgstr "本页内容"
 
 #: templates/cms/document_index_page.html:4
 msgid ""
-"Dokumenty Olimpiady: regulamin, polityka RODO, standardy ochrony małoletnich i skład komitetów – do przeczytania na stronie i do pobrania."
-msgstr "奥林匹克竞赛文件：竞赛规则、GDPR 隐私政策、未成年人保护准则及各委员会成员名单——可在线阅读并下载。"
+"Dokumenty Olimpiady: regulamin, polityka RODO, standardy ochrony małoletnich "
+"i skład komitetów – do przeczytania na stronie i do pobrania."
+msgstr ""
+"奥林匹克竞赛文件：竞赛规则、GDPR 隐私政策、未成年人保护准则及各委员会成员名单"
+"——可在线阅读并下载。"
 
 #: templates/cms/document_index_page.html:32
 #: templates/cms/document_page.html:19
@@ -2663,7 +2854,8 @@ msgstr "此栏目尚未发布任何文件。"
 #: templates/cms/document_page.html:4
 #, python-format
 msgid ""
-"%(title)s (wersja %(version)s) – dokument Olimpiady do przeczytania online i pobrania."
+"%(title)s (wersja %(version)s) – dokument Olimpiady do przeczytania online i "
+"pobrania."
 msgstr "%(title)s（版本 %(version)s）——可在线阅读和下载的奥林匹克竞赛文件。"
 
 #: templates/cms/document_page.html:4
@@ -2704,8 +2896,11 @@ msgstr "没有找到答案？"
 #: templates/cms/faq_page.html:47
 #, python-format
 msgid ""
-"<a href=\"%(support_url)s\">Zgłoś problem organizatorowi</a> – opiszemy sprawę wspólnie, a odpowiedź dostaniesz e-mailem."
-msgstr "<a href=\"%(support_url)s\">向组织方反馈问题</a>——我们会一起梳理问题，回复将通过邮件发送给您。"
+"<a href=\"%(support_url)s\">Zgłoś problem organizatorowi</a> – opiszemy "
+"sprawę wspólnie, a odpowiedź dostaniesz e-mailem."
+msgstr ""
+"<a href=\"%(support_url)s\">向组织方反馈问题</a>——我们会一起梳理问题，回复将"
+"通过邮件发送给您。"
 
 #: templates/cms/home_page.html:20
 msgid "karuzela"
@@ -2732,7 +2927,8 @@ msgstr "我的评审"
 #: templates/cms/home_page.html:148
 #, python-format
 msgid ""
-"Etap bieżący: <strong>%(stage)s</strong> · termin oddania rozwiązań %(deadline)s"
+"Etap bieżący: <strong>%(stage)s</strong> · termin oddania rozwiązań "
+"%(deadline)s"
 msgstr "当前阶段：<strong>%(stage)s</strong> · 解答提交截止时间 %(deadline)s"
 
 #: templates/cms/home_page.html:159
@@ -2814,7 +3010,8 @@ msgstr "线上研习营"
 
 #: templates/cms/home_page.html:304
 msgid ""
-"Bezpłatne spotkania przygotowujące do zawodów. Wszystkie godziny: czas polski."
+"Bezpłatne spotkania przygotowujące do zawodów. Wszystkie godziny: czas "
+"polski."
 msgstr "免费的赛前辅导活动。所有时间均为波兰时间。"
 
 #: templates/cms/home_page.html:317
@@ -2880,7 +3077,8 @@ msgstr "第一届合作伙伴名单即将公布。"
 
 #: templates/cms/partners_page.html:37
 msgid ""
-"Rozmowy o patronatach i współpracy trwają. Poniżej opisujemy, na czym może polegać."
+"Rozmowy o patronatach i współpracy trwają. Poniżej opisujemy, na czym może "
+"polegać."
 msgstr "我们正在洽谈支持与合作事宜。以下介绍可能的合作方式。"
 
 #: templates/cms/partners_page.html:108
@@ -2944,9 +3142,13 @@ msgstr "练习"
 
 #: templates/cms/problems_page.html:85
 msgid ""
-"Bez terminu. Po zgłoszeniu się do treningu możesz wysyłać rozwiązania z panelu uczestnika, ale <strong>nie będą one sprawdzane ani oceniane</strong> – zadania treningowe służą do zapoznania się z zakresem materiału i nie liczą się do kwalifikacji."
+"Bez terminu. Po zgłoszeniu się do treningu możesz wysyłać rozwiązania z "
+"panelu uczestnika, ale <strong>nie będą one sprawdzane ani oceniane</strong> "
+"– zadania treningowe służą do zapoznania się z zakresem materiału i nie "
+"liczą się do kwalifikacji."
 msgstr ""
-"无截止时间。报名参加练习后，您可以在参赛者面板中提交解答，但<strong>这些解答不会被批改或评分</strong>——练习题仅用于熟悉考查范围，不计入晋级成绩。"
+"无截止时间。报名参加练习后，您可以在参赛者面板中提交解答，但<strong>这些解答"
+"不会被批改或评分</strong>——练习题仅用于熟悉考查范围，不计入晋级成绩。"
 
 #: templates/cms/problems_page.html:90
 #, python-format
@@ -3034,41 +3236,52 @@ msgstr "成绩尚未公布"
 
 #: templates/cms/results_page.html:89
 msgid ""
-"Tabela pojawi się tutaj po ogłoszeniu wyników pierwszego etapu przez koordynatora."
+"Tabela pojawi się tutaj po ogłoszeniu wyników pierwszego etapu przez "
+"koordynatora."
 msgstr "协调员公布第一阶段成绩后，成绩表将显示在这里。"
 
 #: templates/registration/invite_student_body.txt:15
 #, python-format
 msgid ""
-"Cześć %(name)s! Nauczyciel ze szkoły %(school)s zgłosił Cię do Olimpiady Kwantowej."
-msgstr "%(name)s，你好！%(school)s 的一位老师为你报名了量子奥林匹克。"
+"Cześć %(name)s! Nauczyciel ze szkoły %(school)s zgłosił Cię do %(competition_genitive)s."
+msgstr "%(name)s，你好！%(school)s的一位老师为你报名了%(competition_genitive)s。"
 
 #: templates/registration/invite_student_body.txt:19
 msgid ""
-"Konto czeka na Ciebie, ale jeszcze nie działa: hasło ustawiasz sam i sam akceptujesz regulamin oraz informację o przetwarzaniu danych. Otwórz poniższy adres:"
-msgstr "账户已为你创建，但尚未启用：密码需由你本人设置，竞赛规则和数据处理说明也需由你本人确认。请打开以下链接："
+"Konto czeka na Ciebie, ale jeszcze nie działa: hasło ustawiasz sam i sam "
+"akceptujesz regulamin oraz informację o przetwarzaniu danych. Otwórz "
+"poniższy adres:"
+msgstr ""
+"账户已为你创建，但尚未启用：密码需由你本人设置，竞赛规则和数据处理说明也需由"
+"你本人确认。请打开以下链接："
 
 #: templates/registration/invite_student_body.txt:23
 #, python-format
 msgid ""
-"Link jest ważny %(days)s dni. Jeśli wygaśnie, poproś nauczyciela o wysłanie go ponownie."
+"Link jest ważny %(days)s dni. Jeśli wygaśnie, poproś nauczyciela o wysłanie "
+"go ponownie."
 msgstr "链接有效期为 %(days)s 天。如果链接过期，请让老师重新发送。"
 
 #: templates/registration/invite_student_body.txt:27
 msgid ""
-"Jeśli nie chcesz brać udziału – zignoruj tę wiadomość. Bez kliknięcia w link konto nie zostanie uruchomione i nikt nie zaloguje się na Twój adres."
-msgstr "如果你不想参赛，请忽略本邮件。不点击链接，账户就不会启用，也没有人能用你的邮箱地址登录。"
+"Jeśli nie chcesz brać udziału – zignoruj tę wiadomość. Bez kliknięcia w link "
+"konto nie zostanie uruchomione i nikt nie zaloguje się na Twój adres."
+msgstr ""
+"如果你不想参赛，请忽略本邮件。不点击链接，账户就不会启用，也没有人能用你的邮"
+"箱地址登录。"
 
 #: templates/registration/invite_student_subject.txt:1
-#: templates/web/invite/accept.html:14
-msgid "Zaproszenie do Olimpiady Kwantowej"
-msgstr "量子奥林匹克参赛邀请"
+#, python-format
+msgid "Zaproszenie do %(competition_genitive)s"
+msgstr "%(competition_genitive)s邀请"
 
 #: templates/registration/password_reset_email.txt:13
 #, python-format
 msgid ""
-"Ktoś – prawdopodobnie Ty – poprosił o ustawienie nowego hasła do konta %(email)s w serwisie %(site_name)s."
-msgstr "有人（很可能是您本人）请求为 %(site_name)s 上的账户 %(email)s 设置新密码。"
+"Ktoś – prawdopodobnie Ty – poprosił o ustawienie nowego hasła do konta "
+"%(email)s w serwisie %(site_name)s."
+msgstr ""
+"有人（很可能是您本人）请求为 %(site_name)s 上的账户 %(email)s 设置新密码。"
 
 #: templates/registration/password_reset_email.txt:15
 msgid "Aby ustawić nowe hasło, otwórz poniższy adres:"
@@ -3076,12 +3289,14 @@ msgstr "要设置新密码，请打开以下链接："
 
 #: templates/registration/password_reset_email.txt:19
 msgid ""
-"Link jest ważny 24 godziny i można go użyć tylko raz. Po zmianie hasła przestaje działać."
+"Link jest ważny 24 godziny i można go użyć tylko raz. Po zmianie hasła "
+"przestaje działać."
 msgstr "链接有效期为 24 小时，且只能使用一次。密码更改后链接即失效。"
 
 #: templates/registration/password_reset_email.txt:21
 msgid ""
-"Jeśli to nie Ty prosiłeś o reset – zignoruj tę wiadomość. Hasło do konta pozostaje bez zmian\n"
+"Jeśli to nie Ty prosiłeś o reset – zignoruj tę wiadomość. Hasło do konta "
+"pozostaje bez zmian\n"
 "i nikt nie uzyskał do niego dostępu."
 msgstr ""
 "如果您没有请求重置密码，请忽略本邮件。您的账户密码不会改变，\n"
@@ -3095,8 +3310,10 @@ msgstr "重置密码"
 #: templates/registration/password_reset_email_body.html:22
 #, python-format
 msgid ""
-"Ktoś – prawdopodobnie Ty – poprosił o ustawienie nowego hasła do konta <strong>%(email)s</strong>."
-msgstr "有人（很可能是您本人）请求为账户 <strong>%(email)s</strong> 设置新密码。"
+"Ktoś – prawdopodobnie Ty – poprosił o ustawienie nowego hasła do konta "
+"<strong>%(email)s</strong>."
+msgstr ""
+"有人（很可能是您本人）请求为账户 <strong>%(email)s</strong> 设置新密码。"
 
 #: templates/registration/password_reset_email_body.html:29
 #: templates/socialaccount/refused.html:22
@@ -3110,13 +3327,18 @@ msgstr "如果按钮无效，请将以下地址复制到浏览器中："
 
 #: templates/registration/password_reset_email_body.html:36
 msgid ""
-"Link jest ważny <strong>24 godziny</strong> i można go użyć tylko raz. Po zmianie hasła przestaje działać."
-msgstr "链接有效期为 <strong>24 小时</strong>，且只能使用一次。密码更改后链接即失效。"
+"Link jest ważny <strong>24 godziny</strong> i można go użyć tylko raz. Po "
+"zmianie hasła przestaje działać."
+msgstr ""
+"链接有效期为 <strong>24 小时</strong>，且只能使用一次。密码更改后链接即失效。"
 
 #: templates/registration/password_reset_email_body.html:42
 msgid ""
-"Jeśli to nie Ty prosiłeś o reset – zignoruj tę wiadomość. Hasło do konta pozostaje bez zmian i nikt nie uzyskał do niego dostępu."
-msgstr "如果您没有请求重置密码，请忽略本邮件。您的账户密码不会改变，也没有人获得了账户访问权限。"
+"Jeśli to nie Ty prosiłeś o reset – zignoruj tę wiadomość. Hasło do konta "
+"pozostaje bez zmian i nikt nie uzyskał do niego dostępu."
+msgstr ""
+"如果您没有请求重置密码，请忽略本邮件。您的账户密码不会改变，也没有人获得了账"
+"户访问权限。"
 
 #: templates/registration/password_reset_email_body.html:49
 #: templates/registration/supervisor_consent_body.html:55
@@ -3141,37 +3363,51 @@ msgstr "%(name)s，你好！"
 #: templates/registration/supervisor_consent_body.html:24
 #, python-format
 msgid ""
-"Organizator konkursu %(competition)s, wgrywając listę uczniów, wskazał nauczyciela <strong>%(teacher)s</strong> (%(email)s) jako Twojego opiekuna szkolnego."
+"Organizator konkursu %(competition)s, wgrywając listę uczniów, wskazał "
+"nauczyciela <strong>%(teacher)s</strong> (%(email)s) jako Twojego opiekuna "
+"szkolnego."
 msgstr ""
-"%(competition)s 的组织方在上传学生名单时，将 <strong>%(teacher)s</strong> 老师（%(email)s）指定为你的指导老师。"
+"%(competition)s 的组织方在上传学生名单时，将 <strong>%(teacher)s</strong> 老"
+"师（%(email)s）指定为你的指导老师。"
 
 #: templates/registration/supervisor_consent_body.html:26
 #, python-format
 msgid ""
-"Organizator konkursu %(competition)s, wgrywając listę uczniów, wskazał nauczyciela z adresem <strong>%(email)s</strong> jako Twojego opiekuna szkolnego."
+"Organizator konkursu %(competition)s, wgrywając listę uczniów, wskazał "
+"nauczyciela z adresem <strong>%(email)s</strong> jako Twojego opiekuna "
+"szkolnego."
 msgstr ""
-"%(competition)s 的组织方在上传学生名单时，将邮箱地址为 <strong>%(email)s</strong> 的老师指定为你的指导老师。"
+"%(competition)s 的组织方在上传学生名单时，将邮箱地址为 <strong>%(email)s</"
+"strong> 的老师指定为你的指导老师。"
 
 #: templates/registration/supervisor_consent_body.html:28
 #, python-format
 msgid ""
-"Nauczyciel <strong>%(teacher)s</strong> (%(email)s) prosi o dopisanie jako Twój opiekun szkolny w konkursie %(competition)s."
+"Nauczyciel <strong>%(teacher)s</strong> (%(email)s) prosi o dopisanie jako "
+"Twój opiekun szkolny w konkursie %(competition)s."
 msgstr ""
-"<strong>%(teacher)s</strong> 老师（%(email)s）申请在 %(competition)s 中成为你的指导老师。"
+"<strong>%(teacher)s</strong> 老师（%(email)s）申请在 %(competition)s 中成为你"
+"的指导老师。"
 
 #: templates/registration/supervisor_consent_body.html:30
 #: templates/web/supervisor/consent.html:32
 #, python-format
 msgid ""
-"Nauczyciel z adresem <strong>%(email)s</strong> prosi o dopisanie jako Twój opiekun szkolny w konkursie %(competition)s."
-msgstr "邮箱地址为 <strong>%(email)s</strong> 的老师申请在 %(competition)s 中成为你的指导老师。"
+"Nauczyciel z adresem <strong>%(email)s</strong> prosi o dopisanie jako Twój "
+"opiekun szkolny w konkursie %(competition)s."
+msgstr ""
+"邮箱地址为 <strong>%(email)s</strong> 的老师申请在 %(competition)s 中成为你的"
+"指导老师。"
 
 #: templates/registration/supervisor_consent_body.html:35
 #: templates/registration/supervisor_consent_body.txt:33
 msgid ""
-"Opiekun szkolny widzi Twoje imię i nazwisko, kod uczestnika, szkołę, klasę i to, na jakim etapie procedury są Twoje prace – punkty dopiero po ogłoszeniu wyników. Nie widzi Twoich prac ani komentarzy recenzentów."
+"Opiekun szkolny widzi Twoje imię i nazwisko, kod uczestnika, szkołę, klasę i "
+"to, na jakim etapie procedury są Twoje prace – punkty dopiero po ogłoszeniu "
+"wyników. Nie widzi Twoich prac ani komentarzy recenzentów."
 msgstr ""
-"指导老师可以看到你的姓名、参赛者编号、学校、年级，以及你的作品处于哪个处理环节——分数要等成绩公布后才能看到。指导老师看不到你的作品，也看不到评审意见。"
+"指导老师可以看到你的姓名、参赛者编号、学校、年级，以及你的作品处于哪个处理环"
+"节——分数要等成绩公布后才能看到。指导老师看不到你的作品，也看不到评审意见。"
 
 #: templates/registration/supervisor_consent_body.html:39
 msgid "Zobacz prośbę i zdecyduj"
@@ -3179,55 +3415,76 @@ msgstr "查看请求并作出决定"
 
 #: templates/registration/supervisor_consent_body.html:42
 msgid ""
-"Strona wymaga zalogowania na Twoje konto. Jeśli przycisk nie działa, skopiuj ten adres do przeglądarki:"
+"Strona wymaga zalogowania na Twoje konto. Jeśli przycisk nie działa, skopiuj "
+"ten adres do przeglądarki:"
 msgstr "该页面需要登录你的账户。如果按钮无效，请将以下地址复制到浏览器中："
 
 #: templates/registration/supervisor_consent_body.html:46
 #, python-format
 msgid ""
-"Link jest ważny <strong>%(days)s dni</strong>. Jeśli masz już opiekuna szkolnego, zgoda go zastąpi – strona powie to wprost."
-msgstr "链接有效期为 <strong>%(days)s 天</strong>。如果你已有指导老师，同意后将替换原指导老师——页面上会明确提示。"
+"Link jest ważny <strong>%(days)s dni</strong>. Jeśli masz już opiekuna "
+"szkolnego, zgoda go zastąpi – strona powie to wprost."
+msgstr ""
+"链接有效期为 <strong>%(days)s 天</strong>。如果你已有指导老师，同意后将替换原"
+"指导老师——页面上会明确提示。"
 
 #: templates/registration/supervisor_consent_body.html:51
 #: templates/registration/supervisor_consent_body.txt:43
 msgid ""
-"Jeśli nie znasz tej osoby albo nie chcesz jej dopisywać – zignoruj tę wiadomość. Bez Twojego kliknięcia nic się nie zmieni."
-msgstr "如果你不认识此人，或不想添加此人，请忽略本邮件。你不点击，就不会有任何变化。"
+"Jeśli nie znasz tej osoby albo nie chcesz jej dopisywać – zignoruj tę "
+"wiadomość. Bez Twojego kliknięcia nic się nie zmieni."
+msgstr ""
+"如果你不认识此人，或不想添加此人，请忽略本邮件。你不点击，就不会有任何变化。"
 
 #: templates/registration/supervisor_consent_body.txt:23
 #, python-format
 msgid ""
-"Organizator konkursu %(competition)s, wgrywając listę uczniów, wskazał nauczyciela %(teacher)s (%(email)s) jako Twojego opiekuna szkolnego."
-msgstr "%(competition)s 的组织方在上传学生名单时，将 %(teacher)s 老师（%(email)s）指定为你的指导老师。"
+"Organizator konkursu %(competition)s, wgrywając listę uczniów, wskazał "
+"nauczyciela %(teacher)s (%(email)s) jako Twojego opiekuna szkolnego."
+msgstr ""
+"%(competition)s 的组织方在上传学生名单时，将 %(teacher)s 老师（%(email)s）指"
+"定为你的指导老师。"
 
 #: templates/registration/supervisor_consent_body.txt:25
 #, python-format
 msgid ""
-"Organizator konkursu %(competition)s, wgrywając listę uczniów, wskazał nauczyciela z adresem %(email)s jako Twojego opiekuna szkolnego."
-msgstr "%(competition)s 的组织方在上传学生名单时，将邮箱地址为 %(email)s 的老师指定为你的指导老师。"
+"Organizator konkursu %(competition)s, wgrywając listę uczniów, wskazał "
+"nauczyciela z adresem %(email)s jako Twojego opiekuna szkolnego."
+msgstr ""
+"%(competition)s 的组织方在上传学生名单时，将邮箱地址为 %(email)s 的老师指定为"
+"你的指导老师。"
 
 #: templates/registration/supervisor_consent_body.txt:27
 #, python-format
 msgid ""
-"Nauczyciel %(teacher)s (%(email)s) prosi o dopisanie jako Twój opiekun szkolny w konkursie %(competition)s."
-msgstr "%(teacher)s 老师（%(email)s）申请在 %(competition)s 中成为你的指导老师。"
+"Nauczyciel %(teacher)s (%(email)s) prosi o dopisanie jako Twój opiekun "
+"szkolny w konkursie %(competition)s."
+msgstr ""
+"%(teacher)s 老师（%(email)s）申请在 %(competition)s 中成为你的指导老师。"
 
 #: templates/registration/supervisor_consent_body.txt:29
 #, python-format
 msgid ""
-"Nauczyciel z adresem %(email)s prosi o dopisanie jako Twój opiekun szkolny w konkursie %(competition)s."
+"Nauczyciel z adresem %(email)s prosi o dopisanie jako Twój opiekun szkolny w "
+"konkursie %(competition)s."
 msgstr "邮箱地址为 %(email)s 的老师申请在 %(competition)s 中成为你的指导老师。"
 
 #: templates/registration/supervisor_consent_body.txt:35
 msgid ""
-"Decyzja należy do Ciebie. Zaloguj się na swoje konto i otwórz poniższy adres – zobaczysz tam szczegóły i dwa przyciski: „Zgadzam się” i „Nie zgadzam się”:"
-msgstr "由你决定。请登录账户并打开以下链接——你将看到详细信息和两个按钮：“同意”和“不同意”："
+"Decyzja należy do Ciebie. Zaloguj się na swoje konto i otwórz poniższy adres "
+"– zobaczysz tam szczegóły i dwa przyciski: „Zgadzam się” i „Nie zgadzam się”:"
+msgstr ""
+"由你决定。请登录账户并打开以下链接——你将看到详细信息和两个按钮：“同意”和“不同"
+"意”："
 
 #: templates/registration/supervisor_consent_body.txt:39
 #, python-format
 msgid ""
-"Link jest ważny %(days)s dni. Jeśli masz już opiekuna szkolnego, zgoda go zastąpi – strona powie to wprost."
-msgstr "链接有效期为 %(days)s 天。如果你已有指导老师，同意后将替换原指导老师——页面上会明确提示。"
+"Link jest ważny %(days)s dni. Jeśli masz już opiekuna szkolnego, zgoda go "
+"zastąpi – strona powie to wprost."
+msgstr ""
+"链接有效期为 %(days)s 天。如果你已有指导老师，同意后将替换原指导老师——页面上"
+"会明确提示。"
 
 #: templates/socialaccount/authentication_error.html:9
 #: templates/socialaccount/authentication_error.html:13
@@ -3236,8 +3493,12 @@ msgstr "登录失败"
 
 #: templates/socialaccount/authentication_error.html:14
 msgid ""
-"Nie udało się dokończyć logowania przez dostawcę zewnętrznego. Spróbuj jeszcze raz, a jeśli problem się powtarza – zaloguj się hasłem albo załóż konto."
-msgstr "无法通过第三方服务完成登录。请重试；如果问题仍然存在，请使用密码登录或注册账户。"
+"Nie udało się dokończyć logowania przez dostawcę zewnętrznego. Spróbuj "
+"jeszcze raz, a jeśli problem się powtarza – zaloguj się hasłem albo załóż "
+"konto."
+msgstr ""
+"无法通过第三方服务完成登录。请重试；如果问题仍然存在，请使用密码登录或注册账"
+"户。"
 
 #: templates/socialaccount/authentication_error.html:17
 #: templates/socialaccount/login_cancelled.html:12
@@ -3277,7 +3538,8 @@ msgstr "登录已中断"
 
 #: templates/socialaccount/login_cancelled.html:10
 msgid ""
-"Zrezygnowałeś z logowania po stronie dostawcy. Żadne dane nie zostały przekazane."
+"Zrezygnowałeś z logowania po stronie dostawcy. Żadne dane nie zostały "
+"przekazane."
 msgstr "您已在服务提供方页面取消登录，未传送任何数据。"
 
 #: templates/socialaccount/refused.html:9
@@ -3296,9 +3558,13 @@ msgstr "服务提供方"
 #: templates/socialaccount/refused.html:15
 #, python-format
 msgid ""
-"W serwisie jest już konto założone na adres e-mail, który przekazał %(provider)s. Ze względów bezpieczeństwa nie łączymy go automatycznie – dostawca nie potwierdza, że adres należy do osoby, która się właśnie logowała."
+"W serwisie jest już konto założone na adres e-mail, który przekazał "
+"%(provider)s. Ze względów bezpieczeństwa nie łączymy go automatycznie – "
+"dostawca nie potwierdza, że adres należy do osoby, która się właśnie "
+"logowała."
 msgstr ""
-"本网站已有使用 %(provider)s 所提供邮箱地址注册的账户。出于安全考虑，我们不会自动关联——服务提供方无法确认该地址属于正在登录的人。"
+"本网站已有使用 %(provider)s 所提供邮箱地址注册的账户。出于安全考虑，我们不会"
+"自动关联——服务提供方无法确认该地址属于正在登录的人。"
 
 #: templates/socialaccount/refused.html:19
 msgid "Zaloguj się hasłem, a jeśli go nie pamiętasz – ustaw nowe:"
@@ -3314,7 +3580,8 @@ msgstr "账户未激活"
 
 #: templates/socialaccount/refused.html:26
 msgid ""
-"To konto zostało wyłączone i nie można się na nie zalogować – ani hasłem, ani przez dostawcę zewnętrznego."
+"To konto zostało wyłączone i nie można się na nie zalogować – ani hasłem, "
+"ani przez dostawcę zewnętrznego."
 msgstr "此账户已被停用，无法登录——无论是使用密码还是通过第三方服务。"
 
 #: templates/socialaccount/refused.html:28
@@ -3333,12 +3600,16 @@ msgstr "服务提供方"
 #: templates/socialaccount/refused.html:32
 #, python-format
 msgid ""
-"%(provider)s nie przekazał adresu e-mail, a jest on u nas loginem i jedyną drogą odzyskania konta."
-msgstr "%(provider)s 未提供电子邮箱地址，而在本网站，邮箱地址既是登录名，也是找回账户的唯一途径。"
+"%(provider)s nie przekazał adresu e-mail, a jest on u nas loginem i jedyną "
+"drogą odzyskania konta."
+msgstr ""
+"%(provider)s 未提供电子邮箱地址，而在本网站，邮箱地址既是登录名，也是找回账户"
+"的唯一途径。"
 
 #: templates/socialaccount/refused.html:34
 msgid ""
-"Udostępnij adres w ustawieniach konta u dostawcy i spróbuj ponownie albo załóż konto z hasłem."
+"Udostępnij adres w ustawieniach konta u dostawcy i spróbuj ponownie albo "
+"załóż konto z hasłem."
 msgstr "请在服务提供方的账户设置中允许共享邮箱地址后重试，或使用密码注册账户。"
 
 #: templates/socialaccount/refused.html:41
@@ -3352,14 +3623,20 @@ msgstr "完成注册"
 #: templates/socialaccount/signup.html:13
 #, python-format
 msgid ""
-"Logowanie przez %(provider)s się powiodło. Zostały dane, których dostawca nie przekazuje, a które są potrzebne do udziału w olimpiadzie."
-msgstr "已成功通过 %(provider)s 登录。还需要填写服务提供方未提供、但参加竞赛所需的信息。"
+"Logowanie przez %(provider)s się powiodło. Zostały dane, których dostawca "
+"nie przekazuje, a które są potrzebne do udziału w olimpiadzie."
+msgstr ""
+"已成功通过 %(provider)s 登录。还需要填写服务提供方未提供、但参加竞赛所需的信"
+"息。"
 
 #: templates/socialaccount/signup.html:15
 #, python-format
 msgid ""
-"Konto powstanie na adres <strong>%(email)s</strong> – ten sam, którego używasz u dostawcy. Adresu nie da się tu zmienić."
-msgstr "账户将使用地址 <strong>%(email)s</strong> 创建——即您在服务提供方处使用的地址。此处无法更改该地址。"
+"Konto powstanie na adres <strong>%(email)s</strong> – ten sam, którego "
+"używasz u dostawcy. Adresu nie da się tu zmienić."
+msgstr ""
+"账户将使用地址 <strong>%(email)s</strong> 创建——即您在服务提供方处使用的地"
+"址。此处无法更改该地址。"
 
 #: templates/socialaccount/signup.html:20 templates/web/account/profile.html:31
 #: templates/web/forum/post_report.html:51
@@ -3370,8 +3647,12 @@ msgstr "标有 * 的字段为必填项。"
 
 #: templates/socialaccount/signup.html:22
 msgid ""
-"Akceptacja Regulaminu i zgoda na przetwarzanie danych osobowych są wymagane. Uczestnik niepełnoletni potrzebuje dodatkowo zgody rodzica lub opiekuna prawnego."
-msgstr "必须接受竞赛规则并同意处理个人数据。未成年参赛者还需获得父母或法定监护人的同意。"
+"Akceptacja Regulaminu i zgoda na przetwarzanie danych osobowych są wymagane. "
+"Uczestnik niepełnoletni potrzebuje dodatkowo zgody rodzica lub opiekuna "
+"prawnego."
+msgstr ""
+"必须接受竞赛规则并同意处理个人数据。未成年参赛者还需获得父母或法定监护人的同"
+"意。"
 
 #: templates/socialaccount/signup.html:24 templates/web/register.html:48
 #: templates/web/register_committee.html:15
@@ -3381,9 +3662,12 @@ msgstr "创建账户"
 #: templates/socialaccount/signup.html:27
 #, python-format
 msgid ""
-"Konto założone tą drogą nie ma hasła – logujesz się przyciskiem %(provider)s. Jeśli zechcesz logować się także hasłem, ustawisz je później przez <a href=\"%(reset_url)s\">„Nie pamiętasz hasła?”</a>."
+"Konto założone tą drogą nie ma hasła – logujesz się przyciskiem "
+"%(provider)s. Jeśli zechcesz logować się także hasłem, ustawisz je później "
+"przez <a href=\"%(reset_url)s\">„Nie pamiętasz hasła?”</a>."
 msgstr ""
-"通过此方式创建的账户没有密码——请使用 %(provider)s 按钮登录。如果以后也想用密码登录，可以通过<a href=\"%(reset_url)s\">「忘记密码？」</a>设置密码。"
+"通过此方式创建的账户没有密码——请使用 %(provider)s 按钮登录。如果以后也想用密"
+"码登录，可以通过<a href=\"%(reset_url)s\">「忘记密码？」</a>设置密码。"
 
 #: templates/web/_chat_link.html:15 templates/web/participant/_tabs.html:28
 msgid "nieprzeczytane rozmowy:"
@@ -3469,14 +3753,22 @@ msgstr "您的数据将如何处理"
 #: templates/web/account/delete.html:26
 #, python-format
 msgid ""
-"Brałeś udział w zawodach (%(entries)s zgłoszeń, %(submissions)s oddanych prac, %(reviews)s wystawionych recenzji), więc <strong>usuniemy Twoje dane osobowe</strong>, ale zostawimy anonimowy ślad udziału:"
+"Brałeś udział w zawodach (%(entries)s zgłoszeń, %(submissions)s oddanych "
+"prac, %(reviews)s wystawionych recenzji), więc <strong>usuniemy Twoje dane "
+"osobowe</strong>, ale zostawimy anonimowy ślad udziału:"
 msgstr ""
-"您曾参加竞赛（%(entries)s 次报名、%(submissions)s 份已提交解答、%(reviews)s 份已完成评审），因此<strong>我们将删除您的个人数据</strong>，但会保留匿名的参赛记录："
+"您曾参加竞赛（%(entries)s 次报名、%(submissions)s 份已提交解答、%(reviews)s "
+"份已完成评审），因此<strong>我们将删除您的个人数据</strong>，但会保留匿名的参"
+"赛记录："
 
 #: templates/web/account/delete.html:32
 msgid ""
-"znikają: imię, nazwisko, adres e-mail, telefon, nazwa szkoły, data i rok urodzenia, hasło, powiązania z kontami Google i Facebooka oraz wszystkie Twoje sesje;"
-msgstr "将删除：名字、姓氏、电子邮箱、电话、学校名称、出生日期和年份、密码、与 Google 和 Facebook 账户的关联，以及您的所有会话；"
+"znikają: imię, nazwisko, adres e-mail, telefon, nazwa szkoły, data i rok "
+"urodzenia, hasło, powiązania z kontami Google i Facebooka oraz wszystkie "
+"Twoje sesje;"
+msgstr ""
+"将删除：名字、姓氏、电子邮箱、电话、学校名称、出生日期和年份、密码、与 "
+"Google 和 Facebook 账户的关联，以及您的所有会话；"
 
 #: templates/web/account/delete.html:33
 msgid "zostają: kod publiczny"
@@ -3488,16 +3780,24 @@ msgstr "以及您的解答、评分和已公布成绩表中的相应行。"
 
 #: templates/web/account/delete.html:37
 msgid ""
-"Dlaczego tak: ogłoszone wyniki i protokoły recenzji są dokumentacją zawodów, na której opierają się kwalifikacje innych uczestników. Skasowanie ich razem z kontem wyrwałoby kartę z protokołu i przesunęłoby progi kwalifikacyjne."
+"Dlaczego tak: ogłoszone wyniki i protokoły recenzji są dokumentacją zawodów, "
+"na której opierają się kwalifikacje innych uczestników. Skasowanie ich razem "
+"z kontem wyrwałoby kartę z protokołu i przesunęłoby progi kwalifikacyjne."
 msgstr ""
-"原因：已公布的成绩和评审记录是竞赛档案，其他参赛者的晋级资格以此为依据。随账户一并删除这些记录，就等于从档案中撕掉一页，并会改变晋级分数线。"
+"原因：已公布的成绩和评审记录是竞赛档案，其他参赛者的晋级资格以此为依据。随账"
+"户一并删除这些记录，就等于从档案中撕掉一页，并会改变晋级分数线。"
 
 #: templates/web/account/delete.html:40
 #, python-format
 msgid ""
-"Jako opiekun szkolny potwierdziłeś udział szkoły w %(count)s edycjach, więc <strong>usuniemy Twoje dane osobowe</strong> (imię, nazwisko, e-mail, telefon, nazwę szkoły), ale zostawimy sam fakt tych potwierdzeń – to na nich organizator opiera listę szkół biorących udział w danej edycji."
+"Jako opiekun szkolny potwierdziłeś udział szkoły w %(count)s edycjach, więc "
+"<strong>usuniemy Twoje dane osobowe</strong> (imię, nazwisko, e-mail, "
+"telefon, nazwę szkoły), ale zostawimy sam fakt tych potwierdzeń – to na nich "
+"organizator opiera listę szkół biorących udział w danej edycji."
 msgstr ""
-"作为指导老师，您曾确认学校参加了 %(count)s 届竞赛，因此<strong>我们将删除您的个人数据</strong>（姓名、电子邮箱、电话、学校名称），但会保留这些确认记录本身——组织方据此确定每届参赛学校名单。"
+"作为指导老师，您曾确认学校参加了 %(count)s 届竞赛，因此<strong>我们将删除您的"
+"个人数据</strong>（姓名、电子邮箱、电话、学校名称），但会保留这些确认记录本身"
+"——组织方据此确定每届参赛学校名单。"
 
 #: templates/web/account/delete.html:48
 msgid "Co się stanie z Twoim kontem"
@@ -3505,15 +3805,23 @@ msgstr "您的账户将如何处理"
 
 #: templates/web/account/delete.html:49
 msgid ""
-"Twoje konto nie ma powiązanych zgłoszeń, prac, recenzji ani potwierdzonych udziałów szkoły w żadnej edycji, więc zostanie <strong>usunięte w całości</strong> – razem z profilem, zgodami i wszystkimi danymi osobowymi. Adres e-mail zwolni się do ponownej rejestracji."
+"Twoje konto nie ma powiązanych zgłoszeń, prac, recenzji ani potwierdzonych "
+"udziałów szkoły w żadnej edycji, więc zostanie <strong>usunięte w całości</"
+"strong> – razem z profilem, zgodami i wszystkimi danymi osobowymi. Adres e-"
+"mail zwolni się do ponownej rejestracji."
 msgstr ""
-"您的账户没有关联任何报名、解答、评审或已确认的学校参赛记录，因此将被<strong>完全删除</strong>——包括个人资料、同意书和所有个人数据。该电子邮箱地址可再次用于注册。"
+"您的账户没有关联任何报名、解答、评审或已确认的学校参赛记录，因此将被<strong>"
+"完全删除</strong>——包括个人资料、同意书和所有个人数据。该电子邮箱地址可再次用"
+"于注册。"
 
 #: templates/web/account/delete.html:71
 #, python-format
 msgid ""
-"Twoje konto nie ma hasła (logujesz się przez dostawcę zewnętrznego). Przepisz adres <strong>%(address)s</strong>, żeby potwierdzić."
-msgstr "您的账户没有密码（通过第三方服务登录）。请输入地址 <strong>%(address)s</strong> 以确认。"
+"Twoje konto nie ma hasła (logujesz się przez dostawcę zewnętrznego). "
+"Przepisz adres <strong>%(address)s</strong>, żeby potwierdzić."
+msgstr ""
+"您的账户没有密码（通过第三方服务登录）。请输入地址 <strong>%(address)s</"
+"strong> 以确认。"
 
 #: templates/web/account/delete.html:83
 msgid "Usuń konto na zawsze"
@@ -3535,9 +3843,12 @@ msgstr "您的个人数据已删除，所有会话已关闭。"
 
 #: templates/web/account/deleted.html:13
 msgid ""
-"Jeśli brałeś udział w zawodach, Twoje prace i oceny zostają w dokumentacji Olimpiady pod anonimowym kodem – bez imienia, nazwiska, adresu e-mail i szkoły. Szczegóły: <a href=\"/dokumenty/rodo/\">Polityka RODO</a>."
+"Jeśli brałeś udział w zawodach, Twoje prace i oceny zostają w dokumentacji "
+"Olimpiady pod anonimowym kodem – bez imienia, nazwiska, adresu e-mail i "
+"szkoły. Szczegóły: <a href=\"/dokumenty/rodo/\">Polityka RODO</a>."
 msgstr ""
-"如果您曾参加竞赛，您的解答和评分将以匿名编号保留在奥林匹克竞赛档案中——不含姓名、电子邮箱和学校。详情：<a href=\"/dokumenty/rodo/\">GDPR 政策</a>。"
+"如果您曾参加竞赛，您的解答和评分将以匿名编号保留在奥林匹克竞赛档案中——不含姓"
+"名、电子邮箱和学校。详情：<a href=\"/dokumenty/rodo/\">GDPR 政策</a>。"
 
 #: templates/web/account/deleted.html:18 templates/web/support/sent.html:19
 msgid "Wróć na stronę główną"
@@ -3551,8 +3862,11 @@ msgstr "更改电子邮箱地址"
 #: templates/web/account/email_change.html:14
 #, python-format
 msgid ""
-"Wyślemy link potwierdzający na <strong>nowy</strong> adres. Do czasu potwierdzenia logujesz się dotychczasowym adresem (%(address)s)."
-msgstr "我们将向<strong>新</strong>地址发送确认链接。确认之前，请继续使用当前地址（%(address)s）登录。"
+"Wyślemy link potwierdzający na <strong>nowy</strong> adres. Do czasu "
+"potwierdzenia logujesz się dotychczasowym adresem (%(address)s)."
+msgstr ""
+"我们将向<strong>新</strong>地址发送确认链接。确认之前，请继续使用当前地址"
+"（%(address)s）登录。"
 
 #: templates/web/account/email_change.html:21
 #: templates/web/account/profile.html:76
@@ -3570,7 +3884,8 @@ msgstr "确认链接无效"
 
 #: templates/web/account/email_change_invalid.html:15
 msgid ""
-"Adres konta pozostał bez zmian. Zaloguj się dotychczasowym adresem i wyślij nowy link z ekranu edycji danych."
+"Adres konta pozostał bez zmian. Zaloguj się dotychczasowym adresem i wyślij "
+"nowy link z ekranu edycji danych."
 msgstr "账户地址未更改。请使用当前地址登录，并在资料编辑页面重新发送链接。"
 
 #: templates/web/account/email_change_invalid.html:16
@@ -3594,8 +3909,10 @@ msgstr "从现在起请使用新地址登录，密码保持不变。"
 
 #: templates/web/account/email_changed.html:16
 msgid ""
-"O zmianie powiadomiliśmy także poprzedni adres. Jeśli to nie Ty prosiłeś o zmianę, skontaktuj się z organizatorem."
-msgstr "我们也已向原地址发送了更改通知。如果此更改并非您本人申请，请联系组织方。"
+"O zmianie powiadomiliśmy także poprzedni adres. Jeśli to nie Ty prosiłeś o "
+"zmianę, skontaktuj się z organizatorem."
+msgstr ""
+"我们也已向原地址发送了更改通知。如果此更改并非您本人申请，请联系组织方。"
 
 #: templates/web/account/profile.html:12 templates/web/account/profile.html:21
 msgid "Edycja danych"
@@ -3621,15 +3938,22 @@ msgstr "返回"
 #: templates/web/account/profile.html:57
 #, python-format
 msgid ""
-"Województwo (%(district)s) zmienia wyłącznie koordynator. Jest opcjonalne i służy jedynie do wykluczenia konfliktu interesów na etapie wojewódzkim – bez województwa oceniasz prace ze wszystkich województw."
-msgstr "省份（%(district)s）只能由协调员更改。此项为选填，仅用于在省级阶段排除利益冲突——未设置省份时，您将评审来自所有省份的解答。"
+"Województwo (%(district)s) zmienia wyłącznie koordynator. Jest opcjonalne i "
+"służy jedynie do wykluczenia konfliktu interesów na etapie wojewódzkim – bez "
+"województwa oceniasz prace ze wszystkich województw."
+msgstr ""
+"省份（%(district)s）只能由协调员更改。此项为选填，仅用于在省级阶段排除利益冲"
+"突——未设置省份时，您将评审来自所有省份的解答。"
 
 #: templates/web/account/profile.html:69
 #, python-format
 msgid ""
-"Obecny adres: <strong>%(address)s</strong>. Zmiana wymaga potwierdzenia – wyślemy link na <strong>nowy</strong> adres, a do kliknięcia logujesz się dotychczasowym."
+"Obecny adres: <strong>%(address)s</strong>. Zmiana wymaga potwierdzenia – "
+"wyślemy link na <strong>nowy</strong> adres, a do kliknięcia logujesz się "
+"dotychczasowym."
 msgstr ""
-"当前地址：<strong>%(address)s</strong>。更改需经确认——我们会向<strong>新</strong>地址发送链接，点击之前请继续使用当前地址登录。"
+"当前地址：<strong>%(address)s</strong>。更改需经确认——我们会向<strong>新</"
+"strong>地址发送链接，点击之前请继续使用当前地址登录。"
 
 #: templates/web/account/profile.html:90
 #: templates/web/forum/unsubscribe.html:14
@@ -3639,9 +3963,15 @@ msgstr "论坛通知"
 
 #: templates/web/account/profile.html:91
 msgid ""
-"Piszemy o nowych odpowiedziach w wątkach, które obserwujesz (swoje wątki i te, w których pisałeś, obserwujesz automatycznie), oraz o decyzji organizatora w sprawie Twojego wpisu. List nie zawiera treści wpisów – tylko temat wątku i odnośnik. Każdy list ma link do wypisania się jednym kliknięciem."
+"Piszemy o nowych odpowiedziach w wątkach, które obserwujesz (swoje wątki i "
+"te, w których pisałeś, obserwujesz automatycznie), oraz o decyzji "
+"organizatora w sprawie Twojego wpisu. List nie zawiera treści wpisów – tylko "
+"temat wątku i odnośnik. Każdy list ma link do wypisania się jednym "
+"kliknięciem."
 msgstr ""
-"我们会就您关注的主题帖中的新回复（您自己发起和参与过的主题帖会自动关注）以及组织方对您帖子的处理决定发送邮件。邮件不包含帖子内容，只有主题帖标题和链接。每封邮件都附有一键退订链接。"
+"我们会就您关注的主题帖中的新回复（您自己发起和参与过的主题帖会自动关注）以及"
+"组织方对您帖子的处理决定发送邮件。邮件不包含帖子内容，只有主题帖标题和链接。"
+"每封邮件都附有一键退订链接。"
 
 #: templates/web/account/profile.html:95
 msgid "Zapisz ustawienia powiadomień"
@@ -3649,8 +3979,12 @@ msgstr "保存通知设置"
 
 #: templates/web/account/profile.html:111
 msgid ""
-"Ustawienia rozmów z organizatorem i z innymi uczestnikami. List o nowej wiadomości nie zawiera jej treści – tylko informację, od kogo jest, i odnośnik."
-msgstr "与组织方及其他参赛者对话的相关设置。新消息通知邮件不包含消息内容，只告知发件人并附上链接。"
+"Ustawienia rozmów z organizatorem i z innymi uczestnikami. List o nowej "
+"wiadomości nie zawiera jej treści – tylko informację, od kogo jest, i "
+"odnośnik."
+msgstr ""
+"与组织方及其他参赛者对话的相关设置。新消息通知邮件不包含消息内容，只告知发件"
+"人并附上链接。"
 
 #: templates/web/account/profile.html:115
 msgid "Zapisz ustawienia wiadomości"
@@ -3664,8 +3998,12 @@ msgstr "双重验证"
 
 #: templates/web/account/profile.html:135
 msgid ""
-"Dodatkowy, sześciocyfrowy kod z aplikacji w telefonie przy każdym logowaniu. Zalecany każdemu, kto ma w serwisie dostęp do cudzych prac lub danych: koordynatorom, członkom komitetu i komisji odwoławczej."
-msgstr "每次登录时额外输入手机应用生成的六位验证码。建议所有可在本网站访问他人作品或数据的用户启用：协调员、委员会成员及申诉委员会成员。"
+"Dodatkowy, sześciocyfrowy kod z aplikacji w telefonie przy każdym logowaniu. "
+"Zalecany każdemu, kto ma w serwisie dostęp do cudzych prac lub danych: "
+"koordynatorom, członkom komitetu i komisji odwoławczej."
+msgstr ""
+"每次登录时额外输入手机应用生成的六位验证码。建议所有可在本网站访问他人作品或"
+"数据的用户启用：协调员、委员会成员及申诉委员会成员。"
 
 #: templates/web/account/profile.html:136
 msgid "Ustawienia drugiego składnika"
@@ -3677,9 +4015,14 @@ msgstr "下载个人数据"
 
 #: templates/web/account/profile.html:149
 msgid ""
-"Paczka ZIP z plikiem dane.json (konto, zgody wraz z wersjami dokumentów, zgłoszenia do etapów, metryka prac, ogłoszone wyniki i komentarze recenzentów napisane do Ciebie) oraz z rozwiązaniami, które wgrałeś. Paczkę można pobrać raz na 10 minut."
+"Paczka ZIP z plikiem dane.json (konto, zgody wraz z wersjami dokumentów, "
+"zgłoszenia do etapów, metryka prac, ogłoszone wyniki i komentarze "
+"recenzentów napisane do Ciebie) oraz z rozwiązaniami, które wgrałeś. Paczkę "
+"można pobrać raz na 10 minut."
 msgstr ""
-"ZIP 压缩包，包含 dane.json 文件（账户信息、同意书及对应文件版本、阶段报名、作品元数据、已公布的成绩以及评审给您的意见）和您上传的解答。每 10 分钟可下载一次。"
+"ZIP 压缩包，包含 dane.json 文件（账户信息、同意书及对应文件版本、阶段报名、作"
+"品元数据、已公布的成绩以及评审给您的意见）和您上传的解答。每 10 分钟可下载一"
+"次。"
 
 #: templates/web/account/profile.html:150
 msgid "Pobierz moje dane"
@@ -3687,8 +4030,12 @@ msgstr "下载我的数据"
 
 #: templates/web/account/profile.html:157
 msgid ""
-"Możesz zażądać usunięcia konta i swoich danych osobowych (art. 17 RODO). Skutki zależą od tego, czy brałeś udział w zawodach – wyjaśniamy je na osobnej stronie."
-msgstr "您可以要求删除账户及个人数据（GDPR 第 17 条）。具体后果取决于您是否参加过竞赛——详见单独页面说明。"
+"Możesz zażądać usunięcia konta i swoich danych osobowych (art. 17 RODO). "
+"Skutki zależą od tego, czy brałeś udział w zawodach – wyjaśniamy je na "
+"osobnej stronie."
+msgstr ""
+"您可以要求删除账户及个人数据（GDPR 第 17 条）。具体后果取决于您是否参加过竞赛"
+"——详见单独页面说明。"
 
 #: templates/web/account/profile.html:158
 #: templates/web/participant/dashboard.html:71
@@ -3697,8 +4044,11 @@ msgstr "删除账户"
 
 #: templates/web/account/twofactor.html:18
 msgid ""
-"Drugi składnik to sześciocyfrowy kod z aplikacji w telefonie. Nawet gdy ktoś pozna Twoje hasło, bez telefonu nie wejdzie na konto."
-msgstr "双重验证使用手机应用生成的六位验证码。即使有人知道了您的密码，没有您的手机也无法登录账户。"
+"Drugi składnik to sześciocyfrowy kod z aplikacji w telefonie. Nawet gdy ktoś "
+"pozna Twoje hasło, bez telefonu nie wejdzie na konto."
+msgstr ""
+"双重验证使用手机应用生成的六位验证码。即使有人知道了您的密码，没有您的手机也"
+"无法登录账户。"
 
 #: templates/web/account/twofactor.html:24
 msgid "Drugi składnik jest włączony"
@@ -3725,8 +4075,12 @@ msgstr "剩余 %(left)s 个（共 %(total)s 个）"
 
 #: templates/web/account/twofactor.html:36
 msgid ""
-"Nie masz już żadnego kodu zapasowego. Jeśli zgubisz telefon, jedyną drogą powrotu będzie prośba do organizatora. Wyłącz drugi składnik i włącz go od nowa, żeby dostać nowy komplet kodów."
-msgstr "您已没有任何备用码。如果手机丢失，只能请求组织方帮助恢复。请关闭并重新启用双重验证，以获取一组新的备用码。"
+"Nie masz już żadnego kodu zapasowego. Jeśli zgubisz telefon, jedyną drogą "
+"powrotu będzie prośba do organizatora. Wyłącz drugi składnik i włącz go od "
+"nowa, żeby dostać nowy komplet kodów."
+msgstr ""
+"您已没有任何备用码。如果手机丢失，只能请求组织方帮助恢复。请关闭并重新启用双"
+"重验证，以获取一组新的备用码。"
 
 #: templates/web/account/twofactor.html:43
 msgid "Wyłączenie"
@@ -3734,7 +4088,8 @@ msgstr "关闭"
 
 #: templates/web/account/twofactor.html:44
 msgid ""
-"Po wyłączeniu konto będzie chronione samym hasłem. Dotychczasowe kody zapasowe przestaną działać."
+"Po wyłączeniu konto będzie chronione samym hasłem. Dotychczasowe kody "
+"zapasowe przestaną działać."
 msgstr "关闭后，账户将仅由密码保护。现有备用码将失效。"
 
 #: templates/web/account/twofactor.html:47
@@ -3747,9 +4102,12 @@ msgstr "第 1 步：将账户添加到应用中"
 
 #: templates/web/account/twofactor.html:55
 msgid ""
-"Potrzebna jest dowolna aplikacja uwierzytelniająca – na przykład Aegis, FreeOTP, Google Authenticator albo menedżer haseł, którego już używasz. Zeskanuj kod:"
+"Potrzebna jest dowolna aplikacja uwierzytelniająca – na przykład Aegis, "
+"FreeOTP, Google Authenticator albo menedżer haseł, którego już używasz. "
+"Zeskanuj kod:"
 msgstr ""
-"可以使用任意身份验证器应用——例如 Aegis、FreeOTP、Google Authenticator，或您已在使用的密码管理器。请扫描二维码："
+"可以使用任意身份验证器应用——例如 Aegis、FreeOTP、Google Authenticator，或您已"
+"在使用的密码管理器。请扫描二维码："
 
 #: templates/web/account/twofactor.html:59
 msgid "Jeśli nie możesz zeskanować kodu, wpisz ten klucz ręcznie:"
@@ -3761,8 +4119,11 @@ msgstr "第 2 步：输入应用中的验证码"
 
 #: templates/web/account/twofactor.html:67
 msgid ""
-"Potwierdzenie kodem jest po to, żeby błąd przy skanowaniu wyszedł teraz, a nie przy następnym logowaniu."
-msgstr "输入验证码进行确认，是为了让扫描时的错误现在就暴露出来，而不是等到下次登录时才发现。"
+"Potwierdzenie kodem jest po to, żeby błąd przy skanowaniu wyszedł teraz, a "
+"nie przy następnym logowaniu."
+msgstr ""
+"输入验证码进行确认，是为了让扫描时的错误现在就暴露出来，而不是等到下次登录时"
+"才发现。"
 
 #: templates/web/account/twofactor.html:72
 msgid "Kod z aplikacji"
@@ -3774,17 +4135,23 @@ msgstr "启用双重验证"
 
 #: templates/web/account/twofactor_codes.html:13
 msgid ""
-"Drugi składnik jest włączony. To jest jedyny moment, w którym widzisz te kody."
+"Drugi składnik jest włączony. To jest jedyny moment, w którym widzisz te "
+"kody."
 msgstr "双重验证已启用。这是您唯一一次能看到这些备用码。"
 
 #: templates/web/account/twofactor_codes.html:18
 msgid ""
-"Wydrukuj tę stronę albo przepisz kody i schowaj je poza telefonem. Bez telefonu i bez kodu zapasowego jedyną drogą powrotu na konto jest prośba do organizatora."
-msgstr "请打印此页，或抄下备用码并存放在手机以外的地方。如果没有手机也没有备用码，只能请求组织方帮助恢复账户。"
+"Wydrukuj tę stronę albo przepisz kody i schowaj je poza telefonem. Bez "
+"telefonu i bez kodu zapasowego jedyną drogą powrotu na konto jest prośba do "
+"organizatora."
+msgstr ""
+"请打印此页，或抄下备用码并存放在手机以外的地方。如果没有手机也没有备用码，只"
+"能请求组织方帮助恢复账户。"
 
 #: templates/web/account/twofactor_codes.html:22
 msgid ""
-"Każdy kod działa jeden raz. Wpisuje się go w to samo pole, co kod z aplikacji."
+"Każdy kod działa jeden raz. Wpisuje się go w to samo pole, co kod z "
+"aplikacji."
 msgstr "每个备用码只能使用一次，输入位置与应用验证码相同。"
 
 #: templates/web/account/twofactor_codes.html:24
@@ -3802,7 +4169,8 @@ msgstr "确认登录"
 #: templates/web/account/twofactor_verify.html:17
 #, python-format
 msgid ""
-"Przepisz %(digits)s-cyfrowy kod z aplikacji uwierzytelniającej. Kod zmienia się co 30 sekund."
+"Przepisz %(digits)s-cyfrowy kod z aplikacji uwierzytelniającej. Kod zmienia "
+"się co 30 sekund."
 msgstr "请输入身份验证器应用中的 %(digits)s 位验证码。验证码每 30 秒更新一次。"
 
 #: templates/web/account/twofactor_verify.html:24
@@ -3815,12 +4183,14 @@ msgstr "确认"
 
 #: templates/web/account/twofactor_verify.html:33
 msgid ""
-"Nie masz przy sobie telefonu? W to samo pole wpisz jeden ze swoich kodów zapasowych."
+"Nie masz przy sobie telefonu? W to samo pole wpisz jeden ze swoich kodów "
+"zapasowych."
 msgstr "手机不在身边？请在同一输入框中输入您的一个备用码。"
 
 #: templates/web/account/twofactor_verify.html:35
 msgid ""
-"Nie masz przy sobie telefonu ani kodów zapasowych? Napisz do organizatora – zdejmie zabezpieczenie z Twojego konta."
+"Nie masz przy sobie telefonu ani kodów zapasowych? Napisz do organizatora – "
+"zdejmie zabezpieczenie z Twojego konta."
 msgstr "手机和备用码都不在身边？请联系组织方——组织方会为您的账户解除该保护。"
 
 #: templates/web/activate_done.html:8
@@ -3833,14 +4203,18 @@ msgstr "账户已激活——请登录"
 
 #: templates/web/activate_done.html:13
 msgid ""
-"Adres e-mail został potwierdzony. Możesz zalogować się swoim adresem i hasłem podanym przy rejestracji."
+"Adres e-mail został potwierdzony. Możesz zalogować się swoim adresem i "
+"hasłem podanym przy rejestracji."
 msgstr "电子邮箱地址已确认。您可以使用注册时填写的邮箱地址和密码登录。"
 
 #: templates/web/activate_done.html:17
 #, python-format
 msgid ""
-"Konto nie zostanie już usunięte automatycznie. Jeśli zapomniałeś hasła, skorzystaj z <a href=\"%(reset_url)s\">odzyskiwania hasła</a>."
-msgstr "账户将不会再被自动删除。如果忘记了密码，请使用<a href=\"%(reset_url)s\">找回密码</a>功能。"
+"Konto nie zostanie już usunięte automatycznie. Jeśli zapomniałeś hasła, "
+"skorzystaj z <a href=\"%(reset_url)s\">odzyskiwania hasła</a>."
+msgstr ""
+"账户将不会再被自动删除。如果忘记了密码，请使用<a href=\"%(reset_url)s\">找回"
+"密码</a>功能。"
 
 #: templates/web/activate_invalid.html:11
 #: templates/web/activate_invalid.html:15
@@ -3850,9 +4224,12 @@ msgstr "激活链接无效"
 #: templates/web/activate_invalid.html:18
 #, python-format
 msgid ""
-"Link aktywacyjny jest ważny %(hours)s godziny. Po tym czasie konto, którego adresu nikt nie potwierdził, jest usuwane – wtedy wystarczy <a href=\"%(register_url)s\">zarejestrować się ponownie</a> tym samym adresem."
+"Link aktywacyjny jest ważny %(hours)s godziny. Po tym czasie konto, którego "
+"adresu nikt nie potwierdził, jest usuwane – wtedy wystarczy <a "
+"href=\"%(register_url)s\">zarejestrować się ponownie</a> tym samym adresem."
 msgstr ""
-"激活链接有效期为 %(hours)s 小时。超过此时间，邮箱地址未经确认的账户将被删除——届时只需使用同一地址<a href=\"%(register_url)s\">重新注册</a>即可。"
+"激活链接有效期为 %(hours)s 小时。超过此时间，邮箱地址未经确认的账户将被删除——"
+"届时只需使用同一地址<a href=\"%(register_url)s\">重新注册</a>即可。"
 
 #: templates/web/activate_invalid.html:21
 #: templates/web/activate_invalid.html:25 templates/web/register_done.html:35
@@ -3869,14 +4246,20 @@ msgstr "重新发送激活链接"
 
 #: templates/web/activate_resend.html:13
 msgid ""
-"Podaj adres e-mail, którym się rejestrowałeś. Jeśli konto istnieje i czeka na aktywację, wyślemy na ten adres nowy link."
-msgstr "请输入注册时使用的电子邮箱地址。如果账户存在且尚未激活，我们将向该地址发送新的链接。"
+"Podaj adres e-mail, którym się rejestrowałeś. Jeśli konto istnieje i czeka "
+"na aktywację, wyślemy na ten adres nowy link."
+msgstr ""
+"请输入注册时使用的电子邮箱地址。如果账户存在且尚未激活，我们将向该地址发送新"
+"的链接。"
 
 #: templates/web/activate_resend.html:18
 #, python-format
 msgid ""
-"Link jest ważny %(hours)s godziny. Jeśli wiadomość nie dociera, sprawdź folder ze spamem – dopiero potem spróbuj ponownie."
-msgstr "链接有效期为 %(hours)s 小时。如果没有收到邮件，请先检查垃圾邮件文件夹，然后再重试。"
+"Link jest ważny %(hours)s godziny. Jeśli wiadomość nie dociera, sprawdź "
+"folder ze spamem – dopiero potem spróbuj ponownie."
+msgstr ""
+"链接有效期为 %(hours)s 小时。如果没有收到邮件，请先检查垃圾邮件文件夹，然后再"
+"重试。"
 
 #: templates/web/activate_resend.html:20 templates/web/password_reset.html:20
 msgid "Wyślij link"
@@ -3934,8 +4317,10 @@ msgstr "从本网站下载的 PDF 文件已进行电子签名。"
 
 #: templates/web/certificate_verify.html:45
 msgid ""
-"Dokument wydawany jest bez pieczęci elektronicznej. Potwierdza go ten kod weryfikacyjny — brak pieczęci nie jest wadą dokumentu."
-msgstr "本文件签发时不带电子印章，由此验证码证明其真实性——没有印章并不影响文件效力。"
+"Dokument wydawany jest bez pieczęci elektronicznej. Potwierdza go ten kod "
+"weryfikacyjny — brak pieczęci nie jest wadą dokumentu."
+msgstr ""
+"本文件签发时不带电子印章，由此验证码证明其真实性——没有印章并不影响文件效力。"
 
 #: templates/web/certificate_verify.html:49
 msgid "Odbiorca"
@@ -3943,7 +4328,8 @@ msgstr "获颁人"
 
 #: templates/web/certificate_verify.html:54
 msgid ""
-"Odbiorca nie zgodził się na publikację imienia i nazwiska. Brak tej informacji nie jest wadą dokumentu."
+"Odbiorca nie zgodził się na publikację imienia i nazwiska. Brak tej "
+"informacji nie jest wadą dokumentu."
 msgstr "获颁人未同意公开其姓名。缺少该信息并不影响文件效力。"
 
 #: templates/web/certificate_verify.html:60
@@ -3952,8 +4338,11 @@ msgstr "未找到带有此验证码的文件。"
 
 #: templates/web/certificate_verify.html:61
 msgid ""
-"Sprawdź, czy kod został przepisany dokładnie. W kodach nie występują znaki łatwe do pomylenia: zera, jedynki ani litery „I”, „L” i „O”."
-msgstr "请检查验证码是否输入准确。验证码中不包含容易混淆的字符：数字 0 和 1，以及字母“I”“L”和“O”。"
+"Sprawdź, czy kod został przepisany dokładnie. W kodach nie występują znaki "
+"łatwe do pomylenia: zera, jedynki ani litery „I”, „L” i „O”."
+msgstr ""
+"请检查验证码是否输入准确。验证码中不包含容易混淆的字符：数字 0 和 1，以及字"
+"母“I”“L”和“O”。"
 
 #: templates/web/chat/_e2e_config.html:20
 msgid "Hasło do wiadomości"
@@ -3974,8 +4363,12 @@ msgstr "锁定消息"
 #: templates/web/chat/_e2e_config.html:32
 #, python-format
 msgid ""
-"Organizator włączył szyfrowane rozmowy między uczestnikami. <a href=\"%(key_url)s\">Skonfiguruj szyfrowanie</a>, żeby zaczynać nowe rozmowy i w nich pisać."
-msgstr "组织方已启用参赛者之间的加密对话。请<a href=\"%(key_url)s\">设置加密</a>，以便发起新对话并发送消息。"
+"Organizator włączył szyfrowane rozmowy między uczestnikami. <a "
+"href=\"%(key_url)s\">Skonfiguruj szyfrowanie</a>, żeby zaczynać nowe rozmowy "
+"i w nich pisać."
+msgstr ""
+"组织方已启用参赛者之间的加密对话。请<a href=\"%(key_url)s\">设置加密</a>，以"
+"便发起新对话并发送消息。"
 
 #: templates/web/chat/_key_form.html:16
 msgid "Hasło do wiadomości (co najmniej 10 znaków)"
@@ -3983,8 +4376,11 @@ msgstr "消息密码（至少 10 个字符）"
 
 #: templates/web/chat/_key_form.html:23
 msgid ""
-"Użyj innego hasła niż do konta – nie sprawdzimy tego, bo żadnego z nich nie znamy w postaci jawnej."
-msgstr "请使用与账户密码不同的密码——我们无法检查这一点，因为我们不知道任何一个密码的明文。"
+"Użyj innego hasła niż do konta – nie sprawdzimy tego, bo żadnego z nich nie "
+"znamy w postaci jawnej."
+msgstr ""
+"请使用与账户密码不同的密码——我们无法检查这一点，因为我们不知道任何一个密码的"
+"明文。"
 
 #: templates/web/chat/_key_form.html:25
 msgid "Utwórz nowy klucz"
@@ -4084,8 +4480,11 @@ msgstr "加密详情"
 
 #: templates/web/chat/_thread.html:85
 msgid ""
-"Porównajcie odciski kluczy na żywo (np. na zajęciach albo przez telefon). Jeśli się zgadzają, nikt nie podmienił kluczy po drodze."
-msgstr "请当面（例如在课堂上或通过电话）核对密钥指纹。如果一致，说明密钥在传输过程中没有被替换。"
+"Porównajcie odciski kluczy na żywo (np. na zajęciach albo przez telefon). "
+"Jeśli się zgadzają, nikt nie podmienił kluczy po drodze."
+msgstr ""
+"请当面（例如在课堂上或通过电话）核对密钥指纹。如果一致，说明密钥在传输过程中"
+"没有被替换。"
 
 #: templates/web/chat/_thread.html:87
 msgid "brak klucza"
@@ -4105,8 +4504,12 @@ msgstr "设置加密"
 
 #: templates/web/chat/_thread.html:106
 msgid ""
-"Nowe rozmowy między uczestnikami są szyfrowane end-to-end: treść znają tylko Wasze przeglądarki. Najpierw zakładamy rozmowę, potem napiszesz pierwszą wiadomość."
-msgstr "参赛者之间的新对话采用端到端加密：只有你们的浏览器能读取内容。我们先创建对话，然后您就可以发送第一条消息。"
+"Nowe rozmowy między uczestnikami są szyfrowane end-to-end: treść znają tylko "
+"Wasze przeglądarki. Najpierw zakładamy rozmowę, potem napiszesz pierwszą "
+"wiadomość."
+msgstr ""
+"参赛者之间的新对话采用端到端加密：只有你们的浏览器能读取内容。我们先创建对"
+"话，然后您就可以发送第一条消息。"
 
 #: templates/web/chat/_thread.html:108
 msgid "Rozpocznij rozmowę szyfrowaną"
@@ -4115,18 +4518,24 @@ msgstr "开始加密对话"
 #: templates/web/chat/_thread.html:112
 #, python-format
 msgid ""
-"Nowe rozmowy między uczestnikami są szyfrowane. <a href=\"%(key_url)s\">Skonfiguruj szyfrowanie</a>, żeby napisać."
-msgstr "参赛者之间的新对话均已加密。请先<a href=\"%(key_url)s\">设置加密</a>，然后才能发送消息。"
+"Nowe rozmowy między uczestnikami są szyfrowane. <a "
+"href=\"%(key_url)s\">Skonfiguruj szyfrowanie</a>, żeby napisać."
+msgstr ""
+"参赛者之间的新对话均已加密。请先<a href=\"%(key_url)s\">设置加密</a>，然后才"
+"能发送消息。"
 
 #: templates/web/chat/_thread.html:117
 #, python-format
 msgid ""
-"Trwa etap „%(stage)s” – do jego zamknięcia każda wiadomość czeka na akceptację organizatora."
-msgstr "“%(stage)s”阶段正在进行中——在该阶段结束前，每条消息都需经组织者审核通过。"
+"Trwa etap „%(stage)s” – do jego zamknięcia każda wiadomość czeka na "
+"akceptację organizatora."
+msgstr ""
+"“%(stage)s”阶段正在进行中——在该阶段结束前，每条消息都需经组织者审核通过。"
 
 #: templates/web/chat/_thread.html:131
 msgid ""
-"Odblokuj rozmowy szyfrowane (pole „Hasło do wiadomości” nad listą rozmów), żeby pisać."
+"Odblokuj rozmowy szyfrowane (pole „Hasło do wiadomości” nad listą rozmów), "
+"żeby pisać."
 msgstr "请先解锁加密对话（对话列表上方的“消息密码”栏），然后才能发送消息。"
 
 #: templates/web/chat/_thread.html:137 templates/web/chat/_thread.html:168
@@ -4145,14 +4554,19 @@ msgstr "新对话"
 
 #: templates/web/chat/directory.html:17
 msgid ""
-"Uczestnicy tego konkursu, którzy zgodzili się, żeby inni mogli ich znaleźć i do nich napisać. Widzisz tylko imię, pierwszą literę nazwiska i województwo."
-msgstr "本竞赛中同意被他人查找和联系的参赛者。您只能看到名字、姓氏首字母和所在省份。"
+"Uczestnicy tego konkursu, którzy zgodzili się, żeby inni mogli ich znaleźć i "
+"do nich napisać. Widzisz tylko imię, pierwszą literę nazwiska i województwo."
+msgstr ""
+"本竞赛中同意被他人查找和联系的参赛者。您只能看到名字、姓氏首字母和所在省份。"
 
 #: templates/web/chat/directory.html:24
 #, python-format
 msgid ""
-"Ciebie w katalogu nie ma – inni nie mogą zacząć z Tobą rozmowy. Możesz to zmienić w <a href=\"%(settings_url)s\">ustawieniach wiadomości</a>."
-msgstr "您不在名录中——其他人无法与您发起对话。您可以在<a href=\"%(settings_url)s\">消息设置</a>中更改。"
+"Ciebie w katalogu nie ma – inni nie mogą zacząć z Tobą rozmowy. Możesz to "
+"zmienić w <a href=\"%(settings_url)s\">ustawieniach wiadomości</a>."
+msgstr ""
+"您不在名录中——其他人无法与您发起对话。您可以在<a href=\"%(settings_url)s\">消"
+"息设置</a>中更改。"
 
 #: templates/web/chat/directory.html:29
 msgid "Szukaj po imieniu"
@@ -4195,7 +4609,8 @@ msgstr "名录为空"
 
 #: templates/web/chat/directory.html:58
 msgid ""
-"W katalogu są wyłącznie osoby, które same się do niego zapisały i mają skonfigurowane szyfrowanie."
+"W katalogu są wyłącznie osoby, które same się do niego zapisały i mają "
+"skonfigurowane szyfrowanie."
 msgstr "名录中只包含自愿加入且已设置加密的用户。"
 
 #: templates/web/chat/directory.html:59
@@ -4204,12 +4619,16 @@ msgstr "名录中只包含自愿加入的用户。"
 
 #: templates/web/chat/inbox.html:21
 msgid ""
-"Rozmowy z organizatorem i z innymi uczestnikami. Wiadomości czytasz tutaj, po zalogowaniu – e-mail mówi tylko, że coś na Ciebie czeka."
-msgstr "与组织者及其他参赛者的对话。请登录后在此阅读消息——电子邮件只会提醒您有新消息。"
+"Rozmowy z organizatorem i z innymi uczestnikami. Wiadomości czytasz tutaj, "
+"po zalogowaniu – e-mail mówi tylko, że coś na Ciebie czeka."
+msgstr ""
+"与组织者及其他参赛者的对话。请登录后在此阅读消息——电子邮件只会提醒您有新消"
+"息。"
 
 #: templates/web/chat/inbox.html:22
 msgid ""
-"Rozmowy z organizatorem. Wiadomości czytasz tutaj, po zalogowaniu – e-mail mówi tylko, że coś na Ciebie czeka."
+"Rozmowy z organizatorem. Wiadomości czytasz tutaj, po zalogowaniu – e-mail "
+"mówi tylko, że coś na Ciebie czeka."
 msgstr "与组织者的对话。请登录后在此阅读消息——电子邮件只会提醒您有新消息。"
 
 #: templates/web/chat/inbox.html:25 templates/web/chat/inbox.html:52
@@ -4246,12 +4665,14 @@ msgstr "您还没有任何消息"
 
 #: templates/web/chat/inbox.html:49
 msgid ""
-"Masz pytanie o zawody? Napisz do organizatora – odpowie jeden z koordynatorów."
+"Masz pytanie o zawody? Napisz do organizatora – odpowie jeden z "
+"koordynatorów."
 msgstr "对比赛有疑问？请联系组织者，将由一位协调员回复。"
 
 #: templates/web/chat/inbox.html:50
 msgid ""
-"Możesz też porozmawiać z innymi uczestnikami, którzy zapisali się do katalogu."
+"Możesz też porozmawiać z innymi uczestnikami, którzy zapisali się do "
+"katalogu."
 msgstr "您也可以与已加入名录的其他参赛者交流。"
 
 #: templates/web/chat/key.html:14
@@ -4264,20 +4685,23 @@ msgstr "对话加密"
 
 #: templates/web/chat/key.html:20
 msgid ""
-"Rozmowy szyfrowane end-to-end czytają tylko ich strony. Serwer i organizator widzą wyłącznie szyfrogram."
+"Rozmowy szyfrowane end-to-end czytają tylko ich strony. Serwer i organizator "
+"widzą wyłącznie szyfrogram."
 msgstr "端到端加密的对话只有双方能读取。服务器和组织者只能看到密文。"
 
 #: templates/web/chat/key.html:30
 #, python-format
-msgid ""
-"Odcisk klucza: <code class=\"chat-fingerprint\">%(fingerprint)s</code>"
+msgid "Odcisk klucza: <code class=\"chat-fingerprint\">%(fingerprint)s</code>"
 msgstr "密钥指纹：<code class=\"chat-fingerprint\">%(fingerprint)s</code>"
 
 #: templates/web/chat/key.html:31
 #, python-format
 msgid ""
-"Utworzony %(created)s. Porównaj odcisk z tym, który widzi druga strona rozmowy („Szczegóły szyfrowania” w wątku)."
-msgstr "创建于 %(created)s。请将此指纹与对方看到的指纹进行比对（会话中的“加密详情”）。"
+"Utworzony %(created)s. Porównaj odcisk z tym, który widzi druga strona "
+"rozmowy („Szczegóły szyfrowania” w wątku)."
+msgstr ""
+"创建于 %(created)s。请将此指纹与对方看到的指纹进行比对（会话中的“加密详"
+"情”）。"
 
 #: templates/web/chat/key.html:38
 msgid "Zapomniałem hasła do wiadomości – utwórz nowy klucz"
@@ -4285,14 +4709,23 @@ msgstr "忘记消息密码——创建新密钥"
 
 #: templates/web/chat/key.html:39
 msgid ""
-"Nowy klucz nie odzyska starych wiadomości: rozmowy szyfrowane starym kluczem staną się dla Ciebie nieczytelne. Druga strona zobaczy w wątku informację, że Twój klucz się zmienił."
-msgstr "新密钥无法恢复旧消息：用旧密钥加密的对话将无法再读取。对方会在会话中看到您的密钥已更改的提示。"
+"Nowy klucz nie odzyska starych wiadomości: rozmowy szyfrowane starym kluczem "
+"staną się dla Ciebie nieczytelne. Druga strona zobaczy w wątku informację, "
+"że Twój klucz się zmienił."
+msgstr ""
+"新密钥无法恢复旧消息：用旧密钥加密的对话将无法再读取。对方会在会话中看到您的"
+"密钥已更改的提示。"
 
 #: templates/web/chat/key.html:49
 msgid ""
-"Wymyśl <strong>hasło do wiadomości</strong> – inne niż hasło do konta. Chroni kopię Twojego klucza, dzięki której przeczytasz rozmowy także na innym urządzeniu. Nie znamy go i nie możemy go przypomnieć ani zresetować: bez niego stare wiadomości szyfrowane przepadną."
+"Wymyśl <strong>hasło do wiadomości</strong> – inne niż hasło do konta. "
+"Chroni kopię Twojego klucza, dzięki której przeczytasz rozmowy także na "
+"innym urządzeniu. Nie znamy go i nie możemy go przypomnieć ani zresetować: "
+"bez niego stare wiadomości szyfrowane przepadną."
 msgstr ""
-"请设置一个<strong>消息密码</strong>——不同于账户密码。它用于保护您的密钥副本，让您在其他设备上也能阅读对话。我们不知道这个密码，也无法帮您找回或重置：一旦遗失，旧的加密消息将无法恢复。"
+"请设置一个<strong>消息密码</strong>——不同于账户密码。它用于保护您的密钥副本，"
+"让您在其他设备上也能阅读对话。我们不知道这个密码，也无法帮您找回或重置：一旦"
+"遗失，旧的加密消息将无法恢复。"
 
 #: templates/web/forum/category.html:30
 msgid "otwarty na nowe wątki"
@@ -4321,12 +4754,14 @@ msgstr "我的帖子"
 
 #: templates/web/forum/category.html:52 templates/web/forum/index.html:39
 msgid ""
-"Forum jest w trybie tylko do odczytu: rozmowy zostają do przeczytania, ale nowych wpisów nie przyjmujemy."
+"Forum jest w trybie tylko do odczytu: rozmowy zostają do przeczytania, ale "
+"nowych wpisów nie przyjmujemy."
 msgstr "论坛处于只读模式：已有讨论仍可阅读，但不再接受新帖子。"
 
 #: templates/web/forum/category.html:54
 msgid ""
-"Ten dział jest zamknięty dla nowych wątków. Wątki, które już w nim są, zostają do czytania."
+"Ten dział jest zamknięty dla nowych wątków. Wątki, które już w nim są, "
+"zostają do czytania."
 msgstr "此版块不再接受新主题帖。版块中已有的帖子仍可阅读。"
 
 #: templates/web/forum/category.html:58
@@ -4353,8 +4788,12 @@ msgstr "此版块还没有主题帖"
 
 #: templates/web/forum/category.html:81
 msgid ""
-"Nikt tu jeszcze o nic nie zapytał. Jeżeli Twoje pytanie pasuje do opisu działu, załóż pierwszy wątek – reszta forum go zobaczy po zatwierdzeniu przez organizatora."
-msgstr "这里还没有人提问。如果您的问题符合版块说明，请发布第一个主题帖——经组织者审核后，论坛中的其他人即可看到。"
+"Nikt tu jeszcze o nic nie zapytał. Jeżeli Twoje pytanie pasuje do opisu "
+"działu, załóż pierwszy wątek – reszta forum go zobaczy po zatwierdzeniu "
+"przez organizatora."
+msgstr ""
+"这里还没有人提问。如果您的问题符合版块说明，请发布第一个主题帖——经组织者审核"
+"后，论坛中的其他人即可看到。"
 
 #: templates/web/forum/category.html:93
 msgid "Strony listy wątków"
@@ -4374,7 +4813,8 @@ msgstr "参赛者论坛"
 
 #: templates/web/forum/index.html:29
 msgid ""
-"Rozmowy uczestników tego konkursu. Czytają je tylko zalogowani, a każdy wpis ogląda organizator."
+"Rozmowy uczestników tego konkursu. Czytają je tylko zalogowani, a każdy wpis "
+"ogląda organizator."
 msgstr "本竞赛参赛者的讨论区。仅登录用户可阅读，每条帖子都会经组织者查看。"
 
 #: templates/web/forum/index.html:52
@@ -4391,8 +4831,11 @@ msgstr "还没有任何版块"
 
 #: templates/web/forum/index.html:73
 msgid ""
-"Działy zakłada organizator. Dopóki nie ma ani jednego, nie ma też gdzie założyć wątku – napisz do organizatora przez formularz pomocy."
-msgstr "版块由组织者创建。在创建第一个版块之前，无法发布主题帖——请通过帮助表单联系组织者。"
+"Działy zakłada organizator. Dopóki nie ma ani jednego, nie ma też gdzie "
+"założyć wątku – napisz do organizatora przez formularz pomocy."
+msgstr ""
+"版块由组织者创建。在创建第一个版块之前，无法发布主题帖——请通过帮助表单联系组"
+"织者。"
 
 #: templates/web/forum/index.html:81
 msgid "Ostatnie wątki"
@@ -4404,13 +4847,18 @@ msgstr "还没有人发言"
 
 #: templates/web/forum/index.html:104
 msgid ""
-"Forum działa, tylko nie ma na nim rozmów. Pierwszy wątek zakłada się tym samym przyciskiem, co każdy następny."
-msgstr "论坛已开放，只是还没有讨论。发布第一个主题帖与之后的帖子使用同一个按钮。"
+"Forum działa, tylko nie ma na nim rozmów. Pierwszy wątek zakłada się tym "
+"samym przyciskiem, co każdy następny."
+msgstr ""
+"论坛已开放，只是还没有讨论。发布第一个主题帖与之后的帖子使用同一个按钮。"
 
 #: templates/web/forum/mine.html:26
 msgid ""
-"Wszystko, co napisałeś na tym forum, razem ze stanem i uzasadnieniem organizatora. O decyzjach nie wysyłamy listów – czekają tutaj."
-msgstr "您在本论坛发布的所有内容，以及其状态和组织者给出的理由。审核结果不会通过邮件通知——请在此查看。"
+"Wszystko, co napisałeś na tym forum, razem ze stanem i uzasadnieniem "
+"organizatora. O decyzjach nie wysyłamy listów – czekają tutaj."
+msgstr ""
+"您在本论坛发布的所有内容，以及其状态和组织者给出的理由。审核结果不会通过邮件"
+"通知——请在此查看。"
 
 #: templates/web/forum/mine.html:31 templates/web/forum/mine.html:34
 msgid "Wróć na forum"
@@ -4426,7 +4874,8 @@ msgstr "组织者给出的理由："
 
 #: templates/web/forum/mine.html:75
 msgid ""
-"Wątek czeka na zatwierdzenie przez organizatora. Do tego czasu widzisz go tylko Ty."
+"Wątek czeka na zatwierdzenie przez organizatora. Do tego czasu widzisz go "
+"tylko Ty."
 msgstr "该主题帖正在等待组织者审核。在此之前只有您能看到。"
 
 #: templates/web/forum/mine.html:83
@@ -4443,12 +4892,14 @@ msgstr "修改于："
 
 #: templates/web/forum/mine.html:110
 msgid ""
-"Organizator nie zostawił uzasadnienia. Jeżeli nie wiesz, co było nie tak, zapytaj przez formularz pomocy."
+"Organizator nie zostawił uzasadnienia. Jeżeli nie wiesz, co było nie tak, "
+"zapytaj przez formularz pomocy."
 msgstr "组织者没有给出理由。如果您不清楚问题所在，请通过帮助表单询问。"
 
 #: templates/web/forum/mine.html:112
 msgid ""
-"Wpis czeka na zatwierdzenie przez organizatora. Do tego czasu widzisz go tylko Ty."
+"Wpis czeka na zatwierdzenie przez organizatora. Do tego czasu widzisz go "
+"tylko Ty."
 msgstr "该帖子正在等待组织者审核。在此之前只有您能看到。"
 
 #: templates/web/forum/mine.html:118
@@ -4457,8 +4908,12 @@ msgstr "您还没有在这里发过言"
 
 #: templates/web/forum/mine.html:119
 msgid ""
-"Gdy założysz wątek albo odpowiesz w cudzym, wpis pojawi się na tej liście razem ze swoim stanem. To tutaj – i tylko tutaj – zobaczysz, jeżeli organizator któryś z nich odrzuci."
-msgstr "当您发布主题帖或回复他人的帖子后，帖子会连同其状态显示在此列表中。如果组织者驳回了其中某条，您会在这里——且仅在这里——看到。"
+"Gdy założysz wątek albo odpowiesz w cudzym, wpis pojawi się na tej liście "
+"razem ze swoim stanem. To tutaj – i tylko tutaj – zobaczysz, jeżeli "
+"organizator któryś z nich odrzuci."
+msgstr ""
+"当您发布主题帖或回复他人的帖子后，帖子会连同其状态显示在此列表中。如果组织者"
+"驳回了其中某条，您会在这里——且仅在这里——看到。"
 
 #: templates/web/forum/mine.html:122
 msgid "Przejrzyj działy"
@@ -4470,7 +4925,8 @@ msgstr "修改帖子"
 
 #: templates/web/forum/post_edit.html:37
 msgid ""
-"Wpis można poprawić tylko przez 15 minut od dodania. Potem zostaje taki, jaki jest."
+"Wpis można poprawić tylko przez 15 minut od dodania. Potem zostaje taki, "
+"jaki jest."
 msgstr "帖子只能在发布后 15 分钟内修改。之后将保持不变。"
 
 #: templates/web/forum/post_edit.html:41
@@ -4483,8 +4939,12 @@ msgstr "已修改："
 
 #: templates/web/forum/post_edit.html:51
 msgid ""
-"Po zapisaniu poprawki wpis wraca do kolejki organizatora i do czasu ponownego zatwierdzenia widzisz go tylko Ty. Tak działa tryb „przed publikacją”, który obowiązuje zawsze w czasie otwartego etapu."
-msgstr "保存修改后，帖子将重新进入组织者的审核队列，在再次通过审核前只有您能看到。这是“发布前审核”模式，在阶段进行期间始终有效。"
+"Po zapisaniu poprawki wpis wraca do kolejki organizatora i do czasu "
+"ponownego zatwierdzenia widzisz go tylko Ty. Tak działa tryb „przed "
+"publikacją”, który obowiązuje zawsze w czasie otwartego etapu."
+msgstr ""
+"保存修改后，帖子将重新进入组织者的审核队列，在再次通过审核前只有您能看到。这"
+"是“发布前审核”模式，在阶段进行期间始终有效。"
 
 #: templates/web/forum/post_edit.html:65
 msgid "Zapisz poprawkę"
@@ -4496,8 +4956,12 @@ msgstr "修改时限已过"
 
 #: templates/web/forum/post_edit.html:74
 msgid ""
-"Ten wpis można było poprawiać przez 15 minut od dodania. Jeżeli treść jest nie do utrzymania, usuń wpis w wątku i napisz go jeszcze raz – albo napisz do organizatora przez formularz pomocy."
-msgstr "此帖子只能在发布后 15 分钟内修改。如果内容实在不妥，请在主题帖中删除该帖并重新发布——或通过帮助表单联系组织者。"
+"Ten wpis można było poprawiać przez 15 minut od dodania. Jeżeli treść jest "
+"nie do utrzymania, usuń wpis w wątku i napisz go jeszcze raz – albo napisz "
+"do organizatora przez formularz pomocy."
+msgstr ""
+"此帖子只能在发布后 15 分钟内修改。如果内容实在不妥，请在主题帖中删除该帖并重"
+"新发布——或通过帮助表单联系组织者。"
 
 #: templates/web/forum/post_edit.html:76
 msgid "Wróć do wątku"
@@ -4510,8 +4974,12 @@ msgstr "举报帖子"
 
 #: templates/web/forum/post_report.html:29
 msgid ""
-"Napisz organizatorowi, co jest nie tak z tą wypowiedzią. Zgłoszenie widzi wyłącznie organizator – ani autor wpisu, ani reszta forum się o nim nie dowie."
-msgstr "请告诉组织者这条发言有什么问题。举报内容只有组织者能看到——帖子作者和论坛其他用户都不会知道。"
+"Napisz organizatorowi, co jest nie tak z tą wypowiedzią. Zgłoszenie widzi "
+"wyłącznie organizator – ani autor wpisu, ani reszta forum się o nim nie "
+"dowie."
+msgstr ""
+"请告诉组织者这条发言有什么问题。举报内容只有组织者能看到——帖子作者和论坛其他"
+"用户都不会知道。"
 
 #: templates/web/forum/post_report.html:33
 msgid "Zgłaszany wpis"
@@ -4519,13 +4987,20 @@ msgstr "被举报的帖子"
 
 #: templates/web/forum/post_report.html:47
 msgid ""
-"Zgłoszenie nie ukrywa wpisu – decyzję podejmuje organizator i może być innego zdania niż Ty. Jeżeli chodzi o treść zadań otwartego etapu, napisz to wprost: takie wpisy organizator zdejmuje w pierwszej kolejności."
-msgstr "举报不会隐藏帖子——由组织者做出决定，其看法可能与您不同。如果涉及正在进行阶段的题目内容，请明确说明：此类帖子组织者会优先删除。"
+"Zgłoszenie nie ukrywa wpisu – decyzję podejmuje organizator i może być "
+"innego zdania niż Ty. Jeżeli chodzi o treść zadań otwartego etapu, napisz to "
+"wprost: takie wpisy organizator zdejmuje w pierwszej kolejności."
+msgstr ""
+"举报不会隐藏帖子——由组织者做出决定，其看法可能与您不同。如果涉及正在进行阶段"
+"的题目内容，请明确说明：此类帖子组织者会优先删除。"
 
 #: templates/web/forum/thread.html:49
 msgid ""
-"Ten wątek czeka na zatwierdzenie przez organizatora. Widzisz go tylko Ty – do czasu decyzji nikt inny nie może go przeczytać ani nic w nim dopisać."
-msgstr "该主题帖正在等待组织者审核。只有您能看到它——在做出决定前，其他人无法阅读或回复。"
+"Ten wątek czeka na zatwierdzenie przez organizatora. Widzisz go tylko Ty – "
+"do czasu decyzji nikt inny nie może go przeczytać ani nic w nim dopisać."
+msgstr ""
+"该主题帖正在等待组织者审核。只有您能看到它——在做出决定前，其他人无法阅读或回"
+"复。"
 
 #: templates/web/forum/thread.html:63
 msgid "Przestań obserwować"
@@ -4553,8 +5028,12 @@ msgstr "删除此帖子"
 
 #: templates/web/forum/thread.html:108
 msgid ""
-"Wpis zniknie z wątku natychmiast i nie da się tego cofnąć. Odpowiedzi, które ktoś napisał pod nim, zostają – dlatego kasujemy sam akapit, a nie kawałek rozmowy."
-msgstr "帖子将立即从主题帖中消失，且无法撤销。他人在其下方的回复会保留——因此我们只删除这一段内容，而非整段对话。"
+"Wpis zniknie z wątku natychmiast i nie da się tego cofnąć. Odpowiedzi, które "
+"ktoś napisał pod nim, zostają – dlatego kasujemy sam akapit, a nie kawałek "
+"rozmowy."
+msgstr ""
+"帖子将立即从主题帖中消失，且无法撤销。他人在其下方的回复会保留——因此我们只删"
+"除这一段内容，而非整段对话。"
 
 #: templates/web/forum/thread.html:112
 msgid "Tak, usuń wpis"
@@ -4566,7 +5045,8 @@ msgstr "这里还没有任何可见的发言"
 
 #: templates/web/forum/thread.html:122
 msgid ""
-"Wypowiedzi w tym wątku czekają na zatwierdzenie przez organizatora albo zostały zdjęte. Zajrzyj tu później."
+"Wypowiedzi w tym wątku czekają na zatwierdzenie przez organizatora albo "
+"zostały zdjęte. Zajrzyj tu później."
 msgstr "此主题帖中的发言正在等待组织者审核，或已被删除。请稍后再来查看。"
 
 #: templates/web/forum/thread.html:127
@@ -4580,18 +5060,23 @@ msgstr "回复"
 
 #: templates/web/forum/thread.html:146
 msgid ""
-"Forum jest w trybie tylko do odczytu – nowych wpisów nie przyjmujemy. Rozmowa zostaje tu do przeczytania."
+"Forum jest w trybie tylko do odczytu – nowych wpisów nie przyjmujemy. "
+"Rozmowa zostaje tu do przeczytania."
 msgstr "论坛处于只读模式——不再接受新帖子。已有讨论仍可阅读。"
 
 #: templates/web/forum/thread.html:149
 msgid ""
-"Ten wątek jest zamknięty przez organizatora. Jeżeli masz do niego coś do dodania, załóż nowy wątek w tym samym dziale."
+"Ten wątek jest zamknięty przez organizatora. Jeżeli masz do niego coś do "
+"dodania, załóż nowy wątek w tym samym dziale."
 msgstr "此主题帖已被组织者关闭。如有补充，请在同一版块发布新主题帖。"
 
 #: templates/web/forum/thread.html:152
 msgid ""
-"Do wątku czekającego na moderację nie dopisuje nikt – także jego autor. Organizator ma ocenić temat, a nie rozmowę, która zdążyła pod nim urosnąć."
-msgstr "等待审核的主题帖暂时无人可以回复——包括作者本人。组织者要审核的是主题本身，而不是其下已展开的讨论。"
+"Do wątku czekającego na moderację nie dopisuje nikt – także jego autor. "
+"Organizator ma ocenić temat, a nie rozmowę, która zdążyła pod nim urosnąć."
+msgstr ""
+"等待审核的主题帖暂时无人可以回复——包括作者本人。组织者要审核的是主题本身，而"
+"不是其下已展开的讨论。"
 
 #: templates/web/forum/thread.html:176
 msgid "Wyślij odpowiedź"
@@ -4599,12 +5084,12 @@ msgstr "发送回复"
 
 #: templates/web/forum/thread_new.html:25
 msgid ""
-"Zadaj pytanie całemu forum. Wątek zobaczą inni dopiero po zatwierdzeniu przez organizatora."
+"Zadaj pytanie całemu forum. Wątek zobaczą inni dopiero po zatwierdzeniu "
+"przez organizatora."
 msgstr "向整个论坛提问。主题帖经组织者审核通过后，其他人才能看到。"
 
 #: templates/web/forum/thread_new.html:35
-msgid ""
-"Forum jest w trybie tylko do odczytu – nowego wątku teraz nie założysz."
+msgid "Forum jest w trybie tylko do odczytu – nowego wątku teraz nie założysz."
 msgstr "论坛处于只读模式——目前无法发布新主题帖。"
 
 #: templates/web/forum/thread_new.html:46
@@ -4613,9 +5098,13 @@ msgstr "发布主题帖"
 
 #: templates/web/forum/thread_new.html:50
 msgid ""
-"Treść wpisu jest zwykłym tekstem: odnośniki zamieniamy na klikalne same, a znaczników HTML i załączników forum nie przyjmuje. Nie podawaj adresu e-mail, nazwy szkoły ani swojego kodu uczestnika – oceny w olimpiadzie są anonimowe i to Cię chroni."
+"Treść wpisu jest zwykłym tekstem: odnośniki zamieniamy na klikalne same, a "
+"znaczników HTML i załączników forum nie przyjmuje. Nie podawaj adresu e-"
+"mail, nazwy szkoły ani swojego kodu uczestnika – oceny w olimpiadzie są "
+"anonimowe i to Cię chroni."
 msgstr ""
-"帖子内容为纯文本：链接会自动转为可点击形式，论坛不接受 HTML 标签和附件。请勿填写电子邮件地址、学校名称或您的参赛者代码——竞赛评分是匿名的，这能保护您。"
+"帖子内容为纯文本：链接会自动转为可点击形式，论坛不接受 HTML 标签和附件。请勿"
+"填写电子邮件地址、学校名称或您的参赛者代码——竞赛评分是匿名的，这能保护您。"
 
 #: templates/web/forum/unsubscribe.html:25
 msgid ""
@@ -4624,7 +5113,8 @@ msgstr "操作成功——您已取消关注此主题帖，不会再收到相关
 
 #: templates/web/forum/unsubscribe.html:27
 msgid ""
-"Gotowe – listy o wpisach czekających na moderację są wyłączone. Kolejka nadal czeka w panelu koordynatora."
+"Gotowe – listy o wpisach czekających na moderację są wyłączone. Kolejka "
+"nadal czeka w panelu koordynatora."
 msgstr "操作成功——待审核帖子的邮件通知已关闭。审核队列仍可在协调员面板中查看。"
 
 #: templates/web/forum/unsubscribe.html:29
@@ -4632,13 +5122,13 @@ msgid "Gotowe – nie będziemy już wysyłać listów z forum na ten adres."
 msgstr "操作成功——我们将不再向此地址发送论坛邮件。"
 
 #: templates/web/forum/unsubscribe.html:31
-msgid ""
-"Zmienisz to w każdej chwili na ekranie „Edycja danych” po zalogowaniu."
+msgid "Zmienisz to w każdej chwili na ekranie „Edycja danych” po zalogowaniu."
 msgstr "您可以随时在登录后的“编辑个人信息”页面中更改此设置。"
 
 #: templates/web/forum/unsubscribe.html:34
 msgid ""
-"Czy przestać obserwować ten wątek? Nie dostaniesz już listów o nowych odpowiedziach w nim."
+"Czy przestać obserwować ten wątek? Nie dostaniesz już listów o nowych "
+"odpowiedziach w nim."
 msgstr "确定取消关注此主题帖吗？您将不再收到有关新回复的邮件。"
 
 #: templates/web/forum/unsubscribe.html:36
@@ -4647,8 +5137,12 @@ msgstr "确定关闭待审核帖子的邮件通知吗？"
 
 #: templates/web/forum/unsubscribe.html:38
 msgid ""
-"Czy wyłączyć wszystkie listy z forum? Nie dostaniesz już listów o odpowiedziach w obserwowanych wątkach ani o decyzjach organizatora w sprawie Twoich wpisów."
-msgstr "确定关闭所有论坛邮件吗？您将不再收到关注主题帖的新回复通知，也不会收到组织者对您帖子所作决定的通知。"
+"Czy wyłączyć wszystkie listy z forum? Nie dostaniesz już listów o "
+"odpowiedziach w obserwowanych wątkach ani o decyzjach organizatora w sprawie "
+"Twoich wpisów."
+msgstr ""
+"确定关闭所有论坛邮件吗？您将不再收到关注主题帖的新回复通知，也不会收到组织者"
+"对您帖子所作决定的通知。"
 
 #: templates/web/forum/unsubscribe.html:42
 msgid "Tak, wypisz mnie"
@@ -4689,8 +5183,12 @@ msgstr "我确认"
 #: templates/web/guardian/consent.html:50
 #, python-format
 msgid ""
-"Link jest ważny %(days)s dni. Jeśli nie jesteś opiekunem tej osoby albo nie wyrażasz zgody – po prostu zamknij tę stronę; bez potwierdzenia nic nie zostanie zapisane."
-msgstr "链接有效期为 %(days)s 天。如果您不是此人的监护人或不同意，直接关闭本页即可；未经确认不会记录任何内容。"
+"Link jest ważny %(days)s dni. Jeśli nie jesteś opiekunem tej osoby albo nie "
+"wyrażasz zgody – po prostu zamknij tę stronę; bez potwierdzenia nic nie "
+"zostanie zapisane."
+msgstr ""
+"链接有效期为 %(days)s 天。如果您不是此人的监护人或不同意，直接关闭本页即可；"
+"未经确认不会记录任何内容。"
 
 #: templates/web/guardian/done.html:7
 msgid "Zgoda została zapisana"
@@ -4706,7 +5204,8 @@ msgstr "参赛者将收到电子邮件通知。您可以关闭本页。"
 
 #: templates/web/guardian/done.html:15
 msgid ""
-"Zgodę można wycofać, pisząc do organizatora – dane kontaktowe są w stopce strony."
+"Zgodę można wycofać, pisząc do organizatora – dane kontaktowe są w stopce "
+"strony."
 msgstr "如需撤回同意，请联系组织者——联系方式见页面底部。"
 
 #: templates/web/guardian/invalid.html:7 templates/web/invite/invalid.html:7
@@ -4721,8 +5220,13 @@ msgstr "此链接无法使用"
 
 #: templates/web/guardian/invalid.html:15
 msgid ""
-"Poproś uczestnika o wysłanie prośby jeszcze raz – nowy link przyjdzie na ten sam adres."
+"Poproś uczestnika o wysłanie prośby jeszcze raz – nowy link przyjdzie na ten "
+"sam adres."
 msgstr "请让参赛者重新发送请求——新链接将发送到同一地址。"
+
+#: templates/web/invite/accept.html:14
+msgid "Zaproszenie do Olimpiady Kwantowej"
+msgstr "量子奥林匹克参赛邀请"
 
 #: templates/web/invite/accept.html:18 templates/web/invite/done.html:14
 #: templates/web/invite/invalid.html:11
@@ -4736,8 +5240,11 @@ msgstr "激活您的账户"
 #: templates/web/invite/accept.html:20
 #, python-format
 msgid ""
-"Cześć %(name)s! Nauczyciel ze szkoły %(school)s zgłosił Cię do Olimpiady Kwantowej. Ustaw hasło i potwierdź oświadczenia – dopiero to uruchamia konto."
-msgstr "%(name)s，您好！%(school)s 的一位老师为您报名参加了量子奥林匹克竞赛。请设置密码并确认声明——完成后账户才会激活。"
+"Cześć %(name)s! Nauczyciel ze szkoły %(school)s zgłosił Cię do Olimpiady "
+"Kwantowej. Ustaw hasło i potwierdź oświadczenia – dopiero to uruchamia konto."
+msgstr ""
+"%(name)s，您好！%(school)s 的一位老师为您报名参加了量子奥林匹克竞赛。请设置密"
+"码并确认声明——完成后账户才会激活。"
 
 #: templates/web/invite/accept.html:28
 msgid "Twoje dane ze zgłoszenia"
@@ -4765,7 +5272,8 @@ msgstr "出生年份："
 
 #: templates/web/invite/accept.html:41
 msgid ""
-"Coś się nie zgadza? Uruchom konto i popraw dane w swoim profilu po zalogowaniu."
+"Coś się nie zgadza? Uruchom konto i popraw dane w swoim profilu po "
+"zalogowaniu."
 msgstr "信息有误？请激活账户，登录后在个人资料中更正。"
 
 #: templates/web/invite/accept.html:69
@@ -4779,8 +5287,11 @@ msgstr "激活我的账户"
 #: templates/web/invite/accept.html:87
 #, python-format
 msgid ""
-"Link jest ważny %(days)s dni. Jeśli nie chcesz brać udziału – zamknij tę stronę; bez potwierdzenia konto nie zostanie uruchomione."
-msgstr "链接有效期为 %(days)s 天。如果您不想参加，关闭本页即可；未经确认账户不会被激活。"
+"Link jest ważny %(days)s dni. Jeśli nie chcesz brać udziału – zamknij tę "
+"stronę; bez potwierdzenia konto nie zostanie uruchomione."
+msgstr ""
+"链接有效期为 %(days)s 天。如果您不想参加，关闭本页即可；未经确认账户不会被激"
+"活。"
 
 #: templates/web/invite/done.html:10
 msgid "Konto zostało uruchomione"
@@ -4792,7 +5303,8 @@ msgstr "您的账户已就绪"
 
 #: templates/web/invite/done.html:16
 msgid ""
-"Hasło zostało ustawione, a oświadczenia zapisane. Zaloguj się swoim adresem e-mail i nowym hasłem."
+"Hasło zostało ustawione, a oświadczenia zapisane. Zaloguj się swoim adresem "
+"e-mail i nowym hasłem."
 msgstr "密码已设置，声明已记录。请使用您的电子邮件地址和新密码登录。"
 
 #: templates/web/invite/done.html:18 templates/web/invite/invalid.html:18
@@ -4802,7 +5314,8 @@ msgstr "登录"
 
 #: templates/web/invite/invalid.html:15
 msgid ""
-"Jeśli konto jest już uruchomione, po prostu się zaloguj. Jeśli link wygasł – poproś nauczyciela o wysłanie zaproszenia jeszcze raz."
+"Jeśli konto jest już uruchomione, po prostu się zaloguj. Jeśli link wygasł – "
+"poproś nauczyciela o wysłanie zaproszenia jeszcze raz."
 msgstr "如果账户已激活，直接登录即可。如果链接已过期，请让老师重新发送邀请。"
 
 #: templates/web/invite/invalid.html:19 templates/web/login.html:26
@@ -4815,8 +5328,10 @@ msgstr "登录"
 
 #: templates/web/login.html:8
 msgid ""
-"Panel uczestnika, członka komisji i koordynatora. Loginem jest adres e-mail podany przy rejestracji."
-msgstr "供参赛者、委员会成员和协调员使用的面板。登录名为注册时填写的电子邮件地址。"
+"Panel uczestnika, członka komisji i koordynatora. Loginem jest adres e-mail "
+"podany przy rejestracji."
+msgstr ""
+"供参赛者、委员会成员和协调员使用的面板。登录名为注册时填写的电子邮件地址。"
 
 #: templates/web/login.html:27
 msgid "Nie dostałeś linku aktywacyjnego?"
@@ -4852,8 +5367,12 @@ msgstr "AI 评估（仅供参考，不具约束力）"
 
 #: templates/web/participant/_ai_feedback.html:15
 msgid ""
-"Poniższe propozycje przygotował model językowy jako pomoc dla komitetu. Nie są oceną: obowiązują wyłącznie punkty wystawione przez recenzentów, podane wyżej. Reklamacja dotyczy oficjalnej oceny, a nie sugestii AI."
-msgstr "以下建议由语言模型生成，供委员会参考。它们不是评分：仅以上方评审员给出的分数为准。申诉针对的是正式评分，而非 AI 建议。"
+"Poniższe propozycje przygotował model językowy jako pomoc dla komitetu. Nie "
+"są oceną: obowiązują wyłącznie punkty wystawione przez recenzentów, podane "
+"wyżej. Reklamacja dotyczy oficjalnej oceny, a nie sugestii AI."
+msgstr ""
+"以下建议由语言模型生成，供委员会参考。它们不是评分：仅以上方评审员给出的分数"
+"为准。申诉针对的是正式评分，而非 AI 建议。"
 
 #: templates/web/participant/_ai_feedback.html:19
 #: templates/web/participant/_problem_card.html:24
@@ -4880,13 +5399,16 @@ msgstr "到达信息表"
 #: templates/web/participant/_arrival_card.html:16
 #, python-format
 msgid ""
-"Twoja deklaracja jest zapisana (%(submitted)s). Możesz ją poprawić do dnia zawodów."
+"Twoja deklaracja jest zapisana (%(submitted)s). Możesz ją poprawić do dnia "
+"zawodów."
 msgstr "您的申报已保存（%(submitted)s）。比赛当天之前均可修改。"
 
 #: templates/web/participant/_arrival_card.html:20
 msgid ""
-"Powiedz organizatorowi, kiedy przyjeżdżasz i czego potrzebujesz. Bez tej deklaracji nie zamówimy dla Ciebie noclegu ani posiłku."
-msgstr "请告知组织者您的到达时间和需求。没有此申报，我们将无法为您预订住宿和餐食。"
+"Powiedz organizatorowi, kiedy przyjeżdżasz i czego potrzebujesz. Bez tej "
+"deklaracji nie zamówimy dla Ciebie noclegu ani posiłku."
+msgstr ""
+"请告知组织者您的到达时间和需求。没有此申报，我们将无法为您预订住宿和餐食。"
 
 #: templates/web/participant/_arrival_card.html:26
 msgid "Zapisz deklarację"
@@ -4923,12 +5445,14 @@ msgstr "下载收据"
 
 #: templates/web/participant/_fees_card.html:31
 msgid ""
-"Rachunek wystawia organizator. Gdy będzie gotowy, pojawi się tu przycisk pobrania."
+"Rachunek wystawia organizator. Gdy będzie gotowy, pojawi się tu przycisk "
+"pobrania."
 msgstr "收据由组织者开具。准备好后，此处将显示下载按钮。"
 
 #: templates/web/participant/_fees_card.html:34
 msgid ""
-"Wpisz oznaczenie w tytule przelewu — po nim organizator odnajdzie Twoją wpłatę."
+"Wpisz oznaczenie w tytule przelewu — po nim organizator odnajdzie Twoją "
+"wpłatę."
 msgstr "请在转账附言中填写此标识——组织者将据此找到您的付款。"
 
 #: templates/web/participant/_guardian_consent.html:15
@@ -4956,8 +5480,11 @@ msgstr "无"
 
 #: templates/web/participant/_guardian_consent.html:27
 msgid ""
-"Udział osoby niepełnoletniej wymaga zgody opiekuna. Podaj jego adres e-mail – wyślemy tam link do formularza zgody."
-msgstr "未成年人参赛需获得监护人同意。请填写监护人的电子邮件地址——我们会将同意书链接发送到该地址。"
+"Udział osoby niepełnoletniej wymaga zgody opiekuna. Podaj jego adres e-mail "
+"– wyślemy tam link do formularza zgody."
+msgstr ""
+"未成年人参赛需获得监护人同意。请填写监护人的电子邮件地址——我们会将同意书链接"
+"发送到该地址。"
 
 #: templates/web/participant/_guardian_consent.html:39
 msgid "Wyślij ponownie"
@@ -4969,7 +5496,8 @@ msgstr "发送同意请求"
 
 #: templates/web/participant/_guardian_consent.html:44
 msgid ""
-"Link w liście jest ważny 14 dni. Zmiana adresu unieważnia poprzednio wysłany link."
+"Link w liście jest ważny 14 dni. Zmiana adresu unieważnia poprzednio wysłany "
+"link."
 msgstr "邮件中的链接有效期为 14 天。更改地址后，之前发送的链接将失效。"
 
 #: templates/web/participant/_interview.html:17
@@ -5006,8 +5534,12 @@ msgstr "加入面试"
 #: templates/web/participant/_interview.html:57
 #, python-format
 msgid ""
-"Pokój otwiera się %(opens)s (czas polski). Wchodzi się wyłącznie tym przyciskiem – adresu pokoju nie da się podać przez telefon ani przesłać dalej."
-msgstr "房间将于 %(opens)s（波兰时间）开放。只能通过此按钮进入——房间地址无法通过电话告知或转发。"
+"Pokój otwiera się %(opens)s (czas polski). Wchodzi się wyłącznie tym "
+"przyciskiem – adresu pokoju nie da się podać przez telefon ani przesłać "
+"dalej."
+msgstr ""
+"房间将于 %(opens)s（波兰时间）开放。只能通过此按钮进入——房间地址无法通过电话"
+"告知或转发。"
 
 #: templates/web/participant/_interview.html:64
 #: templates/web/participant/_interview.html:82
@@ -5119,7 +5651,8 @@ msgstr "题目尚未发布"
 
 #: templates/web/participant/_problem_card.html:81
 msgid ""
-"Ta praca jest już w ocenie. Wysłanie nowej wersji anuluje dotychczasową ocenę – zostanie oceniona od nowa."
+"Ta praca jest już w ocenie. Wysłanie nowej wersji anuluje dotychczasową "
+"ocenę – zostanie oceniona od nowa."
 msgstr "此解答已在评审中。上传新版本将取消当前评分——解答将重新评分。"
 
 #: templates/web/participant/_problem_card.html:104
@@ -5155,8 +5688,7 @@ msgstr "第 %(number)s 题的解答文件"
 
 #: templates/web/participant/_problem_card.html:149
 #, python-format
-msgid ""
-"Potwierdzam, że to rozwiązanie zadania %(number)s i plik jest czytelny."
+msgid "Potwierdzam, że to rozwiązanie zadania %(number)s i plik jest czytelny."
 msgstr "我确认这是第 %(number)s 题的解答，且文件清晰可读。"
 
 #: templates/web/participant/_problem_card.html:156
@@ -5282,7 +5814,8 @@ msgstr "（已驳回）"
 
 #: templates/web/participant/_status_track.html:25
 msgid ""
-"Ostatnia wersja została odrzucona przez skan antywirusowy i nie wejdzie do oceniania. Wyślij plik ponownie, póki etap jest otwarty."
+"Ostatnia wersja została odrzucona przez skan antywirusowy i nie wejdzie do "
+"oceniania. Wyślij plik ponownie, póki etap jest otwarty."
 msgstr "最新版本未通过病毒扫描，不会进入评分。请在阶段开放期间重新上传文件。"
 
 #: templates/web/participant/_status_track.html:34
@@ -5342,8 +5875,12 @@ msgstr "无可申诉的内容"
 
 #: templates/web/participant/_tab_appeals.html:44
 msgid ""
-"Reklamację składa się na wystawioną ocenę wstępną i tylko w oknie odwoławczym etapu. Gdy oba warunki będą spełnione, formularz pojawi się tutaj."
-msgstr "申诉只能针对已给出的初步评分，且只能在本阶段的申诉期内提交。两个条件都满足后，申诉表单将显示在此处。"
+"Reklamację składa się na wystawioną ocenę wstępną i tylko w oknie "
+"odwoławczym etapu. Gdy oba warunki będą spełnione, formularz pojawi się "
+"tutaj."
+msgstr ""
+"申诉只能针对已给出的初步评分，且只能在本阶段的申诉期内提交。两个条件都满足"
+"后，申诉表单将显示在此处。"
 
 #: templates/web/participant/_tab_appeals.html:47
 #: templates/web/participant/_tab_appeals.html:51
@@ -5375,7 +5912,8 @@ msgstr "您尚未提交任何申诉"
 
 #: templates/web/participant/_tab_appeals.html:72
 msgid ""
-"Tu pojawi się status każdej złożonej reklamacji razem z uzasadnieniem decyzji komisji."
+"Tu pojawi się status każdej złożonej reklamacji razem z uzasadnieniem "
+"decyzji komisji."
 msgstr "此处将显示您提交的每项申诉的状态，以及委员会的决定理由。"
 
 #: templates/web/participant/_tab_consents.html:6
@@ -5422,8 +5960,11 @@ msgstr "公开姓名"
 #: templates/web/participant/_tab_consents.html:62
 #, python-format
 msgid ""
-"Bez tej zgody w publikowanych tabelach wyników występujesz wyłącznie pod kodem %(code)s. Zgodę możesz wyrazić i wycofać w każdej chwili."
-msgstr "未给出此同意时，您在公布的成绩表中仅以代码 %(code)s 显示。您可以随时给出或撤回此同意。"
+"Bez tej zgody w publikowanych tabelach wyników występujesz wyłącznie pod "
+"kodem %(code)s. Zgodę możesz wyrazić i wycofać w każdej chwili."
+msgstr ""
+"未给出此同意时，您在公布的成绩表中仅以代码 %(code)s 显示。您可以随时给出或撤"
+"回此同意。"
 
 #: templates/web/participant/_tab_consents.html:70
 msgid "Wycofaj zgodę na publikację nazwiska"
@@ -5454,8 +5995,11 @@ msgstr "评语和排名"
 #: templates/web/participant/_tab_results.html:32
 #, python-format
 msgid ""
-"W ogłoszonej tabeli masz %(published)s pkt. Obowiązuje wynik bieżący (%(current)s pkt) – różnica wynika z decyzji podjętej po publikacji."
-msgstr "公布的成绩表中您的得分为 %(published)s 分。以当前成绩（%(current)s 分）为准——差异源于公布后作出的决定。"
+"W ogłoszonej tabeli masz %(published)s pkt. Obowiązuje wynik bieżący "
+"(%(current)s pkt) – różnica wynika z decyzji podjętej po publikacji."
+msgstr ""
+"公布的成绩表中您的得分为 %(published)s 分。以当前成绩（%(current)s 分）为准——"
+"差异源于公布后作出的决定。"
 
 #: templates/web/participant/_tab_results.html:38
 msgid "Punkty za zadania i komentarze recenzentów"
@@ -5488,16 +6032,18 @@ msgstr "成绩尚未公布"
 
 #: templates/web/participant/_tab_results.html:75
 msgid ""
-"Żaden etap nie ma jeszcze ogłoszonych wyników. Gdy komitet je ogłosi, znajdziesz tu punkty, kwalifikację i komentarze recenzentów."
-msgstr "目前没有任何阶段公布成绩。委员会公布后，您可以在这里查看得分、晋级情况和评审员评语。"
+"Żaden etap nie ma jeszcze ogłoszonych wyników. Gdy komitet je ogłosi, "
+"znajdziesz tu punkty, kwalifikację i komentarze recenzentów."
+msgstr ""
+"目前没有任何阶段公布成绩。委员会公布后，您可以在这里查看得分、晋级情况和评审"
+"员评语。"
 
 #: templates/web/participant/_tab_tasks.html:27
 msgid "Termin wydarzenia:"
 msgstr "活动日期："
 
 #: templates/web/participant/_tab_tasks.html:28
-msgid ""
-"Godziny oddania rozwiązań powyżej obowiązują niezależnie od dni pobytu."
+msgid "Godziny oddania rozwiązań powyżej obowiązują niezależnie od dni pobytu."
 msgstr "上述解答提交时间与您的在场日期无关，始终有效。"
 
 #: templates/web/participant/_tab_tasks.html:35
@@ -5510,12 +6056,14 @@ msgstr "您的参赛状态："
 
 #: templates/web/participant/_tab_tasks.html:41
 msgid ""
-"Do rozmowy kwalifikacyjnej przystępują wyłącznie osoby zakwalifikowane w poprzednim etapie. Nie ma tu zapisów otwartych."
+"Do rozmowy kwalifikacyjnej przystępują wyłącznie osoby zakwalifikowane w "
+"poprzednim etapie. Nie ma tu zapisów otwartych."
 msgstr "只有在上一阶段晋级的人员才能参加面试。此处不开放报名。"
 
 #: templates/web/participant/_tab_tasks.html:49
 msgid ""
-"Do tego etapu nie ma zapisów – przechodzą do niego osoby zakwalifikowane w poprzednim etapie."
+"Do tego etapu nie ma zapisów – przechodzą do niego osoby zakwalifikowane w "
+"poprzednim etapie."
 msgstr "本阶段不开放报名——上一阶段晋级者将直接进入。"
 
 #: templates/web/participant/_tab_tasks.html:69
@@ -5563,8 +6111,12 @@ msgstr "本阶段尚未发布题目。"
 
 #: templates/web/participant/_tab_tasks.html:142
 msgid ""
-"Bez terminu i poza kwalifikacją – te zadania nie wpływają na wyniki zawodów. Służą do przejścia całej ścieżki: zgłoszenie, pobranie treści, wysłanie rozwiązania."
-msgstr "无截止时间，不计入晋级——这些题目不影响比赛成绩。它们用于让您熟悉完整流程：报名、下载题目、上传解答。"
+"Bez terminu i poza kwalifikacją – te zadania nie wpływają na wyniki zawodów. "
+"Służą do przejścia całej ścieżki: zgłoszenie, pobranie treści, wysłanie "
+"rozwiązania."
+msgstr ""
+"无截止时间，不计入晋级——这些题目不影响比赛成绩。它们用于让您熟悉完整流程：报"
+"名、下载题目、上传解答。"
 
 #: templates/web/participant/_tab_tasks.html:163
 #: templates/web/participant/archive.html:66
@@ -5595,8 +6147,12 @@ msgstr "参赛者面板"
 
 #: templates/web/participant/archive.html:8
 msgid ""
-"Zadania z zakończonych edycji, arkusz treningowy i harmonogram warsztatów. Ta strona jest wyłącznie do czytania – jedyne miejsce, w którym można jeszcze oddać rozwiązanie, to etap treningowy."
-msgstr "往届赛题、练习题和工作坊日程。本页面仅供阅读——目前唯一还能提交解答的地方是练习阶段。"
+"Zadania z zakończonych edycji, arkusz treningowy i harmonogram warsztatów. "
+"Ta strona jest wyłącznie do czytania – jedyne miejsce, w którym można "
+"jeszcze oddać rozwiązanie, to etap treningowy."
+msgstr ""
+"往届赛题、练习题和工作坊日程。本页面仅供阅读——目前唯一还能提交解答的地方是练"
+"习阶段。"
 
 #: templates/web/participant/archive.html:10
 #: templates/web/participant/calendar.html:14
@@ -5611,7 +6167,8 @@ msgstr "不计入比赛"
 
 #: templates/web/participant/archive.html:26
 msgid ""
-"Zadania treningowe nie wpływają na wyniki zawodów. Rozwiązanie wysyła się na karcie treningowej w panelu."
+"Zadania treningowe nie wpływają na wyniki zawodów. Rozwiązanie wysyła się na "
+"karcie treningowej w panelu."
 msgstr "练习题不影响比赛成绩。解答请在面板的练习卡片中上传。"
 
 #: templates/web/participant/archive.html:35
@@ -5707,8 +6264,11 @@ msgstr "获奖证书和参赛证明"
 
 #: templates/web/participant/certificates.html:15
 msgid ""
-"Dokumenty wystawione przez komitet. Każdy ma numer i kod weryfikacyjny – po kodzie każdy może sprawdzić jego ważność bez logowania."
-msgstr "由委员会颁发的文件。每份文件都有编号和验证码——任何人无需登录即可凭验证码核实其有效性。"
+"Dokumenty wystawione przez komitet. Każdy ma numer i kod weryfikacyjny – po "
+"kodzie każdy może sprawdzić jego ważność bez logowania."
+msgstr ""
+"由委员会颁发的文件。每份文件都有编号和验证码——任何人无需登录即可凭验证码核实"
+"其有效性。"
 
 #: templates/web/participant/certificates.html:31
 msgid "Kod weryfikacyjny"
@@ -5724,8 +6284,12 @@ msgstr "已电子签名"
 
 #: templates/web/participant/certificates.html:70
 msgid ""
-"Nie masz jeszcze żadnego dokumentu. Dyplomy i zaświadczenia komitet wystawia po zakończeniu zawodów – to normalne, że przez większą część roku ta lista jest pusta."
-msgstr "您还没有任何文件。委员会会在比赛结束后颁发获奖证书和参赛证明——一年中大部分时间此列表为空是正常的。"
+"Nie masz jeszcze żadnego dokumentu. Dyplomy i zaświadczenia komitet wystawia "
+"po zakończeniu zawodów – to normalne, że przez większą część roku ta lista "
+"jest pusta."
+msgstr ""
+"您还没有任何文件。委员会会在比赛结束后颁发获奖证书和参赛证明——一年中大部分时"
+"间此列表为空是正常的。"
 
 #: templates/web/participant/dashboard.html:27
 msgid "Twoje zgłoszenie"
@@ -5751,7 +6315,8 @@ msgstr "编辑信息"
 
 #: templates/web/participant/dashboard.html:45
 msgid ""
-"Bez pełnej daty wiek liczymy po roczniku, a zgodę opiekuna traktujemy zachowawczo."
+"Bez pełnej daty wiek liczymy po roczniku, a zgodę opiekuna traktujemy "
+"zachowawczo."
 msgstr "如果没有完整日期，我们将按出生年份计算年龄，并从严处理监护人同意要求。"
 
 #: templates/web/participant/dashboard.html:57
@@ -5794,7 +6359,8 @@ msgstr "队长"
 
 #: templates/web/participant/dashboard.html:123
 msgid ""
-"Skład drużyny układa organizator. Zmianę zgłoś opiekunowi albo organizatorowi."
+"Skład drużyny układa organizator. Zmianę zgłoś opiekunowi albo "
+"organizatorowi."
 msgstr "队伍成员由组织者安排。如需调整，请联系指导老师或组织者。"
 
 #: templates/web/participant/feedback.html:7
@@ -5850,9 +6416,12 @@ msgstr "此表中晋级者的最低分：%(cutoff)s 分"
 #: templates/web/participant/feedback.html:47
 #, python-format
 msgid ""
-"W ogłoszonej tabeli masz %(published)s pkt. Różnica wynika z decyzji podjętej po publikacji – obowiązuje wynik bieżący (%(current)s pkt), a tabela pozostaje taka, jaką ogłoszono."
+"W ogłoszonej tabeli masz %(published)s pkt. Różnica wynika z decyzji "
+"podjętej po publikacji – obowiązuje wynik bieżący (%(current)s pkt), a "
+"tabela pozostaje taka, jaką ogłoszono."
 msgstr ""
-"公布的成绩表中您的得分为 %(published)s 分。差异源于公布后作出的决定——以当前成绩（%(current)s 分）为准，成绩表保持公布时的原样。"
+"公布的成绩表中您的得分为 %(published)s 分。差异源于公布后作出的决定——以当前成"
+"绩（%(current)s 分）为准，成绩表保持公布时的原样。"
 
 #: templates/web/participant/feedback.html:57
 msgid "Zadania i komentarze recenzentów"
@@ -5882,8 +6451,10 @@ msgstr "学生身份"
 #: templates/web/participant/student_status.html:21
 #, python-format
 msgid ""
-"Organizator prosi o potwierdzenie, że w edycji %(edition)s jesteś uczniem lub uczennicą szkoły. Brak zaświadczenia nie blokuje oddawania rozwiązań."
-msgstr "组织者请您确认在 %(edition)s 届比赛期间您是在校学生。缺少证明不影响提交解答。"
+"Organizator prosi o potwierdzenie, że w edycji %(edition)s jesteś uczniem "
+"lub uczennicą szkoły. Brak zaświadczenia nie blokuje oddawania rozwiązań."
+msgstr ""
+"组织者请您确认在 %(edition)s 届比赛期间您是在校学生。缺少证明不影响提交解答。"
 
 #: templates/web/participant/student_status.html:33
 #, python-format
@@ -5893,8 +6464,12 @@ msgstr "证明已于 %(when)s 通过。您无需再做任何操作。"
 #: templates/web/participant/student_status.html:38
 #, python-format
 msgid ""
-"Plik wysłany %(when)s. Koordynator sprawdzi go i poinformuje Cię e-mailem o decyzji. Jeśli wysłałeś(-aś) nie ten plik, możesz wgrać nowy – zastąpi poprzedni."
-msgstr "文件已于 %(when)s 上传。协调员审核后会通过电子邮件通知您结果。如果上传了错误的文件，您可以重新上传——新文件将替换之前的文件。"
+"Plik wysłany %(when)s. Koordynator sprawdzi go i poinformuje Cię e-mailem o "
+"decyzji. Jeśli wysłałeś(-aś) nie ten plik, możesz wgrać nowy – zastąpi "
+"poprzedni."
+msgstr ""
+"文件已于 %(when)s 上传。协调员审核后会通过电子邮件通知您结果。如果上传了错误"
+"的文件，您可以重新上传——新文件将替换之前的文件。"
 
 #: templates/web/participant/student_status.html:44
 msgid "Zaświadczenie nie zostało zaakceptowane. Powód:"
@@ -5927,17 +6502,23 @@ msgstr "下载模板（PDF）"
 #: templates/web/participant/student_status.html:70
 #, python-format
 msgid ""
-"Na wzorze są Twoje imię i nazwisko, data urodzenia i szkoła (%(school)s) z profilu. Jeśli coś się nie zgadza, popraw to najpierw w profilu."
-msgstr "模板上包含您个人资料中的姓名、出生日期和学校（%(school)s）。如有错误，请先在个人资料中更正。"
+"Na wzorze są Twoje imię i nazwisko, data urodzenia i szkoła (%(school)s) z "
+"profilu. Jeśli coś się nie zgadza, popraw to najpierw w profilu."
+msgstr ""
+"模板上包含您个人资料中的姓名、出生日期和学校（%(school)s）。如有错误，请先在"
+"个人资料中更正。"
 
 #: templates/web/participant/student_status.html:76
 msgid ""
-"Zanieś go do sekretariatu szkoły: szkoła wpisuje klasę, przystawia pieczątkę, a dyrektor lub sekretarz podpisuje i wpisuje datę."
-msgstr "将其交到学校办公室：由学校填写班级并加盖公章，校长或学校秘书签字并注明日期。"
+"Zanieś go do sekretariatu szkoły: szkoła wpisuje klasę, przystawia "
+"pieczątkę, a dyrektor lub sekretarz podpisuje i wpisuje datę."
+msgstr ""
+"将其交到学校办公室：由学校填写班级并加盖公章，校长或学校秘书签字并注明日期。"
 
 #: templates/web/participant/student_status.html:77
 msgid ""
-"Zeskanuj albo sfotografuj całą kartkę tak, żeby pieczątka i podpis były czytelne, i wgraj plik poniżej."
+"Zeskanuj albo sfotografuj całą kartkę tak, żeby pieczątka i podpis były "
+"czytelne, i wgraj plik poniżej."
 msgstr "扫描或拍摄整张纸，确保印章和签名清晰可辨，然后在下方上传文件。"
 
 #: templates/web/participant/student_status.html:84
@@ -5951,8 +6532,12 @@ msgstr "提交证明"
 #: templates/web/participant/student_status.html:102
 #, python-format
 msgid ""
-"Przyjmujemy PDF, JPG i PNG do %(limit)s MB. Plik sprawdza skaner antywirusowy, a oglądać go może wyłącznie koordynator konkursu – recenzenci go nie widzą."
-msgstr "支持 PDF、JPG 和 PNG 格式，最大 %(limit)s MB。文件将经过病毒扫描，且只有竞赛协调员可以查看——评审员看不到。"
+"Przyjmujemy PDF, JPG i PNG do %(limit)s MB. Plik sprawdza skaner "
+"antywirusowy, a oglądać go może wyłącznie koordynator konkursu – recenzenci "
+"go nie widzą."
+msgstr ""
+"支持 PDF、JPG 和 PNG 格式，最大 %(limit)s MB。文件将经过病毒扫描，且只有竞赛"
+"协调员可以查看——评审员看不到。"
 
 #: templates/web/participant/student_status.html:113
 msgid "Poprzednie pliki"
@@ -5968,13 +6553,19 @@ msgstr "驳回原因"
 
 #: templates/web/password_reset.html:13
 msgid ""
-"Podaj adres e-mail, którym się logujesz. Jeśli konto istnieje, wyślemy na ten adres link do ustawienia nowego hasła."
-msgstr "请输入您用于登录的电子邮件地址。如果账户存在，我们会向该地址发送设置新密码的链接。"
+"Podaj adres e-mail, którym się logujesz. Jeśli konto istnieje, wyślemy na "
+"ten adres link do ustawienia nowego hasła."
+msgstr ""
+"请输入您用于登录的电子邮件地址。如果账户存在，我们会向该地址发送设置新密码的"
+"链接。"
 
 #: templates/web/password_reset.html:18
 msgid ""
-"Link jest ważny 24 godziny i działa tylko raz. Formularz obsługuje konta wszystkich ról: uczestnika, członka komisji i koordynatora."
-msgstr "链接有效期为 24 小时，且只能使用一次。此表单适用于所有角色的账户：参赛者、委员会成员和协调员。"
+"Link jest ważny 24 godziny i działa tylko raz. Formularz obsługuje konta "
+"wszystkich ról: uczestnika, członka komisji i koordynatora."
+msgstr ""
+"链接有效期为 24 小时，且只能使用一次。此表单适用于所有角色的账户：参赛者、委"
+"员会成员和协调员。"
 
 #: templates/web/password_reset.html:22
 msgid "Hasło jednak pamiętasz?"
@@ -5987,7 +6578,8 @@ msgstr "密码已更改"
 
 #: templates/web/password_reset_complete.html:12
 msgid ""
-"Możesz zalogować się nowym hasłem. Poprzednie hasło i link z wiadomości przestały działać."
+"Możesz zalogować się nowym hasłem. Poprzednie hasło i link z wiadomości "
+"przestały działać."
 msgstr "您现在可以使用新密码登录。旧密码和邮件中的链接已失效。"
 
 #: templates/web/password_reset_confirm.html:9
@@ -5996,12 +6588,14 @@ msgstr "新密码"
 
 #: templates/web/password_reset_confirm.html:15
 msgid ""
-"Wpisz nowe hasło dwa razy. Po zapisaniu zaloguj się nim w standardowym formularzu."
+"Wpisz nowe hasło dwa razy. Po zapisaniu zaloguj się nim w standardowym "
+"formularzu."
 msgstr "请输入两次新密码。保存后，请通过常规登录表单使用新密码登录。"
 
 #: templates/web/password_reset_confirm.html:20
 msgid ""
-"Hasło musi mieć co najmniej 10 znaków i nie może być popularnym hasłem ani ciągiem samych cyfr."
+"Hasło musi mieć co najmniej 10 znaków i nie może być popularnym hasłem ani "
+"ciągiem samych cyfr."
 msgstr "密码长度至少为 10 个字符，且不能是常见密码或纯数字。"
 
 #: templates/web/password_reset_confirm.html:22
@@ -6014,8 +6608,10 @@ msgstr "链接无效"
 
 #: templates/web/password_reset_confirm.html:26
 msgid ""
-"Ten link do resetu hasła wygasł albo został już użyty. Każdy link działa 24 godziny i tylko jeden raz."
-msgstr "此密码重置链接已过期或已被使用。每个链接有效期为 24 小时，且只能使用一次。"
+"Ten link do resetu hasła wygasł albo został już użyty. Każdy link działa 24 "
+"godziny i tylko jeden raz."
+msgstr ""
+"此密码重置链接已过期或已被使用。每个链接有效期为 24 小时，且只能使用一次。"
 
 #: templates/web/password_reset_confirm.html:28
 msgid "Poproś o nowy link"
@@ -6031,18 +6627,24 @@ msgstr "请查收邮件"
 
 #: templates/web/password_reset_sent.html:13
 msgid ""
-"Jeśli pod podanym adresem istnieje konto, wysłaliśmy na nie wiadomość z linkiem do ustawienia nowego hasła."
+"Jeśli pod podanym adresem istnieje konto, wysłaliśmy na nie wiadomość z "
+"linkiem do ustawienia nowego hasła."
 msgstr "如果该地址对应的账户存在，我们已向其发送了设置新密码的链接。"
 
 #: templates/web/password_reset_sent.html:15
 msgid ""
-"Link jest ważny 24 godziny i można go użyć jeden raz. Jeśli wiadomość nie dociera, sprawdź folder ze spamem – dopiero potem spróbuj ponownie."
-msgstr "链接有效期为 24 小时，且只能使用一次。如果没有收到邮件，请先检查垃圾邮件文件夹，然后再重试。"
+"Link jest ważny 24 godziny i można go użyć jeden raz. Jeśli wiadomość nie "
+"dociera, sprawdź folder ze spamem – dopiero potem spróbuj ponownie."
+msgstr ""
+"链接有效期为 24 小时，且只能使用一次。如果没有收到邮件，请先检查垃圾邮件文件"
+"夹，然后再重试。"
 
 #: templates/web/posters.html:25
 msgid ""
-"Plakaty i ulotki olimpiady do wydrukowania i powieszenia w szkole – pliki PDF, JPG i PNG do pobrania bez logowania."
-msgstr "可打印并张贴在学校的竞赛海报和传单——PDF、JPG 和 PNG 文件，无需登录即可下载。"
+"Plakaty i ulotki olimpiady do wydrukowania i powieszenia w szkole – pliki "
+"PDF, JPG i PNG do pobrania bez logowania."
+msgstr ""
+"可打印并张贴在学校的竞赛海报和传单——PDF、JPG 和 PNG 文件，无需登录即可下载。"
 
 #: templates/web/posters.html:31
 msgid "Dla szkół"
@@ -6050,7 +6652,8 @@ msgstr "面向学校"
 
 #: templates/web/posters.html:33
 msgid ""
-"Wydrukuj i powieś w szkole – pomóż nam dotrzeć do uczniów, którzy jeszcze nie wiedzą o olimpiadzie."
+"Wydrukuj i powieś w szkole – pomóż nam dotrzeć do uczniów, którzy jeszcze "
+"nie wiedzą o olimpiadzie."
 msgstr "打印并张贴在学校里——帮助我们让更多还不了解本竞赛的学生知道它。"
 
 #: templates/web/posters.html:34
@@ -6106,7 +6709,8 @@ msgstr "答案"
 #: templates/web/quiz/attempt.html:119
 #, python-format
 msgid ""
-"Za błędną odpowiedź odejmujemy %(penalty)s pkt. Brak odpowiedzi nie jest karany."
+"Za błędną odpowiedź odejmujemy %(penalty)s pkt. Brak odpowiedzi nie jest "
+"karany."
 msgstr "答错一题扣 %(penalty)s 分。不作答不扣分。"
 
 #: templates/web/quiz/attempt.html:127
@@ -6123,7 +6727,8 @@ msgstr "测试预览"
 
 #: templates/web/quiz/preview.html:25
 msgid ""
-"Podgląd arkusza. Nic tu nie jest zapisywane, a zestaw pytań jest losowany przy każdym wejściu."
+"Podgląd arkusza. Nic tu nie jest zapisywane, a zestaw pytań jest losowany "
+"przy każdym wejściu."
 msgstr "试卷预览。此处不会保存任何内容，每次进入时题目都会重新随机抽取。"
 
 #: templates/web/quiz/preview.html:28
@@ -6170,17 +6775,20 @@ msgstr "%(score)s / %(maximum)s 分"
 #: templates/web/quiz/result.html:51
 #, python-format
 msgid ""
-"Odpowiedzi zapisane. Wynik zobaczysz po zamknięciu testu, czyli po %(closes)s."
+"Odpowiedzi zapisane. Wynik zobaczysz po zamknięciu testu, czyli po "
+"%(closes)s."
 msgstr "答案已保存。测试关闭后（即 %(closes)s 之后）您即可查看得分。"
 
 #: templates/web/quiz/result.html:55
 msgid ""
-"Odpowiedzi zapisane. Wynik tego etapu poznasz razem z ogłoszeniem wyników – w zakładce „Wyniki” w panelu."
+"Odpowiedzi zapisane. Wynik tego etapu poznasz razem z ogłoszeniem wyników – "
+"w zakładce „Wyniki” w panelu."
 msgstr "答案已保存。本阶段得分将随成绩一同公布——请在面板的“成绩”选项卡中查看。"
 
 #: templates/web/quiz/result.html:60
 msgid ""
-"Czas podejścia minął, zanim je zakończyłeś. Policzyliśmy odpowiedzi, które zdążyły się zapisać."
+"Czas podejścia minął, zanim je zakończyłeś. Policzyliśmy odpowiedzi, które "
+"zdążyły się zapisać."
 msgstr "您在完成作答前时间已用完。我们已对已保存的答案进行了评分。"
 
 #: templates/web/quiz/result.html:64
@@ -6224,23 +6832,30 @@ msgstr "测试开放时间"
 
 #: templates/web/quiz/start.html:41
 msgid ""
-"Odpowiedzi zapisują się same, co kilkanaście sekund i po każdej zmianie. Zamknięcie karty przez pomyłkę nie kasuje tego, co już zapisane."
-msgstr "答案会自动保存，每隔十几秒以及每次修改后都会保存。不小心关闭标签页不会清除已保存的内容。"
+"Odpowiedzi zapisują się same, co kilkanaście sekund i po każdej zmianie. "
+"Zamknięcie karty przez pomyłkę nie kasuje tego, co już zapisane."
+msgstr ""
+"答案会自动保存，每隔十几秒以及每次修改后都会保存。不小心关闭标签页不会清除已"
+"保存的内容。"
 
 #: templates/web/quiz/start.html:42
 msgid ""
-"Czas liczy serwer. Gdy minie, przyjmujemy to, co zdążyło się zapisać – i tak samo liczymy punkty."
+"Czas liczy serwer. Gdy minie, przyjmujemy to, co zdążyło się zapisać – i tak "
+"samo liczymy punkty."
 msgstr "时间由服务器计算。时间到后，我们将以已保存的内容为准，并据此计分。"
 
 #: templates/web/quiz/start.html:43
 msgid ""
-"Pytania i warianty odpowiedzi możesz zobaczyć w innej kolejności niż inni – to normalne."
+"Pytania i warianty odpowiedzi możesz zobaczyć w innej kolejności niż inni – "
+"to normalne."
 msgstr "您看到的题目和选项顺序可能与他人不同——这是正常的。"
 
 #: templates/web/quiz/start.html:44
 msgid ""
-"Test działa także bez JavaScriptu: wtedy odpowiedzi wysyła dopiero przycisk „Zakończ test”."
-msgstr "测试在不启用 JavaScript 时也能使用：此时只有点击“结束测试”按钮才会提交答案。"
+"Test działa także bez JavaScriptu: wtedy odpowiedzi wysyła dopiero przycisk "
+"„Zakończ test”."
+msgstr ""
+"测试在不启用 JavaScript 时也能使用：此时只有点击“结束测试”按钮才会提交答案。"
 
 #: templates/web/quiz/start.html:58
 msgid "Masz rozpoczęte podejście – wróć do niego, zamiast zaczynać od nowa."
@@ -6283,13 +6898,21 @@ msgstr "参赛者注册"
 
 #: templates/web/register.html:47
 msgid ""
-"Akceptacja Regulaminu i zgoda na przetwarzanie danych osobowych są wymagane. Uczestnik niepełnoletni potrzebuje dodatkowo zgody rodzica lub opiekuna prawnego. Zgodę na publikację imienia i nazwiska możesz wyrazić lub wycofać później w panelu uczestnika."
-msgstr "必须接受竞赛章程并同意处理个人数据。未成年参赛者还需获得父母或法定监护人的同意。是否同意公开姓名，可稍后在参赛者面板中给出或撤回。"
+"Akceptacja Regulaminu i zgoda na przetwarzanie danych osobowych są wymagane. "
+"Uczestnik niepełnoletni potrzebuje dodatkowo zgody rodzica lub opiekuna "
+"prawnego. Zgodę na publikację imienia i nazwiska możesz wyrazić lub wycofać "
+"później w panelu uczestnika."
+msgstr ""
+"必须接受竞赛章程并同意处理个人数据。未成年参赛者还需获得父母或法定监护人的同"
+"意。是否同意公开姓名，可稍后在参赛者面板中给出或撤回。"
 
 #: templates/web/register.html:54
 msgid ""
-"Wróć tu po tej godzinie – konto założysz w kilka minut. Terminy etapów znajdziesz na stronie <a href=\"/harmonogram/\">Harmonogram</a>."
-msgstr "请在该时间之后再来——创建账户只需几分钟。各阶段日期请见<a href=\"/harmonogram/\">日程</a>页面。"
+"Wróć tu po tej godzinie – konto założysz w kilka minut. Terminy etapów "
+"znajdziesz na stronie <a href=\"/harmonogram/\">Harmonogram</a>."
+msgstr ""
+"请在该时间之后再来——创建账户只需几分钟。各阶段日期请见<a href=\"/harmonogram/"
+"\">日程</a>页面。"
 
 #: templates/web/register.html:60
 msgid "Masz już konto?"
@@ -6302,12 +6925,15 @@ msgstr "委员会成员注册"
 
 #: templates/web/register_committee.html:8
 msgid ""
-"Konto recenzenta lub członka komisji odwoławczej zakłada się na kod zaproszenia wydany przez koordynatora."
+"Konto recenzenta lub członka komisji odwoławczej zakłada się na kod "
+"zaproszenia wydany przez koordynatora."
 msgstr "评审员或申诉委员会成员的账户需使用协调员发放的邀请码创建。"
 
 #: templates/web/register_committee.html:14
 msgid ""
-"Województwo podane w kodzie zaproszenia jest nadrzędne wobec deklaracji z formularza – tylko takie województwo liczy się przy regule konfliktu interesów."
+"Województwo podane w kodzie zaproszenia jest nadrzędne wobec deklaracji z "
+"formularza – tylko takie województwo liczy się przy regule konfliktu "
+"interesów."
 msgstr "邀请码中指定的省份优先于表单中填写的省份——利益冲突规则仅以该省份为准。"
 
 #: templates/web/register_committee.html:17
@@ -6329,8 +6955,11 @@ msgstr "账户已创建"
 #: templates/web/register_done.html:15
 #, python-format
 msgid ""
-"Wysłaliśmy link aktywacyjny na adres <strong>%(address)s</strong>. Kliknij go, aby aktywować konto – bez tego logowanie nie zadziała."
-msgstr "我们已向 <strong>%(address)s</strong> 发送了激活链接。请点击链接激活账户——否则将无法登录。"
+"Wysłaliśmy link aktywacyjny na adres <strong>%(address)s</strong>. Kliknij "
+"go, aby aktywować konto – bez tego logowanie nie zadziała."
+msgstr ""
+"我们已向 <strong>%(address)s</strong> 发送了激活链接。请点击链接激活账户——否"
+"则将无法登录。"
 
 #: templates/web/register_done.html:19
 msgid "Jeśli list nie dotarł do skrzynki głównej, sprawdź folder ze spamem."
@@ -6339,19 +6968,24 @@ msgstr "如果收件箱中没有这封邮件，请检查垃圾邮件文件夹。
 #: templates/web/register_done.html:20
 #, python-format
 msgid ""
-"Link jest ważny %(hours)s godziny – po tym czasie konto zostanie usunięte i trzeba będzie zarejestrować się ponownie."
+"Link jest ważny %(hours)s godziny – po tym czasie konto zostanie usunięte i "
+"trzeba będzie zarejestrować się ponownie."
 msgstr "链接有效期为 %(hours)s 小时——过期后账户将被删除，需要重新注册。"
 
 #: templates/web/register_done.html:25
 msgid ""
-"Jeśli kod zaproszenia wymagał zatwierdzenia, po aktywacji poczekaj jeszcze na decyzję koordynatora."
+"Jeśli kod zaproszenia wymagał zatwierdzenia, po aktywacji poczekaj jeszcze "
+"na decyzję koordynatora."
 msgstr "如果邀请码需要审批，激活后请等待协调员的决定。"
 
 #: templates/web/register_done.html:28
 msgid ""
-"Po aktywacji panel opiekuna czeka pod adresem „Moi uczniowie”. Będzie pusty, dopóki uczniowie nie wpiszą Twojego adresu e-mail w polu „adres opiekuna szkolnego” we własnym profilu – to oni decydują, kto widzi ich postęp."
+"Po aktywacji panel opiekuna czeka pod adresem „Moi uczniowie”. Będzie pusty, "
+"dopóki uczniowie nie wpiszą Twojego adresu e-mail w polu „adres opiekuna "
+"szkolnego” we własnym profilu – to oni decydują, kto widzi ich postęp."
 msgstr ""
-"激活后，指导老师面板位于“我的学生”页面。在学生于个人资料的“学校指导老师地址”栏中填写您的电子邮件地址之前，该面板将为空——由学生决定谁可以查看他们的进度。"
+"激活后，指导老师面板位于“我的学生”页面。在学生于个人资料的“学校指导老师地址”"
+"栏中填写您的电子邮件地址之前，该面板将为空——由学生决定谁可以查看他们的进度。"
 
 #: templates/web/register_done.html:34
 msgid "Nie dostałeś listu?"
@@ -6371,13 +7005,18 @@ msgstr "获奖者名单——表中不包括其他参赛者。"
 
 #: templates/web/results.html:13
 msgid ""
-"Lista osób zakwalifikowanych do następnego etapu – tabela nie obejmuje pozostałych uczestników."
+"Lista osób zakwalifikowanych do następnego etapu – tabela nie obejmuje "
+"pozostałych uczestników."
 msgstr "晋级下一阶段的名单——表中不包括其他参赛者。"
 
 #: templates/web/results.html:15
 msgid ""
-"Tabela pochodzi z zamrożonego snapshotu z chwili publikacji – nie jest przeliczana w locie, więc późniejsze decyzje komisji nie zmieniają jej po cichu."
-msgstr "此表取自公布时冻结的快照——不会实时重新计算，因此委员会之后作出的决定不会悄悄改变它。"
+"Tabela pochodzi z zamrożonego snapshotu z chwili publikacji – nie jest "
+"przeliczana w locie, więc późniejsze decyzje komisji nie zmieniają jej po "
+"cichu."
+msgstr ""
+"此表取自公布时冻结的快照——不会实时重新计算，因此委员会之后作出的决定不会悄悄"
+"改变它。"
 
 #: templates/web/results.html:27
 msgid "Twoje punkty i komentarze"
@@ -6395,14 +7034,16 @@ msgstr "%(points)s / %(maximum)s 分"
 
 #: templates/web/reviewer/_ai_assessment.html:30
 #, python-format
-msgid ""
-"Model %(model)s, wygenerowano %(when)s. Pewność modelu: %(confidence)s."
+msgid "Model %(model)s, wygenerowano %(when)s. Pewność modelu: %(confidence)s."
 msgstr "模型 %(model)s，生成于 %(when)s。模型置信度：%(confidence)s。"
 
 #: templates/web/reviewer/_ai_assessment.html:33
 msgid ""
-"To jest propozycja modelu językowego, a nie ocena komitetu. Punkty wystawiasz Ty – sprawdź każde twierdzenie w pracy, zanim się na nie powołasz."
-msgstr "这是语言模型给出的建议，而非委员会的评分。分数由您给出——引用其中任何论断前，请先在解答中核实。"
+"To jest propozycja modelu językowego, a nie ocena komitetu. Punkty "
+"wystawiasz Ty – sprawdź każde twierdzenie w pracy, zanim się na nie powołasz."
+msgstr ""
+"这是语言模型给出的建议，而非委员会的评分。分数由您给出——引用其中任何论断前，"
+"请先在解答中核实。"
 
 #: templates/web/reviewer/_ai_assessment.html:38
 #, python-format
@@ -6423,14 +7064,18 @@ msgstr "Python"
 
 #: templates/web/reviewer/_code.html:26
 msgid ""
-"Podgląd obcięty – plik jest większy niż limit podglądu. Pobierz plik, aby zobaczyć całość."
+"Podgląd obcięty – plik jest większy niż limit podglądu. Pobierz plik, aby "
+"zobaczyć całość."
 msgstr "预览已截断——文件超出预览大小限制。请下载文件查看完整内容。"
 
 #: templates/web/reviewer/_code.html:29
 msgid ""
-"Notatnik pokazujemy jako same komórki kodu, rozdzielone nagłówkami „# --- komórka N ---”. Komórki tekstowe i wyniki poprzednich uruchomień są pominięte – oceniasz rozwiązanie, a nie zrzut z ostatniego uruchomienia."
+"Notatnik pokazujemy jako same komórki kodu, rozdzielone nagłówkami „# --- "
+"komórka N ---”. Komórki tekstowe i wyniki poprzednich uruchomień są "
+"pominięte – oceniasz rozwiązanie, a nie zrzut z ostatniego uruchomienia."
 msgstr ""
-"笔记本仅显示代码单元格，以“# --- komórka N ---”标题分隔。文本单元格和之前运行的输出已省略——您评审的是解答本身，而非上次运行的结果。"
+"笔记本仅显示代码单元格，以“# --- komórka N ---”标题分隔。文本单元格和之前运行"
+"的输出已省略——您评审的是解答本身，而非上次运行的结果。"
 
 #: templates/web/reviewer/_code.html:41
 #, python-format
@@ -6485,8 +7130,11 @@ msgstr "评分对比"
 
 #: templates/web/reviewer/_comparison.html:16
 msgid ""
-"Oceny tej pracy są już wystawione, więc widzisz punkty pozostałych recenzentów. Tożsamość nie jest ujawniana – rozmawiacie o pracy, nie o sobie."
-msgstr "此解答的评分均已提交，因此您可以看到其他评审员的分数。身份不会公开——你们讨论的是解答，而不是彼此。"
+"Oceny tej pracy są już wystawione, więc widzisz punkty pozostałych "
+"recenzentów. Tożsamość nie jest ujawniana – rozmawiacie o pracy, nie o sobie."
+msgstr ""
+"此解答的评分均已提交，因此您可以看到其他评审员的分数。身份不会公开——你们讨论"
+"的是解答，而不是彼此。"
 
 #: templates/web/reviewer/_comparison.html:21
 msgid "Recenzent"
@@ -6524,8 +7172,10 @@ msgstr "新备注"
 #: templates/web/reviewer/_comparison.html:71
 #, python-format
 msgid ""
-"Widzą ją pozostali recenzenci tej pracy i koordynator – nie uczestnik. Najwyżej %(limit)s znaków."
-msgstr "此解答的其他评审员和协调员可以看到——参赛者看不到。最多 %(limit)s 个字符。"
+"Widzą ją pozostali recenzenci tej pracy i koordynator – nie uczestnik. "
+"Najwyżej %(limit)s znaków."
+msgstr ""
+"此解答的其他评审员和协调员可以看到——参赛者看不到。最多 %(limit)s 个字符。"
 
 #: templates/web/reviewer/_comparison.html:76
 msgid "Dopisz notatkę"
@@ -6542,8 +7192,12 @@ msgstr "报告此解答的问题"
 
 #: templates/web/reviewer/_issue.html:14
 msgid ""
-"Dla spraw, których nie rozwiąże ocena: nieczytelny skan, rozwiązanie innego zadania, podejrzenie niesamodzielności. Zgłoszenie trafia do koordynatora i nie wstrzymuje oceniania – jeżeli da się wystawić ocenę, wystaw ją."
-msgstr "用于评分无法解决的问题：扫描件不清晰、解答的是其他题目、疑似非独立完成。报告将提交给协调员，且不会暂停评分——如果能够评分，请照常评分。"
+"Dla spraw, których nie rozwiąże ocena: nieczytelny skan, rozwiązanie innego "
+"zadania, podejrzenie niesamodzielności. Zgłoszenie trafia do koordynatora i "
+"nie wstrzymuje oceniania – jeżeli da się wystawić ocenę, wystaw ją."
+msgstr ""
+"用于评分无法解决的问题：扫描件不清晰、解答的是其他题目、疑似非独立完成。报告"
+"将提交给协调员，且不会暂停评分——如果能够评分，请照常评分。"
 
 #: templates/web/reviewer/_issue.html:18
 msgid "Rodzaj problemu"
@@ -6551,8 +7205,10 @@ msgstr "问题类型"
 
 #: templates/web/reviewer/_issue.html:24
 msgid ""
-"Rodzaj decyduje o tym, do kogo koordynator kieruje sprawę – podejrzenie niesamodzielności idzie inną drogą niż nieczytelny skan."
-msgstr "问题类型决定协调员将其转交给谁——疑似非独立完成与扫描件不清晰的处理流程不同。"
+"Rodzaj decyduje o tym, do kogo koordynator kieruje sprawę – podejrzenie "
+"niesamodzielności idzie inną drogą niż nieczytelny skan."
+msgstr ""
+"问题类型决定协调员将其转交给谁——疑似非独立完成与扫描件不清晰的处理流程不同。"
 
 #: templates/web/reviewer/_issue.html:27
 msgid "Opis"
@@ -6560,7 +7216,8 @@ msgstr "描述"
 
 #: templates/web/reviewer/_issue.html:29
 msgid ""
-"Jedno–dwa zdania. Koordynator czyta to razem z pracą, więc nie musisz jej opisywać od początku."
+"Jedno–dwa zdania. Koordynator czyta to razem z pracą, więc nie musisz jej "
+"opisywać od początku."
 msgstr "一两句话即可。协调员会结合解答一起阅读，因此无需从头描述。"
 
 #: templates/web/reviewer/_issue_banner.html:15
@@ -6569,7 +7226,8 @@ msgstr "您报告了此解答的问题："
 
 #: templates/web/reviewer/_issue_banner.html:17
 msgid ""
-"Koordynator jeszcze go nie rozstrzygnął. Ocenę możesz wystawić mimo zgłoszenia."
+"Koordynator jeszcze go nie rozstrzygnął. Ocenę możesz wystawić mimo "
+"zgłoszenia."
 msgstr "协调员尚未处理。即使已提交报告，您仍可以评分。"
 
 #: templates/web/reviewer/_rubric.html:29
@@ -6579,17 +7237,24 @@ msgstr "评分细则"
 #: templates/web/reviewer/_rubric.html:31
 #, python-format
 msgid ""
-"Punkty przyznajesz kryterium po kryterium. Ocenę pracy wylicza system jako sumę – musi ona mieścić się w zakresie od %(minimum)s do %(maximum)s pkt."
-msgstr "请逐项按评分标准给分。系统将以各项之和作为该解答的得分——总分必须在 %(minimum)s 至 %(maximum)s 分之间。"
+"Punkty przyznajesz kryterium po kryterium. Ocenę pracy wylicza system jako "
+"sumę – musi ona mieścić się w zakresie od %(minimum)s do %(maximum)s pkt."
+msgstr ""
+"请逐项按评分标准给分。系统将以各项之和作为该解答的得分——总分必须在 "
+"%(minimum)s 至 %(maximum)s 分之间。"
 
 #: templates/web/reviewer/_rubric.html:35
 msgid ""
-"Punkty przyznajesz kryterium po kryterium. Ocenę pracy wylicza system jako sumę – musi ona należeć do skali tego zadania"
-msgstr "请逐项按评分标准给分。系统将以各项之和作为该解答的得分——总分必须符合本题的分数档"
+"Punkty przyznajesz kryterium po kryterium. Ocenę pracy wylicza system jako "
+"sumę – musi ona należeć do skali tego zadania"
+msgstr ""
+"请逐项按评分标准给分。系统将以各项之和作为该解答的得分——总分必须符合本题的分"
+"数档"
 
 #: templates/web/reviewer/_rubric.html:37
 msgid ""
-"Jeżeli suma wypadnie poza skalę, zapis się nie uda i poprawisz punkty przy kryteriach."
+"Jeżeli suma wypadnie poza skalę, zapis się nie uda i poprawisz punkty przy "
+"kryteriach."
 msgstr "如果总分超出分数档范围，将无法保存，您需要修改各项的分数。"
 
 #: templates/web/reviewer/_rubric.html:43
@@ -6608,7 +7273,8 @@ msgstr "评分标准评语"
 
 #: templates/web/reviewer/_rubric.html:77
 msgid ""
-"Uzasadnienie dla komitetu i dla Ciebie przy poprawianiu oceny – uczestnik widzi wyłącznie komentarz z pola poniżej."
+"Uzasadnienie dla komitetu i dla Ciebie przy poprawianiu oceny – uczestnik "
+"widzi wyłącznie komentarz z pola poniżej."
 msgstr "供委员会参考，也便于您修改评分时查看——参赛者只能看到下方字段中的评语。"
 
 #: templates/web/reviewer/_rubric.html:88
@@ -6673,8 +7339,12 @@ msgstr "评语模板（%(count)s）"
 
 #: templates/web/reviewer/_snippets.html:24
 msgid ""
-"„Wstaw” dopisuje treść na końcu pola powyżej – tekst możesz potem dowolnie poprawić. Szablony wspólne przygotowuje koordynator przy zadaniu; Twoich własnych nie widzi nikt poza Tobą."
-msgstr "“插入”会将内容追加到上方字段末尾——之后可自由修改。共享模板由协调员在题目中准备；您自己的模板只有您能看到。"
+"„Wstaw” dopisuje treść na końcu pola powyżej – tekst możesz potem dowolnie "
+"poprawić. Szablony wspólne przygotowuje koordynator przy zadaniu; Twoich "
+"własnych nie widzi nikt poza Tobą."
+msgstr ""
+"“插入”会将内容追加到上方字段末尾——之后可自由修改。共享模板由协调员在题目中准"
+"备；您自己的模板只有您能看到。"
 
 #: templates/web/reviewer/_snippets.html:32
 msgid "wspólny"
@@ -6690,8 +7360,12 @@ msgstr "插入"
 
 #: templates/web/reviewer/_snippets.html:47
 msgid ""
-"Nie ma jeszcze żadnego szablonu. Wspólne dla zadania dodaje koordynator na stronie zadania; własny dopiszesz pod formularzem, w „Moje szablony komentarzy”."
-msgstr "还没有任何模板。共享模板由协调员在题目页面添加；个人模板可在表单下方的“我的评语模板”中添加。"
+"Nie ma jeszcze żadnego szablonu. Wspólne dla zadania dodaje koordynator na "
+"stronie zadania; własny dopiszesz pod formularzem, w „Moje szablony "
+"komentarzy”."
+msgstr ""
+"还没有任何模板。共享模板由协调员在题目页面添加；个人模板可在表单下方的“我的评"
+"语模板”中添加。"
 
 #: templates/web/reviewer/compare.html:3
 #, python-format
@@ -6709,8 +7383,12 @@ msgstr "第 %(number)s 题"
 
 #: templates/web/reviewer/compare.html:22
 msgid ""
-"Oceny tej pracy nie są jeszcze odsłonięte. Porównanie i notatki otwierają się, gdy wszystkie recenzje rundy 1 zostaną wystawione – do tego czasu ocenianie pozostaje ślepe."
-msgstr "此解答的评分尚未公开。第 1 轮的所有评审提交后，对比和备注才会开放——在此之前评审保持盲评。"
+"Oceny tej pracy nie są jeszcze odsłonięte. Porównanie i notatki otwierają "
+"się, gdy wszystkie recenzje rundy 1 zostaną wystawione – do tego czasu "
+"ocenianie pozostaje ślepe."
+msgstr ""
+"此解答的评分尚未公开。第 1 轮的所有评审提交后，对比和备注才会开放——在此之前评"
+"审保持盲评。"
 
 #: templates/web/reviewer/detail.html:3
 #, python-format
@@ -6731,8 +7409,11 @@ msgstr "仲裁材料（第 2 轮）"
 
 #: templates/web/reviewer/detail.html:23
 msgid ""
-"Punkty i argumentacja obu recenzji rundy 1. Tożsamość recenzentów nie jest ujawniana – rozstrzygasz spór o pracę, nie między osobami."
-msgstr "第 1 轮两份评审的分数和理由。评审员身份不会公开——您裁决的是关于解答的分歧，而不是人与人之间的分歧。"
+"Punkty i argumentacja obu recenzji rundy 1. Tożsamość recenzentów nie jest "
+"ujawniana – rozstrzygasz spór o pracę, nie między osobami."
+msgstr ""
+"第 1 轮两份评审的分数和理由。评审员身份不会公开——您裁决的是关于解答的分歧，而"
+"不是人与人之间的分歧。"
 
 #: templates/web/reviewer/detail.html:28
 msgid "Komentarz wewnętrzny"
@@ -6795,7 +7476,8 @@ msgstr "在照片上拖出一个矩形即可添加批注；在弹出的对话框
 
 #: templates/web/reviewer/detail.html:124
 msgid ""
-"Plik nie jest jeszcze dostępny (trwa skan antywirusowy albo praca nie ma pliku)."
+"Plik nie jest jeszcze dostępny (trwa skan antywirusowy albo praca nie ma "
+"pliku)."
 msgstr "文件暂不可用（正在进行病毒扫描，或该解答没有文件）。"
 
 #: templates/web/reviewer/detail.html:137
@@ -6854,7 +7536,8 @@ msgstr "下载参考解答（PDF）"
 
 #: templates/web/reviewer/detail.html:216
 msgid ""
-"Materiał wyłącznie dla komitetu – nie cytuj go w komentarzu dla uczestnika w częściach, których organizator nie ogłosił."
+"Materiał wyłącznie dla komitetu – nie cytuj go w komentarzu dla uczestnika w "
+"częściach, których organizator nie ogłosił."
 msgstr "仅供委员会使用——组织者未公布的部分，请勿在给参赛者的评语中引用。"
 
 #: templates/web/reviewer/detail.html:232
@@ -6864,17 +7547,23 @@ msgstr "您的评分已不再计入最终成绩，且无法修改。"
 
 #: templates/web/reviewer/detail.html:235
 msgid ""
-"Ocenę masz już wystawioną, ale możesz ją poprawić – formularz jest wypełniony Twoimi punktami i komentarzami. Po zapisaniu rundę 1 rozstrzygamy od nowa."
-msgstr "您已提交评分，但仍可修改——表单中已填入您的分数和评语。保存后，第 1 轮的结果将重新判定。"
+"Ocenę masz już wystawioną, ale możesz ją poprawić – formularz jest "
+"wypełniony Twoimi punktami i komentarzami. Po zapisaniu rundę 1 rozstrzygamy "
+"od nowa."
+msgstr ""
+"您已提交评分，但仍可修改——表单中已填入您的分数和评语。保存后，第 1 轮的结果将"
+"重新判定。"
 
 #: templates/web/reviewer/detail.html:251
 msgid ""
-"Zapisać poprawioną ocenę? Wcześniejsze rozstrzygnięcie rundy zostanie przeliczone od nowa."
+"Zapisać poprawioną ocenę? Wcześniejsze rozstrzygnięcie rundy zostanie "
+"przeliczone od nowa."
 msgstr "确定保存修改后的评分吗？本轮之前的结果将重新计算。"
 
 #: templates/web/reviewer/detail.html:251
 msgid ""
-"Wystawić ocenę? Poprawić ją będzie można, dopóki koordynator nie odbierze Ci pracy."
+"Wystawić ocenę? Poprawić ją będzie można, dopóki koordynator nie odbierze Ci "
+"pracy."
 msgstr "确定提交评分吗？在协调员将此解答从您处收回之前，您都可以修改。"
 
 #: templates/web/reviewer/detail.html:271
@@ -6884,13 +7573,11 @@ msgstr "分数（最高 %(maximum)s）"
 
 #: templates/web/reviewer/detail.html:273
 #, python-format
-msgid ""
-"Ocena: dowolna liczba od %(minimum)s do %(maximum)s, co 0,01 (np. 4,25)"
+msgid "Ocena: dowolna liczba od %(minimum)s do %(maximum)s, co 0,01 (np. 4,25)"
 msgstr "分数：%(minimum)s 至 %(maximum)s 之间的任意数，步长 0.01（例如 4.25）"
 
 #: templates/web/reviewer/detail.html:278
-msgid ""
-"Najwyżej dwa miejsca po przecinku. Możesz wpisać przecinek albo kropkę."
+msgid "Najwyżej dwa miejsca po przecinku. Możesz wpisać przecinek albo kropkę."
 msgstr "最多两位小数。可以使用逗号或小数点。"
 
 #: templates/web/reviewer/detail.html:281
@@ -6903,7 +7590,8 @@ msgstr "分数（阶段分数档）"
 
 #: templates/web/reviewer/detail.html:293
 msgid ""
-"Skala etapu: wolno wystawić wyłącznie jedną z poniższych wartości. Skalę ustala koordynator przy etapie albo przy zadaniu."
+"Skala etapu: wolno wystawić wyłącznie jedną z poniższych wartości. Skalę "
+"ustala koordynator przy etapie albo przy zadaniu."
 msgstr "阶段分数档：只能给出下列数值之一。分数档由协调员在阶段或题目中设置。"
 
 #: templates/web/reviewer/detail.html:295
@@ -6917,8 +7605,11 @@ msgstr "本阶段没有设置分数档——请告知协调员。"
 
 #: templates/web/reviewer/detail.html:320
 msgid ""
-"Trafia do panelu uczestnika po ogłoszeniu wyników etapu. Pisz tak, żeby dało się z tego czegoś nauczyć bez wglądu w pracę."
-msgstr "阶段成绩公布后，将显示在参赛者面板中。请写得让参赛者在看不到解答的情况下也能有所收获。"
+"Trafia do panelu uczestnika po ogłoszeniu wyników etapu. Pisz tak, żeby dało "
+"się z tego czegoś nauczyć bez wglądu w pracę."
+msgstr ""
+"阶段成绩公布后，将显示在参赛者面板中。请写得让参赛者在看不到解答的情况下也能"
+"有所收获。"
 
 #: templates/web/reviewer/detail.html:326
 msgid "Komentarz wewnętrzny (dla komitetu)"
@@ -6926,8 +7617,11 @@ msgstr "内部评语（供委员会查看）"
 
 #: templates/web/reviewer/detail.html:328
 msgid ""
-"„Wewnętrzny” znaczy: widzą go koordynator, drugi recenzent po odsłonięciu ocen i komisja odwoławcza – uczestnik nigdy."
-msgstr "“内部”是指：协调员、评分公开后的另一位评审员以及申诉委员会可以看到——参赛者永远看不到。"
+"„Wewnętrzny” znaczy: widzą go koordynator, drugi recenzent po odsłonięciu "
+"ocen i komisja odwoławcza – uczestnik nigdy."
+msgstr ""
+"“内部”是指：协调员、评分公开后的另一位评审员以及申诉委员会可以看到——参赛者永"
+"远看不到。"
 
 #: templates/web/reviewer/detail.html:342
 msgid "Zapisz szkic"
@@ -6955,8 +7649,11 @@ msgstr "未计时"
 
 #: templates/web/reviewer/detail.html:388
 msgid ""
-"Licznik służy do planowania obciążenia komitetu: koordynator widzi sumę godzin na zadanie, a nie to, co i kiedy robiłeś."
-msgstr "计时器用于规划委员会的工作量：协调员只能看到每道题的总时长，看不到您在何时做了什么。"
+"Licznik służy do planowania obciążenia komitetu: koordynator widzi sumę "
+"godzin na zadanie, a nie to, co i kiedy robiłeś."
+msgstr ""
+"计时器用于规划委员会的工作量：协调员只能看到每道题的总时长，看不到您在何时做"
+"了什么。"
 
 #: templates/web/reviewer/detail.html:398
 msgid "Skróty klawiaturowe"
@@ -6976,7 +7673,8 @@ msgstr "保存评分草稿"
 
 #: templates/web/reviewer/detail.html:404
 msgid ""
-"Skróty milczą, gdy piszesz w polu tekstowym – „s” w komentarzu zostaje literą."
+"Skróty milczą, gdy piszesz w polu tekstowym – „s” w komentarzu zostaje "
+"literą."
 msgstr "在文本框中输入时快捷键不生效——评语中的“s”仍然是字母。"
 
 #: templates/web/reviewer/detail.html:415
@@ -7027,28 +7725,38 @@ msgstr "如何评分——五句话说明"
 
 #: templates/web/reviewer/list.html:69
 msgid ""
-"Otwórz pracę: po lewej stoi rozwiązanie, po prawej panel oceny – nie musisz nic pobierać."
+"Otwórz pracę: po lewej stoi rozwiązanie, po prawej panel oceny – nie musisz "
+"nic pobierać."
 msgstr "打开解答：左侧为解答，右侧为评分面板——无需下载任何内容。"
 
 #: templates/web/reviewer/list.html:70
 msgid ""
-"Zaznacz myszą fragment strony, żeby dopisać adnotację; publiczne zobaczy uczestnik po ogłoszeniu wyników, wewnętrzne tylko komitet."
-msgstr "用鼠标框选页面上的区域即可添加批注；公开批注在成绩公布后参赛者可见，内部批注仅委员会可见。"
+"Zaznacz myszą fragment strony, żeby dopisać adnotację; publiczne zobaczy "
+"uczestnik po ogłoszeniu wyników, wewnętrzne tylko komitet."
+msgstr ""
+"用鼠标框选页面上的区域即可添加批注；公开批注在成绩公布后参赛者可见，内部批注"
+"仅委员会可见。"
 
 #: templates/web/reviewer/list.html:71
 msgid ""
-"Punkty wybierasz ze skali etapu albo wypełniasz rubrykę – sumę wylicza system i musi trafić w skalę."
-msgstr "从阶段分数档中选择分数，或填写评分细则——系统会计算总分，且总分必须符合分数档。"
+"Punkty wybierasz ze skali etapu albo wypełniasz rubrykę – sumę wylicza "
+"system i musi trafić w skalę."
+msgstr ""
+"从阶段分数档中选择分数，或填写评分细则——系统会计算总分，且总分必须符合分数"
+"档。"
 
 #: templates/web/reviewer/list.html:72
 msgid ""
-"„Zapisz szkic” możesz kliknąć w każdej chwili; ocena idzie dopiero przyciskiem „Wystaw ocenę”."
+"„Zapisz szkic” możesz kliknąć w każdej chwili; ocena idzie dopiero "
+"przyciskiem „Wystaw ocenę”."
 msgstr "您可以随时点击“保存草稿”；只有点击“提交评分”按钮才会提交评分。"
 
 #: templates/web/reviewer/list.html:73
 msgid ""
-"Coś jest nie tak z pracą (nieczytelny skan, inne zadanie)? Zgłoś problem – to nie wstrzymuje oceniania."
-msgstr "解答有问题（扫描件不清晰、解答的是其他题目）？请报告问题——这不会暂停评分。"
+"Coś jest nie tak z pracą (nieczytelny skan, inne zadanie)? Zgłoś problem – "
+"to nie wstrzymuje oceniania."
+msgstr ""
+"解答有问题（扫描件不清晰、解答的是其他题目）？请报告问题——这不会暂停评分。"
 
 #: templates/web/reviewer/list.html:83
 msgid "Stan recenzji"
@@ -7128,8 +7836,11 @@ msgstr "暂无分配"
 
 #: templates/web/reviewer/list.html:248
 msgid ""
-"Nie masz jeszcze przydzielonych prac. Przydziału dokonuje koordynator, gdy prace trafią do oceniania – czasem jeszcze przed zamknięciem etapu."
-msgstr "您还没有被分配解答。解答进入评分阶段后，协调员会进行分配——有时在阶段结束之前就会分配。"
+"Nie masz jeszcze przydzielonych prac. Przydziału dokonuje koordynator, gdy "
+"prace trafią do oceniania – czasem jeszcze przed zamknięciem etapu."
+msgstr ""
+"您还没有被分配解答。解答进入评分阶段后，协调员会进行分配——有时在阶段结束之前"
+"就会分配。"
 
 #: templates/web/reviewer/list.html:250
 msgid "Nic nie jest w toku"
@@ -7145,7 +7856,8 @@ msgstr "暂无已提交的评分"
 
 #: templates/web/reviewer/list.html:254
 msgid ""
-"Oceny, które wyślesz, zostają tu do wglądu – razem z komentarzami, które napisałeś."
+"Oceny, które wyślesz, zostają tu do wglądu – razem z komentarzami, które "
+"napisałeś."
 msgstr "您提交的评分会保留在这里供查阅——连同您写的评语。"
 
 #: templates/web/reviewer/list.html:256
@@ -7154,7 +7866,8 @@ msgstr "暂无已取消的评审"
 
 #: templates/web/reviewer/list.html:257
 msgid ""
-"Trafia tu praca odebrana przez koordynatora i praca, do której uczestnik przysłał nową wersję."
+"Trafia tu praca odebrana przez koordynatora i praca, do której uczestnik "
+"przysłał nową wersję."
 msgstr "被协调员收回的解答，以及参赛者已提交新版本的解答，会显示在这里。"
 
 #: templates/web/statistics.html:12
@@ -7163,8 +7876,11 @@ msgstr "竞赛统计"
 
 #: templates/web/statistics.html:13
 msgid ""
-"Liczby o ogłoszonych etapach Olimpiady Kwantowej: rozkład punktów, mediana, progi kwalifikacji i uczestnicy według województw."
-msgstr "量子奥林匹克竞赛已公布阶段的数据：得分分布、中位数、晋级分数线以及各省参赛人数。"
+"Liczby o ogłoszonych etapach Olimpiady Kwantowej: rozkład punktów, mediana, "
+"progi kwalifikacji i uczestnicy według województw."
+msgstr ""
+"量子奥林匹克竞赛已公布阶段的数据：得分分布、中位数、晋级分数线以及各省参赛人"
+"数。"
 
 #: templates/web/statistics.html:19
 msgid "Statystyki"
@@ -7176,13 +7892,18 @@ msgstr "数说竞赛"
 
 #: templates/web/statistics.html:21
 msgid ""
-"Wszystkie liczby pochodzą z ogłoszonych tabel wyników i dotyczą etapów, nie osób."
+"Wszystkie liczby pochodzą z ogłoszonych tabel wyników i dotyczą etapów, nie "
+"osób."
 msgstr "所有数据均来自已公布的成绩表，反映的是各阶段情况，而非个人。"
 
 #: templates/web/statistics.html:22
 msgid ""
-"Nie ma tu żadnych danych osobowych ani rozbicia poniżej województwa. Tabele obliczane są z zamrożonych publikacji, więc zgadzają się co do sztuki z ogłoszonymi wynikami."
-msgstr "此处不含任何个人数据，也不提供省级以下的细分。各表格根据冻结的公布数据计算，因此与公布的成绩完全一致。"
+"Nie ma tu żadnych danych osobowych ani rozbicia poniżej województwa. Tabele "
+"obliczane są z zamrożonych publikacji, więc zgadzają się co do sztuki z "
+"ogłoszonymi wynikami."
+msgstr ""
+"此处不含任何个人数据，也不提供省级以下的细分。各表格根据冻结的公布数据计算，"
+"因此与公布的成绩完全一致。"
 
 #: templates/web/statistics.html:32
 msgid "Pełna tabela"
@@ -7253,7 +7974,8 @@ msgstr "参赛人数"
 
 #: templates/web/statistics.html:130
 msgid ""
-"Dla tego etapu nie publikujemy rozbicia na województwa – ogłoszona tabela go nie zawiera."
+"Dla tego etapu nie publikujemy rozbicia na województwa – ogłoszona tabela go "
+"nie zawiera."
 msgstr "本阶段不公布按省份的细分——公布的成绩表中不包含此信息。"
 
 #: templates/web/statistics.html:135
@@ -7262,7 +7984,8 @@ msgstr "暂无数据"
 
 #: templates/web/statistics.html:136
 msgid ""
-"Żaden etap nie ma ogłoszonych wyników. Statystyki pojawią się razem z pierwszą publikacją."
+"Żaden etap nie ma ogłoszonych wyników. Statystyki pojawią się razem z "
+"pierwszą publikacją."
 msgstr "目前没有任何阶段公布成绩。统计数据将随首次公布一同显示。"
 
 #: templates/web/status.html:16 templates/web/status.html:19
@@ -7275,8 +7998,10 @@ msgstr "网站所有服务均正常响应。"
 
 #: templates/web/status.html:24
 msgid ""
-"Część usług serwisu nie odpowiada. Pracujemy nad tym – jeśli sprawa dotyczy terminu oddania pracy, napisz do organizatora."
-msgstr "网站部分服务无响应。我们正在处理——如果影响到解答提交截止时间，请联系组织者。"
+"Część usług serwisu nie odpowiada. Pracujemy nad tym – jeśli sprawa dotyczy "
+"terminu oddania pracy, napisz do organizatora."
+msgstr ""
+"网站部分服务无响应。我们正在处理——如果影响到解答提交截止时间，请联系组织者。"
 
 #: templates/web/status.html:31
 msgid "Usługi"
@@ -7336,9 +8061,13 @@ msgstr "组织者公告显示在本页上方的横幅中。"
 
 #: templates/web/status.html:106
 msgid ""
-"Ta strona jest odświeżana co pół minuty. Wariant maszynowy dla monitoringu: <a href=\"/status.json\">/status.json</a>. Jeśli coś nie działa, a strona tego nie pokazuje – <a href=\"/support/new/\">zgłoś problem</a>."
+"Ta strona jest odświeżana co pół minuty. Wariant maszynowy dla monitoringu: "
+"<a href=\"/status.json\">/status.json</a>. Jeśli coś nie działa, a strona "
+"tego nie pokazuje – <a href=\"/support/new/\">zgłoś problem</a>."
 msgstr ""
-"本页每半分钟刷新一次。供监控使用的机器可读版本：<a href=\"/status.json\">/status.json</a>。如果出现故障但本页未显示——请<a href=\"/support/new/\">报告问题</a>。"
+"本页每半分钟刷新一次。供监控使用的机器可读版本：<a href=\"/status.json\">/"
+"status.json</a>。如果出现故障但本页未显示——请<a href=\"/support/new/\">报告问"
+"题</a>。"
 
 #: templates/web/supervisor/_import_form.html:12
 msgid "Jak przygotować plik"
@@ -7347,8 +8076,12 @@ msgstr "如何准备文件"
 #: templates/web/supervisor/_import_form.html:13
 #, python-format
 msgid ""
-"Plik CSV albo XLSX, pierwszy wiersz to nagłówki kolumn, maksymalnie %(max_rows)s wierszy. Kolejność kolumn jest dowolna – liczy się nazwa w nagłówku."
-msgstr "CSV 或 XLSX 文件，第一行为列标题，最多 %(max_rows)s 行。列的顺序不限——只看标题名称。"
+"Plik CSV albo XLSX, pierwszy wiersz to nagłówki kolumn, maksymalnie "
+"%(max_rows)s wierszy. Kolejność kolumn jest dowolna – liczy się nazwa w "
+"nagłówku."
+msgstr ""
+"CSV 或 XLSX 文件，第一行为列标题，最多 %(max_rows)s 行。列的顺序不限——只看标"
+"题名称。"
 
 #: templates/web/supervisor/_import_form.html:19
 msgid "nieobowiązkowa"
@@ -7360,9 +8093,16 @@ msgstr "可直接复制到表格中的标题行："
 
 #: templates/web/supervisor/_import_form.html:24
 msgid ""
-"Uczniów, którzy mają już konto w serwisie, nie zakładamy drugi raz i nie zmieniamy ich profilu – dostaną list z prośbą o zgodę na dopisanie opiekuna i pojawią się na liście dopiero po jej wyrażeniu. Nikomu nie ustawiasz hasła: każdy nowy uczeń dostaje list z linkiem, pod którym sam ustala hasło i sam składa wymagane oświadczenia."
+"Uczniów, którzy mają już konto w serwisie, nie zakładamy drugi raz i nie "
+"zmieniamy ich profilu – dostaną list z prośbą o zgodę na dopisanie opiekuna "
+"i pojawią się na liście dopiero po jej wyrażeniu. Nikomu nie ustawiasz "
+"hasła: każdy nowy uczeń dostaje list z linkiem, pod którym sam ustala hasło "
+"i sam składa wymagane oświadczenia."
 msgstr ""
-"已在网站上拥有账户的学生不会被重复创建，其个人资料也不会被更改——他们会收到一封邮件，请求同意添加您为学校指导老师，同意后才会出现在您的列表中。您无需为任何人设置密码：每位新学生都会收到一封带有链接的邮件，由本人设置密码并完成所需声明。"
+"已在网站上拥有账户的学生不会被重复创建，其个人资料也不会被更改——他们会收到一"
+"封邮件，请求同意添加您为学校指导老师，同意后才会出现在您的列表中。您无需为任"
+"何人设置密码：每位新学生都会收到一封带有链接的邮件，由本人设置密码并完成所需"
+"声明。"
 
 #: templates/web/supervisor/_import_form.html:35
 msgid "Wgraj listę"
@@ -7371,7 +8111,8 @@ msgstr "上传名单"
 #: templates/web/supervisor/_import_form.html:53
 #, python-format
 msgid ""
-"Zostaw blok „szkoła” pusty, jeśli cała lista jest z Twojej szkoły (%(school)s)."
+"Zostaw blok „szkoła” pusty, jeśli cała lista jest z Twojej szkoły "
+"(%(school)s)."
 msgstr "如果整份名单都来自您的学校（%(school)s），请将“学校”部分留空。"
 
 #: templates/web/supervisor/_import_form.html:59
@@ -7385,13 +8126,19 @@ msgstr "确认后将执行的操作"
 #: templates/web/supervisor/_import_preview.html:16
 #, python-format
 msgid ""
-"Nowe zaproszenia: %(created)s · adresy z istniejącym kontem: %(existing)s · pominięci: %(skipped)s."
-msgstr "新邀请：%(created)s · 已有账户的地址：%(existing)s · 已跳过：%(skipped)s。"
+"Nowe zaproszenia: %(created)s · adresy z istniejącym kontem: %(existing)s · "
+"pominięci: %(skipped)s."
+msgstr ""
+"新邀请：%(created)s · 已有账户的地址：%(existing)s · 已跳过：%(skipped)s。"
 
 #: templates/web/supervisor/_import_preview.html:28
 msgid ""
-"Konta, które już istnieją, nie są zakładane drugi raz ani zmieniane. Jeśli adres należy do ucznia tego konkursu, dostanie on list z prośbą o zgodę na dopisanie opiekuna – zobaczysz go na swojej liście dopiero po jego zgodzie."
-msgstr "已有账户不会被重复创建或更改。如果某地址属于本竞赛的学生，该学生会收到一封邮件，请求同意添加指导老师——学生同意后，您才会在列表中看到他。"
+"Konta, które już istnieją, nie są zakładane drugi raz ani zmieniane. Jeśli "
+"adres należy do ucznia tego konkursu, dostanie on list z prośbą o zgodę na "
+"dopisanie opiekuna – zobaczysz go na swojej liście dopiero po jego zgodzie."
+msgstr ""
+"已有账户不会被重复创建或更改。如果某地址属于本竞赛的学生，该学生会收到一封邮"
+"件，请求同意添加指导老师——学生同意后，您才会在列表中看到他。"
 
 #: templates/web/supervisor/_import_preview.html:32
 #, python-format
@@ -7463,9 +8210,11 @@ msgstr "学校指导老师"
 #: templates/web/supervisor/consent.html:27
 #, python-format
 msgid ""
-"Nauczyciel <strong>%(name)s</strong> (%(email)s) prosi o dopisanie jako Twój opiekun szkolny w konkursie %(competition)s."
+"Nauczyciel <strong>%(name)s</strong> (%(email)s) prosi o dopisanie jako Twój "
+"opiekun szkolny w konkursie %(competition)s."
 msgstr ""
-"<strong>%(name)s</strong> 老师（%(email)s）请求在 %(competition)s 中被添加为您的学校指导老师。"
+"<strong>%(name)s</strong> 老师（%(email)s）请求在 %(competition)s 中被添加为"
+"您的学校指导老师。"
 
 #: templates/web/supervisor/consent.html:39
 #, python-format
@@ -7474,12 +8223,15 @@ msgstr "老师注册时填写的学校：%(school)s。"
 
 #: templates/web/supervisor/consent.html:44
 msgid ""
-"Prośba przyszła z listy uczniów wgranej przez organizatora konkursu, który wskazał tego nauczyciela jako Twojego opiekuna."
-msgstr "此请求来自竞赛组织者上传的学生名单，组织者将这位老师指定为您的指导老师。"
+"Prośba przyszła z listy uczniów wgranej przez organizatora konkursu, który "
+"wskazał tego nauczyciela jako Twojego opiekuna."
+msgstr ""
+"此请求来自竞赛组织者上传的学生名单，组织者将这位老师指定为您的指导老师。"
 
 #: templates/web/supervisor/consent.html:47
 msgid ""
-"Ten adres nie ma jeszcze konta opiekuna w serwisie – nauczyciel zobaczy Cię na swojej liście dopiero wtedy, gdy je założy."
+"Ten adres nie ma jeszcze konta opiekuna w serwisie – nauczyciel zobaczy Cię "
+"na swojej liście dopiero wtedy, gdy je założy."
 msgstr "此地址在网站上尚无指导老师账户——老师创建账户后才会在列表中看到您。"
 
 #: templates/web/supervisor/consent.html:53
@@ -7492,12 +8244,14 @@ msgstr "您的姓名、参赛者代码、学校和年级；"
 
 #: templates/web/supervisor/consent.html:56
 msgid ""
-"na jakim etapie procedury są Twoje prace w każdym etapie: oddane, w ocenie, ocenione, wyniki;"
+"na jakim etapie procedury są Twoje prace w każdym etapie: oddane, w ocenie, "
+"ocenione, wyniki;"
 msgstr "您在每个阶段的解答处于什么环节：已提交、评审中、已评分、已出成绩；"
 
 #: templates/web/supervisor/consent.html:57
 msgid ""
-"liczbę punktów – wyłącznie po ogłoszeniu wyników etapu, czyli tę samą, którą widać w publicznej tabeli;"
+"liczbę punktów – wyłącznie po ogłoszeniu wyników etapu, czyli tę samą, którą "
+"widać w publicznej tabeli;"
 msgstr "您的得分——仅在阶段成绩公布后可见，即与公开成绩表中相同的分数；"
 
 #: templates/web/supervisor/consent.html:58
@@ -7506,15 +8260,22 @@ msgstr "您的账户是否已激活。"
 
 #: templates/web/supervisor/consent.html:60
 msgid ""
-"Nauczyciel nie zobaczy Twoich prac, komentarzy recenzentów, punktów przed ogłoszeniem wyników ani Twoich danych kontaktowych i zgód."
-msgstr "老师看不到您的解答、评审员评语、成绩公布前的得分，也看不到您的联系方式和同意事项。"
+"Nauczyciel nie zobaczy Twoich prac, komentarzy recenzentów, punktów przed "
+"ogłoszeniem wyników ani Twoich danych kontaktowych i zgód."
+msgstr ""
+"老师看不到您的解答、评审员评语、成绩公布前的得分，也看不到您的联系方式和同意"
+"事项。"
 
 #: templates/web/supervisor/consent.html:67
 #, python-format
 msgid ""
-"Masz już opiekuna szkolnego: <strong>%(current)s</strong>. Opiekun jest jeden – jeśli się zgodzisz, nowy nauczyciel <strong>zastąpi</strong> obecnego, a obecny przestanie widzieć Twój przebieg zawodów."
+"Masz już opiekuna szkolnego: <strong>%(current)s</strong>. Opiekun jest "
+"jeden – jeśli się zgodzisz, nowy nauczyciel <strong>zastąpi</strong> "
+"obecnego, a obecny przestanie widzieć Twój przebieg zawodów."
 msgstr ""
-"您已有学校指导老师：<strong>%(current)s</strong>。指导老师只能有一位——如果您同意，新老师将<strong>替换</strong>现任老师，现任老师将无法再查看您的参赛进度。"
+"您已有学校指导老师：<strong>%(current)s</strong>。指导老师只能有一位——如果您"
+"同意，新老师将<strong>替换</strong>现任老师，现任老师将无法再查看您的参赛进"
+"度。"
 
 #: templates/web/supervisor/consent.html:74
 msgid "Wybierz jedną z dwóch odpowiedzi."
@@ -7531,13 +8292,17 @@ msgstr "我不同意"
 #: templates/web/supervisor/consent.html:84
 #, python-format
 msgid ""
-"Link jest ważny %(days)s dni. Decyzję możesz zmienić w każdej chwili w swoim profilu – polem „Adres e-mail opiekuna szkolnego”. Jeśli nie znasz tej osoby, wybierz „Nie zgadzam się” i daj znać organizatorowi."
+"Link jest ważny %(days)s dni. Decyzję możesz zmienić w każdej chwili w swoim "
+"profilu – polem „Adres e-mail opiekuna szkolnego”. Jeśli nie znasz tej "
+"osoby, wybierz „Nie zgadzam się” i daj znać organizatorowi."
 msgstr ""
-"链接有效期为 %(days)s 天。您可以随时在个人资料的“学校指导老师电子邮件地址”栏中更改决定。如果您不认识此人，请选择“我不同意”并告知组织者。"
+"链接有效期为 %(days)s 天。您可以随时在个人资料的“学校指导老师电子邮件地址”栏"
+"中更改决定。如果您不认识此人，请选择“我不同意”并告知组织者。"
 
 #: templates/web/supervisor/consent_invalid.html:17
 msgid ""
-"Opiekuna szkolnego możesz w każdej chwili wpisać albo usunąć sam – w swoim profilu uczestnika."
+"Opiekuna szkolnego możesz w każdej chwili wpisać albo usunąć sam – w swoim "
+"profilu uczestnika."
 msgstr "您可以随时在参赛者个人资料中自行添加或删除学校指导老师。"
 
 #: templates/web/supervisor/import.html:8
@@ -7553,9 +8318,14 @@ msgstr "学校指导老师面板"
 
 #: templates/web/supervisor/import.html:18
 msgid ""
-"Wgraj listę klasy, a my wyślemy każdemu uczniowi zaproszenie z linkiem. Konta zakładają uczniowie: pod linkiem ustawiają własne hasło i sami składają wymagane oświadczenia – Ty nie ustawiasz nikomu hasła i nie zgadzasz się za nikogo."
+"Wgraj listę klasy, a my wyślemy każdemu uczniowi zaproszenie z linkiem. "
+"Konta zakładają uczniowie: pod linkiem ustawiają własne hasło i sami "
+"składają wymagane oświadczenia – Ty nie ustawiasz nikomu hasła i nie "
+"zgadzasz się za nikogo."
 msgstr ""
-"上传班级名单后，我们会向每位学生发送带有链接的邀请。账户由学生自己激活：他们通过链接设置自己的密码并亲自完成所需声明——您不为任何人设置密码，也不代替任何人表示同意。"
+"上传班级名单后，我们会向每位学生发送带有链接的邀请。账户由学生自己激活：他们"
+"通过链接设置自己的密码并亲自完成所需声明——您不为任何人设置密码，也不代替任何"
+"人表示同意。"
 
 #: templates/web/supervisor/import_preview.html:7
 #: templates/web/supervisor/import_preview.html:12
@@ -7564,7 +8334,8 @@ msgstr "导入预览"
 
 #: templates/web/supervisor/import_preview.html:13
 msgid ""
-"Nic jeszcze nie zostało zapisane i żaden list nie poszedł. Sprawdź listę i zatwierdź."
+"Nic jeszcze nie zostało zapisane i żaden list nie poszedł. Sprawdź listę i "
+"zatwierdź."
 msgstr "尚未保存任何内容，也未发送任何邮件。请检查名单并确认。"
 
 #: templates/web/supervisor/students.html:13
@@ -7578,8 +8349,12 @@ msgstr "我的学生账户"
 #: templates/web/supervisor/students.html:19
 #, python-format
 msgid ""
-"Lista powstaje z decyzji uczniów: widzisz tych, którzy mają w profilu Twój adres (%(email)s) – wpisany samodzielnie albo ustawiony importem. Każdy z nich może ją w każdej chwili cofnąć."
-msgstr "名单由学生自己决定：您能看到个人资料中填有您的地址（%(email)s）的学生——由学生自行填写或通过导入设置。每位学生都可以随时撤销。"
+"Lista powstaje z decyzji uczniów: widzisz tych, którzy mają w profilu Twój "
+"adres (%(email)s) – wpisany samodzielnie albo ustawiony importem. Każdy z "
+"nich może ją w każdej chwili cofnąć."
+msgstr ""
+"名单由学生自己决定：您能看到个人资料中填有您的地址（%(email)s）的学生——由学生"
+"自行填写或通过导入设置。每位学生都可以随时撤销。"
 
 #: templates/web/supervisor/students.html:24
 msgid "Zaproś uczniów z listy"
@@ -7634,8 +8409,10 @@ msgstr "上次发送：%(sent)s"
 #: templates/web/supervisor/students.html:81
 #, python-format
 msgid ""
-"Nikt jeszcze nie wskazał Twojego adresu. Podaj uczniom adres %(email)s albo zaproś ich z listy klasowej."
-msgstr "还没有人填写您的地址。请将地址 %(email)s 告诉学生，或通过班级名单邀请他们。"
+"Nikt jeszcze nie wskazał Twojego adresu. Podaj uczniom adres %(email)s albo "
+"zaproś ich z listy klasowej."
+msgstr ""
+"还没有人填写您的地址。请将地址 %(email)s 告诉学生，或通过班级名单邀请他们。"
 
 #: templates/web/support/detail.html:15 templates/web/support/list.html:7
 #: templates/web/support/list.html:11 templates/web/support/new.html:54
@@ -7648,8 +8425,11 @@ msgstr "提交时间："
 
 #: templates/web/support/detail.html:36
 msgid ""
-"To zgłoszenie jest zamknięte. Jeśli sprawa wróciła, załóż nowe – w nim będzie od razu widać, że to nowa historia."
-msgstr "此工单已关闭。如果问题再次出现，请新建工单——这样可以一目了然地看出这是新问题。"
+"To zgłoszenie jest zamknięte. Jeśli sprawa wróciła, załóż nowe – w nim "
+"będzie od razu widać, że to nowa historia."
+msgstr ""
+"此工单已关闭。如果问题再次出现，请新建工单——这样可以一目了然地看出这是新问"
+"题。"
 
 #: templates/web/support/detail.html:41
 msgid "Dopisz coś do sprawy"
@@ -7674,24 +8454,35 @@ msgstr "您还没有提交任何工单"
 
 #: templates/web/support/list.html:35
 msgid ""
-"Gdy coś nie zadziała, napisz do organizatora – odpowiedź trafi tutaj i na Twój adres e-mail."
+"Gdy coś nie zadziała, napisz do organizatora – odpowiedź trafi tutaj i na "
+"Twój adres e-mail."
 msgstr "遇到问题时，请联系组织者——回复将显示在这里并发送到您的电子邮箱。"
 
 #: templates/web/support/new.html:18
 msgid ""
-"Napisz do organizatora. Odpowiedź dostaniesz e-mailem, a cała sprawa – razem z odpowiedzią – zostaje w serwisie."
-msgstr "联系组织者。您将通过电子邮件收到回复，整个问题记录（包括回复）都会保存在网站上。"
+"Napisz do organizatora. Odpowiedź dostaniesz e-mailem, a cała sprawa – razem "
+"z odpowiedzią – zostaje w serwisie."
+msgstr ""
+"联系组织者。您将通过电子邮件收到回复，整个问题记录（包括回复）都会保存在网站"
+"上。"
 
 #: templates/web/support/new.html:22
 msgid ""
-"Zanim zgłosisz: sprawdź <a href=\"/faq/\">najczęstsze pytania (FAQ)</a>. Opisaliśmy tam między innymi brakujący list aktywacyjny, dopuszczalne formaty plików, poprawianie oddanej pracy i tryb reklamacji."
+"Zanim zgłosisz: sprawdź <a href=\"/faq/\">najczęstsze pytania (FAQ)</a>. "
+"Opisaliśmy tam między innymi brakujący list aktywacyjny, dopuszczalne "
+"formaty plików, poprawianie oddanej pracy i tryb reklamacji."
 msgstr ""
-"提交前，请先查看<a href=\"/faq/\">常见问题（FAQ）</a>。其中介绍了未收到激活邮件、可接受的文件格式、修改已提交的解答以及申诉流程等内容。"
+"提交前，请先查看<a href=\"/faq/\">常见问题（FAQ）</a>。其中介绍了未收到激活邮"
+"件、可接受的文件格式、修改已提交的解答以及申诉流程等内容。"
 
 #: templates/web/support/new.html:63
 msgid ""
-"Do zgłoszenia dołączamy automatycznie: adres strony, z której je wysyłasz, nazwę przeglądarki, język interfejsu, Twój kod uczestnika i nazwę ostatniej czynności w serwisie. Nie zbieramy haseł ani zawartości formularzy."
-msgstr "我们会自动附上：您提交时所在页面的地址、浏览器名称、界面语言、您的参赛者代码以及您在网站上最后一次操作的名称。我们不会收集密码或表单内容。"
+"Do zgłoszenia dołączamy automatycznie: adres strony, z której je wysyłasz, "
+"nazwę przeglądarki, język interfejsu, Twój kod uczestnika i nazwę ostatniej "
+"czynności w serwisie. Nie zbieramy haseł ani zawartości formularzy."
+msgstr ""
+"我们会自动附上：您提交时所在页面的地址、浏览器名称、界面语言、您的参赛者代码"
+"以及您在网站上最后一次操作的名称。我们不会收集密码或表单内容。"
 
 #: templates/web/support/sent.html:8 templates/web/support/sent.html:12
 msgid "Zgłoszenie wysłane"
@@ -7703,8 +8494,10 @@ msgstr "谢谢。组织者将回复至您填写的电子邮件地址。"
 
 #: templates/web/support/sent.html:17
 msgid ""
-"Jeśli odpowiedź nie dotrze w ciągu kilku dni, sprawdź folder ze spamem – odpowiadamy z adresu serwisu."
-msgstr "如果几天内未收到回复，请检查垃圾邮件文件夹——我们会使用网站的邮件地址回复。"
+"Jeśli odpowiedź nie dotrze w ciągu kilku dni, sprawdź folder ze spamem – "
+"odpowiadamy z adresu serwisu."
+msgstr ""
+"如果几天内未收到回复，请检查垃圾邮件文件夹——我们会使用网站的邮件地址回复。"
 
 #: templates/web/throttled.html:7 templates/web/throttled.html:11
 msgid "Zbyt wiele prób"
@@ -7716,8 +8509,11 @@ msgstr "视频通话邀请"
 
 #: templates/web/video_gateway.html:17
 msgid ""
-"Zaproszenie do pokoju wideo olimpiady. Wpisz, jak mają Cię widzieć inni, i kliknij „Dołącz” – otworzymy pokój w tej karcie."
-msgstr "邀请您加入竞赛视频房间。请输入您希望他人看到的名称，然后点击“加入”——我们将在此标签页中打开房间。"
+"Zaproszenie do pokoju wideo olimpiady. Wpisz, jak mają Cię widzieć inni, i "
+"kliknij „Dołącz” – otworzymy pokój w tej karcie."
+msgstr ""
+"邀请您加入竞赛视频房间。请输入您希望他人看到的名称，然后点击“加入”——我们将在"
+"此标签页中打开房间。"
 
 #: templates/web/video_gateway.html:19
 msgid "Ten pokój jest zamknięty"
@@ -7725,8 +8521,10 @@ msgstr "此房间已关闭"
 
 #: templates/web/video_gateway.html:20
 msgid ""
-"Zaproszenie straciło ważność albo organizator zamknął pokój. Jeśli spotkanie nadal trwa, poproś osobę, która Cię zaprosiła, o nowy link."
-msgstr "邀请已失效，或组织者已关闭房间。如果会议仍在进行，请向邀请您的人索取新链接。"
+"Zaproszenie straciło ważność albo organizator zamknął pokój. Jeśli spotkanie "
+"nadal trwa, poproś osobę, która Cię zaprosiła, o nowy link."
+msgstr ""
+"邀请已失效，或组织者已关闭房间。如果会议仍在进行，请向邀请您的人索取新链接。"
 
 #: templates/web/video_gateway.html:30
 msgid "Imię i nazwisko (albo nazwa) widoczne w pokoju"
@@ -7735,18 +8533,23 @@ msgstr "在房间中显示的姓名（或名称）"
 #: templates/web/video_gateway.html:35
 #, python-format
 msgid ""
-"Jesteś zalogowany – jeśli zostawisz pole bez zmian, w pokoju zobaczą Cię jako „%(name)s”."
+"Jesteś zalogowany – jeśli zostawisz pole bez zmian, w pokoju zobaczą Cię "
+"jako „%(name)s”."
 msgstr "您已登录——如果不修改此栏，其他人将看到您显示为“%(name)s”。"
 
 #: templates/web/video_gateway.html:41
 msgid ""
-"To link gospodarza: wejdziesz z prawami moderatora (wyciszanie, poczekalnia, usuwanie z pokoju)."
+"To link gospodarza: wejdziesz z prawami moderatora (wyciszanie, poczekalnia, "
+"usuwanie z pokoju)."
 msgstr "这是主持人链接：您将以主持人权限进入（静音、等候室、移出房间）。"
 
 #: templates/web/video_gateway.html:43
 msgid ""
-"Najlepiej z komputera, w przeglądarce Chrome, Edge albo Firefox. Przeglądarka zapyta o dostęp do kamery i mikrofonu."
-msgstr "建议使用电脑，并使用 Chrome、Edge 或 Firefox 浏览器。浏览器会请求访问您的摄像头和麦克风。"
+"Najlepiej z komputera, w przeglądarce Chrome, Edge albo Firefox. "
+"Przeglądarka zapyta o dostęp do kamery i mikrofonu."
+msgstr ""
+"建议使用电脑，并使用 Chrome、Edge 或 Firefox 浏览器。浏览器会请求访问您的摄像"
+"头和麦克风。"
 
 #: templates/web/video_gateway.html:45
 msgid "Dołącz"
@@ -7769,8 +8572,12 @@ msgstr "您的浏览器无法播放 %(format)s 格式的视频。"
 
 #: templates/web/workshop_materials/detail.html:32
 msgid ""
-"Film jest dostępny wyłącznie dla zalogowanych uczestników i opiekunów – prosimy go nie nagrywać ani nie udostępniać dalej. Jeśli odtwarzanie zatrzyma się po dłuższej przerwie, odśwież stronę."
-msgstr "视频仅供已登录的参赛者和指导老师观看——请勿录制或转发。如果长时间暂停后无法继续播放，请刷新页面。"
+"Film jest dostępny wyłącznie dla zalogowanych uczestników i opiekunów – "
+"prosimy go nie nagrywać ani nie udostępniać dalej. Jeśli odtwarzanie "
+"zatrzyma się po dłuższej przerwie, odśwież stronę."
+msgstr ""
+"视频仅供已登录的参赛者和指导老师观看——请勿录制或转发。如果长时间暂停后无法继"
+"续播放，请刷新页面。"
 
 #: templates/web/workshop_materials/detail.html:46
 #: templates/web/workshop_materials/list.html:40
@@ -7783,13 +8590,17 @@ msgstr "全部工作坊资料"
 
 #: templates/web/workshop_materials/list.html:10
 msgid ""
-"Nagrania i materiały z warsztatów olimpiady – dla zalogowanych uczestników i opiekunów."
+"Nagrania i materiały z warsztatów olimpiady – dla zalogowanych uczestników i "
+"opiekunów."
 msgstr "竞赛工作坊的录像和资料——供已登录的参赛者和指导老师使用。"
 
 #: templates/web/workshop_materials/list.html:15
 msgid ""
-"Nagrania zajęć, slajdy i pliki do ćwiczeń. Materiały są przeznaczone wyłącznie dla uczestników olimpiady i ich opiekunów – prosimy nie udostępniać ich dalej."
-msgstr "课程录像、幻灯片和练习文件。资料仅供竞赛参赛者及其指导老师使用——请勿转发。"
+"Nagrania zajęć, slajdy i pliki do ćwiczeń. Materiały są przeznaczone "
+"wyłącznie dla uczestników olimpiady i ich opiekunów – prosimy nie "
+"udostępniać ich dalej."
+msgstr ""
+"课程录像、幻灯片和练习文件。资料仅供竞赛参赛者及其指导老师使用——请勿转发。"
 
 #: templates/web/workshop_materials/list.html:36
 msgid "Obejrzyj"
@@ -7801,5 +8612,8 @@ msgstr "暂无资料"
 
 #: templates/web/workshop_materials/list.html:51
 msgid ""
-"Nagrania i pliki pojawiają się tu zwykle kilka dni po warsztatach. Harmonogram jest na stronie <a href=\"/warsztaty/\">Warsztaty</a>."
-msgstr "录像和文件通常会在工作坊结束几天后发布在这里。日程请见<a href=\"/warsztaty/\">工作坊</a>页面。"
+"Nagrania i pliki pojawiają się tu zwykle kilka dni po warsztatach. "
+"Harmonogram jest na stronie <a href=\"/warsztaty/\">Warsztaty</a>."
+msgstr ""
+"录像和文件通常会在工作坊结束几天后发布在这里。日程请见<a href=\"/warsztaty/"
+"\">工作坊</a>页面。"

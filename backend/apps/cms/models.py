@@ -346,6 +346,22 @@ class SiteSettings(BaseSiteSetting):
         ),
     )
 
+    #: **Wycofane (I18N-01), nieczytane.** Języki interfejsu są od tego wydania zbiorem konkursu
+    #: (``tenancy.Competition.interface_languages``; migracja ``tenancy.0011`` przepisała do niego
+    #: stan tego pola). Kolumna zostaje w bazie **jedno wydanie dłużej** wyłącznie dla wdrożenia:
+    #: w chwili migracji stare procesy ``worker`` i ``beat`` jeszcze ją czytają, a skasowana w tym
+    #: samym wydaniu wywracałaby ich zapytania do czasu restartu (uwaga z przeglądu). Usuwa ją
+    #: migracja następnego wydania – patrz docs/OPERACJE.md § 26.5. Pola nie ma w panelu.
+    english_interface_enabled = models.BooleanField(
+        "angielska wersja interfejsu",
+        default=False,
+        help_text=(
+            "Wyłączone: serwis jest po polsku niezależnie od ustawień przeglądarki, a w pasku "
+            "konta nie ma przełącznika języka. Włączenie dokłada flagę „EN” i pozwala każdemu "
+            "wybrać angielski; zapisane wcześniej wybory wracają wtedy same."
+        ),
+    )
+
     #: Identyfikator strumienia danych Google Analytics 4. **Puste pole wyłącza analitykę
     #: całkowicie**: serwis nie wczytuje wtedy żadnego skryptu Google'a, nie pyta o zgodę
     #: (pasek cookie zostaje informacyjny, bo nie ma czego wstrzymywać do kliknięcia), a nagłówek

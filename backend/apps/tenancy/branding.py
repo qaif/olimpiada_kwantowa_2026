@@ -86,6 +86,27 @@ def substitutions(competition: Competition, **extra: object) -> dict[str, object
     }
 
 
+def brand_names(competition: Competition | None = None) -> dict[str, str]:
+    """Nazwa konkursu w trzech formach do zdań listu – marka konkursu albo dzisiejszy literał.
+
+    Zdanie listu do uczestnika z nazwą w środku („założył konto w serwisie Olimpiady Kwantowej”)
+    jest od I18N-01 **jednym** wzorcem z ``%(competition_genitive)s``, a nie dwoma zdaniami
+    (z marką i bez niej). Przy wyłączonej fladze ``competition_branding_in_mail`` – tak stoi
+    Olimpiada Kwantowa – podstawiamy przetłumaczone dzisiejsze formy, więc polski list zostaje
+    co do bajtu ten sam, a angielski mówi „Quantum Olympiad”. Przy włączonej – nazwę konkursu
+    (``iqo``: „International Quantum Olympiad”), odmienioną danymi konkursu.
+    """
+    if uses_competition_branding(competition):
+        return {key: str(value) for key, value in substitutions(competition).items()}
+    from django.utils.translation import gettext
+
+    return {
+        "competition": gettext("Olimpiada Kwantowa"),
+        "competition_genitive": gettext("Olimpiady Kwantowej"),
+        "competition_locative": gettext("Olimpiadzie Kwantowej"),
+    }
+
+
 def branded_text(
     template: object, fallback: object, competition: Competition | None = None, **extra: object
 ) -> str:

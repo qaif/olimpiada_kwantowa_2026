@@ -578,6 +578,20 @@ def client_for(settings):
     return make
 
 
+@pytest.fixture(autouse=True)
+def _reset_translation():
+    """Po każdym teście język wraca do języka instalacji (``translation.deactivate``).
+
+    Aktywny język jest stanem **wątku**: test, który aktywował arabski (wprost albo przez żądanie
+    klienta testowego), zostawiłby go następnemu testowi w tym samym procesie xdist – a ten
+    dostawałby przetłumaczone napisy i padał w zależności od kolejności (I18N-01, uwaga z przeglądu).
+    """
+    yield
+    from django.utils import translation
+
+    translation.deactivate()
+
+
 @pytest.fixture
 def english_enabled_site(db):  # noqa: ARG001 - fikstura bazy, używana przez efekt uboczny
     """``english_enabled_site()`` – dokłada angielski do języków interfejsu tego konkursu.

@@ -130,8 +130,8 @@ def submission_received_message(submission, submission_file, competition=None) -
     """
     stage = submission.entry.stage
     return _message(
-        _("Twoje rozwiązanie zostało przyjęte przez serwis Olimpiady Kwantowej (%(stage)s).")
-        % {"stage": stage.display_name},
+        _("Twoje rozwiązanie zostało przyjęte przez serwis %(competition_genitive)s (%(stage)s).")
+        % {**branding.brand_names(competition), "stage": stage.display_name},
         "",
         _("Zadanie: %(number)s. %(title)s")
         % {"number": submission.problem.number, "title": submission.problem.title},
@@ -173,9 +173,10 @@ def submission_infected_message(submission, submission_file, competition=None) -
     stage = submission.entry.stage
     return _message(
         _(
-            "Plik, który wysłałeś do serwisu Olimpiady Kwantowej, został odrzucony przez skan "
+            "Plik, który wysłałeś do serwisu %(competition_genitive)s, został odrzucony przez skan "
             "antywirusowy i nie wejdzie do oceniania."
-        ),
+        )
+        % branding.brand_names(competition),
         "",
         _("Etap: %(stage)s") % {"stage": stage.display_name},
         _("Zadanie: %(number)s. %(title)s")
@@ -314,7 +315,8 @@ def appeal_decided_message(appeal, decision, link: str, competition=None) -> str
     submission = appeal.submission
     status_label = APPEAL_STATUS_LABELS.get(appeal.status) or appeal.get_status_display()
     return _message(
-        _("Komisja odwoławcza rozstrzygnęła Twoją reklamację w Olimpiadzie Kwantowej."),
+        _("Komisja odwoławcza rozstrzygnęła Twoją reklamację w %(competition_locative)s.")
+        % branding.brand_names(competition),
         "",
         _("Etap: %(stage)s") % {"stage": submission.entry.stage.display_name},
         _("Zadanie: %(number)s. %(title)s")

@@ -24,7 +24,10 @@ BEFORE = [
     ("tenancy", "0010_path_prefix_routing_on_platform"),
     ("cms", "0030_hero_slider_images_intro_deadline"),
 ]
-AFTER = [("tenancy", "0011_competition_interface_languages"), ("cms", "0031_remove_english_interface_flag")]
+AFTER = [
+    ("tenancy", "0011_competition_interface_languages"),
+    ("cms", "0030_hero_slider_images_intro_deadline"),
+]
 
 
 @pytest.fixture(scope="module")
@@ -80,3 +83,23 @@ def test_reverse_restores_the_switch(rewound):
 
     settings_model = state.get_model("cms", "SiteSettings")
     assert settings_model.objects.get(site_id=rewound.competition.site_id).english_interface_enabled is True
+
+
+def test_english_switched_on_only_on_an_alias_site_is_kept(rewound):
+    """Przełącznik czytała witryna żądania – angielski włączony na witrynie aliasu też się liczy."""
+    from wagtail.models import Locale, Page, Site
+
+    _set_switch(rewound.apps, rewound.competition, enabled=False)
+    root = Page.objects.filter(depth=1).order_by("path").first()
+    alias_site = Site.objects.create(hostname="en.alias.invalid", port=80, root_page=root)
+    locale = Locale.objects.order_by("pk").first()
+    rewound.apps.get_model("tenancy", "CompetitionSiteAlias").objects.create(
+        competition_id=rewound.competition.pk, site_id=alias_site.pk, locale_id=locale.pk
+    )
+    rewound.apps.get_model("cms", "SiteSettings").objects.create(
+        site_id=alias_site.pk, english_interface_enabled=True
+    )
+
+    migrate_to(AFTER)
+
+    assert Competition.objects.get(pk=rewound.competition.pk).interface_languages == ["pl", "en"]

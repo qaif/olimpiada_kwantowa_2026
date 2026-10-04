@@ -3796,8 +3796,8 @@ wejścia na rozmowy: `interview.joined` (`participant`/`coordinator`, `interview
 Od tego wydania **konkurs** decyduje, w jakich językach mówi jego interfejs:
 `tenancy.Competition.interface_languages` (zbiór) obok `default_language` (język domyślny). Przełącznik
 „angielska wersja interfejsu” w `/cms/` → Ustawienia → Dane serwisu **zniknął** – migracja
-`tenancy.0011` przepisała go do zbioru (włączony → `["pl", "en"]`, wyłączony → `[język domyślny]`),
-a `cms.0031` skasowała kolumnę.
+`tenancy.0011` przepisała go do zbioru (włączony – na witrynie konkursu albo jego aliasu – →
+`["pl", "en"]`, wyłączony → `[język domyślny]`). Kolumna zostaje w tym wydaniu, nieczytana (§ 26.5).
 
 Instalacja zna 11 języków (`settings.LANGUAGES`): polski oraz dziesięć najczęściej używanych języków
 świata – `en`, `zh-hans`, `hi`, `es`, `ar` (od prawej do lewej), `fr`, `bn`, `pt`, `ru`, `id`.
@@ -3815,6 +3815,10 @@ Instalacja zna 11 języków (`settings.LANGUAGES`): polski oraz dziesięć najcz
   albo `/admin/` → Konkursy. Komenda bez kodów tylko pokazuje stan; zapis zostawia wpis audytu
   `competition.languages_changed`. Dopiero po tym kroku `iqo` pokazuje menu języków (glob w pasku
   konta), a gość bez ustawień przeglądarki dostaje angielski.
+- **`iqo` – marka w listach:** treść i tematy listów do uczestników niosą nazwę konkursu dopiero przy
+  przełączniku `competition_branding_in_mail` (`/admin/` → Konkursy → `iqo` → „przełączniki”:
+  `"competition_branding_in_mail": true`). Bez niego listy `iqo` mówią „Quantum Olympiad” (przekład
+  marki Olimpiady Kwantowej). Olimpiada Kwantowa ma go wyłączonego i tak ma zostać.
 
 ### 26.2. Jak serwis wybiera język
 
@@ -3842,6 +3846,16 @@ pilnują kompilacji, kompletu tłumaczeń i zgodności placeholderów).
 - **Napisy w skryptach JS** (podgląd wgrywanego pliku, wybór szkoły, szyfrowanie czatu) – po polsku;
   lista w `docs/tasks/I18N-01.md` § 14.
 - Treść zadań: pola `title_en`/`statement_pdf_en` obsługują **każdy** język poza polskim.
+- Nazwa „Olimpiada Kwantowa” w dyplomach PDF, protokołach i nagłówkach kilku stron publicznych
+  (zgoda opiekuna, przyjęcie zaproszenia) – do osobnego zadania marki.
+
+### 26.5. Kolumna `cms.SiteSettings.english_interface_enabled` – usunięcie w następnym wydaniu
+
+Kolumna jest od tego wydania **nieczytana** i nie ma jej w panelu. Nie kasujemy jej w tym samym
+wydaniu, bo w chwili `migrate` stare procesy `worker` i `beat` jeszcze działają na starym kodzie
+i czytają ją przy każdej wysyłce listu – skasowana wywracałaby ich zapytania do czasu restartu.
+Następne wydanie dokłada migrację `RemoveField` (i usuwa pole z modelu); do tego czasu kolumna
+jest martwa, a jej wartość niczego nie zmienia.
 
 ## 27. Kraje zamiast województw (REG-01, `docs/tasks/REG-01.md`)
 

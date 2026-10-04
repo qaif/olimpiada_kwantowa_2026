@@ -12,8 +12,8 @@
 
   Zdanie o tym, że nic się nie stanie bez kliknięcia, jest tu obowiązkowe: osoba, która nie chce
   brać udziału, ma prawo wiedzieć, że wystarczy ten list zignorować.
-{% endcomment %}{% blocktranslate trimmed with name=first_name school=school %}
-Cześć {{ name }}! Nauczyciel ze szkoły {{ school }} zgłosił Cię do Olimpiady Kwantowej.
+{% endcomment %}{% blocktranslate trimmed with name=first_name school=school competition_genitive=brand.competition_genitive|default:_("Olimpiady Kwantowej") %}
+Cześć {{ name }}! Nauczyciel ze szkoły {{ school }} zgłosił Cię do {{ competition_genitive }}.
 {% endblocktranslate %}
 
 {% translate "Konto czeka na Ciebie, ale jeszcze nie działa: hasło ustawiasz sam i sam akceptujesz regulamin oraz informację o przetwarzaniu danych. Otwórz poniższy adres:" %}
@@ -27,6 +27,6 @@ Link jest ważny {{ days }} dni. Jeśli wygaśnie, poproś nauczyciela o wysłan
 {% translate "Jeśli nie chcesz brać udziału – zignoruj tę wiadomość. Bez kliknięcia w link konto nie zostanie uruchomione i nikt nie zaloguje się na Twój adres." %}
 
 --
-{% translate "Olimpiada Kwantowa" %}
+{{ brand.competition|default:_("Olimpiada Kwantowa") }}
 {% translate "Wiadomość wysłana automatycznie; prosimy na nią nie odpowiadać." %}
 {% endautoescape %}

@@ -10,7 +10,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Olimpiada Kwantowa\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-04 13:47+0200\n"
+"POT-Creation-Date: 2026-10-04 15:08+0200\n"
 "PO-Revision-Date: 2026-10-04 15:00+0200\n"
 "Last-Translator: Olimpiada Kwantowa\n"
 "Language-Team: English\n"
@@ -50,15 +50,23 @@ msgstr "Account e-mail address changed – %(competition)s"
 #: apps/accounts/activation.py:97
 #, python-format
 msgid ""
-"Konto zostało założone. Sprawdź skrzynkę e-mail (także spam) i kliknij link aktywacyjny – bez tego logowanie nie zadziała. Link jest ważny %(hours)s godziny – po tym czasie konto zostanie usunięte i trzeba zarejestrować się ponownie."
+"Konto zostało założone. Sprawdź skrzynkę e-mail (także spam) i kliknij link "
+"aktywacyjny – bez tego logowanie nie zadziała. Link jest ważny %(hours)s "
+"godziny – po tym czasie konto zostanie usunięte i trzeba zarejestrować się "
+"ponownie."
 msgstr ""
-"Your account has been created. Check your inbox (including spam) and click the activation link – you won't be able to log in until you do. The link is valid for %(hours)s hours – after that the account will be deleted and you will need to register again."
+"Your account has been created. Check your inbox (including spam) and click "
+"the activation link – you won't be able to log in until you do. The link is "
+"valid for %(hours)s hours – after that the account will be deleted and you "
+"will need to register again."
 
 #: apps/accounts/activation.py:115
 msgid ""
-"Jeśli konto z tym adresem istnieje i czeka na aktywację, link został wysłany ponownie. Sprawdź też folder ze spamem."
+"Jeśli konto z tym adresem istnieje i czeka na aktywację, link został wysłany "
+"ponownie. Sprawdź też folder ze spamem."
 msgstr ""
-"If an account with this address exists and is awaiting activation, the link has been sent again. Please also check your spam folder."
+"If an account with this address exists and is awaiting activation, the link "
+"has been sent again. Please also check your spam folder."
 
 #: apps/accounts/activation.py:119
 msgid "Link aktywacyjny jest nieprawidłowy albo wygasł."
@@ -66,7 +74,7 @@ msgstr "The activation link is invalid or has expired."
 
 #: apps/accounts/activation.py:272 apps/accounts/supervisor_consent.py:213
 #: apps/accounts/supervisor_consent.py:256 apps/submissions/notifications.py:85
-#: templates/registration/invite_student_body.txt:30
+#: apps/tenancy/branding.py:104
 msgid "Olimpiada Kwantowa"
 msgstr "Quantum Olympiad"
 
@@ -78,18 +86,18 @@ msgid "Wiadomość wysłana automatycznie; prosimy na nią nie odpowiadać."
 msgstr "This message was sent automatically; please do not reply to it."
 
 #: apps/accounts/activation.py:281
+#, python-format
 msgid ""
-"Ktoś – prawdopodobnie Ty – założył konto w serwisie Olimpiady Kwantowej."
+"Ktoś – prawdopodobnie Ty – założył konto w serwisie %(competition_genitive)s."
 msgstr ""
-"Someone – most likely you – created an account on the Quantum Olympiad "
-"website."
+"Someone – probably you – created an account on the %(competition_genitive)s website."
 
-#: apps/accounts/activation.py:283
+#: apps/accounts/activation.py:284
 msgid "Aby aktywować konto i móc się zalogować, otwórz poniższy adres:"
 msgstr ""
 "To activate the account and be able to sign in, open the address below:"
 
-#: apps/accounts/activation.py:288
+#: apps/accounts/activation.py:289
 #, python-format
 msgid ""
 "Link jest ważny %(hours)s godziny. Po tym czasie konto zostanie usunięte i "
@@ -98,7 +106,7 @@ msgstr ""
 "The link is valid for %(hours)s hours. After that the account is deleted and "
 "registration has to be repeated."
 
-#: apps/accounts/activation.py:294
+#: apps/accounts/activation.py:295
 msgid ""
 "Jeśli to nie Ty zakładałeś konto – zignoruj tę wiadomość. Bez kliknięcia w "
 "link konto nie zostanie aktywowane i zniknie samo."
@@ -106,49 +114,45 @@ msgstr ""
 "If you did not create this account, simply ignore this message. Without "
 "clicking the link the account is never activated and disappears on its own."
 
-#: apps/accounts/activation.py:307
+#: apps/accounts/activation.py:308
 #, python-format
 msgid ""
-"Poproszono o zmianę adresu e-mail konta w serwisie Olimpiady Kwantowej na "
-"%(email)s."
+"Poproszono o zmianę adresu e-mail konta w serwisie %(competition_genitive)s na %(email)s."
 msgstr ""
-"A request was made to change the e-mail address of your Quantum Olympiad "
-"account to %(email)s."
+"A change of the account e-mail address on the %(competition_genitive)s website to %(email)s was requested."
 
-#: apps/accounts/activation.py:310
+#: apps/accounts/activation.py:311
 msgid "Aby potwierdzić nowy adres, otwórz poniższy adres:"
 msgstr "To confirm the new address, open the link below:"
 
-#: apps/accounts/activation.py:314
+#: apps/accounts/activation.py:315
 msgid ""
 "Do potwierdzenia obowiązuje dotychczasowy adres – logowanie działa bez zmian."
 msgstr ""
 "Until you confirm, the current address remains in force – signing in works "
 "as before."
 
-#: apps/accounts/activation.py:315
+#: apps/accounts/activation.py:316
 msgid "Link jest ważny 24 godziny."
 msgstr "The link is valid for 24 hours."
 
-#: apps/accounts/activation.py:317
+#: apps/accounts/activation.py:318
 msgid "Jeśli to nie Ty prosiłeś o zmianę – zignoruj tę wiadomość."
 msgstr "If you did not request the change, simply ignore this message."
 
-#: apps/accounts/activation.py:333
+#: apps/accounts/activation.py:334
 #, python-format
 msgid ""
-"Adres e-mail konta w serwisie Olimpiady Kwantowej został zmieniony na "
-"%(email)s. Logowanie tym adresem przestaje działać."
+"Adres e-mail konta w serwisie %(competition_genitive)s został zmieniony na %(email)s. Logowanie tym adresem przestaje działać."
 msgstr ""
-"The e-mail address of your Quantum Olympiad account has been changed to "
-"%(email)s. Signing in with the previous address no longer works."
+"The account e-mail address on the %(competition_genitive)s website has been changed to %(email)s. Signing in with this address no longer works."
 
-#: apps/accounts/activation.py:338
+#: apps/accounts/activation.py:339
 msgid ""
 "Jeśli to nie Ty dokonałeś zmiany, natychmiast skontaktuj się z organizatorem."
 msgstr "If you did not make this change, contact the organiser immediately."
 
-#: apps/accounts/activation.py:537
+#: apps/accounts/activation.py:538
 msgid "To konto jest już aktywne – możesz się zalogować."
 msgstr "This account is already active – you can log in."
 
@@ -164,11 +168,11 @@ msgstr "Permissions"
 msgid "Important dates"
 msgstr "Important dates"
 
-#: apps/accounts/bulk_registration.py:124
+#: apps/accounts/bulk_registration.py:125
 msgid "Link z zaproszeniem jest nieprawidłowy albo wygasł."
 msgstr "The invitation link is invalid or has expired."
 
-#: apps/accounts/bulk_registration.py:290
+#: apps/accounts/bulk_registration.py:291
 msgid ""
 "adres ma już konto – jeśli to uczeń tego konkursu, dostanie prośbę o zgodę "
 "na dopisanie opiekuna"
@@ -199,19 +203,18 @@ msgid "Link do formularza zgody jest nieprawidłowy albo wygasł."
 msgstr "The link to the consent form is invalid or has expired."
 
 #: apps/accounts/guardian.py:189
+#, python-format
 msgid ""
-"Uczennica lub uczeń podał ten adres jako kontakt do rodzica albo opiekuna "
-"prawnego w zgłoszeniu do Olimpiady Kwantowej."
+"Uczennica lub uczeń podał ten adres jako kontakt do rodzica albo opiekuna prawnego w zgłoszeniu do %(competition_genitive)s."
 msgstr ""
-"A student gave this address as the contact for a parent or legal guardian in "
-"their Quantum Olympiad entry."
+"A student gave this address as the contact of a parent or legal guardian in their %(competition_genitive)s entry."
 
-#: apps/accounts/guardian.py:193
+#: apps/accounts/guardian.py:194
 #, python-format
 msgid "Zgłoszenie dotyczy: %(name)s (%(school)s)."
 msgstr "The entry concerns: %(name)s (%(school)s)."
 
-#: apps/accounts/guardian.py:196
+#: apps/accounts/guardian.py:197
 msgid ""
 "Udział osoby niepełnoletniej wymaga zgody opiekuna. Treść zgody i formularz "
 "potwierdzenia znajdują się pod poniższym adresem:"
@@ -219,12 +222,12 @@ msgstr ""
 "Participation by a minor requires guardian consent. The wording of the "
 "consent and the confirmation form are at the address below:"
 
-#: apps/accounts/guardian.py:202
+#: apps/accounts/guardian.py:203
 #, python-format
 msgid "Link jest ważny %(days)s dni."
 msgstr "The link is valid for %(days)s days."
 
-#: apps/accounts/guardian.py:205
+#: apps/accounts/guardian.py:206
 msgid ""
 "Jeśli nie jesteś opiekunem tej osoby albo nie wyrażasz zgody – zignoruj tę "
 "wiadomość. Bez potwierdzenia zgoda nie zostanie zapisana."
@@ -232,81 +235,97 @@ msgstr ""
 "If you are not this person's guardian, or you do not consent, simply ignore "
 "this message. Without confirmation no consent is recorded."
 
-#: apps/accounts/guardian.py:219
+#: apps/accounts/guardian.py:220
 #, python-format
 msgid ""
-"Zgoda rodzica lub opiekuna prawnego na Twój udział w Olimpiadzie Kwantowej "
-"została potwierdzona z adresu %(email)s."
+"Zgoda rodzica lub opiekuna prawnego na Twój udział w %(competition_locative)s została potwierdzona z adresu %(email)s."
 msgstr ""
-"Consent of a parent or legal guardian to your participation in the Quantum "
-"Olympiad has been confirmed from %(email)s."
+"The consent of a parent or legal guardian to your participation in the %(competition_locative)s has been confirmed from %(email)s."
 
-#: apps/accounts/guardian.py:224
+#: apps/accounts/guardian.py:225
 msgid "Stan zgód widzisz po zalogowaniu w panelu uczestnika."
 msgstr ""
 "You can see the status of your consents after signing in to the participant "
 "panel."
 
-#: apps/accounts/guardian.py:245 apps/web/views/participant_extras.py:48
+#: apps/accounts/guardian.py:246 apps/web/views/participant_extras.py:48
 msgid "Podaj adres e-mail rodzica lub opiekuna prawnego."
 msgstr "Enter the e-mail address of a parent or legal guardian."
 
-#: apps/accounts/guardian.py:251
+#: apps/accounts/guardian.py:252
 msgid "Zgoda opiekuna nie jest wymagana dla osoby pełnoletniej."
 msgstr "Guardian consent is not required for adults."
 
-#: apps/accounts/guardian.py:260
+#: apps/accounts/guardian.py:261
 msgid "Adres opiekuna musi być inny niż Twój własny adres konta."
 msgstr ""
 "Your guardian's address must be different from your own account address."
 
-#: apps/accounts/guardian.py:276
+#: apps/accounts/guardian.py:277
 msgid "uczestnik/uczestniczka"
 msgstr "participant"
 
-#: apps/accounts/profile.py:247
+#: apps/accounts/profile.py:255
 msgid "Podaj nowy adres e-mail."
 msgstr "Enter a new e-mail address."
 
-#: apps/accounts/profile.py:253
+#: apps/accounts/profile.py:261
 msgid "Konto z tym adresem e-mail już istnieje."
 msgstr "An account with this e-mail address already exists."
 
-#: apps/accounts/profile.py:268
+#: apps/accounts/profile.py:276
 msgid "To już jest adres tego konta."
 msgstr "This is already the address of this account."
 
-#: apps/accounts/profile.py:288
+#: apps/accounts/profile.py:296
 msgid "Link potwierdzający jest nieprawidłowy albo wygasł."
 msgstr "The confirmation link is invalid or has expired."
 
-#: apps/accounts/profile.py:627
+#: apps/accounts/profile.py:635
 msgid ""
-"Konta koordynatora nie można usunąć z panelu – skontaktuj się z administratorem serwisu."
+"Konta koordynatora nie można usunąć z panelu – skontaktuj się z "
+"administratorem serwisu."
 msgstr ""
-"A coordinator account cannot be deleted from the dashboard – please contact the site administrator."
+"A coordinator account cannot be deleted from the dashboard – please contact "
+"the site administrator."
 
-#: apps/accounts/profile.py:649
+#: apps/accounts/profile.py:657
 msgid "Nieprawidłowe hasło."
 msgstr "Incorrect password."
 
-#: apps/accounts/profile.py:653
+#: apps/accounts/profile.py:661
 msgid "Przepisz dokładnie adres e-mail swojego konta."
 msgstr "Type your account's e-mail address exactly."
 
-#: apps/accounts/regions.py:213 apps/web/forms.py:902 apps/web/forms.py:938
-#: apps/web/forms.py:1056 apps/web/forms.py:1379 apps/web/views/invite.py:75
+#: apps/accounts/regions.py:214 apps/web/forms.py:901 apps/web/forms.py:937
+#: apps/web/forms.py:1055 apps/web/forms.py:1378 apps/web/views/invite.py:75
 msgid "Województwo"
 msgstr "Voivodeship"
 
-#: apps/accounts/regions.py:224 apps/web/forms.py:558
+#: apps/accounts/regions.py:219 apps/web/forms.py:557
 msgid "Kraj"
 msgstr "Country"
 
-#: apps/accounts/regions.py:224
+#: apps/accounts/regions.py:219
 #: templates/web/supervisor/_import_preview.html:54
 msgid "Region"
 msgstr "Region"
+
+#: apps/accounts/services.py:172
+msgid "Nieznane województwo – wybierz jedno z listy."
+msgstr "Unknown voivodeship – choose one from the list."
+
+#: apps/accounts/services.py:178
+msgid "Województwo jest wymagane."
+msgstr "The voivodeship is required."
+
+#: apps/accounts/services.py:224
+msgid "Wybierz pozycję z listy – to pole jest wymagane."
+msgstr "Choose an item from the list – this field is required."
+
+#: apps/accounts/services.py:232
+msgid "Nieznana pozycja – wybierz jedną z listy."
+msgstr "Unknown item – choose one from the list."
 
 # --- v0.38.6: zgoda ucznia na opiekuna szkolnego (apps.accounts.supervisor_consent) ---
 #: apps/accounts/supervisor_consent.py:88
@@ -342,9 +361,11 @@ msgstr "Two-factor authentication is already enabled on this account."
 
 #: apps/accounts/twofactor.py:404
 msgid ""
-"Kod z aplikacji nie pasuje. Sprawdź, czy zegar w telefonie jest ustawiony automatycznie."
+"Kod z aplikacji nie pasuje. Sprawdź, czy zegar w telefonie jest ustawiony "
+"automatycznie."
 msgstr ""
-"The code from the app doesn't match. Make sure your phone's clock is set automatically."
+"The code from the app doesn't match. Make sure your phone's clock is set "
+"automatically."
 
 #: apps/accounts/twofactor.py:608
 msgid "Wymagane potwierdzenie drugiego składnika logowania."
@@ -375,7 +396,7 @@ msgstr "%(label)s cannot exceed %(limit)s characters."
 msgid "Nie ma takiego rozwiązania."
 msgstr "No such solution."
 
-#: apps/appeals/services.py:160 apps/web/forms.py:1245
+#: apps/appeals/services.py:160 apps/web/forms.py:1244
 msgid "Uzasadnienie reklamacji"
 msgstr "Grounds for appeal"
 
@@ -477,9 +498,11 @@ msgstr "You can't send messages to this person."
 
 #: apps/chat/services.py:95
 msgid ""
-"Organizator wyłączył rozmowy między uczestnikami – ta rozmowa jest teraz tylko do odczytu."
+"Organizator wyłączył rozmowy między uczestnikami – ta rozmowa jest teraz "
+"tylko do odczytu."
 msgstr ""
-"The organiser has disabled conversations between participants – this conversation is now read-only."
+"The organiser has disabled conversations between participants – this "
+"conversation is now read-only."
 
 #: apps/chat/services.py:97
 msgid "Zablokowałeś tę osobę. Odblokuj ją, jeśli chcesz napisać."
@@ -527,7 +550,8 @@ msgstr "The organiser has not enabled encrypted conversations."
 msgid ""
 "Masz już klucz szyfrowania. Nowy utworzysz przyciskiem „Utwórz nowy klucz”."
 msgstr ""
-"You already have an encryption key. To create a new one, use the “Create new key” button."
+"You already have an encryption key. To create a new one, use the “Create new "
+"key” button."
 
 #: apps/chat/services.py:506
 msgid "Klucz publiczny"
@@ -549,15 +573,20 @@ msgstr "Too few PBKDF2 iterations (minimum %(minimum)s)."
 #: apps/chat/services.py:751
 #, python-format
 msgid ""
-"Trwa etap „%(stage)s” – rozmowy szyfrowane są wstrzymane, bo organizator nie może ich moderować. Wrócą po zamknięciu etapu."
+"Trwa etap „%(stage)s” – rozmowy szyfrowane są wstrzymane, bo organizator nie "
+"może ich moderować. Wrócą po zamknięciu etapu."
 msgstr ""
-"Stage “%(stage)s” is in progress – encrypted conversations are paused because the organiser cannot moderate them. They will resume once the stage closes."
+"Stage “%(stage)s” is in progress – encrypted conversations are paused "
+"because the organiser cannot moderate them. They will resume once the stage "
+"closes."
 
 #: apps/chat/services.py:754
 msgid ""
-"Organizator wyłączył szyfrowane rozmowy – ta rozmowa jest teraz tylko do odczytu."
+"Organizator wyłączył szyfrowane rozmowy – ta rozmowa jest teraz tylko do "
+"odczytu."
 msgstr ""
-"The organiser has disabled encrypted conversations – this conversation is now read-only."
+"The organiser has disabled encrypted conversations – this conversation is "
+"now read-only."
 
 #: apps/chat/services.py:796
 msgid "Wiadomość nie może być pusta."
@@ -591,9 +620,11 @@ msgstr "Ciphertext"
 
 #: apps/chat/services.py:896
 msgid ""
-"Klucz szyfrowania zmienił się, odkąd otworzyłeś tę stronę. Odśwież ją i napisz jeszcze raz."
+"Klucz szyfrowania zmienił się, odkąd otworzyłeś tę stronę. Odśwież ją i "
+"napisz jeszcze raz."
 msgstr ""
-"The encryption key has changed since you opened this page. Refresh it and write your message again."
+"The encryption key has changed since you opened this page. Refresh it and "
+"write your message again."
 
 #: apps/chat/services.py:951
 msgid "Ta rozmowa nie jest szyfrowana – serwer nie przyjmuje szyfrogramu."
@@ -606,9 +637,11 @@ msgstr "You can't write to yourself."
 
 #: apps/chat/services.py:1025
 msgid ""
-"Nowe rozmowy są szyfrowane – rozpocznij rozmowę przyciskiem „Rozpocznij rozmowę szyfrowaną”."
+"Nowe rozmowy są szyfrowane – rozpocznij rozmowę przyciskiem „Rozpocznij "
+"rozmowę szyfrowaną”."
 msgstr ""
-"New conversations are encrypted – start one with the “Start encrypted conversation” button."
+"New conversations are encrypted – start one with the “Start encrypted "
+"conversation” button."
 
 #: apps/chat/services.py:1412 apps/forum/services.py:509
 #: templates/web/forum/post_report.html:46
@@ -617,7 +650,8 @@ msgstr "Reason for report"
 
 #: apps/chat/services.py:1419
 msgid ""
-"Nie udało się odszyfrować wiadomości do zgłoszenia – odblokuj szyfrowanie i spróbuj ponownie."
+"Nie udało się odszyfrować wiadomości do zgłoszenia – odblokuj szyfrowanie i "
+"spróbuj ponownie."
 msgstr ""
 "Couldn't decrypt the message to report it – unlock encryption and try again."
 
@@ -627,8 +661,7 @@ msgstr "The reported content is too long."
 
 #: apps/chat/services.py:1431
 msgid "Ta wiadomość jest już zgłoszona – organizator ją przejrzy."
-msgstr ""
-"This message has already been reported – the organiser will review it."
+msgstr "This message has already been reported – the organiser will review it."
 
 #: apps/cms/timeline.py:34 apps/web/participant_now.py:181
 msgid "wyniki ogłoszone"
@@ -675,7 +708,8 @@ msgstr "This stage is not held as an interview."
 msgid ""
 "Do rozmowy przystępują wyłącznie osoby zakwalifikowane w poprzednim etapie."
 msgstr ""
-"Only participants who qualified in the previous stage can take part in the interview."
+"Only participants who qualified in the previous stage can take part in the "
+"interview."
 
 #: apps/competitions/interviews.py:240
 msgid "Etap jest zamknięty – zapisy na rozmowy nie są już możliwe."
@@ -683,7 +717,8 @@ msgstr "The stage is closed – interview sign-ups are no longer possible."
 
 #: apps/competitions/interviews.py:253
 msgid ""
-"Ten etap należy do edycji archiwalnej – zapisy na rozmowy są w niej zamknięte."
+"Ten etap należy do edycji archiwalnej – zapisy na rozmowy są w niej "
+"zamknięte."
 msgstr ""
 "This stage belongs to an archived edition – interview sign-ups are closed."
 
@@ -742,9 +777,14 @@ msgstr "The interview has already started – the slot cannot be cancelled."
 
 #: apps/competitions/logistics.py:72
 msgid ""
-"Napisz wyłącznie to, co jest potrzebne do przygotowania pobytu (np. „dieta bezmięsna”, „pokój na parterze”). Nie podawaj diagnoz, nazw chorób, leków ani orzeczeń – tych informacji nie potrzebujemy i prosimy ich nie przesyłać."
+"Napisz wyłącznie to, co jest potrzebne do przygotowania pobytu (np. „dieta "
+"bezmięsna”, „pokój na parterze”). Nie podawaj diagnoz, nazw chorób, leków "
+"ani orzeczeń – tych informacji nie potrzebujemy i prosimy ich nie przesyłać."
 msgstr ""
-"Write only what we need to arrange your stay (e.g. “vegetarian diet”, “ground-floor room”). Do not give diagnoses, names of illnesses, medication or medical certificates – we do not need this information and ask you not to send it."
+"Write only what we need to arrange your stay (e.g. “vegetarian diet”, "
+"“ground-floor room”). Do not give diagnoses, names of illnesses, medication "
+"or medical certificates – we do not need this information and ask you not to "
+"send it."
 
 #: apps/competitions/logistics.py:86
 msgid "nocleg"
@@ -873,9 +913,11 @@ msgstr "Statement"
 
 #: apps/forum/forms.py:40
 msgid ""
-"Zwykły tekst. Odnośniki zamieniamy na klikalne same – znaczników HTML i załączników forum nie przyjmuje."
+"Zwykły tekst. Odnośniki zamieniamy na klikalne same – znaczników HTML i "
+"załączników forum nie przyjmuje."
 msgstr ""
-"Plain text. Links are made clickable automatically – the forum does not accept HTML tags or attachments."
+"Plain text. Links are made clickable automatically – the forum does not "
+"accept HTML tags or attachments."
 
 #: apps/forum/forms.py:49 apps/forum/services.py:370 apps/support/forms.py:44
 #: apps/support/services.py:338 templates/cms/blocks/schedule.html:19
@@ -892,8 +934,7 @@ msgid "Dlaczego zgłaszasz ten wpis"
 msgstr "Why are you reporting this post"
 
 #: apps/forum/forms.py:67
-msgid ""
-"Napisz krótko, co jest nie tak. Zgłoszenie widzi wyłącznie organizator."
+msgid "Napisz krótko, co jest nie tak. Zgłoszenie widzi wyłącznie organizator."
 msgstr "Briefly describe what's wrong. Only the organiser can see the report."
 
 #: apps/forum/forms.py:108
@@ -1280,9 +1321,11 @@ msgstr ""
 
 #: apps/student_status/services.py:275
 msgid ""
-"Twoje zaświadczenie zostało już zaakceptowane – nie trzeba wgrywać go ponownie."
+"Twoje zaświadczenie zostało już zaakceptowane – nie trzeba wgrywać go "
+"ponownie."
 msgstr ""
-"Your certificate has already been accepted – there's no need to upload it again."
+"Your certificate has already been accepted – there's no need to upload it "
+"again."
 
 #: apps/student_status/validators.py:84 apps/submissions/validators.py:209
 #: templates/web/reviewer/_code.html:42
@@ -1292,15 +1335,20 @@ msgstr "The file is empty."
 #: apps/student_status/validators.py:88
 #, python-format
 msgid ""
-"Plik ma %(size)s MB – limit to %(limit)s MB. Zrób zdjęcie w niższej rozdzielczości albo zapisz skan jako PDF."
+"Plik ma %(size)s MB – limit to %(limit)s MB. Zrób zdjęcie w niższej "
+"rozdzielczości albo zapisz skan jako PDF."
 msgstr ""
-"The file is %(size)s MB – the limit is %(limit)s MB. Take a lower-resolution photo or save the scan as a PDF."
+"The file is %(size)s MB – the limit is %(limit)s MB. Take a lower-resolution "
+"photo or save the scan as a PDF."
 
 #: apps/student_status/validators.py:99
 msgid ""
-"Treść pliku nie jest ani PDF-em, ani zdjęciem JPG/PNG. Rozpoznajemy format po zawartości, nie po rozszerzeniu – zapisz skan ponownie jako PDF, JPG albo PNG."
+"Treść pliku nie jest ani PDF-em, ani zdjęciem JPG/PNG. Rozpoznajemy format "
+"po zawartości, nie po rozszerzeniu – zapisz skan ponownie jako PDF, JPG albo "
+"PNG."
 msgstr ""
-"The file content is neither a PDF nor a JPG/PNG image. We detect the format by content, not by extension – save the scan again as PDF, JPG or PNG."
+"The file content is neither a PDF nor a JPG/PNG image. We detect the format "
+"by content, not by extension – save the scan again as PDF, JPG or PNG."
 
 #: apps/submissions/models.py:31 apps/submissions/status_track.py:54
 msgid "oddane"
@@ -1397,18 +1445,17 @@ msgstr "partially upheld"
 #: apps/submissions/notifications.py:133
 #, python-format
 msgid ""
-"Twoje rozwiązanie zostało przyjęte przez serwis Olimpiady Kwantowej "
-"(%(stage)s)."
+"Twoje rozwiązanie zostało przyjęte przez serwis %(competition_genitive)s (%(stage)s)."
 msgstr ""
-"Your solution has been accepted by the Quantum Olympiad website (%(stage)s)."
+"Your solution has been accepted by the %(competition_genitive)s website (%(stage)s)."
 
-#: apps/submissions/notifications.py:136 apps/submissions/notifications.py:181
-#: apps/submissions/notifications.py:320
+#: apps/submissions/notifications.py:136 apps/submissions/notifications.py:182
+#: apps/submissions/notifications.py:322
 #, python-format
 msgid "Zadanie: %(number)s. %(title)s"
 msgstr "Problem: %(number)s. %(title)s"
 
-#: apps/submissions/notifications.py:138 apps/submissions/notifications.py:183
+#: apps/submissions/notifications.py:138 apps/submissions/notifications.py:184
 #, python-format
 msgid "Wersja: %(version)s"
 msgstr "Version: %(version)s"
@@ -1418,7 +1465,7 @@ msgstr "Version: %(version)s"
 msgid "Czas przyjęcia (UTC): %(when)s"
 msgstr "Time received (UTC): %(when)s"
 
-#: apps/submissions/notifications.py:140 apps/submissions/notifications.py:184
+#: apps/submissions/notifications.py:140 apps/submissions/notifications.py:185
 #, python-format
 msgid "Suma kontrolna pliku (sha256): %(sha)s"
 msgstr "File checksum (sha256): %(sha)s"
@@ -1439,19 +1486,18 @@ msgstr ""
 "Every further upload creates a new version; the last one is the one graded."
 
 #: apps/submissions/notifications.py:176
+#, python-format
 msgid ""
-"Plik, który wysłałeś do serwisu Olimpiady Kwantowej, został odrzucony przez "
-"skan antywirusowy i nie wejdzie do oceniania."
+"Plik, który wysłałeś do serwisu %(competition_genitive)s, został odrzucony przez skan antywirusowy i nie wejdzie do oceniania."
 msgstr ""
-"The file you uploaded to the Quantum Olympiad website was rejected by the "
-"antivirus scan and will not enter grading."
+"The file you sent to the %(competition_genitive)s website was rejected by the antivirus scan and will not be assessed."
 
-#: apps/submissions/notifications.py:180 apps/submissions/notifications.py:319
+#: apps/submissions/notifications.py:181 apps/submissions/notifications.py:321
 #, python-format
 msgid "Etap: %(stage)s"
 msgstr "Stage: %(stage)s"
 
-#: apps/submissions/notifications.py:187
+#: apps/submissions/notifications.py:188
 msgid ""
 "Najczęstszą przyczyną jest zainfekowany komputer albo plik pobrany z "
 "nieznanego źródła, a nie treść samego rozwiązania."
@@ -1459,7 +1505,7 @@ msgstr ""
 "The most common cause is an infected computer or a file downloaded from an "
 "unknown source, not the content of the solution itself."
 
-#: apps/submissions/notifications.py:192
+#: apps/submissions/notifications.py:193
 msgid ""
 "Co zrobić: sprawdź komputer programem antywirusowym, wygeneruj plik ponownie "
 "i wyślij go jeszcze raz w panelu uczestnika. Liczy się ostatnia wersja "
@@ -1469,48 +1515,51 @@ msgstr ""
 "again and upload it once more in the participant panel. What counts is the "
 "last version accepted before the deadline."
 
-#: apps/submissions/notifications.py:230
+#: apps/submissions/notifications.py:231
 #, python-format
 msgid "Wyniki etapu „%(stage)s” (%(edition)s) zostały ogłoszone."
 msgstr "The results of stage “%(stage)s” (%(edition)s) have been published."
 
-#: apps/submissions/notifications.py:233
+#: apps/submissions/notifications.py:234
 #, python-format
 msgid "Tabela wyników: %(link)s"
 msgstr "Results table: %(link)s"
 
-#: apps/submissions/notifications.py:234
+#: apps/submissions/notifications.py:235
 #, python-format
 msgid "Twoje punkty i komentarze recenzentów: %(link)s"
 msgstr "Your points and reviewers' comments: %(link)s"
 
-#: apps/submissions/notifications.py:237
+#: apps/submissions/notifications.py:238
 msgid ""
-"Jeżeli nie zgadzasz się z oceną, reklamację składa się w panelu uczestnika w oknie reklamacji wyznaczonym dla tego etapu."
+"Jeżeli nie zgadzasz się z oceną, reklamację składa się w panelu uczestnika w "
+"oknie reklamacji wyznaczonym dla tego etapu."
 msgstr ""
-"If you disagree with your score, you can submit an appeal in the participant dashboard during the appeal window set for this stage."
+"If you disagree with your score, you can submit an appeal in the participant "
+"dashboard during the appeal window set for this stage."
 
-#: apps/submissions/notifications.py:317
+#: apps/submissions/notifications.py:318
+#, python-format
 msgid ""
-"Komisja odwoławcza rozstrzygnęła Twoją reklamację w Olimpiadzie Kwantowej."
+"Komisja odwoławcza rozstrzygnęła Twoją reklamację w %(competition_locative)s."
 msgstr ""
-"The appeals committee has decided on your appeal in the Quantum Olympiad."
+"The appeals committee has decided on your appeal in the %(competition_locative)s."
 
-#: apps/submissions/notifications.py:322
+#: apps/submissions/notifications.py:324
 #, python-format
 msgid "Rozstrzygnięcie: %(status)s"
 msgstr "Decision: %(status)s"
 
-#: apps/submissions/notifications.py:324
+#: apps/submissions/notifications.py:326
 msgid "Uzasadnienie komisji:"
 msgstr "Committee's reasoning:"
 
-#: apps/submissions/notifications.py:327
+#: apps/submissions/notifications.py:329
 #, python-format
 msgid "Szczegóły znajdziesz w panelu uczestnika: %(link)s"
 msgstr "You can find the details in the participant dashboard: %(link)s"
 
-#: apps/submissions/notifications.py:328
+#: apps/submissions/notifications.py:330
 msgid "Punktację zobaczysz tam po ogłoszeniu wyników etapu."
 msgstr "You will see your score there once the stage results are published."
 
@@ -1550,7 +1599,8 @@ msgstr "Only .pdf, .ipynb, .py and .jpg (.jpeg) files are recognised."
 #: apps/submissions/validators.py:57
 #, python-format
 msgid ""
-"Format .%(ext)s nie jest dopuszczony dla tego zadania (dozwolone: %(allowed)s)."
+"Format .%(ext)s nie jest dopuszczony dla tego zadania (dozwolone: "
+"%(allowed)s)."
 msgstr ""
 "The .%(ext)s format is not allowed for this problem (allowed: %(allowed)s)."
 
@@ -1573,7 +1623,8 @@ msgstr "The notebook must be a JSON object."
 #: apps/submissions/validators.py:140
 #, python-format
 msgid ""
-"Obsługiwane są wyłącznie notatniki w formacie nbformat %(version)s lub nowszym."
+"Obsługiwane są wyłącznie notatniki w formacie nbformat %(version)s lub "
+"nowszym."
 msgstr "Only notebooks in nbformat %(version)s or later are supported."
 
 #: apps/submissions/validators.py:147
@@ -1615,9 +1666,12 @@ msgstr "Describe what's happening"
 
 #: apps/support/forms.py:50
 msgid ""
-"Napisz, co próbowałeś zrobić i co się stało. Jeśli widziałeś komunikat błędu – przepisz go. Adres strony i przeglądarkę dołączamy automatycznie."
+"Napisz, co próbowałeś zrobić i co się stało. Jeśli widziałeś komunikat błędu "
+"– przepisz go. Adres strony i przeglądarkę dołączamy automatycznie."
 msgstr ""
-"Tell us what you were trying to do and what happened. If you saw an error message, copy it here. We attach the page address and your browser automatically."
+"Tell us what you were trying to do and what happened. If you saw an error "
+"message, copy it here. We attach the page address and your browser "
+"automatically."
 
 #: apps/support/forms.py:63
 msgid "Twój adres e-mail"
@@ -1626,7 +1680,8 @@ msgstr "Your e-mail address"
 #: apps/support/forms.py:65
 msgid "Na ten adres odpowie organizator. Zgłoszenie nie zakłada konta."
 msgstr ""
-"The organiser will reply to this address. Submitting a ticket does not create an account."
+"The organiser will reply to this address. Submitting a ticket does not "
+"create an account."
 
 #: apps/support/forms.py:92
 msgid "Twoja odpowiedź"
@@ -1709,11 +1764,21 @@ msgstr "This ticket is closed. Open a new one if the issue has come back."
 msgid "Treść odpowiedzi"
 msgstr "Reply text"
 
+#: apps/tenancy/branding.py:105
+msgid "Olimpiady Kwantowej"
+msgstr "Quantum Olympiad"
+
+#: apps/tenancy/branding.py:106
+msgid "Olimpiadzie Kwantowej"
+msgstr "Quantum Olympiad"
+
 #: apps/web/captcha.py:63
 msgid ""
-"Nie udało się potwierdzić, że formularz wypełnił człowiek. Wyślij go jeszcze raz, a jeśli błąd się powtarza – napisz do contact@qaif.org."
+"Nie udało się potwierdzić, że formularz wypełnił człowiek. Wyślij go jeszcze "
+"raz, a jeśli błąd się powtarza – napisz do contact@qaif.org."
 msgstr ""
-"We couldn't confirm that the form was filled in by a human. Please submit it again, and if the error persists, write to contact@qaif.org."
+"We couldn't confirm that the form was filled in by a human. Please submit it "
+"again, and if the error persists, write to contact@qaif.org."
 
 #: apps/web/captcha.py:67
 msgid "Zabezpieczenie antyspamowe"
@@ -1721,23 +1786,31 @@ msgstr "Spam protection"
 
 #: apps/web/captcha.py:73
 msgid ""
-"Wpisz wynik działania z obrazka. Nie widzisz obrazka (czytnik ekranu, brak grafiki)? Napisz do contact@qaif.org – konto założymy ręcznie."
+"Wpisz wynik działania z obrazka. Nie widzisz obrazka (czytnik ekranu, brak "
+"grafiki)? Napisz do contact@qaif.org – konto założymy ręcznie."
 msgstr ""
-"Enter the result of the calculation shown in the image. Can't see the image (screen reader, images disabled)? Write to contact@qaif.org and we'll create your account manually."
+"Enter the result of the calculation shown in the image. Can't see the image "
+"(screen reader, images disabled)? Write to contact@qaif.org and we'll create "
+"your account manually."
 
 #: apps/web/captcha.py:83
 #, python-format
 msgid ""
-"Nie udało się potwierdzić, że formularz wypełnił człowiek. Wyślij go jeszcze raz, a jeśli błąd się powtarza – napisz do %(contact)s."
+"Nie udało się potwierdzić, że formularz wypełnił człowiek. Wyślij go jeszcze "
+"raz, a jeśli błąd się powtarza – napisz do %(contact)s."
 msgstr ""
-"We couldn't confirm that the form was filled in by a human. Please submit it again, and if the error persists, write to %(contact)s."
+"We couldn't confirm that the form was filled in by a human. Please submit it "
+"again, and if the error persists, write to %(contact)s."
 
 #: apps/web/captcha.py:87
 #, python-format
 msgid ""
-"Wpisz wynik działania z obrazka. Nie widzisz obrazka (czytnik ekranu, brak grafiki)? Napisz do %(contact)s – konto założymy ręcznie."
+"Wpisz wynik działania z obrazka. Nie widzisz obrazka (czytnik ekranu, brak "
+"grafiki)? Napisz do %(contact)s – konto założymy ręcznie."
 msgstr ""
-"Enter the result of the calculation shown in the image. Can't see the image (screen reader, images disabled)? Write to %(contact)s and we'll create your account manually."
+"Enter the result of the calculation shown in the image. Can't see the image "
+"(screen reader, images disabled)? Write to %(contact)s and we'll create your "
+"account manually."
 
 #: apps/web/captcha.py:218
 msgid "Wynik działania jest niepoprawny. Spróbuj z nowym obrazkiem."
@@ -1747,201 +1820,213 @@ msgstr "The result is incorrect. Try again with a new image."
 msgid "— wybierz województwo —"
 msgstr "— choose a voivodeship —"
 
-#: apps/web/forms.py:119
+#: apps/web/forms.py:118
 msgid "— wybierz —"
 msgstr "— select —"
 
-#: apps/web/forms.py:167
+#: apps/web/forms.py:166
 msgid "Telefon"
 msgstr "Phone"
 
-#: apps/web/forms.py:170
+#: apps/web/forms.py:169
 msgid "Do kontaktu w sprawach organizacyjnych, np. +48 600 000 000."
 msgstr "For organisational matters, e.g. +48 600 000 000."
 
-#: apps/web/forms.py:182
+#: apps/web/forms.py:181
 msgid ""
-"Osoby niepełnoletnie potrzebują zgody opiekuna – pole poniżej pojawi się automatycznie."
+"Osoby niepełnoletnie potrzebują zgody opiekuna – pole poniżej pojawi się "
+"automatycznie."
 msgstr ""
 "Minors need a guardian's consent – the field below will appear automatically."
 
-#: apps/web/forms.py:214 templates/web/participant/dashboard.html:66
+#: apps/web/forms.py:213 templates/web/participant/dashboard.html:66
 #: templates/web/supervisor/_import_preview.html:45
 msgid "Data urodzenia"
 msgstr "Date of birth"
 
-#: apps/web/forms.py:241
+#: apps/web/forms.py:240
 msgid "Data urodzenia nie może być z przyszłości."
 msgstr "Date of birth cannot be in the future."
 
-#: apps/web/forms.py:244
+#: apps/web/forms.py:243
 #, python-format
 msgid "Data urodzenia nie może być wcześniejsza niż %(date)s."
 msgstr "Date of birth cannot be earlier than %(date)s."
 
-#: apps/web/forms.py:260
+#: apps/web/forms.py:259
 msgid "Hasło"
 msgstr "Password"
 
-#: apps/web/forms.py:277
+#: apps/web/forms.py:276
 msgid "Hasła nie są identyczne."
 msgstr "The passwords don't match."
 
-#: apps/web/forms.py:431
+#: apps/web/forms.py:430
 msgid "Miejscowość"
 msgstr "Town/city"
 
-#: apps/web/forms.py:435
+#: apps/web/forms.py:434
 msgid ""
-"Wpisz pierwsze litery i wybierz miejscowość z podpowiedzi. Pole „Szkoła” pokaże wtedy pełną listę szkół z tej miejscowości."
+"Wpisz pierwsze litery i wybierz miejscowość z podpowiedzi. Pole „Szkoła” "
+"pokaże wtedy pełną listę szkół z tej miejscowości."
 msgstr ""
-"Type the first few letters and choose the town from the suggestions. The “School” field will then show the full list of schools in that town."
+"Type the first few letters and choose the town from the suggestions. The "
+"“School” field will then show the full list of schools in that town."
 
-#: apps/web/forms.py:450
+#: apps/web/forms.py:449
 msgid "Szkoła"
 msgstr "School"
 
-#: apps/web/forms.py:453
+#: apps/web/forms.py:452
 msgid "Zacznij pisać nazwę lub miejscowość i wybierz szkołę z podpowiedzi."
 msgstr ""
 "Start typing the name or town and choose the school from the suggestions."
 
-#: apps/web/forms.py:466
+#: apps/web/forms.py:465
 msgid "Mojej szkoły nie ma na liście"
 msgstr "My school isn't on the list"
 
-#: apps/web/forms.py:471
+#: apps/web/forms.py:470
 msgid "Nazwa szkoły"
 msgstr "School name"
 
-#: apps/web/forms.py:538
+#: apps/web/forms.py:537
 msgid "Rodzaj placówki"
 msgstr "Type of institution"
 
-#: apps/web/forms.py:561
+#: apps/web/forms.py:560
 msgid ""
 "Dwuliterowy kod kraju (ISO 3166-1), na przykład „DE”. Puste znaczy Polska."
 msgstr ""
 "Two-letter country code (ISO 3166-1), e.g. “DE”. Leave empty for Poland."
 
-#: apps/web/forms.py:566
+#: apps/web/forms.py:565
 msgid "Nazwa placówki"
 msgstr "Institution name"
 
-#: apps/web/forms.py:569
+#: apps/web/forms.py:568
 msgid "Wypełnij, jeżeli Twojej placówki nie ma w wykazie."
 msgstr "Fill in if your institution is not in the registry."
 
-#: apps/web/forms.py:587 apps/web/forms.py:850
+#: apps/web/forms.py:586 apps/web/forms.py:849
 msgid "— wybierz klasę —"
 msgstr "— choose a year/class —"
 
-#: apps/web/forms.py:657
+#: apps/web/forms.py:656
 msgid "Wybierz placówkę z listy."
 msgstr "Choose an institution from the list."
 
-#: apps/web/forms.py:664
+#: apps/web/forms.py:663
 msgid "Podaj nazwę szkoły."
 msgstr "Enter the school name."
 
-#: apps/web/forms.py:676
+#: apps/web/forms.py:675
 msgid ""
-"Wybierz szkołę z podpowiedzi albo zaznacz „Mojej szkoły nie ma na liście” i wpisz jej nazwę."
+"Wybierz szkołę z podpowiedzi albo zaznacz „Mojej szkoły nie ma na liście” i "
+"wpisz jej nazwę."
 msgstr ""
-"Choose a school from the suggestions or tick “My school isn't on the list” and enter its name."
+"Choose a school from the suggestions or tick “My school isn't on the list” "
+"and enter its name."
 
-#: apps/web/forms.py:680
+#: apps/web/forms.py:679
 msgid "Wybierz szkołę z listy albo zaznacz, że nie ma jej na liście."
 msgstr "Choose a school from the list or indicate that it isn't on the list."
 
-#: apps/web/forms.py:725 apps/web/forms.py:749
+#: apps/web/forms.py:724 apps/web/forms.py:748
 msgid "Podaj kraj."
 msgstr "Enter the country."
 
-#: apps/web/forms.py:746
+#: apps/web/forms.py:745
 msgid "Podaj nazwę placówki."
 msgstr "Enter the institution name."
 
-#: apps/web/forms.py:836 apps/web/forms.py:892 apps/web/forms.py:963
-#: apps/web/forms.py:1137 templates/web/account/profile.html:68
+#: apps/web/forms.py:835 apps/web/forms.py:891 apps/web/forms.py:962
+#: apps/web/forms.py:1136 templates/web/account/profile.html:68
 msgid "Adres e-mail"
 msgstr "E-mail address"
 
-#: apps/web/forms.py:848 templates/web/supervisor/_import_preview.html:46
+#: apps/web/forms.py:847 templates/web/supervisor/_import_preview.html:46
 #: templates/web/supervisor/students.html:43
 msgid "Klasa"
 msgstr "Year"
 
-#: apps/web/forms.py:894 apps/web/forms.py:965 apps/web/views/invite.py:73
+#: apps/web/forms.py:893 apps/web/forms.py:964 apps/web/views/invite.py:73
 #: templates/web/chat/_key_form.html:20
 msgid "Powtórz hasło"
 msgstr "Repeat password"
 
-#: apps/web/forms.py:896 apps/web/forms.py:932 apps/web/forms.py:967
-#: apps/web/forms.py:1050 apps/web/forms.py:1114
+#: apps/web/forms.py:895 apps/web/forms.py:931 apps/web/forms.py:966
+#: apps/web/forms.py:1049 apps/web/forms.py:1113
 msgid "Imię"
 msgstr "First name"
 
-#: apps/web/forms.py:899 apps/web/forms.py:935 apps/web/forms.py:970
-#: apps/web/forms.py:1053 apps/web/forms.py:1117
+#: apps/web/forms.py:898 apps/web/forms.py:934 apps/web/forms.py:969
+#: apps/web/forms.py:1052 apps/web/forms.py:1116
 msgid "Nazwisko"
 msgstr "Last name"
 
-#: apps/web/forms.py:972
+#: apps/web/forms.py:971
 msgid "Kod zaproszenia"
 msgstr "Invitation code"
 
-#: apps/web/forms.py:974
+#: apps/web/forms.py:973
 msgid "Województwo (deklarowane)"
 msgstr "Voivodeship (declared)"
 
-#: apps/web/forms.py:974
+#: apps/web/forms.py:973
 msgid "deklarowane"
 msgstr "declared"
 
-#: apps/web/forms.py:1064
+#: apps/web/forms.py:1063
 msgid "Adres e-mail opiekuna szkolnego"
 msgstr "School supervisor's e-mail address"
 
-#: apps/web/forms.py:1068
+#: apps/web/forms.py:1067
 msgid ""
-"Opcjonalnie. Opiekun z kontem w serwisie zobaczy Twój kod, imię, nazwisko i to, na jakim etapie procedury są Twoje prace – nigdy punktów przed ogłoszeniem wyników ani samych prac. Puste pole znaczy „nie mam opiekuna”."
+"Opcjonalnie. Opiekun z kontem w serwisie zobaczy Twój kod, imię, nazwisko i "
+"to, na jakim etapie procedury są Twoje prace – nigdy punktów przed "
+"ogłoszeniem wyników ani samych prac. Puste pole znaczy „nie mam opiekuna”."
 msgstr ""
-"Optional. A supervisor with an account on the site will see your code, first and last name, and which stage of the process your work is at – never your points before the results are published, and never the work itself. Leave empty if you don't have a supervisor."
+"Optional. A supervisor with an account on the site will see your code, first "
+"and last name, and which stage of the process your work is at – never your "
+"points before the results are published, and never the work itself. Leave "
+"empty if you don't have a supervisor."
 
-#: apps/web/forms.py:1125
+#: apps/web/forms.py:1124
 msgid "Nowy adres e-mail"
 msgstr "New e-mail address"
 
-#: apps/web/forms.py:1128
+#: apps/web/forms.py:1127
 msgid ""
-"Na ten adres wyślemy link potwierdzający. Do czasu potwierdzenia logujesz się dotychczasowym adresem."
+"Na ten adres wyślemy link potwierdzający. Do czasu potwierdzenia logujesz "
+"się dotychczasowym adresem."
 msgstr ""
-"We will send a confirmation link to this address. Until you confirm it, you log in with your current address."
+"We will send a confirmation link to this address. Until you confirm it, you "
+"log in with your current address."
 
-#: apps/web/forms.py:1153
+#: apps/web/forms.py:1152
 msgid "Aktualne hasło"
 msgstr "Current password"
 
-#: apps/web/forms.py:1158
+#: apps/web/forms.py:1157
 msgid "Adres e-mail konta"
 msgstr "Account e-mail address"
 
-#: apps/web/forms.py:1160
+#: apps/web/forms.py:1159
 msgid "Rozumiem, że tej operacji nie da się odwrócić."
 msgstr "I understand that this action cannot be undone."
 
-#: apps/web/forms.py:1175 templates/web/participant/_problem_card.html:107
+#: apps/web/forms.py:1174 templates/web/participant/_problem_card.html:107
 msgid "Plik rozwiązania"
 msgstr "Solution file"
 
-#: apps/web/forms.py:1177
-msgid ""
-"Potwierdzam, że to rozwiązanie właściwego zadania i plik jest czytelny"
+#: apps/web/forms.py:1176
+msgid "Potwierdzam, że to rozwiązanie właściwego zadania i plik jest czytelny"
 msgstr ""
-"I confirm that this is the solution to the correct problem and that the file is legible"
+"I confirm that this is the solution to the correct problem and that the file "
+"is legible"
 
-#: apps/web/forms.py:1180
+#: apps/web/forms.py:1179
 msgid ""
 "Zaznacz potwierdzenie, że wysyłasz rozwiązanie właściwego zadania i że plik "
 "jest czytelny."
@@ -2106,21 +2191,28 @@ msgstr "Your details have been saved."
 
 #: apps/web/views/account.py:213
 msgid ""
-"Wysłaliśmy link potwierdzający na nowy adres. Do czasu potwierdzenia logujesz się dotychczasowym adresem."
+"Wysłaliśmy link potwierdzający na nowy adres. Do czasu potwierdzenia "
+"logujesz się dotychczasowym adresem."
 msgstr ""
-"We've sent a confirmation link to your new address. Until you confirm it, you log in with your current address."
+"We've sent a confirmation link to your new address. Until you confirm it, "
+"you log in with your current address."
 
 #: apps/web/views/chat.py:66
 msgid ""
-"Wiadomości mogą być czytane przez organizatora w ramach moderacji. Każda wiadomość czeka na akceptację organizatora – odbiorca zobaczy ją dopiero po niej."
+"Wiadomości mogą być czytane przez organizatora w ramach moderacji. Każda "
+"wiadomość czeka na akceptację organizatora – odbiorca zobaczy ją dopiero po "
+"niej."
 msgstr ""
-"Messages may be read by the organiser for moderation. Every message awaits the organiser's approval – the recipient will only see it after that."
+"Messages may be read by the organiser for moderation. Every message awaits "
+"the organiser's approval – the recipient will only see it after that."
 
 #: apps/web/views/chat.py:70
 msgid ""
-"Wiadomości mogą być czytane przez organizatora w ramach moderacji. Dochodzą od razu, a organizator przegląda je po fakcie."
+"Wiadomości mogą być czytane przez organizatora w ramach moderacji. Dochodzą "
+"od razu, a organizator przegląda je po fakcie."
 msgstr ""
-"Messages may be read by the organiser for moderation. They are delivered immediately, and the organiser reviews them afterwards."
+"Messages may be read by the organiser for moderation. They are delivered "
+"immediately, and the organiser reviews them afterwards."
 
 #: apps/web/views/chat.py:73
 msgid "Organizator widzi tylko zgłoszone wiadomości."
@@ -2128,15 +2220,21 @@ msgstr "The organiser sees only reported messages."
 
 #: apps/web/views/chat.py:79
 msgid ""
-"Rozmowa szyfrowana end-to-end: treść znają tylko Wasze przeglądarki – nie zna jej serwer ani organizator. Jeśli zgłosisz wiadomość, jej odszyfrowana treść trafi do organizatora."
+"Rozmowa szyfrowana end-to-end: treść znają tylko Wasze przeglądarki – nie "
+"zna jej serwer ani organizator. Jeśli zgłosisz wiadomość, jej odszyfrowana "
+"treść trafi do organizatora."
 msgstr ""
-"End-to-end encrypted conversation: only your browsers know the content – neither the server nor the organiser can read it. If you report a message, its decrypted content will be sent to the organiser."
+"End-to-end encrypted conversation: only your browsers know the content – "
+"neither the server nor the organiser can read it. If you report a message, "
+"its decrypted content will be sent to the organiser."
 
 #: apps/web/views/chat.py:85
 msgid ""
-"Klucz szyfrowania tej osoby zmienił się. Jeśli to niespodzianka, porównajcie odciski kluczy na żywo."
+"Klucz szyfrowania tej osoby zmienił się. Jeśli to niespodzianka, porównajcie "
+"odciski kluczy na żywo."
 msgstr ""
-"This person's encryption key has changed. If that's unexpected, compare your key fingerprints in person."
+"This person's encryption key has changed. If that's unexpected, compare your "
+"key fingerprints in person."
 
 #: apps/web/views/chat.py:241 templates/web/reviewer/_comparison.html:28
 #: templates/web/reviewer/_comparison.html:55
@@ -2184,37 +2282,53 @@ msgstr "Message settings have been saved."
 
 #: apps/web/views/errors.py:39
 msgid ""
-"Przeglądarka nie przyjęła pliku cookie zabezpieczającego formularze (csrftoken). Sprawdź, czy nie blokujesz plików cookie dla tej strony, i spróbuj ponownie."
+"Przeglądarka nie przyjęła pliku cookie zabezpieczającego formularze "
+"(csrftoken). Sprawdź, czy nie blokujesz plików cookie dla tej strony, i "
+"spróbuj ponownie."
 msgstr ""
-"Your browser did not accept the cookie that protects forms (csrftoken). Check that you are not blocking cookies for this site and try again."
+"Your browser did not accept the cookie that protects forms (csrftoken). "
+"Check that you are not blocking cookies for this site and try again."
 
 #: apps/web/views/errors.py:43
 msgid ""
-"Formularz został wysłany bez tokenu zabezpieczającego – odśwież stronę i wyślij go ponownie."
+"Formularz został wysłany bez tokenu zabezpieczającego – odśwież stronę i "
+"wyślij go ponownie."
 msgstr ""
-"The form was submitted without a security token – refresh the page and submit it again."
+"The form was submitted without a security token – refresh the page and "
+"submit it again."
 
 #: apps/web/views/errors.py:46
 msgid ""
-"Żądanie przyszło z innego adresu niż ten serwis. Jeśli otworzyłeś formularz z zapisanej kopii strony albo przez inny adres domeny, wejdź na stronę bezpośrednio."
+"Żądanie przyszło z innego adresu niż ten serwis. Jeśli otworzyłeś formularz "
+"z zapisanej kopii strony albo przez inny adres domeny, wejdź na stronę "
+"bezpośrednio."
 msgstr ""
-"The request came from a different address than this site. If you opened the form from a saved copy of the page or via a different domain address, go to the site directly."
+"The request came from a different address than this site. If you opened the "
+"form from a saved copy of the page or via a different domain address, go to "
+"the site directly."
 
 #: apps/web/views/errors.py:50
 msgid ""
-"Żądanie przyszło z innego adresu niż ten serwis – wejdź na stronę bezpośrednio i spróbuj ponownie."
+"Żądanie przyszło z innego adresu niż ten serwis – wejdź na stronę "
+"bezpośrednio i spróbuj ponownie."
 msgstr ""
-"The request came from a different address than this site – go to the site directly and try again."
+"The request came from a different address than this site – go to the site "
+"directly and try again."
 
 #: apps/web/views/errors.py:53
 msgid ""
-"Przeglądarka ukryła adres strony, z której wysłano formularz (np. rozszerzenie chroniące prywatność). Zezwól na nagłówek Referer dla tej strony albo spróbuj w innej przeglądarce."
+"Przeglądarka ukryła adres strony, z której wysłano formularz (np. "
+"rozszerzenie chroniące prywatność). Zezwól na nagłówek Referer dla tej "
+"strony albo spróbuj w innej przeglądarce."
 msgstr ""
-"Your browser hid the address of the page the form was sent from (e.g. a privacy extension). Allow the Referer header for this site or try another browser."
+"Your browser hid the address of the page the form was sent from (e.g. a "
+"privacy extension). Allow the Referer header for this site or try another "
+"browser."
 
 #: apps/web/views/errors.py:57
 msgid ""
-"Przeglądarka wysłała nieprawidłowy adres źródłowy – odśwież stronę i spróbuj ponownie."
+"Przeglądarka wysłała nieprawidłowy adres źródłowy – odśwież stronę i spróbuj "
+"ponownie."
 msgstr ""
 "Your browser sent an invalid source address – refresh the page and try again."
 
@@ -2225,15 +2339,26 @@ msgstr "The security token is corrupted – refresh the page and try again."
 
 #: apps/web/views/errors.py:68
 msgid ""
-"Najczęstsza przyczyna: w międzyczasie zalogowano się lub wylogowano w innej karcie tej samej przeglądarki albo strona z formularzem była otwarta bardzo długo. Zabezpieczenie formularza jest wtedy nieaktualne."
+"Najczęstsza przyczyna: w międzyczasie zalogowano się lub wylogowano w innej "
+"karcie tej samej przeglądarki albo strona z formularzem była otwarta bardzo "
+"długo. Zabezpieczenie formularza jest wtedy nieaktualne."
 msgstr ""
-"The most common cause: you logged in or out in another tab of the same browser in the meantime, or the page with the form was open for a very long time. The form's security token is then out of date."
+"The most common cause: you logged in or out in another tab of the same "
+"browser in the meantime, or the page with the form was open for a very long "
+"time. The form's security token is then out of date."
 
 #: apps/web/views/forum.py:88
 msgid ""
-"Trwa etap przyjmujący rozwiązania. Regulamin zabrania omawiania zadań tego etapu (§ 10 ust. 2 i § 17) – wpisy o treści zadań będą odrzucane, a próba uzyskania lub podania rozwiązania jest podstawą do dyskwalifikacji. Do czasu zamknięcia etapu każdy wpis czeka na zatwierdzenie przez organizatora."
+"Trwa etap przyjmujący rozwiązania. Regulamin zabrania omawiania zadań tego "
+"etapu (§ 10 ust. 2 i § 17) – wpisy o treści zadań będą odrzucane, a próba "
+"uzyskania lub podania rozwiązania jest podstawą do dyskwalifikacji. Do czasu "
+"zamknięcia etapu każdy wpis czeka na zatwierdzenie przez organizatora."
 msgstr ""
-"A stage that accepts solutions is in progress. The rules prohibit discussing this stage's problems (§ 10(2) and § 17) – posts about the problems will be rejected, and any attempt to obtain or share a solution is grounds for disqualification. Until the stage closes, every post awaits the organiser's approval."
+"A stage that accepts solutions is in progress. The rules prohibit discussing "
+"this stage's problems (§ 10(2) and § 17) – posts about the problems will be "
+"rejected, and any attempt to obtain or share a solution is grounds for "
+"disqualification. Until the stage closes, every post awaits the organiser's "
+"approval."
 
 #: apps/web/views/forum.py:228
 msgid "Wpis czeka na zatwierdzenie przez organizatora. Widzisz go tylko Ty."
@@ -2245,8 +2370,7 @@ msgstr "Your post has been added."
 
 #: apps/web/views/forum.py:297
 msgid "Wątek czeka na zatwierdzenie przez organizatora. Widzisz go tylko Ty."
-msgstr ""
-"Your thread is awaiting the organiser's approval. Only you can see it."
+msgstr "Your thread is awaiting the organiser's approval. Only you can see it."
 
 #: apps/web/views/forum.py:298
 msgid "Wątek został założony."
@@ -2414,9 +2538,11 @@ msgstr "Arrival declaration saved."
 
 #: apps/web/views/participant_student_status.py:101
 msgid ""
-"Zaświadczenie zostało wysłane. Koordynator sprawdzi je i poinformuje Cię e-mailem o decyzji."
+"Zaświadczenie zostało wysłane. Koordynator sprawdzi je i poinformuje Cię e-"
+"mailem o decyzji."
 msgstr ""
-"Your certificate has been sent. The coordinator will check it and notify you of the decision by e-mail."
+"Your certificate has been sent. The coordinator will check it and notify you "
+"of the decision by e-mail."
 
 #: apps/web/views/reviewer.py:84
 msgid "Do zrobienia"
@@ -2497,9 +2623,12 @@ msgstr "Access denied"
 
 #: templates/403.html:8
 msgid ""
-"Ta strona jest dostępna tylko dla uprawnionej roli (uczestnika, członka komisji albo koordynatora). Jeśli masz kilka kont, zaloguj się na właściwe."
+"Ta strona jest dostępna tylko dla uprawnionej roli (uczestnika, członka "
+"komisji albo koordynatora). Jeśli masz kilka kont, zaloguj się na właściwe."
 msgstr ""
-"This page is only available to an authorised role (participant, committee member or coordinator). If you have several accounts, log in to the right one."
+"This page is only available to an authorised role (participant, committee "
+"member or coordinator). If you have several accounts, log in to the right "
+"one."
 
 #: templates/403.html:11 templates/base.html:245
 #: templates/cms/home_page.html:131 templates/web/activate_invalid.html:27
@@ -2518,15 +2647,19 @@ msgstr "The form needs to be refreshed"
 
 #: templates/403_csrf.html:14
 msgid ""
-"Nie mogliśmy przyjąć tego żądania, bo zabezpieczenie formularza (token CSRF) nie zgadzało się z Twoją bieżącą sesją."
+"Nie mogliśmy przyjąć tego żądania, bo zabezpieczenie formularza (token CSRF) "
+"nie zgadzało się z Twoją bieżącą sesją."
 msgstr ""
-"We couldn't accept this request because the form's security token (CSRF token) didn't match your current session."
+"We couldn't accept this request because the form's security token (CSRF "
+"token) didn't match your current session."
 
 #: templates/403_csrf.html:17
 msgid ""
-"Otwórz formularz ponownie i wyślij go jeszcze raz. Jeśli masz otwartych kilka kart tego serwisu, odśwież każdą z nich po zalogowaniu lub wylogowaniu."
+"Otwórz formularz ponownie i wyślij go jeszcze raz. Jeśli masz otwartych "
+"kilka kart tego serwisu, odśwież każdą z nich po zalogowaniu lub wylogowaniu."
 msgstr ""
-"Open the form again and resubmit it. If you have several tabs of this site open, refresh each of them after logging in or out."
+"Open the form again and resubmit it. If you have several tabs of this site "
+"open, refresh each of them after logging in or out."
 
 #: templates/403_csrf.html:20
 msgid "Otwórz formularz ponownie"
@@ -2538,15 +2671,20 @@ msgstr "Page not found"
 
 #: templates/404.html:15
 msgid ""
-"Pod tym adresem nic nie ma – strona mogła zostać przeniesiona albo adres zawiera literówkę."
+"Pod tym adresem nic nie ma – strona mogła zostać przeniesiona albo adres "
+"zawiera literówkę."
 msgstr ""
-"There's nothing at this address – the page may have been moved or the address contains a typo."
+"There's nothing at this address – the page may have been moved or the "
+"address contains a typo."
 
 #: templates/base.html:38
 msgid ""
-"Ogólnopolska olimpiada dla uczniów szkół ponadpodstawowych: terminy etapów, zadania, wyniki oraz panel uczestnika, recenzenta i komitetu."
+"Ogólnopolska olimpiada dla uczniów szkół ponadpodstawowych: terminy etapów, "
+"zadania, wyniki oraz panel uczestnika, recenzenta i komitetu."
 msgstr ""
-"A national olympiad in Poland for secondary school students: stage dates, problems, results, and dashboards for participants, reviewers and the committee."
+"A national olympiad in Poland for secondary school students: stage dates, "
+"problems, results, and dashboards for participants, reviewers and the "
+"committee."
 
 #: templates/base.html:142
 msgid "Przejdź do treści"
@@ -2643,9 +2781,11 @@ msgstr "Cookie notice"
 
 #: templates/base.html:488
 msgid ""
-"Używamy plików cookie niezbędnych do działania serwisu oraz – za Twoją zgodą – Google Analytics do statystyk odwiedzin."
+"Używamy plików cookie niezbędnych do działania serwisu oraz – za Twoją zgodą "
+"– Google Analytics do statystyk odwiedzin."
 msgstr ""
-"We use cookies necessary for the site to work and – with your consent – Google Analytics for visitor statistics."
+"We use cookies necessary for the site to work and – with your consent – "
+"Google Analytics for visitor statistics."
 
 #: templates/base.html:500
 msgid "Akceptuję wszystkie"
@@ -2657,9 +2797,12 @@ msgstr "Necessary only"
 
 #: templates/base.html:505
 msgid ""
-"Ten serwis używa wyłącznie niezbędnych plików cookie (sesja logowania, zabezpieczenie formularzy). Nie używamy cookies reklamowych ani analitycznych."
+"Ten serwis używa wyłącznie niezbędnych plików cookie (sesja logowania, "
+"zabezpieczenie formularzy). Nie używamy cookies reklamowych ani "
+"analitycznych."
 msgstr ""
-"This site uses only necessary cookies (login session, form protection). We do not use advertising or analytics cookies."
+"This site uses only necessary cookies (login session, form protection). We "
+"do not use advertising or analytics cookies."
 
 #: templates/base.html:509
 msgid "Rozumiem"
@@ -2711,9 +2854,12 @@ msgstr "Workshop materials"
 #: templates/cms/_workshop_materials_teaser.html:11
 #, python-format
 msgid ""
-"Do warsztatów są nagrania i materiały do pobrania (%(count)s). Oglądać je można wyłącznie po zalogowaniu na konto uczestnika albo opiekuna."
+"Do warsztatów są nagrania i materiały do pobrania (%(count)s). Oglądać je "
+"można wyłącznie po zalogowaniu na konto uczestnika albo opiekuna."
 msgstr ""
-"Recordings and downloadable materials are available for the workshops (%(count)s). You can only view them after logging in to a participant or supervisor account."
+"Recordings and downloadable materials are available for the workshops "
+"(%(count)s). You can only view them after logging in to a participant or "
+"supervisor account."
 
 #: templates/cms/_workshop_materials_teaser.html:14
 #: templates/web/participant/_workshop_materials_card.html:16
@@ -2829,9 +2975,11 @@ msgstr "On this page"
 
 #: templates/cms/document_index_page.html:4
 msgid ""
-"Dokumenty Olimpiady: regulamin, polityka RODO, standardy ochrony małoletnich i skład komitetów – do przeczytania na stronie i do pobrania."
+"Dokumenty Olimpiady: regulamin, polityka RODO, standardy ochrony małoletnich "
+"i skład komitetów – do przeczytania na stronie i do pobrania."
 msgstr ""
-"Olympiad documents: rules, GDPR policy, child protection standards and committee membership – to read online and download."
+"Olympiad documents: rules, GDPR policy, child protection standards and "
+"committee membership – to read online and download."
 
 #: templates/cms/document_index_page.html:32
 #: templates/cms/document_page.html:19
@@ -2854,9 +3002,11 @@ msgstr "No documents have been published in this section yet."
 #: templates/cms/document_page.html:4
 #, python-format
 msgid ""
-"%(title)s (wersja %(version)s) – dokument Olimpiady do przeczytania online i pobrania."
+"%(title)s (wersja %(version)s) – dokument Olimpiady do przeczytania online i "
+"pobrania."
 msgstr ""
-"%(title)s (version %(version)s) – Olympiad document to read online and download."
+"%(title)s (version %(version)s) – Olympiad document to read online and "
+"download."
 
 #: templates/cms/document_page.html:4
 #, python-format
@@ -2896,9 +3046,11 @@ msgstr "Didn't find an answer?"
 #: templates/cms/faq_page.html:47
 #, python-format
 msgid ""
-"<a href=\"%(support_url)s\">Zgłoś problem organizatorowi</a> – opiszemy sprawę wspólnie, a odpowiedź dostaniesz e-mailem."
+"<a href=\"%(support_url)s\">Zgłoś problem organizatorowi</a> – opiszemy "
+"sprawę wspólnie, a odpowiedź dostaniesz e-mailem."
 msgstr ""
-"<a href=\"%(support_url)s\">Report a problem to the organiser</a> – we'll look into it together and you'll get a reply by e-mail."
+"<a href=\"%(support_url)s\">Report a problem to the organiser</a> – we'll "
+"look into it together and you'll get a reply by e-mail."
 
 #: templates/cms/home_page.html:20
 msgid "karuzela"
@@ -2925,9 +3077,9 @@ msgstr "My reviews"
 #: templates/cms/home_page.html:148
 #, python-format
 msgid ""
-"Etap bieżący: <strong>%(stage)s</strong> · termin oddania rozwiązań %(deadline)s"
-msgstr ""
-"Current stage: <strong>%(stage)s</strong> · solutions due %(deadline)s"
+"Etap bieżący: <strong>%(stage)s</strong> · termin oddania rozwiązań "
+"%(deadline)s"
+msgstr "Current stage: <strong>%(stage)s</strong> · solutions due %(deadline)s"
 
 #: templates/cms/home_page.html:159
 #, python-format
@@ -3008,7 +3160,8 @@ msgstr "Online workshops"
 
 #: templates/cms/home_page.html:304
 msgid ""
-"Bezpłatne spotkania przygotowujące do zawodów. Wszystkie godziny: czas polski."
+"Bezpłatne spotkania przygotowujące do zawodów. Wszystkie godziny: czas "
+"polski."
 msgstr ""
 "Free preparatory sessions for the competition. All times are Polish time."
 
@@ -3028,7 +3181,8 @@ msgstr "No news"
 msgid ""
 "Komunikaty organizatora – w tym linki do warsztatów – pojawią się tutaj."
 msgstr ""
-"Announcements from the organiser – including workshop links – will appear here."
+"Announcements from the organiser – including workshop links – will appear "
+"here."
 
 #: templates/cms/home_page.html:411
 msgid "Partnerzy"
@@ -3076,9 +3230,11 @@ msgstr "The list of partners for the 1st edition will be published soon."
 
 #: templates/cms/partners_page.html:37
 msgid ""
-"Rozmowy o patronatach i współpracy trwają. Poniżej opisujemy, na czym może polegać."
+"Rozmowy o patronatach i współpracy trwają. Poniżej opisujemy, na czym może "
+"polegać."
 msgstr ""
-"Talks about patronage and cooperation are ongoing. Below we describe what it might involve."
+"Talks about patronage and cooperation are ongoing. Below we describe what it "
+"might involve."
 
 #: templates/cms/partners_page.html:108
 msgid "Napisz do nas"
@@ -3141,9 +3297,15 @@ msgstr "practice"
 
 #: templates/cms/problems_page.html:85
 msgid ""
-"Bez terminu. Po zgłoszeniu się do treningu możesz wysyłać rozwiązania z panelu uczestnika, ale <strong>nie będą one sprawdzane ani oceniane</strong> – zadania treningowe służą do zapoznania się z zakresem materiału i nie liczą się do kwalifikacji."
+"Bez terminu. Po zgłoszeniu się do treningu możesz wysyłać rozwiązania z "
+"panelu uczestnika, ale <strong>nie będą one sprawdzane ani oceniane</strong> "
+"– zadania treningowe służą do zapoznania się z zakresem materiału i nie "
+"liczą się do kwalifikacji."
 msgstr ""
-"No deadline. After signing up for practice, you can submit solutions from the participant dashboard, but <strong>they will not be checked or scored</strong> – practice problems are for getting familiar with the syllabus and do not count towards qualification."
+"No deadline. After signing up for practice, you can submit solutions from "
+"the participant dashboard, but <strong>they will not be checked or scored</"
+"strong> – practice problems are for getting familiar with the syllabus and "
+"do not count towards qualification."
 
 #: templates/cms/problems_page.html:90
 #, python-format
@@ -3231,18 +3393,18 @@ msgstr "Results not yet published"
 
 #: templates/cms/results_page.html:89
 msgid ""
-"Tabela pojawi się tutaj po ogłoszeniu wyników pierwszego etapu przez koordynatora."
+"Tabela pojawi się tutaj po ogłoszeniu wyników pierwszego etapu przez "
+"koordynatora."
 msgstr ""
-"The table will appear here once the coordinator publishes the results of the first stage."
+"The table will appear here once the coordinator publishes the results of the "
+"first stage."
 
 #: templates/registration/invite_student_body.txt:15
 #, python-format
 msgid ""
-"Cześć %(name)s! Nauczyciel ze szkoły %(school)s zgłosił Cię do Olimpiady "
-"Kwantowej."
+"Cześć %(name)s! Nauczyciel ze szkoły %(school)s zgłosił Cię do %(competition_genitive)s."
 msgstr ""
-"Hi %(name)s! A teacher at %(school)s has entered you for the Quantum "
-"Olympiad."
+"Hi %(name)s! A teacher from %(school)s has entered you in the %(competition_genitive)s."
 
 #: templates/registration/invite_student_body.txt:19
 msgid ""
@@ -3273,16 +3435,18 @@ msgstr ""
 "address."
 
 #: templates/registration/invite_student_subject.txt:1
-#: templates/web/invite/accept.html:14
-msgid "Zaproszenie do Olimpiady Kwantowej"
-msgstr "An invitation to the Quantum Olympiad"
+#, python-format
+msgid "Zaproszenie do %(competition_genitive)s"
+msgstr "Invitation to the %(competition_genitive)s"
 
 #: templates/registration/password_reset_email.txt:13
 #, python-format
 msgid ""
-"Ktoś – prawdopodobnie Ty – poprosił o ustawienie nowego hasła do konta %(email)s w serwisie %(site_name)s."
+"Ktoś – prawdopodobnie Ty – poprosił o ustawienie nowego hasła do konta "
+"%(email)s w serwisie %(site_name)s."
 msgstr ""
-"Someone – probably you – asked to set a new password for the account %(email)s on %(site_name)s."
+"Someone – probably you – asked to set a new password for the account "
+"%(email)s on %(site_name)s."
 
 #: templates/registration/password_reset_email.txt:15
 msgid "Aby ustawić nowe hasło, otwórz poniższy adres:"
@@ -3290,16 +3454,20 @@ msgstr "To set a new password, open the address below:"
 
 #: templates/registration/password_reset_email.txt:19
 msgid ""
-"Link jest ważny 24 godziny i można go użyć tylko raz. Po zmianie hasła przestaje działać."
+"Link jest ważny 24 godziny i można go użyć tylko raz. Po zmianie hasła "
+"przestaje działać."
 msgstr ""
-"The link is valid for 24 hours and can only be used once. It stops working once the password has been changed."
+"The link is valid for 24 hours and can only be used once. It stops working "
+"once the password has been changed."
 
 #: templates/registration/password_reset_email.txt:21
 msgid ""
-"Jeśli to nie Ty prosiłeś o reset – zignoruj tę wiadomość. Hasło do konta pozostaje bez zmian\n"
+"Jeśli to nie Ty prosiłeś o reset – zignoruj tę wiadomość. Hasło do konta "
+"pozostaje bez zmian\n"
 "i nikt nie uzyskał do niego dostępu."
 msgstr ""
-"If you didn't request a reset, ignore this message. Your account password remains unchanged\n"
+"If you didn't request a reset, ignore this message. Your account password "
+"remains unchanged\n"
 "and no one has gained access to it."
 
 #: templates/registration/password_reset_email_body.html:20
@@ -3310,9 +3478,11 @@ msgstr "Password reset"
 #: templates/registration/password_reset_email_body.html:22
 #, python-format
 msgid ""
-"Ktoś – prawdopodobnie Ty – poprosił o ustawienie nowego hasła do konta <strong>%(email)s</strong>."
+"Ktoś – prawdopodobnie Ty – poprosił o ustawienie nowego hasła do konta "
+"<strong>%(email)s</strong>."
 msgstr ""
-"Someone – probably you – asked to set a new password for the account <strong>%(email)s</strong>."
+"Someone – probably you – asked to set a new password for the account "
+"<strong>%(email)s</strong>."
 
 #: templates/registration/password_reset_email_body.html:29
 #: templates/socialaccount/refused.html:22
@@ -3326,15 +3496,19 @@ msgstr "If the button doesn't work, copy this address into your browser:"
 
 #: templates/registration/password_reset_email_body.html:36
 msgid ""
-"Link jest ważny <strong>24 godziny</strong> i można go użyć tylko raz. Po zmianie hasła przestaje działać."
+"Link jest ważny <strong>24 godziny</strong> i można go użyć tylko raz. Po "
+"zmianie hasła przestaje działać."
 msgstr ""
-"The link is valid for <strong>24 hours</strong> and can only be used once. It stops working once the password has been changed."
+"The link is valid for <strong>24 hours</strong> and can only be used once. "
+"It stops working once the password has been changed."
 
 #: templates/registration/password_reset_email_body.html:42
 msgid ""
-"Jeśli to nie Ty prosiłeś o reset – zignoruj tę wiadomość. Hasło do konta pozostaje bez zmian i nikt nie uzyskał do niego dostępu."
+"Jeśli to nie Ty prosiłeś o reset – zignoruj tę wiadomość. Hasło do konta "
+"pozostaje bez zmian i nikt nie uzyskał do niego dostępu."
 msgstr ""
-"If you didn't request a reset, ignore this message. Your account password remains unchanged and no one has gained access to it."
+"If you didn't request a reset, ignore this message. Your account password "
+"remains unchanged and no one has gained access to it."
 
 #: templates/registration/password_reset_email_body.html:49
 #: templates/registration/supervisor_consent_body.html:55
@@ -3497,9 +3671,12 @@ msgstr "Login failed"
 
 #: templates/socialaccount/authentication_error.html:14
 msgid ""
-"Nie udało się dokończyć logowania przez dostawcę zewnętrznego. Spróbuj jeszcze raz, a jeśli problem się powtarza – zaloguj się hasłem albo załóż konto."
+"Nie udało się dokończyć logowania przez dostawcę zewnętrznego. Spróbuj "
+"jeszcze raz, a jeśli problem się powtarza – zaloguj się hasłem albo załóż "
+"konto."
 msgstr ""
-"We couldn't complete login via the external provider. Try again, and if the problem persists, log in with a password or create an account."
+"We couldn't complete login via the external provider. Try again, and if the "
+"problem persists, log in with a password or create an account."
 
 #: templates/socialaccount/authentication_error.html:17
 #: templates/socialaccount/login_cancelled.html:12
@@ -3539,7 +3716,8 @@ msgstr "Login cancelled"
 
 #: templates/socialaccount/login_cancelled.html:10
 msgid ""
-"Zrezygnowałeś z logowania po stronie dostawcy. Żadne dane nie zostały przekazane."
+"Zrezygnowałeś z logowania po stronie dostawcy. Żadne dane nie zostały "
+"przekazane."
 msgstr ""
 "You cancelled the login on the provider's side. No data has been shared."
 
@@ -3559,14 +3737,19 @@ msgstr "provider"
 #: templates/socialaccount/refused.html:15
 #, python-format
 msgid ""
-"W serwisie jest już konto założone na adres e-mail, który przekazał %(provider)s. Ze względów bezpieczeństwa nie łączymy go automatycznie – dostawca nie potwierdza, że adres należy do osoby, która się właśnie logowała."
+"W serwisie jest już konto założone na adres e-mail, który przekazał "
+"%(provider)s. Ze względów bezpieczeństwa nie łączymy go automatycznie – "
+"dostawca nie potwierdza, że adres należy do osoby, która się właśnie "
+"logowała."
 msgstr ""
-"There is already an account on this site registered to the e-mail address provided by %(provider)s. For security reasons we do not link it automatically – the provider does not confirm that the address belongs to the person who has just logged in."
+"There is already an account on this site registered to the e-mail address "
+"provided by %(provider)s. For security reasons we do not link it "
+"automatically – the provider does not confirm that the address belongs to "
+"the person who has just logged in."
 
 #: templates/socialaccount/refused.html:19
 msgid "Zaloguj się hasłem, a jeśli go nie pamiętasz – ustaw nowe:"
-msgstr ""
-"Log in with your password, or if you don't remember it, set a new one:"
+msgstr "Log in with your password, or if you don't remember it, set a new one:"
 
 #: templates/socialaccount/refused.html:21
 msgid "Zaloguj się hasłem"
@@ -3578,9 +3761,11 @@ msgstr "Account inactive"
 
 #: templates/socialaccount/refused.html:26
 msgid ""
-"To konto zostało wyłączone i nie można się na nie zalogować – ani hasłem, ani przez dostawcę zewnętrznego."
+"To konto zostało wyłączone i nie można się na nie zalogować – ani hasłem, "
+"ani przez dostawcę zewnętrznego."
 msgstr ""
-"This account has been disabled and cannot be used to log in – neither with a password nor via an external provider."
+"This account has been disabled and cannot be used to log in – neither with a "
+"password nor via an external provider."
 
 #: templates/socialaccount/refused.html:28
 #, python-format
@@ -3598,15 +3783,19 @@ msgstr "Provider"
 #: templates/socialaccount/refused.html:32
 #, python-format
 msgid ""
-"%(provider)s nie przekazał adresu e-mail, a jest on u nas loginem i jedyną drogą odzyskania konta."
+"%(provider)s nie przekazał adresu e-mail, a jest on u nas loginem i jedyną "
+"drogą odzyskania konta."
 msgstr ""
-"%(provider)s did not provide an e-mail address, which is your login here and the only way to recover your account."
+"%(provider)s did not provide an e-mail address, which is your login here and "
+"the only way to recover your account."
 
 #: templates/socialaccount/refused.html:34
 msgid ""
-"Udostępnij adres w ustawieniach konta u dostawcy i spróbuj ponownie albo załóż konto z hasłem."
+"Udostępnij adres w ustawieniach konta u dostawcy i spróbuj ponownie albo "
+"załóż konto z hasłem."
 msgstr ""
-"Share your address in your account settings with the provider and try again, or create an account with a password."
+"Share your address in your account settings with the provider and try again, "
+"or create an account with a password."
 
 #: templates/socialaccount/refused.html:41
 msgid "Logowanie przez dostawcę zewnętrznego nie doszło do skutku."
@@ -3619,16 +3808,20 @@ msgstr "Complete registration"
 #: templates/socialaccount/signup.html:13
 #, python-format
 msgid ""
-"Logowanie przez %(provider)s się powiodło. Zostały dane, których dostawca nie przekazuje, a które są potrzebne do udziału w olimpiadzie."
+"Logowanie przez %(provider)s się powiodło. Zostały dane, których dostawca "
+"nie przekazuje, a które są potrzebne do udziału w olimpiadzie."
 msgstr ""
-"Login with %(provider)s succeeded. We still need some details that the provider doesn't share but that are required to take part in the olympiad."
+"Login with %(provider)s succeeded. We still need some details that the "
+"provider doesn't share but that are required to take part in the olympiad."
 
 #: templates/socialaccount/signup.html:15
 #, python-format
 msgid ""
-"Konto powstanie na adres <strong>%(email)s</strong> – ten sam, którego używasz u dostawcy. Adresu nie da się tu zmienić."
+"Konto powstanie na adres <strong>%(email)s</strong> – ten sam, którego "
+"używasz u dostawcy. Adresu nie da się tu zmienić."
 msgstr ""
-"The account will be created for <strong>%(email)s</strong> – the same address you use with the provider. The address cannot be changed here."
+"The account will be created for <strong>%(email)s</strong> – the same "
+"address you use with the provider. The address cannot be changed here."
 
 #: templates/socialaccount/signup.html:20 templates/web/account/profile.html:31
 #: templates/web/forum/post_report.html:51
@@ -3639,9 +3832,13 @@ msgstr "Fields marked * are required."
 
 #: templates/socialaccount/signup.html:22
 msgid ""
-"Akceptacja Regulaminu i zgoda na przetwarzanie danych osobowych są wymagane. Uczestnik niepełnoletni potrzebuje dodatkowo zgody rodzica lub opiekuna prawnego."
+"Akceptacja Regulaminu i zgoda na przetwarzanie danych osobowych są wymagane. "
+"Uczestnik niepełnoletni potrzebuje dodatkowo zgody rodzica lub opiekuna "
+"prawnego."
 msgstr ""
-"Accepting the Rules and consenting to the processing of personal data are required. Participants who are minors also need the consent of a parent or legal guardian."
+"Accepting the Rules and consenting to the processing of personal data are "
+"required. Participants who are minors also need the consent of a parent or "
+"legal guardian."
 
 #: templates/socialaccount/signup.html:24 templates/web/register.html:48
 #: templates/web/register_committee.html:15
@@ -3651,9 +3848,13 @@ msgstr "Create account"
 #: templates/socialaccount/signup.html:27
 #, python-format
 msgid ""
-"Konto założone tą drogą nie ma hasła – logujesz się przyciskiem %(provider)s. Jeśli zechcesz logować się także hasłem, ustawisz je później przez <a href=\"%(reset_url)s\">„Nie pamiętasz hasła?”</a>."
+"Konto założone tą drogą nie ma hasła – logujesz się przyciskiem "
+"%(provider)s. Jeśli zechcesz logować się także hasłem, ustawisz je później "
+"przez <a href=\"%(reset_url)s\">„Nie pamiętasz hasła?”</a>."
 msgstr ""
-"An account created this way has no password – you log in with the %(provider)s button. If you'd also like to log in with a password, you can set one later via <a href=\"%(reset_url)s\">“Forgot your password?”</a>."
+"An account created this way has no password – you log in with the "
+"%(provider)s button. If you'd also like to log in with a password, you can "
+"set one later via <a href=\"%(reset_url)s\">“Forgot your password?”</a>."
 
 #: templates/web/_chat_link.html:15 templates/web/participant/_tabs.html:28
 msgid "nieprzeczytane rozmowy:"
@@ -3750,9 +3951,13 @@ msgstr ""
 
 #: templates/web/account/delete.html:32
 msgid ""
-"znikają: imię, nazwisko, adres e-mail, telefon, nazwa szkoły, data i rok urodzenia, hasło, powiązania z kontami Google i Facebooka oraz wszystkie Twoje sesje;"
+"znikają: imię, nazwisko, adres e-mail, telefon, nazwa szkoły, data i rok "
+"urodzenia, hasło, powiązania z kontami Google i Facebooka oraz wszystkie "
+"Twoje sesje;"
 msgstr ""
-"removed: first and last name, e-mail address, phone, school name, date and year of birth, password, links to Google and Facebook accounts, and all your sessions;"
+"removed: first and last name, e-mail address, phone, school name, date and "
+"year of birth, password, links to Google and Facebook accounts, and all your "
+"sessions;"
 
 #: templates/web/account/delete.html:33
 msgid "zostają: kod publiczny"
@@ -3777,9 +3982,16 @@ msgstr ""
 #: templates/web/account/delete.html:40
 #, python-format
 msgid ""
-"Jako opiekun szkolny potwierdziłeś udział szkoły w %(count)s edycjach, więc <strong>usuniemy Twoje dane osobowe</strong> (imię, nazwisko, e-mail, telefon, nazwę szkoły), ale zostawimy sam fakt tych potwierdzeń – to na nich organizator opiera listę szkół biorących udział w danej edycji."
+"Jako opiekun szkolny potwierdziłeś udział szkoły w %(count)s edycjach, więc "
+"<strong>usuniemy Twoje dane osobowe</strong> (imię, nazwisko, e-mail, "
+"telefon, nazwę szkoły), ale zostawimy sam fakt tych potwierdzeń – to na nich "
+"organizator opiera listę szkół biorących udział w danej edycji."
 msgstr ""
-"As a school supervisor you have confirmed your school's participation in %(count)s editions, so <strong>we will delete your personal data</strong> (first and last name, e-mail, phone, school name) but keep the record of those confirmations – the organiser relies on them for the list of schools taking part in each edition."
+"As a school supervisor you have confirmed your school's participation in "
+"%(count)s editions, so <strong>we will delete your personal data</strong> "
+"(first and last name, e-mail, phone, school name) but keep the record of "
+"those confirmations – the organiser relies on them for the list of schools "
+"taking part in each edition."
 
 #: templates/web/account/delete.html:48
 msgid "Co się stanie z Twoim kontem"
@@ -3787,9 +3999,15 @@ msgstr "What happens to your account"
 
 #: templates/web/account/delete.html:49
 msgid ""
-"Twoje konto nie ma powiązanych zgłoszeń, prac, recenzji ani potwierdzonych udziałów szkoły w żadnej edycji, więc zostanie <strong>usunięte w całości</strong> – razem z profilem, zgodami i wszystkimi danymi osobowymi. Adres e-mail zwolni się do ponownej rejestracji."
+"Twoje konto nie ma powiązanych zgłoszeń, prac, recenzji ani potwierdzonych "
+"udziałów szkoły w żadnej edycji, więc zostanie <strong>usunięte w całości</"
+"strong> – razem z profilem, zgodami i wszystkimi danymi osobowymi. Adres e-"
+"mail zwolni się do ponownej rejestracji."
 msgstr ""
-"Your account has no linked entries, submissions, reviews or confirmed school participations in any edition, so it will be <strong>deleted entirely</strong> – together with your profile, consents and all personal data. The e-mail address will become available for registering again."
+"Your account has no linked entries, submissions, reviews or confirmed school "
+"participations in any edition, so it will be <strong>deleted entirely</"
+"strong> – together with your profile, consents and all personal data. The e-"
+"mail address will become available for registering again."
 
 #: templates/web/account/delete.html:71
 #, python-format
@@ -3987,9 +4205,13 @@ msgstr "Two-factor authentication"
 
 #: templates/web/account/profile.html:135
 msgid ""
-"Dodatkowy, sześciocyfrowy kod z aplikacji w telefonie przy każdym logowaniu. Zalecany każdemu, kto ma w serwisie dostęp do cudzych prac lub danych: koordynatorom, członkom komitetu i komisji odwoławczej."
+"Dodatkowy, sześciocyfrowy kod z aplikacji w telefonie przy każdym logowaniu. "
+"Zalecany każdemu, kto ma w serwisie dostęp do cudzych prac lub danych: "
+"koordynatorom, członkom komitetu i komisji odwoławczej."
 msgstr ""
-"An additional six-digit code from an app on your phone at every login. Recommended for anyone with access to other people's work or data on the site: coordinators, committee members and appeals committee members."
+"An additional six-digit code from an app on your phone at every login. "
+"Recommended for anyone with access to other people's work or data on the "
+"site: coordinators, committee members and appeals committee members."
 
 #: templates/web/account/profile.html:136
 msgid "Ustawienia drugiego składnika"
@@ -4032,9 +4254,12 @@ msgstr "Delete account"
 
 #: templates/web/account/twofactor.html:18
 msgid ""
-"Drugi składnik to sześciocyfrowy kod z aplikacji w telefonie. Nawet gdy ktoś pozna Twoje hasło, bez telefonu nie wejdzie na konto."
+"Drugi składnik to sześciocyfrowy kod z aplikacji w telefonie. Nawet gdy ktoś "
+"pozna Twoje hasło, bez telefonu nie wejdzie na konto."
 msgstr ""
-"The second factor is a six-digit code from an app on your phone. Even if someone learns your password, they won't get into your account without your phone."
+"The second factor is a six-digit code from an app on your phone. Even if "
+"someone learns your password, they won't get into your account without your "
+"phone."
 
 #: templates/web/account/twofactor.html:24
 msgid "Drugi składnik jest włączony"
@@ -4061,9 +4286,13 @@ msgstr "%(left)s of %(total)s left"
 
 #: templates/web/account/twofactor.html:36
 msgid ""
-"Nie masz już żadnego kodu zapasowego. Jeśli zgubisz telefon, jedyną drogą powrotu będzie prośba do organizatora. Wyłącz drugi składnik i włącz go od nowa, żeby dostać nowy komplet kodów."
+"Nie masz już żadnego kodu zapasowego. Jeśli zgubisz telefon, jedyną drogą "
+"powrotu będzie prośba do organizatora. Wyłącz drugi składnik i włącz go od "
+"nowa, żeby dostać nowy komplet kodów."
 msgstr ""
-"You have no backup codes left. If you lose your phone, the only way back in will be to ask the organiser. Disable two-factor authentication and enable it again to get a new set of codes."
+"You have no backup codes left. If you lose your phone, the only way back in "
+"will be to ask the organiser. Disable two-factor authentication and enable "
+"it again to get a new set of codes."
 
 #: templates/web/account/twofactor.html:43
 msgid "Wyłączenie"
@@ -4071,9 +4300,11 @@ msgstr "Disable"
 
 #: templates/web/account/twofactor.html:44
 msgid ""
-"Po wyłączeniu konto będzie chronione samym hasłem. Dotychczasowe kody zapasowe przestaną działać."
+"Po wyłączeniu konto będzie chronione samym hasłem. Dotychczasowe kody "
+"zapasowe przestaną działać."
 msgstr ""
-"Once disabled, your account will be protected by your password only. Your existing backup codes will stop working."
+"Once disabled, your account will be protected by your password only. Your "
+"existing backup codes will stop working."
 
 #: templates/web/account/twofactor.html:47
 msgid "Wyłącz drugi składnik"
@@ -4085,9 +4316,12 @@ msgstr "Step 1: add the account to your app"
 
 #: templates/web/account/twofactor.html:55
 msgid ""
-"Potrzebna jest dowolna aplikacja uwierzytelniająca – na przykład Aegis, FreeOTP, Google Authenticator albo menedżer haseł, którego już używasz. Zeskanuj kod:"
+"Potrzebna jest dowolna aplikacja uwierzytelniająca – na przykład Aegis, "
+"FreeOTP, Google Authenticator albo menedżer haseł, którego już używasz. "
+"Zeskanuj kod:"
 msgstr ""
-"You need any authenticator app – for example Aegis, FreeOTP, Google Authenticator or a password manager you already use. Scan the code:"
+"You need any authenticator app – for example Aegis, FreeOTP, Google "
+"Authenticator or a password manager you already use. Scan the code:"
 
 #: templates/web/account/twofactor.html:59
 msgid "Jeśli nie możesz zeskanować kodu, wpisz ten klucz ręcznie:"
@@ -4099,9 +4333,11 @@ msgstr "Step 2: enter the code from the app"
 
 #: templates/web/account/twofactor.html:67
 msgid ""
-"Potwierdzenie kodem jest po to, żeby błąd przy skanowaniu wyszedł teraz, a nie przy następnym logowaniu."
+"Potwierdzenie kodem jest po to, żeby błąd przy skanowaniu wyszedł teraz, a "
+"nie przy następnym logowaniu."
 msgstr ""
-"Confirming with a code makes sure any scanning error shows up now rather than at your next login."
+"Confirming with a code makes sure any scanning error shows up now rather "
+"than at your next login."
 
 #: templates/web/account/twofactor.html:72
 msgid "Kod z aplikacji"
@@ -4113,19 +4349,26 @@ msgstr "Enable two-factor authentication"
 
 #: templates/web/account/twofactor_codes.html:13
 msgid ""
-"Drugi składnik jest włączony. To jest jedyny moment, w którym widzisz te kody."
+"Drugi składnik jest włączony. To jest jedyny moment, w którym widzisz te "
+"kody."
 msgstr ""
-"Two-factor authentication is enabled. This is the only time you will see these codes."
+"Two-factor authentication is enabled. This is the only time you will see "
+"these codes."
 
 #: templates/web/account/twofactor_codes.html:18
 msgid ""
-"Wydrukuj tę stronę albo przepisz kody i schowaj je poza telefonem. Bez telefonu i bez kodu zapasowego jedyną drogą powrotu na konto jest prośba do organizatora."
+"Wydrukuj tę stronę albo przepisz kody i schowaj je poza telefonem. Bez "
+"telefonu i bez kodu zapasowego jedyną drogą powrotu na konto jest prośba do "
+"organizatora."
 msgstr ""
-"Print this page or write the codes down and keep them somewhere other than your phone. Without your phone and a backup code, the only way back into your account is to ask the organiser."
+"Print this page or write the codes down and keep them somewhere other than "
+"your phone. Without your phone and a backup code, the only way back into "
+"your account is to ask the organiser."
 
 #: templates/web/account/twofactor_codes.html:22
 msgid ""
-"Każdy kod działa jeden raz. Wpisuje się go w to samo pole, co kod z aplikacji."
+"Każdy kod działa jeden raz. Wpisuje się go w to samo pole, co kod z "
+"aplikacji."
 msgstr ""
 "Each code works once. Enter it in the same field as the code from the app."
 
@@ -4144,9 +4387,11 @@ msgstr "Confirm login"
 #: templates/web/account/twofactor_verify.html:17
 #, python-format
 msgid ""
-"Przepisz %(digits)s-cyfrowy kod z aplikacji uwierzytelniającej. Kod zmienia się co 30 sekund."
+"Przepisz %(digits)s-cyfrowy kod z aplikacji uwierzytelniającej. Kod zmienia "
+"się co 30 sekund."
 msgstr ""
-"Enter the %(digits)s-digit code from your authenticator app. The code changes every 30 seconds."
+"Enter the %(digits)s-digit code from your authenticator app. The code "
+"changes every 30 seconds."
 
 #: templates/web/account/twofactor_verify.html:24
 msgid "Kod"
@@ -4158,15 +4403,19 @@ msgstr "Confirm"
 
 #: templates/web/account/twofactor_verify.html:33
 msgid ""
-"Nie masz przy sobie telefonu? W to samo pole wpisz jeden ze swoich kodów zapasowych."
+"Nie masz przy sobie telefonu? W to samo pole wpisz jeden ze swoich kodów "
+"zapasowych."
 msgstr ""
-"Don't have your phone with you? Enter one of your backup codes in the same field."
+"Don't have your phone with you? Enter one of your backup codes in the same "
+"field."
 
 #: templates/web/account/twofactor_verify.html:35
 msgid ""
-"Nie masz przy sobie telefonu ani kodów zapasowych? Napisz do organizatora – zdejmie zabezpieczenie z Twojego konta."
+"Nie masz przy sobie telefonu ani kodów zapasowych? Napisz do organizatora – "
+"zdejmie zabezpieczenie z Twojego konta."
 msgstr ""
-"Don't have your phone or backup codes? Write to the organiser – they will remove the protection from your account."
+"Don't have your phone or backup codes? Write to the organiser – they will "
+"remove the protection from your account."
 
 #: templates/web/activate_done.html:8
 msgid "Konto aktywne"
@@ -4178,16 +4427,20 @@ msgstr "Account active – log in"
 
 #: templates/web/activate_done.html:13
 msgid ""
-"Adres e-mail został potwierdzony. Możesz zalogować się swoim adresem i hasłem podanym przy rejestracji."
+"Adres e-mail został potwierdzony. Możesz zalogować się swoim adresem i "
+"hasłem podanym przy rejestracji."
 msgstr ""
-"Your e-mail address has been confirmed. You can log in with your address and the password you set during registration."
+"Your e-mail address has been confirmed. You can log in with your address and "
+"the password you set during registration."
 
 #: templates/web/activate_done.html:17
 #, python-format
 msgid ""
-"Konto nie zostanie już usunięte automatycznie. Jeśli zapomniałeś hasła, skorzystaj z <a href=\"%(reset_url)s\">odzyskiwania hasła</a>."
+"Konto nie zostanie już usunięte automatycznie. Jeśli zapomniałeś hasła, "
+"skorzystaj z <a href=\"%(reset_url)s\">odzyskiwania hasła</a>."
 msgstr ""
-"Your account will no longer be deleted automatically. If you've forgotten your password, use <a href=\"%(reset_url)s\">password recovery</a>."
+"Your account will no longer be deleted automatically. If you've forgotten "
+"your password, use <a href=\"%(reset_url)s\">password recovery</a>."
 
 #: templates/web/activate_invalid.html:11
 #: templates/web/activate_invalid.html:15
@@ -4197,9 +4450,13 @@ msgstr "The activation link doesn't work"
 #: templates/web/activate_invalid.html:18
 #, python-format
 msgid ""
-"Link aktywacyjny jest ważny %(hours)s godziny. Po tym czasie konto, którego adresu nikt nie potwierdził, jest usuwane – wtedy wystarczy <a href=\"%(register_url)s\">zarejestrować się ponownie</a> tym samym adresem."
+"Link aktywacyjny jest ważny %(hours)s godziny. Po tym czasie konto, którego "
+"adresu nikt nie potwierdził, jest usuwane – wtedy wystarczy <a "
+"href=\"%(register_url)s\">zarejestrować się ponownie</a> tym samym adresem."
 msgstr ""
-"The activation link is valid for %(hours)s hours. After that, an account whose address hasn't been confirmed is deleted – you can then simply <a href=\"%(register_url)s\">register again</a> with the same address."
+"The activation link is valid for %(hours)s hours. After that, an account "
+"whose address hasn't been confirmed is deleted – you can then simply <a "
+"href=\"%(register_url)s\">register again</a> with the same address."
 
 #: templates/web/activate_invalid.html:21
 #: templates/web/activate_invalid.html:25 templates/web/register_done.html:35
@@ -4216,16 +4473,20 @@ msgstr "Resend activation link"
 
 #: templates/web/activate_resend.html:13
 msgid ""
-"Podaj adres e-mail, którym się rejestrowałeś. Jeśli konto istnieje i czeka na aktywację, wyślemy na ten adres nowy link."
+"Podaj adres e-mail, którym się rejestrowałeś. Jeśli konto istnieje i czeka "
+"na aktywację, wyślemy na ten adres nowy link."
 msgstr ""
-"Enter the e-mail address you registered with. If the account exists and is awaiting activation, we will send a new link to that address."
+"Enter the e-mail address you registered with. If the account exists and is "
+"awaiting activation, we will send a new link to that address."
 
 #: templates/web/activate_resend.html:18
 #, python-format
 msgid ""
-"Link jest ważny %(hours)s godziny. Jeśli wiadomość nie dociera, sprawdź folder ze spamem – dopiero potem spróbuj ponownie."
+"Link jest ważny %(hours)s godziny. Jeśli wiadomość nie dociera, sprawdź "
+"folder ze spamem – dopiero potem spróbuj ponownie."
 msgstr ""
-"The link is valid for %(hours)s hours. If the message doesn't arrive, check your spam folder before trying again."
+"The link is valid for %(hours)s hours. If the message doesn't arrive, check "
+"your spam folder before trying again."
 
 #: templates/web/activate_resend.html:20 templates/web/password_reset.html:20
 msgid "Wyślij link"
@@ -4276,7 +4537,8 @@ msgstr "Electronic seal"
 msgid ""
 "Plik PDF pobrany z serwisu jest podpisany elektronicznie przez: %(signer)s."
 msgstr ""
-"The PDF file downloaded from the site is electronically signed by: %(signer)s."
+"The PDF file downloaded from the site is electronically signed by: "
+"%(signer)s."
 
 #: templates/web/certificate_verify.html:43
 msgid "Plik PDF pobrany z serwisu jest podpisany elektronicznie."
@@ -4284,9 +4546,11 @@ msgstr "The PDF file downloaded from the site is electronically signed."
 
 #: templates/web/certificate_verify.html:45
 msgid ""
-"Dokument wydawany jest bez pieczęci elektronicznej. Potwierdza go ten kod weryfikacyjny — brak pieczęci nie jest wadą dokumentu."
+"Dokument wydawany jest bez pieczęci elektronicznej. Potwierdza go ten kod "
+"weryfikacyjny — brak pieczęci nie jest wadą dokumentu."
 msgstr ""
-"The document is issued without an electronic seal. It is confirmed by this verification code — the absence of a seal is not a defect of the document."
+"The document is issued without an electronic seal. It is confirmed by this "
+"verification code — the absence of a seal is not a defect of the document."
 
 #: templates/web/certificate_verify.html:49
 msgid "Odbiorca"
@@ -4294,9 +4558,11 @@ msgstr "Recipient"
 
 #: templates/web/certificate_verify.html:54
 msgid ""
-"Odbiorca nie zgodził się na publikację imienia i nazwiska. Brak tej informacji nie jest wadą dokumentu."
+"Odbiorca nie zgodził się na publikację imienia i nazwiska. Brak tej "
+"informacji nie jest wadą dokumentu."
 msgstr ""
-"The recipient did not consent to the publication of their name. The absence of this information is not a defect of the document."
+"The recipient did not consent to the publication of their name. The absence "
+"of this information is not a defect of the document."
 
 #: templates/web/certificate_verify.html:60
 msgid "Nie mamy dokumentu o takim kodzie."
@@ -4304,9 +4570,11 @@ msgstr "We have no document with this code."
 
 #: templates/web/certificate_verify.html:61
 msgid ""
-"Sprawdź, czy kod został przepisany dokładnie. W kodach nie występują znaki łatwe do pomylenia: zera, jedynki ani litery „I”, „L” i „O”."
+"Sprawdź, czy kod został przepisany dokładnie. W kodach nie występują znaki "
+"łatwe do pomylenia: zera, jedynki ani litery „I”, „L” i „O”."
 msgstr ""
-"Check that the code was entered exactly. Codes never contain easily confused characters: zeros, ones or the letters “I”, “L” and “O”."
+"Check that the code was entered exactly. Codes never contain easily confused "
+"characters: zeros, ones or the letters “I”, “L” and “O”."
 
 #: templates/web/chat/_e2e_config.html:20
 msgid "Hasło do wiadomości"
@@ -4327,9 +4595,13 @@ msgstr "Lock messages"
 #: templates/web/chat/_e2e_config.html:32
 #, python-format
 msgid ""
-"Organizator włączył szyfrowane rozmowy między uczestnikami. <a href=\"%(key_url)s\">Skonfiguruj szyfrowanie</a>, żeby zaczynać nowe rozmowy i w nich pisać."
+"Organizator włączył szyfrowane rozmowy między uczestnikami. <a "
+"href=\"%(key_url)s\">Skonfiguruj szyfrowanie</a>, żeby zaczynać nowe rozmowy "
+"i w nich pisać."
 msgstr ""
-"The organiser has enabled encrypted conversations between participants. <a href=\"%(key_url)s\">Set up encryption</a> to start new conversations and write in them."
+"The organiser has enabled encrypted conversations between participants. <a "
+"href=\"%(key_url)s\">Set up encryption</a> to start new conversations and "
+"write in them."
 
 #: templates/web/chat/_key_form.html:16
 msgid "Hasło do wiadomości (co najmniej 10 znaków)"
@@ -4337,9 +4609,11 @@ msgstr "Message password (at least 10 characters)"
 
 #: templates/web/chat/_key_form.html:23
 msgid ""
-"Użyj innego hasła niż do konta – nie sprawdzimy tego, bo żadnego z nich nie znamy w postaci jawnej."
+"Użyj innego hasła niż do konta – nie sprawdzimy tego, bo żadnego z nich nie "
+"znamy w postaci jawnej."
 msgstr ""
-"Use a different password from your account password – we can't check this, because we don't know either of them in plain text."
+"Use a different password from your account password – we can't check this, "
+"because we don't know either of them in plain text."
 
 #: templates/web/chat/_key_form.html:25
 msgid "Utwórz nowy klucz"
@@ -4407,7 +4681,8 @@ msgstr "Report"
 msgid ""
 "Odszyfrowana treść tej wiadomości trafi do organizatora razem ze zgłoszeniem."
 msgstr ""
-"The decrypted content of this message will be sent to the organiser along with your report."
+"The decrypted content of this message will be sent to the organiser along "
+"with your report."
 
 #: templates/web/chat/_report.html:21 templates/web/forum/post_report.html:55
 #: templates/web/support/new.html:52
@@ -4440,9 +4715,11 @@ msgstr "Encryption details"
 
 #: templates/web/chat/_thread.html:85
 msgid ""
-"Porównajcie odciski kluczy na żywo (np. na zajęciach albo przez telefon). Jeśli się zgadzają, nikt nie podmienił kluczy po drodze."
+"Porównajcie odciski kluczy na żywo (np. na zajęciach albo przez telefon). "
+"Jeśli się zgadzają, nikt nie podmienił kluczy po drodze."
 msgstr ""
-"Compare your key fingerprints in person (e.g. in class or over the phone). If they match, nobody has swapped the keys along the way."
+"Compare your key fingerprints in person (e.g. in class or over the phone). "
+"If they match, nobody has swapped the keys along the way."
 
 #: templates/web/chat/_thread.html:87
 msgid "brak klucza"
@@ -4462,9 +4739,13 @@ msgstr "Set up encryption"
 
 #: templates/web/chat/_thread.html:106
 msgid ""
-"Nowe rozmowy między uczestnikami są szyfrowane end-to-end: treść znają tylko Wasze przeglądarki. Najpierw zakładamy rozmowę, potem napiszesz pierwszą wiadomość."
+"Nowe rozmowy między uczestnikami są szyfrowane end-to-end: treść znają tylko "
+"Wasze przeglądarki. Najpierw zakładamy rozmowę, potem napiszesz pierwszą "
+"wiadomość."
 msgstr ""
-"New conversations between participants are end-to-end encrypted: only your browsers know the content. First we create the conversation, then you can write your first message."
+"New conversations between participants are end-to-end encrypted: only your "
+"browsers know the content. First we create the conversation, then you can "
+"write your first message."
 
 #: templates/web/chat/_thread.html:108
 msgid "Rozpocznij rozmowę szyfrowaną"
@@ -4473,22 +4754,28 @@ msgstr "Start encrypted conversation"
 #: templates/web/chat/_thread.html:112
 #, python-format
 msgid ""
-"Nowe rozmowy między uczestnikami są szyfrowane. <a href=\"%(key_url)s\">Skonfiguruj szyfrowanie</a>, żeby napisać."
+"Nowe rozmowy między uczestnikami są szyfrowane. <a "
+"href=\"%(key_url)s\">Skonfiguruj szyfrowanie</a>, żeby napisać."
 msgstr ""
-"New conversations between participants are encrypted. <a href=\"%(key_url)s\">Set up encryption</a> to write."
+"New conversations between participants are encrypted. <a "
+"href=\"%(key_url)s\">Set up encryption</a> to write."
 
 #: templates/web/chat/_thread.html:117
 #, python-format
 msgid ""
-"Trwa etap „%(stage)s” – do jego zamknięcia każda wiadomość czeka na akceptację organizatora."
+"Trwa etap „%(stage)s” – do jego zamknięcia każda wiadomość czeka na "
+"akceptację organizatora."
 msgstr ""
-"Stage “%(stage)s” is in progress – until it closes, every message awaits the organiser's approval."
+"Stage “%(stage)s” is in progress – until it closes, every message awaits the "
+"organiser's approval."
 
 #: templates/web/chat/_thread.html:131
 msgid ""
-"Odblokuj rozmowy szyfrowane (pole „Hasło do wiadomości” nad listą rozmów), żeby pisać."
+"Odblokuj rozmowy szyfrowane (pole „Hasło do wiadomości” nad listą rozmów), "
+"żeby pisać."
 msgstr ""
-"Unlock encrypted conversations (the “Message password” field above the conversation list) to write."
+"Unlock encrypted conversations (the “Message password” field above the "
+"conversation list) to write."
 
 #: templates/web/chat/_thread.html:137 templates/web/chat/_thread.html:168
 #: templates/web/support/detail.html:51
@@ -4506,16 +4793,21 @@ msgstr "New conversation"
 
 #: templates/web/chat/directory.html:17
 msgid ""
-"Uczestnicy tego konkursu, którzy zgodzili się, żeby inni mogli ich znaleźć i do nich napisać. Widzisz tylko imię, pierwszą literę nazwiska i województwo."
+"Uczestnicy tego konkursu, którzy zgodzili się, żeby inni mogli ich znaleźć i "
+"do nich napisać. Widzisz tylko imię, pierwszą literę nazwiska i województwo."
 msgstr ""
-"Participants of this competition who have agreed to let others find them and write to them. You only see their first name, the first letter of their last name and their voivodeship."
+"Participants of this competition who have agreed to let others find them and "
+"write to them. You only see their first name, the first letter of their last "
+"name and their voivodeship."
 
 #: templates/web/chat/directory.html:24
 #, python-format
 msgid ""
-"Ciebie w katalogu nie ma – inni nie mogą zacząć z Tobą rozmowy. Możesz to zmienić w <a href=\"%(settings_url)s\">ustawieniach wiadomości</a>."
+"Ciebie w katalogu nie ma – inni nie mogą zacząć z Tobą rozmowy. Możesz to "
+"zmienić w <a href=\"%(settings_url)s\">ustawieniach wiadomości</a>."
 msgstr ""
-"You are not in the directory – others can't start a conversation with you. You can change this in <a href=\"%(settings_url)s\">message settings</a>."
+"You are not in the directory – others can't start a conversation with you. "
+"You can change this in <a href=\"%(settings_url)s\">message settings</a>."
 
 #: templates/web/chat/directory.html:29
 msgid "Szukaj po imieniu"
@@ -4558,9 +4850,11 @@ msgstr "The directory is empty"
 
 #: templates/web/chat/directory.html:58
 msgid ""
-"W katalogu są wyłącznie osoby, które same się do niego zapisały i mają skonfigurowane szyfrowanie."
+"W katalogu są wyłącznie osoby, które same się do niego zapisały i mają "
+"skonfigurowane szyfrowanie."
 msgstr ""
-"The directory only lists people who have added themselves and have set up encryption."
+"The directory only lists people who have added themselves and have set up "
+"encryption."
 
 #: templates/web/chat/directory.html:59
 msgid "W katalogu są wyłącznie osoby, które same się do niego zapisały."
@@ -4568,15 +4862,20 @@ msgstr "The directory only lists people who have added themselves."
 
 #: templates/web/chat/inbox.html:21
 msgid ""
-"Rozmowy z organizatorem i z innymi uczestnikami. Wiadomości czytasz tutaj, po zalogowaniu – e-mail mówi tylko, że coś na Ciebie czeka."
+"Rozmowy z organizatorem i z innymi uczestnikami. Wiadomości czytasz tutaj, "
+"po zalogowaniu – e-mail mówi tylko, że coś na Ciebie czeka."
 msgstr ""
-"Conversations with the organiser and other participants. You read messages here, after logging in – the e-mail only tells you that something is waiting for you."
+"Conversations with the organiser and other participants. You read messages "
+"here, after logging in – the e-mail only tells you that something is waiting "
+"for you."
 
 #: templates/web/chat/inbox.html:22
 msgid ""
-"Rozmowy z organizatorem. Wiadomości czytasz tutaj, po zalogowaniu – e-mail mówi tylko, że coś na Ciebie czeka."
+"Rozmowy z organizatorem. Wiadomości czytasz tutaj, po zalogowaniu – e-mail "
+"mówi tylko, że coś na Ciebie czeka."
 msgstr ""
-"Conversations with the organiser. You read messages here, after logging in – the e-mail only tells you that something is waiting for you."
+"Conversations with the organiser. You read messages here, after logging in – "
+"the e-mail only tells you that something is waiting for you."
 
 #: templates/web/chat/inbox.html:25 templates/web/chat/inbox.html:52
 msgid "Napisz do organizatora"
@@ -4612,15 +4911,17 @@ msgstr "You don't have any messages yet"
 
 #: templates/web/chat/inbox.html:49
 msgid ""
-"Masz pytanie o zawody? Napisz do organizatora – odpowie jeden z koordynatorów."
+"Masz pytanie o zawody? Napisz do organizatora – odpowie jeden z "
+"koordynatorów."
 msgstr ""
-"Have a question about the competition? Write to the organiser – one of the coordinators will reply."
+"Have a question about the competition? Write to the organiser – one of the "
+"coordinators will reply."
 
 #: templates/web/chat/inbox.html:50
 msgid ""
-"Możesz też porozmawiać z innymi uczestnikami, którzy zapisali się do katalogu."
-msgstr ""
-"You can also talk to other participants who have joined the directory."
+"Możesz też porozmawiać z innymi uczestnikami, którzy zapisali się do "
+"katalogu."
+msgstr "You can also talk to other participants who have joined the directory."
 
 #: templates/web/chat/key.html:14
 msgid "Szyfrowanie – Wiadomości"
@@ -4632,23 +4933,26 @@ msgstr "Conversation encryption"
 
 #: templates/web/chat/key.html:20
 msgid ""
-"Rozmowy szyfrowane end-to-end czytają tylko ich strony. Serwer i organizator widzą wyłącznie szyfrogram."
+"Rozmowy szyfrowane end-to-end czytają tylko ich strony. Serwer i organizator "
+"widzą wyłącznie szyfrogram."
 msgstr ""
-"End-to-end encrypted conversations can only be read by their participants. The server and the organiser see only ciphertext."
+"End-to-end encrypted conversations can only be read by their participants. "
+"The server and the organiser see only ciphertext."
 
 #: templates/web/chat/key.html:30
 #, python-format
-msgid ""
-"Odcisk klucza: <code class=\"chat-fingerprint\">%(fingerprint)s</code>"
+msgid "Odcisk klucza: <code class=\"chat-fingerprint\">%(fingerprint)s</code>"
 msgstr ""
 "Key fingerprint: <code class=\"chat-fingerprint\">%(fingerprint)s</code>"
 
 #: templates/web/chat/key.html:31
 #, python-format
 msgid ""
-"Utworzony %(created)s. Porównaj odcisk z tym, który widzi druga strona rozmowy („Szczegóły szyfrowania” w wątku)."
+"Utworzony %(created)s. Porównaj odcisk z tym, który widzi druga strona "
+"rozmowy („Szczegóły szyfrowania” w wątku)."
 msgstr ""
-"Created %(created)s. Compare the fingerprint with the one the other person sees (“Encryption details” in the thread)."
+"Created %(created)s. Compare the fingerprint with the one the other person "
+"sees (“Encryption details” in the thread)."
 
 #: templates/web/chat/key.html:38
 msgid "Zapomniałem hasła do wiadomości – utwórz nowy klucz"
@@ -4656,15 +4960,25 @@ msgstr "I forgot my message password – create a new key"
 
 #: templates/web/chat/key.html:39
 msgid ""
-"Nowy klucz nie odzyska starych wiadomości: rozmowy szyfrowane starym kluczem staną się dla Ciebie nieczytelne. Druga strona zobaczy w wątku informację, że Twój klucz się zmienił."
+"Nowy klucz nie odzyska starych wiadomości: rozmowy szyfrowane starym kluczem "
+"staną się dla Ciebie nieczytelne. Druga strona zobaczy w wątku informację, "
+"że Twój klucz się zmienił."
 msgstr ""
-"A new key won't recover old messages: conversations encrypted with the old key will become unreadable to you. The other person will see a notice in the thread that your key has changed."
+"A new key won't recover old messages: conversations encrypted with the old "
+"key will become unreadable to you. The other person will see a notice in the "
+"thread that your key has changed."
 
 #: templates/web/chat/key.html:49
 msgid ""
-"Wymyśl <strong>hasło do wiadomości</strong> – inne niż hasło do konta. Chroni kopię Twojego klucza, dzięki której przeczytasz rozmowy także na innym urządzeniu. Nie znamy go i nie możemy go przypomnieć ani zresetować: bez niego stare wiadomości szyfrowane przepadną."
+"Wymyśl <strong>hasło do wiadomości</strong> – inne niż hasło do konta. "
+"Chroni kopię Twojego klucza, dzięki której przeczytasz rozmowy także na "
+"innym urządzeniu. Nie znamy go i nie możemy go przypomnieć ani zresetować: "
+"bez niego stare wiadomości szyfrowane przepadną."
 msgstr ""
-"Choose a <strong>message password</strong> – different from your account password. It protects a copy of your key that lets you read your conversations on other devices too. We don't know it and can't remind you of it or reset it: without it, your old encrypted messages will be lost."
+"Choose a <strong>message password</strong> – different from your account "
+"password. It protects a copy of your key that lets you read your "
+"conversations on other devices too. We don't know it and can't remind you of "
+"it or reset it: without it, your old encrypted messages will be lost."
 
 #: templates/web/forum/category.html:30
 msgid "otwarty na nowe wątki"
@@ -4693,15 +5007,19 @@ msgstr "Your posts"
 
 #: templates/web/forum/category.html:52 templates/web/forum/index.html:39
 msgid ""
-"Forum jest w trybie tylko do odczytu: rozmowy zostają do przeczytania, ale nowych wpisów nie przyjmujemy."
+"Forum jest w trybie tylko do odczytu: rozmowy zostają do przeczytania, ale "
+"nowych wpisów nie przyjmujemy."
 msgstr ""
-"The forum is read-only: conversations remain available to read, but new posts are not being accepted."
+"The forum is read-only: conversations remain available to read, but new "
+"posts are not being accepted."
 
 #: templates/web/forum/category.html:54
 msgid ""
-"Ten dział jest zamknięty dla nowych wątków. Wątki, które już w nim są, zostają do czytania."
+"Ten dział jest zamknięty dla nowych wątków. Wątki, które już w nim są, "
+"zostają do czytania."
 msgstr ""
-"This section is closed to new threads. Existing threads remain available to read."
+"This section is closed to new threads. Existing threads remain available to "
+"read."
 
 #: templates/web/forum/category.html:58
 msgid "Wątki"
@@ -4727,9 +5045,13 @@ msgstr "There are no threads in this section yet"
 
 #: templates/web/forum/category.html:81
 msgid ""
-"Nikt tu jeszcze o nic nie zapytał. Jeżeli Twoje pytanie pasuje do opisu działu, załóż pierwszy wątek – reszta forum go zobaczy po zatwierdzeniu przez organizatora."
+"Nikt tu jeszcze o nic nie zapytał. Jeżeli Twoje pytanie pasuje do opisu "
+"działu, załóż pierwszy wątek – reszta forum go zobaczy po zatwierdzeniu "
+"przez organizatora."
 msgstr ""
-"Nobody has asked anything here yet. If your question fits the section description, start the first thread – the rest of the forum will see it once the organiser approves it."
+"Nobody has asked anything here yet. If your question fits the section "
+"description, start the first thread – the rest of the forum will see it once "
+"the organiser approves it."
 
 #: templates/web/forum/category.html:93
 msgid "Strony listy wątków"
@@ -4750,9 +5072,11 @@ msgstr "Participants' forum"
 
 #: templates/web/forum/index.html:29
 msgid ""
-"Rozmowy uczestników tego konkursu. Czytają je tylko zalogowani, a każdy wpis ogląda organizator."
+"Rozmowy uczestników tego konkursu. Czytają je tylko zalogowani, a każdy wpis "
+"ogląda organizator."
 msgstr ""
-"Conversations between participants of this competition. Only logged-in users can read them, and the organiser sees every post."
+"Conversations between participants of this competition. Only logged-in users "
+"can read them, and the organiser sees every post."
 
 #: templates/web/forum/index.html:52
 msgid "Działy"
@@ -4768,9 +5092,11 @@ msgstr "There are no sections yet"
 
 #: templates/web/forum/index.html:73
 msgid ""
-"Działy zakłada organizator. Dopóki nie ma ani jednego, nie ma też gdzie założyć wątku – napisz do organizatora przez formularz pomocy."
+"Działy zakłada organizator. Dopóki nie ma ani jednego, nie ma też gdzie "
+"założyć wątku – napisz do organizatora przez formularz pomocy."
 msgstr ""
-"Sections are created by the organiser. Until there is at least one, there's nowhere to start a thread – write to the organiser using the help form."
+"Sections are created by the organiser. Until there is at least one, there's "
+"nowhere to start a thread – write to the organiser using the help form."
 
 #: templates/web/forum/index.html:81
 msgid "Ostatnie wątki"
@@ -4782,15 +5108,20 @@ msgstr "Nobody has written anything yet"
 
 #: templates/web/forum/index.html:104
 msgid ""
-"Forum działa, tylko nie ma na nim rozmów. Pierwszy wątek zakłada się tym samym przyciskiem, co każdy następny."
+"Forum działa, tylko nie ma na nim rozmów. Pierwszy wątek zakłada się tym "
+"samym przyciskiem, co każdy następny."
 msgstr ""
-"The forum is working, there just aren't any conversations yet. You start the first thread with the same button as any other."
+"The forum is working, there just aren't any conversations yet. You start the "
+"first thread with the same button as any other."
 
 #: templates/web/forum/mine.html:26
 msgid ""
-"Wszystko, co napisałeś na tym forum, razem ze stanem i uzasadnieniem organizatora. O decyzjach nie wysyłamy listów – czekają tutaj."
+"Wszystko, co napisałeś na tym forum, razem ze stanem i uzasadnieniem "
+"organizatora. O decyzjach nie wysyłamy listów – czekają tutaj."
 msgstr ""
-"Everything you have written on this forum, along with its status and the organiser's reasoning. We don't send e-mails about decisions – they are waiting here."
+"Everything you have written on this forum, along with its status and the "
+"organiser's reasoning. We don't send e-mails about decisions – they are "
+"waiting here."
 
 #: templates/web/forum/mine.html:31 templates/web/forum/mine.html:34
 msgid "Wróć na forum"
@@ -4806,9 +5137,11 @@ msgstr "Organiser's reasoning:"
 
 #: templates/web/forum/mine.html:75
 msgid ""
-"Wątek czeka na zatwierdzenie przez organizatora. Do tego czasu widzisz go tylko Ty."
+"Wątek czeka na zatwierdzenie przez organizatora. Do tego czasu widzisz go "
+"tylko Ty."
 msgstr ""
-"The thread is awaiting the organiser's approval. Until then, only you can see it."
+"The thread is awaiting the organiser's approval. Until then, only you can "
+"see it."
 
 #: templates/web/forum/mine.html:83
 msgid "Historia wpisów"
@@ -4824,15 +5157,19 @@ msgstr "edited:"
 
 #: templates/web/forum/mine.html:110
 msgid ""
-"Organizator nie zostawił uzasadnienia. Jeżeli nie wiesz, co było nie tak, zapytaj przez formularz pomocy."
+"Organizator nie zostawił uzasadnienia. Jeżeli nie wiesz, co było nie tak, "
+"zapytaj przez formularz pomocy."
 msgstr ""
-"The organiser left no reasoning. If you don't know what was wrong, ask using the help form."
+"The organiser left no reasoning. If you don't know what was wrong, ask using "
+"the help form."
 
 #: templates/web/forum/mine.html:112
 msgid ""
-"Wpis czeka na zatwierdzenie przez organizatora. Do tego czasu widzisz go tylko Ty."
+"Wpis czeka na zatwierdzenie przez organizatora. Do tego czasu widzisz go "
+"tylko Ty."
 msgstr ""
-"The post is awaiting the organiser's approval. Until then, only you can see it."
+"The post is awaiting the organiser's approval. Until then, only you can see "
+"it."
 
 #: templates/web/forum/mine.html:118
 msgid "Nie napisałeś tu jeszcze ani słowa"
@@ -4840,9 +5177,13 @@ msgstr "You haven't written anything here yet"
 
 #: templates/web/forum/mine.html:119
 msgid ""
-"Gdy założysz wątek albo odpowiesz w cudzym, wpis pojawi się na tej liście razem ze swoim stanem. To tutaj – i tylko tutaj – zobaczysz, jeżeli organizator któryś z nich odrzuci."
+"Gdy założysz wątek albo odpowiesz w cudzym, wpis pojawi się na tej liście "
+"razem ze swoim stanem. To tutaj – i tylko tutaj – zobaczysz, jeżeli "
+"organizator któryś z nich odrzuci."
 msgstr ""
-"When you start a thread or reply in someone else's, the post will appear on this list along with its status. This is where – and the only place where – you will see if the organiser rejects any of them."
+"When you start a thread or reply in someone else's, the post will appear on "
+"this list along with its status. This is where – and the only place where – "
+"you will see if the organiser rejects any of them."
 
 #: templates/web/forum/mine.html:122
 msgid "Przejrzyj działy"
@@ -4854,9 +5195,11 @@ msgstr "Edit post"
 
 #: templates/web/forum/post_edit.html:37
 msgid ""
-"Wpis można poprawić tylko przez 15 minut od dodania. Potem zostaje taki, jaki jest."
+"Wpis można poprawić tylko przez 15 minut od dodania. Potem zostaje taki, "
+"jaki jest."
 msgstr ""
-"A post can only be edited within 15 minutes of posting. After that it stays as it is."
+"A post can only be edited within 15 minutes of posting. After that it stays "
+"as it is."
 
 #: templates/web/forum/post_edit.html:41
 msgid "można poprawiać do:"
@@ -4868,9 +5211,13 @@ msgstr "already edited:"
 
 #: templates/web/forum/post_edit.html:51
 msgid ""
-"Po zapisaniu poprawki wpis wraca do kolejki organizatora i do czasu ponownego zatwierdzenia widzisz go tylko Ty. Tak działa tryb „przed publikacją”, który obowiązuje zawsze w czasie otwartego etapu."
+"Po zapisaniu poprawki wpis wraca do kolejki organizatora i do czasu "
+"ponownego zatwierdzenia widzisz go tylko Ty. Tak działa tryb „przed "
+"publikacją”, który obowiązuje zawsze w czasie otwartego etapu."
 msgstr ""
-"Once you save your edit, the post goes back into the organiser's queue and only you can see it until it is approved again. This is how “before publication” mode works, and it always applies while a stage is open."
+"Once you save your edit, the post goes back into the organiser's queue and "
+"only you can see it until it is approved again. This is how “before "
+"publication” mode works, and it always applies while a stage is open."
 
 #: templates/web/forum/post_edit.html:65
 msgid "Zapisz poprawkę"
@@ -4882,9 +5229,13 @@ msgstr "The editing window has closed"
 
 #: templates/web/forum/post_edit.html:74
 msgid ""
-"Ten wpis można było poprawiać przez 15 minut od dodania. Jeżeli treść jest nie do utrzymania, usuń wpis w wątku i napisz go jeszcze raz – albo napisz do organizatora przez formularz pomocy."
+"Ten wpis można było poprawiać przez 15 minut od dodania. Jeżeli treść jest "
+"nie do utrzymania, usuń wpis w wątku i napisz go jeszcze raz – albo napisz "
+"do organizatora przez formularz pomocy."
 msgstr ""
-"This post could be edited for 15 minutes after posting. If the content can't stay as it is, delete the post in the thread and write it again – or write to the organiser using the help form."
+"This post could be edited for 15 minutes after posting. If the content can't "
+"stay as it is, delete the post in the thread and write it again – or write "
+"to the organiser using the help form."
 
 #: templates/web/forum/post_edit.html:76
 msgid "Wróć do wątku"
@@ -4897,9 +5248,12 @@ msgstr "Report post"
 
 #: templates/web/forum/post_report.html:29
 msgid ""
-"Napisz organizatorowi, co jest nie tak z tą wypowiedzią. Zgłoszenie widzi wyłącznie organizator – ani autor wpisu, ani reszta forum się o nim nie dowie."
+"Napisz organizatorowi, co jest nie tak z tą wypowiedzią. Zgłoszenie widzi "
+"wyłącznie organizator – ani autor wpisu, ani reszta forum się o nim nie "
+"dowie."
 msgstr ""
-"Tell the organiser what's wrong with this post. Only the organiser sees your report – neither the author nor the rest of the forum will know about it."
+"Tell the organiser what's wrong with this post. Only the organiser sees your "
+"report – neither the author nor the rest of the forum will know about it."
 
 #: templates/web/forum/post_report.html:33
 msgid "Zgłaszany wpis"
@@ -4907,15 +5261,21 @@ msgstr "Reported post"
 
 #: templates/web/forum/post_report.html:47
 msgid ""
-"Zgłoszenie nie ukrywa wpisu – decyzję podejmuje organizator i może być innego zdania niż Ty. Jeżeli chodzi o treść zadań otwartego etapu, napisz to wprost: takie wpisy organizator zdejmuje w pierwszej kolejności."
+"Zgłoszenie nie ukrywa wpisu – decyzję podejmuje organizator i może być "
+"innego zdania niż Ty. Jeżeli chodzi o treść zadań otwartego etapu, napisz to "
+"wprost: takie wpisy organizator zdejmuje w pierwszej kolejności."
 msgstr ""
-"Reporting does not hide the post – the organiser decides and may disagree with you. If it concerns the problems of an open stage, say so directly: the organiser removes such posts first."
+"Reporting does not hide the post – the organiser decides and may disagree "
+"with you. If it concerns the problems of an open stage, say so directly: the "
+"organiser removes such posts first."
 
 #: templates/web/forum/thread.html:49
 msgid ""
-"Ten wątek czeka na zatwierdzenie przez organizatora. Widzisz go tylko Ty – do czasu decyzji nikt inny nie może go przeczytać ani nic w nim dopisać."
+"Ten wątek czeka na zatwierdzenie przez organizatora. Widzisz go tylko Ty – "
+"do czasu decyzji nikt inny nie może go przeczytać ani nic w nim dopisać."
 msgstr ""
-"This thread is awaiting the organiser's approval. Only you can see it – until a decision is made, nobody else can read it or post in it."
+"This thread is awaiting the organiser's approval. Only you can see it – "
+"until a decision is made, nobody else can read it or post in it."
 
 #: templates/web/forum/thread.html:63
 msgid "Przestań obserwować"
@@ -4943,9 +5303,13 @@ msgstr "Delete this post"
 
 #: templates/web/forum/thread.html:108
 msgid ""
-"Wpis zniknie z wątku natychmiast i nie da się tego cofnąć. Odpowiedzi, które ktoś napisał pod nim, zostają – dlatego kasujemy sam akapit, a nie kawałek rozmowy."
+"Wpis zniknie z wątku natychmiast i nie da się tego cofnąć. Odpowiedzi, które "
+"ktoś napisał pod nim, zostają – dlatego kasujemy sam akapit, a nie kawałek "
+"rozmowy."
 msgstr ""
-"The post will disappear from the thread immediately and this cannot be undone. Replies others have written below it stay – which is why we delete only that paragraph, not part of the conversation."
+"The post will disappear from the thread immediately and this cannot be "
+"undone. Replies others have written below it stay – which is why we delete "
+"only that paragraph, not part of the conversation."
 
 #: templates/web/forum/thread.html:112
 msgid "Tak, usuń wpis"
@@ -4957,9 +5321,11 @@ msgstr "There are no visible posts here yet"
 
 #: templates/web/forum/thread.html:122
 msgid ""
-"Wypowiedzi w tym wątku czekają na zatwierdzenie przez organizatora albo zostały zdjęte. Zajrzyj tu później."
+"Wypowiedzi w tym wątku czekają na zatwierdzenie przez organizatora albo "
+"zostały zdjęte. Zajrzyj tu później."
 msgstr ""
-"The posts in this thread are awaiting the organiser's approval or have been removed. Check back later."
+"The posts in this thread are awaiting the organiser's approval or have been "
+"removed. Check back later."
 
 #: templates/web/forum/thread.html:127
 msgid "Strony wątku"
@@ -4972,21 +5338,28 @@ msgstr "Reply"
 
 #: templates/web/forum/thread.html:146
 msgid ""
-"Forum jest w trybie tylko do odczytu – nowych wpisów nie przyjmujemy. Rozmowa zostaje tu do przeczytania."
+"Forum jest w trybie tylko do odczytu – nowych wpisów nie przyjmujemy. "
+"Rozmowa zostaje tu do przeczytania."
 msgstr ""
-"The forum is read-only – new posts are not being accepted. The conversation remains here to read."
+"The forum is read-only – new posts are not being accepted. The conversation "
+"remains here to read."
 
 #: templates/web/forum/thread.html:149
 msgid ""
-"Ten wątek jest zamknięty przez organizatora. Jeżeli masz do niego coś do dodania, załóż nowy wątek w tym samym dziale."
+"Ten wątek jest zamknięty przez organizatora. Jeżeli masz do niego coś do "
+"dodania, załóż nowy wątek w tym samym dziale."
 msgstr ""
-"This thread has been closed by the organiser. If you have something to add, start a new thread in the same section."
+"This thread has been closed by the organiser. If you have something to add, "
+"start a new thread in the same section."
 
 #: templates/web/forum/thread.html:152
 msgid ""
-"Do wątku czekającego na moderację nie dopisuje nikt – także jego autor. Organizator ma ocenić temat, a nie rozmowę, która zdążyła pod nim urosnąć."
+"Do wątku czekającego na moderację nie dopisuje nikt – także jego autor. "
+"Organizator ma ocenić temat, a nie rozmowę, która zdążyła pod nim urosnąć."
 msgstr ""
-"Nobody can post in a thread awaiting moderation – not even its author. The organiser needs to assess the topic, not a conversation that has grown under it in the meantime."
+"Nobody can post in a thread awaiting moderation – not even its author. The "
+"organiser needs to assess the topic, not a conversation that has grown under "
+"it in the meantime."
 
 #: templates/web/forum/thread.html:176
 msgid "Wyślij odpowiedź"
@@ -4994,13 +5367,14 @@ msgstr "Send reply"
 
 #: templates/web/forum/thread_new.html:25
 msgid ""
-"Zadaj pytanie całemu forum. Wątek zobaczą inni dopiero po zatwierdzeniu przez organizatora."
+"Zadaj pytanie całemu forum. Wątek zobaczą inni dopiero po zatwierdzeniu "
+"przez organizatora."
 msgstr ""
-"Ask the whole forum a question. Others will see the thread only after the organiser approves it."
+"Ask the whole forum a question. Others will see the thread only after the "
+"organiser approves it."
 
 #: templates/web/forum/thread_new.html:35
-msgid ""
-"Forum jest w trybie tylko do odczytu – nowego wątku teraz nie założysz."
+msgid "Forum jest w trybie tylko do odczytu – nowego wątku teraz nie założysz."
 msgstr "The forum is read-only – you can't start a new thread right now."
 
 #: templates/web/forum/thread_new.html:46
@@ -5009,37 +5383,48 @@ msgstr "Start thread"
 
 #: templates/web/forum/thread_new.html:50
 msgid ""
-"Treść wpisu jest zwykłym tekstem: odnośniki zamieniamy na klikalne same, a znaczników HTML i załączników forum nie przyjmuje. Nie podawaj adresu e-mail, nazwy szkoły ani swojego kodu uczestnika – oceny w olimpiadzie są anonimowe i to Cię chroni."
+"Treść wpisu jest zwykłym tekstem: odnośniki zamieniamy na klikalne same, a "
+"znaczników HTML i załączników forum nie przyjmuje. Nie podawaj adresu e-"
+"mail, nazwy szkoły ani swojego kodu uczestnika – oceny w olimpiadzie są "
+"anonimowe i to Cię chroni."
 msgstr ""
-"Posts are plain text: links are made clickable automatically, and the forum does not accept HTML tags or attachments. Don't share your e-mail address, school name or participant code – olympiad marking is anonymous, and that protects you."
+"Posts are plain text: links are made clickable automatically, and the forum "
+"does not accept HTML tags or attachments. Don't share your e-mail address, "
+"school name or participant code – olympiad marking is anonymous, and that "
+"protects you."
 
 #: templates/web/forum/unsubscribe.html:25
 msgid ""
 "Gotowe – nie obserwujesz już tego wątku i nie dostaniesz o nim więcej listów."
 msgstr ""
-"Done – you are no longer following this thread and won't receive any more e-mails about it."
+"Done – you are no longer following this thread and won't receive any more e-"
+"mails about it."
 
 #: templates/web/forum/unsubscribe.html:27
 msgid ""
-"Gotowe – listy o wpisach czekających na moderację są wyłączone. Kolejka nadal czeka w panelu koordynatora."
+"Gotowe – listy o wpisach czekających na moderację są wyłączone. Kolejka "
+"nadal czeka w panelu koordynatora."
 msgstr ""
-"Done – e-mails about posts awaiting moderation are turned off. The queue is still waiting in the coordinator dashboard."
+"Done – e-mails about posts awaiting moderation are turned off. The queue is "
+"still waiting in the coordinator dashboard."
 
 #: templates/web/forum/unsubscribe.html:29
 msgid "Gotowe – nie będziemy już wysyłać listów z forum na ten adres."
 msgstr "Done – we will no longer send forum e-mails to this address."
 
 #: templates/web/forum/unsubscribe.html:31
-msgid ""
-"Zmienisz to w każdej chwili na ekranie „Edycja danych” po zalogowaniu."
+msgid "Zmienisz to w każdej chwili na ekranie „Edycja danych” po zalogowaniu."
 msgstr ""
-"You can change this at any time on the “Edit details” screen after logging in."
+"You can change this at any time on the “Edit details” screen after logging "
+"in."
 
 #: templates/web/forum/unsubscribe.html:34
 msgid ""
-"Czy przestać obserwować ten wątek? Nie dostaniesz już listów o nowych odpowiedziach w nim."
+"Czy przestać obserwować ten wątek? Nie dostaniesz już listów o nowych "
+"odpowiedziach w nim."
 msgstr ""
-"Stop following this thread? You will no longer receive e-mails about new replies in it."
+"Stop following this thread? You will no longer receive e-mails about new "
+"replies in it."
 
 #: templates/web/forum/unsubscribe.html:36
 msgid "Czy wyłączyć listy o wpisach czekających na moderację?"
@@ -5047,9 +5432,12 @@ msgstr "Turn off e-mails about posts awaiting moderation?"
 
 #: templates/web/forum/unsubscribe.html:38
 msgid ""
-"Czy wyłączyć wszystkie listy z forum? Nie dostaniesz już listów o odpowiedziach w obserwowanych wątkach ani o decyzjach organizatora w sprawie Twoich wpisów."
+"Czy wyłączyć wszystkie listy z forum? Nie dostaniesz już listów o "
+"odpowiedziach w obserwowanych wątkach ani o decyzjach organizatora w sprawie "
+"Twoich wpisów."
 msgstr ""
-"Turn off all forum e-mails? You will no longer receive e-mails about replies in threads you follow or about the organiser's decisions on your posts."
+"Turn off all forum e-mails? You will no longer receive e-mails about replies "
+"in threads you follow or about the organiser's decisions on your posts."
 
 #: templates/web/forum/unsubscribe.html:42
 msgid "Tak, wypisz mnie"
@@ -5135,6 +5523,10 @@ msgid ""
 msgstr ""
 "Ask the participant to send the request again – a new link will arrive at "
 "the same address."
+
+#: templates/web/invite/accept.html:14
+msgid "Zaproszenie do Olimpiady Kwantowej"
+msgstr "An invitation to the Quantum Olympiad"
 
 #: templates/web/invite/accept.html:18 templates/web/invite/done.html:14
 #: templates/web/invite/invalid.html:11
@@ -5283,9 +5675,14 @@ msgstr "AI assessment (suggestion, non-binding)"
 
 #: templates/web/participant/_ai_feedback.html:15
 msgid ""
-"Poniższe propozycje przygotował model językowy jako pomoc dla komitetu. Nie są oceną: obowiązują wyłącznie punkty wystawione przez recenzentów, podane wyżej. Reklamacja dotyczy oficjalnej oceny, a nie sugestii AI."
+"Poniższe propozycje przygotował model językowy jako pomoc dla komitetu. Nie "
+"są oceną: obowiązują wyłącznie punkty wystawione przez recenzentów, podane "
+"wyżej. Reklamacja dotyczy oficjalnej oceny, a nie sugestii AI."
 msgstr ""
-"The suggestions below were prepared by a language model to assist the committee. They are not a score: only the points awarded by the reviewers, shown above, count. Appeals concern the official score, not the AI suggestion."
+"The suggestions below were prepared by a language model to assist the "
+"committee. They are not a score: only the points awarded by the reviewers, "
+"shown above, count. Appeals concern the official score, not the AI "
+"suggestion."
 
 #: templates/web/participant/_ai_feedback.html:19
 #: templates/web/participant/_problem_card.html:24
@@ -5312,15 +5709,19 @@ msgstr "Arrival form"
 #: templates/web/participant/_arrival_card.html:16
 #, python-format
 msgid ""
-"Twoja deklaracja jest zapisana (%(submitted)s). Możesz ją poprawić do dnia zawodów."
+"Twoja deklaracja jest zapisana (%(submitted)s). Możesz ją poprawić do dnia "
+"zawodów."
 msgstr ""
-"Your declaration has been saved (%(submitted)s). You can edit it until the day of the competition."
+"Your declaration has been saved (%(submitted)s). You can edit it until the "
+"day of the competition."
 
 #: templates/web/participant/_arrival_card.html:20
 msgid ""
-"Powiedz organizatorowi, kiedy przyjeżdżasz i czego potrzebujesz. Bez tej deklaracji nie zamówimy dla Ciebie noclegu ani posiłku."
+"Powiedz organizatorowi, kiedy przyjeżdżasz i czego potrzebujesz. Bez tej "
+"deklaracji nie zamówimy dla Ciebie noclegu ani posiłku."
 msgstr ""
-"Tell the organiser when you are arriving and what you need. Without this declaration we cannot book accommodation or meals for you."
+"Tell the organiser when you are arriving and what you need. Without this "
+"declaration we cannot book accommodation or meals for you."
 
 #: templates/web/participant/_arrival_card.html:26
 msgid "Zapisz deklarację"
@@ -5357,15 +5758,19 @@ msgstr "Download invoice"
 
 #: templates/web/participant/_fees_card.html:31
 msgid ""
-"Rachunek wystawia organizator. Gdy będzie gotowy, pojawi się tu przycisk pobrania."
+"Rachunek wystawia organizator. Gdy będzie gotowy, pojawi się tu przycisk "
+"pobrania."
 msgstr ""
-"The invoice is issued by the organiser. When it's ready, a download button will appear here."
+"The invoice is issued by the organiser. When it's ready, a download button "
+"will appear here."
 
 #: templates/web/participant/_fees_card.html:34
 msgid ""
-"Wpisz oznaczenie w tytule przelewu — po nim organizator odnajdzie Twoją wpłatę."
+"Wpisz oznaczenie w tytule przelewu — po nim organizator odnajdzie Twoją "
+"wpłatę."
 msgstr ""
-"Enter the reference in the transfer description — the organiser will use it to identify your payment."
+"Enter the reference in the transfer description — the organiser will use it "
+"to identify your payment."
 
 #: templates/web/participant/_guardian_consent.html:15
 msgid "potwierdzona"
@@ -6206,9 +6611,11 @@ msgstr "Diplomas and certificates"
 
 #: templates/web/participant/certificates.html:15
 msgid ""
-"Dokumenty wystawione przez komitet. Każdy ma numer i kod weryfikacyjny – po kodzie każdy może sprawdzić jego ważność bez logowania."
+"Dokumenty wystawione przez komitet. Każdy ma numer i kod weryfikacyjny – po "
+"kodzie każdy może sprawdzić jego ważność bez logowania."
 msgstr ""
-"Documents issued by the committee. Each has a number and a verification code – anyone can use the code to check its validity without logging in."
+"Documents issued by the committee. Each has a number and a verification code "
+"– anyone can use the code to check its validity without logging in."
 
 #: templates/web/participant/certificates.html:31
 msgid "Kod weryfikacyjny"
@@ -6224,9 +6631,13 @@ msgstr "electronically signed"
 
 #: templates/web/participant/certificates.html:70
 msgid ""
-"Nie masz jeszcze żadnego dokumentu. Dyplomy i zaświadczenia komitet wystawia po zakończeniu zawodów – to normalne, że przez większą część roku ta lista jest pusta."
+"Nie masz jeszcze żadnego dokumentu. Dyplomy i zaświadczenia komitet wystawia "
+"po zakończeniu zawodów – to normalne, że przez większą część roku ta lista "
+"jest pusta."
 msgstr ""
-"You don't have any documents yet. The committee issues diplomas and certificates after the competition ends – it's normal for this list to be empty for most of the year."
+"You don't have any documents yet. The committee issues diplomas and "
+"certificates after the competition ends – it's normal for this list to be "
+"empty for most of the year."
 
 #: templates/web/participant/dashboard.html:27
 msgid "Twoje zgłoszenie"
@@ -6252,9 +6663,11 @@ msgstr "Edit details"
 
 #: templates/web/participant/dashboard.html:45
 msgid ""
-"Bez pełnej daty wiek liczymy po roczniku, a zgodę opiekuna traktujemy zachowawczo."
+"Bez pełnej daty wiek liczymy po roczniku, a zgodę opiekuna traktujemy "
+"zachowawczo."
 msgstr ""
-"Without a full date, we calculate your age from your year of birth and treat guardian consent conservatively."
+"Without a full date, we calculate your age from your year of birth and treat "
+"guardian consent conservatively."
 
 #: templates/web/participant/dashboard.html:57
 msgid "Twoje dane i ustawienia konta"
@@ -6296,9 +6709,11 @@ msgstr "captain"
 
 #: templates/web/participant/dashboard.html:123
 msgid ""
-"Skład drużyny układa organizator. Zmianę zgłoś opiekunowi albo organizatorowi."
+"Skład drużyny układa organizator. Zmianę zgłoś opiekunowi albo "
+"organizatorowi."
 msgstr ""
-"Team membership is set by the organiser. Report any changes to your supervisor or the organiser."
+"Team membership is set by the organiser. Report any changes to your "
+"supervisor or the organiser."
 
 #: templates/web/participant/feedback.html:7
 msgid "Twoja informacja zwrotna"
@@ -6500,15 +6915,19 @@ msgstr "Reason for rejection"
 
 #: templates/web/password_reset.html:13
 msgid ""
-"Podaj adres e-mail, którym się logujesz. Jeśli konto istnieje, wyślemy na ten adres link do ustawienia nowego hasła."
+"Podaj adres e-mail, którym się logujesz. Jeśli konto istnieje, wyślemy na "
+"ten adres link do ustawienia nowego hasła."
 msgstr ""
-"Enter the e-mail address you log in with. If the account exists, we will send a link to set a new password to that address."
+"Enter the e-mail address you log in with. If the account exists, we will "
+"send a link to set a new password to that address."
 
 #: templates/web/password_reset.html:18
 msgid ""
-"Link jest ważny 24 godziny i działa tylko raz. Formularz obsługuje konta wszystkich ról: uczestnika, członka komisji i koordynatora."
+"Link jest ważny 24 godziny i działa tylko raz. Formularz obsługuje konta "
+"wszystkich ról: uczestnika, członka komisji i koordynatora."
 msgstr ""
-"The link is valid for 24 hours and works only once. This form works for accounts of all roles: participant, committee member and coordinator."
+"The link is valid for 24 hours and works only once. This form works for "
+"accounts of all roles: participant, committee member and coordinator."
 
 #: templates/web/password_reset.html:22
 msgid "Hasło jednak pamiętasz?"
@@ -6521,9 +6940,11 @@ msgstr "Password changed"
 
 #: templates/web/password_reset_complete.html:12
 msgid ""
-"Możesz zalogować się nowym hasłem. Poprzednie hasło i link z wiadomości przestały działać."
+"Możesz zalogować się nowym hasłem. Poprzednie hasło i link z wiadomości "
+"przestały działać."
 msgstr ""
-"You can log in with your new password. Your previous password and the link from the e-mail no longer work."
+"You can log in with your new password. Your previous password and the link "
+"from the e-mail no longer work."
 
 #: templates/web/password_reset_confirm.html:9
 msgid "Nowe hasło"
@@ -6531,15 +6952,19 @@ msgstr "New password"
 
 #: templates/web/password_reset_confirm.html:15
 msgid ""
-"Wpisz nowe hasło dwa razy. Po zapisaniu zaloguj się nim w standardowym formularzu."
+"Wpisz nowe hasło dwa razy. Po zapisaniu zaloguj się nim w standardowym "
+"formularzu."
 msgstr ""
-"Enter your new password twice. After saving, log in with it using the standard form."
+"Enter your new password twice. After saving, log in with it using the "
+"standard form."
 
 #: templates/web/password_reset_confirm.html:20
 msgid ""
-"Hasło musi mieć co najmniej 10 znaków i nie może być popularnym hasłem ani ciągiem samych cyfr."
+"Hasło musi mieć co najmniej 10 znaków i nie może być popularnym hasłem ani "
+"ciągiem samych cyfr."
 msgstr ""
-"The password must be at least 10 characters long and cannot be a common password or consist of digits only."
+"The password must be at least 10 characters long and cannot be a common "
+"password or consist of digits only."
 
 #: templates/web/password_reset_confirm.html:22
 msgid "Zapisz hasło"
@@ -6551,9 +6976,11 @@ msgstr "The link is invalid"
 
 #: templates/web/password_reset_confirm.html:26
 msgid ""
-"Ten link do resetu hasła wygasł albo został już użyty. Każdy link działa 24 godziny i tylko jeden raz."
+"Ten link do resetu hasła wygasł albo został już użyty. Każdy link działa 24 "
+"godziny i tylko jeden raz."
 msgstr ""
-"This password reset link has expired or has already been used. Each link works for 24 hours and only once."
+"This password reset link has expired or has already been used. Each link "
+"works for 24 hours and only once."
 
 #: templates/web/password_reset_confirm.html:28
 msgid "Poproś o nowy link"
@@ -6569,15 +6996,19 @@ msgstr "Check your inbox"
 
 #: templates/web/password_reset_sent.html:13
 msgid ""
-"Jeśli pod podanym adresem istnieje konto, wysłaliśmy na nie wiadomość z linkiem do ustawienia nowego hasła."
+"Jeśli pod podanym adresem istnieje konto, wysłaliśmy na nie wiadomość z "
+"linkiem do ustawienia nowego hasła."
 msgstr ""
-"If an account exists for this address, we have sent it a message with a link to set a new password."
+"If an account exists for this address, we have sent it a message with a link "
+"to set a new password."
 
 #: templates/web/password_reset_sent.html:15
 msgid ""
-"Link jest ważny 24 godziny i można go użyć jeden raz. Jeśli wiadomość nie dociera, sprawdź folder ze spamem – dopiero potem spróbuj ponownie."
+"Link jest ważny 24 godziny i można go użyć jeden raz. Jeśli wiadomość nie "
+"dociera, sprawdź folder ze spamem – dopiero potem spróbuj ponownie."
 msgstr ""
-"The link is valid for 24 hours and can be used once. If the message doesn't arrive, check your spam folder before trying again."
+"The link is valid for 24 hours and can be used once. If the message doesn't "
+"arrive, check your spam folder before trying again."
 
 #: templates/web/posters.html:25
 msgid ""
@@ -6950,9 +7381,14 @@ msgstr ""
 
 #: templates/web/register_done.html:28
 msgid ""
-"Po aktywacji panel opiekuna czeka pod adresem „Moi uczniowie”. Będzie pusty, dopóki uczniowie nie wpiszą Twojego adresu e-mail w polu „adres opiekuna szkolnego” we własnym profilu – to oni decydują, kto widzi ich postęp."
+"Po aktywacji panel opiekuna czeka pod adresem „Moi uczniowie”. Będzie pusty, "
+"dopóki uczniowie nie wpiszą Twojego adresu e-mail w polu „adres opiekuna "
+"szkolnego” we własnym profilu – to oni decydują, kto widzi ich postęp."
 msgstr ""
-"After activation, your supervisor dashboard will be waiting under “My students”. It will be empty until your students enter your e-mail address in the “school supervisor's address” field in their own profile – they decide who can see their progress."
+"After activation, your supervisor dashboard will be waiting under “My "
+"students”. It will be empty until your students enter your e-mail address in "
+"the “school supervisor's address” field in their own profile – they decide "
+"who can see their progress."
 
 #: templates/web/register_done.html:34
 msgid "Nie dostałeś listu?"
@@ -6972,15 +7408,21 @@ msgstr "List of laureates – the table does not include other participants."
 
 #: templates/web/results.html:13
 msgid ""
-"Lista osób zakwalifikowanych do następnego etapu – tabela nie obejmuje pozostałych uczestników."
+"Lista osób zakwalifikowanych do następnego etapu – tabela nie obejmuje "
+"pozostałych uczestników."
 msgstr ""
-"List of participants qualified for the next stage – the table does not include other participants."
+"List of participants qualified for the next stage – the table does not "
+"include other participants."
 
 #: templates/web/results.html:15
 msgid ""
-"Tabela pochodzi z zamrożonego snapshotu z chwili publikacji – nie jest przeliczana w locie, więc późniejsze decyzje komisji nie zmieniają jej po cichu."
+"Tabela pochodzi z zamrożonego snapshotu z chwili publikacji – nie jest "
+"przeliczana w locie, więc późniejsze decyzje komisji nie zmieniają jej po "
+"cichu."
 msgstr ""
-"The table comes from a snapshot frozen at the time of publication – it is not recalculated on the fly, so later committee decisions do not silently change it."
+"The table comes from a snapshot frozen at the time of publication – it is "
+"not recalculated on the fly, so later committee decisions do not silently "
+"change it."
 
 #: templates/web/results.html:27
 msgid "Twoje punkty i komentarze"
@@ -6998,16 +7440,16 @@ msgstr "%(points)s of %(maximum)s pts"
 
 #: templates/web/reviewer/_ai_assessment.html:30
 #, python-format
-msgid ""
-"Model %(model)s, wygenerowano %(when)s. Pewność modelu: %(confidence)s."
-msgstr ""
-"Model %(model)s, generated %(when)s. Model confidence: %(confidence)s."
+msgid "Model %(model)s, wygenerowano %(when)s. Pewność modelu: %(confidence)s."
+msgstr "Model %(model)s, generated %(when)s. Model confidence: %(confidence)s."
 
 #: templates/web/reviewer/_ai_assessment.html:33
 msgid ""
-"To jest propozycja modelu językowego, a nie ocena komitetu. Punkty wystawiasz Ty – sprawdź każde twierdzenie w pracy, zanim się na nie powołasz."
+"To jest propozycja modelu językowego, a nie ocena komitetu. Punkty "
+"wystawiasz Ty – sprawdź każde twierdzenie w pracy, zanim się na nie powołasz."
 msgstr ""
-"This is a language model's suggestion, not the committee's score. You award the points – check every claim in the work before relying on it."
+"This is a language model's suggestion, not the committee's score. You award "
+"the points – check every claim in the work before relying on it."
 
 #: templates/web/reviewer/_ai_assessment.html:38
 #, python-format
@@ -8638,9 +9080,13 @@ msgstr "Your browser can't play videos in %(format)s format."
 
 #: templates/web/workshop_materials/detail.html:32
 msgid ""
-"Film jest dostępny wyłącznie dla zalogowanych uczestników i opiekunów – prosimy go nie nagrywać ani nie udostępniać dalej. Jeśli odtwarzanie zatrzyma się po dłuższej przerwie, odśwież stronę."
+"Film jest dostępny wyłącznie dla zalogowanych uczestników i opiekunów – "
+"prosimy go nie nagrywać ani nie udostępniać dalej. Jeśli odtwarzanie "
+"zatrzyma się po dłuższej przerwie, odśwież stronę."
 msgstr ""
-"This video is available only to logged-in participants and supervisors – please do not record it or share it further. If playback stops after a long pause, refresh the page."
+"This video is available only to logged-in participants and supervisors – "
+"please do not record it or share it further. If playback stops after a long "
+"pause, refresh the page."
 
 #: templates/web/workshop_materials/detail.html:46
 #: templates/web/workshop_materials/list.html:40
@@ -8653,15 +9099,21 @@ msgstr "All workshop materials"
 
 #: templates/web/workshop_materials/list.html:10
 msgid ""
-"Nagrania i materiały z warsztatów olimpiady – dla zalogowanych uczestników i opiekunów."
+"Nagrania i materiały z warsztatów olimpiady – dla zalogowanych uczestników i "
+"opiekunów."
 msgstr ""
-"Recordings and materials from the olympiad workshops – for logged-in participants and supervisors."
+"Recordings and materials from the olympiad workshops – for logged-in "
+"participants and supervisors."
 
 #: templates/web/workshop_materials/list.html:15
 msgid ""
-"Nagrania zajęć, slajdy i pliki do ćwiczeń. Materiały są przeznaczone wyłącznie dla uczestników olimpiady i ich opiekunów – prosimy nie udostępniać ich dalej."
+"Nagrania zajęć, slajdy i pliki do ćwiczeń. Materiały są przeznaczone "
+"wyłącznie dla uczestników olimpiady i ich opiekunów – prosimy nie "
+"udostępniać ich dalej."
 msgstr ""
-"Session recordings, slides and exercise files. These materials are intended only for olympiad participants and their supervisors – please do not share them further."
+"Session recordings, slides and exercise files. These materials are intended "
+"only for olympiad participants and their supervisors – please do not share "
+"them further."
 
 #: templates/web/workshop_materials/list.html:36
 msgid "Obejrzyj"
@@ -8673,6 +9125,8 @@ msgstr "No materials yet"
 
 #: templates/web/workshop_materials/list.html:51
 msgid ""
-"Nagrania i pliki pojawiają się tu zwykle kilka dni po warsztatach. Harmonogram jest na stronie <a href=\"/warsztaty/\">Warsztaty</a>."
+"Nagrania i pliki pojawiają się tu zwykle kilka dni po warsztatach. "
+"Harmonogram jest na stronie <a href=\"/warsztaty/\">Warsztaty</a>."
 msgstr ""
-"Recordings and files usually appear here a few days after the workshops. The schedule is on the <a href=\"/warsztaty/\">Workshops</a> page."
+"Recordings and files usually appear here a few days after the workshops. The "
+"schedule is on the <a href=\"/warsztaty/\">Workshops</a> page."

@@ -278,7 +278,8 @@ def activation_message(link: str, competition=None) -> str:
     """Treść listu aktywacyjnego. Poza adresem odbiorcy (i tak w nagłówku ``To:``) zero danych osobowych."""
     return "\n".join(
         [
-            _("Ktoś – prawdopodobnie Ty – założył konto w serwisie Olimpiady Kwantowej."),
+            _("Ktoś – prawdopodobnie Ty – założył konto w serwisie %(competition_genitive)s.")
+            % branding.brand_names(competition),
             "",
             _("Aby aktywować konto i móc się zalogować, otwórz poniższy adres:"),
             "",
@@ -304,8 +305,8 @@ def email_change_message(link: str, new_email: str, competition=None) -> str:
     """Treść listu na **nowy** adres: dopiero kliknięcie zmienia adres konta."""
     return "\n".join(
         [
-            _("Poproszono o zmianę adresu e-mail konta w serwisie Olimpiady Kwantowej na %(email)s.")
-            % {"email": new_email},
+            _("Poproszono o zmianę adresu e-mail konta w serwisie %(competition_genitive)s na %(email)s.")
+            % {**branding.brand_names(competition), "email": new_email},
             "",
             _("Aby potwierdzić nowy adres, otwórz poniższy adres:"),
             "",
@@ -330,10 +331,10 @@ def email_changed_notice(new_email: str, competition=None) -> str:
     return "\n".join(
         [
             _(
-                "Adres e-mail konta w serwisie Olimpiady Kwantowej został zmieniony na %(email)s. "
+                "Adres e-mail konta w serwisie %(competition_genitive)s został zmieniony na %(email)s. "
                 "Logowanie tym adresem przestaje działać."
             )
-            % {"email": new_email},
+            % {**branding.brand_names(competition), "email": new_email},
             "",
             _("Jeśli to nie Ty dokonałeś zmiany, natychmiast skontaktuj się z organizatorem."),
             "",

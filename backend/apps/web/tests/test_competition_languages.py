@@ -27,7 +27,6 @@ from django.utils import translation
 from apps.accounts.models import UserPreference
 from apps.accounts.preferences import language_for, text_direction
 from apps.core.points import decimal_separator, format_points
-from apps.tenancy.models import Competition
 
 pytestmark = pytest.mark.django_db
 
@@ -355,8 +354,56 @@ def test_problem_title_uses_english_for_every_language_but_polish(problems):
 
 
 def test_competition_model_is_the_single_source(competition):
-    """Ustawienie serwisu z przełącznikiem angielskiego zniknęło – nie ma drugiego źródła prawdy."""
+    """Przełącznik witryny nie jest już czytany ani pokazywany – kolumna czeka na skasowanie.
+
+    Kolumna zostaje jedno wydanie dłużej (wdrożenie: stare procesy ``worker``/``beat``), ale nie ma
+    jej w panelu ``/cms/`` i jej wartość niczego nie zmienia.
+    """
     from apps.cms.models import SiteSettings
 
-    assert not hasattr(SiteSettings, "english_interface_enabled")
-    assert Competition._meta.get_field("interface_languages")
+    panel_fields = {
+        getattr(child, "field_name", None)
+        for panel in SiteSettings.panels
+        for child in getattr(panel, "children", [panel])
+    }
+    assert "english_interface_enabled" not in panel_fields
+    row = SiteSettings.for_site(competition.site)
+    row.english_interface_enabled = True
+    row.save()
+    assert competition.ui_languages == ("pl",)
+
+
+def test_the_request_does_not_leave_its_language_active(client, international):
+    """Po odpowiedzi wątek wraca do języka instalacji (``PreferencesMiddleware``, gthread)."""
+    client.cookies[settings.LANGUAGE_COOKIE_NAME] = "ar"
+
+    client.get("/login/")
+
+    assert translation.get_language() == settings.LANGUAGE_CODE
+
+
+# --- (h) marka konkursu w listach (poprawka po przeglądzie) --------------------------------------
+
+
+def test_letters_keep_the_polish_brand_without_the_branding_flag(competition):
+    from apps.accounts.activation import activation_message
+
+    with translation.override("pl"):
+        body = activation_message("https://example.test/a/", competition)
+
+    assert "założył konto w serwisie Olimpiady Kwantowej." in body
+
+
+def test_letters_carry_the_competition_name_with_the_branding_flag(competition):
+    from apps.accounts.activation import activation_message
+    from apps.submissions.notifications import appeal_decided_message  # noqa: F401 - import kontroli
+
+    competition.name = "International Quantum Olympiad"
+    competition.short_name = ""
+    competition.feature_flags = {**(competition.feature_flags or {}), "competition_branding_in_mail": True}
+
+    with translation.override("en"):
+        body = activation_message("https://example.test/a/", competition)
+
+    assert "on the International Quantum Olympiad website" in body
+    assert "Quantum Olympiad website" in body and "Olimpiad" not in body
