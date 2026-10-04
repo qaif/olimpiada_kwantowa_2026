@@ -16,7 +16,7 @@
      8. sekcje strony głównej, ornament ket |…⟩
      9. komponenty: przyciski, karty „outline”, oś czasu, kroki, odznaki, aktualności…
     10. stopka „compact” (slot theme/footer.html), dok osi czasu, baner cookies
-    11. wariant jasny (obrazy), wysoki kontrast, forced-colors, druk
+    11. wysoki kontrast, forced-colors, druk
    ============================================================================================== */
 
 /* --- 1. Kroje ----------------------------------------------------------------------------- */
@@ -54,16 +54,21 @@
   --iqo-text: var(--t-text, #f4f4ff);
   --iqo-text-soft: var(--t-text-soft, #c9ccf5);
   --iqo-muted: var(--t-muted, #a9acdb);
-  --iqo-primary: var(--t-primary, #7c88ff);
-  --iqo-primary-hover: var(--t-primary-hover, #a9b1ff);
-  --iqo-primary-contrast: var(--t-primary-contrast, #0b0a24);
+  /* Wezwanie do działania (periwinkle) to własne tokeny motywu (cta*), a nie ``primary``:
+     w aplikacji ``primary`` jest POWIERZCHNIĄ marki (pasek, „Co teraz”, odliczanie, oś czasu)
+     z napisem ``primary-contrast`` – tu granat #14123A z jasnym napisem. */
+  --iqo-primary: var(--t-cta, #7c88ff);
+  --iqo-primary-hover: var(--t-cta-hover, #a9b1ff);
+  --iqo-primary-contrast: var(--t-cta-ink, #0b0a24);
   --iqo-primary-fill: var(--t-primary-fill, #5260ff);
   --iqo-accent: var(--t-accent, #ff6b98);
   --iqo-accent-contrast: var(--t-accent-contrast, #0b0a24);
   --iqo-border: var(--t-border, #2e2c6e);
   --iqo-border-strong: var(--t-border-strong, #6c6ab8);
   --iqo-link: var(--t-link, #a9b1ff);
-  --iqo-focus: var(--t-focus, #ff6b98);
+  /* Pierścień fokusu z własnego tokenu: akcent marki konkursu (theme_options.brand_accent)
+     nadpisuje --t-focus i mógłby stracić kontrast na granacie. */
+  --iqo-focus: var(--t-ring, #ff6b98);
   --iqo-brand: var(--t-brand, #0b0a24);
   --iqo-brand-text: var(--t-brand-text, #f4f4ff);
   --iqo-success: var(--t-success, #4fd8a4);
@@ -103,8 +108,6 @@
   --iqo-pink-on-deep: #ff6b98;
   --iqo-line-on-deep: #2e2c6e;
   --iqo-line-strong-on-deep: #6c6ab8;
-
-  color-scheme: dark;
 }
 
 /* Tryb wysokiego kontrastu aplikacji (czerń, biel, żółć) ma pierwszeństwo przed paletą motywu. */
@@ -142,17 +145,8 @@
   --iqo-shadow-glow: none;
 }
 
-/* Wariant jasny: wybiera go system motywów (``data-color-scheme`` na <html>, patrz README).
-   Kolory przychodzą wtedy z zestawu ``colors`` tokenów; tu zmienia się tylko schemat formularzy. */
-:root[data-color-scheme="light"] {
-  color-scheme: light;
-}
-
-@media (prefers-color-scheme: light) {
-  :root[data-color-scheme="auto"] {
-    color-scheme: light;
-  }
-}
+/* ``color-scheme`` ustawia tokens.css systemu (z ``color_scheme`` manifestu). Wariant jasny
+   (zestaw ``colors``) działa wyłącznie przy ``color_scheme: light|auto`` – patrz README. */
 
 /* --- 3. Most do zmiennych app.css ------------------------------------------------------------ */
 /* app.css (i arkusze paneli) używają ról --bg/--ink/--line/--brand…; ustawiamy je z aliasów, żeby
@@ -293,7 +287,7 @@
 /* --- 5. Dokument ------------------------------------------------------------------------------ */
 
 html {
-  scroll-padding-top: calc(var(--iqo-header-h) + 1rem);
+  scroll-padding-top: 1rem;
 }
 
 body {
@@ -311,6 +305,7 @@ body {
   background-repeat: no-repeat, repeat, repeat;
   background-attachment: scroll;
   /* Hero „full-bleed” ma szerokość 100vw – bez tego pasek przewijania dodałby przewijanie w bok. */
+  overflow-x: hidden; /* starsze Safari bez ``clip`` */
   overflow-x: clip;
   font-feature-settings: "ss01" 0;
 }
@@ -400,8 +395,7 @@ hr {
 /* --- 6. Nagłówek „minimal” ------------------------------------------------------------------ */
 
 .iqo-header {
-  position: sticky;
-  top: 0;
+  position: relative;
   z-index: 40;
   background: color-mix(in srgb, var(--iqo-brand) 88%, transparent);
   -webkit-backdrop-filter: blur(12px);
@@ -411,14 +405,15 @@ hr {
 }
 
 .iqo-header__inner {
-  max-inline-size: var(--iqo-max);
+  /* Szerszy niż treść: od 1400 px logo, menu i konto (gościa) mieszczą się w jednym wierszu. */
+  max-inline-size: max(var(--iqo-max), 1440px);
   min-block-size: var(--iqo-header-h);
   margin-inline: auto;
   padding: 0.5rem 1rem;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.5rem 1.75rem;
+  gap: 0.5rem 1.25rem;
 }
 
 .iqo-brand {
@@ -433,9 +428,8 @@ hr {
 
 .iqo-brand__logo {
   display: block;
-  inline-size: 5.6rem;
+  inline-size: auto;
   block-size: 2.7rem;
-  background: url("assets/logo/lockup-white.svg") no-repeat center / contain;
 }
 
 /* Nazwa serwisu: niewidoczna dla oka (logo ją niesie), czytana przez czytnik ekranu. */
@@ -469,7 +463,7 @@ hr {
 /* Menu serwisu */
 .iqo-nav {
   flex: 1 1 auto;
-  gap: 0.25rem 1.5rem;
+  gap: 0.25rem 1.25rem;
   min-inline-size: 0;
 }
 
@@ -593,8 +587,13 @@ hr {
   color: var(--iqo-primary);
 }
 
-/* Taśma sponsorów pod paskiem (pojawia się tylko z wpisami). */
-.iqo-header .sponsor-slider-dock {
+/* Taśma sponsorów pod paskiem – poza elementem przyklejonym (pojawia się tylko z wpisami). */
+.iqo-sponsors {
+  background: var(--iqo-brand);
+  border-block-end: 1px solid var(--iqo-border);
+}
+
+.iqo-sponsors .sponsor-slider-dock {
   max-inline-size: var(--iqo-max);
   margin-inline: auto;
   padding: 0 1rem 0.5rem;
@@ -612,20 +611,25 @@ hr {
   }
 }
 
-/* Telefon: pasek nie jest przyklejony (zająłby kilka wierszy ekranu), konto pod logo. */
-@media (max-width: 560px) {
+/* Przyklejony wyłącznie wtedy, gdy mieści się w jednym wierszu (≥ 1400 px) i okno jest dość
+   wysokie: dwuwierszowy pasek z długimi etykietami (de/ru) zabierałby za dużo ekranu. */
+@media (min-width: 1400px) and (min-height: 640px) {
   .iqo-header {
-    position: static;
+    position: sticky;
+    top: 0;
   }
 
+  html {
+    scroll-padding-top: calc(var(--iqo-header-h) + 1rem);
+  }
+}
+
+/* Telefon: konto pod logo, wyrównane do początku. */
+@media (max-width: 560px) {
   .iqo-account {
     margin-inline-start: 0;
     inline-size: 100%;
     justify-content: flex-start;
-  }
-
-  html {
-    scroll-padding-top: 1rem;
   }
 }
 
@@ -972,7 +976,7 @@ hr {
 
 .section__head h2::after,
 .page-head h1::after {
-  content: "⟩";
+  content: "⟩" / "";
   margin-inline-start: 0.12em;
   font-family: var(--iqo-font-ket);
   font-weight: 300;
@@ -1039,7 +1043,6 @@ hr {
   border-radius: var(--iqo-radius-pill);
   font-weight: 600;
   letter-spacing: 0.005em;
-  padding-inline: 1.15rem;
   transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
 }
 
@@ -1089,6 +1092,11 @@ hr {
 .btn--ghost:hover {
   background: var(--iqo-tint);
   color: var(--iqo-primary-hover);
+}
+
+/* Szersze pole tylko dla zwykłych przycisków – małe (tabele paneli) zostają zwarte. */
+.btn:not(.btn--small) {
+  padding-inline: 1.15rem;
 }
 
 /* app.css w @media (prefers-color-scheme: dark) wymusza ciemną czerwień na .btn--accent –
@@ -1255,7 +1263,8 @@ hr {
 }
 
 .steps__item::before {
-  content: "|" counter(krok, decimal-leading-zero) "⟩";
+  /* Tekst zastępczy pusty: numer kroku podaje czytnikowi sama lista <ol>. */
+  content: "|" counter(krok, decimal-leading-zero) "⟩" / "";
   direction: ltr;
   unicode-bidi: isolate;
   font-family: var(--iqo-font-ket);
@@ -1448,9 +1457,9 @@ textarea:focus {
 
 .iqo-footer__mark {
   flex: none;
+  display: block;
   inline-size: 2.75rem;
   block-size: 2.75rem;
-  background: url("assets/logo/mark-white.svg") no-repeat center / contain;
 }
 
 .iqo-footer__links {
@@ -1550,18 +1559,7 @@ textarea:focus {
   color: var(--iqo-deep);
 }
 
-/* --- 11. Wariant jasny, wysoki kontrast, forced-colors, druk ---------------------------------- */
-
-/* Jasny nagłówek dostaje granatowe logo; hero, stopka i dok zostają ciemne. */
-:root[data-color-scheme="light"] .iqo-brand__logo {
-  background-image: url("assets/logo/lockup.svg");
-}
-
-@media (prefers-color-scheme: light) {
-  :root[data-color-scheme="auto"] .iqo-brand__logo {
-    background-image: url("assets/logo/lockup.svg");
-  }
-}
+/* --- 11. Wysoki kontrast, forced-colors, druk ---------------------------------- */
 
 :root[data-contrast="high"] .iqo-hero::before {
   opacity: 0.3;
@@ -1571,22 +1569,8 @@ textarea:focus {
   background-image: none;
 }
 
-/* Tryb wymuszonych kolorów (Windows): obrazy tła znikają, więc pokazujemy nazwę serwisu tekstem. */
+/* Tryb wymuszonych kolorów (Windows): logo jest <img>, więc zostaje; znika tylko ornament. */
 @media (forced-colors: active) {
-  .iqo-brand__logo,
-  .iqo-footer__mark {
-    display: none;
-  }
-
-  .iqo-brand__name {
-    position: static;
-    inline-size: auto;
-    block-size: auto;
-    margin: 0;
-    clip-path: none;
-    font-weight: 600;
-  }
-
   .section__head h2::after,
   .page-head h1::after {
     display: none;
@@ -1601,21 +1585,64 @@ textarea:focus {
 }
 
 @media print {
+  :root,
+  :root[data-contrast="high"] {
+    --iqo-bg: #fff;
+    --iqo-surface: #fff;
+    --iqo-surface-2: #fff;
+    --iqo-text: #000;
+    --iqo-text-soft: #222;
+    --iqo-muted: #444;
+    --iqo-link: #000;
+    --iqo-primary: #000;
+    --iqo-primary-contrast: #fff;
+    --iqo-accent: #000;
+    --iqo-border: #999;
+    --iqo-deep: #fff;
+    --iqo-navy: #fff;
+    --iqo-on-deep: #000;
+    --iqo-on-deep-soft: #222;
+    --iqo-on-deep-muted: #444;
+    --iqo-blue-on-deep: #000;
+    --iqo-pink-on-deep: #000;
+    --iqo-line-on-deep: #999;
+    --iqo-grid-line: transparent;
+  }
+
   body {
     background: #fff;
+    background-image: none;
     color: #000;
   }
 
   .iqo-header,
+  .iqo-sponsors,
   .iqo-hero::before,
+  .iqo-hero::after,
+  .iqo-hero__controls,
   .timeline-dock,
   .cookie-notice {
     display: none;
   }
 
-  .iqo-hero,
-  .iqo-footer {
-    background: #fff;
+  .iqo-hero {
+    margin-inline: 0;
+    background: none;
     color: #000;
+  }
+
+  .iqo-hero__kicker,
+  .iqo-hero__status,
+  .iqo-hero .btn--secondary {
+    background: none;
+  }
+
+  .iqo-footer {
+    background: none;
+    color: #000;
+  }
+
+  .iqo-footer__mark {
+    display: none;
   }
 }

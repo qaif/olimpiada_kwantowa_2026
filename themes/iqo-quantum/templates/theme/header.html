@@ -4,18 +4,31 @@
   Zastępuje oba paski nagłówka z ``base.html`` (pasek konta + menu serwisu) **jednym** paskiem:
   logo | menu serwisu | konto. Skip-link, komunikaty i ``<main>`` zostają w ``base.html``.
 
-  - Logo nie jest ``<img>``: plik leży w paczce motywu, a szablon nie zna adresu paczki w storage.
-    Rysuje je ``theme.css`` (``url(assets/logo/lockup-white.svg)`` – walidator przepisuje adres);
-    nazwę serwisu niesie ukryty tekst, a przy ``forced-colors`` arkusz pokazuje ją zamiast obrazu.
+  - Logo to ``<img>`` z zasobów paczki (``theme.assets`` = adres wersji w storage), więc działa
+    też w ``forced-colors`` i na wydruku. Wariant pliku wynika z ``theme.color_scheme``: ciemny →
+    białe logo, jasny → granatowe, ``auto`` → ``<picture>`` z ``prefers-color-scheme``. Obraz ma
+    pusty ``alt``; nazwę odnośnika niesie ukryty tekst z nazwą serwisu.
   - Menu serwisu i pasek konta mają te same klasy i atrybuty co w ``base.html`` (``nav--cms``,
-    ``nav-menu``, ``account-bar``, ``data-cookie-…``), więc skrypty aplikacji działają bez zmian.
-    ``cms_menu_primary`` nie jest potrzebne: pasek jest jeden, menu nie „przeskakuje”.
+    ``nav-menu``, ``account-bar``), więc skrypty aplikacji działają bez zmian. ``cms_menu_primary``
+    nie jest potrzebne: pasek jest jeden, menu nie „przeskakuje”. Pozycja „strona główna” jest
+    zwykłym odnośnikiem tekstowym (z ``aria-current``), a nie domkiem.
+  - Taśma sponsorów stoi **za** ``<header>``, we własnej sekcji z etykietą, żeby nie powiększać
+    paska przyklejanego na szerokich ekranach.
   - Wszystkie napisy idą przez gettext, z tymi samymi msgid co w ``base.html``.
 {% endcomment %}
 <header class="iqo-header" data-iqo-header>
   <div class="iqo-header__inner">
     <a class="iqo-brand" href="{{ site_root|default:"/" }}">
-      <span class="iqo-brand__logo" aria-hidden="true"></span>
+      {% if theme.color_scheme == "light" %}
+        <img class="iqo-brand__logo" src="{{ theme.assets }}assets/logo/lockup.svg" alt="" width="540" height="258">
+      {% elif theme.color_scheme == "auto" %}
+        <picture>
+          <source srcset="{{ theme.assets }}assets/logo/lockup.svg" media="(prefers-color-scheme: light)">
+          <img class="iqo-brand__logo" src="{{ theme.assets }}assets/logo/lockup-white.svg" alt="" width="540" height="258">
+        </picture>
+      {% else %}
+        <img class="iqo-brand__logo" src="{{ theme.assets }}assets/logo/lockup-white.svg" alt="" width="540" height="258">
+      {% endif %}
       <span class="iqo-brand__name">{{ settings.cms.SiteSettings.site_name }}</span>
       {% if site_edition_label %}{% translate "edycja" as edition_prefix %}<span class="iqo-brand__edition">{{ site_edition_label|edition_title:edition_prefix }}</span>{% endif %}
     </a>
@@ -32,8 +45,6 @@
               {% endfor %}
             </ul>
           </details>
-        {% elif item.home %}
-          {# Domek z base.html zbędny: logo prowadzi na stronę główną. Zostaje sama pozycja tekstowa. #}
         {% else %}
           <a class="nav__link" href="{{ item.url }}"
              {% if item.url == request.path %}aria-current="page"{% endif %}>{{ item.title }}</a>
@@ -96,5 +107,9 @@
       {% endif %}
     </nav>
   </div>
-  {% include "cms/_sponsor_slider.html" %}
 </header>
+{% if sponsor_slider.entries %}
+  <section class="iqo-sponsors" aria-label="{% translate 'Partnerzy i sponsorzy' %}">
+    {% include "cms/_sponsor_slider.html" %}
+  </section>
+{% endif %}

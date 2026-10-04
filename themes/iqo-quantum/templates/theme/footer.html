@@ -4,14 +4,14 @@
   Ta sama treść co stopka w ``base.html`` (te same msgid, ``data-cookie-settings`` dla
   ``consent.js``), ułożona w dwa poziome pasy: znak + nazwa + odnośniki prawne + profile,
   a pod kreską jeden wiersz metadanych w kroju mono (organizator, adres, kontakt, wersja).
-  Logo jest tłem z ``theme.css`` (``assets/logo/mark-white.svg``) – szablon nie zna adresu paczki.
+  Znak to ``<img>`` z zasobów paczki (``theme.assets``); stopka jest ciemna w każdym schemacie.
 {% endcomment %}
 <footer class="footer iqo-footer">
   {% with site=settings.cms.SiteSettings %}
   <div class="iqo-footer__inner">
     <div class="iqo-footer__top">
       <p class="iqo-footer__brand">
-        <span class="iqo-footer__mark" aria-hidden="true"></span>
+        <img class="iqo-footer__mark" src="{{ theme.assets }}assets/logo/mark-white.svg" alt="" width="44" height="44" loading="lazy">
         <span><strong>{{ site.site_name }}</strong>{% if site.tagline %}<span class="iqo-footer__tagline">{{ site.tagline }}</span>{% endif %}</span>
       </p>
       <p class="footer__links iqo-footer__links">

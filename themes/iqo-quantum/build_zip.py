@@ -24,9 +24,26 @@ DIST = ROOT / "dist"
 
 ROOT_FILES = ("manifest.json", "theme.css", "tokens.json", "screenshot.png")
 ASSET_EXT = {".svg", ".png", ".jpg", ".jpeg", ".webp", ".woff2", ".txt"}
-ALLOWED_SLOTS = {
-    "theme/header.html", "theme/footer.html", "theme/home_hero.html", "theme/page_wrapper.html",
-}
+#: Sloty v1 – kopia ``apps.themes.slots.SLOTS``; jeśli moduł aplikacji jest w repozytorium,
+#: lista jest czytana z niego (bez importu Django), żeby się nie rozjechały.
+_FALLBACK_SLOTS = ("header", "brand", "home_hero", "page_header", "news_card", "page_wrapper", "footer")
+_SLOTS_PY = ROOT.parent.parent / "backend" / "apps" / "themes" / "slots.py"
+
+
+def _slot_names() -> tuple[str, ...]:
+    if _SLOTS_PY.is_file():
+        source = _SLOTS_PY.read_text(encoding="utf-8")
+        block = re.search(r"^SLOTS[^=]*=\s*\{(.*?)^\}", source, flags=re.S | re.M)
+        if block:
+            names = re.findall(r'^\s*"([a-z_]+)"\s*:', block.group(1), flags=re.M)
+            if names:
+                return tuple(names)
+    return _FALLBACK_SLOTS
+
+
+ALLOWED_SLOTS = {f"theme/{name}.html" for name in _slot_names()}
+PARTIAL_RE = re.compile(r"^theme/partials/[a-z0-9][a-z0-9_-]{0,40}\.html$")
+ALLOWED_INCLUDE_PREFIXES = ("cms/_", "web/_", "classic/", "theme/")
 ALLOWED_LIBS = {"static", "i18n", "wagtailcore_tags", "wagtailimages_tags", "cms_extras", "web_extras"}
 MAX_FILES, MAX_UNPACKED = 500, 60 * 1024 * 1024
 
@@ -61,7 +78,7 @@ def check_svg(path: pathlib.Path) -> None:
 
 
 def check_template(rel: str, text: str) -> None:
-    if rel not in ALLOWED_SLOTS:
+    if rel not in ALLOWED_SLOTS and not PARTIAL_RE.match(rel):
         fail(f"szablon spoza listy slotów: {rel}")
     if re.search(r"\|\s*safe\b", text) or re.search(r"{%\s*autoescape\s+off", text):
         fail(f"{rel}: |safe / autoescape off")
@@ -72,7 +89,7 @@ def check_template(rel: str, text: str) -> None:
         if names - ALLOWED_LIBS:
             fail(f"{rel}: niedozwolone biblioteki {sorted(names - ALLOWED_LIBS)}")
     for inc in re.findall(r"{%\s*include\s+['\"]([^'\"]+)", text):
-        if ".." in inc or inc.startswith("/"):
+        if ".." in inc or inc.startswith("/") or not inc.startswith(ALLOWED_INCLUDE_PREFIXES):
             fail(f"{rel}: include {inc}")
 
 

@@ -4,44 +4,51 @@
     uv run --no-project --with playwright --with pillow python themes/iqo-quantum/_preview/render.py [katalog_zrzutów]
 
 Co robi:
-1. ``tokens.css`` – emuluje system motywów: tokens.json → zmienne ``--t-*`` (zestaw ``colors``
-   na ``:root``, zestaw ``dark`` pod ``[data-color-scheme="dark"]`` i w ``auto`` + ciemny system).
+1. ``tokens.css`` (schemat ``dark`` z manifestu) i ``tokens-light.css`` – generatorem platformy
+   (``backend/apps/themes/tokens.py``: ``parse_tokens`` + ``build_tokens_css``), jeśli jest
+   w repozytorium albo wskazany zmienną ``IQO_TOKENS_PY``; inaczej prostą emulacją.
 2. ``index.html`` (en, ciemny) i warianty ``preview-<nazwa>.html`` – makieta z **tymi samymi
    klasami**, które renderują ``base.html`` aplikacji i sloty ``templates/theme/*.html`` motywu.
-   Arkusze: prawdziwy ``backend/static/css/app.css`` → ``tokens.css`` → ``../theme.css``.
+   Arkusze: ``app.css`` aplikacji (``IQO_APP_CSS`` albo ``backend/static/css/app.css``) →
+   tokeny → ``../theme.css``. Logo w makiecie = ``{{ theme.assets }}`` zastąpione ``../``.
 3. Zrzuty: ``screenshot.png`` paczki (1200×900, en, ciemny) i warianty do przeglądu
-   (ar/RTL, ru, hi, jasny, wysoki kontrast, telefon) w katalogu zrzutów.
+   (ar/RTL, ru, hi, jasny, wysoki kontrast, telefon, wydruk) w katalogu zrzutów.
 
 Katalog ``_preview/`` nie wchodzi do ZIP-a (build_zip.py).
 """
 from __future__ import annotations
 
+import importlib.util
 import json
+import os
 import pathlib
 import sys
 
 HERE = pathlib.Path(__file__).resolve().parent
 THEME = HERE.parent
 REPO = THEME.parent.parent
-APP_CSS = REPO / "backend" / "static" / "css" / "app.css"
+APP_CSS = pathlib.Path(os.environ.get("IQO_APP_CSS") or REPO / "backend" / "static" / "css" / "app.css")
+TOKENS_PY = pathlib.Path(os.environ.get("IQO_TOKENS_PY") or REPO / "backend" / "apps" / "themes" / "tokens.py")
 
 
 # --- 1. tokeny ----------------------------------------------------------------------------------
 
-def tokens_css() -> str:
-    data = json.loads((THEME / "tokens.json").read_text(encoding="utf-8"))
-
-    def block(selector: str, values: dict) -> str:
-        body = "\n".join(f"  --t-{k}: {v};" for k, v in values.items())
-        return f"{selector} {{\n{body}\n}}\n"
-
-    out = "/* Wygenerowane przez _preview/render.py z tokens.json – emulacja systemu motywów. */\n"
-    out += block(":root", {**data["colors"], **data["tokens"]})
-    out += block(':root[data-color-scheme="dark"]', data["dark"])
-    out += "@media (prefers-color-scheme: dark) {\n"
-    out += block(':root[data-color-scheme="auto"]', data["dark"])
-    out += "}\n"
-    return out
+def tokens_css(scheme: str) -> str:
+    raw = (THEME / "tokens.json").read_bytes()
+    if TOKENS_PY.is_file():
+        spec = importlib.util.spec_from_file_location("theme_tokens", TOKENS_PY)
+        module = importlib.util.module_from_spec(spec)
+        sys.modules["theme_tokens"] = module
+        spec.loader.exec_module(module)
+        parsed = module.parse_tokens(raw)
+        generated = module.build_tokens_css(parsed, scheme)
+        for warning in parsed.warnings + generated.warnings:
+            print("tokens:", warning)
+        return generated.css
+    data = json.loads(raw)
+    values = {**(data["dark"] if scheme == "dark" else data["colors"]), **data["tokens"]}
+    body = "\n".join(f"  --t-{k}: {v};" for k, v in values.items())
+    return f"/* Emulacja tokens.css (brak apps/themes/tokens.py). */\n:root {{\n  color-scheme: {scheme};\n{body}\n}}\n"
 
 
 # --- 2. makieta -----------------------------------------------------------------------------------
@@ -177,13 +184,13 @@ STRINGS = {
 }
 
 PAGE = """<!doctype html>
-<html lang="{lang}" dir="{dir}" data-color-scheme="{scheme}"{contrast_attr}>
+<html lang="{lang}" dir="{dir}"{contrast_attr}>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{site} – IQO Quantum preview</title>
   <link rel="stylesheet" href="{app_css}">
-  <link rel="stylesheet" href="tokens.css">
+  <link rel="stylesheet" href="{tokens_href}">
   <link rel="stylesheet" href="../theme.css">
 </head>
 <body>
@@ -193,7 +200,7 @@ PAGE = """<!doctype html>
 <header class="iqo-header" data-iqo-header>
   <div class="iqo-header__inner">
     <a class="iqo-brand" href="#">
-      <span class="iqo-brand__logo" aria-hidden="true"></span>
+      <img class="iqo-brand__logo" src="../assets/logo/{logo}" alt="" width="540" height="258">
       <span class="iqo-brand__name">{site}</span>
       <span class="iqo-brand__edition">{edition}</span>
     </a>
@@ -280,7 +287,7 @@ PAGE = """<!doctype html>
   <div class="iqo-footer__inner">
     <div class="iqo-footer__top">
       <p class="iqo-footer__brand">
-        <span class="iqo-footer__mark" aria-hidden="true"></span>
+        <img class="iqo-footer__mark" src="../assets/logo/mark-white.svg" alt="" width="44" height="44">
         <span><strong>{site}</strong><span class="iqo-footer__tagline">{foot_tagline}</span></span>
       </p>
       <p class="footer__links iqo-footer__links">
@@ -340,7 +347,9 @@ def render(lang: str, scheme: str = "dark", contrast: bool = False, cookie: bool
     fields = {k: v for k, v in s.items() if isinstance(v, str)}
     return PAGE.format(
         lang=lang, scheme=scheme, contrast_attr=' data-contrast="high"' if contrast else "",
-        app_css="../../../backend/static/css/app.css",
+        app_css=os.path.relpath(APP_CSS, HERE).replace(os.sep, "/"),
+        tokens_href="tokens.css" if scheme == "dark" else "tokens-light.css",
+        logo="lockup-white.svg" if scheme == "dark" else "lockup.svg",
         nav_html=nav_html, docs_html=docs_html, stages_html=stages_html, steps_html=steps_html,
         news_html=news_html, cookie_html=cookie_html, **fields,
     )
@@ -356,13 +365,15 @@ VARIANTS = {
     "en-light": ("en", "light", False, 1200, 900, True),
     "en-contrast": ("en", "dark", True, 1200, 900, False),
     "en-mobile": ("en", "dark", False, 390, 844, True),
+    "en-print": ("en", "dark", False, 900, 1200, True),
 }
 
 
 def main() -> None:
     shots = pathlib.Path(sys.argv[1]) if len(sys.argv) > 1 else HERE / "shots"
     shots.mkdir(parents=True, exist_ok=True)
-    (HERE / "tokens.css").write_text(tokens_css(), encoding="utf-8", newline="\n")
+    (HERE / "tokens.css").write_text(tokens_css("dark"), encoding="utf-8", newline="\n")
+    (HERE / "tokens-light.css").write_text(tokens_css("light"), encoding="utf-8", newline="\n")
     (HERE / "index.html").write_text(render("en"), encoding="utf-8", newline="\n")
     pages = {}
     for name, (lang, scheme, contrast, *_rest) in VARIANTS.items():
@@ -377,6 +388,8 @@ def main() -> None:
         for name, (lang, scheme, contrast, w, h, full) in VARIANTS.items():
             page = browser.new_page(viewport={"width": w, "height": h}, device_scale_factor=1,
                                     color_scheme="dark")
+            if name.endswith("-print"):
+                page.emulate_media(media="print")
             page.goto(pages[name].as_uri())
             page.wait_for_load_state("networkidle")
             page.evaluate("document.fonts.ready")
