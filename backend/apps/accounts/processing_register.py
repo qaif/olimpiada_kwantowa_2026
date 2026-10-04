@@ -86,7 +86,10 @@ from apps.competitions.models import DEFAULT_RETENTION_MONTHS
 #: uczniom swojego kraju. Nowa czynność (warunkowa – wyłącznie konkursy z trybem rejestracji
 #: ``DELEGATIONS``) z nowym kręgiem osób (opiekunowie drużyn) i nowym odbiorcą danych uczniów
 #: (współopiekunowie tego samego kraju widzą listę drużyny).
-REGISTER_VERSION = "1.11"
+#: 1.12 (04.10.2026, zadanie PAY-01) – płatności online za udział: zamówienia, faktury, operatorzy
+#: płatności (Stripe, Przelewy24) jako nowi odbiorcy i dokumentacja księgowa z własnym okresem
+#: przechowywania. Czynność warunkowa – wyłącznie konkursy z flagą ``fees`` (``apps.payments.rodo``).
+REGISTER_VERSION = "1.12"
 REGISTER_DATE = date(2026, 10, 4)
 
 #: Zdanie o okresie przechowywania danych uczestnika. Liczba pochodzi z tego samego miejsca, co
@@ -954,6 +957,10 @@ def activities_for(competition=None) -> tuple[ProcessingActivity, ...]:
         activities = (*activities, ai_grading_activity(competition))
     if competition is not None and competition.uses_delegations:
         activities = (*activities, DELEGATIONS_ACTIVITY)
+    if competition is not None and competition.has_feature("fees"):
+        from apps.payments.rodo import PAYMENTS_ACTIVITY
+
+        activities = (*activities, PAYMENTS_ACTIVITY)
     return activities
 
 

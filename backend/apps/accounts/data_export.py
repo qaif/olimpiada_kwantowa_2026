@@ -190,6 +190,13 @@ def _team_leader_consents(user: User) -> list[dict]:
     return _consent_rows(ConsentRecord.objects.filter(team_leader__user=user), "opiekun_druzyny")
 
 
+def _payments_section(user: User) -> list[dict]:
+    """Zamówienia wystawione przez to konto i dane nabywcy (PAY-01) – bez danych kart (nie mamy ich)."""
+    from apps.payments.services import export_section
+
+    return export_section(user)
+
+
 def _files_section(submission) -> list[dict]:
     """Metryka plików pracy: skrót SHA-256, rozmiar, typ i wynik skanu antywirusowego.
 
@@ -385,6 +392,7 @@ def export_payload(user: User) -> dict:
         "profil_komitetu": _committee_section(getattr(user, "committee_member", None)),
         "profil_opiekuna_szkolnego": _supervisor_section(supervisor),
         "delegacje_opiekun_druzyny": _team_leader_section(user),
+        "platnosci": _payments_section(user),
         "zgody": _consents_section(participant, supervisor) + _team_leader_consents(user),
         "zgoda_opiekuna": _guardian_section(participant),
         "zgloszenia_do_etapow": _entries_section(participant),

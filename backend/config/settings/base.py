@@ -164,6 +164,8 @@ INSTALLED_APPS = [
     # **Po** aplikacjach domeny, bo czyta je wszystkie (edycje, wyniki, zgłoszenia), a żadna z nich
     # nie czyta jej – zależność idzie w jedną stronę i kolejność w tej liście ma to pokazywać.
     "apps.integrations",
+    # Płatności online za udział (PAY-01): cennik delegacji, zamówienia, Stripe/Przelewy24, faktury.
+    "apps.payments",
     "apps.web",
     # Logowanie przez dostawców zewnętrznych (Google, Facebook). ``allauth.account`` jest wymagane
     # przez ``allauth.socialaccount`` (model ``EmailAddress``, adaptery) – jego **widoki** nie są
@@ -488,6 +490,8 @@ CELERY_TASK_ROUTES = {
     "apps.workshop_materials.tasks.scan_material": {"queue": "scan"},
     # Skan pracy testowej oceny AI (``apps.ai_grading.sandbox``) – ta sama praca, ta sama kolejka.
     "apps.ai_grading.tasks.scan_ai_test_work": {"queue": "scan"},
+    # Skan dowodu wpłaty przelewem (PAY-01) – ta sama praca, ta sama kolejka.
+    "apps.payments.tasks.scan_payment_proof": {"queue": "scan"},
 }
 CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
 CELERY_TIMEZONE = "UTC"
@@ -1238,6 +1242,10 @@ REST_FRAMEWORK = {
         # to więcej, niż wyklika nauczyciel pobierający wszystkie plakaty po kolei – także cała
         # pracownia za jednym adresem szkoły – a mniej, niż potrzeba do nabijania licznika.
         "poster_download": "30/min",
+        # Płatności (PAY-01), per konto: „Wystaw pro formę” i „Zapłać” (każde kliknięcie to sesja
+        # u operatora płatności) oraz czynności koordynatora (wpływ przelewu, zwrot przez API).
+        "checkout": "20/hour",
+        "payments_admin": "120/hour",
     },
     "EXCEPTION_HANDLER": "apps.core.api.exception_handler",
 }
@@ -1354,6 +1362,19 @@ CERT_SIGN_P12_PASSWORD = env("CERT_SIGN_P12_PASSWORD", default="")
 CERT_SIGN_TSA_URL = env("CERT_SIGN_TSA_URL", default="")
 CERT_SIGN_REASON = env("CERT_SIGN_REASON", default="Dokument wystawiony przez Olimpiadę Kwantową")
 CERT_SIGN_LOCATION = env("CERT_SIGN_LOCATION", default="")
+
+# --- operatorzy płatności (PAY-01, docs/OPERACJE.md § 29) ---------------------------------------
+# Sekrety wyłącznie ze środowiska – nigdy z bazy i nigdy od klienta. Pusty klucz = operator wyłączony
+# (przycisk płatności nie pojawia się, webhook odpowiada 404). Klucze testowe Stripe: ``sk_test_…``.
+STRIPE_SECRET_KEY = env("STRIPE_SECRET_KEY", default="")
+# ``whsec_…``; kilka po przecinku – rotacja albo kilka adresów webhooka w panelu Stripe.
+STRIPE_WEBHOOK_SECRET = env("STRIPE_WEBHOOK_SECRET", default="")
+# ``or 0``: pusty wpis w ``.env`` (``P24_MERCHANT_ID=``) to napis pusty, a ``int("")`` nie przejdzie.
+P24_MERCHANT_ID = int(env("P24_MERCHANT_ID", default="") or 0)
+P24_POS_ID = int(env("P24_POS_ID", default="") or 0)
+P24_API_KEY = env("P24_API_KEY", default="")
+P24_CRC = env("P24_CRC", default="")
+P24_SANDBOX = env.bool("P24_SANDBOX", default=False)
 
 DATA_UPLOAD_MAX_MEMORY_SIZE = 2 * 1024 * 1024  # pliki idą strumieniem na dysk tymczasowy powyżej 2 MB
 FILE_UPLOAD_MAX_MEMORY_SIZE = 2 * 1024 * 1024
