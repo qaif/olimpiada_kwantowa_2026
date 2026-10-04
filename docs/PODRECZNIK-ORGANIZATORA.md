@@ -2508,6 +2508,49 @@ Sieć byłych uczestników (za flagą `alumni` – włącza ją operator, `docs/
   grupami, jeśli „inne” byłoby mniejsze niż 5), liczebność sieci jest zaokrąglona, profile ukryte
   się nie liczą, a przy sieci mniejszej niż 5 osób rozkładów nie ma wcale.
 
+## 10m. Bezpieczeństwo logowania — `/coordinator/security/2fa/`
+
+Logowanie dwuskładnikowe (2FA) to sześciocyfrowy kod z aplikacji w telefonie (Aegis, FreeOTP,
+Google Authenticator, menedżer haseł) podawany po haśle. Od SEC-01 serwis **wymaga** go od personelu
+konkursów, które przechowują dane wrażliwe: paszporty i dane o zdrowiu delegacji, płatności
+i faktury, nagrania nadzoru zdalnego. Ekran jest w menu „Raporty → Bezpieczeństwo logowania”, o ile
+operator włączył funkcję (`TWO_FACTOR_ENABLED`, `docs/OPERACJE.md` § 41).
+
+**Kto musi mieć 2FA.**
+
+- zawsze: superkoordynator i konta z dostępem do `/admin/` (ustawienie platformy),
+- w konkursie z delegacjami, płatnościami, logistyką finału albo nadzorem zdalnym (tryb
+  „automatycznie”): koordynatorzy (także oficer logistyki), opiekunowie drużyn narodowych i osoby
+  z przydziałem w logistyce finału (także obsługa rejestracji),
+- w trybie „wybrane role”: dokładnie role zaznaczone przez superkoordynatora (np. komitet i komisja
+  odwoławcza),
+- **nigdy uczestnicy** – mogą włączyć 2FA sami, ale serwis nigdy go od nich nie żąda.
+
+**Okres przejściowy.** Osoba objęta wymogiem ma domyślnie 14 dni od pierwszego wejścia: na każdej
+stronie widzi baner z terminem i odnośnikiem „Włącz teraz”. Po terminie serwis wpuszcza ją wyłącznie
+na ekran konfiguracji. Okres jest jednorazowy – wyłączenie 2FA go nie odnawia.
+
+**Co widzi koordynator na ekranie.** Obowiązujące role (platformy i konkursu), funkcje wrażliwe
+konkursu, długość okresu przejściowego, oraz listę personelu: kto ma 2FA, kto nie i do kiedy ma czas.
+Politykę **zmienia wyłącznie superkoordynator** – koordynator mógłby nią poluzować wymóg wobec samego
+siebie.
+
+**Twoje konto.** `Twoje konto → Logowanie dwuskładnikowe` (`/account/2fa/`): kod QR, potwierdzenie
+kodem, dziesięć kodów zapasowych pokazanych raz (wydrukuj, schowaj poza telefonem). Tam też: nowy
+komplet kodów zapasowych i wyłączenie – oba wymagają hasła **i** bieżącego kodu. Na własnym
+komputerze możesz zaznaczyć „Nie pytaj o kod na tym urządzeniu do …” (domyślnie 7 dni) – nigdy na
+komputerze wspólnym. Po pięciu błędnych kodach z rzędu logowanie kodem jest wstrzymane na 15 minut,
+a właściciel konta dostaje list. List przychodzi też po włączeniu, wyłączeniu, nowych kodach
+i użyciu kodu zapasowego – jeśli to nie Ty, zmień hasło i daj znać organizatorowi.
+
+**„Zgubiłem telefon”.** Najpierw kod zapasowy (wpisuje się go w to samo pole, co kod z aplikacji).
+Bez kodu: na ekranie konta w panelu „Zdejmij drugi składnik”. Konto personelu resetuje **wyłącznie
+superkoordynator** (koordynator zobaczy w tym miejscu tylko informację), konto uczestnika lub opiekuna
+szkolnego – koordynator. Zanim klikniesz, potwierdź tożsamość inną drogą niż e-mail z tego konta
+(telefon, wideo): prośba z przejętej skrzynki wygląda tak samo jak prawdziwa. Reset zostaje w audycie
+pod Twoim nazwiskiem, a właściciel dostaje list i po zalogowaniu hasłem od razu konfiguruje 2FA
+na nowym telefonie.
+
 ## 10m. Nadzór zdalny etapów online — `/coordinator/proctoring/`
 
 **Tylko w konkursie z przełącznikiem `proctoring`** (włącza operator) i na serwerze LiveKit (ten sam, co
@@ -2717,10 +2760,8 @@ techniczne: **zgody wyraża osoba, a nie szkoła**, więc konto założone hurte
 przejść przez blok zgód i aktywację adresu przy pierwszym logowaniu. Do czasu wdrożenia jedyną drogą
 jest otwarta rejestracja z `/register/`.
 
-**Uwierzytelnianie dwuskładnikowe (`apps/accounts/twofactor.py`, w przygotowaniu).** Drugi składnik
-logowania dla kont funkcyjnych — koordynatora i komitetu, czyli tych, które widzą dane osobowe i mogą
-zmieniać oceny. Do tego czasu chroni je samo hasło i skrzynka pocztowa: trzymaj liczbę kont koordynatora
-przy minimum i wymagaj od komitetu długich, unikatowych haseł.
+**Uwierzytelnianie dwuskładnikowe** – już nie „w przygotowaniu”: działa za wyłącznikiem operatora
+(`TWO_FACTOR_ENABLED`) i od SEC-01 jest wymagane od personelu konkursów z danymi wrażliwymi – § 10m.
 
 **Integracje zewnętrzne (`apps/integrations`, w przygotowaniu).** Wymiana danych z systemami organizatora.
 Cokolwiek się w niej znajdzie, będzie **nowym odbiorcą danych** — czyli wymaga wiersza w rejestrze

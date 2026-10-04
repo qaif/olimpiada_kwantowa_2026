@@ -27,6 +27,35 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
 - **Wdrożenie (krok 7/8)** ostrzega, gdy klucz DKIM którejś domeny różni się od opublikowanego.
 - Dokumentacja: `docs/tasks/MAIL-01.md`, `docs/OPERACJE.md` § 49 (krok po kroku dla Squarespace), § 9.7.
 
+## [Unreleased] – Logowanie dwuskładnikowe dla personelu (SEC-01)
+
+- **Polityka wymogu** (`apps/staff_mfa`): role platformy `TWO_FACTOR_REQUIRED_ROLES` (nowa wartość
+  domyślna `superkoordynator,admin`) i polityka konkursu – tryb automatyczny (konkurs z delegacjami,
+  `fees`, `onsite_logistics` albo `proctoring` wymaga 2FA od koordynatorów, opiekunów drużyn
+  i przydziałów logistyki) albo wybrane role. Uczestnika nie da się objąć wymogiem.
+- **Okres przejściowy** (`TWO_FACTOR_GRACE_DAYS`, domyślnie 14 dni, jednorazowy) z banerem na każdej
+  stronie (także w motywie IQO), potem poczekalnia konfiguracji dla całej sesji, API i tokenów.
+- **Ekran `/coordinator/security/2fa/`**: polityka (zmienia wyłącznie superkoordynator, audyt
+  `2fa.policy_changed`) i lista personelu ze stanem 2FA i terminem.
+- **Odzyskiwanie i kody**: nowy komplet kodów zapasowych (`/account/2fa/codes/regenerate/`) i wyłączenie
+  2FA z hasłem **i** kodem; reset 2FA konta personelu wyłącznie przez superkoordynatora (wyjątek:
+  instalacja bez superkoordynatora); blokada konta po 5 złych kodach na 15 min (`429 TWO_FACTOR_LOCKED`);
+  jednorazowość kodu TOTP i kodu zapasowego odporna na równoległe żądania.
+- **„Zapamiętaj to urządzenie”** (`TWO_FACTOR_REMEMBER_DAYS`, domyślnie 7; podpisane ciasteczko
+  unieważniane zmianą hasła, wyłączeniem i resetem; polityka konkursu może je wyłączyć).
+- **Listy do właściciela konta** (włączenie, wyłączenie, nowe kody, użycie kodu zapasowego, reset,
+  blokada) i audyt `2fa.locked`, `2fa.remembered`, `2fa.codes_regenerated`, `2fa.grace_started`.
+- Ekrany 2FA z `Cache-Control: private, no-store`; tłumaczenia w `apps/staff_mfa/locale` (10 języków).
+- Poprawki po przeglądzie: personel do resetu liczony w całej platformie i także gdy konto jest
+  zablokowane; zmiana adresu konta z 2FA albo konta personelu – tylko superkoordynator; list o resecie
+  także na poprzedni adres (30 dni); wąski wyjątek bez superkoordynatora i komenda `reset_2fa`;
+  ostrzeżenia `staff_mfa.W001`/`W002`; termin ról platformy tylko z `TWO_FACTOR_GRACE_DAYS`; znacznik
+  zwolnienia z TTL 10 min i wersją podbijaną przy zmianie ról; zamykanie innych sesji przy włączeniu,
+  wyłączeniu i resecie; „Zapomnij wszystkie urządzenia”; ciasteczko zaufania związane z konkursem;
+  licznik prób przed sprawdzeniem kodu; lista personelu tylko dla superkoordynatora (bez N+1).
+- `TWO_FACTOR_ENABLED=0` (domyślnie) – zachowanie bez zmian. Migracje `staff_mfa.0001`–`0002`
+  (cztery puste tabele). Operator: `docs/OPERACJE.md` § 41.
+
 ## [Unreleased] – Notatniki kwantowe w przeglądarce (QC-01)
 
 - **Notatnik przy zadaniu:** JupyterLite 0.8.5 z jądrem Pyodide 314.0.7 hostowany u nas

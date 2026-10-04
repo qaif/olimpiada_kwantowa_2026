@@ -1,0 +1,121 @@
+# Logowanie dwuskładnikowe personelu (SEC-01) – katalog aplikacji apps.staff_mfa.
+# Angielski przejrzany ręcznie; pozostałe języki maszynowe (do przeglądu native speakerów, I18N-01 § 8).
+msgid ""
+msgstr ""
+"Project-Id-Version: olimpiada\n"
+"Language: ru\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
+
+msgid "Włączono logowanie dwuskładnikowe"
+msgstr "Двухфакторная аутентификация включена"
+
+msgid "Na Twoim koncie włączono logowanie dwuskładnikowe (kod z aplikacji w telefonie)."
+msgstr "В вашей учётной записи включена двухфакторная аутентификация (код из приложения на телефоне)."
+
+msgid "Wyłączono logowanie dwuskładnikowe"
+msgstr "Двухфакторная аутентификация отключена"
+
+msgid "Na Twoim koncie wyłączono logowanie dwuskładnikowe. Konto chroni teraz samo hasło."
+msgstr "В вашей учётной записи отключена двухфакторная аутентификация. Теперь учётную запись защищает только пароль."
+
+msgid "Nowe kody zapasowe"
+msgstr "Новые резервные коды"
+
+msgid "Wygenerowano nowy komplet kodów zapasowych do logowania dwuskładnikowego. Poprzednie kody przestały działać."
+msgstr "Создан новый набор резервных кодов для двухфакторной аутентификации. Прежние коды больше не действуют."
+
+msgid "Użyto kodu zapasowego"
+msgstr "Использован резервный код"
+
+msgid "Do zalogowania na Twoje konto użyto jednego z kodów zapasowych."
+msgstr "Для входа в вашу учётную запись был использован один из резервных кодов."
+
+msgid "Organizator zdjął logowanie dwuskładnikowe"
+msgstr "Организатор отключил двухфакторную аутентификацию"
+
+msgid "Organizator zdjął logowanie dwuskładnikowe z Twojego konta (np. po zgłoszeniu zgubionego telefonu). Po zalogowaniu hasłem skonfiguruj je od nowa na nowym urządzeniu."
+msgstr "Организатор отключил двухфакторную аутентификацию в вашей учётной записи (например, после сообщения о потере телефона). Войдите с паролем и настройте её заново на новом устройстве."
+
+msgid "Wstrzymano logowanie po błędnych kodach"
+msgstr "Вход приостановлен после неверных кодов"
+
+#, python-format
+msgid "Na Twoje konto kilka razy z rzędu wpisano błędny kod logowania dwuskładnikowego. Logowanie kodem jest wstrzymane na %(minutes)s min."
+msgstr "В вашу учётную запись несколько раз подряд был введён неверный код двухфакторной аутентификации. Вход по коду приостановлен на %(minutes)s мин."
+
+#, python-format
+msgid "Zostało kodów zapasowych: %(left)s."
+msgstr "Осталось резервных кодов: %(left)s."
+
+#, python-format
+msgid "Konto: %(email)s"
+msgstr "Учётная запись: %(email)s"
+
+#, python-format
+msgid "Kiedy: %(when)s"
+msgstr "Когда: %(when)s"
+
+msgid "Jeśli ta wiadomość Cię zaskoczyła, natychmiast zmień hasło i skontaktuj się z organizatorem – ktoś może znać Twoje hasło."
+msgstr "Если это сообщение вас удивило, немедленно смените пароль и свяжитесь с организатором – ваш пароль может быть известен кому-то ещё."
+
+#, python-format
+msgid "%(what)s – %(competition)s"
+msgstr "%(what)s – %(competition)s"
+
+msgid "Hasło się nie zgadza."
+msgstr "Неверный пароль."
+
+#, python-format
+msgid "Zbyt wiele błędnych kodów. Spróbuj ponownie za %(minutes)s min."
+msgstr "Слишком много неверных кодов. Повторите попытку через %(minutes)s мин."
+
+msgid "Kod nie pasuje."
+msgstr "Код не подходит."
+
+#, python-format
+msgid "Zbyt wiele błędnych kodów z rzędu. Logowanie kodem jest wstrzymane na %(minutes)s min – wysłaliśmy też list na adres konta."
+msgstr "Слишком много неверных кодов подряд. Вход по коду приостановлен на %(minutes)s мин – мы также отправили письмо на адрес учётной записи."
+
+#, python-format
+msgid "Twoja rola w tym serwisie wymaga logowania dwuskładnikowego. Włącz je do %(deadline)s – potem bez niego nie wejdziesz do panelu."
+msgstr "Ваша роль на этом сайте требует двухфакторной аутентификации. Включите её до %(deadline)s – после этого без неё вы не сможете войти в панель."
+
+msgid "Twoja rola w tym serwisie wymaga logowania dwuskładnikowego. Włącz je teraz, żeby wrócić do panelu."
+msgstr "Ваша роль на этом сайте требует двухфакторной аутентификации. Включите её сейчас, чтобы вернуться в панель."
+
+msgid "Nowy komplet unieważnia wszystkie dotychczasowe kody. Potrzebne będą hasło i bieżący kod."
+msgstr "Новый набор аннулирует все текущие коды. Понадобятся пароль и текущий код."
+
+msgid "Wygeneruj nowe kody zapasowe"
+msgstr "Создать новые резервные коды"
+
+msgid "Twoja rola wymaga logowania dwuskładnikowego – po wyłączeniu trzeba będzie od razu skonfigurować je ponownie."
+msgstr "Ваша роль требует двухфакторной аутентификации – после отключения её придётся сразу настроить заново."
+
+msgid "Kod z aplikacji albo kod zapasowy"
+msgstr "Код из приложения или резервный код"
+
+#, python-format
+msgid "Nie pytaj o kod na tym urządzeniu do %(until)s"
+msgstr "Не запрашивать код на этом устройстве до %(until)s"
+
+msgid "Zaznacz wyłącznie na własnym komputerze – nie na wspólnym w szkole ani w biurze."
+msgstr "Отмечайте только на своём компьютере – не на общем компьютере в школе или офисе."
+
+msgid "Włącz teraz"
+msgstr "Включить сейчас"
+
+msgid "Zapamiętane urządzenia"
+msgstr "Запомненные устройства"
+
+msgid "Przeglądarki, w których zaznaczono „nie pytaj o kod”, przestaną być zapamiętane – także te, do których nie masz już dostępu."
+msgstr "Браузеры, в которых отмечено «не запрашивать код», больше не будут запомнены – в том числе те, к которым у вас уже нет доступа."
+
+msgid "Zapomnij wszystkie urządzenia"
+msgstr "Забыть все устройства"
+
+msgid "Zapomnieliśmy wszystkie zapamiętane urządzenia – przy następnym logowaniu podasz kod."
+msgstr "Все запомненные устройства забыты – при следующем входе потребуется код."

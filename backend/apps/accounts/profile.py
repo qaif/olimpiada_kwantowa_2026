@@ -317,6 +317,7 @@ def confirm_email_change(token: str, *, request=None) -> User:
     user.email_verified_at = timezone.now()
     user.save(update_fields=["email", "email_verified_at"])
     _forget_allauth_addresses(user, old_email)
+    _remember_previous_email(user, old_email)
     audit(user, "account.email_changed", user, {"email": True}, request=request)
     # Stary adres dowiaduje się o przeniesieniu konta – to jedyny sygnał, jaki zostaje właścicielowi
     # skrzynki, jeśli o zmianę nie prosił.
@@ -411,9 +412,19 @@ def _drop_credentials(user: User) -> None:
     from allauth.socialaccount.models import SocialAccount
     from rest_framework.authtoken.models import Token
 
+    from apps.staff_mfa.models import PreviousEmail, TrustRevocation, TwoFactorGrace
+
+    from .twofactor import TwoFactorDevice
+
     Token.objects.filter(user=user).delete()
     SocialAccount.objects.filter(user=user).delete()
     EmailAddress.objects.filter(user=user).delete()
+    # Drugi składnik to też poświadczenie (zaszyfrowany sekret, skróty kodów zapasowych) – a okres
+    # przejściowy 2FA (SEC-01) to metadane konta, które po anonimizacji nie mają już czego dotyczyć.
+    TwoFactorDevice.objects.filter(user=user).delete()
+    TwoFactorGrace.objects.filter(user=user).delete()
+    PreviousEmail.objects.filter(user=user).delete()
+    TrustRevocation.objects.filter(user=user).delete()
     _delete_sessions(user)
 
 
@@ -750,6 +761,47 @@ def _assert_not_coordinator(user: User) -> None:
         raise DomainError(COORDINATOR_PROTECTED_MESSAGE, "COORDINATOR_PROTECTED", status.HTTP_400_BAD_REQUEST)
 
 
+TWO_FACTOR_EMAIL_PROTECTED_MESSAGE = (
+    "To konto personelu albo konto z logowaniem dwuskładnikowym – jego adres e-mail zmienia wyłącznie "
+    "superkoordynator (albo operator w /admin/)."
+)
+
+
+def _assert_may_change_protected_email(user: User, actor: User) -> None:
+    """Adres konta z potwierdzonym 2FA zmienia z panelu wyłącznie superkoordynator (przegląd SEC-01, H1).
+
+    Zmiana adresu przez koordynatora to pierwszy krok przejęcia: nowy adres → reset hasła na ten
+    adres → (po resecie 2FA albo z porzuconą sesją) cudze konto. Konto, które samo zadbało o drugi
+    składnik, nie może stracić skrzynki decyzją dowolnego z kilkunastu koordynatorów. Działa wyłącznie
+    przy włączonej funkcji (``TWO_FACTOR_ENABLED``) – wyłączona nie zmienia panelu ani o przycisk.
+
+    Obejmuje też konto **personelu bez** urządzenia (także zablokowane – ślad z całej platformy):
+    na instalacji bez superkoordynatora koordynator może zdjąć 2FA personelowi swojego konkursu
+    (wyjątek z ``staff_mfa.policy.may_reset``), więc sama reguła „ma urządzenie” zostawiałaby
+    łańcuch reset 2FA → zmiana adresu → reset hasła otwarty.
+    """
+    from apps.accounts import twofactor
+    from apps.accounts.super_coordinator import is_super_coordinator
+    from apps.staff_mfa.policy import is_staff_anywhere
+
+    if not twofactor.is_enabled() or is_super_coordinator(actor):
+        return
+    if twofactor.confirmed_device(user) is not None or is_staff_anywhere(user):
+        raise DomainError(
+            TWO_FACTOR_EMAIL_PROTECTED_MESSAGE, "TWO_FACTOR_EMAIL_PROTECTED", status.HTTP_400_BAD_REQUEST
+        )
+
+
+def _remember_previous_email(user: User, old_email: str) -> None:
+    """Poprzedni adres – drugi odbiorca listu o resecie 2FA (``apps.staff_mfa``), tylko przy włączonym 2FA."""
+    from apps.accounts import twofactor
+
+    if twofactor.is_enabled():
+        from apps.staff_mfa.security import remember_previous_email
+
+        remember_previous_email(user, old_email)
+
+
 def _account_values(fields: dict) -> dict:
     """Sprawdza pola samego konta (bez profilu roli). Klucz nieobecny = pole nietykane."""
     values: dict = {}
@@ -879,6 +931,8 @@ def update_account_by_coordinator(
     values = _account_values(account)
     if "email" in account:
         values["email"] = _assert_email_free(account["email"], exclude_pk=user.pk)
+        if values["email"] != user.email:
+            _assert_may_change_protected_email(user, actor)
     # Profil z konkursu, którego panel koordynator ma przed sobą: koordynator olimpiady A nie
     # poprawia szkoły uczestnikowi w olimpiadzie B, nawet jeżeli to jedno konto (§ 3.3).
     profile = participant_for(user, current_competition())
@@ -935,6 +989,7 @@ def update_account_by_coordinator(
         Token.objects.filter(user=user).delete()
     if user.email != previous_email:
         _forget_allauth_addresses(user, previous_email)
+        _remember_previous_email(user, previous_email)
         # Wprost, bo to inna droga niż ``account.email_changed``: adres nie został potwierdzony
         # kliknięciem w link, tylko zmieniony decyzją organizatora.
         diff["email_changed_without_confirmation"] = True
