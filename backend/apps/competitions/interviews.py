@@ -521,8 +521,9 @@ def slots_for_committee(competition, now=None) -> list[dict]:
     :data:`COMMITTEE_SLOTS_LIMIT` terminów, po godzinie rozpoczęcia. Trzy zapytania niezależnie od
     liczby terminów (terminy z etapem, zapisy z kontem uczestnika).
     """
-    from .jitsi_jwt import grace, interview_window, is_platform_room, short_name
+    from .jitsi_jwt import grace, interview_window, short_name
     from .models import StageFormat
+    from .room_access import is_platform_room  # Jitsi z przepustkami albo LiveKit (STAGE-LK-01)
     from .video import slot_meeting_url
 
     now = now or timezone.now()

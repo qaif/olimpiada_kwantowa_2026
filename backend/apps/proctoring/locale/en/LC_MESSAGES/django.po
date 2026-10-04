@@ -1,0 +1,847 @@
+# Angielska wersja nadzoru zdalnego: konsola ucznia, siatka i raport nadzoru.
+# Nadzór zdalny (PROC-01) – tłumaczenie maszynowe, do przejrzenia przez native speakera.
+# Zrodlem (msgid) jest polski.
+#
+# Plik ``.mo`` powstaje z tego zrodla: ``django-admin compilemessages`` (obraz ma gettext).
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Olimpiada Kwantowa\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-04 19:52+0200\n"
+"PO-Revision-Date: 2026-10-04 20:00+0200\n"
+"Last-Translator: Olimpiada Kwantowa\n"
+"Language-Team: English\n"
+"Language: en\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Powód"
+msgstr "Reason"
+
+msgid "Nie mam kamery"
+msgstr "I don't have a camera"
+
+msgid "Kamera nie działa"
+msgstr "My camera doesn't work"
+
+msgid "Moja przeglądarka nie obsługuje nadzoru"
+msgstr "My browser doesn't support proctoring"
+
+msgid "Potrzeby dostępności"
+msgstr "Accessibility needs"
+
+msgid "Inny powód"
+msgstr "Other reason"
+
+msgid "Krótka uwaga (opcjonalnie)"
+msgstr "Short note (optional)"
+
+msgid ""
+"Nie wpisuj informacji o zdrowiu – organizator skontaktuje się z Tobą, jeśli "
+"będzie trzeba."
+msgstr ""
+"Do not enter any health information – the organizer will contact you if "
+"needed."
+
+msgid ""
+"Ten etap jest nadzorowany zdalnie. Najpierw włącz nadzór w konsoli nadzoru."
+msgstr ""
+"This stage is remotely proctored. First turn on proctoring in the "
+"proctoring console."
+
+msgid ""
+"Zapoznałem/-am się z informacją o nadzorze zdalnym tego etapu i wyrażam "
+"zgodę na przekazywanie obrazu z mojej kamery (oraz – jeśli etap tego wymaga "
+"– mojego ekranu i dźwięku) osobom nadzorującym na zasadach opisanych powyżej."
+msgstr ""
+"I have read the information about remote proctoring for this stage and I "
+"consent to the image from my camera (and – if the stage requires it – my "
+"screen and audio) being shared with the proctors under the terms "
+"described above."
+
+msgid "Serwer nadzoru nie odpowiada. Spróbuj za chwilę."
+msgstr "The proctoring server is not responding. Please try again in a moment."
+
+#, python-format
+msgid "uczniowie: %(name)s"
+msgstr "students: %(name)s"
+
+msgid "uczniowie bez przydziału"
+msgstr "unassigned students"
+
+msgid ""
+"Najpierw potrzebna jest zgoda Twojego rodzica lub opiekuna prawnego, "
+"potwierdzona online. Poproś o nią w panelu, w zakładce „Zgody”."
+msgstr ""
+"First, your parent or legal guardian needs to confirm their consent "
+"online. Request it on your dashboard, in the “Consents” tab."
+
+msgid "Ten etap nie zbiera zdjęcia dokumentu."
+msgstr "This stage does not collect an ID photo."
+
+msgid "Zdjęcie nie zostało zapisane. Spróbuj jeszcze raz."
+msgstr "The photo was not saved. Please try again."
+
+msgid "Najpierw wyraź zgodę na nadzór."
+msgstr "First give your consent to proctoring."
+
+msgid "Najpierw sprawdź sprzęt."
+msgstr "First check your equipment."
+
+msgid "Najpierw zrób zdjęcie dokumentu."
+msgstr "First take a photo of your ID document."
+
+#, python-format
+msgid "Nadzór będzie można włączyć od %(when)s."
+msgstr "Proctoring can be turned on from %(when)s."
+
+msgid "Czas tego etapu minął."
+msgstr "The time for this stage is over."
+
+msgid ""
+"Serwer nadzoru jeszcze nie widzi Twojej kamery. Poczekaj chwilę i spróbuj "
+"ponownie."
+msgstr ""
+"The proctoring server cannot see your camera yet. Wait a moment and try "
+"again."
+
+msgid "Ten etap wymaga działającego nadzoru. Skontaktuj się z organizatorem."
+msgstr "This stage requires working proctoring. Please contact the organizer."
+
+msgid "Wybierz powód z listy."
+msgstr "Choose a reason from the list."
+
+msgid "Pokój nadzoru jest teraz zamknięty."
+msgstr "The proctoring room is closed now."
+
+msgid "Wpisz treść wiadomości."
+msgstr "Enter the message text."
+
+msgid "Wybierz kategorię i wagę incydentu."
+msgstr "Choose the incident category and severity."
+
+msgid "Nadzór zdalny"
+msgstr "Remote proctoring"
+
+msgid ""
+"Ten etap jest nadzorowany zdalnie. Konsola nadzoru musi być otwarta w "
+"osobnej karcie do końca etapu."
+msgstr ""
+"This stage is remotely proctored. The proctoring console must stay open "
+"in a separate tab until the end of the stage."
+
+msgid ""
+"Ten etap jest nadzorowany zdalnie. Zanim zobaczysz zadania, wyraź zgodę, "
+"sprawdź sprzęt i włącz nadzór w konsoli."
+msgstr ""
+"This stage is remotely proctored. Before you see the problems, give your "
+"consent, check your equipment and turn on proctoring in the console."
+
+msgid "Nadzór działa."
+msgstr "Proctoring is active."
+
+msgid ""
+"Nadzór nie działa – wróć do karty konsoli nadzoru albo otwórz ją ponownie."
+msgstr ""
+"Proctoring is not active – go back to the proctoring console tab or open "
+"it again."
+
+msgid "Stan nadzoru: sprawdź kartę konsoli nadzoru."
+msgstr "Proctoring status: check the proctoring console tab."
+
+msgid "Konsola nadzoru"
+msgstr "Proctoring console"
+
+msgid "Etap:"
+msgstr "Stage:"
+
+msgid "Nadzór możesz włączyć od:"
+msgstr "You can turn on proctoring from:"
+
+msgid "Nadzór zdalny wymaga włączonego JavaScriptu."
+msgstr "Remote proctoring requires JavaScript to be enabled."
+
+msgid ""
+"Nadzór jest chwilowo niedostępny – brakuje komponentu wideo na serwerze. Daj "
+"znać organizatorowi."
+msgstr ""
+"Proctoring is temporarily unavailable – the video component is missing on "
+"the server. Please let the organizer know."
+
+msgid "Organizator zatwierdził inną formę nadzoru"
+msgstr "The organizer has approved an alternative form of proctoring"
+
+msgid "Przejdź do etapu"
+msgstr "Go to the stage"
+
+msgid "1. Informacja o nadzorze i zgoda"
+msgstr "1. Proctoring information and consent"
+
+msgid ""
+"W czasie etapu obraz z Twojej kamery (mała rozdzielczość) widzą na żywo "
+"osoby nadzorujące wskazane przez organizatora: koordynatorzy i członkowie "
+"komisji, a w olimpiadzie międzynarodowej także opiekun Twojej drużyny "
+"narodowej – wyłącznie uczniów swojej drużyny."
+msgstr ""
+"During the stage, the image from your camera (low resolution) is watched "
+"live by the proctors designated by the organizer: coordinators and "
+"committee members, and in the international olympiad also your national "
+"team leader – who sees only the students of their own team."
+
+msgid ""
+"Etap wymaga udostępnienia całego ekranu – osoby nadzorujące mogą go zobaczyć."
+msgstr ""
+"This stage requires sharing your entire screen – the proctors can see it."
+
+msgid "Etap wymaga włączonego mikrofonu – osoby nadzorujące mogą Cię słyszeć."
+msgstr ""
+"This stage requires your microphone to be on – the proctors can hear you."
+
+msgid ""
+"Przed startem zrobisz kamerą zdjęcie dokumentu tożsamości (legitymacji "
+"szkolnej). Zasłoń numer PESEL i adres – wystarczy imię, nazwisko i zdjęcie."
+msgstr ""
+"Before the start, you will use your camera to take a photo of your ID "
+"document (student ID card). Cover your PESEL (national ID number) and "
+"address – your first name, last name and photo are enough."
+
+msgid "Obraz z kamery jest nagrywany."
+msgstr "The camera image is recorded."
+
+#, python-format
+msgid ""
+"Nagranie widzą wyłącznie koordynator i komisja odwoławcza (każde odtworzenie "
+"jest zapisywane). Usuwamy je %(days)s dni po ogłoszeniu wyników i zamknięciu "
+"okna reklamacji, chyba że trwa wyjaśnianie Twojej sprawy."
+msgstr ""
+"The recording can be viewed only by the coordinator and the appeals "
+"committee (every playback is logged). We delete it %(days)s days after "
+"the results are announced and the complaints window closes, unless your "
+"case is still being reviewed."
+
+msgid "Obraz nie jest nagrywany – osoby nadzorujące widzą go tylko na żywo."
+msgstr "The image is not recorded – the proctors see it only live."
+
+msgid ""
+"Nie stosujemy automatycznej analizy obrazu ani śledzenia tego, co robisz w "
+"przeglądarce. Decyzje podejmują ludzie."
+msgstr ""
+"We do not use automated image analysis or track what you do in your "
+"browser. Decisions are made by people."
+
+#, python-format
+msgid ""
+"Zapisujemy czasy połączeń, wiadomości od osób nadzorujących i ich notatki o "
+"incydentach. Dziennik połączeń i wiadomości usuwamy %(days)s dni po "
+"ogłoszeniu wyników; notatki o incydentach zostają w dokumentacji zawodów "
+"(odwołania)."
+msgstr ""
+"We record connection times, messages from proctors and their incident "
+"notes. We delete the connection and message log %(days)s days after the "
+"results are announced; incident notes remain in the competition records "
+"(appeals)."
+
+msgid ""
+"Zgodę możesz wycofać w każdej chwili. Jeśli nie możesz albo nie chcesz "
+"używać kamery, poproś organizatora o inną formę nadzoru (na dole strony)."
+msgstr ""
+"You can withdraw your consent at any time. If you cannot or do not want "
+"to use a camera, ask the organizer for an alternative form of proctoring "
+"(at the bottom of the page)."
+
+msgid ""
+"Szczegóły przetwarzania danych: polityka prywatności organizatora (sekcja "
+"„Nadzór zdalny”)."
+msgstr ""
+"Data processing details: the organizer's privacy policy (“Remote "
+"proctoring” section)."
+
+#, python-format
+msgid "Zgoda wyrażona %(when)s (wersja %(version)s)."
+msgstr "Consent given: %(when)s (version %(version)s)."
+
+msgid "Wycofaj zgodę"
+msgstr "Withdraw consent"
+
+msgid ""
+"Jesteś osobą niepełnoletnią: zanim wyrazisz zgodę, Twój rodzic lub opiekun "
+"prawny musi potwierdzić online swoją zgodę na Twój udział."
+msgstr ""
+"You are a minor: before you give your consent, your parent or legal "
+"guardian must confirm their consent to your participation online."
+
+msgid "Poproś opiekuna o zgodę"
+msgstr "Ask your parent or guardian for consent"
+
+msgid "Zgoda Twojego opiekuna prawnego została potwierdzona online."
+msgstr "Your parent or legal guardian's consent has been confirmed online."
+
+#, python-format
+msgid "Wersja informacji: %(version)s."
+msgstr "Notice version: %(version)s."
+
+msgid "Wyrażam zgodę"
+msgstr "I consent"
+
+msgid "2. Sprawdzenie sprzętu"
+msgstr "2. Equipment check"
+
+msgid "Podgląd kamery"
+msgstr "Camera preview"
+
+msgid "Przeglądarka"
+msgstr "Browser"
+
+msgid "Kamera"
+msgstr "Camera"
+
+msgid "Mikrofon"
+msgstr "Microphone"
+
+msgid "Udostępnianie ekranu"
+msgstr "Screen sharing"
+
+msgid "Sprawdź sprzęt"
+msgstr "Check equipment"
+
+msgid "Sprzęt sprawdzony."
+msgstr "Equipment checked."
+
+msgid "3. Zdjęcie dokumentu"
+msgstr "3. ID photo"
+
+msgid "opcjonalne"
+msgstr "optional"
+
+msgid ""
+"Pokaż do kamery legitymację szkolną albo inny dokument ze zdjęciem i kliknij "
+"„Zrób zdjęcie”."
+msgstr ""
+"Hold your student ID card or another photo ID up to the camera and click "
+"“Take photo”."
+
+msgid "Zrób zdjęcie"
+msgstr "Take photo"
+
+msgid "Zdjęcie zapisane."
+msgstr "Photo saved."
+
+msgid "4. Start nadzoru"
+msgstr "4. Start proctoring"
+
+msgid "3. Start nadzoru"
+msgstr "3. Start proctoring"
+
+msgid "Etap jest dla Ciebie otwarty."
+msgstr "The stage is open for you."
+
+msgid "Nagrywanie kamery włączone"
+msgstr "Camera recording on"
+
+msgid "Włącz nadzór"
+msgstr "Turn on proctoring"
+
+msgid "Udostępnij ekran"
+msgstr "Share screen"
+
+msgid "Kontynuuj bez nadzoru"
+msgstr "Continue without proctoring"
+
+msgid "Przejdź do etapu (nowa karta)"
+msgstr "Go to the stage (new tab)"
+
+msgid ""
+"Zostaw tę kartę otwartą do końca etapu – zamknięcie jej przerywa nadzór. "
+"Etap otworzy się w nowej karcie."
+msgstr ""
+"Keep this tab open until the end of the stage – closing it stops "
+"proctoring. The stage will open in a new tab."
+
+msgid "Serwer nadzoru jest niedostępny. Skontaktuj się z organizatorem."
+msgstr "The proctoring server is unavailable. Please contact the organizer."
+
+msgid "Twój obraz w nadzorze"
+msgstr "Your proctoring video"
+
+msgid "Nie mogę użyć kamery"
+msgstr "I can't use a camera"
+
+msgid ""
+"Twoja prośba czeka na decyzję organizatora. Odpowiedź pojawi się na tej "
+"stronie."
+msgstr ""
+"Your request is awaiting the organizer's decision. The answer will appear "
+"on this page."
+
+msgid "Organizator nie zatwierdził innej formy nadzoru."
+msgstr "The organizer did not approve an alternative form of proctoring."
+
+msgid "Poproś o inną formę nadzoru"
+msgstr "Request an alternative form of proctoring"
+
+msgid "Nadzór"
+msgstr "Proctoring"
+
+msgid "Łączenie…"
+msgstr "Connecting…"
+
+msgid "Eksport incydentów (CSV)"
+msgstr "Export incidents (CSV)"
+
+msgid "Siatka nadzoru wymaga włączonego JavaScriptu."
+msgstr "The proctoring grid requires JavaScript to be enabled."
+
+msgid ""
+"Obraz jest chwilowo niedostępny – brakuje komponentu wideo na serwerze. "
+"Lista uczniów i czynności działają."
+msgstr ""
+"Video is temporarily unavailable – the video component is missing on the "
+"server. The student list and actions still work."
+
+msgid ""
+"Serwer nadzoru nie jest skonfigurowany. Lista uczniów i czynności działają."
+msgstr ""
+"The proctoring server is not configured. The student list and actions "
+"still work."
+
+msgid "Widok"
+msgstr "View"
+
+msgid "Grupa"
+msgstr "Group"
+
+msgid "Kafli na stronie"
+msgstr "Tiles per page"
+
+msgid "Poprzednia"
+msgstr "Previous"
+
+msgid "Następna"
+msgstr "Next"
+
+msgid "Włącz dźwięk"
+msgstr "Unmute"
+
+msgid "Incydent"
+msgstr "Incident"
+
+msgid "Kategoria"
+msgstr "Category"
+
+msgid "Waga"
+msgstr "Severity"
+
+msgid "Notatka"
+msgstr "Note"
+
+msgid "Czas incydentu zapisze się jako chwila otwarcia tego okna."
+msgstr ""
+"The incident time will be recorded as the moment this window was opened."
+
+msgid "Zapisz incydent"
+msgstr "Save incident"
+
+msgid "Anuluj"
+msgstr "Cancel"
+
+msgid "Etapy do nadzoru"
+msgstr "Stages to proctor"
+
+msgid "Otwórz siatkę nadzoru"
+msgstr "Open proctoring grid"
+
+msgid "Nie masz etapów do nadzoru."
+msgstr "You have no stages to proctor."
+
+msgid "Raport nadzoru"
+msgstr "Proctoring report"
+
+msgid "Zgoda"
+msgstr "Consent"
+
+msgid "wycofana"
+msgstr "withdrawn"
+
+msgid "zgoda opiekuna potwierdzona online"
+msgstr "guardian consent confirmed online"
+
+msgid "brak"
+msgstr "none"
+
+msgid "Sprawdzenie sprzętu"
+msgstr "Equipment check"
+
+msgid "Nadzór rozpoczęty"
+msgstr "Proctoring started"
+
+msgid "Bez nadzoru od"
+msgstr "Unproctored since"
+
+msgid "Obecność"
+msgstr "Attendance"
+
+msgid "Inna forma nadzoru"
+msgstr "Alternative proctoring"
+
+msgid "Zdjęcie dokumentu"
+msgstr "ID photo"
+
+msgid "otwórz (15 min)"
+msgstr "open (15 min)"
+
+msgid "Wstrzymanie usunięcia"
+msgstr "Deletion hold"
+
+msgid "Nośniki usunięte"
+msgstr "Media deleted"
+
+msgid "Incydenty"
+msgstr "Incidents"
+
+msgid "Czas"
+msgstr "Time"
+
+msgid "Zgłosił"
+msgstr "Reported by"
+
+msgid "Brak incydentów."
+msgstr "No incidents."
+
+msgid "Wiadomości do ucznia"
+msgstr "Messages to the student"
+
+msgid "potwierdzona"
+msgstr "acknowledged"
+
+msgid "Brak wiadomości."
+msgstr "No messages."
+
+msgid "Nagrania"
+msgstr "Recordings"
+
+msgid "odtwórz (15 min)"
+msgstr "play (15 min)"
+
+msgid "Brak nagrań."
+msgstr "No recordings."
+
+msgid "Dziennik"
+msgstr "Log"
+
+msgid "Dziennik jest pusty albo został już usunięty (retencja)."
+msgstr "The log is empty or has already been deleted (retention)."
+
+msgid "Za dużo żądań. Spróbuj za chwilę."
+msgstr "Too many requests. Please try again in a moment."
+
+msgid "Sprawdzanie…"
+msgstr "Checking…"
+
+msgid "działa"
+msgstr "working"
+
+msgid "nie działa"
+msgstr "not working"
+
+msgid "niewymagane"
+msgstr "not required"
+
+msgid ""
+"Ta przeglądarka nie obsługuje nadzoru wideo. Użyj aktualnej przeglądarki "
+"Chrome, Edge, Firefox albo Safari."
+msgstr ""
+"This browser does not support video proctoring. Use an up-to-date version "
+"of Chrome, Edge, Firefox or Safari."
+
+msgid ""
+"Brak dostępu do kamery. Zezwól na kamerę w ustawieniach przeglądarki i "
+"spróbuj ponownie."
+msgstr ""
+"No access to the camera. Allow camera access in your browser settings and "
+"try again."
+
+msgid "Łączenie z serwerem nadzoru…"
+msgstr "Connecting to the proctoring server…"
+
+msgid "Nadzór działa. Zostaw tę kartę otwartą do końca etapu."
+msgstr "Proctoring is active. Keep this tab open until the end of the stage."
+
+msgid ""
+"Połączenie nadzoru zostało przerwane. Nie zamykaj tej karty – trwa ponowne "
+"łączenie."
+msgstr ""
+"The proctoring connection was interrupted. Don't close this tab – "
+"reconnecting is in progress."
+
+msgid "Połączenie nadzoru przywrócone."
+msgstr "Proctoring connection restored."
+
+msgid "Nie udało się połączyć z serwerem nadzoru."
+msgstr "Could not connect to the proctoring server."
+
+msgid "Udostępnianie ekranu zostało zatrzymane. Udostępnij ekran ponownie."
+msgstr "Screen sharing has stopped. Share your screen again."
+
+msgid "Wiadomość od osoby nadzorującej"
+msgstr "Message from the proctor"
+
+msgid "Osoba nadzorująca prosi: pokaż kamerą pokój dookoła siebie."
+msgstr "The proctor asks: use your camera to show the room around you."
+
+msgid "Osoba nadzorująca prosi: pokaż do kamery dokument tożsamości."
+msgstr "The proctor asks: hold your ID document up to the camera."
+
+msgid "Rozumiem"
+msgstr "Got it"
+
+msgid "Coś poszło nie tak. Spróbuj ponownie."
+msgstr "Something went wrong. Please try again."
+
+msgid "Spróbuj ponownie"
+msgstr "Try again"
+
+msgid "Zgoda na nadzór wycofana."
+msgstr "Consent to proctoring withdrawn."
+
+msgid "Zaznacz pole zgody, żeby przejść dalej."
+msgstr "Tick the consent box to continue."
+
+msgid "Prośba wysłana. Organizator odpowie w tej konsoli."
+msgstr "Request sent. The organizer will reply in this console."
+
+msgid "Połączono z pokojem nadzoru."
+msgstr "Connected to the proctoring room."
+
+msgid "Rozłączono z pokojem nadzoru. Odśwież stronę."
+msgstr "Disconnected from the proctoring room. Refresh the page."
+
+msgid "Nie udało się połączyć z pokojem nadzoru."
+msgstr "Could not connect to the proctoring room."
+
+#, python-format
+msgid "Strona %(page)s z %(pages)s"
+msgstr "Page %(page)s of %(pages)s"
+
+msgid "Brak uczniów w tej grupie."
+msgstr "No students in this group."
+
+msgid "nadaje"
+msgstr "streaming"
+
+msgid "czeka na start"
+msgstr "waiting to start"
+
+msgid "strumień przerwany"
+msgstr "stream interrupted"
+
+msgid "brak sygnału"
+msgstr "no signal"
+
+msgid "bez nadzoru"
+msgstr "unproctored"
+
+msgid "alternatywa"
+msgstr "alternative"
+
+msgid "brak zgody"
+msgstr "no consent"
+
+msgid "Wiadomość"
+msgstr "Message"
+
+msgid "Treść wiadomości do ucznia:"
+msgstr "Message to the student:"
+
+msgid "Pokaż pokój"
+msgstr "Show room"
+
+msgid "Pokaż dokument"
+msgstr "Show ID"
+
+msgid "Obecny"
+msgstr "Present"
+
+msgid "Nieobecny"
+msgstr "Absent"
+
+msgid "Ekran"
+msgstr "Screen"
+
+msgid "Ukryj ekran"
+msgstr "Hide screen"
+
+#, python-format
+msgid "incydenty: %(count)s"
+msgstr "incidents: %(count)s"
+
+msgid "Wysłano."
+msgstr "Sent."
+
+msgid "Zapisano."
+msgstr "Saved."
+
+msgid "Dźwięk"
+msgstr "Audio"
+
+msgid "Raport"
+msgstr "Report"
+
+msgid "uczeń poza kadrem"
+msgstr "student out of frame"
+
+msgid "inna osoba w kadrze"
+msgstr "another person in frame"
+
+msgid "inne urządzenie"
+msgstr "another device"
+
+msgid "rozmowa lub komunikacja"
+msgstr "talking or communication"
+
+msgid "niedozwolone materiały"
+msgstr "unauthorized materials"
+
+msgid "ekran"
+msgstr "screen"
+
+msgid "problem techniczny"
+msgstr "technical problem"
+
+msgid "inne"
+msgstr "other"
+
+msgid "informacja"
+msgstr "info"
+
+msgid "ostrzeżenie"
+msgstr "warning"
+
+msgid "poważny"
+msgstr "serious"
+
+msgid "Treść tego etapu jest w trakcie zawodów dostępna wyłącznie dla jego uczestników."
+msgstr "During the competition, the content of this stage is available only to its participants."
+
+msgid "Mój rodzic lub opiekun prawny zna tę informację o nadzorze zdalnym i zgadza się na niego."
+msgstr "My parent or legal guardian knows this information about remote proctoring and agrees to it."
+
+msgid "Zaznacz też oświadczenie o wiedzy i zgodzie rodzica lub opiekuna prawnego."
+msgstr "Please also tick the statement about your parent or legal guardian's knowledge and consent."
+
+msgid "Serwer nadzoru działa – spróbuj połączyć się jeszcze raz. Jeśli nie możesz użyć kamery, poproś o inną formę nadzoru."
+msgstr "The proctoring server is working – try to connect again. If you cannot use a camera, request another form of proctoring."
+
+msgid "serwer nadzoru nieskonfigurowany"
+msgstr "proctoring server not configured"
+
+msgid "serwer nadzoru niedostępny"
+msgstr "proctoring server unavailable"
+
+msgid "nieudane połączenia ucznia – serwer działał"
+msgstr "student's connection attempts failed – the server was working"
+
+msgid "Praca bez nadzoru – awaria serwera nadzoru została odnotowana."
+msgstr "Working without proctoring – the proctoring server failure has been recorded."
+
+msgid "Ustawienia etapu w chwili zgody"
+msgstr "Stage settings at the time of consent"
+
+#, python-format
+msgid "późny start: %(minutes)s min"
+msgstr "late start: %(minutes)s min"
+
+msgid "Kamera nie działa albo nie masz do niej dostępu. Jeśli nie możesz jej użyć, poproś o inną formę nadzoru (na dole strony)."
+msgstr "Your camera is not working or you have not allowed access to it. If you cannot use it, request another form of proctoring (at the bottom of the page)."
+
+msgid "Tej osoby nie ma teraz w pokoju."
+msgstr "This person is not in the room right now."
+
+msgid "Twoja rozmowa jest nadzorowana zdalnie. Zgoda i sprzęt są gotowe – wejdź na rozmowę przyciskiem „Dołącz do rozmowy”."
+msgstr "Your interview is remotely proctored. Your consent and equipment are ready – join with the “Join the interview” button."
+
+msgid "Rozmowa"
+msgstr "Interview"
+
+msgid "Nadzór obejmuje Twoją rozmowę w pokoju na platformie – osobnego nadawania nie trzeba włączać. Wejdź na rozmowę z panelu przyciskiem „Dołącz do rozmowy”."
+msgstr "Proctoring covers your interview in the platform room – you do not need to start a separate stream. Join the interview from your dashboard with the “Join the interview” button."
+
+msgid "Wyjdź"
+msgstr "Leave"
+
+msgid "Obraz uczestników"
+msgstr "Participants’ video"
+
+msgid "Uczestnicy"
+msgstr "Participants"
+
+msgid "Czat"
+msgstr "Chat"
+
+msgid "Wyślij"
+msgstr "Send"
+
+msgid "Sterowanie"
+msgstr "Controls"
+
+msgid "Podnieś rękę"
+msgstr "Raise hand"
+
+msgid "Widok prelegenta"
+msgstr "Speaker view"
+
+#, python-format
+msgid "Pokój rozmowy otworzy się %(when)s (czas polski) – wróć wtedy do panelu."
+msgstr "The interview room opens at %(when)s (Polish time) – come back to the panel then."
+
+msgid "Czas tej rozmowy minął – pokój jest już zamknięty."
+msgstr "The time of this interview has passed – the room is closed."
+
+#, python-format
+msgid "Próba sprzętu – %(stage)s"
+msgstr "Equipment test – %(stage)s"
+
+#, python-format
+msgid "Rozmowa – %(stage)s"
+msgstr "Interview – %(stage)s"
+
+msgid "Serwer wideo nie odpowiada. Spróbuj za chwilę."
+msgstr "The video server is not responding. Please try again in a moment."
+
+msgid "Ta rozmowa jest nadzorowana zdalnie. Najpierw wyraź zgodę i sprawdź sprzęt w konsoli nadzoru."
+msgstr "This interview is remotely proctored. First give your consent and check your equipment in the proctoring console."
+
+msgid "Twoja rozmowa jest nadzorowana zdalnie. Przed wejściem na rozmowę wyraź zgodę i sprawdź sprzęt w konsoli nadzoru."
+msgstr "Your interview is remotely proctored. Before joining, give your consent and check your equipment in the proctoring console."
+
+msgid "Przejdź do rozmowy"
+msgstr "Go to the interview"
+
+msgid "Rozmowa kwalifikacyjna"
+msgstr "Qualifying interview"
+
+msgid "Pokój rozmowy wymaga włączonego JavaScriptu."
+msgstr "The interview room requires JavaScript to be enabled."
+
+msgid "Pokój jest chwilowo niedostępny – brakuje komponentu wideo na serwerze. Daj znać organizatorowi."
+msgstr "The room is temporarily unavailable – the video component is missing on the server. Please let the organiser know."
+
+msgid "Decyzje moderatora w tym terminie"
+msgstr "Moderator decisions in this time slot"
+
+msgid "usunięty z pokoju"
+msgstr "removed from the room"
+
+msgid "bez głosu"
+msgstr "without voice"
+
+msgid "Oddaj głos"
+msgstr "Give voice"
+
+msgid "Wpuść ponownie"
+msgstr "Let back in"
+
+msgid "Moderator usunął Cię z tej rozmowy. Skontaktuj się z organizatorem."
+msgstr "The moderator removed you from this interview. Please contact the organiser."
