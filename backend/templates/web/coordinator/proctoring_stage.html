@@ -1,0 +1,132 @@
+{% extends "web/coordinator/base.html" %}
+{% comment %}
+  Nadzór zdalny jednego etapu (zadanie PROC-01, ``CoordinatorProctoringStageView``): ustawienia,
+  nadzorujący, rozdział uczniów, prośby o alternatywę, wstrzymanie usunięcia nośników. Każda czynność
+  to POST z polem ``action`` – serwis sprawdza role i zapisuje audyt.
+{% endcomment %}
+{% block title %}Nadzór zdalny: {{ stage.display_name }} – panel koordynatora{% endblock %}
+{% block panel_title %}Nadzór zdalny: {{ stage.display_name }}{% endblock %}
+{% block panel_lead %}
+  <p class="lead"><a href="{% url 'web:coordinator-proctoring' %}">← wszystkie etapy</a>
+    {% if config.enabled %} · <a href="{% url 'web:proctoring-grid' stage.pk %}">siatka nadzoru</a>
+    · <a href="{% url 'web:proctoring-export' stage.pk %}">eksport incydentów (CSV)</a>{% endif %}</p>
+{% endblock %}
+{% block panel_content %}
+{% if not proctorable %}
+  <p class="alert alert--warning">Ten etap nie jest etapem online (rozwiązania pisemne albo test) – nadzoru nie da się włączyć.</p>
+{% else %}
+
+<section class="section" aria-labelledby="pr-config">
+  <div class="section__head"><h2 class="mt-0" id="pr-config">Ustawienia</h2></div>
+  <div class="card">
+    <form method="post" class="form" novalidate>
+      {% csrf_token %}<input type="hidden" name="action" value="config">
+      {{ form.as_p }}
+      <div class="actions"><button type="submit" class="btn btn--primary">Zapisz ustawienia</button></div>
+    </form>
+  </div>
+</section>
+
+{% if config %}
+<section class="section" aria-labelledby="pr-summary">
+  <div class="section__head"><h2 class="mt-0" id="pr-summary">Stan</h2></div>
+  <p>Uczniów: {{ summary.total }} · ze zgodą: {{ summary.consented }} · nadzór rozpoczęty: {{ summary.started }}
+    · bez nadzoru: {{ summary.unproctored }} · prośby o alternatywę: {{ summary.alternatives }}
+    · bez nadzorującego: {{ summary.unassigned }}</p>
+  {% if summary.main_group_warning %}
+    <p class="alert alert--warning" role="status">W grupie „bez przydziału” jest {{ summary.main_group }} uczniów
+      (więcej niż {{ summary.main_group_limit }}). Jeden pokój LiveKit działa na jednym węźle serwera – dodaj
+      nadzorujących i kliknij „Rozdziel uczniów”, żeby rozłożyć uczniów na mniejsze pokoje.</p>
+  {% endif %}
+</section>
+
+<section class="section" aria-labelledby="pr-proctors">
+  <div class="section__head"><h2 class="mt-0" id="pr-proctors">Nadzorujący</h2></div>
+  <p class="hint">Koordynatorzy widzą zawsze wszystkich uczniów. Komisja – uczniów sobie przydzielonych.
+    Opiekun drużyny – <strong>wyłącznie</strong> uczniów swojej delegacji (osobny pokój LiveKit na delegację:
+    token nie otwiera pokoju innego kraju).</p>
+  {% if assignments %}
+    <table class="table">
+      <thead><tr><th>Osoba</th><th>Rola</th><th>Delegacja</th><th></th></tr></thead>
+      <tbody>
+        {% for assignment in assignments %}
+          <tr>
+            <td>{{ assignment.user.get_full_name|default:assignment.user.email }}</td>
+            <td>{{ assignment.get_kind_display }}</td>
+            <td>{{ assignment.delegation_id|default:"–" }}</td>
+            <td><form method="post">{% csrf_token %}<input type="hidden" name="action" value="unassign"><input type="hidden" name="assignment" value="{{ assignment.pk }}"><button type="submit" class="btn btn--small btn--secondary">Usuń</button></form></td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}<p class="empty">Brak przydziałów.</p>{% endif %}
+  <form method="post" class="form form--inline">
+    {% csrf_token %}<input type="hidden" name="action" value="assign">
+    <label>Rola <select name="kind">{% for value, label in kinds %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select></label>
+    <label>Osoba <select name="user">
+      {% for kind, users in candidates.items %}{% for person in users %}<option value="{{ person.pk }}">{{ person.get_full_name|default:person.email }} ({{ kind }})</option>{% endfor %}{% endfor %}
+    </select></label>
+    <button type="submit" class="btn btn--secondary">Dodaj</button>
+  </form>
+  <form method="post">
+    {% csrf_token %}<input type="hidden" name="action" value="distribute">
+    <button type="submit" class="btn btn--primary">Rozdziel uczniów bez nadzorującego</button>
+    <span class="hint">Uczniowie delegacji – do opiekunów swojej delegacji, pozostali – po równo.</span>
+  </form>
+</section>
+
+{% if alternatives %}
+<section class="section" aria-labelledby="pr-alt">
+  <div class="section__head"><h2 class="mt-0" id="pr-alt">Prośby o inną formę nadzoru</h2></div>
+  {% for session in alternatives %}
+    <div class="card">
+      <p><strong>{{ session.label }}</strong> – {{ session.get_alternative_reason_display }}{% if session.alternative_note %}: „{{ session.alternative_note }}”{% endif %}</p>
+      <form method="post" class="form">
+        {% csrf_token %}<input type="hidden" name="action" value="alternative"><input type="hidden" name="session" value="{{ session.pk }}">
+        <label>Ustalenie (widzi je uczeń) <input type="text" name="note" maxlength="300"></label>
+        <button type="submit" name="decision" value="approve" class="btn btn--primary btn--small">Zatwierdź</button>
+        <button type="submit" name="decision" value="reject" class="btn btn--secondary btn--small">Odrzuć</button>
+      </form>
+    </div>
+  {% endfor %}
+</section>
+{% endif %}
+
+<section class="section" aria-labelledby="pr-students">
+  <div class="section__head"><h2 class="mt-0" id="pr-students">Uczniowie</h2></div>
+  {% if sessions %}
+    <table class="table">
+      <thead><tr><th>Uczeń</th><th>Grupa</th><th>Nadzorujący</th><th>Stan</th><th>Retencja</th><th></th></tr></thead>
+      <tbody>
+        {% for session in sessions %}
+          <tr>
+            <td>{{ session.label }}</td>
+            <td>{{ session.group_label }}</td>
+            <td>
+              <form method="post" class="form--inline">
+                {% csrf_token %}<input type="hidden" name="action" value="reassign"><input type="hidden" name="session" value="{{ session.pk }}">
+                <select name="assignment"><option value="">–</option>{% for assignment in assignments %}<option value="{{ assignment.pk }}"{% if session.proctor_id == assignment.pk %} selected{% endif %}>{{ assignment.user.get_full_name|default:assignment.user.email }}</option>{% endfor %}</select>
+                <button type="submit" class="btn btn--small btn--secondary">Zmień</button>
+              </form>
+            </td>
+            <td>{% if session.started_at %}nadzór od {{ session.started_at|date:"H:i" }}{% elif session.unproctored_at %}<span class="badge badge--warn">bez nadzoru</span>{% elif session.alternative_status %}{{ session.get_alternative_status_display }}{% else %}–{% endif %}</td>
+            <td>
+              {% if session.purged_at %}usunięte {{ session.purged_at|date:"d.m.Y" }}{% else %}
+              <form method="post" class="form--inline">
+                {% csrf_token %}<input type="hidden" name="action" value="hold"><input type="hidden" name="session" value="{{ session.pk }}">
+                <input type="text" name="reason" maxlength="200" value="{{ session.hold_reason }}" placeholder="powód wstrzymania usunięcia" aria-label="Powód wstrzymania usunięcia">
+                <button type="submit" class="btn btn--small btn--secondary">Zapisz</button>
+              </form>{% endif %}
+            </td>
+            <td><a href="{% url 'web:proctoring-report' stage.pk session.pk %}">raport</a></td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p class="empty">Sesje powstają, gdy uczeń otworzy konsolę nadzoru, albo po „Rozdziel uczniów”.</p>
+  {% endif %}
+</section>
+{% endif %}
+{% endif %}
+{% endblock %}

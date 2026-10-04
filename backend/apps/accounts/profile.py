@@ -572,6 +572,12 @@ def anonymise_account(user: User, *, actor: User | None = None, request=None) ->
     from apps.time_windows.privacy import erase_for_participants as erase_time_window_data
 
     erase_time_window_data(participants)
+    # Nadzór zdalny (PROC-01): nagrania kamer, zdjęcia dokumentu, dziennik połączeń i wiadomości
+    # znikają, zgody na nadzór dostają ``withdrawn_at``. Incydenty i obecność zostają przy
+    # pseudonimowym profilu – jak prace i oceny, są dokumentacją zawodów.
+    from apps.proctoring.services import erase_for_participants as erase_proctoring
+
+    erase_proctoring(participants)
 
     # Pseudonimy widza materiałów z warsztatów (``apps.workshop_materials``) – licznik wyświetleń
     # materiału zostaje, liczba unikalnych widzów spada o to konto.

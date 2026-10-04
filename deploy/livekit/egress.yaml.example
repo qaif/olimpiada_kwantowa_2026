@@ -23,5 +23,13 @@ s3:
   # nagraniu sprawdź w logu egressu, że plik trafił do bucketu (docs/OPERACJE.md § 36.2, krok 10).
   force_path_style: true
 
+# Nadzór zdalny (PROC-01, docs/OPERACJE.md § 39): nagrania kamer uczniów to Track Egress – zapis
+# surowej ścieżki (WebM/VP8) BEZ transkodowania, do `proctoring/<konkurs>/…` (polityka konta jak wyżej
+# obejmuje też ten prefiks). Domyślny koszt zlecenia track egress (1.0 CPU) ogranicza maszynę 16 vCPU
+# do ~16 nagrań naraz; surowa ścieżka kosztuje ułamek tego – przy nagrywaniu etapu z nadzorem
+# obniż koszt i sprawdź obciążenie na próbie:
+# cpu_cost:
+#   track_cpu_cost: 0.1
+
 logging:
   level: info
