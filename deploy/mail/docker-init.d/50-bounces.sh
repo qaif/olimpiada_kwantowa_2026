@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Poczta zwrotna relaya `mail` (MAIL-01 § 5, docs/OPERACJE.md § 49.6).
+# Poczta zwrotna relaya `mail` (MAIL-01 § 5, docs/OPERACJE.md § 49.7).
 #
 # Uruchamiany przez obraz boky/postfix przy każdym starcie (`execute_post_init_scripts`, katalog
 # /docker-init.d/ montowany z deploy/mail/docker-init.d) – po konfiguracji Postfiksa z env,

@@ -32,6 +32,7 @@ set -f  # bez rozwijania gwiazdki: ALLOWED_SENDER_DOMAINS=* (wariant B) iterujem
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 REMOTE_DIR="${REMOTE_DIR:-$ROOT}"
 COMPOSE="${COMPOSE:-docker compose}"
+DMARC_RUA_FROM_ENV="${DMARC_RUA:-}"
 DMARC_RUA="${DMARC_RUA:-contact@qaif.org}"
 DKIM_BITS="${DKIM_BITS:-2048}"
 
@@ -67,6 +68,8 @@ env_get() {
 }
 
 SITE_DOMAIN="$(env_get SITE_DOMAIN)"
+# DMARC_RUA: zmienna środowiska > wpis w .env > contact@qaif.org (ten sam, co krok 7/8 wdrożenia).
+[ -n "${DMARC_RUA_FROM_ENV:-}" ] || { RUA_ENV="$(env_get DMARC_RUA)"; [ -z "$RUA_ENV" ] || DMARC_RUA="$RUA_ENV"; }
 SELECTOR="$(env_get DKIM_SELECTOR)"; SELECTOR="${SELECTOR:-olimpiada}"
 printf '%s' "$SELECTOR" | grep -Eq '^[a-z0-9][a-z0-9-]*$' || die "DKIM_SELECTOR ma niedozwolone znaki"
 CURRENT="$(env_get ALLOWED_SENDER_DOMAINS | tr ',' ' ')"
@@ -158,6 +161,7 @@ DKIM_VALUE="$(printf '%s' "$DKIM_RAW" | tr -d '\r\n\t' | grep -oE '"[^"]*"' | tr
 DKIM_P="$(printf '%s' "$DKIM_VALUE" | tr -d ' ' | grep -oE 'p=[A-Za-z0-9+/=]+' | head -n 1 | cut -c3- || true)"
 [ -n "$DKIM_P" ] || die "nie da się odczytać klucza publicznego z /etc/opendkim/keys/${DOMAIN}.txt"
 
+MAIL_PUBLIC_IP="${MAIL_PUBLIC_IP:-$(env_get MAIL_PUBLIC_IP)}"
 IP="${MAIL_PUBLIC_IP:-$(hostname -I 2>/dev/null | tr ' ' '\n' | grep -E '^[0-9]+\.' | grep -vE '^(127|10|172\.(1[6-9]|2[0-9]|3[01])|192\.168)\.' | head -n 1 || true)}"
 printf '%s' "$IP" | grep -Eq '^[0-9]{1,3}(\.[0-9]{1,3}){3}$' || die "nie znam publicznego IPv4 serwera – ustaw MAIL_PUBLIC_IP"
 

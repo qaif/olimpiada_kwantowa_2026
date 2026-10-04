@@ -8,6 +8,25 @@ dokładnie jednemu wierszowi tej tabeli.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## [Unreleased] – Poczta z domeny konkursu (MAIL-01)
+
+- **Druga domena nadawcy w relayu `mail`** (IQO: `iqo-official.org`): `scripts/mail_add_domain.sh <domena>`
+  na serwerze – idempotentnie dopisuje domenę do `ALLOWED_SENDER_DOMAINS`, generuje klucz DKIM w kontenerze
+  `mail` (nigdy nie nadpisuje istniejącego), odtwarza tylko `mail` i wypisuje rekordy do wklejenia
+  (`mail-dns-<domena>.txt`): SPF **scalony** z obecnym (rekord ochronny `v=spf1 -all` → zmiana, nigdy drugi
+  `v=spf1`), DKIM, DMARC bez drugiego rekordu (brak = `p=none` z planem na `quarantine`), MX bez zmian;
+  `--check` (`opendkim-testkey` + `check_mail_dns`), `--print`. Podpis wielu domen robi obraz (bez zmiany wersji).
+- **`manage.py check_mail_dns <domena>`** (nowa aplikacja `apps.mail_domains`, migracja `0001`): SPF
+  oceniany jak u odbiorcy (include/redirect/a/mx, limit 10 zapytań), DKIM z porównaniem klucza relaya,
+  DMARC; klient DNS na bibliotece standardowej (bez nowych zależności). Wynik w `SenderDomain`.
+- **Ostrzeżenie dla koordynatora** na pulpicie i w „Ustawieniach konkursu”, gdy nadawca listów konkursu
+  jest spoza relaya albo jego domena nie przeszła `check_mail_dns` (bez zapytań DNS w żądaniu).
+- **Poczta zwrotna bez pętli** („loops back to myself”): odbicia na `noreply@` domen, nadawców monitoringu
+  i `postmaster@` relaya → `discard` albo skrzynka operatora (`MAIL_BOUNCE_TARGET`,
+  `deploy/mail/docker-init.d/50-bounces.sh`); restrykcje OPS-02 nietknięte.
+- **Wdrożenie (krok 7/8)** ostrzega, gdy klucz DKIM którejś domeny różni się od opublikowanego.
+- Dokumentacja: `docs/tasks/MAIL-01.md`, `docs/OPERACJE.md` § 49 (krok po kroku dla Squarespace), § 9.7.
+
 ## [Unreleased] – Notatniki kwantowe w przeglądarce (QC-01)
 
 - **Notatnik przy zadaniu:** JupyterLite 0.8.5 z jądrem Pyodide 314.0.7 hostowany u nas

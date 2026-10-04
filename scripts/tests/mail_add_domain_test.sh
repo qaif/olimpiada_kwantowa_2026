@@ -148,6 +148,14 @@ check "web niedostępny: bazowy SPF i instrukcja scalenia" $?
 grep -qx '   v=DMARC1; p=none; rua=mailto:ops@qaif.test; adkim=r; aspf=r; fo=1' "$C/mail-dns-iqo.test.txt" && grep -q 'p=quarantine' "$C/mail-dns-iqo.test.txt"
 check "brak DMARC: p=none z planem przejścia na quarantine" $?
 
+D="$WORK/d"
+setup "$D" $'SITE_DOMAIN=platforma.test\nMAIL_PUBLIC_IP=198.51.100.9\nDMARC_RUA=raporty@iqo.test'
+touch "$D/stub/web_down"
+REMOTE_DIR="$D" STUB_DIR="$D/stub" COMPOSE="$WORK/compose" MAIL_PUBLIC_IP= DMARC_RUA= bash "$SCRIPT" iqo.test >/dev/null 2>&1
+grep -qx '   v=spf1 ip4:198.51.100.9 -all' "$D/mail-dns-iqo.test.txt" && grep -q 'rua=mailto:raporty@iqo.test' "$D/mail-dns-iqo.test.txt" \
+  && ! grep -q '_report._dmarc' "$D/mail-dns-iqo.test.txt"
+check "MAIL_PUBLIC_IP i DMARC_RUA z .env; raporty w tej samej domenie – bez rekordu zgody" $?
+
 # --- 7. --check ---------------------------------------------------------------------------------
 : >"$A/stub/log"
 run "$A" --check iqo.test >/dev/null 2>&1; rc=$?

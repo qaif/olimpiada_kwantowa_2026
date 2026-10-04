@@ -485,7 +485,7 @@ services:
       ALLOWED_SENDER_DOMAINS: ${ALLOWED_SENDER_DOMAINS:-${SITE_DOMAIN:-localhost}}
       # Poczta zwrotna na noreply@ (i podwójne odbicia na postmaster@): `discard` albo adres
       # skrzynki operatora. Bez tego odbicia krążą („loops back to myself”) – skrypt
-      # deploy/mail/docker-init.d/50-bounces.sh, docs/OPERACJE.md § 49.6.
+      # deploy/mail/docker-init.d/50-bounces.sh, docs/OPERACJE.md § 49.7.
       MAIL_BOUNCE_TARGET: ${MAIL_BOUNCE_TARGET:-discard}
       MAIL_BOUNCE_ADDRESSES: ${MAIL_BOUNCE_ADDRESSES:-}
       # Nadawcy usług monitoringu (OPS-02: GlitchTip i monitor dostępności) – ich odbicia wracałyby
