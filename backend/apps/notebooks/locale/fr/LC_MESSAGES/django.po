@@ -1,0 +1,633 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-04 20:13+0200\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: fr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+
+msgid "Tryb"
+msgstr "Mode"
+
+msgid "Język treści notatnika"
+msgstr "Langue du contenu du notebook"
+
+msgid ""
+"Język notatnika startowego i komunikatów testów. Interfejs JupyterLab jest "
+"angielski."
+msgstr ""
+"Langue du notebook de départ et des messages des tests. L’interface de "
+"JupyterLab est en anglais."
+
+msgid "Limit czasu wykonania (s)"
+msgstr "Limite de temps d’exécution (s)"
+
+msgid "Limit pamięci (MB)"
+msgstr "Limite de mémoire (Mo)"
+
+msgid "Kto widzi wynik testów ukrytych"
+msgstr "Qui voit le résultat des tests cachés"
+
+msgid ""
+"„Od razu” daje uczestnikowi wyrocznię: może wysyłać kolejne wersje i "
+"patrzeć, które testy ukryte przechodzą. Wybieraj to wyłącznie na etapach "
+"treningowych."
+msgstr ""
+"« Immédiatement » donne au participant un oracle : il peut envoyer de "
+"nouvelles versions et voir quels tests cachés passent. À réserver aux étapes"
+" d’entraînement."
+
+msgid "Notatnik startowy (.ipynb)"
+msgstr "Notebook de départ (.ipynb)"
+
+msgid ""
+"Puste = zostaje obecny (albo generowany szablon). Wyjścia komórek zostaną "
+"wyczyszczone."
+msgstr ""
+"Vide = l’actuel est conservé (ou le modèle généré). Les sorties des cellules"
+" seront effacées."
+
+msgid "Usuń wgrany notatnik startowy (użyj szablonu)"
+msgstr "Supprimer le notebook de départ téléversé (utiliser le modèle)"
+
+msgid "Notatnik wzorcowy (.ipynb)"
+msgstr "Notebook de référence (.ipynb)"
+
+msgid ""
+"Twoje rozwiązanie – służy wyłącznie do sprawdzenia testów. Uczestnicy go nie"
+" widzą."
+msgstr ""
+"Votre solution – sert uniquement à vérifier les tests. Les participants ne "
+"la voient pas."
+
+msgid "Testy widoczne (JSON)"
+msgstr "Tests visibles (JSON)"
+
+msgid ""
+"Trafiają do notatnika uczestnika – uczestnik widzi je i uruchamia w "
+"przeglądarce."
+msgstr ""
+"Ils sont placés dans le notebook du participant – il les voit et les exécute"
+" dans le navigateur."
+
+msgid "Testy ukryte (JSON)"
+msgstr "Tests cachés (JSON)"
+
+msgid ""
+"Liczone wyłącznie na serwerze. Nigdy nie trafiają do przeglądarki "
+"uczestnika."
+msgstr ""
+"Calculés uniquement sur le serveur. Ils n’atteignent jamais le navigateur du"
+" participant."
+
+msgid "To musi być plik .ipynb."
+msgstr "Ce doit être un fichier .ipynb."
+
+msgid "Notatnik jest za duży (najwyżej 1 MB)."
+msgstr "Le notebook est trop volumineux (1 Mo au maximum)."
+
+msgid "To nie jest poprawny notatnik Jupytera (nbformat 4)."
+msgstr "Ce n’est pas un notebook Jupyter valide (nbformat 4)."
+
+msgid "Notatnik swobodny (ocenia komisja)"
+msgstr "Notebook libre (évalué par le comité)"
+
+msgid "Sprawdzanie automatyczne (testy)"
+msgstr "Correction automatique (tests)"
+
+msgid "Tylko organizator i komisja"
+msgstr "Organisateur et comité uniquement"
+
+msgid "Uczestnik po zamknięciu etapu"
+msgstr "Le participant après la clôture de l’étape"
+
+msgid "Uczestnik od razu (zalecane tylko na etapach treningowych)"
+msgstr ""
+"Le participant immédiatement (recommandé seulement pour les étapes "
+"d’entraînement)"
+
+msgid "zadanie"
+msgstr "problème"
+
+msgid "tryb"
+msgstr "mode"
+
+msgid "język treści notatnika"
+msgstr "langue du contenu du notebook"
+
+msgid "notatnik startowy"
+msgstr "notebook de départ"
+
+msgid "testy widoczne"
+msgstr "tests visibles"
+
+msgid "testy ukryte"
+msgstr "tests cachés"
+
+msgid "notatnik wzorcowy"
+msgstr "notebook de référence"
+
+msgid "limit czasu (s)"
+msgstr "limite de temps (s)"
+
+msgid "limit pamięci (MB)"
+msgstr "limite de mémoire (Mo)"
+
+msgid "widoczność wyników testów ukrytych"
+msgstr "visibilité des résultats des tests cachés"
+
+msgid "zmieniono"
+msgstr "modifié"
+
+msgid "notatnik zadania"
+msgstr "notebook du problème"
+
+msgid "notatniki zadań"
+msgstr "notebooks des problèmes"
+
+msgid "w kolejce"
+msgstr "en file d’attente"
+
+msgid "sprawdzanie"
+msgstr "vérification"
+
+msgid "sprawdzono"
+msgstr "vérifié"
+
+msgid "błąd sprawdzania"
+msgstr "erreur de vérification"
+
+msgid "zastąpiony nowszą wersją"
+msgstr "remplacé par une version plus récente"
+
+msgid "przebieg oceny notatnika"
+msgstr "exécution de correction du notebook"
+
+msgid "przebiegi oceny notatników"
+msgstr "exécutions de correction des notebooks"
+
+msgid "Przekroczono limit czasu wykonania notatnika."
+msgstr "Le notebook a dépassé la limite de temps d’exécution."
+
+msgid "Przekroczono limit pamięci."
+msgstr "La limite de mémoire a été dépassée."
+
+msgid "Proces notatnika zakończył się awarią."
+msgstr "Le processus du notebook a planté."
+
+msgid "Plik nie jest poprawnym notatnikiem Jupytera."
+msgstr "Le fichier n’est pas un notebook Jupyter valide."
+
+msgid "Środowisko sprawdzania jest niedostępne."
+msgstr "L’environnement de correction est indisponible."
+
+msgid "Środowisko sprawdzania nie odpowiedziało na czas."
+msgstr "L’environnement de correction n’a pas répondu à temps."
+
+msgid "Nie udało się odczytać pliku pracy."
+msgstr "Impossible de lire le fichier de la copie."
+
+msgid "Testy zadania są nieprawidłowe – popraw je w panelu."
+msgstr "Les tests du problème sont invalides – corrigez-les dans le panneau."
+
+msgid "Błąd środowiska sprawdzania."
+msgstr "Erreur de l’environnement de correction."
+
+msgid "Notatniki kwantowe są w tym konkursie wyłączone."
+msgstr "Les notebooks quantiques sont désactivés dans ce concours."
+
+msgid "Testy widoczne"
+msgstr "Tests visibles"
+
+msgid "Testy ukryte"
+msgstr "Tests cachés"
+
+msgid ""
+"Zadanie sprawdzane automatycznie musi przyjmować pliki .ipynb – dopisz ten "
+"format w zadaniu."
+msgstr ""
+"Un problème corrigé automatiquement doit accepter les fichiers .ipynb – "
+"ajoutez ce format au problème."
+
+msgid "Zadanie sprawdzane automatycznie potrzebuje co najmniej jednego testu."
+msgstr "Un problème corrigé automatiquement nécessite au moins un test."
+
+msgid "Nie ma takiego notatnika."
+msgstr "Ce notebook n’existe pas."
+
+msgid "To zadanie nie jest sprawdzane automatycznie."
+msgstr "Ce problème n’est pas corrigé automatiquement."
+
+msgid "Najpierw wgraj notatnik wzorcowy."
+msgstr "Téléversez d’abord le notebook de référence."
+
+msgid "Sprawdzanie wzorca już trwa – poczekaj na wynik."
+msgstr ""
+"La vérification de la référence est déjà en cours – attendez le résultat."
+
+msgid "Notatnik w przeglądarce"
+msgstr "Notebook dans le navigateur"
+
+msgid "sprawdzanie automatyczne"
+msgstr "correction automatique"
+
+msgid "Otwórz notatnik"
+msgstr "Ouvrir le notebook"
+
+#, python-format
+msgid ""
+"Bez instalowania czegokolwiek. Pierwsze otwarcie pobiera ok. %(size)s MB, "
+"kolejne korzystają z pamięci przeglądarki."
+msgstr ""
+"Rien à installer. La première ouverture télécharge environ %(size)s Mo ; les"
+" suivantes utilisent le cache du navigateur."
+
+msgid "Bez instalowania czegokolwiek – Python działa w przeglądarce."
+msgstr "Rien à installer – Python s’exécute dans le navigateur."
+
+msgid ""
+"Gotowy notatnik pobierz z JupyterLab (File → Download) i wyślij formularzem "
+"poniżej."
+msgstr ""
+"Téléchargez le notebook terminé depuis JupyterLab (File → Download) et "
+"envoyez-le avec le formulaire ci-dessous."
+
+msgid "Notatnik będzie dostępny po otwarciu etapu."
+msgstr "Le notebook sera disponible à l’ouverture de l’étape."
+
+msgid "Testy automatyczne ostatniej wersji"
+msgstr "Tests automatiques de la dernière version"
+
+#, python-format
+msgid "%(score)s z %(total)s pkt"
+msgstr "%(score)s sur %(total)s pts"
+
+msgid "Punkty z testów są podpowiedzią dla komisji – ocenę wystawia komisja."
+msgstr ""
+"Les points des tests sont une indication pour le comité – c’est le comité "
+"qui note."
+
+msgid "Testy automatyczne (notatnik)"
+msgstr "Tests automatiques (notebook)"
+
+msgid "Ta wersja pracy nie została jeszcze sprawdzona testami."
+msgstr "Cette version de la copie n’a pas encore été testée."
+
+#, python-format
+msgid "Wynik testów ukrytych: <strong>%(score)s z %(total)s pkt</strong>."
+msgstr ""
+"Résultat des tests cachés : <strong>%(score)s sur %(total)s pts</strong>."
+
+msgid "Test"
+msgstr "Test"
+
+msgid "Punkty"
+msgstr "Points"
+
+msgid "Komunikat"
+msgstr "Message"
+
+#, python-format
+msgid "Komórki zakończone błędem: %(counter)s."
+msgstr "Cellules terminées par une erreur : %(counter)s."
+
+msgid ""
+"Punkty z testów są podpowiedzią – ocenę wystawiasz według skali zadania."
+msgstr ""
+"Les points des tests sont une indication – vous notez selon le barème du "
+"problème."
+
+msgid "Sprawdzanie w toku."
+msgstr "Vérification en cours."
+
+msgid "Notatniki kwantowe"
+msgstr "Notebooks quantiques"
+
+msgid "panel koordynatora"
+msgstr "panneau du coordinateur"
+
+msgid ""
+"Zadania z notatnikiem Jupytera w przeglądarce (JupyterLite, bez instalowania"
+" czegokolwiek). Notatnik swobodny ocenia komisja; zadanie sprawdzane "
+"automatycznie liczy punkty za testy w piaskownicy na serwerze – jako "
+"podpowiedź dla komisji, jak ocena AI."
+msgstr ""
+"Problèmes avec un notebook Jupyter dans le navigateur (JupyterLite, rien à "
+"installer). Le notebook libre est évalué par le comité ; le problème corrigé"
+" automatiquement note des tests dans un bac à sable sur le serveur – comme "
+"indication pour le comité, comme l’évaluation par IA."
+
+msgid ""
+"JupyterLite nie jest zbudowane na tym serwerze – uczestnicy zobaczą "
+"wyłącznie przycisk pobrania notatnika startowego. Patrz docs/OPERACJE.md "
+"(notatniki)."
+msgstr ""
+"JupyterLite n’est pas construit sur ce serveur – les participants ne verront"
+" que le bouton de téléchargement du notebook de départ. Voir "
+"docs/OPERACJE.md (notebooks)."
+
+msgid "Etap"
+msgstr "Étape"
+
+msgid "Zadanie"
+msgstr "Problème"
+
+msgid "Notatnik"
+msgstr "Notebook"
+
+msgid "Testy (widoczne / ukryte)"
+msgstr "Tests (visibles / cachés)"
+
+msgid "Sprawdzone prace"
+msgstr "Copies vérifiées"
+
+msgid "brak"
+msgstr "aucun"
+
+msgid "Ustawienia"
+msgstr "Paramètres"
+
+msgid "Dodaj notatnik"
+msgstr "Ajouter un notebook"
+
+msgid "Wyniki"
+msgstr "Résultats"
+
+msgid "Bieżąca edycja nie ma jeszcze zadań."
+msgstr "L’édition en cours n’a pas encore de problèmes."
+
+msgid "Wyniki testów notatnika"
+msgstr "Résultats des tests du notebook"
+
+msgid "Notatnik zadania"
+msgstr "Notebook du problème"
+
+#, python-format
+msgid "Wyniki testów: zadanie %(number)s. %(title)s"
+msgstr "Résultats des tests : problème %(number)s. %(title)s"
+
+msgid ""
+"Najnowsza wersja pracy każdego uczestnika i punkty za testy ukryte. To "
+"podpowiedź dla komisji – ocenę wystawiają recenzenci według skali zadania."
+msgstr ""
+"La dernière version de la copie de chaque participant et les points des "
+"tests cachés. C’est une indication pour le comité – les correcteurs notent "
+"selon le barème du problème."
+
+msgid "Pobierz CSV"
+msgstr "Télécharger le CSV"
+
+msgid "Przelicz wszystko"
+msgstr "Tout recalculer"
+
+msgid "Kod uczestnika"
+msgstr "Code du participant"
+
+msgid "Wersja"
+msgstr "Version"
+
+msgid "Status"
+msgstr "Statut"
+
+msgid "Suma"
+msgstr "Total"
+
+msgid "testy zmienione"
+msgstr "tests modifiés"
+
+msgid "Szczegóły"
+msgstr "Détails"
+
+msgid ""
+"Nie ma jeszcze sprawdzonych prac. Przebiegi powstają w ciągu minuty od "
+"czystego skanu antywirusowego pliku .ipynb."
+msgstr ""
+"Aucune copie vérifiée pour l’instant. Les exécutions sont créées dans la "
+"minute qui suit une analyse antivirus propre du fichier .ipynb."
+
+msgid "Przebieg sprawdzania"
+msgstr "Exécution de vérification"
+
+msgid "Wyniki testów"
+msgstr "Résultats des tests"
+
+#, python-format
+msgid "Przebieg sprawdzania #%(id)s"
+msgstr "Exécution de vérification n° %(id)s"
+
+msgid ""
+"Szczegóły jednego sprawdzenia: wynik każdego testu, błędy komórek i początek"
+" wyjścia programu."
+msgstr ""
+"Détails d’une vérification : résultat de chaque test, erreurs des cellules "
+"et début de la sortie du programme."
+
+msgid "Wersja pracy"
+msgstr "Version de la copie"
+
+msgid "Rodzaj"
+msgstr "Type"
+
+msgid "rozwiązanie wzorcowe"
+msgstr "solution de référence"
+
+msgid "ukryty"
+msgstr "caché"
+
+msgid "widoczny"
+msgstr "visible"
+
+msgid "Błędy komórek"
+msgstr "Erreurs des cellules"
+
+#, python-format
+msgid "komórka %(cell)s"
+msgstr "cellule %(cell)s"
+
+msgid "Początek wyjścia programu"
+msgstr "Début de la sortie du programme"
+
+#, python-format
+msgid "Notatnik: zadanie %(number)s. %(title)s"
+msgstr "Notebook : problème %(number)s. %(title)s"
+
+msgid ""
+"Uczestnik otwiera notatnik przy zadaniu w przeglądarce i oddaje plik .ipynb "
+"zwykłą wysyłką. Testy ukryte liczy wyłącznie serwer – nie trafiają ani do "
+"przeglądarki, ani do piaskownicy, w której wykonuje się kod uczestnika."
+msgstr ""
+"Le participant ouvre le notebook à côté du problème dans le navigateur et "
+"remet le fichier .ipynb par l’envoi habituel. Les tests cachés sont calculés"
+" uniquement par le serveur – ils n’atteignent ni le navigateur ni le bac à "
+"sable qui exécute le code du participant."
+
+msgid "Pobierz notatnik jak uczestnik"
+msgstr "Télécharger le notebook tel que le voit le participant"
+
+msgid "Wyniki prac"
+msgstr "Résultats des copies"
+
+msgid ""
+"To zadanie nie przyjmuje plików .ipynb. Dopisz ten format w ustawieniach "
+"zadania, zanim włączysz sprawdzanie automatyczne."
+msgstr ""
+"Ce problème n’accepte pas les fichiers .ipynb. Ajoutez ce format dans les "
+"paramètres du problème avant d’activer la correction automatique."
+
+msgid "Zapisz"
+msgstr "Enregistrer"
+
+msgid "Format testów"
+msgstr "Format des tests"
+
+msgid ""
+"Lista obiektów JSON. „target” to nazwa zmiennej z notatnika albo {\"call\": "
+"\"funkcja\", \"args\": [...]}. Liczby można pisać wyrażeniami: "
+"\"1/sqrt(2)\", \"exp(i*pi/4)\", \"-0.5j\". Test zaliczony daje pełne punkty,"
+" niezaliczony – zero."
+msgstr ""
+"Une liste d’objets JSON. « target » est le nom d’une variable du notebook ou"
+" {\"call\": \"fonction\", \"args\": [...]}. Les nombres peuvent s’écrire "
+"sous forme d’expressions : \"1/sqrt(2)\", \"exp(i*pi/4)\", \"-0.5j\". Un "
+"test réussi rapporte tous les points, un test échoué – zéro."
+
+msgid "Rodzaje (check):"
+msgstr "Types (check) :"
+
+msgid ""
+"Szczegóły i wszystkie warunki: podręcznik organizatora, rozdział o "
+"notatnikach kwantowych."
+msgstr ""
+"Détails et toutes les conditions : manuel de l’organisateur, chapitre sur "
+"les notebooks quantiques."
+
+msgid "Sprawdzenie testów na rozwiązaniu wzorcowym"
+msgstr "Vérification des tests sur la solution de référence"
+
+msgid "Sprawdź testy na wzorcu"
+msgstr "Vérifier les tests sur la référence"
+
+msgid ""
+"Wgraj notatnik wzorcowy w formularzu powyżej, żeby sprawdzić, czy testy "
+"przechodzą."
+msgstr ""
+"Téléversez le notebook de référence dans le formulaire ci-dessus pour "
+"vérifier que les tests passent."
+
+msgid "Ostatnie sprawdzenie:"
+msgstr "Dernière vérification :"
+
+msgid "Błędy komórek wzorca:"
+msgstr "Erreurs des cellules de la référence :"
+
+msgid "Sprawdzanie trwa zwykle kilka sekund – odśwież stronę."
+msgstr ""
+"La vérification prend généralement quelques secondes – actualisez la page."
+
+msgid ""
+"Wyłączenie notatnika usuwa jego ustawienia, testy i wyniki sprawdzania. "
+"Oddane pliki prac zostają."
+msgstr ""
+"Désactiver le notebook supprime ses paramètres, ses tests et les résultats "
+"de vérification. Les fichiers remis restent."
+
+msgid "Wyłącz notatnik w tym zadaniu"
+msgstr "Désactiver le notebook pour ce problème"
+
+#, python-format
+msgid "Notatnik – zadanie %(number)s"
+msgstr "Notebook – problème %(number)s"
+
+msgid "Panel uczestnika"
+msgstr "Espace participant"
+
+#, python-format
+msgid "Zadanie %(number)s: %(title)s"
+msgstr "Problème %(number)s : %(title)s"
+
+msgid ""
+"Notatnik otwiera się poniżej – kod uruchamiasz klawiszami Shift+Enter. "
+"Wszystko liczy Twoja przeglądarka."
+msgstr ""
+"Le notebook s’ouvre ci-dessous – exécutez le code avec Maj+Entrée. Tout est "
+"calculé par votre navigateur."
+
+msgid ""
+"Ostatnia komórka uruchamia testy przykładowe. Ocenę liczą testy ukryte na "
+"serwerze."
+msgstr ""
+"La dernière cellule lance les tests d’exemple. La note est calculée par des "
+"tests cachés sur le serveur."
+
+msgid ""
+"Gotowe? W JupyterLab: File → Download. Pobrany plik .ipynb wyślij w karcie "
+"zadania na platformie."
+msgstr ""
+"Terminé ? Dans JupyterLab : File → Download. Envoyez le fichier .ipynb "
+"téléchargé dans la fiche du problème sur la plateforme."
+
+msgid ""
+"Praca zapisuje się w tej przeglądarce (nie na serwerze). Na wspólnym "
+"komputerze pobierz plik przed wyjściem."
+msgstr ""
+"Votre travail est enregistré dans ce navigateur (pas sur le serveur). Sur un"
+" ordinateur partagé, téléchargez le fichier avant de partir."
+
+#, python-format
+msgid "Pierwsze otwarcie pobiera ok. %(size)s MB."
+msgstr "La première ouverture télécharge environ %(size)s Mo."
+
+msgid "Pobierz notatnik startowy"
+msgstr "Télécharger le notebook de départ"
+
+msgid "Otwórz w nowej karcie"
+msgstr "Ouvrir dans un nouvel onglet"
+
+msgid "Wróć do zadania"
+msgstr "Retour au problème"
+
+msgid "Notatnik Jupyter (JupyterLite)"
+msgstr "Notebook Jupyter (JupyterLite)"
+
+msgid ""
+"Notatnik w przeglądarce nie jest jeszcze zainstalowany na tym serwerze. "
+"Pobierz notatnik startowy i otwórz go we własnym Jupyterze albo napisz do "
+"organizatora."
+msgstr ""
+"Le notebook dans le navigateur n’est pas encore installé sur ce serveur. "
+"Téléchargez le notebook de départ et ouvrez-le dans votre propre Jupyter, ou"
+" écrivez à l’organisateur."
+
+msgid "Notatnik wzorcowy poszedł do sprawdzenia – wynik pojawi się poniżej."
+msgstr ""
+"Le notebook de référence a été envoyé en vérification – le résultat "
+"apparaîtra ci-dessous."
+
+msgid "Notatnik zadania został wyłączony."
+msgstr "Le notebook du problème a été désactivé."
+
+msgid ""
+"Testy się zmieniły – wyniki już sprawdzonych prac są nieaktualne. Użyj "
+"„Przelicz wszystko”."
+msgstr ""
+"Les tests ont changé – les résultats des copies déjà vérifiées sont "
+"obsolètes. Utilisez « Tout recalculer »."
+
+msgid "Zapisano ustawienia notatnika."
+msgstr "Paramètres du notebook enregistrés."
+
+#, python-format
+msgid "Do ponownego sprawdzenia: %(count)s prac."
+msgstr "À revérifier : %(count)s copies."

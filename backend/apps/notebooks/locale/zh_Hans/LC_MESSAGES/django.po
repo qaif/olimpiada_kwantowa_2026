@@ -1,0 +1,567 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-04 20:13+0200\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: zh_Hans\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+msgid "Tryb"
+msgstr "模式"
+
+msgid "Język treści notatnika"
+msgstr "笔记本内容语言"
+
+msgid ""
+"Język notatnika startowego i komunikatów testów. Interfejs JupyterLab jest "
+"angielski."
+msgstr "初始笔记本和测试消息的语言。JupyterLab 界面为英文。"
+
+msgid "Limit czasu wykonania (s)"
+msgstr "执行时间限制（秒）"
+
+msgid "Limit pamięci (MB)"
+msgstr "内存限制（MB）"
+
+msgid "Kto widzi wynik testów ukrytych"
+msgstr "谁能看到隐藏测试的结果"
+
+msgid ""
+"„Od razu” daje uczestnikowi wyrocznię: może wysyłać kolejne wersje i "
+"patrzeć, które testy ukryte przechodzą. Wybieraj to wyłącznie na etapach "
+"treningowych."
+msgstr "“立即”相当于给参赛者一个预言机：他们可以反复提交新版本并观察哪些隐藏测试通过。仅在练习阶段使用。"
+
+msgid "Notatnik startowy (.ipynb)"
+msgstr "初始笔记本（.ipynb）"
+
+msgid ""
+"Puste = zostaje obecny (albo generowany szablon). Wyjścia komórek zostaną "
+"wyczyszczone."
+msgstr "留空 = 保留当前的（或自动生成的模板）。单元格输出将被清除。"
+
+msgid "Usuń wgrany notatnik startowy (użyj szablonu)"
+msgstr "删除已上传的初始笔记本（使用模板）"
+
+msgid "Notatnik wzorcowy (.ipynb)"
+msgstr "参考答案笔记本（.ipynb）"
+
+msgid ""
+"Twoje rozwiązanie – służy wyłącznie do sprawdzenia testów. Uczestnicy go nie"
+" widzą."
+msgstr "你的解答——仅用于检验测试。参赛者看不到它。"
+
+msgid "Testy widoczne (JSON)"
+msgstr "可见测试（JSON）"
+
+msgid ""
+"Trafiają do notatnika uczestnika – uczestnik widzi je i uruchamia w "
+"przeglądarce."
+msgstr "它们会放入参赛者的笔记本——参赛者可以看到并在浏览器中运行。"
+
+msgid "Testy ukryte (JSON)"
+msgstr "隐藏测试（JSON）"
+
+msgid ""
+"Liczone wyłącznie na serwerze. Nigdy nie trafiają do przeglądarki "
+"uczestnika."
+msgstr "仅在服务器上计算，绝不会发送到参赛者的浏览器。"
+
+msgid "To musi być plik .ipynb."
+msgstr "必须是 .ipynb 文件。"
+
+msgid "Notatnik jest za duży (najwyżej 1 MB)."
+msgstr "笔记本太大（最多 1 MB）。"
+
+msgid "To nie jest poprawny notatnik Jupytera (nbformat 4)."
+msgstr "这不是有效的 Jupyter 笔记本（nbformat 4）。"
+
+msgid "Notatnik swobodny (ocenia komisja)"
+msgstr "自由笔记本（由评审委员会评分）"
+
+msgid "Sprawdzanie automatyczne (testy)"
+msgstr "自动评测（测试）"
+
+msgid "Tylko organizator i komisja"
+msgstr "仅组织者和评审委员会"
+
+msgid "Uczestnik po zamknięciu etapu"
+msgstr "阶段结束后参赛者可见"
+
+msgid "Uczestnik od razu (zalecane tylko na etapach treningowych)"
+msgstr "参赛者立即可见（仅建议用于练习阶段）"
+
+msgid "zadanie"
+msgstr "题目"
+
+msgid "tryb"
+msgstr "模式"
+
+msgid "język treści notatnika"
+msgstr "笔记本内容语言"
+
+msgid "notatnik startowy"
+msgstr "初始笔记本"
+
+msgid "testy widoczne"
+msgstr "可见测试"
+
+msgid "testy ukryte"
+msgstr "隐藏测试"
+
+msgid "notatnik wzorcowy"
+msgstr "参考答案笔记本"
+
+msgid "limit czasu (s)"
+msgstr "时间限制（秒）"
+
+msgid "limit pamięci (MB)"
+msgstr "内存限制（MB）"
+
+msgid "widoczność wyników testów ukrytych"
+msgstr "隐藏测试结果的可见性"
+
+msgid "zmieniono"
+msgstr "修改时间"
+
+msgid "notatnik zadania"
+msgstr "题目笔记本"
+
+msgid "notatniki zadań"
+msgstr "题目笔记本"
+
+msgid "w kolejce"
+msgstr "排队中"
+
+msgid "sprawdzanie"
+msgstr "检查中"
+
+msgid "sprawdzono"
+msgstr "已检查"
+
+msgid "błąd sprawdzania"
+msgstr "检查出错"
+
+msgid "zastąpiony nowszą wersją"
+msgstr "已被新版本取代"
+
+msgid "przebieg oceny notatnika"
+msgstr "笔记本评测运行"
+
+msgid "przebiegi oceny notatników"
+msgstr "笔记本评测运行"
+
+msgid "Przekroczono limit czasu wykonania notatnika."
+msgstr "笔记本超出了执行时间限制。"
+
+msgid "Przekroczono limit pamięci."
+msgstr "超出了内存限制。"
+
+msgid "Proces notatnika zakończył się awarią."
+msgstr "笔记本进程崩溃。"
+
+msgid "Plik nie jest poprawnym notatnikiem Jupytera."
+msgstr "该文件不是有效的 Jupyter 笔记本。"
+
+msgid "Środowisko sprawdzania jest niedostępne."
+msgstr "评测环境不可用。"
+
+msgid "Środowisko sprawdzania nie odpowiedziało na czas."
+msgstr "评测环境未及时响应。"
+
+msgid "Nie udało się odczytać pliku pracy."
+msgstr "无法读取提交的文件。"
+
+msgid "Testy zadania są nieprawidłowe – popraw je w panelu."
+msgstr "题目测试无效——请在面板中修正。"
+
+msgid "Błąd środowiska sprawdzania."
+msgstr "评测环境错误。"
+
+msgid "Notatniki kwantowe są w tym konkursie wyłączone."
+msgstr "本竞赛已关闭量子笔记本。"
+
+msgid "Testy widoczne"
+msgstr "可见测试"
+
+msgid "Testy ukryte"
+msgstr "隐藏测试"
+
+msgid ""
+"Zadanie sprawdzane automatycznie musi przyjmować pliki .ipynb – dopisz ten "
+"format w zadaniu."
+msgstr "自动评测的题目必须接受 .ipynb 文件——请在题目中添加该格式。"
+
+msgid "Zadanie sprawdzane automatycznie potrzebuje co najmniej jednego testu."
+msgstr "自动评测的题目至少需要一个测试。"
+
+msgid "Nie ma takiego notatnika."
+msgstr "没有这个笔记本。"
+
+msgid "To zadanie nie jest sprawdzane automatycznie."
+msgstr "此题目不是自动评测。"
+
+msgid "Najpierw wgraj notatnik wzorcowy."
+msgstr "请先上传参考答案笔记本。"
+
+msgid "Sprawdzanie wzorca już trwa – poczekaj na wynik."
+msgstr "参考答案检查正在进行——请等待结果。"
+
+msgid "Notatnik w przeglądarce"
+msgstr "浏览器笔记本"
+
+msgid "sprawdzanie automatyczne"
+msgstr "自动评测"
+
+msgid "Otwórz notatnik"
+msgstr "打开笔记本"
+
+#, python-format
+msgid ""
+"Bez instalowania czegokolwiek. Pierwsze otwarcie pobiera ok. %(size)s MB, "
+"kolejne korzystają z pamięci przeglądarki."
+msgstr "无需安装任何东西。首次打开约下载 %(size)s MB，之后使用浏览器缓存。"
+
+msgid "Bez instalowania czegokolwiek – Python działa w przeglądarce."
+msgstr "无需安装任何东西——Python 在浏览器中运行。"
+
+msgid ""
+"Gotowy notatnik pobierz z JupyterLab (File → Download) i wyślij formularzem "
+"poniżej."
+msgstr "从 JupyterLab 下载完成的笔记本（File → Download），并通过下方表单提交。"
+
+msgid "Notatnik będzie dostępny po otwarciu etapu."
+msgstr "阶段开放后即可使用笔记本。"
+
+msgid "Testy automatyczne ostatniej wersji"
+msgstr "最新版本的自动测试"
+
+#, python-format
+msgid "%(score)s z %(total)s pkt"
+msgstr "%(score)s / %(total)s 分"
+
+msgid "Punkty z testów są podpowiedzią dla komisji – ocenę wystawia komisja."
+msgstr "测试得分仅供评审委员会参考——成绩由委员会评定。"
+
+msgid "Testy automatyczne (notatnik)"
+msgstr "自动测试（笔记本）"
+
+msgid "Ta wersja pracy nie została jeszcze sprawdzona testami."
+msgstr "此版本的作业尚未经过测试。"
+
+#, python-format
+msgid "Wynik testów ukrytych: <strong>%(score)s z %(total)s pkt</strong>."
+msgstr "隐藏测试得分：<strong>%(score)s / %(total)s 分</strong>。"
+
+msgid "Test"
+msgstr "测试"
+
+msgid "Punkty"
+msgstr "得分"
+
+msgid "Komunikat"
+msgstr "消息"
+
+#, python-format
+msgid "Komórki zakończone błędem: %(counter)s."
+msgstr "出错的单元格：%(counter)s。"
+
+msgid ""
+"Punkty z testów są podpowiedzią – ocenę wystawiasz według skali zadania."
+msgstr "测试得分仅供参考——请按题目的评分标准给分。"
+
+msgid "Sprawdzanie w toku."
+msgstr "检查进行中。"
+
+msgid "Notatniki kwantowe"
+msgstr "量子笔记本"
+
+msgid "panel koordynatora"
+msgstr "协调员面板"
+
+msgid ""
+"Zadania z notatnikiem Jupytera w przeglądarce (JupyterLite, bez instalowania"
+" czegokolwiek). Notatnik swobodny ocenia komisja; zadanie sprawdzane "
+"automatycznie liczy punkty za testy w piaskownicy na serwerze – jako "
+"podpowiedź dla komisji, jak ocena AI."
+msgstr ""
+"带浏览器 Jupyter "
+"笔记本的题目（JupyterLite，无需安装）。自由笔记本由评审委员会评分；自动评测题目在服务器沙箱中按测试计分——作为给委员会的参考，类似 AI "
+"评分。"
+
+msgid ""
+"JupyterLite nie jest zbudowane na tym serwerze – uczestnicy zobaczą "
+"wyłącznie przycisk pobrania notatnika startowego. Patrz docs/OPERACJE.md "
+"(notatniki)."
+msgstr "此服务器未构建 JupyterLite——参赛者只能看到下载初始笔记本的按钮。参见 docs/OPERACJE.md（笔记本）。"
+
+msgid "Etap"
+msgstr "阶段"
+
+msgid "Zadanie"
+msgstr "题目"
+
+msgid "Notatnik"
+msgstr "笔记本"
+
+msgid "Testy (widoczne / ukryte)"
+msgstr "测试（可见 / 隐藏）"
+
+msgid "Sprawdzone prace"
+msgstr "已检查的作业"
+
+msgid "brak"
+msgstr "无"
+
+msgid "Ustawienia"
+msgstr "设置"
+
+msgid "Dodaj notatnik"
+msgstr "添加笔记本"
+
+msgid "Wyniki"
+msgstr "成绩"
+
+msgid "Bieżąca edycja nie ma jeszcze zadań."
+msgstr "本届尚无题目。"
+
+msgid "Wyniki testów notatnika"
+msgstr "笔记本测试结果"
+
+msgid "Notatnik zadania"
+msgstr "题目笔记本"
+
+#, python-format
+msgid "Wyniki testów: zadanie %(number)s. %(title)s"
+msgstr "测试结果：第 %(number)s 题. %(title)s"
+
+msgid ""
+"Najnowsza wersja pracy każdego uczestnika i punkty za testy ukryte. To "
+"podpowiedź dla komisji – ocenę wystawiają recenzenci według skali zadania."
+msgstr "每位参赛者作业的最新版本及隐藏测试得分。这只是给委员会的参考——评审按题目评分标准打分。"
+
+msgid "Pobierz CSV"
+msgstr "下载 CSV"
+
+msgid "Przelicz wszystko"
+msgstr "全部重新计算"
+
+msgid "Kod uczestnika"
+msgstr "参赛者代码"
+
+msgid "Wersja"
+msgstr "版本"
+
+msgid "Status"
+msgstr "状态"
+
+msgid "Suma"
+msgstr "合计"
+
+msgid "testy zmienione"
+msgstr "测试已更改"
+
+msgid "Szczegóły"
+msgstr "详情"
+
+msgid ""
+"Nie ma jeszcze sprawdzonych prac. Przebiegi powstają w ciągu minuty od "
+"czystego skanu antywirusowego pliku .ipynb."
+msgstr "尚无已检查的作业。在 .ipynb 文件通过病毒扫描后一分钟内会创建运行。"
+
+msgid "Przebieg sprawdzania"
+msgstr "评测运行"
+
+msgid "Wyniki testów"
+msgstr "测试结果"
+
+#, python-format
+msgid "Przebieg sprawdzania #%(id)s"
+msgstr "评测运行 #%(id)s"
+
+msgid ""
+"Szczegóły jednego sprawdzenia: wynik każdego testu, błędy komórek i początek"
+" wyjścia programu."
+msgstr "一次检查的详情：每个测试的结果、单元格错误和程序输出的开头。"
+
+msgid "Wersja pracy"
+msgstr "作业版本"
+
+msgid "Rodzaj"
+msgstr "类型"
+
+msgid "rozwiązanie wzorcowe"
+msgstr "参考答案"
+
+msgid "ukryty"
+msgstr "隐藏"
+
+msgid "widoczny"
+msgstr "可见"
+
+msgid "Błędy komórek"
+msgstr "单元格错误"
+
+#, python-format
+msgid "komórka %(cell)s"
+msgstr "单元格 %(cell)s"
+
+msgid "Początek wyjścia programu"
+msgstr "程序输出的开头"
+
+#, python-format
+msgid "Notatnik: zadanie %(number)s. %(title)s"
+msgstr "笔记本：第 %(number)s 题. %(title)s"
+
+msgid ""
+"Uczestnik otwiera notatnik przy zadaniu w przeglądarce i oddaje plik .ipynb "
+"zwykłą wysyłką. Testy ukryte liczy wyłącznie serwer – nie trafiają ani do "
+"przeglądarki, ani do piaskownicy, w której wykonuje się kod uczestnika."
+msgstr ""
+"参赛者在浏览器中打开题目旁的笔记本，并通过常规上传提交 .ipynb "
+"文件。隐藏测试只在服务器上计算——既不会进入浏览器，也不会进入运行参赛者代码的沙箱。"
+
+msgid "Pobierz notatnik jak uczestnik"
+msgstr "按参赛者看到的样子下载笔记本"
+
+msgid "Wyniki prac"
+msgstr "作业结果"
+
+msgid ""
+"To zadanie nie przyjmuje plików .ipynb. Dopisz ten format w ustawieniach "
+"zadania, zanim włączysz sprawdzanie automatyczne."
+msgstr "此题目不接受 .ipynb 文件。启用自动评测前，请在题目设置中添加该格式。"
+
+msgid "Zapisz"
+msgstr "保存"
+
+msgid "Format testów"
+msgstr "测试格式"
+
+msgid ""
+"Lista obiektów JSON. „target” to nazwa zmiennej z notatnika albo {\"call\": "
+"\"funkcja\", \"args\": [...]}. Liczby można pisać wyrażeniami: "
+"\"1/sqrt(2)\", \"exp(i*pi/4)\", \"-0.5j\". Test zaliczony daje pełne punkty,"
+" niezaliczony – zero."
+msgstr ""
+"JSON 对象列表。“target”是笔记本中的变量名或 {\"call\": \"function\", \"args\": "
+"[...]}。数字可以写成表达式：\"1/sqrt(2)\"、\"exp(i*pi/4)\"、\"-0.5j\"。通过的测试得满分，未通过得零分。"
+
+msgid "Rodzaje (check):"
+msgstr "类型（check）："
+
+msgid ""
+"Szczegóły i wszystkie warunki: podręcznik organizatora, rozdział o "
+"notatnikach kwantowych."
+msgstr "详情和全部条件：组织者手册中关于量子笔记本的章节。"
+
+msgid "Sprawdzenie testów na rozwiązaniu wzorcowym"
+msgstr "在参考答案上检验测试"
+
+msgid "Sprawdź testy na wzorcu"
+msgstr "用参考答案检验测试"
+
+msgid ""
+"Wgraj notatnik wzorcowy w formularzu powyżej, żeby sprawdzić, czy testy "
+"przechodzą."
+msgstr "在上方表单中上传参考答案笔记本，以检验测试是否通过。"
+
+msgid "Ostatnie sprawdzenie:"
+msgstr "最近一次检查："
+
+msgid "Błędy komórek wzorca:"
+msgstr "参考答案的单元格错误："
+
+msgid "Sprawdzanie trwa zwykle kilka sekund – odśwież stronę."
+msgstr "检查通常需要几秒钟——请刷新页面。"
+
+msgid ""
+"Wyłączenie notatnika usuwa jego ustawienia, testy i wyniki sprawdzania. "
+"Oddane pliki prac zostają."
+msgstr "关闭笔记本会删除其设置、测试和评测结果。已提交的作业文件保留。"
+
+msgid "Wyłącz notatnik w tym zadaniu"
+msgstr "关闭此题目的笔记本"
+
+#, python-format
+msgid "Notatnik – zadanie %(number)s"
+msgstr "笔记本 – 第 %(number)s 题"
+
+msgid "Panel uczestnika"
+msgstr "参赛者面板"
+
+#, python-format
+msgid "Zadanie %(number)s: %(title)s"
+msgstr "第 %(number)s 题：%(title)s"
+
+msgid ""
+"Notatnik otwiera się poniżej – kod uruchamiasz klawiszami Shift+Enter. "
+"Wszystko liczy Twoja przeglądarka."
+msgstr "笔记本在下方打开——按 Shift+Enter 运行代码。所有计算都在你的浏览器中完成。"
+
+msgid ""
+"Ostatnia komórka uruchamia testy przykładowe. Ocenę liczą testy ukryte na "
+"serwerze."
+msgstr "最后一个单元格运行示例测试。成绩由服务器上的隐藏测试计算。"
+
+msgid ""
+"Gotowe? W JupyterLab: File → Download. Pobrany plik .ipynb wyślij w karcie "
+"zadania na platformie."
+msgstr "完成了？在 JupyterLab 中：File → Download。把下载的 .ipynb 文件在平台的题目卡片中提交。"
+
+msgid ""
+"Praca zapisuje się w tej przeglądarce (nie na serwerze). Na wspólnym "
+"komputerze pobierz plik przed wyjściem."
+msgstr "你的作业保存在此浏览器中（不在服务器上）。在公用电脑上，离开前请下载文件。"
+
+#, python-format
+msgid "Pierwsze otwarcie pobiera ok. %(size)s MB."
+msgstr "首次打开约下载 %(size)s MB。"
+
+msgid "Pobierz notatnik startowy"
+msgstr "下载初始笔记本"
+
+msgid "Otwórz w nowej karcie"
+msgstr "在新标签页中打开"
+
+msgid "Wróć do zadania"
+msgstr "返回题目"
+
+msgid "Notatnik Jupyter (JupyterLite)"
+msgstr "Jupyter 笔记本（JupyterLite）"
+
+msgid ""
+"Notatnik w przeglądarce nie jest jeszcze zainstalowany na tym serwerze. "
+"Pobierz notatnik startowy i otwórz go we własnym Jupyterze albo napisz do "
+"organizatora."
+msgstr "此服务器尚未安装浏览器笔记本。请下载初始笔记本并在你自己的 Jupyter 中打开，或联系组织者。"
+
+msgid "Notatnik wzorcowy poszedł do sprawdzenia – wynik pojawi się poniżej."
+msgstr "参考答案笔记本已提交检查——结果将显示在下方。"
+
+msgid "Notatnik zadania został wyłączony."
+msgstr "题目笔记本已关闭。"
+
+msgid ""
+"Testy się zmieniły – wyniki już sprawdzonych prac są nieaktualne. Użyj "
+"„Przelicz wszystko”."
+msgstr "测试已更改——已检查作业的结果已过时。请使用“全部重新计算”。"
+
+msgid "Zapisano ustawienia notatnika."
+msgstr "笔记本设置已保存。"
+
+#, python-format
+msgid "Do ponownego sprawdzenia: %(count)s prac."
+msgstr "待重新检查：%(count)s 份作业。"

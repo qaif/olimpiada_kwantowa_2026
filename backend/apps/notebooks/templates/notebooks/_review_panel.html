@@ -25,8 +25,8 @@
       </table>
     </div>
     {% if run.cell_errors %}
-      <p class="hint">{% blocktranslate trimmed count counter=run.cell_errors|length %}
-        {{ counter }} komórka zakończyła się błędem.{% plural %}{{ counter }} komórek zakończyło się błędem.
+      <p class="hint">{% blocktranslate trimmed with counter=run.cell_errors|length %}
+        Komórki zakończone błędem: {{ counter }}.
       {% endblocktranslate %}</p>
     {% endif %}
     <p class="hint">{% translate "Punkty z testów są podpowiedzią – ocenę wystawiasz według skali zadania." %}</p>
