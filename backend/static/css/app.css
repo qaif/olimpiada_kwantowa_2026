@@ -6585,6 +6585,22 @@ img.captcha {
   color: #fff;
 }
 
+/* Przycisk zaproszenia („Zarejestruj się”, „Rozumiem” w pasku cookies) bierze tło z ``--accent``,
+   czyli w tym trybie żółci – a napis z ``--t-on-accent`` (biel), dobranego pod ciemną czerwień
+   marki. Biel na żółci to 1,3:1 (audyt A11Y-01). Czerń na żółci: 16,5:1. Najechanie odwraca na
+   biel, żeby zmiana stanu nie opierała się na odcieniu, którego w tym trybie nie ma. */
+:root[data-contrast="high"] .btn--accent {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #000;
+}
+
+:root[data-contrast="high"] .btn--accent:hover {
+  background: #fff;
+  border-color: #fff;
+  color: #000;
+}
+
 /* Ramka przewijania tabeli: pierścień do środka, jak w zwykłym motywie – na zewnątrz zjadłoby
    go wygaszenie krawędzi (``data-scroll``). */
 :root[data-contrast="high"] :is(.scroll, .table-scroll):is(:focus, :focus-visible) {

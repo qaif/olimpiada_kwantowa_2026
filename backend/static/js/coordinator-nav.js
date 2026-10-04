@@ -47,7 +47,31 @@
     }
   }
 
+  /* Całe menu (``<details class="panel-nav">``) od 900 px jest kolumną – arkusz pokazuje je bez
+     atrybutu ``open`` (``::details-content``). Wystarcza to oku w Chromium, ale nie każdemu
+     silnikowi i nie każdemu czytnikowi ekranu: treść zamkniętego ``<details>`` bywa w drzewie
+     dostępności ukryta, a audyt axe (A11Y-01) zgłaszał przewijaną kolumnę bez fokusowalnej treści.
+     Skrypt ustawia więc ``open`` zgodnie z szerokością: otwarte w kolumnie, zamknięte (rozwijane
+     „Menu panelu”) na wąskim ekranie. Bez skryptu zostaje dotychczasowe zachowanie. */
+  var WIDE = "(min-width: 900px)";
+
+  function syncPanelMenu() {
+    var menu = document.querySelector("details.panel-nav");
+    if (!menu || !window.matchMedia) {
+      return;
+    }
+    var query = window.matchMedia(WIDE);
+    var apply = function () {
+      menu.open = query.matches;
+    };
+    apply();
+    if (query.addEventListener) {
+      query.addEventListener("change", apply);
+    }
+  }
+
   function init() {
+    syncPanelMenu();
     var groups = document.querySelectorAll(".panel-nav__group[data-nav-group]");
     if (!groups.length) {
       return;
