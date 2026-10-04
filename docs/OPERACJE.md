@@ -3947,3 +3947,100 @@ jest renderowany z `app_routes.env` osobno, trzeba go wyrenderować ponownie.
 Przestawienie trybu z powrotem na `OPEN` otwiera samodzielną rejestrację i ukrywa ekrany delegacji (404);
 dane delegacji, opiekunów i uczniów zostają w bazie. Migracje `accounts.0036`–`0038` i `tenancy.0013` są
 odwracalne (nowe tabele i kolumny nullowalne albo z wartością domyślną).
+
+## 29. Płatności online za udział – Stripe, Przelewy24, przelew, faktury (PAY-01, `docs/tasks/PAY-01.md`)
+
+Opłaty za udział płacone online: przez **delegacje** (IQO, cennik delegacji w EUR) i – w konkursach
+z rejestracją otwartą – przez **uczestników** (należność z ekranu „Wpisowe”, zwykle PLN). Wszystko za
+flagą konkursu **`fees`** (domyślnie wyłączona – Olimpiada Kwantowa nie widzi ani adresu, ani pozycji
+menu). Aplikacja `apps.payments`, migracja `payments.0001` (nowe tabele, odwracalna).
+
+### 29.1. Zmienne środowiskowe (`.env`, usługi `web` i `worker`)
+
+| Zmienna | Wartość | Uwagi |
+|---|---|---|
+| `STRIPE_SECRET_KEY` | `sk_test_…` (test) / `sk_live_…` | Stripe → Developers → API keys → Secret key. Może być *restricted key* z prawem zapisu do Checkout Sessions i Refunds. |
+| `STRIPE_WEBHOOK_SECRET` | `whsec_…` | Signing secret endpointu webhooka; kilka po przecinku (rotacja, kilka endpointów). |
+| `P24_MERCHANT_ID` | liczba | Panel Przelewy24 → Moje dane → Dane API. |
+| `P24_POS_ID` | liczba | Zwykle = merchant ID. |
+| `P24_API_KEY` | napis | „Klucz do raportów” (REST API). |
+| `P24_CRC` | napis | Klucz CRC (podpis SHA-384). |
+| `P24_SANDBOX` | `true`/`false` | `true` = `sandbox.przelewy24.pl` (osobne konto sandbox). |
+
+Pusty klucz = operator wyłączony: przycisk płatności się nie pokazuje, a jego webhook odpowiada **404**.
+Sekrety nie trafiają do bazy ani do audytu. Po zmianie `.env`: `docker compose up -d web worker`
+(restart, nie reload). Ekran `/coordinator/payments/prices/` pokazuje, czy operator jest skonfigurowany
+i czy Stripe jest w **trybie testowym**.
+
+### 29.2. Stripe – konfiguracja panelu (najpierw tryb testowy)
+
+1. Stripe Dashboard → przełącznik **Test mode** → Developers → API keys → skopiuj *Secret key* do
+   `STRIPE_SECRET_KEY`.
+2. Developers → **Webhooks** → *Add endpoint*: URL `https://<domena-konkursu>/payments/webhooks/stripe/`
+   (jeden endpoint na instalację – płatność odnajdujemy po identyfikatorze sesji, nie po domenie; może
+   to być domena dowolnego konkursu z tej instalacji). Zdarzenia: `checkout.session.completed`,
+   `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`,
+   `checkout.session.expired`, `refund.updated`, `refund.failed`. *Signing secret* → `STRIPE_WEBHOOK_SECRET`.
+3. Settings → Payment methods: karty (opcjonalnie inne metody; metody odroczone, np. SEPA, kończą się
+   `async_payment_succeeded` i są obsługiwane). Settings → Branding: nazwa i logo organizatora.
+4. Próba: konkurs z `fees`, cennik, opiekun wystawia pro formę → „Zapłać kartą” → karta testowa
+   `4242 4242 4242 4242` (dowolna przyszła data, dowolny CVC) → po kilku sekundach zamówienie „zapłacone”,
+   faktura `…/FV/<rok>/0001`, list do płacącego. W panelu Stripe → Webhooks → endpoint: odpowiedzi 200.
+   Lokalnie: `stripe listen --forward-to https://<host>/payments/webhooks/stripe/` (CLI poda własny `whsec_`).
+5. Zwrot próbny z ekranu zamówienia koordynatora („Zleć zwrot”) – w Stripe pojawia się Refund.
+6. **Produkcja**: wyłącz Test mode, powtórz kroki 1–2 z kluczami live (endpoint live ma inny `whsec_`),
+   wpisz `sk_live_…`, restart, jedna płatność kontrolna i jej zwrot.
+
+### 29.3. Przelewy24 – konfiguracja panelu (tylko PLN)
+
+1. Konto sandbox (`sandbox.przelewy24.pl`) → Moje dane → Dane API: merchant ID, POS ID, klucz do
+   raportów, klucz CRC → `P24_*`, `P24_SANDBOX=true`.
+2. Adres powiadomień (`urlStatus`) wysyłamy przy rejestracji każdej transakcji:
+   `https://<domena-konkursu>/payments/webhooks/przelewy24/` (zwroty: `…/przelewy24/refund/`). W panelu
+   P24 nie trzeba go wpisywać; jeśli konto ma listę dozwolonych adresów powiadomień – dopisz oba.
+3. Wpłata jest zapisywana dopiero po udanym `PUT /transaction/verify` – nieudany verify daje 503 i P24
+   ponawia powiadomienie. Limit transakcji 15 min: nowa próba tego samego zamówienia jest możliwa po
+   20 min (ochrona przed podwójną zapłatą).
+4. **Stan:** adapter P24 jest zaimplementowany i przetestowany na atrapie HTTP (podpisy z dokumentacji
+   REST v1), **nie** na sandboxie – przed włączeniem na produkcji zrób płatność i zwrot w sandboxie.
+
+### 29.4. Włączenie w konkursie
+
+1. Flaga: `/admin/` → Konkursy → `feature_flags` → `"fees": true` (albo powłoką jak w § 28.1).
+2. `/coordinator/payments/prices/`: **Sprzedawca, rachunek i dokumenty** – NIP/VAT ID, IBAN, SWIFT, bank,
+   prefiks numeracji (domyślnie slug, np. `IQO/FV/2026/0001`), adnotacja VAT, uwagi, termin pro formy,
+   metody płatności. Nazwa, adres i dane rejestrowe sprzedawcy pochodzą z pól organizatora konkursu.
+3. Cennik delegacji edycji (konkurs w trybie delegacji): waluta, „cena wczesna do”, „cena późna od”,
+   siatka cen (delegacja, uczeń, opiekun, obserwator × wczesna/podstawowa/późna).
+4. Konkurs z rejestracją otwartą: cennik i naliczenie należności na ekranie „Wpisowe” (`/coordinator/fees/`)
+   – uczestnik dostaje przycisk „Zapłać online” na kaflu „Wpisowe”.
+5. **Wzór faktury** (pro forma i faktura, PDF) zatwierdza księgowa organizatora przed pierwszym konkursem
+   z opłatami: system numeruje dokumenty ciągle (per konkurs, rodzaj i rok), ale nie liczy VAT, nie
+   prowadzi rejestru VAT/JPK i nie wystawia korekt (decyzja D15 po zmianie z 4.10.2026).
+
+### 29.5. Przelew tradycyjny, dowody wpłat, eksport
+
+- Płacący widzi IBAN i **kod referencyjny** (tytuł przelewu). Koordynator na ekranie zamówienia
+  „Wpływ przelewu”: data wpływu, notatka, opcjonalnie dowód (PDF/JPG/PNG ≤ 10 MB) – plik idzie do bucketu
+  prac (prefiks `payments/`) i do skanu ClamAV (kolejka `scan`); do pobrania dopiero po werdykcie „czysty”,
+  zawsze jako załącznik. Plik zainfekowany jest usuwany, wpłata zostaje.
+- `/coordinator/payments/export.csv?edition=<id>` – jeden wiersz na zamówienie (nabywca, VAT ID, kwota,
+  waluta, stan, metoda, identyfikator transakcji, zwroty, numery pro formy i faktury). Zdarzenie w audycie.
+
+### 29.6. Kontrakt adresów i limity
+
+Nowy pierwszy segment `payments/` (`RESERVED_SLUGS`, `backend/djcms_contract/` – zaktualizowane). Webhooki
+`/payments/webhooks/*` są **bez** sesji i CSRF (podpis), limit `payments` (60/min per IP). Nowe stawki
+`checkout` (20/h per konto: „Wystaw pro formę”, „Zapłać”) i `payments_admin` (120/h, czynności koordynatora).
+Stub `/api/v1/payments/<slug>/` z wydania K zostaje bez zmian.
+
+### 29.7. Diagnoza i wycofanie
+
+- Dziennik doręczeń: `/admin/` → Płatności → „Doręczenia od dostawców” (panel płatności w `/admin/` jest
+  tylko do odczytu – zmiany stanu wyłącznie przez ekrany koordynatora, z audytem).
+  `outcome`: `succeeded`, `mismatch` (kwota/waluta inna niż zamówienie – pulpit „Do wyjaśnienia”),
+  `unknown_payment`, `duplicate` (nie zapisywane – odpowiedź), `ignored`.
+- 400 w panelu Stripe = zły `STRIPE_WEBHOOK_SECRET` (albo endpoint test/live pomylony); 404 = brak klucza
+  w `.env` usługi `web`.
+- Wycofanie: wyłączenie flagi `fees` ukrywa ekrany (404); dane zostają. Migracja `payments.0001` jest
+  odwracalna, ale **dokumenty księgowe** trzeba przed tym wyeksportować (5 lat przechowywania).

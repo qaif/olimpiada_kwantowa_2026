@@ -8,6 +8,33 @@ dokładnie jednemu wierszowi tej tabeli.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## [Unreleased] – Płatności online za udział: Stripe, Przelewy24, przelew, faktury (PAY-01)
+
+- **Nowa aplikacja `apps.payments`** za flagą `fees` (Olimpiada Kwantowa bez zmian): cennik delegacji per
+  edycja (delegacja, uczeń, opiekun, obserwator; ceny „early”/„late”; waluta), zamówienia liczone na
+  serwerze z pokryciem składu (dopisany uczeń = nowe zamówienie tylko na przyrost), zniżki i zwolnienia
+  delegacji z uzasadnieniem i audytem.
+- **Faktura pro forma i faktura** (PDF, ReportLab jak dyplomy) z numeracją ciągłą per konkurs/rodzaj/rok
+  (`IQO/FV/2026/0001`), migawka danych sprzedawcy (pola organizatora + `PaymentSettings`) i nabywcy
+  (instytucja albo osoba, VAT ID opcjonalnie). D15 zmieniona: numeracja tak, rejestr VAT/korekty – nie.
+- **Operatorzy płatności** za wspólnym interfejsem: Stripe Checkout + webhook z weryfikacją podpisu
+  (bez SDK), Przelewy24 (rejestracja, powiadomienie SHA-384, `verify`, zwrot), przelew z kodem
+  referencyjnym i zapisem koordynatora (dowód wpłaty skanowany ClamAV). Idempotentne webhooki
+  (`ProviderEvent`), porównanie kwoty i waluty, „do wyjaśnienia” przy rozbieżności i podwójnej wpłacie.
+- **Zwroty** przez API operatora (albo zapis zwrotu przelewu), częściowe i pełne; pełny zwrot uczestnika
+  trafia do rejestru wpisowego (`record_refund`). Potwierdzenia wpłaty i zwrotu e-mailem w języku płacącego.
+- **Ekrany:** opiekun `/delegation/payments/`, strona zamówienia `/payments/orders/<id>/`, uczestnik
+  „Zapłać online” na kaflu „Wpisowe” (`/me/fees/pay/`), koordynator `/coordinator/payments/` (sumy per
+  waluta, delegacje, zamówienia, eksport CSV dla księgowości, cennik i ustawienia).
+- **Bezpieczeństwo:** kwota nigdy z formularza, podpis webhooka obowiązkowy (brak sekretu = 404), sekrety
+  wyłącznie ze środowiska (`STRIPE_*`, `P24_*`), limity `checkout`/`payments_admin`, przekierowanie tylko na
+  hosty operatora, panel `/admin/` płatności tylko do odczytu.
+- **RODO:** czynność „Płatności” w rejestrze (wersja 1.12, warunkowa), sekcja w eksporcie danych konta.
+- **i18n:** katalog aplikacji `apps/payments/locale` (113 napisów, 10 języków, maszynowe); `Dockerfile`,
+  `conftest.py` i `test_translations.py` obejmują katalogi aplikacji.
+- Dokumentacja: `docs/OPERACJE.md` § 29, `docs/PODRECZNIK-ORGANIZATORA.md` § 10c,
+  `docs/PODRECZNIK-OPIEKUNA-DRUZYNY.md` § 6, `docs/PODRECZNIK-UCZESTNIKA.md` § 2.
+
 ## [Unreleased] – Delegacje krajowe: rejestracja przez opiekunów drużyn narodowych (DEL-01)
 
 - **Tryb rejestracji konkursu** `Competition.registration_mode`: `OPEN` (domyślnie – każdy istniejący

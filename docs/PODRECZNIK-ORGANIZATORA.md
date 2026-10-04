@@ -31,7 +31,7 @@ edycji i zgłoszenia po numerze. Fraza krótsza niż dwa znaki nie szuka niczego
 | **Uczestnicy i konta** | Uczestnicy, Wszystkie konta, Opiekunowie szkolni, Aktywacje, *Status ucznia* (tylko z włączonymi zaświadczeniami, § 10a) |
 | **Komitet** | Członkowie, Zatwierdzenia, Zaproszenia, Województwa |
 | **Komunikacja** | Komunikaty, Zgłoszenia, Ogłoszenia |
-| **Raporty** | Eksport danych, Audyt, Symulacja kwalifikacji, Dyplomy, Retencja danych, Rejestr czynności; *Materiały z warsztatów* (tylko przy włączonej fladze `workshop_materials`, § 4.11) |
+| **Raporty** | Eksport danych, Audyt, Symulacja kwalifikacji, Dyplomy, Retencja danych, Rejestr czynności; *Materiały z warsztatów* (tylko przy włączonej fladze `workshop_materials`, § 4.11); *Wpisowe* i *Płatności* (tylko przy włączonej fladze `fees`, § 10c) |
 | **Ustawienia** | Rejestracja uczestników, Wydarzenia linii czasu, Skala punktacji, Slider sponsorów, Plakaty do pobrania |
 
 Przy czterech pozycjach (Moderacja, Aktywacje, Zatwierdzenia, Zgłoszenia) stoją **liczniki spraw
@@ -1941,6 +1941,62 @@ czy jest teraz otwarte.
 **Czego opiekun nie może.** Zgłosić adresu, który ma już konto w serwisie (uczeń z istniejącym kontem
 trafia do drużyny przez organizatora), złożyć zgód za ucznia ani potwierdzić zgody rodzica — tę uczeń
 niepełnoletni zbiera sam po uruchomieniu konta (zgoda opiekuna online).
+
+---
+
+## 10c. Płatności — `/coordinator/payments/`
+
+**Tylko w konkursie z włączonymi opłatami** (flaga `fees`; `OPERACJE.md` § 29). Olimpiada Kwantowa jest
+bezpłatna i tego ekranu nie ma.
+
+**Kto płaci.** W olimpiadzie międzynarodowej (tryb delegacji) płaci **delegacja**: opiekun drużyny
+wystawia w swoim panelu fakturę pro forma i płaci kartą (Stripe), przez Przelewy24 (tylko PLN) albo
+przelewem. W konkursie z rejestracją otwartą płaci **uczestnik** – należność nalicza ekran „Wpisowe”
+(`/coordinator/fees/`), a uczestnik dostaje na kaflu „Wpisowe” przycisk „Zapłać online”.
+
+**Cennik i ustawienia** (`Cennik i ustawienia`). Najpierw dane sprzedawcy: NIP/VAT ID, rachunek
+(IBAN, SWIFT, bank), prefiks numeracji, adnotacja VAT (np. podstawa zwolnienia – **system nie liczy
+podatku**; brzmienie ustala księgowa), uwagi na dokumentach, termin płatności pro formy i włączone
+metody. Nazwa, adres i dane rejestrowe sprzedawcy pochodzą z danych organizatora konkursu. Potem cennik
+delegacji edycji: waluta (dla IQO – EUR), „cena wczesna do” i „cena późna od” oraz siatka cen: opłata za
+delegację, za ucznia, za opiekuna i za obserwatora, w trzech okresach. Puste pole okresu = cena
+podstawowa; puste pole ceny podstawowej = pozycja bezpłatna. Zmiana cennika **nie zmienia** wystawionych
+pro form.
+
+**Jak liczymy delegację.** Skład = 1 delegacja + uczniowie zgłoszeni w panelu + opiekunowie + obserwatorzy
+zadeklarowani przez opiekuna. Pro forma obejmuje to, czego nie obejmują wcześniejsze zamówienia (otwarte
+albo zapłacone): drużyna dopisująca ucznia po terminie „late” zapłaci za niego cenę późną, a wcześniej
+opłaceni zostają przy swojej cenie. Zmiana składu przed zapłatą: opiekun (albo Ty) anuluje zamówienie
+i wystawia nowe; anulowana pro forma zostaje w rejestrze ze swoim numerem.
+
+**Zniżki i zwolnienia** (ekran delegacji). Zniżka kwotowa zmniejsza kolejne zamówienia (raz); zwolnienie
+blokuje wystawianie nowych zamówień (otwarte anuluj, zapłacone zwróć). Uzasadnienie jest obowiązkowe,
+cofnięcie wymaga osobnego powodu; obie decyzje są w audycie. Zwolnienie i umorzenie **uczestnika** –
+na ekranie „Wpisowe”, jak dotąd.
+
+**Pulpit.** Sumy osobno dla każdej waluty (wystawiono, zapłacono, zwrócono, czeka na wpłatę, jeszcze
+niewystawione), delegacje ze stanem (rozliczona, czeka na wpłatę, do wystawienia, zwolniona), lista
+zamówień i **„Do wyjaśnienia”**: wpłata, której kwota albo waluta nie zgadza się z zamówieniem, podwójna
+wpłata tego samego zamówienia (do zwrotu) i zwroty nieudane albo w toku. „Eksport CSV dla księgowości” –
+jeden wiersz na zamówienie z nabywcą, VAT ID, numerami pro formy i faktury.
+
+**Zamówienie.** Pozycje, nabywca, dokumenty (PDF), wpłaty i zwroty. **Wpływ przelewu**: gdy na wyciągu
+jest przelew z kodem zamówienia na właściwą kwotę – data wpływu, notatka i opcjonalnie dowód wpłaty
+(skanowany antywirusowo; do pobrania po werdykcie „czysty”). Zapis tworzy fakturę i wysyła płacącemu
+potwierdzenie w jego języku. **Zwrot**: kwota (część albo całość) i powód; karta i Przelewy24 – zwrot
+zlecany u operatora, przelew – zapis zwrotu wykonanego przez Ciebie w banku. Pełny zwrot przywraca
+pozycje do zapłaty, a u uczestnika ustawia należność jako „zwrócone”.
+
+**Faktury.** Pro forma powstaje przy wystawieniu zamówienia, faktura – automatycznie po wpłacie.
+Numeracja ciągła, osobno dla pro form i faktur, per konkurs i rok (`IQO/FV/2026/0001`). Dokument jest
+w języku płacącego (języki bez czcionek w PDF – chiński, hindi, arabski, bengalski – po angielsku).
+**System nie jest programem księgowym** (decyzja D15 po zmianie z 4.10.2026): numeruje dokumenty, ale
+nie liczy VAT, nie prowadzi rejestru VAT/JPK i nie wystawia faktur korygujących – korektę po zwrocie
+wystawia księgowość organizatora. Wzór dokumentu zatwierdź z księgową przed pierwszym konkursem z opłatami.
+
+**Czego nie ma.** Płatności częściowych i rat, przeliczeń walut, automatycznego dopasowania wyciągu
+bankowego (przelew zapisujesz ręcznie po kodzie). Danych kart system nie widzi – płacący wpisuje je
+na stronie operatora płatności.
 
 ---
 
