@@ -319,8 +319,12 @@ msgstr "The home page cannot be moved into a group."
 msgid "Pozycja z własną listą rozwijaną nie może należeć do grupy."
 msgstr "An item with its own drop-down cannot belong to a group."
 
-msgid "Wybrana strona nie należy do serwisu tego konkursu albo nie jest opublikowana."
-msgstr "The selected page does not belong to this competition's site or is not published."
+#, python-format
+msgid "„%(name)s”: wybrana strona nie należy do serwisu tego konkursu albo nie jest opublikowana."
+msgstr "“%(name)s”: the selected page does not belong to this competition's site or is not published."
+
+msgid "(niedostępna strona)"
+msgstr "(unavailable page)"
 
 #. Przycisk rozwijający menu serwisu na wąskim ekranie (szablony paczek motywów).
 msgid "Menu"

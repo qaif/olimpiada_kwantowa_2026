@@ -194,11 +194,21 @@ class CompetitionMenuView(ThemeSettingsMixin, View):
         }
 
     def _posted_rows(self, request, current: list[dict]) -> list[dict]:
-        """Wiersze z formularza: kolejność z pól „pozycja” (i przycisków w górę/w dół), usunięcia."""
+        """Wiersze z formularza: kolejność z pól „pozycja” (i przycisków w górę/w dół), usunięcia.
+
+        Wartości z POST-u dotyczą **wyłącznie** wierszy wymienionych w ukrytych polach ``row_keys``
+        (przegląd THEME-02, M1). Formularz otwarty przed dodaniem strony w /cms/ albo przed zapisem
+        w drugiej karcie nie ma pól nowego wiersza – brak pola „Widoczna” nie może go ukryć, a brak
+        etykiet nie może skasować etykiet zapisanych w międzyczasie. Takie wiersze zostają bez zmian.
+        """
         competition = request.competition
+        in_form = set(request.POST.getlist("row_keys"))
         rows = []
         for index, row in enumerate(current):
             key = row["key"]
+            if key not in in_form:
+                rows.append({**row, "_order": (index + 1, index)})
+                continue
             if row["type"] != menu_mod.TYPE_AUTO and request.POST.get(f"delete_{key}") == "on":
                 continue
             try:
@@ -248,10 +258,14 @@ class CompetitionMenuView(ThemeSettingsMixin, View):
             {"pk": page.pk, "title": page.title, "indent": "· " * max(0, page.depth - 2)}
             for page in menu_mod.site_pages(competition)[:300]
         ]
+        page_ids = {page["pk"] for page in pages}
         for index, row in enumerate(rows):
             row["position"] = index + 1
             if isinstance(row.get("page"), str):
                 row["page"] = int(row["page"]) if row["page"].isdigit() else None
+            # Zapisana strona, której nie ma już na liście (wycofana z publikacji): zostaje wybrana
+            # w formularzu jako „(niedostępna strona)”, żeby zapis tabeli jej po cichu nie zgubił.
+            row["page_missing"] = bool(row.get("page")) and row["page"] not in page_ids
             row["label_fields"] = [
                 {"code": code, "name": name, "value": (row.get("labels") or {}).get(code, "")}
                 for code, name in languages

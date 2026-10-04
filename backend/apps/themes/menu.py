@@ -144,10 +144,29 @@ def site_pages(competition):
     return Page.objects.live().filter(path__startswith=root.path).order_by("path")
 
 
-def clean_items(competition, raw_items, *, auto_keys: dict[str, dict]) -> list[dict]:
+def _row_name(raw: dict, auto_keys: dict | None = None) -> str:
+    """Nazwa wiersza w komunikacie błędu – etykieta, tytuł pozycji automatycznej albo klucz."""
+    labels = raw.get("labels") if isinstance(raw.get("labels"), dict) else {}
+    label = next((value for value in labels.values() if isinstance(value, str) and value.strip()), "")
+    title = ((auto_keys or {}).get(raw.get("key")) or {}).get("title", "")
+    return (label or title or str(raw.get("key") or ""))[:MAX_LABEL]
+
+
+def clean_items(
+    competition,
+    raw_items,
+    *,
+    auto_keys: dict[str, dict],
+    previous_pages: frozenset[int] | set[int] = frozenset(),
+) -> list[dict]:
     """Waliduje listę wpisów menu. ``auto_keys`` – pozycje automatyczne: klucz → opis pozycji.
 
     Wynik ma postać kanoniczną (tylko znane pola), w której zapisujemy go w ``SiteMenu.items``.
+
+    ``previous_pages`` – strony już zapisane w menu. Odnośnik do strony, która od tamtej pory
+    przestała być opublikowana, nie blokuje zapisu całego menu (render i tak go pomija); nowo
+    wybrana strona musi być opublikowana i należeć do drzewa tego konkursu. Błąd pozycji podaje
+    jej nazwę – koordynator wie, który wiersz poprawić.
     """
     if not isinstance(raw_items, list):
         raise MenuError(_("Menu musi być listą pozycji."))
@@ -160,71 +179,102 @@ def clean_items(competition, raw_items, *, auto_keys: dict[str, dict]) -> list[d
     for raw in raw_items:
         if not isinstance(raw, dict):
             raise MenuError(_("Pozycja menu musi być obiektem."))
-        kind = raw.get("type", TYPE_AUTO)
-        key = raw.get("key")
-        if kind not in TYPES or not isinstance(key, str) or not KEY_RE.match(key):
-            raise MenuError(_("Nieznana pozycja menu."))
-        if key in seen:
-            raise MenuError(_("Pozycja menu powtarza się."))
-        seen.add(key)
-        if kind == TYPE_AUTO and key not in auto_keys:
-            # Pozycja, której już nie ma w drzewie (strona wycofana między odczytem a zapisem):
-            # pomijamy ją, zamiast odrzucać cały formularz.
+        try:
+            entry = _clean_entry(raw, languages, auto_keys, seen)
+        except MenuError as exc:
+            name = _row_name(raw, auto_keys)
+            raise MenuError(f"„{name}”: {exc}" if name else str(exc)) from exc
+        if entry is None:
             continue
-        if (kind == TYPE_LINK) != key.startswith("link-") or (kind == TYPE_GROUP) != key.startswith("group-"):
-            raise MenuError(_("Typ pozycji nie zgadza się z jej kluczem."))
-        entry = {
-            "key": key,
-            "type": kind,
-            "hidden": bool(raw.get("hidden")),
-            "labels": _labels(raw.get("labels"), languages),
-        }
-        if kind == TYPE_LINK:
-            page = raw.get("page")
-            if page not in (None, ""):
-                if not str(page).isdigit():
-                    raise MenuError(_("Nieznana strona serwisu."))
-                entry["page"] = int(page)
-                entry["url"] = ""
-                page_ids.append(int(page))
-            else:
-                entry["page"] = None
-                entry["url"] = clean_url(raw.get("url"))
-            entry["new_tab"] = bool(raw.get("new_tab"))
-            if not entry["labels"]:
-                raise MenuError(_("Własny odnośnik musi mieć etykietę przynajmniej w jednym języku."))
-        if kind == TYPE_GROUP and not entry["labels"]:
-            raise MenuError(_("Grupa musi mieć etykietę przynajmniej w jednym języku."))
-        entry["parent"] = raw.get("parent") or ""
+        if entry.get("page"):
+            page_ids.append(entry["page"])
         items.append(entry)
+    _check_structure(items, auto_keys)
+    if page_ids:
+        allowed = set(site_pages(competition).filter(pk__in=page_ids).values_list("pk", flat=True))
+        broken = [
+            item
+            for item in items
+            if item.get("page") and item["page"] not in allowed and item["page"] not in previous_pages
+        ]
+        if broken:
+            # Strona spoza drzewa witryny tego konkursu (albo nieopublikowana) – izolacja konkursów.
+            raise MenuError(
+                _(
+                    "„%(name)s”: wybrana strona nie należy do serwisu tego konkursu "
+                    "albo nie jest opublikowana."
+                )
+                % {"name": _row_name(broken[0])}
+            )
+    return items
+
+
+def _clean_entry(raw: dict, languages, auto_keys, seen: set[str]) -> dict | None:
+    """Jedna pozycja w postaci kanonicznej (``None`` = pozycja automatyczna, której już nie ma)."""
+    kind = raw.get("type", TYPE_AUTO)
+    key = raw.get("key")
+    if kind not in TYPES or not isinstance(key, str) or not KEY_RE.match(key):
+        raise MenuError(_("Nieznana pozycja menu."))
+    if key in seen:
+        raise MenuError(_("Pozycja menu powtarza się."))
+    seen.add(key)
+    if kind == TYPE_AUTO and key not in auto_keys:
+        # Pozycja, której już nie ma w drzewie (strona wycofana między odczytem a zapisem):
+        # pomijamy ją, zamiast odrzucać cały formularz.
+        return None
+    if (kind == TYPE_LINK) != key.startswith("link-") or (kind == TYPE_GROUP) != key.startswith("group-"):
+        raise MenuError(_("Typ pozycji nie zgadza się z jej kluczem."))
+    entry = {
+        "key": key,
+        "type": kind,
+        "hidden": bool(raw.get("hidden")),
+        "labels": _labels(raw.get("labels"), languages),
+    }
+    if kind == TYPE_LINK:
+        page = raw.get("page")
+        if page not in (None, ""):
+            if not str(page).isdigit():
+                raise MenuError(_("Nieznana strona serwisu."))
+            entry["page"] = int(page)
+            entry["url"] = ""
+        else:
+            entry["page"] = None
+            entry["url"] = clean_url(raw.get("url"))
+        entry["new_tab"] = bool(raw.get("new_tab"))
+        if not entry["labels"]:
+            raise MenuError(_("Własny odnośnik musi mieć etykietę przynajmniej w jednym języku."))
+    if kind == TYPE_GROUP and not entry["labels"]:
+        raise MenuError(_("Grupa musi mieć etykietę przynajmniej w jednym języku."))
+    entry["parent"] = raw.get("parent") or ""
+    return entry
+
+
+def _check_structure(items: list[dict], auto_keys: dict[str, dict]) -> None:
     groups = {item["key"] for item in items if item["type"] == TYPE_GROUP}
     if sum(item["type"] == TYPE_LINK for item in items) > MAX_LINKS:
         raise MenuError(_("Menu może mieć najwyżej %(limit)d własnych odnośników.") % {"limit": MAX_LINKS})
     if len(groups) > MAX_GROUPS:
         raise MenuError(_("Menu może mieć najwyżej %(limit)d grup.") % {"limit": MAX_GROUPS})
     for item in items:
-        parent = item["parent"]
-        if not parent:
-            continue
-        if parent not in groups:
-            raise MenuError(_("Pozycja wskazuje grupę, której nie ma."))
-        if item["type"] == TYPE_GROUP:
-            raise MenuError(
-                _("Grupa nie może należeć do innej grupy (menu ma jeden poziom list rozwijanych).")
-            )
-        info = auto_keys.get(item["key"]) or {}
-        if info.get("home"):
-            raise MenuError(_("Strony głównej nie da się przenieść do grupy."))
-        if info.get("has_children"):
-            raise MenuError(_("Pozycja z własną listą rozwijaną nie może należeć do grupy."))
-    if page_ids:
-        allowed = set(site_pages(competition).filter(pk__in=page_ids).values_list("pk", flat=True))
-        if set(page_ids) - allowed:
-            # Strona spoza drzewa witryny tego konkursu (albo nieopublikowana) – izolacja konkursów.
-            raise MenuError(
-                _("Wybrana strona nie należy do serwisu tego konkursu albo nie jest opublikowana.")
-            )
-    return items
+        try:
+            _check_parent(item, groups, auto_keys)
+        except MenuError as exc:
+            raise MenuError(f"„{_row_name(item, auto_keys)}”: {exc}") from exc
+
+
+def _check_parent(item: dict, groups: set[str], auto_keys: dict[str, dict]) -> None:
+    parent = item["parent"]
+    if not parent:
+        return
+    if parent not in groups:
+        raise MenuError(_("Pozycja wskazuje grupę, której nie ma."))
+    if item["type"] == TYPE_GROUP:
+        raise MenuError(_("Grupa nie może należeć do innej grupy (menu ma jeden poziom list rozwijanych)."))
+    info = auto_keys.get(item["key"]) or {}
+    if info.get("home"):
+        raise MenuError(_("Strony głównej nie da się przenieść do grupy."))
+    if info.get("has_children"):
+        raise MenuError(_("Pozycja z własną listą rozwijaną nie może należeć do grupy."))
 
 
 def is_default(items: list[dict], default_keys: list[str]) -> bool:
@@ -316,6 +366,11 @@ def build_menu(menu: list[dict], items: list[dict], request, competition, *, lan
     used: set[str] = set()
     ordered: list[tuple[dict, str]] = []
     groups: dict[str, dict] = {}
+    # Ukryta grupa ukrywa też swoich członków – „schowaj listę rozwijaną” nie może wysypać jej
+    # pozycji na najwyższy poziom menu.
+    hidden_groups = {
+        entry.get("key") for entry in items if entry.get("type") == TYPE_GROUP and entry.get("hidden")
+    }
     for entry in items:
         kind = entry.get("type", TYPE_AUTO)
         key = entry.get("key", "")
@@ -372,6 +427,8 @@ def build_menu(menu: list[dict], items: list[dict], request, competition, *, lan
             }
             groups[key] = item
         else:
+            continue
+        if (entry.get("parent") or "") in hidden_groups:
             continue
         ordered.append((item, entry.get("parent") or ""))
     # Pozycje domyślne, których koordynator jeszcze nie widział (nowa strona w drzewie), stają na

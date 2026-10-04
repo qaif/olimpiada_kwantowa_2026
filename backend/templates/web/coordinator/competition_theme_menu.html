@@ -44,6 +44,7 @@
         {% for row in rows %}
           <tr>
             <td>
+              <input type="hidden" name="row_keys" value="{{ row.key }}">
               <label class="visually-hidden" for="order-{{ forloop.counter }}">{% translate "Pozycja" %}</label>
               <input type="number" id="order-{{ forloop.counter }}" name="order_{{ row.key }}" value="{{ row.position }}" min="1" max="99" size="3">
             </td>
@@ -66,6 +67,7 @@
                   <label for="page-{{ forloop.counter }}">{% translate "albo strona serwisu" %}</label>
                   <select id="page-{{ forloop.counter }}" name="page_{{ row.key }}">
                     <option value="">—</option>
+                    {% if row.page_missing %}<option value="{{ row.page }}" selected>{% translate "(niedostępna strona)" %}</option>{% endif %}
                     {% for page in pages %}
                       <option value="{{ page.pk }}"{% if page.pk == row.page %} selected{% endif %}>{{ page.indent }}{{ page.title }}</option>
                     {% endfor %}
