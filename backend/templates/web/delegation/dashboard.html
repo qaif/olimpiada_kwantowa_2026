@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% load i18n static web_extras %}
+{% comment %}
+  Panel opiekuna drużyny narodowej (DEL-01): delegacja kraju, współopiekunowie i uczniowie.
+
+  Czego tu nie ma i nie będzie: prac, ocen, wyników przed publikacją i danych innych krajów. Panel
+  jest listą zgłoszeń, a nie drugim wejściem do zawodów – reguły (limit, okno rejestracji, start
+  etapu, zamknięcie delegacji) rozstrzyga ``apps.accounts.delegation_services``, a przyciski
+  znikają tu tylko po to, żeby nie prowadzić do odmowy.
+
+  Współopiekunowie widzą swoje imiona i adresy: prowadzą jedną drużynę i muszą móc się zmówić,
+  kto zgłasza kogo. Notatka koordynatora o delegacji stoi wyłącznie w panelu organizatora.
+{% endcomment %}
+{% block title %}{% translate "Moja drużyna" %}{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/coordinator-tools.css' %}">{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow">{% translate "Panel opiekuna drużyny" %}</span>
+  <h1>{% blocktranslate trimmed with country=delegation.country.name %}Drużyna: {{ country }}{% endblocktranslate %}</h1>
+  <p class="lead">{% blocktranslate trimmed with edition=delegation.edition.year_label students=student_count limit=delegation.max_students %}
+    Edycja {{ edition }}. Zgłoszeni uczniowie: {{ students }} z {{ limit }}.
+  {% endblocktranslate %}</p>
+  <div class="actions">
+    {% if can_add %}
+      <a class="btn btn--primary" href="{% url 'web:delegation-student-add' %}">{% translate "Dodaj ucznia" %}</a>
+    {% endif %}
+  </div>
+  {% if not delegation.is_open %}
+    <p class="notice">{% translate "Delegacja jest zamknięta – lista uczniów nie może się już zmienić. W razie potrzeby skontaktuj się z organizatorem." %}</p>
+  {% elif not window_open %}
+    <p class="notice">{% translate "Rejestracja uczniów jest obecnie zamknięta." %}</p>
+  {% elif not seats_left %}
+    <p class="notice">{% translate "Drużyna ma komplet uczniów." %}</p>
+  {% endif %}
+</div>
+
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">{% translate "Uczniowie" %}</h2>
+    <p class="hint">{% translate "Każdy zgłoszony uczeń dostaje e-mail z linkiem: sam ustawia hasło i składa zgody. Dane możesz poprawić, dopóki uczeń nie uruchomi konta; wypisać ucznia możesz do startu zawodów." %}</p>
+  </div>
+  <div class="scroll">
+    <table class="table">
+      <caption class="visually-hidden">{% translate "Uczniowie drużyny" %}</caption>
+      <thead>
+        <tr>
+          <th scope="col">{% translate "Imię i nazwisko" %}</th>
+          <th scope="col">{% translate "Adres e-mail" %}</th>
+          <th scope="col">{% translate "Data urodzenia" %}</th>
+          <th scope="col">{% translate "Szkoła" %}</th>
+          <th scope="col">{% translate "Klasa" %}</th>
+          <th scope="col">{% translate "Stan konta" %}</th>
+          <th scope="col"><span class="visually-hidden">{% translate "Operacje" %}</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+          <tr>
+            <th scope="row">{{ row.participant.user.get_full_name }}</th>
+            <td>{{ row.participant.user.email }}</td>
+            <td>{{ row.participant.birth_date|default:"—" }}</td>
+            <td>{{ row.participant.school }}</td>
+            <td>{{ row.participant.grade|default:"—" }}</td>
+            <td>
+              {% if row.active %}
+                <span class="badge badge--ok">{% translate "aktywny" %}</span>
+              {% else %}
+                <span class="badge badge--warn">{% translate "zaproszony" %}</span>
+              {% endif %}
+            </td>
+            <td class="actions">
+              {% if delegation.is_open and not row.active %}
+                <a class="btn btn--secondary btn--small" href="{% url 'web:delegation-student-edit' row.participant.pk %}">{% translate "Popraw dane" %}</a>
+                <form method="post" action="{% url 'web:delegation-student-resend' row.participant.pk %}" class="inline">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn--secondary btn--small">{% translate "Wyślij link ponownie" %}</button>
+                </form>
+              {% endif %}
+              {% if delegation.is_open and not stage_started %}
+                <a class="btn btn--ghost btn--small" href="{% url 'web:delegation-student-delete' row.participant.pk %}">{% translate "Wypisz" %}</a>
+              {% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="7" class="empty">{% translate "Nie zgłoszono jeszcze żadnego ucznia." %}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">{% translate "Opiekunowie drużyny" %}</h2>
+    <p class="hint">{% translate "Wszyscy opiekunowie tego kraju prowadzą jedną drużynę i widzą tych samych uczniów." %}</p>
+  </div>
+  <ul>
+    {% for leader in leaders %}
+      <li>{{ leader.user.get_full_name|default:leader.user.email }} – {{ leader.user.email }}{% if leader.user_id == request.user.pk %} ({% translate "Ty" %}){% endif %}</li>
+    {% endfor %}
+  </ul>
+</section>
+{% endblock %}

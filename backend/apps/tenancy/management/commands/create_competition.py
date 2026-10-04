@@ -39,6 +39,8 @@ from apps.tenancy.provisioning import (
     REGIONS_CHOICES,
     REGIONS_COUNTRIES,
     REGIONS_VOIVODESHIPS,
+    REGISTRATION_CHOICES,
+    REGISTRATION_OPEN,
     WARSAW,
     ProvisioningError,
     coordinator_from_email,
@@ -123,6 +125,16 @@ class Command(BaseCommand):
             ),
         )
         parser.add_argument(
+            "--registration",
+            choices=REGISTRATION_CHOICES,
+            default=REGISTRATION_OPEN,
+            help=(
+                "Tryb rejestracji uczestników: open (uczestnik zakłada konto sam, domyślnie) albo "
+                "delegations (uczniów zgłaszają opiekunowie drużyn narodowych, DEL-01; wymaga "
+                "--regions countries)."
+            ),
+        )
+        parser.add_argument(
             "--dry-run",
             action="store_true",
             help="Wykonaj wszystko i wycofaj transakcję — sprawdza dane, nie zmienia bazy.",
@@ -169,6 +181,7 @@ class Command(BaseCommand):
                 certificate_prefix=options["certificate_prefix"],
                 dry_run=dry_run,
                 regions=options["regions"],
+                registration=options["registration"],
                 # Seedy uruchamia komenda, nie czynność – patrz docstring modułu.
                 run_safe_seeds=False,
             )
@@ -228,6 +241,7 @@ class Command(BaseCommand):
             write(f"  regiony:  {seeded['regions_active']} krajów aktywnych (custom_regions, REG-01)")
         else:
             write(f"  regiony:  {seeded['regions']} (kraj, 16 województw, „poza Polską”)")
+        write(f"  rejestracja: {competition.get_registration_mode_display()}")
         write(f"  grupa /cms/: {seeded['cms_group']}")
         write(f"  przebieg: {seeded['pipeline']} kroków toru (edytor za flagą process_editor)")
         write(f"  kody:     {competition.public_code_prefix}… / dyplomy {competition.certificate_prefix}/…")

@@ -1908,6 +1908,42 @@ prośbę z importu listy — to oni decydują, kto widzi ich postęp, nie organi
 
 ---
 
+## 10b. Delegacje krajowe — `/coordinator/delegations/`
+
+**Tylko w konkursie z trybem rejestracji „przez delegacje krajowe”** (olimpiada międzynarodowa `iqo`;
+`OPERACJE.md` § 28). W każdym innym konkursie — także w Olimpiadzie Kwantowej — tego ekranu nie ma,
+a uczestnicy rejestrują się sami jak dotąd.
+
+**Jak to działa.** Uczniów nie rejestruje uczeń, tylko **opiekun drużyny narodowej** (team leader).
+Zapraszasz opiekuna adresem e-mail i krajem; opiekun zakłada konto z zaproszenia i zgłasza uczniów
+swojego kraju; każdy uczeń dostaje list z linkiem, ustawia hasło i **sam** składa zgody. Kraj może mieć
+kilku opiekunów — prowadzą jedną drużynę, z jednym limitem, i widzą tych samych uczniów.
+
+**Lista delegacji.** Kraj, liczba opiekunów, zaproszenia oczekujące, uczniowie / limit, stan. Formularz
+„Zaproś opiekuna” zakłada delegację kraju przy pierwszym zaproszeniu. Ponowne zaproszenie tego samego
+adresu wysyła nowy link (stary przestaje działać). „Eksport CSV” – opiekunowie i uczniowie wszystkich
+krajów, jeden wiersz na osobę (zdarzenie w audycie).
+
+**Ekran delegacji.** Limit uczniów (nie niższy niż liczba zgłoszonych), stan „otwarta/zamknięta”
+(zamknięta zamraża listę: opiekun nie dodaje, nie poprawia i nie usuwa uczniów), notatka koordynatora
+(opiekun jej nie widzi). Opiekunowie (przycisk „Odwołaj z delegacji” – konto zostaje, uczniowie zostają
+w drużynie), zaproszenia nieprzyjęte („Wyślij ponownie”, „Cofnij”), uczniowie ze stanem konta
+(zaproszone / aktywne) i informacją, który opiekun ich zgłosił.
+
+**Co może opiekun.** Dodać ucznia (imię, nazwisko, e-mail, data urodzenia, szkoła, klasa, opcjonalnie
+e-mail rodzica), poprawić dane **przed** aktywacją konta ucznia, wypisać ucznia **przed startem
+pierwszego etapu** edycji, wysłać link ponownie. Wypisanie ucznia, który **uruchomił już konto**, nie
+usuwa konta: uczeń trafia do sekcji „Wypisani przez opiekuna – czekają na decyzję” na ekranie delegacji
+(i do kolumny „Wypisani” na liście), dostaje o tym wiadomość, a o dalszym losie konta decydujesz Ty. Nie widzi prac, ocen ani uczniów innych krajów.
+Okno rejestracji edycji (`/coordinator/registration/`) obowiązuje także opiekunów – pulpit pokazuje,
+czy jest teraz otwarte.
+
+**Czego opiekun nie może.** Zgłosić adresu, który ma już konto w serwisie (uczeń z istniejącym kontem
+trafia do drużyny przez organizatora), złożyć zgód za ucznia ani potwierdzić zgody rodzica — tę uczeń
+niepełnoletni zbiera sam po uruchomieniu konta (zgoda opiekuna online).
+
+---
+
 ## 10a. Zaświadczenia o statusie ucznia — `/coordinator/student-status/`
 
 **Tylko w konkursie z włączonymi zaświadczeniami** (przełącznik `student_status_certificate`, włącza go

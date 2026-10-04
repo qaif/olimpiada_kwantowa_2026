@@ -1,0 +1,14 @@
+{% load i18n %}{% autoescape off %}{% comment %}
+  List do ucznia z uruchomionym kontem, którego opiekun drużyny wypisał z drużyny (DEL-01, poprawka
+  po przeglądzie). Konto zostaje – opiekun nie może go skasować – a o dalszym losie decyduje
+  organizator. Uczeń ma się o tym dowiedzieć od razu, bo to on jest właścicielem konta.
+{% endcomment %}{% blocktranslate trimmed with name=first_name country=country competition=brand.competition|default:_("Olimpiada Kwantowa") %}
+Cześć {{ name }}! Opiekun drużyny narodowej ({{ country }}) wypisał Cię z drużyny w konkursie {{ competition }}.
+{% endblocktranslate %}
+
+{% translate "Twoje konto nie zostało usunięte. Organizator skontaktuje się z Tobą w sprawie dalszego udziału. Jeśli to pomyłka, napisz do opiekuna drużyny albo do organizatora." %}
+
+--
+{{ brand.competition|default:_("Olimpiada Kwantowa") }}
+{% translate "Wiadomość wysłana automatycznie; prosimy na nią nie odpowiadać." %}
+{% endautoescape %}

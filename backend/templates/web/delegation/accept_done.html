@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% comment %}
+  Po przyjęciu zaproszenia przez nowe konto opiekuna drużyny (DEL-01). Bez tokenu w adresie – nie
+  identyfikuje już niczego. Konto nie jest logowane automatycznie: pierwsze logowanie świeżo
+  ustawionym hasłem sprawdza, czy zostało zapamiętane (ta sama decyzja, co przy zaproszeniu ucznia).
+{% endcomment %}
+{% block title %}{% translate "Zaproszenie przyjęte" %}{% endblock %}
+{% block timeline_strip %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow">{% translate "Zaproszenie" %}</span>
+  <h1>{% translate "Konto opiekuna drużyny jest gotowe" %}</h1>
+  <p class="lead">{% translate "Zaloguj się swoim adresem e-mail i nowym hasłem – po zalogowaniu zobaczysz panel drużyny i zgłosisz uczniów." %}</p>
+  <div class="actions">
+    <a class="btn btn--primary" href="{% url 'web:login' %}">{% translate "Zaloguj" %}</a>
+  </div>
+</div>
+{% endblock %}

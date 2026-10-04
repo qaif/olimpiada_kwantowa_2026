@@ -1,0 +1,24 @@
+{% load i18n %}{% autoescape off %}{% comment %}
+  List do ucznia zgłoszonego przez opiekuna drużyny narodowej (DEL-01).
+
+  Ten sam układ i ta sama zasada, co ``invite_student_body.txt``: poza imieniem i krajem nie ma tu
+  danych osobowych (adres przepisał ktoś inny, list bywa doręczony pod zły adres), a zdanie
+  o zignorowaniu listu jest obowiązkowe – bez kliknięcia konto nie zostanie uruchomione.
+{% endcomment %}{% blocktranslate trimmed with name=first_name country=country competition=brand.competition|default:_("Olimpiada Kwantowa") %}
+Cześć {{ name }}! Opiekun drużyny narodowej ({{ country }}) zgłosił Cię do konkursu {{ competition }}.
+{% endblocktranslate %}
+
+{% translate "Konto czeka na Ciebie, ale jeszcze nie działa: hasło ustawiasz sam i sam akceptujesz regulamin oraz informację o przetwarzaniu danych. Otwórz poniższy adres:" %}
+
+{{ link }}
+
+{% blocktranslate trimmed with days=days %}
+Link jest ważny {{ days }} dni. Jeśli wygaśnie, poproś opiekuna drużyny o wysłanie go ponownie.
+{% endblocktranslate %}
+
+{% translate "Jeśli nie chcesz brać udziału – zignoruj tę wiadomość. Bez kliknięcia w link konto nie zostanie uruchomione i nikt nie zaloguje się na Twój adres." %}
+
+--
+{{ brand.competition|default:_("Olimpiada Kwantowa") }}
+{% translate "Wiadomość wysłana automatycznie; prosimy na nią nie odpowiadać." %}
+{% endautoescape %}

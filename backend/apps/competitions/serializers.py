@@ -68,8 +68,8 @@ class RegistrationStatusSerializer(serializers.Serializer):
     """Stan rejestracji uczestników – kształt odpowiedzi dla ``RegistrationStatus``.
 
     Wyłącznie odczyt: rejestrację otwiera i zamyka koordynator w panelu, nie klient API. ``reason``
-    jest kodem maszynowym (``open``/``disabled``/``not_yet``/``closed``), a nie zdaniem po polsku –
-    tłumaczenie na komunikat należy do warstwy, która go pokazuje.
+    jest kodem maszynowym (``open``/``disabled``/``not_yet``/``closed``/``delegations``), a nie
+    zdaniem po polsku – tłumaczenie na komunikat należy do warstwy, która go pokazuje.
     """
 
     is_open = serializers.BooleanField(read_only=True)
@@ -103,7 +103,10 @@ class CurrentEditionSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
     def get_registration(self, obj: Edition) -> dict:
-        return RegistrationStatusSerializer(obj.registration_status(self.context.get("now"))).data
+        # Tryb delegacji konkursu (DEL-01) zamyka rejestrację publiczną także w tej odpowiedzi.
+        from .models import public_registration_status
+
+        return RegistrationStatusSerializer(public_registration_status(obj, self.context.get("now"))).data
 
     def get_current_stage(self, obj: Edition) -> dict | None:
         stage = self.context.get("stage")
