@@ -158,6 +158,8 @@ FLAG_ITEMS: dict[str, tuple[frozenset[str], frozenset[str]]] = {
     "ai_grading": (frozenset({"Ocena AI"}), frozenset({"Ocena AI"})),
     # --- webinary LiveKit (zadanie WEB-01) – pozycja za samą flagą, także bez serwera LiveKit ------
     "webinars": (frozenset({"Webinary"}), frozenset({"Webinary"})),
+    # --- nadzór zdalny etapów online (zadanie PROC-01) – w sekcji „Etapy” ---------------------------
+    "proctoring": (frozenset({"Nadzór zdalny"}), frozenset({"Nadzór zdalny"})),
 }
 
 #: Piętnaście flag **etapu 2** – zdanie z ``docs/UNIWERSALNY-ETAP-2.md`` § 0.6 („piętnaście flag to

@@ -1,0 +1,24 @@
+{% load i18n static %}
+{% comment %}
+  Karta nadzoru na stronie etapu (``{% proctoring_card stage %}``, PROC-01). Pasek stanu zasila
+  ``static/js/proctoring-banner.js`` (BroadcastChannel z konsoli w drugiej karcie).
+{% endcomment %}
+{% if show %}
+  <link rel="stylesheet" href="{% static 'css/proctoring.css' %}">
+  <section class="card pc-card" aria-labelledby="pc-card-{{ stage.pk }}">
+    {% if not compact %}
+      <h2 class="mt-0" id="pc-card-{{ stage.pk }}">{% translate "Nadzór zdalny" %}</h2>
+      <p>{% if ready %}{% translate "Ten etap jest nadzorowany zdalnie. Konsola nadzoru musi być otwarta w osobnej karcie do końca etapu." %}{% else %}{% translate "Ten etap jest nadzorowany zdalnie. Zanim zobaczysz zadania, wyraź zgodę, sprawdź sprzęt i włącz nadzór w konsoli." %}{% endif %}</p>
+    {% else %}
+      <span class="visually-hidden" id="pc-card-{{ stage.pk }}">{% translate "Nadzór zdalny" %}</span>
+    {% endif %}
+    <p class="pc-banner" data-proctoring-banner data-stage-id="{{ stage.pk }}" data-state="neutral" role="status" aria-live="polite"
+       data-text-ok="{% translate 'Nadzór działa.' %}"
+       data-text-bad="{% translate 'Nadzór nie działa – wróć do karty konsoli nadzoru albo otwórz ją ponownie.' %}"
+       data-text-neutral="{% translate 'Stan nadzoru: sprawdź kartę konsoli nadzoru.' %}">
+      <span data-proctoring-text>{% translate "Stan nadzoru: sprawdź kartę konsoli nadzoru." %}</span>
+      <a class="btn btn--secondary btn--small" href="{% url 'web:proctoring-console' stage.pk %}" target="proctoring-console-{{ stage.pk }}">{% translate "Konsola nadzoru" %}</a>
+    </p>
+  </section>
+  <script nonce="{{ request.csp_nonce }}" src="{% static 'js/proctoring-banner.js' %}" defer></script>
+{% endif %}

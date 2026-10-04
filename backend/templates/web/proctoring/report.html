@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% comment %}
+  Raport nadzoru jednego ucznia (zadanie PROC-01, ``ProctoringReportView``) – dla koordynatora i komisji
+  odwoławczej, do wydruku. Każde otwarcie zapisuje audyt (``proctoring.report_viewed``); nagrania
+  i zdjęcie dokumentu otwierają się adresem ważnym 15 minut (audyt ``recording_viewed``).
+{% endcomment %}
+{% block title %}{% translate "Raport nadzoru" %} – {{ label }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow">{% translate "Raport nadzoru" %} · {{ stage.display_name }}</span>
+  <h1>{{ label }}</h1>
+</div>
+
+<section class="section">
+  <dl class="meta-list">
+    <dt>{% translate "Grupa" %}</dt><dd>{{ session.group }}</dd>
+    <dt>{% translate "Zgoda" %}</dt>
+    <dd>{% if consent %}{{ consent.version }}, {{ consent.given_at|date:"d.m.Y H:i:s" }}{% if consent.withdrawn_at %} – {% translate "wycofana" %} {{ consent.withdrawn_at|date:"d.m.Y H:i:s" }}{% endif %}{% if consent.guardian_record_id %} ({% translate "zgoda opiekuna potwierdzona online" %}){% endif %}{% else %}{% translate "brak" %}{% endif %}</dd>
+    <dt>{% translate "Sprawdzenie sprzętu" %}</dt>
+    <dd>{% if session.check_passed_at %}{{ session.check_passed_at|date:"d.m.Y H:i:s" }}{% else %}–{% endif %}{% if session.check_result %} ({% for key, value in session.check_result.items %}{{ key }}: {{ value }}{% if not forloop.last %}, {% endif %}{% endfor %}){% endif %}</dd>
+    <dt>{% translate "Nadzór rozpoczęty" %}</dt><dd>{{ session.started_at|date:"d.m.Y H:i:s"|default:"–" }}</dd>
+    <dt>{% translate "Bez nadzoru od" %}</dt><dd>{{ session.unproctored_at|date:"d.m.Y H:i:s"|default:"–" }}</dd>
+    <dt>{% translate "Obecność" %}</dt><dd>{{ session.get_attendance_display }}{% if session.attendance_at %} ({{ session.attendance_at|date:"d.m.Y H:i:s" }}){% endif %}</dd>
+    <dt>{% translate "Inna forma nadzoru" %}</dt><dd>{% if session.alternative_status %}{{ session.get_alternative_status_display }} – {{ session.get_alternative_reason_display }}{% if session.alternative_decision %}: {{ session.alternative_decision }}{% endif %}{% else %}–{% endif %}</dd>
+    {% if session.id_photo_key %}<dt>{% translate "Zdjęcie dokumentu" %}</dt><dd><a href="{% url 'web:proctoring-media' stage.pk 'photo' session.pk %}" target="_blank" rel="noopener">{% translate "otwórz (15 min)" %}</a></dd>{% endif %}
+    {% if session.hold_reason %}<dt>{% translate "Wstrzymanie usunięcia" %}</dt><dd>{{ session.hold_reason }}</dd>{% endif %}
+    {% if session.purged_at %}<dt>{% translate "Nośniki usunięte" %}</dt><dd>{{ session.purged_at|date:"d.m.Y H:i" }}</dd>{% endif %}
+  </dl>
+</section>
+
+<section class="section" aria-labelledby="r-incidents">
+  <h2 id="r-incidents">{% translate "Incydenty" %}</h2>
+  {% if incidents %}
+    <table class="table">
+      <thead><tr><th>{% translate "Czas" %}</th><th>{% translate "Kategoria" %}</th><th>{% translate "Waga" %}</th><th>{% translate "Notatka" %}</th><th>{% translate "Zgłosił" %}</th></tr></thead>
+      <tbody>
+        {% for incident in incidents %}
+          <tr><td>{{ incident.occurred_at|date:"d.m.Y H:i:s" }}</td><td>{{ incident.get_category_display }}</td><td>{{ incident.get_severity_display }}</td><td>{{ incident.note|linebreaksbr }}</td><td>{{ incident.reported_by.get_full_name|default:"–" }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}<p class="empty">{% translate "Brak incydentów." %}</p>{% endif %}
+</section>
+
+<section class="section" aria-labelledby="r-messages">
+  <h2 id="r-messages">{% translate "Wiadomości do ucznia" %}</h2>
+  {% if student_messages %}
+    <ul>{% for message in student_messages %}<li>{{ message.sent_at|date:"d.m.Y H:i:s" }} – {{ message.get_kind_display }}{% if message.body %}: {{ message.body }}{% endif %}{% if message.seen_at %} ({% translate "potwierdzona" %} {{ message.seen_at|date:"H:i:s" }}){% endif %}</li>{% endfor %}</ul>
+  {% else %}<p class="empty">{% translate "Brak wiadomości." %}</p>{% endif %}
+</section>
+
+<section class="section" aria-labelledby="r-recordings">
+  <h2 id="r-recordings">{% translate "Nagrania" %}</h2>
+  {% if recordings %}
+    <ul>{% for recording in recordings %}<li>{{ recording.started_at|date:"d.m.Y H:i:s" }} – {{ recording.get_status_display }}{% if recording.status == "complete" %} – <a href="{% url 'web:proctoring-media' stage.pk 'rec' recording.pk %}" target="_blank" rel="noopener">{% translate "odtwórz (15 min)" %}</a>{% endif %}</li>{% endfor %}</ul>
+  {% else %}<p class="empty">{% translate "Brak nagrań." %}</p>{% endif %}
+</section>
+
+<section class="section" aria-labelledby="r-events">
+  <h2 id="r-events">{% translate "Dziennik" %}</h2>
+  {% if events %}
+    <ol class="pc__log">{% for event in events %}<li><time>{{ event.at|date:"d.m.Y H:i:s" }}</time> – {{ event.get_kind_display }} <span class="hint">({{ event.get_source_display }})</span></li>{% endfor %}</ol>
+  {% else %}<p class="empty">{% translate "Dziennik jest pusty albo został już usunięty (retencja)." %}</p>{% endif %}
+</section>
+{% endblock %}

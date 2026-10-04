@@ -784,6 +784,16 @@ def groups(stages: list, competition=None) -> list[Group]:
                     ),
                 ),
             )
+    if competition is not None and competition.has_feature("proctoring"):
+        # Nadzór zdalny etapów online (zadanie PROC-01) – na końcu sekcji „Etapy”, bo ustawia się go
+        # per etap. Bramką jest flaga konkursu (jak przy webinarach); bez niej menu bez zmian.
+        stage_group += (
+            Item(
+                "Nadzór zdalny",
+                ("web:coordinator-proctoring",),
+                match=("coordinator-proctoring", "coordinator-proctoring-", "proctoring-"),
+            ),
+        )
     return [
         Group("Pulpit", (Item("Co wymaga uwagi", ("web:coordinator",), match=("coordinator",)),)),
         Group("Etapy", stage_group),
