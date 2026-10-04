@@ -155,6 +155,26 @@ class LetterScope(models.TextChoices):
     DELEGATION = "DELEGATION", "dla delegacji"
 
 
+class LetterRequestStatus(models.TextChoices):
+    """Stan wniosku opiekuna o list zapraszający (VISA-01 § 3). Etykiety widzi też opiekun – gettext."""
+
+    PENDING = "PENDING", _("oczekuje na decyzję")
+    APPROVED = "APPROVED", _("zatwierdzony – list wystawiony")
+    REJECTED = "REJECTED", _("odrzucony")
+    WITHDRAWN = "WITHDRAWN", _("wycofany")
+
+
+def new_verification_code() -> str:
+    """Losowy kod weryfikacyjny listu – alfabet i długość kodów dyplomów (bez 0/O, 1/I/L).
+
+    Losowy, a nie wyliczony z numeru: numer listu jest kolejny i jawny (stoi na papierze i w rejestrze
+    pism), więc z niego dałoby się zgadnąć kody cudzych listów i obejrzeć nazwiska na stronie weryfikacji.
+    """
+    from apps.results.models import generate_verification_code
+
+    return generate_verification_code()
+
+
 # --- konfiguracja --------------------------------------------------------------------------------
 
 
@@ -610,6 +630,30 @@ class InvitationLetter(models.Model):
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
     )
 
+    # --- VISA-01: język, weryfikacja publiczna i unieważnienie ---
+    #: Kod ze strony weryfikacji (``/visa/verify/<kod>/``) – losowy, nie numer. ``null`` dopuszczone
+    #: wyłącznie dla wierszy sprzed VISA-01 (migracja nadaje im kody); każdy nowy list dostaje kod
+    #: w ``letters.issue_letter``. Unikalny globalnie, choć strona szuka w obrębie konkursu.
+    verification_code = models.CharField(
+        "kod weryfikacyjny", max_length=12, unique=True, null=True, blank=True, editable=False
+    )
+    #: Język tekstu listu (``letter_texts.LETTER_TEXTS``). Angielski – język olimpiady i konsulatów.
+    language = models.CharField("język listu", max_length=10, default="en")
+    #: Migawka wydarzenia z chwili wystawienia – strona weryfikacji pokazuje to, co stoi na papierze,
+    #: a nie dzisiejsze ustawienia finału (przesunięcie dat po wystawieniu listu nie może sprawić, że
+    #: konsulat zobaczy inne daty niż w dokumencie). Bez danych osobowych, więc bez szyfrowania.
+    event_name = models.CharField("wydarzenie (migawka)", max_length=200, blank=True)
+    event_city = models.CharField("miasto (migawka)", max_length=120, blank=True)
+    event_starts_on = models.DateField("pierwszy dzień (migawka)", null=True, blank=True)
+    event_ends_on = models.DateField("ostatni dzień (migawka)", null=True, blank=True)
+    revoked_at = models.DateTimeField("unieważniono", null=True, blank=True)
+    revoked_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+    )
+    #: Powód unieważnienia – dla organizatora i opiekuna, **nie** na stronie weryfikacji (wolny tekst
+    #: bywa opisem osoby: „odmowa wizy”, „zmiana paszportu”).
+    revoke_reason = models.CharField("powód unieważnienia", max_length=300, blank=True)
+
     objects = competition_scoped_manager()
 
     class Meta:
@@ -627,6 +671,73 @@ class InvitationLetter(models.Model):
 
     def __str__(self) -> str:
         return self.number
+
+    @property
+    def is_revoked(self) -> bool:
+        return self.revoked_at is not None
+
+    @property
+    def display_code(self) -> str:
+        """Kod w grupach po cztery znaki (``ABCD-EFGH-JKMN``) – tak, jak stoi na papierze."""
+        code = self.verification_code or ""
+        return "-".join(code[i : i + 4] for i in range(0, len(code), 4))
+
+
+class LetterRequest(models.Model):
+    """Wniosek opiekuna drużyny o list imienny dla członka delegacji (VISA-01 § 3).
+
+    Wniosek **nie kopiuje** danych paszportowych: wskazuje osobę, a list przy zatwierdzeniu bierze jej
+    dane z wiersza członka (świeży odczyt w ``letters.issue_letter``) i zamraża je w migawce listu.
+    Dzięki temu wniosek nie jest trzecim miejscem numeru paszportu – i znika razem z osobą
+    (``CASCADE`` po członku: retencja finału, wypisanie z delegacji, usunięcie konta).
+    """
+
+    delegation = models.ForeignKey(
+        "accounts.Delegation", on_delete=models.CASCADE, related_name="+", verbose_name="delegacja"
+    )
+    member = models.ForeignKey(
+        DelegationMember, on_delete=models.CASCADE, related_name="letter_requests", verbose_name="osoba"
+    )
+    language = models.CharField("język listu", max_length=10, default="en")
+    status = models.CharField(
+        "stan", max_length=16, choices=LetterRequestStatus.choices, default=LetterRequestStatus.PENDING
+    )
+    requested_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+    )
+    requested_at = models.DateTimeField("złożony", default=timezone.now)
+    decided_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+    )
+    decided_at = models.DateTimeField("rozstrzygnięty", null=True, blank=True)
+    reject_reason = models.CharField("powód odrzucenia", max_length=500, blank=True)
+    letter = models.ForeignKey(
+        InvitationLetter, on_delete=models.SET_NULL, null=True, blank=True, related_name="requests"
+    )
+
+    objects = competition_scoped_manager("delegation__competition")
+
+    class Meta:
+        verbose_name = "wniosek o list zapraszający"
+        verbose_name_plural = "wnioski o listy zapraszające"
+        ordering = ("-requested_at", "-id")
+        constraints = [
+            # Jeden **oczekujący** wniosek na osobę: drugie kliknięcie „Poproś o list” (albo dwóch
+            # opiekunów jednej drużyny naraz) nie może dać oficerowi dwóch wierszy do rozstrzygnięcia,
+            # z których zatwierdzenie obu wystawiłoby dwa listy.
+            models.UniqueConstraint(
+                fields=["member"],
+                condition=Q(status="PENDING"),
+                name="delegation_logistics_letter_request_one_pending",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"wniosek {self.pk} ({self.member_id}, {self.status})"
+
+    @property
+    def is_pending(self) -> bool:
+        return self.status == LetterRequestStatus.PENDING
 
 
 class LogisticsReminder(models.Model):

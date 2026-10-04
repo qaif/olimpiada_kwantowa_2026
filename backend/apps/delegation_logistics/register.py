@@ -51,6 +51,8 @@ def activity(competition=None):
             "kontakt alarmowy: imię i nazwisko oraz telefon (szyfrowane)",
             "rejestr listów zapraszających: numer, kraj, data, liczba osób; migawka danych paszportowych "
             "osób z listu (szyfrowana)",
+            "wnioski opiekuna o list zapraszający (VISA-01): osoba, język listu, daty złożenia i decyzji, "
+            "powód odrzucenia; kod weryfikacyjny listu, unieważnienie (data, powód)",
         ],
         recipients=[
             HOSTING_RECIPIENT,
@@ -61,6 +63,9 @@ def activity(competition=None):
             "opiekunowie drużyny tego samego kraju – dane członków swojej delegacji",
             "hotel, firma cateringowa, przewoźnik i konsulat – wyłącznie wyciągi przekazane przez "
             "organizatora (lista pokoi, lista diet, tablica przylotów, list zapraszający)",
+            "każdy, kto zna kod weryfikacyjny z listu zapraszającego (w praktyce konsulat, któremu osoba "
+            "przedstawiła list) – na stronie weryfikacji: numer i data listu, stan (ważny/unieważniony), "
+            "wydarzenie z datami, imię i nazwisko oraz obywatelstwo osób z listu; bez numeru paszportu",
         ],
         retention=(
             f"do {DEFAULT_RETENTION_DAYS} dni (ustawienie finału) po ostatnim dniu finału – potem "
@@ -82,5 +87,8 @@ def activity(competition=None):
             "zdjęcie: format rozpoznawany po treści, limit 5 MB, skan antywirusowy przed pokazaniem, "
             "prywatny magazyn bez publicznego adresu",
             "eksporty CSV i pobrania listów zapisywane w dzienniku zdarzeń",
+            "kod weryfikacyjny listu losowy (ok. 59 bitów), niezależny od jawnego numeru; strona weryfikacji "
+            "z limitem żądań na adres IP, bez indeksowania i bez pamięci podręcznej; unieważnienie listu "
+            "widoczne od razu",
         ],
     )

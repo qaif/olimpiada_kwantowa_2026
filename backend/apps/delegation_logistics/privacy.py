@@ -136,6 +136,31 @@ def export_section(user) -> list[dict]:
                 "kontakt_alarmowy": member.emergency_name,
                 "telefon_alarmowy": member.emergency_phone,
                 "zdjecie_do_identyfikatora": bool(member.photo_key),
+                "wnioski_o_list_zapraszajacy": letter_requests_section(member),
             }
         )
     return rows
+
+
+def letter_requests_section(member) -> list[dict]:
+    """Wnioski o list zapraszający tej osoby (VISA-01): stan, język, daty, powód odrzucenia, numer listu.
+
+    Bez tożsamości opiekuna ani oficera – to dane pracowników organizatora i opiekuna, nie tej osoby
+    (ta sama granica, co „Recenzent A/B” przy ocenach). Dane z samego listu są już w sekcji wyżej.
+    """
+
+    def moment(value):
+        return timezone.localtime(value).isoformat() if value else None
+
+    return [
+        {
+            "stan": row.status,
+            "jezyk_listu": row.language,
+            "zlozony": moment(row.requested_at),
+            "rozstrzygniety": moment(row.decided_at),
+            "powod_odrzucenia": row.reject_reason or None,
+            "numer_listu": row.letter.number if row.letter_id else None,
+            "list_uniewazniony": bool(row.letter_id and row.letter.revoked_at),
+        }
+        for row in member.letter_requests.select_related("letter").order_by("requested_at", "id")
+    ]

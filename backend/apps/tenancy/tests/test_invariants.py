@@ -148,6 +148,9 @@ EXPECTED_SUBJECTS = {
     # Logistyka finału (LOG-01, ``apps.delegation_logistics.reports``): przypomnienie o brakach do
     # opiekunów drużyn. Tak jak listy delegacji – Olimpiada Kwantowa go nie wysyła.
     "final_logistics_reminder": "Brakujące dane do logistyki finału – Olimpiada Kwantowa",
+    # Listy zapraszające do wizy (VISA-01, ``apps.delegation_logistics.letter_requests``): decyzja
+    # oficera logistyki o wnioskach opiekuna drużyny. Olimpiada Kwantowa go nie wysyła.
+    "final_letter_decision": "Decyzja w sprawie listów zapraszających – Olimpiada Kwantowa",
 }
 
 #: Znaczniki podstawień w tematach składanych w serwisie. Porównujemy **wzorzec**, a nie wynik:
@@ -241,6 +244,7 @@ SUBJECT_CONSTANTS = {
     "apps.accounts.delegation_services.STUDENT_INVITE_SUBJECT_TEMPLATE": "delegation_student_invitation",
     "apps.accounts.delegation_services.UNLINKED_SUBJECT_TEMPLATE": "delegation_student_unlinked",
     "apps.delegation_logistics.reports.REMINDER_SUBJECT_TEMPLATE": "final_logistics_reminder",
+    "apps.delegation_logistics.letter_requests.LETTER_DECISION_SUBJECT_TEMPLATE": "final_letter_decision",
     "apps.accounts.guardian.GUARDIAN_SUBJECT": "guardian",
     "apps.accounts.guardian.GUARDIAN_SUBJECT_TEMPLATE": "guardian",
     "apps.accounts.guardian.GUARDIAN_CONFIRMED_SUBJECT": "guardian_confirmed",

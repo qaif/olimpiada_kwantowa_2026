@@ -15,6 +15,11 @@ sekundzie dostają kolejne numery, a nie ten sam (więz unikalności i tak by to
 zamienia odrzucenie w kolejkę).
 
 **PDF z migawki**, a nie z bieżących danych – powód w docstringu ``InvitationLetter``.
+
+VISA-01 dokłada tu trzy rzeczy: **język listu** (teksty w ``letter_texts``), **kod weryfikacyjny**
+z kodem QR i adresem strony ``/visa/verify/<kod>/`` w stopce oraz **unieważnienie** – list unieważniony
+nie daje się pobrać, a strona weryfikacji mówi „unieważniony”. Wnioski opiekunów i decyzje oficera są
+w ``letter_requests``.
 """
 
 from __future__ import annotations
@@ -25,10 +30,11 @@ import re
 from html import escape
 from io import BytesIO
 
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.db.models import Max
 from django.http import Http404
-from django.utils import timezone, translation
+from django.urls import reverse
+from django.utils import formats, timezone, translation
 from rest_framework import status
 
 from apps.core.api import DomainError
@@ -36,20 +42,24 @@ from apps.core.models import audit
 from apps.tenancy.branding import competition_name
 from apps.tenancy.documents import DocumentKind, current_version, render_document, substitute
 
-from .models import DelegationMember, FieldGroup, FinalEvent, InvitationLetter, LetterScope
+from .letter_texts import DEFAULT_LANGUAGE, LETTER_TEXTS, texts_for
+from .models import (
+    DelegationMember,
+    FieldGroup,
+    FinalEvent,
+    InvitationLetter,
+    LetterScope,
+    new_verification_code,
+)
 from .services import REQUIRED_FIELDS, event_for, members_of
 
 logger = logging.getLogger(__name__)
 
-FALLBACK_TITLE = "Letter of invitation"
-FALLBACK_STATEMENT = (
-    "On behalf of {organizer}, we have the pleasure of inviting the person(s) listed below, members "
-    "of the national delegation of {country}, to take part in {event}, which will take place in "
-    "{city} on {event_dates}. This letter is issued at the request of the national delegation for "
-    "the purpose of a visa application."
-)
-FALLBACK_SIGNATURE_LINE = "for the organizer"
-FALLBACK_FOOTER_NOTE = "Letter no. {number} of {date}. To verify this letter, please contact {organizer}."
+#: Napisy odwrotu (tekst listu bez szablonu z bazy) są od VISA-01 w ``letter_texts`` – po jednym
+#: bloku na język; angielski jest dawnym tekstem odwrotu LOG-01.
+
+#: Ile razy próbować nadać kod weryfikacyjny, gdy los trafi w istniejący (59 bitów – w praktyce nigdy).
+CODE_ATTEMPTS = 3
 
 PAGE_MARGIN_MM = 20
 PREFIX_RE = re.compile(r"[^A-Za-z0-9-]")
@@ -91,13 +101,34 @@ def _require_event(event: FinalEvent | None) -> FinalEvent:
     return event
 
 
-def issue_letter(competition, delegation, *, member: DelegationMember | None = None, actor, request=None):
+def require_language(language: str) -> str:
+    """Kod języka listu albo odmowa – wybór spoza ``LETTER_TEXTS`` to spreparowany formularz."""
+    if language not in LETTER_TEXTS:
+        raise DomainError(
+            "Nieobsługiwany język listu.", "LETTER_LANGUAGE_INVALID", status.HTTP_400_BAD_REQUEST
+        )
+    return language
+
+
+def issue_letter(
+    competition,
+    delegation,
+    *,
+    member: DelegationMember | None = None,
+    actor,
+    request=None,
+    language: str = DEFAULT_LANGUAGE,
+):
     """Wystawia list: imienny (``member``) albo dla całej delegacji (osoby z kompletnym dokumentem).
 
     Osoby bez kompletnego dokumentu podróży nie trafiają na list delegacji – list z pustą rubryką
     paszportu konsulat odrzuci, a nowy list z nowym numerem i tak trzeba będzie wystawić. Ekran mówi,
     kogo pominięto. List imienny dla osoby bez danych jest odmową.
+
+    VISA-01: list dostaje losowy kod weryfikacyjny, język i migawkę wydarzenia (nazwa, miasto, daty),
+    a rola osoby w migawce jest zapisana **w języku listu** – nie w języku ekranu oficera.
     """
+    require_language(language)
     if delegation.competition_id != competition.pk:
         raise Http404("Delegacja należy do innego konkursu.")
     edition = delegation.edition
@@ -123,6 +154,36 @@ def issue_letter(competition, delegation, *, member: DelegationMember | None = N
                 "IDENTITY_INCOMPLETE",
                 status.HTTP_409_CONFLICT,
             )
+    with translation.override(language):
+        snapshot = json.dumps([_person(p) for p in people], ensure_ascii=False)
+    for attempt in range(CODE_ATTEMPTS):
+        try:
+            letter = _create_letter(
+                competition, delegation, edition, member, scope, people, snapshot, language, actor
+            )
+            break
+        except IntegrityError:
+            # Kolizja kodu weryfikacyjnego (numer i tak jest pod blokadą finału) – nowy los.
+            if attempt == CODE_ATTEMPTS - 1:
+                raise
+    audit(
+        actor,
+        "logistics.letter_issued",
+        letter,
+        {
+            "number": letter.number,
+            "delegation": delegation.pk,
+            "people": len(people),
+            "scope": scope,
+            "language": language,
+        },
+        request=request,
+    )
+    return letter
+
+
+def _create_letter(competition, delegation, edition, member, scope, people, snapshot, language, actor):
+    """Wiersz rejestru pod blokadą finału – numer kolejny w roku, kod losowy, migawka wydarzenia."""
     with transaction.atomic():
         event = _require_event(FinalEvent.objects.select_for_update().filter(edition=edition).first())
         now = timezone.now()
@@ -134,7 +195,7 @@ def issue_letter(competition, delegation, *, member: DelegationMember | None = N
             or 0
         )
         sequence = top + 1
-        letter = InvitationLetter.objects.create(
+        return InvitationLetter.objects.create(
             competition=competition,
             edition=edition,
             number=f"{letter_prefix(event, competition)}/{year}/{sequence:04d}",
@@ -145,19 +206,56 @@ def issue_letter(competition, delegation, *, member: DelegationMember | None = N
             member=member,
             country_name=delegation.country.name,
             people_count=len(people),
-            content=json.dumps([_person(p) for p in people], ensure_ascii=False),
+            content=snapshot,
             template_version=current_version(competition, DocumentKind.VISA_INVITATION),
             issued_at=now,
             issued_by=actor if getattr(actor, "is_authenticated", False) else None,
+            verification_code=new_verification_code(),
+            language=language,
+            event_name=event.name,
+            event_city=event.city,
+            event_starts_on=event.starts_on,
+            event_ends_on=event.ends_on,
         )
-    audit(
-        actor,
-        "logistics.letter_issued",
-        letter,
-        {"number": letter.number, "delegation": delegation.pk, "people": len(people), "scope": scope},
-        request=request,
+
+
+def revoke_letter(letter: InvitationLetter, *, reason: str, actor, request=None) -> InvitationLetter:
+    """Unieważnia list (VISA-01 § 3). Odwracalne nie jest – poprawiony list to nowy numer i nowy kod.
+
+    Powód jest obowiązkowy: opiekun i drugi oficer mają się z ekranu dowiedzieć, dlaczego list, który
+    ktoś trzyma w ręku, przestał być ważny. Do audytu idzie numer, nie powód (wolny tekst bywa opisem
+    osoby – „odmowa wizy”), a strona weryfikacji powodu nie pokazuje w ogóle.
+    """
+    reason = (reason or "").strip()
+    if not reason:
+        raise DomainError("Podaj powód unieważnienia.", "REVOKE_REASON_REQUIRED", status.HTTP_400_BAD_REQUEST)
+    with transaction.atomic():
+        locked = InvitationLetter.objects.select_for_update().get(pk=letter.pk)
+        if locked.revoked_at is not None:
+            raise DomainError("Ten list jest już unieważniony.", "LETTER_REVOKED", status.HTTP_409_CONFLICT)
+        locked.revoked_at = timezone.now()
+        locked.revoked_by = actor if getattr(actor, "is_authenticated", False) else None
+        locked.revoke_reason = reason[:300]
+        locked.save(update_fields=["revoked_at", "revoked_by", "revoke_reason"])
+    audit(actor, "logistics.letter_revoked", locked, {"number": locked.number}, request=request)
+    return locked
+
+
+def verification_url(letter: InvitationLetter) -> str:
+    """Bezwzględny adres strony weryfikacji listu – na domenie konkursu, który list wystawił."""
+    from apps.accounts.activation import absolute_url
+
+    return absolute_url(
+        reverse("web:visa-verify-code", args=[letter.verification_code or ""]),
+        competition=letter.competition,
     )
-    return letter
+
+
+def verification_entry_url(competition) -> str:
+    """Adres formularza „wpisz kod” – drukowany na liście obok kodu, krótszy niż adres z kodem."""
+    from apps.accounts.activation import absolute_url
+
+    return absolute_url(reverse("web:visa-verify"), competition=competition)
 
 
 def letters_of(competition, edition=None, delegation=None):
@@ -200,11 +298,55 @@ def drop_person(letter: InvitationLetter, member_id: int) -> None:
     letter.save(update_fields=["content", "content_purged_at"])
 
 
-def _dates(event: FinalEvent) -> str:
-    start, end = event.starts_on, event.ends_on
+def _day(value) -> str:
+    """Dzień w języku aktywnym (``date_format``, a nie ``strftime``): nazwa miesiąca po polsku, rosyjsku…
+
+    ``strftime("%B")`` bierze nazwę miesiąca z locale systemu kontenera (C – zawsze angielska), więc list
+    po francusku miałby „October” w środku francuskiego zdania. Format ``E`` daje dopełniacz tam, gdzie
+    język go ma („4 października”), a angielski wychodzi jak dotąd („4 October 2026”).
+    """
+    return formats.date_format(value, "j E Y")
+
+
+def _date_range(start, end) -> str:
+    if start is None or end is None:
+        return ""
     if start == end:
-        return start.strftime("%d %B %Y")
-    return f"{start.strftime('%d %B %Y')} – {end.strftime('%d %B %Y')}"
+        return _day(start)
+    return f"{_day(start)} – {_day(end)}"
+
+
+def _event_snapshot(letter: InvitationLetter, event: FinalEvent | None) -> dict:
+    """Wydarzenie z migawki listu, a dla listów sprzed VISA-01 (bez migawki) – z ustawień finału."""
+    if letter.event_name or letter.event_starts_on:
+        return {
+            "name": letter.event_name,
+            "city": letter.event_city,
+            "starts_on": letter.event_starts_on,
+            "ends_on": letter.event_ends_on,
+        }
+    return {
+        "name": event.name if event else "",
+        "city": event.city if event else "",
+        "starts_on": event.starts_on if event else None,
+        "ends_on": event.ends_on if event else None,
+    }
+
+
+def _qr_drawing(url: str, size: float):
+    """Kod QR z adresem weryfikacji – ``reportlab.graphics``, ten sam zabieg, co na dyplomie."""
+    from reportlab.graphics.barcode import qr
+    from reportlab.graphics.shapes import Drawing
+
+    widget = qr.QrCodeWidget(url)
+    bounds = widget.getBounds()
+    drawing = Drawing(
+        size,
+        size,
+        transform=[size / (bounds[2] - bounds[0]), 0, 0, size / (bounds[3] - bounds[1]), 0, 0],
+    )
+    drawing.add(widget)
+    return drawing
 
 
 def _para(text: str, style):
@@ -232,6 +374,12 @@ def letter_pdf(letter: InvitationLetter) -> bytes:
     )
     from apps.results.signing import sign_document
 
+    if letter.revoked_at is not None:
+        # Unieważniony list nie wychodzi ponownie z serwisu – kopia pobrana „na pamiątkę” trafiłaby
+        # do konsulatu tak samo, jak ważna. Rejestr i strona weryfikacji mówią, że był i że nie jest.
+        raise DomainError(
+            "Ten list został unieważniony – nie można go pobrać.", "LETTER_REVOKED", status.HTTP_410_GONE
+        )
     people = people_of(letter)
     if not people:
         raise DomainError(
@@ -241,30 +389,35 @@ def letter_pdf(letter: InvitationLetter) -> bytes:
         )
     competition = letter.competition
     event = event_for(letter.edition)
+    texts = texts_for(letter.language)
     register_fonts()
     names = ", ".join(person["name"] for person in people)
     issued = timezone.localtime(letter.issued_at)
+    snapshot = _event_snapshot(letter, event)
+    with translation.override(letter.language or DEFAULT_LANGUAGE):
+        event_dates = _date_range(snapshot["starts_on"], snapshot["ends_on"])
     context = {
         "recipient": names,
         "number": letter.number,
         "date": issued.strftime("%d.%m.%Y"),
         "edition": letter.edition.year_label,
-        "event": event.name if event else "",
-        "event_dates": _dates(event) if event and event.starts_on and event.ends_on else "",
-        "city": event.city if event else "",
+        "event": snapshot["name"],
+        "event_dates": event_dates,
+        "city": snapshot["city"],
         "venue": event.venue if event else "",
         "country": letter.country_name,
+        "code": letter.display_code,
     }
-    with translation.override("en"):
+    with translation.override(letter.language or DEFAULT_LANGUAGE):
         rendered = render_document(
             competition,
             DocumentKind.VISA_INVITATION,
             version=letter.template_version,
             fallback={
-                "title": FALLBACK_TITLE,
-                "statement": substitute(FALLBACK_STATEMENT, competition, **context),
-                "signature_line": FALLBACK_SIGNATURE_LINE,
-                "footer_note": substitute(FALLBACK_FOOTER_NOTE, competition, **context),
+                "title": texts["title"],
+                "statement": substitute(texts["statement"], competition, **context),
+                "signature_line": texts["signature_line"],
+                "footer_note": substitute(texts["footer_note"], competition, **context),
                 "author": competition_name(competition),
             },
             **context,
@@ -299,24 +452,12 @@ def letter_pdf(letter: InvitationLetter) -> bytes:
         except Exception:  # noqa: BLE001 - uszkodzony znak nie może zatrzymać listu do konsulatu
             logger.warning("Nie udało się wstawić logo do listu %s.", letter.number)
     header = Table(
-        [[left, [_para(f"No. {letter.number}", right), _para(context["date"], right)]]],
+        [[left, [_para(f"{texts['number_label']} {letter.number}", right), _para(context["date"], right)]]],
         colWidths=[width * 0.6, width * 0.4],
     )
     header.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "TOP"), ("LEFTPADDING", (0, 0), (-1, -1), 0)]))
 
-    table_rows = [
-        [
-            _para(label, head)
-            for label in (
-                "Full name (as in passport)",
-                "Nationality",
-                "Date of birth",
-                "Passport no.",
-                "Valid until",
-                "Role",
-            )
-        ]
-    ]
+    table_rows = [[_para(label, head) for label in texts["columns"]]]
     for person in people:
         table_rows.append(
             [
@@ -376,8 +517,45 @@ def letter_pdf(letter: InvitationLetter) -> bytes:
     ]
     if rendered.footer_note:
         story += [Spacer(1, 10 * mm), _para(rendered.footer_note, small)]
+    if letter.verification_code:
+        story += [Spacer(1, 6 * mm), _verification_block(letter, texts, small, head, width)]
     doc.build(story)
     return sign_document(buffer.getvalue()).data
+
+
+def _verification_block(letter: InvitationLetter, texts: dict, small, head, width: float):
+    """Ramka „Weryfikacja”: kod QR z pełnym adresem, krótki adres formularza i kod do przepisania.
+
+    Dwie drogi, bo list bywa oglądany w dwóch postaciach: wydruk w okienku konsulatu (urzędnik
+    skanuje QR albo przepisuje kod) i skan w systemie wizowym (wtedy liczy się kod w tekście). Kod
+    w grupach po cztery znaki – tak się go dyktuje przez telefon.
+    """
+    from reportlab.lib import colors
+    from reportlab.lib.units import mm
+    from reportlab.platypus import Table, TableStyle
+
+    code = letter.display_code
+    text = texts["verify_text"].format(url=verification_entry_url(letter.competition), code=code)
+    qr_size = 26 * mm
+    block = Table(
+        [
+            [
+                _qr_drawing(verification_url(letter), qr_size),
+                [_para(texts["verify_title"], head), _para(text, small), _para(code, head)],
+            ]
+        ],
+        colWidths=[qr_size + 4 * mm, width - qr_size - 4 * mm],
+    )
+    block.setStyle(
+        TableStyle(
+            [
+                ("BOX", (0, 0), (-1, -1), 0.4, colors.lightgrey),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 4),
+            ]
+        )
+    )
+    return block
 
 
 def pdf_filename(letter: InvitationLetter) -> str:

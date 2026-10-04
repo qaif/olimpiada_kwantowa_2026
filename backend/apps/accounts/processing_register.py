@@ -90,7 +90,11 @@ from apps.competitions.models import DEFAULT_RETENTION_MONTHS
 #: przyloty, zakwaterowanie, dane o zdrowiu (za wyraźną zgodą), zdjęcia do identyfikatorów i kontakty
 #: alarmowe – nowe kategorie danych, nowe osoby (goście delegacji, kontakty alarmowe) i własny, krótki
 #: termin usunięcia. Czynność warunkowa, a jej treść mieszka w ``apps.delegation_logistics.register``.
-REGISTER_VERSION = "1.12"
+#: 1.13 (04.10.2026, zadanie VISA-01) – listy zapraszające do wizy dostają publiczną stronę weryfikacji
+#: po kodzie z listu: imię i nazwisko oraz obywatelstwo osób trafiają do **nowego odbiorcy** – każdego,
+#: kto zna kod (konsulat). Do tego wnioski opiekunów o listy (stan, powód odrzucenia) i unieważnienie
+#: listu. Treść w wierszu logistyki finału (``apps.delegation_logistics.register``).
+REGISTER_VERSION = "1.13"
 REGISTER_DATE = date(2026, 10, 4)
 
 #: Zdanie o okresie przechowywania danych uczestnika. Liczba pochodzi z tego samego miejsca, co
