@@ -1,0 +1,35 @@
+{% load i18n %}{% comment %}
+  IQO Quantum 1.1.0 – slot ``theme/nav.html``: menu serwisu (THEME-02 § 4).
+
+  Dołączany przez ``theme/header.html`` tej paczki (jedno miejsce rysowania menu). Pozycje
+  ``cms_menu`` przychodzą po nadpisaniach koordynatora: kolejność, ukrycie, etykiety per język,
+  własne odnośniki (``new_tab`` → ``target="_blank" rel="noopener noreferrer"``, ``external`` –
+  adres spoza serwisu, arkusz dokłada mu ikonę ↗) i grupy rozwijane (jeden poziom).
+
+  - Lista ``<ul>``: czytnik ekranu podaje liczbę pozycji (menu ma ich od 3 do kilkunastu).
+  - Grupa to ``<details class="nav-menu">`` z klasami aplikacji (``nav-menu__summary``,
+    ``nav-menu__list``, ``nav-menu__link``) – działa bez JavaScriptu, klawiaturą i pod CSP.
+  - Strona główna jest zwykłym odnośnikiem tekstowym (logo i tak prowadzi na stronę główną,
+    a napis jest czytelniejszy od domku w przezroczystym pasku na planszy).
+  - ``aria-current="page"`` tylko na pozycji bieżącej strony; ``is-active`` (sekcja, w której
+    leży bieżąca strona) to wyłącznie wyróżnienie wizualne.
+{% endcomment %}<nav class="nav nav--cms iqo-nav" aria-label="{% translate 'Serwis' %}">
+  <ul class="iqo-nav__list">
+    {% for item in cms_menu %}
+      <li class="iqo-nav__item{% if item.active %} is-active{% endif %}{% if item.children %} iqo-nav__item--group{% endif %}">
+        {% if item.children %}
+          <details class="nav-menu">
+            <summary class="nav__link nav-menu__summary{% if item.active %} nav-menu__summary--active{% endif %}">{{ item.title }}</summary>
+            <ul class="nav-menu__list">
+              {% for child in item.children %}
+                <li><a class="nav-menu__link{% if child.external %} iqo-ext{% endif %}" href="{{ child.url }}"{% if child.new_tab %} target="_blank" rel="noopener noreferrer"{% endif %}{% if child.active %} aria-current="page"{% endif %}>{{ child.title }}</a></li>
+              {% endfor %}
+            </ul>
+          </details>
+        {% else %}
+          <a class="nav__link{% if item.home %} nav__link--home-text{% endif %}{% if item.external %} iqo-ext{% endif %}" href="{{ item.url }}"{% if item.new_tab %} target="_blank" rel="noopener noreferrer"{% endif %}{% if item.url == request.path %} aria-current="page"{% endif %}>{{ item.title }}</a>
+        {% endif %}
+      </li>
+    {% endfor %}
+  </ul>
+</nav>
