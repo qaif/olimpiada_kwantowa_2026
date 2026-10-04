@@ -1,0 +1,680 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-04 22:04+0200\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: en\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Tryb"
+msgstr "Mode"
+
+msgid "Język treści notatnika"
+msgstr "Notebook content language"
+
+msgid ""
+"Język notatnika startowego i komunikatów testów. Interfejs JupyterLab jest "
+"angielski."
+msgstr ""
+"Language of the starter notebook and test messages. The JupyterLab interface "
+"is in English."
+
+msgid "Limit czasu wykonania (s)"
+msgstr "Execution time limit (s)"
+
+msgid "Limit pamięci (MB)"
+msgstr "Memory limit (MB)"
+
+msgid "Kto widzi wynik testów ukrytych"
+msgstr "Who sees the hidden test results"
+
+msgid ""
+"„Od razu” daje uczestnikowi wyrocznię: może wysyłać kolejne wersje i "
+"patrzeć, które testy ukryte przechodzą. Wybieraj to wyłącznie na etapach "
+"treningowych."
+msgstr ""
+"“Immediately” gives participants an oracle: they can submit new versions and "
+"watch which hidden tests pass. Use it only for practice stages."
+
+msgid "Notatnik startowy (.ipynb)"
+msgstr "Starter notebook (.ipynb)"
+
+msgid ""
+"Puste = zostaje obecny (albo generowany szablon). Wyjścia komórek zostaną "
+"wyczyszczone."
+msgstr ""
+"Empty = keep the current one (or the generated template). Cell outputs will "
+"be cleared."
+
+msgid "Usuń wgrany notatnik startowy (użyj szablonu)"
+msgstr "Remove the uploaded starter notebook (use the template)"
+
+msgid "Notatnik wzorcowy (.ipynb)"
+msgstr "Reference notebook (.ipynb)"
+
+msgid ""
+"Twoje rozwiązanie – służy wyłącznie do sprawdzenia testów. Uczestnicy go nie "
+"widzą."
+msgstr ""
+"Your solution – used only to check the tests. Participants never see it."
+
+msgid "Testy widoczne (JSON)"
+msgstr "Visible tests (JSON)"
+
+msgid ""
+"Trafiają do notatnika uczestnika – uczestnik widzi je i uruchamia w "
+"przeglądarce."
+msgstr ""
+"They go into the participant’s notebook – the participant sees them and runs "
+"them in the browser."
+
+msgid "Testy ukryte (JSON)"
+msgstr "Hidden tests (JSON)"
+
+msgid ""
+"Liczone wyłącznie na serwerze. Nigdy nie trafiają do przeglądarki uczestnika."
+msgstr ""
+"Computed only on the server. They never reach the participant’s browser."
+
+msgid "To musi być plik .ipynb."
+msgstr "This must be an .ipynb file."
+
+msgid "Notatnik jest za duży (najwyżej 1 MB)."
+msgstr "The notebook is too large (1 MB at most)."
+
+msgid "To nie jest poprawny notatnik Jupytera (nbformat 4)."
+msgstr "This is not a valid Jupyter notebook (nbformat 4)."
+
+msgid "Notatnik swobodny (ocenia komisja)"
+msgstr "Free notebook (graded by the committee)"
+
+msgid "Sprawdzanie automatyczne (testy)"
+msgstr "Automatic grading (tests)"
+
+msgid "Tylko organizator i komisja"
+msgstr "Organiser and committee only"
+
+msgid "Uczestnik po zamknięciu etapu"
+msgstr "Participant after the stage closes"
+
+msgid "Uczestnik od razu (zalecane tylko na etapach treningowych)"
+msgstr "Participant immediately (recommended only for practice stages)"
+
+msgid "zadanie"
+msgstr "task"
+
+msgid "tryb"
+msgstr "mode"
+
+msgid "język treści notatnika"
+msgstr "notebook content language"
+
+msgid "notatnik startowy"
+msgstr "starter notebook"
+
+msgid "testy widoczne"
+msgstr "visible tests"
+
+msgid "testy ukryte"
+msgstr "hidden tests"
+
+msgid "notatnik wzorcowy"
+msgstr "reference notebook"
+
+msgid "limit czasu (s)"
+msgstr "time limit (s)"
+
+msgid "limit pamięci (MB)"
+msgstr "memory limit (MB)"
+
+msgid "widoczność wyników testów ukrytych"
+msgstr "hidden test results visibility"
+
+msgid "zmieniono"
+msgstr "changed"
+
+msgid "notatnik zadania"
+msgstr "task notebook"
+
+msgid "notatniki zadań"
+msgstr "task notebooks"
+
+msgid "w kolejce"
+msgstr "queued"
+
+msgid "sprawdzanie"
+msgstr "checking"
+
+msgid "sprawdzono"
+msgstr "checked"
+
+msgid "błąd sprawdzania"
+msgstr "checking error"
+
+msgid "zastąpiony nowszą wersją"
+msgstr "superseded by a newer version"
+
+msgid "przebieg oceny notatnika"
+msgstr "notebook grading run"
+
+msgid "przebiegi oceny notatników"
+msgstr "notebook grading runs"
+
+msgid "Przekroczono limit czasu wykonania notatnika."
+msgstr "The notebook exceeded the execution time limit."
+
+msgid "Przekroczono limit pamięci."
+msgstr "The memory limit was exceeded."
+
+msgid "Proces notatnika zakończył się awarią."
+msgstr "The notebook process crashed."
+
+msgid "Plik nie jest poprawnym notatnikiem Jupytera."
+msgstr "The file is not a valid Jupyter notebook."
+
+msgid "Środowisko sprawdzania jest niedostępne."
+msgstr "The grading environment is unavailable."
+
+msgid "Środowisko sprawdzania nie odpowiedziało na czas."
+msgstr "The grading environment did not respond in time."
+
+msgid "Nie udało się odczytać pliku pracy."
+msgstr "Could not read the submission file."
+
+msgid "Testy zadania są nieprawidłowe – popraw je w panelu."
+msgstr "The task tests are invalid – fix them in the panel."
+
+msgid "Błąd środowiska sprawdzania."
+msgstr "Grading environment error."
+
+msgid "Notatniki kwantowe są w tym konkursie wyłączone."
+msgstr "Quantum notebooks are disabled in this competition."
+
+msgid "Testy widoczne"
+msgstr "Visible tests"
+
+msgid "Testy ukryte"
+msgstr "Hidden tests"
+
+msgid ""
+"Zadanie sprawdzane automatycznie musi przyjmować pliki .ipynb – dopisz ten "
+"format w zadaniu."
+msgstr ""
+"An automatically graded task must accept .ipynb files – add this format to "
+"the task."
+
+msgid "Zadanie sprawdzane automatycznie potrzebuje co najmniej jednego testu."
+msgstr "An automatically graded task needs at least one test."
+
+msgid "Nie ma takiego notatnika."
+msgstr "No such notebook."
+
+msgid "To zadanie nie jest sprawdzane automatycznie."
+msgstr "This task is not graded automatically."
+
+msgid "Najpierw wgraj notatnik wzorcowy."
+msgstr "Upload the reference notebook first."
+
+msgid "Sprawdzanie wzorca już trwa – poczekaj na wynik."
+msgstr "The reference check is already running – wait for the result."
+
+msgid "Notatnik w przeglądarce"
+msgstr "In-browser notebook"
+
+msgid "sprawdzanie automatyczne"
+msgstr "automatic grading"
+
+msgid "Podgląd notatnika (tylko do odczytu)"
+msgstr "Notebook preview (read-only)"
+
+msgid ""
+"Twoje konto ma rolę personelu, więc laboratorium (wykonywanie kodu w "
+"przeglądarce) jest dla niego wyłączone. Do rozwiązywania zadań używaj "
+"osobnego konta uczestnika."
+msgstr ""
+"Your account has a staff role, so the lab (running code in the browser) is "
+"disabled for it. Use a separate participant account to solve problems."
+
+msgid "Otwórz notatnik"
+msgstr "Open notebook"
+
+#, python-format
+msgid ""
+"Bez instalowania czegokolwiek. Pierwsze otwarcie pobiera ok. %(size)s MB, "
+"kolejne korzystają z pamięci przeglądarki."
+msgstr ""
+"Nothing to install. The first opening downloads about %(size)s MB; later "
+"ones use the browser cache."
+
+msgid "Bez instalowania czegokolwiek – Python działa w przeglądarce."
+msgstr "Nothing to install – Python runs in your browser."
+
+msgid ""
+"Gotowy notatnik pobierz z JupyterLab (File → Download) i wyślij formularzem "
+"poniżej."
+msgstr ""
+"Download the finished notebook from JupyterLab (File → Download) and submit "
+"it with the form below."
+
+msgid "Notatnik będzie dostępny po otwarciu etapu."
+msgstr "The notebook will be available once the stage opens."
+
+msgid "Testy automatyczne ostatniej wersji"
+msgstr "Automatic tests of the latest version"
+
+#, python-format
+msgid "%(score)s z %(total)s pkt"
+msgstr "%(score)s of %(total)s pts"
+
+msgid "Punkty z testów są podpowiedzią dla komisji – ocenę wystawia komisja."
+msgstr ""
+"Test points are a hint for the committee – the committee awards the grade."
+
+msgid "Testy automatyczne (notatnik)"
+msgstr "Automatic tests (notebook)"
+
+msgid "Ta wersja pracy nie została jeszcze sprawdzona testami."
+msgstr "This version of the work has not been tested yet."
+
+#, python-format
+msgid "Wynik testów ukrytych: <strong>%(score)s z %(total)s pkt</strong>."
+msgstr "Hidden test score: <strong>%(score)s of %(total)s pts</strong>."
+
+msgid "Test"
+msgstr "Test"
+
+msgid "Punkty"
+msgstr "Points"
+
+#, python-format
+msgid "Komórki zakończone błędem: %(counter)s."
+msgstr "Cells that ended with an error: %(counter)s."
+
+msgid ""
+"Punkty z testów są podpowiedzią – ocenę wystawiasz według skali zadania."
+msgstr "Test points are a hint – you grade according to the task’s scale."
+
+msgid "Sprawdzanie w toku."
+msgstr "Checking in progress."
+
+msgid "Bezpieczeństwo: laboratorium działa w domenie serwisu."
+msgstr "Security: the lab runs on the site's domain."
+
+msgid ""
+"Kod z notatnika wykonuje się w przeglądarce osoby, która otworzyła "
+"laboratorium, w domenie serwisu. Polityka laboratorium blokuje z niego "
+"wywołania API i paneli serwisu oraz formularze, ale nie jest to pełna "
+"izolacja. Dlatego laboratorium otwierają wyłącznie konta uczestników bez "
+"żadnej roli personelu – koordynator, recenzent, komisja i opiekunowie "
+"oglądają notatniki w podglądzie tylko do odczytu, w którym nic się nie "
+"wykonuje. Nie otwieraj cudzych notatników w laboratorium z konta uczestnika, "
+"a uczestników uprzedź, żeby nie wklejali cudzego kodu. Pełną izolację da "
+"osobna domena laboratorium – docs/OPERACJE.md § 40.6."
+msgstr ""
+"Notebook code runs in the browser of whoever opened the lab, on the site's "
+"domain. The lab policy blocks site API and panel calls and forms from it, "
+"but this is not full isolation. That is why only participant accounts "
+"without any staff role can open the lab – coordinators, reviewers, committee "
+"members and supervisors view notebooks in a read-only preview where nothing "
+"is executed. Do not open other people's notebooks in the lab from a "
+"participant account, and warn participants not to paste code from others. "
+"Full isolation requires a separate lab domain – docs/OPERACJE.md § 40.6."
+
+msgid "Notatniki kwantowe"
+msgstr "Quantum notebooks"
+
+msgid "panel koordynatora"
+msgstr "coordinator panel"
+
+msgid ""
+"Zadania z notatnikiem Jupytera w przeglądarce (JupyterLite, bez instalowania "
+"czegokolwiek). Notatnik swobodny ocenia komisja; zadanie sprawdzane "
+"automatycznie liczy punkty za testy w piaskownicy na serwerze – jako "
+"podpowiedź dla komisji, jak ocena AI."
+msgstr ""
+"Tasks with an in-browser Jupyter notebook (JupyterLite, nothing to install). "
+"A free notebook is graded by the committee; an automatically graded task "
+"scores tests in a sandbox on the server – as a hint for the committee, like "
+"AI grading."
+
+msgid ""
+"JupyterLite nie jest zbudowane na tym serwerze – uczestnicy zobaczą "
+"wyłącznie przycisk pobrania notatnika startowego. Patrz docs/OPERACJE.md "
+"(notatniki)."
+msgstr ""
+"JupyterLite is not built on this server – participants will only see a "
+"button to download the starter notebook. See docs/OPERACJE.md (notebooks)."
+
+msgid "Etap"
+msgstr "Stage"
+
+msgid "Zadanie"
+msgstr "Problem"
+
+msgid "Notatnik"
+msgstr "Notebook"
+
+msgid "Testy (widoczne / ukryte)"
+msgstr "Tests (visible / hidden)"
+
+msgid "Sprawdzone prace"
+msgstr "Checked works"
+
+msgid "brak"
+msgstr "none"
+
+msgid "Ustawienia"
+msgstr "Settings"
+
+msgid "Dodaj notatnik"
+msgstr "Add notebook"
+
+msgid "Wyniki"
+msgstr "Results"
+
+msgid "Bieżąca edycja nie ma jeszcze zadań."
+msgstr "The current edition has no tasks yet."
+
+msgid "Wyniki testów notatnika"
+msgstr "Notebook test results"
+
+msgid "Notatnik zadania"
+msgstr "Task notebook"
+
+#, python-format
+msgid "Wyniki testów: zadanie %(number)s. %(title)s"
+msgstr "Test results: task %(number)s. %(title)s"
+
+msgid ""
+"Najnowsza wersja pracy każdego uczestnika i punkty za testy ukryte. To "
+"podpowiedź dla komisji – ocenę wystawiają recenzenci według skali zadania."
+msgstr ""
+"The latest version of each participant’s work and the hidden test points. "
+"This is a hint for the committee – reviewers grade according to the task’s "
+"scale."
+
+msgid "Pobierz CSV"
+msgstr "Download CSV"
+
+msgid "Przelicz wszystko"
+msgstr "Recalculate all"
+
+msgid "Kod uczestnika"
+msgstr "Participant code"
+
+msgid "Wersja"
+msgstr "Version"
+
+msgid "Status"
+msgstr "Status"
+
+msgid "Suma"
+msgstr "Total"
+
+msgid "testy zmienione"
+msgstr "tests changed"
+
+msgid "Szczegóły"
+msgstr "Details"
+
+msgid ""
+"Nie ma jeszcze sprawdzonych prac. Przebiegi powstają w ciągu minuty od "
+"czystego skanu antywirusowego pliku .ipynb."
+msgstr ""
+"No works have been checked yet. Runs are created within a minute of a clean "
+"antivirus scan of the .ipynb file."
+
+msgid "Przebieg sprawdzania"
+msgstr "Grading run"
+
+msgid "Wyniki testów"
+msgstr "Test results"
+
+#, python-format
+msgid "Przebieg sprawdzania #%(id)s"
+msgstr "Grading run #%(id)s"
+
+msgid ""
+"Szczegóły jednego sprawdzenia: wynik każdego testu, błędy komórek i początek "
+"wyjścia programu."
+msgstr ""
+"Details of one check: each test’s result, cell errors and the beginning of "
+"the program output."
+
+msgid "Wersja pracy"
+msgstr "Work version"
+
+msgid "Rodzaj"
+msgstr "Kind"
+
+msgid "rozwiązanie wzorcowe"
+msgstr "reference solution"
+
+msgid "Komunikat"
+msgstr "Message"
+
+msgid "ukryty"
+msgstr "hidden"
+
+msgid "widoczny"
+msgstr "visible"
+
+msgid "Błędy komórek"
+msgstr "Cell errors"
+
+#, python-format
+msgid "komórka %(cell)s"
+msgstr "cell %(cell)s"
+
+msgid "Początek wyjścia programu"
+msgstr "Beginning of the program output"
+
+#, python-format
+msgid "Notatnik: zadanie %(number)s. %(title)s"
+msgstr "Notebook: task %(number)s. %(title)s"
+
+msgid ""
+"Uczestnik otwiera notatnik przy zadaniu w przeglądarce i oddaje plik .ipynb "
+"zwykłą wysyłką. Testy ukryte liczy wyłącznie serwer – nie trafiają ani do "
+"przeglądarki, ani do piaskownicy, w której wykonuje się kod uczestnika."
+msgstr ""
+"The participant opens the notebook next to the task in the browser and "
+"submits the .ipynb file through the usual upload. Hidden tests are computed "
+"only by the server – they reach neither the browser nor the sandbox that "
+"runs the participant’s code."
+
+msgid "Pobierz notatnik jak uczestnik"
+msgstr "Download the notebook as a participant sees it"
+
+msgid "Notatnik wzorcowy – podgląd"
+msgstr "reference notebook"
+
+msgid "Wyniki prac"
+msgstr "Results of works"
+
+msgid ""
+"To zadanie nie przyjmuje plików .ipynb. Dopisz ten format w ustawieniach "
+"zadania, zanim włączysz sprawdzanie automatyczne."
+msgstr ""
+"This task does not accept .ipynb files. Add this format in the task settings "
+"before you enable automatic grading."
+
+msgid "Zapisz"
+msgstr "Save"
+
+msgid "Format testów"
+msgstr "Test format"
+
+msgid ""
+"Lista obiektów JSON. „target” to nazwa zmiennej z notatnika albo {\"call\": "
+"\"funkcja\", \"args\": [...]}. Liczby można pisać wyrażeniami: \"1/"
+"sqrt(2)\", \"exp(i*pi/4)\", \"-0.5j\". Test zaliczony daje pełne punkty, "
+"niezaliczony – zero."
+msgstr ""
+"A list of JSON objects. “target” is a notebook variable name or {\"call\": "
+"\"function\", \"args\": [...]}. Numbers may be written as expressions: \"1/"
+"sqrt(2)\", \"exp(i*pi/4)\", \"-0.5j\". A passed test gives full points, a "
+"failed one – zero."
+
+msgid "Rodzaje (check):"
+msgstr "Kinds (check):"
+
+msgid ""
+"Szczegóły i wszystkie warunki: podręcznik organizatora, rozdział o "
+"notatnikach kwantowych."
+msgstr ""
+"Details and all conditions: organiser’s handbook, chapter on quantum "
+"notebooks."
+
+msgid "Sprawdzenie testów na rozwiązaniu wzorcowym"
+msgstr "Checking the tests on the reference solution"
+
+msgid "Sprawdź testy na wzorcu"
+msgstr "Check tests on the reference"
+
+msgid ""
+"Wgraj notatnik wzorcowy w formularzu powyżej, żeby sprawdzić, czy testy "
+"przechodzą."
+msgstr ""
+"Upload the reference notebook in the form above to check whether the tests "
+"pass."
+
+msgid "Ostatnie sprawdzenie:"
+msgstr "Last check:"
+
+msgid "Błędy komórek wzorca:"
+msgstr "Reference cell errors:"
+
+msgid "Sprawdzanie trwa zwykle kilka sekund – odśwież stronę."
+msgstr "Checking usually takes a few seconds – refresh the page."
+
+msgid ""
+"Wyłączenie notatnika usuwa jego ustawienia, testy i wyniki sprawdzania. "
+"Oddane pliki prac zostają."
+msgstr ""
+"Disabling the notebook deletes its settings, tests and grading results. "
+"Submitted work files remain."
+
+msgid "Wyłącz notatnik w tym zadaniu"
+msgstr "Disable the notebook for this task"
+
+#, python-format
+msgid "Notatnik – zadanie %(number)s"
+msgstr "Notebook – task %(number)s"
+
+msgid "Panel uczestnika"
+msgstr "Participant panel"
+
+#, python-format
+msgid "Zadanie %(number)s: %(title)s"
+msgstr "Problem %(number)s: %(title)s"
+
+msgid ""
+"Notatnik otwiera się w nowej karcie – kod uruchamiasz klawiszami "
+"Shift+Enter. Wszystko liczy Twoja przeglądarka."
+msgstr ""
+"The notebook opens below – run code with Shift+Enter. Everything is computed "
+"by your browser."
+
+msgid ""
+"Ostatnia komórka uruchamia testy przykładowe. Ocenę liczą testy ukryte na "
+"serwerze."
+msgstr ""
+"The last cell runs the sample tests. The score is computed by hidden tests "
+"on the server."
+
+msgid ""
+"Gotowe? W JupyterLab: File → Download. Pobrany plik .ipynb wyślij w karcie "
+"zadania na platformie."
+msgstr ""
+"Done? In JupyterLab: File → Download. Submit the downloaded .ipynb file in "
+"the task card on the platform."
+
+msgid ""
+"Praca zapisuje się w tej przeglądarce (nie na serwerze). Na wspólnym "
+"komputerze pobierz plik przed wyjściem."
+msgstr ""
+"Your work is saved in this browser (not on the server). On a shared "
+"computer, download the file before you leave."
+
+#, python-format
+msgid "Pierwsze otwarcie pobiera ok. %(size)s MB."
+msgstr "The first opening downloads about %(size)s MB."
+
+msgid ""
+"Nie wklejaj do notatnika kodu od innych osób – wykonuje się w Twojej "
+"przeglądarce, na Twoim koncie."
+msgstr ""
+"Do not paste code from other people into the notebook – it runs in your "
+"browser, on your account."
+
+msgid "Pobierz notatnik startowy"
+msgstr "Download the starter notebook"
+
+msgid "Wróć do zadania"
+msgstr "Back to the task"
+
+msgid ""
+"Notatnik w przeglądarce nie jest jeszcze zainstalowany na tym serwerze. "
+"Pobierz notatnik startowy i otwórz go we własnym Jupyterze albo napisz do "
+"organizatora."
+msgstr ""
+"The in-browser notebook is not installed on this server yet. Download the "
+"starter notebook and open it in your own Jupyter, or contact the organiser."
+
+msgid ""
+"Podgląd tylko do odczytu: kod nie jest wykonywany, wyjścia HTML i JavaScript "
+"są pominięte."
+msgstr ""
+"Read-only preview: code is not executed, HTML and JavaScript outputs are "
+"omitted."
+
+msgid "Wykres z notatnika"
+msgstr "Notebook test results"
+
+#, python-format
+msgid "Pominięto wyjście typu %(mime)s."
+msgstr "Omitted output of type %(mime)s."
+
+msgid "Notatnik nie ma komórek."
+msgstr "Quantum notebooks"
+
+msgid "Notatnik wzorcowy poszedł do sprawdzenia – wynik pojawi się poniżej."
+msgstr ""
+"The reference notebook was sent for checking – the result will appear below."
+
+msgid "Notatnik zadania został wyłączony."
+msgstr "The task notebook has been disabled."
+
+msgid ""
+"Testy się zmieniły – wyniki już sprawdzonych prac są nieaktualne. Użyj "
+"„Przelicz wszystko”."
+msgstr ""
+"The tests changed – results of already checked works are out of date. Use "
+"“Recalculate all”."
+
+msgid "Zapisano ustawienia notatnika."
+msgstr "Notebook settings saved."
+
+#, python-format
+msgid "Do ponownego sprawdzenia: %(count)s prac."
+msgstr "Queued for re-checking: %(count)s works."
+
+msgid "Notatnik startowy – podgląd"
+msgstr "starter notebook"
+
+#, python-format
+msgid "Praca – podgląd notatnika (wersja %(version)s)"
+msgstr "Submission – notebook preview (version %(version)s)"

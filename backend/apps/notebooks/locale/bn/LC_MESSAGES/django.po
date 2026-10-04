@@ -1,0 +1,655 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-04 22:04+0200\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: bn\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Tryb"
+msgstr "মোড"
+
+msgid "Język treści notatnika"
+msgstr "নোটবুকের বিষয়বস্তুর ভাষা"
+
+msgid ""
+"Język notatnika startowego i komunikatów testów. Interfejs JupyterLab jest "
+"angielski."
+msgstr "স্টার্টার নোটবুক ও পরীক্ষার বার্তার ভাষা। JupyterLab ইন্টারফেস ইংরেজিতে।"
+
+msgid "Limit czasu wykonania (s)"
+msgstr "চালানোর সময়সীমা (সে.)"
+
+msgid "Limit pamięci (MB)"
+msgstr "মেমরি সীমা (MB)"
+
+msgid "Kto widzi wynik testów ukrytych"
+msgstr "লুকানো পরীক্ষার ফল কে দেখে"
+
+msgid ""
+"„Od razu” daje uczestnikowi wyrocznię: może wysyłać kolejne wersje i "
+"patrzeć, które testy ukryte przechodzą. Wybieraj to wyłącznie na etapach "
+"treningowych."
+msgstr ""
+"“সঙ্গে সঙ্গে” অংশগ্রহণকারীকে একটি ওরাকল দেয়: সে নতুন সংস্করণ পাঠিয়ে দেখতে পারে "
+"কোন লুকানো পরীক্ষা পাস করছে। শুধু অনুশীলন পর্বে বেছে নিন।"
+
+msgid "Notatnik startowy (.ipynb)"
+msgstr "স্টার্টার নোটবুক (.ipynb)"
+
+msgid ""
+"Puste = zostaje obecny (albo generowany szablon). Wyjścia komórek zostaną "
+"wyczyszczone."
+msgstr ""
+"খালি = বর্তমানটি থাকবে (অথবা তৈরি করা টেমপ্লেট)। সেলের আউটপুট মুছে ফেলা হবে।"
+
+msgid "Usuń wgrany notatnik startowy (użyj szablonu)"
+msgstr "আপলোড করা স্টার্টার নোটবুক মুছুন (টেমপ্লেট ব্যবহার করুন)"
+
+msgid "Notatnik wzorcowy (.ipynb)"
+msgstr "রেফারেন্স নোটবুক (.ipynb)"
+
+msgid ""
+"Twoje rozwiązanie – służy wyłącznie do sprawdzenia testów. Uczestnicy go nie "
+"widzą."
+msgstr "আপনার সমাধান – শুধু পরীক্ষা যাচাইয়ের জন্য। অংশগ্রহণকারীরা এটি দেখে না।"
+
+msgid "Testy widoczne (JSON)"
+msgstr "দৃশ্যমান পরীক্ষা (JSON)"
+
+msgid ""
+"Trafiają do notatnika uczestnika – uczestnik widzi je i uruchamia w "
+"przeglądarce."
+msgstr "এগুলো অংশগ্রহণকারীর নোটবুকে যায় – সে এগুলো দেখে এবং ব্রাউজারে চালায়।"
+
+msgid "Testy ukryte (JSON)"
+msgstr "লুকানো পরীক্ষা (JSON)"
+
+msgid ""
+"Liczone wyłącznie na serwerze. Nigdy nie trafiają do przeglądarki uczestnika."
+msgstr "শুধু সার্ভারে গণনা হয়। কখনো অংশগ্রহণকারীর ব্রাউজারে পৌঁছায় না।"
+
+msgid "To musi być plik .ipynb."
+msgstr "এটি অবশ্যই .ipynb ফাইল হতে হবে।"
+
+msgid "Notatnik jest za duży (najwyżej 1 MB)."
+msgstr "নোটবুকটি খুব বড় (সর্বোচ্চ ১ MB)।"
+
+msgid "To nie jest poprawny notatnik Jupytera (nbformat 4)."
+msgstr "এটি বৈধ Jupyter নোটবুক নয় (nbformat 4)।"
+
+msgid "Notatnik swobodny (ocenia komisja)"
+msgstr "মুক্ত নোটবুক (কমিটি মূল্যায়ন করে)"
+
+msgid "Sprawdzanie automatyczne (testy)"
+msgstr "স্বয়ংক্রিয় যাচাই (পরীক্ষা)"
+
+msgid "Tylko organizator i komisja"
+msgstr "শুধু আয়োজক ও কমিটি"
+
+msgid "Uczestnik po zamknięciu etapu"
+msgstr "পর্ব বন্ধ হওয়ার পর অংশগ্রহণকারী"
+
+msgid "Uczestnik od razu (zalecane tylko na etapach treningowych)"
+msgstr "অংশগ্রহণকারী সঙ্গে সঙ্গে (শুধু অনুশীলন পর্বে প্রস্তাবিত)"
+
+msgid "zadanie"
+msgstr "প্রশ্ন"
+
+msgid "tryb"
+msgstr "মোড"
+
+msgid "język treści notatnika"
+msgstr "নোটবুকের বিষয়বস্তুর ভাষা"
+
+msgid "notatnik startowy"
+msgstr "স্টার্টার নোটবুক"
+
+msgid "testy widoczne"
+msgstr "দৃশ্যমান পরীক্ষা"
+
+msgid "testy ukryte"
+msgstr "লুকানো পরীক্ষা"
+
+msgid "notatnik wzorcowy"
+msgstr "রেফারেন্স নোটবুক"
+
+msgid "limit czasu (s)"
+msgstr "সময়সীমা (সে.)"
+
+msgid "limit pamięci (MB)"
+msgstr "মেমরি সীমা (MB)"
+
+msgid "widoczność wyników testów ukrytych"
+msgstr "লুকানো পরীক্ষার ফলাফলের দৃশ্যমানতা"
+
+msgid "zmieniono"
+msgstr "পরিবর্তিত"
+
+msgid "notatnik zadania"
+msgstr "প্রশ্নের নোটবুক"
+
+msgid "notatniki zadań"
+msgstr "প্রশ্নের নোটবুকগুলো"
+
+msgid "w kolejce"
+msgstr "সারিতে"
+
+msgid "sprawdzanie"
+msgstr "যাচাই চলছে"
+
+msgid "sprawdzono"
+msgstr "যাচাই সম্পন্ন"
+
+msgid "błąd sprawdzania"
+msgstr "যাচাইয়ে ত্রুটি"
+
+msgid "zastąpiony nowszą wersją"
+msgstr "নতুন সংস্করণ দ্বারা প্রতিস্থাপিত"
+
+msgid "przebieg oceny notatnika"
+msgstr "নোটবুক মূল্যায়ন রান"
+
+msgid "przebiegi oceny notatników"
+msgstr "নোটবুক মূল্যায়ন রানগুলো"
+
+msgid "Przekroczono limit czasu wykonania notatnika."
+msgstr "নোটবুক চালানোর সময়সীমা পার করেছে।"
+
+msgid "Przekroczono limit pamięci."
+msgstr "মেমরি সীমা পার হয়েছে।"
+
+msgid "Proces notatnika zakończył się awarią."
+msgstr "নোটবুক প্রক্রিয়া ক্র্যাশ করেছে।"
+
+msgid "Plik nie jest poprawnym notatnikiem Jupytera."
+msgstr "ফাইলটি বৈধ Jupyter নোটবুক নয়।"
+
+msgid "Środowisko sprawdzania jest niedostępne."
+msgstr "যাচাইয়ের পরিবেশ উপলভ্য নয়।"
+
+msgid "Środowisko sprawdzania nie odpowiedziało na czas."
+msgstr "যাচাইয়ের পরিবেশ সময়মতো সাড়া দেয়নি।"
+
+msgid "Nie udało się odczytać pliku pracy."
+msgstr "জমা দেওয়া ফাইল পড়া যায়নি।"
+
+msgid "Testy zadania są nieprawidłowe – popraw je w panelu."
+msgstr "প্রশ্নের পরীক্ষাগুলো অবৈধ – প্যানেলে ঠিক করুন।"
+
+msgid "Błąd środowiska sprawdzania."
+msgstr "যাচাইয়ের পরিবেশে ত্রুটি।"
+
+msgid "Notatniki kwantowe są w tym konkursie wyłączone."
+msgstr "এই প্রতিযোগিতায় কোয়ান্টাম নোটবুক বন্ধ।"
+
+msgid "Testy widoczne"
+msgstr "দৃশ্যমান পরীক্ষা"
+
+msgid "Testy ukryte"
+msgstr "লুকানো পরীক্ষা"
+
+msgid ""
+"Zadanie sprawdzane automatycznie musi przyjmować pliki .ipynb – dopisz ten "
+"format w zadaniu."
+msgstr ""
+"স্বয়ংক্রিয়ভাবে যাচাই হওয়া প্রশ্নকে .ipynb ফাইল গ্রহণ করতে হবে – প্রশ্নে এই ফরম্যাট "
+"যোগ করুন।"
+
+msgid "Zadanie sprawdzane automatycznie potrzebuje co najmniej jednego testu."
+msgstr "স্বয়ংক্রিয় যাচাইয়ের প্রশ্নে অন্তত একটি পরীক্ষা দরকার।"
+
+msgid "Nie ma takiego notatnika."
+msgstr "এমন কোনো নোটবুক নেই।"
+
+msgid "To zadanie nie jest sprawdzane automatycznie."
+msgstr "এই প্রশ্ন স্বয়ংক্রিয়ভাবে যাচাই হয় না।"
+
+msgid "Najpierw wgraj notatnik wzorcowy."
+msgstr "প্রথমে রেফারেন্স নোটবুক আপলোড করুন।"
+
+msgid "Sprawdzanie wzorca już trwa – poczekaj na wynik."
+msgstr "রেফারেন্স যাচাই ইতিমধ্যে চলছে – ফলাফলের অপেক্ষা করুন।"
+
+msgid "Notatnik w przeglądarce"
+msgstr "ব্রাউজারে নোটবুক"
+
+msgid "sprawdzanie automatyczne"
+msgstr "স্বয়ংক্রিয় যাচাই"
+
+msgid "Podgląd notatnika (tylko do odczytu)"
+msgstr "নোটবুক প্রিভিউ (শুধু পড়ার জন্য)"
+
+msgid ""
+"Twoje konto ma rolę personelu, więc laboratorium (wykonywanie kodu w "
+"przeglądarce) jest dla niego wyłączone. Do rozwiązywania zadań używaj "
+"osobnego konta uczestnika."
+msgstr ""
+"আপনার অ্যাকাউন্টে কর্মী ভূমিকা আছে, তাই এর জন্য ল্যাব (ব্রাউজারে কোড চালানো) বন্ধ। "
+"সমস্যা সমাধানের জন্য আলাদা অংশগ্রহণকারী অ্যাকাউন্ট ব্যবহার করুন।"
+
+msgid "Otwórz notatnik"
+msgstr "নোটবুক খুলুন"
+
+#, python-format
+msgid ""
+"Bez instalowania czegokolwiek. Pierwsze otwarcie pobiera ok. %(size)s MB, "
+"kolejne korzystają z pamięci przeglądarki."
+msgstr ""
+"কিছুই ইনস্টল করতে হবে না। প্রথমবার খুললে প্রায় %(size)s MB ডাউনলোড হয়, পরে "
+"ব্রাউজারের ক্যাশ ব্যবহার হয়।"
+
+msgid "Bez instalowania czegokolwiek – Python działa w przeglądarce."
+msgstr "কিছুই ইনস্টল করতে হবে না – Python ব্রাউজারে চলে।"
+
+msgid ""
+"Gotowy notatnik pobierz z JupyterLab (File → Download) i wyślij formularzem "
+"poniżej."
+msgstr ""
+"সম্পূর্ণ নোটবুক JupyterLab থেকে ডাউনলোড করুন (File → Download) এবং নিচের ফর্মে "
+"পাঠান।"
+
+msgid "Notatnik będzie dostępny po otwarciu etapu."
+msgstr "পর্ব খোলার পর নোটবুক পাওয়া যাবে।"
+
+msgid "Testy automatyczne ostatniej wersji"
+msgstr "সর্বশেষ সংস্করণের স্বয়ংক্রিয় পরীক্ষা"
+
+#, python-format
+msgid "%(score)s z %(total)s pkt"
+msgstr "%(total)s-এর মধ্যে %(score)s পয়েন্ট"
+
+msgid "Punkty z testów są podpowiedzią dla komisji – ocenę wystawia komisja."
+msgstr "পরীক্ষার পয়েন্ট কমিটির জন্য ইঙ্গিত – নম্বর দেয় কমিটি।"
+
+msgid "Testy automatyczne (notatnik)"
+msgstr "স্বয়ংক্রিয় পরীক্ষা (নোটবুক)"
+
+msgid "Ta wersja pracy nie została jeszcze sprawdzona testami."
+msgstr "কাজের এই সংস্করণ এখনো পরীক্ষা দিয়ে যাচাই হয়নি।"
+
+#, python-format
+msgid "Wynik testów ukrytych: <strong>%(score)s z %(total)s pkt</strong>."
+msgstr "লুকানো পরীক্ষার ফল: <strong>%(total)s-এর মধ্যে %(score)s পয়েন্ট</strong>।"
+
+msgid "Test"
+msgstr "পরীক্ষা"
+
+msgid "Punkty"
+msgstr "পয়েন্ট"
+
+#, python-format
+msgid "Komórki zakończone błędem: %(counter)s."
+msgstr "ত্রুটিসহ শেষ হওয়া সেল: %(counter)s।"
+
+msgid ""
+"Punkty z testów są podpowiedzią – ocenę wystawiasz według skali zadania."
+msgstr "পরীক্ষার পয়েন্ট শুধু ইঙ্গিত – আপনি প্রশ্নের স্কেল অনুযায়ী নম্বর দেন।"
+
+msgid "Sprawdzanie w toku."
+msgstr "যাচাই চলছে।"
+
+msgid "Bezpieczeństwo: laboratorium działa w domenie serwisu."
+msgstr "নিরাপত্তা: ল্যাব সাইটের ডোমেইনে চলে।"
+
+msgid ""
+"Kod z notatnika wykonuje się w przeglądarce osoby, która otworzyła "
+"laboratorium, w domenie serwisu. Polityka laboratorium blokuje z niego "
+"wywołania API i paneli serwisu oraz formularze, ale nie jest to pełna "
+"izolacja. Dlatego laboratorium otwierają wyłącznie konta uczestników bez "
+"żadnej roli personelu – koordynator, recenzent, komisja i opiekunowie "
+"oglądają notatniki w podglądzie tylko do odczytu, w którym nic się nie "
+"wykonuje. Nie otwieraj cudzych notatników w laboratorium z konta uczestnika, "
+"a uczestników uprzedź, żeby nie wklejali cudzego kodu. Pełną izolację da "
+"osobna domena laboratorium – docs/OPERACJE.md § 40.6."
+msgstr ""
+"নোটবুকের কোড সাইটের ডোমেইনে, যিনি ল্যাব খুলেছেন তাঁর ব্রাউজারে চলে। ল্যাব নীতি "
+"এখান থেকে সাইটের API ও প্যানেল কল এবং ফর্ম আটকায়, তবে এটি পূর্ণ বিচ্ছিন্নতা নয়। "
+"তাই কেবল কোনো কর্মী ভূমিকা ছাড়া অংশগ্রহণকারী অ্যাকাউন্টই ল্যাব খুলতে পারে – সমন্বয়ক, "
+"পর্যালোচক, কমিটির সদস্য ও তত্ত্বাবধায়করা নোটবুক শুধু-পড়ার প্রিভিউতে দেখেন, যেখানে "
+"কিছুই চালানো হয় না। অংশগ্রহণকারী অ্যাকাউন্ট থেকে ল্যাবে অন্যের নোটবুক খুলবেন না, এবং "
+"অংশগ্রহণকারীদের সতর্ক করুন যেন তারা অন্যের কোড পেস্ট না করে। পূর্ণ বিচ্ছিন্নতার জন্য "
+"ল্যাবের আলাদা ডোমেইন দরকার – docs/OPERACJE.md § 40.6।"
+
+msgid "Notatniki kwantowe"
+msgstr "কোয়ান্টাম নোটবুক"
+
+msgid "panel koordynatora"
+msgstr "সমন্বয়কের প্যানেল"
+
+msgid ""
+"Zadania z notatnikiem Jupytera w przeglądarce (JupyterLite, bez instalowania "
+"czegokolwiek). Notatnik swobodny ocenia komisja; zadanie sprawdzane "
+"automatycznie liczy punkty za testy w piaskownicy na serwerze – jako "
+"podpowiedź dla komisji, jak ocena AI."
+msgstr ""
+"ব্রাউজারে Jupyter নোটবুকসহ প্রশ্ন (JupyterLite, কিছু ইনস্টল নয়)। মুক্ত নোটবুক কমিটি "
+"মূল্যায়ন করে; স্বয়ংক্রিয় প্রশ্ন সার্ভারের স্যান্ডবক্সে পরীক্ষার পয়েন্ট গোনে – কমিটির জন্য "
+"ইঙ্গিত হিসেবে, AI মূল্যায়নের মতো।"
+
+msgid ""
+"JupyterLite nie jest zbudowane na tym serwerze – uczestnicy zobaczą "
+"wyłącznie przycisk pobrania notatnika startowego. Patrz docs/OPERACJE.md "
+"(notatniki)."
+msgstr ""
+"এই সার্ভারে JupyterLite তৈরি করা হয়নি – অংশগ্রহণকারীরা শুধু স্টার্টার নোটবুক "
+"ডাউনলোডের বোতাম দেখবে। docs/OPERACJE.md (নোটবুক) দেখুন।"
+
+msgid "Etap"
+msgstr "পর্ব"
+
+msgid "Zadanie"
+msgstr "সমস্যা"
+
+msgid "Notatnik"
+msgstr "নোটবুক"
+
+msgid "Testy (widoczne / ukryte)"
+msgstr "পরীক্ষা (দৃশ্যমান / লুকানো)"
+
+msgid "Sprawdzone prace"
+msgstr "যাচাই করা কাজ"
+
+msgid "brak"
+msgstr "নেই"
+
+msgid "Ustawienia"
+msgstr "সেটিংস"
+
+msgid "Dodaj notatnik"
+msgstr "নোটবুক যোগ করুন"
+
+msgid "Wyniki"
+msgstr "ফলাফল"
+
+msgid "Bieżąca edycja nie ma jeszcze zadań."
+msgstr "বর্তমান সংস্করণে এখনো কোনো প্রশ্ন নেই।"
+
+msgid "Wyniki testów notatnika"
+msgstr "নোটবুক পরীক্ষার ফলাফল"
+
+msgid "Notatnik zadania"
+msgstr "প্রশ্নের নোটবুক"
+
+#, python-format
+msgid "Wyniki testów: zadanie %(number)s. %(title)s"
+msgstr "পরীক্ষার ফল: প্রশ্ন %(number)s. %(title)s"
+
+msgid ""
+"Najnowsza wersja pracy każdego uczestnika i punkty za testy ukryte. To "
+"podpowiedź dla komisji – ocenę wystawiają recenzenci według skali zadania."
+msgstr ""
+"প্রত্যেক অংশগ্রহণকারীর কাজের সর্বশেষ সংস্করণ ও লুকানো পরীক্ষার পয়েন্ট। এটি কমিটির "
+"জন্য ইঙ্গিত – পর্যালোচকরা প্রশ্নের স্কেল অনুযায়ী নম্বর দেন।"
+
+msgid "Pobierz CSV"
+msgstr "CSV ডাউনলোড করুন"
+
+msgid "Przelicz wszystko"
+msgstr "সব আবার গণনা করুন"
+
+msgid "Kod uczestnika"
+msgstr "অংশগ্রহণকারীর কোড"
+
+msgid "Wersja"
+msgstr "সংস্করণ"
+
+msgid "Status"
+msgstr "স্ট্যাটাস"
+
+msgid "Suma"
+msgstr "মোট"
+
+msgid "testy zmienione"
+msgstr "পরীক্ষা পরিবর্তিত"
+
+msgid "Szczegóły"
+msgstr "বিস্তারিত"
+
+msgid ""
+"Nie ma jeszcze sprawdzonych prac. Przebiegi powstają w ciągu minuty od "
+"czystego skanu antywirusowego pliku .ipynb."
+msgstr ""
+"এখনো কোনো কাজ যাচাই হয়নি। .ipynb ফাইলের পরিষ্কার অ্যান্টিভাইরাস স্ক্যানের এক "
+"মিনিটের মধ্যে রান তৈরি হয়।"
+
+msgid "Przebieg sprawdzania"
+msgstr "যাচাই রান"
+
+msgid "Wyniki testów"
+msgstr "পরীক্ষার ফল"
+
+#, python-format
+msgid "Przebieg sprawdzania #%(id)s"
+msgstr "যাচাই রান #%(id)s"
+
+msgid ""
+"Szczegóły jednego sprawdzenia: wynik każdego testu, błędy komórek i początek "
+"wyjścia programu."
+msgstr ""
+"একটি যাচাইয়ের বিস্তারিত: প্রতিটি পরীক্ষার ফল, সেলের ত্রুটি ও প্রোগ্রাম আউটপুটের শুরু।"
+
+msgid "Wersja pracy"
+msgstr "কাজের সংস্করণ"
+
+msgid "Rodzaj"
+msgstr "ধরন"
+
+msgid "rozwiązanie wzorcowe"
+msgstr "রেফারেন্স সমাধান"
+
+msgid "Komunikat"
+msgstr "বার্তা"
+
+msgid "ukryty"
+msgstr "লুকানো"
+
+msgid "widoczny"
+msgstr "দৃশ্যমান"
+
+msgid "Błędy komórek"
+msgstr "সেলের ত্রুটি"
+
+#, python-format
+msgid "komórka %(cell)s"
+msgstr "সেল %(cell)s"
+
+msgid "Początek wyjścia programu"
+msgstr "প্রোগ্রাম আউটপুটের শুরু"
+
+#, python-format
+msgid "Notatnik: zadanie %(number)s. %(title)s"
+msgstr "নোটবুক: প্রশ্ন %(number)s. %(title)s"
+
+msgid ""
+"Uczestnik otwiera notatnik przy zadaniu w przeglądarce i oddaje plik .ipynb "
+"zwykłą wysyłką. Testy ukryte liczy wyłącznie serwer – nie trafiają ani do "
+"przeglądarki, ani do piaskownicy, w której wykonuje się kod uczestnika."
+msgstr ""
+"অংশগ্রহণকারী ব্রাউজারে প্রশ্নের পাশে নোটবুক খোলে এবং সাধারণ আপলোডে .ipynb ফাইল "
+"জমা দেয়। লুকানো পরীক্ষা শুধু সার্ভার গণনা করে – তা ব্রাউজারেও যায় না, অংশগ্রহণকারীর "
+"কোড চলা স্যান্ডবক্সেও না।"
+
+msgid "Pobierz notatnik jak uczestnik"
+msgstr "অংশগ্রহণকারী যেমন দেখে তেমন নোটবুক ডাউনলোড করুন"
+
+msgid "Notatnik wzorcowy – podgląd"
+msgstr "রেফারেন্স নোটবুক"
+
+msgid "Wyniki prac"
+msgstr "কাজের ফলাফল"
+
+msgid ""
+"To zadanie nie przyjmuje plików .ipynb. Dopisz ten format w ustawieniach "
+"zadania, zanim włączysz sprawdzanie automatyczne."
+msgstr ""
+"এই প্রশ্ন .ipynb ফাইল গ্রহণ করে না। স্বয়ংক্রিয় যাচাই চালুর আগে প্রশ্নের সেটিংসে এই "
+"ফরম্যাট যোগ করুন।"
+
+msgid "Zapisz"
+msgstr "সংরক্ষণ করুন"
+
+msgid "Format testów"
+msgstr "পরীক্ষার ফরম্যাট"
+
+msgid ""
+"Lista obiektów JSON. „target” to nazwa zmiennej z notatnika albo {\"call\": "
+"\"funkcja\", \"args\": [...]}. Liczby można pisać wyrażeniami: \"1/"
+"sqrt(2)\", \"exp(i*pi/4)\", \"-0.5j\". Test zaliczony daje pełne punkty, "
+"niezaliczony – zero."
+msgstr ""
+"JSON অবজেক্টের তালিকা। “target” হলো নোটবুকের ভেরিয়েবলের নাম অথবা {\"call\": "
+"\"function\", \"args\": [...]}। সংখ্যা রাশি হিসেবে লেখা যায়: \"1/sqrt(2)\", "
+"\"exp(i*pi/4)\", \"-0.5j\"। পাস করা পরীক্ষা পূর্ণ পয়েন্ট দেয়, ব্যর্থ – শূন্য।"
+
+msgid "Rodzaje (check):"
+msgstr "ধরন (check):"
+
+msgid ""
+"Szczegóły i wszystkie warunki: podręcznik organizatora, rozdział o "
+"notatnikach kwantowych."
+msgstr "বিস্তারিত ও সব শর্ত: আয়োজকের হ্যান্ডবুক, কোয়ান্টাম নোটবুক অধ্যায়।"
+
+msgid "Sprawdzenie testów na rozwiązaniu wzorcowym"
+msgstr "রেফারেন্স সমাধানে পরীক্ষা যাচাই"
+
+msgid "Sprawdź testy na wzorcu"
+msgstr "রেফারেন্সে পরীক্ষা যাচাই করুন"
+
+msgid ""
+"Wgraj notatnik wzorcowy w formularzu powyżej, żeby sprawdzić, czy testy "
+"przechodzą."
+msgstr "পরীক্ষা পাস করে কিনা দেখতে উপরের ফর্মে রেফারেন্স নোটবুক আপলোড করুন।"
+
+msgid "Ostatnie sprawdzenie:"
+msgstr "শেষ যাচাই:"
+
+msgid "Błędy komórek wzorca:"
+msgstr "রেফারেন্সের সেল ত্রুটি:"
+
+msgid "Sprawdzanie trwa zwykle kilka sekund – odśwież stronę."
+msgstr "যাচাইয়ে সাধারণত কয়েক সেকেন্ড লাগে – পেজ রিফ্রেশ করুন।"
+
+msgid ""
+"Wyłączenie notatnika usuwa jego ustawienia, testy i wyniki sprawdzania. "
+"Oddane pliki prac zostają."
+msgstr ""
+"নোটবুক বন্ধ করলে এর সেটিংস, পরীক্ষা ও যাচাইয়ের ফল মুছে যায়। জমা দেওয়া কাজের ফাইল "
+"থেকে যায়।"
+
+msgid "Wyłącz notatnik w tym zadaniu"
+msgstr "এই প্রশ্নে নোটবুক বন্ধ করুন"
+
+#, python-format
+msgid "Notatnik – zadanie %(number)s"
+msgstr "নোটবুক – প্রশ্ন %(number)s"
+
+msgid "Panel uczestnika"
+msgstr "অংশগ্রহণকারী প্যানেল"
+
+#, python-format
+msgid "Zadanie %(number)s: %(title)s"
+msgstr "সমস্যা %(number)s: %(title)s"
+
+msgid ""
+"Notatnik otwiera się w nowej karcie – kod uruchamiasz klawiszami "
+"Shift+Enter. Wszystko liczy Twoja przeglądarka."
+msgstr ""
+"নোটবুক নিচে খোলে – Shift+Enter দিয়ে কোড চালান। সব গণনা আপনার ব্রাউজার করে।"
+
+msgid ""
+"Ostatnia komórka uruchamia testy przykładowe. Ocenę liczą testy ukryte na "
+"serwerze."
+msgstr "শেষ সেল নমুনা পরীক্ষা চালায়। নম্বর সার্ভারের লুকানো পরীক্ষায় গণনা হয়।"
+
+msgid ""
+"Gotowe? W JupyterLab: File → Download. Pobrany plik .ipynb wyślij w karcie "
+"zadania na platformie."
+msgstr ""
+"শেষ? JupyterLab-এ: File → Download। ডাউনলোড করা .ipynb ফাইল প্ল্যাটফর্মে প্রশ্নের "
+"কার্ডে পাঠান।"
+
+msgid ""
+"Praca zapisuje się w tej przeglądarce (nie na serwerze). Na wspólnym "
+"komputerze pobierz plik przed wyjściem."
+msgstr ""
+"আপনার কাজ এই ব্রাউজারে সংরক্ষিত হয় (সার্ভারে নয়)। শেয়ার করা কম্পিউটারে বের হওয়ার "
+"আগে ফাইল ডাউনলোড করুন।"
+
+#, python-format
+msgid "Pierwsze otwarcie pobiera ok. %(size)s MB."
+msgstr "প্রথমবার খুললে প্রায় %(size)s MB ডাউনলোড হয়।"
+
+msgid ""
+"Nie wklejaj do notatnika kodu od innych osób – wykonuje się w Twojej "
+"przeglądarce, na Twoim koncie."
+msgstr ""
+"নোটবুকে অন্যদের কোড পেস্ট করবেন না – তা আপনার ব্রাউজারে, আপনার অ্যাকাউন্টে চলে।"
+
+msgid "Pobierz notatnik startowy"
+msgstr "স্টার্টার নোটবুক ডাউনলোড করুন"
+
+msgid "Wróć do zadania"
+msgstr "প্রশ্নে ফিরে যান"
+
+msgid ""
+"Notatnik w przeglądarce nie jest jeszcze zainstalowany na tym serwerze. "
+"Pobierz notatnik startowy i otwórz go we własnym Jupyterze albo napisz do "
+"organizatora."
+msgstr ""
+"এই সার্ভারে ব্রাউজার নোটবুক এখনো ইনস্টল করা হয়নি। স্টার্টার নোটবুক ডাউনলোড করে "
+"নিজের Jupyter-এ খুলুন বা আয়োজককে লিখুন।"
+
+msgid ""
+"Podgląd tylko do odczytu: kod nie jest wykonywany, wyjścia HTML i JavaScript "
+"są pominięte."
+msgstr ""
+"শুধু-পড়ার প্রিভিউ: কোড চালানো হয় না, HTML ও JavaScript আউটপুট বাদ দেওয়া হয়।"
+
+msgid "Wykres z notatnika"
+msgstr "নোটবুক পরীক্ষার ফলাফল"
+
+#, python-format
+msgid "Pominięto wyjście typu %(mime)s."
+msgstr "%(mime)s ধরনের আউটপুট বাদ দেওয়া হয়েছে।"
+
+msgid "Notatnik nie ma komórek."
+msgstr "কোয়ান্টাম নোটবুক"
+
+msgid "Notatnik wzorcowy poszedł do sprawdzenia – wynik pojawi się poniżej."
+msgstr "রেফারেন্স নোটবুক যাচাইয়ে পাঠানো হয়েছে – ফল নিচে দেখা যাবে।"
+
+msgid "Notatnik zadania został wyłączony."
+msgstr "প্রশ্নের নোটবুক বন্ধ করা হয়েছে।"
+
+msgid ""
+"Testy się zmieniły – wyniki już sprawdzonych prac są nieaktualne. Użyj "
+"„Przelicz wszystko”."
+msgstr ""
+"পরীক্ষা বদলেছে – আগে যাচাই করা কাজের ফল পুরোনো। “সব আবার গণনা করুন” ব্যবহার করুন।"
+
+msgid "Zapisano ustawienia notatnika."
+msgstr "নোটবুকের সেটিংস সংরক্ষিত হয়েছে।"
+
+#, python-format
+msgid "Do ponownego sprawdzenia: %(count)s prac."
+msgstr "পুনরায় যাচাইয়ের জন্য: %(count)sটি কাজ।"
+
+msgid "Notatnik startowy – podgląd"
+msgstr "স্টার্টার নোটবুক"
+
+#, python-format
+msgid "Praca – podgląd notatnika (wersja %(version)s)"
+msgstr "জমা – নোটবুক প্রিভিউ (সংস্করণ %(version)s)"
