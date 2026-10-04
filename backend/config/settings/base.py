@@ -160,6 +160,8 @@ INSTALLED_APPS = [
     # i własną drogę danych poza serwer; **po** ``apps.grading`` i ``apps.results``, bo czyta
     # skalę, rubrykę i publikację wyników, a żadna z nich nie czyta jej.
     "apps.ai_grading",
+    # Logistyka finału dla delegacji krajowych (LOG-01): paszporty, przyloty, pokoje, identyfikatory.
+    "apps.delegation_logistics",
     # Warstwa integracyjna: klucze API dla systemów zewnętrznych, webhooki i eksporty na zewnątrz.
     # **Po** aplikacjach domeny, bo czyta je wszystkie (edycje, wyniki, zgłoszenia), a żadna z nich
     # nie czyta jej – zależność idzie w jedną stronę i kolejność w tej liście ma to pokazywać.
@@ -488,6 +490,8 @@ CELERY_TASK_ROUTES = {
     "apps.workshop_materials.tasks.scan_material": {"queue": "scan"},
     # Skan pracy testowej oceny AI (``apps.ai_grading.sandbox``) – ta sama praca, ta sama kolejka.
     "apps.ai_grading.tasks.scan_ai_test_work": {"queue": "scan"},
+    # Skan zdjęcia do identyfikatora finału (LOG-01) – ta sama praca, ta sama kolejka.
+    "apps.delegation_logistics.tasks.scan_badge_photo": {"queue": "scan"},
 }
 CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
 CELERY_TIMEZONE = "UTC"
@@ -546,6 +550,11 @@ CELERY_BEAT_SCHEDULE = {
     # bo startują w późniejszej edycji. Raz na dobę – termin jest liczony w miesiącach.
     "student-status-purge-expired-scans": {
         "task": "apps.student_status.tasks.purge_expired_scans",
+        "schedule": 86400.0,
+    },
+    # Retencja logistyki finału (LOG-01): dane członków delegacji po ``ends_on + retencja`` finału.
+    "delegation-logistics-purge-expired": {
+        "task": "apps.delegation_logistics.tasks.purge_expired",
         "schedule": 86400.0,
     },
     # Materiały z warsztatów (apps/workshop_materials/tasks.py): porzucone wgrywania (wiersz
@@ -1221,6 +1230,10 @@ REST_FRAMEWORK = {
         # przez opiekuna, więc limit chroni cudze skrzynki; sześćdziesiąt na godzinę mieści z zapasem
         # drużynę (kilka osób) i zaproszenia dla kilkudziesięciu krajów w jednym posiedzeniu.
         "delegation": "60/hour",
+        # Logistyka finału (LOG-01): formularze opiekuna i oficera (osoba po osobie) oraz odhaczanie
+        # obsługi przy wejściu (setki skanów na godzinę z jednego telefonu). Liczone per konto.
+        "onsite_logistics": "600/hour",
+        "onsite_checkin": "3000/hour",
         # Bramka linku-zaproszenia (``/zaproszenie/wideo/<klucz>/``, POST „Dołącz”) – bez konta,
         # więc liczona po adresie IP, jak każdy publiczny formularz. Wysoko, bo za jednym NAT-em
         # bywa cała sala gości wchodzących na to samo zebranie naraz; nisko na tyle, żeby
