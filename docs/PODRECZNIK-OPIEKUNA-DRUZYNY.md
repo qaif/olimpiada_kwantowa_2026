@@ -80,14 +80,18 @@ For every person in your delegation – students, team leaders and the observers
 - **Arrival and departure** – date, local time, means of transport, flight or train number, airport or
   station (used to plan airport pick-ups),
 - **Accommodation** – whether the person needs a bed, gender (only for room allocation; minors never share
-  a room with adults), preferred roommate,
+  a room with adults, and a minor who does not state a binary gender gets a single room), preferred
+  roommate. Changing the gender, the date of birth or “needs accommodation” may remove an existing room
+  assignment – you will see a message,
 - **Meals and health** (only if the organiser collects it) – diet, allergies and medical information
   needed on site. It is saved only after you confirm that the person, or their parent for a minor, gave
   explicit consent; you can withdraw the consent at any time and the data is deleted at once,
 - **Badge and emergency contact** – T-shirt size, emergency contact (name and phone), a passport-style photo
-  (JPG or PNG, up to 5 MB; it appears after an automatic virus check).
+  (JPG or PNG, up to 5 MB; after an automatic virus check it is resized and stripped of metadata).
 
-Each section has its own **deadline**. After it, the section becomes read-only and changes go through the
+Passport and health data can be entered only after the organiser has set the dates of the final (the
+page tells you if they are missing). Each section has its own **deadline**; observers and guests can be
+added or changed until the travel document deadline. After it, the section becomes read-only and changes go through the
 organiser. You will receive a reminder e-mail when something is missing. **Invitation letters** for visa
 applications are issued by the organiser; you can download the letters of your delegation from the same
 page.

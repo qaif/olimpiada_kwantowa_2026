@@ -170,3 +170,25 @@ Znane luki:
 - brak importu przylotów z pliku i walidacji numeru paszportu (MRZ); podgląd zdjęcia nie trafia do audytu,
 - płatności delegacji (PAY-01) – poza zakresem; interfejsem jest `services.members_of(delegation)`,
 - tłumaczenia maszynowe (do przeglądu native speakerów).
+
+### 8.1. Poprawki po przeglądzie (4.10.2026)
+
+- **H1** migracja listu wizowego: `tenancy.0015_document_kind_visa_invitation` po `0014_merge_20261004_1935`;
+  dokumentacja w `OPERACJE.md` § 31, podręcznik § 10d.
+- **H2** pokoje: zmiana płci, daty urodzenia albo „bez noclegu” u osoby z pokojem **zdejmuje przydział**
+  (audyt `logistics.room_unassigned`, komunikat) – to osoba przestała pasować; zmiana pierwszego dnia
+  finału **oznacza** naruszenia (ekran, CSV, komunikat z liczbą), ale nikogo nie przenosi – jedna data
+  mogłaby opróżnić wiele pokoi naraz, a decyzja należy do oficera.
+- **L6** niepełnoletni bez płci binarnej mieszka w pokoju jednoosobowym (dowolny pusty pokój).
+- **M1** po retencji: synchronizacja nic nie odtwarza, zapis danych i zdjęć odmawiany wszystkim; dane
+  paszportowe i o zdrowiu wyłącznie przy `FinalEvent.ends_on` (bez zastępczego terminu retencji).
+- **M2** dieta szyfrowana (migracja `0002` szyfruje istniejące wartości), walidacja wyboru w serwisie.
+- **M3** zdjęcie: limit 40 Mpx sprawdzany w nagłówku przy wgraniu, przekodowanie po czystym skanie do
+  JPEG ≤ 600×800 bez EXIF; identyfikatory PDF per kraj albo osoba.
+- **M4** każde usunięcie członka (wypisanie, gość, konto, retencja) czyści jego wiersz w migawkach listów.
+- **L1–L12**: obsługę rejestracji nadaje oficer/superkoordynator (nie sobie), goście blokowani terminem
+  dokumentu podróży, `update_fields` (pole nieodszyfrowane nie jest nadpisywane), bez D21 brak eksportu
+  wyżywienia, przypomnienia tylko oficer (terminy ze strefą), wyszukiwania ograniczone do bieżącej edycji,
+  blokada doradcza numeracji (konkurs, rok), skan porzucony po ponowieniach → błąd, synchronizacja raz na
+  żądanie i wyszukiwarka obsługi bez odszyfrowywania, obecność i listy w eksporcie danych konta, usunięte
+  martwe `remove_photo`.

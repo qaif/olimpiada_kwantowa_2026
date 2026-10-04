@@ -1944,9 +1944,9 @@ niepełnoletni zbiera sam po uruchomieniu konta (zgoda opiekuna online).
 
 ---
 
-## 10c. Logistyka finału — `/coordinator/logistics/`
+## 10d. Logistyka finału — `/coordinator/logistics/`
 
-**Tylko w konkursie z delegacjami i włączoną logistyką** (`OPERACJE.md` § 29). Opiekunowie drużyn
+**Tylko w konkursie z delegacjami i włączoną logistyką** (`OPERACJE.md` § 31). Opiekunowie drużyn
 uzupełniają dane każdej osoby z delegacji – uczniów, siebie i dopisanych przez siebie obserwatorów
 i gości: dokument podróży (do zaproszenia wizowego), przyjazd i wyjazd, zakwaterowanie, (za decyzją
 organizatora) wyżywienie i zdrowie, rozmiar koszulki, kontakt alarmowy i zdjęcie do identyfikatora.
@@ -1956,22 +1956,27 @@ sekcji, ostatnie przypomnienie, obecność) i „Ustawienia i dostęp”. **Dane
 przyloty, pokoje) widzi wyłącznie **oficer logistyki** – koordynator z przydziałem. Pierwszego oficera
 nadaje dowolny koordynator, kolejnych – superkoordynator albo oficer; każde nadanie i odebranie jest
 w dzienniku zdarzeń. **Obsługa rejestracji** (wolontariusze z kontem w serwisie) dostaje osobny
-przydział i widzi tylko ekran skanowania: imię, nazwisko, kraj, rolę i zdjęcie.
+przydział od oficera i widzi tylko ekran skanowania: imię, nazwisko, kraj, rolę i zdjęcie.
 
 **Terminy.** Każda z pięciu sekcji ma własny termin. Po terminie opiekun widzi sekcję tylko do odczytu;
 poprawki wprowadza oficer na karcie osoby (zmiana zostaje w historii karty – nazwy pól, bez wartości).
-„Przypomnij” wysyła opiekunom kraju e-mail w ich języku z listą osób i sekcji z brakami (bez danych).
+„Przypomnij” (oficer) wysyła opiekunom kraju e-mail w ich języku z listą osób i sekcji z brakami
+(bez danych) i terminami ze strefą czasową. Dopóki finał nie ma ostatniego dnia, serwis nie przyjmuje
+danych paszportowych ani o zdrowiu. Goście delegacji zamykają się razem z terminem dokumentu podróży.
 
 **Zakładki oficera.**
 - *Osoby* – wszyscy z brakami, filtr kraju, karta osoby (pełne dane, zdjęcie, pokój, nowy identyfikator,
-  list imienny, historia zmian), „Identyfikatory PDF”, „Eksport pełny CSV” (z paszportami – w audycie).
+  list imienny, historia zmian), „Identyfikatory PDF” dla wybranego kraju, „Eksport pełny CSV”
+  (z paszportami – w audycie).
 - *Przyjazdy* – tablica przylotów i odlotów per dzień, zgrupowana po godzinie, lotnisku i numerze lotu
   (jeden wiersz = jeden odbiór), CSV.
 - *Pokoje* – pokoje (budynek, numer, liczba miejsc, płeć: kobiety / mężczyźni / dowolna – tylko
   dorośli), przydziały, nieprzydzieleni. Serwis nie pozwoli: przekroczyć liczby miejsc, położyć
   **niepełnoletniego w pokoju z dorosłym**, osoby niepełnoletniej w pokoju „dowolna płeć” ani osoby
   innej płci w pokoju z płcią. Wiek liczony na pierwszy dzień finału; uczeń bez daty urodzenia jest
-  traktowany jak niepełnoletni. Rooming list CSV dla hotelu.
+  traktowany jak niepełnoletni; niepełnoletni z płcią „inna” mieszka sam. Zmiana płci, daty urodzenia
+  albo „bez noclegu” zdejmuje niepasujący przydział; zmiana daty finału oznacza pokoje z naruszeniem
+  (czerwona etykieta, kolumna w CSV). Rooming list CSV dla hotelu.
 - *Wyżywienie* – liczby diet, lista alergii i uwag do diety dla kuchni (CSV bez uwag medycznych).
 - *Koszulki* – rozmiar × rola, CSV dla drukarni.
 - *Listy wizowe* – „Wystaw list dla delegacji” (osoby z kompletnym dokumentem podróży) albo imienny

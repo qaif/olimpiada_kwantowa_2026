@@ -4011,17 +4011,18 @@ Przestawienie trybu z powrotem na `OPEN` otwiera samodzielną rejestrację i ukr
 dane delegacji, opiekunów i uczniów zostają w bazie. Migracje `accounts.0036`–`0038` i `tenancy.0013` są
 odwracalne (nowe tabele i kolumny nullowalne albo z wartością domyślną).
 
-## 29. Logistyka finału dla delegacji (LOG-01, `docs/tasks/LOG-01.md`)
+## 31. Logistyka finału dla delegacji (LOG-01, `docs/tasks/LOG-01.md`)
 
 Aplikacja `apps.delegation_logistics`: dane pobytu członków delegacji (paszport do wizy, przylot,
 pokój, dieta, koszulka, kontakt alarmowy, zdjęcie), listy zapraszające do wizy z rejestrem numerów,
 identyfikatory z kodem QR i odhaczanie obsługi na telefonach. Działa **wyłącznie** w konkursie
 w trybie `DELEGATIONS` (§ 28) **z** flagą `onsite_logistics`. Olimpiada Kwantowa nie widzi niczego.
 
-### 29.1. Włączenie dla `iqo` (kolejność)
+### 31.1. Włączenie dla `iqo` (kolejność)
 
-1. Migracje wydania: `delegation_logistics.0001` (nowe, puste tabele) i `tenancy.0014` (nowy rodzaj
-   szablonu dokumentu „list zapraszający (wiza)” – sama lista wyboru). `scripts/deploy.sh` je wykona.
+1. Migracje wydania: `delegation_logistics.0001`–`0002` (nowe tabele; dieta szyfrowana) i
+   `tenancy.0015_document_kind_visa_invitation` (nowy rodzaj szablonu dokumentu „list zapraszający
+   (wiza)” – sama lista wyboru, po `tenancy.0014_merge_20261004_1935`). `scripts/deploy.sh` je wykona.
 2. Flaga konkursu (jedna z dróg):
    - `/admin/` → Konkursy → `iqo` → `feature_flags`: dopisać `"onsite_logistics": true`,
    - powłoka:
@@ -4033,11 +4034,13 @@ w trybie `DELEGATIONS` (§ 28) **z** flagą `onsite_logistics`. Olimpiada Kwanto
    `/coordinator/venues/` jest **tą samą** decyzją D21 dla danych o zdrowiu w logistyce finału.
 3. Panel `iqo` → „Uczestnicy i konta → Logistyka finału” (`/coordinator/logistics/`) → „Ustawienia
    i dostęp”: nazwa, miasto, daty finału, terminy pięciu sekcji, retencja (dni po ostatnim dniu,
-   domyślnie 30), prefiks numeru listów (np. `IQO`).
+   domyślnie 30), prefiks numeru listów (np. `IQO`). **Bez ostatniego dnia finału serwis nie przyjmuje
+   danych paszportowych ani o zdrowiu** – retencja nie miałaby od czego liczyć terminu usunięcia.
 4. **Oficer logistyki** – przydział „oficer logistyki” dla 1–2 koordynatorów (pierwszy przydział może
    nadać dowolny koordynator; kolejne – superkoordynator albo oficer). Tylko oficer widzi dane osób.
 5. **Obsługa rejestracji** – przydział „obsługa rejestracji” dla kont wolontariuszy (konto musi
-   istnieć; rola w konkursie niepotrzebna). Punkty kontroli („Przyjazd”, „Ceremonia otwarcia”…)
+   istnieć; rola w konkursie niepotrzebna). Nadaje go **oficer** (albo superkoordynator), nigdy samemu
+   sobie. Przypomnienia o brakach wysyła również wyłącznie oficer. Punkty kontroli („Przyjazd”, „Ceremonia otwarcia”…)
    w tej samej zakładce.
 6. Dane o zdrowiu (dieta, alergie, uwagi medyczne) – dopiero po decyzji organizatora: `/coordinator/venues/`
    → „zbieraj potrzeby szczególne”. Bez niej sekcja „Wyżywienie i zdrowie” nie istnieje.
@@ -4047,21 +4050,24 @@ w trybie `DELEGATIONS` (§ 28) **z** flagą `onsite_logistics`. Olimpiada Kwanto
    z szablonu graficznego dyplomów (rodzaj „wszystkie”); pieczęć elektroniczna – jak dyplomy
    (`CERT_SIGN_P12_PATH`).
 
-### 29.2. Szyfrowanie i klucz
+### 31.2. Szyfrowanie i klucz
 
-Numer, data ważności i nazwisko z paszportu, data urodzenia, dane o zdrowiu i kontakt alarmowy są
+Numer, data ważności i nazwisko z paszportu, data urodzenia, dane o zdrowiu (z dietą) i kontakt alarmowy są
 szyfrowane w bazie (Fernet, klucz wyprowadzony z `SECRET_KEY` z etykietą `delegation-logistics`).
 **Rotacja `SECRET_KEY`**: stary klucz **musi** zostać w `SECRET_KEY_FALLBACKS` do końca retencji
 finału – inaczej zapisane dane stają się nieczytelne (ekran pokaże puste pola, w logu ostrzeżenie
 „nie udało się odszyfrować pola”). Kopia zapasowa bazy bez `SECRET_KEY` nie odsłania tych danych.
 
-### 29.3. Zdjęcia i skan
+### 31.3. Zdjęcia i skan
 
 Zdjęcia do identyfikatorów idą do prywatnego magazynu rozwiązań (`final-badges/…`) i przez ClamAV
 (kolejka `scan`, zadanie `apps.delegation_logistics.tasks.scan_badge_photo`) – worker `scan` musi
-działać. Zdjęcie jest widoczne dopiero po czystym skanie; zainfekowane jest usuwane.
+działać. Zdjęcie jest widoczne dopiero po czystym skanie; zainfekowane jest usuwane. Po czystym skanie
+jest przekodowywane (Pillow) do JPEG-a najwyżej 600×800 bez metadanych EXIF; obraz ponad 40 Mpx jest
+odrzucany już przy wgraniu, a plik nieczytelny dla Pillow kończy jak błąd skanu. Skan porzucony po
+wyczerpaniu ponowień (ClamAV niedostępny) też kończy się błędem – opiekun widzi prośbę o ponowne wgranie.
 
-### 29.4. Retencja
+### 31.4. Retencja
 
 Zadanie dobowe `delegation-logistics-purge-expired` (`CELERY_BEAT_SCHEDULE`, `DatabaseScheduler`
 dopisze je przy starcie beat) usuwa po `ends_on + retencja` wszystkie dane członków delegacji edycji
@@ -4071,14 +4077,24 @@ Ręcznie (np. test na kopii):
 docker compose exec web python manage.py shell -c "from apps.delegation_logistics.privacy import purge_expired; print(purge_expired())"
 ```
 
-### 29.5. Obsługa na miejscu
+### 31.5. Obsługa na miejscu
 
-Identyfikatory: „Osoby” → „Identyfikatory PDF” (A4, cztery karty A6). Kod QR zawiera wyłącznie adres
+Identyfikatory: „Osoby” → wybór kraju → „Identyfikatory PDF (ten kraj)” albo karta osoby (A4, cztery
+karty A6). Wydruku wszystkich naraz nie ma – kilkaset kart ze zdjęciami w jednym żądaniu WWW to
+pamięć i limit czasu workera. Kod QR zawiera wyłącznie adres
 `/coordinator/logistics/checkin/<token>/` – bez danych osobowych; aparat telefonu otwiera go sam
 (obsługa musi być zalogowana). Zgubiona karta: karta osoby → „Wydaj nowy identyfikator” (stary kod
 przestaje działać). Limity żądań: `onsite_logistics` 600/h i `onsite_checkin` 3000/h na konto.
 
-### 29.6. Wycofanie
+### 31.6. Wycofanie
 
 Wyłączenie flagi ukrywa ekrany (404) i pozycję menu; dane zostają do retencji albo do ręcznego
-`purge_event`. Migracje są odwracalne (nowe tabele; `tenancy.0014` zmienia wyłącznie listę wyboru).
+`purge_event`. Migracje są odwracalne (nowe tabele; `tenancy.0015` zmienia wyłącznie listę wyboru).
+
+### 31.7. Pokoje po zmianie danych albo daty finału
+
+Zmiana płci, daty urodzenia albo „bez noclegu” u osoby z pokojem **zdejmuje przydział**, gdy osoba
+przestaje spełniać zasady pokoju (wpis audytu `logistics.room_unassigned`, komunikat dla zapisującego).
+Zmiana pierwszego dnia finału niczego nie przenosi sama – pokoje z naruszeniem są oznaczone na
+zakładce „Pokoje” i w kolumnie „naruszenie zasad pokoju” rooming listy CSV, a komunikat po zapisie
+ustawień podaje ich liczbę. Niepełnoletni z płcią „inna” mieszka w pokoju jednoosobowym.

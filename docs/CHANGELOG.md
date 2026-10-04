@@ -20,7 +20,7 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
   (zasady: niepełnoletni nigdy z dorosłym, płeć pokoju, pojemność), wyżywienie, koszulki, eksporty CSV,
   przypomnienia e-mail w języku opiekuna.
 - **Listy zapraszające do wizy** – PDF z rejestrem numerów `PREFIKS/ROK/NNNN`, zaszyfrowana migawka
-  danych, nowy rodzaj szablonu dokumentu `VISA_INVITATION` (`tenancy.0014`), podpisy i pieczęć jak dyplomy.
+  danych, nowy rodzaj szablonu dokumentu `VISA_INVITATION` (`tenancy.0015`), podpisy i pieczęć jak dyplomy.
 - **Identyfikatory** PDF (A6, zdjęcie, kraj, rola, QR z losowym tokenem bez danych osobowych) i ekran
   odhaczania na telefonie (punkty kontroli, wyszukiwarka, skaner w przeglądarce z `BarcodeDetector`).
 - **RODO:** szyfrowanie pól wrażliwych (Fernet z obsługą `SECRET_KEY_FALLBACKS`), retencja dobowa po
@@ -29,7 +29,14 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
 - **i18n:** katalogi tłumaczeń w aplikacji (`apps/<nazwa>/locale`) – kompilowane przez `Dockerfile`,
   CI i `conftest.py`, sprawdzane przez `test_translations.py`; 125 nowych napisów w 10 językach
   (maszynowe, do przeglądu).
-- Dokumentacja: `docs/OPERACJE.md` § 29, `docs/PODRECZNIK-ORGANIZATORA.md` § 10c,
+- **Poprawki po przeglądzie:** reguły pokoi sprawdzane po zmianie danych osoby (zdjęcie przydziału)
+  i daty finału (oznaczenie naruszeń, kolumna CSV), niepełnoletni z płcią „inna” w pokoju
+  jednoosobowym; dane paszportowe i o zdrowiu tylko przy znanym końcu finału, po retencji żadnych
+  zapisów; dieta szyfrowana (`delegation_logistics.0002`); zdjęcia przekodowane bez EXIF, limit pikseli,
+  identyfikatory per kraj; usunięcie członka czyści migawki listów; obsługę rejestracji nadaje oficer;
+  przypomnienia tylko oficer; zapisy `update_fields`; numeracja listów pod blokadą (konkurs, rok);
+  eksport danych konta z obecnością i listami.
+- Dokumentacja: `docs/OPERACJE.md` § 31, `docs/PODRECZNIK-ORGANIZATORA.md` § 10d,
   `docs/PODRECZNIK-OPIEKUNA-DRUZYNY.md` § 7, `docs/tasks/LOG-01.md`.
 
 ## [Unreleased] – Motywy wizualne wgrywane paczkami (THEME-01)
