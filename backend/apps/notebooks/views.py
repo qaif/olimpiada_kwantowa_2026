@@ -288,39 +288,48 @@ class _ParticipantNotebookMixin(ParticipantRequiredMixin):
 
 
 class ParticipantLabView(_ParticipantNotebookMixin, View):
-    """Strona zadania z osadzonym JupyterLite. Jedyna strona serwisu z ``frame-src 'self'`` (§ 3.2)."""
+    """Strona zadania z laboratorium: instrukcja i przycisk otwierający JupyterLite w **osobnej karcie**.
+
+    Bez ramki: dokument laboratorium wykonuje kod ucznia, a w ramce miałby dostęp do strony serwisu
+    przez ``window.parent`` (ten sam origin). W osobnej karcie (``rel="noopener"``) nie ma do niej
+    żadnego odwołania, a nagłówki izolacji okien laboratorium odcinają też okna, które sam otworzy
+    (QC-01 § 3.5). Polityka CSP tej strony jest zwykłą polityką serwisu.
+    """
 
     template_name = "notebooks/participant_lab.html"
 
     def get(self, request, pk: int):
         task = self.task(pk)
         problem = task.problem
-        filename = services.starter_filename(task)
-        starter_path = reverse("web:participant-notebook-starter", args=[problem.pk, filename])
-        response = TemplateResponse(
+        starter_url = services.starter_url(task, self.participant, request.user)
+        return TemplateResponse(
             request,
             self.template_name,
             {
                 "task": task,
                 "problem": problem,
-                "lab_url": lab.lab_url(starter_path),
-                "starter_url": starter_path,
+                "lab_url": lab.lab_url(starter_url),
+                "starter_url": starter_url,
                 "transfer_mb": lab.transfer_megabytes(),
                 "visible_count": len(task.visible_tests or []),
             },
         )
-        # Polityka składa się w middleware (po renderowaniu – motyw dokłada tam swoje źródła);
-        # tu wyłącznie zgoda na ramkę z własnej domeny dla tej jednej strony.
-        request._csp_extra_frame_sources = ("'self'",)
-        return response
 
 
-class ParticipantStarterView(_ParticipantNotebookMixin, View):
-    """Notatnik startowy dla JupyterLite (``fromURL``) i do pobrania. Bez testów ukrytych."""
+class ParticipantStarterView(View):
+    """Notatnik startowy dla JupyterLite (``fromURL``) i do pobrania. Bez testów ukrytych.
 
-    def get(self, request, pk: int, filename: str):
-        task = self.task(pk)
-        if filename != services.starter_filename(task):
+    Adres bez prefiksu konkursu (``/notebook-starter/<token>/<plik>``), bo polityka CSP laboratorium
+    jest napisem stałym (Caddy) i wymienia tę jedną ścieżkę. Konkurs, zadanie i konto niesie
+    podpisany token z terminem ważności; konto musi się zgadzać z zalogowanym, a bramki uczestnika
+    (flaga, wpis na etap, etap otwarty) sprawdza ten sam serwis, co strona laboratorium.
+    """
+
+    def get(self, request, token: str, filename: str):
+        if not request.user.is_authenticated:
+            raise Http404
+        task = services.task_from_starter_token(token, request.user)
+        if task is None or filename != services.starter_filename(task):
             raise Http404
         attachment = request.GET.get("download") == "1"
         return _notebook_response(services.starter_notebook(task), filename, attachment=attachment)

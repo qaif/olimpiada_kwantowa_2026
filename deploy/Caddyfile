@@ -99,18 +99,24 @@
     }
 }
 
-# Notatniki kwantowe (QC-01, docs/tasks/QC-01.md § 3.2): własna polityka CSP **wyłącznie** ścieżki
+# Notatniki kwantowe (QC-01, docs/tasks/QC-01.md § 3.2 i § 3.5): własne nagłówki **wyłącznie** ścieżki
 # laboratorium JupyterLite, które leży w plikach statycznych (`/static/notebook-lab/<BUILD_ID>/`).
 # Fragment wstawiany (`import notebook_lab`) do każdego bloku aplikacji, jak `maintenance`. Reszta
 # `/static/*` zostaje bez zmian, a strony aplikacji dostają politykę z Django (apps/web/middleware.py).
-# Wyjątki wobec polityki serwisu: `'wasm-unsafe-eval'` (WebAssembly Pyodide), `'unsafe-eval'` (Ajv
-# w JupyterLab kompiluje schematy ustawień przez `new Function` – bez tego JupyterLab nie wstaje),
-# `worker-src blob:` (jądro Pythona w Web Workerze), `frame-ancestors 'self'` (ramka na stronie
-# zadania). `connect-src 'self'` – żadnego CDN-u w czasie działania. Ten sam napis zwraca
-# `NOTEBOOK_LAB_POLICY` w apps/web/middleware.py (dev); zgodność pilnuje test
-# apps/notebooks/tests/test_csp.py.
+# Laboratorium wykonuje kod ucznia w originie serwisu, więc każde źródło CSP jest zawężone do
+# **ścieżki** laboratorium (`{scheme}://{hostport}` – origin żądania): bez wywołań API i paneli
+# serwisu, bez formularzy, bez ramek serwisu, bez osadzania laboratorium. COOP + COEP odcinają okna
+# serwisu, które kod otworzyłby `window.open`. Wyjątki: `'wasm-unsafe-eval'` (Pyodide), `'unsafe-eval'`
+# (Ajv w JupyterLab), `worker-src blob:`. Ten sam napis składa `build_notebook_lab_policy` w
+# apps/web/middleware.py (dev); zgodność pilnuje apps/notebooks/tests/test_labbuild.py.
 (notebook_lab) {
-    header /static/notebook-lab/* Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; worker-src 'self' blob:; frame-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'self'"
+    @notebook_lab path /static/notebook-lab/*
+    header @notebook_lab {
+        Content-Security-Policy "default-src {scheme}://{hostport}/static/notebook-lab/; script-src {scheme}://{hostport}/static/notebook-lab/ 'unsafe-eval' 'wasm-unsafe-eval'; style-src {scheme}://{hostport}/static/notebook-lab/ 'unsafe-inline'; img-src {scheme}://{hostport}/static/notebook-lab/ data: blob:; font-src {scheme}://{hostport}/static/notebook-lab/ data:; connect-src {scheme}://{hostport}/static/notebook-lab/ {scheme}://{hostport}/notebook-starter/; worker-src {scheme}://{hostport}/static/notebook-lab/ blob:; frame-src {scheme}://{hostport}/static/notebook-lab/ blob:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+        Cross-Origin-Opener-Policy "same-origin"
+        Cross-Origin-Embedder-Policy "require-corp"
+        Cross-Origin-Resource-Policy "same-origin"
+    }
 }
 
 # Przekierowanie www -> domena główna (jeden kanoniczny adres, jeden certyfikat w linkach).

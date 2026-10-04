@@ -12,7 +12,7 @@ from pathlib import Path
 import pytest
 
 from apps.notebooks.labbuild import build
-from apps.web.middleware import NOTEBOOK_LAB_POLICY
+from apps.web.middleware import NOTEBOOK_LAB_HEADERS, build_notebook_lab_policy
 
 LOCK = {
     "info": {"python": "3.14.2"},
@@ -126,9 +126,16 @@ def test_caddyfile_sends_the_same_lab_policy():
     if not caddyfile.exists():
         pytest.skip("deploy/Caddyfile poza zasięgiem testu (obraz z samym backendem)")
     text = caddyfile.read_text(encoding="utf-8")
-    match = re.search(r'header /static/notebook-lab/\* Content-Security-Policy "([^"]+)"', text)
-    assert match, "brak fragmentu (notebook_lab) w deploy/Caddyfile"
-    assert match.group(1) == NOTEBOOK_LAB_POLICY
+    block = re.search(r"^\(notebook_lab\) \{\n(.*?)\n\}", text, re.S | re.M)
+    assert block, "brak fragmentu (notebook_lab) w deploy/Caddyfile"
+    assert "@notebook_lab path /static/notebook-lab/*" in block.group(1)
+    headers = dict(re.findall(r'^\s+([A-Za-z-]+) "([^"]+)"$', block.group(1), re.M))
+    # Caddy wstawia origin żądania w miejsce ``{scheme}://{hostport}`` – po podstawieniu ma wyjść
+    # dokładnie to, co składa Django dla tego samego originu.
+    origin = "https://olimpiada.example"
+    caddy_policy = headers.pop("Content-Security-Policy").replace("{scheme}://{hostport}", origin)
+    assert caddy_policy == build_notebook_lab_policy(origin)
+    assert headers == NOTEBOOK_LAB_HEADERS
     assert text.count("import notebook_lab") >= 1
 
 

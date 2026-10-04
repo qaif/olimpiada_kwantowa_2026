@@ -133,6 +133,19 @@ _CONSTS = {"pi": math.pi, "e": math.e, "i": 1j, "j": 1j}
 MAX_EXPRESSION = 200
 
 
+def _finite(number: complex, source) -> complex:
+    if not (math.isfinite(number.real) and math.isfinite(number.imag)):
+        raise SpecError(f"Wartość {source!r} nie jest skończona.")
+    return number
+
+
+def _finite_array(values: np.ndarray) -> np.ndarray:
+    """NaN/±inf w wyniku ucznia to błąd, a nie liczba – porównanie z NaN „przechodziłoby” każdy test."""
+    if not np.all(np.isfinite(values)):
+        raise QclabError("The result contains non-finite values (NaN or infinity).")
+    return values
+
+
 def parse_number(value) -> complex:
     """Liczba z JSON-a albo napisu (``"1/sqrt(2)"``, ``"exp(i*pi/4)"``, ``"-0.5j"``).
 
@@ -144,11 +157,11 @@ def parse_number(value) -> complex:
     if isinstance(value, bool):
         raise SpecError("Wartość logiczna nie jest liczbą.")
     if isinstance(value, numbers.Number):
-        return complex(value)
+        return _finite(complex(value), value)
     if isinstance(value, dict) and set(value) <= {"re", "im"}:
-        return complex(float(value.get("re", 0)), float(value.get("im", 0)))
+        return _finite(complex(float(value.get("re", 0)), float(value.get("im", 0))), value)
     if isinstance(value, list) and len(value) == 2 and all(isinstance(v, numbers.Real) for v in value):
-        return complex(float(value[0]), float(value[1]))
+        return _finite(complex(float(value[0]), float(value[1])), value)
     if not isinstance(value, str):
         raise SpecError(f"Nie rozumiem liczby: {value!r}")
     text = value.strip()
@@ -659,10 +672,10 @@ def _state_of(artifact: dict) -> np.ndarray:
         data = artifact.get("data")
         if not isinstance(data, list) or not data or len(data) > 2**MAX_QUBITS:
             raise QclabError("Invalid statevector in the result.")
-        return np.array([complex(float(a), float(b)) for a, b in data], dtype=complex)
+        return _finite_array(np.array([complex(float(a), float(b)) for a, b in data], dtype=complex))
     if artifact["type"] == "circuit":
         circuit = rebuild_circuit(artifact).remove_final_measurements(inplace=False)
-        return evolve_unitary(circuit, zero_state(circuit.num_qubits))
+        return _finite_array(evolve_unitary(circuit, zero_state(circuit.num_qubits)))
     if artifact["type"] == "value" and isinstance(artifact.get("data"), list):
         return np.array([parse_number(v) for v in artifact["data"]], dtype=complex)
     raise TypeError(artifact["type"])
@@ -674,8 +687,15 @@ def _measured_distribution(circuit: QuantumCircuit) -> dict[str, float]:
 
     pairs = _terminal_measurements(circuit)
     if pairs is None:
-        from .simulator import sample_counts
+        from .simulator import exact_distribution, sample_counts
 
+        exact = exact_distribution(circuit)
+        if exact is not None:
+            if not any(op.name == "measure" for op, _q, _c in circuit.instruction_indices()):
+                raise QclabError("no_measure")
+            return {k.replace(" ", ""): v for k, v in exact.items()}
+        # Ponad limit gałęzi (bardzo wiele pomiarów w trakcie) – losowanie ze stałym ziarnem; błąd
+        # próbkowania przy 20 000 strzałów to ok. 0,01 odległości, poniżej domyślnej tolerancji 0,05.
         counts = sample_counts(circuit, 20000, seed=12345)
         total = sum(counts.values())
         return {k.replace(" ", ""): v / total for k, v in counts.items()}
@@ -711,7 +731,7 @@ def _values_equal(expected, actual, tolerance: float) -> bool:
             b = parse_number(actual)
         except SpecError:
             return False
-        return abs(a - b) <= tolerance * max(1.0, abs(a))
+        return bool(abs(a - b) <= tolerance * max(1.0, abs(a)))
     if isinstance(expected, list):
         if not isinstance(actual, list) or len(actual) != len(expected):
             return False
@@ -782,10 +802,11 @@ def evaluate(test: dict, artifact: dict | None, language: str = "pl") -> Outcome
                                            expected=width))  # fmt: skip
             if test.get("global_phase", True):
                 overlap = np.vdot(actual, expected)
-                if abs(overlap) > 1e-12:
+                if np.isfinite(overlap) and abs(overlap) > 1e-12:
                     actual = actual * (overlap / abs(overlap))
             diff = float(np.max(np.abs(actual - expected)))
-            if diff > tolerance:
+            # ``not (diff <= tol)``, a nie ``diff > tol``: NaN nie spełnia żadnego porównania.
+            if not (diff <= tolerance):
                 return _fail(test, message(language, "sv_mismatch", diff=diff))
         elif check == "probabilities":
             if kind not in ("circuit", "statevector", "value"):
@@ -798,8 +819,9 @@ def evaluate(test: dict, artifact: dict | None, language: str = "pl") -> Outcome
                 actual_dist = {format(i, f"0{width}b"): float(abs(a) ** 2) for i, a in enumerate(state)}
             expected_dist = {k.replace(" ", ""): parse_number(v).real for k, v in test["expected"].items()}
             keys = set(actual_dist) | set(expected_dist)
+            _finite_array(np.array(list(actual_dist.values()), dtype=float))
             diff = max((abs(actual_dist.get(k, 0.0) - expected_dist.get(k, 0.0)) for k in keys), default=0.0)
-            if diff > tolerance:
+            if not (diff <= tolerance):
                 return _fail(test, message(language, "prob_mismatch", diff=diff))
         elif check == "counts":
             if kind == "counts":
@@ -819,15 +841,16 @@ def evaluate(test: dict, artifact: dict | None, language: str = "pl") -> Outcome
                 return _fail(test, message(language, "unsupported", target=label, kind=kind))
             expected_dist = _distribution(test["expected"])
             keys = set(actual_dist) | set(expected_dist)
+            _finite_array(np.array(list(actual_dist.values()), dtype=float))
             distance = 0.5 * sum(abs(actual_dist.get(k, 0.0) - expected_dist.get(k, 0.0)) for k in keys)
-            if distance > tolerance:
+            if not (distance <= tolerance):
                 return _fail(test, message(language, "counts_mismatch", diff=distance, tol=tolerance))
         elif check == "unitary":
             if kind == "circuit":
                 circuit = rebuild_circuit(artifact)
                 if circuit.num_qubits > MAX_OPERATOR_QUBITS:
                     return _fail(test, message(language, "unsupported", target=label, kind="circuit"))
-                actual = Operator(circuit.remove_final_measurements(inplace=False)).data
+                actual = _finite_array(Operator(circuit.remove_final_measurements(inplace=False)).data)
             elif kind == "operator" or (kind == "value" and isinstance(artifact.get("data"), list)):
                 rows = artifact["data"]
                 actual = np.array([[parse_number(v) for v in row] for row in rows], dtype=complex)
@@ -840,10 +863,10 @@ def evaluate(test: dict, artifact: dict | None, language: str = "pl") -> Outcome
                 index = int(np.argmax(np.abs(expected)))
                 ref = expected.reshape(-1)[index]
                 got = actual.reshape(-1)[index]
-                if abs(got) > 1e-12:
+                if np.isfinite(got) and abs(got) > 1e-12:
                     actual = actual * (ref / got) / abs(ref / got)
             diff = float(np.max(np.abs(actual - expected)))
-            if diff > tolerance:
+            if not (diff <= tolerance):
                 return _fail(test, message(language, "unitary_mismatch", diff=diff))
         elif check == "value":
             actual = artifact.get("data") if kind in ("value", "counts") else None

@@ -198,13 +198,7 @@ def webinar_connect_sources() -> tuple[str, ...]:
     return csp_origins()
 
 
-def build_policy(
-    nonce: str,
-    *,
-    analytics: bool = False,
-    theme_assets: bool = False,
-    extra_frame_sources: tuple[str, ...] = (),
-) -> str:
+def build_policy(nonce: str, *, analytics: bool = False, theme_assets: bool = False) -> str:
     """Buduje treść polityki dla jednego żądania (nonce jest jednorazowy).
 
     ``analytics`` dokłada hosty Google Analytics 4 – i tylko wtedy, gdy organizator wpisał
@@ -250,31 +244,54 @@ def build_policy(
         f"script-src {' '.join(script_src)}",
         f"connect-src {connect_sources}",
         # Zamknięta lista dostawców osadzeń – ta sama, na którą zawężony jest WAGTAILEMBEDS_FINDERS.
-        f"frame-src {' '.join([*EMBED_FRAME_SOURCES, *extra_frame_sources])}",
+        f"frame-src {' '.join(EMBED_FRAME_SOURCES)}",
         # pdf.js uruchamia worker; przy CDN cross-origin robi to przez blob: (fallback biblioteki).
         "worker-src 'self' blob:",
     ]
     return "; ".join(directives)
 
 
-#: Polityka laboratorium notatników (JupyterLite, QC-01 § 3.2) – **wyłącznie** dla ścieżki
+#: Laboratorium notatników (JupyterLite, QC-01 § 3.2 i § 3.5) – polityka **wyłącznie** dla ścieżki
 #: ``STATIC_URL + "notebook-lab/"``. W produkcji ten sam napis wysyła Caddy (fragment
-#: ``(notebook_lab)`` w ``deploy/Caddyfile``), bo pliki statyczne podaje on, a nie Django; zgodność
-#: obu napisów pilnuje ``apps/notebooks/tests/test_labbuild.py``. Wyjątki wobec polityki serwisu:
-#: ``'wasm-unsafe-eval'`` (kompilacja WebAssembly Pyodide), ``'unsafe-eval'`` (Ajv w JupyterLab
-#: kompiluje schematy ustawień przez ``new Function`` – bez tego połowa wtyczek nie wstaje, sprawdzone
-#: w przeglądarce), ``worker-src blob:`` (jądro Pythona w Web Workerze), ``frame-ancestors 'self'``
-#: (osadzenie na stronie zadania). Bez ``'unsafe-inline'`` dla skryptów (skrypty startowe JupyterLite
-#: są wyniesione do plików przy budowie); ``connect-src 'self'`` – żadnego CDN-u w czasie działania.
-#: ``'unsafe-eval'`` dotyczy wyłącznie dokumentów laboratorium, w którym uczeń i tak wykonuje własny kod.
-NOTEBOOK_LAB_POLICY = (
-    "default-src 'self'; script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval'; "
-    "style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; "
-    "connect-src 'self'; worker-src 'self' blob:; "
-    "frame-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'none'; "
-    "frame-ancestors 'self'"
-)
+#: ``(notebook_lab)`` w ``deploy/Caddyfile``, z ``{scheme}://{hostport}`` w miejscu originu), bo
+#: pliki statyczne podaje on, a nie Django; zgodność pilnuje ``apps/notebooks/tests/test_labbuild.py``.
+#:
+#: Laboratorium leży w originie serwisu, a uczeń wykonuje w nim dowolny kod (też JavaScript – wyjście
+#: ``application/javascript``). Dlatego każde źródło jest zawężone do **ścieżki** laboratorium (CSP
+#: porównuje też ścieżkę źródła): dokument nie pobierze ani nie wywoła niczego z API ani z paneli
+#: serwisu (``connect-src`` – wyłącznie pliki laboratorium i notatnik startowy pod
+#: ``/notebook-starter/``), nie osadzi strony serwisu w ramce (``frame-src``), nie wyśle formularza
+#: (``form-action 'none'``) i sam nie da się osadzić (``frame-ancestors 'none'`` – laboratorium otwiera
+#: się w osobnej karcie, bez ``opener``). Wyjątki wobec polityki serwisu: ``'wasm-unsafe-eval'``
+#: (WebAssembly Pyodide), ``'unsafe-eval'`` (Ajv w JupyterLab kompiluje schematy przez ``new Function``),
+#: ``blob:`` w ``worker-src`` (jądro Pythona w Web Workerze). Granice tej ochrony – § 3.5 specyfikacji.
 NOTEBOOK_LAB_SEGMENT = "notebook-lab/"
+#: Ścieżka notatnika startowego – bez prefiksu konkursu, żeby polityka laboratorium (napis stały
+#: w Caddym) mogła ją wymienić; konkurs i uczestnika niesie podpisany token (``apps.notebooks``).
+NOTEBOOK_STARTER_PATH = "/notebook-starter/"
+NOTEBOOK_LAB_POLICY_TEMPLATE = (
+    "default-src {lab}; script-src {lab} 'unsafe-eval' 'wasm-unsafe-eval'; "
+    "style-src {lab} 'unsafe-inline'; img-src {lab} data: blob:; font-src {lab} data:; "
+    "connect-src {lab} {starter}; worker-src {lab} blob:; frame-src {lab} blob:; "
+    "object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+)
+#: Izolacja okien: z COEP ``require-corp`` wartość COOP laboratorium różni się od COOP stron serwisu
+#: (Django: ``same-origin``), więc okno otwarte z laboratorium (``window.open('/me/')``) trafia do
+#: innej grupy kontekstów – kod ucznia nie dostaje do niego dostępu. Wszystkie zasoby laboratorium są
+#: z tego samego originu, więc ``require-corp`` niczego nie blokuje (sprawdzone w przeglądarce).
+NOTEBOOK_LAB_HEADERS = {
+    "Cross-Origin-Opener-Policy": "same-origin",
+    "Cross-Origin-Embedder-Policy": "require-corp",
+    "Cross-Origin-Resource-Policy": "same-origin",
+}
+
+
+def build_notebook_lab_policy(origin: str) -> str:
+    """Polityka laboratorium dla originu (``https://host``; w Caddym ``{scheme}://{hostport}``)."""
+    return NOTEBOOK_LAB_POLICY_TEMPLATE.format(
+        lab=f"{origin}{settings.STATIC_URL}{NOTEBOOK_LAB_SEGMENT}",
+        starter=f"{origin}{NOTEBOOK_STARTER_PATH}",
+    )
 
 
 def is_notebook_lab_path(path: str) -> bool:
@@ -372,7 +389,9 @@ class ContentSecurityPolicyMiddleware:
         response = self.get_response(request)
         if self.header not in response:
             if is_notebook_lab_path(request.path):
-                response[self.header] = NOTEBOOK_LAB_POLICY
+                response[self.header] = build_notebook_lab_policy(f"{request.scheme}://{request.get_host()}")
+                for name, value in NOTEBOOK_LAB_HEADERS.items():
+                    response[name] = value
             elif is_admin_request(request):
                 response[self.header] = build_admin_policy()
             else:
@@ -393,8 +412,5 @@ class ContentSecurityPolicyMiddleware:
                     analytics=analytics_enabled_for_request(request),
                     # Ustawia ``{% theme_head %}`` (apps.themes) – tylko gdy strona dołączyła motyw.
                     theme_assets=getattr(request, "_theme_assets_used", False),
-                    # Strona laboratorium notatników (QC-01) osadza JupyterLite z naszej domeny –
-                    # jedyna strona serwisu z dodatkowym ``'self'`` w ``frame-src``.
-                    extra_frame_sources=getattr(request, "_csp_extra_frame_sources", ()),
                 )
         return response

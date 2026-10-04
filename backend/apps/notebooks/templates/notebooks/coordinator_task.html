@@ -23,6 +23,7 @@
   {% endif %}
 {% endblock %}
 {% block panel_content %}
+{% include "notebooks/_security_warning.html" %}
 {% if not ipynb_allowed %}
   <p class="msg msg-warning">{% translate "To zadanie nie przyjmuje plików .ipynb. Dopisz ten format w ustawieniach zadania, zanim włączysz sprawdzanie automatyczne." %}</p>
 {% endif %}

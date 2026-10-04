@@ -10,6 +10,7 @@
   {% endblocktranslate %}</p>
 {% endblock %}
 {% block panel_content %}
+{% include "notebooks/_security_warning.html" %}
 {% if not lab_built %}
   <p class="msg msg-warning">{% translate "JupyterLite nie jest zbudowane na tym serwerze – uczestnicy zobaczą wyłącznie przycisk pobrania notatnika startowego. Patrz docs/OPERACJE.md (notatniki)." %}</p>
 {% endif %}

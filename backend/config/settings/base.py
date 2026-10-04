@@ -227,6 +227,10 @@ MIDDLEWARE = [
     # dokładnie tak, jak każe dokumentacja Django.
     "django.middleware.locale.LocaleMiddleware",
     "django.middleware.common.CommonMiddleware",
+    # Notatniki kwantowe (QC-01 § 3.5): 403 dla żądań zmieniających stan i dla API wysłanych
+    # z dokumentu laboratorium (po ``Referer``). Druga linia za polityką CSP laboratorium; tanie –
+    # bez ``Referer`` z laboratorium nie robi nic.
+    "apps.notebooks.middleware.NotebookLabRequestGuardMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     # Wylogowanie zamyka też sesję w django CMS na tym samym hoście (ciasteczko ``djcms_sessionid``,

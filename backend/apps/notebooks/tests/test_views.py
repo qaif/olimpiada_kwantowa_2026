@@ -11,12 +11,12 @@ from django.test import Client
 from django.utils import timezone
 
 from apps.accounts.models import CompetitionRole
-from apps.accounts.tests.factories import ActiveReviewerFactory, ParticipantFactory
-from apps.competitions.tests.factories import ProblemFactory, StageFactory
+from apps.accounts.tests.factories import ActiveReviewerFactory, ParticipantFactory, UserFactory
+from apps.competitions.tests.factories import ProblemFactory, StageEntryFactory, StageFactory
 from apps.notebooks import services
 from apps.notebooks.models import NotebookMode, NotebookRun, NotebookTask
 from apps.tenancy.tests.factories import grant_membership
-from apps.web.middleware import NOTEBOOK_LAB_POLICY
+from apps.web.middleware import NOTEBOOK_LAB_HEADERS, build_notebook_lab_policy
 
 from .conftest import GOOD, HIDDEN_SENTINEL, HIDDEN_TESTS, VISIBLE_TESTS, enable, submit
 
@@ -184,21 +184,27 @@ def test_reference_run_and_results_page(
 # --- uczestnik ------------------------------------------------------------------------------------
 
 
-def test_participant_lab_page_and_csp(web, competition, coordinator, problem, participant, lab_built):
+def test_participant_lab_page_opens_lab_in_new_tab_without_frame(
+    web, competition, coordinator, problem, participant, lab_built
+):
     enable(competition)
     configured(problem, coordinator)
     web.force_login(participant.user)
     response = web.get(lab_url(problem))
     assert response.status_code == 200
     html = response.content.decode()
-    assert "/static/notebook-lab/314.0.7-abc/lab/index.html?fromURL=/me/notebooks/" in html
+    assert "<iframe" not in html
+    assert 'href="/static/notebook-lab/314.0.7-abc/lab/index.html?fromURL=/notebook-starter/' in html
+    assert 'target="_blank" rel="noopener noreferrer"' in html
+    # Strona zadania ma zwykłą politykę serwisu – co do bajtu tę, co /me/ (bez wyjątków dla ramek).
     policy = response["Content-Security-Policy"]
     frame_src = next(d for d in policy.split("; ") if d.startswith("frame-src"))
-    assert "'self'" in frame_src
-    assert "unsafe-eval" not in policy  # strona zadania ma politykę serwisu, nie laboratorium
-    # Pozostałe strony serwisu nie dostają 'self' w frame-src.
-    other = web.get("/me/")["Content-Security-Policy"]
-    assert "'self'" not in next(d for d in other.split("; ") if d.startswith("frame-src"))
+    assert "'self'" not in frame_src and "unsafe-eval" not in policy
+
+
+def starter_path(problem, participant):
+    task = services.task_for(problem)
+    return services.starter_url(task, participant, participant.user)
 
 
 def test_starter_notebook_for_participant_has_no_hidden_tests(
@@ -207,13 +213,30 @@ def test_starter_notebook_for_participant_has_no_hidden_tests(
     enable(competition)
     task = configured(problem, coordinator)
     web.force_login(participant.user)
-    response = web.get(f"/me/notebooks/{problem.pk}/starter/{services.starter_filename(task)}")
+    path = starter_path(problem, participant)
+    assert path.startswith("/notebook-starter/") and path.endswith(services.starter_filename(task))
+    response = web.get(path)
     assert response.status_code == 200
     body = response.content.decode()
     assert HIDDEN_SENTINEL not in body
     assert "check(TESTS" in body
     assert response["Cache-Control"] == "no-store"
-    assert web.get(f"/me/notebooks/{problem.pk}/starter/other.ipynb").status_code == 404
+    token = path.split("/")[2]
+    assert web.get(f"/notebook-starter/{token}/other.ipynb").status_code == 404
+    assert web.get(f"/notebook-starter/{token}x/{services.starter_filename(task)}").status_code == 404
+
+
+def test_starter_token_is_bound_to_the_account(web, competition, coordinator, problem, participant):
+    enable(competition)
+    configured(problem, coordinator)
+    path = starter_path(problem, participant)
+    other = ParticipantFactory(user=UserFactory(email="inny@example.test", groups=["participant"]))
+    grant_membership(other.user, competition, CompetitionRole.PARTICIPANT)
+    StageEntryFactory(participant=other, stage=problem.stage)
+    web.force_login(other.user)
+    assert web.get(path).status_code == 404
+    web.logout()
+    assert web.get(path).status_code == 404
 
 
 def test_hidden_tests_never_reach_participant_html(
@@ -284,13 +307,65 @@ def test_reviewer_panel_shows_points(
 # --- CSP ścieżki laboratorium ---------------------------------------------------------------------
 
 
-def test_lab_path_gets_lab_policy(settings, tmp_path, web):
+def test_lab_path_gets_path_restricted_policy_and_isolation_headers(settings, web):
     from apps.web.middleware import is_notebook_lab_path
 
     assert is_notebook_lab_path(f"{settings.STATIC_URL}notebook-lab/314/lab/index.html")
     assert not is_notebook_lab_path(f"{settings.STATIC_URL}css/app.css")
-    assert "'wasm-unsafe-eval'" in NOTEBOOK_LAB_POLICY and "frame-ancestors 'self'" in NOTEBOOK_LAB_POLICY
-    assert "https:" not in NOTEBOOK_LAB_POLICY  # żadnego zewnętrznego hosta
     # Dowolna odpowiedź spod ścieżki (także 404) dostaje politykę laboratorium, a nie serwisu.
     response = web.get(f"{settings.STATIC_URL}notebook-lab/nie-ma/index.html")
-    assert response["Content-Security-Policy"] == NOTEBOOK_LAB_POLICY
+    policy = response["Content-Security-Policy"]
+    assert policy == build_notebook_lab_policy("http://testserver")
+    directives = dict(item.split(" ", 1) for item in policy.split("; "))
+    lab = f"http://testserver{settings.STATIC_URL}notebook-lab/"
+    # Każde źródło zawężone do ścieżki laboratorium – żadnego 'self' (całego originu).
+    assert "'self'" not in policy
+    assert directives["connect-src"] == f"{lab} http://testserver/notebook-starter/"
+    assert directives["frame-src"] == f"{lab} blob:"
+    assert directives["form-action"] == "'none'" and directives["frame-ancestors"] == "'none'"
+    for name, value in NOTEBOOK_LAB_HEADERS.items():
+        assert response[name] == value
+
+
+def test_lab_policy_blocks_platform_api_by_path():
+    """Ścieżki API i paneli nie pasują do żadnego źródła ``connect-src`` (CSP porównuje ścieżkę)."""
+    policy = build_notebook_lab_policy("https://olimpiada.example")
+    connect = next(d for d in policy.split("; ") if d.startswith("connect-src")).split()[1:]
+    for path in ("/api/submissions/", "/me/", "/coordinator/", "/accounts/email/", "/"):
+        url = f"https://olimpiada.example{path}"
+        assert not any(url.startswith(source) for source in connect), path
+
+
+@pytest.mark.parametrize(
+    ("method", "path", "dest", "status"),
+    [
+        ("post", "/me/", "", 403),
+        ("post", "/coordinator/notebooks/", "", 403),
+        ("get", "/api/competitions/", "", 403),
+        ("get", "/me/", "empty", 403),
+        ("get", "/me/", "document", 200),
+    ],
+)
+def test_server_guard_refuses_requests_from_the_lab(web, participant, method, path, dest, status):
+    web.force_login(participant.user)
+    referer = "http://testserver/static/notebook-lab/314/lab/index.html"
+    headers = {"HTTP_REFERER": referer}
+    if dest:
+        headers["HTTP_SEC_FETCH_DEST"] = dest
+    response = getattr(web, method)(path, **headers)
+    if status == 403:
+        assert response.status_code == 403
+    else:
+        assert response.status_code != 403
+    # Ten sam adres z ``Referer`` spoza laboratorium – strażnik się nie wtrąca.
+    assert getattr(web, method)(path, HTTP_REFERER="http://testserver/me/").content != (
+        b"Requests from the notebook lab to the platform are not allowed."
+    )
+
+
+def test_coordinator_screens_warn_about_same_origin(web, competition, coordinator, problem):
+    enable(competition)
+    web.force_login(coordinator)
+    for url in (LIST_URL, task_url(problem)):
+        html = web.get(url).content.decode()
+        assert "laboratorium działa w domenie serwisu" in html and "§ 40.6" in html

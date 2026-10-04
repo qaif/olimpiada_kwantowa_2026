@@ -161,6 +161,51 @@ def starter_filename(task: NotebookTask) -> str:
     return f"zadanie-{problem.stage_id}-{problem.number}.ipynb"
 
 
+STARTER_SALT = "notebooks.starter"
+#: Ważność adresu notatnika startowego. Laboratorium pobiera go raz, przy otwarciu.
+STARTER_MAX_AGE = 12 * 3600
+
+
+def starter_url(task: NotebookTask, participant, user) -> str:
+    """Adres notatnika startowego dla laboratorium – ścieżka stała, bez prefiksu konkursu."""
+    from django.core import signing
+
+    from apps.web.middleware import NOTEBOOK_STARTER_PATH
+
+    competition_id = task.problem.stage.edition.competition_id
+    token = signing.dumps({"c": competition_id, "t": task.pk, "u": user.pk}, salt=STARTER_SALT, compress=True)
+    return f"{NOTEBOOK_STARTER_PATH}{token}/{starter_filename(task)}"
+
+
+def task_from_starter_token(token: str, user, now=None) -> NotebookTask | None:
+    """Zadanie z tokenu – albo ``None`` (podpis, termin, inne konto, bramki uczestnika)."""
+    from django.core import signing
+
+    from apps.accounts.services import participant_for
+
+    try:
+        data = signing.loads(token, salt=STARTER_SALT, max_age=STARTER_MAX_AGE)
+    except signing.BadSignature:
+        return None
+    if not isinstance(data, dict) or data.get("u") != user.pk:
+        return None
+    task = (
+        NotebookTask.objects.select_related("problem__stage__edition__competition")
+        .filter(pk=data.get("t"), problem__stage__edition__competition_id=data.get("c"))
+        .first()
+    )
+    if task is None:
+        return None
+    competition = task.problem.stage.edition.competition
+    participant = participant_for(user, competition)
+    if participant is None:
+        return None
+    try:
+        return participant_task(task.problem, participant, now)
+    except DomainError:
+        return None
+
+
 def participant_task(problem, participant, now=None) -> NotebookTask:
     """Notatnik dla uczestnika: flaga, wpis na etap, treść zadania już jawna. Inaczej 404-owy błąd."""
     from apps.competitions.models import StageEntry

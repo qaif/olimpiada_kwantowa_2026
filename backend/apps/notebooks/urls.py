@@ -34,8 +34,9 @@ urlpatterns = [
         name="coordinator-notebook-run",
     ),
     path("me/notebooks/<int:pk>/", views.ParticipantLabView.as_view(), name="participant-notebook"),
+    # Bez prefiksu konkursu i z tokenem – patrz ``ParticipantStarterView`` i polityka laboratorium.
     path(
-        "me/notebooks/<int:pk>/starter/<str:filename>",
+        "notebook-starter/<str:token>/<str:filename>",
         views.ParticipantStarterView.as_view(),
         name="participant-notebook-starter",
     ),

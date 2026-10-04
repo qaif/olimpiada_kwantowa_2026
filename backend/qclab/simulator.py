@@ -191,6 +191,54 @@ def sample_counts(
     return (result, shots_list) if memory else result
 
 
+#: Najwięcej gałęzi dokładnego rozkładu (każdy pomiar/reset w trakcie podwaja ich liczbę).
+MAX_EXACT_BRANCHES = 4096
+
+
+def exact_distribution(circuit: QuantumCircuit, max_branches: int = MAX_EXACT_BRANCHES) -> dict[str, float] | None:
+    """Dokładny rozkład wyników pomiarów także przy pomiarze w trakcie i resecie – albo ``None``.
+
+    Każdy pomiar rozgałęzia stan na wynik 0 i 1 z ich prawdopodobieństwami (gałęzie o zerowym
+    prawdopodobieństwie odpadają). ``None``, gdy gałęzi byłoby więcej niż ``max_branches`` – wtedy
+    wołający losuje (``sample_counts``).
+    """
+    _check_qubits(circuit.num_qubits)
+    n = circuit.num_qubits
+    x_gate = np.array([[0, 1], [1, 0]], dtype=complex)
+    branches: list[tuple[float, np.ndarray, tuple]] = [(1.0, zero_state(n), (0,) * circuit.num_clbits)]
+    for operation, qubits, cbits in circuit.instruction_indices():
+        name = operation.name
+        if name in ("barrier", "save_statevector", "delay"):
+            continue
+        if name in ("measure", "reset"):
+            qubit = qubits[0]
+            mask = ((np.arange(2**n) >> qubit) & 1).astype(bool)
+            split = []
+            for prob, state, clbits in branches:
+                p1 = float(np.sum(np.abs(state[mask]) ** 2))
+                for outcome, p_out in ((0, 1.0 - p1), (1, p1)):
+                    if p_out <= 1e-15:
+                        continue
+                    keep = mask if outcome else ~mask
+                    collapsed = np.where(keep, state, 0) / np.sqrt(p_out)
+                    new_bits = clbits
+                    if name == "measure":
+                        new_bits = clbits[: cbits[0]] + (outcome,) + clbits[cbits[0] + 1 :]
+                    elif outcome:
+                        collapsed = apply_matrix(collapsed, n, x_gate, qubits)
+                    split.append((prob * p_out, collapsed, new_bits))
+            if len(split) > max_branches:
+                return None
+            branches = split
+            continue
+        branches = [(prob, _apply_operation(state, n, operation, qubits), clbits) for prob, state, clbits in branches]
+    result: dict[str, float] = {}
+    for prob, _state, clbits in branches:
+        key = _key(circuit, list(clbits))
+        result[key] = result.get(key, 0.0) + prob
+    return result
+
+
 def _collapse(state: np.ndarray, n: int, qubit: int, rng) -> tuple[int, np.ndarray]:
     indices = np.arange(len(state))
     mask = ((indices >> qubit) & 1).astype(bool)

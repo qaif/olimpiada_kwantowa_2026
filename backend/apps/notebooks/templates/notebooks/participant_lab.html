@@ -1,37 +1,30 @@
 {% extends "base.html" %}
-{% load i18n static %}
+{% load i18n %}
 {% comment %}
-  Laboratorium uczestnika: JupyterLite w ramce z naszej domeny (ścieżka ``/static/notebook-lab/``
-  z własną polityką CSP – QC-01 § 3.2). Ta strona jako jedyna ma w ``frame-src`` dodatkowe
-  ``'self'`` (nagłówek ustawia widok). Bez skryptów – wysokość ramki robi arkusz.
+  Strona laboratorium uczestnika. JupyterLite otwiera się w **osobnej karcie** (``rel="noopener"``),
+  a nie w ramce: kod ucznia wykonuje się w dokumencie laboratorium, który w ramce miałby dostęp do
+  tej strony przez ``window.parent`` (ten sam origin – QC-01 § 3.5). Bez skryptów.
 {% endcomment %}
 {% block title %}{% blocktranslate trimmed with number=problem.number %}Notatnik – zadanie {{ number }}{% endblocktranslate %}{% endblock %}
-{% block head %}{{ block.super }}
-  <link rel="stylesheet" href="{% static 'notebooks/notebook-lab.css' %}">
-{% endblock %}
 {% block content %}
 <div class="page-head">
   <span class="eyebrow"><a href="{% url 'web:me' %}">{% translate "Panel uczestnika" %}</a></span>
   <h1>{% blocktranslate trimmed with number=problem.number title=problem.display_title %}Zadanie {{ number }}: {{ title }}{% endblocktranslate %}</h1>
-  <ol class="notebook-lab__steps">
-    <li>{% translate "Notatnik otwiera się poniżej – kod uruchamiasz klawiszami Shift+Enter. Wszystko liczy Twoja przeglądarka." %}</li>
+  <ol>
+    <li>{% translate "Notatnik otwiera się w nowej karcie – kod uruchamiasz klawiszami Shift+Enter. Wszystko liczy Twoja przeglądarka." %}</li>
     {% if visible_count %}<li>{% translate "Ostatnia komórka uruchamia testy przykładowe. Ocenę liczą testy ukryte na serwerze." %}</li>{% endif %}
     <li>{% translate "Gotowe? W JupyterLab: File → Download. Pobrany plik .ipynb wyślij w karcie zadania na platformie." %}</li>
   </ol>
   <p class="hint">{% translate "Praca zapisuje się w tej przeglądarce (nie na serwerze). Na wspólnym komputerze pobierz plik przed wyjściem." %}
     {% if transfer_mb %}{% blocktranslate trimmed with size=transfer_mb %}Pierwsze otwarcie pobiera ok. {{ size }} MB.{% endblocktranslate %}{% endif %}</p>
+  <p class="hint">{% translate "Nie wklejaj do notatnika kodu od innych osób – wykonuje się w Twojej przeglądarce, na Twoim koncie." %}</p>
   <p class="actions">
+    {% if lab_url %}<a class="btn btn--primary" href="{{ lab_url }}" target="_blank" rel="noopener noreferrer">{% translate "Otwórz notatnik" %}</a>{% endif %}
     <a class="btn btn--secondary btn--small" href="{{ starter_url }}?download=1">{% translate "Pobierz notatnik startowy" %}</a>
-    {% if lab_url %}<a class="btn btn--secondary btn--small" href="{{ lab_url }}" target="_blank" rel="noopener">{% translate "Otwórz w nowej karcie" %}</a>{% endif %}
     <a class="btn btn--ghost btn--small" href="{% url 'web:me' %}#problem-{{ problem.pk }}">{% translate "Wróć do zadania" %}</a>
   </p>
 </div>
-{% if lab_url %}
-  <iframe class="notebook-lab__frame" src="{{ lab_url }}"
-          title="{% translate 'Notatnik Jupyter (JupyterLite)' %}"
-          allow="clipboard-read; clipboard-write"
-          referrerpolicy="same-origin"></iframe>
-{% else %}
+{% if not lab_url %}
   <p class="msg msg-warning">{% translate "Notatnik w przeglądarce nie jest jeszcze zainstalowany na tym serwerze. Pobierz notatnik startowy i otwórz go we własnym Jupyterze albo napisz do organizatora." %}</p>
 {% endif %}
 {% endblock %}
