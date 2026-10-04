@@ -38,6 +38,11 @@ services:
     read_only: false
     volumes:
       - ./backend:/app
+  notebook-worker:
+    # Profil `notebooks` (QC-01): kod z katalogu roboczego, spool z pliku podstawowego zostaje.
+    read_only: false
+    volumes:
+      - ./backend:/app
   db:
     ports:
       - "127.0.0.1:5432:5432"

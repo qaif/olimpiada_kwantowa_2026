@@ -21,7 +21,10 @@
 #   5. audyt z 1.10.2026 (przypadki 12–17): Redis wyłącznie w sieci `cache` z web/worker/beat,
 #      ClamAV z wyjściem przez osobną `clamav_egress`, żadna z nich w TRUSTED_PROXY_IPS ani
 #      `mynetworks`; hasło Redisa opcjonalne (bez niego – konfiguracja jak dotąd); porty nakładki
-#      deweloperskiej tylko na 127.0.0.1; nakładka E2E na podsieciach rozłącznych z dev.
+#      deweloperskiej tylko na 127.0.0.1; nakładka E2E na podsieciach rozłącznych z dev;
+#   6. monitoring błędów i dostępności (OPS-02, przypadek 18): profil `monitoring` dokłada GlitchTipa,
+#      jego bazę w izolowanej sieci `errors` i `uptime`, bez sekretów platformy; GlitchTip poza
+#      `edge`/`internal`, w sieciach errors_front/ingest/egress; relay z jednym nadawcą dla niego.
 #
 # Wszystko przez `docker compose config`, czyli bez demona, bez sieci i bez budowania czegokolwiek:
 # sprawdzamy złożenie plików, a nie działającą instalację. Zmienne bierzemy z `.env.example`,
@@ -300,6 +303,62 @@ awk '/^networks:/ {n=1} n && /subnet: / {print $NF}' "$WORK/e2e.yml" | sort >"$W
 [ "$(wc -l <"$WORK/e2e-podsieci.txt")" -eq 4 ] && ! grep -q '^172\.30\.' "$WORK/e2e-podsieci.txt" &&
   [ -z "$(comm -12 "$WORK/podsieci.txt" "$WORK/e2e-podsieci.txt")" ]
 check "nakładka E2E: cztery sieci, żadna na podsieci projektu dev [$(tr '\n' ' ' <"$WORK/e2e-podsieci.txt")]" $?
+
+# 18. Monitoring błędów i dostępności (OPS-02): profil `monitoring` dokłada do zestawu dzisiejszego
+#     dokładnie monitor (Kuma), glitchtip, glitchtip-db i uptime; baza GlitchTipa wyłącznie w sieci
+#     `errors` (internal: true), w której poza nią stoi tylko glitchtip; obraz GlitchTipa przypięty
+#     skrótem; uptime i glitchtip bez `env_file` (sekrety platformy nie wyjeżdżają).
+got="$(uslugi -f "$BASE" --profile monitoring)"
+[ "$got" = "beat clamav db glitchtip glitchtip-db mail minio minio-init monitor proxy redis uptime web worker" ]
+check "profil monitoring dokłada monitor, glitchtip, glitchtip-db i uptime [$got]" $?
+got="$(grep -E '^glitchtip-db:' "$WORK/sieci.txt" | cut -d: -f2 | tr '\n' ' ' | sed 's/ $//')"
+[ "$got" = "errors" ]
+check "glitchtip-db wyłącznie w sieci errors [$got]" $?
+got="$(grep ':errors$' "$WORK/sieci.txt" | cut -d: -f1 | sort | tr '\n' ' ' | sed 's/ $//')"
+[ "$got" = "glitchtip glitchtip-db" ]
+check "sieć errors: wyłącznie glitchtip i glitchtip-db [$got]" $?
+siec "$WORK/pelny.yml" errors | grep -qx '    internal: true'
+check "sieć errors: internal: true" $?
+grep -qE '^    image: glitchtip/glitchtip:[0-9.]+@sha256:[0-9a-f]{64}$' "$WORK/pelny.yml"
+check "obraz GlitchTipa przypięty tagiem i skrótem" $?
+for svc in glitchtip glitchtip-db uptime; do
+  awk -v s="  $svc:" '$0 == s {on=1; next} on && /^  [^ ]/ {on=0} on' "$WORK/pelny.yml" >"$WORK/svc.yml"
+  # `env_file: .env` compose rozwija w `environment`, więc jego ślad to klucze z .env.example.
+  [ -s "$WORK/svc.yml" ] && ! grep -qE 'DJANGO_SECRET_KEY|MINIO_ROOT_PASSWORD|S3_PRIVATE_SECRET_KEY|REDIS_PASSWORD' "$WORK/svc.yml"
+  check "$svc bez sekretów platformy (bez env_file .env)" $?
+done
+# Sieci GlitchTipa (krytyk OPS-02, H3/H4): GlitchTip NIE w `edge` ani `internal` (zaufane proxy
+# aplikacji, klienci relaya), tylko w czterech wąskich sieciach; każda z dokładnie tymi członkami.
+member_of() {  # member_of <sieć> – usługi w sieci, alfabetycznie
+  grep ":$1\$" "$WORK/sieci.txt" | cut -d: -f1 | sort | tr '\n' ' ' | sed 's/ $//'
+}
+got="$(grep -E '^glitchtip:' "$WORK/sieci.txt" | cut -d: -f2 | sort | tr '\n' ' ' | sed 's/ $//')"
+[ "$got" = "errors errors_egress errors_front errors_ingest" ]
+check "glitchtip wyłącznie w errors, errors_egress, errors_front, errors_ingest (bez edge/internal) [$got]" $?
+got="$(member_of errors_front)"; [ "$got" = "glitchtip proxy" ]
+check "sieć errors_front: wyłącznie glitchtip i proxy [$got]" $?
+got="$(member_of errors_ingest)"; [ "$got" = "beat glitchtip web worker" ]
+check "sieć errors_ingest: web, worker, beat i glitchtip – zgłoszenia także z workera i beat [$got]" $?
+got="$(member_of errors_egress)"; [ "$got" = "glitchtip mail" ]
+check "sieć errors_egress: wyłącznie glitchtip i mail [$got]" $?
+siec "$WORK/pelny.yml" errors_ingest | grep -qx '    internal: true' && siec "$WORK/pelny.yml" errors_front | grep -qx '    internal: true' \
+  && ! siec "$WORK/pelny.yml" errors_egress | grep -q 'internal: true'
+check "errors_ingest i errors_front bez wyjścia do internetu, errors_egress z wyjściem" $?
+! grep -qE '172\.30\.[6-9]\.' "$WORK/trusted.txt" || {
+  # mynetworks (druga linia) MA podsieć errors_egress – z jednym nadawcą; TRUSTED_PROXY_IPS (pierwsza) – nie.
+  ! head -1 "$WORK/trusted.txt" | grep -qE '172\.30\.[6-9]\.' && sed -n 2p "$WORK/trusted.txt" | grep -q '172\.30\.9\.0/24' \
+    && ! sed -n 2p "$WORK/trusted.txt" | grep -qE '172\.30\.[678]\.'
+}
+check "TRUSTED_PROXY_IPS bez sieci GlitchTipa; mynetworks relaya wyłącznie z errors_egress" $?
+mail_cfg="$(awk '/^  mail:$/ {on=1; next} on && /^  [^ ]/ {on=0} on' "$WORK/pelny.yml")"
+printf '%s\n' "$mail_cfg" | grep -qF 'POSTFIX_smtpd_sender_restrictions: check_client_access cidr:{ { 172.30.9.0/24 errors_sender_only } }, permit_mynetworks, reject' \
+  && printf '%s\n' "$mail_cfg" | grep -qE 'POSTFIX_errors_sender_only: check_sender_access inline:\{ glitchtip@[^ ]+=OK \}, reject$'
+check "relay: z podsieci GlitchTipa wyłącznie nadawca glitchtip@<domena>" $?
+# Bez profilu – żadnej usługi, bazy ani wolumenu GlitchTipa/uptime (sieci errors_* istnieją, bo należą do
+# nich web/worker/beat, proxy i mail – puste poza nimi; ta sama zasada co livekit_signal).
+docker compose --env-file "$ENV_FILE" -f "$BASE" config >"$WORK/zwykly.yml" 2>/dev/null
+! grep -qE '^  errors:$|^  glitchtip|glitchtip_pg|glitchtip_uploads|uptime_state' "$WORK/zwykly.yml"
+check "bez profilu monitoring: ani usług, ani sieci bazy, ani wolumenów GlitchTipa/uptime" $?
 
 if [ "$failures" -ne 0 ]; then
   printf '\n%d test(ów) nie przeszło.\n' "$failures"

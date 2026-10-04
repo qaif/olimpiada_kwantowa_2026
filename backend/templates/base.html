@@ -1,4 +1,4 @@
-{% load static i18n web_extras cms_extras wagtailimages_tags theme_tags %}<!doctype html>
+{% load static i18n web_extras cms_extras wagtailimages_tags theme_tags monitoring_tags %}<!doctype html>
 {% comment %}
   ``lang`` idzie z aktywnego języka, a ``data-contrast`` pojawia się **tylko** w trybie wysokiego
   kontrastu (pusty atrybut znaczyłby „tryb domyślny”, a arkusz zaczepia się o samą jego obecność).
@@ -26,7 +26,7 @@
     <script async nonce="{{ request.csp_nonce }}" src="https://www.googletagmanager.com/gtag/js?id={{ settings.cms.SiteSettings.ga_measurement_id }}"></script>
     <script nonce="{{ request.csp_nonce }}" src="{% static 'js/analytics.js' %}"></script>
   {% endif %}
-  <meta charset="utf-8">
+  <meta charset="utf-8">{% error_tracking_loader %}
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}{{ settings.cms.SiteSettings.site_name }}{% endblock %}</title>
   {% comment %}

@@ -1,4 +1,4 @@
-{% load i18n web_extras problem_translations %}{% comment %}
+{% load i18n web_extras problem_translations notebook_tags %}{% comment %}
   Karta jednego zadania: treść, stan pracy, upload i historia wersji. Ten sam fragment renderuje
   pulpit i odpowiedź HTMX po uploadzie, więc jedno i drugie musi mówić to samo.
 
@@ -46,6 +46,8 @@
       <span class="badge badge--neutral">{% translate "treść jeszcze nieopublikowana" %}</span>
     {% endif %}{% student_translation_link row.problem %}
   </p>
+  {# Notatnik kwantowy przy zadaniu (QC-01) – przy wyłączonej fladze tag nie pyta bazy i nic nie rysuje. #}
+  {% notebook_card_panel row stage %}
 
   {% comment %}
     Ścieżka oceniania stoi nad uploadem, a nie pod historią wersji: odpowiada na pytanie, które
