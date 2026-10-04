@@ -382,16 +382,23 @@ def attempts_left(quiz: Quiz, entry: StageEntry) -> int:
     return max(0, quiz.attempts_allowed - attempts_used(quiz, entry))
 
 
-@transaction.atomic
-def start_window(quiz: Quiz, entry: StageEntry):
-    """Okno startu podejścia dla właściciela wpisu – z oknem czasowym ucznia (TZ-01)."""
-    from apps.time_windows.access import quiz_window
+def start_terms(quiz: Quiz, entry: StageEntry):
+    """Okno startu i dodatkowe minuty właściciela wpisu – z oknem czasowym ucznia (TZ-01)."""
+    from apps.time_windows.access import quiz_terms
 
     if entry.participant_id is None:
-        return quiz.window
-    return quiz_window(quiz, entry.participant)
+        opens, closes = quiz.window
+        return (opens, closes, 0)
+    return quiz_terms(quiz, entry.participant)
 
 
+def start_window(quiz: Quiz, entry: StageEntry):
+    """Okno startu podejścia dla właściciela wpisu (strona startowa testu)."""
+    opens, closes, _extra = start_terms(quiz, entry)
+    return (opens, closes)
+
+
+@transaction.atomic
 def start_attempt(*, quiz: Quiz, entry: StageEntry, now=None, request=None) -> QuizAttempt:
     """Rozpoczęcie podejścia: losowanie zestawu, wyliczenie terminu, zapis.
 
@@ -422,7 +429,7 @@ def start_attempt(*, quiz: Quiz, entry: StageEntry, now=None, request=None) -> Q
 
     # Okno startu: w etapie z oknami czasowymi (TZ-01) – okno **tego ucznia**, a własne terminy
     # testu są pomijane; w każdym innym etapie dokładnie ``quiz.window``, bez zapytania.
-    opens, closes = start_window(quiz, entry)
+    opens, closes, extra_minutes = start_terms(quiz, entry)
     if not opens <= now < closes:
         raise _conflict(
             _("Test jest zamknięty.")
@@ -438,8 +445,9 @@ def start_attempt(*, quiz: Quiz, entry: StageEntry, now=None, request=None) -> Q
 
     # Termin podejścia to wcześniejszy z dwóch: czas trwania testu i koniec okna. Bez drugiego
     # członu podejście rozpoczęte pięć minut przed zamknięciem trwałoby pełną godzinę – i dawałoby
-    # przewagę osobie, która zaczęła najpóźniej.
-    deadline = min(now + timedelta(minutes=quiz.duration_minutes), closes)
+    # przewagę osobie, która zaczęła najpóźniej. Dodatkowy czas ucznia z okien czasowych (TZ-01)
+    # wydłuża samo podejście, a ``closes`` jest już jego własnym, wydłużonym końcem okna.
+    deadline = min(now + timedelta(minutes=quiz.duration_minutes + extra_minutes), closes)
     attempt = QuizAttempt.objects.create(
         quiz=quiz,
         entry=entry,
@@ -1006,6 +1014,7 @@ __all__ = [
     "save_quiz_settings",
     "stage_scores",
     "start_attempt",
+    "start_terms",
     "start_window",
     "results_visible_at",
     "submit_attempt",
