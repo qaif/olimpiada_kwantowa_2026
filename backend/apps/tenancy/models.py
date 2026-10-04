@@ -273,6 +273,12 @@ FEATURE_DEFAULTS: dict[str, bool] = {
     # prace uczestników wychodzą wtedy do podmiotu przetwarzającego (Anthropic) poza organizatorem,
     # co wymaga umowy powierzenia i zmiany polityki prywatności (``docs/OPERACJE.md``).
     "ai_grading": False,
+    # --- okna czasowe etapu (TZ-01, 4.10.2026) -----------------------------------------------------
+    # Etap zdalny rozłożony na kilka startów według stref czasowych krajów (``apps.time_windows``).
+    # Wyłączona znaczy, że żadna bramka okien nie pyta bazy, ekranu „Okna czasowe” nie ma (404),
+    # a menu i panel uczestnika są co do bajtu takie, jak przed tą zmianą. Przełącza operator
+    # w ``/admin/``: wyłączenie w trakcie trwania okien ujawniłoby zadania wszystkim naraz.
+    "stage_time_windows": False,
 }
 
 
