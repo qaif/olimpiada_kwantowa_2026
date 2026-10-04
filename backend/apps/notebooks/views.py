@@ -10,6 +10,7 @@ import json
 
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.core.exceptions import PermissionDenied
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.template.response import TemplateResponse
@@ -342,6 +343,13 @@ class ParticipantStarterView(View):
         task = services.task_from_starter_token(token, request.user)
         if task is None or filename != services.starter_filename(task):
             raise Http404
+        # Nadzór zdalny (PROC-01): adres nie niesie zadania, więc bramka middleware go nie rozpozna –
+        # token zdobyty przy gotowej sesji nie może oddawać treści zadania po jej zerwaniu.
+        from apps.proctoring.services import gate_decision
+
+        stage = task.problem.stage
+        if gate_decision(request.user, stage, stage.edition.competition) is not None:
+            raise PermissionDenied
         attachment = request.GET.get("download") == "1"
         return _notebook_response(services.starter_notebook(task), filename, attachment=attachment)
 

@@ -35,6 +35,9 @@ GATED_VIEWS = {
     "web:quiz-attempt": "attempt",
     "web:student-translation": "problem",
     "web:student-translation-file": "problem",
+    # Strona laboratorium notatnika przy zadaniu (QC-01) – ``pk`` to zadanie. Sam notatnik startowy
+    # (``web:participant-notebook-starter``, adres z tokenem bez zadania w ścieżce) bramkuje widok.
+    "web:participant-notebook": "problem",
 }
 
 

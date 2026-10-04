@@ -8,6 +8,7 @@ import json
 import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client
+from django.urls import reverse
 from django.utils import timezone
 
 from apps.accounts.models import CompetitionRole
@@ -237,6 +238,31 @@ def test_starter_token_is_bound_to_the_account(web, competition, coordinator, pr
     assert web.get(path).status_code == 404
     web.logout()
     assert web.get(path).status_code == 404
+
+
+def test_proctored_stage_keeps_lab_and_starter_behind_the_gate(
+    web, competition, coordinator, problem, participant, lab_built
+):
+    """Nadzór zdalny (PROC-01): bez gotowej sesji ani strona laboratorium, ani notatnik startowy.
+
+    Token startowy zdobyty wcześniej (przy gotowej sesji) nie otwiera treści po jej zerwaniu –
+    adres tokenu nie niesie zadania, więc bramkę sprawdza sam widok, a nie middleware.
+    """
+    from apps.proctoring.models import ProctoringConfig
+
+    enable(competition)
+    configured(problem, coordinator)
+    path = starter_path(problem, participant)
+    web.force_login(participant.user)
+    assert web.get(path).status_code == 200
+    competition.feature_flags = {**competition.feature_flags, "proctoring": True}
+    competition.save(update_fields=["feature_flags"])
+    ProctoringConfig.objects.create(stage=problem.stage, enabled=True)
+
+    response = web.get(lab_url(problem), HTTP_ACCEPT="text/html")
+    assert response.status_code == 302
+    assert response["Location"] == reverse("web:proctoring-console", args=[problem.stage_id])
+    assert web.get(path).status_code == 403
 
 
 def test_hidden_tests_never_reach_participant_html(

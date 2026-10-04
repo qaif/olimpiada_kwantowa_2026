@@ -36,6 +36,8 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
   katalog tłumaczeń `apps/notebooks/locale` (10 języków). Wdrożenie: `docs/OPERACJE.md` § 40
   (`COMPOSE_PROFILES=notebooks` podnosi `notebook-runner` i `notebook-worker`); podręczniki:
   organizatora § 10n, recenzenta § 3b, uczestnika § 3a.
+- **Nadzór zdalny (PROC-01):** strona laboratorium (`web:participant-notebook`) stoi w `GATED_VIEWS`,
+  a notatnik startowy z tokenem sprawdza bramkę nadzoru w widoku (403 bez gotowej sesji).
 
 ## [Unreleased] – LiveKit: jeden port UDP z multipleksacją
 
