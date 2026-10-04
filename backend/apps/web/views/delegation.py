@@ -106,6 +106,10 @@ class DelegationDashboardView(TeamLeaderRequiredMixin, TemplateView):
                 "can_add": delegation.is_open and window_open and len(students) < delegation.max_students,
             }
         )
+        # Sekcja „Opłaty” (PAY-01) – pusty kontekst, gdy konkurs nie pobiera opłat (flaga ``fees``).
+        from apps.payments.services import delegation_card
+
+        context.update(delegation_card(delegation))
         return context
 
 

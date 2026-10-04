@@ -1,0 +1,97 @@
+{% extends "web/coordinator/base.html" %}
+{% load static %}
+{% comment %}
+  Zamówienie (PAY-01) w panelu koordynatora: pozycje, nabywca, dokumenty, wpłaty, zwroty i czynności –
+  wpływ przelewu (z opcjonalnym dowodem skanowanym ClamAV-em), anulowanie, zwrot przez operatora.
+{% endcomment %}
+{% block title %}Zamówienie {{ order.reference }} – panel koordynatora{% endblock %}
+{% block panel_head %}<link rel="stylesheet" href="{% static 'css/coordinator-tools.css' %}">{% endblock %}
+{% block panel_eyebrow %}<a href="{% url 'web:coordinator-payments' %}">Płatności</a>{% endblock %}
+{% block panel_title %}Zamówienie {{ order.reference }}{% endblock %}
+{% block panel_lead %}
+  <p class="lead">{{ order.get_status_display }} · {{ order.total }} {{ order.currency }}{% if order.refunded_amount %} · zwrócono {{ order.refunded_amount }}{% endif %} ·
+    {% if order.delegation_id %}delegacja: <a href="{% url 'web:coordinator-payments-delegation' order.delegation_id %}">{{ order.delegation.country.name }}</a>{% else %}uczestnik {{ order.participant_fee.participant.public_code }}{% endif %}</p>
+{% endblock %}
+{% block panel_content %}
+<section class="section">
+  <dl class="meta-list">
+    <dt>Nabywca</dt><dd>{{ order.buyer_name }} ({{ order.get_buyer_type_display }})</dd>
+    <dt>Adres</dt><dd>{{ order.buyer_address|linebreaksbr }}{% if order.buyer_country %}, {{ order.buyer_country }}{% endif %}</dd>
+    {% if order.buyer_vat_id %}<dt>NIP / VAT ID</dt><dd>{{ order.buyer_vat_id }}</dd>{% endif %}
+    <dt>E-mail</dt><dd>{{ order.buyer_email }}</dd>
+    <dt>Wystawiono</dt><dd>{{ order.created_at|date:"Y-m-d H:i" }}{% if order.due_on %}, termin {{ order.due_on|date:"Y-m-d" }}{% endif %}</dd>
+    {% if order.cancelled_at %}<dt>Anulowano</dt><dd>{{ order.cancelled_at|date:"Y-m-d H:i" }} {{ order.cancel_reason }}</dd>{% endif %}
+  </dl>
+  <div class="scroll">
+    <table class="table">
+      <caption class="visually-hidden">Pozycje</caption>
+      <thead><tr><th scope="col">Pozycja</th><th scope="col">Ilość</th><th scope="col">Cena</th><th scope="col">Kwota</th></tr></thead>
+      <tbody>
+        {% for line in lines %}<tr><th scope="row">{{ line.description }}</th><td>{{ line.quantity }}</td><td>{{ line.unit_price }}</td><td>{{ line.amount }}</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <p>Dokumenty:
+    {% for document in documents %}<a href="{% url 'web:payment-document' document.pk %}">{{ document.get_kind_display }} {{ document.number }}</a>{% if not forloop.last %}, {% endif %}{% empty %}brak{% endfor %}</p>
+</section>
+
+<section class="section">
+  <div class="section__head"><h2 class="mt-0">Wpłaty i zwroty</h2></div>
+  <ul>
+    {% for payment in payments %}
+      <li>{{ payment.created_at|date:"Y-m-d H:i" }} · {{ payment.get_provider_display }} · {{ payment.amount }} {{ payment.currency }} · <strong>{{ payment.get_status_display }}</strong>
+        {% if payment.provider_payment_id %} · {{ payment.provider_payment_id }}{% endif %}
+        {% if payment.received_on %} · wpływ {{ payment.received_on|date:"Y-m-d" }}{% endif %}
+        {% if payment.note %} · {{ payment.note }}{% endif %}
+        {% if payment.detail %} · {{ payment.detail }}{% endif %}
+        {% if payment.proof_scan_status %} · dowód: {{ payment.get_proof_scan_status_display }}{% if payment.proof_scan_status == "CLEAN" and payment.proof_key %} (<a href="{% url 'web:coordinator-payments-proof' payment.pk %}">pobierz</a>){% endif %}{% endif %}
+        {% for refund in payment.refunds.all %}<br>↳ zwrot {{ refund.amount }} {{ payment.currency }} – {{ refund.get_status_display }} ({{ refund.reason }}){% endfor %}
+      </li>
+    {% empty %}
+      <li>Brak wpłat.</li>
+    {% endfor %}
+  </ul>
+</section>
+
+{% if can_mark_paid %}
+<section class="section">
+  <div class="card">
+    <h2 class="mt-0">Wpływ przelewu</h2>
+    <p class="hint">Zapisz wpłatę, gdy na wyciągu jest przelew z kodem <strong>{{ order.reference }}</strong> na kwotę {{ order.total }} {{ order.currency }}.
+      Powstanie faktura, a płacący dostanie potwierdzenie.</p>
+    <form method="post" action="{% url 'web:coordinator-payments-order-paid' order.pk %}" enctype="multipart/form-data" class="form" novalidate>
+      {% csrf_token %}
+      {{ bank_form.as_p }}
+      <div class="actions"><button type="submit" class="btn btn--primary">Zapisz wpłatę</button></div>
+    </form>
+  </div>
+</section>
+{% endif %}
+
+{% if order.status == "OPEN" %}
+<section class="section">
+  <div class="card">
+    <h2 class="mt-0">Anuluj zamówienie</h2>
+    <form method="post" action="{% url 'web:coordinator-payments-order-cancel' order.pk %}" class="form" novalidate>
+      {% csrf_token %}
+      {{ cancel_form.as_p }}
+      <div class="actions"><button type="submit" class="btn btn--secondary">Anuluj zamówienie</button></div>
+    </form>
+  </div>
+</section>
+{% endif %}
+
+{% for payment in refundable %}
+<section class="section">
+  <div class="card">
+    <h2 class="mt-0">Zwrot: {{ payment.get_provider_display }} {{ payment.amount }} {{ payment.currency }} (zwrócono {{ payment.refunded_amount }})</h2>
+    <p class="hint">{% if payment.provider == "bank_transfer" %}Zwrot przelewu wykonujesz w banku – tu go zapisujesz.{% else %}Zwrot zostanie zlecony u operatora płatności.{% endif %}</p>
+    <form method="post" action="{% url 'web:coordinator-payments-refund' payment.pk %}" class="form" novalidate>
+      {% csrf_token %}
+      {{ refund_form.as_p }}
+      <div class="actions"><button type="submit" class="btn btn--secondary">Zleć zwrot</button></div>
+    </form>
+  </div>
+</section>
+{% endfor %}
+{% endblock %}

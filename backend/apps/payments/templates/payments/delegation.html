@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% load i18n static %}
+{% comment %}
+  Opłaty drużyny (PAY-01) – panel opiekuna. Zestawienie liczy ``apps.payments.pricing.statement``:
+  skład drużyny, co jest już objęte zamówieniami i co wystawi kolejne zamówienie. Kwoty liczy serwer;
+  przycisk „Wystaw fakturę pro forma” nie przesyła żadnej kwoty.
+{% endcomment %}
+{% block title %}{% translate "Opłaty drużyny" %}{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/coordinator-tools.css' %}">{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow"><a href="{% url 'web:delegation' %}">{% translate "Panel opiekuna drużyny" %}</a></span>
+  <h1>{% blocktranslate trimmed with country=delegation.country.name %}Opłaty: {{ country }}{% endblocktranslate %}</h1>
+  <p class="lead">{% translate "Opłatę za drużynę wnosi się na podstawie faktury pro forma: wystaw ją, a potem zapłać kartą albo przelewem. Po zaksięgowaniu wpłaty wystawimy fakturę i wyślemy potwierdzenie e-mailem." %}</p>
+</div>
+
+<section class="section">
+  <div class="section__head"><h2 class="mt-0">{% translate "Zestawienie" %}</h2></div>
+  {% if statement.state == "no_prices" %}
+    <p class="notice">{% translate "Organizator nie opublikował jeszcze cennika." %}</p>
+  {% elif statement.state == "waived" %}
+    <p class="notice">{% translate "Drużyna jest zwolniona z opłat." %}</p>
+  {% else %}
+    <dl class="meta-list">
+      <dt>{% translate "Waluta" %}</dt><dd>{{ statement.currency }}</dd>
+      <dt>{% translate "Zapłacono" %}</dt><dd>{{ statement.paid_total }} {{ statement.currency }}</dd>
+      {% if statement.refunded_total %}<dt>{% translate "Zwrócono" %}</dt><dd>{{ statement.refunded_total }} {{ statement.currency }}</dd>{% endif %}
+      <dt>{% translate "Czeka na wpłatę" %}</dt><dd>{{ statement.open_total }} {{ statement.currency }}</dd>
+      <dt>{% translate "Do wystawienia" %}</dt><dd>{{ statement.new_total }} {{ statement.currency }}</dd>
+    </dl>
+    {% if statement.new_lines %}
+      <div class="scroll">
+        <table class="table">
+          <caption class="visually-hidden">{% translate "Pozycje kolejnej faktury pro forma" %}</caption>
+          <thead><tr>
+            <th scope="col">{% translate "Pozycja" %}</th>
+            <th scope="col">{% translate "Ilość" %}</th>
+            <th scope="col">{% translate "Cena" %}</th>
+            <th scope="col">{% translate "Kwota" %}</th>
+          </tr></thead>
+          <tbody>
+            {% for line in statement.new_lines %}
+              <tr>
+                <th scope="row">{{ line.label }}{% if line.period_label %} ({{ line.period_label }}){% endif %}</th>
+                <td>{{ line.quantity }}</td>
+                <td>{{ line.unit_price }} {{ statement.currency }}</td>
+                <td>{{ line.amount }} {{ statement.currency }}</td>
+              </tr>
+            {% endfor %}
+            {% if statement.discount_line %}
+              <tr><th scope="row">{% translate "Zniżka" %}</th><td>1</td><td></td><td>{{ statement.discount_line.amount }} {{ statement.currency }}</td></tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    {% endif %}
+    {% if statement.new_total > 0 %}
+      {% if profile %}
+        <form method="post" action="{% url 'web:delegation-payments-prepare' %}" class="actions">
+          {% csrf_token %}
+          <button type="submit" class="btn btn--primary">{% translate "Wystaw fakturę pro forma" %}</button>
+        </form>
+      {% else %}
+        <p class="notice">{% translate "Przed wystawieniem faktury pro forma uzupełnij dane do faktury." %}</p>
+      {% endif %}
+    {% endif %}
+  {% endif %}
+</section>
+
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">{% translate "Dane do faktury" %}</h2>
+  </div>
+  {% if profile %}
+    <dl class="meta-list">
+      <dt>{% translate "Nabywca" %}</dt><dd>{{ profile.buyer_name }} ({{ profile.get_buyer_type_display }})</dd>
+      <dt>{% translate "Adres" %}</dt><dd>{{ profile.buyer_address|linebreaksbr }}, {{ profile.buyer_country }}</dd>
+      {% if profile.buyer_vat_id %}<dt>{% translate "NIP / VAT ID" %}</dt><dd>{{ profile.buyer_vat_id }}</dd>{% endif %}
+      <dt>{% translate "E-mail do rozliczeń" %}</dt><dd>{{ profile.buyer_email }}</dd>
+      <dt>{% translate "Liczba obserwatorów" %}</dt><dd>{{ profile.observers }}</dd>
+    </dl>
+  {% else %}
+    <p class="hint">{% translate "Nie podano jeszcze danych do faktury." %}</p>
+  {% endif %}
+  <p class="actions"><a class="btn btn--secondary btn--small" href="{% url 'web:delegation-payments-billing' %}">{% translate "Zmień dane do faktury" %}</a></p>
+</section>
+
+<section class="section">
+  <div class="section__head"><h2 class="mt-0">{% translate "Zamówienia" %}</h2></div>
+  <div class="scroll">
+    <table class="table">
+      <caption class="visually-hidden">{% translate "Zamówienia drużyny" %}</caption>
+      <thead><tr>
+        <th scope="col">{% translate "Kod referencyjny" %}</th>
+        <th scope="col">{% translate "Wystawiono" %}</th>
+        <th scope="col">{% translate "Kwota" %}</th>
+        <th scope="col">{% translate "Stan" %}</th>
+        <th scope="col">{% translate "Dokumenty" %}</th>
+      </tr></thead>
+      <tbody>
+        {% for order in orders %}
+          <tr>
+            <th scope="row"><a href="{% url 'web:payment-order' order.pk %}">{{ order.reference }}</a></th>
+            <td>{{ order.created_at|date:"Y-m-d" }}</td>
+            <td>{{ order.total }} {{ order.currency }}</td>
+            <td>{{ order.get_status_display }}</td>
+            <td>{% for document in order.documents.all %}<a href="{% url 'web:payment-document' document.pk %}">{{ document.number }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="5" class="empty">{% translate "Nie wystawiono jeszcze żadnego zamówienia." %}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

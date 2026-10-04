@@ -140,7 +140,7 @@ FLAG_ITEMS: dict[str, tuple[frozenset[str], frozenset[str]]] = {
     "weighted_scoring": (frozenset(), frozenset({"Rozstrzyganie remisów"})),
     "reviewer_roles": (frozenset(), frozenset({"Role recenzenckie"})),
     # --- wydanie K -----------------------------------------------------------------------------
-    "fees": (frozenset({"Wpisowe"}), frozenset({"Wpisowe"})),
+    "fees": (frozenset({"Wpisowe", "Płatności"}), frozenset({"Wpisowe", "Płatności"})),
     "onsite_logistics": (
         frozenset({"Miejsca zawodów"}),
         frozenset({"Miejsca zawodów", "Przyjazdy i potrzeby", "Obecność"}),
