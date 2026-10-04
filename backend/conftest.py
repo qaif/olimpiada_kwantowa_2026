@@ -46,7 +46,13 @@ def _compile_translations(config) -> None:
         return
     stale = [
         po
-        for po in sorted(BACKEND_DIR.glob("locale/*/LC_MESSAGES/*.po"))
+        # Wspólny katalog i katalogi aplikacji (``apps/<nazwa>/locale/``) – jak ``Dockerfile``.
+        for po in sorted(
+            [
+                *BACKEND_DIR.glob("locale/*/LC_MESSAGES/*.po"),
+                *BACKEND_DIR.glob("apps/*/locale/*/LC_MESSAGES/*.po"),
+            ]
+        )
         if not po.with_suffix(".mo").exists() or po.with_suffix(".mo").stat().st_mtime < po.stat().st_mtime
     ]
     if not stale:
