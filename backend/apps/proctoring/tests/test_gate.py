@@ -35,6 +35,7 @@ ROUTE_ARGS = {
     # TR-01 (``apps.problem_translations``) – adresy pojawią się po scaleniu; do tego czasu pomijane.
     "web:student-translation": [1],
     "web:student-translation-file": [1],
+    "web:participant-notebook": [1],
 }
 OPTIONAL_ROUTES = {"web:student-translation", "web:student-translation-file"}
 
@@ -44,6 +45,8 @@ UNGATED_WITH_REASON = {
     "web:quiz-result": "wynik po podejściu – nie odsłania zadań w trakcie",
     "web:problem-model-solution": "rozwiązanie wzorcowe – wyłącznie panel recenzenta",
     "web:participant-feedback": "informacja zwrotna po publikacji wyników",
+    "web:participant-notebook-starter": "token bez zadania w ścieżce – bramkę sprawdza sam widok (QC-01)",
+    "web:notebook-submission-view": "podgląd oddanej pracy .ipynb – wyłącznie personel",
 }
 #: Przestrzenie i prefiksy wyłącznie dla personelu (panel koordynatora, admin, API komisji) – oraz
 #: dwie drogi, które treści zadań **uczniowi** nie dają: edytor tłumaczeń opiekuna drużyny (TR-01,
@@ -58,7 +61,7 @@ STAFF_PREFIXES = (
     "web:delegation-translation",
     "web:translation",
 )
-CONTENT = re.compile(r"(problem|statement|quiz|translation|submission-create)")
+CONTENT = re.compile(r"(problem|statement|quiz|translation|submission-create|notebook)")
 
 
 def _names(resolver, ns=""):

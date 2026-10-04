@@ -1,0 +1,688 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-04 22:04+0200\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: pt\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Tryb"
+msgstr "Modo"
+
+msgid "Język treści notatnika"
+msgstr "Idioma do conteúdo do caderno"
+
+msgid ""
+"Język notatnika startowego i komunikatów testów. Interfejs JupyterLab jest "
+"angielski."
+msgstr ""
+"Idioma do caderno inicial e das mensagens dos testes. A interface do "
+"JupyterLab está em inglês."
+
+msgid "Limit czasu wykonania (s)"
+msgstr "Limite de tempo de execução (s)"
+
+msgid "Limit pamięci (MB)"
+msgstr "Limite de memória (MB)"
+
+msgid "Kto widzi wynik testów ukrytych"
+msgstr "Quem vê o resultado dos testes ocultos"
+
+msgid ""
+"„Od razu” daje uczestnikowi wyrocznię: może wysyłać kolejne wersje i "
+"patrzeć, które testy ukryte przechodzą. Wybieraj to wyłącznie na etapach "
+"treningowych."
+msgstr ""
+"“Imediatamente” dá ao participante um oráculo: ele pode enviar novas versões "
+"e ver quais testes ocultos passam. Use apenas em etapas de treino."
+
+msgid "Notatnik startowy (.ipynb)"
+msgstr "Caderno inicial (.ipynb)"
+
+msgid ""
+"Puste = zostaje obecny (albo generowany szablon). Wyjścia komórek zostaną "
+"wyczyszczone."
+msgstr ""
+"Vazio = mantém o atual (ou o modelo gerado). As saídas das células serão "
+"apagadas."
+
+msgid "Usuń wgrany notatnik startowy (użyj szablonu)"
+msgstr "Remover o caderno inicial enviado (usar o modelo)"
+
+msgid "Notatnik wzorcowy (.ipynb)"
+msgstr "Caderno de referência (.ipynb)"
+
+msgid ""
+"Twoje rozwiązanie – służy wyłącznie do sprawdzenia testów. Uczestnicy go nie "
+"widzą."
+msgstr ""
+"A sua solução – serve apenas para verificar os testes. Os participantes não "
+"a veem."
+
+msgid "Testy widoczne (JSON)"
+msgstr "Testes visíveis (JSON)"
+
+msgid ""
+"Trafiają do notatnika uczestnika – uczestnik widzi je i uruchamia w "
+"przeglądarce."
+msgstr "Vão para o caderno do participante – ele os vê e executa no navegador."
+
+msgid "Testy ukryte (JSON)"
+msgstr "Testes ocultos (JSON)"
+
+msgid ""
+"Liczone wyłącznie na serwerze. Nigdy nie trafiają do przeglądarki uczestnika."
+msgstr ""
+"Calculados apenas no servidor. Nunca chegam ao navegador do participante."
+
+msgid "To musi być plik .ipynb."
+msgstr "Tem de ser um arquivo .ipynb."
+
+msgid "Notatnik jest za duży (najwyżej 1 MB)."
+msgstr "O caderno é grande demais (no máximo 1 MB)."
+
+msgid "To nie jest poprawny notatnik Jupytera (nbformat 4)."
+msgstr "Não é um caderno Jupyter válido (nbformat 4)."
+
+msgid "Notatnik swobodny (ocenia komisja)"
+msgstr "Caderno livre (avaliado pela comissão)"
+
+msgid "Sprawdzanie automatyczne (testy)"
+msgstr "Correção automática (testes)"
+
+msgid "Tylko organizator i komisja"
+msgstr "Apenas organizador e comissão"
+
+msgid "Uczestnik po zamknięciu etapu"
+msgstr "O participante após o encerramento da etapa"
+
+msgid "Uczestnik od razu (zalecane tylko na etapach treningowych)"
+msgstr "O participante imediatamente (recomendado só em etapas de treino)"
+
+msgid "zadanie"
+msgstr "problema"
+
+msgid "tryb"
+msgstr "modo"
+
+msgid "język treści notatnika"
+msgstr "idioma do conteúdo do caderno"
+
+msgid "notatnik startowy"
+msgstr "caderno inicial"
+
+msgid "testy widoczne"
+msgstr "testes visíveis"
+
+msgid "testy ukryte"
+msgstr "testes ocultos"
+
+msgid "notatnik wzorcowy"
+msgstr "caderno de referência"
+
+msgid "limit czasu (s)"
+msgstr "limite de tempo (s)"
+
+msgid "limit pamięci (MB)"
+msgstr "limite de memória (MB)"
+
+msgid "widoczność wyników testów ukrytych"
+msgstr "visibilidade dos resultados dos testes ocultos"
+
+msgid "zmieniono"
+msgstr "alterado"
+
+msgid "notatnik zadania"
+msgstr "caderno do problema"
+
+msgid "notatniki zadań"
+msgstr "cadernos dos problemas"
+
+msgid "w kolejce"
+msgstr "na fila"
+
+msgid "sprawdzanie"
+msgstr "verificando"
+
+msgid "sprawdzono"
+msgstr "verificado"
+
+msgid "błąd sprawdzania"
+msgstr "erro de verificação"
+
+msgid "zastąpiony nowszą wersją"
+msgstr "substituído por uma versão mais recente"
+
+msgid "przebieg oceny notatnika"
+msgstr "execução de avaliação do caderno"
+
+msgid "przebiegi oceny notatników"
+msgstr "execuções de avaliação de cadernos"
+
+msgid "Przekroczono limit czasu wykonania notatnika."
+msgstr "O caderno excedeu o limite de tempo de execução."
+
+msgid "Przekroczono limit pamięci."
+msgstr "O limite de memória foi excedido."
+
+msgid "Proces notatnika zakończył się awarią."
+msgstr "O processo do caderno falhou."
+
+msgid "Plik nie jest poprawnym notatnikiem Jupytera."
+msgstr "O arquivo não é um caderno Jupyter válido."
+
+msgid "Środowisko sprawdzania jest niedostępne."
+msgstr "O ambiente de correção está indisponível."
+
+msgid "Środowisko sprawdzania nie odpowiedziało na czas."
+msgstr "O ambiente de correção não respondeu a tempo."
+
+msgid "Nie udało się odczytać pliku pracy."
+msgstr "Não foi possível ler o arquivo do trabalho."
+
+msgid "Testy zadania są nieprawidłowe – popraw je w panelu."
+msgstr "Os testes do problema são inválidos – corrija-os no painel."
+
+msgid "Błąd środowiska sprawdzania."
+msgstr "Erro do ambiente de correção."
+
+msgid "Notatniki kwantowe są w tym konkursie wyłączone."
+msgstr "Os cadernos quânticos estão desativados neste concurso."
+
+msgid "Testy widoczne"
+msgstr "Testes visíveis"
+
+msgid "Testy ukryte"
+msgstr "Testes ocultos"
+
+msgid ""
+"Zadanie sprawdzane automatycznie musi przyjmować pliki .ipynb – dopisz ten "
+"format w zadaniu."
+msgstr ""
+"Um problema com correção automática deve aceitar arquivos .ipynb – adicione "
+"esse formato ao problema."
+
+msgid "Zadanie sprawdzane automatycznie potrzebuje co najmniej jednego testu."
+msgstr "Um problema com correção automática precisa de pelo menos um teste."
+
+msgid "Nie ma takiego notatnika."
+msgstr "Esse caderno não existe."
+
+msgid "To zadanie nie jest sprawdzane automatycznie."
+msgstr "Este problema não tem correção automática."
+
+msgid "Najpierw wgraj notatnik wzorcowy."
+msgstr "Envie primeiro o caderno de referência."
+
+msgid "Sprawdzanie wzorca już trwa – poczekaj na wynik."
+msgstr ""
+"A verificação da referência já está em andamento – aguarde o resultado."
+
+msgid "Notatnik w przeglądarce"
+msgstr "Caderno no navegador"
+
+msgid "sprawdzanie automatyczne"
+msgstr "correção automática"
+
+msgid "Podgląd notatnika (tylko do odczytu)"
+msgstr "Pré-visualização do notebook (somente leitura)"
+
+msgid ""
+"Twoje konto ma rolę personelu, więc laboratorium (wykonywanie kodu w "
+"przeglądarce) jest dla niego wyłączone. Do rozwiązywania zadań używaj "
+"osobnego konta uczestnika."
+msgstr ""
+"A sua conta tem uma função de equipe, por isso o laboratório (execução de "
+"código no navegador) está desativado para ela. Use uma conta de participante "
+"separada para resolver os problemas."
+
+msgid "Otwórz notatnik"
+msgstr "Abrir caderno"
+
+#, python-format
+msgid ""
+"Bez instalowania czegokolwiek. Pierwsze otwarcie pobiera ok. %(size)s MB, "
+"kolejne korzystają z pamięci przeglądarki."
+msgstr ""
+"Nada a instalar. A primeira abertura baixa cerca de %(size)s MB; as "
+"seguintes usam o cache do navegador."
+
+msgid "Bez instalowania czegokolwiek – Python działa w przeglądarce."
+msgstr "Nada a instalar – o Python roda no navegador."
+
+msgid ""
+"Gotowy notatnik pobierz z JupyterLab (File → Download) i wyślij formularzem "
+"poniżej."
+msgstr ""
+"Baixe o caderno pronto do JupyterLab (File → Download) e envie-o pelo "
+"formulário abaixo."
+
+msgid "Notatnik będzie dostępny po otwarciu etapu."
+msgstr "O caderno estará disponível quando a etapa abrir."
+
+msgid "Testy automatyczne ostatniej wersji"
+msgstr "Testes automáticos da última versão"
+
+#, python-format
+msgid "%(score)s z %(total)s pkt"
+msgstr "%(score)s de %(total)s pts"
+
+msgid "Punkty z testów są podpowiedzią dla komisji – ocenę wystawia komisja."
+msgstr ""
+"Os pontos dos testes são uma indicação para a comissão – a nota é dada pela "
+"comissão."
+
+msgid "Testy automatyczne (notatnik)"
+msgstr "Testes automáticos (caderno)"
+
+msgid "Ta wersja pracy nie została jeszcze sprawdzona testami."
+msgstr "Esta versão do trabalho ainda não foi testada."
+
+#, python-format
+msgid "Wynik testów ukrytych: <strong>%(score)s z %(total)s pkt</strong>."
+msgstr ""
+"Resultado dos testes ocultos: <strong>%(score)s de %(total)s pts</strong>."
+
+msgid "Test"
+msgstr "Teste"
+
+msgid "Punkty"
+msgstr "Pontos"
+
+#, python-format
+msgid "Komórki zakończone błędem: %(counter)s."
+msgstr "Células que terminaram com erro: %(counter)s."
+
+msgid ""
+"Punkty z testów są podpowiedzią – ocenę wystawiasz według skali zadania."
+msgstr ""
+"Os pontos dos testes são uma indicação – você avalia pela escala do problema."
+
+msgid "Sprawdzanie w toku."
+msgstr "Verificação em andamento."
+
+msgid "Bezpieczeństwo: laboratorium działa w domenie serwisu."
+msgstr "Segurança: o laboratório é executado no domínio do site."
+
+msgid ""
+"Kod z notatnika wykonuje się w przeglądarce osoby, która otworzyła "
+"laboratorium, w domenie serwisu. Polityka laboratorium blokuje z niego "
+"wywołania API i paneli serwisu oraz formularze, ale nie jest to pełna "
+"izolacja. Dlatego laboratorium otwierają wyłącznie konta uczestników bez "
+"żadnej roli personelu – koordynator, recenzent, komisja i opiekunowie "
+"oglądają notatniki w podglądzie tylko do odczytu, w którym nic się nie "
+"wykonuje. Nie otwieraj cudzych notatników w laboratorium z konta uczestnika, "
+"a uczestników uprzedź, żeby nie wklejali cudzego kodu. Pełną izolację da "
+"osobna domena laboratorium – docs/OPERACJE.md § 40.6."
+msgstr ""
+"O código do notebook é executado no navegador de quem abriu o laboratório, "
+"no domínio do site. A política do laboratório bloqueia a partir dele as "
+"chamadas à API e aos painéis do site e os formulários, mas isto não é um "
+"isolamento completo. Por isso, só contas de participante sem qualquer função "
+"de equipe podem abrir o laboratório – coordenadores, revisores, membros da "
+"comissão e orientadores veem os notebooks numa pré-visualização somente "
+"leitura em que nada é executado. Não abra notebooks de outras pessoas no "
+"laboratório a partir de uma conta de participante e avise os participantes "
+"para não colarem código de terceiros. O isolamento completo exige um domínio "
+"próprio para o laboratório – docs/OPERACJE.md § 40.6."
+
+msgid "Notatniki kwantowe"
+msgstr "Cadernos quânticos"
+
+msgid "panel koordynatora"
+msgstr "painel do coordenador"
+
+msgid ""
+"Zadania z notatnikiem Jupytera w przeglądarce (JupyterLite, bez instalowania "
+"czegokolwiek). Notatnik swobodny ocenia komisja; zadanie sprawdzane "
+"automatycznie liczy punkty za testy w piaskownicy na serwerze – jako "
+"podpowiedź dla komisji, jak ocena AI."
+msgstr ""
+"Problemas com caderno Jupyter no navegador (JupyterLite, nada a instalar). O "
+"caderno livre é avaliado pela comissão; o problema com correção automática "
+"pontua testes num ambiente isolado no servidor – como indicação para a "
+"comissão, como a avaliação por IA."
+
+msgid ""
+"JupyterLite nie jest zbudowane na tym serwerze – uczestnicy zobaczą "
+"wyłącznie przycisk pobrania notatnika startowego. Patrz docs/OPERACJE.md "
+"(notatniki)."
+msgstr ""
+"O JupyterLite não está construído neste servidor – os participantes verão "
+"apenas o botão para baixar o caderno inicial. Veja docs/OPERACJE.md "
+"(cadernos)."
+
+msgid "Etap"
+msgstr "Etapa"
+
+msgid "Zadanie"
+msgstr "Problema"
+
+msgid "Notatnik"
+msgstr "Caderno"
+
+msgid "Testy (widoczne / ukryte)"
+msgstr "Testes (visíveis / ocultos)"
+
+msgid "Sprawdzone prace"
+msgstr "Trabalhos verificados"
+
+msgid "brak"
+msgstr "nenhum"
+
+msgid "Ustawienia"
+msgstr "Configurações"
+
+msgid "Dodaj notatnik"
+msgstr "Adicionar caderno"
+
+msgid "Wyniki"
+msgstr "Resultados"
+
+msgid "Bieżąca edycja nie ma jeszcze zadań."
+msgstr "A edição atual ainda não tem problemas."
+
+msgid "Wyniki testów notatnika"
+msgstr "Resultados dos testes do caderno"
+
+msgid "Notatnik zadania"
+msgstr "Caderno do problema"
+
+#, python-format
+msgid "Wyniki testów: zadanie %(number)s. %(title)s"
+msgstr "Resultados dos testes: problema %(number)s. %(title)s"
+
+msgid ""
+"Najnowsza wersja pracy każdego uczestnika i punkty za testy ukryte. To "
+"podpowiedź dla komisji – ocenę wystawiają recenzenci według skali zadania."
+msgstr ""
+"A versão mais recente do trabalho de cada participante e os pontos dos "
+"testes ocultos. É uma indicação para a comissão – os avaliadores atribuem a "
+"nota pela escala do problema."
+
+msgid "Pobierz CSV"
+msgstr "Baixar CSV"
+
+msgid "Przelicz wszystko"
+msgstr "Recalcular tudo"
+
+msgid "Kod uczestnika"
+msgstr "Código do participante"
+
+msgid "Wersja"
+msgstr "Versão"
+
+msgid "Status"
+msgstr "Status"
+
+msgid "Suma"
+msgstr "Total"
+
+msgid "testy zmienione"
+msgstr "testes alterados"
+
+msgid "Szczegóły"
+msgstr "Detalhes"
+
+msgid ""
+"Nie ma jeszcze sprawdzonych prac. Przebiegi powstają w ciągu minuty od "
+"czystego skanu antywirusowego pliku .ipynb."
+msgstr ""
+"Ainda não há trabalhos verificados. As execuções são criadas até um minuto "
+"após uma verificação antivírus limpa do arquivo .ipynb."
+
+msgid "Przebieg sprawdzania"
+msgstr "Execução de verificação"
+
+msgid "Wyniki testów"
+msgstr "Resultados dos testes"
+
+#, python-format
+msgid "Przebieg sprawdzania #%(id)s"
+msgstr "Execução de verificação #%(id)s"
+
+msgid ""
+"Szczegóły jednego sprawdzenia: wynik każdego testu, błędy komórek i początek "
+"wyjścia programu."
+msgstr ""
+"Detalhes de uma verificação: o resultado de cada teste, os erros das células "
+"e o início da saída do programa."
+
+msgid "Wersja pracy"
+msgstr "Versão do trabalho"
+
+msgid "Rodzaj"
+msgstr "Tipo"
+
+msgid "rozwiązanie wzorcowe"
+msgstr "solução de referência"
+
+msgid "Komunikat"
+msgstr "Mensagem"
+
+msgid "ukryty"
+msgstr "oculto"
+
+msgid "widoczny"
+msgstr "visível"
+
+msgid "Błędy komórek"
+msgstr "Erros das células"
+
+#, python-format
+msgid "komórka %(cell)s"
+msgstr "célula %(cell)s"
+
+msgid "Początek wyjścia programu"
+msgstr "Início da saída do programa"
+
+#, python-format
+msgid "Notatnik: zadanie %(number)s. %(title)s"
+msgstr "Caderno: problema %(number)s. %(title)s"
+
+msgid ""
+"Uczestnik otwiera notatnik przy zadaniu w przeglądarce i oddaje plik .ipynb "
+"zwykłą wysyłką. Testy ukryte liczy wyłącznie serwer – nie trafiają ani do "
+"przeglądarki, ani do piaskownicy, w której wykonuje się kod uczestnika."
+msgstr ""
+"O participante abre o caderno ao lado do problema no navegador e entrega o "
+"arquivo .ipynb pelo envio habitual. Os testes ocultos são calculados apenas "
+"pelo servidor – não chegam ao navegador nem ao ambiente isolado que executa "
+"o código do participante."
+
+msgid "Pobierz notatnik jak uczestnik"
+msgstr "Baixar o caderno como o participante o vê"
+
+msgid "Notatnik wzorcowy – podgląd"
+msgstr "caderno de referência"
+
+msgid "Wyniki prac"
+msgstr "Resultados dos trabalhos"
+
+msgid ""
+"To zadanie nie przyjmuje plików .ipynb. Dopisz ten format w ustawieniach "
+"zadania, zanim włączysz sprawdzanie automatyczne."
+msgstr ""
+"Este problema não aceita arquivos .ipynb. Adicione esse formato nas "
+"configurações do problema antes de ativar a correção automática."
+
+msgid "Zapisz"
+msgstr "Salvar"
+
+msgid "Format testów"
+msgstr "Formato dos testes"
+
+msgid ""
+"Lista obiektów JSON. „target” to nazwa zmiennej z notatnika albo {\"call\": "
+"\"funkcja\", \"args\": [...]}. Liczby można pisać wyrażeniami: \"1/"
+"sqrt(2)\", \"exp(i*pi/4)\", \"-0.5j\". Test zaliczony daje pełne punkty, "
+"niezaliczony – zero."
+msgstr ""
+"Uma lista de objetos JSON. “target” é o nome de uma variável do caderno ou "
+"{\"call\": \"função\", \"args\": [...]}. Os números podem ser escritos como "
+"expressões: \"1/sqrt(2)\", \"exp(i*pi/4)\", \"-0.5j\". Um teste aprovado dá "
+"todos os pontos; um reprovado, zero."
+
+msgid "Rodzaje (check):"
+msgstr "Tipos (check):"
+
+msgid ""
+"Szczegóły i wszystkie warunki: podręcznik organizatora, rozdział o "
+"notatnikach kwantowych."
+msgstr ""
+"Detalhes e todas as condições: manual do organizador, capítulo sobre "
+"cadernos quânticos."
+
+msgid "Sprawdzenie testów na rozwiązaniu wzorcowym"
+msgstr "Verificação dos testes na solução de referência"
+
+msgid "Sprawdź testy na wzorcu"
+msgstr "Verificar os testes na referência"
+
+msgid ""
+"Wgraj notatnik wzorcowy w formularzu powyżej, żeby sprawdzić, czy testy "
+"przechodzą."
+msgstr ""
+"Envie o caderno de referência no formulário acima para verificar se os "
+"testes passam."
+
+msgid "Ostatnie sprawdzenie:"
+msgstr "Última verificação:"
+
+msgid "Błędy komórek wzorca:"
+msgstr "Erros das células da referência:"
+
+msgid "Sprawdzanie trwa zwykle kilka sekund – odśwież stronę."
+msgstr "A verificação costuma levar alguns segundos – atualize a página."
+
+msgid ""
+"Wyłączenie notatnika usuwa jego ustawienia, testy i wyniki sprawdzania. "
+"Oddane pliki prac zostają."
+msgstr ""
+"Desativar o caderno apaga suas configurações, testes e resultados de "
+"verificação. Os arquivos entregues permanecem."
+
+msgid "Wyłącz notatnik w tym zadaniu"
+msgstr "Desativar o caderno neste problema"
+
+#, python-format
+msgid "Notatnik – zadanie %(number)s"
+msgstr "Caderno – problema %(number)s"
+
+msgid "Panel uczestnika"
+msgstr "Painel do participante"
+
+#, python-format
+msgid "Zadanie %(number)s: %(title)s"
+msgstr "Problema %(number)s: %(title)s"
+
+msgid ""
+"Notatnik otwiera się w nowej karcie – kod uruchamiasz klawiszami "
+"Shift+Enter. Wszystko liczy Twoja przeglądarka."
+msgstr ""
+"O caderno abre abaixo – execute o código com Shift+Enter. Tudo é calculado "
+"pelo seu navegador."
+
+msgid ""
+"Ostatnia komórka uruchamia testy przykładowe. Ocenę liczą testy ukryte na "
+"serwerze."
+msgstr ""
+"A última célula executa os testes de exemplo. A nota é calculada por testes "
+"ocultos no servidor."
+
+msgid ""
+"Gotowe? W JupyterLab: File → Download. Pobrany plik .ipynb wyślij w karcie "
+"zadania na platformie."
+msgstr ""
+"Pronto? No JupyterLab: File → Download. Envie o arquivo .ipynb baixado no "
+"cartão do problema na plataforma."
+
+msgid ""
+"Praca zapisuje się w tej przeglądarce (nie na serwerze). Na wspólnym "
+"komputerze pobierz plik przed wyjściem."
+msgstr ""
+"Seu trabalho fica salvo neste navegador (não no servidor). Em um computador "
+"compartilhado, baixe o arquivo antes de sair."
+
+#, python-format
+msgid "Pierwsze otwarcie pobiera ok. %(size)s MB."
+msgstr "A primeira abertura baixa cerca de %(size)s MB."
+
+msgid ""
+"Nie wklejaj do notatnika kodu od innych osób – wykonuje się w Twojej "
+"przeglądarce, na Twoim koncie."
+msgstr ""
+"Não cole no notebook código de outras pessoas – ele é executado no seu "
+"navegador, na sua conta."
+
+msgid "Pobierz notatnik startowy"
+msgstr "Baixar o caderno inicial"
+
+msgid "Wróć do zadania"
+msgstr "Voltar ao problema"
+
+msgid ""
+"Notatnik w przeglądarce nie jest jeszcze zainstalowany na tym serwerze. "
+"Pobierz notatnik startowy i otwórz go we własnym Jupyterze albo napisz do "
+"organizatora."
+msgstr ""
+"O caderno no navegador ainda não está instalado neste servidor. Baixe o "
+"caderno inicial e abra-o no seu próprio Jupyter, ou escreva ao organizador."
+
+msgid ""
+"Podgląd tylko do odczytu: kod nie jest wykonywany, wyjścia HTML i JavaScript "
+"są pominięte."
+msgstr ""
+"Pré-visualização somente leitura: o código não é executado e as saídas HTML "
+"e JavaScript são omitidas."
+
+msgid "Wykres z notatnika"
+msgstr "Resultados dos testes do caderno"
+
+#, python-format
+msgid "Pominięto wyjście typu %(mime)s."
+msgstr "Saída do tipo %(mime)s omitida."
+
+msgid "Notatnik nie ma komórek."
+msgstr "Cadernos quânticos"
+
+msgid "Notatnik wzorcowy poszedł do sprawdzenia – wynik pojawi się poniżej."
+msgstr ""
+"O caderno de referência foi enviado para verificação – o resultado aparecerá "
+"abaixo."
+
+msgid "Notatnik zadania został wyłączony."
+msgstr "O caderno do problema foi desativado."
+
+msgid ""
+"Testy się zmieniły – wyniki już sprawdzonych prac są nieaktualne. Użyj "
+"„Przelicz wszystko”."
+msgstr ""
+"Os testes mudaram – os resultados dos trabalhos já verificados estão "
+"desatualizados. Use “Recalcular tudo”."
+
+msgid "Zapisano ustawienia notatnika."
+msgstr "Configurações do caderno salvas."
+
+#, python-format
+msgid "Do ponownego sprawdzenia: %(count)s prac."
+msgstr "Para verificar novamente: %(count)s trabalhos."
+
+msgid "Notatnik startowy – podgląd"
+msgstr "caderno inicial"
+
+#, python-format
+msgid "Praca – podgląd notatnika (wersja %(version)s)"
+msgstr "Trabalho – pré-visualização do notebook (versão %(version)s)"

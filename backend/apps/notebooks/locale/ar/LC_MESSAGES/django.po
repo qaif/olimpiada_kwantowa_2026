@@ -1,0 +1,656 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-04 22:04+0200\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: ar\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=6; plural=(n==0 ? 0 : n==1 ? 1 : n==2 ? 2 : n%100>=3 "
+"&& n%100<=10 ? 3 : n%100>=11 ? 4 : 5);\n"
+
+msgid "Tryb"
+msgstr "الوضع"
+
+msgid "Język treści notatnika"
+msgstr "لغة محتوى الدفتر"
+
+msgid ""
+"Język notatnika startowego i komunikatów testów. Interfejs JupyterLab jest "
+"angielski."
+msgstr ""
+"لغة دفتر البداية ورسائل الاختبارات. واجهة JupyterLab باللغة الإنجليزية."
+
+msgid "Limit czasu wykonania (s)"
+msgstr "حد زمن التنفيذ (ث)"
+
+msgid "Limit pamięci (MB)"
+msgstr "حد الذاكرة (MB)"
+
+msgid "Kto widzi wynik testów ukrytych"
+msgstr "من يرى نتائج الاختبارات المخفية"
+
+msgid ""
+"„Od razu” daje uczestnikowi wyrocznię: może wysyłać kolejne wersje i "
+"patrzeć, które testy ukryte przechodzą. Wybieraj to wyłącznie na etapach "
+"treningowych."
+msgstr ""
+"خيار «فورًا» يمنح المشارك أداة كشف: يمكنه إرسال نسخ جديدة ومراقبة أي "
+"الاختبارات المخفية تنجح. استخدمه فقط في مراحل التدريب."
+
+msgid "Notatnik startowy (.ipynb)"
+msgstr "دفتر البداية (.ipynb)"
+
+msgid ""
+"Puste = zostaje obecny (albo generowany szablon). Wyjścia komórek zostaną "
+"wyczyszczone."
+msgstr "فارغ = يبقى الحالي (أو القالب المُولَّد). ستُمسح مخرجات الخلايا."
+
+msgid "Usuń wgrany notatnik startowy (użyj szablonu)"
+msgstr "احذف دفتر البداية المرفوع (استخدم القالب)"
+
+msgid "Notatnik wzorcowy (.ipynb)"
+msgstr "الدفتر المرجعي (.ipynb)"
+
+msgid ""
+"Twoje rozwiązanie – służy wyłącznie do sprawdzenia testów. Uczestnicy go nie "
+"widzą."
+msgstr "حلّك – يُستخدم فقط للتحقق من الاختبارات. لا يراه المشاركون."
+
+msgid "Testy widoczne (JSON)"
+msgstr "الاختبارات المرئية (JSON)"
+
+msgid ""
+"Trafiają do notatnika uczestnika – uczestnik widzi je i uruchamia w "
+"przeglądarce."
+msgstr "تُضاف إلى دفتر المشارك – يراها المشارك ويشغّلها في المتصفح."
+
+msgid "Testy ukryte (JSON)"
+msgstr "الاختبارات المخفية (JSON)"
+
+msgid ""
+"Liczone wyłącznie na serwerze. Nigdy nie trafiają do przeglądarki uczestnika."
+msgstr "تُحسب على الخادم فقط. لا تصل أبدًا إلى متصفح المشارك."
+
+msgid "To musi być plik .ipynb."
+msgstr "يجب أن يكون ملف .ipynb."
+
+msgid "Notatnik jest za duży (najwyżej 1 MB)."
+msgstr "الدفتر كبير جدًا (1 MB كحد أقصى)."
+
+msgid "To nie jest poprawny notatnik Jupytera (nbformat 4)."
+msgstr "هذا ليس دفتر Jupyter صالحًا (nbformat 4)."
+
+msgid "Notatnik swobodny (ocenia komisja)"
+msgstr "دفتر حر (تقيّمه اللجنة)"
+
+msgid "Sprawdzanie automatyczne (testy)"
+msgstr "تصحيح آلي (اختبارات)"
+
+msgid "Tylko organizator i komisja"
+msgstr "المنظِّم واللجنة فقط"
+
+msgid "Uczestnik po zamknięciu etapu"
+msgstr "المشارك بعد إغلاق المرحلة"
+
+msgid "Uczestnik od razu (zalecane tylko na etapach treningowych)"
+msgstr "المشارك فورًا (يُنصح به فقط في مراحل التدريب)"
+
+msgid "zadanie"
+msgstr "المسألة"
+
+msgid "tryb"
+msgstr "الوضع"
+
+msgid "język treści notatnika"
+msgstr "لغة محتوى الدفتر"
+
+msgid "notatnik startowy"
+msgstr "دفتر البداية"
+
+msgid "testy widoczne"
+msgstr "الاختبارات المرئية"
+
+msgid "testy ukryte"
+msgstr "الاختبارات المخفية"
+
+msgid "notatnik wzorcowy"
+msgstr "الدفتر المرجعي"
+
+msgid "limit czasu (s)"
+msgstr "الحد الزمني (ث)"
+
+msgid "limit pamięci (MB)"
+msgstr "حد الذاكرة (MB)"
+
+msgid "widoczność wyników testów ukrytych"
+msgstr "إظهار نتائج الاختبارات المخفية"
+
+msgid "zmieniono"
+msgstr "تاريخ التعديل"
+
+msgid "notatnik zadania"
+msgstr "دفتر المسألة"
+
+msgid "notatniki zadań"
+msgstr "دفاتر المسائل"
+
+msgid "w kolejce"
+msgstr "في الانتظار"
+
+msgid "sprawdzanie"
+msgstr "قيد الفحص"
+
+msgid "sprawdzono"
+msgstr "تم الفحص"
+
+msgid "błąd sprawdzania"
+msgstr "خطأ في الفحص"
+
+msgid "zastąpiony nowszą wersją"
+msgstr "استُبدل بنسخة أحدث"
+
+msgid "przebieg oceny notatnika"
+msgstr "تشغيل تقييم الدفتر"
+
+msgid "przebiegi oceny notatników"
+msgstr "عمليات تقييم الدفاتر"
+
+msgid "Przekroczono limit czasu wykonania notatnika."
+msgstr "تجاوز الدفتر حد زمن التنفيذ."
+
+msgid "Przekroczono limit pamięci."
+msgstr "تم تجاوز حد الذاكرة."
+
+msgid "Proces notatnika zakończył się awarią."
+msgstr "تعطلت عملية الدفتر."
+
+msgid "Plik nie jest poprawnym notatnikiem Jupytera."
+msgstr "الملف ليس دفتر Jupyter صالحًا."
+
+msgid "Środowisko sprawdzania jest niedostępne."
+msgstr "بيئة التصحيح غير متاحة."
+
+msgid "Środowisko sprawdzania nie odpowiedziało na czas."
+msgstr "لم تستجب بيئة التصحيح في الوقت المحدد."
+
+msgid "Nie udało się odczytać pliku pracy."
+msgstr "تعذّرت قراءة ملف العمل."
+
+msgid "Testy zadania są nieprawidłowe – popraw je w panelu."
+msgstr "اختبارات المسألة غير صالحة – صحّحها في اللوحة."
+
+msgid "Błąd środowiska sprawdzania."
+msgstr "خطأ في بيئة التصحيح."
+
+msgid "Notatniki kwantowe są w tym konkursie wyłączone."
+msgstr "الدفاتر الكمومية معطّلة في هذه المسابقة."
+
+msgid "Testy widoczne"
+msgstr "الاختبارات المرئية"
+
+msgid "Testy ukryte"
+msgstr "الاختبارات المخفية"
+
+msgid ""
+"Zadanie sprawdzane automatycznie musi przyjmować pliki .ipynb – dopisz ten "
+"format w zadaniu."
+msgstr ""
+"يجب أن تقبل المسألة المصحَّحة آليًا ملفات .ipynb – أضف هذه الصيغة إلى المسألة."
+
+msgid "Zadanie sprawdzane automatycznie potrzebuje co najmniej jednego testu."
+msgstr "تحتاج المسألة المصحَّحة آليًا إلى اختبار واحد على الأقل."
+
+msgid "Nie ma takiego notatnika."
+msgstr "لا يوجد مثل هذا الدفتر."
+
+msgid "To zadanie nie jest sprawdzane automatycznie."
+msgstr "هذه المسألة لا تُصحَّح آليًا."
+
+msgid "Najpierw wgraj notatnik wzorcowy."
+msgstr "ارفع الدفتر المرجعي أولًا."
+
+msgid "Sprawdzanie wzorca już trwa – poczekaj na wynik."
+msgstr "فحص المرجع جارٍ بالفعل – انتظر النتيجة."
+
+msgid "Notatnik w przeglądarce"
+msgstr "دفتر في المتصفح"
+
+msgid "sprawdzanie automatyczne"
+msgstr "تصحيح آلي"
+
+msgid "Podgląd notatnika (tylko do odczytu)"
+msgstr "معاينة الدفتر (للقراءة فقط)"
+
+msgid ""
+"Twoje konto ma rolę personelu, więc laboratorium (wykonywanie kodu w "
+"przeglądarce) jest dla niego wyłączone. Do rozwiązywania zadań używaj "
+"osobnego konta uczestnika."
+msgstr ""
+"لحسابك دور ضمن فريق العمل، لذلك المختبر (تشغيل الشيفرة في المتصفح) معطَّل له. "
+"استخدم حساب مشارك منفصلًا لحل المسائل."
+
+msgid "Otwórz notatnik"
+msgstr "افتح الدفتر"
+
+#, python-format
+msgid ""
+"Bez instalowania czegokolwiek. Pierwsze otwarcie pobiera ok. %(size)s MB, "
+"kolejne korzystają z pamięci przeglądarki."
+msgstr ""
+"لا حاجة لتثبيت أي شيء. أول فتح يُنزّل نحو %(size)s MB، والمرات التالية تستخدم "
+"ذاكرة المتصفح."
+
+msgid "Bez instalowania czegokolwiek – Python działa w przeglądarce."
+msgstr "لا حاجة لتثبيت أي شيء – يعمل Python في المتصفح."
+
+msgid ""
+"Gotowy notatnik pobierz z JupyterLab (File → Download) i wyślij formularzem "
+"poniżej."
+msgstr ""
+"نزّل الدفتر المكتمل من JupyterLab (File → Download) وأرسله عبر النموذج أدناه."
+
+msgid "Notatnik będzie dostępny po otwarciu etapu."
+msgstr "سيتوفر الدفتر بعد فتح المرحلة."
+
+msgid "Testy automatyczne ostatniej wersji"
+msgstr "الاختبارات الآلية لأحدث نسخة"
+
+#, python-format
+msgid "%(score)s z %(total)s pkt"
+msgstr "%(score)s من %(total)s نقطة"
+
+msgid "Punkty z testów są podpowiedzią dla komisji – ocenę wystawia komisja."
+msgstr "نقاط الاختبارات إرشاد للجنة – واللجنة هي من تضع الدرجة."
+
+msgid "Testy automatyczne (notatnik)"
+msgstr "اختبارات آلية (دفتر)"
+
+msgid "Ta wersja pracy nie została jeszcze sprawdzona testami."
+msgstr "لم تُفحص هذه النسخة من العمل بالاختبارات بعد."
+
+#, python-format
+msgid "Wynik testów ukrytych: <strong>%(score)s z %(total)s pkt</strong>."
+msgstr ""
+"نتيجة الاختبارات المخفية: <strong>%(score)s من %(total)s نقطة</strong>."
+
+msgid "Test"
+msgstr "الاختبار"
+
+msgid "Punkty"
+msgstr "النقاط"
+
+#, python-format
+msgid "Komórki zakończone błędem: %(counter)s."
+msgstr "خلايا انتهت بخطأ: %(counter)s."
+
+msgid ""
+"Punkty z testów są podpowiedzią – ocenę wystawiasz według skali zadania."
+msgstr "نقاط الاختبارات إرشاد فقط – تمنح الدرجة وفق سلّم المسألة."
+
+msgid "Sprawdzanie w toku."
+msgstr "الفحص جارٍ."
+
+msgid "Bezpieczeństwo: laboratorium działa w domenie serwisu."
+msgstr "الأمان: يعمل المختبر على نطاق الموقع."
+
+msgid ""
+"Kod z notatnika wykonuje się w przeglądarce osoby, która otworzyła "
+"laboratorium, w domenie serwisu. Polityka laboratorium blokuje z niego "
+"wywołania API i paneli serwisu oraz formularze, ale nie jest to pełna "
+"izolacja. Dlatego laboratorium otwierają wyłącznie konta uczestników bez "
+"żadnej roli personelu – koordynator, recenzent, komisja i opiekunowie "
+"oglądają notatniki w podglądzie tylko do odczytu, w którym nic się nie "
+"wykonuje. Nie otwieraj cudzych notatników w laboratorium z konta uczestnika, "
+"a uczestników uprzedź, żeby nie wklejali cudzego kodu. Pełną izolację da "
+"osobna domena laboratorium – docs/OPERACJE.md § 40.6."
+msgstr ""
+"تُنفَّذ شيفرة الدفتر في متصفح الشخص الذي فتح المختبر، على نطاق الموقع. تمنع "
+"سياسة المختبر منها استدعاءات واجهة برمجة الموقع ولوحاته والنماذج، لكن هذا "
+"ليس عزلًا كاملًا. لذلك لا يفتح المختبر إلا حسابات المشاركين التي ليس لها أي "
+"دور ضمن فريق العمل – فالمنسقون والمراجعون وأعضاء اللجنة والمشرفون يطّلعون على "
+"الدفاتر في معاينة للقراءة فقط لا يُنفَّذ فيها شيء. لا تفتح دفاتر الآخرين في "
+"المختبر من حساب مشارك، وحذّر المشاركين من لصق شيفرة من الآخرين. يتطلب العزل "
+"الكامل نطاقًا منفصلًا للمختبر – docs/OPERACJE.md § 40.6."
+
+msgid "Notatniki kwantowe"
+msgstr "الدفاتر الكمومية"
+
+msgid "panel koordynatora"
+msgstr "لوحة المنسّق"
+
+msgid ""
+"Zadania z notatnikiem Jupytera w przeglądarce (JupyterLite, bez instalowania "
+"czegokolwiek). Notatnik swobodny ocenia komisja; zadanie sprawdzane "
+"automatycznie liczy punkty za testy w piaskownicy na serwerze – jako "
+"podpowiedź dla komisji, jak ocena AI."
+msgstr ""
+"مسائل بدفتر Jupyter في المتصفح (JupyterLite، دون تثبيت). يقيّم اللجنة الدفتر "
+"الحر؛ والمسألة المصحَّحة آليًا تحسب نقاط الاختبارات في بيئة معزولة على الخادم – "
+"إرشادًا للجنة، كما في تقييم الذكاء الاصطناعي."
+
+msgid ""
+"JupyterLite nie jest zbudowane na tym serwerze – uczestnicy zobaczą "
+"wyłącznie przycisk pobrania notatnika startowego. Patrz docs/OPERACJE.md "
+"(notatniki)."
+msgstr ""
+"لم يُبنَ JupyterLite على هذا الخادم – سيرى المشاركون زر تنزيل دفتر البداية "
+"فقط. راجع docs/OPERACJE.md (الدفاتر)."
+
+msgid "Etap"
+msgstr "المرحلة"
+
+msgid "Zadanie"
+msgstr "المسألة"
+
+msgid "Notatnik"
+msgstr "الدفتر"
+
+msgid "Testy (widoczne / ukryte)"
+msgstr "الاختبارات (مرئية / مخفية)"
+
+msgid "Sprawdzone prace"
+msgstr "الأعمال المفحوصة"
+
+msgid "brak"
+msgstr "لا توجد"
+
+msgid "Ustawienia"
+msgstr "الإعدادات"
+
+msgid "Dodaj notatnik"
+msgstr "أضف دفترًا"
+
+msgid "Wyniki"
+msgstr "النتائج"
+
+msgid "Bieżąca edycja nie ma jeszcze zadań."
+msgstr "لا تحتوي النسخة الحالية على مسائل بعد."
+
+msgid "Wyniki testów notatnika"
+msgstr "نتائج اختبارات الدفتر"
+
+msgid "Notatnik zadania"
+msgstr "دفتر المسألة"
+
+#, python-format
+msgid "Wyniki testów: zadanie %(number)s. %(title)s"
+msgstr "نتائج الاختبارات: المسألة %(number)s. %(title)s"
+
+msgid ""
+"Najnowsza wersja pracy każdego uczestnika i punkty za testy ukryte. To "
+"podpowiedź dla komisji – ocenę wystawiają recenzenci według skali zadania."
+msgstr ""
+"أحدث نسخة من عمل كل مشارك ونقاط الاختبارات المخفية. هذا إرشاد للجنة – يمنح "
+"المراجعون الدرجة وفق سلّم المسألة."
+
+msgid "Pobierz CSV"
+msgstr "نزّل CSV"
+
+msgid "Przelicz wszystko"
+msgstr "أعد حساب الكل"
+
+msgid "Kod uczestnika"
+msgstr "رمز المشارك"
+
+msgid "Wersja"
+msgstr "الإصدار"
+
+msgid "Status"
+msgstr "الحالة"
+
+msgid "Suma"
+msgstr "المجموع"
+
+msgid "testy zmienione"
+msgstr "تغيّرت الاختبارات"
+
+msgid "Szczegóły"
+msgstr "التفاصيل"
+
+msgid ""
+"Nie ma jeszcze sprawdzonych prac. Przebiegi powstają w ciągu minuty od "
+"czystego skanu antywirusowego pliku .ipynb."
+msgstr ""
+"لا توجد أعمال مفحوصة بعد. تُنشأ عمليات التشغيل خلال دقيقة من فحص نظيف "
+"لملف .ipynb بمضاد الفيروسات."
+
+msgid "Przebieg sprawdzania"
+msgstr "عملية الفحص"
+
+msgid "Wyniki testów"
+msgstr "نتائج الاختبارات"
+
+#, python-format
+msgid "Przebieg sprawdzania #%(id)s"
+msgstr "عملية الفحص #%(id)s"
+
+msgid ""
+"Szczegóły jednego sprawdzenia: wynik każdego testu, błędy komórek i początek "
+"wyjścia programu."
+msgstr ""
+"تفاصيل فحص واحد: نتيجة كل اختبار وأخطاء الخلايا وبداية مخرجات البرنامج."
+
+msgid "Wersja pracy"
+msgstr "نسخة العمل"
+
+msgid "Rodzaj"
+msgstr "النوع"
+
+msgid "rozwiązanie wzorcowe"
+msgstr "الحل المرجعي"
+
+msgid "Komunikat"
+msgstr "الرسالة"
+
+msgid "ukryty"
+msgstr "مخفي"
+
+msgid "widoczny"
+msgstr "مرئي"
+
+msgid "Błędy komórek"
+msgstr "أخطاء الخلايا"
+
+#, python-format
+msgid "komórka %(cell)s"
+msgstr "الخلية %(cell)s"
+
+msgid "Początek wyjścia programu"
+msgstr "بداية مخرجات البرنامج"
+
+#, python-format
+msgid "Notatnik: zadanie %(number)s. %(title)s"
+msgstr "الدفتر: المسألة %(number)s. %(title)s"
+
+msgid ""
+"Uczestnik otwiera notatnik przy zadaniu w przeglądarce i oddaje plik .ipynb "
+"zwykłą wysyłką. Testy ukryte liczy wyłącznie serwer – nie trafiają ani do "
+"przeglądarki, ani do piaskownicy, w której wykonuje się kod uczestnika."
+msgstr ""
+"يفتح المشارك الدفتر بجانب المسألة في المتصفح ويسلّم ملف .ipynb بالرفع "
+"المعتاد. يحسب الخادم وحده الاختبارات المخفية – فلا تصل إلى المتصفح ولا إلى "
+"البيئة المعزولة التي يُشغَّل فيها كود المشارك."
+
+msgid "Pobierz notatnik jak uczestnik"
+msgstr "نزّل الدفتر كما يراه المشارك"
+
+msgid "Notatnik wzorcowy – podgląd"
+msgstr "الدفتر المرجعي"
+
+msgid "Wyniki prac"
+msgstr "نتائج الأعمال"
+
+msgid ""
+"To zadanie nie przyjmuje plików .ipynb. Dopisz ten format w ustawieniach "
+"zadania, zanim włączysz sprawdzanie automatyczne."
+msgstr ""
+"هذه المسألة لا تقبل ملفات .ipynb. أضف هذه الصيغة في إعدادات المسألة قبل "
+"تفعيل التصحيح الآلي."
+
+msgid "Zapisz"
+msgstr "احفظ"
+
+msgid "Format testów"
+msgstr "صيغة الاختبارات"
+
+msgid ""
+"Lista obiektów JSON. „target” to nazwa zmiennej z notatnika albo {\"call\": "
+"\"funkcja\", \"args\": [...]}. Liczby można pisać wyrażeniami: \"1/"
+"sqrt(2)\", \"exp(i*pi/4)\", \"-0.5j\". Test zaliczony daje pełne punkty, "
+"niezaliczony – zero."
+msgstr ""
+"قائمة بكائنات JSON. «target» هو اسم متغير في الدفتر أو {\"call\": "
+"\"function\", \"args\": [...]}. يمكن كتابة الأعداد كتعابير: \"1/sqrt(2)\" "
+"و\"exp(i*pi/4)\" و\"-0.5j\". الاختبار الناجح يمنح النقاط كاملة، والفاشل صفرًا."
+
+msgid "Rodzaje (check):"
+msgstr "الأنواع (check):"
+
+msgid ""
+"Szczegóły i wszystkie warunki: podręcznik organizatora, rozdział o "
+"notatnikach kwantowych."
+msgstr "التفاصيل وكل الشروط: دليل المنظِّم، فصل الدفاتر الكمومية."
+
+msgid "Sprawdzenie testów na rozwiązaniu wzorcowym"
+msgstr "التحقق من الاختبارات على الحل المرجعي"
+
+msgid "Sprawdź testy na wzorcu"
+msgstr "تحقق من الاختبارات على المرجع"
+
+msgid ""
+"Wgraj notatnik wzorcowy w formularzu powyżej, żeby sprawdzić, czy testy "
+"przechodzą."
+msgstr "ارفع الدفتر المرجعي في النموذج أعلاه للتحقق من نجاح الاختبارات."
+
+msgid "Ostatnie sprawdzenie:"
+msgstr "آخر فحص:"
+
+msgid "Błędy komórek wzorca:"
+msgstr "أخطاء خلايا المرجع:"
+
+msgid "Sprawdzanie trwa zwykle kilka sekund – odśwież stronę."
+msgstr "يستغرق الفحص عادةً بضع ثوانٍ – حدّث الصفحة."
+
+msgid ""
+"Wyłączenie notatnika usuwa jego ustawienia, testy i wyniki sprawdzania. "
+"Oddane pliki prac zostają."
+msgstr ""
+"يؤدي تعطيل الدفتر إلى حذف إعداداته واختباراته ونتائج الفحص. تبقى ملفات "
+"الأعمال المسلَّمة."
+
+msgid "Wyłącz notatnik w tym zadaniu"
+msgstr "عطّل الدفتر في هذه المسألة"
+
+#, python-format
+msgid "Notatnik – zadanie %(number)s"
+msgstr "الدفتر – المسألة %(number)s"
+
+msgid "Panel uczestnika"
+msgstr "لوحة المشارك"
+
+#, python-format
+msgid "Zadanie %(number)s: %(title)s"
+msgstr "المسألة %(number)s: %(title)s"
+
+msgid ""
+"Notatnik otwiera się w nowej karcie – kod uruchamiasz klawiszami "
+"Shift+Enter. Wszystko liczy Twoja przeglądarka."
+msgstr "يُفتح الدفتر أدناه – شغّل الشيفرة بـ Shift+Enter. يحسب متصفحك كل شيء."
+
+msgid ""
+"Ostatnia komórka uruchamia testy przykładowe. Ocenę liczą testy ukryte na "
+"serwerze."
+msgstr ""
+"الخلية الأخيرة تشغّل الاختبارات النموذجية. تُحسب الدرجة بالاختبارات المخفية "
+"على الخادم."
+
+msgid ""
+"Gotowe? W JupyterLab: File → Download. Pobrany plik .ipynb wyślij w karcie "
+"zadania na platformie."
+msgstr ""
+"انتهيت؟ في JupyterLab: File → Download. أرسل ملف .ipynb الذي نزّلته في بطاقة "
+"المسألة على المنصة."
+
+msgid ""
+"Praca zapisuje się w tej przeglądarce (nie na serwerze). Na wspólnym "
+"komputerze pobierz plik przed wyjściem."
+msgstr ""
+"يُحفظ عملك في هذا المتصفح (لا على الخادم). على حاسوب مشترك نزّل الملف قبل "
+"المغادرة."
+
+#, python-format
+msgid "Pierwsze otwarcie pobiera ok. %(size)s MB."
+msgstr "أول فتح يُنزّل نحو %(size)s MB."
+
+msgid ""
+"Nie wklejaj do notatnika kodu od innych osób – wykonuje się w Twojej "
+"przeglądarce, na Twoim koncie."
+msgstr ""
+"لا تلصق في الدفتر شيفرة من أشخاص آخرين – فهي تُنفَّذ في متصفحك وعلى حسابك."
+
+msgid "Pobierz notatnik startowy"
+msgstr "نزّل دفتر البداية"
+
+msgid "Wróć do zadania"
+msgstr "العودة إلى المسألة"
+
+msgid ""
+"Notatnik w przeglądarce nie jest jeszcze zainstalowany na tym serwerze. "
+"Pobierz notatnik startowy i otwórz go we własnym Jupyterze albo napisz do "
+"organizatora."
+msgstr ""
+"لم يُثبَّت دفتر المتصفح على هذا الخادم بعد. نزّل دفتر البداية وافتحه في Jupyter "
+"الخاص بك أو راسل المنظِّم."
+
+msgid ""
+"Podgląd tylko do odczytu: kod nie jest wykonywany, wyjścia HTML i JavaScript "
+"są pominięte."
+msgstr "معاينة للقراءة فقط: لا تُنفَّذ الشيفرة، وتُحذف مخرجات HTML وJavaScript."
+
+msgid "Wykres z notatnika"
+msgstr "نتائج اختبارات الدفتر"
+
+#, python-format
+msgid "Pominięto wyjście typu %(mime)s."
+msgstr "حُذف مُخرَج من النوع %(mime)s."
+
+msgid "Notatnik nie ma komórek."
+msgstr "الدفاتر الكمومية"
+
+msgid "Notatnik wzorcowy poszedł do sprawdzenia – wynik pojawi się poniżej."
+msgstr "أُرسل الدفتر المرجعي للفحص – ستظهر النتيجة أدناه."
+
+msgid "Notatnik zadania został wyłączony."
+msgstr "تم تعطيل دفتر المسألة."
+
+msgid ""
+"Testy się zmieniły – wyniki już sprawdzonych prac są nieaktualne. Użyj "
+"„Przelicz wszystko”."
+msgstr ""
+"تغيّرت الاختبارات – نتائج الأعمال المفحوصة سابقًا لم تعد محدّثة. استخدم «أعد "
+"حساب الكل»."
+
+msgid "Zapisano ustawienia notatnika."
+msgstr "تم حفظ إعدادات الدفتر."
+
+#, python-format
+msgid "Do ponownego sprawdzenia: %(count)s prac."
+msgstr "للفحص من جديد: %(count)s عمل."
+
+msgid "Notatnik startowy – podgląd"
+msgstr "دفتر البداية"
+
+#, python-format
+msgid "Praca – podgląd notatnika (wersja %(version)s)"
+msgstr "العمل – معاينة الدفتر (الإصدار %(version)s)"

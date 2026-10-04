@@ -1,0 +1,672 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-04 22:04+0200\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: id\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+msgid "Tryb"
+msgstr "Mode"
+
+msgid "Język treści notatnika"
+msgstr "Bahasa isi notebook"
+
+msgid ""
+"Język notatnika startowego i komunikatów testów. Interfejs JupyterLab jest "
+"angielski."
+msgstr ""
+"Bahasa notebook awal dan pesan tes. Antarmuka JupyterLab berbahasa Inggris."
+
+msgid "Limit czasu wykonania (s)"
+msgstr "Batas waktu eksekusi (dtk)"
+
+msgid "Limit pamięci (MB)"
+msgstr "Batas memori (MB)"
+
+msgid "Kto widzi wynik testów ukrytych"
+msgstr "Siapa yang melihat hasil tes tersembunyi"
+
+msgid ""
+"„Od razu” daje uczestnikowi wyrocznię: może wysyłać kolejne wersje i "
+"patrzeć, które testy ukryte przechodzą. Wybieraj to wyłącznie na etapach "
+"treningowych."
+msgstr ""
+"“Langsung” memberi peserta sebuah orakel: ia dapat mengirim versi baru dan "
+"melihat tes tersembunyi mana yang lolos. Gunakan hanya pada tahap latihan."
+
+msgid "Notatnik startowy (.ipynb)"
+msgstr "Notebook awal (.ipynb)"
+
+msgid ""
+"Puste = zostaje obecny (albo generowany szablon). Wyjścia komórek zostaną "
+"wyczyszczone."
+msgstr ""
+"Kosong = yang sekarang dipertahankan (atau templat yang dibuat). Keluaran "
+"sel akan dihapus."
+
+msgid "Usuń wgrany notatnik startowy (użyj szablonu)"
+msgstr "Hapus notebook awal yang diunggah (gunakan templat)"
+
+msgid "Notatnik wzorcowy (.ipynb)"
+msgstr "Notebook acuan (.ipynb)"
+
+msgid ""
+"Twoje rozwiązanie – służy wyłącznie do sprawdzenia testów. Uczestnicy go nie "
+"widzą."
+msgstr "Solusi Anda – hanya untuk memeriksa tes. Peserta tidak melihatnya."
+
+msgid "Testy widoczne (JSON)"
+msgstr "Tes terlihat (JSON)"
+
+msgid ""
+"Trafiają do notatnika uczestnika – uczestnik widzi je i uruchamia w "
+"przeglądarce."
+msgstr ""
+"Dimasukkan ke notebook peserta – peserta melihat dan menjalankannya di "
+"peramban."
+
+msgid "Testy ukryte (JSON)"
+msgstr "Tes tersembunyi (JSON)"
+
+msgid ""
+"Liczone wyłącznie na serwerze. Nigdy nie trafiają do przeglądarki uczestnika."
+msgstr "Dihitung hanya di server. Tidak pernah sampai ke peramban peserta."
+
+msgid "To musi być plik .ipynb."
+msgstr "Harus berupa berkas .ipynb."
+
+msgid "Notatnik jest za duży (najwyżej 1 MB)."
+msgstr "Notebook terlalu besar (maksimal 1 MB)."
+
+msgid "To nie jest poprawny notatnik Jupytera (nbformat 4)."
+msgstr "Ini bukan notebook Jupyter yang valid (nbformat 4)."
+
+msgid "Notatnik swobodny (ocenia komisja)"
+msgstr "Notebook bebas (dinilai komite)"
+
+msgid "Sprawdzanie automatyczne (testy)"
+msgstr "Penilaian otomatis (tes)"
+
+msgid "Tylko organizator i komisja"
+msgstr "Hanya penyelenggara dan komite"
+
+msgid "Uczestnik po zamknięciu etapu"
+msgstr "Peserta setelah tahap ditutup"
+
+msgid "Uczestnik od razu (zalecane tylko na etapach treningowych)"
+msgstr "Peserta langsung (disarankan hanya untuk tahap latihan)"
+
+msgid "zadanie"
+msgstr "soal"
+
+msgid "tryb"
+msgstr "mode"
+
+msgid "język treści notatnika"
+msgstr "bahasa isi notebook"
+
+msgid "notatnik startowy"
+msgstr "notebook awal"
+
+msgid "testy widoczne"
+msgstr "tes terlihat"
+
+msgid "testy ukryte"
+msgstr "tes tersembunyi"
+
+msgid "notatnik wzorcowy"
+msgstr "notebook acuan"
+
+msgid "limit czasu (s)"
+msgstr "batas waktu (dtk)"
+
+msgid "limit pamięci (MB)"
+msgstr "batas memori (MB)"
+
+msgid "widoczność wyników testów ukrytych"
+msgstr "visibilitas hasil tes tersembunyi"
+
+msgid "zmieniono"
+msgstr "diubah"
+
+msgid "notatnik zadania"
+msgstr "notebook soal"
+
+msgid "notatniki zadań"
+msgstr "notebook soal"
+
+msgid "w kolejce"
+msgstr "dalam antrean"
+
+msgid "sprawdzanie"
+msgstr "sedang diperiksa"
+
+msgid "sprawdzono"
+msgstr "selesai diperiksa"
+
+msgid "błąd sprawdzania"
+msgstr "galat pemeriksaan"
+
+msgid "zastąpiony nowszą wersją"
+msgstr "digantikan versi yang lebih baru"
+
+msgid "przebieg oceny notatnika"
+msgstr "proses penilaian notebook"
+
+msgid "przebiegi oceny notatników"
+msgstr "proses penilaian notebook"
+
+msgid "Przekroczono limit czasu wykonania notatnika."
+msgstr "Notebook melebihi batas waktu eksekusi."
+
+msgid "Przekroczono limit pamięci."
+msgstr "Batas memori terlampaui."
+
+msgid "Proces notatnika zakończył się awarią."
+msgstr "Proses notebook mengalami crash."
+
+msgid "Plik nie jest poprawnym notatnikiem Jupytera."
+msgstr "Berkas bukan notebook Jupyter yang valid."
+
+msgid "Środowisko sprawdzania jest niedostępne."
+msgstr "Lingkungan penilaian tidak tersedia."
+
+msgid "Środowisko sprawdzania nie odpowiedziało na czas."
+msgstr "Lingkungan penilaian tidak merespons tepat waktu."
+
+msgid "Nie udało się odczytać pliku pracy."
+msgstr "Berkas karya tidak dapat dibaca."
+
+msgid "Testy zadania są nieprawidłowe – popraw je w panelu."
+msgstr "Tes soal tidak valid – perbaiki di panel."
+
+msgid "Błąd środowiska sprawdzania."
+msgstr "Galat lingkungan penilaian."
+
+msgid "Notatniki kwantowe są w tym konkursie wyłączone."
+msgstr "Notebook kuantum dinonaktifkan dalam kompetisi ini."
+
+msgid "Testy widoczne"
+msgstr "Tes terlihat"
+
+msgid "Testy ukryte"
+msgstr "Tes tersembunyi"
+
+msgid ""
+"Zadanie sprawdzane automatycznie musi przyjmować pliki .ipynb – dopisz ten "
+"format w zadaniu."
+msgstr ""
+"Soal yang dinilai otomatis harus menerima berkas .ipynb – tambahkan format "
+"ini pada soal."
+
+msgid "Zadanie sprawdzane automatycznie potrzebuje co najmniej jednego testu."
+msgstr "Soal yang dinilai otomatis memerlukan setidaknya satu tes."
+
+msgid "Nie ma takiego notatnika."
+msgstr "Notebook tersebut tidak ada."
+
+msgid "To zadanie nie jest sprawdzane automatycznie."
+msgstr "Soal ini tidak dinilai otomatis."
+
+msgid "Najpierw wgraj notatnik wzorcowy."
+msgstr "Unggah notebook acuan terlebih dahulu."
+
+msgid "Sprawdzanie wzorca już trwa – poczekaj na wynik."
+msgstr "Pemeriksaan acuan sedang berjalan – tunggu hasilnya."
+
+msgid "Notatnik w przeglądarce"
+msgstr "Notebook di peramban"
+
+msgid "sprawdzanie automatyczne"
+msgstr "penilaian otomatis"
+
+msgid "Podgląd notatnika (tylko do odczytu)"
+msgstr "Pratinjau notebook (hanya baca)"
+
+msgid ""
+"Twoje konto ma rolę personelu, więc laboratorium (wykonywanie kodu w "
+"przeglądarce) jest dla niego wyłączone. Do rozwiązywania zadań używaj "
+"osobnego konta uczestnika."
+msgstr ""
+"Akun Anda memiliki peran staf, sehingga lab (menjalankan kode di peramban) "
+"dinonaktifkan untuknya. Gunakan akun peserta terpisah untuk mengerjakan soal."
+
+msgid "Otwórz notatnik"
+msgstr "Buka notebook"
+
+#, python-format
+msgid ""
+"Bez instalowania czegokolwiek. Pierwsze otwarcie pobiera ok. %(size)s MB, "
+"kolejne korzystają z pamięci przeglądarki."
+msgstr ""
+"Tanpa memasang apa pun. Pembukaan pertama mengunduh sekitar %(size)s MB; "
+"berikutnya memakai cache peramban."
+
+msgid "Bez instalowania czegokolwiek – Python działa w przeglądarce."
+msgstr "Tanpa memasang apa pun – Python berjalan di peramban."
+
+msgid ""
+"Gotowy notatnik pobierz z JupyterLab (File → Download) i wyślij formularzem "
+"poniżej."
+msgstr ""
+"Unduh notebook yang selesai dari JupyterLab (File → Download) dan kirim "
+"dengan formulir di bawah."
+
+msgid "Notatnik będzie dostępny po otwarciu etapu."
+msgstr "Notebook tersedia setelah tahap dibuka."
+
+msgid "Testy automatyczne ostatniej wersji"
+msgstr "Tes otomatis versi terbaru"
+
+#, python-format
+msgid "%(score)s z %(total)s pkt"
+msgstr "%(score)s dari %(total)s poin"
+
+msgid "Punkty z testów są podpowiedzią dla komisji – ocenę wystawia komisja."
+msgstr "Poin tes adalah petunjuk bagi komite – nilai diberikan oleh komite."
+
+msgid "Testy automatyczne (notatnik)"
+msgstr "Tes otomatis (notebook)"
+
+msgid "Ta wersja pracy nie została jeszcze sprawdzona testami."
+msgstr "Versi karya ini belum diperiksa dengan tes."
+
+#, python-format
+msgid "Wynik testów ukrytych: <strong>%(score)s z %(total)s pkt</strong>."
+msgstr "Hasil tes tersembunyi: <strong>%(score)s dari %(total)s poin</strong>."
+
+msgid "Test"
+msgstr "Tes"
+
+msgid "Punkty"
+msgstr "Poin"
+
+#, python-format
+msgid "Komórki zakończone błędem: %(counter)s."
+msgstr "Sel yang berakhir dengan galat: %(counter)s."
+
+msgid ""
+"Punkty z testów są podpowiedzią – ocenę wystawiasz według skali zadania."
+msgstr "Poin tes hanyalah petunjuk – Anda menilai sesuai skala soal."
+
+msgid "Sprawdzanie w toku."
+msgstr "Pemeriksaan sedang berjalan."
+
+msgid "Bezpieczeństwo: laboratorium działa w domenie serwisu."
+msgstr "Keamanan: lab berjalan di domain situs."
+
+msgid ""
+"Kod z notatnika wykonuje się w przeglądarce osoby, która otworzyła "
+"laboratorium, w domenie serwisu. Polityka laboratorium blokuje z niego "
+"wywołania API i paneli serwisu oraz formularze, ale nie jest to pełna "
+"izolacja. Dlatego laboratorium otwierają wyłącznie konta uczestników bez "
+"żadnej roli personelu – koordynator, recenzent, komisja i opiekunowie "
+"oglądają notatniki w podglądzie tylko do odczytu, w którym nic się nie "
+"wykonuje. Nie otwieraj cudzych notatników w laboratorium z konta uczestnika, "
+"a uczestników uprzedź, żeby nie wklejali cudzego kodu. Pełną izolację da "
+"osobna domena laboratorium – docs/OPERACJE.md § 40.6."
+msgstr ""
+"Kode notebook berjalan di peramban orang yang membuka lab, pada domain "
+"situs. Kebijakan lab memblokir panggilan API dan panel situs serta formulir "
+"darinya, tetapi ini bukan isolasi penuh. Karena itu, hanya akun peserta "
+"tanpa peran staf apa pun yang dapat membuka lab – koordinator, peninjau, "
+"anggota komite, dan pembimbing melihat notebook dalam pratinjau hanya-baca "
+"yang tidak menjalankan apa pun. Jangan membuka notebook orang lain di lab "
+"dari akun peserta, dan ingatkan peserta agar tidak menempelkan kode dari "
+"orang lain. Isolasi penuh memerlukan domain terpisah untuk lab – docs/"
+"OPERACJE.md § 40.6."
+
+msgid "Notatniki kwantowe"
+msgstr "Notebook kuantum"
+
+msgid "panel koordynatora"
+msgstr "panel koordinator"
+
+msgid ""
+"Zadania z notatnikiem Jupytera w przeglądarce (JupyterLite, bez instalowania "
+"czegokolwiek). Notatnik swobodny ocenia komisja; zadanie sprawdzane "
+"automatycznie liczy punkty za testy w piaskownicy na serwerze – jako "
+"podpowiedź dla komisji, jak ocena AI."
+msgstr ""
+"Soal dengan notebook Jupyter di peramban (JupyterLite, tanpa memasang apa "
+"pun). Notebook bebas dinilai komite; soal yang dinilai otomatis menghitung "
+"poin tes di sandbox server – sebagai petunjuk bagi komite, seperti penilaian "
+"AI."
+
+msgid ""
+"JupyterLite nie jest zbudowane na tym serwerze – uczestnicy zobaczą "
+"wyłącznie przycisk pobrania notatnika startowego. Patrz docs/OPERACJE.md "
+"(notatniki)."
+msgstr ""
+"JupyterLite belum dibangun di server ini – peserta hanya melihat tombol "
+"unduh notebook awal. Lihat docs/OPERACJE.md (notebook)."
+
+msgid "Etap"
+msgstr "Tahap"
+
+msgid "Zadanie"
+msgstr "Soal"
+
+msgid "Notatnik"
+msgstr "Notebook"
+
+msgid "Testy (widoczne / ukryte)"
+msgstr "Tes (terlihat / tersembunyi)"
+
+msgid "Sprawdzone prace"
+msgstr "Karya yang diperiksa"
+
+msgid "brak"
+msgstr "tidak ada"
+
+msgid "Ustawienia"
+msgstr "Pengaturan"
+
+msgid "Dodaj notatnik"
+msgstr "Tambah notebook"
+
+msgid "Wyniki"
+msgstr "Hasil"
+
+msgid "Bieżąca edycja nie ma jeszcze zadań."
+msgstr "Edisi saat ini belum memiliki soal."
+
+msgid "Wyniki testów notatnika"
+msgstr "Hasil tes notebook"
+
+msgid "Notatnik zadania"
+msgstr "Notebook soal"
+
+#, python-format
+msgid "Wyniki testów: zadanie %(number)s. %(title)s"
+msgstr "Hasil tes: soal %(number)s. %(title)s"
+
+msgid ""
+"Najnowsza wersja pracy każdego uczestnika i punkty za testy ukryte. To "
+"podpowiedź dla komisji – ocenę wystawiają recenzenci według skali zadania."
+msgstr ""
+"Versi terbaru karya tiap peserta dan poin tes tersembunyi. Ini petunjuk bagi "
+"komite – peninjau menilai sesuai skala soal."
+
+msgid "Pobierz CSV"
+msgstr "Unduh CSV"
+
+msgid "Przelicz wszystko"
+msgstr "Hitung ulang semua"
+
+msgid "Kod uczestnika"
+msgstr "Kode peserta"
+
+msgid "Wersja"
+msgstr "Versi"
+
+msgid "Status"
+msgstr "Status"
+
+msgid "Suma"
+msgstr "Total"
+
+msgid "testy zmienione"
+msgstr "tes berubah"
+
+msgid "Szczegóły"
+msgstr "Detail"
+
+msgid ""
+"Nie ma jeszcze sprawdzonych prac. Przebiegi powstają w ciągu minuty od "
+"czystego skanu antywirusowego pliku .ipynb."
+msgstr ""
+"Belum ada karya yang diperiksa. Proses dibuat dalam satu menit setelah "
+"pemindaian antivirus berkas .ipynb bersih."
+
+msgid "Przebieg sprawdzania"
+msgstr "Proses pemeriksaan"
+
+msgid "Wyniki testów"
+msgstr "Hasil tes"
+
+#, python-format
+msgid "Przebieg sprawdzania #%(id)s"
+msgstr "Proses pemeriksaan #%(id)s"
+
+msgid ""
+"Szczegóły jednego sprawdzenia: wynik każdego testu, błędy komórek i początek "
+"wyjścia programu."
+msgstr ""
+"Detail satu pemeriksaan: hasil tiap tes, galat sel, dan awal keluaran "
+"program."
+
+msgid "Wersja pracy"
+msgstr "Versi karya"
+
+msgid "Rodzaj"
+msgstr "Jenis"
+
+msgid "rozwiązanie wzorcowe"
+msgstr "solusi acuan"
+
+msgid "Komunikat"
+msgstr "Pesan"
+
+msgid "ukryty"
+msgstr "tersembunyi"
+
+msgid "widoczny"
+msgstr "terlihat"
+
+msgid "Błędy komórek"
+msgstr "Galat sel"
+
+#, python-format
+msgid "komórka %(cell)s"
+msgstr "sel %(cell)s"
+
+msgid "Początek wyjścia programu"
+msgstr "Awal keluaran program"
+
+#, python-format
+msgid "Notatnik: zadanie %(number)s. %(title)s"
+msgstr "Notebook: soal %(number)s. %(title)s"
+
+msgid ""
+"Uczestnik otwiera notatnik przy zadaniu w przeglądarce i oddaje plik .ipynb "
+"zwykłą wysyłką. Testy ukryte liczy wyłącznie serwer – nie trafiają ani do "
+"przeglądarki, ani do piaskownicy, w której wykonuje się kod uczestnika."
+msgstr ""
+"Peserta membuka notebook di samping soal di peramban dan mengirim "
+"berkas .ipynb lewat unggahan biasa. Tes tersembunyi hanya dihitung server – "
+"tidak sampai ke peramban maupun ke sandbox tempat kode peserta dijalankan."
+
+msgid "Pobierz notatnik jak uczestnik"
+msgstr "Unduh notebook seperti yang dilihat peserta"
+
+msgid "Notatnik wzorcowy – podgląd"
+msgstr "notebook acuan"
+
+msgid "Wyniki prac"
+msgstr "Hasil karya"
+
+msgid ""
+"To zadanie nie przyjmuje plików .ipynb. Dopisz ten format w ustawieniach "
+"zadania, zanim włączysz sprawdzanie automatyczne."
+msgstr ""
+"Soal ini tidak menerima berkas .ipynb. Tambahkan format ini di pengaturan "
+"soal sebelum mengaktifkan penilaian otomatis."
+
+msgid "Zapisz"
+msgstr "Simpan"
+
+msgid "Format testów"
+msgstr "Format tes"
+
+msgid ""
+"Lista obiektów JSON. „target” to nazwa zmiennej z notatnika albo {\"call\": "
+"\"funkcja\", \"args\": [...]}. Liczby można pisać wyrażeniami: \"1/"
+"sqrt(2)\", \"exp(i*pi/4)\", \"-0.5j\". Test zaliczony daje pełne punkty, "
+"niezaliczony – zero."
+msgstr ""
+"Daftar objek JSON. “target” adalah nama variabel notebook atau {\"call\": "
+"\"fungsi\", \"args\": [...]}. Angka dapat ditulis sebagai ekspresi: \"1/"
+"sqrt(2)\", \"exp(i*pi/4)\", \"-0.5j\". Tes yang lolos memberi poin penuh, "
+"yang gagal – nol."
+
+msgid "Rodzaje (check):"
+msgstr "Jenis (check):"
+
+msgid ""
+"Szczegóły i wszystkie warunki: podręcznik organizatora, rozdział o "
+"notatnikach kwantowych."
+msgstr ""
+"Detail dan semua syarat: buku panduan penyelenggara, bab notebook kuantum."
+
+msgid "Sprawdzenie testów na rozwiązaniu wzorcowym"
+msgstr "Pemeriksaan tes pada solusi acuan"
+
+msgid "Sprawdź testy na wzorcu"
+msgstr "Periksa tes pada acuan"
+
+msgid ""
+"Wgraj notatnik wzorcowy w formularzu powyżej, żeby sprawdzić, czy testy "
+"przechodzą."
+msgstr ""
+"Unggah notebook acuan pada formulir di atas untuk memeriksa apakah tes lolos."
+
+msgid "Ostatnie sprawdzenie:"
+msgstr "Pemeriksaan terakhir:"
+
+msgid "Błędy komórek wzorca:"
+msgstr "Galat sel acuan:"
+
+msgid "Sprawdzanie trwa zwykle kilka sekund – odśwież stronę."
+msgstr "Pemeriksaan biasanya beberapa detik – muat ulang halaman."
+
+msgid ""
+"Wyłączenie notatnika usuwa jego ustawienia, testy i wyniki sprawdzania. "
+"Oddane pliki prac zostają."
+msgstr ""
+"Menonaktifkan notebook menghapus pengaturan, tes, dan hasil pemeriksaannya. "
+"Berkas karya yang dikirim tetap ada."
+
+msgid "Wyłącz notatnik w tym zadaniu"
+msgstr "Nonaktifkan notebook di soal ini"
+
+#, python-format
+msgid "Notatnik – zadanie %(number)s"
+msgstr "Notebook – soal %(number)s"
+
+msgid "Panel uczestnika"
+msgstr "Panel peserta"
+
+#, python-format
+msgid "Zadanie %(number)s: %(title)s"
+msgstr "Soal %(number)s: %(title)s"
+
+msgid ""
+"Notatnik otwiera się w nowej karcie – kod uruchamiasz klawiszami "
+"Shift+Enter. Wszystko liczy Twoja przeglądarka."
+msgstr ""
+"Notebook terbuka di bawah – jalankan kode dengan Shift+Enter. Semua dihitung "
+"oleh peramban Anda."
+
+msgid ""
+"Ostatnia komórka uruchamia testy przykładowe. Ocenę liczą testy ukryte na "
+"serwerze."
+msgstr ""
+"Sel terakhir menjalankan tes contoh. Nilai dihitung oleh tes tersembunyi di "
+"server."
+
+msgid ""
+"Gotowe? W JupyterLab: File → Download. Pobrany plik .ipynb wyślij w karcie "
+"zadania na platformie."
+msgstr ""
+"Selesai? Di JupyterLab: File → Download. Kirim berkas .ipynb yang diunduh di "
+"kartu soal pada platform."
+
+msgid ""
+"Praca zapisuje się w tej przeglądarce (nie na serwerze). Na wspólnym "
+"komputerze pobierz plik przed wyjściem."
+msgstr ""
+"Pekerjaan Anda tersimpan di peramban ini (bukan di server). Di komputer "
+"bersama, unduh berkas sebelum pergi."
+
+#, python-format
+msgid "Pierwsze otwarcie pobiera ok. %(size)s MB."
+msgstr "Pembukaan pertama mengunduh sekitar %(size)s MB."
+
+msgid ""
+"Nie wklejaj do notatnika kodu od innych osób – wykonuje się w Twojej "
+"przeglądarce, na Twoim koncie."
+msgstr ""
+"Jangan menempelkan kode dari orang lain ke notebook – kode itu berjalan di "
+"peramban Anda, dengan akun Anda."
+
+msgid "Pobierz notatnik startowy"
+msgstr "Unduh notebook awal"
+
+msgid "Wróć do zadania"
+msgstr "Kembali ke soal"
+
+msgid ""
+"Notatnik w przeglądarce nie jest jeszcze zainstalowany na tym serwerze. "
+"Pobierz notatnik startowy i otwórz go we własnym Jupyterze albo napisz do "
+"organizatora."
+msgstr ""
+"Notebook peramban belum terpasang di server ini. Unduh notebook awal dan "
+"buka di Jupyter Anda sendiri, atau hubungi penyelenggara."
+
+msgid ""
+"Podgląd tylko do odczytu: kod nie jest wykonywany, wyjścia HTML i JavaScript "
+"są pominięte."
+msgstr ""
+"Pratinjau hanya-baca: kode tidak dijalankan, keluaran HTML dan JavaScript "
+"dihilangkan."
+
+msgid "Wykres z notatnika"
+msgstr "Hasil tes notebook"
+
+#, python-format
+msgid "Pominięto wyjście typu %(mime)s."
+msgstr "Keluaran bertipe %(mime)s dihilangkan."
+
+msgid "Notatnik nie ma komórek."
+msgstr "Notebook kuantum"
+
+msgid "Notatnik wzorcowy poszedł do sprawdzenia – wynik pojawi się poniżej."
+msgstr "Notebook acuan dikirim untuk diperiksa – hasil akan muncul di bawah."
+
+msgid "Notatnik zadania został wyłączony."
+msgstr "Notebook soal telah dinonaktifkan."
+
+msgid ""
+"Testy się zmieniły – wyniki już sprawdzonych prac są nieaktualne. Użyj "
+"„Przelicz wszystko”."
+msgstr ""
+"Tes telah berubah – hasil karya yang sudah diperiksa tidak lagi mutakhir. "
+"Gunakan “Hitung ulang semua”."
+
+msgid "Zapisano ustawienia notatnika."
+msgstr "Pengaturan notebook disimpan."
+
+#, python-format
+msgid "Do ponownego sprawdzenia: %(count)s prac."
+msgstr "Untuk diperiksa ulang: %(count)s karya."
+
+msgid "Notatnik startowy – podgląd"
+msgstr "notebook awal"
+
+#, python-format
+msgid "Praca – podgląd notatnika (wersja %(version)s)"
+msgstr "Karya – pratinjau notebook (versi %(version)s)"

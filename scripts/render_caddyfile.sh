@@ -482,6 +482,7 @@ EOF
     if [ "$GUARD_ON" = "1" ]; then internal_guard >> "$tmp"; fi
     cat >> "$tmp" <<EOF
     import maintenance
+    import notebook_lab
     encode gzip zstd
     request_body {
         max_size {\$MAX_UPLOAD_MB}MB
@@ -534,6 +535,7 @@ EOF
   internal_guard >> "$tmp"
   cat >> "$tmp" <<'EOF'
     import maintenance
+    import notebook_lab
     encode gzip zstd
     request_body {
         max_size {$MAX_UPLOAD_MB}MB

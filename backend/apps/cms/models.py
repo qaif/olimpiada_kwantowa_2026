@@ -107,6 +107,8 @@ RESERVED_SLUGS = frozenset(
         # Wzorzec istnieje tylko przy ``DEBUG`` (``static(MEDIA_URL)``), ale slug zostaje zajęty
         # zawsze: strona, która działa na produkcji, a znika na laptopie, to gorszy błąd niż brak.
         "media",
+        # Notatnik startowy dla laboratorium JupyterLite (``/notebook-starter/<token>/<plik>``, QC-01).
+        "notebook-starter",
         # Zgoda ucznia na opiekuna szkolnego z importu (``/opiekun/zgoda/<token>/``).
         "opiekun",
         "password-reset",

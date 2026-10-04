@@ -176,6 +176,8 @@ INSTALLED_APPS = [
     # Okna czasowe etapu według stref czasowych krajów (TZ-01, 4.10.2026, flaga ``stage_time_windows``).
     "apps.time_windows",
     "apps.problem_translations",  # tłumaczenia zadań przez delegacje krajowe (TR-01, 4.10.2026)
+    # Notatniki kwantowe w przeglądarce (JupyterLite) i zadania sprawdzane automatycznie (QC-01).
+    "apps.notebooks",
     # Nadzór zdalny etapów online (zadanie PROC-01, flaga ``proctoring``) – na kliencie LiveKit webinarów.
     "apps.proctoring",
     # Warstwa integracyjna: klucze API dla systemów zewnętrznych, webhooki i eksporty na zewnątrz.
@@ -234,6 +236,10 @@ MIDDLEWARE = [
     # dokładnie tak, jak każe dokumentacja Django.
     "django.middleware.locale.LocaleMiddleware",
     "django.middleware.common.CommonMiddleware",
+    # Notatniki kwantowe (QC-01 § 3.5): 403 dla żądań zmieniających stan i dla API wysłanych
+    # z dokumentu laboratorium (po ``Referer``). Druga linia za polityką CSP laboratorium; tanie –
+    # bez ``Referer`` z laboratorium nie robi nic.
+    "apps.notebooks.middleware.NotebookLabRequestGuardMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     # Wylogowanie zamyka też sesję w django CMS na tym samym hoście (ciasteczko ``djcms_sessionid``,
@@ -524,6 +530,11 @@ CELERY_TASK_ROUTES = {
     "apps.workshop_materials.tasks.scan_material": {"queue": "scan"},
     # Skan pracy testowej oceny AI (``apps.ai_grading.sandbox``) – ta sama praca, ta sama kolejka.
     "apps.ai_grading.tasks.scan_ai_test_work": {"queue": "scan"},
+    # Notatniki kwantowe (QC-01): wysyłka do piaskownicy i ocena testów na **osobnej** kolejce z osobnym
+    # workerem (``notebook-worker``, profil compose ``notebooks``) i krótkimi limitami czasu – ocena
+    # liczy symulację obwodu ucznia, więc nie może zajmować procesów skanu antywirusowego i poczty.
+    "apps.notebooks.tasks.run_notebook": {"queue": "notebooks"},
+    "apps.notebooks.tasks.collect_notebook_run": {"queue": "notebooks"},
     # Skan zdjęcia do identyfikatora finału (LOG-01) – ta sama praca, ta sama kolejka.
     "apps.delegation_logistics.tasks.scan_badge_photo": {"queue": "scan"},
     # Skan dowodu wpłaty przelewem (PAY-01) – ta sama praca, ta sama kolejka.
@@ -532,6 +543,12 @@ CELERY_TASK_ROUTES = {
 CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
 CELERY_TIMEZONE = "UTC"
 CELERY_BEAT_SCHEDULE = {
+    # Notatniki kwantowe (QC-01): przebiegi oceny dla nowych czystych plików .ipynb i domknięcie
+    # zgubionych. Bez zmian w ``apps.submissions`` – beat zauważa nowy plik sam, najpóźniej po minucie.
+    "notebooks-pump": {
+        "task": "apps.notebooks.tasks.pump_notebook_runs",
+        "schedule": 60.0,
+    },
     # Płatności (PAY-01): porzucone sesje Stripe/P24 i zwroty o nieznanym wyniku (OPERACJE § 35).
     "payments-sweep": {
         "task": "apps.payments.tasks.sweep_payments",
@@ -1325,6 +1342,9 @@ REST_FRAMEWORK = {
         # za mało, żeby zasypać cudzą skrzynkę albo kolejkę premoderacji. Listy o wiadomościach
         # i tak są zbijane (``apps.chat.notifications``), więc limit chroni rozmowę, nie pocztę.
         "chat": "60/hour",
+        # Panel notatników kwantowych (QC-01): zapis ustawień zadania, „sprawdź wzorzec”, „przelicz
+        # wszystko”. Każde z dwóch ostatnich uruchamia kod w piaskownicy – limit chroni jej kolejkę.
+        "notebooks": "60/hour",
         # Sieć absolwentów (``apps.alumni``): dołączenie, profil, prośby o mentoring, zgłoszenia,
         # zaproszenia koordynatora. Każda prośba i zgłoszenie wysyła list, więc limit chroni cudze
         # skrzynki; trzydzieści na godzinę to więcej, niż wykona człowiek klikający w panelu.
@@ -1539,6 +1559,21 @@ SPECTACULAR_SETTINGS = {
         "StageKindEnum": "apps.competitions.models.StageKind.choices",
     },
 }
+
+# --- notatniki kwantowe (apps.notebooks, QC-01) --------------------------------------------------
+# Katalog wymiany zadań z kontenerem piaskownicy ``notebook-runner`` (wolumen ``notebook_spool``
+# zamontowany w workerze i w piaskownicy). Bez kontenera – brak katalogu i przebiegi kończą się
+# błędem „środowisko sprawdzania niedostępne”, a nie wiszą.
+NOTEBOOK_SPOOL_DIR = env("NOTEBOOK_SPOOL_DIR", default="/spool")
+# Wykonanie w podprocesie workera zamiast w kontenerze (dev, testy). W produkcji zakazane –
+# brak izolacji sieci i sekretów (sprawdzenie ``notebooks.E001`` w ``apps/notebooks/checks.py``).
+NOTEBOOK_RUNNER_INLINE = env.bool("NOTEBOOK_RUNNER_INLINE", default=False)
+# Zbudowane JupyterLite (etap ``notebook-lab`` w backend/Dockerfile): ``<katalog>/<BUILD_ID>/…``
+# i ``<katalog>/current.json``. Proces web kopiuje go do ``STATIC_ROOT/notebook-lab`` (entrypoint.sh),
+# skąd w produkcji podaje go Caddy; w dev (DEBUG) – WhiteNoise przez findery, z tego katalogu.
+NOTEBOOK_LAB_DIR = env("NOTEBOOK_LAB_DIR", default=str(BASE_DIR / "notebook_lab_dist"))
+if DEBUG and Path(NOTEBOOK_LAB_DIR).is_dir():
+    STATICFILES_DIRS = [*STATICFILES_DIRS, ("notebook-lab", NOTEBOOK_LAB_DIR)]
 
 # --- pieczęć elektroniczna dyplomów (apps.results.signing) -------------------------------------
 # Bez ścieżki do pliku PKCS#12 podpisywanie jest **wyłączone** i dokumenty wychodzą niepodpisane –

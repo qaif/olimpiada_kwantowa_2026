@@ -264,6 +264,53 @@ def build_policy(nonce: str, *, analytics: bool = False, theme_assets: bool = Fa
     return "; ".join(directives)
 
 
+#: Laboratorium notatników (JupyterLite, QC-01 § 3.2 i § 3.5) – polityka **wyłącznie** dla ścieżki
+#: ``STATIC_URL + "notebook-lab/"``. W produkcji ten sam napis wysyła Caddy (fragment
+#: ``(notebook_lab)`` w ``deploy/Caddyfile``, z ``{scheme}://{hostport}`` w miejscu originu), bo
+#: pliki statyczne podaje on, a nie Django; zgodność pilnuje ``apps/notebooks/tests/test_labbuild.py``.
+#:
+#: Laboratorium leży w originie serwisu, a uczeń wykonuje w nim dowolny kod (też JavaScript – wyjście
+#: ``application/javascript``). Dlatego każde źródło jest zawężone do **ścieżki** laboratorium (CSP
+#: porównuje też ścieżkę źródła): dokument nie pobierze ani nie wywoła niczego z API ani z paneli
+#: serwisu (``connect-src`` – wyłącznie pliki laboratorium i notatnik startowy pod
+#: ``/notebook-starter/``), nie osadzi strony serwisu w ramce (``frame-src``), nie wyśle formularza
+#: (``form-action 'none'``) i sam nie da się osadzić (``frame-ancestors 'none'`` – laboratorium otwiera
+#: się w osobnej karcie, bez ``opener``). Wyjątki wobec polityki serwisu: ``'wasm-unsafe-eval'``
+#: (WebAssembly Pyodide), ``'unsafe-eval'`` (Ajv w JupyterLab kompiluje schematy przez ``new Function``),
+#: ``blob:`` w ``worker-src`` (jądro Pythona w Web Workerze). Granice tej ochrony – § 3.5 specyfikacji.
+NOTEBOOK_LAB_SEGMENT = "notebook-lab/"
+#: Ścieżka notatnika startowego – bez prefiksu konkursu, żeby polityka laboratorium (napis stały
+#: w Caddym) mogła ją wymienić; konkurs i uczestnika niesie podpisany token (``apps.notebooks``).
+NOTEBOOK_STARTER_PATH = "/notebook-starter/"
+NOTEBOOK_LAB_POLICY_TEMPLATE = (
+    "default-src {lab}; script-src {lab} 'unsafe-eval' 'wasm-unsafe-eval'; "
+    "style-src {lab} 'unsafe-inline'; img-src {lab} data: blob:; font-src {lab} data:; "
+    "connect-src {lab} {starter}; worker-src {lab} blob:; frame-src {lab} blob:; "
+    "object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+)
+#: Izolacja okien: z COEP ``require-corp`` wartość COOP laboratorium różni się od COOP stron serwisu
+#: (Django: ``same-origin``), więc okno otwarte z laboratorium (``window.open('/me/')``) trafia do
+#: innej grupy kontekstów – kod ucznia nie dostaje do niego dostępu. Wszystkie zasoby laboratorium są
+#: z tego samego originu, więc ``require-corp`` niczego nie blokuje (sprawdzone w przeglądarce).
+NOTEBOOK_LAB_HEADERS = {
+    "Cross-Origin-Opener-Policy": "same-origin",
+    "Cross-Origin-Embedder-Policy": "require-corp",
+    "Cross-Origin-Resource-Policy": "same-origin",
+}
+
+
+def build_notebook_lab_policy(origin: str) -> str:
+    """Polityka laboratorium dla originu (``https://host``; w Caddym ``{scheme}://{hostport}``)."""
+    return NOTEBOOK_LAB_POLICY_TEMPLATE.format(
+        lab=f"{origin}{settings.STATIC_URL}{NOTEBOOK_LAB_SEGMENT}",
+        starter=f"{origin}{NOTEBOOK_STARTER_PATH}",
+    )
+
+
+def is_notebook_lab_path(path: str) -> bool:
+    return path.startswith(f"{settings.STATIC_URL}{NOTEBOOK_LAB_SEGMENT}")
+
+
 def build_admin_policy() -> str:
     """Polityka panelu (``/cms/``, ``/admin/``). Świadomie z ``'unsafe-inline'`` dla skryptów.
 
@@ -354,7 +401,11 @@ class ContentSecurityPolicyMiddleware:
         request.csp_nonce = nonce
         response = self.get_response(request)
         if self.header not in response:
-            if is_admin_request(request):
+            if is_notebook_lab_path(request.path):
+                response[self.header] = build_notebook_lab_policy(f"{request.scheme}://{request.get_host()}")
+                for name, value in NOTEBOOK_LAB_HEADERS.items():
+                    response[name] = value
+            elif is_admin_request(request):
                 response[self.header] = build_admin_policy()
             else:
                 # Pytanie jest o **witrynę tego żądania**, a nie o instalację: konkurs, który
