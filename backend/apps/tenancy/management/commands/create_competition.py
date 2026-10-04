@@ -36,6 +36,9 @@ from django.utils import timezone
 from apps.tenancy.models import Competition, RoutingMode
 from apps.tenancy.provisioning import (
     INITIAL_DOCUMENT_VERSION,
+    REGIONS_CHOICES,
+    REGIONS_COUNTRIES,
+    REGIONS_VOIVODESHIPS,
     WARSAW,
     ProvisioningError,
     coordinator_from_email,
@@ -111,6 +114,15 @@ class Command(BaseCommand):
             ),
         )
         parser.add_argument(
+            "--regions",
+            choices=REGIONS_CHOICES,
+            default=REGIONS_VOIVODESHIPS,
+            help=(
+                "Podział uczestników: voivodeships (16 województw, domyślnie) albo countries "
+                "(kraje ISO 3166-1, flaga custom_regions – konkurs międzynarodowy)."
+            ),
+        )
+        parser.add_argument(
             "--dry-run",
             action="store_true",
             help="Wykonaj wszystko i wycofaj transakcję — sprawdza dane, nie zmienia bazy.",
@@ -156,6 +168,7 @@ class Command(BaseCommand):
                 public_code_prefix=options["public_code_prefix"],
                 certificate_prefix=options["certificate_prefix"],
                 dry_run=dry_run,
+                regions=options["regions"],
                 # Seedy uruchamia komenda, nie czynność – patrz docstring modułu.
                 run_safe_seeds=False,
             )
@@ -211,7 +224,10 @@ class Command(BaseCommand):
         # o tym pamiętać”. Brakująca pozycja byłaby natomiast widoczna od razu.
         write(f"  zgody:    {seeded['consents']} definicje (zestaw domyślny, do poprawienia w panelu)")
         write(f"  szablony dokumentów: {seeded['documents']} (wersja {INITIAL_DOCUMENT_VERSION})")
-        write(f"  regiony:  {seeded['regions']} (kraj, 16 województw, „poza Polską”)")
+        if seeded.get("regions_mode") == REGIONS_COUNTRIES:
+            write(f"  regiony:  {seeded['regions_active']} krajów aktywnych (custom_regions, REG-01)")
+        else:
+            write(f"  regiony:  {seeded['regions']} (kraj, 16 województw, „poza Polską”)")
         write(f"  grupa /cms/: {seeded['cms_group']}")
         write(f"  przebieg: {seeded['pipeline']} kroków toru (edytor za flagą process_editor)")
         write(f"  kody:     {competition.public_code_prefix}… / dyplomy {competition.certificate_prefix}/…")

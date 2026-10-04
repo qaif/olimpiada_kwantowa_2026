@@ -12,6 +12,7 @@ np. renderowanie szablonu w teście) jest wartością poprawną i szablon ma to 
 from __future__ import annotations
 
 from django.urls import get_script_prefix
+from django.utils.functional import SimpleLazyObject
 
 
 def competition(request) -> dict:
@@ -23,4 +24,18 @@ def competition(request) -> dict:
     – napis ``/`` wpisany na sztywno wyprowadzałby czytelnika konkursu pod prefiksem do
     konkursu-gospodarza. Bez prefiksu wynik jest co do znaku ten sam, co dawny napis.
     """
-    return {"competition": getattr(request, "competition", None), "site_root": get_script_prefix()}
+    current = getattr(request, "competition", None)
+    return {
+        "competition": current,
+        "site_root": get_script_prefix(),
+        # „Województwo” / „Kraj” / „Region” – nagłówki kolumn i etykiety podziału terytorialnego
+        # (docs/tasks/REG-01.md § 1.2). Leniwie: odpowiedź przy włączonym ``custom_regions`` kosztuje
+        # zapytanie, a pyta o nią garstka szablonów, nie każda strona.
+        "region_noun": SimpleLazyObject(lambda: _region_noun(current)),
+    }
+
+
+def _region_noun(current) -> str:
+    from apps.accounts.regions import region_noun
+
+    return region_noun(current)

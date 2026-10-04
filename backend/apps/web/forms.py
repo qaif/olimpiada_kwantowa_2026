@@ -82,9 +82,72 @@ EMPTY_VOIVODESHIP_CHOICE = ("", gettext_lazy("— wybierz województwo —"))
 VOIVODESHIP_CHOICES = (EMPTY_VOIVODESHIP_CHOICE, *Voivodeship.choices)
 
 
-def voivodeship_field(label: str, *, required: bool = True) -> forms.ChoiceField:
-    """Pole wyboru województwa. Lista jest zamknięta – wolny tekst nie ma tu wstępu."""
-    return forms.ChoiceField(label=label, choices=VOIVODESHIP_CHOICES, required=required)
+def _custom_regions_competition():
+    """Konkurs kontekstu, o ile ma włączony własny podział (``custom_regions``); inaczej ``None``.
+
+    Kontekst, a nie argument formularza: pole ``district`` stoi w kilkunastu formularzach
+    wołanych z kilkunastu widoków, a każdy z nich działa w żądaniu, w którym
+    ``CompetitionMiddleware`` już związał konkurs. Przy wyłączonej fladze odpowiedź nie kosztuje
+    zapytania – ``has_feature`` czyta słownik z wczytanego wiersza.
+    """
+    from apps.accounts.services import CUSTOM_REGIONS_FLAG
+    from apps.tenancy.context import current_competition
+
+    competition = current_competition()
+    if competition is None or not competition.has_feature(CUSTOM_REGIONS_FLAG):
+        return None
+    return competition
+
+
+def district_choices() -> tuple:
+    """Pozycje listy „województwo / kraj / region” dla konkursu kontekstu (docs/tasks/REG-01.md § 1.1).
+
+    Przy wyłączonej fladze ``custom_regions`` – dokładnie :data:`VOIVODESHIP_CHOICES`, ta sama
+    krotka co dotąd (Olimpiada Kwantowa nie zmienia ani bajtu HTML-a). Przy włączonej – **aktywne**
+    regiony konkursu w kolejności ``position, name``; wartością jest ``region.code``, bo to on
+    trafia do ``district`` i po nim serwis rejestracji znajduje region
+    (``apps.accounts.services._resolve_region``). Funkcja, a nie stała: ``ChoiceField`` z wywoływalnym
+    ``choices`` liczy listę przy każdym renderze i każdej walidacji, więc region dezaktywowany
+    w panelu znika z formularza bez restartu procesu.
+    """
+    competition = _custom_regions_competition()
+    if competition is None:
+        return VOIVODESHIP_CHOICES
+    from apps.accounts.models import Region
+
+    regions = Region.objects.for_competition(competition).active().order_by("position", "name", "id")
+    return (("", _("— wybierz —")), *regions.values_list("code", "name"))
+
+
+def _district_label(label, suffix: str = ""):
+    """Etykieta pola ``district``: podana (przy województwach) albo słowo podziału konkursu.
+
+    Leniwa, bo pola formularza powstają raz, przy imporcie modułu, a konkurs (i jego podział)
+    jest znany dopiero w żądaniu. ``suffix`` to dopisek ekranów koordynatora („narzucone kodem”).
+    """
+    from django.utils.functional import lazy
+
+    def build() -> str:
+        competition = _custom_regions_competition()
+        if competition is None:
+            return str(label)
+        from apps.accounts.regions import region_noun
+
+        noun = region_noun(competition)
+        return f"{noun} ({suffix})" if suffix else noun
+
+    return lazy(build, str)()
+
+
+def voivodeship_field(label: str, *, required: bool = True, suffix: str = "") -> forms.ChoiceField:
+    """Pole wyboru województwa – albo regionu konkursu z własnym podziałem (kraju w ``iqo``).
+
+    Lista jest zamknięta – wolny tekst nie ma tu wstępu. Nazwa funkcji zostaje (woła ją kilkanaście
+    formularzy); co znaczy „województwo” w danym konkursie, rozstrzyga :func:`district_choices`.
+    """
+    return forms.ChoiceField(
+        label=_district_label(label, suffix), choices=district_choices, required=required
+    )
 
 
 def phone_field(*, required: bool = True) -> forms.CharField:
@@ -907,7 +970,9 @@ class CommitteeRegisterForm(CaptchaFormMixin):
         label=gettext_lazy("Nazwisko"), max_length=150, validators=[validate_person_name]
     )
     invitation_code = forms.CharField(label=gettext_lazy("Kod zaproszenia"), max_length=200)
-    district = voivodeship_field(gettext_lazy("Województwo (deklarowane)"), required=False)
+    district = voivodeship_field(
+        gettext_lazy("Województwo (deklarowane)"), required=False, suffix=gettext_lazy("deklarowane")
+    )
 
     def clean(self):
         return clean_password_pair(self, super().clean())
@@ -1343,7 +1408,7 @@ class CoordinatorCommitteeForm(forms.Form):
 class InvitationForm(forms.Form):
     """Generowanie kodu zaproszenia. Kod jawny jest pokazywany dokładnie raz."""
 
-    district = voivodeship_field("Województwo (narzucone kodem)", required=False)
+    district = voivodeship_field("Województwo (narzucone kodem)", required=False, suffix="narzucone kodem")
     valid_days = forms.IntegerField(label="Ważność (dni)", min_value=1, max_value=365, initial=14)
     max_uses = forms.IntegerField(label="Limit użyć", min_value=1, max_value=100, initial=1)
     is_appeals = forms.BooleanField(label="Komisja odwoławcza", required=False)
@@ -1371,7 +1436,7 @@ class BulkInvitationForm(forms.Form):
             f"Najwyżej {MAX_INVITATION_EMAILS} adresów na raz."
         ),
     )
-    district = voivodeship_field("Województwo (narzucone kodem)", required=False)
+    district = voivodeship_field("Województwo (narzucone kodem)", required=False, suffix="narzucone kodem")
     valid_days = forms.IntegerField(label="Ważność (dni)", min_value=1, max_value=365, initial=14)
     is_appeals = forms.BooleanField(label="Komisja odwoławcza", required=False)
     requires_approval = forms.BooleanField(label="Wymaga zatwierdzenia (PENDING)", required=False)

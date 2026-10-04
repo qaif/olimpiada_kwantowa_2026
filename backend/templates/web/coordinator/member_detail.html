@@ -97,7 +97,7 @@
       <dd>{{ user.date_joined|local_datetime }}</dd>
     </dl>
 
-    <h3>Województwo</h3>
+    <h3>{{ region_noun }}</h3>
     {% comment %}
       Województwo członka komitetu jest **opcjonalne** i decyduje wyłącznie o konflikcie interesów
       na etapie wojewódzkim. Dlatego pusta pozycja („— brak —”) jest tu decyzją koordynatora,
@@ -117,7 +117,7 @@
     </p>
     <form method="post" action="{% url 'web:coordinator-verify-district' member.pk %}" class="cell-form">
       {% csrf_token %}
-      <label for="member-district">Województwo</label>
+      <label for="member-district">{{ region_noun }}</label>
       <select id="member-district" name="district">
         {% for value, label in voivodeship_choices %}
           <option value="{{ value }}"{% if value == member.district %} selected{% endif %}>{{ label }}</option>

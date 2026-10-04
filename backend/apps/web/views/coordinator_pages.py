@@ -31,13 +31,13 @@ from apps.results.models import ResultsPublication
 from apps.web.coordinator_nav import attention_counters, current_stages, focus_stage, resolve
 from apps.web.coordinator_search import MIN_QUERY_LENGTH, hidden_deleted, search
 from apps.web.forms import (
-    VOIVODESHIP_CHOICES,
     AssignThirdReviewerForm,
     BulkInvitationForm,
     InvitationForm,
     PublishResultsForm,
     ResolveModerationForm,
     VerifyDistrictForm,
+    district_choices,
 )
 from apps.web.list_controls import ListControls
 from apps.web.mixins import CoordinatorRequiredMixin
@@ -111,7 +111,7 @@ class CoordinatorCommitteeView(CoordinatorRequiredMixin, TemplateView):
                     members.filter(status=CommitteeStatus.PENDING).order_by("created_at", "id")
                 ),
                 "active_members": list(members.filter(status=CommitteeStatus.ACTIVE).order_by("user__email")),
-                "voivodeship_choices": VOIVODESHIP_CHOICES,
+                "voivodeship_choices": district_choices(),
                 "verify_form": VerifyDistrictForm(),
                 "invitation_form": InvitationForm(),
                 "bulk_invitation_form": BulkInvitationForm(),

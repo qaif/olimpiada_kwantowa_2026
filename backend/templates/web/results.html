@@ -34,7 +34,7 @@
     <tr>
       <th>{% translate "Miejsce" %}</th>
       <th>{% translate "Uczestnik" %}</th>
-      <th>{% translate "Województwo" %}</th>
+      <th>{{ region_noun }}</th>
       {% for number in problem_numbers %}<th>{% blocktranslate %}Zad. {{ number }}{% endblocktranslate %}{% with maximum=problem_maxima|dict_get:number %}{% if maximum is not None %} <span class="hint">{% blocktranslate with maximum=maximum|points %}(max {{ maximum }}){% endblocktranslate %}</span>{% endif %}{% endwith %}</th>{% endfor %}
       <th>{% translate "Razem" %}{% if max_total is not None %} <span class="hint">{% blocktranslate with maximum=max_total|points %}(max {{ maximum }}){% endblocktranslate %}</span>{% endif %}</th>
       <th>{% translate "Kwalifikacja" %}</th>

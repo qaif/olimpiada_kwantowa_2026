@@ -1841,9 +1841,20 @@ def verify_committee_district(
 
     ``competition`` – jak w ``approve_committee_member``: członek innego konkursu to 404.
     """
-    district = _require_voivodeship(district, required=False)
     member = CommitteeMember.objects.select_for_update().get(pk=member.pk)
     _assert_member_of(member, competition)
+    # Konkurs z własnym podziałem (REG-01: kraje w ``iqo``) – wartością jest kod **aktywnego**
+    # regionu, a region trafia obok ``district`` tak samo, jak w rejestracji. Bez flagi – dokładnie
+    # dotychczasowa reguła listy województw.
+    owner = competition or member.competition
+    region = None
+    if owner is not None and owner.has_feature(CUSTOM_REGIONS_FLAG) and (district or "").strip():
+        region = region_for_district(owner, district)
+        if region is None or not region.is_active:
+            raise DomainError("Wybierz region z listy.", "DISTRICT_INVALID", status.HTTP_400_BAD_REQUEST)
+        district = region.code
+    else:
+        district = _require_voivodeship(district, required=False)
     if member.status != CommitteeStatus.ACTIVE:
         # Województwo ma znaczenie tylko dla kogoś, kto realnie ocenia prace. Ustawianie go
         # profilowi oczekującemu albo zawieszonemu sugerowałoby, że jest on już w puli recenzentów.
@@ -1856,7 +1867,11 @@ def verify_committee_district(
     previously_verified = member.district_verified
     member.district = district
     member.district_verified = district is not None
-    member.save(update_fields=["district", "district_verified"])
+    update_fields = ["district", "district_verified"]
+    if region is not None or (owner is not None and owner.has_feature(CUSTOM_REGIONS_FLAG)):
+        member.region = region
+        update_fields.append("region")
+    member.save(update_fields=update_fields)
     audit(
         actor,
         "committee.district_verified",
