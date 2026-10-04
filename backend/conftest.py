@@ -44,9 +44,14 @@ def _compile_translations(config) -> None:
     """
     if hasattr(config, "workerinput"):  # worker xdist: kompilował już proces sterujący
         return
+    # Katalog wspólny i katalogi aplikacji (``apps/<aplikacja>/locale``) – Django scala oba.
+    catalogs = [
+        *BACKEND_DIR.glob("locale/*/LC_MESSAGES/*.po"),
+        *BACKEND_DIR.glob("apps/*/locale/*/LC_MESSAGES/*.po"),
+    ]
     stale = [
         po
-        for po in sorted(BACKEND_DIR.glob("locale/*/LC_MESSAGES/*.po"))
+        for po in sorted(catalogs)
         if not po.with_suffix(".mo").exists() or po.with_suffix(".mo").stat().st_mtime < po.stat().st_mtime
     ]
     if not stale:
