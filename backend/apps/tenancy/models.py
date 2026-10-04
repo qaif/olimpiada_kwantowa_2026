@@ -312,6 +312,27 @@ class Competition(models.Model):
         related_name="+",
         verbose_name="favikona",
     )
+    #: Logotyp **serwisu** w nagłówku strony – osobno od ``logo``, bo to pole Konkurs #1 ma dziś
+    #: zajęte znakiem organizatora (dyplomy, ``apps.results.certificates.competition_logo``),
+    #: a nagłówek polskiej olimpiady stoi na pliku statycznym. Puste = plik statyczny jak dotąd,
+    #: więc Konkurs #1 nie zmienia się ani o bajt; konkurs z własnym znakiem (IQO) wpisuje go tu.
+    site_logo = models.ForeignKey(
+        "wagtailimages.Image",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name="logotyp w nagłówku serwisu",
+    )
+    #: Obraz udostępniania (Open Graph, 1200 × 630). Puste = ``img/og-image.png``.
+    social_image = models.ForeignKey(
+        "wagtailimages.Image",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name="obraz do udostępniania",
+    )
 
     # --- organizator (podmiot prawny) ---------------------------------------------------------
     organizer_name = models.CharField("organizator", max_length=200)

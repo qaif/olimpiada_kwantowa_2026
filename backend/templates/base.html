@@ -34,12 +34,29 @@
   <meta name="theme-color" content="#12233f" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#0f1726" media="(prefers-color-scheme: dark)">
   <meta name="description" content="{% block description %}{% translate "Ogólnopolska olimpiada dla uczniów szkół ponadpodstawowych: terminy etapów, zadania, wyniki oraz panel uczestnika, recenzenta i komitetu." %}{% endblock %}">
+  {% comment %}
+    Favikona, logotyp nagłówka i obraz udostępniania: grafika **konkursu**, jeśli ją wskazano
+    w „Ustawieniach konkursu”, inaczej pliki statyczne serwisu. Warunek idzie po ``*_id``, a nie po
+    relacji: konkurs bez grafiki (Konkurs #1) nie płaci ani jednym zapytaniem i renderuje się
+    co do bajtu jak przed tym polem.
+  {% endcomment %}
+  {% if competition.favicon_id %}
+  {% image competition.favicon fill-32x32 format-png as fav32 %}{% image competition.favicon fill-512x512 format-png as fav512 %}{% image competition.favicon fill-180x180 format-png as fav180 %}
+  <link rel="icon" href="{{ fav32.url }}" type="image/png" sizes="32x32">
+  <link rel="icon" href="{{ fav512.url }}" type="image/png" sizes="512x512">
+  <link rel="apple-touch-icon" href="{{ fav180.url }}">
+  {% else %}
   <link rel="icon" href="{% static 'img/favicon.svg' %}" type="image/svg+xml">
   <link rel="icon" href="{% static 'img/logo-mark-512.png' %}" type="image/png" sizes="512x512">
   <link rel="apple-touch-icon" href="{% static 'img/apple-touch-icon.png' %}">
+  {% endif %}
   <meta property="og:site_name" content="{{ settings.cms.SiteSettings.site_name }}">
   <meta property="og:title" content="{% block og_title %}{{ settings.cms.SiteSettings.site_name }}{% endblock %}">
+  {% if competition.social_image_id %}{% image competition.social_image fill-1200x630 format-png as og %}
+  <meta property="og:image" content="{{ request.scheme }}://{{ request.get_host }}{{ og.url }}">
+  {% else %}
   <meta property="og:image" content="{{ request.scheme }}://{{ request.get_host }}{% static 'img/og-image.png' %}">
+  {% endif %}
   <meta property="og:type" content="website">
   <link rel="stylesheet" href="{% static 'css/app.css' %}">
   {% comment %}
@@ -151,9 +168,15 @@
     <a class="brand" href="{{ site_root|default:"/" }}">
       {% comment %}Logotyp jest projektowany na jasne tło, więc w granatowym nagłówku stoi na jasnej plakietce.
       Nazwa zostaje w DOM (visually-hidden) jako tekst linku dla czytników ekranu i testów.{% endcomment %}
+      {% if competition.site_logo_id %}
+      {% image competition.site_logo width-600 format-png as logo1x %}{% image competition.site_logo width-1200 format-png as logo2x %}
+      <span class="brand__logo"><img src="{{ logo1x.url }}" srcset="{{ logo1x.url }} 1x, {{ logo2x.url }} 2x"
+           alt="" width="{{ logo1x.width }}" height="{{ logo1x.height }}"></span>
+      {% else %}
       <span class="brand__logo"><img src="{% static 'img/logo-olimpiada-kwantowa.png' %}"
            srcset="{% static 'img/logo-olimpiada-kwantowa.png' %} 1x, {% static 'img/logo-olimpiada-kwantowa@2x.png' %} 2x"
            alt="" width="600" height="231"></span>
+      {% endif %}
       <span class="brand__mark visually-hidden">{{ settings.cms.SiteSettings.site_name }}</span>
       {% if site_edition_label %}{% translate "edycja" as edition_prefix %}<span class="brand__sub">{{ site_edition_label|edition_title:edition_prefix }}</span>{% endif %}
     </a>
