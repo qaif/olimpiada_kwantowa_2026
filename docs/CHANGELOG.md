@@ -35,6 +35,20 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
 - Dokumentacja: `docs/OPERACJE.md` § 37, `docs/PODRECZNIK-ORGANIZATORA.md` § 10k, przewodnik opiekuna
   drużyny § 5a, podręcznik uczestnika § 7.
 
+## [Unreleased] – Rozmowy etapu w LiveKit jako alternatywa dla Jitsi (STAGE-LK-01)
+
+- Dostawca wideo etapu **„LiveKit (pokój na platformie)”** (`VideoProvider.LIVEKIT`, migracja
+  `competitions.0034`; opcja widoczna tylko przy skonfigurowanym LiveKit). Jitsi domyślne i bez zmian.
+- **Jedna reguła uprawnień** dla obu dostawców: `apps.competitions.room_access` (przeniesiona z widoków
+  Jitsi bez zmiany zachowania) – uczestnik, koordynator i komisja wchodzą tymi samymi widokami, w tych
+  samych oknach, z tymi samymi rolami (moderator Jitsi = `roomAdmin` LiveKit); test parytetu uruchamia
+  tę samą macierz ról na obu dostawcach.
+- Pokój na platformie (interfejs webinarów), token POST-em, polecenia moderatora przez platformę
+  (odbierz/oddaj głos, usuń; audyt `interview.room_control`). Bez drugiej integracji LiveKit.
+- Opcjonalnie z **nadzorem zdalnym** (PROC-01): zgoda i sprzęt przed rozmową, dziennik połączeń,
+  nagranie kamery przy `record`. Rejestr czynności 1.20. Opis: `docs/tasks/STAGE-LK-01.md`,
+  `docs/OPERACJE.md` § 25.9 i § 39.5.
+
 ## [Unreleased] – Nadzór zdalny etapów online (PROC-01)
 
 - **Nadzór zdalny** (`apps.proctoring`, flaga konkursu `proctoring`, domyślnie wyłączona; włączany per

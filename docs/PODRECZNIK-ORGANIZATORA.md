@@ -489,6 +489,13 @@ Dla etapu w formie rozmowy (§ 2.2). Ekran **„Rozmowy kwalifikacyjne: <etap>�
    uczestnicy jako imię i inicjał) z przyciskiem „Dołącz jako gospodarz” — w tym samym oknie czasowym
    i z tymi samymi prawami, co Ty. Ty nadal możesz wejść do każdego pokoju z ekranu terminów. Komisja
    nie widzi tu surowych adresów pokoi spoza serwera olimpiady — te przekazujesz jej sam, jak dotąd.
+   **Rozmowy w LiveKit (opcjonalnie).** W ustawieniach etapu („Dostawca wideo”) możesz zamiast Jitsi wybrać
+   **„LiveKit (pokój na platformie)”** – opcja jest widoczna, gdy operator uruchomił serwer LiveKit (ten
+   sam, co webinary). Wszystko inne zostaje: te same przyciski, te same okna czasowe i **te same
+   uprawnienia** (komisja i koordynator jako gospodarze, uczestnik bez praw moderatora). Pokój otwiera się
+   na stronie olimpiady; gospodarz ma przy osobach w pokoju „Odbierz głos” i „Usuń z pokoju”. Rozmowę
+   w LiveKit możesz dodatkowo objąć **nadzorem zdalnym** (§ 10m) – uczeń wchodzi wtedy na rozmowę
+   dopiero po zgodzie i sprawdzeniu sprzętu w konsoli nadzoru.
 5. Tabela terminów pokazuje **dane osobowe** zapisanych (kod, imię i nazwisko, e-mail) — to obok podglądu
    wyników jedyny taki ekran w serwisie, stąd odznaka „dane osobowe”.
 6. **Termin da się usunąć tylko dopóki nikt się na niego nie zapisał.**
@@ -2333,7 +2340,8 @@ koordynatora zostają po polsku i nie są przedmiotem przeglądu.
 ## 10m. Nadzór zdalny etapów online — `/coordinator/proctoring/`
 
 **Tylko w konkursie z przełącznikiem `proctoring`** (włącza operator) i na serwerze LiveKit (ten sam, co
-webinary). Nadzór włączasz **osobno dla każdego etapu online** (rozwiązania pisemne albo test).
+webinary). Nadzór włączasz **osobno dla każdego etapu online** (rozwiązania pisemne, test albo rozmowa
+prowadzona w pokoju **LiveKit** – § 4.7; rozmowy na Jitsi nadzoru nie mają).
 
 **Ustawienia etapu:** udostępnienie ekranu i mikrofon (domyślnie wyłączone – to dodatkowe dane), zdjęcie
 dokumentu (wył./opcjonalne/wymagane; zdjęcia znikają zaraz po etapie), **nagrywanie kamer (domyślnie

@@ -3796,6 +3796,15 @@ wejścia na rozmowy: `interview.joined` (`participant`/`coordinator`, `interview
 (znika razem z kontem – `SET_NULL`). Etykieta pokoju jest tekstem koordynatora – podręcznik prosi,
 żeby nie wpisywać w nią nazwisk gości.
 
+### 25.9. LiveKit jako alternatywa dla pokoi rozmów (STAGE-LK-01)
+
+Koordynator może dla etapu w formie rozmowy wybrać dostawcę **„LiveKit (pokój na platformie)”**
+(`docs/tasks/STAGE-LK-01.md`). Opcja pojawia się w formularzu etapu dopiero przy skonfigurowanym LiveKit
+(§ 36). Uprawnienia, okna i widoki wejścia są **te same**, co w tym rozdziale – reguła mieszka w
+`apps.competitions.room_access` i obsługuje oba serwery; Jitsi działa jak dotąd. Nadzór zdalny rozmowy
+(tylko LiveKit) – § 39.5. Wycofanie: zmiana dostawcy etapu na Jitsi przed zapisami (pokoje już
+przypisane zapisom zostają w LiveKit do końca etapu).
+
 ## 26. Języki interfejsu per konkurs (I18N-01, `docs/tasks/I18N-01.md`)
 
 Od tego wydania **konkurs** decyduje, w jakich językach mówi jego interfejs:
@@ -4654,3 +4663,16 @@ egress to osobny proces – na 300 nagrań naraz zaplanuj 2–3 węzły egress (
   nagrania, dziennik, wiadomości i uwagi do prośby o alternatywę 30 dni po wynikach i oknie reklamacji;
   ręcznie – `docker compose exec web python manage.py shell -c "from apps.proctoring.services import purge_expired; print(purge_expired())"`.
   Wstrzymanie usunięcia ucznia – pole „powód wstrzymania” na ekranie nadzoru etapu.
+
+### 39.5. Rozmowy etapu w LiveKit i nadzór rozmowy (STAGE-LK-01)
+
+- Etap-rozmowa z dostawcą `livekit` (§ 25.9) używa tego samego serwera i webhooka; adres pokoju przy
+  zapisie to `livekit://olimpiada-…` (identyfikator, nie link). Nowa migracja: `competitions.0034`
+  (lista wyboru dostawcy).
+- Uprawnienia LiveKit odwzorowują Jitsi: moderator (koordynator, aktywna komisja) – `roomAdmin`
+  + nadawanie; uczestnik – nadawanie i odbiór bez administracji; token ważny w oknie terminu.
+  Polecenia moderatora (odbierz/oddaj głos, usuń) idą przez platformę, audyt `interview.room_control`.
+- Nagrywania pokoi rozmów **nie ma** (jak w Jitsi), chyba że etap ma nadzór z `record` – wtedy
+  nagrywana jest kamera ucznia (Track Egress, retencja § 39.4).
+- Pojemność: rozmowa to kilka osób w pokoju – pomijalne obciążenie wobec § 39.3.
+

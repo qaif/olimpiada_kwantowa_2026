@@ -209,6 +209,12 @@ przesłać dalej. Listy (potwierdzenie i przypomnienie) prowadzą do tych przyci
 widać Cię jako imię i inicjał nazwiska. Gdy połączenie się zerwie po dłuższej przerwie, wróć do panelu
 i kliknij „Dołącz do rozmowy” jeszcze raz.
 
+**Rozmowa w pokoju na platformie (LiveKit).** Organizator może prowadzić rozmowy w pokoju na stronie
+olimpiady zamiast na Jitsi – przyciski i zasady są te same („Dołącz do rozmowy”, „Sprawdź kamerę
+i mikrofon”), tylko pokój otwiera się na naszej stronie. Jeśli rozmowa jest **nadzorowana zdalnie**,
+w panelu zobaczysz kartę „Nadzór zdalny”: przed rozmową wyraź zgodę i sprawdź sprzęt w konsoli nadzoru
+(§ 8c), inaczej pokój rozmowy się nie otworzy.
+
 ---
 
 ## 5. Zgoda opiekuna (dla niepełnoletnich)
