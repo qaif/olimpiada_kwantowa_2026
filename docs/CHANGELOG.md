@@ -8,6 +8,24 @@ dokładnie jednemu wierszowi tej tabeli.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## [Unreleased] – Webinary w LiveKit (WEB-01)
+
+- **Webinary** (`apps.webinars`, flaga konkursu `webinars`, domyślnie wyłączona): koordynator planuje
+  webinar (termin, odbiorcy: konkurs / edycja / etap / komisja / kapitanowie, współprowadzący,
+  nagrywanie, link dla gości), odbiorcy wchodzą do **pokoju na platformie** (`/webinars/<id>/room/`:
+  siatka i widok prelegenta, ekran, mikrofon/kamera, lista uczestników, ręka, czat; motyw konkursu,
+  11 języków, RTL). Widz bez nadawania – „Daj głos” przez `UpdateParticipant`.
+- **LiveKit** (własny serwer, Apache 2.0): tokeny HS256 na 10 min z serwera (bez sekretu w HTML/JS),
+  webhook `/integrations/livekit/webhook/` z obowiązkowym podpisem i ochroną przed powtórką (stan
+  pokoju, **lista obecności**, koniec nagrania), nagrania przez Egress do prywatnego bucketu (MP4,
+  publikacja, adres podpisany na 2 h), transmisja RTMP na YouTube (klucz niezapisywany).
+- **Infrastruktura:** `deploy/livekit/` (nakładka compose z profilem `livekit`, przykłady `livekit.yaml`
+  i `egress.yaml`, polityka MinIO egress), `LIVEKIT_PROXY` w `render_caddyfile.sh` (blok `live.`),
+  `scripts/vendor_livekit_client.sh` (SDK z npm ze sprawdzeniem sumy, bez CDN). CSP: origin LiveKit
+  w `connect-src` tylko przy konfiguracji. Nowe segmenty `webinars`, `integrations` w kontrakcie tras.
+- Listy: zaproszenie (raz) i przypomnienie (beat co 5 min), z wyłączeniem; rejestr czynności
+  „Webinary online (LiveKit)” przy fladze. Opis: `docs/tasks/WEB-01.md`, `docs/OPERACJE.md` § 28.
+
 ## [Unreleased] – Wielojęzyczność per konkurs (I18N-01) i kraje zamiast województw (REG-01)
 
 - **Języki interfejsu per konkurs:** `Competition.interface_languages` obok `default_language`

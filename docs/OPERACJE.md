@@ -1001,6 +1001,11 @@ z **różnicami** wobec wartości domyślnych. Pusty słownik `{}` znaczy „jak
   znaczy, że `/coordinator/ai-grading/…` odpowiada 404, a panele wyglądają jak dziś. Zapalenie
   jest **decyzją prawną organizatora** (umowa powierzenia z Anthropic, polityka prywatności,
   regulamin), a nie techniczną — nie zapalaj jej przed jej potwierdzeniem. Szczegóły serwerowe: § 17.
+- **`webinars`** — webinary w LiveKit (WEB-01): ekran koordynatora `/coordinator/webinars/`, strona
+  odbiorców `/webinars/`, pokój `/webinars/<id>/room/`, link gościa `/zaproszenie/webinar/…`, webhook
+  `/integrations/livekit/webhook/`. Wyłączona znaczy, że tych adresów **nie ma** (404). Działa dopiero
+  z serwerem LiveKit w `.env` (§ 28); flaga bez serwera pokazuje koordynatorowi „serwer LiveKit nie
+  jest skonfigurowany”, a odbiorcom nic.
 
 Po każdym przestawieniu flagi: zaloguj się na konto jednej osoby z każdej roli i sprawdź, że widzi
 to, co widziała. Flaga jest odwracalna w minutę, ale tylko wtedy, gdy ktoś zauważy w tej minucie.
@@ -3878,3 +3883,95 @@ Nowy konkurs od razu z krajami: `create_competition … --regions countries` (do
 `custom_regions` wyłączona, formularze i wydruki co do bajtu jak dotąd).
 
 Kolejność dla `iqo` po wdrożeniu: § 26.1 (języki) i ta komenda – niezależne od siebie.
+
+## 28. Webinary w LiveKit (WEB-01, `docs/tasks/WEB-01.md`)
+
+Koordynator planuje webinary w panelu (`Komunikacja → Webinary`); uczestnicy, komisja i (opcjonalnie)
+goście wchodzą do **pokoju na platformie** (`/webinars/<id>/room/`, nasz interfejs, motyw konkursu,
+11 języków). Obraz i dźwięk przenosi **LiveKit** (Apache 2.0, serwer własny). Platforma: wystawia
+tokeny wejścia (10 min), wydaje polecenia serwerowe (głos, usunięcie, zamknięcie pokoju, nagrywanie
+i transmisja – Egress), przyjmuje podpisane webhooki (stan pokoju, obecność, koniec nagrania).
+Bez konfiguracji i bez flagi `webinars` (§ 6.4) nic się nie zmienia – także polityka CSP.
+
+### 28.1. Gdzie postawić LiveKit – dwa warianty
+
+- **(a) Osobna maszyna – zalecane przy dużych wydarzeniach.** VPS produkcyjny traci 12–37 % CPU na
+  „steal” (ukryte podkradanie procesora przez hosta), a serwer mediów i egress (Chrome składający
+  nagranie) to najbardziej wrażliwe na opóźnienia procesy, jakie mamy. Maszyna 4–8 vCPU (najlepiej
+  dedykowane rdzenie), Ubuntu 22.04/24.04, Docker, rekord DNS `live.<domena>` na jej adres.
+  Instalacja wg dokumentacji LiveKit („Deploy → VM”: generator `livekit/generate` daje compose z
+  Caddy, Redisem, egressem i TURN/TLS) albo z plików `deploy/livekit/` (nakładka jako wzór).
+  Portal dostaje wyłącznie `LIVEKIT_URL=wss://live.<domena>` i klucze; `LIVEKIT_PROXY=0`.
+  Egress zapisuje nagrania do S3 platformy przez adres publiczny (`S3_PUBLIC_ENDPOINT_URL`, dziś
+  `https://<domena>:9000`) – w `egress.yaml` `endpoint: <ten adres>`.
+- **(b) Ten sam host – małe spotkania (do kilkudziesięciu osób).** Nakładka compose z profilem
+  `livekit` (`deploy/livekit/docker-compose.livekit.yml`: `livekit`, `livekit-egress`, `livekit-redis`),
+  sygnalizacja przez Caddy pod `live.<domena>` (`LIVEKIT_PROXY=1`), media UDP 50000–50100 i TCP 7881
+  prosto do kontenera. TURN wyłączony (port 443 zajmuje Caddy) – uczestnicy za zaporami, które
+  przepuszczają wyłącznie HTTPS, nie połączą się; dla nich wariant (a) z TURN/TLS na 443.
+
+### 28.2. Wdrożenie wariantu (b) – kroki operatora (na serwerze, `cd /opt/olimpiada`)
+
+1. `scripts/deploy.sh root@olimpiadakwantowa.pl` – kod, migracja `webinars.0001` (pięć nowych tabel,
+   bez blokad), zadanie beat `webinars-reminders` (co 5 min; bez flagi nic nie robi), kontrakt tras djcms
+   (nowe segmenty `webinars`, `integrations`).
+2. SDK przeglądarkowe (jednorazowo, na laptopie z repozytorium, wynik commitowany):
+   `scripts/vendor_livekit_client.sh` – pobiera `livekit-client` z rejestru npm, **sprawdza sumę
+   paczki z rejestrem**, kopiuje `livekit-client.umd.js` + `LICENSE` do `backend/static/vendor/livekit-client/`
+   i zapisuje `VERSION` i `SHA384`. Bez tego pliku pokój mówi „brakuje komponentu wideo”, zamiast działać.
+3. DNS: rekord `A live.<domena>` → adres serwera. Zapora: `ufw allow 7881/tcp`, `ufw allow 50000:50100/udp`.
+4. Klucze: `openssl rand -hex 32` (sekret) i dowolny klucz (np. `APIolimp1`). W `.env`:
+   `LIVEKIT_URL=wss://live.<domena>`, `LIVEKIT_API_KEY=…`, `LIVEKIT_API_SECRET=…`,
+   `LIVEKIT_API_URL=http://livekit:7880`, `LIVEKIT_PROXY=1`.
+5. Konto MinIO dla egress (zapis wyłącznie do `submissions/webinars/*`):
+
+   ```sh
+   docker compose cp deploy/livekit/policy-egress.json minio:/tmp/policy-egress.json
+   docker compose exec minio mc admin policy create local webinars-egress /tmp/policy-egress.json
+   docker compose exec minio mc admin user add local livekit-egress '<hasło 32+ znaki>'
+   docker compose exec minio mc admin policy attach local webinars-egress --user livekit-egress
+   ```
+
+   (alias `local` w kontenerze `minio`: `mc alias set local http://localhost:9000 <root> <hasło>`).
+6. Konfiguracja LiveKit: `mkdir -p livekit && cp deploy/livekit/livekit.yaml.example livekit/livekit.yaml &&
+   cp deploy/livekit/egress.yaml.example livekit/egress.yaml && chmod 600 livekit/*.yaml`, podmienić
+   `<…>` (klucz i sekret jak w `.env`, `SITE_DOMAIN`, konto egress z kroku 5).
+7. Start: `docker compose -f docker-compose.yml -f deploy/livekit/docker-compose.livekit.yml --profile livekit up -d livekit livekit-egress livekit-redis`,
+   potem `bash scripts/proxy_config.sh update` (blok `live.` w Caddy) i
+   `docker compose up -d --no-deps web worker beat` (nowe zmienne `.env`).
+8. Sprawdzenie (tylko odczyt): `curl -s https://live.<domena>/` → `OK`; w przeglądarce
+   `/coordinator/webinars/` nie mówi już „nie jest skonfigurowany”.
+9. Flaga konkursu: `/admin/ → Konkursy → <konkurs> → feature_flags` → `{"webinars": true}`.
+10. Próba: webinar testowy na za 5 minut, „Rozpocznij i wejdź do pokoju” (koordynator), drugie konto
+    uczestnika – „Dołącz”, podniesienie ręki, „Daj głos”, nagranie 1 min → po kilku minutach wiersz
+    „gotowe” (webhook `egress_ended`) i odtwarzanie.
+
+### 28.3. TURN/TLS i duże wydarzenia
+
+Uczestnik w sieci, która przepuszcza tylko HTTPS (część szkół), potrzebuje TURN na 443/TLS. W wariancie
+(a): `turn.enabled: true`, `domain: turn.<domena>`, `tls_port: 443`, certyfikat (generator LiveKit
+robi to sam). Pojemność: jedna maszyna 8 vCPU obsługuje setki widzów jednego prowadzącego (widzowie
+nie nadają); egress room composite zajmuje 2–4 vCPU na nagranie – na wariancie (b) nagrywaj tylko małe
+spotkania. Kilkuset uczestników = wariant (a), ewentualnie kilka węzłów z Redisem (dokumentacja LiveKit).
+
+### 28.4. Działanie i bezpieczeństwo
+
+- Token wejścia: `identity` = pseudonim HMAC (bez e-maila i `pk`), `name` = „Imię N.”, prowadzący
+  `canPublish`/`roomAdmin`, widz `canPublish=false` (+ czat i ręka po kanale danych). Głos daje
+  prowadzący przez platformę (`UpdateParticipant`). Token w odpowiedzi JSON `no-store`, nigdy w HTML-u.
+- Webhook `/integrations/livekit/webhook/`: podpis obowiązkowy (HS256 sekretem, `iss` = klucz,
+  skrót treści), powtórki odcina identyfikator zdarzenia i wiek (15 min). Bez podpisu – 401.
+- Nagrania: `submissions/webinars/<konkurs>/<pokój>/<czas>.mp4`; platforma tylko podpisuje odczyt
+  (2 h) i kasuje. Kopia nocna – jak materiały z warsztatów (§ 16): bucket `submissions` w kopii jest.
+- Transmisja YouTube: klucz strumienia nie jest zapisywany (idzie tylko do egress).
+- CSP: `connect-src` + `wss://live.<domena>` i `https://live.<domena>` – tylko przy konfiguracji.
+- Limity: `webinar_join` 60/h na konto, `webinar_guest` 120/h na IP.
+
+### 28.5. Wyłączenie i rotacja
+
+Awaryjnie bez wdrożenia: zdjąć flagę `webinars` (adresy 404) albo wyczyścić `LIVEKIT_URL` i odtworzyć
+`web worker beat`. Rotacja sekretu: nowy wpis w `keys:` i `webhook.api_key` w `livekit.yaml`,
+`egress.yaml`, `.env`; restart `livekit livekit-egress` i `web worker beat` (trwające połączenia
+przerywa restart serwera LiveKit – poza godzinami webinarów). Zatrzymanie wariantu (b):
+`docker compose -f docker-compose.yml -f deploy/livekit/docker-compose.livekit.yml --profile livekit stop livekit livekit-egress livekit-redis`
+i `LIVEKIT_PROXY=0` + `scripts/proxy_config.sh update`.

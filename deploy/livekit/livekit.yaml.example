@@ -1,0 +1,44 @@
+# Konfiguracja serwera LiveKit (zadanie WEB-01, docs/OPERACJE.md § 28). Skopiuj do
+# /opt/olimpiada/livekit/livekit.yaml (wariant (b)) albo na dedykowaną maszynę (wariant (a))
+# i podmień wartości w <…>. Plik zawiera sekret – poza repozytorium, chmod 600.
+port: 7880
+bind_addresses: ["0.0.0.0"]
+
+rtc:
+  # Media: TCP awaryjnie (sieci szkolne blokujące UDP) i zakres UDP – ten sam, co w compose i zaporze.
+  tcp_port: 7881
+  port_range_start: 50000
+  port_range_end: 50100
+  # Adres publiczny ustalany przez STUN. Za NAT-em z jednym stałym adresem można zamiast tego
+  # podać `node_ip: <adres publiczny>`.
+  use_external_ip: true
+
+redis:
+  # Wspólny z egressem (kolejka zleceń nagrywania). W wariancie (b) – usługa `livekit-redis`.
+  address: livekit-redis:6379
+
+# Para kluczy API: TA SAMA w .env portalu (LIVEKIT_API_KEY / LIVEKIT_API_SECRET) i w egress.yaml.
+# Sekret: `openssl rand -hex 32`.
+keys:
+  <LIVEKIT_API_KEY>: <LIVEKIT_API_SECRET>
+
+# Zdarzenia do portalu: obecność, stan pokoju, koniec nagrania. Podpisane kluczem `api_key`
+# (portal odrzuca zdarzenia bez podpisu, z innym kluczem albo z podmienioną treścią).
+webhook:
+  api_key: <LIVEKIT_API_KEY>
+  urls:
+    - https://<SITE_DOMAIN>/integrations/livekit/webhook/
+
+room:
+  # Pusty pokój znika po 5 minutach; limit osób – bezpiecznik zasobów maszyny.
+  empty_timeout: 300
+  max_participants: 300
+
+# TURN (wariant (a) przy uczestnikach za restrykcyjnymi zaporami): włącz z certyfikatem domeny
+# `turn.<domena>` i portem 443/TLS – opis w docs/OPERACJE.md § 28.3. Na wariancie (b) zostaje
+# wyłączony (port 443 zajmuje Caddy).
+turn:
+  enabled: false
+
+logging:
+  level: info

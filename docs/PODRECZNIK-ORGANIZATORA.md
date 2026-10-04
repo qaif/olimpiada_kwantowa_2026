@@ -1442,6 +1442,43 @@ Co zostaje w dzienniku zdarzeń (bez linków, przepustek i nazw gości): założ
 linków, wymiana linku, zamknięcie, każde wejście (rola: koordynator, komisja, autor, link gospodarza,
 link gościa), nadanie i odebranie uprawnienia.
 
+### 6.4c Webinary — `/coordinator/webinars/`
+
+Menu **Komunikacja → Webinary** (gdy operator włączył webinary w konkursie). Webinar to spotkanie
+z terminem w **pokoju na platformie**: obraz, dźwięk, udostępnianie ekranu, czat i podniesiona ręka
+działają w przeglądarce, bez instalowania czegokolwiek. Jeśli ekran mówi „Serwer LiveKit nie jest
+skonfigurowany”, poproś operatora o uruchomienie serwera (`docs/OPERACJE.md` § 28).
+
+**Nowy webinar.** Tytuł, opis (stoi w zaproszeniu), początek (strefa konkursu), czas trwania, **odbiorcy**:
+wszyscy uczestnicy konkursu, uczestnicy bieżącej edycji, uczestnicy wybranego etapu (bez
+zdyskwalifikowanych), komisja (recenzenci i komisja odwoławcza), kapitanowie drużyn (gdy konkurs ma
+drużyny); opcjonalnie „także komisja”. **Współprowadzący** – inni koordynatorzy albo członkowie komisji
+(np. wykładowca) – wchodzą jako prowadzący. **Nagrywanie** (czy wolno nagrywać), **przypomnienie
+e-mailem** (raz, około godziny przed startem), **link dla gości bez konta** (domyślnie wyłączony).
+
+**Przebieg.** Odbiorcy widzą webinar na stronie „Webinary” (pasek panelu `/me/`, karta w panelu
+komisji). „**Rozpocznij i wejdź do pokoju**” otwiera pokój; odbiorcy wchodzą od 15 minut przed
+początkiem, ale dopiero gdy webinar jest rozpoczęty. **Widzowie nie nadają obrazu ani dźwięku** –
+podnoszą rękę, a Ty na liście uczestników klikasz „**Daj głos**” (i „Odbierz głos” po pytaniu).
+„Usuń z pokoju” wyprasza osobę. „**Zakończ webinar**” zamyka pokój dla wszystkich.
+
+**Nagrania.** „Nagrywaj” (w pokoju albo na ekranie webinaru) – plik MP4 pojawia się kilka minut po
+zatrzymaniu („gotowe”). Odbiorcy widzą nagranie dopiero po „**Opublikuj**”; „Wycofaj” je chowa,
+„Usuń” (z zaznaczonym potwierdzeniem) kasuje plik na zawsze.
+
+**Transmisja na YouTube.** Na ekranie trwającego webinaru wklej klucz transmisji z YouTube Studio (albo
+pełny adres `rtmp(s)://…`) i „Włącz transmisję”. Klucza nie zapisujemy – przy kolejnej transmisji wpisz
+go ponownie.
+
+**Zaproszenie e-mailem** – jednorazowo, do wszystkich odbiorców, którzy nie wyłączyli listów o
+webinarach. List nie zawiera żadnego „magicznego linku” – prowadzi na stronę webinarów po zalogowaniu.
+
+**Lista obecności** – kto wszedł, kiedy pierwszy raz i ile minut był w pokoju (z danych serwera
+wideo); posłuży też do zaświadczeń o udziale.
+
+W dzienniku zdarzeń: założenie, zmiany, rozpoczęcie, zakończenie, odwołanie, wejścia (rola), danie
+i odebranie głosu, nagrania, transmisja, zaproszenie – bez tokenów, kluczy i nazw gości.
+
 ### 6.5 FAQ
 
 Strona `/faq/` z pytaniami pogrupowanymi w sekcje; każde pytanie ma **trwałą kotwicę**, więc odpowiedź na

@@ -1,0 +1,67 @@
+# LiveKit na TYM SAMYM hoście co portal – wariant (b) dla małych spotkań (zadanie WEB-01,
+# docs/OPERACJE.md § 28). Na duże wydarzenia: osobna maszyna (wariant (a)) – tam ten plik służy jako
+# wzór, a portal dostaje tylko LIVEKIT_URL i klucze.
+#
+# Nakładka z profilem `livekit`: przy zwykłym `docker compose up` (scripts/deploy.sh) NIE wstaje nic
+# z tego pliku – ani nie jest on w ogóle czytany. Uruchomienie świadome, z katalogu /opt/olimpiada:
+#
+#   docker compose -f docker-compose.yml -f deploy/livekit/docker-compose.livekit.yml \
+#     --profile livekit up -d livekit livekit-egress livekit-redis
+#
+# Konfiguracja w plikach obok (kopie przykładów, poza repozytorium – zawierają sekrety):
+#   /opt/olimpiada/livekit/livekit.yaml  ← deploy/livekit/livekit.yaml.example
+#   /opt/olimpiada/livekit/egress.yaml   ← deploy/livekit/egress.yaml.example
+# Ścieżki względne liczą się od katalogu projektu (pierwszy plik -f), czyli /opt/olimpiada.
+#
+# Sieci:
+#   - `livekit` (wewnętrzna, nowa): serwer ↔ egress ↔ ich Redis. Redis LiveKit jest OSOBNY od Redisa
+#     aplikacji (ten ma hasło i dane Celery – egress nie ma tam czego szukać),
+#   - `edge`: Caddy przekazuje sygnalizację `live.<domena>` → `livekit:7880`; serwer wysyła stąd
+#     webhooki do portalu (adres publiczny) i pyta STUN o adres zewnętrzny,
+#   - `internal`: wyłącznie egress – zapis MP4 do MinIO (`http://minio:9000`) własnym kontem.
+# Media (UDP) idą z pominięciem Caddy'ego: porty 50000–50100/udp i 7881/tcp otwarte w zaporze
+# (`ufw allow 50000:50100/udp`, `ufw allow 7881/tcp`). Sto portów UDP wystarcza na kilkudziesięciu
+# uczestników; więcej = wariant (a).
+services:
+  livekit-redis:
+    profiles: [livekit]
+    image: redis:7.4-alpine
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    restart: unless-stopped
+    networks: [livekit]
+    security_opt: ["no-new-privileges:true"]
+
+  livekit:
+    profiles: [livekit]
+    # Wersja przypięta (jak Jitsi `stable-11031`): aktualizacja to świadoma zmiana tej zmiennej
+    # i próba na serwerze testowym, nie skutek `pull`.
+    image: livekit/livekit-server:${LIVEKIT_SERVER_VERSION:-v1.8.4}
+    command: ["--config", "/etc/livekit.yaml"]
+    restart: unless-stopped
+    volumes:
+      - ./livekit/livekit.yaml:/etc/livekit.yaml:ro
+    ports:
+      - "7881:7881/tcp"
+      - "50000-50100:50000-50100/udp"
+    networks: [edge, livekit]
+    depends_on: [livekit-redis]
+    security_opt: ["no-new-privileges:true"]
+
+  livekit-egress:
+    profiles: [livekit]
+    image: livekit/egress:${LIVEKIT_EGRESS_VERSION:-v1.9.1}
+    restart: unless-stopped
+    environment:
+      EGRESS_CONFIG_FILE: /etc/egress.yaml
+    volumes:
+      - ./livekit/egress.yaml:/etc/egress.yaml:ro
+    # Egress składa nagranie w Chrome bez okna; jego piaskownica wymaga SYS_ADMIN (dokumentacja
+    # LiveKit Egress). Jedyna usługa z tym uprawnieniem – stąd osobny kontener bez dostępu do bazy.
+    cap_add: [SYS_ADMIN]
+    networks: [livekit, internal]
+    depends_on: [livekit, livekit-redis]
+
+networks:
+  livekit:
+    driver: bridge
+    internal: true

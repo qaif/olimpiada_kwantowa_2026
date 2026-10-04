@@ -400,6 +400,22 @@ znamy i nie przypomnimy** — „Utwórz nowy klucz” oznacza, że starych wiad
 odczytasz (druga strona zobaczy informację o zmianie klucza; odciski kluczy porównacie w „Szczegółach
 szyfrowania”). Jeśli zgłosisz wiadomość szyfrowaną, jej odszyfrowana treść trafi do organizatora.
 
+## 8b. Webinary — `/webinars/`
+
+Gdy organizator prowadzi webinary (wykłady, konsultacje, omówienia zadań), w pasku panelu `/me/` jest
+pozycja **„Webinary”**. Na tej stronie widzisz webinary przeznaczone dla Ciebie – z datą w strefie
+konkursu (i w Twojej strefie, jeśli jest inna).
+
+- **„Dołącz”** działa od ok. 15 minut przed początkiem, gdy prowadzący rozpocznie webinar. Pokój otwiera
+  się w nowej karcie, na stronie olimpiady – nic nie instalujesz. Najlepiej Chrome, Edge albo Firefox.
+- Wchodzisz jako **widz**: widzisz i słyszysz prowadzących, piszesz na czacie. Chcesz zadać pytanie
+  głosem? **„Podnieś rękę”** – gdy prowadzący da Ci głos, włączysz mikrofon (i kamerę).
+- W pokoju widać Twoje **imię i pierwszą literę nazwiska**. Webinar może być nagrywany – jeśli trwa
+  nagrywanie, pokój o tym informuje.
+- **Nagrania** opublikowane przez organizatora są na tej samej stronie („Odtwórz nagranie”).
+- **Listy**: zaproszenie i przypomnienie o webinarze – możesz je wyłączyć na dole strony
+  („Wyłącz listy o webinarach”).
+
 ---
 
 ## 9. Coś nie działa

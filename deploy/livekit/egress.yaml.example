@@ -1,0 +1,23 @@
+# Konfiguracja LiveKit Egress – nagrania webinarów (zadanie WEB-01, docs/OPERACJE.md § 28.4).
+# Skopiuj do /opt/olimpiada/livekit/egress.yaml i podmień <…>. Zawiera sekrety – chmod 600.
+api_key: <LIVEKIT_API_KEY>
+api_secret: <LIVEKIT_API_SECRET>
+# Sygnalizacja serwera z sieci compose (wariant (b)); w wariancie (a) – adres serwera na tej maszynie.
+ws_url: ws://livekit:7880
+redis:
+  address: livekit-redis:6379
+
+# Miejsce zapisu MP4. Portal podaje WYŁĄCZNIE ścieżkę pliku (`webinars/<konkurs>/<pokój>/…mp4`);
+# poświadczenia magazynu zna tylko egress. Konto MinIO osobne, z prawem zapisu wyłącznie do
+# prefiksu `webinars/` w buckecie nagrań (polityka: deploy/livekit/policy-egress.json).
+s3:
+  access_key: <EGRESS_S3_ACCESS_KEY>
+  secret: <EGRESS_S3_SECRET_KEY>
+  region: us-east-1
+  # Wariant (b): MinIO w sieci `internal`. Wariant (a): publiczny adres S3 platformy (https://…).
+  endpoint: http://minio:9000
+  bucket: submissions
+  force_path_style: true
+
+logging:
+  level: info
