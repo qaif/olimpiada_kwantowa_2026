@@ -4013,8 +4013,11 @@ odwracalne (nowe tabele i kolumny nullowalne albo z wartością domyślną).
 
 ## 29. Statystyki szkół (STAT-01, flaga `school_statistics`)
 
-Funkcja nie ma modeli ani migracji – liczy agregaty z istniejących danych. Wdrożenie nie wymaga
-żadnego kroku; flaga jest domyślnie **wyłączona** (adresy `/supervisor/statistics/…`
+Funkcja liczy agregaty z istniejących danych; jedyna tabela to `school_stats_frozenmembership`
+(migracja `school_stats.0001_initial`, odwracalna) – przynależność wpisów do szkół zamrożona przy
+publikacji wyników (`docs/tasks/STAT-01.md` § 10, M3). Wdrożenie nie wymaga kroku ręcznego poza
+zwykłym `migrate`; etapy ogłoszone wcześniej zamrażają się same przy pierwszym wejściu na ekran.
+Flaga jest domyślnie **wyłączona** (adresy `/supervisor/statistics/…`
 i `/coordinator/school-stats/…` dają 404, menu i pulpit opiekuna bez zmian).
 
 **Zapalenie** (`/admin/ → Konkursy → <konkurs> → feature_flags`, § 6.4):
@@ -4029,8 +4032,8 @@ przebieg ucznia przez edycje), nie skutkiem wdrożenia. Przed zapaleniem warto z
 (`SchoolSupervisor.verified` + szkoła z wykazu) – bez tego opiekun widzi swoich uczniów, województwo
 i całość, ale nie agregat szkoły i nie pobierze raportu PDF.
 
-**Pamięć podręczna** (Redis): klucze `school_stats:v1:<oś>:<edycja>:<odcisk publikacji>`; doba dla
-edycji, w której każdy etap ma publikację, 5 minut dla edycji w toku. Ponowna publikacja zmienia
+**Pamięć podręczna** (Redis): klucze `school_stats:v2:<oś>:<edycja>:<odcisk publikacji>`; doba dla
+edycji zamkniętej publikacjami albo nie bieżącej, 5 minut dla bieżącej w toku. Ponowna publikacja zmienia
 odcisk, więc nic nie trzeba czyścić ręcznie. W kluczach są wyłącznie agregaty (bez identyfikatorów
 osób).
 

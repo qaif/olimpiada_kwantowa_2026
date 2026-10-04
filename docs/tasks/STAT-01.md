@@ -121,3 +121,32 @@ gałąź w `axis_for(competition)`, a nie przepisanie agregatów.
 
 OPERACJE (włączenie flagi), PODRĘCZNIK-ORGANIZATORA (ekran koordynatora, opiekun), CHANGELOG
 `[Unreleased]`.
+
+## 10. Poprawki po przeglądzie (4.10.2026) i odstępstwa
+
+- **H1 – zagnieżdżenie.** Szkoła ⊂ województwo ⊂ całość: dla każdej pary pokazanych wierszy różnica
+  (szerszy minus część wspólna z węższym, po odjęciu uczniów znanych czytelnikowi) musi mieć 0 albo
+  ≥ 5 wpisów i ocenionych; inaczej ukrywamy wiersz **węższy** (`services.scoped_lines`). Dotyczy ekranu
+  opiekuna, wykresu postępu i raportu PDF. U koordynatora: województwo minus **suma** pokazanych szkół
+  województwa (`services.coordinator_visibility`) – w razie potrzeby ukrywamy najmniejszą szkołę.
+  Część szkoły w danym województwie liczymy osobno (`StageStats.group_regions`), bo uczeń bywa
+  z innego województwa niż jego szkoła.
+- **M1 – konta po anonimizacji** nie tworzą grupy ani regionu (adres `@invalid.`, szkoła „—”):
+  nie ma ich w rankingu, CSV, liczbach osób ani na liście szkół do odzyskania; w „całości” zostają.
+- **M2 – profil z innego konkursu** nie jest profilem tego konkursu (`supervisor_profile`), a w
+  statystykach jest niezweryfikowany.
+- **M3 – odstępstwo: nowy model `FrozenMembership`** (aplikacja `school_stats`, migracja
+  `0001_initial`). Przy publikacji wyników (odbiornik `post_save` `ResultsPublication`, bez zmian
+  w `apps.results`) zamrażamy dla każdego wpisu: szkołę (klucz, nazwa, RSPO), województwo, awans,
+  oddanie i termin. Agregaty etapów z publikacją liczą się z zamrożenia, więc późniejsza zmiana
+  szkoły albo anonimizacja nie przesuwa ogłoszonych liczb (i nie daje „przed” i „po” do odjęcia).
+  Etapy ogłoszone przed wdrożeniem albo przed zapaleniem flagi zamraża się leniwie przy pierwszym
+  liczeniu agregatu – wtedy obowiązuje stan profilu z tej chwili. Zdjęcie publikacji kasuje
+  zamrożenie. Liczby **osób** w szkołach (ranking, szkoły do odzyskania) są bieżące, bez kont usuniętych.
+  Konto usunięte po publikacji liczy się dalej wyłącznie do zamrożonych agregatów.
+- **M4** – koordynator (ekran, CSV, PDF): dopełnienie szkoły liczone wobec sumy uczniów wszystkich
+  opiekunów tej szkoły w konkursie.
+- **L1** – średnia dopiero od 5 wpisów ocenionych. **L2** – historia udziału w PDF pokazuje liczbę
+  tylko, gdy jest bezpieczna wobec znanych uczniów. **L4** – eksport CSV szkół do odzyskania
+  (z RSPO). **L5** – doba w pamięci podręcznej także dla edycji nie bieżącej, ochrona przed lawiną
+  (`cache.add`), etapy historii PDF jednym zapytaniem.

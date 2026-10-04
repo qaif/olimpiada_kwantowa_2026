@@ -2039,10 +2039,14 @@ nazwa), a pod nim:
 - **województwa** — liczba szkół i uczestników (słupek) oraz średnia i awanse w pierwszym etapie
   z pełną publikacją,
 - **szkoły do odzyskania** — miały uczestników w poprzedniej edycji, w tej nie mają nikogo; to lista
-  adresatów akcji promocyjnej (z numerem RSPO do korespondencji seryjnej).
+  adresatów akcji promocyjnej (z numerem RSPO do korespondencji seryjnej, osobny **Eksport CSV**).
+  Konta usunięte (zanonimizowane) nie liczą się do żadnej szkoły.
 
 **Próg 5.** Średnia i liczba awansujących grupy mniejszej niż 5 wpisów są ukryte („<5”) — na ekranie,
-w **Eksporcie CSV** i w raporcie PDF, bo oba pliki zwykle wędrują dalej (kuratorium, szkoła).
+w **Eksporcie CSV** i w raporcie PDF, bo oba pliki zwykle wędrują dalej (kuratorium, szkoła). Ukryte są
+też szkoły, których wynik dałoby się odczytać z różnicy (województwo minus pokazane szkoły ≤ 4 osoby;
+szkoła, w której poza uczniami jej opiekunów są 1–4 osoby), a średnia pokazuje się od 5 wyników.
+Statystyka etapu jest **zamrożona w chwili publikacji** — późniejsza zmiana szkoły ucznia jej nie zmienia.
 Liczba uczestników jest widoczna zawsze. Punkty pochodzą z ogłoszonej tabeli (stan z chwili
 publikacji); etap ogłoszony jako „tylko awansujący” nie ma średnich.
 

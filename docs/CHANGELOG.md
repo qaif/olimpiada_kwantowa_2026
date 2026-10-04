@@ -21,6 +21,11 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
   edycji w pamięci podręcznej z odciskiem publikacji (2 zapytania na edycję). Rejestr czynności 1.12
   (wiersz warunkowy). Katalogi tłumaczeń aplikacji (`apps/<nazwa>/locale`) kompilowane w obrazie
   i sprawdzane testem (`docs/tasks/STAT-01.md`, `docs/OPERACJE.md` § 29).
+- **Poprawki po przeglądzie:** reguła zagnieżdżenia (szkoła ⊂ województwo ⊂ całość; województwo minus
+  pokazane szkoły), dopełnienie wobec uczniów wszystkich opiekunów szkoły w CSV/PDF, średnia od 5
+  wyników, przynależność wpisów zamrażana przy publikacji (`FrozenMembership`, migracja
+  `school_stats.0001`), konta zanonimizowane poza szkołami, profil opiekuna z innego konkursu nie działa
+  w tym konkursie (`supervisor_profile`), CSV szkół do odzyskania, CI sprawdza katalogi `apps/*/locale`.
 
 ## [Unreleased] – Motywy wizualne wgrywane paczkami (THEME-01)
 
