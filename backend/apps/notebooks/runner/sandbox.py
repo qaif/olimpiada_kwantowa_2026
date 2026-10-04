@@ -10,18 +10,27 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import signal
 import subprocess
 import sys
 import threading
 import time
 from dataclasses import asdict, dataclass
+from itertools import accumulate
 
 from .child import RESULT_MARKER
 
 CHILD = os.path.join(os.path.dirname(os.path.abspath(__file__)), "child.py")
 MAX_STDOUT_BYTES = 6 * 1024 * 1024
 MAX_STDERR_BYTES = 16 * 1024
+#: Najgłębsze dopuszczalne zagnieżdżenie JSON-a wyniku dziecka. Prawdziwy wynik (``child.py`` +
+#: artefakty ``qclab.grader``: obwody z ``MAX_NESTING`` poziomami definicji, macierze par liczb)
+#: mieści się w ~25 poziomach; zapas jest duży, a granica nie zależy od stosu maszyny.
+MAX_RESULT_DEPTH = 100
+#: Napis JSON (z sekwencjami ucieczki) – nawiasy w środku napisów nie są zagnieżdżeniem.
+_JSON_STRING = re.compile(r'"[^"\\]*(?:\\.[^"\\]*)*"', re.DOTALL)
+_NOT_BRACKET = re.compile(r"[^\[\]{}]+")
 
 #: Twarde sufity – zadanie od workera może prosić o mniej, nigdy o więcej.
 CEILING = {"wall": 120, "cpu": 120, "memory_mb": 2048, "file_mb": 64, "output_chars": 200_000}
@@ -83,19 +92,35 @@ def _child_env() -> dict[str, str]:
     }
 
 
+def _json_depth(text: str) -> int:
+    """Największe zagnieżdżenie nawiasów ``[``/``{`` poza napisami – liniowo, bez rekurencji.
+
+    Dla niepoprawnego JSON-a wynik bywa przybliżony, ale taki tekst i tak odrzuci ``json.loads``.
+    """
+    brackets = _NOT_BRACKET.sub("", _JSON_STRING.sub("", text))
+    return max(accumulate(1 if char in "[{" else -1 for char in brackets), default=0)
+
+
 def parse_child_output(stdout: str) -> dict | None:
     """Wynik po ostatnim znaczniku albo ``None``. Nigdy nie rzuca.
 
     Wyjście pisze proces z kodem ucznia, więc parser bierze wszystko: zagnieżdżenie na sto tysięcy
-    poziomów (``RecursionError`` w ``json.loads``), liczby, których nie da się przeczytać, śmieci.
-    Każdy taki przypadek to „brak wyniku” (status ``crashed``), a nie wyjątek w nadzorcy.
+    poziomów, liczby, których nie da się przeczytać, śmieci. Każdy taki przypadek to „brak wyniku”
+    (status ``crashed``), a nie wyjątek w nadzorcy.
+
+    Głębokość sprawdzamy jawnie (``MAX_RESULT_DEPTH``) przed ``json.loads``: od Pythona 3.14 to, czy
+    ``json.loads`` rzuci ``RecursionError``, zależy od rozmiaru stosu C (``ulimit -s``), więc na
+    maszynie z dużym stosem sto tysięcy poziomów by się wczytało, a wybuchło dopiero dalej
+    (``json.dumps`` wyniku w nadzorcy, odczyt u workera).
     """
     position = stdout.rfind(RESULT_MARKER)
     if position < 0:
         return None
     try:
         lines = stdout[position + len(RESULT_MARKER) :].strip().splitlines()
-        result = json.loads(lines[0]) if lines else None
+        if not lines or _json_depth(lines[0]) > MAX_RESULT_DEPTH:
+            return None
+        result = json.loads(lines[0])
     except Exception:  # noqa: BLE001 - patrz docstring: dowolny błąd parsowania to brak wyniku
         return None
     return result if isinstance(result, dict) else None

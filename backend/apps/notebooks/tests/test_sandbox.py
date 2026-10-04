@@ -18,7 +18,14 @@ import pytest
 import yaml
 
 from apps.notebooks.runner import daemon
-from apps.notebooks.runner.sandbox import CEILING, RESULT_MARKER, Limits, execute_job, parse_child_output
+from apps.notebooks.runner.sandbox import (
+    CEILING,
+    MAX_RESULT_DEPTH,
+    RESULT_MARKER,
+    Limits,
+    execute_job,
+    parse_child_output,
+)
 from qclab import grader
 
 pytestmark = pytest.mark.skipif(sys.platform != "linux", reason="piaskownica działa wyłącznie na Linuksie")
@@ -272,6 +279,16 @@ def test_clamp_takes_the_smallest_of_daemon_request_and_ceiling():
 )
 def test_child_output_parser_never_raises(stdout):
     assert parse_child_output(stdout) is None
+
+
+def test_child_output_parser_depth_bound_does_not_depend_on_the_stack():
+    """Granica głębokości jest jawna – ``RecursionError`` w ``json.loads`` zależy od ``ulimit -s``."""
+    nested = '{"a": ' * MAX_RESULT_DEPTH + "1" + "}" * MAX_RESULT_DEPTH
+    assert parse_child_output(RESULT_MARKER + nested) is not None
+    assert parse_child_output(RESULT_MARKER + '{"a": [' + nested + "]}") is None
+    # Nawiasy w napisach (także po ``\"``) nie są zagnieżdżeniem.
+    brackets = '{"text": "' + "[{" * 1000 + '\\"' + "[" * 1000 + '"}'
+    assert parse_child_output(RESULT_MARKER + brackets) == json.loads(brackets)
 
 
 def test_child_output_parser_takes_last_marker():
