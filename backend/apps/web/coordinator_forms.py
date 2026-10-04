@@ -31,7 +31,7 @@ from apps.competitions.models import (
     TransitionRule,
 )
 from apps.grading.models import ReviewerRole
-from apps.results.models import CertificateKind
+from apps.results.models import MANUAL_KIND_CHOICES
 from apps.schools.custom import MIN_NAME_LENGTH, CustomInstitution
 from apps.schools.models import InstitutionType
 from apps.tenancy.documents import DocumentTemplate
@@ -340,7 +340,8 @@ class CertificateIssueForm(forms.Form):
     wartościami z modelu, więc do bazy nie trafi tytuł, którego dokument nie umie złożyć.
     """
 
-    kind = forms.ChoiceField(label="Rodzaj dokumentu", choices=CertificateKind.choices)
+    # Bez rodzajów medalowych (MED-01): te wystawia wyłącznie ekran medali z zamrożonych nagród.
+    kind = forms.ChoiceField(label="Rodzaj dokumentu", choices=MANUAL_KIND_CHOICES)
 
 
 class SimilarityFilterForm(forms.Form):

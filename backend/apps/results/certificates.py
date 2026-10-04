@@ -42,6 +42,7 @@ from django.conf import settings
 from django.db import IntegrityError, transaction
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.translation import gettext_lazy
 from rest_framework import status as http
 
 from apps.accounts.models import SchoolSupervisor
@@ -83,6 +84,18 @@ DOCUMENT_TITLES = {
     CertificateKind.WARSZTATY: "Zaświadczenie o udziale w warsztatach",
 }
 
+#: Tytuły nagród olimpiady międzynarodowej (MED-01) – **osobno** od ``DOCUMENT_TITLES``, bo tamtą
+#: mapę czyta migracja ``tenancy.0005`` (wiersze szablonów tekstu Konkursu #1) i test niezmienności;
+#: dopisanie tam medali dałoby Olimpiadzie Kwantowej szablony dokumentów, których nie wystawia.
+#: PDF składa ``apps.medals`` w języku ucznia; te napisy czyta strona weryfikacji – leniwie,
+#: czyli w języku jej czytelnika.
+AWARD_TITLES = {
+    CertificateKind.MEDAL_GOLD: gettext_lazy("Złoty medal"),
+    CertificateKind.MEDAL_SILVER: gettext_lazy("Srebrny medal"),
+    CertificateKind.MEDAL_BRONZE: gettext_lazy("Brązowy medal"),
+    CertificateKind.HON_MENTION: gettext_lazy("Wyróżnienie"),
+}
+
 #: Zdanie pod nazwiskiem. Rodzaj dokumentu mówi, **co** poświadczamy; to zdanie mówi to samo
 #: językiem, w którym pisze się dokumenty – i to ono jest właściwą treścią dyplomu.
 DOCUMENT_STATEMENTS = {
@@ -120,7 +133,10 @@ def document_fallback(kind: str) -> dict[str, str]:
     Nieznany rodzaj dostaje napisy „uczestnika” – ta sama reguła, co przed tą zmianą.
     """
     return {
-        "title": DOCUMENT_TITLES.get(kind, DOCUMENT_TITLES[CertificateKind.UCZESTNIK]),
+        # ``str`` tłumaczy tytuł nagrody w języku chwili (strona weryfikacji – język czytelnika).
+        "title": str(
+            DOCUMENT_TITLES.get(kind) or AWARD_TITLES.get(kind) or DOCUMENT_TITLES[CertificateKind.UCZESTNIK]
+        ),
         "statement": DOCUMENT_STATEMENTS.get(kind, DOCUMENT_STATEMENTS[CertificateKind.UCZESTNIK]),
         "signature_line": SIGNATURE_LINE,
         "author": PDF_AUTHOR,
@@ -1025,13 +1041,34 @@ def _merge_background(overlay: bytes, template: CertificateTemplate | None) -> b
         return overlay
 
 
+#: Składy dokumentów spoza tego modułu: pary (``czy to mój dokument``, ``złóż PDF``). Dziś jedna –
+#: medale i zaświadczenia w języku ucznia (MED-01, ``apps.medals`` rejestruje się w ``ready()``).
+#: Rejestr, a nie import: wyniki nie mają wiedzieć o aplikacji medali, a dokument Olimpiady
+#: Kwantowej nie przechodzi przez żaden cudzy skład – żaden z zarejestrowanych go nie „chce”.
+_COMPOSERS: list[tuple] = []
+
+
+def register_composer(handles, compose) -> None:
+    """Dopisuje skład zewnętrzny. Idempotentne – ``ready()`` bywa wołane w testach więcej niż raz."""
+    if (handles, compose) not in _COMPOSERS:
+        _COMPOSERS.append((handles, compose))
+
+
 def render_pdf(certificate: Certificate) -> bytes:
     """Składa dokument, pieczętuje go (gdy skonfigurowano) i zwraca bajty PDF-a.
 
     Układ jest celowo prosty i **poziomy** (A4 landscape): dyplom jest jedną stroną z nazwiskiem
     pośrodku, a nie formularzem. Wszystko, co identyfikuje dokument (numer, kod weryfikacyjny,
     adres strony weryfikacji, QR), stoi w stopce – tam szuka się tego, sprawdzając cudzy dyplom.
+
+    Dokument, który „chce” skład zarejestrowany przez inną aplikację (``register_composer``),
+    składa ona – pieczęć, zapis podpisu i nazwa pliku zostają tutaj, wspólne dla wszystkich.
     """
+    composer = next((compose for handles, compose in _COMPOSERS if handles(certificate)), None)
+    if composer is not None:
+        signed = sign_document(composer(certificate))
+        _remember_signature(certificate, signed)
+        return signed.data
     content = certificate_content(certificate)
     template = resolve_template(certificate.kind, certificate.edition)
     signed = sign_document(compose_pdf(content, template))
