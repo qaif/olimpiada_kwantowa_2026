@@ -1,0 +1,60 @@
+{% extends "web/coordinator/base.html" %}
+{% load i18n translation_review %}
+{% comment %}
+  Role tłumaczy (L10N-01 § 2). Koordynator widzi i zmienia wyłącznie osoby związane ze swoim
+  konkursem i wyłącznie poziom „tłumacz”; superkoordynator – wszystkich i oba poziomy. Ograniczenie
+  egzekwuje serwis, a ten ekran tylko go nie podsuwa.
+{% endcomment %}
+{% block title %}{% translate "Tłumacze" %} – {% translate "panel koordynatora" %}{% endblock %}
+{% block panel_title %}{% translate "Tłumacze interfejsu" %}{% endblock %}
+{% block panel_lead %}
+  <p class="lead">{% translate "Osoby, które mogą przeglądać i poprawiać tłumaczenia napisów serwisu, np. kierownicy delegacji. Zatwierdzona poprawka działa w całym serwisie." %}</p>
+{% endblock %}
+{% block panel_content %}
+<section class="section">
+  <div class="card">
+    <h2 class="mt-0">{% translate "Nadaj rolę" %}</h2>
+    <form method="post" class="form">
+      {% csrf_token %}
+      {{ form.non_field_errors }}
+      {{ form.as_p }}
+      {% if not superuser %}<p class="hint">{% translate "Rolę recenzenta tłumaczeń nadaje superkoordynator. Konto musi należeć do tego konkursu." %}</p>{% endif %}
+      <div class="actions"><button type="submit" class="btn btn--primary">{% translate "Nadaj" %}</button></div>
+    </form>
+  </div>
+</section>
+<section class="section">
+  <div class="scroll" role="region" tabindex="0" aria-label="{% translate 'Tłumacze' %}">
+    <table class="table table--stack">
+      <thead>
+        <tr>
+          <th scope="col">{% translate "Konto" %}</th>
+          <th scope="col">{% translate "Język" %}</th>
+          <th scope="col">{% translate "Poziom" %}</th>
+          <th scope="col"><span class="visually-hidden">{% translate "Czynności" %}</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for grant in grants %}
+          <tr>
+            <td data-label="{% translate 'Konto' %}">{{ grant.user.email }}</td>
+            <td data-label="{% translate 'Język' %}">{{ grant.language|language_label }}</td>
+            <td data-label="{% translate 'Poziom' %}">{% if grant.level == "reviewer" %}{% translate "recenzent" %}{% else %}{% translate "tłumacz" %}{% endif %}</td>
+            <td>
+              {% if superuser or grant.level == "translator" %}
+                <form method="post" class="inline">{% csrf_token %}
+                  <input type="hidden" name="action" value="revoke">
+                  <input type="hidden" name="grant" value="{{ grant.pk }}">
+                  <button type="submit" class="btn btn--small btn--ghost">{% translate "Odbierz" %}</button>
+                </form>
+              {% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="4">{% translate "Nikt nie ma jeszcze roli tłumacza." %}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

@@ -164,6 +164,9 @@ INSTALLED_APPS = [
     # **Po** aplikacjach domeny, bo czyta je wszystkie (edycje, wyniki, zgłoszenia), a żadna z nich
     # nie czyta jej – zależność idzie w jedną stronę i kolejność w tej liście ma to pokazywać.
     "apps.integrations",
+    # Przegląd tłumaczeń interfejsu przez rodzimych użytkowników języka (zadanie L10N-01). Przed
+    # ``apps.web``, który montuje jej adresy; w ``ready()`` wkłada nakładkę poprawek do gettext.
+    "apps.translation_review",
     "apps.web",
     # Logowanie przez dostawców zewnętrznych (Google, Facebook). ``allauth.account`` jest wymagane
     # przez ``allauth.socialaccount`` (model ``EmailAddress``, adaptery) – jego **widoki** nie są
@@ -774,6 +777,11 @@ WAGTAIL_I18N_ENABLED = env.bool("WAGTAIL_I18N_ENABLED", default=False)
 # Konkurs ``iqo`` świadomie **nie** ma drzew treści w dziesięciu językach (I18N-01 § 10) – lista
 # mówi, co jest możliwe, a nie co jest założone.
 WAGTAIL_CONTENT_LANGUAGES = LANGUAGES
+# Nakładka zatwierdzonych poprawek tłumaczy na katalogi gettext (L10N-01 § 6). Wyłączenie wraca do
+# samych katalogów z repozytorium bez wydania – zatwierdzone poprawki zostają w bazie. Proces
+# sprawdza wersję nakładki w cache'u najwyżej co tyle sekund.
+TRANSLATION_OVERRIDES_ENABLED = env.bool("TRANSLATION_OVERRIDES_ENABLED", default=True)
+TRANSLATION_OVERRIDES_CHECK_SECONDS = 5
 USE_TZ = True  # wszystkie DateTimeField w UTC; deadline'y porównywane przez timezone.now()
 
 STATIC_URL = "/static/"
@@ -1232,6 +1240,9 @@ REST_FRAMEWORK = {
         # to więcej, niż wyklika nauczyciel pobierający wszystkie plakaty po kolei – także cała
         # pracownia za jednym adresem szkoły – a mniej, niż potrzeba do nabijania licznika.
         "poster_download": "30/min",
+        # Przegląd tłumaczeń (L10N-01): propozycje, głosy, decyzje i zgłoszenia ze stopki. Per
+        # konto (widoki za logowaniem): tłumacz klika szybko, ale nie sto razy na godzinę.
+        "translations": "120/hour",
     },
     "EXCEPTION_HANDLER": "apps.core.api.exception_handler",
 }

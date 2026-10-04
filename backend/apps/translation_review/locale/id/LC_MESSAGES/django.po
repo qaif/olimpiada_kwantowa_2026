@@ -1,0 +1,587 @@
+# Przegląd tłumaczeń interfejsu (apps.translation_review, zadanie L10N-01) – Indonesian.
+# Napisy tej aplikacji; Django scala ten katalog z katalogiem projektu (backend/locale).
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Olimpiada Kwantowa\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-04 19:12+0200\n"
+"PO-Revision-Date: 2026-10-04 19:30+0200\n"
+"Last-Translator: Olimpiada Kwantowa\n"
+"Language-Team: Indonesian\n"
+"Language: id\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+#: forms.py:19
+msgid "Pokaż"
+msgstr "Tampilkan"
+
+#: forms.py:22
+msgid "wszystkie napisy"
+msgstr "semua teks"
+
+#: forms.py:23
+msgid "bez tłumaczenia"
+msgstr "belum diterjemahkan"
+
+#: forms.py:24
+msgid "tłumaczenie maszynowe (nieprzejrzane)"
+msgstr "terjemahan mesin (belum ditinjau)"
+
+#: forms.py:25 templates/translation_review/detail.html:31
+#: templates/translation_review/list.html:48
+msgid "przejrzane"
+msgstr "sudah ditinjau"
+
+#: forms.py:26
+msgid "z oczekującą propozycją"
+msgstr "dengan usulan yang menunggu"
+
+#: forms.py:29
+msgid "Szukaj"
+msgstr "Cari"
+
+#: forms.py:34 templates/translation_review/detail.html:103
+msgid "Twoja propozycja"
+msgstr "Usulan Anda"
+
+#: forms.py:38
+msgid "Zatwierdź od razu (recenzent)"
+msgstr "Setujui langsung (peninjau)"
+
+#: forms.py:42 forms.py:63
+#: templates/translation_review/coordinator_translators.html:32
+#: templates/translation_review/coordinator_translators.html:41
+msgid "Język"
+msgstr "Bahasa"
+
+#: forms.py:45 templates/translation_review/reports.html:21
+msgid "Napis na stronie"
+msgstr "Teks di halaman"
+
+#: forms.py:48
+msgid "Skopiuj fragment źle przetłumaczonego tekstu – po nim znajdziemy napis."
+msgstr ""
+"Salin potongan teks yang salah terjemahan – dari situ kami akan menemukan "
+"teksnya."
+
+#: forms.py:51
+msgid "Co jest nie tak / jak powinno brzmieć"
+msgstr "Apa yang salah / seharusnya bagaimana"
+
+#: forms.py:62
+msgid "Adres e-mail konta"
+msgstr "Alamat e-mail akun"
+
+#: forms.py:64 templates/translation_review/coordinator_translators.html:33
+#: templates/translation_review/coordinator_translators.html:42
+msgid "Poziom"
+msgstr "Tingkat"
+
+#: forms.py:69
+msgid "tłumacz – proponuje i głosuje"
+msgstr "penerjemah – mengusulkan dan memberi suara"
+
+#: forms.py:71
+msgid "recenzent – także zatwierdza poprawki"
+msgstr "peninjau – juga menyetujui perbaikan"
+
+#: services.py:127 views.py:56
+msgid "Nie masz uprawnień do tłumaczeń tego języka."
+msgstr "Anda tidak berwenang menerjemahkan bahasa ini."
+
+#: services.py:168
+msgid "Nie możesz nadawać ról tłumaczy."
+msgstr "Anda tidak dapat memberikan peran penerjemah."
+
+#: services.py:170
+msgid "Nieznany język."
+msgstr "Bahasa tidak dikenal."
+
+#: services.py:172
+msgid "Nieznany poziom uprawnień."
+msgstr "Tingkat izin tidak dikenal."
+
+#: services.py:175
+msgid "Rolę recenzenta tłumaczeń nadaje wyłącznie superkoordynator."
+msgstr ""
+"Hanya koordinator super yang dapat memberikan peran peninjau terjemahan."
+
+#: services.py:180
+msgid "Nie znaleziono aktywnego konta z tym adresem w tym konkursie."
+msgstr "Tidak ditemukan akun aktif dengan alamat ini dalam kompetisi ini."
+
+#: services.py:183 services.py:208
+msgid "Tę osobę może zmienić wyłącznie superkoordynator."
+msgstr "Hanya koordinator super yang dapat mengubah orang ini."
+
+#: services.py:205
+msgid "Nie możesz odbierać ról tłumaczy."
+msgstr "Anda tidak dapat mencabut peran penerjemah."
+
+#: services.py:340
+msgid "Ta propozycja jest identyczna z obecnym tłumaczeniem."
+msgstr "Usulan ini sama dengan terjemahan saat ini."
+
+#: services.py:367
+msgid "Na rozstrzygniętą propozycję nie można już głosować."
+msgstr "Usulan yang sudah diputuskan tidak dapat diberi suara lagi."
+
+#: services.py:369
+msgid "Nie można głosować na własną propozycję."
+msgstr "Anda tidak dapat memberi suara pada usulan sendiri."
+
+#: services.py:390 services.py:423
+msgid "Ta propozycja została już rozstrzygnięta."
+msgstr "Usulan ini sudah diputuskan."
+
+#: services.py:440
+msgid "Ten napis nie ma jeszcze tłumaczenia – zaproponuj je."
+msgstr "Teks ini belum memiliki terjemahan – silakan usulkan."
+
+#: services.py:442
+msgid "To tłumaczenie jest już przejrzane."
+msgstr "Terjemahan ini sudah ditinjau."
+
+#: services.py:485
+msgid "Opisz, co jest nie tak z tłumaczeniem."
+msgstr "Jelaskan apa yang salah dengan terjemahan."
+
+#: services.py:487
+msgid "Zgłoszenie jest za długie."
+msgstr "Laporan terlalu panjang."
+
+#: templates/translation_review/coordinator_translators.html:8
+#: templates/translation_review/coordinator_translators.html:27
+msgid "Tłumacze"
+msgstr "Penerjemah"
+
+#: templates/translation_review/coordinator_translators.html:8
+msgid "panel koordynatora"
+msgstr "panel koordinator"
+
+#: templates/translation_review/coordinator_translators.html:9
+msgid "Tłumacze interfejsu"
+msgstr "Penerjemah antarmuka"
+
+#: templates/translation_review/coordinator_translators.html:11
+msgid ""
+"Osoby, które mogą przeglądać i poprawiać tłumaczenia napisów serwisu, np. "
+"kierownicy delegacji. Zatwierdzona poprawka działa w całym serwisie."
+msgstr ""
+"Orang yang dapat meninjau dan memperbaiki terjemahan teks situs, mis. ketua "
+"delegasi. Perbaikan yang disetujui berlaku di seluruh situs."
+
+#: templates/translation_review/coordinator_translators.html:16
+msgid "Nadaj rolę"
+msgstr "Berikan peran"
+
+#: templates/translation_review/coordinator_translators.html:21
+msgid ""
+"Rolę recenzenta tłumaczeń nadaje superkoordynator. Konto musi należeć do "
+"tego konkursu."
+msgstr ""
+"Peran peninjau terjemahan diberikan oleh koordinator super. Akun harus "
+"terdaftar dalam kompetisi ini."
+
+#: templates/translation_review/coordinator_translators.html:22
+msgid "Nadaj"
+msgstr "Berikan"
+
+#: templates/translation_review/coordinator_translators.html:31
+#: templates/translation_review/coordinator_translators.html:40
+msgid "Konto"
+msgstr "Akun"
+
+#: templates/translation_review/coordinator_translators.html:34
+msgid "Czynności"
+msgstr "Tindakan"
+
+#: templates/translation_review/coordinator_translators.html:42
+#: templates/translation_review/home.html:20
+msgid "recenzent"
+msgstr "peninjau"
+
+#: templates/translation_review/coordinator_translators.html:42
+msgid "tłumacz"
+msgstr "penerjemah"
+
+#: templates/translation_review/coordinator_translators.html:48
+msgid "Odbierz"
+msgstr "Cabut"
+
+#: templates/translation_review/coordinator_translators.html:54
+msgid "Nikt nie ma jeszcze roli tłumacza."
+msgstr "Belum ada yang memiliki peran penerjemah."
+
+#: templates/translation_review/detail.html:10
+msgid "Napis"
+msgstr "Teks"
+
+#: templates/translation_review/detail.html:14
+msgid "Napis do przejrzenia"
+msgstr "Teks untuk ditinjau"
+
+#: templates/translation_review/detail.html:20
+#: templates/translation_review/list.html:32
+#: templates/translation_review/list.html:41
+msgid "Tekst źródłowy (polski)"
+msgstr "Teks sumber (Polandia)"
+
+#: templates/translation_review/detail.html:26
+#: templates/translation_review/list.html:34
+#: templates/translation_review/list.html:46
+msgid "Obecne tłumaczenie"
+msgstr "Terjemahan saat ini"
+
+#: templates/translation_review/detail.html:29
+msgid "zatwierdzone w serwisie, czeka na przeniesienie do repozytorium"
+msgstr "disetujui di situs, menunggu dipindahkan ke repositori"
+
+#: templates/translation_review/detail.html:33
+#: templates/translation_review/list.html:49
+msgid "maszynowe"
+msgstr "mesin"
+
+#: templates/translation_review/detail.html:37
+msgid "Tłumaczenie w katalogu"
+msgstr "Terjemahan di katalog"
+
+#: templates/translation_review/detail.html:41
+msgid "Forma mnoga"
+msgstr "Bentuk jamak"
+
+#: templates/translation_review/detail.html:45
+msgid "Kontekst"
+msgstr "Konteks"
+
+#: templates/translation_review/detail.html:49
+msgid "Uwagi dla tłumacza"
+msgstr "Catatan untuk penerjemah"
+
+#: templates/translation_review/detail.html:52
+msgid "Gdzie występuje"
+msgstr "Muncul di"
+
+#: templates/translation_review/detail.html:55
+msgid ""
+"Zmienne w nawiasach i znaczniki HTML muszą zostać dokładnie takie, jak w "
+"tekście źródłowym. Zamiast cudzysłowów prostych używaj typograficznych."
+msgstr ""
+"Variabel dalam kurung dan tag HTML harus tetap persis seperti di teks "
+"sumber. Gunakan tanda kutip tipografis, bukan tanda kutip lurus."
+
+#: templates/translation_review/detail.html:61
+msgid "Przywróć tłumaczenie z katalogu"
+msgstr "Pulihkan terjemahan dari katalog"
+
+#: templates/translation_review/detail.html:66
+msgid "Obecne tłumaczenie jest poprawne"
+msgstr "Terjemahan saat ini sudah benar"
+
+#: templates/translation_review/detail.html:76
+msgid "Zaproponuj poprawkę"
+msgstr "Usulkan perbaikan"
+
+#: templates/translation_review/detail.html:88
+msgid "Wyślij propozycję"
+msgstr "Kirim usulan"
+
+#: templates/translation_review/detail.html:95
+msgid "Propozycje"
+msgstr "Usulan"
+
+#: templates/translation_review/detail.html:101
+msgid "czeka na recenzenta"
+msgstr "menunggu peninjau"
+
+#: templates/translation_review/detail.html:101
+msgid "zatwierdzona"
+msgstr "disetujui"
+
+#: templates/translation_review/detail.html:101
+msgid "odrzucona"
+msgstr "ditolak"
+
+#: templates/translation_review/detail.html:101
+msgid "zastąpiona"
+msgstr "digantikan"
+
+#: templates/translation_review/detail.html:102
+msgid "głosy"
+msgstr "suara"
+
+#: templates/translation_review/detail.html:103
+msgid "inny tłumacz"
+msgstr "penerjemah lain"
+
+#: templates/translation_review/detail.html:112
+msgid "Cofnij głos"
+msgstr "Tarik suara"
+
+#: templates/translation_review/detail.html:112
+msgid "Popieram"
+msgstr "Saya mendukung"
+
+#: templates/translation_review/detail.html:119
+msgid "Zatwierdź"
+msgstr "Setujui"
+
+#: templates/translation_review/detail.html:124
+msgid "Odrzuć"
+msgstr "Tolak"
+
+#: templates/translation_review/detail.html:131
+msgid "Nikt jeszcze nie zaproponował poprawki tego napisu."
+msgstr "Belum ada yang mengusulkan perbaikan untuk teks ini."
+
+#: templates/translation_review/home.html:7
+#: templates/translation_review/home.html:11
+msgid "Tłumaczenia interfejsu"
+msgstr "Terjemahan antarmuka"
+
+#: templates/translation_review/home.html:10
+#: templates/translation_review/list.html:11
+#: templates/translation_review/report.html:10
+msgid "Tłumaczenia"
+msgstr "Terjemahan"
+
+#: templates/translation_review/home.html:12
+msgid ""
+"Sprawdź tłumaczenia napisów serwisu w swoim języku i zaproponuj poprawki. "
+"Tekst źródłowy jest po polsku; obok widzisz wersję angielską."
+msgstr ""
+"Periksa terjemahan teks situs dalam bahasa Anda dan usulkan perbaikan. Teks "
+"sumber berbahasa Polandia; versi bahasa Inggris ditampilkan di sebelahnya."
+
+#: templates/translation_review/home.html:21
+#: templates/translation_review/home.html:26
+msgid "Oczekujące propozycje"
+msgstr "Usulan yang menunggu"
+
+#: templates/translation_review/home.html:25
+msgid "Przeglądaj napisy"
+msgstr "Telusuri teks"
+
+#: templates/translation_review/home.html:28
+#: templates/translation_review/reports.html:9
+msgid "Zgłoszenia"
+msgstr "Laporan"
+
+#: templates/translation_review/list.html:8
+#: templates/translation_review/list.html:28
+msgid "Napisy"
+msgstr "Teks"
+
+#: templates/translation_review/list.html:13
+msgid ""
+"Kliknij napis, żeby zobaczyć kontekst, zaproponować poprawkę albo zagłosować "
+"na cudzą."
+msgstr ""
+"Klik teks untuk melihat konteks, mengusulkan perbaikan, atau memberi suara "
+"pada usulan orang lain."
+
+#: templates/translation_review/list.html:20
+msgid "Filtruj"
+msgstr "Saring"
+
+#: templates/translation_review/list.html:21
+msgid "Wyczyść"
+msgstr "Hapus"
+
+#: templates/translation_review/list.html:24
+msgid "Znalezione napisy"
+msgstr "Teks ditemukan"
+
+#: templates/translation_review/list.html:35
+#: templates/translation_review/list.html:47
+msgid "Stan"
+msgstr "Status"
+
+#: templates/translation_review/list.html:43
+msgid "forma"
+msgstr "bentuk"
+
+#: templates/translation_review/list.html:50
+msgid "brak"
+msgstr "tidak ada"
+
+#: templates/translation_review/list.html:51
+msgid "propozycje"
+msgstr "usulan"
+
+#: templates/translation_review/list.html:55
+msgid "Brak napisów spełniających filtr."
+msgstr "Tidak ada teks yang cocok dengan saringan."
+
+#: templates/translation_review/list.html:63
+msgid "Poprzednia"
+msgstr "Sebelumnya"
+
+#: templates/translation_review/list.html:65
+#, python-format
+msgid "Strona %(number)s z %(pages)s"
+msgstr "Halaman %(number)s dari %(pages)s"
+
+#: templates/translation_review/list.html:67
+msgid "Następna"
+msgstr "Berikutnya"
+
+#: templates/translation_review/report.html:7
+#: templates/translation_review/report.html:11
+#: templatetags/translation_review.py:37
+msgid "Zgłoś tłumaczenie"
+msgstr "Laporkan terjemahan"
+
+#: templates/translation_review/report.html:12
+msgid ""
+"Napisz, który napis jest źle przetłumaczony i jak powinien brzmieć. "
+"Recenzent tłumaczeń Twojego języka poprawi go dla wszystkich."
+msgstr ""
+"Tulis teks mana yang salah diterjemahkan dan seharusnya bagaimana. Peninjau "
+"terjemahan bahasa Anda akan memperbaikinya untuk semua orang."
+
+#: templates/translation_review/report.html:16
+#: templates/translation_review/reports.html:19
+msgid "Strona"
+msgstr "Halaman"
+
+#: templates/translation_review/report.html:30
+msgid "Wyślij zgłoszenie"
+msgstr "Kirim laporan"
+
+#: templates/translation_review/reports.html:13
+msgid "Zgłoszenia tłumaczeń"
+msgstr "Laporan terjemahan"
+
+#: templates/translation_review/reports.html:22
+msgid "szukaj na liście"
+msgstr "cari di daftar"
+
+#: templates/translation_review/reports.html:24
+msgid "Uwaga"
+msgstr "Catatan"
+
+#: templates/translation_review/reports.html:29
+msgid "Zamknij zgłoszenie"
+msgstr "Tutup laporan"
+
+#: templates/translation_review/reports.html:33
+msgid "Nie ma otwartych zgłoszeń."
+msgstr "Tidak ada laporan terbuka."
+
+#: validation.py:91
+msgid "Tłumaczenie nie może być puste."
+msgstr "Terjemahan tidak boleh kosong."
+
+#: validation.py:101
+#, python-format
+msgid "Tłumaczenie jest za długie (najwyżej %(limit)d znaków)."
+msgstr "Terjemahan terlalu panjang (paling banyak %(limit)d karakter)."
+
+#: validation.py:105
+msgid "Tłumaczenie zawiera niedozwolony znak sterujący kierunkiem tekstu."
+msgstr "Terjemahan berisi karakter kendali arah teks yang tidak diizinkan."
+
+#: validation.py:109
+msgid "nowa linia"
+msgstr "baris baru"
+
+#: validation.py:109
+msgid "tabulator"
+msgstr "tab"
+
+#: validation.py:110
+#, python-format
+msgid "Niedozwolony znak sterujący: %(char)s."
+msgstr "Karakter kendali tidak diizinkan: %(char)s."
+
+#: validation.py:114 validation.py:130
+msgid "(brak)"
+msgstr "(tidak ada)"
+
+#: validation.py:116
+#, python-format
+msgid ""
+"Znaczniki HTML muszą być dokładnie takie, jak w tekście źródłowym: %(tags)s"
+msgstr "Tag HTML harus persis seperti di teks sumber: %(tags)s"
+
+#: validation.py:122
+#, python-format
+msgid ""
+"Znak „%(char)s” jest dozwolony wyłącznie jako część znacznika z tekstu "
+"źródłowego."
+msgstr ""
+"Karakter “%(char)s” hanya diizinkan sebagai bagian dari tag di teks sumber."
+
+#: validation.py:126
+#, python-format
+msgid ""
+"Użyj cudzysłowów typograficznych (np. “…”, «…», „…”) zamiast znaku %(char)s."
+msgstr ""
+"Gunakan tanda kutip tipografis (mis. “…”, «…», „…”) sebagai ganti karakter "
+"%(char)s."
+
+#: validation.py:132
+#, python-format
+msgid ""
+"Tłumaczenie musi zawierać te same zmienne, co tekst źródłowy: "
+"%(placeholders)s"
+msgstr ""
+"Terjemahan harus berisi variabel yang sama dengan teks sumber: "
+"%(placeholders)s"
+
+#: validation.py:138
+msgid ""
+"Znaki procentu i nawiasów klamrowych mają w tym napisie znaczenie techniczne "
+"– zapisz je dokładnie tak, jak w tekście źródłowym."
+msgstr ""
+"Tanda persen dan kurung kurawal memiliki makna teknis dalam teks ini – "
+"tulis persis seperti di teks sumber."
+
+#: views.py:75 views.py:214
+msgid "Twoje konto nie ma roli tłumacza."
+msgstr "Akun Anda tidak memiliki peran penerjemah."
+
+#: views.py:155
+msgid "Propozycja została zapisana."
+msgstr "Usulan telah disimpan."
+
+#: views.py:164
+msgid "Tłumaczenie zatwierdzone – działa w serwisie w ciągu kilku sekund."
+msgstr "Terjemahan disetujui – akan tampil di situs dalam beberapa detik."
+
+#: views.py:167
+msgid "Propozycja została odrzucona."
+msgstr "Usulan telah ditolak."
+
+#: views.py:170
+msgid "Tłumaczenie oznaczone jako przejrzane."
+msgstr "Terjemahan ditandai sudah ditinjau."
+
+#: views.py:173
+msgid "Przywrócono tłumaczenie z katalogu."
+msgstr "Terjemahan dari katalog telah dipulihkan."
+
+#: views.py:193
+msgid "Zgłoszenia przegląda recenzent tłumaczeń."
+msgstr "Laporan ditangani oleh peninjau terjemahan."
+
+#: views.py:204
+msgid "Zgłoszenie zamknięte."
+msgstr "Laporan ditutup."
+
+#: views.py:244
+msgid "Dziękujemy – recenzent tłumaczeń zobaczy zgłoszenie."
+msgstr "Terima kasih – peninjau terjemahan akan melihat laporan Anda."
+
+#: views.py:285
+msgid "Rola tłumacza została odebrana."
+msgstr "Peran penerjemah telah dicabut."
+
+#: views.py:302
+msgid "Rola tłumacza została nadana."
+msgstr "Peran penerjemah telah diberikan."

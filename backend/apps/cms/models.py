@@ -116,6 +116,8 @@ RESERVED_SLUGS = frozenset(
         "statystyki",
         "supervisor",
         "support",
+        # Przegląd tłumaczeń interfejsu (``/translations/…``, zadanie L10N-01).
+        "translations",
         "zaproszenie",
         "zgoda",
     }

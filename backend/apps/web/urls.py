@@ -2,6 +2,8 @@
 
 from django.urls import path
 
+from apps.translation_review.urls import urlpatterns as translation_review_urlpatterns
+
 # Wzorce ekranów wydań E–K stoją w osobnych modułach, bo powstały równolegle (T11, T13, T20, T23,
 # T27, T34, T42), a ten plik ma w etapie 2 **jednego** właściciela na wydanie
 # (``docs/UNIWERSALNY-ETAP-2.md`` § 4.1). Montaż jest rozwinięciem tych list na **końcu**
@@ -1122,4 +1124,6 @@ urlpatterns = [
     *chat_urlpatterns,
     # --- wejście do pokoi wideo przez platformę, pokoje bez terminu (v0.39.0) -------------------
     *video_urlpatterns,
+    # --- przegląd tłumaczeń interfejsu (zadanie L10N-01) -----------------------------------------
+    *translation_review_urlpatterns,
 ]

@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% comment %}
+  Otwarte zgłoszenia ze stopki dla recenzenta jednego języka. Fraza prowadzi do wyszukiwania na
+  liście napisów – dokładnego mapowania strony na ``msgid`` nie ma (L10N-01 § 8). Ścieżka strony
+  jest odnośnikiem w obrębie serwisu (``clean_page`` przepuszcza wyłącznie ``/…``, nigdy ``//…``).
+  Zgłaszający jest anonimowy, tak samo jak autor propozycji.
+{% endcomment %}
+{% block title %}{% translate "Zgłoszenia" %} – {{ language_label }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow"><a href="{% url 'web:translation-list' language %}">{{ language_label }}</a></span>
+  <h1>{% translate "Zgłoszenia tłumaczeń" %}</h1>
+</div>
+<section class="section">
+  {% for report in reports %}
+    <article class="card card--quiet">
+      <dl class="meta-list">
+        {% if report.page %}<dt>{% translate "Strona" %}</dt><dd><a href="{{ report.page }}"><code>{{ report.page }}</code></a></dd>{% endif %}
+        {% if report.phrase %}
+          <dt>{% translate "Napis na stronie" %}</dt>
+          <dd dir="auto">{{ report.phrase }} – <a href="{% url 'web:translation-list' language %}?q={{ report.phrase|urlencode }}">{% translate "szukaj na liście" %}</a></dd>
+        {% endif %}
+        <dt>{% translate "Uwaga" %}</dt>
+        <dd><div class="quote" dir="auto">{{ report.comment }}</div></dd>
+      </dl>
+      <form method="post" class="inline">{% csrf_token %}
+        <input type="hidden" name="report" value="{{ report.pk }}">
+        <button type="submit" class="btn btn--small btn--secondary">{% translate "Zamknij zgłoszenie" %}</button>
+      </form>
+    </article>
+  {% empty %}
+    <p class="hint">{% translate "Nie ma otwartych zgłoszeń." %}</p>
+  {% endfor %}
+</section>
+{% endblock %}

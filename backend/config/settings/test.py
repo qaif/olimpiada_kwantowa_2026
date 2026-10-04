@@ -26,6 +26,9 @@ CACHES = {"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"
 # (``apps/tenancy/tests/test_invariants.py``) i reszta suity mają mierzyć **kod**, a nie trafienia
 # bufora – test, któremu ten cache naprawdę jest potrzebny, włącza go sam przez ``settings``.
 PAGE_CACHE_ENABLED = False
+# Nakładka poprawek tłumaczy (L10N-01) wyłączona z tego samego powodu: budżety zapytań mierzą kod,
+# a nie zimny cache nakładki. Testy ``apps.translation_review`` włączają ją same.
+TRANSLATION_OVERRIDES_ENABLED = False
 # Poczta do ``django.core.mail.outbox``: testy sprawdzają treść wiadomości, a nie to, czy udało się
 # otworzyć gniazdo do mailpita. Backend konsolowy z ``base.py`` niczego by nie zapisał.
 #

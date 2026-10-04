@@ -399,6 +399,12 @@
         {% endcomment %}
         {% include "web/_support_link.html" with css_class="footer__link" %}
         {% comment %}
+          „Zgłoś tłumaczenie” (L10N-01 § 8) – wyłącznie zalogowany tłumacz, na stronie w języku innym
+          niż polski, w konkursie z kilkoma językami interfejsu. Strona Konkursu #1 nie płaci za to
+          ani jednym zapytaniem (warunki w ``apps.translation_review.templatetags``).
+        {% endcomment %}
+        {% load translation_review %}{% translation_report_link "footer__link" %}
+        {% comment %}
           „Plakaty do pobrania” (prośba organizatora z 23.09.2026) – wyłącznie wtedy, gdy konkurs
           ma choć jeden opublikowany plakat, bo pusta lista oddaje 404. ``promo_available`` jest
           leniwe i czytane z pamięci podręcznej unieważnianej przy zapisie plakatu
