@@ -694,7 +694,7 @@ Opis pochodzi z ich zamówienia, **nie z działającego kodu** — zanim się na
 faktycznie trafiło do repozytorium, i uzupełnij ten rozdział o prawdziwe polecenia i adresy.
 
 **Skrypt kopii zapasowej `scripts/backup.sh`** – już działa (cron o 3:15, wysyłka poza serwer na S3
-albo Dysk Google, cotygodniowy test odtwarzania); opis: `OPERACJE.md` § 1 i § 6.4 wyżej. Zasada
+albo Dysk Google, conocny test odtwarzania – `OPERACJE.md` § 43); opis: `OPERACJE.md` § 1 i § 6.4 wyżej. Zasada
 zostaje: kopia niesprawdzona próbnym odtworzeniem nie jest kopią.
 
 **Monitoring `deploy/monitoring` (w przygotowaniu).** Ma dołożyć do compose gotowy zestaw zbierający

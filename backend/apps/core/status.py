@@ -264,6 +264,7 @@ def as_json(data: dict) -> dict:
     """
     from apps.core.backup import state as backup_state
     from apps.core.dbconnections import level as db_connections_level
+    from apps.core.restore_check import level as restore_check_level
     from apps.tenancy.setup import setup_available
 
     competition = data["competition"]
@@ -306,4 +307,10 @@ def as_json(data: dict) -> dict:
         # ``false`` znaczy „kopia wyłącznie lokalna albo wysyłka nie dotarła”: ginie razem z
         # serwerem. Dołożony na końcu, jak dwa klucze wyżej – kolejność jest kontraktem.
         "backup_offsite": backup.offsite_fresh,
+        # Wynik conocnego testu odtwarzania (OPS-01, ``apps.core.restore_check``) – wyłącznie poziom
+        # ``ok|failed|stale|unknown``, bez dat i liczb, z tego samego powodu co pola ``backup_*``.
+        # ``backup_last_verified`` mówi „był udany test w progu”, ten klucz odróżnia jeszcze „test
+        # chodzi i mówi, że kopia jest zła” (``failed``) od „test nie chodzi” (``stale``/``unknown``).
+        # Dołożony na końcu – kolejność jest kontraktem.
+        "backup_restore_check": restore_check_level(),
     }

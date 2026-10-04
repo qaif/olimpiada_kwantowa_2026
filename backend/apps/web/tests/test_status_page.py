@@ -228,4 +228,7 @@ def test_the_json_variant_carries_no_infrastructure_details(web_client):
         # Czy ostatnia kopia wyjechała poza serwer (S3 / Dysk Google) – wartość logiczna, bez dat
         # (apps/core/status.py, ``as_json``).
         "backup_offsite",
+        # Poziom conocnego testu odtwarzania kopii (``ok|failed|stale|unknown``, OPS-01) – bez dat
+        # (apps/core/restore_check.py, ``level``).
+        "backup_restore_check",
     }
