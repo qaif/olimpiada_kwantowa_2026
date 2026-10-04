@@ -107,7 +107,22 @@ IDENTITY_FIELDS = ("email", "username")
 #:
 #: ``webinar_join`` (WEB-01) – token wejścia na webinar i czynności prowadzącego, z tego samego powodu.
 #: ``webinar_control`` – polecenia prowadzącego (osobny, wyższy kubełek).
-PER_USER_SCOPES = frozenset({"chat", "forum", "video", "video_rooms", "webinar_join", "webinar_control"})
+#:
+#: ``proctoring_token`` / ``proctoring_action`` / ``proctoring_client`` (PROC-01) – tokeny nadzoru,
+#: czynności nadzorujących i kroki konsoli ucznia: cała szkoła pisze etap za jednym NAT-em.
+PER_USER_SCOPES = frozenset(
+    {
+        "chat",
+        "forum",
+        "video",
+        "video_rooms",
+        "webinar_join",
+        "webinar_control",
+        "proctoring_token",
+        "proctoring_action",
+        "proctoring_client",
+    }
+)
 
 #: Jak często (sekundy) wolno zalogować awarię cache'a jednym procesem – patrz ``_report_outage``.
 OUTAGE_LOG_INTERVAL = 60

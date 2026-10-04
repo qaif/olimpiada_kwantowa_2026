@@ -105,6 +105,8 @@ RESERVED_SLUGS = frozenset(
         "opiekun",
         "password-reset",
         "plakaty",
+        # Siatka nadzoru zdalnego (``/proctoring/<etap>/``, zadanie PROC-01) – nadzorujący.
+        "proctoring",
         "register",
         "rejestracja",
         "reset",

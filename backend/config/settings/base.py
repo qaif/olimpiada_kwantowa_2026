@@ -165,6 +165,8 @@ INSTALLED_APPS = [
     # na platformie, listę obecności z webhooków i nagrania. **Po** ``apps.competitions`` i ``apps.accounts``,
     # bo czyta etapy, drużyny i role; **przed** ``apps.web``, który ją wyświetla.
     "apps.webinars",
+    # Nadzór zdalny etapów online (zadanie PROC-01, flaga ``proctoring``) – na kliencie LiveKit webinarów.
+    "apps.proctoring",
     # Warstwa integracyjna: klucze API dla systemów zewnętrznych, webhooki i eksporty na zewnątrz.
     # **Po** aplikacjach domeny, bo czyta je wszystkie (edycje, wyniki, zgłoszenia), a żadna z nich
     # nie czyta jej – zależność idzie w jedną stronę i kolejność w tej liście ma to pokazywać.
@@ -244,6 +246,10 @@ MIDDLEWARE = [
     # zasięgu redaktora i z tego samego powodu za uwierzytelnieniem; poza adresami z listy
     # (apps/cms/middleware.py) nie wykonuje żadnego zapytania.
     "apps.cms.middleware.CmsFreezeMiddleware",
+    # Bramka treści etapu z nadzorem zdalnym (PROC-01): wyłącznie ``process_view`` i wyłącznie dla
+    # zamkniętej listy adresów (PDF zadania, wysyłka, test); bez flagi ``proctoring`` – zero zapytań.
+    # **Za** uwierzytelnieniem i komunikatami (przekierowuje do konsoli z komunikatem).
+    "apps.proctoring.middleware.ProctoringGateMiddleware",
     # Wymagana przez allauth: ustawia kontekst żądania (``allauth.core.context``), z którego
     # korzystają adaptery i przepływ social login. Nie montuje żadnego adresu i nie zmienia
     # obsługi 404 – przekierowanie „/accounts/ → logowanie” włącza się dopiero, gdy istnieje
@@ -615,6 +621,12 @@ CELERY_BEAT_SCHEDULE = {
     "webinars-reminders": {
         "task": "apps.webinars.tasks.remind_webinars",
         "schedule": 300.0,
+    },
+    # Retencja nadzoru zdalnego (PROC-01 § 8): nagrania, zdjęcia dokumentu, dziennik i wiadomości
+    # ``PROCTORING_RETENTION_DAYS`` po publikacji wyników i oknie reklamacji. Raz dziennie, w nocy.
+    "proctoring-purge": {
+        "task": "apps.proctoring.tasks.purge_expired",
+        "schedule": crontab(minute=40, hour=3),
     },
 }
 
@@ -1050,6 +1062,18 @@ WEBINAR_REMINDER_MINUTES = env.int("WEBINAR_REMINDER_MINUTES", default=60)
 # edycja konkursu z zapasem na reklamacje i zaświadczenia; 0 = bez automatycznego kasowania.
 WEBINAR_RETENTION_DAYS = env.int("WEBINAR_RETENTION_DAYS", default=365)
 
+# --- nadzór zdalny etapów online (zadanie PROC-01, ``apps.proctoring``) -------------------------------
+# Ten sam serwer LiveKit, co webinary. ``LEAD`` – ile minut przed otwarciem okna ucznia wolno włączyć
+# nadzór (sprawdzenie sprzętu na spokojnie), ``GRACE`` – ile po zamknięciu działa pokój nadzorujących.
+# Retencja nośników (nagrania, zdjęcia dokumentu, dziennik, wiadomości): ``RETENTION_DAYS`` po
+# publikacji wyników i końcu okna reklamacji; ``MAX_RETENTION_DAYS`` po końcu etapu, gdy wyniki nigdy
+# nie wyszły. ``WINDOW_ADAPTER`` – funkcja okna ucznia z TZ-01 (pusty = okno globalne etapu).
+PROCTORING_LEAD_MINUTES = env.int("PROCTORING_LEAD_MINUTES", default=30)
+PROCTORING_GRACE_MINUTES = env.int("PROCTORING_GRACE_MINUTES", default=30)
+PROCTORING_RETENTION_DAYS = env.int("PROCTORING_RETENTION_DAYS", default=30)
+PROCTORING_MAX_RETENTION_DAYS = env.int("PROCTORING_MAX_RETENTION_DAYS", default=180)
+PROCTORING_WINDOW_ADAPTER = env("PROCTORING_WINDOW_ADAPTER", default="")
+
 WAGTAIL_SITE_NAME = env("WAGTAIL_SITE_NAME", default="Olimpiada Kwantowa")
 WAGTAILADMIN_BASE_URL = env("WAGTAILADMIN_BASE_URL", default=f"https://{SITE_DOMAIN}")
 # Reset hasła ma jedną drogę: ``/password-reset/`` (limit prób, wysyłka w tle, audyt). Własny reset
@@ -1276,6 +1300,12 @@ REST_FRAMEWORK = {
         # Link dla gości (``/zaproszenie/webinar/<klucz>/``, POST „Dołącz” i token) – bez konta, po IP, jak
         # bramka pokoi Jitsi: cała sala za jednym NAT-em wchodzi naraz.
         "webinar_guest": "120/hour",
+        # Nadzór zdalny (PROC-01), per konto: token (wejście ucznia albo nadzorującego – kilka
+        # ponownych połączeń na etap), czynności nadzorującego (wiadomości, incydenty, obecność przy
+        # 24 uczniach na stronie) i kroki konsoli ucznia (sprawdzenie, puls co minutę przez kilka godzin).
+        "proctoring_token": "60/hour",
+        "proctoring_action": "600/hour",
+        "proctoring_client": "600/hour",
         # Zakładanie konkursu z panelu koordynatora (``/coordinator/competitions/new/``). Stawka
         # jest **dzienna i niska**, bo taka jest ta czynność: konkurs zakłada się raz na sezon,
         # a każde założenie to nowa witryna, nowe drzewo stron, nowa edycja i wniosek o certyfikat

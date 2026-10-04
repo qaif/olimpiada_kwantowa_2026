@@ -63,6 +63,7 @@ PRIVATE_PREFIXES = (
     "coordinator",
     "djcms",
     "me",
+    "proctoring",
     "review",
     "supervisor",
     "webinars",

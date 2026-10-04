@@ -26,6 +26,7 @@
     "opiekun",
     "password-reset",
     "plakaty",
+    "proctoring",
     "register",
     "rejestracja",
     "reset",
@@ -57,10 +58,11 @@
     "coordinator",
     "djcms",
     "me",
+    "proctoring",
     "review",
     "supervisor",
     "webinars"
   ],
-  "app_re": "^/(?:_util|account|accounts|activate|admin|api|appeals|captcha|cms|coordinator|documents|dyplomy|forum|healthz|i18n|integrations|internal|konto|login|logout|me|opiekun|password-reset|plakaty|register|rejestracja|reset|results|review|setup|status|statystyki|supervisor|support|warsztaty/materialy|webinars|zaproszenie|zgoda)(?:/.*)?$|^/[^/]+\\.html$|^/status\\.json$",
-  "app_re_prefixed": "^/[^/]+/(?:_util|account|accounts|activate|admin|api|appeals|captcha|cms|coordinator|documents|dyplomy|forum|healthz|i18n|integrations|internal|konto|login|logout|me|opiekun|password-reset|plakaty|register|rejestracja|reset|results|review|setup|status|statystyki|supervisor|support|warsztaty/materialy|webinars|zaproszenie|zgoda)(?:/.*)?$|^/[^/]+/[^/]+\\.html$|^/[^/]+/status\\.json$"
+  "app_re": "^/(?:_util|account|accounts|activate|admin|api|appeals|captcha|cms|coordinator|documents|dyplomy|forum|healthz|i18n|integrations|internal|konto|login|logout|me|opiekun|password-reset|plakaty|proctoring|register|rejestracja|reset|results|review|setup|status|statystyki|supervisor|support|warsztaty/materialy|webinars|zaproszenie|zgoda)(?:/.*)?$|^/[^/]+\\.html$|^/status\\.json$",
+  "app_re_prefixed": "^/[^/]+/(?:_util|account|accounts|activate|admin|api|appeals|captcha|cms|coordinator|documents|dyplomy|forum|healthz|i18n|integrations|internal|konto|login|logout|me|opiekun|password-reset|plakaty|proctoring|register|rejestracja|reset|results|review|setup|status|statystyki|supervisor|support|warsztaty/materialy|webinars|zaproszenie|zgoda)(?:/.*)?$|^/[^/]+/[^/]+\\.html$|^/[^/]+/status\\.json$"
 }

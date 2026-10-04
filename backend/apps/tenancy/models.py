@@ -253,6 +253,12 @@ FEATURE_DEFAULTS: dict[str, bool] = {
     # wyłączona, bo włączenie wymaga serwera LiveKit (``LIVEKIT_URL``, klucz i sekret API – krok
     # operatora, ``docs/OPERACJE.md`` § 28) i decyzji organizatora o nagrywaniu.
     "webinars": False,
+    # --- nadzór zdalny (LiveKit) ---------------------------------------------------------------------
+    # Zadanie PROC-01 (``apps.proctoring``): koordynator włącza nadzór etapu online, uczniowie nadają
+    # kamerę do pokoju nadzoru. Wyłączona – adresów ``/proctoring/…``, ``/me/proctoring/…`` nie ma,
+    # bramka treści etapu nie robi zapytań. Domyślnie wyłączona: to przetwarzanie wysokiego ryzyka
+    # (obraz niepełnoletnich) i wymaga decyzji organizatora oraz oceny skutków (DPIA).
+    "proctoring": False,
 }
 
 

@@ -821,6 +821,60 @@ WEBINARS_ACTIVITY = _activity(
 )
 
 
+#: Czynność **warunkowa**: nadzór zdalny etapów online (zadanie PROC-01, przełącznik ``proctoring``).
+#: Przetwarzanie **wysokiego ryzyka** – obraz osób w większości niepełnoletnich, w ich domach – więc
+#: wiersz nazywa wprost minimalizację (bez analizy automatycznej, niska rozdzielczość, nagrywanie
+#: domyślnie wyłączone) i odsyła do oceny skutków (DPIA), którą organizator robi przed włączeniem.
+PROCTORING_ACTIVITY = _activity(
+    key="nadzor-zdalny",
+    name="Nadzór zdalny etapów online (LiveKit)",
+    purpose=(
+        "Zapewnienie samodzielności pracy w etapach rozgrywanych online: podgląd na żywo obrazu z kamery "
+        "uczestnika (i – gdy etap tego wymaga – ekranu lub dźwięku) przez osoby nadzorujące, wiadomości "
+        "nadzorujących, notatki o incydentach do rozpatrzenia przez komisję, obecność oraz – wyłącznie "
+        "gdy koordynator włączy je dla etapu – nagrania obrazu z kamery do celów odwoławczych."
+    ),
+    legal_basis=(
+        "art. 6 ust. 1 lit. a RODO (wyraźna zgoda uczestnika, wersjonowana; u osoby niepełnoletniej – "
+        "przy potwierdzonej online zgodzie rodzica lub opiekuna prawnego); osoba bez zgody albo bez "
+        "kamery może poprosić o inną formę nadzoru (decyzja koordynatora)"
+    ),
+    subjects="uczestnicy etapów online z włączonym nadzorem (w większości osoby niepełnoletnie)",
+    categories=[
+        "wizerunek (obraz z kamery na żywo; nagranie – tylko przy włączonym nagrywaniu)",
+        "obraz ekranu i głos – wyłącznie gdy etap tego wymaga",
+        "zdjęcie dokumentu tożsamości – wyłącznie gdy etap tego wymaga",
+        "pseudonim w pokoju (HMAC, osobny na etap), czasy połączeń i zerwań strumienia",
+        "wynik sprawdzenia sprzętu (wartości logiczne i rodzina przeglądarki – bez odcisku urządzenia)",
+        "wiadomości nadzorujących, notatki o incydentach, obecność, prośby o alternatywę (powód z listy)",
+        "wersja i czas zgody, adres IP przy zgodzie",
+    ],
+    recipients=[
+        HOSTING_RECIPIENT,
+        "serwer LiveKit operatora platformy (przekazywanie obrazu w czasie rzeczywistym, "
+        "nagrania przez Egress)",
+        "nadzorujący wskazani przez koordynatora: koordynatorzy, członkowie komisji, w olimpiadzie "
+        "międzynarodowej opiekun drużyny – wyłącznie uczniów swojej delegacji",
+        "komisja odwoławcza – raport incydentów i nagrania (każde odtworzenie w audycie)",
+    ],
+    retention=(
+        "obraz na żywo – nie jest przechowywany; nagrania, zdjęcia dokumentu, dziennik połączeń i "
+        "wiadomości – usuwane automatycznie 30 dni po ogłoszeniu wyników i zamknięciu okna reklamacji "
+        "(najpóźniej 180 dni po etapie; komisja może wstrzymać usunięcie do wyjaśnienia sprawy); "
+        "incydenty, obecność i zgody – jak dokumentacja zawodów (retencja edycji)"
+    ),
+    measures=[
+        "funkcja domyślnie wyłączona, włączana osobno dla każdego etapu; nagrywanie domyślnie wyłączone",
+        "brak automatycznej analizy obrazu i śledzenia przeglądarki – decyzje podejmują ludzie",
+        "kamera 320×240, 10 kl./s; uczeń nie odbiera obrazu innych uczniów (uprawnienia tokenu)",
+        "opiekun drużyny dostaje token wyłącznie do pokoju swojej delegacji",
+        "tokeny krótkotrwałe, wystawiane po sprawdzeniu roli przy każdym wejściu",
+        "nagrania i zdjęcia w prywatnym buckecie, adres ważny 15 minut, audyt każdego odtworzenia",
+        "ocena skutków dla ochrony danych (DPIA) przed pierwszym użyciem – nota w podręczniku organizatora",
+    ],
+)
+
+
 #: Czynność **warunkowa**: wchodzi do rejestru wyłącznie konkursom z włączoną oceną AI
 #: (przełącznik ``ai_grading``, prośba organizatora z 24.09.2026) – z tego samego powodu, co forum:
 #: rejestr opisuje przetwarzanie, które naprawdę zachodzi.
@@ -947,6 +1001,8 @@ def activities_for(competition=None) -> tuple[ProcessingActivity, ...]:
         activities = (*activities, ai_grading_activity(competition))
     if competition is not None and competition.has_feature("webinars"):
         activities = (*activities, WEBINARS_ACTIVITY)
+    if competition is not None and competition.has_feature("proctoring"):
+        activities = (*activities, PROCTORING_ACTIVITY)
     return activities
 
 
