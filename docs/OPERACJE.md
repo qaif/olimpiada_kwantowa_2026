@@ -5500,9 +5500,12 @@ uczestnika).
 **Naprawa: osobny host laboratorium (QC-02, § 40.7).** Zbudowana, włączana jedną zmienną
 `NOTEBOOK_LAB_HOST` – opis wyżej dotyczy instalacji **bez** niej. Z nią magazyny originu serwisu
 (`csrftoken`, `localStorage`, IndexedDB) są poza zasięgiem kodu z notatnika, a serwis odrzuca żądania
-z laboratorium. Subdomena `lab.<domena>` (DNS już jest) zostawia ryzyka „same-site” (podrzucanie
-ciasteczek na domenę nadrzędną, obrona CSRF oparta na `Origin`) – osobna domena rejestrowalna
-(np. `olimpiada-lab.pl`) usuwa i je. Bramka ról zostaje (zdjęcie – osobna decyzja po odbiorze).
+z laboratorium. Subdomena `lab.<domena>` (DNS już jest) zostawia ryzyka „same-site”: kod z notatnika
+może **podrzucić** ciasteczko z `Domain=<domena>` na ~400 dni – podrzucony `csrftoken` to 403 na każdym
+formularzu serwisu (DoS), podrzucony `sessionid` – wylogowanie albo cudza sesja; obrona CSRF opiera
+się na `Origin`. Te skutki łatają warstwy z § 40.7 (prefiks `__Host-`, wygaszanie duplikatów, strażnik
+także w djcms), ale **zalecany jest wariant z osobną domeną rejestrowalną** (np. `olimpiada-lab.pl`),
+przy którym podrzucenie jest niemożliwe. Bramka ról zostaje (zdjęcie – osobna decyzja po odbiorze).
 
 ### 40.7. Laboratorium na osobnym hoście (QC-02, `docs/tasks/QC-02.md`)
 
@@ -5529,6 +5532,23 @@ ciasteczek na domenę nadrzędną, obrona CSRF oparta na `Origin`) – osobna do
 leżą na domenie rejestrowalnej i w wariancie `lab.<domena>` widzi je laboratorium (pseudonimowy
 identyfikator, nie sekret).
 
+**Podrzucone ciasteczka (wariant `lab.<domena>`, przegląd QC-02 M1/M2):**
+
+- produkcja z `NOTEBOOK_LAB_HOST` ma ciasteczka **`__Host-sessionid`** i **`__Host-csrftoken`**
+  (`config/settings/production.py`) – tych laboratorium nie podrzuci. **Włączenie wylogowuje
+  wszystkich jeden raz** (stara nazwa nie jest przyjmowana – to ją da się podrzucić); po wyłączeniu
+  – znowu raz. Polityka prywatności (strona CMS z listą ciasteczek) powinna wtedy podawać nowe nazwy,
+- duplikat nazwy sesji/CSRF/języka w nagłówku `Cookie` (podrzucone obok prawdziwego) → jedno
+  przekierowanie z wygaszeniem kopii z `Domain=<domena>`; w logu `web`: „Zdublowane ciasteczka … –
+  wygaszam”. Powtarzający się wpis „mimo wygaszenia” = ktoś podrzuca z niestandardowymi atrybutami –
+  żądanie idzie wtedy bez obu kopii (użytkownik widzi wylogowanie); pomoże wyczyszczenie ciasteczek
+  domeny w przeglądarce,
+- djcms ma ten sam strażnik i wygaszanie (`apps.pages.labguard`, zmienna `NOTEBOOK_LAB_HOST`
+  przekazywana w `docker-compose.yml`) – inaczej wzorzec `https://*.<domena>` w jego CSRF
+  przepuściłby zapis z laboratorium z podrzuconym `djcms_csrftoken`,
+- żądania same-site zmieniające stan z `Origin: null` albo bez `Origin`/`Referer` (kod z notatnika
+  wycina nagłówki) – 403, gdy laboratorium jest same-site z hostem żądania.
+
 **Warianty – kompromisy:**
 
 | | `lab.<SITE_DOMAIN>` | osobna domena (np. `olimpiada-lab.pl`) |
@@ -5539,15 +5559,18 @@ identyfikator, nie sekret).
 | podrzucenie ciasteczka na domenę nadrzędną (`sessionid` cudzej sesji) | **możliwe** – zostaje ostrzeżenie uczestników | niemożliwe |
 | IQO (`iqo-official.org`) | cross-site już teraz | cross-site |
 
-Zalecenie: osobna domena, gdy będzie kupiona; do tego czasu `lab.olimpiadakwantowa.pl` jest
-wyraźnie lepsze niż laboratorium w originie serwisu.
+Zalecenie: **osobna domena** (wariant B) – kupić i przełączyć, zanim laboratorium zacznie służyć
+w etapie z nagrodami. `lab.olimpiadakwantowa.pl` jest lepsze niż laboratorium w originie serwisu,
+ale zostawia podrzucanie ciasteczek (DoS/fiksacja łatane warstwami wyżej, nie usunięte u źródła).
 
 **Włączenie (produkcja):**
 
 1. (tylko osobna domena) rekord A domeny laboratorium → IP serwera; `nslookup <host>`.
 2. `.env`: `NOTEBOOK_LAB_HOST=lab.olimpiadakwantowa.pl` (sama nazwa, bez `https://` i portu).
 3. `bash scripts/proxy_config.sh update && docker compose up -d web` – albo `scripts/deploy.sh`.
-   Start `web` zatrzymuje `notebooks.E002`, gdy wartość jest hostem serwisu albo nie jest nazwą hosta.
+   Start `web` zatrzymuje `notebooks.E002`, gdy wartość nie jest nazwą hosta albo jest hostem serwisu,
+   usługi platformy (`www.`/`dj.`/`live.`/`meet.`/`monitor.`/`errors.`/`s3.`, S3, Jitsi) lub – przy
+   `migrate` – istniejącego konkursu. Uprzedź użytkowników o jednorazowym wylogowaniu (`__Host-`).
 4. Sprawdzenie (odczyt):
 
 ```sh

@@ -23,6 +23,13 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
   nie w `CSRF_TRUSTED_ORIGINS`; sprawdzenie `notebooks.E002`; etykieta `lab` zarezerwowana.
 - Ciasteczka aplikacji potwierdzone jako host-only (test). Kompromisy subdomena vs osobna domena
   i kroki operatora: `docs/OPERACJE.md` § 40.7, `docs/tasks/QC-02.md`.
+- **Po przeglądzie (podrzucanie ciasteczek z `lab.<domena>`):** w produkcji z laboratorium ciasteczka
+  `__Host-sessionid`/`__Host-csrftoken` (jednorazowe wylogowanie przy włączeniu; skrypty czytające
+  token obsługują obie nazwy), wygaszanie zdublowanych ciasteczek sesji/CSRF/języka na domenie
+  nadrzędnej (przekierowanie 302/307, potem żądanie bez obu kopii), ten sam strażnik i wygaszanie
+  w djcms (`NOTEBOOK_LAB_HOST` w compose), 403 dla żądań same-site z `Origin: null` albo bez
+  nagłówków pochodzenia, `notebooks.E002` także dla hostów usług (`dj.`, `live.`, `meet.`, `monitor.`,
+  `errors.`, S3, Jitsi) i konkursów. Zalecany wariant: osobna domena rejestrowalna.
 
 ## [Unreleased] – Logowanie dwuskładnikowe dla personelu (SEC-01)
 
