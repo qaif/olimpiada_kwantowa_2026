@@ -1,0 +1,809 @@
+# Logistyka finału (LOG-01) – katalog aplikacji apps.delegation_logistics.
+# Tłumaczenia maszynowe (do przeglądu native speakerów), jak w katalogu głównym (I18N-01 § 8).
+msgid ""
+msgstr ""
+"Project-Id-Version: olimpiada\n"
+"Language: hi\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: forms.py
+msgid "Imię i nazwisko dokładnie jak w paszporcie"
+msgstr "पासपोर्ट में लिखा पूरा नाम (बिल्कुल वैसा ही)"
+
+#: forms.py
+msgid "Obywatelstwo (dwuliterowy kod kraju, np. DE)"
+msgstr "राष्ट्रीयता (दो अक्षरों का देश कोड, जैसे DE)"
+
+#: forms.py
+msgid "Data urodzenia"
+msgstr "जन्म तिथि"
+
+#: forms.py
+msgid "Numer paszportu"
+msgstr "पासपोर्ट संख्या"
+
+#: forms.py
+msgid "Paszport ważny do"
+msgstr "पासपोर्ट की वैधता तिथि"
+
+#: forms.py
+msgid "Dzień przyjazdu"
+msgstr "आगमन की तिथि"
+
+#: forms.py
+msgid "Godzina przyjazdu (czas lokalny)"
+msgstr "आगमन का समय (स्थानीय समय)"
+
+#: forms.py
+msgid "Środek transportu"
+msgstr "परिवहन का साधन"
+
+#: forms.py
+msgid "Numer lotu / pociągu"
+msgstr "उड़ान / ट्रेन संख्या"
+
+#: forms.py
+msgid "Lotnisko / dworzec przyjazdu"
+msgstr "आगमन हवाई अड्डा / स्टेशन"
+
+#: forms.py
+msgid "Dzień wyjazdu"
+msgstr "प्रस्थान की तिथि"
+
+#: forms.py
+msgid "Godzina wyjazdu (czas lokalny)"
+msgstr "प्रस्थान का समय (स्थानीय समय)"
+
+#: forms.py
+msgid "Środek transportu (wyjazd)"
+msgstr "परिवहन का साधन (प्रस्थान)"
+
+#: forms.py
+msgid "Numer lotu / pociągu (wyjazd)"
+msgstr "उड़ान / ट्रेन संख्या (प्रस्थान)"
+
+#: forms.py
+msgid "Lotnisko / dworzec wyjazdu"
+msgstr "प्रस्थान हवाई अड्डा / स्टेशन"
+
+#: forms.py
+msgid "Potrzebuje noclegu"
+msgstr "आवास की आवश्यकता है"
+
+#: forms.py
+msgid "Płeć (wyłącznie do przydziału pokoi)"
+msgstr "लिंग (केवल कमरे के आवंटन के लिए)"
+
+#: forms.py
+msgid "Preferowany współlokator (imię i nazwisko)"
+msgstr "पसंदीदा रूममेट (पूरा नाम)"
+
+#: forms.py
+msgid "Uwagi do zakwaterowania (bez informacji o zdrowiu)"
+msgstr "आवास संबंधी टिप्पणी (स्वास्थ्य जानकारी नहीं)"
+
+#: forms.py
+msgid "Dieta"
+msgstr "आहार"
+
+#: forms.py
+msgid "Uwagi do diety"
+msgstr "आहार संबंधी टिप्पणी"
+
+#: forms.py
+msgid "Alergie (pokarmowe i inne istotne)"
+msgstr "एलर्जी (भोजन व अन्य महत्वपूर्ण)"
+
+#: forms.py
+msgid "Informacje medyczne potrzebne na miejscu (np. stałe leki, postępowanie w nagłym wypadku)"
+msgstr "स्थल पर आवश्यक चिकित्सा जानकारी (जैसे नियमित दवाएँ, आपात स्थिति में क्या करें)"
+
+#: forms.py
+msgid "Rozmiar koszulki"
+msgstr "टी-शर्ट का साइज़"
+
+#: forms.py
+msgid "Kontakt alarmowy – imię i nazwisko"
+msgstr "आपातकालीन संपर्क – पूरा नाम"
+
+#: forms.py
+msgid "Kontakt alarmowy – telefon (z numerem kierunkowym kraju)"
+msgstr "आपातकालीन संपर्क – फ़ोन (देश कोड सहित)"
+
+#: forms.py
+msgid "Potwierdzam, że ta osoba – a jeśli jest niepełnoletnia, jej rodzic lub opiekun prawny – wyraziła wyraźną zgodę na przetwarzanie podanych danych o diecie i zdrowiu przez organizatora wyłącznie w celu zapewnienia jej bezpieczeństwa i wyżywienia podczas finału. Dane zostaną usunięte po zakończeniu finału; zgodę można w każdej chwili wycofać."
+msgstr "मैं पुष्टि करता/करती हूँ कि इस व्यक्ति ने – और यदि वह नाबालिग है, तो उसके माता-पिता या कानूनी अभिभावक ने – आयोजक द्वारा दी गई आहार और स्वास्थ्य जानकारी को केवल फ़ाइनल के दौरान उसकी सुरक्षा और भोजन व्यवस्था के लिए संसाधित करने की स्पष्ट सहमति दी है। फ़ाइनल के बाद डेटा हटा दिया जाएगा; सहमति कभी भी वापस ली जा सकती है।"
+
+#: forms.py
+msgid "Imię"
+msgstr "पहला नाम"
+
+#: forms.py
+msgid "Nazwisko"
+msgstr "उपनाम"
+
+#: forms.py
+msgid "Adres e-mail (opcjonalnie)"
+msgstr "ईमेल पता (वैकल्पिक)"
+
+#: forms.py
+msgid "Rola w delegacji"
+msgstr "प्रतिनिधिमंडल में भूमिका"
+
+#: forms.py
+msgid "Zdjęcie do identyfikatora (JPG lub PNG, do 5 MB, twarz na wprost)"
+msgstr "बैज के लिए फ़ोटो (JPG या PNG, अधिकतम 5 MB, चेहरा सीधे सामने)"
+
+#: models.py
+msgid "Dokument podróży"
+msgstr "यात्रा दस्तावेज़"
+
+#: models.py
+msgid "Przyjazd i wyjazd"
+msgstr "आगमन और प्रस्थान"
+
+#: models.py
+msgid "Zakwaterowanie"
+msgstr "आवास"
+
+#: models.py
+msgid "Wyżywienie i zdrowie"
+msgstr "भोजन और स्वास्थ्य"
+
+#: models.py
+msgid "Identyfikator i kontakt alarmowy"
+msgstr "बैज और आपातकालीन संपर्क"
+
+#: models.py
+msgid "Uczeń"
+msgstr "छात्र"
+
+#: models.py
+msgid "Opiekun drużyny"
+msgstr "टीम लीडर"
+
+#: models.py
+msgid "Gość"
+msgstr "अतिथि"
+
+#: models.py
+msgid "Obserwator"
+msgstr "पर्यवेक्षक"
+
+#: models.py
+msgid "Samolot"
+msgstr "हवाई जहाज़"
+
+#: models.py
+msgid "Pociąg"
+msgstr "ट्रेन"
+
+#: models.py
+msgid "Autobus"
+msgstr "बस"
+
+#: models.py
+msgid "Samochód"
+msgstr "कार"
+
+#: models.py
+msgid "Inny"
+msgstr "अन्य"
+
+#: models.py
+msgid "Kobieta"
+msgstr "महिला"
+
+#: models.py
+msgid "Mężczyzna"
+msgstr "पुरुष"
+
+#: models.py
+msgid "Inna / wolę nie podawać"
+msgstr "अन्य / बताना नहीं चाहते"
+
+#: models.py
+msgid "Bez ograniczeń"
+msgstr "कोई प्रतिबंध नहीं"
+
+#: models.py
+msgid "Wegetariańska"
+msgstr "शाकाहारी"
+
+#: models.py
+msgid "Wegańska"
+msgstr "वीगन"
+
+#: models.py
+msgid "Halal"
+msgstr "हलाल"
+
+#: models.py
+msgid "Koszerna"
+msgstr "कोशर"
+
+#: models.py
+msgid "Bezglutenowa"
+msgstr "ग्लूटेन-मुक्त"
+
+#: models.py
+msgid "Inna (opis w uwagach)"
+msgstr "अन्य (टिप्पणी में बताएँ)"
+
+#: services.py templates/delegation_logistics/leader_dashboard.html
+msgid "Finał się zakończył, a dane delegacji zostały usunięte."
+msgstr "फ़ाइनल समाप्त हो चुका है और प्रतिनिधिमंडल का डेटा हटा दिया गया है।"
+
+#: services.py templates/delegation_logistics/leader_dashboard.html
+msgid "Organizator nie ustalił jeszcze dat finału – dane dokumentu podróży i o zdrowiu przyjmiemy po ich ustaleniu."
+msgstr "आयोजक ने अभी फ़ाइनल की तिथियाँ तय नहीं की हैं – तिथियाँ तय होने के बाद ही यात्रा दस्तावेज़ और स्वास्थ्य डेटा स्वीकार किया जाएगा।"
+
+#: services.py
+#, python-format
+msgid "Termin na uzupełnienie sekcji „%(group)s” minął – zmiany wprowadza już tylko organizator."
+msgstr "“%(group)s” खंड की समय-सीमा बीत चुकी है – अब केवल आयोजक बदलाव कर सकते हैं।"
+
+#: services.py
+msgid "Obywatelstwo podaj dwuliterowym kodem kraju (np. DE, PL)."
+msgstr "राष्ट्रीयता दो अक्षरों के देश कोड में लिखें (जैसे DE, PL)।"
+
+#: services.py
+msgid "Niepoprawna data."
+msgstr "अमान्य तिथि।"
+
+#: services.py
+msgid "Paszport traci ważność przed końcem finału – podaj dokument ważny w czasie pobytu."
+msgstr "पासपोर्ट फ़ाइनल समाप्त होने से पहले समाप्त हो जाता है – कृपया प्रवास के दौरान मान्य दस्तावेज़ दें।"
+
+#: services.py
+msgid "Wyjazd nie może być przed przyjazdem."
+msgstr "प्रस्थान, आगमन से पहले नहीं हो सकता।"
+
+#: services.py
+msgid "Wybierz dietę z listy."
+msgstr "सूची से आहार चुनें।"
+
+#: services.py
+msgid "Dane o wyżywieniu i zdrowiu zapiszemy dopiero po zaznaczeniu zgody osoby (albo jej rodzica, jeśli jest niepełnoletnia) na ich przetwarzanie."
+msgstr "भोजन और स्वास्थ्य जानकारी तभी सहेजी जाएगी जब आप व्यक्ति (या नाबालिग होने पर उसके माता-पिता) की प्रसंस्करण सहमति पर निशान लगाएँगे।"
+
+#: services.py
+msgid "Wybierz rolę z listy."
+msgstr "सूची से भूमिका चुनें।"
+
+#: services.py
+msgid "Podaj imię i nazwisko."
+msgstr "पहला और अंतिम नाम दर्ज करें।"
+
+#: services.py
+#, python-format
+msgid "Delegacja może mieć najwyżej %(count)s gości."
+msgstr "एक प्रतिनिधिमंडल में अधिकतम %(count)s अतिथि हो सकते हैं।"
+
+#: services.py
+msgid "Zdjęcie musi być plikiem JPG albo PNG."
+msgstr "फ़ोटो JPG या PNG फ़ाइल होनी चाहिए।"
+
+#: services.py
+msgid "Nie udało się odczytać zdjęcia – wgraj inny plik JPG lub PNG."
+msgstr "फ़ोटो पढ़ी नहीं जा सकी – कृपया कोई दूसरी JPG या PNG फ़ाइल अपलोड करें।"
+
+#: services.py
+msgid "Zdjęcie ma zbyt dużą rozdzielczość."
+msgstr "फ़ोटो का रिज़ॉल्यूशन बहुत अधिक है।"
+
+#: services.py
+msgid "Plik jest pusty."
+msgstr "फ़ाइल खाली है।"
+
+#: services.py
+msgid "Zdjęcie może mieć najwyżej 5 MB."
+msgstr "फ़ोटो अधिकतम 5 MB की हो सकती है।"
+
+#: templates/delegation_logistics/_member_form.html
+#, python-format
+msgid "Termin: %(deadline)s"
+msgstr "समय-सीमा: %(deadline)s"
+
+#: templates/delegation_logistics/_member_form.html
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "zamknięte"
+msgstr "बंद"
+
+#: templates/delegation_logistics/_member_form.html
+#, python-format
+msgid "Zgoda na przetwarzanie danych o wyżywieniu i zdrowiu złożona %(date)s."
+msgstr "भोजन और स्वास्थ्य जानकारी के प्रसंस्करण की सहमति %(date)s को दी गई।"
+
+#: templates/delegation_logistics/_member_form.html
+#: templates/delegation_logistics/leader_member.html
+msgid "Zapisz"
+msgstr "सहेजें"
+
+#: templates/delegation_logistics/_member_form.html
+msgid "Anuluj"
+msgstr "रद्द करें"
+
+#: templates/delegation_logistics/checkin.html
+#: templates/delegation_logistics/checkin_member.html
+msgid "Rejestracja uczestników finału"
+msgstr "फ़ाइनल चेक-इन"
+
+#: templates/delegation_logistics/checkin.html
+msgid "Zeskanuj kod QR z identyfikatora aparatem telefonu albo wyszukaj osobę po nazwisku."
+msgstr "फ़ोन कैमरे से बैज का QR कोड स्कैन करें या नाम से व्यक्ति खोजें।"
+
+#: templates/delegation_logistics/checkin.html
+msgid "Punkt kontroli"
+msgstr "चेकपॉइंट"
+
+#: templates/delegation_logistics/checkin.html
+msgid "Imię, nazwisko lub kraj"
+msgstr "नाम या देश"
+
+#: templates/delegation_logistics/checkin.html
+msgid "Szukaj"
+msgstr "खोजें"
+
+#: templates/delegation_logistics/checkin.html
+#: templates/delegation_logistics/checkin_member.html
+msgid "Organizator nie dodał jeszcze punktów kontroli."
+msgstr "आयोजक ने अभी तक कोई चेकपॉइंट नहीं जोड़ा है।"
+
+#: templates/delegation_logistics/checkin.html
+msgid "Skieruj aparat na kod QR."
+msgstr "कैमरे को QR कोड की ओर करें।"
+
+#: templates/delegation_logistics/checkin.html
+msgid "Skanuj w przeglądarce"
+msgstr "ब्राउज़र में स्कैन करें"
+
+#: templates/delegation_logistics/checkin.html
+msgid "Nikogo nie znaleziono."
+msgstr "कोई नहीं मिला।"
+
+#: templates/delegation_logistics/checkin_member.html
+msgid "niepełnoletni"
+msgstr "नाबालिग"
+
+#: templates/delegation_logistics/checkin_member.html
+#: templates/delegation_logistics/leader_member.html
+msgid "Zdjęcie"
+msgstr "फ़ोटो"
+
+#: templates/delegation_logistics/checkin_member.html
+msgid "Brak zdjęcia – sprawdź tożsamość dokumentem."
+msgstr "फ़ोटो नहीं है – किसी दस्तावेज़ से पहचान जाँचें।"
+
+#: templates/delegation_logistics/checkin_member.html
+#, python-format
+msgid "Odhaczono w punkcie „%(point)s” o %(time)s."
+msgstr "“%(point)s” पर %(time)s बजे चेक-इन किया गया।"
+
+#: templates/delegation_logistics/checkin_member.html
+#, python-format
+msgid "Odhacz: %(point)s"
+msgstr "चेक-इन: %(point)s"
+
+#: templates/delegation_logistics/checkin_member.html
+msgid "Cofnij"
+msgstr "पूर्ववत करें"
+
+#: templates/delegation_logistics/checkin_unknown.html
+msgid "Nieznany identyfikator"
+msgstr "अज्ञात बैज"
+
+#: templates/delegation_logistics/checkin_unknown.html
+msgid "Ten kod nie należy do żadnej osoby finału – identyfikator mógł zostać unieważniony. Wyszukaj osobę po nazwisku."
+msgstr "यह कोड फ़ाइनल के किसी व्यक्ति का नहीं है – बैज रद्द किया गया हो सकता है। नाम से व्यक्ति खोजें।"
+
+#: templates/delegation_logistics/checkin_unknown.html
+msgid "Wróć do skanowania"
+msgstr "स्कैनिंग पर वापस जाएँ"
+
+#: templates/delegation_logistics/email/reminder_body.txt
+#, python-format
+msgid "Dzień dobry %(name)s,"
+msgstr "नमस्ते %(name)s,"
+
+#: templates/delegation_logistics/email/reminder_body.txt
+#, python-format
+msgid "w danych delegacji %(country)s na finał wciąż brakuje informacji:"
+msgstr "फ़ाइनल के लिए %(country)s प्रतिनिधिमंडल के डेटा में अभी भी जानकारी कम है:"
+
+#: templates/delegation_logistics/email/reminder_body.txt
+msgid "Terminy:"
+msgstr "समय-सीमाएँ:"
+
+#: templates/delegation_logistics/email/reminder_body.txt
+msgid "Uzupełnij dane w panelu opiekuna drużyny:"
+msgstr "कृपया टीम लीडर पैनल में डेटा पूरा करें:"
+
+#: templates/delegation_logistics/email/reminder_body.txt
+msgid "Po terminie sekcja zostaje zamknięta i zmiany wprowadza już tylko organizator."
+msgstr "समय-सीमा के बाद खंड बंद हो जाता है और केवल आयोजक बदलाव कर सकते हैं।"
+
+#: templates/delegation_logistics/email/reminder_body.txt
+#: templates/delegation_logistics/email/reminder_subject.txt
+msgid "Olimpiada Kwantowa"
+msgstr "क्वांटम ओलंपियाड"
+
+#: templates/delegation_logistics/email/reminder_body.txt
+msgid "Wiadomość wysłana automatycznie; prosimy na nią nie odpowiadać."
+msgstr "यह संदेश स्वचालित रूप से भेजा गया है; कृपया इसका उत्तर न दें।"
+
+#: templates/delegation_logistics/email/reminder_subject.txt
+#, python-format
+msgid "Brakujące dane do logistyki finału – %(competition)s"
+msgstr "फ़ाइनल लॉजिस्टिक्स के लिए अधूरा डेटा – %(competition)s"
+
+#: templates/delegation_logistics/leader_dashboard.html
+#: templates/delegation_logistics/leader_member.html
+msgid "Logistyka finału"
+msgstr "फ़ाइनल लॉजिस्टिक्स"
+
+#: templates/delegation_logistics/leader_dashboard.html
+#, python-format
+msgid "Drużyna: %(country)s"
+msgstr "टीम: %(country)s"
+
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "Uzupełnij dane każdej osoby z delegacji: dokument podróży (do zaproszenia wizowego), przyjazd i wyjazd, zakwaterowanie, rozmiar koszulki, kontakt alarmowy i zdjęcie do identyfikatora. Po terminie sekcja zostaje zamknięta – zmiany wprowadza wtedy organizator."
+msgstr "प्रतिनिधिमंडल के हर व्यक्ति का डेटा पूरा करें: यात्रा दस्तावेज़ (वीज़ा निमंत्रण के लिए), आगमन और प्रस्थान, आवास, टी-शर्ट साइज़, आपातकालीन संपर्क और बैज फ़ोटो। समय-सीमा के बाद खंड बंद हो जाता है – फिर बदलाव आयोजक करते हैं।"
+
+#: templates/delegation_logistics/leader_dashboard.html
+#, python-format
+msgid "Miejsce: %(city)s, %(start)s – %(end)s."
+msgstr "स्थान: %(city)s, %(start)s – %(end)s।"
+
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "Terminy"
+msgstr "समय-सीमाएँ"
+
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "bez terminu"
+msgstr "कोई समय-सीमा नहीं"
+
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "Osoby w delegacji"
+msgstr "प्रतिनिधिमंडल के लोग"
+
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "Imię i nazwisko"
+msgstr "नाम"
+
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "Rola"
+msgstr "भूमिका"
+
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "Brakuje"
+msgstr "अधूरा"
+
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "Operacje"
+msgstr "कार्रवाइयाँ"
+
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "komplet"
+msgstr "पूर्ण"
+
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "Uzupełnij"
+msgstr "पूरा करें"
+
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "Delegacja nie ma jeszcze członków."
+msgstr "प्रतिनिधिमंडल में अभी कोई सदस्य नहीं है।"
+
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "Dodaj obserwatora lub gościa"
+msgstr "पर्यवेक्षक या अतिथि जोड़ें"
+
+#: templates/delegation_logistics/leader_dashboard.html
+#, python-format
+msgid "Osoby bez konta, które przyjeżdżają z delegacją (%(count)s z %(limit)s). Uczniów i opiekunów dodaje się na liście drużyny."
+msgstr "बिना खाते वाले लोग जो प्रतिनिधिमंडल के साथ आते हैं (%(limit)s में से %(count)s)। छात्र और टीम लीडर टीम सूची में जोड़े जाते हैं।"
+
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "Dodaj"
+msgstr "जोड़ें"
+
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "Listy zapraszające (wiza)"
+msgstr "निमंत्रण पत्र (वीज़ा)"
+
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "Listy wystawia organizator na podstawie danych dokumentu podróży."
+msgstr "पत्र आयोजक यात्रा दस्तावेज़ के डेटा के आधार पर जारी करते हैं।"
+
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "Brak wystawionych listów."
+msgstr "कोई पत्र जारी नहीं हुआ।"
+
+#: templates/delegation_logistics/leader_member.html
+msgid "Dane widzą wyłącznie opiekunowie Twojej drużyny i organizator odpowiedzialny za logistykę. Zostaną usunięte po zakończeniu finału."
+msgstr "यह डेटा केवल आपकी टीम के लीडर और लॉजिस्टिक्स के लिए ज़िम्मेदार आयोजक देख सकते हैं। फ़ाइनल के बाद इसे हटा दिया जाएगा।"
+
+#: templates/delegation_logistics/leader_member.html
+msgid "Wycofaj zgodę i usuń dane o zdrowiu"
+msgstr "सहमति वापस लें और स्वास्थ्य डेटा हटाएँ"
+
+#: templates/delegation_logistics/leader_member.html
+msgid "Zdjęcie do identyfikatora"
+msgstr "बैज फ़ोटो"
+
+#: templates/delegation_logistics/leader_member.html
+msgid "Zdjęcie jest sprawdzane – pojawi się za chwilę."
+msgstr "फ़ोटो की जाँच हो रही है – यह जल्द दिखाई देगी।"
+
+#: templates/delegation_logistics/leader_member.html
+msgid "Poprzedni plik został odrzucony przy sprawdzaniu – wgraj zdjęcie ponownie."
+msgstr "पिछली फ़ाइल जाँच में अस्वीकार हो गई – कृपया फ़ोटो फिर से अपलोड करें।"
+
+#: templates/delegation_logistics/leader_member.html
+msgid "Brak zdjęcia."
+msgstr "कोई फ़ोटो नहीं।"
+
+#: templates/delegation_logistics/leader_member.html
+msgid "Wgraj zdjęcie"
+msgstr "फ़ोटो अपलोड करें"
+
+#: templates/delegation_logistics/leader_member.html
+msgid "Dane gościa"
+msgstr "अतिथि का विवरण"
+
+#: templates/delegation_logistics/leader_member.html
+msgid "Usuń z delegacji"
+msgstr "प्रतिनिधिमंडल से हटाएँ"
+
+#: views.py
+msgid "Podaj imię, nazwisko i rolę gościa."
+msgstr "अतिथि का पहला नाम, अंतिम नाम और भूमिका दर्ज करें।"
+
+#: views.py
+msgid "Dodano osobę do delegacji – uzupełnij jej dane."
+msgstr "व्यक्ति को प्रतिनिधिमंडल में जोड़ दिया गया – कृपया उनका डेटा पूरा करें।"
+
+#: views.py
+#, python-format
+msgid "Zapisano dane: %(name)s."
+msgstr "डेटा सहेजा गया: %(name)s।"
+
+#: views.py
+msgid "Przydział pokoju został zdjęty – osoba nie spełnia już zasad zakwaterowania tego pokoju."
+msgstr "कमरे का आवंटन हटा दिया गया – व्यक्ति अब उस कमरे के आवास नियमों को पूरा नहीं करता।"
+
+#: views.py
+msgid "Wybierz plik ze zdjęciem."
+msgstr "फ़ोटो फ़ाइल चुनें।"
+
+#: views.py
+msgid "Zdjęcie przesłane – pojawi się po automatycznym sprawdzeniu pliku."
+msgstr "फ़ोटो अपलोड हो गई – फ़ाइल की स्वचालित जाँच के बाद दिखाई देगी।"
+
+#: views.py
+msgid "Zapisano."
+msgstr "सहेजा गया।"
+
+#: views.py
+msgid "Usunięto osobę z delegacji razem z jej danymi."
+msgstr "व्यक्ति को उसके डेटा सहित प्रतिनिधिमंडल से हटा दिया गया।"
+
+#: views.py
+msgid "Zgoda wycofana – dane o wyżywieniu i zdrowiu tej osoby zostały usunięte."
+msgstr "सहमति वापस ली गई – इस व्यक्ति का भोजन और स्वास्थ्य डेटा हटा दिया गया।"
+
+#: views.py
+msgid "Ten ekran jest dostępny wyłącznie dla obsługi rejestracji finału."
+msgstr "यह स्क्रीन केवल फ़ाइनल के चेक-इन स्टाफ़ के लिए उपलब्ध है।"
+
+#: views.py
+msgid "Cofnięto odhaczenie."
+msgstr "चेक-इन पूर्ववत किया गया।"
+
+#: views.py
+#, python-format
+msgid "Odhaczono: %(name)s."
+msgstr "चेक-इन हुआ: %(name)s।"
+
+# --- VISA-01: wnioski o listy zapraszające, weryfikacja ---
+#: templates/delegation_logistics/leader_letters.html
+msgid "Osoby, które potrzebują wizy, dostają od organizatora imienny list zapraszający w PDF. Zaznacz osoby, wybierz język listu i złóż wniosek – po decyzji organizatora dostaniesz e-mail. List ma kod weryfikacyjny, który konsulat sprawdza na stronie organizatora."
+msgstr "जिन लोगों को वीज़ा की आवश्यकता है, उन्हें आयोजक से PDF में व्यक्तिगत आमंत्रण पत्र मिलता है। लोगों को चुनें, पत्र की भाषा चुनें और अनुरोध भेजें – आयोजक के निर्णय के बाद आपको ई-मेल मिलेगा। पत्र में एक सत्यापन कोड होता है जिसे वाणिज्य दूतावास आयोजक की वेबसाइट पर जाँचता है।"
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "Wniosek można złożyć dla osoby z kompletnymi danymi dokumentu podróży (imię i nazwisko jak w paszporcie, obywatelstwo, data urodzenia, numer i ważność paszportu)."
+msgstr "अनुरोध केवल उस व्यक्ति के लिए भेजा जा सकता है जिसका यात्रा दस्तावेज़ विवरण पूरा हो (पासपोर्ट के अनुसार पूरा नाम, राष्ट्रीयता, जन्म तिथि, पासपोर्ट संख्या और वैधता)।"
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "Zaznacz"
+msgstr "चुनें"
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "Wniosek"
+msgstr "अनुरोध"
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "Ważny list"
+msgstr "मान्य पत्र"
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "uzupełnij"
+msgstr "पूरा करें"
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "Powód:"
+msgstr "कारण:"
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "Wycofaj"
+msgstr "वापस लें"
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "Język listu"
+msgstr "पत्र की भाषा"
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "Poproś o list dla zaznaczonych"
+msgstr "चुने गए लोगों के लिए पत्र का अनुरोध करें"
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "Wszystkie listy delegacji"
+msgstr "प्रतिनिधिमंडल के सभी पत्र"
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "unieważniony"
+msgstr "रद्द"
+
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "Poproś o list zapraszający"
+msgstr "आमंत्रण पत्र का अनुरोध करें"
+
+#: templates/delegation_logistics/verify.html
+msgid "Weryfikacja listu zapraszającego"
+msgstr "आमंत्रण पत्र सत्यापन"
+
+#: templates/delegation_logistics/verify.html
+msgid "Kod z listu:"
+msgstr "पत्र पर दिया कोड:"
+
+#: templates/delegation_logistics/verify.html
+msgid "List o tym kodzie został wystawiony przez organizatora i jest ważny."
+msgstr "इस कोड वाला पत्र आयोजक द्वारा जारी किया गया है और मान्य है।"
+
+#: templates/delegation_logistics/verify.html
+#, python-format
+msgid "List o tym kodzie został wystawiony przez organizatora, ale <strong>unieważniony</strong> %(day)s. Nie stanowi zaproszenia."
+msgstr "इस कोड वाला पत्र आयोजक द्वारा जारी किया गया था, लेकिन %(day)s को <strong>रद्द</strong> कर दिया गया। यह आमंत्रण नहीं है।"
+
+#: templates/delegation_logistics/verify.html
+msgid "Numer listu"
+msgstr "पत्र संख्या"
+
+#: templates/delegation_logistics/verify.html
+msgid "Osoby zaproszone"
+msgstr "आमंत्रित व्यक्ति"
+
+#: templates/delegation_logistics/verify.html
+msgid "Dane osób z tego listu zostały usunięte po zakończeniu wydarzenia (ochrona danych osobowych)."
+msgstr "कार्यक्रम समाप्त होने के बाद इस पत्र के व्यक्तियों का डेटा हटा दिया गया (डेटा संरक्षण)।"
+
+#: templates/delegation_logistics/verify.html
+#, python-format
+msgid "obywatelstwo: %(country)s"
+msgstr "राष्ट्रीयता: %(country)s"
+
+#: templates/delegation_logistics/verify.html
+msgid "Strona nie pokazuje numerów paszportów ani innych danych z dokumentów podróży. Porównaj imię i nazwisko z paszportem osoby, która przedstawia list."
+msgstr "यह पृष्ठ पासपोर्ट संख्या या यात्रा दस्तावेज़ का अन्य डेटा नहीं दिखाता। पत्र प्रस्तुत करने वाले व्यक्ति के पासपोर्ट से नाम मिलाएँ।"
+
+#: templates/delegation_logistics/verify.html
+msgid "Nie mamy listu o takim kodzie."
+msgstr "इस कोड वाला कोई पत्र हमारे पास नहीं है।"
+
+#: templates/delegation_logistics/verify.html
+msgid "Kod weryfikacyjny z listu"
+msgstr "पत्र पर दिया सत्यापन कोड"
+
+#: templates/delegation_logistics/verify.html
+msgid "Sprawdź"
+msgstr "जाँचें"
+
+#: templates/delegation_logistics/email/letter_decision_subject.txt
+#, python-format
+msgid "Decyzja w sprawie listów zapraszających – %(competition)s"
+msgstr "आमंत्रण पत्रों पर निर्णय – %(competition)s"
+
+#: templates/delegation_logistics/email/letter_decision_body.txt
+#, python-format
+msgid "organizator rozpatrzył wnioski o listy zapraszające delegacji %(country)s."
+msgstr "आयोजक ने %(country)s प्रतिनिधिमंडल के आमंत्रण पत्र अनुरोधों पर निर्णय लिया है।"
+
+#: templates/delegation_logistics/email/letter_decision_body.txt
+msgid "Zatwierdzone – list jest gotowy do pobrania:"
+msgstr "स्वीकृत – पत्र डाउनलोड के लिए तैयार है:"
+
+#: templates/delegation_logistics/email/letter_decision_body.txt
+msgid "Odrzucone:"
+msgstr "अस्वीकृत:"
+
+#: templates/delegation_logistics/email/letter_decision_body.txt
+msgid "Po poprawieniu danych możesz złożyć nowy wniosek."
+msgstr "डेटा सुधारने के बाद आप नया अनुरोध भेज सकते हैं।"
+
+#: templates/delegation_logistics/email/letter_decision_body.txt
+msgid "Listy pobierzesz w panelu opiekuna drużyny:"
+msgstr "पत्र टीम लीडर पैनल में डाउनलोड करें:"
+
+#: letter_requests.py
+msgid "Zaznacz co najmniej jedną osobę."
+msgstr "कम से कम एक व्यक्ति चुनें।"
+
+#: letter_requests.py
+#, python-format
+msgid "Uzupełnij dane dokumentu podróży: %(names)s."
+msgstr "यात्रा दस्तावेज़ का विवरण पूरा करें: %(names)s।"
+
+#: letter_requests.py
+msgid "Ten wniosek został już rozpatrzony."
+msgstr "इस अनुरोध पर पहले ही निर्णय हो चुका है।"
+
+#: views_letters.py
+#, python-format
+msgid "Złożone wnioski o listy zapraszające: %(count)d."
+msgstr "भेजे गए आमंत्रण पत्र अनुरोध: %(count)d।"
+
+#: views_letters.py
+#, python-format
+msgid "Pominięto osoby, które mają już wniosek oczekujący na decyzję: %(count)d."
+msgstr "जिन लोगों का अनुरोध पहले से निर्णय की प्रतीक्षा में है, उन्हें छोड़ा गया: %(count)d।"
+
+#: views_letters.py
+msgid "Wniosek został wycofany."
+msgstr "अनुरोध वापस ले लिया गया है।"
+
+#: models.py
+msgid "oczekuje na decyzję"
+msgstr "निर्णय की प्रतीक्षा"
+
+#: models.py
+msgid "zatwierdzony – list wystawiony"
+msgstr "स्वीकृत – पत्र जारी"
+
+#: models.py
+msgid "odrzucony"
+msgstr "अस्वीकृत"
+
+#: models.py
+msgid "wycofany"
+msgstr "वापस लिया गया"
+
+# --- VISA-01: poprawki po przeglądzie ---
+#: letters.py
+msgid "Nieobsługiwany język listu."
+msgstr "पत्र की भाषा समर्थित नहीं है।"
+
+#: letters.py
+msgid "Ten list został unieważniony – nie można go pobrać."
+msgstr "यह पत्र रद्द कर दिया गया है – इसे डाउनलोड नहीं किया जा सकता।"
+
+#: letters.py
+msgid "Dane osób z tego listu zostały usunięte – list nie może być ponownie pobrany."
+msgstr "इस पत्र के व्यक्तियों का डेटा हटा दिया गया है – पत्र दोबारा डाउनलोड नहीं किया जा सकता।"
+
+#: templates/delegation_logistics/leader_letters.html
+#, python-format
+msgid "Dane paszportowe zmieniły się – nowy list unieważni list %(numbers)s."
+msgstr "पासपोर्ट विवरण बदल गया है – नया पत्र पत्र %(numbers)s को रद्द कर देगा।"
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "Ma już ważny list – nowy list z tymi samymi danymi nie unieważni poprzedniego."
+msgstr "पहले से एक मान्य पत्र है – समान विवरण वाला नया पत्र पिछले पत्र को रद्द नहीं करेगा।"
+
+#: templates/delegation_logistics/verify.html
+msgid "List o tym kodzie został wystawiony przez organizatora, ale nie jest już ważny: dane osób usunięto przed wydarzeniem. Nie stanowi zaproszenia."
+msgstr "इस कोड वाला पत्र आयोजक द्वारा जारी किया गया था, लेकिन अब मान्य नहीं है: कार्यक्रम से पहले व्यक्तियों का डेटा हटा दिया गया। यह आमंत्रण नहीं है।"

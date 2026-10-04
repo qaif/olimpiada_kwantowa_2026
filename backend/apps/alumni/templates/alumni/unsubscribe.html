@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}{% translate "Wypis z zaproszeń" %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>{% translate "Wypis z zaproszeń dla absolwentów" %}</h1>
+</div>
+{% if not valid %}
+  <p class="notice notice--warning">{% translate "Ten odnośnik jest nieprawidłowy. Zaproszenia wyłączysz też w swoim profilu absolwenta." %}</p>
+{% elif done %}
+  <p class="notice">{% translate "Gotowe – nie będziesz już dostawać zaproszeń. Włączysz je z powrotem w profilu absolwenta." %}</p>
+{% else %}
+  <form method="post" class="form">
+    <p>{% translate "Kliknij, żeby nie dostawać więcej zaproszeń od organizatora (warsztaty, webinary, jury)." %}</p>
+    <p class="actions"><button type="submit" class="btn btn--primary">{% translate "Wypisz mnie" %}</button></p>
+  </form>
+{% endif %}
+{% endblock %}

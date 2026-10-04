@@ -1,0 +1,70 @@
+{% extends "web/coordinator/base.html" %}
+{% comment %}
+  Osoby wszystkich delegacji z brakami (oficer logistyki). Filtr kraju w adresie (``?delegation=``).
+  Karta osoby otwiera pełne dane – każde otwarcie zapisuje się w dzienniku zdarzeń.
+{% endcomment %}
+{% block title %}Logistyka finału – osoby{% endblock %}
+{% block panel_title %}Logistyka finału – osoby{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Uczniowie, opiekunowie i goście wszystkich delegacji. Identyfikatory drukuje się
+    krajami (wybierz kraj), czwórkami na A4.</p>
+{% endblock %}
+{% block panel_actions %}
+  {% if selected %}<a class="btn btn--secondary" href="{% url 'web:coordinator-onsite-badges' %}?delegation={{ selected }}">Identyfikatory PDF (ten kraj)</a>{% endif %}
+  <a class="btn btn--secondary" href="{% url 'web:coordinator-onsite-export' 'full' %}">Eksport pełny CSV</a>
+{% endblock %}
+{% block panel_content %}
+{% include "delegation_logistics/_tabs.html" %}
+
+<form method="get" class="form form--inline">
+  <label for="delegation-filter">Kraj</label>
+  <select id="delegation-filter" name="delegation">
+    <option value="">wszystkie</option>
+    {% for delegation in delegations %}
+      <option value="{{ delegation.pk }}"{% if selected == delegation.pk|stringformat:"s" %} selected{% endif %}>{{ delegation.country.name }}</option>
+    {% endfor %}
+  </select>
+  <button type="submit" class="btn btn--secondary btn--small">Pokaż</button>
+</form>
+
+<div class="scroll">
+  <table class="table">
+    <caption class="visually-hidden">Osoby delegacji</caption>
+    <thead>
+      <tr>
+        <th scope="col">Imię i nazwisko</th>
+        <th scope="col">Kraj</th>
+        <th scope="col">Rola</th>
+        <th scope="col">Braki</th>
+        <th scope="col">Pokój</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+        <tr>
+          <th scope="row"><a href="{% url 'web:coordinator-onsite-member' row.member.pk %}">{{ row.member.full_name }}</a></th>
+          <td>{{ row.member.delegation.country.name }}</td>
+          <td>{{ row.member.role_label }}</td>
+          <td>{% for label in row.missing %}<span class="badge badge--warn">{{ label }}</span> {% empty %}<span class="badge badge--ok">komplet</span>{% endfor %}</td>
+          <td>{{ row.member.room|default:"—" }}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="5" class="empty">Brak osób.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% if selected %}
+<section class="section">
+  <div class="card">
+    <h2 class="mt-0">Dodaj gościa do tej delegacji</h2>
+    <form method="post" action="{% url 'web:coordinator-onsite-guest-add' selected %}" class="form" novalidate>
+      {% csrf_token %}
+      {{ guest_form.as_p }}
+      <div class="actions"><button type="submit" class="btn btn--secondary">Dodaj</button></div>
+    </form>
+  </div>
+</section>
+{% endif %}
+{% endblock %}

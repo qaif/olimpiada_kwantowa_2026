@@ -810,6 +810,16 @@ def groups(stages: list, competition=None) -> list[Group]:
                 ),
             ),
         )
+        if competition.has_feature("onsite_logistics"):
+            # Logistyka finału dla delegacji (LOG-01) – zaraz pod „Delegacjami”, bo dotyczy tych
+            # samych krajów. Bramka ta sama, co w widoku (``delegation_logistics.models.enabled``).
+            people_items += (
+                Item(
+                    "Logistyka finału",
+                    ("web:coordinator-onsite",),
+                    match=("coordinator-onsite", "coordinator-onsite-", "onsite-checkin", "onsite-checkin-"),
+                ),
+            )
     if competition is not None and competition.has_feature("team_entries"):
         # Drużyny (§ 1.2.3, T34) – **na końcu** sekcji „Uczestnicy i konta”, bo cztery pozycje
         # przed nią są dzisiejszym menu i mają zostać w tej kolejności co do bajtu (§ 2.1 p. 1).
@@ -832,6 +842,18 @@ def groups(stages: list, competition=None) -> list[Group]:
                 "Status ucznia",
                 ("web:coordinator-student-status",),
                 match=("coordinator-student-status", "coordinator-student-status-"),
+            ),
+        )
+    if competition is not None and competition.has_feature("alumni"):
+        # Sieć absolwentów (ALUM-01) – w „Uczestnikach i kontach”, bo to są ludzie (byli uczestnicy)
+        # i nadzór nad relacjami mentorskimi, na końcu sekcji z tego samego powodu, co pozycje
+        # wyżej. Bez odznaki (§ 2.2): zgłoszenie problemu z mentoringiem idzie do koordynatorów
+        # listem od razu, więc ekran nie jest kolejką, o której trzeba pamiętać.
+        people_items += (
+            Item(
+                "Absolwenci",
+                ("web:coordinator-alumni",),
+                match=("coordinator-alumni", "coordinator-alumni-"),
             ),
         )
     stage_group: tuple[Item, ...] = stage_items(stages, competition)

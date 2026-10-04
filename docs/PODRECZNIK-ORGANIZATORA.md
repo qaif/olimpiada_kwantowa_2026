@@ -2035,6 +2035,84 @@ pobrane przez opiekunów mają znak wodny kraju.
 
 ---
 
+## 10d. Logistyka finału — `/coordinator/logistics/`
+
+**Tylko w konkursie z delegacjami i włączoną logistyką** (`OPERACJE.md` § 31). Opiekunowie drużyn
+uzupełniają dane każdej osoby z delegacji – uczniów, siebie i dopisanych przez siebie obserwatorów
+i gości: dokument podróży (do zaproszenia wizowego), przyjazd i wyjazd, zakwaterowanie, (za decyzją
+organizatora) wyżywienie i zdrowie, rozmiar koszulki, kontakt alarmowy i zdjęcie do identyfikatora.
+
+**Kto co widzi.** Każdy koordynator widzi zakładkę „Przegląd” (ile osób w kraju ma braki w każdej
+sekcji, ostatnie przypomnienie, obecność) i „Ustawienia i dostęp”. **Dane osób** (paszporty, zdrowie,
+przyloty, pokoje) widzi wyłącznie **oficer logistyki** – koordynator z przydziałem. Pierwszego oficera
+nadaje dowolny koordynator, kolejnych – superkoordynator albo oficer; każde nadanie i odebranie jest
+w dzienniku zdarzeń. **Obsługa rejestracji** (wolontariusze z kontem w serwisie) dostaje osobny
+przydział od oficera i widzi tylko ekran skanowania: imię, nazwisko, kraj, rolę i zdjęcie.
+
+**Terminy.** Każda z pięciu sekcji ma własny termin. Po terminie opiekun widzi sekcję tylko do odczytu;
+poprawki wprowadza oficer na karcie osoby (zmiana zostaje w historii karty – nazwy pól, bez wartości).
+„Przypomnij” (oficer) wysyła opiekunom kraju e-mail w ich języku z listą osób i sekcji z brakami
+(bez danych) i terminami ze strefą czasową. Dopóki finał nie ma ostatniego dnia, serwis nie przyjmuje
+danych paszportowych ani o zdrowiu. Goście delegacji zamykają się razem z terminem dokumentu podróży.
+
+**Zakładki oficera.**
+- *Osoby* – wszyscy z brakami, filtr kraju, karta osoby (pełne dane, zdjęcie, pokój, nowy identyfikator,
+  list imienny, historia zmian), „Identyfikatory PDF” dla wybranego kraju, „Eksport pełny CSV”
+  (z paszportami – w audycie).
+- *Przyjazdy* – tablica przylotów i odlotów per dzień, zgrupowana po godzinie, lotnisku i numerze lotu
+  (jeden wiersz = jeden odbiór), CSV.
+- *Pokoje* – pokoje (budynek, numer, liczba miejsc, płeć: kobiety / mężczyźni / dowolna – tylko
+  dorośli), przydziały, nieprzydzieleni. Serwis nie pozwoli: przekroczyć liczby miejsc, położyć
+  **niepełnoletniego w pokoju z dorosłym**, osoby niepełnoletniej w pokoju „dowolna płeć” ani osoby
+  innej płci w pokoju z płcią. Wiek liczony na pierwszy dzień finału; uczeń bez daty urodzenia jest
+  traktowany jak niepełnoletni; niepełnoletni z płcią „inna” mieszka sam. Zmiana płci, daty urodzenia
+  albo „bez noclegu” zdejmuje niepasujący przydział; zmiana daty finału oznacza pokoje z naruszeniem
+  (czerwona etykieta, kolumna w CSV). Rooming list CSV dla hotelu.
+- *Wyżywienie* – liczby diet, lista alergii i uwag do diety dla kuchni (CSV bez uwag medycznych).
+- *Koszulki* – rozmiar × rola, CSV dla drukarni.
+- *Listy wizowe* – „Wystaw list dla delegacji” (osoby z kompletnym dokumentem podróży) albo imienny
+  z karty osoby; numer `PREFIKS/ROK/NNNN`, rejestr z datą i wystawcą. List to PDF z angielskim tekstem
+  (albo szablon „list zapraszający (wiza)” na ekranie „Szablony dokumentów”), tabelą osób, podpisami
+  z szablonu graficznego dyplomów i pieczęcią elektroniczną, jeśli jest skonfigurowana. Opiekun pobiera
+  listy swojej delegacji ze swojego panelu.
+
+**Dane o zdrowiu.** Sekcja „Wyżywienie i zdrowie” pojawia się dopiero po włączeniu „zbieraj potrzeby
+szczególne” (`/coordinator/venues/`). Opiekun zapisuje ją wyłącznie po zaznaczeniu, że osoba (albo jej
+rodzic) wyraziła wyraźną zgodę; zgodę można wycofać – dane znikają od razu.
+
+**Po finale.** Po ostatnim dniu finału i okresie retencji (domyślnie 30 dni) wszystkie dane osób,
+zdjęcia i dane paszportowe z listów są usuwane automatycznie; zostaje rejestr numerów listów.
+
+**Wnioski o listy zapraszające (VISA-01).** Opiekun drużyny nie musi pisać do organizatora o list:
+na stronie „Listy zapraszające (wiza)” w swoim panelu zaznacza osoby z kompletnym dokumentem podróży,
+wybiera język listu (angielski albo – jeśli konkurs ma taki język interfejsu – polski, hiszpański,
+francuski, portugalski, rosyjski, indonezyjski) i składa wniosek. Oficer logistyki widzi wnioski
+w zakładce *Wnioski o listy* (filtry: kraj, stan; eksport CSV bez danych paszportowych):
+
+- zaznacza wnioski i klika **„Zatwierdź i wystaw listy”** – każdy wniosek to list imienny z nowym
+  numerem i kodem weryfikacyjnym; wcześniejszy ważny list imienny osoby zostaje unieważniony
+  („zastąpiony listem …”) **tylko wtedy, gdy zmienił się numer paszportu, nazwisko albo obywatelstwo** –
+  kolumna „List” pokazuje to przed kliknięciem („unieważni list …”). Ta sama reguła obowiązuje przy
+  liście imiennym wystawionym z karty osoby. List delegacji z nieaktualnymi danymi rejestr oznacza
+  „nieaktualne dane: …” – nowy list i ewentualne unieważnienie starego to decyzja oficera. Wniosek, którego nie da się zatwierdzić (opiekun skasował numer paszportu,
+  finał nie ma dat), zostaje oczekujący, a ekran mówi dlaczego,
+- albo wpisuje powód i klika **„Odrzuć zaznaczone”** – powód dostaje opiekun e-mailem i widzi go
+  w panelu; po poprawce składa nowy wniosek.
+
+Opiekunowie delegacji dostają **jeden e-mail na decyzję** (przy decyzji hurtowej – zbiorczy), każdy
+w swoim języku. W e-mailu nie ma danych paszportowych.
+
+**Weryfikacja i unieważnienie.** Na każdym liście jest ramka „Verification” z kodem QR i 12-znakowym
+kodem (np. `ABCD-EFGH-JKMN`). Konsulat skanuje kod albo wpisuje go na stronie `/visa/verify/` i widzi:
+numer i datę listu, stan (**ważny** albo **unieważniony**), wydarzenie z datami oraz imię i nazwisko
+i obywatelstwo osób z listu – **bez** numeru paszportu i daty urodzenia. W rejestrze listów (*Listy
+wizowe*) przy każdym liście jest kod, język i przycisk **„Unieważnij”** (powód obowiązkowy – widzi go
+opiekun, nie konsulat). Unieważnionego listu nie da się już pobrać; strona weryfikacji od razu mówi
+„unieważniony”. Poprawiony list to zawsze nowy numer i nowy kod. Wypisanie osoby z delegacji (także
+usunięcie gościa) unieważnia jej listy imienne samo, z powodem „osoba wypisana z delegacji”.
+Strona weryfikacji działa także po wyłączeniu logistyki finału – dopóki konkurs ma wystawione listy.
+Po zmianie domeny albo prefiksu konkursu poproś operatora o przekierowania (`OPERACJE.md` § 31.8).
+
 ## 10k. Medale — `/coordinator/medals/`
 
 **Tylko w konkursie z flagą `medals`** (olimpiada międzynarodowa `iqo`; `OPERACJE.md` § 37). Olimpiada
@@ -2366,6 +2444,47 @@ Poprawki trafiają do repozytorium okresowo (operator, `docs/OPERACJE.md` § 33.
 koordynatora zostają po polsku i nie są przedmiotem przeglądu.
 
 ---
+
+## 10l. Absolwenci i mentoring — `/coordinator/alumni/`
+
+Sieć byłych uczestników (za flagą `alumni` – włącza ją operator, `docs/OPERACJE.md` § 38).
+
+- **Kto dołącza:** pełnoletni uczestnik z osiągnięciem w **zakończonej** edycji na poziomie co
+  najmniej tym z ustawień (laureat, finalista, awans do kolejnego etapu albo każdy uczestnik).
+  Osiągnięcia liczą się wyłącznie z **ogłoszonych** wyników i wystawionych dyplomów – cofnięcie
+  publikacji zdejmuje je z profili. Edycja bieżąca liczy się jako zakończona, gdy wszystkie jej
+  etapy mają ogłoszone wyniki.
+- **Zgoda:** osobna, z własną treścią; wycofanie jednym przyciskiem usuwa profil od razu.
+  Na liście widzisz pełne dane osoby (jak na karcie uczestnika) i możesz **ukryć** profil
+  (np. niestosowne bio) – znika z katalogu i ze ściany.
+- **Publiczna ściana** `/alumni/` – tylko profile, które absolwent sam oznaczył jako publiczne;
+  pokazuje podpis, osiągnięcia, uczelnię i kierunek.
+- **Mentoring** (`/coordinator/alumni/mentoring/`): uczestnik bieżącej edycji prosi mentora,
+  mentor przyjmuje, rozmowa otwiera się w Wiadomościach. Gdy uczestnik jest **niepełnoletni**:
+  przy zasadzie Wiadomości „ta sama grupa wiekowa” każdą wiadomość akceptujesz przed doręczeniem
+  (kolejka moderacji Wiadomości); przy „bez ograniczeń” wiadomości dochodzą od razu, ale trafiają
+  do przeglądu (postmoderacja). Przy wyłączonych rozmowach uczestników mentoring działa wyłącznie
+  z akceptacją każdej wiadomości. Treści rozmów nie ma na ekranie mentoringu – czytasz ją tylko
+  w kolejce moderacji. Możesz zakończyć każdą relację (notatka obowiązkowa, obie strony dostają list)
+  i zamykać zgłoszenia problemów – zgłoszenie przychodzi do Ciebie e-mailem od razu.
+- **Zaproszenia** (`/coordinator/alumni/invitations/`): warsztaty, webinar (wklej adres wydarzenia),
+  jury. Filtry: edycje, najniższe osiągnięcie, zainteresowania, tylko mentorzy. „Policz odbiorców”
+  niczego nie wysyła. List idzie w języku odbiorcy, z odnośnikiem wypisu; w historii zostaje liczba
+  odbiorców, nie ich lista.
+- **Ochrona małoletnich:** notatka prośby małoletniego czeka na Twoją akceptację (mentor widzi do tego
+  czasu sam temat; notatka nigdy nie idzie e-mailem); opis i odnośniki mentora małoletni widzi dopiero
+  po Twojej akceptacji (sekcja „Opisy mentorów do akceptacji”, każda zmiana treści – ponownie);
+  notatki i opisy z możliwymi danymi kontaktowymi (telefon, e-mail, @nazwa, komunikatory) mają
+  czerwony znacznik, a notatka zakłada automatyczne zgłoszenie. Wiek mentee liczy się ostrożnie z daty
+  zapisanej przy akceptacji – zmiana daty urodzenia w trakcie relacji daje zgłoszenie i wpis w audycie,
+  ale nie łagodzi kanału. Przy zasadzie „bez ograniczeń” pierwsze 5 wiadomości nowej pary
+  dorosły–małoletni i tak czeka na akceptację.
+- **Ukrycie profilu mentora** kończy jego trwające relacje i odrzuca czekające prośby. Zakończonej
+  relacji nie da się wznowić – uczestnik może wysłać nową prośbę.
+- **Gdzie są teraz** (`/coordinator/alumni/stats/`): kraje, uczelnie, kierunki, zainteresowania
+  i najwyższe osiągnięcie – grupy mniejsze niż 5 osób są łączone w „inne” (razem z najmniejszymi
+  grupami, jeśli „inne” byłoby mniejsze niż 5), liczebność sieci jest zaokrąglona, profile ukryte
+  się nie liczą, a przy sieci mniejszej niż 5 osób rozkładów nie ma wcale.
 
 ## 11. Kalendarz prowadzenia edycji — ściągawka
 

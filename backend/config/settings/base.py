@@ -141,6 +141,9 @@ INSTALLED_APPS = [
     # (podpis ``display_author`` i regułę etapu wymuszającego premoderację), a forum nie wie o niej
     # nic; **przed** ``apps.web``, który ją wyświetla.
     "apps.chat",
+    # Sieć absolwentów i mentoring (ALUM-01, 04.10.2026), za flagą ``alumni``. **Po** ``apps.chat``,
+    # bo rozmowy mentorskie są rozmowami czatu i rejestrują w nim swoją politykę – czat nie wie o niej nic.
+    "apps.alumni",
     # Plakaty do pobrania i statystyka ich pobrań (prośba organizatora z 23.09.2026). Osobna
     # aplikacja, a nie model w ``apps.cms``: plakat nie jest stroną ani snippetem Wagtaila, ma własny
     # plik w storage prywatnym, własne zdarzenia (pobrania) i własne reguły prywatności liczenia
@@ -163,6 +166,8 @@ INSTALLED_APPS = [
     # i własną drogę danych poza serwer; **po** ``apps.grading`` i ``apps.results``, bo czyta
     # skalę, rubrykę i publikację wyników, a żadna z nich nie czyta jej.
     "apps.ai_grading",
+    # Logistyka finału dla delegacji krajowych (LOG-01): paszporty, przyloty, pokoje, identyfikatory.
+    "apps.delegation_logistics",
     # Webinary w LiveKit (zadanie WEB-01, flaga ``webinars``). Osobna aplikacja, a nie dostawca
     # w pokojach Jitsi (``apps.competitions.video_rooms``): webinar ma termin, odbiorców, własny pokój
     # na platformie, listę obecności z webhooków i nagrania. **Po** ``apps.competitions`` i ``apps.accounts``,
@@ -511,6 +516,8 @@ CELERY_TASK_ROUTES = {
     "apps.workshop_materials.tasks.scan_material": {"queue": "scan"},
     # Skan pracy testowej oceny AI (``apps.ai_grading.sandbox``) – ta sama praca, ta sama kolejka.
     "apps.ai_grading.tasks.scan_ai_test_work": {"queue": "scan"},
+    # Skan zdjęcia do identyfikatora finału (LOG-01) – ta sama praca, ta sama kolejka.
+    "apps.delegation_logistics.tasks.scan_badge_photo": {"queue": "scan"},
     # Skan dowodu wpłaty przelewem (PAY-01) – ta sama praca, ta sama kolejka.
     "apps.payments.tasks.scan_payment_proof": {"queue": "scan"},
 }
@@ -576,6 +583,11 @@ CELERY_BEAT_SCHEDULE = {
     # bo startują w późniejszej edycji. Raz na dobę – termin jest liczony w miesiącach.
     "student-status-purge-expired-scans": {
         "task": "apps.student_status.tasks.purge_expired_scans",
+        "schedule": 86400.0,
+    },
+    # Retencja logistyki finału (LOG-01): dane członków delegacji po ``ends_on + retencja`` finału.
+    "delegation-logistics-purge-expired": {
+        "task": "apps.delegation_logistics.tasks.purge_expired",
         "schedule": 86400.0,
     },
     # Materiały z warsztatów (apps/workshop_materials/tasks.py): porzucone wgrywania (wiersz
@@ -1262,6 +1274,10 @@ REST_FRAMEWORK = {
         # za mało, żeby zasypać cudzą skrzynkę albo kolejkę premoderacji. Listy o wiadomościach
         # i tak są zbijane (``apps.chat.notifications``), więc limit chroni rozmowę, nie pocztę.
         "chat": "60/hour",
+        # Sieć absolwentów (``apps.alumni``): dołączenie, profil, prośby o mentoring, zgłoszenia,
+        # zaproszenia koordynatora. Każda prośba i zgłoszenie wysyła list, więc limit chroni cudze
+        # skrzynki; trzydzieści na godzinę to więcej, niż wykona człowiek klikający w panelu.
+        "alumni": "30/hour",
         # Podpowiedzi szkół w formularzu rejestracji. Limit jest wysoki, bo jedno wypełnienie
         # formularza to kilkanaście żądań (jedno na przerwę w pisaniu), a dane są jawnym
         # rejestrem publicznym – chronimy tu koszt zapytania, nie treść.
@@ -1293,6 +1309,15 @@ REST_FRAMEWORK = {
         # przez opiekuna, więc limit chroni cudze skrzynki; sześćdziesiąt na godzinę mieści z zapasem
         # drużynę (kilka osób) i zaproszenia dla kilkudziesięciu krajów w jednym posiedzeniu.
         "delegation": "60/hour",
+        # Logistyka finału (LOG-01): formularze opiekuna i oficera (osoba po osobie) oraz odhaczanie
+        # obsługi przy wejściu (setki skanów na godzinę z jednego telefonu). Liczone per konto.
+        "onsite_logistics": "600/hour",
+        "onsite_checkin": "3000/hour",
+        # Publiczna weryfikacja listu zapraszającego (VISA-01, ``/visa/verify/<kod>/``) – bez konta,
+        # więc per adres IP. Sześćdziesiąt na godzinę mieści okienko konsulatu sprawdzające całą
+        # kolejkę wnioskodawców za jednym adresem; kod ma 59 bitów, więc zgadywanie i tak nie ma sensu,
+        # a limit ucina przeglądanie strony skryptem.
+        "visa_verify": "60/hour",
         # Tłumaczenia zadań (TR-01): autozapis szkicu co ~3 s pisania, czynności opiekuna i komisji.
         # Per konto (``PER_USER_SCOPES``) – sala tłumaczeń za jednym NAT-em nie dzieli budżetu.
         "translation": "1200/hour",
