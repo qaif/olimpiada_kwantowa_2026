@@ -3961,6 +3961,89 @@ panele, logowanie i formularze mają zawsze ramę aplikacji (tokeny i arkusz mot
 (CI buduje go z pyproject). Bez niej import walidatora się nie powiedzie dopiero przy wgraniu paczki;
 render stron z już aktywnym motywem jej nie potrzebuje.
 
+### 30.4. Menu serwisu z panelu (THEME-02, `docs/tasks/THEME-02.md` § 1)
+
+Koordynator konkursu z flagą `themes` ustawia menu stron publicznych w **„Motyw serwisu → Menu
+serwisu”** (`/coordinator/competition/theme/menu/`): kolejność, ukrycie, nazwy per język interfejsu,
+własne odnośniki (`https://…`, `http://…` albo ścieżka `/…`; nic innego – `javascript:`, `data:`,
+`//host` są odrzucane) i grupy rozwijane (jeden poziom). Działa z każdym motywem, także z „Klasycznym”.
+
+- **Dane:** tabela `themes_sitemenu` (wiersz na konkurs, lista JSON + rewizja). Rewizja jest powielona
+  w `Competition.theme_options["menu"]`; bez tego klucza menu buduje się jak dotąd i **bez zapytania**
+  (Olimpiada Kwantowa bez nadpisań – bez zmian). Zapis unieważnia cache gościa konkursu.
+- **Audyt:** `theme.menu_saved` (przed/po), `theme.menu_reset`.
+- **Cofnięcie:** przycisk „Przywróć menu domyślne” albo z konsoli:
+  ```sh
+  docker compose exec -T web python manage.py shell -c "from apps.tenancy.models import Competition; from apps.themes.services import reset_menu; reset_menu(Competition.objects.get(slug='iqo'))"
+  ```
+- Nowa strona dodana w `/cms/` po zapisaniu menu pojawia się **na końcu** menu (nic nie znika po cichu);
+  własny odnośnik do strony wycofanej z publikacji znika z menu sam.
+
+### 30.5. Kolory, schemat, logo i kroje z panelu (THEME-02 § 2)
+
+**„Motyw serwisu → Kolory i opcje motywu”** (`/coordinator/competition/theme/customize/[?version=<id>]`):
+schemat (jasny/ciemny/systemowy – gdy `tokens.json` motywu ma obie palety), wariant logo i para krojów
+(nowe, opcjonalne pola manifestu `logos`/`fonts`), warianty układów i kolor każdego tokenu palety
+z `tokens.json`. Kontrast liczony na serwerze: para poniżej WCAG AA (4.5:1 tekst, 3:1 obwódka fokusu),
+którą zmienił koordynator, **blokuje zapis**.
+
+- **Dane:** `themes_themecustomization` (konkurs + wersja motywu); kopia opcji wersji aktywnej
+  w `Competition.theme_options` (`scheme`, `logo`, `font`, `colors`). Powrót do wcześniejszej wersji
+  w galerii przywraca jej kolory.
+- **Arkusz:** `/_theme/custom.css?s=<podpis>` z własnej domeny (CSP `'self'` – **polityka bez zmian**),
+  dołączany **po** `theme.css` (kolejność: `tokens.css` → `theme.css` → `custom.css` → akcent marki),
+  `Cache-Control: immutable`; podpis (`SECRET_KEY`, sól `apps.themes.custom`) obejmuje konkurs, wersję
+  i opcje, więc adres nie generuje arkuszy z dowolnymi kolorami ani dla cudzego konkursu.
+  **Zmiana `SECRET_KEY`** unieważnia te adresy: strony w cache gościa (≤ `PAGE_CACHE_SECONDS`)
+  przez chwilę linkują arkusz 404 (motyw bez dostosowania), potem renderują się z nowym podpisem.
+- **Audyt:** `theme.customized` (przed/po, wersja, czy aktywna), `theme.customization_reset`.
+- **Cofnięcie:** „Przywróć domyślne” na ekranie albo:
+  ```sh
+  docker compose exec -T web python manage.py shell -c "from apps.tenancy.models import Competition; from apps.themes.models import ThemeVersion; from apps.themes.services import reset_customization; c = Competition.objects.get(slug='iqo'); reset_customization(c, c.theme_version)"
+  ```
+- Tryb wysokiego kontrastu (`data-contrast="high"`) dalej wygrywa – dostosowanie zmienia tokeny
+  `--t-*`, a tryb kontrastu nadpisuje role.
+
+### 30.6. Limit i uprawnienia
+
+Oba ekrany: wyłącznie koordynator konkursu, którego domeną przyszło żądanie (inny konkurs – 403),
+flaga `themes` (wyłączona – 404), POST-y limitem `theme_settings` = **120/h na konto**
+(`REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]`). Ekrany renderują się zawsze **bez** motywu.
+
+### 30.7. Nowy slot `nav` i paczka IQO Quantum 1.1.0
+
+Lista slotów ma nowy, ósmy slot `nav` (samo menu serwisu – `templates/theme/nav.html`); domyślny
+nagłówek woła go w miejscu dawnego `<nav class="nav nav--cms">` (Olimpiada Kwantowa co do bajtu).
+Paczka `themes/iqo-quantum/` w wersji **1.1.0** korzysta z `nav`, `logos`, `fonts` i obu palet,
+więc wymaga aplikacji z THEME-02 – manifest ma `min_app_version` **0.44.0** (wgranie na starszej
+wersji: błąd „Motyw wymaga wersji aplikacji 0.44.0…”; `APP_VERSION=dev` pomija porównanie).
+
+Wdrożenie (po wdrożeniu aplikacji z THEME-02 – migracja `themes.0003` idzie w `scripts/deploy.sh`):
+
+```sh
+python themes/iqo-quantum/build_zip.py                     # → themes/iqo-quantum/dist/iqo-quantum-1.1.0.zip
+scp -i ~/.ssh/olimpiada_deploy themes/iqo-quantum/dist/iqo-quantum-1.1.0.zip deploy@<serwer>:/tmp/
+ssh -i ~/.ssh/olimpiada_deploy deploy@<serwer>
+cd /opt/olimpiada
+docker compose exec -T web python manage.py theme_install - --activate iqo < /tmp/iqo-quantum-1.1.0.zip
+```
+
+`--activate` przenosi z wersji dotychczasowej **wyłącznie** warianty układów (te, które 1.1.0 też ma),
+akcent marki, schemat, logo i kroje (o ile 1.1.0 je deklaruje) oraz menu – **bez** kolorów i promieni
+dostosowania (tokeny nowej wersji mogą znaczyć co innego). Kolory zapisane wcześniej dla samej 1.1.0
+wracają, o ile przechodzą kontrolę kontrastu; odrzucone komenda wypisuje jako „kolory dostosowania
+pominięte (kontrast)”. **Uwaga:** `iqo` ma dziś `footer=compact` z 1.0.0, a ten wariant
+istnieje też w 1.1.0 – zostanie, choć nowym domyślnym jest `columns`; nagłówek `minimal` w 1.1.0 nie
+istnieje, więc wraca do domyślnego `split`. Po aktywacji: galeria → karta 1.1.0 → stopka `columns` →
+„Zapisz opcje” (albo „Kolory i opcje motywu”). Bez `--activate` wersja czeka w galerii („Podgląd”,
+potem „Aktywuj”). Sprawdzenie po wgraniu: strona główna gościa w en i ar (`curl -s https://iqo-official.org/
+| grep -o 'data-theme="[^"]*"'` → `iqo-quantum`), `/coordinator/competition/theme/customize/` pokazuje
+obie palety. Cofnięcie: aktywacja 1.0.0 w galerii (wersja zostaje w katalogu).
+
+Kontekst szablonów paczek dostał w THEME-02 także `sponsor_slider` (same napisy i liczby – IQO 1.1.0
+stawia taśmę sponsorów w stopce), a dostosowanie – promienie `radius-*` z `tokens.json`
+(0–48 px albo 0–3 rem; IQO: `radius-leaf`, kształt przycisków).
+
 
 ## 28. Delegacje krajowe – rejestracja przez opiekunów drużyn (DEL-01, `docs/tasks/DEL-01.md`)
 
@@ -4207,7 +4290,7 @@ Bez konfiguracji i bez flagi `webinars` (§ 6.4) nic się nie zmienia – także
   `https://<domena>:9000`) – w `egress.yaml` `endpoint: <ten adres>`.
 - **(b) Ten sam host – małe spotkania (do kilkudziesięciu osób).** Nakładka compose z profilem
   `livekit` (`deploy/livekit/docker-compose.livekit.yml`: `livekit`, `livekit-egress`, `livekit-redis`),
-  sygnalizacja przez Caddy pod `live.<domena>` (`LIVEKIT_PROXY=1`), media UDP 50000–50100 i TCP 7881
+  sygnalizacja przez Caddy pod `live.<domena>` (`LIVEKIT_PROXY=1`), media UDP 7882 (jeden port z multipleksacją) i TCP 7881
   prosto do kontenera. TURN wyłączony (port 443 zajmuje Caddy) – uczestnicy za zaporami, które
   przepuszczają wyłącznie HTTPS, nie połączą się; dla nich wariant (a) z TURN/TLS na 443.
 
@@ -4226,12 +4309,12 @@ Bez konfiguracji i bez flagi `webinars` (§ 6.4) nic się nie zmienia – także
    Skrypt **usuwa ostatni wiersz paczki** (`//# sourceMappingURL=…map`) – mapy nie dostarczamy, a
    `collectstatic` z manifestem kończyłby się na nim błędem i `web` by nie wstał (VERSION to odnotowuje,
    pilnuje tego `apps/webinars/tests/test_static.py`).
-3. DNS: rekord `A live.<domena>` → adres serwera. **Zapora:** porty 7881/tcp i 50000–50100/udp publikuje
+3. DNS: rekord `A live.<domena>` → adres serwera. **Zapora:** porty 7881/tcp i 7882/udp publikuje
    Docker, a Docker wpisuje własne reguły iptables **przed** ufw – `ufw allow` jest tu dokumentacją,
    a `ufw deny` niczego nie zamknie. Zamyka się je zdjęciem `ports:` z nakładki albo regułą w łańcuchu
-   `DOCKER-USER` (np. `iptables -I DOCKER-USER -p udp --dport 50000:50100 -j DROP` na czas wyłączenia).
+   `DOCKER-USER` (np. `iptables -I DOCKER-USER -p udp --dport 7882 -j DROP` na czas wyłączenia).
    Sieć mostkowa, a nie `network_mode: host`: host dałby LiveKitowi wszystkie usługi hosta i porty
-   compose'a na 127.0.0.1, a ceną mostka (docker-proxy na 101 portów) przy 100 portach UDP jest do przyjęcia.
+   compose'a na 127.0.0.1, a ceną mostka jest jeden docker-proxy na porcie UDP 7882 (multipleksacja – wszyscy uczestnicy na jednym porcie).
 4. Klucze: `openssl rand -hex 32` (sekret) i dowolny klucz (np. `APIolimp1`). W `.env`:
    `LIVEKIT_URL=wss://live.<domena>`, `LIVEKIT_API_KEY=…`, `LIVEKIT_API_SECRET=…`,
    `LIVEKIT_API_URL=http://livekit:7880`, `LIVEKIT_PROXY=1`.

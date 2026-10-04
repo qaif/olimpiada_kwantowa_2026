@@ -104,3 +104,80 @@ class ThemeVersion(models.Model):
     @property
     def screenshot_url(self) -> str | None:
         return self.public_url("screenshot.png") if self.has_screenshot and self.public_prefix else None
+
+
+class SiteMenu(models.Model):
+    """Nadpisania menu serwisu konkursu (THEME-02 § 1) – jeden wiersz na konkurs.
+
+    ``items`` to lista wpisów w kolejności menu (postać kanoniczna z ``apps.themes.menu.clean_items``).
+    ``revision`` zmienia się przy każdym zapisie i jest powielona w ``Competition.theme_options["menu"]``:
+    render czyta wiersz dopiero, gdy konkurs ma ten klucz, i trzyma go w pamięci procesu do zmiany
+    rewizji. Brak wiersza = menu dokładnie takie, jak buduje ``apps.cms.context_processors``.
+    """
+
+    competition = models.OneToOneField(
+        "tenancy.Competition", on_delete=models.CASCADE, related_name="site_menu", verbose_name="konkurs"
+    )
+    items = models.JSONField("pozycje", default=list)
+    #: Losowy znacznik (``secrets.token_hex(8)``) zmieniany przy każdym zapisie – nie licznik: licznik
+    #: po usunięciu wiersza zacząłby od nowa i trafiłby w pamięć procesów sprzed resetu.
+    revision = models.CharField("rewizja", max_length=32)
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name="zapisał",
+    )
+    updated_at = models.DateTimeField("zapisano", auto_now=True)
+
+    class Meta:
+        verbose_name = "menu serwisu"
+        verbose_name_plural = "menu serwisów"
+
+    def __str__(self) -> str:
+        return f"Menu {self.competition_id} (rewizja {self.revision})"
+
+
+class ThemeCustomization(models.Model):
+    """Dostosowanie wersji motywu w konkursie (THEME-02 § 2.4): kolory, schemat, logo, kroje, układy.
+
+    Jeden wiersz na parę (konkurs, wersja): powrót do wcześniejszej wersji przywraca jej kolory,
+    a nadpisania jednej wersji nie przechodzą na inną (inna wersja może mieć inne tokeny). Kopia
+    opcji wersji **aktywnej** leży w ``Competition.theme_options`` – render nie pyta tej tabeli.
+    """
+
+    competition = models.ForeignKey(
+        "tenancy.Competition",
+        on_delete=models.CASCADE,
+        related_name="theme_customizations",
+        verbose_name="konkurs",
+    )
+    theme_version = models.ForeignKey(
+        ThemeVersion, on_delete=models.CASCADE, related_name="customizations", verbose_name="wersja motywu"
+    )
+    #: ``{"layouts": {…}, "brand_accent": bool, "scheme": "dark", "logo": "lockup", "font": "grotesk",
+    #: "colors": {"light": {"accent": "#aa0000"}, "dark": {…}}}`` – po ``runtime.clean_options``.
+    options = models.JSONField("opcje", default=dict)
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name="zapisał",
+    )
+    updated_at = models.DateTimeField("zapisano", auto_now=True)
+
+    class Meta:
+        verbose_name = "dostosowanie motywu"
+        verbose_name_plural = "dostosowania motywów"
+        constraints = [
+            models.UniqueConstraint(
+                fields=("competition", "theme_version"), name="themes_customization_unique"
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.competition_id} / {self.theme_version_id}"

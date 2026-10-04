@@ -8,6 +8,33 @@ dokładnie jednemu wierszowi tej tabeli.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## [Unreleased] – LiveKit: jeden port UDP z multipleksacją
+
+- **Zmienione:** wariant „LiveKit na tym hoście” (OPERACJE § 36) – media przez jeden port UDP 7882
+  z multipleksacją (`rtc.udp_port`) zamiast zakresu 50000–50100; TCP 7881 bez zmian. Jedna reguła
+  zapory i jeden docker-proxy zamiast 101. Istniejący `livekit/livekit.yaml` na serwerze trzeba
+  dopasować (`udp_port: 7882`, bez `port_range_*`).
+
+## [Unreleased] – Zarządzanie motywem z panelu i IQO Quantum 1.1.0 (THEME-02)
+
+- **Menu serwisu** (`/coordinator/competition/theme/menu/`): kolejność, ukrycie, nazwy per język
+  interfejsu, własne odnośniki (tylko `http(s)` i ścieżki serwisu; strona serwisu wyłącznie z drzewa
+  tego konkursu), grupy rozwijane jednego poziomu; nakładane na menu z drzewa stron bez zapytania dla
+  konkursu bez nadpisań (Olimpiada Kwantowa co do bajtu).
+- **Kolory i opcje motywu** (`/coordinator/competition/theme/customize/`): schemat jasny/ciemny/systemowy,
+  wariant logo i para krojów (nowe pola manifestu `logos`, `fonts`), kolory tokenów z `tokens.json`
+  z kontrolą kontrastu WCAG AA blokującą zapis, podgląd, „Przywróć domyślne”; dostosowanie pamiętane
+  per wersja motywu; arkusz `/_theme/custom.css` z podpisanego zestawu opcji (CSP bez zmian).
+- Audyt (`theme.menu_saved`, `theme.menu_reset`, `theme.customized`, `theme.customization_reset`),
+  limit POST `theme_settings` (120/h na konto), unieważnienie cache gościa po zapisie.
+- **Slot `nav`** (menu serwisu) – motyw może przerysować samo menu; kontekst szablonów paczek
+  dostał `sponsor_slider` (taśma sponsorów we własnym miejscu motywu); dostosowanie obejmuje też
+  promienie `radius-*` z `tokens.json`.
+- **IQO Quantum 1.1.0** (`themes/iqo-quantum/`): nowy wygląd odchodzący od Olimpiady Kwantowej
+  (nagłówek nad planszą, typografia, karty, sekcje, stopka, motywy orbitali/fal), tryb jasny, warianty
+  logo i krojów. Wgranie: `docs/OPERACJE.md` § 30.7.
+- Migracja `themes.0003` (dwie nowe tabele).
+
 ## [Unreleased] – Listy zapraszające do wizy: wnioski, weryfikacja, unieważnienie (VISA-01)
 
 - **Wnioski opiekuna drużyny** o list imienny (`/delegation/logistics/letters/`) dla osób z kompletnym

@@ -123,6 +123,8 @@ IDENTITY_FIELDS = ("email", "username")
 #: ``proctoring_client`` (PROC-01) – tokeny nadzoru, czynności nadzorujących i kroki konsoli ucznia:
 #: cała szkoła pisze etap za jednym NAT-em. ``interview_control`` (STAGE-LK-01) – polecenia moderatora
 #: pokoju rozmowy LiveKit (odbierz/oddaj głos, usuń, wpuść ponownie).
+#: ``theme_settings`` (THEME-02) – menu i dostosowanie motywu; wyłącznie koordynator, koszt
+#: (unieważnienie cache stron konkursu) przypada na konto.
 PER_USER_SCOPES = frozenset(
     {
         "chat",
@@ -137,6 +139,7 @@ PER_USER_SCOPES = frozenset(
         "onsite_checkin",
         "checkout",
         "payments_admin",
+        "theme_settings",
         "alumni",
         "proctoring_token",
         "proctoring_coordinator_token",

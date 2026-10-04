@@ -63,6 +63,7 @@ from .views import (
     coordinator_sponsor_slider,
     coordinator_stages,
     coordinator_support,
+    coordinator_theme_settings,
     coordinator_themes,
     coordinator_workshops,
     forum,
@@ -94,6 +95,8 @@ urlpatterns = [
     # z własnej domeny (``'self'`` w CSP) zamiast stylu inline. Ścieżki ``apps.web`` są dopasowywane
     # przed drzewem stron Wagtaila, a ``_theme/`` nie jest slugiem żadnej strony serwisu.
     path("_theme/overrides.css", coordinator_themes.theme_overrides_css, name="theme-overrides"),
+    # Dostosowanie motywu koordynatora (THEME-02 § 2.3): kolory, schemat, kroje – podpisany zestaw opcji.
+    path("_theme/custom.css", coordinator_theme_settings.theme_custom_css, name="theme-custom"),
     # Drugi krok logowania (TOTP). Adres stoi przy logowaniu, a nie przy koncie, bo to jest
     # **ciąg dalszy logowania**: sesja, która tu trafia, nie może jeszcze nic innego (patrz
     # ``apps.accounts.twofactor.TwoFactorMiddleware``).
@@ -419,6 +422,17 @@ urlpatterns = [
         "coordinator/competition/theme/",
         coordinator_themes.CompetitionThemeView.as_view(),
         name="coordinator-theme",
+    ),
+    # THEME-02: menu serwisu i dostosowanie wersji motywu (kolory, schemat, logo, kroje) bez paczki.
+    path(
+        "coordinator/competition/theme/menu/",
+        coordinator_theme_settings.CompetitionMenuView.as_view(),
+        name="coordinator-theme-menu",
+    ),
+    path(
+        "coordinator/competition/theme/customize/",
+        coordinator_theme_settings.CompetitionThemeCustomizeView.as_view(),
+        name="coordinator-theme-customize",
     ),
     # Katalog motywów **platformy** – wyłącznie superkoordynator (wgrywanie paczek, raporty, wersje).
     path(

@@ -139,7 +139,7 @@ i nazwę w sesji i prowadzi do pokoju gościa.
   na „steal”); portal dostaje tylko `LIVEKIT_URL` i klucze;
 - (b) **ten sam host** – małe spotkania: nakładka `deploy/livekit/docker-compose.livekit.yml`
   (profil `livekit`: `livekit`, `livekit-egress`, `livekit-redis`), `LIVEKIT_PROXY=1` (blok Caddy
-  `live.<domena>`), zapora: UDP 50000–50100, TCP 7881; TURN/TLS – opis.
+  `live.<domena>`), zapora: UDP 7882 (multipleksacja; od 4.10.2026 zamiast zakresu 50000–50100), TCP 7881; TURN/TLS – opis.
 
 ## 9. Testy (`apps/webinars/tests/`, bez sieci)
 
