@@ -1695,19 +1695,28 @@ Jak działa: link w liście prowadzi pod **host, z którego przyszło żądanie*
 `olimpiadakwantowa.pl`, `/<prefiks>/` konkursu pod prefiksem), list jest w języku interfejsu tego
 konkursu i – od AUTH-01a – wychodzi od **nadawcy konkursu** (`Competition.from_email`, pusty =
 `DEFAULT_FROM_EMAIL`), tak jak aktywacja i zaproszenia. List idzie zadaniem na kolejce `mail`.
-Konto z Google/Facebooka bez hasła dostaje link i ustawia nim hasło; konto nieuruchomione
-(zaproszony uczeń, rejestracja bez aktywacji) dostaje zamiast resetu zaproszenie albo link
-aktywacyjny; konto zablokowane i zanonimizowane – nic. Strona odpowiedzi jest zawsze ta sama.
+Konto z Google/Facebooka bez hasła dostaje link, gdy adres potwierdził dostawca albo nasza
+aktywacja; konto przed aktywacją dostaje link resetu, którego zapis aktywuje konto; zaproszony uczeń
+– ponowione zaproszenie (najwyżej raz na 10 min z formularzy publicznych); konto zablokowane
+i zanonimizowane – nic. Strona odpowiedzi jest zawsze ta sama. Limit: 5/h na IP, na IP+adres
+i **na adresata** (bez IP). Koordynator nie aktywuje ręcznie konta z niezaakceptowanym zaproszeniem
+– wysyła zaproszenie ponownie.
+
+**Nadawca a relay.** `ALLOWED_SENDER_DOMAINS` (domyślnie `SITE_DOMAIN`; lista rozdzielona spacją) czyta
+i usługa `mail`, i aplikacja: nadawca konkursu spoza listy jest pomijany – listy idą od
+`DEFAULT_FROM_EMAIL`, a w logu `web`/`worker` pada raz ostrzeżenie „Nadawca konkursu … jest spoza
+ALLOWED_SENDER_DOMAINS”. Dopisanie drugiej domeny (np. `olimpiadakwantowa.pl iqo-official.org`) wymaga
+rekordów SPF/DKIM/DMARC tej domeny (klucz DKIM generuje usługa `mail` przy starcie – rekord TXT
+z `docker compose exec mail cat /etc/opendkim/keys/<domena>.txt`) i odtworzenia `mail` oraz `web`/`worker`.
+W wariancie B (zewnętrzny dostawca) wolno ustawić `*` – wtedy aplikacja nie ogranicza nadawców.
 
 Do sprawdzenia na produkcji (jednorazowo i po każdej zmianie nadawcy konkursu):
 
-1. **Nadawca każdego konkursu jest dopuszczony przez relay.** Usługa `mail` (wariant A) przyjmuje
-   kopertę wyłącznie z domeny `ALLOWED_SENDER_DOMAINS` = `SITE_DOMAIN`. Jeśli `from_email` konkursu
-   `iqo` jest w domenie `iqo-official.org`, relay **odrzuci** reset (i już dziś odrzuca aktywację
-   i zaproszenia IQO) – objaw tylko w logu workera. Sprawdzenie:
+1. **Nadawca każdego konkursu jest w `ALLOWED_SENDER_DOMAINS`.** Inaczej aplikacja po cichu (poza
+   jednym ostrzeżeniem w logu) wysyła od `DEFAULT_FROM_EMAIL`. Sprawdzenie:
    `docker compose exec web python manage.py shell -c "from apps.tenancy.models import Competition as C; print(list(C.objects.values_list('slug','from_email')))"`
-   i `docker compose logs mail | grep -i reject`. Wyjście: pusty `from_email` (nadawca instalacji)
-   albo dopuszczenie drugiej domeny w relayu razem z SPF/DKIM/DMARC tej domeny.
+   i `docker compose logs web worker | grep ALLOWED_SENDER_DOMAINS`. Wyjście: pusty `from_email`
+   (nadawca instalacji) albo druga domena w `ALLOWED_SENDER_DOMAINS` razem z SPF/DKIM/DMARC.
 2. **Odwrotny DNS i SPF/DKIM** domeny nadawcy – README § 4.2 (bez zmian).
 3. **`https` w linku**: `SECURE_PROXY_SSL_HEADER` (production.py) + `X-Forwarded-Proto` z Caddy –
    każda domena z `EXTRA_DOMAINS` ma blok proxy z tym nagłówkiem (`scripts/render_caddyfile.sh`).

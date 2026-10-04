@@ -36,15 +36,38 @@ worker `-Q default,scan,mail`), po commicie.
    Poprawka: `get_users` bez warunku `has_usable_password()` – nadal wyłącznie konta aktywne.
 3. **Konto nieuruchomione dostawało ciszę.** Zaproszony uczeń (import listy klasowej, zgłoszenie
    przez opiekuna drużyny) i konto z rejestracji przed aktywacją są nieaktywne, więc formularz
-   nie wysyłał nic. **Decyzja:** reset nie aktywuje konta (ominąłby zgody zbierane na ekranie
-   zaproszenia), tylko wysyła link startowy – zaproszenie albo link aktywacyjny – tą samą funkcją,
-   co „Wyślij link ponownie” (`resend_activation`). Odpowiedź strony bez zmian.
+   nie wysyłał nic. **Decyzja:** zaproszony uczeń dostaje ponowione zaproszenie (zgody zbiera ekran
+   zaproszenia); konto z rejestracji – patrz M1 w § 2a. Odpowiedź strony bez zmian.
 4. **Link aktywacyjny uruchamiał konto zaproszone z pominięciem zgód.** `resend_activation`
    wysyłał zaproszonemu uczniowi zwykły link aktywacyjny, a ten aktywował konto bez zgód i bez
    hasła; po poprawce 2 dałoby się potem ustawić hasło resetem. Poprawka: `resend_activation`
    wysyła takiemu kontu zaproszenie, a `activate_with_token` odmawia konta z oczekującym
    zaproszeniem (także dla linków wydanych przed poprawką).
 5. Konta zablokowane (`is_active=False` z potwierdzonym adresem) i zanonimizowane – nic, bez zmian.
+
+### 2a. Poprawki po przeglądzie (5.10.2026)
+
+- **H1** – koordynator nie aktywuje ręcznie konta z niezaakceptowanym zaproszeniem („Aktywuj ręcznie”
+  i checkbox „Konto aktywne” odmawiają z prośbą o ponowienie zaproszenia). Konto bez hasła, którego
+  profil z zaproszenia nie ma kompletu wymaganych zgód (`consents.required_kinds` kontra niewycofane
+  `ConsentRecord`), nie dostaje linku resetu, a `/reset/…` odmawia takiego konta (także dla linku
+  z AUTH-01b). Bramki zgód przy logowaniu **nie** dokładamy: aplikacja nie ma ekranu uzupełniania
+  zgód, a jego budowa wykracza poza to zadanie – droga do takiego stanu jest zamknięta u źródła.
+- **M1 (zmiana decyzji z § 2.3)** – konto z rejestracji przed aktywacją dostaje **link resetu**,
+  nie link aktywacyjny. Zapis nowego hasła zastępuje hasło z rejestracji (mógł je wpisać ktokolwiek,
+  kto zarejestrował cudzy adres) i dopiero wtedy aktywuje konto (`account.activated_by_password_reset`).
+- **M2** – konto bez hasła dostaje link tylko z adresem potwierdzonym naszą aktywacją albo przez
+  dostawcę (wpis allauth `EmailAddress(verified=True)` dla adresu konta); samo `email_verified_at`
+  nie wystarcza (hurtowe wypełnienie migracją `accounts.0010`). Konto, któremu allauth wyczyścił
+  hasło, loguje się Google'em i ustawia hasło z panelu (AUTH-01b).
+- **M3** – `mail_from` pomija nadawcę konkursu spoza `ALLOWED_SENDER_DOMAINS` (domyślnie
+  `SITE_DOMAIN`, ta sama zmienna co relay `mail`) i wraca do `DEFAULT_FROM_EMAIL`, ostrzegając raz.
+- **L1–L4** – komunikat „Zaproszenie zostało wysłane ponownie.” i audyt `participant.invitation_resent`;
+  link i nadawca zaproszenia z konkursu ucznia; kubełek limitu per adresat (bez IP) i odstęp 10 min
+  między zaproszeniami z formularzy publicznych; reset koordynatora według tej samej reguły
+  (`reset_eligible`), łącznie z widocznością przycisku.
+- Link **resetu** aktywnego konta nadal prowadzi pod host żądania: konto jest jedno na instalację
+  i loguje się pod każdym hostem, a nadawca listu jest nadawcą tego samego konkursu, co link.
 
 ## 3. Sprawdzone i działające (testy w `apps/web/tests/test_password_reset_tenancy.py`)
 

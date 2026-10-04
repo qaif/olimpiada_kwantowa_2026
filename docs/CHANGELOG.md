@@ -49,6 +49,13 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
 - Testy całej drogi pod domeną IQO, domeną OK i prefiksem ścieżki (host linku, język, nadawca, token
   wygasły, pamięć stron, CSRF, motyw IQO); `docs/tasks/AUTH-01a.md`, `docs/OPERACJE.md` § 9.7
   (kontrola nadawcy w relayu na produkcji).
+- Poprawki po przeglądzie: koordynator nie aktywuje ręcznie konta z niezaakceptowanym zaproszeniem
+  (przycisk i „Konto aktywne”); konto przed aktywacją dostaje link resetu, którego zapis zastępuje hasło
+  z rejestracji i aktywuje konto; konto bez hasła – tylko z adresem potwierdzonym (allauth `verified`)
+  i nie z zaproszenia bez zgód; nadawca konkursu spoza `ALLOWED_SENDER_DOMAINS` (nowa zmienna, wspólna
+  z relayem, domyślnie `SITE_DOMAIN`) → `DEFAULT_FROM_EMAIL`; limit resetu także per adresat; zaproszenie
+  z formularzy publicznych najwyżej raz na 10 min, z audytem i z linkiem do konkursu ucznia; reset
+  koordynatora według tej samej reguły, co samoobsługa.
 
 ## [Unreleased] – Listy zapraszające do wizy: wnioski, weryfikacja, unieważnienie (VISA-01)
 
