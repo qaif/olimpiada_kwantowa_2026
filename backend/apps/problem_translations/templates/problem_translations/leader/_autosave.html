@@ -1,0 +1,10 @@
+{% load i18n web_extras %}{% comment %}
+  Odpowiedź autozapisu (TR-01). Zawsze 200 – htmx nie podmienia treści przy 4xx, a odmowa autozapisu
+  ma być widoczna. Treść trafia do ``#autosave-status``; podgląd i nowy żeton (``edit_version``)
+  przychodzą „out of band” (``hx-swap-oob``) – tylko przy udanym zapisie, więc odmowa nie zmienia
+  podglądu ani żetonu w formularzu.
+{% endcomment %}{% if error %}<p class="msg msg-error" role="alert" data-error-code="{{ code|default:'' }}">{{ error }}</p>{% elif saved_at %}<p class="hint tr-saved">{% blocktranslate trimmed with at=saved_at|local_datetime %}Szkic zapisany: {{ at }}{% endblocktranslate %}</p>
+{% if source_warning %}<div class="msg msg-warning" role="alert"><p>{{ source_warning }}</p>{% include "problem_translations/_diff.html" with diff=source_changes %}</div>{% endif %}
+<input type="hidden" name="edit_version" id="tr-edit-version" value="{{ token }}" hx-swap-oob="true">
+<div id="tr-preview" hx-swap-oob="true">{% if preview_html %}<h3 class="tr-preview-head">{% translate "Podgląd" %}</h3>
+<div class="tr-doc" lang="{{ language }}"{% if rtl %} dir="rtl"{% endif %}>{{ preview_html }}</div>{% endif %}</div>{% endif %}

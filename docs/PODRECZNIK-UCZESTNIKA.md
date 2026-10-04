@@ -109,6 +109,12 @@ zakwalifikowana** w poprzednim.
 Każde zadanie ma własną kartę: **„Zadanie N: <tytuł>”**, odznakę stanu, termin, dozwolone formaty, limit
 rozmiaru pliku i przycisk **„Treść zadania (PDF)”**.
 
+**Olimpiada międzynarodowa (drużyny krajowe).** Gdy komisja zatwierdziła tłumaczenie zadania na język,
+który przypisał Ci opiekun drużyny, na karcie jest też przycisk **„Treść w języku: …”** (np. „Deutsch”).
+Pojawia się dopiero po starcie etapu; wersja oficjalna („Treść zadania (PDF)”) jest zawsze obok. Gdy w Twoim
+języku nie ma zatwierdzonego tłumaczenia, dostajesz drugi język drużyny (z informacją na stronie), a gdy
+wersja oficjalna zmieniła się po zatwierdzeniu tłumaczenia – ostrzeżenie, żeby sprawdzić wersję oficjalną.
+
 ### Jak wysłać
 
 1. Przeciągnij plik na ramkę formularza **albo** wybierz go przyciskiem. Pod polem pojawi się
@@ -152,6 +158,19 @@ Po ogłoszeniu wyników albo w trakcie reklamacji nowej wersji wysłać się ju�
 Listy, które dostajesz: potwierdzenie przyjęcia pliku, informacja o pliku odrzuconym przez antywirusa,
 ogłoszenie wyników i rozstrzygnięcie reklamacji. **W listach nie ma punktów** — skrzynka pocztowa nie
 jest kanałem zabezpieczonym; wynik jest w serwisie.
+
+### Okna czasowe (olimpiada międzynarodowa)
+
+W etapie zdalnym olimpiady międzynarodowej organizator może rozłożyć etap na kilka **okien czasowych**
+(np. trzy starty w ciągu doby) z tym samym czasem pracy dla wszystkich. Twój kraj ma przydzielone jedno
+okno; na zakładce „Zadania” stoi karta **„Twoje okno czasowe”** ze startem i końcem w Twojej strefie
+czasowej (ustawia ją opiekun drużyny; domyślnie strefa Twojego kraju) i ewentualnym dodatkowym czasem.
+
+- Zadania (karty, PDF) i test online otwierają się **dopiero na starcie Twojego okna**; nagłówek
+  „Co teraz” odlicza do Twojego startu, a potem do Twojego terminu. Po terminie wysyłka jest zamknięta.
+- Do końca **ostatniego** okna wszystkich krajów nie rozmawiaj o zadaniach – także poza serwisem. Forum
+  i wiadomości są wtedy w premoderacji, a wyniki pojawią się dopiero po zakończeniu wszystkich okien.
+- Godziny w całym panelu (także w kalendarzu) są w Twojej strefie – obok godziny stoi nazwa strefy.
 
 ---
 
@@ -399,6 +418,45 @@ tym hasłem; „Zablokuj wiadomości” i wylogowanie usuwają odblokowany klucz
 znamy i nie przypomnimy** — „Utwórz nowy klucz” oznacza, że starych wiadomości szyfrowanych już nie
 odczytasz (druga strona zobaczy informację o zmianie klucza; odciski kluczy porównacie w „Szczegółach
 szyfrowania”). Jeśli zgłosisz wiadomość szyfrowaną, jej odszyfrowana treść trafi do organizatora.
+
+## 8b. Webinary — `/webinars/`
+
+Gdy organizator prowadzi webinary (wykłady, konsultacje, omówienia zadań), w pasku panelu `/me/` jest
+pozycja **„Webinary”**. Na tej stronie widzisz webinary przeznaczone dla Ciebie – z datą w strefie
+konkursu (i w Twojej strefie, jeśli jest inna).
+
+- **„Dołącz”** działa od ok. 15 minut przed początkiem, gdy prowadzący rozpocznie webinar. Pokój otwiera
+  się w nowej karcie, na stronie olimpiady – nic nie instalujesz. Najlepiej Chrome, Edge albo Firefox.
+- Wchodzisz jako **widz**: widzisz i słyszysz prowadzących, piszesz na czacie. Chcesz zadać pytanie
+  głosem? **„Podnieś rękę”** – gdy prowadzący da Ci głos, włączysz mikrofon (i kamerę).
+- W pokoju widać Twoje **imię i pierwszą literę nazwiska**. Webinar może być nagrywany – jeśli trwa
+  nagrywanie, pokój o tym informuje.
+- **Nagrania** opublikowane przez organizatora są na tej samej stronie („Odtwórz nagranie”).
+- **Listy**: zaproszenie i przypomnienie o webinarze – możesz je wyłączyć na dole strony
+  („Wyłącz listy o webinarach”).
+
+---
+
+## 8b. Przegląd tłumaczeń — `/translations/` (dla tłumaczy-wolontariuszy)
+
+Ten rozdział jest dla osób, którym organizator nadał rolę **tłumacza** (np. kierownik delegacji).
+Napisy serwisu są tłumaczone maszynowo z polskiego; Ty sprawdzasz je w swoim języku.
+
+1. **Lista napisów** — `/translations/` → swój język. Każdy wiersz: tekst źródłowy (polski), wersja
+   angielska (odniesienie), obecne tłumaczenie i stan: *maszynowe*, *przejrzane*, *brak*. Filtr
+   „Pokaż” i wyszukiwanie po dowolnym z tych tekstów.
+2. **Napis** — kliknij, żeby zobaczyć kontekst (gdzie w serwisie występuje, uwagi dla tłumacza) i:
+   - **zaproponować poprawkę** – zmienne w nawiasach (np. `%(name)s`, `{name}`) i znaczniki HTML
+     przepisz dokładnie; zamiast prostych cudzysłowów `"` użyj typograficznych („…”, «…», “…”),
+     prosty apostrof zamieni się na ’ sam,
+   - **poprzeć** cudzą propozycję („Popieram”) – recenzent widzi liczbę głosów,
+   - jako **recenzent**: „Zatwierdź”, „Odrzuć”, „Obecne tłumaczenie jest poprawne” albo „Przywróć
+     tłumaczenie z katalogu”. Zatwierdzona poprawka jest w serwisie po kilku sekundach.
+3. **Zgłoś tłumaczenie** — odnośnik w stopce każdej strony w Twoim języku. Wpisz fragment źle
+   przetłumaczonego tekstu i jak powinien brzmieć; zapisujemy samą ścieżkę strony (bez parametrów
+   adresu). Zgłoszenia czyta recenzent tłumaczeń Twojego języka.
+
+Inni tłumacze nie widzą, kto zaproponował poprawkę ani kto zgłosił błąd.
 
 ---
 

@@ -19,6 +19,7 @@
     "forum",
     "healthz",
     "i18n",
+    "integrations",
     "internal",
     "konto",
     "login",
@@ -37,7 +38,9 @@
     "statystyki",
     "supervisor",
     "support",
+    "translations",
     "visa",
+    "webinars",
     "zaproszenie",
     "zgoda"
   ],
@@ -59,8 +62,10 @@
     "djcms",
     "me",
     "review",
-    "supervisor"
+    "supervisor",
+    "webinars",
+    "translations"
   ],
-  "app_re": "^/(?:_theme|_util|account|accounts|activate|admin|api|appeals|captcha|cms|coordinator|delegation|documents|dyplomy|forum|healthz|i18n|internal|konto|login|logout|me|opiekun|password-reset|plakaty|register|rejestracja|reset|results|review|setup|status|statystyki|supervisor|support|visa|warsztaty/materialy|zaproszenie|zgoda)(?:/.*)?$|^/[^/]+\\.html$|^/status\\.json$",
-  "app_re_prefixed": "^/[^/]+/(?:_theme|_util|account|accounts|activate|admin|api|appeals|captcha|cms|coordinator|delegation|documents|dyplomy|forum|healthz|i18n|internal|konto|login|logout|me|opiekun|password-reset|plakaty|register|rejestracja|reset|results|review|setup|status|statystyki|supervisor|support|visa|warsztaty/materialy|zaproszenie|zgoda)(?:/.*)?$|^/[^/]+/[^/]+\\.html$|^/[^/]+/status\\.json$"
+  "app_re": "^/(?:_theme|_util|account|accounts|activate|admin|api|appeals|captcha|cms|coordinator|delegation|documents|dyplomy|forum|healthz|i18n|integrations|internal|konto|login|logout|me|opiekun|password-reset|plakaty|register|rejestracja|reset|results|review|setup|status|statystyki|supervisor|support|translations|visa|warsztaty/materialy|webinars|zaproszenie|zgoda)(?:/.*)?$|^/[^/]+\\.html$|^/status\\.json$",
+  "app_re_prefixed": "^/[^/]+/(?:_theme|_util|account|accounts|activate|admin|api|appeals|captcha|cms|coordinator|delegation|documents|dyplomy|forum|healthz|i18n|integrations|internal|konto|login|logout|me|opiekun|password-reset|plakaty|register|rejestracja|reset|results|review|setup|status|statystyki|supervisor|support|translations|visa|warsztaty/materialy|webinars|zaproszenie|zgoda)(?:/.*)?$|^/[^/]+/[^/]+\\.html$|^/[^/]+/status\\.json$"
 }

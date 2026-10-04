@@ -1,0 +1,286 @@
+# English – katalog aplikacji ``apps.school_stats`` (zadanie STAT-01).
+# Zrodlem (msgid) jest polski. UWAGA: tlumaczenie MASZYNOWE (model jezykowy) – patrz
+# docs/OPERACJE.md (przeglad przez native speakera przed szeroka komunikacja).
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Olimpiada Kwantowa\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-04 19:40+0200\n"
+"PO-Revision-Date: 2026-10-04 19:40+0200\n"
+"Last-Translator: Olimpiada Kwantowa\n"
+"Language-Team: English\n"
+"Language: en\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#, python-format
+msgid "mniej niż %(k)s uczestników – dane ukryte"
+msgstr "fewer than %(k)s participants – data hidden"
+
+msgid "Raport szkoły"
+msgstr "School report"
+
+#, python-format
+msgid "Edycja: %(edition)s · stan na %(date)s"
+msgstr "Edition: %(edition)s · as of %(date)s"
+
+msgid "Grupa"
+msgstr "Group"
+
+msgid "Uczestnicy"
+msgstr "Participants"
+
+msgid "Oddane prace"
+msgstr "Submitted solutions"
+
+msgid "W terminie"
+msgstr "On time"
+
+msgid "Zakwalifikowani"
+msgstr "Qualified"
+
+msgid "Średnia pkt"
+msgstr "Mean points"
+
+msgid "wyniki ogłoszone"
+msgstr "results published"
+
+msgid "wyniki jeszcze nieogłoszone"
+msgstr "results not yet published"
+
+msgid "Udział szkoły w kolejnych edycjach"
+msgstr "School participation across editions"
+
+msgid "Edycja"
+msgstr "Edition"
+
+msgid "Uczestnicy ze szkoły"
+msgstr "Participants from the school"
+
+#, python-format
+msgid "mniej niż %(k)s"
+msgstr "fewer than %(k)s"
+
+#, python-format
+msgid "Raport zawiera wyłącznie dane zbiorcze. Grupy mniejsze niż %(k)s osób są ukryte, żeby z liczb nie dało się odczytać wyniku konkretnego ucznia. Punkty i kwalifikacja pochodzą z oficjalnie ogłoszonych wyników etapu; etap bez ogłoszonych wyników ma tylko liczbę uczestników i oddanych prac."
+msgstr "This report contains aggregate data only. Groups of fewer than %(k)s people are hidden so that no individual student’s result can be inferred from the figures. Points and qualification come from the officially published stage results; a stage without published results shows only the number of participants and submitted solutions."
+
+msgid "Moi uczniowie"
+msgstr "My students"
+
+msgid "Szkoła"
+msgstr "School"
+
+msgid "Wszyscy uczestnicy"
+msgstr "All participants"
+
+msgid "RSPO"
+msgstr "RSPO"
+
+msgid "Miejscowość"
+msgstr "Town"
+
+msgid "Województwo"
+msgstr "Voivodeship"
+
+msgid "Uczestnicy w poprzedniej edycji"
+msgstr "Participants in the previous edition"
+
+msgid "Zmiana"
+msgstr "Change"
+
+msgid "wpisy"
+msgstr "entries"
+
+msgid "średnia"
+msgstr "mean"
+
+msgid "zakwalifikowani"
+msgstr "qualified"
+
+msgid "Statystyki szkół"
+msgstr "School statistics"
+
+msgid "Te same wartości stoją w tabeli pod wykresem."
+msgstr "The same values are shown in the table below the chart."
+
+#, python-format
+msgid "grupa ukryta – mniej niż %(k)s osób"
+msgstr "group hidden – fewer than %(k)s people"
+
+msgid "panel koordynatora"
+msgstr "coordinator panel"
+
+msgid "Udział szkół w edycji, porównanie z poprzednią edycją i – po ogłoszeniu wyników – średnie oraz liczba zakwalifikowanych."
+msgstr "School participation in the edition, a comparison with the previous edition and – once results are published – means and the number of qualified students."
+
+#, python-format
+msgid "Średnie i liczby zakwalifikowanych grup mniejszych niż %(k)s wpisów są ukryte – także w eksporcie CSV i w raportach PDF."
+msgstr "Means and qualified counts of groups with fewer than %(k)s entries are hidden – also in the CSV export and in the PDF reports."
+
+msgid "Eksport CSV"
+msgstr "CSV export"
+
+msgid "Ten konkurs nie ma jeszcze żadnej edycji."
+msgstr "This competition has no editions yet."
+
+msgid "Kolejność"
+msgstr "Order"
+
+msgid "Pokaż"
+msgstr "Show"
+
+msgid "Szkoły z uczestnikami"
+msgstr "Schools with participants"
+
+#, python-format
+msgid "Szkoły w edycji %(edition)s"
+msgstr "Schools in edition %(edition)s"
+
+msgid "Szkoły bez uczestników w tej edycji"
+msgstr "Schools without participants in this edition"
+
+msgid "Ranking szkół"
+msgstr "School ranking"
+
+msgid "awans"
+msgstr "qualified"
+
+msgid "Raport"
+msgstr "Report"
+
+msgid "spoza wykazu"
+msgstr "not in the register"
+
+msgid "grupa pod progiem"
+msgstr "group below the threshold"
+
+msgid "W tej edycji nikt jeszcze nie jest zapisany do etapu."
+msgstr "Nobody is registered for a stage in this edition yet."
+
+msgid "Województwa"
+msgstr "Voivodeships"
+
+msgid "Szkoły"
+msgstr "Schools"
+
+msgid "brak województwa"
+msgstr "no voivodeship"
+
+msgid "Brak danych."
+msgstr "No data."
+
+msgid "Szkoły do odzyskania"
+msgstr "Schools to win back"
+
+#, python-format
+msgid "Szkoły, które miały uczestników w edycji %(edition)s, a w tej edycji nie mają nikogo – adresaci akcji promocyjnej."
+msgstr "Schools that had participants in edition %(edition)s but have nobody in this edition – targets for outreach."
+
+msgid "Każda szkoła z poprzedniej edycji ma uczestników także w tej."
+msgstr "Every school from the previous edition has participants in this one too."
+
+msgid "Statystyki uczniów i szkoły"
+msgstr "Student and school statistics"
+
+msgid "Panel opiekuna szkolnego"
+msgstr "School supervisor panel"
+
+msgid "Udział Twoich uczniów w kolejnych etapach i edycjach. Punkty i kwalifikacja pojawiają się dopiero po oficjalnym ogłoszeniu wyników etapu."
+msgstr "Your students’ participation across stages and editions. Points and qualification appear only after the stage results are officially published."
+
+#, python-format
+msgid "Dane szkoły, województwa i całej olimpiady są zbiorcze. Grupy, z których dałoby się odczytać wynik konkretnej osoby (mniej niż %(k)s uczestników poza Twoimi uczniami), są ukryte."
+msgstr "School, voivodeship and olympiad-wide data are aggregated. Groups from which an individual’s result could be inferred (fewer than %(k)s participants besides your own students) are hidden."
+
+msgid "Wróć do listy uczniów"
+msgstr "Back to the student list"
+
+msgid "Raport szkoły (PDF)"
+msgstr "School report (PDF)"
+
+msgid "Porównanie z całą szkołą i raport dla dyrektora są dostępne, gdy Twoja szkoła jest wybrana z wykazu szkół i zweryfikowana przez organizatora. Do tego czasu widzisz swoich uczniów, województwo i całą olimpiadę."
+msgstr "The whole-school comparison and the head teacher’s report are available once your school is selected from the school register and verified by the organiser. Until then you see your students, the voivodeship and the whole olympiad."
+
+msgid "Olimpiada nie ma jeszcze żadnej edycji."
+msgstr "The olympiad has no editions yet."
+
+#, python-format
+msgid "Uczniowie w edycji %(edition)s"
+msgstr "Students in edition %(edition)s"
+
+msgid "Nikt jeszcze nie wskazał Twojego adresu jako adresu opiekuna."
+msgstr "Nobody has entered your address as their supervisor’s address yet."
+
+msgid "Ta edycja nie ma jeszcze etapów."
+msgstr "This edition has no stages yet."
+
+msgid "Uczeń"
+msgstr "Student"
+
+msgid "nie startuje"
+msgstr "not taking part"
+
+msgid "zapisany"
+msgstr "registered"
+
+msgid "oddane w terminie"
+msgstr "submitted on time"
+
+msgid "oddane po terminie"
+msgstr "submitted late"
+
+msgid "brak pracy"
+msgstr "no solution"
+
+msgid "brak na liście awansujących"
+msgstr "not on the list of qualifiers"
+
+msgid "pkt"
+msgstr "pts"
+
+msgid "wyniki nieogłoszone"
+msgstr "results not published"
+
+msgid "Porównanie po ogłoszeniu wyników"
+msgstr "Comparison after results are published"
+
+msgid "ogłoszono tylko listę awansujących"
+msgstr "only the list of qualifiers was published"
+
+msgid "W tej edycji żaden etap nie ma jeszcze ogłoszonych wyników."
+msgstr "No stage in this edition has published results yet."
+
+msgid "Postęp w kolejnych edycjach"
+msgstr "Progress across editions"
+
+msgid "Średnia punktów w pierwszym etapie edycji z ogłoszoną pełną tabelą wyników."
+msgstr "Mean points in the first stage of the edition with a fully published results table."
+
+msgid "Średnia punktów w kolejnych edycjach"
+msgstr "Mean points across editions"
+
+msgid "Moich uczniów"
+msgstr "My students"
+
+#, python-format
+msgid "„—” oznacza brak ogłoszonych wyników albo grupę ukrytą, bo liczy mniej niż %(k)s osób."
+msgstr "“—” means no published results or a group hidden because it has fewer than %(k)s people."
+
+msgid "Brak danych z poprzednich edycji."
+msgstr "No data from previous editions."
+
+msgid "Region"
+msgstr "Region"
+
+msgid "liczba uczestników"
+msgstr "number of participants"
+
+msgid "wyniki"
+msgstr "results"
+
+msgid "nazwa"
+msgstr "name"

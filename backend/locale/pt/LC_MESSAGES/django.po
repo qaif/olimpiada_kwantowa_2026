@@ -9482,3 +9482,320 @@ msgstr "Para escolas/professores"
 #: apps/cms/context_processors.py
 msgid "Rejestracja nauczyciela"
 msgstr "Cadastro de professor"
+
+#: apps/webinars/services.py
+msgid "Serwer webinarów nie odpowiada. Spróbuj za chwilę."
+msgstr "O servidor de webinars não está respondendo. Tente novamente em instantes."
+
+#: apps/webinars/services.py
+#, python-format
+msgid "Wejście otworzy się %(when)s. Wróć wtedy na tę stronę."
+msgstr "A entrada abre em %(when)s. Volte a esta página nesse horário."
+
+#: apps/webinars/services.py
+msgid "Ten webinar już się zakończył."
+msgstr "Este webinar já terminou."
+
+#: apps/webinars/services.py
+msgid "Prowadzący jeszcze nie rozpoczął webinaru. Spróbuj ponownie za kilka minut."
+msgstr "O apresentador ainda não iniciou o webinar. Tente novamente em alguns minutos."
+
+#: apps/webinars/services.py
+msgid "Ten link nie jest już aktywny."
+msgstr "Este link não está mais ativo."
+
+#: apps/web/views/webinars.py
+msgid "Ta strona jest dostępna dla uczestników i komisji konkursu."
+msgstr "Esta página está disponível para os participantes e a comissão do concurso."
+
+#: apps/web/views/webinars.py
+msgid "Listy o webinarach włączone."
+msgstr "E-mails sobre webinars ativados."
+
+#: apps/web/views/webinars.py
+msgid "Listy o webinarach wyłączone."
+msgstr "E-mails sobre webinars desativados."
+
+#: apps/web/views/webinars.py
+msgid "Jako prowadzący wejdź przyciskiem „Rozpocznij” w panelu webinarów."
+msgstr "Como apresentador, entre pelo botão “Iniciar” na página de webinars."
+
+#: apps/web/views/participant.py
+msgid "Webinary"
+msgstr "Webinars"
+
+#: apps/webinars/notifications.py
+#, python-format
+msgid "Zaproszenie na webinar: %(title)s – Olimpiada Kwantowa"
+msgstr "Convite para o webinar: %(title)s – Olimpíada Quântica"
+
+#: apps/webinars/notifications.py
+#, python-format
+msgid "Zaproszenie na webinar: %(title)s – %(competition)s"
+msgstr "Convite para o webinar: %(title)s – %(competition)s"
+
+#: apps/webinars/notifications.py
+#, python-format
+msgid "Przypomnienie o webinarze: %(title)s – Olimpiada Kwantowa"
+msgstr "Lembrete do webinar: %(title)s – Olimpíada Quântica"
+
+#: apps/webinars/notifications.py
+#, python-format
+msgid "Przypomnienie o webinarze: %(title)s – %(competition)s"
+msgstr "Lembrete do webinar: %(title)s – %(competition)s"
+
+#: apps/webinars/notifications.py
+#, python-format
+msgid "Zapraszamy na webinar „%(title)s”."
+msgstr "Convidamos você para o webinar “%(title)s”."
+
+#: apps/webinars/notifications.py
+#, python-format
+msgid "Przypominamy: webinar „%(title)s” zaczyna się wkrótce."
+msgstr "Lembrete: o webinar “%(title)s” começa em breve."
+
+#: apps/webinars/notifications.py
+#, python-format
+msgid "Termin: %(when)s (strefa %(zone)s), czas trwania: %(minutes)s min."
+msgstr "Data: %(when)s (fuso horário %(zone)s), duração: %(minutes)s min."
+
+#: apps/webinars/notifications.py
+#, python-format
+msgid "Dołączysz po zalogowaniu, przyciskiem „Dołącz” na stronie: %(link)s"
+msgstr "Faça login e use o botão “Entrar” nesta página: %(link)s"
+
+#: apps/webinars/notifications.py
+msgid "Przycisk działa od kilkunastu minut przed początkiem webinaru."
+msgstr "O botão funciona a partir de cerca de quinze minutos antes do início do webinar."
+
+#: apps/webinars/notifications.py
+#, python-format
+msgid "Nie chcesz dostawać listów o webinarach? Wyłącz je tutaj: %(link)s"
+msgstr "Não quer receber e-mails sobre webinars? Desative-os aqui: %(link)s"
+
+#: templates/web/webinars/list.html
+msgid "Spotkania online organizatora. Przycisk „Dołącz” działa od kilkunastu minut przed początkiem, gdy prowadzący rozpocznie webinar – spotkanie otworzy się w nowej karcie. Godziny w strefie %(zone)s."
+msgstr "Reuniões online do organizador. O botão “Entrar” funciona a partir de cerca de quinze minutos antes do início, quando o apresentador iniciar o webinar – a reunião abre em uma nova aba. Horários no fuso %(zone)s."
+
+#: templates/web/webinars/list.html
+msgid "Nadchodzące"
+msgstr "Próximos"
+
+#: templates/web/webinars/list.html
+msgid "u Ciebie:"
+msgstr "seu horário:"
+
+#: templates/web/webinars/list.html
+msgid "Rozpocznij jako prowadzący"
+msgstr "Iniciar como apresentador"
+
+#: templates/web/webinars/list.html
+msgid "Wejście od:"
+msgstr "Entrada a partir de:"
+
+#: templates/web/webinars/list.html
+msgid "Nie ma zaplanowanych webinarów."
+msgstr "Não há webinars agendados."
+
+#: templates/web/webinars/list.html
+msgid "Nagrania"
+msgstr "Gravações"
+
+#: templates/web/webinars/list.html
+msgid "Odtwórz nagranie %(number)s"
+msgstr "Reproduzir gravação %(number)s"
+
+#: templates/web/webinars/list.html
+msgid "Odtwórz nagranie"
+msgstr "Reproduzir gravação"
+
+#: templates/web/webinars/list.html
+msgid "Powiadomienia e-mail"
+msgstr "Notificações por e-mail"
+
+#: templates/web/webinars/list.html
+msgid "Dostajesz zaproszenia i przypomnienia o webinarach."
+msgstr "Você recebe convites e lembretes de webinars."
+
+#: templates/web/webinars/list.html
+msgid "Wyłącz listy o webinarach"
+msgstr "Desativar e-mails de webinars"
+
+#: templates/web/webinars/list.html
+msgid "Listy o webinarach są wyłączone – webinary widzisz tylko na tej stronie."
+msgstr "Os e-mails de webinars estão desativados – você vê os webinars só nesta página."
+
+#: templates/web/webinars/list.html
+msgid "Włącz listy o webinarach"
+msgstr "Ativar e-mails de webinars"
+
+#: templates/web/webinars/guest.html
+msgid "Zaproszenie na webinar"
+msgstr "Convite para o webinar"
+
+#: templates/web/webinars/guest.html
+msgid "Webinar"
+msgstr "Webinar"
+
+#: templates/web/webinars/guest.html
+msgid "Imię i nazwisko (albo nazwa) widoczne w spotkaniu"
+msgstr "Nome exibido na reunião"
+
+
+#: templates/web/webinars/_committee_card.html
+msgid "Wszystkie webinary"
+msgstr "Todos os webinars"
+
+#: templates/web/webinars/list.html
+msgid "Panel"
+msgstr "Painel"
+
+#: apps/web/views/webinars.py
+msgid "Łączenie…"
+msgstr "Conectando…"
+
+#: apps/web/views/webinars.py
+msgid "Jesteś w pokoju."
+msgstr "Você está na sala."
+
+#: apps/web/views/webinars.py
+msgid "Rozłączono. Odśwież stronę, żeby wrócić."
+msgstr "Desconectado. Atualize a página para voltar."
+
+#: apps/web/views/webinars.py
+msgid "Spróbuj ponownie"
+msgstr "Tentar novamente"
+
+#: apps/web/views/webinars.py
+msgid "Nie udało się połączyć z pokojem."
+msgstr "Não foi possível conectar à sala."
+
+#: apps/web/views/webinars.py
+msgid "prowadzący"
+msgstr "apresentador"
+
+#: apps/web/views/webinars.py
+msgid "podniesiona ręka"
+msgstr "mão levantada"
+
+#: apps/web/views/webinars.py
+msgid "Podnieś rękę"
+msgstr "Levantar a mão"
+
+#: apps/web/views/webinars.py
+msgid "Opuść rękę"
+msgstr "Abaixar a mão"
+
+#: apps/web/views/webinars.py
+msgid "Daj głos"
+msgstr "Dar a palavra"
+
+#: apps/web/views/webinars.py
+msgid "Odbierz głos"
+msgstr "Retirar a palavra"
+
+#: apps/web/views/webinars.py
+msgid "Usuń z pokoju"
+msgstr "Remover da sala"
+
+#: apps/web/views/webinars.py
+msgid "Usunąć tę osobę z pokoju?"
+msgstr "Remover esta pessoa da sala?"
+
+#: apps/web/views/webinars.py
+msgid "Widok siatki"
+msgstr "Visualização em grade"
+
+#: apps/web/views/webinars.py
+msgid "Widok prelegenta"
+msgstr "Visualização do palestrante"
+
+#: apps/web/views/webinars.py
+msgid "Nagrywaj"
+msgstr "Gravar"
+
+#: apps/web/views/webinars.py
+msgid "Zatrzymaj nagrywanie"
+msgstr "Parar a gravação"
+
+#: apps/web/views/webinars.py
+msgid "Trwa nagrywanie"
+msgstr "Gravação em andamento"
+
+#: apps/web/views/webinars.py
+msgid "Prowadzący dał Ci głos – możesz włączyć mikrofon i kamerę."
+msgstr "O apresentador deu a palavra a você – você pode ligar o microfone e a câmera."
+
+#: apps/web/views/webinars.py
+msgid "Prowadzący odebrał Ci głos."
+msgstr "O apresentador retirou sua palavra."
+
+#: apps/web/views/webinars.py
+msgid "Udostępnij ekran"
+msgstr "Compartilhar tela"
+
+#: apps/web/views/webinars.py
+msgid "Zakończ udostępnianie"
+msgstr "Parar de compartilhar"
+
+#: apps/web/views/webinars.py
+#, python-format
+msgid "Ekran: %(name)s"
+msgstr "Tela: %(name)s"
+
+#: apps/web/views/webinars.py
+msgid "Coś poszło nie tak. Spróbuj ponownie."
+msgstr "Algo deu errado. Tente novamente."
+
+#: templates/web/webinars/room.html
+msgid "Wyjdź"
+msgstr "Sair"
+
+#: templates/web/webinars/room.html
+msgid "Pokój webinaru wymaga włączonego JavaScriptu."
+msgstr "A sala do webinar exige JavaScript."
+
+#: templates/web/webinars/room.html
+msgid "Pokój jest chwilowo niedostępny – brakuje komponentu wideo na serwerze. Daj znać organizatorowi."
+msgstr "A sala está temporariamente indisponível – falta o componente de vídeo no servidor. Avise o organizador."
+
+#: templates/web/webinars/room.html
+msgid "Obraz uczestników"
+msgstr "Vídeo dos participantes"
+
+#: templates/web/webinars/room.html
+msgid "Czat"
+msgstr "Chat"
+
+#: templates/web/webinars/room.html
+msgid "Sterowanie"
+msgstr "Controles"
+
+#: templates/web/webinars/room.html
+msgid "Mikrofon"
+msgstr "Microfone"
+
+#: templates/web/webinars/room.html
+msgid "Kamera"
+msgstr "Câmera"
+
+#: templates/web/webinars/guest.html
+msgid "Wejście działa od kilkunastu minut przed początkiem, gdy prowadzący rozpocznie webinar. Wchodzisz jako widz – głos daje prowadzący."
+msgstr "A entrada funciona a partir de cerca de quinze minutos antes do início, quando o apresentador iniciar o webinar. Você entra como espectador – o apresentador dá a palavra."
+
+#: apps/webinars/services.py
+msgid "Prowadzący usunął Cię z tego webinaru."
+msgstr "O apresentador removeu você deste webinar."
+
+#: apps/webinars/services.py
+#, python-format
+msgid "%(name)s (gość)"
+msgstr "%(name)s (convidado)"
+
+#: templates/web/webinars/room.html
+msgid "Włącz dźwięk"
+msgstr "Ativar som"
+
+#: templates/web/webinars/room.html
+msgid "Ten webinar może być nagrywany. Gdy nagrywanie trwa, u góry pokoju widać czerwony znacznik „Trwa nagrywanie”; nagranie może zawierać Twój głos, obraz i wiadomości czatu, jeśli je włączysz lub wyślesz."
+msgstr "Este webinar pode ser gravado. Durante a gravação, aparece no topo da sala o selo vermelho “Gravação em andamento”; a gravação pode incluir sua voz, imagem e mensagens do chat, se você os ativar ou enviar."

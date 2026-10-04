@@ -478,7 +478,8 @@ class QuizStartView(_ParticipantQuizMixin, View):
         # ma tu zobaczyć wynik albo kolejne podejście, a nie licznik sprzed godziny.
         quiz_services.finalise_overdue(quiz=quiz, entry=entry, now=now)
         active = quiz_services.active_attempt(quiz, entry)
-        opens, closes = quiz.window
+        # Okno ucznia w etapie z oknami czasowymi (TZ-01); poza nim dokładnie ``quiz.window``.
+        opens, closes = quiz_services.start_window(quiz, entry)
         return TemplateResponse(
             request,
             START_TEMPLATE,
@@ -488,7 +489,7 @@ class QuizStartView(_ParticipantQuizMixin, View):
                 "entry": entry,
                 "active": active,
                 "attempts_left": quiz_services.attempts_left(quiz, entry),
-                "is_open": quiz.is_open(now),
+                "is_open": opens <= now < closes,
                 "opens_at": opens,
                 "closes_at": closes,
                 "question_count": quiz.draw_size,
@@ -652,6 +653,6 @@ class QuizResultView(_ParticipantQuizMixin, View):
                 "stage": quiz.stage,
                 "show_score": quiz_services.may_show_result(quiz, attempt, now),
                 "attempts_left": quiz_services.attempts_left(quiz, attempt.entry),
-                "closes_at": quiz.window[1],
+                "closes_at": quiz_services.results_visible_at(quiz),
             },
         )

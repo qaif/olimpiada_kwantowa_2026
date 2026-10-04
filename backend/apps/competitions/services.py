@@ -1115,6 +1115,23 @@ def update_stage(stage: Stage, actor, *, request=None, now=None, **fields) -> St
                 status.HTTP_409_CONFLICT,
             )
 
+    if "opens_at" in changed or "deadline_at" in changed:
+        # Okna czasowe etapu (TZ-01) muszą mieścić się w ramie – ta sama reguła, co przy terminach
+        # rozmów wyżej: rama węższa od okien zamknęłaby etap (beat, ``LOCKED``) komuś w trakcie
+        # pracy albo otworzyła go przed pierwszym oknem. Pytanie kosztuje zapytanie wyłącznie przy
+        # zmianie terminów.
+        from apps.time_windows.access import windows_fit_envelope
+
+        if not windows_fit_envelope(
+            locked, changed.get("opens_at", locked.opens_at), changed.get("deadline_at", locked.deadline_at)
+        ):
+            raise DomainError(
+                "Okna czasowe etapu nie zmieściłyby się w nowych terminach – najpierw przesuń okna "
+                "(ekran „Okna czasowe”).",
+                "STAGE_WINDOWS_OUTSIDE",
+                status.HTTP_409_CONFLICT,
+            )
+
     diff = {
         name: {"from": _audit_value(getattr(locked, name)), "to": _audit_value(value)}
         for name, value in changed.items()

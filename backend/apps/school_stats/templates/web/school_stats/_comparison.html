@@ -1,0 +1,43 @@
+{% load i18n web_extras %}
+{% comment %}
+  Tabela porównania jednego etapu: wiersze z ``services._comparison`` / ``services.school_report``.
+  Wiersz z ``visible=False`` nie pokazuje **żadnej** liczby – nawet liczby uczestników, bo przy
+  progu z dopełnieniem to ona zdradza, ilu „obcych” uczniów jest w grupie. Średnia stoi w
+  ``line.mean`` – serwis wpisuje tam ``None`` także wtedy, gdy ocenionych wpisów jest mniej niż próg.
+{% endcomment %}
+<div class="table-scroll">
+  <table class="table ss-table">
+    <thead>
+      <tr>
+        <th scope="col">{% translate "Grupa" %}</th>
+        <th scope="col" class="num">{% translate "Uczestnicy" %}</th>
+        {% if stage.has_submissions %}
+          <th scope="col" class="num">{% translate "Oddane prace" %}</th>
+          <th scope="col" class="num">{% translate "W terminie" %}</th>
+        {% endif %}
+        <th scope="col" class="num">{% translate "Zakwalifikowani" %}</th>
+        <th scope="col" class="num">{% translate "Średnia pkt" %}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for line in lines %}
+        <tr>
+          <th scope="row">{{ line.label }}</th>
+          {% if line.visible %}
+            <td class="num">{{ line.aggregate.entries }}</td>
+            {% if stage.has_submissions %}
+              <td class="num">{{ line.aggregate.submitted }}</td>
+              <td class="num">{{ line.aggregate.on_time }}</td>
+            {% endif %}
+            <td class="num">{% if stage.published %}{{ line.aggregate.qualified }}{% else %}—{% endif %}</td>
+            <td class="num">{% if line.mean is not None %}{{ line.mean|points }}{% else %}—{% endif %}</td>
+          {% else %}
+            <td colspan="{% if stage.has_submissions %}5{% else %}3{% endif %}" class="hint">{% blocktranslate trimmed with k=k_anonymity %}
+              grupa ukryta – mniej niż {{ k }} osób
+            {% endblocktranslate %}</td>
+          {% endif %}
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

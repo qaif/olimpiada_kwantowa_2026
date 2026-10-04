@@ -1,0 +1,286 @@
+# Arabic – katalog aplikacji ``apps.school_stats`` (zadanie STAT-01).
+# Zrodlem (msgid) jest polski. UWAGA: tlumaczenie MASZYNOWE (model jezykowy) – patrz
+# docs/OPERACJE.md (przeglad przez native speakera przed szeroka komunikacja).
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Olimpiada Kwantowa\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-04 19:40+0200\n"
+"PO-Revision-Date: 2026-10-04 19:40+0200\n"
+"Last-Translator: Olimpiada Kwantowa\n"
+"Language-Team: Arabic\n"
+"Language: ar\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=6; plural=(n==0 ? 0 : n==1 ? 1 : n==2 ? 2 : n%100>=3 && n%100<=10 ? 3 : n%100>=11 ? 4 : 5);\n"
+
+#, python-format
+msgid "mniej niż %(k)s uczestników – dane ukryte"
+msgstr "أقل من %(k)s مشاركين – البيانات مخفية"
+
+msgid "Raport szkoły"
+msgstr "تقرير المدرسة"
+
+#, python-format
+msgid "Edycja: %(edition)s · stan na %(date)s"
+msgstr "الدورة: %(edition)s · حتى %(date)s"
+
+msgid "Grupa"
+msgstr "المجموعة"
+
+msgid "Uczestnicy"
+msgstr "المشاركون"
+
+msgid "Oddane prace"
+msgstr "الحلول المسلّمة"
+
+msgid "W terminie"
+msgstr "في الموعد"
+
+msgid "Zakwalifikowani"
+msgstr "المتأهلون"
+
+msgid "Średnia pkt"
+msgstr "متوسط النقاط"
+
+msgid "wyniki ogłoszone"
+msgstr "النتائج منشورة"
+
+msgid "wyniki jeszcze nieogłoszone"
+msgstr "النتائج لم تُنشر بعد"
+
+msgid "Udział szkoły w kolejnych edycjach"
+msgstr "مشاركة المدرسة عبر الدورات"
+
+msgid "Edycja"
+msgstr "الدورة"
+
+msgid "Uczestnicy ze szkoły"
+msgstr "المشاركون من المدرسة"
+
+#, python-format
+msgid "mniej niż %(k)s"
+msgstr "أقل من %(k)s"
+
+#, python-format
+msgid "Raport zawiera wyłącznie dane zbiorcze. Grupy mniejsze niż %(k)s osób są ukryte, żeby z liczb nie dało się odczytać wyniku konkretnego ucznia. Punkty i kwalifikacja pochodzą z oficjalnie ogłoszonych wyników etapu; etap bez ogłoszonych wyników ma tylko liczbę uczestników i oddanych prac."
+msgstr "يتضمن التقرير بيانات مجمّعة فقط. المجموعات التي تضم أقل من %(k)s أشخاص مخفية حتى لا يمكن استنتاج نتيجة طالب بعينه من الأرقام. النقاط والتأهل مأخوذة من نتائج المرحلة المنشورة رسميًا؛ والمرحلة التي لم تُنشر نتائجها تعرض عدد المشاركين والحلول المسلّمة فقط."
+
+msgid "Moi uczniowie"
+msgstr "طلابي"
+
+msgid "Szkoła"
+msgstr "المدرسة"
+
+msgid "Wszyscy uczestnicy"
+msgstr "جميع المشاركين"
+
+msgid "RSPO"
+msgstr "RSPO"
+
+msgid "Miejscowość"
+msgstr "البلدة"
+
+msgid "Województwo"
+msgstr "المقاطعة"
+
+msgid "Uczestnicy w poprzedniej edycji"
+msgstr "المشاركون في الدورة السابقة"
+
+msgid "Zmiana"
+msgstr "التغيّر"
+
+msgid "wpisy"
+msgstr "التسجيلات"
+
+msgid "średnia"
+msgstr "المتوسط"
+
+msgid "zakwalifikowani"
+msgstr "المتأهلون"
+
+msgid "Statystyki szkół"
+msgstr "إحصاءات المدارس"
+
+msgid "Te same wartości stoją w tabeli pod wykresem."
+msgstr "القيم نفسها واردة في الجدول أسفل المخطط."
+
+#, python-format
+msgid "grupa ukryta – mniej niż %(k)s osób"
+msgstr "مجموعة مخفية – أقل من %(k)s أشخاص"
+
+msgid "panel koordynatora"
+msgstr "لوحة المنسّق"
+
+msgid "Udział szkół w edycji, porównanie z poprzednią edycją i – po ogłoszeniu wyników – średnie oraz liczba zakwalifikowanych."
+msgstr "مشاركة المدارس في الدورة، ومقارنتها بالدورة السابقة، وبعد نشر النتائج – المتوسطات وعدد المتأهلين."
+
+#, python-format
+msgid "Średnie i liczby zakwalifikowanych grup mniejszych niż %(k)s wpisów są ukryte – także w eksporcie CSV i w raportach PDF."
+msgstr "المتوسطات وأعداد المتأهلين للمجموعات التي تضم أقل من %(k)s تسجيلات مخفية – وكذلك في تصدير CSV وتقارير PDF."
+
+msgid "Eksport CSV"
+msgstr "تصدير CSV"
+
+msgid "Ten konkurs nie ma jeszcze żadnej edycji."
+msgstr "لا توجد بعد أي دورة لهذه المسابقة."
+
+msgid "Kolejność"
+msgstr "الترتيب"
+
+msgid "Pokaż"
+msgstr "عرض"
+
+msgid "Szkoły z uczestnikami"
+msgstr "مدارس لديها مشاركون"
+
+#, python-format
+msgid "Szkoły w edycji %(edition)s"
+msgstr "المدارس في الدورة %(edition)s"
+
+msgid "Szkoły bez uczestników w tej edycji"
+msgstr "مدارس بلا مشاركين في هذه الدورة"
+
+msgid "Ranking szkół"
+msgstr "ترتيب المدارس"
+
+msgid "awans"
+msgstr "متأهل"
+
+msgid "Raport"
+msgstr "التقرير"
+
+msgid "spoza wykazu"
+msgstr "خارج السجل"
+
+msgid "grupa pod progiem"
+msgstr "مجموعة دون الحد"
+
+msgid "W tej edycji nikt jeszcze nie jest zapisany do etapu."
+msgstr "لم يُسجَّل أحد بعد في أي مرحلة من هذه الدورة."
+
+msgid "Województwa"
+msgstr "المقاطعات"
+
+msgid "Szkoły"
+msgstr "المدارس"
+
+msgid "brak województwa"
+msgstr "بلا مقاطعة"
+
+msgid "Brak danych."
+msgstr "لا توجد بيانات."
+
+msgid "Szkoły do odzyskania"
+msgstr "مدارس ينبغي استعادتها"
+
+#, python-format
+msgid "Szkoły, które miały uczestników w edycji %(edition)s, a w tej edycji nie mają nikogo – adresaci akcji promocyjnej."
+msgstr "مدارس كان لها مشاركون في الدورة %(edition)s ولا أحد منها في هذه الدورة – مستهدفة بحملة الترويج."
+
+msgid "Każda szkoła z poprzedniej edycji ma uczestników także w tej."
+msgstr "كل مدرسة من الدورة السابقة لديها مشاركون في هذه الدورة أيضًا."
+
+msgid "Statystyki uczniów i szkoły"
+msgstr "إحصاءات الطلاب والمدرسة"
+
+msgid "Panel opiekuna szkolnego"
+msgstr "لوحة المشرف المدرسي"
+
+msgid "Udział Twoich uczniów w kolejnych etapach i edycjach. Punkty i kwalifikacja pojawiają się dopiero po oficjalnym ogłoszeniu wyników etapu."
+msgstr "مشاركة طلابك في المراحل والدورات المتتالية. لا تظهر النقاط والتأهل إلا بعد النشر الرسمي لنتائج المرحلة."
+
+#, python-format
+msgid "Dane szkoły, województwa i całej olimpiady są zbiorcze. Grupy, z których dałoby się odczytać wynik konkretnej osoby (mniej niż %(k)s uczestników poza Twoimi uczniami), są ukryte."
+msgstr "بيانات المدرسة والمقاطعة والأولمبياد بأكمله مجمّعة. المجموعات التي يمكن منها استنتاج نتيجة شخص بعينه (أقل من %(k)s مشاركين عدا طلابك) مخفية."
+
+msgid "Wróć do listy uczniów"
+msgstr "العودة إلى قائمة الطلاب"
+
+msgid "Raport szkoły (PDF)"
+msgstr "تقرير المدرسة (PDF)"
+
+msgid "Porównanie z całą szkołą i raport dla dyrektora są dostępne, gdy Twoja szkoła jest wybrana z wykazu szkół i zweryfikowana przez organizatora. Do tego czasu widzisz swoich uczniów, województwo i całą olimpiadę."
+msgstr "تتوفر المقارنة مع المدرسة كلها وتقرير المدير عندما تكون مدرستك مختارة من سجل المدارس ومُتحقَّقًا منها من قبل المنظِّم. وحتى ذلك الحين ترى طلابك والمقاطعة والأولمبياد بأكمله."
+
+msgid "Olimpiada nie ma jeszcze żadnej edycji."
+msgstr "لا توجد بعد أي دورة للأولمبياد."
+
+#, python-format
+msgid "Uczniowie w edycji %(edition)s"
+msgstr "الطلاب في الدورة %(edition)s"
+
+msgid "Nikt jeszcze nie wskazał Twojego adresu jako adresu opiekuna."
+msgstr "لم يُدخل أحد بعد عنوانك بوصفه عنوان المشرف."
+
+msgid "Ta edycja nie ma jeszcze etapów."
+msgstr "لا توجد مراحل بعد في هذه الدورة."
+
+msgid "Uczeń"
+msgstr "الطالب"
+
+msgid "nie startuje"
+msgstr "لا يشارك"
+
+msgid "zapisany"
+msgstr "مسجَّل"
+
+msgid "oddane w terminie"
+msgstr "سُلِّم في الموعد"
+
+msgid "oddane po terminie"
+msgstr "سُلِّم متأخرًا"
+
+msgid "brak pracy"
+msgstr "لا يوجد حل"
+
+msgid "brak na liście awansujących"
+msgstr "ليس في قائمة المتأهلين"
+
+msgid "pkt"
+msgstr "نقطة"
+
+msgid "wyniki nieogłoszone"
+msgstr "النتائج غير منشورة"
+
+msgid "Porównanie po ogłoszeniu wyników"
+msgstr "المقارنة بعد نشر النتائج"
+
+msgid "ogłoszono tylko listę awansujących"
+msgstr "نُشرت قائمة المتأهلين فقط"
+
+msgid "W tej edycji żaden etap nie ma jeszcze ogłoszonych wyników."
+msgstr "لم تُنشر بعد نتائج أي مرحلة في هذه الدورة."
+
+msgid "Postęp w kolejnych edycjach"
+msgstr "التقدّم عبر الدورات"
+
+msgid "Średnia punktów w pierwszym etapie edycji z ogłoszoną pełną tabelą wyników."
+msgstr "متوسط النقاط في أول مرحلة من الدورة نُشر جدول نتائجها كاملًا."
+
+msgid "Średnia punktów w kolejnych edycjach"
+msgstr "متوسط النقاط عبر الدورات"
+
+msgid "Moich uczniów"
+msgstr "طلابي"
+
+#, python-format
+msgid "„—” oznacza brak ogłoszonych wyników albo grupę ukrytą, bo liczy mniej niż %(k)s osób."
+msgstr "«—» تعني عدم وجود نتائج منشورة أو مجموعة مخفية لأنها تضم أقل من %(k)s أشخاص."
+
+msgid "Brak danych z poprzednich edycji."
+msgstr "لا توجد بيانات من الدورات السابقة."
+
+msgid "Region"
+msgstr "المنطقة"
+
+msgid "liczba uczestników"
+msgstr "عدد المشاركين"
+
+msgid "wyniki"
+msgstr "النتائج"
+
+msgid "nazwa"
+msgstr "الاسم"
