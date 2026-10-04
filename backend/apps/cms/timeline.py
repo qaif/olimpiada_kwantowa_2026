@@ -13,10 +13,13 @@ from __future__ import annotations
 import re
 from datetime import date
 
+from django.conf import settings
 from django.core.cache import cache
 from django.urls import get_script_prefix, reverse
 from django.utils import timezone
 from django.utils.formats import date_format
+from django.utils.translation import get_language, gettext_lazy
+from django.utils.translation import gettext as _
 
 from apps.competitions.models import Edition, Stage, StageKind
 from apps.competitions.services import current_edition
@@ -27,10 +30,11 @@ from .workshops import WORKSHOPS_SLUG, workshop_rows, workshops_page
 #: Stan etapu na osi czasu. Klucz jest maszynowy (klasa CSS, test), etykieta – dla czytelnika.
 #: Kolejność jest kolejnością rozstrzygania: ogłoszone wyniki wygrywają z „zamknięty”, bo to
 #: ostatnia rzecz, która się z etapem stała, i jedyna, po której czytelnik ma gdzie kliknąć.
-STATUS_PUBLISHED = ("published", "wyniki ogłoszone")
-STATUS_OPEN = ("open", "otwarty")
-STATUS_CLOSED = ("closed", "zamknięty")
-STATUS_UPCOMING = ("upcoming", "nadchodzący")
+#: Etykiety są leniwe (stałe modułu); ``stage_rows`` oddaje je już jako ``str`` w języku żądania.
+STATUS_PUBLISHED = ("published", gettext_lazy("wyniki ogłoszone"))
+STATUS_OPEN = ("open", gettext_lazy("otwarty"))
+STATUS_CLOSED = ("closed", gettext_lazy("zamknięty"))
+STATUS_UPCOMING = ("upcoming", gettext_lazy("nadchodzący"))
 
 #: Ton odznaki per stan – wyłącznie prezentacja, ta sama paleta co ``web_extras.badge_class``.
 STATUS_BADGE = {
@@ -145,7 +149,8 @@ def stage_rows(edition: Edition | None = None, now=None, *, competition=None) ->
                 "has_opened": stage.has_opened(now),
                 "has_results": has_results,
                 "status": status,
-                "status_label": label,
+                # ``str`` od razu: wiersz trafia też do serializera API (``djcms_api``).
+                "status_label": str(label),
                 "badge_class": STATUS_BADGE[status],
                 "is_onsite_event": onsite,
                 "date_range": stage_date_range(stage) if onsite else "",
@@ -307,7 +312,7 @@ def _registration_item(edition: Edition, today: date) -> list[dict]:
     return [
         _item(
             kind="registration",
-            title="Rejestracja uczestników",
+            title=_("Rejestracja uczestników"),
             start=start,
             end=end,
             today=today,
@@ -336,12 +341,12 @@ def _workshop_items(today: date, competition=None) -> list[dict]:
     return [
         _item(
             kind="workshop",
-            title=f"Warsztaty: {row['topic']}" if row["topic"] else "Warsztaty",
+            title=_("Warsztaty: %(topic)s") % {"topic": row["topic"]} if row["topic"] else _("Warsztaty"),
             start=row["date_value"],
             end=row["date_value"],
             today=today,
             url=f"{get_script_prefix()}{WORKSHOPS_SLUG}/",
-            note="online",
+            note=_("online"),
         )
         for row in workshop_rows(page)
     ]
@@ -604,7 +609,12 @@ def _lead_item(items: list[dict]) -> dict | None:
     return items[-1] if items else None
 
 
-def _cache_key(edition_id: int, competition_id: int | None, script_prefix: str | None = None) -> str:
+def _cache_key(
+    edition_id: int,
+    competition_id: int | None,
+    script_prefix: str | None = None,
+    language: str | None = None,
+) -> str:
     """Klucz bufora: konkurs i jego edycja.
 
     Konkurs w kluczu jest **nadmiarowy i ma taki zostać**. Edycja należy do dokładnie jednego
@@ -625,7 +635,13 @@ def _cache_key(edition_id: int, competition_id: int | None, script_prefix: str |
     # domeną, więc wpis policzony pod ``/druga/`` nie może trafić do odsłony bez prefiksu (ani
     # odwrotnie). Człon dochodzi wyłącznie przy prefiksie – klucz Konkursu #1 zostaje ten sam.
     prefix = get_script_prefix() if script_prefix is None else script_prefix
-    return key if prefix == "/" else f"{key}:{prefix}"
+    if prefix != "/":
+        key = f"{key}:{prefix}"
+    # Pasek niesie też napisy interfejsu (tytuły „Rejestracja uczestników”, „Warsztaty: …”, stany),
+    # więc wpis policzony po polsku nie może trafić do odsłony w innym języku (I18N-01). Człon
+    # języka dochodzi wyłącznie poza językiem podstawowym – klucz Konkursu #1 zostaje ten sam.
+    language = (get_language() or settings.LANGUAGE_CODE) if language is None else language
+    return key if language == settings.LANGUAGE_CODE else f"{key}:{language}"
 
 
 def invalidate_timeline_cache(edition_id: int) -> None:
@@ -645,11 +661,19 @@ def invalidate_timeline_cache(edition_id: int) -> None:
         .first()
     )
     competition_id, path_prefix = row if row is not None else (None, "")
-    keys = [_cache_key(edition_id, competition_id, "/")]
+    prefixes = ["/"]
     if path_prefix:
         # Wariant policzony pod prefiksem ścieżki (patrz ``_cache_key``) – to samo zapytanie niesie
         # prefiks konkursu, więc zdjęcie obu wpisów nie kosztuje drugiego odczytu.
-        keys.append(_cache_key(edition_id, competition_id, f"/{path_prefix}/"))
+        prefixes.append(f"/{path_prefix}/")
+    # Każdy język instalacji ma własny wpis (patrz ``_cache_key``); zdejmujemy wszystkie naraz –
+    # to jedno ``delete_many``, a nie zapytanie na język.
+    languages = [code for code, _name in settings.LANGUAGES]
+    keys = [
+        _cache_key(edition_id, competition_id, prefix, language)
+        for prefix in prefixes
+        for language in languages
+    ]
     cache.delete_many(keys)
 
 

@@ -31,6 +31,7 @@ from captcha.fields import CaptchaField
 from django import forms
 from django.conf import settings
 from django.core import signing
+from django.utils.translation import gettext, gettext_noop
 
 from apps.tenancy.branding import branded_text
 from apps.tenancy.context import current_competition
@@ -54,17 +55,21 @@ TIMESTAMP_SALT = "apps.web.captcha.form_ts"
 DEFAULT_MIN_FILL_SECONDS = 3
 
 #: Jeden komunikat dla obu pułapek – patrz docstring modułu.
-REJECTED_MESSAGE = (
+#:
+#: Stałe tego modułu są ``gettext_noop``, a nie ``gettext_lazy``: zostają zwykłym ``str`` (testy
+#: i inwarianty sprawdzają je ``in`` w treści odpowiedzi i porównują dosłownie), a tłumaczy je
+#: miejsce, które je pokazuje – ``gettext(...)`` w funkcjach i w ``CaptchaFormMixin`` poniżej.
+REJECTED_MESSAGE = gettext_noop(
     "Nie udało się potwierdzić, że formularz wypełnił człowiek. Wyślij go jeszcze raz, "
     "a jeśli błąd się powtarza – napisz do contact@qaif.org."
 )
 
-CAPTCHA_LABEL = "Zabezpieczenie antyspamowe"
+CAPTCHA_LABEL = gettext_noop("Zabezpieczenie antyspamowe")
 
 #: Adres kontaktowy w podpowiedzi, a nie w osobnym akapicie szablonu: ta sama treść ma dojechać do
 #: obu formularzy rejestracji, a jeden z nich renderuje się przez ``form.as_p``. Bez odnośnika
 #: ``mailto:`` – szablon uczestnika escapuje ``help_text``, więc znacznik zostałby w nim widoczny.
-CAPTCHA_HELP_TEXT = (
+CAPTCHA_HELP_TEXT = gettext_noop(
     "Wpisz wynik działania z obrazka. Nie widzisz obrazka (czytnik ekranu, brak grafiki)? "
     "Napisz do contact@qaif.org – konto założymy ręcznie."
 )
@@ -74,11 +79,11 @@ CAPTCHA_HELP_TEXT = (
 #: człowiek, który właśnie **nie może się zarejestrować**, i adres jest jedyną drogą, jaka mu
 #: zostaje. Adres cudzego organizatora byłby tu gorszy niż brak adresu
 #: (``docs/UNIWERSALNY-ETAP-2.md`` § 1.1.4).
-REJECTED_MESSAGE_TEMPLATE = (
+REJECTED_MESSAGE_TEMPLATE = gettext_noop(
     "Nie udało się potwierdzić, że formularz wypełnił człowiek. Wyślij go jeszcze raz, "
     "a jeśli błąd się powtarza – napisz do %(contact)s."
 )
-CAPTCHA_HELP_TEMPLATE = (
+CAPTCHA_HELP_TEMPLATE = gettext_noop(
     "Wpisz wynik działania z obrazka. Nie widzisz obrazka (czytnik ekranu, brak grafiki)? "
     "Napisz do %(contact)s – konto założymy ręcznie."
 )
@@ -106,8 +111,8 @@ def _branded_message(template: str, fallback: str, competition=None) -> str:
     od dzisiejszego zdania, a organizator nie ma obowiązku wypełnić tego pola.
     """
     if competition is None or not competition.contact_email:
-        return fallback
-    return branded_text(template, fallback, competition, contact=competition.contact_email)
+        return gettext(fallback)
+    return branded_text(gettext(template), gettext(fallback), competition, contact=competition.contact_email)
 
 
 def rejected_message(competition=None) -> str:
@@ -207,9 +212,11 @@ class CaptchaFormMixin(forms.Form):
         # które formularze rejestracji trzymają pod ``self.competition``.
         self._captcha_competition = _competition()
         self.fields[CAPTCHA_FIELD_NAME] = CaptchaField(
-            label=CAPTCHA_LABEL,
+            label=gettext(CAPTCHA_LABEL),
             help_text=captcha_help_text(self._captcha_competition),
-            error_messages={"invalid": "Wynik działania jest niepoprawny. Spróbuj z nowym obrazkiem."},
+            error_messages={
+                "invalid": gettext("Wynik działania jest niepoprawny. Spróbuj z nowym obrazkiem.")
+            },
         )
 
     @property

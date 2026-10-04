@@ -19,6 +19,7 @@ from django.core.validators import FileExtensionValidator
 from django.db import models
 from django.db.models import Q
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 
 from apps.accounts.models import SchoolSupervisor
 from apps.competitions.models import Edition, Stage, StageEntry
@@ -49,10 +50,10 @@ class Anonymization(models.TextChoices):
     kto się zgodził, niezależnie od wyniku.
     """
 
-    CODE = "CODE", "kod uczestnika"
-    INITIALS_SCHOOL = "INITIALS_SCHOOL", "inicjały i szkoła"
-    FULL = "FULL", "imię i nazwisko awansujących, za zgodą"
-    FULL_ALL = "FULL_ALL", "imię i nazwisko wszystkich, za zgodą"
+    CODE = "CODE", _("kod uczestnika")
+    INITIALS_SCHOOL = "INITIALS_SCHOOL", _("inicjały i szkoła")
+    FULL = "FULL", _("imię i nazwisko awansujących, za zgodą")
+    FULL_ALL = "FULL_ALL", _("imię i nazwisko wszystkich, za zgodą")
 
 
 #: Tryby, w których do snapshotu może trafić imię i nazwisko.
@@ -124,11 +125,11 @@ class CertificateKind(models.TextChoices):
     i terminy zajęć, na których uczeń był.
     """
 
-    LAUREAT = "LAUREAT", "laureat"
-    FINALISTA = "FINALISTA", "finalista"
-    UCZESTNIK = "UCZESTNIK", "uczestnik"
-    OPIEKUN = "OPIEKUN", "opiekun"
-    WARSZTATY = "WARSZTATY", "uczestnik warsztatów"
+    LAUREAT = "LAUREAT", _("laureat")
+    FINALISTA = "FINALISTA", _("finalista")
+    UCZESTNIK = "UCZESTNIK", _("uczestnik")
+    OPIEKUN = "OPIEKUN", _("opiekun")
+    WARSZTATY = "WARSZTATY", _("uczestnik warsztatów")
 
 
 #: Prefiks numeru dokumentu: ``OK/<rok>/<kolejny>``. „OK” od Olimpiady Kwantowej – numer trafia

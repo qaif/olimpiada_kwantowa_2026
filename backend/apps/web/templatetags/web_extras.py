@@ -7,6 +7,7 @@ domyślne autoescapowanie.
 
 from django import template
 from django.utils.formats import date_format
+from django.utils.translation import gettext, gettext_lazy, pgettext
 
 from apps.core.points import format_points, input_value
 
@@ -60,7 +61,7 @@ LOCAL_DATETIME_FORMAT = "j E Y, H:i"
 #: Dopisek przy każdej godzinie. Etykieta strefy, a nie „(UTC)”: w bazie jest UTC, ale szablon
 #: i tak renderuje czas lokalny (``USE_TZ=True`` + ``TIME_ZONE="Europe/Warsaw"``), więc dawny
 #: dopisek „(UTC)” podawał uczestnikowi godzinę przesuniętą o 1–2 h względem tego, co widział.
-LOCAL_TIME_LABEL = "czas polski"
+LOCAL_TIME_LABEL = gettext_lazy("czas polski")
 
 
 @register.filter
@@ -131,7 +132,7 @@ def event_dates(stage) -> str:
 
 
 @register.filter
-def edition_title(value, prefix="Edycja"):
+def edition_title(value, prefix=None):
     """„I edycja 2026/2027” zostaje bez zmian; „XV (2026/2027)” dostaje przedrostek.
 
     Chodzi o to, żeby nie dublować słowa „edycja” w nagłówku i w hero.
@@ -141,7 +142,15 @@ def edition_title(value, prefix="Edycja"):
         return ""
     if "edycj" in label.lower():
         return label
-    return f"{prefix} {label}"
+    if prefix is None:
+        prefix = gettext("Edycja")
+    # Jeden wzorzec z nazwanymi miejscami, a nie sklejanie „przedrostek + etykieta”: kolejność
+    # słów jest cechą języka (np. „XV (2026/2027) edition” po angielsku), więc ustala ją tłumacz.
+    # Po polsku wynik jest ten sam, co dawniej: „Edycja XV (2026/2027)”.
+    return pgettext("edition title: prefix word + edition label", "%(prefix)s %(label)s") % {
+        "prefix": prefix,
+        "label": label,
+    }
 
 
 @register.filter

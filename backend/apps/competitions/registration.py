@@ -14,6 +14,7 @@ from __future__ import annotations
 
 from django.utils.formats import date_format
 from django.utils.timezone import localtime
+from django.utils.translation import gettext as _
 from rest_framework import status
 
 from apps.core.api import DomainError
@@ -48,7 +49,12 @@ def format_moment(value) -> str:
     if value is None:
         return ""
     local = localtime(value)
-    return f"{date_format(local, DATE_FORMAT)} o {date_format(local, TIME_FORMAT)}"
+    # Jeden wzorzec z dwoma miejscami, a nie sklejka: „o” jest polskim przyimkiem, a szyk daty
+    # i godziny bywa w innych językach odwrotny (I18N-01 § 7).
+    return _("%(date)s o %(time)s") % {
+        "date": date_format(local, DATE_FORMAT),
+        "time": date_format(local, TIME_FORMAT),
+    }
 
 
 def registration_message(state: RegistrationStatus) -> str:
@@ -61,12 +67,12 @@ def registration_message(state: RegistrationStatus) -> str:
     if state.is_open:
         return ""
     if state.reason == REGISTRATION_NOT_YET and state.opens_at is not None:
-        return f"Rejestracja rusza {format_moment(state.opens_at)}."
+        return _("Rejestracja rusza %(moment)s.") % {"moment": format_moment(state.opens_at)}
     if state.reason == REGISTRATION_CLOSED and state.closes_at is not None:
-        return f"Rejestracja została zamknięta {format_moment(state.closes_at)}."
+        return _("Rejestracja została zamknięta %(moment)s.") % {"moment": format_moment(state.closes_at)}
     # ``disabled`` oraz każdy stan bez daty (np. brak bieżącej edycji): jedno zdanie bez terminu.
     # Podanie daty, której nie ma, byłoby obietnicą – a wyłącznik nie jest zapowiedzią.
-    return "Rejestracja uczestników jest obecnie wyłączona."
+    return _("Rejestracja uczestników jest obecnie wyłączona.")
 
 
 def ensure_registration_open(now=None) -> RegistrationStatus:

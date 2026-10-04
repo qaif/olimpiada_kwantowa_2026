@@ -31,6 +31,7 @@ from datetime import datetime
 from django.core.cache import cache
 from django.db import connection
 from django.utils import timezone
+from django.utils.translation import gettext as _
 
 logger = logging.getLogger(__name__)
 
@@ -125,18 +126,22 @@ def _check_queue(now=None) -> ServiceStatus:
         logger.warning("Strona statusu: nie udało się odczytać pulsu workera.", exc_info=True)
         raw = None
     if not raw:
-        return ServiceStatus(SERVICE_QUEUE, False, "brak sygnału od workera")
+        return ServiceStatus(SERVICE_QUEUE, False, _("brak sygnału od workera"))
     try:
         stamp = datetime.fromisoformat(raw)
     except ValueError:  # pragma: no cover - wpis zapisuje wyłącznie nasze zadanie
-        return ServiceStatus(SERVICE_QUEUE, False, "brak sygnału od workera")
+        return ServiceStatus(SERVICE_QUEUE, False, _("brak sygnału od workera"))
     minutes = int((now - stamp).total_seconds() // 60)
     if minutes > HEARTBEAT_MAX_AGE_MINUTES:
-        return ServiceStatus(SERVICE_QUEUE, False, f"brak sygnału od {minutes} min")
+        return ServiceStatus(
+            SERVICE_QUEUE, False, _("brak sygnału od %(minutes)s min") % {"minutes": minutes}
+        )
     return ServiceStatus(
         SERVICE_QUEUE,
         True,
-        "sygnał sprzed mniej niż minuty" if minutes < 1 else f"sygnał sprzed {minutes} min",
+        _("sygnał sprzed mniej niż minuty")
+        if minutes < 1
+        else _("sygnał sprzed %(minutes)s min") % {"minutes": minutes},
     )
 
 

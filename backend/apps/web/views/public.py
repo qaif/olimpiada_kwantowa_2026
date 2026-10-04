@@ -27,6 +27,7 @@ from django.core.exceptions import PermissionDenied
 from django.http import Http404, HttpResponse
 from django.shortcuts import redirect
 from django.urls import get_script_prefix, reverse_lazy
+from django.utils.translation import gettext as _
 from django.views.generic import FormView, TemplateView
 
 from apps.accounts.activation import (
@@ -403,7 +404,8 @@ class ActivationResendView(ThrottledFormMixin, FormView):
 
     def form_valid(self, form):
         resend_activation(form.cleaned_data["email"], request=self.request)
-        messages.success(self.request, RESEND_MESSAGE)
+        # ``RESEND_MESSAGE`` jest ``gettext_noop`` – tłumaczy go dopiero miejsce, które go pokazuje.
+        messages.success(self.request, _(RESEND_MESSAGE))
         return super().form_valid(form)
 
 
