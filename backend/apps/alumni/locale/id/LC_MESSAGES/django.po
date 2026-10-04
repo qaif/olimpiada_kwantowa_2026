@@ -3,7 +3,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-04 19:54+0200\n"
+"POT-Creation-Date: 2026-10-04 20:58+0200\n"
 "PO-Revision-Date: 2026-10-04 20:00+0200\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -158,6 +158,9 @@ msgstr "Mentoring telah berakhir – percakapan ini sekarang hanya dapat dibaca.
 msgid "Organizator wstrzymał mentoring – ta rozmowa jest teraz tylko do odczytu."
 msgstr "Penyelenggara telah menjeda mentoring – percakapan ini sekarang hanya dapat dibaca."
 
+msgid "Nowa rozmowa mentorska. Pierwsze wiadomości czyta i akceptuje organizator, zanim trafią do drugiej osoby."
+msgstr "Percakapan mentoring baru. Penyelenggara membaca dan menyetujui pesan-pesan pertama sebelum sampai ke pihak lain."
+
 msgid "Mentoring jest w tym konkursie wyłączony."
 msgstr "Mentoring dinonaktifkan dalam kompetisi ini."
 
@@ -197,14 +200,29 @@ msgstr "Anda dapat memiliki paling banyak %(limit)s permintaan dan hubungan ment
 msgid "Ta osoba nie ma teraz wolnego miejsca na mentoring."
 msgstr "Orang ini sedang tidak memiliki tempat mentoring yang kosong."
 
+msgid "Wysłano już dziś dużo próśb o mentoring – spróbuj jutro."
+msgstr "Hari ini Anda sudah mengirim banyak permintaan mentoring – coba lagi besok."
+
+msgid "Do tej osoby wysłano już w tym tygodniu prośbę – spróbuj za kilka dni."
+msgstr "Anda sudah mengirim permintaan kepada orang ini minggu ini – coba lagi dalam beberapa hari."
+
 msgid "Nie ma takiej relacji mentorskiej."
 msgstr "Hubungan mentoring tersebut tidak ditemukan."
+
+msgid "Macie już rozmowę szyfrowaną, a ta relacja wymaga moderacji organizatora. Organizator dostał zgłoszenie i skontaktuje się z Wami."
+msgstr "Anda sudah memiliki percakapan terenkripsi, sedangkan hubungan ini memerlukan moderasi penyelenggara. Penyelenggara telah diberi tahu dan akan menghubungi Anda."
 
 msgid "Na tę prośbę już odpowiedziano."
 msgstr "Permintaan ini sudah dijawab."
 
 msgid "Najpierw dołącz do sieci absolwentów."
 msgstr "Bergabunglah dengan jaringan alumni terlebih dahulu."
+
+msgid "Twój profil nie przyjmuje teraz nowych relacji mentorskich."
+msgstr "Profil Anda saat ini tidak menerima hubungan mentoring baru."
+
+msgid "Ta osoba nie jest już uczestnikiem konkursu."
+msgstr "Orang ini bukan lagi peserta kompetisi."
 
 msgid "Masz już komplet mentee. Zwiększ liczbę miejsc w profilu albo zakończ inną relację."
 msgstr "Jumlah mentee Anda sudah penuh. Tambah jumlah tempat di profil Anda atau akhiri hubungan lain."
@@ -217,6 +235,9 @@ msgstr "Hubungan ini sudah berakhir."
 
 msgid "Powód"
 msgstr "Alasan"
+
+msgid "Nie ma takiej notatki do akceptacji."
+msgstr "Tidak ada catatan seperti itu yang menunggu persetujuan."
 
 msgid "Nie ma takiego zgłoszenia."
 msgstr "Laporan tersebut tidak ditemukan."
@@ -298,6 +319,21 @@ msgstr "mentor menarik persetujuan"
 
 msgid "konto usunięte"
 msgstr "akun dihapus"
+
+msgid "profil mentora ukryty przez organizatora"
+msgstr "profil mentor disembunyikan oleh penyelenggara"
+
+msgid "bez akceptacji"
+msgstr "tanpa persetujuan"
+
+msgid "czeka na organizatora"
+msgstr "menunggu penyelenggara"
+
+msgid "zaakceptowana"
+msgstr "disetujui"
+
+msgid "odrzucona przez organizatora"
+msgstr "ditolak oleh penyelenggara"
 
 msgid "rozmowa według zasad Wiadomości"
 msgstr "percakapan sesuai aturan Pesan"
@@ -399,6 +435,9 @@ msgstr "Minat (satu orang dapat memiliki beberapa)"
 msgid "Najwyższe osiągnięcie"
 msgstr "Prestasi tertinggi"
 
+msgid "Opis tej osoby czeka na akceptację organizatora."
+msgstr "Deskripsi orang ini menunggu persetujuan penyelenggara."
+
 msgid "Zainteresowania:"
 msgstr "Minat:"
 
@@ -451,6 +490,21 @@ msgstr "“Siapa yang dapat bergabung” adalah prestasi minimum dalam edisi yan
 msgid "Zapisz ustawienia"
 msgstr "Simpan pengaturan"
 
+msgid "Opisy mentorów do akceptacji"
+msgstr "Deskripsi mentor yang menunggu persetujuan"
+
+msgid "Małoletni uczestnicy nie widzą opisu ani odnośników mentora, dopóki ich nie zaakceptujesz. Każda zmiana treści wymaga ponownej akceptacji."
+msgstr "Peserta di bawah umur tidak melihat deskripsi dan tautan mentor sampai Anda menyetujuinya. Setiap perubahan isi memerlukan persetujuan ulang."
+
+msgid "Osoba"
+msgstr "Orang"
+
+msgid "możliwe dane kontaktowe:"
+msgstr "kemungkinan data kontak:"
+
+msgid "Akceptuj"
+msgstr "Setujui"
+
 msgid "Profile absolwentów"
 msgstr "Profil alumni"
 
@@ -460,9 +514,6 @@ msgstr "Masih dapat bergabung (memenuhi kriteria tetapi belum bergabung): %(coun
 
 msgid "Szukaj"
 msgstr "Cari"
-
-msgid "Osoba"
-msgstr "Orang"
 
 msgid "Osiągnięcia"
 msgstr "Prestasi"
@@ -540,14 +591,26 @@ msgstr "Antrean moderasi"
 msgid "Mentoring jest wyłączony – istniejące rozmowy mentorskie są tylko do odczytu."
 msgstr "Mentoring dinonaktifkan – percakapan mentoring yang ada hanya dapat dibaca."
 
-msgid "Zgłoszenia problemów"
-msgstr "Masalah yang dilaporkan"
+msgid "Notatki próśb małoletnich do akceptacji"
+msgstr "Catatan permintaan dari peserta di bawah umur yang menunggu persetujuan"
+
+msgid "Mentor przeczyta notatkę dopiero po Twojej akceptacji; do tego czasu widzi sam temat."
+msgstr "Mentor baru akan membaca catatan setelah Anda menyetujuinya; sampai saat itu ia hanya melihat topiknya."
 
 msgid "Relacja"
 msgstr "Hubungan"
 
+msgid "Odrzuć"
+msgstr "Tolak"
+
+msgid "Zgłoszenia problemów"
+msgstr "Masalah yang dilaporkan"
+
 msgid "Zgłoszone"
 msgstr "Dilaporkan"
+
+msgid "automatyczne"
+msgstr "otomatis"
 
 msgid "Zamknij zgłoszenie"
 msgstr "Tutup laporan"
@@ -632,6 +695,15 @@ msgstr "Halaman direktori"
 msgid "Nikogo tu jeszcze nie ma"
 msgstr "Belum ada siapa pun di sini"
 
+msgid "Sieć absolwentów"
+msgstr "Jaringan alumni"
+
+msgid "Organizator wyłączył sieć absolwentów. Twój profil nie jest nikomu pokazywany, nie dostajesz zaproszeń, a rozmowy mentorskie są tylko do odczytu. Dane profilu zostają do czasu wycofania zgody albo usunięcia ich przez organizatora."
+msgstr "Penyelenggara telah menonaktifkan jaringan alumni. Profil Anda tidak ditampilkan kepada siapa pun, Anda tidak menerima undangan, dan percakapan mentoring hanya dapat dibaca. Data profil tetap tersimpan sampai Anda menarik persetujuan atau penyelenggara menghapusnya."
+
+msgid "Wycofaj zgodę i usuń profil"
+msgstr "Tarik persetujuan dan hapus profil"
+
 msgid "Zgłoś problem z mentoringiem"
 msgstr "Laporkan masalah mentoring"
 
@@ -641,14 +713,20 @@ msgstr "Laporan langsung dikirim ke penyelenggara. Jika masalahnya menyangkut pe
 msgid "Wyślij zgłoszenie"
 msgstr "Kirim laporan"
 
-msgid "Sieć absolwentów"
-msgstr "Jaringan alumni"
-
 msgid "Byli uczestnicy, którzy pokazują, co robią dziś, pomagają obecnym uczestnikom jako mentorzy i dostają zaproszenia na warsztaty, webinary i do jury."
 msgstr "Mantan peserta yang menunjukkan kegiatan mereka saat ini, membantu peserta saat ini sebagai mentor, dan menerima undangan ke lokakarya, webinar, dan peran juri."
 
 msgid "Publiczna ściana"
 msgstr "Dinding publik"
+
+msgid "Zmieniła się treść zgody"
+msgstr "Teks persetujuan telah berubah"
+
+msgid "Twój profil jest niewidoczny, dopóki nie potwierdzisz nowej treści zgody. Możesz też wycofać zgodę niżej."
+msgstr "Profil Anda tersembunyi sampai Anda mengonfirmasi teks persetujuan yang baru. Anda juga dapat menarik persetujuan di bawah."
+
+msgid "Potwierdzam"
+msgstr "Saya mengonfirmasi"
 
 msgid "Twój profil"
 msgstr "Profil Anda"
@@ -667,9 +745,6 @@ msgstr "Penarikan persetujuan"
 
 msgid "Po wycofaniu zgody Twój profil absolwenta zniknie od razu, a relacje, w których jesteś mentorem, zakończą się. Twoje wyniki i dyplomy zostają – to dokumentacja zawodów."
 msgstr "Setelah Anda menarik persetujuan, profil alumni Anda akan segera hilang dan hubungan di mana Anda menjadi mentor akan berakhir. Hasil dan sertifikat Anda tetap ada – keduanya merupakan bagian dari arsip kompetisi."
-
-msgid "Wycofaj zgodę i usuń profil"
-msgstr "Tarik persetujuan dan hapus profil"
 
 msgid "Dołącz do sieci absolwentów"
 msgstr "Bergabung dengan jaringan alumni"
@@ -695,11 +770,11 @@ msgstr "Anda adalah mentor"
 msgid "Twój mentor"
 msgstr "mentor Anda"
 
+msgid "Notatka prośby czeka na akceptację organizatora."
+msgstr "Catatan permintaan menunggu persetujuan penyelenggara."
+
 msgid "Przyjmij"
 msgstr "Terima"
-
-msgid "Odrzuć"
-msgstr "Tolak"
 
 msgid "Wycofaj prośbę"
 msgstr "Tarik permintaan"
@@ -775,6 +850,9 @@ msgstr "Profil disimpan."
 msgid "Zgoda wycofana – Twój profil absolwenta został usunięty."
 msgstr "Persetujuan ditarik – profil alumni Anda telah dihapus."
 
+msgid "Dziękujemy – Twój profil znów jest widoczny."
+msgstr "Terima kasih – profil Anda terlihat kembali."
+
 msgid "Prośba wysłana. Dostaniesz e-mail, gdy mentor odpowie."
 msgstr "Permintaan terkirim. Anda akan menerima email saat mentor membalas."
 
@@ -801,6 +879,12 @@ msgstr "Profil disembunyikan."
 
 msgid "Profil znów jest widoczny."
 msgstr "Profil kembali terlihat."
+
+msgid "Opis zaakceptowany – małoletni uczestnicy go zobaczą."
+msgstr "Deskripsi disetujui – peserta di bawah umur akan melihatnya."
+
+msgid "Decyzja zapisana."
+msgstr "Keputusan disimpan."
 
 msgid "Podaj powód zakończenia relacji."
 msgstr "Berikan alasan pengakhiran hubungan."

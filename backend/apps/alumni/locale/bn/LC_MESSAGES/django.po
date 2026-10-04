@@ -3,7 +3,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-04 19:54+0200\n"
+"POT-Creation-Date: 2026-10-04 20:58+0200\n"
 "PO-Revision-Date: 2026-10-04 20:00+0200\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -158,6 +158,9 @@ msgstr "মেন্টরিং শেষ হয়েছে – এই কথ�
 msgid "Organizator wstrzymał mentoring – ta rozmowa jest teraz tylko do odczytu."
 msgstr "আয়োজক মেন্টরিং স্থগিত করেছেন – এই কথোপকথন এখন শুধু পড়া যাবে।"
 
+msgid "Nowa rozmowa mentorska. Pierwsze wiadomości czyta i akceptuje organizator, zanim trafią do drugiej osoby."
+msgstr "নতুন মেন্টরিং কথোপকথন। প্রথম বার্তাগুলো অন্য ব্যক্তির কাছে পৌঁছানোর আগে আয়োজক পড়ে অনুমোদন করেন।"
+
 msgid "Mentoring jest w tym konkursie wyłączony."
 msgstr "এই প্রতিযোগিতায় মেন্টরিং বন্ধ আছে।"
 
@@ -197,14 +200,29 @@ msgstr "একসঙ্গে আপনার সর্বোচ্চ %(limit)s
 msgid "Ta osoba nie ma teraz wolnego miejsca na mentoring."
 msgstr "এই ব্যক্তির এখন মেন্টরিংয়ের জন্য কোনো খালি জায়গা নেই।"
 
+msgid "Wysłano już dziś dużo próśb o mentoring – spróbuj jutro."
+msgstr "আপনি আজ ইতিমধ্যে অনেক মেন্টরিং অনুরোধ পাঠিয়েছেন – আগামীকাল আবার চেষ্টা করুন।"
+
+msgid "Do tej osoby wysłano już w tym tygodniu prośbę – spróbuj za kilka dni."
+msgstr "আপনি এই সপ্তাহে ইতিমধ্যে এই ব্যক্তিকে অনুরোধ পাঠিয়েছেন – কয়েক দিন পরে আবার চেষ্টা করুন।"
+
 msgid "Nie ma takiej relacji mentorskiej."
 msgstr "এমন কোনো মেন্টরিং সম্পর্ক নেই।"
+
+msgid "Macie już rozmowę szyfrowaną, a ta relacja wymaga moderacji organizatora. Organizator dostał zgłoszenie i skontaktuje się z Wami."
+msgstr "আপনাদের ইতিমধ্যে একটি এনক্রিপ্ট করা কথোপকথন আছে, আর এই সম্পর্কের জন্য আয়োজকের মডারেশন প্রয়োজন। আয়োজক বিজ্ঞপ্তি পেয়েছেন এবং আপনাদের সঙ্গে যোগাযোগ করবেন।"
 
 msgid "Na tę prośbę już odpowiedziano."
 msgstr "এই অনুরোধের উত্তর ইতিমধ্যে দেওয়া হয়েছে।"
 
 msgid "Najpierw dołącz do sieci absolwentów."
 msgstr "আগে প্রাক্তন অংশগ্রহণকারী নেটওয়ার্কে যোগ দিন।"
+
+msgid "Twój profil nie przyjmuje teraz nowych relacji mentorskich."
+msgstr "আপনার প্রোফাইল এখন নতুন মেন্টরিং সম্পর্ক গ্রহণ করছে না।"
+
+msgid "Ta osoba nie jest już uczestnikiem konkursu."
+msgstr "এই ব্যক্তি আর প্রতিযোগিতার অংশগ্রহণকারী নন।"
 
 msgid "Masz już komplet mentee. Zwiększ liczbę miejsc w profilu albo zakończ inną relację."
 msgstr "আপনার মেন্টির সংখ্যা ইতিমধ্যে পূর্ণ। প্রোফাইলে জায়গার সংখ্যা বাড়ান অথবা অন্য একটি সম্পর্ক শেষ করুন।"
@@ -217,6 +235,9 @@ msgstr "এই সম্পর্ক ইতিমধ্যে শেষ হয�
 
 msgid "Powód"
 msgstr "কারণ"
+
+msgid "Nie ma takiej notatki do akceptacji."
+msgstr "অনুমোদনের অপেক্ষায় এমন কোনো নোট নেই।"
 
 msgid "Nie ma takiego zgłoszenia."
 msgstr "এমন কোনো রিপোর্ট নেই।"
@@ -298,6 +319,21 @@ msgstr "মেন্টর সম্মতি প্রত্যাহার ক
 
 msgid "konto usunięte"
 msgstr "অ্যাকাউন্ট মুছে ফেলা হয়েছে"
+
+msgid "profil mentora ukryty przez organizatora"
+msgstr "মেন্টরের প্রোফাইল আয়োজক লুকিয়েছেন"
+
+msgid "bez akceptacji"
+msgstr "অনুমোদনের প্রয়োজন নেই"
+
+msgid "czeka na organizatora"
+msgstr "আয়োজকের অপেক্ষায়"
+
+msgid "zaakceptowana"
+msgstr "অনুমোদিত"
+
+msgid "odrzucona przez organizatora"
+msgstr "আয়োজক প্রত্যাখ্যান করেছেন"
 
 msgid "rozmowa według zasad Wiadomości"
 msgstr "বার্তা-সংক্রান্ত নিয়ম অনুযায়ী কথোপকথন"
@@ -399,6 +435,9 @@ msgstr "আগ্রহ (একজনের একাধিক থাকতে �
 msgid "Najwyższe osiągnięcie"
 msgstr "সর্বোচ্চ অর্জন"
 
+msgid "Opis tej osoby czeka na akceptację organizatora."
+msgstr "এই ব্যক্তির বিবরণ আয়োজকের অনুমোদনের অপেক্ষায় আছে।"
+
 msgid "Zainteresowania:"
 msgstr "আগ্রহ:"
 
@@ -451,6 +490,21 @@ msgstr "“কারা যোগ দিতে পারেন” হলো ক�
 msgid "Zapisz ustawienia"
 msgstr "সেটিংস সংরক্ষণ করুন"
 
+msgid "Opisy mentorów do akceptacji"
+msgstr "অনুমোদনের অপেক্ষায় মেন্টরদের বিবরণ"
+
+msgid "Małoletni uczestnicy nie widzą opisu ani odnośników mentora, dopóki ich nie zaakceptujesz. Każda zmiana treści wymaga ponownej akceptacji."
+msgstr "আপনি অনুমোদন না করা পর্যন্ত অপ্রাপ্তবয়স্ক অংশগ্রহণকারীরা মেন্টরের বিবরণ ও লিংক দেখতে পায় না। বিষয়বস্তুর প্রতিটি পরিবর্তনের জন্য আবার অনুমোদন প্রয়োজন।"
+
+msgid "Osoba"
+msgstr "ব্যক্তি"
+
+msgid "możliwe dane kontaktowe:"
+msgstr "সম্ভাব্য যোগাযোগের তথ্য:"
+
+msgid "Akceptuj"
+msgstr "অনুমোদন করুন"
+
 msgid "Profile absolwentów"
 msgstr "প্রাক্তন অংশগ্রহণকারীদের প্রোফাইল"
 
@@ -460,9 +514,6 @@ msgstr "এখনও যোগ দিতে পারেন (শর্ত পূ
 
 msgid "Szukaj"
 msgstr "খুঁজুন"
-
-msgid "Osoba"
-msgstr "ব্যক্তি"
 
 msgid "Osiągnięcia"
 msgstr "অর্জন"
@@ -540,14 +591,26 @@ msgstr "মডারেশন সারি"
 msgid "Mentoring jest wyłączony – istniejące rozmowy mentorskie są tylko do odczytu."
 msgstr "মেন্টরিং বন্ধ আছে – বিদ্যমান মেন্টরিং কথোপকথনগুলো শুধু পড়া যাবে।"
 
-msgid "Zgłoszenia problemów"
-msgstr "রিপোর্ট করা সমস্যা"
+msgid "Notatki próśb małoletnich do akceptacji"
+msgstr "অনুমোদনের অপেক্ষায় অপ্রাপ্তবয়স্কদের অনুরোধের নোট"
+
+msgid "Mentor przeczyta notatkę dopiero po Twojej akceptacji; do tego czasu widzi sam temat."
+msgstr "আপনার অনুমোদনের পরেই মেন্টর নোটটি পড়বেন; ততক্ষণ তিনি কেবল বিষয়টি দেখেন।"
 
 msgid "Relacja"
 msgstr "সম্পর্ক"
 
+msgid "Odrzuć"
+msgstr "প্রত্যাখ্যান করুন"
+
+msgid "Zgłoszenia problemów"
+msgstr "রিপোর্ট করা সমস্যা"
+
 msgid "Zgłoszone"
 msgstr "রিপোর্টের সময়"
+
+msgid "automatyczne"
+msgstr "স্বয়ংক্রিয়"
 
 msgid "Zamknij zgłoszenie"
 msgstr "রিপোর্ট বন্ধ করুন"
@@ -632,6 +695,15 @@ msgstr "ডিরেক্টরির পৃষ্ঠা"
 msgid "Nikogo tu jeszcze nie ma"
 msgstr "এখানে এখনও কেউ নেই"
 
+msgid "Sieć absolwentów"
+msgstr "প্রাক্তন অংশগ্রহণকারী নেটওয়ার্ক"
+
+msgid "Organizator wyłączył sieć absolwentów. Twój profil nie jest nikomu pokazywany, nie dostajesz zaproszeń, a rozmowy mentorskie są tylko do odczytu. Dane profilu zostają do czasu wycofania zgody albo usunięcia ich przez organizatora."
+msgstr "আয়োজক প্রাক্তন অংশগ্রহণকারীদের নেটওয়ার্ক বন্ধ করেছেন। আপনার প্রোফাইল কাউকে দেখানো হয় না, আপনি আমন্ত্রণ পান না, এবং মেন্টরিং কথোপকথনগুলো কেবল পড়ার জন্য। আপনি সম্মতি প্রত্যাহার না করা বা আয়োজক মুছে না ফেলা পর্যন্ত প্রোফাইলের তথ্য থাকে।"
+
+msgid "Wycofaj zgodę i usuń profil"
+msgstr "সম্মতি প্রত্যাহার করুন ও প্রোফাইল মুছুন"
+
 msgid "Zgłoś problem z mentoringiem"
 msgstr "মেন্টরিং সংক্রান্ত সমস্যার রিপোর্ট করুন"
 
@@ -641,14 +713,20 @@ msgstr "রিপোর্টটি সরাসরি আয়োজকের 
 msgid "Wyślij zgłoszenie"
 msgstr "রিপোর্ট পাঠান"
 
-msgid "Sieć absolwentów"
-msgstr "প্রাক্তন অংশগ্রহণকারী নেটওয়ার্ক"
-
 msgid "Byli uczestnicy, którzy pokazują, co robią dziś, pomagają obecnym uczestnikom jako mentorzy i dostają zaproszenia na warsztaty, webinary i do jury."
 msgstr "প্রাক্তন অংশগ্রহণকারীরা, যাঁরা দেখান আজ তাঁরা কী করছেন, মেন্টর হিসেবে বর্তমান অংশগ্রহণকারীদের সাহায্য করেন এবং কর্মশালা, ওয়েবিনার ও জুরির আমন্ত্রণ পান।"
 
 msgid "Publiczna ściana"
 msgstr "সর্বজনীন দেয়াল"
+
+msgid "Zmieniła się treść zgody"
+msgstr "সম্মতির লেখা পরিবর্তিত হয়েছে"
+
+msgid "Twój profil jest niewidoczny, dopóki nie potwierdzisz nowej treści zgody. Możesz też wycofać zgodę niżej."
+msgstr "আপনি সম্মতির নতুন লেখা নিশ্চিত না করা পর্যন্ত আপনার প্রোফাইল লুকানো থাকবে। নিচে আপনি সম্মতি প্রত্যাহারও করতে পারেন।"
+
+msgid "Potwierdzam"
+msgstr "আমি নিশ্চিত করছি"
 
 msgid "Twój profil"
 msgstr "আপনার প্রোফাইল"
@@ -667,9 +745,6 @@ msgstr "সম্মতি প্রত্যাহার"
 
 msgid "Po wycofaniu zgody Twój profil absolwenta zniknie od razu, a relacje, w których jesteś mentorem, zakończą się. Twoje wyniki i dyplomy zostają – to dokumentacja zawodów."
 msgstr "সম্মতি প্রত্যাহার করলে আপনার প্রাক্তন অংশগ্রহণকারী প্রোফাইল সঙ্গে সঙ্গে মুছে যাবে এবং যেসব সম্পর্কে আপনি মেন্টর, সেগুলো শেষ হয়ে যাবে। আপনার ফলাফল ও সনদ থেকে যাবে – সেগুলো প্রতিযোগিতার নথির অংশ।"
-
-msgid "Wycofaj zgodę i usuń profil"
-msgstr "সম্মতি প্রত্যাহার করুন ও প্রোফাইল মুছুন"
 
 msgid "Dołącz do sieci absolwentów"
 msgstr "প্রাক্তন অংশগ্রহণকারী নেটওয়ার্কে যোগ দিন"
@@ -695,11 +770,11 @@ msgstr "আপনি মেন্টর"
 msgid "Twój mentor"
 msgstr "আপনার মেন্টর"
 
+msgid "Notatka prośby czeka na akceptację organizatora."
+msgstr "অনুরোধের নোট আয়োজকের অনুমোদনের অপেক্ষায় আছে।"
+
 msgid "Przyjmij"
 msgstr "গ্রহণ করুন"
-
-msgid "Odrzuć"
-msgstr "প্রত্যাখ্যান করুন"
 
 msgid "Wycofaj prośbę"
 msgstr "অনুরোধ প্রত্যাহার করুন"
@@ -775,6 +850,9 @@ msgstr "প্রোফাইল সংরক্ষিত হয়েছে।"
 msgid "Zgoda wycofana – Twój profil absolwenta został usunięty."
 msgstr "সম্মতি প্রত্যাহার করা হয়েছে – আপনার প্রাক্তন অংশগ্রহণকারী প্রোফাইল মুছে ফেলা হয়েছে।"
 
+msgid "Dziękujemy – Twój profil znów jest widoczny."
+msgstr "ধন্যবাদ – আপনার প্রোফাইল আবার দৃশ্যমান।"
+
 msgid "Prośba wysłana. Dostaniesz e-mail, gdy mentor odpowie."
 msgstr "অনুরোধ পাঠানো হয়েছে। মেন্টর উত্তর দিলে আপনি ইমেল পাবেন।"
 
@@ -801,6 +879,12 @@ msgstr "প্রোফাইল লুকানো হয়েছে।"
 
 msgid "Profil znów jest widoczny."
 msgstr "প্রোফাইল আবার দৃশ্যমান।"
+
+msgid "Opis zaakceptowany – małoletni uczestnicy go zobaczą."
+msgstr "বিবরণ অনুমোদিত – অপ্রাপ্তবয়স্ক অংশগ্রহণকারীরা এটি দেখবে।"
+
+msgid "Decyzja zapisana."
+msgstr "সিদ্ধান্ত সংরক্ষিত হয়েছে।"
 
 msgid "Podaj powód zakończenia relacji."
 msgstr "সম্পর্ক শেষ করার কারণ লিখুন।"

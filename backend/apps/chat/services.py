@@ -195,22 +195,53 @@ def register_peer_policy(provider: Callable[[Conversation], PeerPolicy | None]) 
         _PEER_POLICIES.append(provider)
 
 
+def _strictest(modes) -> PeerMode | None:
+    present = [PeerMode(mode) for mode in modes if mode is not None]
+    if not present:
+        return None
+    if PeerMode.OFF in present:
+        return PeerMode.OFF
+    return max(present, key=_STRICTNESS.index)
+
+
+def combine_policies(policies) -> PeerPolicy | None:
+    """Kilka polityk tej samej rozmowy łączy się w **najostrzejszą** (przegląd krytyka, L3).
+
+    Odmowa wygrywa zawsze (pierwsza niepusta), tryb i podłoga – najostrzejsze z podanych, a zdjęcie
+    reguły grupy wiekowej obowiązuje tylko wtedy, gdy zgadzają się na nie **wszystkie** polityki:
+    to jest jedyne pole, które łagodzi, więc jedna polityka nie może łagodzić za drugą.
+    """
+    items = [policy for policy in policies if policy is not None]
+    if not items:
+        return None
+    if len(items) == 1:
+        return items[0]
+    return PeerPolicy(
+        mode=_strictest(policy.mode for policy in items),
+        at_least=_strictest(policy.at_least for policy in items),
+        skip_age_policy=all(policy.skip_age_policy for policy in items),
+        refusal=next((policy.refusal for policy in items if policy.refusal), ""),
+        notice=" ".join(policy.notice for policy in items if policy.notice),
+    )
+
+
 def peer_policy(conversation: Conversation | None) -> PeerPolicy | None:
-    """Polityka tej rozmowy – pierwsza niepusta odpowiedź dostawców – albo ``None``.
+    """Polityka tej rozmowy – połączone odpowiedzi wszystkich dostawców – albo ``None``.
 
     Wyłącznie rozmowy między uczestnikami: kanał organizatora ma swoje reguły i nikt ich nie zmienia.
     """
     if conversation is None or conversation.pk is None or not conversation.is_peer:
         return None
-    for provider in _PEER_POLICIES:
-        policy = provider(conversation)
-        if policy is not None:
-            return policy
-    return None
+    return combine_policies(provider(conversation) for provider in _PEER_POLICIES)
+
+
+#: Znacznik „polityki jeszcze nie policzono” – ``None`` znaczy już „rozmowa bez polityki”, więc
+#: wołający, który policzył ją raz (L4), przekazuje wynik dalej bez drugiego zapytania.
+_UNSET = object()
 
 
 def conversation_mode_and_stage(
-    conversation: Conversation, now=None, *, row: ChatSettings | None = None, policy: PeerPolicy | None = None
+    conversation: Conversation, now=None, *, row: ChatSettings | None = None, policy=_UNSET
 ) -> tuple[PeerMode, object]:
     """:func:`mode_and_stage` konkursu z nałożoną polityką tej rozmowy (:func:`peer_policy`).
 
@@ -218,7 +249,8 @@ def conversation_mode_and_stage(
     nieprawdę o tym, **dlaczego** wiadomość czeka.
     """
     mode, stage = mode_and_stage(conversation.competition, now, row=row)
-    policy = policy if policy is not None else peer_policy(conversation)
+    if policy is _UNSET:
+        policy = peer_policy(conversation)
     if policy is None:
         return mode, stage
     if policy.mode is not None:
@@ -853,7 +885,13 @@ def encrypted_refusal(*, row: ChatSettings, mode: PeerMode, stage=None) -> str:
 
 
 def peer_write_refusal(
-    conversation: Conversation, participant, *, mode: PeerMode, row: ChatSettings | None = None, stage=None
+    conversation: Conversation,
+    participant,
+    *,
+    mode: PeerMode,
+    row: ChatSettings | None = None,
+    stage=None,
+    policy=_UNSET,
 ) -> str:
     """Dlaczego ta osoba **nie może** teraz pisać w tej rozmowie – albo pusty napis.
 
@@ -862,7 +900,8 @@ def peer_write_refusal(
     """
     if not conversation.is_peer:
         return ""
-    policy = peer_policy(conversation)
+    if policy is _UNSET:
+        policy = peer_policy(conversation)
     if policy is not None and policy.refusal:
         return policy.refusal
     if mode == PeerMode.OFF:
@@ -1032,8 +1071,11 @@ def send_participant_message(
     status = MessageStatus.PUBLISHED
     if conversation.is_peer:
         row = settings_for(competition)
-        mode, stage = conversation_mode_and_stage(conversation, now, row=row)
-        refusal = peer_write_refusal(conversation, participant, mode=mode, row=row, stage=stage)
+        policy = peer_policy(conversation)
+        mode, stage = conversation_mode_and_stage(conversation, now, row=row, policy=policy)
+        refusal = peer_write_refusal(
+            conversation, participant, mode=mode, row=row, stage=stage, policy=policy
+        )
         if refusal:
             raise DomainError(refusal, "CHAT_CANNOT_WRITE", http.HTTP_400_BAD_REQUEST)
         status = MessageStatus.PENDING if mode == PeerMode.PRE else MessageStatus.PUBLISHED
@@ -1800,8 +1842,9 @@ def _delivery_refusal(message: Message) -> str:
     if sender is None:
         return CANNOT_SEND
     row = settings_for(conversation.competition)
-    mode, stage = conversation_mode_and_stage(conversation, row=row)
-    return peer_write_refusal(conversation, sender, mode=mode, row=row, stage=stage)
+    policy = peer_policy(conversation)
+    mode, stage = conversation_mode_and_stage(conversation, row=row, policy=policy)
+    return peer_write_refusal(conversation, sender, mode=mode, row=row, stage=stage, policy=policy)
 
 
 def _withdraw_pending(rows, *, actor=None, request=None) -> int:

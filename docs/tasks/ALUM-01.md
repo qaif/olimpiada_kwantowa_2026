@@ -250,5 +250,30 @@ Czat: istniejące testy `apps/chat/tests` muszą przejść bez zmian.
 
 ## 11. Dokumentacja
 
-OPERACJE (włączenie flagi, kroki), PODRĘCZNIK-ORGANIZATORA (Absolwenci i mentoring),
-PODRĘCZNIK-UCZESTNIKA (sieć absolwentów, mentoring, prywatność), CHANGELOG `[Unreleased]`.
+OPERACJE § 38 (włączenie flagi, kroki), PODRĘCZNIK-ORGANIZATORA § 10l (Absolwenci i mentoring),
+PODRĘCZNIK-UCZESTNIKA § 8c (sieć absolwentów, mentoring, prywatność), CHANGELOG `[Unreleased]`.
+
+## 12. Poprawki po przeglądzie krytyka (04.10.2026)
+
+Zmieniają reguły z §§ 1–7 tam, gdzie są z nimi sprzeczne (np. § 7: „< 5” zastąpione dokładaniem
+najmniejszych grup do „inne”).
+
+| ID | Decyzja |
+|---|---|
+| H1 | Notatka prośby małoletniego: `Mentorship.note_status=PENDING`, mentor widzi sam temat do akceptacji koordynatora (`/coordinator/alumni/mentoring/`); notatka nigdy nie idzie listem. Opis i odnośniki profilu z `mentor_available` widoczne dla małoletniego widza dopiero po akceptacji koordynatora – skrót treści (`reviewed_hash`), każda zmiana wymaga ponownej akceptacji. Wzorce danych kontaktowych (`apps.alumni.safety.contact_hits`: telefon, e-mail, @nazwa, komunikatory) – automatyczne zgłoszenie przy notatce, znacznik w kolejce opisów. |
+| M1 | Ukrycie profilu kończy trwające relacje mentora i odrzuca czekające prośby (`EndReason.HIDDEN`); akceptacja wymaga profilu nieukrytego, `mentor_available` i mentee wciąż z rolą uczestnika. |
+| M2 | Data urodzenia mentee zapisana przy akceptacji; mentee jest małoletni według zapisanej **albo** bieżącej daty. Pełnoletność mentora potwierdzona przy dołączeniu (`adult_confirmed_at`) zostaje. Zmiana daty urodzenia osoby w otwartej relacji: audyt i automatyczne zgłoszenie (sygnały `post_init`/`post_save`, zero dodatkowych zapytań przy zwykłym zapisie profilu). |
+| M3 | Dyplomy liczą się tylko przy wpisie z ogłoszonymi wynikami i bez dyskwalifikacji; katalog i ściana pokazują osiągnięcia wyłącznie z edycji zakończonych. |
+| M4 | `/me/alumni/` i wycofanie zgody działają przy wyłączonej fladze (tylko dla osób z profilem); skutki wyłączenia flagi – OPERACJE § 38. |
+| M5 | Wstrzymana retencja = minimalizacja (telefon, szkoła, region, klasa, adresy opiekunów, dzień urodzenia), tylko dla profili nieukrytych z aktywnym kontem; przeszkoda sprawdzana po reklamacjach i nieogłoszonych wynikach. |
+| L1 | Walidatory łapią `ValueError` (`urlsplit`, port) i odrzucają `..`, `%2F`, `%5C`, `%2E` w ścieżce. |
+| L2 | Akceptacja odmawia, gdy para ma rozmowę szyfrowaną, a relacja wymaga moderacji; zgłoszenie automatyczne do koordynatora (poza transakcją akceptacji), bez listu „rozmowa czeka”. |
+| L3 | `combine_policies`: odmowa wygrywa, tryb i podłoga najostrzejsze, zdjęcie reguły wieku tylko za zgodą wszystkich polityk. |
+| L4 | Polityka liczona raz i przekazywana do `peer_write_refusal`; zero zapytań w konkursie, który nigdy nie zapisał flagi; kanały listy liczone z jednym odczytem ustawień czatu. |
+| L5 | Akceptacja blokuje profil mentora (`select_for_update`) przed liczeniem miejsc. |
+| L6 | „Inne” wciąga najmniejsze grupy, aż osiągnie próg (bez komórek komplementarnych); liczebność zaokrąglona do 5; profile ukryte się nie liczą. |
+| L7 | Dowód zgody z językiem i skrótem SHA-256 treści; po zmianie `ALUMNI_CONSENT_VERSION` profil śpi do potwierdzenia (`/me/alumni/renew/`). |
+| L8 | Rejestr czynności: okres przechowywania z rozróżnieniem profilu, dowodu zgody i dokumentacji bezpieczeństwa mentoringu. |
+| L9 | Pierwsze 5 wiadomości nowej pary dorosły–małoletni w premoderacji także przy zasadzie „bez ograniczeń”. |
+| L10 | Zakończonej relacji nie wznawia się – nowa prośba (udokumentowane w OPERACJE i podręczniku). |
+| L11 | Limity próśb: 5 dziennie na mentee, 2 tygodniowo do tego samego mentora (pętla „prośba → wycofanie”). |

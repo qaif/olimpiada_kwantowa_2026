@@ -16,6 +16,18 @@
     {% if settings.public_wall %}<a class="btn btn--small btn--ghost" href="{% url 'web:alumni-wall' %}">{% translate "Publiczna ściana" %}</a>{% endif %}</p>
 </div>
 
+{% if profile and needs_reconsent %}
+  <section class="section">
+    <h2>{% translate "Zmieniła się treść zgody" %}</h2>
+    <p>{% translate "Twój profil jest niewidoczny, dopóki nie potwierdzisz nowej treści zgody. Możesz też wycofać zgodę niżej." %}</p>
+    <form method="post" action="{% url 'web:alumni-renew' %}" class="form">
+      {% csrf_token %}
+      <p class="notice">{{ consent_text }}</p>
+      {{ join_form.as_div }}
+      <p class="actions"><button type="submit" class="btn btn--primary">{% translate "Potwierdzam" %}</button></p>
+    </form>
+  </section>
+{% endif %}
 {% if profile %}
   <section class="section">
     <h2>{% translate "Twój profil" %}</h2>
@@ -71,7 +83,7 @@
             <tr>
               <td>{% if item.as_mentor %}{% translate "jesteś mentorem" %}{% else %}{% translate "Twój mentor" %}{% endif %}</td>
               <td>{{ item.other }}</td>
-              <td>{{ item.row.get_topic_display|default:"—" }}{% if item.as_mentor and item.row.note %}<br><span class="hint">{{ item.row.note|linebreaksbr }}</span>{% endif %}</td>
+              <td>{{ item.row.get_topic_display|default:"—" }}{% if item.note %}<br><span class="hint">{{ item.note|linebreaksbr }}</span>{% elif item.note_pending %}<br><span class="hint">{% translate "Notatka prośby czeka na akceptację organizatora." %}</span>{% endif %}</td>
               <td>{{ item.row.get_status_display }}
                 {% if item.channel == "SUPERVISED" %}<br><span class="hint">{% translate "każdą wiadomość akceptuje organizator" %}</span>{% endif %}</td>
               <td class="actions">

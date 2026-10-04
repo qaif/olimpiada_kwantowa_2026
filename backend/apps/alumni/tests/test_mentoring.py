@@ -6,7 +6,14 @@ import pytest
 from django.core import mail
 
 from apps.alumni import mentoring
-from apps.alumni.models import Channel, EndReason, Mentorship, MentorshipFlag, MentorshipStatus
+from apps.alumni.models import (
+    FIRST_MESSAGES_PRE,
+    Channel,
+    EndReason,
+    Mentorship,
+    MentorshipFlag,
+    MentorshipStatus,
+)
 from apps.alumni.tests.helpers import (
     alumnus,
     chat,
@@ -194,6 +201,12 @@ def test_minor_with_any_policy_gets_post_floor(competition):
     row = accept(teacher, ask(student, teacher))
 
     assert mentoring.channel_for(row) == Channel.PEER
+    coordinator = coordinator_of(competition)
+    # L9: pierwsze FIRST_MESSAGES_PRE wiadomości nowej pary dorosły–małoletni czekają na organizatora.
+    for _index in range(FIRST_MESSAGES_PRE):
+        first = write(teacher.participant, row.conversation)
+        assert first.status == MessageStatus.PENDING
+        chat_services.approve(message=first, actor=coordinator)
     message = write(teacher.participant, row.conversation)
     assert message.status == MessageStatus.PUBLISHED
     assert message.moderation_mode == PeerMode.POST

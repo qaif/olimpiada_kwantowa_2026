@@ -107,9 +107,16 @@ def _from_results(participants: list) -> list[Achievement]:
         )
     )
     certificates = list(
+        # Dyplom liczy się tylko przy wpisie z **ogłoszonymi** wynikami i bez dyskwalifikacji (M3):
+        # dokument wystawiony przed ogłoszeniem albo przed dyskwalifikacją nie jest tytułem.
         Certificate.objects.filter(
-            entry__participant_id__in=ids, kind__in=[CertificateKind.LAUREAT, CertificateKind.FINALISTA]
-        ).values_list("entry__participant_id", "kind", "edition_id", "edition__year_label")
+            entry__participant_id__in=ids,
+            kind__in=[CertificateKind.LAUREAT, CertificateKind.FINALISTA],
+            entry__stage__results_published_at__isnull=False,
+        )
+        .exclude(entry__status=StageEntryStatus.DISQUALIFIED)
+        .exclude(entry__stage__kind=StageKind.TRAINING)
+        .values_list("entry__participant_id", "kind", "edition_id", "edition__year_label")
     )
     edition_ids = {row[3] for row in entries} | {row[2] for row in certificates}
     if not edition_ids:

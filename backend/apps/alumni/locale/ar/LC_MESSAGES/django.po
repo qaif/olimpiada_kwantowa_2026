@@ -3,7 +3,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-04 19:54+0200\n"
+"POT-Creation-Date: 2026-10-04 20:58+0200\n"
 "PO-Revision-Date: 2026-10-04 20:00+0200\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -158,6 +158,9 @@ msgstr "انتهى الإرشاد – أصبحت هذه المحادثة للق�
 msgid "Organizator wstrzymał mentoring – ta rozmowa jest teraz tylko do odczytu."
 msgstr "أوقف المنظِّم الإرشاد مؤقتًا – أصبحت هذه المحادثة للقراءة فقط."
 
+msgid "Nowa rozmowa mentorska. Pierwsze wiadomości czyta i akceptuje organizator, zanim trafią do drugiej osoby."
+msgstr "محادثة إرشاد جديدة. يقرأ المنظِّم الرسائل الأولى ويوافق عليها قبل أن تصل إلى الطرف الآخر."
+
 msgid "Mentoring jest w tym konkursie wyłączony."
 msgstr "الإرشاد معطَّل في هذه المسابقة."
 
@@ -197,14 +200,29 @@ msgstr "يمكن أن يكون لديك في الوقت نفسه %(limit)s من 
 msgid "Ta osoba nie ma teraz wolnego miejsca na mentoring."
 msgstr "ليس لدى هذا الشخص مكان شاغر للإرشاد حاليًا."
 
+msgid "Wysłano już dziś dużo próśb o mentoring – spróbuj jutro."
+msgstr "لقد أرسلت اليوم بالفعل طلبات إرشاد كثيرة – حاول غدًا."
+
+msgid "Do tej osoby wysłano już w tym tygodniu prośbę – spróbuj za kilka dni."
+msgstr "لقد أرسلت بالفعل طلبًا إلى هذا الشخص هذا الأسبوع – حاول بعد بضعة أيام."
+
 msgid "Nie ma takiej relacji mentorskiej."
 msgstr "علاقة الإرشاد هذه غير موجودة."
+
+msgid "Macie już rozmowę szyfrowaną, a ta relacja wymaga moderacji organizatora. Organizator dostał zgłoszenie i skontaktuje się z Wami."
+msgstr "لديكما بالفعل محادثة مشفّرة، وهذه العلاقة تتطلب إشراف المنظِّم. تلقّى المنظِّم بلاغًا وسيتواصل معكما."
 
 msgid "Na tę prośbę już odpowiedziano."
 msgstr "تم الرد على هذا الطلب بالفعل."
 
 msgid "Najpierw dołącz do sieci absolwentów."
 msgstr "انضم إلى شبكة الخريجين أولًا."
+
+msgid "Twój profil nie przyjmuje teraz nowych relacji mentorskich."
+msgstr "ملفك الشخصي لا يقبل حاليًا علاقات إرشاد جديدة."
+
+msgid "Ta osoba nie jest już uczestnikiem konkursu."
+msgstr "لم يعد هذا الشخص مشاركًا في المسابقة."
 
 msgid "Masz już komplet mentee. Zwiększ liczbę miejsc w profilu albo zakończ inną relację."
 msgstr "لديك بالفعل العدد الكامل من المتدرّبين. زِد عدد الأماكن في ملفك الشخصي أو أنهِ علاقة أخرى."
@@ -217,6 +235,9 @@ msgstr "انتهت هذه العلاقة بالفعل."
 
 msgid "Powód"
 msgstr "السبب"
+
+msgid "Nie ma takiej notatki do akceptacji."
+msgstr "لا توجد ملاحظة كهذه بانتظار الموافقة."
 
 msgid "Nie ma takiego zgłoszenia."
 msgstr "هذا البلاغ غير موجود."
@@ -298,6 +319,21 @@ msgstr "سحب المرشد موافقته"
 
 msgid "konto usunięte"
 msgstr "تم حذف الحساب"
+
+msgid "profil mentora ukryty przez organizatora"
+msgstr "ملف المرشد أخفاه المنظِّم"
+
+msgid "bez akceptacji"
+msgstr "دون موافقة"
+
+msgid "czeka na organizatora"
+msgstr "بانتظار المنظِّم"
+
+msgid "zaakceptowana"
+msgstr "تمت الموافقة"
+
+msgid "odrzucona przez organizatora"
+msgstr "رفضها المنظِّم"
 
 msgid "rozmowa według zasad Wiadomości"
 msgstr "محادثة وفق قواعد الرسائل"
@@ -399,6 +435,9 @@ msgstr "الاهتمامات (قد يكون للشخص الواحد عدة اه�
 msgid "Najwyższe osiągnięcie"
 msgstr "أعلى إنجاز"
 
+msgid "Opis tej osoby czeka na akceptację organizatora."
+msgstr "وصف هذا الشخص بانتظار موافقة المنظِّم."
+
 msgid "Zainteresowania:"
 msgstr "الاهتمامات:"
 
@@ -451,6 +490,21 @@ msgstr "«من يمكنه الانضمام» هو الحد الأدنى للإن
 msgid "Zapisz ustawienia"
 msgstr "حفظ الإعدادات"
 
+msgid "Opisy mentorów do akceptacji"
+msgstr "أوصاف المرشدين بانتظار الموافقة"
+
+msgid "Małoletni uczestnicy nie widzą opisu ani odnośników mentora, dopóki ich nie zaakceptujesz. Każda zmiana treści wymaga ponownej akceptacji."
+msgstr "لا يرى المشاركون القاصرون وصف المرشد ولا روابطه حتى توافق عليها. كل تغيير في المحتوى يتطلب موافقة جديدة."
+
+msgid "Osoba"
+msgstr "الشخص"
+
+msgid "możliwe dane kontaktowe:"
+msgstr "بيانات اتصال محتملة:"
+
+msgid "Akceptuj"
+msgstr "وافق"
+
 msgid "Profile absolwentów"
 msgstr "ملفات الخريجين الشخصية"
 
@@ -460,9 +514,6 @@ msgstr "يمكنهم الانضمام (يستوفون المعايير ولم ي
 
 msgid "Szukaj"
 msgstr "بحث"
-
-msgid "Osoba"
-msgstr "الشخص"
 
 msgid "Osiągnięcia"
 msgstr "الإنجازات"
@@ -540,14 +591,26 @@ msgstr "قائمة انتظار الإشراف"
 msgid "Mentoring jest wyłączony – istniejące rozmowy mentorskie są tylko do odczytu."
 msgstr "الإرشاد معطَّل – محادثات الإرشاد الحالية للقراءة فقط."
 
-msgid "Zgłoszenia problemów"
-msgstr "المشكلات المُبلَّغ عنها"
+msgid "Notatki próśb małoletnich do akceptacji"
+msgstr "ملاحظات طلبات القاصرين بانتظار الموافقة"
+
+msgid "Mentor przeczyta notatkę dopiero po Twojej akceptacji; do tego czasu widzi sam temat."
+msgstr "لن يقرأ المرشد الملاحظة إلا بعد موافقتك؛ وحتى ذلك الحين لا يرى سوى الموضوع."
 
 msgid "Relacja"
 msgstr "العلاقة"
 
+msgid "Odrzuć"
+msgstr "رفض"
+
+msgid "Zgłoszenia problemów"
+msgstr "المشكلات المُبلَّغ عنها"
+
 msgid "Zgłoszone"
 msgstr "تاريخ البلاغ"
+
+msgid "automatyczne"
+msgstr "تلقائي"
 
 msgid "Zamknij zgłoszenie"
 msgstr "إغلاق البلاغ"
@@ -632,6 +695,15 @@ msgstr "صفحات الدليل"
 msgid "Nikogo tu jeszcze nie ma"
 msgstr "لا يوجد أحد هنا بعد"
 
+msgid "Sieć absolwentów"
+msgstr "شبكة الخريجين"
+
+msgid "Organizator wyłączył sieć absolwentów. Twój profil nie jest nikomu pokazywany, nie dostajesz zaproszeń, a rozmowy mentorskie są tylko do odczytu. Dane profilu zostają do czasu wycofania zgody albo usunięcia ich przez organizatora."
+msgstr "أوقف المنظِّم شبكة الخريجين. لا يُعرض ملفك الشخصي على أحد، ولا تصلك دعوات، ومحادثات الإرشاد للقراءة فقط. تبقى بيانات ملفك حتى تسحب موافقتك أو يحذفها المنظِّم."
+
+msgid "Wycofaj zgodę i usuń profil"
+msgstr "سحب الموافقة وحذف الملف الشخصي"
+
 msgid "Zgłoś problem z mentoringiem"
 msgstr "الإبلاغ عن مشكلة في الإرشاد"
 
@@ -641,14 +713,20 @@ msgstr "يصل البلاغ مباشرة إلى المنظِّم. إذا كان�
 msgid "Wyślij zgłoszenie"
 msgstr "إرسال البلاغ"
 
-msgid "Sieć absolwentów"
-msgstr "شبكة الخريجين"
-
 msgid "Byli uczestnicy, którzy pokazują, co robią dziś, pomagają obecnym uczestnikom jako mentorzy i dostają zaproszenia na warsztaty, webinary i do jury."
 msgstr "مشاركون سابقون يعرضون ما يفعلونه اليوم، ويساعدون المشاركين الحاليين بصفتهم مرشدين، ويتلقون دعوات لورش العمل والندوات عبر الإنترنت والمشاركة في لجان التحكيم."
 
 msgid "Publiczna ściana"
 msgstr "الجدار العام"
+
+msgid "Zmieniła się treść zgody"
+msgstr "تغيّر نص الموافقة"
+
+msgid "Twój profil jest niewidoczny, dopóki nie potwierdzisz nowej treści zgody. Możesz też wycofać zgodę niżej."
+msgstr "ملفك الشخصي مخفي حتى تؤكد نص الموافقة الجديد. يمكنك أيضًا سحب موافقتك أدناه."
+
+msgid "Potwierdzam"
+msgstr "أؤكد"
 
 msgid "Twój profil"
 msgstr "ملفك الشخصي"
@@ -667,9 +745,6 @@ msgstr "سحب الموافقة"
 
 msgid "Po wycofaniu zgody Twój profil absolwenta zniknie od razu, a relacje, w których jesteś mentorem, zakończą się. Twoje wyniki i dyplomy zostają – to dokumentacja zawodów."
 msgstr "بعد سحب موافقتك، سيختفي ملفك الشخصي في شبكة الخريجين فورًا وستنتهي العلاقات التي تكون فيها مرشدًا. تبقى نتائجك وشهاداتك – فهي جزء من سجلات المسابقة."
-
-msgid "Wycofaj zgodę i usuń profil"
-msgstr "سحب الموافقة وحذف الملف الشخصي"
 
 msgid "Dołącz do sieci absolwentów"
 msgstr "انضم إلى شبكة الخريجين"
@@ -695,11 +770,11 @@ msgstr "أنت المرشد"
 msgid "Twój mentor"
 msgstr "مرشدك"
 
+msgid "Notatka prośby czeka na akceptację organizatora."
+msgstr "ملاحظة الطلب بانتظار موافقة المنظِّم."
+
 msgid "Przyjmij"
 msgstr "قبول"
-
-msgid "Odrzuć"
-msgstr "رفض"
 
 msgid "Wycofaj prośbę"
 msgstr "سحب الطلب"
@@ -775,6 +850,9 @@ msgstr "تم حفظ الملف الشخصي."
 msgid "Zgoda wycofana – Twój profil absolwenta został usunięty."
 msgstr "تم سحب الموافقة – حُذف ملفك الشخصي في شبكة الخريجين."
 
+msgid "Dziękujemy – Twój profil znów jest widoczny."
+msgstr "شكرًا – أصبح ملفك الشخصي مرئيًا مجددًا."
+
 msgid "Prośba wysłana. Dostaniesz e-mail, gdy mentor odpowie."
 msgstr "تم إرسال الطلب. ستتلقى رسالة بريد إلكتروني عندما يرد المرشد."
 
@@ -801,6 +879,12 @@ msgstr "تم إخفاء الملف الشخصي."
 
 msgid "Profil znów jest widoczny."
 msgstr "أصبح الملف الشخصي ظاهرًا مرة أخرى."
+
+msgid "Opis zaakceptowany – małoletni uczestnicy go zobaczą."
+msgstr "تمت الموافقة على الوصف – سيراه المشاركون القاصرون."
+
+msgid "Decyzja zapisana."
+msgstr "تم حفظ القرار."
 
 msgid "Podaj powód zakończenia relacji."
 msgstr "اذكر سبب إنهاء العلاقة."

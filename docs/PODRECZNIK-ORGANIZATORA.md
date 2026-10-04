@@ -2092,9 +2092,20 @@ Sieć byłych uczestników (za flagą `alumni` – włącza ją operator, `docs/
   jury. Filtry: edycje, najniższe osiągnięcie, zainteresowania, tylko mentorzy. „Policz odbiorców”
   niczego nie wysyła. List idzie w języku odbiorcy, z odnośnikiem wypisu; w historii zostaje liczba
   odbiorców, nie ich lista.
+- **Ochrona małoletnich:** notatka prośby małoletniego czeka na Twoją akceptację (mentor widzi do tego
+  czasu sam temat; notatka nigdy nie idzie e-mailem); opis i odnośniki mentora małoletni widzi dopiero
+  po Twojej akceptacji (sekcja „Opisy mentorów do akceptacji”, każda zmiana treści – ponownie);
+  notatki i opisy z możliwymi danymi kontaktowymi (telefon, e-mail, @nazwa, komunikatory) mają
+  czerwony znacznik, a notatka zakłada automatyczne zgłoszenie. Wiek mentee liczy się ostrożnie z daty
+  zapisanej przy akceptacji – zmiana daty urodzenia w trakcie relacji daje zgłoszenie i wpis w audycie,
+  ale nie łagodzi kanału. Przy zasadzie „bez ograniczeń” pierwsze 5 wiadomości nowej pary
+  dorosły–małoletni i tak czeka na akceptację.
+- **Ukrycie profilu mentora** kończy jego trwające relacje i odrzuca czekające prośby. Zakończonej
+  relacji nie da się wznowić – uczestnik może wysłać nową prośbę.
 - **Gdzie są teraz** (`/coordinator/alumni/stats/`): kraje, uczelnie, kierunki, zainteresowania
-  i najwyższe osiągnięcie – grupy mniejsze niż 5 osób są łączone w „inne”, a przy sieci mniejszej
-  niż 5 osób rozkładów nie ma wcale.
+  i najwyższe osiągnięcie – grupy mniejsze niż 5 osób są łączone w „inne” (razem z najmniejszymi
+  grupami, jeśli „inne” byłoby mniejsze niż 5), liczebność sieci jest zaokrąglona, profile ukryte
+  się nie liczą, a przy sieci mniejszej niż 5 osób rozkładów nie ma wcale.
 
 ## 11. Kalendarz prowadzenia edycji — ściągawka
 

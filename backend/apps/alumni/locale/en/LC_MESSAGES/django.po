@@ -3,7 +3,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-04 19:54+0200\n"
+"POT-Creation-Date: 2026-10-04 20:58+0200\n"
 "PO-Revision-Date: 2026-10-04 20:00+0200\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -158,6 +158,9 @@ msgstr "The mentoring has ended – this conversation is now read-only."
 msgid "Organizator wstrzymał mentoring – ta rozmowa jest teraz tylko do odczytu."
 msgstr "The organiser has paused mentoring – this conversation is now read-only."
 
+msgid "Nowa rozmowa mentorska. Pierwsze wiadomości czyta i akceptuje organizator, zanim trafią do drugiej osoby."
+msgstr "New mentoring conversation. The organiser reads and approves the first messages before they reach the other person."
+
 msgid "Mentoring jest w tym konkursie wyłączony."
 msgstr "Mentoring is turned off in this competition."
 
@@ -197,14 +200,29 @@ msgstr "You can have at most %(limit)s open mentoring requests and relationships
 msgid "Ta osoba nie ma teraz wolnego miejsca na mentoring."
 msgstr "This person has no free mentoring place at the moment."
 
+msgid "Wysłano już dziś dużo próśb o mentoring – spróbuj jutro."
+msgstr "You have already sent many mentoring requests today – try again tomorrow."
+
+msgid "Do tej osoby wysłano już w tym tygodniu prośbę – spróbuj za kilka dni."
+msgstr "You already sent this person a request this week – try again in a few days."
+
 msgid "Nie ma takiej relacji mentorskiej."
 msgstr "No such mentoring relationship."
+
+msgid "Macie już rozmowę szyfrowaną, a ta relacja wymaga moderacji organizatora. Organizator dostał zgłoszenie i skontaktuje się z Wami."
+msgstr "You already have an encrypted conversation, and this relationship requires moderation by the organiser. The organiser has been notified and will contact you."
 
 msgid "Na tę prośbę już odpowiedziano."
 msgstr "This request has already been answered."
 
 msgid "Najpierw dołącz do sieci absolwentów."
 msgstr "Join the alumni network first."
+
+msgid "Twój profil nie przyjmuje teraz nowych relacji mentorskich."
+msgstr "Your profile is not accepting new mentoring relationships at the moment."
+
+msgid "Ta osoba nie jest już uczestnikiem konkursu."
+msgstr "This person is no longer a participant of the competition."
 
 msgid "Masz już komplet mentee. Zwiększ liczbę miejsc w profilu albo zakończ inną relację."
 msgstr "You already have the full number of mentees. Increase the number of places in your profile or end another relationship."
@@ -217,6 +235,9 @@ msgstr "This relationship has already ended."
 
 msgid "Powód"
 msgstr "Reason"
+
+msgid "Nie ma takiej notatki do akceptacji."
+msgstr "No such note awaiting approval."
 
 msgid "Nie ma takiego zgłoszenia."
 msgstr "No such report."
@@ -298,6 +319,21 @@ msgstr "the mentor withdrew consent"
 
 msgid "konto usunięte"
 msgstr "account deleted"
+
+msgid "profil mentora ukryty przez organizatora"
+msgstr "mentor's profile hidden by the organiser"
+
+msgid "bez akceptacji"
+msgstr "no approval needed"
+
+msgid "czeka na organizatora"
+msgstr "awaiting the organiser"
+
+msgid "zaakceptowana"
+msgstr "approved"
+
+msgid "odrzucona przez organizatora"
+msgstr "rejected by the organiser"
 
 msgid "rozmowa według zasad Wiadomości"
 msgstr "conversation under the Messages rules"
@@ -399,6 +435,9 @@ msgstr "Interests (one person may have several)"
 msgid "Najwyższe osiągnięcie"
 msgstr "Highest achievement"
 
+msgid "Opis tej osoby czeka na akceptację organizatora."
+msgstr "This person's description is awaiting the organiser's approval."
+
 msgid "Zainteresowania:"
 msgstr "Interests:"
 
@@ -451,6 +490,21 @@ msgstr "“Who can join” is the minimum achievement in a completed edition. On
 msgid "Zapisz ustawienia"
 msgstr "Save settings"
 
+msgid "Opisy mentorów do akceptacji"
+msgstr "Mentor descriptions awaiting approval"
+
+msgid "Małoletni uczestnicy nie widzą opisu ani odnośników mentora, dopóki ich nie zaakceptujesz. Każda zmiana treści wymaga ponownej akceptacji."
+msgstr "Minor participants do not see a mentor's description or links until you approve them. Every change of the content requires approval again."
+
+msgid "Osoba"
+msgstr "Person"
+
+msgid "możliwe dane kontaktowe:"
+msgstr "possible contact details:"
+
+msgid "Akceptuj"
+msgstr "Approve"
+
 msgid "Profile absolwentów"
 msgstr "Alumni profiles"
 
@@ -460,9 +514,6 @@ msgstr "Could still join (meet the criteria but have not joined): %(count)s."
 
 msgid "Szukaj"
 msgstr "Search"
-
-msgid "Osoba"
-msgstr "Person"
 
 msgid "Osiągnięcia"
 msgstr "Achievements"
@@ -540,14 +591,26 @@ msgstr "Moderation queue"
 msgid "Mentoring jest wyłączony – istniejące rozmowy mentorskie są tylko do odczytu."
 msgstr "Mentoring is turned off – existing mentoring conversations are read-only."
 
-msgid "Zgłoszenia problemów"
-msgstr "Reported problems"
+msgid "Notatki próśb małoletnich do akceptacji"
+msgstr "Request notes from minors awaiting approval"
+
+msgid "Mentor przeczyta notatkę dopiero po Twojej akceptacji; do tego czasu widzi sam temat."
+msgstr "The mentor will read the note only after your approval; until then they see only the topic."
 
 msgid "Relacja"
 msgstr "Relationship"
 
+msgid "Odrzuć"
+msgstr "Decline"
+
+msgid "Zgłoszenia problemów"
+msgstr "Reported problems"
+
 msgid "Zgłoszone"
 msgstr "Reported"
+
+msgid "automatyczne"
+msgstr "automatic"
 
 msgid "Zamknij zgłoszenie"
 msgstr "Close report"
@@ -632,6 +695,15 @@ msgstr "Directory pages"
 msgid "Nikogo tu jeszcze nie ma"
 msgstr "Nobody here yet"
 
+msgid "Sieć absolwentów"
+msgstr "Alumni network"
+
+msgid "Organizator wyłączył sieć absolwentów. Twój profil nie jest nikomu pokazywany, nie dostajesz zaproszeń, a rozmowy mentorskie są tylko do odczytu. Dane profilu zostają do czasu wycofania zgody albo usunięcia ich przez organizatora."
+msgstr "The organiser has turned off the alumni network. Your profile is not shown to anyone, you do not receive invitations, and mentoring conversations are read-only. Your profile data remains until you withdraw consent or the organiser deletes it."
+
+msgid "Wycofaj zgodę i usuń profil"
+msgstr "Withdraw consent and delete profile"
+
 msgid "Zgłoś problem z mentoringiem"
 msgstr "Report a problem with mentoring"
 
@@ -641,14 +713,20 @@ msgstr "The report goes straight to the organiser. If the problem concerns a spe
 msgid "Wyślij zgłoszenie"
 msgstr "Send report"
 
-msgid "Sieć absolwentów"
-msgstr "Alumni network"
-
 msgid "Byli uczestnicy, którzy pokazują, co robią dziś, pomagają obecnym uczestnikom jako mentorzy i dostają zaproszenia na warsztaty, webinary i do jury."
 msgstr "Former participants who show what they do today, help current participants as mentors and receive invitations to workshops, webinars and jury roles."
 
 msgid "Publiczna ściana"
 msgstr "Public wall"
+
+msgid "Zmieniła się treść zgody"
+msgstr "The consent text has changed"
+
+msgid "Twój profil jest niewidoczny, dopóki nie potwierdzisz nowej treści zgody. Możesz też wycofać zgodę niżej."
+msgstr "Your profile is hidden until you confirm the new consent text. You can also withdraw your consent below."
+
+msgid "Potwierdzam"
+msgstr "I confirm"
 
 msgid "Twój profil"
 msgstr "Your profile"
@@ -667,9 +745,6 @@ msgstr "Withdrawing consent"
 
 msgid "Po wycofaniu zgody Twój profil absolwenta zniknie od razu, a relacje, w których jesteś mentorem, zakończą się. Twoje wyniki i dyplomy zostają – to dokumentacja zawodów."
 msgstr "After you withdraw consent, your alumni profile will disappear immediately and the relationships in which you are a mentor will end. Your results and certificates remain – they are part of the competition records."
-
-msgid "Wycofaj zgodę i usuń profil"
-msgstr "Withdraw consent and delete profile"
 
 msgid "Dołącz do sieci absolwentów"
 msgstr "Join the alumni network"
@@ -695,11 +770,11 @@ msgstr "you are the mentor"
 msgid "Twój mentor"
 msgstr "your mentor"
 
+msgid "Notatka prośby czeka na akceptację organizatora."
+msgstr "The request note is awaiting the organiser's approval."
+
 msgid "Przyjmij"
 msgstr "Accept"
-
-msgid "Odrzuć"
-msgstr "Decline"
 
 msgid "Wycofaj prośbę"
 msgstr "Withdraw request"
@@ -775,6 +850,9 @@ msgstr "Profile saved."
 msgid "Zgoda wycofana – Twój profil absolwenta został usunięty."
 msgstr "Consent withdrawn – your alumni profile has been deleted."
 
+msgid "Dziękujemy – Twój profil znów jest widoczny."
+msgstr "Thank you – your profile is visible again."
+
 msgid "Prośba wysłana. Dostaniesz e-mail, gdy mentor odpowie."
 msgstr "Request sent. You will receive an email when the mentor replies."
 
@@ -801,6 +879,12 @@ msgstr "Profile hidden."
 
 msgid "Profil znów jest widoczny."
 msgstr "The profile is visible again."
+
+msgid "Opis zaakceptowany – małoletni uczestnicy go zobaczą."
+msgstr "Description approved – minor participants will see it."
+
+msgid "Decyzja zapisana."
+msgstr "Decision saved."
 
 msgid "Podaj powód zakończenia relacji."
 msgstr "Give the reason for ending the relationship."

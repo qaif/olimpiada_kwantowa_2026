@@ -15,3 +15,5 @@ class AlumniConfig(AppConfig):
         from .mentoring import chat_policy
 
         register_peer_policy(chat_policy)
+        # Zmiana daty urodzenia osoby w otwartej relacji – audyt i zgłoszenie (przegląd, M2).
+        from . import signals  # noqa: F401

@@ -285,7 +285,9 @@ class ChatParticipantMixin(ParticipantRequiredMixin):
         other_key = None
         encrypted = bool(conversation is not None and conversation.is_encrypted)
         if conversation is not None and is_peer:
-            refusal = chat.peer_write_refusal(conversation, self.me, mode=mode, row=row, stage=stage)
+            refusal = chat.peer_write_refusal(
+                conversation, self.me, mode=mode, row=row, stage=stage, policy=policy
+            )
             other = chat.other_participant(conversation, self.me)
             blocked_by_me = chat.has_blocked(self.me, other)
             if encrypted:

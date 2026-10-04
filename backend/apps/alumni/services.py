@@ -43,6 +43,8 @@ AUDIT_WITHDRAWN = "alumni.withdrawn"
 AUDIT_SETTINGS = "alumni.settings_changed"
 AUDIT_HIDDEN = "alumni.profile_hidden"
 AUDIT_UNHIDDEN = "alumni.profile_unhidden"
+AUDIT_CONTENT_APPROVED = "alumni.profile_content_approved"
+AUDIT_RENEWED = "alumni.consent_renewed"
 
 #: Kody odmowy dołączenia – tłumaczy je :data:`INELIGIBLE_REASONS` (ekran) i test.
 NOT_PARTICIPANT = "not_participant"
@@ -225,20 +227,72 @@ def join(*, user, competition, consent: bool, request=None) -> AlumniProfile:
     try:
         with transaction.atomic():
             profile = AlumniProfile.objects.create(
-                participant=participant, consent_version=ALUMNI_CONSENT_VERSION, joined_at=now, updated_at=now
+                participant=participant,
+                consent_version=ALUMNI_CONSENT_VERSION,
+                joined_at=now,
+                updated_at=now,
+                # Dołączenie wymaga pełnoletności (eligibility) – potwierdzenie zostaje na profilu (M2).
+                adult_confirmed_at=now,
             )
     except IntegrityError:
         return profile_of(participant)
-    AlumniConsentEvent.objects.create(
-        participant=participant, kind=ConsentEventKind.GRANTED, version=ALUMNI_CONSENT_VERSION, created_at=now
-    )
+    _consent_event(participant, ConsentEventKind.GRANTED, now)
     audit(user, AUDIT_JOINED, profile, {"version": ALUMNI_CONSENT_VERSION}, request=request)
+    return profile
+
+
+def consent_proof() -> tuple[str, str]:
+    """``(język, skrót SHA-256)`` treści zgody pokazanej **teraz** – w aktywnym języku (L7)."""
+    import hashlib
+
+    from django.utils.translation import get_language
+
+    text = str(CONSENT_TEXT)
+    return (get_language() or ""), hashlib.sha256(text.encode()).hexdigest()
+
+
+def _consent_event(participant, kind, now=None) -> AlumniConsentEvent:
+    language, text_hash = consent_proof() if kind == ConsentEventKind.GRANTED else ("", "")
+    return AlumniConsentEvent.objects.create(
+        participant=participant,
+        kind=kind,
+        version=ALUMNI_CONSENT_VERSION,
+        language=language,
+        text_hash=text_hash,
+        created_at=now or timezone.now(),
+    )
+
+
+def needs_reconsent(profile) -> bool:
+    """Treść zgody zmieniła się od dołączenia – profil śpi, dopóki osoba nie potwierdzi nowej (L7)."""
+    return profile is not None and profile.consent_version != ALUMNI_CONSENT_VERSION
+
+
+@transaction.atomic
+def renew_consent(*, user, competition, consent: bool, request=None) -> AlumniProfile:
+    """Potwierdzenie **nowej** wersji zgody. Do tego czasu profil nie jest nikomu pokazywany."""
+    ensure_enabled(competition)
+    participant = ensure_member(user, competition)
+    profile = profile_of(participant)
+    if profile is None:
+        raise not_found(_("Najpierw dołącz do sieci absolwentów."))
+    if not consent:
+        raise bad_request(_("Zaznacz zgodę, żeby dołączyć do sieci absolwentów."), "ALUMNI_CONSENT_REQUIRED")
+    if needs_reconsent(profile):
+        profile.consent_version = ALUMNI_CONSENT_VERSION
+        profile.save(update_fields=["consent_version"])
+        _consent_event(participant, ConsentEventKind.GRANTED)
+        audit(user, AUDIT_RENEWED, profile, {"version": ALUMNI_CONSENT_VERSION}, request=request)
     return profile
 
 
 @transaction.atomic
 def withdraw(*, user, competition, request=None) -> None:
-    """Wycofanie zgody: profil znika **od razu**, relacje mentorskie mentora się kończą."""
+    """Wycofanie zgody: profil znika **od razu**, relacje mentorskie mentora się kończą.
+
+    Celowo **bez** bramki flagi (M4): wycofanie zgody musi działać także wtedy, gdy organizator
+    wyłączył sieć – inaczej osoba nie miałaby jak zabrać danych, które wciąż leżą w bazie.
+    """
     from . import mentoring
     from .models import EndReason
 
@@ -249,9 +303,7 @@ def withdraw(*, user, competition, request=None) -> None:
     mentoring.end_all_for(participant, reason=EndReason.WITHDRAWN, actor=user, as_mentor_only=True)
     pk = profile.pk
     profile.delete()
-    AlumniConsentEvent.objects.create(
-        participant=participant, kind=ConsentEventKind.WITHDRAWN, version=ALUMNI_CONSENT_VERSION
-    )
+    _consent_event(participant, ConsentEventKind.WITHDRAWN)
     audit(user, AUDIT_WITHDRAWN, participant, {"profile_id": pk}, request=request)
 
 
@@ -343,6 +395,8 @@ class Card:
     mentor_topics: list[str]
     country_name: str
     free_slots: int = 0
+    #: Opis i odnośniki schowane przed widzem małoletnim do akceptacji koordynatora (H1).
+    content_hidden: bool = False
 
 
 def _labels(values) -> list[str]:
@@ -350,19 +404,34 @@ def _labels(values) -> list[str]:
     return [str(labels[value]) for value in values or [] if value in labels]
 
 
-def cards(profiles) -> list[Card]:
+def cards(profiles, *, viewer=None, finished_only: bool = True) -> list[Card]:
+    """Karty do wyświetlenia.
+
+    ``viewer`` – profil uczestnika oglądającego: małoletni nie widzi opisu i odnośników mentora,
+    dopóki koordynator ich nie zaakceptował (H1). ``finished_only`` – katalog i ściana pokazują
+    osiągnięcia wyłącznie z **zakończonych** edycji (M3): wynik etapu trwającej edycji nie jest
+    jeszcze tytułem absolwenta.
+    """
     from apps.accounts.countries import country_name
+    from apps.chat.services import is_adult
+
+    from . import safety
 
     rows = list(profiles)
     found = achievements_for([row.participant for row in rows])
+    minor_viewer = viewer is not None and not is_adult(viewer)
     result = []
     for row in rows:
         active = getattr(row, "active_mentees", 0) or 0
+        items = found.get(row.participant_id, [])
+        if finished_only:
+            items = [item for item in items if item.finished]
         result.append(
             Card(
                 profile=row,
                 name=display_name(row),
-                achievements=found.get(row.participant_id, []),
+                achievements=items,
+                content_hidden=minor_viewer and safety.needs_review(row),
                 interests=_labels(row.interests),
                 mentor_topics=_labels(row.mentor_topics),
                 country_name=country_name(row.country) if row.country else "",
@@ -373,13 +442,13 @@ def cards(profiles) -> list[Card]:
 
 
 def _alive(rows):
-    """Profile, które w ogóle wolno komuś pokazać: nieukryte, konto aktywne i nie po anonimizacji,
-    rola uczestnika w konkursie nadal jest."""
+    """Profile, które w ogóle wolno komuś pokazać: nieukryte, z bieżącą wersją zgody (L7), konto
+    aktywne i nie po anonimizacji."""
     from apps.accounts.anonymised import anonymised_q
 
-    return rows.filter(hidden_at__isnull=True, participant__user__is_active=True).exclude(
-        anonymised_q("participant__user")
-    )
+    return rows.filter(
+        hidden_at__isnull=True, participant__user__is_active=True, consent_version=ALUMNI_CONSENT_VERSION
+    ).exclude(anonymised_q("participant__user"))
 
 
 def _with_role(rows, competition):
@@ -468,15 +537,64 @@ def set_hidden(*, competition, actor, pk: int, hidden: bool, request=None) -> Al
     if profile is None:
         raise not_found()
     if hidden and profile.hidden_at is None:
+        from . import mentoring
+        from .models import EndReason
+
         profile.hidden_at = timezone.now()
         profile.hidden_by = actor
         profile.save(update_fields=["hidden_at", "hidden_by"])
-        audit(actor, AUDIT_HIDDEN, profile, {"profile_id": profile.pk}, request=request)
+        # M1: ukryty mentor nie prowadzi dalej relacji – trwające się kończą (rozmowa tylko do
+        # odczytu), czekające prośby są odrzucane. Ukrycie bywa reakcją na niestosowny opis albo
+        # zgłoszenie, a koordynator nie ma pamiętać, żeby osobno zamknąć każdą relację.
+        declined = mentoring.decline_pending_for(profile.participant, reason=EndReason.HIDDEN)
+        ended = mentoring.end_all_for(
+            profile.participant, reason=EndReason.HIDDEN, actor=actor, as_mentor_only=True
+        )
+        audit(
+            actor,
+            AUDIT_HIDDEN,
+            profile,
+            {"profile_id": profile.pk, "relations_closed": ended, "requests_declined": declined},
+            request=request,
+        )
     elif not hidden and profile.hidden_at is not None:
         profile.hidden_at = None
         profile.hidden_by = None
         profile.save(update_fields=["hidden_at", "hidden_by"])
         audit(actor, AUDIT_UNHIDDEN, profile, {"profile_id": profile.pk}, request=request)
+    return profile
+
+
+def content_review_queue(competition) -> list:
+    """Profile mentorów, których opis albo odnośniki czekają na akceptację dla małoletnich (H1)."""
+    from . import safety
+
+    rows = list(
+        _alive(
+            AlumniProfile.objects.for_competition(competition).filter(mentor_available=True)
+        ).select_related("participant__user")
+    )
+    queue = [row for row in rows if safety.needs_review(row)]
+    for row in queue:
+        row.contact_hits = safety.contact_hits(*safety.reviewed_text(row))
+    return queue
+
+
+@transaction.atomic
+def approve_content(*, competition, actor, pk: int, request=None) -> AlumniProfile:
+    """Akceptacja opisu i odnośników mentora dla małoletnich – **tej** treści (skrót, H1)."""
+    from . import safety
+
+    ensure_enabled(competition)
+    ensure_coordinator(actor, competition)
+    profile = AlumniProfile.objects.for_competition(competition).filter(pk=pk).first()
+    if profile is None:
+        raise not_found()
+    profile.reviewed_hash = safety.review_hash(profile)
+    profile.reviewed_at = timezone.now()
+    profile.reviewed_by = actor
+    profile.save(update_fields=["reviewed_hash", "reviewed_at", "reviewed_by"])
+    audit(actor, AUDIT_CONTENT_APPROVED, profile, {"profile_id": profile.pk}, request=request)
     return profile
 
 
@@ -509,13 +627,56 @@ def eligible_not_joined_count(competition) -> int:
 
 
 def retention_hold(participant) -> bool:
-    """Czy aktywna zgoda absolwenta wstrzymuje automat retencji dla tego profilu (§ 2).
+    """Czy aktywna zgoda absolwenta wstrzymuje **pełną** anonimizację tego profilu (§ 2, M5).
 
-    Tylko przy włączonej fladze: wyłączenie sieci kończy cel przetwarzania, więc retencja wraca.
+    Tylko przy włączonej fladze (wyłączenie sieci kończy cel przetwarzania) i tylko dla profilu
+    „żywego”: nieukrytego, z aktywnym kontem. Ukryty profil nie służy sieci, więc nie jest powodem,
+    żeby trzymać konto.
     """
+    from apps.accounts.anonymised import anonymised_q
+
     if not enabled(participant.competition):
         return False
-    return AlumniProfile.objects.filter(participant=participant).exists()
+    return (
+        AlumniProfile.objects.filter(
+            participant=participant, hidden_at__isnull=True, participant__user__is_active=True
+        )
+        .exclude(anonymised_q("participant__user"))
+        .exists()
+    )
+
+
+#: Pola profilu uczestnika czyszczone przy wstrzymanej retencji (M5) – dane zbierane wyłącznie do
+#: zawodów, których sieć absolwentów nie potrzebuje. Imię, nazwisko i adres (konto), kod publiczny,
+#: wpisy i dyplomy (z nich liczą się osiągnięcia) zostają.
+MINIMISED_TEXT_FIELDS = ("phone", "school", "institution_name", "supervisor_email", "guardian_email")
+
+
+def minimise_participant(participant) -> bool:
+    """Minimalizacja konta trzymanego zgodą absolwenta. Zwraca ``True``, gdy coś się zmieniło.
+
+    Data urodzenia zostaje sprowadzona do rocznika (``birth_year`` liczy się sam z daty, więc
+    zostaje ten sam) – a pełnoletność, której potrzebują reguły mentoringu, i tak jest zapisana na
+    profilu absolwenta (``adult_confirmed_at``). Idempotentne: drugi przebieg nic nie zmienia.
+    """
+    from apps.accounts.models import Participant
+
+    changes: dict = {}
+    for name in MINIMISED_TEXT_FIELDS:
+        if getattr(participant, name):
+            changes[name] = ""
+    for name in ("school_ref", "custom_institution_ref", "region", "grade", "birth_date"):
+        attname = participant._meta.get_field(name).attname
+        if getattr(participant, attname) is not None:
+            changes[name] = None
+    if participant.district:
+        changes["district"] = ""
+    if not changes:
+        return False
+    Participant.objects.filter(pk=participant.pk).update(**changes)
+    for name, value in changes.items():
+        setattr(participant, name, value)
+    return True
 
 
 def erase_for_user(user) -> int:
@@ -529,7 +690,9 @@ def erase_for_user(user) -> int:
     for participant in Participant.objects.filter(user=user):
         mentoring.end_all_for(participant, reason=EndReason.ACCOUNT_REMOVED, actor=None)
         removed += AlumniProfile.objects.filter(participant=participant).delete()[0]
-    Mentorship.objects.filter(Q(mentee__user=user) | Q(mentor__user=user)).update(note="")
+    Mentorship.objects.filter(Q(mentee__user=user) | Q(mentor__user=user)).update(
+        note="", mentee_birth_date=None, mentee_birth_year=None
+    )
     MentorshipFlag.objects.filter(reporter=user).update(reason="", reporter=None)
     return removed
 
@@ -556,7 +719,13 @@ def export_for(user, participant) -> dict:
             ],
         }
     events = [
-        {"zdarzenie": event.kind, "wersja": event.version, "chwila": event.created_at.isoformat()}
+        {
+            "zdarzenie": event.kind,
+            "wersja": event.version,
+            "jezyk": event.language,
+            "skrot_tresci": event.text_hash,
+            "chwila": event.created_at.isoformat(),
+        }
         for event in AlumniConsentEvent.objects.filter(participant=participant).order_by("created_at")
     ]
     pairs = []

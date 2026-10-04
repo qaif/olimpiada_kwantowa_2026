@@ -19,6 +19,7 @@ urlpatterns = [
     path("me/alumni/join/", views.AlumniJoinView.as_view(), name="alumni-join"),
     path("me/alumni/profile/", views.AlumniProfileView.as_view(), name="alumni-profile"),
     path("me/alumni/withdraw/", views.AlumniWithdrawView.as_view(), name="alumni-withdraw"),
+    path("me/alumni/renew/", views.AlumniRenewView.as_view(), name="alumni-renew"),
     path("me/alumni/directory/", views.AlumniDirectoryView.as_view(), name="alumni-directory"),
     path("me/alumni/mentor/<str:token>/", views.AlumniRequestView.as_view(), name="alumni-request"),
     path(
@@ -36,6 +37,16 @@ urlpatterns = [
         "coordinator/alumni/<int:pk>/hide/",
         views_coordinator.CoordinatorAlumniHideView.as_view(),
         name="coordinator-alumni-hide",
+    ),
+    path(
+        "coordinator/alumni/<int:pk>/approve-content/",
+        views_coordinator.CoordinatorApproveContentView.as_view(),
+        name="coordinator-alumni-approve-content",
+    ),
+    path(
+        "coordinator/alumni/notes/<int:pk>/<slug:decision>/",
+        views_coordinator.CoordinatorNoteDecisionView.as_view(),
+        name="coordinator-alumni-note",
     ),
     path(
         "coordinator/alumni/mentoring/",

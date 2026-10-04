@@ -88,6 +88,14 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
 - **RODO:** czynność `ALUMNI_ACTIVITY` w rejestrze (wersja 1.12, tylko przy fladze), sekcja
   `absolwenci` w eksporcie danych konta, czyszczenie przy anonimizacji, wstrzymanie automatu
   retencji na czas ważnej zgody (`BLOCKED_ALUMNI`). Nowy zakres limitu `alumni` (30/h, per konto).
+- **Po przeglądzie krytyka:** notatka prośby małoletniego i opis mentora dla małoletnich dopiero po
+  akceptacji koordynatora, automatyczne zgłoszenia (wzorce danych kontaktowych, zmiana daty urodzenia
+  w trakcie relacji, rozmowa szyfrowana pod wymuszoną moderacją); data urodzenia mentee zapisana przy
+  akceptacji i potwierdzona pełnoletność mentora; pierwsze 5 wiadomości nowej pary dorosły–małoletni
+  w premoderacji także przy „bez ograniczeń”; ukrycie profilu kończy relacje mentora; minimalizacja
+  zamiast pełnej anonimizacji przy wstrzymanej retencji; wycofanie zgody przy wyłączonej fladze;
+  dowód zgody z językiem i skrótem treści i odnowienie zgody po zmianie wersji; polityki rozmowy
+  łączone po najostrzejszej; statystyki bez komórek komplementarnych; limity próśb.
 
 ## [Unreleased] – Wielojęzyczność per konkurs (I18N-01) i kraje zamiast województw (REG-01)
 

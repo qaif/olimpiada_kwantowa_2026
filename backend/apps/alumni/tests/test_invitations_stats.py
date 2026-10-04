@@ -130,12 +130,18 @@ def test_unsubscribe_token_does_not_survive_rejoining(competition):
 # --- statystyki --------------------------------------------------------------------------------------
 
 
-def test_k_anonymity_merges_small_groups():
-    rows = stats.k_anonymous(Counter({"uw": 7, "agh": 3, "pw": 1}), {"uw": "UW"})
-    assert [(row.label, row.shown) for row in rows] == [("UW", "7"), ("inne", "< 5")]
+def test_k_anonymity_merges_small_groups_without_complementary_cells():
+    """L6: „inne” poniżej progu wciąga najmniejszą pokazaną grupę – żadna komórka nie jest < k."""
+    rows = stats.k_anonymous(Counter({"uw": 9, "pw": 6, "agh": 3, "pk": 1}), {"uw": "UW", "pw": "PW"})
+    assert [(row.label, row.shown) for row in rows] == [("UW", "9"), ("inne", "10")]
+    assert all(row.count is not None and row.count >= 5 for row in rows)
 
     rows = stats.k_anonymous(Counter({"uw": 5, "agh": 3, "pw": 2}))
     assert [(row.label, row.count) for row in rows] == [("uw", 5), ("inne", 5)]
+
+    # Nie ma czego dołożyć – zostaje „< 5”, ale wtedy jedyną komórką jest „inne”.
+    rows = stats.k_anonymous(Counter({"agh": 3}))
+    assert [(row.label, row.shown) for row in rows] == [("inne", "< 5")]
 
 
 def test_small_network_has_no_distributions(competition):
@@ -165,5 +171,8 @@ def test_distributions_hide_groups_below_five(competition):
     universities = next(table for table in result["tables"] if table.title == "Uczelnia")
 
     labels = {row.label: row.shown for row in universities.rows}
-    assert labels == {"Uniwersytet Warszawski": "6", "inne": "< 5"}
+    # Sześć osób z UW i jedna z MIT: pokazanie „UW 6” przy znanej sumie odsłoniłoby tę jedną osobę,
+    # więc całość ląduje w „inne” (L6), a suma na ekranie jest zaokrąglona.
+    assert labels == {"inne": "7"}
     assert "MIT" not in str(result)
+    assert result["total"] == "~5"

@@ -94,6 +94,7 @@ class CoordinatorAlumniView(_CoordinatorAlumniMixin, ThrottledFormMixin, View):
             ],
             "query": query,
             "eligible_not_joined": services.eligible_not_joined_count(self.competition),
+            "review_queue": services.content_review_queue(self.competition),
             "levels": Level,
         }
         return TemplateResponse(request, self.template_name, context, status=status)
@@ -116,6 +117,46 @@ class CoordinatorAlumniHideView(_CoordinatorAlumniMixin, ThrottledFormMixin, Vie
         return redirect(reverse("web:coordinator-alumni"))
 
 
+class CoordinatorApproveContentView(_CoordinatorAlumniMixin, ThrottledFormMixin, View):
+    """``POST /coordinator/alumni/<pk>/approve-content/`` – opis mentora widoczny dla małoletnich (H1)."""
+
+    throttle_scope = "alumni"
+
+    def post(self, request, pk):
+        try:
+            services.approve_content(competition=self.competition, actor=request.user, pk=pk, request=request)
+        except DomainError as exc:
+            _raise_404(exc)
+            messages.error(request, str(exc.detail))
+        else:
+            messages.success(request, _("Opis zaakceptowany – małoletni uczestnicy go zobaczą."))
+        return redirect(reverse("web:coordinator-alumni"))
+
+
+class CoordinatorNoteDecisionView(_CoordinatorAlumniMixin, ThrottledFormMixin, View):
+    """``POST /coordinator/alumni/notes/<pk>/<approve|reject>/`` – notatka prośby małoletniego (H1)."""
+
+    throttle_scope = "alumni"
+
+    def post(self, request, pk, decision):
+        if decision not in ("approve", "reject"):
+            raise Http404("Nieznana decyzja.")
+        try:
+            mentoring.decide_note(
+                competition=self.competition,
+                actor=request.user,
+                pk=pk,
+                approve=decision == "approve",
+                request=request,
+            )
+        except DomainError as exc:
+            _raise_404(exc)
+            messages.error(request, str(exc.detail))
+        else:
+            messages.success(request, _("Decyzja zapisana."))
+        return redirect(reverse("web:coordinator-alumni-mentoring"))
+
+
 class CoordinatorMentoringView(_CoordinatorAlumniMixin, View):
     """``GET /coordinator/alumni/mentoring/`` – relacje, kanały, zgłoszenia."""
 
@@ -125,15 +166,14 @@ class CoordinatorMentoringView(_CoordinatorAlumniMixin, View):
         page = Paginator(mentoring.oversight(self.competition, status=status), PAGE_SIZE).get_page(
             request.GET.get("page")
         )
-        from apps.chat.services import is_adult
+        from .safety import mentee_is_minor
 
+        items = list(page.object_list)
+        # Kanały jednym odczytem ustawień czatu, a nie zapytaniem na wiersz (L4).
+        channels = mentoring.channels(items, self.competition)
         rows = [
-            {
-                "row": row,
-                "channel": mentoring.channel_for(row) if row.status == MentorshipStatus.ACCEPTED else None,
-                "minor_mentee": not is_adult(row.mentee),
-            }
-            for row in page.object_list
+            {"row": row, "channel": channels.get(row.pk), "minor_mentee": mentee_is_minor(row)}
+            for row in items
         ]
         context = {
             "rows": rows,
@@ -141,6 +181,7 @@ class CoordinatorMentoringView(_CoordinatorAlumniMixin, View):
             "status": status,
             "statuses": MentorshipStatus.choices,
             "flags": list(mentoring.open_flags(self.competition)),
+            "pending_notes": mentoring.pending_notes(self.competition),
             "end_form": EndForm(),
             "settings": services.settings_for(self.competition),
         }

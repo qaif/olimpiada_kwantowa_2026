@@ -46,6 +46,12 @@ MIN_MENTOR_CAPACITY = 1
 MAX_MENTOR_CAPACITY = 10
 #: Próg k-anonimowości statystyk „gdzie są teraz” (§ 7).
 K_ANONYMITY = 5
+#: Ile pierwszych wiadomości nowej pary dorosły–małoletni czeka na akceptację organizatora także
+#: przy zasadzie czatu „bez ograniczeń” (przegląd po fakcie przychodzi za późno na pierwszy kontakt).
+FIRST_MESSAGES_PRE = 5
+#: Limity próśb – pętla „poproś → wycofaj → poproś” nie może zasypywać mentora listami.
+MAX_REQUESTS_PER_DAY = 5
+MAX_REQUESTS_PER_PAIR_PER_WEEK = 2
 
 
 def enabled(competition) -> bool:
@@ -167,6 +173,22 @@ class AlumniProfile(models.Model):
         related_name="+",
         verbose_name="ukrył",
     )
+    #: Chwila, w której pełnoletność była sprawdzona przy dołączeniu. Mentor raz uznany za
+    #: pełnoletniego **zostaje** pełnoletni dla reguł kanału, nawet gdy później poprawi datę
+    #: urodzenia w profilu uczestnika – zmiana daty nie może zdjąć nadzoru nad rozmową z dzieckiem.
+    adult_confirmed_at = models.DateTimeField("pełnoletność potwierdzona", null=True, blank=True)
+    #: Akceptacja opisu mentora przez koordynatora (H1): skrót treści widocznej dla małoletnich
+    #: (opis, odnośniki) w chwili akceptacji. Zmiana treści = nowy skrót = opis znów czeka.
+    reviewed_hash = models.CharField("skrót zaakceptowanej treści", max_length=64, blank=True)
+    reviewed_at = models.DateTimeField("treść zaakceptowana", null=True, blank=True)
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name="zaakceptował treść",
+    )
 
     objects = competition_scoped_manager("participant__competition")
 
@@ -210,6 +232,10 @@ class AlumniConsentEvent(models.Model):
     )
     kind = models.CharField("zdarzenie", max_length=10, choices=ConsentEventKind.choices)
     version = models.CharField("wersja treści", max_length=32)
+    #: Język, w którym osoba czytała treść zgody, i skrót SHA-256 **tej** treści – wersja mówi,
+    #: który tekst obowiązywał, a skrót dowodzi, które tłumaczenie zostało pokazane.
+    language = models.CharField("język treści", max_length=16, blank=True)
+    text_hash = models.CharField("skrót treści", max_length=64, blank=True)
     created_at = models.DateTimeField("chwila", default=timezone.now)
 
     objects = competition_scoped_manager("participant__competition")
@@ -240,6 +266,16 @@ class EndReason(models.TextChoices):
     COORDINATOR = "COORDINATOR", _("zakończył organizator")
     WITHDRAWN = "WITHDRAWN", _("mentor wycofał zgodę")
     ACCOUNT_REMOVED = "ACCOUNT_REMOVED", _("konto usunięte")
+    HIDDEN = "HIDDEN", _("profil mentora ukryty przez organizatora")
+
+
+class NoteStatus(models.TextChoices):
+    """Notatka prośby małoletniego czeka na organizatora, zanim przeczyta ją dorosły mentor (H1)."""
+
+    NONE = "", _("bez akceptacji")
+    PENDING = "PENDING", _("czeka na organizatora")
+    APPROVED = "APPROVED", _("zaakceptowana")
+    REJECTED = "REJECTED", _("odrzucona przez organizatora")
 
 
 class Channel(models.TextChoices):
@@ -277,6 +313,15 @@ class Mentorship(models.Model):
     )
     topic = models.CharField("temat", max_length=32, choices=Interest.choices, blank=True)
     note = models.TextField("notatka prośby", max_length=MAX_NOTE_LENGTH, blank=True)
+    note_status = models.CharField(
+        "akceptacja notatki", max_length=10, choices=NoteStatus.choices, default=NoteStatus.NONE, blank=True
+    )
+    #: Data urodzenia mentee **z chwili akceptacji** (M2). Kanał rozmowy zostaje ostrzejszy, dopóki
+    #: ta data nie da 18 lat – późniejsza edycja daty w profilu nie zdejmuje nadzoru.
+    mentee_birth_date = models.DateField("data urodzenia mentee przy akceptacji", null=True, blank=True)
+    mentee_birth_year = models.PositiveSmallIntegerField(
+        "rocznik mentee przy akceptacji", null=True, blank=True
+    )
     #: Rozmowa w Wiadomościach. ``SET_NULL``: rozmowę może zabrać kaskada konta, a relacja zostaje
     #: w historii nadzoru koordynatora.
     conversation = models.ForeignKey(
@@ -344,6 +389,9 @@ class MentorshipFlag(models.Model):
         verbose_name="zgłaszający",
     )
     reason = models.CharField("powód", max_length=MAX_REASON_LENGTH)
+    #: Zgłoszenie założone automatycznie (wzorzec danych kontaktowych w notatce, zmiana daty
+    #: urodzenia w trakcie relacji, rozmowa szyfrowana pod wymuszoną moderacją) – bez zgłaszającego.
+    automatic = models.BooleanField("automatyczne", default=False)
     created_at = models.DateTimeField("zgłoszone", default=timezone.now)
     resolved_at = models.DateTimeField("rozpatrzone", null=True, blank=True)
     resolved_by = models.ForeignKey(

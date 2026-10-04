@@ -710,9 +710,16 @@ ALUMNI_ACTIVITY = _activity(
         "druga strona relacji mentorskiej (podpis „Imię N.” i notatka prośby)",
     ],
     retention=(
-        "do wycofania zgody, wyłączenia sieci przez organizatora albo usunięcia konta – profil znika "
-        "od razu; dowód zgody (bez danych poza pseudonimowym profilem) i historia relacji mentorskich "
-        "zostają do czasu anonimizacji konta. Na czas ważnej zgody automat retencji konta jest wstrzymany"
+        "profil absolwenta – do wycofania zgody albo usunięcia konta (znika od razu); po wyłączeniu sieci "
+        "przez organizatora profil przestaje być pokazywany i używany, a automat retencji konta znów "
+        "działa – dane profilu zostają do wycofania zgody (możliwe także przy wyłączonej sieci), "
+        "usunięcia przez organizatora albo anonimizacji konta. Na czas ważnej zgody retencja konta "
+        "uczestnika jest ograniczona do minimalizacji (telefon, szkoła, region, klasa, dane opiekunów "
+        "i dzień urodzenia są usuwane; imię, nazwisko, adres e-mail i wyniki zostają). Dowód zgody "
+        "(wersja, język, skrót treści) – do anonimizacji konta. Dokumentacja bezpieczeństwa mentoringu "
+        "(strony relacji, daty, kanał, zakończenie i jego powód, notatka organizatora, zgłoszenia "
+        "problemów, wpisy dziennika zdarzeń) zostaje do anonimizacji kont stron relacji – wtedy znika "
+        "notatka prośby, treść zgłoszeń autora i zapisana data urodzenia mentee"
     ),
     measures=[
         "funkcja domyślnie **wyłączona** (flaga konkursu); profil powstaje wyłącznie po wyraźnej zgodzie",
@@ -722,7 +729,11 @@ ALUMNI_ACTIVITY = _activity(
         "rozmowy mentorskie w Wiadomościach: przy mentee niepełnoletnim organizator czyta wiadomości – "
         "przed doręczeniem (zasada „ta sama grupa wiekowa” albo wyłączone rozmowy uczestników) albo po "
         "doręczeniu (zasada „bez ograniczeń”); rozmowy mentorskie nie są szyfrowane",
-        "statystyki jednowymiarowe z progiem k-anonimowości 5; zaproszenia z wypisem jednym kliknięciem",
+        "statystyki jednowymiarowe z progiem k-anonimowości 5 (bez komórek komplementarnych); "
+        "zaproszenia z wypisem jednym kliknięciem",
+        "ochrona małoletnich: notatka prośby małoletniego i opis mentora widoczne dla małoletnich dopiero "
+        "po akceptacji organizatora, automatyczne zgłoszenia przy wzorcach danych kontaktowych, przy "
+        "zmianie daty urodzenia w trakcie relacji i przy rozmowie szyfrowanej pod wymuszoną moderacją",
         "każda decyzja koordynatora (ukrycie profilu, zakończenie relacji, wysłanie zaproszenia) zostawia "
         "wpis w dzienniku zdarzeń bez treści profilu i notatek",
     ],

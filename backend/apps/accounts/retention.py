@@ -157,7 +157,11 @@ BLOCKED_UNPUBLISHED_RESULTS = "unpublished_results"
 BLOCKED_ALREADY_ANONYMISED = "already_anonymised"
 BLOCKED_OTHER_COMPETITION = "other_competition"
 #: Aktywna zgoda absolwenta (ALUM-01, ``apps.alumni``) – nowa podstawa przetwarzania, niezależna od
-#: terminu edycji. Wycofanie zgody albo wyłączenie sieci przywraca zwykłą retencję.
+#: terminu edycji. Wstrzymuje **pełną** anonimizację, ale nie minimalizację: przebieg retencji
+#: czyści przy takim koncie dane zbierane wyłącznie do zawodów (telefon, szkoła, opiekun, dzień
+#: urodzenia – ``apps.alumni.services.minimise_participant``), a zostawia to, czego sieć potrzebuje
+#: (imię, nazwisko, adres, wpisy i dyplomy, z których liczą się osiągnięcia). Wycofanie zgody albo
+#: wyłączenie sieci przywraca zwykłą retencję.
 BLOCKED_ALUMNI = "alumni"
 
 #: Zdania dla człowieka. Osobno od kodów, bo kod idzie do audytu i do liczników, a zdanie na ekran.
@@ -237,14 +241,17 @@ def _blocked_reason(participant: Participant, *, expired_ids: set[int]) -> str:
         return BLOCKED_LATER_EDITION
     if _active_in_another_competition(participant):
         return BLOCKED_OTHER_COMPETITION
-    from apps.alumni.services import retention_hold
-
-    if retention_hold(participant):
-        return BLOCKED_ALUMNI
     if Appeal.objects.filter(filed_by=participant, status__in=PENDING_STATUSES).exists():
         return BLOCKED_OPEN_APPEAL
     if entries.filter(stage__results_published_at__isnull=True).exists():
         return BLOCKED_UNPUBLISHED_RESULTS
+    # Na końcu: sieć absolwentów wstrzymuje wyłącznie anonimizację, która **inaczej by zaszła** –
+    # przy otwartej reklamacji albo nieogłoszonych wynikach konto czeka z ich powodu i nie jest
+    # minimalizowane (sprawa w toku potrzebuje szkoły i danych kontaktowych).
+    from apps.alumni.services import retention_hold
+
+    if retention_hold(participant):
+        return BLOCKED_ALUMNI
     return ""
 
 
@@ -382,6 +389,17 @@ def anonymise_expired_editions(now=None, *, competition=None) -> dict:
     plans = plan(now, competition=competition)
     for item in plans:
         for candidate in item.candidates:
+            if candidate.blocked == BLOCKED_ALUMNI:
+                # Zgoda absolwenta trzyma konto, ale nie dane zbierane wyłącznie do zawodów.
+                from apps.alumni.services import minimise_participant
+
+                if minimise_participant(candidate.participant):
+                    audit(
+                        None,
+                        "account.minimised_by_retention",
+                        candidate.participant.user,
+                        {"participant_id": candidate.participant.pk, "edition_id": item.edition.pk},
+                    )
             if not candidate.is_due:
                 blocked += 1
                 continue

@@ -44,18 +44,28 @@ def _key(value: str) -> str:
 
 
 def k_anonymous(counter: Counter, labels: dict[str, str] | None = None, *, k: int = K_ANONYMITY) -> list[Row]:
-    """Rozkład z progiem: grupy ≥ k osobno (malejąco), reszta w „inne” (albo „< k”)."""
+    """Rozkład z progiem: grupy ≥ k osobno (malejąco), reszta w „inne”.
+
+    Przegląd krytyka (L6): samo „< 5” przy „inne” nie wystarcza, bo przy znanej sumie da się je
+    wyliczyć z różnicy (komórka komplementarna). Dlatego do „inne” dokładamy **najmniejsze** pokazane
+    grupy, dopóki „inne” nie osiągnie progu – wtedy żadna komórka tabeli nie jest mniejsza niż k,
+    a różnica sum niczego nie odsłania. „< k” zostaje wyłącznie wtedy, gdy nie ma czego dołożyć.
+    """
     labels = labels or {}
-    rows: list[Row] = []
-    other = 0
-    for key, count in counter.most_common():
-        if count >= k:
-            rows.append(Row(labels.get(key) or key or _("nie podano"), count))
-        else:
-            other += count
+    shown = [(key, count) for key, count in counter.most_common() if count >= k]
+    other = sum(count for count in counter.values() if count < k)
+    while other and other < k and shown:
+        _key_, count = shown.pop()
+        other += count
+    rows = [Row(labels.get(key) or key or _("nie podano"), count) for key, count in shown]
     if other:
         rows.append(Row(_("inne"), other if other >= k else None))
     return rows
+
+
+def _rounded(total: int) -> int:
+    """Liczebność sieci zaokrąglona do progu – sama dokładna suma bywa drugą połową różnicy (L6)."""
+    return int(round(total / K_ANONYMITY) * K_ANONYMITY)
 
 
 def where_are_they_now(competition) -> dict:
@@ -63,12 +73,16 @@ def where_are_they_now(competition) -> dict:
     from apps.accounts.countries import country_name
 
     profiles = list(
-        AlumniProfile.objects.for_competition(competition).select_related("participant").order_by("pk")
+        AlumniProfile.objects.for_competition(competition)
+        .filter(hidden_at__isnull=True)
+        .select_related("participant")
+        .order_by("pk")
     )
     total = len(profiles)
     mentors = sum(1 for profile in profiles if profile.mentor_available)
     summary = {
-        "total": total,
+        # Dokładna liczba decyduje o progu, a na ekran idzie zaokrąglona (L6).
+        "total": f"~{_rounded(total)}" if total >= K_ANONYMITY else total,
         "mentors": mentors if mentors >= K_ANONYMITY or mentors == 0 else None,
         "k": K_ANONYMITY,
     }

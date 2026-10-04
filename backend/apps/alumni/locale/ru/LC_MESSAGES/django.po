@@ -3,7 +3,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-04 19:54+0200\n"
+"POT-Creation-Date: 2026-10-04 20:58+0200\n"
 "PO-Revision-Date: 2026-10-04 20:00+0200\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -158,6 +158,9 @@ msgstr "Менторство завершено – эта беседа тепе
 msgid "Organizator wstrzymał mentoring – ta rozmowa jest teraz tylko do odczytu."
 msgstr "Организатор приостановил менторство – эта беседа теперь доступна только для чтения."
 
+msgid "Nowa rozmowa mentorska. Pierwsze wiadomości czyta i akceptuje organizator, zanim trafią do drugiej osoby."
+msgstr "Новая наставническая переписка. Организатор читает и одобряет первые сообщения, прежде чем они дойдут до собеседника."
+
 msgid "Mentoring jest w tym konkursie wyłączony."
 msgstr "Менторство в этом конкурсе отключено."
 
@@ -197,14 +200,29 @@ msgstr "Одновременно у вас может быть не более %
 msgid "Ta osoba nie ma teraz wolnego miejsca na mentoring."
 msgstr "У этого человека сейчас нет свободного места для менторства."
 
+msgid "Wysłano już dziś dużo próśb o mentoring – spróbuj jutro."
+msgstr "Сегодня вы уже отправили много запросов на наставничество – попробуйте завтра."
+
+msgid "Do tej osoby wysłano już w tym tygodniu prośbę – spróbuj za kilka dni."
+msgstr "На этой неделе вы уже отправляли запрос этому человеку – попробуйте через несколько дней."
+
 msgid "Nie ma takiej relacji mentorskiej."
 msgstr "Такой менторской связи нет."
+
+msgid "Macie już rozmowę szyfrowaną, a ta relacja wymaga moderacji organizatora. Organizator dostał zgłoszenie i skontaktuje się z Wami."
+msgstr "У вас уже есть зашифрованная переписка, а эта связь требует модерации организатором. Организатор получил уведомление и свяжется с вами."
 
 msgid "Na tę prośbę już odpowiedziano."
 msgstr "На этот запрос уже ответили."
 
 msgid "Najpierw dołącz do sieci absolwentów."
 msgstr "Сначала присоединитесь к сети выпускников."
+
+msgid "Twój profil nie przyjmuje teraz nowych relacji mentorskich."
+msgstr "Ваш профиль сейчас не принимает новых наставнических связей."
+
+msgid "Ta osoba nie jest już uczestnikiem konkursu."
+msgstr "Этот человек больше не является участником конкурса."
 
 msgid "Masz już komplet mentee. Zwiększ liczbę miejsc w profilu albo zakończ inną relację."
 msgstr "У вас уже максимальное число подопечных. Увеличьте число мест в профиле или завершите другую связь."
@@ -217,6 +235,9 @@ msgstr "Эта связь уже завершена."
 
 msgid "Powód"
 msgstr "Причина"
+
+msgid "Nie ma takiej notatki do akceptacji."
+msgstr "Такой заметки, ожидающей одобрения, нет."
 
 msgid "Nie ma takiego zgłoszenia."
 msgstr "Такого обращения нет."
@@ -298,6 +319,21 @@ msgstr "ментор отозвал согласие"
 
 msgid "konto usunięte"
 msgstr "аккаунт удалён"
+
+msgid "profil mentora ukryty przez organizatora"
+msgstr "профиль наставника скрыт организатором"
+
+msgid "bez akceptacji"
+msgstr "без одобрения"
+
+msgid "czeka na organizatora"
+msgstr "ожидает организатора"
+
+msgid "zaakceptowana"
+msgstr "одобрена"
+
+msgid "odrzucona przez organizatora"
+msgstr "отклонена организатором"
 
 msgid "rozmowa według zasad Wiadomości"
 msgstr "беседа по правилам раздела «Сообщения»"
@@ -399,6 +435,9 @@ msgstr "Интересы (у одного человека может быть �
 msgid "Najwyższe osiągnięcie"
 msgstr "Высшее достижение"
 
+msgid "Opis tej osoby czeka na akceptację organizatora."
+msgstr "Описание этого человека ожидает одобрения организатора."
+
 msgid "Zainteresowania:"
 msgstr "Интересы:"
 
@@ -451,6 +490,21 @@ msgstr "«Кто может присоединиться» – это миним
 msgid "Zapisz ustawienia"
 msgstr "Сохранить настройки"
 
+msgid "Opisy mentorów do akceptacji"
+msgstr "Описания наставников, ожидающие одобрения"
+
+msgid "Małoletni uczestnicy nie widzą opisu ani odnośników mentora, dopóki ich nie zaakceptujesz. Każda zmiana treści wymaga ponownej akceptacji."
+msgstr "Несовершеннолетние участники не видят описание и ссылки наставника, пока вы их не одобрите. Каждое изменение содержания требует повторного одобрения."
+
+msgid "Osoba"
+msgstr "Человек"
+
+msgid "możliwe dane kontaktowe:"
+msgstr "возможные контактные данные:"
+
+msgid "Akceptuj"
+msgstr "Одобрить"
+
 msgid "Profile absolwentów"
 msgstr "Профили выпускников"
 
@@ -460,9 +514,6 @@ msgstr "Могли бы присоединиться (соответствуют
 
 msgid "Szukaj"
 msgstr "Поиск"
-
-msgid "Osoba"
-msgstr "Человек"
 
 msgid "Osiągnięcia"
 msgstr "Достижения"
@@ -540,14 +591,26 @@ msgstr "Очередь модерации"
 msgid "Mentoring jest wyłączony – istniejące rozmowy mentorskie są tylko do odczytu."
 msgstr "Менторство отключено – существующие менторские беседы доступны только для чтения."
 
-msgid "Zgłoszenia problemów"
-msgstr "Обращения о проблемах"
+msgid "Notatki próśb małoletnich do akceptacji"
+msgstr "Заметки к запросам несовершеннолетних, ожидающие одобрения"
+
+msgid "Mentor przeczyta notatkę dopiero po Twojej akceptacji; do tego czasu widzi sam temat."
+msgstr "Наставник прочитает заметку только после вашего одобрения; до тех пор он видит только тему."
 
 msgid "Relacja"
 msgstr "Связь"
 
+msgid "Odrzuć"
+msgstr "Отклонить"
+
+msgid "Zgłoszenia problemów"
+msgstr "Обращения о проблемах"
+
 msgid "Zgłoszone"
 msgstr "Сообщено"
+
+msgid "automatyczne"
+msgstr "автоматически"
 
 msgid "Zamknij zgłoszenie"
 msgstr "Закрыть обращение"
@@ -632,6 +695,15 @@ msgstr "Страницы каталога"
 msgid "Nikogo tu jeszcze nie ma"
 msgstr "Здесь пока никого нет"
 
+msgid "Sieć absolwentów"
+msgstr "Сеть выпускников"
+
+msgid "Organizator wyłączył sieć absolwentów. Twój profil nie jest nikomu pokazywany, nie dostajesz zaproszeń, a rozmowy mentorskie są tylko do odczytu. Dane profilu zostają do czasu wycofania zgody albo usunięcia ich przez organizatora."
+msgstr "Организатор отключил сеть выпускников. Ваш профиль никому не показывается, вы не получаете приглашений, а наставнические переписки доступны только для чтения. Данные профиля хранятся, пока вы не отзовёте согласие или организатор их не удалит."
+
+msgid "Wycofaj zgodę i usuń profil"
+msgstr "Отозвать согласие и удалить профиль"
+
 msgid "Zgłoś problem z mentoringiem"
 msgstr "Сообщить о проблеме с менторством"
 
@@ -641,14 +713,20 @@ msgstr "Обращение сразу попадает к организатор
 msgid "Wyślij zgłoszenie"
 msgstr "Отправить обращение"
 
-msgid "Sieć absolwentów"
-msgstr "Сеть выпускников"
-
 msgid "Byli uczestnicy, którzy pokazują, co robią dziś, pomagają obecnym uczestnikom jako mentorzy i dostają zaproszenia na warsztaty, webinary i do jury."
 msgstr "Бывшие участники, которые рассказывают, чем занимаются сегодня, помогают нынешним участникам как менторы и получают приглашения на мастер-классы, вебинары и в жюри."
 
 msgid "Publiczna ściana"
 msgstr "Публичная стена"
+
+msgid "Zmieniła się treść zgody"
+msgstr "Текст согласия изменился"
+
+msgid "Twój profil jest niewidoczny, dopóki nie potwierdzisz nowej treści zgody. Możesz też wycofać zgodę niżej."
+msgstr "Ваш профиль скрыт, пока вы не подтвердите новый текст согласия. Вы также можете отозвать согласие ниже."
+
+msgid "Potwierdzam"
+msgstr "Подтверждаю"
 
 msgid "Twój profil"
 msgstr "Ваш профиль"
@@ -667,9 +745,6 @@ msgstr "Отзыв согласия"
 
 msgid "Po wycofaniu zgody Twój profil absolwenta zniknie od razu, a relacje, w których jesteś mentorem, zakończą się. Twoje wyniki i dyplomy zostają – to dokumentacja zawodów."
 msgstr "После отзыва согласия ваш профиль выпускника сразу исчезнет, а связи, в которых вы ментор, завершатся. Ваши результаты и сертификаты сохранятся – они входят в документацию конкурса."
-
-msgid "Wycofaj zgodę i usuń profil"
-msgstr "Отозвать согласие и удалить профиль"
 
 msgid "Dołącz do sieci absolwentów"
 msgstr "Присоединиться к сети выпускников"
@@ -695,11 +770,11 @@ msgstr "вы – ментор"
 msgid "Twój mentor"
 msgstr "ваш ментор"
 
+msgid "Notatka prośby czeka na akceptację organizatora."
+msgstr "Заметка к запросу ожидает одобрения организатора."
+
 msgid "Przyjmij"
 msgstr "Принять"
-
-msgid "Odrzuć"
-msgstr "Отклонить"
 
 msgid "Wycofaj prośbę"
 msgstr "Отозвать запрос"
@@ -775,6 +850,9 @@ msgstr "Профиль сохранён."
 msgid "Zgoda wycofana – Twój profil absolwenta został usunięty."
 msgstr "Согласие отозвано – ваш профиль выпускника удалён."
 
+msgid "Dziękujemy – Twój profil znów jest widoczny."
+msgstr "Спасибо – ваш профиль снова виден."
+
 msgid "Prośba wysłana. Dostaniesz e-mail, gdy mentor odpowie."
 msgstr "Запрос отправлен. Когда ментор ответит, вы получите письмо."
 
@@ -801,6 +879,12 @@ msgstr "Профиль скрыт."
 
 msgid "Profil znów jest widoczny."
 msgstr "Профиль снова виден."
+
+msgid "Opis zaakceptowany – małoletni uczestnicy go zobaczą."
+msgstr "Описание одобрено – несовершеннолетние участники его увидят."
+
+msgid "Decyzja zapisana."
+msgstr "Решение сохранено."
 
 msgid "Podaj powód zakończenia relacji."
 msgstr "Укажите причину завершения связи."

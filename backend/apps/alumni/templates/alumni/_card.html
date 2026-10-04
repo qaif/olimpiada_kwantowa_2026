@@ -16,9 +16,10 @@
   {% endif %}
   {% if not public %}
     {% if card.profile.city or card.country_name %}<p class="hint">{{ card.profile.city }}{% if card.profile.city and card.country_name %}, {% endif %}{{ card.country_name }}</p>{% endif %}
-    {% if card.profile.bio %}<p>{{ card.profile.bio|linebreaksbr }}</p>{% endif %}
+    {% if card.content_hidden %}<p class="hint">{% translate "Opis tej osoby czeka na akceptację organizatora." %}</p>
+    {% elif card.profile.bio %}<p>{{ card.profile.bio|linebreaksbr }}</p>{% endif %}
     {% if card.interests %}<p class="hint">{% translate "Zainteresowania:" %} {{ card.interests|join:", " }}</p>{% endif %}
-    {% if card.profile.linkedin_url or card.profile.github_url %}
+    {% if not card.content_hidden and card.profile.linkedin_url or not card.content_hidden and card.profile.github_url %}
       <p>
         {% if card.profile.linkedin_url %}<a href="{{ card.profile.linkedin_url }}" rel="nofollow noopener noreferrer ugc" target="_blank">LinkedIn</a>{% endif %}
         {% if card.profile.github_url %}<a href="{{ card.profile.github_url }}" rel="nofollow noopener noreferrer ugc" target="_blank">GitHub</a>{% endif %}

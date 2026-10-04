@@ -3,7 +3,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-04 19:54+0200\n"
+"POT-Creation-Date: 2026-10-04 20:58+0200\n"
 "PO-Revision-Date: 2026-10-04 20:00+0200\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -158,6 +158,9 @@ msgstr "A mentoria terminou – esta conversa agora é somente leitura."
 msgid "Organizator wstrzymał mentoring – ta rozmowa jest teraz tylko do odczytu."
 msgstr "O organizador pausou a mentoria – esta conversa agora é somente leitura."
 
+msgid "Nowa rozmowa mentorska. Pierwsze wiadomości czyta i akceptuje organizator, zanim trafią do drugiej osoby."
+msgstr "Nova conversa de mentoria. O organizador lê e aprova as primeiras mensagens antes que cheguem à outra pessoa."
+
 msgid "Mentoring jest w tym konkursie wyłączony."
 msgstr "A mentoria está desativada nesta competição."
 
@@ -197,14 +200,29 @@ msgstr "Você pode ter no máximo %(limit)s pedidos e relações de mentoria abe
 msgid "Ta osoba nie ma teraz wolnego miejsca na mentoring."
 msgstr "Esta pessoa não tem vagas de mentoria livres no momento."
 
+msgid "Wysłano już dziś dużo próśb o mentoring – spróbuj jutro."
+msgstr "Você já enviou muitos pedidos de mentoria hoje – tente amanhã."
+
+msgid "Do tej osoby wysłano już w tym tygodniu prośbę – spróbuj za kilka dni."
+msgstr "Você já enviou um pedido a esta pessoa nesta semana – tente daqui a alguns dias."
+
 msgid "Nie ma takiej relacji mentorskiej."
 msgstr "Essa relação de mentoria não existe."
+
+msgid "Macie już rozmowę szyfrowaną, a ta relacja wymaga moderacji organizatora. Organizator dostał zgłoszenie i skontaktuje się z Wami."
+msgstr "Vocês já têm uma conversa criptografada, e esta relação exige moderação do organizador. O organizador foi notificado e entrará em contato."
 
 msgid "Na tę prośbę już odpowiedziano."
 msgstr "Este pedido já foi respondido."
 
 msgid "Najpierw dołącz do sieci absolwentów."
 msgstr "Primeiro entre na rede de ex-participantes."
+
+msgid "Twój profil nie przyjmuje teraz nowych relacji mentorskich."
+msgstr "Seu perfil não está aceitando novas relações de mentoria no momento."
+
+msgid "Ta osoba nie jest już uczestnikiem konkursu."
+msgstr "Esta pessoa não é mais participante do concurso."
 
 msgid "Masz już komplet mentee. Zwiększ liczbę miejsc w profilu albo zakończ inną relację."
 msgstr "Você já tem o número máximo de mentorados. Aumente o número de vagas no seu perfil ou encerre outra relação."
@@ -217,6 +235,9 @@ msgstr "Esta relação já foi encerrada."
 
 msgid "Powód"
 msgstr "Motivo"
+
+msgid "Nie ma takiej notatki do akceptacji."
+msgstr "Não existe essa nota aguardando aprovação."
 
 msgid "Nie ma takiego zgłoszenia."
 msgstr "Essa denúncia não existe."
@@ -298,6 +319,21 @@ msgstr "o mentor retirou o consentimento"
 
 msgid "konto usunięte"
 msgstr "conta excluída"
+
+msgid "profil mentora ukryty przez organizatora"
+msgstr "perfil do mentor ocultado pelo organizador"
+
+msgid "bez akceptacji"
+msgstr "sem aprovação"
+
+msgid "czeka na organizatora"
+msgstr "aguardando o organizador"
+
+msgid "zaakceptowana"
+msgstr "aprovada"
+
+msgid "odrzucona przez organizatora"
+msgstr "rejeitada pelo organizador"
 
 msgid "rozmowa według zasad Wiadomości"
 msgstr "conversa sob as regras de Mensagens"
@@ -399,6 +435,9 @@ msgstr "Interesses (uma pessoa pode ter vários)"
 msgid "Najwyższe osiągnięcie"
 msgstr "Maior conquista"
 
+msgid "Opis tej osoby czeka na akceptację organizatora."
+msgstr "A descrição desta pessoa aguarda a aprovação do organizador."
+
 msgid "Zainteresowania:"
 msgstr "Interesses:"
 
@@ -451,6 +490,21 @@ msgstr "“Quem pode participar” é a conquista mínima em uma edição conclu
 msgid "Zapisz ustawienia"
 msgstr "Salvar configurações"
 
+msgid "Opisy mentorów do akceptacji"
+msgstr "Descrições de mentores aguardando aprovação"
+
+msgid "Małoletni uczestnicy nie widzą opisu ani odnośników mentora, dopóki ich nie zaakceptujesz. Każda zmiana treści wymaga ponownej akceptacji."
+msgstr "Participantes menores de idade não veem a descrição nem os links de um mentor até que você os aprove. Cada alteração do conteúdo exige nova aprovação."
+
+msgid "Osoba"
+msgstr "Pessoa"
+
+msgid "możliwe dane kontaktowe:"
+msgstr "possíveis dados de contato:"
+
+msgid "Akceptuj"
+msgstr "Aprovar"
+
 msgid "Profile absolwentów"
 msgstr "Perfis de ex-participantes"
 
@@ -460,9 +514,6 @@ msgstr "Ainda poderiam entrar (atendem aos critérios, mas não entraram): %(cou
 
 msgid "Szukaj"
 msgstr "Pesquisar"
-
-msgid "Osoba"
-msgstr "Pessoa"
 
 msgid "Osiągnięcia"
 msgstr "Conquistas"
@@ -540,14 +591,26 @@ msgstr "Fila de moderação"
 msgid "Mentoring jest wyłączony – istniejące rozmowy mentorskie są tylko do odczytu."
 msgstr "A mentoria está desativada – as conversas de mentoria existentes são somente leitura."
 
-msgid "Zgłoszenia problemów"
-msgstr "Problemas relatados"
+msgid "Notatki próśb małoletnich do akceptacji"
+msgstr "Notas de pedidos de menores aguardando aprovação"
+
+msgid "Mentor przeczyta notatkę dopiero po Twojej akceptacji; do tego czasu widzi sam temat."
+msgstr "O mentor lerá a nota somente após a sua aprovação; até lá, vê apenas o tema."
 
 msgid "Relacja"
 msgstr "Relação"
 
+msgid "Odrzuć"
+msgstr "Recusar"
+
+msgid "Zgłoszenia problemów"
+msgstr "Problemas relatados"
+
 msgid "Zgłoszone"
 msgstr "Relatado em"
+
+msgid "automatyczne"
+msgstr "automático"
 
 msgid "Zamknij zgłoszenie"
 msgstr "Fechar denúncia"
@@ -632,6 +695,15 @@ msgstr "Páginas do diretório"
 msgid "Nikogo tu jeszcze nie ma"
 msgstr "Ainda não há ninguém aqui"
 
+msgid "Sieć absolwentów"
+msgstr "Rede de ex-participantes"
+
+msgid "Organizator wyłączył sieć absolwentów. Twój profil nie jest nikomu pokazywany, nie dostajesz zaproszeń, a rozmowy mentorskie są tylko do odczytu. Dane profilu zostają do czasu wycofania zgody albo usunięcia ich przez organizatora."
+msgstr "O organizador desativou a rede de ex-participantes. Seu perfil não é mostrado a ninguém, você não recebe convites e as conversas de mentoria são somente leitura. Os dados do perfil permanecem até você retirar o consentimento ou o organizador excluí-los."
+
+msgid "Wycofaj zgodę i usuń profil"
+msgstr "Retirar o consentimento e excluir o perfil"
+
 msgid "Zgłoś problem z mentoringiem"
 msgstr "Relatar um problema com a mentoria"
 
@@ -641,14 +713,20 @@ msgstr "A denúncia vai direto para o organizador. Se o problema envolver uma me
 msgid "Wyślij zgłoszenie"
 msgstr "Enviar denúncia"
 
-msgid "Sieć absolwentów"
-msgstr "Rede de ex-participantes"
-
 msgid "Byli uczestnicy, którzy pokazują, co robią dziś, pomagają obecnym uczestnikom jako mentorzy i dostają zaproszenia na warsztaty, webinary i do jury."
 msgstr "Antigos participantes que mostram o que fazem hoje, ajudam os participantes atuais como mentores e recebem convites para oficinas, webinars e funções de júri."
 
 msgid "Publiczna ściana"
 msgstr "Mural público"
+
+msgid "Zmieniła się treść zgody"
+msgstr "O texto do consentimento mudou"
+
+msgid "Twój profil jest niewidoczny, dopóki nie potwierdzisz nowej treści zgody. Możesz też wycofać zgodę niżej."
+msgstr "Seu perfil fica oculto até você confirmar o novo texto do consentimento. Você também pode retirar o consentimento abaixo."
+
+msgid "Potwierdzam"
+msgstr "Confirmo"
 
 msgid "Twój profil"
 msgstr "Seu perfil"
@@ -667,9 +745,6 @@ msgstr "Retirada do consentimento"
 
 msgid "Po wycofaniu zgody Twój profil absolwenta zniknie od razu, a relacje, w których jesteś mentorem, zakończą się. Twoje wyniki i dyplomy zostają – to dokumentacja zawodów."
 msgstr "Depois que você retirar o consentimento, seu perfil de ex-participante desaparecerá imediatamente e as relações em que você é mentor serão encerradas. Seus resultados e certificados permanecem – eles fazem parte dos registros da competição."
-
-msgid "Wycofaj zgodę i usuń profil"
-msgstr "Retirar o consentimento e excluir o perfil"
 
 msgid "Dołącz do sieci absolwentów"
 msgstr "Entre na rede de ex-participantes"
@@ -695,11 +770,11 @@ msgstr "você é o mentor"
 msgid "Twój mentor"
 msgstr "seu mentor"
 
+msgid "Notatka prośby czeka na akceptację organizatora."
+msgstr "A nota do pedido aguarda a aprovação do organizador."
+
 msgid "Przyjmij"
 msgstr "Aceitar"
-
-msgid "Odrzuć"
-msgstr "Recusar"
 
 msgid "Wycofaj prośbę"
 msgstr "Retirar pedido"
@@ -775,6 +850,9 @@ msgstr "Perfil salvo."
 msgid "Zgoda wycofana – Twój profil absolwenta został usunięty."
 msgstr "Consentimento retirado – seu perfil de ex-participante foi excluído."
 
+msgid "Dziękujemy – Twój profil znów jest widoczny."
+msgstr "Obrigado – seu perfil está visível novamente."
+
 msgid "Prośba wysłana. Dostaniesz e-mail, gdy mentor odpowie."
 msgstr "Pedido enviado. Você receberá um e-mail quando o mentor responder."
 
@@ -801,6 +879,12 @@ msgstr "Perfil oculto."
 
 msgid "Profil znów jest widoczny."
 msgstr "O perfil está visível novamente."
+
+msgid "Opis zaakceptowany – małoletni uczestnicy go zobaczą."
+msgstr "Descrição aprovada – os participantes menores de idade poderão vê-la."
+
+msgid "Decyzja zapisana."
+msgstr "Decisão salva."
 
 msgid "Podaj powód zakończenia relacji."
 msgstr "Informe o motivo do encerramento da relação."

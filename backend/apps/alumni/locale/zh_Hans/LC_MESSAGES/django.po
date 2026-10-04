@@ -3,7 +3,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-04 19:54+0200\n"
+"POT-Creation-Date: 2026-10-04 20:58+0200\n"
 "PO-Revision-Date: 2026-10-04 20:00+0200\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -158,6 +158,9 @@ msgstr "导师指导已结束——此对话现为只读。"
 msgid "Organizator wstrzymał mentoring – ta rozmowa jest teraz tylko do odczytu."
 msgstr "主办方已暂停导师计划——此对话现为只读。"
 
+msgid "Nowa rozmowa mentorska. Pierwsze wiadomości czyta i akceptuje organizator, zanim trafią do drugiej osoby."
+msgstr "新的导师对话。前几条消息会先由组织者阅读并批准，然后才送达对方。"
+
 msgid "Mentoring jest w tym konkursie wyłączony."
 msgstr "本竞赛已关闭导师计划。"
 
@@ -197,14 +200,29 @@ msgstr "你最多可同时有 %(limit)s 个未结束的导师申请和导师关�
 msgid "Ta osoba nie ma teraz wolnego miejsca na mentoring."
 msgstr "此人目前没有空余的导师名额。"
 
+msgid "Wysłano już dziś dużo próśb o mentoring – spróbuj jutro."
+msgstr "你今天已经发送了很多导师请求，请明天再试。"
+
+msgid "Do tej osoby wysłano już w tym tygodniu prośbę – spróbuj za kilka dni."
+msgstr "你本周已向此人发送过请求，请过几天再试。"
+
 msgid "Nie ma takiej relacji mentorskiej."
 msgstr "不存在该导师关系。"
+
+msgid "Macie już rozmowę szyfrowaną, a ta relacja wymaga moderacji organizatora. Organizator dostał zgłoszenie i skontaktuje się z Wami."
+msgstr "你们已有一个加密对话，而此导师关系需要组织者审核。组织者已收到通知，将与你们联系。"
 
 msgid "Na tę prośbę już odpowiedziano."
 msgstr "该申请已有答复。"
 
 msgid "Najpierw dołącz do sieci absolwentów."
 msgstr "请先加入校友网络。"
+
+msgid "Twój profil nie przyjmuje teraz nowych relacji mentorskich."
+msgstr "你的个人资料目前不接受新的导师关系。"
+
+msgid "Ta osoba nie jest już uczestnikiem konkursu."
+msgstr "此人已不再是本竞赛的参赛者。"
 
 msgid "Masz już komplet mentee. Zwiększ liczbę miejsc w profilu albo zakończ inną relację."
 msgstr "你的学员名额已满。请在个人资料中增加名额，或结束另一段导师关系。"
@@ -217,6 +235,9 @@ msgstr "该导师关系已经结束。"
 
 msgid "Powód"
 msgstr "原因"
+
+msgid "Nie ma takiej notatki do akceptacji."
+msgstr "没有这条待批准的备注。"
 
 msgid "Nie ma takiego zgłoszenia."
 msgstr "不存在该报告。"
@@ -298,6 +319,21 @@ msgstr "导师撤回了同意"
 
 msgid "konto usunięte"
 msgstr "账户已删除"
+
+msgid "profil mentora ukryty przez organizatora"
+msgstr "导师资料已被组织者隐藏"
+
+msgid "bez akceptacji"
+msgstr "无需批准"
+
+msgid "czeka na organizatora"
+msgstr "等待组织者"
+
+msgid "zaakceptowana"
+msgstr "已批准"
+
+msgid "odrzucona przez organizatora"
+msgstr "被组织者拒绝"
 
 msgid "rozmowa według zasad Wiadomości"
 msgstr "按消息规则进行对话"
@@ -399,6 +435,9 @@ msgstr "兴趣（每人可有多项）"
 msgid "Najwyższe osiągnięcie"
 msgstr "最高成绩"
 
+msgid "Opis tej osoby czeka na akceptację organizatora."
+msgstr "此人的简介正在等待组织者批准。"
+
 msgid "Zainteresowania:"
 msgstr "兴趣："
 
@@ -451,6 +490,21 @@ msgstr "“谁可以加入”是指在已结束届次中的最低成绩。仅成
 msgid "Zapisz ustawienia"
 msgstr "保存设置"
 
+msgid "Opisy mentorów do akceptacji"
+msgstr "待批准的导师简介"
+
+msgid "Małoletni uczestnicy nie widzą opisu ani odnośników mentora, dopóki ich nie zaakceptujesz. Każda zmiana treści wymaga ponownej akceptacji."
+msgstr "在你批准之前，未成年参赛者看不到导师的简介和链接。内容的每次更改都需要重新批准。"
+
+msgid "Osoba"
+msgstr "人员"
+
+msgid "możliwe dane kontaktowe:"
+msgstr "可能的联系方式："
+
+msgid "Akceptuj"
+msgstr "批准"
+
 msgid "Profile absolwentów"
 msgstr "校友资料"
 
@@ -460,9 +514,6 @@ msgstr "尚可加入（符合条件但未加入）：%(count)s。"
 
 msgid "Szukaj"
 msgstr "搜索"
-
-msgid "Osoba"
-msgstr "人员"
 
 msgid "Osiągnięcia"
 msgstr "成绩"
@@ -540,14 +591,26 @@ msgstr "审核队列"
 msgid "Mentoring jest wyłączony – istniejące rozmowy mentorskie są tylko do odczytu."
 msgstr "导师计划已关闭——现有导师对话为只读。"
 
-msgid "Zgłoszenia problemów"
-msgstr "已报告的问题"
+msgid "Notatki próśb małoletnich do akceptacji"
+msgstr "待批准的未成年人请求备注"
+
+msgid "Mentor przeczyta notatkę dopiero po Twojej akceptacji; do tego czasu widzi sam temat."
+msgstr "导师只有在你批准后才能读到备注；在此之前只能看到主题。"
 
 msgid "Relacja"
 msgstr "关系"
 
+msgid "Odrzuć"
+msgstr "拒绝"
+
+msgid "Zgłoszenia problemów"
+msgstr "已报告的问题"
+
 msgid "Zgłoszone"
 msgstr "报告时间"
+
+msgid "automatyczne"
+msgstr "自动"
 
 msgid "Zamknij zgłoszenie"
 msgstr "关闭报告"
@@ -632,6 +695,15 @@ msgstr "名录分页"
 msgid "Nikogo tu jeszcze nie ma"
 msgstr "这里还没有人"
 
+msgid "Sieć absolwentów"
+msgstr "校友网络"
+
+msgid "Organizator wyłączył sieć absolwentów. Twój profil nie jest nikomu pokazywany, nie dostajesz zaproszeń, a rozmowy mentorskie są tylko do odczytu. Dane profilu zostają do czasu wycofania zgody albo usunięcia ich przez organizatora."
+msgstr "组织者已关闭校友网络。你的个人资料不会向任何人展示，你不会收到邀请，导师对话为只读。在你撤回同意或组织者删除之前，资料数据会保留。"
+
+msgid "Wycofaj zgodę i usuń profil"
+msgstr "撤回同意并删除资料"
+
 msgid "Zgłoś problem z mentoringiem"
 msgstr "报告导师指导问题"
 
@@ -641,14 +713,20 @@ msgstr "报告将直接发送给主办方。如果问题涉及某条具体消息
 msgid "Wyślij zgłoszenie"
 msgstr "发送报告"
 
-msgid "Sieć absolwentów"
-msgstr "校友网络"
-
 msgid "Byli uczestnicy, którzy pokazują, co robią dziś, pomagają obecnym uczestnikom jako mentorzy i dostają zaproszenia na warsztaty, webinary i do jury."
 msgstr "往届参赛者在这里展示他们如今的工作，作为导师帮助当前参赛者，并收到研讨会、网络研讨会和评审团的邀请。"
 
 msgid "Publiczna ściana"
 msgstr "公开校友墙"
+
+msgid "Zmieniła się treść zgody"
+msgstr "同意书内容已更改"
+
+msgid "Twój profil jest niewidoczny, dopóki nie potwierdzisz nowej treści zgody. Możesz też wycofać zgodę niżej."
+msgstr "在你确认新的同意书内容之前，你的个人资料处于隐藏状态。你也可以在下方撤回同意。"
+
+msgid "Potwierdzam"
+msgstr "我确认"
 
 msgid "Twój profil"
 msgstr "你的资料"
@@ -667,9 +745,6 @@ msgstr "撤回同意"
 
 msgid "Po wycofaniu zgody Twój profil absolwenta zniknie od razu, a relacje, w których jesteś mentorem, zakończą się. Twoje wyniki i dyplomy zostają – to dokumentacja zawodów."
 msgstr "撤回同意后，你的校友资料将立即消失，你作为导师的关系也将结束。你的成绩和证书会保留——它们是竞赛档案的一部分。"
-
-msgid "Wycofaj zgodę i usuń profil"
-msgstr "撤回同意并删除资料"
 
 msgid "Dołącz do sieci absolwentów"
 msgstr "加入校友网络"
@@ -695,11 +770,11 @@ msgstr "你是导师"
 msgid "Twój mentor"
 msgstr "你的导师"
 
+msgid "Notatka prośby czeka na akceptację organizatora."
+msgstr "请求备注正在等待组织者批准。"
+
 msgid "Przyjmij"
 msgstr "接受"
-
-msgid "Odrzuć"
-msgstr "拒绝"
 
 msgid "Wycofaj prośbę"
 msgstr "撤回申请"
@@ -775,6 +850,9 @@ msgstr "资料已保存。"
 msgid "Zgoda wycofana – Twój profil absolwenta został usunięty."
 msgstr "已撤回同意——你的校友资料已删除。"
 
+msgid "Dziękujemy – Twój profil znów jest widoczny."
+msgstr "谢谢——你的个人资料已重新可见。"
+
 msgid "Prośba wysłana. Dostaniesz e-mail, gdy mentor odpowie."
 msgstr "申请已发送。导师答复后你会收到电子邮件。"
 
@@ -801,6 +879,12 @@ msgstr "资料已隐藏。"
 
 msgid "Profil znów jest widoczny."
 msgstr "资料已重新可见。"
+
+msgid "Opis zaakceptowany – małoletni uczestnicy go zobaczą."
+msgstr "简介已批准——未成年参赛者将能看到。"
+
+msgid "Decyzja zapisana."
+msgstr "决定已保存。"
 
 msgid "Podaj powód zakończenia relacji."
 msgstr "请填写结束关系的原因。"

@@ -32,6 +32,33 @@
   </form>
 </section>
 
+{% if review_queue %}
+<section class="section">
+  <h2 class="mt-0">{% translate "Opisy mentorów do akceptacji" %}</h2>
+  <p class="hint">{% blocktranslate trimmed %}Małoletni uczestnicy nie widzą opisu ani odnośników mentora, dopóki ich nie zaakceptujesz.
+    Każda zmiana treści wymaga ponownej akceptacji.{% endblocktranslate %}</p>
+  <div class="scroll">
+    <table class="table">
+      <thead><tr><th>{% translate "Osoba" %}</th><th>{% translate "Treść" %}</th><th></th></tr></thead>
+      <tbody>
+        {% for row in review_queue %}
+          <tr>
+            <td>{{ row.participant.user.get_full_name }}<br><span class="hint">{{ row.participant.public_code }}</span></td>
+            <td>{{ row.bio|linebreaksbr }}{% if row.linkedin_url %}<br>{{ row.linkedin_url }}{% endif %}{% if row.github_url %}<br>{{ row.github_url }}{% endif %}
+              {% if row.contact_hits %}<br><span class="badge badge--danger">{% translate "możliwe dane kontaktowe:" %} {{ row.contact_hits|join:", " }}</span>{% endif %}</td>
+            <td>
+              <form method="post" action="{% url 'web:coordinator-alumni-approve-content' row.pk %}" class="inline">
+                {% csrf_token %}<button type="submit" class="btn btn--small btn--primary">{% translate "Akceptuj" %}</button>
+              </form>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endif %}
+
 <section class="section">
   <div class="section__head">
     <h2 class="mt-0">{% translate "Profile absolwentów" %}</h2>

@@ -3,7 +3,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-04 19:54+0200\n"
+"POT-Creation-Date: 2026-10-04 20:58+0200\n"
 "PO-Revision-Date: 2026-10-04 20:00+0200\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -158,6 +158,9 @@ msgstr "Le mentorat est terminé – cette conversation est désormais en lectur
 msgid "Organizator wstrzymał mentoring – ta rozmowa jest teraz tylko do odczytu."
 msgstr "L’organisateur a suspendu le mentorat – cette conversation est désormais en lecture seule."
 
+msgid "Nowa rozmowa mentorska. Pierwsze wiadomości czyta i akceptuje organizator, zanim trafią do drugiej osoby."
+msgstr "Nouvelle conversation de mentorat. L’organisateur lit et approuve les premiers messages avant qu’ils n’arrivent à l’autre personne."
+
 msgid "Mentoring jest w tym konkursie wyłączony."
 msgstr "Le mentorat est désactivé dans ce concours."
 
@@ -197,14 +200,29 @@ msgstr "Vous pouvez avoir au maximum %(limit)s demandes et relations de mentorat
 msgid "Ta osoba nie ma teraz wolnego miejsca na mentoring."
 msgstr "Cette personne n’a pas de place de mentorat disponible pour le moment."
 
+msgid "Wysłano już dziś dużo próśb o mentoring – spróbuj jutro."
+msgstr "Vous avez déjà envoyé beaucoup de demandes de mentorat aujourd’hui – réessayez demain."
+
+msgid "Do tej osoby wysłano już w tym tygodniu prośbę – spróbuj za kilka dni."
+msgstr "Vous avez déjà envoyé une demande à cette personne cette semaine – réessayez dans quelques jours."
+
 msgid "Nie ma takiej relacji mentorskiej."
 msgstr "Cette relation de mentorat n’existe pas."
+
+msgid "Macie już rozmowę szyfrowaną, a ta relacja wymaga moderacji organizatora. Organizator dostał zgłoszenie i skontaktuje się z Wami."
+msgstr "Vous avez déjà une conversation chiffrée, et cette relation nécessite une modération par l’organisateur. L’organisateur a été prévenu et vous contactera."
 
 msgid "Na tę prośbę już odpowiedziano."
 msgstr "Une réponse a déjà été donnée à cette demande."
 
 msgid "Najpierw dołącz do sieci absolwentów."
 msgstr "Rejoignez d’abord le réseau des anciens."
+
+msgid "Twój profil nie przyjmuje teraz nowych relacji mentorskich."
+msgstr "Votre profil n’accepte pas de nouvelles relations de mentorat pour le moment."
+
+msgid "Ta osoba nie jest już uczestnikiem konkursu."
+msgstr "Cette personne ne participe plus au concours."
 
 msgid "Masz już komplet mentee. Zwiększ liczbę miejsc w profilu albo zakończ inną relację."
 msgstr "Vous avez déjà le nombre maximal de mentorés. Augmentez le nombre de places dans votre profil ou mettez fin à une autre relation."
@@ -217,6 +235,9 @@ msgstr "Cette relation est déjà terminée."
 
 msgid "Powód"
 msgstr "Motif"
+
+msgid "Nie ma takiej notatki do akceptacji."
+msgstr "Aucune note de ce type n’attend d’approbation."
 
 msgid "Nie ma takiego zgłoszenia."
 msgstr "Ce signalement n’existe pas."
@@ -298,6 +319,21 @@ msgstr "le mentor a retiré son consentement"
 
 msgid "konto usunięte"
 msgstr "compte supprimé"
+
+msgid "profil mentora ukryty przez organizatora"
+msgstr "profil du mentor masqué par l’organisateur"
+
+msgid "bez akceptacji"
+msgstr "sans approbation"
+
+msgid "czeka na organizatora"
+msgstr "en attente de l’organisateur"
+
+msgid "zaakceptowana"
+msgstr "approuvée"
+
+msgid "odrzucona przez organizatora"
+msgstr "refusée par l’organisateur"
 
 msgid "rozmowa według zasad Wiadomości"
 msgstr "conversation soumise aux règles de Messages"
@@ -399,6 +435,9 @@ msgstr "Centres d’intérêt (une personne peut en avoir plusieurs)"
 msgid "Najwyższe osiągnięcie"
 msgstr "Meilleur résultat"
 
+msgid "Opis tej osoby czeka na akceptację organizatora."
+msgstr "La description de cette personne attend l’approbation de l’organisateur."
+
 msgid "Zainteresowania:"
 msgstr "Centres d’intérêt :"
 
@@ -451,6 +490,21 @@ msgstr "« Qui peut rejoindre » correspond au résultat minimal obtenu lors d�
 msgid "Zapisz ustawienia"
 msgstr "Enregistrer les paramètres"
 
+msgid "Opisy mentorów do akceptacji"
+msgstr "Descriptions de mentors en attente d’approbation"
+
+msgid "Małoletni uczestnicy nie widzą opisu ani odnośników mentora, dopóki ich nie zaakceptujesz. Każda zmiana treści wymaga ponownej akceptacji."
+msgstr "Les participants mineurs ne voient ni la description ni les liens d’un mentor tant que vous ne les avez pas approuvés. Chaque modification du contenu nécessite une nouvelle approbation."
+
+msgid "Osoba"
+msgstr "Personne"
+
+msgid "możliwe dane kontaktowe:"
+msgstr "coordonnées possibles :"
+
+msgid "Akceptuj"
+msgstr "Approuver"
+
 msgid "Profile absolwentów"
 msgstr "Profils des anciens"
 
@@ -460,9 +514,6 @@ msgstr "Pourraient encore rejoindre (remplissent les critères mais ne l’ont p
 
 msgid "Szukaj"
 msgstr "Rechercher"
-
-msgid "Osoba"
-msgstr "Personne"
 
 msgid "Osiągnięcia"
 msgstr "Résultats"
@@ -540,14 +591,26 @@ msgstr "File de modération"
 msgid "Mentoring jest wyłączony – istniejące rozmowy mentorskie są tylko do odczytu."
 msgstr "Le mentorat est désactivé – les conversations de mentorat existantes sont en lecture seule."
 
-msgid "Zgłoszenia problemów"
-msgstr "Problèmes signalés"
+msgid "Notatki próśb małoletnich do akceptacji"
+msgstr "Notes de demandes de mineurs en attente d’approbation"
+
+msgid "Mentor przeczyta notatkę dopiero po Twojej akceptacji; do tego czasu widzi sam temat."
+msgstr "Le mentor ne lira la note qu’après votre approbation ; d’ici là, il ne voit que le sujet."
 
 msgid "Relacja"
 msgstr "Relation"
 
+msgid "Odrzuć"
+msgstr "Refuser"
+
+msgid "Zgłoszenia problemów"
+msgstr "Problèmes signalés"
+
 msgid "Zgłoszone"
 msgstr "Signalé le"
+
+msgid "automatyczne"
+msgstr "automatique"
 
 msgid "Zamknij zgłoszenie"
 msgstr "Clôturer le signalement"
@@ -632,6 +695,15 @@ msgstr "Pages de l’annuaire"
 msgid "Nikogo tu jeszcze nie ma"
 msgstr "Personne pour le moment"
 
+msgid "Sieć absolwentów"
+msgstr "Réseau des anciens"
+
+msgid "Organizator wyłączył sieć absolwentów. Twój profil nie jest nikomu pokazywany, nie dostajesz zaproszeń, a rozmowy mentorskie są tylko do odczytu. Dane profilu zostają do czasu wycofania zgody albo usunięcia ich przez organizatora."
+msgstr "L’organisateur a désactivé le réseau des anciens. Votre profil n’est montré à personne, vous ne recevez pas d’invitations et les conversations de mentorat sont en lecture seule. Les données du profil sont conservées jusqu’au retrait de votre consentement ou à leur suppression par l’organisateur."
+
+msgid "Wycofaj zgodę i usuń profil"
+msgstr "Retirer mon consentement et supprimer mon profil"
+
 msgid "Zgłoś problem z mentoringiem"
 msgstr "Signaler un problème de mentorat"
 
@@ -641,14 +713,20 @@ msgstr "Le signalement est transmis directement à l’organisateur. Si le probl
 msgid "Wyślij zgłoszenie"
 msgstr "Envoyer le signalement"
 
-msgid "Sieć absolwentów"
-msgstr "Réseau des anciens"
-
 msgid "Byli uczestnicy, którzy pokazują, co robią dziś, pomagają obecnym uczestnikom jako mentorzy i dostają zaproszenia na warsztaty, webinary i do jury."
 msgstr "D’anciens participants qui montrent ce qu’ils font aujourd’hui, aident les participants actuels en tant que mentors et reçoivent des invitations à des ateliers, des webinaires et des rôles de jury."
 
 msgid "Publiczna ściana"
 msgstr "Mur public"
+
+msgid "Zmieniła się treść zgody"
+msgstr "Le texte du consentement a changé"
+
+msgid "Twój profil jest niewidoczny, dopóki nie potwierdzisz nowej treści zgody. Możesz też wycofać zgodę niżej."
+msgstr "Votre profil est masqué tant que vous n’avez pas confirmé le nouveau texte du consentement. Vous pouvez aussi retirer votre consentement ci-dessous."
+
+msgid "Potwierdzam"
+msgstr "Je confirme"
 
 msgid "Twój profil"
 msgstr "Votre profil"
@@ -667,9 +745,6 @@ msgstr "Retrait du consentement"
 
 msgid "Po wycofaniu zgody Twój profil absolwenta zniknie od razu, a relacje, w których jesteś mentorem, zakończą się. Twoje wyniki i dyplomy zostają – to dokumentacja zawodów."
 msgstr "Si vous retirez votre consentement, votre profil d’ancien disparaîtra immédiatement et les relations dans lesquelles vous êtes mentor prendront fin. Vos résultats et certificats sont conservés – ils font partie des archives du concours."
-
-msgid "Wycofaj zgodę i usuń profil"
-msgstr "Retirer mon consentement et supprimer mon profil"
 
 msgid "Dołącz do sieci absolwentów"
 msgstr "Rejoindre le réseau des anciens"
@@ -695,11 +770,11 @@ msgstr "vous êtes le mentor"
 msgid "Twój mentor"
 msgstr "votre mentor"
 
+msgid "Notatka prośby czeka na akceptację organizatora."
+msgstr "La note de la demande attend l’approbation de l’organisateur."
+
 msgid "Przyjmij"
 msgstr "Accepter"
-
-msgid "Odrzuć"
-msgstr "Refuser"
 
 msgid "Wycofaj prośbę"
 msgstr "Retirer la demande"
@@ -775,6 +850,9 @@ msgstr "Profil enregistré."
 msgid "Zgoda wycofana – Twój profil absolwenta został usunięty."
 msgstr "Consentement retiré – votre profil d’ancien a été supprimé."
 
+msgid "Dziękujemy – Twój profil znów jest widoczny."
+msgstr "Merci – votre profil est de nouveau visible."
+
 msgid "Prośba wysłana. Dostaniesz e-mail, gdy mentor odpowie."
 msgstr "Demande envoyée. Vous recevrez un e-mail lorsque le mentor répondra."
 
@@ -801,6 +879,12 @@ msgstr "Profil masqué."
 
 msgid "Profil znów jest widoczny."
 msgstr "Le profil est de nouveau visible."
+
+msgid "Opis zaakceptowany – małoletni uczestnicy go zobaczą."
+msgstr "Description approuvée – les participants mineurs la verront."
+
+msgid "Decyzja zapisana."
+msgstr "Décision enregistrée."
 
 msgid "Podaj powód zakończenia relacji."
 msgstr "Indiquez le motif de la fin de la relation."

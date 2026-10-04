@@ -18,21 +18,44 @@ LINKEDIN_HOSTS = frozenset({"linkedin.com", "www.linkedin.com", "pl.linkedin.com
 GITHUB_HOSTS = frozenset({"github.com", "www.github.com"})
 
 
+def _split(value: str):
+    """``urlsplit`` z odczytem portu – oba potrafią rzucić ``ValueError`` (``https://[x``, port
+    nieliczbowy); zła składnia adresu ma być błędem formularza, a nie błędem 500 (L1)."""
+    try:
+        parts = urlsplit(value)
+        port = parts.port
+    except ValueError:
+        return None, None
+    return parts, port
+
+
+#: Ścieżki, których profil nie potrzebuje, a które zmieniają, **dokąd** prowadzi odnośnik po
+#: normalizacji w przeglądarce albo po stronie serwisu (``/in/../redirect``, zakodowany ukośnik).
+_SUSPICIOUS_PATH = ("..", "%2f", "%5c", "\\", "%2e")
+
+
 def _clean(value: str, hosts: frozenset[str], *, label: str, path_prefixes: tuple[str, ...] = ()) -> str:
     text = (value or "").strip()
     if not text:
         return ""
-    parts = urlsplit(text)
+    wrong = ValidationError(
+        _("Podaj adres profilu %(service)s zaczynający się od https://.") % {"service": label}
+    )
+    not_profile = ValidationError(_("To nie wygląda na adres profilu %(service)s.") % {"service": label})
+    parts, port = _split(text)
+    if parts is None:
+        raise wrong
     host = (parts.hostname or "").lower()
-    if parts.scheme != "https" or host not in hosts or parts.username or parts.password or parts.port:
-        raise ValidationError(
-            _("Podaj adres profilu %(service)s zaczynający się od https://.") % {"service": label}
-        )
+    if parts.scheme != "https" or host not in hosts or parts.username or parts.password or port:
+        raise wrong
     path = parts.path or "/"
-    if path_prefixes and not path.lower().startswith(path_prefixes):
-        raise ValidationError(_("To nie wygląda na adres profilu %(service)s.") % {"service": label})
+    lowered = path.lower()
+    if any(marker in lowered for marker in _SUSPICIOUS_PATH):
+        raise not_profile
+    if path_prefixes and not lowered.startswith(path_prefixes):
+        raise not_profile
     if len(path.strip("/")) == 0:
-        raise ValidationError(_("To nie wygląda na adres profilu %(service)s.") % {"service": label})
+        raise not_profile
     # Bez zapytania i kotwicy: profil to ścieżka; parametry śledzące nie mają czego tu szukać.
     return f"https://{host}{path}"
 
@@ -50,7 +73,7 @@ def clean_event_url(value: str) -> str:
     text = (value or "").strip()
     if not text:
         return ""
-    parts = urlsplit(text)
-    if parts.scheme != "https" or not parts.hostname or parts.username or parts.password:
+    parts, _port = _split(text)
+    if parts is None or parts.scheme != "https" or not parts.hostname or parts.username or parts.password:
         raise ValidationError(_("Adres wydarzenia musi zaczynać się od https://."))
     return text
