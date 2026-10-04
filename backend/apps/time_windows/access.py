@@ -139,7 +139,9 @@ def statements_visible(stage, *, user=None, participant=None, competition=None, 
     """Czy treść zadań etapu jest widoczna dla tej osoby (``user=None`` – publicznie).
 
     Najpierw stara reguła (``has_opened``, w kopii ucznia – start jego okna), potem okna: po
-    ujawnieniu wszyscy, przed nim wyłącznie uczeń, którego okno już się zaczęło.
+    ujawnieniu wszyscy, przed nim wyłącznie uczeń **zgłoszony do tego etapu** (niezdyskwalifikowany
+    wpis), którego okno już się zaczęło. Sam profil uczestnika nie wystarcza: konto bez wpisu
+    (założone choćby po to, żeby podejrzeć zadania wcześniej) czeka do ujawnienia jak anonim.
     """
     now = now or timezone.now()
     if stage is None or not stage.has_opened(now):
@@ -155,22 +157,41 @@ def statements_visible(stage, *, user=None, participant=None, competition=None, 
         participant = participant_for(user, _competition_of(stage, competition))
     if participant is None:
         return False
+    from apps.competitions.models import StageEntry, StageEntryStatus
+
+    entered = (
+        StageEntry.objects.filter(stage_id=stage.pk, participant=participant)
+        .exclude(status=StageEntryStatus.DISQUALIFIED)
+        .exists()
+    )
+    if not entered:
+        return False
     from .services import resolve
 
     effective = resolve(view, participant)
     return effective is not None and effective.opens_at <= now
 
 
-def quiz_window(quiz, participant, competition=None) -> tuple[datetime, datetime]:
-    """Okno startu podejścia: okno ucznia w etapie z oknami, w pozostałych – ``Quiz.window``.
+def quiz_terms(quiz, participant, competition=None) -> tuple[datetime, datetime, int]:
+    """Okno startu podejścia i dodatkowy czas ucznia: ``(otwarcie, zamknięcie, minuty)``.
 
-    W trybie okien własne terminy testu są **pomijane**: jedno globalne okno testu zaprzeczałoby
-    oknom etapu (uczeń z okna C dostałby test zamknięty albo otwarty w środku nocy).
+    W etapie z oknami – okno ucznia (z jego dodatkowym czasem w zamknięciu), a własne terminy
+    testu są **pomijane**: jedno globalne okno testu zaprzeczałoby oknom etapu (uczeń z okna C
+    dostałby test zamknięty albo otwarty w środku nocy). Dodatkowe minuty wydłużają też samo
+    podejście – dostosowanie, które kończy się na długości testu, nie byłoby dostosowaniem.
+    W pozostałych etapach: ``Quiz.window`` i zero minut.
     """
     effective = effective_window(quiz.stage, participant, competition)
     if effective is None:
-        return quiz.window
-    return (effective.opens_at, effective.deadline_at)
+        opens, closes = quiz.window
+        return (opens, closes, 0)
+    return (effective.opens_at, effective.deadline_at, effective.extra_minutes)
+
+
+def quiz_window(quiz, participant, competition=None) -> tuple[datetime, datetime]:
+    """Okno startu podejścia – ``quiz_terms`` bez dodatkowych minut."""
+    opens, closes, _extra = quiz_terms(quiz, participant, competition)
+    return (opens, closes)
 
 
 def quiz_results_at(quiz, competition=None) -> datetime:

@@ -26,6 +26,7 @@ from __future__ import annotations
 from collections import defaultdict
 
 from django.contrib import messages
+from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect
 from django.template.response import TemplateResponse
 from django.urls import NoReverseMatch, reverse, reverse_lazy
@@ -77,7 +78,7 @@ from apps.submissions.services import (
 from apps.submissions.status_track import STATE_CURRENT, STATE_FAILED, status_track
 from apps.tenancy.fees import fees_enabled
 from apps.time_windows.access import enabled as time_windows_enabled
-from apps.time_windows.access import personal_stage, window_of
+from apps.time_windows.access import personal_stage, statements_visible, window_of
 from apps.web.forms import AppealForm, SubmissionUploadForm
 from apps.web.mixins import ActionViewMixin, ParticipantRequiredMixin
 from apps.web.participant_now import countdown_words, now_panel
@@ -714,6 +715,13 @@ class ProblemUploadView(ParticipantRequiredMixin, ThrottledFormMixin, View):
         problem = get_object_or_404(
             Problem.objects.for_competition(request.competition), stage=stage, number=number
         )
+        # Okna czasowe (TZ-01): przed startem okna ucznia odpowiedź nie może nieść karty zadania –
+        # karta ma tytuł, a tytuł zdradza temat. 404, jak dla PDF-u treści przed czasem; serwis
+        # uploadu i tak by odmówił, ale odmowa wróciłaby w karcie z tytułem.
+        if time_windows_enabled(request.competition) and not statements_visible(
+            stage, participant=self.participant, competition=request.competition
+        ):
+            raise Http404("Zadania tego etapu nie są jeszcze dostępne.")
         form = SubmissionUploadForm(request.POST, request.FILES)
         error = None
         if form.is_valid():

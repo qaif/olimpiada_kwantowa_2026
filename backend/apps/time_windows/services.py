@@ -25,12 +25,12 @@ Reguły czasu (dlaczego takie):
 
 from __future__ import annotations
 
+from copy import copy
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from django.db import transaction
-from django.db.models import Max
 from django.utils import timezone
 from rest_framework import status
 
@@ -55,13 +55,13 @@ from .zones import country_default_timezone, is_valid_timezone
 SOURCE_PARTICIPANT = "participant"
 SOURCE_DELEGATION = "delegation"
 SOURCE_COUNTRY = "country"
-SOURCE_FIRST = "first"
+SOURCE_LAST = "last"
 
 SOURCE_LABELS = {
     SOURCE_PARTICIPANT: "wyjątek ucznia",
     SOURCE_DELEGATION: "przydział delegacji",
     SOURCE_COUNTRY: "domyślnie ze strefy kraju",
-    SOURCE_FIRST: "pierwsze okno (brak kraju)",
+    SOURCE_LAST: "ostatnie okno (bez delegacji)",
 }
 
 #: Etykiety kolejnych okien: A, B, C … – krótkie, bo stoją w kolumnach tabel i w panelu ucznia.
@@ -88,11 +88,50 @@ class PlanView:
     windows: list[TimeWindow]
     delegation_windows: dict[int, int] = field(default_factory=dict)
     country_timezones: dict[int, str] = field(default_factory=dict)
-    _max_extra: int | None = None
+    _extra_rows: list | None = None
+    _latest_end: datetime | None = None
 
     @property
     def duration(self) -> timedelta:
         return self.plan.duration
+
+    def extra_rows(self) -> list[ParticipantWindow]:
+        """Wyjątki z dodatkowym czasem – razem z uczniem i krajem, bo ich termin trzeba rozstrzygnąć."""
+        if self._extra_rows is None:
+            self._extra_rows = list(
+                ParticipantWindow.objects.filter(plan=self.plan, extra_minutes__gt=0).select_related(
+                    "participant__delegation__country"
+                )
+            )
+        return self._extra_rows
+
+    def with_changes(
+        self, *, starts: dict | None = None, added: tuple = (), duration_minutes: int | None = None
+    ) -> PlanView:
+        """Ten sam plan z innymi startami okien lub czasem pracy – do sprawdzenia zmiany **przed** zapisem.
+
+        Okna i plan są kopiami w pamięci; wyjątki są wspólne, bo zmiana okna nie zmienia wyjątków.
+        """
+        plan = copy(self.plan)
+        if duration_minutes is not None:
+            plan.duration_minutes = duration_minutes
+        windows = []
+        for item in self.windows:
+            clone = copy(item)
+            clone.plan = plan
+            if starts and item.pk in starts:
+                clone.starts_at = starts[item.pk]
+            windows.append(clone)
+        windows.extend(TimeWindow(plan=plan, label="?", starts_at=start) for start in added)
+        windows.sort(key=lambda item: item.starts_at)
+        return PlanView(
+            plan=plan,
+            stage=self.stage,
+            windows=windows,
+            delegation_windows=self.delegation_windows,
+            country_timezones=self.country_timezones,
+            _extra_rows=self.extra_rows(),
+        )
 
     def window(self, pk: int | None) -> TimeWindow | None:
         return next((item for item in self.windows if item.pk == pk), None)
@@ -109,25 +148,29 @@ class PlanView:
         return max((self.ends_at(item) for item in self.windows), default=None)
 
     @property
-    def max_extra_minutes(self) -> int:
-        if self._max_extra is None:
-            top = ParticipantWindow.objects.filter(plan=self.plan).aggregate(top=Max("extra_minutes"))["top"]
-            self._max_extra = int(top or 0)
-        return self._max_extra
+    def latest_end(self) -> datetime | None:
+        """Najpóźniejszy **własny** termin ucznia: koniec ostatniego okna albo okno + dodatkowy czas.
+
+        Liczone uczniem po uczniu (każdy wyjątek z dodatkowym czasem rozstrzygnięty do swojego
+        okna), a nie „największy dodatek doliczony do ostatniego okna” – tamto przybliżenie
+        odrzucałoby poprawne zmiany ramy i przesuwało ujawnienie bez powodu.
+        """
+        if self._latest_end is None and self.windows:
+            ends = [self.last_end]
+            for row in self.extra_rows():
+                effective = _resolve_with(self, row.participant, row)
+                if effective is not None:
+                    ends.append(effective.deadline_at)
+            self._latest_end = max(ends)
+        return self._latest_end
 
     @property
     def release_at(self) -> datetime | None:
-        """Moment ujawnienia: koniec najpóźniejszego okna + największy dodatkowy czas + grace.
-
-        Przybliżenie **z góry** (największy dodatkowy czas doliczony do ostatniego okna, nawet
-        jeśli ma go uczeń z okna A): ujawnienie trochę za późno nie szkodzi nikomu, a za wcześnie
-        – temu, kto jeszcze pisze.
-        """
-        last = self.last_end
-        if last is None:
+        """Moment ujawnienia: najpóźniejszy własny termin ucznia + tolerancja etapu (grace)."""
+        latest = self.latest_end
+        if latest is None:
             return None
-        grace = timedelta(seconds=self.stage.grace_seconds or 0)
-        return last + timedelta(minutes=self.max_extra_minutes) + grace
+        return latest + timedelta(seconds=self.stage.grace_seconds or 0)
 
     def started(self, now: datetime) -> bool:
         first = self.first_start
@@ -166,12 +209,46 @@ class EffectiveWindow:
         return "after"
 
 
-def load_plan(stage) -> PlanView | None:
-    """Migawka planu etapu albo ``None`` (etap bez okien). Trzy zapytania, bez względu na skalę.
+def load_plan(stage, now=None) -> PlanView | None:
+    """Migawka planu etapu albo ``None`` (etap bez okien). Kilka zapytań, bez względu na skalę.
 
     Przydziały delegacji i strefy krajów są wczytywane od razu, bo pyta o nie każde rozstrzygnięcie,
     a ich liczba jest liczbą **krajów** (dziesiątki), nie uczniów.
+
+    **Od startu pierwszego okna przydział domyślny jest zamrażany** (``_freeze_defaults``): kraj bez
+    przydziału ręcznego dostaje wiersz ``DelegationWindow`` z oknem, które ma w tej chwili. Wyliczenie
+    ze strefy zależy od danych spoza bazy (mapa stolic w kodzie, ``tzdata`` w obrazie) – wdrożenie
+    w trakcie zawodów z inną regułą czasu letniego nie może przenieść kraju do innego okna.
     """
+    view = _load(stage)
+    if view is not None and view.started(now or timezone.now()):
+        if _freeze_defaults(view, now or timezone.now()):
+            view = _load(stage)
+    return view
+
+
+def _freeze_defaults(view: PlanView, now: datetime) -> int:
+    """Zapisuje przydział domyślny każdej delegacji edycji, która go jeszcze nie ma. Idempotentne."""
+    from apps.accounts.delegations import Delegation
+
+    missing = list(
+        Delegation.objects.filter(edition_id=view.stage.edition_id)
+        .exclude(pk__in=list(view.delegation_windows))
+        .select_related("country")
+    )
+    created = 0
+    for delegation in missing:
+        window = delegation_default(view, delegation)
+        if window is None:
+            continue
+        _row, made = DelegationWindow.objects.get_or_create(
+            plan=view.plan, delegation=delegation, defaults={"window": window, "assigned_at": now}
+        )
+        created += int(made)
+    return created
+
+
+def _load(stage) -> PlanView | None:
     plan = WindowPlan.objects.filter(stage_id=stage.pk).first()
     if plan is None:
         return None
@@ -248,11 +325,12 @@ def _effective(view: PlanView, window: TimeWindow, source: str, exception: Parti
 
 
 def _resolve_with(view: PlanView, participant, exception: ParticipantWindow | None) -> EffectiveWindow | None:
-    """Kolejność: wyjątek ucznia → delegacja (ręcznie albo ze strefy kraju) → pierwsze okno.
+    """Kolejność: wyjątek ucznia → delegacja (ręcznie albo ze strefy kraju) → **ostatnie** okno.
 
-    Uczeń **bez delegacji** dostaje pierwsze okno, a nie okno ze swojego regionu: region ucznia
-    w trybie otwartym zmienia on sam w profilu, a przydział, który da się przestawić samemu,
-    otwierałby drogę do drugiego startu. Takiemu uczniowi okno ustawia koordynator wyjątkiem.
+    Uczeń **bez delegacji** (i bez wyjątku) dostaje ostatnie okno, a nie okno ze swojego regionu
+    ani pierwsze: region w trybie otwartym zmienia on sam, a konto niepodpięte do żadnej drużyny
+    (np. „uczeń-słup” założony po to, żeby podejrzeć zadania) nie może dostać treści wcześniej
+    niż ktokolwiek inny. Wcześniejsze okno takiemu uczniowi ustawia wyłącznie koordynator wyjątkiem.
     """
     if not view.windows:
         return None
@@ -265,7 +343,7 @@ def _resolve_with(view: PlanView, participant, exception: ParticipantWindow | No
         window, source = delegation_window(view, delegation)
         if window is not None:
             return _effective(view, window, source, exception)
-    return _effective(view, view.windows[0], SOURCE_FIRST, exception)
+    return _effective(view, view.windows[-1], SOURCE_LAST, exception)
 
 
 def resolve(view: PlanView, participant) -> EffectiveWindow | None:
@@ -336,22 +414,35 @@ def _assert_not_started(view: PlanView, now: datetime) -> None:
         )
 
 
-def _check_envelope(stage, starts: list[datetime], duration_minutes: int, max_extra: int) -> None:
-    """Okna (z największym dodatkowym czasem) mieszczą się w ramie etapu ``opens_at``–``deadline_at``.
+def _assert_no_overlap(starts: list[datetime], duration_minutes: int) -> None:
+    """Okna nie nachodzą na siebie: kolejne starty dzieli co najmniej czas pracy.
+
+    Przy jednym zestawie zadań uczeń okna A pisałby równolegle z uczniem okna B – a wtedy okna
+    niczego nie rozdzielają. Ta sama reguła obowiązuje generator, dodanie, przesunięcie okna
+    i zmianę czasu pracy.
+    """
+    ordered = sorted(starts)
+    for earlier, later in zip(ordered, ordered[1:], strict=False):
+        if later - earlier < timedelta(minutes=duration_minutes):
+            raise _bad(
+                "Okna nachodzą na siebie – odstęp między startami musi być ≥ czasu pracy.", "WINDOWS_OVERLAP"
+            )
+
+
+def _check_envelope(stage, view: PlanView) -> None:
+    """Okna – i **własny** termin każdego ucznia z dodatkowym czasem – mieszczą się w ramie etapu.
 
     Rama zostaje źródłem prawdy dla wszystkiego, co liczy się po etapie (zamknięcie przez beat,
     recenzje, reklamacje, publikacja) – dlatego okna muszą się w niej mieścić, a nie ją przesuwać.
     """
-    if not starts:
+    if not view.windows:
         raise _bad("Plan musi mieć co najmniej jedno okno.", "WINDOWS_EMPTY")
-    first = min(starts)
-    last_end = max(starts) + timedelta(minutes=duration_minutes + max_extra)
-    if first < stage.opens_at:
+    if view.first_start < stage.opens_at:
         raise _bad(
             "Pierwsze okno zaczyna się przed otwarciem etapu – przesuń okno albo otwarcie etapu.",
             "WINDOWS_OUTSIDE_STAGE",
         )
-    if last_end > stage.deadline_at:
+    if view.latest_end > stage.deadline_at:
         raise _bad(
             "Ostatnie okno (z dodatkowym czasem uczniów) kończy się po terminie oddania etapu – "
             "przesuń okno albo termin etapu.",
@@ -367,8 +458,7 @@ def windows_fit(stage, opens_at: datetime, deadline_at: datetime) -> bool:
     view = load_plan(stage)
     if view is None or not view.windows:
         return True
-    last_end = view.last_end + timedelta(minutes=view.max_extra_minutes)
-    return view.first_start >= opens_at and last_end <= deadline_at
+    return view.first_start >= opens_at and view.latest_end <= deadline_at
 
 
 def _locked_plan(plan: WindowPlan) -> WindowPlan:
@@ -417,13 +507,21 @@ def create_plan(
     _validate_duration(duration_minutes, preferred_local_hour)
     if not 1 <= count <= MAX_WINDOWS:
         raise _bad(f"Liczba okien: 1–{MAX_WINDOWS}.", "WINDOWS_COUNT")
-    if count > 1 and interval_minutes < duration_minutes:
-        # Nachodzące okna nie są błędem samym w sobie, ale przy jednym zestawie zadań uczeń
-        # okna A pisałby równolegle z uczniem okna B – a wtedy po co okna. Świadomy wybór
-        # (np. dwa okna z przesunięciem 2 h) wymaga odstępu ≥ czasu pracy.
-        raise _bad("Odstęp między oknami nie może być krótszy niż czas pracy.", "WINDOWS_OVERLAP")
     starts = [first_start + timedelta(minutes=interval_minutes * index) for index in range(count)]
-    _check_envelope(stage, starts, duration_minutes, 0)
+    _assert_no_overlap(starts, duration_minutes)
+    draft_plan = WindowPlan(
+        stage=stage, duration_minutes=duration_minutes, preferred_local_hour=preferred_local_hour
+    )
+    draft = PlanView(
+        plan=draft_plan,
+        stage=stage,
+        windows=[
+            TimeWindow(plan=draft_plan, label=LABELS[index], starts_at=start)
+            for index, start in enumerate(starts)
+        ],
+        _extra_rows=[],
+    )
+    _check_envelope(stage, draft)
     plan = WindowPlan.objects.create(
         stage=stage,
         duration_minutes=duration_minutes,
@@ -456,12 +554,11 @@ def update_plan(
 ) -> WindowPlan:
     now = now or timezone.now()
     plan = _locked_plan(plan)
-    view = load_plan(plan.stage)
+    view = load_plan(plan.stage, now)
     _assert_not_started(view, now)
     _validate_duration(duration_minutes, preferred_local_hour)
-    _check_envelope(
-        plan.stage, [item.starts_at for item in view.windows], duration_minutes, view.max_extra_minutes
-    )
+    _assert_no_overlap([item.starts_at for item in view.windows], duration_minutes)
+    _check_envelope(plan.stage, view.with_changes(duration_minutes=duration_minutes))
     diff = {
         "duration_minutes": {"from": plan.duration_minutes, "to": duration_minutes},
         "preferred_local_hour": {"from": plan.preferred_local_hour, "to": preferred_local_hour},
@@ -479,14 +576,15 @@ def move_window(window: TimeWindow, *, starts_at: datetime, actor=None, request=
     """Nowy start okna – przed startem pierwszego okna i nie w przeszłości."""
     now = now or timezone.now()
     plan = _locked_plan(window.plan)
-    view = load_plan(plan.stage)
+    view = load_plan(plan.stage, now)
     _assert_not_started(view, now)
     if starts_at <= now:
         raise _bad("Nowy start okna musi być w przyszłości.", "WINDOWS_START_PAST")
     if TimeWindow.objects.filter(plan=plan, starts_at=starts_at).exclude(pk=window.pk).exists():
         raise _bad("Inne okno zaczyna się o tej samej godzinie.", "WINDOWS_DUPLICATE_START")
     starts = [starts_at if item.pk == window.pk else item.starts_at for item in view.windows]
-    _check_envelope(plan.stage, starts, plan.duration_minutes, view.max_extra_minutes)
+    _assert_no_overlap(starts, plan.duration_minutes)
+    _check_envelope(plan.stage, view.with_changes(starts={window.pk: starts_at}))
     before = window.starts_at
     window.starts_at = starts_at
     window.save(update_fields=["starts_at"])
@@ -504,7 +602,7 @@ def move_window(window: TimeWindow, *, starts_at: datetime, actor=None, request=
 def add_window(plan: WindowPlan, *, starts_at: datetime, actor=None, request=None, now=None) -> TimeWindow:
     now = now or timezone.now()
     plan = _locked_plan(plan)
-    view = load_plan(plan.stage)
+    view = load_plan(plan.stage, now)
     _assert_not_started(view, now)
     if len(view.windows) >= MAX_WINDOWS:
         raise _bad(f"Plan ma już {MAX_WINDOWS} okien.", "WINDOWS_COUNT")
@@ -512,12 +610,8 @@ def add_window(plan: WindowPlan, *, starts_at: datetime, actor=None, request=Non
         raise _bad("Start okna musi być w przyszłości.", "WINDOWS_START_PAST")
     if any(item.starts_at == starts_at for item in view.windows):
         raise _bad("Inne okno zaczyna się o tej samej godzinie.", "WINDOWS_DUPLICATE_START")
-    _check_envelope(
-        plan.stage,
-        [*(item.starts_at for item in view.windows), starts_at],
-        plan.duration_minutes,
-        view.max_extra_minutes,
-    )
+    _assert_no_overlap([*(item.starts_at for item in view.windows), starts_at], plan.duration_minutes)
+    _check_envelope(plan.stage, view.with_changes(added=(starts_at,)))
     used = {item.label for item in view.windows}
     label = next(letter for letter in LABELS if letter not in used)
     window = TimeWindow.objects.create(plan=plan, label=label, starts_at=starts_at)
@@ -535,7 +629,7 @@ def add_window(plan: WindowPlan, *, starts_at: datetime, actor=None, request=Non
 def delete_window(window: TimeWindow, *, actor=None, request=None, now=None) -> None:
     now = now or timezone.now()
     plan = _locked_plan(window.plan)
-    view = load_plan(plan.stage)
+    view = load_plan(plan.stage, now)
     _assert_not_started(view, now)
     if len(view.windows) <= 1:
         raise _conflict("To jedyne okno planu – usuń cały tryb okien zamiast okna.", "WINDOWS_LAST")
@@ -599,7 +693,7 @@ def assign_delegation(plan: WindowPlan, delegation, window_id, *, actor=None, re
     plan = _locked_plan(plan)
     if delegation.edition_id != plan.stage.edition_id:
         raise _bad("Delegacja należy do innej edycji niż etap.", "WINDOWS_FOREIGN_DELEGATION")
-    view = load_plan(plan.stage)
+    view = load_plan(plan.stage, now)
     old, _source = delegation_window(view, delegation)
     target = _window_of_plan(view, window_id)
     new = target if target is not None else delegation_default(view, delegation)
@@ -654,7 +748,7 @@ def set_participant_exception(
     reason = (reason or "").strip()[:300]
     if not 0 <= extra_minutes <= MAX_EXTRA_MINUTES:
         raise _bad(f"Dodatkowy czas: 0–{MAX_EXTRA_MINUTES} min.", "WINDOWS_EXTRA_RANGE")
-    view = load_plan(plan.stage)
+    view = load_plan(plan.stage, now)
     current_row = ParticipantWindow.objects.filter(plan=plan, participant=participant).first()
     before = _resolve_with(view, participant, current_row)
     target = _window_of_plan(view, window_id)
@@ -717,12 +811,10 @@ def set_participant_exception(
 def set_country_timezone(region, tz_name: str, *, actor=None, request=None, now=None) -> None:
     """Strefa kraju (pusta = strefa stolicy z mapy). Rozpoczęte etapy dostają przydział zamrożony.
 
-    Zamrożenie jest **przed** zmianą: dla każdego planu tego konkursu, którego pierwsze okno już
-    się zaczęło, delegacja tego kraju bez przydziału ręcznego dostaje wiersz z oknem, które ma
-    dziś. Dzięki temu poprawka strefy działa wyłącznie na etapy przyszłe.
+    Zamrożenie jest **przed** zmianą: każdy plan tego konkursu, którego pierwsze okno już się
+    zaczęło, zapisuje przydział domyślny krajów bez przydziału ręcznego (``_freeze_defaults``).
+    Dzięki temu poprawka strefy działa wyłącznie na etapy przyszłe.
     """
-    from apps.accounts.delegations import Delegation
-
     now = now or timezone.now()
     tz_name = (tz_name or "").strip()
     if tz_name and not is_valid_timezone(tz_name):
@@ -735,20 +827,9 @@ def set_country_timezone(region, tz_name: str, *, actor=None, request=None, now=
     )
     frozen = 0
     for plan in plans.select_for_update(of=("self",)):
-        view = load_plan(plan.stage)
-        if view is None or not view.started(now):
-            continue
-        for delegation in Delegation.objects.filter(
-            edition_id=plan.stage.edition_id, country=region
-        ).select_related("country"):
-            if delegation.pk in view.delegation_windows:
-                continue
-            window = delegation_default(view, delegation)
-            if window is not None:
-                DelegationWindow.objects.create(
-                    plan=plan, delegation=delegation, window=window, assigned_at=now
-                )
-                frozen += 1
+        view = _load(plan.stage)
+        if view is not None and view.started(now):
+            frozen += _freeze_defaults(view, now)
     if tz_name:
         CountryTimezone.objects.update_or_create(
             region=region,
