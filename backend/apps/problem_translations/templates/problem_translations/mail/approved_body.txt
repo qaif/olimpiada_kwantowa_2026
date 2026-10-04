@@ -1,0 +1,12 @@
+{% load i18n %}{% autoescape off %}{% comment %}
+  Zatwierdzenie tłumaczenia (TR-01). Bez treści i tytułu zadania – patrz ``returned_body.txt``.
+{% endcomment %}{% blocktranslate trimmed with number=number language=language %}
+Komisja zatwierdziła tłumaczenie zadania {{ number }} na język: {{ language }}. Po starcie zawodów uczniowie Twojej drużyny zobaczą tę wersję.
+{% endblocktranslate %}
+
+{{ link }}
+
+--
+{{ brand.competition|default:_("Olimpiada Kwantowa") }}
+{% translate "Wiadomość wysłana automatycznie; prosimy na nią nie odpowiadać." %}
+{% endautoescape %}

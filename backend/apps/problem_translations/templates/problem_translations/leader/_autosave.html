@@ -1,0 +1,3 @@
+{% load i18n web_extras %}{% if error %}<p class="msg msg-error" role="alert">{{ error }}</p>{% elif saved_at %}<p class="hint tr-saved">{% blocktranslate trimmed with at=saved_at|local_datetime %}Szkic zapisany: {{ at }}{% endblocktranslate %}</p>{% endif %}
+{% if preview_html %}<h3 class="tr-preview-head">{% translate "Podgląd" %}</h3>
+<div class="tr-doc" lang="{{ language }}"{% if rtl %} dir="rtl"{% endif %}>{{ preview_html }}</div>{% endif %}

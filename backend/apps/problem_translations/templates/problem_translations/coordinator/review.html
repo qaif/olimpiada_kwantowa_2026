@@ -1,0 +1,87 @@
+{% extends "web/coordinator/base.html" %}
+{% load static web_extras %}
+{% comment %}
+  Przegląd tłumaczenia przez komisję (TR-01 § 2): ostatnia wysłana wersja obok wersji oficjalnej,
+  różnice względem poprzedniej wysłanej wersji, „Zatwierdź” albo „Zwróć do poprawy” z komentarzem.
+  Wejście na ten ekran zapisuje się w dzienniku zdarzeń (``translation.reviewed``).
+{% endcomment %}
+{% block title %}Tłumaczenie zadania {{ problem.number }} ({{ translation.language }}) – panel koordynatora{% endblock %}
+{% block panel_head %}<link rel="stylesheet" href="{% static 'problem_translations/vendor/katex/katex.min.css' %}">
+<link rel="stylesheet" href="{% static 'problem_translations/css/translations.css' %}">{% endblock %}
+{% block panel_eyebrow %}<a href="{% url 'web:coordinator-translations-stage' problem.stage.pk %}">Tłumaczenia: {{ problem.stage.display_name }}</a>{% endblock %}
+{% block panel_title %}Zadanie {{ problem.number }} – {{ translation.language_label }}{% if translation.delegation %} – {{ translation.delegation.country.name }}{% else %} (wspólne){% endif %}{% endblock %}
+{% block panel_lead %}
+  <p class="lead">{% include "problem_translations/coordinator/_status.html" with t=translation %}
+    {% if latest %}Wersja {{ latest.number }} wysłana {{ latest.submitted_at|local_datetime }}{% if latest.submitted_by %} przez {{ latest.submitted_by.get_full_name|default:latest.submitted_by.email }}{% endif %}, na podstawie wersji oficjalnej v{{ latest.source_version }} (bieżąca: v{{ source.version }}).{% else %}Tłumaczenie nie zostało jeszcze wysłane.{% endif %}</p>
+  {% if outdated %}<p class="notice">Wersja oficjalna zmieniła się po wysłaniu – tego tłumaczenia nie można zatwierdzić; zwróć je do aktualizacji.</p>{% endif %}
+  {% if translation.approved_revision and translation.status != statuses.APPROVED %}<p class="hint">Uczniowie widzą zatwierdzoną wcześniej wersję {{ translation.approved_revision.number }}.</p>{% endif %}
+{% endblock %}
+{% block panel_content %}
+{% if translation.status == statuses.SUBMITTED or translation.status == statuses.APPROVED %}
+<section class="section">
+  <div class="card">
+    <div class="actions">
+      {% if translation.status == statuses.SUBMITTED and not outdated %}
+        <form method="post" action="{% url 'web:coordinator-translation-approve' translation.pk %}" class="inline">
+          {% csrf_token %}
+          <button type="submit" class="btn btn--primary">Zatwierdź wersję {{ latest.number }}</button>
+        </form>
+      {% endif %}
+    </div>
+    <form method="post" action="{% url 'web:coordinator-translation-return' translation.pk %}" class="form" novalidate>
+      {% csrf_token %}
+      {{ form.as_p }}
+      <div class="actions"><button type="submit" class="btn btn--secondary">Zwróć do poprawy</button></div>
+    </form>
+  </div>
+</section>
+{% endif %}
+
+<div class="tr-split">
+  <section class="tr-pane">
+    <h2 class="mt-0">Wersja oficjalna (v{{ source.version }})</h2>
+    <p><strong>{{ problem.title }}</strong></p>
+    {% if problem.statement_pdf %}<p><a href="{% url 'competitions:problem-statement' problem.pk %}">PDF wersji oficjalnej</a></p>{% endif %}
+    <div class="tr-doc" lang="en">{{ source_html }}</div>
+  </section>
+  <section class="tr-pane">
+    <h2 class="mt-0">Tłumaczenie{% if latest %} – wersja {{ latest.number }}{% endif %}</h2>
+    {% if latest %}
+      {% if latest.kind == "PDF" %}
+        <p><a class="btn btn--secondary" href="{% url 'web:coordinator-translation-revision-file' latest.pk %}">Otwórz PDF wersji {{ latest.number }}</a></p>
+        <p class="hint">sha256: <code>{{ latest.pdf_sha256 }}</code></p>
+      {% else %}
+        <p><strong lang="{{ translation.language }}">{{ latest.title }}</strong></p>
+        <div class="tr-doc" lang="{{ translation.language }}"{% if rtl %} dir="rtl"{% endif %}>{{ latest_html }}</div>
+      {% endif %}
+    {% else %}
+      <p class="hint">Brak wysłanej wersji.</p>
+    {% endif %}
+  </section>
+</div>
+
+{% if previous %}
+<section class="section">
+  <h2>Różnice względem wersji {{ previous.number }}</h2>
+  {% if diff %}{% include "problem_translations/_diff.html" with diff=diff %}{% else %}<p class="hint">Bez zmian.</p>{% endif %}
+</section>
+{% endif %}
+
+<section class="section">
+  <h2>Historia</h2>
+  <ul class="tr-history">
+    {% for rev in revisions %}
+      <li>wersja {{ rev.number }} – {{ rev.submitted_at|local_datetime }}, źródło v{{ rev.source_version }}
+        {% if rev.decision %}– {{ rev.get_decision_display }}{% if rev.decided_by %} ({{ rev.decided_by.get_full_name|default:rev.decided_by.email }}){% endif %}{% endif %}
+        {% if rev.kind == "PDF" %}<a href="{% url 'web:coordinator-translation-revision-file' rev.pk %}">PDF</a>{% endif %}
+        {% if rev.comment %}<br><span class="hint">{{ rev.comment }}</span>{% endif %}</li>
+    {% empty %}
+      <li class="hint">Brak wysłanych wersji.</li>
+    {% endfor %}
+  </ul>
+</section>
+{% endblock %}
+{% block scripts %}{{ block.super }}
+  <script defer nonce="{{ request.csp_nonce }}" src="{% static 'problem_translations/vendor/katex/katex.min.js' %}"></script>
+  <script defer nonce="{{ request.csp_nonce }}" src="{% static 'problem_translations/js/math.js' %}"></script>
+{% endblock %}
