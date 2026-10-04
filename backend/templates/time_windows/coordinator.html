@@ -1,0 +1,271 @@
+{% extends "web/coordinator/base.html" %}
+{% load web_extras time_windows %}
+{% comment %}
+  „Okna czasowe” etapu (TZ-01): włączenie trybu, oś czasu okien z liczbami na żywo, przydział
+  krajów, strefy krajów, wyjątki uczniów i lista „kto w którym oknie”. Każda czynność ma własny
+  adres POST – ``apps.time_windows.views``; reguły czasu rozstrzyga ``apps.time_windows.services``,
+  a przyciski znikają tu tylko po to, żeby nie prowadzić do odmowy.
+
+  Godziny są w czasie polskim (strefa serwisu) i dodatkowo w UTC – koordynator rozmawia z krajami,
+  które myślą w UTC, a nie w czasie polskim.
+{% endcomment %}
+{% block title %}Okna czasowe: {{ stage.display_name }} – panel koordynatora{% endblock %}
+{% block panel_eyebrow %}<a href="{% url 'web:coordinator-stage-edit' stage.pk %}">{{ stage.display_name }}</a>{% endblock %}
+{% block panel_title %}Okna czasowe etapu{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Rama etapu: {{ stage.opens_at|local_time }} – {{ stage.deadline_at|local_time }}.
+    Okna (z dodatkowym czasem uczniów) muszą mieścić się w tej ramie.</p>
+{% endblock %}
+{% block panel_content %}
+
+{% if not view %}
+<section class="section">
+  <div class="card">
+    <h2 class="mt-0">Włącz tryb okien</h2>
+    {% if now >= stage.opens_at %}
+      <p class="notice">Etap już się otworzył – tryb okien włącza się przed otwarciem etapu (później treść zadań była już jawna dla wszystkich).</p>
+    {% else %}
+      <p class="hint">Każdy kraj dostaje jedno okno o tym samym czasie pracy. Zadania widzi uczeń dopiero od startu swojego okna,
+        a publicznie – po końcu ostatniego. Forum i wiadomości są w tym czasie premoderowane.
+        Wszystkie okna mają ten sam zestaw zadań (ryzyko przekazania treści poza platformą – patrz podręcznik organizatora).</p>
+      <form method="post" action="{% url 'web:coordinator-stage-windows-create' stage.pk %}" class="form" novalidate>
+        {% csrf_token %}
+        {{ create_form.as_p }}
+        <div class="actions"><button type="submit" class="btn btn--primary">Włącz okna</button></div>
+      </form>
+    {% endif %}
+  </div>
+</section>
+{% else %}
+
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">Oś czasu</h2>
+    <p class="hint">Czas pracy: {{ view.plan.duration_minutes|minutes_as_hours }}. Ujawnienie zadań i koniec premoderacji:
+      <strong>{{ release_at|local_time }}</strong> (koniec ostatniego okna + największy dodatkowy czas + tolerancja etapu).</p>
+  </div>
+  {% if quiz_has_own_window %}
+    <p class="notice">Test online tego etapu ma własne terminy otwarcia/zamknięcia – w trybie okien są pomijane: każdy uczeń zaczyna test w swoim oknie.</p>
+  {% endif %}
+  <div class="scroll">
+    <table class="table">
+      <caption class="visually-hidden">Okna czasowe etapu</caption>
+      <thead>
+        <tr>
+          <th scope="col">Okno</th>
+          <th scope="col">Start (czas polski)</th>
+          <th scope="col">Koniec (czas polski)</th>
+          <th scope="col">Start UTC</th>
+          <th scope="col">Stan</th>
+          <th scope="col" class="num">Kraje</th>
+          <th scope="col" class="num">Uczniowie</th>
+          <th scope="col" class="num">Teraz piszą</th>
+          <th scope="col" class="num">Oddali</th>
+          <th scope="col"><span class="visually-hidden">Operacje</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in overview.windows %}
+          <tr data-window="{{ row.window.label }}">
+            <th scope="row">{{ row.window.label }}</th>
+            <td>{{ row.window.starts_at|local_datetime }}</td>
+            <td>{{ row.ends_at|local_datetime }}</td>
+            <td>{{ row.window.starts_at|in_zone:"UTC" }}</td>
+            <td><span class="badge {% if row.state == 'open' %}badge--ok{% elif row.state == 'after' %}badge--neutral{% else %}badge--info{% endif %}">{{ row.state_label }}</span></td>
+            <td class="num">{{ row.delegations }}</td>
+            <td class="num">{{ row.students }}</td>
+            <td class="num">{{ row.in_progress }}</td>
+            <td class="num">{{ row.submitted }}</td>
+            <td class="actions">
+              {% if not started %}
+                <form method="post" action="{% url 'web:coordinator-stage-windows-move' stage.pk row.window.pk %}" class="inline">
+                  {% csrf_token %}
+                  <label class="visually-hidden" for="move-{{ row.window.pk }}">Nowy start okna {{ row.window.label }}</label>
+                  <input type="datetime-local" id="move-{{ row.window.pk }}" name="starts_at" required>
+                  <button type="submit" class="btn btn--secondary btn--small">Przesuń</button>
+                </form>
+                <form method="post" action="{% url 'web:coordinator-stage-windows-delete' stage.pk row.window.pk %}" class="inline">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn--ghost btn--small">Usuń</button>
+                </form>
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if not started %}
+    <form method="post" action="{% url 'web:coordinator-stage-windows-add' stage.pk %}" class="form form--inline">
+      {% csrf_token %}
+      <label for="add-window">Dodaj okno – start (czas polski)</label>
+      <input type="datetime-local" id="add-window" name="starts_at" required>
+      <button type="submit" class="btn btn--secondary">Dodaj okno</button>
+    </form>
+  {% else %}
+    <p class="hint">Pierwsze okno już się zaczęło – okien, czasu pracy i godziny preferowanej nie można zmienić.</p>
+  {% endif %}
+</section>
+
+{% if not started %}
+<section class="section">
+  <div class="card">
+    <h2 class="mt-0">Ustawienia okien</h2>
+    <form method="post" action="{% url 'web:coordinator-stage-windows-settings' stage.pk %}" class="form" novalidate>
+      {% csrf_token %}
+      {{ settings_form.as_p }}
+      <div class="actions"><button type="submit" class="btn btn--primary">Zapisz</button></div>
+    </form>
+    {% if not stage_opened %}
+      <form method="post" action="{% url 'web:coordinator-stage-windows-delete-plan' stage.pk %}" class="form">
+        {% csrf_token %}
+        <button type="submit" class="btn btn--ghost">Wyłącz tryb okien</button>
+      </form>
+    {% endif %}
+  </div>
+</section>
+{% endif %}
+
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">Kraje</h2>
+    <p class="hint">Domyślnie kraj trafia do okna, którego start w jego strefie jest najbliżej godziny {{ view.plan.preferred_local_hour }}:00.
+      Przydział zmienisz, dopóki ani stare, ani nowe okno się nie zaczęło. Zmiana strefy kraju nie przesuwa krajów w etapach, które już trwają.</p>
+  </div>
+  <div class="scroll">
+    <table class="table">
+      <caption class="visually-hidden">Przydział krajów do okien</caption>
+      <thead>
+        <tr>
+          <th scope="col">Kraj</th>
+          <th scope="col">Strefa</th>
+          <th scope="col">Okno</th>
+          <th scope="col">Start lokalnie</th>
+          <th scope="col">Zmień okno</th>
+          <th scope="col">Zmień strefę</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in overview.delegations %}
+          <tr>
+            <th scope="row"><a href="{% url 'web:coordinator-delegation' row.delegation.pk %}">{{ row.delegation.country.name }}</a></th>
+            <td>{{ row.timezone|default:"—" }}{% if row.timezone_overridden %} <span class="badge badge--info">ustawiona</span>{% endif %}</td>
+            <td>{{ row.window.label|default:"—" }} {% if row.manual %}<span class="badge badge--warn">ręcznie</span>{% else %}<span class="badge badge--neutral">domyślnie</span>{% endif %}</td>
+            <td>{% if row.window and row.timezone %}{{ row.window.starts_at|in_zone:row.timezone }}{% else %}—{% endif %}</td>
+            <td>
+              {% if not row.locked %}
+                <form method="post" action="{% url 'web:coordinator-stage-windows-delegation' stage.pk row.delegation.pk %}" class="inline">
+                  {% csrf_token %}
+                  <label class="visually-hidden" for="assign-{{ row.delegation.pk }}">Okno kraju {{ row.delegation.country.name }}</label>
+                  <select id="assign-{{ row.delegation.pk }}" name="window">
+                    <option value="">domyślnie ({{ row.default.label|default:"—" }})</option>
+                    {% for window in windows %}
+                      <option value="{{ window.pk }}"{% if row.manual and row.window.pk == window.pk %} selected{% endif %}>Okno {{ window.label }}</option>
+                    {% endfor %}
+                  </select>
+                  <button type="submit" class="btn btn--secondary btn--small">Zapisz</button>
+                </form>
+              {% else %}
+                <span class="hint">okno już trwa</span>
+              {% endif %}
+            </td>
+            <td>
+              <form method="post" action="{% url 'web:coordinator-stage-windows-country' stage.pk row.delegation.country_id %}" class="inline">
+                {% csrf_token %}
+                <label class="visually-hidden" for="tz-{{ row.delegation.pk }}">Strefa kraju {{ row.delegation.country.name }}</label>
+                <select id="tz-{{ row.delegation.pk }}" name="timezone">
+                  <option value="">stolica ({{ row.default_timezone|default:"—" }})</option>
+                  {% for value, label in timezone_choices %}
+                    <option value="{{ value }}"{% if row.timezone_overridden and row.timezone == value %} selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                </select>
+                <button type="submit" class="btn btn--secondary btn--small">Zapisz</button>
+              </form>
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="6" class="empty">W tej edycji nie ma delegacji – uczniowie bez delegacji trafiają do pierwszego okna albo do okna z wyjątku.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">Wyjątki uczniów i dodatkowy czas</h2>
+    <p class="hint">Inne okno – tylko zanim zacznie się stare i nowe okno ucznia. Dodatkowy czas (dostosowanie, awaria) – do końca obecnego terminu ucznia.
+      Powód jest obowiązkowy i trafia do audytu. Puste okno i 0 min usuwa wyjątek.</p>
+  </div>
+  <form method="post" action="{% url 'web:coordinator-stage-windows-exception' stage.pk %}" class="form" novalidate>
+    {% csrf_token %}
+    {{ exception_form.as_p }}
+    <div class="actions"><button type="submit" class="btn btn--primary">Zapisz wyjątek</button></div>
+  </form>
+  <div class="scroll">
+    <table class="table">
+      <caption class="visually-hidden">Wyjątki uczniów</caption>
+      <thead>
+        <tr>
+          <th scope="col">Uczestnik</th>
+          <th scope="col">Okno</th>
+          <th scope="col" class="num">Dodatkowy czas</th>
+          <th scope="col">Powód</th>
+          <th scope="col">Ustawił</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in overview.exceptions %}
+          <tr>
+            <th scope="row">{{ row.participant.user.get_full_name }} ({{ row.participant.public_code }})</th>
+            <td>{{ row.window.label|default:"jak delegacja" }}</td>
+            <td class="num">{{ row.extra_minutes }} min</td>
+            <td>{{ row.reason }}</td>
+            <td>{{ row.set_by.get_full_name|default:"—" }}, {{ row.set_at|local_datetime }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="5" class="empty">Brak wyjątków.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">Uczniowie w oknach</h2>
+  </div>
+  <div class="scroll">
+    <table class="table">
+      <caption class="visually-hidden">Okno każdego ucznia etapu</caption>
+      <thead>
+        <tr>
+          <th scope="col">Uczestnik</th>
+          <th scope="col">Kraj</th>
+          <th scope="col">Okno</th>
+          <th scope="col">Skąd</th>
+          <th scope="col">Start</th>
+          <th scope="col">Termin</th>
+          <th scope="col">Stan</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in overview.students %}
+          <tr>
+            <th scope="row">{{ row.participant.user.get_full_name }} ({{ row.participant.public_code }})</th>
+            <td>{{ row.participant.delegation.country.name|default:"—" }}</td>
+            <td>{{ row.effective.window.label }}</td>
+            <td>{{ row.effective.source_label }}{% if row.effective.extra_minutes %}, +{{ row.effective.extra_minutes }} min{% endif %}</td>
+            <td>{{ row.effective.opens_at|local_datetime }}</td>
+            <td>{{ row.effective.deadline_at|local_datetime }}</td>
+            <td>{{ row.state }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="7" class="empty">Nikt nie jest jeszcze zapisany do etapu.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endif %}
+{% endblock %}

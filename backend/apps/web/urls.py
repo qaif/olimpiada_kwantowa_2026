@@ -9,6 +9,8 @@ from django.urls import path
 # przestawiamy. Bramki flagi tu nie ma — o tym, czy ekran istnieje w tym konkursie, rozstrzyga
 # widok (§ 2.1), bo mapa adresów zależna od konkursu znaczyłaby ``reverse()`` dający raz adres,
 # a raz ``NoReverseMatch``.
+from apps.time_windows.urls import urlpatterns as time_windows_urlpatterns
+
 from .urls_ai_grading import urlpatterns as ai_grading_urlpatterns
 from .urls_chat import urlpatterns as chat_urlpatterns
 from .urls_competitions import urlpatterns as competition_urlpatterns
@@ -1125,4 +1127,6 @@ urlpatterns = [
     *video_urlpatterns,
     # --- delegacje krajowe: opiekun drużyny i ekran koordynatora (DEL-01, 4.10.2026) ------------
     *delegation_urlpatterns,
+    # --- okna czasowe etapu według stref (TZ-01, 4.10.2026; widoki w ``apps.time_windows``) -------
+    *time_windows_urlpatterns,
 ]

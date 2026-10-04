@@ -156,6 +156,8 @@ FLAG_ITEMS: dict[str, tuple[frozenset[str], frozenset[str]]] = {
     "workshop_materials": (frozenset({"Materiały z warsztatów"}), frozenset({"Materiały z warsztatów"})),
     # --- ocena AI (prośba organizatora z 24.09.2026) ---------------------------------------------
     "ai_grading": (frozenset({"Ocena AI"}), frozenset({"Ocena AI"})),
+    # --- okna czasowe etapu (TZ-01, 4.10.2026) – ekran jest pod etapem, więc bez etapów nic --------
+    "stage_time_windows": (frozenset(), frozenset({"Okna czasowe"})),
 }
 
 #: Piętnaście flag **etapu 2** – zdanie z ``docs/UNIWERSALNY-ETAP-2.md`` § 0.6 („piętnaście flag to
