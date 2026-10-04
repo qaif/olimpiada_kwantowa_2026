@@ -31,7 +31,7 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
   uczciwe zdanie o sesjach edytora django CMS; limit zmiany adresu per konto, komunikat „na tym koncie”;
   IQO 1.1.1 wymaga aplikacji 0.45.0 (fikstura paczki w testach).
 - Tłumaczenia w 10 katalogach `apps/password_change/locale`. Dokumentacja: `docs/tasks/AUTH-01b.md`,
-  `docs/OPERACJE.md` § 45, podręczniki uczestnika (§ 1) i organizatora (§ 9.3).
+  `docs/OPERACJE.md` § 45, podręcznik uczestnika (§ 1) i podręcznik organizatora (§ 9.3).
 
 ## [Unreleased] – Conocny, automatyczny test odtwarzania kopii zapasowej (OPS-01)
 
@@ -392,7 +392,7 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
 - **Panele:** katalog motywów superkoordynatora (`/coordinator/platform/themes/`) i „Motyw serwisu”
   koordynatora (`/coordinator/competition/theme/`, flaga `themes`) z podglądem tylko dla koordynatora,
   wariantami układów, akcentem marki i aktywacją (audyt). Komenda `manage.py theme_install <zip|->
-  [--activate <slug>]` (`docs/OPERACJE.md` § 28).
+  [--activate <slug>]` (`docs/OPERACJE.md` § 30.1).
 - **Wymaga przebudowy obrazu** (nowa zależność `tinycss2`).
 
 ## [Unreleased] – Delegacje krajowe: rejestracja przez opiekunów drużyn narodowych (DEL-01)

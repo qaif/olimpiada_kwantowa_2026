@@ -5142,7 +5142,7 @@ nocy (list), a brak kopii – po 26 h (`backup_age`) i po 36 h (watchdog `backup
 | `migrations` (fail) | zrzut z innej instalacji albo w połowie migracji | sprawdź, czy kopia jest z tej nocy; nowa kopia |
 | `row_counts` | zrzut obcięty **albo** masowe kasowanie w bazie żywej od nocy | porównaj liczby w `show`; jeśli zniknęło z bazy żywej – to incydent danych (§ 7), nie kopii |
 | `models_readable`, `sequences` | rozjazd kopii z wdrożonym kodem / brak `setval` w zrzucie | zgłoś programiście z wynikiem `show`; kopia sprzed wdrożenia odtworzy się po `migrate` |
-| `fernet` | zmieniony `SECRET_KEY` bez wpisania starego do `SECRET_KEY_FALLBACKS` (§ 31) | **pilne przed finałem**: przywróć stary klucz do `SECRET_KEY_FALLBACKS` w `.env`, `docker compose up -d web worker beat` |
+| `fernet` | zmieniony `SECRET_KEY` bez wpisania starego do `SECRET_KEY_FALLBACKS` (§ 31.2) | **pilne przed finałem**: przywróć stary klucz do `SECRET_KEY_FALLBACKS` w `.env`, `docker compose up -d web worker beat` |
 | `files_archive`, `media_sample` | lustro MinIO nie powstało albo jest niepełne (§ 1.2, krok 2) | log kopii, `docker compose ps minio`, nowa kopia |
 | `checks` | kontener sprawdzeń bez wyniku (pamięć, obraz) | log crona; `RESTORE_CHECK_APP_MEMORY=2g` w `.env` |
 | `postgres` | brak pamięci na `tmpfs` (baza > 3 GB) | `RESTORE_CHECK_PG_MEMORY` i `RESTORE_CHECK_TMPFS` w `.env` (np. `6g`), jeśli host ma zapas |

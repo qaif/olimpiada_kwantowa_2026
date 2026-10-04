@@ -13,7 +13,7 @@ w tych językach wyszedłby jako rząd prostokątów – lepiej, żeby takiego w
 
 Wersja angielska jest tekstem odwrotu LOG-01 słowo w słowo (poza zdaniem o weryfikacji w stopce, które
 od VISA-01 wskazuje stronę weryfikacji zamiast „skontaktuj się z organizatorem”). Tłumaczenia są
-maszynowe – do przeglądu przez organizatora przed pierwszym użyciem danego języka (OPERACJE § 29.7).
+maszynowe – do przeglądu przez organizatora przed pierwszym użyciem danego języka (OPERACJE § 31.8).
 Znaczniki w zdaniach są te same we wszystkich językach: ``{organizer}``, ``{country}``, ``{event}``,
 ``{city}``, ``{event_dates}``, ``{number}``, ``{date}`` – podstawia je ``apps.tenancy.documents``.
 """

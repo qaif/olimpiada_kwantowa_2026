@@ -1,4 +1,4 @@
-"""Zamrożona przynależność wpisów do grup w chwili publikacji wyników (STAT-01 § 2a, odstępstwo M3).
+"""Zamrożona przynależność wpisów do grup w chwili publikacji wyników (STAT-01 § 10, odstępstwo M3).
 
 Po co, skoro szkoła i województwo są w profilu uczestnika: profil się zmienia. Uczeń zmienia szkołę,
 koordynator poprawia dowiązanie do wykazu, konto bywa anonimizowane (szkoła znika). Agregat liczony
