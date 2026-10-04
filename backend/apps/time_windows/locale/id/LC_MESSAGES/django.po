@@ -1,0 +1,127 @@
+# Indonesian - tlumaczenie ekranow okien czasowych (docs/tasks/TZ-01.md).
+# Zrodlem (msgid) jest polski. UWAGA: tlumaczenie MASZYNOWE - do przegladu native speakera.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Olimpiada Kwantowa - time_windows\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-04 20:00+0200\n"
+"PO-Revision-Date: 2026-10-04 20:00+0200\n"
+"Last-Translator: Olimpiada Kwantowa\n"
+"Language-Team: Indonesian\n"
+"Language: id\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+#, python-format
+msgid "Twoje okno czasowe: %(label)s"
+msgstr "Jendela waktu Anda: %(label)s"
+
+#, python-format
+msgid "Twoje okno czasowe %(label)s: %(stage)s"
+msgstr "Jendela waktu Anda %(label)s: %(stage)s"
+
+msgid "Start"
+msgstr "Mulai"
+
+msgid "Koniec"
+msgstr "Selesai"
+
+msgid "Strefa czasowa"
+msgstr "Zona waktu"
+
+msgid "Dodatkowy czas"
+msgstr "Waktu tambahan"
+
+#, python-format
+msgid "%(minutes)s min"
+msgstr "%(minutes)s menit"
+
+msgid "Zadania zobaczysz dopiero na starcie swojego okna. Do końca ostatniego okna wszystkich krajów nie rozmawiaj o zadaniach – forum i wiadomości są wtedy moderowane."
+msgstr "Anda akan melihat soal hanya saat jendela Anda dimulai. Sampai jendela terakhir semua negara berakhir, jangan membahas soal – forum dan pesan dimoderasi selama waktu tersebut."
+
+msgid "Okna czasowe drużyny"
+msgstr "Jendela waktu tim"
+
+msgid "Panel opiekuna drużyny"
+msgstr "Panel pemimpin tim"
+
+#, python-format
+msgid "Okna czasowe: %(country)s"
+msgstr "Jendela waktu: %(country)s"
+
+#, python-format
+msgid "Strefa czasowa kraju: %(zone)s. Każdy uczeń zaczyna etap na starcie okna przydzielonego przez organizatora i widzi godziny w swojej strefie."
+msgstr "Zona waktu negara: %(zone)s. Setiap siswa memulai babak saat jendela yang ditetapkan penyelenggara dimulai dan melihat waktu dalam zona waktunya sendiri."
+
+#, python-format
+msgid "Czas pracy: %(duration)s."
+msgstr "Waktu pengerjaan: %(duration)s."
+
+msgid "Okna uczniów w etapie"
+msgstr "Jendela siswa dalam babak"
+
+msgid "Uczeń"
+msgstr "Siswa"
+
+msgid "Okno"
+msgstr "Jendela"
+
+msgid "Start (strefa ucznia)"
+msgstr "Mulai (zona waktu siswa)"
+
+msgid "Koniec (strefa ucznia)"
+msgstr "Selesai (zona waktu siswa)"
+
+msgid "Nie zgłoszono jeszcze żadnego ucznia."
+msgstr "Belum ada siswa yang didaftarkan."
+
+msgid "Żaden etap tej edycji nie ma jeszcze okien czasowych."
+msgstr "Belum ada babak edisi ini yang memiliki jendela waktu."
+
+msgid "Strefy czasowe uczniów"
+msgstr "Zona waktu siswa"
+
+msgid "Strefa zmienia tylko to, jak uczeń widzi godziny w swoim panelu. Nie zmienia jego okna."
+msgstr "Zona waktu hanya mengubah cara siswa melihat waktu di panelnya. Jendelanya tidak berubah."
+
+msgid "jak kraj drużyny"
+msgstr "sama dengan negara tim"
+
+msgid "Zapisz"
+msgstr "Simpan"
+
+msgid "Okna czasowe i strefy uczniów"
+msgstr "Jendela waktu dan zona waktu siswa"
+
+msgid "Wybierz strefę czasową z listy."
+msgstr "Pilih zona waktu dari daftar."
+
+msgid "Strefa czasowa ucznia została zapisana."
+msgstr "Zona waktu siswa telah disimpan."
+
+#, python-format
+msgid "Wysłano (%(zone)s)"
+msgstr "Dikirim (%(zone)s)"
+
+#, python-format
+msgid "Złożona (%(zone)s)"
+msgstr "Diajukan (%(zone)s)"
+
+#, python-format
+msgid "Data (%(zone)s)"
+msgstr "Tanggal (%(zone)s)"
+
+#, python-format
+msgid "Terminy edycji. Wszystkie godziny: %(zone)s."
+msgstr "Jadwal edisi. Semua waktu: %(zone)s."
+
+#, python-format
+msgid "Wszystkie godziny: %(zone)s."
+msgstr "Semua waktu: %(zone)s."
+
+#, python-format
+msgid "Pokój otwiera się %(opens)s (%(zone)s). Wchodzi się wyłącznie tym przyciskiem – adresu pokoju nie da się podać przez telefon ani przesłać dalej."
+msgstr "Ruang dibuka pada %(opens)s (%(zone)s). Masuk hanya melalui tombol ini – alamat ruang tidak dapat diberikan lewat telepon atau diteruskan."

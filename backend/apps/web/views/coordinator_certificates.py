@@ -32,7 +32,7 @@ from apps.results.certificates import (
     sample_content,
     supervisors_with_participants,
 )
-from apps.results.models import Certificate, CertificateKind, CertificateTemplate
+from apps.results.models import Certificate, CertificateKind, CertificateTemplate, template_kind_choices
 from apps.web.certificate_forms import CertificateTemplateForm
 from apps.web.mixins import ActionViewMixin, CoordinatorRequiredMixin
 
@@ -73,7 +73,7 @@ class CertificateTemplateListView(CoordinatorRequiredMixin, View):
             # Pusta lista jest normalnym i **poprawnym** stanem serwisu: bez ani jednego szablonu
             # dokumenty składają się układem wbudowanym. Strona mówi to wprost, bo inaczej
             # czyta się to jak „coś tu jeszcze nie działa”.
-            "kinds": CertificateKind.choices,
+            "kinds": template_kind_choices(request.competition),
         }
         return TemplateResponse(request, LIST_TEMPLATE, context)
 

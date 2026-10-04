@@ -1,0 +1,365 @@
+# Płatności online (PAY-01) – katalog aplikacji apps.payments.
+# Tłumaczenia maszynowe do przeglądu przez native speakerów (jak I18N-01 § 8).
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: olimpiada\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-04 19:20+0200\n"
+"PO-Revision-Date: 2026-10-04 20:00+0200\n"
+"Last-Translator: Claude (machine translation)\n"
+"Language-Team: olimpiada\n"
+"Language: zh_Hans\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+msgid "Faktura"
+msgstr "发票"
+
+msgid "Faktura pro forma"
+msgstr "形式发票"
+
+msgid "Data sprzedaży"
+msgstr "销售日期"
+
+msgid "Zapłacono"
+msgstr "已付款"
+
+msgid "Kod referencyjny"
+msgstr "参考代码"
+
+msgid "NIP / VAT ID"
+msgstr "税号 / 增值税号"
+
+msgid "Sprzedawca"
+msgstr "卖方"
+
+msgid "Nabywca"
+msgstr "买方"
+
+msgid "Pozycja"
+msgstr "项目"
+
+msgid "Ilość"
+msgstr "数量"
+
+msgid "Cena"
+msgstr "单价"
+
+msgid "Razem do zapłaty"
+msgstr "应付总额"
+
+msgid "Bank"
+msgstr "银行"
+
+msgid "Tytuł przelewu"
+msgstr "转账附言"
+
+msgid "Dane do przelewu"
+msgstr "转账信息"
+
+msgid "Faktura pro forma nie jest dokumentem księgowym. Fakturę wystawimy po zaksięgowaniu wpłaty."
+msgstr "形式发票不是会计凭证。收到付款后我们将开具正式发票。"
+
+msgid "Nazwa instytucji albo imię i nazwisko"
+msgstr "机构名称或姓名"
+
+msgid "Adres"
+msgstr "地址"
+
+msgid "Opcjonalnie – jeśli instytucja ma numer podatkowy, który ma znaleźć się na fakturze."
+msgstr "可选——如机构有需要显示在发票上的税号，请填写。"
+
+msgid "E-mail do rozliczeń"
+msgstr "账单邮箱"
+
+msgid "Liczba obserwatorów"
+msgstr "观察员人数"
+
+msgid "Osoby towarzyszące drużynie bez roli opiekuna – płatne według cennika."
+msgstr "随队但非领队的人员——按价目表收费。"
+
+msgid "Opłata za delegację"
+msgstr "代表团费用"
+
+msgid "Uczeń"
+msgstr "学生"
+
+msgid "Opiekun drużyny"
+msgstr "领队"
+
+msgid "Obserwator"
+msgstr "观察员"
+
+msgid "Opłata za udział"
+msgstr "参赛费"
+
+msgid "Zniżka"
+msgstr "折扣"
+
+msgid "cena wczesna"
+msgstr "早鸟价"
+
+msgid "cena podstawowa"
+msgstr "标准价"
+
+msgid "cena późna"
+msgstr "延迟价"
+
+msgid "Instytucja"
+msgstr "机构"
+
+msgid "Osoba prywatna"
+msgstr "个人"
+
+msgid "Zwolnienie z opłat"
+msgstr "免除费用"
+
+msgid "czeka na wpłatę"
+msgstr "待付款"
+
+msgid "zapłacone"
+msgstr "已付款"
+
+msgid "anulowane"
+msgstr "已取消"
+
+msgid "zwrócone"
+msgstr "已退款"
+
+msgid "Karta płatnicza (Stripe)"
+msgstr "银行卡（Stripe）"
+
+msgid "Przelew bankowy"
+msgstr "银行转账"
+
+msgid "w toku"
+msgstr "处理中"
+
+msgid "przyjęta"
+msgstr "已收到"
+
+msgid "nieudana"
+msgstr "失败"
+
+msgid "przerwana"
+msgstr "已中断"
+
+msgid "do wyjaśnienia"
+msgstr "待核查"
+
+msgid "wykonany"
+msgstr "已完成"
+
+msgid "nieudany"
+msgstr "失败"
+
+msgid "Najpierw uzupełnij dane do faktury."
+msgstr "请先填写开票信息。"
+
+msgid "Organizator nie opublikował jeszcze cennika."
+msgstr "主办方尚未公布价目表。"
+
+msgid "Delegacja jest zwolniona z opłat."
+msgstr "该代表团免除费用。"
+
+msgid "Nie ma nic nowego do zapłaty."
+msgstr "没有新的应付款项。"
+
+msgid "Ta opłata jest już rozliczona."
+msgstr "该费用已结清。"
+
+msgid "Nie ma nic do zapłaty."
+msgstr "没有应付款项。"
+
+msgid "Płatność tego zamówienia jest właśnie przetwarzana. Spróbuj ponownie za kilka minut."
+msgstr "该订单的付款正在处理中，请几分钟后重试。"
+
+#, python-format
+msgid "Płatność Przelewy24 tego zamówienia jest w toku. Spróbuj ponownie za %(minutes)s minut."
+msgstr "该订单的 Przelewy24 付款正在进行中，请在 %(minutes)s 分钟后重试。"
+
+msgid "Anulować można wyłącznie zamówienie czekające na wpłatę."
+msgstr "只能取消待付款的订单。"
+
+msgid "To zamówienie nie czeka na wpłatę."
+msgstr "该订单不处于待付款状态。"
+
+msgid "Ta metoda płatności nie jest dostępna."
+msgstr "该付款方式不可用。"
+
+msgid "Dostawca płatności jest chwilowo niedostępny. Spróbuj ponownie za chwilę."
+msgstr "支付服务暂时不可用，请稍后重试。"
+
+msgid "Opłaty"
+msgstr "费用"
+
+msgid "Drużyna jest zwolniona z opłat."
+msgstr "该队伍免除费用。"
+
+msgid "Opłaty są rozliczone."
+msgstr "费用已全部结清。"
+
+#, python-format
+msgid "Do zapłaty: %(amount)s %(currency)s."
+msgstr "应付金额：%(amount)s %(currency)s。"
+
+msgid "Opłaty i faktury"
+msgstr "费用与发票"
+
+msgid "Zapłać online"
+msgstr "在线支付"
+
+msgid "Dane do faktury"
+msgstr "开票信息"
+
+msgid "Opłaty drużyny"
+msgstr "队伍费用"
+
+msgid "Nabywcą może być instytucja (np. ministerstwo, szkoła, fundacja) albo osoba prywatna. Zmiana danych dotyczy kolejnych dokumentów – wystawione wcześniej zostają bez zmian."
+msgstr "买方可以是机构（如部委、学校、基金会）或个人。修改仅适用于之后的单据，已开具的单据保持不变。"
+
+#, python-format
+msgid "Opłaty: %(country)s"
+msgstr "费用：%(country)s"
+
+msgid "Opłatę za drużynę wnosi się na podstawie faktury pro forma: wystaw ją, a potem zapłać kartą albo przelewem. Po zaksięgowaniu wpłaty wystawimy fakturę i wyślemy potwierdzenie e-mailem."
+msgstr "队伍费用依据形式发票支付：先开具形式发票，然后用银行卡或银行转账付款。收到款项后，我们将开具发票并通过电子邮件发送确认。"
+
+msgid "Zestawienie"
+msgstr "汇总"
+
+msgid "Waluta"
+msgstr "币种"
+
+msgid "Zwrócono"
+msgstr "已退款"
+
+msgid "Czeka na wpłatę"
+msgstr "待付款"
+
+msgid "Do wystawienia"
+msgstr "待开票"
+
+msgid "Pozycje kolejnej faktury pro forma"
+msgstr "下一张形式发票的项目"
+
+msgid "Wystaw fakturę pro forma"
+msgstr "开具形式发票"
+
+msgid "Przed wystawieniem faktury pro forma uzupełnij dane do faktury."
+msgstr "开具形式发票前，请先填写开票信息。"
+
+msgid "Nie podano jeszcze danych do faktury."
+msgstr "尚未填写开票信息。"
+
+msgid "Zmień dane do faktury"
+msgstr "修改开票信息"
+
+msgid "Zamówienia"
+msgstr "订单"
+
+msgid "Zamówienia drużyny"
+msgstr "队伍订单"
+
+msgid "Wystawiono"
+msgstr "开具日期"
+
+msgid "Dokumenty"
+msgstr "单据"
+
+msgid "Nie wystawiono jeszcze żadnego zamówienia."
+msgstr "尚未开具任何订单。"
+
+#, python-format
+msgid "Dziękujemy – otrzymaliśmy wpłatę za udział w konkursie %(competition)s."
+msgstr "谢谢——我们已收到您参加 %(competition)s 的付款。"
+
+msgid "Fakturę i historię płatności znajdziesz po zalogowaniu:"
+msgstr "登录后即可查看发票和付款记录："
+
+#, python-format
+msgid "Potwierdzenie wpłaty %(reference)s – %(competition)s"
+msgstr "付款确认 %(reference)s – %(competition)s"
+
+#, python-format
+msgid "Organizator konkursu %(competition)s zwrócił część albo całość Twojej wpłaty."
+msgstr "%(competition)s 的主办方已退还您的部分或全部付款。"
+
+msgid "Kwota zwrotu"
+msgstr "退款金额"
+
+msgid "Pieniądze wracają tą samą drogą, którą zostały wpłacone; zaksięgowanie po stronie banku może potrwać kilka dni roboczych. Szczegóły:"
+msgstr "款项将按原支付途径退回，银行入账可能需要几个工作日。详情："
+
+#, python-format
+msgid "Zwrot wpłaty %(reference)s – %(competition)s"
+msgstr "退款 %(reference)s – %(competition)s"
+
+#, python-format
+msgid "Zamówienie %(reference)s"
+msgstr "订单 %(reference)s"
+
+#, python-format
+msgid "termin płatności: %(due)s"
+msgstr "付款期限：%(due)s"
+
+msgid "Pozycje zamówienia"
+msgstr "订单项目"
+
+msgid "Zapłać"
+msgstr "付款"
+
+msgid "Zapłać kartą"
+msgstr "银行卡支付"
+
+msgid "Zapłać przez Przelewy24"
+msgstr "通过 Przelewy24 支付"
+
+msgid "Płatność odbywa się na stronie operatora płatności. Nie przechowujemy danych karty."
+msgstr "付款在支付服务商的页面上完成。我们不保存银行卡信息。"
+
+msgid "Wpisz kod referencyjny w tytule przelewu – po nim organizator odnajdzie wpłatę. Przelew zaksięgujemy w ciągu kilku dni roboczych; koszty banku ponosi płacący."
+msgstr "请在转账附言中填写参考代码——主办方据此核对您的付款。我们将在几个工作日内入账；银行费用由付款人承担。"
+
+msgid "Płatności online nie są jeszcze dostępne. Skontaktuj się z organizatorem."
+msgstr "在线支付暂不可用，请联系主办方。"
+
+msgid "Anuluj zamówienie"
+msgstr "取消订单"
+
+msgid "Anuluj zamówienie, jeśli zmienił się skład drużyny albo dane do faktury – potem wystaw nowe."
+msgstr "如果队伍成员或开票信息有变，请取消订单并重新开具。"
+
+msgid "Brak dokumentów."
+msgstr "暂无单据。"
+
+msgid "Historia płatności"
+msgstr "付款记录"
+
+msgid "zwrócono"
+msgstr "已退款"
+
+#, python-format
+msgid "Do zapłaty: %(amount)s %(currency)s. Podaj dane do faktury – wystawimy fakturę pro forma, a po zaksięgowaniu wpłaty fakturę."
+msgstr "应付金额：%(amount)s %(currency)s。请填写开票信息——我们将先开具形式发票，收到付款后开具发票。"
+
+msgid "Dalej"
+msgstr "继续"
+
+msgid "Dane do faktury zostały zapisane."
+msgstr "开票信息已保存。"
+
+msgid "Wystawiliśmy fakturę pro forma. Wybierz sposób zapłaty."
+msgstr "形式发票已开具，请选择付款方式。"
+
+msgid "Dziękujemy. Czekamy na potwierdzenie wpłaty od operatora płatności – odśwież stronę za chwilę."
+msgstr "谢谢。我们正在等待支付服务商确认付款——请稍后刷新页面。"
+
+msgid "Płatność została przerwana. Możesz spróbować ponownie."
+msgstr "付款已中断，您可以重试。"
+
+msgid "Zamówienie zostało anulowane."
+msgstr "订单已取消。"

@@ -1,0 +1,62 @@
+{% extends "web/coordinator/base.html" %}
+{% load static %}
+{% comment %}
+  Opłaty jednej delegacji (PAY-01): zestawienie, zamówienia, zniżki i zwolnienia. Decyzja finansowa
+  wymaga uzasadnienia, a cofnięcie – osobnego powodu; obie trafiają do audytu.
+{% endcomment %}
+{% block title %}Opłaty delegacji – panel koordynatora{% endblock %}
+{% block panel_head %}<link rel="stylesheet" href="{% static 'css/coordinator-tools.css' %}">{% endblock %}
+{% block panel_eyebrow %}<a href="{% url 'web:coordinator-payments' %}">Płatności</a>{% endblock %}
+{% block panel_title %}Opłaty: {{ delegation.country.name }}{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Skład: uczniowie {{ statement.composition.STUDENT|default:0 }}, opiekunowie {{ statement.composition.LEADER|default:0 }},
+    obserwatorzy {{ statement.composition.OBSERVER|default:0 }}. Zapłacono {{ statement.paid_total }} {{ statement.currency }},
+    czeka na wpłatę {{ statement.open_total }}, niewystawione {{ statement.new_total }}.</p>
+{% endblock %}
+{% block panel_content %}
+<section class="section">
+  <div class="section__head"><h2 class="mt-0">Zamówienia</h2></div>
+  <ul>
+    {% for order in orders %}
+      <li><a href="{% url 'web:coordinator-payments-order' order.pk %}">{{ order.reference }}</a> – {{ order.total }} {{ order.currency }}, {{ order.get_status_display }}, {{ order.created_at|date:"Y-m-d" }}</li>
+    {% empty %}
+      <li>Brak zamówień.</li>
+    {% endfor %}
+  </ul>
+  {% if profile %}<p class="hint">Nabywca: {{ profile.buyer_name }}, {{ profile.buyer_country }}{% if profile.buyer_vat_id %}, VAT ID {{ profile.buyer_vat_id }}{% endif %} ({{ profile.buyer_email }}).</p>{% endif %}
+</section>
+
+<section class="section">
+  <div class="section__head"><h2 class="mt-0">Zniżki i zwolnienia</h2></div>
+  <ul>
+    {% for adjustment in adjustments %}
+      <li>
+        {{ adjustment.get_kind_display }}{% if adjustment.amount %} {{ adjustment.amount }} {{ statement.currency }}{% endif %} – {{ adjustment.reason }}
+        ({{ adjustment.created_at|date:"Y-m-d" }}{% if adjustment.created_by %}, {{ adjustment.created_by.get_full_name|default:adjustment.created_by.email }}{% endif %})
+        {% if adjustment.revoked_at %}
+          – <strong>cofnięta</strong> {{ adjustment.revoked_at|date:"Y-m-d" }}: {{ adjustment.revoke_reason }}
+        {% else %}
+          <form method="post" action="{% url 'web:coordinator-payments-adjustment-revoke' adjustment.pk %}" class="inline">
+            {% csrf_token %}
+            <label for="revoke-{{ adjustment.pk }}" class="visually-hidden">Powód cofnięcia</label>
+            <input type="text" name="reason" id="revoke-{{ adjustment.pk }}" maxlength="300" required placeholder="powód cofnięcia">
+            <button type="submit" class="btn btn--ghost btn--small">Cofnij</button>
+          </form>
+        {% endif %}
+      </li>
+    {% empty %}
+      <li>Brak decyzji.</li>
+    {% endfor %}
+  </ul>
+  <div class="card">
+    <h3 class="mt-0">Nowa zniżka albo zwolnienie</h3>
+    <form method="post" action="{% url 'web:coordinator-payments-adjustment-add' delegation.pk %}" class="form" novalidate>
+      {% csrf_token %}
+      {{ adjustment_form.as_p }}
+      <p class="hint">Zniżka zmniejsza kolejne zamówienia (już wystawione się nie zmieniają). Zwolnienie blokuje wystawianie
+        nowych zamówień; otwarte zamówienia anuluj osobno, a zapłacone – zwróć na ekranie zamówienia.</p>
+      <div class="actions"><button type="submit" class="btn btn--primary">Zapisz decyzję</button></div>
+    </form>
+  </div>
+</section>
+{% endblock %}

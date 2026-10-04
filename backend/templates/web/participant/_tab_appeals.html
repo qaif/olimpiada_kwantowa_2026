@@ -50,7 +50,7 @@
         <caption>{% translate "Złożone reklamacje" %}</caption>
         <thead><tr>
           <th>{% translate "Zadanie" %}</th>
-          <th>{% translate "Złożona (czas polski)" %}</th>
+          <th>{% active_time_zone as zone %}{% if zone %}{% blocktranslate %}Złożona ({{ zone }}){% endblocktranslate %}{% else %}{% translate "Złożona (czas polski)" %}{% endif %}</th>
           <th>{% translate "Status" %}</th>
           <th>{% translate "Uzasadnienie decyzji" %}</th>
         </tr></thead>

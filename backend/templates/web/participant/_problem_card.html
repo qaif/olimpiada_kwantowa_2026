@@ -1,4 +1,4 @@
-{% load i18n web_extras notebook_tags %}{% comment %}
+{% load i18n web_extras problem_translations notebook_tags %}{% comment %}
   Karta jednego zadania: treść, stan pracy, upload i historia wersji. Ten sam fragment renderuje
   pulpit i odpowiedź HTMX po uploadzie, więc jedno i drugie musi mówić to samo.
 
@@ -44,7 +44,7 @@
          href="{% url 'competitions:problem-statement' row.problem.pk %}">{% translate "Treść zadania (PDF)" %}</a>
     {% else %}
       <span class="badge badge--neutral">{% translate "treść jeszcze nieopublikowana" %}</span>
-    {% endif %}
+    {% endif %}{% student_translation_link row.problem %}
   </p>
   {# Notatnik kwantowy przy zadaniu (QC-01) – przy wyłączonej fladze tag nie pyta bazy i nic nie rysuje. #}
   {% notebook_card_panel row stage %}
@@ -269,7 +269,7 @@
           <thead>
             <tr>
               <th>{% translate "Wersja" %}</th>
-              <th>{% translate "Wysłano (czas polski)" %}</th>
+              <th>{% active_time_zone as zone %}{% if zone %}{% blocktranslate %}Wysłano ({{ zone }}){% endblocktranslate %}{% else %}{% translate "Wysłano (czas polski)" %}{% endif %}</th>
               <th>{% translate "Status pracy" %}</th>
               <th>{% translate "Skan antywirusowy" %}</th>
               <th>{% translate "Plik" %}</th>

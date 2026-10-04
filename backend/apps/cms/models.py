@@ -108,6 +108,8 @@ RESERVED_SLUGS = frozenset(
         # Zgoda ucznia na opiekuna szkolnego z importu (``/opiekun/zgoda/<token>/``).
         "opiekun",
         "password-reset",
+        # Płatności online: strona zamówienia, dokumenty i webhooki operatorów płatności (PAY-01).
+        "payments",
         "plakaty",
         "register",
         "rejestracja",
@@ -125,6 +127,8 @@ RESERVED_SLUGS = frozenset(
         "support",
         # Webinary LiveKit (zadanie WEB-01): strona odbiorców i pokój ``/webinars/<id>/room/``.
         "webinars",
+        # Przegląd tłumaczeń interfejsu (``/translations/…``, zadanie L10N-01).
+        "translations",
         "zaproszenie",
         "zgoda",
     }

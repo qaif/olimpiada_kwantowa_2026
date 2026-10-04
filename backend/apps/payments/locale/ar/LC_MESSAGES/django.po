@@ -1,0 +1,366 @@
+# Płatności online (PAY-01) – katalog aplikacji apps.payments.
+# Tłumaczenia maszynowe do przeglądu przez native speakerów (jak I18N-01 § 8).
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: olimpiada\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-04 19:20+0200\n"
+"PO-Revision-Date: 2026-10-04 20:00+0200\n"
+"Last-Translator: Claude (machine translation)\n"
+"Language-Team: olimpiada\n"
+"Language: ar\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=6; plural=n==0 ? 0 : n==1 ? 1 : n==2 ? 2 : n%100>=3 "
+"&& n%100<=10 ? 3 : n%100>=11 && n%100<=99 ? 4 : 5;\n"
+
+msgid "Faktura"
+msgstr "فاتورة"
+
+msgid "Faktura pro forma"
+msgstr "فاتورة مبدئية"
+
+msgid "Data sprzedaży"
+msgstr "تاريخ البيع"
+
+msgid "Zapłacono"
+msgstr "المدفوع"
+
+msgid "Kod referencyjny"
+msgstr "الرمز المرجعي"
+
+msgid "NIP / VAT ID"
+msgstr "الرقم الضريبي / رقم ضريبة القيمة المضافة"
+
+msgid "Sprzedawca"
+msgstr "البائع"
+
+msgid "Nabywca"
+msgstr "المشتري"
+
+msgid "Pozycja"
+msgstr "البند"
+
+msgid "Ilość"
+msgstr "الكمية"
+
+msgid "Cena"
+msgstr "السعر"
+
+msgid "Razem do zapłaty"
+msgstr "الإجمالي المستحق"
+
+msgid "Bank"
+msgstr "البنك"
+
+msgid "Tytuł przelewu"
+msgstr "مرجع التحويل"
+
+msgid "Dane do przelewu"
+msgstr "بيانات التحويل المصرفي"
+
+msgid "Faktura pro forma nie jest dokumentem księgowym. Fakturę wystawimy po zaksięgowaniu wpłaty."
+msgstr "الفاتورة المبدئية ليست مستندًا محاسبيًا. سنصدر الفاتورة بعد استلام الدفعة."
+
+msgid "Nazwa instytucji albo imię i nazwisko"
+msgstr "اسم المؤسسة أو الاسم الكامل"
+
+msgid "Adres"
+msgstr "العنوان"
+
+msgid "Opcjonalnie – jeśli instytucja ma numer podatkowy, który ma znaleźć się na fakturze."
+msgstr "اختياري – إذا كان للمؤسسة رقم ضريبي يجب أن يظهر في الفاتورة."
+
+msgid "E-mail do rozliczeń"
+msgstr "البريد الإلكتروني للفوترة"
+
+msgid "Liczba obserwatorów"
+msgstr "عدد المراقبين"
+
+msgid "Osoby towarzyszące drużynie bez roli opiekuna – płatne według cennika."
+msgstr "الأشخاص المرافقون للفريق دون أن يكونوا قادة له – تُحتسب رسومهم وفق قائمة الأسعار."
+
+msgid "Opłata za delegację"
+msgstr "رسوم الوفد"
+
+msgid "Uczeń"
+msgstr "طالب"
+
+msgid "Opiekun drużyny"
+msgstr "قائد الفريق"
+
+msgid "Obserwator"
+msgstr "مراقب"
+
+msgid "Opłata za udział"
+msgstr "رسوم المشاركة"
+
+msgid "Zniżka"
+msgstr "خصم"
+
+msgid "cena wczesna"
+msgstr "السعر المبكر"
+
+msgid "cena podstawowa"
+msgstr "السعر العادي"
+
+msgid "cena późna"
+msgstr "السعر المتأخر"
+
+msgid "Instytucja"
+msgstr "مؤسسة"
+
+msgid "Osoba prywatna"
+msgstr "شخص طبيعي"
+
+msgid "Zwolnienie z opłat"
+msgstr "إعفاء من الرسوم"
+
+msgid "czeka na wpłatę"
+msgstr "بانتظار الدفع"
+
+msgid "zapłacone"
+msgstr "مدفوع"
+
+msgid "anulowane"
+msgstr "ملغى"
+
+msgid "zwrócone"
+msgstr "مسترد"
+
+msgid "Karta płatnicza (Stripe)"
+msgstr "بطاقة دفع (Stripe)"
+
+msgid "Przelew bankowy"
+msgstr "تحويل مصرفي"
+
+msgid "w toku"
+msgstr "قيد المعالجة"
+
+msgid "przyjęta"
+msgstr "مستلم"
+
+msgid "nieudana"
+msgstr "فشل"
+
+msgid "przerwana"
+msgstr "متوقف"
+
+msgid "do wyjaśnienia"
+msgstr "قيد المراجعة"
+
+msgid "wykonany"
+msgstr "مكتمل"
+
+msgid "nieudany"
+msgstr "فشل"
+
+msgid "Najpierw uzupełnij dane do faktury."
+msgstr "يرجى إدخال بيانات الفوترة أولًا."
+
+msgid "Organizator nie opublikował jeszcze cennika."
+msgstr "لم ينشر المنظم قائمة الأسعار بعد."
+
+msgid "Delegacja jest zwolniona z opłat."
+msgstr "الوفد معفى من الرسوم."
+
+msgid "Nie ma nic nowego do zapłaty."
+msgstr "لا يوجد شيء جديد للدفع."
+
+msgid "Ta opłata jest już rozliczona."
+msgstr "تمت تسوية هذه الرسوم بالفعل."
+
+msgid "Nie ma nic do zapłaty."
+msgstr "لا يوجد شيء للدفع."
+
+msgid "Płatność tego zamówienia jest właśnie przetwarzana. Spróbuj ponownie za kilka minut."
+msgstr "تتم معالجة دفعة لهذا الطلب الآن. يرجى المحاولة مرة أخرى بعد بضع دقائق."
+
+#, python-format
+msgid "Płatność Przelewy24 tego zamówienia jest w toku. Spróbuj ponownie za %(minutes)s minut."
+msgstr "هناك دفعة عبر Przelewy24 قيد التنفيذ لهذا الطلب. يرجى المحاولة مرة أخرى بعد %(minutes)s دقيقة."
+
+msgid "Anulować można wyłącznie zamówienie czekające na wpłatę."
+msgstr "لا يمكن إلغاء إلا الطلب الذي ينتظر الدفع."
+
+msgid "To zamówienie nie czeka na wpłatę."
+msgstr "هذا الطلب لا ينتظر الدفع."
+
+msgid "Ta metoda płatności nie jest dostępna."
+msgstr "طريقة الدفع هذه غير متاحة."
+
+msgid "Dostawca płatności jest chwilowo niedostępny. Spróbuj ponownie za chwilę."
+msgstr "مزود الدفع غير متاح مؤقتًا. يرجى المحاولة مرة أخرى بعد قليل."
+
+msgid "Opłaty"
+msgstr "الرسوم"
+
+msgid "Drużyna jest zwolniona z opłat."
+msgstr "الفريق معفى من الرسوم."
+
+msgid "Opłaty są rozliczone."
+msgstr "تمت تسوية جميع الرسوم."
+
+#, python-format
+msgid "Do zapłaty: %(amount)s %(currency)s."
+msgstr "المبلغ المستحق: %(amount)s %(currency)s."
+
+msgid "Opłaty i faktury"
+msgstr "الرسوم والفواتير"
+
+msgid "Zapłać online"
+msgstr "ادفع عبر الإنترنت"
+
+msgid "Dane do faktury"
+msgstr "بيانات الفوترة"
+
+msgid "Opłaty drużyny"
+msgstr "رسوم الفريق"
+
+msgid "Nabywcą może być instytucja (np. ministerstwo, szkoła, fundacja) albo osoba prywatna. Zmiana danych dotyczy kolejnych dokumentów – wystawione wcześniej zostają bez zmian."
+msgstr "يمكن أن يكون المشتري مؤسسة (مثل وزارة أو مدرسة أو مؤسسة خيرية) أو شخصًا طبيعيًا. تسري التغييرات على المستندات اللاحقة فقط، وتبقى المستندات الصادرة سابقًا دون تغيير."
+
+#, python-format
+msgid "Opłaty: %(country)s"
+msgstr "الرسوم: %(country)s"
+
+msgid "Opłatę za drużynę wnosi się na podstawie faktury pro forma: wystaw ją, a potem zapłać kartą albo przelewem. Po zaksięgowaniu wpłaty wystawimy fakturę i wyślemy potwierdzenie e-mailem."
+msgstr "تُدفع رسوم الفريق بموجب فاتورة مبدئية: أصدرها ثم ادفع بالبطاقة أو بالتحويل المصرفي. بعد استلام الدفعة سنصدر الفاتورة ونرسل تأكيدًا بالبريد الإلكتروني."
+
+msgid "Zestawienie"
+msgstr "الملخص"
+
+msgid "Waluta"
+msgstr "العملة"
+
+msgid "Zwrócono"
+msgstr "المسترد"
+
+msgid "Czeka na wpłatę"
+msgstr "بانتظار الدفع"
+
+msgid "Do wystawienia"
+msgstr "بانتظار الفوترة"
+
+msgid "Pozycje kolejnej faktury pro forma"
+msgstr "بنود الفاتورة المبدئية التالية"
+
+msgid "Wystaw fakturę pro forma"
+msgstr "إصدار فاتورة مبدئية"
+
+msgid "Przed wystawieniem faktury pro forma uzupełnij dane do faktury."
+msgstr "أدخل بيانات الفوترة قبل إصدار الفاتورة المبدئية."
+
+msgid "Nie podano jeszcze danych do faktury."
+msgstr "لم تُدخل بيانات الفوترة بعد."
+
+msgid "Zmień dane do faktury"
+msgstr "تعديل بيانات الفوترة"
+
+msgid "Zamówienia"
+msgstr "الطلبات"
+
+msgid "Zamówienia drużyny"
+msgstr "طلبات الفريق"
+
+msgid "Wystawiono"
+msgstr "تاريخ الإصدار"
+
+msgid "Dokumenty"
+msgstr "المستندات"
+
+msgid "Nie wystawiono jeszcze żadnego zamówienia."
+msgstr "لم يُصدر أي طلب بعد."
+
+#, python-format
+msgid "Dziękujemy – otrzymaliśmy wpłatę za udział w konkursie %(competition)s."
+msgstr "شكرًا لك – لقد استلمنا دفعتك للمشاركة في %(competition)s."
+
+msgid "Fakturę i historię płatności znajdziesz po zalogowaniu:"
+msgstr "ستجد الفاتورة وسجل المدفوعات بعد تسجيل الدخول:"
+
+#, python-format
+msgid "Potwierdzenie wpłaty %(reference)s – %(competition)s"
+msgstr "تأكيد الدفع %(reference)s – %(competition)s"
+
+#, python-format
+msgid "Organizator konkursu %(competition)s zwrócił część albo całość Twojej wpłaty."
+msgstr "أعاد منظم %(competition)s جزءًا من دفعتك أو كاملها."
+
+msgid "Kwota zwrotu"
+msgstr "مبلغ الاسترداد"
+
+msgid "Pieniądze wracają tą samą drogą, którą zostały wpłacone; zaksięgowanie po stronie banku może potrwać kilka dni roboczych. Szczegóły:"
+msgstr "تُعاد الأموال بالطريقة نفسها التي دُفعت بها؛ وقد يستغرق قيدها لدى البنك بضعة أيام عمل. التفاصيل:"
+
+#, python-format
+msgid "Zwrot wpłaty %(reference)s – %(competition)s"
+msgstr "استرداد %(reference)s – %(competition)s"
+
+#, python-format
+msgid "Zamówienie %(reference)s"
+msgstr "الطلب %(reference)s"
+
+#, python-format
+msgid "termin płatności: %(due)s"
+msgstr "تاريخ الاستحقاق: %(due)s"
+
+msgid "Pozycje zamówienia"
+msgstr "بنود الطلب"
+
+msgid "Zapłać"
+msgstr "ادفع"
+
+msgid "Zapłać kartą"
+msgstr "ادفع بالبطاقة"
+
+msgid "Zapłać przez Przelewy24"
+msgstr "ادفع عبر Przelewy24"
+
+msgid "Płatność odbywa się na stronie operatora płatności. Nie przechowujemy danych karty."
+msgstr "تتم عملية الدفع على صفحة مزود الدفع. لا نخزن بيانات البطاقة."
+
+msgid "Wpisz kod referencyjny w tytule przelewu – po nim organizator odnajdzie wpłatę. Przelew zaksięgujemy w ciągu kilku dni roboczych; koszty banku ponosi płacący."
+msgstr "اكتب الرمز المرجعي في مرجع التحويل – سيستخدمه المنظم لمطابقة دفعتك. سنقيد التحويل خلال بضعة أيام عمل؛ ويتحمل الدافع الرسوم المصرفية."
+
+msgid "Płatności online nie są jeszcze dostępne. Skontaktuj się z organizatorem."
+msgstr "المدفوعات عبر الإنترنت غير متاحة بعد. يرجى التواصل مع المنظم."
+
+msgid "Anuluj zamówienie"
+msgstr "إلغاء الطلب"
+
+msgid "Anuluj zamówienie, jeśli zmienił się skład drużyny albo dane do faktury – potem wystaw nowe."
+msgstr "ألغِ الطلب إذا تغيّر تكوين الفريق أو بيانات الفوترة – ثم أصدر طلبًا جديدًا."
+
+msgid "Brak dokumentów."
+msgstr "لا توجد مستندات."
+
+msgid "Historia płatności"
+msgstr "سجل المدفوعات"
+
+msgid "zwrócono"
+msgstr "تم الاسترداد"
+
+#, python-format
+msgid "Do zapłaty: %(amount)s %(currency)s. Podaj dane do faktury – wystawimy fakturę pro forma, a po zaksięgowaniu wpłaty fakturę."
+msgstr "المبلغ المستحق: %(amount)s %(currency)s. أدخل بيانات الفوترة – سنصدر فاتورة مبدئية، ثم الفاتورة بعد استلام الدفعة."
+
+msgid "Dalej"
+msgstr "متابعة"
+
+msgid "Dane do faktury zostały zapisane."
+msgstr "تم حفظ بيانات الفوترة."
+
+msgid "Wystawiliśmy fakturę pro forma. Wybierz sposób zapłaty."
+msgstr "تم إصدار الفاتورة المبدئية. اختر طريقة الدفع."
+
+msgid "Dziękujemy. Czekamy na potwierdzenie wpłaty od operatora płatności – odśwież stronę za chwilę."
+msgstr "شكرًا لك. ننتظر تأكيد الدفع من مزود الدفع – حدّث الصفحة بعد قليل."
+
+msgid "Płatność została przerwana. Możesz spróbować ponownie."
+msgstr "تم إيقاف عملية الدفع. يمكنك المحاولة مرة أخرى."
+
+msgid "Zamówienie zostało anulowane."
+msgstr "تم إلغاء الطلب."

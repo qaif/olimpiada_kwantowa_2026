@@ -1,0 +1,83 @@
+{% extends "web/coordinator/base.html" %}
+{% load web_extras %}
+{% comment %}
+  Medale (MED-01): etapy bieżącej edycji z ich stanem i stan potoku składu dokumentów w każdym
+  z jedenastu języków. Ekran po polsku bez gettext (I18N-01 § 0), jak cały panel koordynatora.
+{% endcomment %}
+{% block title %}Medale – panel koordynatora{% endblock %}
+{% block panel_title %}Medale{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Złoto, srebro, brąz i wyróżnienia {{ competition.genitive }} liczone z rankingu etapu
+    (domyślnie jak IPhO: 8 % / kolejne 17 % / kolejne 25 %). Wybierz etap, który jest rankingiem ostatecznym.</p>
+{% endblock %}
+{% block panel_content %}
+
+<section class="section">
+  <div class="scroll">
+    <table class="table">
+      <caption class="visually-hidden">Etapy bieżącej edycji</caption>
+      <thead>
+        <tr>
+          <th scope="col">Etap</th>
+          <th scope="col">Wyniki</th>
+          <th scope="col">Medale</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in rows %}
+          <tr>
+            <th scope="row"><a href="{% url 'web:coordinator-medal' item.stage.pk %}">{{ item.stage.display_name }}</a></th>
+            <td>{% if item.stage.results_published_at %}<span class="badge badge--ok">opublikowane</span>{% else %}<span class="badge badge--neutral">nieopublikowane</span>{% endif %}</td>
+            <td>
+              {% if item.scheme.is_frozen %}
+                <span class="badge badge--ok">ogłoszone {{ item.scheme.frozen_at|local_datetime }}</span>
+              {% elif item.scheme %}
+                <span class="badge badge--info">schemat zapisany</span>
+              {% else %}
+                <span class="badge badge--neutral">schemat domyślny</span>
+              {% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="3" class="empty">Bieżąca edycja nie ma etapów zawodów.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">Dyplomy w języku ucznia – stan składu</h2>
+  </div>
+  <p class="hint">Dyplom wychodzi w języku wybranym przez ucznia (albo w języku domyślnym konkursu). Gdy pisma
+    nie da się złożyć, dokument wychodzi po angielsku – jawnie, z wpisem w dzienniku serwera.</p>
+  <div class="scroll">
+    <table class="table">
+      <caption class="visually-hidden">Języki dokumentów</caption>
+      <thead>
+        <tr>
+          <th scope="col">Język</th>
+          <th scope="col">Pismo</th>
+          <th scope="col">Stan</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for language in languages %}
+          <tr>
+            <th scope="row"><span lang="{{ language.code }}">{{ language.label }}</span> <code>{{ language.code }}</code></th>
+            <td>{{ language.script }}</td>
+            <td>
+              {% if language.ok %}
+                <span class="badge badge--ok">składany</span>
+              {% else %}
+                <span class="badge badge--warn">odwrót na {{ language.fallback }}</span> {{ language.reason }}
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

@@ -2,6 +2,12 @@
 
 from django.urls import path
 
+from apps.medals.urls import urlpatterns as medal_urlpatterns  # MED-01
+from apps.payments.urls import urlpatterns as payment_urlpatterns
+from apps.problem_translations.urls import urlpatterns as translation_urlpatterns
+
+# Statystyki szkół (STAT-01) – widoki mieszkają w nowej aplikacji, montaż jak u pozostałych wydań.
+from apps.school_stats.urls import urlpatterns as school_stats_urlpatterns
 # Notatniki kwantowe (QC-01) – wzorce w module aplikacji, rozwinięte na końcu listy.
 from apps.notebooks.urls import urlpatterns as notebook_urlpatterns
 
@@ -12,6 +18,9 @@ from apps.notebooks.urls import urlpatterns as notebook_urlpatterns
 # przestawiamy. Bramki flagi tu nie ma — o tym, czy ekran istnieje w tym konkursie, rozstrzyga
 # widok (§ 2.1), bo mapa adresów zależna od konkursu znaczyłaby ``reverse()`` dający raz adres,
 # a raz ``NoReverseMatch``.
+from apps.time_windows.urls import urlpatterns as time_windows_urlpatterns
+from apps.translation_review.urls import urlpatterns as translation_review_urlpatterns
+
 from .urls_ai_grading import urlpatterns as ai_grading_urlpatterns
 from .urls_chat import urlpatterns as chat_urlpatterns
 from .urls_competitions import urlpatterns as competition_urlpatterns
@@ -1154,6 +1163,18 @@ urlpatterns = [
     *webinar_urlpatterns,
     # --- delegacje krajowe: opiekun drużyny i ekran koordynatora (DEL-01, 4.10.2026) ------------
     *delegation_urlpatterns,
+    # --- statystyki szkół i opiekunów (STAT-01, flaga ``school_statistics``) ----------------------
+    *school_stats_urlpatterns,
+    # --- okna czasowe etapu według stref (TZ-01, 4.10.2026; widoki w ``apps.time_windows``) -------
+    *time_windows_urlpatterns,
+    # --- tłumaczenia zadań przez delegacje (TR-01, 4.10.2026) -----------------------------------
+    *translation_urlpatterns,
+    # --- przegląd tłumaczeń interfejsu (zadanie L10N-01) -----------------------------------------
+    *translation_review_urlpatterns,
+    # --- medale olimpiady międzynarodowej i ranking krajów (MED-01, flaga ``medals``) -----------
+    *medal_urlpatterns,
+    # --- płatności online za udział: Stripe, Przelewy24, przelew, faktury (PAY-01, 4.10.2026) ---
+    *payment_urlpatterns,
     # --- notatniki kwantowe w przeglądarce i ocena automatyczna (zadanie QC-01, flaga) ------------
     *notebook_urlpatterns,
 ]

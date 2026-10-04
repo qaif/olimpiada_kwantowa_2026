@@ -1,0 +1,572 @@
+# Tłumaczenia zadań (TR-01) – hindi.
+msgid ""
+msgstr ""
+"Project-Id-Version: Olimpiada Kwantowa\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-04 20:19+0200\n"
+"PO-Revision-Date: 2026-10-04 19:30+0200\n"
+"Last-Translator: Olimpiada Kwantowa\n"
+"Language-Team: Hindi\n"
+"Language: hi\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: forms.py:19
+msgid "Język 1 (domyślny dla uczniów)"
+msgstr "भाषा 1 (विद्यार्थियों के लिए डिफ़ॉल्ट)"
+
+#: forms.py:20
+msgid "Język 2 (opcjonalnie)"
+msgstr "भाषा 2 (वैकल्पिक)"
+
+#: forms.py:33 forms.py:44
+msgid "Tytuł zadania"
+msgstr "प्रश्न का शीर्षक"
+
+#: forms.py:35
+msgid "Treść (Markdown, wzory w $…$)"
+msgstr "पाठ (Markdown, सूत्र $…$ में)"
+
+#: forms.py:43
+msgid "Przetłumaczony PDF"
+msgstr "अनूदित PDF"
+
+#: services.py:380
+msgid "Wybierz jeden albo dwa języki."
+msgstr "एक या दो भाषाएँ चुनें।"
+
+#: services.py:384
+msgid "Nieznany język."
+msgstr "अज्ञात भाषा।"
+
+#: services.py:397
+msgid "Nie można usunąć języka, w którym delegacja wysłała już tłumaczenie."
+msgstr "जिस भाषा में प्रतिनिधिमंडल पहले ही अनुवाद भेज चुका है, उसे हटाया नहीं जा सकता।"
+
+#: services.py:444
+msgid "Ten język nie jest językiem delegacji."
+msgstr "यह भाषा प्रतिनिधिमंडल की भाषा नहीं है।"
+
+#: services.py:462 templates/problem_translations/leader/editor.html:145
+msgid "Tłumaczenie jest zatwierdzone i zablokowane."
+msgstr "अनुवाद स्वीकृत हो चुका है और लॉक है।"
+
+#: services.py:464
+msgid ""
+"Tłumaczenie czeka na decyzję komisji – cofnij wysłanie, żeby je poprawić."
+msgstr "अनुवाद समिति के निर्णय की प्रतीक्षा में है – इसे सुधारने के लिए भेजना वापस लें।"
+
+#: services.py:500
+msgid ""
+"Tłumaczenie zmieniło się w międzyczasie (inny opiekun albo inna karta). "
+"Skopiuj swój tekst i odśwież stronę."
+msgstr "इस बीच अनुवाद बदल गया है (किसी अन्य टीम लीडर या किसी अन्य टैब से)। अपना पाठ कॉपी करें और पेज फिर से लोड करें।"
+
+#: services.py:531 views_leader.py:386
+msgid "Tekst jest za długi."
+msgstr "पाठ बहुत लंबा है।"
+
+#: services.py:538
+msgid "Bieżące tłumaczenie to plik PDF – najpierw wybierz „Przejdź na tekst”."
+msgstr "वर्तमान अनुवाद एक PDF फ़ाइल है – पहले “पाठ पर जाएँ” चुनें।"
+
+#: services.py:572
+msgid ""
+"Nie udało się sprawdzić pliku programem antywirusowym. Spróbuj ponownie za "
+"chwilę."
+msgstr "फ़ाइल की एंटीवायरस से जाँच नहीं हो सकी। कृपया थोड़ी देर बाद फिर से प्रयास करें।"
+
+#: services.py:578
+msgid "Plik został odrzucony przez program antywirusowy."
+msgstr "फ़ाइल को एंटीवायरस ने अस्वीकार कर दिया।"
+
+#: services.py:598
+msgid "Nie można odczytać pliku PDF (uszkodzony albo zaszyfrowany)."
+msgstr "PDF फ़ाइल पढ़ी नहीं जा सकती (क्षतिग्रस्त या एन्क्रिप्टेड)।"
+
+#: services.py:603
+msgid "Plik ma za dużo stron."
+msgstr "फ़ाइल में बहुत अधिक पृष्ठ हैं।"
+
+#: services.py:651
+msgid "Tłumaczenie jest puste."
+msgstr "अनुवाद खाली है।"
+
+#: services.py:656
+#, python-format
+msgid ""
+"Wersja oficjalna zmieniła się, odkąd otworzono edytor (teraz wersja "
+"%(version)s). Sprawdź zmiany poniżej i wyślij ponownie."
+msgstr "संपादक खोलने के बाद आधिकारिक संस्करण बदल गया है (अब संस्करण %(version)s)। नीचे बदलाव देखें और फिर से भेजें।"
+
+#: services.py:695
+msgid "Tylko wysłane tłumaczenie można cofnąć."
+msgstr "केवल भेजा गया अनुवाद ही वापस लिया जा सकता है।"
+
+#: services.py:715
+msgid ""
+"Zatwierdzone tłumaczenie można otworzyć ponownie tylko po zmianie wersji "
+"oficjalnej."
+msgstr "स्वीकृत अनुवाद को केवल आधिकारिक संस्करण बदलने के बाद ही फिर से खोला जा सकता है।"
+
+#: templates/problem_translations/leader/_autosave.html:6
+#: templates/problem_translations/leader/editor.html:124
+#, python-format
+msgid "Szkic zapisany: %(at)s"
+msgstr "ड्राफ़्ट सहेजा गया: %(at)s"
+
+#: templates/problem_translations/leader/_autosave.html:9
+#: templates/problem_translations/leader/editor.html:126
+msgid "Podgląd"
+msgstr "पूर्वावलोकन"
+
+#: templates/problem_translations/leader/_status.html:1
+msgid "nie rozpoczęte"
+msgstr "शुरू नहीं हुआ"
+
+#: templates/problem_translations/leader/_status.html:1
+msgid "szkic"
+msgstr "ड्राफ़्ट"
+
+#: templates/problem_translations/leader/_status.html:1
+msgid "czeka na akceptację"
+msgstr "स्वीकृति की प्रतीक्षा में"
+
+#: templates/problem_translations/leader/_status.html:1
+msgid "zwrócone do poprawy"
+msgstr "सुधार के लिए लौटाया गया"
+
+#: templates/problem_translations/leader/_status.html:1
+msgid "zatwierdzone"
+msgstr "स्वीकृत"
+
+#: templates/problem_translations/leader/_status.html:1
+msgid "nieaktualne"
+msgstr "पुराना"
+
+#: templates/problem_translations/leader/dashboard.html:10
+#: templates/problem_translations/leader/dashboard.html:16
+#: templates/problem_translations/leader/editor.html:27
+msgid "Tłumaczenia zadań"
+msgstr "प्रश्नों के अनुवाद"
+
+#: templates/problem_translations/leader/dashboard.html:15
+#, python-format
+msgid "Drużyna: %(country)s"
+msgstr "टीम: %(country)s"
+
+#: templates/problem_translations/leader/dashboard.html:17
+msgid ""
+"Zadania są tajne do startu zawodów. Wersję oficjalną widzisz tylko w oknie "
+"tłumaczeń ustalonym przez organizatora – każde otwarcie i pobranie jest "
+"zapisywane, a pobrane pliki PDF mają znak wodny Twojej delegacji."
+msgstr ""
+"प्रतियोगिता शुरू होने तक प्रश्न गोपनीय हैं। आधिकारिक संस्करण आप केवल आयोजक द्वारा तय की "
+"गई अनुवाद अवधि में ही देख सकते हैं – हर बार खोलना और डाउनलोड करना दर्ज किया जाता है, "
+"और डाउनलोड की गई PDF फ़ाइलों पर आपके प्रतिनिधिमंडल का वॉटरमार्क होता है।"
+
+#: templates/problem_translations/leader/dashboard.html:22
+msgid "Języki delegacji"
+msgstr "प्रतिनिधिमंडल की भाषाएँ"
+
+#: templates/problem_translations/leader/dashboard.html:23
+msgid ""
+"Jeden albo dwa języki. Pierwszy jest domyślnym językiem uczniów – dla "
+"pojedynczego ucznia możesz go zmienić niżej."
+msgstr ""
+"एक या दो भाषाएँ। पहली भाषा विद्यार्थियों की डिफ़ॉल्ट भाषा है – किसी एक विद्यार्थी के "
+"लिए आप इसे नीचे बदल सकते हैं।"
+
+#: templates/problem_translations/leader/dashboard.html:27
+msgid "Zapisz języki"
+msgstr "भाषाएँ सहेजें"
+
+#: templates/problem_translations/leader/dashboard.html:37
+msgid "Organizator nie ustalił jeszcze okna tłumaczeń tego etapu."
+msgstr "आयोजक ने अभी तक इस चरण की अनुवाद अवधि तय नहीं की है।"
+
+#: templates/problem_translations/leader/dashboard.html:39
+#, python-format
+msgid "Okno tłumaczeń: %(opens)s – %(closes)s."
+msgstr "अनुवाद अवधि: %(opens)s – %(closes)s।"
+
+#: templates/problem_translations/leader/dashboard.html:42
+msgctxt "okno tłumaczeń"
+msgid "otwarte"
+msgstr "खुला"
+
+#: templates/problem_translations/leader/dashboard.html:43
+msgid "jeszcze nie otwarte"
+msgstr "अभी खुला नहीं"
+
+#: templates/problem_translations/leader/dashboard.html:44
+msgctxt "okno tłumaczeń"
+msgid "zamknięte"
+msgstr "बंद"
+
+#: templates/problem_translations/leader/dashboard.html:45
+msgid "Delegacje tego samego języka tworzą jedno wspólne tłumaczenie."
+msgstr "एक ही भाषा वाले प्रतिनिधिमंडल मिलकर एक साझा अनुवाद बनाते हैं।"
+
+#: templates/problem_translations/leader/dashboard.html:50
+msgid "Zadeklaruj język delegacji, żeby zobaczyć zadania."
+msgstr "प्रश्न देखने के लिए प्रतिनिधिमंडल की भाषा घोषित करें।"
+
+#: templates/problem_translations/leader/dashboard.html:55
+msgid "Zadania etapu i stan tłumaczeń"
+msgstr "चरण के प्रश्न और अनुवाद की स्थिति"
+
+#: templates/problem_translations/leader/dashboard.html:58
+msgid "Zadanie"
+msgstr "प्रश्न"
+
+#: templates/problem_translations/leader/dashboard.html:69
+msgid "Otwórz"
+msgstr "खोलें"
+
+#: templates/problem_translations/leader/dashboard.html:80
+msgid "Bieżąca edycja nie ma jeszcze etapów."
+msgstr "वर्तमान संस्करण में अभी कोई चरण नहीं है।"
+
+#: templates/problem_translations/leader/dashboard.html:85
+#: templates/problem_translations/leader/dashboard.html:93
+msgid "Język uczniów"
+msgstr "विद्यार्थियों की भाषा"
+
+#: templates/problem_translations/leader/dashboard.html:86
+msgid ""
+"Po starcie zawodów uczeń widzi zadanie w przypisanym języku (zatwierdzone "
+"tłumaczenie) oraz zawsze w wersji oficjalnej."
+msgstr ""
+"प्रतियोगिता शुरू होने के बाद विद्यार्थी प्रश्न को निर्धारित भाषा में (स्वीकृत अनुवाद) और "
+"हमेशा आधिकारिक संस्करण में भी देखता है।"
+
+#: templates/problem_translations/leader/dashboard.html:89
+msgid "Najpierw zadeklaruj języki delegacji."
+msgstr "पहले प्रतिनिधिमंडल की भाषाएँ घोषित करें।"
+
+#: templates/problem_translations/leader/dashboard.html:94
+msgid "Uczeń"
+msgstr "विद्यार्थी"
+
+#: templates/problem_translations/leader/dashboard.html:94
+#: templates/problem_translations/leader/dashboard.html:102
+msgid "Język"
+msgstr "भाषा"
+
+#: templates/problem_translations/leader/dashboard.html:104
+#, python-format
+msgid "domyślny (%(language)s)"
+msgstr "डिफ़ॉल्ट (%(language)s)"
+
+#: templates/problem_translations/leader/dashboard.html:109
+msgid "Zapisz"
+msgstr "सहेजें"
+
+#: templates/problem_translations/leader/dashboard.html:114
+msgid "Nie zgłoszono jeszcze żadnego ucznia."
+msgstr "अभी तक किसी विद्यार्थी का पंजीकरण नहीं हुआ है।"
+
+#: templates/problem_translations/leader/editor.html:22
+#: templates/problem_translations/leader/editor.html:28
+#, python-format
+msgid "Zadanie %(number)s – %(language)s"
+msgstr "प्रश्न %(number)s – %(language)s"
+
+#: templates/problem_translations/leader/editor.html:31
+msgid "tłumaczenie wspólne delegacji tego języka"
+msgstr "इस भाषा वाले सभी प्रतिनिधिमंडलों का साझा अनुवाद"
+
+#: templates/problem_translations/leader/editor.html:32
+#, python-format
+msgid "Okno zamyka się %(closes)s."
+msgstr "अवधि %(closes)s को समाप्त होगी।"
+
+#: templates/problem_translations/leader/editor.html:35
+msgid "Uwagi komisji:"
+msgstr "समिति की टिप्पणियाँ:"
+
+#: templates/problem_translations/leader/editor.html:39
+#, python-format
+msgid ""
+"Wersja oficjalna zmieniła się (teraz wersja %(version)s). Zaktualizuj "
+"tłumaczenie i wyślij je ponownie."
+msgstr ""
+"आधिकारिक संस्करण बदल गया है (अब संस्करण %(version)s)। अनुवाद को अद्यतन करें और फिर से "
+"भेजें।"
+
+#: templates/problem_translations/leader/editor.html:43
+msgid "Zaktualizuj tłumaczenie"
+msgstr "अनुवाद अद्यतन करें"
+
+#: templates/problem_translations/leader/editor.html:48
+msgid "Co się zmieniło w wersji oficjalnej"
+msgstr "आधिकारिक संस्करण में क्या बदला"
+
+#: templates/problem_translations/leader/editor.html:58
+#, python-format
+msgid "Wersja oficjalna (v%(version)s)"
+msgstr "आधिकारिक संस्करण (v%(version)s)"
+
+#: templates/problem_translations/leader/editor.html:61
+msgid "PDF wersji oficjalnej – angielski, jak u uczniów (ze znakiem wodnym)"
+msgstr "आधिकारिक संस्करण का PDF – अंग्रेज़ी में, जैसा विद्यार्थियों को मिलता है (वॉटरमार्क सहित)"
+
+#: templates/problem_translations/leader/editor.html:61
+msgid "PDF wersji oficjalnej (ze znakiem wodnym)"
+msgstr "आधिकारिक संस्करण का PDF (वॉटरमार्क सहित)"
+
+#: templates/problem_translations/leader/editor.html:66
+msgid "Tekst źródłowy (Markdown) do skopiowania"
+msgstr "कॉपी करने के लिए मूल पाठ (Markdown)"
+
+#: templates/problem_translations/leader/editor.html:70
+msgid "Organizator udostępnił wersję oficjalną tylko jako PDF."
+msgstr "आयोजक ने आधिकारिक संस्करण केवल PDF के रूप में उपलब्ध कराया है।"
+
+#: templates/problem_translations/leader/editor.html:75
+msgid "Tłumaczenie"
+msgstr "अनुवाद"
+
+#: templates/problem_translations/leader/editor.html:82
+msgid "Bieżące tłumaczenie to plik PDF."
+msgstr "वर्तमान अनुवाद एक PDF फ़ाइल है।"
+
+#: templates/problem_translations/leader/editor.html:83
+msgid "Podgląd (ze znakiem wodnym)"
+msgstr "पूर्वावलोकन (वॉटरमार्क सहित)"
+
+#: templates/problem_translations/leader/editor.html:89
+msgid "Wyślij PDF do akceptacji"
+msgstr "PDF स्वीकृति के लिए भेजें"
+
+#: templates/problem_translations/leader/editor.html:93
+msgid "Przejdź na tekst"
+msgstr "पाठ पर जाएँ"
+
+#: templates/problem_translations/leader/editor.html:97
+msgid "Wgraj nowy PDF"
+msgstr "नया PDF अपलोड करें"
+
+#: templates/problem_translations/leader/editor.html:101
+#: templates/problem_translations/leader/editor.html:134
+msgid "Wgraj PDF"
+msgstr "PDF अपलोड करें"
+
+#: templates/problem_translations/leader/editor.html:116
+msgid ""
+"Markdown: # nagłówek, **pogrubienie**, *kursywa*, listy „- ”, tabele z „|”. "
+"Wzory LaTeX: $E=mc^2$ w tekście, $$…$$ w osobnym wierszu. Szkic zapisuje się "
+"sam po chwili przerwy w pisaniu."
+msgstr ""
+"Markdown: # शीर्षक, **बोल्ड**, *इटैलिक*, सूचियाँ “- ”, तालिकाएँ “|” से। LaTeX सूत्र: "
+"पाठ के भीतर $E=mc^2$, अलग पंक्ति में $$…$$। लिखना कुछ देर रुकने पर ड्राफ़्ट अपने-आप सहेज "
+"लिया जाता है।"
+
+#: templates/problem_translations/leader/editor.html:118
+msgid "Zapisz szkic"
+msgstr "ड्राफ़्ट सहेजें"
+
+#: templates/problem_translations/leader/editor.html:119
+msgid "Wyślij do akceptacji"
+msgstr "स्वीकृति के लिए भेजें"
+
+#: templates/problem_translations/leader/editor.html:123
+msgid ""
+"Autozapis nie powiódł się – zmiany nie są zapisane. Skopiuj swój tekst i "
+"odśwież stronę."
+msgstr "स्वतः सहेजना विफल रहा – बदलाव सहेजे नहीं गए हैं। अपना पाठ कॉपी करें और पेज फिर से लोड करें।"
+
+#: templates/problem_translations/leader/editor.html:130
+msgid "Zamiast tekstu: wgraj przetłumaczony PDF"
+msgstr "पाठ के बजाय: अनूदित PDF अपलोड करें"
+
+#: templates/problem_translations/leader/editor.html:139
+msgid ""
+"Tłumaczenie czeka na decyzję komisji. Możesz cofnąć wysłanie, żeby "
+"wprowadzić poprawki."
+msgstr ""
+"अनुवाद समिति के निर्णय की प्रतीक्षा में है। सुधार करने के लिए आप भेजना वापस ले सकते हैं।"
+
+#: templates/problem_translations/leader/editor.html:142
+msgid "Cofnij wysłanie"
+msgstr "भेजना वापस लें"
+
+#: templates/problem_translations/leader/editor.html:148
+msgid "Podgląd PDF (ze znakiem wodnym)"
+msgstr "PDF पूर्वावलोकन (वॉटरमार्क सहित)"
+
+#: templates/problem_translations/leader/editor.html:156
+msgid "Historia wersji"
+msgstr "संस्करण इतिहास"
+
+#: templates/problem_translations/leader/editor.html:159
+#, python-format
+msgid "wersja %(number)s, wysłana %(at)s"
+msgstr "संस्करण %(number)s, %(at)s को भेजा गया"
+
+#: templates/problem_translations/leader/editor.html:160
+msgid "zatwierdzona"
+msgstr "स्वीकृत"
+
+#: templates/problem_translations/leader/editor.html:161
+msgid "zwrócona"
+msgstr "लौटाया गया"
+
+#: templates/problem_translations/leader/editor.html:162
+msgid "wycofana"
+msgstr "वापस लिया गया"
+
+#: templates/problem_translations/mail/approved_body.txt:3
+#, python-format
+msgid ""
+"Komisja zatwierdziła tłumaczenie zadania %(number)s na język: %(language)s. "
+"Po starcie zawodów uczniowie Twojej drużyny zobaczą tę wersję."
+msgstr ""
+"समिति ने प्रश्न %(number)s के अनुवाद को स्वीकृत कर दिया है, भाषा: %(language)s। "
+"प्रतियोगिता शुरू होने के बाद आपकी टीम के विद्यार्थी यही संस्करण देखेंगे।"
+
+#: templates/problem_translations/mail/approved_body.txt:10
+#: templates/problem_translations/mail/outdated_body.txt:11
+#: templates/problem_translations/mail/returned_body.txt:13
+msgid "Olimpiada Kwantowa"
+msgstr "क्वांटम ओलंपियाड"
+
+#: templates/problem_translations/mail/approved_body.txt:11
+#: templates/problem_translations/mail/outdated_body.txt:12
+#: templates/problem_translations/mail/returned_body.txt:14
+msgid "Wiadomość wysłana automatycznie; prosimy na nią nie odpowiadać."
+msgstr "यह संदेश स्वचालित रूप से भेजा गया है; कृपया इसका उत्तर न दें।"
+
+#: templates/problem_translations/mail/approved_subject.txt:1
+#, python-format
+msgid "Tłumaczenie zadania %(number)s (%(language)s) zatwierdzone"
+msgstr "प्रश्न %(number)s का अनुवाद (%(language)s) स्वीकृत"
+
+#: templates/problem_translations/mail/outdated_body.txt:4
+#, python-format
+msgid ""
+"Organizator zmienił wersję oficjalną zadania %(number)s (teraz wersja "
+"%(version)s). Tłumaczenia na języki: %(languages)s są oznaczone jako "
+"nieaktualne – zaktualizuj je i wyślij ponownie do akceptacji."
+msgstr ""
+"आयोजक ने प्रश्न %(number)s का आधिकारिक संस्करण बदल दिया है (अब संस्करण %(version)s)। "
+"इन भाषाओं के अनुवाद पुराने के रूप में चिह्नित हैं: %(languages)s – कृपया उन्हें अद्यतन करें और "
+"फिर से स्वीकृति के लिए भेजें।"
+
+#: templates/problem_translations/mail/outdated_subject.txt:1
+#, python-format
+msgid "Zmiana wersji oficjalnej zadania %(number)s – zaktualizuj tłumaczenie"
+msgstr "प्रश्न %(number)s के आधिकारिक संस्करण में बदलाव – अनुवाद अद्यतन करें"
+
+#: templates/problem_translations/mail/returned_body.txt:4
+#, python-format
+msgid ""
+"Komisja zwróciła do poprawy tłumaczenie zadania %(number)s na język: "
+"%(language)s."
+msgstr ""
+"समिति ने प्रश्न %(number)s के अनुवाद को सुधार के लिए लौटा दिया है, भाषा: "
+"%(language)s।"
+
+#: templates/problem_translations/mail/returned_body.txt:8
+msgid ""
+"Uwagi komisji i edytor tłumaczenia znajdziesz w panelu opiekuna drużyny:"
+msgstr "समिति की टिप्पणियाँ और अनुवाद संपादक आपको टीम लीडर पैनल में मिलेंगे:"
+
+#: templates/problem_translations/mail/returned_subject.txt:1
+#, python-format
+msgid "Tłumaczenie zadania %(number)s (%(language)s) zwrócone do poprawy"
+msgstr "प्रश्न %(number)s का अनुवाद (%(language)s) सुधार के लिए लौटाया गया"
+
+#: templates/problem_translations/student/problem.html:7
+#, python-format
+msgid "Zadanie %(number)s"
+msgstr "प्रश्न %(number)s"
+
+#: templates/problem_translations/student/problem.html:12
+msgid "Moje zadania"
+msgstr "मेरे प्रश्न"
+
+#: templates/problem_translations/student/problem.html:14
+#, python-format
+msgid "Tłumaczenie: %(language)s."
+msgstr "अनुवाद: %(language)s।"
+
+#: templates/problem_translations/student/problem.html:15
+msgid "Wersja oficjalna (PDF)"
+msgstr "आधिकारिक संस्करण (PDF)"
+
+#: templates/problem_translations/student/problem.html:17
+msgid ""
+"Wersja oficjalna została zmieniona po zatwierdzeniu tego tłumaczenia – "
+"sprawdź wersję oficjalną (PDF)."
+msgstr "इस अनुवाद के अनुमोदन के बाद आधिकारिक संस्करण बदल गया – आधिकारिक संस्करण (PDF) देखें।"
+
+#: templates/problem_translations/student/problem.html:20
+#, python-format
+msgid ""
+"Tłumaczenie na język %(wanted)s nie jest dostępne – pokazujemy język "
+"%(shown)s, drugi język Twojej drużyny."
+msgstr "%(wanted)s में अनुवाद उपलब्ध नहीं है – आपकी टीम की दूसरी भाषा %(shown)s दिखाई जा रही है।"
+
+#: templates/problem_translations/student/problem.html:25
+msgid "Treść zadania (PDF)"
+msgstr "प्रश्न का पाठ (PDF)"
+
+#: templatetags/problem_translations.py:40
+#, python-format
+msgid "Treść w języku: %(language)s"
+msgstr "पाठ की भाषा: %(language)s"
+
+#: views_leader.py:136
+msgid "Języki delegacji zostały zapisane."
+msgstr "प्रतिनिधिमंडल की भाषाएँ सहेज ली गई हैं।"
+
+#: views_leader.py:151
+msgid "Język ucznia został zapisany."
+msgstr "विद्यार्थी की भाषा सहेज ली गई है।"
+
+#: views_leader.py:271
+msgid "Szkic zapisany."
+msgstr "ड्राफ़्ट सहेजा गया।"
+
+#: views_leader.py:278
+msgid ""
+"Wersja oficjalna zmieniła się, odkąd otworzono edytor – sprawdź zmiany przed "
+"wysłaniem."
+msgstr "संपादक खोलने के बाद आधिकारिक संस्करण बदल गया है – भेजने से पहले बदलाव देखें।"
+
+#: views_leader.py:298
+msgid ""
+"Okno tłumaczeń jest zamknięte – zmiany nie zostały zapisane. Skopiuj swój "
+"tekst."
+msgstr "अनुवाद विंडो बंद है – बदलाव सहेजे नहीं गए। अपना पाठ कॉपी करें।"
+
+#: views_leader.py:356
+msgid "Wybierz plik PDF."
+msgstr "PDF फ़ाइल चुनें।"
+
+#: views_leader.py:371
+msgid "Plik PDF został zapisany jako tłumaczenie."
+msgstr "PDF फ़ाइल अनुवाद के रूप में सहेज ली गई है।"
+
+#: views_leader.py:381
+msgid "Tłumaczenie wysłane do akceptacji."
+msgstr "अनुवाद स्वीकृति के लिए भेज दिया गया।"
+
+#: views_leader.py:408
+msgid "Wysłanie cofnięte – tłumaczenie jest znowu szkicem."
+msgstr "भेजना वापस लिया गया – अनुवाद फिर से ड्राफ़्ट है।"
+
+#: views_leader.py:415
+msgid ""
+"Tłumaczenie otwarte do aktualizacji. Uczniowie widzą dotąd zatwierdzoną "
+"wersję."
+msgstr ""
+"अनुवाद अद्यतन के लिए खोल दिया गया है। तब तक विद्यार्थी पहले से स्वीकृत संस्करण ही देखते हैं।"
+
+#: views_leader.py:424
+msgid "Tłumaczenie jest znowu tekstem – możesz pisać w edytorze."
+msgstr "अनुवाद फिर से पाठ है – आप संपादक में लिख सकते हैं।"

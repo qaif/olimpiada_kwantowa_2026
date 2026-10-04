@@ -1,0 +1,15 @@
+{% load i18n %}{% autoescape off %}{% comment %}
+  Zwrot tłumaczenia do poprawy (TR-01). Bez treści komentarza komisji i bez tytułu zadania: list
+  wychodzi poza platformę, a komentarz bywa cytatem z tajnego zadania – czyta się go w panelu.
+{% endcomment %}{% blocktranslate trimmed with number=number language=language %}
+Komisja zwróciła do poprawy tłumaczenie zadania {{ number }} na język: {{ language }}.
+{% endblocktranslate %}
+
+{% translate "Uwagi komisji i edytor tłumaczenia znajdziesz w panelu opiekuna drużyny:" %}
+
+{{ link }}
+
+--
+{{ brand.competition|default:_("Olimpiada Kwantowa") }}
+{% translate "Wiadomość wysłana automatycznie; prosimy na nią nie odpowiadać." %}
+{% endautoescape %}

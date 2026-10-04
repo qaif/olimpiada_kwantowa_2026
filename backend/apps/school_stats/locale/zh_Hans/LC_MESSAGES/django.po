@@ -1,0 +1,286 @@
+# Chinese (Simplified) – katalog aplikacji ``apps.school_stats`` (zadanie STAT-01).
+# Zrodlem (msgid) jest polski. UWAGA: tlumaczenie MASZYNOWE (model jezykowy) – patrz
+# docs/OPERACJE.md (przeglad przez native speakera przed szeroka komunikacja).
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Olimpiada Kwantowa\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-04 19:40+0200\n"
+"PO-Revision-Date: 2026-10-04 19:40+0200\n"
+"Last-Translator: Olimpiada Kwantowa\n"
+"Language-Team: Chinese (Simplified)\n"
+"Language: zh_Hans\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+#, python-format
+msgid "mniej niż %(k)s uczestników – dane ukryte"
+msgstr "少于 %(k)s 名参赛者 – 数据已隐藏"
+
+msgid "Raport szkoły"
+msgstr "学校报告"
+
+#, python-format
+msgid "Edycja: %(edition)s · stan na %(date)s"
+msgstr "届次：%(edition)s · 截至 %(date)s"
+
+msgid "Grupa"
+msgstr "群体"
+
+msgid "Uczestnicy"
+msgstr "参赛者"
+
+msgid "Oddane prace"
+msgstr "已提交答卷"
+
+msgid "W terminie"
+msgstr "按时"
+
+msgid "Zakwalifikowani"
+msgstr "晋级"
+
+msgid "Średnia pkt"
+msgstr "平均分"
+
+msgid "wyniki ogłoszone"
+msgstr "成绩已公布"
+
+msgid "wyniki jeszcze nieogłoszone"
+msgstr "成绩尚未公布"
+
+msgid "Udział szkoły w kolejnych edycjach"
+msgstr "学校历届参赛情况"
+
+msgid "Edycja"
+msgstr "届次"
+
+msgid "Uczestnicy ze szkoły"
+msgstr "本校参赛者"
+
+#, python-format
+msgid "mniej niż %(k)s"
+msgstr "少于 %(k)s"
+
+#, python-format
+msgid "Raport zawiera wyłącznie dane zbiorcze. Grupy mniejsze niż %(k)s osób są ukryte, żeby z liczb nie dało się odczytać wyniku konkretnego ucznia. Punkty i kwalifikacja pochodzą z oficjalnie ogłoszonych wyników etapu; etap bez ogłoszonych wyników ma tylko liczbę uczestników i oddanych prac."
+msgstr "本报告仅包含汇总数据。少于 %(k)s 人的群体已隐藏，以免从数字中推断出某位学生的成绩。分数和晋级情况来自正式公布的阶段成绩；尚未公布成绩的阶段只显示参赛人数和提交答卷数。"
+
+msgid "Moi uczniowie"
+msgstr "我的学生"
+
+msgid "Szkoła"
+msgstr "学校"
+
+msgid "Wszyscy uczestnicy"
+msgstr "全体参赛者"
+
+msgid "RSPO"
+msgstr "RSPO"
+
+msgid "Miejscowość"
+msgstr "城镇"
+
+msgid "Województwo"
+msgstr "省"
+
+msgid "Uczestnicy w poprzedniej edycji"
+msgstr "上届参赛者"
+
+msgid "Zmiana"
+msgstr "变化"
+
+msgid "wpisy"
+msgstr "报名人数"
+
+msgid "średnia"
+msgstr "平均分"
+
+msgid "zakwalifikowani"
+msgstr "晋级人数"
+
+msgid "Statystyki szkół"
+msgstr "学校统计"
+
+msgid "Te same wartości stoją w tabeli pod wykresem."
+msgstr "相同数值见图表下方的表格。"
+
+#, python-format
+msgid "grupa ukryta – mniej niż %(k)s osób"
+msgstr "群体已隐藏 – 少于 %(k)s 人"
+
+msgid "panel koordynatora"
+msgstr "协调员面板"
+
+msgid "Udział szkół w edycji, porównanie z poprzednią edycją i – po ogłoszeniu wyników – średnie oraz liczba zakwalifikowanych."
+msgstr "各校本届参赛情况、与上届的对比，以及成绩公布后的平均分和晋级人数。"
+
+#, python-format
+msgid "Średnie i liczby zakwalifikowanych grup mniejszych niż %(k)s wpisów są ukryte – także w eksporcie CSV i w raportach PDF."
+msgstr "少于 %(k)s 条报名的群体，其平均分和晋级人数均被隐藏 – CSV 导出和 PDF 报告中同样如此。"
+
+msgid "Eksport CSV"
+msgstr "导出 CSV"
+
+msgid "Ten konkurs nie ma jeszcze żadnej edycji."
+msgstr "本竞赛尚无任何届次。"
+
+msgid "Kolejność"
+msgstr "排序"
+
+msgid "Pokaż"
+msgstr "显示"
+
+msgid "Szkoły z uczestnikami"
+msgstr "有参赛者的学校"
+
+#, python-format
+msgid "Szkoły w edycji %(edition)s"
+msgstr "%(edition)s 届的学校"
+
+msgid "Szkoły bez uczestników w tej edycji"
+msgstr "本届无参赛者的学校"
+
+msgid "Ranking szkół"
+msgstr "学校排名"
+
+msgid "awans"
+msgstr "晋级"
+
+msgid "Raport"
+msgstr "报告"
+
+msgid "spoza wykazu"
+msgstr "不在名录中"
+
+msgid "grupa pod progiem"
+msgstr "群体低于阈值"
+
+msgid "W tej edycji nikt jeszcze nie jest zapisany do etapu."
+msgstr "本届尚无人报名任何阶段。"
+
+msgid "Województwa"
+msgstr "各省"
+
+msgid "Szkoły"
+msgstr "学校"
+
+msgid "brak województwa"
+msgstr "无省份"
+
+msgid "Brak danych."
+msgstr "暂无数据。"
+
+msgid "Szkoły do odzyskania"
+msgstr "待重新争取的学校"
+
+#, python-format
+msgid "Szkoły, które miały uczestników w edycji %(edition)s, a w tej edycji nie mają nikogo – adresaci akcji promocyjnej."
+msgstr "在 %(edition)s 届有参赛者、本届却无人参赛的学校 – 推广活动的对象。"
+
+msgid "Każda szkoła z poprzedniej edycji ma uczestników także w tej."
+msgstr "上届的每所学校本届也有参赛者。"
+
+msgid "Statystyki uczniów i szkoły"
+msgstr "学生与学校统计"
+
+msgid "Panel opiekuna szkolnego"
+msgstr "学校指导教师面板"
+
+msgid "Udział Twoich uczniów w kolejnych etapach i edycjach. Punkty i kwalifikacja pojawiają się dopiero po oficjalnym ogłoszeniu wyników etapu."
+msgstr "您的学生在各阶段和各届的参赛情况。分数和晋级情况只有在阶段成绩正式公布后才会显示。"
+
+#, python-format
+msgid "Dane szkoły, województwa i całej olimpiady są zbiorcze. Grupy, z których dałoby się odczytać wynik konkretnej osoby (mniej niż %(k)s uczestników poza Twoimi uczniami), są ukryte."
+msgstr "学校、省份和整个奥赛的数据均为汇总数据。可能推断出个人成绩的群体（除您的学生外少于 %(k)s 名参赛者）已隐藏。"
+
+msgid "Wróć do listy uczniów"
+msgstr "返回学生列表"
+
+msgid "Raport szkoły (PDF)"
+msgstr "学校报告（PDF）"
+
+msgid "Porównanie z całą szkołą i raport dla dyrektora są dostępne, gdy Twoja szkoła jest wybrana z wykazu szkół i zweryfikowana przez organizatora. Do tego czasu widzisz swoich uczniów, województwo i całą olimpiadę."
+msgstr "当您的学校选自学校名录并经组织方核实后，才能查看全校对比和校长报告。在此之前，您只能看到您的学生、所在省份和整个奥赛的数据。"
+
+msgid "Olimpiada nie ma jeszcze żadnej edycji."
+msgstr "本奥赛尚无任何届次。"
+
+#, python-format
+msgid "Uczniowie w edycji %(edition)s"
+msgstr "%(edition)s 届的学生"
+
+msgid "Nikt jeszcze nie wskazał Twojego adresu jako adresu opiekuna."
+msgstr "尚无学生将您的地址填写为指导教师地址。"
+
+msgid "Ta edycja nie ma jeszcze etapów."
+msgstr "本届尚无阶段。"
+
+msgid "Uczeń"
+msgstr "学生"
+
+msgid "nie startuje"
+msgstr "未参赛"
+
+msgid "zapisany"
+msgstr "已报名"
+
+msgid "oddane w terminie"
+msgstr "按时提交"
+
+msgid "oddane po terminie"
+msgstr "逾期提交"
+
+msgid "brak pracy"
+msgstr "未提交"
+
+msgid "brak na liście awansujących"
+msgstr "不在晋级名单中"
+
+msgid "pkt"
+msgstr "分"
+
+msgid "wyniki nieogłoszone"
+msgstr "成绩未公布"
+
+msgid "Porównanie po ogłoszeniu wyników"
+msgstr "成绩公布后的对比"
+
+msgid "ogłoszono tylko listę awansujących"
+msgstr "仅公布了晋级名单"
+
+msgid "W tej edycji żaden etap nie ma jeszcze ogłoszonych wyników."
+msgstr "本届尚无任何阶段公布成绩。"
+
+msgid "Postęp w kolejnych edycjach"
+msgstr "历届进展"
+
+msgid "Średnia punktów w pierwszym etapie edycji z ogłoszoną pełną tabelą wyników."
+msgstr "该届第一个完整公布成绩表的阶段的平均分。"
+
+msgid "Średnia punktów w kolejnych edycjach"
+msgstr "历届平均分"
+
+msgid "Moich uczniów"
+msgstr "我的学生人数"
+
+#, python-format
+msgid "„—” oznacza brak ogłoszonych wyników albo grupę ukrytą, bo liczy mniej niż %(k)s osób."
+msgstr "“—”表示没有公布的成绩，或因人数少于 %(k)s 人而隐藏的群体。"
+
+msgid "Brak danych z poprzednich edycji."
+msgstr "暂无往届数据。"
+
+msgid "Region"
+msgstr "地区"
+
+msgid "liczba uczestników"
+msgstr "参赛人数"
+
+msgid "wyniki"
+msgstr "成绩"
+
+msgid "nazwa"
+msgstr "名称"

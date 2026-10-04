@@ -140,7 +140,7 @@ FLAG_ITEMS: dict[str, tuple[frozenset[str], frozenset[str]]] = {
     "weighted_scoring": (frozenset(), frozenset({"Rozstrzyganie remisów"})),
     "reviewer_roles": (frozenset(), frozenset({"Role recenzenckie"})),
     # --- wydanie K -----------------------------------------------------------------------------
-    "fees": (frozenset({"Wpisowe"}), frozenset({"Wpisowe"})),
+    "fees": (frozenset({"Wpisowe", "Płatności"}), frozenset({"Wpisowe", "Płatności"})),
     "onsite_logistics": (
         frozenset({"Miejsca zawodów"}),
         frozenset({"Miejsca zawodów", "Przyjazdy i potrzeby", "Obecność"}),
@@ -156,8 +156,14 @@ FLAG_ITEMS: dict[str, tuple[frozenset[str], frozenset[str]]] = {
     "workshop_materials": (frozenset({"Materiały z warsztatów"}), frozenset({"Materiały z warsztatów"})),
     # --- ocena AI (prośba organizatora z 24.09.2026) ---------------------------------------------
     "ai_grading": (frozenset({"Ocena AI"}), frozenset({"Ocena AI"})),
+    # --- medale olimpiady międzynarodowej (MED-01, 4.10.2026) --------------------------------------
+    "medals": (frozenset({"Medale"}), frozenset({"Medale"})),
     # --- webinary LiveKit (zadanie WEB-01) – pozycja za samą flagą, także bez serwera LiveKit ------
     "webinars": (frozenset({"Webinary"}), frozenset({"Webinary"})),
+    # --- statystyki szkół (STAT-01, 04.10.2026) ----------------------------------------------------
+    "school_statistics": (frozenset({"Statystyki szkół"}), frozenset({"Statystyki szkół"})),
+    # --- okna czasowe etapu (TZ-01, 4.10.2026) – ekran jest pod etapem, więc bez etapów nic --------
+    "stage_time_windows": (frozenset(), frozenset({"Okna czasowe"})),
     # --- motywy wizualne (THEME-01) ------------------------------------------------------------
     "themes": (frozenset({"Motyw serwisu"}), frozenset({"Motyw serwisu"})),
     # --- notatniki kwantowe (QC-01) ----------------------------------------------------------------
