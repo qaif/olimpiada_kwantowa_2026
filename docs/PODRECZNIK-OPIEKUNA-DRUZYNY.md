@@ -2,8 +2,8 @@
 
 This guide is for **national team leaders** of an international olympiad run on this platform
 (e.g. the International Quantum Olympiad). It is in English because the competition is. The
-organiser's side is described in `PODRECZNIK-ORGANIZATORA.md` § 10b, the operator's in
-`OPERACJE.md` § 28.
+organiser's side is described in `PODRECZNIK-ORGANIZATORA.md` § 10b (problem translations: § 10c),
+the operator's in `OPERACJE.md` § 28 (§ 29).
 
 ## 1. What a team leader does
 
@@ -63,7 +63,33 @@ that case.
   account stays: the student is removed from your team, receives an e-mail, and the organiser decides
   what happens next. After the start only the organiser can withdraw a student.
 
-## 6. Your data
+## 6. Translating the problems
+
+Open **Problem translations** from your team page (`/delegation/translations/`).
+
+- **Languages:** declare one or two languages for your delegation. The first one is the default
+  language of your students; you can assign the second one to individual students in the
+  *Students' language* table.
+- **Translation window:** the problems are secret until the competition starts. You can see the
+  official version only while the organiser's translation window is open, and every view and download
+  is logged. PDF files you download carry your delegation's watermark.
+- **Editor:** the official version is on the left, your translation on the right. Write in Markdown
+  (`# heading`, `**bold**`, `*italic*`, lists, `|` tables) with LaTeX formulas in `$…$` (inline) or
+  `$$…$$` (on their own line); the preview renders the formulas. The draft saves itself a few seconds
+  after you stop typing. Instead of text you can upload a translated PDF.
+- **Submit for approval:** the translation committee approves it or returns it with comments (you get
+  an e-mail; the comments are on the translation page). While it waits you can *Withdraw* it to make
+  changes. An approved translation is locked.
+- **Outdated:** if the organiser changes the official version, your translation is marked *outdated*
+  and you get an e-mail. Use *Update translation*, check *What changed in the official version* and
+  submit again. Your students keep the previously approved version until the new one is approved.
+- **Shared translations:** if the organiser chose shared mode, all delegations with the same language
+  work on one common text.
+
+After the competition starts, each student sees the problem in their assigned language and always
+also the official version.
+
+## 7. Your data
 
 You can download or delete your own account data under *Account*. Deleting your account removes your
 team leader role and your invitations; the students you registered stay in the team.
