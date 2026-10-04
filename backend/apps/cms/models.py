@@ -113,6 +113,8 @@ RESERVED_SLUGS = frozenset(
         # Płatności online: strona zamówienia, dokumenty i webhooki operatorów płatności (PAY-01).
         "payments",
         "plakaty",
+        # Siatka nadzoru zdalnego (``/proctoring/<etap>/``, zadanie PROC-01) – nadzorujący.
+        "proctoring",
         "register",
         "rejestracja",
         "reset",

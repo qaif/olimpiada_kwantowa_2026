@@ -90,6 +90,10 @@ PASSTHROUGH = (
     "site_edition_label",
     "cms_menu",
     "cms_menu_primary",
+    # Taśma sponsorów (THEME-02): słownik ``{"seconds", "entries": [{name, url, src, width, height}]}``
+    # z procesora ``apps.cms.sponsor_slider`` – same napisy i liczby, żeby motyw mógł postawić
+    # ``{% include "cms/_sponsor_slider.html" %}`` we własnym miejscu tylko wtedy, gdy są wpisy.
+    "sponsor_slider",
     # strona główna (``HomePage.get_context``) – slot ``home_hero``
     "page",
     "hero_slides_visible",

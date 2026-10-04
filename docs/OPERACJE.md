@@ -121,18 +121,21 @@ kasowania po stronie dostawcy nie jest potrzebny do niczego poza retencją – a
 zostawić regułom lifecycle dostawcy i odebrać kluczowi prawo `DeleteObject`. Wtedy ktoś, kto
 przejmie serwer, nie skasuje kopii tym samym kluczem, którym je wysyłał.
 
-### 1.4. Cotygodniowy test odtwarzania
+### 1.4. Conocny test odtwarzania
 
-`scripts/backup_verify.sh`, niedziela **4:40**: rozszyfrowuje najnowszą kopię, wstawia ją do
-**tymczasowego** kontenera Postgresa (dane na `tmpfs`, kontener kasowany bezwarunkowo) i liczy
-wiersze w `accounts_user`, `accounts_participant`, `competitions_stage`, `submissions_submission`
-i `core_auditlog`. Wynik melduje przez `record_backup_status --verified` (albo `--failed`).
+`scripts/backup_verify.sh`, **codziennie o 4:40** (do 4.10.2026 – w niedzielę): rozszyfrowuje
+najnowszą kopię strumieniem prosto do **tymczasowego** kontenera Postgresa (dane na `tmpfs`, sieć
+bez wyjścia, kontener kasowany bezwarunkowo), czyta w całości paczkę plików i uruchamia na
+odtworzonej bazie **wdrożoną wersję aplikacji**: migracje, liczności tabel kluczowych względem bazy
+żywej, czytelność każdego modelu, sekwencje, odszyfrowanie pól Fernet, próbka plików prac w paczce.
+Wynik: `/healthz/` i `/status.json` (`backup_restore_check`), list alarmowy przy porażce,
+`manage.py restore_check show`. Pełny opis, odczyt wyniku i postępowanie przy porażce: **§ 43**.
 
 Gdy obok sprawdzanej paczki leży `djcms-db-<ten sam stamp>.dump.gpg` (kopia z `dj.`), ten sam
 tymczasowy Postgres dostaje drugą bazę: `pg_restore` i wymóg co najmniej jednej strony
 w `cms_page`; paczka `djcms-files-<stamp>.tar.gpg` musi się rozszyfrować i dać przeczytać
 w całości (`tar -tf`). Brak paczki plików przy obecnej bazie, zero stron albo nieudany
-`pg_restore` = test nieudany (`--failed`, powód w notatce). Kopie przedwdrożeniowe
+`pg_restore` = test nieudany (sprawdzenia `djcms_db` / `djcms_files`, § 43.3). Kopie przedwdrożeniowe
 `djcms-db-pre-*.dump` nie biorą w tym udziału.
 
 Po co, skoro `backup.sh` kończy się bez błędu: „`pg_dump` zwrócił 0” nie znaczy „z tej paczki da
@@ -150,7 +153,8 @@ tail -50 /var/log/olimpiada-backup.log
 
 `/status.json` (publiczny) niesie `backup_last_ok`, `backup_last_verified` i `backup_offsite`
 (ostatnia kopia wyjechała poza serwer i zgadza się tam suma kontrolna, nie starsza niż 36 h) jako
-**wartości logiczne**. Dat tam nie ma świadomie: strona jest publiczna, a data ostatniej kopii mówi obcemu,
+**wartości logiczne**, a `backup_restore_check` (także w `/healthz/`) – poziom ostatniego testu
+odtwarzania: `ok|failed|stale|unknown` (§ 43.3). Dat tam nie ma świadomie: strona jest publiczna, a data ostatniej kopii mówi obcemu,
 kiedy uderzenie zaboli najbardziej.
 
 
@@ -527,7 +531,8 @@ Widzi to, czego nie widać z zewnątrz:
 | nieudane zadania Celery | ≥ 5 w 15 min | kolejka przyjmuje i gubi |
 | odpowiedzi 5xx | ≥ 10 w 15 min | ktoś właśnie nie może oddać pracy |
 | brak kopii zapasowej | > 36 h | patrz § 1 |
-| brak testu odtwarzania | > 10 dni | patrz § 1.4 |
+| brak udanego testu odtwarzania | > 36 h (do 4.10.2026: 10 dni) | patrz § 43.5 |
+| test odtwarzania nieudany | ostatni wynik `failed` (list od razu z testu, potem co godzinę) | patrz § 43.5 |
 | kopia przestała wyjeżdżać poza serwer | > 36 h od ostatniej kopii zdalnej, przy świeżej lokalnej | patrz § 1.6 (tylko gdy kopia zdalna kiedyś działała) |
 | połączenia z Postgresem | ≥ 80 % / ≥ 95 % `max_connections` | patrz § 11.2 – „Alarm zajętości połączeń” |
 
@@ -1689,6 +1694,41 @@ drogą z § 4.2) i odtwórz `web`, `worker` oraz `beat`. Migracji ani danych to 
 niczego nie zapisuje w bazie, a dokumenty powstają od nowa przy każdym pobraniu
 (`apps/results/certificates.py`), więc wycofanie jest natychmiastowe i bezstratne.
 
+### 9.7. Reset hasła: host, język, nadawca, konta bez hasła (AUTH-01a, `docs/tasks/AUTH-01a.md`)
+
+Jak działa: link w liście prowadzi pod **host, z którego przyszło żądanie** (`iqo-official.org`,
+`olimpiadakwantowa.pl`, `/<prefiks>/` konkursu pod prefiksem), list jest w języku interfejsu tego
+konkursu i – od AUTH-01a – wychodzi od **nadawcy konkursu** (`Competition.from_email`, pusty =
+`DEFAULT_FROM_EMAIL`), tak jak aktywacja i zaproszenia. List idzie zadaniem na kolejce `mail`.
+Konto z Google/Facebooka bez hasła dostaje link, gdy adres potwierdził dostawca albo nasza
+aktywacja; konto przed aktywacją dostaje link resetu, którego zapis aktywuje konto; zaproszony uczeń
+– ponowione zaproszenie (najwyżej raz na 10 min z formularzy publicznych); konto zablokowane
+i zanonimizowane – nic. Strona odpowiedzi jest zawsze ta sama. Limit: 5/h na IP, na IP+adres
+i **na adresata** (bez IP). Koordynator nie aktywuje ręcznie konta z niezaakceptowanym zaproszeniem
+– wysyła zaproszenie ponownie.
+
+**Nadawca a relay.** `ALLOWED_SENDER_DOMAINS` (domyślnie `SITE_DOMAIN`; lista rozdzielona spacją) czyta
+i usługa `mail`, i aplikacja: nadawca konkursu spoza listy jest pomijany – listy idą od
+`DEFAULT_FROM_EMAIL`, a w logu `web`/`worker` pada raz ostrzeżenie „Nadawca konkursu … jest spoza
+ALLOWED_SENDER_DOMAINS”. Dopisanie drugiej domeny (np. `olimpiadakwantowa.pl iqo-official.org`) wymaga
+rekordów SPF/DKIM/DMARC tej domeny (klucz DKIM generuje usługa `mail` przy starcie – rekord TXT
+z `docker compose exec mail cat /etc/opendkim/keys/<domena>.txt`) i odtworzenia `mail` oraz `web`/`worker`.
+W wariancie B (zewnętrzny dostawca) wolno ustawić `*` – wtedy aplikacja nie ogranicza nadawców.
+
+Do sprawdzenia na produkcji (jednorazowo i po każdej zmianie nadawcy konkursu):
+
+1. **Nadawca każdego konkursu jest w `ALLOWED_SENDER_DOMAINS`.** Inaczej aplikacja po cichu (poza
+   jednym ostrzeżeniem w logu) wysyła od `DEFAULT_FROM_EMAIL`. Sprawdzenie:
+   `docker compose exec web python manage.py shell -c "from apps.tenancy.models import Competition as C; print(list(C.objects.values_list('slug','from_email')))"`
+   i `docker compose logs web worker | grep ALLOWED_SENDER_DOMAINS`. Wyjście: pusty `from_email`
+   (nadawca instalacji) albo druga domena w `ALLOWED_SENDER_DOMAINS` razem z SPF/DKIM/DMARC.
+2. **Odwrotny DNS i SPF/DKIM** domeny nadawcy – README § 4.2 (bez zmian).
+3. **`https` w linku**: `SECURE_PROXY_SSL_HEADER` (production.py) + `X-Forwarded-Proto` z Caddy –
+   każda domena z `EXTRA_DOMAINS` ma blok proxy z tym nagłówkiem (`scripts/render_caddyfile.sh`).
+4. **Próba na żywo**: „Nie pamiętasz hasła?” na `https://iqo-official.org/password-reset/` i na
+   `https://olimpiadakwantowa.pl/password-reset/` na skrzynkę testową – list po angielsku/polsku,
+   link pod ten sam host, nadawca konkursu, worker loguje „Wysłano 1 wiadomości”.
+
 ## 10. CI: podział testów na shardy (v0.27.3)
 
 Zadanie `pytest` w `.github/workflows/ci.yml` idzie w pięciu równoległych shardach
@@ -2568,7 +2608,7 @@ wtedy pomijana (na serwerze Ubuntu: CET/CEST).
 
 ### 19.4. Przejście na produkcji
 
-**Kiedy:** poza godzinami zgłoszeń i oceniania, nie w oknie kopii nocnej (3:15, w niedzielę też
+**Kiedy:** poza godzinami zgłoszeń i oceniania, nie w oknie kopii nocnej (3:15 i test odtwarzania
 4:40 – skrypt odmówi, gdy kopia trwa). Dzień wcześniej koordynator może wystawić komunikat na
 stronie („przerwa techniczna ok. 5 minut o …”). Przez czas przerwy proxy podaje stronę
 **„Prace techniczne”** (503, § 20) z planowaną godziną końca – włącza ją i wyłącza sam skrypt.
@@ -3072,8 +3112,8 @@ polecenie odtworzenia wypisuje log kroku 4a.
 
 Kopia nocna (`scripts/backup.sh`, § 1.2) przy `DJCMS_ENABLED=1` obejmuje bazę
 (`djcms-db-<stamp>.dump.gpg`) i wolumen plików (`djcms-files-<stamp>.tar.gpg`) – zaszyfrowane,
-wysyłane i sprzątane razem z kopią główną; cotygodniowy test odtwarzania sprawdza je razem z nią
-(§ 1.4). Kopia plików wymaga **działającego** kontenera `djcms` – zatrzymany `djcms` w nocy daje
+wysyłane i sprzątane razem z kopią główną; conocny test odtwarzania sprawdza je razem z nią
+(§ 1.4, § 43). Kopia plików wymaga **działającego** kontenera `djcms` – zatrzymany `djcms` w nocy daje
 przebieg nieudany (kopia główna mimo to powstaje). Odtwarzanie: § 2.4.
 
 ```bash
@@ -3796,6 +3836,19 @@ wejścia na rozmowy: `interview.joined` (`participant`/`coordinator`, `interview
 (znika razem z kontem – `SET_NULL`). Etykieta pokoju jest tekstem koordynatora – podręcznik prosi,
 żeby nie wpisywać w nią nazwisk gości.
 
+### 25.9. LiveKit jako alternatywa dla pokoi rozmów (STAGE-LK-01)
+
+Koordynator może dla etapu w formie rozmowy wybrać dostawcę **„LiveKit (pokój na platformie)”**
+(`docs/tasks/STAGE-LK-01.md`). Opcja pojawia się w formularzu etapu dopiero przy skonfigurowanym LiveKit
+(§ 36). Uprawnienia, okna i widoki wejścia są **te same**, co w tym rozdziale – reguła mieszka w
+`apps.competitions.room_access` i obsługuje oba serwery; Jitsi działa jak dotąd. Nadzór zdalny rozmowy
+(tylko LiveKit) – § 39.5. Wycofanie: zmiana dostawcy etapu na Jitsi przed zapisami. Pokój jest
+przypisany **terminowi**: zapisy już zrobione zostają w LiveKit do końca etapu, a **nowe zapisy na
+termin, który ma już zapis w LiveKit, też trafiają do LiveKit** (ten sam pokój – osoby jednego
+terminu mają się spotkać); nowy dostawca dotyczy terminów bez zapisów. Zmiana dostawcy z LiveKit przy
+włączonym nadzorze zdalnym jest odrzucana – najpierw wyłącz nadzór (§ 39.5). Polecenia moderatora:
+`POST /coordinator/interview-slots/<id>/room-control/` i `/review/interview-slots/<id>/room-control/`.
+
 ## 26. Języki interfejsu per konkurs (I18N-01, `docs/tasks/I18N-01.md`)
 
 Od tego wydania **konkurs** decyduje, w jakich językach mówi jego interfejs:
@@ -3947,6 +4000,89 @@ panele, logowanie i formularze mają zawsze ramę aplikacji (tokeny i arkusz mot
 `tinycss2` (parser CSS) jest w `backend/pyproject.toml` – obraz `web`/`worker` musi być **przebudowany**
 (CI buduje go z pyproject). Bez niej import walidatora się nie powiedzie dopiero przy wgraniu paczki;
 render stron z już aktywnym motywem jej nie potrzebuje.
+
+### 30.4. Menu serwisu z panelu (THEME-02, `docs/tasks/THEME-02.md` § 1)
+
+Koordynator konkursu z flagą `themes` ustawia menu stron publicznych w **„Motyw serwisu → Menu
+serwisu”** (`/coordinator/competition/theme/menu/`): kolejność, ukrycie, nazwy per język interfejsu,
+własne odnośniki (`https://…`, `http://…` albo ścieżka `/…`; nic innego – `javascript:`, `data:`,
+`//host` są odrzucane) i grupy rozwijane (jeden poziom). Działa z każdym motywem, także z „Klasycznym”.
+
+- **Dane:** tabela `themes_sitemenu` (wiersz na konkurs, lista JSON + rewizja). Rewizja jest powielona
+  w `Competition.theme_options["menu"]`; bez tego klucza menu buduje się jak dotąd i **bez zapytania**
+  (Olimpiada Kwantowa bez nadpisań – bez zmian). Zapis unieważnia cache gościa konkursu.
+- **Audyt:** `theme.menu_saved` (przed/po), `theme.menu_reset`.
+- **Cofnięcie:** przycisk „Przywróć menu domyślne” albo z konsoli:
+  ```sh
+  docker compose exec -T web python manage.py shell -c "from apps.tenancy.models import Competition; from apps.themes.services import reset_menu; reset_menu(Competition.objects.get(slug='iqo'))"
+  ```
+- Nowa strona dodana w `/cms/` po zapisaniu menu pojawia się **na końcu** menu (nic nie znika po cichu);
+  własny odnośnik do strony wycofanej z publikacji znika z menu sam.
+
+### 30.5. Kolory, schemat, logo i kroje z panelu (THEME-02 § 2)
+
+**„Motyw serwisu → Kolory i opcje motywu”** (`/coordinator/competition/theme/customize/[?version=<id>]`):
+schemat (jasny/ciemny/systemowy – gdy `tokens.json` motywu ma obie palety), wariant logo i para krojów
+(nowe, opcjonalne pola manifestu `logos`/`fonts`), warianty układów i kolor każdego tokenu palety
+z `tokens.json`. Kontrast liczony na serwerze: para poniżej WCAG AA (4.5:1 tekst, 3:1 obwódka fokusu),
+którą zmienił koordynator, **blokuje zapis**.
+
+- **Dane:** `themes_themecustomization` (konkurs + wersja motywu); kopia opcji wersji aktywnej
+  w `Competition.theme_options` (`scheme`, `logo`, `font`, `colors`). Powrót do wcześniejszej wersji
+  w galerii przywraca jej kolory.
+- **Arkusz:** `/_theme/custom.css?s=<podpis>` z własnej domeny (CSP `'self'` – **polityka bez zmian**),
+  dołączany **po** `theme.css` (kolejność: `tokens.css` → `theme.css` → `custom.css` → akcent marki),
+  `Cache-Control: immutable`; podpis (`SECRET_KEY`, sól `apps.themes.custom`) obejmuje konkurs, wersję
+  i opcje, więc adres nie generuje arkuszy z dowolnymi kolorami ani dla cudzego konkursu.
+  **Zmiana `SECRET_KEY`** unieważnia te adresy: strony w cache gościa (≤ `PAGE_CACHE_SECONDS`)
+  przez chwilę linkują arkusz 404 (motyw bez dostosowania), potem renderują się z nowym podpisem.
+- **Audyt:** `theme.customized` (przed/po, wersja, czy aktywna), `theme.customization_reset`.
+- **Cofnięcie:** „Przywróć domyślne” na ekranie albo:
+  ```sh
+  docker compose exec -T web python manage.py shell -c "from apps.tenancy.models import Competition; from apps.themes.models import ThemeVersion; from apps.themes.services import reset_customization; c = Competition.objects.get(slug='iqo'); reset_customization(c, c.theme_version)"
+  ```
+- Tryb wysokiego kontrastu (`data-contrast="high"`) dalej wygrywa – dostosowanie zmienia tokeny
+  `--t-*`, a tryb kontrastu nadpisuje role.
+
+### 30.6. Limit i uprawnienia
+
+Oba ekrany: wyłącznie koordynator konkursu, którego domeną przyszło żądanie (inny konkurs – 403),
+flaga `themes` (wyłączona – 404), POST-y limitem `theme_settings` = **120/h na konto**
+(`REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]`). Ekrany renderują się zawsze **bez** motywu.
+
+### 30.7. Nowy slot `nav` i paczka IQO Quantum 1.1.0
+
+Lista slotów ma nowy, ósmy slot `nav` (samo menu serwisu – `templates/theme/nav.html`); domyślny
+nagłówek woła go w miejscu dawnego `<nav class="nav nav--cms">` (Olimpiada Kwantowa co do bajtu).
+Paczka `themes/iqo-quantum/` w wersji **1.1.0** korzysta z `nav`, `logos`, `fonts` i obu palet,
+więc wymaga aplikacji z THEME-02 – manifest ma `min_app_version` **0.44.0** (wgranie na starszej
+wersji: błąd „Motyw wymaga wersji aplikacji 0.44.0…”; `APP_VERSION=dev` pomija porównanie).
+
+Wdrożenie (po wdrożeniu aplikacji z THEME-02 – migracja `themes.0003` idzie w `scripts/deploy.sh`):
+
+```sh
+python themes/iqo-quantum/build_zip.py                     # → themes/iqo-quantum/dist/iqo-quantum-1.1.0.zip
+scp -i ~/.ssh/olimpiada_deploy themes/iqo-quantum/dist/iqo-quantum-1.1.0.zip deploy@<serwer>:/tmp/
+ssh -i ~/.ssh/olimpiada_deploy deploy@<serwer>
+cd /opt/olimpiada
+docker compose exec -T web python manage.py theme_install - --activate iqo < /tmp/iqo-quantum-1.1.0.zip
+```
+
+`--activate` przenosi z wersji dotychczasowej **wyłącznie** warianty układów (te, które 1.1.0 też ma),
+akcent marki, schemat, logo i kroje (o ile 1.1.0 je deklaruje) oraz menu – **bez** kolorów i promieni
+dostosowania (tokeny nowej wersji mogą znaczyć co innego). Kolory zapisane wcześniej dla samej 1.1.0
+wracają, o ile przechodzą kontrolę kontrastu; odrzucone komenda wypisuje jako „kolory dostosowania
+pominięte (kontrast)”. **Uwaga:** `iqo` ma dziś `footer=compact` z 1.0.0, a ten wariant
+istnieje też w 1.1.0 – zostanie, choć nowym domyślnym jest `columns`; nagłówek `minimal` w 1.1.0 nie
+istnieje, więc wraca do domyślnego `split`. Po aktywacji: galeria → karta 1.1.0 → stopka `columns` →
+„Zapisz opcje” (albo „Kolory i opcje motywu”). Bez `--activate` wersja czeka w galerii („Podgląd”,
+potem „Aktywuj”). Sprawdzenie po wgraniu: strona główna gościa w en i ar (`curl -s https://iqo-official.org/
+| grep -o 'data-theme="[^"]*"'` → `iqo-quantum`), `/coordinator/competition/theme/customize/` pokazuje
+obie palety. Cofnięcie: aktywacja 1.0.0 w galerii (wersja zostaje w katalogu).
+
+Kontekst szablonów paczek dostał w THEME-02 także `sponsor_slider` (same napisy i liczby – IQO 1.1.0
+stawia taśmę sponsorów w stopce), a dostosowanie – promienie `radius-*` z `tokens.json`
+(0–48 px albo 0–3 rem; IQO: `radius-leaf`, kształt przycisków).
 
 
 ## 28. Delegacje krajowe – rejestracja przez opiekunów drużyn (DEL-01, `docs/tasks/DEL-01.md`)
@@ -4194,7 +4330,7 @@ Bez konfiguracji i bez flagi `webinars` (§ 6.4) nic się nie zmienia – także
   `https://<domena>:9000`) – w `egress.yaml` `endpoint: <ten adres>`.
 - **(b) Ten sam host – małe spotkania (do kilkudziesięciu osób).** Nakładka compose z profilem
   `livekit` (`deploy/livekit/docker-compose.livekit.yml`: `livekit`, `livekit-egress`, `livekit-redis`),
-  sygnalizacja przez Caddy pod `live.<domena>` (`LIVEKIT_PROXY=1`), media UDP 50000–50100 i TCP 7881
+  sygnalizacja przez Caddy pod `live.<domena>` (`LIVEKIT_PROXY=1`), media UDP 7882 (jeden port z multipleksacją) i TCP 7881
   prosto do kontenera. TURN wyłączony (port 443 zajmuje Caddy) – uczestnicy za zaporami, które
   przepuszczają wyłącznie HTTPS, nie połączą się; dla nich wariant (a) z TURN/TLS na 443.
 
@@ -4213,12 +4349,12 @@ Bez konfiguracji i bez flagi `webinars` (§ 6.4) nic się nie zmienia – także
    Skrypt **usuwa ostatni wiersz paczki** (`//# sourceMappingURL=…map`) – mapy nie dostarczamy, a
    `collectstatic` z manifestem kończyłby się na nim błędem i `web` by nie wstał (VERSION to odnotowuje,
    pilnuje tego `apps/webinars/tests/test_static.py`).
-3. DNS: rekord `A live.<domena>` → adres serwera. **Zapora:** porty 7881/tcp i 50000–50100/udp publikuje
+3. DNS: rekord `A live.<domena>` → adres serwera. **Zapora:** porty 7881/tcp i 7882/udp publikuje
    Docker, a Docker wpisuje własne reguły iptables **przed** ufw – `ufw allow` jest tu dokumentacją,
    a `ufw deny` niczego nie zamknie. Zamyka się je zdjęciem `ports:` z nakładki albo regułą w łańcuchu
-   `DOCKER-USER` (np. `iptables -I DOCKER-USER -p udp --dport 50000:50100 -j DROP` na czas wyłączenia).
+   `DOCKER-USER` (np. `iptables -I DOCKER-USER -p udp --dport 7882 -j DROP` na czas wyłączenia).
    Sieć mostkowa, a nie `network_mode: host`: host dałby LiveKitowi wszystkie usługi hosta i porty
-   compose'a na 127.0.0.1, a ceną mostka (docker-proxy na 101 portów) przy 100 portach UDP jest do przyjęcia.
+   compose'a na 127.0.0.1, a ceną mostka jest jeden docker-proxy na porcie UDP 7882 (multipleksacja – wszyscy uczestnicy na jednym porcie).
 4. Klucze: `openssl rand -hex 32` (sekret) i dowolny klucz (np. `APIolimp1`). W `.env`:
    `LIVEKIT_URL=wss://live.<domena>`, `LIVEKIT_API_KEY=…`, `LIVEKIT_API_SECRET=…`,
    `LIVEKIT_API_URL=http://livekit:7880`, `LIVEKIT_PROXY=1`.
@@ -4779,3 +4915,335 @@ włączonym mentoringu z małoletnimi organizator musi mieć dyżur moderacyjny.
 
 **Definitywne wycofanie funkcji:** wyłączenie flagi (skutki wyżej) i – bo zgoda dotyczyła działającej
 sieci – usunięcie profili (`AlumniProfile.objects.filter(participant__competition=c).delete()`).
+
+## 43. Test odtwarzania kopii (OPS-01, `docs/tasks/OPS-01.md`)
+
+### 43.1. Po co
+
+Kopia, której nikt nie odtworzył, jest hipotezą. Co noc `scripts/backup_verify.sh` **udowadnia**,
+że najnowsza kopia daje się odtworzyć do działającej platformy – tą samą drogą, co prawdziwa
+awaria – i podnosi alarm, gdy się nie da albo gdy najnowszej kopii brakuje. Do 4.10.2026 test był
+cotygodniowy i liczył wiersze w pięciu tabelach; zepsutą kopię wykrywał po tygodniu, a obciętej do
+połowy nie wykrywał wcale.
+
+### 43.2. Jak to działa
+
+Cron hosta (`/etc/cron.d/olimpiada-backup`, zakłada go `scripts/deploy.sh`): kopia o **3:15**, test
+o **4:40**, codziennie, oba pod jednym `flock` (`/var/lock/olimpiada-backup.lock`) – test nigdy nie
+czyta paczki, którą kopia jeszcze pisze. Log: `/var/log/olimpiada-backup.log`.
+
+| Krok | Co | Gdzie |
+|---|---|---|
+| 1 | najnowsza `db-*.dump.gpg` i `files-<ten sam stamp>.tar.gpg` z `/opt/olimpiada-backups` | host |
+| 2 | liczności tabel kluczowych w **żywej** bazie (`restore_check live-counts`) | kontener `web` |
+| 3 | tymczasowy Postgres (`POSTGRES_IMAGE`), sieć `--internal`, dane na `tmpfs`, `--memory 3g --cpus 1` | nowy kontener `olimpiada-restore-check-<pid>` |
+| 4 | `gpg \| pg_restore --exit-on-error` **strumieniem** – jawny zrzut nie dotyka dysku | host → tymczasowy Postgres |
+| 5 | `gpg \| tar -tf -` – pełny odczyt paczki plików, sama lista obiektów | host (`nice`, `ionice -c3`) |
+| 5b | wersja porównawcza `dj.` (§ 22), gdy jest jej paczka z tej samej nocy | tymczasowy Postgres |
+| 6 | `restore_check verify` – sprawdzenia aplikacji (§ 43.3) | jednorazowy kontener z **obrazem i środowiskiem działającego `web`**, wyłącznie w sieci tymczasowej, `--read-only`, `--memory 1g` |
+| 7 | `restore_check record` – cache, audyt `backup.restore_check`, list przy porażce; wiersz w `/opt/olimpiada-backups/restore-checks.jsonl` | kontener `web`, host |
+
+**Bezpieczeństwo.** Cel odtworzenia to zawsze nowy kontener na nowej sieci bez wyjścia – nie widzi
+bazy produkcyjnej, Redisa ani MinIO. Podwójna bramka: skrypt odmawia, gdy cel jest kontenerem
+usługi `db`, a komenda `verify` – gdy baza nie ma przedrostka `restorecheck_`, nazywa się jak
+`POSTGRES_DB`, leży na hoście `db` albo brak `RESTORE_CHECK_ISOLATED=1`; sesja bazy jest tylko do
+odczytu. Hasło kopii idzie przez deskryptor (`--passphrase-fd`), hasło bazy tymczasowej jest losowe,
+plik ze środowiskiem `web` (z `SECRET_KEY`) leży w katalogu `700` i znika zaraz po sprawdzeniach.
+Wynik niesie wyłącznie nazwy i liczby – żadnych wartości pól; treść błędów `pg_restore` (może
+cytować wiersz) zostaje w logu crona, do listu idzie tylko kod.
+
+### 43.3. Jak czytać wynik
+
+```bash
+docker compose exec web python manage.py restore_check show          # ostatni wynik ze szczegółami
+docker compose exec web python manage.py record_backup_status --show  # znaczniki + poziom testu
+tail -3 /opt/olimpiada-backups/restore-checks.jsonl                    # historia (JSON na noc)
+grep -A14 '5/6 Sprawdzenia' /var/log/olimpiada-backup.log | tail -15   # ostatni przebieg w logu
+```
+
+Poziom (`/healthz/`, `/status.json` → `backup_restore_check`, pierwsza linia `show`):
+
+| Poziom | Znaczy |
+|---|---|
+| `ok` | ostatni test udany, nie starszy niż 36 h |
+| `failed` | ostatni test **nieudany** – kopia z tej nocy nie daje się odtworzyć albo jest niepełna; alarm co godzinę do pierwszego udanego testu |
+| `stale` | ostatni test udany, ale starszy niż 36 h – test przestał chodzić (cron, `flock`, `web` nie działał) |
+| `unknown` | brak wyniku (świeża instalacja, wyczyszczony Redis) |
+
+Sprawdzenia (`ok` / `warn` – wynik nadal udany / `fail` – wynik nieudany / `skip`):
+
+| Sprawdzenie | `fail`, gdy | `warn`, gdy |
+|---|---|---|
+| `backup_age` | kopia starsza niż 26 h (`RESTORE_CHECK_MAX_BACKUP_AGE_HOURS`) | – |
+| `migrations` | brak `django_migrations`, historia niespójna, brak migracji, które działająca wersja miała już przy zrzucie | migracje wdrożone **po** zrzucie (dokończy je `migrate`), migracje nieznane kodowi (wycofanie wersji) |
+| `row_counts` | tabela kluczowa poza widełkami 90–105 % ± 20 wierszy względem żywej bazy, brak tabeli, 0 kont | – |
+| `models_readable` | któryś model nie czyta odtworzonej bazy (rozjazd schematu z kodem) | – |
+| `sequences` | sekwencja klucza głównego za `max(id)` – pierwszy zapis po odtworzeniu by się wywrócił | – |
+| `superuser` | – | brak aktywnego superużytkownika |
+| `fernet` | szyfrogram pola logistyki nie odszyfrowuje się `SECRET_KEY` ani `SECRET_KEY_FALLBACKS` | odszyfrowuje się wyłącznie kluczem z `SECRET_KEY_FALLBACKS` |
+| `files_archive` | brak `files-<stamp>.tar.gpg` albo paczka nieczytelna | – |
+| `media_sample` | z losowej próbki 20 plików prac (`clean`) + mediów CMS brakuje w paczce > 10 % (min. 1) | brak w granicy tolerancji |
+| `djcms_db`, `djcms_files` | jak w § 1.4 | – |
+
+Przebieg przerwany przed sprawdzeniami melduje **nazwę kroku** zamiast listy: `no-backup`,
+`live-counts`, `app-image`, `app-env`, `postgres`, `guard`, `decrypt`, `pg_restore`, `checks`.
+
+### 43.4. RTO i RPO (pomiar lokalny, 4.10.2026)
+
+`scripts/tests/restore_check_e2e.sh` na stacji roboczej (Docker Desktop, WSL2), obraz
+`olimpiada/web:dev`, `postgres:18-alpine`:
+
+| Baza żywa | Zrzut `-Fc` | `pg_restore` (rozszyfrowanie w strumieniu) | Paczka plików (`tar -t`) | Sprawdzenia aplikacji | Cały test |
+|---|---|---|---|---|---|
+| po migracjach + dane testowe | 1,1 MB | 1,9 s | 0,2 s | 2,6 s | 17 s |
+| 426 MB (+1 mln wierszy audytu) | 10 MB | 8,3 s | 0,2 s | 3,5 s | 26 s |
+
+Około 10 s „całego testu” to start trzech procesów Django i kontenera Postgresa – stała, niezależna
+od rozmiaru. **RTO bazy** (od paczki do działającej bazy) rośnie liniowo z jej rozmiarem: lokalnie
+ok. 20 s na 1 GB odtworzonej bazy; na produkcji (VPS traci część czasu procesora na rzecz sąsiadów)
+licz 2–4 razy więcej. **Pełne RTO awarii serwera** to dodatkowo nowy host,
+`git` + obraz, ściągnięcie paczek z miejsca poza serwerem i odtworzenie kubełków (§ 2) – test go nie
+mierzy. Rzeczywiste liczby z produkcji: `restore_check show` (pole `czasy`) po pierwszym przebiegu –
+wpisz je tutaj.
+
+**RPO** – kopia raz na dobę o 3:15: w najgorszym razie tracimy ok. 24 h zmian (awaria tuż przed
+3:15). Test dowodzi, że ta kopia jest **użyteczna**; zepsutą kopię widać najpóźniej ok. 4:45 tej samej
+nocy (list), a brak kopii – po 26 h (`backup_age`) i po 36 h (watchdog `backup`).
+
+### 43.5. Co zrobić, gdy test się nie udał
+
+1. `docker compose exec web python manage.py restore_check show` – które sprawdzenie albo który krok.
+2. Według przyczyny:
+
+| Wynik | Najczęstsza przyczyna | Reakcja |
+|---|---|---|
+| `no-backup`, `backup_age` | kopia nocna nie powstała (§ 1.2, log `/var/log/olimpiada-backup.log`) | napraw kopię, `scripts/backup.sh`, potem test ręcznie (§ 43.6) |
+| `decrypt` | `BACKUP_PASSPHRASE` w `.env` inne niż to, którym zaszyfrowano kopię | **pilne**: porównaj z menedżerem haseł (§ 1.3); kopie zaszyfrowane nieznanym hasłem są stracone – zrób nową kopię od razu |
+| `pg_restore` | paczka obcięta (pełny dysk przy kopii), zrzut z innej wersji Postgresa | `df -h`, log `pg_restore` w `/var/log/olimpiada-backup.log`, nowa kopia |
+| `migrations` (fail) | zrzut z innej instalacji albo w połowie migracji | sprawdź, czy kopia jest z tej nocy; nowa kopia |
+| `row_counts` | zrzut obcięty **albo** masowe kasowanie w bazie żywej od nocy | porównaj liczby w `show`; jeśli zniknęło z bazy żywej – to incydent danych (§ 7), nie kopii |
+| `models_readable`, `sequences` | rozjazd kopii z wdrożonym kodem / brak `setval` w zrzucie | zgłoś programiście z wynikiem `show`; kopia sprzed wdrożenia odtworzy się po `migrate` |
+| `fernet` | zmieniony `SECRET_KEY` bez wpisania starego do `SECRET_KEY_FALLBACKS` (§ 31) | **pilne przed finałem**: przywróć stary klucz do `SECRET_KEY_FALLBACKS` w `.env`, `docker compose up -d web worker beat` |
+| `files_archive`, `media_sample` | lustro MinIO nie powstało albo jest niepełne (§ 1.2, krok 2) | log kopii, `docker compose ps minio`, nowa kopia |
+| `checks` | kontener sprawdzeń bez wyniku (pamięć, obraz) | log crona; `RESTORE_CHECK_APP_MEMORY=2g` w `.env` |
+| `postgres` | brak pamięci na `tmpfs` (baza > 3 GB) | `RESTORE_CHECK_PG_MEMORY` i `RESTORE_CHECK_TMPFS` w `.env` (np. `6g`), jeśli host ma zapas |
+
+3. Po naprawie – test ręcznie (§ 43.6). Udany wynik gasi alarm (`backup-restore-check`).
+
+Progi (w `.env` serwera, czyta je skrypt i przekazuje do sprawdzeń): `RESTORE_CHECK_MAX_BACKUP_AGE_HOURS`
+(26), `RESTORE_CHECK_MIN_RATIO` (0.90), `RESTORE_CHECK_MAX_RATIO` (1.05), `RESTORE_CHECK_SLACK_ROWS`
+(20), `RESTORE_CHECK_MEDIA_SAMPLE` (20), `RESTORE_CHECK_MEDIA_MAX_MISSING_RATIO` (0.10); limity:
+`RESTORE_CHECK_PG_MEMORY` (3g), `RESTORE_CHECK_TMPFS` (3g), `RESTORE_CHECK_PG_CPUS` (1),
+`RESTORE_CHECK_APP_MEMORY` (1g), `RESTORE_CHECK_CPU_SHARES` (256).
+
+### 43.6. Uruchomienie ręczne i test lokalny
+
+```bash
+# na serwerze (czeka na ewentualnie trwającą kopię; kilka minut)
+cd /opt/olimpiada && flock -w 3600 /var/lock/olimpiada-backup.lock scripts/backup_verify.sh
+# konkretna paczka, np. ściągnięta z miejsca poza serwerem (§ 2.2: restore.sh --fetch)
+scripts/backup_verify.sh /opt/olimpiada-backups/db-20261003T031500Z.dump.gpg
+```
+
+Kod wyjścia 0 = wynik `ok`, 1 = nieudany (meldunek i list poszły). Lokalnie, bez serwera:
+`scripts/tests/restore_check_e2e.sh` (pełny cykl na Dockerze: kopia → test → `ok`; zrzut uszkodzony →
+`failed` + list; kopia sprzed 30 h; brak paczki plików; bramka), `RESTORE_CHECK_E2E_AUDIT_ROWS=1000000`
+dokłada balast do pomiaru RTO. Polecenia skryptu na atrapach: `scripts/tests/backup_offsite_test.sh`
+(przypadki 14 i 16), sprawdzenia aplikacji: `pytest apps/core/tests/test_restore_check.py`.
+
+### 43.7. Kroki operatora na produkcji (po wdrożeniu wersji z OPS-01, za zgodą organizatora)
+
+1. Wdrożenie zwykłą drogą (`scripts/deploy.sh`) – krok 8/8 przepisuje `/etc/cron.d/olimpiada-backup`.
+   Sprawdzenie: `cat /etc/cron.d/olimpiada-backup` (dwie linie z `flock`, test `40 4 * * *`)
+   i `command -v flock` (pakiet `util-linux`, na Ubuntu jest zawsze).
+2. `grep ^ALERT_EMAILS= /opt/olimpiada/.env` – bez adresów list alarmowy nie wyjdzie (§ 3.2).
+3. Rozmiar bazy wobec limitu `tmpfs` (3 GB):
+   `docker compose exec db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "SELECT pg_size_pretty(pg_database_size(current_database()))"'`
+   i `free -h` (test zajmuje w nocy do 3 GB + 1 GB RAM). Baza > 2 GB – podnieś
+   `RESTORE_CHECK_PG_MEMORY`/`RESTORE_CHECK_TMPFS` w `.env`.
+4. Pierwszy test od razu (poza godzinami zgłoszeń):
+   `cd /opt/olimpiada && flock -w 3600 /var/lock/olimpiada-backup.lock scripts/backup_verify.sh`,
+   potem `docker compose exec web python manage.py restore_check show` – poziom `ok`.
+5. Czasy z `show` (pole `czasy`: `db_restore_s`, `total_s`) wpisz do § 43.4 jako RTO produkcji.
+6. `curl -s https://olimpiadakwantowa.pl/status.json | python3 -m json.tool | grep backup_restore_check`
+   – `"ok"`. W monitorze zewnętrznym (§ 3.1) dodaj monitor słowa kluczowego
+   `"backup_restore_check": "ok"` na `/status.json`.
+7. (Opcjonalnie) próba listu alarmowego: `docker compose exec web python manage.py restore_check
+   record --failure proba-alarmu --detail "próba listu"` – list do `ALERT_EMAILS`; alarm gaśnie po
+   kolejnym udanym teście (krok 4).
+8. Następnego ranka: `grep -A14 '5/6 Sprawdzenia' /var/log/olimpiada-backup.log | tail -15` – przebieg
+   z crona o 4:40.
+
+Wycofanie: wdrożenie poprzedniej wersji przywraca cotygodniowy wpis crona; po teście zostają tylko
+wpisy audytu `backup.restore_check`, klucz `backup:restore_check` w Redisie i plik
+`restore-checks.jsonl` (ok. 2 KB na noc, bez danych osobowych).
+
+## 39. Nadzór zdalny etapów online (PROC-01, `docs/tasks/PROC-01.md`)
+
+Koordynator włącza nadzór **dla wybranego etapu online** (`Etapy → Nadzór zdalny`); uczeń przechodzi
+w konsoli `/me/proctoring/<etap>/` zgodę, sprawdzenie sprzętu, (opcjonalnie) zdjęcie dokumentu
+i nadaje kamerę do pokoju LiveKit; nadzorujący pracują w siatce `/proctoring/<etap>/`. Serwer LiveKit,
+klucze i webhook – **te same, co webinary** (§ 36). Bez flagi `proctoring` nic się nie zmienia: adresy
+404, bramka treści etapu i strażnicy w serwisach wysyłki i testu nie robią zapytań.
+
+### 39.1. Włączenie (kolejność)
+
+1. Wdrożenie z migracjami `proctoring.0001`–`0002` (obraz kompiluje też `apps/*/locale/`).
+2. Serwer LiveKit wg § 36 – przy nadzorze **wariant (a)** (osobna maszyna, § 39.3). Webhook ten sam
+   (`/integrations/livekit/webhook/`); nadzór używa `participant_joined/left`,
+   `track_published/unpublished`, `egress_ended`.
+3. Nagrywanie (tylko gdy organizator je włączy): polityka konta egress w MinIO obejmuje także
+   `submissions/proctoring/*` – zaktualizuj ją z `deploy/livekit/policy-egress.json`
+   (`mc admin policy create local egress-livekit policy-egress.json` → `mc admin policy attach …`)
+   i ustaw w `egress.yaml` `cpu_cost.track_cpu_cost` (komentarz w przykładzie).
+4. Restart `web worker beat` (zadanie beat `proctoring-purge`, 03:40 – retencja nośników i zdjęć).
+5. Flaga konkursu `proctoring` w `/admin/` (`feature_flags`) – **po** decyzji organizatora i ocenie
+   skutków (DPIA, `docs/PODRECZNIK-ORGANIZATORA.md` § 10m), aktualizacji polityki prywatności
+   (sekcja „Nadzór zdalny”), wzoru zgody opiekuna i regulaminu etapu.
+6. Okna w strefach (TZ-01): gdy w instalacji jest `apps.time_windows`, nadzór bierze okno ucznia
+   **sam** (`apps.time_windows.access.effective_window` → `opens_at`, `deadline_at` + tolerancja
+   etapu). `PROCTORING_WINDOW_ADAPTER` zostaje wyłącznie na inny, własny kalendarz.
+7. Próba generalna na etapie testowym (rodzaj „Runda”) z dwoma kontami uczniów i jednym nadzorującym:
+   siatka, wiadomość, incydent, raport, (gdy włączone) nagranie; awaria – zatrzymaj LiveKit i sprawdź
+   zachowanie `block`/`allow`.
+
+Zmienne (`.env`, opcjonalne): `PROCTORING_LEAD_MINUTES` (30), `PROCTORING_GRACE_MINUTES` (30),
+`PROCTORING_RETENTION_DAYS` (30), `PROCTORING_MAX_RETENTION_DAYS` (180), `PROCTORING_WINDOW_ADAPTER`,
+`PROCTORING_UNPROCTORED_AFTER_FAILURES` (3), `PROCTORING_LATE_START_MINUTES` (15).
+
+### 39.2. Bezpieczeństwo – jak to działa
+
+- **Bramka** (`ProctoringGateMiddleware`): w oknie etapu z nadzorem PDF zadania, wysyłka (WWW i API),
+  start i strona testu (oraz – po scaleniu TR-01 – tłumaczenia zadań) widzą wyłącznie uczniowie etapu
+  z gotową sesją i personel (koordynator, komisja). Niezalogowany – logowanie albo 403, zalogowany bez
+  zgłoszenia – 403. Konto liczone w kolejności DRF (token przed sesją). Wysyłka rozwiązania i start
+  testu powtarzają regułę w serwisach (druga linia obrony).
+- **Pokoje per grupa**: `proc-<konkurs>-<klucz>-<grupa>`; grupa = `a<przydział>` (uczeń przydzielony
+  koordynatorowi albo członkowi komisji – także uczeń delegacji), `d<delegacja>` (uczeń delegacji bez
+  przydziału albo przydzielony swojemu opiekunowi), `m` (bez przydziału). Token nadzorującego otwiera
+  **jeden** pokój; opiekun drużyny – wyłącznie pokój swojej delegacji, członek komisji – pokoje swoich
+  uczniów. Grupa `m` powyżej 250 osób – ostrzeżenie na ekranie koordynatora (rozdziel uczniów).
+- Uczeń: `canSubscribe=false`, `canPublishData=false`, `canPublishSources` = kamera (+ ekran/mikrofon,
+  gdy wymagane), pusta nazwa. Nadzorujący: `hidden`, bez nadawania. Wiadomości przez serwer (`SendData`).
+- **Wyproszenia** (`RoomService/RemoveParticipant`): wycofanie zgody i anonimizacja konta – uczeń
+  (i stop aktywnych nagrań); odpięcie przydziału – nadzorujący i jego uczniowie (wracają z nowym
+  tokenem do nowego pokoju); odwołanie opiekuna w DEL-01 – sygnał wyprasza go z pokoju delegacji;
+  zmiana przydziału / „Rozdziel” – uczeń ze starego pokoju.
+- **Zgoda** ważna tylko dla bieżącej wersji **i ustawień etapu** (nagrywanie, mikrofon, ekran, zdjęcie –
+  w skrócie dowodu); zmiana ustawień = nowa zgoda. Niepełnoletni: potwierdzona online zgoda opiekuna,
+  sprawdzana przy każdym tokenie i w bramce (wycofana – gasi zgodę na nadzór), plus oświadczenie
+  ucznia o wiedzy i zgodzie opiekuna na nadzór.
+- **Praca bez nadzoru**: domyślnie **`block`**. Przy `allow` – wyłącznie gdy serwer nieskonfigurowany,
+  nieosiągalny dla platformy albo po `PROCTORING_UNPROCTORED_AFTER_FAILURES` zgłoszonych nieudanych
+  połączeniach; odmowa/odłączenie kamery – prośba o alternatywę. Powód widać w siatce, raporcie i CSV.
+- Limity per konto: `proctoring_token` 60/h, `proctoring_coordinator_token` 1200/h (przełączanie
+  ~100 grup w IQO), `proctoring_action` 600/h, `proctoring_client` 600/h – odpowiedź 429 w JSON-ie.
+- Nagrania (Track Egress, WebM, bez transkodowania): `submissions/proctoring/<konkurs>/<klucz>/<pseudonim>/…`,
+  odczyt adresem na 15 min, wyłącznie koordynator i komisja odwoławcza, audyt `proctoring.recording_viewed`.
+
+### 39.3. Pojemność – szacunek dla 300 uczniów (kamera 320×240, 10 kl./s)
+
+| Pozycja | Szacunek |
+|---|---|
+| Strumień kamery (VP8, limit 150 kb/s, bez simulcastu) | ~100–150 kb/s + ~10 % narzutu RTP/SRTP |
+| Wejście do SFU, 300 kamer | **~45–50 Mb/s** |
+| Wyjście do nadzorujących (np. 15 osób × 20 kafli widocznej strony) | ~45 Mb/s (+3–4 Mb/s na każdą stronę 24 kafli koordynatora) |
+| Ekran (gdy wymagany; 2 kl./s, ≤ 300 kb/s) | +~90 Mb/s wejścia przy 300 uczniach; wyjście tylko „na żądanie” |
+| Mikrofon (gdy wymagany; Opus) | +~30 kb/s na ucznia; nadzorujący odbiera dźwięk jednego kafla naraz |
+| Transfer w etapie 3 h (sama kamera) | ~60 GB wejścia + ~60 GB wyjścia |
+| Nagrania (tylko przy `record`) | ~65 MB/h na ucznia → **~60 GB** na etap 3 h × 300 uczniów |
+| Platforma (Django) | puls 300/min (5 żądań/s), odpytanie wiadomości co 20 s (~15 żądań/s), webhooki w falach przy starcie |
+
+Zalecenie: **osobna maszyna LiveKit 8 vCPU (dedykowane, nie VPS z „steal” – § 36.1), 8–16 GB RAM,
+łącze ≥ 500 Mb/s symetryczne**; SFU przy tak niskich przepływnościach ma duży zapas CPU (przekazuje
+pakiety, nie koduje). Pokoje per przydział/delegację rozkładają się na węzły klastra (Redis). Porty:
+przy kilkuset uczestnikach zakres 50000–50100 nie wystarczy – ustaw `rtc.udp_port` (multipleksowanie
+UDP na jednym porcie) albo szerszy zakres i zaporę. Nagrywanie: Track Egress nie transkoduje, ale każdy
+egress to osobny proces – na 300 nagrań naraz zaplanuj 2–3 węzły egress (8 vCPU / 16 GB,
+`track_cpu_cost` 0.1–0.2) i **próbę obciążeniową** przed etapem; ~60 GB w buckecie na etap.
+
+### 39.4. Awarie, retencja i wyłączenie
+
+- LiveKit niedostępny w trakcie etapu: `block` (domyślne) – treść zamknięta, koordynator zatwierdza
+  alternatywę uczniom, którzy zgłoszą się w konsoli; `allow` – „Kontynuuj bez nadzoru” z powodem.
+- Awaryjnie: zdjąć flagę `proctoring` (bramka znika natychmiast) albo przestawić etap na `allow`.
+- Retencja: beat `apps.proctoring.tasks.purge_expired` (codziennie) – zdjęcia dokumentu po etapie,
+  nagrania, dziennik, wiadomości i uwagi do prośby o alternatywę 30 dni po wynikach i oknie reklamacji;
+  ręcznie – `docker compose exec web python manage.py shell -c "from apps.proctoring.services import purge_expired; print(purge_expired())"`.
+  Wstrzymanie usunięcia ucznia – pole „powód wstrzymania” na ekranie nadzoru etapu.
+
+### 39.5. Rozmowy etapu w LiveKit i nadzór rozmowy (STAGE-LK-01)
+
+- Etap-rozmowa z dostawcą `livekit` (§ 25.9) używa tego samego serwera i webhooka; adres pokoju przy
+  zapisie to `livekit://olimpiada-…` (identyfikator, nie link). Nowa migracja: `competitions.0034`
+  (lista wyboru dostawcy).
+- Uprawnienia LiveKit odwzorowują Jitsi: każda rola nadaje i odbiera; **żaden token przeglądarki
+  nie ma `roomAdmin`** – moderator (koordynator, aktywna komisja) wydaje polecenia przez platformę
+  (odbierz/oddaj głos, usuń, wpuść ponownie; `…/room-control/`, limit `interview_control` 600/h,
+  audyt `interview.room_control` z pseudonimem osoby). Token ważny w oknie terminu.
+- Przed każdym tokenem (rozmowa, próba sprzętu, pokoje nadzoru `proc-…`) platforma woła
+  `RoomService/CreateRoom` (idempotentnie) – serwer ma `room.auto_create: false`; awaria = 502.
+- Decyzje moderatora przeżywają ponowne wejście: osoba usunięta nie dostaje nowego tokenu na ten
+  termin, osoba bez głosu – token bez nadawania, dopóki moderator nie kliknie „Wpuść ponownie” /
+  „Oddaj głos” (lista na stronie pokoju moderatora).
+- Próba sprzętu ma **osobny pokój na zapis** (`…-b<zapis>-test`; komisja – `…-s<konto>-test`) – uczniowie
+  jednego terminu nie spotykają się bez moderatora i bez nadzoru.
+- `livekit://…` jest zawsze pokojem platformy (nigdy linkiem w ekranach i listach); bez serwera
+  wejście odpowiada „Serwer wideo nie odpowiada” (502), a nie 404.
+- Nagrywania pokoi rozmów **nie ma** (jak w Jitsi), chyba że etap ma nadzór z `record` – wtedy
+  nagrywana jest kamera ucznia **z ważną zgodą** (zgoda obejmuje `record`; włączenie nagrywania
+  w trakcie wymaga nowej zgody), nigdy ucznia z zatwierdzoną alternatywą; sesji nadzoru nie zakłada
+  webhook (Track Egress, retencja § 39.4).
+- Zmiana dostawcy etapu z LiveKit przy włączonym nadzorze – odmowa w formularzu; etap, który przestał
+  być LiveKit (np. z `/admin/`), ma nadzór ignorowany.
+- Pojemność: rozmowa to kilka osób w pokoju – pomijalne obciążenie wobec § 39.3.
+
+## 45. Zmiana hasła w panelu konta (AUTH-01b, `docs/tasks/AUTH-01b.md`)
+
+Nowa aplikacja `apps.password_change` – **bez migracji, bez zmiennych środowiskowych, bez flagi**:
+ekran `/account/password/` działa po wdrożeniu dla każdego zalogowanego konta, we wszystkich konkursach
+(także pod prefiksem ścieżki).
+
+- **Jedna droga do hasła i adresu.** Zmiana hasła i adresu e-mail żąda **aktualnego hasła**
+  (`apps.accounts.reauth`); konto bez hasła (Google/Facebook) ustawia je najpierw linkiem na obecny
+  adres. Pozostałe drogi są zamknięte: `WAGTAIL_PASSWORD_MANAGEMENT_ENABLED = False` i
+  `WAGTAIL_EMAIL_MANAGEMENT_ENABLED = False` (w `/cms/account/` nie ma paneli „Hasło” ani pola e-mail),
+  `/admin/password_change/` i `/admin/password_change/done/` przekierowują na `/account/password/`.
+  Superużytkownik zmienia **cudze** hasło w `/admin/` jak dotąd (formularz użytkownika) – to czynność
+  operatora, nie samoobsługa.
+- **Seria pomyłek:** 5 kolejnych złych haseł w jednej sesji (wspólnie: zmiana hasła i zmiana adresu)
+  kończy sesję – dalsze próby idą przez logowanie (limit `login`, 2FA). W audycie `diff.consecutive`
+  i `diff.session_ended`. Licznik żyje w sesji, nie trzeba go czyścić.
+- **Limit:** `password_change` – 10 POST-ów na godzinę **na konto** (`REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]`,
+  licznik `apps.web.throttle` w Redisie). Zmiana adresu e-mail i przycisk „Wyślij mi link do ustawienia
+  hasła” liczą się w scope `password_reset` (5/h) – od AUTH-01b też **na konto**, nie na adres IP.
+  Odmowa mówi „na tym koncie”, nie „z tego adresu”.
+- **Sesje:** zmiana hasła wylogowuje pozostałe sesje konta w aplikacji (skrót hasła w sesji Django) i kasuje
+  tokeny API; bieżąca sesja i znacznik 2FA zostają (także gdy `check_password` podniósł skrót po zmianie
+  `PASSWORD_HASHERS`). **Sesje edytora django CMS** (osobna baza, ciasteczko `djcms_sessionid`) zmiana
+  hasła **nie** kończy – wygasają po `DJCMS_SSO_SESSION_SECONDS` (domyślnie 2 h). Redaktor dostaje o tym
+  zdanie na ekranie i w liście; przy podejrzeniu przejęcia zablokuj konto w django CMS (§ 22.3).
+- **Poczta:** list „Hasło do konta zostało zmienione” idzie kolejką `mail` (worker) w języku żądania,
+  od nadawcy konkursu, z godziną w strefie ucznia (TZ-01) albo konkursu (`Competition.time_zone`) i
+  linkiem do `/password-reset/` pod hostem konkursu. Kolejkowanie jest odporne na awarię brokera:
+  zmiana się udaje, a w logu `web` zostaje `Nie udało się zakolejkować listu o zmianie hasła dla konta <id>`
+  – wtedy sprawdź Redis/worker jak przy innych listach.
+- **Audyt:** `password.changed`, `password.change_failed`, `account.email_change_failed`,
+  `password.set_link_sent` – bez sekretów.
+- **Motyw IQO:** w pasku konta adres e-mail jest odnośnikiem do ustawień konta (fragment
+  `web/_account_who.html`). Panele mają to od razu; na **stronach publicznych** z motywem `iqo-quantum`
+  odnośnik pojawi się po wgraniu paczki **1.1.1** (nagłówek i jedna reguła CSS; `min_app_version`
+  **0.45.0**, czyli dopiero po wdrożeniu wydania z AUTH-01b – na starszej aplikacji wgranie jest odrzucane):
+
+```sh
+python themes/iqo-quantum/build_zip.py   # → themes/iqo-quantum/dist/iqo-quantum-1.1.1.zip (laptop)
+scp -i ~/.ssh/olimpiada_deploy themes/iqo-quantum/dist/iqo-quantum-1.1.1.zip deploy@<serwer>:/tmp/
+docker compose exec -T web python manage.py theme_install - --activate iqo < /tmp/iqo-quantum-1.1.1.zip
+```
+
+  Bez tego kroku nic się nie psuje – 1.1.0 pokazuje adres jako zwykły tekst. Cofnięcie: aktywacja 1.1.0
+  (§ 30.1).
+- **Wycofanie funkcji:** usunięcie wiersza `apps.password_change` z `INSTALLED_APPS` i rozwinięcia
+  wzorców w `apps/web/urls.py` oraz sekcji „Hasło” w `web/account/profile.html` (danych do sprzątania
+  nie ma – funkcja niczego nie przechowuje poza `accounts.User.password` i audytem). Wymóg hasła przy
+  zmianie adresu i zamknięcie dróg Wagtaila/admina zostają – to poprawki bezpieczeństwa, nie część ekranu.

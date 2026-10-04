@@ -489,6 +489,13 @@ Dla etapu w formie rozmowy (§ 2.2). Ekran **„Rozmowy kwalifikacyjne: <etap>�
    uczestnicy jako imię i inicjał) z przyciskiem „Dołącz jako gospodarz” — w tym samym oknie czasowym
    i z tymi samymi prawami, co Ty. Ty nadal możesz wejść do każdego pokoju z ekranu terminów. Komisja
    nie widzi tu surowych adresów pokoi spoza serwera olimpiady — te przekazujesz jej sam, jak dotąd.
+   **Rozmowy w LiveKit (opcjonalnie).** W ustawieniach etapu („Dostawca wideo”) możesz zamiast Jitsi wybrać
+   **„LiveKit (pokój na platformie)”** – opcja jest widoczna, gdy operator uruchomił serwer LiveKit (ten
+   sam, co webinary). Wszystko inne zostaje: te same przyciski, te same okna czasowe i **te same
+   uprawnienia** (komisja i koordynator jako gospodarze, uczestnik bez praw moderatora). Pokój otwiera się
+   na stronie olimpiady; gospodarz ma przy osobach w pokoju „Odbierz głos” i „Usuń z pokoju”. Rozmowę
+   w LiveKit możesz dodatkowo objąć **nadzorem zdalnym** (§ 10m) – uczeń wchodzi wtedy na rozmowę
+   dopiero po zgodzie i sprawdzeniu sprzętu w konsoli nadzoru.
 5. Tabela terminów pokazuje **dane osobowe** zapisanych (kod, imię i nazwisko, e-mail) — to obok podglądu
    wyników jedyny taki ekran w serwisie, stąd odznaka „dane osobowe”.
 6. **Termin da się usunąć tylko dopóki nikt się na niego nie zapisał.**
@@ -1763,6 +1770,20 @@ co samoobsługowe „Nie pamiętasz hasła?” — nigdy nie zobaczysz ani noweg
 przycisk odmawia dla konta jeszcze nieaktywowanego, zablokowanego, bez hasła platformy i dla
 własnego konta.
 
+**Zmiana hasła przez samego użytkownika** (AUTH-01b) — każda rola, także Ty: kliknij swój adres
+e-mail w pasku konta (prowadzi do ustawień konta) → „Hasło” → **„Zmień hasło”** (`/account/password/`).
+Wymaga aktualnego hasła; po zmianie inne urządzenia i aplikacje są wylogowane, a na adres konta idzie
+list „Hasło do konta zostało zmienione”. Konto bez hasła (Google/Facebook) dostaje tam przycisk
+wysyłający link do ustawienia hasła na **własny** adres. W audycie: `password.changed`,
+`password.change_failed` (złe aktualne hasło — seria takich wpisów przy jednym koncie to sygnał, że
+ktoś zgaduje z otwartej sesji) i `password.set_link_sent`; żadnych haseł ani adresów w szczegółach.
+Pytanie „zmieniłem hasło i wylogowało mnie na telefonie” — to zamierzone. Wyjątek: otwarta sesja
+**edytora django CMS** na innym urządzeniu nie kończy się od razu (wygasa sama po kilku godzinach) —
+przy podejrzeniu przejęcia poproś administratora o zablokowanie konta w django CMS. Hasła i adresu
+nie zmienia się w `/cms/` (ekran konta Wagtaila nie ma już tych pól) ani w `/admin/` — zawsze
+w ustawieniach konta serwisu; **zmiana adresu e-mail wymaga aktualnego hasła**, a pięć błędnych
+haseł z rzędu kończy sesję (`diff.session_ended` w audycie).
+
 ### 9.4 Audyt — `/coordinator/audit/`
 
 Ekran **„Audyt”**: 100 wpisów na stronę, od najnowszego, z filtrami (fragment adresu wykonawcy, akcja,
@@ -2300,6 +2321,43 @@ po wgraniu nowszej.
 (superkoordynatora) w **„Katalogu motywów platformy”** — nie w tym ekranie. Paczka przechodzi
 kontrolę bezpieczeństwa i antywirusową; odrzucona zostaje w katalogu z raportem błędów.
 
+### Menu serwisu — przycisk „Menu serwisu”
+
+Menu stron publicznych bez wgrywania czegokolwiek i bez zmian w `/cms/`. Tabela pokazuje każdą
+pozycję menu:
+
+- **Pozycja** i przyciski **„W górę” / „W dół”** — kolejność (przyciski od razu zapisują tabelę),
+- **Widoczna** — odznacz, żeby zdjąć pozycję z menu (strona dalej działa pod swoim adresem; znika
+  też z paska, który przykleja się przy przewijaniu),
+- **Nazwa w menu** — osobno dla każdego języka interfejsu konkursu; puste pole = nazwa domyślna
+  (tytuł strony albo jego tłumaczenie, np. „Wyniki” → „Results”),
+- **Grupa** — przenosi pozycję do listy rozwijanej (jeden poziom; strona główna i pozycje, które
+  same mają listę rozwijaną, np. „Dokumenty”, nie wchodzą do grup).
+
+Pod tabelą: **„Dodaj własny odnośnik”** (nazwa w językach, adres `https://…` albo ścieżka serwisu
+zaczynająca się od `/`, albo wybór strony serwisu z listy; opcja „otwieraj w nowej karcie”)
+i **„Dodaj grupę”**. Adresów `javascript:` ani innych niż `http(s)` system nie przyjmie.
+**„Przywróć menu domyślne”** usuwa wszystkie zmiany menu. Strona dodana później w `/cms/` pojawia się
+na końcu menu — przesuń ją na właściwe miejsce. Zmiana obowiązuje od razu dla wszystkich.
+
+### Kolory i opcje motywu — przycisk „Kolory i opcje motywu”
+
+Dla motywów z paczki (nie dla „Klasycznego”) — dostosowanie wybranej wersji motywu:
+
+- **Schemat kolorów** — ciemny, jasny albo „jak w systemie odwiedzającego”, jeśli motyw ma obie palety,
+- **Logo w nagłówku** i **Kroje pisma** — warianty, które przygotował autor motywu,
+- **warianty układu** (te same, co na karcie galerii),
+- **kolory** — każdy kolor palety motywu (tło, powierzchnie, tekst, przyciski, akcent…); obok widać
+  wartość domyślną motywu.
+
+System sprawdza **kontrast** (WCAG AA): jeśli Twoja zmiana sprawi, że tekst albo obwódka
+zaznaczenia będą słabo widoczne, zapis i podgląd zostaną zablokowane z opisem, która para kolorów
+jest za słaba. **„Podgląd”** pokazuje stronę główną z tymi ustawieniami tylko Tobie; **„Zapisz”**
+— od razu dla wszystkich (wpis w audycie `theme.customized`); **„Przywróć domyślne”** wraca do
+kolorów, logo i krojów z paczki. Ustawienia zapamiętywane są osobno dla każdej wersji motywu: możesz
+przygotować kolory nowej wersji przed jej aktywacją, a powrót do poprzedniej wersji przywraca jej kolory.
+Tryb wysokiego kontrastu wybrany przez odwiedzającego zawsze ma pierwszeństwo.
+
 ## 10i. Webinary — `/coordinator/webinars/`
 
 Menu **Komunikacja → Webinary** (gdy operator włączył webinary w konkursie). Webinar to spotkanie
@@ -2448,6 +2506,74 @@ Sieć byłych uczestników (za flagą `alumni` – włącza ją operator, `docs/
   i najwyższe osiągnięcie – grupy mniejsze niż 5 osób są łączone w „inne” (razem z najmniejszymi
   grupami, jeśli „inne” byłoby mniejsze niż 5), liczebność sieci jest zaokrąglona, profile ukryte
   się nie liczą, a przy sieci mniejszej niż 5 osób rozkładów nie ma wcale.
+
+## 10m. Nadzór zdalny etapów online — `/coordinator/proctoring/`
+
+**Tylko w konkursie z przełącznikiem `proctoring`** (włącza operator) i na serwerze LiveKit (ten sam, co
+webinary). Nadzór włączasz **osobno dla każdego etapu online** (rozwiązania pisemne, test albo rozmowa
+prowadzona w pokoju **LiveKit** – § 4.7; rozmowy na Jitsi nadzoru nie mają).
+
+**Ustawienia etapu:** udostępnienie ekranu i mikrofon (domyślnie wyłączone – to dodatkowe dane), zdjęcie
+dokumentu (wył./opcjonalne/wymagane; zdjęcia znikają zaraz po etapie), **nagrywanie kamer (domyślnie
+wyłączone)**, zachowanie przy awarii serwera nadzoru – **domyślnie „zamknij”** (uczeń czeka na Twoją
+decyzję o innej formie nadzoru); „pozwól” wpuszcza do etapu tylko przy awarii po stronie serwera (albo
+po kilku nieudanych połączeniach) – sesja dostaje znacznik z powodem, a odmowa kamery nigdy nie
+wystarcza. Dopisek z instrukcją dla uczniów. **Zmiana nagrywania, mikrofonu, ekranu albo zdjęcia po
+zebraniu zgód unieważnia je** – uczniowie zgodzą się jeszcze raz, widząc nowe warunki.
+
+**Nadzorujący:** koordynatorzy widzą zawsze wszystkich uczniów. Dodaj członków komisji (widzą uczniów
+sobie przydzielonych) i – w olimpiadzie z delegacjami – **opiekunów drużyn**, którzy widzą **wyłącznie
+uczniów swojej delegacji**: każda delegacja ma osobny pokój LiveKit, a token opiekuna otwiera tylko jej
+pokój. Uczeń delegacji przydzielony członkowi komisji przechodzi do pokoju tego członka komisji (jego
+opiekun go wtedy nie widzi). „Rozdziel uczniów bez nadzorującego” przydziela uczniów delegacji ich
+opiekunom, a pozostałych po równo komisji; uczniowie przenoszeni w trakcie etapu łączą się ponownie
+sami. Usunięcie nadzorującego albo odwołanie opiekuna z delegacji **wyprasza go z pokoju od razu**.
+Gdy w grupie „bez przydziału” jest ponad 250 uczniów, ekran ostrzega – rozdziel ich.
+
+**W trakcie etapu** (`/proctoring/<etap>/`): siatka po 12/16/24 kafle (obraz pobierany tylko dla widocznej
+strony), wiadomość do ucznia, „pokaż pokój”, „pokaż dokument”, obecny/nieobecny, **incydent** (kategoria,
+waga, notatka, czas). Kafel pokazuje też **późny start** (nadzór włączony ponad 15 minut po otwarciu
+okna ucznia) i **pracę bez nadzoru z powodem**. Uczeń bez kamery prosi o alternatywę – zatwierdzasz ją
+(z ustaleniem, np. „nadzór telefoniczny o 9:00”) albo odrzucasz. **Raport ucznia** i **eksport
+incydentów (CSV, z późnym startem i pracą bez nadzoru)** widzą koordynatorzy i komisja odwoławcza; każde
+otwarcie raportu i nagrania jest w audycie. W trakcie etapu treść zadań widzą wyłącznie uczniowie etapu
+z włączonym nadzorem oraz koordynatorzy i komisja – nikt inny, także niezalogowany.
+
+**Retencja:** zdjęcia dokumentu – po etapie; nagrania, dziennik połączeń, wiadomości i uwagi do próśb –
+30 dni po ogłoszeniu wyników i zamknięciu okna reklamacji (najpóźniej 180 dni po etapie). Gdy sprawa
+ucznia jest w toku – wpisz „powód wstrzymania usunięcia” przy uczniu. Incydenty, obecność i zgody
+zostają w dokumentacji zawodów.
+
+### Ocena skutków dla ochrony danych (DPIA) – nota dla organizatora
+
+Nadzór zdalny to przetwarzanie **wysokiego ryzyka** (art. 35 RODO: systematyczne monitorowanie, wizerunek
+osób w większości niepełnoletnich, w ich domach) – **przed pierwszym włączeniem** organizator (administrator
+danych) przeprowadza i dokumentuje ocenę skutków. Punkty, które platforma dostarcza do tej oceny:
+
+- **Cel i niezbędność:** samodzielność pracy w etapie online; nadzór tylko dla etapów, w których nie da
+  się go zastąpić etapem stacjonarnym; decyzja per etap.
+- **Podstawa prawna (do potwierdzenia przez prawnika organizatora):** wyraźna zgoda ucznia (art. 6
+  ust. 1 lit. a; dowód: wersja, skrót treści **wraz z ustawieniami etapu**, czas, IP). U osoby
+  niepełnoletniej (art. 8 RODO stosowany odpowiednio) – potwierdzona online zgoda opiekuna z rejestracji
+  (mechanizm platformy, sprawdzana przy każdym wejściu; jej wycofanie gasi zgodę na nadzór) **oraz**
+  oświadczenie ucznia, że opiekun zna informację o nadzorze i się zgadza. Platforma nie wysyła opiekunowi
+  osobnej prośby o zgodę na nadzór – **dopisz nadzór zdalny do wzoru zgody opiekuna i polityki
+  prywatności** albo wybierz inną podstawę (np. art. 6 ust. 1 lit. e/f – realizacja zadań olimpiady
+  i jej rzetelność) i opisz test równowagi. Brak zgody nie wyklucza z zawodów: jest droga alternatywna.
+- **Minimalizacja:** brak automatycznej analizy obrazu i śledzenia przeglądarki; kamera 320×240, 10 kl./s;
+  ekran, mikrofon i zdjęcie dokumentu – tylko gdy włączysz; nagrywanie domyślnie wyłączone i tylko kamera;
+  uczeń nie widzi innych uczniów; pseudonimy w pokojach; wynik sprawdzenia sprzętu bez odcisku urządzenia;
+  powód prośby o alternatywę z listy (uwaga tekstowa kasowana z nośnikami).
+- **Dostęp:** nadzorujący tylko w swoim zakresie (opiekun – własna delegacja, wymuszone tokenem; odwołanie
+  wyprasza z pokoju); raporty i nagrania – koordynator i komisja odwoławcza; audyt dostępu
+  (`proctoring.*` w `/coordinator/audit/`).
+- **Retencja:** jak wyżej; usuwanie automatyczne; anonimizacja konta kasuje nośniki i wyprasza z pokoju.
+- **Odbiorcy:** hosting platformy, serwer LiveKit operatora (najlepiej własna maszyna w UE).
+- **Ryzyka do oceny przez organizatora:** obraz domu i osób trzecich w kadrze (instrukcja dla ucznia:
+  kadr bez domowników), nadmierne zbieranie przy ekranie/mikrofonie, nierówność dostępu do sprzętu
+  (alternatywa), błędne oskarżenie (incydent to notatka człowieka, decyzję podejmuje komisja z prawem
+  ucznia do wyjaśnień), praca bez nadzoru przy awarii (domyślnie `block`).
+- Wpis w rejestrze czynności („Nadzór zdalny etapów online”) pojawia się sam po włączeniu przełącznika.
 
 ## 11. Kalendarz prowadzenia edycji — ściągawka
 

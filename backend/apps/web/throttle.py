@@ -107,6 +107,7 @@ IDENTITY_FIELDS = ("email", "username")
 #:
 #: ``webinar_join`` (WEB-01) – token wejścia na webinar i czynności prowadzącego, z tego samego powodu.
 #: ``webinar_control`` – polecenia prowadzącego (osobny, wyższy kubełek).
+#:
 #: ``delegation`` (DEL-01) – opiekun drużyny i koordynator są zalogowani, a koszt (listy na wpisane
 #: adresy) przypada na konto: dwie delegacje z jednej szkoły za jednym NAT-em nie dzielą budżetu.
 #:
@@ -117,6 +118,14 @@ IDENTITY_FIELDS = ("email", "username")
 #: ``translation`` (TR-01) – edytor tłumaczeń zadań: autozapis i czynności zalogowanych opiekunów.
 #: ``checkout`` i ``payments_admin`` (PAY-01) – płacący i koordynator są zalogowani, a koszt (sesje
 #: u operatora płatności, zwroty przez API) przypada na konto.
+#:
+#: ``proctoring_token`` / ``proctoring_coordinator_token`` / ``proctoring_action`` /
+#: ``proctoring_client`` (PROC-01) – tokeny nadzoru, czynności nadzorujących i kroki konsoli ucznia:
+#: cała szkoła pisze etap za jednym NAT-em. ``interview_control`` (STAGE-LK-01) – polecenia moderatora
+#: pokoju rozmowy LiveKit (odbierz/oddaj głos, usuń, wpuść ponownie).
+#: ``theme_settings`` (THEME-02) – menu i dostosowanie motywu; wyłącznie koordynator, koszt
+#: (unieważnienie cache stron konkursu) przypada na konto.
+#:
 #: ``upload`` (PERF-01, docs/OPERACJE.md § 42.5) – wysyłka rozwiązania z panelu uczestnika, import
 #: listy i zaświadczenie opiekuna: wszystkie za logowaniem. Kubełek IP (30/h) wspólny dla sali, w której
 #: delegacja albo klasa pisze etap za jednym NAT-em, wyczerpywał się po dziesięciu uczniach z trzema
@@ -137,7 +146,13 @@ PER_USER_SCOPES = frozenset(
         "onsite_checkin",
         "checkout",
         "payments_admin",
+        "theme_settings",
         "alumni",
+        "proctoring_token",
+        "proctoring_coordinator_token",
+        "proctoring_action",
+        "proctoring_client",
+        "interview_control",
     }
 )
 
@@ -207,6 +222,21 @@ def throttle_keys(scope: str, request, identity: str | None = None) -> list[str]
     if value:
         keys.append(f"{CACHE_PREFIX}:{scope}:id:{_digest(f'{address}|{value}')}")
     return keys
+
+
+def recipient_throttle_keys(scope: str, request) -> list[str]:
+    """Kubełek **adresata** listu: sam e-mail z POST-a, bez adresu IP (AUTH-01a, L3).
+
+    Dla formularzy, które wysyłają list na adres wpisany przez anonima (reset hasła, ponowienie
+    aktywacji). Kubełki IP nie chronią skrzynki ofiary przed nadawcą, który zmienia adresy IP;
+    ten – tak. Zużywa go **każdy** POST, także na adres bez konta, więc pełny kubełek nie mówi
+    nic o tym, czy konto istnieje. Ceną jest to, że obcy może na godzinę wyczerpać komuś limit
+    resetu – świadomie: to mniejsze zło niż nielimitowane listy na cudzą skrzynkę.
+    """
+    value = posted_identity(request)
+    if not value:
+        return []
+    return [f"{CACHE_PREFIX}:{scope}:to:{_digest(value)}"]
 
 
 def user_throttle_keys(scope: str, request) -> list[str]:
@@ -468,4 +498,28 @@ class ThrottledFormMixin:
             if SAFE_TARGET_ID.fullmatch(target):
                 response["HX-Retarget"] = f"#{target}"
             response["HX-Reswap"] = "beforeend"
+        return response
+
+
+#: Komunikat odmowy kubełka **konta** (``PerAccountThrottleMixin``) – „z tego adresu” byłoby tu
+#: nieprawdą: limit liczy próby tego konta, z dowolnego miejsca.
+ACCOUNT_THROTTLE_MESSAGE = gettext_noop("Zbyt wiele prób na tym koncie. Odczekaj chwilę i spróbuj ponownie.")
+
+
+class PerAccountThrottleMixin(ThrottledFormMixin):
+    """Limit liczony **per konto**, bez kubełka adresu IP – jak ``PER_USER_SCOPES``, ale per widok.
+
+    Dla ekranów ustawień konta (AUTH-01b: zmiana hasła, zmiana adresu e-mail, link do ustawienia
+    hasła): są wyłącznie za logowaniem, a koszt, który limit ogranicza (zgadywanie aktualnego hasła
+    z cudzej sesji, listy), przypada na konto. Kubełek IP karałby całą pracownię za jednym NAT-em,
+    a zgadującemu dawałby nowy budżet z każdym nowym adresem. Scope zostaje wspólny z innymi
+    widokami (np. ``password_reset``), zmienia się wyłącznie klucz i treść odmowy.
+    """
+
+    def get_throttle_keys(self, request) -> list[str]:
+        return user_throttle_keys(self.throttle_scope, request)
+
+    def throttled_response(self, request, wait: float):
+        response = super().throttled_response(request, wait)
+        response.context_data["message"] = gettext(ACCOUNT_THROTTLE_MESSAGE)
         return response

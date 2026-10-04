@@ -8,6 +8,106 @@ dokładnie jednemu wierszowi tej tabeli.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## [Unreleased] – Zmiana hasła w panelu konta (AUTH-01b)
+
+- **Ekran „Zmień hasło”** (`/account/password/`) dla każdej roli: aktualne hasło + nowe dwa razy,
+  walidatory `AUTH_PASSWORD_VALIDATORS`, nowe ≠ aktualne. Nowa aplikacja `apps.password_change`
+  (bez migracji); reguły w serwisie, `never_cache`, CSRF, limit `password_change` 10/h na konto.
+- Po zmianie: bieżąca sesja zostaje (także znacznik 2FA), **pozostałe urządzenia wylogowane**, tokeny
+  API skasowane, audyt `password.changed` (nieudane próby `password.change_failed`), list
+  bezpieczeństwa „Hasło do konta zostało zmienione” w języku i pod hostem konkursu (z prefiksem
+  ścieżki), z linkiem do „Nie pamiętasz hasła?”, bez hasła.
+- **Konto bez hasła** (Google/Facebook): zamiast formularza przycisk „Wyślij mi link do ustawienia
+  hasła” – zwykły list resetu na własny adres konta (publiczny formularz resetu takich kont nie obsługuje),
+  audyt `password.set_link_sent`. Bez ustawiania hasła w samej sesji.
+- **Pasek konta:** adres e-mail jest odnośnikiem do ustawień konta (`web/_account_who.html`, także dla
+  nagłówka motywu); ekran edycji danych ma sekcję „Hasło”. Motyw `iqo-quantum` 1.1.1 dołącza ten fragment.
+- Poprawki po przeglądzie (PR #70): **zmiana adresu e-mail wymaga aktualnego hasła** (konto bez hasła
+  ustawia je najpierw); w `/cms/account/` nie ma już paneli hasła i e-maila
+  (`WAGTAIL_PASSWORD_MANAGEMENT_ENABLED`/`WAGTAIL_EMAIL_MANAGEMENT_ENABLED = False`), a
+  `/admin/password_change/` przekierowuje na `/account/password/`; 5 kolejnych złych haseł w sesji kończy
+  sesję (`apps.accounts.reauth`, wspólne dla obu ekranów); podniesienie skrótu hasła nie wylogowuje;
+  list odporny na awarię brokera, z godziną w strefie ucznia/konkursu (`Asia/Tokyo, UTC+09:00`);
+  uczciwe zdanie o sesjach edytora django CMS; limit zmiany adresu per konto, komunikat „na tym koncie”;
+  IQO 1.1.1 wymaga aplikacji 0.45.0 (fikstura paczki w testach).
+- Tłumaczenia w 10 katalogach `apps/password_change/locale`. Dokumentacja: `docs/tasks/AUTH-01b.md`,
+  `docs/OPERACJE.md` § 45, podręczniki uczestnika (§ 1) i organizatora (§ 9.3).
+
+## [Unreleased] – Conocny, automatyczny test odtwarzania kopii zapasowej (OPS-01)
+
+- **`scripts/backup_verify.sh` codziennie o 4:40** (dotąd w niedzielę), z kopią z 3:15 pod jednym
+  `flock` (wpis crona zakłada `scripts/deploy.sh`). Tymczasowy Postgres na nowej sieci `--internal`
+  z limitami pamięci i CPU, dane na `tmpfs`; zrzut rozszyfrowany **strumieniem** do `pg_restore`
+  (jawny zrzut nie dotyka dysku); paczka plików czytana w całości (`gpg | tar -tf`); `nice`/`ionice`
+  dla procesów hosta.
+- **Sprawdzenia aplikacji** (`apps/core/restore_check.py`, `manage.py restore_check verify`) w
+  jednorazowym kontenerze z obrazem i środowiskiem działającego `web`, podłączonym wyłącznie do bazy
+  tymczasowej: wiek kopii (26 h), migracje względem wdrożonej wersji, liczności tabel kluczowych w
+  widełkach względem bazy żywej, czytelność każdego modelu, sekwencje kluczy, superużytkownik,
+  odszyfrowanie pól Fernet (logistyka) bieżącym kluczem, próbka plików prac i mediów CMS w paczce,
+  `dj.` jak dotąd. Pomiar czasów (`db_restore_s`, `files_list_s`, `checks_s`, `total_s`).
+- **Wynik i alarmy**: `restore_check record` (cache, audyt `backup.restore_check`, natychmiastowy list
+  do `ALERT_EMAILS` przy porażce), watchdog: alarm `backup-restore-check` do pierwszego udanego testu,
+  próg „brak udanego testu” 36 h (dotąd 10 dni, `MAX_VERIFY_AGE_HOURS`); historia na hoście
+  `/opt/olimpiada-backups/restore-checks.jsonl`; `restore_check show`.
+- **`/healthz/` i `/status.json`**: nowy klucz `backup_restore_check` (`ok|failed|stale|unknown`, na
+  końcu kontraktu, bez dat; nie zmienia kodu odpowiedzi ani `status`).
+- Bezpieczeństwo: podwójna bramka izolacji (skrypt + komenda: przedrostek `restorecheck_`, host różny
+  od `db`, `RESTORE_CHECK_ISOLATED=1`), sesja tylko do odczytu, hasło kopii przez deskryptor, wynik bez
+  wartości pól; każdy błąd przebiegu = meldunek nieudany z nazwą kroku.
+- Testy: `apps/core/tests/test_restore_check.py`, `scripts/tests/backup_offsite_test.sh` (przypadki 14,
+  16), nowy `scripts/tests/restore_check_e2e.sh` (pełny cykl na lokalnym Dockerze, pomiar RTO).
+- Dokumentacja: `docs/OPERACJE.md` § 43 (oraz § 1.4, § 3.2), `docs/tasks/OPS-01.md`.
+
+## [Unreleased] – LiveKit: jeden port UDP z multipleksacją
+
+- **Zmienione:** wariant „LiveKit na tym hoście” (OPERACJE § 36) – media przez jeden port UDP 7882
+  z multipleksacją (`rtc.udp_port`) zamiast zakresu 50000–50100; TCP 7881 bez zmian. Jedna reguła
+  zapory i jeden docker-proxy zamiast 101. Istniejący `livekit/livekit.yaml` na serwerze trzeba
+  dopasować (`udp_port: 7882`, bez `port_range_*`).
+
+## [Unreleased] – Zarządzanie motywem z panelu i IQO Quantum 1.1.0 (THEME-02)
+
+- **Menu serwisu** (`/coordinator/competition/theme/menu/`): kolejność, ukrycie, nazwy per język
+  interfejsu, własne odnośniki (tylko `http(s)` i ścieżki serwisu; strona serwisu wyłącznie z drzewa
+  tego konkursu), grupy rozwijane jednego poziomu; nakładane na menu z drzewa stron bez zapytania dla
+  konkursu bez nadpisań (Olimpiada Kwantowa co do bajtu).
+- **Kolory i opcje motywu** (`/coordinator/competition/theme/customize/`): schemat jasny/ciemny/systemowy,
+  wariant logo i para krojów (nowe pola manifestu `logos`, `fonts`), kolory tokenów z `tokens.json`
+  z kontrolą kontrastu WCAG AA blokującą zapis, podgląd, „Przywróć domyślne”; dostosowanie pamiętane
+  per wersja motywu; arkusz `/_theme/custom.css` z podpisanego zestawu opcji (CSP bez zmian).
+- Audyt (`theme.menu_saved`, `theme.menu_reset`, `theme.customized`, `theme.customization_reset`),
+  limit POST `theme_settings` (120/h na konto), unieważnienie cache gościa po zapisie.
+- **Slot `nav`** (menu serwisu) – motyw może przerysować samo menu; kontekst szablonów paczek
+  dostał `sponsor_slider` (taśma sponsorów we własnym miejscu motywu); dostosowanie obejmuje też
+  promienie `radius-*` z `tokens.json`.
+- **IQO Quantum 1.1.0** (`themes/iqo-quantum/`): nowy wygląd odchodzący od Olimpiady Kwantowej
+  (nagłówek nad planszą, typografia, karty, sekcje, stopka, motywy orbitali/fal), tryb jasny, warianty
+  logo i krojów. Wgranie: `docs/OPERACJE.md` § 30.7.
+- Migracja `themes.0003` (dwie nowe tabele).
+
+## [Unreleased] – Reset hasła: nadawca konkursu, konta bez hasła i konta nieuruchomione (AUTH-01a)
+
+- **Nadawca listu resetu** to nadawca konkursu żądania (`Competition.from_email`), jak przy aktywacji
+  i zaproszeniach – do tej pory zawsze `DEFAULT_FROM_EMAIL` (IQO dostawało list od nadawcy OK).
+- **Konto bez hasła platformy** (Google/Facebook, hasło wyczyszczone przez allauth) dostaje link
+  resetu i ustawia nim hasło – Django po cichu pomijało takie konta, wbrew obietnicy z ekranów.
+- **Konto nieuruchomione** (zaproszony uczeń z importu lub delegacji, rejestracja bez aktywacji)
+  dostaje z „Nie pamiętasz hasła?” zaproszenie albo link aktywacyjny zamiast ciszy; odpowiedź strony
+  bez zmian (brak enumeracji). Reset nie aktywuje konta.
+- **Zaproszony uczeń nie uruchomi konta linkiem aktywacyjnym** (z pominięciem zgód): „Wyślij link
+  ponownie” wysyła mu zaproszenie, a `activate_with_token` odmawia takiego konta.
+- Testy całej drogi pod domeną IQO, domeną OK i prefiksem ścieżki (host linku, język, nadawca, token
+  wygasły, pamięć stron, CSRF, motyw IQO); `docs/tasks/AUTH-01a.md`, `docs/OPERACJE.md` § 9.7
+  (kontrola nadawcy w relayu na produkcji).
+- Poprawki po przeglądzie: koordynator nie aktywuje ręcznie konta z niezaakceptowanym zaproszeniem
+  (przycisk i „Konto aktywne”); konto przed aktywacją dostaje link resetu, którego zapis zastępuje hasło
+  z rejestracji i aktywuje konto; konto bez hasła – tylko z adresem potwierdzonym (allauth `verified`)
+  i nie z zaproszenia bez zgód; nadawca konkursu spoza `ALLOWED_SENDER_DOMAINS` (nowa zmienna, wspólna
+  z relayem, domyślnie `SITE_DOMAIN`) → `DEFAULT_FROM_EMAIL`; limit resetu także per adresat; zaproszenie
+  z formularzy publicznych najwyżej raz na 10 min, z audytem i z linkiem do konkursu ucznia; reset
+  koordynatora według tej samej reguły, co samoobsługa.
+
 ## [Unreleased] – Listy zapraszające do wizy: wnioski, weryfikacja, unieważnienie (VISA-01)
 
 - **Wnioski opiekuna drużyny** o list imienny (`/delegation/logistics/letters/`) dla osób z kompletnym
@@ -91,6 +191,48 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
   przypięty do 0.56.
 - Dokumentacja: `docs/OPERACJE.md` § 37, `docs/PODRECZNIK-ORGANIZATORA.md` § 10k, przewodnik opiekuna
   drużyny § 5a, podręcznik uczestnika § 7.
+
+## [Unreleased] – Rozmowy etapu w LiveKit jako alternatywa dla Jitsi (STAGE-LK-01)
+
+- Dostawca wideo etapu **„LiveKit (pokój na platformie)”** (`VideoProvider.LIVEKIT`, migracja
+  `competitions.0034`; opcja widoczna tylko przy skonfigurowanym LiveKit). Jitsi domyślne i bez zmian.
+- **Jedna reguła uprawnień** dla obu dostawców: `apps.competitions.room_access` (przeniesiona z widoków
+  Jitsi bez zmiany zachowania) – uczestnik, koordynator i komisja wchodzą tymi samymi widokami, w tych
+  samych oknach, z tymi samymi rolami (moderator Jitsi = rola `presenter`, polecenia przez platformę –
+  bez `roomAdmin` w przeglądarce; pokoje zakładane `CreateRoom` przed tokenem; decyzje moderatora
+  przeżywają ponowne wejście; osobny pokój próby na zapis; nagranie rozmowy z nadzorem tylko ze zgodą); test parytetu uruchamia
+  tę samą macierz ról na obu dostawcach.
+- Pokój na platformie (interfejs webinarów), token POST-em, polecenia moderatora przez platformę
+  (odbierz/oddaj głos, usuń; audyt `interview.room_control`). Bez drugiej integracji LiveKit.
+- Opcjonalnie z **nadzorem zdalnym** (PROC-01): zgoda i sprzęt przed rozmową, dziennik połączeń,
+  nagranie kamery przy `record`. Rejestr czynności 1.20. Opis: `docs/tasks/STAGE-LK-01.md`,
+  `docs/OPERACJE.md` § 25.9 i § 39.5.
+
+## [Unreleased] – Nadzór zdalny etapów online (PROC-01)
+
+- **Nadzór zdalny** (`apps.proctoring`, flaga konkursu `proctoring`, domyślnie wyłączona; włączany per
+  etap online): konsola ucznia `/me/proctoring/<etap>/` – wersjonowana informacja i zgoda (niepełnoletni:
+  wymagana potwierdzona online zgoda opiekuna), sprawdzenie sprzętu, opcjonalne zdjęcie dokumentu,
+  kamera 320×240/10 kl./s (+ ekran/mikrofon, gdy etap wymaga) do pokoju LiveKit; start otwiera etap
+  dopiero, gdy serwer LiveKit potwierdzi nadawanie. Zerwanie strumienia: komunikat, pasek na stronie
+  etapu, dziennik. „Nie mogę użyć kamery” → alternatywa zatwierdzana przez koordynatora.
+- **Bramka treści etapu** (`ProctoringGateMiddleware`): PDF zadania, wysyłka (WWW i API), start
+  i strona testu (oraz tłumaczenia TR-01) w oknie etapu – wyłącznie uczeń z gotową sesją i personel;
+  niezalogowany i osoba bez zgłoszenia – odmowa; token API przed sesją; druga linia obrony
+  w `create_submission` i `start_attempt`; autozapis testu nigdy. LiveKit niedostępny: `block`
+  (domyślnie) albo `allow` – tylko przy awarii serwera albo po N nieudanych połączeniach, z powodem
+  w siatce, raporcie i CSV; odmowa kamery = prośba o alternatywę.
+- Zgoda wiąże się z ustawieniami etapu (zmiana = nowa zgoda); niepełnoletni – zgoda opiekuna
+  sprawdzana przy każdym wejściu i oświadczenie o nadzorze. Wycofanie zgody, anonimizacja, odpięcie
+  nadzorującego i odwołanie opiekuna (DEL-01) wypraszają z pokoju; okna TZ-01 brane automatycznie.
+- **Nadzorujący** `/proctoring/<etap>/`: siatka 12/16/24 kafli, subskrypcja tylko widocznej strony,
+  wiadomości (serwer → `SendData` + odpytanie), „pokaż pokój/dokument”, incydenty, obecność.
+  Pokoje per delegacja / przydział: opiekun drużyny dostaje token wyłącznie do pokoju swojej delegacji.
+- **Komisja**: raport ucznia, eksport incydentów CSV, nagrania (domyślnie wyłączone; Track Egress bez
+  transkodowania) z audytem; retencja nośników 30 dni po wynikach i oknie reklamacji (beat), wstrzymanie.
+- RODO: wiersz rejestru czynności, sekcja `nadzor_zdalny` w eksporcie konta, anonimizacja kasuje
+  nośniki, nota DPIA w podręczniku organizatora. Katalogi tłumaczeń aplikacji (`apps/*/locale/`)
+  kompilowane w `Dockerfile` i sprawdzane testami. Opis: `docs/tasks/PROC-01.md`, `docs/OPERACJE.md` § 39.
 
 ## [Unreleased] – Webinary w LiveKit (WEB-01)
 

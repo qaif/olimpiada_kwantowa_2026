@@ -1118,8 +1118,21 @@ class AccountNamesForm(forms.Form):
 
 
 class EmailChangeForm(forms.Form):
-    """Wniosek o zmianę adresu e-mail konta. Adres zmienia się dopiero po kliknięciu w potwierdzenie."""
+    """Wniosek o zmianę adresu e-mail konta. Adres zmienia się dopiero po kliknięciu w potwierdzenie.
 
+    ``current_password`` (AUTH-01b, przegląd H1): adres jest loginem i drogą resetu hasła, więc jego
+    przeniesienie z przejętej sesji byłoby przejęciem konta. Pole nie jest wymagane **w formularzu**
+    – o tym, że hasło jest potrzebne (i że konto bez hasła musi je najpierw ustawić), rozstrzyga
+    serwis (``apps.accounts.reauth``), jak przy usunięciu konta.
+    """
+
+    current_password = forms.CharField(
+        label=gettext_lazy("Aktualne hasło"),
+        required=False,
+        strip=False,
+        max_length=200,
+        widget=forms.PasswordInput(attrs={"autocomplete": "current-password"}),
+    )
     new_email = forms.EmailField(
         label=gettext_lazy("Nowy adres e-mail"),
         max_length=254,
@@ -1697,11 +1710,46 @@ def _relax_video_fields(form: forms.ModelForm) -> None:
     for name in ("video_provider", "video_base_url"):
         if name in form.fields:
             form.fields[name].required = False
+    _livekit_choice_only_when_available(form)
+
+
+def _livekit_choice_only_when_available(form: forms.ModelForm) -> None:
+    """Opcja „LiveKit” (STAGE-LK-01) tylko przy skonfigurowanym serwerze LiveKit – albo gdy etap już
+    ją ma. Instalacja bez LiveKit widzi listę dostawców co do opcji taką, jak przed tą zmianą."""
+    from apps.webinars import livekit
+
+    field = form.fields.get("video_provider")
+    if field is None or livekit.configured():
+        return
+    current = getattr(getattr(form, "instance", None), "video_provider", "")
+    if current == VideoProvider.LIVEKIT:
+        return
+    field.choices = [choice for choice in field.choices if choice[0] != VideoProvider.LIVEKIT]
 
 
 def _clean_video_provider(form: forms.ModelForm) -> str:
     """Puste pole dostawcy znaczy „bez wideo”, a nie pustą wartość w kolumnie z zamkniętą listą."""
-    return form.cleaned_data.get("video_provider") or VideoProvider.NONE
+    value = form.cleaned_data.get("video_provider") or VideoProvider.NONE
+    instance = getattr(form, "instance", None)
+    current = getattr(instance, "video_provider", "") if getattr(instance, "pk", None) else ""
+    if value == VideoProvider.LIVEKIT and current != VideoProvider.LIVEKIT:
+        from apps.webinars import livekit
+
+        if not livekit.configured():
+            raise forms.ValidationError(
+                "Serwer LiveKit nie jest skonfigurowany – wybierz Jitsi albo poproś operatora platformy."
+            )
+    if current == VideoProvider.LIVEKIT and value != VideoProvider.LIVEKIT:
+        # Nadzór zdalny rozmowy działa wyłącznie w LiveKit (PROC-01, STAGE-LK-01 – przegląd M-2): zmiana
+        # dostawcy po cichu zostawiłaby etap „nadzorowany” bez nadzoru. Najpierw świadome wyłączenie.
+        from apps.proctoring.models import ProctoringConfig
+
+        if ProctoringConfig.objects.filter(stage=instance, enabled=True).exists():
+            raise forms.ValidationError(
+                "Ten etap ma włączony nadzór zdalny, który działa wyłącznie w LiveKit. Najpierw wyłącz "
+                "nadzór (Etapy → Nadzór zdalny), potem zmień dostawcę wideo."
+            )
+    return value
 
 
 def _clean_video_base_url(form: forms.ModelForm) -> str:

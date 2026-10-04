@@ -1,101 +1,103 @@
-{% load static i18n web_extras cms_extras %}{% comment %}
-  IQO Quantum – slot ``theme/header.html`` (układ ``minimal``).
+{% load i18n web_extras %}{% comment %}
+  IQO Quantum 1.1.0 – slot ``theme/header.html`` (układy ``split`` i ``centered``).
 
-  Zastępuje oba paski nagłówka z ``base.html`` (pasek konta + menu serwisu) **jednym** paskiem:
-  logo | menu serwisu | konto. Skip-link, komunikaty i ``<main>`` zostają w ``base.html``.
+  Zastępuje oba paski nagłówka z ``base.html`` **jednym** paskiem: logo | menu serwisu | konto.
+  Skip-link, komunikaty i ``<main>`` zostają w ``base.html``.
 
-  - Logo to ``<img>`` z zasobów paczki (``theme.assets`` = adres wersji w storage), więc działa
-    też w ``forced-colors`` i na wydruku. Wariant pliku wynika z ``theme.color_scheme``: ciemny →
-    białe logo, jasny → granatowe, ``auto`` → ``<picture>`` z ``prefers-color-scheme``. Obraz ma
-    pusty ``alt``; nazwę odnośnika niesie ukryty tekst z nazwą serwisu.
-  - Menu serwisu i pasek konta mają te same klasy i atrybuty co w ``base.html`` (``nav--cms``,
-    ``nav-menu``, ``account-bar``), więc skrypty aplikacji działają bez zmian. ``cms_menu_primary``
-    nie jest potrzebne: pasek jest jeden, menu nie „przeskakuje”. Pozycja „strona główna” jest
-    zwykłym odnośnikiem tekstowym (z ``aria-current``), a nie domkiem.
-  - Taśma sponsorów stoi **za** ``<header>``, we własnej sekcji z etykietą, żeby nie powiększać
-    paska przyklejanego na szerokich ekranach.
+  - Na stronie głównej pasek jest **przezroczysty i leży na planszy** (arkusz: ``body:has(…)``),
+    na pozostałych stronach – pełny, w kolorach ``brand``/``brand-text`` palety.
+  - Menu serwisu rysuje **jeden** szablon – slot ``theme/nav.html`` tej paczki. Na wąskich
+    ekranach chowa się za przyciskiem „Menu”: pusty ``<details>`` (sam ``<summary>``) przełącza
+    stan, a arkusz pokazuje panel stojący **po nim** (``.iqo-menu[open] ~ .iqo-header__nav``).
+    Bez JavaScriptu i bez zależności od tego, jak przeglądarka chowa treść zamkniętego
+    ``<details>``; od 1200 px przycisku nie ma, a menu stoi w pasku.
+  - Konto zalogowanego to rozwijane „Konto” (``<details>``): role, forum, wiadomości, materiały,
+    zgłoszenie problemu, adres e-mail i „Wyloguj” (POST z ``{% csrf_token %}``). Gość widzi
+    „Zgłoś problem”, „Zaloguj się” i rejestrację – te same stany co w ``base.html``.
+  - Logo z ``theme.logo`` (wybór koordynatora z listy ``logos`` manifestu); bez niego – poziomy
+    lockup z paczki. Wariant ``mark`` pokazuje obok znaku nazwę serwisu tekstem.
+  - Taśma sponsorów stoi w stopce tej paczki (pasek leży na planszy, więc pod nim nie ma miejsca).
   - Wszystkie napisy idą przez gettext, z tymi samymi msgid co w ``base.html``.
 {% endcomment %}
 <header class="iqo-header" data-iqo-header>
-  <div class="iqo-header__inner">
-    <a class="iqo-brand" href="{{ site_root|default:"/" }}">
-      {% if theme.color_scheme == "light" %}
-        <img class="iqo-brand__logo" src="{{ theme.assets }}assets/logo/lockup.svg" alt="" width="540" height="258">
-      {% elif theme.color_scheme == "auto" %}
-        <picture>
-          <source srcset="{{ theme.assets }}assets/logo/lockup.svg" media="(prefers-color-scheme: light)">
-          <img class="iqo-brand__logo" src="{{ theme.assets }}assets/logo/lockup-white.svg" alt="" width="540" height="258">
-        </picture>
+  <div class="iqo-header__bar">
+    {% if theme.logo %}{% firstof theme.logo.id "lockup" as logo_id %}{% else %}{% firstof "lockup" as logo_id %}{% endif %}
+    <a class="iqo-brand iqo-brand--{{ logo_id }}" href="{{ site_root|default:"/" }}">
+      {% if theme.logo %}
+        {% include "theme/partials/logo.html" with logo_light=theme.logo.light logo_dark=theme.logo.dark surface="page" %}
       {% else %}
-        <img class="iqo-brand__logo" src="{{ theme.assets }}assets/logo/lockup-white.svg" alt="" width="540" height="258">
+        {% include "theme/partials/logo.html" with logo_light=theme.assets|add:"assets/logo/lockup.svg" logo_dark=theme.assets|add:"assets/logo/lockup-white.svg" surface="page" %}
       {% endif %}
       <span class="iqo-brand__name">{{ settings.cms.SiteSettings.site_name }}</span>
       {% if site_edition_label %}{% translate "edycja" as edition_prefix %}<span class="iqo-brand__edition">{{ site_edition_label|edition_title:edition_prefix }}</span>{% endif %}
     </a>
 
-    <nav class="nav nav--cms iqo-nav" aria-label="{% translate 'Serwis' %}">
-      {% for item in cms_menu %}
-        {% if item.children %}
-          <details class="nav-menu">
-            <summary class="nav__link nav-menu__summary{% if item.active %} nav-menu__summary--active{% endif %}">{{ item.title }}</summary>
-            <ul class="nav-menu__list">
-              {% for child in item.children %}
-                <li><a class="nav-menu__link" href="{{ child.url }}"
-                       {% if child.active %}aria-current="page"{% endif %}>{{ child.title }}</a></li>
-              {% endfor %}
-            </ul>
-          </details>
-        {% else %}
-          <a class="nav__link" href="{{ item.url }}"
-             {% if item.url == request.path %}aria-current="page"{% endif %}>{{ item.title }}</a>
-        {% endif %}
-      {% endfor %}
-    </nav>
+    <details class="iqo-menu">
+      <summary class="iqo-menu__toggle"><span class="iqo-icon iqo-icon--menu" aria-hidden="true"></span><span class="iqo-menu__label">{% translate "Menu" %}</span></summary>
+    </details>
+    <div class="iqo-header__nav">
+      {% include "theme/nav.html" %}
+    </div>
 
     <nav class="account-bar iqo-account" aria-label="{% translate 'Konto' %}">
       {% include "web/_interface_prefs.html" %}
-      <span class="account-bar__sep" aria-hidden="true"></span>
       {% if user.is_authenticated %}
-        {% if is_participant %}
-          {% url 'web:me' as me_url %}
-          <a class="account-bar__link" href="{{ me_url }}"
-             {% if request.path == me_url %}aria-current="page"{% endif %}>{% translate "Mój panel" %}</a>
-        {% endif %}
-        {% if is_reviewer %}
-          {% url 'web:review-list' as review_url %}
-          <a class="account-bar__link" href="{{ review_url }}"
-             {% if request.path == review_url %}aria-current="page"{% endif %}>{% translate "Recenzje" %}</a>
-        {% endif %}
-        {% if is_appeals_committee %}
-          {% url 'web:appeals' as appeals_url %}
-          <a class="account-bar__link" href="{{ appeals_url }}"
-             {% if request.path == appeals_url %}aria-current="page"{% endif %}>{% translate "Reklamacje" %}</a>
-        {% endif %}
-        {% if is_supervisor %}
-          {% url 'web:supervisor' as supervisor_url %}
-          <a class="account-bar__link" href="{{ supervisor_url }}"
-             {% if request.path == supervisor_url %}aria-current="page"{% endif %}>{% translate "Moi uczniowie" %}</a>
-        {% endif %}
-        {% if is_coordinator %}
-          {% url 'web:coordinator' as coordinator_url %}
-          <a class="account-bar__link" href="{{ coordinator_url }}"
-             {% if request.path == coordinator_url %}aria-current="page"{% endif %}>{% translate "Koordynator" %}</a>
-        {% endif %}
-        {% include "web/_forum_link.html" %}
-        {% include "web/_chat_link.html" %}
-        {% include "web/_workshop_materials_link.html" %}
-        {% include "web/_support_link.html" %}
-        <span class="account-bar__sep" aria-hidden="true"></span>
-        <span class="account-bar__who who" title="{{ request.user.email }}">{{ request.user.email }}</span>
-        <form method="post" action="{% url 'web:logout' %}" class="inline account-bar__logout">
-          {% csrf_token %}
-          <button type="submit" class="btn btn--small btn--secondary account-bar__btn">{% translate "Wyloguj" %}</button>
-        </form>
+        <details class="iqo-acct">
+          <summary class="iqo-acct__toggle" title="{{ request.user.email }}"><span class="iqo-icon iqo-icon--account" aria-hidden="true"></span><span class="iqo-acct__label">{% translate "Konto" %}</span><span class="iqo-icon iqo-icon--chevron" aria-hidden="true"></span></summary>
+          <div class="iqo-acct__panel">
+            {% comment %}Adres prowadzi do ustawień konta (hasło, e-mail, 2FA) – fragment aplikacji (1.1.1).{% endcomment %}
+            {% include "web/_account_who.html" with css_class="account-bar__who who iqo-acct__who" %}
+            <ul class="iqo-acct__list">
+              {% if is_participant %}
+                {% url 'web:me' as me_url %}
+                <li><a class="account-bar__link" href="{{ me_url }}"
+                       {% if request.path == me_url %}aria-current="page"{% endif %}>{% translate "Mój panel" %}</a></li>
+              {% endif %}
+              {% if is_reviewer %}
+                {% url 'web:review-list' as review_url %}
+                <li><a class="account-bar__link" href="{{ review_url }}"
+                       {% if request.path == review_url %}aria-current="page"{% endif %}>{% translate "Recenzje" %}</a></li>
+              {% endif %}
+              {% if is_appeals_committee %}
+                {% url 'web:appeals' as appeals_url %}
+                <li><a class="account-bar__link" href="{{ appeals_url }}"
+                       {% if request.path == appeals_url %}aria-current="page"{% endif %}>{% translate "Reklamacje" %}</a></li>
+              {% endif %}
+              {% if is_supervisor %}
+                {% url 'web:supervisor' as supervisor_url %}
+                <li><a class="account-bar__link" href="{{ supervisor_url }}"
+                       {% if request.path == supervisor_url %}aria-current="page"{% endif %}>{% translate "Moi uczniowie" %}</a></li>
+              {% endif %}
+              {% if is_team_leader %}
+                {% url 'web:delegation' as delegation_url %}
+                <li><a class="account-bar__link" href="{{ delegation_url }}"
+                       {% if request.path == delegation_url %}aria-current="page"{% endif %}>{% translate "Moja drużyna" %}</a></li>
+              {% endif %}
+              {% if is_coordinator %}
+                {% url 'web:coordinator' as coordinator_url %}
+                <li><a class="account-bar__link" href="{{ coordinator_url }}"
+                       {% if request.path == coordinator_url %}aria-current="page"{% endif %}>{% translate "Koordynator" %}</a></li>
+              {% endif %}
+            </ul>
+            {% comment %}Fragmenty aplikacji rysują własne ``<a class="account-bar__link">`` (albo nic) –
+              stoją w osobnym pudełku, bo nie są pozycjami listy.{% endcomment %}
+            <div class="iqo-acct__extra">
+              {% include "web/_forum_link.html" %}
+              {% include "web/_chat_link.html" %}
+              {% include "web/_workshop_materials_link.html" %}
+              {% include "web/_support_link.html" %}
+            </div>
+            <form method="post" action="{% url 'web:logout' %}" class="inline account-bar__logout iqo-acct__logout">
+              {% csrf_token %}
+              <button type="submit" class="btn btn--small btn--secondary account-bar__btn">{% translate "Wyloguj" %}</button>
+            </form>
+          </div>
+        </details>
       {% else %}
-        {% include "web/_support_link.html" %}
+        <span class="iqo-account__support">{% include "web/_support_link.html" %}</span>
         {% url 'web:login' as login_url %}
         {% url 'web:register' as register_url %}
-        <a class="btn btn--small btn--secondary account-bar__btn" href="{{ login_url }}"
+        <a class="btn btn--small btn--secondary account-bar__btn iqo-account__login" href="{{ login_url }}"
            {% if request.path == login_url %}aria-current="page"{% endif %}>{% translate "Zaloguj się" %}</a>
         {% if registration.is_open %}
           <a class="btn btn--small btn--accent account-bar__btn" href="{{ register_url }}"
@@ -108,8 +110,3 @@
     </nav>
   </div>
 </header>
-{% if sponsor_slider.entries %}
-  <section class="iqo-sponsors" aria-label="{% translate 'Partnerzy i sponsorzy' %}">
-    {% include "cms/_sponsor_slider.html" %}
-  </section>
-{% endif %}

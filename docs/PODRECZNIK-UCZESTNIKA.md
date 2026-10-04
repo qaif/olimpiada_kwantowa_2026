@@ -53,12 +53,21 @@ Po rejestracji strona `/register/done/` mówi „sprawdź skrzynkę”. Na podan
 |---|---|
 | Logowanie | `/login/` |
 | Nie pamiętasz hasła | `/password-reset/` — link z listu jest jednorazowy i ważny 24 h |
+| **Zmiana hasła** (znasz aktualne) | `/account/password/` — kliknij swój adres e-mail w pasku konta → sekcja „Hasło” → „Zmień hasło” |
 | Twoje dane (imię, nazwisko, telefon, województwo, szkoła, klasa, data urodzenia) | `/me/profile/` — przycisk „Edytuj dane” w panelu |
 | **Adres e-mail opiekuna szkolnego** (pole opcjonalne) | `/me/profile/` — dopiero po jego wpisaniu nauczyciel widzi Twój postęp; da się je wyczyścić. Jeśli nauczyciel nie ma jeszcze konta, a organizator włączył tę rejestrację, założy je sam pod `/register/supervisor/` |
-| Zmiana adresu e-mail | `/account/profile/` → `/account/email/` — potwierdzenie idzie na **dotychczasowy** adres |
+| Zmiana adresu e-mail | `/account/profile/` → `/account/email/` — wymaga **aktualnego hasła**; link potwierdzający idzie na **nowy** adres, a dotychczasowy dostaje powiadomienie |
 | Język interfejsu i tryb wysokiego kontrastu | dwie ikony w pasku konta, na każdej stronie |
 | **Pobranie wszystkich swoich danych** (art. 20 RODO) | `/account/export/` — paczka ZIP z `dane.json` i wgranymi plikami, jedna na 10 minut |
 | Usunięcie konta | `/account/delete/` — patrz niżej |
+
+**Zmiana hasła.** Podajesz aktualne hasło i dwa razy nowe (co najmniej 10 znaków, nie popularne, nie
+same cyfry, niepodobne do imienia, nazwiska ani adresu). Na tym urządzeniu zostajesz zalogowany,
+a **wszystkie inne urządzenia i aplikacje są wylogowane**. Na adres konta przychodzi list „Hasło do
+konta zostało zmienione” — jeśli to nie Ty zmieniałeś hasło, od razu ustaw nowe przez „Nie pamiętasz
+hasła?” i napisz do organizatora. Kto loguje się przez Google/Facebooka i nie ma hasła, zobaczy tam
+przycisk **„Wyślij mi link do ustawienia hasła”** — hasło ustawia się dopiero pod linkiem z listu
+(bez hasła nie zmienisz też adresu e-mail). Pięć błędnych haseł z rzędu wylogowuje — zaloguj się ponownie.
 
 **Prośba nauczyciela o dopisanie jako opiekun szkolny** (od v0.38.7). Nauczyciel albo organizator,
 który wgrywa listę uczniów, nie może już sam wpisać się w Twój profil. Jeśli na liście jest adres
@@ -208,6 +217,12 @@ przepustkę na Twój pokój. Sam adres pokoju nie zadziała — nie da się go p
 przesłać dalej. Listy (potwierdzenie i przypomnienie) prowadzą do tych przycisków w panelu. W pokoju
 widać Cię jako imię i inicjał nazwiska. Gdy połączenie się zerwie po dłuższej przerwie, wróć do panelu
 i kliknij „Dołącz do rozmowy” jeszcze raz.
+
+**Rozmowa w pokoju na platformie (LiveKit).** Organizator może prowadzić rozmowy w pokoju na stronie
+olimpiady zamiast na Jitsi – przyciski i zasady są te same („Dołącz do rozmowy”, „Sprawdź kamerę
+i mikrofon”), tylko pokój otwiera się na naszej stronie. Jeśli rozmowa jest **nadzorowana zdalnie**,
+w panelu zobaczysz kartę „Nadzór zdalny”: przed rozmową wyraź zgodę i sprawdź sprzęt w konsoli nadzoru
+(§ 8d), inaczej pokój rozmowy się nie otworzy.
 
 ---
 
@@ -498,6 +513,33 @@ Pojawia się w pasku konta, gdy organizator włączył sieć absolwentów.
   organizatorowi (zgłoszenie trafia do niego od razu); pojedynczą wiadomość zgłaszasz w Wiadomościach.
 - **Zaproszenia** od organizatora (warsztaty, webinary, jury) przychodzą e-mailem; wyłączysz je w
   profilu albo odnośnikiem wypisu w każdym liście.
+
+---
+
+## 8d. Nadzór zdalny etapu online — `/me/proctoring/<etap>/`
+
+Niektóre etapy online organizator może prowadzić **z nadzorem zdalnym**. Wtedy na stronie etapu widzisz
+kartę „Nadzór zdalny”, a treść zadań (PDF), wysyłka rozwiązań i start testu otwierają się dopiero po
+włączeniu nadzoru w **konsoli nadzoru**:
+
+1. **Informacja i zgoda** – przeczytaj, kto widzi obraz z Twojej kamery, czy jest nagrywany i jak długo
+   przechowujemy dane, i zaznacz zgodę. Jeśli masz mniej niż 18 lat, najpierw Twój rodzic lub opiekun
+   prawny musi potwierdzić online zgodę na Twój udział (zakładka „Zgody” → „Poproś opiekuna o zgodę”).
+2. **Sprawdzenie sprzętu** – kamera (i mikrofon albo udostępnienie ekranu, jeśli etap tego wymaga).
+   Najlepiej aktualny Chrome, Edge, Firefox albo Safari.
+3. **Zdjęcie dokumentu** – tylko jeśli etap tego wymaga: legitymacja szkolna przed kamerą (zasłoń PESEL
+   i adres).
+4. **„Włącz nadzór”** – kamera nadaje mały obraz (bez dźwięku, chyba że etap go wymaga). Gdy serwer
+   potwierdzi nadawanie, kliknij „Przejdź do etapu” – etap otworzy się w **nowej karcie**. **Kartę konsoli
+   zostaw otwartą do końca etapu.** Jeśli połączenie się zerwie, zobaczysz czerwony komunikat w konsoli
+   i pasek na stronie etapu; konsola łączy się ponownie sama.
+
+Osoba nadzorująca może napisać do Ciebie albo poprosić o pokazanie pokoju lub dokumentu – wiadomość
+pojawi się w konsoli; kliknij „Rozumiem”. Nie ma automatycznej analizy obrazu ani śledzenia tego, co
+robisz w przeglądarce. **Nie masz kamery albo nie chcesz jej używać?** Na dole konsoli: „Poproś o inną
+formę nadzoru” – organizator odpowie w tej samej konsoli. Zgodę możesz wycofać przyciskiem w konsoli.
+
+---
 
 ## 9. Coś nie działa
 

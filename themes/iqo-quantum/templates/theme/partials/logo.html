@@ -1,0 +1,18 @@
+{% comment %}
+  IQO Quantum – logo serwisu (wspólne dla nagłówka i stopki).
+
+  Zmienne (``{% include … with … %}``):
+  - ``logo_id`` – ``lockup`` | ``full`` | ``mark`` (``theme.logo.id`` z manifestu; wymiary pliku),
+  - ``logo_light`` / ``logo_dark`` – pełne adresy plików na jasne / na ciemne tło,
+  - ``surface`` – ``cover`` (zawsze ciemne tło: stopka) albo ``page`` (nagłówek: tło zależy od
+    schematu i od tego, czy pasek leży na planszy strony głównej).
+
+  W nagłówku stoją **dwa** obrazy: ``--page`` dobrany do schematu (``theme.color_scheme`` –
+  ``light`` → plik na jasne tło, ``auto`` → ``<picture>`` z ``prefers-color-scheme``) i ``--cover``
+  (plik na ciemne tło), który arkusz pokazuje, gdy przezroczysty pasek leży na ciemnej planszy
+  albo gdy włączony jest tryb wysokiego kontrastu. W schemacie ciemnym to ten sam plik, więc
+  zostaje jeden obraz z obiema klasami. ``alt`` pusty – nazwę odnośnika niesie tekst obok.
+{% endcomment %}{% if logo_id == "mark" %}{% firstof "280" as logo_w %}{% firstof "280" as logo_h %}{% elif logo_id == "full" %}{% firstof "610" as logo_w %}{% firstof "298" as logo_h %}{% else %}{% firstof "540" as logo_w %}{% firstof "258" as logo_h %}{% endif %}{% if surface == "cover" or theme.color_scheme == "dark" %}<img class="iqo-logo iqo-logo--page iqo-logo--cover" src="{{ logo_dark }}" alt="" width="{{ logo_w }}" height="{{ logo_h }}">{% elif theme.color_scheme == "auto" %}<picture class="iqo-logo-picture iqo-logo--page">
+        <source srcset="{{ logo_light }}" media="(prefers-color-scheme: light)">
+        <img class="iqo-logo" src="{{ logo_dark }}" alt="" width="{{ logo_w }}" height="{{ logo_h }}">
+      </picture><img class="iqo-logo iqo-logo--cover iqo-logo--cover-only" src="{{ logo_dark }}" alt="" width="{{ logo_w }}" height="{{ logo_h }}">{% else %}<img class="iqo-logo iqo-logo--page" src="{{ logo_light }}" alt="" width="{{ logo_w }}" height="{{ logo_h }}"><img class="iqo-logo iqo-logo--cover iqo-logo--cover-only" src="{{ logo_dark }}" alt="" width="{{ logo_w }}" height="{{ logo_h }}">{% endif %}

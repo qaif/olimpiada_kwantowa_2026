@@ -124,19 +124,34 @@ def theme_head(context):
     request = context.get("request")
     if request is not None:
         setattr(request, CSP_FLAG, True)
+    from django.urls import reverse
+
     rt = theme.runtime
     links = [rt.tokens_url, rt.css_url]
+    # Dostosowanie koordynatora (THEME-02 § 2.3) **po** ``theme.css``: nadpisuje ``--t-*`` z ``:root``
+    # i wygrywa kolejnością także z motywem, który (wbrew zasadzie – ostrzeżenie przy wgraniu) sam
+    # ustawia ``--t-*``. Akcent marki stoi jeszcze dalej. Bez dostosowania – ani znacznika więcej
+    # (strona co do bajtu jak w THEME-01).
+    token = theme.custom_css_token
+    if token:
+        links.append(reverse("web:theme-custom") + "?s=" + token)
     parts = [format_html_join("", '\n  <link rel="stylesheet" href="{}">', ((url,) for url in links))]
     if theme.brand_accent:
-        from django.urls import reverse
-
         from ..tokens import HEX
 
         if HEX.match(theme.brand_accent):
+            from ..customize import options_digest
+
             href = reverse("web:theme-overrides") + f"?v={rt.pk}-{theme.brand_accent.lstrip('#').lower()}"
+            # Arkusz akcentu liczy „soft” od powierzchni palety **po** dostosowaniu – inne kolory
+            # dostosowania = inny adres (arkusz jest ``immutable``).
+            digest = options_digest(theme.options)
+            if digest:
+                href += f"-{digest}"
             parts.append(format_html('\n  <link rel="stylesheet" href="{}">', href))
-    if rt.meta_color:
-        parts.append(format_html('\n  <meta name="theme-color" content="{}">', rt.meta_color))
+    meta_color = theme.meta_color
+    if meta_color:
+        parts.append(format_html('\n  <meta name="theme-color" content="{}">', meta_color))
     return mark_safe("".join(str(p) for p in parts))  # noqa: S308 - części z format_html
 
 
@@ -146,7 +161,7 @@ def theme_html_attrs(context):
     theme = _theme(context)
     if theme is None:
         return ""
-    attrs = [("data-theme", theme.runtime.slug), ("data-color-scheme", theme.runtime.color_scheme)]
+    attrs = [("data-theme", theme.runtime.slug), ("data-color-scheme", theme.scheme)]
     attrs += [(f"data-layout-{key.replace('_', '-')}", value) for key, value in sorted(theme.layouts.items())]
     return format_html_join("", ' {}="{}"', attrs)
 

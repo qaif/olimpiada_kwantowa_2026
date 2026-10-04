@@ -263,17 +263,28 @@ def _assert_email_free(email: str, *, exclude_pk: int | None = None) -> str:
     return normalized
 
 
-def request_email_change(user: User, *, new_email: str, request=None) -> str:
+@sensitive_variables("current_password")
+def request_email_change(user: User, *, new_email: str, current_password: str, request=None) -> str:
     """Wysyła na **nowy** adres link potwierdzający. Do kliknięcia obowiązuje adres dotychczasowy.
 
     Kolejność jest tu całą treścią zabezpieczenia: gdyby adres zmieniał się od razu po wpisaniu,
     literówka zamykałaby drogę powrotu (login i reset hasła idą przez adres), a przejęta sesja
     pozwalałaby przenieść konto na adres napastnika jednym POST-em. Potwierdzenie na nowym adresie
     dowodzi, że skrzynka istnieje i należy do osoby, która o zmianę poprosiła.
+
+    Samo potwierdzenie nie wystarcza (przegląd H1 AUTH-01b): skrzynką „nowego adresu” jest skrzynka
+    tego, kto wpisał adres – czyli w przejętej sesji napastnika. Dlatego najpierw **aktualne hasło**
+    (``apps.accounts.reauth``: pomyłki w audycie ``account.email_change_failed``, seria pomyłek
+    kończy sesję). Konto bez hasła (Google/Facebook) ustawia je najpierw linkiem na obecny adres.
     """
+    from .reauth import confirm_current_password
+
     normalized = _assert_email_free(new_email, exclude_pk=user.pk)
     if normalized == user.email:
         raise DomainError(_("To już jest adres tego konta."), "EMAIL_UNCHANGED", status.HTTP_400_BAD_REQUEST)
+    confirm_current_password(
+        user, current_password, failed_action="account.email_change_failed", request=request
+    )
     send_email_change_confirmation(user, normalized, request=request)
     audit(user, "account.email_change_requested", user, {"confirmation_sent": True}, request=request)
     return normalized
@@ -564,6 +575,12 @@ def anonymise_account(user: User, *, actor: User | None = None, request=None) ->
     from apps.time_windows.privacy import erase_for_participants as erase_time_window_data
 
     erase_time_window_data(participants)
+    # Nadzór zdalny (PROC-01): nagrania kamer, zdjęcia dokumentu, dziennik połączeń i wiadomości
+    # znikają, zgody na nadzór dostają ``withdrawn_at``. Incydenty i obecność zostają przy
+    # pseudonimowym profilu – jak prace i oceny, są dokumentacją zawodów.
+    from apps.proctoring.services import erase_for_participants as erase_proctoring
+
+    erase_proctoring(participants)
 
     # Pseudonimy widza materiałów z warsztatów (``apps.workshop_materials``) – licznik wyświetleń
     # materiału zostaje, liczba unikalnych widzów spada o to konto.
@@ -885,6 +902,19 @@ def update_account_by_coordinator(
             "NO_COMMITTEE_PROFILE",
             status.HTTP_400_BAD_REQUEST,
         )
+
+    if values.get("is_active") and not user.is_active:
+        from .activation import pending_invitation
+
+        if pending_invitation(user) is not None:
+            # AUTH-01a (H1): odblokowanie konta z niezaakceptowanym zaproszeniem dałoby aktywne konto
+            # bez zgód i bez hasła – uczeń uruchamia je sam linkiem z zaproszenia.
+            raise DomainError(
+                "To konto czeka na przyjęcie zaproszenia – uczeń uruchamia je sam linkiem z listu "
+                "(zgody, hasło). Wyślij zaproszenie ponownie zamiast zaznaczać „Konto aktywne”.",
+                "INVITATION_PENDING",
+                status.HTTP_400_BAD_REQUEST,
+            )
 
     diff: dict = {}
     previous_email = user.email

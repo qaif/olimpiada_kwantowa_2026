@@ -5,6 +5,7 @@ from django.urls import path
 from apps.alumni.urls import urlpatterns as alumni_urlpatterns
 from apps.delegation_logistics.urls import urlpatterns as final_logistics_urlpatterns
 from apps.medals.urls import urlpatterns as medal_urlpatterns  # MED-01
+from apps.password_change.urls import urlpatterns as password_change_urlpatterns  # AUTH-01b
 from apps.payments.urls import urlpatterns as payment_urlpatterns
 from apps.problem_translations.urls import urlpatterns as translation_urlpatterns
 
@@ -30,6 +31,7 @@ from .urls_documents import urlpatterns as document_urlpatterns
 from .urls_fees import urlpatterns as fee_urlpatterns
 from .urls_institutions import urlpatterns as institution_urlpatterns
 from .urls_pipeline import urlpatterns as pipeline_urlpatterns
+from .urls_proctoring import urlpatterns as proctoring_urlpatterns
 from .urls_regions import urlpatterns as region_urlpatterns
 from .urls_scoring import urlpatterns as scoring_urlpatterns
 from .urls_student_status import urlpatterns as student_status_urlpatterns
@@ -62,6 +64,7 @@ from .views import (
     coordinator_sponsor_slider,
     coordinator_stages,
     coordinator_support,
+    coordinator_theme_settings,
     coordinator_themes,
     coordinator_workshops,
     forum,
@@ -93,6 +96,8 @@ urlpatterns = [
     # z własnej domeny (``'self'`` w CSP) zamiast stylu inline. Ścieżki ``apps.web`` są dopasowywane
     # przed drzewem stron Wagtaila, a ``_theme/`` nie jest slugiem żadnej strony serwisu.
     path("_theme/overrides.css", coordinator_themes.theme_overrides_css, name="theme-overrides"),
+    # Dostosowanie motywu koordynatora (THEME-02 § 2.3): kolory, schemat, kroje – podpisany zestaw opcji.
+    path("_theme/custom.css", coordinator_theme_settings.theme_custom_css, name="theme-custom"),
     # Drugi krok logowania (TOTP). Adres stoi przy logowaniu, a nie przy koncie, bo to jest
     # **ciąg dalszy logowania**: sesja, która tu trafia, nie może jeszcze nic innego (patrz
     # ``apps.accounts.twofactor.TwoFactorMiddleware``).
@@ -418,6 +423,17 @@ urlpatterns = [
         "coordinator/competition/theme/",
         coordinator_themes.CompetitionThemeView.as_view(),
         name="coordinator-theme",
+    ),
+    # THEME-02: menu serwisu i dostosowanie wersji motywu (kolory, schemat, logo, kroje) bez paczki.
+    path(
+        "coordinator/competition/theme/menu/",
+        coordinator_theme_settings.CompetitionMenuView.as_view(),
+        name="coordinator-theme-menu",
+    ),
+    path(
+        "coordinator/competition/theme/customize/",
+        coordinator_theme_settings.CompetitionThemeCustomizeView.as_view(),
+        name="coordinator-theme-customize",
     ),
     # Katalog motywów **platformy** – wyłącznie superkoordynator (wgrywanie paczek, raporty, wersje).
     path(
@@ -1179,4 +1195,8 @@ urlpatterns = [
     *payment_urlpatterns,
     # --- sieć absolwentów i mentoring (ALUM-01, za flagą ``alumni``) ---------------------------------
     *alumni_urlpatterns,
+    # --- zmiana hasła w panelu konta (AUTH-01b, 4.10.2026) ------------------------------------------
+    *password_change_urlpatterns,
+    # --- nadzór zdalny etapów online (zadanie PROC-01, flaga ``proctoring``) ---------------------
+    *proctoring_urlpatterns,
 ]

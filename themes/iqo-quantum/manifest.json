@@ -2,16 +2,44 @@
   "schema": 1,
   "slug": "iqo-quantum",
   "name": "IQO Quantum",
-  "version": "1.0.0",
+  "version": "1.1.1",
   "author": "International Quantum Olympiad (QAIF)",
-  "description": "Dark-first theme of the International Quantum Olympiad: hybrid-D medal logo with |IQO⟩ wordmark, full-bleed wave-packet hero, outline cards on a laboratory grid, Space Grotesk.",
+  "description": "International science-olympiad identity for the IQO: transparent header over a full-bleed Bloch-sphere hero, oversized Space Grotesk display type, numbered full-width section bands, glass/outline cards with orbital marks, leaf-shaped buttons, big-wordmark footer. Dark-first with a polished light palette; logo and type pairing selectable.",
   "supports": ["public", "panels"],
   "layouts": {
-    "header": "minimal",
-    "home_hero": "full-bleed",
-    "footer": "compact",
-    "cards": "outline"
+    "header": ["split", "centered"],
+    "home_hero": ["full-bleed", "split"],
+    "footer": ["columns", "compact"],
+    "cards": ["outline", "elevated"]
   },
   "color_scheme": "dark",
-  "min_app_version": "0.41.0"
+  "logos": [
+    {"id": "lockup", "label": "Horizontal lockup (medal + IQO wordmark)", "light": "assets/logo/lockup.svg", "dark": "assets/logo/lockup-white.svg"},
+    {"id": "mark", "label": "Medal mark + site name as text", "light": "assets/logo/mark.svg", "dark": "assets/logo/mark-white.svg"},
+    {"id": "full", "label": "Full logo with the olympiad name", "light": "assets/logo/logo.svg", "dark": "assets/logo/logo-white.svg"}
+  ],
+  "fonts": [
+    {
+      "id": "grotesk",
+      "label": "Space Grotesk + Space Mono",
+      "body": "\"Space Grotesk\", \"Segoe UI\", system-ui, -apple-system, Roboto, \"Noto Sans\", sans-serif",
+      "display": "\"Space Grotesk\", \"Segoe UI\", system-ui, -apple-system, Roboto, \"Noto Sans\", sans-serif",
+      "mono": "\"Space Mono\", ui-monospace, \"Cascadia Mono\", \"SF Mono\", Menlo, Consolas, \"Liberation Mono\", monospace"
+    },
+    {
+      "id": "technical",
+      "label": "Technical: Space Mono headings, Space Grotesk text",
+      "body": "\"Space Grotesk\", \"Segoe UI\", system-ui, -apple-system, Roboto, \"Noto Sans\", sans-serif",
+      "display": "\"Space Mono\", ui-monospace, \"Cascadia Mono\", \"SF Mono\", Menlo, Consolas, monospace",
+      "mono": "\"Space Mono\", ui-monospace, \"Cascadia Mono\", \"SF Mono\", Menlo, Consolas, \"Liberation Mono\", monospace"
+    },
+    {
+      "id": "system",
+      "label": "System UI text, Space Grotesk headings",
+      "body": "system-ui, -apple-system, \"Segoe UI\", Roboto, \"Noto Sans\", \"Helvetica Neue\", Arial, sans-serif",
+      "display": "\"Space Grotesk\", \"Segoe UI\", system-ui, -apple-system, Roboto, \"Noto Sans\", sans-serif",
+      "mono": "ui-monospace, \"Cascadia Mono\", \"SF Mono\", Menlo, Consolas, \"Liberation Mono\", monospace"
+    }
+  ],
+  "min_app_version": "0.45.0"
 }

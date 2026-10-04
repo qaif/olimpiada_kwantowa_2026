@@ -176,6 +176,8 @@ INSTALLED_APPS = [
     # Okna czasowe etapu według stref czasowych krajów (TZ-01, 4.10.2026, flaga ``stage_time_windows``).
     "apps.time_windows",
     "apps.problem_translations",  # tłumaczenia zadań przez delegacje krajowe (TR-01, 4.10.2026)
+    # Nadzór zdalny etapów online (zadanie PROC-01, flaga ``proctoring``) – na kliencie LiveKit webinarów.
+    "apps.proctoring",
     # Warstwa integracyjna: klucze API dla systemów zewnętrznych, webhooki i eksporty na zewnątrz.
     # **Po** aplikacjach domeny, bo czyta je wszystkie (edycje, wyniki, zgłoszenia), a żadna z nich
     # nie czyta jej – zależność idzie w jedną stronę i kolejność w tej liście ma to pokazywać.
@@ -189,6 +191,7 @@ INSTALLED_APPS = [
     "apps.medals",
     # Płatności online za udział (PAY-01): cennik delegacji, zamówienia, Stripe/Przelewy24, faktury.
     "apps.payments",
+    "apps.password_change",  # zmiana hasła w panelu konta (AUTH-01b, 4.10.2026), bez modeli
     "apps.web",
     # Logowanie przez dostawców zewnętrznych (Google, Facebook). ``allauth.account`` jest wymagane
     # przez ``allauth.socialaccount`` (model ``EmailAddress``, adaptery) – jego **widoki** nie są
@@ -267,6 +270,10 @@ MIDDLEWARE = [
     # zasięgu redaktora i z tego samego powodu za uwierzytelnieniem; poza adresami z listy
     # (apps/cms/middleware.py) nie wykonuje żadnego zapytania.
     "apps.cms.middleware.CmsFreezeMiddleware",
+    # Bramka treści etapu z nadzorem zdalnym (PROC-01): wyłącznie ``process_view`` i wyłącznie dla
+    # zamkniętej listy adresów (PDF zadania, wysyłka, test); bez flagi ``proctoring`` – zero zapytań.
+    # **Za** uwierzytelnieniem i komunikatami (przekierowuje do konsoli z komunikatem).
+    "apps.proctoring.middleware.ProctoringGateMiddleware",
     # Wymagana przez allauth: ustawia kontekst żądania (``allauth.core.context``), z którego
     # korzystają adaptery i przepływ social login. Nie montuje żadnego adresu i nie zmienia
     # obsługi 404 – przekierowanie „/accounts/ → logowanie” włącza się dopiero, gdy istnieje
@@ -653,6 +660,12 @@ CELERY_BEAT_SCHEDULE = {
         "task": "apps.webinars.tasks.remind_webinars",
         "schedule": 300.0,
     },
+    # Retencja nadzoru zdalnego (PROC-01 § 8): nagrania, zdjęcia dokumentu, dziennik i wiadomości
+    # ``PROCTORING_RETENTION_DAYS`` po publikacji wyników i oknie reklamacji. Raz dziennie, w nocy.
+    "proctoring-purge": {
+        "task": "apps.proctoring.tasks.purge_expired",
+        "schedule": crontab(minute=40, hour=3),
+    },
 }
 
 # --- powiadomienia z forum (``apps.forum.notifications``) ---------------------------------------
@@ -974,6 +987,18 @@ ERROR_PAGE_CONTACT_EMAIL = env("ERROR_PAGE_CONTACT_EMAIL", default="contact@qaif
 # późniejsze zmiany domeny robi redaktor w ``/cms/`` (Ustawienia → Witryny), nie deploy.
 SITE_DOMAIN = env("SITE_DOMAIN", default="localhost")
 
+# Domeny nadawców, które przyjmie relay pocztowy (AUTH-01a, M3). Usługa ``mail`` (wariant A)
+# odrzuca kopertę spoza ``ALLOWED_SENDER_DOMAINS`` – ta sama zmienna, ten sam domyślny
+# ``SITE_DOMAIN`` (docker-compose.yml). ``apps.core.tasks.mail_from`` przy nadawcy konkursu spoza
+# tej listy wraca do ``DEFAULT_FROM_EMAIL``: list od nadawcy instalacji dochodzi, list od nadawcy
+# odrzuconego przez relay ginie po cichu w logu workera. Rozdzielone spacją albo przecinkiem
+# (Postfix bierze listę ze spacjami). ``*`` = bez ograniczenia (wariant B: zewnętrzny dostawca,
+# który sam pilnuje nadawców) – w ustawieniach to ``None``.
+_sender_domains = env("ALLOWED_SENDER_DOMAINS", default=SITE_DOMAIN).replace(",", " ").split()
+MAIL_ALLOWED_SENDER_DOMAINS = (
+    None if "*" in _sender_domains else [domain.strip().lower() for domain in _sender_domains]
+)
+
 # --- konkursy w subdomenach platformy ----------------------------------------------------------
 # Wyłącznik funkcji „koordynator zakłada konkurs z panelu, a konkurs stoi pod
 # ``<slug>.{SITE_DOMAIN}``”. **Domyślnie wyłączony**, bo jego włączenie jest decyzją operatora
@@ -1092,12 +1117,37 @@ WEBINAR_REMINDER_MINUTES = env.int("WEBINAR_REMINDER_MINUTES", default=60)
 # edycja konkursu z zapasem na reklamacje i zaświadczenia; 0 = bez automatycznego kasowania.
 WEBINAR_RETENTION_DAYS = env.int("WEBINAR_RETENTION_DAYS", default=365)
 
+# --- nadzór zdalny etapów online (zadanie PROC-01, ``apps.proctoring``) -------------------------------
+# Ten sam serwer LiveKit, co webinary. ``LEAD`` – ile minut przed otwarciem okna ucznia wolno włączyć
+# nadzór (sprawdzenie sprzętu na spokojnie), ``GRACE`` – ile po zamknięciu działa pokój nadzorujących.
+# Retencja nośników (nagrania, dziennik, wiadomości): ``RETENTION_DAYS`` po publikacji wyników i końcu
+# okna reklamacji; ``MAX_RETENTION_DAYS`` po końcu etapu, gdy wyniki nigdy nie wyszły; zdjęcia
+# dokumentu – zaraz po etapie. ``WINDOW_ADAPTER`` – własna funkcja okna ucznia; pusty = okna TZ-01
+# (``apps.time_windows``), gdy aplikacja jest zainstalowana, inaczej okno globalne etapu.
+# ``UNPROCTORED_AFTER_FAILURES`` – ile zgłoszonych nieudanych połączeń (przy działającym serwerze)
+# otwiera „kontynuuj bez nadzoru” w etapie z ``allow``; ``LATE_START_MINUTES`` – próg znacznika
+# „późny start” w siatce, raporcie i CSV.
+PROCTORING_LEAD_MINUTES = env.int("PROCTORING_LEAD_MINUTES", default=30)
+PROCTORING_GRACE_MINUTES = env.int("PROCTORING_GRACE_MINUTES", default=30)
+PROCTORING_RETENTION_DAYS = env.int("PROCTORING_RETENTION_DAYS", default=30)
+PROCTORING_MAX_RETENTION_DAYS = env.int("PROCTORING_MAX_RETENTION_DAYS", default=180)
+PROCTORING_WINDOW_ADAPTER = env("PROCTORING_WINDOW_ADAPTER", default="")
+PROCTORING_UNPROCTORED_AFTER_FAILURES = env.int("PROCTORING_UNPROCTORED_AFTER_FAILURES", default=3)
+PROCTORING_LATE_START_MINUTES = env.int("PROCTORING_LATE_START_MINUTES", default=15)
+
 WAGTAIL_SITE_NAME = env("WAGTAIL_SITE_NAME", default="Olimpiada Kwantowa")
 WAGTAILADMIN_BASE_URL = env("WAGTAILADMIN_BASE_URL", default=f"https://{SITE_DOMAIN}")
 # Reset hasła ma jedną drogę: ``/password-reset/`` (limit prób, wysyłka w tle, audyt). Własny reset
 # panelu (``/cms/password_reset/``) działa dla **każdego** konta i żadnej z tych rzeczy nie ma –
 # wyłączony odpowiada 404. Logowanie panelu: ``apps.web.views.public.panel_login_redirect``.
 WAGTAIL_PASSWORD_RESET_ENABLED = False
+# Hasło i adres e-mail konta zmienia się wyłącznie w ustawieniach konta serwisu (AUTH-01b, przegląd
+# H1): ``/account/password/`` i ``/account/email/`` żądają aktualnego hasła, liczą pomyłki, mają limit,
+# audyt i list do właściciela. Panele „Hasło” i pole e-mail w ``/cms/account/`` Wagtaila żadnej z tych
+# rzeczy nie mają (adres zmienia się tam bez potwierdzenia nowej skrzynki) – przejęta sesja redaktora
+# przejęłaby nimi konto na stałe. Wyłączone panele po prostu znikają z ekranu konta.
+WAGTAIL_PASSWORD_MANAGEMENT_ENABLED = False
+WAGTAIL_EMAIL_MANAGEMENT_ENABLED = False
 # Whitelist rozszerzeń dokumentów: bez niej redaktor mógłby wrzucić do publicznego bucketu plik
 # wykonywalny albo HTML (XSS z tej samej domeny, gdyby kiedyś serwować go bez pośrednictwa widoku).
 WAGTAILDOCS_EXTENSIONS = ["pdf", "doc", "docx", "odt", "ods", "odp", "xls", "xlsx", "csv", "txt", "zip"]
@@ -1286,6 +1336,11 @@ REST_FRAMEWORK = {
         # trzydzieści sekund – bez limitu da się je przeszukać w kilka godzin z jednego adresu,
         # mając samo hasło. Stawka jest niska, bo człowiek przepisuje kod raz, najwyżej dwa razy.
         "two_factor": "10/min",
+        # Zmiana hasła w panelu konta (``/account/password/``, AUTH-01b). Liczona **per konto**
+        # (``apps.password_change.views.PerAccountThrottleMixin``): ekran jest za logowaniem, a limit
+        # ma powstrzymać zgadywanie aktualnego hasła z cudzej, otwartej sesji. Dziesięć prób na
+        # godzinę to więcej, niż potrzebuje człowiek mylący się przy przepisywaniu nowego hasła.
+        "password_change": "10/hour",
         # Webhook płatności (``/api/v1/payments/<dostawca>/``, § 1.5.1). Limit liczy się per adres
         # nadawcy, bo żądanie przychodzi bez konta i bez klucza – jedynym poświadczeniem jest
         # podpis, a podpis sprawdza się **po** przyjęciu żądania. Sześćdziesiąt na minutę mieści
@@ -1342,6 +1397,18 @@ REST_FRAMEWORK = {
         # Link dla gości (``/zaproszenie/webinar/<klucz>/``, POST „Dołącz” i token) – bez konta, po IP, jak
         # bramka pokoi Jitsi: cała sala za jednym NAT-em wchodzi naraz.
         "webinar_guest": "120/hour",
+        # Nadzór zdalny (PROC-01), per konto: token (wejście ucznia albo nadzorującego – kilka
+        # ponownych połączeń na etap), czynności nadzorującego (wiadomości, incydenty, obecność przy
+        # 24 uczniach na stronie) i kroki konsoli ucznia (sprawdzenie, puls co minutę przez kilka godzin).
+        "proctoring_token": "60/hour",
+        # Koordynator nadzoru: przełączanie grup (w IQO ~100 delegacji) i ponowne łączenia przez kilka
+        # godzin etapu – osobny, wyższy kubełek, żeby nie dzielić limitu z komisją i opiekunami.
+        "proctoring_coordinator_token": "1200/hour",
+        "proctoring_action": "600/hour",
+        "proctoring_client": "600/hour",
+        # Polecenia moderatora pokoju rozmowy LiveKit (STAGE-LK-01): odbierz/oddaj głos, usuń, wpuść
+        # ponownie – osobno od wejść (``video``), odpowiedź 429 w JSON-ie dla skryptu pokoju.
+        "interview_control": "600/hour",
         # Zakładanie konkursu z panelu koordynatora (``/coordinator/competitions/new/``). Stawka
         # jest **dzienna i niska**, bo taka jest ta czynność: konkurs zakłada się raz na sezon,
         # a każde założenie to nowa witryna, nowe drzewo stron, nowa edycja i wniosek o certyfikat
@@ -1365,6 +1432,10 @@ REST_FRAMEWORK = {
         # doręcza z kilku adresów naraz, a po awarii ponawia zaległe zdarzenia całą serią. Tożsamością
         # jest podpis; limit chroni wyłącznie koszt weryfikacji.
         "payment_webhooks": "600/min",
+        # Menu serwisu i dostosowanie motywu (THEME-02, ``/coordinator/competition/theme/…``). Per konto
+        # (``apps.web.throttle.PER_USER_SCOPES``). Każdy zapis unieważnia cache stron konkursu, a podgląd
+        # kolorów to też POST – sto dwadzieścia na godzinę mieści długie dopasowywanie palety.
+        "theme_settings": "120/hour",
     },
     "EXCEPTION_HANDLER": "apps.core.api.exception_handler",
 }
