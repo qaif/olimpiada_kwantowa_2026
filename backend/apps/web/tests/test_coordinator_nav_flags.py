@@ -158,6 +158,8 @@ FLAG_ITEMS: dict[str, tuple[frozenset[str], frozenset[str]]] = {
     "ai_grading": (frozenset({"Ocena AI"}), frozenset({"Ocena AI"})),
     # --- medale olimpiady międzynarodowej (MED-01, 4.10.2026) --------------------------------------
     "medals": (frozenset({"Medale"}), frozenset({"Medale"})),
+    # --- motywy wizualne (THEME-01) ------------------------------------------------------------
+    "themes": (frozenset({"Motyw serwisu"}), frozenset({"Motyw serwisu"})),
 }
 
 #: Piętnaście flag **etapu 2** – zdanie z ``docs/UNIWERSALNY-ETAP-2.md`` § 0.6 („piętnaście flag to

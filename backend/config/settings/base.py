@@ -110,6 +110,9 @@ INSTALLED_APPS = [
     # członkostwa i profile uczestników będą wskazywać na konkurs, a nie odwrotnie – kolejność
     # w tej liście ma odbijać kierunek zależności.
     "apps.tenancy",
+    # Motywy wizualne wgrywane paczkami (THEME-01). Katalog jest platformowy, a wybór należy do
+    # konkursu (``Competition.theme_version``) – stąd zaraz przy ``apps.tenancy``.
+    "apps.themes",
     "apps.accounts",
     # Słownik szkół ponadpodstawowych (SIO/RSPO). Po ``apps.accounts``, bo model ``School``
     # korzysta z zamkniętej listy województw zdefiniowanej przy kontach.

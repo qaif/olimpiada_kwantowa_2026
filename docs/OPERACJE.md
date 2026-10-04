@@ -3879,6 +3879,69 @@ Nowy konkurs od razu z krajami: `create_competition … --regions countries` (do
 
 Kolejność dla `iqo` po wdrożeniu: § 26.1 (języki) i ta komenda – niezależne od siebie.
 
+## 30. Motywy wizualne (THEME-01, `docs/tasks/THEME-01.md`)
+
+Wygląd konkursu zmienia się **paczką motywu** (ZIP: `manifest.json`, `theme.css`, `tokens.json`,
+`assets/`, opcjonalnie `templates/theme/*.html` i `screenshot.png`), bez wydania aplikacji. Paczka nie
+wykonuje kodu Pythona i nie dokłada JavaScriptu; przy wgraniu przechodzi walidację (ścieżki ZIP, bomba
+ZIP, typy i magiczne bajty plików, CSS przez parser, SVG oczyszczane, lint i kompilacja szablonów,
+tokeny) i skan ClamAV. Konkurs bez motywu (Olimpiada Kwantowa) nie zmienia się ani o bajt HTML.
+
+### 30.1. Wgranie i aktywacja na produkcji
+
+```sh
+# 1. paczka na serwer (z laptopa)
+scp -i ~/.ssh/olimpiada_deploy iqo-quantum-1.0.0.zip deploy@<serwer>:/tmp/
+# 2. wgranie (walidacja + ClamAV + publikacja do bucketu public-media) i aktywacja w konkursie
+ssh -i ~/.ssh/olimpiada_deploy deploy@<serwer>
+cd /opt/olimpiada
+docker compose exec -T web python manage.py theme_install - --activate iqo < /tmp/iqo-quantum-1.0.0.zip
+```
+
+Kod wyjścia ≠ 0 = paczka odrzucona (błędy na ekranie, wersja „odrzucona” z raportem w katalogu).
+Bez `--activate` motyw czeka w katalogu; wybiera go koordynator konkursu w panelu
+(**„Motyw serwisu”**, przełącznik konkursu `themes` – włącza operator jak każdą flagę, § 6) albo
+superkoordynator w `/coordinator/platform/themes/` (katalog: wgranie przez przeglądarkę, raport,
+usunięcie nieużywanej wersji). Aktywacja czyści pełnostronicowy cache gościa tego konkursu sama.
+
+**Cofnięcie:** wybór poprzedniej wersji (albo „Klasyczny”) w panelu. Z konsoli (z wpisem audytu):
+
+```sh
+docker compose exec -T web python manage.py shell -c "from apps.tenancy.models import Competition; from apps.themes.services import activate; activate(Competition.objects.get(slug='iqo'), None)"
+```
+
+Wersje zostają, dopóki operator ich nie usunie; wersji używanej przez konkurs nie da się usunąć
+(`PROTECT`).
+
+**Awaryjnie** (motyw psuje stronę): superkoordynator dopisuje do adresu `?theme=off` – strona
+renderuje się bez motywu tylko dla niego; ekran „Motyw serwisu” i katalog motywów są zawsze bez
+motywu, więc przycisk przywrócenia „Klasycznego” jest zawsze widoczny. Szablony slotów z paczki
+działają wyłącznie na stronach publicznych (CMS, statystyki, plakaty, wyniki, weryfikacja dyplomu);
+panele, logowanie i formularze mają zawsze ramę aplikacji (tokeny i arkusz motywu – tak).
+
+### 30.2. Pliki w buckecie, CSP, CORS
+
+- Pliki publiczne leżą w `public-media` pod **niezmiennym** prefiksem `themes/<slug>/<wersja>-<sha8>/`
+  z `Cache-Control: public, max-age=31536000, immutable` (nowa wersja = nowy prefiks). Szablony
+  i manifest nie trafiają do bucketu (są w bazie), paczka ZIP – do bucketu prywatnego.
+- **CSP:** strona z motywem dostaje origin bucketu (`S3_PUBLIC_ENDPOINT_URL`) także w `style-src`
+  i `font-src` (w `img-src` był już wcześniej). `script-src` nie zmienia się nigdy; strona bez motywu
+  ma politykę co do bajtu dawną.
+- **CORS dla krojów:** przeglądarka pobiera `woff2` z innego originu (`:9000`) w trybie CORS. MinIO
+  odpowiada `Access-Control-Allow-Origin` z originem żądania dla każdego originu (ustawienie domyślne
+  `MINIO_API_CORS_ALLOW_ORIGIN=*`, § 16.3), a blok S3 w Caddy nagłówków CORS nie rusza – sprawdzone
+  w devie (`curl -H "Origin: https://olimpiadakwantowa.pl" -I …/public-media/themes/…/x.woff2`).
+  **Jeżeli kiedyś zawęzicie CORS MinIO**, dopiszcie do listy domeny wszystkich konkursów – inaczej
+  motyw cicho spadnie na kroje systemowe.
+- Arkusz motywu odwołuje się do swoich plików adresami **względnymi** (`url("assets/…")`), więc
+  przeniesienie bucketu pod własną domenę S3 nie wymaga ponownego wgrywania motywów.
+
+### 30.3. Nowa zależność
+
+`tinycss2` (parser CSS) jest w `backend/pyproject.toml` – obraz `web`/`worker` musi być **przebudowany**
+(CI buduje go z pyproject). Bez niej import walidatora się nie powiedzie dopiero przy wgraniu paczki;
+render stron z już aktywnym motywem jej nie potrzebuje.
+
 
 ## 28. Delegacje krajowe – rejestracja przez opiekunów drużyn (DEL-01, `docs/tasks/DEL-01.md`)
 

@@ -1,0 +1,60 @@
+{% extends "web/coordinator/base.html" %}
+{% comment %}
+  Wersja motywu: raport walidacji (błędy i ostrzeżenia), sloty nadpisane przez paczkę, pliki
+  opublikowane w buckecie i konkursy, które jej używają. Usunąć można wyłącznie wersję nieużywaną.
+{% endcomment %}
+{% block title %}{{ version.theme.name }} {{ version.version }} – katalog motywów{% endblock %}
+{% block panel_eyebrow %}<a href="{% url 'web:coordinator-platform-themes' %}">Katalog motywów platformy</a>{% endblock %}
+{% block panel_title %}{{ version.theme.name }} {{ version.version }}{% endblock %}
+{% block panel_lead %}
+  <p class="lead">{% if version.is_valid %}<span class="badge badge--ok">poprawna</span>{% else %}<span class="badge badge--danger">odrzucona</span>{% endif %}
+    · wgrano {{ version.uploaded_at|date:"j E Y, H:i" }}{% if version.uploaded_by %} ({{ version.uploaded_by.email }}){% endif %}
+    · SHA-256 <code>{{ version.package_sha256|truncatechars:17 }}</code></p>
+{% endblock %}
+{% block panel_content %}
+<div class="card">
+  <h2>Raport walidacji</h2>
+  {% if version.report.errors %}
+    <h3>Błędy ({{ version.report.errors|length }})</h3>
+    <ul class="msg-list">{% for error in version.report.errors %}<li class="msg msg-error">{{ error }}</li>{% endfor %}</ul>
+  {% else %}
+    <p>Bez błędów.</p>
+  {% endif %}
+  {% if version.report.warnings %}
+    <h3>Ostrzeżenia ({{ version.report.warnings|length }})</h3>
+    <ul class="msg-list">{% for warning in version.report.warnings %}<li class="msg msg-warning">{{ warning }}</li>{% endfor %}</ul>
+  {% endif %}
+</div>
+
+{% if version.is_valid %}
+<div class="card">
+  <h2>Manifest</h2>
+  <dl class="meta-list">
+    <dt>Identyfikator</dt><dd>{{ version.theme.slug }}</dd>
+    <dt>Autor</dt><dd>{{ version.manifest.author|default:"—" }}</dd>
+    <dt>Schemat kolorów</dt><dd>{{ version.color_scheme }}</dd>
+    <dt>Zakres</dt><dd>{{ version.manifest.supports|join:", " }}</dd>
+    <dt>Prefiks plików</dt><dd><code>{{ version.public_prefix }}</code></dd>
+    <dt>Używają</dt><dd>{{ used_by|join:", "|default:"żaden konkurs" }}</dd>
+  </dl>
+  <h3>Sloty szablonów</h3>
+  <ul>{% for name, label, overridden in slots %}<li><code>{{ name }}</code> – {{ label }}: {% if overridden %}<strong>z paczki</strong>{% else %}domyślny aplikacji{% endif %}</li>{% endfor %}</ul>
+  <h3>Pliki opublikowane ({{ version.files|length }})</h3>
+  <ul>{% for item in version.files %}<li><code>{{ item.path }}</code> · {{ item.content_type }} · {{ item.size|filesizeformat }}</li>{% endfor %}</ul>
+</div>
+{% endif %}
+
+<div class="card card--quiet">
+  <h2>Usunięcie wersji</h2>
+  {% if used_by %}
+    <p class="hint">Wersji używa {{ used_by|join:", " }} – najpierw wybierz tam inny motyw.</p>
+  {% else %}
+    <form method="post" class="form">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="delete">
+      <p class="hint">Usuwa pliki z bucketu publicznego, paczkę i wpis wersji. Tej czynności nie da się cofnąć.</p>
+      <div class="actions"><button type="submit" class="btn btn--danger">Usuń wersję</button></div>
+    </form>
+  {% endif %}
+</div>
+{% endblock %}
