@@ -8867,3 +8867,27 @@ msgid ""
 msgstr ""
 "تظهر التسجيلات والملفات هنا عادةً بعد ورش العمل ببضعة أيام. الجدول الزمني "
 "موجود في صفحة <a href=\"/warsztaty/\">ورش العمل</a>."
+
+#: apps/cms/context_processors.py
+msgid "Dokumenty"
+msgstr "المستندات"
+
+#: apps/cms/context_processors.py
+msgid "Komitety"
+msgstr "اللجان"
+
+#: apps/cms/context_processors.py
+msgid "Harmonogram"
+msgstr "الجدول الزمني"
+
+#: apps/cms/context_processors.py
+msgid "Kontakt"
+msgstr "اتصل بنا"
+
+#: apps/cms/context_processors.py
+msgid "Dla szkół/nauczycieli"
+msgstr "للمدارس/المعلمين"
+
+#: apps/cms/context_processors.py
+msgid "Rejestracja nauczyciela"
+msgstr "تسجيل المعلم"

@@ -9277,3 +9277,27 @@ msgstr ""
 "Las grabaciones y los archivos suelen aparecer aquí unos días después de los "
 "talleres. El calendario está en la página <a href=\"/warsztaty/\">Talleres</"
 "a>."
+
+#: apps/cms/context_processors.py
+msgid "Dokumenty"
+msgstr "Documentos"
+
+#: apps/cms/context_processors.py
+msgid "Komitety"
+msgstr "Comités"
+
+#: apps/cms/context_processors.py
+msgid "Harmonogram"
+msgstr "Calendario"
+
+#: apps/cms/context_processors.py
+msgid "Kontakt"
+msgstr "Contacto"
+
+#: apps/cms/context_processors.py
+msgid "Dla szkół/nauczycieli"
+msgstr "Para escuelas/docentes"
+
+#: apps/cms/context_processors.py
+msgid "Rejestracja nauczyciela"
+msgstr "Registro de docentes"

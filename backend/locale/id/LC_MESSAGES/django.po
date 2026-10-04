@@ -9189,3 +9189,27 @@ msgid ""
 msgstr ""
 "Rekaman dan file biasanya muncul di sini beberapa hari setelah lokakarya. "
 "Jadwalnya tersedia di halaman <a href=\"/warsztaty/\">Lokakarya</a>."
+
+#: apps/cms/context_processors.py
+msgid "Dokumenty"
+msgstr "Dokumen"
+
+#: apps/cms/context_processors.py
+msgid "Komitety"
+msgstr "Komite"
+
+#: apps/cms/context_processors.py
+msgid "Harmonogram"
+msgstr "Jadwal"
+
+#: apps/cms/context_processors.py
+msgid "Kontakt"
+msgstr "Kontak"
+
+#: apps/cms/context_processors.py
+msgid "Dla szkół/nauczycieli"
+msgstr "Untuk sekolah/guru"
+
+#: apps/cms/context_processors.py
+msgid "Rejestracja nauczyciela"
+msgstr "Pendaftaran guru"

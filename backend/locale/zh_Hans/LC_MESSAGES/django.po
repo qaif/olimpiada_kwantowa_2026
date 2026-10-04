@@ -8617,3 +8617,27 @@ msgid ""
 msgstr ""
 "录像和文件通常会在工作坊结束几天后发布在这里。日程请见<a href=\"/warsztaty/"
 "\">工作坊</a>页面。"
+
+#: apps/cms/context_processors.py
+msgid "Dokumenty"
+msgstr "文件"
+
+#: apps/cms/context_processors.py
+msgid "Komitety"
+msgstr "委员会"
+
+#: apps/cms/context_processors.py
+msgid "Harmonogram"
+msgstr "日程"
+
+#: apps/cms/context_processors.py
+msgid "Kontakt"
+msgstr "联系我们"
+
+#: apps/cms/context_processors.py
+msgid "Dla szkół/nauczycieli"
+msgstr "学校/教师"
+
+#: apps/cms/context_processors.py
+msgid "Rejestracja nauczyciela"
+msgstr "教师注册"

@@ -45,6 +45,21 @@ def test_competition_brand_images_replace_logo_favicon_and_social_image(client_f
     assert "iqo-logo" in body and 'class="brand__logo"' in body
     assert 'rel="apple-touch-icon"' in body and "iqo-icon" in body
     assert 'property="og:image"' in body and "iqo-og" in body
+    og = body.split('property="og:image" content="', 1)[1].split('"', 1)[0]
+    assert og.count("://") == 1, og
+
+
+def test_absolute_rendition_url_is_not_prefixed_with_the_site_host(client_for, competition, monkeypatch):
+    """S3 daje rendycji pełny adres – og:image ma go wziąć wprost (prod 4.10.2026)."""
+    rendition_model = get_image_model().get_rendition_model()
+
+    competition.social_image = _image("iqo-og", (1200, 630))
+    competition.save(update_fields=["social_image"])
+    monkeypatch.setattr(rendition_model, "url", property(lambda self: "https://cdn.example.test/og.png"))
+
+    body = client_for(competition).get("/").content.decode()
+
+    assert 'property="og:image" content="https://cdn.example.test/og.png"' in body
 
 
 def test_organizer_logo_field_does_not_leak_into_the_header(client_for, competition):
