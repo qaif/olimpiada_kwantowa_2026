@@ -1,0 +1,103 @@
+# Russian - tlumaczenie ekranow okien czasowych (docs/tasks/TZ-01.md).
+# Zrodlem (msgid) jest polski. UWAGA: tlumaczenie MASZYNOWE - do przegladu native speakera.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Olimpiada Kwantowa - time_windows\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-04 20:00+0200\n"
+"PO-Revision-Date: 2026-10-04 20:00+0200\n"
+"Last-Translator: Olimpiada Kwantowa\n"
+"Language-Team: Russian\n"
+"Language: ru\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
+
+#, python-format
+msgid "Twoje okno czasowe: %(label)s"
+msgstr "Ваше временное окно: %(label)s"
+
+#, python-format
+msgid "Twoje okno czasowe %(label)s: %(stage)s"
+msgstr "Ваше временное окно %(label)s: %(stage)s"
+
+msgid "Start"
+msgstr "Начало"
+
+msgid "Koniec"
+msgstr "Конец"
+
+msgid "Strefa czasowa"
+msgstr "Часовой пояс"
+
+msgid "Dodatkowy czas"
+msgstr "Дополнительное время"
+
+#, python-format
+msgid "%(minutes)s min"
+msgstr "%(minutes)s мин"
+
+msgid "Zadania zobaczysz dopiero na starcie swojego okna. Do końca ostatniego okna wszystkich krajów nie rozmawiaj o zadaniach – forum i wiadomości są wtedy moderowane."
+msgstr "Задачи станут видны только с началом вашего окна. До окончания последнего окна всех стран не обсуждайте задачи – в это время форум и сообщения проходят модерацию."
+
+msgid "Okna czasowe drużyny"
+msgstr "Временные окна команды"
+
+msgid "Panel opiekuna drużyny"
+msgstr "Панель руководителя команды"
+
+#, python-format
+msgid "Okna czasowe: %(country)s"
+msgstr "Временные окна: %(country)s"
+
+#, python-format
+msgid "Strefa czasowa kraju: %(zone)s. Każdy uczeń zaczyna etap na starcie okna przydzielonego przez organizatora i widzi godziny w swojej strefie."
+msgstr "Часовой пояс страны: %(zone)s. Каждый ученик начинает этап в начале окна, назначенного организатором, и видит время в своём часовом поясе."
+
+#, python-format
+msgid "Czas pracy: %(duration)s."
+msgstr "Время работы: %(duration)s."
+
+msgid "Okna uczniów w etapie"
+msgstr "Окна учеников в этапе"
+
+msgid "Uczeń"
+msgstr "Ученик"
+
+msgid "Okno"
+msgstr "Окно"
+
+msgid "Start (strefa ucznia)"
+msgstr "Начало (пояс ученика)"
+
+msgid "Koniec (strefa ucznia)"
+msgstr "Конец (пояс ученика)"
+
+msgid "Nie zgłoszono jeszcze żadnego ucznia."
+msgstr "Пока не зарегистрировано ни одного ученика."
+
+msgid "Żaden etap tej edycji nie ma jeszcze okien czasowych."
+msgstr "Ни у одного этапа этого выпуска пока нет временных окон."
+
+msgid "Strefy czasowe uczniów"
+msgstr "Часовые пояса учеников"
+
+msgid "Strefa zmienia tylko to, jak uczeń widzi godziny w swoim panelu. Nie zmienia jego okna."
+msgstr "Часовой пояс меняет только отображение времени в панели ученика. Окно ученика он не меняет."
+
+msgid "jak kraj drużyny"
+msgstr "как у страны команды"
+
+msgid "Zapisz"
+msgstr "Сохранить"
+
+msgid "Okna czasowe i strefy uczniów"
+msgstr "Временные окна и часовые пояса учеников"
+
+msgid "Wybierz strefę czasową z listy."
+msgstr "Выберите часовой пояс из списка."
+
+msgid "Strefa czasowa ucznia została zapisana."
+msgstr "Часовой пояс ученика сохранён."

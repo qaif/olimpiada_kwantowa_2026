@@ -1,0 +1,103 @@
+# English - tlumaczenie ekranow okien czasowych (docs/tasks/TZ-01.md).
+# Zrodlem (msgid) jest polski. UWAGA: tlumaczenie MASZYNOWE - do przegladu native speakera.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Olimpiada Kwantowa - time_windows\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-04 20:00+0200\n"
+"PO-Revision-Date: 2026-10-04 20:00+0200\n"
+"Last-Translator: Olimpiada Kwantowa\n"
+"Language-Team: English\n"
+"Language: en\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#, python-format
+msgid "Twoje okno czasowe: %(label)s"
+msgstr "Your time window: %(label)s"
+
+#, python-format
+msgid "Twoje okno czasowe %(label)s: %(stage)s"
+msgstr "Your time window %(label)s: %(stage)s"
+
+msgid "Start"
+msgstr "Start"
+
+msgid "Koniec"
+msgstr "End"
+
+msgid "Strefa czasowa"
+msgstr "Time zone"
+
+msgid "Dodatkowy czas"
+msgstr "Extra time"
+
+#, python-format
+msgid "%(minutes)s min"
+msgstr "%(minutes)s min"
+
+msgid "Zadania zobaczysz dopiero na starcie swojego okna. Do końca ostatniego okna wszystkich krajów nie rozmawiaj o zadaniach – forum i wiadomości są wtedy moderowane."
+msgstr "You will see the problems only when your window starts. Until the last window of all countries has ended, do not discuss the problems – the forum and messages are moderated during that time."
+
+msgid "Okna czasowe drużyny"
+msgstr "Team time windows"
+
+msgid "Panel opiekuna drużyny"
+msgstr "Team leader panel"
+
+#, python-format
+msgid "Okna czasowe: %(country)s"
+msgstr "Time windows: %(country)s"
+
+#, python-format
+msgid "Strefa czasowa kraju: %(zone)s. Każdy uczeń zaczyna etap na starcie okna przydzielonego przez organizatora i widzi godziny w swojej strefie."
+msgstr "Country time zone: %(zone)s. Each student starts the round when the window assigned by the organizer opens and sees times in their own time zone."
+
+#, python-format
+msgid "Czas pracy: %(duration)s."
+msgstr "Working time: %(duration)s."
+
+msgid "Okna uczniów w etapie"
+msgstr "Students' windows in the round"
+
+msgid "Uczeń"
+msgstr "Student"
+
+msgid "Okno"
+msgstr "Window"
+
+msgid "Start (strefa ucznia)"
+msgstr "Start (student's time zone)"
+
+msgid "Koniec (strefa ucznia)"
+msgstr "End (student's time zone)"
+
+msgid "Nie zgłoszono jeszcze żadnego ucznia."
+msgstr "No students have been registered yet."
+
+msgid "Żaden etap tej edycji nie ma jeszcze okien czasowych."
+msgstr "No round of this edition has time windows yet."
+
+msgid "Strefy czasowe uczniów"
+msgstr "Students' time zones"
+
+msgid "Strefa zmienia tylko to, jak uczeń widzi godziny w swoim panelu. Nie zmienia jego okna."
+msgstr "The time zone only changes how the student sees times in their panel. It does not change their window."
+
+msgid "jak kraj drużyny"
+msgstr "same as the team's country"
+
+msgid "Zapisz"
+msgstr "Save"
+
+msgid "Okna czasowe i strefy uczniów"
+msgstr "Time windows and students' time zones"
+
+msgid "Wybierz strefę czasową z listy."
+msgstr "Choose a time zone from the list."
+
+msgid "Strefa czasowa ucznia została zapisana."
+msgstr "The student's time zone has been saved."

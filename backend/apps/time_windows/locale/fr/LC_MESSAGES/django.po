@@ -1,0 +1,103 @@
+# French - tlumaczenie ekranow okien czasowych (docs/tasks/TZ-01.md).
+# Zrodlem (msgid) jest polski. UWAGA: tlumaczenie MASZYNOWE - do przegladu native speakera.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Olimpiada Kwantowa - time_windows\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-04 20:00+0200\n"
+"PO-Revision-Date: 2026-10-04 20:00+0200\n"
+"Last-Translator: Olimpiada Kwantowa\n"
+"Language-Team: French\n"
+"Language: fr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+
+#, python-format
+msgid "Twoje okno czasowe: %(label)s"
+msgstr "Ton créneau horaire : %(label)s"
+
+#, python-format
+msgid "Twoje okno czasowe %(label)s: %(stage)s"
+msgstr "Ton créneau horaire %(label)s : %(stage)s"
+
+msgid "Start"
+msgstr "Début"
+
+msgid "Koniec"
+msgstr "Fin"
+
+msgid "Strefa czasowa"
+msgstr "Fuseau horaire"
+
+msgid "Dodatkowy czas"
+msgstr "Temps supplémentaire"
+
+#, python-format
+msgid "%(minutes)s min"
+msgstr "%(minutes)s min"
+
+msgid "Zadania zobaczysz dopiero na starcie swojego okna. Do końca ostatniego okna wszystkich krajów nie rozmawiaj o zadaniach – forum i wiadomości są wtedy moderowane."
+msgstr "Tu verras les problèmes seulement au début de ton créneau. Jusqu'à la fin du dernier créneau de tous les pays, ne discute pas des problèmes : le forum et les messages sont modérés pendant ce temps."
+
+msgid "Okna czasowe drużyny"
+msgstr "Créneaux horaires de l'équipe"
+
+msgid "Panel opiekuna drużyny"
+msgstr "Espace du chef d'équipe"
+
+#, python-format
+msgid "Okna czasowe: %(country)s"
+msgstr "Créneaux horaires : %(country)s"
+
+#, python-format
+msgid "Strefa czasowa kraju: %(zone)s. Każdy uczeń zaczyna etap na starcie okna przydzielonego przez organizatora i widzi godziny w swojej strefie."
+msgstr "Fuseau horaire du pays : %(zone)s. Chaque élève commence l'épreuve au début du créneau attribué par l'organisateur et voit les heures dans son propre fuseau."
+
+#, python-format
+msgid "Czas pracy: %(duration)s."
+msgstr "Durée de l'épreuve : %(duration)s."
+
+msgid "Okna uczniów w etapie"
+msgstr "Créneaux des élèves pour l'épreuve"
+
+msgid "Uczeń"
+msgstr "Élève"
+
+msgid "Okno"
+msgstr "Créneau"
+
+msgid "Start (strefa ucznia)"
+msgstr "Début (fuseau de l'élève)"
+
+msgid "Koniec (strefa ucznia)"
+msgstr "Fin (fuseau de l'élève)"
+
+msgid "Nie zgłoszono jeszcze żadnego ucznia."
+msgstr "Aucun élève n'a encore été inscrit."
+
+msgid "Żaden etap tej edycji nie ma jeszcze okien czasowych."
+msgstr "Aucune épreuve de cette édition n'a encore de créneaux horaires."
+
+msgid "Strefy czasowe uczniów"
+msgstr "Fuseaux horaires des élèves"
+
+msgid "Strefa zmienia tylko to, jak uczeń widzi godziny w swoim panelu. Nie zmienia jego okna."
+msgstr "Le fuseau ne change que l'affichage des heures dans l'espace de l'élève. Il ne change pas son créneau."
+
+msgid "jak kraj drużyny"
+msgstr "comme le pays de l'équipe"
+
+msgid "Zapisz"
+msgstr "Enregistrer"
+
+msgid "Okna czasowe i strefy uczniów"
+msgstr "Créneaux horaires et fuseaux des élèves"
+
+msgid "Wybierz strefę czasową z listy."
+msgstr "Choisis un fuseau horaire dans la liste."
+
+msgid "Strefa czasowa ucznia została zapisana."
+msgstr "Le fuseau horaire de l'élève a été enregistré."

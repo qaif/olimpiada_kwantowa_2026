@@ -1,0 +1,103 @@
+# Chinese (Simplified) - tlumaczenie ekranow okien czasowych (docs/tasks/TZ-01.md).
+# Zrodlem (msgid) jest polski. UWAGA: tlumaczenie MASZYNOWE - do przegladu native speakera.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Olimpiada Kwantowa - time_windows\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-04 20:00+0200\n"
+"PO-Revision-Date: 2026-10-04 20:00+0200\n"
+"Last-Translator: Olimpiada Kwantowa\n"
+"Language-Team: Chinese (Simplified)\n"
+"Language: zh_Hans\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+#, python-format
+msgid "Twoje okno czasowe: %(label)s"
+msgstr "你的时间窗口：%(label)s"
+
+#, python-format
+msgid "Twoje okno czasowe %(label)s: %(stage)s"
+msgstr "你的时间窗口 %(label)s：%(stage)s"
+
+msgid "Start"
+msgstr "开始"
+
+msgid "Koniec"
+msgstr "结束"
+
+msgid "Strefa czasowa"
+msgstr "时区"
+
+msgid "Dodatkowy czas"
+msgstr "额外时间"
+
+#, python-format
+msgid "%(minutes)s min"
+msgstr "%(minutes)s 分钟"
+
+msgid "Zadania zobaczysz dopiero na starcie swojego okna. Do końca ostatniego okna wszystkich krajów nie rozmawiaj o zadaniach – forum i wiadomości są wtedy moderowane."
+msgstr "你的窗口开始时才能看到题目。在所有国家的最后一个窗口结束之前，请勿讨论题目——在此期间论坛和消息均受审核。"
+
+msgid "Okna czasowe drużyny"
+msgstr "队伍时间窗口"
+
+msgid "Panel opiekuna drużyny"
+msgstr "领队面板"
+
+#, python-format
+msgid "Okna czasowe: %(country)s"
+msgstr "时间窗口：%(country)s"
+
+#, python-format
+msgid "Strefa czasowa kraju: %(zone)s. Każdy uczeń zaczyna etap na starcie okna przydzielonego przez organizatora i widzi godziny w swojej strefie."
+msgstr "国家时区：%(zone)s。每位学生在组织者分配的窗口开始时开始本轮，并以自己的时区查看时间。"
+
+#, python-format
+msgid "Czas pracy: %(duration)s."
+msgstr "作答时间：%(duration)s。"
+
+msgid "Okna uczniów w etapie"
+msgstr "本轮学生的时间窗口"
+
+msgid "Uczeń"
+msgstr "学生"
+
+msgid "Okno"
+msgstr "窗口"
+
+msgid "Start (strefa ucznia)"
+msgstr "开始（学生时区）"
+
+msgid "Koniec (strefa ucznia)"
+msgstr "结束（学生时区）"
+
+msgid "Nie zgłoszono jeszcze żadnego ucznia."
+msgstr "尚未报名任何学生。"
+
+msgid "Żaden etap tej edycji nie ma jeszcze okien czasowych."
+msgstr "本届尚无任何轮次设置时间窗口。"
+
+msgid "Strefy czasowe uczniów"
+msgstr "学生时区"
+
+msgid "Strefa zmienia tylko to, jak uczeń widzi godziny w swoim panelu. Nie zmienia jego okna."
+msgstr "时区只改变学生在面板中看到的时间显示方式，不会改变其时间窗口。"
+
+msgid "jak kraj drużyny"
+msgstr "与队伍所在国家相同"
+
+msgid "Zapisz"
+msgstr "保存"
+
+msgid "Okna czasowe i strefy uczniów"
+msgstr "时间窗口与学生时区"
+
+msgid "Wybierz strefę czasową z listy."
+msgstr "请从列表中选择时区。"
+
+msgid "Strefa czasowa ucznia została zapisana."
+msgstr "学生时区已保存。"

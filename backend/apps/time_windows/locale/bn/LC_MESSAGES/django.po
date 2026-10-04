@@ -1,0 +1,103 @@
+# Bengali - tlumaczenie ekranow okien czasowych (docs/tasks/TZ-01.md).
+# Zrodlem (msgid) jest polski. UWAGA: tlumaczenie MASZYNOWE - do przegladu native speakera.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Olimpiada Kwantowa - time_windows\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-04 20:00+0200\n"
+"PO-Revision-Date: 2026-10-04 20:00+0200\n"
+"Last-Translator: Olimpiada Kwantowa\n"
+"Language-Team: Bengali\n"
+"Language: bn\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#, python-format
+msgid "Twoje okno czasowe: %(label)s"
+msgstr "আপনার সময়-জানালা: %(label)s"
+
+#, python-format
+msgid "Twoje okno czasowe %(label)s: %(stage)s"
+msgstr "আপনার সময়-জানালা %(label)s: %(stage)s"
+
+msgid "Start"
+msgstr "শুরু"
+
+msgid "Koniec"
+msgstr "শেষ"
+
+msgid "Strefa czasowa"
+msgstr "সময় অঞ্চল"
+
+msgid "Dodatkowy czas"
+msgstr "অতিরিক্ত সময়"
+
+#, python-format
+msgid "%(minutes)s min"
+msgstr "%(minutes)s মিনিট"
+
+msgid "Zadania zobaczysz dopiero na starcie swojego okna. Do końca ostatniego okna wszystkich krajów nie rozmawiaj o zadaniach – forum i wiadomości są wtedy moderowane."
+msgstr "আপনার জানালা শুরু হলে তবেই সমস্যাগুলো দেখতে পাবেন। সব দেশের শেষ জানালা শেষ না হওয়া পর্যন্ত সমস্যা নিয়ে আলোচনা করবেন না – সেই সময় ফোরাম ও বার্তা মডারেট করা হয়।"
+
+msgid "Okna czasowe drużyny"
+msgstr "দলের সময়-জানালা"
+
+msgid "Panel opiekuna drużyny"
+msgstr "দলনেতার প্যানেল"
+
+#, python-format
+msgid "Okna czasowe: %(country)s"
+msgstr "সময়-জানালা: %(country)s"
+
+#, python-format
+msgid "Strefa czasowa kraju: %(zone)s. Każdy uczeń zaczyna etap na starcie okna przydzielonego przez organizatora i widzi godziny w swojej strefie."
+msgstr "দেশের সময় অঞ্চল: %(zone)s। প্রত্যেক শিক্ষার্থী আয়োজকের নির্ধারিত জানালা শুরু হলে পর্ব শুরু করে এবং নিজের সময় অঞ্চলে সময় দেখে।"
+
+#, python-format
+msgid "Czas pracy: %(duration)s."
+msgstr "কাজের সময়: %(duration)s।"
+
+msgid "Okna uczniów w etapie"
+msgstr "পর্বে শিক্ষার্থীদের জানালা"
+
+msgid "Uczeń"
+msgstr "শিক্ষার্থী"
+
+msgid "Okno"
+msgstr "জানালা"
+
+msgid "Start (strefa ucznia)"
+msgstr "শুরু (শিক্ষার্থীর সময় অঞ্চল)"
+
+msgid "Koniec (strefa ucznia)"
+msgstr "শেষ (শিক্ষার্থীর সময় অঞ্চল)"
+
+msgid "Nie zgłoszono jeszcze żadnego ucznia."
+msgstr "এখনও কোনো শিক্ষার্থী নিবন্ধিত হয়নি।"
+
+msgid "Żaden etap tej edycji nie ma jeszcze okien czasowych."
+msgstr "এই সংস্করণের কোনো পর্বে এখনও সময়-জানালা নেই।"
+
+msgid "Strefy czasowe uczniów"
+msgstr "শিক্ষার্থীদের সময় অঞ্চল"
+
+msgid "Strefa zmienia tylko to, jak uczeń widzi godziny w swoim panelu. Nie zmienia jego okna."
+msgstr "সময় অঞ্চল শুধু শিক্ষার্থী তার প্যানেলে সময় কীভাবে দেখে তা বদলায়। এটি তার জানালা বদলায় না।"
+
+msgid "jak kraj drużyny"
+msgstr "দলের দেশের মতো"
+
+msgid "Zapisz"
+msgstr "সংরক্ষণ করুন"
+
+msgid "Okna czasowe i strefy uczniów"
+msgstr "সময়-জানালা ও শিক্ষার্থীদের সময় অঞ্চল"
+
+msgid "Wybierz strefę czasową z listy."
+msgstr "তালিকা থেকে একটি সময় অঞ্চল বেছে নিন।"
+
+msgid "Strefa czasowa ucznia została zapisana."
+msgstr "শিক্ষার্থীর সময় অঞ্চল সংরক্ষিত হয়েছে।"

@@ -1,0 +1,103 @@
+# Hindi - tlumaczenie ekranow okien czasowych (docs/tasks/TZ-01.md).
+# Zrodlem (msgid) jest polski. UWAGA: tlumaczenie MASZYNOWE - do przegladu native speakera.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Olimpiada Kwantowa - time_windows\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-04 20:00+0200\n"
+"PO-Revision-Date: 2026-10-04 20:00+0200\n"
+"Last-Translator: Olimpiada Kwantowa\n"
+"Language-Team: Hindi\n"
+"Language: hi\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#, python-format
+msgid "Twoje okno czasowe: %(label)s"
+msgstr "आपकी समय-खिड़की: %(label)s"
+
+#, python-format
+msgid "Twoje okno czasowe %(label)s: %(stage)s"
+msgstr "आपकी समय-खिड़की %(label)s: %(stage)s"
+
+msgid "Start"
+msgstr "शुरुआत"
+
+msgid "Koniec"
+msgstr "समाप्ति"
+
+msgid "Strefa czasowa"
+msgstr "समय क्षेत्र"
+
+msgid "Dodatkowy czas"
+msgstr "अतिरिक्त समय"
+
+#, python-format
+msgid "%(minutes)s min"
+msgstr "%(minutes)s मिनट"
+
+msgid "Zadania zobaczysz dopiero na starcie swojego okna. Do końca ostatniego okna wszystkich krajów nie rozmawiaj o zadaniach – forum i wiadomości są wtedy moderowane."
+msgstr "आप समस्याएँ केवल अपनी खिड़की शुरू होने पर ही देखेंगे। सभी देशों की अंतिम खिड़की समाप्त होने तक समस्याओं पर चर्चा न करें – उस दौरान फ़ोरम और संदेश मॉडरेट किए जाते हैं।"
+
+msgid "Okna czasowe drużyny"
+msgstr "टीम की समय-खिड़कियाँ"
+
+msgid "Panel opiekuna drużyny"
+msgstr "टीम लीडर पैनल"
+
+#, python-format
+msgid "Okna czasowe: %(country)s"
+msgstr "समय-खिड़कियाँ: %(country)s"
+
+#, python-format
+msgid "Strefa czasowa kraju: %(zone)s. Każdy uczeń zaczyna etap na starcie okna przydzielonego przez organizatora i widzi godziny w swojej strefie."
+msgstr "देश का समय क्षेत्र: %(zone)s। हर छात्र आयोजक द्वारा दी गई खिड़की के शुरू होने पर चरण शुरू करता है और समय अपने समय क्षेत्र में देखता है।"
+
+#, python-format
+msgid "Czas pracy: %(duration)s."
+msgstr "कार्य समय: %(duration)s।"
+
+msgid "Okna uczniów w etapie"
+msgstr "चरण में छात्रों की खिड़कियाँ"
+
+msgid "Uczeń"
+msgstr "छात्र"
+
+msgid "Okno"
+msgstr "खिड़की"
+
+msgid "Start (strefa ucznia)"
+msgstr "शुरुआत (छात्र का समय क्षेत्र)"
+
+msgid "Koniec (strefa ucznia)"
+msgstr "समाप्ति (छात्र का समय क्षेत्र)"
+
+msgid "Nie zgłoszono jeszcze żadnego ucznia."
+msgstr "अभी तक किसी छात्र का पंजीकरण नहीं हुआ है।"
+
+msgid "Żaden etap tej edycji nie ma jeszcze okien czasowych."
+msgstr "इस संस्करण के किसी भी चरण में अभी समय-खिड़कियाँ नहीं हैं।"
+
+msgid "Strefy czasowe uczniów"
+msgstr "छात्रों के समय क्षेत्र"
+
+msgid "Strefa zmienia tylko to, jak uczeń widzi godziny w swoim panelu. Nie zmienia jego okna."
+msgstr "समय क्षेत्र केवल यह बदलता है कि छात्र अपने पैनल में समय कैसे देखता है। इससे उसकी खिड़की नहीं बदलती।"
+
+msgid "jak kraj drużyny"
+msgstr "टीम के देश के अनुसार"
+
+msgid "Zapisz"
+msgstr "सहेजें"
+
+msgid "Okna czasowe i strefy uczniów"
+msgstr "समय-खिड़कियाँ और छात्रों के समय क्षेत्र"
+
+msgid "Wybierz strefę czasową z listy."
+msgstr "सूची से समय क्षेत्र चुनें।"
+
+msgid "Strefa czasowa ucznia została zapisana."
+msgstr "छात्र का समय क्षेत्र सहेज लिया गया है।"
