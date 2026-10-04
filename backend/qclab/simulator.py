@@ -195,7 +195,9 @@ def sample_counts(
 MAX_EXACT_BRANCHES = 4096
 
 
-def exact_distribution(circuit: QuantumCircuit, max_branches: int = MAX_EXACT_BRANCHES) -> dict[str, float] | None:
+def exact_distribution(
+    circuit: QuantumCircuit, max_branches: int = MAX_EXACT_BRANCHES
+) -> dict[str, float] | None:
     """Dokładny rozkład wyników pomiarów także przy pomiarze w trakcie i resecie – albo ``None``.
 
     Każdy pomiar rozgałęzia stan na wynik 0 i 1 z ich prawdopodobieństwami (gałęzie o zerowym
@@ -231,7 +233,9 @@ def exact_distribution(circuit: QuantumCircuit, max_branches: int = MAX_EXACT_BR
                 return None
             branches = split
             continue
-        branches = [(prob, _apply_operation(state, n, operation, qubits), clbits) for prob, state, clbits in branches]
+        branches = [
+            (prob, _apply_operation(state, n, operation, qubits), clbits) for prob, state, clbits in branches
+        ]
     result: dict[str, float] = {}
     for prob, _state, clbits in branches:
         key = _key(circuit, list(clbits))

@@ -53,6 +53,14 @@ MAX_NESTING = 5
 MAX_MATRIX_QUBITS = 6
 MAX_VALUE_ITEMS = 10_000
 MAX_ARTIFACT_BYTES = 2 * 1024 * 1024
+#: Budżet symulacji jednego artefaktu w workerze: Σ po operacjach 2^(n + k) (n – kubity obwodu,
+#: k – kubity operacji; tyle kosztuje ``apply_matrix``). 2·10⁸ to kilka sekund NumPy. Obwód ucznia
+#: ponad budżet nie jest liczony wcale – test kończy się czytelnym błędem, a nie minutą CPU workera.
+MAX_GRADING_WORK = 200_000_000
+#: Budżet całego przebiegu (wszystkie artefakty i testy razem, z pamięcią podręczną per artefakt).
+MAX_RUN_WORK = 1_000_000_000
+#: Najmniej strzałów, przy których słownik zliczeń ucznia w ogóle porównujemy z rozkładem.
+MIN_SHOTS = 100
 ID_RE = re.compile(r"^[A-Za-z0-9_-]{1,40}$")
 NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,60}$")
 LABEL_RE = re.compile(r"^[01]{1,20}$")
@@ -78,6 +86,7 @@ MESSAGES = {
         "has_measure": "Obwód nie może zawierać pomiarów.",
         "no_measure": "Obwód musi mierzyć wynik (brak pomiarów).",
         "eval_error": "Nie udało się sprawdzić wyniku: {error}",
+        "too_few_shots": "Za mało strzałów do porównania rozkładu ({shots}, potrzeba co najmniej {minimum}).",
         "summary": "Wynik testów widocznych: {points} / {total} pkt",
         "hidden_note": "To są tylko testy przykładowe – ocenę liczą testy ukryte na serwerze.",
     },
@@ -102,6 +111,7 @@ MESSAGES = {
         "has_measure": "The circuit must not contain measurements.",
         "no_measure": "The circuit must measure its result (no measurements found).",
         "eval_error": "Could not check the result: {error}",
+        "too_few_shots": "Too few shots to compare the distribution ({shots}, at least {minimum} needed).",
         "summary": "Visible tests: {points} / {total} points",
         "hidden_note": "These are sample tests only – the score comes from hidden tests on the server.",
     },
@@ -266,6 +276,8 @@ def _validate_expected(check: str, expected, test: dict) -> None:
                 parse_number(value)
         else:
             raise SpecError('Oczekiwany wektor stanu: lista amplitud albo słownik {"00": amplituda}.')
+        if float(np.linalg.norm(_expected_vector(expected, None))) < 1e-9:
+            raise SpecError("Oczekiwany wektor stanu jest zerowy.")
     elif check in ("probabilities", "counts"):
         if not isinstance(expected, dict) or not expected:
             raise SpecError('Oczekiwany rozkład: słownik {"00": 0.5, "11": 0.5}.')
@@ -609,6 +621,53 @@ def _rebuild_ops(circuit: QuantumCircuit, ops, depth: int, budget: list[int]) ->
         circuit.append(gate, qubits)
 
 
+def simulation_work(circuit: QuantumCircuit) -> int:
+    """Koszt symulacji wektora stanu: Σ 2^(n + k) po operacjach, także wewnątrz bramek złożonych."""
+    n = circuit.num_qubits
+
+    def walk(sub_circuit: QuantumCircuit) -> int:
+        total = 0
+        for operation, _qubits, _clbits in sub_circuit.instruction_indices():
+            if operation.name in ("barrier", "save_statevector", "delay"):
+                continue
+            if operation.definition is not None and operation._matrix is None:
+                total += walk(operation.definition)
+            else:
+                total += 2 ** (n + max(1, operation.num_qubits))
+        return total
+
+    return walk(circuit)
+
+
+class GradingCache:
+    """Pamięć podręczna jednego przebiegu oceny: obwód, stan, rozkład i macierz liczone raz na
+    artefakt (kilka testów tego samego celu nie symuluje go kilka razy) i wspólny budżet przebiegu."""
+
+    def __init__(self, run_budget: int = MAX_RUN_WORK) -> None:
+        self._items: dict[tuple[int, str], object] = {}
+        self.spent = 0
+        self.run_budget = run_budget
+
+    def get(self, artifact: dict, kind: str, compute):
+        key = (id(artifact), kind)
+        if key not in self._items:
+            try:
+                self._items[key] = ("ok", compute())
+            except Exception as exc:  # noqa: BLE001 - ten sam błąd wraca w każdym teście tego celu
+                self._items[key] = ("error", exc)
+        status, value = self._items[key]
+        if status == "error":
+            raise value
+        return value
+
+    def charge(self, work: int) -> None:
+        if work > MAX_GRADING_WORK:
+            raise QclabError("The circuit is too large to grade (operations x 2^qubits over the limit).")
+        self.spent += work
+        if self.spent > self.run_budget:
+            raise QclabError("The grading budget of this run is exhausted.")
+
+
 def rebuild_circuit(artifact: dict) -> QuantumCircuit:
     num_qubits = artifact.get("num_qubits")
     num_clbits = artifact.get("num_clbits", 0)
@@ -667,35 +726,52 @@ def _distribution(expected) -> dict[str, float]:
     return {k: v / total for k, v in values.items()}
 
 
-def _state_of(artifact: dict) -> np.ndarray:
+def _circuit_of(artifact: dict, cache: GradingCache) -> QuantumCircuit:
+    return cache.get(artifact, "circuit", lambda: rebuild_circuit(artifact))
+
+
+def _state_of(artifact: dict, cache: GradingCache | None = None) -> np.ndarray:
+    cache = cache if cache is not None else GradingCache()
+    return cache.get(artifact, "state", lambda: _compute_state(artifact, cache))
+
+
+def _compute_state(artifact: dict, cache: GradingCache) -> np.ndarray:
     if artifact["type"] == "statevector":
         data = artifact.get("data")
         if not isinstance(data, list) or not data or len(data) > 2**MAX_QUBITS:
             raise QclabError("Invalid statevector in the result.")
         return _finite_array(np.array([complex(float(a), float(b)) for a, b in data], dtype=complex))
     if artifact["type"] == "circuit":
-        circuit = rebuild_circuit(artifact).remove_final_measurements(inplace=False)
+        circuit = _circuit_of(artifact, cache).remove_final_measurements(inplace=False)
+        cache.charge(simulation_work(circuit))
         return _finite_array(evolve_unitary(circuit, zero_state(circuit.num_qubits)))
     if artifact["type"] == "value" and isinstance(artifact.get("data"), list):
         return np.array([parse_number(v) for v in artifact["data"]], dtype=complex)
     raise TypeError(artifact["type"])
 
 
-def _measured_distribution(circuit: QuantumCircuit) -> dict[str, float]:
+def _measured_distribution(circuit: QuantumCircuit, cache: GradingCache | None = None) -> dict[str, float]:
     """Dokładny rozkład wyników pomiarów obwodu (bez losowania) – klucze bez spacji."""
     from .simulator import _key, _terminal_measurements
 
+    cache = cache if cache is not None else GradingCache()
+    work = simulation_work(circuit)
+    cache.charge(work)
     pairs = _terminal_measurements(circuit)
     if pairs is None:
         from .simulator import exact_distribution, sample_counts
 
-        exact = exact_distribution(circuit)
+        # Każda gałąź kosztuje tyle, co jeden przebieg – liczba gałęzi ograniczona budżetem.
+        branches = max(1, min(4096, MAX_GRADING_WORK // max(1, work)))
+        exact = exact_distribution(circuit, max_branches=branches)
         if exact is not None:
             if not any(op.name == "measure" for op, _q, _c in circuit.instruction_indices()):
                 raise QclabError("no_measure")
             return {k.replace(" ", ""): v for k, v in exact.items()}
         # Ponad limit gałęzi (bardzo wiele pomiarów w trakcie) – losowanie ze stałym ziarnem; błąd
         # próbkowania przy 20 000 strzałów to ok. 0,01 odległości, poniżej domyślnej tolerancji 0,05.
+        # Koszt losowania (strzały × operacje × 2^n) pilnuje ``sample_counts`` (MAX_TRAJECTORY_WORK).
+        cache.charge(min(work * 20000, MAX_GRADING_WORK))
         counts = sample_counts(circuit, 20000, seed=12345)
         total = sum(counts.values())
         return {k.replace(" ", ""): v / total for k, v in counts.items()}
@@ -773,8 +849,22 @@ def _fail(test: dict, text: str) -> Outcome:
     return Outcome(test["id"], test["name"], 0.0, float(test["points"]), False, text)
 
 
-def evaluate(test: dict, artifact: dict | None, language: str = "pl") -> Outcome:
+def counts_tolerance(tolerance: float, shots: int, support: int) -> float:
+    """Tolerancja odległości dla zliczeń **losowanych przez ucznia**: co najmniej szum próbkowania.
+
+    Oczekiwana odległość całkowitej zmienności między rozkładem a ``shots`` próbkami z niego jest
+    rzędu ``0,5·√(K/shots)`` (K – liczba wyników o niezerowym prawdopodobieństwie); dwukrotność tej
+    wartości to zapas na odchylenie. Bez tego test z tolerancją 0,01 oblewałby poprawne rozwiązanie
+    z 1024 strzałami. Rozkład z **obwodu** jest liczony dokładnie i tej poprawki nie dostaje.
+    """
+    return max(tolerance, math.sqrt(max(1, support) / max(1, shots)))
+
+
+def evaluate(
+    test: dict, artifact: dict | None, language: str = "pl", cache: GradingCache | None = None
+) -> Outcome:
     """Wynik jednego testu na artefakcie. Nigdy nie rzuca – błąd to test niezaliczony z opisem."""
+    cache = cache if cache is not None else GradingCache()
     label = target_label(normalize_target(test["target"]))
     if not artifact or artifact.get("type") == "error":
         code = (artifact or {}).get("code", "missing")
@@ -788,13 +878,13 @@ def evaluate(test: dict, artifact: dict | None, language: str = "pl") -> Outcome
         if check == "circuit":
             if kind != "circuit":
                 return _fail(test, message(language, "unsupported", target=label, kind=kind))
-            problem = _check_circuit(test, rebuild_circuit(artifact), language)
+            problem = _check_circuit(test, _circuit_of(artifact, cache), language)
             if problem:
                 return _fail(test, problem)
         elif check == "statevector":
             if kind not in ("circuit", "statevector", "value"):
                 return _fail(test, message(language, "unsupported", target=label, kind=kind))
-            actual = _state_of(artifact)
+            actual = _state_of(artifact, cache)
             expected = _expected_vector(test["expected"], None)
             if actual.shape != expected.shape:
                 width = int(round(math.log2(len(expected))))
@@ -802,8 +892,11 @@ def evaluate(test: dict, artifact: dict | None, language: str = "pl") -> Outcome
                                            expected=width))  # fmt: skip
             if test.get("global_phase", True):
                 overlap = np.vdot(actual, expected)
-                if np.isfinite(overlap) and abs(overlap) > 1e-12:
-                    actual = actual * (overlap / abs(overlap))
+                # Stan prostopadły (albo zerowy) do oczekiwanego: fazy nie da się dopasować –
+                # to jest porażka, a nie powód, żeby porównanie pominąć.
+                if not (np.isfinite(overlap) and abs(overlap) > 1e-12):
+                    return _fail(test, message(language, "sv_mismatch", diff=1.0))
+                actual = actual * (overlap / abs(overlap))
             diff = float(np.max(np.abs(actual - expected)))
             # ``not (diff <= tol)``, a nie ``diff > tol``: NaN nie spełnia żadnego porównania.
             if not (diff <= tolerance):
@@ -814,7 +907,7 @@ def evaluate(test: dict, artifact: dict | None, language: str = "pl") -> Outcome
             if kind == "value" and isinstance(artifact.get("data"), dict):
                 actual_dist = {k.replace(" ", ""): parse_number(v).real for k, v in artifact["data"].items()}
             else:
-                state = _state_of(artifact)
+                state = _state_of(artifact, cache)
                 width = int(round(math.log2(len(state))))
                 actual_dist = {format(i, f"0{width}b"): float(abs(a) ** 2) for i, a in enumerate(state)}
             expected_dist = {k.replace(" ", ""): parse_number(v).real for k, v in test["expected"].items()}
@@ -829,10 +922,16 @@ def evaluate(test: dict, artifact: dict | None, language: str = "pl") -> Outcome
                 total = sum(v for v in data.values() if isinstance(v, int) and v > 0)
                 if total <= 0:
                     return _fail(test, message(language, "counts_mismatch", diff=1.0, tol=tolerance))
+                if total < MIN_SHOTS:
+                    return _fail(test, message(language, "too_few_shots", shots=total, minimum=MIN_SHOTS))
                 actual_dist = {k.replace(" ", ""): v / total for k, v in data.items() if isinstance(v, int)}
             elif kind == "circuit":
                 try:
-                    actual_dist = _measured_distribution(rebuild_circuit(artifact))
+                    actual_dist = cache.get(
+                        artifact,
+                        "distribution",
+                        lambda: _measured_distribution(_circuit_of(artifact, cache), cache),
+                    )
                 except QclabError as exc:
                     if str(exc) == "no_measure":
                         return _fail(test, message(language, "no_measure"))
@@ -840,6 +939,9 @@ def evaluate(test: dict, artifact: dict | None, language: str = "pl") -> Outcome
             else:
                 return _fail(test, message(language, "unsupported", target=label, kind=kind))
             expected_dist = _distribution(test["expected"])
+            if kind == "counts":
+                support = sum(1 for value in expected_dist.values() if value > 0)
+                tolerance = counts_tolerance(tolerance, total, support)
             keys = set(actual_dist) | set(expected_dist)
             _finite_array(np.array(list(actual_dist.values()), dtype=float))
             distance = 0.5 * sum(abs(actual_dist.get(k, 0.0) - expected_dist.get(k, 0.0)) for k in keys)
@@ -847,10 +949,17 @@ def evaluate(test: dict, artifact: dict | None, language: str = "pl") -> Outcome
                 return _fail(test, message(language, "counts_mismatch", diff=distance, tol=tolerance))
         elif check == "unitary":
             if kind == "circuit":
-                circuit = rebuild_circuit(artifact)
+                circuit = _circuit_of(artifact, cache)
                 if circuit.num_qubits > MAX_OPERATOR_QUBITS:
                     return _fail(test, message(language, "unsupported", target=label, kind="circuit"))
-                actual = _finite_array(Operator(circuit.remove_final_measurements(inplace=False)).data)
+
+                def unitary() -> np.ndarray:
+                    bare = circuit.remove_final_measurements(inplace=False)
+                    # Macierz to 2^n przebiegów wektora stanu (kolumna po kolumnie).
+                    cache.charge(simulation_work(bare) * 2**bare.num_qubits)
+                    return _finite_array(Operator(bare).data)
+
+                actual = cache.get(artifact, "unitary", unitary)
             elif kind == "operator" or (kind == "value" and isinstance(artifact.get("data"), list)):
                 rows = artifact["data"]
                 actual = np.array([[parse_number(v) for v in row] for row in rows], dtype=complex)
@@ -863,8 +972,9 @@ def evaluate(test: dict, artifact: dict | None, language: str = "pl") -> Outcome
                 index = int(np.argmax(np.abs(expected)))
                 ref = expected.reshape(-1)[index]
                 got = actual.reshape(-1)[index]
-                if np.isfinite(got) and abs(got) > 1e-12:
-                    actual = actual * (ref / got) / abs(ref / got)
+                if not (np.isfinite(got) and abs(got) > 1e-12):
+                    return _fail(test, message(language, "unitary_mismatch", diff=1.0))
+                actual = actual * (ref / got) / abs(ref / got)
             diff = float(np.max(np.abs(actual - expected)))
             if not (diff <= tolerance):
                 return _fail(test, message(language, "unitary_mismatch", diff=diff))
@@ -879,7 +989,8 @@ def evaluate(test: dict, artifact: dict | None, language: str = "pl") -> Outcome
 
 
 def evaluate_all(tests: list[dict], artifacts: dict[str, dict], language: str = "pl") -> list[Outcome]:
-    return [evaluate(test, artifacts.get(target_key(test["target"])), language) for test in tests]
+    cache = GradingCache()
+    return [evaluate(test, artifacts.get(target_key(test["target"])), language, cache) for test in tests]
 
 
 # --- testy widoczne w notatniku -------------------------------------------------------------------
