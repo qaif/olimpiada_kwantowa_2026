@@ -14,7 +14,7 @@
 #   4. zapisuje obok VERSION (wersja + integrity paczki) i SHA384 pliku UMD (do porównania przy
 #      przeglądzie i do ewentualnego atrybutu `integrity`).
 # Po wgraniu: `git add backend/static/vendor/livekit-client` i commit z wersją w opisie. Aktualizacja =
-# zmiana LIVEKIT_CLIENT_VERSION, ponowny przebieg, test pokoju na serwerze testowym (docs/OPERACJE.md § 28).
+# zmiana LIVEKIT_CLIENT_VERSION, ponowny przebieg, test pokoju na serwerze testowym (docs/OPERACJE.md § 36).
 set -euo pipefail
 
 VERSION="${LIVEKIT_CLIENT_VERSION:-2.22.3}"

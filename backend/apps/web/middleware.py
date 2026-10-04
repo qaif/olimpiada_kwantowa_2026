@@ -198,12 +198,17 @@ def webinar_connect_sources() -> tuple[str, ...]:
     return csp_origins()
 
 
-def build_policy(nonce: str, *, analytics: bool = False) -> str:
+def build_policy(nonce: str, *, analytics: bool = False, theme_assets: bool = False) -> str:
     """Buduje treść polityki dla jednego żądania (nonce jest jednorazowy).
 
     ``analytics`` dokłada hosty Google Analytics 4 – i tylko wtedy, gdy organizator wpisał
     identyfikator w ``/cms/``. Domyślne ``False`` jest tu świadome: funkcja wołana bez tego
     argumentu (testy, ewentualny inny kod) zwraca politykę sprzed dodania analityki.
+
+    ``theme_assets`` dokłada origin publicznego bucketu do ``style-src`` i ``font-src`` – wyłącznie
+    na stronie, która dołącza arkusze motywu (``tokens.css``/``theme.css`` i kroje ``woff2`` leżą
+    w buckecie, THEME-01 § 4). Ten sam origin jest już w ``img-src``; ``script-src`` nie zmienia się
+    nigdy. Strona bez motywu (Konkurs #1) dostaje politykę co do bajtu dawną.
     """
     # Kolejność jest istotna dla starych przeglądarek: nonce i hosty muszą stać przed
     # 'strict-dynamic', bo CSP2 po prostu pominie nieznane słowo kluczowe i użyje reszty listy.
@@ -232,9 +237,10 @@ def build_policy(nonce: str, *, analytics: bool = False) -> str:
         # blokuje każdą ilustrację i każdy rendition Wagtaila.
         f"img-src {img_sources}",
         f"media-src {media_sources}",
-        "font-src 'self' data:",
+        f"font-src {_with_storage(["'self'", 'data:']) if theme_assets else "'self' data:"}",
         # Zobacz docstring modułu: wyjątek dotyczy wyłącznie stylów, nigdy skryptów.
-        f"style-src 'self' 'unsafe-inline' {' '.join(STYLE_CDN_SOURCES)}",
+        f"style-src 'self' 'unsafe-inline' {' '.join(STYLE_CDN_SOURCES)}"
+        + (f" {storage_origin()}" if theme_assets and storage_origin() else ""),
         f"script-src {' '.join(script_src)}",
         f"connect-src {connect_sources}",
         # Zamknięta lista dostawców osadzeń – ta sama, na którą zawężony jest WAGTAILEMBEDS_FINDERS.
@@ -350,5 +356,10 @@ class ContentSecurityPolicyMiddleware:
                 # ``apps/cms/analytics.py``.
                 from apps.cms.analytics import analytics_enabled_for_request
 
-                response[self.header] = build_policy(nonce, analytics=analytics_enabled_for_request(request))
+                response[self.header] = build_policy(
+                    nonce,
+                    analytics=analytics_enabled_for_request(request),
+                    # Ustawia ``{% theme_head %}`` (apps.themes) – tylko gdy strona dołączyła motyw.
+                    theme_assets=getattr(request, "_theme_assets_used", False),
+                )
         return response

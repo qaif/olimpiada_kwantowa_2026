@@ -21,6 +21,7 @@ from apps.core.api import DomainError
 
 from .models import (
     REGISTRATION_CLOSED,
+    REGISTRATION_DELEGATIONS,
     REGISTRATION_DISABLED,
     REGISTRATION_NOT_YET,
     RegistrationStatus,
@@ -66,6 +67,11 @@ def registration_message(state: RegistrationStatus) -> str:
     """
     if state.is_open:
         return ""
+    if state.reason == REGISTRATION_DELEGATIONS:
+        return _(
+            "Uczniów zgłaszają opiekunowie drużyn narodowych – skontaktuj się z opiekunem drużyny "
+            "swojego kraju albo z organizatorem."
+        )
     if state.reason == REGISTRATION_NOT_YET and state.opens_at is not None:
         return _("Rejestracja rusza %(moment)s.") % {"moment": format_moment(state.opens_at)}
     if state.reason == REGISTRATION_CLOSED and state.closes_at is not None:
@@ -95,6 +101,7 @@ def ensure_registration_open(now=None) -> RegistrationStatus:
 __all__ = [
     "REGISTRATION_CLOSED",
     "REGISTRATION_CLOSED_CODE",
+    "REGISTRATION_DELEGATIONS",
     "REGISTRATION_DISABLED",
     "REGISTRATION_NOT_YET",
     "RegistrationStatus",

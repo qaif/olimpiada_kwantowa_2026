@@ -47,6 +47,15 @@
       {% include "web/_social_auth.html" %}
     {% else %}
       <p class="auth__intro">{{ registration.message }}</p>
+      {% comment %}
+        Rejestracja przez delegacje krajowe (DEL-01): pytanie czytelnika brzmi „to do kogo mam
+        napisać?”, więc pod powodem stoi adres organizatora – z konkursu, bo to on jest
+        administratorem danych i on wie, kto prowadzi drużynę danego kraju.
+      {% endcomment %}
+      {% if registration.reason == "delegations" and competition.contact_email %}
+        <p class="hint">{% translate "Kontakt z organizatorem:" %}
+          <a href="mailto:{{ competition.contact_email }}">{{ competition.contact_email }}</a></p>
+      {% endif %}
       {% if registration.reason == "not_yet" %}
         <p class="hint">{% blocktranslate trimmed %}
           Wróć tu po tej godzinie – konto założysz w kilka minut. Terminy etapów

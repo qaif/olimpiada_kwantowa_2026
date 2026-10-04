@@ -133,7 +133,7 @@ i nazwę w sesji i prowadzi do pokoju gościa.
 - Nowe pierwsze segmenty `webinars` i `integrations`: `RESERVED_SLUGS`, kontrakt tras djcms
   (`manage.py djcms_routes --write`), `robots.txt` djcms (`webinars` w `PRIVATE_PREFIXES`).
 
-## 8. Infrastruktura (`deploy/livekit/`, opis: `docs/OPERACJE.md` § 28)
+## 8. Infrastruktura (`deploy/livekit/`, opis: `docs/OPERACJE.md` § 36)
 
 - (a) **osobna maszyna** – zalecane przy dużych wydarzeniach (VPS produkcyjny traci 12–37 % CPU
   na „steal”); portal dostaje tylko `LIVEKIT_URL` i klucze;

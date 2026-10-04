@@ -247,7 +247,7 @@ def _chrome(request, competition):
     (``site.ga_measurement_id`` – ten sam warunek ładowania ``gtag``/``consent.js``) i ``seo``
     (``og:image``, opis domyślny).
     """
-    from apps.accounts.supervisors import registration_enabled
+    from apps.accounts.supervisors import registration_enabled_for_competition
     from apps.cms.announcements import cached_announcements
     from apps.cms.models import SiteSettings
     from apps.cms.sponsor_slider import cached_payload
@@ -256,7 +256,7 @@ def _chrome(request, competition):
 
     site = competition.site
     settings_row = SiteSettings.for_site(site)
-    supervisor_enabled = registration_enabled(site.pk)
+    supervisor_enabled = registration_enabled_for_competition(competition)
     slider = cached_payload(competition)
     site_dto = _site_dto(settings_row)
     site_dto["ga_measurement_id"] = settings_row.ga_measurement_id or ""

@@ -1,0 +1,19 @@
+{% load static i18n web_extras wagtailimages_tags %}{% comment %}
+  Slot motywu ``brand`` (THEME-01 § 3) – logotyp i nazwa serwisu w pasku konta.
+  Treść domyślna (motyw ``classic``) przeniesiona co do bajtu z szablonu, który ją zawierał;
+  paczka motywu nadpisuje ją plikiem ``templates/theme/brand.html``.
+{% endcomment %}<a class="brand" href="{{ site_root|default:"/" }}">
+      {% comment %}Logotyp jest projektowany na jasne tło, więc w granatowym nagłówku stoi na jasnej plakietce.
+      Nazwa zostaje w DOM (visually-hidden) jako tekst linku dla czytników ekranu i testów.{% endcomment %}
+      {% if competition.site_logo_id %}
+      {% image competition.site_logo width-600 format-png as logo1x %}{% image competition.site_logo width-1200 format-png as logo2x %}
+      <span class="brand__logo"><img src="{{ logo1x.url }}" srcset="{{ logo1x.url }} 1x, {{ logo2x.url }} 2x"
+           alt="" width="{{ logo1x.width }}" height="{{ logo1x.height }}"></span>
+      {% else %}
+      <span class="brand__logo"><img src="{% static 'img/logo-olimpiada-kwantowa.png' %}"
+           srcset="{% static 'img/logo-olimpiada-kwantowa.png' %} 1x, {% static 'img/logo-olimpiada-kwantowa@2x.png' %} 2x"
+           alt="" width="600" height="231"></span>
+      {% endif %}
+      <span class="brand__mark visually-hidden">{{ settings.cms.SiteSettings.site_name }}</span>
+      {% if site_edition_label %}{% translate "edycja" as edition_prefix %}<span class="brand__sub">{{ site_edition_label|edition_title:edition_prefix }}</span>{% endif %}
+    </a>

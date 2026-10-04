@@ -110,6 +110,9 @@ INSTALLED_APPS = [
     # członkostwa i profile uczestników będą wskazywać na konkurs, a nie odwrotnie – kolejność
     # w tej liście ma odbijać kierunek zależności.
     "apps.tenancy",
+    # Motywy wizualne wgrywane paczkami (THEME-01). Katalog jest platformowy, a wybór należy do
+    # konkursu (``Competition.theme_version``) – stąd zaraz przy ``apps.tenancy``.
+    "apps.themes",
     "apps.accounts",
     # Słownik szkół ponadpodstawowych (SIO/RSPO). Po ``apps.accounts``, bo model ``School``
     # korzysta z zamkniętej listy województw zdefiniowanej przy kontach.
@@ -1025,7 +1028,7 @@ JITSI_JWT_COMMITTEE_ROOM_MAX_DAYS = env.int("JITSI_JWT_COMMITTEE_ROOM_MAX_DAYS",
 # --- webinary w LiveKit (zadanie WEB-01, ``apps.webinars``) --------------------------------------
 # LiveKit (Apache 2.0) stoi na **własnym** serwerze – osobnej maszynie (zalecane przy dużych
 # wydarzeniach) albo w profilu compose ``livekit`` na tym hoście (małe spotkania); docs/OPERACJE.md
-# § 28. ``LIVEKIT_URL`` – adres sygnalizacji dla przeglądarki (``wss://live.<domena>``),
+# § 36. ``LIVEKIT_URL`` – adres sygnalizacji dla przeglądarki (``wss://live.<domena>``),
 # ``LIVEKIT_API_KEY``/``LIVEKIT_API_SECRET`` – para kluczy z ``livekit.yaml`` (``keys:``). Pusty
 # którykolwiek = funkcja wyłączona: koordynator konkursu z flagą ``webinars`` widzi „serwer LiveKit
 # nie jest skonfigurowany”, odbiorcy – nic, a polityka CSP nie zmienia się ani o znak.
@@ -1257,6 +1260,12 @@ REST_FRAMEWORK = {
         # założenie to dwa zaproszenia ważne do 60 dni – dziesięć na godzinę mieści każdą prawdziwą
         # potrzebę (seria zebrań na tydzień), a nie pozwala jednemu kontu nadrukować ich setek.
         "video_rooms": "10/hour",
+        # Delegacje krajowe (DEL-01): zgłaszanie i poprawianie uczniów przez opiekuna drużyny oraz
+        # zaproszenia opiekunów wysyłane przez koordynatora. Liczone per konto
+        # (``apps.web.throttle.PER_USER_SCOPES``). Każde zgłoszenie wysyła list na adres wpisany
+        # przez opiekuna, więc limit chroni cudze skrzynki; sześćdziesiąt na godzinę mieści z zapasem
+        # drużynę (kilka osób) i zaproszenia dla kilkudziesięciu krajów w jednym posiedzeniu.
+        "delegation": "60/hour",
         # Bramka linku-zaproszenia (``/zaproszenie/wideo/<klucz>/``, POST „Dołącz”) – bez konta,
         # więc liczona po adresie IP, jak każdy publiczny formularz. Wysoko, bo za jednym NAT-em
         # bywa cała sala gości wchodzących na to samo zebranie naraz; nisko na tyle, żeby

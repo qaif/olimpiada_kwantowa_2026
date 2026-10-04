@@ -1,0 +1,12 @@
+{
+  "schema": 1,
+  "slug": "example",
+  "name": "Przykład",
+  "version": "1.0.0",
+  "author": "Testy platformy",
+  "description": "Najmniejsza poprawna paczka motywu – fikstura testów apps.themes.",
+  "supports": ["public", "panels"],
+  "layouts": {"header": "minimal|split", "cards": ["outline", "flat"]},
+  "color_scheme": "auto",
+  "min_app_version": "0.41.0"
+}

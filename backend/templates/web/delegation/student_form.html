@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% comment %}
+  Zgłoszenie ucznia albo poprawka jego danych przed aktywacją konta (DEL-01).
+
+  Hasła, telefonu i zgód tu nie ma: składa je uczeń sam pod linkiem z listu – opiekun drużyny nie
+  może zgodzić się w cudzym imieniu. Kraj nie jest polem: uczeń startuje z kraju delegacji.
+{% endcomment %}
+{% block title %}{% if editing %}{% translate "Popraw dane ucznia" %}{% else %}{% translate "Dodaj ucznia" %}{% endif %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow"><a href="{% url 'web:delegation' %}">{% blocktranslate trimmed with country=delegation.country.name %}Drużyna: {{ country }}{% endblocktranslate %}</a></span>
+  <h1>{% if editing %}{% translate "Popraw dane ucznia" %}{% else %}{% translate "Dodaj ucznia" %}{% endif %}</h1>
+  <p class="lead">{% if editing %}{% translate "Zmiana adresu e-mail wysyła uczniowi nowy link – poprzedni przestaje działać." %}{% else %}{% translate "Uczeń dostanie e-mail z linkiem: ustawi hasło i sam złoży zgody. Do tego czasu konto jest nieaktywne." %}{% endif %}</p>
+</div>
+
+<section class="section">
+  <div class="card">
+    {% if editing and active %}
+      {# Konto uruchomione: dane należą do ucznia – tylko odczyt (poprawka po przeglądzie DEL-01). #}
+      <p class="notice">{% translate "Uczeń uruchomił już konto – dane poprawia sam w swoim profilu." %}</p>
+      <ul>
+        <li>{{ participant.user.get_full_name }} – {{ participant.user.email }}</li>
+        <li>{% translate "Szkoła:" %} {{ participant.school }}</li>
+      </ul>
+      <div class="actions">
+        <a class="btn btn--secondary" href="{% url 'web:delegation' %}">{% translate "Wróć do drużyny" %}</a>
+      </div>
+    {% else %}
+    <form method="post" class="form" novalidate>
+      {% csrf_token %}
+      <p class="form__required-note">{% translate "Pola oznaczone * są obowiązkowe." %}</p>
+      {{ form.as_p }}
+      <div class="actions">
+        <button type="submit" class="btn btn--primary">{% if editing %}{% translate "Zapisz" %}{% else %}{% translate "Zgłoś ucznia" %}{% endif %}</button>
+        <a class="btn btn--ghost" href="{% url 'web:delegation' %}">{% translate "Anuluj" %}</a>
+      </div>
+    </form>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

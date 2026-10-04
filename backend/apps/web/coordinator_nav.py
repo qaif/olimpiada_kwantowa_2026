@@ -404,6 +404,12 @@ def groups(stages: list, competition=None) -> list[Group]:
                 match=("coordinator-competition",),
             ),
         )
+    if competition is not None and competition.has_feature("themes"):
+        # Motyw serwisu (THEME-01 § 6) – zaraz pod „Ustawieniami konkursu”, bo to też wygląd
+        # **konkursu**, nie rocznika. Za flagą z tego samego powodu: konkurs z domyślnymi flagami
+        # ma menu bajt w bajt takie jak dotąd. Katalog motywów platformy (superkoordynator) nie ma
+        # tu pozycji – prowadzi do niego odnośnik z tego ekranu, widoczny wyłącznie operatorowi.
+        settings_items += (Item("Motyw serwisu", ("web:coordinator-theme",), match=("coordinator-theme",)),)
     if competition is not None and competition.has_feature("competition_creation"):
         # Zakładanie kolejnego konkursu w subdomenie platformy. **Zaraz pod** „Ustawieniami
         # konkursu”, bo obie pozycje dotyczą konkursu jako całości, a nie jego rocznika — i bo
@@ -733,6 +739,23 @@ def groups(stages: list, competition=None) -> list[Group]:
             ),
         )
     people_items: tuple[Item, ...] = ()
+    if competition is not None and competition.uses_delegations:
+        # Delegacje krajowe (DEL-01) – **na początku** dołożonych pozycji sekcji, bo w konkursie
+        # z tym trybem to jest droga, którą uczestnicy w ogóle trafiają do zawodów. Bramka ta sama,
+        # co w widoku (tryb rejestracji konkursu): poza nim ekran oddaje 404, a Olimpiada Kwantowa
+        # ma menu co do bajtu takie, jak przed tą zmianą.
+        people_items += (
+            Item(
+                "Delegacje",
+                ("web:coordinator-delegations",),
+                match=(
+                    "coordinator-delegations",
+                    "coordinator-delegations-",
+                    "coordinator-delegation",
+                    "coordinator-delegation-",
+                ),
+            ),
+        )
     if competition is not None and competition.has_feature("team_entries"):
         # Drużyny (§ 1.2.3, T34) – **na końcu** sekcji „Uczestnicy i konta”, bo cztery pozycje
         # przed nią są dzisiejszym menu i mają zostać w tej kolejności co do bajtu (§ 2.1 p. 1).

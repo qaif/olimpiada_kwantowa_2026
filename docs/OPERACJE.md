@@ -1004,7 +1004,7 @@ z **różnicami** wobec wartości domyślnych. Pusty słownik `{}` znaczy „jak
 - **`webinars`** — webinary w LiveKit (WEB-01): ekran koordynatora `/coordinator/webinars/`, strona
   odbiorców `/webinars/`, pokój `/webinars/<id>/room/`, link gościa `/zaproszenie/webinar/…`, webhook
   `/integrations/livekit/webhook/`. Wyłączona znaczy, że tych adresów **nie ma** (404). Działa dopiero
-  z serwerem LiveKit w `.env` (§ 28); flaga bez serwera pokazuje koordynatorowi „serwer LiveKit nie
+  z serwerem LiveKit w `.env` (§ 36); flaga bez serwera pokazuje koordynatorowi „serwer LiveKit nie
   jest skonfigurowany”, a odbiorcom nic.
 
 Po każdym przestawieniu flagi: zaloguj się na konto jednej osoby z każdej roli i sprawdź, że widzi
@@ -3884,7 +3884,139 @@ Nowy konkurs od razu z krajami: `create_competition … --regions countries` (do
 
 Kolejność dla `iqo` po wdrożeniu: § 26.1 (języki) i ta komenda – niezależne od siebie.
 
-## 28. Webinary w LiveKit (WEB-01, `docs/tasks/WEB-01.md`)
+## 30. Motywy wizualne (THEME-01, `docs/tasks/THEME-01.md`)
+
+Wygląd konkursu zmienia się **paczką motywu** (ZIP: `manifest.json`, `theme.css`, `tokens.json`,
+`assets/`, opcjonalnie `templates/theme/*.html` i `screenshot.png`), bez wydania aplikacji. Paczka nie
+wykonuje kodu Pythona i nie dokłada JavaScriptu; przy wgraniu przechodzi walidację (ścieżki ZIP, bomba
+ZIP, typy i magiczne bajty plików, CSS przez parser, SVG oczyszczane, lint i kompilacja szablonów,
+tokeny) i skan ClamAV. Konkurs bez motywu (Olimpiada Kwantowa) nie zmienia się ani o bajt HTML.
+
+### 30.1. Wgranie i aktywacja na produkcji
+
+```sh
+# 1. paczka na serwer (z laptopa)
+scp -i ~/.ssh/olimpiada_deploy iqo-quantum-1.0.0.zip deploy@<serwer>:/tmp/
+# 2. wgranie (walidacja + ClamAV + publikacja do bucketu public-media) i aktywacja w konkursie
+ssh -i ~/.ssh/olimpiada_deploy deploy@<serwer>
+cd /opt/olimpiada
+docker compose exec -T web python manage.py theme_install - --activate iqo < /tmp/iqo-quantum-1.0.0.zip
+```
+
+Kod wyjścia ≠ 0 = paczka odrzucona (błędy na ekranie, wersja „odrzucona” z raportem w katalogu).
+Bez `--activate` motyw czeka w katalogu; wybiera go koordynator konkursu w panelu
+(**„Motyw serwisu”**, przełącznik konkursu `themes` – włącza operator jak każdą flagę, § 6) albo
+superkoordynator w `/coordinator/platform/themes/` (katalog: wgranie przez przeglądarkę, raport,
+usunięcie nieużywanej wersji). Aktywacja czyści pełnostronicowy cache gościa tego konkursu sama.
+
+**Cofnięcie:** wybór poprzedniej wersji (albo „Klasyczny”) w panelu. Z konsoli (z wpisem audytu):
+
+```sh
+docker compose exec -T web python manage.py shell -c "from apps.tenancy.models import Competition; from apps.themes.services import activate; activate(Competition.objects.get(slug='iqo'), None)"
+```
+
+Wersje zostają, dopóki operator ich nie usunie; wersji używanej przez konkurs nie da się usunąć
+(`PROTECT`).
+
+**Awaryjnie** (motyw psuje stronę): superkoordynator dopisuje do adresu `?theme=off` – strona
+renderuje się bez motywu tylko dla niego; ekran „Motyw serwisu” i katalog motywów są zawsze bez
+motywu, więc przycisk przywrócenia „Klasycznego” jest zawsze widoczny. Szablony slotów z paczki
+działają wyłącznie na stronach publicznych (CMS, statystyki, plakaty, wyniki, weryfikacja dyplomu);
+panele, logowanie i formularze mają zawsze ramę aplikacji (tokeny i arkusz motywu – tak).
+
+### 30.2. Pliki w buckecie, CSP, CORS
+
+- Pliki publiczne leżą w `public-media` pod **niezmiennym** prefiksem `themes/<slug>/<wersja>-<sha8>/`
+  z `Cache-Control: public, max-age=31536000, immutable` (nowa wersja = nowy prefiks). Szablony
+  i manifest nie trafiają do bucketu (są w bazie), paczka ZIP – do bucketu prywatnego.
+- **CSP:** strona z motywem dostaje origin bucketu (`S3_PUBLIC_ENDPOINT_URL`) także w `style-src`
+  i `font-src` (w `img-src` był już wcześniej). `script-src` nie zmienia się nigdy; strona bez motywu
+  ma politykę co do bajtu dawną.
+- **CORS dla krojów:** przeglądarka pobiera `woff2` z innego originu (`:9000`) w trybie CORS. MinIO
+  odpowiada `Access-Control-Allow-Origin` z originem żądania dla każdego originu (ustawienie domyślne
+  `MINIO_API_CORS_ALLOW_ORIGIN=*`, § 16.3), a blok S3 w Caddy nagłówków CORS nie rusza – sprawdzone
+  w devie (`curl -H "Origin: https://olimpiadakwantowa.pl" -I …/public-media/themes/…/x.woff2`).
+  **Jeżeli kiedyś zawęzicie CORS MinIO**, dopiszcie do listy domeny wszystkich konkursów – inaczej
+  motyw cicho spadnie na kroje systemowe.
+- Arkusz motywu odwołuje się do swoich plików adresami **względnymi** (`url("assets/…")`), więc
+  przeniesienie bucketu pod własną domenę S3 nie wymaga ponownego wgrywania motywów.
+
+### 30.3. Nowa zależność
+
+`tinycss2` (parser CSS) jest w `backend/pyproject.toml` – obraz `web`/`worker` musi być **przebudowany**
+(CI buduje go z pyproject). Bez niej import walidatora się nie powiedzie dopiero przy wgraniu paczki;
+render stron z już aktywnym motywem jej nie potrzebuje.
+
+
+## 28. Delegacje krajowe – rejestracja przez opiekunów drużyn (DEL-01, `docs/tasks/DEL-01.md`)
+
+W konkursie w trybie **`DELEGATIONS`** uczniów zgłaszają opiekunowie drużyn narodowych (team leaders)
+zaproszeni przez koordynatora. Samodzielna rejestracja uczestnika jest wtedy zamknięta **na każdej
+drodze**: formularz `/register/`, `POST /api/auth/register/participant/`, Google/Facebook (konto nowe),
+import listy klasowej (opiekun szkolny i koordynator) oraz rejestracja opiekuna szkolnego
+(`/register/supervisor/` → 404). Logowanie istniejących kont działa normalnie.
+
+**Domyślnie każdy konkurs ma tryb `OPEN`** (migracja `tenancy.0013` wpisuje `OPEN` wszystkim
+istniejącym konkursom; `create_competition`, ekran „Nowy konkurs” i kreator `/setup/` zakładają
+`OPEN`, a katalog szablonów nie ma tego pola). Olimpiada Kwantowa nie wymaga niczego.
+
+### 28.1. Przestawienie `iqo` (kolejność)
+
+1. Kraje (§ 27): `docker compose exec web python manage.py regions_countries --competition iqo`.
+2. Bieżąca edycja `iqo` musi istnieć, a jej okno rejestracji (`/coordinator/registration/`) **obowiązuje
+   opiekunów**: dodanie ucznia wymaga `registration_enabled = tak` oraz daty „teraz” między otwarciem
+   a zamknięciem (puste daty = bez ograniczenia). Przy zamkniętym oknie opiekun nie doda ucznia, a pulpit
+   koordynatora pokazuje „przez delegacje krajowe – okno dla opiekunów drużyn zamknięte”.
+   Tryb `DELEGATIONS` da się zapisać dopiero, gdy konkurs ma aktywne kraje (walidacja modelu).
+3. Tryb rejestracji – jedna z dróg:
+   - panel: `/coordinator/competition/` (ekran „Ustawienia konkursu”, flaga `competition_settings_page`)
+     → „Tryb rejestracji uczestników” = „przez delegacje krajowe”, opcjonalnie „Domyślny limit uczniów
+     delegacji” (domyślnie 6); zapis zostawia wpis audytu `competition.registration_mode_changed`,
+   - `/admin/` → Konkursy → `iqo` → te same dwa pola,
+   - powłoka (bez panelu):
+     ```sh
+     docker compose exec web python manage.py shell -c "from apps.tenancy.models import Competition; c = Competition.objects.get(slug='iqo'); c.registration_mode = 'DELEGATIONS'; c.save(update_fields=['registration_mode'])"
+     ```
+4. W menu panelu `iqo` pojawia się „Uczestnicy i konta → Delegacje” (`/coordinator/delegations/`).
+   „Zaproś opiekuna”: adres e-mail + kraj. Delegacja kraju powstaje przy pierwszym zaproszeniu; kolejny
+   opiekun tego kraju dołącza do niej. List idzie w języku domyślnym konkursu (dla `iqo` – angielskim).
+
+Nowy konkurs od razu w tym trybie: `create_competition … --regions countries --registration delegations`
+(delegacje wymagają podziału na kraje; domyślnie `--registration open`).
+
+### 28.2. Zaproszenie, konto opiekuna, uczniowie
+
+- Zaproszenie: ważne 14 dni, jednorazowe, w bazie tylko skrót SHA-256 tokenu; „Wyślij ponownie” wymienia
+  token (stary link przestaje działać); „Cofnij” unieważnia. Adres prowadzący już delegację innego kraju
+  w tej edycji dostaje odmowę.
+- Przyjęcie (`/delegation/accept/<token>/`): adres bez konta zakłada je od razu aktywne (kliknięcie linku
+  potwierdza adres) i składa zgody (regulamin, RODO); adres z kontem musi się zalogować – zaproszenie nie
+  zmienia hasła; zalogowany na inne konto dostaje odmowę.
+- Panel opiekuna `/delegation/`: uczniowie kraju, współopiekunowie, „Dodaj ucznia”. Uczeń dostaje list
+  z linkiem `/zaproszenie/<token>/` (ten sam mechanizm, co import listy klasowej): sam ustawia hasło
+  i składa zgody, kraj jest krajem delegacji. Limit delegacji liczony pod blokadą wiersza.
+- Wypisanie ucznia przez opiekuna (do startu pierwszego etapu): konto **nieuruchomione** jest usuwane;
+  konto **uruchomione** zostaje – opiekun tylko odpina je od delegacji, uczeń dostaje list, a ekran
+  delegacji pokazuje go w sekcji „Wypisani przez opiekuna – czekają na decyzję”. Usunięcie takiego konta
+  należy do koordynatora (karta konta w „Uczestnicy i konta”).
+- Odwołanie opiekuna zostawia jego wiersz ze znacznikiem `removed_at` (dowody zgód zostają); opiekun
+  bez delegacji w bieżącej edycji widzi pod `/delegation/` wyjaśnienie, a nie błąd.
+- Zamknięcie delegacji (ekran delegacji) zamraża listę uczniów. Eksport CSV: przycisk na liście delegacji.
+- Opiekun drużyny **nie** ma dostępu do wiadomości (`apps/chat`) ani do prac i ocen.
+
+### 28.3. Kontrakt adresów
+
+Nowy pierwszy segment adresu aplikacji: `delegation/` (`RESERVED_SLUGS`, `backend/djcms_contract/` –
+zaktualizowane w tym wydaniu). Wdrożenie przez `scripts/deploy.sh` przenosi kontrakt; jeśli Caddyfile
+jest renderowany z `app_routes.env` osobno, trzeba go wyrenderować ponownie.
+
+### 28.4. Wycofanie
+
+Przestawienie trybu z powrotem na `OPEN` otwiera samodzielną rejestrację i ukrywa ekrany delegacji (404);
+dane delegacji, opiekunów i uczniów zostają w bazie. Migracje `accounts.0036`–`0038` i `tenancy.0013` są
+odwracalne (nowe tabele i kolumny nullowalne albo z wartością domyślną).
+
+## 36. Webinary w LiveKit (WEB-01, `docs/tasks/WEB-01.md`)
 
 Koordynator planuje webinary w panelu (`Komunikacja → Webinary`); uczestnicy, komisja i (opcjonalnie)
 goście wchodzą do **pokoju na platformie** (`/webinars/<id>/room/`, nasz interfejs, motyw konkursu,
@@ -3893,7 +4025,7 @@ tokeny wejścia (10 min), wydaje polecenia serwerowe (głos, usunięcie, zamkni�
 i transmisja – Egress), przyjmuje podpisane webhooki (stan pokoju, obecność, koniec nagrania).
 Bez konfiguracji i bez flagi `webinars` (§ 6.4) nic się nie zmienia – także polityka CSP.
 
-### 28.1. Gdzie postawić LiveKit – dwa warianty
+### 36.1. Gdzie postawić LiveKit – dwa warianty
 
 - **(a) Osobna maszyna – zalecane przy dużych wydarzeniach.** VPS produkcyjny traci 12–37 % CPU na
   „steal” (ukryte podkradanie procesora przez hosta), a serwer mediów i egress (Chrome składający
@@ -3910,7 +4042,7 @@ Bez konfiguracji i bez flagi `webinars` (§ 6.4) nic się nie zmienia – także
   prosto do kontenera. TURN wyłączony (port 443 zajmuje Caddy) – uczestnicy za zaporami, które
   przepuszczają wyłącznie HTTPS, nie połączą się; dla nich wariant (a) z TURN/TLS na 443.
 
-### 28.2. Wdrożenie wariantu (b) – kroki operatora (na serwerze, `cd /opt/olimpiada`)
+### 36.2. Wdrożenie wariantu (b) – kroki operatora (na serwerze, `cd /opt/olimpiada`)
 
 1. `scripts/deploy.sh root@olimpiadakwantowa.pl` – kod, migracje `webinars.0001`–`0002` (nowe tabele,
    bez blokad), zadanie beat `webinars-reminders` (co 5 min: przypomnienia, uzgadnianie wiszących nagrań,
@@ -3976,7 +4108,7 @@ Bez konfiguracji i bez flagi `webinars` (§ 6.4) nic się nie zmienia – także
     (kandydaci z sieci `livekit_signal` dla egressu), restart `livekit`, próba jeszcze raz. Na koniec
     w panelu: lista obecności z czasami (webhooki dochodzą).
 
-### 28.3. TURN/TLS i duże wydarzenia
+### 36.3. TURN/TLS i duże wydarzenia
 
 Uczestnik w sieci, która przepuszcza tylko HTTPS (część szkół), potrzebuje TURN na 443/TLS. W wariancie
 (a): `turn.enabled: true`, `domain: turn.<domena>`, `tls_port: 443`, certyfikat (generator LiveKit
@@ -3984,7 +4116,7 @@ robi to sam). Pojemność: jedna maszyna 8 vCPU obsługuje setki widzów jednego
 nie nadają); egress room composite zajmuje 2–4 vCPU na nagranie – na wariancie (b) nagrywaj tylko małe
 spotkania. Kilkuset uczestników = wariant (a), ewentualnie kilka węzłów z Redisem (dokumentacja LiveKit).
 
-### 28.4. Działanie i bezpieczeństwo
+### 36.4. Działanie i bezpieczeństwo
 
 - Token wejścia: `identity` = pseudonim HMAC (bez e-maila i `pk`), `name` = „Imię N.”, prowadzący
   `canPublish`/`roomAdmin`, widz `canPublish=false` (+ czat i ręka po kanale danych). Głos daje
@@ -4008,7 +4140,7 @@ spotkania. Kilkuset uczestników = wariant (a), ewentualnie kilka węzłów z Re
   Przed wejściem do pokoju webinaru z nagrywaniem jest informacja o nagrywaniu, a w trakcie – stały
   znacznik „Trwa nagrywanie”.
 
-### 28.5. Wyłączenie i rotacja
+### 36.5. Wyłączenie i rotacja
 
 Awaryjnie bez wdrożenia: zdjąć flagę `webinars` (adresy 404) albo wyczyścić `LIVEKIT_URL` i odtworzyć
 `web worker beat`. Rotacja sekretu: nowy wpis w `keys:` i `webhook.api_key` w `livekit.yaml`,

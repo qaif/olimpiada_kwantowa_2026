@@ -82,8 +82,12 @@ from apps.competitions.models import DEFAULT_RETENTION_MONTHS
 #: odbiorców (druga strona rozmowy, moderator w trybach z moderacją i przy zgłoszeniach), w tym
 #: opcjonalne szyfrowanie end-to-end rozmów między uczestnikami. Zdanie w wierszu forum „forum nie
 #: ma wiadomości prywatnych” zostało doprecyzowane: forum ich nadal nie ma, ale serwis – tak.
-REGISTER_VERSION = "1.10"
-REGISTER_DATE = date(2026, 9, 30)
+#: 1.11 (04.10.2026, zadanie DEL-01) – delegacje krajowe: opiekun drużyny narodowej zakłada konta
+#: uczniom swojego kraju. Nowa czynność (warunkowa – wyłącznie konkursy z trybem rejestracji
+#: ``DELEGATIONS``) z nowym kręgiem osób (opiekunowie drużyn) i nowym odbiorcą danych uczniów
+#: (współopiekunowie tego samego kraju widzą listę drużyny).
+REGISTER_VERSION = "1.11"
+REGISTER_DATE = date(2026, 10, 4)
 
 #: Zdanie o okresie przechowywania danych uczestnika. Liczba pochodzi z tego samego miejsca, co
 #: domyślna wartość ``Edition.data_retention_months`` – gdyby organizator zmienił ją dla rocznika,
@@ -913,6 +917,58 @@ def ai_grading_activity(competition=None) -> ProcessingActivity:
     return replace(AI_GRADING_ACTIVITY, recipients=[base[0], *processors, *base[2:]])
 
 
+#: Czynność **warunkowa**: delegacje krajowe (DEL-01). Wchodzi do rejestru wyłącznie konkursom z trybem
+#: rejestracji ``DELEGATIONS`` – Olimpiada Kwantowa takiego przetwarzania nie prowadzi.
+#:
+#: Dwie osoby, dwie podstawy: dane opiekuna drużyny przetwarzamy na podstawie jego zgody i umowy
+#: (przyjmuje zaproszenie i akceptuje regulamin), a dane ucznia wpisane przez opiekuna – na podstawie
+#: prawnie uzasadnionego interesu organizatora do chwili, w której uczeń sam uruchomi konto i złoży
+#: zgody. Do tej chwili konto jest nieaktywne i nie bierze udziału w niczym.
+DELEGATIONS_ACTIVITY = _activity(
+    key="delegacje",
+    name="Delegacje krajowe – zgłaszanie uczniów przez opiekunów drużyn narodowych",
+    purpose=(
+        "Zgłoszenie drużyny kraju do olimpiady międzynarodowej: koordynator zaprasza opiekuna "
+        "drużyny, opiekun zakłada konto i zgłasza uczniów swojego kraju, uczniowie uruchamiają "
+        "konta i składają zgody sami."
+    ),
+    legal_basis=(
+        "opiekun drużyny – art. 6 ust. 1 lit. b RODO (udział w organizacji zawodów na zasadach "
+        "Regulaminu) i lit. a dla zgód wyrażonych przy przyjęciu zaproszenia; uczeń – do uruchomienia "
+        "konta art. 6 ust. 1 lit. f RODO (prawnie uzasadniony interes organizatora: przyjęcie "
+        "zgłoszenia drużyny), od uruchomienia – jak w czynności „Prowadzenie kont uczestników”"
+    ),
+    subjects="opiekunowie drużyn narodowych; uczniowie zgłoszeni przez opiekunów",
+    categories=[
+        "opiekun: imię i nazwisko, adres e-mail, kraj delegacji, data przyjęcia zaproszenia, "
+        "dowody zgód (regulamin, RODO)",
+        "zaproszenie: adres e-mail, skrót tokenu (nie sam token), daty wysłania, ważności, przyjęcia "
+        "i cofnięcia",
+        "uczeń: imię i nazwisko, adres e-mail, data urodzenia, szkoła, klasa, kraj, opcjonalnie "
+        "adres e-mail rodzica, informacja, który opiekun zgłosił ucznia",
+    ],
+    recipients=[
+        HOSTING_RECIPIENT,
+        MAIL_RECIPIENT,
+        "współopiekunowie drużyny tego samego kraju – widzą imiona i adresy e-mail opiekunów oraz "
+        "listę uczniów drużyny; opiekun nie widzi uczniów innych krajów, prac ani ocen",
+    ],
+    retention=(
+        PARTICIPANT_RETENTION
+        + " Zaproszenie i wiersz opiekuna znikają razem z kontem opiekuna (usunięcie albo "
+        "anonimizacja); ślad zdarzeń zostaje w dzienniku bez adresów."
+    ),
+    measures=[
+        "funkcja działa wyłącznie w konkursie przestawionym na tryb rejestracji przez delegacje",
+        "zaproszenie ważne 14 dni, jednorazowe, w bazie wyłącznie skrót SHA-256 tokenu; ponowne "
+        "wysłanie unieważnia poprzedni link; przyjęcie wymaga zgodności adresu konta z zaproszeniem",
+        "konto ucznia powstaje nieaktywne i bez hasła – hasło i zgody składa uczeń sam",
+        "limit uczniów delegacji egzekwowany pod blokadą wiersza, okno rejestracji edycji, "
+        "limit żądań per konto",
+    ],
+)
+
+
 def activities_for(competition=None) -> tuple[ProcessingActivity, ...]:
     """Rejestr **tego** konkursu: czynności wspólne plus te, które wynikają z jego konfiguracji.
 
@@ -947,6 +1003,8 @@ def activities_for(competition=None) -> tuple[ProcessingActivity, ...]:
         activities = (*activities, ai_grading_activity(competition))
     if competition is not None and competition.has_feature("webinars"):
         activities = (*activities, WEBINARS_ACTIVITY)
+    if competition is not None and competition.uses_delegations:
+        activities = (*activities, DELEGATIONS_ACTIVITY)
     return activities
 
 

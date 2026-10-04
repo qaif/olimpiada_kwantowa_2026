@@ -1041,6 +1041,22 @@ def unpack_rows(token: str) -> list[ImportRow]:
     return [ImportRow.from_payload(item) for item in payload if isinstance(item, dict)]
 
 
+def ensure_import_allowed(competition) -> None:
+    """Import listy klasowej nie istnieje w konkursie z rejestracją przez delegacje (DEL-01).
+
+    Bramka w serwisie, a nie tylko ukryty przycisk: import zakłada konta uczestników, czyli jest
+    jedną z dróg samodzielnej rejestracji, którą tryb ``DELEGATIONS`` zamyka w całości. Uczniów
+    zgłasza tam opiekun drużyny, który ma własny limit i własny kraj – import nauczyciela albo
+    koordynatora ominąłby oba.
+    """
+    if competition is not None and competition.uses_delegations:
+        raise DomainError(
+            "W tym konkursie uczniów zgłaszają opiekunowie drużyn narodowych – import listy jest wyłączony.",
+            "IMPORT_DELEGATIONS",
+            status.HTTP_409_CONFLICT,
+        )
+
+
 def preview_upload(
     upload, *, with_supervisor: bool, default_supervisor_email: str = "", competition=None
 ) -> ImportPreview:
@@ -1050,6 +1066,7 @@ def preview_upload(
     (:func:`extra_columns`), raz o rozstrzygnięciu wierszy. Dwa różne konkursy w tych dwóch
     miejscach znaczyłyby plik, którego nagłówek przyjęliśmy, a treści nie umiemy przypisać.
     """
+    ensure_import_allowed(competition)
     table = read_table(upload)
     rows = parse_table(
         table,
@@ -1238,6 +1255,7 @@ def import_students(
     # jedna lista klasowa nie ma prawa rozsypać się po dwóch konkursach, a podgląd i zapis mają
     # pytać o istniejące profile w tym samym konkursie.
     competition = default_competition()
+    ensure_import_allowed(competition)
     validate_rows(rows, competition=competition)
     district = getattr(school_ref, "voivodeship", "") or ""
     now = timezone.now()
@@ -1365,7 +1383,7 @@ def read_invite_token(token: str) -> Participant:
     if not isinstance(payload, dict) or not payload.get("pk"):
         raise _invalid_invite()
     participant = (
-        Participant.objects.select_related("user", "school_ref")
+        Participant.objects.select_related("user", "school_ref", "delegation__country")
         .filter(user_id=payload["pk"], invited_at__isnull=False)
         .first()
     )
@@ -1489,7 +1507,13 @@ def accept_invitation(
     # dzięki niej nazwa pola i rodzaj zgody nie mają jak się rozjechać.
     given = given_from_fields(given)
     validate_consents_for(participant, given)
-    district, region = resolve_district(participant.competition, district, required=True)
+    if participant.delegation_id is not None:
+        # Uczeń zgłoszony przez opiekuna drużyny narodowej (DEL-01): kraj jest krajem delegacji
+        # i uczeń go nie wybiera – formularz nie ma tego pola, a wartość z żądania jest ignorowana.
+        # Gdyby przyjmować ją tutaj, uczeń jednej delegacji mógłby przepisać się do innego kraju.
+        district, region = participant.district, participant.region
+    else:
+        district, region = resolve_district(participant.competition, district, required=True)
     phone = normalize_phone(phone)
     _validate_password_or_raise(password, user)
 

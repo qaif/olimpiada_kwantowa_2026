@@ -17,10 +17,18 @@
 <div class="page-head">
   <span class="eyebrow">{% translate "Zaproszenie" %}</span>
   <h1>{% translate "Uruchom swoje konto" %}</h1>
+  {% if delegation %}
+    {# Uczeń zgłoszony przez opiekuna drużyny narodowej (DEL-01) – zgłosił go opiekun kraju, a nie nauczyciel. #}
+    <p class="lead">{% blocktranslate trimmed with name=participant.user.first_name country=delegation.country.name competition_name=competition.name %}
+      Cześć {{ name }}! Opiekun drużyny ({{ country }}) zgłosił Cię do konkursu {{ competition_name }}.
+      Ustaw hasło i potwierdź oświadczenia – dopiero to uruchamia konto.
+    {% endblocktranslate %}</p>
+  {% else %}
   <p class="lead">{% blocktranslate trimmed with name=participant.user.first_name school=participant.school %}
     Cześć {{ name }}! Nauczyciel ze szkoły {{ school }} zgłosił Cię do Olimpiady Kwantowej.
     Ustaw hasło i potwierdź oświadczenia – dopiero to uruchamia konto.
   {% endblocktranslate %}</p>
+  {% endif %}
 </div>
 
 <section class="section">
@@ -28,6 +36,7 @@
     <h2 class="mt-0">{% translate "Twoje dane ze zgłoszenia" %}</h2>
     <ul>
       <li>{% translate "Adres e-mail (login):" %} <strong>{{ email }}</strong></li>
+      {% if delegation %}<li>{% translate "Kraj:" %} {{ delegation.country.name }}</li>{% endif %}
       <li>{% translate "Szkoła:" %} {{ participant.school }}</li>
       <li>{% translate "Klasa:" %} {{ participant.grade|default:"—" }}</li>
       {# Data, gdy ją znamy; rocznik w profilach sprzed wydania 0.30.0 i w listach zaimportowanych
@@ -38,7 +47,11 @@
         <li>{% translate "Rok urodzenia:" %} {{ participant.known_birth_year }}</li>
       {% endif %}
     </ul>
+    {% if delegation %}
+      <p class="hint">{% translate "Coś się nie zgadza? Napisz do opiekuna swojej drużyny – może poprawić dane, dopóki nie uruchomisz konta." %}</p>
+    {% else %}
     <p class="hint">{% translate "Coś się nie zgadza? Uruchom konto i popraw dane w swoim profilu po zalogowaniu." %}</p>
+    {% endif %}
   </div>
 </section>
 

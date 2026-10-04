@@ -176,6 +176,20 @@ def _consents_section(participant, supervisor) -> list[dict]:
     return rows
 
 
+def _team_leader_section(user: User) -> list[dict]:
+    """Delegacje, które to konto prowadzi jako opiekun drużyny (DEL-01) – bez listy uczniów."""
+    from .delegation_services import export_section
+
+    return export_section(user)
+
+
+def _team_leader_consents(user: User) -> list[dict]:
+    """Zgody złożone w roli opiekuna drużyny – trzeci właściciel ``ConsentRecord``."""
+    from .models import ConsentRecord
+
+    return _consent_rows(ConsentRecord.objects.filter(team_leader__user=user), "opiekun_druzyny")
+
+
 def _files_section(submission) -> list[dict]:
     """Metryka plików pracy: skrót SHA-256, rozmiar, typ i wynik skanu antywirusowego.
 
@@ -370,7 +384,8 @@ def export_payload(user: User) -> dict:
         "profil_uczestnika": _participant_section(participant),
         "profil_komitetu": _committee_section(getattr(user, "committee_member", None)),
         "profil_opiekuna_szkolnego": _supervisor_section(supervisor),
-        "zgody": _consents_section(participant, supervisor),
+        "delegacje_opiekun_druzyny": _team_leader_section(user),
+        "zgody": _consents_section(participant, supervisor) + _team_leader_consents(user),
         "zgoda_opiekuna": _guardian_section(participant),
         "zgloszenia_do_etapow": _entries_section(participant),
         "wyniki_ogloszone": _results_section(participant),

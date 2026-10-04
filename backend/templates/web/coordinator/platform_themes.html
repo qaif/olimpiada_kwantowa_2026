@@ -1,0 +1,47 @@
+{% extends "web/coordinator/base.html" %}
+{% comment %}
+  Katalog motywów platformy (THEME-01 § 6) – wyłącznie superkoordynator. Wgranie paczki uruchamia
+  pełną walidację (ZIP, CSS, SVG, szablony, tokeny, ClamAV); odrzucona paczka zostaje w katalogu
+  jako wersja „odrzucona” z raportem i nie publikuje ani jednego pliku.
+{% endcomment %}
+{% block title %}Katalog motywów – panel koordynatora{% endblock %}
+{% block panel_title %}Katalog motywów platformy{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Motywy wspólne dla wszystkich konkursów instalacji. Wybór motywu dla konkursu
+    należy do jego koordynatora („Motyw serwisu”). Wersja jest niezmienna: poprawkę wgrywa się
+    z wyższym numerem w <code>manifest.json</code>.</p>
+{% endblock %}
+{% block panel_content %}
+<div class="card">
+  <h2>Wgraj paczkę</h2>
+  <form method="post" enctype="multipart/form-data" class="form form--wide" novalidate>
+    {% csrf_token %}
+    {{ form.as_p }}
+    <div class="actions"><button type="submit" class="btn btn--primary">Wgraj i sprawdź</button></div>
+  </form>
+</div>
+
+<div class="card">
+  <h2>Motywy</h2>
+  <div class="scroll">
+  <table class="table">
+    <thead><tr><th scope="col">Motyw</th><th scope="col">Wersja</th><th scope="col">Stan</th><th scope="col">Wgrano</th><th scope="col">Używają</th></tr></thead>
+    <tbody>
+    {% for theme in themes %}
+      {% for version in theme.versions.all %}
+        <tr>
+          <td>{{ theme.name }} <span class="hint">{{ theme.slug }}</span></td>
+          <td><a href="{% url 'web:coordinator-platform-theme' version.pk %}">{{ version.version }}</a></td>
+          <td>{% if version.is_valid %}<span class="badge badge--ok">poprawna</span>{% else %}<span class="badge badge--danger">odrzucona</span>{% endif %}</td>
+          <td>{{ version.uploaded_at|date:"j E Y, H:i" }}</td>
+          <td>{% for key, names in used.items %}{% if key == version.pk %}{{ names|join:", " }}{% endif %}{% endfor %}</td>
+        </tr>
+      {% empty %}
+        <tr><td>{{ theme.name }}{% if theme.is_builtin %} <span class="badge">wbudowany</span>{% endif %}</td><td colspan="4" class="hint">{% if theme.is_builtin %}Wygląd aplikacji – bez paczki. Konkurs bez motywu używa tego wyglądu.{% else %}Brak wersji.{% endif %}</td></tr>
+      {% endfor %}
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
+{% endblock %}
