@@ -1944,9 +1944,9 @@ niepełnoletni zbiera sam po uruchomieniu konta (zgoda opiekuna online).
 
 ---
 
-## 10c. Medale — `/coordinator/medals/`
+## 10k. Medale — `/coordinator/medals/`
 
-**Tylko w konkursie z flagą `medals`** (olimpiada międzynarodowa `iqo`; `OPERACJE.md` § 29). Olimpiada
+**Tylko w konkursie z flagą `medals`** (olimpiada międzynarodowa `iqo`; `OPERACJE.md` § 37). Olimpiada
 Kwantowa nagradza dalej tytułem laureata i finalisty (§ 8).
 
 **Progi.** Wybierz etap będący rankingiem ostatecznym (zwykle finał). Domyślnie jak na IPhO: złoto —
@@ -1954,27 +1954,33 @@ najlepsze 8 % uczestników, srebro — kolejne 17 %, brąz — kolejne 25 % (ł�
 zaokrąglana w górę (8 % z 20 osób to 2 złote medale), zdyskwalifikowani nie liczą się do pola, a wynik
 0 nie daje nagrody. **Ten sam wynik zawsze daje tę samą nagrodę** — remis na granicy puli idzie w całości
 w górę („na korzyść uczestników”) albo w dół („w granicach puli”), zależnie od ustawienia; kryteria
-rozstrzygania remisów etapu ustawiają miejsca, ale nie dzielą medali. **Wyróżnienie** dostaje uczestnik
+rozstrzygania remisów etapu ustawiają miejsca, ale nie dzielą medali. Przy polityce „w granicach puli”
+na małym albo remisowym polu ekran ostrzega, gdy jakiejś nagrody nie dostaje nikt. **Wyróżnienie** dostaje uczestnik
 bez medalu z wynikiem ≥ X % najlepszego wyniku (domyślnie 50 %; puste pole wyłącza kryterium) albo —
 jak na IMO — z pełnym rozwiązaniem choć jednego zadania.
 
 **Podgląd i ręczne zmiany.** Tabela pokazuje pule, progi punktowe, liczności i rzeczywiste odsetki,
 a przy każdym uczestniku nagrodę wyliczoną i ostateczną. „Zmień nagrodę” wymaga uzasadnienia (nie wpisuj
 danych osobowych — widzą je wszyscy koordynatorzy, a uczestnik dostaje je w eksporcie swoich danych).
+Zdyskwalifikowanemu ręcznej nagrody nie da się wpisać.
 
 **Ogłoszenie.** „Ogłoś medale” działa dopiero po publikacji wyników etapu i zamraża nagrody, tabelę
 publiczną i ranking krajów; potem progów ani zmian nie da się edytować. „Odmroź medale” (z uzasadnieniem)
-zdejmuje stronę publiczną do ponownego ogłoszenia. Jeśli po ogłoszeniu opublikujesz wyniki ponownie,
+zdejmuje stronę publiczną do ponownego ogłoszenia. Ogłoszenie odmawia, gdy tabela zmieniła się po publikacji
+wyników (sumy, nowy wpis, dyskwalifikacja) — opublikuj wtedy wyniki ponownie. Jeśli po ogłoszeniu opublikujesz wyniki ponownie,
 ekran ostrzeże, że medale zostały przy poprzedniej tabeli.
 
 **Strony publiczne.** `/results/<etap>/medals/` — miejsce, podpis wiersza z tabeli wyników (nazwisko
 wyłącznie za zgodą), kraj, suma i medal, z filtrem kraju; kraj stoi przy wierszu tylko w trybie
-„kod uczestnika” albo przy nazwisku opublikowanym za zgodą. `/results/<etap>/countries/` — nieoficjalny
-ranking krajów: wyłącznie liczby (uczestnicy, złoto, srebro, brąz, wyróżnienia, suma punktów).
+„kod uczestnika” albo przy nazwisku opublikowanym za zgodą (nie przy „inicjałach i szkole”).
+`/results/<etap>/countries/` — nieoficjalny ranking krajów: wyłącznie liczby (uczestnicy, złoto, srebro,
+brąz, wyróżnienia; suma i średnia punktów oraz miejsce tylko dla krajów z co najmniej 3 wynikami).
 
 **Dokumenty.** „Wystaw dokumenty” — dyplomy medalowe dla nagrodzonych i (opcjonalnie) zaświadczenia
 o udziale dla wszystkich, w **języku ucznia** (arabski od prawej do lewej, chiński, hindi, bengalski…).
-Numer, kod weryfikacyjny, pieczęć i strona `/dyplomy/<kod>/` — jak przy każdym dyplomie. Grafikę (tło,
+Język jest przypinany przy wystawieniu (gdy serwer nie składa pisma ucznia — angielski i ostrzeżenie
+z numerami). Numer, kod weryfikacyjny, pieczęć i strona `/dyplomy/<kod>/` — jak przy każdym dyplomie;
+dyplom niezgodny z ogłoszoną nagrodą strona weryfikacji oznacza jako nieaktualny, a uczeń go nie widzi. Grafikę (tło,
 logo, podpisy, osobne tło np. dla złotego medalu) ustawiasz w „Dyplomy: szablony”; nagłówek dokumentu to
 nazwa konkursu, chyba że szablon wpisuje własny. Tekst organizatora z „Szablonów dokumentów” obowiązuje
 w języku domyślnym konkursu; pozostałe języki mają tłumaczenia wbudowane (maszynowe — przejrzyj przed galą).

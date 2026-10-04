@@ -50,8 +50,10 @@ tylko identyfikatory i nagrody). Ekran ostrzega, że uzasadnienie nie powinno za
 osobowych.
 
 **Zamrożenie** („Ogłoś medale”): wolno dopiero po publikacji wyników etapu (`ResultsPublication`)
-i tylko wtedy, gdy bieżące sumy są równe sumom z publikacji (`entry_totals`) – inaczej 409
-`RESULTS_CHANGED` („opublikuj wyniki ponownie”). Zamrożenie zapisuje w schemacie: nagrody per wpis,
+i tylko wtedy, gdy bieżąca tabela jest tą ogłoszoną: te same wpisy (`entry_totals`), te same sumy
+i te same liczności stanów (zakwalifikowani / niezakwalifikowani / zdyskwalifikowani – z wpisu audytu
+`results.qualification_applied` publikacji, bo snapshot stanu wiersza nie przechowuje) – inaczej 409
+`RESULTS_CHANGED` („opublikuj wyniki ponownie”). Ręcznej nagrody nie da się wpisać zdyskwalifikowanemu. Zamrożenie zapisuje w schemacie: nagrody per wpis,
 progi, publiczną tabelę (podpisy wierszy przez `results.services.build_snapshot` w trybie
 anonimizacji publikacji – **te same zgody**, co tabela wyników) i tabelę krajów. Po zamrożeniu
 schematu i ręcznych zmian nie da się edytować (409 `AWARDS_FROZEN`). „Odmroź” – z uzasadnieniem,
@@ -85,23 +87,34 @@ zamrożeniu nie zmienia medali – panel pokazuje ostrzeżenie o rozjeździe.
   przebiegów (klasy `unicodedata.bidirectional`, reguły neutralnych N1/N2, odwracanie L2).
 - Dobór kroju **per znak** (pismo → krój, potem pokrycie), więc nazwisko w innym piśmie niż
   język dokumentu też się składa.
-- **Odwrót jawny:** brak kroju albo brak `uharfbuzz` dla pisma wymagającego kształtowania → dokument
-  w **angielskim** (język bazowy IQO) i wpis w logu; znak bez kroju → `?` i ostrzeżenie. Ekran
-  medali pokazuje stan potoku dla każdego z 11 języków.
+- **Język przypinany przy wystawieniu** (`CertificateLanguage`): ten, w którym dokument naprawdę się
+  złoży – pismo niedostępne w chwili wystawienia → angielski i ostrzeżenie z numerami w raporcie.
+  **Przy pobraniu** dokument przypięty do pisma, którego serwer już nie składa, jest **błędem**
+  (`DocumentLanguageUnavailable`, 503, wpis `ERROR`) – nie cichym dokumentem w innym języku; ekran medali
+  pokazuje ostrzeżenie. Znak bez kroju → `?` i ostrzeżenie. Ekran medali pokazuje stan potoku dla każdego
+  z 11 języków.
+- Cyfry arabsko-indyjskie i perskie (pismo arabskie na poziomie LTR) idą bez kształtowania, w kolejności
+  logicznej – HarfBuzz zgadywałby dla nich RTL.
+- **Dyplom nieaktualny:** dyplom medalowy, którego rodzaj ≠ ogłoszona nagroda (albo medale odmrożone), jest
+  oznaczany na `/dyplomy/<kod>/` i nie pojawia się w „Moich dyplomach” (pobranie – 404).
 
 ## 3. Ranking krajów (nieoficjalny, jak IMO)
 
 Per kraj (delegacja, a bez niej region uczestnika): liczba uczestników, złoto/srebro/brąz/
-wyróżnienia, suma punktów; miejsce po sumie punktów (remis = to samo miejsce), sortowanie także
-po medalach. Publiczna strona `/results/<etap>/countries/` – wyłącznie po zamrożeniu. Wyłącznie
-**agregaty**: bez nazwisk, kodów i wyników indywidualnych.
+wyróżnienia, suma i średnia punktów; miejsce po sumie punktów (remis = to samo miejsce), sortowanie
+także po medalach. Publiczna strona `/results/<etap>/countries/` – wyłącznie po zamrożeniu. Wyłącznie
+**agregaty**: bez nazwisk, kodów i wyników indywidualnych. **Suma, średnia i miejsce tylko dla kraju
+z co najmniej 3 wynikami** (`MIN_COUNTRY_GROUP`; mniej → „—”, liczby medali zostają) – suma drużyny
+jedno- albo dwuosobowej jest wynikiem osoby. Przy publikacji „tylko awansujący” sumę liczy się wyłącznie
+z wyników nagrodzonych (wyników reszty pola etap nie ogłosił).
 
 ## 4. Strona wyników z medalami i eksport na galę
 
 - `/results/<etap>/medals/` (publiczna, po zamrożeniu): miejsce, podpis wiersza z publikacji,
   kraj, suma, odznaka medalu; filtr `?country=`. Kraj przy wierszu tylko wtedy, gdy publikacja jest
-  w trybie `CODE` (tam okręg/kraj i tak jest jawny) albo wiersz jest podpisany nazwiskiem za zgodą;
-  pozostałe wiersze – sam kod, bez kraju (kod + kraj + wynik w małej delegacji wskazuje osobę).
+  w trybie `CODE` (tam okręg/kraj i tak jest jawny) albo wiersz jest podpisany nazwiskiem za zgodą
+  w trybie imiennym (`FULL`/`FULL_ALL`); pozostałe wiersze – także „inicjały i szkoła” – bez kraju
+  (podpis + kraj + wynik w małej delegacji wskazuje osobę).
 - Odnośnik z `/results/<etap>/` – tylko gdy medale są zamrożone (Olimpiada Kwantowa: bez zmiany).
 - Eksport koordynatora (dane osobowe, wpis w audycie): CSV (miejsce, nagroda, imię i nazwisko,
   kraj, szkoła, suma, kod, ręczna zmiana) i PDF na galę (grupy w kolejności wręczania: wyróżnienia,
@@ -136,7 +149,7 @@ Gdzie co jest:
   `fonts/` (kroje z licencjami i `SOURCES.txt`), `locale/` (10 katalogów).
 - Wspólne aplikacje (minimalnie): `results.CertificateKind` + 4 rodzaje (`results.0008`),
   `MANUAL_KIND_CHOICES`/`template_kind_choices`, `AWARD_TITLES` i rejestr składów `register_composer`
-  w `results/certificates.py`; `tenancy.DocumentKind` + 4 rodzaje (`tenancy.0014`); flaga
+  w `results/certificates.py`; `tenancy.DocumentKind` + 4 rodzaje (`tenancy.0015`); flaga
   w `FEATURE_DEFAULTS`; pozycja menu; jeden znacznik w `templates/web/results.html`; czynność w rejestrze
   RODO i sekcja `medale` w eksporcie konta.
 
@@ -151,8 +164,14 @@ Odstępstwa (z powodem):
    jednojęzyczny); pozostałe języki – tłumaczenia wbudowane.
 5. **Podpisy wierszy publicznej tabeli medali są zamrażane** przy ogłoszeniu (jak snapshot wyników);
    nazwiska na liście na galę – czytane w chwili eksportu.
-6. **Dyplom wystawiony przed zmianą nagrody nie jest unieważniany automatycznie** – raport „Wystaw
-   dokumenty” podaje jego numer (rejestr dyplomów nie ma stanu „unieważniony”).
+6. **Dyplom wystawiony przed zmianą nagrody nie jest kasowany** – wiersz rejestru zostaje (rejestr nie ma
+   stanu „unieważniony”), ale dokument jest „nieaktualny” (rejestr sprawdzeń `register_currency_check`
+   w `results/certificates.py`): strona weryfikacji to mówi, „Moje dyplomy” go nie pokazują, raport
+   „Wystaw dokumenty” podaje numer.
+9. **Bramka stanów przez audyt:** publikacja nie przechowuje stanu wiersza, a wpis nie ma historii stanów,
+   więc ogłoszenie porównuje liczności stanów z wpisem audytu publikacji. Zamiana jednego
+   zdyskwalifikowanego na innego przy tych samych licznościach przeszłaby – w praktyce każda zmiana
+   dyskwalifikacji przechodzi i tak przez ponowną publikację.
 7. **CJK:** Droid Sans Fallback (TrueType, 4 MB) zamiast Noto Sans CJK (kontury CFF – ReportLab ich nie
    osadza); pogrubienie symulowane obrysem.
 8. **Kierunek tekstu:** własny podzbiór UBA (W1/W2/W7, N0 dla nawiasów, N1/N2, I1/I2, L2) na poziomie
@@ -163,6 +182,6 @@ Znane luki:
 - tekst arabski, dewanagari i bengalski w PDF-ie wygląda poprawnie, ale kopiowanie i wyszukiwanie tekstu
   z pliku bywa niedokładne (brak mapy ToUnicode dla ligatur) – ograniczona dostępność dla czytników ekranu,
 - nazwy krajów są po angielsku (słownik `Region`), także na dyplomie w innym języku,
-- ranking krajów pokazuje agregaty także dla delegacji jednoosobowej (jak IMO),
+- liczby medali kraju jednoosobowego są publiczne (jak IMO) – medal jest ogłoszeniem sam w sobie,
 - ponowna publikacja wyników po ogłoszeniu medali nie odmraża ich sama (panel ostrzega),
 - opiekun drużyny nie ma osobnego widoku medali swoich uczniów (widzi strony publiczne).

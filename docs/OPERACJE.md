@@ -4011,7 +4011,7 @@ Przestawienie trybu z powrotem na `OPEN` otwiera samodzielną rejestrację i ukr
 dane delegacji, opiekunów i uczniów zostają w bazie. Migracje `accounts.0036`–`0038` i `tenancy.0013` są
 odwracalne (nowe tabele i kolumny nullowalne albo z wartością domyślną).
 
-## 29. Medale olimpiady międzynarodowej, dyplomy w języku ucznia i ranking krajów (MED-01, `docs/tasks/MED-01.md`)
+## 37. Medale olimpiady międzynarodowej, dyplomy w języku ucznia i ranking krajów (MED-01, `docs/tasks/MED-01.md`)
 
 Złoto, srebro, brąz i wyróżnienia liczone z rankingu etapu (domyślnie jak IPhO: 8 % / kolejne 17 % /
 kolejne 25 %), ręczne zmiany z uzasadnieniem, ogłoszenie (zamrożenie), dyplomy medalowe i zaświadczenia
@@ -4019,9 +4019,9 @@ o udziale **w języku ucznia**, publiczna strona medali i nieoficjalny ranking k
 za flagą konkursu **`medals`** (domyślnie wyłączona) – Olimpiada Kwantowa nie wymaga niczego i nie widzi
 żadnej zmiany (tytuł laureata, dyplomy i tabela wyników bez zmian).
 
-### 29.1. Włączenie dla `iqo`
+### 37.1. Włączenie dla `iqo`
 
-1. Wdrożenie (migracje `medals.0001`, `results.0008`, `tenancy.0014` – nowe tabele i same listy wyboru,
+1. Wdrożenie (migracje `medals.0001`, `results.0008`, `tenancy.0015_documenttemplate_award_kinds` – nowe tabele i same listy wyboru,
    bez zmiany danych).
 2. Flaga: `/admin/` → Konkursy → `iqo` → `feature_flags` → dopisz `"medals": true`, albo powłoka:
    ```sh
@@ -4030,40 +4030,55 @@ za flagą konkursu **`medals`** (domyślnie wyłączona) – Olimpiada Kwantowa 
 3. W panelu `iqo` pojawia się „Raporty → Medale” (`/coordinator/medals/`). Ekran pokazuje też **stan składu
    dokumentów dla każdego z 11 języków** – wszystkie mają mieć „składany”.
 
-### 29.2. Zależność `uharfbuzz` (kształtowanie pisma)
+### 37.2. Zależność `uharfbuzz` (kształtowanie pisma)
 
 Arabski, hindi (dewanagari) i bengalski wymagają kształtowania (HarfBuzz) – nowa zależność
-`uharfbuzz` w `backend/pyproject.toml` (koło abi3, bez kompilacji). **Obraz `olimpiada/web` trzeba
-przebudować** (robi to CI/`deploy.sh`). Bez niej dokumenty w tych trzech językach wychodzą **po angielsku**
-(odwrót jawny: wpis `WARNING` w logu „Dokument w języku ar składany po angielsku: brak modułu uharfbuzz”,
-a ekran medali pokazuje „odwrót na en”). Chiński, rosyjski i języki łacińskie kształtowania nie wymagają.
+`uharfbuzz>=0.56,<0.57` w `backend/pyproject.toml` (koło abi3, bez kompilacji; wąski przedział, bo skład
+korzysta z wnętrza ReportLaba – kontrakt pilnuje test `test_reportlab_shaping_internals_are_still_there`).
+**Obraz `olimpiada/web` trzeba przebudować** (robi to CI/`deploy.sh`). Bez niej:
+
+- przy **wystawieniu** dokument ucznia z arabskim, hindi albo bengalskim dostaje przypięty angielski, a raport
+  „Wystaw dokumenty” wypisuje numery takich dokumentów (ostrzeżenie dla koordynatora, wpis `WARNING`),
+- przy **pobraniu** dokumentu już przypiętego do jednego z tych języków serwer **odmawia** (wpis `ERROR`
+  „Dokumentu … nie da się złożyć w języku ar”, uczeń widzi komunikat, ZIP koordynatora – błąd z numerem),
+  zamiast po cichu wydać ten sam numer w innym języku. Ekran medali pokazuje wtedy ostrzeżenie z listą
+  języków. Naprawa: przebudowa obrazu z `uharfbuzz`.
+
+Chiński, rosyjski i języki łacińskie kształtowania nie wymagają.
 
 Kroje są w repozytorium (`backend/apps/medals/fonts/`, licencje SIL OFL 1.1 i Apache 2.0, źródła
 w `SOURCES.txt`) i są osadzane w PDF-ie jako podzbiory – serwer ani czytelnik nie potrzebują fontów
 systemowych. Znak spoza wszystkich krojów (np. emoji w nazwisku) staje się `?` z wpisem w logu.
 
-### 29.3. Przebieg na zawodach
+### 37.3. Przebieg na zawodach
 
 1. Wyniki etapu – jak zawsze (`/coordinator/stages/<id>/results/`, publikacja w trybie `CODE` albo
    `FULL_ALL`; nazwiska wyłącznie za zgodą).
 2. `/coordinator/medals/<etap>/`: progi, podgląd (pule, progi punktowe, rzeczywiste odsetki), ręczne
-   zmiany z uzasadnieniem → „Ogłoś medale”. Ogłoszenie wymaga **opublikowanych** wyników, a sumy muszą
-   być równe sumom z publikacji (inaczej 409 „opublikuj wyniki ponownie”).
+   zmiany z uzasadnieniem → „Ogłoś medale”. Ogłoszenie wymaga **opublikowanych** wyników, a bieżąca
+   tabela musi być tą ogłoszoną: te same wpisy, te same sumy i te same liczności stanów (zakwalifikowani,
+   niezakwalifikowani, zdyskwalifikowani – porównanie z wpisem audytu `results.qualification_applied`
+   publikacji). Dyskwalifikacja albo nowy wpis po publikacji → 409 „opublikuj wyniki ponownie”.
 3. „Wystaw dokumenty” (dyplomy medalowe + opcjonalnie zaświadczenia o udziale) → „Pobierz paczkę ZIP”.
    Język dokumentu: język ucznia z konta (o ile konkurs go oferuje), inaczej język domyślny konkursu;
-   **zamrażany przy wystawieniu**. Przed galą warto pobrać po jednym dokumencie w `ar`, `hi`, `bn`,
+   **przypinany przy wystawieniu** (zaświadczenie wystawione z dawnego panelu – przy pierwszym pobraniu). Przed galą warto pobrać po jednym dokumencie w `ar`, `hi`, `bn`,
    `zh-hans` i obejrzeć je – tłumaczenia są maszynowe.
 4. „Lista na galę (PDF)” i „Eksport CSV” – z nazwiskami, każde pobranie w audycie (`medals.exported`).
-5. Publiczne strony: `/results/<etap>/medals/` (filtr `?country=`) i `/results/<etap>/countries/`
-   (`?sort=medals`); odnośniki pojawiają się na `/results/<etap>/` po ogłoszeniu.
+5. Publiczne strony: `/results/<etap>/medals/` (filtr `?country=`; kraj przy wierszu tylko w trybie
+   `CODE` albo przy nazwisku opublikowanym za zgodą w trybie imiennym – nie przy „inicjałach i szkole”)
+   i `/results/<etap>/countries/` (`?sort=medals`; suma i średnia punktów tylko dla krajów z co najmniej
+   3 wynikami, przy publikacji „tylko awansujący” – wyłącznie z wyników nagrodzonych); odnośniki pojawiają
+   się na `/results/<etap>/` po ogłoszeniu.
 
 Korekta po ogłoszeniu: „Odmroź medale” (z uzasadnieniem w audycie) → zmiany → ponowne ogłoszenie.
-Dyplom medalowy wystawiony przed zmianą nagrody **nie jest unieważniany automatycznie** – „Wystaw
-dokumenty” wypisuje numery takich dyplomów („niezgodne z ogłoszoną nagrodą”).
+Dyplom medalowy, którego rodzaj nie zgadza się z ogłoszoną nagrodą (albo gdy medale są odmrożone),
+jest **nieaktualny**: strona `/dyplomy/<kod>/` mówi to wprost, a w „Moich dyplomach” ucznia go nie ma
+(pobranie – 404). Wiersz rejestru zostaje, a „Wystaw dokumenty” wypisuje numery takich dyplomów.
 
-### 29.4. Limit żądań i wycofanie
+### 37.4. Limit żądań i wycofanie
 
-Czynności ekranu medali mają limit `medals` (120/h, `REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]`).
+Czynności ekranu medali (także usunięcie ręcznej zmiany oraz pobrania CSV, PDF i ZIP) mają limit `medals`
+(120/h, `REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]`).
 Wyłączenie flagi ukrywa ekrany i strony publiczne (404) i przywraca polski skład zaświadczeń
 `UCZESTNIK`; dane (`MedalScheme`, `MedalOverride`, `CertificateLanguage`) zostają. Migracje są
 odwracalne.

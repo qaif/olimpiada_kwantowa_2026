@@ -16,7 +16,7 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
   ogłoszenie zamrażające nagrody po publikacji wyników (bramka zgodności sum), odmrożenie z uzasadnieniem.
   Ekran `/coordinator/medals/` (menu „Raporty → Medale”).
 - **Dyplomy w języku ucznia:** rodzaje `MEDAL_GOLD`/`MEDAL_SILVER`/`MEDAL_BRONZE`/`HON_MENTION`
-  (`results.0008`, `tenancy.0014`), zaświadczenie o udziale w konkursie z medalami; skład wielopismowy
+  (`results.0008`, `tenancy.0015`), zaświadczenie o udziale w konkursie z medalami; skład wielopismowy
   (`apps/medals/typesetting.py`: kierunek RTL, kroje Noto Arabic/Devanagari/Bengali i Droid Sans Fallback
   w repozytorium, kształtowanie HarfBuzz) wpięty w `render_pdf` (`register_composer`); język zamrażany
   przy wystawieniu; odwrót na angielski, gdy pisma nie da się złożyć. Nowa zależność: `uharfbuzz`.
@@ -27,7 +27,12 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
 - **RODO:** czynność „Medale, dyplomy medalowe i ranking krajów” (warunkowa), sekcja `medale` w eksporcie
   danych konta. **i18n:** 37 napisów w katalogu aplikacji `apps/medals/locale` (10 języków, maszynowe);
   `Dockerfile` i `test_translations` obejmują katalogi aplikacji.
-- Dokumentacja: `docs/OPERACJE.md` § 29, `docs/PODRECZNIK-ORGANIZATORA.md` § 10c, przewodnik opiekuna
+- Po przeglądzie: kraj przy wierszu tylko w `CODE` i przy nazwisku za zgodą; cyfry arabsko-indyjskie
+  w kolejności LTR; ranking krajów z sumą/średnią tylko od 3 wyników; bramka ogłoszenia porównuje też
+  wpisy i stany; dyplom niezgodny z nagrodą nieaktualny (weryfikacja, „Moje dyplomy”); język przypinany
+  przy wystawieniu, brak kształtowania przy pobraniu – błąd zamiast cichego angielskiego; `uharfbuzz`
+  przypięty do 0.56.
+- Dokumentacja: `docs/OPERACJE.md` § 37, `docs/PODRECZNIK-ORGANIZATORA.md` § 10k, przewodnik opiekuna
   drużyny § 5a, podręcznik uczestnika § 7.
 
 ## [Unreleased] – Motywy wizualne wgrywane paczkami (THEME-01)

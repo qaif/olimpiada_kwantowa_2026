@@ -69,7 +69,8 @@ Medals are awarded from the final ranking: by default gold for the top 8 % of co
 the next 17 % and bronze for the next 25 %; contestants without a medal receive an honourable mention
 for at least half of the best score or for a full solution of one problem. Equal scores always receive
 the same award. After the organiser announces the medals, the public pages *Medals* and *Country ranking*
-are linked from the results table. The country ranking is unofficial and shows totals only.
+are linked from the results table. The country ranking is unofficial and shows aggregates only; total and average scores appear only for
+countries with at least three results.
 
 Each student downloads their medal certificate and certificate of participation under *My certificates*
 (`/me/certificates/`), in the language they chose for the website (11 languages, including Arabic,
