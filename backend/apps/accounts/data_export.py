@@ -190,6 +190,13 @@ def _team_leader_consents(user: User) -> list[dict]:
     return _consent_rows(ConsentRecord.objects.filter(team_leader__user=user), "opiekun_druzyny")
 
 
+def _final_logistics_section(user: User) -> list[dict]:
+    """Dane pobytu na finale (LOG-01) – paszport, podróż, zdrowie – tej osoby, odszyfrowane."""
+    from apps.delegation_logistics.privacy import export_section
+
+    return export_section(user)
+
+
 def _files_section(submission) -> list[dict]:
     """Metryka plików pracy: skrót SHA-256, rozmiar, typ i wynik skanu antywirusowego.
 
@@ -396,6 +403,7 @@ def export_payload(user: User) -> dict:
         "ustawienia_wiadomosci": _chat_settings_section(user),
         "zaswiadczenia_statusu_ucznia": _student_status_section(participant),
         "oceny_ai": _ai_section(participant),
+        "logistyka_finalu": _final_logistics_section(user),
         "ustawienia_interfejsu": _preferences_section(user),
     }
 

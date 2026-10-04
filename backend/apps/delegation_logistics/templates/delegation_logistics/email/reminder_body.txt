@@ -1,0 +1,29 @@
+{% load i18n %}{% autoescape off %}{% comment %}
+  Przypomnienie o brakach w logistyce finału (LOG-01, ``apps.delegation_logistics.reports``).
+
+  Język listu: zapisany na koncie opiekuna, a bez zapisu – język domyślny konkursu (``language_for``).
+  List wymienia osoby i **nazwy sekcji** z brakami – nigdy samych danych (numeru paszportu, diety):
+  poczta nie jest miejscem na dane wrażliwe.
+{% endcomment %}{% blocktranslate trimmed with name=first_name %}
+Dzień dobry {{ name }},
+{% endblocktranslate %}
+
+{% blocktranslate trimmed with country=country %}
+w danych delegacji {{ country }} na finał wciąż brakuje informacji:
+{% endblocktranslate %}
+{% for line in lines %}
+- {{ line.name }}: {{ line.groups|join:", " }}{% endfor %}
+{% if deadlines %}
+{% translate "Terminy:" %}{% for row in deadlines %}
+- {{ row.group }}: {{ row.deadline|date:"j.m.Y H:i" }}{% endfor %}
+{% endif %}
+{% translate "Uzupełnij dane w panelu opiekuna drużyny:" %}
+
+{{ link }}
+
+{% translate "Po terminie sekcja zostaje zamknięta i zmiany wprowadza już tylko organizator." %}
+
+--
+{{ brand.competition|default:_("Olimpiada Kwantowa") }}
+{% translate "Wiadomość wysłana automatycznie; prosimy na nią nie odpowiadać." %}
+{% endautoescape %}
