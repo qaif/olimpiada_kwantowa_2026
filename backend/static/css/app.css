@@ -391,7 +391,7 @@ hr {
 
 .skip-link {
   position: absolute;
-  left: -9999px;
+  inset-inline-start: -9999px;
   top: 0;
   z-index: 100;
   /* Stopień 600 wprost, a nie ``--accent``: w ciemnym wariancie akcent jest jasny (kolor tekstu
@@ -404,7 +404,7 @@ hr {
 }
 
 .skip-link:focus {
-  left: 0;
+  inset-inline-start: 0;
 }
 
 .topbar {
@@ -604,7 +604,7 @@ hr {
   color: rgba(244, 241, 232, 0.88);
   text-decoration: none;
   font-size: 0.9375rem;
-  border-left: 2px solid transparent;
+  border-inline-start: 2px solid transparent;
 }
 
 .nav-menu__link:hover {
@@ -614,7 +614,7 @@ hr {
 
 .nav-menu__link[aria-current="page"] {
   color: #fff;
-  border-left-color: var(--accent-on-brand);
+  border-inline-start-color: var(--accent-on-brand);
   font-weight: 600;
 }
 
@@ -634,7 +634,7 @@ hr {
   .nav-menu__list {
     position: absolute;
     top: calc(100% + var(--sp-3));
-    left: calc(var(--sp-3) * -1);
+    inset-inline-start: calc(var(--sp-3) * -1);
     z-index: 40;
     min-width: 17rem;
     margin: 0;
@@ -652,8 +652,8 @@ hr {
   .nav-menu__list::before {
     content: "";
     position: absolute;
-    left: 0;
-    right: 0;
+    inset-inline-start: 0;
+    inset-inline-end: 0;
     bottom: 100%;
     height: calc(var(--sp-3) + 4px);
   }
@@ -718,7 +718,7 @@ hr {
   flex-wrap: wrap;
   align-items: center;
   gap: var(--sp-1) var(--sp-4);
-  margin-left: var(--sp-2);
+  margin-inline-start: var(--sp-2);
 }
 
 .topbar--account.is-stuck .nav--primary {
@@ -748,7 +748,7 @@ hr {
 }
 
 .account-bar {
-  margin-left: auto;
+  margin-inline-start: auto;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -837,13 +837,13 @@ hr {
   }
 
   .account-bar {
-    margin-left: 0;
+    margin-inline-start: 0;
     width: 100%;
     justify-content: center;
   }
 
   .nav--primary {
-    margin-left: 0;
+    margin-inline-start: 0;
     width: 100%;
     justify-content: center;
   }
@@ -853,7 +853,7 @@ hr {
    mieści się w jednej linii); niżej zawija się pod logotyp. */
 @media (min-width: 900px) {
   .nav--cms {
-    margin-left: 0;
+    margin-inline-start: 0;
   }
 }
 
@@ -1453,7 +1453,7 @@ hr {
 .footer__links a + a::before,
 .footer__links a + .footer__link-button::before {
   content: "·";
-  margin-right: var(--sp-3);
+  margin-inline-end: var(--sp-3);
   color: rgba(244, 241, 232, 0.4);
   /* Separator jest atomowym pudełkiem liniowym, bo podkreślenie **nie wchodzi** do wnętrza
      takiego pudełka (CSS Text Decoration: dekoracja nie propaguje się do atomic inline).
@@ -1601,7 +1601,7 @@ p {
 }
 
 .quote {
-  border-left: 3px solid var(--accent);
+  border-inline-start: 3px solid var(--accent);
   background: var(--surface-2);
   border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
   padding: var(--sp-3) var(--sp-4);
@@ -1654,7 +1654,7 @@ p {
 
 .prose ul,
 .prose ol {
-  padding-left: 1.25rem;
+  padding-inline-start: 1.25rem;
 }
 
 .prose li {
@@ -1663,8 +1663,8 @@ p {
 
 .prose blockquote {
   margin: var(--sp-4) 0;
-  padding-left: var(--sp-4);
-  border-left: 3px solid var(--accent);
+  padding-inline-start: var(--sp-4);
+  border-inline-start: 3px solid var(--accent);
   color: var(--ink-soft);
   font-family: var(--font-serif);
   font-size: 1.0625rem;
@@ -1715,7 +1715,7 @@ p {
 }
 
 .card--accent {
-  border-left: 4px solid var(--accent);
+  border-inline-start: 4px solid var(--accent);
 }
 
 .card--quiet {
@@ -2055,7 +2055,7 @@ input[type="checkbox"],
 input[type="radio"] {
   width: auto;
   accent-color: var(--brand);
-  margin-right: var(--sp-2);
+  margin-inline-end: var(--sp-2);
 }
 
 /* Pole wyboru z ``as_p``: kratka i etykieta w jednej linii (kolumna wyglądałaby jak błąd). */
@@ -2093,7 +2093,7 @@ ul.errorlist {
   list-style: none;
   margin: 0 0 var(--sp-1);
   padding: var(--sp-2) var(--sp-3);
-  border-left: 3px solid var(--danger);
+  border-inline-start: 3px solid var(--danger);
   background: var(--danger-soft);
   border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
   color: var(--danger-ink);
@@ -2106,7 +2106,7 @@ ul.errorlist li {
 }
 
 ul.errorlist.nonfield {
-  border-left-width: 4px;
+  border-inline-start-width: 4px;
   margin-bottom: var(--sp-3);
 }
 
@@ -2123,7 +2123,7 @@ ul.errorlist.nonfield {
   display: block;
   margin: 0 0 var(--sp-1);
   padding: var(--sp-2) var(--sp-3);
-  border-left: 3px solid var(--danger);
+  border-inline-start: 3px solid var(--danger);
   border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
   background: var(--danger-soft);
   color: var(--danger-ink);
@@ -2293,7 +2293,7 @@ form.inline input[type="text"] {
 .dropzone input[type="file"]::file-selector-button {
   font: inherit;
   font-weight: 600;
-  margin-right: var(--sp-2);
+  margin-inline-end: var(--sp-2);
   padding: 0.35rem 0.8rem;
   border-radius: var(--radius-sm);
   border: 1px solid var(--line-strong);
@@ -2483,7 +2483,7 @@ form.inline input[type="text"] {
 .table caption,
 .grid caption {
   caption-side: top;
-  text-align: left;
+  text-align: start;
   color: var(--muted);
   font-size: 0.875rem;
   padding: 0 0 var(--sp-2);
@@ -2497,7 +2497,7 @@ form.inline input[type="text"] {
   font-size: 0.8125rem;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  text-align: left;
+  text-align: start;
   padding: var(--sp-2) var(--sp-3);
   border-bottom: 2px solid var(--line-strong);
   white-space: nowrap;
@@ -2562,7 +2562,7 @@ form.inline input[type="text"] {
 
 .table--sticky-first tr > :first-child {
   position: sticky;
-  left: 0;
+  inset-inline-start: 0;
   z-index: 1;
   background: inherit;
   box-shadow: inset -2px 0 0 var(--line-strong);
@@ -2593,13 +2593,13 @@ form.inline input[type="text"] {
 
 .table--sticky-rank tr > :is(:first-child, :nth-child(2)) {
   position: sticky;
-  left: 0;
+  inset-inline-start: 0;
   z-index: 1;
   background: inherit;
 }
 
 .table--sticky-rank tr > :nth-child(2) {
-  left: var(--rank-col);
+  inset-inline-start: var(--rank-col);
   box-shadow: inset -2px 0 0 var(--line-strong);
 }
 
@@ -2630,8 +2630,8 @@ form.inline input[type="text"] {
   }
 
   .table--sticky-rank tr > :first-child {
-    padding-left: var(--sp-2);
-    padding-right: var(--sp-2);
+    padding-inline-start: var(--sp-2);
+    padding-inline-end: var(--sp-2);
   }
 
   .table--sticky-rank thead tr > :first-child {
@@ -2734,7 +2734,7 @@ form.inline input[type="text"] {
     max-width: none;
     padding: var(--sp-1) var(--sp-3);
     border-bottom: 0;
-    text-align: left;
+    text-align: start;
   }
 
   .table--stack td::before,
@@ -2757,7 +2757,7 @@ form.inline input[type="text"] {
   }
 
   .table--stack .num {
-    text-align: left;
+    text-align: start;
   }
 
   /* W karcie kolumna wartości ma ~60 % ekranu – długa odznaka („wymagana dla niepełnoletnich”)
@@ -2856,7 +2856,7 @@ form.inline input[type="text"] {
 }
 
 .num {
-  text-align: right;
+  text-align: end;
   font-variant-numeric: tabular-nums;
 }
 
@@ -2972,7 +2972,7 @@ form.inline input[type="text"] {
   gap: var(--sp-3);
   padding: var(--sp-3) var(--sp-4);
   border: 1px solid var(--line-strong);
-  border-left-width: 4px;
+  border-inline-start-width: 4px;
   border-radius: var(--radius-sm);
   background: var(--surface);
   color: var(--ink-soft);
@@ -3167,7 +3167,7 @@ td.empty,
 .timeline__dates dd {
   margin: 0;
   color: var(--ink-soft);
-  text-align: right;
+  text-align: end;
 }
 
 /* Blok „terminy etapów” w treści redakcyjnej (``cms/blocks/stage_timeline.html``). Nagłówek jest
@@ -3186,7 +3186,7 @@ td.empty,
   background: var(--navy-800);
   color: #f4f1e8;
   border-radius: var(--radius);
-  border-left: 4px solid var(--accent);
+  border-inline-start: 4px solid var(--accent);
   padding: var(--sp-4) var(--sp-6);
   margin: 0 0 var(--sp-4);
 }
@@ -3210,7 +3210,7 @@ td.empty,
   font-variant-numeric: tabular-nums;
   font-weight: 600;
   color: var(--accent-on-brand);
-  margin-left: auto;
+  margin-inline-start: auto;
 }
 
 /* 6.10 Kafelki KPI */
@@ -3714,7 +3714,7 @@ td.empty,
 }
 
 .panel__nav-count {
-  margin-left: auto;
+  margin-inline-start: auto;
   padding: 0 0.4em;
   border-radius: 999px;
   background: var(--surface-inset);
@@ -3932,7 +3932,7 @@ td.empty,
 
 .hero-slider__controls {
   position: absolute;
-  right: var(--sp-4);
+  inset-inline-end: var(--sp-4);
   bottom: var(--sp-4);
   display: flex;
   align-items: center;
@@ -4223,7 +4223,7 @@ td.empty,
    litery „K” ze znaku i stempel zasłoniłby logotyp. */
 .hero-poster__stamp {
   position: absolute;
-  left: 0;
+  inset-inline-start: 0;
   bottom: 4%;
   display: grid;
   place-items: center;
@@ -4310,7 +4310,7 @@ td.empty,
 
   .hero-slider__controls {
     left: 50%;
-    right: auto;
+    inset-inline-end: auto;
     transform: translateX(-50%);
   }
 }
@@ -4887,7 +4887,7 @@ td.empty,
 
 .doc-toc__list {
   margin: 0;
-  padding-left: 1.1rem;
+  padding-inline-start: 1.1rem;
   font-size: 0.9375rem;
 }
 
@@ -4927,14 +4927,14 @@ td.empty,
 .notice {
   margin: var(--sp-6) 0;
   padding: var(--sp-4);
-  border-left: 4px solid var(--info);
+  border-inline-start: 4px solid var(--info);
   border-radius: 0 var(--radius) var(--radius) 0;
   background: var(--info-soft);
   color: var(--ink);
 }
 
 .notice--warning {
-  border-left-color: var(--warn);
+  border-inline-start-color: var(--warn);
   background: var(--warn-soft);
 }
 
@@ -5042,7 +5042,7 @@ td.empty,
 }
 
 .pdf-toolbar [data-pdf-status] {
-  margin-left: auto;
+  margin-inline-start: auto;
   color: var(--muted);
 }
 
@@ -5087,7 +5087,7 @@ td.empty,
 .annotations li {
   background: var(--surface-2);
   border: 1px solid var(--line);
-  border-left: 3px solid var(--accent);
+  border-inline-start: 3px solid var(--accent);
   border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
   padding: var(--sp-2) var(--sp-3);
   font-size: 0.9375rem;
@@ -5095,7 +5095,7 @@ td.empty,
 }
 
 .annotations li.hint {
-  border-left-color: var(--line-strong);
+  border-inline-start-color: var(--line-strong);
   color: var(--muted);
 }
 
@@ -5105,7 +5105,7 @@ td.empty,
   padding: 0.1rem 0.5rem;
   font-size: 0.75rem;
   font-weight: 600;
-  margin-left: var(--sp-2);
+  margin-inline-start: var(--sp-2);
   border-radius: var(--radius-sm);
   border: 1px solid var(--line-strong);
   background: var(--surface);
@@ -5283,7 +5283,7 @@ fieldset:disabled .score-option {
 }
 
 .feedback {
-  border-left: 3px solid var(--accent);
+  border-inline-start: 3px solid var(--accent);
   background: var(--accent-soft);
   border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
   padding: var(--sp-3) var(--sp-4);
@@ -5427,18 +5427,18 @@ fieldset:disabled .score-option {
   border-radius: var(--radius);
   /* Gruba kreska z lewej zamiast obramowania dookoła: baner ma być odróżnialny od karty treści,
      a nie wyglądać jak kolejna karta. */
-  border-left: 4px solid var(--info);
+  border-inline-start: 4px solid var(--info);
   background: var(--info-soft);
   color: var(--ink);
 }
 
 .announcement--warning {
-  border-left-color: var(--warn);
+  border-inline-start-color: var(--warn);
   background: var(--warn-soft);
 }
 
 .announcement--danger {
-  border-left-color: var(--danger);
+  border-inline-start-color: var(--danger);
   background: var(--danger-soft);
 }
 
@@ -5448,7 +5448,7 @@ fieldset:disabled .score-option {
 }
 
 .announcement__link {
-  margin-left: var(--sp-2);
+  margin-inline-start: var(--sp-2);
   white-space: nowrap;
 }
 
@@ -5525,8 +5525,8 @@ fieldset:disabled .score-option {
   position: absolute;
   z-index: 20;
   top: calc(100% + 2px);
-  left: 0;
-  right: 0;
+  inset-inline-start: 0;
+  inset-inline-end: 0;
   max-height: 18rem;
   overflow-y: auto;
   background: var(--surface);
@@ -5657,8 +5657,8 @@ fieldset:disabled .score-option {
    nawigacja panelu. */
 @media (max-width: 400px) {
   .page {
-    padding-left: var(--sp-2);
-    padding-right: var(--sp-2);
+    padding-inline-start: var(--sp-2);
+    padding-inline-end: var(--sp-2);
   }
 
   /* Przyciski w rzędzie akcji rozkładają się na całą szerokość, zamiast zostawiać sierotę
@@ -5850,7 +5850,7 @@ fieldset:disabled .score-option {
   }
 
   .table tr.is-qualified td:first-child {
-    border-left: 3px solid #000;
+    border-inline-start: 3px solid #000;
   }
 
   /* Odznaka drukuje się jako ramka z tekstem: tła drukarka i tak zgubi albo zamaże, a słowo
@@ -6028,7 +6028,7 @@ img.captcha {
    przeglądarka nie renderuje, a to jest dokładnie to, czego chcemy uniknąć. */
 .hp-field {
   position: absolute;
-  left: -9999px;
+  inset-inline-start: -9999px;
   width: 1px;
   height: 1px;
   opacity: 0;
@@ -6229,7 +6229,7 @@ img.captcha {
 .notes__item {
   background: var(--surface-2);
   border: 1px solid var(--line);
-  border-left: 3px solid var(--line-strong);
+  border-inline-start: 3px solid var(--line-strong);
   border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
   padding: var(--sp-2) var(--sp-3);
   overflow-wrap: anywhere;
@@ -6238,7 +6238,7 @@ img.captcha {
 /* Własny wpis jest wyróżniony akcentem – w wątku bez nazwisk to jedyny sposób, żeby recenzent
    od razu widział, które zdania są jego. */
 .notes__item--own {
-  border-left-color: var(--accent);
+  border-inline-start-color: var(--accent);
 }
 
 .notes__author {
@@ -6246,7 +6246,7 @@ img.captcha {
 }
 
 .notes__time {
-  margin-left: var(--sp-2);
+  margin-inline-start: var(--sp-2);
   font-size: 0.875rem;
   color: var(--muted);
 }
@@ -6297,7 +6297,7 @@ img.captcha {
   background: none;
   color: var(--muted);
   font: inherit;
-  text-align: right;
+  text-align: end;
   cursor: pointer;
   user-select: none;
 }
@@ -6571,4 +6571,146 @@ img.captcha {
   outline: 4px solid var(--focus);
   outline-offset: 4px;
   background: none;
+}
+
+
+/* =================================================================================================
+   JĘZYKI I KIERUNEK PISMA  (docs/tasks/I18N-01.md § 3–5)
+   ================================================================================================= */
+
+/* Menu języków (templates/web/_language_menu.html) – tylko w konkursie z więcej niż dwoma
+   językami. ``<details>`` jak rozwijana pozycja menu serwisu: bez skryptu, klawiaturą, pod CSP.
+   Lista stoi pod przyciskiem, przyklejona do jego **końcowej** krawędzi (``inset-inline-end``):
+   w LTR wyrasta w lewo od prawego brzegu paska, w RTL – w prawo od lewego, czyli zawsze do
+   środka ekranu, a nie poza niego. */
+.lang-menu {
+  position: relative;
+}
+
+.lang-menu__summary {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  cursor: pointer;
+  list-style: none;
+  text-decoration: none;
+}
+
+.lang-menu__summary::-webkit-details-marker {
+  display: none;
+}
+
+.lang-menu__summary::marker {
+  content: "";
+}
+
+.lang-menu__list {
+  position: absolute;
+  inset-inline-end: 0;
+  top: calc(100% + var(--sp-1));
+  z-index: 50;
+  min-width: 12rem;
+  margin: 0;
+  padding: var(--sp-1) 0;
+  list-style: none;
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius, 6px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+}
+
+.lang-menu__list > li {
+  margin: 0;
+}
+
+/* Pozycja ma ``dir`` własnego języka, więc wyrównanie ``start`` kładzie arabską nazwę przy
+   prawej krawędzi także w menu polskim – tak, jak czyta ją jej czytelnik. */
+.lang-menu__item {
+  display: block;
+  width: 100%;
+  padding: var(--sp-2) var(--sp-3);
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.lang-menu__item:hover,
+.lang-menu__item:focus-visible {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.lang-menu__item--current {
+  font-weight: 600;
+  cursor: default;
+}
+
+:root[data-contrast="high"] .lang-menu__list {
+  background: #000;
+  color: #fff;
+  border: 2px solid #fff;
+  box-shadow: none;
+}
+
+/* Kroje dla pism spoza łaciny. Inter i Source Serif 4 są self-hostowane wyłącznie w podzbiorach
+   łacińskich, a CSP (``font-src 'self' data:``) nie wpuszcza CDN-u – więc dla arabskiego,
+   dewanagari, bengalskiego, chińskiego i cyrylicy wskazujemy **kroje systemowe** w kolejności:
+   Windows, macOS/iOS, Android/Linux (Noto). Przeglądarka i tak sięgnęłaby po fallback znak po
+   znaku, ale bez wskazania bierze pierwszy krój, który ma glif – często bez właściwych ligatur
+   (arabski, dewanagari) albo z japońskimi kształtami znaków chińskich. Nagłówki szeryfowe w tych
+   pismach idą tym samym krojem: nie ma szeryfu, który byłby obecny na wszystkich systemach. */
+:root:lang(ar) {
+  --font-sans: "Segoe UI", "Geeza Pro", "Noto Sans Arabic", "Noto Naskh Arabic", Tahoma, system-ui, sans-serif;
+  --font-serif: var(--font-sans);
+}
+
+:root:lang(hi) {
+  --font-sans: "Nirmala UI", "Kohinoor Devanagari", "Noto Sans Devanagari", Mangal, system-ui, sans-serif;
+  --font-serif: var(--font-sans);
+}
+
+:root:lang(bn) {
+  --font-sans: "Nirmala UI", "Kohinoor Bangla", "Noto Sans Bengali", Vrinda, system-ui, sans-serif;
+  --font-serif: var(--font-sans);
+}
+
+:root:lang(zh-hans) {
+  --font-sans: "Inter", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC",
+    "Noto Sans SC", system-ui, sans-serif;
+  --font-serif: var(--font-sans);
+}
+
+:root:lang(ru) {
+  --font-sans: "Inter", "Segoe UI", Roboto, "Noto Sans", system-ui, sans-serif;
+  --font-serif: "Source Serif 4", Georgia, "Noto Serif", "Times New Roman", serif;
+}
+
+/* Pisma bez wielkich liter i z wysokimi znakami nad/pod linią potrzebują więcej oddechu – przy
+   interlinii dobranej do łaciny znaki dewanagari i bengalskie zahaczają o siebie. */
+:root:is(:lang(hi), :lang(bn), :lang(ar)) body {
+  line-height: 1.7;
+}
+
+/* Wersaliki i rozstrzelenie są zabiegiem łacińskim: w piśmie arabskim rozrywają połączenia
+   liter, a chiński, dewanagari i bengalski nie mają wielkich liter. */
+:root:is(:lang(ar), :lang(hi), :lang(bn), :lang(zh-hans)) :is(h1, h2, h3, .eyebrow, .badge, .btn) {
+  letter-spacing: normal;
+}
+
+/* RTL: ikony, które wskazują kierunek „dalej/wstecz”, odbijamy w poziomie. Chevrony menu (obrót
+   ramki o 45°) wskazują „w dół” i zostają fizyczne. Tabele, formularze i siatki flex/grid
+   odwracają się same z atrybutu ``dir`` – arkusz trzyma się właściwości logicznych. */
+[dir="rtl"] .icon--directional,
+[dir="rtl"] .pagination svg {
+  transform: scaleX(-1);
+}
+
+/* Liczby, kody i adresy w tekście arabskim mają zostać ciągiem od lewej do prawej („OLM-ABC234”,
+   „4,25”), inaczej algorytm dwukierunkowy przestawi ich człony. */
+[dir="rtl"] :is(code, kbd, samp, .code, .points, input[type="email"], input[type="url"], input[type="tel"]) {
+  direction: ltr;
+  unicode-bidi: isolate;
 }

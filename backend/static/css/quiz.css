@@ -42,7 +42,7 @@
 }
 
 .quiz-timer__save {
-  margin-left: auto;
+  margin-inline-start: auto;
   font-size: 0.9rem;
   color: var(--text-muted, #5b6678);
 }
