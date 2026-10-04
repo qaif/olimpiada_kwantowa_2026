@@ -58,8 +58,10 @@ that case.
   sends a new link; the old one stops working. After activation the student corrects their data
   themselves in their profile.
 - **Send the link again** – for students who have not activated their account yet.
-- **Withdraw** – possible until the first stage of the competition starts. The student's account is
-  deleted together with the registration. After the start only the organiser can withdraw a student.
+- **Withdraw** – possible until the first stage of the competition starts. If the student has not
+  activated the account yet, the account is deleted. If the student has already activated it, the
+  account stays: the student is removed from your team, receives an e-mail, and the organiser decides
+  what happens next. After the start only the organiser can withdraw a student.
 
 ## 6. Your data
 

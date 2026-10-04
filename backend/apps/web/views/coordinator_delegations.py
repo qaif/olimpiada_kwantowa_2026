@@ -148,6 +148,8 @@ class DelegationDetailView(DelegationScreenMixin, View):
                 if invitation.accepted_at is None
             ],
             "rows": [{"participant": p, "active": service.is_activated(p)} for p in students],
+            # Uczniowie z uruchomionym kontem wypisani przez opiekuna – czekają na decyzję koordynatora.
+            "unlinked": list(service.unlinked_students(delegation)),
             "student_count": len(students),
         }
         return TemplateResponse(request, DETAIL_TEMPLATE, context, status=status)
@@ -207,6 +209,7 @@ class LeaderRemoveView(DelegationScreenMixin, View):
         competition = self.competition_or_404(request)
         leader = (
             DelegationLeader.objects.for_competition(competition)
+            .active()
             .select_related("user", "delegation", "delegation__competition")
             .filter(pk=pk)
             .first()

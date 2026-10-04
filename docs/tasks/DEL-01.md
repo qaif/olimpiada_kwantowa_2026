@@ -110,9 +110,12 @@ Odstępstwa od § 2–4 (z powodem):
    przez organizatora (luka niżej).
 4. **Okno rejestracji edycji obowiązuje opiekunów** (dodanie ucznia), a zamknięta delegacja zamraża
    także poprawki i wypisanie – „zamknięta” znaczy „lista ostateczna”.
-5. **Usunięcie ucznia** = usunięcie konta, które powstało ze zgłoszenia (`profile._erase_account`: bez
-   śladu w zawodach kasowane, ze śladem – anonimizowane i odpinane od delegacji). Konto z innym profilem
-   lub inną rolą – wyłącznie przez organizatora.
+5. **Usunięcie ucznia** (zmienione po przeglądzie – decyzja organizatora): konto **nieuruchomione** jest
+   usuwane (`profile._erase_account`); konto **uruchomione** należy do ucznia, więc opiekun tylko odpina
+   profil od delegacji (`Participant.former_delegation`, `delegation_unlinked_at`, miejsce w limicie się
+   zwalnia), uczeń dostaje list w swoim języku, a koordynator widzi go jako „wypisanego – czeka na decyzję”
+   i ewentualnie usuwa konto zwykłą drogą. Konto nieuruchomione z innym profilem lub rolą – wyłącznie
+   przez organizatora.
 6. **Zgoda opiekuna prawnego**: opiekun drużyny może podać adres rodzica (jak import listy), ale jej
    nie potwierdza – istniejący mechanizm (`apps.accounts.guardian`) wymaga działania ucznia/rodzica.
 7. **Przyjęcie zaproszenia przez nowe konto** zakłada konto od razu aktywne (link z listu potwierdza
@@ -130,3 +133,17 @@ Znane luki:
 - automatyczna retencja nie obejmuje osobno kont opiekunów drużyn (jak opiekunów szkolnych) – czyszczenie
   przez usunięcie konta,
 - tłumaczenia nowych napisów są maszynowe (do przeglądu native speakerów).
+
+### Poprawki po przeglądzie (4.10.2026)
+
+- `is_team_leader` (pasek konta, cel po zalogowaniu) liczony z delegacji w **bieżącej** edycji; opiekun
+  bez niej dostaje pod `/delegation/` wyjaśnienie zamiast 404,
+- wypisanie ucznia z uruchomionym kontem = odpięcie (pkt 5 wyżej), nowa migracja `accounts.0038`,
+- wyścigi (ten sam adres ucznia w dwóch delegacjach, równoległe zaproszenia, równoległe przyjęcia) kończą
+  się odmową domenową zamiast 500 (savepointy),
+- `Competition.clean()`: tryb `DELEGATIONS` wymaga `custom_regions` z aktywnymi krajami,
+- publiczne API edycji i rama djcms przechodzą przez bramkę trybu delegacji,
+- pulpit koordynatora pokazuje stan okna rejestracji obowiązującego opiekunów,
+- edycja danych ucznia z uruchomionym kontem – strona tylko do odczytu (409),
+- odwołanie opiekuna nie kasuje wiersza (`DelegationLeader.removed_at`) – dowody zgód zostają,
+- etykieta „opiekun drużyny” na liście kont koordynatora.

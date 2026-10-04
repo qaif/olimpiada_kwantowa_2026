@@ -334,11 +334,6 @@ def create_competition_from_template(
             public_code_prefix=(public_code_prefix or "").strip() or default_public_code_prefix(slug),
             certificate_prefix=(certificate_prefix or "").strip() or default_certificate_prefix(slug),
             template=template_spec,
-            registration_mode=(
-                RegistrationMode.DELEGATIONS
-                if registration == REGISTRATION_DELEGATIONS
-                else RegistrationMode.OPEN
-            ),
         )
         edition, stages = _create_edition(competition, template_spec, label=label, base_day=base_day(today))
         if coordinator is not None:
@@ -351,6 +346,12 @@ def create_competition_from_template(
             seeded["regions"] = seeded["regions"] + switch.added
             seeded["regions_active"] = competition.regions.filter(is_active=True).count()
         seeded["regions_mode"] = regions
+        if registration == REGISTRATION_DELEGATIONS:
+            # Tryb delegacji ustawiamy **po** krajach: ``Competition.clean()`` wymaga aktywnych krajów
+            # (delegacja jest zawsze delegacją kraju), a tych przed ``switch_to_countries`` jeszcze nie ma.
+            competition.registration_mode = RegistrationMode.DELEGATIONS
+            competition.full_clean()
+            competition.save(update_fields=["registration_mode"])
         seeded["pipeline"] = len(_seed_pipeline(edition))
         platform, opened_platform = _open_platform_for_prefix(competition)
         if dry_run:
@@ -392,7 +393,6 @@ def _create(
     public_code_prefix: str,
     certificate_prefix: str,
     template: dict,
-    registration_mode: str = RegistrationMode.OPEN,
 ) -> Competition:
     from apps.cms.models import HomePage, SiteSettings
 
@@ -473,8 +473,8 @@ def _create(
         public_code_prefix=public_code_prefix,
         certificate_prefix=certificate_prefix,
         # Tryb rejestracji jest **jawny** i nie pochodzi z szablonu (DEL-01): każdy konkurs zaczyna
-        # od ``OPEN``, chyba że zakładający wprost poprosił o delegacje.
-        registration_mode=registration_mode,
+        # od ``OPEN``; delegacje ustawia ``create_competition_from_template`` po założeniu krajów.
+        registration_mode=RegistrationMode.OPEN,
     )
     try:
         # ``full_clean`` zamiast samego ``save``: reguły spójności adresowania (domena zgodna

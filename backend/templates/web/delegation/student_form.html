@@ -16,6 +16,17 @@
 
 <section class="section">
   <div class="card">
+    {% if editing and active %}
+      {# Konto uruchomione: dane należą do ucznia – tylko odczyt (poprawka po przeglądzie DEL-01). #}
+      <p class="notice">{% translate "Uczeń uruchomił już konto – dane poprawia sam w swoim profilu." %}</p>
+      <ul>
+        <li>{{ participant.user.get_full_name }} – {{ participant.user.email }}</li>
+        <li>{% translate "Szkoła:" %} {{ participant.school }}</li>
+      </ul>
+      <div class="actions">
+        <a class="btn btn--secondary" href="{% url 'web:delegation' %}">{% translate "Wróć do drużyny" %}</a>
+      </div>
+    {% else %}
     <form method="post" class="form" novalidate>
       {% csrf_token %}
       <p class="form__required-note">{% translate "Pola oznaczone * są obowiązkowe." %}</p>
@@ -25,6 +36,7 @@
         <a class="btn btn--ghost" href="{% url 'web:delegation' %}">{% translate "Anuluj" %}</a>
       </div>
     </form>
+    {% endif %}
   </div>
 </section>
 {% endblock %}

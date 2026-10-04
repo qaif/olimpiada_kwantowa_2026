@@ -3896,7 +3896,10 @@ istniejącym konkursom; `create_competition`, ekran „Nowy konkurs” i kreator
 
 1. Kraje (§ 27): `docker compose exec web python manage.py regions_countries --competition iqo`.
 2. Bieżąca edycja `iqo` musi istnieć, a jej okno rejestracji (`/coordinator/registration/`) **obowiązuje
-   opiekunów** – przy wyłączonej rejestracji edycji opiekun nie doda ucznia.
+   opiekunów**: dodanie ucznia wymaga `registration_enabled = tak` oraz daty „teraz” między otwarciem
+   a zamknięciem (puste daty = bez ograniczenia). Przy zamkniętym oknie opiekun nie doda ucznia, a pulpit
+   koordynatora pokazuje „przez delegacje krajowe – okno dla opiekunów drużyn zamknięte”.
+   Tryb `DELEGATIONS` da się zapisać dopiero, gdy konkurs ma aktywne kraje (walidacja modelu).
 3. Tryb rejestracji – jedna z dróg:
    - panel: `/coordinator/competition/` (ekran „Ustawienia konkursu”, flaga `competition_settings_page`)
      → „Tryb rejestracji uczestników” = „przez delegacje krajowe”, opcjonalnie „Domyślny limit uczniów
@@ -3924,6 +3927,12 @@ Nowy konkurs od razu w tym trybie: `create_competition … --regions countries -
 - Panel opiekuna `/delegation/`: uczniowie kraju, współopiekunowie, „Dodaj ucznia”. Uczeń dostaje list
   z linkiem `/zaproszenie/<token>/` (ten sam mechanizm, co import listy klasowej): sam ustawia hasło
   i składa zgody, kraj jest krajem delegacji. Limit delegacji liczony pod blokadą wiersza.
+- Wypisanie ucznia przez opiekuna (do startu pierwszego etapu): konto **nieuruchomione** jest usuwane;
+  konto **uruchomione** zostaje – opiekun tylko odpina je od delegacji, uczeń dostaje list, a ekran
+  delegacji pokazuje go w sekcji „Wypisani przez opiekuna – czekają na decyzję”. Usunięcie takiego konta
+  należy do koordynatora (karta konta w „Uczestnicy i konta”).
+- Odwołanie opiekuna zostawia jego wiersz ze znacznikiem `removed_at` (dowody zgód zostają); opiekun
+  bez delegacji w bieżącej edycji widzi pod `/delegation/` wyjaśnienie, a nie błąd.
 - Zamknięcie delegacji (ekran delegacji) zamraża listę uczniów. Eksport CSV: przycisk na liście delegacji.
 - Opiekun drużyny **nie** ma dostępu do wiadomości (`apps/chat`) ani do prac i ocen.
 
@@ -3936,5 +3945,5 @@ jest renderowany z `app_routes.env` osobno, trzeba go wyrenderować ponownie.
 ### 28.4. Wycofanie
 
 Przestawienie trybu z powrotem na `OPEN` otwiera samodzielną rejestrację i ukrywa ekrany delegacji (404);
-dane delegacji, opiekunów i uczniów zostają w bazie. Migracje `accounts.0036`/`0037` i `tenancy.0013` są
+dane delegacji, opiekunów i uczniów zostają w bazie. Migracje `accounts.0036`–`0038` i `tenancy.0013` są
 odwracalne (nowe tabele i kolumny nullowalne albo z wartością domyślną).

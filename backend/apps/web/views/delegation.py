@@ -22,11 +22,11 @@ from __future__ import annotations
 
 from django.contrib import messages
 from django.contrib.auth import logout
-from django.http import Http404
 from django.shortcuts import redirect
 from django.template.response import TemplateResponse
 from django.urls import reverse
 from django.utils.translation import gettext as _
+from django.utils.translation import gettext_lazy
 from django.views.generic import TemplateView, View
 
 from apps.accounts import delegation_services as service
@@ -43,6 +43,17 @@ STUDENT_DELETE_TEMPLATE = "web/delegation/student_delete.html"
 ACCEPT_TEMPLATE = "web/delegation/accept.html"
 ACCEPT_INVALID_TEMPLATE = "web/delegation/accept_invalid.html"
 ACCEPT_DONE_TEMPLATE = "web/delegation/accept_done.html"
+NO_DELEGATION_TEMPLATE = "web/delegation/no_delegation.html"
+
+
+#: Komunikat po wypisaniu ucznia – zależnie od tego, czy konto zniknęło, czy tylko zostało odpięte.
+MESSAGES_REMOVED = {
+    "deleted": gettext_lazy("Uczeń został wypisany z drużyny."),
+    "anonymised": gettext_lazy("Uczeń został wypisany z drużyny."),
+    "unlinked": gettext_lazy(
+        "Uczeń został wypisany z drużyny. Jego konto zostaje – o dalszym udziale zdecyduje organizator."
+    ),
+}
 
 
 class TeamLeaderRequiredMixin(RoleRequiredMixin):
@@ -60,7 +71,10 @@ class TeamLeaderRequiredMixin(RoleRequiredMixin):
             service.require_delegations(self.competition)
             self.leader = service.leader_for(request.user, self.competition)
             if self.leader is None:
-                raise Http404("To konto nie prowadzi delegacji w bieżącej edycji.")
+                # Opiekun bez delegacji w **bieżącej** edycji (prowadził drużynę rok temu albo został
+                # odwołany) dostaje wyjaśnienie, a nie 404 – ma rolę, więc ten adres dla niego
+                # istnieje; brakuje tylko drużyny (poprawka po przeglądzie).
+                return TemplateResponse(request, NO_DELEGATION_TEMPLATE, {}, status=200)
         return super().dispatch(request, *args, **kwargs)
 
     @property
@@ -131,6 +145,10 @@ class StudentEditView(TeamLeaderRequiredMixin, ThrottledFormMixin, View):
 
     def get(self, request, pk: int):
         participant = service.student_of(self.leader, pk)
+        if service.is_activated(participant):
+            # Po uruchomieniu konta dane należą do ucznia (poprawia je sam) – formularz byłby obietnicą
+            # zapisu, którą serwis i tak odrzuci; zamiast niego strona tylko do odczytu (409).
+            return self._render(request, participant, None, status=409)
         initial = {
             "first_name": participant.user.first_name,
             "last_name": participant.user.last_name,
@@ -188,11 +206,11 @@ class StudentDeleteView(TeamLeaderRequiredMixin, View):
     def post(self, request, pk: int):
         participant = service.student_of(self.leader, pk)
         try:
-            service.remove_student(self.leader, participant, request=request)
+            result = service.remove_student(self.leader, participant, request=request)
         except DomainError as exc:
             messages.error(request, str(exc.detail))
         else:
-            messages.success(request, _("Uczeń został wypisany z drużyny."))
+            messages.success(request, MESSAGES_REMOVED[result])
         return redirect(reverse("web:delegation"))
 
 

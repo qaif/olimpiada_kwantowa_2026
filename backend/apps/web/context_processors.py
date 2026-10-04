@@ -109,12 +109,12 @@ def roles(request) -> dict:
         # Opiekun szkolny – ta sama definicja, co w mixinie widoku i w przekierowaniu po
         # zalogowaniu (``apps.accounts.supervisors.supervisor_profile``).
         "is_supervisor": supervisor_profile(user, competition) is not None,
-        # Opiekun drużyny narodowej (DEL-01). Sama rola – bez zapytania o wiersz delegacji: pozycja
-        # w pasku konta jest nawigacją, a panel i tak sprawdza delegację (404 bez niej). Rola przychodzi
-        # z ``names``, które już mamy, więc pasek konta Olimpiady Kwantowej nie płaci nic.
-        "is_team_leader": CompetitionRole.TEAM_LEADER in names
-        and competition is not None
-        and competition.uses_delegations,
+        # Opiekun drużyny narodowej (DEL-01): rola **i** delegacja w bieżącej edycji – ta sama
+        # definicja, co w panelu (``delegation_services.leader_for``). Sama rola prowadziła opiekuna
+        # z poprzedniej edycji (także po zalogowaniu, ``default_panel_url``) na ekran bez delegacji
+        # (poprawka po przeglądzie). Zapytania padają wyłącznie dla konta z tą rolą w konkursie
+        # w trybie delegacji – pasek konta Olimpiady Kwantowej nie płaci nic.
+        "is_team_leader": _leads_a_delegation(user, competition, names),
         # Forum uczestników: pozycja w pasku konta jest **wyłącznie** wtedy, gdy adres odpowie.
         # Dwa warunki naraz, bo forum ma dwie bramki i obie muszą być spełnione – przełącznik
         # konkursu (bez niego ``/forum/`` daje 404) i rola czytelnika. Liczone z ``names`` i
@@ -123,6 +123,14 @@ def roles(request) -> dict:
         "can_use_forum": _forum_visible(competition, names, participant),
         **_chat_state(participant),
     }
+
+
+def _leads_a_delegation(user, competition, names: set[str]) -> bool:
+    if CompetitionRole.TEAM_LEADER not in names or competition is None or not competition.uses_delegations:
+        return False
+    from apps.accounts.delegation_services import leader_for
+
+    return leader_for(user, competition) is not None
 
 
 def _chat_state(participant) -> dict:
@@ -249,6 +257,9 @@ def registration(request) -> dict:
             "reason": state.reason,
             "opens_at": state.opens_at,
             "closes_at": state.closes_at,
+            # Tryb delegacji (DEL-01): czy okno edycji – które bramkuje opiekunów drużyn – jest
+            # otwarte. ``None`` w każdym innym trybie, więc szablony Olimpiady Kwantowej go nie widzą.
+            "window_open": state.window_open,
             # Gotowe zdanie dla użytkownika – jedno źródło treści dla strony, formularza i API.
             "message": registration_message(state),
         },

@@ -144,6 +144,7 @@ EXPECTED_SUBJECTS = {
     # ``OPEN``), ale brzmienie jest zamrożone tak samo, jak każdego innego tematu.
     "delegation_leader_invitation": "Zaproszenie dla opiekuna drużyny narodowej – Olimpiada Kwantowa",
     "delegation_student_invitation": "Zgłoszenie do drużyny narodowej – Olimpiada Kwantowa",
+    "delegation_student_unlinked": "Wypisanie z drużyny narodowej – Olimpiada Kwantowa",
 }
 
 #: Znaczniki podstawień w tematach składanych w serwisie. Porównujemy **wzorzec**, a nie wynik:
@@ -235,6 +236,7 @@ SUBJECT_CONSTANTS = {
     "apps.accounts.bulk_registration.INVITE_SUBJECT_TEMPLATE": "student_invitation",
     "apps.accounts.delegation_services.LEADER_INVITE_SUBJECT_TEMPLATE": "delegation_leader_invitation",
     "apps.accounts.delegation_services.STUDENT_INVITE_SUBJECT_TEMPLATE": "delegation_student_invitation",
+    "apps.accounts.delegation_services.UNLINKED_SUBJECT_TEMPLATE": "delegation_student_unlinked",
     "apps.accounts.guardian.GUARDIAN_SUBJECT": "guardian",
     "apps.accounts.guardian.GUARDIAN_SUBJECT_TEMPLATE": "guardian",
     "apps.accounts.guardian.GUARDIAN_CONFIRMED_SUBJECT": "guardian_confirmed",

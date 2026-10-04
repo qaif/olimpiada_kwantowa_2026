@@ -139,6 +139,10 @@ class DelegationLeaderQuerySet(CompetitionScopedQuerySet):
 
     competition_path = "delegation__competition"
 
+    def active(self):
+        """Opiekunowie **nieodwołani** – jedyni, którzy cokolwiek widzą i liczą się do więzów."""
+        return self.filter(removed_at__isnull=True)
+
 
 class DelegationLeader(models.Model):
     """„Ta osoba prowadzi tę delegację” – źródło uprawnienia opiekuna do uczniów kraju.
@@ -165,6 +169,11 @@ class DelegationLeader(models.Model):
         verbose_name="zaprosił",
     )
     accepted_at = models.DateTimeField("przyjął zaproszenie", default=timezone.now)
+    #: Odwołanie z delegacji jest znacznikiem, a nie skasowaniem wiersza (poprawka po przeglądzie):
+    #: na wierszu wiszą dowody zgód opiekuna (``ConsentRecord.team_leader``), a konto po odwołaniu
+    #: istnieje dalej – kaskada zabrałaby dowód podstawy przetwarzania danych, które wciąż mamy.
+    #: Wiersz znika dopiero z kontem (``delegation_services.erase_for_user``).
+    removed_at = models.DateTimeField("odwołany", null=True, blank=True)
 
     objects = models.Manager.from_queryset(DelegationLeaderQuerySet)()
 
@@ -173,8 +182,12 @@ class DelegationLeader(models.Model):
         verbose_name_plural = "opiekunowie drużyn"
         ordering = ("accepted_at", "id")
         constraints = [
+            # Jedna **czynna** delegacja na osobę w edycji; odwołany wiersz (``removed_at``) nie blokuje
+            # zaproszenia tej osoby do innego kraju.
             models.UniqueConstraint(
-                fields=["user", "edition"], name="accounts_delegation_leader_one_per_edition"
+                fields=["user", "edition"],
+                condition=models.Q(removed_at__isnull=True),
+                name="accounts_delegation_leader_one_active_per_edition",
             ),
         ]
 

@@ -9421,3 +9421,32 @@ msgstr "Algo não está certo? Escreva ao chefe da sua equipa – pode corrigir 
 
 msgid "Kontakt z organizatorem:"
 msgstr "Contacto com a organização:"
+
+# --- DEL-01: poprawki po przeglądzie ---
+
+msgid "Uczeń został wypisany z drużyny. Jego konto zostaje – o dalszym udziale zdecyduje organizator."
+msgstr "O aluno foi retirado da equipa. A conta mantém-se – a organização decidirá sobre a participação."
+
+#, python-format
+msgid "Cześć %(name)s! Opiekun drużyny narodowej (%(country)s) wypisał Cię z drużyny w konkursie %(competition)s."
+msgstr "Olá, %(name)s! O chefe da equipa nacional (%(country)s) retirou-o da equipa em %(competition)s."
+
+msgid "Twoje konto nie zostało usunięte. Organizator skontaktuje się z Tobą w sprawie dalszego udziału. Jeśli to pomyłka, napisz do opiekuna drużyny albo do organizatora."
+msgstr "A sua conta não foi eliminada. A organização entrará em contacto sobre a participação. Se for um erro, escreva ao chefe de equipa ou à organização."
+
+#, python-format
+msgid "Wypisanie z drużyny narodowej – %(competition)s"
+msgstr "Retirada da equipa nacional – %(competition)s"
+
+msgid "Nie prowadzisz drużyny w bieżącej edycji"
+msgstr "Não lidera nenhuma equipa na edição atual"
+
+msgid "Twoje konto nie jest przypisane do żadnej delegacji w bieżącej edycji. Jeśli masz prowadzić drużynę, poproś organizatora o zaproszenie."
+msgstr "A sua conta não está associada a nenhuma delegação na edição atual. Se deve liderar uma equipa, peça um convite à organização."
+
+#, python-format
+msgid "Uczeń %(name)s (%(email)s) zostanie wypisany z drużyny. Jego konto zostaje – o dalszym udziale zdecyduje organizator, a uczeń dostanie o tym wiadomość."
+msgstr "O aluno %(name)s (%(email)s) será retirado da equipa. A conta mantém-se – a organização decidirá sobre a participação e o aluno será notificado."
+
+msgid "Wróć do drużyny"
+msgstr "Voltar à equipa"

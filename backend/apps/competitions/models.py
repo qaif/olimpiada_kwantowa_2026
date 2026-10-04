@@ -199,6 +199,9 @@ class RegistrationStatus:
     reason: str
     opens_at: datetime | None = None
     closes_at: datetime | None = None
+    #: Wyłącznie przy powodzie ``delegations`` (DEL-01): czy okno rejestracji **edycji** jest otwarte,
+    #: czyli czy opiekunowie drużyn mogą teraz zgłaszać uczniów. ``None`` w każdym innym stanie.
+    window_open: bool | None = None
 
 
 class Edition(models.Model):
@@ -406,16 +409,40 @@ def current_registration_status(now=None, competition=None) -> RegistrationStatu
         .first()
     )
     if getattr(competition, "uses_delegations", False):
-        # Rejestracja przez delegacje (DEL-01): samodzielne założenie konta jest zamknięte **tu**,
-        # w jednym rozstrzygnięciu, więc formularz, API, logowanie społecznościowe, nawigacja
-        # i strona główna dostają tę samą odmowę bez osobnej bramki w każdym z nich. Okno edycji
-        # zostaje w odpowiedzi (``opens_at``/``closes_at``): obowiązuje opiekunów drużyn, a pulpit
-        # koordynatora ma je dalej pokazywać.
-        opens_at = edition.registration_opens_at if edition is not None else None
-        closes_at = edition.registration_closes_at if edition is not None else None
-        return RegistrationStatus(False, REGISTRATION_DELEGATIONS, opens_at, closes_at)
+        return delegations_registration_status(edition, now)
     if edition is None:
         return RegistrationStatus(False, REGISTRATION_DISABLED)
+    return edition.registration_status(now)
+
+
+def delegations_registration_status(edition, now=None) -> RegistrationStatus:
+    """Stan rejestracji konkursu w trybie delegacji (DEL-01) – samodzielna rejestracja zamknięta.
+
+    Jedno rozstrzygnięcie dla wszystkich dróg: formularz, API (``/api/auth/register/…`` i publiczne
+    API edycji), logowanie społecznościowe, nawigacja i strona główna dostają tę samą odmowę bez
+    osobnej bramki w każdym z nich. Okno edycji zostaje w odpowiedzi (``opens_at``/``closes_at``,
+    ``window_open``): obowiązuje opiekunów drużyn, a pulpit koordynatora ma je pokazywać.
+    """
+    if edition is None:
+        return RegistrationStatus(False, REGISTRATION_DELEGATIONS, window_open=False)
+    window = edition.registration_status(now)
+    return RegistrationStatus(
+        False,
+        REGISTRATION_DELEGATIONS,
+        edition.registration_opens_at,
+        edition.registration_closes_at,
+        window_open=window.is_open,
+    )
+
+
+def public_registration_status(edition, now=None) -> RegistrationStatus:
+    """Stan rejestracji edycji **dla publiczności** – uwzględnia tryb delegacji jej konkursu.
+
+    ``Edition.registration_status`` opisuje samo okno edycji (to ono bramkuje opiekunów drużyn);
+    tę funkcję czytają odpowiedzi publiczne (API edycji), które mają mówić to samo, co ``/register/``.
+    """
+    if getattr(edition.competition, "uses_delegations", False):
+        return delegations_registration_status(edition, now)
     return edition.registration_status(now)
 
 

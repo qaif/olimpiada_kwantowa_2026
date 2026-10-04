@@ -772,6 +772,20 @@ class Participant(models.Model):
         on_delete=models.SET_NULL,
         related_name="registered_participants",
     )
+    #: Delegacja, z której opiekun **wypisał** ucznia z uruchomionym kontem (poprawka po przeglądzie
+    #: DEL-01). Konto takiego ucznia należy już do niego – opiekun nie może go skasować – więc profil
+    #: zostaje, ``delegation`` pustoszeje (miejsce w limicie się zwalnia), a ta kolumna mówi
+    #: koordynatorowi, skąd uczeń wypadł i że czeka na jego decyzję. ``SET_NULL``, bo to jest ślad
+    #: pochodzenia, a nie przynależność.
+    former_delegation = models.ForeignKey(
+        "accounts.Delegation",
+        verbose_name="wypisany z delegacji",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="unlinked_students",
+    )
+    delegation_unlinked_at = models.DateTimeField("kiedy wypisany z delegacji", null=True, blank=True)
 
     #: Własna kolumna konkursu, więc domyślna ścieżka ``competition`` z queryseta wystarcza.
     #: Queryset dokłada do zakresowania skróty reguły „konto po anonimizacji”.

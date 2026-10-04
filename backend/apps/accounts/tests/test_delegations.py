@@ -333,7 +333,11 @@ def test_removing_a_leader_drops_the_role_but_keeps_the_students(iqo, coordinato
 
     service.remove_leader(leader, actor=coordinator)
 
-    assert not DelegationLeader.objects.filter(user=user).exists()
+    assert not DelegationLeader.objects.active().filter(user=user).exists()
+    leader.refresh_from_db()
+    assert leader.removed_at is not None
+    # Dowody zgód zostają przy koncie, które istnieje dalej (poprawka po przeglądzie, L6).
+    assert ConsentRecord.objects.filter(team_leader=leader).count() == 2
     user.refresh_from_db()
     assert not has_role(user, iqo, CompetitionRole.TEAM_LEADER)
     assert not user.groups.filter(name=GROUP_TEAM_LEADER).exists()
@@ -559,3 +563,132 @@ def test_deleting_a_leader_account_removes_role_and_invitations(iqo, coordinator
 
 def test_team_leader_group_exists_after_migrations():
     assert Group.objects.filter(name=GROUP_TEAM_LEADER).exists()
+
+
+# --- poprawki po przeglądzie --------------------------------------------------------------------------
+
+
+def test_activated_student_is_unlinked_not_deleted(
+    iqo, coordinator, mailoutbox, django_capture_on_commit_callbacks
+):
+    """M3: konto uruchomione należy do ucznia – opiekun tylko odpina je od drużyny."""
+    from apps.accounts.activation import mark_activated
+
+    leader = leader_for_country(iqo, coordinator, "lead@example.test")
+    student = add(leader)
+    mark_activated(student.user)
+    student.refresh_from_db()
+
+    with django_capture_on_commit_callbacks(execute=True):
+        assert service.remove_student(leader, student) == "unlinked"
+
+    student.refresh_from_db()
+    assert student.delegation_id is None
+    assert student.former_delegation_id == leader.delegation_id
+    assert student.delegation_unlinked_at is not None
+    assert User.objects.filter(pk=student.user_id, is_active=True).exists()
+    assert list(service.unlinked_students(leader.delegation)) == [student]
+    assert service.seats_left(leader.delegation) == leader.delegation.max_students
+    assert mailoutbox[-1].to == ["kid@example.test"]
+    assert "Wypisanie z drużyny" in mailoutbox[-1].subject
+    assert AuditLog.objects.filter(action="delegation.student_unlinked").exists()
+
+
+def test_same_student_address_added_at_once_by_two_countries_is_a_domain_error(iqo, coordinator, monkeypatch):
+    """L1: wyścig o adres ucznia – druga delegacja dostaje EMAIL_TAKEN, a nie 500 z IntegrityError."""
+    german = leader_for_country(iqo, coordinator, "de@example.test", country="de")
+    french = leader_for_country(iqo, coordinator, "fr@example.test", country="fr")
+    add(german, email="twin@example.test")
+    # Sprawdzenie „adres wolny” przeszło w drugim żądaniu, zanim pierwsze zapisało konto.
+    monkeypatch.setattr(service, "_email_taken", lambda email: False)
+
+    with pytest.raises(DomainError) as error:
+        add(french, email="twin@example.test")
+    assert error.value.machine_code == "EMAIL_TAKEN"
+    assert Participant.objects.filter(user__email="twin@example.test").count() == 1
+
+
+def test_parallel_invitations_to_one_address_end_in_one_open_invitation(iqo, coordinator, monkeypatch):
+    """L1: drugie „Zaproś” pod ten sam adres wpada na więz i odświeża istniejące zaproszenie."""
+    first, _ = invite(iqo, coordinator)
+    monkeypatch.setattr(service, "_open_invitation", lambda delegation, email: None)
+
+    second, _ = invite(iqo, coordinator)
+
+    assert second.pk == first.pk
+    assert DelegationInvitation.objects.count() == 1
+
+
+def test_parallel_acceptance_with_a_fresh_account_is_a_domain_error(iqo, coordinator, monkeypatch):
+    """L1: konto na ten adres powstało między sprawdzeniem a zapisem – odmowa ACCOUNT_EXISTS."""
+    invitation, _ = invite(iqo, coordinator)
+    UserFactory(email="lead@example.test")
+    monkeypatch.setattr(service, "account_exists", lambda email: False)
+
+    with pytest.raises(DomainError) as error:
+        service.accept_leader_invitation(
+            invitation, first_name="L", last_name="L", password=PASSWORD, given=LEADER_CONSENTS
+        )
+    assert error.value.machine_code == "ACCOUNT_EXISTS"
+    assert not DelegationLeader.objects.exists()
+
+
+def test_delegations_mode_requires_active_countries(competition):
+    """L2: tryb delegacji bez krajów nie przechodzi walidacji modelu (panel, /admin/, komenda)."""
+    from django.core.exceptions import ValidationError
+
+    competition.registration_mode = RegistrationMode.DELEGATIONS
+    with pytest.raises(ValidationError) as error:
+        competition.full_clean()
+    assert "registration_mode" in error.value.message_dict
+
+    switch_to_countries(competition)
+    competition.refresh_from_db()
+    competition.registration_mode = RegistrationMode.DELEGATIONS
+    competition.full_clean()
+
+
+def test_social_signup_is_refused_in_delegations_mode(iqo):
+    """L7 (spec § 5): rejestracja przez Google/Facebooka też dostaje odmowę trybu delegacji."""
+    from apps.accounts.services import register_social_participant
+
+    with pytest.raises(DomainError) as error:
+        register_social_participant(
+            email="social@example.test",
+            first_name="So",
+            last_name="Cial",
+            district="de",
+            grade=2,
+            birth_date=ADULT_BIRTH,
+            gdpr_consent=True,
+            terms_consent=True,
+            phone="+49301234567",
+            school="Gymnasium Berlin",
+            email_verified=True,
+        )
+    assert error.value.machine_code == "REGISTRATION_CLOSED"
+    assert not User.objects.filter(email="social@example.test").exists()
+
+
+def test_public_edition_status_and_supervisor_link_respect_delegations(iqo):
+    """L3: publiczne API edycji i rama djcms mówią to samo, co /register/."""
+    from apps.accounts.supervisors import registration_enabled_for_competition
+    from apps.competitions.models import REGISTRATION_DELEGATIONS, public_registration_status
+    from apps.competitions.services import current_edition
+
+    state = public_registration_status(current_edition(iqo))
+
+    assert (state.is_open, state.reason) == (False, REGISTRATION_DELEGATIONS)
+    assert state.window_open is True
+    assert registration_enabled_for_competition(iqo) is False
+
+
+def test_leader_from_a_previous_edition_has_no_current_delegation(iqo, coordinator):
+    """M1: opiekun zeszłorocznej drużyny nie jest „opiekunem” w bieżącej edycji."""
+    from apps.competitions.models import Edition
+
+    leader = leader_for_country(iqo, coordinator, "lead@example.test")
+    Edition.objects.filter(pk=leader.delegation.edition_id).update(is_current=False)
+    CurrentEditionFactory(competition=iqo)
+
+    assert service.leader_for(leader.user, iqo) is None

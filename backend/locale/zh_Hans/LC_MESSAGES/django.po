@@ -8844,3 +8844,32 @@ msgstr "信息有误？请联系你的领队——在你激活账户之前，领
 
 msgid "Kontakt z organizatorem:"
 msgstr "联系主办方："
+
+# --- DEL-01: poprawki po przeglądzie ---
+
+msgid "Uczeń został wypisany z drużyny. Jego konto zostaje – o dalszym udziale zdecyduje organizator."
+msgstr "该学生已退出代表队。其账户保留——是否继续参赛由主办方决定。"
+
+#, python-format
+msgid "Cześć %(name)s! Opiekun drużyny narodowej (%(country)s) wypisał Cię z drużyny w konkursie %(competition)s."
+msgstr "%(name)s，你好！国家代表队领队（%(country)s）已将你从 %(competition)s 的代表队中移出。"
+
+msgid "Twoje konto nie zostało usunięte. Organizator skontaktuje się z Tobą w sprawie dalszego udziału. Jeśli to pomyłka, napisz do opiekuna drużyny albo do organizatora."
+msgstr "你的账户未被删除。主办方将就后续参赛事宜与你联系。如有误，请联系领队或主办方。"
+
+#, python-format
+msgid "Wypisanie z drużyny narodowej – %(competition)s"
+msgstr "退出国家代表队 – %(competition)s"
+
+msgid "Nie prowadzisz drużyny w bieżącej edycji"
+msgstr "你在本届没有负责任何代表队"
+
+msgid "Twoje konto nie jest przypisane do żadnej delegacji w bieżącej edycji. Jeśli masz prowadzić drużynę, poproś organizatora o zaproszenie."
+msgstr "你的账户在本届未分配到任何代表队。如需负责代表队，请向主办方申请邀请。"
+
+#, python-format
+msgid "Uczeń %(name)s (%(email)s) zostanie wypisany z drużyny. Jego konto zostaje – o dalszym udziale zdecyduje organizator, a uczeń dostanie o tym wiadomość."
+msgstr "学生 %(name)s（%(email)s）将退出代表队。其账户保留——是否继续参赛由主办方决定，学生会收到通知。"
+
+msgid "Wróć do drużyny"
+msgstr "返回代表队"

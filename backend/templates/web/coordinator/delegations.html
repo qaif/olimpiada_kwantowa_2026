@@ -55,6 +55,7 @@
           <th scope="col">Opiekunowie</th>
           <th scope="col">Zaproszenia oczekujące</th>
           <th scope="col">Uczniowie / limit</th>
+          <th scope="col">Wypisani (decyzja)</th>
           <th scope="col">Stan</th>
         </tr>
       </thead>
@@ -65,6 +66,7 @@
             <td class="num">{{ delegation.leader_count }}</td>
             <td class="num">{{ delegation.pending_count }}</td>
             <td class="num">{{ delegation.student_count }} / {{ delegation.max_students }}</td>
+            <td class="num">{% if delegation.unlinked_count %}<span class="badge badge--warn">{{ delegation.unlinked_count }}</span>{% else %}0{% endif %}</td>
             <td>
               {% if delegation.is_open %}
                 <span class="badge badge--ok">otwarta</span>
@@ -74,7 +76,7 @@
             </td>
           </tr>
         {% empty %}
-          <tr><td colspan="5" class="empty">Nie ma jeszcze żadnej delegacji – zaproś pierwszego opiekuna.</td></tr>
+          <tr><td colspan="6" class="empty">Nie ma jeszcze żadnej delegacji – zaproś pierwszego opiekuna.</td></tr>
         {% endfor %}
       </tbody>
     </table>

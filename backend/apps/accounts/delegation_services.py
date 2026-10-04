@@ -77,6 +77,8 @@ LEADER_INVITE_SUBJECT_TEMPLATE = "registration/delegation_leader_subject.txt"
 LEADER_INVITE_BODY_TEMPLATE = "registration/delegation_leader_body.txt"
 STUDENT_INVITE_SUBJECT_TEMPLATE = "registration/delegation_student_subject.txt"
 STUDENT_INVITE_BODY_TEMPLATE = "registration/delegation_student_body.txt"
+UNLINKED_SUBJECT_TEMPLATE = "registration/delegation_unlinked_subject.txt"
+UNLINKED_BODY_TEMPLATE = "registration/delegation_unlinked_body.txt"
 
 #: Zgody opiekuna drużyny – regulamin i RODO, tak samo jak u opiekuna szkolnego: podaje swoje dane
 #: (imię, nazwisko, adres) na tych samych zasadach, a zgoda opiekuna prawnego i publikacja nazwiska
@@ -155,7 +157,8 @@ def delegations_of(competition, edition=None):
         .select_related("country")
         .annotate(
             student_count=Count("students", distinct=True),
-            leader_count=Count("leaders", distinct=True),
+            leader_count=Count("leaders", filter=Q(leaders__removed_at__isnull=True), distinct=True),
+            unlinked_count=Count("unlinked_students", distinct=True),
             pending_count=Count(
                 "invitations",
                 filter=Q(
@@ -264,7 +267,8 @@ def _normalized_email(email: str) -> str:
 def _leads_elsewhere(email: str, edition, delegation) -> bool:
     """Czy konto o tym adresie prowadzi już **inną** delegację w tej edycji."""
     return (
-        DelegationLeader.objects.filter(edition=edition, user__email=email)
+        DelegationLeader.objects.active()
+        .filter(edition=edition, user__email=email)
         .exclude(delegation=delegation)
         .exists()
     )
@@ -293,25 +297,34 @@ def invite_leader(competition, *, email: str, country_code: str, actor, request=
             "LEADS_OTHER_DELEGATION",
             status.HTTP_409_CONFLICT,
         )
-    if DelegationLeader.objects.filter(delegation=delegation, user__email=email).exists():
+    if DelegationLeader.objects.active().filter(delegation=delegation, user__email=email).exists():
         raise DomainError(
             "Ta osoba jest już opiekunem tej delegacji.", "ALREADY_LEADER", status.HTTP_409_CONFLICT
         )
-    open_invitation = (
-        DelegationInvitation.objects.select_for_update()
-        .filter(delegation=delegation, email=email, accepted_at__isnull=True, revoked_at__isnull=True)
-        .first()
-    )
+    open_invitation = _open_invitation(delegation, email)
     if open_invitation is not None:
         return resend_leader_invitation(open_invitation, actor=actor, request=request)
     token, token_hash = _new_token()
-    invitation = DelegationInvitation.objects.create(
-        delegation=delegation,
-        email=email,
-        token_hash=token_hash,
-        created_by=actor if getattr(actor, "is_authenticated", False) else None,
-        expires_at=invitation_expiry(),
-    )
+    try:
+        with transaction.atomic():
+            invitation = DelegationInvitation.objects.create(
+                delegation=delegation,
+                email=email,
+                token_hash=token_hash,
+                created_by=actor if getattr(actor, "is_authenticated", False) else None,
+                expires_at=invitation_expiry(),
+            )
+    except IntegrityError:
+        # Dwa równoległe „Zaproś” pod ten sam adres (poprawka po przeglądzie): drugie wpada na więz
+        # „jedno otwarte zaproszenie” – zamiast 500 odświeża zaproszenie, które właśnie powstało.
+        existing = (
+            DelegationInvitation.objects.select_for_update()
+            .filter(delegation=delegation, email=email, accepted_at__isnull=True, revoked_at__isnull=True)
+            .first()
+        )
+        if existing is None:
+            raise
+        return resend_leader_invitation(existing, actor=actor, request=request)
     _send_leader_invitation(invitation, token, request=request)
     audit(
         actor,
@@ -321,6 +334,15 @@ def invite_leader(competition, *, email: str, country_code: str, actor, request=
         request=request,
     )
     return invitation
+
+
+def _open_invitation(delegation, email: str) -> DelegationInvitation | None:
+    """Otwarte (nieprzyjęte, niecofnięte) zaproszenie tego adresu do tej delegacji – pod blokadą."""
+    return (
+        DelegationInvitation.objects.select_for_update()
+        .filter(delegation=delegation, email=email, accepted_at__isnull=True, revoked_at__isnull=True)
+        .first()
+    )
 
 
 def resend_leader_invitation(
@@ -452,6 +474,14 @@ def _record_leader_consents(leader: DelegationLeader, given: dict[str, bool], re
     )
 
 
+def _account_exists() -> DomainError:
+    return DomainError(
+        _("Ten adres ma już konto – zaloguj się, a potem otwórz link jeszcze raz."),
+        "ACCOUNT_EXISTS",
+        status.HTTP_409_CONFLICT,
+    )
+
+
 def account_exists(email: str) -> bool:
     """Czy adres zaproszenia ma już konto – ekran prosi wtedy o zalogowanie zamiast rejestracji."""
     return User.objects.filter(email=(email or "").strip().lower()).exists()
@@ -504,18 +534,25 @@ def accept_leader_invitation(
             )
     else:
         if account_exists(locked.email):
-            raise DomainError(
-                _("Ten adres ma już konto – zaloguj się, a potem otwórz link jeszcze raz."),
-                "ACCOUNT_EXISTS",
-                status.HTTP_409_CONFLICT,
-            )
-        user = _create_user(
-            email=locked.email,
-            password=password,
-            first_name=(first_name or "").strip(),
-            last_name=(last_name or "").strip(),
-            is_active=False,
-        )
+            raise _account_exists()
+        try:
+            # Savepoint: konto o tym adresie mogło powstać między sprawdzeniem a zapisem (inne
+            # zaproszenie na ten sam adres przyjęte w tej samej chwili, rejestracja w innym konkursie).
+            # Bez niego wyścig kończył się 500 zamiast czytelnej odmowy (poprawka po przeglądzie).
+            with transaction.atomic():
+                user = _create_user(
+                    email=locked.email,
+                    password=password,
+                    first_name=(first_name or "").strip(),
+                    last_name=(last_name or "").strip(),
+                    is_active=False,
+                )
+        except IntegrityError as exc:
+            raise _account_exists() from exc
+        except DomainError as exc:
+            if exc.machine_code == "EMAIL_TAKEN":
+                raise _account_exists() from exc
+            raise
         user = mark_activated(
             user, actor=user, action="account.delegation_invitation_accepted", request=request
         )
@@ -526,6 +563,12 @@ def accept_leader_invitation(
             status.HTTP_409_CONFLICT,
         )
     leader = DelegationLeader.objects.filter(delegation=delegation, user=user).first()
+    if leader is not None and leader.removed_at is not None:
+        # Opiekun odwołany i zaproszony ponownie do tej samej delegacji wraca na swój wiersz – razem
+        # z historią zgód; nowe zgody dochodzą niżej jako nowe wpisy dowodowe.
+        leader.removed_at = None
+        leader.accepted_at = timezone.now()
+        leader.save(update_fields=["removed_at", "accepted_at"])
     if leader is None:
         try:
             with transaction.atomic():
@@ -552,7 +595,8 @@ def accept_leader_invitation(
 
 def leaders_of(delegation: Delegation):
     return (
-        DelegationLeader.objects.filter(delegation=delegation)
+        DelegationLeader.objects.active()
+        .filter(delegation=delegation)
         .select_related("user")
         .order_by("accepted_at", "id")
     )
@@ -569,20 +613,25 @@ def remove_leader(leader: DelegationLeader, *, actor, request=None) -> None:
     (``registered_by`` jest tylko śladem pochodzenia). Grupa Django ``team_leader`` znika dopiero
     wtedy, gdy konto nie jest opiekunem w **żadnym** konkursie: przy wyłączonym
     ``memberships_enforced`` grupa jest rolą we wszystkich konkursach naraz.
+
+    Wiersz opiekuna **zostaje** ze znacznikiem ``removed_at`` (poprawka po przeglądzie): wiszą na nim
+    dowody zgód złożonych przy przyjęciu zaproszenia, a konto – czyli dane, których dotyczą – istnieje
+    dalej. Skasowanie wiersza zabrałoby je kaskadą.
     """
     user = leader.user
     competition = leader.delegation.competition
     delegation_id = leader.delegation_id
     audit(actor, "delegation.leader_removed", leader, {"delegation": delegation_id}, request=request)
     with transaction.atomic():
-        leader.delete()
+        leader.removed_at = timezone.now()
+        leader.save(update_fields=["removed_at"])
         _drop_role_if_unused(user, competition)
 
 
 def _drop_role_if_unused(user, competition) -> None:
     from django.contrib.auth.models import Group
 
-    if not DelegationLeader.objects.filter(user=user, delegation__competition=competition).exists():
+    if not DelegationLeader.objects.active().filter(user=user, delegation__competition=competition).exists():
         Membership.objects.filter(
             user=user, competition=competition, role=CompetitionRole.TEAM_LEADER
         ).delete()
@@ -612,6 +661,7 @@ def leader_for(user, competition) -> DelegationLeader | None:
         return None
     return (
         DelegationLeader.objects.for_competition(competition)
+        .active()
         .select_related("delegation", "delegation__country", "delegation__edition", "delegation__competition")
         .filter(user=user, edition=edition)
         .first()
@@ -684,6 +734,18 @@ def _country_code(region: Region) -> str:
     return code if len(code) == 2 else ""
 
 
+def _email_taken(email: str) -> bool:
+    return User.objects.filter(email=email).exists()
+
+
+def _student_email_taken() -> DomainError:
+    return DomainError(
+        _("Ten adres ma już konto w serwisie – podaj inny adres ucznia albo skontaktuj się z organizatorem."),
+        "EMAIL_TAKEN",
+        status.HTTP_409_CONFLICT,
+    )
+
+
 @transaction.atomic
 def add_student(
     leader: DelegationLeader,
@@ -735,15 +797,8 @@ def add_student(
             status.HTTP_409_CONFLICT,
         )
     email = _normalized_email(email)
-    if User.objects.filter(email=email).exists():
-        raise DomainError(
-            _(
-                "Ten adres ma już konto w serwisie – podaj inny adres ucznia albo skontaktuj się "
-                "z organizatorem."
-            ),
-            "EMAIL_TAKEN",
-            status.HTTP_409_CONFLICT,
-        )
+    if _email_taken(email):
+        raise _student_email_taken()
     profile = registration_profile(competition)
     birth_date, birth_year = _resolve_birth(birth_date, None, profile=profile)
     grade = _require_grade(grade, profile=profile)
@@ -758,7 +813,13 @@ def add_student(
         is_active=False,
     )
     user.set_unusable_password()
-    user.save()
+    try:
+        # Savepoint: ten sam adres zgłoszony w tej samej chwili przez opiekuna innego kraju wpada na
+        # unikalność adresu – to ma być ta sama odmowa, co przy adresie zajętym wcześniej, a nie 500.
+        with transaction.atomic():
+            user.save()
+    except IntegrityError as exc:
+        raise _student_email_taken() from exc
     grant_role(user, GROUP_PARTICIPANT, competition=competition)
     participant = create_participant_with_public_code(
         user=user,
@@ -886,18 +947,29 @@ def _only_this_profile(participant: Participant) -> bool:
 
 @transaction.atomic
 def remove_student(leader: DelegationLeader, participant: Participant, *, request=None) -> str:
-    """Wypisuje ucznia z delegacji **przed startem pierwszego etapu**. Zwraca ``deleted``/``anonymised``.
+    """Wypisuje ucznia z delegacji **przed startem pierwszego etapu**. Zwraca ``deleted``/``unlinked``.
 
-    Konto ucznia powstało z tego zgłoszenia, więc znika razem z nim – tą samą funkcją, co usunięcie
-    konta przez koordynatora (``profile._erase_account``): konto bez śladu w zawodach jest kasowane,
-    a z wpisem do etapu – anonimizowane, żeby nie wyrwać karty z dokumentacji zawodów.
+    Dwie drogi, rozstrzygane tym, **czyje** jest konto (poprawka po przeglądzie, decyzja organizatora):
 
-    Konto, które ma coś więcej niż ten profil (start w innym konkursie, inna rola), nie jest
-    kontem „z tego zgłoszenia” – takie usunięcie należy do organizatora, nie do opiekuna drużyny.
+    - konto **nieuruchomione** powstało z tego zgłoszenia i nikt poza opiekunem go nie użył – znika
+      razem ze zgłoszeniem, tą samą funkcją, co usunięcie konta przez koordynatora
+      (``profile._erase_account``),
+    - konto **uruchomione** należy już do ucznia: ustawił hasło i złożył zgody. Opiekun drużyny nie
+      może go skasować – wypisanie tylko **odpina** profil od delegacji (zwalnia miejsce w limicie),
+      zapisuje, z której delegacji uczeń wypadł (``former_delegation``), i wysyła uczniowi list.
+      O dalszym losie konta decyduje koordynator (ekran delegacji pokazuje wypisanych; usunięcie
+      idzie zwykłą drogą usuwania konta).
+
+    Konto nieuruchomione, które ma coś więcej niż ten profil (start w innym konkursie, inna rola),
+    nie jest kontem „z tego zgłoszenia” – takie usunięcie należy do organizatora.
     """
     from .profile import _erase_account
 
-    delegation = Delegation.objects.select_for_update().select_related("edition").get(pk=leader.delegation_id)
+    delegation = (
+        Delegation.objects.select_for_update()
+        .select_related("edition", "country")
+        .get(pk=leader.delegation_id)
+    )
     _require_open(delegation)
     if participant.delegation_id != delegation.pk:
         raise Http404("Nie ma takiego ucznia w tej delegacji.")
@@ -907,6 +979,20 @@ def remove_student(leader: DelegationLeader, participant: Participant, *, reques
             "STAGE_STARTED",
             status.HTTP_409_CONFLICT,
         )
+    if is_activated(participant):
+        participant.delegation = None
+        participant.former_delegation = delegation
+        participant.delegation_unlinked_at = timezone.now()
+        participant.save(update_fields=["delegation", "former_delegation", "delegation_unlinked_at"])
+        _send_unlinked_notice(participant, delegation, request=request)
+        audit(
+            leader.user,
+            "delegation.student_unlinked",
+            participant,
+            {"delegation": delegation.pk},
+            request=request,
+        )
+        return "unlinked"
     if not _only_this_profile(participant):
         raise DomainError(
             _("To konto jest używane także poza tą delegacją – ucznia może wypisać wyłącznie organizator."),
@@ -917,15 +1003,33 @@ def remove_student(leader: DelegationLeader, participant: Participant, *, reques
         leader.user,
         "delegation.student_removed",
         participant,
-        {"delegation": delegation.pk, "activated": is_activated(participant)},
+        {"delegation": delegation.pk, "activated": False},
         request=request,
     )
     result = _erase_account(participant.user, actor=leader.user, request=request)
-    if result == "anonymised":
-        # Profil zostaje jako dokumentacja zawodów (wpis do etapu), ale w drużynie już nie jest:
-        # bez odpięcia zajmowałby miejsce w limicie i stał na liście opiekuna jako „uczeń bez imienia”.
+    if result == "anonymised":  # pragma: no cover - konto nieuruchomione nie ma śladu w zawodach
         Participant.objects.filter(pk=participant.pk).update(delegation=None)
     return result
+
+
+def _send_unlinked_notice(participant: Participant, delegation: Delegation, *, request=None) -> None:
+    """List do ucznia wypisanego z drużyny – w jego języku; konto zostaje, decyzja należy do organizatora."""
+    competition = participant.competition
+    context = {"first_name": participant.user.first_name, "country": delegation.country.name}
+    with language_for(participant.user, competition):
+        context["brand"] = branding.brand_names(competition)
+        subject = render_to_string(UNLINKED_SUBJECT_TEMPLATE, context).strip().replace("\n", " ")
+        body = render_to_string(UNLINKED_BODY_TEMPLATE, context)
+    queue_mail(subject, body, participant.user.email, competition=competition)
+
+
+def unlinked_students(delegation: Delegation):
+    """Uczniowie z uruchomionym kontem wypisani z tej delegacji – czekają na decyzję koordynatora."""
+    return (
+        Participant.objects.filter(former_delegation=delegation, delegation__isnull=True)
+        .select_related("user")
+        .order_by("-delegation_unlinked_at", "id")
+    )
 
 
 def send_student_invitation(participant: Participant, *, request=None) -> None:
@@ -1001,7 +1105,7 @@ def export_dataset(competition):
 
     delegations = list(delegations_of(competition))
     leaders: dict[int, list] = {}
-    for leader in DelegationLeader.objects.filter(delegation__in=delegations).select_related("user"):
+    for leader in DelegationLeader.objects.active().filter(delegation__in=delegations).select_related("user"):
         leaders.setdefault(leader.delegation_id, []).append(leader)
     students: dict[int, list] = {}
     for participant in Participant.objects.filter(delegation__in=delegations).select_related("user"):
@@ -1051,6 +1155,7 @@ def export_section(user) -> list[dict]:
             "kraj": leader.delegation.country.name,
             "edycja": str(leader.delegation.edition),
             "przyjeto_zaproszenie": timezone.localtime(leader.accepted_at).isoformat(),
+            "odwolany": timezone.localtime(leader.removed_at).isoformat() if leader.removed_at else None,
         }
         for leader in DelegationLeader.objects.filter(user=user).select_related(
             "delegation", "delegation__country", "delegation__competition", "delegation__edition"

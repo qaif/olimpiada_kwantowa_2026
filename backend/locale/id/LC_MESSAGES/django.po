@@ -9416,3 +9416,32 @@ msgstr "Ada yang salah? Hubungi pemimpin timmu – ia dapat memperbaiki data sam
 
 msgid "Kontakt z organizatorem:"
 msgstr "Hubungi penyelenggara:"
+
+# --- DEL-01: poprawki po przeglądzie ---
+
+msgid "Uczeń został wypisany z drużyny. Jego konto zostaje – o dalszym udziale zdecyduje organizator."
+msgstr "Siswa telah dikeluarkan dari tim. Akunnya tetap ada – penyelenggara akan memutuskan keikutsertaan selanjutnya."
+
+#, python-format
+msgid "Cześć %(name)s! Opiekun drużyny narodowej (%(country)s) wypisał Cię z drużyny w konkursie %(competition)s."
+msgstr "Halo %(name)s! Pemimpin tim nasional (%(country)s) telah mengeluarkanmu dari tim untuk %(competition)s."
+
+msgid "Twoje konto nie zostało usunięte. Organizator skontaktuje się z Tobą w sprawie dalszego udziału. Jeśli to pomyłka, napisz do opiekuna drużyny albo do organizatora."
+msgstr "Akunmu tidak dihapus. Penyelenggara akan menghubungimu mengenai keikutsertaan selanjutnya. Jika ini kesalahan, hubungi pemimpin tim atau penyelenggara."
+
+#, python-format
+msgid "Wypisanie z drużyny narodowej – %(competition)s"
+msgstr "Dikeluarkan dari tim nasional – %(competition)s"
+
+msgid "Nie prowadzisz drużyny w bieżącej edycji"
+msgstr "Kamu tidak memimpin tim pada edisi saat ini"
+
+msgid "Twoje konto nie jest przypisane do żadnej delegacji w bieżącej edycji. Jeśli masz prowadzić drużynę, poproś organizatora o zaproszenie."
+msgstr "Akunmu tidak terhubung dengan delegasi mana pun pada edisi saat ini. Jika kamu seharusnya memimpin tim, minta undangan kepada penyelenggara."
+
+#, python-format
+msgid "Uczeń %(name)s (%(email)s) zostanie wypisany z drużyny. Jego konto zostaje – o dalszym udziale zdecyduje organizator, a uczeń dostanie o tym wiadomość."
+msgstr "Siswa %(name)s (%(email)s) akan dikeluarkan dari tim. Akunnya tetap ada – penyelenggara akan memutuskan keikutsertaan selanjutnya dan siswa akan diberi tahu."
+
+msgid "Wróć do drużyny"
+msgstr "Kembali ke tim"

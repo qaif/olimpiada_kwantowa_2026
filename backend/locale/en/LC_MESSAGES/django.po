@@ -9357,3 +9357,32 @@ msgstr "Something wrong? Write to your team leader – they can correct the deta
 
 msgid "Kontakt z organizatorem:"
 msgstr "Contact the organiser:"
+
+# --- DEL-01: poprawki po przeglądzie ---
+
+msgid "Uczeń został wypisany z drużyny. Jego konto zostaje – o dalszym udziale zdecyduje organizator."
+msgstr "The student has been withdrawn from the team. Their account remains – the organiser will decide on further participation."
+
+#, python-format
+msgid "Cześć %(name)s! Opiekun drużyny narodowej (%(country)s) wypisał Cię z drużyny w konkursie %(competition)s."
+msgstr "Hi %(name)s! Your national team leader (%(country)s) has withdrawn you from the team for %(competition)s."
+
+msgid "Twoje konto nie zostało usunięte. Organizator skontaktuje się z Tobą w sprawie dalszego udziału. Jeśli to pomyłka, napisz do opiekuna drużyny albo do organizatora."
+msgstr "Your account has not been deleted. The organiser will contact you about further participation. If this is a mistake, write to your team leader or the organiser."
+
+#, python-format
+msgid "Wypisanie z drużyny narodowej – %(competition)s"
+msgstr "Withdrawn from the national team – %(competition)s"
+
+msgid "Nie prowadzisz drużyny w bieżącej edycji"
+msgstr "You do not lead a team in the current edition"
+
+msgid "Twoje konto nie jest przypisane do żadnej delegacji w bieżącej edycji. Jeśli masz prowadzić drużynę, poproś organizatora o zaproszenie."
+msgstr "Your account is not assigned to any delegation in the current edition. If you are to lead a team, ask the organiser for an invitation."
+
+#, python-format
+msgid "Uczeń %(name)s (%(email)s) zostanie wypisany z drużyny. Jego konto zostaje – o dalszym udziale zdecyduje organizator, a uczeń dostanie o tym wiadomość."
+msgstr "The student %(name)s (%(email)s) will be withdrawn from the team. Their account remains – the organiser will decide on further participation, and the student will be notified."
+
+msgid "Wróć do drużyny"
+msgstr "Back to the team"

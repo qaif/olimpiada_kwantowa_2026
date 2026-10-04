@@ -568,6 +568,7 @@ class Competition(models.Model):
             self.primary_domain = self.site.hostname
 
         errors.update(self._language_errors())
+        errors.update(self._registration_mode_errors())
 
         if self.routing_mode == RoutingMode.PATH and not self.path_prefix:
             errors["path_prefix"] = "Tryb prefiksu ścieżki wymaga podania prefiksu."
@@ -594,6 +595,29 @@ class Competition(models.Model):
 
         if errors:
             raise ValidationError(errors)
+
+    def _registration_mode_errors(self) -> dict[str, str]:
+        """Tryb delegacji wymaga podziału na kraje z co najmniej jednym aktywnym krajem (DEL-01).
+
+        Delegacja jest zawsze delegacją **kraju** (``Region`` na poziomie ``COUNTRY``). Konkurs
+        przestawiony na delegacje bez krajów miałby zamkniętą samodzielną rejestrację i ekran
+        „Delegacje”, w którym nie da się nikogo zaprosić – czyli żadnej drogi wejścia dla uczestników.
+        Reguła stoi w modelu, bo przestawia się go z trzech miejsc (ekran ustawień, ``/admin/``,
+        ``create_competition``) i każde ma dostać tę samą odmowę.
+        """
+        if self.registration_mode != RegistrationMode.DELEGATIONS:
+            return {}
+        message = (
+            "Rejestracja przez delegacje wymaga podziału na kraje z aktywnymi krajami – "
+            "najpierw manage.py regions_countries --competition <slug>."
+        )
+        if not self.pk or not self.has_feature("custom_regions"):
+            return {"registration_mode": message}
+        from apps.accounts.models import Region, RegionLevel
+
+        if not Region.objects.filter(competition=self, is_active=True, level=RegionLevel.COUNTRY).exists():
+            return {"registration_mode": message}
+        return {}
 
     def _language_errors(self) -> dict[str, str]:
         """Reguły zbioru języków (I18N-01 § 1): znane kody, bez powtórzeń, domyślny w zbiorze.

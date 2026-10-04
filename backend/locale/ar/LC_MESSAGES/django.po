@@ -9094,3 +9094,32 @@ msgstr "هل هناك خطأ؟ اكتب إلى قائد فريقك – يمكن�
 
 msgid "Kontakt z organizatorem:"
 msgstr "التواصل مع المنظِّم:"
+
+# --- DEL-01: poprawki po przeglądzie ---
+
+msgid "Uczeń został wypisany z drużyny. Jego konto zostaje – o dalszym udziale zdecyduje organizator."
+msgstr "تم سحب الطالب من الفريق. يبقى حسابه – وسيقرّر المنظِّم بشأن مشاركته لاحقًا."
+
+#, python-format
+msgid "Cześć %(name)s! Opiekun drużyny narodowej (%(country)s) wypisał Cię z drużyny w konkursie %(competition)s."
+msgstr "مرحبًا %(name)s! سحبك قائد الفريق الوطني (%(country)s) من الفريق في %(competition)s."
+
+msgid "Twoje konto nie zostało usunięte. Organizator skontaktuje się z Tobą w sprawie dalszego udziału. Jeśli to pomyłka, napisz do opiekuna drużyny albo do organizatora."
+msgstr "لم يُحذف حسابك. سيتواصل معك المنظِّم بشأن مشاركتك لاحقًا. إذا كان هذا خطأً فاكتب إلى قائد الفريق أو إلى المنظِّم."
+
+#, python-format
+msgid "Wypisanie z drużyny narodowej – %(competition)s"
+msgstr "السحب من الفريق الوطني – %(competition)s"
+
+msgid "Nie prowadzisz drużyny w bieżącej edycji"
+msgstr "لا تقود أي فريق في الدورة الحالية"
+
+msgid "Twoje konto nie jest przypisane do żadnej delegacji w bieżącej edycji. Jeśli masz prowadzić drużynę, poproś organizatora o zaproszenie."
+msgstr "حسابك غير مرتبط بأي وفد في الدورة الحالية. إذا كان عليك قيادة فريق فاطلب دعوة من المنظِّم."
+
+#, python-format
+msgid "Uczeń %(name)s (%(email)s) zostanie wypisany z drużyny. Jego konto zostaje – o dalszym udziale zdecyduje organizator, a uczeń dostanie o tym wiadomość."
+msgstr "سيُسحب الطالب %(name)s (%(email)s) من الفريق. يبقى حسابه – سيقرّر المنظِّم بشأن مشاركته وسيُبلَّغ الطالب بذلك."
+
+msgid "Wróć do drużyny"
+msgstr "العودة إلى الفريق"

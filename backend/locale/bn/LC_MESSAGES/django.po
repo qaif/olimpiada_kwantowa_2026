@@ -9161,3 +9161,32 @@ msgstr "কিছু ভুল আছে? আপনার দলনেতাক�
 
 msgid "Kontakt z organizatorem:"
 msgstr "আয়োজকের সঙ্গে যোগাযোগ:"
+
+# --- DEL-01: poprawki po przeglądzie ---
+
+msgid "Uczeń został wypisany z drużyny. Jego konto zostaje – o dalszym udziale zdecyduje organizator."
+msgstr "শিক্ষার্থীকে দল থেকে প্রত্যাহার করা হয়েছে। তার অ্যাকাউন্ট থাকছে – পরবর্তী অংশগ্রহণের বিষয়ে আয়োজক সিদ্ধান্ত নেবেন।"
+
+#, python-format
+msgid "Cześć %(name)s! Opiekun drużyny narodowej (%(country)s) wypisał Cię z drużyny w konkursie %(competition)s."
+msgstr "হ্যালো %(name)s! জাতীয় দলনেতা (%(country)s) আপনাকে %(competition)s-এর দল থেকে প্রত্যাহার করেছেন।"
+
+msgid "Twoje konto nie zostało usunięte. Organizator skontaktuje się z Tobą w sprawie dalszego udziału. Jeśli to pomyłka, napisz do opiekuna drużyny albo do organizatora."
+msgstr "আপনার অ্যাকাউন্ট মুছে ফেলা হয়নি। পরবর্তী অংশগ্রহণ নিয়ে আয়োজক আপনার সঙ্গে যোগাযোগ করবেন। এটি ভুল হলে দলনেতা বা আয়োজককে লিখুন।"
+
+#, python-format
+msgid "Wypisanie z drużyny narodowej – %(competition)s"
+msgstr "জাতীয় দল থেকে প্রত্যাহার – %(competition)s"
+
+msgid "Nie prowadzisz drużyny w bieżącej edycji"
+msgstr "বর্তমান সংস্করণে আপনি কোনো দল পরিচালনা করছেন না"
+
+msgid "Twoje konto nie jest przypisane do żadnej delegacji w bieżącej edycji. Jeśli masz prowadzić drużynę, poproś organizatora o zaproszenie."
+msgstr "আপনার অ্যাকাউন্ট বর্তমান সংস্করণে কোনো প্রতিনিধিদলের সঙ্গে যুক্ত নয়। দল পরিচালনা করার কথা থাকলে আয়োজকের কাছে আমন্ত্রণ চান।"
+
+#, python-format
+msgid "Uczeń %(name)s (%(email)s) zostanie wypisany z drużyny. Jego konto zostaje – o dalszym udziale zdecyduje organizator, a uczeń dostanie o tym wiadomość."
+msgstr "শিক্ষার্থী %(name)s (%(email)s)-কে দল থেকে প্রত্যাহার করা হবে। তার অ্যাকাউন্ট থাকবে – পরবর্তী অংশগ্রহণ নিয়ে আয়োজক সিদ্ধান্ত নেবেন এবং শিক্ষার্থীকে জানানো হবে।"
+
+msgid "Wróć do drużyny"
+msgstr "দলে ফিরে যান"

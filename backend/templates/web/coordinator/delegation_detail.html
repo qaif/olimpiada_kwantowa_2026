@@ -6,7 +6,41 @@
 
   Odwołanie opiekuna nie rusza uczniów: należą do kraju, a nie do osoby, która ich zgłosiła.
 {% endcomment %}
-{% block title %}Delegacja: {{ delegation.country.name }} – panel koordynatora{% endblock %}
+{% block title %}Delegacja: {{ delegation.country.name }} – panel koordynatora
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">Wypisani przez opiekuna – czekają na decyzję</h2>
+    <p class="hint">Uczniowie z uruchomionym kontem, których opiekun wypisał z drużyny. Konto zostało
+      (opiekun nie może go usunąć), a uczeń dostał wiadomość. Usunięcie konta – na karcie konta
+      w „Uczestnicy i konta”.</p>
+  </div>
+  <div class="scroll">
+    <table class="table">
+      <caption class="visually-hidden">Uczniowie wypisani z delegacji</caption>
+      <thead>
+        <tr>
+          <th scope="col">Imię i nazwisko</th>
+          <th scope="col">E-mail</th>
+          <th scope="col">Kod publiczny</th>
+          <th scope="col">Wypisany</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for participant in unlinked %}
+          <tr>
+            <th scope="row">{{ participant.user.get_full_name }}</th>
+            <td>{{ participant.user.email }}</td>
+            <td>{{ participant.public_code }}</td>
+            <td>{{ participant.delegation_unlinked_at|local_datetime }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="4" class="empty">Nikt nie został wypisany.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}
 {% block panel_eyebrow %}<a href="{% url 'web:coordinator-delegations' %}">Delegacje</a>{% endblock %}
 {% block panel_title %}Delegacja: {{ delegation.country.name }}{% endblock %}
 {% block panel_lead %}

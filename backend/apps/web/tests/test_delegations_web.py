@@ -216,7 +216,9 @@ def test_coordinator_removes_a_leader(coordinator_client, iqo, coordinator):
 
     coordinator_client.post(reverse("web:coordinator-delegation-leader-remove", args=[leader.pk]))
 
-    assert not DelegationLeader.objects.filter(pk=leader.pk).exists()
+    leader.refresh_from_db()
+    assert leader.removed_at is not None
+    assert not DelegationLeader.objects.active().filter(pk=leader.pk).exists()
 
 
 def test_coordinator_export_lists_leaders_and_students(coordinator_client, iqo, coordinator):
@@ -479,3 +481,78 @@ def test_open_competition_next_to_a_delegations_competition_keeps_self_registrat
     assert other_coordinator.get("/coordinator/delegations/").status_code == 404
     leader_page = logged_in(client_for, other_competition, DelegationLeader.objects.get().user)
     assert leader_page.get(reverse("web:delegation")).status_code in (403, 404)
+
+
+# --- poprawki po przeglądzie --------------------------------------------------------------------------
+
+
+def test_leader_without_a_current_delegation_gets_an_explanation(client_for, iqo, coordinator):
+    """M1: rola bez delegacji w bieżącej edycji – strona z wyjaśnieniem, bez pozycji w pasku konta."""
+    from apps.competitions.models import Edition
+
+    leader = leader_for_country(iqo, coordinator, "lead@example.test")
+    Edition.objects.filter(pk=leader.delegation.edition_id).update(is_current=False)
+    CurrentEditionFactory(competition=iqo)
+    client = logged_in(client_for, iqo, leader.user)
+
+    response = client.get(reverse("web:delegation"))
+    assert response.status_code == 200
+    assert "Nie prowadzisz drużyny w bieżącej edycji" in response.content.decode()
+    assert f'href="{reverse("web:delegation")}"' not in client.get("/plakaty/").content.decode()
+    login = client_for(iqo).post("/login/", {"username": "lead@example.test", "password": PASSWORD})
+    assert login["Location"] != reverse("web:delegation")
+
+
+def test_edit_page_of_an_activated_student_is_read_only(client_for, iqo, coordinator):
+    """L5: po uruchomieniu konta formularza (z adresem rodzica) już nie ma."""
+    from apps.accounts.activation import mark_activated
+
+    leader = leader_for_country(iqo, coordinator, "lead@example.test")
+    student = add(leader, guardian_email="parent@example.test")
+    mark_activated(student.user)
+    client = logged_in(client_for, iqo, leader.user)
+
+    response = client.get(reverse("web:delegation-student-edit", args=[student.pk]))
+
+    assert response.status_code == 409
+    content = response.content.decode()
+    assert 'name="guardian_email"' not in content
+    assert "parent@example.test" not in content
+
+
+def test_coordinator_sees_unlinked_students(coordinator_client, iqo, coordinator):
+    """M3: wypisany uczeń z uruchomionym kontem czeka na decyzję koordynatora."""
+    from apps.accounts.activation import mark_activated
+
+    leader = leader_for_country(iqo, coordinator, "lead@example.test")
+    student = add(leader)
+    mark_activated(student.user)
+    student.refresh_from_db()
+    service.remove_student(leader, student)
+
+    detail = coordinator_client.get(reverse("web:coordinator-delegation", args=[leader.delegation_id]))
+
+    assert "Wypisani przez opiekuna" in detail.content.decode()
+    assert "kid@example.test" in detail.content.decode()
+
+
+def test_coordinator_dashboard_shows_the_window_for_team_leaders(coordinator_client):
+    """L4: pulpit mówi, czy okno edycji – które bramkuje opiekunów – jest otwarte."""
+    content = coordinator_client.get("/coordinator/").content.decode()
+    assert "przez delegacje krajowe – okno dla opiekunów drużyn otwarte" in content
+
+
+def test_team_leader_has_a_role_label_in_the_accounts_list(coordinator_client, iqo, coordinator):
+    """L8: opiekun drużyny nie jest na liście kont „bez roli”."""
+    leader_for_country(iqo, coordinator, "lead@example.test")
+
+    content = coordinator_client.get("/coordinator/accounts/?q=lead%40example.test").content.decode()
+
+    assert "opiekun drużyny" in content
+
+
+def test_public_edition_api_reports_delegations(client_for, iqo):
+    """L3: publiczne API edycji nie mówi „otwarta” w trybie delegacji."""
+    data = client_for(iqo).get("/api/competitions/editions/current/").json()
+    assert data["registration"]["is_open"] is False
+    assert data["registration"]["reason"] == "delegations"

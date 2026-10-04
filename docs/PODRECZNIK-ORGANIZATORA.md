@@ -1932,8 +1932,11 @@ w drużynie), zaproszenia nieprzyjęte („Wyślij ponownie”, „Cofnij”), u
 
 **Co może opiekun.** Dodać ucznia (imię, nazwisko, e-mail, data urodzenia, szkoła, klasa, opcjonalnie
 e-mail rodzica), poprawić dane **przed** aktywacją konta ucznia, wypisać ucznia **przed startem
-pierwszego etapu** edycji, wysłać link ponownie. Nie widzi prac, ocen ani uczniów innych krajów.
-Okno rejestracji edycji (`/coordinator/registration/`) obowiązuje także opiekunów.
+pierwszego etapu** edycji, wysłać link ponownie. Wypisanie ucznia, który **uruchomił już konto**, nie
+usuwa konta: uczeń trafia do sekcji „Wypisani przez opiekuna – czekają na decyzję” na ekranie delegacji
+(i do kolumny „Wypisani” na liście), dostaje o tym wiadomość, a o dalszym losie konta decydujesz Ty. Nie widzi prac, ocen ani uczniów innych krajów.
+Okno rejestracji edycji (`/coordinator/registration/`) obowiązuje także opiekunów – pulpit pokazuje,
+czy jest teraz otwarte.
 
 **Czego opiekun nie może.** Zgłosić adresu, który ma już konto w serwisie (uczeń z istniejącym kontem
 trafia do drużyny przez organizatora), złożyć zgód za ucznia ani potwierdzić zgody rodzica — tę uczeń
