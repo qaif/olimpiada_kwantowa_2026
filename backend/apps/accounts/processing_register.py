@@ -116,7 +116,10 @@ from apps.competitions.models import DEFAULT_RETENTION_MONTHS
 #: wiersz warunkowy): obraz z kamery na żywo, nagrania wyłącznie przy włączonym nagrywaniu etapu,
 #: zdjęcie dokumentu, incydenty; także rozmowy etapu w pokoju LiveKit połączone z nadzorem – wiersz
 #: „rozmowy” wymienia serwer LiveKit wśród odbiorców i jego środki, wiersz nadzoru – zakres rozmowy.
-REGISTER_VERSION = "1.20"
+#: 1.21 (04.10.2026, zadanie OPS-02) – monitorowanie błędów aplikacji (``apps.monitoring.register``): wiersz
+#: warunkowy (niepusty ``SENTRY_DSN``) – nowy cel pomocniczy i nowy, **wewnętrzny** podmiot przetwarzający
+#: (własna instancja GlitchTip na serwerze organizatora, bez przekazania do państwa trzeciego).
+REGISTER_VERSION = "1.21"
 REGISTER_DATE = date(2026, 10, 4)
 
 #: Zdanie o okresie przechowywania danych uczestnika. Liczba pochodzi z tego samego miejsca, co
@@ -1318,6 +1321,12 @@ def activities_for(competition=None) -> tuple[ProcessingActivity, ...]:
         activities = (*activities, ALUMNI_ACTIVITY)
     if competition is not None and competition.has_feature("proctoring"):
         activities = (*activities, PROCTORING_ACTIVITY)
+    # Monitorowanie błędów (OPS-02) – wiersz warunkowy instalacji (niepusty ``SENTRY_DSN``).
+    from apps.monitoring.register import activity as error_tracking_activity
+
+    error_tracking = error_tracking_activity()
+    if error_tracking is not None:
+        activities = (*activities, error_tracking)
     return activities
 
 

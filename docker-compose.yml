@@ -53,8 +53,9 @@ x-app-base: &app-base
   env_file: .env
   environment: *app-env
   # `cache` – osobna sieć Redisa (patrz `networks:` na końcu pliku): web, worker i beat to jedyni
-  # jego klienci, więc tylko oni do niej należą.
-  networks: [internal, cache]
+  # jego klienci, więc tylko oni do niej należą. `errors_ingest` – droga zgłoszeń błędów do GlitchTipa
+  # (OPS-02, DSN wewnętrzny http://<klucz>@glitchtip:8000/<nr>); bez profilu `monitoring` pusta.
+  networks: [internal, cache, errors_ingest]
   restart: unless-stopped
   logging: *default-logging
   read_only: true
@@ -106,8 +107,9 @@ services:
     # internal: trasa s3.<domena> -> minio. livekit_signal: trasa live.<domena> -> livekit:7880
     # (webinary WEB-01, nakładka deploy/livekit/) – sieć jest tu, a nie w nakładce, bo zwykłe
     # wdrożenie (`docker compose up` bez nakładki) odtwarzałoby proxy bez niej i odcinało sygnalizację.
-    # Bez nakładki stoi w niej sam Caddy, więc nic się nie zmienia.
-    networks: [edge, internal, livekit_signal]
+    # Bez nakładki stoi w niej sam Caddy, więc nic się nie zmienia. errors_front: trasa
+    # errors.<domena> -> glitchtip:8000 (OPS-02) – ten sam powód, bez profilu `monitoring` pusta.
+    networks: [edge, internal, livekit_signal, errors_front]
     depends_on:
       web: { condition: service_healthy }
     healthcheck:
@@ -147,7 +149,7 @@ services:
     mem_limit: 2g
     volumes:
       - static_files:/app/staticfiles
-    networks: [edge, internal, cache]
+    networks: [edge, internal, cache, errors_ingest]
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/healthz/', timeout=3).status==200 else 1)"]
       interval: 15s
@@ -481,7 +483,20 @@ services:
       POSTFIX_myhostname: mail.${SITE_DOMAIN:-localhost}
       # Klienci SMTP: wyłącznie podsieci compose (edge + internal). Bez SASL – poza tymi
       # podsieciami port 587 nie jest osiągalny (brak `ports:`), więc hasło niczego by nie dodało.
-      POSTFIX_mynetworks: 127.0.0.0/8,${TRUSTED_PROXY_IPS:-172.30.1.0/24,172.30.2.0/24}
+      # Lista ma własną zmienną (MAIL_CLIENT_NETWORKS), a nie TRUSTED_PROXY_IPS: zaufane proxy
+      # aplikacji i klienci relaya to dwie różne decyzje (OPS-02). Bez tej zmiennej wartość jest
+      # co do znaku dotychczasowa. Ostatnia podsieć to `errors_egress` (GlitchTip) – patrz niżej.
+      POSTFIX_mynetworks: 127.0.0.0/8,${MAIL_CLIENT_NETWORKS:-${TRUSTED_PROXY_IPS:-172.30.1.0/24,172.30.2.0/24}},172.30.9.0/24
+      # GlitchTip (podsieć errors_egress) wysyła WYŁĄCZNIE jako glitchtip@<domena>: każdy inny nadawca
+      # z tej podsieci dostaje 554 „Client host rejected”, zanim relay przyjmie list. Pozostali klienci
+      # – jak dotąd (permit_mynetworks). Tabele inline (`cidr:{…}`, `inline:{…}`) – Postfix 3.10
+      # w obrazie; sprawdzone na boky/postfix:v5.1.0-alpine 5.10.2026 (glitchtip@ przechodzi, inny
+      # nadawca z tej podsieci – 554, podsieć zaufana bez zmian). To jest zawężenie **wewnątrz**
+      # ALLOWED_SENDER_DOMAINS (AUTH-01a): domena SITE_DOMAIN musi zostać na tamtej liście, inaczej
+      # list GlitchTipa odpadnie na sprawdzeniu domeny nadawcy, zanim dojdzie do tej reguły.
+      POSTFIX_smtpd_restriction_classes: errors_sender_only
+      POSTFIX_errors_sender_only: "check_sender_access inline:{ glitchtip@${SITE_DOMAIN:-localhost}=OK }, reject"
+      POSTFIX_smtpd_sender_restrictions: "check_client_access cidr:{ { 172.30.9.0/24 errors_sender_only } }, permit_mynetworks, reject"
       # TLS do MX-a odbiorcy oportunistycznie: szyfruj, gdy druga strona ogłosi STARTTLS,
       # ale nie odrzucaj listu, gdy nie ogłosi (`encrypt` zablokowałby część odbiorców).
       POSTFIX_smtp_tls_security_level: may
@@ -509,8 +524,8 @@ services:
       - mail_spool:/var/spool/postfix
     # `internal` – tu sięgają web/worker/beat. `edge` – bo `internal` ma internal:true, a doręczenie
     # wprost do MX-a odbiorcy wymaga wyjścia na świat. Portów nie publikujemy: relay jest widoczny
-    # tylko z sieci compose.
-    networks: [edge, internal]
+    # tylko z sieci compose. `errors_egress` – tu sięga GlitchTip (OPS-02) z jednym dozwolonym nadawcą.
+    networks: [edge, internal, errors_egress]
     security_opt:
       - no-new-privileges:true
     cap_drop: [ALL]
@@ -551,6 +566,163 @@ services:
     networks: [internal, edge]
     security_opt:
       - no-new-privileges:true
+
+  glitchtip:
+    # Śledzenie błędów (OPS-02, docs/OPERACJE.md § 44): GlitchTip – otwarte oprogramowanie zgodne
+    # z protokołem Sentry, na tym serwerze, pod errors.<SITE_DOMAIN> (blok Caddy'ego przy
+    # ERRORS_PROXY=1, scripts/render_caddyfile.sh). Profil `monitoring` – nie wstaje przy zwykłym
+    # `up` ani przy wdrożeniu; włącza się świadomie: `docker compose --profile monitoring up -d
+    # glitchtip glitchtip-db`.
+    #
+    # Jeden proces, a nie para web + worker: GlitchTip 6 łączy obie role (`SERVER_ROLE=all_in_one`,
+    # serwer granian z wbudowaną kolejką zadań) i wycofuje podział – gałąź główna projektu odrzuca
+    # już `SERVER_ROLE=worker`. Kolejka i cache w Postgresie (`VALKEY_URL` pusty), więc Redis
+    # platformy (broker Celery, sieć `cache`) nie jest tu ani potrzebny, ani dostępny.
+    #
+    # Obraz przypięty tagiem i skrótem (indeks wieloarchitekturowy 6.2.6 z Docker Huba, 8.08.2026).
+    # Aktualizacja = nowy tag + skrót tutaj, w osobnym commicie; migracje bazy GlitchTip robi sam
+    # przy starcie.
+    #
+    # Rozdział sekretów: **bez** `env_file: .env` – GlitchTip nie widzi sekretów platformy. Zmienne
+    # bez `${…:?}` (interpolacja obejmuje cały plik niezależnie od profilu); brak sekretu wykryje
+    # GlitchTip przy starcie.
+    profiles: [monitoring]
+    image: glitchtip/glitchtip:6.2.6@sha256:a3d8eb1b36c1e1603d55ab32711ea3dd8115874742a781a57391a62a16e0dff6
+    restart: unless-stopped
+    logging: *default-logging
+    environment:
+      SERVER_ROLE: all_in_one
+      SECRET_KEY: ${GLITCHTIP_SECRET_KEY:-}
+      DATABASE_URL: postgres://glitchtip:${GLITCHTIP_DB_PASSWORD:-}@glitchtip-db:5432/glitchtip
+      VALKEY_URL: ""
+      GLITCHTIP_DOMAIN: https://errors.${SITE_DOMAIN:-localhost}
+      # `glitchtip` – DSN wewnętrzny z `web`/`worker`/`beat` przez sieć errors_ingest
+      # (http://<klucz>@glitchtip:8000/<projekt>); 127.0.0.1 – healthcheck niżej.
+      ALLOWED_HOSTS: errors.${SITE_DOMAIN:-localhost},glitchtip,127.0.0.1
+      CSRF_TRUSTED_ORIGINS: https://errors.${SITE_DOMAIN:-localhost}
+      # Relay serwisu (usługa `mail`) przez sieć errors_egress: z tej podsieci relay przyjmuje
+      # WYŁĄCZNIE nadawcę glitchtip@<SITE_DOMAIN> (smtpd_sender_restrictions przy usłudze `mail`).
+      # Inny serwer SMTP: GLITCHTIP_EMAIL_URL (wychodzi przez errors_egress).
+      EMAIL_URL: ${GLITCHTIP_EMAIL_URL:-smtp://mail:587}
+      DEFAULT_FROM_EMAIL: glitchtip@${SITE_DOMAIN:-localhost}
+      # Konta wyłącznie od administratora (`manage.py createsuperuser`, OPERACJE § 44.2) – bez
+      # samorejestracji i bez zakładania organizacji przez kogokolwiek poza nim.
+      ENABLE_USER_REGISTRATION: "False"
+      ENABLE_ORGANIZATION_CREATION: "False"
+      ENABLE_ADMIN: "False"
+      ENABLE_OPENAPI: "False"
+      GLITCHTIP_ENABLE_MCP: "False"
+      GLITCHTIP_ENABLE_DUCKDB: "False"
+      # Logi i sprawdzanie dostępności GlitchTipa wyłączone: logi zostają w `docker compose logs`,
+      # a dostępność sprawdza usługa `uptime` niżej (deduplikacja, TLS, listy przez relay).
+      GLITCHTIP_ENABLE_LOGS: "False"
+      GLITCHTIP_ENABLE_UPTIME: "False"
+      # Retencja 30 dni – zdarzenia, transakcje, pliki (mapy źródeł). Ta sama liczba stoi w rejestrze
+      # czynności przetwarzania (apps/monitoring/register.py, RETENTION_DAYS; test pilnuje zgodności).
+      GLITCHTIP_RETENTION_DAYS: "30"
+    volumes:
+      - glitchtip_uploads:/code/uploads
+    # Celowo **nie** w `edge`: ta sieć jest w TRUSTED_PROXY_IPS aplikacji (zaufany X-Real-IP)
+    # i była w `mynetworks` relaya. Zamiast niej cztery wąskie sieci:
+    # - errors_front  – wyłącznie proxy i GlitchTip (Caddy: errors.<domena> -> glitchtip:8000),
+    # - errors_ingest – web, worker, beat i GlitchTip (zgłoszenia przez DSN wewnętrzny),
+    # - errors_egress – wyjście do internetu (webhooki, zewnętrzny SMTP) i relay `mail` z jednym
+    #   dozwolonym nadawcą,
+    # - errors        – własna baza, nic więcej.
+    # Żadna z nich nie jest w TRUSTED_PROXY_IPS (scripts/tests/compose_profiles_test.sh, przypadek 18).
+    networks: [errors_front, errors_ingest, errors_egress, errors]
+    # Limity, żeby zalew zdarzeń nie zabrał pamięci ani procesora Postgresowi i `web`. CPU tu jest
+    # ograniczone (w `web` celowo nie): GlitchTip jest narzędziem pomocniczym, a nie serwisem.
+    mem_limit: 768m
+    cpus: 1.0
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+    depends_on:
+      glitchtip-db: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/_health/', timeout=5).status==200 else 1)"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+
+  glitchtip-db:
+    # Baza GlitchTipa – **osobny** kontener i osobny wolumen, a nie baza na serwerze `db`: awaria albo
+    # zalew zdarzeń nie dotyka bazy olimpiady, a kopia zapasowa platformy (scripts/backup.sh) nie
+    # wozi śladów stosu. Ten sam obraz co `db` (bez nowego obrazu w instalacji). Wyłącznie sieć
+    # `errors` (internal: true) – sięga do niej tylko `glitchtip`.
+    profiles: [monitoring]
+    image: postgres:18-alpine
+    restart: unless-stopped
+    logging: *default-logging
+    environment:
+      POSTGRES_DB: glitchtip
+      POSTGRES_USER: glitchtip
+      POSTGRES_PASSWORD: ${GLITCHTIP_DB_PASSWORD:-}
+    volumes:
+      - glitchtip_pg:/var/lib/postgresql
+    networks: [errors]
+    mem_limit: 512m
+    cpus: 1.0
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U glitchtip -d glitchtip"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  uptime:
+    # Sprawdzanie dostępności „z zewnątrz” (OPS-02 § 4, docs/OPERACJE.md § 44.4): oba serwisy,
+    # /healthz/, /status.json, LiveKit i errors.<domena>, gdy włączone, certyfikaty TLS (< 14 dni).
+    # Listy przez relay `mail` z deduplikacją i rosnącą przerwą między przypomnieniami.
+    #
+    # Program to jeden plik z samą biblioteką standardową (backend/apps/monitoring/uptime.py) – tu na
+    # obrazie aplikacji, bo jest już na serwerze; `entrypoint` omija entrypoint.sh (bez bazy, bez
+    # migracji). Puka w adresy **publiczne** przez DNS i Caddy'ego. Śmierci tej maszyny nie zauważy –
+    # dlatego § 44.5 zaleca tę samą kopię (albo darmową usługę zewnętrzną) na innym serwerze.
+    #
+    # Bez `env_file` i bez sekretów: wyłącznie nazwy domen, odbiorcy i progi.
+    profiles: [monitoring]
+    image: ${WEB_IMAGE:-olimpiada/web:${APP_VERSION:-dev}}
+    entrypoint: ["python", "-m", "apps.monitoring.uptime"]
+    command: ["--loop"]
+    restart: unless-stopped
+    logging: *default-logging
+    environment:
+      SITE_DOMAIN: ${SITE_DOMAIN:-localhost}
+      EXTRA_DOMAINS: ${EXTRA_DOMAINS:-}
+      LIVEKIT_URL: ${LIVEKIT_URL:-}
+      ERRORS_PROXY: ${ERRORS_PROXY:-0}
+      UPTIME_URLS: ${UPTIME_URLS:-}
+      UPTIME_EXTRA_URLS: ${UPTIME_EXTRA_URLS:-}
+      # 1 = sprawdzaj też laboratorium notebooków (QC-01, /static/notebook-lab/current.json).
+      UPTIME_NOTEBOOK_LAB: ${UPTIME_NOTEBOOK_LAB:-0}
+      UPTIME_ALERT_EMAILS: ${UPTIME_ALERT_EMAILS:-${ALERT_EMAILS:-}}
+      UPTIME_FROM: uptime@${SITE_DOMAIN:-localhost}
+      UPTIME_SMTP_HOST: ${UPTIME_SMTP_HOST:-mail}
+      UPTIME_SMTP_PORT: ${UPTIME_SMTP_PORT:-587}
+      UPTIME_TLS_WARN_DAYS: ${UPTIME_TLS_WARN_DAYS:-14}
+      # Katalog domowy użytkownika `app` z obrazu – wolumen nazwany przejmuje przy pierwszym montażu
+      # jego właściciela, więc proces bez roota może tam pisać stan (awarie przeżywają restart).
+      UPTIME_STATE_FILE: /home/app/uptime-state.json
+      # Przerwa planowa (scripts/maintenance.sh on): porażki HTTP nie dają listu. Nieplanowana
+      # (pliku `on` nie ma) – alarmuje jak dotąd.
+      UPTIME_MAINTENANCE_FILE: /maintenance/on
+    volumes:
+      - uptime_state:/home/app
+      - ${MAINTENANCE_DIR:-./maintenance}:/maintenance:ro
+    # Wyłącznie `edge`: wyjście do internetu (adresy publiczne) i relay `mail`. Żadnej usługi danych.
+    networks: [edge]
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m
+    mem_limit: 128m
+    cpus: 0.25
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
 
   djcms:
     # Wersja porównawcza serwisu na django CMS pod dj.<SITE_DOMAIN> (docs/tasks/DJ-01.md).
@@ -680,6 +852,37 @@ networks:
     ipam:
       config:
         - subnet: 172.30.5.0/24
+  # GlitchTip i jego baza (OPS-02, profil `monitoring`). Bez wyjścia do internetu (`glitchtip` wychodzi
+  # przez `edge`); nie w TRUSTED_PROXY_IPS ani w `mynetworks` Postfiksa. Compose zakłada ją dopiero
+  # wtedy, gdy wstaje usługa z profilu – bez niego instalacja jej nie ma.
+  errors:
+    driver: bridge
+    internal: true
+    ipam:
+      config:
+        - subnet: 172.30.6.0/24
+  # OPS-02: zgłoszenia błędów z web/worker/beat do GlitchTipa. Bez wyjścia do internetu; nie
+  # w TRUSTED_PROXY_IPS ani w `mynetworks`. Bez profilu `monitoring` są w niej tylko web/worker/beat.
+  errors_ingest:
+    driver: bridge
+    internal: true
+    ipam:
+      config:
+        - subnet: 172.30.7.0/24
+  # OPS-02: Caddy -> GlitchTip (errors.<domena>). Tylko te dwie usługi; Caddy wychodzi na świat przez edge.
+  errors_front:
+    driver: bridge
+    internal: true
+    ipam:
+      config:
+        - subnet: 172.30.8.0/24
+  # OPS-02: wyjście GlitchTipa do internetu i do relaya `mail` (jak clamav_egress dla ClamAV-a). Podsieć
+  # jest w `mynetworks` relaya, ale z jednym dozwolonym nadawcą (glitchtip@<domena>); nie w TRUSTED_PROXY_IPS.
+  errors_egress:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.30.9.0/24
 
 volumes:
   # PostgreSQL 18 – dane bazy (patrz komentarz przy usłudze `db`).
@@ -705,3 +908,9 @@ volumes:
   # Pliki wgrane przez redaktorów djcms (filer). Compose zakłada wolumen dopiero wtedy, gdy montuje
   # go uruchamiana usługa – bez profilu `djcms` nie powstaje.
   djcms_media:
+  # GlitchTip (OPS-02): baza zdarzeń (retencja 30 dni) i pliki (mapy źródeł). Bez profilu `monitoring`
+  # nie powstają. Celowo poza scripts/backup.sh – zdarzenia błędów nie są danymi do odtwarzania.
+  glitchtip_pg:
+  glitchtip_uploads:
+  # Stan monitora dostępności (trwające awarie, zaległe listy) – żeby restart nie gubił awarii.
+  uptime_state:
