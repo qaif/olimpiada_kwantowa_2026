@@ -1,0 +1,179 @@
+{% extends "web/coordinator/base.html" %}
+{% load i18n %}
+{% comment %}
+  Menu serwisu (THEME-02 § 1): kolejność, widoczność, etykiety per język interfejsu, grupy
+  i własne odnośniki. Jeden formularz na całą tabelę („Zapisz menu”, przyciski w górę/w dół
+  zapisują i przesuwają naraz), osobne formularze dodawania i przywracania menu domyślnego.
+  Bez JavaScriptu i bez stylów w atrybutach – panel chodzi pod ścisłą polityką CSP. Etykiety
+  i adresy wypisuje autoescape szablonu (żadnego ``|safe``); walidacja w ``apps/themes/menu.py``.
+{% endcomment %}
+{% block title %}{% translate "Menu serwisu" %} – {% translate "panel koordynatora" %}{% endblock %}
+{% block panel_eyebrow %}<a href="{% url 'web:coordinator-theme' %}">{% translate "Motyw serwisu" %}</a>{% endblock %}
+{% block panel_title %}{% translate "Menu serwisu" %}{% endblock %}
+{% block panel_lead %}
+  <p class="lead">{% blocktranslate trimmed %}
+    Pozycje menu na stronach publicznych: kolejność, widoczność i nazwy w każdym języku interfejsu,
+    a także własne odnośniki i proste listy rozwijane. Strony serwisu dodaje się w /cms/ – tu ustala
+    się, jak menu je pokazuje. Pusta nazwa oznacza nazwę domyślną (tytuł strony albo jego tłumaczenie).
+  {% endblocktranslate %}</p>
+{% endblock %}
+{% block panel_actions %}
+  <a class="btn btn--ghost" href="{% url 'web:coordinator-theme' %}">{% translate "Wróć do motywu" %}</a>
+{% endblock %}
+{% block panel_content %}
+<div class="card">
+  <form method="post" class="form form--wide" novalidate>
+    {% csrf_token %}
+    <input type="hidden" name="action" value="save">
+    {% comment %}Pierwszy przycisk formularza dostaje Enter z pola tekstowego – to ma być zapis, a nie „W dół”.{% endcomment %}
+    <button type="submit" class="visually-hidden" tabindex="-1" aria-hidden="true">{% translate "Zapisz menu" %}</button>
+    <div class="table-scroll">
+    <table class="table table--compact">
+      <caption class="visually-hidden">{% translate "Pozycje menu serwisu" %}</caption>
+      <thead>
+        <tr>
+          <th scope="col">{% translate "Pozycja" %}</th>
+          <th scope="col">{% translate "Element menu" %}</th>
+          <th scope="col">{% translate "Widoczna" %}</th>
+          <th scope="col">{% translate "Nazwa w menu" %}</th>
+          <th scope="col">{% translate "Grupa" %}</th>
+          <th scope="col">{% translate "Przesuń" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+          <tr>
+            <td>
+              <label class="visually-hidden" for="order-{{ forloop.counter }}">{% translate "Pozycja" %}</label>
+              <input type="number" id="order-{{ forloop.counter }}" name="order_{{ row.key }}" value="{{ row.position }}" min="1" max="99" size="3">
+            </td>
+            <td>
+              {% if row.type == "auto" %}
+                <strong>{{ row.info.title }}</strong>
+                {% if row.info.home %}<span class="badge">{% translate "strona główna" %}</span>{% endif %}
+                {% if row.info.has_children %}<span class="badge">{% translate "lista rozwijana" %}</span>{% endif %}
+                <br><span class="hint">{{ row.info.url }}</span>
+              {% elif row.type == "group" %}
+                <span class="badge">{% translate "grupa" %}</span>
+                <label class="form__check"><input type="checkbox" name="delete_{{ row.key }}"> {% translate "usuń grupę" %}</label>
+              {% else %}
+                <span class="badge">{% translate "własny odnośnik" %}</span>
+                <p>
+                  <label for="url-{{ forloop.counter }}">{% translate "Adres" %}</label>
+                  <input type="text" id="url-{{ forloop.counter }}" name="url_{{ row.key }}" value="{{ row.url|default:'' }}" maxlength="500" placeholder="https://… {% translate 'albo' %} /…">
+                </p>
+                <p>
+                  <label for="page-{{ forloop.counter }}">{% translate "albo strona serwisu" %}</label>
+                  <select id="page-{{ forloop.counter }}" name="page_{{ row.key }}">
+                    <option value="">—</option>
+                    {% for page in pages %}
+                      <option value="{{ page.pk }}"{% if page.pk == row.page %} selected{% endif %}>{{ page.indent }}{{ page.title }}</option>
+                    {% endfor %}
+                  </select>
+                </p>
+                <label class="form__check"><input type="checkbox" name="newtab_{{ row.key }}"{% if row.new_tab %} checked{% endif %}> {% translate "otwieraj w nowej karcie" %}</label>
+                <label class="form__check"><input type="checkbox" name="delete_{{ row.key }}"> {% translate "usuń odnośnik" %}</label>
+              {% endif %}
+            </td>
+            <td>
+              <label class="visually-hidden" for="visible-{{ forloop.counter }}">{% translate "Widoczna" %}</label>
+              <input type="checkbox" id="visible-{{ forloop.counter }}" name="visible_{{ row.key }}"{% if not row.hidden %} checked{% endif %}>
+            </td>
+            <td>
+              {% for field in row.label_fields %}
+                <p>
+                  <label for="label-{{ forloop.parentloop.counter }}-{{ field.code }}">{{ field.name }}</label>
+                  <input type="text" id="label-{{ forloop.parentloop.counter }}-{{ field.code }}" name="label_{{ row.key }}_{{ field.code }}" value="{{ field.value }}" maxlength="60" lang="{{ field.code }}">
+                </p>
+              {% endfor %}
+            </td>
+            <td>
+              {% if row.groupable and groups %}
+                <label class="visually-hidden" for="parent-{{ forloop.counter }}">{% translate "Grupa" %}</label>
+                <select id="parent-{{ forloop.counter }}" name="parent_{{ row.key }}">
+                  <option value="">{% translate "(menu główne)" %}</option>
+                  {% for group in groups %}
+                    <option value="{{ group.key }}"{% if group.key == row.parent %} selected{% endif %}>{{ group.label }}</option>
+                  {% endfor %}
+                </select>
+              {% else %}
+                <span class="hint">—</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if not forloop.first %}<button type="submit" name="move" value="{{ row.key }}:up" class="btn btn--small btn--ghost">{% translate "W górę" %}</button>{% endif %}
+              {% if not forloop.last %}<button type="submit" name="move" value="{{ row.key }}:down" class="btn btn--small btn--ghost">{% translate "W dół" %}</button>{% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="6"><p class="empty">{% translate "Serwis nie ma jeszcze stron w menu – dodaj je w /cms/ albo dodaj własny odnośnik niżej." %}</p></td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    <div class="actions">
+      <button type="submit" class="btn btn--primary">{% translate "Zapisz menu" %}</button>
+    </div>
+  </form>
+</div>
+
+<div class="card">
+  <h2 class="mt-0">{% translate "Dodaj własny odnośnik" %}</h2>
+  <form method="post" class="form" novalidate>
+    {% csrf_token %}
+    <input type="hidden" name="action" value="add_link">
+    {% for code, name in languages %}
+      <p>
+        <label for="new-label-{{ code }}">{% translate "Nazwa" %} ({{ name }})</label>
+        <input type="text" id="new-label-{{ code }}" name="new_label_{{ code }}" maxlength="60" lang="{{ code }}">
+      </p>
+    {% endfor %}
+    <p>
+      <label for="new-url">{% translate "Adres" %}</label>
+      <input type="text" id="new-url" name="new_url" maxlength="500" placeholder="https://… {% translate 'albo' %} /…">
+      <span class="hint">{% translate "Adres https:// (albo http://) innego serwisu albo ścieżka tego serwisu zaczynająca się od „/”." %}</span>
+    </p>
+    <p>
+      <label for="new-page">{% translate "albo strona serwisu" %}</label>
+      <select id="new-page" name="new_page">
+        <option value="">—</option>
+        {% for page in pages %}
+          <option value="{{ page.pk }}">{{ page.indent }}{{ page.title }}</option>
+        {% endfor %}
+      </select>
+    </p>
+    <div class="form__check">
+      <input type="checkbox" id="new-tab" name="new_tab">
+      <label for="new-tab">{% translate "otwieraj w nowej karcie" %}</label>
+    </div>
+    <div class="actions"><button type="submit" class="btn btn--secondary">{% translate "Dodaj odnośnik" %}</button></div>
+  </form>
+</div>
+
+<div class="card">
+  <h2 class="mt-0">{% translate "Dodaj grupę (listę rozwijaną)" %}</h2>
+  <p class="hint">{% translate "Grupa zbiera kilka pozycji pod jedną nazwą. Pozycje przypisuje się do grupy w kolumnie „Grupa” tabeli; grupa bez widocznych pozycji nie pojawia się w menu." %}</p>
+  <form method="post" class="form" novalidate>
+    {% csrf_token %}
+    <input type="hidden" name="action" value="add_group">
+    {% for code, name in languages %}
+      <p>
+        <label for="group-label-{{ code }}">{% translate "Nazwa" %} ({{ name }})</label>
+        <input type="text" id="group-label-{{ code }}" name="group_label_{{ code }}" maxlength="60" lang="{{ code }}">
+      </p>
+    {% endfor %}
+    <div class="actions"><button type="submit" class="btn btn--secondary">{% translate "Dodaj grupę" %}</button></div>
+  </form>
+</div>
+
+{% if has_overrides %}
+<div class="card card--quiet">
+  <h2 class="mt-0">{% translate "Menu domyślne" %}</h2>
+  <p class="hint">{% translate "Usuwa wszystkie zmiany menu (kolejność, nazwy, ukrycia, własne odnośniki i grupy). Strony serwisu zostają bez zmian." %}</p>
+  <form method="post" class="form">
+    {% csrf_token %}
+    <button type="submit" name="action" value="reset" class="btn btn--ghost">{% translate "Przywróć menu domyślne" %}</button>
+  </form>
+</div>
+{% endif %}
+{% endblock %}

@@ -186,7 +186,12 @@ class CompetitionThemeView(CoordinatorRequiredMixin, View):
         }
         action = request.POST.get("action")
         if action == "preview":
-            token = make_preview_token(competition, version.pk if version else None, options)
+            # Podgląd z dostosowaniem zapisanym dla tej wersji (THEME-02) – tak, jak będzie po aktywacji.
+            token = make_preview_token(
+                competition,
+                version.pk if version else None,
+                services.with_customization(competition, version, options),
+            )
             # Zawsze strona główna **tego** konkursu – adres celu nie przychodzi z formularza,
             # więc przycisk podglądu nie jest przekierowaniem pod dowolny adres.
             return redirect(f"{get_script_prefix()}?{PREVIEW_PARAM}={token}")

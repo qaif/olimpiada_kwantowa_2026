@@ -1,0 +1,323 @@
+# Tłumaczenia aplikacji ``apps.themes`` (THEME-02: menu serwisu i dostosowanie motywu).
+# Napisy panelu koordynatora – wyłącznie angielski (panel jest polski, IQO – angielski).
+msgid ""
+msgstr ""
+"Project-Id-Version: olimpiada\n"
+"Report-Msgid-Bugs-To: \n"
+"Language: en\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Menu serwisu"
+msgstr "Site menu"
+
+msgid "Kolory i opcje motywu"
+msgstr "Theme colours and options"
+
+msgid "Kolory i opcje"
+msgstr "Colours and options"
+
+msgid "panel koordynatora"
+msgstr "coordinator panel"
+
+msgid "Motyw serwisu"
+msgstr "Site theme"
+
+#, python-format
+msgid "Dostosowanie motywu „%(name)s” %(number)s bez wgrywania nowej paczki: schemat kolorów, logo, kroje, warianty układu i kolory. Zmiany dotyczą tylko tej wersji motywu w tym konkursie; „Przywróć domyślne” wraca do wyglądu z paczki."
+msgstr "Customise the theme “%(name)s” %(number)s without uploading a new package: colour scheme, logo, typefaces, layout variants and colours. Changes apply only to this theme version in this competition; “Restore defaults” returns to the package look."
+
+msgid "Ta wersja nie jest aktywna – zapisane zmiany zaczną obowiązywać po jej aktywacji w galerii. Podgląd działa od razu."
+msgstr "This version is not active – saved changes take effect once you activate it in the gallery. Preview works right away."
+
+msgid "Konkurs używa wbudowanego motywu „Klasyczny”. Kolory i opcje można dostosować dla motywów z paczki – wybierz motyw w galerii."
+msgstr "The competition uses the built-in “Classic” theme. Colours and options can be customised for package themes – choose a theme in the gallery."
+
+msgid "Wróć do motywu"
+msgstr "Back to theme"
+
+msgid "Kontrola kontrastu (WCAG AA)"
+msgstr "Contrast check (WCAG AA)"
+
+msgid "Tych zmian nie da się zapisać – tekst byłby nieczytelny dla części odwiedzających:"
+msgstr "These changes cannot be saved – text would be unreadable for some visitors:"
+
+msgid "Ostrzeżenia dotyczą kolorów samego motywu (nie Twoich zmian):"
+msgstr "Warnings about the theme's own colours (not your changes):"
+
+msgid "Schemat kolorów"
+msgstr "Colour scheme"
+
+msgid "Ciemny"
+msgstr "Dark"
+
+msgid "Jasny"
+msgstr "Light"
+
+msgid "Jak w systemie odwiedzającego (jasny albo ciemny)"
+msgstr "Follow the visitor's system (light or dark)"
+
+msgid "domyślny motywu"
+msgstr "theme default"
+
+msgid "Po zmianie schematu zapisz albo obejrzyj podgląd – lista kolorów niżej pokazuje palety wybranego schematu."
+msgstr "After changing the scheme, save or preview – the colour list below shows the palettes of the selected scheme."
+
+msgid "Logo w nagłówku"
+msgstr "Header logo"
+
+msgid "Kroje pisma"
+msgstr "Typefaces"
+
+msgid "Token"
+msgstr "Token"
+
+msgid "Kolor"
+msgstr "Colour"
+
+msgid "Domyślny motywu"
+msgstr "Theme default"
+
+msgid "zmieniony"
+msgstr "changed"
+
+msgid "Zapisz"
+msgstr "Save"
+
+msgid "Podgląd"
+msgstr "Preview"
+
+msgid "Podgląd otwiera stronę główną z tymi ustawieniami – widzisz ją tylko Ty, nic nie jest zapisywane. Tryb wysokiego kontrastu w serwisie zawsze ma pierwszeństwo przed kolorami motywu."
+msgstr "Preview opens the home page with these settings – only you can see it and nothing is saved. The site's high-contrast mode always takes precedence over theme colours."
+
+msgid "Przywróć domyślne"
+msgstr "Restore defaults"
+
+msgid "Kolory, schemat, logo i kroje wracają do wartości z paczki motywu. Warianty układów i akcent marki zostają."
+msgstr "Colours, scheme, logo and typefaces return to the theme package values. Layout variants and the brand accent are kept."
+
+msgid "Pozycje menu na stronach publicznych: kolejność, widoczność i nazwy w każdym języku interfejsu, a także własne odnośniki i proste listy rozwijane. Strony serwisu dodaje się w /cms/ – tu ustala się, jak menu je pokazuje. Pusta nazwa oznacza nazwę domyślną (tytuł strony albo jego tłumaczenie)."
+msgstr "Menu items on public pages: order, visibility and names in every interface language, plus custom links and simple drop-down groups. Site pages are added in /cms/ – here you decide how the menu shows them. An empty name means the default name (the page title or its translation)."
+
+msgid "Zapisz menu"
+msgstr "Save menu"
+
+msgid "Pozycje menu serwisu"
+msgstr "Site menu items"
+
+msgid "Pozycja"
+msgstr "Position"
+
+msgid "Element menu"
+msgstr "Menu item"
+
+msgid "Widoczna"
+msgstr "Visible"
+
+msgid "Nazwa w menu"
+msgstr "Name in menu"
+
+msgid "Grupa"
+msgstr "Group"
+
+msgid "Przesuń"
+msgstr "Move"
+
+msgid "strona główna"
+msgstr "home page"
+
+msgid "lista rozwijana"
+msgstr "drop-down"
+
+msgid "grupa"
+msgstr "group"
+
+msgid "usuń grupę"
+msgstr "delete group"
+
+msgid "własny odnośnik"
+msgstr "custom link"
+
+msgid "Adres"
+msgstr "Address"
+
+msgid "albo"
+msgstr "or"
+
+msgid "albo strona serwisu"
+msgstr "or a site page"
+
+msgid "otwieraj w nowej karcie"
+msgstr "open in a new tab"
+
+msgid "usuń odnośnik"
+msgstr "delete link"
+
+msgid "(menu główne)"
+msgstr "(top level)"
+
+msgid "W górę"
+msgstr "Up"
+
+msgid "W dół"
+msgstr "Down"
+
+msgid "Serwis nie ma jeszcze stron w menu – dodaj je w /cms/ albo dodaj własny odnośnik niżej."
+msgstr "The site has no pages in the menu yet – add them in /cms/ or add a custom link below."
+
+msgid "Dodaj własny odnośnik"
+msgstr "Add a custom link"
+
+msgid "Nazwa"
+msgstr "Name"
+
+msgid "Adres https:// (albo http://) innego serwisu albo ścieżka tego serwisu zaczynająca się od „/”."
+msgstr "An https:// (or http://) address of another site, or a path on this site starting with “/”."
+
+msgid "Dodaj odnośnik"
+msgstr "Add link"
+
+msgid "Dodaj grupę (listę rozwijaną)"
+msgstr "Add a group (drop-down)"
+
+msgid "Grupa zbiera kilka pozycji pod jedną nazwą. Pozycje przypisuje się do grupy w kolumnie „Grupa” tabeli; grupa bez widocznych pozycji nie pojawia się w menu."
+msgstr "A group gathers several items under one name. Assign items to a group in the “Group” column of the table; a group without visible items does not appear in the menu."
+
+msgid "Dodaj grupę"
+msgstr "Add group"
+
+msgid "Menu domyślne"
+msgstr "Default menu"
+
+msgid "Usuwa wszystkie zmiany menu (kolejność, nazwy, ukrycia, własne odnośniki i grupy). Strony serwisu zostają bez zmian."
+msgstr "Removes all menu changes (order, names, hidden items, custom links and groups). Site pages stay unchanged."
+
+msgid "Przywróć menu domyślne"
+msgstr "Restore default menu"
+
+msgid "Przywrócono menu domyślne."
+msgstr "The default menu has been restored."
+
+#, python-format
+msgid "Menu nie zostało zapisane: %(error)s"
+msgstr "The menu was not saved: %(error)s"
+
+msgid "Zapisano menu serwisu. Zmiana obowiązuje od razu na wszystkich stronach."
+msgstr "Site menu saved. The change applies immediately on all pages."
+
+msgid "Przywrócono kolory i opcje domyślne motywu."
+msgstr "Theme colours and options restored to defaults."
+
+msgid "Zapisano wygląd motywu. Zmiana obowiązuje od razu na wszystkich stronach."
+msgstr "Theme appearance saved. The change applies immediately on all pages."
+
+msgid "Zapisano wygląd tej wersji motywu – zacznie obowiązywać po jej aktywacji w galerii."
+msgstr "Appearance of this theme version saved – it takes effect once the version is activated in the gallery."
+
+msgid "Paleta ciemna"
+msgstr "Dark palette"
+
+msgid "Paleta jasna"
+msgstr "Light palette"
+
+msgid "ciemna"
+msgstr "dark"
+
+msgid "jasna"
+msgstr "light"
+
+#, python-format
+msgid "Paleta %(palette)s: %(fg)s (%(a)s) na %(bg)s (%(b)s) – kontrast %(ratio)s:1, wymagane %(minimum)s:1 (WCAG AA)."
+msgstr "%(palette)s palette: %(fg)s (%(a)s) on %(bg)s (%(b)s) – contrast %(ratio)s:1, required %(minimum)s:1 (WCAG AA)."
+
+msgid "Etykieta musi być napisem."
+msgstr "The label must be text."
+
+msgid "Etykieta zawiera niedozwolone znaki."
+msgstr "The label contains characters that are not allowed."
+
+#, python-format
+msgid "Etykieta może mieć najwyżej %(limit)d znaków."
+msgstr "The label may have at most %(limit)d characters."
+
+msgid "Adres musi być napisem."
+msgstr "The address must be text."
+
+msgid "Podaj adres odnośnika albo wybierz stronę serwisu."
+msgstr "Enter the link address or choose a site page."
+
+#, python-format
+msgid "Adres może mieć najwyżej %(limit)d znaków."
+msgstr "The address may have at most %(limit)d characters."
+
+msgid "Adres zawiera niedozwolone znaki."
+msgstr "The address contains characters that are not allowed."
+
+msgid "Adres zaczynający się od „//” jest niedozwolony – podaj pełny adres https://."
+msgstr "Addresses starting with “//” are not allowed – enter a full https:// address."
+
+msgid "Dozwolone są wyłącznie adresy https:// i http:// albo ścieżki serwisu zaczynające się od „/”."
+msgstr "Only https:// and http:// addresses or site paths starting with “/” are allowed."
+
+msgid "Adres z danymi logowania („użytkownik@host”) jest niedozwolony."
+msgstr "Addresses with login data (“user@host”) are not allowed."
+
+msgid "Etykiety muszą być słownikiem język → napis."
+msgstr "Labels must map a language to text."
+
+#, python-format
+msgid "Język „%(code)s” nie jest językiem interfejsu tego konkursu."
+msgstr "“%(code)s” is not an interface language of this competition."
+
+msgid "Menu musi być listą pozycji."
+msgstr "The menu must be a list of items."
+
+#, python-format
+msgid "Menu może mieć najwyżej %(limit)d pozycji."
+msgstr "The menu may have at most %(limit)d items."
+
+msgid "Pozycja menu musi być obiektem."
+msgstr "A menu item must be an object."
+
+msgid "Nieznana pozycja menu."
+msgstr "Unknown menu item."
+
+msgid "Pozycja menu powtarza się."
+msgstr "A menu item is repeated."
+
+msgid "Typ pozycji nie zgadza się z jej kluczem."
+msgstr "The item type does not match its key."
+
+msgid "Nieznana strona serwisu."
+msgstr "Unknown site page."
+
+msgid "Własny odnośnik musi mieć etykietę przynajmniej w jednym języku."
+msgstr "A custom link needs a label in at least one language."
+
+msgid "Grupa musi mieć etykietę przynajmniej w jednym języku."
+msgstr "A group needs a label in at least one language."
+
+#, python-format
+msgid "Menu może mieć najwyżej %(limit)d własnych odnośników."
+msgstr "The menu may have at most %(limit)d custom links."
+
+#, python-format
+msgid "Menu może mieć najwyżej %(limit)d grup."
+msgstr "The menu may have at most %(limit)d groups."
+
+msgid "Pozycja wskazuje grupę, której nie ma."
+msgstr "An item points to a group that does not exist."
+
+msgid "Grupa nie może należeć do innej grupy (menu ma jeden poziom list rozwijanych)."
+msgstr "A group cannot belong to another group (the menu has one level of drop-downs)."
+
+msgid "Strony głównej nie da się przenieść do grupy."
+msgstr "The home page cannot be moved into a group."
+
+msgid "Pozycja z własną listą rozwijaną nie może należeć do grupy."
+msgstr "An item with its own drop-down cannot belong to a group."
+
+msgid "Wybrana strona nie należy do serwisu tego konkursu albo nie jest opublikowana."
+msgstr "The selected page does not belong to this competition's site or is not published."

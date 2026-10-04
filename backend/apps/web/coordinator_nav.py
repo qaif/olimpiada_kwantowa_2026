@@ -409,7 +409,12 @@ def groups(stages: list, competition=None) -> list[Group]:
         # **konkursu**, nie rocznika. Za flagą z tego samego powodu: konkurs z domyślnymi flagami
         # ma menu bajt w bajt takie jak dotąd. Katalog motywów platformy (superkoordynator) nie ma
         # tu pozycji – prowadzi do niego odnośnik z tego ekranu, widoczny wyłącznie operatorowi.
-        settings_items += (Item("Motyw serwisu", ("web:coordinator-theme",), match=("coordinator-theme",)),)
+        # ``coordinator-theme-`` – podstrony menu serwisu i dostosowania motywu (THEME-02).
+        settings_items += (
+            Item(
+                "Motyw serwisu", ("web:coordinator-theme",), match=("coordinator-theme", "coordinator-theme-")
+            ),
+        )
     if competition is not None and competition.has_feature("competition_creation"):
         # Zakładanie kolejnego konkursu w subdomenie platformy. **Zaraz pod** „Ustawieniami
         # konkursu”, bo obie pozycje dotyczą konkursu jako całości, a nie jego rocznika — i bo
