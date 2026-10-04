@@ -17,6 +17,7 @@ import pytest
 
 from apps.accounts import twofactor
 from apps.accounts.models import GROUP_COORDINATOR
+from apps.accounts.tests.factories import DEFAULT_PASSWORD
 from apps.core.models import AuditLog
 
 pytestmark = pytest.mark.django_db
@@ -168,6 +169,7 @@ def test_a_password_only_session_cannot_reach_the_setup_screen_either(web_client
 def test_a_role_forced_to_configure_may_reach_the_setup_screen(web_client, coordinator, settings):
     """Odwrotna strona tej samej reguły: kto czeka na konfigurację, musi móc ją otworzyć."""
     settings.TWO_FACTOR_REQUIRED_ROLES = [GROUP_COORDINATOR]
+    settings.TWO_FACTOR_GRACE_DAYS = 0  # okres przejściowy (SEC-01) ma osobne testy
     web_client.force_login(coordinator)
 
     assert web_client.get(SETUP_URL).status_code == 200
@@ -240,6 +242,7 @@ def test_an_account_without_a_device_notices_nothing(web_client, participant):
 
 def test_a_required_role_without_a_device_is_sent_to_the_setup_page(web_client, coordinator, settings):
     settings.TWO_FACTOR_REQUIRED_ROLES = [GROUP_COORDINATOR]
+    settings.TWO_FACTOR_GRACE_DAYS = 0  # okres przejściowy (SEC-01) ma osobne testy
     web_client.force_login(coordinator)
 
     response = web_client.get("/coordinator/")
@@ -256,7 +259,8 @@ def test_the_owner_can_switch_the_second_factor_off(web_client, participant):
     web_client.force_login(participant.user)
     web_client.post(VERIFY_URL, {"code": codes[0]})
 
-    response = web_client.post(DISABLE_URL)
+    # Od SEC-01 z hasłem i bieżącym kodem (apps/staff_mfa/tests/test_recovery.py).
+    response = web_client.post(DISABLE_URL, {"password": DEFAULT_PASSWORD, "code": codes[1]})
 
     assert response.status_code == 302
     assert twofactor.device_for(participant.user) is None

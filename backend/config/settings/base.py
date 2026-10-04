@@ -193,6 +193,7 @@ INSTALLED_APPS = [
     "apps.medals",
     # Płatności online za udział (PAY-01): cennik delegacji, zamówienia, Stripe/Przelewy24, faktury.
     "apps.payments",
+    "apps.staff_mfa",  # 2FA personelu: polityka konkursu, okres przejściowy, odzyskiwanie (SEC-01)
     "apps.password_change",  # zmiana hasła w panelu konta (AUTH-01b, 4.10.2026), bez modeli
     "apps.web",
     # Logowanie przez dostawców zewnętrznych (Google, Facebook). ``allauth.account`` jest wymagane
@@ -734,7 +735,22 @@ TWO_FACTOR_ENABLED = env.bool("TWO_FACTOR_ENABLED", default=False)
 # aplikację uwierzytelniającą. Kolejność jest odwrotna – najpierw komitet włącza 2FA dobrowolnie
 # (ekran ``/account/2fa/``), a dopiero potem organizator domyka furtkę tą zmienną.
 # Sensowna wartość produkcyjna: ``TWO_FACTOR_REQUIRED_ROLES=coordinator,reviewer,appeals``.
-TWO_FACTOR_REQUIRED_ROLES = env.list("TWO_FACTOR_REQUIRED_ROLES", default=[])
+#
+# SEC-01 (04.10.2026): to jest **polityka platformy** – role wymagane w każdym konkursie, obok
+# polityki konkursu (``apps.staff_mfa``, domyślnie personel konkursów z danymi wrażliwymi). Klucze:
+# ``superkoordynator``, ``admin`` (``is_staff``/superuser), ``coordinator``, ``team_leader``,
+# ``logistics``, ``reviewer``, ``appeals``, ``supervisor``; ``participant`` jest odrzucany.
+# Domyślnie ``superkoordynator,admin`` – te role widzą wszystkie konkursy naraz. Obawa sprzed SEC-01
+# („zamknie koordynatorowi panel w dniu wdrożenia”) znika razem z okresem przejściowym niżej.
+TWO_FACTOR_REQUIRED_ROLES = env.list("TWO_FACTOR_REQUIRED_ROLES", default=["superkoordynator", "admin"])
+
+# Okres przejściowy (dni) od pierwszego żądania konta, od którego 2FA stało się wymagane: baner
+# na każdej stronie, potem poczekalnia „skonfiguruj”. Polityka konkursu może go skrócić/wydłużyć.
+TWO_FACTOR_GRACE_DAYS = env.int("TWO_FACTOR_GRACE_DAYS", default=14)
+
+# „Zapamiętaj to urządzenie” na drugim kroku logowania (dni; 0 = pola nie ma). Podpisane ciasteczko
+# ``2fa_trust`` (apps/staff_mfa/trust.py) – unieważnia je zmiana hasła, wyłączenie i reset 2FA.
+TWO_FACTOR_REMEMBER_DAYS = env.int("TWO_FACTOR_REMEMBER_DAYS", default=7)
 
 # --- Poczta wychodząca -----------------------------------------------------------------------
 # Konfiguracja poczty jest **słownikiem** ``MAILERS`` (Django 6.1), a nie ustawieniami ``EMAIL_*``:
