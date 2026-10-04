@@ -47,7 +47,7 @@ def test_iqo_package_validates():
     assert result.errors == []
     assert result.slug == "iqo-quantum"
     assert set(result.templates) == {"theme/header.html", "theme/footer.html", "theme/home_hero.html"}
-    assert 'url("assets/logo/lockup-white.svg")' in result.theme_css
+    assert 'url("assets/fonts/space-grotesk-var.woff2")' in result.theme_css
 
 
 # --- ZIP -----------------------------------------------------------------------------------------

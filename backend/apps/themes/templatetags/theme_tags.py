@@ -16,7 +16,7 @@ from django.utils.html import format_html, format_html_join
 from django.utils.safestring import mark_safe
 
 from ..rendering import render_theme_template
-from ..runtime import active_theme, preview_active
+from ..runtime import active_theme, package_slots_allowed, preview_active
 from ..slots import SLOTS
 
 register = template.Library()
@@ -27,6 +27,12 @@ CSP_FLAG = "_theme_assets_used"
 
 def _theme(context):
     return active_theme(context.get("request"))
+
+
+def _slot_theme(context):
+    """Motyw, którego szablony slotów obowiązują na tej stronie – tylko strona publiczna."""
+    request = context.get("request")
+    return active_theme(request) if request is not None and package_slots_allowed(request) else None
 
 
 def _app_slot(context, slot: str) -> str:
@@ -40,7 +46,7 @@ def _app_slot(context, slot: str) -> str:
 def theme_slot(context, slot: str):
     if slot not in SLOTS:
         raise template.TemplateSyntaxError(f"Nieznany slot motywu: {slot!r}.")
-    theme = _theme(context)
+    theme = _slot_theme(context)
     if theme is not None:
         rendered = render_theme_template(theme, f"theme/{slot}.html", context)
         if rendered is not None:
@@ -64,7 +70,7 @@ class ThemeWrapNode(template.Node):
 
     def render(self, context):
         inner = self.nodelist.render(context)
-        theme = _theme(context)
+        theme = _slot_theme(context)
         if theme is not None:
             rendered = render_theme_template(
                 theme,

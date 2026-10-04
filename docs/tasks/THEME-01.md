@@ -234,9 +234,15 @@ Odstępstwa od § 0–§ 8 (z powodami):
    adres `/coordinator/platform/themes/`).
 8. **Akcent marki** (`theme_options.brand_accent`): arkusz `/_theme/overrides.css?v=<wersja>-<kolor>`
    z własnej domeny (bez stylu inline); **nie** nadpisuje `--t-focus` (kontrast fokusu dobiera motyw).
-9. **`supports`** jest walidowane i zapisywane, ale v1 nie rozróżnia stron publicznych i paneli –
-   tokeny i `theme.css` są dołączane wszędzie (zgodnie z § 0: panele dziedziczą tokeny; arkusz
-   motywu ma sam zawężać selektory).
+9. **`supports` i zakres stron** (przegląd 4.10.2026, H2): szablony slotów **z paczki** działają
+   wyłącznie na stronach **publicznych** – lista dozwolona `apps.themes.runtime.PUBLIC_VIEWS`: strony
+   CMS (`wagtail_serve`), `statystyki`, `web:posters`, `web:results`, `web:certificate-verify`.
+   Każdy inny ekran (panele `/coordinator/`, `/me/`, `/review/`…, logowanie, rejestracja, reset
+   hasła, konto) ma sloty aplikacji – nowy ekran jest panelem, dopóki ktoś go świadomie nie dopisze.
+   Tokeny i `theme.css` dostaje strona publiczna, gdy manifest ma `public`, a panel – gdy ma `panels`.
+   Ekrany zarządzania motywem (`/coordinator/competition/theme/`, `/coordinator/platform/themes/…`)
+   renderują się **zawsze bez motywu**, a superkoordynator może wyłączyć motyw na jedno żądanie
+   parametrem `?theme=off` (sprawdzana rola, innym parametr nic nie robi).
 10. **Fikstura testowa** leży w `backend/apps/themes/tests/package_example/` (nie `themes/_example/`):
     kontener deweloperski montuje wyłącznie `backend/`. Prawdziwa paczka IQO jest fiksturą
     `backend/apps/themes/tests/fixtures/iqo-quantum-1.0.0.zip` (walidacja bez błędów, `theme_install
@@ -244,8 +250,35 @@ Odstępstwa od § 0–§ 8 (z powodami):
 11. **Nowe napisy** „Koordynator”, „Panel koordynatora” (nagłówek paczki IQO) – w 10 katalogach,
     oznaczone w `apps/themes/slots.py` (`gettext_noop`), bo szablony aplikacji ich nie tłumaczą.
 
+12. **Kontekst szablonów paczki** (przegląd, H1): szablon slotu z paczki **nie** dostaje kontekstu
+    strony. Dostaje kopię z listy dozwolonej (`apps/themes/safe_context.py`): napisy, liczby, daty,
+    listy i słowniki (`site_root`, języki, `cms_menu`, flagi ról, `registration`, `user`
+    = `{is_authenticated, email}`, `request` = `{path, user}`, `settings.cms.SiteSettings` – pola
+    jawne ze stopki, `competition` – marka i kontakt, `csrf_token` dla formularza „Wyloguj”),
+    pośrednika strony `PageProxy` (tytuł, adres, pola SEO i treści; `{% pageurl %}` w silniku motywu
+    go przyjmuje) i pośrednika obrazu `ImageProxy` (wyłącznie `get_rendition` dla `{% image %}`).
+    Żadnych obiektów modeli i żadnego obiektu żądania: `{{ page.unpublish }}`,
+    `{{ user.set_unusable_password }}`, `competition.participants.all` dają pusty napis.
+    Fragmenty **aplikacji** dołączone przez slot (`web/_*`, `cms/_*`, `classic/*`) renderują się
+    z pełnym kontekstem (to kod aplikacji). Strona główna: `page`, `hero_slides_visible` (plansze jako
+    `{block_type, value}`), `hero_show_intro`, `latest_news`, `news_index`, `edition` (`year_label`),
+    `current_stage` (`display_name`, `opens_at`, `deadline_at`); karta aktualności: `item`.
+13. **Lint i kontrola wyniku** (przegląd, M1): napisy w cudzysłowach wewnątrz `{{ }}`/`{% %}` nie mogą
+    zawierać `<`, `>`, `` ` ``, `javascript:`/`data:` (Django wstawia literały bez escapowania);
+    reguły HTML sprawdzane też na tekście sklejonym bez znaczników (`<scr{# #}ipt>`); filtr `dict_get`
+    zablokowany. Wynik renderu slotu paczki jest sprawdzany (`<script>`, ramki, `<meta>`, `<link>`,
+    `<style>`, `on*=`, `javascript:`, formularz pod adres bezwzględny) – trafienie = slot aplikacji
+    i jeden wpis w logu na wersję i slot. **Granicą bezpieczeństwa pozostaje CSP**; lint i kontrola
+    wyniku zamykają to, czego CSP nie obejmuje. Uwaga: treść edytora w slocie (np. film osadzony
+    w `hero_text`) też jest sprawdzana – taki slot wraca do domyślnego.
+14. **Pamięć wersji** (przegląd, M2): w pamięci procesu wyłącznie wersje znalezione; arkusz akcentu
+    odpowiada gościowi tylko dla wersji aktywnej w konkursie (koordynatorowi – dla każdej poprawnej,
+    na potrzeby podglądu). **SVG** (L1): lista dozwolona elementów i atrybutów w przestrzeni SVG,
+    `<style>` z elementem w środku wypada, plik spoza UTF-8 – błąd. **Storage** (L3): pliki wgrywane
+    przed transakcją i sprzątane przy jej porażce; usunięcie wersji kasuje pliki po zatwierdzeniu.
+
 Znane luki v1: djcms (`dj.`) bez motywów; brak E2E Playwright (render en/ar sprawdzany klientem
 testowym, strona główna IQO obejrzana w przeglądarce na devie z prawdziwym MinIO – krój Space Grotesk
 załadowany, bez błędów CSP); warianty układów rysuje wyłącznie `theme.css` motywu; brak edytora
-tokenów w panelu (zmiana = nowa wersja paczki); `supports` bez skutku (pkt 9).
+tokenów w panelu (zmiana = nowa wersja paczki).
 

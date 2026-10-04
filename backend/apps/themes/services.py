@@ -19,6 +19,7 @@ from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from django.db import transaction
 
+from apps.competitions.storage import private_media_storage
 from apps.core.models import audit
 
 from .models import CLASSIC_SLUG, Theme, ThemeVersion
@@ -89,7 +90,74 @@ def install_package(data: bytes, *, actor=None, request=None) -> tuple[ThemeVers
     if result.ok:
         generated = build_tokens_css(result.tokens, result.manifest.get("color_scheme", "light"))
         result.warnings += generated.warnings
+    if _valid_exists(slug, version_label):
+        result.errors.append(_immutable_message(slug, version_label))
+        return None, result
 
+    # Pliki trafiają do storage **przed** transakcją, a nie w niej: zapis do S3 nie cofa się razem
+    # z bazą. Gdy transakcja się nie uda, sprzątamy to, co wgraliśmy (``_cleanup``); gdy się uda,
+    # wiersz wskazuje na komplet plików od pierwszej chwili, w której ktokolwiek może go zobaczyć.
+    prefix = f"themes/{slug}/{version_label}-{result.sha256[:8]}/" if result.ok else ""
+    published: list[str] = []
+    files: list[dict] = []
+    package_name = ""
+    try:
+        if result.ok:
+            for path, payload, content_type in [
+                *((item.path, item.data, item.content_type) for item in result.public_files),
+                ("theme.css", result.theme_css.encode("utf-8"), "text/css"),
+                ("tokens.css", generated.css.encode("utf-8"), "text/css"),
+            ]:
+                _publish(prefix, path, payload)
+                published.append(prefix + path)
+                files.append({"path": path, "size": len(payload), "content_type": content_type})
+        package_name = private_media_storage().save(
+            f"themes/{slug}-{version_label}-{result.sha256[:8]}.zip", ContentFile(data)
+        )
+        version = _save_version(result, generated, prefix, files, package_name, actor=actor, request=request)
+    except Exception:
+        _cleanup(published, package_name)
+        raise
+    if version is None:
+        # Wyścig: ktoś w międzyczasie zapisał poprawną wersję o tym numerze. Jej pliki leżą pod
+        # innym prefiksem (inny skrót treści) albo pod tym samym (ta sama paczka) – tych nie ruszamy.
+        existing_prefixes = set(
+            ThemeVersion.objects.filter(theme__slug=slug, version=version_label).values_list(
+                "public_prefix", flat=True
+            )
+        )
+        _cleanup([] if prefix in existing_prefixes else published, package_name)
+        result.errors.append(_immutable_message(slug, version_label))
+        return None, result
+    forget_runtime(version.pk)
+    return version, result
+
+
+def _immutable_message(slug: str, version_label: str) -> str:
+    return f"Wersja {version_label} motywu „{slug}” już istnieje i jest niezmienna – podnieś numer wersji."
+
+
+def _valid_exists(slug: str, version_label: str) -> bool:
+    return ThemeVersion.objects.filter(
+        theme__slug=slug, version=version_label, status=ThemeVersion.Status.VALID
+    ).exists()
+
+
+def _cleanup(names: list[str], package_name: str) -> None:
+    for name in names:
+        try:
+            default_storage.delete(name)
+        except Exception:  # noqa: BLE001 - sprzątanie nie może przykryć pierwotnego błędu
+            logger.warning("Nie udało się usunąć osieroconego pliku motywu %s.", name)
+    if package_name:
+        try:
+            private_media_storage().delete(package_name)
+        except Exception:  # noqa: BLE001 - j.w.
+            logger.warning("Nie udało się usunąć osieroconej paczki motywu %s.", package_name)
+
+
+def _save_version(result, generated, prefix, files, package_name, *, actor, request) -> ThemeVersion | None:
+    slug, version_label = result.slug, result.version
     with transaction.atomic():
         theme, _created = Theme.objects.get_or_create(
             slug=slug, defaults={"name": result.manifest.get("name") or slug}
@@ -97,14 +165,11 @@ def install_package(data: bytes, *, actor=None, request=None) -> tuple[ThemeVers
         existing = ThemeVersion.objects.select_for_update().filter(theme=theme, version=version_label).first()
         if existing is not None:
             if existing.is_valid:
-                result.errors.append(
-                    f"Wersja {version_label} motywu „{slug}” już istnieje i jest niezmienna – "
-                    "podnieś numer wersji."
-                )
-                return None, result
-            if existing.package:
-                existing.package.delete(save=False)
+                return None
+            old_package = existing.package.name
             existing.delete()
+            if old_package:
+                transaction.on_commit(lambda name=old_package: _cleanup([], name))
         version = ThemeVersion(
             theme=theme,
             version=version_label,
@@ -114,40 +179,22 @@ def install_package(data: bytes, *, actor=None, request=None) -> tuple[ThemeVers
             manifest=result.manifest,
             report=result.report(),
             uploaded_by=actor if getattr(actor, "is_authenticated", False) else None,
+            public_prefix=prefix,
+            files=files,
         )
+        version.package.name = package_name
         if result.ok:
-            version.public_prefix = f"themes/{slug}/{version_label}-{result.sha256[:8]}/"
             version.tokens = {
                 **result.tokens.as_json(),
                 "generated": {"main": generated.main, "dark": generated.dark},
             }
             version.templates = result.templates
             version.has_screenshot = result.has_screenshot
-            files = []
-            for item in result.public_files:
-                _publish(version.public_prefix, item.path, item.data)
-                files.append({"path": item.path, "size": len(item.data), "content_type": item.content_type})
-            _publish(version.public_prefix, "theme.css", result.theme_css.encode("utf-8"))
-            _publish(version.public_prefix, "tokens.css", generated.css.encode("utf-8"))
-            files += [
-                {
-                    "path": "theme.css",
-                    "size": len(result.theme_css.encode("utf-8")),
-                    "content_type": "text/css",
-                },
-                {
-                    "path": "tokens.css",
-                    "size": len(generated.css.encode("utf-8")),
-                    "content_type": "text/css",
-                },
-            ]
-            version.files = files
             if not theme.is_builtin:
                 theme.name = result.manifest.get("name") or theme.name
                 theme.author = result.manifest.get("author", "")
                 theme.description = result.manifest.get("description", "")
                 theme.save(update_fields=["name", "author", "description"])
-        version.package.save(f"{slug}-{version_label}-{result.sha256[:8]}.zip", ContentFile(data), save=False)
         version.save()
         audit(
             actor,
@@ -163,8 +210,7 @@ def install_package(data: bytes, *, actor=None, request=None) -> tuple[ThemeVers
             },
             request=request,
         )
-    forget_runtime(version.pk)
-    return version, result
+    return version
 
 
 def activate(
@@ -205,27 +251,35 @@ def activate(
 
 
 def delete_version(version: ThemeVersion, *, actor=None, request=None) -> None:
-    """Usuwa **nieużywaną** wersję (pliki publiczne, paczkę, wiersz)."""
+    """Usuwa **nieużywaną** wersję: najpierw wiersz (w transakcji, z blokadą), pliki po zatwierdzeniu.
+
+    Kolejność odwrotna (pliki, potem wiersz) przy wycofanej transakcji zostawiłaby wersję
+    wskazującą na skasowane pliki – a ta mogłaby zostać aktywowana. Blokada wiersza zamyka wyścig
+    z równoczesną aktywacją tej wersji w konkursie (``PROTECT`` i tak nie pozwoli jej usunąć).
+    """
     from apps.tenancy.models import Competition
 
-    if Competition.objects.filter(theme_version=version).exists():
-        raise ThemeError("Wersja jest używana przez konkurs – najpierw wybierz w nim inny motyw.")
-    for item in version.files or []:
-        name = version.public_prefix + item["path"]
-        if version.public_prefix and default_storage.exists(name):
-            default_storage.delete(name)
-    if version.package:
-        version.package.delete(save=False)
-    audit(
-        actor,
-        AUDIT_DELETED,
-        version,
-        {"slug": version.theme.slug, "version": version.version},
-        request=request,
-    )
-    pk = version.pk
-    theme = version.theme
-    version.delete()
+    with transaction.atomic():
+        locked = ThemeVersion.objects.select_for_update().select_related("theme").get(pk=version.pk)
+        if Competition.objects.filter(theme_version=locked).exists():
+            raise ThemeError("Wersja jest używana przez konkurs – najpierw wybierz w nim inny motyw.")
+        names = (
+            [locked.public_prefix + item["path"] for item in (locked.files or [])]
+            if locked.public_prefix
+            else []
+        )
+        package_name = locked.package.name
+        audit(
+            actor,
+            AUDIT_DELETED,
+            locked,
+            {"slug": locked.theme.slug, "version": locked.version},
+            request=request,
+        )
+        pk = locked.pk
+        theme = locked.theme
+        locked.delete()
+        if not theme.is_builtin and not theme.versions.exists():
+            theme.delete()
+        transaction.on_commit(lambda: _cleanup(names, package_name))
     forget_runtime(pk)
-    if not theme.is_builtin and not theme.versions.exists():
-        theme.delete()

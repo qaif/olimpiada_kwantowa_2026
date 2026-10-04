@@ -24,6 +24,8 @@ from django.template.response import TemplateResponse
 from django.urls import get_script_prefix, reverse
 from django.views.generic import View
 
+from apps.accounts.models import CompetitionRole
+from apps.accounts.services import has_role
 from apps.accounts.super_coordinator import is_super_coordinator
 from apps.themes import services
 from apps.themes.models import CLASSIC_SLUG, Theme, ThemeVersion
@@ -255,7 +257,15 @@ def theme_overrides_css(request):
         or colour != accent.lstrip("#")
     ):
         raise Http404
-    runtime = runtime_for(int(version_part))
+    # Wyłącznie wersja aktywna w tym konkursie – albo, dla jego koordynatora, dowolna poprawna
+    # (podgląd z akcentem marki). Gość nie wskaże tu żadnej innej wersji, więc adres nie jest
+    # drogą do odpytywania katalogu motywów.
+    version_id = int(version_part)
+    if version_id != competition.theme_version_id and not has_role(
+        request.user, competition, CompetitionRole.COORDINATOR
+    ):
+        raise Http404
+    runtime = runtime_for(version_id)
     if runtime is None:
         raise Http404
     response = HttpResponse(

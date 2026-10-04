@@ -58,7 +58,12 @@ FORBIDDEN_LOOKUPS = re.compile(
     r"\b(password|session|csp_nonce|META|COOKIES|headers|environ|secret\w*|_\w+|auth_token|token_key)\b"
 )
 QUOTED = re.compile(r"\"[^\"]*\"|'[^']*'")
-SAFE_FILTER = re.compile(r"\|\s*(safe|safeseq)\b")
+#: ``safe``/``safeseq`` wyłączają escapowanie, ``dict_get`` (``web_extras``) to dostęp do słownika
+#: kluczem z napisu – obejście blokady nazw w ``FORBIDDEN_LOOKUPS``.
+SAFE_FILTER = re.compile(r"\|\s*(safe|safeseq|dict_get)\b")
+#: Napis w cudzysłowie wewnątrz ``{{ }}``/``{% %}`` jest wstawiany **bez** escapowania (zasada
+#: Django dla literałów) – więc nie może nieść znaczników ani wychodzić z atrybutu.
+UNSAFE_LITERAL = re.compile(r"[<>`]|javascript\s*:|vbscript\s*:|data\s*:", re.I)
 FORBIDDEN_HTML = re.compile(
     r"<\s*(script|style|link|meta|base|iframe|frame|frameset|object|embed|applet|foreignobject|portal)\b"
     r"|\son[a-z]+\s*="
@@ -85,6 +90,9 @@ def lint_template(
     if len(source.encode("utf-8")) > MAX_TEMPLATE_BYTES:
         return [f"{name}: szablon większy niż {MAX_TEMPLATE_BYTES // 1024} KB."]
     in_comment = False
+    # Tekst szablonu sklejony bez znaczników: ``<scr{# #}ipt>`` i ``o{% if 1 %}{% endif %}nclick=``
+    # przechodzą kontrolę pojedynczych kawałków, a po sklejeniu są tym, czym będą w przeglądarce.
+    stitched: list[str] = []
     for token in Lexer(source).tokenize():
         line = token.lineno
         if token.token_type == TokenType.BLOCK and token.contents.strip() in ("comment", "endcomment"):
@@ -93,6 +101,7 @@ def lint_template(
         if in_comment:
             continue
         if token.token_type == TokenType.TEXT:
+            stitched.append(token.contents)
             match = FORBIDDEN_HTML.search(token.contents)
             if match:
                 errors.append(f"{name}:{line}: niedozwolony fragment HTML {match.group(0).strip()!r}.")
@@ -100,10 +109,14 @@ def lint_template(
         if token.token_type == TokenType.COMMENT:
             continue
         contents = token.contents.strip()
+        for literal in QUOTED.findall(contents):
+            body = literal[1:-1]
+            if UNSAFE_LITERAL.search(body) or (literal[0] == "'" and '"' in body):
+                errors.append(f"{name}:{line}: napis {literal[:40]!r} trafia na stronę bez escapowania.")
         # Napisy w cudzysłowach (``{% translate "…" %}``) nie są wyrażeniami – sprawdzamy resztę.
         expression = QUOTED.sub('""', contents)
         if SAFE_FILTER.search(expression):
-            errors.append(f"{name}:{line}: filtr safe/safeseq jest niedozwolony.")
+            errors.append(f"{name}:{line}: filtr safe/safeseq/dict_get jest niedozwolony.")
         if FORBIDDEN_LOOKUPS.search(expression):
             errors.append(f"{name}:{line}: odwołanie do danych niedostępnych dla motywu ({contents[:60]!r}).")
         if token.token_type != TokenType.BLOCK:
@@ -125,7 +138,32 @@ def lint_template(
             errors.append(f"{name}:{line}: {{% filter safe %}} jest niedozwolone.")
         elif tag == "include":
             errors += _check_include(name, line, bits, package_templates)
+    if not errors:
+        match = FORBIDDEN_HTML.search("".join(stitched))
+        if match:
+            errors.append(
+                f"{name}: niedozwolony fragment HTML po sklejeniu tekstu {match.group(0).strip()!r}."
+            )
     return errors
+
+
+#: Kontrola **wyniku** renderu slotu paczki – druga linia za lintem. Granicą bezpieczeństwa jest
+#: CSP (skrypty wyłącznie z nonce); to zamyka resztę: ramki, osadzenia, ``<meta refresh>``,
+#: atrybuty zdarzeń i formularze wysyłane pod adres bezwzględny.
+RENDERED_FORBIDDEN = re.compile(
+    r"<\s*(script|iframe|frame|frameset|object|embed|applet|meta|base|link|style|portal)\b"
+    r"|\son[a-z]+\s*="
+    r"|javascript\s*:"
+    r"|vbscript\s*:"
+    r"|<form\b[^>]*\saction\s*=\s*[\"']?\s*(?:[a-z][a-z0-9+.-]*:|//)",
+    re.I,
+)
+
+
+def check_rendered(html: str) -> str | None:
+    """Niedozwolony fragment w wyrenderowanym slocie paczki (albo ``None``)."""
+    match = RENDERED_FORBIDDEN.search(html or "")
+    return match.group(0) if match else None
 
 
 def _check_include(name: str, line: int, bits: list[str], package_templates) -> list[str]:

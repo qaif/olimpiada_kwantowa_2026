@@ -3913,6 +3913,12 @@ docker compose exec -T web python manage.py shell -c "from apps.tenancy.models i
 Wersje zostają, dopóki operator ich nie usunie; wersji używanej przez konkurs nie da się usunąć
 (`PROTECT`).
 
+**Awaryjnie** (motyw psuje stronę): superkoordynator dopisuje do adresu `?theme=off` – strona
+renderuje się bez motywu tylko dla niego; ekran „Motyw serwisu” i katalog motywów są zawsze bez
+motywu, więc przycisk przywrócenia „Klasycznego” jest zawsze widoczny. Szablony slotów z paczki
+działają wyłącznie na stronach publicznych (CMS, statystyki, plakaty, wyniki, weryfikacja dyplomu);
+panele, logowanie i formularze mają zawsze ramę aplikacji (tokeny i arkusz motywu – tak).
+
 ### 28.2. Pliki w buckecie, CSP, CORS
 
 - Pliki publiczne leżą w `public-media` pod **niezmiennym** prefiksem `themes/<slug>/<wersja>-<sha8>/`

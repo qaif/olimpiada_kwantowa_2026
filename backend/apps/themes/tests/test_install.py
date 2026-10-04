@@ -153,10 +153,12 @@ def test_used_version_cannot_be_deleted(competition):
         version.delete()
 
 
-def test_delete_unused_version_removes_files():
+def test_delete_unused_version_removes_files(django_capture_on_commit_callbacks):
     version, _ = services.install_package(zip_with())
     prefix = version.public_prefix
-    services.delete_version(version)
+    # Pliki znikają dopiero po zatwierdzeniu transakcji (wycofana nie zostawi wersji bez plików).
+    with django_capture_on_commit_callbacks(execute=True):
+        services.delete_version(version)
     assert not ThemeVersion.objects.exists()
     assert not Theme.objects.filter(slug="example").exists()
     assert not default_storage.exists(prefix + "theme.css")

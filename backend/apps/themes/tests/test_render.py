@@ -140,7 +140,9 @@ def test_panels_inherit_tokens_but_keep_their_templates(client_for, themed):
     client.force_login(participant.user)
     html = client.get("/me/").content.decode()
     assert "tokens.css" in html and "theme.css" in html
-    assert 'data-theme-slot="page_wrapper"' in html
+    # Szablony slotów paczki obowiązują wyłącznie na stronach publicznych (§ 0, przegląd H2).
+    assert "data-theme-slot" not in html
+    assert '<footer class="footer">' in html and 'class="topbar topbar--account"' in html
 
 
 def test_broken_theme_template_falls_back_to_default(client_for, themed, example):

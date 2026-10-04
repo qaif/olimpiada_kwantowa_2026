@@ -98,8 +98,12 @@ def runtime_for(version_id: int | None) -> ThemeRuntime | None:
             meta_color=palette.get("primary", ""),
             palette=palette,
         )
-    with _LOCK:
-        _RUNTIMES[version_id] = runtime
+    # Pamiętamy **wyłącznie** trafienia. Brak (wersja nieistniejąca, odrzucona) nie trafia do pamięci:
+    # identyfikator przychodzi także z adresu (``/_theme/overrides.css?v=…``), więc pamiętanie
+    # chybień pozwalałoby gościowi „zatruć” numer przyszłej wersji i rozdmuchać słownik bez końca.
+    if runtime is not None:
+        with _LOCK:
+            _RUNTIMES[version_id] = runtime
     return runtime
 
 
@@ -183,8 +187,48 @@ def _preview(request, competition, token: str):
     return True, _build(runtime, payload.get("o"), competition, preview=True)
 
 
+#: Strony **publiczne** – jedyne, na których działają szablony slotów z paczki (przegląd 4.10.2026,
+#: H2; § 0: „panele dziedziczą tokeny, ale nie szablony”). Lista dozwolona, a nie zakazana: nowy
+#: ekran aplikacji jest panelem, dopóki ktoś świadomie nie dopisze go tutaj. Strony CMS to
+#: ``wagtail_serve``; reszta to publiczne ekrany aplikacji bez formularzy.
+PUBLIC_VIEWS = frozenset(
+    {"wagtail_serve", "statistics", "web:posters", "web:results", "web:certificate-verify"}
+)
+
+#: Ekrany zarządzania motywem renderują się **zawsze** bez motywu (ani arkusza, ani tokenów):
+#: zepsuty albo złośliwy motyw nie może ukryć przycisku, którym się go wyłącza.
+THEME_FREE_VIEWS = frozenset(
+    {"web:coordinator-theme", "web:coordinator-platform-themes", "web:coordinator-platform-theme"}
+)
+
+#: ``?theme=off`` – awaryjne wyłączenie motywu na jedno żądanie, wyłącznie dla superkoordynatora.
+EMERGENCY_PARAM = "theme"
+
+
+def _view_name(request) -> str:
+    match = getattr(request, "resolver_match", None)
+    return match.view_name if match is not None else ""
+
+
+def is_public_page(request) -> bool:
+    return _view_name(request) in PUBLIC_VIEWS
+
+
+def _emergency_off(request) -> bool:
+    if request.GET.get(EMERGENCY_PARAM) != "off":
+        return False
+    from apps.accounts.super_coordinator import is_super_coordinator
+
+    return is_super_coordinator(getattr(request, "user", None))
+
+
 def active_theme(request) -> ActiveTheme | None:
-    """Motyw dla tego żądania (pamiętany na obiekcie żądania)."""
+    """Motyw dla tego żądania (pamiętany na obiekcie żądania).
+
+    Uwzględnia zakres z manifestu (``supports``): strona publiczna dostaje motyw, gdy wersja
+    deklaruje ``public``, panel – gdy deklaruje ``panels``. Szablony slotów paczki obowiązują
+    wyłącznie na stronach publicznych (:func:`package_slots_allowed`).
+    """
     if request is None:
         return None
     cached = getattr(request, "_active_theme", _MISSING)
@@ -194,15 +238,33 @@ def active_theme(request) -> ActiveTheme | None:
     result = None
     decided = False
     token = request.GET.get(PREVIEW_PARAM) if request.method in ("GET", "HEAD") else None
+    if _view_name(request) in THEME_FREE_VIEWS or (
+        competition is not None
+        and (getattr(competition, "theme_version_id", None) or token)
+        and EMERGENCY_PARAM in request.GET
+        and _emergency_off(request)
+    ):
+        request._active_theme = None
+        request._theme_preview = False
+        return None
     if token:
         decided, result = _preview(request, competition, token)
     if not decided and competition is not None and getattr(competition, "theme_version_id", None):
         runtime = runtime_for(competition.theme_version_id)
         if runtime is not None:
             result = _build(runtime, competition.theme_options, competition, preview=False)
+    if result is not None:
+        scope = "public" if is_public_page(request) else "panels"
+        if scope not in result.runtime.supports:
+            result = None
     request._active_theme = result
     request._theme_preview = bool(token and decided)
     return result
+
+
+def package_slots_allowed(request) -> bool:
+    """Szablony slotów z paczki – tylko na stronie publicznej (panele mają szablony aplikacji)."""
+    return is_public_page(request)
 
 
 def preview_active(request) -> bool:
