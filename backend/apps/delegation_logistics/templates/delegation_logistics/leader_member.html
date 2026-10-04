@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% load i18n static %}
+{% comment %}
+  Dane pobytu jednej osoby delegacji – formularz opiekuna drużyny (LOG-01). Sekcje po terminie są
+  zablokowane; zdjęcie pokazuje się dopiero po automatycznym skanie antywirusowym.
+{% endcomment %}
+{% block title %}{{ member.full_name }} – {% translate "Logistyka finału" %}{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/coordinator-tools.css' %}">{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow"><a href="{% url 'web:delegation-logistics' %}">{% translate "Logistyka finału" %}</a></span>
+  <h1>{{ member.full_name }}</h1>
+  <p class="lead">{{ member.role_label }} · {{ delegation.country.name }}</p>
+  <p class="hint">{% translate "Dane widzą wyłącznie opiekunowie Twojej drużyny i organizator odpowiedzialny za logistykę. Zostaną usunięte po zakończeniu finału." %}</p>
+</div>
+
+<div class="grid">
+  <section class="section">
+    {% url 'web:delegation-logistics' as cancel_url %}
+    {% include "delegation_logistics/_member_form.html" with cancel_url=cancel_url %}
+    {% if member.health_consent_at %}
+      <form method="post" action="{% url 'web:delegation-logistics-health-withdraw' member.pk %}" class="inline">
+        {% csrf_token %}
+        <button type="submit" class="btn btn--ghost btn--small">{% translate "Wycofaj zgodę i usuń dane o zdrowiu" %}</button>
+      </form>
+    {% endif %}
+  </section>
+
+  <aside class="section">
+    <div class="card">
+      <h2 class="mt-0">{% translate "Zdjęcie do identyfikatora" %}</h2>
+      {% if member.photo_clean %}
+        <img src="{% url 'web:delegation-logistics-photo' member.pk %}" alt="{% translate 'Zdjęcie' %}" width="150">
+      {% elif member.photo_key %}
+        <p class="hint">{% translate "Zdjęcie jest sprawdzane – pojawi się za chwilę." %}</p>
+      {% else %}
+        <p class="hint">{% if member.photo_scan == "INFECTED" or member.photo_scan == "ERROR" %}{% translate "Poprzedni plik został odrzucony przy sprawdzaniu – wgraj zdjęcie ponownie." %}{% else %}{% translate "Brak zdjęcia." %}{% endif %}</p>
+      {% endif %}
+      {% if not photo_locked %}
+        <form method="post" action="{% url 'web:delegation-logistics-photo' member.pk %}" enctype="multipart/form-data" class="form">
+          {% csrf_token %}
+          {{ photo_form.as_p }}
+          <button type="submit" class="btn btn--secondary btn--small">{% translate "Wgraj zdjęcie" %}</button>
+        </form>
+      {% endif %}
+    </div>
+
+    {% if guest_form %}
+      <div class="card">
+        <h2 class="mt-0">{% translate "Dane gościa" %}</h2>
+        <form method="post" action="{% url 'web:delegation-logistics-guest-edit' member.pk %}" class="form" novalidate>
+          {% csrf_token %}
+          {{ guest_form.as_p }}
+          <button type="submit" class="btn btn--secondary btn--small">{% translate "Zapisz" %}</button>
+        </form>
+        <form method="post" action="{% url 'web:delegation-logistics-guest-remove' member.pk %}" class="inline">
+          {% csrf_token %}
+          <button type="submit" class="btn btn--ghost btn--small">{% translate "Usuń z delegacji" %}</button>
+        </form>
+      </div>
+    {% endif %}
+  </aside>
+</div>
+{% endblock %}

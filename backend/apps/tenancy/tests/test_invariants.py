@@ -145,6 +145,12 @@ EXPECTED_SUBJECTS = {
     "delegation_leader_invitation": "Zaproszenie dla opiekuna drużyny narodowej – Olimpiada Kwantowa",
     "delegation_student_invitation": "Zgłoszenie do drużyny narodowej – Olimpiada Kwantowa",
     "delegation_student_unlinked": "Wypisanie z drużyny narodowej – Olimpiada Kwantowa",
+    # Logistyka finału (LOG-01, ``apps.delegation_logistics.reports``): przypomnienie o brakach do
+    # opiekunów drużyn. Tak jak listy delegacji – Olimpiada Kwantowa go nie wysyła.
+    "final_logistics_reminder": "Brakujące dane do logistyki finału – Olimpiada Kwantowa",
+    # Listy zapraszające do wizy (VISA-01, ``apps.delegation_logistics.letter_requests``): decyzja
+    # oficera logistyki o wnioskach opiekuna drużyny. Olimpiada Kwantowa go nie wysyła.
+    "final_letter_decision": "Decyzja w sprawie listów zapraszających – Olimpiada Kwantowa",
     # Płatności online (PAY-01, ``apps.payments.notifications``): potwierdzenie wpłaty i zwrotu.
     # ``<kod>`` to kod zamówienia – dane listu, nie brzmienie.
     "payment_receipt": "Potwierdzenie wpłaty <kod> – Olimpiada Kwantowa",
@@ -223,6 +229,17 @@ EXPECTED_WEBINAR_SUBJECTS = {
     "webinar_reminder": f"Przypomnienie o webinarze: {TITLE_MARK} – Olimpiada Kwantowa",
 }
 
+#: Pięć tematów listów sieci absolwentów (ALUM-01, ``apps.alumni.notifications``) – z prefiksem
+#: konkursu, z tego samego powodu co forum: listy są nowe, a „[Olimpiada Kwantowa] Absolwenci:”
+#: pozwala odfiltrować całą rodzinę naraz. Wysyłkę sprawdza ``apps/alumni/tests/test_mentoring.py``.
+EXPECTED_ALUMNI_SUBJECTS = {
+    "alumni_requested": f"{EXPECTED_SUBJECT_PREFIX}Absolwenci: prośba o mentoring",
+    "alumni_accepted": f"{EXPECTED_SUBJECT_PREFIX}Absolwenci: mentor przyjął Twoją prośbę",
+    "alumni_declined": f"{EXPECTED_SUBJECT_PREFIX}Absolwenci: odpowiedź na prośbę o mentoring",
+    "alumni_ended": f"{EXPECTED_SUBJECT_PREFIX}Absolwenci: relacja mentorska zakończona",
+    "alumni_flag": f"{EXPECTED_SUBJECT_PREFIX}Absolwenci: zgłoszono problem z relacją mentorską",
+}
+
 #: Komplet tematów wychodzących z instalacji. **Liczby tu nie ma i ma jej nie być**: do 25.09.2026
 #: test porównywał długości tych słowników z literałami (11/7/7/25), więc każdy nowy list wymagał
 #: poprawienia liczby w miejscu, które z tym listem nie miało nic wspólnego – a przy tym niczego nie
@@ -233,6 +250,7 @@ ALL_EXPECTED_SUBJECTS = {
     **EXPECTED_SERVICE_SUBJECTS,
     **EXPECTED_FORUM_SUBJECTS,
     **EXPECTED_WEBINAR_SUBJECTS,
+    **EXPECTED_ALUMNI_SUBJECTS,
 }
 
 #: Każda stała tematu listu w kodzie (nazwa z ``SUBJECT``) → klucz zamrożonego brzmienia wyżej.
@@ -253,6 +271,8 @@ SUBJECT_CONSTANTS = {
     "apps.accounts.delegation_services.LEADER_INVITE_SUBJECT_TEMPLATE": "delegation_leader_invitation",
     "apps.accounts.delegation_services.STUDENT_INVITE_SUBJECT_TEMPLATE": "delegation_student_invitation",
     "apps.accounts.delegation_services.UNLINKED_SUBJECT_TEMPLATE": "delegation_student_unlinked",
+    "apps.delegation_logistics.reports.REMINDER_SUBJECT_TEMPLATE": "final_logistics_reminder",
+    "apps.delegation_logistics.letter_requests.LETTER_DECISION_SUBJECT_TEMPLATE": "final_letter_decision",
     "apps.accounts.guardian.GUARDIAN_SUBJECT": "guardian",
     "apps.accounts.guardian.GUARDIAN_SUBJECT_TEMPLATE": "guardian",
     "apps.accounts.guardian.GUARDIAN_CONFIRMED_SUBJECT": "guardian_confirmed",
@@ -261,6 +281,11 @@ SUBJECT_CONSTANTS = {
     "apps.accounts.supervisor_consent.SUPERVISOR_CONSENT_SUBJECT": "supervisor_consent",
     "apps.accounts.supervisor_consent.SUPERVISOR_CONSENT_SUBJECT_TEMPLATE": "supervisor_consent",
     "apps.accounts.services.INVITATION_SUBJECT_TEMPLATE": "invitation",
+    "apps.alumni.notifications.SUBJECT_REQUESTED": "alumni_requested",
+    "apps.alumni.notifications.SUBJECT_ACCEPTED": "alumni_accepted",
+    "apps.alumni.notifications.SUBJECT_DECLINED": "alumni_declined",
+    "apps.alumni.notifications.SUBJECT_ENDED": "alumni_ended",
+    "apps.alumni.notifications.SUBJECT_FLAG": "alumni_flag",
     "apps.chat.notifications.SUBJECT": "chat_message",
     "apps.payments.notifications.RECEIPT_SUBJECT": "payment_receipt",
     "apps.payments.notifications.REFUND_SUBJECT": "payment_refund",

@@ -6,7 +6,7 @@
   arabski interfejs (I18N-01 § 4) odwraca cały układ jednym atrybutem, a arkusze trzymają się
   właściwości logicznych, więc żadna reguła nie musi pytać, w jakim języku jest strona.
 {% endcomment %}
-<html lang="{{ interface_language|default:'pl' }}" dir="{{ interface_direction|default:'ltr' }}"{% if interface_contrast %} data-contrast="{{ interface_contrast }}"{% endif %}{% if settings.cms.SiteSettings.ga_measurement_id %} data-ga-id="{{ settings.cms.SiteSettings.ga_measurement_id }}"{% endif %}{% theme_html_attrs %}>
+<html lang="{{ interface_language|default:'pl' }}" dir="{{ interface_direction|default:'ltr' }}"{% if interface_contrast %} data-contrast="{{ interface_contrast }}"{% endif %}{% if settings.cms.SiteSettings.ga_measurement_id and not no_analytics %} data-ga-id="{{ settings.cms.SiteSettings.ga_measurement_id }}"{% endif %}{% theme_html_attrs %}>
 <head>
   {% comment %}
     Tag Google (gtag.js) – dokładnie tam, gdzie każe go wkleić instrukcja Google Analytics:
@@ -18,8 +18,10 @@
     Oba znaczniki istnieją tylko z identyfikatorem wpisanym w /cms/ → Ustawienia → Dane serwisu
     → Analityka; identyfikator jedzie w ``data-ga-id`` na ``<html>``, bo skrypt czyta go zanim
     parser dojdzie do jakiegokolwiek ``<meta>``.
+    Widok może tag wyłączyć zmienną kontekstu ``no_analytics`` (strony weryfikacji dokumentów po
+    kodzie: ``/dyplomy/<kod>/``, ``/visa/verify/…`` – kod z papieru nie trafia do statystyk).
   {% endcomment %}
-  {% if settings.cms.SiteSettings.ga_measurement_id %}
+  {% if settings.cms.SiteSettings.ga_measurement_id and not no_analytics %}
     <!-- Google tag (gtag.js) -->
     <script async nonce="{{ request.csp_nonce }}" src="https://www.googletagmanager.com/gtag/js?id={{ settings.cms.SiteSettings.ga_measurement_id }}"></script>
     <script nonce="{{ request.csp_nonce }}" src="{% static 'js/analytics.js' %}"></script>
@@ -65,7 +67,7 @@
     Ten sam identyfikator jeszcze raz, jako ``<meta>``: czyta go pasek zgody (static/js/consent.js)
     i to jego obecność zamienia pasek informacyjny w pytanie o zgodę.
   {% endcomment %}
-  {% if settings.cms.SiteSettings.ga_measurement_id %}
+  {% if settings.cms.SiteSettings.ga_measurement_id and not no_analytics %}
     <meta name="ga-measurement-id" content="{{ settings.cms.SiteSettings.ga_measurement_id }}">
   {% endif %}
   {% comment %}
@@ -204,7 +206,7 @@
 {% with ga_id=settings.cms.SiteSettings.ga_measurement_id %}
 <div class="cookie-notice" data-cookie-notice role="region" aria-label="{% translate 'Informacja o plikach cookie' %}">
   <div class="cookie-notice__inner">
-    {% if ga_id %}
+    {% if ga_id and not no_analytics %}
       <p class="cookie-notice__text">{% blocktranslate trimmed %}Używamy plików cookie niezbędnych do działania serwisu oraz –
         za Twoją zgodą – Google Analytics do statystyk odwiedzin.{% endblocktranslate %}
         <a class="cookie-notice__link" href="{{ site_root|default:"/" }}dokumenty/cookies/">{% translate "Polityka plików cookie" %}</a></p>

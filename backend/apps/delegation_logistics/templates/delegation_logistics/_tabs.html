@@ -1,0 +1,23 @@
+{% comment %}
+  Zakładki ekranów „Logistyka finału”. Zakładki z danymi osób widzi wyłącznie oficer logistyki
+  (``is_officer`` – ta sama funkcja, co w widoku: ``access.is_officer``); pozostali koordynatorzy
+  mają przegląd liczb i ustawienia.
+{% endcomment %}
+{% with name=request.resolver_match.url_name %}
+<nav class="tabs" aria-label="Logistyka finału">
+  <a class="tab" href="{% url 'web:coordinator-onsite' %}"{% if name == "coordinator-onsite" %} aria-current="page"{% endif %}>Przegląd</a>
+  {% if is_officer %}
+    <a class="tab" href="{% url 'web:coordinator-onsite-members' %}"{% if name == "coordinator-onsite-members" or name == "coordinator-onsite-member" %} aria-current="page"{% endif %}>Osoby</a>
+    <a class="tab" href="{% url 'web:coordinator-onsite-travel' %}"{% if name == "coordinator-onsite-travel" %} aria-current="page"{% endif %}>Przyjazdy</a>
+    <a class="tab" href="{% url 'web:coordinator-onsite-rooming' %}"{% if name == "coordinator-onsite-rooming" %} aria-current="page"{% endif %}>Pokoje</a>
+    <a class="tab" href="{% url 'web:coordinator-onsite-dietary' %}"{% if name == "coordinator-onsite-dietary" %} aria-current="page"{% endif %}>Wyżywienie</a>
+    <a class="tab" href="{% url 'web:coordinator-onsite-tshirts' %}"{% if name == "coordinator-onsite-tshirts" %} aria-current="page"{% endif %}>Koszulki</a>
+    <a class="tab" href="{% url 'web:coordinator-onsite-letters' %}"{% if name == "coordinator-onsite-letters" %} aria-current="page"{% endif %}>Listy wizowe</a>
+    <a class="tab" href="{% url 'web:coordinator-onsite-letter-requests' %}"{% if name == "coordinator-onsite-letter-requests" %} aria-current="page"{% endif %}>Wnioski o listy</a>
+  {% endif %}
+  {% if can_check_in %}
+    <a class="tab" href="{% url 'web:onsite-checkin' %}">Skanowanie</a>
+  {% endif %}
+  <a class="tab" href="{% url 'web:coordinator-onsite-settings' %}"{% if name == "coordinator-onsite-settings" %} aria-current="page"{% endif %}>Ustawienia i dostęp</a>
+</nav>
+{% endwith %}

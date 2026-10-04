@@ -311,6 +311,14 @@ FEATURE_DEFAULTS: dict[str, bool] = {
     # bajtu jak dziś. Domyślnie wyłączona, bo ocena automatyczna wymaga kroku operatora, którego
     # wdrożenie samo nie zrobi: kontenera piaskownicy (profil compose ``notebooks``).
     "quantum_notebooks": False,
+
+    # --- sieć absolwentów ---------------------------------------------------------------------------
+    # Absolwenci, mentoring przez Wiadomości, zaproszenia i statystyki (ALUM-01, ``apps.alumni``).
+    # Wyłączona znaczy, że adresów ``/alumni/…``, ``/me/alumni/…`` i ``/coordinator/alumni/…`` **nie ma**
+    # (404), a menu i rejestr czynności są co do bajtu dzisiejsze. Domyślnie wyłączona, bo to nowa
+    # czynność przetwarzania na podstawie zgody i kontakt dorosłych mentorów z małoletnimi – decyzja
+    # organizatora (dyżur moderacyjny, wpis w rejestrze), a nie skutek wdrożenia.
+    "alumni": False,
 }
 
 

@@ -168,6 +168,8 @@ FLAG_ITEMS: dict[str, tuple[frozenset[str], frozenset[str]]] = {
     "themes": (frozenset({"Motyw serwisu"}), frozenset({"Motyw serwisu"})),
     # --- notatniki kwantowe (QC-01) ----------------------------------------------------------------
     "quantum_notebooks": (frozenset({"Notatniki kwantowe"}), frozenset({"Notatniki kwantowe"})),
+    # --- sieć absolwentów (ALUM-01, 04.10.2026) ---------------------------------------------------
+    "alumni": (frozenset({"Absolwenci"}), frozenset({"Absolwenci"})),
 }
 
 #: Piętnaście flag **etapu 2** – zdanie z ``docs/UNIWERSALNY-ETAP-2.md`` § 0.6 („piętnaście flag to

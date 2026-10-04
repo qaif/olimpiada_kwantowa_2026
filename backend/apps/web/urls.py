@@ -2,6 +2,8 @@
 
 from django.urls import path
 
+from apps.alumni.urls import urlpatterns as alumni_urlpatterns
+from apps.delegation_logistics.urls import urlpatterns as final_logistics_urlpatterns
 from apps.medals.urls import urlpatterns as medal_urlpatterns  # MED-01
 
 # Notatniki kwantowe (QC-01) – wzorce w module aplikacji, rozwinięte na końcu listy.
@@ -1164,6 +1166,8 @@ urlpatterns = [
     *webinar_urlpatterns,
     # --- delegacje krajowe: opiekun drużyny i ekran koordynatora (DEL-01, 4.10.2026) ------------
     *delegation_urlpatterns,
+    # --- logistyka finału dla delegacji: opiekun, oficer logistyki, obsługa (LOG-01, 4.10.2026) ---
+    *final_logistics_urlpatterns,
     # --- statystyki szkół i opiekunów (STAT-01, flaga ``school_statistics``) ----------------------
     *school_stats_urlpatterns,
     # --- okna czasowe etapu według stref (TZ-01, 4.10.2026; widoki w ``apps.time_windows``) -------
@@ -1178,4 +1182,6 @@ urlpatterns = [
     *payment_urlpatterns,
     # --- notatniki kwantowe w przeglądarce i ocena automatyczna (zadanie QC-01, flaga) ------------
     *notebook_urlpatterns,
+    # --- sieć absolwentów i mentoring (ALUM-01, za flagą ``alumni``) ---------------------------------
+    *alumni_urlpatterns,
 ]

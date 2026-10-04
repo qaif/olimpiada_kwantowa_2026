@@ -81,6 +81,11 @@ class DocumentKind(models.TextChoices):
     #: osobny model tekstu: organizator poprawia zdanie zaświadczenia tym samym ekranem i z tym
     #: samym wersjonowaniem, co zdanie na dyplomie – to jest ta sama czynność na innym papierze.
     STUDENT_STATUS = "STUDENT_STATUS", "zaświadczenie o statusie ucznia"
+    #: List zapraszający do wizy dla członków delegacji na finał stacjonarny (LOG-01, za flagą
+    #: ``onsite_logistics`` w trybie delegacji; ``apps.delegation_logistics.letters``). Rodzaj w tej
+    #: liście z tego samego powodu, co zaświadczenie o statusie: prawnik organizatora poprawia
+    #: zdanie listu tym samym ekranem i z tym samym wersjonowaniem, co zdanie na dyplomie.
+    VISA_INVITATION = "VISA_INVITATION", "list zapraszający (wiza)"
     #: Nagrody olimpiady międzynarodowej (MED-01, ``apps.medals``) – kopie rodzajów
     #: ``results.CertificateKind``. Tekst organizatora obowiązuje w języku domyślnym konkursu;
     #: pozostałe języki dokumentu biorą tłumaczenia wbudowane (szablon tekstu jest jednojęzyczny).
@@ -127,6 +132,11 @@ EXTRA_PLACEHOLDERS_BY_KIND: dict[str, frozenset[str]] = {
     # z oznaczenia edycji („I edycja 2026/2027”): zdanie „uczeń w roku szkolnym I edycja 2026/2027”
     # nie jest zdaniem, które szkoła podpisze.
     DocumentKind.STUDENT_STATUS: frozenset({"birth_date", "school_year"}),
+    # List zapraszający do wizy (LOG-01). Wydarzenie, jego daty, miasto i kraj delegacji są
+    # pojęciami **pobytu**: konsulat pyta „gdzie, kiedy i kto zaprasza”, a dyplom laureata nie ma
+    # o czym tego mówić. Dane paszportowe nie są znacznikami – stoją w tabeli osób pod treścią,
+    # żeby szablon pisany przez człowieka nie mógł ich zgubić ani przestawić.
+    DocumentKind.VISA_INVITATION: frozenset({"event", "event_dates", "city", "venue", "country"}),
 }
 
 #: Pola szablonu niosące tekst z podstawieniami. Kolejność jest kolejnością czytania dokumentu.

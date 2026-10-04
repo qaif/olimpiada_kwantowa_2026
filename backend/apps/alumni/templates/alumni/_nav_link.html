@@ -1,0 +1,8 @@
+{% load i18n alumni %}{% comment %}
+  „Absolwenci” w pasku konta (ALUM-01). Bez zapytań: flaga to pole wiersza konkursu w pamięci,
+  a rola przychodzi z procesora ``roles``. Nawigacja nie jest zabezpieczeniem – rozstrzyga widok.
+{% endcomment %}{% alumni_nav as show_alumni %}{% if show_alumni %}
+  {% url 'web:alumni' as alumni_url %}
+  <a class="account-bar__link" href="{{ alumni_url }}"
+     {% if request.path == alumni_url %}aria-current="page"{% endif %}>{% translate "Absolwenci" %}</a>
+{% endif %}

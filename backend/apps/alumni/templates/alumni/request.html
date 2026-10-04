@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% load i18n static %}
+{% block title %}{% translate "Prośba o mentoring" %}{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/alumni.css' %}">{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow"><a href="{% url 'web:alumni-directory' %}">{% translate "Katalog absolwentów" %}</a></span>
+  <h1>{% translate "Prośba o mentoring" %}</h1>
+</div>
+{% include "alumni/_card.html" with public=False can_request=False %}
+<form method="post" class="form">
+  {% csrf_token %}
+  {{ form.as_div }}
+  <p class="hint">{% blocktranslate trimmed %}Jeśli mentor przyjmie prośbę, rozmowa otworzy się w Wiadomościach. Organizator widzi
+    relacje mentorskie i – zależnie od zasad konkursu – czyta wiadomości.{% endblocktranslate %}</p>
+  <p class="actions"><button type="submit" class="btn btn--primary">{% translate "Wyślij prośbę" %}</button></p>
+</form>
+{% endblock %}

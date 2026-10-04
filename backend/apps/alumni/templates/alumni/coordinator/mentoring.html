@@ -1,0 +1,112 @@
+{% extends "web/coordinator/base.html" %}
+{% load i18n %}
+{% comment %}
+  Nadzór mentoringu: relacje z pełnymi danymi stron, kanał (``SUPERVISED`` = każda wiadomość czeka
+  na akceptację), znacznik „mentee małoletni”, liczba otwartych zgłoszeń relacji i wiadomości.
+  Treści rozmów tu nie ma i nie będzie – trafia do koordynatora wyłącznie przez kolejkę moderacji
+  Wiadomości (link niżej), tak jak obiecuje uczestnikom ekran czatu.
+{% endcomment %}
+{% block title %}{% translate "Mentoring – panel koordynatora" %}{% endblock %}
+{% block panel_eyebrow %}<a href="{% url 'web:coordinator-alumni' %}">{% translate "Absolwenci" %}</a>{% endblock %}
+{% block panel_title %}{% translate "Mentoring" %}{% endblock %}
+{% block panel_lead %}
+  <p class="lead">{% blocktranslate trimmed %}Prośby i relacje mentor–uczestnik. Wiadomości rozmów mentorskich czytasz w kolejce
+    moderacji Wiadomości.{% endblocktranslate %}
+    <a href="{% url 'web:coordinator-chat-moderation' %}">{% translate "Kolejka moderacji" %}</a></p>
+  {% if not settings.mentoring_enabled %}<p class="notice">{% translate "Mentoring jest wyłączony – istniejące rozmowy mentorskie są tylko do odczytu." %}</p>{% endif %}
+{% endblock %}
+{% block panel_actions %}{% include "alumni/coordinator/_tabs.html" %}{% endblock %}
+{% block panel_content %}
+{% if pending_notes %}
+<section class="section">
+  <h2 class="mt-0">{% translate "Notatki próśb małoletnich do akceptacji" %}</h2>
+  <p class="hint">{% translate "Mentor przeczyta notatkę dopiero po Twojej akceptacji; do tego czasu widzi sam temat." %}</p>
+  <div class="scroll">
+    <table class="table">
+      <thead><tr><th>{% translate "Relacja" %}</th><th>{% translate "Notatka" %}</th><th></th></tr></thead>
+      <tbody>
+        {% for row in pending_notes %}
+          <tr>
+            <td>{{ row.mentee.user.get_full_name }} → {{ row.mentor.user.get_full_name }}</td>
+            <td>{{ row.note|linebreaksbr }}
+              {% if row.contact_hits %}<br><span class="badge badge--danger">{% translate "możliwe dane kontaktowe:" %} {{ row.contact_hits|join:", " }}</span>{% endif %}</td>
+            <td>
+              <form method="post" action="{% url 'web:coordinator-alumni-note' row.pk 'approve' %}" class="inline">{% csrf_token %}<button class="btn btn--small btn--primary">{% translate "Akceptuj" %}</button></form>
+              <form method="post" action="{% url 'web:coordinator-alumni-note' row.pk 'reject' %}" class="inline">{% csrf_token %}<button class="btn btn--small btn--ghost">{% translate "Odrzuć" %}</button></form>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endif %}
+{% if flags %}
+<section class="section">
+  <h2 class="mt-0">{% translate "Zgłoszenia problemów" %}</h2>
+  <div class="scroll">
+    <table class="table">
+      <thead><tr><th>{% translate "Relacja" %}</th><th>{% translate "Powód" %}</th><th>{% translate "Zgłoszone" %}</th><th></th></tr></thead>
+      <tbody>
+        {% for flag in flags %}
+          <tr>
+            <td>{{ flag.mentorship.mentor.user.get_full_name }} → {{ flag.mentorship.mentee.user.get_full_name }}
+              {% if flag.automatic %}<br><span class="badge badge--warn">{% translate "automatyczne" %}</span>{% endif %}</td>
+            <td>{{ flag.reason|linebreaksbr }}</td>
+            <td>{{ flag.created_at|date:"d.m.Y H:i" }}</td>
+            <td>
+              <form method="post" action="{% url 'web:coordinator-alumni-flag-resolve' flag.pk %}" class="inline">
+                {% csrf_token %}<button type="submit" class="btn btn--small btn--secondary">{% translate "Zamknij zgłoszenie" %}</button>
+              </form>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endif %}
+
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">{% translate "Relacje" %}</h2>
+    <p>
+      <a class="btn btn--small {% if not status %}btn--primary{% else %}btn--ghost{% endif %}" href="?">{% translate "wszystkie" %}</a>
+      {% for value, label in statuses %}
+        <a class="btn btn--small {% if status == value %}btn--primary{% else %}btn--ghost{% endif %}" href="?status={{ value }}">{{ label }}</a>
+      {% endfor %}
+    </p>
+  </div>
+  <div class="scroll">
+    <table class="table">
+      <thead><tr><th>{% translate "Mentor" %}</th><th>{% translate "Uczestnik" %}</th><th>{% translate "Stan" %}</th><th>{% translate "Kanał" %}</th><th>{% translate "Zgłoszenia" %}</th><th></th></tr></thead>
+      <tbody>
+        {% for item in rows %}
+          <tr>
+            <td>{{ item.row.mentor.user.get_full_name }}<br><span class="hint">{{ item.row.mentor.public_code }}</span></td>
+            <td>{{ item.row.mentee.user.get_full_name }}<br><span class="hint">{{ item.row.mentee.public_code }}</span>
+              {% if item.minor_mentee %}<span class="badge badge--warn">{% translate "małoletni" %}</span>{% endif %}</td>
+            <td>{{ item.row.get_status_display }}<br><span class="hint">{{ item.row.created_at|date:"d.m.Y" }}{% if item.row.end_reason %} · {{ item.row.get_end_reason_display }}{% endif %}</span>
+              {% if item.row.note %}<details><summary>{% translate "notatka prośby" %}</summary>{{ item.row.note|linebreaksbr }}</details>{% endif %}</td>
+            <td>{% if item.channel %}{{ item.channel.label }}{% else %}—{% endif %}</td>
+            <td>{% if item.row.open_flags or item.row.open_reports %}<span class="badge badge--danger">{{ item.row.open_flags }} / {{ item.row.open_reports }}</span>{% else %}—{% endif %}</td>
+            <td>
+              {% if item.row.is_open %}
+                <form method="post" action="{% url 'web:coordinator-alumni-end' item.row.pk %}" class="form">
+                  {% csrf_token %}
+                  <label for="end-{{ item.row.pk }}">{% translate "Powód zakończenia" %}</label>
+                  <input type="text" id="end-{{ item.row.pk }}" name="note" maxlength="500" required>
+                  <button type="submit" class="btn btn--small btn--danger">{% translate "Zakończ relację" %}</button>
+                </form>
+              {% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="6" class="empty">{% translate "Brak relacji mentorskich." %}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <p class="hint">{% translate "Zgłoszenia: problemy z relacją / zgłoszone wiadomości w rozmowie (otwarte)." %}</p>
+</section>
+{% endblock %}

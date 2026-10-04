@@ -1,0 +1,98 @@
+{% extends "web/coordinator/base.html" %}
+{% comment %}
+  Logistyka finału – przegląd (LOG-01). Same liczby: ile osób w delegacji i ile ma braki w każdej
+  grupie. Danych osób tu nie ma – ten ekran widzi każdy koordynator konkursu, a dane osób wyłącznie
+  oficer logistyki (zakładka „Osoby”).
+{% endcomment %}
+{% block title %}Logistyka finału – panel koordynatora{% endblock %}
+{% block panel_title %}Logistyka finału{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Opiekunowie drużyn uzupełniają dane każdej osoby delegacji: dokument podróży, przyjazd
+    i wyjazd, zakwaterowanie{% if health %}, wyżywienie i zdrowie{% endif %}, rozmiar koszulki, kontakt
+    alarmowy i zdjęcie. Tu widać, ile brakuje w każdym kraju; przypomnienie idzie e-mailem do opiekunów
+    w ich języku.</p>
+{% endblock %}
+{% block panel_actions %}
+  {% if is_officer %}
+    <form method="post" action="{% url 'web:coordinator-onsite-reminders' %}" class="inline">
+      {% csrf_token %}
+      <button type="submit" class="btn btn--secondary">Przypomnij wszystkim z brakami</button>
+    </form>
+  {% endif %}
+{% endblock %}
+{% block panel_content %}
+{% include "delegation_logistics/_tabs.html" %}
+
+{% if not event %}
+  <p class="notice">Finał nie jest jeszcze opisany – uzupełnij nazwę, miasto, daty i terminy w zakładce
+    „Ustawienia i dostęp”. Bez dat nie da się wystawić listu zapraszającego.</p>
+{% elif event.purged_at %}
+  <p class="notice">Dane członków delegacji tego finału zostały usunięte {{ event.purged_at|date:"j.m.Y" }} (retencja).</p>
+{% endif %}
+
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">Terminy</h2>
+  </div>
+  <ul>
+    {% for row in deadlines %}
+      <li>{{ row.label }}: {% if row.deadline %}{{ row.deadline|date:"j.m.Y H:i T" }}{% else %}bez terminu{% endif %}</li>
+    {% endfor %}
+  </ul>
+</section>
+
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">Kompletność danych ({{ member_count }} os.)</h2>
+    <p class="hint">Liczba osób z brakami w każdej sekcji formularza.</p>
+  </div>
+  <div class="scroll">
+    <table class="table">
+      <caption class="visually-hidden">Braki danych per kraj</caption>
+      <thead>
+        <tr>
+          <th scope="col">Kraj</th>
+          <th scope="col">Osoby</th>
+          <th scope="col">Komplet</th>
+          {% for label in groups %}<th scope="col">{{ label }}</th>{% endfor %}
+          <th scope="col">Ostatnie przypomnienie</th>
+          <th scope="col"><span class="visually-hidden">Operacje</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+          <tr>
+            <th scope="row">{% if is_officer %}<a href="{% url 'web:coordinator-onsite-members' %}?delegation={{ row.delegation.pk }}">{{ row.delegation.country.name }}</a>{% else %}{{ row.delegation.country.name }}{% endif %}</th>
+            <td class="num">{{ row.members }}</td>
+            <td class="num">{{ row.complete }}</td>
+            {% for count in row.by_group %}<td class="num">{% if count %}<span class="badge badge--warn">{{ count }}</span>{% else %}0{% endif %}</td>{% endfor %}
+            <td>{% if row.last_reminder %}{{ row.last_reminder.sent_at|date:"j.m.Y H:i" }}{% else %}—{% endif %}</td>
+            <td class="actions">
+              {% if is_officer and row.complete < row.members %}
+                <form method="post" action="{% url 'web:coordinator-onsite-reminders' %}" class="inline">
+                  {% csrf_token %}
+                  <input type="hidden" name="delegation" value="{{ row.delegation.pk }}">
+                  <button type="submit" class="btn btn--secondary btn--small">Przypomnij</button>
+                </form>
+              {% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="9" class="empty">Nie ma jeszcze żadnej delegacji.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+{% if attendance %}
+<section class="section">
+  <div class="section__head"><h2 class="mt-0">Obecność</h2></div>
+  <ul>
+    {% for row in attendance %}
+      <li>{{ row.checkpoint.name }}: {{ row.checked }} / {{ row.total }}</li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+{% endblock %}
