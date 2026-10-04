@@ -229,7 +229,10 @@ def test_letter_goes_out_in_english_from_the_host_of_an_english_competition(
     # literówka w msgid zostawiłaby tu polskie zdanie na angielskiej stronie.
     assert "Enter your current password and the new one twice." in page
     assert f'title="Account settings: {account.email}"' in page
-    assert "Changing your password requires your current one." in web.get(reverse("web:account-profile")).content.decode()
+    assert (
+        "Changing your password requires your current one."
+        in web.get(reverse("web:account-profile")).content.decode()
+    )
 
     with django_capture_on_commit_callbacks(execute=True):
         web.post(URL, change_payload())
@@ -399,27 +402,26 @@ def test_two_factor_verification_survives_the_change(
 def test_iqo_theme_header_can_include_the_account_link(client_for, competition, monkeypatch, account):
     """Nagłówek paczki dołącza fragment aplikacji ``web/_account_who.html`` – lint paczki go przepuszcza.
 
-    Paczka 1.0.1 (``themes/iqo-quantum``) ma dokładnie tę zmianę; tutaj podmieniamy ją w fikstórze
-    1.0.0, bo katalogu ``themes/`` nie ma w obrazie testowym.
+    Paczka 1.1.1 (``themes/iqo-quantum``) różni się od 1.1.0 dokładnie tą podmianą w nagłówku; robimy
+    ją tutaj na fikstórze 1.1.0, bo katalogu ``themes/`` nie ma w obrazie testowym.
     """
     from apps.themes import services as theme_services
     from apps.themes.rendering import forget_engines
     from apps.themes.runtime import forget_runtime
-    from apps.themes.tests.helpers import IQO_ZIP
+    from apps.themes.tests.helpers import FIXTURES
 
-    monkeypatch.setenv("APP_VERSION", "v0.41.0")
-    source = zipfile.ZipFile(io.BytesIO(IQO_ZIP.read_bytes()))
+    monkeypatch.setenv("APP_VERSION", "v0.44.0")
+    source = zipfile.ZipFile(io.BytesIO((FIXTURES / "iqo-quantum-1.1.0.zip").read_bytes()))
     patched = io.BytesIO()
-    span = (
-        '<span class="account-bar__who who" title="{{ request.user.email }}">{{ request.user.email }}</span>'
-    )
+    before = '<p class="account-bar__who who iqo-acct__who">{{ request.user.email }}</p>'
+    after = '{% include "web/_account_who.html" with css_class="account-bar__who who iqo-acct__who" %}'
     with zipfile.ZipFile(patched, "w", zipfile.ZIP_DEFLATED) as target:
         for info in source.infolist():
             data = source.read(info)
             if info.filename.endswith("templates/theme/header.html"):
                 text = data.decode("utf-8")
-                assert span in text
-                data = text.replace(span, '{% include "web/_account_who.html" %}').encode("utf-8")
+                assert before in text
+                data = text.replace(before, after).encode("utf-8")
             target.writestr(info, data)
     version, result = theme_services.install_package(patched.getvalue())
     assert result.errors == []
@@ -432,4 +434,4 @@ def test_iqo_theme_header_can_include_the_account_link(client_for, competition, 
     html = web.get("/").content.decode()
 
     assert 'class="iqo-header"' in html
-    assert f'class="account-bar__who who" href="{reverse("web:account-profile")}"' in html
+    assert f'class="account-bar__who who iqo-acct__who" href="{reverse("web:account-profile")}"' in html
