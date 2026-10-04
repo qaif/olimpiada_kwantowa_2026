@@ -8,6 +8,28 @@ dokładnie jednemu wierszowi tej tabeli.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## [Unreleased] – Medale olimpiady międzynarodowej, dyplomy w języku ucznia i ranking krajów (MED-01)
+
+- **Medale z rankingu** (`apps.medals`, flaga konkursu `medals`, domyślnie wyłączona): schemat per etap
+  (domyślnie IPhO 8/17/25 %, polityka remisu, wyróżnienie za ≥ X % najlepszego wyniku albo pełne
+  zadanie), podgląd z `compute_stage_results`, ręczne zmiany z uzasadnieniem (audyt bez treści),
+  ogłoszenie zamrażające nagrody po publikacji wyników (bramka zgodności sum), odmrożenie z uzasadnieniem.
+  Ekran `/coordinator/medals/` (menu „Raporty → Medale”).
+- **Dyplomy w języku ucznia:** rodzaje `MEDAL_GOLD`/`MEDAL_SILVER`/`MEDAL_BRONZE`/`HON_MENTION`
+  (`results.0008`, `tenancy.0014`), zaświadczenie o udziale w konkursie z medalami; skład wielopismowy
+  (`apps/medals/typesetting.py`: kierunek RTL, kroje Noto Arabic/Devanagari/Bengali i Droid Sans Fallback
+  w repozytorium, kształtowanie HarfBuzz) wpięty w `render_pdf` (`register_composer`); język zamrażany
+  przy wystawieniu; odwrót na angielski, gdy pisma nie da się złożyć. Nowa zależność: `uharfbuzz`.
+- **Publiczne strony** `/results/<etap>/medals/` (filtr kraju, zgody jak w tabeli wyników) i
+  `/results/<etap>/countries/` (nieoficjalny ranking krajów, tylko agregaty); eksport CSV i lista na galę
+  (PDF) dla koordynatora, w audycie.
+- Olimpiada Kwantowa bez zmian: formularz „Wystaw” bez rodzajów medalowych, brak menu i odnośników.
+- **RODO:** czynność „Medale, dyplomy medalowe i ranking krajów” (warunkowa), sekcja `medale` w eksporcie
+  danych konta. **i18n:** 37 napisów w katalogu aplikacji `apps/medals/locale` (10 języków, maszynowe);
+  `Dockerfile` i `test_translations` obejmują katalogi aplikacji.
+- Dokumentacja: `docs/OPERACJE.md` § 29, `docs/PODRECZNIK-ORGANIZATORA.md` § 10c, przewodnik opiekuna
+  drużyny § 5a, podręcznik uczestnika § 7.
+
 ## [Unreleased] – Delegacje krajowe: rejestracja przez opiekunów drużyn narodowych (DEL-01)
 
 - **Tryb rejestracji konkursu** `Competition.registration_mode`: `OPEN` (domyślnie – każdy istniejący

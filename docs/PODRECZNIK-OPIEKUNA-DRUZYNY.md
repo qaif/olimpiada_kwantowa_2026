@@ -63,6 +63,19 @@ that case.
   account stays: the student is removed from your team, receives an e-mail, and the organiser decides
   what happens next. After the start only the organiser can withdraw a student.
 
+## 5a. Medals and certificates
+
+Medals are awarded from the final ranking: by default gold for the top 8 % of contestants, silver for
+the next 17 % and bronze for the next 25 %; contestants without a medal receive an honourable mention
+for at least half of the best score or for a full solution of one problem. Equal scores always receive
+the same award. After the organiser announces the medals, the public pages *Medals* and *Country ranking*
+are linked from the results table. The country ranking is unofficial and shows totals only.
+
+Each student downloads their medal certificate and certificate of participation under *My certificates*
+(`/me/certificates/`), in the language they chose for the website (11 languages, including Arabic,
+Chinese, Hindi and Bengali). Ask your students to set their language before the organiser issues the
+certificates – the language is fixed when the document is issued.
+
 ## 6. Your data
 
 You can download or delete your own account data under *Account*. Deleting your account removes your
