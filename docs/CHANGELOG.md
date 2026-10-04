@@ -8,6 +8,28 @@ dokładnie jednemu wierszowi tej tabeli.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## [Unreleased] – Logowanie dwuskładnikowe dla personelu (SEC-01)
+
+- **Polityka wymogu** (`apps/staff_mfa`): role platformy `TWO_FACTOR_REQUIRED_ROLES` (nowa wartość
+  domyślna `superkoordynator,admin`) i polityka konkursu – tryb automatyczny (konkurs z delegacjami,
+  `fees`, `onsite_logistics` albo `proctoring` wymaga 2FA od koordynatorów, opiekunów drużyn
+  i przydziałów logistyki) albo wybrane role. Uczestnika nie da się objąć wymogiem.
+- **Okres przejściowy** (`TWO_FACTOR_GRACE_DAYS`, domyślnie 14 dni, jednorazowy) z banerem na każdej
+  stronie (także w motywie IQO), potem poczekalnia konfiguracji dla całej sesji, API i tokenów.
+- **Ekran `/coordinator/security/2fa/`**: polityka (zmienia wyłącznie superkoordynator, audyt
+  `2fa.policy_changed`) i lista personelu ze stanem 2FA i terminem.
+- **Odzyskiwanie i kody**: nowy komplet kodów zapasowych (`/account/2fa/codes/regenerate/`) i wyłączenie
+  2FA z hasłem **i** kodem; reset 2FA konta personelu wyłącznie przez superkoordynatora (wyjątek:
+  instalacja bez superkoordynatora); blokada konta po 5 złych kodach na 15 min (`429 TWO_FACTOR_LOCKED`);
+  jednorazowość kodu TOTP i kodu zapasowego odporna na równoległe żądania.
+- **„Zapamiętaj to urządzenie”** (`TWO_FACTOR_REMEMBER_DAYS`, domyślnie 7; podpisane ciasteczko
+  unieważniane zmianą hasła, wyłączeniem i resetem; polityka konkursu może je wyłączyć).
+- **Listy do właściciela konta** (włączenie, wyłączenie, nowe kody, użycie kodu zapasowego, reset,
+  blokada) i audyt `2fa.locked`, `2fa.remembered`, `2fa.codes_regenerated`, `2fa.grace_started`.
+- Ekrany 2FA z `Cache-Control: private, no-store`; tłumaczenia w `apps/staff_mfa/locale` (10 języków).
+- `TWO_FACTOR_ENABLED=0` (domyślnie) – zachowanie bez zmian. Migracja `staff_mfa.0001` (dwie puste
+  tabele). Operator: `docs/OPERACJE.md` § 41.
+
 ## [Unreleased] – LiveKit: jeden port UDP z multipleksacją
 
 - **Zmienione:** wariant „LiveKit na tym hoście” (OPERACJE § 36) – media przez jeden port UDP 7882

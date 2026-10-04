@@ -611,9 +611,13 @@ przy wyłączonym nic się nie zmienia.
 - Każde udane logowanie z kodem wydaje **nowy** token; poprzedni przestaje działać.
 - Włączenie drugiego składnika na koncie kasuje tokeny wydane wcześniej (`401` przy następnym
   użyciu) – trzeba zalogować się ponownie, z kodem.
-- Konto, od którego organizator wymaga drugiego składnika (`TWO_FACTOR_REQUIRED_ROLES`), a które go
-  jeszcze nie skonfigurowało, dostaje `403 TWO_FACTOR_SETUP_REQUIRED`, a jego dotychczasowy token –
-  `401`. Konfiguracja jest w przeglądarce (`/account/2fa/`).
+- Konto, od którego organizator wymaga drugiego składnika (`TWO_FACTOR_REQUIRED_ROLES` i polityka
+  konkursu – SEC-01, `docs/OPERACJE.md` § 41), a które go jeszcze nie skonfigurowało, dostaje **po
+  okresie przejściowym** `403 TWO_FACTOR_SETUP_REQUIRED`, a jego dotychczasowy token – `401`.
+  W okresie przejściowym logowanie i token działają jak dotąd. Konfiguracja jest w przeglądarce
+  (`/account/2fa/`). Wymóg liczy się w konkursie, pod którego domeną idzie żądanie.
+- Po pięciu złych kodach w 15 minutach konto jest zablokowane na 15 minut: `429 TWO_FACTOR_LOCKED`
+  (także z poprawnym kodem).
 
 ---
 
