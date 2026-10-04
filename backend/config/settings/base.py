@@ -1003,6 +1003,18 @@ ERROR_PAGE_CONTACT_EMAIL = env("ERROR_PAGE_CONTACT_EMAIL", default="contact@qaif
 # późniejsze zmiany domeny robi redaktor w ``/cms/`` (Ustawienia → Witryny), nie deploy.
 SITE_DOMAIN = env("SITE_DOMAIN", default="localhost")
 
+# Domeny nadawców, które przyjmie relay pocztowy (AUTH-01a, M3). Usługa ``mail`` (wariant A)
+# odrzuca kopertę spoza ``ALLOWED_SENDER_DOMAINS`` – ta sama zmienna, ten sam domyślny
+# ``SITE_DOMAIN`` (docker-compose.yml). ``apps.core.tasks.mail_from`` przy nadawcy konkursu spoza
+# tej listy wraca do ``DEFAULT_FROM_EMAIL``: list od nadawcy instalacji dochodzi, list od nadawcy
+# odrzuconego przez relay ginie po cichu w logu workera. Rozdzielone spacją albo przecinkiem
+# (Postfix bierze listę ze spacjami). ``*`` = bez ograniczenia (wariant B: zewnętrzny dostawca,
+# który sam pilnuje nadawców) – w ustawieniach to ``None``.
+_sender_domains = env("ALLOWED_SENDER_DOMAINS", default=SITE_DOMAIN).replace(",", " ").split()
+MAIL_ALLOWED_SENDER_DOMAINS = (
+    None if "*" in _sender_domains else [domain.strip().lower() for domain in _sender_domains]
+)
+
 # --- konkursy w subdomenach platformy ----------------------------------------------------------
 # Wyłącznik funkcji „koordynator zakłada konkurs z panelu, a konkurs stoi pod
 # ``<slug>.{SITE_DOMAIN}``”. **Domyślnie wyłączony**, bo jego włączenie jest decyzją operatora

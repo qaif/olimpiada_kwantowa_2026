@@ -39,6 +39,32 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
 - **Nadzór zdalny (PROC-01):** strona laboratorium (`web:participant-notebook`) stoi w `GATED_VIEWS`,
   a notatnik startowy z tokenem sprawdza bramkę nadzoru w widoku (403 bez gotowej sesji).
 
+## [Unreleased] – Conocny, automatyczny test odtwarzania kopii zapasowej (OPS-01)
+
+- **`scripts/backup_verify.sh` codziennie o 4:40** (dotąd w niedzielę), z kopią z 3:15 pod jednym
+  `flock` (wpis crona zakłada `scripts/deploy.sh`). Tymczasowy Postgres na nowej sieci `--internal`
+  z limitami pamięci i CPU, dane na `tmpfs`; zrzut rozszyfrowany **strumieniem** do `pg_restore`
+  (jawny zrzut nie dotyka dysku); paczka plików czytana w całości (`gpg | tar -tf`); `nice`/`ionice`
+  dla procesów hosta.
+- **Sprawdzenia aplikacji** (`apps/core/restore_check.py`, `manage.py restore_check verify`) w
+  jednorazowym kontenerze z obrazem i środowiskiem działającego `web`, podłączonym wyłącznie do bazy
+  tymczasowej: wiek kopii (26 h), migracje względem wdrożonej wersji, liczności tabel kluczowych w
+  widełkach względem bazy żywej, czytelność każdego modelu, sekwencje kluczy, superużytkownik,
+  odszyfrowanie pól Fernet (logistyka) bieżącym kluczem, próbka plików prac i mediów CMS w paczce,
+  `dj.` jak dotąd. Pomiar czasów (`db_restore_s`, `files_list_s`, `checks_s`, `total_s`).
+- **Wynik i alarmy**: `restore_check record` (cache, audyt `backup.restore_check`, natychmiastowy list
+  do `ALERT_EMAILS` przy porażce), watchdog: alarm `backup-restore-check` do pierwszego udanego testu,
+  próg „brak udanego testu” 36 h (dotąd 10 dni, `MAX_VERIFY_AGE_HOURS`); historia na hoście
+  `/opt/olimpiada-backups/restore-checks.jsonl`; `restore_check show`.
+- **`/healthz/` i `/status.json`**: nowy klucz `backup_restore_check` (`ok|failed|stale|unknown`, na
+  końcu kontraktu, bez dat; nie zmienia kodu odpowiedzi ani `status`).
+- Bezpieczeństwo: podwójna bramka izolacji (skrypt + komenda: przedrostek `restorecheck_`, host różny
+  od `db`, `RESTORE_CHECK_ISOLATED=1`), sesja tylko do odczytu, hasło kopii przez deskryptor, wynik bez
+  wartości pól; każdy błąd przebiegu = meldunek nieudany z nazwą kroku.
+- Testy: `apps/core/tests/test_restore_check.py`, `scripts/tests/backup_offsite_test.sh` (przypadki 14,
+  16), nowy `scripts/tests/restore_check_e2e.sh` (pełny cykl na lokalnym Dockerze, pomiar RTO).
+- Dokumentacja: `docs/OPERACJE.md` § 43 (oraz § 1.4, § 3.2), `docs/tasks/OPS-01.md`.
+
 ## [Unreleased] – LiveKit: jeden port UDP z multipleksacją
 
 - **Zmienione:** wariant „LiveKit na tym hoście” (OPERACJE § 36) – media przez jeden port UDP 7882
@@ -65,6 +91,28 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
   (nagłówek nad planszą, typografia, karty, sekcje, stopka, motywy orbitali/fal), tryb jasny, warianty
   logo i krojów. Wgranie: `docs/OPERACJE.md` § 30.7.
 - Migracja `themes.0003` (dwie nowe tabele).
+
+## [Unreleased] – Reset hasła: nadawca konkursu, konta bez hasła i konta nieuruchomione (AUTH-01a)
+
+- **Nadawca listu resetu** to nadawca konkursu żądania (`Competition.from_email`), jak przy aktywacji
+  i zaproszeniach – do tej pory zawsze `DEFAULT_FROM_EMAIL` (IQO dostawało list od nadawcy OK).
+- **Konto bez hasła platformy** (Google/Facebook, hasło wyczyszczone przez allauth) dostaje link
+  resetu i ustawia nim hasło – Django po cichu pomijało takie konta, wbrew obietnicy z ekranów.
+- **Konto nieuruchomione** (zaproszony uczeń z importu lub delegacji, rejestracja bez aktywacji)
+  dostaje z „Nie pamiętasz hasła?” zaproszenie albo link aktywacyjny zamiast ciszy; odpowiedź strony
+  bez zmian (brak enumeracji). Reset nie aktywuje konta.
+- **Zaproszony uczeń nie uruchomi konta linkiem aktywacyjnym** (z pominięciem zgód): „Wyślij link
+  ponownie” wysyła mu zaproszenie, a `activate_with_token` odmawia takiego konta.
+- Testy całej drogi pod domeną IQO, domeną OK i prefiksem ścieżki (host linku, język, nadawca, token
+  wygasły, pamięć stron, CSRF, motyw IQO); `docs/tasks/AUTH-01a.md`, `docs/OPERACJE.md` § 9.7
+  (kontrola nadawcy w relayu na produkcji).
+- Poprawki po przeglądzie: koordynator nie aktywuje ręcznie konta z niezaakceptowanym zaproszeniem
+  (przycisk i „Konto aktywne”); konto przed aktywacją dostaje link resetu, którego zapis zastępuje hasło
+  z rejestracji i aktywuje konto; konto bez hasła – tylko z adresem potwierdzonym (allauth `verified`)
+  i nie z zaproszenia bez zgód; nadawca konkursu spoza `ALLOWED_SENDER_DOMAINS` (nowa zmienna, wspólna
+  z relayem, domyślnie `SITE_DOMAIN`) → `DEFAULT_FROM_EMAIL`; limit resetu także per adresat; zaproszenie
+  z formularzy publicznych najwyżej raz na 10 min, z audytem i z linkiem do konkursu ucznia; reset
+  koordynatora według tej samej reguły, co samoobsługa.
 
 ## [Unreleased] – Listy zapraszające do wizy: wnioski, weryfikacja, unieważnienie (VISA-01)
 

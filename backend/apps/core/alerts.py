@@ -19,8 +19,8 @@ opisaną w ``docs/OPERACJE.md``:
    przyjmuje i gubi, wygląda z zewnątrz identycznie jak kolejka zdrowa,
 4. **odsetek odpowiedzi 5xx** – licznik z ``apps.core.middleware``. Awaria jednego widoku nie
    ruszy ani ``/healthz/``, ani ``/status/``,
-5. **kopie zapasowe** – ``apps.core.backup``: brak kopii, brak testu odtwarzania i kopia, która
-   przestała wyjeżdżać poza serwer,
+5. **kopie zapasowe** – ``apps.core.backup``: brak kopii, brak testu odtwarzania, nieudany test
+   odtwarzania (``apps.core.restore_check``) i kopia, która przestała wyjeżdżać poza serwer,
 6. **połączenia z Postgresem** – ``apps.core.dbconnections``: zajętość ``max_connections``
    powyżej progu. Incydent z 09.09.2026 („too many clients already”) dojrzewał dobę, a każde
    ze sprawdzeń wyżej mówiło przez ten czas „baza odpowiada”.
@@ -138,7 +138,8 @@ def evaluate() -> list[Alert]:
     workera daje alert o kolejce”) bez zaglądania w skrzynkę, a wysyłka ma jeden, wspólny zestaw
     reguł wyciszenia dla wszystkich rodzajów awarii.
     """
-    from apps.core.backup import MAX_BACKUP_AGE_HOURS, MAX_VERIFY_AGE_DAYS
+    from apps.core import restore_check
+    from apps.core.backup import MAX_BACKUP_AGE_HOURS, MAX_VERIFY_AGE_HOURS
     from apps.core.backup import state as backup_state
     from apps.core.status import services
 
@@ -201,9 +202,16 @@ def evaluate() -> list[Alert]:
             Alert(
                 key="backup-verify",
                 title="kopia zapasowa nie została sprawdzona odtworzeniem",
-                detail=f"ostatni udany test: {when} (próg: {MAX_VERIFY_AGE_DAYS} dni)",
+                detail=f"ostatni udany test: {when} (próg: {MAX_VERIFY_AGE_HOURS} h)",
             )
         )
+    # Ostatni test odtwarzania NIEUDANY (OPS-01) – osobny klucz od ``backup-verify`` wyżej, bo to
+    # inna wiadomość: tamta mówi „test nie chodzi”, ta – „test chodzi i mówi, że kopia jest zła”.
+    # Alarm trwa do pierwszego udanego testu (co godzinę – wyciszenie), a pierwszy list wysyła
+    # sam meldunek testu (``restore_check.record``) tym samym kluczem, więc nie ma dubli.
+    last_check = restore_check.last_result()
+    if restore_check.level(last_check) == restore_check.LEVEL_FAILED:
+        alerts.append(restore_check.failure_alert(last_check))
     # Kopia poza serwerem, która kiedyś działała, a przestała – osobny klucz, bo nocna kopia może
     # się dalej udawać lokalnie (``backup`` milczy), a ginie wtedy razem z serwerem. Gdy nie ma
     # świeżej kopii w ogóle, alarm ``backup`` wyżej już to mówi i drugi list byłby szumem.

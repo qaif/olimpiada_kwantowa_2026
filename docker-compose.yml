@@ -474,8 +474,10 @@ services:
     hostname: mail.${SITE_DOMAIN:-localhost}
     environment:
       # Postfix przyjmie kopertę tylko dla nadawcy z tej domeny (nie jest open relayem nawet
-      # dla kogoś, kto trafi do sieci compose).
-      ALLOWED_SENDER_DOMAINS: ${SITE_DOMAIN:-localhost}
+      # dla kogoś, kto trafi do sieci compose). Ta sama zmienna ogranicza nadawców konkursów
+      # w aplikacji (``MAIL_ALLOWED_SENDER_DOMAINS``, AUTH-01a): druga domena nadawcy = dopisana
+      # tutaj spacją (np. "olimpiadakwantowa.pl iqo-official.org") razem z jej SPF/DKIM.
+      ALLOWED_SENDER_DOMAINS: ${ALLOWED_SENDER_DOMAINS:-${SITE_DOMAIN:-localhost}}
       POSTFIX_myhostname: mail.${SITE_DOMAIN:-localhost}
       # Klienci SMTP: wyłącznie podsieci compose (edge + internal). Bez SASL – poza tymi
       # podsieciami port 587 nie jest osiągalny (brak `ports:`), więc hasło niczego by nie dodało.
