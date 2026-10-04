@@ -41,5 +41,5 @@
       "mono": "ui-monospace, \"Cascadia Mono\", \"SF Mono\", Menlo, Consolas, \"Liberation Mono\", monospace"
     }
   ],
-  "min_app_version": "0.44.0"
+  "min_app_version": "0.45.0"
 }

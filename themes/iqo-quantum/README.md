@@ -30,13 +30,13 @@ pasów). 1.1.0 ma **własną kompozycję** – tożsamość międzynarodowej oli
 Adres e-mail w rozwijanym „Konto” jest odnośnikiem do ustawień konta (zmiana hasła, adresu, 2FA):
 nagłówek dołącza fragment aplikacji `web/_account_who.html` (AUTH-01b) zamiast samego tekstu,
 `theme.css` dostaje regułę najechania. Paczka wymaga aplikacji z tym fragmentem – na starszej
-walidator odrzuci `include` przy wgraniu.
+walidator odrzuci paczkę przy wgraniu (`min_app_version` **0.45.0**).
 
 ## Zawartość
 
 | Plik | Rola |
 |---|---|
-| `manifest.json` | schema 1, `iqo-quantum` **1.1.1**, `min_app_version` **0.44.0** (wydanie z THEME-02), `color_scheme: dark`, `layouts` (warianty niżej), `logos`, `fonts` |
+| `manifest.json` | schema 1, `iqo-quantum` **1.1.1**, `min_app_version` **0.45.0** (wydanie z AUTH-01b – fragment `web/_account_who.html`; 1.1.0 wymagała 0.44.0 z THEME-02), `color_scheme: dark`, `layouts` (warianty niżej), `logos`, `fonts` |
 | `tokens.json` | `colors` (paleta jasna), `dark` (ciemna, z własnymi `shadow-*`), `tokens` (kroje, skala, promienie, odstępy, cienie, `header-height`, `max-width`). Każdy klucz → `--t-<klucz>` |
 | `theme.css` | jedyny arkusz: kroje, aliasy `--iqo-*` ← `--t-*`, most do ról `app.css` (panele), sloty, warianty układów, wysoki kontrast, forced-colors, druk |
 | `templates/theme/header.html` | logo, przycisk „Menu”, `{% include "theme/nav.html" %}`, konto (role, forum, wiadomości, materiały, zgłoszenie, „Moja drużyna”, „Wyloguj”) |
