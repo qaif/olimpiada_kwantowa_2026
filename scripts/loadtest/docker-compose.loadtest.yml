@@ -1,0 +1,226 @@
+# Osobny, jednorazowy stos do testu obciążenia (PERF-01, docs/tasks/PERF-01.md, docs/OPERACJE.md § 42).
+#
+# Uruchamia go wyłącznie scripts/loadtest/run.sh – projekt compose `olimpiada-loadtest`, własna baza
+# `olimpiada_loadtest`, własny Redis, MinIO i ClamAV, ŻADNEJ sieci ani wolumenu wspólnego ze stosem
+# deweloperskim (`olimpiadaclade_*`) ani z produkcją. Dlaczego osobny projekt, a nie druga baza na
+# stosie deweloperskim: pomiar ma widzieć wyłącznie własny ruch (współdzielony Postgres liczyłby też
+# zapytania stosu deweloperskiego), a limity CPU (`cpus:`) mają odwzorować proporcje serwera.
+#
+# Sekrety poniżej są **lokalne i jednorazowe** – stos nie publikuje żadnego portu poza 127.0.0.1:8088
+# (Caddy, do podejrzenia strony w przeglądarce), sieć `lt_internal` nie ma wyjścia do Internetu
+# (internal: true), więc ClamAV nie pobiera sygnatur (korzysta z tych w obrazie), a generator ruchu
+# nie dosięgnie żadnego hosta poza tym stosem.
+#
+# Ustawienia aplikacji jak na produkcji (`config.settings.production`, DEBUG=0, cache stron włączony,
+# gunicorn gthread), z dwoma odstępstwami opisanymi w § 42.2: HTTP zamiast TLS (Caddy bez certyfikatu)
+# i adres klienta z nagłówka generatora (`X-Loadtest-Client-IP` → `X-Real-IP`), żeby wirtualni
+# uczniowie mieli różne adresy jak w prawdziwym ruchu (limity per IP).
+
+name: olimpiada-loadtest
+
+x-lt-env: &lt-env
+  DJANGO_SETTINGS_MODULE: config.settings.production
+  DJANGO_SECRET_KEY: loadtest-only-secret-key-0123456789-abcdefghijklmnopqrstuvwxyz-0123456789
+  DJANGO_DEBUG: "0"
+  DJANGO_ALLOWED_HOSTS: "localhost,127.0.0.1,proxy,web,loadtest.local"
+  DJANGO_CSRF_TRUSTED_ORIGINS: "http://localhost:8088,http://proxy,http://loadtest.local"
+  SESSION_COOKIE_SECURE: "0"
+  CSRF_COOKIE_SECURE: "0"
+  SITE_DOMAIN: loadtest.local
+  DATABASE_URL: postgres://loadtest:loadtest-db-password@db:5432/olimpiada_loadtest
+  POSTGRES_PASSWORD: loadtest-db-password
+  REDIS_URL: redis://redis:6379/0
+  CELERY_BROKER_URL: redis://redis:6379/1
+  S3_ENDPOINT_URL: http://minio:9000
+  S3_PUBLIC_ENDPOINT_URL: http://localhost:9000
+  S3_SUBMISSIONS_BUCKET: submissions
+  S3_PUBLIC_BUCKET: public-media
+  MINIO_ROOT_USER: loadtest
+  MINIO_ROOT_PASSWORD: loadtest-minio-password
+  CLAMAV_HOST: clamav
+  CLAMAV_PORT: "3310"
+  # Wyłącznie podsieć tego stosu: Caddy (proxy) jest jedynym nadawcą X-Real-IP, któremu backend ufa.
+  TRUSTED_PROXY_IPS: 172.31.77.0/24
+  EMAIL_URL: consolemail://
+  DEFAULT_FROM_EMAIL: loadtest@loadtest.local
+  DB_APPLICATION_NAME: olimpiada-web
+  LOADTEST_STACK: "1"
+
+x-lt-app: &lt-app
+  image: ${LOADTEST_WEB_IMAGE:-olimpiada/web:dev}
+  environment: *lt-env
+  networks: [lt_internal]
+  volumes:
+    # Kod z bieżącego drzewa roboczego (to ono jest mierzone). Do zapisu wyłącznie dlatego, że Docker
+    # musi założyć w nim punkt montowania `staticfiles` (zbiór statyków idzie do osobnego wolumenu,
+    # tego samego, który Caddy serwuje pod /static/); oprócz niego powstają tylko `__pycache__`.
+    - ../../backend:/app
+    - lt_static:/app/staticfiles
+  depends_on:
+    db: { condition: service_healthy }
+    redis: { condition: service_healthy }
+    minio: { condition: service_healthy }
+
+services:
+  db:
+    image: postgres:18-alpine
+    # pg_stat_statements: ranking najdroższych zapytań po przebiegu (run.sh zapisuje go do raportu).
+    command:
+      - postgres
+      - -c
+      - max_locks_per_transaction=256
+      - -c
+      - shared_preload_libraries=pg_stat_statements
+      - -c
+      - pg_stat_statements.track=top
+    environment:
+      POSTGRES_DB: olimpiada_loadtest
+      POSTGRES_USER: loadtest
+      POSTGRES_PASSWORD: loadtest-db-password
+    cpus: ${LOADTEST_DB_CPUS:-2}
+    volumes:
+      - lt_pg:/var/lib/postgresql
+    networks: [lt_internal]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U loadtest -d olimpiada_loadtest"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    command: [redis-server, --maxmemory, 256mb, --maxmemory-policy, allkeys-lru]
+    networks: [lt_internal]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  minio:
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    command: server /data
+    environment:
+      MINIO_ROOT_USER: loadtest
+      MINIO_ROOT_PASSWORD: loadtest-minio-password
+    volumes:
+      - lt_minio:/data
+    networks: [lt_internal]
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  minio-init:
+    image: minio/mc:RELEASE.2025-04-16T18-13-26Z
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 loadtest loadtest-minio-password &&
+      mc mb --ignore-existing local/submissions &&
+      mc mb --ignore-existing local/public-media &&
+      echo done"
+    networks: [lt_internal]
+    depends_on:
+      minio: { condition: service_healthy }
+    restart: "no"
+
+  clamav:
+    image: clamav/clamav:1.4
+    environment:
+      # Bez freshclam: sieć nie ma wyjścia na świat, a sygnatury z obrazu wystarczą do pomiaru.
+      CLAMAV_NO_FRESHCLAMD: "true"
+    mem_limit: 3g
+    networks: [lt_internal]
+    healthcheck:
+      test: ["CMD", "clamdcheck.sh"]
+      interval: 15s
+      timeout: 10s
+      retries: 40
+      start_period: 120s
+
+  web:
+    <<: *lt-app
+    # Dokładnie polecenie z docker-compose.yml (produkcja); liczby workerów i wątków z env run.sh.
+    # Katalogi tłumaczeń (.mo) nie są w repozytorium – run.sh kompiluje je przed startem (msgfmt jak
+    # w backend/Dockerfile), a bez nich strony renderują się z napisami źródłowymi. Koszt gettext jest ten sam (wyszukanie w katalogu), więc pomiar
+    # tego nie przekłamuje.
+    command: >
+      gunicorn config.wsgi:application
+      --bind 0.0.0.0:8000 --workers ${WEB_WORKERS:-4} --threads ${WEB_THREADS:-4}
+      --worker-class gthread
+      --timeout 120 --graceful-timeout 30
+      --max-requests ${WEB_MAX_REQUESTS:-2000} --max-requests-jitter ${WEB_MAX_REQUESTS_JITTER:-200}
+      --keep-alive ${WEB_KEEPALIVE:-2}
+      --access-logfile -
+      --access-logformat '%(t)s "%(r)s" %(s)s %(b)s %(M)sms'
+    environment:
+      <<: *lt-env
+      RUN_MIGRATIONS: "1"
+      RUN_COLLECTSTATIC: "1"
+    cpus: ${LOADTEST_WEB_CPUS:-4}
+    mem_limit: 3g
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/healthz/', timeout=3).status==200 else 1)"]
+      interval: 5s
+      timeout: 5s
+      retries: 60
+      start_period: 300s
+
+  worker:
+    <<: *lt-app
+    command: celery -A config worker -l warning --concurrency ${CELERY_CONCURRENCY:-2} -Q default,scan,mail
+    environment:
+      <<: *lt-env
+      RUN_MIGRATIONS: "0"
+      RUN_COLLECTSTATIC: "0"
+      DB_POOL: "0"
+      DB_APPLICATION_NAME: olimpiada-worker
+    cpus: ${LOADTEST_WORKER_CPUS:-1}
+    mem_limit: 768m
+    depends_on:
+      web: { condition: service_healthy }
+      clamav: { condition: service_healthy }
+
+  proxy:
+    image: caddy:2.8
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - lt_static:/srv/static:ro
+    environment:
+      MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-25}
+    cpus: ${LOADTEST_PROXY_CPUS:-1}
+    ports:
+      - "127.0.0.1:8088:80"
+    networks:
+      lt_internal:
+        ipv4_address: 172.31.77.10
+      lt_edge: {}
+    depends_on:
+      web: { condition: service_healthy }
+
+  loadgen:
+    # Generator ruchu: ten sam obraz (Python 3.14 + httpx – zależność przechodnia, bez instalacji
+    # czegokolwiek), w sieci bez wyjścia na świat. Uruchamiany przez `run.sh` poleceniem `run --rm`.
+    image: ${LOADTEST_WEB_IMAGE:-olimpiada/web:dev}
+    profiles: [loadgen]
+    entrypoint: ["python", "/loadtest/loadgen.py"]
+    working_dir: /loadtest
+    volumes:
+      - ./:/loadtest:ro
+      - ${LOADTEST_OUT_DIR:-../../runs/loadtest}:/out
+    networks: [lt_internal]
+    cpus: ${LOADTEST_LOADGEN_CPUS:-8}
+
+networks:
+  lt_internal:
+    internal: true
+    ipam:
+      config:
+        - subnet: 172.31.77.0/24
+  lt_edge: {}
+
+volumes:
+  lt_pg:
+  lt_minio:
+  lt_static:
