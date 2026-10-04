@@ -37,8 +37,12 @@ Reguła stoi w :func:`reset_eligible` i :func:`awaiting_activation`:
   bo migracja ``accounts.0010`` wpisała je hurtem kontom sprzed aktywacji, a koordynator może
   włączyć konto bez potwierdzania adresu. Konto z zaproszenia, któremu brakuje wymaganych zgód
   (ręcznie aktywowane przed poprawką H1), nie dostaje linku wcale – inaczej reset byłby drogą do
-  panelu z pominięciem zgód. Konto, któremu allauth wyczyścił hasło przy łączeniu z Google,
-  wpisu ``verified`` nie ma – loguje się Google'em i ustawia hasło z panelu konta (AUTH-01b),
+  panelu z pominięciem zgód. Konto bez hasła **bez** wpisu ``verified`` (np. Facebook, który adresu
+  nie potwierdza, albo konto, któremu allauth wyczyścił hasło przy łączeniu) linku nie dostaje
+  żadną drogą – także przyciskiem „Wyślij mi link do ustawienia hasła” w panelu konta (AUTH-01b,
+  ta sama reguła): link na niepotwierdzony adres mógłby trafić do cudzej skrzynki (M2). Takie konto
+  dalej loguje się przez dostawcę; hasło ustawi dopiero po potwierdzeniu adresu (u dostawcy, który
+  adres potwierdza) – ekran ``/account/password/`` mówi to wprost i odsyła do organizatora,
 - konto z rejestracji **przed aktywacją** (nieaktywne, adres niepotwierdzony, bez zaproszenia)
   dostaje zwykły link resetu, a zapisanie nowego hasła **aktywuje** konto (M1,
   ``apps.web.views.public.PasswordResetConfirmView``). Nie wysyłamy linku aktywacyjnego: ten

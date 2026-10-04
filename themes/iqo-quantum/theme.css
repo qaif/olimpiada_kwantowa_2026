@@ -1064,7 +1064,15 @@ hr {
   font-family: var(--iqo-font-mono);
   font-size: 0.75rem;
   color: var(--iqo-muted);
+  text-decoration: none;
   border-block-end: 1px solid var(--iqo-border);
+}
+
+/* 1.1.1: adres jest odnośnikiem do ustawień konta (fragment aplikacji web/_account_who.html). */
+.iqo-acct__who:hover,
+.iqo-acct__who[aria-current="page"] {
+  color: var(--iqo-text-soft);
+  text-decoration: underline;
 }
 
 .iqo-acct__list {

@@ -23,6 +23,7 @@ from __future__ import annotations
 from django.contrib import messages
 from django.contrib.auth import logout
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.views import redirect_to_login
 from django.http import FileResponse
 from django.shortcuts import redirect
 from django.urls import reverse, reverse_lazy
@@ -45,6 +46,7 @@ from apps.accounts.profile import (
     update_participant_profile,
     verify_self_deletion_credentials,
 )
+from apps.accounts.reauth import CODE_LOCKED
 from apps.accounts.services import participant_for
 from apps.core.api import DomainError
 from apps.web.forms import (
@@ -55,7 +57,7 @@ from apps.web.forms import (
     participant_profile_initial,
 )
 from apps.web.mixins import ParticipantRequiredMixin
-from apps.web.throttle import ThrottledFormMixin
+from apps.web.throttle import PerAccountThrottleMixin, ThrottledFormMixin
 
 
 def own_participant(request):
@@ -77,6 +79,16 @@ def profile_url(request) -> str:
     kto w tym konkursie startuje.
     """
     return reverse("web:profile" if own_participant(request) is not None else "web:account-profile")
+
+
+def relogin_after_lock(request, message: str):
+    """Odpowiedź po zakończeniu sesji za serię złych haseł (``apps.accounts.reauth``, przegląd L3).
+
+    Sesja jest już wylogowana – odsyłamy do logowania (tam stoją limit prób i drugi składnik)
+    z ``next`` na ekran, z którego człowiek przyszedł. Komunikat ląduje w nowej, pustej sesji.
+    """
+    messages.error(request, message)
+    return redirect_to_login(request.get_full_path())
 
 
 class ServiceFormMixin:
@@ -198,12 +210,15 @@ class AccountProfileView(LoginRequiredMixin, ServiceFormMixin, FormView):
         update_own_names(self.request.user, **form.cleaned_data, request=self.request)
 
 
-class EmailChangeView(LoginRequiredMixin, ThrottledFormMixin, ServiceFormMixin, FormView):
+class EmailChangeView(LoginRequiredMixin, PerAccountThrottleMixin, ServiceFormMixin, FormView):
     """``/account/email/`` – wniosek o zmianę adresu e-mail konta.
 
     Limit ze scope'em ``password_reset``: formularz wysyła list na adres podany przez użytkownika,
     więc bez ograniczenia byłby wysyłaczem wiadomości na cudze skrzynki – tak samo jak reset hasła,
-    tylko za logowaniem (co samo nie jest ograniczeniem, bo konto zakłada się w minutę).
+    tylko za logowaniem. Od AUTH-01b (przegląd H1) liczony **per konto**, jak ekran zmiany hasła:
+    formularz żąda też aktualnego hasła, więc limit ogranicza zarazem zgadywanie go z cudzej sesji.
+    Seria złych haseł kończy sesję (``apps.accounts.reauth``) – licznik jest wspólny z ekranem
+    zmiany hasła.
     """
 
     template_name = "web/account/email_change.html"
@@ -225,9 +240,24 @@ class EmailChangeView(LoginRequiredMixin, ThrottledFormMixin, ServiceFormMixin, 
         context["profile_url"] = profile_url(self.request)
         return context
 
+    def form_valid(self, form):
+        try:
+            self.call_service(form)
+        except DomainError as exc:
+            if exc.machine_code == CODE_LOCKED:
+                return relogin_after_lock(self.request, str(exc.detail))
+            field = "current_password" if exc.machine_code == "PASSWORD_INCORRECT" else None
+            form.add_error(field, str(exc.detail))
+            return self.form_invalid(form)
+        messages.success(self.request, self.success_message)
+        return redirect(self.get_success_url())
+
     def call_service(self, form):
         request_email_change(
-            self.request.user, new_email=form.cleaned_data["new_email"], request=self.request
+            self.request.user,
+            new_email=form.cleaned_data["new_email"],
+            current_password=form.cleaned_data.get("current_password") or "",
+            request=self.request,
         )
 
 

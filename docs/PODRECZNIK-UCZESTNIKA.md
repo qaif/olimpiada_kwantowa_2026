@@ -53,12 +53,21 @@ Po rejestracji strona `/register/done/` mówi „sprawdź skrzynkę”. Na podan
 |---|---|
 | Logowanie | `/login/` |
 | Nie pamiętasz hasła | `/password-reset/` — link z listu jest jednorazowy i ważny 24 h |
+| **Zmiana hasła** (znasz aktualne) | `/account/password/` — kliknij swój adres e-mail w pasku konta → sekcja „Hasło” → „Zmień hasło” |
 | Twoje dane (imię, nazwisko, telefon, województwo, szkoła, klasa, data urodzenia) | `/me/profile/` — przycisk „Edytuj dane” w panelu |
 | **Adres e-mail opiekuna szkolnego** (pole opcjonalne) | `/me/profile/` — dopiero po jego wpisaniu nauczyciel widzi Twój postęp; da się je wyczyścić. Jeśli nauczyciel nie ma jeszcze konta, a organizator włączył tę rejestrację, założy je sam pod `/register/supervisor/` |
-| Zmiana adresu e-mail | `/account/profile/` → `/account/email/` — potwierdzenie idzie na **dotychczasowy** adres |
+| Zmiana adresu e-mail | `/account/profile/` → `/account/email/` — wymaga **aktualnego hasła**; link potwierdzający idzie na **nowy** adres, a dotychczasowy dostaje powiadomienie |
 | Język interfejsu i tryb wysokiego kontrastu | dwie ikony w pasku konta, na każdej stronie |
 | **Pobranie wszystkich swoich danych** (art. 20 RODO) | `/account/export/` — paczka ZIP z `dane.json` i wgranymi plikami, jedna na 10 minut |
 | Usunięcie konta | `/account/delete/` — patrz niżej |
+
+**Zmiana hasła.** Podajesz aktualne hasło i dwa razy nowe (co najmniej 10 znaków, nie popularne, nie
+same cyfry, niepodobne do imienia, nazwiska ani adresu). Na tym urządzeniu zostajesz zalogowany,
+a **wszystkie inne urządzenia i aplikacje są wylogowane**. Na adres konta przychodzi list „Hasło do
+konta zostało zmienione” — jeśli to nie Ty zmieniałeś hasło, od razu ustaw nowe przez „Nie pamiętasz
+hasła?” i napisz do organizatora. Kto loguje się przez Google/Facebooka i nie ma hasła, zobaczy tam
+przycisk **„Wyślij mi link do ustawienia hasła”** — hasło ustawia się dopiero pod linkiem z listu
+(bez hasła nie zmienisz też adresu e-mail). Pięć błędnych haseł z rzędu wylogowuje — zaloguj się ponownie.
 
 **Prośba nauczyciela o dopisanie jako opiekun szkolny** (od v0.38.7). Nauczyciel albo organizator,
 który wgrywa listę uczniów, nie może już sam wpisać się w Twój profil. Jeśli na liście jest adres
