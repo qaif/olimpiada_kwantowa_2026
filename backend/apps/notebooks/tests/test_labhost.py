@@ -13,7 +13,7 @@ from django.core import signing
 from django.test import Client
 
 from apps.accounts.models import CompetitionRole
-from apps.notebooks import services
+from apps.notebooks import cookieguard, services
 from apps.notebooks.checks import lab_host_is_separate
 from apps.notebooks.middleware import FORBIDDEN_TEXT
 from apps.tenancy.tests.factories import grant_membership
@@ -360,3 +360,165 @@ def test_platform_cookies_are_host_only(settings, participant):
     response = client.post("/account/preferences/", {"language": "en"})
     for morsel in [*response.cookies.values(), *client.cookies.values()]:
         assert morsel["domain"] == "", morsel.key
+
+
+# --- przegląd M1: podrzucone ciasteczka (cookie tossing z lab.<domena>) ----------------------------
+
+MAIN = "example.test"
+
+
+@pytest.fixture
+def main_host(settings, lab_host):
+    settings.ALLOWED_HOSTS = [*settings.ALLOWED_HOSTS, MAIN]
+    return MAIN
+
+
+def set_cookie_headers(response) -> list[str]:
+    return [value for name, value in response.items() if name == "Set-Cookie"]
+
+
+@pytest.mark.parametrize(("method", "status"), [("get", 302), ("post", 307)])
+def test_tossed_duplicate_cookies_are_wiped_on_parent_domain(main_host, method, status):
+    raw = "csrftoken=legit; sessionid=s1; csrftoken=tossed; django_language=pl"
+    response = getattr(Client(), method)("/me/notebooks/5/?a=1", HTTP_HOST=MAIN, HTTP_COOKIE=raw)
+    assert isinstance(response, cookieguard.CookieWipeRedirect)
+    assert response.status_code == status and response["Location"] == "/me/notebooks/5/?a=1"
+    headers = set_cookie_headers(response)
+    for path in (
+        "/",
+        "/me",
+        "/me/",
+        "/me/notebooks",
+        "/me/notebooks/",
+        "/me/notebooks/5",
+        "/me/notebooks/5/",
+    ):
+        expected = f"csrftoken=; Domain=example.test; Path={path}; Max-Age=0; Expires={cookieguard.EXPIRED}"
+        assert f"{expected}; SameSite=Lax" in headers, path
+    # Tylko zdublowane nazwy; host-only ciasteczka serwisu (bez ``Domain``) nie są wygaszane.
+    assert not any(h.startswith(("sessionid=", "django_language=")) for h in headers)
+    assert all("Domain=" in h for h in headers)
+    assert response.cookies[cookieguard.MARKER].value == "1"
+
+
+def test_duplicates_after_failed_wipe_are_dropped_not_trusted(main_host, participant):
+    client = Client()
+    client.force_login(participant.user)
+    sid = client.cookies[django_settings.SESSION_COOKIE_NAME].value
+    raw = f"sessionid={sid}; sessionid=podrzucona; {cookieguard.MARKER}=1"
+    response = client.get("/me/", HTTP_HOST=MAIN, HTTP_COOKIE=raw)
+    assert not isinstance(response, cookieguard.CookieWipeRedirect)  # bez pętli przekierowań
+    assert "sessionid" not in response.wsgi_request.COOKIES
+    assert not response.wsgi_request.user.is_authenticated  # żadna z dwóch sesji nie jest wiarygodna
+
+
+def test_no_wipe_without_duplicates_or_with_separate_domain(settings, main_host):
+    client = Client()
+    response = client.get("/me/", HTTP_HOST=MAIN, HTTP_COOKIE="csrftoken=a; sessionid=b")
+    assert not isinstance(response, cookieguard.CookieWipeRedirect)
+    settings.NOTEBOOK_LAB_HOST = "olimpiada-lab.test"  # wariant B: inny „site”, podrzucenie niemożliwe
+    response = client.get("/me/", HTTP_HOST=MAIN, HTTP_COOKIE="csrftoken=a; csrftoken=b")
+    assert not isinstance(response, cookieguard.CookieWipeRedirect)
+    assert cookieguard.shared_parent_domains(MAIN, "olimpiada-lab.test") == []
+    for host in ("konkurs.olimpiadakwantowa.pl", "olimpiadakwantowa.pl"):
+        assert cookieguard.shared_parent_domains(host, "lab.olimpiadakwantowa.pl") == ["olimpiadakwantowa.pl"]
+
+
+def test_production_cookie_names_get_host_prefix_only_with_lab_host_and_tls():
+    from config.settings.base import host_prefixed_cookie_name
+
+    assert host_prefixed_cookie_name("sessionid", lab_host=LAB, secure=True) == "__Host-sessionid"
+    assert host_prefixed_cookie_name("csrftoken", lab_host=LAB, secure=True) == "__Host-csrftoken"
+    assert host_prefixed_cookie_name("sessionid", lab_host="", secure=True) == "sessionid"
+    # ``__Host-`` bez ``Secure`` przeglądarka odrzuca – dev bez TLS zostaje przy zwykłej nazwie.
+    assert host_prefixed_cookie_name("sessionid", lab_host=LAB, secure=False) == "sessionid"
+    source = (Path(django_settings.BASE_DIR) / "config" / "settings" / "production.py").read_text(
+        encoding="utf-8"
+    )
+    compact = "".join(source.split())
+    assert 'SESSION_COOKIE_NAME=host_prefixed_cookie_name("sessionid",lab_host=NOTEBOOK_LAB_HOST' in compact
+    assert 'CSRF_COOKIE_NAME=host_prefixed_cookie_name("csrftoken",lab_host=NOTEBOOK_LAB_HOST' in compact
+
+
+def test_host_prefixed_cookie_names_work_end_to_end(settings, main_host, participant):
+    """Z prefiksem ``__Host-`` (produkcja z laboratorium) sesja i CSRF działają, a podrzucone
+    ciasteczka o starych nazwach nie mają znaczenia."""
+    settings.SESSION_COOKIE_NAME = "__Host-sessionid"
+    settings.CSRF_COOKIE_NAME = "__Host-csrftoken"
+    client = Client(enforce_csrf_checks=True)
+    client.force_login(participant.user)
+    assert "__Host-sessionid" in client.cookies
+    client.cookies["sessionid"] = "podrzucona"
+    client.cookies["csrftoken"] = "b" * 32
+    response = client.get("/me/")
+    assert response.wsgi_request.user == participant.user
+    token = client.cookies["__Host-csrftoken"].value
+    response = client.post("/account/preferences/", {"language": "en", "csrfmiddlewaretoken": token})
+    assert response.status_code == 302
+
+
+# --- przegląd L1: żądania same-site bez przypisania ----------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("method", "path", "headers", "refused"),
+    [
+        ("post", "/me/", {"HTTP_ORIGIN": "null", "HTTP_SEC_FETCH_SITE": "same-site"}, True),
+        ("post", "/me/", {"HTTP_SEC_FETCH_SITE": "same-site", "HTTP_SEC_FETCH_MODE": "cors"}, True),
+        (
+            "get",
+            "/api/competitions/",
+            {"HTTP_SEC_FETCH_SITE": "same-site", "HTTP_SEC_FETCH_MODE": "cors"},
+            True,
+        ),
+        # Cross-site ``Origin: null`` (np. powrót od operatora płatności) – nie ta reguła.
+        ("post", "/me/", {"HTTP_ORIGIN": "null", "HTTP_SEC_FETCH_SITE": "cross-site"}, False),
+        # GET zasobu same-site bez nagłówków (np. z subdomeny konkursu) – przechodzi.
+        ("get", "/me/", {"HTTP_SEC_FETCH_SITE": "same-site", "HTTP_SEC_FETCH_MODE": "no-cors"}, False),
+        # Same-site z originem innym niż laboratorium (subdomena konkursu) – przechodzi.
+        (
+            "post",
+            "/me/",
+            {"HTTP_ORIGIN": "https://fizyka.example.test", "HTTP_SEC_FETCH_SITE": "same-site"},
+            False,
+        ),
+    ],
+)
+def test_anonymous_same_site_requests_are_refused(main_host, method, path, headers, refused):
+    response = getattr(Client(), method)(path, HTTP_HOST=MAIN, **headers)
+    assert (response.content == FORBIDDEN_TEXT.encode()) is refused
+
+
+def test_anonymous_same_site_rule_only_for_same_site_lab(settings, main_host):
+    settings.NOTEBOOK_LAB_HOST = "olimpiada-lab.test"
+    response = Client().post("/me/", HTTP_HOST=MAIN, HTTP_ORIGIN="null", HTTP_SEC_FETCH_SITE="same-site")
+    assert response.content != FORBIDDEN_TEXT.encode()
+
+
+# --- przegląd L2: host laboratorium nie może być hostem usługi ani konkursu -------------------------
+
+
+@pytest.mark.parametrize(
+    "value",
+    ["dj.example.org", "live.example.org", "meet.example.org", "monitor.example.org", "errors.example.org",
+     "s3.example.org", "media.example.org", "jitsi.example.org"],
+)  # fmt: skip
+def test_lab_host_check_refuses_platform_service_hosts(settings, value):
+    settings.SITE_DOMAIN = "example.org"
+    settings.EXTRA_DOMAINS = []
+    settings.S3_PUBLIC_ENDPOINT_URL = "https://media.example.org"
+    settings.JITSI_JWT_HOST = "jitsi.example.org"
+    settings.NOTEBOOK_LAB_HOST = value
+    assert [error.id for error in lab_host_is_separate(None)] == ["notebooks.E002"]
+
+
+def test_lab_host_check_refuses_competition_host(settings, competition):
+    from apps.notebooks.checks import lab_host_is_not_a_competition
+    from apps.tenancy.models import Competition
+
+    settings.NOTEBOOK_LAB_HOST = "lab.example.org"
+    assert lab_host_is_not_a_competition(None, databases=["default"]) == []
+    Competition.objects.filter(pk=competition.pk).update(primary_domain="lab.example.org")
+    errors = lab_host_is_not_a_competition(None, databases=["default"])
+    assert [error.id for error in errors] == ["notebooks.E002"]
+    assert lab_host_is_not_a_competition(None, databases=None) == []  # bez bazy – nic

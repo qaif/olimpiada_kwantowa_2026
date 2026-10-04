@@ -27,7 +27,7 @@ from django.http import HttpResponseForbidden, HttpResponseNotFound, HttpRespons
 
 from apps.web.middleware import NOTEBOOK_LAB_SEGMENT, NOTEBOOK_STARTER_PATH, is_notebook_lab_path
 
-from . import lab
+from . import cookieguard, lab
 
 SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
 FORBIDDEN_TEXT = "Requests from the notebook lab to the platform are not allowed."
@@ -71,24 +71,56 @@ def from_lab(request) -> bool:
     return parts.path.startswith(f"{settings.STATIC_URL}{NOTEBOOK_LAB_SEGMENT}")
 
 
+def refused_from_lab(request) -> bool:
+    """Żądanie z laboratorium (``from_lab``) inne niż zwykła nawigacja GET – przy osobnym hoście.
+
+    Przechodzi wyłącznie nawigacja (odnośnik z notatnika do serwisu) – jak z każdej obcej strony.
+    Reszta, także POST z ``Origin``, który Django uznałby za zaufany (``https://*.<domena>`` przy
+    subdomenach platformy), kończy się przed ochroną CSRF.
+    """
+    mode = request.META.get("HTTP_SEC_FETCH_MODE", "")
+    return (
+        request.method not in SAFE_METHODS
+        or request.path_info.startswith("/api/")
+        or bool(mode and mode != "navigate")
+    )
+
+
+def anonymous_same_site(request) -> bool:
+    """Przegląd L1: żądanie same-site, którego nie da się przypisać, gdy laboratorium jest same-site.
+
+    Kod z notatnika może wyciąć ``Referer`` i zamienić ``Origin`` na ``null``
+    (``referrerpolicy: "no-referrer"``). Gdy host laboratorium dzieli z hostem żądania domenę nadrzędną
+    (wariant A), odrzucamy (best-effort, po Fetch Metadata) żądania same-site **zmieniające stan albo
+    do ``/api/``**, które przyszły z ``Origin: null`` albo bez ``Origin`` i ``Referer`` i nie są
+    nawigacją. Zwykłe żądania zasobów (GET) same-site bez nagłówków przechodzą – mogą pochodzić
+    z subdomen konkursów (ich ``Referrer-Policy: same-origin`` nie wysyła ``Referer``), a odczytać
+    ich odpowiedzi laboratorium i tak nie może (CORS, CSP laboratorium). Osobna domena (wariant B):
+    nic – przeglądarka nie dołączy ciasteczek ``Lax`` do takich żądań.
+    """
+    if request.META.get("HTTP_SEC_FETCH_SITE", "") != "same-site":
+        return False
+    if not (request.method not in SAFE_METHODS or request.path_info.startswith("/api/")):
+        return False
+    if not cookieguard.shared_parent_domains(request.get_host(), lab.lab_host()):
+        return False
+    origin = request.META.get("HTTP_ORIGIN", "")
+    if origin == "null":
+        return True
+    mode = request.META.get("HTTP_SEC_FETCH_MODE", "")
+    return not origin and not request.META.get("HTTP_REFERER") and mode != "navigate"
+
+
 class NotebookLabRequestGuardMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response
 
     def __call__(self, request):
         if lab.lab_host():
-            if not lab.is_lab_host(request) and from_lab(request):
-                mode = request.META.get("HTTP_SEC_FETCH_MODE", "")
-                # Przechodzi wyłącznie zwykła nawigacja GET (odnośnik z notatnika do serwisu) – jak
-                # z każdej obcej strony. Reszta, także POST z ``Origin``, który Django uznałby za
-                # zaufany (``https://*.<domena>`` przy subdomenach platformy) albo z podrzuconym
-                # ciasteczkiem ``csrftoken`` (QC-02 § 5), kończy się tutaj – przed ochroną CSRF.
-                if (
-                    request.method not in SAFE_METHODS
-                    or request.path_info.startswith("/api/")
-                    or (mode and mode != "navigate")
-                ):
-                    return HttpResponseForbidden(FORBIDDEN_TEXT, content_type="text/plain")
+            if not lab.is_lab_host(request) and (
+                (from_lab(request) and refused_from_lab(request)) or anonymous_same_site(request)
+            ):
+                return HttpResponseForbidden(FORBIDDEN_TEXT, content_type="text/plain")
             return self.get_response(request)
         if from_lab(request):
             path = request.path_info
@@ -133,7 +165,13 @@ class NotebookLabHostMiddleware:
                 return HttpResponseRedirect(f"{request.scheme}://{host}{request.get_full_path()}")
             if path.startswith(NOTEBOOK_STARTER_PATH):
                 return HttpResponseNotFound("Not found.", content_type="text/plain")
-            return self.get_response(request)
+            # Podrzucone ciasteczka sesji/CSRF/języka (przegląd M1) – przed sesją i CSRF.
+            wipe = cookieguard.guard(
+                request,
+                host,
+                (settings.SESSION_COOKIE_NAME, settings.CSRF_COOKIE_NAME, settings.LANGUAGE_COOKIE_NAME),
+            )
+            return wipe or self.get_response(request)
         if is_notebook_lab_path(path):
             response = self.get_response(request)
             if response.status_code >= 400:

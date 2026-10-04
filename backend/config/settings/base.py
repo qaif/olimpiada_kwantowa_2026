@@ -1605,6 +1605,17 @@ NOTEBOOK_LAB_HOST = env("NOTEBOOK_LAB_HOST", default="").strip().lower().rstrip(
 if NOTEBOOK_LAB_HOST:
     ALLOWED_HOSTS = list(dict.fromkeys([*ALLOWED_HOSTS, NOTEBOOK_LAB_HOST.split(":")[0]]))
 
+
+def host_prefixed_cookie_name(name: str, *, lab_host: str, secure: bool) -> str:
+    """``__Host-<nazwa>`` przy osobnym hoście laboratorium i ciasteczku ``Secure`` (QC-02 § 5, M1).
+
+    Prefiks wymaga ``Secure`` (inaczej przeglądarka odrzuci ciasteczko – dev bez TLS zostaje przy
+    zwykłej nazwie i ochronie ``apps.notebooks.cookieguard``), ``Path=/`` i braku ``Domain`` – co
+    Django i tak ustawia (``*_COOKIE_PATH``/``*_COOKIE_DOMAIN`` domyślne). Używa production.py.
+    """
+    return f"__Host-{name}" if lab_host and secure else name
+
+
 # --- pieczęć elektroniczna dyplomów (apps.results.signing) -------------------------------------
 # Bez ścieżki do pliku PKCS#12 podpisywanie jest **wyłączone** i dokumenty wychodzą niepodpisane –
 # tak samo, jak przed wprowadzeniem tej funkcji. To jest stan domyślny, bo klucz pieczęci jest
