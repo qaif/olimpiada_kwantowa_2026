@@ -277,3 +277,4 @@ najmniejszych grup do „inne”).
 | L9 | Pierwsze 5 wiadomości nowej pary dorosły–małoletni w premoderacji także przy zasadzie „bez ograniczeń”. |
 | L10 | Zakończonej relacji nie wznawia się – nowa prośba (udokumentowane w OPERACJE i podręczniku). |
 | L11 | Limity próśb: 5 dziennie na mentee, 2 tygodniowo do tego samego mentora (pętla „prośba → wycofanie”). |
+| MED | Po scaleniu MED-01 (v0.43.0): medale i wyróżnienia z **zamrożonych** schematów etapów z ogłoszonymi wynikami są źródłem osiągnięć (`achievements.medal_source`, rejestrowane w `AlumniConfig.ready`): medal = poziom laureata z podpisem nagrody, wyróżnienie = poziom finalisty. Zastępuje zdanie z § 0 o braku medali. |

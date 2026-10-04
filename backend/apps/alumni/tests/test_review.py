@@ -564,3 +564,35 @@ def test_daily_request_limit_across_mentors(competition):
     with pytest.raises(DomainError) as exc:
         ask(student, mentors[5])
     assert exc.value.machine_code == "ALUMNI_REQUEST_LIMIT"
+
+
+# --- medale (MED-01) jako źródło osiągnięć ------------------------------------------------------------------
+
+
+def test_frozen_medals_become_achievements(competition):
+    from apps.medals.models import MedalScheme
+
+    enable(competition)
+    gold = alumnus(competition, "Złota", laureate=False)
+    honourable = alumnus(competition, "Wyróż", laureate=False)
+    stage_gold = gold.stage_entries.get().stage
+    stage_hm = honourable.stage_entries.get().stage
+    MedalScheme.objects.create(
+        stage=stage_gold,
+        frozen_at=timezone.now(),
+        awards={str(gold.stage_entries.get().pk): {"award": "GOLD"}},
+    )
+    # Schemat niezamrożony (nieogłoszony) nie liczy się wcale.
+    MedalScheme.objects.create(
+        stage=stage_hm, awards={str(honourable.stage_entries.get().pk): {"award": "HM"}}
+    )
+
+    [item] = achievements_for([gold])[gold.pk]
+    assert item.title == "złoty medal"
+    assert item.rank == 4
+    [plain] = achievements_for([honourable])[honourable.pk]
+    assert plain.title == "finalista"
+
+    MedalScheme.objects.filter(stage=stage_hm).update(frozen_at=timezone.now())
+    [item] = achievements_for([honourable])[honourable.pk]
+    assert item.title == "wyróżnienie"

@@ -247,6 +247,8 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
   zamiast pełnej anonimizacji przy wstrzymanej retencji; wycofanie zgody przy wyłączonej fladze;
   dowód zgody z językiem i skrótem treści i odnowienie zgody po zmianie wersji; polityki rozmowy
   łączone po najostrzejszej; statystyki bez komórek komplementarnych; limity próśb.
+- **Medale (MED-01) jako osiągnięcia absolwentów:** ogłoszony medal albo wyróżnienie widać na profilu
+  („2025/2026: złoty medal”) i liczy się do progu dołączenia (medal = laureat).
 
 ## [Unreleased] – Wielojęzyczność per konkurs (I18N-01) i kraje zamiast województw (REG-01)
 

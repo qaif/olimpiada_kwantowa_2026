@@ -137,6 +137,50 @@ def _from_results(participants: list) -> list[Achievement]:
     return found
 
 
+def medal_source(participants: list) -> list[Achievement]:
+    """Medale i wyróżnienia (MED-01, ``apps.medals``) – wyłącznie z **ogłoszonych** (zamrożonych)
+    schematów etapów z ogłoszonymi wynikami, bez wpisów zdyskwalifikowanych.
+
+    Medal to poziom laureata z podpisem nagrody („złoty medal”), wyróżnienie – poziom finalisty
+    z podpisem „wyróżnienie”. Konkurs bez flagi ``medals`` nie ma zamrożonych schematów, więc źródło
+    odpowiada pustą listą jednym zapytaniem; bez wpisów w etapach z ogłoszonymi wynikami – zerem.
+    """
+    from apps.competitions.models import StageEntry, StageEntryStatus, StageKind
+    from apps.medals.models import MEDALS, Award, MedalScheme
+
+    entries = list(
+        StageEntry.objects.filter(
+            participant_id__in=[participant.pk for participant in participants],
+            stage__results_published_at__isnull=False,
+        )
+        .exclude(stage__kind=StageKind.TRAINING)
+        .exclude(status=StageEntryStatus.DISQUALIFIED)
+        .values_list("pk", "participant_id", "stage_id", "stage__edition_id", "stage__edition__year_label")
+    )
+    if not entries:
+        return []
+    schemes = dict(
+        MedalScheme.objects.filter(
+            stage_id__in={row[2] for row in entries}, frozen_at__isnull=False
+        ).values_list("stage_id", "awards")
+    )
+    if not schemes:
+        return []
+    finished = _finished_editions({row[3] for row in entries})
+    found = []
+    for entry_id, participant_id, stage_id, edition_id, label in entries:
+        award = ((schemes.get(stage_id) or {}).get(str(entry_id)) or {}).get("award")
+        if award in MEDALS:
+            level = Level.LAUREATE
+        elif award == Award.HONOURABLE:
+            level = Level.FINALIST
+        else:
+            continue
+        title = str(Award(award).label)
+        found.append(Achievement(participant_id, edition_id, label, level, edition_id in finished, title))
+    return found
+
+
 def achievements_for(participants: Iterable) -> dict[int, list[Achievement]]:
     """``{participant_id: [osiągnięcie na edycję, najnowsza edycja pierwsza]}`` – po jednym na edycję.
 
