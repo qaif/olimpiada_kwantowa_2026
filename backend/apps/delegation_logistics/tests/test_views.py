@@ -46,7 +46,7 @@ def test_delegations_without_flag_have_no_screens(client_for, competition):
 # --- opiekun drużyny -----------------------------------------------------------------------------------
 
 
-def test_leader_fills_the_form_of_own_member(client_for, iqo, leader, students):
+def test_leader_fills_the_form_of_own_member(client_for, iqo, leader, students, event):
     client = logged_in(client_for, iqo, leader.user)
     dashboard = client.get(reverse("web:delegation-logistics"))
     assert dashboard.status_code == 200
@@ -171,7 +171,10 @@ def test_officer_sees_member_card_and_audit(client_for, iqo, officer, leader, st
         assert client.get(reverse(f"web:{name}")).status_code == 200, name
     export = client.get(reverse("web:coordinator-onsite-export", args=["rooming"]))
     assert export.status_code == 200
-    assert client.get(reverse("web:coordinator-onsite-badges")).content.startswith(b"%PDF")
+    badges_url = reverse("web:coordinator-onsite-badges")
+    assert client.get(f"{badges_url}?delegation={leader.delegation.pk}").content.startswith(b"%PDF")
+    # Identyfikatory „wszystkich naraz” nie powstają w jednym żądaniu (M3).
+    assert client.get(badges_url).status_code == 302
 
 
 def test_coordinator_saves_event_settings_and_grants_access(client_for, iqo, coordinator):
@@ -247,3 +250,33 @@ def test_account_without_grant_cannot_scan(client_for, iqo, leader, students):
     assert client.get(reverse("web:onsite-checkin-member", args=[member.badge_token])).status_code == 403
     anonymous = client_for(iqo)
     assert anonymous.get(reverse("web:onsite-checkin")).status_code == 302
+
+
+# --- poprawki po przeglądzie ---------------------------------------------------------------------------
+
+
+def test_reminders_are_officer_only(client_for, iqo, coordinator, leader, students):
+    client = logged_in(client_for, iqo, coordinator)
+    assert client.post(reverse("web:coordinator-onsite-reminders")).status_code == 403
+    assert "Przypomnij" not in client.get(reverse("web:coordinator-onsite")).content.decode()
+
+
+def test_dietary_export_does_not_exist_without_d21(client_for, iqo, officer):
+    client = logged_in(client_for, iqo, officer)
+    assert client.get(reverse("web:coordinator-onsite-export", args=["dietary"])).status_code == 404
+
+
+def test_coordinator_cannot_grant_check_in_access(client_for, iqo, coordinator):
+    from apps.delegation_logistics.models import LogisticsAccess
+
+    UserFactory(email="helper@example.test")
+    client = logged_in(client_for, iqo, coordinator)
+    client.post(reverse("web:coordinator-onsite-access"), {"email": "helper@example.test", "role": "CHECKIN"})
+    assert not LogisticsAccess.objects.filter(user__email="helper@example.test").exists()
+
+
+def test_leader_sees_missing_event_dates_notice(client_for, iqo, leader):
+    client = logged_in(client_for, iqo, leader.user)
+    assert (
+        "nie ustalił jeszcze dat finału" in client.get(reverse("web:delegation-logistics")).content.decode()
+    )

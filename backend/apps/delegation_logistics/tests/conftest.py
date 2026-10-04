@@ -93,3 +93,20 @@ def checkin_user(iqo, coordinator):
         competition=iqo, user=user, role=AccessRole.CHECKIN, granted_by=coordinator
     )
     return user
+
+
+def image_bytes(width: int = 40, height: int = 60, fmt: str = "PNG", exif: bool = False) -> bytes:
+    """Prawdziwy obraz (Pillow) – zdjęcie przechodzi przez dekoder przy przekodowaniu."""
+    from io import BytesIO
+
+    from PIL import Image
+
+    image = Image.new("RGB", (width, height), (200, 120, 40))
+    out = BytesIO()
+    kwargs = {}
+    if exif:
+        data = Image.Exif()
+        data[0x010F] = "SecretCam"  # Make
+        kwargs["exif"] = data.tobytes()
+    image.save(out, format=fmt, **kwargs)
+    return out.getvalue()
