@@ -892,6 +892,19 @@ def update_account_by_coordinator(
             status.HTTP_400_BAD_REQUEST,
         )
 
+    if values.get("is_active") and not user.is_active:
+        from .activation import pending_invitation
+
+        if pending_invitation(user) is not None:
+            # AUTH-01a (H1): odblokowanie konta z niezaakceptowanym zaproszeniem dałoby aktywne konto
+            # bez zgód i bez hasła – uczeń uruchamia je sam linkiem z zaproszenia.
+            raise DomainError(
+                "To konto czeka na przyjęcie zaproszenia – uczeń uruchamia je sam linkiem z listu "
+                "(zgody, hasło). Wyślij zaproszenie ponownie zamiast zaznaczać „Konto aktywne”.",
+                "INVITATION_PENDING",
+                status.HTTP_400_BAD_REQUEST,
+            )
+
     diff: dict = {}
     previous_email = user.email
     updates = [name for name in ("first_name", "last_name", "email", "is_active") if name in values]
