@@ -3878,3 +3878,63 @@ Nowy konkurs od razu z krajami: `create_competition … --regions countries` (do
 `custom_regions` wyłączona, formularze i wydruki co do bajtu jak dotąd).
 
 Kolejność dla `iqo` po wdrożeniu: § 26.1 (języki) i ta komenda – niezależne od siebie.
+
+
+## 28. Delegacje krajowe – rejestracja przez opiekunów drużyn (DEL-01, `docs/tasks/DEL-01.md`)
+
+W konkursie w trybie **`DELEGATIONS`** uczniów zgłaszają opiekunowie drużyn narodowych (team leaders)
+zaproszeni przez koordynatora. Samodzielna rejestracja uczestnika jest wtedy zamknięta **na każdej
+drodze**: formularz `/register/`, `POST /api/auth/register/participant/`, Google/Facebook (konto nowe),
+import listy klasowej (opiekun szkolny i koordynator) oraz rejestracja opiekuna szkolnego
+(`/register/supervisor/` → 404). Logowanie istniejących kont działa normalnie.
+
+**Domyślnie każdy konkurs ma tryb `OPEN`** (migracja `tenancy.0013` wpisuje `OPEN` wszystkim
+istniejącym konkursom; `create_competition`, ekran „Nowy konkurs” i kreator `/setup/` zakładają
+`OPEN`, a katalog szablonów nie ma tego pola). Olimpiada Kwantowa nie wymaga niczego.
+
+### 28.1. Przestawienie `iqo` (kolejność)
+
+1. Kraje (§ 27): `docker compose exec web python manage.py regions_countries --competition iqo`.
+2. Bieżąca edycja `iqo` musi istnieć, a jej okno rejestracji (`/coordinator/registration/`) **obowiązuje
+   opiekunów** – przy wyłączonej rejestracji edycji opiekun nie doda ucznia.
+3. Tryb rejestracji – jedna z dróg:
+   - panel: `/coordinator/competition/` (ekran „Ustawienia konkursu”, flaga `competition_settings_page`)
+     → „Tryb rejestracji uczestników” = „przez delegacje krajowe”, opcjonalnie „Domyślny limit uczniów
+     delegacji” (domyślnie 6); zapis zostawia wpis audytu `competition.registration_mode_changed`,
+   - `/admin/` → Konkursy → `iqo` → te same dwa pola,
+   - powłoka (bez panelu):
+     ```sh
+     docker compose exec web python manage.py shell -c "from apps.tenancy.models import Competition; c = Competition.objects.get(slug='iqo'); c.registration_mode = 'DELEGATIONS'; c.save(update_fields=['registration_mode'])"
+     ```
+4. W menu panelu `iqo` pojawia się „Uczestnicy i konta → Delegacje” (`/coordinator/delegations/`).
+   „Zaproś opiekuna”: adres e-mail + kraj. Delegacja kraju powstaje przy pierwszym zaproszeniu; kolejny
+   opiekun tego kraju dołącza do niej. List idzie w języku domyślnym konkursu (dla `iqo` – angielskim).
+
+Nowy konkurs od razu w tym trybie: `create_competition … --regions countries --registration delegations`
+(delegacje wymagają podziału na kraje; domyślnie `--registration open`).
+
+### 28.2. Zaproszenie, konto opiekuna, uczniowie
+
+- Zaproszenie: ważne 14 dni, jednorazowe, w bazie tylko skrót SHA-256 tokenu; „Wyślij ponownie” wymienia
+  token (stary link przestaje działać); „Cofnij” unieważnia. Adres prowadzący już delegację innego kraju
+  w tej edycji dostaje odmowę.
+- Przyjęcie (`/delegation/accept/<token>/`): adres bez konta zakłada je od razu aktywne (kliknięcie linku
+  potwierdza adres) i składa zgody (regulamin, RODO); adres z kontem musi się zalogować – zaproszenie nie
+  zmienia hasła; zalogowany na inne konto dostaje odmowę.
+- Panel opiekuna `/delegation/`: uczniowie kraju, współopiekunowie, „Dodaj ucznia”. Uczeń dostaje list
+  z linkiem `/zaproszenie/<token>/` (ten sam mechanizm, co import listy klasowej): sam ustawia hasło
+  i składa zgody, kraj jest krajem delegacji. Limit delegacji liczony pod blokadą wiersza.
+- Zamknięcie delegacji (ekran delegacji) zamraża listę uczniów. Eksport CSV: przycisk na liście delegacji.
+- Opiekun drużyny **nie** ma dostępu do wiadomości (`apps/chat`) ani do prac i ocen.
+
+### 28.3. Kontrakt adresów
+
+Nowy pierwszy segment adresu aplikacji: `delegation/` (`RESERVED_SLUGS`, `backend/djcms_contract/` –
+zaktualizowane w tym wydaniu). Wdrożenie przez `scripts/deploy.sh` przenosi kontrakt; jeśli Caddyfile
+jest renderowany z `app_routes.env` osobno, trzeba go wyrenderować ponownie.
+
+### 28.4. Wycofanie
+
+Przestawienie trybu z powrotem na `OPEN` otwiera samodzielną rejestrację i ukrywa ekrany delegacji (404);
+dane delegacji, opiekunów i uczniów zostają w bazie. Migracje `accounts.0036`/`0037` i `tenancy.0013` są
+odwracalne (nowe tabele i kolumny nullowalne albo z wartością domyślną).
