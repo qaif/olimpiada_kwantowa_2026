@@ -589,3 +589,175 @@ msgstr "Registro deshecho."
 #, python-format
 msgid "Odhaczono: %(name)s."
 msgstr "Registrado: %(name)s."
+
+# --- VISA-01: wnioski o listy zapraszające, weryfikacja ---
+#: templates/delegation_logistics/leader_letters.html
+msgid "Osoby, które potrzebują wizy, dostają od organizatora imienny list zapraszający w PDF. Zaznacz osoby, wybierz język listu i złóż wniosek – po decyzji organizatora dostaniesz e-mail. List ma kod weryfikacyjny, który konsulat sprawdza na stronie organizatora."
+msgstr "Las personas que necesitan visado reciben del organizador una carta de invitación nominativa en PDF. Seleccione a las personas, elija el idioma de la carta y envíe la solicitud: recibirá un correo electrónico cuando el organizador decida. La carta lleva un código de verificación que el consulado comprueba en el sitio web del organizador."
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "Wniosek można złożyć dla osoby z kompletnymi danymi dokumentu podróży (imię i nazwisko jak w paszporcie, obywatelstwo, data urodzenia, numer i ważność paszportu)."
+msgstr "Solo se puede solicitar para personas con los datos del documento de viaje completos (nombre completo como en el pasaporte, nacionalidad, fecha de nacimiento, número y validez del pasaporte)."
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "Zaznacz"
+msgstr "Seleccionar"
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "Wniosek"
+msgstr "Solicitud"
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "Ważny list"
+msgstr "Carta válida"
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "uzupełnij"
+msgstr "completar"
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "Powód:"
+msgstr "Motivo:"
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "Wycofaj"
+msgstr "Retirar"
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "Język listu"
+msgstr "Idioma de la carta"
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "Poproś o list dla zaznaczonych"
+msgstr "Solicitar carta para las personas seleccionadas"
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "Wszystkie listy delegacji"
+msgstr "Todas las cartas de la delegación"
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "unieważniony"
+msgstr "revocada"
+
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "Poproś o list zapraszający"
+msgstr "Solicitar carta de invitación"
+
+#: templates/delegation_logistics/verify.html
+msgid "Weryfikacja listu zapraszającego"
+msgstr "Verificación de la carta de invitación"
+
+#: templates/delegation_logistics/verify.html
+msgid "Kod z listu:"
+msgstr "Código de la carta:"
+
+#: templates/delegation_logistics/verify.html
+msgid "List o tym kodzie został wystawiony przez organizatora i jest ważny."
+msgstr "La carta con este código fue expedida por el organizador y es válida."
+
+#: templates/delegation_logistics/verify.html
+#, python-format
+msgid "List o tym kodzie został wystawiony przez organizatora, ale <strong>unieważniony</strong> %(day)s. Nie stanowi zaproszenia."
+msgstr "La carta con este código fue expedida por el organizador, pero <strong>revocada</strong> el %(day)s. No constituye una invitación."
+
+#: templates/delegation_logistics/verify.html
+msgid "Numer listu"
+msgstr "Número de la carta"
+
+#: templates/delegation_logistics/verify.html
+msgid "Osoby zaproszone"
+msgstr "Personas invitadas"
+
+#: templates/delegation_logistics/verify.html
+msgid "Dane osób z tego listu zostały usunięte po zakończeniu wydarzenia (ochrona danych osobowych)."
+msgstr "Los datos personales de esta carta se eliminaron tras el evento (protección de datos)."
+
+#: templates/delegation_logistics/verify.html
+#, python-format
+msgid "obywatelstwo: %(country)s"
+msgstr "nacionalidad: %(country)s"
+
+#: templates/delegation_logistics/verify.html
+msgid "Strona nie pokazuje numerów paszportów ani innych danych z dokumentów podróży. Porównaj imię i nazwisko z paszportem osoby, która przedstawia list."
+msgstr "Esta página no muestra números de pasaporte ni otros datos de documentos de viaje. Compare el nombre con el pasaporte de la persona que presenta la carta."
+
+#: templates/delegation_logistics/verify.html
+msgid "Nie mamy listu o takim kodzie."
+msgstr "No tenemos ninguna carta con este código."
+
+#: templates/delegation_logistics/verify.html
+msgid "Kod weryfikacyjny z listu"
+msgstr "Código de verificación de la carta"
+
+#: templates/delegation_logistics/verify.html
+msgid "Sprawdź"
+msgstr "Comprobar"
+
+#: templates/delegation_logistics/email/letter_decision_subject.txt
+#, python-format
+msgid "Decyzja w sprawie listów zapraszających – %(competition)s"
+msgstr "Decisión sobre las cartas de invitación – %(competition)s"
+
+#: templates/delegation_logistics/email/letter_decision_body.txt
+#, python-format
+msgid "organizator rozpatrzył wnioski o listy zapraszające delegacji %(country)s."
+msgstr "el organizador ha resuelto las solicitudes de cartas de invitación de la delegación de %(country)s."
+
+#: templates/delegation_logistics/email/letter_decision_body.txt
+msgid "Zatwierdzone – list jest gotowy do pobrania:"
+msgstr "Aprobadas: la carta está lista para descargar:"
+
+#: templates/delegation_logistics/email/letter_decision_body.txt
+msgid "Odrzucone:"
+msgstr "Rechazadas:"
+
+#: templates/delegation_logistics/email/letter_decision_body.txt
+msgid "Po poprawieniu danych możesz złożyć nowy wniosek."
+msgstr "Tras corregir los datos puede enviar una nueva solicitud."
+
+#: templates/delegation_logistics/email/letter_decision_body.txt
+msgid "Listy pobierzesz w panelu opiekuna drużyny:"
+msgstr "Descargue las cartas en el panel del jefe de equipo:"
+
+#: letter_requests.py
+msgid "Zaznacz co najmniej jedną osobę."
+msgstr "Seleccione al menos una persona."
+
+#: letter_requests.py
+#, python-format
+msgid "Uzupełnij dane dokumentu podróży: %(names)s."
+msgstr "Complete los datos del documento de viaje: %(names)s."
+
+#: letter_requests.py
+msgid "Ten wniosek został już rozpatrzony."
+msgstr "Esta solicitud ya ha sido resuelta."
+
+#: views_letters.py
+#, python-format
+msgid "Złożone wnioski o listy zapraszające: %(count)d."
+msgstr "Solicitudes de cartas de invitación enviadas: %(count)d."
+
+#: views_letters.py
+#, python-format
+msgid "Pominięto osoby, które mają już wniosek oczekujący na decyzję: %(count)d."
+msgstr "Se omitieron personas que ya tienen una solicitud pendiente de decisión: %(count)d."
+
+#: views_letters.py
+msgid "Wniosek został wycofany."
+msgstr "La solicitud ha sido retirada."
+
+#: models.py
+msgid "oczekuje na decyzję"
+msgstr "pendiente de decisión"
+
+#: models.py
+msgid "zatwierdzony – list wystawiony"
+msgstr "aprobada: carta expedida"
+
+#: models.py
+msgid "odrzucony"
+msgstr "rechazada"
+
+#: models.py
+msgid "wycofany"
+msgstr "retirada"

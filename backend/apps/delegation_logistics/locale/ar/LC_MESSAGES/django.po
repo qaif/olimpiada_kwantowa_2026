@@ -589,3 +589,175 @@ msgstr "أُلغي تسجيل الحضور."
 #, python-format
 msgid "Odhaczono: %(name)s."
 msgstr "تم تسجيل الحضور: %(name)s."
+
+# --- VISA-01: wnioski o listy zapraszające, weryfikacja ---
+#: templates/delegation_logistics/leader_letters.html
+msgid "Osoby, które potrzebują wizy, dostają od organizatora imienny list zapraszający w PDF. Zaznacz osoby, wybierz język listu i złóż wniosek – po decyzji organizatora dostaniesz e-mail. List ma kod weryfikacyjny, który konsulat sprawdza na stronie organizatora."
+msgstr "يحصل الأشخاص الذين يحتاجون إلى تأشيرة على رسالة دعوة شخصية بصيغة PDF من الجهة المنظمة. اختر الأشخاص ولغة الرسالة وقدّم الطلب – ستصلك رسالة بريد إلكتروني بعد قرار الجهة المنظمة. تحمل الرسالة رمز تحقق تتحقق منه القنصلية على موقع الجهة المنظمة."
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "Wniosek można złożyć dla osoby z kompletnymi danymi dokumentu podróży (imię i nazwisko jak w paszporcie, obywatelstwo, data urodzenia, numer i ważność paszportu)."
+msgstr "لا يمكن تقديم الطلب إلا لشخص بيانات وثيقة سفره مكتملة (الاسم الكامل كما في جواز السفر، الجنسية، تاريخ الميلاد، رقم الجواز وتاريخ انتهائه)."
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "Zaznacz"
+msgstr "تحديد"
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "Wniosek"
+msgstr "الطلب"
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "Ważny list"
+msgstr "رسالة سارية"
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "uzupełnij"
+msgstr "أكمِل"
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "Powód:"
+msgstr "السبب:"
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "Wycofaj"
+msgstr "سحب"
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "Język listu"
+msgstr "لغة الرسالة"
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "Poproś o list dla zaznaczonych"
+msgstr "طلب رسالة للأشخاص المحددين"
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "Wszystkie listy delegacji"
+msgstr "جميع رسائل الوفد"
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "unieważniony"
+msgstr "ملغاة"
+
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "Poproś o list zapraszający"
+msgstr "طلب رسالة دعوة"
+
+#: templates/delegation_logistics/verify.html
+msgid "Weryfikacja listu zapraszającego"
+msgstr "التحقق من رسالة الدعوة"
+
+#: templates/delegation_logistics/verify.html
+msgid "Kod z listu:"
+msgstr "الرمز من الرسالة:"
+
+#: templates/delegation_logistics/verify.html
+msgid "List o tym kodzie został wystawiony przez organizatora i jest ważny."
+msgstr "صدرت رسالة بهذا الرمز عن الجهة المنظمة وهي سارية."
+
+#: templates/delegation_logistics/verify.html
+#, python-format
+msgid "List o tym kodzie został wystawiony przez organizatora, ale <strong>unieważniony</strong> %(day)s. Nie stanowi zaproszenia."
+msgstr "صدرت رسالة بهذا الرمز عن الجهة المنظمة لكنها <strong>أُلغيت</strong> في %(day)s. ولا تُعدّ دعوة."
+
+#: templates/delegation_logistics/verify.html
+msgid "Numer listu"
+msgstr "رقم الرسالة"
+
+#: templates/delegation_logistics/verify.html
+msgid "Osoby zaproszone"
+msgstr "الأشخاص المدعوون"
+
+#: templates/delegation_logistics/verify.html
+msgid "Dane osób z tego listu zostały usunięte po zakończeniu wydarzenia (ochrona danych osobowych)."
+msgstr "حُذفت البيانات الشخصية الواردة في هذه الرسالة بعد انتهاء الحدث (حماية البيانات)."
+
+#: templates/delegation_logistics/verify.html
+#, python-format
+msgid "obywatelstwo: %(country)s"
+msgstr "الجنسية: %(country)s"
+
+#: templates/delegation_logistics/verify.html
+msgid "Strona nie pokazuje numerów paszportów ani innych danych z dokumentów podróży. Porównaj imię i nazwisko z paszportem osoby, która przedstawia list."
+msgstr "لا تعرض هذه الصفحة أرقام جوازات السفر ولا غيرها من بيانات وثائق السفر. قارن الاسم بجواز سفر الشخص الذي يقدّم الرسالة."
+
+#: templates/delegation_logistics/verify.html
+msgid "Nie mamy listu o takim kodzie."
+msgstr "لا توجد لدينا رسالة بهذا الرمز."
+
+#: templates/delegation_logistics/verify.html
+msgid "Kod weryfikacyjny z listu"
+msgstr "رمز التحقق من الرسالة"
+
+#: templates/delegation_logistics/verify.html
+msgid "Sprawdź"
+msgstr "تحقّق"
+
+#: templates/delegation_logistics/email/letter_decision_subject.txt
+#, python-format
+msgid "Decyzja w sprawie listów zapraszających – %(competition)s"
+msgstr "قرار بشأن رسائل الدعوة – %(competition)s"
+
+#: templates/delegation_logistics/email/letter_decision_body.txt
+#, python-format
+msgid "organizator rozpatrzył wnioski o listy zapraszające delegacji %(country)s."
+msgstr "بتّت الجهة المنظمة في طلبات رسائل الدعوة الخاصة بوفد %(country)s."
+
+#: templates/delegation_logistics/email/letter_decision_body.txt
+msgid "Zatwierdzone – list jest gotowy do pobrania:"
+msgstr "تمت الموافقة – الرسالة جاهزة للتنزيل:"
+
+#: templates/delegation_logistics/email/letter_decision_body.txt
+msgid "Odrzucone:"
+msgstr "مرفوضة:"
+
+#: templates/delegation_logistics/email/letter_decision_body.txt
+msgid "Po poprawieniu danych możesz złożyć nowy wniosek."
+msgstr "بعد تصحيح البيانات يمكنك تقديم طلب جديد."
+
+#: templates/delegation_logistics/email/letter_decision_body.txt
+msgid "Listy pobierzesz w panelu opiekuna drużyny:"
+msgstr "نزّل الرسائل من لوحة قائد الفريق:"
+
+#: letter_requests.py
+msgid "Zaznacz co najmniej jedną osobę."
+msgstr "حدّد شخصًا واحدًا على الأقل."
+
+#: letter_requests.py
+#, python-format
+msgid "Uzupełnij dane dokumentu podróży: %(names)s."
+msgstr "أكمِل بيانات وثيقة السفر: %(names)s."
+
+#: letter_requests.py
+msgid "Ten wniosek został już rozpatrzony."
+msgstr "تم البت في هذا الطلب بالفعل."
+
+#: views_letters.py
+#, python-format
+msgid "Złożone wnioski o listy zapraszające: %(count)d."
+msgstr "طلبات رسائل الدعوة المقدّمة: %(count)d."
+
+#: views_letters.py
+#, python-format
+msgid "Pominięto osoby, które mają już wniosek oczekujący na decyzję: %(count)d."
+msgstr "تم تخطي الأشخاص الذين لديهم طلب بانتظار القرار: %(count)d."
+
+#: views_letters.py
+msgid "Wniosek został wycofany."
+msgstr "تم سحب الطلب."
+
+#: models.py
+msgid "oczekuje na decyzję"
+msgstr "بانتظار القرار"
+
+#: models.py
+msgid "zatwierdzony – list wystawiony"
+msgstr "تمت الموافقة – صدرت الرسالة"
+
+#: models.py
+msgid "odrzucony"
+msgstr "مرفوض"
+
+#: models.py
+msgid "wycofany"
+msgstr "مسحوب"

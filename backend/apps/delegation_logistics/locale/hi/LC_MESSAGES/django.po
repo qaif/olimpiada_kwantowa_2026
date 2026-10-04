@@ -589,3 +589,175 @@ msgstr "चेक-इन पूर्ववत किया गया।"
 #, python-format
 msgid "Odhaczono: %(name)s."
 msgstr "चेक-इन हुआ: %(name)s।"
+
+# --- VISA-01: wnioski o listy zapraszające, weryfikacja ---
+#: templates/delegation_logistics/leader_letters.html
+msgid "Osoby, które potrzebują wizy, dostają od organizatora imienny list zapraszający w PDF. Zaznacz osoby, wybierz język listu i złóż wniosek – po decyzji organizatora dostaniesz e-mail. List ma kod weryfikacyjny, który konsulat sprawdza na stronie organizatora."
+msgstr "जिन लोगों को वीज़ा की आवश्यकता है, उन्हें आयोजक से PDF में व्यक्तिगत आमंत्रण पत्र मिलता है। लोगों को चुनें, पत्र की भाषा चुनें और अनुरोध भेजें – आयोजक के निर्णय के बाद आपको ई-मेल मिलेगा। पत्र में एक सत्यापन कोड होता है जिसे वाणिज्य दूतावास आयोजक की वेबसाइट पर जाँचता है।"
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "Wniosek można złożyć dla osoby z kompletnymi danymi dokumentu podróży (imię i nazwisko jak w paszporcie, obywatelstwo, data urodzenia, numer i ważność paszportu)."
+msgstr "अनुरोध केवल उस व्यक्ति के लिए भेजा जा सकता है जिसका यात्रा दस्तावेज़ विवरण पूरा हो (पासपोर्ट के अनुसार पूरा नाम, राष्ट्रीयता, जन्म तिथि, पासपोर्ट संख्या और वैधता)।"
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "Zaznacz"
+msgstr "चुनें"
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "Wniosek"
+msgstr "अनुरोध"
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "Ważny list"
+msgstr "मान्य पत्र"
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "uzupełnij"
+msgstr "पूरा करें"
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "Powód:"
+msgstr "कारण:"
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "Wycofaj"
+msgstr "वापस लें"
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "Język listu"
+msgstr "पत्र की भाषा"
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "Poproś o list dla zaznaczonych"
+msgstr "चुने गए लोगों के लिए पत्र का अनुरोध करें"
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "Wszystkie listy delegacji"
+msgstr "प्रतिनिधिमंडल के सभी पत्र"
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "unieważniony"
+msgstr "रद्द"
+
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "Poproś o list zapraszający"
+msgstr "आमंत्रण पत्र का अनुरोध करें"
+
+#: templates/delegation_logistics/verify.html
+msgid "Weryfikacja listu zapraszającego"
+msgstr "आमंत्रण पत्र सत्यापन"
+
+#: templates/delegation_logistics/verify.html
+msgid "Kod z listu:"
+msgstr "पत्र पर दिया कोड:"
+
+#: templates/delegation_logistics/verify.html
+msgid "List o tym kodzie został wystawiony przez organizatora i jest ważny."
+msgstr "इस कोड वाला पत्र आयोजक द्वारा जारी किया गया है और मान्य है।"
+
+#: templates/delegation_logistics/verify.html
+#, python-format
+msgid "List o tym kodzie został wystawiony przez organizatora, ale <strong>unieważniony</strong> %(day)s. Nie stanowi zaproszenia."
+msgstr "इस कोड वाला पत्र आयोजक द्वारा जारी किया गया था, लेकिन %(day)s को <strong>रद्द</strong> कर दिया गया। यह आमंत्रण नहीं है।"
+
+#: templates/delegation_logistics/verify.html
+msgid "Numer listu"
+msgstr "पत्र संख्या"
+
+#: templates/delegation_logistics/verify.html
+msgid "Osoby zaproszone"
+msgstr "आमंत्रित व्यक्ति"
+
+#: templates/delegation_logistics/verify.html
+msgid "Dane osób z tego listu zostały usunięte po zakończeniu wydarzenia (ochrona danych osobowych)."
+msgstr "कार्यक्रम समाप्त होने के बाद इस पत्र के व्यक्तियों का डेटा हटा दिया गया (डेटा संरक्षण)।"
+
+#: templates/delegation_logistics/verify.html
+#, python-format
+msgid "obywatelstwo: %(country)s"
+msgstr "राष्ट्रीयता: %(country)s"
+
+#: templates/delegation_logistics/verify.html
+msgid "Strona nie pokazuje numerów paszportów ani innych danych z dokumentów podróży. Porównaj imię i nazwisko z paszportem osoby, która przedstawia list."
+msgstr "यह पृष्ठ पासपोर्ट संख्या या यात्रा दस्तावेज़ का अन्य डेटा नहीं दिखाता। पत्र प्रस्तुत करने वाले व्यक्ति के पासपोर्ट से नाम मिलाएँ।"
+
+#: templates/delegation_logistics/verify.html
+msgid "Nie mamy listu o takim kodzie."
+msgstr "इस कोड वाला कोई पत्र हमारे पास नहीं है।"
+
+#: templates/delegation_logistics/verify.html
+msgid "Kod weryfikacyjny z listu"
+msgstr "पत्र पर दिया सत्यापन कोड"
+
+#: templates/delegation_logistics/verify.html
+msgid "Sprawdź"
+msgstr "जाँचें"
+
+#: templates/delegation_logistics/email/letter_decision_subject.txt
+#, python-format
+msgid "Decyzja w sprawie listów zapraszających – %(competition)s"
+msgstr "आमंत्रण पत्रों पर निर्णय – %(competition)s"
+
+#: templates/delegation_logistics/email/letter_decision_body.txt
+#, python-format
+msgid "organizator rozpatrzył wnioski o listy zapraszające delegacji %(country)s."
+msgstr "आयोजक ने %(country)s प्रतिनिधिमंडल के आमंत्रण पत्र अनुरोधों पर निर्णय लिया है।"
+
+#: templates/delegation_logistics/email/letter_decision_body.txt
+msgid "Zatwierdzone – list jest gotowy do pobrania:"
+msgstr "स्वीकृत – पत्र डाउनलोड के लिए तैयार है:"
+
+#: templates/delegation_logistics/email/letter_decision_body.txt
+msgid "Odrzucone:"
+msgstr "अस्वीकृत:"
+
+#: templates/delegation_logistics/email/letter_decision_body.txt
+msgid "Po poprawieniu danych możesz złożyć nowy wniosek."
+msgstr "डेटा सुधारने के बाद आप नया अनुरोध भेज सकते हैं।"
+
+#: templates/delegation_logistics/email/letter_decision_body.txt
+msgid "Listy pobierzesz w panelu opiekuna drużyny:"
+msgstr "पत्र टीम लीडर पैनल में डाउनलोड करें:"
+
+#: letter_requests.py
+msgid "Zaznacz co najmniej jedną osobę."
+msgstr "कम से कम एक व्यक्ति चुनें।"
+
+#: letter_requests.py
+#, python-format
+msgid "Uzupełnij dane dokumentu podróży: %(names)s."
+msgstr "यात्रा दस्तावेज़ का विवरण पूरा करें: %(names)s।"
+
+#: letter_requests.py
+msgid "Ten wniosek został już rozpatrzony."
+msgstr "इस अनुरोध पर पहले ही निर्णय हो चुका है।"
+
+#: views_letters.py
+#, python-format
+msgid "Złożone wnioski o listy zapraszające: %(count)d."
+msgstr "भेजे गए आमंत्रण पत्र अनुरोध: %(count)d।"
+
+#: views_letters.py
+#, python-format
+msgid "Pominięto osoby, które mają już wniosek oczekujący na decyzję: %(count)d."
+msgstr "जिन लोगों का अनुरोध पहले से निर्णय की प्रतीक्षा में है, उन्हें छोड़ा गया: %(count)d।"
+
+#: views_letters.py
+msgid "Wniosek został wycofany."
+msgstr "अनुरोध वापस ले लिया गया है।"
+
+#: models.py
+msgid "oczekuje na decyzję"
+msgstr "निर्णय की प्रतीक्षा"
+
+#: models.py
+msgid "zatwierdzony – list wystawiony"
+msgstr "स्वीकृत – पत्र जारी"
+
+#: models.py
+msgid "odrzucony"
+msgstr "अस्वीकृत"
+
+#: models.py
+msgid "wycofany"
+msgstr "वापस लिया गया"

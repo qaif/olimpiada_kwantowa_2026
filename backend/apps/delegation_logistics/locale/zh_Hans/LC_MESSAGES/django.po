@@ -589,3 +589,175 @@ msgstr "已撤销签到。"
 #, python-format
 msgid "Odhaczono: %(name)s."
 msgstr "已签到：%(name)s。"
+
+# --- VISA-01: wnioski o listy zapraszające, weryfikacja ---
+#: templates/delegation_logistics/leader_letters.html
+msgid "Osoby, które potrzebują wizy, dostają od organizatora imienny list zapraszający w PDF. Zaznacz osoby, wybierz język listu i złóż wniosek – po decyzji organizatora dostaniesz e-mail. List ma kod weryfikacyjny, który konsulat sprawdza na stronie organizatora."
+msgstr "需要签证的人员将收到组织方出具的 PDF 格式个人邀请函。请选择人员和邀请函语言并提交申请——组织方作出决定后您将收到电子邮件。邀请函附有验证码，领事馆可在组织方网站上核验。"
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "Wniosek można złożyć dla osoby z kompletnymi danymi dokumentu podróży (imię i nazwisko jak w paszporcie, obywatelstwo, data urodzenia, numer i ważność paszportu)."
+msgstr "只能为旅行证件信息完整的人员提交申请（护照上的全名、国籍、出生日期、护照号码和有效期）。"
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "Zaznacz"
+msgstr "选择"
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "Wniosek"
+msgstr "申请"
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "Ważny list"
+msgstr "有效邀请函"
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "uzupełnij"
+msgstr "去补全"
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "Powód:"
+msgstr "原因："
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "Wycofaj"
+msgstr "撤回"
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "Język listu"
+msgstr "邀请函语言"
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "Poproś o list dla zaznaczonych"
+msgstr "为所选人员申请邀请函"
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "Wszystkie listy delegacji"
+msgstr "代表团的全部邀请函"
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "unieważniony"
+msgstr "已撤销"
+
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "Poproś o list zapraszający"
+msgstr "申请邀请函"
+
+#: templates/delegation_logistics/verify.html
+msgid "Weryfikacja listu zapraszającego"
+msgstr "邀请函验证"
+
+#: templates/delegation_logistics/verify.html
+msgid "Kod z listu:"
+msgstr "邀请函上的代码："
+
+#: templates/delegation_logistics/verify.html
+msgid "List o tym kodzie został wystawiony przez organizatora i jest ważny."
+msgstr "带有此代码的邀请函由组织方出具，且有效。"
+
+#: templates/delegation_logistics/verify.html
+#, python-format
+msgid "List o tym kodzie został wystawiony przez organizatora, ale <strong>unieważniony</strong> %(day)s. Nie stanowi zaproszenia."
+msgstr "带有此代码的邀请函由组织方出具，但已于 %(day)s <strong>撤销</strong>。它不构成邀请。"
+
+#: templates/delegation_logistics/verify.html
+msgid "Numer listu"
+msgstr "邀请函编号"
+
+#: templates/delegation_logistics/verify.html
+msgid "Osoby zaproszone"
+msgstr "受邀人员"
+
+#: templates/delegation_logistics/verify.html
+msgid "Dane osób z tego listu zostały usunięte po zakończeniu wydarzenia (ochrona danych osobowych)."
+msgstr "活动结束后，此邀请函中的个人数据已被删除（个人数据保护）。"
+
+#: templates/delegation_logistics/verify.html
+#, python-format
+msgid "obywatelstwo: %(country)s"
+msgstr "国籍：%(country)s"
+
+#: templates/delegation_logistics/verify.html
+msgid "Strona nie pokazuje numerów paszportów ani innych danych z dokumentów podróży. Porównaj imię i nazwisko z paszportem osoby, która przedstawia list."
+msgstr "本页面不显示护照号码或其他旅行证件信息。请将姓名与出示邀请函人员的护照进行核对。"
+
+#: templates/delegation_logistics/verify.html
+msgid "Nie mamy listu o takim kodzie."
+msgstr "没有带此代码的邀请函。"
+
+#: templates/delegation_logistics/verify.html
+msgid "Kod weryfikacyjny z listu"
+msgstr "邀请函上的验证码"
+
+#: templates/delegation_logistics/verify.html
+msgid "Sprawdź"
+msgstr "核验"
+
+#: templates/delegation_logistics/email/letter_decision_subject.txt
+#, python-format
+msgid "Decyzja w sprawie listów zapraszających – %(competition)s"
+msgstr "邀请函申请决定 – %(competition)s"
+
+#: templates/delegation_logistics/email/letter_decision_body.txt
+#, python-format
+msgid "organizator rozpatrzył wnioski o listy zapraszające delegacji %(country)s."
+msgstr "组织方已处理 %(country)s 代表团的邀请函申请。"
+
+#: templates/delegation_logistics/email/letter_decision_body.txt
+msgid "Zatwierdzone – list jest gotowy do pobrania:"
+msgstr "已批准——邀请函可供下载："
+
+#: templates/delegation_logistics/email/letter_decision_body.txt
+msgid "Odrzucone:"
+msgstr "已拒绝："
+
+#: templates/delegation_logistics/email/letter_decision_body.txt
+msgid "Po poprawieniu danych możesz złożyć nowy wniosek."
+msgstr "更正数据后，您可以重新提交申请。"
+
+#: templates/delegation_logistics/email/letter_decision_body.txt
+msgid "Listy pobierzesz w panelu opiekuna drużyny:"
+msgstr "请在领队面板中下载邀请函："
+
+#: letter_requests.py
+msgid "Zaznacz co najmniej jedną osobę."
+msgstr "请至少选择一人。"
+
+#: letter_requests.py
+#, python-format
+msgid "Uzupełnij dane dokumentu podróży: %(names)s."
+msgstr "请补全旅行证件信息：%(names)s。"
+
+#: letter_requests.py
+msgid "Ten wniosek został już rozpatrzony."
+msgstr "该申请已处理。"
+
+#: views_letters.py
+#, python-format
+msgid "Złożone wnioski o listy zapraszające: %(count)d."
+msgstr "已提交的邀请函申请：%(count)d。"
+
+#: views_letters.py
+#, python-format
+msgid "Pominięto osoby, które mają już wniosek oczekujący na decyzję: %(count)d."
+msgstr "已跳过已有待决申请的人员：%(count)d。"
+
+#: views_letters.py
+msgid "Wniosek został wycofany."
+msgstr "申请已撤回。"
+
+#: models.py
+msgid "oczekuje na decyzję"
+msgstr "待决定"
+
+#: models.py
+msgid "zatwierdzony – list wystawiony"
+msgstr "已批准——邀请函已出具"
+
+#: models.py
+msgid "odrzucony"
+msgstr "已拒绝"
+
+#: models.py
+msgid "wycofany"
+msgstr "已撤回"

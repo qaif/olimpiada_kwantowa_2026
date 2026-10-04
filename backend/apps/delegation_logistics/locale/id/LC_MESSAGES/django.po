@@ -589,3 +589,175 @@ msgstr "Pencatatan dibatalkan."
 #, python-format
 msgid "Odhaczono: %(name)s."
 msgstr "Tercatat: %(name)s."
+
+# --- VISA-01: wnioski o listy zapraszające, weryfikacja ---
+#: templates/delegation_logistics/leader_letters.html
+msgid "Osoby, które potrzebują wizy, dostają od organizatora imienny list zapraszający w PDF. Zaznacz osoby, wybierz język listu i złóż wniosek – po decyzji organizatora dostaniesz e-mail. List ma kod weryfikacyjny, który konsulat sprawdza na stronie organizatora."
+msgstr "Orang yang memerlukan visa menerima surat undangan pribadi dalam PDF dari penyelenggara. Pilih orangnya, pilih bahasa surat, lalu ajukan permintaan – Anda akan menerima e-mail setelah penyelenggara memutuskan. Surat memuat kode verifikasi yang diperiksa konsulat di situs penyelenggara."
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "Wniosek można złożyć dla osoby z kompletnymi danymi dokumentu podróży (imię i nazwisko jak w paszporcie, obywatelstwo, data urodzenia, numer i ważność paszportu)."
+msgstr "Permintaan dapat diajukan untuk orang dengan data dokumen perjalanan lengkap (nama lengkap sesuai paspor, kewarganegaraan, tanggal lahir, nomor dan masa berlaku paspor)."
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "Zaznacz"
+msgstr "Pilih"
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "Wniosek"
+msgstr "Permintaan"
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "Ważny list"
+msgstr "Surat berlaku"
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "uzupełnij"
+msgstr "lengkapi"
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "Powód:"
+msgstr "Alasan:"
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "Wycofaj"
+msgstr "Tarik"
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "Język listu"
+msgstr "Bahasa surat"
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "Poproś o list dla zaznaczonych"
+msgstr "Minta surat untuk orang yang dipilih"
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "Wszystkie listy delegacji"
+msgstr "Semua surat delegasi"
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "unieważniony"
+msgstr "dicabut"
+
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "Poproś o list zapraszający"
+msgstr "Minta surat undangan"
+
+#: templates/delegation_logistics/verify.html
+msgid "Weryfikacja listu zapraszającego"
+msgstr "Verifikasi surat undangan"
+
+#: templates/delegation_logistics/verify.html
+msgid "Kod z listu:"
+msgstr "Kode dari surat:"
+
+#: templates/delegation_logistics/verify.html
+msgid "List o tym kodzie został wystawiony przez organizatora i jest ważny."
+msgstr "Surat dengan kode ini diterbitkan oleh penyelenggara dan berlaku."
+
+#: templates/delegation_logistics/verify.html
+#, python-format
+msgid "List o tym kodzie został wystawiony przez organizatora, ale <strong>unieważniony</strong> %(day)s. Nie stanowi zaproszenia."
+msgstr "Surat dengan kode ini diterbitkan oleh penyelenggara, tetapi <strong>dicabut</strong> pada %(day)s. Surat ini bukan undangan."
+
+#: templates/delegation_logistics/verify.html
+msgid "Numer listu"
+msgstr "Nomor surat"
+
+#: templates/delegation_logistics/verify.html
+msgid "Osoby zaproszone"
+msgstr "Orang yang diundang"
+
+#: templates/delegation_logistics/verify.html
+msgid "Dane osób z tego listu zostały usunięte po zakończeniu wydarzenia (ochrona danych osobowych)."
+msgstr "Data pribadi dalam surat ini telah dihapus setelah acara berakhir (perlindungan data)."
+
+#: templates/delegation_logistics/verify.html
+#, python-format
+msgid "obywatelstwo: %(country)s"
+msgstr "kewarganegaraan: %(country)s"
+
+#: templates/delegation_logistics/verify.html
+msgid "Strona nie pokazuje numerów paszportów ani innych danych z dokumentów podróży. Porównaj imię i nazwisko z paszportem osoby, która przedstawia list."
+msgstr "Halaman ini tidak menampilkan nomor paspor atau data dokumen perjalanan lainnya. Cocokkan nama dengan paspor orang yang menunjukkan surat."
+
+#: templates/delegation_logistics/verify.html
+msgid "Nie mamy listu o takim kodzie."
+msgstr "Kami tidak memiliki surat dengan kode ini."
+
+#: templates/delegation_logistics/verify.html
+msgid "Kod weryfikacyjny z listu"
+msgstr "Kode verifikasi dari surat"
+
+#: templates/delegation_logistics/verify.html
+msgid "Sprawdź"
+msgstr "Periksa"
+
+#: templates/delegation_logistics/email/letter_decision_subject.txt
+#, python-format
+msgid "Decyzja w sprawie listów zapraszających – %(competition)s"
+msgstr "Keputusan tentang surat undangan – %(competition)s"
+
+#: templates/delegation_logistics/email/letter_decision_body.txt
+#, python-format
+msgid "organizator rozpatrzył wnioski o listy zapraszające delegacji %(country)s."
+msgstr "penyelenggara telah memutuskan permintaan surat undangan delegasi %(country)s."
+
+#: templates/delegation_logistics/email/letter_decision_body.txt
+msgid "Zatwierdzone – list jest gotowy do pobrania:"
+msgstr "Disetujui – surat siap diunduh:"
+
+#: templates/delegation_logistics/email/letter_decision_body.txt
+msgid "Odrzucone:"
+msgstr "Ditolak:"
+
+#: templates/delegation_logistics/email/letter_decision_body.txt
+msgid "Po poprawieniu danych możesz złożyć nowy wniosek."
+msgstr "Setelah memperbaiki data, Anda dapat mengajukan permintaan baru."
+
+#: templates/delegation_logistics/email/letter_decision_body.txt
+msgid "Listy pobierzesz w panelu opiekuna drużyny:"
+msgstr "Unduh surat di panel ketua tim:"
+
+#: letter_requests.py
+msgid "Zaznacz co najmniej jedną osobę."
+msgstr "Pilih setidaknya satu orang."
+
+#: letter_requests.py
+#, python-format
+msgid "Uzupełnij dane dokumentu podróży: %(names)s."
+msgstr "Lengkapi data dokumen perjalanan: %(names)s."
+
+#: letter_requests.py
+msgid "Ten wniosek został już rozpatrzony."
+msgstr "Permintaan ini sudah diputuskan."
+
+#: views_letters.py
+#, python-format
+msgid "Złożone wnioski o listy zapraszające: %(count)d."
+msgstr "Permintaan surat undangan yang diajukan: %(count)d."
+
+#: views_letters.py
+#, python-format
+msgid "Pominięto osoby, które mają już wniosek oczekujący na decyzję: %(count)d."
+msgstr "Dilewati orang yang sudah memiliki permintaan yang menunggu keputusan: %(count)d."
+
+#: views_letters.py
+msgid "Wniosek został wycofany."
+msgstr "Permintaan telah ditarik."
+
+#: models.py
+msgid "oczekuje na decyzję"
+msgstr "menunggu keputusan"
+
+#: models.py
+msgid "zatwierdzony – list wystawiony"
+msgstr "disetujui – surat diterbitkan"
+
+#: models.py
+msgid "odrzucony"
+msgstr "ditolak"
+
+#: models.py
+msgid "wycofany"
+msgstr "ditarik"

@@ -589,3 +589,175 @@ msgstr "Отметка отменена."
 #, python-format
 msgid "Odhaczono: %(name)s."
 msgstr "Отмечен: %(name)s."
+
+# --- VISA-01: wnioski o listy zapraszające, weryfikacja ---
+#: templates/delegation_logistics/leader_letters.html
+msgid "Osoby, które potrzebują wizy, dostają od organizatora imienny list zapraszający w PDF. Zaznacz osoby, wybierz język listu i złóż wniosek – po decyzji organizatora dostaniesz e-mail. List ma kod weryfikacyjny, który konsulat sprawdza na stronie organizatora."
+msgstr "Лица, которым нужна виза, получают от организатора именное письмо-приглашение в формате PDF. Отметьте людей, выберите язык письма и подайте запрос – после решения организатора вы получите письмо по электронной почте. В письме есть код проверки, который консульство сверяет на сайте организатора."
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "Wniosek można złożyć dla osoby z kompletnymi danymi dokumentu podróży (imię i nazwisko jak w paszporcie, obywatelstwo, data urodzenia, numer i ważność paszportu)."
+msgstr "Запрос можно подать для человека с полными данными проездного документа (полное имя как в паспорте, гражданство, дата рождения, номер и срок действия паспорта)."
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "Zaznacz"
+msgstr "Выбрать"
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "Wniosek"
+msgstr "Запрос"
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "Ważny list"
+msgstr "Действующее письмо"
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "uzupełnij"
+msgstr "заполнить"
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "Powód:"
+msgstr "Причина:"
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "Wycofaj"
+msgstr "Отозвать"
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "Język listu"
+msgstr "Язык письма"
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "Poproś o list dla zaznaczonych"
+msgstr "Запросить письмо для отмеченных"
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "Wszystkie listy delegacji"
+msgstr "Все письма делегации"
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "unieważniony"
+msgstr "отозвано"
+
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "Poproś o list zapraszający"
+msgstr "Запросить письмо-приглашение"
+
+#: templates/delegation_logistics/verify.html
+msgid "Weryfikacja listu zapraszającego"
+msgstr "Проверка письма-приглашения"
+
+#: templates/delegation_logistics/verify.html
+msgid "Kod z listu:"
+msgstr "Код из письма:"
+
+#: templates/delegation_logistics/verify.html
+msgid "List o tym kodzie został wystawiony przez organizatora i jest ważny."
+msgstr "Письмо с этим кодом выдано организатором и действительно."
+
+#: templates/delegation_logistics/verify.html
+#, python-format
+msgid "List o tym kodzie został wystawiony przez organizatora, ale <strong>unieważniony</strong> %(day)s. Nie stanowi zaproszenia."
+msgstr "Письмо с этим кодом было выдано организатором, но <strong>отозвано</strong> %(day)s. Оно не является приглашением."
+
+#: templates/delegation_logistics/verify.html
+msgid "Numer listu"
+msgstr "Номер письма"
+
+#: templates/delegation_logistics/verify.html
+msgid "Osoby zaproszone"
+msgstr "Приглашённые лица"
+
+#: templates/delegation_logistics/verify.html
+msgid "Dane osób z tego listu zostały usunięte po zakończeniu wydarzenia (ochrona danych osobowych)."
+msgstr "Персональные данные из этого письма удалены после окончания мероприятия (защита персональных данных)."
+
+#: templates/delegation_logistics/verify.html
+#, python-format
+msgid "obywatelstwo: %(country)s"
+msgstr "гражданство: %(country)s"
+
+#: templates/delegation_logistics/verify.html
+msgid "Strona nie pokazuje numerów paszportów ani innych danych z dokumentów podróży. Porównaj imię i nazwisko z paszportem osoby, która przedstawia list."
+msgstr "На этой странице не показываются номера паспортов и другие данные проездных документов. Сверьте имя с паспортом человека, предъявляющего письмо."
+
+#: templates/delegation_logistics/verify.html
+msgid "Nie mamy listu o takim kodzie."
+msgstr "Письма с таким кодом у нас нет."
+
+#: templates/delegation_logistics/verify.html
+msgid "Kod weryfikacyjny z listu"
+msgstr "Код проверки из письма"
+
+#: templates/delegation_logistics/verify.html
+msgid "Sprawdź"
+msgstr "Проверить"
+
+#: templates/delegation_logistics/email/letter_decision_subject.txt
+#, python-format
+msgid "Decyzja w sprawie listów zapraszających – %(competition)s"
+msgstr "Решение по письмам-приглашениям – %(competition)s"
+
+#: templates/delegation_logistics/email/letter_decision_body.txt
+#, python-format
+msgid "organizator rozpatrzył wnioski o listy zapraszające delegacji %(country)s."
+msgstr "организатор рассмотрел запросы на письма-приглашения делегации %(country)s."
+
+#: templates/delegation_logistics/email/letter_decision_body.txt
+msgid "Zatwierdzone – list jest gotowy do pobrania:"
+msgstr "Одобрено – письмо можно скачать:"
+
+#: templates/delegation_logistics/email/letter_decision_body.txt
+msgid "Odrzucone:"
+msgstr "Отклонено:"
+
+#: templates/delegation_logistics/email/letter_decision_body.txt
+msgid "Po poprawieniu danych możesz złożyć nowy wniosek."
+msgstr "После исправления данных можно подать новый запрос."
+
+#: templates/delegation_logistics/email/letter_decision_body.txt
+msgid "Listy pobierzesz w panelu opiekuna drużyny:"
+msgstr "Скачать письма можно в панели руководителя команды:"
+
+#: letter_requests.py
+msgid "Zaznacz co najmniej jedną osobę."
+msgstr "Отметьте хотя бы одного человека."
+
+#: letter_requests.py
+#, python-format
+msgid "Uzupełnij dane dokumentu podróży: %(names)s."
+msgstr "Заполните данные проездного документа: %(names)s."
+
+#: letter_requests.py
+msgid "Ten wniosek został już rozpatrzony."
+msgstr "Этот запрос уже рассмотрен."
+
+#: views_letters.py
+#, python-format
+msgid "Złożone wnioski o listy zapraszające: %(count)d."
+msgstr "Подано запросов на письма-приглашения: %(count)d."
+
+#: views_letters.py
+#, python-format
+msgid "Pominięto osoby, które mają już wniosek oczekujący na decyzję: %(count)d."
+msgstr "Пропущены люди, у которых уже есть запрос, ожидающий решения: %(count)d."
+
+#: views_letters.py
+msgid "Wniosek został wycofany."
+msgstr "Запрос отозван."
+
+#: models.py
+msgid "oczekuje na decyzję"
+msgstr "ожидает решения"
+
+#: models.py
+msgid "zatwierdzony – list wystawiony"
+msgstr "одобрено – письмо выдано"
+
+#: models.py
+msgid "odrzucony"
+msgstr "отклонён"
+
+#: models.py
+msgid "wycofany"
+msgstr "отозван"
