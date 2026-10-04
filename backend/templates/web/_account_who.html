@@ -1,0 +1,14 @@
+{% load i18n %}{% comment %}
+  Adres zalogowanej osoby w pasku konta – **odnośnik do ustawień konta** (AUTH-01b). Do tej pory był
+  samym tekstem, a recenzent, komisja i opiekunowie nie mieli w nawigacji żadnej drogi do edycji
+  danych, zmiany hasła, adresu e-mail ani 2FA. ``/account/profile/`` przekierowuje uczestnika na
+  jego pełny formularz (``/me/profile/``), więc jeden adres obsługuje każdą rolę.
+
+  Fragment aplikacji, a nie kawałek nagłówka: nagłówek motywu (paczka, kontekst kuratorowany –
+  ``apps.themes.safe_context``) dołącza go ``{% include "web/_account_who.html" %}`` i dostaje
+  gotowy odnośnik bez dostępu do obiektu konta. ``request.user``, a nie ``user``: widok może podać
+  w kontekście własne ``user`` (karta członka komisji podaje konto oglądanej osoby).
+{% endcomment %}{% url 'web:account-profile' as account_settings_url %}
+        <a class="account-bar__who who" href="{{ account_settings_url }}"
+           title="{% blocktranslate trimmed with address=request.user.email %}Ustawienia konta: {{ address }}{% endblocktranslate %}"
+           {% if request.path == account_settings_url %}aria-current="page"{% endif %}>{{ request.user.email }}</a>

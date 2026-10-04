@@ -1,0 +1,90 @@
+# Zmiana hasła w panelu konta (AUTH-01b) – katalog aplikacji apps/password_change.
+msgid ""
+msgstr ""
+"Project-Id-Version: olimpiada\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-04 22:00+0200\n"
+"PO-Revision-Date: 2026-10-04 22:00+0200\n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: fr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=3; plural=(n == 0 || n == 1) ? 0 : n != 0 && n % 1000000 == 0 ? 1 : 2;\n"
+
+msgid "Hasło do konta zostało zmienione – Olimpiada Kwantowa"
+msgstr "Mot de passe du compte modifié – Olympiade quantique"
+
+#, python-format
+msgid "Hasło do konta zostało zmienione – %(competition)s"
+msgstr "Mot de passe du compte modifié – %(competition)s"
+
+#, python-format
+msgid "Hasło do Twojego konta w serwisie %(competition_genitive)s zostało zmienione (%(when)s)."
+msgstr "Le mot de passe de votre compte sur le site de l’%(competition_genitive)s a été modifié (%(when)s)."
+
+msgid "Pozostałe urządzenia, na których było otwarte to konto, zostały wylogowane. Na urządzeniu, na którym zmieniono hasło, sesja trwa dalej."
+msgstr "Tous les autres appareils sur lesquels ce compte était ouvert ont été déconnectés. Sur l’appareil où le mot de passe a été modifié, la session continue."
+
+msgid "Jeśli to nie Ty zmieniłeś hasło, natychmiast ustaw nowe przez formularz „Nie pamiętasz hasła?” i skontaktuj się z organizatorem:"
+msgstr "Si ce n’est pas vous qui avez modifié le mot de passe, définissez-en immédiatement un nouveau via le formulaire « Mot de passe oublié ? » et contactez l’organisateur :"
+
+msgid "To konto nie ma jeszcze hasła – ustaw je linkiem wysłanym na adres konta."
+msgstr "Ce compte n’a pas encore de mot de passe – définissez-le avec le lien envoyé à l’adresse e-mail du compte."
+
+msgid "Nowe hasło musi się różnić od aktualnego."
+msgstr "Le nouveau mot de passe doit être différent de l’actuel."
+
+msgid "Aktualne hasło jest nieprawidłowe."
+msgstr "Le mot de passe actuel est incorrect."
+
+msgid "To konto ma już hasło – zmień je formularzem zmiany hasła."
+msgstr "Ce compte a déjà un mot de passe – modifiez-le avec le formulaire de changement de mot de passe."
+
+msgid "Na to konto nie można teraz wysłać linku – skontaktuj się z organizatorem."
+msgstr "Impossible d’envoyer un lien à ce compte pour le moment – veuillez contacter l’organisateur."
+
+msgid "Co najmniej 10 znaków; nie może być popularnym hasłem, ciągiem samych cyfr ani przypominać Twojego imienia, nazwiska lub adresu e-mail."
+msgstr "Au moins 10 caractères ; il ne doit pas être un mot de passe courant, composé uniquement de chiffres ni ressembler à votre prénom, nom ou adresse e-mail."
+
+msgid "Powtórz nowe hasło"
+msgstr "Répétez le nouveau mot de passe"
+
+msgid "Hasło zostało zmienione. Pozostałe urządzenia zostały wylogowane, a na adres konta wysłaliśmy potwierdzenie."
+msgstr "Le mot de passe a été modifié. Les autres appareils ont été déconnectés et une confirmation a été envoyée à l’adresse e-mail du compte."
+
+msgid "Wysłaliśmy link do ustawienia hasła na adres konta. Link jest ważny 24 godziny."
+msgstr "Nous avons envoyé un lien pour définir le mot de passe à l’adresse e-mail du compte. Le lien est valable 24 heures."
+
+msgid "Zmiana hasła"
+msgstr "Changement de mot de passe"
+
+msgid "Podaj aktualne hasło i dwa razy nowe. Po zmianie pozostaniesz zalogowany na tym urządzeniu, a wszystkie inne urządzenia i aplikacje zostaną wylogowane. Na adres konta wyślemy potwierdzenie."
+msgstr "Saisissez le mot de passe actuel, puis deux fois le nouveau. Après le changement, vous resterez connecté sur cet appareil ; tous les autres appareils et applications seront déconnectés. Nous enverrons une confirmation à l’adresse e-mail du compte."
+
+msgid "Zmień hasło"
+msgstr "Changer le mot de passe"
+
+msgid "Nie pamiętasz aktualnego hasła?"
+msgstr "Vous ne vous souvenez pas du mot de passe actuel ?"
+
+msgid "Ustaw nowe przez link e-mail"
+msgstr "En définir un nouveau via un lien par e-mail"
+
+#, python-format
+msgid "To konto nie ma hasła – logujesz się przez zewnętrznego dostawcę (np. Google). Jeśli chcesz logować się także hasłem, wyślemy link do jego ustawienia na adres konta (<strong>%(address)s</strong>). Dopiero kliknięcie w link potwierdza, że skrzynka należy do Ciebie."
+msgstr "Ce compte n’a pas de mot de passe – vous vous connectez via un fournisseur externe (par ex. Google). Si vous souhaitez aussi vous connecter avec un mot de passe, nous enverrons un lien pour le définir à l’adresse e-mail du compte (<strong>%(address)s</strong>). Seul le clic sur le lien confirme que la boîte aux lettres vous appartient."
+
+msgid "Wyślij mi link do ustawienia hasła"
+msgstr "M’envoyer un lien pour définir un mot de passe"
+
+msgid "Wróć do ustawień konta"
+msgstr "Retour aux paramètres du compte"
+
+msgid "Zmiana hasła wymaga podania aktualnego. Po zmianie pozostałe urządzenia zostaną wylogowane, a na adres konta przyjdzie potwierdzenie."
+msgstr "Le changement de mot de passe exige le mot de passe actuel. Après le changement, les autres appareils seront déconnectés et une confirmation arrivera à l’adresse e-mail du compte."
+
+#, python-format
+msgid "Ustawienia konta: %(address)s"
+msgstr "Paramètres du compte : %(address)s"

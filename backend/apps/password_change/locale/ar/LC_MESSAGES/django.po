@@ -1,0 +1,90 @@
+# Zmiana hasła w panelu konta (AUTH-01b) – katalog aplikacji apps/password_change.
+msgid ""
+msgstr ""
+"Project-Id-Version: olimpiada\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-04 22:00+0200\n"
+"PO-Revision-Date: 2026-10-04 22:00+0200\n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: ar\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=6; plural=n==0 ? 0 : n==1 ? 1 : n==2 ? 2 : n%100>=3 && n%100<=10 ? 3 : n%100>=11 && n%100<=99 ? 4 : 5;\n"
+
+msgid "Hasło do konta zostało zmienione – Olimpiada Kwantowa"
+msgstr "تم تغيير كلمة مرور الحساب – أولمبياد الكم"
+
+#, python-format
+msgid "Hasło do konta zostało zmienione – %(competition)s"
+msgstr "تم تغيير كلمة مرور الحساب – %(competition)s"
+
+#, python-format
+msgid "Hasło do Twojego konta w serwisie %(competition_genitive)s zostało zmienione (%(when)s)."
+msgstr "تم تغيير كلمة مرور حسابك في موقع %(competition_genitive)s (%(when)s)."
+
+msgid "Pozostałe urządzenia, na których było otwarte to konto, zostały wylogowane. Na urządzeniu, na którym zmieniono hasło, sesja trwa dalej."
+msgstr "تم تسجيل الخروج من جميع الأجهزة الأخرى التي كان هذا الحساب مفتوحًا عليها. أما على الجهاز الذي غُيّرت عليه كلمة المرور فتستمر الجلسة."
+
+msgid "Jeśli to nie Ty zmieniłeś hasło, natychmiast ustaw nowe przez formularz „Nie pamiętasz hasła?” i skontaktuj się z organizatorem:"
+msgstr "إذا لم تكن أنت من غيّر كلمة المرور، فعيّن كلمة مرور جديدة فورًا عبر نموذج «نسيت كلمة المرور؟» وتواصل مع المنظِّم:"
+
+msgid "To konto nie ma jeszcze hasła – ustaw je linkiem wysłanym na adres konta."
+msgstr "لا توجد لهذا الحساب كلمة مرور بعد – عيّنها عبر الرابط المرسل إلى عنوان البريد الإلكتروني للحساب."
+
+msgid "Nowe hasło musi się różnić od aktualnego."
+msgstr "يجب أن تختلف كلمة المرور الجديدة عن الحالية."
+
+msgid "Aktualne hasło jest nieprawidłowe."
+msgstr "كلمة المرور الحالية غير صحيحة."
+
+msgid "To konto ma już hasło – zmień je formularzem zmiany hasła."
+msgstr "لهذا الحساب كلمة مرور بالفعل – غيّرها عبر نموذج تغيير كلمة المرور."
+
+msgid "Na to konto nie można teraz wysłać linku – skontaktuj się z organizatorem."
+msgstr "لا يمكن إرسال رابط إلى هذا الحساب الآن – يرجى التواصل مع المنظِّم."
+
+msgid "Co najmniej 10 znaków; nie może być popularnym hasłem, ciągiem samych cyfr ani przypominać Twojego imienia, nazwiska lub adresu e-mail."
+msgstr "10 أحرف على الأقل؛ ويجب ألا تكون كلمة مرور شائعة أو أرقامًا فقط أو مشابهة لاسمك أو اسم عائلتك أو عنوان بريدك الإلكتروني."
+
+msgid "Powtórz nowe hasło"
+msgstr "أعد كتابة كلمة المرور الجديدة"
+
+msgid "Hasło zostało zmienione. Pozostałe urządzenia zostały wylogowane, a na adres konta wysłaliśmy potwierdzenie."
+msgstr "تم تغيير كلمة المرور. تم تسجيل الخروج من الأجهزة الأخرى، وأرسلنا تأكيدًا إلى عنوان البريد الإلكتروني للحساب."
+
+msgid "Wysłaliśmy link do ustawienia hasła na adres konta. Link jest ważny 24 godziny."
+msgstr "أرسلنا رابطًا لتعيين كلمة المرور إلى عنوان البريد الإلكتروني للحساب. الرابط صالح لمدة 24 ساعة."
+
+msgid "Zmiana hasła"
+msgstr "تغيير كلمة المرور"
+
+msgid "Podaj aktualne hasło i dwa razy nowe. Po zmianie pozostaniesz zalogowany na tym urządzeniu, a wszystkie inne urządzenia i aplikacje zostaną wylogowane. Na adres konta wyślemy potwierdzenie."
+msgstr "أدخل كلمة المرور الحالية ثم الجديدة مرتين. بعد التغيير ستبقى مسجّلًا الدخول على هذا الجهاز، وسيتم تسجيل الخروج من جميع الأجهزة والتطبيقات الأخرى. سنرسل تأكيدًا إلى عنوان البريد الإلكتروني للحساب."
+
+msgid "Zmień hasło"
+msgstr "غيّر كلمة المرور"
+
+msgid "Nie pamiętasz aktualnego hasła?"
+msgstr "لا تتذكر كلمة المرور الحالية؟"
+
+msgid "Ustaw nowe przez link e-mail"
+msgstr "عيّن كلمة جديدة عبر رابط بالبريد الإلكتروني"
+
+#, python-format
+msgid "To konto nie ma hasła – logujesz się przez zewnętrznego dostawcę (np. Google). Jeśli chcesz logować się także hasłem, wyślemy link do jego ustawienia na adres konta (<strong>%(address)s</strong>). Dopiero kliknięcie w link potwierdza, że skrzynka należy do Ciebie."
+msgstr "لا توجد لهذا الحساب كلمة مرور – تسجّل الدخول عبر مزوّد خارجي (مثل Google). إذا أردت تسجيل الدخول بكلمة مرور أيضًا، فسنرسل رابطًا لتعيينها إلى عنوان البريد الإلكتروني للحساب (<strong>%(address)s</strong>). النقر على الرابط وحده يؤكد أن صندوق البريد ملكك."
+
+msgid "Wyślij mi link do ustawienia hasła"
+msgstr "أرسل إليّ رابطًا لتعيين كلمة المرور"
+
+msgid "Wróć do ustawień konta"
+msgstr "العودة إلى إعدادات الحساب"
+
+msgid "Zmiana hasła wymaga podania aktualnego. Po zmianie pozostałe urządzenia zostaną wylogowane, a na adres konta przyjdzie potwierdzenie."
+msgstr "يتطلب تغيير كلمة المرور إدخال الحالية. بعد التغيير سيتم تسجيل الخروج من الأجهزة الأخرى وسيصل تأكيد إلى عنوان البريد الإلكتروني للحساب."
+
+#, python-format
+msgid "Ustawienia konta: %(address)s"
+msgstr "إعدادات الحساب: %(address)s"

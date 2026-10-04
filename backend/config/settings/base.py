@@ -189,6 +189,7 @@ INSTALLED_APPS = [
     "apps.medals",
     # Płatności online za udział (PAY-01): cennik delegacji, zamówienia, Stripe/Przelewy24, faktury.
     "apps.payments",
+    "apps.password_change",  # zmiana hasła w panelu konta (AUTH-01b, 4.10.2026), bez modeli
     "apps.web",
     # Logowanie przez dostawców zewnętrznych (Google, Facebook). ``allauth.account`` jest wymagane
     # przez ``allauth.socialaccount`` (model ``EmailAddress``, adaptery) – jego **widoki** nie są
@@ -1286,6 +1287,11 @@ REST_FRAMEWORK = {
         # trzydzieści sekund – bez limitu da się je przeszukać w kilka godzin z jednego adresu,
         # mając samo hasło. Stawka jest niska, bo człowiek przepisuje kod raz, najwyżej dwa razy.
         "two_factor": "10/min",
+        # Zmiana hasła w panelu konta (``/account/password/``, AUTH-01b). Liczona **per konto**
+        # (``apps.password_change.views.PerAccountThrottleMixin``): ekran jest za logowaniem, a limit
+        # ma powstrzymać zgadywanie aktualnego hasła z cudzej, otwartej sesji. Dziesięć prób na
+        # godzinę to więcej, niż potrzebuje człowiek mylący się przy przepisywaniu nowego hasła.
+        "password_change": "10/hour",
         # Webhook płatności (``/api/v1/payments/<dostawca>/``, § 1.5.1). Limit liczy się per adres
         # nadawcy, bo żądanie przychodzi bez konta i bez klucza – jedynym poświadczeniem jest
         # podpis, a podpis sprawdza się **po** przyjęciu żądania. Sześćdziesiąt na minutę mieści

@@ -155,6 +155,9 @@ EXPECTED_SUBJECTS = {
     # ``<kod>`` to kod zamówienia – dane listu, nie brzmienie.
     "payment_receipt": "Potwierdzenie wpłaty <kod> – Olimpiada Kwantowa",
     "payment_refund": "Zwrot wpłaty <kod> – Olimpiada Kwantowa",
+    # Zmiana hasła w panelu konta (AUTH-01b, ``apps.password_change.notifications``): list
+    # bezpieczeństwa do właściciela konta – bez hasła, z linkiem do „Nie pamiętasz hasła?”.
+    "password_changed": "Hasło do konta zostało zmienione – Olimpiada Kwantowa",
 }
 
 #: Znaczniki podstawień w tematach składanych w serwisie. Porównujemy **wzorzec**, a nie wynik:
@@ -287,6 +290,8 @@ SUBJECT_CONSTANTS = {
     "apps.alumni.notifications.SUBJECT_ENDED": "alumni_ended",
     "apps.alumni.notifications.SUBJECT_FLAG": "alumni_flag",
     "apps.chat.notifications.SUBJECT": "chat_message",
+    "apps.password_change.notifications.PASSWORD_CHANGED_SUBJECT": "password_changed",
+    "apps.password_change.notifications.PASSWORD_CHANGED_SUBJECT_TEMPLATE": "password_changed",
     "apps.payments.notifications.RECEIPT_SUBJECT": "payment_receipt",
     "apps.payments.notifications.REFUND_SUBJECT": "payment_refund",
     "apps.chat.notifications.SUBJECT_TEMPLATE": "chat_message",

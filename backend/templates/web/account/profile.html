@@ -118,6 +118,19 @@
 {% endif %}
 
 {% comment %}
+  Hasło (AUTH-01b) – dla każdej roli, bo konto i hasło są jedne na platformę. Sam formularz ma
+  osobny ekran (``/account/password/``): pola haseł na stronie danych osobowych zachęcałyby
+  menedżer haseł do podstawiania ich w złych miejscach, a ekran ma też wariant dla konta bez hasła.
+{% endcomment %}
+<section class="section" id="haslo">
+  <div class="card">
+    <h2 class="mt-0">{% translate "Hasło" %}</h2>
+    <p class="hint">{% translate "Zmiana hasła wymaga podania aktualnego. Po zmianie pozostałe urządzenia zostaną wylogowane, a na adres konta przyjdzie potwierdzenie." %}</p>
+    <p><a class="btn btn--secondary" href="{% url 'web:password-change' %}">{% translate "Zmień hasło" %}</a></p>
+  </div>
+</section>
+
+{% comment %}
   Drugi składnik logowania stoi **przed** eksportem i usunięciem konta, bo to jedyna pozycja na
   tej stronie, która coś na koncie poprawia, a nie kończy. Sam ekran jest osobny (kod QR, kody
   zapasowe), więc tutaj jest wyłącznie odnośnik – rozwinięcie tego bloku w miejscu znaczyłoby
