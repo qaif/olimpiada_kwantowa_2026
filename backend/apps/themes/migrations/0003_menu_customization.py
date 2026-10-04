@@ -19,7 +19,7 @@ class Migration(migrations.Migration):
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
                 ('items', models.JSONField(default=list, verbose_name='pozycje')),
-                ('revision', models.PositiveIntegerField(default=1, verbose_name='rewizja')),
+                ('revision', models.CharField(max_length=32, verbose_name='rewizja')),
                 ('updated_at', models.DateTimeField(auto_now=True, verbose_name='zapisano')),
                 ('competition', models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, related_name='site_menu', to='tenancy.competition', verbose_name='konkurs')),
                 ('updated_by', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='+', to=settings.AUTH_USER_MODEL, verbose_name='zapisał')),

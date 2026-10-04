@@ -110,7 +110,7 @@ class SiteMenu(models.Model):
     """Nadpisania menu serwisu konkursu (THEME-02 § 1) – jeden wiersz na konkurs.
 
     ``items`` to lista wpisów w kolejności menu (postać kanoniczna z ``apps.themes.menu.clean_items``).
-    ``revision`` rośnie przy każdym zapisie i jest powielona w ``Competition.theme_options["menu"]``:
+    ``revision`` zmienia się przy każdym zapisie i jest powielona w ``Competition.theme_options["menu"]``:
     render czyta wiersz dopiero, gdy konkurs ma ten klucz, i trzyma go w pamięci procesu do zmiany
     rewizji. Brak wiersza = menu dokładnie takie, jak buduje ``apps.cms.context_processors``.
     """
@@ -119,7 +119,9 @@ class SiteMenu(models.Model):
         "tenancy.Competition", on_delete=models.CASCADE, related_name="site_menu", verbose_name="konkurs"
     )
     items = models.JSONField("pozycje", default=list)
-    revision = models.PositiveIntegerField("rewizja", default=1)
+    #: Losowy znacznik (``secrets.token_hex(8)``) zmieniany przy każdym zapisie – nie licznik: licznik
+    #: po usunięciu wiersza zacząłby od nowa i trafiłby w pamięć procesów sprzed resetu.
+    revision = models.CharField("rewizja", max_length=32)
     updated_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,

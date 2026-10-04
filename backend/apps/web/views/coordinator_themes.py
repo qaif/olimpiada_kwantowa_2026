@@ -206,6 +206,10 @@ class CompetitionThemeView(CoordinatorRequiredMixin, View):
         messages.success(
             request, f"Aktywowano motyw {name}. Zmiana obowiązuje od razu na wszystkich stronach konkursu."
         )
+        # Kolory dostosowania, które w tej wersji nie przechodzą kontroli kontrastu, zostały odrzucone
+        # (THEME-02, przegląd M3) – koordynator ma się o tym dowiedzieć, a nie odkryć to na stronie.
+        for warning in getattr(competition, "theme_activation_warnings", None) or []:
+            messages.warning(request, f"Kolory dostosowania pominięte (kontrast): {warning}")
         return redirect(reverse("web:coordinator-theme"))
 
     def _context(self, competition):
@@ -253,7 +257,9 @@ def theme_overrides_css(request):
     sprawdzamy, żeby adres nie stał się generatorem arkuszy z dowolnym kolorem.
     """
     competition = getattr(request, "competition", None)
-    version_part, _, colour = request.GET.get("v", "").partition("-")
+    version_part, _, rest = request.GET.get("v", "").partition("-")
+    # ``<wersja>-<kolor>[-<skrót opcji>]`` – skrót tylko rozróżnia adresy (THEME-02, L6).
+    colour, _, _digest = rest.partition("-")
     accent = (getattr(competition, "accent_colour", "") or "").lower()
     if (
         competition is None
@@ -273,8 +279,14 @@ def theme_overrides_css(request):
     runtime = runtime_for(version_id)
     if runtime is None:
         raise Http404
-    response = HttpResponse(
-        accent_override_css(accent, runtime.palette), content_type="text/css; charset=utf-8"
-    )
+    # Paleta **efektywna** (schemat i kolory dostosowania) wersji aktywnej w tym konkursie; dla
+    # podglądu innej wersji – paleta paczki.
+    palette = runtime.palette
+    if version_id == competition.theme_version_id:
+        from apps.themes.customize import effective_palette
+        from apps.themes.runtime import clean_options
+
+        palette = effective_palette(runtime, clean_options(runtime, competition.theme_options))
+    response = HttpResponse(accent_override_css(accent, palette), content_type="text/css; charset=utf-8")
     response["Cache-Control"] = "public, max-age=31536000, immutable"
     return response
