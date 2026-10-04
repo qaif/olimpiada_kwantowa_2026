@@ -147,6 +147,12 @@ def registration_enabled_for_request(request) -> bool:
     """
     from wagtail.models import Site
 
+    # Konkurs z rejestracją przez delegacje (DEL-01) nie ma opiekunów szkolnych zgłaszających
+    # uczniów: tę rolę pełni opiekun drużyny narodowej z zaproszenia koordynatora. Odczyt pola
+    # wczytanego już wiersza – Olimpiada Kwantowa nie płaci za to zapytaniem.
+    competition = getattr(request, "competition", None)
+    if competition is not None and competition.uses_delegations:
+        return False
     try:
         site = Site.find_for_request(request)
     except Exception:  # noqa: BLE001 - patrz docstring: żądanie ma dostać odpowiedź, nie 500

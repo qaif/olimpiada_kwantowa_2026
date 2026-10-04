@@ -178,6 +178,10 @@ REGISTRATION_OPEN = "open"
 REGISTRATION_DISABLED = "disabled"
 REGISTRATION_NOT_YET = "not_yet"
 REGISTRATION_CLOSED = "closed"
+#: Konkurs zgłasza uczniów przez delegacje krajowe (DEL-01): samodzielnej rejestracji **nie ma**
+#: niezależnie od okna edycji. Osobny powód, a nie ``disabled``: interfejs ma powiedzieć, kogo
+#: zapytać (opiekuna drużyny swojego kraju), a nie że rejestracja „jest obecnie wyłączona”.
+REGISTRATION_DELEGATIONS = "delegations"
 
 
 @dataclass(frozen=True)
@@ -395,11 +399,21 @@ def current_registration_status(now=None, competition=None) -> RegistrationStatu
     Zapytanie jest celowo najtańsze z możliwych – wywołuje je procesor kontekstu, czyli każde
     renderowanie szablonu bazowego.
     """
+    competition = require_competition(competition)
     edition = (
-        Edition.objects.filter(competition=require_competition(competition), is_current=True)
+        Edition.objects.filter(competition=competition, is_current=True)
         .only("id", "registration_enabled", "registration_opens_at", "registration_closes_at")
         .first()
     )
+    if getattr(competition, "uses_delegations", False):
+        # Rejestracja przez delegacje (DEL-01): samodzielne założenie konta jest zamknięte **tu**,
+        # w jednym rozstrzygnięciu, więc formularz, API, logowanie społecznościowe, nawigacja
+        # i strona główna dostają tę samą odmowę bez osobnej bramki w każdym z nich. Okno edycji
+        # zostaje w odpowiedzi (``opens_at``/``closes_at``): obowiązuje opiekunów drużyn, a pulpit
+        # koordynatora ma je dalej pokazywać.
+        opens_at = edition.registration_opens_at if edition is not None else None
+        closes_at = edition.registration_closes_at if edition is not None else None
+        return RegistrationStatus(False, REGISTRATION_DELEGATIONS, opens_at, closes_at)
     if edition is None:
         return RegistrationStatus(False, REGISTRATION_DISABLED)
     return edition.registration_status(now)

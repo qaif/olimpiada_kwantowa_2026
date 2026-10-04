@@ -23,7 +23,7 @@ from __future__ import annotations
 import re
 
 from django.core.exceptions import ValidationError
-from django.core.validators import validate_email
+from django.core.validators import MaxValueValidator, MinValueValidator, validate_email
 from django.db import models
 from django.utils import timezone
 
@@ -112,6 +112,33 @@ class RoutingMode(models.TextChoices):
 
     DOMAIN = "DOMAIN", "własna domena"
     PATH = "PATH", "prefiks ścieżki na domenie platformy"
+
+
+class RegistrationMode(models.TextChoices):
+    """Kto zakłada konta uczestników konkursu (docs/tasks/DEL-01.md § 1).
+
+    ``OPEN`` – uczestnik sam (formularz, API, Google/Facebook, import nauczyciela); tak działa każdy
+    konkurs do DEL-01 i tak zostaje Olimpiada Kwantowa. ``DELEGATIONS`` – olimpiada międzynarodowa:
+    uczniów zgłasza **opiekun drużyny narodowej** zaproszony przez koordynatora, a publiczna
+    samorejestracja jest zamknięta na każdej drodze naraz (``current_registration_status``).
+
+    Pole wyboru, a nie flaga w ``feature_flags``: to nie jest zdolność włączana „na próbę”, tylko
+    odpowiedź na pytanie „skąd biorą się uczestnicy” – i ta odpowiedź ma dwie wartości, z których
+    żadna nie jest brakiem drugiej. Trzecia (np. „przez szkoły”) dopisze się tu, a nie jako kolejny
+    przełącznik, który musiałby wykluczać się z poprzednim.
+    """
+
+    OPEN = "OPEN", "otwarta – uczestnik zakłada konto sam"
+    DELEGATIONS = "DELEGATIONS", "przez delegacje krajowe – uczniów zgłasza opiekun drużyny"
+
+
+#: Domyślny limit uczniów w delegacji. Sześć, bo tyle liczą drużyny narodowe w olimpiadach
+#: międzynarodowych (IPhO, IOI: cztery–sześć osób) – koordynator i tak może go zmienić per konkurs
+#: i per delegacja.
+DEFAULT_DELEGATION_SIZE = 6
+
+#: Górna granica limitu delegacji – sito na literówki („60” zamiast „6”), a nie reguła regulaminu.
+MAX_DELEGATION_SIZE = 100
 
 
 #: Katalog przełączników i ich wartości domyślne. Każdy z nich ma domyślnie stan **dzisiejszy**:
@@ -426,6 +453,30 @@ class Competition(models.Model):
     time_zone = models.CharField("strefa czasowa", max_length=64, default="Europe/Warsaw")
     feature_flags = models.JSONField("przełączniki", default=dict, blank=True)
 
+    # --- rejestracja uczestników (DEL-01) -------------------------------------------------------
+    #: Domyślnie ``OPEN`` – stan każdego konkursu sprzed DEL-01, więc migracja nikomu niczego nie
+    #: zmienia. Czytać przez :attr:`uses_delegations`: jedno miejsce na regułę „który tryb”.
+    registration_mode = models.CharField(
+        "tryb rejestracji uczestników",
+        max_length=16,
+        choices=RegistrationMode.choices,
+        default=RegistrationMode.OPEN,
+        help_text=(
+            "<strong>Uwaga:</strong> „przez delegacje krajowe” zamyka samodzielną rejestrację "
+            "uczestników (formularz, API, Google/Facebook, import nauczyciela i rejestrację "
+            "opiekunów szkolnych). Uczniów zgłaszają wtedy wyłącznie opiekunowie drużyn "
+            "zaproszeni w panelu „Delegacje”. Konta, które już istnieją, działają dalej."
+        ),
+    )
+    #: Limit uczniów **nowej** delegacji; zmiana nie przestawia limitów delegacji już założonych –
+    #: tam koordynator mógł go świadomie podnieść albo obniżyć i to jest decyzja o konkretnym kraju.
+    delegation_max_students = models.PositiveSmallIntegerField(
+        "domyślny limit uczniów delegacji",
+        default=DEFAULT_DELEGATION_SIZE,
+        validators=[MinValueValidator(1), MaxValueValidator(MAX_DELEGATION_SIZE)],
+        help_text="Obowiązuje delegacje zakładane od teraz; limit istniejącej zmienia się przy niej.",
+    )
+
     class Meta:
         verbose_name = "konkurs"
         verbose_name_plural = "konkursy"
@@ -470,6 +521,17 @@ class Competition(models.Model):
             raise KeyError(f"Nieznany przełącznik konkursu: {name!r}.")
         value = (self.feature_flags or {}).get(name, FEATURE_DEFAULTS[name])
         return bool(value)
+
+    @property
+    def uses_delegations(self) -> bool:
+        """Czy uczestników zgłaszają opiekunowie drużyn narodowych (DEL-01) – **jedyny** odczyt trybu.
+
+        Wołają to bramka rejestracji (``apps.competitions.models.current_registration_status``),
+        import listy klasowej, rejestracja opiekuna szkolnego, ekrany delegacji i menu panelu.
+        Odczyt jest polem już wczytanego wiersza, więc Olimpiada Kwantowa nie płaci za tę funkcję
+        ani jednym zapytaniem.
+        """
+        return self.registration_mode == RegistrationMode.DELEGATIONS
 
     @property
     def ui_languages(self) -> tuple[str, ...]:
