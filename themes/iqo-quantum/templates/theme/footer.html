@@ -1,51 +1,81 @@
 {% load i18n wagtailimages_tags %}{% comment %}
-  IQO Quantum – slot ``theme/footer.html`` (układ ``compact``).
+  IQO Quantum 1.1.0 – slot ``theme/footer.html`` (układy ``columns`` i ``compact``).
 
   Ta sama treść co stopka w ``base.html`` (te same msgid, ``data-cookie-settings`` dla
-  ``consent.js``), ułożona w dwa poziome pasy: znak + nazwa + odnośniki prawne + profile,
-  a pod kreską jeden wiersz metadanych w kroju mono (organizator, adres, kontakt, wersja).
-  Znak to ``<img>`` z zasobów paczki (``theme.assets``); stopka jest ciemna w każdym schemacie.
+  ``consent.js``), nowa kompozycja na tle ``cover`` (ciemnym w obu schematach):
+
+  - taśma sponsorów (``cms/_sponsor_slider.html`` – fragment sam sprawdza, czy ma wpisy; pas tylko gdy
+    ``sponsor_slider.entries`` – kontekst motywu od THEME-02; ``:has()`` w arkuszu zostaje zapasem), bo przezroczysty nagłówek nie ma pod sobą miejsca,
+  - wielki znak słowny – nazwa serwisu w kroju wystawowym, z orbitami w tle (maska SVG),
+  - kolumny: znak + profile | serwis (dokumenty, zgłoszenie, plakaty, cookies) | organizator
+    i kontakt; w układzie ``compact`` jeden pas,
+  - nota RODO i wiersz metadanych (wersja) w kroju mono.
 {% endcomment %}
 <footer class="footer iqo-footer">
   {% with site=settings.cms.SiteSettings %}
+  {% if sponsor_slider.entries %}
+  <div class="iqo-footer__partners">
+    <p class="iqo-footer__label" aria-hidden="true">{% translate "Partnerzy i sponsorzy" %}</p>
+    {% include "cms/_sponsor_slider.html" %}
+  </div>
+  {% endif %}
   <div class="iqo-footer__inner">
-    <div class="iqo-footer__top">
-      <p class="iqo-footer__brand">
-        <img class="iqo-footer__mark" src="{{ theme.assets }}assets/logo/mark-white.svg" alt="" width="44" height="44" loading="lazy">
-        <span><strong>{{ site.site_name }}</strong>{% if site.tagline %}<span class="iqo-footer__tagline">{{ site.tagline }}</span>{% endif %}</span>
-      </p>
-      <p class="footer__links iqo-footer__links">
-        <a href="{{ site_root|default:"/" }}dokumenty/rodo/">{% translate "Polityka prywatności (RODO)" %}</a>
-        <a href="{{ site_root|default:"/" }}dokumenty/cookies/">{% translate "Polityka plików cookie" %}</a>
-        {% include "web/_support_link.html" with css_class="footer__link" %}
-        {% if promo_available %}
-          <a href="{% url 'web:posters' %}">{% translate "Plakaty do pobrania" %}</a>
-        {% endif %}
-        {% if site.ga_measurement_id %}
-          <button type="button" class="footer__link-button" data-cookie-settings>{% translate "Ustawienia cookies" %}</button>
-        {% endif %}
-      </p>
-      {% include "cms/_social_links.html" with links=site.social_links css_class="footer__social iqo-footer__social" %}
+    <span class="iqo-footer__orbit" aria-hidden="true"></span>
+    <div class="iqo-footer__head">
+      <p class="iqo-footer__wordmark">{{ site.site_name }}</p>
+      {% if site.tagline %}<p class="iqo-footer__tagline">{{ site.tagline }}</p>{% endif %}
     </div>
 
-    <p class="iqo-footer__privacy">{% translate "Dane osobowe uczestników są przetwarzane zgodnie z zasadą minimalizacji (RODO): w publicznych tabelach wyników występuje wyłącznie kod uczestnika, a pełne dane widzi jedynie koordynator." %}</p>
+    <div class="iqo-footer__cols">
+      <div class="iqo-footer__col iqo-footer__col--brand">
+        <a class="iqo-footer__logo" href="{{ site_root|default:"/" }}">
+          {% if theme.logo %}
+            {% include "theme/partials/logo.html" with logo_id=theme.logo.id logo_light=theme.logo.light logo_dark=theme.logo.dark surface="cover" %}
+          {% else %}
+            {% include "theme/partials/logo.html" with logo_id="lockup" logo_light=theme.assets|add:"assets/logo/lockup.svg" logo_dark=theme.assets|add:"assets/logo/lockup-white.svg" surface="cover" %}
+          {% endif %}
+          <span class="visually-hidden">{{ site.site_name }}</span>
+        </a>
+        {% include "cms/_social_links.html" with links=site.social_links css_class="footer__social iqo-footer__social" %}
+      </div>
 
-    <div class="iqo-footer__meta">
-      <p class="iqo-footer__organizer">
-        {% if site.organizer_logo %}
-          <span class="footer__logo iqo-footer__org-logo">{% image site.organizer_logo max-240x80 alt="" loading="lazy" %}</span>
-        {% endif %}
-        <span>{% translate "Organizator:" %} <strong>{{ site.organizer_name }}</strong></span>
-      </p>
-      {% if site.organizer_address %}<p>{{ site.organizer_address }}</p>{% endif %}
-      {% if site.organizer_registry %}<p>{{ site.organizer_registry }}</p>{% endif %}
-      {% if site.contact_email or site.contact_phone or site.contact_url %}
-        <p class="iqo-footer__contact">
-          {% if site.contact_email %}<a href="mailto:{{ site.contact_email }}">{{ site.contact_email }}</a>{% endif %}
-          {% if site.contact_phone %}<a href="tel:{{ site.contact_phone|cut:' ' }}">{{ site.contact_phone }}</a>{% endif %}
-          {% if site.contact_url %}<a href="{{ site.contact_url }}">{{ site.contact_url }}</a>{% endif %}
+      <div class="iqo-footer__col">
+        <p class="iqo-footer__label">{% translate "Serwis" %}</p>
+        <p class="footer__links iqo-footer__links">
+          <a href="{{ site_root|default:"/" }}dokumenty/rodo/">{% translate "Polityka prywatności (RODO)" %}</a>
+          <a href="{{ site_root|default:"/" }}dokumenty/cookies/">{% translate "Polityka plików cookie" %}</a>
+          {% include "web/_support_link.html" with css_class="footer__link" %}
+          {% if promo_available %}
+            <a href="{% url 'web:posters' %}">{% translate "Plakaty do pobrania" %}</a>
+          {% endif %}
+          {% if site.ga_measurement_id %}
+            <button type="button" class="footer__link-button" data-cookie-settings>{% translate "Ustawienia cookies" %}</button>
+          {% endif %}
         </p>
-      {% endif %}
+      </div>
+
+      <div class="iqo-footer__col iqo-footer__col--contact">
+        <p class="iqo-footer__label">{% translate "Kontakt" %}</p>
+        <p class="iqo-footer__organizer">
+          {% if site.organizer_logo %}
+            <span class="footer__logo iqo-footer__org-logo">{% image site.organizer_logo max-240x80 alt="" loading="lazy" %}</span>
+          {% endif %}
+          <span>{% translate "Organizator:" %} <strong>{{ site.organizer_name }}</strong></span>
+        </p>
+        {% if site.organizer_address %}<p>{{ site.organizer_address }}</p>{% endif %}
+        {% if site.organizer_registry %}<p>{{ site.organizer_registry }}</p>{% endif %}
+        {% if site.contact_email or site.contact_phone or site.contact_url %}
+          <p class="iqo-footer__contact">
+            {% if site.contact_email %}<a href="mailto:{{ site.contact_email }}">{{ site.contact_email }}</a>{% endif %}
+            {% if site.contact_phone %}<a href="tel:{{ site.contact_phone|cut:' ' }}">{{ site.contact_phone }}</a>{% endif %}
+            {% if site.contact_url %}<a href="{{ site.contact_url }}">{{ site.contact_url }}</a>{% endif %}
+          </p>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="iqo-footer__base">
+      <p class="iqo-footer__privacy">{% translate "Dane osobowe uczestników są przetwarzane zgodnie z zasadą minimalizacji (RODO): w publicznych tabelach wyników występuje wyłącznie kod uczestnika, a pełne dane widzi jedynie koordynator." %}</p>
       <p class="iqo-footer__version">{% blocktranslate trimmed with version=app_version %}wersja {{ version }}{% endblocktranslate %}</p>
     </div>
   </div>

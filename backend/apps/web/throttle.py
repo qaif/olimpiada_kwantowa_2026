@@ -117,6 +117,9 @@ IDENTITY_FIELDS = ("email", "username")
 #: ``translation`` (TR-01) – edytor tłumaczeń zadań: autozapis i czynności zalogowanych opiekunów.
 #: ``checkout`` i ``payments_admin`` (PAY-01) – płacący i koordynator są zalogowani, a koszt (sesje
 #: u operatora płatności, zwroty przez API) przypada na konto.
+#:
+#: ``theme_settings`` (THEME-02) – menu i dostosowanie motywu; wyłącznie koordynator, koszt
+#: (unieważnienie cache stron konkursu) przypada na konto.
 PER_USER_SCOPES = frozenset(
     {
         "chat",
@@ -131,6 +134,7 @@ PER_USER_SCOPES = frozenset(
         "onsite_checkin",
         "checkout",
         "payments_admin",
+        "theme_settings",
         "alumni",
     }
 )

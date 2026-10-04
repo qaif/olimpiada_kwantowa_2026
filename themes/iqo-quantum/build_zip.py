@@ -4,11 +4,12 @@
 
 Do ZIP-a trafia wyłącznie to, co opisuje format paczki (THEME-01 § 1):
 ``manifest.json``, ``theme.css``, ``tokens.json``, ``screenshot.png``, ``assets/**``
-(svg/png/jpg/webp/woff2 + licencje krojów ``.txt``) i ``templates/theme/*.html``.
+(svg/png/jpg/webp/woff2 + licencje krojów ``.txt``) i ``templates/theme/*.html``
+(sloty, także ``nav`` z THEME-02) oraz ``templates/theme/partials/*.html``.
 Pomijane: ``_preview/``, ``tools/``, ``README.md``, ten skrypt, ``dist/``.
 
 Przed spakowaniem skrypt sprawdza lokalnie te same reguły, które egzekwuje walidator
-aplikacji (§ 2) – żeby błąd wyszedł tutaj, a nie dopiero przy wgraniu. Bez zależności
+aplikacji (§ 2; listy ``logos``/``fonts`` manifestu – THEME-02 § 2.1) – żeby błąd wyszedł tutaj, a nie dopiero przy wgraniu. Bez zależności
 spoza biblioteki standardowej.
 """
 from __future__ import annotations
@@ -26,7 +27,7 @@ ROOT_FILES = ("manifest.json", "theme.css", "tokens.json", "screenshot.png")
 ASSET_EXT = {".svg", ".png", ".jpg", ".jpeg", ".webp", ".woff2", ".txt"}
 #: Sloty v1 – kopia ``apps.themes.slots.SLOTS``; jeśli moduł aplikacji jest w repozytorium,
 #: lista jest czytana z niego (bez importu Django), żeby się nie rozjechały.
-_FALLBACK_SLOTS = ("header", "brand", "home_hero", "page_header", "news_card", "page_wrapper", "footer")
+_FALLBACK_SLOTS = ("header", "nav", "brand", "home_hero", "page_header", "news_card", "page_wrapper", "footer")
 _SLOTS_PY = ROOT.parent.parent / "backend" / "apps" / "themes" / "slots.py"
 
 
@@ -46,6 +47,9 @@ PARTIAL_RE = re.compile(r"^theme/partials/[a-z0-9][a-z0-9_-]{0,40}\.html$")
 ALLOWED_INCLUDE_PREFIXES = ("cms/_", "web/_", "classic/", "theme/")
 ALLOWED_LIBS = {"static", "i18n", "wagtailcore_tags", "wagtailimages_tags", "cms_extras", "web_extras"}
 MAX_FILES, MAX_UNPACKED = 500, 60 * 1024 * 1024
+#: THEME-02 § 2.1 – identyfikatory wariantów logo i par krojów, etykiety, wartości krojów.
+OPTION_ID = re.compile(r"^[a-z0-9-]{1,32}$")
+FONT_VALUE = re.compile(r"""^[A-Za-z0-9\s#%.,()"'+\-/*]{1,300}$""")
 
 
 def fail(msg: str) -> None:
@@ -93,6 +97,31 @@ def check_template(rel: str, text: str) -> None:
             fail(f"{rel}: include {inc}")
 
 
+def check_options(manifest: dict) -> None:
+    """Opcjonalne listy ``logos`` i ``fonts`` manifestu (THEME-02 § 2.1)."""
+    for key, fields in (("logos", ("light", "dark")), ("fonts", ("body", "display", "mono"))):
+        entries = manifest.get(key)
+        if entries is None:
+            continue
+        if not isinstance(entries, list) or not entries:
+            fail(f"manifest.json: {key} musi być niepustą listą")
+        seen = set()
+        for entry in entries:
+            ident, label = entry.get("id", ""), entry.get("label", "")
+            if not OPTION_ID.match(ident) or ident in seen:
+                fail(f"manifest.json: {key}: zły albo powtórzony id {ident!r}")
+            seen.add(ident)
+            if not label or len(label) > 60:
+                fail(f"manifest.json: {key}.{ident}: etykieta pusta albo dłuższa niż 60 znaków")
+            for field in fields:
+                value = entry.get(field, "")
+                if key == "logos":
+                    if not value.startswith("assets/") or ".." in value or not (ROOT / value).is_file():
+                        fail(f"manifest.json: logos.{ident}.{field}: brak pliku {value!r}")
+                elif not FONT_VALUE.match(value) or re.search(r"url\s*\(", value, re.I):
+                    fail(f"manifest.json: fonts.{ident}.{field}: niedozwolona wartość")
+
+
 def collect() -> list[pathlib.Path]:
     files = [ROOT / name for name in ROOT_FILES]
     files += sorted(p for p in (ROOT / "assets").rglob("*") if p.is_file())
@@ -106,6 +135,7 @@ def main() -> None:
     for key in ("schema", "slug", "name", "version", "layouts", "color_scheme"):
         if key not in manifest:
             fail(f"manifest.json: brak {key}")
+    check_options(manifest)
 
     files = collect()
     for path in files:

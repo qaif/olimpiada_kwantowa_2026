@@ -1,0 +1,142 @@
+{% extends "web/coordinator/base.html" %}
+{% load i18n %}
+{% comment %}
+  Dostosowanie wersji motywu (THEME-02 § 2): schemat kolorów, wariant logo, para krojów, układy
+  i kolory tokenów (``<input type="color">`` – natywny wybór koloru, bez skryptu). Kontrola kontrastu
+  liczona na serwerze przy każdym wyświetleniu i zapisie: para poniżej WCAG AA, którą zmienił
+  koordynator, blokuje zapis i podgląd. „Podgląd” = ten sam mechanizm ``?theme_preview=`` co galeria.
+{% endcomment %}
+{% block title %}{% translate "Kolory i opcje motywu" %} – {% translate "panel koordynatora" %}{% endblock %}
+{% block panel_eyebrow %}<a href="{% url 'web:coordinator-theme' %}">{% translate "Motyw serwisu" %}</a>{% endblock %}
+{% block panel_title %}{% translate "Kolory i opcje motywu" %}{% endblock %}
+{% block panel_lead %}
+  {% if version %}
+    <p class="lead">{% blocktranslate trimmed with name=version.theme.name number=version.version %}
+      Dostosowanie motywu „{{ name }}” {{ number }} bez wgrywania nowej paczki: schemat kolorów, logo, kroje,
+      warianty układu i kolory. Zmiany dotyczą tylko tej wersji motywu w tym konkursie; „Przywróć domyślne”
+      wraca do wyglądu z paczki.
+    {% endblocktranslate %}</p>
+    {% if not active %}<p class="msg msg-info">{% translate "Ta wersja nie jest aktywna – zapisane zmiany zaczną obowiązywać po jej aktywacji w galerii. Podgląd działa od razu." %}</p>{% endif %}
+  {% else %}
+    <p class="lead">{% translate "Konkurs używa wbudowanego motywu „Klasyczny”. Kolory i opcje można dostosować dla motywów z paczki – wybierz motyw w galerii." %}</p>
+  {% endif %}
+{% endblock %}
+{% block panel_actions %}
+  <a class="btn btn--ghost" href="{% url 'web:coordinator-theme' %}">{% translate "Wróć do motywu" %}</a>
+{% endblock %}
+{% block panel_content %}
+{% if version %}
+  {% if contrast_errors or contrast_warnings %}
+    <div class="card{% if contrast_errors %} card--danger{% endif %}">
+      <h2 class="mt-0">{% translate "Kontrola kontrastu (WCAG AA)" %}</h2>
+      {% if contrast_errors %}
+        <p>{% translate "Tych zmian nie da się zapisać – tekst byłby nieczytelny dla części odwiedzających:" %}</p>
+        <ul>{% for error in contrast_errors %}<li>{{ error }}</li>{% endfor %}</ul>
+      {% endif %}
+      {% if contrast_warnings %}
+        <p class="hint">{% translate "Ostrzeżenia dotyczą kolorów samego motywu (nie Twoich zmian):" %}</p>
+        <ul class="hint">{% for warning in contrast_warnings %}<li>{{ warning }}</li>{% endfor %}</ul>
+      {% endif %}
+    </div>
+  {% endif %}
+
+  <div class="card">
+    <form method="post" class="form form--wide" novalidate>
+      {% csrf_token %}
+      <input type="hidden" name="version" value="{{ version.pk }}">
+
+      {% if schemes|length > 1 %}
+        <fieldset>
+          <legend>{% translate "Schemat kolorów" %}</legend>
+          {% for value in schemes %}
+            <div class="form__check">
+              <input type="radio" id="scheme-{{ value }}" name="scheme" value="{{ value }}"{% if value == scheme %} checked{% endif %}>
+              <label for="scheme-{{ value }}">{% if value == "dark" %}{% translate "Ciemny" %}{% elif value == "light" %}{% translate "Jasny" %}{% else %}{% translate "Jak w systemie odwiedzającego (jasny albo ciemny)" %}{% endif %}{% if value == runtime.color_scheme %} – {% translate "domyślny motywu" %}{% endif %}</label>
+            </div>
+          {% endfor %}
+          <p class="hint">{% translate "Po zmianie schematu zapisz albo obejrzyj podgląd – lista kolorów niżej pokazuje palety wybranego schematu." %}</p>
+        </fieldset>
+      {% endif %}
+
+      {% if logos %}
+        <fieldset>
+          <legend>{% translate "Logo w nagłówku" %}</legend>
+          {% for entry in logos %}
+            <div class="form__check">
+              <input type="radio" id="logo-{{ entry.id }}" name="logo" value="{{ entry.id }}"{% if entry.id == logo %} checked{% endif %}>
+              <label for="logo-{{ entry.id }}">{{ entry.label }}</label>
+            </div>
+          {% endfor %}
+        </fieldset>
+      {% endif %}
+
+      {% if fonts %}
+        <p>
+          <label for="font">{% translate "Kroje pisma" %}</label>
+          <select id="font" name="font">
+            {% for entry in fonts %}<option value="{{ entry.id }}"{% if entry.id == font %} selected{% endif %}>{{ entry.label }}</option>{% endfor %}
+          </select>
+        </p>
+      {% endif %}
+
+      {% for layout in layouts %}
+        <p>
+          <label for="layout-{{ layout.key }}">{{ layout.label }}</label>
+          <select id="layout-{{ layout.key }}" name="layout_{{ layout.key }}">
+            {% for option in layout.options %}<option value="{{ option }}"{% if option == layout.selected %} selected{% endif %}>{{ option }}</option>{% endfor %}
+          </select>
+        </p>
+      {% endfor %}
+
+      {% if radii %}
+        <fieldset>
+          <legend>{% translate "Zaokrąglenia" %}</legend>
+          {% for radius in radii %}
+            <p>
+              <label for="radius-{{ radius.name }}"><code>{{ radius.name }}</code></label>
+              <input type="text" id="radius-{{ radius.name }}" name="radius_{{ radius.name }}" value="{{ radius.value }}" maxlength="10" inputmode="decimal">
+              <span class="hint">{% blocktranslate trimmed with default=radius.default %}Domyślnie {{ default }}. Wartość w px (0–48) albo rem (0–3), np. 0.5rem.{% endblocktranslate %}</span>
+            </p>
+          {% endfor %}
+        </fieldset>
+      {% endif %}
+
+      {% for palette in palettes %}
+        <fieldset>
+          <legend>{{ palette.label }}</legend>
+          <div class="table-scroll">
+          <table class="table table--compact">
+            <thead><tr><th scope="col">{% translate "Token" %}</th><th scope="col">{% translate "Kolor" %}</th><th scope="col">{% translate "Domyślny motywu" %}</th></tr></thead>
+            <tbody>
+              {% for color in palette.colors %}
+                <tr>
+                  <th scope="row"><label for="color-{{ palette.mode }}-{{ color.token }}"><code>{{ color.token }}</code></label>{% if color.changed %} <span class="badge badge--ok">{% translate "zmieniony" %}</span>{% endif %}</th>
+                  <td><input type="color" id="color-{{ palette.mode }}-{{ color.token }}" name="color_{{ palette.mode }}_{{ color.token }}" value="{{ color.value }}"> <code>{{ color.value }}</code></td>
+                  <td><code>{{ color.default }}</code></td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          </div>
+        </fieldset>
+      {% endfor %}
+
+      <div class="actions">
+        <button type="submit" name="action" value="save" class="btn btn--primary">{% translate "Zapisz" %}</button>
+        <button type="submit" name="action" value="preview" class="btn btn--secondary">{% translate "Podgląd" %}</button>
+      </div>
+      <p class="hint">{% translate "Podgląd otwiera stronę główną z tymi ustawieniami – widzisz ją tylko Ty, nic nie jest zapisywane. Tryb wysokiego kontrastu w serwisie zawsze ma pierwszeństwo przed kolorami motywu." %}</p>
+    </form>
+  </div>
+
+  <div class="card card--quiet">
+    <h2 class="mt-0">{% translate "Przywróć domyślne" %}</h2>
+    <p class="hint">{% translate "Kolory, schemat, logo i kroje wracają do wartości z paczki motywu. Warianty układów i akcent marki zostają." %}</p>
+    <form method="post" class="form">
+      {% csrf_token %}
+      <input type="hidden" name="version" value="{{ version.pk }}">
+      <button type="submit" name="action" value="reset" class="btn btn--ghost">{% translate "Przywróć domyślne" %}</button>
+    </form>
+  </div>
+{% endif %}
+{% endblock %}

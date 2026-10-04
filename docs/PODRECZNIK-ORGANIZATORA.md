@@ -2300,6 +2300,43 @@ po wgraniu nowszej.
 (superkoordynatora) w **„Katalogu motywów platformy”** — nie w tym ekranie. Paczka przechodzi
 kontrolę bezpieczeństwa i antywirusową; odrzucona zostaje w katalogu z raportem błędów.
 
+### Menu serwisu — przycisk „Menu serwisu”
+
+Menu stron publicznych bez wgrywania czegokolwiek i bez zmian w `/cms/`. Tabela pokazuje każdą
+pozycję menu:
+
+- **Pozycja** i przyciski **„W górę” / „W dół”** — kolejność (przyciski od razu zapisują tabelę),
+- **Widoczna** — odznacz, żeby zdjąć pozycję z menu (strona dalej działa pod swoim adresem; znika
+  też z paska, który przykleja się przy przewijaniu),
+- **Nazwa w menu** — osobno dla każdego języka interfejsu konkursu; puste pole = nazwa domyślna
+  (tytuł strony albo jego tłumaczenie, np. „Wyniki” → „Results”),
+- **Grupa** — przenosi pozycję do listy rozwijanej (jeden poziom; strona główna i pozycje, które
+  same mają listę rozwijaną, np. „Dokumenty”, nie wchodzą do grup).
+
+Pod tabelą: **„Dodaj własny odnośnik”** (nazwa w językach, adres `https://…` albo ścieżka serwisu
+zaczynająca się od `/`, albo wybór strony serwisu z listy; opcja „otwieraj w nowej karcie”)
+i **„Dodaj grupę”**. Adresów `javascript:` ani innych niż `http(s)` system nie przyjmie.
+**„Przywróć menu domyślne”** usuwa wszystkie zmiany menu. Strona dodana później w `/cms/` pojawia się
+na końcu menu — przesuń ją na właściwe miejsce. Zmiana obowiązuje od razu dla wszystkich.
+
+### Kolory i opcje motywu — przycisk „Kolory i opcje motywu”
+
+Dla motywów z paczki (nie dla „Klasycznego”) — dostosowanie wybranej wersji motywu:
+
+- **Schemat kolorów** — ciemny, jasny albo „jak w systemie odwiedzającego”, jeśli motyw ma obie palety,
+- **Logo w nagłówku** i **Kroje pisma** — warianty, które przygotował autor motywu,
+- **warianty układu** (te same, co na karcie galerii),
+- **kolory** — każdy kolor palety motywu (tło, powierzchnie, tekst, przyciski, akcent…); obok widać
+  wartość domyślną motywu.
+
+System sprawdza **kontrast** (WCAG AA): jeśli Twoja zmiana sprawi, że tekst albo obwódka
+zaznaczenia będą słabo widoczne, zapis i podgląd zostaną zablokowane z opisem, która para kolorów
+jest za słaba. **„Podgląd”** pokazuje stronę główną z tymi ustawieniami tylko Tobie; **„Zapisz”**
+— od razu dla wszystkich (wpis w audycie `theme.customized`); **„Przywróć domyślne”** wraca do
+kolorów, logo i krojów z paczki. Ustawienia zapamiętywane są osobno dla każdej wersji motywu: możesz
+przygotować kolory nowej wersji przed jej aktywacją, a powrót do poprzedniej wersji przywraca jej kolory.
+Tryb wysokiego kontrastu wybrany przez odwiedzającego zawsze ma pierwszeństwo.
+
 ## 10i. Webinary — `/coordinator/webinars/`
 
 Menu **Komunikacja → Webinary** (gdy operator włączył webinary w konkursie). Webinar to spotkanie

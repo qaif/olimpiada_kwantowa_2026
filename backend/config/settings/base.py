@@ -1385,6 +1385,10 @@ REST_FRAMEWORK = {
         # doręcza z kilku adresów naraz, a po awarii ponawia zaległe zdarzenia całą serią. Tożsamością
         # jest podpis; limit chroni wyłącznie koszt weryfikacji.
         "payment_webhooks": "600/min",
+        # Menu serwisu i dostosowanie motywu (THEME-02, ``/coordinator/competition/theme/…``). Per konto
+        # (``apps.web.throttle.PER_USER_SCOPES``). Każdy zapis unieważnia cache stron konkursu, a podgląd
+        # kolorów to też POST – sto dwadzieścia na godzinę mieści długie dopasowywanie palety.
+        "theme_settings": "120/hour",
     },
     "EXCEPTION_HANDLER": "apps.core.api.exception_handler",
 }
