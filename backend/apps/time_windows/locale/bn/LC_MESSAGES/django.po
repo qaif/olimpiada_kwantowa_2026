@@ -101,3 +101,27 @@ msgstr "তালিকা থেকে একটি সময় অঞ্চ�
 
 msgid "Strefa czasowa ucznia została zapisana."
 msgstr "শিক্ষার্থীর সময় অঞ্চল সংরক্ষিত হয়েছে।"
+
+#, python-format
+msgid "Wysłano (%(zone)s)"
+msgstr "পাঠানো হয়েছে (%(zone)s)"
+
+#, python-format
+msgid "Złożona (%(zone)s)"
+msgstr "জমা দেওয়া হয়েছে (%(zone)s)"
+
+#, python-format
+msgid "Data (%(zone)s)"
+msgstr "তারিখ (%(zone)s)"
+
+#, python-format
+msgid "Terminy edycji. Wszystkie godziny: %(zone)s."
+msgstr "সংস্করণের তারিখ। সব সময়: %(zone)s।"
+
+#, python-format
+msgid "Wszystkie godziny: %(zone)s."
+msgstr "সব সময়: %(zone)s।"
+
+#, python-format
+msgid "Pokój otwiera się %(opens)s (%(zone)s). Wchodzi się wyłącznie tym przyciskiem – adresu pokoju nie da się podać przez telefon ani przesłać dalej."
+msgstr "রুম খুলবে %(opens)s (%(zone)s)-এ। শুধু এই বোতাম দিয়েই প্রবেশ করা যায় – রুমের ঠিকানা ফোনে বলা বা অন্যকে পাঠানো যায় না।"

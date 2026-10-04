@@ -101,3 +101,27 @@ msgstr "请从列表中选择时区。"
 
 msgid "Strefa czasowa ucznia została zapisana."
 msgstr "学生时区已保存。"
+
+#, python-format
+msgid "Wysłano (%(zone)s)"
+msgstr "提交时间（%(zone)s）"
+
+#, python-format
+msgid "Złożona (%(zone)s)"
+msgstr "提交时间（%(zone)s）"
+
+#, python-format
+msgid "Data (%(zone)s)"
+msgstr "日期（%(zone)s）"
+
+#, python-format
+msgid "Terminy edycji. Wszystkie godziny: %(zone)s."
+msgstr "本届日程。所有时间：%(zone)s。"
+
+#, python-format
+msgid "Wszystkie godziny: %(zone)s."
+msgstr "所有时间：%(zone)s。"
+
+#, python-format
+msgid "Pokój otwiera się %(opens)s (%(zone)s). Wchodzi się wyłącznie tym przyciskiem – adresu pokoju nie da się podać przez telefon ani przesłać dalej."
+msgstr "房间将于 %(opens)s（%(zone)s）开放。只能通过此按钮进入——房间地址无法通过电话告知或转发。"

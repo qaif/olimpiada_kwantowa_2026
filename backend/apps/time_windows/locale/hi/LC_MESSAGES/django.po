@@ -101,3 +101,27 @@ msgstr "सूची से समय क्षेत्र चुनें।"
 
 msgid "Strefa czasowa ucznia została zapisana."
 msgstr "छात्र का समय क्षेत्र सहेज लिया गया है।"
+
+#, python-format
+msgid "Wysłano (%(zone)s)"
+msgstr "भेजा गया (%(zone)s)"
+
+#, python-format
+msgid "Złożona (%(zone)s)"
+msgstr "दर्ज की गई (%(zone)s)"
+
+#, python-format
+msgid "Data (%(zone)s)"
+msgstr "तारीख (%(zone)s)"
+
+#, python-format
+msgid "Terminy edycji. Wszystkie godziny: %(zone)s."
+msgstr "संस्करण की तिथियाँ। सभी समय: %(zone)s।"
+
+#, python-format
+msgid "Wszystkie godziny: %(zone)s."
+msgstr "सभी समय: %(zone)s।"
+
+#, python-format
+msgid "Pokój otwiera się %(opens)s (%(zone)s). Wchodzi się wyłącznie tym przyciskiem – adresu pokoju nie da się podać przez telefon ani przesłać dalej."
+msgstr "कमरा %(opens)s (%(zone)s) पर खुलेगा। प्रवेश केवल इसी बटन से होता है – कमरे का पता फ़ोन पर बताया या आगे भेजा नहीं जा सकता।"

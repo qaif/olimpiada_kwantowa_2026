@@ -113,6 +113,17 @@ def local_time(value, fmt: str = LOCAL_DATETIME_FORMAT) -> str:
     return f"{date_format(value, fmt)} ({LOCAL_TIME_LABEL})"
 
 
+@register.simple_tag
+def active_time_zone() -> str:
+    """Nazwa strefy ucznia, gdy panel renderuje się w niej (okna czasowe, TZ-01) – inaczej pusty tekst.
+
+    Szablony panelu uczestnika wybierają tym podpis kolumny: pusty znaczy „czas polski” w dotychczasowym
+    brzmieniu (ten sam napis i ten sam katalog), niepusty – nazwę strefy, w której są godziny.
+    """
+    active = timezone.get_current_timezone_name()
+    return "" if active == settings.TIME_ZONE else active.replace("_", " ")
+
+
 @register.filter(expects_localtime=True, is_safe=False)
 def local_datetime(value, fmt: str = LOCAL_DATETIME_FORMAT) -> str:
     """To samo bez etykiety – do kolumn tabel, gdzie nagłówek mówi już o strefie."""

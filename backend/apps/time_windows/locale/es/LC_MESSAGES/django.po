@@ -101,3 +101,27 @@ msgstr "Elige una zona horaria de la lista."
 
 msgid "Strefa czasowa ucznia została zapisana."
 msgstr "Se ha guardado la zona horaria del estudiante."
+
+#, python-format
+msgid "Wysłano (%(zone)s)"
+msgstr "Enviado (%(zone)s)"
+
+#, python-format
+msgid "Złożona (%(zone)s)"
+msgstr "Presentada (%(zone)s)"
+
+#, python-format
+msgid "Data (%(zone)s)"
+msgstr "Fecha (%(zone)s)"
+
+#, python-format
+msgid "Terminy edycji. Wszystkie godziny: %(zone)s."
+msgstr "Fechas de la edición. Todas las horas: %(zone)s."
+
+#, python-format
+msgid "Wszystkie godziny: %(zone)s."
+msgstr "Todas las horas: %(zone)s."
+
+#, python-format
+msgid "Pokój otwiera się %(opens)s (%(zone)s). Wchodzi się wyłącznie tym przyciskiem – adresu pokoju nie da się podać przez telefon ani przesłać dalej."
+msgstr "La sala se abre a las %(opens)s (%(zone)s). Solo se entra con este botón: la dirección de la sala no se puede dar por teléfono ni reenviar."

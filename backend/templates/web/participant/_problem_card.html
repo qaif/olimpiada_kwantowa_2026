@@ -267,7 +267,7 @@
           <thead>
             <tr>
               <th>{% translate "Wersja" %}</th>
-              <th>{% translate "Wysłano (czas polski)" %}</th>
+              <th>{% active_time_zone as zone %}{% if zone %}{% blocktranslate %}Wysłano ({{ zone }}){% endblocktranslate %}{% else %}{% translate "Wysłano (czas polski)" %}{% endif %}</th>
               <th>{% translate "Status pracy" %}</th>
               <th>{% translate "Skan antywirusowy" %}</th>
               <th>{% translate "Plik" %}</th>
