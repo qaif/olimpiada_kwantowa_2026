@@ -100,7 +100,7 @@ def _changed(diff: dict, field: str, before, after) -> None:
     diff[field] = True if field in PERSONAL_FIELDS else {"from": before, "to": after}
 
 
-def _participant_values(fields: dict) -> dict:
+def _participant_values(fields: dict, competition=None) -> dict:
     """Sprawdza pola profilu uczestnika i zwraca wartości gotowe do zapisu.
 
     Osobno od zapisu, bo najpierw ma przejść **cała** walidacja: wartości sprawdzamy z osobna,
@@ -113,7 +113,7 @@ def _participant_values(fields: dict) -> dict:
     """
     # Importy lokalne: ``services`` importuje ``activation``, a nie ``profile`` – ale reguły
     # walidacji mieszkają w ``services`` i drugi raz ich tu nie piszemy.
-    from .services import _require_birth_date, _require_grade, _require_voivodeship, _resolve_school
+    from .services import _require_birth_date, _require_grade, _resolve_school, resolve_district
 
     values: dict = {}
     if "first_name" in fields:
@@ -123,7 +123,10 @@ def _participant_values(fields: dict) -> dict:
     if "phone" in fields:
         values["phone"] = normalize_phone(fields["phone"])
     if "district" in fields:
-        values["district"] = _require_voivodeship(fields["district"], required=True)
+        # Konkurs z krajami (REG-01): kod aktywnego regionu i sam region – zapisujemy oba.
+        values["district"], region = resolve_district(competition, fields["district"], required=True)
+        if competition is not None and competition.has_feature("custom_regions"):
+            values["region"] = region
     if "grade" in fields:
         values["grade"] = _require_grade(fields["grade"])
     if "birth_date" in fields:
@@ -174,6 +177,11 @@ def _save_participant_values(participant: Participant, values: dict) -> dict:
     for name in updates:
         _changed(diff, name, getattr(participant, name), values[name])
         setattr(participant, name, values[name])
+    if "region" in values:
+        chosen_region = values["region"]
+        _changed(diff, "region", participant.region_id, chosen_region.pk if chosen_region else None)
+        participant.region = chosen_region
+        updates.append("region")
     if "school_ref" in values:
         chosen = values["school_ref"]
         _changed(diff, "school_ref", participant.school_ref_id, chosen.pk if chosen else None)
@@ -209,7 +217,7 @@ def update_participant_profile(
     # „zgoda opiekuna dla małoletniego”. Pytanie „od kiedy ten uczestnik ma dokładny wiek i kto go
     # wpisał” pada przy sporze o zgodę i nie może odpowiadać na nie sam napis „zmieniono dane”.
     completing_birth_date = participant.birth_date is None
-    diff = _save_participant_values(participant, _participant_values(fields))
+    diff = _save_participant_values(participant, _participant_values(fields, participant.competition))
     audit(actor, "participant.profile_updated", participant, diff, request=request)
     if completing_birth_date and participant.birth_date is not None:
         # W ``diff`` audytu nie ma samej daty – jest daną osobową (wiek), a wpisy audytowe czyta
@@ -694,15 +702,17 @@ def _account_values(fields: dict) -> dict:
     return values
 
 
-def _committee_values(fields: dict) -> dict:
+def _committee_values(fields: dict, competition=None) -> dict:
     """Sprawdza pola profilu członka komitetu zmieniane przez koordynatora."""
-    from .services import _require_voivodeship
+    from .services import resolve_district
 
     values: dict = {}
     if "district" in fields:
         # Województwo członka komitetu jest opcjonalne – pusta wartość znaczy „ocenia prace
         # z całego kraju”, a nie „pole niewypełnione”.
-        values["district"] = _require_voivodeship(fields["district"], required=False)
+        values["district"], region = resolve_district(competition, fields["district"], required=False)
+        if competition is not None and competition.has_feature("custom_regions"):
+            values["region"] = region
     if "is_appeals_committee" in fields:
         values["is_appeals_committee"] = bool(fields["is_appeals_committee"])
     if "status" in fields:
@@ -757,7 +767,11 @@ def _save_committee_values(member: CommitteeMember, values: dict, *, actor: User
         _changed(diff, "district_verified", member.district_verified, district is not None)
         member.district = district
         member.district_verified = district is not None
-        member.save(update_fields=["district", "district_verified"])
+        update_fields = ["district", "district_verified"]
+        if "region" in values:
+            member.region = values["region"]
+            update_fields.append("region")
+        member.save(update_fields=update_fields)
     return diff
 
 
@@ -811,8 +825,13 @@ def update_account_by_coordinator(
     # Ta sama reguła dla profilu komitetu (poprawka po audycie izolacji, 01.10.2026): członek
     # komitetu konkursu B nie dostaje statusu ani województwa od koordynatora A.
     member = committee_profile_in(user, current_competition())
-    participant_values = _participant_values(participant) if participant else {}
-    committee_values = _committee_values(committee) if committee else {}
+    competition = current_competition()
+    participant_values = (
+        _participant_values(participant, getattr(profile, "competition", competition)) if participant else {}
+    )
+    committee_values = (
+        _committee_values(committee, getattr(member, "competition", competition)) if committee else {}
+    )
     if participant_values and profile is None:
         raise DomainError(
             "To konto nie ma profilu uczestnika.", "NO_PARTICIPANT_PROFILE", status.HTTP_400_BAD_REQUEST

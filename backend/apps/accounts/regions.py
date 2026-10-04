@@ -217,3 +217,20 @@ def region_noun(competition) -> str:
     )
     level = RegionLevel.COUNTRY if levels == {RegionLevel.COUNTRY} else RegionLevel.REGION
     return gettext("Kraj") if level == RegionLevel.COUNTRY else gettext("Region")
+
+
+def district_choice_pairs(competition) -> list[tuple[str, str]]:
+    """Dopuszczalne wartości pola ``district`` w konkursie: ``(kod, etykieta)``.
+
+    Jedno źródło dla formularzy HTML (``apps.web.forms.district_choices``) i serializerów API
+    (``apps.accounts.serializers.DistrictField``) – inaczej API przyjmowałoby województwa w konkursie,
+    który ich nie ma, a formularz – kraje, których API nie zna (poprawka po przeglądzie REG-01).
+    Bez flagi ``custom_regions`` – lista województw, bez zapytania; z flagą – **aktywne** regiony
+    konkursu w kolejności ``position, name``.
+    """
+    from .services import CUSTOM_REGIONS_FLAG
+
+    if competition is None or not competition.has_feature(CUSTOM_REGIONS_FLAG):
+        return list(Voivodeship.choices)
+    regions = Region.objects.for_competition(competition).active().order_by("position", "name", "id")
+    return list(regions.values_list("code", "name"))

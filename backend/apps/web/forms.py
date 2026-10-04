@@ -113,10 +113,9 @@ def district_choices() -> tuple:
     competition = _custom_regions_competition()
     if competition is None:
         return VOIVODESHIP_CHOICES
-    from apps.accounts.models import Region
+    from apps.accounts.regions import district_choice_pairs
 
-    regions = Region.objects.for_competition(competition).active().order_by("position", "name", "id")
-    return (("", _("— wybierz —")), *regions.values_list("code", "name"))
+    return (("", _("— wybierz —")), *district_choice_pairs(competition))
 
 
 def _district_label(label, suffix: str = ""):

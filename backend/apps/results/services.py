@@ -816,6 +816,10 @@ def compute_stage_results(stage: Stage, *, preview: bool = False) -> list[dict]:
     if with_categories:
         # Złączenie, a nie zapytanie na wiersz – i tylko wtedy, gdy kategorie w ogóle istnieją.
         entries = entries.select_related("category")
+    if competition is not None and competition.has_feature("custom_regions"):
+        # Nazwa kraju/regionu w wierszu wyników (``get_district_display``, REG-01) – złączenie zamiast
+        # zapytania na uczestnika, wyłącznie w konkursie z własnym podziałem.
+        entries = entries.select_related("participant__region")
     if team_entries_enabled(competition):
         # Drugi właściciel wpisu (§ 1.2.3) – tym samym zabiegiem i z tego samego powodu, co
         # kategorie wyżej: jedno złączenie zamiast zapytania na wiersz i wyłącznie w konkursie,

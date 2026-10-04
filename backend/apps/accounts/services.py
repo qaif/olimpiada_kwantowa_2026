@@ -14,6 +14,7 @@ from django.core.validators import EmailValidator
 from django.db import IntegrityError, transaction
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.translation import gettext
 from django.views.decorators.debug import sensitive_variables
 from rest_framework import status
 
@@ -47,13 +48,13 @@ from .models import (
     InvitationGrantsStatus,
     Membership,
     Participant,
+    Region,
     RegistrationProfile,
     User,
     Voivodeship,
     generate_public_code,
     hash_invitation_code,
     normalize_voivodeship,
-    region_for_district,
 )
 from .phones import normalize_phone
 
@@ -168,13 +169,71 @@ def _require_voivodeship(district: str | None, *, required: bool) -> str | None:
         return normalized
     if (district or "").strip():
         raise DomainError(
-            "Nieznane województwo – wybierz jedno z listy.",
+            gettext("Nieznane województwo – wybierz jedno z listy."),
             "DISTRICT_INVALID",
             status.HTTP_400_BAD_REQUEST,
         )
     if required:
-        raise DomainError("Województwo jest wymagane.", "DISTRICT_REQUIRED", status.HTTP_400_BAD_REQUEST)
+        raise DomainError(
+            gettext("Województwo jest wymagane."), "DISTRICT_REQUIRED", status.HTTP_400_BAD_REQUEST
+        )
     return None
+
+
+def active_region(competition, code: str | None) -> Region | None:
+    """**Aktywny** region konkursu o tym kodzie (albo kodzie województwa po normalizacji zapisu).
+
+    W odróżnieniu od :func:`apps.accounts.models.region_for_district` (odczyt historii – profil może
+    wskazywać region już wycofany) to jest bramka **zapisu**: region dezaktywowany w panelu albo
+    komendą ``regions_countries`` nie może trafić do nowego profilu żadną drogą.
+    """
+    raw = (code or "").strip()
+    if competition is None or not raw:
+        return None
+    codes = [raw] + [c for c in (normalize_voivodeship(raw),) if c and c != raw]
+    found = {
+        region.code: region
+        for region in Region.objects.for_competition(competition).active().filter(code__in=codes)
+    }
+    return next((found[c] for c in codes if c in found), None)
+
+
+def resolve_district(
+    competition, district: str | None, *, required: bool
+) -> tuple[str | None, Region | None]:
+    """Wartość ``district`` i region do zapisu w profilu – **jedna** reguła dla każdej drogi zapisu.
+
+    Wołają ją rejestracja (WWW i API), profil uczestnika (``/me/``, karta koordynatora,
+    ``PATCH /api/auth/me/``), edycja członka komitetu, kody zaproszeń (pojedyncze i hurtowe),
+    rejestracja komitetu, przyjęcie zaproszenia z importu i ustalenie regionu przez koordynatora
+    (docs/tasks/REG-01.md, poprawki po przeglądzie).
+
+    - flaga ``custom_regions`` wyłączona (Olimpiada Kwantowa) → dokładnie
+      :func:`_require_voivodeship` i ``None`` jako region, **bez zapytania**,
+    - flaga włączona → wartością musi być kod **aktywnego** regionu tego konkursu (np. kraj
+      ``de`` w ``iqo``); zwracamy ``(region.code, region)``, a wołający zapisuje oba – ``district``
+      jest denormalizowaną kopią kodu (§ 1.4.2 etapu 2).
+
+    Pusta wartość przy ``required=False`` znaczy „bez regionu” i daje ``(None, None)``.
+    """
+    if competition is None or not competition.has_feature(CUSTOM_REGIONS_FLAG):
+        return _require_voivodeship(district, required=required), None
+    if not (district or "").strip():
+        if required:
+            raise DomainError(
+                gettext("Wybierz pozycję z listy – to pole jest wymagane."),
+                "DISTRICT_REQUIRED",
+                status.HTTP_400_BAD_REQUEST,
+            )
+        return None, None
+    found = active_region(competition, district)
+    if found is None:
+        raise DomainError(
+            gettext("Nieznana pozycja – wybierz jedną z listy."),
+            "DISTRICT_INVALID",
+            status.HTTP_400_BAD_REQUEST,
+        )
+    return found.code, found
 
 
 def _resolve_school(
@@ -413,10 +472,13 @@ def _resolve_region(competition, district, region, *, profile: RegistrationProfi
     """
     if competition is None or not competition.has_feature(CUSTOM_REGIONS_FLAG):
         return _require_voivodeship(district, required=profile.require_region) or "", None
-    found = region_for_district(competition, (region or "").strip() or district)
-    if found is None:
-        return _require_voivodeship(district, required=profile.require_region) or "", None
-    return found.code, found
+    # Przy włączonej fladze wyłącznie **aktywny** region konkursu (poprawka po przeglądzie REG-01):
+    # dawny odwrót na listę województw wpuszczał „mazowieckie” do konkursu, który województwa
+    # wycofał (``regions_countries``), a nieaktywny region – do nowego profilu.
+    code, found = resolve_district(
+        competition, (region or "").strip() or district, required=profile.require_region
+    )
+    return code or "", found
 
 
 def _require_grade(grade, *, profile: RegistrationProfile | None = None) -> int | None:
@@ -1305,7 +1367,9 @@ def create_invitation(
     ``district`` (o ile podany) narzuca województwo rejestrowanego recenzenta i oznacza je jako
     pochodzące od organizatora (``district_verified``).
     """
-    district = _require_voivodeship(district, required=False)
+    district, region = resolve_district(
+        current_competition() or default_competition(), district, required=False
+    )
     if expires_at is None:
         expires_at = timezone.now() + (valid_for or timedelta(days=14))
     if max_uses < 1:
@@ -1321,6 +1385,7 @@ def create_invitation(
         grants_status=grants_status,
         is_appeals=is_appeals,
         district=district,
+        region=region,
     )
     return invitation, plain_code
 
@@ -1452,8 +1517,14 @@ def invitation_message(
         "",
         f"Kod jest ważny do {expires_local:%d.%m.%Y, %H:%M} (czas polski).",
     ]
-    if district:
+    if district in Voivodeship.values:
         lines.append(f"Województwo przypisane do kodu: {Voivodeship(district).label}.")
+    elif district:
+        # Konkurs z własnym podziałem (REG-01: kraj w ``iqo``) – kod niesie region, nie województwo.
+        from .models import region_for_district
+
+        found = region_for_district(current_competition() or default_competition(), district)
+        lines.append(f"Region przypisany do kodu: {found.name if found is not None else district}.")
     if is_appeals:
         lines.append("Kod uprawnia do prac komisji odwoławczej.")
     lines += [
@@ -1604,7 +1675,11 @@ def send_invitations(
             "TOO_MANY_RECIPIENTS",
             status.HTTP_400_BAD_REQUEST,
         )
-    district = _require_voivodeship(district, required=False)
+    # ``district`` może być kodem regionu konkursu (kraj w ``iqo``) – ``_issue_invitation`` dostaje
+    # już sprawdzoną wartość i sam dobiera do niej region.
+    district, _region = resolve_district(
+        current_competition() or default_competition(), district, required=False
+    )
     expires_at = timezone.now() + (valid_for or timedelta(days=14))
     link = _committee_registration_link(request)
     taken = _emails_with_committee_account(normalized)
@@ -1747,8 +1822,14 @@ def register_committee(
     """
     # Województwo z payloadu sprawdzamy przed zużyciem kodu: nieprawidłowa deklaracja nie ma prawa
     # skasować jednorazowego zaproszenia (``redeem_invitation`` podnosi ``used_count``).
-    declared = _require_voivodeship(district, required=False)
+    target = current_competition() or default_competition()
+    declared, declared_region = resolve_district(target, district, required=False)
     invitation = redeem_invitation(invitation_code)
+    owner = invitation.competition or default_competition()
+    if owner is not None and target is not None and owner.pk != target.pk:
+        # Kod z innego konkursu niż kontekst żądania (droga rzadka – link z cudzej domeny): deklarację
+        # rozstrzygamy w konkursie **kodu**, bo to do jego komitetu ktoś wchodzi.
+        declared, declared_region = resolve_district(owner, district, required=False)
     user = _create_user(
         email=email,
         password=password,
@@ -1756,7 +1837,12 @@ def register_committee(
         last_name=last_name,
         is_active=False,
     )
-    from_code = normalize_voivodeship(invitation.district)
+    # Region narzucony kodem: przy ``custom_regions`` kod niesie region (kraj), bez flagi – samo
+    # województwo, dokładnie jak dotąd.
+    from_code_region = invitation.region if invitation.region_id else None
+    from_code = (
+        from_code_region.code if from_code_region is not None else normalize_voivodeship(invitation.district)
+    )
     member = CommitteeMember.objects.create(
         user=user,
         # Konkurs bierzemy z **kodu**, a nie z kontekstu żądania: to zaproszenie rozstrzyga,
@@ -1764,6 +1850,7 @@ def register_committee(
         # wtedy, schodzimy do konkursu bieżącego.
         competition=invitation.competition or default_competition(),
         district=from_code or declared,
+        region=from_code_region if from_code else declared_region,
         district_verified=bool(from_code),
         status=invitation.grants_status,
         is_appeals_committee=invitation.is_appeals,
@@ -1847,14 +1934,7 @@ def verify_committee_district(
     # regionu, a region trafia obok ``district`` tak samo, jak w rejestracji. Bez flagi – dokładnie
     # dotychczasowa reguła listy województw.
     owner = competition or member.competition
-    region = None
-    if owner is not None and owner.has_feature(CUSTOM_REGIONS_FLAG) and (district or "").strip():
-        region = region_for_district(owner, district)
-        if region is None or not region.is_active:
-            raise DomainError("Wybierz region z listy.", "DISTRICT_INVALID", status.HTTP_400_BAD_REQUEST)
-        district = region.code
-    else:
-        district = _require_voivodeship(district, required=False)
+    district, region = resolve_district(owner, district, required=False)
     if member.status != CommitteeStatus.ACTIVE:
         # Województwo ma znaczenie tylko dla kogoś, kto realnie ocenia prace. Ustawianie go
         # profilowi oczekującemu albo zawieszonemu sugerowałoby, że jest on już w puli recenzentów.
