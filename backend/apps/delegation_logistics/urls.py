@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from django.urls import path
 
-from . import views
+from . import views, views_letters
 
 urlpatterns = [
     # --- opiekun drużyny -------------------------------------------------------------------------
@@ -142,4 +142,44 @@ urlpatterns = [
         name="coordinator-onsite-letter",
     ),
     path("coordinator/logistics/badges.pdf", views.BadgesView.as_view(), name="coordinator-onsite-badges"),
+    # --- VISA-01: wnioski o listy zapraszające, decyzje, unieważnienie, weryfikacja publiczna ------------
+    path(
+        "delegation/logistics/letters/",
+        views_letters.LeaderLettersView.as_view(),
+        name="delegation-logistics-letters",
+    ),
+    path(
+        "delegation/logistics/letter-requests/<int:pk>/withdraw/",
+        views_letters.LeaderRequestWithdrawView.as_view(),
+        name="delegation-logistics-letter-request-withdraw",
+    ),
+    path(
+        "coordinator/logistics/letter-requests/",
+        views_letters.LetterRequestsView.as_view(),
+        name="coordinator-onsite-letter-requests",
+    ),
+    path(
+        "coordinator/logistics/letter-requests.csv",
+        views_letters.LetterRequestsExportView.as_view(),
+        name="coordinator-onsite-letter-requests-export",
+    ),
+    path(
+        "coordinator/logistics/letter-requests/approve/",
+        views_letters.LetterRequestsApproveView.as_view(),
+        name="coordinator-onsite-letter-requests-approve",
+    ),
+    path(
+        "coordinator/logistics/letter-requests/reject/",
+        views_letters.LetterRequestsRejectView.as_view(),
+        name="coordinator-onsite-letter-requests-reject",
+    ),
+    path(
+        "coordinator/logistics/letters/<int:pk>/revoke/",
+        views_letters.LetterRevokeView.as_view(),
+        name="coordinator-onsite-letter-revoke",
+    ),
+    # Publiczna weryfikacja listu – nowy pierwszy segment ``visa`` (``RESERVED_SLUGS``, kontrakt djcms).
+    # Stała ścieżka formularza przed wzorcem z kodem.
+    path("visa/verify/", views_letters.VisaVerifyFormView.as_view(), name="visa-verify"),
+    path("visa/verify/<str:code>/", views_letters.VisaVerifyView.as_view(), name="visa-verify-code"),
 ]

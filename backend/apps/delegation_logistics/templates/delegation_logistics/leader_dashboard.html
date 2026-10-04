@@ -75,10 +75,11 @@
 
 <section class="section">
   <div class="section__head"><h2 class="mt-0">{% translate "Listy zapraszające (wiza)" %}</h2>
-    <p class="hint">{% translate "Listy wystawia organizator na podstawie danych dokumentu podróży." %}</p></div>
+    <p class="hint">{% translate "Listy wystawia organizator na podstawie danych dokumentu podróży." %}</p>
+    <p><a class="btn btn--secondary btn--small" href="{% url 'web:delegation-logistics-letters' %}">{% translate "Poproś o list zapraszający" %}</a></p></div>
   <ul>
     {% for letter in letters %}
-      <li>{% if letter.content %}<a href="{% url 'web:delegation-logistics-letter' letter.pk %}">{{ letter.number }}</a>{% else %}{{ letter.number }}{% endif %} – {{ letter.issued_at|date:"j.m.Y" }} ({{ letter.people_count }})</li>
+      <li>{% if letter.content and not letter.revoked_at %}<a href="{% url 'web:delegation-logistics-letter' letter.pk %}">{{ letter.number }}</a>{% else %}{{ letter.number }}{% endif %} – {{ letter.issued_at|date:"j.m.Y" }} ({{ letter.people_count }}){% if letter.revoked_at %} <span class="badge badge--warn">{% translate "unieważniony" %}</span>{% endif %}</li>
     {% empty %}
       <li>{% translate "Brak wystawionych listów." %}</li>
     {% endfor %}

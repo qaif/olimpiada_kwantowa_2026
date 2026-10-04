@@ -13,6 +13,7 @@
     <a class="tab" href="{% url 'web:coordinator-onsite-dietary' %}"{% if name == "coordinator-onsite-dietary" %} aria-current="page"{% endif %}>Wyżywienie</a>
     <a class="tab" href="{% url 'web:coordinator-onsite-tshirts' %}"{% if name == "coordinator-onsite-tshirts" %} aria-current="page"{% endif %}>Koszulki</a>
     <a class="tab" href="{% url 'web:coordinator-onsite-letters' %}"{% if name == "coordinator-onsite-letters" %} aria-current="page"{% endif %}>Listy wizowe</a>
+    <a class="tab" href="{% url 'web:coordinator-onsite-letter-requests' %}"{% if name == "coordinator-onsite-letter-requests" %} aria-current="page"{% endif %}>Wnioski o listy</a>
   {% endif %}
   {% if can_check_in %}
     <a class="tab" href="{% url 'web:onsite-checkin' %}">Skanowanie</a>

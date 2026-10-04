@@ -1234,6 +1234,11 @@ REST_FRAMEWORK = {
         # obsługi przy wejściu (setki skanów na godzinę z jednego telefonu). Liczone per konto.
         "onsite_logistics": "600/hour",
         "onsite_checkin": "3000/hour",
+        # Publiczna weryfikacja listu zapraszającego (VISA-01, ``/visa/verify/<kod>/``) – bez konta,
+        # więc per adres IP. Sześćdziesiąt na godzinę mieści okienko konsulatu sprawdzające całą
+        # kolejkę wnioskodawców za jednym adresem; kod ma 59 bitów, więc zgadywanie i tak nie ma sensu,
+        # a limit ucina przeglądanie strony skryptem.
+        "visa_verify": "60/hour",
         # Bramka linku-zaproszenia (``/zaproszenie/wideo/<klucz>/``, POST „Dołącz”) – bez konta,
         # więc liczona po adresie IP, jak każdy publiczny formularz. Wysoko, bo za jednym NAT-em
         # bywa cała sala gości wchodzących na to samo zebranie naraz; nisko na tyle, żeby

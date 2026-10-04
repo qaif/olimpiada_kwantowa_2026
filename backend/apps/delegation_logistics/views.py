@@ -44,6 +44,7 @@ from .forms import (
     RoomForm,
     submitted,
 )
+from .letter_texts import DEFAULT_LANGUAGE, letter_languages
 from .models import FieldGroup, LogisticsAccess, MemberKind
 
 THROTTLE_SCOPE = "onsite_logistics"
@@ -326,6 +327,8 @@ class CoordinatorMixin(CoordinatorRequiredMixin):
             "competition": self.competition,
             "is_officer": access.is_officer(self.request.user, self.competition),
             "can_check_in": access.can_check_in(self.request.user, self.competition),
+            # Języki listu zapraszającego (VISA-01) – wybór przy wystawianiu z rejestru i z karty osoby.
+            "letter_languages": letter_languages(self.competition),
             **extra,
         }
 
@@ -759,7 +762,12 @@ class LettersView(OfficerMixin, ThrottledFormMixin, View):
             member = services.member_for_competition(self.competition, int(raw_member))
         try:
             letter = letters.issue_letter(
-                self.competition, delegation, member=member, actor=request.user, request=request
+                self.competition,
+                delegation,
+                member=member,
+                actor=request.user,
+                request=request,
+                language=request.POST.get("language") or DEFAULT_LANGUAGE,
             )
         except DomainError as exc:
             messages.error(request, str(exc.detail))

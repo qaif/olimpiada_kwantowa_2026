@@ -118,6 +118,8 @@ RESERVED_SLUGS = frozenset(
         "statystyki",
         "supervisor",
         "support",
+        # Publiczna weryfikacja listu zapraszającego do wizy (VISA-01, ``/visa/verify/<kod>/``).
+        "visa",
         "zaproszenie",
         "zgoda",
     }

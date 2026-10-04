@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% comment %}
+  Publiczna weryfikacja listu zapraszającego do wizy (VISA-01 § 5) – dla konsulatu.
+
+  Dane minimalne z ``verification.verify``: numer, data, stan, wydarzenie z migawki, imię i nazwisko
+  oraz obywatelstwo osób. Nigdy numeru paszportu, daty urodzenia ani powodu unieważnienia – szablon
+  dostaje słownik, a nie wiersz rejestru, więc nie ma po co sięgnąć.
+
+  Nieznany kod nie daje 404 (jak ``/dyplomy/<kod>/``): ta sama strona z komunikatem i polem na kod.
+{% endcomment %}
+{% block title %}{% translate "Weryfikacja listu zapraszającego" %}{% endblock %}
+{% block head %}<meta name="robots" content="noindex, nofollow">{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow">{{ request.competition.name }}</span>
+  <h1>{% translate "Weryfikacja listu zapraszającego" %}</h1>
+  {% if code %}<p class="lead">{% translate "Kod z listu:" %} <span class="code-chip">{{ code }}</span></p>{% endif %}
+</div>
+
+<section class="section">
+  <div class="card">
+    {% if result %}
+      {% if result.valid %}
+        <p class="msg msg-success">{% translate "List o tym kodzie został wystawiony przez organizatora i jest ważny." %}</p>
+      {% else %}
+        <p class="msg msg-error">{% blocktranslate trimmed with day=result.revoked_on|date:"j.m.Y" %}
+          List o tym kodzie został wystawiony przez organizatora, ale <strong>unieważniony</strong> {{ day }}. Nie stanowi zaproszenia.
+        {% endblocktranslate %}</p>
+      {% endif %}
+      <dl class="meta-list">
+        <dt>{% translate "Numer listu" %}</dt><dd>{{ result.number }}</dd>
+        <dt>{% translate "Data wystawienia" %}</dt><dd>{{ result.issued_on|date:"j.m.Y" }}</dd>
+        {% if result.event_name %}<dt>{% translate "Wydarzenie" %}</dt><dd>{{ result.event_name }}</dd>{% endif %}
+        {% if result.event_city %}<dt>{% translate "Miejsce" %}</dt><dd>{{ result.event_city }}</dd>{% endif %}
+        {% if result.event_starts_on %}<dt>{% translate "Termin" %}</dt><dd>{{ result.event_starts_on|date:"j.m.Y" }} – {{ result.event_ends_on|date:"j.m.Y" }}</dd>{% endif %}
+        <dt>{% translate "Osoby zaproszone" %}</dt>
+        <dd>
+          {% if result.purged %}
+            <span class="hint">{% translate "Dane osób z tego listu zostały usunięte po zakończeniu wydarzenia (ochrona danych osobowych)." %}</span>
+          {% else %}
+            <ul>
+              {% for person in result.people %}
+                <li>{{ person.name }}{% if person.nationality %} – {% blocktranslate trimmed with country=person.nationality %}obywatelstwo: {{ country }}{% endblocktranslate %}{% endif %}</li>
+              {% endfor %}
+            </ul>
+          {% endif %}
+        </dd>
+      </dl>
+      <p class="hint">{% translate "Strona nie pokazuje numerów paszportów ani innych danych z dokumentów podróży. Porównaj imię i nazwisko z paszportem osoby, która przedstawia list." %}</p>
+    {% else %}
+      {% if code %}
+        <p class="msg msg-error">{% translate "Nie mamy listu o takim kodzie." %}</p>
+        <p class="hint">{% blocktranslate trimmed %}Sprawdź, czy kod został przepisany dokładnie. W kodach nie występują znaki
+          łatwe do pomylenia: zera, jedynki ani litery „I”, „L” i „O”.{% endblocktranslate %}</p>
+      {% endif %}
+    {% endif %}
+    {% if form %}
+      <form method="get" action="{% url 'web:visa-verify' %}" class="form form--inline">
+        <label for="visa-code">{% translate "Kod weryfikacyjny z listu" %}</label>
+        <input id="visa-code" name="code" type="text" maxlength="20" autocomplete="off" autocapitalize="characters" spellcheck="false" required>
+        <button type="submit" class="btn btn--primary">{% translate "Sprawdź" %}</button>
+      </form>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

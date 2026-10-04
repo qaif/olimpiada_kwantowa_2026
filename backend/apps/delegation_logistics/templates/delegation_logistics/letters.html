@@ -23,6 +23,10 @@
       <select id="letter-delegation" name="delegation">
         {% for delegation in delegations %}<option value="{{ delegation.pk }}">{{ delegation.country.name }}</option>{% endfor %}
       </select>
+      <label for="letter-language">Język listu</label>
+      <select id="letter-language" name="language">
+        {% for code, name in letter_languages %}<option value="{{ code }}">{{ name }}</option>{% endfor %}
+      </select>
       <button type="submit" class="btn btn--primary">Wystaw</button>
     </form>
     <p class="hint">List imienny wystawia się z karty osoby.</p>
@@ -33,19 +37,32 @@
   <div class="scroll">
     <table class="table">
       <caption class="visually-hidden">Rejestr listów</caption>
-      <thead><tr><th scope="col">Numer</th><th scope="col">Kraj</th><th scope="col">Rodzaj</th><th scope="col">Osoby</th><th scope="col">Wystawiono</th><th scope="col">Wystawił(a)</th></tr></thead>
+      <thead><tr><th scope="col">Numer</th><th scope="col">Kraj</th><th scope="col">Rodzaj</th><th scope="col">Osoby</th><th scope="col">Wystawiono</th><th scope="col">Wystawił(a)</th><th scope="col">Kod weryfikacyjny i język</th><th scope="col">Stan</th></tr></thead>
       <tbody>
         {% for letter in letters %}
           <tr>
-            <th scope="row">{% if letter.content %}<a href="{% url 'web:coordinator-onsite-letter' letter.pk %}">{{ letter.number }}</a>{% else %}{{ letter.number }}{% endif %}</th>
+            <th scope="row">{% if letter.content and not letter.revoked_at %}<a href="{% url 'web:coordinator-onsite-letter' letter.pk %}">{{ letter.number }}</a>{% else %}{{ letter.number }}{% endif %}</th>
             <td>{{ letter.country_name }}</td>
             <td>{{ letter.get_scope_display }}{% if letter.member %} – {{ letter.member.full_name }}{% endif %}</td>
             <td class="num">{{ letter.people_count }}</td>
             <td>{{ letter.issued_at|date:"j.m.Y H:i" }}</td>
             <td>{{ letter.issued_by.email|default:"—" }}{% if letter.content_purged_at %} <span class="badge badge--neutral">dane usunięte</span>{% endif %}</td>
+            <td>{% if letter.verification_code %}<a href="{% url 'web:visa-verify-code' letter.verification_code %}"><code>{{ letter.display_code }}</code></a>{% else %}—{% endif %} · {{ letter.language }}</td>
+            <td>
+              {% if letter.revoked_at %}
+                <span class="badge badge--warn">unieważniony {{ letter.revoked_at|date:"j.m.Y" }}</span><br><span class="hint">{{ letter.revoke_reason }}</span>
+              {% else %}
+                <form method="post" action="{% url 'web:coordinator-onsite-letter-revoke' letter.pk %}" class="form form--inline">
+                  {% csrf_token %}
+                  <label class="visually-hidden" for="revoke-{{ letter.pk }}">Powód unieważnienia</label>
+                  <input id="revoke-{{ letter.pk }}" name="reason" type="text" maxlength="300" placeholder="powód unieważnienia" required>
+                  <button type="submit" class="btn btn--ghost btn--small">Unieważnij</button>
+                </form>
+              {% endif %}
+            </td>
           </tr>
         {% empty %}
-          <tr><td colspan="6" class="empty">Nie wystawiono jeszcze żadnego listu.</td></tr>
+          <tr><td colspan="8" class="empty">Nie wystawiono jeszcze żadnego listu.</td></tr>
         {% endfor %}
       </tbody>
     </table>
