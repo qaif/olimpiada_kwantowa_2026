@@ -62,7 +62,8 @@ def test_lone_percent_and_braces_must_match_the_source():
         "<b>Hola</b>",
         "Hola <a href='//evil.example'>aquí</a>",
         "Hola <img src=x onerror=alert(1) ",  # niedomknięty znacznik sklejony z HTML-em szablonu
-        "Hola > adiós",
+        "Hola <!-- x",
+        "Hola </b",
     ],
 )
 def test_new_html_is_rejected(payload):
@@ -116,3 +117,48 @@ def test_plural_forms():
     assert ok("%(count)s punto", msgid, msgid_plural=plural, plural_index=0)
     assert ok("%(count)s puntos", msgid, msgid_plural=plural, plural_index=1)
     rejected("%(n)s puntos", msgid, msgid_plural=plural, plural_index=1)
+
+
+# --- poprawki po przeglądzie (L1) --------------------------------------------------------------
+
+
+def test_placeholder_counts_matter():
+    """L1a: ten sam zbiór, inna liczba wystąpień – odmowa (Counter, nie set)."""
+    rejected("%(n)s y %(n)s", "%(n)s punktów")
+    rejected(
+        "%(count)s %(count)s puntos", "%(count)s punkt", msgid_plural="%(count)s punktów", plural_index=1
+    )
+
+
+def test_several_positional_placeholders_cannot_be_fixed_in_the_panel():
+    """L1a: dwa ``%s`` bez nazw – szyk zdania jest jedyną nazwą, poprawka tylko w repozytorium."""
+    assert "bez nazw" in rejected("%s de %s", "%s z %s")
+    assert ok("Tienes %s", "Masz %s") == "Tienes %s"
+
+
+@pytest.mark.parametrize(
+    "bad", ["Hola {name.__class__}", "Hola {name[0]}", "Hola {name!r}", "Hola {name:>10}"]
+)
+def test_format_fields_must_be_identical(bad):
+    """L1b: pole z atrybutem, indeksem, konwersją albo formatem to droga do danych obiektu."""
+    rejected(bad, "Witaj {name}")
+
+
+def test_identical_format_fields_pass():
+    assert ok("Hola {user.first_name}", "Witaj {user.first_name}") == "Hola {user.first_name}"
+
+
+@pytest.mark.parametrize("text", ["a < b", "menos de <5 puntos", "x <  b"])
+def test_lone_lt_before_space_or_digit_is_fine(text):
+    """L1c: ``<`` przed odstępem albo cyfrą nie otwiera znacznika."""
+    assert ok(text, "Tekst porównania")
+
+
+def test_greater_than_alone_is_plain_text():
+    assert ok("5 > 3", "Pięć większe od trzech") == "5 > 3"
+
+
+def test_quotes_up_to_the_source_count():
+    """L1d: tyle prostych cudzysłowów, ile ma źródło – nie więcej."""
+    assert ok('Pulsa "Guardar"', 'Kliknij "Zapisz"')
+    rejected('Pulsa "Guardar" y "x"', 'Kliknij "Zapisz"')

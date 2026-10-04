@@ -12,12 +12,14 @@ języka: ``LocaleMiddleware``, ``PreferencesMiddleware``, ``translation.override
 Celery (listy). Owinięcie niczego nie zmienia w wyniku, gdy nakładka jest pusta albo wyłączona,
 i nigdy nie rzuca – błąd nakładki kończy się wpisem w logu i katalogiem z repozytorium.
 
-Pamięć (unieważnianie): wersja nakładki i jej treść stoją w cache'u (Redis) bez terminu ważności;
-proces sprawdza wersję najwyżej raz na ``TRANSLATION_OVERRIDES_CHECK_SECONDS``, więc zwykłe żądanie
-nie dokłada nawet odczytu z Redisa. Zmiana (zatwierdzenie, cofnięcie, przycięcie) przebudowuje
-wpis z bazy pod nową wersją (``publish``) – proces, który ją zrobił, widzi ją od razu, pozostałe
-po kilku sekundach. Utracony cache (restart Redisa) to jedno zapytanie przy najbliższym żądaniu
-w danym języku. Język źródłowy (polski) nie ma nakładki nigdy.
+Pamięć (unieważnianie): w cache'u (Redis) stoi wyłącznie **numer wersji** nakładki języka, bez
+terminu ważności. Zmiana (zatwierdzenie, cofnięcie, potwierdzenie, przycięcie) tylko go podbija
+(``publish``); każdy proces sprawdza go najwyżej raz na ``TRANSLATION_OVERRIDES_CHECK_SECONDS``
+i przy innej wersji **sam** buduje nakładkę z bazy – jedno zapytanie na proces i zmianę, bez
+przesyłania słownika przez Redisa. Proces, który zmianę zrobił, przebudowuje się od razu. Utracony
+cache (restart Redisa) to nowa wersja i jedno zapytanie na proces. Język źródłowy (polski) nie ma
+nakładki nigdy. Bufor stron anonimowych (``apps.web.page_cache``, 120 s) jest czyszczony przy
+każdej zmianie – inaczej gość widziałby stary tekst jeszcze przez dwie minuty.
 """
 
 from __future__ import annotations
@@ -36,7 +38,6 @@ from django.utils.translation import trans_real
 logger = logging.getLogger(__name__)
 
 VERSION_KEY = "translation-review:version:{language}"
-PAYLOAD_KEY = "translation-review:overlay:{language}"
 #: Atrybut na obiekcie ``DjangoTranslation``: ``(wersja, słownik)`` aktualnie włożonej nakładki.
 LAYER_ATTR = "_translation_review_layer"
 
@@ -67,36 +68,39 @@ def gettext_key(msgctxt: str | None, msgid: str, plural_index: int | None):
 
 
 def entries_from_db(language: str) -> dict:
-    """Nakładki języka bez tych, które niczego nie zmieniają.
+    """Nakładki języka, które **dziś** coś zmieniają (``services.override_applies``).
 
-    Pomijamy nakładkę z tekstem identycznym z katalogiem (potwierdzenie „obecne tłumaczenie jest
-    dobre” albo poprawka już wdrożona, a jeszcze nieprzycięta). Gdyby trafiła do gettext, po
-    kolejnym wydaniu, które zmieni ten ``msgstr`` w repozytorium, przykrywałaby nowy tekst starym.
+    Bez potwierdzeń, bez poprawek już obecnych w katalogu i bez poprawek nieaktualnych (katalog
+    zmienił ``msgstr`` od chwili decyzji) – inaczej po wydaniu stary tekst przykrywałby nowy.
     """
     from .catalogs import index
     from .models import TranslationOverride
+    from .services import OverrideState, override_applies
 
     known = index(language).by_key
     rows = TranslationOverride.objects.filter(language=language).values_list(
-        "key", "msgctxt", "msgid", "plural_index", "text"
+        "key", "msgctxt", "msgid", "plural_index", "text", "kind", "base_text"
     )
     entries = {}
-    for key, ctxt, msgid, form, text in rows:
+    for key, ctxt, msgid, form, text, kind, base in rows:
         row = known.get(key)
-        if row is not None and row.translation == text:
-            continue
-        entries[gettext_key(ctxt, msgid, form)] = text
+        if row is not None and override_applies(row, OverrideState(kind, text, base)):
+            entries[gettext_key(ctxt, msgid, form)] = text
     return entries
 
 
 def publish(language: str) -> str:
-    """Przebudowuje nakładkę języka z bazy pod nową wersją. Woła ją każda zmiana nakładek."""
+    """Podbija wersję nakładki języka. Woła ją każda zmiana nakładek (po zatwierdzeniu transakcji)."""
     version = uuid.uuid4().hex
-    entries = entries_from_db(language)
-    cache.set(PAYLOAD_KEY.format(language=language), {"version": version, "entries": entries}, None)
     cache.set(VERSION_KEY.format(language=language), version, None)
     with _lock:
-        _memo[language] = _Memo(version, entries, time.monotonic() + check_interval())
+        _memo.pop(language, None)
+    try:
+        from apps.web.page_cache import invalidate_all
+
+        invalidate_all()
+    except Exception:  # noqa: BLE001 - bufor stron jest optymalizacją; jego awaria nie cofa decyzji
+        logger.exception("Nie udało się wyczyścić bufora stron po zmianie tłumaczeń.")
     return version
 
 
@@ -111,22 +115,24 @@ def overlay(language: str) -> _Memo:
     memo = _memo.get(language)
     if memo is not None and now < memo.next_check:
         return memo
-    version = cache.get(VERSION_KEY.format(language=language))
-    if memo is not None and version is not None and version == memo.version:
+    key = VERSION_KEY.format(language=language)
+    version = cache.get(key)
+    if version is None:
+        # Pierwsze uruchomienie albo utracony cache: wersja od nowa (``add`` – wygrywa jeden proces).
+        cache.add(key, uuid.uuid4().hex, None)
+        version = cache.get(key) or "unversioned"
+    if memo is not None and version == memo.version:
         memo.next_check = now + check_interval()
         return memo
-    payload = cache.get(PAYLOAD_KEY.format(language=language)) if version is not None else None
-    if payload is None or payload.get("version") != version:
-        try:
-            publish(language)
-        except Exception:  # noqa: BLE001 - baza niedostępna: katalog z repozytorium, próba za chwilę
-            logger.exception("Nie udało się zbudować nakładki tłumaczeń dla %s.", language)
-            fallback = _Memo(memo.version if memo else "unavailable", memo.entries if memo else {}, now + 30)
-            with _lock:
-                _memo[language] = fallback
-            return fallback
-        return _memo[language]
-    fresh = _Memo(payload["version"], payload["entries"], now + check_interval())
+    try:
+        entries = entries_from_db(language)
+    except Exception:  # noqa: BLE001 - baza niedostępna: katalog z repozytorium, próba za chwilę
+        logger.exception("Nie udało się zbudować nakładki tłumaczeń dla %s.", language)
+        fallback = _Memo(memo.version if memo else "unavailable", memo.entries if memo else {}, now + 30)
+        with _lock:
+            _memo[language] = fallback
+        return fallback
+    fresh = _Memo(version, entries, now + check_interval())
     with _lock:
         _memo[language] = fresh
     return fresh

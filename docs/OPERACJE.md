@@ -4016,52 +4016,83 @@ odwracalne (nowe tabele i kolumny nullowalne albo z wartością domyślną).
 
 Wolontariusze z rolą **tłumacza** (np. kierownicy delegacji `iqo`) przeglądają napisy interfejsu
 w swoim języku pod `/translations/`, proponują poprawki i głosują; **recenzent tłumaczeń** zatwierdza.
-Zatwierdzona poprawka działa od razu (nakładka w bazie na katalogi gettext, ≤ 5 s na wszystkich
-procesach), a do repozytorium trafia komendą `export_translations` jako zwykły PR. Dlaczego nie
-Weblate: spec § 1 (nowy serwer albo zasoby produkcji, klucz z prawem zapisu do repozytorium, drugi
-system kont).
+Zatwierdzona poprawka działa bez wydania (nakładka z bazy na katalogi gettext), a do repozytorium
+trafia komendą `export_translations` jako zwykły PR. Kiedy ją widać: proces, który ją zatwierdził –
+od razu; pozostałe procesy `web`/`worker` – po najwyżej 5 s (`TRANSLATION_OVERRIDES_CHECK_SECONDS`);
+bufor stron dla gości (`apps.web.page_cache`, 120 s) jest czyszczony przy każdej zmianie. Dlaczego
+nie Weblate: spec § 1 (nowy serwer albo zasoby produkcji, klucz z prawem zapisu do repozytorium,
+drugi system kont). Serwis publiczny na django CMS (`djcms`) to osobny proces – nakładka go nie
+obejmuje.
 
 ### 33.1. Role
 
 - **Tłumacz** (proponuje, głosuje, zgłasza błąd ze stopki) – nadaje koordynator konkursu z więcej niż
   jednym językiem interfejsu: „Ustawienia → Tłumacze interfejsu” (`/coordinator/translators/`),
-  wyłącznie osobom związanym z konkursem (członkostwo albo profil uczestnika).
-- **Recenzent tłumaczeń** (zatwierdza, odrzuca, cofa, zamyka zgłoszenia) – nadaje **wyłącznie
-  superkoordynator** (ten sam ekran, pod adresem dowolnego konkursu). Superkoordynator jest
-  recenzentem każdego języka.
+  wyłącznie osobom związanym z konkursem (członkostwo albo profil uczestnika) i wyłącznie w językach
+  interfejsu tego konkursu.
+- **Nadanie koordynatora należy do konkursu**: widzi je i odbiera każdy koordynator tego konkursu
+  (także po odejściu nadającego), a działa **tylko dopóki** osoba jest z konkursem związana – po
+  wypisaniu, odebraniu roli albo usunięciu profilu rola tłumacza przestaje działać sama (wiersz
+  zostaje na liście koordynatora do usunięcia).
+- **Recenzent tłumaczeń** (zatwierdza, odrzuca, cofa, potwierdza, zamyka zgłoszenia) – nadaje
+  **wyłącznie superkoordynator** (ten sam ekran, pod adresem dowolnego konkursu); jego nadania są
+  platformowe (bez konkursu). Superkoordynator jest recenzentem każdego języka.
 - Każde nadanie, odebranie i każda decyzja – wpis audytu `translation.*` (bez treści zgłoszeń).
 
-### 33.2. Z bazy do repozytorium (po serii poprawek)
+### 33.2. Decyzje recenzenta – co trafia do serwisu
+
+- **Poprawka** (zatwierdzona propozycja) – trafia do gettext, ale tylko dopóki `msgstr` w katalogu
+  jest ten sam, co w chwili decyzji. Jeśli wydanie zmieni go w międzyczasie, wygrywa katalog,
+  a napis ma na liście znacznik „do ponownego przeglądu”.
+- **Potwierdzenie** („Obecne tłumaczenie jest poprawne”) – **nigdy** nie trafia do gettext; to sam
+  znacznik „przejrzane”, który eksport zapisuje jako `# l10n-reviewed`.
+
+### 33.3. Z bazy do repozytorium (po serii poprawek)
 
 ```sh
-# produkcja – zrzut zatwierdzonych poprawek (sam tekst tłumaczeń, bez danych osób)
+# produkcja – zrzut zatwierdzonych decyzji (sam tekst tłumaczeń, bez danych osób)
 docker compose exec -T web python manage.py export_translations --to-json - > overrides.json
-# checkout dewelopera – zapis do .po (katalog projektu i katalogi aplikacji), potem PR
-docker compose run --rm web python manage.py export_translations --from-json overrides.json --dry-run
-docker compose run --rm web python manage.py export_translations --from-json overrides.json
-# produkcja, PO wdrożeniu tego PR-a – usunięcie nakładek, które są już w katalogach
+scp olimpiada:/opt/olimpiada/overrides.json backend/overrides.json   # do checkoutu dewelopera
+
+# checkout dewelopera (DEBUG=1, montowany backend, .git podpięty do kontenera) – zapis do .po, potem PR
+docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm -v "$PWD/.git:/.git:ro" \
+    web python manage.py export_translations --from-json /app/overrides.json --dry-run
+docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm -v "$PWD/.git:/.git:ro" \
+    web python manage.py export_translations --from-json /app/overrides.json
+rm backend/overrides.json
+
+# produkcja, PO wdrożeniu tego PR-a – usunięcie nakładek, które są już w skompilowanych katalogach
 docker compose exec web python manage.py export_translations --prune
 ```
 
-Eksport zmienia wyłącznie linie `msgstr` poprawionych wpisów i dopisuje komentarz `# l10n-reviewed`
-(znacznik „przejrzane” przeżywa `makemessages`). Tekst z JSON-a przechodzi tę samą walidację, co
-w panelu; wpis, którego nie ma już w katalogach, jest pomijany i wypisany jako „nieaktualny”.
-`--prune` usuwa tylko nakładki z tekstem **identycznym** z katalogiem – pozostałe działają dalej.
+- Zapis do `.po` jest **odmawiany** poza checkoutem dewelopera (`DEBUG` i katalog `.git` w `backend`
+  albo nad nim – stąd podpięte `.git` w poleceniu wyżej); w kontenerze produkcyjnym trafiłby do
+  warstwy obrazu i rozjechał z `.mo`. Świadome obejście: `--force`.
+- Eksport zmienia wyłącznie linie `msgstr` poprawek i dopisuje `# l10n-reviewed` (potwierdzenie:
+  sam znacznik). Tekst z JSON-a przechodzi tę samą walidację, co w panelu; poprawka podjęta wobec
+  innego `msgstr` niż dzisiejszy jest wypisana jako **konflikt** i nie nadpisuje nowszego tekstu;
+  wpis, którego nie ma już w katalogach – jako „nieaktualny”.
+- `--prune` usuwa poprawkę tylko wtedy, gdy **skompilowany** katalog (`.mo` – to on trafia do
+  gettext) oddaje już dokładnie jej tekst, a potwierdzenie – gdy wpis ma znacznik. Przed wdrożeniem
+  nie usunie niczego. Nakładki napisów usuniętych z kodu tylko wypisuje; usuwa je `--prune-stale`.
 
-### 33.3. Wyłączenie i awarie
+### 33.4. Wyłączenie i awarie
 
 - `TRANSLATION_OVERRIDES_ENABLED=0` w `.env` + restart `web`, `worker`, `beat` – serwis wraca do samych
-  katalogów z repozytorium; poprawki zostają w bazie. Cofnięcie pojedynczej poprawki: „Przywróć
+  katalogów z repozytorium; decyzje zostają w bazie. Cofnięcie pojedynczej decyzji: „Przywróć
   tłumaczenie z katalogu” na ekranie napisu (recenzent).
-- Nakładka żyje w Redisie bez terminu ważności; po restarcie Redisa pierwsze żądanie w danym języku
-  przebudowuje ją jednym zapytaniem. Błąd nakładki nigdy nie psuje strony – log
-  `apps.translation_review.runtime` i katalog z repozytorium.
+- W Redisie stoi tylko numer wersji nakładki (bez terminu ważności); każdy proces po zmianie wersji
+  buduje nakładkę z bazy sam (jedno zapytanie). Po restarcie Redisa – nowa wersja i to samo. Błąd
+  nakładki nigdy nie psuje strony – log `apps.translation_review.runtime` i katalog z repozytorium.
 - Limit POST-ów w panelu tłumacza: scope `translations` (120/h na konto).
 
-### 33.4. Wdrożenie tej wersji
+### 33.5. Wdrożenie tej wersji
 
-`migrate` (nowa aplikacja `translation_review`, tylko nowe tabele) – bez kroków ręcznych. Obraz
-kompiluje teraz także katalogi aplikacji (`apps/*/locale`). Zmienił się manifest adresów
+`migrate` (`translation_review.0001`–`0002`, tylko nowe tabele i kolumny) – bez kroków ręcznych.
+Obraz kompiluje teraz także katalogi aplikacji (`apps/*/locale`). Zmienił się manifest adresów
 (`/translations/` – `backend/djcms_contract/app_routes.*`), więc konfiguracja proxy z § 23 musi
-zostać przeładowana (robi to `deploy.sh`). Olimpiada Kwantowa (sam polski) nie widzi żadnej zmiany:
-brak pozycji w menu, brak odnośnika w stopce, brak wiersza w rejestrze czynności.
+zostać przeładowana (robi to `deploy.sh`). Odnośnik „Zgłoś tłumaczenie” stoi w domyślnej stopce
+(`templates/theme/footer.html`); paczka motywu, która nadpisuje slot `footer`, dołącza go tym samym
+fragmentem: `{% include "web/_translation_report_link.html" with css_class="footer__link" %}`. Olimpiada Kwantowa
+(sam polski) nie widzi żadnej zmiany: brak pozycji w menu, brak odnośnika w stopce, brak wiersza
+w rejestrze czynności.

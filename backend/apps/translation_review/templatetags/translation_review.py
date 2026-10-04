@@ -15,15 +15,13 @@ from .. import catalogs, services
 register = template.Library()
 
 
-@register.simple_tag(takes_context=True)
-def translation_report_link(context, css_class: str = "") -> str:
-    """Odnośnik dla zalogowanego tłumacza, na stronie w języku innym niż źródłowy.
+def report_url(request) -> str:
+    """Adres zgłoszenia dla tego żądania albo ``""`` – gdy odnośnika ma nie być.
 
     Trzy tanie warunki przed jedynym kosztownym (``is_translator`` – cache, a na zimno jedno
     zapytanie): konkurs z jednym językiem interfejsu (Konkurs #1) i strona po polsku nie pytają
     o nic, więc stopka tych stron nie płaci za tę funkcję ani jednym zapytaniem.
     """
-    request = context.get("request")
     user = getattr(request, "user", None)
     if user is None or not user.is_authenticated:
         return ""
@@ -33,7 +31,14 @@ def translation_report_link(context, css_class: str = "") -> str:
         return ""
     if not services.is_translator(user):
         return ""
-    url = f"{reverse('web:translation-report')}?{urlencode({'page': request.path})}"
+    return f"{reverse('web:translation-report')}?{urlencode({'page': request.path})}"
+
+
+@register.simple_tag(takes_context=True)
+def translation_report_link(context, css_class: str = "") -> str:
+    url = report_url(context.get("request"))
+    if not url:
+        return ""
     return format_html('<a class="{}" href="{}">{}</a>', css_class, url, _("Zgłoś tłumaczenie"))
 
 

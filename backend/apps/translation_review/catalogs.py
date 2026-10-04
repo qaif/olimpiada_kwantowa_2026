@@ -182,11 +182,12 @@ def format_field(keyword: str, text: str) -> list[str]:
 
 
 def rewrite(
-    text: str, updates: dict[tuple[str | None, str], dict[int, str]], *, mark_reviewed: bool = True
+    text: str, updates: dict[tuple[str | None, str], dict[int, str | None]], *, mark_reviewed: bool = True
 ) -> tuple[str, int]:
     """Nowa treść katalogu z podmienionymi ``msgstr`` i znacznikiem przeglądu.
 
-    ``updates`` to ``{(msgctxt, msgid): {numer formy: tekst}}``. Zmieniają się wyłącznie linie
+    ``updates`` to ``{(msgctxt, msgid): {numer formy: tekst}}``; tekst ``None`` znaczy „nie zmieniaj
+    ``msgstr``, dopisz sam znacznik” (potwierdzenie obecnego tłumaczenia). Zmieniają się wyłącznie linie
     ``msgstr`` wskazanych wpisów i jedna linia komentarza ``# l10n-reviewed`` (gdy jej brakowało);
     reszta pliku – łącznie z końcami linii – zostaje bez zmian. Zwraca też liczbę zmienionych wpisów.
     """
@@ -199,15 +200,19 @@ def rewrite(
         forms = updates.get((entry.msgctxt or None, entry.msgid))
         if not forms:
             continue
-        merged = dict(entry.msgstr)
-        merged.update(forms)
-        if entry.msgid_plural is None:
-            new_lines = format_field("msgstr", merged.get(0, ""))
-        else:
-            new_lines = []
-            for form in sorted(merged):
-                new_lines.extend(format_field(f"msgstr[{form}]", merged[form]))
-        lines[entry.msgstr_start : entry.msgstr_end] = new_lines
+        texts = {form: value for form, value in forms.items() if value is not None}
+        if texts:
+            merged = dict(entry.msgstr)
+            merged.update(texts)
+            if entry.msgid_plural is None:
+                new_lines = format_field("msgstr", merged.get(0, ""))
+            else:
+                new_lines = []
+                for form in sorted(merged):
+                    new_lines.extend(format_field(f"msgstr[{form}]", merged[form]))
+            lines[entry.msgstr_start : entry.msgstr_end] = new_lines
+        elif entry.reviewed or not mark_reviewed:
+            continue  # sam znacznik, a ten już jest – wpis bez zmian
         if mark_reviewed and not entry.reviewed:
             lines.insert(entry.start, f"# {REVIEWED_MARKER}")
         changed += 1
@@ -216,6 +221,34 @@ def rewrite(
 
 
 # --- pliki i indeks ------------------------------------------------------------------------------
+
+
+_compiled: dict[str, tuple[int, dict]] = {}
+
+
+def compiled_text(language: str, msgctxt: str | None, msgid: str, plural_index: int | None) -> str | None:
+    """Tekst, który dziś oddaje **skompilowany** katalog (``.mo`` obok ``.po``), albo ``None``.
+
+    ``--prune`` pyta właśnie o to, a nie o ``.po``: plik źródłowy bywa już poprawiony w checkoucie,
+    zanim obraz z nowym ``.mo`` stanie na serwerze – a dopiero ``.mo`` widzi gettext.
+    """
+    base = f"{msgctxt}\x04{msgid}" if msgctxt else msgid
+    key = base if plural_index is None else (base, plural_index)
+    for path in catalog_paths(language):
+        mo = path.with_suffix(".mo")
+        if not mo.is_file():
+            continue
+        stamp = mo.stat().st_mtime_ns
+        cached = _compiled.get(str(mo))
+        if cached is None or cached[0] != stamp:
+            with mo.open("rb") as handle:
+                catalog = gettext_module.GNUTranslations(handle)._catalog
+            cached = (stamp, catalog)
+            _compiled[str(mo)] = cached
+        value = cached[1].get(key)
+        if value:
+            return value
+    return None
 
 
 def review_languages() -> list[str]:

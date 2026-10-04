@@ -63,9 +63,9 @@ class GrantForm(forms.Form):
     language = forms.ChoiceField(label=_("Język"))
     level = forms.ChoiceField(label=_("Poziom"))
 
-    def __init__(self, *args, reviewer_allowed=False, **kwargs):
+    def __init__(self, *args, reviewer_allowed=False, languages=(), **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["language"].choices = language_choices(catalogs.review_languages())
+        self.fields["language"].choices = language_choices(languages)
         levels = [(GrantLevel.TRANSLATOR, _("tłumacz – proponuje i głosuje"))]
         if reviewer_allowed:
             levels.append((GrantLevel.REVIEWER, _("recenzent – także zatwierdza poprawki")))

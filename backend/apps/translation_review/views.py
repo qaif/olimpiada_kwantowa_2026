@@ -20,7 +20,7 @@ from django.shortcuts import get_object_or_404, redirect
 from django.template.response import TemplateResponse
 from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme, urlencode
-from django.utils.translation import get_language
+from django.utils.translation import get_language, get_language_info
 from django.utils.translation import gettext as _
 from django.views import View
 
@@ -63,6 +63,9 @@ class LanguageMixin(LoginRequiredMixin):
             "language_label": catalogs.language_label(self.language),
             "can_review": self.can_review,
             "show_pivot": self.language != "en",
+            # Kierunek z danych Django o języku, a nie ``dir="auto"``: tłumaczenie arabskie zaczynające
+            # się od zmiennej albo liczby przeglądarka uznałaby za tekst od lewej do prawej.
+            "text_dir": "rtl" if get_language_info(self.language)["bidi"] else "ltr",
         }
 
 
@@ -159,7 +162,12 @@ class StringDetailView(LanguageMixin, TranslationThrottleMixin, View):
                     TranslationSuggestion, pk=_pk(request.POST.get("suggestion")), language=language, key=key
                 )
                 if action == "vote":
-                    services.vote(user=user, suggestion=suggestion, request=request)
+                    services.vote(
+                        user=user,
+                        suggestion=suggestion,
+                        support=request.POST.get("support") != "0",
+                        request=request,
+                    )
                 elif action == "approve":
                     services.approve(user=user, suggestion=suggestion, request=request)
                     messages.success(
@@ -281,11 +289,19 @@ class CoordinatorTranslatorsView(CoordinatorRequiredMixin, TranslationThrottleMi
             request, "translation_review/coordinator_translators.html", context, status=status
         )
 
+    def _form(self, data=None):
+        """Języki w formularzu = języki, w których ta osoba może nadać rolę (koordynator – swojego
+        konkursu). Reguła siedzi w serwisie; formularz tylko nie podsuwa niczego, czego serwis odmówi."""
+        return GrantForm(
+            data,
+            reviewer_allowed=is_super_coordinator(self.request.user),
+            languages=services.grantable_languages(self.request.user, self.competition),
+        )
+
     def get(self, request):
-        return self._render(request, GrantForm(reviewer_allowed=is_super_coordinator(request.user)))
+        return self._render(request, self._form())
 
     def post(self, request):
-        superuser = is_super_coordinator(request.user)
         if request.POST.get("action") == "revoke":
             grant = get_object_or_404(
                 services.grants_visible_to(request.user, self.competition), pk=_pk(request.POST.get("grant"))
@@ -299,7 +315,7 @@ class CoordinatorTranslatorsView(CoordinatorRequiredMixin, TranslationThrottleMi
             else:
                 messages.success(request, _("Rola tłumacza została odebrana."))
             return redirect(reverse("web:coordinator-translators"))
-        form = GrantForm(request.POST, reviewer_allowed=superuser)
+        form = self._form(request.POST)
         if not form.is_valid():
             return self._render(request, form, status=400)
         try:

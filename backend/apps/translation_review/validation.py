@@ -30,9 +30,19 @@ BRACE = re.compile(r"(?<!\{)\{[A-Za-z_][A-Za-z0-9_]*\}(?!\})")
 TAG = re.compile(r"<[^<>]*>")
 #: Nadpisanie kierunku tekstu (LRO/RLO) – pozwala ukryć w napisie inną treść, niż widać
 #: („Trojan Source”). Osadzenia i izolaty kierunku zostają, bo potrzebuje ich arabski.
-BIDI_OVERRIDES = frozenset("‭‮")
-#: Cudzysłowy, które zamykają atrybut HTML. Dozwolone wyłącznie wtedy, gdy ma je źródło – wtedy
-#: napis na pewno nie stoi w atrybucie z takim cudzysłowem (zepsułby go już dziś).
+BIDI_OVERRIDES = frozenset("\u202d\u202e")
+#: Każde pole ``str.format`` w pojedynczych klamrach – także z atrybutem, indeksem albo formatem
+#: (``{user.email}``, ``{0[x]}``, ``{n!r}``). Zestaw pól musi być **identyczny** ze źródłem: nowe pole
+#: z kropką to droga do atrybutów obiektu przekazanego do ``format`` (wyciek danych w treści listu).
+FIELD = re.compile(r"(?<!\{)\{[^{}]*\}(?!\})")
+#: Placeholder pozycyjny (bez nazwy) – przy dwóch i więcej kolejność w zdaniu jest jedyną nazwą.
+POSITIONAL = re.compile(r"%[-#0 +]*\d*(?:\.\d+)?[sdifr]")
+#: Samotny ``<`` (poza znacznikiem ze źródła) wolno zostawić wyłącznie przed odstępem albo cyfrą –
+#: wtedy nie otwiera znacznika ani komentarza (``a < b``, ``<5``).
+LONE_LT = re.compile(r"<(?![\s\d])")
+#: Cudzysłowy, które zamykają atrybut HTML. Najwyżej tyle, ile ma źródło – napis z cudzysłowem
+#: w źródle na pewno nie stoi w atrybucie z takim cudzysłowem (zepsułby go już dziś), a każdy
+#: cudzysłów ponad to może oznaczać wyjście z atrybutu.
 QUOTES = ('"', "`")
 MAX_LENGTH = 4000
 
@@ -47,24 +57,35 @@ def _outside_tags(text: str) -> str:
 
 
 def _lone(text: str) -> Counter:
-    """Znaki formatowania, które **nie** są placeholderem: samotne ``%``, ``{``, ``}``."""
-    cleaned = BRACE.sub("", PERCENT.sub("", text.replace("%%", "")))
+    """Znaki formatowania, które **nie** są placeholderem ani polem: samotne ``%``, ``{``, ``}``."""
+    cleaned = FIELD.sub("", PERCENT.sub("", text.replace("%%", "")))
     return Counter(char for char in cleaned if char in "%{}")
+
+
+def _fields(text: str) -> Counter:
+    return Counter(FIELD.findall(text))
+
+
+def _positional(text: str) -> int:
+    return len(POSITIONAL.findall(text.replace("%%", "")))
 
 
 def _placeholders_ok(got: list[str], msgid: str, msgid_plural: str | None, plural_index: int | None) -> bool:
     """Ta sama reguła form mnogich, co w teście katalogów (``test_placeholders_match``)."""
+    counted = Counter(got)
     if msgid_plural is None or plural_index is None:
-        return got == placeholders(msgid)
-    singular, plural = placeholders(msgid), placeholders(msgid_plural)
+        return counted == Counter(placeholders(msgid))
+    singular, plural = Counter(placeholders(msgid)), Counter(placeholders(msgid_plural))
     if plural_index == 0:
         # Forma pierwsza bywa w językach bez liczby mnogiej formą jedyną – dopuszczamy oba źródła.
-        return got in (singular, plural)
-    if got == plural:
+        return counted in (singular, plural)
+    if counted == plural:
         return True
     # Forma „jeden” w językach z kilkoma formami (rosyjskie 21) może pominąć liczbę – ale nie może
-    # dołożyć obcej nazwy.
-    return bool(got) and set(got) <= set(plural) | set(singular)
+    # dołożyć obcej nazwy ani powtórzyć istniejącej częściej niż źródło.
+    return bool(counted) and all(
+        count <= max(plural[name], singular[name]) for name, count in counted.items()
+    )
 
 
 def clean_translation(
@@ -118,15 +139,12 @@ def clean_translation(
             % {"tags": expected}
         )
     outside = _outside_tags(text)
-    source_outside = _outside_tags(source)
-    for char in "<>":
-        if outside.count(char) != source_outside.count(char):
-            errors.append(
-                _("Znak „%(char)s” jest dozwolony wyłącznie jako część znacznika z tekstu źródłowego.")
-                % {"char": char}
-            )
+    if LONE_LT.search(outside):
+        errors.append(
+            _("Znak „<” poza znacznikiem z tekstu źródłowego może stać tylko przed spacją albo cyfrą.")
+        )
     for char in QUOTES:
-        if char in outside and not any(char in _outside_tags(item) for item in sources):
+        if outside.count(char) > max(_outside_tags(item).count(char) for item in sources):
             errors.append(
                 _("Użyj cudzysłowów typograficznych (np. “…”, «…», „…”) zamiast znaku %(char)s.")
                 % {"char": char}
@@ -137,6 +155,21 @@ def clean_translation(
         errors.append(
             _("Tłumaczenie musi zawierać te same zmienne, co tekst źródłowy: %(placeholders)s")
             % {"placeholders": expected}
+        )
+    if all(_fields(text) != _fields(item) for item in sources):
+        expected = " ".join(FIELD.findall(source)) or _("(brak)")
+        errors.append(
+            _("Tłumaczenie musi zawierać te same zmienne, co tekst źródłowy: %(placeholders)s")
+            % {"placeholders": expected}
+        )
+    if max(_positional(item) for item in sources) > 1:
+        # Dwa ``%s`` bez nazw: tłumacz nie może zmienić szyku zdania, a zamiana miejscami podstawia
+        # po cichu jedną wartość za drugą. Taki napis poprawia się w repozytorium (nazwane zmienne).
+        errors.append(
+            _(
+                "Ten napis ma kilka zmiennych bez nazw – jego tłumaczenie można poprawić tylko "
+                "w repozytorium; zgłoś je ze stopki."
+            )
         )
     if _lone(text) != _lone(source):
         errors.append(

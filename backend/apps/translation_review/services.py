@@ -7,8 +7,10 @@ być – w audycie zostaje sam identyfikator).
 
 Poziomy roli (L10N-01 § 2): tłumacz proponuje i głosuje, recenzent dodatkowo zatwierdza, odrzuca,
 cofa nakładkę, potwierdza obecne tłumaczenie i zamyka zgłoszenia. Superkoordynator jest
-recenzentem każdego języka. Koordynator konkursu nadaje wyłącznie poziom tłumacza i wyłącznie
-osobom związanym ze swoim konkursem, bo zatwierdzona poprawka działa na **całej** platformie.
+recenzentem każdego języka. Koordynator konkursu nadaje wyłącznie poziom tłumacza, wyłącznie
+osobom związanym ze swoim konkursem i wyłącznie w językach interfejsu tego konkursu, bo zatwierdzona
+poprawka działa na **całej** platformie. Nadanie koordynatora należy do konkursu
+(``TranslatorGrant.competition``) i działa tylko, dopóki osoba jest z konkursem związana.
 """
 
 from __future__ import annotations
@@ -18,8 +20,8 @@ from urllib.parse import urlsplit
 
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
-from django.db import transaction
-from django.db.models import Case, Count, When
+from django.db import IntegrityError, transaction
+from django.db.models import Case, Count, Exists, OuterRef, Q, When
 from django.http import Http404
 from django.utils import timezone
 from django.utils.translation import gettext as _
@@ -33,6 +35,7 @@ from apps.core.models import audit
 from . import catalogs, runtime
 from .models import (
     GrantLevel,
+    OverrideKind,
     ReportStatus,
     SuggestionStatus,
     TranslationOverride,
@@ -75,9 +78,25 @@ def user_grants(user) -> dict[str, str]:
         return {}
     cached = getattr(user, GRANTS_ATTR, None)
     if cached is None:
-        cached = dict(TranslatorGrant.objects.filter(user=user).values_list("language", "level"))
+        cached = {}
+        for language, level in active_grants().filter(user=user).values_list("language", "level"):
+            # Kilka nadań jednego języka (np. z dwóch konkursów) – liczy się wyższy poziom.
+            if cached.get(language) != GrantLevel.REVIEWER:
+                cached[language] = level
         setattr(user, GRANTS_ATTR, cached)
     return cached
+
+
+def active_grants():
+    """Nadania, które **działają**: platformowe oraz konkursowe osoby nadal związanej z konkursem.
+
+    Jedno zapytanie (dwa ``EXISTS``) zamiast sygnałów przy usuwaniu członkostwa czy profilu: związek
+    z konkursem zrywa się kilkoma drogami (odebranie roli, wypisanie z delegacji, usunięcie konta),
+    a każda zapomniana droga zostawiałaby rolę tłumacza osobie, która już do konkursu nie należy.
+    """
+    member = Membership.objects.filter(user=OuterRef("user"), competition=OuterRef("competition"))
+    participant = Participant.objects.filter(user=OuterRef("user"), competition=OuterRef("competition"))
+    return TranslatorGrant.objects.filter(Q(competition__isnull=True) | Exists(member) | Exists(participant))
 
 
 def forget_user(user) -> None:
@@ -151,7 +170,21 @@ def is_linked(user, competition) -> bool:
     )
 
 
+def grantable_languages(actor, competition) -> list[str]:
+    """Języki, w których ta osoba może nadać rolę: superkoordynator – wszystkie, koordynator – języki
+    interfejsu **swojego** konkursu (tłumacz hindi w konkursie bez hindi nie ma czego oglądać)."""
+    if is_super_coordinator(actor):
+        return catalogs.review_languages()
+    allowed = set(competition.ui_languages) if competition is not None else set()
+    return [code for code in catalogs.review_languages() if code in allowed]
+
+
 def grants_visible_to(actor, competition):
+    """Superkoordynator – wszystkie nadania; koordynator – nadania **swojego konkursu**.
+
+    Także osób, które z konkursu już odeszły (takie nadanie nie działa – ``active_grants`` – ale
+    koordynator ma je widzieć i móc usunąć), i także nadane przez innego koordynatora.
+    """
     queryset = TranslatorGrant.objects.select_related("user", "granted_by").order_by(
         "language", "user__email"
     )
@@ -159,9 +192,7 @@ def grants_visible_to(actor, competition):
         return queryset
     if competition is None:
         return queryset.none()
-    members = Membership.objects.filter(competition=competition).values("user_id")
-    participants = Participant.objects.for_competition(competition).values("user_id")
-    return queryset.filter(user_id__in=members.union(participants))
+    return queryset.filter(competition=competition)
 
 
 @transaction.atomic
@@ -175,16 +206,24 @@ def grant(*, actor, competition, email: str, language: str, level: str, request=
     superuser = is_super_coordinator(actor)
     if level == GrantLevel.REVIEWER and not superuser:
         raise TranslationDenied(_("Rolę recenzenta tłumaczeń nadaje wyłącznie superkoordynator."))
+    if language not in grantable_languages(actor, competition):
+        raise TranslationDenied(_("Ten język nie jest językiem interfejsu tego konkursu."))
     user = User.objects.filter(email__iexact=(email or "").strip(), is_active=True).first()
     # Jedna odpowiedź na „nie ma konta” i „konto spoza konkursu” – formularz nie może służyć do
     # sprawdzania, czy ktoś ma konto na platformie.
     if user is None or (not superuser and not is_linked(user, competition)):
         raise TranslationInvalid(_("Nie znaleziono aktywnego konta z tym adresem w tym konkursie."))
-    existing = TranslatorGrant.objects.select_for_update().filter(user=user, language=language).first()
-    if existing is not None and existing.level == GrantLevel.REVIEWER and not superuser:
-        raise TranslationDenied(_("Tę osobę może zmienić wyłącznie superkoordynator."))
+    # Superkoordynator nadaje platformowo (bez konkursu), koordynator – w swoim konkursie.
+    scope = None if superuser else competition
+    existing = (
+        TranslatorGrant.objects.select_for_update()
+        .filter(user=user, language=language, competition=scope)
+        .first()
+    )
     if existing is None:
-        existing = TranslatorGrant.objects.create(user=user, language=language, level=level, granted_by=actor)
+        existing = TranslatorGrant.objects.create(
+            user=user, language=language, level=level, granted_by=actor, competition=scope
+        )
     else:
         existing.level = level
         existing.granted_by = actor
@@ -206,7 +245,9 @@ def revoke(*, actor, competition, grant_obj: TranslatorGrant, request=None) -> N
     if not can_manage_grants(actor, competition):
         raise TranslationDenied(_("Nie możesz odbierać ról tłumaczy."))
     if not is_super_coordinator(actor):
-        if grant_obj.level == GrantLevel.REVIEWER or not is_linked(grant_obj.user, competition):
+        # Koordynator odbiera wyłącznie nadania **swojego konkursu** – także te, których osoba już
+        # nie używa, bo odeszła z konkursu – nigdy nadań platformowych.
+        if competition is None or grant_obj.competition_id != competition.pk:
             raise TranslationDenied(_("Tę osobę może zmienić wyłącznie superkoordynator."))
     diff = {"user_id": grant_obj.user_id, "language": grant_obj.language, "level": grant_obj.level}
     audit(actor, "translation.revoke", grant_obj, diff, request=request)
@@ -218,14 +259,51 @@ def revoke(*, actor, competition, grant_obj: TranslatorGrant, request=None) -> N
 # --- napisy -------------------------------------------------------------------------------------
 
 
+@dataclass(frozen=True)
+class OverrideState:
+    """To, co o napisie wie baza: rodzaj decyzji, jej tekst i ``msgstr`` katalogu w chwili decyzji."""
+
+    kind: str
+    text: str
+    base_text: str
+
+
+def override_applies(row: catalogs.Row, state: OverrideState | None) -> bool:
+    """Czy nakładka ma dziś trafić do gettext – **jedna** reguła dla runtime'u i ekranów.
+
+    Nie trafia: potwierdzenie („obecne jest dobre” – nic nie zmienia, a przykrywałoby przyszłe
+    wydania), poprawka już obecna w katalogu (wdrożona, czeka na ``--prune``) i poprawka
+    **nieaktualna** – katalog zmienił ``msgstr`` od chwili decyzji, więc recenzent oceniał inny tekst
+    niż ten, który dziś jest w repozytorium. Wtedy wygrywa katalog, a ekran prosi o ponowny przegląd.
+    """
+    if state is None or state.kind != OverrideKind.CHANGE or state.text == row.translation:
+        return False
+    return state.base_text == row.translation
+
+
+def override_stale(row: catalogs.Row, state: OverrideState | None) -> bool:
+    if state is None or state.text == row.translation:
+        return False
+    return state.base_text != row.translation
+
+
 @dataclass
 class StringView:
     """Wiersz ekranu: napis z katalogu + stan z bazy."""
 
     row: catalogs.Row
     pivot: str
-    override: str | None
+    state: OverrideState | None
     pending: int
+
+    @property
+    def override(self) -> str | None:
+        """Tekst nakładki, która **działa** w serwisie (``None`` – serwis pokazuje katalog)."""
+        return self.state.text if override_applies(self.row, self.state) else None
+
+    @property
+    def stale(self) -> bool:
+        return override_stale(self.row, self.state)
 
     @property
     def current(self) -> str:
@@ -233,9 +311,19 @@ class StringView:
 
     @property
     def status(self) -> str:
-        if self.override is not None or self.row.reviewed:
+        if (self.state is not None and not self.stale) or self.row.reviewed:
             return "reviewed"
         return "machine" if self.row.translation else "untranslated"
+
+
+def _states(language: str, key: str | None = None) -> dict[str, OverrideState]:
+    queryset = TranslationOverride.objects.filter(language=language)
+    if key is not None:
+        queryset = queryset.filter(key=key)
+    return {
+        row_key: OverrideState(kind, text, base)
+        for row_key, kind, text, base in queryset.values_list("key", "kind", "text", "base_text")
+    }
 
 
 STATUSES = ("untranslated", "machine", "reviewed", "pending")
@@ -254,10 +342,8 @@ def _pivot(language: str, key: str) -> str:
     row = catalogs.index("en").by_key.get(key)
     if row is None:
         return ""
-    override = (
-        TranslationOverride.objects.filter(language="en", key=key).values_list("text", flat=True).first()
-    )
-    return override if override is not None else row.translation
+    state = _states("en", key).get(key)
+    return state.text if override_applies(row, state) else row.translation
 
 
 def strings(language: str, *, status: str = "", query: str = "") -> list[StringView]:
@@ -266,12 +352,8 @@ def strings(language: str, *, status: str = "", query: str = "") -> list[StringV
     pivot_rows = (
         catalogs.index("en").by_key if language != "en" and "en" in catalogs.review_languages() else {}
     )
-    overrides = dict(TranslationOverride.objects.filter(language=language).values_list("key", "text"))
-    pivot_overrides = (
-        dict(TranslationOverride.objects.filter(language="en").values_list("key", "text"))
-        if pivot_rows
-        else {}
-    )
+    states = _states(language)
+    pivot_states = _states("en") if pivot_rows else {}
     pending = dict(
         TranslationSuggestion.objects.filter(language=language, status=SuggestionStatus.PENDING)
         .values("key")
@@ -282,10 +364,11 @@ def strings(language: str, *, status: str = "", query: str = "") -> list[StringV
     result = []
     for row in rows:
         pivot_row = pivot_rows.get(row.key)
-        pivot = pivot_overrides.get(row.key, pivot_row.translation if pivot_row else "")
-        view = StringView(
-            row=row, pivot=pivot, override=overrides.get(row.key), pending=pending.get(row.key, 0)
-        )
+        pivot = ""
+        if pivot_row is not None:
+            pivot_state = pivot_states.get(row.key)
+            pivot = pivot_state.text if override_applies(pivot_row, pivot_state) else pivot_row.translation
+        view = StringView(row=row, pivot=pivot, state=states.get(row.key), pending=pending.get(row.key, 0))
         if status == "pending" and not view.pending:
             continue
         if status in ("untranslated", "machine", "reviewed") and view.status != status:
@@ -298,13 +381,12 @@ def strings(language: str, *, status: str = "", query: str = "") -> list[StringV
 
 def string_view(language: str, key: str) -> StringView:
     row = row_or_404(language, key)
-    override = (
-        TranslationOverride.objects.filter(language=language, key=key).values_list("text", flat=True).first()
-    )
     pending = TranslationSuggestion.objects.filter(
         language=language, key=key, status=SuggestionStatus.PENDING
     ).count()
-    return StringView(row=row, pivot=_pivot(language, key), override=override, pending=pending)
+    return StringView(
+        row=row, pivot=_pivot(language, key), state=_states(language, key).get(key), pending=pending
+    )
 
 
 def suggestions_for(language: str, key: str):
@@ -359,7 +441,7 @@ def suggest(*, user, language: str, key: str, text: str, approve_now: bool = Fal
     )
     same = pending.filter(text=cleaned).exclude(author=user).first()
     if same is not None and not approve_now:
-        TranslationVote.objects.get_or_create(suggestion=same, user=user)
+        _add_vote(same, user)
         return same
     suggestion = pending.filter(author=user).first()
     if suggestion is None:
@@ -376,18 +458,34 @@ def suggest(*, user, language: str, key: str, text: str, approve_now: bool = Fal
 
 
 @transaction.atomic
-def vote(*, user, suggestion: TranslationSuggestion, request=None) -> bool:
-    """Przełącza głos. Zwraca ``True``, gdy głos jest oddany po tej operacji."""
+def vote(*, user, suggestion: TranslationSuggestion, support: bool | None = None, request=None) -> bool:
+    """Ustawia głos (``support``) albo – bez niego – przełącza. Zwraca stan głosu po operacji.
+
+    Formularz wysyła **stan docelowy**, a nie „przełącz”: podwójne kliknięcie „Popieram” to dwa razy
+    „ma być głos”, a nie głos i jego cofnięcie. Wyścig dwóch równoległych żądań kończy ``_add_vote``.
+    """
     _require(can_translate(user, suggestion.language))
     if suggestion.status != SuggestionStatus.PENDING:
         raise TranslationInvalid(_("Na rozstrzygniętą propozycję nie można już głosować."))
     if suggestion.author_id == user.pk:
         raise TranslationInvalid(_("Nie można głosować na własną propozycję."))
-    deleted, _rows = TranslationVote.objects.filter(suggestion=suggestion, user=user).delete()
-    if deleted:
-        return False
-    TranslationVote.objects.create(suggestion=suggestion, user=user)
-    return True
+    if support is None:
+        support = not TranslationVote.objects.filter(suggestion=suggestion, user=user).exists()
+    if support:
+        _add_vote(suggestion, user)
+    else:
+        TranslationVote.objects.filter(suggestion=suggestion, user=user).delete()
+    return support
+
+
+def _add_vote(suggestion: TranslationSuggestion, user) -> None:
+    """Głos bez wyścigu: podwójne kliknięcie to dwa równoległe POST-y, a drugi trafia na więz
+    unikalności. Punkt zapisu (``atomic``) zamyka błąd w sobie – głos i tak już jest."""
+    try:
+        with transaction.atomic():
+            TranslationVote.objects.create(suggestion=suggestion, user=user)
+    except IntegrityError:
+        pass
 
 
 def _decide(suggestion: TranslationSuggestion, user, status: str) -> None:
@@ -416,6 +514,8 @@ def approve(*, user, suggestion: TranslationSuggestion, request=None) -> Transla
             "msgid": row.msgid,
             "plural_index": row.plural_index,
             "text": text,
+            "kind": OverrideKind.CHANGE,
+            "base_text": row.translation,
             "approved_by": user,
             "approved_at": timezone.now(),
             "suggestion": suggestion,
@@ -456,12 +556,22 @@ def confirm(*, user, language: str, key: str, request=None) -> TranslationOverri
     row = row_or_404(language, key)
     if not row.translation:
         raise TranslationInvalid(_("Ten napis nie ma jeszcze tłumaczenia – zaproponuj je."))
-    if TranslationOverride.objects.filter(language=language, key=key).exists():
+    existing = TranslationOverride.objects.filter(language=language, key=key).first()
+    if existing is not None and not override_stale(
+        row, OverrideState(existing.kind, existing.text, existing.base_text)
+    ):
         raise TranslationInvalid(_("To tłumaczenie jest już przejrzane."))
-    # Tekst z katalogu jest zaufany (przeszedł recenzję kodu), więc nie przechodzi walidacji
-    # poprawek – nakładka jest jego dokładną kopią i niczego w interfejsie nie zmienia.
+    # Potwierdzenie to **znacznik**, a nie tekst: nie trafia do gettext nigdy (``override_applies``),
+    # a eksport dopisuje przy nim sam komentarz ``# l10n-reviewed``. Tekst katalogu zapamiętujemy, żeby
+    # było widać, co potwierdzono – i żeby zmiana w repozytorium unieważniła potwierdzenie.
+    if existing is not None:
+        existing.delete()  # nieaktualna decyzja (katalog się zmienił) – zastępuje ją ta
     override = TranslationOverride.objects.create(
-        text=row.translation, approved_by=user, **_ref(row, language)
+        text=row.translation,
+        base_text=row.translation,
+        kind=OverrideKind.CONFIRMATION,
+        approved_by=user,
+        **_ref(row, language),
     )
     transaction.on_commit(lambda: runtime.publish(language))
     audit(user, "translation.confirmed", override, {"language": language, "key": key}, request=request)

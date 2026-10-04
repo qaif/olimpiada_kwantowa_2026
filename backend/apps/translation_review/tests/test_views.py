@@ -59,7 +59,11 @@ def test_super_coordinator_reviews_every_language(super_coordinator):
 def test_list_filters_and_escapes(client, translator):
     row = simple_row()
     TranslationOverride.objects.create(
-        language="es", key=row.key, msgid=row.msgid, text="<script>alert(1)</script>"
+        language="es",
+        key=row.key,
+        msgid=row.msgid,
+        text="<script>alert(1)</script>",
+        base_text=row.translation,
     )  # wiersz wstawiony z pominięciem walidacji: ekran i tak ma go pokazać jako tekst
     client.force_login(translator)
     response = client.get(
@@ -214,8 +218,8 @@ def test_super_coordinator_grants_reviewer_to_anyone(super_coordinator, competit
     assert services.can_review(anyone, "ar")
 
 
-def test_revoke(client, coordinator, member):
-    grant = grant_language(member)
+def test_revoke(client, coordinator, member, multilingual):
+    grant = grant_language(member, competition=multilingual)
     client.force_login(coordinator)
     response = client.post(reverse("web:coordinator-translators"), {"action": "revoke", "grant": grant.pk})
     assert response.status_code == 302
@@ -298,3 +302,106 @@ def test_export_and_erase(translator, reviewer):
     assert not TranslationReport.objects.exists()
     suggestion.refresh_from_db()
     assert suggestion.author is None
+
+
+# --- poprawki po przeglądzie (M2, L3, L4, L5) ---------------------------------------------------
+
+
+def test_coordinator_grant_belongs_to_competition_and_dies_with_the_link(
+    client, coordinator, member, multilingual
+):
+    """M2: nadanie koordynatora ma konkurs; działa tylko, dopóki osoba jest z konkursem związana."""
+    from apps.accounts.models import Membership, Participant
+
+    grant = services.grant(
+        actor=coordinator, competition=multilingual, email=member.email, language="es", level="translator"
+    )
+    assert grant.competition == multilingual
+    member.refresh_from_db()
+    assert services.can_translate(member, "es")
+    # Osoba odchodzi z konkursu – rola przestaje działać bez żadnego sprzątania.
+    Membership.objects.filter(user=member).delete()
+    Participant.objects.filter(user=member).delete()
+    services.forget_user(member)
+    member.refresh_from_db()
+    assert not services.can_translate(member, "es")
+    # …ale koordynator (także inny niż nadający) nadal widzi nadanie i może je usunąć.
+    from apps.accounts.models import CompetitionRole
+    from apps.accounts.tests.factories import CoordinatorFactory
+    from apps.tenancy.tests.factories import grant_membership
+
+    other = CoordinatorFactory()
+    grant_membership(other, multilingual, CompetitionRole.COORDINATOR)
+    client.force_login(other)
+    page = client.get(reverse("web:coordinator-translators")).content.decode()
+    assert member.email in page
+    client.post(reverse("web:coordinator-translators"), {"action": "revoke", "grant": grant.pk})
+    assert not TranslatorGrant.objects.exists()
+
+
+def test_coordinator_cannot_touch_platform_grants(client, coordinator, member, multilingual):
+    grant = grant_language(member)  # nadanie superkoordynatora (bez konkursu)
+    client.force_login(coordinator)
+    response = client.post(reverse("web:coordinator-translators"), {"action": "revoke", "grant": grant.pk})
+    assert response.status_code == 404
+    assert TranslatorGrant.objects.exists()
+
+
+def test_coordinator_grants_only_competition_languages(coordinator, member, multilingual):
+    """L4: konkurs ma pl, en, es – hindi nie jest jego językiem interfejsu."""
+    with pytest.raises(services.TranslationDenied):
+        services.grant(
+            actor=coordinator, competition=multilingual, email=member.email, language="hi", level="translator"
+        )
+    assert services.grantable_languages(coordinator, multilingual) == ["en", "es"]
+
+
+def test_arabic_cells_are_rtl_and_source_ltr(client):
+    """L3: kierunek z ``get_language_info``, źródło i angielski zawsze od lewej."""
+    user = UserFactory()
+    grant_language(user, "ar")
+    client.force_login(user)
+    body = client.get(reverse("web:translation-list", args=["ar"])).content.decode()
+    assert 'lang="ar" dir="rtl"' in body
+    assert 'lang="pl" dir="ltr"' in body
+    assert 'lang="en" dir="ltr"' in body
+
+
+def test_double_click_vote_is_idempotent(client, translator):
+    """L5: dwa takie same POST-y „Popieram” – jeden głos, bez 500 i bez cofnięcia głosu."""
+    row = simple_row()
+    author = UserFactory()
+    grant_language(author)
+    suggestion = services.suggest(user=author, language="es", key=row.key, text="Otra versión")
+    client.force_login(translator)
+    for _attempt in range(2):
+        response = client.post(
+            detail_url(row), {"action": "vote", "support": "1", "suggestion": suggestion.pk}
+        )
+        assert response.status_code == 302
+    assert TranslationVote.objects.filter(suggestion=suggestion).count() == 1
+
+
+def test_vote_race_on_unique_constraint_is_swallowed(translator):
+    row = simple_row()
+    author = UserFactory()
+    grant_language(author)
+    suggestion = services.suggest(user=author, language="es", key=row.key, text="Otra versión")
+    TranslationVote.objects.create(suggestion=suggestion, user=translator)
+    services._add_vote(suggestion, translator)  # drugi INSERT trafia na więz – bez wyjątku
+    assert TranslationVote.objects.filter(suggestion=suggestion).count() == 1
+
+
+def test_stale_override_is_flagged_on_the_list(client, translator):
+    row = simple_row()
+    TranslationOverride.objects.create(
+        language="es",
+        key=row.key,
+        msgid=row.msgid,
+        text="Vieja decisión",
+        base_text="otro texto del catálogo",
+    )
+    client.force_login(translator)
+    body = client.get(reverse("web:translation-list", args=["es"]), {"q": row.msgid}).content.decode()
+    assert "badge--danger" in body
+    assert services.string_view("es", row.key).current == row.translation

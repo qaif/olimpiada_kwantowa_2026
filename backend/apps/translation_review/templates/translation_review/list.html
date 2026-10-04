@@ -3,7 +3,8 @@
 {% comment %}
   Lista napisów jednego języka. Filtr to formularz GET, stronicowanie – zwykłe odnośniki, więc
   wynik da się wkleić w wiadomości do innego tłumacza. Każdy tekst jest escapowany (``{{ }}``),
-  a ``dir="auto"`` ustawia kierunek dla arabskiego bez znajomości języka po stronie szablonu.
+  a kierunek tekstu (``dir``) bierze się z ``get_language_info`` – tłumaczenie arabskie od prawej,
+  źródło i angielski zawsze od lewej.
 {% endcomment %}
 {% block title %}{% translate "Napisy" %} – {{ language_label }}{% endblock %}
 {% block content %}
@@ -38,13 +39,14 @@
       <tbody>
         {% for item in page_obj %}
           <tr>
-            <td data-label="{% translate 'Tekst źródłowy (polski)' %}" lang="pl">
+            <td data-label="{% translate 'Tekst źródłowy (polski)' %}" lang="pl" dir="ltr">
               <a href="{% url 'web:translation-string' language item.row.key %}">{{ item.row.source|truncatechars:160 }}</a>
               {% if item.row.plural_index is not None %}<span class="hint">({% translate "forma" %} {{ item.row.plural_index }})</span>{% endif %}
             </td>
-            {% if show_pivot %}<td data-label="English" lang="en">{{ item.pivot|truncatechars:160 }}</td>{% endif %}
-            <td data-label="{% translate 'Obecne tłumaczenie' %}" lang="{{ language }}" dir="auto">{{ item.current|truncatechars:160 }}</td>
+            {% if show_pivot %}<td data-label="English" lang="en" dir="ltr">{{ item.pivot|truncatechars:160 }}</td>{% endif %}
+            <td data-label="{% translate 'Obecne tłumaczenie' %}" lang="{{ language }}" dir="{{ text_dir }}">{{ item.current|truncatechars:160 }}</td>
             <td data-label="{% translate 'Stan' %}">
+              {% if item.stale %}<span class="badge badge--danger">{% translate "do ponownego przeglądu" %}</span>{% endif %}
               {% if item.status == "reviewed" %}<span class="badge badge--ok">{% translate "przejrzane" %}</span>
               {% elif item.status == "machine" %}<span class="badge badge--warn">{% translate "maszynowe" %}</span>
               {% else %}<span class="badge badge--danger">{% translate "brak" %}</span>{% endif %}

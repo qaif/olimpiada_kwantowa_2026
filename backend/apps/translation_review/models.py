@@ -48,7 +48,14 @@ class GrantLevel(models.TextChoices):
 
 
 class TranslatorGrant(models.Model):
-    """Uprawnienie jednej osoby do jednego języka interfejsu."""
+    """Uprawnienie jednej osoby do jednego języka interfejsu.
+
+    **Zasięg nadania** (``competition``): uprawnienie nadane przez koordynatora należy do jego
+    konkursu – widzi je i odbiera każdy koordynator tego konkursu (także gdy nadający odszedł),
+    a działa **tylko dopóki** osoba jest z konkursem związana (członkostwo albo profil uczestnika;
+    ``services.user_grants``). Zerwanie ostatniego związku odbiera więc rolę samo, bez sygnałów
+    i bez sprzątania. ``NULL`` = nadanie superkoordynatora, platformowe i bez tego warunku.
+    """
 
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="translator_grants"
@@ -68,13 +75,27 @@ class TranslatorGrant(models.Model):
         verbose_name="nadał",
     )
     granted_at = models.DateTimeField("nadane", default=timezone.now)
+    competition = models.ForeignKey(
+        "tenancy.Competition",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="translator_grants",
+        verbose_name="konkurs nadania",
+        help_text="Puste = nadanie superkoordynatora (cała platforma).",
+    )
 
     class Meta:
         verbose_name = "uprawnienie tłumacza"
         verbose_name_plural = "uprawnienia tłumaczy"
         ordering = ("language", "user")
         constraints = [
-            models.UniqueConstraint(fields=["user", "language"], name="translation_review_grant_unique"),
+            # Jedno nadanie na (osobę, język, konkurs); nadanie platformowe (``NULL``) też tylko jedno.
+            models.UniqueConstraint(
+                fields=["user", "language", "competition"],
+                name="translation_review_grant_unique",
+                nulls_distinct=False,
+            ),
         ]
 
     def __str__(self) -> str:
@@ -162,6 +183,13 @@ class TranslationVote(models.Model):
         return f"{self.user_id} → {self.suggestion_id}"
 
 
+class OverrideKind(models.TextChoices):
+    #: Nowy tekst – trafia do gettext (o ile katalog od decyzji się nie zmienił).
+    CHANGE = "change", "poprawka"
+    #: „Obecne tłumaczenie jest dobre” – **nigdy** nie trafia do gettext; eksport dopisuje sam znacznik.
+    CONFIRMATION = "confirmation", "potwierdzenie"
+
+
 class TranslationOverride(StringRef):
     """Zatwierdzone tłumaczenie, które gettext oddaje **zamiast** tekstu z katalogu.
 
@@ -171,6 +199,13 @@ class TranslationOverride(StringRef):
     """
 
     text = models.TextField("tłumaczenie")
+    kind = models.CharField(
+        "rodzaj", max_length=16, choices=OverrideKind.choices, default=OverrideKind.CHANGE
+    )
+    #: ``msgstr`` z katalogu w chwili decyzji. Gdy wydanie zmieni go później, decyzja dotyczyła innego
+    #: tekstu niż ten, który dziś stoi w repozytorium – nakładka wypada z gettext i jest oznaczana
+    #: na ekranie do ponownego przejrzenia (zamiast po cichu przykrywać nowszy przekład).
+    base_text = models.TextField("tłumaczenie w katalogu przy decyzji", blank=True)
     approved_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,

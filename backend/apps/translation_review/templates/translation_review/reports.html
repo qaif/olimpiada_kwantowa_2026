@@ -19,7 +19,7 @@
         {% if report.page %}<dt>{% translate "Strona" %}</dt><dd><a href="{{ report.page }}"><code>{{ report.page }}</code></a></dd>{% endif %}
         {% if report.phrase %}
           <dt>{% translate "Napis na stronie" %}</dt>
-          <dd dir="auto">{{ report.phrase }} – <a href="{% url 'web:translation-list' language %}?q={{ report.phrase|urlencode }}">{% translate "szukaj na liście" %}</a></dd>
+          <dd dir="{{ text_dir }}">{{ report.phrase }} – <a href="{% url 'web:translation-list' language %}?q={{ report.phrase|urlencode }}">{% translate "szukaj na liście" %}</a></dd>
         {% endif %}
         <dt>{% translate "Uwaga" %}</dt>
         <dd><div class="quote" dir="auto">{{ report.comment }}</div></dd>

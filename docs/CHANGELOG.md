@@ -19,14 +19,22 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
   `/coordinator/translators/`) i recenzent tłumaczeń (wyłącznie superkoordynator). Superkoordynator
   jest recenzentem każdego języka.
 - **Nakładka w czasie działania:** zatwierdzone tłumaczenie wchodzi do gettext jako pierwszy katalog
-  (`trans_real.translation` owinięte w `ready()`), wersja w cache'u per język, ≤ 5 s do wszystkich
-  procesów; `TRANSLATION_OVERRIDES_ENABLED` wyłącza bez wydania.
+  (`trans_real.translation` owinięte w `ready()`); w cache'u sam numer wersji per język, każdy proces
+  przebudowuje nakładkę z bazy po zmianie wersji (≤ 5 s), bufor stron gości czyszczony przy zmianie;
+  `TRANSLATION_OVERRIDES_ENABLED` wyłącza bez wydania. Potwierdzenia („obecne jest dobre”) nigdy nie
+  trafiają do gettext, a poprawka podjęta wobec starszego `msgstr` ustępuje nowemu tekstowi z wydania
+  (znacznik „do ponownego przeglądu”; migracja `translation_review.0002`).
+- **Zasięg nadania:** rola nadana przez koordynatora należy do jego konkursu (widzą ją i odbierają
+  wszyscy koordynatorzy konkursu) i działa tylko, dopóki osoba jest z konkursem związana; koordynator
+  nadaje tylko w językach interfejsu swojego konkursu.
 - **Bezpieczeństwo poprawek:** tłumaczenie to zwykły tekst – te same placeholdery, **dokładnie** te same
   znaczniki HTML co w `msgid`, żadnego nowego `<`/`>` ani prostego cudzysłowu (napisy bywają
   w atrybutach, a `{% translate %}` nie escapuje), bez znaków sterujących i bidi override; ponowna
   walidacja przy zatwierdzeniu i przy imporcie z JSON-a.
 - **`manage.py export_translations`:** nakładki → `msgstr` w `.po` (diff wyłącznie poprawionych wpisów +
-  `# l10n-reviewed`), `--to-json`/`--from-json` (produkcja bez gita), `--prune` po wdrożeniu,
+  `# l10n-reviewed`; potwierdzenie – sam znacznik; konflikt, gdy katalog zmienił się od decyzji),
+  `--to-json`/`--from-json` (produkcja bez gita), zapis do `.po` tylko w checkoucie (`DEBUG` + `.git`,
+  inaczej `--force`), `--prune` dopiero gdy tekst jest w skompilowanym `.mo`, `--prune-stale`,
   `--dry-run` (`docs/OPERACJE.md` § 33).
 - **„Zgłoś tłumaczenie” w stopce** dla zalogowanego tłumacza (konkurs wielojęzyczny, strona nie po
   polsku): ścieżka strony bez parametrów + fraza + uwaga; lista zgłoszeń dla recenzenta.

@@ -2029,15 +2029,19 @@ Tylko w konkursie z **więcej niż jednym językiem interfejsu** (np. IQO); pozy
 w sekcji „Ustawienia”. Tłumaczenia poza angielskim są maszynowe – ten ekran pozwala oddać ich przegląd
 ludziom, którzy znają język, np. kierownikom delegacji.
 
-- **Nadaj rolę:** adres e-mail konta, język, poziom „tłumacz”. Konto musi należeć do Twojego konkursu
-  (członkostwo albo profil uczestnika); w innym wypadku ekran odpowie, że konta nie znaleziono.
+- **Nadaj rolę:** adres e-mail konta, język (do wyboru są języki interfejsu Twojego konkursu), poziom
+  „tłumacz”. Konto musi należeć do Twojego konkursu (członkostwo albo profil uczestnika); w innym
+  wypadku ekran odpowie, że konta nie znaleziono.
+- **Rola należy do konkursu:** widzisz (i możesz odebrać) każde nadanie swojego konkursu, także
+  wykonane przez innego koordynatora. Gdy osoba przestaje należeć do konkursu (wypisanie, odebranie
+  roli), rola tłumacza przestaje działać sama – wiersz zostaje na liście, żebyś mógł go usunąć.
 - **Tłumacz** widzi pod `/translations/` listę napisów swojego języka (tekst polski, angielski, obecne
   tłumaczenie, miejsce w kodzie), proponuje poprawki i głosuje na cudze. W stopce ma „Zgłoś tłumaczenie”.
 - **Recenzent tłumaczeń** (zatwierdza poprawki) – tę rolę nadaje wyłącznie **superkoordynator**, bo
   zatwierdzona poprawka zmienia napis na **całej platformie**, we wszystkich konkursach.
 - **Odbierz** usuwa rolę od razu. Tłumacze nie widzą nawzajem swoich kont ani danych uczestników.
 
-Poprawki trafiają do repozytorium okresowo (operator, `docs/OPERACJE.md` § 33.2). Napisy ekranów
+Poprawki trafiają do repozytorium okresowo (operator, `docs/OPERACJE.md` § 33.3). Napisy ekranów
 koordynatora zostają po polsku i nie są przedmiotem przeglądu.
 
 ---

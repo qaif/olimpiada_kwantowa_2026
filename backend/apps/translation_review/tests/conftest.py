@@ -54,8 +54,8 @@ def placeholder_row(language: str = "es") -> catalogs.Row:
     raise AssertionError("Brak napisu z placeholderem.")
 
 
-def grant_language(user, language="es", level=GrantLevel.TRANSLATOR):
-    return TranslatorGrant.objects.create(user=user, language=language, level=level)
+def grant_language(user, language="es", level=GrantLevel.TRANSLATOR, competition=None):
+    return TranslatorGrant.objects.create(user=user, language=language, level=level, competition=competition)
 
 
 @pytest.fixture
