@@ -5,14 +5,16 @@ Jitsi (``apps.web.views.video``), a o tym, kto i kiedy wchodzi, rozstrzyga **ta 
 (``apps.competitions.room_access``). Ten moduł robi wyłącznie to, czego Jitsi nie potrzebuje:
 
 - zamienia :class:`~apps.competitions.room_access.RoomPass` na token LiveKit (podpis i klucz – klient
-  WEB-01, ``apps.webinars.livekit``): moderator Jitsi → ``roomAdmin`` + nadawanie, odbiór i kanał
-  danych; uczestnik → nadawanie, odbiór i kanał danych (jak w Jitsi: kamera, mikrofon, czat), bez
-  administracji; okno tokenu = okno biletu (``nbf``/``exp``) – dokładnie jak przepustka Jitsi,
-- wykonuje polecenia moderatora z pokoju (wyproszenie, odebranie i oddanie głosu) przez API serwera,
+  WEB-01, ``apps.webinars.livekit``): nadawanie, odbiór i kanał danych dla każdej roli (jak w Jitsi:
+  kamera, mikrofon, czat) – **bez ``roomAdmin``** także dla moderatora, bo jego polecenia idą przez
+  platformę; okno tokenu = okno biletu (``nbf``/``exp``) – dokładnie jak przepustka Jitsi; przed
+  tokenem ``CreateRoom`` (serwer ma ``auto_create: false``),
+- wykonuje polecenia moderatora z pokoju (wyproszenie, odebranie i oddanie głosu, ponowne wpuszczenie)
+  przez API serwera i zapisuje je przy terminie, żeby odświeżenie strony ich nie cofało,
 - łączy rozmowę z **nadzorem zdalnym** (PROC-01), gdy koordynator włączył go dla etapu: uczeń wchodzi
   na rozmowę dopiero ze zgodą na nadzór i sprawdzonym sprzętem (jak do etapu pisemnego), połączenia
-  trafiają do dziennika sesji nadzoru, a przy ``record`` kamera ucznia jest nagrywana (Track Egress)
-  z retencją nadzoru. Pokoje Jitsi nie nagrywają (``ENABLE_RECORDING=0``), więc **bez** nadzoru
+  trafiają do dziennika sesji nadzoru, a przy ``record`` kamera ucznia **ze zgodą** jest nagrywana
+  (Track Egress) z retencją nadzoru. Pokoje Jitsi nie nagrywają (``ENABLE_RECORDING=0``), więc **bez** nadzoru
   pokoje LiveKit też nie – uprawnienia i możliwości obu dostawców są te same.
 """
 
@@ -31,36 +33,85 @@ from apps.webinars import livekit
 logger = logging.getLogger(__name__)
 
 
-def grants(room_pass: room_access.RoomPass) -> dict:
-    """Uprawnienia ``video`` tokenu – odwzorowanie ról Jitsi na LiveKit (STAGE-LK-01 § 3)."""
-    video = {
-        "room": room_access.livekit_room_of(room_pass.url),
+#: Pusty pokój rozmowy znika po tylu sekundach (``CreateRoom.empty_timeout``) – kwadrans wystarcza
+#: na odświeżenie strony i powrót po zerwanym połączeniu w trakcie rozmowy.
+ROOM_EMPTY_TIMEOUT_SECONDS = 900
+
+
+def _unavailable() -> DomainError:
+    return DomainError(_("Serwer wideo nie odpowiada. Spróbuj za chwilę."), "LIVEKIT_UNAVAILABLE", 502)
+
+
+def room_of(room_pass: room_access.RoomPass, user) -> str:
+    """Pokój LiveKit biletu. Próba sprzętu – **osobny pokój** na zapis ucznia (``…-b<zapis>-test``)
+    albo na osobę z komisji (``…-s<konto>-test``): wspólny ``…-test`` terminu byłby miejscem, w którym
+    uczniowie jednego terminu spotykają się bez nadzoru i bez moderatora (przegląd L-5)."""
+    room = room_access.livekit_room_of(room_pass.url)
+    if not room or room_pass.kind != room_access.PRECHECK:
+        return room
+    from apps.competitions.video import PRECHECK_SUFFIX
+
+    base = room[: -len(PRECHECK_SUFFIX)] if room.endswith(PRECHECK_SUFFIX) else room
+    owner = f"b{room_pass.booking_id}" if room_pass.booking_id else f"s{user.pk}"
+    return f"{base}-{owner}{PRECHECK_SUFFIX}"
+
+
+def grants(room_pass: room_access.RoomPass, room: str = "", *, can_publish: bool = True) -> dict:
+    """Uprawnienia ``video`` tokenu (STAGE-LK-01 § 3). **Bez ``roomAdmin``** także dla moderatora
+    (przegląd L-1): polecenia moderatora idą przez platformę (``control``), więc przeglądarka nie
+    potrzebuje uprawnień administratora pokoju – skradziony token moderatora niczego nie wyprosi.
+    ``can_publish=False`` – uczeń, któremu moderator odebrał głos (decyzja przeżywa ponowne wejście)."""
+    return {
+        "room": room or room_access.livekit_room_of(room_pass.url),
         "roomJoin": True,
-        "canPublish": True,
+        "canPublish": bool(can_publish),
         "canSubscribe": True,
         "canPublishData": True,
     }
-    if room_pass.moderator:
-        video["roomAdmin"] = True
-    return video
 
 
-def access_token(room_pass: room_access.RoomPass, user, *, now=None) -> dict:
-    """Token LiveKit na pokój biletu, ważny w oknie biletu. ``identity`` – pseudonim konta (WEB-01)."""
+def _block_for(slot, identity: str):
+    from .models import InterviewRoomBlock
+
+    if slot is None:
+        return None
+    return InterviewRoomBlock.objects.filter(slot=slot, identity=identity).first()
+
+
+def access_token(room_pass: room_access.RoomPass, user, *, slot=None, now=None) -> dict:
+    """Token LiveKit na pokój biletu, ważny w oknie biletu. ``identity`` – pseudonim konta (WEB-01).
+
+    Kolejność: serwer skonfigurowany → decyzje moderatora dla ucznia (usunięty – odmowa, bez głosu –
+    token bez nadawania) → ``CreateRoom`` (serwer ma ``auto_create: false``, przegląd H-1) → token.
+    """
     from apps.webinars.services import pseudonym
 
-    room = room_access.livekit_room_of(room_pass.url)
+    from .models import RoomBlockKind
+
+    room = room_of(room_pass, user)
     if not room or not livekit.configured():
-        raise DomainError(_("Serwer wideo nie odpowiada. Spróbuj za chwilę."), "LIVEKIT_UNAVAILABLE", 502)
-    now = int(now if now is not None else time.time())
+        raise _unavailable()
     identity = pseudonym(user)
+    can_publish = True
+    if room_pass.role == room_access.ROLE_PARTICIPANT and room_pass.kind == room_access.INTERVIEW:
+        block = _block_for(slot, identity)
+        if block is not None and block.kind == RoomBlockKind.REMOVED:
+            raise DomainError(
+                _("Moderator usunął Cię z tej rozmowy. Skontaktuj się z organizatorem."), "ROOM_REMOVED", 403
+            )
+        can_publish = block is None
+    try:
+        livekit.create_room(room, empty_timeout=ROOM_EMPTY_TIMEOUT_SECONDS)
+    except (livekit.LiveKitUnavailable, livekit.LiveKitError) as exc:
+        raise _unavailable() from exc
+    now = int(now if now is not None else time.time())
     claims = {
         "iss": livekit.api_key(),
         "sub": identity,
         "name": room_pass.display_name,
         "nbf": int(room_pass.not_before.timestamp()) - livekit.CLOCK_SKEW_SECONDS,
         "exp": int(room_pass.expires_at.timestamp()),
-        "video": grants(room_pass),
+        "video": grants(room_pass, room, can_publish=can_publish),
     }
     return {
         "url": livekit.ws_url(),
@@ -84,7 +135,7 @@ def proctoring_check(stage, participant) -> None:
     config = services.config_for(stage)
     if config is None:
         return
-    session = services.session_for(stage, participant)
+    session = services.session_for(stage, participant, create=False)
     if services.interview_ready(session, config):
         return
     raise DomainError(
@@ -97,32 +148,82 @@ def proctoring_check(stage, participant) -> None:
 # --- polecenia moderatora -------------------------------------------------------------------------
 
 
-def control(room_pass: room_access.RoomPass, action: str, identity: str) -> None:
-    """Polecenie moderatora: ``remove`` (wyproś), ``listener`` (odbierz głos), ``speaker`` (oddaj).
+CONTROL_ACTIONS = ("remove", "listener", "speaker", "readmit")
+
+
+def _label(slot, identity: str) -> str:
+    """„Imię N.” ucznia **tego** terminu o tym pseudonimie – pętla po zapisach jednego terminu
+    (kilka osób), nie po etapie."""
+    from apps.competitions.jitsi_jwt import short_name
+    from apps.webinars.services import pseudonym
+
+    for booking in slot.bookings.select_related("entry__participant__user"):
+        participant = booking.entry.participant
+        if participant is not None and pseudonym(participant.user) == identity:
+            return short_name(participant.user) or participant.public_code
+    return ""
+
+
+def control(room_pass: room_access.RoomPass, action: str, identity: str, *, slot=None, actor=None) -> None:
+    """Polecenie moderatora: ``remove`` (wyproś), ``listener`` (odbierz głos), ``speaker`` (oddaj),
+    ``readmit`` (wpuść ponownie).
 
     Tylko z biletem moderatora **tego** pokoju – to samo, co może moderator w Jitsi (wyproszenie,
-    wyciszenie). Identyfikator musi być pseudonimem konta (``u-…``).
+    wyciszenie). Identyfikator musi być pseudonimem konta (``u-…``). Wyproszenie i odebranie głosu
+    zostają zapisane przy terminie (``InterviewRoomBlock``), więc odświeżenie strony ich nie cofa
+    (przegląd L-4); „wpuść ponownie” i „oddaj głos” je zdejmują.
     """
     from apps.webinars.services import IDENTITY
 
+    from .models import InterviewRoomBlock, RoomBlockKind
+
     if not room_pass.moderator:
         raise DomainError("Nie masz uprawnień moderatora w tym pokoju.", "ROOM_NOT_MODERATOR", 403)
+    if action not in CONTROL_ACTIONS:
+        raise DomainError("Nieznana czynność.", "UNKNOWN_ACTION", 400)
     if not IDENTITY.match(identity or ""):
         raise DomainError(_("Tej osoby nie ma teraz w pokoju."), "ROOM_NOT_IN_ROOM", 409)
     room = room_access.livekit_room_of(room_pass.url)
+    if slot is not None and action in ("remove", "listener"):
+        kind = RoomBlockKind.REMOVED if action == "remove" else RoomBlockKind.MUTED
+        existing = InterviewRoomBlock.objects.filter(slot=slot, identity=identity).first()
+        if existing is None:
+            InterviewRoomBlock.objects.create(
+                slot=slot,
+                identity=identity,
+                kind=kind,
+                label=_label(slot, identity)[:80],
+                created_by=actor if getattr(actor, "pk", None) else None,
+            )
+        elif kind == RoomBlockKind.REMOVED and existing.kind != kind:
+            existing.kind = kind
+            existing.save(update_fields=["kind"])
+    elif action == "readmit":
+        if slot is not None:
+            InterviewRoomBlock.objects.filter(slot=slot, identity=identity).delete()
+        return
+    elif slot is not None and action == "speaker":
+        InterviewRoomBlock.objects.filter(slot=slot, identity=identity, kind=RoomBlockKind.MUTED).delete()
     try:
         if action == "remove":
             livekit.remove_participant(room, identity)
-        elif action in ("speaker", "listener"):
-            livekit.set_can_publish(room, identity, action == "speaker")
         else:
-            raise DomainError("Nieznana czynność.", "UNKNOWN_ACTION", 400)
+            livekit.set_can_publish(room, identity, action == "speaker")
     except livekit.LiveKitUnavailable as exc:
-        raise DomainError(
-            _("Serwer wideo nie odpowiada. Spróbuj za chwilę."), "LIVEKIT_UNAVAILABLE", 502
-        ) from exc
+        raise _unavailable() from exc
     except livekit.LiveKitError as exc:
+        if action == "remove":
+            return  # osoby już nie ma w pokoju – decyzja i tak zapisana: nie wejdzie z powrotem
         raise DomainError(_("Tej osoby nie ma teraz w pokoju."), "ROOM_NOT_IN_ROOM", 409) from exc
+
+
+def blocks_for(slot) -> list:
+    """Decyzje moderatorów terminu – lista na stronie pokoju moderatora („Wpuść ponownie”, „Oddaj głos”)."""
+    from .models import InterviewRoomBlock
+
+    if slot is None:
+        return []
+    return list(InterviewRoomBlock.objects.filter(slot=slot).order_by("created_at", "pk"))
 
 
 # --- webhooki pokoi rozmów (dla nadzoru) ----------------------------------------------------------

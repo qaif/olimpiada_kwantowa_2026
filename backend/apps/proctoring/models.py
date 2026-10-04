@@ -186,6 +186,10 @@ class ProctoringSession(models.Model):
     #: ``identity`` w LiveKit – pseudonim HMAC (``p-…``) osobny na etap; po nim webhook trafia do sesji.
     #: Nie jest sekretem (widzą go nadzorujący i serwer LiveKit), nie zdradza ``pk`` ani adresu.
     identity = models.CharField("identyfikator w pokoju", max_length=32, db_index=True)
+    #: Pseudonim **konta** (``u-…``, WEB-01) – tak uczeń nazywa się w pokoju rozmowy LiveKit
+    #: (STAGE-LK-01). Zapisany, żeby webhook pokoju rozmowy trafiał do sesji jednym zapytaniem,
+    #: a nie liczeniem HMAC dla każdego zapisu etapu.
+    account_identity = models.CharField("pseudonim konta", max_length=32, blank=True, db_index=True)
     #: Grupa pokoju – ``m`` albo ``d<id delegacji>``; liczona przy każdym tokenie (migawka do listy).
     group = models.CharField("grupa", max_length=24, default=MAIN_GROUP)
     proctor = models.ForeignKey(
@@ -444,3 +448,45 @@ class ProctoringRecording(models.Model):
 
     def __str__(self) -> str:
         return f"{self.session_id}: {self.storage_key}"
+
+
+class RoomBlockKind(models.TextChoices):
+    REMOVED = "removed", "usunięty z pokoju"
+    MUTED = "muted", "bez głosu"
+
+
+class InterviewRoomBlock(models.Model):
+    """Decyzja moderatora pokoju rozmowy LiveKit (STAGE-LK-01), która ma **przetrwać ponowne wejście**.
+
+    „Usuń” i „odbierz głos” to polecenia dla trwającego połączenia; uczeń, który odświeży stronę,
+    dostałby nowy token z pełnymi uprawnieniami i decyzja by się „odkręciła”. Wiersz tutaj sprawia,
+    że token na **ten termin** jest odmówiony (usunięty) albo wydany bez nadawania (bez głosu), dopóki
+    moderator nie wpuści ponownie / nie odda głosu. Termin się kończy – wiersz przestaje mieć znaczenie
+    (token i tak nie powstanie poza oknem), a kasuje go kaskada razem z terminem.
+    """
+
+    slot = models.ForeignKey(
+        "competitions.InterviewSlot",
+        on_delete=models.CASCADE,
+        related_name="room_blocks",
+        verbose_name="termin",
+    )
+    #: Pseudonim konta (``u-…``) – ten sam, którym osoba jest w pokoju.
+    identity = models.CharField("identyfikator w pokoju", max_length=32)
+    kind = models.CharField("decyzja", max_length=8, choices=RoomBlockKind.choices)
+    #: Podpis dla moderatora („Imię N.”), ustalany przy decyzji z zapisów **tego** terminu.
+    label = models.CharField("osoba", max_length=80, blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+    )
+    created_at = models.DateTimeField("od", default=timezone.now)
+
+    class Meta:
+        verbose_name = "decyzja moderatora rozmowy"
+        verbose_name_plural = "decyzje moderatorów rozmów"
+        constraints = [
+            models.UniqueConstraint(fields=["slot", "identity"], name="proctoring_room_block_unique"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.kind} {self.identity} @ {self.slot_id}"

@@ -24,6 +24,7 @@ REQUIRED_GRANT = {
     "UpdateParticipant": "roomAdmin",
     "StartTrackEgress": "roomRecord",
     "StopEgress": "roomRecord",
+    "CreateRoom": "roomCreate",
 }
 
 
@@ -34,6 +35,8 @@ class FakeLiveKit:
     egresses: dict[str, dict] = field(default_factory=dict)
     calls: list[tuple[str, dict]] = field(default_factory=list)
     fail_with: Exception | None = None
+    #: Pokoje założone przez platformę (``CreateRoom``) – serwer produkcyjny ma ``auto_create: false``.
+    created: dict[str, dict] = field(default_factory=dict)
 
     def names(self) -> list[str]:
         return [name for name, _payload in self.calls]
@@ -69,6 +72,11 @@ class FakeLiveKit:
     @staticmethod
     def _not_found() -> tuple[int, bytes]:
         return 404, json.dumps({"code": "not_found", "msg": "participant not found"}).encode()
+
+    def _CreateRoom(self, payload):  # noqa: N802 - idempotentnie, jak serwer
+        self.created.setdefault(payload["name"], payload)
+        self.rooms.setdefault(payload["name"], {})
+        return self._ok({"name": payload["name"]})
 
     def _SendData(self, payload):  # noqa: N802 - nazwa metody Twirp
         payload["decoded"] = json.loads(base64.b64decode(payload["data"]))

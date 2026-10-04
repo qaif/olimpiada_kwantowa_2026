@@ -98,7 +98,9 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
   `competitions.0034`; opcja widoczna tylko przy skonfigurowanym LiveKit). Jitsi domyślne i bez zmian.
 - **Jedna reguła uprawnień** dla obu dostawców: `apps.competitions.room_access` (przeniesiona z widoków
   Jitsi bez zmiany zachowania) – uczestnik, koordynator i komisja wchodzą tymi samymi widokami, w tych
-  samych oknach, z tymi samymi rolami (moderator Jitsi = `roomAdmin` LiveKit); test parytetu uruchamia
+  samych oknach, z tymi samymi rolami (moderator Jitsi = rola `presenter`, polecenia przez platformę –
+  bez `roomAdmin` w przeglądarce; pokoje zakładane `CreateRoom` przed tokenem; decyzje moderatora
+  przeżywają ponowne wejście; osobny pokój próby na zapis; nagranie rozmowy z nadzorem tylko ze zgodą); test parytetu uruchamia
   tę samą macierz ról na obu dostawcach.
 - Pokój na platformie (interfejs webinarów), token POST-em, polecenia moderatora przez platformę
   (odbierz/oddaj głos, usuń; audyt `interview.room_control`). Bez drugiej integracji LiveKit.

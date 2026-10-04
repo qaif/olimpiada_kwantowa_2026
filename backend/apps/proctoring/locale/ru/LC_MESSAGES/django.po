@@ -830,3 +830,21 @@ msgstr "Для комнаты собеседования нужен включё
 
 msgid "Pokój jest chwilowo niedostępny – brakuje komponentu wideo na serwerze. Daj znać organizatorowi."
 msgstr "Комната временно недоступна – на сервере нет видеокомпонента. Сообщите организатору."
+
+msgid "Decyzje moderatora w tym terminie"
+msgstr "Решения модератора в этом слоте"
+
+msgid "usunięty z pokoju"
+msgstr "удалён из комнаты"
+
+msgid "bez głosu"
+msgstr "без голоса"
+
+msgid "Oddaj głos"
+msgstr "Дать слово"
+
+msgid "Wpuść ponownie"
+msgstr "Впустить снова"
+
+msgid "Moderator usunął Cię z tej rozmowy. Skontaktuj się z organizatorem."
+msgstr "Модератор удалил вас из этого собеседования. Свяжитесь с организатором."

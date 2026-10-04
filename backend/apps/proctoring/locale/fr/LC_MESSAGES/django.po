@@ -843,3 +843,21 @@ msgstr "La salle d’entretien nécessite JavaScript."
 
 msgid "Pokój jest chwilowo niedostępny – brakuje komponentu wideo na serwerze. Daj znać organizatorowi."
 msgstr "La salle est temporairement indisponible – le composant vidéo manque sur le serveur. Prévenez l’organisateur."
+
+msgid "Decyzje moderatora w tym terminie"
+msgstr "Décisions du modérateur pour ce créneau"
+
+msgid "usunięty z pokoju"
+msgstr "retiré de la salle"
+
+msgid "bez głosu"
+msgstr "sans parole"
+
+msgid "Oddaj głos"
+msgstr "Redonner la parole"
+
+msgid "Wpuść ponownie"
+msgstr "Réadmettre"
+
+msgid "Moderator usunął Cię z tej rozmowy. Skontaktuj się z organizatorem."
+msgstr "Le modérateur vous a retiré de cet entretien. Contactez l’organisateur."

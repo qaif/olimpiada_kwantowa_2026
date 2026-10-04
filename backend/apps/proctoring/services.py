@@ -132,12 +132,34 @@ def configured() -> bool:
 
 def config_for(stage) -> ProctoringConfig | None:
     """Ustawienia nadzoru etapu, gdy jest **włączony** – inaczej ``None`` (etap bez nadzoru)."""
-    if stage is None:
+    if stage is None or not proctorable(stage):
+        # Etap, który przestał się nadawać do nadzoru (np. rozmowa przeniesiona z LiveKit na Jitsi
+        # z ``/admin/`` albo API) – konfiguracja zostaje w bazie, ale nie działa (przegląd M-2).
         return None
     config = ProctoringConfig.objects.filter(stage=stage, enabled=True).select_related(
         "stage__edition__competition"
     )
     return config.first()
+
+
+#: Pusty pokój nadzoru znika po tylu sekundach (``CreateRoom.empty_timeout``). Pół godziny: uczeń,
+#: któremu padła sieć, i nadzorujący po odświeżeniu wracają do tego samego pokoju.
+ROOM_EMPTY_TIMEOUT_SECONDS = 1800
+
+
+def ensure_room(room: str, *, empty_timeout: int = ROOM_EMPTY_TIMEOUT_SECONDS) -> None:
+    """``CreateRoom`` przed wydaniem tokenu – serwer ma ``auto_create: false`` (WEB-01), więc pokój
+    istnieje wyłącznie wtedy, gdy założyła go platforma **po** sprawdzeniu reguł. Idempotentne."""
+    from apps.webinars import livekit
+
+    try:
+        livekit.create_room(room, empty_timeout=empty_timeout)
+    except livekit.LiveKitUnavailable as exc:
+        raise _unavailable() from exc
+    except livekit.LiveKitError as exc:
+        raise DomainError(
+            _("Serwer nadzoru nie odpowiada. Spróbuj za chwilę."), "PROCTORING_LIVEKIT_ROOM", 502
+        ) from exc
 
 
 def stage_competition(stage):
@@ -176,6 +198,13 @@ def _hmac(label: str) -> str:
 def student_identity(stage, participant) -> str:
     """Pseudonim ucznia w pokoju – **osobny na etap**: nie łączy jego wejść między etapami."""
     return "p-" + _hmac(f"s:{stage.pk}:{participant.pk}")
+
+
+def account_identity(participant) -> str:
+    """Pseudonim konta (``u-…``) z WEB-01 – tożsamość ucznia w pokoju **rozmowy** LiveKit."""
+    from apps.webinars.services import pseudonym
+
+    return pseudonym(participant.user)
 
 
 def proctor_identity(stage, user) -> str:
@@ -391,6 +420,9 @@ def session_for(stage, participant, *, create: bool = True) -> ProctoringSession
         .filter(stage=stage, participant=participant)
         .first()
     )
+    if found is not None and not found.account_identity:
+        found.account_identity = account_identity(participant)
+        ProctoringSession.objects.filter(pk=found.pk).update(account_identity=found.account_identity)
     if found is not None or not create:
         return found
     try:
@@ -399,6 +431,7 @@ def session_for(stage, participant, *, create: bool = True) -> ProctoringSession
                 stage=stage,
                 participant=participant,
                 identity=student_identity(stage, participant),
+                account_identity=account_identity(participant),
                 group=group_for(participant),
             )
     except IntegrityError:  # dwa żądania naraz
@@ -771,6 +804,7 @@ def student_token(session, config, *, user, request=None, now=None) -> dict:
         session.group = group
         session.save(update_fields=["group"])
     room = config.room_name(group)
+    ensure_room(room)
     video = livekit_api.student_grants(
         room, screen=config.require_screen_share, microphone=config.require_microphone
     )
@@ -1084,6 +1118,7 @@ def proctor_token(scope: ProctorScope, group: str, *, request=None, now=None) ->
     if not (opens <= now < closes):
         raise DomainError(_("Pokój nadzoru jest teraz zamknięty."), "PROCTORING_ROOM_CLOSED", 409)
     room = scope.config.room_name(group)
+    ensure_room(room)
     identity = proctor_identity(scope.stage, scope.user)
     token = livekit_api.access_token(identity=identity, name="", video=livekit_api.proctor_grants(room))
     _audit(
@@ -1586,17 +1621,34 @@ def recording_key(session, config, now) -> str:
     )
 
 
+def may_record(session, config) -> bool:
+    """Nagrywać wolno **tylko** ucznia z ważną zgodą (wersja, ustawienia etapu – także ``record`` –
+    i u niepełnoletniego nieodwołana zgoda opiekuna) i bez zatwierdzonej alternatywy (STAGE-LK-01, H-2).
+
+    Sprawdzane w chwili startu nagrania, nie przy tokenie: zgoda wycofana po wejściu albo nagrywanie
+    włączone w trakcie (zmienia skrót zgody) – nagranie nie rusza.
+    """
+    if session is None or session.alternative_approved:
+        return False
+    return active_consent(session, config) is not None
+
+
 def start_recording(session_pk: int, track_sid: str, room: str = "") -> ProctoringRecording | None:
     """Track Egress kamery – wyłącznie przy ``record=True`` i włączonym nadzorze (zadanie Celery).
 
     ``room`` – pokój rozmowy LiveKit (STAGE-LK-01); pusty = pokój nadzoru grupy ucznia."""
     session = (
-        ProctoringSession.objects.select_related("stage__edition__competition").filter(pk=session_pk).first()
+        ProctoringSession.objects.select_related("stage__edition__competition", "participant__user")
+        .filter(pk=session_pk)
+        .first()
     )
     if session is None or not track_sid:
         return None
     config = config_for(session.stage)
     if config is None or not config.record or not configured():
+        return None
+    if not may_record(session, config):
+        log_event(session, EventKind.RECORDING, EventSource.SYSTEM, detail={"status": "refused_no_consent"})
         return None
     if ProctoringRecording.objects.filter(session=session, track_sid=track_sid).exists():
         return None

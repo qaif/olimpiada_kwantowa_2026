@@ -764,3 +764,21 @@ msgstr "साक्षात्कार कक्ष के लिए JavaScri
 
 msgid "Pokój jest chwilowo niedostępny – brakuje komponentu wideo na serwerze. Daj znać organizatorowi."
 msgstr "कमरा अस्थायी रूप से उपलब्ध नहीं है – सर्वर पर वीडियो घटक नहीं है। आयोजक को बताएँ।"
+
+msgid "Decyzje moderatora w tym terminie"
+msgstr "इस समय-स्लॉट में मॉडरेटर के निर्णय"
+
+msgid "usunięty z pokoju"
+msgstr "कक्ष से हटाया गया"
+
+msgid "bez głosu"
+msgstr "बिना आवाज़"
+
+msgid "Oddaj głos"
+msgstr "बोलने दें"
+
+msgid "Wpuść ponownie"
+msgstr "फिर से प्रवेश दें"
+
+msgid "Moderator usunął Cię z tej rozmowy. Skontaktuj się z organizatorem."
+msgstr "मॉडरेटर ने आपको इस साक्षात्कार से हटा दिया है। आयोजक से संपर्क करें।"

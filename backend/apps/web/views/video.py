@@ -168,9 +168,22 @@ class StageRoomFeatureMixin:
     def dispatch(self, request, *args, **kwargs):
         from apps.webinars import livekit
 
-        if not jwt_enabled() and not livekit.configured():
+        if not jwt_enabled() and not livekit.configured() and not _has_livekit_stages(request):
             raise Http404("Przepustki do pokoi wideo nie są skonfigurowane.")
         return super().dispatch(request, *args, **kwargs)
+
+
+def _has_livekit_stages(request) -> bool:
+    """Konkurs z etapem-rozmową w LiveKit (STAGE-LK-01, M-3): pokój ``livekit://`` zostaje pokojem
+    platformy także po wyłączeniu serwera, więc jego adresy wejścia mają odpowiedzieć „serwer wideo
+    nie odpowiada” (502 przy tokenie), a nie 404. Zapytanie tylko wtedy, gdy nie ma żadnego serwera."""
+    from apps.competitions.models import Stage
+    from apps.competitions.video import VideoProvider
+
+    competition = getattr(request, "competition", None)
+    if competition is None:
+        return False
+    return Stage.objects.for_competition(competition).filter(video_provider=VideoProvider.LIVEKIT).exists()
 
 
 class StageJoinViewMixin(StageRoomFeatureMixin, ThrottledFormMixin):

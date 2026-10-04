@@ -121,12 +121,16 @@ def outcome(client, path: str, provider: str):
         return "back"
     token_response = client.post(f"{location}token/")
     assert token_response.status_code == 200, token_response.content
-    claims = jwt.decode(token_response.json()["token"], API_SECRET, algorithms=["HS256"])
+    data = token_response.json()
+    claims = jwt.decode(data["token"], API_SECRET, algorithms=["HS256"])
     video = claims["video"]
     assert video["canPublish"] and video["canSubscribe"] and video["canPublishData"]
+    # Przegląd L-1: przeglądarka nie dostaje ``roomAdmin`` – moderatora poznaje interfejs po roli
+    # z odpowiedzi, a polecenia idą przez platformę.
+    assert "roomAdmin" not in video
     return (
         "pass",
-        bool(video.get("roomAdmin")),
+        data["role"] == "presenter",
         claims["exp"],
         video["room"].endswith("-test"),
         claims["name"],
@@ -263,9 +267,11 @@ def test_livekit_choice_available_with_server(both, competition):
     assert VideoProvider.LIVEKIT in [value for value, _label in form.fields["video_provider"].choices]
 
 
-def test_livekit_room_without_server_is_not_a_platform_room(settings):
+def test_livekit_room_without_server_is_still_a_platform_room(settings):
+    """Przegląd M-3: ``livekit://`` to identyfikator, nie link – nigdy nie trafia na ekran jako odnośnik."""
     settings.LIVEKIT_URL = ""
-    assert not room_access.is_platform_room("livekit://olimpiada-x-abc")
+    assert room_access.is_platform_room("livekit://olimpiada-x-abc")
+    assert room_access.provider_of("livekit://olimpiada-x-abc") == "livekit"
 
 
 def test_dashboard_and_letters_treat_livekit_room_as_platform_room(both, competition, client_for):
@@ -323,6 +329,10 @@ def test_moderator_can_remove_and_mute_participant_can_not(both, competition, cl
     assert client.post(url, {"action": "remove", "identity": identity}).status_code == 200
     assert both.payload("RemoveParticipant") == {"room": room, "identity": identity}
     assert AuditLog.objects.filter(action="interview.room_control").count() == 2
+    # Przegląd L-2: audyt wskazuje, kogo dotyczyła decyzja – pseudonimem z pokoju.
+    assert set(
+        AuditLog.objects.filter(action="interview.room_control").values_list("diff__identity", flat=True)
+    ) == {identity}
     student = client_for(competition)
     student.force_login(booking.entry.participant.user)
     assert student.post(url, {"action": "remove", "identity": identity}).status_code == 403
@@ -389,9 +399,13 @@ def test_interview_room_webhooks_feed_the_proctoring_session_and_recording(
 
     stage = interview_stage(competition, "livekit")
     booking = booked(competition, stage)
-    proctored(competition, stage, record=True)
+    config = proctored(competition, stage, record=True)
     room = room_access.livekit_room_of(booking.meeting_url)
     identity = pseudonym(booking.entry.participant.user)
+    # Zgoda na nadzór **z nagrywaniem** – bez niej kamera nie jest nagrywana (przegląd H-2).
+    participant = booking.entry.participant
+    session = services.session_for(stage, participant)
+    services.give_consent(session, user=participant.user, config=config)
     client = client_for(competition)
 
     def send(event):

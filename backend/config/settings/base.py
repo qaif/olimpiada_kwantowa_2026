@@ -1381,6 +1381,9 @@ REST_FRAMEWORK = {
         "proctoring_coordinator_token": "1200/hour",
         "proctoring_action": "600/hour",
         "proctoring_client": "600/hour",
+        # Polecenia moderatora pokoju rozmowy LiveKit (STAGE-LK-01): odbierz/oddaj głos, usuń, wpuść
+        # ponownie – osobno od wejść (``video``), odpowiedź 429 w JSON-ie dla skryptu pokoju.
+        "interview_control": "600/hour",
         # Zakładanie konkursu z panelu koordynatora (``/coordinator/competitions/new/``). Stawka
         # jest **dzienna i niska**, bo taka jest ta czynność: konkurs zakłada się raz na sezon,
         # a każde założenie to nowa witryna, nowe drzewo stron, nowa edycja i wniosek o certyfikat

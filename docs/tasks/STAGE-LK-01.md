@@ -33,10 +33,10 @@ pokoju na platformie, gdzie JS pobiera token POST-em; widok tokenu **ponownie** 
 
 | Kto | Jitsi | LiveKit |
 |---|---|---|
-| uczestnik – własny, niezdyskwalifikowany zapis, okno terminu (`LEAD`/`GRACE`) | przepustka bez `moderator` | `canPublish`, `canSubscribe`, `canPublishData`, bez `roomAdmin` |
-| uczestnik – próba sprzętu (`…-test`), do końca okna, `PRECHECK_MINUTES` | przepustka bez `moderator` | jak wyżej, pokój `…-test` |
-| koordynator konkursu / aktywny członek komisji – rozmowa w oknie terminu | `moderator: true` | jak uczestnik + **`roomAdmin`**; „odbierz/oddaj głos” (`UpdateParticipant`) i „usuń” (`RemoveParticipant`) przez platformę, z audytem `interview.room_control` |
-| koordynator / komisja – próba sprzętu, bez okna | bez `moderator` | bez `roomAdmin` |
+| uczestnik – własny, niezdyskwalifikowany zapis, okno terminu (`LEAD`/`GRACE`) | przepustka bez `moderator` | `canPublish`, `canSubscribe`, `canPublishData`, bez `roomAdmin`; usunięty przez moderatora – odmowa (403), bez głosu – bez `canPublish` |
+| uczestnik – próba sprzętu, do końca okna, `PRECHECK_MINUTES` | przepustka bez `moderator`, pokój `…-test` | jak wyżej, **osobny** pokój `…-b<zapis>-test` |
+| koordynator konkursu / aktywny członek komisji – rozmowa w oknie terminu | `moderator: true` | jak uczestnik, **bez `roomAdmin`** (przegląd L-1); rola `presenter` w odpowiedzi; „odbierz/oddaj głos”, „usuń”, „wpuść ponownie” przez platformę (`POST …/interview-slots/<id>/room-control/`, limit `interview_control`), audyt `interview.room_control` z pseudonimem osoby |
+| koordynator / komisja – próba sprzętu, bez okna | bez `moderator` | bez `roomAdmin`, pokój `…-s<konto>-test` |
 | cudzy termin, cudzy konkurs, brak roli, zawieszona komisja, niezalogowany | 404 / 403 / logowanie | to samo (te same mixiny widoków) |
 
 Ważność biletu: `nbf`/`exp` = okno terminu (Jitsi i LiveKit), próba sprzętu – `PRECHECK_MINUTES`.
@@ -47,6 +47,15 @@ obowiązuje to samo okno terminu u obu dostawców. Nazwa w pokoju – „Imię N
 Ekrany i listy rozpoznają pokój platformy jedną funkcją `room_access.is_platform_room` (Jitsi
 z przepustkami **albo** LiveKit): karta rozmowy uczestnika, kolumna „Link” koordynatora, karta komisji,
 listy potwierdzenia i przypomnienia – bez zmian w szablonach.
+
+**Poprawki po przeglądzie (4.10.2026).** Przed każdym tokenem `CreateRoom` (serwer ma
+`auto_create: false`); decyzje moderatora zapisane przy terminie (`proctoring.InterviewRoomBlock`) –
+przeżywają ponowne wejście; `livekit://` zawsze pokojem platformy (bez serwera – 502); nagranie kamery
+w rozmowie z nadzorem wyłącznie ucznia z ważną zgodą i bez zatwierdzonej alternatywy (`may_record`,
+także w zadaniu Celery), sesji nadzoru nie zakłada webhook; zmiana dostawcy z LiveKit przy włączonym
+nadzorze – odmowa w formularzu, a `config_for` ignoruje nadzór etapu, który przestał się do niego nadawać.
+Sesja nadzoru zapisuje pseudonim konta (`account_identity`) – webhook pokoju rozmowy trafia do niej
+jednym zapytaniem.
 
 ## 3. Infrastruktura
 

@@ -766,3 +766,21 @@ msgstr "Ruang wawancara memerlukan JavaScript yang aktif."
 
 msgid "Pokój jest chwilowo niedostępny – brakuje komponentu wideo na serwerze. Daj znać organizatorowi."
 msgstr "Ruangan sementara tidak tersedia – komponen video tidak ada di server. Beri tahu penyelenggara."
+
+msgid "Decyzje moderatora w tym terminie"
+msgstr "Keputusan moderator pada slot ini"
+
+msgid "usunięty z pokoju"
+msgstr "dikeluarkan dari ruang"
+
+msgid "bez głosu"
+msgstr "tanpa suara"
+
+msgid "Oddaj głos"
+msgstr "Beri suara"
+
+msgid "Wpuść ponownie"
+msgstr "Izinkan masuk kembali"
+
+msgid "Moderator usunął Cię z tej rozmowy. Skontaktuj się z organizatorem."
+msgstr "Moderator telah mengeluarkan Anda dari wawancara ini. Hubungi penyelenggara."

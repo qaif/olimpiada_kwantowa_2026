@@ -114,7 +114,8 @@ from apps.competitions.models import DEFAULT_RETENTION_MONTHS
 #: Warunkowa jak forum – wiersz wchodzi do rejestru wyłącznie konkursom z włączoną flagą.
 #: 1.20 (04.10.2026, zadanie PROC-01 + STAGE-LK-01) – nadzór zdalny etapów online (flaga ``proctoring``,
 #: wiersz warunkowy): obraz z kamery na żywo, nagrania wyłącznie przy włączonym nagrywaniu etapu,
-#: zdjęcie dokumentu, incydenty; także rozmowy etapu w pokoju LiveKit połączone z nadzorem.
+#: zdjęcie dokumentu, incydenty; także rozmowy etapu w pokoju LiveKit połączone z nadzorem – wiersz
+#: „rozmowy” wymienia serwer LiveKit wśród odbiorców i jego środki, wiersz nadzoru – zakres rozmowy.
 REGISTER_VERSION = "1.20"
 REGISTER_DATE = date(2026, 10, 4)
 
@@ -377,8 +378,15 @@ ACTIVITIES: tuple[ProcessingActivity, ...] = (
         categories=[
             "wybrany termin rozmowy i adres pokoju spotkania",
             "wizerunek i głos w czasie rozmowy (transmisja, bez nagrywania)",
+            "w pokoju LiveKit (gdy etap go używa): pseudonim konta (HMAC, bez e-maila i identyfikatora) "
+            "i decyzje moderatora w terminie (usunięcie z pokoju, odebranie głosu)",
         ],
-        recipients=[HOSTING_RECIPIENT, JITSI_RECIPIENT],
+        recipients=[
+            HOSTING_RECIPIENT,
+            JITSI_RECIPIENT,
+            "serwer LiveKit operatora platformy – wyłącznie gdy koordynator wybrał dla etapu pokój LiveKit "
+            "(przekazywanie obrazu i dźwięku w czasie rzeczywistym, bez nagrywania)",
+        ],
         retention=(
             "zapis na termin – do końca okresu retencji edycji; sama rozmowa nie jest nagrywana, "
             "więc nie powstaje żaden plik do przechowywania"
@@ -386,6 +394,11 @@ ACTIVITIES: tuple[ProcessingActivity, ...] = (
         measures=[
             "własna instancja Jitsi Meet organizatora – transmisja nie wychodzi do dostawcy obcego",
             "adres pokoju budowany z identyfikatora terminu, nie z danych uczestnika",
+            "LiveKit: pokój zakładany przez platformę dopiero po sprawdzeniu uprawnień, token ważny "
+            "wyłącznie w oknie terminu, bez uprawnień administratora w przeglądarce; polecenia moderatora "
+            "przez platformę z audytem, a osoba usunięta nie dostaje nowego tokenu na ten termin",
+            "LiveKit: osobny pokój próby sprzętu dla każdego zapisu; rozmowa nie jest nagrywana – wyjątek "
+            "to etap z nadzorem zdalnym i nagrywaniem, opisany w czynności „Nadzór zdalny etapów online”",
         ],
     ),
     _activity(
@@ -948,6 +961,10 @@ PROCTORING_ACTIVITY = _activity(
         "wynik sprawdzenia sprzętu (wartości logiczne i rodzina przeglądarki – bez odcisku urządzenia)",
         "wiadomości nadzorujących, notatki o incydentach, obecność, prośby o alternatywę (powód z listy)",
         "wersja i czas zgody, adres IP przy zgodzie",
+        "rozmowa etapu w LiveKit z nadzorem (STAGE-LK-01): pseudonim konta (wspólny dla platformy, "
+        "nie osobny na etap), obraz i głos kamery w jakości rozmowy (nie 320×240), w pokoju wspólnym "
+        "z innymi uczestnikami terminu, gdy termin ma więcej niż jedno miejsce; token ważny w oknie "
+        "terminu; nagranie – wyłącznie ucznia z ważną zgodą i przy włączonym nagrywaniu",
     ],
     recipients=[
         HOSTING_RECIPIENT,

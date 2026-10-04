@@ -245,6 +245,7 @@ dla 10 katalogów aplikacji; kontrakt tras djcms (`proctoring` jako nowy pierwsz
 Etap w formie rozmowy z dostawcą wideo **LiveKit** (`docs/tasks/STAGE-LK-01.md`) też może mieć nadzór:
 `services.proctorable` dopuszcza rozmowę wyłącznie w LiveKit, uczeń dostaje token rozmowy dopiero
 z ważną zgodą i sprawdzonym sprzętem (`interview_ready`; próba sprzętu bez warunku), konsola kończy się
-krokiem „rozmowa”, a webhooki pokoju rozmowy (`olimpiada-…`) zasilają dziennik sesji i – przy `record`
-– nagranie kamery ucznia (Track Egress z pokoju rozmowy). Uprawnienia w samym pokoju rozmowy są te
+krokiem „rozmowa”, a webhooki pokoju rozmowy (`olimpiada-…`) zasilają dziennik **istniejącej** sesji (webhook
+sesji nie zakłada; uczeń rozpoznany po `account_identity`) i – przy `record`, wyłącznie ze zgodą obejmującą
+nagrywanie i bez zatwierdzonej alternatywy (`may_record`) – nagranie kamery ucznia. Uprawnienia w samym pokoju rozmowy są te
 same, co w Jitsi (`apps.competitions.room_access`); flaga `proctoring` zostaje domyślnie wyłączona.

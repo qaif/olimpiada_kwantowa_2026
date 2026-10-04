@@ -1717,12 +1717,24 @@ def _livekit_choice_only_when_available(form: forms.ModelForm) -> None:
 def _clean_video_provider(form: forms.ModelForm) -> str:
     """Puste pole dostawcy znaczy „bez wideo”, a nie pustą wartość w kolumnie z zamkniętą listą."""
     value = form.cleaned_data.get("video_provider") or VideoProvider.NONE
-    if value == VideoProvider.LIVEKIT:
+    instance = getattr(form, "instance", None)
+    current = getattr(instance, "video_provider", "") if getattr(instance, "pk", None) else ""
+    if value == VideoProvider.LIVEKIT and current != VideoProvider.LIVEKIT:
         from apps.webinars import livekit
 
         if not livekit.configured():
             raise forms.ValidationError(
                 "Serwer LiveKit nie jest skonfigurowany – wybierz Jitsi albo poproś operatora platformy."
+            )
+    if current == VideoProvider.LIVEKIT and value != VideoProvider.LIVEKIT:
+        # Nadzór zdalny rozmowy działa wyłącznie w LiveKit (PROC-01, STAGE-LK-01 – przegląd M-2): zmiana
+        # dostawcy po cichu zostawiłaby etap „nadzorowany” bez nadzoru. Najpierw świadome wyłączenie.
+        from apps.proctoring.models import ProctoringConfig
+
+        if ProctoringConfig.objects.filter(stage=instance, enabled=True).exists():
+            raise forms.ValidationError(
+                "Ten etap ma włączony nadzór zdalny, który działa wyłącznie w LiveKit. Najpierw wyłącz "
+                "nadzór (Etapy → Nadzór zdalny), potem zmień dostawcę wideo."
             )
     return value
 

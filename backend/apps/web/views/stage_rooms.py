@@ -70,7 +70,9 @@ def _kind(kind: str) -> str:
     return kind
 
 
-def _page(request, *, title: str, moderator: bool, token_url: str, control_url: str, back_url: str):
+def _page(
+    request, *, title: str, moderator: bool, token_url: str, control_url: str, back_url: str, blocks=()
+):
     context = {
         "room_title": title,
         "role": "presenter" if moderator else "viewer",
@@ -80,6 +82,8 @@ def _page(request, *, title: str, moderator: bool, token_url: str, control_url: 
         "can_record": False,
         "strings": room_strings(),
         "sdk_url": sdk_url(),
+        # Decyzje moderatorów tego terminu (usunięci, bez głosu) – „Wpuść ponownie” / „Oddaj głos”.
+        "blocks": blocks,
     }
     return _form_page(TemplateResponse(request, ROOM_TEMPLATE, context))
 
@@ -130,7 +134,7 @@ class InterviewRoomTokenView(_ParticipantRoomMixin, View):
         try:
             if kind == room_access.INTERVIEW:
                 stage_rooms.proctoring_check(stage, self.participant)
-            data = stage_rooms.access_token(room_pass, request.user)
+            data = stage_rooms.access_token(room_pass, request.user, slot=booking.slot)
         except DomainError as exc:
             return _error(exc)
         _audit_join(request.user, booking.entry, role="participant", kind=kind, request=request)
@@ -164,6 +168,7 @@ class _StaffRoomMixin:
             token_url=reverse(self.token_url_name, args=[slot.pk, kind]),
             control_url=reverse(self.control_url_name, args=[slot.pk]) if moderator else "",
             back_url=self.back(slot)["Location"],
+            blocks=stage_rooms.blocks_for(slot) if moderator else (),
         )
 
 
@@ -176,7 +181,7 @@ class _StaffTokenMixin(_StaffRoomMixin):
         except (room_access.RoomNotYet, room_access.RoomOver) as exc:
             return _error(_closed(exc))
         try:
-            data = stage_rooms.access_token(room_pass, request.user)
+            data = stage_rooms.access_token(room_pass, request.user, slot=slot)
         except DomainError as exc:
             return _error(exc)
         _audit_join(request.user, slot, role=self.join_role, kind=room_pass.kind, request=request)
@@ -184,9 +189,28 @@ class _StaffTokenMixin(_StaffRoomMixin):
 
 
 class _StaffControlMixin(_StaffRoomMixin):
-    """Polecenia moderatora: tylko z biletem rozmowy (moderator) w oknie terminu – jak w Jitsi."""
+    """Polecenia moderatora: tylko z biletem rozmowy (moderator) w oknie terminu – jak w Jitsi.
+
+    Osobny limit ``interview_control`` (600/h per konto) z odpowiedzią JSON 429 – czyta ją skrypt
+    pokoju; kilkanaście kliknięć „odbierz/oddaj głos” na rozmowę nie może zjadać limitu wejść ``video``.
+    """
 
     http_method_names = ["post"]
+    throttle_scope = "interview_control"
+    throttle_methods = ("POST",)
+
+    def throttled_response(self, request, wait: float):
+        retry_after = max(1, int(wait) + 1)
+        response = _json(
+            {
+                "code": "THROTTLED",
+                "detail": _("Za dużo żądań. Spróbuj za chwilę."),
+                "retry_after": retry_after,
+            },
+            status=429,
+        )
+        response["Retry-After"] = str(retry_after)
+        return response
 
     def post(self, request, pk: int):
         from apps.core.models import audit
@@ -196,15 +220,17 @@ class _StaffControlMixin(_StaffRoomMixin):
         except (room_access.RoomNotYet, room_access.RoomOver) as exc:
             return _error(_closed(exc))
         action = request.POST.get("action", "")
+        identity = request.POST.get("identity", "")
         try:
-            stage_rooms.control(room_pass, action, request.POST.get("identity", ""))
+            stage_rooms.control(room_pass, action, identity, slot=slot, actor=request.user)
         except DomainError as exc:
             return _error(exc)
+        # Kogo dotyczyła decyzja – pseudonimem z pokoju (``u-…``), nie nazwiskiem (przegląd L-2).
         audit(
             request.user,
             "interview.room_control",
             slot,
-            {"action": action, "role": self.join_role},
+            {"action": action, "role": self.join_role, "identity": identity[:32]},
             request=request,
         )
         return _json({"ok": True})

@@ -3802,8 +3802,12 @@ Koordynator może dla etapu w formie rozmowy wybrać dostawcę **„LiveKit (pok
 (`docs/tasks/STAGE-LK-01.md`). Opcja pojawia się w formularzu etapu dopiero przy skonfigurowanym LiveKit
 (§ 36). Uprawnienia, okna i widoki wejścia są **te same**, co w tym rozdziale – reguła mieszka w
 `apps.competitions.room_access` i obsługuje oba serwery; Jitsi działa jak dotąd. Nadzór zdalny rozmowy
-(tylko LiveKit) – § 39.5. Wycofanie: zmiana dostawcy etapu na Jitsi przed zapisami (pokoje już
-przypisane zapisom zostają w LiveKit do końca etapu).
+(tylko LiveKit) – § 39.5. Wycofanie: zmiana dostawcy etapu na Jitsi przed zapisami. Pokój jest
+przypisany **terminowi**: zapisy już zrobione zostają w LiveKit do końca etapu, a **nowe zapisy na
+termin, który ma już zapis w LiveKit, też trafiają do LiveKit** (ten sam pokój – osoby jednego
+terminu mają się spotkać); nowy dostawca dotyczy terminów bez zapisów. Zmiana dostawcy z LiveKit przy
+włączonym nadzorze zdalnym jest odrzucana – najpierw wyłącz nadzór (§ 39.5). Polecenia moderatora:
+`POST /coordinator/interview-slots/<id>/room-control/` i `/review/interview-slots/<id>/room-control/`.
 
 ## 26. Języki interfejsu per konkurs (I18N-01, `docs/tasks/I18N-01.md`)
 
@@ -4888,10 +4892,24 @@ egress to osobny proces – na 300 nagrań naraz zaplanuj 2–3 węzły egress (
 - Etap-rozmowa z dostawcą `livekit` (§ 25.9) używa tego samego serwera i webhooka; adres pokoju przy
   zapisie to `livekit://olimpiada-…` (identyfikator, nie link). Nowa migracja: `competitions.0034`
   (lista wyboru dostawcy).
-- Uprawnienia LiveKit odwzorowują Jitsi: moderator (koordynator, aktywna komisja) – `roomAdmin`
-  + nadawanie; uczestnik – nadawanie i odbiór bez administracji; token ważny w oknie terminu.
-  Polecenia moderatora (odbierz/oddaj głos, usuń) idą przez platformę, audyt `interview.room_control`.
+- Uprawnienia LiveKit odwzorowują Jitsi: każda rola nadaje i odbiera; **żaden token przeglądarki
+  nie ma `roomAdmin`** – moderator (koordynator, aktywna komisja) wydaje polecenia przez platformę
+  (odbierz/oddaj głos, usuń, wpuść ponownie; `…/room-control/`, limit `interview_control` 600/h,
+  audyt `interview.room_control` z pseudonimem osoby). Token ważny w oknie terminu.
+- Przed każdym tokenem (rozmowa, próba sprzętu, pokoje nadzoru `proc-…`) platforma woła
+  `RoomService/CreateRoom` (idempotentnie) – serwer ma `room.auto_create: false`; awaria = 502.
+- Decyzje moderatora przeżywają ponowne wejście: osoba usunięta nie dostaje nowego tokenu na ten
+  termin, osoba bez głosu – token bez nadawania, dopóki moderator nie kliknie „Wpuść ponownie” /
+  „Oddaj głos” (lista na stronie pokoju moderatora).
+- Próba sprzętu ma **osobny pokój na zapis** (`…-b<zapis>-test`; komisja – `…-s<konto>-test`) – uczniowie
+  jednego terminu nie spotykają się bez moderatora i bez nadzoru.
+- `livekit://…` jest zawsze pokojem platformy (nigdy linkiem w ekranach i listach); bez serwera
+  wejście odpowiada „Serwer wideo nie odpowiada” (502), a nie 404.
 - Nagrywania pokoi rozmów **nie ma** (jak w Jitsi), chyba że etap ma nadzór z `record` – wtedy
-  nagrywana jest kamera ucznia (Track Egress, retencja § 39.4).
+  nagrywana jest kamera ucznia **z ważną zgodą** (zgoda obejmuje `record`; włączenie nagrywania
+  w trakcie wymaga nowej zgody), nigdy ucznia z zatwierdzoną alternatywą; sesji nadzoru nie zakłada
+  webhook (Track Egress, retencja § 39.4).
+- Zmiana dostawcy etapu z LiveKit przy włączonym nadzorze – odmowa w formularzu; etap, który przestał
+  być LiveKit (np. z `/admin/`), ma nadzór ignorowany.
 - Pojemność: rozmowa to kilka osób w pokoju – pomijalne obciążenie wobec § 39.3.
 

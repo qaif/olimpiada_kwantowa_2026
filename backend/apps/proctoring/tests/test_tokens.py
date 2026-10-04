@@ -37,7 +37,8 @@ def test_student_token_publishes_camera_and_subscribes_to_nothing(
     assert video["canUpdateOwnMetadata"] is False
     # Nazwa pusta, identity – pseudonim: inni uczniowie w pokoju nie widzą nazwiska.
     assert claims(data["token"])["name"] == ""
-    assert data["identity"].startswith("p-") and str(student.pk) not in data["identity"]
+    assert data["identity"] == services.student_identity(stage, student)
+    assert data["identity"].startswith("p-") and len(data["identity"]) == 22  # HMAC, nie ``pk``
 
 
 def test_student_token_adds_screen_and_microphone_only_when_required(

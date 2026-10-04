@@ -49,6 +49,27 @@
     </aside>
   </div>
 
+  {% if control_url and blocks %}
+    {% comment %}
+      Decyzje moderatorów tego terminu (przegląd STAGE-LK-01, L-4): wyproszony uczeń nie dostaje nowego
+      tokenu, uczeń bez głosu – token bez nadawania, dopóki moderator tego nie cofnie tutaj.
+    {% endcomment %}
+    <section class="card" aria-labelledby="wr-blocks" id="room-blocks" data-control-url="{{ control_url }}">
+      <h2 class="wr__side-title" id="wr-blocks">{% translate "Decyzje moderatora w tym terminie" %}</h2>
+      <ul class="list">
+        {% for block in blocks %}
+          <li>
+            {{ block.label|default:block.identity }} –
+            {% if block.kind == "removed" %}{% translate "usunięty z pokoju" %}{% else %}{% translate "bez głosu" %}{% endif %}
+            <button type="button" class="btn btn--small btn--secondary"
+                    data-block-action="{% if block.kind == 'removed' %}readmit{% else %}speaker{% endif %}"
+                    data-identity="{{ block.identity }}">{% if block.kind == "removed" %}{% translate "Wpuść ponownie" %}{% else %}{% translate "Oddaj głos" %}{% endif %}</button>
+          </li>
+        {% endfor %}
+      </ul>
+    </section>
+  {% endif %}
+
   <nav class="wr__controls" aria-label="{% translate 'Sterowanie' %}">
     <button type="button" class="btn btn--secondary" data-action="mic" disabled aria-pressed="false">{% translate "Mikrofon" %}</button>
     <button type="button" class="btn btn--secondary" data-action="cam" disabled aria-pressed="false">{% translate "Kamera" %}</button>
@@ -62,4 +83,5 @@
   <script nonce="{{ request.csp_nonce }}" src="{{ sdk_url }}" defer></script>
   <script nonce="{{ request.csp_nonce }}" src="{% static 'js/webinar-room.js' %}" defer></script>
 {% endif %}
+{% if control_url and blocks %}<script nonce="{{ request.csp_nonce }}" src="{% static 'js/stage-room-blocks.js' %}" defer></script>{% endif %}
 {% endblock %}

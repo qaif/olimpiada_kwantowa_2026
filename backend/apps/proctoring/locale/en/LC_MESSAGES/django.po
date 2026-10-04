@@ -827,3 +827,21 @@ msgstr "The interview room requires JavaScript to be enabled."
 
 msgid "Pokój jest chwilowo niedostępny – brakuje komponentu wideo na serwerze. Daj znać organizatorowi."
 msgstr "The room is temporarily unavailable – the video component is missing on the server. Please let the organiser know."
+
+msgid "Decyzje moderatora w tym terminie"
+msgstr "Moderator decisions in this time slot"
+
+msgid "usunięty z pokoju"
+msgstr "removed from the room"
+
+msgid "bez głosu"
+msgstr "without voice"
+
+msgid "Oddaj głos"
+msgstr "Give voice"
+
+msgid "Wpuść ponownie"
+msgstr "Let back in"
+
+msgid "Moderator usunął Cię z tej rozmowy. Skontaktuj się z organizatorem."
+msgstr "The moderator removed you from this interview. Please contact the organiser."

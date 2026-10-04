@@ -23,7 +23,7 @@ from .models import (
     ProctoringSession,
     RecordingStatus,
 )
-from .services import log_event
+from .services import log_event, may_record
 from .storage import KEY_PREFIX
 
 
@@ -104,13 +104,13 @@ def interview_room_session(room_name: str, identity: str):
     """``(ustawienia nadzoru, sesja ucznia)`` dla pokoju rozmowy LiveKit etapu z nadzorem – albo ``None``.
 
     ``None`` dla pokoju, który nie jest pokojem rozmowy, i dla etapu bez nadzoru (wtedy zdarzenie nie
-    jest nasze). Sesja ``None`` – w pokoju jest ktoś, kto nie jest uczniem tego etapu (komisja).
-    Uczeń rozpoznawany po pseudonimie konta (``u-…``, WEB-01) wśród zapisów **tego** etapu.
+    jest nasze). Sesja ``None`` – w pokoju jest ktoś bez sesji nadzoru (komisja, uczeń, który nigdy nie
+    otworzył konsoli). Sesji **nie zakładamy** z webhooka (przegląd H-2): sesja bez zgody nie ma czego
+    dokumentować, a tym bardziej nagrywać. Uczeń rozpoznawany po zapisanym pseudonimie konta
+    (``account_identity``) – jedno zapytanie zamiast HMAC dla każdego zapisu etapu (L-6).
     """
-    from apps.competitions.models import InterviewBooking
-    from apps.webinars.services import pseudonym
-
-    from .services import config_for, enabled, session_for
+    from .models import ProctoringSession
+    from .services import config_for, enabled
     from .stage_rooms import stage_for_room
 
     if not room_name.startswith("olimpiada-"):
@@ -123,14 +123,12 @@ def interview_room_session(room_name: str, identity: str):
         return None
     if not identity.startswith("u-"):
         return config, None
-    bookings = InterviewBooking._base_manager.filter(slot__stage=stage).select_related(
-        "entry__participant__user"
+    session = (
+        ProctoringSession.objects.select_related("participant__user", "stage")
+        .filter(stage=stage, account_identity=identity[:32])
+        .first()
     )
-    for booking in bookings:
-        participant = booking.entry.participant
-        if participant is not None and pseudonym(participant.user) == identity:
-            return config, session_for(stage, participant)
-    return config, None
+    return config, session
 
 
 def handle_event(name: str, event: dict, at) -> str | None:
@@ -166,7 +164,9 @@ def handle_event(name: str, event: dict, at) -> str | None:
     elif name == "track_published" and livekit_api.is_camera(track):
         _update(session, camera_live=True, last_seen_at=at)
         log_event(session, EventKind.CAMERA_ON, EventSource.WEBHOOK, at=at)
-        if config.enabled and config.record:
+        # Nagranie tylko ucznia z ważną zgodą i bez zatwierdzonej alternatywy (H-2); zadanie
+        # sprawdza to jeszcze raz w chwili startu (``services.may_record``).
+        if config.enabled and config.record and may_record(session, config):
             from .tasks import start_track_recording
 
             session_pk, track_sid = session.pk, str(track.get("sid") or "")[:64]

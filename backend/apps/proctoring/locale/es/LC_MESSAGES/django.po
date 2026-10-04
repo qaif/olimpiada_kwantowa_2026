@@ -847,3 +847,21 @@ msgstr "La sala de la entrevista requiere JavaScript activado."
 
 msgid "Pokój jest chwilowo niedostępny – brakuje komponentu wideo na serwerze. Daj znać organizatorowi."
 msgstr "La sala no está disponible temporalmente: falta el componente de vídeo en el servidor. Avisa al organizador."
+
+msgid "Decyzje moderatora w tym terminie"
+msgstr "Decisiones del moderador en este turno"
+
+msgid "usunięty z pokoju"
+msgstr "expulsado de la sala"
+
+msgid "bez głosu"
+msgstr "sin voz"
+
+msgid "Oddaj głos"
+msgstr "Dar la palabra"
+
+msgid "Wpuść ponownie"
+msgstr "Volver a admitir"
+
+msgid "Moderator usunął Cię z tej rozmowy. Skontaktuj się z organizatorem."
+msgstr "El moderador te ha retirado de esta entrevista. Ponte en contacto con el organizador."

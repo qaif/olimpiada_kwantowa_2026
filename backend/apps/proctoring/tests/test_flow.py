@@ -246,6 +246,8 @@ def test_webhooks_update_session_and_start_recording_only_when_enabled(
     assert "StartTrackEgress" not in fake_livekit.names()  # nagrywanie wyłączone (domyślnie)
     config.record = True
     config.save()
+    # Włączone nagrywanie zmienia warunki zgody – nagranie dopiero po nowej zgodzie (STAGE-LK-01, H-2).
+    services.give_consent(session, user=student.user, config=config)
     with django_capture_on_commit_callbacks(execute=True):
         webhook(
             client,

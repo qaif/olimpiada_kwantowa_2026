@@ -121,7 +121,8 @@ IDENTITY_FIELDS = ("email", "username")
 #:
 #: ``proctoring_token`` / ``proctoring_coordinator_token`` / ``proctoring_action`` /
 #: ``proctoring_client`` (PROC-01) – tokeny nadzoru, czynności nadzorujących i kroki konsoli ucznia:
-#: cała szkoła pisze etap za jednym NAT-em.
+#: cała szkoła pisze etap za jednym NAT-em. ``interview_control`` (STAGE-LK-01) – polecenia moderatora
+#: pokoju rozmowy LiveKit (odbierz/oddaj głos, usuń, wpuść ponownie).
 PER_USER_SCOPES = frozenset(
     {
         "chat",
@@ -141,6 +142,7 @@ PER_USER_SCOPES = frozenset(
         "proctoring_coordinator_token",
         "proctoring_action",
         "proctoring_client",
+        "interview_control",
     }
 )
 

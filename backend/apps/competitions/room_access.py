@@ -64,6 +64,9 @@ class RoomPass:
     display_name: str
     not_before: datetime
     expires_at: datetime
+    #: Zapis uczestnika (bilet uczestnika) – LiveKit robi z niego **osobny** pokój próby sprzętu
+    #: na zapis, żeby uczniowie jednego terminu nie spotykali się bez nadzoru w ``…-test``.
+    booking_id: int | None = None
 
 
 # --- dostawca pokoju ------------------------------------------------------------------------------
@@ -81,12 +84,14 @@ def livekit_room_of(url: str) -> str:
 
 
 def is_livekit_room(url: str) -> bool:
-    """Pokój LiveKit etapu – tylko przy skonfigurowanym serwerze LiveKit (bez niego nie ma czym wejść)."""
-    if not livekit_room_of(url):
-        return False
-    from apps.webinars import livekit
+    """Pokój LiveKit etapu – **niezależnie od konfiguracji serwera** (przegląd STAGE-LK-01, M-3).
 
-    return livekit.configured()
+    ``livekit://…`` nie jest adresem, który dałoby się otworzyć: gdyby po wyłączeniu serwera ekrany
+    i listy uznały go za „zwykły link”, uczeń dostałby do kliknięcia napis ``livekit://…``. Pokój
+    zostaje więc pokojem platformy, a brak serwera kończy się przy tokenie – 502 „Serwer wideo nie
+    odpowiada” (``apps.proctoring.stage_rooms.access_token``).
+    """
+    return bool(livekit_room_of(url))
 
 
 def is_platform_room(url: str) -> bool:
@@ -149,6 +154,7 @@ def participant_pass(booking, url: str, user, *, kind: str, now=None) -> RoomPas
             display_name=short_name(user),
             not_before=now,
             expires_at=now + precheck_lifetime(),
+            booking_id=booking.pk,
         )
     if now < opens_at:
         raise RoomNotYet(opens_at)
@@ -162,6 +168,7 @@ def participant_pass(booking, url: str, user, *, kind: str, now=None) -> RoomPas
         display_name=short_name(user),
         not_before=opens_at,
         expires_at=closes_at,
+        booking_id=booking.pk,
     )
 
 
