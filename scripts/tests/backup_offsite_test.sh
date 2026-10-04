@@ -66,12 +66,38 @@ case "$*" in
     tar -cf - -C "$FAKE_MEDIA" . ; exit $? ;;
   "compose exec -T db psql -X -U olimpiada -d postgres -Atc SELECT 1 FROM pg_roles WHERE rolname = 'olimpiada_djcms'")
     echo "${MOCK_DJCMS_ROLE-1}" ; exit 0 ;;
-  # --- backup_verify.sh: tymczasowy Postgres ---
-  "run -d --name olimpiada-restore-test-"*) exit 0 ;;
-  "exec olimpiada-restore-test-"*" psql -U verify -d djcms -Atc"*) echo "${MOCK_CMS_PAGES-16}" ; exit 0 ;;
-  "exec olimpiada-restore-test-"*" psql -U verify -d verify -Atc"*) echo 3 ; exit 0 ;;
-  "exec -i olimpiada-restore-test-"*" pg_restore -U verify -d djcms"*)
+  # --- backup_verify.sh (OPS-01): żywy web, tymczasowy Postgres, kontener sprawdzeń ---
+  "compose ps -q web") echo "${MOCK_WEB-webcid}" ; exit 0 ;;
+  "compose ps -q db") echo dbcid ; exit 0 ;;
+  "exec -i webcid python manage.py restore_check live-counts")
+    [ -z "${MOCK_LIVE_FAIL:-}" ] || exit 1
+    echo '{"accounts.User": 3, "core.AuditLog": 10}' ; exit 0 ;;
+  "exec -i webcid python manage.py restore_check record")
+    cat >"$CASE/record-stdin.json" ; exit 0 ;;
+  "exec -i webcid python manage.py restore_check record --failure"*) exit 0 ;;
+  "inspect -f {{.Image}} webcid") echo sha256:webimage ; exit 0 ;;
+  "inspect -f {{.Created}} webcid") echo 2026-01-01T00:00:00.123456789Z ; exit 0 ;;
+  "inspect -f {{range .Config.Env}}{{println .}}{{end}} webcid")
+    printf 'DJANGO_SECRET_KEY=klucz-aplikacji\nDATABASE_URL=postgres://olimpiada:zywe@db:5432/olimpiada\nREDIS_URL=redis://redis:6379/0\nPOSTGRES_DB=olimpiada\n'
+    exit 0 ;;
+  "inspect -f {{.Id}} olimpiada-restore-check-"*)
+    if [ -n "${MOCK_TARGET_IS_DB:-}" ]; then echo dbcid; else echo targetcid; fi ; exit 0 ;;
+  "run -d --name olimpiada-restore-check-"*) exit 0 ;;
+  "exec olimpiada-restore-check-"*" psql -U restorecheck -d restorecheck_djcms -Atc"*) echo "${MOCK_CMS_PAGES-16}" ; exit 0 ;;
+  "exec -i olimpiada-restore-check-"*" pg_restore -U restorecheck -d restorecheck_djcms"*)
     cat >/dev/null; [ -z "${MOCK_DJCMS_RESTORE_FAIL:-}" ] || exit 1; exit 0 ;;
+  "exec -i olimpiada-restore-check-"*" pg_restore -U restorecheck -d restorecheck_main"*)
+    cat >"$CASE/restored.dump"; [ -z "${MOCK_RESTORE_FAIL:-}" ] || exit 1; exit 0 ;;
+  "run --rm -i --network olimpiada-restore-check-net-"*)
+    # Kontener sprawdzeń: wejście (nagłówek + lista plików) i plik środowiska do wglądu testu.
+    prev=""
+    for a in "$@"; do [ "$prev" = "--env-file" ] && cp "$a" "$CASE/app.env.copy"; prev="$a"; done
+    cat >"$CASE/verify-input.txt"
+    [ -z "${MOCK_VERIFY_CRASH:-}" ] || exit 2
+    if head -1 "$CASE/verify-input.txt" | grep -q '"status":"fail"'; then
+      echo '{"version": 1, "status": "failed", "failed": ["djcms"]}' ; exit 1
+    fi
+    echo '{"version": 1, "status": "ok", "failed": []}' ; exit 0 ;;
   "compose exec -T db pg_dump"*) printf 'PGDUMP-DATA' ; exit 0 ;;
   "compose ps -q minio") echo cid123 ; exit 0 ;;
   "inspect -f"*) echo proj_internal ; exit 0 ;;
@@ -122,9 +148,11 @@ STUB
 cat >"$BIN/gpg" <<'STUB'
 #!/usr/bin/env bash
 cat >/dev/null            # hasło z potoku
+[ -z "${MOCK_GPG_FAIL:-}" ] || { echo "gpg: decryption failed: Bad session key" >&2; exit 2; }
 out="" prev=""
 for a in "$@"; do [ "$prev" = "--output" ] && out="$a"; prev="$a"; done
-cp "${!#}" "$out"
+# Bez --output (backup_verify.sh: rozszyfrowanie strumieniem do pg_restore / tar) – na stdout.
+if [ -z "$out" ]; then cat "${!#}"; else cp "${!#}" "$out"; fi
 STUB
 
 cat >"$BIN/date" <<STUB
@@ -142,7 +170,7 @@ TOKEN_B='{"access_token":"ya29.B","token_type":"Bearer","refresh_token":"1//REFR
 setup_case() {
   CASE="$WORK/case-$1"; shift
   rm -rf "$CASE"
-  mkdir -p "$CASE/repo" "$CASE/backups" "$CASE/remote"
+  mkdir -p "$CASE/repo" "$CASE/backups" "$CASE/remote" "$CASE/tmp"
   {
     echo "POSTGRES_USER=olimpiada"
     echo "POSTGRES_DB=olimpiada"
@@ -151,7 +179,7 @@ setup_case() {
     echo "BACKUP_PASSPHRASE=test-passphrase"
     for line in "$@"; do printf '%s\n' "$line"; done
   } >"$CASE/repo/.env"
-  export DOCKER_LOG="$CASE/docker.log" REMOTE="$CASE/remote" FAKE_MEDIA="$CASE/djcms-media"
+  export CASE DOCKER_LOG="$CASE/docker.log" REMOTE="$CASE/remote" FAKE_MEDIA="$CASE/djcms-media"
   # Wolumen djcms_media „w kontenerze” (przypadki 12–15): dwa pliki filera w podkatalogach.
   mkdir -p "$FAKE_MEDIA/filer_public/ab/cd"
   printf 'PNG-ATRAPA' >"$FAKE_MEDIA/filer_public/ab/cd/logo.png"
@@ -446,7 +474,7 @@ mask() {
     -e 's/POSTGRES_PASSWORD=[0-9a-f]+/POSTGRES_PASSWORD=X/g' "$@"
 }
 verify() {
-  REPO_DIR="$CASE/repo" BACKUP_DIR="$CASE/backups" PATH="$BIN:$PATH" \
+  REPO_DIR="$CASE/repo" BACKUP_DIR="$CASE/backups" PATH="$BIN:$PATH" TMPDIR="$CASE/tmp" \
     bash "$ROOT/scripts/backup_verify.sh" "$@" >"$CASE/out.txt" 2>&1
 }
 djrestore() {
@@ -509,7 +537,8 @@ if [ -n "${BACKUP_BASELINE_REF:-}" ]; then
     [ -s "$WORK/baseline.diff" ] && sed 's/^/     /' "$WORK/baseline.diff" | head -20
   }
   compare_runs "backup.sh (Dysk, bez dj.)" backup.sh
-  compare_runs "backup_verify.sh" backup_verify.sh
+  # backup_verify.sh nie jest porównywany: OPS-01 przebudował go celowo (conocny test z kontenerem
+  # sprawdzeń aplikacji) – jego polecenia sprawdza przypadek 14 i 16 niżej.
   compare_runs "restore.sh --dump --files" restore.sh --dump db-20260101T030000Z.dump.gpg --files files-20260101T030000Z.tar.gpg
   compare_runs "restore.sh --dry-run" restore.sh --dry-run
   compare_runs "restore.sh --list" restore.sh --list
@@ -607,42 +636,47 @@ MOCK_DJCMS_DB=1 MOCK_DJCMS_RUNNING="" MOCK_FAIL="copy" run_backup; rc=$?
 check "wysyłka i dj. nieudane naraz: jedna notatka z oboma powodami" $?
 
 # --- 14. backup_verify.sh: baza i pliki djcms z tej samej nocy ----------------------------------
+# Od OPS-01 wyniki dj. idą do aplikacji jako dodatkowe sprawdzenia w nagłówku kontenera sprawdzeń
+# (`extra_checks`), a meldunek to jeden `restore_check record` na noc.
+header() { head -1 "$CASE/verify-input.txt"; }
+check_calls() { grep -E 'restore_check record' "$DOCKER_LOG"; }
 setup_case verify-dj "DJCMS_ENABLED=1"
 MOCK_DJCMS_DB=1 run_backup
 : >"$DOCKER_LOG"
 verify; rc=$?
-[ $rc -eq 0 ] && grep -q 'createdb -U verify djcms' "$DOCKER_LOG" \
-  && grep -q 'pg_restore -U verify -d djcms --no-owner --exit-on-error' "$DOCKER_LOG" \
-  && grep -q 'psql -U verify -d djcms -Atc SELECT count(\*) FROM cms_page' "$DOCKER_LOG"
+[ $rc -eq 0 ] && grep -q 'createdb -U restorecheck restorecheck_djcms' "$DOCKER_LOG" \
+  && grep -q 'pg_restore -U restorecheck -d restorecheck_djcms --no-owner --exit-on-error' "$DOCKER_LOG" \
+  && grep -q 'psql -U restorecheck -d restorecheck_djcms -Atc SELECT count(\*) FROM cms_page' "$DOCKER_LOG"
 check "backup_verify.sh: baza djcms w tym samym tymczasowym Postgresie (osobna baza), cms_page" $?
-record_calls | grep -q -- '--verified' && record_calls | grep -q 'djcms:cms_page=16 djcms:pliki=[0-9]'
-check "backup_verify.sh: --verified z liczbą stron i wpisów tar djcms" $?
-grep -q '^==> 4b/4 ' "$CASE/out.txt"
-check "backup_verify.sh: podkrok 4b/4" $?
+header | grep -q '"name":"djcms_db","status":"ok","detail":"cms_page=16"' \
+  && header | grep -q '"name":"djcms_files","status":"ok","detail":"wpisów tar: [0-9]'
+check "backup_verify.sh: djcms ok w nagłówku sprawdzeń (strony i wpisy tar)" $?
+grep -q '^==> 4b/6 ' "$CASE/out.txt"
+check "backup_verify.sh: podkrok 4b/6" $?
 
 : >"$DOCKER_LOG"
 MOCK_CMS_PAGES=0 verify; rc=$?
-[ $rc -eq 1 ] && record_calls | grep -q -- '--failed .*djcms:cms_page(0)' && ! record_calls | grep -q -- '--verified'
-check "backup_verify.sh: zero stron djcms = test nieudany" $?
+[ $rc -eq 1 ] && header | grep -q '"djcms_db","status":"fail","detail":"cms_page=0"' && check_calls | grep -q 'record$'
+check "backup_verify.sh: zero stron djcms = test nieudany (z meldunkiem)" $?
 : >"$DOCKER_LOG"
 MOCK_CMS_PAGES="" verify; rc=$?
-[ $rc -eq 1 ] && record_calls | grep -q -- 'djcms:cms_page(brak)'
+[ $rc -eq 1 ] && header | grep -q '"detail":"brak tabeli cms_page"'
 check "backup_verify.sh: brak tabeli cms_page = test nieudany" $?
 : >"$DOCKER_LOG"
 MOCK_DJCMS_RESTORE_FAIL=1 verify; rc=$?
-[ $rc -eq 1 ] && record_calls | grep -q -- 'djcms-db(pg_restore)'
+[ $rc -eq 1 ] && header | grep -q 'pg_restore bazy djcms nie powiódł się'
 check "backup_verify.sh: nieudany pg_restore djcms = test nieudany (z meldunkiem, bez przerwania)" $?
 
 VSTAMP="$(ls "$CASE/backups" | sed -nE 's/^db-(.*)\.dump\.gpg$/\1/p')"
 rm -f "$CASE/backups/djcms-files-$VSTAMP.tar.gpg"
 : >"$DOCKER_LOG"
 verify; rc=$?
-[ $rc -eq 1 ] && record_calls | grep -q -- 'djcms-files(brak)'
+[ $rc -eq 1 ] && header | grep -q '"djcms_files","status":"fail","detail":"brak paczki'
 check "backup_verify.sh: baza djcms bez paczki plików = test nieudany" $?
 printf 'to nie jest tar' >"$CASE/backups/djcms-files-$VSTAMP.tar.gpg"
 : >"$DOCKER_LOG"
 verify; rc=$?
-[ $rc -eq 1 ] && record_calls | grep -q -- 'djcms-files(nieczytelne)'
+[ $rc -eq 1 ] && header | grep -q 'paczka plików djcms nieczytelna'
 check "backup_verify.sh: nieczytelna paczka plików djcms = test nieudany" $?
 
 # Paczki djcms z innej nocy i kopie przedwdrożeniowe nie są brane pod uwagę.
@@ -652,8 +686,75 @@ printf 'PGDMP' >"$CASE/backups/djcms-db-20200101T031500Z.dump.gpg"
 printf 'PGDMP' >"$CASE/backups/djcms-db-pre-20260101-000000-v1.dump"
 : >"$DOCKER_LOG"
 verify; rc=$?
-[ $rc -eq 0 ] && ! grep -q djcms "$DOCKER_LOG" && ! grep -q '4b/4' "$CASE/out.txt"
+[ $rc -eq 0 ] && ! grep -q djcms "$DOCKER_LOG" && ! grep -q '4b/6' "$CASE/out.txt" && header | grep -q '"extra_checks":\[\]'
 check "backup_verify.sh: bez paczek djcms tej nocy – żadnego polecenia djcms" $?
+
+# --- 16. backup_verify.sh (OPS-01): izolacja, limity, sekrety, meldunki z nazwą kroku -------------
+setup_case verify-ops
+run_backup
+: >"$DOCKER_LOG"
+verify; rc=$?
+check "OPS-01: kod 0 przy wyniku ok" $rc
+[ "$(line_of 'restore_check live-counts')" -lt "$(line_of 'run -d --name olimpiada-restore-check-')" ] \
+  && grep -q '^network create --internal olimpiada-restore-check-net-[0-9]*$' "$DOCKER_LOG"
+check "OPS-01: liczności bazy żywej przed odtworzeniem; sieć tymczasowa --internal" $?
+grep 'run -d --name olimpiada-restore-check-' "$DOCKER_LOG" \
+  | grep -q -- '--memory 3g --memory-swap 3g --cpus 1 --cpu-shares 256 .*-e POSTGRES_USER=restorecheck -e POSTGRES_DB=restorecheck_main --tmpfs /var/lib/postgresql/data:rw,size=3g postgres:18-alpine'
+check "OPS-01: tymczasowy Postgres z limitami, bazą restorecheck_main i danymi na tmpfs" $?
+VRUN="$(grep '^run --rm -i --network olimpiada-restore-check-net-' "$DOCKER_LOG")"
+printf '%s' "$VRUN" | grep -q -- '--read-only --tmpfs /tmp:size=64m --cap-drop ALL --security-opt no-new-privileges:true --entrypoint python sha256:webimage manage.py restore_check verify' \
+  && printf '%s' "$VRUN" | grep -q -- '--memory 1g'
+check "OPS-01: sprawdzenia w obrazie działającego web (po identyfikatorze), tylko do odczytu, bez uprawnień" $?
+grep -q '^DATABASE_URL=postgres://restorecheck:[0-9a-f]*@olimpiada-restore-check-[0-9]*:5432/restorecheck_main$' "$CASE/app.env.copy" \
+  && grep -q '^RESTORE_CHECK_ISOLATED=1$' "$CASE/app.env.copy" && grep -q '^DJANGO_SECRET_KEY=klucz-aplikacji$' "$CASE/app.env.copy" \
+  && ! grep -q 'zywe@db\|redis://redis' "$CASE/app.env.copy" && [ "$(grep -c '^DATABASE_URL=' "$CASE/app.env.copy")" -eq 1 ]
+check "OPS-01: środowisko web z podmienioną bazą (tymczasowa) i Redisem (martwy), ten sam SECRET_KEY" $?
+[ "$(cat "$CASE/restored.dump")" = "PGDUMP-DATA" ]
+check "OPS-01: zrzut rozszyfrowany strumieniem prosto do pg_restore" $?
+header | grep -q '"live_counts":{"accounts.User": 3, "core.AuditLog": 10}' \
+  && header | grep -q '"files_status":"ok"' \
+  && header | grep -q '"web_created_at":"2026-01-01T00:00:00.123456789Z"'
+check "OPS-01: nagłówek sprawdzeń: liczności żywej bazy, paczka plików, chwila wdrożenia" $?
+grep -q '"status": "ok"' "$CASE/record-stdin.json" && grep -q '"status": "ok"' "$CASE/backups/restore-checks.jsonl"
+check "OPS-01: wynik do restore_check record i do historii restore-checks.jsonl" $?
+! grep -q 'test-passphrase' "$DOCKER_LOG" "$CASE/out.txt" "$CASE/backups/restore-checks.jsonl"
+check "OPS-01: hasło kopii ani razu w poleceniu, logu ani historii" $?
+grep -q '^rm -f -v olimpiada-restore-check-' "$DOCKER_LOG" && grep -q '^network rm olimpiada-restore-check-net-' "$DOCKER_LOG" \
+  && [ -z "$(ls -d "$CASE"/tmp/olimpiada-verify-* 2>/dev/null)" ]
+check "OPS-01: sprzątanie kontenera, sieci i katalogu roboczego" $?
+
+failure_case() {  # $1 = opis, $2 = oczekiwany krok; reszta: zmienne atrapy (NAZWA=wartość)
+  local label="$1" step="$2"
+  shift 2
+  : >"$DOCKER_LOG"
+  env "$@" REPO_DIR="$CASE/repo" BACKUP_DIR="$CASE/backups" PATH="$BIN:$PATH" TMPDIR="$CASE/tmp" \
+    bash "$ROOT/scripts/backup_verify.sh" >"$CASE/out.txt" 2>&1
+  local rc=$?
+  [ $rc -eq 1 ] && grep -q "restore_check record --failure ${step} " "$DOCKER_LOG" \
+    && tail -1 "$CASE/backups/restore-checks.jsonl" | grep -qF "\"failed\":[\"${step}\"]"
+  check "OPS-01: ${label} = meldunek --failure ${step}, kod 1" $?
+}
+failure_case "złe hasło / uszkodzona paczka" decrypt MOCK_GPG_FAIL=1
+! grep -q 'run --rm -i' "$DOCKER_LOG"
+check "OPS-01: po nieudanym rozszyfrowaniu nie ma kontenera sprawdzeń" $?
+failure_case "nieudany pg_restore" pg_restore MOCK_RESTORE_FAIL=1
+failure_case "cel odtworzenia = kontener db" guard MOCK_TARGET_IS_DB=1
+! grep -q 'pg_restore' "$DOCKER_LOG"
+check "OPS-01: bramka zatrzymuje przebieg przed pg_restore" $?
+failure_case "kontener sprawdzeń bez wyniku" checks MOCK_VERIFY_CRASH=1
+failure_case "brak liczności bazy żywej" live-counts MOCK_LIVE_FAIL=1
+mkdir -p "$CASE/stare" && mv "$CASE/backups"/db-*.dump.gpg "$CASE/stare/"
+failure_case "brak kopii w katalogu" no-backup MOCK_NONE=1
+mv "$CASE/stare"/* "$CASE/backups/"
+: >"$DOCKER_LOG"
+MOCK_WEB="" verify; rc=$?
+[ $rc -eq 1 ] && grep -q 'kontener web nie działa' "$CASE/out.txt" && ! grep -q '^run ' "$DOCKER_LOG"
+check "OPS-01: web nie działa = odmowa bez tymczasowego Postgresa" $?
+rm -f "$CASE/backups"/files-*.tar.gpg
+: >"$DOCKER_LOG"
+verify; rc=$?
+header | grep -q '"files_status":"missing"'
+check "OPS-01: brak paczki plików idzie do sprawdzeń jako files_status=missing" $?
 
 # --- 15. restore.sh --djcms-dump / --djcms-files ------------------------------------------------
 setup_case restore-dj
