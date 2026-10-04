@@ -137,6 +137,11 @@ def execute_job(
         process.wait()
     for reader in readers:
         reader.join(timeout=5)
+    for stream in (process.stdout, process.stderr):
+        try:
+            stream.close()
+        except OSError:
+            pass
     duration = round(time.monotonic() - started, 3)
     stdout = b"".join(out).decode("utf-8", errors="replace")
     stderr = b"".join(err).decode("utf-8", errors="replace")[-4000:]

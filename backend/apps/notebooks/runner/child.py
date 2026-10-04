@@ -38,6 +38,8 @@ APP_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.pa
 QCLAB_DIR = os.path.join(APP_ROOT, "qclab")
 COMPAT_DIRS = (os.path.join(QCLAB_DIR, "_compat"), os.path.join(QCLAB_DIR, "_server_stubs"))
 WORK_PREFIX = "qcwork-"
+#: Wiek resztek po poprzednich zadaniach, które dziecko sprząta (sufit czasu zadania to 120 s).
+STALE_WORKDIR_SECONDS = 600
 MAX_JOB_BYTES = 8 * 1024 * 1024
 
 #: Moduły, których import jest zablokowany (sieć, podprocesy, kod natywny, wątki).
@@ -98,9 +100,21 @@ def _prepare_workdir() -> str:
     """Prywatny katalog ``0700``; najpierw sprząta katalogi poprzednich zadań tego samego UID."""
     tmp = tempfile.gettempdir()
     uid = os.getuid()
+    now = time.time()
     for entry in os.listdir(tmp):
         path = os.path.join(tmp, entry)
-        if entry.startswith(WORK_PREFIX) and os.path.isdir(path) and os.stat(path).st_uid == uid:
+        try:
+            info = os.stat(path)
+        except OSError:
+            continue
+        # Tylko katalogi starsze niż każdy możliwy przebieg: przy tym samym UID (dev, testy, tryb
+        # inline) równolegle działające dziecko nie może stracić katalogu w trakcie pracy.
+        if (
+            entry.startswith(WORK_PREFIX)
+            and os.path.isdir(path)
+            and info.st_uid == uid
+            and now - info.st_mtime > STALE_WORKDIR_SECONDS
+        ):
             shutil.rmtree(path, ignore_errors=True)
     workdir = tempfile.mkdtemp(prefix=WORK_PREFIX, dir=tmp)
     os.chmod(workdir, 0o700)
@@ -305,6 +319,8 @@ def main() -> None:
     except BaseException as exc:  # noqa: BLE001
         artifacts = {}
         cell_errors.append({"cell": 0, "error": _format_error(exc)})
+    # Pliki ucznia znikają razem z zadaniem – tmpfs piaskownicy jest wspólny dla kolejnych zadań.
+    shutil.rmtree(workdir, ignore_errors=True)
     result = {
         "status": "ok",
         "cell_errors": cell_errors[:50],
