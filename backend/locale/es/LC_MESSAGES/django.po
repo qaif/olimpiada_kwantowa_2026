@@ -9533,3 +9533,27 @@ msgstr "El estudiante %(name)s (%(email)s) será dado de baja del equipo. Su cue
 
 msgid "Wróć do drużyny"
 msgstr "Volver al equipo"
+
+#: apps/cms/context_processors.py
+msgid "Dokumenty"
+msgstr "Documentos"
+
+#: apps/cms/context_processors.py
+msgid "Komitety"
+msgstr "Comités"
+
+#: apps/cms/context_processors.py
+msgid "Harmonogram"
+msgstr "Calendario"
+
+#: apps/cms/context_processors.py
+msgid "Kontakt"
+msgstr "Contacto"
+
+#: apps/cms/context_processors.py
+msgid "Dla szkół/nauczycieli"
+msgstr "Para escuelas/docentes"
+
+#: apps/cms/context_processors.py
+msgid "Rejestracja nauczyciela"
+msgstr "Registro de docentes"

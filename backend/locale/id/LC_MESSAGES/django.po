@@ -9445,3 +9445,27 @@ msgstr "Siswa %(name)s (%(email)s) akan dikeluarkan dari tim. Akunnya tetap ada 
 
 msgid "Wróć do drużyny"
 msgstr "Kembali ke tim"
+
+#: apps/cms/context_processors.py
+msgid "Dokumenty"
+msgstr "Dokumen"
+
+#: apps/cms/context_processors.py
+msgid "Komitety"
+msgstr "Komite"
+
+#: apps/cms/context_processors.py
+msgid "Harmonogram"
+msgstr "Jadwal"
+
+#: apps/cms/context_processors.py
+msgid "Kontakt"
+msgstr "Kontak"
+
+#: apps/cms/context_processors.py
+msgid "Dla szkół/nauczycieli"
+msgstr "Untuk sekolah/guru"
+
+#: apps/cms/context_processors.py
+msgid "Rejestracja nauczyciela"
+msgstr "Pendaftaran guru"

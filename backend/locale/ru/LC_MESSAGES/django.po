@@ -9359,3 +9359,27 @@ msgstr "Ученик %(name)s (%(email)s) будет снят с команды.
 
 msgid "Wróć do drużyny"
 msgstr "Вернуться к команде"
+
+#: apps/cms/context_processors.py
+msgid "Dokumenty"
+msgstr "Документы"
+
+#: apps/cms/context_processors.py
+msgid "Komitety"
+msgstr "Комитеты"
+
+#: apps/cms/context_processors.py
+msgid "Harmonogram"
+msgstr "Расписание"
+
+#: apps/cms/context_processors.py
+msgid "Kontakt"
+msgstr "Контакты"
+
+#: apps/cms/context_processors.py
+msgid "Dla szkół/nauczycieli"
+msgstr "Для школ/учителей"
+
+#: apps/cms/context_processors.py
+msgid "Rejestracja nauczyciela"
+msgstr "Регистрация учителя"

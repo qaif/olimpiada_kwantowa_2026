@@ -9156,3 +9156,27 @@ msgstr "विद्यार्थी %(name)s (%(email)s) को टीम स
 
 msgid "Wróć do drużyny"
 msgstr "टीम पर वापस जाएँ"
+
+#: apps/cms/context_processors.py
+msgid "Dokumenty"
+msgstr "दस्तावेज़"
+
+#: apps/cms/context_processors.py
+msgid "Komitety"
+msgstr "समितियाँ"
+
+#: apps/cms/context_processors.py
+msgid "Harmonogram"
+msgstr "कार्यक्रम"
+
+#: apps/cms/context_processors.py
+msgid "Kontakt"
+msgstr "संपर्क"
+
+#: apps/cms/context_processors.py
+msgid "Dla szkół/nauczycieli"
+msgstr "विद्यालयों/शिक्षकों के लिए"
+
+#: apps/cms/context_processors.py
+msgid "Rejestracja nauczyciela"
+msgstr "शिक्षक पंजीकरण"

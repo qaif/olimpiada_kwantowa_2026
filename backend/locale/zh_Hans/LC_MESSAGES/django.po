@@ -8873,3 +8873,27 @@ msgstr "学生 %(name)s（%(email)s）将退出代表队。其账户保留——
 
 msgid "Wróć do drużyny"
 msgstr "返回代表队"
+
+#: apps/cms/context_processors.py
+msgid "Dokumenty"
+msgstr "文件"
+
+#: apps/cms/context_processors.py
+msgid "Komitety"
+msgstr "委员会"
+
+#: apps/cms/context_processors.py
+msgid "Harmonogram"
+msgstr "日程"
+
+#: apps/cms/context_processors.py
+msgid "Kontakt"
+msgstr "联系我们"
+
+#: apps/cms/context_processors.py
+msgid "Dla szkół/nauczycieli"
+msgstr "学校/教师"
+
+#: apps/cms/context_processors.py
+msgid "Rejestracja nauczyciela"
+msgstr "教师注册"

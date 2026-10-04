@@ -9190,3 +9190,27 @@ msgstr "শিক্ষার্থী %(name)s (%(email)s)-কে দল থে
 
 msgid "Wróć do drużyny"
 msgstr "দলে ফিরে যান"
+
+#: apps/cms/context_processors.py
+msgid "Dokumenty"
+msgstr "নথিপত্র"
+
+#: apps/cms/context_processors.py
+msgid "Komitety"
+msgstr "কমিটি"
+
+#: apps/cms/context_processors.py
+msgid "Harmonogram"
+msgstr "সময়সূচি"
+
+#: apps/cms/context_processors.py
+msgid "Kontakt"
+msgstr "যোগাযোগ"
+
+#: apps/cms/context_processors.py
+msgid "Dla szkół/nauczycieli"
+msgstr "স্কুল/শিক্ষকদের জন্য"
+
+#: apps/cms/context_processors.py
+msgid "Rejestracja nauczyciela"
+msgstr "শিক্ষক নিবন্ধন"
