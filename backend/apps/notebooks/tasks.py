@@ -11,6 +11,7 @@ from __future__ import annotations
 import logging
 
 from celery import shared_task
+from celery.exceptions import SoftTimeLimitExceeded
 
 from . import services
 
@@ -30,17 +31,39 @@ def pump_notebook_runs() -> dict:
     return result
 
 
-@shared_task
+#: Krótkie limity zadań kolejki ``notebooks`` (``CELERY_TASK_ROUTES``, osobny worker
+#: ``notebook-worker``): wysyłka czyta jeden plik, odbiór ocenia testy w budżecie
+#: ``qclab.grader.MAX_RUN_WORK`` (kilkanaście sekund NumPy). Przekroczenie = błąd przebiegu,
+#: a nie zajęty proces workera.
+RUN_SOFT_LIMIT, RUN_HARD_LIMIT = 60, 75
+COLLECT_SOFT_LIMIT, COLLECT_HARD_LIMIT = 90, 120
+
+
+@shared_task(soft_time_limit=RUN_SOFT_LIMIT, time_limit=RUN_HARD_LIMIT)
 def run_notebook(run_id: int) -> str:
-    outcome = services.start_run(run_id)
+    try:
+        outcome = services.start_run(run_id)
+    except SoftTimeLimitExceeded:
+        services.mark_error(run_id, "error")
+        return "timeout"
     if outcome == "sent":
         collect_notebook_run.apply_async((run_id,), countdown=COLLECT_INTERVAL)
     return outcome
 
 
-@shared_task(bind=True, max_retries=MAX_COLLECT_RETRIES)
+@shared_task(
+    bind=True,
+    max_retries=MAX_COLLECT_RETRIES,
+    soft_time_limit=COLLECT_SOFT_LIMIT,
+    time_limit=COLLECT_HARD_LIMIT,
+)
 def collect_notebook_run(self, run_id: int) -> str:
-    state = services.collect_run(run_id)
+    try:
+        state = services.collect_run(run_id)
+    except SoftTimeLimitExceeded:
+        logger.warning("Notatniki: ocena przebiegu %s przekroczyła limit czasu.", run_id)
+        services.mark_error(run_id, "error")
+        return "timeout"
     if state == "wait":
         if self.request.is_eager:
             # Testy (``CELERY_TASK_ALWAYS_EAGER``): ponowienie wykonałoby się od razu, w pętli.

@@ -25,6 +25,8 @@ MAX_STDERR_BYTES = 16 * 1024
 
 #: Twarde sufity – zadanie od workera może prosić o mniej, nigdy o więcej.
 CEILING = {"wall": 120, "cpu": 120, "memory_mb": 2048, "file_mb": 64, "output_chars": 200_000}
+#: Limity, o które zadanie w ogóle może prosić. ``nofile`` i ``nproc`` ustawia wyłącznie nadzorca.
+REQUESTABLE = frozenset({"wall", "cpu", "memory_mb", "file_mb", "output_chars"})
 
 
 @dataclass
@@ -38,10 +40,16 @@ class Limits:
     output_chars: int = 64_000
 
     def clamp(self, requested: dict | None) -> Limits:
+        """``min(skonfigurowane w nadzorcy, prośba zadania, sufit)`` – prośba nigdy nie podnosi limitu.
+
+        Limity nadzorcy (``NOTEBOOK_RUNNER_*``) są górną granicą operatora; zadanie od workera może
+        je wyłącznie obniżyć (krótszy limit czasu zadania). Wartość niepoprawna jest pomijana.
+        """
         values = asdict(self)
         for key, value in (requested or {}).items():
-            if key in values and isinstance(value, int) and not isinstance(value, bool) and value > 0:
-                values[key] = min(value, CEILING.get(key, value))
+            if key not in REQUESTABLE or not isinstance(value, int) or isinstance(value, bool) or value <= 0:
+                continue
+            values[key] = min(value, values[key], CEILING[key])
         return Limits(**values)
 
 
@@ -73,6 +81,24 @@ def _child_env() -> dict[str, str]:
         "OMP_NUM_THREADS": "1",
         "MKL_NUM_THREADS": "1",
     }
+
+
+def parse_child_output(stdout: str) -> dict | None:
+    """Wynik po ostatnim znaczniku albo ``None``. Nigdy nie rzuca.
+
+    Wyjście pisze proces z kodem ucznia, więc parser bierze wszystko: zagnieżdżenie na sto tysięcy
+    poziomów (``RecursionError`` w ``json.loads``), liczby, których nie da się przeczytać, śmieci.
+    Każdy taki przypadek to „brak wyniku” (status ``crashed``), a nie wyjątek w nadzorcy.
+    """
+    position = stdout.rfind(RESULT_MARKER)
+    if position < 0:
+        return None
+    try:
+        lines = stdout[position + len(RESULT_MARKER) :].strip().splitlines()
+        result = json.loads(lines[0]) if lines else None
+    except Exception:  # noqa: BLE001 - patrz docstring: dowolny błąd parsowania to brak wyniku
+        return None
+    return result if isinstance(result, dict) else None
 
 
 def execute_job(
@@ -145,16 +171,11 @@ def execute_job(
     duration = round(time.monotonic() - started, 3)
     stdout = b"".join(out).decode("utf-8", errors="replace")
     stderr = b"".join(err).decode("utf-8", errors="replace")[-4000:]
-    position = stdout.rfind(RESULT_MARKER)
-    if position >= 0 and not timed_out:
-        try:
-            result = json.loads(stdout[position + len(RESULT_MARKER) :].strip().splitlines()[0])
-        except json.JSONDecodeError, IndexError:
-            result = None
-        if isinstance(result, dict):
-            result["status"] = "ok"
-            result["duration"] = duration
-            return result
+    result = None if timed_out else parse_child_output(stdout)
+    if result is not None:
+        result["status"] = "ok"
+        result["duration"] = duration
+        return result
     returncode = process.returncode
     if timed_out or returncode in (-signal.SIGXCPU, -signal.SIGKILL):
         status = "timeout"

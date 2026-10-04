@@ -517,6 +517,11 @@ CELERY_TASK_ROUTES = {
     "apps.workshop_materials.tasks.scan_material": {"queue": "scan"},
     # Skan pracy testowej oceny AI (``apps.ai_grading.sandbox``) – ta sama praca, ta sama kolejka.
     "apps.ai_grading.tasks.scan_ai_test_work": {"queue": "scan"},
+    # Notatniki kwantowe (QC-01): wysyłka do piaskownicy i ocena testów na **osobnej** kolejce z osobnym
+    # workerem (``notebook-worker``, profil compose ``notebooks``) i krótkimi limitami czasu – ocena
+    # liczy symulację obwodu ucznia, więc nie może zajmować procesów skanu antywirusowego i poczty.
+    "apps.notebooks.tasks.run_notebook": {"queue": "notebooks"},
+    "apps.notebooks.tasks.collect_notebook_run": {"queue": "notebooks"},
     # Skan dowodu wpłaty przelewem (PAY-01) – ta sama praca, ta sama kolejka.
     "apps.payments.tasks.scan_payment_proof": {"queue": "scan"},
 }

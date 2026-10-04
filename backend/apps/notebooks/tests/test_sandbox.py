@@ -9,6 +9,7 @@ compose'a (``test_compose_runner_isolation``).
 
 from __future__ import annotations
 
+import json
 import os
 import sys
 from pathlib import Path
@@ -17,7 +18,7 @@ import pytest
 import yaml
 
 from apps.notebooks.runner import daemon
-from apps.notebooks.runner.sandbox import Limits, execute_job
+from apps.notebooks.runner.sandbox import CEILING, RESULT_MARKER, Limits, execute_job, parse_child_output
 from qclab import grader
 
 pytestmark = pytest.mark.skipif(sys.platform != "linux", reason="piaskownica działa wyłącznie na Linuksie")
@@ -225,12 +226,121 @@ def test_daemon_spool_roundtrip(tmp_path: Path):
     assert not list(dirs["claimed"].glob("*"))
 
 
-def test_compose_runner_isolation():
-    """Warstwa 1: konfiguracja kontenera piaskownicy w ``docker-compose.yml`` (bez sieci, bez sekretów)."""
+def test_native_extension_from_workdir_is_refused():
+    """Haczyk audytu dostaje nazwę pliku wyłącznie przy ładowaniu rozszerzenia (``_imp.create_dynamic``)
+    – i właśnie wtedy odmawia, gdy plik nie leży w zaufanych bibliotekach. Kopia ``.so`` NumPy
+    w katalogu roboczym ucznia nie zostaje załadowana (w kontenerze dodatkowo ``/tmp`` ma ``noexec``)."""
+    result = run(
+        "import importlib.machinery, importlib.util, os, numpy\n"
+        "lib = os.path.join(os.path.dirname(numpy.__file__), '_core')\n"
+        "sos = [os.path.join(lib, f) for f in os.listdir(lib) if f.endswith('.so')]\n"
+        "src = min(sos, key=os.path.getsize)  # najmniejsze rozszerzenie – limit rozmiaru pliku\n"
+        "dst = os.path.join(os.getcwd(), os.path.basename(src))\n"
+        "data = open(src, 'rb').read()\n"
+        "open(dst, 'wb').write(data)\n"
+        "name = os.path.basename(dst).split('.')[0]\n"
+        "loader = importlib.machinery.ExtensionFileLoader(name, dst)\n"
+        "importlib.util.module_from_spec(importlib.util.spec_from_file_location(name, dst, loader=loader))"
+    )
+    assert result["status"] == "ok"
+    assert "loading native code from this location is not allowed" in errors(result), errors(result)
+
+
+# --- nadzorca: limity, parser wyniku, odporność pętli (przegląd QC-01: M1, M2, M3) --------------------
+
+
+def test_clamp_takes_the_smallest_of_daemon_request_and_ceiling():
+    daemon_limits = Limits(wall=40, cpu=30, memory_mb=512)
+    assert daemon_limits.clamp({"wall": 100, "cpu": 10}).wall == 40  # prośba nie podnosi limitu nadzorcy
+    assert daemon_limits.clamp({"wall": 100, "cpu": 10}).cpu == 10  # ale może go obniżyć
+    assert Limits(wall=10_000).clamp({"wall": 5_000}).wall == CEILING["wall"]
+    clamped = daemon_limits.clamp({"memory_mb": True, "nproc": 1, "nofile": 1, "file_mb": -5, "x": 1})
+    assert clamped == daemon_limits  # bool, ujemne, nieznane i nieżądalne klucze – pominięte
+
+
+@pytest.mark.parametrize(
+    "stdout",
+    [
+        "no marker at all",
+        RESULT_MARKER,
+        RESULT_MARKER + "[1, 2]",
+        RESULT_MARKER + "{not json",
+        RESULT_MARKER + "[" * 200_000 + "]" * 200_000,
+        RESULT_MARKER + '{"a": ' * 100_000 + "1" + "}" * 100_000,
+        RESULT_MARKER + "1" * 10_000,
+    ],
+)
+def test_child_output_parser_never_raises(stdout):
+    assert parse_child_output(stdout) is None
+
+
+def test_child_output_parser_takes_last_marker():
+    assert parse_child_output(f'{RESULT_MARKER}{{"a": 1}}\n{RESULT_MARKER}{{"a": 2}}\n') == {"a": 2}
+
+
+@pytest.mark.parametrize(
+    "payload",
+    ["[1, 2]", "not json", "[" * 200_000 + "]" * 200_000, '"text"', b"\xff\xfe"],
+)
+def test_daemon_survives_garbage_job(tmp_path: Path, payload):
+    dirs = daemon.ensure_dirs(tmp_path)
+    job_id = "b" * 32
+    claimed = dirs["claimed"] / f"{job_id}.json"
+    if isinstance(payload, bytes):
+        claimed.write_bytes(payload)
+    else:
+        claimed.write_text(payload, encoding="utf-8")
+    result = daemon.process(job_id, claimed, dirs, FAST, None)
+    assert result["status"] == "invalid_job"
+    assert json.loads((dirs["results"] / f"{job_id}.json").read_text())["status"] == "invalid_job"
+    assert not claimed.exists()
+
+
+def test_daemon_survives_unexpected_error(tmp_path: Path, monkeypatch):
+    def broken(*args, **kwargs):
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(daemon, "execute_job", broken)
+    dirs = daemon.ensure_dirs(tmp_path)
+    job_id = "c" * 32
+    claimed = dirs["claimed"] / f"{job_id}.json"
+    claimed.write_text('{"cells": []}', encoding="utf-8")
+    result = daemon.process(job_id, claimed, dirs, FAST, None)
+    assert result["status"] == "error"
+    assert (dirs["results"] / f"{job_id}.json").exists()
+
+
+def test_uid_pool_gives_distinct_random_uids():
+    pool = daemon.UidPool(200_000, span=3_000)
+    taken = [pool.acquire() for _ in range(2_000)]
+    assert len(set(taken)) == len(taken)
+    assert all(200_000 <= uid < 203_000 for uid in taken)
+    pool.release(taken[0])
+    assert taken[0] not in pool._active
+
+
+def test_cleanup_script_compiles_and_heartbeat_is_written(tmp_path: Path):
+    # Skryptu nie uruchamiamy: ``kill(-1)`` jako UID testu zabiłby procesy testu.
+    compile(daemon.CLEANUP_SCRIPT, "cleanup", "exec")
+    assert "os.kill(-1, signal.SIGKILL)" in daemon.CLEANUP_SCRIPT
+    daemon.beat(tmp_path / "hb")
+    assert float((tmp_path / "hb").read_text()) > 0
+
+
+def _compose() -> dict:
     compose_path = Path(__file__).resolve().parents[4] / "docker-compose.yml"
     if not compose_path.exists():
+        compose_path = Path("/docker-compose.yml")
+    if not compose_path.exists():
+        if os.environ.get("CI"):
+            pytest.fail("docker-compose.yml nie znaleziony w CI – test zgodności nie może być pominięty")
         pytest.skip("docker-compose.yml poza obrazem testowym")
-    compose = yaml.safe_load(compose_path.read_text(encoding="utf-8"))
+    return yaml.safe_load(compose_path.read_text(encoding="utf-8"))
+
+
+def test_compose_runner_isolation():
+    """Warstwa 1: konfiguracja kontenera piaskownicy w ``docker-compose.yml`` (bez sieci, bez sekretów)."""
+    compose = _compose()
     runner = compose["services"]["notebook-runner"]
     assert runner["network_mode"] == "none"
     assert runner["read_only"] is True
@@ -244,3 +354,19 @@ def test_compose_runner_isolation():
     assert any("noexec" in item for item in runner["tmpfs"])
     assert runner.get("pids_limit")
     assert runner.get("mem_limit")
+    assert "heartbeat" in " ".join(runner["healthcheck"]["test"])
+
+
+def test_compose_grading_runs_on_dedicated_worker():
+    """Ocena notatników: osobny worker kolejki ``notebooks`` (H2); główny worker nie widzi spoolu."""
+    from django.conf import settings
+
+    services = _compose()["services"]
+    notebook_worker = services["notebook-worker"]
+    assert notebook_worker["profiles"] == ["notebooks"]
+    assert "-Q notebooks" in notebook_worker["command"]
+    assert "notebook_spool:/spool" in notebook_worker["volumes"]
+    assert "notebook_spool:/spool" not in (services["worker"].get("volumes") or [])
+    routes = settings.CELERY_TASK_ROUTES
+    for task in ("apps.notebooks.tasks.run_notebook", "apps.notebooks.tasks.collect_notebook_run"):
+        assert routes[task]["queue"] == "notebooks"

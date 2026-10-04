@@ -175,10 +175,6 @@ services:
       # Połączeniem rządzi wtedy DB_CONN_MAX_AGE (jedno na proces potomny, CELERY_CONCURRENCY).
       DB_POOL: "0"
       DB_APPLICATION_NAME: olimpiada-worker
-    # Wymiana zadań z piaskownicą notatników (QC-01) – patrz usługa `notebook-runner`. Bez profilu
-    # `notebooks` wolumen jest pusty, a przebiegi kończą się błędem „środowisko nie odpowiedziało”.
-    volumes:
-      - notebook_spool:/spool
     depends_on:
       db:     { condition: service_healthy }
       redis:  { condition: service_healthy }
@@ -198,8 +194,9 @@ services:
   # - `network_mode: none` – kod ucznia nie dosięga ani Redisa (broker Celery), ani bazy, ani internetu,
   # - bez `env_file` i bez *app-env – w środowisku nie ma ani jednego sekretu,
   # - `read_only` + tmpfs `/tmp` z `noexec` – nie da się zapisać i załadować własnego kodu natywnego,
-  # - `cap_drop: ALL` + SETUID/SETGID/KILL: nadzorca (root) uruchamia dzieci jako osobne UID
-  #   (`NOTEBOOK_RUNNER_UID_BASE` + slot, bez grup) i zabija je po czasie – nic więcej nie potrafi,
+  # - `cap_drop: ALL` + SETUID/SETGID/KILL: nadzorca (root) uruchamia każde zadanie jako losowy,
+  #   nieużywany UID z puli `NOTEBOOK_RUNNER_UID_BASE` + 50 000 (bez grup), po zadaniu zabija
+  #   wszystkie procesy tego UID i kasuje jego pliki w /tmp – nic więcej nie potrafi,
   # - `no-new-privileges`, `pids_limit`, `mem_limit`, `cpus` – fork-bomba i pętla nie zjedzą serwera,
   # - jedyny wspólny zasób z resztą systemu to wolumen `notebook_spool` (pliki zadań i wyników);
   #   nadzorca wchodzi do niego przez grupę workera (`group_add`), dzieci – wcale (2770).
@@ -230,6 +227,41 @@ services:
       - notebook_spool:/spool
     restart: unless-stopped
     logging: *default-logging
+    # Pętla nadzorcy dotyka znacznika co pół sekundy; zawieszona pętla = kontener „unhealthy”.
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os,sys,time; sys.exit(0 if time.time() - os.path.getmtime('/tmp/notebook-runner.heartbeat') < 60 else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  # Worker Celery wyłącznie kolejki `notebooks` (QC-01): wysyła zadania do piaskownicy przez spool
+  # i ocenia wyniki testami (symulacja obwodu ucznia w budżecie `qclab.grader.MAX_RUN_WORK`, krótkie
+  # limity czasu zadań). Osobny, żeby ocena notatników nie zajmowała procesów skanu i poczty
+  # głównego `worker`. Jeden proces – zadania odbioru ponawiają się co 2 s i nie trzymają procesu.
+  notebook-worker:
+    <<: *app-base
+    profiles: [notebooks]
+    command: celery -A config worker -l info --concurrency 1 -Q notebooks --max-tasks-per-child 200
+    mem_limit: 768m
+    environment:
+      <<: *app-env
+      RUN_MIGRATIONS: "0"
+      RUN_COLLECTSTATIC: "0"
+      DB_POOL: "0"
+      DB_APPLICATION_NAME: olimpiada-notebook-worker
+    volumes:
+      - notebook_spool:/spool
+    depends_on:
+      db:     { condition: service_healthy }
+      redis:  { condition: service_healthy }
+      minio:  { condition: service_healthy }
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A config inspect ping -d celery@$$HOSTNAME --timeout 5"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
   beat:
     <<: *app-base
@@ -661,7 +693,7 @@ volumes:
   mail_dkim:
   mail_spool:
   static_files:
-  # Pliki zadań i wyników piaskownicy notatników (QC-01) – wspólne dla `worker` i `notebook-runner`.
+  # Pliki zadań i wyników piaskownicy notatników (QC-01) – wspólne dla `notebook-worker` i `notebook-runner`.
   notebook_spool:
   caddy_data:
   caddy_config:

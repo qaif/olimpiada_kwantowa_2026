@@ -8,7 +8,7 @@ Kolejność kroków jest częścią zabezpieczenia:
 
 1. limity ``setrlimit`` (twarde = miękkie, więc kod ucznia ich nie podniesie),
 2. prywatny katalog roboczy ``0700`` w ``/tmp`` (posprzątanie resztek po poprzednim zadaniu tego
-   slotu – ten sam UID),
+   UID – w trybie bez zmiany UID; w kontenerze UID jest za każdym razem inny),
 3. import NumPy i qclab **przed** hakiem audytowym (biblioteki czytają swoje pliki),
 4. hak audytowy (``_install_guard``) – od tej chwili tylko odczyt bibliotek i zapis w katalogu
    roboczym, bez sieci, podprocesów, wątków i ``ctypes``,

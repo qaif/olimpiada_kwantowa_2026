@@ -11,10 +11,12 @@ Protokół z workerem (``apps.notebooks.spool``):
 - wynik ląduje w ``results/<id>.json`` (znów plik tymczasowy + ``rename``); worker go czyta
   i kasuje. Wyniki i zajęte zadania starsze niż godzina sprząta nadzorca.
 
-Sloty: ``NOTEBOOK_RUNNER_SLOTS`` zadań równolegle, każde jako **inny** UID
-(``UID_BASE + numer slotu``), więc dwa jednocześnie działające notatniki nie widzą nawzajem
-swoich katalogów roboczych (``0700``). Bez uprawnień do zmiany UID (testy, dev) – ten sam UID
-i jeden slot.
+Sloty: ``NOTEBOOK_RUNNER_SLOTS`` zadań równolegle, każde jako **losowy, nieużywany w tej chwili**
+UID z puli ``UID_BASE … UID_BASE + UID_SPAN`` (``UidPool``), więc dwa jednocześnie działające
+notatniki nie widzą nawzajem swoich katalogów roboczych (``0700``), a resztki zadania nie spotkają
+następnego. Po każdym zadaniu nadzorca zabija wszystkie procesy tego UID i kasuje jego pliki
+w ``/tmp`` (``cleanup_uid``), a pętla dotyka znacznika ``HEARTBEAT`` dla healthchecka kontenera.
+Bez uprawnień do zmiany UID (testy, dev) – ten sam UID, jeden slot i bez sprzątania.
 """
 
 from __future__ import annotations
@@ -24,6 +26,9 @@ import logging
 import os
 import queue
 import re
+import secrets
+import subprocess
+import sys
 import threading
 import time
 from pathlib import Path
@@ -35,6 +40,35 @@ JOB_ID_RE = re.compile(r"^[a-f0-9]{32}$")
 MAX_JOB_FILE = 8 * 1024 * 1024
 STALE_SECONDS = 3600
 POLL_SECONDS = 0.5
+#: Pula UID dzieci: każde zadanie dostaje **losowy, nieużywany** UID z ``UID_BASE … UID_BASE+UID_SPAN``.
+#: Resztki poprzedniego zadania (proces, który przeżył ``killpg``, plik w ``/tmp``) należą do innego
+#: UID niż następne zadanie, więc nie mają z nim nic wspólnego, nawet jeśli sprzątanie zawiedzie.
+UID_SPAN = 50_000
+HEARTBEAT = Path(os.environ.get("NOTEBOOK_RUNNER_HEARTBEAT", "/tmp/notebook-runner.heartbeat"))  # noqa: S108
+#: Sprzątanie po zadaniu, wykonywane **jako UID zadania**: ``kill(-1)`` zabija wszystkie procesy tego
+#: UID poza samym sobą (Linux), a potem z ``/tmp`` znika wszystko, co do tego UID należy. Jako ten UID,
+#: a nie jako nadzorca, bo nadzorca nie ma ``CAP_DAC_OVERRIDE`` i nie wszedłby do katalogów ``0700``.
+CLEANUP_SCRIPT = """
+import os, signal
+try:
+    os.kill(-1, signal.SIGKILL)
+except OSError:
+    pass
+uid = os.getuid()
+for root, dirs, files in os.walk("/tmp", topdown=False):
+    for name in files + dirs:
+        path = os.path.join(root, name)
+        try:
+            info = os.lstat(path)
+            if info.st_uid != uid:
+                continue
+            if os.path.isdir(path) and not os.path.islink(path):
+                os.rmdir(path)
+            else:
+                os.unlink(path)
+        except OSError:
+            pass
+"""
 
 
 def _env_int(name: str, default: int | None) -> int | None:
@@ -96,18 +130,75 @@ def claim_next(dirs: dict[str, Path]) -> tuple[str, Path] | None:
 
 
 def process(job_id: str, claimed: Path, dirs: dict[str, Path], limits: Limits, user: int | None) -> dict:
+    """Jedno zadanie od pliku do pliku wyniku. Nie rzuca – nadzorca ma przeżyć każde zadanie."""
     try:
         if claimed.stat().st_size > MAX_JOB_FILE:
             result = {"status": "invalid_job", "error": "job file too large"}
         else:
             job = json.loads(claimed.read_text(encoding="utf-8"))
+            if not isinstance(job, dict):
+                raise ValueError("job is not an object")
             result = execute_job(job, limits=limits, user=user, group=user)
-    except (OSError, ValueError) as exc:
+    except (OSError, ValueError, RecursionError) as exc:
         result = {"status": "invalid_job", "error": str(exc)[:300]}
+    except Exception as exc:  # noqa: BLE001 - błąd nadzorcy zamyka zadanie wynikiem, nie wątkiem slotu
+        logger.exception("job %s: unexpected error", job_id)
+        result = {"status": "error", "error": type(exc).__name__}
     result["id"] = job_id
-    write_atomic(dirs["results"] / f"{job_id}.json", result)
+    try:
+        write_atomic(dirs["results"] / f"{job_id}.json", result)
+    except Exception:  # noqa: BLE001
+        logger.exception("job %s: cannot write the result", job_id)
     claimed.unlink(missing_ok=True)
     return result
+
+
+def cleanup_uid(uid: int, python: str | None = None) -> None:
+    """Zabija procesy i kasuje pliki ``/tmp`` UID zadania (``CLEANUP_SCRIPT``)."""
+    try:
+        subprocess.run(  # noqa: S603 - stały skrypt, interpreter nadzorcy, bez powłoki
+            [python or sys.executable, "-I", "-c", CLEANUP_SCRIPT],
+            user=uid,
+            group=uid,
+            extra_groups=[],
+            env={"PATH": "/usr/bin:/bin"},
+            close_fds=True,
+            timeout=30,
+            check=False,
+            capture_output=True,
+        )
+    except OSError, subprocess.SubprocessError:
+        logger.exception("cleanup of uid %s failed", uid)
+
+
+class UidPool:
+    """Losowe UID zadań, bez powtórzeń wśród zadań trwających w tej chwili."""
+
+    def __init__(self, base: int, span: int = UID_SPAN) -> None:
+        self.base = base
+        self.span = span
+        self._active: set[int] = set()
+        self._lock = threading.Lock()
+
+    def acquire(self) -> int:
+        with self._lock:
+            while True:
+                uid = self.base + secrets.randbelow(self.span)
+                if uid not in self._active:
+                    self._active.add(uid)
+                    return uid
+
+    def release(self, uid: int) -> None:
+        with self._lock:
+            self._active.discard(uid)
+
+
+def beat(path: Path = HEARTBEAT) -> None:
+    """Znacznik życia dla healthchecka kontenera (pętla nadzorcy dotyka go co pół sekundy)."""
+    try:
+        path.write_text(str(time.time()), encoding="ascii")
+    except OSError:
+        pass
 
 
 def housekeeping(dirs: dict[str, Path], now: float | None = None) -> None:
@@ -131,24 +222,34 @@ def serve(spool: Path, *, slots: int = 1, uid_base: int | None = None, limits: L
     # Wolne sloty: zadanie zajmujemy (``claim``) dopiero, gdy jest kto je wykonać – zajęte, a czekające
     # w kolejce zadanie byłoby stracone dla drugiego nadzorcy przy rotacji kontenera.
     free = threading.Semaphore(slots)
+    pool = UidPool(uid_base) if can_switch else None
 
     def worker(slot: int) -> None:
-        user = uid_base + slot if can_switch else None
         while True:
             job_id, claimed = work.get()
+            user = pool.acquire() if pool is not None else None
             started = time.monotonic()
-            result = process(job_id, claimed, dirs, limits, user)
+            status = "error"
+            try:
+                status = process(job_id, claimed, dirs, limits, user).get("status")
+            except Exception:  # noqa: BLE001 - wątek slotu nie może umrzeć (zmalałaby pula slotów)
+                logger.exception("job %s: slot failure", job_id)
+            finally:
+                if user is not None:
+                    cleanup_uid(user)
+                    pool.release(user)
+                work.task_done()
+                free.release()
             logger.info(
-                "job %s slot %s: %s in %.1fs", job_id, slot, result.get("status"), time.monotonic() - started
+                "job %s slot %s uid %s: %s in %.1fs", job_id, slot, user, status, time.monotonic() - started
             )
-            work.task_done()
-            free.release()
 
     for slot in range(slots):
         threading.Thread(target=worker, args=(slot,), daemon=True, name=f"slot-{slot}").start()
     logger.info("notebook runner: spool %s, %s slot(s), uid switching %s", spool, slots, can_switch)
     last_cleanup = 0.0
     while True:
+        beat()
         if time.monotonic() - last_cleanup > 60:
             housekeeping(dirs)
             last_cleanup = time.monotonic()
@@ -165,10 +266,12 @@ def serve(spool: Path, *, slots: int = 1, uid_base: int | None = None, limits: L
 def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     spool = Path(os.environ.get("NOTEBOOK_SPOOL_DIR", "/spool"))
+    # Domyślne limity nadzorcy pokrywają największe ustawienie zadania (60 s, 1024 MB) – zadanie
+    # prosi o swoje, a ``Limits.clamp`` bierze mniejszą z obu wartości.
     limits = Limits(
-        wall=_env_int("NOTEBOOK_RUNNER_WALL_SECONDS", 30) or 30,
-        cpu=_env_int("NOTEBOOK_RUNNER_CPU_SECONDS", 20) or 20,
-        memory_mb=_env_int("NOTEBOOK_RUNNER_MEMORY_MB", 768) or 768,
+        wall=_env_int("NOTEBOOK_RUNNER_WALL_SECONDS", 75) or 75,
+        cpu=_env_int("NOTEBOOK_RUNNER_CPU_SECONDS", 60) or 60,
+        memory_mb=_env_int("NOTEBOOK_RUNNER_MEMORY_MB", 1024) or 1024,
         nproc=_env_int("NOTEBOOK_RUNNER_NPROC", 32),
     )
     serve(
