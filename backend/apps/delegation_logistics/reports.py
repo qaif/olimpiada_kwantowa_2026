@@ -176,7 +176,7 @@ def send_reminders(competition, edition, *, delegations=None, actor, request=Non
         if not lines:
             continue
         delegation = people[0].delegation
-        leaders = list(DelegationLeader.objects.filter(delegation=delegation).select_related("user"))
+        leaders = list(DelegationLeader.objects.active().filter(delegation=delegation).select_related("user"))
         for leader in leaders:
             with language_for(leader.user, competition):
                 deadlines = [

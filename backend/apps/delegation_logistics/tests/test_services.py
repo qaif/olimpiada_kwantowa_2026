@@ -12,6 +12,7 @@ from django.db import connection
 from django.utils import timezone
 
 from apps.accounts.models import UserPreference
+from apps.accounts.tests.test_delegations import leader_for_country
 from apps.core.api import DomainError
 from apps.core.models import AuditLog
 from apps.delegation_logistics import access, badges, letters, privacy, reports, rooming, services
@@ -76,6 +77,16 @@ def test_members_follow_the_delegation_and_drop_removed_students(leader, student
     Participant.objects.filter(pk=adult.pk).update(delegation=None)
     members = services.members_of(leader.delegation)
     assert all(m.participant_id != adult.pk for m in members)
+
+
+def test_removed_leader_loses_logistics_row(iqo, leader, other_leader, coordinator):
+    from apps.accounts import delegation_services
+
+    second = leader_for_country(iqo, coordinator, "deputy-de@example.test", country="de")
+    assert sum(m.kind == MemberKind.LEADER for m in services.members_of(leader.delegation)) == 2
+    delegation_services.remove_leader(second, actor=coordinator)
+    leaders = [m for m in services.members_of(leader.delegation) if m.kind == MemberKind.LEADER]
+    assert [m.user_id for m in leaders] == [leader.user_id]
 
 
 def test_leader_reaches_only_members_of_own_delegation(leader, other_leader, students):

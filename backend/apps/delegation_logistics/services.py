@@ -255,7 +255,9 @@ def sync_members(delegation) -> None:
     students = set(
         Participant.objects.filter(delegation=delegation).exclude_anonymised().values_list("pk", flat=True)
     )
-    leaders = set(DelegationLeader.objects.filter(delegation=delegation).values_list("user_id", flat=True))
+    leaders = set(
+        DelegationLeader.objects.active().filter(delegation=delegation).values_list("user_id", flat=True)
+    )
     rows = DelegationMember.objects.filter(delegation=delegation)
     stale = rows.filter(kind=MemberKind.STUDENT).exclude(participant_id__in=students) | rows.filter(
         kind=MemberKind.LEADER
