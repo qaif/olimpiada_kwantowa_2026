@@ -228,10 +228,9 @@ def _time_window_items(participant, edition, now, competition=None) -> list[Cale
     """
     from django.utils.translation import gettext as _
 
+    from apps.tenancy.context import current_competition
     from apps.time_windows.access import effective_window
     from apps.time_windows.access import enabled as time_windows_enabled
-
-    from apps.tenancy.context import current_competition
 
     owner = competition if competition is not None else current_competition()
     if owner is None or owner.pk != edition.competition_id:

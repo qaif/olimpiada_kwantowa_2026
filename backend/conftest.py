@@ -45,7 +45,10 @@ def _compile_translations(config) -> None:
     if hasattr(config, "workerinput"):  # worker xdist: kompilował już proces sterujący
         return
     # Wspólny katalog i katalogi aplikacji (``apps/<nazwa>/locale``) – ten sam zbiór, co w Dockerfile.
-    catalogs = [*BACKEND_DIR.glob("locale/*/LC_MESSAGES/*.po"), *BACKEND_DIR.glob("apps/*/locale/*/LC_MESSAGES/*.po")]
+    catalogs = [
+        *BACKEND_DIR.glob("locale/*/LC_MESSAGES/*.po"),
+        *BACKEND_DIR.glob("apps/*/locale/*/LC_MESSAGES/*.po"),
+    ]
     stale = [
         po
         for po in sorted(catalogs)

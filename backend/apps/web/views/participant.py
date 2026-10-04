@@ -372,6 +372,9 @@ class MeView(ParticipantRequiredMixin, TemplateView):
         edition = current_edition(self.competition)
         stage = current_stage(edition, now) if edition else None
         entry = _entry_for(self.participant, stage)
+        # Zapis do etapu idzie po **ramie** etapu (tak liczy go ``register_for_stage``) – uczeń
+        # z późniejszego okna może się zgłosić od razu, a nie dopiero na starcie swojego okna.
+        registration_open = stage is not None and stage.is_open_for_submissions(now)
         # Okno czasowe ucznia (TZ-01): w etapie z oknami cały pulpit – nagłówek „Co teraz”, karty
         # zadań, odliczanie, przycisk wysyłki – liczy się z **jego** startu i terminu. Kopia etapu
         # zastępuje etap raz, tutaj, więc żadna gałąź niżej nie może przez pomyłkę wziąć ramy
@@ -389,7 +392,7 @@ class MeView(ParticipantRequiredMixin, TemplateView):
             stage is not None
             and entry is None
             and stage.kind in SELF_REGISTRATION_KINDS
-            and stage.is_open_for_submissions(now)
+            and registration_open
         )
         # Etap w formie rozmowy ani w formie testu online nie ma uploadu w ogóle – nie
         # „zamkniętego”, tylko żadnego (``submissions.create_submission`` odmawia

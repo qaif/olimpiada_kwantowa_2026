@@ -21,7 +21,9 @@ ANONYMISED_REASON = "-"
 def export_section(participant) -> dict:
     if participant is None:
         return {"strefa_czasowa": None, "wyjatki": []}
-    zone = ParticipantTimezone.objects.filter(participant=participant).values_list("timezone", flat=True).first()
+    zone = (
+        ParticipantTimezone.objects.filter(participant=participant).values_list("timezone", flat=True).first()
+    )
     rows = (
         ParticipantWindow.objects.filter(participant=participant)
         .select_related("plan__stage", "window")
