@@ -1,0 +1,10 @@
+{% load i18n wagtailcore_tags %}{% comment %}
+  Slot motywu ``news_card`` (THEME-01 § 3) – karta aktualności na liście aktualności (zmienna ``item``).
+  Treść domyślna (motyw ``classic``) przeniesiona co do bajtu z szablonu, który ją zawierał;
+  paczka motywu nadpisuje ją plikiem ``templates/theme/news_card.html``.
+{% endcomment %}<article class="card news-card">
+        <span class="news-card__date">{{ item.date }}</span>
+        <h2><a href="{% pageurl item %}">{{ item.title }}</a></h2>
+        {% if item.lead %}<p>{{ item.lead }}</p>{% endif %}
+        <p class="card__foot"><a href="{% pageurl item %}">{% translate "Czytaj dalej" %}</a></p>
+      </article>

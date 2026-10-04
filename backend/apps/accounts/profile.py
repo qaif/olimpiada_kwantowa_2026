@@ -478,6 +478,12 @@ def anonymise_account(user: User, *, actor: User | None = None, request=None) ->
 
     participants = list(participations_of(user))
 
+    # Delegacje krajowe (DEL-01): rola opiekuna drużyny, wiersze delegacji i zaproszenia na ten adres
+    # znikają **przed** podmianą adresu – zaproszenie szukamy po adresie, który za chwilę zniknie.
+    from .delegation_services import erase_for_user as erase_delegation_roles
+
+    erase_delegation_roles(user)
+
     # Konkurs z kontekstu, odwrotem miękkim: anonimizację wnosi albo właściciel konta (żądanie
     # pod domeną konkursu), albo kosiarka retencji, która chodzi po konkursach z ``each_competition``
     # i każdy z nich wiąże. „Nie wiadomo, czyje to konto” daje dzisiejszą domenę – tę samą, co
@@ -625,6 +631,11 @@ def _erase_account(user: User, *, actor: User | None = None, request=None) -> st
     from apps.student_status.services import erase_for_user
 
     erase_for_user(user)
+    # Zaproszenia opiekuna drużyny niosą adres tego konta, a kaskada ich nie zabierze (wiążą się
+    # z delegacją, nie z kontem) – sprzątamy je tu, razem z rolą (DEL-01).
+    from .delegation_services import erase_for_user as erase_delegation_roles
+
+    erase_delegation_roles(user)
     _drop_credentials(user)
     # Audyt **przed** skasowaniem wiersza: po ``delete()`` nie ma z czego wziąć ``target_type``,
     # a ``actor`` będący samym kasowanym kontem i tak zgaśnie na ``SET_NULL``. W ``diff`` jest

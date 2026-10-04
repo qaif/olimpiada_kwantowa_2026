@@ -1,0 +1,179 @@
+{% extends "web/coordinator/base.html" %}
+{% load web_extras %}
+{% comment %}
+  Jedna delegacja (DEL-01): ustawienia (limit, stan, notatka), opiekunowie, zaproszenia oczekujące
+  i uczniowie. Każda czynność ma własny adres POST – patrz ``apps.web.views.coordinator_delegations``.
+
+  Odwołanie opiekuna nie rusza uczniów: należą do kraju, a nie do osoby, która ich zgłosiła.
+{% endcomment %}
+{% block title %}Delegacja: {{ delegation.country.name }} – panel koordynatora
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">Wypisani przez opiekuna – czekają na decyzję</h2>
+    <p class="hint">Uczniowie z uruchomionym kontem, których opiekun wypisał z drużyny. Konto zostało
+      (opiekun nie może go usunąć), a uczeń dostał wiadomość. Usunięcie konta – na karcie konta
+      w „Uczestnicy i konta”.</p>
+  </div>
+  <div class="scroll">
+    <table class="table">
+      <caption class="visually-hidden">Uczniowie wypisani z delegacji</caption>
+      <thead>
+        <tr>
+          <th scope="col">Imię i nazwisko</th>
+          <th scope="col">E-mail</th>
+          <th scope="col">Kod publiczny</th>
+          <th scope="col">Wypisany</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for participant in unlinked %}
+          <tr>
+            <th scope="row">{{ participant.user.get_full_name }}</th>
+            <td>{{ participant.user.email }}</td>
+            <td>{{ participant.public_code }}</td>
+            <td>{{ participant.delegation_unlinked_at|local_datetime }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="4" class="empty">Nikt nie został wypisany.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}
+{% block panel_eyebrow %}<a href="{% url 'web:coordinator-delegations' %}">Delegacje</a>{% endblock %}
+{% block panel_title %}Delegacja: {{ delegation.country.name }}{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Edycja {{ delegation.edition.year_label }}. Uczniowie: {{ student_count }} z {{ delegation.max_students }}.
+    {% if not delegation.is_open %}Delegacja jest zamknięta – opiekunowie nie zmienią listy uczniów.{% endif %}</p>
+{% endblock %}
+{% block panel_content %}
+
+<section class="section">
+  <div class="card">
+    <h2 class="mt-0">Ustawienia delegacji</h2>
+    <form method="post" class="form" novalidate>
+      {% csrf_token %}
+      {{ form.as_p }}
+      <div class="actions">
+        <button type="submit" class="btn btn--primary">Zapisz</button>
+      </div>
+    </form>
+  </div>
+</section>
+
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">Opiekunowie</h2>
+  </div>
+  <div class="scroll">
+    <table class="table">
+      <caption class="visually-hidden">Opiekunowie delegacji</caption>
+      <thead>
+        <tr>
+          <th scope="col">Imię i nazwisko</th>
+          <th scope="col">E-mail</th>
+          <th scope="col">Przyjął zaproszenie</th>
+          <th scope="col"><span class="visually-hidden">Operacje</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for leader in leaders %}
+          <tr>
+            <th scope="row">{{ leader.user.get_full_name|default:"—" }}</th>
+            <td>{{ leader.user.email }}</td>
+            <td>{{ leader.accepted_at|local_datetime }}</td>
+            <td>
+              <form method="post" action="{% url 'web:coordinator-delegation-leader-remove' leader.pk %}" class="inline">
+                {% csrf_token %}
+                <button type="submit" class="btn btn--secondary btn--small">Odwołaj z delegacji</button>
+              </form>
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="4" class="empty">Nikt jeszcze nie przyjął zaproszenia.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">Zaproszenia nieprzyjęte</h2>
+  </div>
+  <div class="scroll">
+    <table class="table">
+      <caption class="visually-hidden">Zaproszenia opiekunów</caption>
+      <thead>
+        <tr>
+          <th scope="col">E-mail</th>
+          <th scope="col">Stan</th>
+          <th scope="col">Wysłano</th>
+          <th scope="col">Ważne do</th>
+          <th scope="col"><span class="visually-hidden">Operacje</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for invitation in invitations %}
+          <tr>
+            <th scope="row">{{ invitation.email }}</th>
+            <td>{{ invitation.status_label }}</td>
+            <td>{{ invitation.sent_at|local_datetime }}</td>
+            <td>{{ invitation.expires_at|local_datetime }}</td>
+            <td class="actions">
+              {% if not invitation.revoked_at %}
+                <form method="post" action="{% url 'web:coordinator-delegation-invitation-resend' invitation.pk %}" class="inline">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn--secondary btn--small">Wyślij ponownie</button>
+                </form>
+                <form method="post" action="{% url 'web:coordinator-delegation-invitation-revoke' invitation.pk %}" class="inline">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn--ghost btn--small">Cofnij</button>
+                </form>
+              {% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="5" class="empty">Brak zaproszeń czekających na przyjęcie.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">Uczniowie</h2>
+  </div>
+  <div class="scroll">
+    <table class="table">
+      <caption class="visually-hidden">Uczniowie delegacji</caption>
+      <thead>
+        <tr>
+          <th scope="col">Imię i nazwisko</th>
+          <th scope="col">E-mail</th>
+          <th scope="col">Kod publiczny</th>
+          <th scope="col">Szkoła</th>
+          <th scope="col">Konto</th>
+          <th scope="col">Zgłosił</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+          <tr>
+            <th scope="row">{{ row.participant.user.get_full_name }}</th>
+            <td>{{ row.participant.user.email }}</td>
+            <td>{{ row.participant.public_code }}</td>
+            <td>{{ row.participant.school }}</td>
+            <td>{% if row.active %}<span class="badge badge--ok">aktywne</span>{% else %}<span class="badge badge--warn">zaproszone</span>{% endif %}</td>
+            <td>{{ row.participant.registered_by.email|default:"—" }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="6" class="empty">Opiekunowie nie zgłosili jeszcze żadnego ucznia.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

@@ -1,4 +1,4 @@
-# Konfiguracja LiveKit Egress – nagrania webinarów (zadanie WEB-01, docs/OPERACJE.md § 28.4).
+# Konfiguracja LiveKit Egress – nagrania webinarów (zadanie WEB-01, docs/OPERACJE.md § 36.4).
 # Skopiuj do /opt/olimpiada/livekit/egress.yaml i podmień <…>. Zawiera sekrety – chmod 600.
 api_key: <LIVEKIT_API_KEY>
 api_secret: <LIVEKIT_API_SECRET>
@@ -15,12 +15,12 @@ s3:
   secret: <EGRESS_S3_SECRET_KEY>
   region: us-east-1
   # Publiczny adres S3 platformy (`S3_PUBLIC_ENDPOINT_URL`, np. https://<domena>:9000) – w obu
-  # wariantach: egress nie stoi w sieci `internal` (docs/OPERACJE.md § 28.2).
+  # wariantach: egress nie stoi w sieci `internal` (docs/OPERACJE.md § 36.2).
   endpoint: <S3_PUBLIC_ENDPOINT_URL>
   bucket: submissions
   # MinIO adresuje buckety ścieżką (`http://minio:9000/submissions/…`), nie poddomeną. Pole jest
   # w konfiguracji S3 egressu (ForcePathStyle) – README v1.14.1 go nie wymienia, więc przy pierwszym
-  # nagraniu sprawdź w logu egressu, że plik trafił do bucketu (docs/OPERACJE.md § 28.2, krok 10).
+  # nagraniu sprawdź w logu egressu, że plik trafił do bucketu (docs/OPERACJE.md § 36.2, krok 10).
   force_path_style: true
 
 # Nadzór zdalny (PROC-01, docs/OPERACJE.md § 29): nagrania kamer uczniów to Track Egress – zapis

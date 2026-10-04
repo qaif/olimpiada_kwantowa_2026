@@ -68,6 +68,8 @@ RESERVED_SLUGS = frozenset(
         # Wzorce ``_util/…`` z ``wagtail.urls`` (logowanie do stron z ograniczonym dostępem) stoją
         # przed catch-allem Wagtaila, więc i one są adresem aplikacji.
         "_util",
+        # ``/_theme/overrides.css`` – akcent marki konkursu nad motywem (``apps.themes``, THEME-01).
+        "_theme",
         "account",
         # ``/accounts/<dostawca>/login/…`` – logowanie przez Google/Facebooka (``apps.web.social_urls``).
         "accounts",
@@ -78,6 +80,8 @@ RESERVED_SLUGS = frozenset(
         "captcha",
         "cms",
         "coordinator",
+        # Panel opiekuna drużyny narodowej i przyjęcie jego zaproszenia (DEL-01).
+        "delegation",
         # Adresy aplikacyjne serwisu na django CMS (admin, podgląd, SSO, statyki – DJ-02 § 1.2 D2).
         # W ``web`` nie ma wzorca pod tym segmentem, ale Caddy kieruje ``/djcms/*`` do djcms
         # w każdym bloku aplikacji, więc strona Wagtaila o tym slugu byłaby martwa tak samo.

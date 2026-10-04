@@ -126,7 +126,7 @@ if [ "$PRIMARY_ON" = "1" ] && [ "$DJCMS_ON" != "1" ]; then
   exit 1
 fi
 
-# `LIVEKIT_PROXY` (zadanie WEB-01, docs/OPERACJE.md § 28.2) – sygnalizacja LiveKit na tym samym
+# `LIVEKIT_PROXY` (zadanie WEB-01, docs/OPERACJE.md § 36.2) – sygnalizacja LiveKit na tym samym
 # hoście (wariant (b)): blok `live.{$SITE_DOMAIN}` → `livekit:7880`. Ten sam odczyt i ta sama walidacja,
 # co przełączniki wyżej. Wyłączony (domyślnie) = wynik bajt w bajt jak dotąd – i żadnego wniosku
 # o certyfikat dla `live.` na instalacji bez LiveKit (bez rekordu DNS byłby błędem i zużyciem limitu).
@@ -582,7 +582,7 @@ if [ "$LIVEKIT_ON" = "1" ]; then
   cat >> "$tmp" <<'EOF'
 
 # Wygenerowane przez scripts/render_caddyfile.sh przy LIVEKIT_PROXY=1 – nie edytuj tego pliku.
-# Sygnalizacja LiveKit (WebSocket i /rtc/validate) dla pokoi webinarów (docs/OPERACJE.md § 28.2).
+# Sygnalizacja LiveKit (WebSocket i /rtc/validate) dla pokoi webinarów (docs/OPERACJE.md § 36.2).
 # Media nie idą przez Caddy: UDP 50000–50100 i TCP 7881 prosto do kontenera `livekit`.
 live.{$SITE_DOMAIN} {
 EOF

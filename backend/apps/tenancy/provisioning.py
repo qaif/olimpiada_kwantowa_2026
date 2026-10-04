@@ -60,7 +60,7 @@ from django.db import transaction
 from django.utils import timezone
 from wagtail.models import Page, Site
 
-from apps.tenancy.models import Competition, RoutingMode
+from apps.tenancy.models import Competition, RegistrationMode, RoutingMode
 from apps.tenancy.resolution import is_platform_subdomain
 from apps.tenancy.templates_catalog import TEMPLATES
 
@@ -105,6 +105,14 @@ DEFAULT_SITE_PORT = 80
 REGIONS_VOIVODESHIPS = "voivodeships"
 REGIONS_COUNTRIES = "countries"
 REGIONS_CHOICES: tuple[str, ...] = (REGIONS_VOIVODESHIPS, REGIONS_COUNTRIES)
+
+#: Tryb rejestracji uczestników nowego konkursu (``create_competition --registration``, DEL-01).
+#: ``open`` jest wartością domyślną **każdej** drogi zakładania (komenda, ekran „Nowy konkurs”,
+#: kreator ``/setup/``) i nie wynika z szablonu: katalog szablonów nie ma tego pola, więc żaden
+#: szablon nie przełączy nowego konkursu na delegacje po cichu. Delegacje są decyzją podaną wprost.
+REGISTRATION_OPEN = "open"
+REGISTRATION_DELEGATIONS = "delegations"
+REGISTRATION_CHOICES: tuple[str, ...] = (REGISTRATION_OPEN, REGISTRATION_DELEGATIONS)
 
 #: Pola ``cms.SiteSettings`` z wartościami domyślnymi Olimpiady Kwantowej, które nowy konkurs musi
 #: dostać **puste**. To nie jest kosmetyka: domyślny ``facebook_url`` wskazuje profil Olimpiady
@@ -249,6 +257,7 @@ def create_competition_from_template(
     dry_run: bool = False,
     run_safe_seeds: bool = False,
     regions: str = REGIONS_VOIVODESHIPS,
+    registration: str = REGISTRATION_OPEN,
 ) -> ProvisioningResult:
     """Zakłada konkurs w komplecie: witrynę, drzewo stron, ustawienia, edycję, etapy i zestawy.
 
@@ -266,6 +275,11 @@ def create_competition_from_template(
     kraje przez ``apps.accounts.regions.switch_to_countries`` (docs/tasks/REG-01.md § 1.4), czyli
     dokładnie to, co później zrobiłaby komenda ``regions_countries``.
 
+    ``registration`` wybiera tryb rejestracji uczestników: :data:`REGISTRATION_OPEN` (domyślnie –
+    uczestnik zakłada konto sam, jak w każdym konkursie dotąd) albo :data:`REGISTRATION_DELEGATIONS`
+    (uczniów zgłaszają opiekunowie drużyn narodowych, DEL-01). Delegacje wymagają podziału na kraje –
+    delegacja jest zawsze delegacją kraju.
+
     ``run_safe_seeds`` jest domyślnie **wyłączone** i to jest wartość dla żądania HTTP — patrz
     docstring modułu. Seedy chodzą **poza** transakcją (są globalne i idempotentne), więc przy
     ``dry_run`` nie chodzą nigdy: ich wierszy nie ma czego wycofywać.
@@ -277,6 +291,12 @@ def create_competition_from_template(
         raise ProvisioningError(f"Nie ma szablonu o nazwie „{template}”.")
     if regions not in REGIONS_CHOICES:
         raise ProvisioningError(f"Nieznany podział na regiony: „{regions}”.")
+    if registration not in REGISTRATION_CHOICES:
+        raise ProvisioningError(f"Nieznany tryb rejestracji: „{registration}”.")
+    if registration == REGISTRATION_DELEGATIONS and regions != REGIONS_COUNTRIES:
+        raise ProvisioningError(
+            "Rejestracja przez delegacje krajowe wymaga podziału na kraje (--regions countries)."
+        )
     template_name = template
     template_spec = TEMPLATES[template_name]
 
@@ -326,6 +346,12 @@ def create_competition_from_template(
             seeded["regions"] = seeded["regions"] + switch.added
             seeded["regions_active"] = competition.regions.filter(is_active=True).count()
         seeded["regions_mode"] = regions
+        if registration == REGISTRATION_DELEGATIONS:
+            # Tryb delegacji ustawiamy **po** krajach: ``Competition.clean()`` wymaga aktywnych krajów
+            # (delegacja jest zawsze delegacją kraju), a tych przed ``switch_to_countries`` jeszcze nie ma.
+            competition.registration_mode = RegistrationMode.DELEGATIONS
+            competition.full_clean()
+            competition.save(update_fields=["registration_mode"])
         seeded["pipeline"] = len(_seed_pipeline(edition))
         platform, opened_platform = _open_platform_for_prefix(competition)
         if dry_run:
@@ -446,6 +472,9 @@ def _create(
         # publiczny jest identyfikatorem w tabelach wyników **jednego** konkursu (etap 1 § 3.3).
         public_code_prefix=public_code_prefix,
         certificate_prefix=certificate_prefix,
+        # Tryb rejestracji jest **jawny** i nie pochodzi z szablonu (DEL-01): każdy konkurs zaczyna
+        # od ``OPEN``; delegacje ustawia ``create_competition_from_template`` po założeniu krajów.
+        registration_mode=RegistrationMode.OPEN,
     )
     try:
         # ``full_clean`` zamiast samego ``save``: reguły spójności adresowania (domena zgodna

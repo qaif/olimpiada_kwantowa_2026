@@ -108,17 +108,23 @@ IDENTITY_FIELDS = ("email", "username")
 #: ``webinar_join`` (WEB-01) – token wejścia na webinar i czynności prowadzącego, z tego samego powodu.
 #: ``webinar_control`` – polecenia prowadzącego (osobny, wyższy kubełek).
 #:
-#: ``proctoring_token`` / ``proctoring_action`` / ``proctoring_client`` (PROC-01) – tokeny nadzoru,
-#: czynności nadzorujących i kroki konsoli ucznia: cała szkoła pisze etap za jednym NAT-em.
+#: ``delegation`` (DEL-01) – opiekun drużyny i koordynator są zalogowani, a koszt (listy na wpisane
+#: adresy) przypada na konto: dwie delegacje z jednej szkoły za jednym NAT-em nie dzielą budżetu.
+#:
+#: ``proctoring_token`` / ``proctoring_coordinator_token`` / ``proctoring_action`` /
+#: ``proctoring_client`` (PROC-01) – tokeny nadzoru, czynności nadzorujących i kroki konsoli ucznia:
+#: cała szkoła pisze etap za jednym NAT-em.
 PER_USER_SCOPES = frozenset(
     {
         "chat",
         "forum",
         "video",
         "video_rooms",
+        "delegation",
         "webinar_join",
         "webinar_control",
         "proctoring_token",
+        "proctoring_coordinator_token",
         "proctoring_action",
         "proctoring_client",
     }

@@ -139,6 +139,12 @@ EXPECTED_SUBJECTS = {
     # Prośba o zgodę ucznia na opiekuna szkolnego z importu listy (v0.38.7,
     # ``apps.accounts.supervisor_consent``).
     "supervisor_consent": "Prośba o zgodę na opiekuna szkolnego – Olimpiada Kwantowa",
+    # Delegacje krajowe (DEL-01, ``apps.accounts.delegation_services``): zaproszenie opiekuna drużyny
+    # narodowej i list do ucznia, którego zgłosił. Olimpiada Kwantowa tych listów nie wysyła (tryb
+    # ``OPEN``), ale brzmienie jest zamrożone tak samo, jak każdego innego tematu.
+    "delegation_leader_invitation": "Zaproszenie dla opiekuna drużyny narodowej – Olimpiada Kwantowa",
+    "delegation_student_invitation": "Zgłoszenie do drużyny narodowej – Olimpiada Kwantowa",
+    "delegation_student_unlinked": "Wypisanie z drużyny narodowej – Olimpiada Kwantowa",
 }
 
 #: Znaczniki podstawień w tematach składanych w serwisie. Porównujemy **wzorzec**, a nie wynik:
@@ -240,6 +246,9 @@ SUBJECT_CONSTANTS = {
     "apps.accounts.activation.EMAIL_CHANGED_NOTICE_SUBJECT": "email_changed_notice",
     "apps.accounts.activation.EMAIL_CHANGED_NOTICE_SUBJECT_TEMPLATE": "email_changed_notice",
     "apps.accounts.bulk_registration.INVITE_SUBJECT_TEMPLATE": "student_invitation",
+    "apps.accounts.delegation_services.LEADER_INVITE_SUBJECT_TEMPLATE": "delegation_leader_invitation",
+    "apps.accounts.delegation_services.STUDENT_INVITE_SUBJECT_TEMPLATE": "delegation_student_invitation",
+    "apps.accounts.delegation_services.UNLINKED_SUBJECT_TEMPLATE": "delegation_student_unlinked",
     "apps.accounts.guardian.GUARDIAN_SUBJECT": "guardian",
     "apps.accounts.guardian.GUARDIAN_SUBJECT_TEMPLATE": "guardian",
     "apps.accounts.guardian.GUARDIAN_CONFIRMED_SUBJECT": "guardian_confirmed",

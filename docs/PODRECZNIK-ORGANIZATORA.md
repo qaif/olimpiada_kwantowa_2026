@@ -1073,6 +1073,7 @@ decyzja człowieka, a nie wynik obliczenia.
 | **Zgłoszenia** (support desk) | `/coordinator/support/` | kolejka spraw od ludzi, z wątkiem i odpowiedzią |
 | **Forum uczestników** | `/coordinator/forum/` | rozmowa uczestników między sobą, moderowana przez Ciebie |
 | **Pokoje wideo** | `/coordinator/video-rooms/` | pokoje na Jitsi olimpiady poza terminami rozmów: zebrania komisji, konsultacje, goście bez konta (§ 6.4b) |
+| **Webinary** | `/coordinator/webinars/` | spotkania z terminem w pokoju na platformie (LiveKit), z nagraniami i listą obecności (§ 10i) |
 | **FAQ** | `/faq/` (redakcja w `/cms/`) | odpowiedzi, które mają wyprzedzić zgłoszenia |
 | **Strona statusu** | `/status/` | „nie mogę wysłać pracy — to u was, czy u mnie?” |
 
@@ -1441,48 +1442,6 @@ pokoi; jego **linki-zaproszenia działają dalej**, dopóki nie zamkniesz jego p
 Co zostaje w dzienniku zdarzeń (bez linków, przepustek i nazw gości): założenie pokoju, pokazanie
 linków, wymiana linku, zamknięcie, każde wejście (rola: koordynator, komisja, autor, link gospodarza,
 link gościa), nadanie i odebranie uprawnienia.
-
-### 6.4c Webinary — `/coordinator/webinars/`
-
-Menu **Komunikacja → Webinary** (gdy operator włączył webinary w konkursie). Webinar to spotkanie
-z terminem w **pokoju na platformie**: obraz, dźwięk, udostępnianie ekranu, czat i podniesiona ręka
-działają w przeglądarce, bez instalowania czegokolwiek. Jeśli ekran mówi „Serwer LiveKit nie jest
-skonfigurowany”, poproś operatora o uruchomienie serwera (`docs/OPERACJE.md` § 28).
-
-**Nowy webinar.** Tytuł, opis (stoi w zaproszeniu), początek (strefa konkursu), czas trwania, **odbiorcy**:
-wszyscy uczestnicy konkursu, uczestnicy bieżącej edycji, uczestnicy wybranego etapu (bez
-zdyskwalifikowanych), komisja (recenzenci i komisja odwoławcza), kapitanowie drużyn (gdy konkurs ma
-drużyny); opcjonalnie „także komisja”. **Współprowadzący** – inni koordynatorzy albo członkowie komisji
-(np. wykładowca) – wchodzą jako prowadzący. **Nagrywanie** (czy wolno nagrywać), **przypomnienie
-e-mailem** (raz, około godziny przed startem), **link dla gości bez konta** (domyślnie wyłączony).
-
-**Przebieg.** Odbiorcy widzą webinar na stronie „Webinary” (pasek panelu `/me/`, karta w panelu
-komisji). „**Rozpocznij i wejdź do pokoju**” otwiera pokój; odbiorcy wchodzą od 15 minut przed
-początkiem, ale dopiero gdy webinar jest rozpoczęty. **Widzowie nie nadają obrazu ani dźwięku** –
-podnoszą rękę, a Ty na liście uczestników klikasz „**Daj głos**” (i „Odbierz głos” po pytaniu).
-„Usuń z pokoju” wyprasza osobę i nie wpuszcza jej z powrotem, dopóki na liście obecności nie klikniesz
-„Wpuść ponownie” (gościa z nową sesją zatrzyma dopiero „Wygeneruj nowy link”). „**Zakończ webinar**”
-zamyka pokój dla wszystkich.
-
-**Nagrania.** „Nagrywaj” (w pokoju albo na ekranie webinaru) – plik MP4 pojawia się kilka minut po
-zatrzymaniu („gotowe”). Odbiorcy widzą nagranie dopiero po „**Opublikuj**”; „Wycofaj” je chowa,
-„Usuń” (z zaznaczonym potwierdzeniem) kasuje plik na zawsze. Nagranie, które wisi w stanie „nagrywa”, sprawdzisz przyciskiem
-„Sprawdź / oznacz jako nieudane”. Uczestnicy widzą przed wejściem informację, że webinar może być
-nagrywany, a w trakcie nagrania – czerwony znacznik. Nagrania i lista obecności są kasowane
-automatycznie po roku od webinaru (ustawienie operatora).
-
-**Transmisja na YouTube.** Na ekranie trwającego webinaru wklej klucz transmisji z YouTube Studio (albo
-pełny adres `rtmp(s)://…`) i „Włącz transmisję”. Klucza nie zapisujemy – przy kolejnej transmisji wpisz
-go ponownie.
-
-**Zaproszenie e-mailem** – jednorazowo, do wszystkich odbiorców, którzy nie wyłączyli listów o
-webinarach. List nie zawiera żadnego „magicznego linku” – prowadzi na stronę webinarów po zalogowaniu.
-
-**Lista obecności** – kto wszedł, kiedy pierwszy raz i ile minut był w pokoju (z danych serwera
-wideo); posłuży też do zaświadczeń o udziale.
-
-W dzienniku zdarzeń: założenie, zmiany, rozpoczęcie, zakończenie, odwołanie, wejścia (rola), danie
-i odebranie głosu, nagrania, transmisja, zaproszenie – bez tokenów, kluczy i nazw gości.
 
 ### 6.5 FAQ
 
@@ -1950,6 +1909,39 @@ prośbę z importu listy — to oni decydują, kto widzi ich postęp, nie organi
 
 ---
 
+## 10b. Delegacje krajowe — `/coordinator/delegations/`
+
+**Tylko w konkursie z trybem rejestracji „przez delegacje krajowe”** (olimpiada międzynarodowa `iqo`;
+`OPERACJE.md` § 28). W każdym innym konkursie — także w Olimpiadzie Kwantowej — tego ekranu nie ma,
+a uczestnicy rejestrują się sami jak dotąd.
+
+**Jak to działa.** Uczniów nie rejestruje uczeń, tylko **opiekun drużyny narodowej** (team leader).
+Zapraszasz opiekuna adresem e-mail i krajem; opiekun zakłada konto z zaproszenia i zgłasza uczniów
+swojego kraju; każdy uczeń dostaje list z linkiem, ustawia hasło i **sam** składa zgody. Kraj może mieć
+kilku opiekunów — prowadzą jedną drużynę, z jednym limitem, i widzą tych samych uczniów.
+
+**Lista delegacji.** Kraj, liczba opiekunów, zaproszenia oczekujące, uczniowie / limit, stan. Formularz
+„Zaproś opiekuna” zakłada delegację kraju przy pierwszym zaproszeniu. Ponowne zaproszenie tego samego
+adresu wysyła nowy link (stary przestaje działać). „Eksport CSV” – opiekunowie i uczniowie wszystkich
+krajów, jeden wiersz na osobę (zdarzenie w audycie).
+
+**Ekran delegacji.** Limit uczniów (nie niższy niż liczba zgłoszonych), stan „otwarta/zamknięta”
+(zamknięta zamraża listę: opiekun nie dodaje, nie poprawia i nie usuwa uczniów), notatka koordynatora
+(opiekun jej nie widzi). Opiekunowie (przycisk „Odwołaj z delegacji” – konto zostaje, uczniowie zostają
+w drużynie), zaproszenia nieprzyjęte („Wyślij ponownie”, „Cofnij”), uczniowie ze stanem konta
+(zaproszone / aktywne) i informacją, który opiekun ich zgłosił.
+
+**Co może opiekun.** Dodać ucznia (imię, nazwisko, e-mail, data urodzenia, szkoła, klasa, opcjonalnie
+e-mail rodzica), poprawić dane **przed** aktywacją konta ucznia, wypisać ucznia **przed startem
+pierwszego etapu** edycji, wysłać link ponownie. Wypisanie ucznia, który **uruchomił już konto**, nie
+usuwa konta: uczeń trafia do sekcji „Wypisani przez opiekuna – czekają na decyzję” na ekranie delegacji
+(i do kolumny „Wypisani” na liście), dostaje o tym wiadomość, a o dalszym losie konta decydujesz Ty. Nie widzi prac, ocen ani uczniów innych krajów.
+Okno rejestracji edycji (`/coordinator/registration/`) obowiązuje także opiekunów – pulpit pokazuje,
+czy jest teraz otwarte.
+
+**Czego opiekun nie może.** Zgłosić adresu, który ma już konto w serwisie (uczeń z istniejącym kontem
+trafia do drużyny przez organizatora), złożyć zgód za ucznia ani potwierdzić zgody rodzica — tę uczeń
+niepełnoletni zbiera sam po uruchomieniu konta (zgoda opiekuna online).
 ## 10c. Nadzór zdalny etapów online — `/coordinator/proctoring/`
 
 **Tylko w konkursie z przełącznikiem `proctoring`** (włącza operator) i na serwerze LiveKit (ten sam, co
@@ -2056,6 +2048,77 @@ eksport danych uczestnika (art. 15/20) niesie sekcję `zaswiadczenia_statusu_ucz
 retencja i usunięcie konta — § 9.1.
 
 ---
+
+## 10b. Motyw serwisu — `/coordinator/competition/theme/`
+
+**Tylko w konkursie z włączonym przełącznikiem `themes`** (włącza operator — `OPERACJE.md` § 30). Bez
+niego ekranu nie ma, a serwis wygląda jak zawsze (motyw „Klasyczny”).
+
+**Co zmienia motyw.** Kolory, kroje, zaokrąglenia, nagłówek, planszę strony głównej i stopkę stron
+publicznych. Panele (uczestnika, recenzenta, Twój) biorą z motywu **kolory i kroje**, ale układ
+i formularze zostają takie same — funkcje paneli od motywu nie zależą. Tryb wysokiego kontrastu
+wybrany przez uczestnika zawsze wygrywa z motywem.
+
+**Ekran.** Menu → *Ustawienia* → **Motyw serwisu**. Każda karta galerii to jedna wersja motywu
+z katalogu platformy (zrzut ekranu, autor, schemat kolorów). Na karcie:
+
+- **warianty układu** (np. nagłówek „minimal” albo „split”) — tylko te, które motyw przewiduje,
+- **„Akcent w kolorze marki konkursu”** — kolor z „Ustawień konkursu” zastępuje akcent motywu
+  (przyciski, wyróżnienia); obwódka zaznaczenia klawiaturą zostaje kolorem motywu, bo musi być
+  widoczna na jego tle,
+- **„Podgląd”** — otwiera stronę główną w tym motywie i z tymi opcjami **tylko dla Ciebie** (pasek
+  „Podgląd motywu” na górze; inni odwiedzający i Twoje kolejne strony widzą motyw dotychczasowy).
+  Podgląd niczego nie zapisuje i wygasa po dobie,
+- **„Aktywuj”** — od tej chwili dla wszystkich. Zmiana zostaje w audycie (`theme.activated`).
+
+**Cofnięcie** to aktywacja poprzedniej wersji albo karty **„Klasyczny”** — wersje motywów nie znikają
+po wgraniu nowszej.
+
+**Nowy motyw albo poprawka motywu** to paczka ZIP wgrywana przez operatora platformy
+(superkoordynatora) w **„Katalogu motywów platformy”** — nie w tym ekranie. Paczka przechodzi
+kontrolę bezpieczeństwa i antywirusową; odrzucona zostaje w katalogu z raportem błędów.
+
+## 10i. Webinary — `/coordinator/webinars/`
+
+Menu **Komunikacja → Webinary** (gdy operator włączył webinary w konkursie). Webinar to spotkanie
+z terminem w **pokoju na platformie**: obraz, dźwięk, udostępnianie ekranu, czat i podniesiona ręka
+działają w przeglądarce, bez instalowania czegokolwiek. Jeśli ekran mówi „Serwer LiveKit nie jest
+skonfigurowany”, poproś operatora o uruchomienie serwera (`docs/OPERACJE.md` § 36).
+
+**Nowy webinar.** Tytuł, opis (stoi w zaproszeniu), początek (strefa konkursu), czas trwania, **odbiorcy**:
+wszyscy uczestnicy konkursu, uczestnicy bieżącej edycji, uczestnicy wybranego etapu (bez
+zdyskwalifikowanych), komisja (recenzenci i komisja odwoławcza), kapitanowie drużyn (gdy konkurs ma
+drużyny); opcjonalnie „także komisja”. **Współprowadzący** – inni koordynatorzy albo członkowie komisji
+(np. wykładowca) – wchodzą jako prowadzący. **Nagrywanie** (czy wolno nagrywać), **przypomnienie
+e-mailem** (raz, około godziny przed startem), **link dla gości bez konta** (domyślnie wyłączony).
+
+**Przebieg.** Odbiorcy widzą webinar na stronie „Webinary” (pasek panelu `/me/`, karta w panelu
+komisji). „**Rozpocznij i wejdź do pokoju**” otwiera pokój; odbiorcy wchodzą od 15 minut przed
+początkiem, ale dopiero gdy webinar jest rozpoczęty. **Widzowie nie nadają obrazu ani dźwięku** –
+podnoszą rękę, a Ty na liście uczestników klikasz „**Daj głos**” (i „Odbierz głos” po pytaniu).
+„Usuń z pokoju” wyprasza osobę i nie wpuszcza jej z powrotem, dopóki na liście obecności nie klikniesz
+„Wpuść ponownie” (gościa z nową sesją zatrzyma dopiero „Wygeneruj nowy link”). „**Zakończ webinar**”
+zamyka pokój dla wszystkich.
+
+**Nagrania.** „Nagrywaj” (w pokoju albo na ekranie webinaru) – plik MP4 pojawia się kilka minut po
+zatrzymaniu („gotowe”). Odbiorcy widzą nagranie dopiero po „**Opublikuj**”; „Wycofaj” je chowa,
+„Usuń” (z zaznaczonym potwierdzeniem) kasuje plik na zawsze. Nagranie, które wisi w stanie „nagrywa”, sprawdzisz przyciskiem
+„Sprawdź / oznacz jako nieudane”. Uczestnicy widzą przed wejściem informację, że webinar może być
+nagrywany, a w trakcie nagrania – czerwony znacznik. Nagrania i lista obecności są kasowane
+automatycznie po roku od webinaru (ustawienie operatora).
+
+**Transmisja na YouTube.** Na ekranie trwającego webinaru wklej klucz transmisji z YouTube Studio (albo
+pełny adres `rtmp(s)://…`) i „Włącz transmisję”. Klucza nie zapisujemy – przy kolejnej transmisji wpisz
+go ponownie.
+
+**Zaproszenie e-mailem** – jednorazowo, do wszystkich odbiorców, którzy nie wyłączyli listów o
+webinarach. List nie zawiera żadnego „magicznego linku” – prowadzi na stronę webinarów po zalogowaniu.
+
+**Lista obecności** – kto wszedł, kiedy pierwszy raz i ile minut był w pokoju (z danych serwera
+wideo); posłuży też do zaświadczeń o udziale.
+
+W dzienniku zdarzeń: założenie, zmiany, rozpoczęcie, zakończenie, odwołanie, wejścia (rola), danie
+i odebranie głosu, nagrania, transmisja, zaproszenie – bez tokenów, kluczy i nazw gości.
 
 ## 11. Kalendarz prowadzenia edycji — ściągawka
 

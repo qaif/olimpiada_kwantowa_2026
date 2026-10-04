@@ -23,7 +23,7 @@ from __future__ import annotations
 import re
 
 from django.core.exceptions import ValidationError
-from django.core.validators import validate_email
+from django.core.validators import MaxValueValidator, MinValueValidator, validate_email
 from django.db import models
 from django.utils import timezone
 
@@ -112,6 +112,33 @@ class RoutingMode(models.TextChoices):
 
     DOMAIN = "DOMAIN", "własna domena"
     PATH = "PATH", "prefiks ścieżki na domenie platformy"
+
+
+class RegistrationMode(models.TextChoices):
+    """Kto zakłada konta uczestników konkursu (docs/tasks/DEL-01.md § 1).
+
+    ``OPEN`` – uczestnik sam (formularz, API, Google/Facebook, import nauczyciela); tak działa każdy
+    konkurs do DEL-01 i tak zostaje Olimpiada Kwantowa. ``DELEGATIONS`` – olimpiada międzynarodowa:
+    uczniów zgłasza **opiekun drużyny narodowej** zaproszony przez koordynatora, a publiczna
+    samorejestracja jest zamknięta na każdej drodze naraz (``current_registration_status``).
+
+    Pole wyboru, a nie flaga w ``feature_flags``: to nie jest zdolność włączana „na próbę”, tylko
+    odpowiedź na pytanie „skąd biorą się uczestnicy” – i ta odpowiedź ma dwie wartości, z których
+    żadna nie jest brakiem drugiej. Trzecia (np. „przez szkoły”) dopisze się tu, a nie jako kolejny
+    przełącznik, który musiałby wykluczać się z poprzednim.
+    """
+
+    OPEN = "OPEN", "otwarta – uczestnik zakłada konto sam"
+    DELEGATIONS = "DELEGATIONS", "przez delegacje krajowe – uczniów zgłasza opiekun drużyny"
+
+
+#: Domyślny limit uczniów w delegacji. Sześć, bo tyle liczą drużyny narodowe w olimpiadach
+#: międzynarodowych (IPhO, IOI: cztery–sześć osób) – koordynator i tak może go zmienić per konkurs
+#: i per delegacja.
+DEFAULT_DELEGATION_SIZE = 6
+
+#: Górna granica limitu delegacji – sito na literówki („60” zamiast „6”), a nie reguła regulaminu.
+MAX_DELEGATION_SIZE = 100
 
 
 #: Katalog przełączników i ich wartości domyślne. Każdy z nich ma domyślnie stan **dzisiejszy**:
@@ -251,8 +278,15 @@ FEATURE_DEFAULTS: dict[str, bool] = {
     # platformie. Wyłączona znaczy, że adresów ``/coordinator/webinars/…``, ``/webinars/…`` i
     # ``/zaproszenie/webinar/…`` **nie ma** (404), a menu i panele wyglądają jak dziś. Domyślnie
     # wyłączona, bo włączenie wymaga serwera LiveKit (``LIVEKIT_URL``, klucz i sekret API – krok
-    # operatora, ``docs/OPERACJE.md`` § 28) i decyzji organizatora o nagrywaniu.
+    # operatora, ``docs/OPERACJE.md`` § 36) i decyzji organizatora o nagrywaniu.
     "webinars": False,
+    # --- motywy wizualne (THEME-01) ----------------------------------------------------------------
+    # Ekran „Motyw serwisu” w panelu koordynatora (``/coordinator/competition/theme/``) i jego
+    # pozycja w menu. Wyłączona znaczy, że adresu **nie ma** (404), a menu wygląda co do bajtu jak
+    # dziś. Sam motyw działa niezależnie od flagi: konkurs z ``theme_version`` (np. ustawionym
+    # komendą ``theme_install --activate``) renderuje się w motywie także przy fladze wyłączonej –
+    # flaga decyduje wyłącznie o tym, czy koordynator może motyw zmieniać sam.
+    "themes": False,
     # --- nadzór zdalny (LiveKit) ---------------------------------------------------------------------
     # Zadanie PROC-01 (``apps.proctoring``): koordynator włącza nadzór etapu online, uczniowie nadają
     # kamerę do pokoju nadzoru. Wyłączona – adresów ``/proctoring/…``, ``/me/proctoring/…`` nie ma,
@@ -347,6 +381,22 @@ class Competition(models.Model):
         verbose_name="obraz do udostępniania",
     )
 
+    #: Motyw wizualny (THEME-01). ``null`` = wbudowany ``classic``, czyli wygląd aplikacji bez
+    #: żadnego arkusza motywu – szablony sprawdzają ``theme_version_id``, więc konkurs bez motywu
+    #: nie płaci za tę kolumnę ani zapytaniem. ``PROTECT``: wersji używanej przez konkurs nie da się
+    #: usunąć z katalogu (cofnięcie motywu = wybór poprzedniej wersji, a ta musi istnieć).
+    theme_version = models.ForeignKey(
+        "themes.ThemeVersion",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name="motyw (wersja)",
+    )
+    #: Opcje motywu wybrane przez koordynatora: ``{"layouts": {"header": "minimal", …},
+    #: "brand_accent": bool}`` – przycinane do wariantów, które wersja deklaruje w manifeście.
+    theme_options = models.JSONField("opcje motywu", default=dict, blank=True)
+
     # --- organizator (podmiot prawny) ---------------------------------------------------------
     organizer_name = models.CharField("organizator", max_length=200)
     organizer_address = models.CharField("adres", max_length=200, blank=True)
@@ -439,6 +489,30 @@ class Competition(models.Model):
     time_zone = models.CharField("strefa czasowa", max_length=64, default="Europe/Warsaw")
     feature_flags = models.JSONField("przełączniki", default=dict, blank=True)
 
+    # --- rejestracja uczestników (DEL-01) -------------------------------------------------------
+    #: Domyślnie ``OPEN`` – stan każdego konkursu sprzed DEL-01, więc migracja nikomu niczego nie
+    #: zmienia. Czytać przez :attr:`uses_delegations`: jedno miejsce na regułę „który tryb”.
+    registration_mode = models.CharField(
+        "tryb rejestracji uczestników",
+        max_length=16,
+        choices=RegistrationMode.choices,
+        default=RegistrationMode.OPEN,
+        help_text=(
+            "<strong>Uwaga:</strong> „przez delegacje krajowe” zamyka samodzielną rejestrację "
+            "uczestników (formularz, API, Google/Facebook, import nauczyciela i rejestrację "
+            "opiekunów szkolnych). Uczniów zgłaszają wtedy wyłącznie opiekunowie drużyn "
+            "zaproszeni w panelu „Delegacje”. Konta, które już istnieją, działają dalej."
+        ),
+    )
+    #: Limit uczniów **nowej** delegacji; zmiana nie przestawia limitów delegacji już założonych –
+    #: tam koordynator mógł go świadomie podnieść albo obniżyć i to jest decyzja o konkretnym kraju.
+    delegation_max_students = models.PositiveSmallIntegerField(
+        "domyślny limit uczniów delegacji",
+        default=DEFAULT_DELEGATION_SIZE,
+        validators=[MinValueValidator(1), MaxValueValidator(MAX_DELEGATION_SIZE)],
+        help_text="Obowiązuje delegacje zakładane od teraz; limit istniejącej zmienia się przy niej.",
+    )
+
     class Meta:
         verbose_name = "konkurs"
         verbose_name_plural = "konkursy"
@@ -485,6 +559,17 @@ class Competition(models.Model):
         return bool(value)
 
     @property
+    def uses_delegations(self) -> bool:
+        """Czy uczestników zgłaszają opiekunowie drużyn narodowych (DEL-01) – **jedyny** odczyt trybu.
+
+        Wołają to bramka rejestracji (``apps.competitions.models.current_registration_status``),
+        import listy klasowej, rejestracja opiekuna szkolnego, ekrany delegacji i menu panelu.
+        Odczyt jest polem już wczytanego wiersza, więc Olimpiada Kwantowa nie płaci za tę funkcję
+        ani jednym zapytaniem.
+        """
+        return self.registration_mode == RegistrationMode.DELEGATIONS
+
+    @property
     def ui_languages(self) -> tuple[str, ...]:
         """Języki interfejsu konkursu – w kolejności ``settings.LANGUAGES``, zawsze z domyślnym.
 
@@ -519,6 +604,7 @@ class Competition(models.Model):
             self.primary_domain = self.site.hostname
 
         errors.update(self._language_errors())
+        errors.update(self._registration_mode_errors())
 
         if self.routing_mode == RoutingMode.PATH and not self.path_prefix:
             errors["path_prefix"] = "Tryb prefiksu ścieżki wymaga podania prefiksu."
@@ -545,6 +631,29 @@ class Competition(models.Model):
 
         if errors:
             raise ValidationError(errors)
+
+    def _registration_mode_errors(self) -> dict[str, str]:
+        """Tryb delegacji wymaga podziału na kraje z co najmniej jednym aktywnym krajem (DEL-01).
+
+        Delegacja jest zawsze delegacją **kraju** (``Region`` na poziomie ``COUNTRY``). Konkurs
+        przestawiony na delegacje bez krajów miałby zamkniętą samodzielną rejestrację i ekran
+        „Delegacje”, w którym nie da się nikogo zaprosić – czyli żadnej drogi wejścia dla uczestników.
+        Reguła stoi w modelu, bo przestawia się go z trzech miejsc (ekran ustawień, ``/admin/``,
+        ``create_competition``) i każde ma dostać tę samą odmowę.
+        """
+        if self.registration_mode != RegistrationMode.DELEGATIONS:
+            return {}
+        message = (
+            "Rejestracja przez delegacje wymaga podziału na kraje z aktywnymi krajami – "
+            "najpierw manage.py regions_countries --competition <slug>."
+        )
+        if not self.pk or not self.has_feature("custom_regions"):
+            return {"registration_mode": message}
+        from apps.accounts.models import Region, RegionLevel
+
+        if not Region.objects.filter(competition=self, is_active=True, level=RegionLevel.COUNTRY).exists():
+            return {"registration_mode": message}
+        return {}
 
     def _language_errors(self) -> dict[str, str]:
         """Reguły zbioru języków (I18N-01 § 1): znane kody, bez powtórzeń, domyślny w zbiorze.

@@ -1,4 +1,4 @@
-# Konfiguracja serwera LiveKit (zadanie WEB-01, docs/OPERACJE.md § 28). Skopiuj do
+# Konfiguracja serwera LiveKit (zadanie WEB-01, docs/OPERACJE.md § 36). Skopiuj do
 # /opt/olimpiada/livekit/livekit.yaml (wariant (b)) albo na dedykowaną maszynę (wariant (a))
 # i podmień wartości w <…>. Plik zawiera sekret – poza repozytorium, chmod 600.
 # Klucze sprawdzone z config-sample.yaml serwera (v1.13.7). Serwer słucha na wszystkich adresach
@@ -42,7 +42,7 @@ room:
   max_participants: 300
 
 # TURN (wariant (a) przy uczestnikach za restrykcyjnymi zaporami): włącz z certyfikatem domeny
-# `turn.<domena>` i portem 443/TLS – opis w docs/OPERACJE.md § 28.3. Na wariancie (b) zostaje
+# `turn.<domena>` i portem 443/TLS – opis w docs/OPERACJE.md § 36.3. Na wariancie (b) zostaje
 # wyłączony (port 443 zajmuje Caddy).
 turn:
   enabled: false
