@@ -119,3 +119,8 @@ def test_with_dsn_events_leave_without_personal_data():
     assert frames[-1]["function"] == "save_person"
     assert all("vars" not in frame for frame in frames)
     assert "user" not in first
+    # M1: zamknięta lista integracji – bez samowłączających się (ocena AI zapisywałaby prace
+    # uczestników) i bez ``argv``/``modules``.
+    integrations = set(first["sdk"]["integrations"])
+    assert {"django", "celery", "redis", "logging"} <= integrations
+    assert not integrations & {"anthropic", "openai", "google_genai", "argv", "modules", "boto3", "httpx"}

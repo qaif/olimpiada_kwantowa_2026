@@ -15,7 +15,7 @@ const { webcrypto } = require("node:crypto");
 const SOURCE = fs.readFileSync(
   path.join(__dirname, "..", "apps", "monitoring", "static", "monitoring", "errors.js"), "utf8");
 
-function load(attrs) {
+function load(attrs, pathname) {
   const listeners = {};
   const sent = [];
   const script = { getAttribute: (name) => (attrs[name] === undefined ? null : attrs[name]) };
@@ -27,7 +27,7 @@ function load(attrs) {
   const context = {
     window,
     document: { currentScript: script },
-    location: { origin: "https://iqo-official.org", pathname: "/delegation/" },
+    location: { origin: "https://iqo-official.org", pathname: pathname || "/delegation/" },
     Date, JSON, String, Array, Uint8Array, parseInt, Promise, Error
   };
   vm.runInNewContext(SOURCE, context);
@@ -88,4 +88,26 @@ test("odrzucona obietnica i błąd ładowania zasobu", () => {
   listeners.unhandledrejection({ reason: "nie działa" });
   assert.equal(sent.length, 1);
   assert.equal(event(sent[0]).exception.values[0].type, "UnhandledRejection");
+});
+
+test("tokeny w ścieżce: reset hasła i zgoda – adres strony i adresy w komunikacie", () => {
+  const { listeners, sent } = load(ATTRS, "/reset/MQ/c3k2-a1b2c3d4e5f6a7b8/");
+  listeners.error({ message: "fetch https://iqo-official.org/zgoda/AbCdEf123456XyZ/?x=1 i /reset/MQ/tok/ padł" });
+  const ev = event(sent[0]);
+  assert.equal(ev.request.url, "https://iqo-official.org/reset/[Filtered]/[Filtered]/");
+  const body = sent[0].options.body;
+  for (const secret of ["c3k2-a1b2c3d4e5f6a7b8", "AbCdEf123456XyZ", "x=1"]) {
+    assert.ok(!body.includes(secret), secret);
+  }
+  assert.ok(ev.exception.values[0].value.includes("https://iqo-official.org/zgoda/[Filtered]/"));
+  assert.ok(ev.exception.values[0].value.includes(" /reset/[Filtered]/[Filtered]/ "));
+});
+
+test("spreparowany komunikat nie blokuje strony (wyrażenia ograniczone)", () => {
+  const { listeners, sent } = load(ATTRS);
+  const started = process.hrtime.bigint();
+  listeners.error({ message: "a-".repeat(4000) + "a@".repeat(4000) + "1.".repeat(4000) });
+  const ms = Number(process.hrtime.bigint() - started) / 1e6;
+  assert.equal(sent.length, 1);
+  assert.ok(ms < 50, `${ms} ms`);
 });

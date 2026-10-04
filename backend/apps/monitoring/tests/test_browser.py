@@ -17,11 +17,15 @@ def test_parse_dsn():
     assert parse_dsn(DSN) == BrowserConfig(
         origin=ORIGIN, endpoint=f"{ORIGIN}/api/3/envelope/?sentry_key=pub123&sentry_version=7"
     )
-    assert parse_dsn("http://k@glitchtip:8000/sub/12").endpoint == (
-        "http://glitchtip:8000/sub/api/12/envelope/?sentry_key=k&sentry_version=7"
+    assert parse_dsn("https://k@errors.example.org:8443/sub/12").endpoint == (
+        "https://errors.example.org:8443/sub/api/12/envelope/?sentry_key=k&sentry_version=7"
     )
     for bad in (
         "",
+        # DSN wewnętrzny serwera i ``http`` – przeglądarka uczestnika ich nie dostaje (L4).
+        "http://k@glitchtip:8000/12",
+        "https://k@glitchtip:8000/12",
+        "http://k@errors.example.org/3",
         "errors.example.org/3",
         "https://errors.example.org/3",
         "https://k@errors.example.org/x",

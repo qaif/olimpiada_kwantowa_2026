@@ -1,9 +1,10 @@
 """Wiersz rejestru czynności przetwarzania (art. 30 RODO) – monitorowanie błędów aplikacji (OPS-02 § 6).
 
-Czynność **warunkowa**: wchodzi do rejestru wyłącznie wtedy, gdy klient błędów działa (niepusty
-``SENTRY_DSN``) – ta sama zasada, co forum i logistyka finału w ``apps.accounts.processing_register``:
-rejestr opisuje przetwarzanie, które naprawdę zachodzi. Warunek jest instalacyjny, a nie per konkurs:
-klient obejmuje cały proces ``web``/``worker``, więc wiersz dostaje rejestr każdego konkursu.
+Czynność **warunkowa**: wchodzi do rejestru wyłącznie wtedy, gdy zdarzenia są wysyłane (niepusty
+``SENTRY_DSN`` albo włączone błędy przeglądarek z poprawnym DSN) – ta sama zasada, co forum
+i logistyka finału w ``apps.accounts.processing_register``: rejestr opisuje przetwarzanie, które
+naprawdę zachodzi. Warunek jest instalacyjny, a nie per konkurs: klient obejmuje cały proces
+``web``/``worker``, więc wiersz dostaje rejestr każdego konkursu.
 
 Odbiorca jest **wewnętrzny**: GlitchTip stoi na serwerze organizatora (profil ``monitoring``
 docker-compose), więc nie ma tu nowego podmiotu ani przekazania do państwa trzeciego – jest ten sam
@@ -20,12 +21,16 @@ RETENTION_DAYS = 30
 
 
 def activity():
-    """``ProcessingActivity`` monitorowania błędów albo ``None``, gdy klient jest wyłączony."""
-    if not (getattr(settings, "SENTRY_DSN", "") or "").strip():
+    """``ProcessingActivity`` monitorowania błędów albo ``None``, gdy nic nie wysyła zdarzeń."""
+    from .browser import browser_config
+
+    # Przeglądarki mogą wysyłać błędy także przy pustym DSN serwera (``SENTRY_BROWSER_DSN``) – wiersz
+    # musi wtedy stać tak samo, bo przetwarzanie zachodzi.
+    browser = browser_config() is not None
+    if not (getattr(settings, "SENTRY_DSN", "") or "").strip() and not browser:
         return None
     from apps.accounts.processing_register import HOSTING_RECIPIENT, _activity
 
-    browser = bool(getattr(settings, "SENTRY_BROWSER", False))
     categories = [
         "dane techniczne błędu: typ i komunikat wyjątku, ślad stosu (pliki i wiersze kodu, bez wartości "
         "zmiennych), wydanie aplikacji, nazwa kontenera, czas zdarzenia",
@@ -52,7 +57,9 @@ def activity():
         ),
         subjects=(
             "osoby korzystające z serwisu, w których żądaniu wystąpił błąd (w tym uczestnicy "
-            "niepełnoletni) – w praktyce bez danych pozwalających je zidentyfikować"
+            "niepełnoletni); znane identyfikatory są usuwane przed wysyłką, ale komunikat błędu może "
+            "wyjątkowo zawierać fragment danych osoby, którego filtr nie rozpoznał (pseudonimizacja, "
+            "a nie anonimizacja)"
         ),
         categories=categories,
         recipients=[
@@ -63,10 +70,14 @@ def activity():
         ],
         retention=f"{RETENTION_DAYS} dni od zdarzenia, potem automatyczne usunięcie przez GlitchTip",
         measures=[
-            "nie są wysyłane: adres IP, ciasteczka, treść żądań i formularzy, parametry zapytania, "
-            "identyfikator konta, zmienne lokalne programu (filtr po stronie aplikacji przed wysyłką)",
+            "filtr po stronie aplikacji, przed wysyłką: bez treści żądań i formularzy, ciasteczek, "
+            "parametrów zapytania, identyfikatora konta i zmiennych lokalnych programu; ścieżka adresu "
+            "zastąpiona wzorcem trasy (tokeny i kody z adresów nie są wysyłane), adresy IP, e-mail, "
+            "PESEL, telefon i wartości z błędów bazy danych zastępowane znacznikiem [Filtered]",
             "pola o nazwach wskazujących na dane osobowe lub szczególne (paszport, zdrowie, dieta, PESEL, "
             "data urodzenia, telefon, e-mail, pliki) zastępowane znacznikiem [Filtered]",
-            "panel GlitchTip wyłącznie przez HTTPS, z kontem administratora; rejestracja wyłączona",
+            "panel GlitchTip wyłącznie przez HTTPS, konta zakładane przez administratora (samorejestracja "
+            "wyłączona po założeniu pierwszego konta), zalecane logowanie dwuskładnikowe; limit zdarzeń "
+            "na klucz projektu",
         ],
     )

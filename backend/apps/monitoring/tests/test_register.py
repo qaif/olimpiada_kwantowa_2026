@@ -46,6 +46,17 @@ def test_browser_errors_add_their_own_category(settings):
     assert any("JavaScript" in c for c in activity().categories)
 
 
+def test_browser_only_errors_still_get_the_row(settings):
+    """M5: pusty DSN serwera, ale przeglądarki wysyłają (``SENTRY_BROWSER_DSN``) – wiersz jest."""
+    settings.SENTRY_DSN = ""
+    settings.SENTRY_BROWSER = True
+    settings.SENTRY_BROWSER_DSN = "https://k@errors.example.org/2"
+
+    assert activity() is not None
+    settings.SENTRY_BROWSER = False
+    assert activity() is None
+
+
 def test_retention_matches_the_glitchtip_setting_in_compose():
     compose = REPO / "docker-compose.yml"
     if not compose.exists():

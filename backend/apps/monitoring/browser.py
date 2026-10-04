@@ -27,15 +27,17 @@ class BrowserConfig:
 def parse_dsn(dsn: str) -> BrowserConfig | None:
     """``https://<klucz>@errors.example.org/<projekt>`` → origin i adres koperty Sentry.
 
-    Zły DSN (bez klucza, bez numeru projektu, inny schemat) = ``None``, czyli funkcja wyłączona –
-    a nie znacznik z adresem, który przeglądarka i tak odrzuci.
+    Zły DSN (bez klucza, bez numeru projektu, nie-``https``, host bez kropki) = ``None``, czyli
+    funkcja wyłączona – a nie znacznik z adresem, który przeglądarka i tak odrzuci.
     """
     try:
         parts = urlsplit((dsn or "").strip())
         port = parts.port
     except ValueError:
         return None
-    if parts.scheme not in ("http", "https") or not parts.username or not parts.hostname:
+    # Wyłącznie ``https`` i nazwa z kropką: przeglądarka uczestnika nie dosięgnie ``glitchtip:8000``
+    # (DSN wewnętrzny serwera), a ``http`` z naszej strony HTTPS to mieszana treść i klucz jawnym tekstem.
+    if parts.scheme != "https" or not parts.username or not parts.hostname or "." not in parts.hostname:
         return None
     prefix, _, project = parts.path.rstrip("/").rpartition("/")
     if not project.isdigit():

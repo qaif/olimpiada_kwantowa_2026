@@ -38,9 +38,15 @@ def init_sentry(
     if not dsn:
         return False
     import sentry_sdk
+    from sentry_sdk.integrations.atexit import AtexitIntegration
     from sentry_sdk.integrations.celery import CeleryIntegration
+    from sentry_sdk.integrations.dedupe import DedupeIntegration
     from sentry_sdk.integrations.django import DjangoIntegration
+    from sentry_sdk.integrations.excepthook import ExcepthookIntegration
+    from sentry_sdk.integrations.logging import LoggingIntegration
     from sentry_sdk.integrations.redis import RedisIntegration
+    from sentry_sdk.integrations.stdlib import StdlibIntegration
+    from sentry_sdk.integrations.threading import ThreadingIntegration
 
     options = dict(
         dsn=dsn,
@@ -48,10 +54,25 @@ def init_sentry(
         environment=environment or None,
         sample_rate=sample_rate,
         traces_sample_rate=traces_sample_rate,
+        # Lista integracji **zamknięta**: bez domyślnych i bez „samowłączających się”. Te drugie
+        # włączyłyby się same dla każdej biblioteki w obrazie – w tym ``anthropic``, ``openai``
+        # i ``google-genai`` (ocena AI), których integracje zapisują treść zapytań, czyli prace
+        # uczestników. Z domyślnych świadomie pomijamy ``ArgvIntegration`` (linia poleceń procesu
+        # w ``extra`` – ``manage.py … --email …``) i ``ModulesIntegration`` (lista pakietów).
+        default_integrations=False,
+        auto_enabling_integrations=False,
         integrations=[
+            LoggingIntegration(),
+            StdlibIntegration(),
+            ExcepthookIntegration(),
+            DedupeIntegration(),
+            AtexitIntegration(),
+            ThreadingIntegration(),
             # ``middleware_spans`` i ``signals_spans`` mają sens wyłącznie przy próbkowaniu
             # transakcji; ``cache_spans`` – to samo. Domyślne wartości biblioteki zostają.
-            DjangoIntegration(),
+            # ``transaction_style="url"`` (domyślne, tu jawnie): nazwą transakcji jest **wzorzec
+            # trasy** (``/reset/{uidb64}/{token}/``) – filtr podstawia go za ścieżkę adresu żądania.
+            DjangoIntegration(transaction_style="url"),
             # ``propagate_traces=False``: nagłówek śledzenia nie jedzie w wiadomości zadania
             # (Redis jest brokerem, a my nie potrzebujemy łączenia śladów żądanie → zadanie).
             CeleryIntegration(propagate_traces=False),

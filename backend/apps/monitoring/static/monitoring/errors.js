@@ -6,7 +6,8 @@
  * bez tej funkcji nie ma tego pliku ani originu GlitchTipa w CSP.
  *
  * Prywatność – to samo, co filtr serwera (apps/monitoring/scrubbing.py):
- * - adres strony bez zapytania i fragmentu (tokeny resetu hasła, przepustki, kody listów),
+ * - adres strony bez zapytania i fragmentu, z zamaskowanymi segmentami-tokenami (reset hasła,
+ *   zgoda, zaproszenie, kody listów – maskPath, to samo co serwer),
  * - komunikat i ślad stosu przez `scrub()` – e-mail, PESEL, telefon, tokeny, JWT,
  * - żadnych ciasteczek, nagłówków, identyfikatora konta, treści formularzy, User-Agenta,
  * - najwyżej MAX_EVENTS zdarzeń na stronę, duplikaty pomijane – pętla błędów nie zaleje serwera.
@@ -27,26 +28,57 @@
   var seen = {};
 
   var FILTERED = "[Filtered]";
+  // Wyrażenia bez spojrzeń wstecz (starsze Safari ich nie znają – błąd składni wyłączyłby cały plik);
+  // koszt ogranicza przycięcie napisu do 1000 znaków i ograniczone powtórzenia.
   var PATTERNS = [
-    /\beyJ[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]+/g,
-    /[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}/g,
+    /\beyJ[A-Za-z0-9_\-]{1,2048}\.[A-Za-z0-9_\-]{1,2048}\.[A-Za-z0-9_\-]{0,2048}/g,
+    /[A-Za-z0-9._%+\-]{1,64}@[A-Za-z0-9\-]{1,63}(?:\.[A-Za-z0-9\-]{1,63}){1,8}/g,
     /(^|[^\d])\d{11}(?!\d)/g,
-    /(^|[^\w.:+\-])(\+\d[\d \-]{6,16}\d|\d{3}[ \-]?\d{3}[ \-]?\d{3})(?![\w.:\-])/g
+    /(^|[^\w.:+\-])(\+\d[\d \-]{6,16}\d|\d{3}[ \-]?\d{3}[ \-]?\d{3})(?![\w.:\-])/g,
+    /(^|[^\d.])(?:\d{1,3}\.){3}\d{1,3}(?![\d.])/g
   ];
+  // To samo, co apps/monitoring/scrubbing.py (mask_path): segmenty-tokeny i wszystko po słowach
+  // z adresów jednorazowych (reset/<uid>/<token>/, zgoda/<token>/, visa/verify/<kod>/ …).
+  var KEYWORDS = ["reset", "zgoda", "zgody", "consent", "zaproszenie", "zaproszenia", "invite",
+    "invitation", "accept", "activate", "aktywacja", "unsubscribe", "wypisz", "verify", "weryfikacja",
+    "dyplomy", "diplomas", "certificate", "new", "token", "confirm", "potwierdz", "bypass", "sso",
+    "magic", "share"];
+
+  function tokenLike(segment) {
+    var stem = /\.html$/i.test(segment) ? segment.slice(0, -5) : segment;
+    return /^[A-Za-z0-9_\-=%~:]{12,}$/.test(stem) && /[0-9A-Z_=%]/.test(stem);
+  }
+
+  function maskPath(path) {
+    var after = false;
+    return String(path || "").split("/").map(function (segment) {
+      if (!segment || segment === FILTERED) return segment;
+      var out = (after || tokenLike(segment)) ? FILTERED : segment;
+      if (KEYWORDS.indexOf(segment.toLowerCase()) !== -1) after = true;
+      return out;
+    }).join("/");
+  }
 
   function stripQuery(url) {
-    return String(url || "").replace(/[?#].*$/, "");
+    var bare = String(url || "").replace(/[?#].*$/, "");
+    var m = bare.match(/^(https?:\/\/[^\/]+)(\/.*)?$/);
+    return m ? m[1] + maskPath(m[2] || "") : maskPath(bare);
   }
 
   function scrub(text) {
     var value = String(text || "").slice(0, 1000);
-    value = value.replace(/(https?:\/\/[^\s?#]+)[?#][^\s]*/g, "$1");
+    value = value.replace(/(https?:\/\/[^\s\/?#"'<>]{1,253})(\/[^\s?#"'<>]{0,1000})?([?#][^\s"'<>]{0,1000})?/g,
+      function (_, host, path) { return host + maskPath(path || ""); });
+    // Sama ścieżka w tekście („GET /reset/MQ/abc/”, „next=/zgoda/…”) – bez zapytania, zamaskowana.
+    value = value.replace(/(^|[\s'"(=])(\/[A-Za-z0-9_\-.%~=:\/]{1,1000})(\?[^\s"'<>]{0,1000})?/g,
+      function (_, before, path) { return before + maskPath(path); });
     value = value.replace(
-      /([\w\-]*(?:token|key|code|secret|signature|password|sig|jwt|auth|session|csrf)[\w\-]*)(\s*[=:]\s*)([^&\s"',;)]+)/gi,
+      /([\w\-]{0,40}?(?:token|key|code|secret|signature|password|sig|jwt|auth|session|csrf)[\w\-]{0,40})(\s{0,3}[=:]\s{0,3})([^&\s"',;)]{1,512})/gi,
       "$1$2" + FILTERED
     );
     value = value.replace(PATTERNS[0], FILTERED).replace(PATTERNS[1], FILTERED);
     value = value.replace(PATTERNS[2], "$1" + FILTERED).replace(PATTERNS[3], "$1" + FILTERED);
+    value = value.replace(PATTERNS[4], "$1" + FILTERED);
     return value;
   }
 
@@ -91,7 +123,7 @@
       "logger": "javascript",
       "release": release,
       "environment": environment,
-      "request": { "url": location.origin + location.pathname },
+      "request": { "url": location.origin + maskPath(location.pathname) },
       "tags": competition ? { "competition": competition } : {},
       "exception": {
         "values": [{

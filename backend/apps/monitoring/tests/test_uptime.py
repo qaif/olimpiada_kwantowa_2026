@@ -197,6 +197,31 @@ def test_run_once_sends_one_mail_and_keeps_it_pending_when_smtp_fails():
     assert "[AWARIA] http https://example.org/: HTTP 502" in sent[0].get_content()
 
 
+def test_the_module_parses_on_python_3_10():
+    """M3: kopia poza serwerem bywa na 3.10 – bez składni PEP 758 (``except A, B:``) i nowszych."""
+    ast.parse(Path(uptime.__file__).read_text(encoding="utf-8"), feature_version=(3, 10))
+
+
+def test_planned_maintenance_suppresses_http_alerts_but_not_tls(tmp_path):
+    """L5: plik ``on`` (scripts/maintenance.sh on) – porażki HTTP bez listu; certyfikat dalej."""
+    flag = tmp_path / "on"
+    flag.write_text("")
+    cfg = Config(
+        targets=(), recipients=("a@x.org",), fail_threshold=1, maintenance_file=str(flag), site="x.org"
+    )
+    sent = []
+    results = {SITE: Result(False, "HTTP 503"), TLS: Result(False, "certyfikat wygasa za 3.0 dni")}
+
+    state = uptime.run_once(cfg, {}, now=0, checker=lambda c: results, sender=lambda m, c: sent.append(m))
+
+    assert len(sent) == 1
+    assert "[CERTYFIKAT]" in sent[0].get_content() and "[AWARIA]" not in sent[0].get_content()
+    assert SITE not in state["targets"] or state["targets"][SITE]["down"] is False
+    flag.unlink()
+    uptime.run_once(cfg, state, now=60, checker=lambda c: results, sender=lambda m, c: sent.append(m))
+    assert "[AWARIA]" in sent[-1].get_content()
+
+
 def test_state_survives_a_restart(tmp_path):
     path = str(tmp_path / "state.json")
     state, _ = _run({}, {SITE: Result(False, "x")}, 0)

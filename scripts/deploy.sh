@@ -1154,4 +1154,36 @@ REMOTE
   } | "${SSH[@]}" bash -s
 fi
 
+log "Monitoring błędów i dostępności (OPS-02, docs/OPERACJE.md § 44)"
+# Tylko ostrzeżenia – nic tu nie zatrzymuje wdrożenia. Profil `monitoring` jest opcjonalny, więc bez
+# działających kontenerów GlitchTipa/uptime ten krok niczego nie robi.
+# 1. ERRORS_PROXY=1, a GlitchTip nie ma ani jednego konta: pierwszy, kto wejdzie na errors.<domena>,
+#    założy sobie konto (GlitchTip wyłącza samorejestrację dopiero po pierwszym użytkowniku).
+# 2. `uptime` chodzi na obrazie aplikacji – krok 4b go nie dotyka, więc tu wstaje na nowym obrazie.
+"${SSH[@]}" "cd '$REMOTE_DIR' && bash -s" <<'REMOTE' || true
+errors_proxy="$(sed -n 's/^ERRORS_PROXY=//p' .env 2>/dev/null | tail -n 1 | tr -d '\r\042\047' | tr '[:upper:]' '[:lower:]')"
+gt_running="$(docker compose --profile monitoring ps -q --status running glitchtip 2>/dev/null)"
+case "$errors_proxy" in
+  1|true|yes|on)
+    if [ -z "$gt_running" ]; then
+      echo "UWAGA: ERRORS_PROXY=1, a kontener glitchtip nie działa – errors.<domena> odpowiada 502."
+    else
+      users="$(docker compose --profile monitoring exec -T glitchtip ./manage.py shell -c \
+        'from django.contrib.auth import get_user_model as U; print(U().objects.count())' </dev/null 2>/dev/null | tail -n 1 | tr -dc '0-9')"
+      if [ "${users:-0}" = "0" ]; then
+        echo "UWAGA: GlitchTip pod errors.<domena> NIE MA żadnego konta – samorejestracja jest otwarta!"
+        echo "       Natychmiast: docker compose --profile monitoring exec glitchtip ./manage.py createsuperuser"
+        echo "       albo ERRORS_PROXY=0 i bash scripts/proxy_config.sh update (docs/OPERACJE.md § 44.2)."
+      else
+        echo "GlitchTip: kont $users, errors.<domena> włączone."
+      fi
+    fi
+    ;;
+  *) [ -n "$gt_running" ] && echo "GlitchTip działa bez adresu publicznego (ERRORS_PROXY=0)." ;;
+esac
+if [ -n "$(docker compose --profile monitoring ps -q uptime 2>/dev/null)" ]; then
+  docker compose --profile monitoring up -d uptime && echo "uptime: odtworzony na obrazie tego wdrożenia."
+fi
+REMOTE
+
 log "Gotowe: https://${SITE_DOMAIN:-<domena z .env>}/  (panel: /coordinator/, CMS: /cms/, admin: /admin/)"

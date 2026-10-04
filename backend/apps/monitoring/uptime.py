@@ -42,6 +42,11 @@ from datetime import datetime, timezone  # noqa: UP017 – kopia poza serwerem b
 from email.message import EmailMessage
 from urllib.parse import urlsplit
 
+#: Krotka wyjątków jako stała, a nie ``except (A, B):`` w miejscu: ruff z ``target-version = py314``
+#: przepisuje nawiasy na składnię PEP 758 (``except A, B:``), której Python < 3.14 nie sparsuje, a ten
+#: plik ma działać na innej maszynie z Pythonem 3.10 (test ``ast.parse(feature_version=(3, 10))``).
+_STATE_READ_ERRORS = (OSError, ValueError)
+
 USER_AGENT = "olimpiada-uptime/1 (+docs/OPERACJE.md 44)"
 TRUE_VALUES = {"1", "true", "yes", "on"}
 
@@ -81,6 +86,7 @@ class Config:
     tls_remind: int = 86400
     max_mails_per_hour: int = 6
     state_file: str = ""
+    maintenance_file: str = ""
 
 
 def _truthy(value: str | None) -> bool:
@@ -157,6 +163,7 @@ def config_from_env(env: dict | None = None) -> Config:
         tls_warn_days=_int(env, "UPTIME_TLS_WARN_DAYS", 14),
         max_mails_per_hour=max(1, _int(env, "UPTIME_MAX_MAILS_PER_HOUR", 6)),
         state_file=env.get("UPTIME_STATE_FILE") or "",
+        maintenance_file=env.get("UPTIME_MAINTENANCE_FILE") or "",
     )
 
 
@@ -199,7 +206,7 @@ def check_http(target: Target, timeout: float) -> Result:
     if target.expect == "json-ok":
         try:
             payload = json.loads(body.decode("utf-8"))
-        except UnicodeDecodeError, ValueError:
+        except ValueError:  # także UnicodeDecodeError (podklasa)
             return Result(False, "odpowiedź nie jest JSON-em")
         if not isinstance(payload, dict) or payload.get("status") != "ok":
             state = payload.get("status") if isinstance(payload, dict) else None
@@ -419,7 +426,7 @@ def load_state(path: str) -> dict:
         with open(path, encoding="utf-8") as fh:
             data = json.load(fh)
         return data if isinstance(data, dict) else {}
-    except OSError, ValueError:
+    except _STATE_READ_ERRORS:
         return {}
 
 
@@ -448,6 +455,16 @@ def run_once(
 ) -> dict:
     now = time.time() if now is None else now
     results = checker(cfg)
+    if cfg.maintenance_file and os.path.exists(cfg.maintenance_file):
+        # Przerwa **planowa** (``scripts/maintenance.sh on`` – plik ``on``): porażki HTTP nie zmieniają
+        # stanu ani nie dają listu. Przerwa nieplanowana (``web`` nie odpowiada) pliku nie zakłada,
+        # więc alarmuje jak dotąd. Certyfikaty sprawdzamy dalej.
+        results = {
+            key: Result(None, f"przerwa planowa – {result.detail}")
+            if key.startswith("http ") and result.ok is False
+            else result
+            for key, result in results.items()
+        }
     for key, result in results.items():
         mark = {True: "ok  ", False: "FAIL", None: "?   "}[result.ok]
         print(f"uptime: {mark} {key} – {result.detail}", flush=True)
