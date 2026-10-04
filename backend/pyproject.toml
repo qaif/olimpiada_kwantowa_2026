@@ -111,6 +111,16 @@ dependencies = [
     # (``CERT_SIGN_P12_PATH``): bez niego moduł oddaje plik bez zmian, a import biblioteki
     # w ogóle nie następuje – jest leniwy, wewnątrz funkcji podpisującej.
     "pyhanko>=0.21,<1",
+    # Kształtowanie pisma na dyplomach w języku ucznia (MED-01, ``apps.medals.typesetting``):
+    # łączenie liter arabskich i ligatury dewanagari/bengalskie. ReportLab używa go sam
+    # (``reportlab.pdfbase.ttfonts.shapeStr``), gdy pakiet jest zainstalowany. Koło abi3 – bez
+    # kompilacji. Bez niego te trzy pisma są niedostępne i dokument wychodzi po angielsku (jawny
+    # odwrót przy wystawieniu, błąd przy pobraniu – ``docs/OPERACJE.md`` § 37.2), a Olimpiada
+    # Kwantowa go nie dotyka. Wąski przedział, bo ``apps.medals.typesetting`` opiera się na
+    # wewnętrznych elementach ReportLaba (``ttfonts.uharfbuzz``, ``shapeStr``, ``ShapedStr.__shapeData__``),
+    # a te współpracują z konkretnym API ``uharfbuzz``; sprawdzone na 0.56.2. Kontrakt pilnuje
+    # ``apps/medals/tests/test_typesetting.py::test_reportlab_shaping_internals_are_still_there``.
+    "uharfbuzz>=0.56,<0.57",
     # Ocena AI (``apps.ai_grading``) – oficjalne SDK Anthropic. W zwykłych zależnościach, bo sugestie
     # liczy worker produkcyjny; funkcja jest jednak domyślnie wyłączona (flaga ``ai_grading``),
     # a import biblioteki jest leniwy – wewnątrz ``apps.ai_grading.client`` – więc konkurs bez

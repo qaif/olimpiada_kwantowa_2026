@@ -86,6 +86,13 @@ class DocumentKind(models.TextChoices):
     #: liście z tego samego powodu, co zaświadczenie o statusie: prawnik organizatora poprawia
     #: zdanie listu tym samym ekranem i z tym samym wersjonowaniem, co zdanie na dyplomie.
     VISA_INVITATION = "VISA_INVITATION", "list zapraszający (wiza)"
+    #: Nagrody olimpiady międzynarodowej (MED-01, ``apps.medals``) – kopie rodzajów
+    #: ``results.CertificateKind``. Tekst organizatora obowiązuje w języku domyślnym konkursu;
+    #: pozostałe języki dokumentu biorą tłumaczenia wbudowane (szablon tekstu jest jednojęzyczny).
+    MEDAL_GOLD = "MEDAL_GOLD", "dyplom – złoty medal"
+    MEDAL_SILVER = "MEDAL_SILVER", "dyplom – srebrny medal"
+    MEDAL_BRONZE = "MEDAL_BRONZE", "dyplom – brązowy medal"
+    HON_MENTION = "HON_MENTION", "dyplom – wyróżnienie"
 
 
 #: Znaczniki dozwolone w treści szablonu – **lista zamknięta**, sprawdzana przy zapisie.

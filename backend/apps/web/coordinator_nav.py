@@ -632,6 +632,17 @@ def groups(stages: list, competition=None) -> list[Group]:
             match=("coordinator-certificate-templates", "coordinator-certificate-template-"),
         ),
     )
+    if competition is not None and competition.has_feature("medals"):
+        # Medale olimpiady międzynarodowej (MED-01) – w „Raportach” obok dyplomów, bo to z nich
+        # wychodzą dyplomy medalowe. Bramka ta sama, co w widoku (flaga ``medals``): Olimpiada
+        # Kwantowa ma menu co do bajtu takie, jak przed tą zmianą.
+        reports += (
+            Item(
+                "Medale",
+                ("web:coordinator-medals",),
+                match=("coordinator-medals", "coordinator-medal", "coordinator-medal-"),
+            ),
+        )
     if competition is not None and competition.has_feature("document_templates"):
         # Teksty dokumentów (etap 2 § 2.2, T13) – **zaraz za** „Dyplomami: szablony”, bo obie
         # pozycje dotyczą tego samego papieru i różnią się tym, czego dotyczą: tamta wyglądem
@@ -660,6 +671,12 @@ def groups(stages: list, competition=None) -> list[Group]:
                 "Wpisowe",
                 ("web:coordinator-fees",),
                 match=("coordinator-fees", "coordinator-fees-", "coordinator-fee-"),
+            ),
+            # Płatności online (PAY-01): zamówienia, faktury, Stripe/Przelewy24, zwroty – ta sama flaga.
+            Item(
+                "Płatności",
+                ("web:coordinator-payments",),
+                match=("coordinator-payments", "coordinator-payments-"),
             ),
         )
     reports += (

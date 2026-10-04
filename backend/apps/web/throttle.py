@@ -114,6 +114,8 @@ IDENTITY_FIELDS = ("email", "username")
 #: rejestracji są zalogowani; obsługa przy wejściu skanuje z kilku telefonów za jednym Wi-Fi.
 #:
 #: ``translation`` (TR-01) – edytor tłumaczeń zadań: autozapis i czynności zalogowanych opiekunów.
+#: ``checkout`` i ``payments_admin`` (PAY-01) – płacący i koordynator są zalogowani, a koszt (sesje
+#: u operatora płatności, zwroty przez API) przypada na konto.
 PER_USER_SCOPES = frozenset(
     {
         "chat",
@@ -126,6 +128,8 @@ PER_USER_SCOPES = frozenset(
         "translation",
         "onsite_logistics",
         "onsite_checkin",
+        "checkout",
+        "payments_admin",
     }
 )
 

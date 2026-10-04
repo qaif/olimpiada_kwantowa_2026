@@ -16,12 +16,14 @@ numerze”, dostępną dla każdego, komu wpadł w ręce cudzy dokument albo jeg
 
 from __future__ import annotations
 
-from django.http import FileResponse
-from django.shortcuts import get_object_or_404
+from django.contrib import messages
+from django.http import FileResponse, Http404
+from django.shortcuts import get_object_or_404, redirect
 from django.template.response import TemplateResponse
 from django.views.generic import TemplateView, View
 
-from apps.results.certificates import pdf_filename, render_pdf, verify
+from apps.core.api import DomainError
+from apps.results.certificates import certificate_is_current, pdf_filename, render_pdf, verify
 from apps.results.models import Certificate
 from apps.web.mixins import ParticipantRequiredMixin
 
@@ -50,7 +52,13 @@ class ParticipantCertificatesView(ParticipantRequiredMixin, TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["certificates"] = list(_participant_certificates(self.participant))
+        # Dokument nieaktualny (dyplom medalowy po zmianie nagrody, MED-01) znika z listy – uczeń nie ma
+        # pobierać papieru, który przestał być prawdą. Olimpiada Kwantowa: każdy dokument jest aktualny.
+        context["certificates"] = [
+            certificate
+            for certificate in _participant_certificates(self.participant)
+            if certificate_is_current(certificate)
+        ]
         return context
 
 
@@ -59,8 +67,17 @@ class ParticipantCertificateDownloadView(ParticipantRequiredMixin, View):
 
     def get(self, request, pk: int):
         certificate = get_object_or_404(_participant_certificates(self.participant), pk=pk)
+        if not certificate_is_current(certificate):
+            raise Http404("Ten dokument nie jest już aktualny.")
+        try:
+            data = render_pdf(certificate)
+        except DomainError as exc:
+            # Dokument w języku, którego serwer chwilowo nie składa (MED-01) – komunikat zamiast 500
+            # i zamiast cichego dokumentu w innym języku.
+            messages.error(request, str(exc.detail))
+            return redirect("web:participant-certificates")
         return FileResponse(
-            iter([render_pdf(certificate)]),
+            iter([data]),
             content_type="application/pdf",
             as_attachment=True,
             filename=pdf_filename(certificate),

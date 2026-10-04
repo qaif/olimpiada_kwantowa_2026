@@ -204,6 +204,13 @@ def _final_logistics_section(user: User) -> list[dict]:
     return export_section(user)
 
 
+def _payments_section(user: User) -> list[dict]:
+    """Zamówienia wystawione przez to konto i dane nabywcy (PAY-01) – bez danych kart (nie mamy ich)."""
+    from apps.payments.services import export_section
+
+    return export_section(user)
+
+
 def _files_section(submission) -> list[dict]:
     """Metryka plików pracy: skrót SHA-256, rozmiar, typ i wynik skanu antywirusowego.
 
@@ -400,6 +407,7 @@ def export_payload(user: User) -> dict:
         "profil_opiekuna_szkolnego": _supervisor_section(supervisor),
         "delegacje_opiekun_druzyny": _team_leader_section(user),
         "tlumaczenia_zadan": _problem_translations_section(user),
+        "platnosci": _payments_section(user),
         "zgody": _consents_section(participant, supervisor) + _team_leader_consents(user),
         "zgoda_opiekuna": _guardian_section(participant),
         "zgloszenia_do_etapow": _entries_section(participant),
@@ -414,6 +422,7 @@ def export_payload(user: User) -> dict:
         "oceny_ai": _ai_section(participant),
         "logistyka_finalu": _final_logistics_section(user),
         "okna_czasowe": _time_windows_section(participant),
+        "medale": _medals_section(participant),
         "ustawienia_interfejsu": _preferences_section(user),
         "tlumaczenia": _translation_review_section(user),
     }
@@ -434,6 +443,18 @@ def _translation_review_section(user: User) -> dict:
     from apps.translation_review.services import export_section
 
     return export_section(user)
+
+
+def _medals_section(participant) -> list[dict]:
+    """Nagrody olimpiady międzynarodowej (MED-01): ogłoszony medal i ręczna zmiana z uzasadnieniem.
+
+    Sekcja jest w pliku **zawsze** (pusta lista w konkursie bez medali) – kształt pliku ma być ten sam
+    dla każdego konta. Uzasadnienie ręcznej zmiany jest zdaniem o tej osobie, więc należy się jej;
+    autora zmiany nie podajemy – to dane pracownika organizatora (ta sama granica, co przy recenzjach).
+    """
+    from apps.medals.export import participant_medals
+
+    return participant_medals(participant)
 
 
 def _student_status_section(participant) -> list[dict]:

@@ -1,0 +1,4 @@
+{% load i18n %}{% autoescape off %}{% comment %}
+  ``<kod>`` w odwrocie to znacznik testu zamrożonych tematów (``apps/tenancy/tests/test_invariants.py``) –
+  zamówienie zawsze ma kod, więc w liście go nie widać.
+{% endcomment %}{% blocktranslate trimmed with competition=brand.competition|default:_("Olimpiada Kwantowa") reference=order.reference|default:"<kod>" %}Potwierdzenie wpłaty {{ reference }} – {{ competition }}{% endblocktranslate %}{% endautoescape %}

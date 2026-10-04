@@ -14,7 +14,7 @@ from django import forms
 
 from apps.competitions.models import Edition
 from apps.results.certificate_layout import default_certificate_layout
-from apps.results.models import CertificateTemplate
+from apps.results.models import CertificateTemplate, template_kind_choices
 
 #: Ile wierszy importu obecności przyjmujemy z jednego pliku. Warsztaty prowadzi się dla całej
 #: edycji, więc kilka tysięcy par „kod, warsztat” jest realne; sto tysięcy to pomyłka w pliku.
@@ -66,7 +66,9 @@ class CertificateTemplateForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         # Puste znaczy „wszystkie rodzaje” i „wszystkie edycje” – etykieta musi to powiedzieć,
         # bo domyślne „---------” czyta się jak „nie wybrano” i wygląda na błąd formularza.
-        self.fields["kind"].choices = [("", "wszystkie rodzaje")] + list(self.fields["kind"].choices)[1:]
+        # Rodzaje medalowe (MED-01) wyłącznie w konkursie z medalami – lista Olimpiady Kwantowej
+        # zostaje ta sama, co przed nimi.
+        self.fields["kind"].choices = [("", "wszystkie rodzaje"), *template_kind_choices(competition)]
         self.fields["edition"].empty_label = "wszystkie edycje"
         editions = Edition.objects.order_by("-created_at", "-id")
         if competition is not None:

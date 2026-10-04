@@ -4531,3 +4531,187 @@ zostać przeładowana (robi to `deploy.sh`). Odnośnik „Zgłoś tłumaczenie�
 fragmentem: `{% include "web/_translation_report_link.html" with css_class="footer__link" %}`. Olimpiada Kwantowa
 (sam polski) nie widzi żadnej zmiany: brak pozycji w menu, brak odnośnika w stopce, brak wiersza
 w rejestrze czynności.
+
+## 37. Medale olimpiady międzynarodowej, dyplomy w języku ucznia i ranking krajów (MED-01, `docs/tasks/MED-01.md`)
+
+Złoto, srebro, brąz i wyróżnienia liczone z rankingu etapu (domyślnie jak IPhO: 8 % / kolejne 17 % /
+kolejne 25 %), ręczne zmiany z uzasadnieniem, ogłoszenie (zamrożenie), dyplomy medalowe i zaświadczenia
+o udziale **w języku ucznia**, publiczna strona medali i nieoficjalny ranking krajów. Cała funkcja stoi
+za flagą konkursu **`medals`** (domyślnie wyłączona) – Olimpiada Kwantowa nie wymaga niczego i nie widzi
+żadnej zmiany (tytuł laureata, dyplomy i tabela wyników bez zmian).
+
+### 37.1. Włączenie dla `iqo`
+
+1. Wdrożenie (migracje `medals.0001`, `results.0008`, `tenancy.0015_documenttemplate_award_kinds` – nowe tabele i same listy wyboru,
+   bez zmiany danych).
+2. Flaga: `/admin/` → Konkursy → `iqo` → `feature_flags` → dopisz `"medals": true`, albo powłoka:
+   ```sh
+   docker compose exec web python manage.py shell -c "from apps.tenancy.models import Competition; c = Competition.objects.get(slug='iqo'); c.feature_flags = {**(c.feature_flags or {}), 'medals': True}; c.save(update_fields=['feature_flags'])"
+   ```
+3. W panelu `iqo` pojawia się „Raporty → Medale” (`/coordinator/medals/`). Ekran pokazuje też **stan składu
+   dokumentów dla każdego z 11 języków** – wszystkie mają mieć „składany”.
+
+### 37.2. Zależność `uharfbuzz` (kształtowanie pisma)
+
+Arabski, hindi (dewanagari) i bengalski wymagają kształtowania (HarfBuzz) – nowa zależność
+`uharfbuzz>=0.56,<0.57` w `backend/pyproject.toml` (koło abi3, bez kompilacji; wąski przedział, bo skład
+korzysta z wnętrza ReportLaba – kontrakt pilnuje test `test_reportlab_shaping_internals_are_still_there`).
+**Obraz `olimpiada/web` trzeba przebudować** (robi to CI/`deploy.sh`). Bez niej:
+
+- przy **wystawieniu** dokument ucznia z arabskim, hindi albo bengalskim dostaje przypięty angielski, a raport
+  „Wystaw dokumenty” wypisuje numery takich dokumentów (ostrzeżenie dla koordynatora, wpis `WARNING`),
+- przy **pobraniu** dokumentu już przypiętego do jednego z tych języków serwer **odmawia** (wpis `ERROR`
+  „Dokumentu … nie da się złożyć w języku ar”, uczeń widzi komunikat, ZIP koordynatora – błąd z numerem),
+  zamiast po cichu wydać ten sam numer w innym języku. Ekran medali pokazuje wtedy ostrzeżenie z listą
+  języków. Naprawa: przebudowa obrazu z `uharfbuzz`.
+
+Chiński, rosyjski i języki łacińskie kształtowania nie wymagają.
+
+Kroje są w repozytorium (`backend/apps/medals/fonts/`, licencje SIL OFL 1.1 i Apache 2.0, źródła
+w `SOURCES.txt`) i są osadzane w PDF-ie jako podzbiory – serwer ani czytelnik nie potrzebują fontów
+systemowych. Znak spoza wszystkich krojów (np. emoji w nazwisku) staje się `?` z wpisem w logu.
+
+### 37.3. Przebieg na zawodach
+
+1. Wyniki etapu – jak zawsze (`/coordinator/stages/<id>/results/`, publikacja w trybie `CODE` albo
+   `FULL_ALL`; nazwiska wyłącznie za zgodą).
+2. `/coordinator/medals/<etap>/`: progi, podgląd (pule, progi punktowe, rzeczywiste odsetki), ręczne
+   zmiany z uzasadnieniem → „Ogłoś medale”. Ogłoszenie wymaga **opublikowanych** wyników, a bieżąca
+   tabela musi być tą ogłoszoną: te same wpisy, te same sumy i te same liczności stanów (zakwalifikowani,
+   niezakwalifikowani, zdyskwalifikowani – porównanie z wpisem audytu `results.qualification_applied`
+   publikacji). Dyskwalifikacja albo nowy wpis po publikacji → 409 „opublikuj wyniki ponownie”.
+3. „Wystaw dokumenty” (dyplomy medalowe + opcjonalnie zaświadczenia o udziale) → „Pobierz paczkę ZIP”.
+   Język dokumentu: język ucznia z konta (o ile konkurs go oferuje), inaczej język domyślny konkursu;
+   **przypinany przy wystawieniu** (zaświadczenie wystawione z dawnego panelu – przy pierwszym pobraniu). Przed galą warto pobrać po jednym dokumencie w `ar`, `hi`, `bn`,
+   `zh-hans` i obejrzeć je – tłumaczenia są maszynowe.
+4. „Lista na galę (PDF)” i „Eksport CSV” – z nazwiskami, każde pobranie w audycie (`medals.exported`).
+5. Publiczne strony: `/results/<etap>/medals/` (filtr `?country=`; kraj przy wierszu tylko w trybie
+   `CODE` albo przy nazwisku opublikowanym za zgodą w trybie imiennym – nie przy „inicjałach i szkole”)
+   i `/results/<etap>/countries/` (`?sort=medals`; suma i średnia punktów tylko dla krajów z co najmniej
+   3 wynikami, przy publikacji „tylko awansujący” – wyłącznie z wyników nagrodzonych); odnośniki pojawiają
+   się na `/results/<etap>/` po ogłoszeniu.
+
+Korekta po ogłoszeniu: „Odmroź medale” (z uzasadnieniem w audycie) → zmiany → ponowne ogłoszenie.
+Dyplom medalowy, którego rodzaj nie zgadza się z ogłoszoną nagrodą (albo gdy medale są odmrożone),
+jest **nieaktualny**: strona `/dyplomy/<kod>/` mówi to wprost, a w „Moich dyplomach” ucznia go nie ma
+(pobranie – 404). Wiersz rejestru zostaje, a „Wystaw dokumenty” wypisuje numery takich dyplomów.
+
+### 37.4. Limit żądań i wycofanie
+
+Czynności ekranu medali (także usunięcie ręcznej zmiany oraz pobrania CSV, PDF i ZIP) mają limit `medals`
+(120/h, `REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]`).
+Wyłączenie flagi ukrywa ekrany i strony publiczne (404) i przywraca polski skład zaświadczeń
+`UCZESTNIK`; dane (`MedalScheme`, `MedalOverride`, `CertificateLanguage`) zostają. Migracje są
+odwracalne.
+
+## 35. Płatności online za udział – Stripe, Przelewy24, przelew, faktury (PAY-01, `docs/tasks/PAY-01.md`)
+
+Opłaty za udział płacone online: przez **delegacje** (IQO, cennik delegacji w EUR) i – w konkursach
+z rejestracją otwartą – przez **uczestników** (należność z ekranu „Wpisowe”, zwykle PLN). Wszystko za
+flagą konkursu **`fees`** (domyślnie wyłączona – Olimpiada Kwantowa nie widzi ani adresu, ani pozycji
+menu). Aplikacja `apps.payments`, migracja `payments.0001` (nowe tabele, odwracalna).
+
+### 35.1. Zmienne środowiskowe (`.env`, usługi `web` i `worker`)
+
+| Zmienna | Wartość | Uwagi |
+|---|---|---|
+| `STRIPE_SECRET_KEY` | `sk_test_…` (test) / `sk_live_…` | Stripe → Developers → API keys → Secret key. Może być *restricted key* z prawem zapisu do Checkout Sessions i Refunds. |
+| `STRIPE_WEBHOOK_SECRET` | `whsec_…` | Signing secret endpointu webhooka; kilka po przecinku (rotacja, kilka endpointów). |
+| `P24_MERCHANT_ID` | liczba | Panel Przelewy24 → Moje dane → Dane API. |
+| `P24_POS_ID` | liczba | Zwykle = merchant ID. |
+| `P24_API_KEY` | napis | „Klucz do raportów” (REST API). |
+| `P24_CRC` | napis | Klucz CRC (podpis SHA-384). |
+| `P24_SANDBOX` | `true`/`false` | `true` = `sandbox.przelewy24.pl` (osobne konto sandbox). |
+
+Pusty klucz = operator wyłączony: przycisk płatności się nie pokazuje, a jego webhook odpowiada **404**.
+Sekrety nie trafiają do bazy ani do audytu. Po zmianie `.env`: `docker compose up -d web worker`
+(restart, nie reload). Ekran `/coordinator/payments/prices/` pokazuje, czy operator jest skonfigurowany
+i czy Stripe jest w **trybie testowym**.
+
+### 35.2. Stripe – konfiguracja panelu (najpierw tryb testowy)
+
+1. Stripe Dashboard → przełącznik **Test mode** → Developers → API keys → skopiuj *Secret key* do
+   `STRIPE_SECRET_KEY`.
+2. Developers → **Webhooks** → *Add endpoint*: URL `https://<domena-konkursu>/payments/webhooks/stripe/`
+   (jeden endpoint na instalację – płatność odnajdujemy po identyfikatorze sesji, nie po domenie; może
+   to być domena dowolnego konkursu z tej instalacji). Zdarzenia: `checkout.session.completed`,
+   `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`,
+   `checkout.session.expired`, `refund.updated`, `refund.failed`. *Signing secret* → `STRIPE_WEBHOOK_SECRET`.
+3. Settings → Payment methods: karty (opcjonalnie inne metody; metody odroczone, np. SEPA, kończą się
+   `async_payment_succeeded` i są obsługiwane). Settings → Branding: nazwa i logo organizatora.
+4. Próba: konkurs z `fees`, cennik, opiekun wystawia pro formę → „Zapłać kartą” → karta testowa
+   `4242 4242 4242 4242` (dowolna przyszła data, dowolny CVC) → po kilku sekundach zamówienie „zapłacone”,
+   faktura `…/FV/<rok>/0001`, list do płacącego. W panelu Stripe → Webhooks → endpoint: odpowiedzi 200.
+   Lokalnie: `stripe listen --forward-to https://<host>/payments/webhooks/stripe/` (CLI poda własny `whsec_`).
+5. Zwrot próbny z ekranu zamówienia koordynatora („Zleć zwrot”) – w Stripe pojawia się Refund.
+6. **Produkcja**: wyłącz Test mode, powtórz kroki 1–2 z kluczami live (endpoint live ma inny `whsec_`),
+   wpisz `sk_live_…`, restart, jedna płatność kontrolna i jej zwrot.
+
+### 35.3. Przelewy24 – konfiguracja panelu (tylko PLN)
+
+1. Konto sandbox (`sandbox.przelewy24.pl`) → Moje dane → Dane API: merchant ID, POS ID, klucz do
+   raportów, klucz CRC → `P24_*`, `P24_SANDBOX=true`.
+2. Adres powiadomień (`urlStatus`) wysyłamy przy rejestracji każdej transakcji:
+   `https://<domena-konkursu>/payments/webhooks/przelewy24/` (zwroty: `…/przelewy24/refund/`). W panelu
+   P24 nie trzeba go wpisywać; jeśli konto ma listę dozwolonych adresów powiadomień – dopisz oba.
+3. Wpłata jest zapisywana dopiero po udanym `PUT /transaction/verify` – nieudany verify daje 503 i P24
+   ponawia powiadomienie. Limit transakcji 15 min: nowa próba tego samego zamówienia jest możliwa po
+   20 min (ochrona przed podwójną zapłatą).
+4. **Stan:** adapter P24 jest zaimplementowany i przetestowany na atrapie HTTP (podpisy z dokumentacji
+   REST v1), **nie** na sandboxie – przed włączeniem na produkcji zrób płatność i zwrot w sandboxie.
+
+### 35.4. Włączenie w konkursie
+
+1. Flaga: `/admin/` → Konkursy → `feature_flags` → `"fees": true` (albo powłoką jak w § 28.1).
+2. `/coordinator/payments/prices/`: **Sprzedawca, rachunek i dokumenty** – NIP/VAT ID, IBAN, SWIFT, bank,
+   prefiks numeracji (domyślnie slug, np. `IQO/FV/2026/0001`), adnotacja VAT, uwagi, termin pro formy,
+   metody płatności. Nazwa, adres i dane rejestrowe sprzedawcy pochodzą z pól organizatora konkursu.
+3. Cennik delegacji edycji (konkurs w trybie delegacji): waluta, „cena wczesna do”, „cena późna od”,
+   siatka cen (delegacja, uczeń, opiekun, obserwator × wczesna/podstawowa/późna).
+4. Konkurs z rejestracją otwartą: cennik i naliczenie należności na ekranie „Wpisowe” (`/coordinator/fees/`)
+   – uczestnik dostaje przycisk „Zapłać online” na kaflu „Wpisowe”.
+5. **Wzór faktury** (pro forma i faktura, PDF) zatwierdza księgowa organizatora przed pierwszym konkursem
+   z opłatami: system numeruje dokumenty ciągle (per konkurs, rodzaj i rok), ale nie liczy VAT, nie
+   prowadzi rejestru VAT/JPK i nie wystawia korekt (decyzja D15 po zmianie z 4.10.2026).
+
+### 35.5. Przelew tradycyjny, dowody wpłat, eksport
+
+- Płacący widzi IBAN i **kod referencyjny** (tytuł przelewu). Koordynator na ekranie zamówienia
+  „Wpływ przelewu”: data wpływu, notatka, opcjonalnie dowód (PDF/JPG/PNG ≤ 10 MB) – plik idzie do bucketu
+  prac (prefiks `payments/`) i do skanu ClamAV (kolejka `scan`); do pobrania dopiero po werdykcie „czysty”,
+  zawsze jako załącznik. Plik zainfekowany jest usuwany, wpłata zostaje. Wpłatę zapisuje się
+  **wyłącznie na zamówienie otwarte** – przelew z kodem zamówienia anulowanego zwraca się płacącemu
+  w banku (poza systemem) albo zalicza po wystawieniu przez opiekuna nowej pro formy.
+- **Zwroty** wskazuje się **pozycjami i ilościami** (np. 1 × uczeń); kwotę liczy system. Zwrócone miejsca
+  przestają być opłacone. Wpłata „do wyjaśnienia” (podwójna, rozbieżna, po anulowaniu) wraca w całości.
+  Brak odpowiedzi operatora przy zwrocie → zwrot zostaje „w toku” i jest ponawiany automatycznie z tym
+  samym kluczem idempotencji (bez ryzyka podwójnego zwrotu); odmowa operatora → „nieudany”.
+- `/coordinator/payments/export.csv?edition=<id>` – jeden wiersz na zamówienie (nabywca, VAT ID, kwota,
+  waluta, stan, metoda, identyfikator transakcji, zwroty, numery pro formy i faktury). Zdarzenie w audycie.
+
+### 35.6. Kontrakt adresów i limity
+
+Nowy pierwszy segment `payments/` (`RESERVED_SLUGS`, `backend/djcms_contract/` – zaktualizowane). Webhooki
+`/payments/webhooks/*` są **bez** sesji i CSRF (podpis), limit `payment_webhooks` (600/min per IP; stub
+z wydania K zostaje przy `payments`, 60/min). Nowe stawki
+`checkout` (20/h per konto: „Wystaw pro formę”, „Zapłać”) i `payments_admin` (120/h, czynności koordynatora).
+Stub `/api/v1/payments/<slug>/` z wydania K zostaje bez zmian.
+
+**Sprzątanie (beat `payments-sweep`, co 15 min, `apps.payments.tasks.sweep_payments`)** – wymaga
+działającego `beat` i `worker`: próba Stripe starsza niż czas życia sesji (60 min + 10) → `GET` sesji
+(wygasła → przerwana, zapłacona a webhook zginął → wpłata rozliczona jak ze zdarzenia); próba bez
+identyfikatora sesji starsza niż 30 s → przerwana; P24 starsza niż 80 min → przerwana; zwrot „w toku”
+bez identyfikatora operatora starszy niż 2 min → zlecony ponownie. Bez flagi `fees` w żadnym konkursie
+zadanie robi dwa puste zapytania.
+
+### 35.7. Diagnoza i wycofanie
+
+- Dziennik doręczeń: `/admin/` → Płatności → „Doręczenia od dostawców” (panel płatności w `/admin/` jest
+  tylko do odczytu – zmiany stanu wyłącznie przez ekrany koordynatora, z audytem).
+  `outcome`: `succeeded`, `mismatch` (kwota/waluta inna niż zamówienie – pulpit „Do wyjaśnienia”),
+  `unknown_payment`, `duplicate` (nie zapisywane – odpowiedź), `ignored`, `mode_mismatch` (zdarzenie live
+  przy kluczu `sk_test_…` albo odwrotnie – pominięte; sprawdź, czy endpoint i klucz są z tego samego trybu).
+- 400 w panelu Stripe = zły `STRIPE_WEBHOOK_SECRET` (albo endpoint test/live pomylony); 404 = brak klucza
+  w `.env` usługi `web`.
+- Wycofanie: wyłączenie flagi `fees` ukrywa ekrany (404); dane zostają. Migracje `payments.0001`–`0002` są
+  odwracalna, ale **dokumenty księgowe** trzeba przed tym wyeksportować (5 lat przechowywania).

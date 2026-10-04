@@ -17,7 +17,6 @@ def activity(competition=None):
     from apps.accounts.processing_register import HOSTING_RECIPIENT, MAIL_RECIPIENT, _activity
 
     from .models import DEFAULT_RETENTION_DAYS, enabled
-
     from .verification import has_letters
 
     # Strona weryfikacji listów działa także po wyłączeniu logistyki (VISA-01 M3) – dopóki konkurs ma

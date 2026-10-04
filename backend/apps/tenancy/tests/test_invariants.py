@@ -151,6 +151,10 @@ EXPECTED_SUBJECTS = {
     # Listy zapraszające do wizy (VISA-01, ``apps.delegation_logistics.letter_requests``): decyzja
     # oficera logistyki o wnioskach opiekuna drużyny. Olimpiada Kwantowa go nie wysyła.
     "final_letter_decision": "Decyzja w sprawie listów zapraszających – Olimpiada Kwantowa",
+    # Płatności online (PAY-01, ``apps.payments.notifications``): potwierdzenie wpłaty i zwrotu.
+    # ``<kod>`` to kod zamówienia – dane listu, nie brzmienie.
+    "payment_receipt": "Potwierdzenie wpłaty <kod> – Olimpiada Kwantowa",
+    "payment_refund": "Zwrot wpłaty <kod> – Olimpiada Kwantowa",
 }
 
 #: Znaczniki podstawień w tematach składanych w serwisie. Porównujemy **wzorzec**, a nie wynik:
@@ -266,6 +270,8 @@ SUBJECT_CONSTANTS = {
     "apps.accounts.supervisor_consent.SUPERVISOR_CONSENT_SUBJECT_TEMPLATE": "supervisor_consent",
     "apps.accounts.services.INVITATION_SUBJECT_TEMPLATE": "invitation",
     "apps.chat.notifications.SUBJECT": "chat_message",
+    "apps.payments.notifications.RECEIPT_SUBJECT": "payment_receipt",
+    "apps.payments.notifications.REFUND_SUBJECT": "payment_refund",
     "apps.chat.notifications.SUBJECT_TEMPLATE": "chat_message",
     "apps.forum.notifications.SUBJECT_MODERATION": "forum_moderation",
     "apps.forum.notifications.SUBJECT_REPLY": "forum_reply",
