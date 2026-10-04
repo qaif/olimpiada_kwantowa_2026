@@ -182,10 +182,14 @@
         {{ two_factor.backup_codes_left }} kodów zapasowych. Zdejmij zabezpieczenie tylko wtedy, gdy
         właściciel konta zgłosił utratę telefonu <strong>i</strong> potwierdziłeś jego tożsamość inną
         drogą niż e-mail z tego konta. Reset zostaje w audycie pod Twoim nazwiskiem.</p>
+      {% if two_factor_may_reset %}
       <form method="post" action="{% url 'web:coordinator-account-2fa-reset' account.pk %}" class="inline">
         {% csrf_token %}
         <button type="submit" class="btn btn--danger">Zdejmij drugi składnik</button>
       </form>
+      {% else %}
+      <p class="hint">To jest konto personelu – drugi składnik może z niego zdjąć wyłącznie superkoordynator.</p>
+      {% endif %}
     {% else %}
       <p class="hint">To konto nie ma włączonego drugiego składnika. Włączyć może go wyłącznie jego
         właściciel, na swoim profilu – sekret musi powstać na jego urządzeniu.</p>
