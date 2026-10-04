@@ -15,6 +15,77 @@ reszty – oraz **wdrożenia etapu 2** (§ 8), do przejścia po każdym wydaniu 
 Adres produkcyjny: `olimpiadakwantowa.pl` (169.58.242.197), katalog `/opt/olimpiada`,
 wdrożenie `scripts/deploy.sh` z kluczem `~/.ssh/olimpiada_deploy`.
 
+Od § 9 sekcje opisują kolejne wydania i funkcje. **Numerów się nie przenumerowuje** – kod i inne
+dokumenty odsyłają do „OPERACJE § N” – więc nowa sekcja dostaje następny wolny numer i staje na swoim
+miejscu w kolejności. Luki w numeracji są celowe – to numery zajęte przez prace w toku na innych
+gałęziach (np. numery 42, 44 i 46–49).
+Kolejność i odwołania pilnuje test `apps/core/tests/test_docs_section_refs.py`.
+
+## Funkcje i flagi
+
+Spis przełączników: co włącza daną funkcję, jaka jest wartość domyślna i gdzie jest opis operatora.
+**Flaga konkursu** siedzi w `feature_flags` wiersza konkursu (`/admin/ → Konkursy`, § 6.4) i ma
+wartość domyślną w `FEATURE_DEFAULTS` (`backend/apps/tenancy/models.py`); **`.env`** to przełącznik
+instalacji w `/opt/olimpiada/.env` (zmiana = wdrożenie). Kolumna „Produkcja” zawiera wyłącznie to, co
+zapisano w dokumentacji – „—” znaczy „nie opisano”, a nie „wyłączone”. Bieżący stan flag:
+
+```sh
+docker compose exec -T web python manage.py shell -c "from apps.tenancy.models import Competition as C; [print(c.slug, c.feature_flags) for c in C.objects.order_by('pk')]"
+```
+
+Tabelę pilnuje test `apps/core/tests/test_docs_features_table.py`: każda flaga z `FEATURE_DEFAULTS`
+musi mieć wiersz z poprawną wartością domyślną, a każda flaga z tabeli – istnieć w kodzie.
+
+<!-- funkcje-i-flagi: początek (wiersz na przełącznik; test porównuje z FEATURE_DEFAULTS) -->
+| Funkcja | Przełącznik | Rodzaj | Domyślnie | OPERACJE | Produkcja (wg dokumentacji) |
+|---|---|---|---|---|---|
+| Logowanie dwuskładnikowe (2FA) | `TWO_FACTOR_ENABLED` | `.env` | wył. | § 5.1a | — |
+| Autoryzacja po członkostwach w konkursie | `memberships_enforced` | flaga konkursu | wył. | § 6.1, § 6.4 | nowy konkurs dostaje ją włączoną (§ 6) |
+| Ekran „Ustawienia konkursu” | `competition_settings_page` | flaga konkursu | wył. | § 6.4 | — |
+| Konkursy pod prefiksem ścieżki (gospodarz) | `path_prefix_routing` | flaga konkursu | wył. | § 6.4, § 6.6 | — |
+| Zakładanie konkursów z panelu | `competition_creation` | flaga konkursu | wył. | § 6.5 | — |
+| Konkursy w subdomenach platformy | `PLATFORM_SUBDOMAINS` | `.env` | wył. | § 6.5 | — |
+| Opiekun szkolny | `supervisor_role` | flaga konkursu | wł. | — | — |
+| Reklamacje | `appeals` | flaga konkursu | wł. | — | — |
+| Dyplomy i zaświadczenia | `certificates` | flaga konkursu | wł. | — | — |
+| Zgody z bazy (per konkurs) | `per_competition_consents` | flaga konkursu | wył. | § 8.5 | kwantowa: wył. (§ 8.5, D8) |
+| Teksty dyplomów z szablonów | `document_templates` | flaga konkursu | wył. | § 8.5 | kwantowa: wył. (§ 8.5) |
+| Marka konkursu w listach | `competition_branding_in_mail` | flaga konkursu | wył. | § 8.5 | kwantowa: wył. (§ 8.5) |
+| Uprawnienia `/cms/` per konkurs (stara droga) | `scoped_cms_permissions` | flaga konkursu | wył. | § 6.7, § 8.5 | kwantowa: wył. (§ 8.5) |
+| Własne regiony / kraje | `custom_regions` | flaga konkursu | wył. | § 8.5, § 27 | kwantowa: wył. (§ 8.5) |
+| Typy placówek | `institution_types` | flaga konkursu | wył. | § 8.5 | kwantowa: wył. (§ 8.5) |
+| Własny wykaz placówek | `custom_school_directory` | flaga konkursu | wył. | § 8.5 | kwantowa: wył. (§ 8.5) |
+| Edytor przebiegu zawodów | `process_editor` | flaga konkursu | wył. | § 8.5 | kwantowa: wył. (§ 8.5) |
+| Kategorie uczestników | `categories` | flaga konkursu | wył. | § 8.5 | kwantowa: wył. (§ 8.5) |
+| Wagi zadań i remisy | `weighted_scoring` | flaga konkursu | wył. | § 8.5 | kwantowa: wył. (§ 8.5) |
+| Role recenzenckie | `reviewer_roles` | flaga konkursu | wył. | § 8.5 | kwantowa: wył. (§ 8.5) |
+| Zgłoszenia drużynowe | `team_entries` | flaga konkursu | wył. | § 8.5 | kwantowa: wył. (§ 8.5) |
+| Wielojęzyczność treści CMS | `content_translations` | flaga konkursu | wył. | § 8.5, § 26.4 | kwantowa: wył. (§ 8.5) |
+| Wielojęzyczność drzewa stron Wagtaila | `WAGTAIL_I18N_ENABLED` | `.env` | wył. | § 8.5, § 26.4 | wył. (`docs/tasks/DJ-02.md`) |
+| Pula połączeń z Postgresem | `DB_POOL` | `.env` | wł. (poza Celery) | § 11.2 | — |
+| Cache całych stron publicznych | `PAGE_CACHE_ENABLED` | `.env` | wł. (poza `DEBUG`) | § 13 | — |
+| Forum uczestników | `participant_forum` | flaga konkursu | wył. | § 6.4 | — |
+| Zaświadczenia o statusie ucznia | `student_status_certificate` | flaga konkursu | wył. | § 6.4, § 15 | — |
+| Materiały z warsztatów | `workshop_materials` | flaga konkursu | wył. | § 6.4, § 16 | — |
+| Ocena AI | `ai_grading` | flaga konkursu | wył. | § 6.4, § 17 | — |
+| Wersja porównawcza `dj.` (django CMS) | `DJCMS_ENABLED` | `.env` | wył. | § 22.1 | — |
+| Serwis publiczny na django CMS | `DJCMS_PRIMARY` | `.env` | wył. | § 22.8, § 22.9 | — |
+| Rozmowy wideo Jitsi z przepustką JWT | `JITSI_JWT_APP_SECRET` | `.env` | puste | § 25.2 | — |
+| Delegacje krajowe | `Competition.registration_mode` = `DELEGATIONS` | pole konkursu | `OPEN` | § 28 | — |
+| Statystyki szkół | `school_statistics` | flaga konkursu | wył. | § 29 | — |
+| Motyw serwisu z panelu | `themes` | flaga konkursu | wył. | § 30 | — |
+| Logistyka finału / etapu stacjonarnego | `onsite_logistics` | flaga konkursu | wył. | § 8.5, § 31 | kwantowa: wył. (§ 8.5) |
+| Okna czasowe etapu według stref | `stage_time_windows` | flaga konkursu | wył. | § 32 | — |
+| Nakładki tłumaczeń z przeglądu | `TRANSLATION_OVERRIDES_ENABLED` | `.env` | wł. | § 33.4 | — |
+| Płatności i wpisowe | `fees` | flaga konkursu | wył. | § 8.5, § 35 | kwantowa: wył. (§ 8.5) |
+| Operatorzy płatności (Stripe, Przelewy24) | `STRIPE_SECRET_KEY`, `P24_SANDBOX` | `.env` | puste / wył. | § 35.1 | — |
+| Webinary w LiveKit | `webinars` | flaga konkursu | wył. | § 6.4, § 36 | — |
+| Serwer LiveKit (webinary, rozmowy, nadzór) | `LIVEKIT_URL` | `.env` | puste | § 36.2 | — |
+| Medale i ranking krajów | `medals` | flaga konkursu | wył. | § 37 | — |
+| Sieć absolwentów i mentoring | `alumni` | flaga konkursu | wył. | § 38 | — |
+| Nadzór zdalny etapów online | `proctoring` | flaga konkursu | wył. | § 39 | — |
+<!-- funkcje-i-flagi: koniec -->
+
 ---
 
 ## 1. Kopie zapasowe
