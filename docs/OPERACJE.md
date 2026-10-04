@@ -4916,6 +4916,193 @@ włączonym mentoringu z małoletnimi organizator musi mieć dyżur moderacyjny.
 **Definitywne wycofanie funkcji:** wyłączenie flagi (skutki wyżej) i – bo zgoda dotyczyła działającej
 sieci – usunięcie profili (`AlumniProfile.objects.filter(participant__competition=c).delete()`).
 
+## 42. Test obciążenia i plan pojemności (PERF-01, `docs/tasks/PERF-01.md`)
+
+### 42.1. Po co i czego to nie robi
+
+Przed etapem międzynarodowym IQO trzeba wiedzieć, ilu uczniów naraz wytrzyma jeden VPS Contabo
+(6 vCPU / 11 GB, 12–37 % ukradzionego czasu CPU – pomiar z 22.09.2026) i co ustawić na dzień zawodów.
+Test biegnie **wyłącznie lokalnie**, na osobnym, jednorazowym stosie compose. Generator odmawia
+każdego hosta spoza listy lokalnej, a domen i adresu produkcji – zawsze. Test na serwerze to osobna
+procedura (§ 42.6), za osobną zgodą właściciela serwisu.
+
+### 42.2. Jak uruchomić
+
+```bash
+# w katalogu repozytorium, na komputerze deweloperskim (Docker Desktop)
+WEB_WORKERS=6 WEB_THREADS=4 LOADTEST_WEB_CPUS=4 scripts/loadtest/run.sh up   # stos olimpiada-loadtest
+scripts/loadtest/run.sh seed --students 3000                                 # dane + runs/loadtest/manifest.json
+scripts/loadtest/run.sh run smoke --profile smoke                            # 30 s, sprawdzenie stosu
+LOADTEST_SHARDS=6 scripts/loadtest/run.sh run t3000 --profile stage-open-3000
+scripts/loadtest/run.sh down                                                 # kasuje stos i jego wolumeny
+```
+
+- wynik: `runs/loadtest/<nazwa>/summary.md` (p50/p95/p99, błędy, req/s, trafienia cache'u – per adres
+  i faza `login`/`burst`/`steady`), `timeline.csv` (kubełki 10 s), `requests.csv` (każde żądanie),
+  `stats.csv` (`docker stats` co 5 s), `pg_top.txt` (`pg_stat_statements`), `web_errors.txt`,
+- **`LOADTEST_SHARDS`** – liczba procesów generatora. Jeden proces Pythona to jeden rdzeń; od ok.
+  90 żądań/s sam staje się wąskim gardłem (serwer bezczynny, generator 100 % rdzenia). Od 1000
+  uczniów: 6 procesów; `stats.csv` pokazuje, czy żaden kontener `loadgen` nie dobija do 100 %,
+- profile: `smoke`, `stage-open-300/1000/3000` (okno logowania, T0 rozłożone na `--burst` s, 300 s
+  stanu ustalonego), `steady-1000`; parametry nadpisuje się flagami (`loadgen.py --help`), np.
+  `--students-per-ip 30` (sala za jednym NAT-em), `--quiz-share`, `--chat-share`, `--upload-mb`,
+- zmienne stosu (przy `up`): `WEB_WORKERS`, `WEB_THREADS`, `WEB_MAX_REQUESTS`, `WEB_KEEPALIVE`,
+  `CHAT_POLL_SECONDS`, `LOADTEST_WEB_CPUS`/`_DB_CPUS`/`_PROXY_CPUS`, `LOADTEST_BACKEND_DIR` (inny
+  katalog `backend`, np. `git archive origin/main backend` – pomiar A/B w jednej sesji),
+- koszt CPU i liczba zapytań gorących adresów bez sieci:
+  `docker compose -f scripts/loadtest/docker-compose.loadtest.yml exec -T web python manage.py shell < scripts/loadtest/profile_endpoints.py`.
+
+Różnice wobec produkcji: HTTP bez TLS, generator na tej samej maszynie, rdzeń komputera
+deweloperskiego (i9-14900K) szybszy od vCPU Contabo – stąd współczynnik w § 42.4.
+
+### 42.3. Wyniki lokalne (5.10.2026)
+
+Stos: `web` 6×4 z limitem 4 CPU, `db` 2 CPU; scenariusz z `docs/tasks/PERF-01.md` § 2 (40 % uczniów
+w teście online z autozapisem co 20 s, 60 % w etapie pisemnym z wysyłką skanów 1–5 MB, połowa z otwartym
+czatem, 3 PDF-y treści po 600 KB w T0, goście 5–8/s, 5 koordynatorów z eksportami CSV).
+
+**Koszt adresów** (`profile_endpoints.py`, mediana, A/B przeplatane w jednej sesji; CPU ms to rdzeń
+i9 – rozrzut między sesjami ±30 %, liczba zapytań jest deterministyczna):
+
+| adres | przed: CPU ms / zapytań | po: CPU ms / zapytań |
+|---|---:|---:|
+| `GET /` gość (trafienie cache'u) | 3 / 3 | 3 / 3 |
+| `GET /?utm_source=…` gość | 21 / 24 | 3 / 2 |
+| `GET /results/<id>/` (3000 wierszy) gość | 157–166 / 10 | 5–7 / 2 |
+| `GET /wyniki/` gość (1,3 MB) | ~160 / 16 | 6 / 2 |
+| `GET /me/` | 37–38 / 38 | 30–32 / 30 |
+| `GET` PDF treści (600 KB) | 12–13 / 6 | 12–13 / 6 |
+| `GET` odpytanie czatu (204) | 11 / 13 | 10–14 / 12 |
+| `POST` autozapis testu (20 odp.) | 26–37 / 95 | 12–23 / 15 |
+| `GET /coordinator/` | 28–30 / 31 | ~30 / 31 |
+| `GET` eksport CSV uczestników (3000) | 170–190 / 12 | bez zmian |
+| `POST /login/` (PBKDF2 1,5 mln) | ~150 (sam skrót) | bez zmian |
+
+**Przebiegi end-to-end** (p50 / p95 w ms; „przed” = `origin/main` z 4.10.2026, „po” = ta gałąź):
+
+| przebieg | faza | req/s | przed p50 / p95 | po p50 / p95 | błędy przed → po |
+|---|---|---:|---:|---:|---:|
+| 1000 uczniów | logowanie (180 s) | 27 | 31 / 227 | 18 / 187 | 0 → 0 |
+| 1000 uczniów | T0 (wszyscy w 60 s) | 76 → 86 | 2730 / 7829 | 29 / 169 | 0 → 0 |
+| 1000 uczniów | stan ustalony | 62–64 | 58 / 1961 | 21 / 70 | 0,05 % → 0,01 % |
+| 3000 uczniów | logowanie (300 s) | 48 | 43 / 343 | 42 / 339 | 0 → 0 |
+| 3000 uczniów | T0 (wszyscy w 60 s) | 116 → 129 | 22 079 / 44 101 | 18 727 / 32 128 | 0,1 % → 0 |
+| 3000 uczniów | stan ustalony | 97 → 101 | 24 123 / 39 122 | 15 992 / 45 780 | 1,2 % → 1,0 % |
+| 3000 uczniów, dzień zawodów¹ | T0 | 136 | – | 16 987 / 25 083 | – → 0 |
+| 3000 uczniów, dzień zawodów¹ | stan ustalony | 100 | – | 8 207 / 17 548 | – → 0,004 % |
+
+¹ Ta gałąź + konfiguracja z § 42.5: `WEB_MAX_REQUESTS=0`, `CHAT_POLL_SECONDS=45`.
+
+Jak to czytać:
+
+- **1000 uczniów na 4 rdzeniach i9 – zdrowo po poprawkach** (p95 < 200 ms także w T0). Przed
+  poprawkami ten sam ruch był tuż za kolanem krzywej: T0 kolejkował żądania do 8–10 s. Uwaga: przebiegi
+  1000 przed/po nie były przeplatane (rozrzut maszyny ±30 %), więc różnica jest częściowo „kolanem”,
+  a nie tylko kodem – przebiegi 3000 są A/B w jednej sesji,
+- **3000 uczniów z czatem co 15 s przekracza 4 rdzenie i9** niezależnie od poprawek (CPU `web` 330–
+  410 %, kolejka w gunicornie) – poprawki dają +11 % przepustowości w T0 i −15 % p50, ale nie
+  zmieniają rzędu wielkości. Popyt stanu ustalonego to ok. 185 żądań/s, z czego **100/s to samo
+  odpytywanie czatu** (co 15 s × 1500 otwartych rozmów),
+- błędy przy 3000 to prawie wyłącznie **rotacja workera** (`--max-requests`): wychodzący worker
+  `gthread` zrywa żądania w toku (`RuntimeError: cannot schedule new futures after interpreter
+  shutdown` w `s3transfer` – 212–267 wystąpień na 10 min) → 500/502 na PDF-ach i **wysyłkach
+  rozwiązań** (do 4,5 % wysyłek). Z `WEB_MAX_REQUESTS=0`: 224 błędy → 1 na 52 tys. żądań,
+- `CHAT_POLL_SECONDS=45` zdejmuje ok. 70 odpytań/s: stan ustalony przy 3000 p50 16 → 8 s, p95 46 → 18 s
+  (nadal przeciążony na 4 rdzeniach i9 – to jest granica sprzętu, nie kodu),
+- koszt stanu ustalonego przy zdrowym obciążeniu (1000 uczniów): **~19 ms CPU rdzenia i9 na żądanie**
+  w `web` + ~5 ms w Postgresie; w nasyceniu efektywność spada (40 ms/żądanie – przełączanie tysięcy
+  połączeń w kolejce gunicorna),
+- logowanie: PBKDF2 ~150 ms CPU i9 na próbę – 3000 logowań to 450 s pracy rdzenia,
+- pamięć `web`: 1,3–1,6 GB RSS przy 6 workerach, stabilna w przebiegach (brak wzrostu bez rotacji),
+- Postgres: najwyżej 27 połączeń (pula działa), 30–120 % CPU; Redis, MinIO, Caddy < 0,5 rdzenia.
+
+### 42.4. Ekstrapolacja na serwer produkcyjny
+
+Założenia (każde z zakresem, bo żadnego nie mierzyliśmy na serwerze – § 42.6 to zmienia):
+
+- `web` dostaje ok. **4 z 6 vCPU** (reszta: Postgres, Caddy z TLS i kompresją, MinIO, worker z ClamAV
+  przy wysyłkach, Redis); Jitsi/LiveKit i sandboksy notatników na tym samym hoście zabierają więcej,
+- vCPU EPYC Contabo jest **1,7–2,5×** wolniejszy od rdzenia i9 w kodzie jednowątkowym (przyjęte 2),
+- kradzież hiperwizora **12–37 %** (pomiar 22.09.2026),
+- docelowe wykorzystanie CPU 70 % (powyżej kolejka gunicorna rośnie nieliniowo – § 42.3).
+
+Efektywnie: `4 × (1 − kradzież) / współczynnik` = **1,0–2,1 (typowo 1,5) rdzenia i9** dla `web`.
+
+| | typowo | zakres |
+|---|---:|---:|
+| przepustowość stanu ustalonego (19 ms/żądanie, 70 %) | ~55 żądań/s | 37–77 |
+| uczniów w stanie ustalonym, czat co 15 s (0,062 żądania/s na ucznia) | **~900** | 600–1250 |
+| uczniów w stanie ustalonym, czat co 45 s (0,040 żądania/s na ucznia) | **~1400** | 900–1900 |
+| T0: ~100 ms CPU i9 na ucznia (panel, 3 PDF-y, start testu/czatu) | 15 uczniów/s | 10–21 |
+| T0 dla 1000 uczniów bez kolejki dłuższej niż ~10 s | rozłożenie na ≥ 70 s | 50–100 s |
+| logowania (PBKDF2, 0,3 s CPU vCPU na próbę) przy 50 % CPU | ~3 logowania/s | 2–5 |
+| 3000 logowań | **≥ 15–25 min przed T0** | |
+
+Dla porównania: na tym samym serwerze 22.09.2026 nasycenie było przy 7 → 8–16 żądaniach/s (v0.30 → v0.31,
+5 równoległych klientów), a p95 rozciąga kradzież CPU niezależnie od kodu.
+
+### 42.5. Konfiguracja na dzień zawodów (bez wdrożenia, `.env` + `docker compose up -d web`)
+
+| Zmienna | Zalecenie | Dlaczego |
+|---|---|---|
+| `WEB_MAX_REQUESTS` | `0` (wyłączona rotacja) na czas etapu; po etapie z powrotem `2000` | każda rotacja pod obciążeniem zrywa żądania w toku (wysyłki!), pamięć w przebiegach stabilna |
+| `WEB_MEM_LIMIT` | `3g` przy `WEB_WORKERS=6` | 6 workerów = 1,4–1,6 GB RSS, limit 2g za blisko |
+| `CHAT_POLL_SECONDS` | `45` na czas etapu | odpytywanie czatu to ponad połowa ruchu stanu ustalonego; wiadomość dochodzi do 45 s później (od razu po powrocie do karty) |
+| `WEB_WORKERS` × `WEB_THREADS` | bez zmian (6×4) na obecnym VPS; na serwerze z dedykowanymi rdzeniami: workery = rdzenie − 2, wątki 4 | więcej workerów niż rdzeni nie dodaje przepustowości, dodaje pamięci |
+| `PAGE_CACHE_SECONDS` | bez zmian (120) | od tej gałęzi w cache'u są też `/results/<id>/`, `/wyniki/` i linki z `utm_*` |
+
+Organizacyjnie (najtańsze, a najwięcej dające):
+
+- **logowanie 15–30 min przed startem** (komunikat w panelu i mailu: „zaloguj się wcześniej, sesja
+  trwa”), a start etapu dla uczniów rozłożony na **kilka minut** (okna czasowe TZ-01 albo po prostu
+  otwarcie PDF-ów 5 min przed formalnym startem) – T0 w 60 s dla 3000 uczniów to 300 s pracy CPU,
+- sale za jednym NAT-em (delegacje, pracownie): limit wysyłek liczony już per konto (U5), ale limit
+  **nieudanych logowań** `login` (10/min) jest per IP – zebrać z góry adresy sal; przy masowych
+  pomyłkach podnieść na czas etapu `REST_FRAMEWORK` → `login` (zmiana kodu/ustawień, nie `.env`),
+- na czas etapu **nie** uruchamiać na tym hoście webinarów (LiveKit), Jitsi ani sandboksów notatników,
+- dyżur: `/healthz/` i `manage.py db_connections` (§ 11.2), `docker stats`, log `web` pod kątem
+  `PoolTimeout`/`WORKER TIMEOUT`.
+
+### 42.6. Opcjonalny test na staging/serwerze – bezpieczna procedura (WYŁĄCZNIE za osobną zgodą)
+
+Nie wykonywać bez pisemnej zgody właściciela serwisu na **konkretny termin**. Preferowany cel:
+osobny serwer staging o tej samej klasie co produkcja (klon z `scripts/restore.sh`); produkcja
+tylko poza jakimkolwiek etapem, rejestracją i oknem reklamacji.
+
+1. **Termin**: noc lokalna (np. 2:00–4:00 CET), co najmniej 48 h od najbliższego etapu, poza
+   kopią zapasową (3:15) i testem odtwarzania (4:40) – czyli 1:00–3:00 – po komunikacie w serwisie
+   (`/coordinator/announcements/`) z wyprzedzeniem 24 h,
+2. **Przed**: świeża kopia (`scripts/backup.sh`) i jej weryfikacja; osobny konkurs/edycja testowa
+   **na osobnej bazie** – `loadtest_seed` odmówi bazy bez `loadtest` w nazwie, więc na serwerze
+   tylko na stagingu z bazą `olimpiada_loadtest`; na produkcji danych testowych nie zakładamy,
+   test ograniczony do stron publicznych (goście) i zalogowanych kont testowych założonych ręcznie,
+3. **Strona prac technicznych** (§ 20) włączona dla wszystkich poza przepustką operatora
+   (`MAINTENANCE_BYPASS_TOKEN` – generator dokłada nagłówek `X-Maintenance-Bypass`),
+4. **Generator z zewnątrz** (nie z tego samego hosta): `--allow-remote-host <host>` z dokładną
+   nazwą, `--remote-max-students` ≤ 200 w pierwszym przebiegu, potem schodkami ×2 (200 → 400 → 800),
+   każdy schodek ≤ 5 min, przerwa 5 min między schodkami,
+5. **Kryteria przerwania** (generator przerywa sam, operator też): błędy > 2 % w oknie 30 s
+   (`--abort-error-rate 0.02`), p95 > 5 s (`--abort-p95-ms 5000`), `db_connections` = `warn`,
+   pamięć `web` > 85 % limitu, load average > 3× liczba vCPU przez 2 min, jakikolwiek alarm watchdoga,
+6. **Po**: wyłączenie strony prac technicznych, `page_cache_clear`, kontrola `/healthz/` i
+   `/status.json`, na stagingu `run.sh`-owe dane do kosza (baza testowa); raport do
+   `docs/OPERACJE.md` § 42.3 jako kolumna „serwer” – to zastąpi założenia z § 42.4 pomiarem.
+
+### 42.7. Rekomendacja
+
+| Spodziewana liczba uczniów **naraz** w etapie IQO | Rekomendacja |
+|---|---|
+| ≤ 600 | **zostać** na obecnym VPS z konfiguracją z § 42.5 i logowaniem przed T0 |
+| 600–1500 | obecny VPS **tylko** z § 42.5 (czat 45 s, bez rotacji), T0 rozłożone na ≥ 2 min i bez LiveKit/Jitsi/notatników na tym hoście; bezpieczniej: serwer z **dedykowanymi vCPU** |
+| 1500–3000+ | **dedykowane vCPU, nie większy VPS tej samej klasy**: Contabo VDS albo Hetzner CCX43 (16 dedykowanych vCPU, 64 GB) – zysk z braku kradzieży (+25–60 %) i szybszych rdzeni (×1,5–2) mnoży się z liczbą rdzeni; `WEB_WORKERS` 12–14 × 4 wątki, `max_connections` Postgresa 150+ (§ 11.2); LiveKit (webinary, pokoje rozmów, nadzór) i sandboksy notatników **na osobnych hostach** |
+
+Uzasadnienie „dedykowane zamiast większego VPS”: większy VPS tej samej klasy dokłada rdzeni, ale nie
+usuwa kradzieży, która rozciąga p95 niezależnie od kodu (pamięć „Contabo vCPU steal”, § 11);
+dedykowane rdzenie dają przewidywalny czas odpowiedzi w T0, kiedy wszyscy czekają na PDF-y naraz.
+Wydzielenie LiveKit jest konieczne niezależnie od liczby uczniów, jeśli etap ma nadzór wideo
+(PROC-01/STAGE-LK-01): SFU przy setkach strumieni zajmie całe vCPU i łącze tego hosta. Kolejny krok
+pomiarowy: § 42.6 na stagingu klasy docelowej, zanim organizator zamówi serwer.
+
 ## 43. Test odtwarzania kopii (OPS-01, `docs/tasks/OPS-01.md`)
 
 ### 43.1. Po co
