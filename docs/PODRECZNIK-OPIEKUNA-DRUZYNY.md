@@ -2,8 +2,8 @@
 
 This guide is for **national team leaders** of an international olympiad run on this platform
 (e.g. the International Quantum Olympiad). It is in English because the competition is. The
-organiser's side is described in `PODRECZNIK-ORGANIZATORA.md` § 10b (problem translations: § 10c),
-the operator's in `OPERACJE.md` § 28 (§ 29).
+organiser's side is described in `PODRECZNIK-ORGANIZATORA.md` § 10b (problem translations: § 10g),
+the operator's in `OPERACJE.md` § 28 (§ 34).
 
 ## 1. What a team leader does
 

@@ -156,3 +156,24 @@ def test_read_parameters_stay_free_of_write_metadata(storage):
     from storages.backends.s3 import _filter_download_params
 
     assert _filter_download_params(storage.get_object_parameters("documents/notatka.txt")) == {}
+
+
+@pytest.mark.parametrize(
+    ("name", "expected_type"),
+    [
+        ("themes/iqo-quantum/1.0.0-38fb6a0f/theme.css", "text/css"),
+        ("themes/iqo-quantum/1.0.0-38fb6a0f/assets/fonts/space-mono-400.woff2", "font/woff2"),
+    ],
+)
+def test_theme_files_are_cached_as_immutable(storage, name, expected_type):
+    """Pliki motywu leżą pod niezmiennym prefiksem wersji (THEME-01 § 4) – cache bez unieważniania."""
+    params = _saved(
+        storage, name, SimpleUploadedFile(name.rsplit("/", 1)[-1], b"x", content_type="text/html")
+    )
+    assert params["ContentType"] == expected_type
+    assert params["CacheControl"] == "public, max-age=31536000, immutable"
+
+
+def test_other_files_get_no_cache_control(storage):
+    params = _saved(storage, "documents/regulamin.pdf", SimpleUploadedFile("regulamin.pdf", b"x"))
+    assert "CacheControl" not in params

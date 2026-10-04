@@ -1,0 +1,5 @@
+{% load i18n %}<footer class="footer example-footer" data-theme-slot="footer">
+  <p><strong>{{ settings.cms.SiteSettings.site_name }}</strong> · {{ theme.name }} {{ theme.version }}</p>
+  {% include "theme/partials/links.html" %}
+  {% include "web/_support_link.html" with css_class="footer__link" %}
+</footer>

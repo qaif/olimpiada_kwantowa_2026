@@ -2564,6 +2564,14 @@ msgstr "账户"
 msgid "Mój panel"
 msgstr "我的面板"
 
+#: apps/themes/slots.py
+msgid "Koordynator"
+msgstr "协调员"
+
+#: apps/themes/slots.py
+msgid "Panel koordynatora"
+msgstr "协调员面板"
+
 #: templates/base.html:210
 msgid "Recenzje"
 msgstr "评审"

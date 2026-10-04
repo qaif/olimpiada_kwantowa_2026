@@ -156,6 +156,8 @@ FLAG_ITEMS: dict[str, tuple[frozenset[str], frozenset[str]]] = {
     "workshop_materials": (frozenset({"Materiały z warsztatów"}), frozenset({"Materiały z warsztatów"})),
     # --- ocena AI (prośba organizatora z 24.09.2026) ---------------------------------------------
     "ai_grading": (frozenset({"Ocena AI"}), frozenset({"Ocena AI"})),
+    # --- motywy wizualne (THEME-01) ------------------------------------------------------------
+    "themes": (frozenset({"Motyw serwisu"}), frozenset({"Motyw serwisu"})),
 }
 
 #: Piętnaście flag **etapu 2** – zdanie z ``docs/UNIWERSALNY-ETAP-2.md`` § 0.6 („piętnaście flag to

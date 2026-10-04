@@ -1942,9 +1942,9 @@ czy jest teraz otwarte.
 trafia do drużyny przez organizatora), złożyć zgód za ucznia ani potwierdzić zgody rodzica — tę uczeń
 niepełnoletni zbiera sam po uruchomieniu konta (zgoda opiekuna online).
 
-## 10c. Tłumaczenia zadań — `/coordinator/translations/`
+## 10g. Tłumaczenia zadań — `/coordinator/translations/`
 
-**Tylko w konkursie z delegacjami krajowymi** (menu „Etapy → Tłumaczenia zadań”; `OPERACJE.md` § 29).
+**Tylko w konkursie z delegacjami krajowymi** (menu „Etapy → Tłumaczenia zadań”; `OPERACJE.md` § 34).
 Opiekunowie drużyn tłumaczą zadania z wersji oficjalnej (angielskiej) na języki swoich delegacji,
 a Ty (komisja) zatwierdzasz tłumaczenia. Po otwarciu etapu uczeń widzi zadanie w zatwierdzonym języku
 swojej drużyny i zawsze także wersję oficjalną.
@@ -2023,6 +2023,35 @@ eksport danych uczestnika (art. 15/20) niesie sekcję `zaswiadczenia_statusu_ucz
 retencja i usunięcie konta — § 9.1.
 
 ---
+
+## 10b. Motyw serwisu — `/coordinator/competition/theme/`
+
+**Tylko w konkursie z włączonym przełącznikiem `themes`** (włącza operator — `OPERACJE.md` § 30). Bez
+niego ekranu nie ma, a serwis wygląda jak zawsze (motyw „Klasyczny”).
+
+**Co zmienia motyw.** Kolory, kroje, zaokrąglenia, nagłówek, planszę strony głównej i stopkę stron
+publicznych. Panele (uczestnika, recenzenta, Twój) biorą z motywu **kolory i kroje**, ale układ
+i formularze zostają takie same — funkcje paneli od motywu nie zależą. Tryb wysokiego kontrastu
+wybrany przez uczestnika zawsze wygrywa z motywem.
+
+**Ekran.** Menu → *Ustawienia* → **Motyw serwisu**. Każda karta galerii to jedna wersja motywu
+z katalogu platformy (zrzut ekranu, autor, schemat kolorów). Na karcie:
+
+- **warianty układu** (np. nagłówek „minimal” albo „split”) — tylko te, które motyw przewiduje,
+- **„Akcent w kolorze marki konkursu”** — kolor z „Ustawień konkursu” zastępuje akcent motywu
+  (przyciski, wyróżnienia); obwódka zaznaczenia klawiaturą zostaje kolorem motywu, bo musi być
+  widoczna na jego tle,
+- **„Podgląd”** — otwiera stronę główną w tym motywie i z tymi opcjami **tylko dla Ciebie** (pasek
+  „Podgląd motywu” na górze; inni odwiedzający i Twoje kolejne strony widzą motyw dotychczasowy).
+  Podgląd niczego nie zapisuje i wygasa po dobie,
+- **„Aktywuj”** — od tej chwili dla wszystkich. Zmiana zostaje w audycie (`theme.activated`).
+
+**Cofnięcie** to aktywacja poprzedniej wersji albo karty **„Klasyczny”** — wersje motywów nie znikają
+po wgraniu nowszej.
+
+**Nowy motyw albo poprawka motywu** to paczka ZIP wgrywana przez operatora platformy
+(superkoordynatora) w **„Katalogu motywów platformy”** — nie w tym ekranie. Paczka przechodzi
+kontrolę bezpieczeństwa i antywirusową; odrzucona zostaje w katalogu z raportem błędów.
 
 ## 11. Kalendarz prowadzenia edycji — ściągawka
 
