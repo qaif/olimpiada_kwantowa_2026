@@ -99,6 +99,20 @@
     }
 }
 
+# Notatniki kwantowe (QC-01, docs/tasks/QC-01.md § 3.2): własna polityka CSP **wyłącznie** ścieżki
+# laboratorium JupyterLite, które leży w plikach statycznych (`/static/notebook-lab/<BUILD_ID>/`).
+# Fragment wstawiany (`import notebook_lab`) do każdego bloku aplikacji, jak `maintenance`. Reszta
+# `/static/*` zostaje bez zmian, a strony aplikacji dostają politykę z Django (apps/web/middleware.py).
+# Wyjątki wobec polityki serwisu: `'wasm-unsafe-eval'` (WebAssembly Pyodide), `'unsafe-eval'` (Ajv
+# w JupyterLab kompiluje schematy ustawień przez `new Function` – bez tego JupyterLab nie wstaje),
+# `worker-src blob:` (jądro Pythona w Web Workerze), `frame-ancestors 'self'` (ramka na stronie
+# zadania). `connect-src 'self'` – żadnego CDN-u w czasie działania. Ten sam napis zwraca
+# `NOTEBOOK_LAB_POLICY` w apps/web/middleware.py (dev); zgodność pilnuje test
+# apps/notebooks/tests/test_csp.py.
+(notebook_lab) {
+    header /static/notebook-lab/* Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; worker-src 'self' blob:; frame-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'self'"
+}
+
 # Przekierowanie www -> domena główna (jeden kanoniczny adres, jeden certyfikat w linkach).
 www.{$SITE_DOMAIN} {
     redir https://{$SITE_DOMAIN}{uri} permanent
@@ -106,6 +120,7 @@ www.{$SITE_DOMAIN} {
 
 {$SITE_DOMAIN} {
     import maintenance
+    import notebook_lab
     encode gzip zstd
     request_body {
         max_size {$MAX_UPLOAD_MB}MB
