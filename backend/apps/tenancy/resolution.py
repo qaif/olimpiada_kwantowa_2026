@@ -128,12 +128,6 @@ def resolve_for_request(request) -> Resolution:
         # pierwszeństwo – inaczej byłyby dwa zapytania, z których drugie prawie zawsze nic nie
         # znajduje.
         found = Competition.objects.filter(match, is_active=True).select_related("site")
-        # Opcja „angielska wersja interfejsu” witryny konkursu jedzie **tym samym zapytaniem**:
-        # warstwa języka (``apps.accounts.preferences.english_enabled``) pyta o nią przy każdym
-        # żądaniu, także API, gdzie szablon bazowy nie czyta ``SiteSettings`` i osobny odczyt
-        # byłby dodatkowym zapytaniem na każde wywołanie. Brak wiersza ustawień daje ``NULL``,
-        # czyli „wyłączone” – tak samo, jak wartość domyślna pola.
-        found = found.annotate(site_english_interface=_english_interface_subquery())
         if aliases:
             # Złączenie z aliasami mnoży wiersze konkursu, który ma ich kilka, a limit poniżej
             # liczy wiersze, nie konkursy. ``distinct()`` wchodzi **wyłącznie** razem z tą gałęzią,
@@ -161,21 +155,6 @@ def resolve_for_request(request) -> Resolution:
             if competition is not host and by_prefix(competition):
                 return Resolution(competition, segment, host_site=site)
     return Resolution(host, host_site=site if host is not None else None)
-
-
-def _english_interface_subquery():
-    """Podzapytanie o ``cms.SiteSettings.english_interface_enabled`` witryny konkursu.
-
-    Import w funkcji: ``apps.cms`` importuje ``apps.tenancy`` (rozstrzyganie konkursu po witrynie),
-    więc import na poziomie modułu zamknąłby koło.
-    """
-    from django.db.models import OuterRef, Subquery
-
-    from apps.cms.models import SiteSettings
-
-    return Subquery(
-        SiteSettings.objects.filter(site_id=OuterRef("site_id")).values("english_interface_enabled")[:1]
-    )
 
 
 def _alias_competition(found) -> Competition | None:

@@ -20,6 +20,7 @@ najczęstsze pytanie organizatora: „pod jakim adresem stoi mój konkurs”), a
 from __future__ import annotations
 
 from django import forms
+from django.conf import settings
 
 from apps.cms.blocks import PARTNER_LEVELS
 from apps.cms.models import SPONSOR_SLIDER_MAX_SECONDS, SPONSOR_SLIDER_MIN_SECONDS
@@ -54,6 +55,7 @@ EDITABLE_FIELDS: tuple[str, ...] = (
     "certificate_prefix",
     # zachowanie
     "default_language",
+    "interface_languages",
     "time_zone",
 )
 # ``submission_forward_emails`` świadomie **nie** stoi na tej liście, choć jest polem konkursu:
@@ -158,6 +160,7 @@ class CompetitionSettingsForm(forms.ModelForm):
             "public_code_prefix": "Prefiks kodu uczestnika",
             "certificate_prefix": "Prefiks numeru dyplomu",
             "default_language": "Język domyślny",
+            "interface_languages": "Języki interfejsu",
             "time_zone": "Strefa czasowa",
         }
         help_texts = {
@@ -188,6 +191,16 @@ class CompetitionSettingsForm(forms.ModelForm):
                 "dokumentów się nie zmienią</b> – prefiks obowiązuje od następnego wystawienia."
             ),
             "time_zone": ("Pokazywana na ekranach; obliczanie terminów przestawi się na nią w etapie 2."),
+            "default_language": (
+                "Język, w którym strona otwiera się gościowi bez ustawień przeglądarki, i język "
+                "listów do osób, które nie wybrały własnego."
+            ),
+            "interface_languages": (
+                "Jeden język = brak przełącznika języka i strona zawsze w tym języku. Więcej "
+                "języków = przełącznik w pasku konta; uczestnik dostaje swój język także w listach. "
+                "Tłumaczenia poza polskim i angielskim są maszynowe. Treści stron w /cms/ się nie "
+                "tłumaczą."
+            ),
         }
 
     def __init__(self, *args, **kwargs):
@@ -216,6 +229,23 @@ class CompetitionSettingsForm(forms.ModelForm):
         # zmieniłoby temat **dziewięciu** listów na „[Olimpiada Kwantowa]Aktywuj konto…”. Część
         # odbiorców ma je posortowane regułami po temacie (§ 7.3, ``test_email_subjects_unchanged``).
         self.fields["email_subject_prefix"].strip = False
+        # Języki jako lista wyboru i pola wyboru z **natywnymi** nazwami, a nie pole tekstowe
+        # i JSON: organizator ma zaznaczyć „Español”, a nie wpisać ``["es"]``. Reguły (znane kody,
+        # domyślny w zbiorze) sprawdza ``Competition.clean()`` – ten sam dla komendy i ``/admin/``.
+        self.fields["default_language"] = forms.ChoiceField(
+            label=self.fields["default_language"].label,
+            help_text=self.fields["default_language"].help_text,
+            choices=settings.LANGUAGES,
+        )
+        self.fields["interface_languages"] = forms.MultipleChoiceField(
+            label=self.fields["interface_languages"].label,
+            help_text=self.fields["interface_languages"].help_text,
+            choices=settings.LANGUAGES,
+            widget=forms.CheckboxSelectMultiple,
+            required=False,
+        )
+        if self.instance is not None and self.instance.pk:
+            self.initial["interface_languages"] = list(self.instance.ui_languages)
 
     @property
     def flag_fields(self) -> list:
@@ -237,6 +267,18 @@ class CompetitionSettingsForm(forms.ModelForm):
         for name in EDITABLE_FLAGS:
             current[name] = bool(self.cleaned_data.get(f"{FLAG_PREFIX}{name}"))
         return current
+
+    def clean_interface_languages(self) -> list[str]:
+        """Zbiór w kolejności ``settings.LANGUAGES`` – ta sama lista zaznaczona dwa razy jest tą samą.
+
+        Pusty wybór znaczy „sam język domyślny”: konkurs bez języka nie istnieje, a odznaczenie
+        wszystkiego jest najkrótszą drogą do strony jednojęzycznej.
+        """
+        chosen = set(self.cleaned_data.get("interface_languages") or [])
+        default = self.cleaned_data.get("default_language")
+        if not chosen and default:
+            chosen = {default}
+        return [code for code, _label in settings.LANGUAGES if code in chosen]
 
     def _submitted(self, name: str):
         """Wartość pola w postaci porównywalnej z ``self.initial``.

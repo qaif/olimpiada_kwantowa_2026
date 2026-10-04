@@ -2,9 +2,11 @@
 {% comment %}
   ``lang`` idzie z aktywnego języka, a ``data-contrast`` pojawia się **tylko** w trybie wysokiego
   kontrastu (pusty atrybut znaczyłby „tryb domyślny”, a arkusz zaczepia się o samą jego obecność).
-  Oba przychodzą z ``apps.accounts.preferences``.
+  Oba przychodzą z ``apps.accounts.preferences``. ``dir`` stoi zawsze, także jako ``ltr``:
+  arabski interfejs (I18N-01 § 4) odwraca cały układ jednym atrybutem, a arkusze trzymają się
+  właściwości logicznych, więc żadna reguła nie musi pytać, w jakim języku jest strona.
 {% endcomment %}
-<html lang="{{ interface_language|default:'pl' }}"{% if interface_contrast %} data-contrast="{{ interface_contrast }}"{% endif %}{% if settings.cms.SiteSettings.ga_measurement_id %} data-ga-id="{{ settings.cms.SiteSettings.ga_measurement_id }}"{% endif %}>
+<html lang="{{ interface_language|default:'pl' }}" dir="{{ interface_direction|default:'ltr' }}"{% if interface_contrast %} data-contrast="{{ interface_contrast }}"{% endif %}{% if settings.cms.SiteSettings.ga_measurement_id %} data-ga-id="{{ settings.cms.SiteSettings.ga_measurement_id }}"{% endif %}>
 <head>
   {% comment %}
     Tag Google (gtag.js) – dokładnie tam, gdzie każe go wkleić instrukcja Google Analytics:
@@ -31,7 +33,7 @@
   {% endcomment %}
   <meta name="theme-color" content="#12233f" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#0f1726" media="(prefers-color-scheme: dark)">
-  <meta name="description" content="{% block description %}Ogólnopolska olimpiada dla uczniów szkół ponadpodstawowych: terminy etapów, zadania, wyniki oraz panel uczestnika, recenzenta i komitetu.{% endblock %}">
+  <meta name="description" content="{% block description %}{% translate "Ogólnopolska olimpiada dla uczniów szkół ponadpodstawowych: terminy etapów, zadania, wyniki oraz panel uczestnika, recenzenta i komitetu." %}{% endblock %}">
   <link rel="icon" href="{% static 'img/favicon.svg' %}" type="image/svg+xml">
   <link rel="icon" href="{% static 'img/logo-mark-512.png' %}" type="image/png" sizes="512x512">
   <link rel="apple-touch-icon" href="{% static 'img/apple-touch-icon.png' %}">
@@ -153,7 +155,7 @@
            srcset="{% static 'img/logo-olimpiada-kwantowa.png' %} 1x, {% static 'img/logo-olimpiada-kwantowa@2x.png' %} 2x"
            alt="" width="600" height="231"></span>
       <span class="brand__mark visually-hidden">{{ settings.cms.SiteSettings.site_name }}</span>
-      {% if site_edition_label %}<span class="brand__sub">{{ site_edition_label|edition_title:"edycja" }}</span>{% endif %}
+      {% if site_edition_label %}{% translate "edycja" as edition_prefix %}<span class="brand__sub">{{ site_edition_label|edition_title:edition_prefix }}</span>{% endif %}
     </a>
     {% comment %}
       Najważniejsze pozycje serwisu (``PRIMARY_MENU_SLUGS`` w apps/cms/context_processors.py)
@@ -163,7 +165,7 @@
       pozycje w pasku pozostają ukryte – dolne menu ma wszystko.
     {% endcomment %}
     {% if cms_menu_primary %}
-      <nav class="nav nav--primary" aria-label="Najważniejsze" data-sticky-nav>
+      <nav class="nav nav--primary" aria-label="{% translate 'Najważniejsze' %}" data-sticky-nav>
         {% for item in cms_menu_primary %}
           <a class="nav__link nav__link--primary" href="{{ item.url }}"
              {% if item.active %}aria-current="page"{% endif %}>{{ item.title }}</a>
@@ -199,7 +201,7 @@
         {% if is_supervisor %}
           {% url 'web:supervisor' as supervisor_url %}
           <a class="account-bar__link" href="{{ supervisor_url }}"
-             {% if request.path == supervisor_url %}aria-current="page"{% endif %}>Moi uczniowie</a>
+             {% if request.path == supervisor_url %}aria-current="page"{% endif %}>{% translate "Moi uczniowie" %}</a>
         {% endif %}
         {% if is_coordinator %}
           {% url 'web:coordinator' as coordinator_url %}
@@ -255,7 +257,7 @@
       apps/cms/context_processors.py; to nawigacja, nie autoryzacja.
       ``aria-current`` na aktywnej pozycji: porównujemy adres pozycji ze ścieżką żądania.
     {% endcomment %}
-    <nav class="nav nav--cms" aria-label="Serwis">
+    <nav class="nav nav--cms" aria-label="{% translate 'Serwis' %}">
       {% for item in cms_menu %}
         {% if item.children %}
           {% comment %}
@@ -450,12 +452,12 @@
   może sam być kolejnym plikiem cookie. Na wydruku paska nie ma (arkusz, sekcja @media print).
 {% endcomment %}
 {% with ga_id=settings.cms.SiteSettings.ga_measurement_id %}
-<div class="cookie-notice" data-cookie-notice role="region" aria-label="Informacja o plikach cookie">
+<div class="cookie-notice" data-cookie-notice role="region" aria-label="{% translate 'Informacja o plikach cookie' %}">
   <div class="cookie-notice__inner">
     {% if ga_id %}
-      <p class="cookie-notice__text">Używamy plików cookie niezbędnych do działania serwisu oraz –
-        za Twoją zgodą – Google Analytics do statystyk odwiedzin.
-        <a class="cookie-notice__link" href="{{ site_root|default:"/" }}dokumenty/cookies/">Polityka plików cookie</a></p>
+      <p class="cookie-notice__text">{% blocktranslate trimmed %}Używamy plików cookie niezbędnych do działania serwisu oraz –
+        za Twoją zgodą – Google Analytics do statystyk odwiedzin.{% endblocktranslate %}
+        <a class="cookie-notice__link" href="{{ site_root|default:"/" }}dokumenty/cookies/">{% translate "Polityka plików cookie" %}</a></p>
       {% comment %}
         Oba przyciski mają ten sam rozmiar i stoją obok siebie: odmowa nie może być trudniejsza
         od zgody (motyw 32 RODO i wytyczne EROD 03/2022 o „deceptive design”). Różni je wyłącznie
@@ -464,16 +466,16 @@
       {% endcomment %}
       <span class="cookie-notice__actions">
         <button type="button" class="btn btn--small btn--accent cookie-notice__ok"
-                data-cookie-consent="all">Akceptuję wszystkie</button>
+                data-cookie-consent="all">{% translate "Akceptuję wszystkie" %}</button>
         <button type="button" class="btn btn--small btn--secondary cookie-notice__ok"
-                data-cookie-consent="necessary">Tylko niezbędne</button>
+                data-cookie-consent="necessary">{% translate "Tylko niezbędne" %}</button>
       </span>
     {% else %}
-      <p class="cookie-notice__text">Ten serwis używa wyłącznie niezbędnych plików cookie (sesja
-        logowania, zabezpieczenie formularzy). Nie używamy cookies reklamowych ani analitycznych.
-        <a class="cookie-notice__link" href="{{ site_root|default:"/" }}dokumenty/cookies/">Polityka plików cookie</a></p>
+      <p class="cookie-notice__text">{% blocktranslate trimmed %}Ten serwis używa wyłącznie niezbędnych plików cookie (sesja
+        logowania, zabezpieczenie formularzy). Nie używamy cookies reklamowych ani analitycznych.{% endblocktranslate %}
+        <a class="cookie-notice__link" href="{{ site_root|default:"/" }}dokumenty/cookies/">{% translate "Polityka plików cookie" %}</a></p>
       <button type="button" class="btn btn--small btn--accent cookie-notice__ok"
-              data-cookie-notice-dismiss>Rozumiem</button>
+              data-cookie-notice-dismiss>{% translate "Rozumiem" %}</button>
     {% endif %}
   </div>
 </div>

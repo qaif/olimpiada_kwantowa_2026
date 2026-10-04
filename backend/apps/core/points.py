@@ -209,9 +209,23 @@ def _plain(number: Decimal) -> str:
 
 
 def decimal_separator(language: str | None = None) -> str:
-    """Separator dziesiętny języka interfejsu: przecinek po polsku, kropka po angielsku."""
-    code = (language or get_language() or "pl").split("-")[0].lower()
-    return "." if code == "en" else ","
+    """Separator dziesiętny języka interfejsu: przecinek po polsku, kropka po angielsku.
+
+    Pozostałe języki (I18N-01 § 7) biorą separator z plików formatów Django dla tego języka –
+    hiszpański, francuski i rosyjski mają przecinek, chiński, hindi i bengalski kropkę. Polski
+    i angielski są wpisane wprost, bo to na nich stoją dyplomy i karty uczestnika wydane przed
+    tą zmianą, a ich zapis nie może zależeć od wersji Django.
+    """
+    code = (language or get_language() or "pl").lower()
+    base = code.split("-")[0]
+    if base == "en":
+        return "."
+    if base == "pl":
+        return ","
+    from django.utils.formats import get_format
+
+    separator = get_format("DECIMAL_SEPARATOR", lang=code, use_l10n=True)
+    return separator if separator in {".", ","} else ","
 
 
 def format_points(value, language: str | None = None) -> str:

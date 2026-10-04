@@ -9,6 +9,8 @@ konkursu” z marką, danymi organizatora i kontaktem – bez tych czterech pól
 Stąd podział praw na tym ekranie: staff widzi i edytuje markę, superużytkownik – także adresowanie.
 """
 
+from django import forms
+from django.conf import settings
 from django.contrib import admin
 
 from .aliases import CompetitionSiteAlias
@@ -21,8 +23,37 @@ from .models import Competition
 OPERATOR_FIELDS = ("site", "slug", "routing_mode", "path_prefix")
 
 
+class CompetitionAdminForm(forms.ModelForm):
+    """Języki interfejsu jako pola wyboru z natywnymi nazwami, a nie surowy JSON (I18N-01 § 1).
+
+    Operator ustawia tu zbiór konkursu, który nie ma włączonego ekranu „Ustawienia konkursu”;
+    pole tekstowe z ``["en", "zh-hans", …]`` byłoby zaproszeniem do literówki, którą
+    ``Competition.clean()`` i tak by odrzucił – lepiej, żeby jej nie dało się wpisać.
+    """
+
+    default_language = forms.ChoiceField(label="język domyślny", choices=settings.LANGUAGES)
+    interface_languages = forms.MultipleChoiceField(
+        label="języki interfejsu",
+        choices=settings.LANGUAGES,
+        widget=forms.CheckboxSelectMultiple,
+        required=False,
+        help_text="Puste = sam język domyślny (bez przełącznika języka).",
+    )
+
+    class Meta:
+        model = Competition
+        # ``ModelAdmin.get_form`` podaje własną listę pól (wszystkie pola modelu), więc tu stoją
+        # tylko te, które ten formularz nadpisuje – lista nie zawęża ekranu.
+        fields = ("default_language", "interface_languages")
+
+    def clean_interface_languages(self) -> list[str]:
+        chosen = set(self.cleaned_data.get("interface_languages") or [])
+        return [code for code, _label in settings.LANGUAGES if code in chosen]
+
+
 @admin.register(Competition)
 class CompetitionAdmin(admin.ModelAdmin):
+    form = CompetitionAdminForm
     list_display = ("name", "slug", "primary_domain", "routing_mode", "is_active", "created_at")
     list_filter = ("is_active", "routing_mode")
     search_fields = ("name", "short_name", "slug", "primary_domain", "organizer_name")

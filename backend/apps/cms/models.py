@@ -346,38 +346,6 @@ class SiteSettings(BaseSiteSetting):
         ),
     )
 
-    #: Czy ten serwis **oferuje** angielską wersję interfejsu. Domyślnie ``False`` i to jest
-    #: decyzja organizatora, a nie ostrożność: „strona tylko w wersji polskiej (sam CMS może dawać
-    #: opcję zrobienia strony w wersji angielskiej, ale do polskiej olimpiady niech będzie wersja
-    #: tylko w języku polskim na razie)”. Sama umiejętność zostaje w systemie – katalog ``locale/en``
-    #: jest skompilowany, ``settings.LANGUAGES`` wymienia oba języki, a organizator drugiego
-    #: konkursu włącza angielski **temu** serwisowi jednym kliknięciem tutaj.
-    #:
-    #: Wyłączony przełącznik znaczy, że polski obowiązuje **niezależnie od tego, o co prosi
-    #: przeglądarka** – inaczej ukrycie byłoby pozorne. Nie ma flagi w pasku konta, nagłówek
-    #: ``Accept-Language: en`` niczego nie zmienia, ciasteczko ``django_language`` jest pomijane,
-    #: a ``<html lang>`` i nagłówek ``Content-Language`` mówią ``pl``.
-    #:
-    #: Czego przełącznik **nie** robi: nie kasuje zapisanego wyboru. ``UserPreference.language``
-    #: zostaje w bazie nietknięty i wraca do użytku w dniu, w którym organizator angielski włączy –
-    #: skasowanie cudzego ustawienia przy zmianie konfiguracji serwisu byłoby odpowiedzią na
-    #: pytanie, którego nikt nie zadał.
-    #:
-    #: Nie dotyczy paneli redakcyjnych: język ``/cms/`` wybiera redaktor w swoim profilu Wagtaila
-    #: (``UserProfile.preferred_language``) i to ustawienie żyje dalej własnym życiem.
-    #:
-    #: Pole, a nie zmienna środowiskowa – z tego samego powodu, co przełącznik wyżej: to jest
-    #: decyzja organizatora, a przy zmiennej jej odwrócenie byłoby wdrożeniem.
-    english_interface_enabled = models.BooleanField(
-        "angielska wersja interfejsu",
-        default=False,
-        help_text=(
-            "Wyłączone: serwis jest po polsku niezależnie od ustawień przeglądarki, a w pasku "
-            "konta nie ma przełącznika języka. Włączenie dokłada flagę „EN” i pozwala każdemu "
-            "wybrać angielski; zapisane wcześniej wybory wracają wtedy same."
-        ),
-    )
-
     #: Identyfikator strumienia danych Google Analytics 4. **Puste pole wyłącza analitykę
     #: całkowicie**: serwis nie wczytuje wtedy żadnego skryptu Google'a, nie pyta o zgodę
     #: (pasek cookie zostaje informacyjny, bo nie ma czego wstrzymywać do kliknięcia), a nagłówek
@@ -490,11 +458,9 @@ class SiteSettings(BaseSiteSetting):
             ],
             heading="Rejestracja",
         ),
-        # Osobna sekcja, a nie pole doklejone do „Rejestracji”: język interfejsu obowiązuje na
-        # każdej stronie serwisu, a nie wyłącznie w formularzu zgłoszeniowym – przełącznik ukryty
-        # pod cudzym nagłówkiem byłby ustawieniem, którego organizator nie znajdzie wtedy, gdy go
-        # potrzebuje.
-        MultiFieldPanel([FieldPanel("english_interface_enabled")], heading="Język interfejsu"),
+        # Sekcji „Język interfejsu” tu już nie ma: języki są ustawieniem **konkursu**
+        # (``tenancy.Competition.interface_languages``, ekran „Ustawienia konkursu”), bo muszą stać
+        # obok jego języka domyślnego – patrz docs/tasks/I18N-01.md § 1.
         MultiFieldPanel([FieldPanel("ga_measurement_id")], heading="Analityka"),
         # Tempo i włącznik slidera stoją też tutaj – ten sam wiersz w bazie, co ekran koordynatora
         # (/coordinator/sponsor-slider/), więc obie drogi zapisu zawsze się zgadzają. Listę

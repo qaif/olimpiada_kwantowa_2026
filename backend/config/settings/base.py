@@ -730,11 +730,29 @@ AUTH_PASSWORD_VALIDATORS = [
 LANGUAGE_CODE = "pl"
 TIME_ZONE = "Europe/Warsaw"
 USE_I18N = True
-# Dwa języki interfejsu. Polski jest podstawowy (olimpiada jest polska, organizator jest polski
-# i takie są dokumenty formalne), angielski dochodzi dla uczestników szkół z programem
-# międzynarodowym i dla opiekunów spoza kraju. Etykiety są **natywne**: kto szuka swojego języka
-# na liście, szuka go zapisanego po swojemu, a nie w tłumaczeniu na cudzy.
-LANGUAGES = [("pl", "polski"), ("en", "English")]
+# Języki, które **instalacja** umie (ma dla nich katalogi tłumaczeń). Polski jest podstawowy
+# (pierwsza olimpiada jest polska i takie są jej dokumenty formalne), dalej dziesięć najczęściej
+# używanych języków świata (liczba wszystkich mówiących) – zamówienie dla międzynarodowego
+# konkursu ``iqo`` (docs/tasks/I18N-01.md). Którego z nich **konkurs** naprawdę używa, rozstrzyga
+# ``tenancy.Competition.interface_languages``, a nie ta lista: Olimpiada Kwantowa ma tam sam polski.
+#
+# Etykiety są **natywne**: kto szuka swojego języka na liście, szuka go zapisanego po swojemu,
+# a nie w tłumaczeniu na cudzy. Chiński to ``zh-hans`` (pismo uproszczone, ChRL i Singapur), bo
+# tak nazywa go katalog Django – ``zh-cn`` z przeglądarki trafia tu przez ``LANG_INFO``. Portugalski
+# bez wariantu: ``pt-BR`` i ``pt-PT`` z nagłówka przeglądarki dopasowują się do ``pt``.
+LANGUAGES = [
+    ("pl", "polski"),
+    ("en", "English"),
+    ("zh-hans", "简体中文"),
+    ("hi", "हिन्दी"),
+    ("es", "Español"),
+    ("ar", "العربية"),
+    ("fr", "Français"),
+    ("bn", "বাংলা"),
+    ("pt", "Português"),
+    ("ru", "Русский"),
+    ("id", "Bahasa Indonesia"),
+]
 # Katalogi tłumaczeń projektu (źródła ``.po`` w repozytorium, skompilowane ``.mo`` obok nich).
 # Obraz ma ``gettext``, więc ``django-admin compilemessages`` działa w kontenerze – patrz README.
 LOCALE_PATHS = [BASE_DIR / "locale"]
@@ -753,6 +771,8 @@ LOCALE_PATHS = [BASE_DIR / "locale"]
 WAGTAIL_I18N_ENABLED = env.bool("WAGTAIL_I18N_ENABLED", default=False)
 # Języki **treści** to ta sama lista, co języki interfejsu: drugi komplet nazw byłby drugim
 # miejscem, w którym trzeba pamiętać o dopisaniu języka, i pierwszym, w którym ktoś zapomni.
+# Konkurs ``iqo`` świadomie **nie** ma drzew treści w dziesięciu językach (I18N-01 § 10) – lista
+# mówi, co jest możliwe, a nie co jest założone.
 WAGTAIL_CONTENT_LANGUAGES = LANGUAGES
 USE_TZ = True  # wszystkie DateTimeField w UTC; deadline'y porównywane przez timezone.now()
 

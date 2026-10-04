@@ -1,0 +1,48 @@
+{% load i18n %}{% comment %}
+  Menu języków dla konkursu, który oferuje ich **więcej niż dwa** (I18N-01 § 3) – np. ``iqo``
+  z jedenastoma. Jeden przycisk z flagą wystarczał, gdy „ten drugi” język był jeden; przy
+  jedenastu rząd flag zająłby cały pasek, a flaga i tak nie jest językiem (hiszpański mówi się
+  w dwudziestu krajach, a Indie mają dwa języki z tej listy).
+
+  ``<details>``, a nie przycisk ze skryptem – z tych samych powodów, co rozwijana pozycja menu
+  w ``base.html``: działa bez JavaScriptu, klawiaturą i pod CSP bez wyjątków. Pozycje są
+  przyciskami jednego formularza POST (``name="language"``) – wybór zmienia stan po stronie
+  serwera, więc odnośnik byłby nieprawdą.
+
+  Każda pozycja ma ``lang`` (czytnik ekranu przeczyta „Русский” po rosyjsku, a nie jako polskie
+  głoski) i ``dir`` (arabska nazwa wyrównuje się jak tekst arabski także na stronie polskiej).
+  Napis na ``<summary>`` to natywna nazwa **bieżącego** języka – kto trafił na stronę w obcym
+  języku, rozpozna swój po globie, a nie po słowie „Język”, którego nie przeczyta.
+{% endcomment %}
+<form method="post" action="{% url 'web:account-preferences' %}" class="inline account-bar__prefs">
+  {% csrf_token %}
+  <input type="hidden" name="next" value="{{ request.get_full_path }}">
+  <input type="hidden" name="high_contrast" value="{% if interface_high_contrast %}1{% else %}0{% endif %}">
+  <details class="lang-menu">
+    <summary class="btn btn--small btn--ghost account-bar__btn lang-menu__summary">
+      <svg class="pref-icon" width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"
+           focusable="false">
+        <circle cx="9" cy="9" r="7.25" fill="none" stroke="currentColor" stroke-width="1.5"/>
+        <path d="M1.75 9h14.5M9 1.75c2 2 3 4.4 3 7.25s-1 5.25-3 7.25M9 1.75c-2 2-3 4.4-3 7.25s1 5.25 3 7.25"
+              fill="none" stroke="currentColor" stroke-width="1.2"/>
+      </svg>
+      <span>{{ interface_language_label }}</span>
+      <span class="visually-hidden">{% translate "Język interfejsu" %}</span>
+    </summary>
+    <ul class="lang-menu__list">
+      {% for item in interface_languages %}
+        <li>
+          {% if item.code == interface_language %}
+            <span class="lang-menu__item lang-menu__item--current" lang="{{ item.code }}"
+                  dir="{{ item.direction }}" aria-current="true">{{ item.label }}</span>
+          {% else %}
+            <button type="submit" name="language" value="{{ item.code }}" class="lang-menu__item"
+                    lang="{{ item.code }}" dir="{{ item.direction }}" title="{{ item.switch_label }}">
+              {{ item.label }}
+            </button>
+          {% endif %}
+        </li>
+      {% endfor %}
+    </ul>
+  </details>
+</form>

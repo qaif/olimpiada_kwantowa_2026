@@ -103,8 +103,13 @@ def test_simple_translation_is_the_only_translation_app():
 
 
 def test_language_settings_unchanged():
+    """Język instalacji i katalogi bez zmian; lista języków rośnie od I18N-01 – polski zostaje pierwszy.
+
+    Które z nich konkurs naprawdę oferuje, rozstrzyga ``Competition.interface_languages``
+    (``apps/web/tests/test_competition_languages.py``), a nie ta lista.
+    """
     assert django_settings.LANGUAGE_CODE == "pl"
-    assert django_settings.LANGUAGES == [("pl", "polski"), ("en", "English")]
+    assert django_settings.LANGUAGES[:2] == [("pl", "polski"), ("en", "English")]
     assert [path.name for path in django_settings.LOCALE_PATHS] == ["locale"]
 
 

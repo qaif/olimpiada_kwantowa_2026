@@ -383,6 +383,22 @@ class Competition(models.Model):
 
     # --- zachowanie ------------------------------------------------------------------------------
     default_language = models.CharField("język domyślny", max_length=8, default="pl")
+    #: Języki interfejsu, które ten konkurs **oferuje** (I18N-01 § 1). Zastępuje przełącznik
+    #: ``cms.SiteSettings.english_interface_enabled``: dziesięć języków nie mieści się w jednym
+    #: polu logicznym, a zbiór musi stać obok ``default_language``, bo reguła „domyślny należy do
+    #: zbioru” jest jedna i sprawdza ją jeden ``clean()``. Konkurs (a nie witryna), bo jego wiersz
+    #: jest w każdym żądaniu już wczytany, a list składany poza żądaniem ma konkurs, nie witrynę.
+    #:
+    #: Lista kodów z ``settings.LANGUAGES``, bez ``choices`` w bazie – z tego samego powodu, co
+    #: ``UserPreference.language``: dołożenie języka do instalacji nie może być migracją. Czytać
+    #: wyłącznie przez :attr:`ui_languages`. Olimpiada Kwantowa ma tu ``["pl"]`` i dlatego nie ma
+    #: przełącznika języka ani reakcji na ``Accept-Language``.
+    interface_languages = models.JSONField(
+        "języki interfejsu",
+        default=list,
+        blank=True,
+        help_text="Języki, które uczestnik może wybrać. Język domyślny jest zawsze wśród nich.",
+    )
     #: Strefa czasowa jest per konkurs, bo ``WARSAW`` w ``apps/competitions/models.py`` jest dziś
     #: stałą modułu. Etap 1 **nie zmienia** obliczeń czasu – pole jest wypełniane i pokazywane,
     #: a użycie go w prezentacji terminów to etap 2.
@@ -434,6 +450,25 @@ class Competition(models.Model):
         value = (self.feature_flags or {}).get(name, FEATURE_DEFAULTS[name])
         return bool(value)
 
+    @property
+    def ui_languages(self) -> tuple[str, ...]:
+        """Języki interfejsu konkursu – w kolejności ``settings.LANGUAGES``, zawsze z domyślnym.
+
+        **Jedyne** wejście do ``interface_languages``. Odczyt jest wyrozumiały, a zapis surowy
+        (:meth:`clean`): kod, którego instalacja już nie zna (język wycofany z ``LANGUAGES``),
+        jest pomijany, zamiast wywracać każdą stronę konkursu – aktywowanie języka bez katalogu
+        dałoby napisy źródłowe podane jako przekład. Pusty zbiór znaczy „tylko język domyślny”,
+        a gdy i tego brakuje – język instalacji: konkurs bez języka nie istnieje.
+        """
+        from django.conf import settings
+
+        known = [code for code, _label in settings.LANGUAGES]
+        chosen = set(self.interface_languages or [])
+        if self.default_language in known:
+            chosen.add(self.default_language)
+        languages = tuple(code for code in known if code in chosen)
+        return languages or (settings.LANGUAGE_CODE,)
+
     # --- walidacja ---------------------------------------------------------------------------
     def clean(self) -> None:
         """Spójność adresowania: domena zgodna z witryną, prefiks obowiązkowy tylko w trybie ``PATH``.
@@ -448,6 +483,8 @@ class Competition(models.Model):
             # Nie jest to „poprawka danych wpisanych przez człowieka”, tylko wypełnienie
             # wartości, której jedynym sensownym źródłem jest witryna konkursu.
             self.primary_domain = self.site.hostname
+
+        errors.update(self._language_errors())
 
         if self.routing_mode == RoutingMode.PATH and not self.path_prefix:
             errors["path_prefix"] = "Tryb prefiksu ścieżki wymaga podania prefiksu."
@@ -474,6 +511,32 @@ class Competition(models.Model):
 
         if errors:
             raise ValidationError(errors)
+
+    def _language_errors(self) -> dict[str, str]:
+        """Reguły zbioru języków (I18N-01 § 1): znane kody, bez powtórzeń, domyślny w zbiorze.
+
+        Zbioru **nie poprawiamy** po cichu (np. dopisując język domyślny): organizator, który
+        odznaczył angielski i zostawił go domyślnym, ma dostać pytanie, a nie inny konkurs niż
+        ten, który zapisał.
+        """
+        from django.conf import settings
+
+        known = {code for code, _label in settings.LANGUAGES}
+        errors: dict[str, str] = {}
+        if self.default_language not in known:
+            errors["default_language"] = "Ten język nie jest dostępny w instalacji."
+        languages = self.interface_languages
+        if not isinstance(languages, list) or not all(isinstance(code, str) for code in languages):
+            errors["interface_languages"] = 'Języki interfejsu to lista kodów, np. ["pl", "en"].'
+            return errors
+        unknown = sorted(set(languages) - known)
+        if unknown:
+            errors["interface_languages"] = f"Nieznane kody języków: {', '.join(unknown)}."
+        elif len(set(languages)) != len(languages):
+            errors["interface_languages"] = "Każdy język wolno wybrać tylko raz."
+        elif languages and self.default_language not in languages:
+            errors["interface_languages"] = "Język domyślny musi być jednym z języków interfejsu."
+        return errors
 
 
 # Wpisowe (cennik konkursu, rejestr należności, dokument rozliczeniowy) mieszka razem z resztą
