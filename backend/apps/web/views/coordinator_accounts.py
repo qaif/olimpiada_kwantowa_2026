@@ -890,7 +890,7 @@ class CoordinatorPasswordResetView(CoordinatorRequiredMixin, View):
             return redirect(edit_url)
 
         # Te same nazwy szablonów i ten sam kontekst, co w ``PasswordResetView`` – patrz docstring
-        # klasy. ``from_email`` pusty sięga po domyślnego nadawcę ustawień, tak jak tam.
+        # klasy. ``from_email`` pusty = nadawca konkursu (``QueuedPasswordResetForm.send_mail``), tak jak tam.
         form.save(
             use_https=request.is_secure(),
             token_generator=default_token_generator,

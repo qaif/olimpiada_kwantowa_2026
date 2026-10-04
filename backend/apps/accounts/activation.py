@@ -539,7 +539,50 @@ def activate_with_token(token: str, *, request=None) -> User:
             "ALREADY_ACTIVE",
             status.HTTP_400_BAD_REQUEST,
         )
+    if pending_invitation(user) is not None:
+        # Konto z zaproszenia (import listy klasowej, zgłoszenie przez opiekuna drużyny) startuje
+        # wyłącznie ekranem zaproszenia: tam uczeń składa zgody i ustawia hasło. Aktywacja zwykłym
+        # linkiem dałaby aktywne konto bez zgód – a od AUTH-01a reset hasła działa także dla kont
+        # bez hasła, więc byłaby to pełna droga do panelu z pominięciem zgód. Link sprzed poprawki
+        # (wydany przez ``resend_activation``) kończy się tu tym samym komunikatem, co każdy zły.
+        raise _invalid_token()
     return mark_activated(user, actor=user, request=request)
+
+
+def pending_invitation(user: User):
+    """Zaproszenie ucznia, którego konto jeszcze go nie przyjęło – ``Participant`` albo ``None``.
+
+    Takie konto powstaje bez hasła i nieaktywne (``bulk_registration._create_invited_user``,
+    ``delegation_services.add_student``) i jedyną drogą do jego uruchomienia jest link z listu
+    zaproszenia. Rozpoznajemy je po ``Participant.invited_at`` – tej samej kolumnie, po której
+    ``bulk_registration.read_invite_token`` szuka ucznia do ekranu zaproszenia.
+    """
+    if user.is_active or user.email_verified_at is not None:
+        return None
+    from .models import Participant
+
+    return (
+        Participant.objects.select_related("user", "delegation__country")
+        .filter(user=user, invited_at__isnull=False)
+        .order_by("-invited_at", "-pk")
+        .first()
+    )
+
+
+def send_pending_invitation(participant, *, request=None) -> None:
+    """Ponawia list zaproszenia tą samą funkcją, którą wysłał je opiekun albo koordynator.
+
+    Uczeń delegacji dostaje list delegacji (kraj, opiekun drużyny), uczeń z importu – list szkolny;
+    oba prowadzą na ten sam ekran zaproszenia z nowym tokenem.
+    """
+    if participant.delegation_id is not None:
+        from .delegation_services import send_student_invitation
+
+        send_student_invitation(participant, request=request)
+        return
+    from .bulk_registration import send_invitation
+
+    send_invitation(participant, request=request)
 
 
 def resend_activation(email: str, *, request=None) -> bool:
@@ -548,6 +591,9 @@ def resend_activation(email: str, *, request=None) -> bool:
     Wołający pokazuje zawsze ``RESEND_MESSAGE``: odpowiedź zależna od istnienia konta zamieniłaby
     formularz w wyszukiwarkę adresów zarejestrowanych w serwisie. Wartość zwracana jest dla testów
     i dla logu, nie dla przeglądarki.
+
+    Konto z niezaakceptowanym zaproszeniem dostaje **zaproszenie**, a nie link aktywacyjny – powód
+    przy :func:`activate_with_token` (AUTH-01a).
     """
     normalized = (email or "").strip().lower()
     if not normalized:
@@ -555,5 +601,9 @@ def resend_activation(email: str, *, request=None) -> bool:
     user = User.objects.filter(email=normalized).first()
     if user is None or user.email_verified_at is not None:
         return False
+    invited = pending_invitation(user)
+    if invited is not None:
+        send_pending_invitation(invited, request=request)
+        return True
     send_activation_email(user, request=request)
     return True

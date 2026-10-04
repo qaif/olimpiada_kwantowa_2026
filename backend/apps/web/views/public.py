@@ -37,7 +37,7 @@ from apps.accounts.activation import (
     resend_activation,
 )
 from apps.accounts.consents import ConsentSource
-from apps.accounts.password_reset import QueuedPasswordResetForm
+from apps.accounts.password_reset import QueuedPasswordResetForm, send_start_link
 from apps.accounts.services import register_committee, register_participant
 from apps.cms.models import SiteSettings
 from apps.competitions.scoring import problem_maxima_by_number, stage_maximum_total
@@ -158,8 +158,9 @@ class PasswordResetView(ThrottledFormMixin, DjangoPasswordResetView):
 
     **Bez enumeracji kont.** Odpowiedź jest identyczna dla adresu istniejącego i nieistniejącego –
     zawsze 302 na ``/password-reset/sent/``. ``PasswordResetForm`` Django szuka konta samo i przy
-    braku dopasowania po prostu nic nie wysyła (dotyczy to też kont ``is_active=False`` oraz kont
-    z nieużywalnym hashem hasła – to domyślne zachowanie ``get_users`` i go nie zmieniamy).
+    braku dopasowania po prostu nic nie wysyła. Od AUTH-01a link dostają też aktywne konta bez
+    hasła platformy (Google/Facebook), a konto nieuruchomione – link startowy (zaproszenie albo
+    aktywację); szczegóły w ``apps.accounts.password_reset``.
 
     Limit (scope ``password_reset``) konsumuje **każdy** POST, także udany: inaczej ten formularz
     byłby wysyłaczem listów na dowolny cudzy adres, ograniczonym wyłącznie cierpliwością nadawcy.
@@ -199,7 +200,11 @@ class PasswordResetView(ThrottledFormMixin, DjangoPasswordResetView):
             **(self.extra_email_context or {}),
             "site_name": service_name(self.request),
         }
-        return super().form_valid(form)
+        response = super().form_valid(form)
+        # Konto jeszcze nieuruchomione (zaproszenie, aktywacja) dostaje link startowy zamiast
+        # ciszy – odpowiedź zostaje ta sama (AUTH-01a, ``apps.accounts.password_reset``).
+        send_start_link(form.cleaned_data["email"], request=self.request)
+        return response
 
 
 class PasswordResetSentView(DjangoPasswordResetDoneView):
