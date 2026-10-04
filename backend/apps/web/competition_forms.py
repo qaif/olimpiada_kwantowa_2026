@@ -62,6 +62,9 @@ EDITABLE_FIELDS: tuple[str, ...] = (
     "default_language",
     "interface_languages",
     "time_zone",
+    # rejestracja uczestników (DEL-01) – na końcu, bo przestawia drogę wejścia do zawodów, a nie wygląd
+    "registration_mode",
+    "delegation_max_students",
 )
 # ``submission_forward_emails`` świadomie **nie** stoi na tej liście, choć jest polem konkursu:
 # przekazywanie prac ma własny ekran (``/coordinator/submission-forwarding/``), bo to jest decyzja
@@ -169,6 +172,8 @@ class CompetitionSettingsForm(forms.ModelForm):
             "default_language": "Język domyślny",
             "interface_languages": "Języki interfejsu",
             "time_zone": "Strefa czasowa",
+            "registration_mode": "Tryb rejestracji uczestników",
+            "delegation_max_students": "Domyślny limit uczniów delegacji",
         }
         help_texts = {
             "short_name": "Puste = używamy pełnej nazwy. Skrót stoi w wąskich miejscach interfejsu.",

@@ -102,7 +102,14 @@ PASSTHROUGH = (
     # karta aktualności – slot ``news_card``
     "item",
 )
-ROLE_FLAGS = ("is_participant", "is_reviewer", "is_appeals_committee", "is_supervisor", "is_coordinator")
+ROLE_FLAGS = (
+    "is_participant",
+    "is_reviewer",
+    "is_appeals_committee",
+    "is_supervisor",
+    "is_team_leader",
+    "is_coordinator",
+)
 MAX_ITEMS = 100
 MAX_DEPTH = 6
 

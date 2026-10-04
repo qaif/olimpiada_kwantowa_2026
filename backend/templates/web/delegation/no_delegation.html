@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% comment %}
+  Opiekun drużyny bez delegacji w bieżącej edycji (DEL-01, poprawka po przeglądzie): prowadził drużynę
+  w poprzedniej edycji albo został odwołany. Ma rolę, więc zamiast 404 dostaje wyjaśnienie.
+{% endcomment %}
+{% block title %}{% translate "Moja drużyna" %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow">{% translate "Panel opiekuna drużyny" %}</span>
+  <h1>{% translate "Nie prowadzisz drużyny w bieżącej edycji" %}</h1>
+  <p class="lead">{% translate "Twoje konto nie jest przypisane do żadnej delegacji w bieżącej edycji. Jeśli masz prowadzić drużynę, poproś organizatora o zaproszenie." %}</p>
+  {% if competition.contact_email %}
+    <p class="hint">{% translate "Kontakt z organizatorem:" %}
+      <a href="mailto:{{ competition.contact_email }}">{{ competition.contact_email }}</a></p>
+  {% endif %}
+</div>
+{% endblock %}

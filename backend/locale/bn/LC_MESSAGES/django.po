@@ -8942,3 +8942,283 @@ msgid ""
 msgstr ""
 "রেকর্ডিং ও ফাইল সাধারণত কর্মশালার কয়েক দিন পরে এখানে আসে। সময়সূচি <a href=\"/"
 "warsztaty/\">কর্মশালা</a> পাতায় আছে।"
+
+# --- DEL-01: delegacje krajowe (opiekun drużyny narodowej) ---
+
+msgid "Konkurs nie ma bieżącej edycji – delegacje zakłada się w bieżącej edycji."
+msgstr "প্রতিযোগিতার কোনো বর্তমান সংস্করণ নেই – প্রতিনিধিদল বর্তমান সংস্করণেই তৈরি হয়।"
+
+msgid "Ta zgoda jest wymagana."
+msgstr "এই সম্মতি আবশ্যক।"
+
+msgid "To zaproszenie wysłano na inny adres. Wyloguj się i otwórz link jeszcze raz."
+msgstr "এই আমন্ত্রণটি অন্য একটি ঠিকানায় পাঠানো হয়েছিল। লগ আউট করে লিঙ্কটি আবার খুলুন।"
+
+msgid "Ten adres ma już konto – zaloguj się, a potem otwórz link jeszcze raz."
+msgstr "এই ঠিকানায় ইতিমধ্যে একটি অ্যাকাউন্ট আছে – লগ ইন করুন, তারপর লিঙ্কটি আবার খুলুন।"
+
+msgid "To konto prowadzi już delegację innego kraju w tej edycji."
+msgstr "এই অ্যাকাউন্টটি এই সংস্করণে ইতিমধ্যে অন্য একটি দেশের প্রতিনিধিদল পরিচালনা করছে।"
+
+msgid "Delegacja jest zamknięta – lista uczniów nie może się już zmienić. Skontaktuj się z organizatorem."
+msgstr "প্রতিনিধিদল বন্ধ – শিক্ষার্থীদের তালিকা আর পরিবর্তন করা যাবে না। আয়োজকের সঙ্গে যোগাযোগ করুন।"
+
+msgid "Podaj pełną nazwę szkoły."
+msgstr "স্কুলের পূর্ণ নাম লিখুন।"
+
+msgid "Rejestracja uczniów jest obecnie zamknięta."
+msgstr "শিক্ষার্থী নিবন্ধন বর্তমানে বন্ধ।"
+
+#, python-format
+msgid "Delegacja ma już komplet uczniów (limit: %(limit)s)."
+msgstr "প্রতিনিধিদলে শিক্ষার্থীর সংখ্যা পূর্ণ হয়ে গেছে (সীমা: %(limit)s)।"
+
+msgid "Ten adres ma już konto w serwisie – podaj inny adres ucznia albo skontaktuj się z organizatorem."
+msgstr "এই ঠিকানায় সাইটে ইতিমধ্যে একটি অ্যাকাউন্ট আছে – শিক্ষার্থীর অন্য ঠিকানা দিন অথবা আয়োজকের সঙ্গে যোগাযোগ করুন।"
+
+msgid "Uczeń uruchomił już konto – dane poprawia sam w swoim profilu."
+msgstr "শিক্ষার্থী ইতিমধ্যে অ্যাকাউন্ট চালু করেছে – সে নিজের প্রোফাইলে তথ্য নিজেই সংশোধন করবে।"
+
+msgid "Ten adres ma już konto w serwisie – podaj inny adres ucznia."
+msgstr "এই ঠিকানায় সাইটে ইতিমধ্যে একটি অ্যাকাউন্ট আছে – শিক্ষার্থীর অন্য ঠিকানা দিন।"
+
+msgid "Zawody już się rozpoczęły – ucznia może wypisać wyłącznie organizator."
+msgstr "প্রতিযোগিতা ইতিমধ্যে শুরু হয়েছে – এখন কেবল আয়োজকই শিক্ষার্থীর নাম প্রত্যাহার করতে পারেন।"
+
+msgid "To konto jest używane także poza tą delegacją – ucznia może wypisać wyłącznie organizator."
+msgstr "এই অ্যাকাউন্টটি এই প্রতিনিধিদলের বাইরেও ব্যবহৃত হয় – কেবল আয়োজকই শিক্ষার্থীর নাম প্রত্যাহার করতে পারেন।"
+
+msgid "Ten uczeń uruchomił już konto."
+msgstr "এই শিক্ষার্থী ইতিমধ্যে অ্যাকাউন্ট চালু করেছে।"
+
+msgid "Uczniów zgłaszają opiekunowie drużyn narodowych – skontaktuj się z opiekunem drużyny swojego kraju albo z organizatorem."
+msgstr "শিক্ষার্থীদের নিবন্ধন করেন জাতীয় দলের নেতারা – আপনার দেশের দলনেতা বা আয়োজকের সঙ্গে যোগাযোগ করুন।"
+
+msgid "Adres e-mail ucznia"
+msgstr "শিক্ষার্থীর ই-মেইল ঠিকানা"
+
+msgid "Na ten adres uczeń dostanie link do uruchomienia konta. Adres jest jego loginem."
+msgstr "এই ঠিকানায় শিক্ষার্থী অ্যাকাউন্ট চালু করার লিঙ্ক পাবে। এই ঠিকানাই তার লগইন।"
+
+msgid "Nieobowiązkowe. Uczeń niepełnoletni poprosi z tego adresu o zgodę rodzica po uruchomieniu konta."
+msgstr "ঐচ্ছিক। অপ্রাপ্তবয়স্ক শিক্ষার্থী অ্যাকাউন্ট চালু করার পর এই ঠিকানায় অভিভাবকের সম্মতি চাইবে।"
+
+msgid "Uczeń został zgłoszony – wysłaliśmy mu link do uruchomienia konta."
+msgstr "শিক্ষার্থীকে নিবন্ধিত করা হয়েছে – আমরা তাকে অ্যাকাউন্ট চালু করার লিঙ্ক পাঠিয়েছি।"
+
+msgid "Dane ucznia zostały zapisane."
+msgstr "শিক্ষার্থীর তথ্য সংরক্ষিত হয়েছে।"
+
+msgid "Uczeń został wypisany z drużyny."
+msgstr "শিক্ষার্থীকে দল থেকে প্রত্যাহার করা হয়েছে।"
+
+msgid "Wysłaliśmy link ponownie."
+msgstr "আমরা লিঙ্কটি আবার পাঠিয়েছি।"
+
+msgid "Zaproszenie przyjęte – możesz zgłaszać uczniów swojej drużyny."
+msgstr "আমন্ত্রণ গ্রহণ করা হয়েছে – এখন আপনি আপনার দলের শিক্ষার্থীদের নিবন্ধন করতে পারেন।"
+
+#, python-format
+msgid "Organizator konkursu %(competition)s zaprasza Cię do roli opiekuna drużyny narodowej: %(country)s."
+msgstr "%(competition)s-এর আয়োজক আপনাকে জাতীয় দলের নেতা হওয়ার আমন্ত্রণ জানাচ্ছেন: %(country)s।"
+
+msgid "Opiekun drużyny zgłasza uczniów swojego kraju i widzi ich listę. Jeśli z Twojego kraju jest kilku opiekunów, prowadzicie jedną wspólną drużynę. Aby przyjąć zaproszenie, otwórz poniższy adres – założysz konto albo zalogujesz się na istniejące:"
+msgstr "দলনেতা নিজের দেশের শিক্ষার্থীদের নিবন্ধন করেন এবং তাদের তালিকা দেখেন। আপনার দেশে একাধিক দলনেতা থাকলে আপনারা একটি যৌথ দল পরিচালনা করেন। আমন্ত্রণ গ্রহণ করতে নিচের ঠিকানাটি খুলুন – আপনি নতুন অ্যাকাউন্ট তৈরি করবেন বা বিদ্যমান অ্যাকাউন্টে লগ ইন করবেন:"
+
+#, python-format
+msgid "Link jest ważny %(days)s dni i działa tylko raz. Jeśli wygaśnie, poproś organizatora o nowe zaproszenie."
+msgstr "লিঙ্কটি %(days)s দিন বৈধ এবং কেবল একবারই কাজ করে। মেয়াদ শেষ হলে আয়োজকের কাছে নতুন আমন্ত্রণ চান।"
+
+msgid "Jeśli nie spodziewasz się tej wiadomości – zignoruj ją. Bez kliknięcia w link nic się nie stanie."
+msgstr "আপনি যদি এই বার্তাটির প্রত্যাশা না করে থাকেন, তবে এটি উপেক্ষা করুন। লিঙ্কে ক্লিক না করলে কিছুই ঘটবে না।"
+
+#, python-format
+msgid "Zaproszenie dla opiekuna drużyny narodowej – %(competition)s"
+msgstr "জাতীয় দলনেতার জন্য আমন্ত্রণ – %(competition)s"
+
+#, python-format
+msgid "Cześć %(name)s! Opiekun drużyny narodowej (%(country)s) zgłosił Cię do konkursu %(competition)s."
+msgstr "হ্যালো %(name)s! জাতীয় দলনেতা (%(country)s) আপনাকে %(competition)s-এ নিবন্ধিত করেছেন।"
+
+#, python-format
+msgid "Link jest ważny %(days)s dni. Jeśli wygaśnie, poproś opiekuna drużyny o wysłanie go ponownie."
+msgstr "লিঙ্কটি %(days)s দিন বৈধ। মেয়াদ শেষ হলে দলনেতাকে আবার পাঠাতে বলুন।"
+
+#, python-format
+msgid "Zgłoszenie do drużyny narodowej – %(competition)s"
+msgstr "জাতীয় দলে নিবন্ধন – %(competition)s"
+
+msgid "Zaproszenie dla opiekuna drużyny"
+msgstr "দলনেতার আমন্ত্রণ"
+
+#, python-format
+msgid "Opiekun drużyny: %(country)s"
+msgstr "দলনেতা: %(country)s"
+
+#, python-format
+msgid "Organizator konkursu %(competition_name)s zaprasza Cię do roli opiekuna drużyny narodowej. Zaproszenie wysłano na adres %(email)s."
+msgstr "%(competition_name)s-এর আয়োজক আপনাকে জাতীয় দলনেতা হওয়ার আমন্ত্রণ জানাচ্ছেন। আমন্ত্রণটি %(email)s ঠিকানায় পাঠানো হয়েছে।"
+
+msgid "Opiekun drużyny zgłasza uczniów swojego kraju i widzi wyłącznie ich – bez prac i ocen. Jeśli z Twojego kraju jest kilku opiekunów, prowadzicie jedną wspólną drużynę."
+msgstr "দলনেতা নিজের দেশের শিক্ষার্থীদের নিবন্ধন করেন এবং কেবল তাদেরই দেখেন – তাদের উত্তরপত্র বা নম্বর ছাড়া। আপনার দেশে একাধিক দলনেতা থাকলে আপনারা একটি যৌথ দল পরিচালনা করেন।"
+
+msgid "Ten adres ma już konto w serwisie. Zaloguj się nim – po zalogowaniu wrócisz na tę stronę i przyjmiesz zaproszenie."
+msgstr "এই ঠিকানায় সাইটে ইতিমধ্যে একটি অ্যাকাউন্ট আছে। সেটি দিয়ে লগ ইন করুন – লগ ইনের পর এই পৃষ্ঠায় ফিরে আমন্ত্রণ গ্রহণ করবেন।"
+
+#, python-format
+msgid "Jesteś zalogowany na inne konto. To zaproszenie można przyjąć wyłącznie kontem %(email)s – wyloguj się i otwórz link jeszcze raz."
+msgstr "আপনি অন্য একটি অ্যাকাউন্টে লগ ইন করে আছেন। এই আমন্ত্রণ কেবল %(email)s অ্যাকাউন্ট দিয়েই গ্রহণ করা যায় – লগ আউট করে লিঙ্কটি আবার খুলুন।"
+
+msgid "Załóż konto i przyjmij zaproszenie"
+msgstr "অ্যাকাউন্ট তৈরি করুন ও আমন্ত্রণ গ্রহণ করুন"
+
+msgid "Przyjmuję zaproszenie"
+msgstr "আমি আমন্ত্রণ গ্রহণ করছি"
+
+#, python-format
+msgid "Link jest ważny do %(until)s. Jeśli nie spodziewasz się tego zaproszenia – zamknij tę stronę."
+msgstr "লিঙ্কটি %(until)s পর্যন্ত বৈধ। আপনি যদি এই আমন্ত্রণের প্রত্যাশা না করে থাকেন, তবে এই পৃষ্ঠাটি বন্ধ করুন।"
+
+msgid "Zaproszenie przyjęte"
+msgstr "আমন্ত্রণ গৃহীত"
+
+msgid "Konto opiekuna drużyny jest gotowe"
+msgstr "আপনার দলনেতা অ্যাকাউন্ট প্রস্তুত"
+
+msgid "Zaloguj się swoim adresem e-mail i nowym hasłem – po zalogowaniu zobaczysz panel drużyny i zgłosisz uczniów."
+msgstr "আপনার ই-মেইল ঠিকানা ও নতুন পাসওয়ার্ড দিয়ে লগ ইন করুন – লগ ইনের পর দলের প্যানেল দেখবেন এবং শিক্ষার্থীদের নিবন্ধন করতে পারবেন।"
+
+msgid "Jeśli zaproszenie zostało już przyjęte, po prostu się zaloguj. Jeśli link wygasł – poproś organizatora o nowe zaproszenie."
+msgstr "আমন্ত্রণ ইতিমধ্যে গৃহীত হলে শুধু লগ ইন করুন। লিঙ্কের মেয়াদ শেষ হলে আয়োজকের কাছে নতুন আমন্ত্রণ চান।"
+
+msgid "Panel opiekuna drużyny"
+msgstr "দলনেতার প্যানেল"
+
+#, python-format
+msgid "Drużyna: %(country)s"
+msgstr "দল: %(country)s"
+
+#, python-format
+msgid "Edycja %(edition)s. Zgłoszeni uczniowie: %(students)s z %(limit)s."
+msgstr "সংস্করণ %(edition)s। নিবন্ধিত শিক্ষার্থী: %(limit)s জনের মধ্যে %(students)s জন।"
+
+msgid "Dodaj ucznia"
+msgstr "শিক্ষার্থী যোগ করুন"
+
+msgid "Delegacja jest zamknięta – lista uczniów nie może się już zmienić. W razie potrzeby skontaktuj się z organizatorem."
+msgstr "প্রতিনিধিদল বন্ধ – শিক্ষার্থীদের তালিকা আর পরিবর্তন করা যাবে না। প্রয়োজনে আয়োজকের সঙ্গে যোগাযোগ করুন।"
+
+msgid "Drużyna ma komplet uczniów."
+msgstr "দলে শিক্ষার্থীর সংখ্যা পূর্ণ।"
+
+msgid "Każdy zgłoszony uczeń dostaje e-mail z linkiem: sam ustawia hasło i składa zgody. Dane możesz poprawić, dopóki uczeń nie uruchomi konta; wypisać ucznia możesz do startu zawodów."
+msgstr "প্রত্যেক নিবন্ধিত শিক্ষার্থী একটি লিঙ্কসহ ই-মেইল পায়: সে নিজেই পাসওয়ার্ড সেট করে ও সম্মতি দেয়। শিক্ষার্থী অ্যাকাউন্ট চালু না করা পর্যন্ত আপনি তথ্য সংশোধন করতে পারেন; প্রতিযোগিতা শুরুর আগ পর্যন্ত শিক্ষার্থীর নাম প্রত্যাহার করতে পারেন।"
+
+msgid "Uczniowie drużyny"
+msgstr "দলের শিক্ষার্থীরা"
+
+msgid "Popraw dane"
+msgstr "তথ্য সংশোধন করুন"
+
+msgid "Wypisz"
+msgstr "প্রত্যাহার করুন"
+
+msgid "Nie zgłoszono jeszcze żadnego ucznia."
+msgstr "এখনো কোনো শিক্ষার্থী নিবন্ধিত হয়নি।"
+
+msgid "Opiekunowie drużyny"
+msgstr "দলনেতারা"
+
+msgid "Wszyscy opiekunowie tego kraju prowadzą jedną drużynę i widzą tych samych uczniów."
+msgstr "এই দেশের সব দলনেতা একটি দলই পরিচালনা করেন এবং একই শিক্ষার্থীদের দেখেন।"
+
+msgid "Wypisz ucznia"
+msgstr "শিক্ষার্থীর নাম প্রত্যাহার করুন"
+
+#, python-format
+msgid "Uczeń %(name)s (%(email)s) zostanie wypisany z drużyny, a jego konto – usunięte."
+msgstr "শিক্ষার্থী %(name)s (%(email)s)-কে দল থেকে প্রত্যাহার করা হবে এবং তার অ্যাকাউন্ট মুছে ফেলা হবে।"
+
+msgid "Ten uczeń uruchomił już konto. Wypisz go tylko wtedy, gdy na pewno nie wystartuje."
+msgstr "এই শিক্ষার্থী ইতিমধ্যে অ্যাকাউন্ট চালু করেছে। নিশ্চিতভাবে অংশ না নিলে তবেই তার নাম প্রত্যাহার করুন।"
+
+msgid "Popraw dane ucznia"
+msgstr "শিক্ষার্থীর তথ্য সংশোধন করুন"
+
+msgid "Zmiana adresu e-mail wysyła uczniowi nowy link – poprzedni przestaje działać."
+msgstr "ই-মেইল ঠিকানা পরিবর্তন করলে শিক্ষার্থীকে নতুন লিঙ্ক পাঠানো হয় – আগেরটি আর কাজ করে না।"
+
+msgid "Uczeń dostanie e-mail z linkiem: ustawi hasło i sam złoży zgody. Do tego czasu konto jest nieaktywne."
+msgstr "শিক্ষার্থী একটি লিঙ্কসহ ই-মেইল পাবে: সে পাসওয়ার্ড সেট করবে এবং নিজেই সম্মতি দেবে। ততক্ষণ অ্যাকাউন্ট নিষ্ক্রিয় থাকবে।"
+
+msgid "Zapisz"
+msgstr "সংরক্ষণ করুন"
+
+msgid "Zgłoś ucznia"
+msgstr "শিক্ষার্থী নিবন্ধন করুন"
+
+#, python-format
+msgid "Cześć %(name)s! Opiekun drużyny (%(country)s) zgłosił Cię do konkursu %(competition_name)s. Ustaw hasło i potwierdź oświadczenia – dopiero to uruchamia konto."
+msgstr "হ্যালো %(name)s! দলনেতা (%(country)s) আপনাকে %(competition_name)s-এ নিবন্ধিত করেছেন। পাসওয়ার্ড সেট করুন ও ঘোষণাগুলি নিশ্চিত করুন – কেবল এতেই অ্যাকাউন্ট চালু হয়।"
+
+msgid "Kraj:"
+msgstr "দেশ:"
+
+msgid "Coś się nie zgadza? Napisz do opiekuna swojej drużyny – może poprawić dane, dopóki nie uruchomisz konta."
+msgstr "কিছু ভুল আছে? আপনার দলনেতাকে লিখুন – আপনি অ্যাকাউন্ট চালু না করা পর্যন্ত তিনি তথ্য সংশোধন করতে পারেন।"
+
+msgid "Kontakt z organizatorem:"
+msgstr "আয়োজকের সঙ্গে যোগাযোগ:"
+
+# --- DEL-01: poprawki po przeglądzie ---
+
+msgid "Uczeń został wypisany z drużyny. Jego konto zostaje – o dalszym udziale zdecyduje organizator."
+msgstr "শিক্ষার্থীকে দল থেকে প্রত্যাহার করা হয়েছে। তার অ্যাকাউন্ট থাকছে – পরবর্তী অংশগ্রহণের বিষয়ে আয়োজক সিদ্ধান্ত নেবেন।"
+
+#, python-format
+msgid "Cześć %(name)s! Opiekun drużyny narodowej (%(country)s) wypisał Cię z drużyny w konkursie %(competition)s."
+msgstr "হ্যালো %(name)s! জাতীয় দলনেতা (%(country)s) আপনাকে %(competition)s-এর দল থেকে প্রত্যাহার করেছেন।"
+
+msgid "Twoje konto nie zostało usunięte. Organizator skontaktuje się z Tobą w sprawie dalszego udziału. Jeśli to pomyłka, napisz do opiekuna drużyny albo do organizatora."
+msgstr "আপনার অ্যাকাউন্ট মুছে ফেলা হয়নি। পরবর্তী অংশগ্রহণ নিয়ে আয়োজক আপনার সঙ্গে যোগাযোগ করবেন। এটি ভুল হলে দলনেতা বা আয়োজককে লিখুন।"
+
+#, python-format
+msgid "Wypisanie z drużyny narodowej – %(competition)s"
+msgstr "জাতীয় দল থেকে প্রত্যাহার – %(competition)s"
+
+msgid "Nie prowadzisz drużyny w bieżącej edycji"
+msgstr "বর্তমান সংস্করণে আপনি কোনো দল পরিচালনা করছেন না"
+
+msgid "Twoje konto nie jest przypisane do żadnej delegacji w bieżącej edycji. Jeśli masz prowadzić drużynę, poproś organizatora o zaproszenie."
+msgstr "আপনার অ্যাকাউন্ট বর্তমান সংস্করণে কোনো প্রতিনিধিদলের সঙ্গে যুক্ত নয়। দল পরিচালনা করার কথা থাকলে আয়োজকের কাছে আমন্ত্রণ চান।"
+
+#, python-format
+msgid "Uczeń %(name)s (%(email)s) zostanie wypisany z drużyny. Jego konto zostaje – o dalszym udziale zdecyduje organizator, a uczeń dostanie o tym wiadomość."
+msgstr "শিক্ষার্থী %(name)s (%(email)s)-কে দল থেকে প্রত্যাহার করা হবে। তার অ্যাকাউন্ট থাকবে – পরবর্তী অংশগ্রহণ নিয়ে আয়োজক সিদ্ধান্ত নেবেন এবং শিক্ষার্থীকে জানানো হবে।"
+
+msgid "Wróć do drużyny"
+msgstr "দলে ফিরে যান"
+
+#: apps/cms/context_processors.py
+msgid "Dokumenty"
+msgstr "নথিপত্র"
+
+#: apps/cms/context_processors.py
+msgid "Komitety"
+msgstr "কমিটি"
+
+#: apps/cms/context_processors.py
+msgid "Harmonogram"
+msgstr "সময়সূচি"
+
+#: apps/cms/context_processors.py
+msgid "Kontakt"
+msgstr "যোগাযোগ"
+
+#: apps/cms/context_processors.py
+msgid "Dla szkół/nauczycieli"
+msgstr "স্কুল/শিক্ষকদের জন্য"
+
+#: apps/cms/context_processors.py
+msgid "Rejestracja nauczyciela"
+msgstr "শিক্ষক নিবন্ধন"

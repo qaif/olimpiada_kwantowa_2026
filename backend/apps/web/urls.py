@@ -13,6 +13,7 @@ from .urls_ai_grading import urlpatterns as ai_grading_urlpatterns
 from .urls_chat import urlpatterns as chat_urlpatterns
 from .urls_competitions import urlpatterns as competition_urlpatterns
 from .urls_consents import urlpatterns as consent_urlpatterns
+from .urls_delegations import urlpatterns as delegation_urlpatterns
 from .urls_documents import urlpatterns as document_urlpatterns
 from .urls_fees import urlpatterns as fee_urlpatterns
 from .urls_institutions import urlpatterns as institution_urlpatterns
@@ -1145,4 +1146,6 @@ urlpatterns = [
     *chat_urlpatterns,
     # --- wejście do pokoi wideo przez platformę, pokoje bez terminu (v0.39.0) -------------------
     *video_urlpatterns,
+    # --- delegacje krajowe: opiekun drużyny i ekran koordynatora (DEL-01, 4.10.2026) ------------
+    *delegation_urlpatterns,
 ]

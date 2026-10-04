@@ -8625,3 +8625,283 @@ msgid ""
 msgstr ""
 "录像和文件通常会在工作坊结束几天后发布在这里。日程请见<a href=\"/warsztaty/"
 "\">工作坊</a>页面。"
+
+# --- DEL-01: delegacje krajowe (opiekun drużyny narodowej) ---
+
+msgid "Konkurs nie ma bieżącej edycji – delegacje zakłada się w bieżącej edycji."
+msgstr "本竞赛没有当前届次——代表队只能在当前届次中创建。"
+
+msgid "Ta zgoda jest wymagana."
+msgstr "此项同意为必填。"
+
+msgid "To zaproszenie wysłano na inny adres. Wyloguj się i otwórz link jeszcze raz."
+msgstr "此邀请发送至另一个地址。请退出登录后重新打开链接。"
+
+msgid "Ten adres ma już konto – zaloguj się, a potem otwórz link jeszcze raz."
+msgstr "该地址已有账户——请先登录，然后重新打开链接。"
+
+msgid "To konto prowadzi już delegację innego kraju w tej edycji."
+msgstr "该账户在本届已负责另一个国家的代表队。"
+
+msgid "Delegacja jest zamknięta – lista uczniów nie może się już zmienić. Skontaktuj się z organizatorem."
+msgstr "代表队已关闭——学生名单不能再更改。请联系主办方。"
+
+msgid "Podaj pełną nazwę szkoły."
+msgstr "请填写学校全称。"
+
+msgid "Rejestracja uczniów jest obecnie zamknięta."
+msgstr "学生报名目前已关闭。"
+
+#, python-format
+msgid "Delegacja ma już komplet uczniów (limit: %(limit)s)."
+msgstr "代表队学生人数已满（上限：%(limit)s）。"
+
+msgid "Ten adres ma już konto w serwisie – podaj inny adres ucznia albo skontaktuj się z organizatorem."
+msgstr "该地址在本网站已有账户——请填写学生的其他地址或联系主办方。"
+
+msgid "Uczeń uruchomił już konto – dane poprawia sam w swoim profilu."
+msgstr "该学生已激活账户——资料由其本人在个人资料中修改。"
+
+msgid "Ten adres ma już konto w serwisie – podaj inny adres ucznia."
+msgstr "该地址在本网站已有账户——请填写学生的其他地址。"
+
+msgid "Zawody już się rozpoczęły – ucznia może wypisać wyłącznie organizator."
+msgstr "比赛已经开始——只有主办方可以让学生退出。"
+
+msgid "To konto jest używane także poza tą delegacją – ucznia może wypisać wyłącznie organizator."
+msgstr "该账户也在本代表队之外使用——只有主办方可以让该学生退出。"
+
+msgid "Ten uczeń uruchomił już konto."
+msgstr "该学生已激活账户。"
+
+msgid "Uczniów zgłaszają opiekunowie drużyn narodowych – skontaktuj się z opiekunem drużyny swojego kraju albo z organizatorem."
+msgstr "学生由各国代表队领队报名——请联系你所在国家的领队或主办方。"
+
+msgid "Adres e-mail ucznia"
+msgstr "学生的电子邮件地址"
+
+msgid "Na ten adres uczeń dostanie link do uruchomienia konta. Adres jest jego loginem."
+msgstr "学生将通过此地址收到激活账户的链接。该地址即其登录名。"
+
+msgid "Nieobowiązkowe. Uczeń niepełnoletni poprosi z tego adresu o zgodę rodzica po uruchomieniu konta."
+msgstr "选填。未成年学生在激活账户后将通过此地址请求家长同意。"
+
+msgid "Uczeń został zgłoszony – wysłaliśmy mu link do uruchomienia konta."
+msgstr "学生已报名——我们已向其发送激活账户的链接。"
+
+msgid "Dane ucznia zostały zapisane."
+msgstr "学生资料已保存。"
+
+msgid "Uczeń został wypisany z drużyny."
+msgstr "该学生已退出代表队。"
+
+msgid "Wysłaliśmy link ponownie."
+msgstr "我们已重新发送链接。"
+
+msgid "Zaproszenie przyjęte – możesz zgłaszać uczniów swojej drużyny."
+msgstr "邀请已接受——你现在可以为你的代表队报名学生。"
+
+#, python-format
+msgid "Organizator konkursu %(competition)s zaprasza Cię do roli opiekuna drużyny narodowej: %(country)s."
+msgstr "%(competition)s 主办方邀请你担任国家代表队领队：%(country)s。"
+
+msgid "Opiekun drużyny zgłasza uczniów swojego kraju i widzi ich listę. Jeśli z Twojego kraju jest kilku opiekunów, prowadzicie jedną wspólną drużynę. Aby przyjąć zaproszenie, otwórz poniższy adres – założysz konto albo zalogujesz się na istniejące:"
+msgstr "领队为本国学生报名并查看其名单。如果你的国家有多名领队，你们共同管理一支代表队。要接受邀请，请打开以下地址——你可以创建账户或登录已有账户："
+
+#, python-format
+msgid "Link jest ważny %(days)s dni i działa tylko raz. Jeśli wygaśnie, poproś organizatora o nowe zaproszenie."
+msgstr "该链接有效期为 %(days)s 天，且只能使用一次。如已过期，请向主办方申请新的邀请。"
+
+msgid "Jeśli nie spodziewasz się tej wiadomości – zignoruj ją. Bez kliknięcia w link nic się nie stanie."
+msgstr "如果你没有预料到这封邮件，请忽略它。不点击链接就不会发生任何事情。"
+
+#, python-format
+msgid "Zaproszenie dla opiekuna drużyny narodowej – %(competition)s"
+msgstr "国家代表队领队邀请 – %(competition)s"
+
+#, python-format
+msgid "Cześć %(name)s! Opiekun drużyny narodowej (%(country)s) zgłosił Cię do konkursu %(competition)s."
+msgstr "%(name)s，你好！国家代表队领队（%(country)s）已为你报名参加 %(competition)s。"
+
+#, python-format
+msgid "Link jest ważny %(days)s dni. Jeśli wygaśnie, poproś opiekuna drużyny o wysłanie go ponownie."
+msgstr "该链接有效期为 %(days)s 天。如已过期，请让领队重新发送。"
+
+#, python-format
+msgid "Zgłoszenie do drużyny narodowej – %(competition)s"
+msgstr "国家代表队报名 – %(competition)s"
+
+msgid "Zaproszenie dla opiekuna drużyny"
+msgstr "领队邀请"
+
+#, python-format
+msgid "Opiekun drużyny: %(country)s"
+msgstr "领队：%(country)s"
+
+#, python-format
+msgid "Organizator konkursu %(competition_name)s zaprasza Cię do roli opiekuna drużyny narodowej. Zaproszenie wysłano na adres %(email)s."
+msgstr "%(competition_name)s 主办方邀请你担任国家代表队领队。邀请已发送至 %(email)s。"
+
+msgid "Opiekun drużyny zgłasza uczniów swojego kraju i widzi wyłącznie ich – bez prac i ocen. Jeśli z Twojego kraju jest kilku opiekunów, prowadzicie jedną wspólną drużynę."
+msgstr "领队为本国学生报名，且只能看到这些学生——看不到答卷和评分。如果你的国家有多名领队，你们共同管理一支代表队。"
+
+msgid "Ten adres ma już konto w serwisie. Zaloguj się nim – po zalogowaniu wrócisz na tę stronę i przyjmiesz zaproszenie."
+msgstr "该地址在本网站已有账户。请用它登录——登录后你将回到此页面并接受邀请。"
+
+#, python-format
+msgid "Jesteś zalogowany na inne konto. To zaproszenie można przyjąć wyłącznie kontem %(email)s – wyloguj się i otwórz link jeszcze raz."
+msgstr "你当前登录的是另一个账户。此邀请只能由账户 %(email)s 接受——请退出登录后重新打开链接。"
+
+msgid "Załóż konto i przyjmij zaproszenie"
+msgstr "创建账户并接受邀请"
+
+msgid "Przyjmuję zaproszenie"
+msgstr "我接受邀请"
+
+#, python-format
+msgid "Link jest ważny do %(until)s. Jeśli nie spodziewasz się tego zaproszenia – zamknij tę stronę."
+msgstr "该链接有效期至 %(until)s。如果你没有预料到此邀请，请关闭此页面。"
+
+msgid "Zaproszenie przyjęte"
+msgstr "邀请已接受"
+
+msgid "Konto opiekuna drużyny jest gotowe"
+msgstr "你的领队账户已就绪"
+
+msgid "Zaloguj się swoim adresem e-mail i nowym hasłem – po zalogowaniu zobaczysz panel drużyny i zgłosisz uczniów."
+msgstr "请用你的电子邮件地址和新密码登录——登录后你将看到代表队面板并可为学生报名。"
+
+msgid "Jeśli zaproszenie zostało już przyjęte, po prostu się zaloguj. Jeśli link wygasł – poproś organizatora o nowe zaproszenie."
+msgstr "如果邀请已被接受，直接登录即可。如果链接已过期，请向主办方申请新的邀请。"
+
+msgid "Panel opiekuna drużyny"
+msgstr "领队面板"
+
+#, python-format
+msgid "Drużyna: %(country)s"
+msgstr "代表队：%(country)s"
+
+#, python-format
+msgid "Edycja %(edition)s. Zgłoszeni uczniowie: %(students)s z %(limit)s."
+msgstr "届次：%(edition)s。已报名学生：%(students)s / %(limit)s。"
+
+msgid "Dodaj ucznia"
+msgstr "添加学生"
+
+msgid "Delegacja jest zamknięta – lista uczniów nie może się już zmienić. W razie potrzeby skontaktuj się z organizatorem."
+msgstr "代表队已关闭——学生名单不能再更改。如有需要，请联系主办方。"
+
+msgid "Drużyna ma komplet uczniów."
+msgstr "代表队学生人数已满。"
+
+msgid "Każdy zgłoszony uczeń dostaje e-mail z linkiem: sam ustawia hasło i składa zgody. Dane możesz poprawić, dopóki uczeń nie uruchomi konta; wypisać ucznia możesz do startu zawodów."
+msgstr "每位已报名的学生都会收到一封带链接的邮件：由其本人设置密码并作出同意。在学生激活账户之前你可以修改资料；在比赛开始之前你可以让学生退出。"
+
+msgid "Uczniowie drużyny"
+msgstr "代表队学生"
+
+msgid "Popraw dane"
+msgstr "修改资料"
+
+msgid "Wypisz"
+msgstr "退出"
+
+msgid "Nie zgłoszono jeszcze żadnego ucznia."
+msgstr "尚未报名任何学生。"
+
+msgid "Opiekunowie drużyny"
+msgstr "领队"
+
+msgid "Wszyscy opiekunowie tego kraju prowadzą jedną drużynę i widzą tych samych uczniów."
+msgstr "该国所有领队共同管理一支代表队，看到的学生相同。"
+
+msgid "Wypisz ucznia"
+msgstr "让学生退出"
+
+#, python-format
+msgid "Uczeń %(name)s (%(email)s) zostanie wypisany z drużyny, a jego konto – usunięte."
+msgstr "学生 %(name)s（%(email)s）将退出代表队，其账户将被删除。"
+
+msgid "Ten uczeń uruchomił już konto. Wypisz go tylko wtedy, gdy na pewno nie wystartuje."
+msgstr "该学生已激活账户。只有在确定其不参赛时才让其退出。"
+
+msgid "Popraw dane ucznia"
+msgstr "修改学生资料"
+
+msgid "Zmiana adresu e-mail wysyła uczniowi nowy link – poprzedni przestaje działać."
+msgstr "更改电子邮件地址会向学生发送新链接——之前的链接将失效。"
+
+msgid "Uczeń dostanie e-mail z linkiem: ustawi hasło i sam złoży zgody. Do tego czasu konto jest nieaktywne."
+msgstr "学生将收到一封带链接的邮件：由其本人设置密码并作出同意。在此之前账户处于未激活状态。"
+
+msgid "Zapisz"
+msgstr "保存"
+
+msgid "Zgłoś ucznia"
+msgstr "为学生报名"
+
+#, python-format
+msgid "Cześć %(name)s! Opiekun drużyny (%(country)s) zgłosił Cię do konkursu %(competition_name)s. Ustaw hasło i potwierdź oświadczenia – dopiero to uruchamia konto."
+msgstr "%(name)s，你好！领队（%(country)s）已为你报名参加 %(competition_name)s。请设置密码并确认声明——只有这样才能激活账户。"
+
+msgid "Kraj:"
+msgstr "国家："
+
+msgid "Coś się nie zgadza? Napisz do opiekuna swojej drużyny – może poprawić dane, dopóki nie uruchomisz konta."
+msgstr "信息有误？请联系你的领队——在你激活账户之前，领队可以修改资料。"
+
+msgid "Kontakt z organizatorem:"
+msgstr "联系主办方："
+
+# --- DEL-01: poprawki po przeglądzie ---
+
+msgid "Uczeń został wypisany z drużyny. Jego konto zostaje – o dalszym udziale zdecyduje organizator."
+msgstr "该学生已退出代表队。其账户保留——是否继续参赛由主办方决定。"
+
+#, python-format
+msgid "Cześć %(name)s! Opiekun drużyny narodowej (%(country)s) wypisał Cię z drużyny w konkursie %(competition)s."
+msgstr "%(name)s，你好！国家代表队领队（%(country)s）已将你从 %(competition)s 的代表队中移出。"
+
+msgid "Twoje konto nie zostało usunięte. Organizator skontaktuje się z Tobą w sprawie dalszego udziału. Jeśli to pomyłka, napisz do opiekuna drużyny albo do organizatora."
+msgstr "你的账户未被删除。主办方将就后续参赛事宜与你联系。如有误，请联系领队或主办方。"
+
+#, python-format
+msgid "Wypisanie z drużyny narodowej – %(competition)s"
+msgstr "退出国家代表队 – %(competition)s"
+
+msgid "Nie prowadzisz drużyny w bieżącej edycji"
+msgstr "你在本届没有负责任何代表队"
+
+msgid "Twoje konto nie jest przypisane do żadnej delegacji w bieżącej edycji. Jeśli masz prowadzić drużynę, poproś organizatora o zaproszenie."
+msgstr "你的账户在本届未分配到任何代表队。如需负责代表队，请向主办方申请邀请。"
+
+#, python-format
+msgid "Uczeń %(name)s (%(email)s) zostanie wypisany z drużyny. Jego konto zostaje – o dalszym udziale zdecyduje organizator, a uczeń dostanie o tym wiadomość."
+msgstr "学生 %(name)s（%(email)s）将退出代表队。其账户保留——是否继续参赛由主办方决定，学生会收到通知。"
+
+msgid "Wróć do drużyny"
+msgstr "返回代表队"
+
+#: apps/cms/context_processors.py
+msgid "Dokumenty"
+msgstr "文件"
+
+#: apps/cms/context_processors.py
+msgid "Komitety"
+msgstr "委员会"
+
+#: apps/cms/context_processors.py
+msgid "Harmonogram"
+msgstr "日程"
+
+#: apps/cms/context_processors.py
+msgid "Kontakt"
+msgstr "联系我们"
+
+#: apps/cms/context_processors.py
+msgid "Dla szkół/nauczycieli"
+msgstr "学校/教师"
+
+#: apps/cms/context_processors.py
+msgid "Rejestracja nauczyciela"
+msgstr "教师注册"

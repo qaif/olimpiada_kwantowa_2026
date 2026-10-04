@@ -69,6 +69,11 @@
           <a class="account-bar__link" href="{{ supervisor_url }}"
              {% if request.path == supervisor_url %}aria-current="page"{% endif %}>{% translate "Moi uczniowie" %}</a>
         {% endif %}
+        {% if is_team_leader %}
+          {% url 'web:delegation' as delegation_url %}
+          <a class="account-bar__link" href="{{ delegation_url }}"
+             {% if request.path == delegation_url %}aria-current="page"{% endif %}>{% translate "Moja drużyna" %}</a>
+        {% endif %}
         {% if is_coordinator %}
           {% url 'web:coordinator' as coordinator_url %}
           <a class="account-bar__link" href="{{ coordinator_url }}"

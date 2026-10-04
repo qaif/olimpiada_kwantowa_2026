@@ -27,6 +27,24 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
   [--activate <slug>]` (`docs/OPERACJE.md` § 28).
 - **Wymaga przebudowy obrazu** (nowa zależność `tinycss2`).
 
+## [Unreleased] – Delegacje krajowe: rejestracja przez opiekunów drużyn narodowych (DEL-01)
+
+- **Tryb rejestracji konkursu** `Competition.registration_mode`: `OPEN` (domyślnie – każdy istniejący
+  i nowy konkurs) albo `DELEGATIONS` (olimpiada międzynarodowa). W `DELEGATIONS` samodzielna rejestracja
+  jest zamknięta na każdej drodze (formularz, API, Google/Facebook, import listy, rejestracja opiekuna
+  szkolnego) z osobnym powodem `delegations` i adresem kontaktowym organizatora na `/register/`.
+  `create_competition --registration open|delegations` (domyślnie `open`).
+- **Delegacje** (`accounts.Delegation`, `DelegationLeader`, `DelegationInvitation`, rola `team_leader`):
+  ekran koordynatora `/coordinator/delegations/` (zaproszenia opiekunów, limit, zamknięcie, eksport CSV),
+  przyjęcie zaproszenia `/delegation/accept/<token>/`, panel opiekuna `/delegation/` (kilku opiekunów
+  jednego kraju prowadzi jedną drużynę). Uczeń dostaje konto „zaproszone” i sam ustawia hasło oraz zgody.
+- **RODO:** nowa czynność w rejestrze (wersja 1.11, tylko konkursy w trybie delegacji), sekcja opiekuna
+  w eksporcie danych konta, sprzątanie roli i zaproszeń przy usunięciu/anonimizacji konta, trzeci
+  właściciel dowodu zgody (`ConsentRecord.team_leader`).
+- **i18n:** 70 nowych napisów ekranów opiekuna i listów w 10 katalogach (maszynowe, do przeglądu).
+- Dokumentacja: `docs/OPERACJE.md` § 28, `docs/PODRECZNIK-ORGANIZATORA.md` § 10b,
+  `docs/PODRECZNIK-OPIEKUNA-DRUZYNY.md`.
+
 ## [Unreleased] – Wielojęzyczność per konkurs (I18N-01) i kraje zamiast województw (REG-01)
 
 - **Języki interfejsu per konkurs:** `Competition.interface_languages` obok `default_language`

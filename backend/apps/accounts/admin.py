@@ -13,6 +13,9 @@ from .models import (
     CommitteeMember,
     ConsentDefinition,
     ConsentRecord,
+    Delegation,
+    DelegationInvitation,
+    DelegationLeader,
     InvitationCode,
     Membership,
     Participant,
@@ -271,6 +274,64 @@ class InvitationCodeAdmin(admin.ModelAdmin):
     @admin.display(description="sha256 kodu")
     def code_hash_short(self, obj: InvitationCode) -> str:
         return f"{obj.code_hash[:12]}…"
+
+    def has_add_permission(self, request) -> bool:
+        return False
+
+
+# --- delegacje krajowe (DEL-01) ------------------------------------------------------------------
+#
+# Narzędzie operatora do wglądu, a nie do pracy: zaprasza, odwołuje i zamyka koordynator na ekranie
+# „Delegacje” (``/coordinator/delegations/``), gdzie działają reguły serwisu i audyt. Tutaj wolno
+# czytać i poprawić limit albo stan, ale nie da się założyć opiekuna ani zaproszenia z pominięciem
+# zgód i tokenu.
+
+
+class TeamLeaderConsentRecordInline(ConsentRecordInline):
+    """Zgody opiekuna drużyny – trzeci właściciel ``ConsentRecord`` (jak przy opiekunie szkolnym)."""
+
+    fk_name = "team_leader"
+
+
+@admin.register(Delegation)
+class DelegationAdmin(admin.ModelAdmin):
+    list_display = ("country", "edition", "competition", "max_students", "status", "created_at")
+    list_filter = ("competition", "status")
+    search_fields = ("country__name", "country__code")
+    readonly_fields = ("competition", "edition", "country", "created_at")
+
+    def has_add_permission(self, request) -> bool:
+        return False
+
+
+@admin.register(DelegationLeader)
+class DelegationLeaderAdmin(admin.ModelAdmin):
+    list_display = ("user", "delegation", "accepted_at")
+    search_fields = ("user__email", "delegation__country__name")
+    readonly_fields = ("delegation", "edition", "user", "invited_by", "accepted_at")
+    inlines = (TeamLeaderConsentRecordInline,)
+
+    def has_add_permission(self, request) -> bool:
+        return False
+
+
+@admin.register(DelegationInvitation)
+class DelegationInvitationAdmin(admin.ModelAdmin):
+    """Tokenu nie da się podejrzeć – w bazie jest wyłącznie jego skrót."""
+
+    list_display = ("email", "delegation", "created_at", "sent_at", "expires_at", "accepted_at", "revoked_at")
+    search_fields = ("email", "delegation__country__name")
+    readonly_fields = (
+        "delegation",
+        "email",
+        "token_hash",
+        "created_by",
+        "created_at",
+        "sent_at",
+        "expires_at",
+        "accepted_at",
+        "accepted_by",
+    )
 
     def has_add_permission(self, request) -> bool:
         return False

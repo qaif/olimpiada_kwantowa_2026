@@ -652,3 +652,33 @@ def test_code_prefixes_can_be_given_explicitly():
     competition = Competition.objects.get(slug="fizyczna")
 
     assert (competition.public_code_prefix, competition.certificate_prefix) == ("OF-", "OFI")
+
+
+# --- DEL-01: tryb rejestracji nowego konkursu ------------------------------------------------------
+
+
+def test_new_competition_keeps_open_registration_by_default():
+    """Każda droga zakładania daje ``OPEN`` – szablon nie przełącza konkursu na delegacje po cichu."""
+    from apps.tenancy.models import RegistrationMode
+
+    create()
+
+    competition = Competition.objects.get(slug="fizyczna")
+    assert competition.registration_mode == RegistrationMode.OPEN
+    assert not competition.uses_delegations
+    assert all("registration_mode" not in spec for spec in TEMPLATES.values())
+
+
+def test_registration_delegations_is_an_explicit_choice_with_countries():
+    from apps.tenancy.models import RegistrationMode
+
+    create(slug="miedzynarodowa", domain="iqo.invalid", regions="countries", registration="delegations")
+
+    competition = Competition.objects.get(slug="miedzynarodowa")
+    assert competition.registration_mode == RegistrationMode.DELEGATIONS
+
+
+def test_registration_delegations_without_countries_is_refused():
+    with pytest.raises(CommandError, match="podziału na kraje"):
+        create(registration="delegations")
+    assert not Competition.objects.filter(slug="fizyczna").exists()

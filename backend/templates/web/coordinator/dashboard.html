@@ -63,7 +63,7 @@
     stronie głównej, więc pulpit i strona nie mogą pokazać dwóch różnych odpowiedzi.
   {% endcomment %}
   <p class="hint">Rejestracja uczestników:
-    <strong>{% if registration.is_open %}otwarta{% if registration.opens_at %} od {{ registration.opens_at|local_datetime }}{% endif %}{% if registration.closes_at %}, do {{ registration.closes_at|local_datetime }}{% endif %}{% elif registration.reason == "not_yet" %}rusza {{ registration.opens_at|local_datetime }}{% elif registration.reason == "closed" %}zamknięta {{ registration.closes_at|local_datetime }}{% else %}wyłączona{% endif %}</strong>
+    <strong>{% if registration.is_open %}otwarta{% if registration.opens_at %} od {{ registration.opens_at|local_datetime }}{% endif %}{% if registration.closes_at %}, do {{ registration.closes_at|local_datetime }}{% endif %}{% elif registration.reason == "not_yet" %}rusza {{ registration.opens_at|local_datetime }}{% elif registration.reason == "closed" %}zamknięta {{ registration.closes_at|local_datetime }}{% elif registration.reason == "delegations" %}przez delegacje krajowe – okno dla opiekunów drużyn {% if registration.window_open %}otwarte{% else %}zamknięte{% endif %}{% if registration.opens_at %} (od {{ registration.opens_at|local_datetime }}{% if registration.closes_at %} do {{ registration.closes_at|local_datetime }}{% endif %}){% elif registration.closes_at %} (do {{ registration.closes_at|local_datetime }}){% endif %}{% else %}wyłączona{% endif %}</strong>
     <a href="{% url 'web:coordinator-registration' %}">Ustawienia rejestracji</a></p>
 
   <div class="stage-grid">

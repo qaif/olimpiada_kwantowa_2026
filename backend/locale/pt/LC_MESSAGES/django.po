@@ -9202,3 +9202,283 @@ msgstr ""
 "As gravações e os arquivos costumam aparecer aqui alguns dias após os "
 "workshops. A programação está na página <a href=\"/warsztaty/\">Workshops</"
 "a>."
+
+# --- DEL-01: delegacje krajowe (opiekun drużyny narodowej) ---
+
+msgid "Konkurs nie ma bieżącej edycji – delegacje zakłada się w bieżącej edycji."
+msgstr "A competição não tem uma edição atual – as delegações são criadas na edição atual."
+
+msgid "Ta zgoda jest wymagana."
+msgstr "Este consentimento é obrigatório."
+
+msgid "To zaproszenie wysłano na inny adres. Wyloguj się i otwórz link jeszcze raz."
+msgstr "Este convite foi enviado para outro endereço. Termine a sessão e abra o link novamente."
+
+msgid "Ten adres ma już konto – zaloguj się, a potem otwórz link jeszcze raz."
+msgstr "Este endereço já tem uma conta – inicie sessão e depois abra o link novamente."
+
+msgid "To konto prowadzi już delegację innego kraju w tej edycji."
+msgstr "Esta conta já lidera a delegação de outro país nesta edição."
+
+msgid "Delegacja jest zamknięta – lista uczniów nie może się już zmienić. Skontaktuj się z organizatorem."
+msgstr "A delegação está fechada – a lista de alunos já não pode ser alterada. Contacte a organização."
+
+msgid "Podaj pełną nazwę szkoły."
+msgstr "Indique o nome completo da escola."
+
+msgid "Rejestracja uczniów jest obecnie zamknięta."
+msgstr "A inscrição de alunos está atualmente fechada."
+
+#, python-format
+msgid "Delegacja ma już komplet uczniów (limit: %(limit)s)."
+msgstr "A delegação já tem o número máximo de alunos (limite: %(limit)s)."
+
+msgid "Ten adres ma już konto w serwisie – podaj inny adres ucznia albo skontaktuj się z organizatorem."
+msgstr "Este endereço já tem uma conta no site – indique outro endereço do aluno ou contacte a organização."
+
+msgid "Uczeń uruchomił już konto – dane poprawia sam w swoim profilu."
+msgstr "O aluno já ativou a conta – corrige os seus dados ele próprio no perfil."
+
+msgid "Ten adres ma już konto w serwisie – podaj inny adres ucznia."
+msgstr "Este endereço já tem uma conta no site – indique outro endereço do aluno."
+
+msgid "Zawody już się rozpoczęły – ucznia może wypisać wyłącznie organizator."
+msgstr "A competição já começou – só a organização pode retirar um aluno."
+
+msgid "To konto jest używane także poza tą delegacją – ucznia może wypisać wyłącznie organizator."
+msgstr "Esta conta também é usada fora desta delegação – só a organização pode retirar o aluno."
+
+msgid "Ten uczeń uruchomił już konto."
+msgstr "Este aluno já ativou a conta."
+
+msgid "Uczniów zgłaszają opiekunowie drużyn narodowych – skontaktuj się z opiekunem drużyny swojego kraju albo z organizatorem."
+msgstr "Os alunos são inscritos pelos chefes das equipas nacionais – contacte o chefe de equipa do seu país ou a organização."
+
+msgid "Adres e-mail ucznia"
+msgstr "Endereço de e-mail do aluno"
+
+msgid "Na ten adres uczeń dostanie link do uruchomienia konta. Adres jest jego loginem."
+msgstr "O aluno receberá neste endereço o link para ativar a conta. O endereço é o seu login."
+
+msgid "Nieobowiązkowe. Uczeń niepełnoletni poprosi z tego adresu o zgodę rodzica po uruchomieniu konta."
+msgstr "Opcional. Um aluno menor pedirá a este endereço o consentimento parental depois de ativar a conta."
+
+msgid "Uczeń został zgłoszony – wysłaliśmy mu link do uruchomienia konta."
+msgstr "O aluno foi inscrito – enviámos-lhe um link para ativar a conta."
+
+msgid "Dane ucznia zostały zapisane."
+msgstr "Os dados do aluno foram guardados."
+
+msgid "Uczeń został wypisany z drużyny."
+msgstr "O aluno foi retirado da equipa."
+
+msgid "Wysłaliśmy link ponownie."
+msgstr "Enviámos o link novamente."
+
+msgid "Zaproszenie przyjęte – możesz zgłaszać uczniów swojej drużyny."
+msgstr "Convite aceite – já pode inscrever os alunos da sua equipa."
+
+#, python-format
+msgid "Organizator konkursu %(competition)s zaprasza Cię do roli opiekuna drużyny narodowej: %(country)s."
+msgstr "A organização de %(competition)s convida-o para chefe da equipa nacional: %(country)s."
+
+msgid "Opiekun drużyny zgłasza uczniów swojego kraju i widzi ich listę. Jeśli z Twojego kraju jest kilku opiekunów, prowadzicie jedną wspólną drużynę. Aby przyjąć zaproszenie, otwórz poniższy adres – założysz konto albo zalogujesz się na istniejące:"
+msgstr "O chefe de equipa inscreve os alunos do seu país e vê a respetiva lista. Se o seu país tiver vários chefes de equipa, gerem uma única equipa comum. Para aceitar o convite, abra o endereço abaixo – criará uma conta ou iniciará sessão numa conta existente:"
+
+#, python-format
+msgid "Link jest ważny %(days)s dni i działa tylko raz. Jeśli wygaśnie, poproś organizatora o nowe zaproszenie."
+msgstr "O link é válido durante %(days)s dias e funciona apenas uma vez. Se expirar, peça um novo convite à organização."
+
+msgid "Jeśli nie spodziewasz się tej wiadomości – zignoruj ją. Bez kliknięcia w link nic się nie stanie."
+msgstr "Se não estava à espera desta mensagem, ignore-a. Nada acontecerá sem clicar no link."
+
+#, python-format
+msgid "Zaproszenie dla opiekuna drużyny narodowej – %(competition)s"
+msgstr "Convite para chefe de equipa nacional – %(competition)s"
+
+#, python-format
+msgid "Cześć %(name)s! Opiekun drużyny narodowej (%(country)s) zgłosił Cię do konkursu %(competition)s."
+msgstr "Olá, %(name)s! O chefe da equipa nacional (%(country)s) inscreveu-o em %(competition)s."
+
+#, python-format
+msgid "Link jest ważny %(days)s dni. Jeśli wygaśnie, poproś opiekuna drużyny o wysłanie go ponownie."
+msgstr "O link é válido durante %(days)s dias. Se expirar, peça ao chefe de equipa que o envie novamente."
+
+#, python-format
+msgid "Zgłoszenie do drużyny narodowej – %(competition)s"
+msgstr "Inscrição na equipa nacional – %(competition)s"
+
+msgid "Zaproszenie dla opiekuna drużyny"
+msgstr "Convite para chefe de equipa"
+
+#, python-format
+msgid "Opiekun drużyny: %(country)s"
+msgstr "Chefe de equipa: %(country)s"
+
+#, python-format
+msgid "Organizator konkursu %(competition_name)s zaprasza Cię do roli opiekuna drużyny narodowej. Zaproszenie wysłano na adres %(email)s."
+msgstr "A organização de %(competition_name)s convida-o para chefe de uma equipa nacional. O convite foi enviado para %(email)s."
+
+msgid "Opiekun drużyny zgłasza uczniów swojego kraju i widzi wyłącznie ich – bez prac i ocen. Jeśli z Twojego kraju jest kilku opiekunów, prowadzicie jedną wspólną drużynę."
+msgstr "O chefe de equipa inscreve os alunos do seu país e só os vê a eles – sem as provas nem as classificações. Se o seu país tiver vários chefes de equipa, gerem uma única equipa comum."
+
+msgid "Ten adres ma już konto w serwisie. Zaloguj się nim – po zalogowaniu wrócisz na tę stronę i przyjmiesz zaproszenie."
+msgstr "Este endereço já tem uma conta no site. Inicie sessão com ela – depois voltará a esta página e aceitará o convite."
+
+#, python-format
+msgid "Jesteś zalogowany na inne konto. To zaproszenie można przyjąć wyłącznie kontem %(email)s – wyloguj się i otwórz link jeszcze raz."
+msgstr "Tem sessão iniciada noutra conta. Este convite só pode ser aceite com a conta %(email)s – termine a sessão e abra o link novamente."
+
+msgid "Załóż konto i przyjmij zaproszenie"
+msgstr "Criar conta e aceitar o convite"
+
+msgid "Przyjmuję zaproszenie"
+msgstr "Aceito o convite"
+
+#, python-format
+msgid "Link jest ważny do %(until)s. Jeśli nie spodziewasz się tego zaproszenia – zamknij tę stronę."
+msgstr "O link é válido até %(until)s. Se não estava à espera deste convite, feche esta página."
+
+msgid "Zaproszenie przyjęte"
+msgstr "Convite aceite"
+
+msgid "Konto opiekuna drużyny jest gotowe"
+msgstr "A sua conta de chefe de equipa está pronta"
+
+msgid "Zaloguj się swoim adresem e-mail i nowym hasłem – po zalogowaniu zobaczysz panel drużyny i zgłosisz uczniów."
+msgstr "Inicie sessão com o seu endereço de e-mail e a nova palavra-passe – depois verá o painel da equipa e poderá inscrever os alunos."
+
+msgid "Jeśli zaproszenie zostało już przyjęte, po prostu się zaloguj. Jeśli link wygasł – poproś organizatora o nowe zaproszenie."
+msgstr "Se o convite já foi aceite, basta iniciar sessão. Se o link expirou, peça um novo convite à organização."
+
+msgid "Panel opiekuna drużyny"
+msgstr "Painel do chefe de equipa"
+
+#, python-format
+msgid "Drużyna: %(country)s"
+msgstr "Equipa: %(country)s"
+
+#, python-format
+msgid "Edycja %(edition)s. Zgłoszeni uczniowie: %(students)s z %(limit)s."
+msgstr "Edição %(edition)s. Alunos inscritos: %(students)s de %(limit)s."
+
+msgid "Dodaj ucznia"
+msgstr "Adicionar aluno"
+
+msgid "Delegacja jest zamknięta – lista uczniów nie może się już zmienić. W razie potrzeby skontaktuj się z organizatorem."
+msgstr "A delegação está fechada – a lista de alunos já não pode ser alterada. Se necessário, contacte a organização."
+
+msgid "Drużyna ma komplet uczniów."
+msgstr "A equipa está completa."
+
+msgid "Każdy zgłoszony uczeń dostaje e-mail z linkiem: sam ustawia hasło i składa zgody. Dane możesz poprawić, dopóki uczeń nie uruchomi konta; wypisać ucznia możesz do startu zawodów."
+msgstr "Cada aluno inscrito recebe um e-mail com um link: define ele próprio a palavra-passe e dá os seus consentimentos. Pode corrigir os dados até o aluno ativar a conta; pode retirar o aluno até ao início da competição."
+
+msgid "Uczniowie drużyny"
+msgstr "Alunos da equipa"
+
+msgid "Popraw dane"
+msgstr "Corrigir dados"
+
+msgid "Wypisz"
+msgstr "Retirar"
+
+msgid "Nie zgłoszono jeszcze żadnego ucznia."
+msgstr "Ainda não foi inscrito nenhum aluno."
+
+msgid "Opiekunowie drużyny"
+msgstr "Chefes de equipa"
+
+msgid "Wszyscy opiekunowie tego kraju prowadzą jedną drużynę i widzą tych samych uczniów."
+msgstr "Todos os chefes de equipa deste país gerem uma única equipa e veem os mesmos alunos."
+
+msgid "Wypisz ucznia"
+msgstr "Retirar aluno"
+
+#, python-format
+msgid "Uczeń %(name)s (%(email)s) zostanie wypisany z drużyny, a jego konto – usunięte."
+msgstr "O aluno %(name)s (%(email)s) será retirado da equipa e a sua conta eliminada."
+
+msgid "Ten uczeń uruchomił już konto. Wypisz go tylko wtedy, gdy na pewno nie wystartuje."
+msgstr "Este aluno já ativou a conta. Retire-o apenas se tiver a certeza de que não vai participar."
+
+msgid "Popraw dane ucznia"
+msgstr "Corrigir os dados do aluno"
+
+msgid "Zmiana adresu e-mail wysyła uczniowi nowy link – poprzedni przestaje działać."
+msgstr "Alterar o endereço de e-mail envia ao aluno um novo link – o anterior deixa de funcionar."
+
+msgid "Uczeń dostanie e-mail z linkiem: ustawi hasło i sam złoży zgody. Do tego czasu konto jest nieaktywne."
+msgstr "O aluno receberá um e-mail com um link: definirá a palavra-passe e dará ele próprio os consentimentos. Até lá a conta está inativa."
+
+msgid "Zapisz"
+msgstr "Guardar"
+
+msgid "Zgłoś ucznia"
+msgstr "Inscrever aluno"
+
+#, python-format
+msgid "Cześć %(name)s! Opiekun drużyny (%(country)s) zgłosił Cię do konkursu %(competition_name)s. Ustaw hasło i potwierdź oświadczenia – dopiero to uruchamia konto."
+msgstr "Olá, %(name)s! O chefe da equipa (%(country)s) inscreveu-o em %(competition_name)s. Defina uma palavra-passe e confirme as declarações – só isso ativa a conta."
+
+msgid "Kraj:"
+msgstr "País:"
+
+msgid "Coś się nie zgadza? Napisz do opiekuna swojej drużyny – może poprawić dane, dopóki nie uruchomisz konta."
+msgstr "Algo não está certo? Escreva ao chefe da sua equipa – pode corrigir os dados até ativar a sua conta."
+
+msgid "Kontakt z organizatorem:"
+msgstr "Contacto com a organização:"
+
+# --- DEL-01: poprawki po przeglądzie ---
+
+msgid "Uczeń został wypisany z drużyny. Jego konto zostaje – o dalszym udziale zdecyduje organizator."
+msgstr "O aluno foi retirado da equipa. A conta mantém-se – a organização decidirá sobre a participação."
+
+#, python-format
+msgid "Cześć %(name)s! Opiekun drużyny narodowej (%(country)s) wypisał Cię z drużyny w konkursie %(competition)s."
+msgstr "Olá, %(name)s! O chefe da equipa nacional (%(country)s) retirou-o da equipa em %(competition)s."
+
+msgid "Twoje konto nie zostało usunięte. Organizator skontaktuje się z Tobą w sprawie dalszego udziału. Jeśli to pomyłka, napisz do opiekuna drużyny albo do organizatora."
+msgstr "A sua conta não foi eliminada. A organização entrará em contacto sobre a participação. Se for um erro, escreva ao chefe de equipa ou à organização."
+
+#, python-format
+msgid "Wypisanie z drużyny narodowej – %(competition)s"
+msgstr "Retirada da equipa nacional – %(competition)s"
+
+msgid "Nie prowadzisz drużyny w bieżącej edycji"
+msgstr "Não lidera nenhuma equipa na edição atual"
+
+msgid "Twoje konto nie jest przypisane do żadnej delegacji w bieżącej edycji. Jeśli masz prowadzić drużynę, poproś organizatora o zaproszenie."
+msgstr "A sua conta não está associada a nenhuma delegação na edição atual. Se deve liderar uma equipa, peça um convite à organização."
+
+#, python-format
+msgid "Uczeń %(name)s (%(email)s) zostanie wypisany z drużyny. Jego konto zostaje – o dalszym udziale zdecyduje organizator, a uczeń dostanie o tym wiadomość."
+msgstr "O aluno %(name)s (%(email)s) será retirado da equipa. A conta mantém-se – a organização decidirá sobre a participação e o aluno será notificado."
+
+msgid "Wróć do drużyny"
+msgstr "Voltar à equipa"
+
+#: apps/cms/context_processors.py
+msgid "Dokumenty"
+msgstr "Documentos"
+
+#: apps/cms/context_processors.py
+msgid "Komitety"
+msgstr "Comitês"
+
+#: apps/cms/context_processors.py
+msgid "Harmonogram"
+msgstr "Cronograma"
+
+#: apps/cms/context_processors.py
+msgid "Kontakt"
+msgstr "Contato"
+
+#: apps/cms/context_processors.py
+msgid "Dla szkół/nauczycieli"
+msgstr "Para escolas/professores"
+
+#: apps/cms/context_processors.py
+msgid "Rejestracja nauczyciela"
+msgstr "Cadastro de professor"

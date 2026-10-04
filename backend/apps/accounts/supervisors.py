@@ -147,11 +147,30 @@ def registration_enabled_for_request(request) -> bool:
     """
     from wagtail.models import Site
 
+    # Konkurs z rejestracją przez delegacje (DEL-01) nie ma opiekunów szkolnych zgłaszających
+    # uczniów: tę rolę pełni opiekun drużyny narodowej z zaproszenia koordynatora. Odczyt pola
+    # wczytanego już wiersza – Olimpiada Kwantowa nie płaci za to zapytaniem.
+    competition = getattr(request, "competition", None)
+    if competition is not None and competition.uses_delegations:
+        return False
     try:
         site = Site.find_for_request(request)
     except Exception:  # noqa: BLE001 - patrz docstring: żądanie ma dostać odpowiedź, nie 500
         site = None
     return registration_enabled(site.pk if site is not None else None)
+
+
+def registration_enabled_for_competition(competition) -> bool:
+    """To samo pytanie dla konkursu znanego z góry (API ramy djcms) – z bramką trybu delegacji.
+
+    Konkurs w trybie ``DELEGATIONS`` (DEL-01) nie ma rejestracji opiekunów szkolnych, więc odnośnik
+    do niej nie może się pojawić w żadnej ramie serwisu – adres i tak oddaje 404.
+    """
+    if competition is None:
+        return registration_enabled(None)
+    if competition.uses_delegations:
+        return False
+    return registration_enabled(competition.site_id)
 
 
 def reset_registration_cache(**_kwargs) -> None:

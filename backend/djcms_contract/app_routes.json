@@ -13,6 +13,7 @@
     "captcha",
     "cms",
     "coordinator",
+    "delegation",
     "documents",
     "dyplomy",
     "forum",
@@ -59,6 +60,6 @@
     "review",
     "supervisor"
   ],
-  "app_re": "^/(?:_theme|_util|account|accounts|activate|admin|api|appeals|captcha|cms|coordinator|documents|dyplomy|forum|healthz|i18n|internal|konto|login|logout|me|opiekun|password-reset|plakaty|register|rejestracja|reset|results|review|setup|status|statystyki|supervisor|support|warsztaty/materialy|zaproszenie|zgoda)(?:/.*)?$|^/[^/]+\\.html$|^/status\\.json$",
-  "app_re_prefixed": "^/[^/]+/(?:_theme|_util|account|accounts|activate|admin|api|appeals|captcha|cms|coordinator|documents|dyplomy|forum|healthz|i18n|internal|konto|login|logout|me|opiekun|password-reset|plakaty|register|rejestracja|reset|results|review|setup|status|statystyki|supervisor|support|warsztaty/materialy|zaproszenie|zgoda)(?:/.*)?$|^/[^/]+/[^/]+\\.html$|^/[^/]+/status\\.json$"
+  "app_re": "^/(?:_theme|_util|account|accounts|activate|admin|api|appeals|captcha|cms|coordinator|delegation|documents|dyplomy|forum|healthz|i18n|internal|konto|login|logout|me|opiekun|password-reset|plakaty|register|rejestracja|reset|results|review|setup|status|statystyki|supervisor|support|warsztaty/materialy|zaproszenie|zgoda)(?:/.*)?$|^/[^/]+\\.html$|^/status\\.json$",
+  "app_re_prefixed": "^/[^/]+/(?:_theme|_util|account|accounts|activate|admin|api|appeals|captcha|cms|coordinator|delegation|documents|dyplomy|forum|healthz|i18n|internal|konto|login|logout|me|opiekun|password-reset|plakaty|register|rejestracja|reset|results|review|setup|status|statystyki|supervisor|support|warsztaty/materialy|zaproszenie|zgoda)(?:/.*)?$|^/[^/]+/[^/]+\\.html$|^/[^/]+/status\\.json$"
 }

@@ -190,7 +190,7 @@ strony głównej w en i ar.
 Zbudowane: `backend/apps/themes/` (modele, walidator, generator tokenów, runtime, silnik slotów,
 znaczniki, komenda `theme_install`), sloty w `base.html` i szablonach CMS, panele
 (`apps/web/views/coordinator_themes.py`), rozszerzenie CSP, `Cache-Control: immutable` dla plików
-motywu w S3, motyw wbudowany `themes/classic/`, dokumentacja (`OPERACJE.md` § 28,
+motywu w S3, motyw wbudowany `themes/classic/`, dokumentacja (`OPERACJE.md` § 30,
 `PODRECZNIK-ORGANIZATORA.md` § 10b, CHANGELOG).
 
 Odstępstwa od § 0–§ 8 (z powodami):
@@ -211,7 +211,7 @@ Odstępstwa od § 0–§ 8 (z powodami):
    **z motywem** dostaje go w obu (znacznik `{% theme_head %}` ustawia flagę na żądaniu); `script-src`
    bez zmian; strona bez motywu – polityka co do bajtu dawna. Kroje cross-origin wymagają CORS –
    MinIO odpowiada `Access-Control-Allow-Origin` dla każdego originu (sprawdzone w devie), Caddy go
-   nie zmienia (`OPERACJE.md` § 28.2).
+   nie zmienia (`OPERACJE.md` § 30.2).
 3. **Prefiks plików:** `themes/<slug>/<wersja>-<sha8>/` zamiast `themes/<slug>/<wersja>/` – usunięcie
    wersji i ponowne wgranie tego samego numeru z inną treścią nie może trafić w cache przeglądarki.
 4. **Szablony slotów w bazie** (`ThemeVersion.templates`), nie w buckecie: bucket podałby je jako

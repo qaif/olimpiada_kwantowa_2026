@@ -69,6 +69,17 @@ class CompetitionSettingsView(CoordinatorRequiredMixin, View):
         saved.save()
         if changed:
             audit(request.user, "competition.updated", saved, {"fields": changed}, request=request)
+            if "registration_mode" in changed:
+                # Osobny wpis dla zmiany trybu rejestracji (DEL-01): zamyka albo otwiera samodzielną
+                # rejestrację na wszystkich drogach naraz, więc „kto i kiedy” ma dać się znaleźć
+                # filtrem po akcji, a nie przez przeglądanie list nazw pól.
+                audit(
+                    request.user,
+                    "competition.registration_mode_changed",
+                    saved,
+                    {"registration_mode": saved.registration_mode},
+                    request=request,
+                )
             messages.success(request, "Ustawienia konkursu zostały zapisane.")
         else:
             # Zapis bez zmiany nie jest błędem i nie zostawia śladu: formularz bywa otwierany po to,

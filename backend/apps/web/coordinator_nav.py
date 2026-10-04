@@ -727,6 +727,23 @@ def groups(stages: list, competition=None) -> list[Group]:
             ),
         )
     people_items: tuple[Item, ...] = ()
+    if competition is not None and competition.uses_delegations:
+        # Delegacje krajowe (DEL-01) – **na początku** dołożonych pozycji sekcji, bo w konkursie
+        # z tym trybem to jest droga, którą uczestnicy w ogóle trafiają do zawodów. Bramka ta sama,
+        # co w widoku (tryb rejestracji konkursu): poza nim ekran oddaje 404, a Olimpiada Kwantowa
+        # ma menu co do bajtu takie, jak przed tą zmianą.
+        people_items += (
+            Item(
+                "Delegacje",
+                ("web:coordinator-delegations",),
+                match=(
+                    "coordinator-delegations",
+                    "coordinator-delegations-",
+                    "coordinator-delegation",
+                    "coordinator-delegation-",
+                ),
+            ),
+        )
     if competition is not None and competition.has_feature("team_entries"):
         # Drużyny (§ 1.2.3, T34) – **na końcu** sekcji „Uczestnicy i konta”, bo cztery pozycje
         # przed nią są dzisiejszym menu i mają zostać w tej kolejności co do bajtu (§ 2.1 p. 1).
