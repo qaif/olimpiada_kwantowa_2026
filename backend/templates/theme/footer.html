@@ -18,6 +18,12 @@
         <a href="{{ site_root|default:"/" }}dokumenty/rodo/">{% translate "Polityka prywatności (RODO)" %}</a>
         <a href="{{ site_root|default:"/" }}dokumenty/cookies/">{% translate "Polityka plików cookie" %}</a>
         {% comment %}
+          Deklaracja dostępności (A11Y-01) – strona CMS zakładana komendą
+          ``seed_accessibility_statement``; stała ścieżka z tego samego powodu, co RODO wyżej.
+          Odnośnik ma być osiągalny ze strony głównej (wymóg wzoru deklaracji), więc stoi w stopce.
+        {% endcomment %}
+        <a href="{{ site_root|default:"/" }}dokumenty/deklaracja-dostepnosci/">{% translate "Deklaracja dostępności" %}</a>
+        {% comment %}
           Stopka po uwagach organizatora z 21.09.2026: zniknęły z niej „Dokumenty”, „Najczęstsze
           pytania”, „Statystyki” i „Rejestracja z kodem”. Dokumenty i FAQ mają własne pozycje
           w menu u góry; statystyki i rejestracja z kodem zostają pod swoimi adresami

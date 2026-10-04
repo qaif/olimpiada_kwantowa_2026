@@ -196,6 +196,7 @@ INSTALLED_APPS = [
     "apps.staff_mfa",  # 2FA personelu: polityka konkursu, okres przejściowy, odzyskiwanie (SEC-01)
     "apps.password_change",  # zmiana hasła w panelu konta (AUTH-01b, 4.10.2026), bez modeli
     "apps.monitoring",  # śledzenie błędów (GlitchTip) i dostępność – OPS-02, wyłączone bez SENTRY_DSN
+    "apps.accessibility",  # deklaracja dostępności i napisy stopki (A11Y-01, 5.10.2026), bez modeli
     "apps.web",
     # Logowanie przez dostawców zewnętrznych (Google, Facebook). ``allauth.account`` jest wymagane
     # przez ``allauth.socialaccount`` (model ``EmailAddress``, adaptery) – jego **widoki** nie są
