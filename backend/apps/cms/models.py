@@ -68,6 +68,8 @@ RESERVED_SLUGS = frozenset(
         # Wzorce ``_util/…`` z ``wagtail.urls`` (logowanie do stron z ograniczonym dostępem) stoją
         # przed catch-allem Wagtaila, więc i one są adresem aplikacji.
         "_util",
+        # ``/_theme/overrides.css`` – akcent marki konkursu nad motywem (``apps.themes``, THEME-01).
+        "_theme",
         "account",
         # ``/accounts/<dostawca>/login/…`` – logowanie przez Google/Facebooka (``apps.web.social_urls``).
         "accounts",
