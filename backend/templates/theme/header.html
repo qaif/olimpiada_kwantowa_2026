@@ -1,0 +1,178 @@
+{% load static i18n web_extras cms_extras wagtailimages_tags theme_tags %}{% comment %}
+  Slot motywu ``header`` (THEME-01 § 3) – oba paski nagłówka: pasek konta (logo, język, konto)
+  i menu serwisu. To jest treść domyślna (motyw ``classic``) przeniesiona co do bajtu z ``base.html``;
+  motyw nadpisuje ją plikiem ``templates/theme/header.html`` w paczce. Wewnątrz – zagnieżdżony slot
+  ``brand`` (logotyp), żeby motyw mógł podmienić sam znak bez przepisywania całego paska.
+{% endcomment %}<div class="topbar topbar--account">
+  {% comment %}
+    Pasek konta stoi **nad** nawigacją serwisu, we własnym wierszu i **przykleja się** do górnej
+    krawędzi okna (``position: sticky``). Jest **poza** ``<header>``, bo element przyklejony
+    trzyma się tylko w obrębie swojego rodzica – wewnątrz nagłówka odklejałby się razem z nim.
+    Logotyp i wejście do konta są pod ręką także na długiej stronie dokumentu, a menu serwisu
+    przewija się razem z treścią. Wcześniej te same odnośniki
+    były dosztukowane z prawej strony menu informacyjnego: przy dłuższych etykietach
+    („Rejestracja rusza 8 września 2026”) wychodziły poza układ i zawijały się w przypadkowym
+    miejscu. Tu kolejność jest stała i wynika z tego, kto czego szuka: najpierw wejście dla osób,
+    które już mają konto, potem główne zaproszenie (rejestracja uczestnika), a na końcu – jako
+    zwykły odnośnik – droga dla zaproszonych z kodem.
+  {% endcomment %}
+  <div class="topbar__account">
+    <div class="topbar__account-inner">
+    {% comment %}
+      Nazwa serwisu pochodzi z ``cms.SiteSettings`` (Ustawienia → Dane serwisu w /cms/), nie
+      z szablonu: zmiana nazwy albo danych organizatora nie może wymagać wydania aplikacji.
+    {% endcomment %}
+    {% theme_slot "brand" %}
+    {% comment %}
+      Najważniejsze pozycje serwisu (``PRIMARY_MENU_SLUGS`` w apps/cms/context_processors.py)
+      **przeskakują** do paska dopiero wtedy, gdy pasek się przyklei, czyli gdy menu serwisu
+      wyjechało poza ekran (klasa ``is-stuck`` nadawana przez static/js/sticky-bar.js). Na górze
+      strony menu stoi w pełnym składzie na swoim miejscu, a pasek jest krótki. Bez JavaScriptu
+      pozycje w pasku pozostają ukryte – dolne menu ma wszystko.
+    {% endcomment %}
+    {% if cms_menu_primary %}
+      <nav class="nav nav--primary" aria-label="{% translate 'Najważniejsze' %}" data-sticky-nav>
+        {% for item in cms_menu_primary %}
+          <a class="nav__link nav__link--primary" href="{{ item.url }}"
+             {% if item.active %}aria-current="page"{% endif %}>{{ item.title }}</a>
+        {% endfor %}
+      </nav>
+    {% endif %}
+    <nav class="account-bar" aria-label="{% translate 'Konto' %}">
+      {% comment %}
+        Język i kontrast stoją **przed** pozycjami konta i są widoczne także dla gościa: to
+        ustawienie przeglądającego, a nie uprawnienie. Oba przełączniki (dziś: flaga języka
+        docelowego i kółko kontrastu) mieszkają w osobnym fragmencie, bo są jedynym miejscem
+        tego szablonu z rysunkiem wektorowym w treści – razem z uzasadnieniem, dlaczego ikona
+        bez napisu wymaga własnej nazwy dostępnej.
+      {% endcomment %}
+      {% include "web/_interface_prefs.html" %}
+      <span class="account-bar__sep" aria-hidden="true"></span>
+      {% if user.is_authenticated %}
+        {% if is_participant %}
+          {% url 'web:me' as me_url %}
+          <a class="account-bar__link" href="{{ me_url }}"
+             {% if request.path == me_url %}aria-current="page"{% endif %}>{% translate "Mój panel" %}</a>
+        {% endif %}
+        {% if is_reviewer %}
+          {% url 'web:review-list' as review_url %}
+          <a class="account-bar__link" href="{{ review_url }}"
+             {% if request.path == review_url %}aria-current="page"{% endif %}>{% translate "Recenzje" %}</a>
+        {% endif %}
+        {% if is_appeals_committee %}
+          {% url 'web:appeals' as appeals_url %}
+          <a class="account-bar__link" href="{{ appeals_url }}"
+             {% if request.path == appeals_url %}aria-current="page"{% endif %}>{% translate "Reklamacje" %}</a>
+        {% endif %}
+        {% if is_supervisor %}
+          {% url 'web:supervisor' as supervisor_url %}
+          <a class="account-bar__link" href="{{ supervisor_url }}"
+             {% if request.path == supervisor_url %}aria-current="page"{% endif %}>{% translate "Moi uczniowie" %}</a>
+        {% endif %}
+        {% if is_coordinator %}
+          {% url 'web:coordinator' as coordinator_url %}
+          <a class="account-bar__link" href="{{ coordinator_url }}"
+             {% if request.path == coordinator_url %}aria-current="page"{% endif %}>Koordynator</a>
+        {% endif %}
+        {% include "web/_forum_link.html" %}
+        {% include "web/_chat_link.html" %}
+        {% include "web/_workshop_materials_link.html" %}
+        {% include "web/_support_link.html" %}
+        <span class="account-bar__sep" aria-hidden="true"></span>
+        {% comment %}``request.user``, a nie ``user``: widok może podać w kontekście własne ``user`` (karta członka
+          komisji podaje konto oglądanej osoby) i pasek pokazywałby wtedy cudzy adres jako „zalogowany”.{% endcomment %}
+        <span class="account-bar__who who" title="{{ request.user.email }}">{{ request.user.email }}</span>
+        <form method="post" action="{% url 'web:logout' %}" class="inline account-bar__logout">
+          {% csrf_token %}
+          <button type="submit" class="btn btn--small btn--secondary account-bar__btn">{% translate "Wyloguj" %}</button>
+        </form>
+      {% else %}
+        {% include "web/_support_link.html" %}
+        {% url 'web:login' as login_url %}
+        {% url 'web:register' as register_url %}
+        <a class="btn btn--small btn--secondary account-bar__btn" href="{{ login_url }}"
+           {% if request.path == login_url %}aria-current="page"{% endif %}>{% translate "Zaloguj się" %}</a>
+        {% comment %}
+          Poza oknem rejestracji przycisk znika, a przed terminem otwarcia zamienia się w zapowiedź
+          i **nadal prowadzi** na ``/register/`` – tam stoi pełne wyjaśnienie z datą. Nawigacja nie
+          jest tu zabezpieczeniem: rejestrację rozstrzyga bramka w serwisie kont.
+        {% endcomment %}
+        {% if registration.is_open %}
+          <a class="btn btn--small btn--accent account-bar__btn" href="{{ register_url }}"
+             {% if request.path == register_url %}aria-current="page"{% endif %}>{% translate "Zarejestruj się" %}</a>
+        {% elif registration.reason == "not_yet" %}
+          <a class="btn btn--small btn--accent account-bar__btn" href="{{ register_url }}"
+             {% if request.path == register_url %}aria-current="page"{% endif %}>{% blocktranslate trimmed with opens=registration.opens_at|date:"j E Y" %}Rejestracja rusza {{ opens }}{% endblocktranslate %}</a>
+        {% endif %}
+        {% comment %}
+          „Rejestracja z kodem” stała tu jako trzecia pozycja i zniknęła stąd na wniosek
+          organizatora: kod zaproszenia dostaje kilkanaście osób na edycję (komitet, recenzenci),
+          a pasek konta oglądają wszyscy odwiedzający. Droga jest teraz w stopce, razem
+          z dokumentami i kontaktem – tam szuka się rzeczy rzadkich. Adres ``web:register-committee``
+          żyje dalej: zaproszenie prowadzi do niego wprost z listu.
+        {% endcomment %}
+      {% endif %}
+    </nav>
+    </div>
+  </div>
+</div>
+<header class="topbar">
+  <div class="topbar__inner">
+    {% comment %}
+      Część informacyjna (Wagtail). Lista pochodzi z drzewa stron – patrz
+      apps/cms/context_processors.py; to nawigacja, nie autoryzacja.
+      ``aria-current`` na aktywnej pozycji: porównujemy adres pozycji ze ścieżką żądania.
+    {% endcomment %}
+    <nav class="nav nav--cms" aria-label="{% translate 'Serwis' %}">
+      {% for item in cms_menu %}
+        {% if item.children %}
+          {% comment %}
+            Rozwijana pozycja („Dokumenty”) to ``<details>``, a nie przycisk ze skryptem: otwiera
+            się kliknięciem i klawiszem (Enter/spacja na ``<summary>``), działa przy wyłączonym
+            JavaScripcie i nie potrzebuje ani atrybutów ARIA, ani obsługi fokusu – przeglądarka
+            robi jedno i drugie sama. Od 900 px arkusz otwiera ją dodatkowo najechaniem
+            (``:hover``/``:focus-within``), więc na desktopie kliknięcie nie jest konieczne.
+            Pozycji „Wszystkie dokumenty” na liście już nie ma (uwaga organizatora z 21.09.2026):
+            lista rozwijana wymienia każdy dokument z nazwy, więc odnośnik do samego spisu był
+            jedenastą drogą do tych samych dziesięciu stron. Adres ``/dokumenty/`` działa dalej.
+          {% endcomment %}
+          <details class="nav-menu">
+            <summary class="nav__link nav-menu__summary{% if item.active %} nav-menu__summary--active{% endif %}">{{ item.title }}</summary>
+            <ul class="nav-menu__list">
+              {% for child in item.children %}
+                <li><a class="nav-menu__link" href="{{ child.url }}"
+                       {% if child.active %}aria-current="page"{% endif %}>{{ child.title }}</a></li>
+              {% endfor %}
+            </ul>
+          </details>
+        {% elif item.home %}
+          {% comment %}
+            Strona główna jako domek, bez napisu (uwaga organizatora z 21.09.2026). Nazwa zostaje
+            w ``visually-hidden`` i w ``title``: ikona bez nazwy jest dla czytnika ekranu pustym
+            odnośnikiem, a dla myszy – zagadką. Rysunek jest ``aria-hidden`` i bierze kolor
+            z tekstu (``currentColor``), więc podświetlenie aktywnej pozycji działa jak u reszty.
+          {% endcomment %}
+          <a class="nav__link nav__link--home" href="{{ item.url }}" title="{{ item.title }}"
+             {% if item.url == request.path %}aria-current="page"{% endif %}>
+            <svg class="nav__home-icon" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"
+                 focusable="false" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h5v-6h4v6h5V9.5"/>
+            </svg>
+            <span class="visually-hidden">{{ item.title }}</span>
+          </a>
+        {% else %}
+          <a class="nav__link" href="{{ item.url }}"
+             {% if item.url == request.path %}aria-current="page"{% endif %}>{{ item.title }}</a>
+        {% endif %}
+      {% endfor %}
+      {% comment %}
+        Pasek rotujących logotypów sponsorów – po prawej stronie pozycji „FAQ” (uwaga
+        organizatora z 21.09.2026). Stoi **po** pętli, wewnątrz tego samego ``<nav>``, żeby
+        znalazł się dokładnie tam bez własnego ``aria-label`` konkurującego z menu. Fragment
+        sam się chowa, kiedy slider jest wyłączony albo nie ma żadnego logotypu do pokazania.
+      {% endcomment %}
+      {% include "cms/_sponsor_slider.html" %}
+    </nav>
+  </div>
+</header>
