@@ -1987,6 +1987,30 @@ rodzic) wyraziła wyraźną zgodę; zgodę można wycofać – dane znikają od 
 **Po finale.** Po ostatnim dniu finału i okresie retencji (domyślnie 30 dni) wszystkie dane osób,
 zdjęcia i dane paszportowe z listów są usuwane automatycznie; zostaje rejestr numerów listów.
 
+**Wnioski o listy zapraszające (VISA-01).** Opiekun drużyny nie musi pisać do organizatora o list:
+na stronie „Listy zapraszające (wiza)” w swoim panelu zaznacza osoby z kompletnym dokumentem podróży,
+wybiera język listu (angielski albo – jeśli konkurs ma taki język interfejsu – polski, hiszpański,
+francuski, portugalski, rosyjski, indonezyjski) i składa wniosek. Oficer logistyki widzi wnioski
+w zakładce *Wnioski o listy* (filtry: kraj, stan; eksport CSV bez danych paszportowych):
+
+- zaznacza wnioski i klika **„Zatwierdź i wystaw listy”** – każdy wniosek to list imienny z nowym
+  numerem i kodem weryfikacyjnym; jeśli osoba miała już ważny list imienny, zostaje on unieważniony
+  („zastąpiony listem …”). Wniosek, którego nie da się zatwierdzić (opiekun skasował numer paszportu,
+  finał nie ma dat), zostaje oczekujący, a ekran mówi dlaczego,
+- albo wpisuje powód i klika **„Odrzuć zaznaczone”** – powód dostaje opiekun e-mailem i widzi go
+  w panelu; po poprawce składa nowy wniosek.
+
+Opiekunowie delegacji dostają **jeden e-mail na decyzję** (przy decyzji hurtowej – zbiorczy), każdy
+w swoim języku. W e-mailu nie ma danych paszportowych.
+
+**Weryfikacja i unieważnienie.** Na każdym liście jest ramka „Verification” z kodem QR i 12-znakowym
+kodem (np. `ABCD-EFGH-JKMN`). Konsulat skanuje kod albo wpisuje go na stronie `/visa/verify/` i widzi:
+numer i datę listu, stan (**ważny** albo **unieważniony**), wydarzenie z datami oraz imię i nazwisko
+i obywatelstwo osób z listu – **bez** numeru paszportu i daty urodzenia. W rejestrze listów (*Listy
+wizowe*) przy każdym liście jest kod, język i przycisk **„Unieważnij”** (powód obowiązkowy – widzi go
+opiekun, nie konsulat). Unieważnionego listu nie da się już pobrać; strona weryfikacji od razu mówi
+„unieważniony”. Poprawiony list to zawsze nowy numer i nowy kod.
+
 ---
 
 ## 10a. Zaświadczenia o statusie ucznia — `/coordinator/student-status/`

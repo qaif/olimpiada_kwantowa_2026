@@ -4019,3 +4019,33 @@ przestaje działać). Limity żądań: `onsite_logistics` 600/h i `onsite_checki
 
 Wyłączenie flagi ukrywa ekrany (404) i pozycję menu; dane zostają do retencji albo do ręcznego
 `purge_event`. Migracje są odwracalne (nowe tabele; `tenancy.0014` zmienia wyłącznie listę wyboru).
+
+### 29.7. Listy zapraszające – wnioski, weryfikacja, unieważnienie (VISA-01, `docs/tasks/VISA-01.md`)
+
+Przyrost na tej samej bramce (flaga `onsite_logistics` + tryb `DELEGATIONS`) – **nic do włączenia**
+poza krokami § 29.1. Wdrożenie:
+
+1. Migracja `delegation_logistics.0002_visa_letter_workflow` (`scripts/deploy.sh`): nowa tabela
+   wniosków, nowe kolumny rejestru listów; listy wystawione wcześniej dostają kod weryfikacyjny
+   i migawkę wydarzenia z ustawień finału.
+2. **Kontrakt tras:** nowy pierwszy segment adresu `visa/` (`/visa/verify/`, `/visa/verify/<kod>/`) –
+   `RESERVED_SLUGS` i `backend/djcms_contract/` zaktualizowane w tym wydaniu. Jeśli Caddyfile jest
+   renderowany z `app_routes.env` osobno, wyrenderuj go ponownie (inaczej po przełączeniu na djcms
+   adres weryfikacji trafi do djcms i kod QR na listach przestanie działać).
+3. Limit żądań `visa_verify` – 60/h na adres IP (`REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]`).
+   Konsulat sprawdzający kolejkę wnioskodawców za jednym adresem mieści się z zapasem.
+4. **Teksty listów w 7 językach** (`apps/delegation_logistics/letter_texts.py`: en, pl, es, fr, pt, ru,
+   id) są tłumaczeniem maszynowym poza angielskim – przed pierwszym listem w danym języku daj tekst do
+   przejrzenia prawnikowi organizatora. Chiński, hindi, bengalski i arabski nie są dostępne (krój
+   DejaVu nie ma tych znaków). Szablon z bazy (`document_templates`, „list zapraszający (wiza)”) jest
+   jednojęzyczny i ma pierwszeństwo – wtedy język zmienia tylko etykiety tabeli i ramkę weryfikacji;
+   w szablonie można użyć `{code}` (kod weryfikacyjny).
+5. Przydział oficera logistyki (§ 29.1 p. 4) jest warunkiem decyzji – zwykły koordynator dostaje 403.
+
+Sprawdzenie po wdrożeniu (na `iqo`, z oficerem): wystaw list próbny z karty osoby → pobierz PDF → zeskanuj
+QR telefonem (ma otworzyć `https://<domena iqo>/visa/verify/<kod>/` ze stanem „ważny”) → „Unieważnij”
+z powodem „test” → strona pokazuje „unieważniony”.
+
+Wycofanie: wyłączenie flagi ukrywa także strony weryfikacji (404) – listy już wydane przestają dawać się
+sprawdzić, więc w trakcie sezonu wizowego flagi nie wyłączamy. Migracja jest odwracalna (nowa tabela,
+nowe kolumny nullowalne albo z wartością domyślną).

@@ -8,6 +8,23 @@ dokładnie jednemu wierszowi tej tabeli.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## [Unreleased] – Listy zapraszające do wizy: wnioski, weryfikacja, unieważnienie (VISA-01)
+
+- **Wnioski opiekuna drużyny** o list imienny (`/delegation/logistics/letters/`) dla osób z kompletnym
+  dokumentem podróży, z wyborem języka; wycofanie oczekującego wniosku. Jeden oczekujący wniosek na osobę.
+- **Decyzje oficera logistyki** (`/coordinator/logistics/letter-requests/`): filtry kraj/stan,
+  zatwierdzenie (= list imienny, poprzedni ważny list osoby unieważniony) i odrzucenie z powodem –
+  pojedynczo i hurtowo; CSV bez danych paszportowych; e-mail do opiekunów w ich języku (zbiorczy).
+- **Kod weryfikacyjny i QR** na każdym liście, **publiczna strona** `/visa/verify/<kod>/` (dane minimalne,
+  bez numeru paszportu, limit `visa_verify` 60/h na IP, `no-store`, `noindex`), nowy segment `visa`
+  w `RESERVED_SLUGS` i kontrakcie djcms.
+- **Unieważnienie listu** z powodem (audyt, strona weryfikacji „unieważniony”, PDF nie do pobrania).
+- **Język listu**: en, pl, es, fr, pt, ru, id (teksty w `letter_texts.py`); migawka wydarzenia w rejestrze.
+- RODO: wnioski w eksporcie danych konta i w retencji/usuwaniu razem z osobą; rejestr czynności 1.13
+  (nowy odbiorca – osoba znająca kod listu). Migracja `delegation_logistics.0002`.
+- Dokumentacja: `docs/OPERACJE.md` § 29.7, `docs/PODRECZNIK-ORGANIZATORA.md` § 10c,
+  `docs/PODRECZNIK-OPIEKUNA-DRUZYNY.md` § 7, `docs/tasks/VISA-01.md`.
+
 ## [Unreleased] – Logistyka finału dla delegacji (LOG-01)
 
 - **Nowa aplikacja `apps.delegation_logistics`** za flagą `onsite_logistics` w trybie `DELEGATIONS`:

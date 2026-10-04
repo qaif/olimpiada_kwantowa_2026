@@ -126,6 +126,31 @@ z częściowym niepowodzeniem, CSV, PDF (numer, nazwisko, kod w treści), strona
 minimalne, brak numeru paszportu, unieważnienie, inny konkurs, bramka 404, limit żądań), retencja
 (wnioski znikają, weryfikacja mówi „dane usunięte”), usunięcie konta, eksport.
 
-## 8. Realizacja – odstępstwa i znane luki
+## 8. Realizacja (4.10.2026) – gdzie co jest, odstępstwa, znane luki
 
-Uzupełniane po implementacji – patrz § 9.
+Gdzie: `apps/delegation_logistics/` – `letter_requests.py` (wnioski, decyzje, powiadomienia, CSV),
+`verification.py` (dane strony weryfikacji), `letter_texts.py` (teksty listu w 7 językach),
+`letters.py` (LOG-01 + kod, język, migawka wydarzenia, ramka weryfikacji z QR, `revoke_letter`),
+`views_letters.py` + wpisy na końcu `urls.py`, szablony `leader_letters.html`, `letter_requests.html`,
+`verify.html`, `email/letter_decision_*.txt`; migracja `0002_visa_letter_workflow`; katalogi `.po`
+aplikacji (41 napisów × 10 języków, maszynowe). Dokumentacja: OPERACJE § 29.7, podręcznik organizatora
+§ 10c, przewodnik opiekuna § 7.
+
+Odstępstwa od pierwotnego zamówienia (z powodem):
+1. **Brak osobnej aplikacji, modelu paszportu i flagi `visa_letters`** – decyzja koordynatora prac:
+   LOG-01 ma już dane dokumentu podróży (szyfrowane), rejestr i PDF; bramka jest bramką LOG-01.
+2. **Retencja 30 dni po finale (ustawienie finału), nie 90** – termin LOG-01, ostrzejszy.
+3. **Dane wniosku nie zawierają ambasady, celu ani dat przyjazdu** – przyjazd i wyjazd są w sekcji
+   „Przyjazd i wyjazd” LOG-01, a list ich nie cytuje (cytuje daty wydarzenia); miasto konsulatu nie jest
+   potrzebne do treści listu i byłoby kolejną daną bez celu (minimalizacja). Do dopisania, jeśli
+   organizator tego zażąda (list zaadresowany do konkretnej placówki).
+4. **Kto pokrywa koszty, podpisujący, podpis** – nie jako osobne pola: tekst listu jest szablonem
+   dokumentu (`document_templates`, rodzaj „list zapraszający (wiza)”), a podpisy biorą się z szablonu
+   graficznego dyplomów (LOG-01). Zdanie o kosztach organizator dopisuje w szablonie.
+5. **Zatwierdzenie = wystawienie** (stan `APPROVED` z wystawionym listem) – osobny krok „wystaw po
+   zatwierdzeniu” byłby drugim kliknięciem bez decyzji.
+6. **Pobrania listów** są w dzienniku zdarzeń od LOG-01 (`logistics.letter_downloaded`); strona
+   weryfikacji nie jest audytowana (publiczna – zalałaby dziennik), chroni ją limit żądań.
+
+Znane luki: brak e-maila do osoby, której dotyczy list (dostaje go od opiekuna); tłumaczenia tekstów
+listu i napisów do przeglądu; po wyłączeniu flagi strona weryfikacji znika razem z resztą logistyki.

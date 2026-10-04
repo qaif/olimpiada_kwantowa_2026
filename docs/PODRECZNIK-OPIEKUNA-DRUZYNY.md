@@ -92,6 +92,15 @@ organiser. You will receive a reminder e-mail when something is missing. **Invit
 applications are issued by the organiser; you can download the letters of your delegation from the same
 page.
 
+**Requesting an invitation letter.** On **Final logistics → Request an invitation letter** tick the people
+who need a visa (their travel document must be complete), choose the letter language (English, or another
+language offered there) and click **Request a letter for the selected people**. You can withdraw a request
+until the organiser decides. You will get an e-mail with the decision: approved letters can be downloaded
+on the same page; a rejected request shows the reason – correct the data and request again. Every letter
+has a QR code and a verification code; the consulate checks on the organiser's website that the letter is
+genuine and still valid. If the organiser revokes a letter (for example after a passport change), it can no
+longer be downloaded and the verification page shows it as revoked.
+
 The data is visible only to the team leaders of your country and to the organiser's logistics officers,
 it is encrypted in the database and **deleted automatically after the final** (by default 30 days after
 the last day). The QR code on the badge contains only a random code – no personal data.
