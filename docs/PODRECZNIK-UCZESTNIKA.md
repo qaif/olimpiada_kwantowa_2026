@@ -102,6 +102,13 @@ rozdział 8a), **Kalendarz**, **Archiwum**, **Dyplomy**, **Profil**.
 wpisu nie ma ani zadań, ani wysyłki. Do etapów po eliminacjach zapisuje się **wyłącznie osoba
 zakwalifikowana** w poprzednim.
 
+**Wpisowe** (tylko w konkursie, który pobiera opłatę; Olimpiada Kwantowa jest bezpłatna). Kafel
+„Wpisowe” pokazuje kwotę, stan i termin. Przycisk **„Zapłać online”** prowadzi do danych do faktury
+(Twoje imię i nazwisko albo np. szkoła jako nabywca), potem do faktury pro forma i wyboru zapłaty:
+kartą (na stronie operatora płatności – serwis nie widzi danych karty), Przelewy24 albo przelewem
+z kodem referencyjnym w tytule. Po zaksięgowaniu wpłaty dostajesz potwierdzenie e-mailem, a fakturę
+pobierzesz ze strony zamówienia.
+
 ---
 
 ## 3. Wysyłka rozwiązania

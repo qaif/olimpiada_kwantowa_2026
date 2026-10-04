@@ -97,7 +97,10 @@ from apps.competitions.models import DEFAULT_RETENTION_MONTHS
 #: z więcej niż jednym językiem interfejsu) – rola tłumacza, propozycje poprawek, głosy i zgłoszenia.
 #: 1.15 (04.10.2026, zadanie MED-01) – medale olimpiady międzynarodowej (flaga ``medals``, wiersz
 #: warunkowy): ogłoszona nagroda, ręczne zmiany z uzasadnieniem, publiczna lista medalistów i ranking krajów.
-REGISTER_VERSION = "1.15"
+#: 1.16 (04.10.2026, zadanie PAY-01) – płatności online za udział: zamówienia, faktury, operatorzy
+#: płatności (Stripe, Przelewy24) jako nowi odbiorcy i dokumentacja księgowa z własnym okresem
+#: przechowywania. Czynność warunkowa – wyłącznie konkursy z flagą ``fees`` (``apps.payments.rodo``).
+REGISTER_VERSION = "1.16"
 REGISTER_DATE = date(2026, 10, 4)
 
 #: Zdanie o okresie przechowywania danych uczestnika. Liczba pochodzi z tego samego miejsca, co
@@ -1147,6 +1150,10 @@ def activities_for(competition=None) -> tuple[ProcessingActivity, ...]:
         activities = (*activities, TRANSLATION_REVIEW_ACTIVITY)
     if competition is not None and competition.has_feature("medals"):
         activities = (*activities, MEDALS_ACTIVITY)
+    if competition is not None and competition.has_feature("fees"):
+        from apps.payments.rodo import PAYMENTS_ACTIVITY
+
+        activities = (*activities, PAYMENTS_ACTIVITY)
     return activities
 
 

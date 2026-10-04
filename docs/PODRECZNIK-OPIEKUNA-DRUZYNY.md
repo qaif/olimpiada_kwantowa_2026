@@ -5,6 +5,9 @@ This guide is for **national team leaders** of an international olympiad run on 
 organiser's side is described in `PODRECZNIK-ORGANIZATORA.md` § 10b (problem translations: § 10g),
 the operator's in `OPERACJE.md` § 28 (§ 34).
 
+organiser's side is described in `PODRECZNIK-ORGANIZATORA.md` § 10b (fees: § 10h), the operator's in
+`OPERACJE.md` § 28 (fees: § 35).
+
 ## 1. What a team leader does
 
 Students of an international olympiad do **not** sign up themselves. Each country is represented by
@@ -94,6 +97,31 @@ Chinese, Hindi and Bengali). Ask your students to set their language before the 
 certificates – the language is fixed when the document is issued.
 
 ## 6. Your data
+
+## 6. Fees and invoices
+
+If the olympiad charges participation fees, your team panel shows a **Fees** section with a link to
+*Fees and invoices* (`/delegation/payments/`).
+
+1. **Billing details** – who the invoice is made out to: an institution (ministry, school,
+   foundation) or a private person, address, country, optional VAT/tax ID, billing e-mail, and the
+   number of **observers** travelling with the team (people who are not team leaders).
+2. **Issue pro forma invoice** – the amount is calculated by the platform from the price list:
+   delegation fee, students, team leaders and observers. Prices may differ before the *early* and
+   after the *late* deadline; the price that applies is the one on the day you issue the pro forma.
+3. **Pay** on the order page: by **card** (you are redirected to the payment provider's page – we never
+   see your card details), with **Przelewy24** (PLN only) or by **bank transfer** to the account shown,
+   with the **reference code** as the transfer reference.
+4. As soon as the payment is confirmed (card: within seconds; bank transfer: once the organiser has
+   recorded it) the order becomes *paid*, an **invoice** is issued and everyone who prepared it plus the
+   billing e-mail receive a confirmation in their language.
+
+If you register another student later, the summary shows only the **new** items – issue another pro
+forma for them. If the team or the billing details change before you pay, **cancel** the order and
+issue a new one (the cancelled pro forma keeps its number). Discounts, fee waivers and refunds are
+decided by the organiser – contact them if needed. All team leaders of a country see the same orders.
+
+## 7. Your data
 
 ## 6. Translating the problems
 

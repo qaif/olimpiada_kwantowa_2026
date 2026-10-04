@@ -672,6 +672,12 @@ def groups(stages: list, competition=None) -> list[Group]:
                 ("web:coordinator-fees",),
                 match=("coordinator-fees", "coordinator-fees-", "coordinator-fee-"),
             ),
+            # Płatności online (PAY-01): zamówienia, faktury, Stripe/Przelewy24, zwroty – ta sama flaga.
+            Item(
+                "Płatności",
+                ("web:coordinator-payments",),
+                match=("coordinator-payments", "coordinator-payments-"),
+            ),
         )
     reports += (
         Item(

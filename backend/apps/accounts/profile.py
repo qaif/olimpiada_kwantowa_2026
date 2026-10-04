@@ -483,6 +483,10 @@ def anonymise_account(user: User, *, actor: User | None = None, request=None) ->
     from .delegation_services import erase_for_user as erase_delegation_roles
 
     erase_delegation_roles(user)
+    # Płatności (PAY-01): profil nabywcy uczestnika znika; zamówienia i faktury zostają (księgowość).
+    from apps.payments.services import erase_for_user as erase_billing_profiles
+
+    erase_billing_profiles(user)
 
     # Konkurs z kontekstu, odwrotem miękkim: anonimizację wnosi albo właściciel konta (żądanie
     # pod domeną konkursu), albo kosiarka retencji, która chodzi po konkursach z ``each_competition``
@@ -640,6 +644,10 @@ def _erase_account(user: User, *, actor: User | None = None, request=None) -> st
     from .delegation_services import erase_for_user as erase_delegation_roles
 
     erase_delegation_roles(user)
+    # Płatności (PAY-01): profil nabywcy uczestnika znika; zamówienia i faktury zostają (księgowość).
+    from apps.payments.services import erase_for_user as erase_billing_profiles
+
+    erase_billing_profiles(user)
     _drop_credentials(user)
     # Audyt **przed** skasowaniem wiersza: po ``delete()`` nie ma z czego wziąć ``target_type``,
     # a ``actor`` będący samym kasowanym kontem i tak zgaśnie na ``SET_NULL``. W ``diff`` jest
