@@ -27,7 +27,14 @@ from django.conf import settings
 from django.utils.translation import to_locale
 
 LOCALE_DIR = Path(settings.BASE_DIR) / "locale"
-CATALOGS = sorted(LOCALE_DIR.glob("*/LC_MESSAGES/django.po"))
+#: Katalogi projektu i katalogi aplikacji (``apps/<nazwa>/locale``) – Django scala jedne z drugimi,
+#: więc obowiązują je te same sprawdzenia: kompilacja, placeholdery, brak ``fuzzy``, komplet.
+CATALOGS = sorted(
+    [
+        *LOCALE_DIR.glob("*/LC_MESSAGES/django.po"),
+        *(Path(settings.BASE_DIR) / "apps").glob("*/locale/*/LC_MESSAGES/django.po"),
+    ]
+)
 
 #: ``%(name)s``, ``%s``, ``%d``, ``%.2f`` … oraz ``{name}``. ``%%`` to znak procentu, nie placeholder.
 PERCENT = re.compile(r"%(?:\([A-Za-z_][A-Za-z0-9_]*\))?[-#0 +]*\d*(?:\.\d+)?[sdifr]")
@@ -97,7 +104,7 @@ def test_every_configured_language_has_a_catalog():
     assert not missing
 
 
-@pytest.mark.parametrize("catalog", CATALOGS, ids=lambda path: path.parts[-3])
+@pytest.mark.parametrize("catalog", CATALOGS, ids=lambda path: "/".join(path.parts[-5:-2]))
 def test_catalog_compiles(catalog, tmp_path):
     msgfmt = shutil.which("msgfmt")
     if msgfmt is None:
@@ -111,7 +118,7 @@ def test_catalog_compiles(catalog, tmp_path):
     assert result.returncode == 0, result.stderr
 
 
-@pytest.mark.parametrize("catalog", CATALOGS, ids=lambda path: path.parts[-3])
+@pytest.mark.parametrize("catalog", CATALOGS, ids=lambda path: "/".join(path.parts[-5:-2]))
 def test_placeholders_match(catalog):
     problems = []
     for entry in parse_po(catalog):
@@ -140,7 +147,7 @@ def test_placeholders_match(catalog):
     assert not problems, "\n".join(problems[:20])
 
 
-@pytest.mark.parametrize("catalog", CATALOGS, ids=lambda path: path.parts[-3])
+@pytest.mark.parametrize("catalog", CATALOGS, ids=lambda path: "/".join(path.parts[-5:-2]))
 def test_catalog_has_no_fuzzy_entries(catalog):
     """``fuzzy`` znaczy „Django tego nie użyje” – tłumaczenie uznane za dobre nie może nim być."""
     fuzzy = [
@@ -151,7 +158,7 @@ def test_catalog_has_no_fuzzy_entries(catalog):
     assert not fuzzy, fuzzy[:10]
 
 
-@pytest.mark.parametrize("catalog", CATALOGS, ids=lambda path: path.parts[-3])
+@pytest.mark.parametrize("catalog", CATALOGS, ids=lambda path: "/".join(path.parts[-5:-2]))
 def test_catalog_is_complete(catalog):
     """Każdy napis źródłowy ma tłumaczenie – brak to polskie słowo w środku obcej strony."""
     missing = [
