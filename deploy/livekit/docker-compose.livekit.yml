@@ -22,12 +22,12 @@
 #     publiczny), a dla egressu: dołączenie do pokoju (adres publiczny z `use_external_ip`) i zapis
 #     MP4 do S3 platformy przez publiczny adres (`S3_PUBLIC_ENDPOINT_URL`). Egress NIE stoi w
 #     `internal`, więc nie widzi ani bazy, ani `web`, ani poczty, ani MinIO od środka.
-# Media (UDP 50000–50100, TCP 7881) idą z pominięciem Caddy'ego, przez porty opublikowane przez
+# Media (UDP 7882 z multipleksacją, TCP 7881) idą z pominięciem Caddy'ego, przez porty opublikowane przez
 # Dockera. UWAGA: Docker dopisuje własne reguły iptables przed ufw – `ufw deny` tych portów NIE
 # zamknie; zamyka je wyłącznie zdjęcie `ports:` albo reguła w łańcuchu DOCKER-USER (docs/OPERACJE.md
 # § 36.3). Sieć mostkowa zamiast `network_mode: host`: host dałby LiveKitowi dostęp do wszystkich
 # usług hosta i do portów compose'a na 127.0.0.1, a odciąłby go od nazwy `livekit` w sieci Caddy'ego;
-# ceną mostka jest docker-proxy na 101 portów – przy 100 portach UDP to akceptowalne (więcej = wariant (a)).
+# ceną mostka jest jeden docker-proxy na port UDP z multipleksacją (7882) – wszyscy uczestnicy na nim.
 services:
   livekit-redis:
     profiles: [livekit]
@@ -48,7 +48,7 @@ services:
       - ./livekit/livekit.yaml:/etc/livekit.yaml:ro
     ports:
       - "7881:7881/tcp"
-      - "50000-50100:50000-50100/udp"
+      - "7882:7882/udp"
     networks: [livekit_signal, livekit]
     depends_on: [livekit-redis]
     security_opt: ["no-new-privileges:true"]

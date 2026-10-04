@@ -6,10 +6,11 @@
 port: 7880
 
 rtc:
-  # Media: TCP awaryjnie (sieci szkolne blokujące UDP) i zakres UDP – ten sam, co w compose i zaporze.
+  # Media: jeden port UDP z multipleksacją (wszyscy uczestnicy na 7882/udp – jedna reguła zapory
+  # i jeden docker-proxy zamiast 101) i TCP awaryjnie dla sieci szkolnych blokujących UDP.
+  # Ten sam numer co w compose i zaporze. Zakres `port_range_*` zostaje nieużywany.
   tcp_port: 7881
-  port_range_start: 50000
-  port_range_end: 50100
+  udp_port: 7882
   # Adres publiczny ustalany przez STUN. Za NAT-em z jednym stałym adresem można zamiast tego
   # podać `node_ip: <adres publiczny>`.
   use_external_ip: true

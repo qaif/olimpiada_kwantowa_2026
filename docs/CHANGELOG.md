@@ -37,6 +37,13 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
   (`COMPOSE_PROFILES=notebooks` podnosi `notebook-runner` i `notebook-worker`); podręczniki:
   organizatora § 10n, recenzenta § 3b, uczestnika § 3a.
 
+## [Unreleased] – LiveKit: jeden port UDP z multipleksacją
+
+- **Zmienione:** wariant „LiveKit na tym hoście” (OPERACJE § 36) – media przez jeden port UDP 7882
+  z multipleksacją (`rtc.udp_port`) zamiast zakresu 50000–50100; TCP 7881 bez zmian. Jedna reguła
+  zapory i jeden docker-proxy zamiast 101. Istniejący `livekit/livekit.yaml` na serwerze trzeba
+  dopasować (`udp_port: 7882`, bez `port_range_*`).
+
 ## [Unreleased] – Zarządzanie motywem z panelu i IQO Quantum 1.1.0 (THEME-02)
 
 - **Menu serwisu** (`/coordinator/competition/theme/menu/`): kolejność, ukrycie, nazwy per język
