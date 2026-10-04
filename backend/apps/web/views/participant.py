@@ -76,6 +76,8 @@ from apps.submissions.services import (
 )
 from apps.submissions.status_track import STATE_CURRENT, STATE_FAILED, status_track
 from apps.tenancy.fees import fees_enabled
+from apps.time_windows.access import enabled as time_windows_enabled
+from apps.time_windows.access import personal_stage, window_of
 from apps.web.forms import AppealForm, SubmissionUploadForm
 from apps.web.mixins import ActionViewMixin, ParticipantRequiredMixin
 from apps.web.participant_now import countdown_words, now_panel
@@ -370,6 +372,14 @@ class MeView(ParticipantRequiredMixin, TemplateView):
         edition = current_edition(self.competition)
         stage = current_stage(edition, now) if edition else None
         entry = _entry_for(self.participant, stage)
+        # Okno czasowe ucznia (TZ-01): w etapie z oknami cały pulpit – nagłówek „Co teraz”, karty
+        # zadań, odliczanie, przycisk wysyłki – liczy się z **jego** startu i terminu. Kopia etapu
+        # zastępuje etap raz, tutaj, więc żadna gałąź niżej nie może przez pomyłkę wziąć ramy
+        # etapu. Bez flagi konkursu warunek jest fałszywy bez zapytania.
+        if time_windows_enabled(self.competition) and stage is not None:
+            stage = personal_stage(stage, self.participant, self.competition)
+            if entry is not None:
+                entry.stage = stage
         tab = self.active_tab()
         # Ta sama lista rodzajów, na której stoi ``register_for_stage`` – widok tylko ukrywa
         # przycisk, którego serwis i tak by nie przyjął. Gdyby powtarzał tu regułę własnym
@@ -441,6 +451,9 @@ class MeView(ParticipantRequiredMixin, TemplateView):
                 # Słowa odliczania jadą do przeglądarki w atrybutach ``data-*``: skrypt odświeżający
                 # licznik nie ma katalogu tłumaczeń i nie może mieć własnych napisów.
                 "countdown_words": countdown_words(),
+                # Karta „Twoje okno” (TZ-01) – ``None`` poza etapem z oknami, więc szablon nie
+                # dokłada ani jednego znacznika.
+                "time_window": window_of(stage),
             }
         )
         # Jak wejść na rozmowę (v0.39.0): przycisk przez platformę, zwykły link albo nic – liczone
@@ -712,6 +725,10 @@ class ProblemUploadView(ParticipantRequiredMixin, ThrottledFormMixin, View):
             except DomainError as exc:
                 error = str(exc.detail)
         now = timezone.now()
+        # Karta po wysyłce liczy przycisk i termin z okna ucznia (TZ-01) – tak samo jak pulpit.
+        if time_windows_enabled(request.competition):
+            stage = personal_stage(stage, self.participant, request.competition)
+            entry.stage = stage
         context = {
             "row": _problem_row(request.user, entry, problem, request.competition),
             "stage": stage,

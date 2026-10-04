@@ -160,6 +160,8 @@ INSTALLED_APPS = [
     # i własną drogę danych poza serwer; **po** ``apps.grading`` i ``apps.results``, bo czyta
     # skalę, rubrykę i publikację wyników, a żadna z nich nie czyta jej.
     "apps.ai_grading",
+    # Okna czasowe etapu według stref czasowych krajów (TZ-01, 4.10.2026, flaga ``stage_time_windows``).
+    "apps.time_windows",
     # Warstwa integracyjna: klucze API dla systemów zewnętrznych, webhooki i eksporty na zewnątrz.
     # **Po** aplikacjach domeny, bo czyta je wszystkie (edycje, wyniki, zgłoszenia), a żadna z nich
     # nie czyta jej – zależność idzie w jedną stronę i kolejność w tej liście ma to pokazywać.
@@ -227,6 +229,9 @@ MIDDLEWARE = [
     # Sesja po samym haśle jest tu w poczekalni: przechodzą wyłącznie adresy z listy
     # w ``apps.accounts.twofactor`` (ekran weryfikacji, wylogowanie, strona statusu).
     "apps.accounts.twofactor.TwoFactorMiddleware",
+    # Strefa czasowa ucznia na czas żądania (okna czasowe, TZ-01). Za konkursem i uwierzytelnieniem,
+    # bo pyta o profil uczestnika **w tym konkursie**; bez flagi ``stage_time_windows`` nie robi nic.
+    "apps.time_windows.middleware.ParticipantTimezoneMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     # Zasięg redaktora w ``/cms/``: dwa adresy Wagtaila, których nie zawężają haki (wybór strony

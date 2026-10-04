@@ -6,6 +6,8 @@ domyślne autoescapowanie.
 """
 
 from django import template
+from django.conf import settings
+from django.utils import timezone
 from django.utils.formats import date_format
 from django.utils.translation import gettext, gettext_lazy, pgettext
 
@@ -102,6 +104,12 @@ def local_time(value, fmt: str = LOCAL_DATETIME_FORMAT) -> str:
     """
     if value in (None, ""):
         return ""
+    # Strefa ucznia aktywna w panelu (okna czasowe, TZ-01: ``ParticipantTimezoneMiddleware``) –
+    # godzina jest wtedy w **jego** strefie i podpis „czas polski” byłby nieprawdą. Bez aktywnej
+    # strefy (każdy konkurs bez flagi) napis zostaje co do znaku ten sam.
+    active = timezone.get_current_timezone_name()
+    if active != settings.TIME_ZONE:
+        return f"{date_format(value, fmt)} ({active.replace('_', ' ')})"
     return f"{date_format(value, fmt)} ({LOCAL_TIME_LABEL})"
 
 
