@@ -1,0 +1,74 @@
+{% extends "web/coordinator/base.html" %}
+{% load static %}
+{% comment %}
+  Cennik delegacji edycji (PAY-01 § 2) i ustawienia sprzedawcy. Siatka: pozycja × okres; puste pole
+  okresu = cena podstawowa, puste pole ceny podstawowej = pozycja bezpłatna. Wystawione zamówienia
+  zachowują swoje ceny. Sekrety dostawców są w zmiennych środowiskowych – tu widać tylko, czy są.
+{% endcomment %}
+{% block title %}Cennik i ustawienia płatności – panel koordynatora{% endblock %}
+{% block panel_head %}<link rel="stylesheet" href="{% static 'css/coordinator-tools.css' %}">{% endblock %}
+{% block panel_eyebrow %}<a href="{% url 'web:coordinator-payments' %}">Płatności</a>{% endblock %}
+{% block panel_title %}Cennik i ustawienia płatności{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Cennik delegacji obowiązuje kolejne zamówienia – wystawione pro formy zachowują swoje
+    ceny. Opłatę uczestnika (konkursy z rejestracją otwartą) ustala się na ekranie „Wpisowe”.</p>
+{% endblock %}
+{% block panel_content %}
+<section class="section">
+  <div class="card">
+    <h2 class="mt-0">Operatorzy płatności</h2>
+    <ul>
+      <li>Stripe (karty): {% if stripe_configured %}skonfigurowany{% if stripe_test_mode %} – <strong>tryb testowy</strong>{% endif %}{% else %}<strong>nieskonfigurowany</strong> (STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET){% endif %}.
+        Adres webhooka do panelu Stripe: <code>{{ stripe_webhook_url }}</code></li>
+      <li>Przelewy24 (PLN): {% if p24_configured %}skonfigurowany{% else %}<strong>nieskonfigurowany</strong> (P24_MERCHANT_ID, P24_POS_ID, P24_API_KEY, P24_CRC){% endif %}.
+        Adres powiadomień ustawiany automatycznie: <code>{{ p24_webhook_url }}</code></li>
+    </ul>
+  </div>
+</section>
+
+{% if competition.uses_delegations %}
+<section class="section">
+  <div class="card">
+    <h2 class="mt-0">Cennik delegacji{% if edition %} – {{ edition.year_label }}{% endif %}</h2>
+    {% if edition %}
+    <form method="post" class="form" novalidate>
+      {% csrf_token %}
+      <input type="hidden" name="edition" value="{{ edition.pk }}">
+      {{ price_form.non_field_errors }}
+      <p>{{ price_form.currency.label_tag }} {{ price_form.currency }} {{ price_form.currency.errors }}</p>
+      <p>{{ price_form.early_until.label_tag }} {{ price_form.early_until }} {{ price_form.early_until.errors }}</p>
+      <p>{{ price_form.late_from.label_tag }} {{ price_form.late_from }} {{ price_form.late_from.errors }}</p>
+      <div class="scroll">
+        <table class="table">
+          <caption class="visually-hidden">Ceny</caption>
+          <thead><tr><th scope="col">Pozycja</th>{% for value, label in periods %}<th scope="col">{{ label }}</th>{% endfor %}</tr></thead>
+          <tbody>
+            {% for row in price_form.grid %}
+              <tr><th scope="row">{{ row.label }}</th>{% for field in row.fields %}<td>{{ field }} {{ field.errors }}</td>{% endfor %}</tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <p>{{ price_form.is_active }} {{ price_form.is_active.label_tag }}</p>
+      <div class="actions"><button type="submit" class="btn btn--primary">Zapisz cennik</button></div>
+    </form>
+    {% else %}
+      <p class="notice">Konkurs nie ma bieżącej edycji.</p>
+    {% endif %}
+  </div>
+</section>
+{% endif %}
+
+<section class="section">
+  <div class="card">
+    <h2 class="mt-0">Sprzedawca, rachunek i dokumenty</h2>
+    <p class="hint">Nazwa, adres i dane rejestrowe sprzedawcy pochodzą z ustawień konkursu
+      („{{ competition.organizer_name }}”). System nie liczy podatku – adnotację VAT ustala księgowa organizatora.</p>
+    <form method="post" action="{% url 'web:coordinator-payments-settings' %}" class="form" novalidate>
+      {% csrf_token %}
+      {{ settings_form.as_p }}
+      <div class="actions"><button type="submit" class="btn btn--primary">Zapisz ustawienia</button></div>
+    </form>
+  </div>
+</section>
+{% endblock %}

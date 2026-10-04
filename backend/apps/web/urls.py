@@ -3,6 +3,8 @@
 from django.urls import path
 
 from apps.alumni.urls import urlpatterns as alumni_urlpatterns
+from apps.medals.urls import urlpatterns as medal_urlpatterns  # MED-01
+from apps.payments.urls import urlpatterns as payment_urlpatterns
 from apps.problem_translations.urls import urlpatterns as translation_urlpatterns
 
 # Statystyki szkół (STAT-01) – widoki mieszkają w nowej aplikacji, montaż jak u pozostałych wydań.
@@ -1168,6 +1170,10 @@ urlpatterns = [
     *translation_urlpatterns,
     # --- przegląd tłumaczeń interfejsu (zadanie L10N-01) -----------------------------------------
     *translation_review_urlpatterns,
+    # --- medale olimpiady międzynarodowej i ranking krajów (MED-01, flaga ``medals``) -----------
+    *medal_urlpatterns,
+    # --- płatności online za udział: Stripe, Przelewy24, przelew, faktury (PAY-01, 4.10.2026) ---
+    *payment_urlpatterns,
     # --- sieć absolwentów i mentoring (ALUM-01, za flagą ``alumni``) ---------------------------------
     *alumni_urlpatterns,
 ]

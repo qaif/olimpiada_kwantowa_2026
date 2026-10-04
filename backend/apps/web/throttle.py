@@ -111,6 +111,8 @@ IDENTITY_FIELDS = ("email", "username")
 #: adresy) przypada na konto: dwie delegacje z jednej szkoły za jednym NAT-em nie dzielą budżetu.
 #: ``alumni`` (ALUM-01) – prośby o mentoring, zgłoszenia i zaproszenia; listy idą na koszt konta.
 #: ``translation`` (TR-01) – edytor tłumaczeń zadań: autozapis i czynności zalogowanych opiekunów.
+#: ``checkout`` i ``payments_admin`` (PAY-01) – płacący i koordynator są zalogowani, a koszt (sesje
+#: u operatora płatności, zwroty przez API) przypada na konto.
 PER_USER_SCOPES = frozenset(
     {
         "chat",
@@ -121,6 +123,8 @@ PER_USER_SCOPES = frozenset(
         "webinar_join",
         "webinar_control",
         "translation",
+        "checkout",
+        "payments_admin",
         "alumni",
     }
 )

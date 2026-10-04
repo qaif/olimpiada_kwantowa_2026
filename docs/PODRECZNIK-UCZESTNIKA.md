@@ -102,6 +102,13 @@ rozdział 8a), **Kalendarz**, **Archiwum**, **Dyplomy**, **Profil**.
 wpisu nie ma ani zadań, ani wysyłki. Do etapów po eliminacjach zapisuje się **wyłącznie osoba
 zakwalifikowana** w poprzednim.
 
+**Wpisowe** (tylko w konkursie, który pobiera opłatę; Olimpiada Kwantowa jest bezpłatna). Kafel
+„Wpisowe” pokazuje kwotę, stan i termin. Przycisk **„Zapłać online”** prowadzi do danych do faktury
+(Twoje imię i nazwisko albo np. szkoła jako nabywca), potem do faktury pro forma i wyboru zapłaty:
+kartą (na stronie operatora płatności – serwis nie widzi danych karty), Przelewy24 albo przelewem
+z kodem referencyjnym w tytule. Po zaksięgowaniu wpłaty dostajesz potwierdzenie e-mailem, a fakturę
+pobierzesz ze strony zamówienia.
+
 ---
 
 ## 3. Wysyłka rozwiązania
@@ -290,6 +297,11 @@ tak samo w panelu i w API aplikacji).
 
 Dokument pobiera się w PDF-ie; strona weryfikacyjna **nie pokazuje imienia i nazwiska**, dopóki nie
 wyraziłeś zgody na publikację pełnych danych.
+
+**Olimpiada międzynarodowa (medale).** W konkursie z medalami (`iqo`) w „Dyplomach” znajdziesz dyplom
+medalowy (złoty, srebrny, brązowy medal albo wyróżnienie) i zaświadczenie o udziale **w języku, który
+wybrałeś w ustawieniach konta** — język jest zapisywany w chwili wystawienia dokumentu. Medale i ranking
+krajów są pod odnośnikami „Medale” i „Ranking krajów” na stronie wyników etapu.
 
 ### Materiały z warsztatów — `/warsztaty/materialy/`
 

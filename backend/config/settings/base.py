@@ -183,6 +183,10 @@ INSTALLED_APPS = [
     # Przegląd tłumaczeń interfejsu przez rodzimych użytkowników języka (zadanie L10N-01). Przed
     # ``apps.web``, który montuje jej adresy; w ``ready()`` wkłada nakładkę poprawek do gettext.
     "apps.translation_review",
+    # Medale olimpiady międzynarodowej, dyplomy w języku ucznia i ranking krajów (MED-01, flaga ``medals``).
+    "apps.medals",
+    # Płatności online za udział (PAY-01): cennik delegacji, zamówienia, Stripe/Przelewy24, faktury.
+    "apps.payments",
     "apps.web",
     # Logowanie przez dostawców zewnętrznych (Google, Facebook). ``allauth.account`` jest wymagane
     # przez ``allauth.socialaccount`` (model ``EmailAddress``, adaptery) – jego **widoki** nie są
@@ -510,10 +514,17 @@ CELERY_TASK_ROUTES = {
     "apps.workshop_materials.tasks.scan_material": {"queue": "scan"},
     # Skan pracy testowej oceny AI (``apps.ai_grading.sandbox``) – ta sama praca, ta sama kolejka.
     "apps.ai_grading.tasks.scan_ai_test_work": {"queue": "scan"},
+    # Skan dowodu wpłaty przelewem (PAY-01) – ta sama praca, ta sama kolejka.
+    "apps.payments.tasks.scan_payment_proof": {"queue": "scan"},
 }
 CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
 CELERY_TIMEZONE = "UTC"
 CELERY_BEAT_SCHEDULE = {
+    # Płatności (PAY-01): porzucone sesje Stripe/P24 i zwroty o nieznanym wyniku (OPERACJE § 35).
+    "payments-sweep": {
+        "task": "apps.payments.tasks.sweep_payments",
+        "schedule": 900.0,
+    },
     # Zamknięcie etapu po deadline: LOCKED na najnowszych wersjach + znacznik Stage.closed_at.
     "close-due-stages": {
         "task": "apps.submissions.tasks.close_due_stages",
@@ -1292,6 +1303,8 @@ REST_FRAMEWORK = {
         # Tłumaczenia zadań (TR-01): autozapis szkicu co ~3 s pisania, czynności opiekuna i komisji.
         # Per konto (``PER_USER_SCOPES``) – sala tłumaczeń za jednym NAT-em nie dzieli budżetu.
         "translation": "1200/hour",
+        # Ekran medali (MED-01): przeliczenie podglądu, ogłoszenie, dokumenty i eksporty – kosztowne POST-y.
+        "medals": "120/hour",
         # Bramka linku-zaproszenia (``/zaproszenie/wideo/<klucz>/``, POST „Dołącz”) – bez konta,
         # więc liczona po adresie IP, jak każdy publiczny formularz. Wysoko, bo za jednym NAT-em
         # bywa cała sala gości wchodzących na to samo zebranie naraz; nisko na tyle, żeby
@@ -1326,6 +1339,14 @@ REST_FRAMEWORK = {
         # Przegląd tłumaczeń (L10N-01): propozycje, głosy, decyzje i zgłoszenia ze stopki. Per
         # konto (widoki za logowaniem): tłumacz klika szybko, ale nie sto razy na godzinę.
         "translations": "120/hour",
+        # Płatności (PAY-01), per konto: „Wystaw pro formę” i „Zapłać” (każde kliknięcie to sesja
+        # u operatora płatności) oraz czynności koordynatora (wpływ przelewu, zwrot przez API).
+        "checkout": "20/hour",
+        "payments_admin": "120/hour",
+        # Webhooki operatorów płatności (Stripe, P24) – per IP, wyżej niż stub ``payments``: Stripe
+        # doręcza z kilku adresów naraz, a po awarii ponawia zaległe zdarzenia całą serią. Tożsamością
+        # jest podpis; limit chroni wyłącznie koszt weryfikacji.
+        "payment_webhooks": "600/min",
     },
     "EXCEPTION_HANDLER": "apps.core.api.exception_handler",
 }
@@ -1442,6 +1463,19 @@ CERT_SIGN_P12_PASSWORD = env("CERT_SIGN_P12_PASSWORD", default="")
 CERT_SIGN_TSA_URL = env("CERT_SIGN_TSA_URL", default="")
 CERT_SIGN_REASON = env("CERT_SIGN_REASON", default="Dokument wystawiony przez Olimpiadę Kwantową")
 CERT_SIGN_LOCATION = env("CERT_SIGN_LOCATION", default="")
+
+# --- operatorzy płatności (PAY-01, docs/OPERACJE.md § 35) ---------------------------------------
+# Sekrety wyłącznie ze środowiska – nigdy z bazy i nigdy od klienta. Pusty klucz = operator wyłączony
+# (przycisk płatności nie pojawia się, webhook odpowiada 404). Klucze testowe Stripe: ``sk_test_…``.
+STRIPE_SECRET_KEY = env("STRIPE_SECRET_KEY", default="")
+# ``whsec_…``; kilka po przecinku – rotacja albo kilka adresów webhooka w panelu Stripe.
+STRIPE_WEBHOOK_SECRET = env("STRIPE_WEBHOOK_SECRET", default="")
+# ``or 0``: pusty wpis w ``.env`` (``P24_MERCHANT_ID=``) to napis pusty, a ``int("")`` nie przejdzie.
+P24_MERCHANT_ID = int(env("P24_MERCHANT_ID", default="") or 0)
+P24_POS_ID = int(env("P24_POS_ID", default="") or 0)
+P24_API_KEY = env("P24_API_KEY", default="")
+P24_CRC = env("P24_CRC", default="")
+P24_SANDBOX = env.bool("P24_SANDBOX", default=False)
 
 DATA_UPLOAD_MAX_MEMORY_SIZE = 2 * 1024 * 1024  # pliki idą strumieniem na dysk tymczasowy powyżej 2 MB
 FILE_UPLOAD_MAX_MEMORY_SIZE = 2 * 1024 * 1024

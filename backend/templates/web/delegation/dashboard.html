@@ -93,6 +93,19 @@
   </div>
 </section>
 
+{% if payments_statement %}
+<section class="section" id="oplaty">
+  <div class="section__head"><h2 class="mt-0">{% translate "Opłaty" %}</h2></div>
+  <p>
+    {% if payments_statement.state == "no_prices" %}{% translate "Organizator nie opublikował jeszcze cennika." %}
+    {% elif payments_statement.state == "waived" %}{% translate "Drużyna jest zwolniona z opłat." %}
+    {% elif payments_statement.state == "settled" %}{% translate "Opłaty są rozliczone." %}
+    {% else %}{% blocktranslate trimmed with amount=payments_statement.outstanding currency=payments_statement.currency %}Do zapłaty: {{ amount }} {{ currency }}.{% endblocktranslate %}{% endif %}
+  </p>
+  <p class="actions"><a class="btn btn--secondary btn--small" href="{% url 'web:delegation-payments' %}">{% translate "Opłaty i faktury" %}</a></p>
+</section>
+{% endif %}
+
 <section class="section">
   <div class="section__head">
     <h2 class="mt-0">{% translate "Opiekunowie drużyny" %}</h2>

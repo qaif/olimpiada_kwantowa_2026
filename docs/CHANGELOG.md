@@ -8,6 +8,33 @@ dokładnie jednemu wierszowi tej tabeli.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## [Unreleased] – Medale olimpiady międzynarodowej, dyplomy w języku ucznia i ranking krajów (MED-01)
+
+- **Medale z rankingu** (`apps.medals`, flaga konkursu `medals`, domyślnie wyłączona): schemat per etap
+  (domyślnie IPhO 8/17/25 %, polityka remisu, wyróżnienie za ≥ X % najlepszego wyniku albo pełne
+  zadanie), podgląd z `compute_stage_results`, ręczne zmiany z uzasadnieniem (audyt bez treści),
+  ogłoszenie zamrażające nagrody po publikacji wyników (bramka zgodności sum), odmrożenie z uzasadnieniem.
+  Ekran `/coordinator/medals/` (menu „Raporty → Medale”).
+- **Dyplomy w języku ucznia:** rodzaje `MEDAL_GOLD`/`MEDAL_SILVER`/`MEDAL_BRONZE`/`HON_MENTION`
+  (`results.0008`, `tenancy.0015`), zaświadczenie o udziale w konkursie z medalami; skład wielopismowy
+  (`apps/medals/typesetting.py`: kierunek RTL, kroje Noto Arabic/Devanagari/Bengali i Droid Sans Fallback
+  w repozytorium, kształtowanie HarfBuzz) wpięty w `render_pdf` (`register_composer`); język zamrażany
+  przy wystawieniu; odwrót na angielski, gdy pisma nie da się złożyć. Nowa zależność: `uharfbuzz`.
+- **Publiczne strony** `/results/<etap>/medals/` (filtr kraju, zgody jak w tabeli wyników) i
+  `/results/<etap>/countries/` (nieoficjalny ranking krajów, tylko agregaty); eksport CSV i lista na galę
+  (PDF) dla koordynatora, w audycie.
+- Olimpiada Kwantowa bez zmian: formularz „Wystaw” bez rodzajów medalowych, brak menu i odnośników.
+- **RODO:** czynność „Medale, dyplomy medalowe i ranking krajów” (warunkowa), sekcja `medale` w eksporcie
+  danych konta. **i18n:** 37 napisów w katalogu aplikacji `apps/medals/locale` (10 języków, maszynowe);
+  `Dockerfile` i `test_translations` obejmują katalogi aplikacji.
+- Po przeglądzie: kraj przy wierszu tylko w `CODE` i przy nazwisku za zgodą; cyfry arabsko-indyjskie
+  w kolejności LTR; ranking krajów z sumą/średnią tylko od 3 wyników; bramka ogłoszenia porównuje też
+  wpisy i stany; dyplom niezgodny z nagrodą nieaktualny (weryfikacja, „Moje dyplomy”); język przypinany
+  przy wystawieniu, brak kształtowania przy pobraniu – błąd zamiast cichego angielskiego; `uharfbuzz`
+  przypięty do 0.56.
+- Dokumentacja: `docs/OPERACJE.md` § 37, `docs/PODRECZNIK-ORGANIZATORA.md` § 10k, przewodnik opiekuna
+  drużyny § 5a, podręcznik uczestnika § 7.
+
 ## [Unreleased] – Webinary w LiveKit (WEB-01)
 
 - **Webinary** (`apps.webinars`, flaga konkursu `webinars`, domyślnie wyłączona): koordynator planuje
@@ -118,6 +145,38 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
   anonimizacja usuwa rolę, głosy i zgłoszenia. Obraz i testy kompilują teraz także katalogi aplikacji
   (`apps/*/locale`). Ocena wariantu Weblate: `docs/tasks/L10N-01.md` § 1.
 
+## [Unreleased] – Płatności online za udział: Stripe, Przelewy24, przelew, faktury (PAY-01)
+
+- **Nowa aplikacja `apps.payments`** za flagą `fees` (Olimpiada Kwantowa bez zmian): cennik delegacji per
+  edycja (delegacja, uczeń, opiekun, obserwator; ceny „early”/„late”; waluta), zamówienia liczone na
+  serwerze z pokryciem składu (dopisany uczeń = nowe zamówienie tylko na przyrost), zniżki i zwolnienia
+  delegacji z uzasadnieniem i audytem.
+- **Faktura pro forma i faktura** (PDF, ReportLab jak dyplomy) z numeracją ciągłą per konkurs/rodzaj/rok
+  (`IQO/FV/2026/0001`), migawka danych sprzedawcy (pola organizatora + `PaymentSettings`) i nabywcy
+  (instytucja albo osoba, VAT ID opcjonalnie). D15 zmieniona: numeracja tak, rejestr VAT/korekty – nie.
+- **Operatorzy płatności** za wspólnym interfejsem: Stripe Checkout + webhook z weryfikacją podpisu
+  (bez SDK), Przelewy24 (rejestracja, powiadomienie SHA-384, `verify`, zwrot), przelew z kodem
+  referencyjnym i zapisem koordynatora (dowód wpłaty skanowany ClamAV). Idempotentne webhooki
+  (`ProviderEvent`), porównanie kwoty i waluty, „do wyjaśnienia” przy rozbieżności i podwójnej wpłacie.
+- **Zwroty** przez API operatora (albo zapis zwrotu przelewu), częściowe i pełne; pełny zwrot uczestnika
+  trafia do rejestru wpisowego (`record_refund`). Potwierdzenia wpłaty i zwrotu e-mailem w języku płacącego.
+- **Ekrany:** opiekun `/delegation/payments/`, strona zamówienia `/payments/orders/<id>/`, uczestnik
+  „Zapłać online” na kaflu „Wpisowe” (`/me/fees/pay/`), koordynator `/coordinator/payments/` (sumy per
+  waluta, delegacje, zamówienia, eksport CSV dla księgowości, cennik i ustawienia).
+- **Bezpieczeństwo:** kwota nigdy z formularza, podpis webhooka obowiązkowy (brak sekretu = 404), sekrety
+  wyłącznie ze środowiska (`STRIPE_*`, `P24_*`), limity `checkout`/`payments_admin`, przekierowanie tylko na
+  hosty operatora, panel `/admin/` płatności tylko do odczytu.
+- **Po przeglądzie:** dostęp tylko czynnego opiekuna, zwroty pozycjami (zastępca płaci), warunkowy zapis
+  sesji Checkout i `GET` sesji po nieudanym `expire`, sprzątanie beatem `payments-sweep` (porzucone sesje,
+  zgubione webhooki, ponawianie zwrotów tym samym kluczem), przelew zapisywany pod blokadą i tylko na
+  zamówienie otwarte, wpłata na anulowane → „do wyjaśnienia”, `livemode`, limit `payment_webhooks`.
+- **RODO:** czynność „Płatności” w rejestrze (wersja 1.16, warunkowa), sekcja w eksporcie danych konta
+  (z profilami delegacji edytowanymi przez konto); anonimizacja kasuje profil nabywcy uczestnika.
+- **i18n:** katalog aplikacji `apps/payments/locale` (113 napisów, 10 języków, maszynowe); `Dockerfile`,
+  `conftest.py` i `test_translations.py` obejmują katalogi aplikacji.
+- Dokumentacja: `docs/OPERACJE.md` § 35, `docs/PODRECZNIK-ORGANIZATORA.md` § 10h,
+  `docs/PODRECZNIK-OPIEKUNA-DRUZYNY.md` § 6, `docs/PODRECZNIK-UCZESTNIKA.md` § 2.
+
 ## [Unreleased] – Motywy wizualne wgrywane paczkami (THEME-01)
 
 - **Tokeny motywu:** arkusze (`static/css/*.css`) czytają kolory, kroje, promienie i odstępy przez
@@ -177,7 +236,7 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
 - **Zaproszenia** `/coordinator/alumni/invitations/` (warsztaty, webinary, jury; filtry: edycja,
   poziom, zainteresowania, mentorzy) w języku odbiorcy, z wypisem jednym kliknięciem (RFC 8058).
   **Statystyki** „gdzie są teraz” z progiem k-anonimowości 5.
-- **RODO:** czynność `ALUMNI_ACTIVITY` w rejestrze (wersja 1.15 – numer do ustalenia przy scaleniu, tylko przy fladze), sekcja
+- **RODO:** czynność `ALUMNI_ACTIVITY` w rejestrze (wersja 1.17 – numer do ustalenia przy scaleniu, tylko przy fladze), sekcja
   `absolwenci` w eksporcie danych konta, czyszczenie przy anonimizacji, wstrzymanie automatu
   retencji na czas ważnej zgody (`BLOCKED_ALUMNI`). Nowy zakres limitu `alumni` (30/h, per konto).
 - **Po przeglądzie krytyka:** notatka prośby małoletniego i opis mentora dla małoletnich dopiero po

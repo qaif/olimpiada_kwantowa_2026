@@ -31,7 +31,7 @@ edycji i zgłoszenia po numerze. Fraza krótsza niż dwa znaki nie szuka niczego
 | **Uczestnicy i konta** | Uczestnicy, Wszystkie konta, Opiekunowie szkolni, Aktywacje, *Status ucznia* (tylko z włączonymi zaświadczeniami, § 10a) |
 | **Komitet** | Członkowie, Zatwierdzenia, Zaproszenia, Województwa |
 | **Komunikacja** | Komunikaty, Zgłoszenia, Ogłoszenia |
-| **Raporty** | Eksport danych, Audyt, Symulacja kwalifikacji, Dyplomy, Retencja danych, Rejestr czynności; *Materiały z warsztatów* (tylko przy włączonej fladze `workshop_materials`, § 4.11) |
+| **Raporty** | Eksport danych, Audyt, Symulacja kwalifikacji, Dyplomy, Retencja danych, Rejestr czynności; *Materiały z warsztatów* (tylko przy włączonej fladze `workshop_materials`, § 4.11); *Wpisowe* i *Płatności* (tylko przy włączonej fladze `fees`, § 10h) |
 | **Ustawienia** | Rejestracja uczestników, Wydarzenia linii czasu, Skala punktacji, Slider sponsorów, Plakaty do pobrania |
 
 Przy czterech pozycjach (Moderacja, Aktywacje, Zatwierdzenia, Zgłoszenia) stoją **liczniki spraw
@@ -2032,6 +2032,114 @@ wzorami albo po chińsku, w hindi, bengalsku czy arabsku drukuj z widoku do druk
 
 **Poufność.** Każde otwarcie, pobranie i eksport jest w „Audycie” (akcje `translation.…`); pliki PDF
 pobrane przez opiekunów mają znak wodny kraju.
+
+---
+
+## 10k. Medale — `/coordinator/medals/`
+
+**Tylko w konkursie z flagą `medals`** (olimpiada międzynarodowa `iqo`; `OPERACJE.md` § 37). Olimpiada
+Kwantowa nagradza dalej tytułem laureata i finalisty (§ 8).
+
+**Progi.** Wybierz etap będący rankingiem ostatecznym (zwykle finał). Domyślnie jak na IPhO: złoto —
+najlepsze 8 % uczestników, srebro — kolejne 17 %, brąz — kolejne 25 % (łącznie połowa pola). Pula jest
+zaokrąglana w górę (8 % z 20 osób to 2 złote medale), zdyskwalifikowani nie liczą się do pola, a wynik
+0 nie daje nagrody. **Ten sam wynik zawsze daje tę samą nagrodę** — remis na granicy puli idzie w całości
+w górę („na korzyść uczestników”) albo w dół („w granicach puli”), zależnie od ustawienia; kryteria
+rozstrzygania remisów etapu ustawiają miejsca, ale nie dzielą medali. Przy polityce „w granicach puli”
+na małym albo remisowym polu ekran ostrzega, gdy jakiejś nagrody nie dostaje nikt. **Wyróżnienie** dostaje uczestnik
+bez medalu z wynikiem ≥ X % najlepszego wyniku (domyślnie 50 %; puste pole wyłącza kryterium) albo —
+jak na IMO — z pełnym rozwiązaniem choć jednego zadania.
+
+**Podgląd i ręczne zmiany.** Tabela pokazuje pule, progi punktowe, liczności i rzeczywiste odsetki,
+a przy każdym uczestniku nagrodę wyliczoną i ostateczną. „Zmień nagrodę” wymaga uzasadnienia (nie wpisuj
+danych osobowych — widzą je wszyscy koordynatorzy, a uczestnik dostaje je w eksporcie swoich danych).
+Zdyskwalifikowanemu ręcznej nagrody nie da się wpisać.
+
+**Ogłoszenie.** „Ogłoś medale” działa dopiero po publikacji wyników etapu i zamraża nagrody, tabelę
+publiczną i ranking krajów; potem progów ani zmian nie da się edytować. „Odmroź medale” (z uzasadnieniem)
+zdejmuje stronę publiczną do ponownego ogłoszenia. Ogłoszenie odmawia, gdy tabela zmieniła się po publikacji
+wyników (sumy, nowy wpis, dyskwalifikacja) — opublikuj wtedy wyniki ponownie. Jeśli po ogłoszeniu opublikujesz wyniki ponownie,
+ekran ostrzeże, że medale zostały przy poprzedniej tabeli.
+
+**Strony publiczne.** `/results/<etap>/medals/` — miejsce, podpis wiersza z tabeli wyników (nazwisko
+wyłącznie za zgodą), kraj, suma i medal, z filtrem kraju; kraj stoi przy wierszu tylko w trybie
+„kod uczestnika” albo przy nazwisku opublikowanym za zgodą (nie przy „inicjałach i szkole”).
+`/results/<etap>/countries/` — nieoficjalny ranking krajów: wyłącznie liczby (uczestnicy, złoto, srebro,
+brąz, wyróżnienia; suma i średnia punktów oraz miejsce tylko dla krajów z co najmniej 3 wynikami).
+
+**Dokumenty.** „Wystaw dokumenty” — dyplomy medalowe dla nagrodzonych i (opcjonalnie) zaświadczenia
+o udziale dla wszystkich, w **języku ucznia** (arabski od prawej do lewej, chiński, hindi, bengalski…).
+Język jest przypinany przy wystawieniu (gdy serwer nie składa pisma ucznia — angielski i ostrzeżenie
+z numerami). Numer, kod weryfikacyjny, pieczęć i strona `/dyplomy/<kod>/` — jak przy każdym dyplomie;
+dyplom niezgodny z ogłoszoną nagrodą strona weryfikacji oznacza jako nieaktualny, a uczeń go nie widzi. Grafikę (tło,
+logo, podpisy, osobne tło np. dla złotego medalu) ustawiasz w „Dyplomy: szablony”; nagłówek dokumentu to
+nazwa konkursu, chyba że szablon wpisuje własny. Tekst organizatora z „Szablonów dokumentów” obowiązuje
+w języku domyślnym konkursu; pozostałe języki mają tłumaczenia wbudowane (maszynowe — przejrzyj przed galą).
+
+**Gala.** „Lista na galę (PDF)” — kolejność wręczania (wyróżnienia, brąz, srebro, złoto), w grupie po
+kraju i nazwisku; „Eksport CSV” — cały ranking z nazwiskami. Oba pliki zawierają dane osobowe i każde
+pobranie jest zapisywane w audycie.
+
+---
+
+## 10h. Płatności — `/coordinator/payments/`
+
+**Tylko w konkursie z włączonymi opłatami** (flaga `fees`; `OPERACJE.md` § 35). Olimpiada Kwantowa jest
+bezpłatna i tego ekranu nie ma.
+
+**Kto płaci.** W olimpiadzie międzynarodowej (tryb delegacji) płaci **delegacja**: opiekun drużyny
+wystawia w swoim panelu fakturę pro forma i płaci kartą (Stripe), przez Przelewy24 (tylko PLN) albo
+przelewem. W konkursie z rejestracją otwartą płaci **uczestnik** – należność nalicza ekran „Wpisowe”
+(`/coordinator/fees/`), a uczestnik dostaje na kaflu „Wpisowe” przycisk „Zapłać online”.
+
+**Cennik i ustawienia** (`Cennik i ustawienia`). Najpierw dane sprzedawcy: NIP/VAT ID, rachunek
+(IBAN, SWIFT, bank), prefiks numeracji, adnotacja VAT (np. podstawa zwolnienia – **system nie liczy
+podatku**; brzmienie ustala księgowa), uwagi na dokumentach, termin płatności pro formy i włączone
+metody. Nazwa, adres i dane rejestrowe sprzedawcy pochodzą z danych organizatora konkursu. Potem cennik
+delegacji edycji: waluta (dla IQO – EUR), „cena wczesna do” i „cena późna od” oraz siatka cen: opłata za
+delegację, za ucznia, za opiekuna i za obserwatora, w trzech okresach. Puste pole okresu = cena
+podstawowa; puste pole ceny podstawowej = pozycja bezpłatna. Zmiana cennika **nie zmienia** wystawionych
+pro form.
+
+**Jak liczymy delegację.** Skład = 1 delegacja + uczniowie zgłoszeni w panelu + opiekunowie + obserwatorzy
+zadeklarowani przez opiekuna. Pro forma obejmuje to, czego nie obejmują wcześniejsze zamówienia (otwarte
+albo zapłacone): drużyna dopisująca ucznia po terminie „late” zapłaci za niego cenę późną, a wcześniej
+opłaceni zostają przy swojej cenie. Zmiana składu przed zapłatą: opiekun (albo Ty) anuluje zamówienie
+i wystawia nowe; anulowana pro forma zostaje w rejestrze ze swoim numerem.
+
+**Zniżki i zwolnienia** (ekran delegacji). Zniżka kwotowa zmniejsza kolejne zamówienia (raz); zwolnienie
+blokuje wystawianie nowych zamówień (otwarte anuluj, zapłacone zwróć). Uzasadnienie jest obowiązkowe,
+cofnięcie wymaga osobnego powodu; obie decyzje są w audycie. Zwolnienie i umorzenie **uczestnika** –
+na ekranie „Wpisowe”, jak dotąd.
+
+**Pulpit.** Sumy osobno dla każdej waluty (wystawiono, zapłacono, zwrócono, czeka na wpłatę, jeszcze
+niewystawione), delegacje ze stanem (rozliczona, czeka na wpłatę, do wystawienia, zwolniona), lista
+zamówień i **„Do wyjaśnienia”**: wpłata, której kwota albo waluta nie zgadza się z zamówieniem, podwójna
+wpłata tego samego zamówienia albo wpłata na zamówienie anulowane (do zwrotu) i zwroty nieudane albo
+w toku. Opiekun odwołany z delegacji traci wgląd w zamówienia i dokumenty swojej delegacji. „Eksport CSV dla księgowości” –
+jeden wiersz na zamówienie z nabywcą, VAT ID, numerami pro formy i faktury.
+
+**Zamówienie.** Pozycje, nabywca, dokumenty (PDF), wpłaty i zwroty. **Wpływ przelewu**: gdy na wyciągu
+jest przelew z kodem zamówienia na właściwą kwotę – data wpływu, notatka i opcjonalnie dowód wpłaty
+(skanowany antywirusowo; do pobrania po werdykcie „czysty”). Zapis tworzy fakturę i wysyła płacącemu
+potwierdzenie w jego języku. Przelew zapisujesz wyłącznie na zamówienie **otwarte** – przelew
+z kodem anulowanej pro formy zwróć płacącemu w banku. **Zwrot**: wskazujesz **pozycje i ilości**
+(np. 1 × uczeń, gdy uczeń zrezygnował) i powód – kwotę liczy system; zwrócone miejsce przestaje być
+opłacone, więc zastępca tego ucznia zapłaci za siebie. Wpłatę „do wyjaśnienia” zwracasz w całości.
+Karta i Przelewy24 – zwrot zlecany u operatora (gdy operator nie odpowie, system ponowi go sam),
+przelew – zapis zwrotu wykonanego przez Ciebie w banku. Pełny zwrot przywraca pozycje do zapłaty,
+a u uczestnika ustawia należność jako „zwrócone”.
+
+**Faktury.** Pro forma powstaje przy wystawieniu zamówienia, faktura – automatycznie po wpłacie.
+Numeracja ciągła, osobno dla pro form i faktur, per konkurs i rok (`IQO/FV/2026/0001`). Dokument jest
+w języku płacącego (języki bez czcionek w PDF – chiński, hindi, arabski, bengalski – po angielsku).
+**System nie jest programem księgowym** (decyzja D15 po zmianie z 4.10.2026): numeruje dokumenty, ale
+nie liczy VAT, nie prowadzi rejestru VAT/JPK i nie wystawia faktur korygujących – korektę po zwrocie
+wystawia księgowość organizatora. Wzór dokumentu zatwierdź z księgową przed pierwszym konkursem z opłatami.
+
+**Czego nie ma.** Płatności częściowych i rat, przeliczeń walut, automatycznego dopasowania wyciągu
+bankowego (przelew zapisujesz ręcznie po kodzie). Danych kart system nie widzi – płacący wpisuje je
+na stronie operatora płatności.
 
 ---
 
