@@ -26,7 +26,8 @@ RUN mkdir -p /app/staticfiles && chown app:app /app/staticfiles && chmod +x /app
 # komenda Django ładuje ustawienia (czyli wymagałaby kompletu zmiennych środowiskowych już na
 # etapie budowania obrazu) i przechodzi po **całym** drzewie, łącznie z katalogami tłumaczeń
 # bibliotek w wirtualnym środowisku. Tutaj kompilujemy dokładnie to, co jest nasze.
-RUN set -eu; for po in locale/*/LC_MESSAGES/django.po; do \
+# Katalogi aplikacji (``apps/<nazwa>/locale``) kompilujemy tą samą pętlą – Django scala je ze wspólnym.
+RUN set -eu; for po in locale/*/LC_MESSAGES/django.po apps/*/locale/*/LC_MESSAGES/django.po; do \
         [ -e "$po" ] || continue; \
         msgfmt -o "${po%.po}.mo" "$po"; \
         chown app:app "${po%.po}.mo"; \

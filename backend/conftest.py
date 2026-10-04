@@ -46,7 +46,10 @@ def _compile_translations(config) -> None:
         return
     stale = [
         po
-        for po in sorted(BACKEND_DIR.glob("locale/*/LC_MESSAGES/*.po"))
+        # Katalogi aplikacji (``apps/<nazwa>/locale``) obok wspólnego – Django scala je przy odczycie.
+        for po in sorted(
+            [*BACKEND_DIR.glob("locale/*/LC_MESSAGES/*.po"), *BACKEND_DIR.glob("apps/*/locale/*/LC_MESSAGES/*.po")]
+        )
         if not po.with_suffix(".mo").exists() or po.with_suffix(".mo").stat().st_mtime < po.stat().st_mtime
     ]
     if not stale:
