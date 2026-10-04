@@ -35,6 +35,28 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
   logo i krojów. Wgranie: `docs/OPERACJE.md` § 30.7.
 - Migracja `themes.0003` (dwie nowe tabele).
 
+## [Unreleased] – Monitoring błędów i dostępności (OPS-02)
+
+- **Śledzenie błędów** (nowa aplikacja `apps.monitoring`): klient `sentry-sdk` 2.71.x (integracje Django,
+  Celery, Redis) wysyłający do **własnego** GlitchTipa; wyłączony bez `SENTRY_DSN` (bez importu pakietu,
+  bez zmian w warstwach, CSP i HTML). Filtr danych osobowych przed wysyłką: bez treści żądań, ciasteczek,
+  zapytań, IP, konta i zmiennych lokalnych; e-mail, PESEL, telefon, tokeny i wartości z błędów Postgresa
+  → `[Filtered]`. Tag `competition` (slug), `release` = `APP_VERSION`, próbkowanie konfigurowalne.
+- **GlitchTip 6.2.6** (obraz przypięty skrótem) w profilu compose `monitoring`: `glitchtip` (web + worker
+  w jednym procesie) i `glitchtip-db` (osobny Postgres w izolowanej sieci `errors`), bez Redisa, bez
+  `.env` platformy, limity pamięci i CPU, retencja 30 dni, poczta przez relay, rejestracja wyłączona.
+  Blok Caddy'ego `errors.<domena>` przy `ERRORS_PROXY=1` (`scripts/render_caddyfile.sh`); slug `errors`
+  zarezerwowany.
+- **Monitor dostępności** (`apps/monitoring/uptime.py`, usługa `uptime`): oba serwisy, `/healthz/`,
+  `/status.json`, LiveKit i GlitchTip, certyfikaty TLS (< 14 dni); listy o awarii i powrocie z
+  deduplikacją, rosnącymi przypomnieniami (1 h → 24 h), jednym listem na przebieg i limitem 6/h. Sama
+  biblioteka standardowa – kopia działa z crona na innej maszynie.
+- **Błędy JavaScriptu** (opcjonalnie, `SENTRY_BROWSER=1`): własny loader z `/static/` (bez SDK i CDN),
+  origin `errors.<domena>` w `connect-src` tylko przy włączonej funkcji.
+- RODO: rejestr czynności 1.20 – wiersz warunkowy „Monitorowanie błędów aplikacji” (podmiot wewnętrzny,
+  bez państwa trzeciego). Dokumentacja: `docs/OPERACJE.md` § 44, `docs/tasks/OPS-02.md`, rekord DNS
+  `errors` w `deploy/dns-olimpiadakwantowa.pl.md`.
+
 ## [Unreleased] – Listy zapraszające do wizy: wnioski, weryfikacja, unieważnienie (VISA-01)
 
 - **Wnioski opiekuna drużyny** o list imienny (`/delegation/logistics/letters/`) dla osób z kompletnym

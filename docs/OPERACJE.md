@@ -496,7 +496,8 @@ obrazy wgrane po ostatniej kopii plików nie.
 
 ## 3. Monitoring
 
-Dwie warstwy, bo widzą co innego.
+Dwie warstwy, bo widzą co innego. Trzecia – śledzenie błędów (GlitchTip) i monitor dostępności
+z listami o certyfikatach – jest w **§ 44** (OPS-02, wyłączona domyślnie).
 
 ### 3.1. Z zewnątrz: Uptime Kuma
 
@@ -4862,3 +4863,178 @@ włączonym mentoringu z małoletnimi organizator musi mieć dyżur moderacyjny.
 
 **Definitywne wycofanie funkcji:** wyłączenie flagi (skutki wyżej) i – bo zgoda dotyczyła działającej
 sieci – usunięcie profili (`AlumniProfile.objects.filter(participant__competition=c).delete()`).
+
+---
+
+## 44. Monitoring błędów i dostępności (OPS-02, `docs/tasks/OPS-02.md`)
+
+Trzy rzeczy, każda **wyłączona domyślnie** – serwer bez nowych wpisów w `.env` działa i odpowiada
+co do bajtu tak jak przed tym wydaniem (HTML, CSP, lista warstw, konfiguracja Caddy'ego):
+
+| Co | Gdzie | Włącza |
+|---|---|---|
+| śledzenie błędów aplikacji (ślad stosu, grupowanie, wydanie, konkurs) | GlitchTip (zgodny z Sentry, otwarte oprogramowanie) na tym serwerze, `errors.<domena>` | `SENTRY_DSN` + profil `monitoring` + `ERRORS_PROXY=1` |
+| sprawdzanie dostępności i certyfikatów z listami | usługa `uptime` (profil `monitoring`) albo kopia skryptu na innej maszynie | `docker compose --profile monitoring up -d uptime` |
+| błędy JavaScriptu z przeglądarek | loader z naszego `/static/` → GlitchTip | `SENTRY_BROWSER=1` |
+
+To jest **trzecia** warstwa obok watchdoga (§ 3.2 – dysk, kopie, kolejka, seria 5xx) i Kumy (§ 3.1):
+watchdog mówi „jest 10 błędów 500 w 15 minut”, GlitchTip – **który** wiersz kodu, w którym konkursie
+i od którego wydania.
+
+### 44.1. Co wychodzi z aplikacji (prywatność)
+
+Klient (`sentry-sdk`, `backend/apps/monitoring/sentry.py`) wysyła zdarzenia **wyłącznie** do własnego
+GlitchTipa. Filtr (`backend/apps/monitoring/scrubbing.py`) działa przed wysyłką, w aplikacji:
+
+- **nigdy**: treść żądań i formularzy, ciasteczka, parametry zapytania (tokeny resetu, przepustki),
+  adres IP, nagłówki poza `Host`/`Content-Type`/`Accept…`, identyfikator i dane konta, zmienne lokalne
+  programu (wyłączone globalnie – tam leżą paszporty, dane o zdrowiu i hasła), argumenty zadań Celery,
+- w każdym napisie (komunikat wyjątku, log, zapytanie SQL): e-mail, PESEL, telefon, `token=`/`key=`/…,
+  `Bearer`, JWT, wartość z `Key (kolumna)=(…)` błędów Postgresa → `[Filtered]`,
+- tag `competition` = sam slug konkursu; `release` = `APP_VERSION`.
+
+Rejestr czynności przetwarzania (1.20) dostaje wiersz „Monitorowanie błędów aplikacji” **tylko** przy
+niepustym `SENTRY_DSN`: podmiot przetwarzający wewnętrzny (ten serwer, Contabo, Niemcy), bez przekazania
+do państwa trzeciego, retencja 30 dni.
+
+### 44.2. GlitchTip – uruchomienie (raz, na serwerze, `cd /opt/olimpiada`)
+
+1. **DNS**: rekord `errors.<domena>` typu A na adres serwera (dla Olimpiady Kwantowej
+   `errors.olimpiadakwantowa.pl A 169.58.242.197`, `deploy/dns-olimpiadakwantowa.pl.md`). Rekord `*`
+   (subdomeny konkursów) też by zadziałał, ale nazwa jawna jest czytelniejsza. Slug `errors` jest
+   zarezerwowany – żaden konkurs go nie zajmie.
+2. **Sekrety** w `.env` (każdy osobno: `openssl rand -hex 32`):
+   ```ini
+   GLITCHTIP_SECRET_KEY=<64 znaki hex>
+   GLITCHTIP_DB_PASSWORD=<64 znaki hex>
+   ```
+   GlitchTip **nie** dostaje `.env` platformy (w compose wyłącznie jawna lista zmiennych).
+3. **Start** (bez Caddy'ego – samorejestracja pierwszego konta jest w GlitchTipie otwarta, dopóki nie
+   ma żadnego użytkownika, więc najpierw konto, potem adres publiczny):
+   ```bash
+   docker compose --profile monitoring pull glitchtip glitchtip-db
+   docker compose --profile monitoring up -d glitchtip-db glitchtip
+   docker compose --profile monitoring ps glitchtip          # healthy po ~1–2 min (migracje)
+   docker compose --profile monitoring exec glitchtip ./manage.py createsuperuser
+   ```
+4. **Adres publiczny**: w `.env` `ERRORS_PROXY=1`, potem `bash scripts/proxy_config.sh update`
+   (render + `caddy validate` + `caddy reload`, bez restartu proxy). Blok `errors.<domena>` →
+   `glitchtip:8000`: HSTS, `nosniff`, `X-Frame-Options DENY`, limit 10 MB, **bez** strony prac
+   technicznych (zgłoszenia mają dochodzić także w czasie przerwy).
+5. **Projekt**: `https://errors.<domena>/` → zaloguj się kontem z kroku 3 → utwórz organizację (np.
+   „Olimpiada”) i projekt typu **Django** („platforma”). *Settings → Projects → platforma → Client
+   Keys (DSN)* – skopiuj DSN.
+6. **Aplikacja**: w `.env`
+   ```ini
+   SENTRY_DSN=https://<klucz>@errors.<domena>/<nr projektu>
+   # SENTRY_ENVIRONMENT=production   SENTRY_SAMPLE_RATE=1.0   SENTRY_TRACES_SAMPLE_RATE=0.0
+   ```
+   i `docker compose up -d web worker beat`. Wariant bez wyjścia przez proxy (zdarzenia dochodzą,
+   nawet gdy Caddy leży): `SENTRY_DSN=http://<klucz>@glitchtip:8000/<nr>` – `web`/`worker`/`beat` są
+   z GlitchTipem w sieci `edge`.
+7. **Sprawdzenie**: `docker compose exec web python -c "import django; django.setup();
+   import sentry_sdk; sentry_sdk.capture_message('OPS-02 test'); sentry_sdk.flush()"` – zdarzenie
+   „OPS-02 test” pojawia się w projekcie w ciągu kilku sekund.
+
+Zasoby: `glitchtip` 768 MB / 1 CPU (w spoczynku ~170 MB), `glitchtip-db` 512 MB / 1 CPU. Kolejka
+i cache GlitchTipa siedzą w jego Postgresie (`VALKEY_URL` pusty) – Redis platformy (broker Celery)
+nie jest mu ani potrzebny, ani dostępny. Retencja 30 dni (`GLITCHTIP_RETENTION_DAYS`), sprzątanie
+robi GlitchTip sam. Wolumeny `glitchtip_pg` i `glitchtip_uploads` **nie** są w kopii zapasowej
+(`scripts/backup.sh`) – zdarzenia błędów nie są danymi do odtwarzania.
+
+### 44.3. Reguły alarmów w GlitchTipie
+
+Poczta idzie przez relay serwisu (`mail:587`, nadawca `glitchtip@<domena>`; inny serwer SMTP:
+`GLITCHTIP_EMAIL_URL`). W projekcie: *Settings → Projects → platforma → Project Alerts → Create*:
+
+| Reguła | Ustawienie | Po co |
+|---|---|---|
+| nowy rodzaj błędu | „new issue” (domyślnie), e-mail do zespołu | jeden list na nowy problem, a nie na każde wystąpienie |
+| seria | „more than **20** events in **10** minutes” | awaria w trakcie oddawania prac |
+| powrót błędu | „regression” (problem oznaczony jako rozwiązany wraca w nowym wydaniu) | wydanie, które coś zepsuło na nowo |
+
+Dyżurnych dodaje administrator. Samorejestracja jest wyłączona, a zaproszenie (*Organization →
+Members → Invite*) działa wyłącznie dla konta, które już istnieje – zwykłe (nie superużytkownik)
+konto zakłada się tak:
+
+```bash
+docker compose --profile monitoring exec glitchtip ./manage.py shell -c \
+  "from django.contrib.auth import get_user_model as U; U().objects.create_user('dyzurny@qaif.org', '<hasło>')"
+```
+
+i zaprasza do organizacji; hasło osoba zmienia po pierwszym logowaniu.
+
+### 44.4. Monitor dostępności (`uptime`)
+
+```bash
+docker compose --profile monitoring up -d uptime
+docker compose --profile monitoring logs -f uptime        # „ok / FAIL” każdego celu co minutę
+```
+
+Program: `backend/apps/monitoring/uptime.py` – jeden plik, sama biblioteka standardowa. Cele z tych
+samych zmiennych, z których Caddy składa konfigurację: `https://<SITE_DOMAIN>/` i `/healthz/`
+(`"status": "ok"`), to samo dla każdej domeny z `EXTRA_DOMAINS` (dla nas `iqo-official.org`; bez
+`www.`), `https://<SITE_DOMAIN>/status.json`, `https://live.<…>/` (gdy `LIVEKIT_URL`),
+`https://errors.<domena>/_health/` (gdy `ERRORS_PROXY=1`) oraz `UPTIME_EXTRA_URLS` (np. notebook:
+`https://…/hub/health|json`). Do tego certyfikat TLS każdego hosta.
+
+| Zdarzenie | List |
+|---|---|
+| 3 porażki pod rząd (≈ 3 min) | „AWARIA” – raz |
+| awaria trwa | przypomnienie po 1 h, 2 h, 4 h, 8 h … najrzadziej raz na 24 h |
+| 2 sukcesy pod rząd po awarii | „POWRÓT” z czasem przerwy – tylko, jeśli poszedł list o awarii |
+| certyfikat < 14 dni albo nieważny | „CERTYFIKAT” od razu, potem raz na dobę; po odnowieniu „CERTYFIKAT OK” |
+
+Wszystko z jednego przebiegu to **jeden** list (śmierć hosta ≠ dziesięć listów), a twardy limit to
+6 listów na godzinę – nadmiar czeka i jedzie w następnym. Odbiorcy: `UPTIME_ALERT_EMAILS`, a gdy
+pusty – `ALERT_EMAILS` (watchdog). Strona prac technicznych (`"status":"maintenance"`, 503) liczy się
+jako niedostępność: przerwa planowa dłuższa niż 3 minuty da list – i dobrze, bo nieplanowana wygląda
+tak samo. Stan (trwające awarie, zaległe listy) leży w wolumenie `uptime_state` i przeżywa restart.
+
+Usługa chodzi na obrazie aplikacji, więc **po każdym wdrożeniu** (które jej nie dotyka):
+`docker compose --profile monitoring up -d uptime` – wtedy wstaje na nowym obrazie.
+
+### 44.5. Monitor spoza tego serwera (zalecane – wybór operatora)
+
+`uptime` i Kuma stoją na tej samej maszynie co serwis: śmierć hosta, sieci u dostawcy albo
+zasilania zabiera je razem z nim i **nikt nie dostaje listu**. Dwa warianty, do wyboru:
+
+- **(a) kopia skryptu na innej maszynie** (dowolny Linux z Pythonem ≥ 3.10 i dostępem do SMTP):
+  ```bash
+  scp backend/apps/monitoring/uptime.py inna-maszyna:/opt/uptime/uptime.py
+  # crontab -e na tamtej maszynie:
+  * * * * * SITE_DOMAIN=olimpiadakwantowa.pl EXTRA_DOMAINS=iqo-official.org \
+    UPTIME_ALERT_EMAILS=dyzurny@qaif.org UPTIME_SMTP_HOST=smtp.dostawca.example \
+    UPTIME_SMTP_PORT=587 UPTIME_SMTP_STARTTLS=1 UPTIME_FROM=uptime@qaif.org \
+    UPTIME_STATE_FILE=/opt/uptime/state.json python3 /opt/uptime/uptime.py --once
+  ```
+  (relay serwisu jest tam nieosiągalny – potrzebny serwer SMTP, który przyjmie list bez hasła z tego
+  adresu, np. relay tamtej maszyny; nadawca w domenie, która na to pozwala),
+- **(b) darmowa usługa zewnętrzna** (UptimeRobot, Better Stack, HetrixTools – plan bezpłatny co 5 min):
+  monitor słowa kluczowego na `https://olimpiadakwantowa.pl/status.json` i
+  `https://iqo-official.org/healthz/`, szukane `"status": "ok"` (lub `"status":"ok"` – zależnie od
+  usługi), powiadomienie e-mail; dodatkowo „SSL expiry” 14 dni. Usługa widzi wyłącznie publiczne
+  adresy i poziomy z § 3.1 (bez liczb i dat), więc nie jest odbiorcą danych osobowych.
+
+### 44.6. Błędy JavaScriptu (opcjonalnie)
+
+`SENTRY_BROWSER=1` w `.env` + `docker compose up -d web`. Każda strona publiczna dostaje
+`<script nonce src="/static/monitoring/errors.js">` (~100 linii, bez SDK i bez CDN), a CSP – origin
+`errors.<domena>` w `connect-src` (nic więcej). Loader wysyła najwyżej 5 zdarzeń na stronę, bez
+duplikatów, z adresem strony bez zapytania i komunikatem po tym samym filtrze co serwer; żadnych
+ciasteczek, User-Agenta ani identyfikatora konta. DSN przeglądarki = `SENTRY_BROWSER_DSN`, a gdy pusty
+– `SENTRY_DSN` (musi być wtedy publiczny, `https://…@errors.<domena>/…`). Osobny projekt w GlitchTipie
+(i osobny DSN) oddziela błędy przeglądarek od serwera i pozwala je wyłączyć niezależnie.
+
+### 44.7. Wyłączenie i wycofanie
+
+- błędy aplikacji: `SENTRY_DSN=` (i `SENTRY_BROWSER=0`) w `.env`, `docker compose up -d web worker beat` –
+  klient nie startuje, CSP i strony wracają do stanu sprzed OPS-02, wiersz rejestru znika,
+- adres: `ERRORS_PROXY=0`, `bash scripts/proxy_config.sh update`,
+- usługi: `docker compose --profile monitoring stop glitchtip glitchtip-db uptime`; dane usuwa
+  dopiero `docker compose --profile monitoring rm -sf glitchtip glitchtip-db` +
+  `docker volume rm olimpiada_glitchtip_pg olimpiada_glitchtip_uploads` (nazwa projektu – prefiks
+  z `docker volume ls`),
+- aktualizacja GlitchTipa: nowy tag **i** skrót w `docker-compose.yml` (osobny commit), potem
+  `docker compose --profile monitoring pull glitchtip && docker compose --profile monitoring up -d glitchtip`
+  (migracje przy starcie). Przed przeskokiem wersji głównej – notatki wydania na glitchtip.com/blog.
