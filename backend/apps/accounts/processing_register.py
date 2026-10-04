@@ -112,7 +112,10 @@ from apps.competitions.models import DEFAULT_RETENTION_MONTHS
 #: czynność **na podstawie zgody** (art. 6 ust. 1 lit. a), z nowym kręgiem odbiorców (zalogowani
 #: uczestnicy, opcjonalnie publiczna ściana) i nowym celem (mentoring, zaproszenia, statystyki).
 #: Warunkowa jak forum – wiersz wchodzi do rejestru wyłącznie konkursom z włączoną flagą.
-REGISTER_VERSION = "1.19"
+#: 1.20 (04.10.2026, zadanie OPS-02) – monitorowanie błędów aplikacji (``apps.monitoring.register``): wiersz
+#: warunkowy (niepusty ``SENTRY_DSN``) – nowy cel pomocniczy i nowy, **wewnętrzny** podmiot przetwarzający
+#: (własna instancja GlitchTip na serwerze organizatora, bez przekazania do państwa trzeciego).
+REGISTER_VERSION = "1.20"
 REGISTER_DATE = date(2026, 10, 4)
 
 #: Zdanie o okresie przechowywania danych uczestnika. Liczba pochodzi z tego samego miejsca, co
@@ -1241,6 +1244,12 @@ def activities_for(competition=None) -> tuple[ProcessingActivity, ...]:
         activities = (*activities, final_logistics)
     if competition is not None and competition.has_feature("alumni"):
         activities = (*activities, ALUMNI_ACTIVITY)
+    # Monitorowanie błędów (OPS-02) – wiersz warunkowy instalacji (niepusty ``SENTRY_DSN``).
+    from apps.monitoring.register import activity as error_tracking_activity
+
+    error_tracking = error_tracking_activity()
+    if error_tracking is not None:
+        activities = (*activities, error_tracking)
     return activities
 
 

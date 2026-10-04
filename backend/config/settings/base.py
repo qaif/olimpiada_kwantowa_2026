@@ -189,6 +189,7 @@ INSTALLED_APPS = [
     "apps.medals",
     # Płatności online za udział (PAY-01): cennik delegacji, zamówienia, Stripe/Przelewy24, faktury.
     "apps.payments",
+    "apps.monitoring",  # śledzenie błędów (GlitchTip) i dostępność – OPS-02, wyłączone bez SENTRY_DSN
     "apps.web",
     # Logowanie przez dostawców zewnętrznych (Google, Facebook). ``allauth.account`` jest wymagane
     # przez ``allauth.socialaccount`` (model ``EmailAddress``, adaptery) – jego **widoki** nie są
@@ -1498,6 +1499,25 @@ P24_POS_ID = int(env("P24_POS_ID", default="") or 0)
 P24_API_KEY = env("P24_API_KEY", default="")
 P24_CRC = env("P24_CRC", default="")
 P24_SANDBOX = env.bool("P24_SANDBOX", default=False)
+
+# --- śledzenie błędów: GlitchTip, protokół Sentry (OPS-02, docs/OPERACJE.md § 44) ---------------
+# Pusty ``SENTRY_DSN`` (domyślnie) = funkcja wyłączona i **zero zmian**: ``sentry_sdk`` nie jest
+# importowany, lista warstw jest dawna, CSP i HTML stron – co do bajtu te same. Klienta uruchamia
+# ``apps.monitoring.apps.MonitoringConfig.ready()``; filtr danych osobowych: apps/monitoring/scrubbing.py.
+SENTRY_DSN = env("SENTRY_DSN", default="")
+SENTRY_ENVIRONMENT = env("SENTRY_ENVIRONMENT", default="production")
+SENTRY_SAMPLE_RATE = env.float("SENTRY_SAMPLE_RATE", default=1.0)
+# Transakcje (APM) domyślnie wyłączone: każda to kolejne zapytania SQL i adresy do filtrowania.
+SENTRY_TRACES_SAMPLE_RATE = env.float("SENTRY_TRACES_SAMPLE_RATE", default=0.0)
+# Błędy JavaScriptu (OPS-02 § 5) – osobny przełącznik; DSN przeglądarki domyślnie ten sam co serwera.
+SENTRY_BROWSER = env.bool("SENTRY_BROWSER", default=False)
+SENTRY_BROWSER_DSN = env("SENTRY_BROWSER_DSN", default="")
+if SENTRY_DSN:
+    # Tag ``competition`` (slug) – zaraz za warstwą, która ustawia ``request.competition``.
+    MIDDLEWARE.insert(
+        MIDDLEWARE.index("apps.tenancy.middleware.CompetitionMiddleware") + 1,
+        "apps.monitoring.middleware.ErrorTrackingTagMiddleware",
+    )
 
 DATA_UPLOAD_MAX_MEMORY_SIZE = 2 * 1024 * 1024  # pliki idą strumieniem na dysk tymczasowy powyżej 2 MB
 FILE_UPLOAD_MAX_MEMORY_SIZE = 2 * 1024 * 1024

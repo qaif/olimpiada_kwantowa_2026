@@ -72,3 +72,12 @@ REST_FRAMEWORK = {
 # Skan ClamAV paczek motywów (``apps.themes.services.scan_package``) – w testach bez clamd;
 # testy skanu podstawiają własny skaner.
 THEMES_AV_SCAN = False
+
+# Śledzenie błędów (OPS-02) wyłączone niezależnie od ``.env``: testy uruchamiane w kontenerze
+# z ``--env-file .env`` dewelopera wysyłałyby inaczej do GlitchTipa zdarzenia z testów. Klient
+# startuje w ``MonitoringConfig.ready()`` – już po tym pliku – więc pusty DSN go nie uruchomi.
+# Testy włączonej funkcji podstawiają DSN i transport same (apps/monitoring/tests).
+SENTRY_DSN = ""
+SENTRY_BROWSER = False
+SENTRY_BROWSER_DSN = ""
+MIDDLEWARE = [m for m in MIDDLEWARE if m != "apps.monitoring.middleware.ErrorTrackingTagMiddleware"]
