@@ -280,6 +280,13 @@ FEATURE_DEFAULTS: dict[str, bool] = {
     # zaczyna widzieć wyniki uczniów przez kolejne edycje – organizator włącza to świadomie, razem
     # z wierszem rejestru czynności, który flaga dokłada (``apps.accounts.processing_register``).
     "school_statistics": False,
+    # --- motywy wizualne (THEME-01) ----------------------------------------------------------------
+    # Ekran „Motyw serwisu” w panelu koordynatora (``/coordinator/competition/theme/``) i jego
+    # pozycja w menu. Wyłączona znaczy, że adresu **nie ma** (404), a menu wygląda co do bajtu jak
+    # dziś. Sam motyw działa niezależnie od flagi: konkurs z ``theme_version`` (np. ustawionym
+    # komendą ``theme_install --activate``) renderuje się w motywie także przy fladze wyłączonej –
+    # flaga decyduje wyłącznie o tym, czy koordynator może motyw zmieniać sam.
+    "themes": False,
 }
 
 
@@ -367,6 +374,22 @@ class Competition(models.Model):
         related_name="+",
         verbose_name="obraz do udostępniania",
     )
+
+    #: Motyw wizualny (THEME-01). ``null`` = wbudowany ``classic``, czyli wygląd aplikacji bez
+    #: żadnego arkusza motywu – szablony sprawdzają ``theme_version_id``, więc konkurs bez motywu
+    #: nie płaci za tę kolumnę ani zapytaniem. ``PROTECT``: wersji używanej przez konkurs nie da się
+    #: usunąć z katalogu (cofnięcie motywu = wybór poprzedniej wersji, a ta musi istnieć).
+    theme_version = models.ForeignKey(
+        "themes.ThemeVersion",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name="motyw (wersja)",
+    )
+    #: Opcje motywu wybrane przez koordynatora: ``{"layouts": {"header": "minimal", …},
+    #: "brand_accent": bool}`` – przycinane do wariantów, które wersja deklaruje w manifeście.
+    theme_options = models.JSONField("opcje motywu", default=dict, blank=True)
 
     # --- organizator (podmiot prawny) ---------------------------------------------------------
     organizer_name = models.CharField("organizator", max_length=200)

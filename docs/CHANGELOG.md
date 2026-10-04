@@ -22,6 +22,25 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
   (wiersz warunkowy). Katalogi tłumaczeń aplikacji (`apps/<nazwa>/locale`) kompilowane w obrazie
   i sprawdzane testem (`docs/tasks/STAT-01.md`, `docs/OPERACJE.md` § 29).
 
+## [Unreleased] – Motywy wizualne wgrywane paczkami (THEME-01)
+
+- **Tokeny motywu:** arkusze (`static/css/*.css`) czytają kolory, kroje, promienie i odstępy przez
+  zmienne `--t-*`; wartości domyślne to wbudowany motyw „Klasyczny” (wygląd co do wartości wyliczonej
+  sprzed zmiany, Olimpiada Kwantowa co do bajtu HTML i zapytań). Tryb wysokiego kontrastu wygrywa
+  z każdym motywem.
+- **Paczki ZIP** (`manifest.json`, `theme.css`, `tokens.json`, `assets/`, sloty `templates/theme/*.html`):
+  walidacja przy wgraniu (ZIP-slip, bomba ZIP, typy plików, CSS parserem `tinycss2` bez `@import`
+  i zewnętrznych `url()`, SVG oczyszczane, lint szablonów i kompilacja ograniczonym silnikiem, tokeny
+  z ostrzeżeniami kontrastu, ClamAV), wersje niezmienne pod `themes/<slug>/<wersja>-<sha8>/`.
+- **Sloty:** `header`, `brand`, `footer`, `page_wrapper`, `home_hero`, `news_card`, `page_header`;
+  `base.html` zostaje właścicielem `<head>` (nonce CSP, skrypty, skip-link). CSP: origin bucketu
+  w `style-src`/`font-src` wyłącznie na stronach z motywem.
+- **Panele:** katalog motywów superkoordynatora (`/coordinator/platform/themes/`) i „Motyw serwisu”
+  koordynatora (`/coordinator/competition/theme/`, flaga `themes`) z podglądem tylko dla koordynatora,
+  wariantami układów, akcentem marki i aktywacją (audyt). Komenda `manage.py theme_install <zip|->
+  [--activate <slug>]` (`docs/OPERACJE.md` § 28).
+- **Wymaga przebudowy obrazu** (nowa zależność `tinycss2`).
+
 ## [Unreleased] – Delegacje krajowe: rejestracja przez opiekunów drużyn narodowych (DEL-01)
 
 - **Tryb rejestracji konkursu** `Competition.registration_mode`: `OPEN` (domyślnie – każdy istniejący

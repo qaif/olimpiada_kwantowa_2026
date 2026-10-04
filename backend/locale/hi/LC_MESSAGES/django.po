@@ -2628,6 +2628,14 @@ msgstr "खाता"
 msgid "Mój panel"
 msgstr "मेरा पैनल"
 
+#: apps/themes/slots.py
+msgid "Koordynator"
+msgstr "समन्वयक"
+
+#: apps/themes/slots.py
+msgid "Panel koordynatora"
+msgstr "समन्वयक पैनल"
+
 #: templates/base.html:210
 msgid "Recenzje"
 msgstr "समीक्षाएँ"

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load i18n wagtailcore_tags workshop_materials %}
+{% load i18n wagtailcore_tags workshop_materials theme_tags %}
 {% block title %}{{ page.title }} – {{ settings.cms.SiteSettings.site_name }}{% endblock %}
 {% block description %}{{ page.search_description|default:page.title }} – {{ settings.cms.SiteSettings.site_name }}.{% endblock %}
 {% block content %}
@@ -12,9 +12,7 @@
 <div class="doc-layout{% if not page.chapters %} doc-layout--plain{% endif %}">
 
   <div class="doc-head">
-    <div class="page-head">
-      <h1>{{ page.title }}</h1>
-    </div>
+    {% theme_slot "page_header" %}
     {% if page.intro %}<div class="cms-body prose doc-intro">{{ page.intro|richtext }}</div>{% endif %}
 
     {% include "cms/_attachments.html" %}
