@@ -12,7 +12,7 @@
 
 .diff-wrap table {
   border-collapse: collapse;
-  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  font-family: var(--t-font-mono, ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace);
   font-size: 0.8rem;
   line-height: 1.45;
   width: 100%;
