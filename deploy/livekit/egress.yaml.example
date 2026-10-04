@@ -17,6 +17,9 @@ s3:
   # Wariant (b): MinIO w sieci `internal`. Wariant (a): publiczny adres S3 platformy (https://…).
   endpoint: http://minio:9000
   bucket: submissions
+  # MinIO adresuje buckety ścieżką (`http://minio:9000/submissions/…`), nie poddomeną. Pole jest
+  # w konfiguracji S3 egressu (ForcePathStyle) – README v1.14.1 go nie wymienia, więc przy pierwszym
+  # nagraniu sprawdź w logu egressu, że plik trafił do bucketu (docs/OPERACJE.md § 28.2, krok 10).
   force_path_style: true
 
 logging:

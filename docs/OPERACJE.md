@@ -3935,7 +3935,15 @@ Bez konfiguracji i bez flagi `webinars` (§ 6.4) nic się nie zmienia – także
    (alias `local` w kontenerze `minio`: `mc alias set local http://localhost:9000 <root> <hasło>`).
 6. Konfiguracja LiveKit: `mkdir -p livekit && cp deploy/livekit/livekit.yaml.example livekit/livekit.yaml &&
    cp deploy/livekit/egress.yaml.example livekit/egress.yaml && chmod 600 livekit/*.yaml`, podmienić
-   `<…>` (klucz i sekret jak w `.env`, `SITE_DOMAIN`, konto egress z kroku 5).
+   `<…>` (klucz i sekret jak w `.env`, `SITE_DOMAIN`, konto egress z kroku 5). Obok położyć profil
+   seccomp piaskownicy Chrome dla egressu: `livekit/chrome-sandboxing-seccomp-profile.json` z
+   repozytorium `livekit/egress` w tagu `v1.14.1` (README egress, „Chrome sandboxing”); bez niego
+   `livekit-egress` nie wystartuje. Polecenia `docker compose` z tego paragrafu – z `/opt/olimpiada`
+   (ścieżki w nakładce są względne).
+
+   Wersje przypięte w nakładce (zmienne `LIVEKIT_SERVER_VERSION`, `LIVEKIT_EGRESS_VERSION`):
+   serwer **v1.13.7**, egress **v1.14.1**; SDK przeglądarkowe **livekit-client 2.22.3**
+   (`scripts/vendor_livekit_client.sh`). Aktualizacja = zmiana pinów i próba z kroku 10.
 7. Start: `docker compose -f docker-compose.yml -f deploy/livekit/docker-compose.livekit.yml --profile livekit up -d livekit livekit-egress livekit-redis`,
    potem `bash scripts/proxy_config.sh update` (blok `live.` w Caddy) i
    `docker compose up -d --no-deps web worker beat` (nowe zmienne `.env`).

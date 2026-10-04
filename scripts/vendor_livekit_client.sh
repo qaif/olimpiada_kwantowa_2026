@@ -17,7 +17,7 @@
 # zmiana LIVEKIT_CLIENT_VERSION, ponowny przebieg, test pokoju na serwerze testowym (docs/OPERACJE.md § 28).
 set -euo pipefail
 
-VERSION="${LIVEKIT_CLIENT_VERSION:-2.15.7}"
+VERSION="${LIVEKIT_CLIENT_VERSION:-2.22.3}"
 DEST="backend/static/vendor/livekit-client"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT

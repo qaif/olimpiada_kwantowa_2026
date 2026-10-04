@@ -1,8 +1,9 @@
 # Konfiguracja serwera LiveKit (zadanie WEB-01, docs/OPERACJE.md § 28). Skopiuj do
 # /opt/olimpiada/livekit/livekit.yaml (wariant (b)) albo na dedykowaną maszynę (wariant (a))
 # i podmień wartości w <…>. Plik zawiera sekret – poza repozytorium, chmod 600.
+# Klucze sprawdzone z config-sample.yaml serwera (v1.13.7). Serwer słucha na wszystkich adresach
+# domyślnie – osobnego `bind_addresses` nie podajemy.
 port: 7880
-bind_addresses: ["0.0.0.0"]
 
 rtc:
   # Media: TCP awaryjnie (sieci szkolne blokujące UDP) i zakres UDP – ten sam, co w compose i zaporze.

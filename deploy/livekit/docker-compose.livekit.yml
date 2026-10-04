@@ -35,7 +35,7 @@ services:
     profiles: [livekit]
     # Wersja przypięta (jak Jitsi `stable-11031`): aktualizacja to świadoma zmiana tej zmiennej
     # i próba na serwerze testowym, nie skutek `pull`.
-    image: livekit/livekit-server:${LIVEKIT_SERVER_VERSION:-v1.8.4}
+    image: livekit/livekit-server:${LIVEKIT_SERVER_VERSION:-v1.13.7}
     command: ["--config", "/etc/livekit.yaml"]
     restart: unless-stopped
     volumes:
@@ -49,15 +49,18 @@ services:
 
   livekit-egress:
     profiles: [livekit]
-    image: livekit/egress:${LIVEKIT_EGRESS_VERSION:-v1.9.1}
+    image: livekit/egress:${LIVEKIT_EGRESS_VERSION:-v1.14.1}
     restart: unless-stopped
     environment:
       EGRESS_CONFIG_FILE: /etc/egress.yaml
     volumes:
       - ./livekit/egress.yaml:/etc/egress.yaml:ro
-    # Egress składa nagranie w Chrome bez okna; jego piaskownica wymaga SYS_ADMIN (dokumentacja
-    # LiveKit Egress). Jedyna usługa z tym uprawnieniem – stąd osobny kontener bez dostępu do bazy.
-    cap_add: [SYS_ADMIN]
+    # Egress składa nagranie w Chrome bez okna. Piaskownicę Chrome włącza profil seccomp z
+    # repozytorium egress (`chrome-sandboxing-seccomp-profile.json`, README egress) – węższy niż
+    # dawne `cap_add: SYS_ADMIN`. Plik kładzie operator obok konfiguracji (docs/OPERACJE.md § 28.2);
+    # bez niego kontener nie wystartuje, zamiast cicho nagrywać bez piaskownicy.
+    security_opt:
+      - seccomp=./livekit/chrome-sandboxing-seccomp-profile.json
     networks: [livekit, internal]
     depends_on: [livekit, livekit-redis]
 
