@@ -39,11 +39,17 @@ def _custom_adapter():
     return import_string(path) if path else None
 
 
-def per_student_windows() -> bool:
-    """Czy okna mogą się różnić między uczniami (adapter albo zainstalowane TZ-01)."""
-    return bool((getattr(settings, "PROCTORING_WINDOW_ADAPTER", "") or "").strip()) or apps.is_installed(
-        TIME_WINDOWS_APP
-    )
+def per_student_windows(stage=None) -> bool:
+    """Czy okna tego etapu mogą się różnić między uczniami: własny adapter albo **plan okien TZ-01**
+    dla etapu (flaga ``stage_time_windows`` konkursu i zapisany plan) – sama instalacja TZ-01 bez
+    planu nie poszerza niczego."""
+    if (getattr(settings, "PROCTORING_WINDOW_ADAPTER", "") or "").strip():
+        return True
+    if stage is None or not apps.is_installed(TIME_WINDOWS_APP):
+        return False
+    from apps.time_windows.access import plan_for
+
+    return plan_for(stage) is not None
 
 
 def _time_windows(stage, participant):
@@ -87,7 +93,7 @@ def envelope(stage) -> tuple[datetime, datetime]:
     nadzorujących – oni nie mają własnego okna, a ktoś w tym czasie może pisać.
     """
     opens, closes = global_window(stage)
-    if per_student_windows():
+    if per_student_windows(stage):
         opens, closes = opens - ZONE_SPREAD, closes + ZONE_SPREAD
     return opens, closes
 

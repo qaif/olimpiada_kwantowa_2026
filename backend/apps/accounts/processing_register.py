@@ -100,7 +100,11 @@ from apps.competitions.models import DEFAULT_RETENTION_MONTHS
 #: 1.16 (04.10.2026, zadanie PAY-01) – płatności online za udział: zamówienia, faktury, operatorzy
 #: płatności (Stripe, Przelewy24) jako nowi odbiorcy i dokumentacja księgowa z własnym okresem
 #: przechowywania. Czynność warunkowa – wyłącznie konkursy z flagą ``fees`` (``apps.payments.rodo``).
-REGISTER_VERSION = "1.16"
+#: 1.17–1.19 – zarezerwowane dla równoległych zadań (LOG, VISA, ALUM); numer nadaje ich scalenie.
+#: 1.20 (04.10.2026, zadanie PROC-01 + STAGE-LK-01) – nadzór zdalny etapów online (flaga ``proctoring``,
+#: wiersz warunkowy): obraz z kamery na żywo, nagrania wyłącznie przy włączonym nagrywaniu etapu,
+#: zdjęcie dokumentu, incydenty; także rozmowy etapu w pokoju LiveKit połączone z nadzorem.
+REGISTER_VERSION = "1.20"
 REGISTER_DATE = date(2026, 10, 4)
 
 #: Zdanie o okresie przechowywania danych uczestnika. Liczba pochodzi z tego samego miejsca, co

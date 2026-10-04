@@ -480,3 +480,12 @@ def test_non_numeric_ack_is_404(proctoring_on, config, stage, student, logged):
     ready_session(stage, student)
     response = logged(student.user).post(f"/me/proctoring/{stage.pk}/do/ack/", {"id": "x1"})
     assert response.status_code == 404
+
+
+def test_student_translation_routes_stay_gated_while_leader_routes_are_exempt():
+    """TR-01: tłumaczenie zadania **dla ucznia** to treść zadania – bramka; edytor opiekuna drużyny
+    i ekrany koordynatora pokazują zadania przed etapem z własnymi bramkami TR-01 – poza nią."""
+    for name in ("web:student-translation", "web:student-translation-file"):
+        assert name in GATED_VIEWS and not name.startswith(STAFF_PREFIXES)
+        assert resolve(reverse(name, args=[1])).view_name == name
+    assert "web:delegation-translation".startswith(STAFF_PREFIXES)

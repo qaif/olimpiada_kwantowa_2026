@@ -199,7 +199,9 @@ def test_coordinator_has_separate_token_bucket(
 
 
 def test_time_windows_app_is_used_automatically(stage, student, monkeypatch):
-    """Zainstalowane ``apps.time_windows`` – okno ucznia z ``EffectiveWindow`` (+ tolerancja etapu)."""
+    """Zainstalowane ``apps.time_windows`` – okno ucznia z ``EffectiveWindow`` (+ tolerancja etapu).
+
+    Moduł dostępu podstawiony, żeby test nie zależał od planu okien TZ-01 w bazie."""
     import sys
     import types
 
@@ -209,7 +211,7 @@ def test_time_windows_app_is_used_automatically(stage, student, monkeypatch):
     module.effective_window = lambda stage_, participant, competition=None: SimpleNamespace(
         opens_at=opens, deadline_at=deadline, extra_minutes=0
     )
-    monkeypatch.setitem(sys.modules, "apps.time_windows", types.ModuleType("apps.time_windows"))
+    module.plan_for = lambda stage_, competition=None: object()  # etap ma plan okien
     monkeypatch.setitem(sys.modules, "apps.time_windows.access", module)
     monkeypatch.setattr(windows.apps, "is_installed", lambda name: name == windows.TIME_WINDOWS_APP)
     stage.grace_seconds = 60
@@ -219,3 +221,9 @@ def test_time_windows_app_is_used_automatically(stage, student, monkeypatch):
     assert windows.effective_window(stage, student) == windows.global_window(stage)
     # Przy oknach per uczeń okno „dla kogokolwiek” jest poszerzone o rozjazd stref.
     assert windows.envelope(stage)[0] == stage.opens_at - windows.ZONE_SPREAD
+
+
+def test_time_windows_installed_without_plan_keeps_global_envelope(stage, student):
+    """Sama instalacja TZ-01 (konkurs bez flagi okien) – okno globalne, bez poszerzenia o strefy."""
+    assert windows.effective_window(stage, student) == windows.global_window(stage)
+    assert windows.envelope(stage) == windows.global_window(stage)
