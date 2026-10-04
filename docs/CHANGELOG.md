@@ -17,8 +17,14 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
   dopiero, gdy serwer LiveKit potwierdzi nadawanie. Zerwanie strumienia: komunikat, pasek na stronie
   etapu, dziennik. „Nie mogę użyć kamery” → alternatywa zatwierdzana przez koordynatora.
 - **Bramka treści etapu** (`ProctoringGateMiddleware`): PDF zadania, wysyłka (WWW i API), start
-  i strona testu wymagają gotowej sesji; autozapis testu nigdy. LiveKit niedostępny: `allow`
-  (praca ze znacznikiem „bez nadzoru”, domyślnie) albo `block`.
+  i strona testu (oraz tłumaczenia TR-01) w oknie etapu – wyłącznie uczeń z gotową sesją i personel;
+  niezalogowany i osoba bez zgłoszenia – odmowa; token API przed sesją; druga linia obrony
+  w `create_submission` i `start_attempt`; autozapis testu nigdy. LiveKit niedostępny: `block`
+  (domyślnie) albo `allow` – tylko przy awarii serwera albo po N nieudanych połączeniach, z powodem
+  w siatce, raporcie i CSV; odmowa kamery = prośba o alternatywę.
+- Zgoda wiąże się z ustawieniami etapu (zmiana = nowa zgoda); niepełnoletni – zgoda opiekuna
+  sprawdzana przy każdym wejściu i oświadczenie o nadzorze. Wycofanie zgody, anonimizacja, odpięcie
+  nadzorującego i odwołanie opiekuna (DEL-01) wypraszają z pokoju; okna TZ-01 brane automatycznie.
 - **Nadzorujący** `/proctoring/<etap>/`: siatka 12/16/24 kafli, subskrypcja tylko widocznej strony,
   wiadomości (serwer → `SendData` + odpytanie), „pokaż pokój/dokument”, incydenty, obecność.
   Pokoje per delegacja / przydział: opiekun drużyny dostaje token wyłącznie do pokoju swojej delegacji.
@@ -26,7 +32,7 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
   transkodowania) z audytem; retencja nośników 30 dni po wynikach i oknie reklamacji (beat), wstrzymanie.
 - RODO: wiersz rejestru czynności, sekcja `nadzor_zdalny` w eksporcie konta, anonimizacja kasuje
   nośniki, nota DPIA w podręczniku organizatora. Katalogi tłumaczeń aplikacji (`apps/*/locale/`)
-  kompilowane w `Dockerfile` i sprawdzane testami. Opis: `docs/tasks/PROC-01.md`, `docs/OPERACJE.md` § 29.
+  kompilowane w `Dockerfile` i sprawdzane testami. Opis: `docs/tasks/PROC-01.md`, `docs/OPERACJE.md` § 39.
 
 ## [Unreleased] – Webinary w LiveKit (WEB-01)
 

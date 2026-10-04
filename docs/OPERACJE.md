@@ -4149,53 +4149,70 @@ przerywa restart serwera LiveKit – poza godzinami webinarów). Zatrzymanie war
 `docker compose -f docker-compose.yml -f deploy/livekit/docker-compose.livekit.yml --profile livekit stop livekit livekit-egress livekit-redis`
 i `LIVEKIT_PROXY=0` + `scripts/proxy_config.sh update`.
 
-## 29. Nadzór zdalny etapów online (PROC-01, `docs/tasks/PROC-01.md`)
+## 39. Nadzór zdalny etapów online (PROC-01, `docs/tasks/PROC-01.md`)
 
 Koordynator włącza nadzór **dla wybranego etapu online** (`Etapy → Nadzór zdalny`); uczeń przechodzi
 w konsoli `/me/proctoring/<etap>/` zgodę, sprawdzenie sprzętu, (opcjonalnie) zdjęcie dokumentu
 i nadaje kamerę do pokoju LiveKit; nadzorujący pracują w siatce `/proctoring/<etap>/`. Serwer LiveKit,
-klucze i webhook – **te same, co webinary** (§ 28). Bez flagi `proctoring` nic się nie zmienia: adresy
-404, bramka treści etapu nie robi zapytań.
+klucze i webhook – **te same, co webinary** (§ 36). Bez flagi `proctoring` nic się nie zmienia: adresy
+404, bramka treści etapu i strażnicy w serwisach wysyłki i testu nie robią zapytań.
 
-### 29.1. Włączenie (kolejność)
+### 39.1. Włączenie (kolejność)
 
-1. Wdrożenie z migracją `proctoring.0001` (obraz kompiluje też `apps/*/locale/` – `Dockerfile`).
-2. Serwer LiveKit wg § 28 – przy nadzorze **wariant (a)** (osobna maszyna, § 29.3). Webhook ten sam
-   (`/integrations/livekit/webhook/`); LiveKit wysyła domyślnie wszystkie zdarzenia, nadzór używa
-   `participant_joined/left`, `track_published/unpublished`, `egress_ended`.
-3. Nagrywanie (tylko gdy organizator je włączy): polityka konta egress w MinIO obejmuje teraz także
+1. Wdrożenie z migracjami `proctoring.0001`–`0002` (obraz kompiluje też `apps/*/locale/`).
+2. Serwer LiveKit wg § 36 – przy nadzorze **wariant (a)** (osobna maszyna, § 39.3). Webhook ten sam
+   (`/integrations/livekit/webhook/`); nadzór używa `participant_joined/left`,
+   `track_published/unpublished`, `egress_ended`.
+3. Nagrywanie (tylko gdy organizator je włączy): polityka konta egress w MinIO obejmuje także
    `submissions/proctoring/*` – zaktualizuj ją z `deploy/livekit/policy-egress.json`
    (`mc admin policy create local egress-livekit policy-egress.json` → `mc admin policy attach …`)
    i ustaw w `egress.yaml` `cpu_cost.track_cpu_cost` (komentarz w przykładzie).
-4. Restart `web worker beat` (nowe zadanie beat `proctoring-purge`, 03:40 – retencja nośników).
+4. Restart `web worker beat` (zadanie beat `proctoring-purge`, 03:40 – retencja nośników i zdjęć).
 5. Flaga konkursu `proctoring` w `/admin/` (`feature_flags`) – **po** decyzji organizatora i ocenie
-   skutków (DPIA, `docs/PODRECZNIK-ORGANIZATORA.md` § 10c), aktualizacji polityki prywatności
-   (sekcja „Nadzór zdalny”) i regulaminu etapu.
-6. Okna w strefach (TZ-01): po scaleniu ustaw `PROCTORING_WINDOW_ADAPTER=<moduł.funkcja>`
-   (`(stage, participant) -> (opens, closes)`); pusty = okno globalne etapu.
-7. Próba generalna: etap treningowy nie podlega nadzorowi – zrób etap testowy (rodzaj „Runda”) z dwoma
-   kontami uczniów i jednym nadzorującym, sprawdź siatkę, wiadomość, incydent, raport i (gdy włączone)
-   nagranie.
+   skutków (DPIA, `docs/PODRECZNIK-ORGANIZATORA.md` § 10m), aktualizacji polityki prywatności
+   (sekcja „Nadzór zdalny”), wzoru zgody opiekuna i regulaminu etapu.
+6. Okna w strefach (TZ-01): gdy w instalacji jest `apps.time_windows`, nadzór bierze okno ucznia
+   **sam** (`apps.time_windows.access.effective_window` → `opens_at`, `deadline_at` + tolerancja
+   etapu). `PROCTORING_WINDOW_ADAPTER` zostaje wyłącznie na inny, własny kalendarz.
+7. Próba generalna na etapie testowym (rodzaj „Runda”) z dwoma kontami uczniów i jednym nadzorującym:
+   siatka, wiadomość, incydent, raport, (gdy włączone) nagranie; awaria – zatrzymaj LiveKit i sprawdź
+   zachowanie `block`/`allow`.
 
 Zmienne (`.env`, opcjonalne): `PROCTORING_LEAD_MINUTES` (30), `PROCTORING_GRACE_MINUTES` (30),
-`PROCTORING_RETENTION_DAYS` (30), `PROCTORING_MAX_RETENTION_DAYS` (180), `PROCTORING_WINDOW_ADAPTER`.
+`PROCTORING_RETENTION_DAYS` (30), `PROCTORING_MAX_RETENTION_DAYS` (180), `PROCTORING_WINDOW_ADAPTER`,
+`PROCTORING_UNPROCTORED_AFTER_FAILURES` (3), `PROCTORING_LATE_START_MINUTES` (15).
 
-### 29.2. Bezpieczeństwo – jak to działa
+### 39.2. Bezpieczeństwo – jak to działa
 
-- **Pokoje per grupa**: `proc-<konkurs>-<klucz>-<grupa>`, grupa = `d<delegacja>` (IQO), inaczej
-  `a<przydział nadzorującego>`, inaczej `m` (bez przydziału). Token nadzorującego otwiera **jeden**
-  pokój; opiekun drużyny dostaje wyłącznie pokój swojej delegacji, członek komisji – pokoje swoich
-  uczniów. Uprawnień subskrypcji per ścieżka nie używamy, bo ustawia je przeglądarka nadawcy.
+- **Bramka** (`ProctoringGateMiddleware`): w oknie etapu z nadzorem PDF zadania, wysyłka (WWW i API),
+  start i strona testu (oraz – po scaleniu TR-01 – tłumaczenia zadań) widzą wyłącznie uczniowie etapu
+  z gotową sesją i personel (koordynator, komisja). Niezalogowany – logowanie albo 403, zalogowany bez
+  zgłoszenia – 403. Konto liczone w kolejności DRF (token przed sesją). Wysyłka rozwiązania i start
+  testu powtarzają regułę w serwisach (druga linia obrony).
+- **Pokoje per grupa**: `proc-<konkurs>-<klucz>-<grupa>`; grupa = `a<przydział>` (uczeń przydzielony
+  koordynatorowi albo członkowi komisji – także uczeń delegacji), `d<delegacja>` (uczeń delegacji bez
+  przydziału albo przydzielony swojemu opiekunowi), `m` (bez przydziału). Token nadzorującego otwiera
+  **jeden** pokój; opiekun drużyny – wyłącznie pokój swojej delegacji, członek komisji – pokoje swoich
+  uczniów. Grupa `m` powyżej 250 osób – ostrzeżenie na ekranie koordynatora (rozdziel uczniów).
 - Uczeń: `canSubscribe=false`, `canPublishData=false`, `canPublishSources` = kamera (+ ekran/mikrofon,
-  gdy wymagane), pusta nazwa (inni uczniowie w pokoju widzą tylko pseudonimy). Nadzorujący: `hidden`,
-  bez nadawania. Wiadomości idą przez serwer (`RoomService/SendData`) – zapis i audyt najpierw.
-- Start otwiera etap dopiero, gdy `RoomService/GetParticipant` potwierdzi ścieżkę kamery.
-- Limity per konto: `proctoring_token` 60/h, `proctoring_action` 600/h, `proctoring_client` 600/h
-  (odpowiedź 429 w JSON-ie).
+  gdy wymagane), pusta nazwa. Nadzorujący: `hidden`, bez nadawania. Wiadomości przez serwer (`SendData`).
+- **Wyproszenia** (`RoomService/RemoveParticipant`): wycofanie zgody i anonimizacja konta – uczeń
+  (i stop aktywnych nagrań); odpięcie przydziału – nadzorujący i jego uczniowie (wracają z nowym
+  tokenem do nowego pokoju); odwołanie opiekuna w DEL-01 – sygnał wyprasza go z pokoju delegacji;
+  zmiana przydziału / „Rozdziel” – uczeń ze starego pokoju.
+- **Zgoda** ważna tylko dla bieżącej wersji **i ustawień etapu** (nagrywanie, mikrofon, ekran, zdjęcie –
+  w skrócie dowodu); zmiana ustawień = nowa zgoda. Niepełnoletni: potwierdzona online zgoda opiekuna,
+  sprawdzana przy każdym tokenie i w bramce (wycofana – gasi zgodę na nadzór), plus oświadczenie
+  ucznia o wiedzy i zgodzie opiekuna na nadzór.
+- **Praca bez nadzoru**: domyślnie **`block`**. Przy `allow` – wyłącznie gdy serwer nieskonfigurowany,
+  nieosiągalny dla platformy albo po `PROCTORING_UNPROCTORED_AFTER_FAILURES` zgłoszonych nieudanych
+  połączeniach; odmowa/odłączenie kamery – prośba o alternatywę. Powód widać w siatce, raporcie i CSV.
+- Limity per konto: `proctoring_token` 60/h, `proctoring_coordinator_token` 1200/h (przełączanie
+  ~100 grup w IQO), `proctoring_action` 600/h, `proctoring_client` 600/h – odpowiedź 429 w JSON-ie.
 - Nagrania (Track Egress, WebM, bez transkodowania): `submissions/proctoring/<konkurs>/<klucz>/<pseudonim>/…`,
   odczyt adresem na 15 min, wyłącznie koordynator i komisja odwoławcza, audyt `proctoring.recording_viewed`.
 
-### 29.3. Pojemność – szacunek dla 300 uczniów (kamera 320×240, 10 kl./s)
+### 39.3. Pojemność – szacunek dla 300 uczniów (kamera 320×240, 10 kl./s)
 
 | Pozycja | Szacunek |
 |---|---|
@@ -4208,21 +4225,20 @@ Zmienne (`.env`, opcjonalne): `PROCTORING_LEAD_MINUTES` (30), `PROCTORING_GRACE_
 | Nagrania (tylko przy `record`) | ~65 MB/h na ucznia → **~60 GB** na etap 3 h × 300 uczniów |
 | Platforma (Django) | puls 300/min (5 żądań/s), odpytanie wiadomości co 20 s (~15 żądań/s), webhooki w falach przy starcie |
 
-Zalecenie: **osobna maszyna LiveKit 8 vCPU (dedykowane, nie VPS z „steal” – § 28.1), 8–16 GB RAM,
+Zalecenie: **osobna maszyna LiveKit 8 vCPU (dedykowane, nie VPS z „steal” – § 36.1), 8–16 GB RAM,
 łącze ≥ 500 Mb/s symetryczne**; SFU przy tak niskich przepływnościach ma duży zapas CPU (przekazuje
-pakiety, nie koduje). Porty: przy kilkuset uczestnikach zakres 50000–50100 nie wystarczy – ustaw
-`rtc.udp_port` (multipleksowanie UDP na jednym porcie) albo szerszy zakres i zaporę. Nagrywanie: Track
-Egress nie transkoduje, ale każdy egress to osobny proces – na 300 nagrań naraz zaplanuj 2–3 węzły egress
-(8 vCPU / 16 GB, `track_cpu_cost` 0.1–0.2) i **próbę obciążeniową** przed etapem; miejsce w buckecie
-~60 GB na etap z 30-dniową retencją. Wariant (b) (ten sam host) – wyłącznie próby i małe grupy.
+pakiety, nie koduje). Pokoje per przydział/delegację rozkładają się na węzły klastra (Redis). Porty:
+przy kilkuset uczestnikach zakres 50000–50100 nie wystarczy – ustaw `rtc.udp_port` (multipleksowanie
+UDP na jednym porcie) albo szerszy zakres i zaporę. Nagrywanie: Track Egress nie transkoduje, ale każdy
+egress to osobny proces – na 300 nagrań naraz zaplanuj 2–3 węzły egress (8 vCPU / 16 GB,
+`track_cpu_cost` 0.1–0.2) i **próbę obciążeniową** przed etapem; ~60 GB w buckecie na etap.
 
-### 29.4. Awarie i wyłączenie
+### 39.4. Awarie, retencja i wyłączenie
 
-- LiveKit niedostępny w trakcie etapu: ustawienie etapu `allow` (domyślne) – uczniowie klikają
-  „Kontynuuj bez nadzoru”, sesje dostają znacznik (`unproctored`, w dzienniku `server_reachable`);
-  `block` – treść etapu zamknięta, koordynator zatwierdza ręcznie alternatywę.
-- Awaryjnie: zdjąć flagę `proctoring` (bramka znika natychmiast, nic nie blokuje etapu) albo
-  przestawić etap na `allow`.
-- Retencja: beat `apps.proctoring.tasks.purge_expired` (codziennie); ręcznie –
-  `docker compose exec web python manage.py shell -c "from apps.proctoring.services import purge_expired; print(purge_expired())"`.
+- LiveKit niedostępny w trakcie etapu: `block` (domyślne) – treść zamknięta, koordynator zatwierdza
+  alternatywę uczniom, którzy zgłoszą się w konsoli; `allow` – „Kontynuuj bez nadzoru” z powodem.
+- Awaryjnie: zdjąć flagę `proctoring` (bramka znika natychmiast) albo przestawić etap na `allow`.
+- Retencja: beat `apps.proctoring.tasks.purge_expired` (codziennie) – zdjęcia dokumentu po etapie,
+  nagrania, dziennik, wiadomości i uwagi do prośby o alternatywę 30 dni po wynikach i oknie reklamacji;
+  ręcznie – `docker compose exec web python manage.py shell -c "from apps.proctoring.services import purge_expired; print(purge_expired())"`.
   Wstrzymanie usunięcia ucznia – pole „powód wstrzymania” na ekranie nadzoru etapu.

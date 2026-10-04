@@ -18,7 +18,7 @@ Czego zadanie **nie** robi:
 - nie zmienia pokoju webinaru ani jego interfejsu – bierze z `apps.webinars` klienta LiveKit
   (`livekit.py`: podpis tokenów, Twirp, weryfikacja webhooków), magazyn i SDK z `static/vendor/`,
 - nie wysyła listów (zgoda opiekuna – istniejący mechanizm `apps.accounts.guardian`, § 5),
-- okna czasowe w strefach (TZ-01) powstają równolegle – tu jest wyłącznie adapter (§ 4).
+- nie liczy okien czasowych w strefach (TZ-01) – pyta o nie `apps.time_windows`, gdy jest (§ 4).
 
 ## 1. Aplikacja i przełączniki
 
@@ -36,9 +36,11 @@ w `apps/proctoring/locale/` (10 katalogów).
 |---|---|---|
 | `PROCTORING_LEAD_MINUTES` | 30 | ile minut przed otwarciem okna ucznia wolno już włączyć nadzór |
 | `PROCTORING_GRACE_MINUTES` | 30 | ile minut po zamknięciu okna działa jeszcze pokój nadzorujących |
-| `PROCTORING_RETENTION_DAYS` | 30 | nagrania, zdjęcia dokumentu, dziennik zdarzeń i wiadomości – dni po publikacji wyników (i po oknie reklamacji) |
+| `PROCTORING_RETENTION_DAYS` | 30 | nagrania, dziennik zdarzeń, wiadomości i uwagi do próśb – dni po publikacji wyników (i po oknie reklamacji); zdjęcia dokumentu – zaraz po etapie |
 | `PROCTORING_MAX_RETENTION_DAYS` | 180 | bezpiecznik: dni po końcu etapu, gdy wyniki nigdy nie zostały ogłoszone |
-| `PROCTORING_WINDOW_ADAPTER` | pusty | ścieżka funkcji `(stage, participant) -> (opens, closes)` z TZ-01; pusty = okno globalne etapu |
+| `PROCTORING_WINDOW_ADAPTER` | pusty | własna funkcja `(stage, participant) -> (opens, closes)`; pusty = TZ-01 (`apps.time_windows`), gdy zainstalowane, inaczej okno globalne |
+| `PROCTORING_UNPROCTORED_AFTER_FAILURES` | 3 | ile zgłoszonych nieudanych połączeń (przy działającym serwerze) otwiera „kontynuuj bez nadzoru” przy `allow` |
+| `PROCTORING_LATE_START_MINUTES` | 15 | próg znacznika „późny start” (siatka, raport, CSV) |
 | `PROCTORING_STORAGE_BACKEND` | S3 prywatny | magazyn zdjęć dokumentu i nagrań (testy: pamięć) |
 
 ## 2. Model danych (`apps/proctoring/models.py`)
@@ -46,22 +48,22 @@ w `apps/proctoring/locale/` (10 katalogów).
 - `ProctoringConfig` (1:1 z `Stage`, zakres konkursu przez `stage__edition__competition`):
   `enabled`, `require_screen_share` (False), `require_microphone` (False), `id_photo`
   (`off`/`optional`/`required`, domyślnie `off`), `record` (**False**), `on_unavailable`
-  (`allow` – uczeń pracuje, sesja dostaje znacznik „bez nadzoru”, domyślnie; `block` – treść etapu
-  zamknięta do decyzji koordynatora), `instructions` (dopisek koordynatora), `room_key` (losowy),
+  (**`block`** – treść etapu zamknięta do decyzji koordynatora, domyślnie; `allow` – przy awarii po
+  stronie serwera nadzoru uczeń pracuje ze znacznikiem „bez nadzoru” i powodem, § 6), `instructions` (dopisek koordynatora), `room_key` (losowy),
   `updated_by`/`updated_at`.
 - `ProctorAssignment`: (etap, konto) unikalne; `kind` = `coordinator` / `committee` / `leader`;
   dla `leader` – `delegation_id` (migawka z adaptera, sprawdzana ponownie przy każdym tokenie).
 - `ProctoringSession`: (etap, uczestnik) unikalne – stan ucznia: wynik sprawdzenia (JSON z
   wartościami logicznymi i rodziną przeglądarki, bez odcisku sprzętu), zgoda (FK), zdjęcie dokumentu
-  (klucz w magazynie, czas), `group` (pokój: `m` albo `d<id delegacji>`), `proctor` (FK przydziału),
-  `started_at` (serwer potwierdził nadawanie kamery), `unproctored_at` (praca bez nadzoru wg
-  `on_unavailable=allow`), `connected`/`camera_live`/`last_seen_at` (webhooki i puls), obecność
+  (klucz w magazynie, czas), `group` (pokój: `a<przydział>`, `d<delegacja>` albo `m`, § 3), `proctor` (FK przydziału),
+  `started_at` (serwer potwierdził nadawanie kamery), `unproctored_at` + `unproctored_reason` (praca
+  bez nadzoru wg § 6), `connected`/`camera_live`/`last_seen_at` (webhooki i puls), obecność
   (`unknown`/`present`/`absent`, kto, kiedy), **alternatywa** dla ucznia bez kamery (prośba, powód
   z listy + krótka uwaga, decyzja koordynatora, ustalenie), `hold` (komisja wstrzymuje usunięcie
   nagrań do wyjaśnienia), `purged_at`.
-- `ProctoringConsent`: dowód zgody – sesja, wersja tekstu, skrót SHA-256 treści, czas, IP,
-  `guardian_record` (wpis `ConsentRecord` zgody opiekuna, na którym oparto zgodę niepełnoletniego),
-  `withdrawn_at`.
+- `ProctoringConsent`: dowód zgody – sesja, wersja tekstu, skrót SHA-256 treści **i ustawień etapu**
+  (nagrywanie, mikrofon, ekran, zdjęcie – `terms`), czas, IP, `guardian_record` (zgoda opiekuna
+  online, na której oparto zgodę niepełnoletniego), `guardian_statement`, `withdrawn_at`.
 - `ProctoringEvent`: dziennik – sesja, rodzaj (zamknięta lista), źródło (`client`/`webhook`/
   `proctor`/`system`), czas, autor (konto nadzorującego albo puste), `detail` (mały JSON bez treści
   wiadomości i bez danych przeglądarki ponad rodzinę).
@@ -74,8 +76,12 @@ w `apps/proctoring/locale/` (10 katalogów).
 
 ## 3. Role, zakres i pokoje (serwis `apps.proctoring.services`)
 
-**Pokój = etap × grupa.** Grupa ucznia to jego delegacja (`d<id>`) w konkursie z delegacjami
-albo `m` (pozostali). Nazwa: `proc-<slug>-<room_key>-<grupa>`.
+**Pokój = etap × grupa.** Nazwa: `proc-<slug>-<room_key>-<grupa>`. Grupa ucznia:
+- `a<przydział>` – uczeń przydzielony koordynatorowi albo członkowi komisji (także uczeń delegacji:
+  członek komisji nie może dostać tokenu do pokoju całej delegacji),
+- `d<delegacja>` – uczeń delegacji bez przydziału albo przydzielony opiekunowi swojej delegacji,
+- `m` – pozostali (bez przydziału); powyżej 250 osób – ostrzeżenie koordynatora (jeden pokój = jeden
+  węzeł LiveKit), rozwiązaniem jest „Rozdziel uczniów”.
 
 **Dlaczego osobne pokoje, a nie uprawnienia subskrypcji per ścieżka.** W LiveKit token niesie
 uprawnienia do **pokoju** (`room`, `canSubscribe`), a uprawnienia subskrypcji pojedynczych ścieżek
@@ -91,9 +97,12 @@ Koordynator wybiera grupę w siatce (token na jeden pokój naraz).
 | komisja | aktywny członek komisji z przydziałem do etapu | uczniów przydzielonych sobie | grupy swoich uczniów |
 | opiekun drużyny | rola `team_leader` + aktywny wiersz opiekuna delegacji + przydział | uczniów **swojej** delegacji | wyłącznie `d<swoja delegacja>` |
 
-- W grupie `m` członek komisji technicznie mógłby zasubskrybować ucznia przydzielonego komuś
-  innemu (ten sam pokój) – granicą jest tu przydział organizacyjny i lista z serwera; to świadoma
-  decyzja (komisja jest stroną organizatora), opisana w podręczniku.
+- Członek komisji dostaje token wyłącznie do pokoi `a<swój przydział>` – innych uczniów nie
+  zasubskrybuje. Zmiana przydziału („Rozdziel”, „Zmień”, usunięcie nadzorującego) wyprasza ucznia
+  ze starego pokoju (`RemoveParticipant`), konsola łączy się ponownie z nowym tokenem.
+- **Wyproszenia**: wycofanie zgody i anonimizacja – uczeń (+ stop aktywnych nagrań); usunięcie
+  przydziału – nadzorujący z jego pokoi; odwołanie opiekuna w DEL-01 – sygnał wyprasza go z pokoju
+  delegacji. Token żyje minuty, ale połączenie raz nawiązane trwa – stąd polecenie serwerowe.
 - **Token ucznia**: `identity` = pseudonim HMAC (`p-…`, osobny na etap), **pusta nazwa**,
   `canPublish` z `canPublishSources` = `camera` (+ `screen_share`, + `microphone` gdy wymagane),
   **`canSubscribe=false`**, `canPublishData=false`, `canUpdateOwnMetadata=false`. Inni uczniowie
@@ -105,13 +114,19 @@ Koordynator wybiera grupę w siatce (token na jeden pokój naraz).
   co 20 s, więc wiadomość dociera także przy zerwanym kanale danych.
 - Okno: token ucznia od `opens − LEAD` do `closes` (okno efektywne, § 4); token nadzorującego
   do `closes + GRACE`. Poza oknem – zdanie dla człowieka.
-- Cudzy etap, etap bez nadzoru, osoba bez roli – 404. Limit: `proctoring` 120/h per konto.
+- Cudzy etap, etap bez nadzoru, osoba bez roli – 404; nieliczbowe identyfikatory z formularzy – 404.
+  Limity per konto (JSON 429): `proctoring_token` 60/h, `proctoring_coordinator_token` 1200/h
+  (przełączanie ~100 grup w IQO), `proctoring_action` i `proctoring_client` 600/h.
 
 ## 4. Adaptery
 
 - **Okno ucznia** (`apps.proctoring.windows.effective_window(stage, participant)`): funkcja ze
-  `PROCTORING_WINDOW_ADAPTER`, gdy ustawiona (TZ-01 poda okno w strefie ucznia), inaczej
-  `(stage.opens_at, stage.submission_deadline)`. Błąd adaptera = okno globalne + log.
+  `PROCTORING_WINDOW_ADAPTER`, gdy ustawiona; inaczej – gdy zainstalowane TZ-01 –
+  `apps.time_windows.access.effective_window(stage, participant)` (`EffectiveWindow.opens_at`,
+  `deadline_at` + `grace_seconds` etapu; `None` = okno globalne); inaczej
+  `(stage.opens_at, stage.submission_deadline)`. Błąd adaptera = okno globalne + log. Osoby bez
+  własnego okna (niezalogowany, personel, pokój nadzorujących) pytają o „okno dla kogokolwiek”
+  (`envelope`): globalne, przy oknach per uczeń poszerzone o ±14 h.
 - **Delegacje** (`apps.proctoring.delegations`): `participant_delegation_id`, `leader_delegation_id`,
   `delegation_label`. Czytają modele DEL-01 (`Participant.delegation_id`,
   `delegation_services.leader_for`), gdy są w instalacji; bez nich – brak delegacji (jedna grupa `m`,
@@ -121,10 +136,12 @@ Koordynator wybiera grupę w siatce (token na jeden pokój naraz).
 
 Konsola nadzoru – jedna strona z krokami liczonymi przez serwer:
 1. **Informacja i zgoda** – klauzula (kto, po co, co jest nagrywane lub nie, kto widzi, jak długo,
-   prawa, kontakt), pole wyboru, wersja `PROCTORING_CONSENT_VERSION`. Niepełnoletni: wymagana
-   **potwierdzona online zgoda opiekuna** (`guardian_status == confirmed`); bez niej – odnośnik do
-   „Poproś opiekuna o zgodę”. Wycofanie zgody – przycisk; skutek: sesja bez nadzoru wymaga decyzji
-   koordynatora (alternatywa).
+   prawa, kontakt), pole wyboru, wersja `CONSENT_VERSION`; zgoda ważna dla **bieżących ustawień
+   etapu** (zmiana nagrywania, mikrofonu, ekranu, zdjęcia = nowa zgoda). Niepełnoletni: wymagana
+   **potwierdzona online zgoda opiekuna** – sprawdzana przy każdym tokenie i w bramce (wycofana gasi
+   zgodę na nadzór) – oraz oświadczenie „opiekun zna informację o nadzorze i się zgadza”; bez zgody
+   opiekuna – odnośnik „Poproś opiekuna o zgodę”. Wycofanie zgody – przycisk; skutek: uczeń wyproszony
+   z pokoju, dalej decyzja koordynatora (alternatywa).
 2. **Sprawdzenie sprzętu** (JS): obsługa WebRTC, kamera (podgląd), mikrofon (gdy wymagany, poziom),
    uprawnienie do udostępnienia ekranu (gdy wymagane). Wynik idzie POST-em; serwer zapisuje wartości
    logiczne i rodzinę przeglądarki.
@@ -139,17 +156,30 @@ Konsola nadzoru – jedna strona z krokami liczonymi przez serwer:
 - **Bez kamery**: przycisk „Nie mogę użyć kamery” → prośba o alternatywę (powód z listy, krótka
   uwaga bez danych o zdrowiu) → koordynator zatwierdza (np. nadzór telefoniczny) albo odrzuca.
 - **Bramka** (`ProctoringGateMiddleware`, `process_view`): treść zadania (PDF), wysyłka rozwiązania
-  (WWW i API), start i strona podejścia testu – w etapie z nadzorem, w oknie ucznia – wymagają sesji
-  „gotowej”: zgoda + (start potwierdzony **albo** alternatywa zatwierdzona **albo** praca bez
-  nadzoru przy `allow`). Autozapis testu nie jest bramkowany nigdy (odpowiedzi nie giną).
-  Wyłączona flaga, etap bez nadzoru, osoba bez zgłoszenia do etapu – bramka przepuszcza bez pytań.
+  (WWW i API), start i strona podejścia testu, tłumaczenia zadań TR-01 (`web:student-translation*`,
+  gdy są) – w etapie z nadzorem, w oknie – wpuszczają wyłącznie: ucznia etapu z sesją „gotową”
+  (zgoda + start potwierdzony **albo** alternatywa zatwierdzona **albo** praca bez nadzoru wg § 6)
+  oraz personel (koordynator, komisja). Niezalogowany – logowanie (przeglądarka) albo 403; zalogowany
+  bez zgłoszenia (także zdyskwalifikowany) – 403. Konto liczone **w kolejności DRF** (token przed
+  sesją), żeby sesja innego konta i token ucznia nie omijały bramki. Druga linia obrony:
+  `create_submission` i `start_attempt` wołają `services.assert_stage_access`. Autozapis testu nie
+  jest bramkowany nigdy. Wyłączona flaga – zero zapytań. Test przegląda **wszystkie** nazwy adresów
+  „z treścią zadań” i wymaga wpisu w bramce albo uzasadnienia.
+- **Późny start**: nadzór włączony ponad `PROCTORING_LATE_START_MINUTES` po otwarciu okna ucznia –
+  znacznik w siatce, raporcie i CSV.
 
 ## 6. LiveKit niedostępny
 
-`on_unavailable=allow` (domyślnie): gdy token albo połączenie się nie udaje, uczeń klika
-„Kontynuuj bez nadzoru”, serwer zapisuje `unproctored_at` + zdarzenie `livekit_unavailable`,
-koordynator i komisja widzą znacznik w siatce i raporcie. `block`: treść etapu zostaje zamknięta,
-uczeń widzi prośbę o kontakt, koordynator może zatwierdzić alternatywę ręcznie.
+**`block` (domyślnie)**: treść etapu zostaje zamknięta, uczeń prosi w konsoli o inną formę nadzoru,
+koordynator zatwierdza ją ręcznie.
+
+`allow`: konsola zgłasza każde nieudane połączenie (`connect_failed` z powodem `token` / `connect` /
+`publish` / `camera`), a „Kontynuuj bez nadzoru” jest dozwolone **wyłącznie**, gdy serwer
+nieskonfigurowany (`not_configured`), nieosiągalny dla **platformy** (`server_unreachable`, sprawdzane
+`GetParticipant`) albo po `PROCTORING_UNPROCTORED_AFTER_FAILURES` nieudanych połączeniach sieciowych
+(`connect_failures`). Odmowa albo odłączenie kamery się nie liczy – to prośba o alternatywę. Powód
+i `server_reachable` są w sesji, dzienniku, siatce, raporcie i CSV; pasek na stronie etapu pokazuje
+osobny stan „praca bez nadzoru” (nie „nadzór działa”).
 
 ## 7. Nadzorujący (`/proctoring/…`)
 
@@ -172,13 +202,16 @@ uczeń widzi prośbę o kontakt, koordynator może zatwierdzić alternatywę rę
   zapisu wyłącznie do `webinars/` i `proctoring/`. Ekranu nie nagrywamy.
 - Odtwarzanie: koordynator i komisja odwoławcza, adres podpisany na 15 min, audyt
   `proctoring.recording_viewed`.
-- **Retencja**: nagrania, zdjęcia dokumentu, dziennik zdarzeń i wiadomości – usuwane przez beat
-  (`purge_expired`, raz dziennie) `PROCTORING_RETENTION_DAYS` po późniejszej z dat: publikacja
-  wyników, koniec okna reklamacji; bezpiecznik `MAX_RETENTION_DAYS` po końcu etapu; `hold` wstrzymuje.
+- **Retencja**: zdjęcia dokumentu – po etapie (`purge_id_photos`); nagrania, dziennik zdarzeń,
+  wiadomości i uwaga do prośby o alternatywę – przez beat (`purge_expired`, raz dziennie)
+  `PROCTORING_RETENTION_DAYS` po późniejszej z dat: publikacja wyników, koniec okna reklamacji;
+  bezpiecznik `MAX_RETENTION_DAYS` po końcu etapu; `hold` wstrzymuje oba.
   Incydenty, obecność i zgody zostają jako dokumentacja zawodów (retencja edycji).
 - Rejestr czynności: wiersz warunkowy „Nadzór zdalny etapów online” (flaga). Eksport danych konta:
-  sekcja `nadzor_zdalny`. Anonimizacja konta: kasuje zdjęcia i nagrania, wycofuje zgody.
-- Ocena skutków (DPIA): `docs/PODRECZNIK-ORGANIZATORA.md` – nota dla organizatora.
+  sekcja `nadzor_zdalny`. Anonimizacja konta: wyprasza z pokoju, zatrzymuje nagrywanie, kasuje
+  zdjęcia, nagrania i uwagę do prośby, wycofuje zgody.
+- Ocena skutków (DPIA) i podstawa prawna: `docs/PODRECZNIK-ORGANIZATORA.md` § 10m; wdrożenie
+  i pojemność: `docs/OPERACJE.md` § 39.
 
 ## 9. Bezpieczeństwo i CSP
 
@@ -194,11 +227,13 @@ uczeń widzi prośbę o kontakt, koordynator może zatwierdzić alternatywę rę
 
 ## 10. Testy (`apps/proctoring/tests/`, bez sieci)
 
-Tokeny i uprawnienia per rola (w tym izolacja opiekuna – pokój tylko swojej delegacji, 404 na
-cudzego ucznia), bramka (zgoda, start, alternatywa, `allow`/`block`, flaga wyłączona = brak
-zapytań), zgoda niepełnoletniego bez zgody opiekuna, wiadomość (SendData + zapis), incydent i raport,
-webhooki (połączenie, ścieżki, egress), nagrania (start egress tylko przy `record`), retencja
-(usuwa po terminie, `hold` wstrzymuje), eksport, przekłady w 10 katalogach.
+Tokeny i uprawnienia per rola (izolacja opiekuna – podstawiony adapter **i** prawdziwe modele DEL-01,
+z wyproszeniem po `remove_leader`), pokoje przydziałów, bramka (anonim, osoba bez zgłoszenia,
+personel, token przed sesją, strażnicy w serwisach, flaga wyłączona = brak zapytań, przegląd nazw
+adresów), zgoda (ustawienia etapu, opiekun wycofany, oświadczenie niepełnoletniego), praca bez
+nadzoru (powody, odmowa kamery się nie liczy), wyproszenia, wiadomość, incydent, raport, CSV (późny
+start, powód), webhooki, nagrania, retencja (zdjęcia po etapie, uwagi), okna TZ-01, limity,
+eksport, przekłady w 10 katalogach.
 
 ## 11. Definicja ukończenia
 
