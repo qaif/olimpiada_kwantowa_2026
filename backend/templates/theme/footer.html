@@ -27,6 +27,8 @@
           rozjechać.
         {% endcomment %}
         {% include "web/_support_link.html" with css_class="footer__link" %}
+        {# „Zgłoś tłumaczenie” (L10N-01) – opis i warunki we fragmencie; paczka motywu dołącza go tak samo. #}
+        {% include "web/_translation_report_link.html" with css_class="footer__link" %}
         {% comment %}
           „Plakaty do pobrania” (prośba organizatora z 23.09.2026) – wyłącznie wtedy, gdy konkurs
           ma choć jeden opublikowany plakat, bo pusta lista oddaje 404. ``promo_available`` jest

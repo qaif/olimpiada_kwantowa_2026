@@ -26,6 +26,7 @@ from __future__ import annotations
 from collections import defaultdict
 
 from django.contrib import messages
+from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect
 from django.template.response import TemplateResponse
 from django.urls import NoReverseMatch, reverse, reverse_lazy
@@ -76,6 +77,8 @@ from apps.submissions.services import (
 )
 from apps.submissions.status_track import STATE_CURRENT, STATE_FAILED, status_track
 from apps.tenancy.fees import fees_enabled
+from apps.time_windows.access import enabled as time_windows_enabled
+from apps.time_windows.access import personal_stage, statements_visible, window_of
 from apps.web.forms import AppealForm, SubmissionUploadForm
 from apps.web.mixins import ActionViewMixin, ParticipantRequiredMixin
 from apps.web.participant_now import countdown_words, now_panel
@@ -381,6 +384,17 @@ class MeView(ParticipantRequiredMixin, TemplateView):
         edition = current_edition(self.competition)
         stage = current_stage(edition, now) if edition else None
         entry = _entry_for(self.participant, stage)
+        # Zapis do etapu idzie po **ramie** etapu (tak liczy go ``register_for_stage``) – uczeń
+        # z późniejszego okna może się zgłosić od razu, a nie dopiero na starcie swojego okna.
+        registration_open = stage is not None and stage.is_open_for_submissions(now)
+        # Okno czasowe ucznia (TZ-01): w etapie z oknami cały pulpit – nagłówek „Co teraz”, karty
+        # zadań, odliczanie, przycisk wysyłki – liczy się z **jego** startu i terminu. Kopia etapu
+        # zastępuje etap raz, tutaj, więc żadna gałąź niżej nie może przez pomyłkę wziąć ramy
+        # etapu. Bez flagi konkursu warunek jest fałszywy bez zapytania.
+        if time_windows_enabled(self.competition) and stage is not None:
+            stage = personal_stage(stage, self.participant, self.competition)
+            if entry is not None:
+                entry.stage = stage
         tab = self.active_tab()
         # Ta sama lista rodzajów, na której stoi ``register_for_stage`` – widok tylko ukrywa
         # przycisk, którego serwis i tak by nie przyjął. Gdyby powtarzał tu regułę własnym
@@ -390,7 +404,7 @@ class MeView(ParticipantRequiredMixin, TemplateView):
             stage is not None
             and entry is None
             and stage.kind in SELF_REGISTRATION_KINDS
-            and stage.is_open_for_submissions(now)
+            and registration_open
         )
         # Etap w formie rozmowy ani w formie testu online nie ma uploadu w ogóle – nie
         # „zamkniętego”, tylko żadnego (``submissions.create_submission`` odmawia
@@ -452,6 +466,9 @@ class MeView(ParticipantRequiredMixin, TemplateView):
                 # Słowa odliczania jadą do przeglądarki w atrybutach ``data-*``: skrypt odświeżający
                 # licznik nie ma katalogu tłumaczeń i nie może mieć własnych napisów.
                 "countdown_words": countdown_words(),
+                # Karta „Twoje okno” (TZ-01) – ``None`` poza etapem z oknami, więc szablon nie
+                # dokłada ani jednego znacznika.
+                "time_window": window_of(stage),
             }
         )
         # Jak wejść na rozmowę (v0.39.0): przycisk przez platformę, zwykły link albo nic – liczone
@@ -709,6 +726,13 @@ class ProblemUploadView(ParticipantRequiredMixin, ThrottledFormMixin, View):
         problem = get_object_or_404(
             Problem.objects.for_competition(request.competition), stage=stage, number=number
         )
+        # Okna czasowe (TZ-01): przed startem okna ucznia odpowiedź nie może nieść karty zadania –
+        # karta ma tytuł, a tytuł zdradza temat. 404, jak dla PDF-u treści przed czasem; serwis
+        # uploadu i tak by odmówił, ale odmowa wróciłaby w karcie z tytułem.
+        if time_windows_enabled(request.competition) and not statements_visible(
+            stage, participant=self.participant, competition=request.competition
+        ):
+            raise Http404("Zadania tego etapu nie są jeszcze dostępne.")
         form = SubmissionUploadForm(request.POST, request.FILES)
         error = None
         if form.is_valid():
@@ -723,6 +747,10 @@ class ProblemUploadView(ParticipantRequiredMixin, ThrottledFormMixin, View):
             except DomainError as exc:
                 error = str(exc.detail)
         now = timezone.now()
+        # Karta po wysyłce liczy przycisk i termin z okna ucznia (TZ-01) – tak samo jak pulpit.
+        if time_windows_enabled(request.competition):
+            stage = personal_stage(stage, self.participant, request.competition)
+            entry.stage = stage
         context = {
             "row": _problem_row(request.user, entry, problem, request.competition),
             "stage": stage,

@@ -302,6 +302,22 @@ def stage_items(stages: list, competition=None) -> tuple[Item, ...]:
                     ("coordinator-stage-attendance",),
                 ),
             )
+        if (
+            competition is not None
+            and competition.has_feature("stage_time_windows")
+            and not stage.is_interview
+            and not stage.is_training
+        ):
+            # Okna czasowe etapu według stref (TZ-01). Dziecko etapu, bo plan okien jest jeden na
+            # etap; rozmowa i trening okien nie mają (ekran oddaje dla nich 404).
+            children += (
+                Item(
+                    "Okna czasowe",
+                    ("web:coordinator-stage-windows",),
+                    (stage.pk,),
+                    ("coordinator-stage-windows", "coordinator-stage-windows-"),
+                ),
+            )
         items.append(
             Item(
                 stage.display_name,
@@ -555,6 +571,12 @@ def groups(stages: list, competition=None) -> list[Group]:
                 match=("coordinator-venues", "coordinator-venues-", "coordinator-venue"),
             ),
         )
+    if competition is not None and len(competition.ui_languages) > 1:
+        # Tłumacze interfejsu (zadanie L10N-01) – wyłącznie w konkursie z więcej niż jednym
+        # językiem interfejsu, tak samo jak bramka ekranu; Konkurs #1 (sam polski) ma menu bez zmian.
+        settings_items += (
+            Item("Tłumacze interfejsu", ("web:coordinator-translators",), match=("coordinator-translators",)),
+        )
     if stage is not None:
         reports += (
             Item(
@@ -656,6 +678,16 @@ def groups(stages: list, competition=None) -> list[Group]:
                 "Materiały z warsztatów",
                 ("web:coordinator-workshop-materials",),
                 match=("coordinator-workshop-materials", "coordinator-workshop-material-"),
+            ),
+        )
+    if competition is not None and competition.has_feature("school_statistics"):
+        # Statystyki szkół (STAT-01) – raport, więc w „Raportach”, przed zaświadczeniami opiekunów.
+        # Bramka ta sama, co w widoku: przy wyłączonej fladze ekran oddaje 404.
+        reports += (
+            Item(
+                "Statystyki szkół",
+                ("web:coordinator-school-stats",),
+                match=("coordinator-school-stats", "coordinator-school-stats-"),
             ),
         )
     reports += (
@@ -819,6 +851,21 @@ def groups(stages: list, competition=None) -> list[Group]:
                     ),
                 ),
             )
+    if competition is not None and competition.uses_delegations:
+        # Tłumaczenia zadań przez delegacje (TR-01) – na końcu sekcji „Etapy”, bo okno tłumaczeń
+        # jest terminem etapu. Ta sama bramka, co w widoku: poza trybem delegacji ekran oddaje 404.
+        stage_group += (
+            Item(
+                "Tłumaczenia zadań",
+                ("web:coordinator-translations",),
+                match=(
+                    "coordinator-translations",
+                    "coordinator-translations-",
+                    "coordinator-translation",
+                    "coordinator-translation-",
+                ),
+            ),
+        )
     return [
         Group("Pulpit", (Item("Co wymaga uwagi", ("web:coordinator",), match=("coordinator",)),)),
         Group("Etapy", stage_group),

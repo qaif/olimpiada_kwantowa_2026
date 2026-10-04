@@ -29,7 +29,7 @@
       <thead><tr>
         <th>{% translate "Zgoda" %}</th>
         <th>{% translate "Wersja dokumentu" %}</th>
-        <th>{% translate "Data (czas polski)" %}</th>
+        <th>{% active_time_zone as zone %}{% if zone %}{% blocktranslate %}Data ({{ zone }}){% endblocktranslate %}{% else %}{% translate "Data (czas polski)" %}{% endif %}</th>
         <th>{% translate "Stan" %}</th>
       </tr></thead>
       <tbody>

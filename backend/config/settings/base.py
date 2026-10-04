@@ -171,10 +171,18 @@ INSTALLED_APPS = [
     # na platformie, listę obecności z webhooków i nagrania. **Po** ``apps.competitions`` i ``apps.accounts``,
     # bo czyta etapy, drużyny i role; **przed** ``apps.web``, który ją wyświetla.
     "apps.webinars",
+    # Okna czasowe etapu według stref czasowych krajów (TZ-01, 4.10.2026, flaga ``stage_time_windows``).
+    "apps.time_windows",
+    "apps.problem_translations",  # tłumaczenia zadań przez delegacje krajowe (TR-01, 4.10.2026)
     # Warstwa integracyjna: klucze API dla systemów zewnętrznych, webhooki i eksporty na zewnątrz.
     # **Po** aplikacjach domeny, bo czyta je wszystkie (edycje, wyniki, zgłoszenia), a żadna z nich
     # nie czyta jej – zależność idzie w jedną stronę i kolejność w tej liście ma to pokazywać.
     "apps.integrations",
+    # Statystyki szkół i opiekunów szkolnych (STAT-01, flaga ``school_statistics``) – bez modeli, sam odczyt.
+    "apps.school_stats",
+    # Przegląd tłumaczeń interfejsu przez rodzimych użytkowników języka (zadanie L10N-01). Przed
+    # ``apps.web``, który montuje jej adresy; w ``ready()`` wkłada nakładkę poprawek do gettext.
+    "apps.translation_review",
     "apps.web",
     # Logowanie przez dostawców zewnętrznych (Google, Facebook). ``allauth.account`` jest wymagane
     # przez ``allauth.socialaccount`` (model ``EmailAddress``, adaptery) – jego **widoki** nie są
@@ -238,6 +246,9 @@ MIDDLEWARE = [
     # Sesja po samym haśle jest tu w poczekalni: przechodzą wyłącznie adresy z listy
     # w ``apps.accounts.twofactor`` (ekran weryfikacji, wylogowanie, strona statusu).
     "apps.accounts.twofactor.TwoFactorMiddleware",
+    # Strefa czasowa ucznia na czas żądania (okna czasowe, TZ-01). Za konkursem i uwierzytelnieniem,
+    # bo pyta o profil uczestnika **w tym konkursie**; bez flagi ``stage_time_windows`` nie robi nic.
+    "apps.time_windows.middleware.ParticipantTimezoneMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     # Zasięg redaktora w ``/cms/``: dwa adresy Wagtaila, których nie zawężają haki (wybór strony
@@ -794,6 +805,11 @@ WAGTAIL_I18N_ENABLED = env.bool("WAGTAIL_I18N_ENABLED", default=False)
 # Konkurs ``iqo`` świadomie **nie** ma drzew treści w dziesięciu językach (I18N-01 § 10) – lista
 # mówi, co jest możliwe, a nie co jest założone.
 WAGTAIL_CONTENT_LANGUAGES = LANGUAGES
+# Nakładka zatwierdzonych poprawek tłumaczy na katalogi gettext (L10N-01 § 6). Wyłączenie wraca do
+# samych katalogów z repozytorium bez wydania – zatwierdzone poprawki zostają w bazie. Proces
+# sprawdza wersję nakładki w cache'u najwyżej co tyle sekund.
+TRANSLATION_OVERRIDES_ENABLED = env.bool("TRANSLATION_OVERRIDES_ENABLED", default=True)
+TRANSLATION_OVERRIDES_CHECK_SECONDS = 5
 USE_TZ = True  # wszystkie DateTimeField w UTC; deadline'y porównywane przez timezone.now()
 
 STATIC_URL = "/static/"
@@ -1273,6 +1289,9 @@ REST_FRAMEWORK = {
         # przez opiekuna, więc limit chroni cudze skrzynki; sześćdziesiąt na godzinę mieści z zapasem
         # drużynę (kilka osób) i zaproszenia dla kilkudziesięciu krajów w jednym posiedzeniu.
         "delegation": "60/hour",
+        # Tłumaczenia zadań (TR-01): autozapis szkicu co ~3 s pisania, czynności opiekuna i komisji.
+        # Per konto (``PER_USER_SCOPES``) – sala tłumaczeń za jednym NAT-em nie dzieli budżetu.
+        "translation": "1200/hour",
         # Bramka linku-zaproszenia (``/zaproszenie/wideo/<klucz>/``, POST „Dołącz”) – bez konta,
         # więc liczona po adresie IP, jak każdy publiczny formularz. Wysoko, bo za jednym NAT-em
         # bywa cała sala gości wchodzących na to samo zebranie naraz; nisko na tyle, żeby
@@ -1304,6 +1323,9 @@ REST_FRAMEWORK = {
         # to więcej, niż wyklika nauczyciel pobierający wszystkie plakaty po kolei – także cała
         # pracownia za jednym adresem szkoły – a mniej, niż potrzeba do nabijania licznika.
         "poster_download": "30/min",
+        # Przegląd tłumaczeń (L10N-01): propozycje, głosy, decyzje i zgłoszenia ze stopki. Per
+        # konto (widoki za logowaniem): tłumacz klika szybko, ale nie sto razy na godzinę.
+        "translations": "120/hour",
     },
     "EXCEPTION_HANDLER": "apps.core.api.exception_handler",
 }

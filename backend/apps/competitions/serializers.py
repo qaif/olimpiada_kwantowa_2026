@@ -11,6 +11,23 @@ from .models import Edition, Problem, Stage, StageEntry
 from .services import entry_owner
 
 
+def _statements_visible(stage, context) -> bool:
+    """Jawność treści zadań – ``has_opened`` z oknami czasowymi (TZ-01).
+
+    W etapie z oknami zalogowany uczeń widzi zadania od startu swojego okna, a anonim po końcu
+    ostatniego. Bez flagi konkursu to dokładnie ``stage.has_opened(now)``, bez zapytania.
+    """
+    from apps.time_windows.access import statements_visible
+
+    request = context.get("request")
+    return statements_visible(
+        stage,
+        user=getattr(request, "user", None),
+        competition=getattr(request, "competition", None),
+        now=context.get("now"),
+    )
+
+
 class PublicStageSerializer(serializers.ModelSerializer):
     """Etap w widoku publicznym: tylko oś czasu, bez danych o uczestnikach i wpisach.
 
@@ -55,7 +72,7 @@ class PublicProblemSerializer(serializers.ModelSerializer):
 
     def get_statement_pdf(self, obj: Problem) -> str | None:
         stage = self.context.get("stage") or obj.stage
-        if not stage.has_opened(self.context.get("now")):
+        if not _statements_visible(stage, self.context):
             return None
         if not obj.statement_pdf:
             return None
@@ -123,7 +140,7 @@ class CurrentEditionSerializer(serializers.ModelSerializer):
         kiedy się pojawi.
         """
         stage = self.context.get("stage")
-        if stage is None or not stage.has_opened(self.context.get("now")):
+        if stage is None or not _statements_visible(stage, self.context):
             return []
         problems = stage.problems.all().order_by("number")
         return PublicProblemSerializer(problems, many=True, context=self.context).data
@@ -166,4 +183,28 @@ class StageEntrySerializer(serializers.ModelSerializer):
         data = super().to_representation(instance)
         if instance.stage.results_published_at is None:
             data["total_points"] = None
+        window = _entry_time_window(instance, self.context)
+        if window is not None:
+            # Okno czasowe ucznia (TZ-01) – klucz **tylko** w etapie z oknami: odpowiedź każdego
+            # innego konkursu zostaje co do klucza ta sama. ``stage.opens_at``/``deadline_at`` to
+            # rama etapu; uczeń zaczyna i kończy w swoim oknie.
+            data["time_window"] = {
+                "label": window.window.label,
+                "opens_at": window.opens_at.isoformat(),
+                "deadline_at": window.deadline_at.isoformat(),
+                "submission_deadline": window.submission_deadline.isoformat(),
+                "extra_minutes": window.extra_minutes,
+            }
         return data
+
+
+def _entry_time_window(entry: StageEntry, context):
+    """Okno ucznia wpisu albo ``None`` (bez flagi konkursu – bez zapytania)."""
+    from apps.time_windows.access import effective_window
+    from apps.time_windows.access import enabled as time_windows_enabled
+
+    request = context.get("request")
+    competition = getattr(request, "competition", None)
+    if entry.participant_id is None or not time_windows_enabled(competition):
+        return None
+    return effective_window(entry.stage, entry.participant, competition)

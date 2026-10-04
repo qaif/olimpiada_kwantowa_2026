@@ -86,11 +86,20 @@ from apps.competitions.models import DEFAULT_RETENTION_MONTHS
 #: uczniom swojego kraju. Nowa czynność (warunkowa – wyłącznie konkursy z trybem rejestracji
 #: ``DELEGATIONS``) z nowym kręgiem osób (opiekunowie drużyn) i nowym odbiorcą danych uczniów
 #: (współopiekunowie tego samego kraju widzą listę drużyny).
-#: 1.12 (04.10.2026, zadanie ALUM-01) – sieć absolwentów (``apps.alumni``, flaga ``alumni``): nowa
+#: 1.12 (04.10.2026, zadanie STAT-01) – statystyki szkół (flaga ``school_statistics``, wiersz warunkowy):
+#: opiekun szkolny widzi przebieg i ogłoszone wyniki swoich uczniów przez kolejne edycje, na tle
+#: agregatów szkoły i województwa. Nowych danych nie ma, ale jest nowy cel (informacja zwrotna dla
+#: szkoły) i nowy odbiorca (dyrektor – raport zbiorczy), więc zmiana jest materialna.
+#: 1.13 (04.10.2026, zadanie TR-01) – tłumaczenia zadań przez delegacje: czynność „Delegacje krajowe”
+#: dostaje nowe kategorie danych (język zadań przypisany uczniowi, autorstwo i daty wysłanych wersji
+#: tłumaczeń, dziennik wglądu w tajne zadania) i nowy środek (okno tłumaczeń, znak wodny, audyt).
+#: 1.14 (04.10.2026, zadanie L10N-01) – Przegląd tłumaczeń interfejsu: wiersz warunkowy (konkurs
+#: z więcej niż jednym językiem interfejsu) – rola tłumacza, propozycje poprawek, głosy i zgłoszenia.
+#: 1.15 (04.10.2026, zadanie ALUM-01) – sieć absolwentów (``apps.alumni``, flaga ``alumni``): nowa
 #: czynność **na podstawie zgody** (art. 6 ust. 1 lit. a), z nowym kręgiem odbiorców (zalogowani
 #: uczestnicy, opcjonalnie publiczna ściana) i nowym celem (mentoring, zaproszenia, statystyki).
 #: Warunkowa jak forum – wiersz wchodzi do rejestru wyłącznie konkursom z włączoną flagą.
-REGISTER_VERSION = "1.12"
+REGISTER_VERSION = "1.15"
 REGISTER_DATE = date(2026, 10, 4)
 
 #: Zdanie o okresie przechowywania danych uczestnika. Liczba pochodzi z tego samego miejsca, co
@@ -1017,6 +1026,8 @@ DELEGATIONS_ACTIVITY = _activity(
         "i cofnięcia",
         "uczeń: imię i nazwisko, adres e-mail, data urodzenia, szkoła, klasa, kraj, opcjonalnie "
         "adres e-mail rodzica, informacja, który opiekun zgłosił ucznia",
+        "tłumaczenia zadań (TR-01): język zadań przypisany uczniowi przez opiekuna, autorstwo i daty "
+        "wysłanych wersji tłumaczeń, dziennik wglądu opiekunów i uczniów w treść zadań",
     ],
     recipients=[
         HOSTING_RECIPIENT,
@@ -1036,6 +1047,79 @@ DELEGATIONS_ACTIVITY = _activity(
         "konto ucznia powstaje nieaktywne i bez hasła – hasło i zgody składa uczeń sam",
         "limit uczniów delegacji egzekwowany pod blokadą wiersza, okno rejestracji edycji, "
         "limit żądań per konto",
+        "tłumaczenia zadań: treść widoczna dla opiekuna wyłącznie w oknie tłumaczeń, pliki PDF ze znakiem "
+        "wodnym delegacji, wpis w dzienniku przy każdym wglądzie i pobraniu",
+    ],
+)
+
+
+#: Czynność **warunkowa**: okna czasowe etapu według stref (TZ-01). Wchodzi do rejestru wyłącznie
+#: konkursom z flagą ``stage_time_windows``. Nowe dane to strefa czasowa ucznia i wyjątek od okna
+#: (inne okno, dodatkowy czas, powód) – powód bywa śladem dostosowania, więc środki mówią wprost,
+#: że nie wpisuje się do niego danych o zdrowiu.
+TIME_WINDOWS_ACTIVITY = _activity(
+    key="okna-czasowe",
+    name="Okna czasowe etapu – przydział uczniów do okien i strefy czasowe",
+    purpose=(
+        "Przeprowadzenie etapu zdalnego w kilku oknach czasowych dopasowanych do stref krajów: "
+        "przydział ucznia do okna, dodatkowy czas pracy i wyświetlanie godzin w strefie ucznia."
+    ),
+    legal_basis=(
+        "art. 6 ust. 1 lit. b RODO (przeprowadzenie zawodów na zasadach Regulaminu); dodatkowy czas "
+        "– art. 6 ust. 1 lit. c/b RODO w zakresie dostosowania warunków udziału"
+    ),
+    subjects="uczestnicy etapu z oknami czasowymi",
+    categories=[
+        "okno ucznia (przydział kraju albo wyjątek), strefa czasowa ucznia, dodatkowy czas w minutach "
+        "i krótki powód wyjątku, kto i kiedy go ustawił",
+    ],
+    recipients=[
+        HOSTING_RECIPIENT,
+        "opiekun drużyny kraju ucznia – widzi okno i strefę uczniów swojej delegacji",
+    ],
+    retention=PARTICIPANT_RETENTION + " Wyjątki i strefy znikają razem z profilem uczestnika.",
+    measures=[
+        "funkcja działa wyłącznie w konkursie z włączonymi oknami czasowymi",
+        "powód wyjątku bez danych o zdrowiu (np. „dostosowanie wg decyzji komisji”) – dokumentacja "
+        "dostosowania zostaje poza platformą",
+        "zmiany przydziału możliwe tylko przed startem okien, każda w dzienniku zdarzeń",
+    ],
+)
+
+
+#: Czynność **warunkowa**: przegląd tłumaczeń interfejsu przez wolontariuszy (zadanie L10N-01).
+#: Tylko w konkursie z więcej niż jednym językiem interfejsu – w jednojęzycznym nikt nie dostaje roli
+#: tłumacza z panelu koordynatora, więc rejestr nie opisuje przetwarzania, którego tam nie ma.
+TRANSLATION_REVIEW_ACTIVITY = _activity(
+    key="tlumaczenia",
+    name="Przegląd tłumaczeń interfejsu serwisu",
+    purpose=(
+        "Poprawianie tłumaczeń napisów interfejsu serwisu przez wolontariuszy znających dany język "
+        "(np. kierowników delegacji): propozycje poprawek, głosy, decyzje recenzenta i zgłoszenia błędów."
+    ),
+    legal_basis=(
+        "art. 6 ust. 1 lit. f RODO (prawnie uzasadniony interes administratora – zrozumiały interfejs "
+        "dla uczestników z różnych krajów); udział jest dobrowolny i wymaga nadania roli"
+    ),
+    subjects="osoby, którym koordynator albo superkoordynator nadał rolę tłumacza lub recenzenta tłumaczeń",
+    categories=[
+        "powiązanie konta z językiem i poziomem roli (tłumacz, recenzent), kto i kiedy ją nadał",
+        "autorstwo propozycji tłumaczeń i oddanych głosów (sam tekst tłumaczenia nie jest daną osobową)",
+        "zgłoszenia ze stopki: ścieżka strony (bez parametrów adresu), napis widziany na stronie, uwaga",
+    ],
+    recipients=[
+        HOSTING_RECIPIENT,
+        "recenzenci tłumaczeń tego samego języka – treść zgłoszeń i propozycji, **bez** tożsamości autora",
+        "koordynator konkursu i superkoordynator – lista osób z rolą tłumacza (adres e-mail konta)",
+    ],
+    retention=(
+        "rola do odebrania albo usunięcia konta; zgłoszenia i głosy usuwane z kontem; propozycje "
+        "zostają bez autora, bo są tekstem interfejsu, a nie daną o osobie"
+    ),
+    measures=[
+        "tłumacze nie widzą, kto zaproponował cudzą poprawkę ani kto zgłosił błąd",
+        "każda decyzja (nadanie roli, zatwierdzenie, cofnięcie) zostawia wpis w dzienniku zdarzeń "
+        "bez treści zgłoszeń",
     ],
 )
 
@@ -1076,6 +1160,16 @@ def activities_for(competition=None) -> tuple[ProcessingActivity, ...]:
         activities = (*activities, WEBINARS_ACTIVITY)
     if competition is not None and competition.uses_delegations:
         activities = (*activities, DELEGATIONS_ACTIVITY)
+    from apps.school_stats.services import enabled as school_stats_enabled
+
+    if school_stats_enabled(competition):
+        from apps.school_stats.register import SCHOOL_STATISTICS_ACTIVITY
+
+        activities = (*activities, SCHOOL_STATISTICS_ACTIVITY)
+    if competition is not None and competition.has_feature("stage_time_windows"):
+        activities = (*activities, TIME_WINDOWS_ACTIVITY)
+    if competition is not None and len(competition.ui_languages) > 1:
+        activities = (*activities, TRANSLATION_REVIEW_ACTIVITY)
     if competition is not None and competition.has_feature("alumni"):
         activities = (*activities, ALUMNI_ACTIVITY)
     return activities
