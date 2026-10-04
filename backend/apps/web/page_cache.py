@@ -57,7 +57,11 @@ nie wiadomo, które podmienić – więc taka odpowiedź **w ogóle nie trafia d
 - żądań innych niż ``GET``/``HEAD`` i żądań zalogowanych (``request.user.is_authenticated``) –
   odpowiedź zależy od tożsamości albo modyfikuje stan,
 - adresów spoza allow-listy i adresów z parametrami zapytania innymi niż wyłącznie ``?page=<liczba>``
-  – nieznany parametr może zmieniać treść w sposób, którego klucz nie widzi,
+  – nieznany parametr może zmieniać treść w sposób, którego klucz nie widzi. **Wyjątek: parametry
+  śledzące kampanii** (``utm_*``, ``fbclid``, ``gclid`` i podobne, ``TRACKING_PARAMS``) – żaden
+  widok ich nie czyta, czyta je wyłącznie skrypt analityki w przeglądarce, a link z newslettera
+  albo z mediów społecznościowych niesie je zawsze. Do PERF-01 każde takie wejście omijało cache
+  (pełne renderowanie, ok. 7× drożej niż trafienie); teraz parametry śledzące są pomijane w kluczu,
 - odpowiedzi z kodem innym niż 200, z ``Content-Type`` innym niż ``text/html`` i z nagłówkiem
   ``Vary`` (ktoś już zadeklarował, że treść zależy od czegoś, czego nasz klucz nie obejmuje),
 - odpowiedzi, które same ustawiają ciasteczko (``response.cookies`` niepusty **na wyniku widoku**,
@@ -79,7 +83,10 @@ nie wiadomo, które podmienić – więc taka odpowiedź **w ogóle nie trafia d
   strona renderuje się dla niego inaczej (``data-contrast="high"`` na ``<html>``), a to jest tak
   rzadkie (gość musiał już raz kliknąć przełącznik), że nie opłaca się poszerzać nim klucza,
 - odpowiedzi dłuższych niż ``PAGE_CACHE_MAX_BYTES`` – zabezpieczenie przed jedną olbrzymią stroną
-  wypychającą z Redisa wpisy wszystkich pozostałych.
+  wypychającą z Redisa wpisy wszystkich pozostałych. Treść dłuższa niż ``COMPRESS_MIN_BYTES`` leży
+  w Redisie skompresowana (``zlib``, poziom 1): tabela wyników 3000 uczniów to ok. 1,1 MB HTML-a,
+  a po kompresji kilkanaście razy mniej – rozpakowanie przy trafieniu kosztuje ułamek milisekundy,
+  render tej strony ok. 190 ms CPU (PERF-01).
 
 **Klucz:** ``(wersja globalna, wersja witryny konkursu, konkurs, język interfejsu, ścieżka,
 parametr page)`` – patrz ``build_key``. Wersje to liczniki w Redisie: unieważnienie = ``INCR``,
@@ -111,6 +118,8 @@ from __future__ import annotations
 import logging
 import re
 import secrets
+import zlib
+from urllib.parse import unquote_plus
 
 from django.conf import settings
 from django.core.cache import cache
@@ -141,9 +150,34 @@ ALLOWED_PATHS = frozenset(
     }
 )
 
+#: Parametry zapytania pomijane w kluczu i w kwalifikacji żądania (patrz docstring modułu): znaczniki
+#: kampanii, których nie czyta żaden widok – wyłącznie analityka w przeglądarce. Dopasowanie po
+#: nazwie bez rozróżniania wielkości liter; ``utm_`` jako prefiks (``utm_source``, ``utm_medium``…).
+TRACKING_PARAMS = frozenset(
+    {
+        "fbclid",
+        "gclid",
+        "gbraid",
+        "wbraid",
+        "dclid",
+        "msclkid",
+        "yclid",
+        "twclid",
+        "igshid",
+        "mc_cid",
+        "mc_eid",
+    }
+)
+TRACKING_PREFIXES = ("utm_",)
+
 #: Sekcje z potomkami w drzewie stron: dokumenty, aktualności, archiwum edycji. Prefiks, nie
 #: dokładny adres – liczba i slugi stron pod nimi należą do redakcji, nie do tej listy.
-ALLOWED_PREFIXES = ("/dokumenty/", "/aktualnosci/", "/archiwum/")
+#: ``/results/<id>/`` (PERF-01): ogłoszona tabela wyników etapu jest zamrożonym snapshotem
+#: (``ResultsPublication``), identycznym dla każdego gościa – a w dniu ogłoszenia czytają ją wszyscy
+#: naraz i bez cache'u kosztowała ok. 190 ms CPU na wejście (3000 wierszy). Zalogowany uczestnik
+#: widzi pod tabelą odnośnik do własnych punktów, ale zalogowanych ta warstwa i tak nie dotyczy.
+#: Unieważnienie: zapis i skasowanie publikacji, zapis etapu (sygnały na końcu modułu).
+ALLOWED_PREFIXES = ("/dokumenty/", "/aktualnosci/", "/archiwum/", "/results/")
 
 
 def is_cacheable_path(path_info: str) -> bool:
@@ -164,9 +198,16 @@ METRIC_PREFIX = f"{CACHE_PREFIX}:metric"
 DEFAULT_TTL_SECONDS = 120
 
 #: Odpowiedzi dłuższe niż to nie trafiają do cache'a (patrz ``_storable``) – zabezpieczenie przed
-#: jedną nietypowo dużą stroną wypychającą z Redisa wpisy wszystkich pozostałych. 512 KiB jest
-#: kilkanaście razy więcej niż największa strona z allow-listy waży dziś w praktyce.
-PAGE_CACHE_MAX_BYTES = 512 * 1024
+#: jedną nietypowo dużą stroną wypychającą z Redisa wpisy wszystkich pozostałych. Do PERF-01 było
+#: to 512 KiB, a test obciążenia pokazał, że właśnie najcięższe strony – ``/wyniki/`` (1,3 MB) i tabela
+#: wyników etapu (1,1 MB przy 3000 uczniach) – nigdy przez ten próg nie przechodziły. 4 MiB treści
+#: **przed** kompresją; w Redisie leży wersja skompresowana (``COMPRESS_MIN_BYTES``), czyli zwykle
+#: 10–20 razy mniej.
+PAGE_CACHE_MAX_BYTES = 4 * 1024 * 1024
+
+#: Treść od tej długości zapisujemy skompresowaną. Krótsze strony (typowo 25–40 KB) zostają bez
+#: kompresji: zysk w Redisie byłby mały, a odtworzenie trafienia ma zostać najtańszą drogą.
+COMPRESS_MIN_BYTES = 128 * 1024
 
 #: Nagłówek, który ta warstwa dokłada każdej odpowiedzi HIT/MISS, gdy widok sam żadnego nie ustawił
 #: (patrz docstring modułu, sekcja „Nagłówki”).
@@ -262,16 +303,27 @@ def invalidate_all() -> None:
 def _query_suffix(request) -> str | None:
     """Sufiks klucza z parametrów zapytania, albo ``None``, gdy zapytanie nie jest obsługiwane.
 
-    Pusty string dla żądania bez ``?...`` w ogóle. Wolno wyłącznie ``?page=<liczba>`` – jedyny
-    parametr, o którym wiadomo, że **jest** obsłużony przez strony na allow-liście (paginacja
-    newsroomu/archiwum) i że jego wartość jednoznacznie opisuje, co się renderuje.
+    Pusty string dla żądania bez ``?...`` w ogóle – i dla żądania, które niesie **wyłącznie**
+    parametry śledzące (``TRACKING_PARAMS``/``TRACKING_PREFIXES``). Poza nimi wolno wyłącznie
+    ``?page=<liczba>`` – jedyny parametr, o którym wiadomo, że **jest** obsłużony przez strony na
+    allow-liście (paginacja newsroomu/archiwum) i że jego wartość jednoznacznie opisuje, co się renderuje.
     """
     query = request.META.get("QUERY_STRING", "")
     if not query:
         return ""
-    if "&" in query or not query.startswith("page="):
+    kept = []
+    for part in query.split("&"):
+        if not part:
+            continue
+        name = unquote_plus(part.split("=", 1)[0]).strip().lower()
+        if name in TRACKING_PARAMS or name.startswith(TRACKING_PREFIXES):
+            continue
+        kept.append(part)
+    if not kept:
+        return ""
+    if len(kept) > 1 or not kept[0].startswith("page="):
         return None
-    value = query[len("page=") :]
+    value = kept[0][len("page=") :]
     return f"page={value}" if value.isdigit() else None
 
 
@@ -517,7 +569,8 @@ class PageCacheMiddleware:
 
     def _serve_hit(self, request, cached: dict) -> HttpResponse:
         marks = cached["marks"]
-        body = _materialize_body(request, cached["body"], marks)
+        stored = zlib.decompress(cached["body"]) if cached.get("zlib") else cached["body"]
+        body = _materialize_body(request, stored, marks)
         response = HttpResponse(body, content_type=cached["content_type"])
         if cached.get("content_language"):
             response["Content-Language"] = cached["content_language"]
@@ -545,8 +598,10 @@ class PageCacheMiddleware:
             return
         nonce = getattr(request, "csp_nonce", "")
         csp = response.get("Content-Security-Policy", "")
+        compressed = len(body) >= COMPRESS_MIN_BYTES
         payload = {
-            "body": body,
+            "body": zlib.compress(body, 1) if compressed else body,
+            "zlib": compressed,
             "content_type": response.get("Content-Type", "text/html"),
             "content_language": response.get("Content-Language", ""),
             "csp": _placeholder_header(nonce, csp, marks) if csp else "",
@@ -633,7 +688,13 @@ def _on_edition_event_saved(sender, instance, **kwargs) -> None:
 @receiver(
     post_save, sender=ResultsPublication, dispatch_uid="web.page_cache.invalidate_on_results_publication"
 )
+@receiver(
+    post_delete,
+    sender=ResultsPublication,
+    dispatch_uid="web.page_cache.invalidate_on_results_publication_delete",
+)
 def _on_results_publication_saved(sender, instance, **kwargs) -> None:
+    """Publikacja **i jej wycofanie** – od PERF-01 w cache'u leży też sama tabela (``/results/<id>/``)."""
     invalidate_competition(instance.stage.edition.competition_id)
 
 
