@@ -2,7 +2,7 @@
   "schema": 1,
   "slug": "iqo-quantum",
   "name": "IQO Quantum",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "author": "International Quantum Olympiad (QAIF)",
   "description": "International science-olympiad identity for the IQO: transparent header over a full-bleed Bloch-sphere hero, oversized Space Grotesk display type, numbered full-width section bands, glass/outline cards with orbital marks, leaf-shaped buttons, big-wordmark footer. Dark-first with a polished light palette; logo and type pairing selectable.",
   "supports": ["public", "panels"],

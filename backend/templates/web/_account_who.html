@@ -8,7 +8,10 @@
   ``apps.themes.safe_context``) dołącza go ``{% include "web/_account_who.html" %}`` i dostaje
   gotowy odnośnik bez dostępu do obiektu konta. ``request.user``, a nie ``user``: widok może podać
   w kontekście własne ``user`` (karta członka komisji podaje konto oglądanej osoby).
+
+  ``css_class`` – klasy odnośnika; domyślnie pozycja paska konta, nagłówek motywu podaje własne
+  (``{% include "web/_account_who.html" with css_class="…" %}``) – jak w ``web/_support_link.html``.
 {% endcomment %}{% url 'web:account-profile' as account_settings_url %}
-        <a class="account-bar__who who" href="{{ account_settings_url }}"
+        <a class="{{ css_class|default:'account-bar__who who' }}" href="{{ account_settings_url }}"
            title="{% blocktranslate trimmed with address=request.user.email %}Ustawienia konta: {{ address }}{% endblocktranslate %}"
            {% if request.path == account_settings_url %}aria-current="page"{% endif %}>{{ request.user.email }}</a>
