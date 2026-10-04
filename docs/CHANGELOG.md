@@ -20,7 +20,7 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
   w `RESERVED_SLUGS` i kontrakcie djcms.
 - **Unieważnienie listu** z powodem (audyt, strona weryfikacji „unieważniony”, PDF nie do pobrania).
 - **Język listu**: en, pl, es, fr, pt, ru, id (teksty w `letter_texts.py`); migawka wydarzenia w rejestrze.
-- RODO: wnioski w eksporcie danych konta i w retencji/usuwaniu razem z osobą; rejestr czynności 1.13
+- RODO: wnioski w eksporcie danych konta i w retencji/usuwaniu razem z osobą; rejestr czynności 1.18
   (nowy odbiorca – osoba znająca kod listu). Migracja `delegation_logistics.0003`.
 - Poprawki po przeglądzie: list imienny zastępuje wcześniejszy tylko przy zmianie numeru paszportu,
   nazwiska albo obywatelstwa (ostrzeżenie u opiekuna, „unieważni list …” u oficera, ta sama reguła
@@ -51,7 +51,7 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
   odhaczania na telefonie (punkty kontroli, wyszukiwarka, skaner w przeglądarce z `BarcodeDetector`).
 - **RODO:** szyfrowanie pól wrażliwych (Fernet z obsługą `SECRET_KEY_FALLBACKS`), retencja dobowa po
   końcu finału, sekcja w eksporcie danych konta, usuwanie przy usunięciu konta, warunkowa czynność
-  w rejestrze (wersja 1.12).
+  w rejestrze (wersja 1.17).
 - **i18n:** katalogi tłumaczeń w aplikacji (`apps/<nazwa>/locale`) – kompilowane przez `Dockerfile`,
   CI i `conftest.py`, sprawdzane przez `test_translations.py`; 125 nowych napisów w 10 językach
   (maszynowe, do przeglądu).
