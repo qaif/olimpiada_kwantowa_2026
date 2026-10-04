@@ -13,6 +13,8 @@ Co rozstrzyga etap (``Stage``):
   ``custom`` (własna instancja pod adresem z ``video_base_url``). Trzy wartości, bo to trzy różne
   decyzje organizatora, a nie stopnie tej samej,
 - ``video_base_url`` – korzeń, do którego dokleja się nazwa pokoju. Domyślnie ``https://meet.jit.si/``.
+- ``livekit`` (STAGE-LK-01) – pokój na platformie w LiveKit: adres ``livekit://<pokój>`` jest wyłącznie
+  identyfikatorem, wejście i uprawnienia jak w Jitsi z przepustkami (``room_access``).
 
 Nazwa pokoju: ``olimpiada-<edycja>-<prefiks identyfikatora terminu>-<6 losowych znaków>``.
 
@@ -100,6 +102,9 @@ class VideoProvider(models.TextChoices):
     NONE = "none", "bez wideo (link wpisuje koordynator)"
     JITSI = "jitsi", "Jitsi Meet"
     CUSTOM = "custom", "własna instancja"
+    #: Pokój na platformie w LiveKit (STAGE-LK-01) – ten sam serwer, co webinary; uprawnienia jak
+    #: w pokojach Jitsi z przepustkami (``apps.competitions.room_access``).
+    LIVEKIT = "livekit", "LiveKit (pokój na platformie)"
 
 
 def slugify_ascii(value: str, *, max_length: int = 24) -> str:
@@ -140,6 +145,12 @@ def build_meeting_url(stage, slot) -> str:
     provider = stage.video_provider or VideoProvider.NONE
     if provider == VideoProvider.NONE:
         return ""
+    if provider == VideoProvider.LIVEKIT:
+        # Pokój LiveKit nie ma adresu do kliknięcia – ``livekit://<pokój>`` jest identyfikatorem,
+        # a wchodzi się widokami wejścia platformy (``room_access``). Ta sama nazwa, co pokoje Jitsi.
+        from .room_access import LIVEKIT_SCHEME
+
+        return f"{LIVEKIT_SCHEME}{room_name(stage, slot)}"
     base = (stage.video_base_url or DEFAULT_VIDEO_BASE_URL).strip()
     if not base:
         base = DEFAULT_VIDEO_BASE_URL
@@ -213,7 +224,8 @@ def interview_access(booking, now=None) -> dict:
 
     Bez zapytań: zapis przychodzi z terminem (``booking_for_participant`` robi ``select_related``).
     """
-    from .jitsi_jwt import interview_window, is_platform_room
+    from .jitsi_jwt import interview_window
+    from .room_access import is_platform_room  # Jitsi z przepustkami albo LiveKit (STAGE-LK-01)
 
     url = booking_meeting_url(booking)
     if not url:
@@ -244,7 +256,7 @@ def letter_link_lines(stage, link: str, *, request=None, competition=None) -> li
 
     from apps.accounts.activation import absolute_url
 
-    from .jitsi_jwt import is_platform_room
+    from .room_access import is_platform_room  # Jitsi z przepustkami albo LiveKit (STAGE-LK-01)
 
     if not link:
         return []

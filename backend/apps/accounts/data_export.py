@@ -424,6 +424,7 @@ def export_payload(user: User) -> dict:
         "okna_czasowe": _time_windows_section(participant),
         "medale": _medals_section(participant),
         "absolwenci": _alumni_section(user, participant),
+        "nadzor_zdalny": _proctoring_section(participant),
         "ustawienia_interfejsu": _preferences_section(user),
         "tlumaczenia": _translation_review_section(user),
     }
@@ -521,6 +522,18 @@ def _ai_section(participant) -> list[dict]:
     wyszły do oceny AI – kształt pliku ma być ten sam dla każdego konta.
     """
     from apps.ai_grading.services import export_section
+
+    return export_section(participant)
+
+
+def _proctoring_section(participant) -> list[dict]:
+    """Nadzór zdalny etapów online (PROC-01) – reguła w ``apps.proctoring.services.export_section``.
+
+    Fakty o sesjach (zgoda, sprawdzenie sprzętu, wiadomości, incydenty, dziennik); nagrania i zdjęcie
+    dokumentu **nie** jadą w paczce – sekcja mówi, że istnieją i kiedy znikną. Pusta lista, gdy osoba
+    nigdy nie była nadzorowana.
+    """
+    from apps.proctoring.services import export_section
 
     return export_section(participant)
 

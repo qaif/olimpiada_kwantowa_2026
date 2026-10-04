@@ -1,0 +1,184 @@
+/*
+ * Nadzór zdalny (zadanie PROC-01): konsola ucznia, pasek na stronie etapu, siatka nadzorującego.
+ * Kolory ze zmiennych motywu (jak pokój webinaru), wyłącznie właściwości logiczne (RTL).
+ */
+.pc {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.pc__facts {
+  padding-inline-start: 1.25rem;
+}
+
+.pc__record,
+.pc__record-badge {
+  color: var(--danger, #b42318);
+  font-weight: 600;
+}
+
+.pc__ok {
+  color: var(--success, #067647);
+  font-weight: 600;
+}
+
+.pc__preview video {
+  inline-size: 100%;
+  max-inline-size: 20rem;
+  aspect-ratio: 4 / 3;
+  background: var(--surface-inset);
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+}
+
+.pc__alert {
+  padding: 0.75rem 1rem;
+  color: #fff;
+  background: var(--danger, #b42318);
+  border-radius: 0.5rem;
+  font-weight: 600;
+}
+
+.pc__messages {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.pc__message {
+  padding: 0.75rem 1rem;
+  border: 2px solid var(--brand);
+  border-radius: 0.5rem;
+  background: var(--surface);
+}
+
+.pc__message--seen {
+  border-color: var(--line);
+  opacity: 0.8;
+}
+
+.pc-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--line);
+}
+
+.pc-banner[data-state="ok"] {
+  border-color: var(--success, #067647);
+}
+
+.pc-banner[data-state="warn"] {
+  border-color: var(--warning, #b54708);
+  border-width: 2px;
+  font-weight: 600;
+}
+
+.pc-banner[data-state="bad"] {
+  color: #fff;
+  background: var(--danger, #b42318);
+  border-color: var(--danger, #b42318);
+  font-weight: 600;
+}
+
+.pg {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.pg__head,
+.pg__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.pg__toolbar {
+  justify-content: flex-start;
+}
+
+.pg__status {
+  margin: 0;
+  color: var(--muted);
+}
+
+.pg__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+  gap: 0.5rem;
+}
+
+.pg__tile {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+  overflow: hidden;
+  background: var(--surface);
+}
+
+.pg__tile[data-status="dropped"],
+.pg__tile[data-status="stale"] {
+  border-color: var(--danger, #b42318);
+  border-width: 2px;
+}
+
+.pg__media {
+  display: grid;
+  aspect-ratio: 4 / 3;
+  background: var(--surface-inset);
+}
+
+.pg__media video {
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: contain;
+  grid-area: 1 / 1;
+}
+
+.pg__media video + video {
+  grid-area: auto;
+}
+
+.pg__tile figcaption {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.5rem;
+}
+
+.pg__badges,
+.pg__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.pg__state--live {
+  background: var(--success, #067647);
+  color: #fff;
+}
+
+.pg__state--dropped,
+.pg__state--stale {
+  background: var(--danger, #b42318);
+  color: #fff;
+}
+
+.pg__dialog {
+  max-inline-size: 32rem;
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+}
