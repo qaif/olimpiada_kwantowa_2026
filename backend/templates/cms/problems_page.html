@@ -1,23 +1,23 @@
 {% extends "base.html" %}
-{% load wagtailcore_tags web_extras %}
+{% load i18n wagtailcore_tags web_extras %}
 {% block title %}{{ page.title }} – {{ settings.cms.SiteSettings.site_name }}{% endblock %}
 {% block content %}
 <div class="page-head">
-  <span class="eyebrow">Zadania</span>
+  <span class="eyebrow">{% translate "Zadania" %}</span>
   <h1>{{ page.title }}</h1>
   {% if page.intro %}<div class="lead">{{ page.intro|richtext }}</div>{% endif %}
 </div>
 
 {% if not stage %}
-  <p class="notice">Nie ustawiono bieżącej edycji ani etapu.</p>
+  <p class="notice">{% translate "Nie ustawiono bieżącej edycji ani etapu." %}</p>
 {% else %}
   <section class="card card--accent">
     <div class="card__head">
       <h2 class="mt-0 card__title">{{ stage.display_name }} – {{ stage.edition.year_label }}</h2>
       {% if stage_has_opened %}
-        <span class="badge badge--ok">etap otwarty</span>
+        <span class="badge badge--ok">{% translate "etap otwarty" %}</span>
       {% else %}
-        <span class="badge badge--neutral">przed otwarciem</span>
+        <span class="badge badge--neutral">{% translate "przed otwarciem" %}</span>
       {% endif %}
     </div>
     {% comment %}
@@ -28,19 +28,19 @@
     {% endcomment %}
     <dl class="meta-list">
       {% if stage.event_range %}
-        <dt>Termin wydarzenia</dt><dd>{{ stage|event_dates }}</dd>
+        <dt>{% translate "Termin wydarzenia" %}</dt><dd>{{ stage|event_dates }}</dd>
       {% endif %}
-      {% if stage.location %}<dt>Miejsce</dt><dd>{{ stage.location }}</dd>{% endif %}
-      <dt>Otwarcie</dt><dd>{{ stage.opens_at|local_time }}</dd>
-      <dt>Termin oddania</dt><dd>{{ stage.deadline_at|local_time }}</dd>
+      {% if stage.location %}<dt>{% translate "Miejsce" %}</dt><dd>{{ stage.location }}</dd>{% endif %}
+      <dt>{% translate "Otwarcie" %}</dt><dd>{{ stage.opens_at|local_time }}</dd>
+      <dt>{% translate "Termin oddania" %}</dt><dd>{{ stage.deadline_at|local_time }}</dd>
     </dl>
   </section>
 
   {% if stage_has_opened %}
     <div class="scroll">
       <table class="table">
-        <caption>Zadania etapu</caption>
-        <thead><tr><th>Nr</th><th>Tytuł</th><th>Treść</th><th>Formaty</th></tr></thead>
+        <caption>{% translate "Zadania etapu" %}</caption>
+        <thead><tr><th>{% translate "Nr" %}</th><th>{% translate "Tytuł" %}</th><th>{% translate "Treść" %}</th><th>{% translate "Formaty" %}</th></tr></thead>
         <tbody>
           {% for problem in problems %}
             <tr>
@@ -52,13 +52,13 @@
                   <a class="btn btn--secondary btn--small"
                      href="{% url 'competitions:problem-statement' problem.pk %}">PDF</a>
                 {% else %}
-                  <span class="hint">brak pliku</span>
+                  <span class="hint">{% translate "brak pliku" %}</span>
                 {% endif %}
               </td>
               <td>{{ problem.allowed_formats|join:", " }}</td>
             </tr>
           {% empty %}
-            <tr><td colspan="4" class="empty">Ten etap nie ma jeszcze zadań.</td></tr>
+            <tr><td colspan="4" class="empty">{% translate "Ten etap nie ma jeszcze zadań." %}</td></tr>
           {% endfor %}
         </tbody>
       </table>
@@ -78,16 +78,16 @@
 {% if training_stage %}
   <section class="section" id="zadania-treningowe">
     <div class="section__head">
-      <h2 class="mt-0">Zadania treningowe</h2>
-      <span class="badge badge--neutral">trening</span>
+      <h2 class="mt-0">{% translate "Zadania treningowe" %}</h2>
+      <span class="badge badge--neutral">{% translate "trening" %}</span>
     </div>
-    <p class="hint">Bez terminu. Po zgłoszeniu się do treningu możesz wysyłać rozwiązania z panelu
+    <p class="hint">{% blocktranslate trimmed %}Bez terminu. Po zgłoszeniu się do treningu możesz wysyłać rozwiązania z panelu
       uczestnika, ale <strong>nie będą one sprawdzane ani oceniane</strong> – zadania treningowe służą
-      do zapoznania się z zakresem materiału i nie liczą się do kwalifikacji.</p>
+      do zapoznania się z zakresem materiału i nie liczą się do kwalifikacji.{% endblocktranslate %}</p>
     <div class="scroll">
       <table class="table">
-        <caption>Arkusz treningowy: {{ training_stage.display_name }}</caption>
-        <thead><tr><th>Nr</th><th>Tytuł</th><th>Treść</th><th>Formaty</th></tr></thead>
+        <caption>{% blocktranslate with stage=training_stage.display_name %}Arkusz treningowy: {{ stage }}{% endblocktranslate %}</caption>
+        <thead><tr><th>{% translate "Nr" %}</th><th>{% translate "Tytuł" %}</th><th>{% translate "Treść" %}</th><th>{% translate "Formaty" %}</th></tr></thead>
         <tbody>
           {% for problem in training_problems %}
             <tr>
@@ -99,13 +99,13 @@
                   <a class="btn btn--secondary btn--small"
                      href="{% url 'competitions:problem-statement' problem.pk %}">PDF</a>
                 {% else %}
-                  <span class="hint">brak pliku</span>
+                  <span class="hint">{% translate "brak pliku" %}</span>
                 {% endif %}
               </td>
               <td>{{ problem.allowed_formats|join:", " }}</td>
             </tr>
           {% empty %}
-            <tr><td colspan="4" class="empty">Arkusz treningowy jest jeszcze pusty.</td></tr>
+            <tr><td colspan="4" class="empty">{% translate "Arkusz treningowy jest jeszcze pusty." %}</td></tr>
           {% endfor %}
         </tbody>
       </table>

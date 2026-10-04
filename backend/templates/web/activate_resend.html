@@ -1,25 +1,26 @@
 {% extends "base.html" %}
+{% load i18n %}
 {% comment %}
   „Wyślij link aktywacyjny ponownie”. Treść jest sformułowana warunkowo („jeśli konto istnieje”),
   bo odpowiedź serwera jest w obu przypadkach identyczna – ta strona nie może być narzędziem do
   sprawdzania, kto ma konto w serwisie.
 {% endcomment %}
-{% block title %}Wyślij link aktywacyjny ponownie{% endblock %}
+{% block title %}{% translate "Wyślij link aktywacyjny ponownie" %}{% endblock %}
 {% block content %}
 <div class="auth">
   <div class="card">
-    <h1>Wyślij link aktywacyjny ponownie</h1>
-    <p class="auth__intro">Podaj adres e-mail, którym się rejestrowałeś. Jeśli konto istnieje
-      i czeka na aktywację, wyślemy na ten adres nowy link.</p>
+    <h1>{% translate "Wyślij link aktywacyjny ponownie" %}</h1>
+    <p class="auth__intro">{% blocktranslate trimmed %}Podaj adres e-mail, którym się rejestrowałeś. Jeśli konto istnieje
+      i czeka na aktywację, wyślemy na ten adres nowy link.{% endblocktranslate %}</p>
     <form method="post" class="form">
       {% csrf_token %}
       {{ form.as_p }}
-      <p class="hint">Link jest ważny {{ activation_hours }} godziny. Jeśli wiadomość nie dociera,
-        sprawdź folder ze spamem – dopiero potem spróbuj ponownie.</p>
-      <button type="submit" class="btn btn--primary btn--block">Wyślij link</button>
+      <p class="hint">{% blocktranslate trimmed with hours=activation_hours %}Link jest ważny {{ hours }} godziny. Jeśli wiadomość nie dociera,
+        sprawdź folder ze spamem – dopiero potem spróbuj ponownie.{% endblocktranslate %}</p>
+      <button type="submit" class="btn btn--primary btn--block">{% translate "Wyślij link" %}</button>
     </form>
-    <p class="auth__alt">Konto masz już aktywne? <a href="{% url 'web:login' %}">Zaloguj się</a>.<br>
-      Konto zostało już usunięte? <a href="{% url 'web:register' %}">Zarejestruj się ponownie</a>.</p>
+    <p class="auth__alt">{% translate "Konto masz już aktywne?" %} <a href="{% url 'web:login' %}">{% translate "Zaloguj się" %}</a>.<br>
+      {% translate "Konto zostało już usunięte?" %} <a href="{% url 'web:register' %}">{% translate "Zarejestruj się ponownie" %}</a>.</p>
   </div>
 </div>
 {% endblock %}

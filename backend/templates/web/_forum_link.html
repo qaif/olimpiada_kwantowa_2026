@@ -1,4 +1,4 @@
-{% comment %}
+{% load i18n %}{% comment %}
   „Forum” w pasku konta. Pozycja jest **wyłącznie** wtedy, gdy adres odpowie: przełącznik
   ``participant_forum`` włączony i konto ma prawo czytać forum tego konkursu. Obie bramki liczy
   ``apps.web.context_processors.roles`` (klucz ``can_use_forum``) z ról, które i tak już pobrał,
@@ -16,5 +16,5 @@
 {% if can_use_forum %}
   {% url 'web:forum' as forum_url %}
   <a class="account-bar__link" href="{{ forum_url }}"
-     {% if request.path == forum_url %}aria-current="page"{% endif %}>Forum</a>
+     {% if request.path == forum_url %}aria-current="page"{% endif %}>{% translate "Forum" %}</a>
 {% endif %}

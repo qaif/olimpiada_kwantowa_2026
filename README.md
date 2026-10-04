@@ -1330,14 +1330,15 @@ obramowania idą na 2 px, cienie znikają, a fokus dostaje gruby żółty pierś
 drugi wariant ciemny: ciemny motyw odpowiada na pytanie „jakie mam światło w pokoju”, a ten — „czy
 w ogóle widzę tę krawędź”.
 
-**Katalogi tłumaczeń.** Źródło jest w `backend/locale/en/LC_MESSAGES/django.po` (w repozytorium,
+**Katalogi tłumaczeń.** Źródła są w `backend/locale/<kod>/LC_MESSAGES/django.po` (od I18N-01 – dziesięć języków, `docs/OPERACJE.md` § 26) (w repozytorium,
 bo tylko ono daje się czytać w diffie), a Django czyta wyłącznie skompilowane `.mo`. Kompiluje je
 **budowanie obrazu** (`msgfmt` w `backend/Dockerfile`, pakiet `gettext` w warstwie apt), więc plik
 binarny nie może rozjechać się ze źródłem. Po zmianie napisów:
 
 ```bash
-docker compose exec web python manage.py makemessages -l en -i 'staticfiles/*' -i '.venv/*'
-# uzupełnij msgstr w backend/locale/en/LC_MESSAGES/django.po, potem:
+docker compose exec web python manage.py makemessages -l en -l zh_Hans -l hi -l es -l ar -l fr     -l bn -l pt -l ru -l id -i 'staticfiles/*' -i '.venv/*' -i 'node_modules/*' --no-obsolete
+# uzupełnij msgstr we wszystkich backend/locale/*/LC_MESSAGES/django.po (bez „fuzzy” – testy
+# apps/core/tests/test_translations.py wymagają kompletu i zgodnych placeholderów), potem:
 docker compose exec web python manage.py compilemessages
 docker compose build web   # obraz produkcyjny kompiluje katalog sam
 ```

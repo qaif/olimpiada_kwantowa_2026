@@ -59,7 +59,7 @@
     <p class="hint">Widok wyłącznie dla koordynatora – zawiera dane osobowe i nie jest publikacją.</p>
     <div class="scroll scroll--tall" role="region" tabindex="0" aria-label="Podgląd wyników etapu">
       <table class="table table--rank table--sticky-rank">
-        <thead><tr><th>Miejsce</th><th>Kod</th><th>Imię i nazwisko</th><th>Szkoła</th><th>Województwo</th><th>Razem{% if preview.max_total is not None %} <span class="hint">(max {{ preview.max_total|points }})</span>{% endif %}</th></tr></thead>
+        <thead><tr><th>Miejsce</th><th>Kod</th><th>Imię i nazwisko</th><th>Szkoła</th><th>{{ region_noun }}</th><th>Razem{% if preview.max_total is not None %} <span class="hint">(max {{ preview.max_total|points }})</span>{% endif %}</th></tr></thead>
         <tbody>
           {% for row in preview.rows %}
             <tr>

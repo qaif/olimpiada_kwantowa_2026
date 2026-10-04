@@ -29,6 +29,7 @@ from decimal import Decimal
 from django.db import transaction
 from django.db.models import Prefetch
 from django.utils import timezone
+from django.utils.translation import gettext as _
 from rest_framework import status as http
 
 from apps.competitions.models import Stage, StageEntry, StageEntryStatus, StageFormat
@@ -99,7 +100,7 @@ def _assert_entry_not_disqualified(entry_id: int) -> None:
     """
     status = StageEntry.objects.filter(pk=entry_id).values_list("status", flat=True).first()
     if status == StageEntryStatus.DISQUALIFIED:
-        raise _conflict("Wpis do etapu jest zdyskwalifikowany.", "ENTRY_DISQUALIFIED")
+        raise _conflict(_("Wpis do etapu jest zdyskwalifikowany."), "ENTRY_DISQUALIFIED")
 
 
 def _lock_attempt(attempt: QuizAttempt) -> None:
@@ -400,7 +401,7 @@ def start_attempt(*, quiz: Quiz, entry: StageEntry, now=None, request=None) -> Q
     _assert_entry_not_disqualified(entry.pk)
     questions = _questions_with_options(quiz)
     if not questions:
-        raise _conflict("Ten test nie ma jeszcze pytań.", "QUIZ_EMPTY")
+        raise _conflict(_("Ten test nie ma jeszcze pytań."), "QUIZ_EMPTY")
 
     open_attempt = active_attempt(quiz, entry)
     if open_attempt is not None:
@@ -413,20 +414,21 @@ def start_attempt(*, quiz: Quiz, entry: StageEntry, now=None, request=None) -> Q
     if not quiz.is_open(now):
         opens, closes = quiz.window
         raise _conflict(
-            "Test jest zamknięty."
+            _("Test jest zamknięty.")
             if now >= closes
-            else f"Test otwiera się {timezone.localtime(opens):%Y-%m-%d %H:%M}.",
+            else _("Test otwiera się %(when)s.") % {"when": f"{timezone.localtime(opens):%Y-%m-%d %H:%M}"},
             "QUIZ_CLOSED",
         )
     if attempts_left(quiz, entry) <= 0:
         raise _conflict(
-            f"Wykorzystano wszystkie podejścia ({quiz.attempts_allowed}).", "QUIZ_NO_ATTEMPTS_LEFT"
+            _("Wykorzystano wszystkie podejścia (%(count)s).") % {"count": quiz.attempts_allowed},
+            "QUIZ_NO_ATTEMPTS_LEFT",
         )
 
     # Termin podejścia to wcześniejszy z dwóch: czas trwania testu i koniec okna. Bez drugiego
     # członu podejście rozpoczęte pięć minut przed zamknięciem trwałoby pełną godzinę – i dawałoby
     # przewagę osobie, która zaczęła najpóźniej.
-    _, closes = quiz.window
+    _opens, closes = quiz.window
     deadline = min(now + timedelta(minutes=quiz.duration_minutes), closes)
     attempt = QuizAttempt.objects.create(
         quiz=quiz,
@@ -523,7 +525,7 @@ def save_answers(*, attempt: QuizAttempt, answers: dict, now=None) -> int:
     if not accepts:
         if attempt.is_open:
             expire_attempt(attempt, now=now)
-        raise _conflict("Czas na rozwiązanie testu minął.", "QUIZ_ATTEMPT_EXPIRED")
+        raise _conflict(_("Czas na rozwiązanie testu minął."), "QUIZ_ATTEMPT_EXPIRED")
     return saved
 
 
@@ -957,7 +959,7 @@ def may_show_result(quiz: Quiz, attempt: QuizAttempt, now=None) -> bool:
     if quiz.show_results_after == ShowResultsAfter.IMMEDIATELY:
         return True
     if quiz.show_results_after == ShowResultsAfter.AFTER_CLOSE:
-        _, closes = quiz.window
+        _opens, closes = quiz.window
         return (now or timezone.now()) >= closes
     return False
 

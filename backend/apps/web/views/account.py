@@ -26,6 +26,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import FileResponse
 from django.shortcuts import redirect
 from django.urls import reverse, reverse_lazy
+from django.utils.translation import gettext_lazy
 from django.views.generic import FormView, TemplateView, View
 
 from apps.accounts.data_export import (
@@ -142,7 +143,7 @@ class ParticipantProfileView(ParticipantRequiredMixin, ServiceFormMixin, FormVie
     template_name = "web/account/profile.html"
     form_class = ParticipantProfileForm
     success_url = reverse_lazy("web:me")
-    success_message = "Dane zostały zapisane."
+    success_message = gettext_lazy("Dane zostały zapisane.")
 
     def get_initial(self) -> dict:
         return participant_profile_initial(self.participant)
@@ -174,7 +175,7 @@ class AccountProfileView(LoginRequiredMixin, ServiceFormMixin, FormView):
     template_name = "web/account/profile.html"
     form_class = AccountNamesForm
     success_url = reverse_lazy("web:account-profile")
-    success_message = "Dane zostały zapisane."
+    success_message = gettext_lazy("Dane zostały zapisane.")
 
     def dispatch(self, request, *args, **kwargs):
         if request.user.is_authenticated and own_participant(request) is not None:
@@ -208,7 +209,7 @@ class EmailChangeView(LoginRequiredMixin, ThrottledFormMixin, ServiceFormMixin, 
     template_name = "web/account/email_change.html"
     form_class = EmailChangeForm
     throttle_scope = "password_reset"
-    success_message = (
+    success_message = gettext_lazy(
         "Wysłaliśmy link potwierdzający na nowy adres. Do czasu potwierdzenia logujesz się "
         "dotychczasowym adresem."
     )

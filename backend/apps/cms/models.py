@@ -346,28 +346,12 @@ class SiteSettings(BaseSiteSetting):
         ),
     )
 
-    #: Czy ten serwis **oferuje** angielską wersję interfejsu. Domyślnie ``False`` i to jest
-    #: decyzja organizatora, a nie ostrożność: „strona tylko w wersji polskiej (sam CMS może dawać
-    #: opcję zrobienia strony w wersji angielskiej, ale do polskiej olimpiady niech będzie wersja
-    #: tylko w języku polskim na razie)”. Sama umiejętność zostaje w systemie – katalog ``locale/en``
-    #: jest skompilowany, ``settings.LANGUAGES`` wymienia oba języki, a organizator drugiego
-    #: konkursu włącza angielski **temu** serwisowi jednym kliknięciem tutaj.
-    #:
-    #: Wyłączony przełącznik znaczy, że polski obowiązuje **niezależnie od tego, o co prosi
-    #: przeglądarka** – inaczej ukrycie byłoby pozorne. Nie ma flagi w pasku konta, nagłówek
-    #: ``Accept-Language: en`` niczego nie zmienia, ciasteczko ``django_language`` jest pomijane,
-    #: a ``<html lang>`` i nagłówek ``Content-Language`` mówią ``pl``.
-    #:
-    #: Czego przełącznik **nie** robi: nie kasuje zapisanego wyboru. ``UserPreference.language``
-    #: zostaje w bazie nietknięty i wraca do użytku w dniu, w którym organizator angielski włączy –
-    #: skasowanie cudzego ustawienia przy zmianie konfiguracji serwisu byłoby odpowiedzią na
-    #: pytanie, którego nikt nie zadał.
-    #:
-    #: Nie dotyczy paneli redakcyjnych: język ``/cms/`` wybiera redaktor w swoim profilu Wagtaila
-    #: (``UserProfile.preferred_language``) i to ustawienie żyje dalej własnym życiem.
-    #:
-    #: Pole, a nie zmienna środowiskowa – z tego samego powodu, co przełącznik wyżej: to jest
-    #: decyzja organizatora, a przy zmiennej jej odwrócenie byłoby wdrożeniem.
+    #: **Wycofane (I18N-01), nieczytane.** Języki interfejsu są od tego wydania zbiorem konkursu
+    #: (``tenancy.Competition.interface_languages``; migracja ``tenancy.0011`` przepisała do niego
+    #: stan tego pola). Kolumna zostaje w bazie **jedno wydanie dłużej** wyłącznie dla wdrożenia:
+    #: w chwili migracji stare procesy ``worker`` i ``beat`` jeszcze ją czytają, a skasowana w tym
+    #: samym wydaniu wywracałaby ich zapytania do czasu restartu (uwaga z przeglądu). Usuwa ją
+    #: migracja następnego wydania – patrz docs/OPERACJE.md § 26.5. Pola nie ma w panelu.
     english_interface_enabled = models.BooleanField(
         "angielska wersja interfejsu",
         default=False,
@@ -490,11 +474,9 @@ class SiteSettings(BaseSiteSetting):
             ],
             heading="Rejestracja",
         ),
-        # Osobna sekcja, a nie pole doklejone do „Rejestracji”: język interfejsu obowiązuje na
-        # każdej stronie serwisu, a nie wyłącznie w formularzu zgłoszeniowym – przełącznik ukryty
-        # pod cudzym nagłówkiem byłby ustawieniem, którego organizator nie znajdzie wtedy, gdy go
-        # potrzebuje.
-        MultiFieldPanel([FieldPanel("english_interface_enabled")], heading="Język interfejsu"),
+        # Sekcji „Język interfejsu” tu już nie ma: języki są ustawieniem **konkursu**
+        # (``tenancy.Competition.interface_languages``, ekran „Ustawienia konkursu”), bo muszą stać
+        # obok jego języka domyślnego – patrz docs/tasks/I18N-01.md § 1.
         MultiFieldPanel([FieldPanel("ga_measurement_id")], heading="Analityka"),
         # Tempo i włącznik slidera stoją też tutaj – ten sam wiersz w bazie, co ekran koordynatora
         # (/coordinator/sponsor-slider/), więc obie drogi zapisu zawsze się zgadzają. Listę

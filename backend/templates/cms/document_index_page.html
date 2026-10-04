@@ -1,11 +1,11 @@
 {% extends "base.html" %}
-{% load wagtailcore_tags %}
+{% load i18n wagtailcore_tags %}
 {% block title %}{{ page.title }} – {{ settings.cms.SiteSettings.site_name }}{% endblock %}
-{% block description %}Dokumenty Olimpiady: regulamin, polityka RODO, standardy ochrony małoletnich i skład komitetów – do przeczytania na stronie i do pobrania.{% endblock %}
+{% block description %}{% translate "Dokumenty Olimpiady: regulamin, polityka RODO, standardy ochrony małoletnich i skład komitetów – do przeczytania na stronie i do pobrania." %}{% endblock %}
 {% block content %}
 
 <div class="page-head">
-  <span class="eyebrow">Organizator</span>
+  <span class="eyebrow">{% translate "Organizator" %}</span>
   <h1>{{ page.title }}</h1>
   {% if page.intro %}<div class="cms-body prose">{{ page.intro|richtext }}</div>{% endif %}
 </div>
@@ -29,7 +29,7 @@
 
         {% if document.version_label or document.document_date or document.status_label %}
           <p class="article__meta doc-card__meta">
-            {% if document.version_label %}<span class="doc-meta__item">Wersja {{ document.version_label }}</span>{% endif %}
+            {% if document.version_label %}<span class="doc-meta__item">{% blocktranslate with version=document.version_label %}Wersja {{ version }}{% endblocktranslate %}</span>{% endif %}
             {% if document.document_date %}
               <time class="doc-meta__item" datetime="{{ document.document_date|date:'Y-m-d' }}">{{ document.document_date }}</time>
             {% endif %}
@@ -40,17 +40,17 @@
         {% if document.summary %}<p class="doc-card__lead">{{ document.summary }}</p>{% endif %}
 
         <div class="card__foot doc-card__actions">
-          <a class="btn btn--small btn--primary" href="{% pageurl document %}">Czytaj</a>
+          <a class="btn btn--small btn--primary" href="{% pageurl document %}">{% translate "Czytaj" %}</a>
           {% for item in document.attachments.all %}
             <a class="btn btn--small btn--secondary" href="{{ item.document.url }}" download
-               title="{{ item.label|default:item.document.title }}">Pobierz {{ item.document.file_extension|upper }}</a>
+               title="{{ item.label|default:item.document.title }}">{% blocktranslate with format=item.document.file_extension|upper %}Pobierz {{ format }}{% endblocktranslate %}</a>
           {% endfor %}
         </div>
       </article>
     </li>
   {% empty %}
-    <li class="empty"><span class="empty__title">Brak dokumentów</span>
-      Nie opublikowano jeszcze żadnego dokumentu w tej sekcji.</li>
+    <li class="empty"><span class="empty__title">{% translate "Brak dokumentów" %}</span>
+      {% translate "Nie opublikowano jeszcze żadnego dokumentu w tej sekcji." %}</li>
   {% endfor %}
 </ul>
 

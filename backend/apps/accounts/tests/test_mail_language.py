@@ -91,23 +91,22 @@ def test_the_account_language_does_not_apply_where_the_site_has_no_english(compe
     assert UserPreference.objects.get(user=user).language == "en"
 
 
-def test_the_language_of_the_competition_costs_one_query_per_batch(
+def test_the_language_of_the_competition_costs_no_query(
     competition, english_enabled_site, django_assert_num_queries
 ):
-    """Ustawienie serwisu czytamy **raz na wysyłkę**, a nie raz na list.
+    """Zbiór języków konkursu nie kosztuje **ani jednego** zapytania na list (I18N-01 § 1).
 
     Ogłoszenie wyników woła ``language_for`` tyle razy, ilu jest uczestników, zawsze z tym samym
-    obiektem konkursu. Gdyby każde z tych wywołań pytało bazę o ustawienia witryny, tysiąc listów
-    kosztowałby tysiąc zapytań o jedną, niezmienną wartość logiczną.
+    obiektem konkursu. Do I18N-01 zbiór był ustawieniem witryny i kosztował jedno zapytanie na
+    wysyłkę; teraz jest kolumną wiersza konkursu, który wołający i tak ma w ręku.
     """
     english_enabled_site(competition)
     user = UserFactory()
-    # Odwrotna relacja ``user.preference`` też pyta bazę raz i zapamiętuje odpowiedź na obiekcie
-    # konta. Rozgrzewamy ją **poza** pomiarem, żeby przedmiotem tego testu został wyłącznie odczyt
-    # ustawień witryny – inaczej próg mówiłby o dwóch różnych pamięciach naraz.
+    # Odwrotna relacja ``user.preference`` pyta bazę raz i zapamiętuje odpowiedź na obiekcie konta.
+    # Rozgrzewamy ją **poza** pomiarem, żeby przedmiotem tego testu został wyłącznie zbiór języków.
     stored_preference(user)
 
-    with django_assert_num_queries(1):
+    with django_assert_num_queries(0):
         for _ in range(5):
             with language_for(user, competition):
                 pass

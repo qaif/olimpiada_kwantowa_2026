@@ -1,4 +1,4 @@
-{% comment %}
+{% load i18n %}{% comment %}
   Linia czasu edycji w nagłówku każdej strony – wzorowana na pasku z oi.edu.pl, liczona z bazy.
 
   **W spoczynku to jedna linia i nic więcej.** Nagłówek serwisu ma zachować swoją wysokość, więc
@@ -47,7 +47,7 @@
     ``prefers-reduced-motion`` zostaje pustym elementem bez rozmiaru.
   {% endcomment %}
   <canvas class="tl__quantum" data-tl-quantum aria-hidden="true" width="0" height="0"></canvas>
-  <p class="visually-hidden">Pomiar: funkcja falowa zapada się na wskazanym wydarzeniu.</p>
+  <p class="visually-hidden">{% translate "Pomiar: funkcja falowa zapada się na wskazanym wydarzeniu." %}</p>
   <pre class="tl tl--bar">{% spaceless %}<span class="tl__bar"><span class="tl__bracket" aria-hidden="true">[</span>
     {% for cell in strip.cells %}
       {% if cell.url %}
@@ -90,9 +90,9 @@
     <summary class="tl-list__summary">
       {% if strip.lead %}<span class="tl-list__mark tl-list__mark--{{ strip.lead.status }}" aria-hidden="true">&gt;</span>
         <span class="tl-list__title">{{ strip.lead.title }}</span>
-        <span class="tl-list__dates">{{ strip.lead.dates }}</span>{% else %}Kalendarz edycji {{ strip.edition }}{% endif %}
+        <span class="tl-list__dates">{{ strip.lead.dates }}</span>{% else %}{% blocktranslate with edition=strip.edition %}Kalendarz edycji {{ edition }}{% endblocktranslate %}{% endif %}
     </summary>
-    <ul class="tl-list__items" aria-label="Kalendarz edycji {{ strip.edition }}">
+    <ul class="tl-list__items" aria-label="{% blocktranslate with edition=strip.edition %}Kalendarz edycji {{ edition }}{% endblocktranslate %}">
       {% for item in strip.items %}
         <li class="tl-list__item tl-list__item--{{ item.status }}">
           <span class="tl-list__mark" aria-hidden="true">&gt;</span>

@@ -3,8 +3,8 @@
 Pięć pytań, na które ten moduł odpowiada:
 
 - **czy serwis wolno mieć tylko po polsku** – Olimpiada Kwantowa ma być polska „niezależnie od
-  tego, o co prosi przeglądarka”, więc przy wyłączonym przełączniku
-  ``cms.SiteSettings.english_interface_enabled`` polskie ma być **wszystko**: nagłówek
+  tego, o co prosi przeglądarka”, więc przy zbiorze języków konkursu równym ``["pl"]``
+  (``tenancy.Competition.interface_languages``) polskie ma być **wszystko**: nagłówek
   ``Accept-Language``, ciasteczko, zapis na koncie i pasek konta (sekcja (e)),
 - **czy angielski w ogóle działa** – czyli czy skompilowany katalog (``locale/en``) jest wczytywany
   i czy panel uczestnika mówi po angielsku, a nie po polsku z angielskim ``lang``,
@@ -17,7 +17,8 @@ Pięć pytań, na które ten moduł odpowiada:
 
 Testy angielskiego wołają fiksturę ``english_enabled_site`` (konftest projektu) i to nie jest
 formalność: **domyślnie angielskiego nie ma**, więc test, który o niego pyta bez włączenia
-przełącznika, pytałby o serwis, którego ta instalacja nie oferuje.
+angielskiego do zbioru konkursu, pytałby o serwis, którego ta instalacja nie oferuje. Języki
+spoza pary pl/en sprawdza ``test_competition_languages.py``.
 """
 
 from __future__ import annotations

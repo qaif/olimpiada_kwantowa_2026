@@ -37,6 +37,8 @@ from datetime import timedelta
 from django.db import IntegrityError, transaction
 from django.db.models import Count, Exists, Max, OuterRef, Q, Subquery
 from django.utils import timezone
+from django.utils.translation import gettext as _
+from django.utils.translation import gettext_lazy
 from rest_framework import status as http
 
 from apps.core.api import DomainError
@@ -87,15 +89,17 @@ AUDIT_TEMPLATE_DELETED = "chat.template_deleted"
 #: Odmowa, która **nie zdradza powodu**. Zablokowany uczestnik, konto usunięte i osoba, która
 #: wypisała się z katalogu, dostają to samo zdanie: „zablokował cię” byłoby informacją, której
 #: blokujący nie chciał przekazywać, a różne zdania dla różnych powodów pozwalałyby ją wywnioskować.
-CANNOT_SEND = "Nie można wysłać wiadomości do tej osoby."
+CANNOT_SEND = gettext_lazy("Nie można wysłać wiadomości do tej osoby.")
 
-PEER_OFF = "Organizator wyłączył rozmowy między uczestnikami – ta rozmowa jest teraz tylko do odczytu."
-BLOCKED_BY_ME = "Zablokowałeś tę osobę. Odblokuj ją, jeśli chcesz napisać."
-NEEDS_KEY = "Ta rozmowa jest szyfrowana – skonfiguruj szyfrowanie, żeby w niej pisać."
+PEER_OFF = gettext_lazy(
+    "Organizator wyłączył rozmowy między uczestnikami – ta rozmowa jest teraz tylko do odczytu."
+)
+BLOCKED_BY_ME = gettext_lazy("Zablokowałeś tę osobę. Odblokuj ją, jeśli chcesz napisać.")
+NEEDS_KEY = gettext_lazy("Ta rozmowa jest szyfrowana – skonfiguruj szyfrowanie, żeby w niej pisać.")
 #: Rozmowa zamknięta przez zasadę grupy wiekowej (§ 12.3). Neutralnie – bez „ta osoba jest
 #: pełnoletnia”: wiek drugiej strony nie jest informacją, którą czat komukolwiek podaje.
-AGE_CLOSED = "Ta rozmowa została zamknięta zgodnie z zasadami konkursu."
-DAILY_LIMIT = "Osiągnięto dzienny limit nowych rozmów – spróbuj jutro."
+AGE_CLOSED = gettext_lazy("Ta rozmowa została zamknięta zgodnie z zasadami konkursu.")
+DAILY_LIMIT = gettext_lazy("Osiągnięto dzienny limit nowych rozmów – spróbuj jutro.")
 
 #: Stany wiadomości, które odbiorca **w ogóle** widzi w wątku. Ukryta zostaje na swoim miejscu
 #: z informacją, że zdjął ją moderator – wycięcie jej bez śladu robiłoby z odpowiedzi drugiej
@@ -177,7 +181,7 @@ def save_settings(
     """
     if peer_mode not in PeerMode.values:
         raise DomainError("Nieznany tryb rozmów.", "CHAT_MODE_UNKNOWN", http.HTTP_400_BAD_REQUEST)
-    row, _ = ChatSettings.objects.get_or_create(competition=competition)
+    row, _created = ChatSettings.objects.get_or_create(competition=competition)
     if e2e_enabled and peer_mode != PeerMode.NONE:
         if row.e2e_enabled:
             raise DomainError(
@@ -300,7 +304,7 @@ def same_age_group(a, b, today=None) -> bool:
 
 def _forbidden() -> DomainError:
     return DomainError(
-        "Wiadomości są dostępne dla uczestników i organizatora tego konkursu.",
+        _("Wiadomości są dostępne dla uczestników i organizatora tego konkursu."),
         "CHAT_FORBIDDEN",
         http.HTTP_403_FORBIDDEN,
     )
@@ -361,7 +365,7 @@ def profile_for(participant) -> ChatProfile:
 
 
 def set_discoverable(participant, value: bool) -> ChatProfile:
-    row, _ = ChatProfile.objects.get_or_create(participant=participant)
+    row, _created = ChatProfile.objects.get_or_create(participant=participant)
     row.discoverable = bool(value)
     row.updated_at = timezone.now()
     row.save(update_fields=["discoverable", "updated_at"])
@@ -431,9 +435,17 @@ def _b64(value: str, *, label: str, min_bytes: int, max_bytes: int, exact: int |
     except binascii.Error, ValueError:
         raw = None
     if not text or raw is None:
-        raise DomainError(f"{label}: niepoprawne dane.", "CHAT_E2E_BAD_FIELD", http.HTTP_400_BAD_REQUEST)
+        raise DomainError(
+            _("%(label)s: niepoprawne dane.") % {"label": label},
+            "CHAT_E2E_BAD_FIELD",
+            http.HTTP_400_BAD_REQUEST,
+        )
     if (exact is not None and len(raw) != exact) or not (min_bytes <= len(raw) <= max_bytes):
-        raise DomainError(f"{label}: niepoprawny rozmiar.", "CHAT_E2E_BAD_SIZE", http.HTTP_400_BAD_REQUEST)
+        raise DomainError(
+            _("%(label)s: niepoprawny rozmiar.") % {"label": label},
+            "CHAT_E2E_BAD_SIZE",
+            http.HTTP_400_BAD_REQUEST,
+        )
     return raw
 
 
@@ -453,7 +465,7 @@ def _validate_p256_spki(raw: bytes) -> None:
         key = None
     if not isinstance(key, ec.EllipticCurvePublicKey) or key.curve.name != "secp256r1":
         raise DomainError(
-            "Klucz publiczny nie jest kluczem P-256.", "CHAT_E2E_BAD_KEY", http.HTTP_400_BAD_REQUEST
+            _("Klucz publiczny nie jest kluczem P-256."), "CHAT_E2E_BAD_KEY", http.HTTP_400_BAD_REQUEST
         )
 
 
@@ -483,18 +495,18 @@ def save_key(
     existing = key_for(participant)
     if existing is None and not settings_for(competition).e2e_enabled:
         raise DomainError(
-            "Organizator nie włączył szyfrowanych rozmów.", "CHAT_E2E_DISABLED", http.HTTP_400_BAD_REQUEST
+            _("Organizator nie włączył szyfrowanych rozmów."), "CHAT_E2E_DISABLED", http.HTTP_400_BAD_REQUEST
         )
     if existing is not None and not replace:
         raise DomainError(
-            "Masz już klucz szyfrowania. Nowy utworzysz przyciskiem „Utwórz nowy klucz”.",
+            _("Masz już klucz szyfrowania. Nowy utworzysz przyciskiem „Utwórz nowy klucz”."),
             "CHAT_E2E_KEY_EXISTS",
             http.HTTP_400_BAD_REQUEST,
         )
-    spki = _b64(public_key, label="Klucz publiczny", min_bytes=60, max_bytes=120)
+    spki = _b64(public_key, label=_("Klucz publiczny"), min_bytes=60, max_bytes=120)
     _validate_p256_spki(spki)
-    _b64(wrapped_private_key, label="Kopia klucza prywatnego", min_bytes=100, max_bytes=512)
-    _b64(kdf_salt, label="Sól", min_bytes=16, max_bytes=48)
+    _b64(wrapped_private_key, label=_("Kopia klucza prywatnego"), min_bytes=100, max_bytes=512)
+    _b64(kdf_salt, label=_("Sól"), min_bytes=16, max_bytes=48)
     _b64(wrap_iv, label="IV", min_bytes=12, max_bytes=12, exact=12)
     try:
         iterations = int(kdf_iterations)
@@ -502,7 +514,7 @@ def save_key(
         iterations = 0
     if not MIN_KDF_ITERATIONS <= iterations <= MAX_KDF_ITERATIONS:
         raise DomainError(
-            f"Za mało iteracji PBKDF2 (minimum {MIN_KDF_ITERATIONS}).",
+            _("Za mało iteracji PBKDF2 (minimum %(minimum)s).") % {"minimum": MIN_KDF_ITERATIONS},
             "CHAT_E2E_WEAK_KDF",
             http.HTTP_400_BAD_REQUEST,
         )
@@ -515,7 +527,7 @@ def save_key(
         "fingerprint": hashlib.sha256(spki).hexdigest(),
         "created_at": timezone.now(),
     }
-    row, _ = ChatKey.objects.update_or_create(participant=participant, defaults=values)
+    row, _created = ChatKey.objects.update_or_create(participant=participant, defaults=values)
     return row
 
 
@@ -524,7 +536,7 @@ def block(*, participant, conversation: Conversation) -> ChatBlock:
     other = other_participant(conversation, participant)
     if other is None:
         raise DomainError(CANNOT_SEND, "CHAT_NO_OTHER_SIDE", http.HTTP_400_BAD_REQUEST)
-    row, _ = ChatBlock.objects.get_or_create(blocker=participant, blocked=other)
+    row, _created = ChatBlock.objects.get_or_create(blocker=participant, blocked=other)
     # Wiadomości zablokowanej osoby, które jeszcze czekają na premoderację, nie mogą dojść po
     # blokadzie tylko dlatego, że moderator zajrzy do kolejki później. Odrzucenie z neutralną
     # notatką – nadawca nie dowiaduje się z niej, że został zablokowany.
@@ -735,11 +747,11 @@ def encrypted_refusal(*, row: ChatSettings, mode: PeerMode, stage=None) -> str:
     if mode == PeerMode.OFF:
         return PEER_OFF
     if stage is not None:
-        return (
-            f"Trwa etap „{stage.display_name}” – rozmowy szyfrowane są wstrzymane, bo organizator nie "
+        return _(
+            "Trwa etap „%(stage)s” – rozmowy szyfrowane są wstrzymane, bo organizator nie "
             "może ich moderować. Wrócą po zamknięciu etapu."
-        )
-    return "Organizator wyłączył szyfrowane rozmowy – ta rozmowa jest teraz tylko do odczytu."
+        ) % {"stage": stage.display_name}
+    return _("Organizator wyłączył szyfrowane rozmowy – ta rozmowa jest teraz tylko do odczytu.")
 
 
 def peer_write_refusal(
@@ -781,10 +793,10 @@ def peer_write_refusal(
 def _clean_body(body: str) -> str:
     text = (body or "").strip()
     if not text:
-        raise DomainError("Wiadomość nie może być pusta.", "CHAT_BODY_REQUIRED", http.HTTP_400_BAD_REQUEST)
+        raise DomainError(_("Wiadomość nie może być pusta."), "CHAT_BODY_REQUIRED", http.HTTP_400_BAD_REQUEST)
     if len(text) > MAX_BODY_LENGTH:
         raise DomainError(
-            f"Wiadomość jest za długa (limit {MAX_BODY_LENGTH} znaków).",
+            _("Wiadomość jest za długa (limit %(limit)s znaków).") % {"limit": MAX_BODY_LENGTH},
             "CHAT_BODY_TOO_LONG",
             http.HTTP_400_BAD_REQUEST,
         )
@@ -794,10 +806,15 @@ def _clean_body(body: str) -> str:
 def _clean_reason(value: str, *, label: str) -> str:
     text = (value or "").strip()
     if not text:
-        raise DomainError(f"{label} nie może być puste.", "CHAT_REASON_REQUIRED", http.HTTP_400_BAD_REQUEST)
+        raise DomainError(
+            _("%(label)s nie może być puste.") % {"label": label},
+            "CHAT_REASON_REQUIRED",
+            http.HTTP_400_BAD_REQUEST,
+        )
     if len(text) > MAX_REASON_LENGTH:
         raise DomainError(
-            f"{label} jest za długie (limit {MAX_REASON_LENGTH} znaków).",
+            _("%(label)s jest za długie (limit %(limit)s znaków).")
+            % {"label": label, "limit": MAX_REASON_LENGTH},
             "CHAT_REASON_TOO_LONG",
             http.HTTP_400_BAD_REQUEST,
         )
@@ -858,17 +875,17 @@ def _encrypted_payload(
     """
     if (body or "").strip():
         raise DomainError(
-            "Ta rozmowa jest szyfrowana – serwer nie przyjmuje jawnej treści.",
+            _("Ta rozmowa jest szyfrowana – serwer nie przyjmuje jawnej treści."),
             "CHAT_PLAINTEXT_REFUSED",
             http.HTTP_400_BAD_REQUEST,
         )
     if len((ciphertext or "").strip()) > MAX_CIPHERTEXT_LENGTH:
         raise DomainError(
-            f"Wiadomość jest za długa (limit {MAX_BODY_LENGTH} znaków).",
+            _("Wiadomość jest za długa (limit %(limit)s znaków).") % {"limit": MAX_BODY_LENGTH},
             "CHAT_BODY_TOO_LONG",
             http.HTTP_400_BAD_REQUEST,
         )
-    _b64(ciphertext, label="Szyfrogram", min_bytes=17, max_bytes=MAX_CIPHERTEXT_LENGTH)
+    _b64(ciphertext, label=_("Szyfrogram"), min_bytes=17, max_bytes=MAX_CIPHERTEXT_LENGTH)
     _b64(iv, label="IV", min_bytes=12, max_bytes=12, exact=12)
     mine = key_for(participant)
     theirs = key_for(other_participant(conversation, participant))
@@ -876,7 +893,7 @@ def _encrypted_payload(
         raise DomainError(CANNOT_SEND, "CHAT_E2E_NO_KEY", http.HTTP_400_BAD_REQUEST)
     if sender_fingerprint != mine.fingerprint or recipient_fingerprint != theirs.fingerprint:
         raise DomainError(
-            "Klucz szyfrowania zmienił się, odkąd otworzyłeś tę stronę. Odśwież ją i napisz jeszcze raz.",
+            _("Klucz szyfrowania zmienił się, odkąd otworzyłeś tę stronę. Odśwież ją i napisz jeszcze raz."),
             "CHAT_E2E_KEY_STALE",
             http.HTTP_400_BAD_REQUEST,
         )
@@ -931,7 +948,7 @@ def send_participant_message(
     else:
         if (ciphertext or "").strip() or (iv or "").strip():
             raise DomainError(
-                "Ta rozmowa nie jest szyfrowana – serwer nie przyjmuje szyfrogramu.",
+                _("Ta rozmowa nie jest szyfrowana – serwer nie przyjmuje szyfrogramu."),
                 "CHAT_CIPHERTEXT_REFUSED",
                 http.HTTP_400_BAD_REQUEST,
             )
@@ -981,7 +998,7 @@ def _start_target(participant, competition, token: str) -> ChatProfile:
     if profile is None:
         raise _not_found("Nie ma takiej osoby w katalogu.")
     if profile.participant_id == participant.pk:
-        raise DomainError("Nie możesz napisać do siebie.", "CHAT_SELF", http.HTTP_400_BAD_REQUEST)
+        raise DomainError(_("Nie możesz napisać do siebie."), "CHAT_SELF", http.HTTP_400_BAD_REQUEST)
     return profile
 
 
@@ -1004,8 +1021,10 @@ def start_peer_conversation(*, user, competition, token: str, body: str, request
     if existing is None:
         if row.e2e_enabled:
             raise DomainError(
-                "Nowe rozmowy są szyfrowane – rozpocznij rozmowę przyciskiem "
-                "„Rozpocznij rozmowę szyfrowaną”.",
+                _(
+                    "Nowe rozmowy są szyfrowane – rozpocznij rozmowę przyciskiem "
+                    "„Rozpocznij rozmowę szyfrowaną”."
+                ),
                 "CHAT_E2E_REQUIRED",
                 http.HTTP_400_BAD_REQUEST,
             )
@@ -1034,7 +1053,7 @@ def open_encrypted_conversation(*, user, competition, token: str, request=None) 
     mode, stage = mode_and_stage(competition, row=row)
     if not row.e2e_enabled:
         raise DomainError(
-            "Organizator nie włączył szyfrowanych rozmów.", "CHAT_E2E_DISABLED", http.HTTP_400_BAD_REQUEST
+            _("Organizator nie włączył szyfrowanych rozmów."), "CHAT_E2E_DISABLED", http.HTTP_400_BAD_REQUEST
         )
     refusal = encrypted_refusal(row=row, mode=mode, stage=stage)
     if refusal:
@@ -1390,24 +1409,26 @@ def report_message(
         or message.status != MessageStatus.PUBLISHED
     ):
         raise _not_found("Nie ma takiej wiadomości.")
-    text = _clean_reason(reason, label="Powód zgłoszenia")
+    text = _clean_reason(reason, label=_("Powód zgłoszenia"))
     copy = ""
     if message.is_encrypted:
         copy = (reported_plaintext or "").strip()
         if not copy:
             raise DomainError(
-                "Nie udało się odszyfrować wiadomości do zgłoszenia – odblokuj szyfrowanie "
-                "i spróbuj ponownie.",
+                _(
+                    "Nie udało się odszyfrować wiadomości do zgłoszenia – odblokuj szyfrowanie "
+                    "i spróbuj ponownie."
+                ),
                 "CHAT_REPORT_PLAINTEXT_REQUIRED",
                 http.HTTP_400_BAD_REQUEST,
             )
         if len(copy) > MAX_BODY_LENGTH:
             raise DomainError(
-                "Zgłaszana treść jest za długa.", "CHAT_BODY_TOO_LONG", http.HTTP_400_BAD_REQUEST
+                _("Zgłaszana treść jest za długa."), "CHAT_BODY_TOO_LONG", http.HTTP_400_BAD_REQUEST
             )
     if MessageReport.objects.filter(message=message, reporter=user).exists():
         raise DomainError(
-            "Ta wiadomość jest już zgłoszona – organizator ją przejrzy.",
+            _("Ta wiadomość jest już zgłoszona – organizator ją przejrzy."),
             "CHAT_ALREADY_REPORTED",
             http.HTTP_400_BAD_REQUEST,
         )

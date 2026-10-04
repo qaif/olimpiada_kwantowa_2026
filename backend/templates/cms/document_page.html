@@ -1,13 +1,13 @@
 {% extends "base.html" %}
-{% load static wagtailcore_tags %}
+{% load i18n static wagtailcore_tags %}
 {% block title %}{{ page.title }} – {{ settings.cms.SiteSettings.site_name }}{% endblock %}
-{% block description %}{{ page.title }}{% if page.version_label %} (wersja {{ page.version_label }}){% endif %} – dokument Olimpiady do przeczytania online i pobrania.{% endblock %}
+{% block description %}{% if page.version_label %}{% blocktranslate with title=page.title version=page.version_label %}{{ title }} (wersja {{ version }}) – dokument Olimpiady do przeczytania online i pobrania.{% endblocktranslate %}{% else %}{% blocktranslate with title=page.title %}{{ title }} – dokument Olimpiady do przeczytania online i pobrania.{% endblocktranslate %}{% endif %}{% endblock %}
 {% block content %}
 <div class="doc-layout">
 
   <div class="doc-head">
     <div class="page-head">
-      <span class="eyebrow">Dokument</span>
+      <span class="eyebrow">{% translate "Dokument" %}</span>
       <h1>{{ page.title }}</h1>
       {% comment %}
         Metryka jako pierwsza rzecz pod tytułem: przy regulaminie pytanie „którą wersję czytam”
@@ -15,7 +15,7 @@
       {% endcomment %}
       {% if page.version_label or page.document_date or page.status_label %}
         <p class="article__meta doc-meta">
-          {% if page.version_label %}<span class="doc-meta__item">Wersja {{ page.version_label }}</span>{% endif %}
+          {% if page.version_label %}<span class="doc-meta__item">{% blocktranslate with version=page.version_label %}Wersja {{ version }}{% endblocktranslate %}</span>{% endif %}
           {% if page.document_date %}
             <time class="doc-meta__item" datetime="{{ page.document_date|date:'Y-m-d' }}">{{ page.document_date }}</time>
           {% endif %}
@@ -47,9 +47,9 @@
     <p class="doc-print">
       {% if pdf_attachment %}
         <a class="btn btn--small btn--primary" href="{{ pdf_attachment.document.url }}" download>
-          Pobierz PDF</a>
+          {% translate "Pobierz PDF" %}</a>
       {% endif %}
-      <button type="button" class="btn btn--small btn--secondary" data-print hidden>Drukuj</button>
+      <button type="button" class="btn btn--small btn--secondary" data-print hidden>{% translate "Drukuj" %}</button>
     </p>
 
     {% include "cms/_attachments.html" %}
@@ -57,7 +57,7 @@
 
   {% if page.chapters %}
     <nav class="doc-toc" aria-labelledby="spis-rozdzialow">
-      <h2 class="doc-toc__title" id="spis-rozdzialow">Spis rozdziałów</h2>
+      <h2 class="doc-toc__title" id="spis-rozdzialow">{% translate "Spis rozdziałów" %}</h2>
       <ol class="doc-toc__list">
         {% for chapter in page.chapters %}
           <li><a href="#{{ chapter.anchor }}">{{ chapter.text }}</a></li>

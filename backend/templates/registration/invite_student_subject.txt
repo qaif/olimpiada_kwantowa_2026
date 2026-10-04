@@ -1,1 +1,1 @@
-{% load i18n %}{% autoescape off %}{% translate "Zaproszenie do Olimpiady Kwantowej" %}{% endautoescape %}
+{% load i18n %}{% autoescape off %}{% blocktranslate trimmed with competition_genitive=brand.competition_genitive|default:_("Olimpiady Kwantowej") %}Zaproszenie do {{ competition_genitive }}{% endblocktranslate %}{% endautoescape %}

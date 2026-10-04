@@ -35,14 +35,16 @@ zajrzeć do skrzynki po lekcjach, a ponowna rejestracja od zera zniechęcała.
 from __future__ import annotations
 
 import logging
+from contextlib import nullcontext
 
 from django.conf import settings
 from django.core import signing
 from django.db import transaction
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.functional import lazy
 from django.utils.translation import gettext as _
-from django.utils.translation import gettext_lazy
+from django.utils.translation import gettext_lazy, gettext_noop
 from rest_framework import status
 
 from apps.core.api import DomainError
@@ -87,23 +89,34 @@ ACTIVATION_SUBJECT_TEMPLATE = gettext_lazy("Aktywuj konto – %(competition)s")
 EMAIL_CHANGE_SUBJECT_TEMPLATE = gettext_lazy("Potwierdź nowy adres e-mail – %(competition)s")
 EMAIL_CHANGED_NOTICE_SUBJECT_TEMPLATE = gettext_lazy("Adres e-mail konta został zmieniony – %(competition)s")
 
+
 #: Komunikat po rejestracji. W jednym miejscu, bo wychodzi z trzech ścieżek (formularz WWW,
 #: rejestracja komitetu, dokończenie rejestracji społecznościowej bez potwierdzonego adresu).
-ACTIVATION_REQUIRED_MESSAGE = (
-    "Konto zostało założone. Sprawdź skrzynkę e-mail (także spam) i kliknij link aktywacyjny – "
-    "bez tego logowanie nie zadziała. "
-    f"Link jest ważny {ACTIVATION_HOURS} godziny – po tym czasie konto zostanie usunięte "
-    "i trzeba zarejestrować się ponownie."
-)
+def _activation_required_message() -> str:
+    return _(
+        "Konto zostało założone. Sprawdź skrzynkę e-mail (także spam) i kliknij link aktywacyjny – "
+        "bez tego logowanie nie zadziała. "
+        "Link jest ważny %(hours)s godziny – po tym czasie konto zostanie usunięte "
+        "i trzeba zarejestrować się ponownie."
+    ) % {"hours": ACTIVATION_HOURS}
+
+
+#: Leniwy jak tematy wyżej: tłumaczy się w chwili pokazania, w języku żądania, które go pokazuje.
+#: ``lazy`` zamiast ``gettext_lazy(...) % …``, bo procent na obiekcie leniwym tłumaczy go od razu –
+#: czyli przy imporcie modułu, zanim jakikolwiek język jest aktywny.
+ACTIVATION_REQUIRED_MESSAGE = lazy(_activation_required_message, str)()
 
 #: Odpowiedź formularza „wyślij link ponownie”. **Zawsze ta sama**, niezależnie od tego, czy konto
 #: istnieje i czy jest już aktywne – inaczej formularz byłby wyszukiwarką kont w serwisie.
-RESEND_MESSAGE = (
+#:
+#: ``gettext_noop``, a nie ``gettext_lazy``: stała zostaje zwykłym napisem (porównują ją testy
+#: widoku), a tłumaczy ją miejsce, które ją pokazuje – ``_(RESEND_MESSAGE)``.
+RESEND_MESSAGE = gettext_noop(
     "Jeśli konto z tym adresem istnieje i czeka na aktywację, link został wysłany ponownie. "
     "Sprawdź też folder ze spamem."
 )
 
-INVALID_TOKEN_MESSAGE = "Link aktywacyjny jest nieprawidłowy albo wygasł."
+INVALID_TOKEN_MESSAGE = gettext_lazy("Link aktywacyjny jest nieprawidłowy albo wygasł.")
 
 
 def _invalid_token() -> DomainError:
@@ -265,7 +278,8 @@ def activation_message(link: str, competition=None) -> str:
     """Treść listu aktywacyjnego. Poza adresem odbiorcy (i tak w nagłówku ``To:``) zero danych osobowych."""
     return "\n".join(
         [
-            _("Ktoś – prawdopodobnie Ty – założył konto w serwisie Olimpiady Kwantowej."),
+            _("Ktoś – prawdopodobnie Ty – założył konto w serwisie %(competition_genitive)s.")
+            % branding.brand_names(competition),
             "",
             _("Aby aktywować konto i móc się zalogować, otwórz poniższy adres:"),
             "",
@@ -291,8 +305,8 @@ def email_change_message(link: str, new_email: str, competition=None) -> str:
     """Treść listu na **nowy** adres: dopiero kliknięcie zmienia adres konta."""
     return "\n".join(
         [
-            _("Poproszono o zmianę adresu e-mail konta w serwisie Olimpiady Kwantowej na %(email)s.")
-            % {"email": new_email},
+            _("Poproszono o zmianę adresu e-mail konta w serwisie %(competition_genitive)s na %(email)s.")
+            % {**branding.brand_names(competition), "email": new_email},
             "",
             _("Aby potwierdzić nowy adres, otwórz poniższy adres:"),
             "",
@@ -317,10 +331,10 @@ def email_changed_notice(new_email: str, competition=None) -> str:
     return "\n".join(
         [
             _(
-                "Adres e-mail konta w serwisie Olimpiady Kwantowej został zmieniony na %(email)s. "
+                "Adres e-mail konta w serwisie %(competition_genitive)s został zmieniony na %(email)s. "
                 "Logowanie tym adresem przestaje działać."
             )
-            % {"email": new_email},
+            % {**branding.brand_names(competition), "email": new_email},
             "",
             _("Jeśli to nie Ty dokonałeś zmiany, natychmiast skontaktuj się z organizatorem."),
             "",
@@ -398,16 +412,45 @@ def queue_mail(
     transaction.on_commit(_enqueue)
 
 
+def composed_by_someone_else(user: User | None, request) -> bool:
+    """Czy ``request`` należy do **kogoś innego** niż adresat listu – np. do koordynatora.
+
+    W żądaniu adresata (rejestracja, ponowienie linku z formularza publicznego, gość klikający
+    link z listu) aktywny język jest już jego językiem i nic nie trzeba robić. Gdy list składa
+    zalogowany ktoś inny, aktywny język jest językiem nadawcy – wtedy list idzie przez
+    ``apps.accounts.preferences.language_for``.
+    """
+    sender = getattr(request, "user", None)
+    if sender is None or not sender.is_authenticated:
+        return False
+    return user is None or sender.pk != user.pk
+
+
+def recipient_language(user: User | None, competition=None, *, request=None):
+    """Język listu do ``user``: bieżący w jego własnym żądaniu, a w cudzym – ``language_for``.
+
+    Bez żądania (zadanie w tle, komenda) zostaje język bieżący: tak wołają dziś wyłącznie testy
+    i ścieżki, które same otwierają ``language_for`` wyżej.
+    """
+    if request is None or not composed_by_someone_else(user, request):
+        return nullcontext()
+    from .preferences import language_for
+
+    return language_for(user, competition)
+
+
 def send_activation_email(user: User, *, request=None, competition=None) -> None:
-    """Kolejkuje list z linkiem aktywacyjnym dla konta."""
+    """Kolejkuje list z linkiem aktywacyjnym dla konta.
+
+    Zwykle w żądaniu samego adresata (rejestracja) – wtedy aktywny język jest już jego. Ponowienie
+    z panelu koordynatora składa list w cudzym żądaniu, więc idzie w języku odbiorcy.
+    """
     competition = mail_competition(competition)
     link = absolute_url(reverse("web:activate", args=[make_activation_token(user)]), request, competition)
-    queue_mail(
-        branding.subject(ACTIVATION_SUBJECT_TEMPLATE, ACTIVATION_SUBJECT, competition),
-        activation_message(link, competition),
-        user.email,
-        competition=competition,
-    )
+    with recipient_language(user, competition, request=request):
+        subject = str(branding.subject(ACTIVATION_SUBJECT_TEMPLATE, ACTIVATION_SUBJECT, competition))
+        message = activation_message(link, competition)
+    queue_mail(subject, message, user.email, competition=competition)
 
 
 def send_email_change_confirmation(user: User, new_email: str, *, request=None, competition=None) -> None:
@@ -492,7 +535,7 @@ def activate_with_token(token: str, *, request=None) -> User:
         raise _invalid_token()
     if user.email_verified_at is not None:
         raise DomainError(
-            "To konto jest już aktywne – możesz się zalogować.",
+            _("To konto jest już aktywne – możesz się zalogować."),
             "ALREADY_ACTIVE",
             status.HTTP_400_BAD_REQUEST,
         )

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load static %}
+{% load i18n static %}
 {% comment %}
   Wiadomości uczestnika: lista rozmów po lewej, wątek po prawej (jak w komunikatorze LinkedIn).
   Na wąskim ekranie jedna kolumna – ``chat--thread-open`` chowa listę, gdy otwarty jest wątek,
@@ -12,44 +12,45 @@
   Szyfrowanie (§ 11 zadania) dokłada wyłącznie ``_e2e_config.html`` i dwa pliki skryptu – bez
   włączonego szyfrowania i bez klucza tej osoby strona nie ładuje ani jednej linijki kryptografii.
 {% endcomment %}
-{% block title %}Wiadomości{% endblock %}
+{% block title %}{% translate "Wiadomości" %}{% endblock %}
 {% block head %}<link rel="stylesheet" href="{% static 'css/chat.css' %}">{% endblock %}
 {% block content %}
 <div class="page-head">
-  <span class="eyebrow"><a href="{% url 'web:me' %}">Mój panel</a></span>
-  <h1>Wiadomości</h1>
-  <p class="lead">Rozmowy z organizatorem{% if peer_open %} i z innymi uczestnikami{% endif %}. Wiadomości
-    czytasz tutaj, po zalogowaniu – e-mail mówi tylko, że coś na Ciebie czeka.</p>
+  <span class="eyebrow"><a href="{% url 'web:me' %}">{% translate "Mój panel" %}</a></span>
+  <h1>{% translate "Wiadomości" %}</h1>
+  <p class="lead">{% if peer_open %}{% blocktranslate trimmed %}Rozmowy z organizatorem i z innymi uczestnikami. Wiadomości
+    czytasz tutaj, po zalogowaniu – e-mail mówi tylko, że coś na Ciebie czeka.{% endblocktranslate %}{% else %}{% blocktranslate trimmed %}Rozmowy z organizatorem. Wiadomości
+    czytasz tutaj, po zalogowaniu – e-mail mówi tylko, że coś na Ciebie czeka.{% endblocktranslate %}{% endif %}</p>
   <div class="actions">
-    <a class="btn btn--small btn--primary" href="{% url 'web:chat-organizer' %}">Napisz do organizatora</a>
-    {% if peer_open %}<a class="btn btn--small btn--secondary" href="{% url 'web:chat-directory' %}">Nowa rozmowa</a>{% endif %}
-    {% if e2e %}<a class="btn btn--small btn--ghost" href="{{ e2e.key_url }}">Szyfrowanie</a>{% endif %}
-    <a class="btn btn--small btn--ghost" href="{{ settings_url }}">Ustawienia wiadomości</a>
+    <a class="btn btn--small btn--primary" href="{% url 'web:chat-organizer' %}">{% translate "Napisz do organizatora" %}</a>
+    {% if peer_open %}<a class="btn btn--small btn--secondary" href="{% url 'web:chat-directory' %}">{% translate "Nowa rozmowa" %}</a>{% endif %}
+    {% if e2e %}<a class="btn btn--small btn--ghost" href="{{ e2e.key_url }}">{% translate "Szyfrowanie" %}</a>{% endif %}
+    <a class="btn btn--small btn--ghost" href="{{ settings_url }}">{% translate "Ustawienia wiadomości" %}</a>
   </div>
 </div>
 
 {% include "web/chat/_e2e_config.html" %}
 
 <div class="chat{% if thread_open %} chat--thread-open{% endif %}">
-  <nav class="chat__list" aria-label="Rozmowy">
+  <nav class="chat__list" aria-label="{% translate 'Rozmowy' %}">
     {% include "web/chat/_list.html" %}
   </nav>
-  <section class="chat__pane" aria-label="Wątek">
+  <section class="chat__pane" aria-label="{% translate 'Wątek' %}">
     {% if thread_open %}
       {% include "web/chat/_thread.html" %}
     {% elif rows %}
       <div class="empty">
-        <span class="empty__title">Wybierz rozmowę z listy</span>
-        <p class="empty__text">Nieprzeczytane rozmowy mają kropkę przy imieniu.</p>
+        <span class="empty__title">{% translate "Wybierz rozmowę z listy" %}</span>
+        <p class="empty__text">{% translate "Nieprzeczytane rozmowy mają kropkę przy imieniu." %}</p>
       </div>
     {% else %}
       <div class="empty">
-        <span class="empty__title">Nie masz jeszcze żadnych wiadomości</span>
-        <p class="empty__text">Masz pytanie o zawody? Napisz do organizatora – odpowie jeden z koordynatorów.
-          {% if peer_open %}Możesz też porozmawiać z innymi uczestnikami, którzy zapisali się do katalogu.{% endif %}</p>
+        <span class="empty__title">{% translate "Nie masz jeszcze żadnych wiadomości" %}</span>
+        <p class="empty__text">{% translate "Masz pytanie o zawody? Napisz do organizatora – odpowie jeden z koordynatorów." %}
+          {% if peer_open %}{% translate "Możesz też porozmawiać z innymi uczestnikami, którzy zapisali się do katalogu." %}{% endif %}</p>
         <p class="empty__actions">
-          <a class="btn btn--small btn--primary" href="{% url 'web:chat-organizer' %}">Napisz do organizatora</a>
-          {% if peer_open %}<a class="btn btn--small btn--secondary" href="{% url 'web:chat-directory' %}">Nowa rozmowa</a>{% endif %}
+          <a class="btn btn--small btn--primary" href="{% url 'web:chat-organizer' %}">{% translate "Napisz do organizatora" %}</a>
+          {% if peer_open %}<a class="btn btn--small btn--secondary" href="{% url 'web:chat-directory' %}">{% translate "Nowa rozmowa" %}</a>{% endif %}
         </p>
       </div>
     {% endif %}

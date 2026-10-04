@@ -56,7 +56,7 @@
     <dl class="meta-list">
       <dt>{% translate "Dane kontaktowe" %}</dt>
       <dd>{{ user.get_full_name|default:user.email }}, {{ user.email }}{% if participant.phone %},
-        tel. {{ participant.phone }}{% endif %}</dd>
+        {% blocktranslate trimmed with phone=participant.phone %}tel. {{ phone }}{% endblocktranslate %}{% endif %}</dd>
       <dt>{% translate "Szkoła i klasa" %}</dt>
       <dd>{{ participant.school }}{% if participant.grade %},
         {% blocktranslate trimmed with grade=participant.grade %}klasa {{ grade }}{% endblocktranslate %}{% endif %}

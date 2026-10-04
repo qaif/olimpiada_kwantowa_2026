@@ -82,7 +82,7 @@
   display: inline-block;
   width: min(60%, 22rem);
   height: 0.9rem;
-  margin-right: var(--sp-2);
+  margin-inline-end: var(--sp-2);
   overflow: hidden;
   border: 1px solid var(--line-strong);
   border-radius: var(--radius-sm);

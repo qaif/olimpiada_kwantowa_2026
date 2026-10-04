@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load static wagtailcore_tags wagtailimages_tags web_extras %}
+{% load i18n static wagtailcore_tags wagtailimages_tags web_extras %}
 {# Strona główna jest witryną – tytuł karty to sama nazwa serwisu, bez powtórzenia. #}
 {% block title %}{{ settings.cms.SiteSettings.site_name }}{% endblock %}
 {% block page_scripts %}
@@ -17,7 +17,7 @@
   karcie i bez ruchu przy ``prefers-reduced-motion``). Jedna plansza = zwykły nagłówek bez
   kontrolek.
 {% endcomment %}
-<section class="hero hero--slider" data-hero-slider aria-roledescription="karuzela" aria-label="Najważniejsze informacje">
+<section class="hero hero--slider" data-hero-slider aria-roledescription="{% translate 'karuzela' %}" aria-label="{% translate 'Najważniejsze informacje' %}">
   {# Plansza z hasłem wyłączona w /cms/ – hasło zostaje jako jedyny <h1> strony, ukryty dla oka. #}
   {% if not hero_show_intro %}<h1 class="visually-hidden">{{ page.hero_title|default:page.title }}</h1>{% endif %}
   <div class="hero-slider__viewport" data-hero-slider-viewport tabindex="-1">
@@ -26,7 +26,7 @@
       {% if block.block_type == "poster" %}
         {% with poster=block.value %}
           <div class="hero-slide hero-poster hero-poster--{{ poster.theme|default:'czerwony' }}" data-hero-slide
-               role="group" aria-roledescription="plansza" aria-label="{{ poster.title }}">
+               role="group" aria-roledescription="{% translate 'plansza' %}" aria-label="{{ poster.title }}">
             <div class="hero-poster__body">
               {% if poster.kicker %}<p class="hero-poster__kicker"><span>{{ poster.kicker }}</span></p>{% endif %}
               {# Akapit, nie nagłówek: plakat stoi przed planszą z jedynym <h1> strony. #}
@@ -37,8 +37,8 @@
                 po zmianie terminu w panelu koordynatora plakat mówi nowy termin sam.
               {% endcomment %}
               {% if poster.show_registration_end and registration.closes_at %}
-                <p class="hero-poster__deadline">Rejestracja trwa do
-                  <strong>{{ registration.closes_at|date:"j E Y" }}</strong></p>
+                <p class="hero-poster__deadline">{% blocktranslate trimmed with closes=registration.closes_at|date:"j E Y" %}Rejestracja trwa do
+                  <strong>{{ closes }}</strong>{% endblocktranslate %}</p>
               {% endif %}
               {% if poster.button_label and poster.button_url %}
                 <p class="hero-poster__actions">
@@ -82,7 +82,7 @@
         {% endcomment %}
         {% with slide=block.value %}
           <div class="hero-slide hero-slide--image" data-hero-slide
-               role="group" aria-roledescription="plansza" aria-label="{{ slide.alt }}">
+               role="group" aria-roledescription="{% translate 'plansza' %}" aria-label="{{ slide.alt }}">
             {% if slide.link_url %}<a class="hero-image__link" href="{{ slide.link_url }}">{% endif %}
             {% if forloop.first %}
               {% image slide.image max-1600x900 alt=slide.alt class="hero-image__img" decoding="async" %}
@@ -96,19 +96,19 @@
     {% endfor %}
 
     {% if hero_show_intro %}
-    <div class="hero-slide hero-slide--intro" data-hero-slide role="group" aria-roledescription="plansza"
+    <div class="hero-slide hero-slide--intro" data-hero-slide role="group" aria-roledescription="{% translate 'plansza' %}"
          aria-label="{{ page.hero_title|default:page.title }}">
       <div class="hero__inner">
-        {% if edition %}<span class="eyebrow">{{ edition.year_label|edition_title:"Edycja" }}</span>{% endif %}
+        {% if edition %}{% translate "Edycja" as edition_prefix %}<span class="eyebrow">{{ edition.year_label|edition_title:edition_prefix }}</span>{% endif %}
         <h1>{{ page.hero_title|default:page.title }}</h1>
         {% if page.hero_text %}<div class="hero__text">{{ page.hero_text|richtext }}</div>{% endif %}
 
         <div class="hero__actions">
           {% if user.is_authenticated %}
             {% if is_participant %}
-              <a class="btn btn--accent" href="{% url 'web:me' %}">Mój panel</a>
+              <a class="btn btn--accent" href="{% url 'web:me' %}">{% translate "Mój panel" %}</a>
             {% elif is_reviewer %}
-              <a class="btn btn--accent" href="{% url 'web:review-list' %}">Moje recenzje</a>
+              <a class="btn btn--accent" href="{% url 'web:review-list' %}">{% translate "Moje recenzje" %}</a>
             {% elif is_coordinator %}
               <a class="btn btn--accent" href="{% url 'web:coordinator' %}">Panel koordynatora</a>
             {% endif %}
@@ -120,11 +120,11 @@
               niezależnie od tego, czy przyjmujemy nowe.
             {% endcomment %}
             {% if registration.is_open %}
-              <a class="btn btn--accent" href="{% url 'web:register' %}">Zarejestruj się</a>
+              <a class="btn btn--accent" href="{% url 'web:register' %}">{% translate "Zarejestruj się" %}</a>
             {% elif registration.reason == "not_yet" %}
-              <a class="btn btn--accent" href="{% url 'web:register' %}">Rejestracja rusza {{ registration.opens_at|date:"j E Y" }}</a>
+              <a class="btn btn--accent" href="{% url 'web:register' %}">{% blocktranslate with opens=registration.opens_at|date:"j E Y" %}Rejestracja rusza {{ opens }}{% endblocktranslate %}</a>
             {% endif %}
-            <a class="btn btn--secondary" href="{% url 'web:login' %}">Zaloguj się</a>
+            <a class="btn btn--secondary" href="{% url 'web:login' %}">{% translate "Zaloguj się" %}</a>
           {% endif %}
         </div>
 
@@ -140,8 +140,8 @@
         {% endif %}
 
         {% if current_stage %}
-          <p class="hero__status">Etap bieżący: <strong>{{ current_stage.display_name }}</strong>
-            · termin oddania rozwiązań {{ current_stage.deadline_at|local_time }}</p>
+          <p class="hero__status">{% blocktranslate trimmed with stage=current_stage.display_name deadline=current_stage.deadline_at|local_time %}Etap bieżący: <strong>{{ stage }}</strong>
+            · termin oddania rozwiązań {{ deadline }}{% endblocktranslate %}</p>
         {% endif %}
       </div>
     </div>
@@ -150,15 +150,15 @@
 
     {% if page.hero_show_news %}
       {% for item in latest_news %}
-        <div class="hero-slide hero-slide--news" data-hero-slide role="group" aria-roledescription="plansza"
-             aria-label="Aktualność: {{ item.title }}">
+        <div class="hero-slide hero-slide--news" data-hero-slide role="group" aria-roledescription="{% translate 'plansza' %}"
+             aria-label="{% blocktranslate with title=item.title %}Aktualność: {{ title }}{% endblocktranslate %}">
           <div class="hero__inner">
-            <span class="eyebrow">Aktualności · {{ item.date }}</span>
+            <span class="eyebrow">{% blocktranslate with date=item.date %}Aktualności · {{ date }}{% endblocktranslate %}</span>
             <h2 class="hero-news__title">{{ item.title }}</h2>
             {% if item.lead %}<p class="hero__text">{{ item.lead }}</p>{% endif %}
             <div class="hero__actions">
-              <a class="btn btn--accent" href="{% pageurl item %}">Czytaj dalej</a>
-              {% if news_index %}<a class="btn btn--secondary" href="{% pageurl news_index %}">Wszystkie aktualności</a>{% endif %}
+              <a class="btn btn--accent" href="{% pageurl item %}">{% translate "Czytaj dalej" %}</a>
+              {% if news_index %}<a class="btn btn--secondary" href="{% pageurl news_index %}">{% translate "Wszystkie aktualności" %}</a>{% endif %}
             </div>
           </div>
         </div>
@@ -168,10 +168,10 @@
 
   {# Kontrolki odsłania skrypt – bez niego byłyby atrapą (przewijanie i tak działa natywnie). #}
   <div class="hero-slider__controls" data-hero-slider-controls hidden>
-    <button type="button" class="hero-slider__arrow" data-hero-slider-prev aria-label="Poprzednia plansza">&#8249;</button>
+    <button type="button" class="hero-slider__arrow" data-hero-slider-prev aria-label="{% translate 'Poprzednia plansza' %}">&#8249;</button>
     <div class="hero-slider__dots" data-hero-slider-dots></div>
-    <button type="button" class="hero-slider__arrow" data-hero-slider-next aria-label="Następna plansza">&#8250;</button>
-    <button type="button" class="hero-slider__pause" data-hero-slider-pause aria-pressed="false">Wstrzymaj</button>
+    <button type="button" class="hero-slider__arrow" data-hero-slider-next aria-label="{% translate 'Następna plansza' %}">&#8250;</button>
+    <button type="button" class="hero-slider__pause" data-hero-slider-pause aria-pressed="false">{% translate "Wstrzymaj" %}</button>
   </div>
 </section>
 
@@ -181,19 +181,19 @@
   {% if edition %}
     <section class="section">
       <div class="section__head">
-        <h2 class="mt-0">Przebieg zawodów: {{ edition.year_label|edition_title:"edycja" }}</h2>
-        <p class="hint">Wszystkie godziny: czas polski.</p>
+        {% translate "edycja" as edition_prefix %}<h2 class="mt-0">{% blocktranslate with edition=edition.year_label|edition_title:edition_prefix %}Przebieg zawodów: {{ edition }}{% endblocktranslate %}</h2>
+        <p class="hint">{% translate "Wszystkie godziny: czas polski." %}</p>
       </div>
       <ol class="timeline">
         {% for row in stage_rows %}
           <li class="timeline__item {% if row.is_open %}timeline__item--open{% elif row.has_opened %}timeline__item--done{% else %}timeline__item--next{% endif %}">
             <p class="timeline__kind">{{ row.stage.display_name }}</p>
             {% if row.is_open %}
-              <span class="badge badge--accent">etap otwarty</span>
+              <span class="badge badge--accent">{% translate "etap otwarty" %}</span>
             {% elif row.has_opened %}
-              <span class="badge badge--ok">zakończony</span>
+              <span class="badge badge--ok">{% translate "zakończony" %}</span>
             {% else %}
-              <span class="badge badge--neutral">nadchodzący</span>
+              <span class="badge badge--neutral">{% translate "nadchodzący" %}</span>
             {% endif %}
             <dl class="timeline__dates">
               {% comment %}
@@ -202,7 +202,7 @@
                 w tej samej chwili, w której czyta datę.
               {% endcomment %}
               {% if row.stage.location %}
-                <div><dt>Miejsce</dt><dd>{{ row.stage.location }}</dd></div>
+                <div><dt>{% translate "Miejsce" %}</dt><dd>{{ row.stage.location }}</dd></div>
               {% endif %}
               {% comment %}
                 Etap stacjonarny trwający kilka dni (``row.is_onsite_event``) ma **jeden** termin,
@@ -213,34 +213,34 @@
                 dla tego ekranu i dla ``/harmonogram/``.
               {% endcomment %}
               {% if row.is_onsite_event %}
-                <div><dt>Termin</dt><dd>{{ row.date_range }}</dd></div>
+                <div><dt>{% translate "Termin" %}</dt><dd>{{ row.date_range }}</dd></div>
               {% else %}
                 {# Etap w formie rozmowy: „deadline” jest końcem okna rozmów, nie terminem oddania. #}
                 {% if row.stage.is_interview %}
-                  <div><dt>Forma</dt><dd>rozmowa kwalifikacyjna online</dd></div>
+                  <div><dt>{% translate "Forma" %}</dt><dd>{% translate "rozmowa kwalifikacyjna online" %}</dd></div>
                 {% endif %}
-                <div><dt>Otwarcie</dt><dd>{{ row.stage.opens_at|local_datetime }}</dd></div>
+                <div><dt>{% translate "Otwarcie" %}</dt><dd>{{ row.stage.opens_at|local_datetime }}</dd></div>
                 {% if row.stage.is_interview %}
-                  <div><dt>Rozmowy do</dt><dd>{{ row.stage.deadline_at|local_datetime }}</dd></div>
+                  <div><dt>{% translate "Rozmowy do" %}</dt><dd>{{ row.stage.deadline_at|local_datetime }}</dd></div>
                 {% else %}
-                  <div><dt>Deadline</dt><dd>{{ row.stage.deadline_at|local_datetime }}</dd></div>
+                  <div><dt>{% translate "Deadline" %}</dt><dd>{{ row.stage.deadline_at|local_datetime }}</dd></div>
                 {% endif %}
               {% endif %}
             </dl>
             {% if row.has_results %}
-              <a class="btn btn--secondary btn--small" href="{% url 'web:results' row.stage.pk %}">Tabela wyników</a>
+              <a class="btn btn--secondary btn--small" href="{% url 'web:results' row.stage.pk %}">{% translate "Tabela wyników" %}</a>
             {% else %}
-              <p class="hint mt-0">Wyniki nieogłoszone.</p>
+              <p class="hint mt-0">{% translate "Wyniki nieogłoszone." %}</p>
             {% endif %}
           </li>
         {% empty %}
-          <li class="empty"><span class="empty__title">Brak etapów</span>
-            Ta edycja nie ma jeszcze zdefiniowanych etapów.</li>
+          <li class="empty"><span class="empty__title">{% translate "Brak etapów" %}</span>
+            {% translate "Ta edycja nie ma jeszcze zdefiniowanych etapów." %}</li>
         {% endfor %}
       </ol>
     </section>
   {% else %}
-    <p class="notice">Nie ustawiono bieżącej edycji olimpiady.</p>
+    <p class="notice">{% translate "Nie ustawiono bieżącej edycji olimpiady." %}</p>
   {% endif %}
 {% endif %}
 
@@ -264,9 +264,9 @@
     </ol>
     {% if not user.is_authenticated %}
       {% if registration.is_open %}
-        <p class="steps__cta"><a class="btn btn--accent" href="{% url 'web:register' %}">Zarejestruj się</a></p>
+        <p class="steps__cta"><a class="btn btn--accent" href="{% url 'web:register' %}">{% translate "Zarejestruj się" %}</a></p>
       {% elif registration.reason == "not_yet" %}
-        <p class="steps__cta"><a class="btn btn--accent" href="{% url 'web:register' %}">Rejestracja rusza {{ registration.opens_at|date:"j E Y" }}</a></p>
+        <p class="steps__cta"><a class="btn btn--accent" href="{% url 'web:register' %}">{% blocktranslate with opens=registration.opens_at|date:"j E Y" %}Rejestracja rusza {{ opens }}{% endblocktranslate %}</a></p>
       {% endif %}
     {% endif %}
   </section>
@@ -293,8 +293,8 @@
 {% if workshops %}
   <section class="section" id="warsztaty">
     <div class="section__head">
-      <h2 class="mt-0">Warsztaty online</h2>
-      <p class="hint">Bezpłatne spotkania przygotowujące do zawodów. Wszystkie godziny: czas polski.</p>
+      <h2 class="mt-0">{% translate "Warsztaty online" %}</h2>
+      <p class="hint">{% translate "Bezpłatne spotkania przygotowujące do zawodów. Wszystkie godziny: czas polski." %}</p>
     </div>
     <ul class="cards">
       {% for item in workshops %}
@@ -307,7 +307,7 @@
       {% endfor %}
     </ul>
     {% if workshops_page %}
-      <p class="steps__cta"><a class="btn btn--secondary" href="{% pageurl workshops_page %}">Zobacz wszystkie warsztaty</a></p>
+      <p class="steps__cta"><a class="btn btn--secondary" href="{% pageurl workshops_page %}">{% translate "Zobacz wszystkie warsztaty" %}</a></p>
     {% endif %}
 
 {% comment %}
@@ -348,8 +348,8 @@
 {% if news_index or latest_news %}
   <section class="section" id="aktualnosci">
     <div class="section__head">
-      <h2 class="mt-0">Aktualności</h2>
-      {% if news_index %}<a href="{% pageurl news_index %}">Wszystkie aktualności</a>{% endif %}
+      <h2 class="mt-0">{% translate "Aktualności" %}</h2>
+      {% if news_index %}<a href="{% pageurl news_index %}">{% translate "Wszystkie aktualności" %}</a>{% endif %}
     </div>
     {% if latest_news %}
       <ul class="cards">
@@ -364,8 +364,8 @@
         {% endfor %}
       </ul>
     {% else %}
-      <p class="empty"><span class="empty__title">Brak aktualności</span>
-        Komunikaty organizatora – w tym linki do warsztatów – pojawią się tutaj.</p>
+      <p class="empty"><span class="empty__title">{% translate "Brak aktualności" %}</span>
+        {% translate "Komunikaty organizatora – w tym linki do warsztatów – pojawią się tutaj." %}</p>
     {% endif %}
   </section>
 {% endif %}
@@ -401,8 +401,8 @@
 {% if partners_page %}
   <section class="section">
     <div class="section__head">
-      <h2 class="mt-0">Partnerzy</h2>
-      <p class="hint"><a href="{% pageurl partners_page %}">Partnerzy i sponsorzy Olimpiady</a></p>
+      <h2 class="mt-0">{% translate "Partnerzy" %}</h2>
+      <p class="hint"><a href="{% pageurl partners_page %}">{% translate "Partnerzy i sponsorzy Olimpiady" %}</a></p>
     </div>
     <ul class="partner-strip">
       {% for block in partners_page.partners %}
@@ -433,9 +433,9 @@
 {% if downloads %}
   <section class="section">
     <div class="section__head">
-      <h2 class="mt-0">Dokumenty do pobrania</h2>
-      <p class="hint">Oficjalne dokumenty organizatora w wersji do wydruku.
-        {% if documents_index %}<a href="{% pageurl documents_index %}">Wszystkie dokumenty</a>{% endif %}</p>
+      <h2 class="mt-0">{% translate "Dokumenty do pobrania" %}</h2>
+      <p class="hint">{% translate "Oficjalne dokumenty organizatora w wersji do wydruku." %}
+        {% if documents_index %}<a href="{% pageurl documents_index %}">{% translate "Wszystkie dokumenty" %}</a>{% endif %}</p>
     </div>
     <div class="card doc-download doc-download--home">
       <ul class="doc-files">
@@ -447,7 +447,7 @@
                 · {{ row.attachment.document.get_file_size|filesizeformat }}</span>
             </div>
             <a class="btn btn--small btn--secondary" href="{{ row.attachment.document.url }}"
-               download>Pobierz PDF</a>
+               download>{% translate "Pobierz PDF" %}</a>
           </li>
         {% endfor %}
       </ul>

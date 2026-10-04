@@ -280,6 +280,10 @@ def participant_dataset(edition, *, include_deleted: bool = False) -> Dataset:
     )
     if not include_deleted:
         participants = participants.exclude_anonymised()
+    if edition.competition is not None and edition.competition.has_feature("custom_regions"):
+        # Nazwa kraju/regionu w kolumnie (``get_district_display``, REG-01) czyta ``region`` – jedno
+        # złączenie zamiast zapytania na wiersz, i wyłącznie w konkursie z własnym podziałem.
+        participants = participants.select_related("region")
 
     def _rows() -> Iterator[list]:
         for participant in participants:

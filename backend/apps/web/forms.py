@@ -16,6 +16,7 @@ from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.files.uploadedfile import UploadedFile
 from django.utils import timezone
+from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy
 
 from apps.accounts.consents import (
@@ -77,13 +78,75 @@ from apps.web.points_fields import MAX_POINTS_INPUT, PointsField
 
 # Pusta pozycja na początku listy: przeglądarka inaczej wybrałaby pierwsze województwo za
 # rejestrującego się i cichaczem przypisała mu okręg, którego nigdy świadomie nie wskazał.
-EMPTY_VOIVODESHIP_CHOICE = ("", "— wybierz województwo —")
+EMPTY_VOIVODESHIP_CHOICE = ("", gettext_lazy("— wybierz województwo —"))
 VOIVODESHIP_CHOICES = (EMPTY_VOIVODESHIP_CHOICE, *Voivodeship.choices)
 
 
-def voivodeship_field(label: str, *, required: bool = True) -> forms.ChoiceField:
-    """Pole wyboru województwa. Lista jest zamknięta – wolny tekst nie ma tu wstępu."""
-    return forms.ChoiceField(label=label, choices=VOIVODESHIP_CHOICES, required=required)
+def _custom_regions_competition():
+    """Konkurs kontekstu, o ile ma włączony własny podział (``custom_regions``); inaczej ``None``.
+
+    Kontekst, a nie argument formularza: pole ``district`` stoi w kilkunastu formularzach
+    wołanych z kilkunastu widoków, a każdy z nich działa w żądaniu, w którym
+    ``CompetitionMiddleware`` już związał konkurs. Przy wyłączonej fladze odpowiedź nie kosztuje
+    zapytania – ``has_feature`` czyta słownik z wczytanego wiersza.
+    """
+    from apps.accounts.services import CUSTOM_REGIONS_FLAG
+    from apps.tenancy.context import current_competition
+
+    competition = current_competition()
+    if competition is None or not competition.has_feature(CUSTOM_REGIONS_FLAG):
+        return None
+    return competition
+
+
+def district_choices() -> tuple:
+    """Pozycje listy „województwo / kraj / region” dla konkursu kontekstu (docs/tasks/REG-01.md § 1.1).
+
+    Przy wyłączonej fladze ``custom_regions`` – dokładnie :data:`VOIVODESHIP_CHOICES`, ta sama
+    krotka co dotąd (Olimpiada Kwantowa nie zmienia ani bajtu HTML-a). Przy włączonej – **aktywne**
+    regiony konkursu w kolejności ``position, name``; wartością jest ``region.code``, bo to on
+    trafia do ``district`` i po nim serwis rejestracji znajduje region
+    (``apps.accounts.services._resolve_region``). Funkcja, a nie stała: ``ChoiceField`` z wywoływalnym
+    ``choices`` liczy listę przy każdym renderze i każdej walidacji, więc region dezaktywowany
+    w panelu znika z formularza bez restartu procesu.
+    """
+    competition = _custom_regions_competition()
+    if competition is None:
+        return VOIVODESHIP_CHOICES
+    from apps.accounts.regions import district_choice_pairs
+
+    return (("", _("— wybierz —")), *district_choice_pairs(competition))
+
+
+def _district_label(label, suffix: str = ""):
+    """Etykieta pola ``district``: podana (przy województwach) albo słowo podziału konkursu.
+
+    Leniwa, bo pola formularza powstają raz, przy imporcie modułu, a konkurs (i jego podział)
+    jest znany dopiero w żądaniu. ``suffix`` to dopisek ekranów koordynatora („narzucone kodem”).
+    """
+    from django.utils.functional import lazy
+
+    def build() -> str:
+        competition = _custom_regions_competition()
+        if competition is None:
+            return str(label)
+        from apps.accounts.regions import region_noun
+
+        noun = region_noun(competition)
+        return f"{noun} ({suffix})" if suffix else noun
+
+    return lazy(build, str)()
+
+
+def voivodeship_field(label: str, *, required: bool = True, suffix: str = "") -> forms.ChoiceField:
+    """Pole wyboru województwa – albo regionu konkursu z własnym podziałem (kraju w ``iqo``).
+
+    Lista jest zamknięta – wolny tekst nie ma tu wstępu. Nazwa funkcji zostaje (woła ją kilkanaście
+    formularzy); co znaczy „województwo” w danym konkursie, rozstrzyga :func:`district_choices`.
+    """
+    return forms.ChoiceField(
+        label=_district_label(label, suffix), choices=district_choices, required=required
+    )
 
 
 def phone_field(*, required: bool = True) -> forms.CharField:
@@ -100,10 +163,10 @@ def phone_field(*, required: bool = True) -> forms.CharField:
     w tamtej regule, więc kontrolka zostawała przy domyślnych dwudziestu znakach przeglądarki.
     """
     return forms.CharField(
-        label="Telefon",
+        label=gettext_lazy("Telefon"),
         max_length=32,
         required=required,
-        help_text="Do kontaktu w sprawach organizacyjnych, np. +48 600 000 000.",
+        help_text=gettext_lazy("Do kontaktu w sprawach organizacyjnych, np. +48 600 000 000."),
         widget=forms.TextInput(attrs={"type": "tel", "autocomplete": "tel"}),
     )
 
@@ -114,7 +177,7 @@ def phone_field(*, required: bool = True) -> forms.CharField:
 #: (``ConsentFieldsMixin.clean``), ale nie było **widoczne**: uczestnik wpisywał datę i nic się
 #: nie działo, a odmowę poznawał dopiero po wysłaniu formularza. Zdanie mówi wprost, czego się
 #: spodziewać; sam blok zgody odsłania ``static/js/register-age.js``.
-BIRTH_DATE_MINOR_HINT = (
+BIRTH_DATE_MINOR_HINT = gettext_lazy(
     "Osoby niepełnoletnie potrzebują zgody opiekuna – pole poniżej pojawi się automatycznie."
 )
 
@@ -147,7 +210,7 @@ def birth_date_field(*, help_text: str = "", required: bool = True) -> forms.Dat
     nie pojawi.
     """
     return forms.DateField(
-        label="Data urodzenia",
+        label=gettext_lazy("Data urodzenia"),
         required=required,
         input_formats=BIRTH_DATE_INPUT_FORMATS,
         help_text=help_text,
@@ -174,10 +237,11 @@ def clean_birth_date(value):
         return value
     today = timezone.localdate()
     if value > today:
-        raise forms.ValidationError("Data urodzenia nie może być z przyszłości.")
+        raise forms.ValidationError(_("Data urodzenia nie może być z przyszłości."))
     if value < MIN_BIRTH_DATE:
         raise forms.ValidationError(
-            f"Data urodzenia nie może być wcześniejsza niż {MIN_BIRTH_DATE:%d.%m.%Y}."
+            _("Data urodzenia nie może być wcześniejsza niż %(date)s.")
+            % {"date": f"{MIN_BIRTH_DATE:%d.%m.%Y}"}
         )
     return value
 
@@ -192,7 +256,7 @@ def _clean_birth_date_method(self):
     return clean_birth_date(self.cleaned_data.get("birth_date"))
 
 
-def password_field(label: str = "Hasło") -> forms.CharField:
+def password_field(label: str = gettext_lazy("Hasło")) -> forms.CharField:
     """Pole hasła przy zakładaniu konta.
 
     ``autocomplete="new-password"`` jest tu istotne: bez niego przeglądarka podstawia **zapisane**
@@ -209,7 +273,7 @@ def password_field(label: str = "Hasło") -> forms.CharField:
 #: (widoki wołają serwisy ``**form.cleaned_data``, więc każdy nadmiarowy klucz byłby TypeError).
 PASSWORD_CONFIRM_FIELD = "password2"
 
-PASSWORD_MISMATCH_MESSAGE = "Hasła nie są identyczne."
+PASSWORD_MISMATCH_MESSAGE = gettext_lazy("Hasła nie są identyczne.")
 
 
 def clean_password_pair(form: forms.Form, cleaned: dict | None) -> dict:
@@ -363,10 +427,10 @@ class SchoolChoiceMixin(forms.Form):
         required=False, min_value=1, widget=forms.HiddenInput(attrs={"data-picker": "school-id"})
     )
     school_city = forms.CharField(
-        label="Miejscowość",
+        label=gettext_lazy("Miejscowość"),
         required=False,
         max_length=120,
-        help_text=(
+        help_text=gettext_lazy(
             "Wpisz pierwsze litery i wybierz miejscowość z podpowiedzi. "
             "Pole „Szkoła” pokaże wtedy pełną listę szkół z tej miejscowości."
         ),
@@ -382,10 +446,10 @@ class SchoolChoiceMixin(forms.Form):
         ),
     )
     school_query = forms.CharField(
-        label="Szkoła",
+        label=gettext_lazy("Szkoła"),
         required=False,
         max_length=255,
-        help_text="Zacznij pisać nazwę lub miejscowość i wybierz szkołę z podpowiedzi.",
+        help_text=gettext_lazy("Zacznij pisać nazwę lub miejscowość i wybierz szkołę z podpowiedzi."),
         widget=forms.TextInput(
             attrs={
                 "autocomplete": "off",
@@ -398,12 +462,12 @@ class SchoolChoiceMixin(forms.Form):
         ),
     )
     school_custom = forms.BooleanField(
-        label="Mojej szkoły nie ma na liście",
+        label=gettext_lazy("Mojej szkoły nie ma na liście"),
         required=False,
         widget=forms.CheckboxInput(attrs={"data-picker": "custom"}),
     )
     school = forms.CharField(
-        label="Nazwa szkoły",
+        label=gettext_lazy("Nazwa szkoły"),
         required=False,
         max_length=255,
         widget=forms.TextInput(attrs={"data-picker": "free-input"}),
@@ -470,7 +534,7 @@ class SchoolChoiceMixin(forms.Form):
         added: list[str] = []
         if len(allowed) > 1:
             self.fields[INSTITUTION_TYPE_FIELD] = forms.ChoiceField(
-                label="Rodzaj placówki",
+                label=_("Rodzaj placówki"),
                 choices=[(value, label) for value, label in InstitutionType.choices if value in allowed],
                 # Atrybut ``data-picker`` jest umową z ``static/js/school-picker.js`` (T25):
                 # skrypt czyta z niego, jakiego rodzaju placówek szukać w podpowiedziach. Bez
@@ -490,18 +554,18 @@ class SchoolChoiceMixin(forms.Form):
             self.fields.pop("school", None)
         if profile.allow_foreign:
             self.fields[COUNTRY_FIELD] = forms.CharField(
-                label="Kraj",
+                label=_("Kraj"),
                 required=False,
                 max_length=2,
-                help_text="Dwuliterowy kod kraju (ISO 3166-1), na przykład „DE”. Puste znaczy Polska.",
+                help_text=_("Dwuliterowy kod kraju (ISO 3166-1), na przykład „DE”. Puste znaczy Polska."),
             )
             added.append(COUNTRY_FIELD)
         if set(allowed) - set(DIRECTORY_INSTITUTION_TYPES) - {InstitutionType.NONE}:
             self.fields[INSTITUTION_NAME_FIELD] = forms.CharField(
-                label="Nazwa placówki",
+                label=_("Nazwa placówki"),
                 required=False,
                 max_length=255,
-                help_text="Wypełnij, jeżeli Twojej placówki nie ma w wykazie.",
+                help_text=_("Wypełnij, jeżeli Twojej placówki nie ma w wykazie."),
             )
             added.append(INSTITUTION_NAME_FIELD)
         self._apply_profile_requirements(profile)
@@ -519,7 +583,7 @@ class SchoolChoiceMixin(forms.Form):
         if grade is not None:
             low, high = profile.grade_range()
             grade.choices = [
-                ("", "— wybierz klasę —"),
+                ("", _("— wybierz klasę —")),
                 *((str(value), str(value)) for value in range(low, high + 1)),
             ]
             grade.required = profile.require_grade
@@ -589,14 +653,14 @@ class SchoolChoiceMixin(forms.Form):
         if not self.registration_profile.allow_free_text_school and not cleaned.get("school_id"):
             # Konkurs bez furtki na wolny tekst mówi to jednym zdaniem, pod polem wyszukiwarki –
             # dzisiejsze komunikaty odsyłałyby do kratki, której w tym formularzu nie ma.
-            self.add_error("school_query", "Wybierz placówkę z listy.")
+            self.add_error("school_query", _("Wybierz placówkę z listy."))
             return cleaned
         if custom:
             # Zaznaczony wyjątek unieważnia wcześniejszy wybór z listy: liczy się ostatnia decyzja
             # uczestnika, a nie kolejność, w jakiej klikał.
             cleaned["school_id"] = None
             if not free_text:
-                self.add_error("school", "Podaj nazwę szkoły.")
+                self.add_error("school", _("Podaj nazwę szkoły."))
         elif cleaned.get("school_id"):
             # Wybór ze słownika wygrywa: nazwę i tak przepisze ``_resolve_school`` z rejestru,
             # więc trzymanie obok niej wolnego tekstu dawałoby dwie wersje tej samej szkoły.
@@ -607,12 +671,12 @@ class SchoolChoiceMixin(forms.Form):
             # obie wyjścia; ktoś, kto nie tknął bloku, potrzebuje zwykłego „to pole jest wymagane”.
             self.add_error(
                 "school_query",
-                (
+                _(
                     "Wybierz szkołę z podpowiedzi albo zaznacz „Mojej szkoły nie ma na liście” "
                     "i wpisz jej nazwę."
                 )
                 if query
-                else "Wybierz szkołę z listy albo zaznacz, że nie ma jej na liście.",
+                else _("Wybierz szkołę z listy albo zaznacz, że nie ma jej na liście."),
             )
         return cleaned
 
@@ -657,7 +721,7 @@ class SchoolChoiceMixin(forms.Form):
             and COUNTRY_FIELD in self.fields
             and not (cleaned.get(COUNTRY_FIELD) or "").strip()
         ):
-            self.add_error(COUNTRY_FIELD, "Podaj kraj.")
+            self.add_error(COUNTRY_FIELD, _("Podaj kraj."))
         return cleaned
 
     def _clean_institution_outside_the_directory(self, cleaned, chosen: str):
@@ -678,10 +742,10 @@ class SchoolChoiceMixin(forms.Form):
             cleaned[INSTITUTION_NAME_FIELD] = ""
             return cleaned
         if not name and INSTITUTION_NAME_FIELD in self.fields:
-            self.add_error(INSTITUTION_NAME_FIELD, "Podaj nazwę placówki.")
+            self.add_error(INSTITUTION_NAME_FIELD, _("Podaj nazwę placówki."))
         if chosen == InstitutionType.FOREIGN and COUNTRY_FIELD in self.fields:
             if not (cleaned.get(COUNTRY_FIELD) or "").strip():
-                self.add_error(COUNTRY_FIELD, "Podaj kraj.")
+                self.add_error(COUNTRY_FIELD, _("Podaj kraj."))
         return cleaned
 
 
@@ -768,7 +832,7 @@ class EmailAuthenticationForm(AuthenticationForm):
     """Logowanie adresem e-mail. ``AuthenticationForm`` trzyma login w polu ``username``."""
 
     username = forms.EmailField(
-        label="Adres e-mail",
+        label=gettext_lazy("Adres e-mail"),
         max_length=254,
         widget=forms.EmailInput(attrs={"autocomplete": "username", "autofocus": True}),
     )
@@ -780,8 +844,11 @@ class EmailAuthenticationForm(AuthenticationForm):
 def grade_field() -> forms.TypedChoiceField:
     """Klasa uczestnika. Lista zamknięta – rocznik spoza 1–5 nie istnieje w szkole ponadpodstawowej."""
     return forms.TypedChoiceField(
-        label="Klasa",
-        choices=[("", "— wybierz klasę —"), *((str(value), label) for value, label in GRADE_CHOICES)],
+        label=gettext_lazy("Klasa"),
+        choices=[
+            ("", gettext_lazy("— wybierz klasę —")),
+            *((str(value), label) for value, label in GRADE_CHOICES),
+        ],
         coerce=int,
         empty_value=None,
     )
@@ -821,13 +888,17 @@ class ParticipantRegisterForm(CaptchaFormMixin, ConsentFieldsMixin, SchoolChoice
     required_css_class = REQUIRED_CSS_CLASS
     field_order = [name for name in PARTICIPANT_FIELD_ORDER]
 
-    email = forms.EmailField(label="Adres e-mail", max_length=254)
+    email = forms.EmailField(label=gettext_lazy("Adres e-mail"), max_length=254)
     password = password_field()
-    password2 = password_field("Powtórz hasło")
-    first_name = forms.CharField(label="Imię", max_length=150, validators=[validate_person_name])
-    last_name = forms.CharField(label="Nazwisko", max_length=150, validators=[validate_person_name])
+    password2 = password_field(gettext_lazy("Powtórz hasło"))
+    first_name = forms.CharField(
+        label=gettext_lazy("Imię"), max_length=150, validators=[validate_person_name]
+    )
+    last_name = forms.CharField(
+        label=gettext_lazy("Nazwisko"), max_length=150, validators=[validate_person_name]
+    )
     phone = phone_field()
-    district = voivodeship_field("Województwo")
+    district = voivodeship_field(gettext_lazy("Województwo"))
     grade = grade_field()
     birth_date = birth_date_field(help_text=BIRTH_DATE_MINOR_HINT)
 
@@ -856,10 +927,14 @@ class SocialParticipantSignupForm(ConsentFieldsMixin, SchoolChoiceMixin):
         name for name in PARTICIPANT_FIELD_ORDER if name not in ("email", "password", PASSWORD_CONFIRM_FIELD)
     ]
 
-    first_name = forms.CharField(label="Imię", max_length=150, validators=[validate_person_name])
-    last_name = forms.CharField(label="Nazwisko", max_length=150, validators=[validate_person_name])
+    first_name = forms.CharField(
+        label=gettext_lazy("Imię"), max_length=150, validators=[validate_person_name]
+    )
+    last_name = forms.CharField(
+        label=gettext_lazy("Nazwisko"), max_length=150, validators=[validate_person_name]
+    )
     phone = phone_field()
-    district = voivodeship_field("Województwo")
+    district = voivodeship_field(gettext_lazy("Województwo"))
     grade = grade_field()
     birth_date = birth_date_field(help_text=BIRTH_DATE_MINOR_HINT)
 
@@ -884,13 +959,19 @@ class CommitteeRegisterForm(CaptchaFormMixin):
         "district",
     ]
 
-    email = forms.EmailField(label="Adres e-mail", max_length=254)
+    email = forms.EmailField(label=gettext_lazy("Adres e-mail"), max_length=254)
     password = password_field()
-    password2 = password_field("Powtórz hasło")
-    first_name = forms.CharField(label="Imię", max_length=150, validators=[validate_person_name])
-    last_name = forms.CharField(label="Nazwisko", max_length=150, validators=[validate_person_name])
-    invitation_code = forms.CharField(label="Kod zaproszenia", max_length=200)
-    district = voivodeship_field("Województwo (deklarowane)", required=False)
+    password2 = password_field(gettext_lazy("Powtórz hasło"))
+    first_name = forms.CharField(
+        label=gettext_lazy("Imię"), max_length=150, validators=[validate_person_name]
+    )
+    last_name = forms.CharField(
+        label=gettext_lazy("Nazwisko"), max_length=150, validators=[validate_person_name]
+    )
+    invitation_code = forms.CharField(label=gettext_lazy("Kod zaproszenia"), max_length=200)
+    district = voivodeship_field(
+        gettext_lazy("Województwo (deklarowane)"), required=False, suffix=gettext_lazy("deklarowane")
+    )
 
     def clean(self):
         return clean_password_pair(self, super().clean())
@@ -964,10 +1045,14 @@ class ParticipantProfileForm(SchoolChoiceMixin):
     profile_driven = False
     field_order = [name for name in PARTICIPANT_PROFILE_FIELD_ORDER]
 
-    first_name = forms.CharField(label="Imię", max_length=150, validators=[validate_person_name])
-    last_name = forms.CharField(label="Nazwisko", max_length=150, validators=[validate_person_name])
+    first_name = forms.CharField(
+        label=gettext_lazy("Imię"), max_length=150, validators=[validate_person_name]
+    )
+    last_name = forms.CharField(
+        label=gettext_lazy("Nazwisko"), max_length=150, validators=[validate_person_name]
+    )
     phone = phone_field()
-    district = voivodeship_field("Województwo")
+    district = voivodeship_field(gettext_lazy("Województwo"))
     grade = grade_field()
     birth_date = birth_date_field()
 
@@ -975,10 +1060,10 @@ class ParticipantProfileForm(SchoolChoiceMixin):
     # Opcjonalne i odwracalne jednym wyczyszczeniem pola: to uczestnik decyduje, czy nauczyciel
     # ma widzieć jego postęp, i tylko on może tę decyzję cofnąć (patrz ``apps.accounts.supervisors``).
     supervisor_email = forms.EmailField(
-        label="Adres e-mail opiekuna szkolnego",
+        label=gettext_lazy("Adres e-mail opiekuna szkolnego"),
         max_length=254,
         required=False,
-        help_text=(
+        help_text=gettext_lazy(
             "Opcjonalnie. Opiekun z kontem w serwisie zobaczy Twój kod, imię, nazwisko i to, "
             "na jakim etapie procedury są Twoje prace – nigdy punktów przed ogłoszeniem wyników "
             "ani samych prac. Puste pole znaczy „nie mam opiekuna”."
@@ -1024,17 +1109,21 @@ class AccountNamesForm(forms.Form):
     wejść na prace ze swojego województwa. Zmiana (i usunięcie) zostaje u koordynatora.
     """
 
-    first_name = forms.CharField(label="Imię", max_length=150, validators=[validate_person_name])
-    last_name = forms.CharField(label="Nazwisko", max_length=150, validators=[validate_person_name])
+    first_name = forms.CharField(
+        label=gettext_lazy("Imię"), max_length=150, validators=[validate_person_name]
+    )
+    last_name = forms.CharField(
+        label=gettext_lazy("Nazwisko"), max_length=150, validators=[validate_person_name]
+    )
 
 
 class EmailChangeForm(forms.Form):
     """Wniosek o zmianę adresu e-mail konta. Adres zmienia się dopiero po kliknięciu w potwierdzenie."""
 
     new_email = forms.EmailField(
-        label="Nowy adres e-mail",
+        label=gettext_lazy("Nowy adres e-mail"),
         max_length=254,
-        help_text=(
+        help_text=gettext_lazy(
             "Na ten adres wyślemy link potwierdzający. Do czasu potwierdzenia logujesz się "
             "dotychczasowym adresem."
         ),
@@ -1044,7 +1133,7 @@ class EmailChangeForm(forms.Form):
 class ActivationResendForm(forms.Form):
     """Ponowna wysyłka linku aktywacyjnego. Odpowiedź jest zawsze ta sama – bez enumeracji kont."""
 
-    email = forms.EmailField(label="Adres e-mail", max_length=254)
+    email = forms.EmailField(label=gettext_lazy("Adres e-mail"), max_length=254)
 
     def clean_email(self) -> str:
         return (self.cleaned_data.get("email") or "").strip().lower()
@@ -1060,14 +1149,14 @@ class AccountDeleteForm(forms.Form):
     """
 
     password = forms.CharField(
-        label="Aktualne hasło",
+        label=gettext_lazy("Aktualne hasło"),
         required=False,
         widget=forms.PasswordInput(attrs={"autocomplete": "current-password"}),
         max_length=200,
     )
-    email = forms.CharField(label="Adres e-mail konta", required=False, max_length=254)
+    email = forms.CharField(label=gettext_lazy("Adres e-mail konta"), required=False, max_length=254)
     confirm = forms.BooleanField(
-        label="Rozumiem, że tej operacji nie da się odwrócić.",
+        label=gettext_lazy("Rozumiem, że tej operacji nie da się odwrócić."),
         label_suffix="",
     )
 
@@ -1082,9 +1171,9 @@ class SubmissionUploadForm(forms.Form):
     szablon (etykieta jest per karta), więc formularz trzyma samo pole i komunikat odmowy.
     """
 
-    file = forms.FileField(label="Plik rozwiązania")
+    file = forms.FileField(label=gettext_lazy("Plik rozwiązania"))
     confirmed = forms.BooleanField(
-        label="Potwierdzam, że to rozwiązanie właściwego zadania i plik jest czytelny",
+        label=gettext_lazy("Potwierdzam, że to rozwiązanie właściwego zadania i plik jest czytelny"),
         error_messages={
             "required": gettext_lazy(
                 "Zaznacz potwierdzenie, że wysyłasz rozwiązanie właściwego zadania i że plik jest czytelny."
@@ -1152,7 +1241,7 @@ class AppealForm(forms.Form):
     """Reklamacja uczestnika. Dolny limit długości powtarza regułę domeny dla czytelnego błędu."""
 
     argument = forms.CharField(
-        label="Uzasadnienie reklamacji",
+        label=gettext_lazy("Uzasadnienie reklamacji"),
         widget=forms.Textarea(attrs={"rows": 5}),
         min_length=MIN_ARGUMENT_LENGTH,
         max_length=MAX_TEXT_LENGTH,
@@ -1286,7 +1375,7 @@ class CoordinatorParticipantForm(SchoolChoiceMixin):
     allow_unknown_birth_date = True
 
     phone = phone_field()
-    district = voivodeship_field("Województwo")
+    district = voivodeship_field(gettext_lazy("Województwo"))
     grade = grade_field()
     birth_date = birth_date_field(
         required=False,
@@ -1318,7 +1407,7 @@ class CoordinatorCommitteeForm(forms.Form):
 class InvitationForm(forms.Form):
     """Generowanie kodu zaproszenia. Kod jawny jest pokazywany dokładnie raz."""
 
-    district = voivodeship_field("Województwo (narzucone kodem)", required=False)
+    district = voivodeship_field("Województwo (narzucone kodem)", required=False, suffix="narzucone kodem")
     valid_days = forms.IntegerField(label="Ważność (dni)", min_value=1, max_value=365, initial=14)
     max_uses = forms.IntegerField(label="Limit użyć", min_value=1, max_value=100, initial=1)
     is_appeals = forms.BooleanField(label="Komisja odwoławcza", required=False)
@@ -1346,7 +1435,7 @@ class BulkInvitationForm(forms.Form):
             f"Najwyżej {MAX_INVITATION_EMAILS} adresów na raz."
         ),
     )
-    district = voivodeship_field("Województwo (narzucone kodem)", required=False)
+    district = voivodeship_field("Województwo (narzucone kodem)", required=False, suffix="narzucone kodem")
     valid_days = forms.IntegerField(label="Ważność (dni)", min_value=1, max_value=365, initial=14)
     is_appeals = forms.BooleanField(label="Komisja odwoławcza", required=False)
     requires_approval = forms.BooleanField(label="Wymaga zatwierdzenia (PENDING)", required=False)

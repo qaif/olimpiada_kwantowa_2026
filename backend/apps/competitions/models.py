@@ -150,6 +150,17 @@ def validate_scoring_values(
         raise ValidationError({max_field: f"{max_field} musi być równe największej wartości skali."})
 
 
+def _prefers_english() -> bool:
+    """Czy aktywny język ma dostać angielską wersję treści zadania (gdy istnieje).
+
+    Każdy język poza polskim (I18N-01 § 10): pola ``*_en`` są jedynym tłumaczeniem treści zadań,
+    a angielski jest dla uczestnika międzynarodowego bliższy niż polski oryginał.
+    """
+    from django.utils.translation import get_language
+
+    return (get_language() or "pl").split("-")[0].lower() != "pl"
+
+
 def default_allowed_formats() -> list[str]:
     return list(DEFAULT_ALLOWED_FORMATS)
 
@@ -1003,10 +1014,12 @@ class Problem(models.Model):
         Jedno miejsce dla szablonów, eksportów i listów, żeby „a w tym widoku pokazuje się po
         polsku” nie było pytaniem do zadania trzy razy. Odwrót jest świadomy: zadanie bez
         tłumaczenia ma być czytelne, a nie puste.
-        """
-        from django.utils.translation import get_language
 
-        if (get_language() or "").split("-")[0] == "en" and self.title_en:
+        Wersja angielska obsługuje **każdy** język poza polskim (I18N-01 § 10): uczestnik
+        z interfejsem chińskim czy arabskim lepiej przeczyta angielski tytuł niż polski, a pól
+        tytułu na jedenaście języków nikt by nie wypełnił.
+        """
+        if _prefers_english() and self.title_en:
             return self.title_en
         return self.title
 
@@ -1018,9 +1031,7 @@ class Problem(models.Model):
         jak dotąd. Bramka czasowa (``stage.opens_at``) nie zmienia się ani na jotę: to ten sam
         dokument w drugim języku, nie materiał o innej wrażliwości.
         """
-        from django.utils.translation import get_language
-
-        if (get_language() or "").split("-")[0] == "en" and self.statement_pdf_en:
+        if _prefers_english() and self.statement_pdf_en:
             return self.statement_pdf_en
         return self.statement_pdf
 

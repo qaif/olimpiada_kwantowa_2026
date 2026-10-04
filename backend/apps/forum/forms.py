@@ -33,10 +33,10 @@ class PostForm(forms.Form):
     required_css_class = REQUIRED_CSS_CLASS
 
     body = forms.CharField(
-        label="Treść",
+        label=gettext_lazy("Treść"),
         max_length=MAX_POST_LENGTH,
         widget=forms.Textarea(attrs={"rows": 6}),
-        help_text=(
+        help_text=gettext_lazy(
             "Zwykły tekst. Odnośniki zamieniamy na klikalne same – znaczników HTML i załączników "
             "forum nie przyjmuje."
         ),
@@ -46,8 +46,8 @@ class PostForm(forms.Form):
 class ThreadForm(PostForm):
     """Nowy wątek: temat, dział i pierwsza wypowiedź."""
 
-    title = forms.CharField(label="Temat", max_length=MAX_TITLE_LENGTH)
-    category = forms.ModelChoiceField(label="Dział", queryset=None, empty_label=None)
+    title = forms.CharField(label=gettext_lazy("Temat"), max_length=MAX_TITLE_LENGTH)
+    category = forms.ModelChoiceField(label=gettext_lazy("Dział"), queryset=None, empty_label=None)
 
     def __init__(self, *args, categories=None, **kwargs):
         super().__init__(*args, **kwargs)
@@ -61,10 +61,10 @@ class ReportForm(forms.Form):
     required_css_class = REQUIRED_CSS_CLASS
 
     reason = forms.CharField(
-        label="Dlaczego zgłaszasz ten wpis",
+        label=gettext_lazy("Dlaczego zgłaszasz ten wpis"),
         max_length=MAX_REASON_LENGTH,
         widget=forms.Textarea(attrs={"rows": 3}),
-        help_text="Napisz krótko, co jest nie tak. Zgłoszenie widzi wyłącznie organizator.",
+        help_text=gettext_lazy("Napisz krótko, co jest nie tak. Zgłoszenie widzi wyłącznie organizator."),
     )
 
 
@@ -99,9 +99,8 @@ class ForumSettingsForm(forms.Form):
 class NotificationSettingsForm(forms.Form):
     """Ustawienia powiadomień e-mail z forum na ekranie „Edycja danych”.
 
-    W odróżnieniu od reszty formularzy forum etykiety **są tłumaczone**: stoją na ekranie konta,
-    który ma wersję angielską (``apps.accounts.preferences`` – zakres tłumaczenia), a nie na
-    ekranie forum. Pole listów o kolejce moderacji dostaje tylko koordynator – u pozostałych kont
+    Etykiety są tłumaczone, jak w pozostałych formularzach forum (język interfejsu konkursu,
+    I18N-01). Pole listów o kolejce moderacji dostaje tylko koordynator – u pozostałych kont
     nie ma czego ustawiać, bo tych listów i tak nie dostają.
     """
 

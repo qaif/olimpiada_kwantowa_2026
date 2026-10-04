@@ -67,7 +67,7 @@
   background: var(--navy-800);
   color: #f4f1e8;
   border-radius: var(--radius-lg);
-  border-left: 4px solid var(--accent-rule);
+  border-inline-start: 4px solid var(--accent-rule);
   padding: var(--sp-4) var(--sp-6);
   margin: 0 0 var(--sp-4);
   box-shadow: var(--shadow-sm);
@@ -130,7 +130,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--sp-1);
-  text-align: right;
+  text-align: end;
 }
 
 .now__deadline-label {
@@ -196,8 +196,8 @@
 
 /* Odstęp przed ekranami, które są osobnymi adresami, a nie zakładkami pulpitu. */
 .p-tabs__item--aside:first-of-type {
-  margin-left: auto;
-  padding-left: var(--sp-4);
+  margin-inline-start: auto;
+  padding-inline-start: var(--sp-4);
 }
 
 .p-tabs__link {
@@ -370,7 +370,7 @@
   }
 
   .now__deadline {
-    text-align: left;
+    text-align: start;
   }
 
   /* Przycisk czynności i przycisk wysyłki zajmują całą szerokość – na dotyku cel ma być duży
@@ -472,6 +472,6 @@
   }
 
   .dropzone__drag {
-    text-align: left;
+    text-align: start;
   }
 }

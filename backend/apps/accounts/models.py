@@ -321,6 +321,35 @@ def region_for_district(competition, district: str | None) -> Region | None:
     return None
 
 
+def region_display_name(profile) -> str | None:
+    """Nazwa regionu profilu do pokazania człowiekowi – **jedno** miejsce (docs/tasks/REG-01.md § 1.2).
+
+    Wołają ją ``get_district_display`` uczestnika, członka komitetu i kodu zaproszenia, więc każde
+    miejsce UI, eksportu i listu, które dziś pisze ``get_district_display``, dostaje nazwę kraju
+    bez zmiany w szablonie.
+
+    Kolejność jest ustawiona tak, żeby konkurs z województwami nie zmienił **ani bajtu**:
+
+    1. wartość z listy województw → etykieta ``Voivodeship`` (dokładnie jak dotąd, bez zapytania),
+    2. region przypisany profilowi, którego kod jest wartością ``district`` (konkurs z włączonym
+       ``custom_regions`` zapisuje tam ``region.code``) → ``region.name`` („Germany”),
+    3. cokolwiek innego → surowa wartość, jak dotąd (stare dane w zapisie niekanonicznym nie
+       zamieniają się nagle w nazwę regionu z backfillu).
+    """
+    district = getattr(profile, "district", None)
+    if not district:
+        # ``None`` zostaje ``None`` – tak oddawała je metoda generowana z ``choices``, a szablony
+        # z ``|default:"—"`` i warunki ``if member.district`` liczą na dokładnie tę wartość.
+        return district
+    if district in Voivodeship.values:
+        return str(Voivodeship(district).label)
+    if getattr(profile, "region_id", None) is not None:
+        region = profile.region
+        if region is not None and region.code == district:
+            return region.name
+    return district
+
+
 class UserQuerySet(models.QuerySet):
     """Queryset kont ze skrótami reguły „konto po anonimizacji” (``apps.accounts.anonymised``).
 
@@ -554,6 +583,11 @@ class Participant(models.Model):
     ``apps.accounts.services.participant_for(user, competition)``, a do kompletu profili –
     ``participations_of(user)``.
     """
+
+    #: Nazwa regionu zamiast etykiety ``choices`` (REG-01 § 1.2). Atrybut **w ciele klasy**, a nie
+    #: w domieszce: Django generuje ``get_district_display`` z ``choices`` tylko wtedy, gdy klasa
+    #: modelu sama takiej metody nie ma – metoda odziedziczona by przegrała.
+    get_district_display = region_display_name
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="participations")
     #: Właściciel profilu. ``PROTECT``: skasowanie konkursu nie może zabrać ze sobą uczestników
@@ -1152,6 +1186,11 @@ class CommitteeStatus(models.TextChoices):
 class CommitteeMember(models.Model):
     """Profil członka komitetu (recenzent, ewentualnie komisja odwoławcza)."""
 
+    #: Nazwa regionu zamiast etykiety ``choices`` (REG-01 § 1.2). Atrybut **w ciele klasy**, a nie
+    #: w domieszce: Django generuje ``get_district_display`` z ``choices`` tylko wtedy, gdy klasa
+    #: modelu sama takiej metody nie ma – metoda odziedziczona by przegrała.
+    get_district_display = region_display_name
+
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="committee_member")
     #: Komitet jest komitetem **tego** konkursu – razem z ``district`` i ``is_appeals_committee``:
     #: „zweryfikowany recenzent” jest oświadczeniem jednego organizatora o jednej osobie.
@@ -1339,6 +1378,11 @@ class InvitationStatus(models.TextChoices):
 
 class InvitationCode(models.Model):
     """Kod zaproszenia do komitetu. W bazie wyłącznie sha256 – kodu nie da się odtworzyć."""
+
+    #: Nazwa regionu zamiast etykiety ``choices`` (REG-01 § 1.2). Atrybut **w ciele klasy**, a nie
+    #: w domieszce: Django generuje ``get_district_display`` z ``choices`` tylko wtedy, gdy klasa
+    #: modelu sama takiej metody nie ma – metoda odziedziczona by przegrała.
+    get_district_display = region_display_name
 
     code_hash = models.CharField("sha256 kodu", max_length=64, unique=True, editable=False)
     #: Kod nadaje status w komitecie **jednego** konkursu, więc i sam należy do tego konkursu:

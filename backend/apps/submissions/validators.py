@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import json
 
+from django.utils.translation import gettext as _
+from django.utils.translation import gettext_lazy
 from rest_framework import status
 
 from apps.competitions.models import SUPPORTED_FILE_FORMATS
@@ -39,7 +41,7 @@ EXTENSION_ALIASES = {"jpeg": "jpg"}
 
 #: Lista formatów w komunikacie odmowy. Trzymana obok ``MIME_BY_FORMAT``, żeby dopisanie formatu
 #: nie zostawiało nieaktualnego zdania w jedynym miejscu, w którym uczestnik je przeczyta.
-SUPPORTED_FORMATS_HINT = "Rozpoznawane są wyłącznie pliki .pdf, .ipynb, .py i .jpg (.jpeg)."
+SUPPORTED_FORMATS_HINT = gettext_lazy("Rozpoznawane są wyłącznie pliki .pdf, .ipynb, .py i .jpg (.jpeg).")
 
 
 def _too_large(detail: str) -> DomainError:
@@ -52,7 +54,8 @@ def _invalid_type(detail: str) -> DomainError:
 
 def _format_not_allowed(ext: str, allowed_formats) -> DomainError:
     return DomainError(
-        f"Format .{ext} nie jest dopuszczony dla tego zadania (dozwolone: {', '.join(allowed_formats)}).",
+        _("Format .%(ext)s nie jest dopuszczony dla tego zadania (dozwolone: %(allowed)s).")
+        % {"ext": ext, "allowed": ", ".join(allowed_formats)},
         "FORMAT_NOT_ALLOWED",
         status.HTTP_400_BAD_REQUEST,
     )
@@ -87,7 +90,7 @@ def validate_pdf(upload) -> None:
     header = upload.read(HEADER_PROBE_BYTES)
     upload.seek(0)
     if not header.startswith(PDF_MAGIC):
-        raise _invalid_type("Treść pliku nie jest dokumentem PDF (brak nagłówka %PDF-).")
+        raise _invalid_type(_("Treść pliku nie jest dokumentem PDF (brak nagłówka %PDF-)."))
 
 
 def _notebook_outputs_bytes(notebook) -> int:
@@ -119,35 +122,36 @@ def _validate_notebook(upload) -> None:
     try:
         text = raw.decode("utf-8")
     except UnicodeDecodeError as exc:
-        raise _invalid_type("Notatnik musi być tekstem UTF-8.") from exc
+        raise _invalid_type(_("Notatnik musi być tekstem UTF-8.")) from exc
     try:
         document = json.loads(text)
     except (ValueError, RecursionError) as exc:
         # ``RecursionError`` (pakiet 5): kilka tysięcy zagnieżdżonych ``[`` to kilkanaście
         # kilobajtów, a parser JSON schodzi rekurencyjnie – bez tej gałęzi taki plik kończył
         # upload pięćsetką zamiast odmową ``INVALID_FILE_TYPE``.
-        raise _invalid_type("Notatnik nie jest poprawnym dokumentem JSON.") from exc
+        raise _invalid_type(_("Notatnik nie jest poprawnym dokumentem JSON.")) from exc
     if not isinstance(document, dict):
-        raise _invalid_type("Notatnik musi być obiektem JSON.")
+        raise _invalid_type(_("Notatnik musi być obiektem JSON."))
     # Formaty archiwalne (nbformat ≤ 3) mają inny układ komórek i nikt ich dziś nie tworzy –
     # przyjmowanie ich to tylko dodatkowa powierzchnia ataku na konwerter i na liczniki limitów.
     version = document.get("nbformat")
     if not isinstance(version, int) or isinstance(version, bool) or version < MIN_NOTEBOOK_FORMAT:
         raise _invalid_type(
-            f"Obsługiwane są wyłącznie notatniki w formacie nbformat {MIN_NOTEBOOK_FORMAT} lub nowszym."
+            _("Obsługiwane są wyłącznie notatniki w formacie nbformat %(version)s lub nowszym.")
+            % {"version": MIN_NOTEBOOK_FORMAT}
         )
     try:
         notebook = nbformat.reads(text, as_version=4)
         nbformat.validate(notebook)
     except Exception as exc:  # nbformat rzuca kilka różnych klas wyjątków
-        raise _invalid_type("Notatnik nie przechodzi walidacji nbformat.") from exc
+        raise _invalid_type(_("Notatnik nie przechodzi walidacji nbformat.")) from exc
     try:
         outputs_bytes = _notebook_outputs_bytes(notebook)
     except RecursionError as exc:
         # Ten sam powód, co przy ``json.loads`` wyżej: serializacja zagnieżdżonego outputu.
-        raise _invalid_type("Notatnik nie jest poprawnym dokumentem JSON.") from exc
+        raise _invalid_type(_("Notatnik nie jest poprawnym dokumentem JSON.")) from exc
     if outputs_bytes > MAX_NOTEBOOK_OUTPUTS_BYTES:
-        raise _invalid_type("Sumaryczny rozmiar outputów w notatniku przekracza 2 MB.")
+        raise _invalid_type(_("Sumaryczny rozmiar outputów w notatniku przekracza 2 MB."))
 
 
 def _validate_jpeg(upload) -> None:
@@ -161,19 +165,19 @@ def _validate_jpeg(upload) -> None:
     header = upload.read(HEADER_PROBE_BYTES)
     upload.seek(0)
     if not header.startswith(JPEG_MAGIC):
-        raise _invalid_type("Treść pliku nie jest zdjęciem JPEG (brak sygnatury FF D8 FF).")
+        raise _invalid_type(_("Treść pliku nie jest zdjęciem JPEG (brak sygnatury FF D8 FF)."))
 
 
 def _validate_python(upload) -> None:
     raw = _read_all(upload)
     if len(raw) > MAX_PYTHON_BYTES:
-        raise _invalid_type("Plik .py nie może przekraczać 1 MB.")
+        raise _invalid_type(_("Plik .py nie może przekraczać 1 MB."))
     if b"\x00" in raw:
-        raise _invalid_type("Plik .py zawiera bajty NUL – to nie jest kod źródłowy.")
+        raise _invalid_type(_("Plik .py zawiera bajty NUL – to nie jest kod źródłowy."))
     try:
         raw.decode("utf-8")
     except UnicodeDecodeError as exc:
-        raise _invalid_type("Plik .py musi być tekstem UTF-8.") from exc
+        raise _invalid_type(_("Plik .py musi być tekstem UTF-8.")) from exc
 
 
 _CONTENT_VALIDATORS = {
@@ -197,9 +201,12 @@ def validate_upload(upload, allowed_formats, max_file_mb: int) -> tuple[str, str
         upload.seek(0)
     limit = int(max_file_mb) * MEGABYTE
     if size > limit:
-        raise _too_large(f"Plik ma {size} B, limit dla tego zadania to {max_file_mb} MB.")
+        raise _too_large(
+            _("Plik ma %(size)s B, limit dla tego zadania to %(limit)s MB.")
+            % {"size": size, "limit": max_file_mb}
+        )
     if size == 0:
-        raise _invalid_type("Plik jest pusty.")
+        raise _invalid_type(_("Plik jest pusty."))
 
     ext = declared_extension(getattr(upload, "name", ""))
     if ext not in SUPPORTED_FILE_FORMATS:

@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load i18n %}
 {% comment %}
   Własne dyplomy i zaświadczenia uczestnika: lista i pobranie, nic więcej.
 
@@ -6,13 +7,15 @@
   stronie nie ma stanu „plik gotowy / plik w przygotowaniu” – jest albo wystawiony dokument,
   albo go nie ma.
 {% endcomment %}
-{% block title %}Moje dyplomy{% endblock %}
+{% block title %}{% translate "Moje dyplomy" %}{% endblock %}
 {% block content %}
 <div class="page-head">
-  <span class="eyebrow"><a href="{% url 'web:me' %}">Mój panel</a></span>
-  <h1>Dyplomy i zaświadczenia</h1>
-  <p class="lead">Dokumenty wystawione przez komitet. Każdy ma numer i kod weryfikacyjny –
-    po kodzie każdy może sprawdzić jego ważność bez logowania.</p>
+  <span class="eyebrow"><a href="{% url 'web:me' %}">{% translate "Mój panel" %}</a></span>
+  <h1>{% translate "Dyplomy i zaświadczenia" %}</h1>
+  <p class="lead">{% blocktranslate trimmed %}
+    Dokumenty wystawione przez komitet. Każdy ma numer i kod weryfikacyjny –
+    po kodzie każdy może sprawdzić jego ważność bez logowania.
+  {% endblocktranslate %}</p>
 </div>
 
 <section class="section">
@@ -22,17 +25,17 @@
         <table class="table">
           <thead>
             <tr>
-              <th scope="col">Numer</th>
-              <th scope="col">Rodzaj</th>
-              <th scope="col">Edycja</th>
-              <th scope="col">Kod weryfikacyjny</th>
+              <th scope="col">{% translate "Numer" %}</th>
+              <th scope="col">{% translate "Rodzaj" %}</th>
+              <th scope="col">{% translate "Edycja" %}</th>
+              <th scope="col">{% translate "Kod weryfikacyjny" %}</th>
               {% comment %}
                 Kolumna pieczęci mówi o **pliku**, nie o ważności dokumentu: dyplom bez pieczęci
                 jest tak samo ważny i tak samo da się go sprawdzić kodem. Pieczęć odpowiada
                 dodatkowo na pytanie „czy tego PDF-a ktoś po drodze nie zmienił”.
               {% endcomment %}
-              <th scope="col">Pieczęć</th>
-              <th scope="col">Plik</th>
+              <th scope="col">{% translate "Pieczęć" %}</th>
+              <th scope="col">{% translate "Plik" %}</th>
             </tr>
           </thead>
           <tbody>
@@ -47,7 +50,7 @@
                 </td>
                 <td>
                   {% if certificate.signed %}
-                    <span class="badge badge--ok">podpisany elektronicznie</span>
+                    <span class="badge badge--ok">{% translate "podpisany elektronicznie" %}</span>
                     {% if certificate.signer_name %}<br><span class="hint">{{ certificate.signer_name }}</span>{% endif %}
                   {% else %}
                     <span class="hint">—</span>
@@ -55,7 +58,7 @@
                 </td>
                 <td>
                   <a class="btn btn--small btn--secondary"
-                     href="{% url 'web:participant-certificate-download' certificate.pk %}">Pobierz PDF</a>
+                     href="{% url 'web:participant-certificate-download' certificate.pk %}">{% translate "Pobierz PDF" %}</a>
                 </td>
               </tr>
             {% endfor %}
@@ -63,9 +66,11 @@
         </table>
       </div>
     {% else %}
-      <p class="empty">Nie masz jeszcze żadnego dokumentu. Dyplomy i zaświadczenia komitet
+      <p class="empty">{% blocktranslate trimmed %}
+        Nie masz jeszcze żadnego dokumentu. Dyplomy i zaświadczenia komitet
         wystawia po zakończeniu zawodów – to normalne, że przez większą część roku ta lista
-        jest pusta.</p>
+        jest pusta.
+      {% endblocktranslate %}</p>
     {% endif %}
   </div>
 </section>

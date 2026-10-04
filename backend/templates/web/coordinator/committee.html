@@ -24,7 +24,7 @@
   </div>
   <div class="scroll">
     <table class="table">
-      <thead><tr><th>E-mail</th><th>Województwo</th><th>Komisja odwoławcza</th><th></th></tr></thead>
+      <thead><tr><th>E-mail</th><th>{{ region_noun }}</th><th>Komisja odwoławcza</th><th></th></tr></thead>
       <tbody>
         {% for member in pending_members %}
           <tr>
@@ -54,7 +54,7 @@
     Członek bez województwa ocenia prace ze wszystkich województw.</p>
   <div class="scroll">
     <table class="table">
-      <thead><tr><th>E-mail</th><th>Województwo</th><th>Skąd</th><th></th></tr></thead>
+      <thead><tr><th>E-mail</th><th>{{ region_noun }}</th><th>Skąd</th><th></th></tr></thead>
       <tbody>
         {% for member in active_members %}
           <tr>
@@ -72,7 +72,7 @@
             <td>
               <form method="post" action="{% url 'web:coordinator-verify-district' member.pk %}" class="inline">
                 {% csrf_token %}
-                <select name="district" aria-label="Województwo">
+                <select name="district" aria-label="{{ region_noun }}">
                   <option value=""{% if not member.district %} selected{% endif %}>— brak —</option>
                   {% for value, label in voivodeship_choices %}
                     {% if value %}
@@ -129,7 +129,7 @@
     <table class="table">
       <thead>
         <tr>
-          <th>Adres</th><th>Województwo</th><th>Komisja odwoławcza</th>
+          <th>Adres</th><th>{{ region_noun }}</th><th>Komisja odwoławcza</th>
           <th>Wysłano (czas polski)</th><th>Ważne do (czas polski)</th>
           <th>Stan</th><th></th>
         </tr>

@@ -49,6 +49,7 @@ from django.core.exceptions import ValidationError
 from django.db import models, transaction
 from django.db.models import Q
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 from rest_framework import status
 
 from apps.core.api import DomainError
@@ -67,7 +68,7 @@ NOTE_MAX_LENGTH = 500
 #: Etykieta pola ``ArrivalForm.note`` pokazywana uczestnikowi. Mówi wprost, czego **nie** wpisywać –
 #: to jest warunek z decyzji D21 i dlatego stoi w kodzie, a nie w szablonie: szablon należy do
 #: zadania montażowego, a treść ostrzeżenia ma się zmieniać razem z regułą, którą opisuje.
-SPECIAL_NEEDS_WARNING = (
+SPECIAL_NEEDS_WARNING = _(
     "Napisz wyłącznie to, co jest potrzebne do przygotowania pobytu (np. „dieta bezmięsna”, "
     "„pokój na parterze”). Nie podawaj diagnoz, nazw chorób, leków ani orzeczeń – tych informacji "
     "nie potrzebujemy i prosimy ich nie przesyłać."
@@ -82,11 +83,11 @@ class LogisticsNeed(models.TextChoices):
     idzie do ``ArrivalForm.note`` – i tylko wtedy, gdy konkurs zbiera potrzeby szczególne.
     """
 
-    ACCOMMODATION = "ACCOMMODATION", "nocleg"
-    MEAL = "MEAL", "wyżywienie"
-    DIET = "DIET", "dieta szczególna"
-    ACCESSIBILITY = "ACCESSIBILITY", "dostępność"
-    TRANSPORT = "TRANSPORT", "dojazd"
+    ACCOMMODATION = "ACCOMMODATION", _("nocleg")
+    MEAL = "MEAL", _("wyżywienie")
+    DIET = "DIET", _("dieta szczególna")
+    ACCESSIBILITY = "ACCESSIBILITY", _("dostępność")
+    TRANSPORT = "TRANSPORT", _("dojazd")
 
 
 #: Potrzeby, które **bywają** danymi o zdrowiu (art. 9 RODO). Wymienione raz, żeby reguła D21 miała
@@ -244,7 +245,7 @@ class ArrivalForm(models.Model):
         """Reguły integralności z komunikatem dla człowieka; więz w bazie powtarza pierwszą z nich."""
         super().clean()
         if self.arrives_on is not None and self.departs_on is not None and self.departs_on < self.arrives_on:
-            raise ValidationError({"departs_on": "Wyjazd nie może być przed przyjazdem."})
+            raise ValidationError({"departs_on": _("Wyjazd nie może być przed przyjazdem.")})
         self.needs = validated_needs(self.needs)
         if self.venue_id is not None and self.entry_id is not None:
             from .models import StageEntry
@@ -374,7 +375,7 @@ def validated_needs(values) -> list[str]:
 def need_labels(values) -> list[str]:
     """Etykiety potrzeb do pokazania na ekranie i na wydruku („nocleg”, „wyżywienie”)."""
     labels = dict(LogisticsNeed.choices)
-    return [labels[value] for value in validated_needs(values)]
+    return [str(labels[value]) for value in validated_needs(values)]
 
 
 def set_special_needs_collection(competition, *, enabled: bool, actor=None, request=None):
@@ -389,7 +390,7 @@ def set_special_needs_collection(competition, *, enabled: bool, actor=None, requ
 
     require_onsite_logistics(competition)
     with transaction.atomic():
-        row, _ = LogisticsSettings.objects.get_or_create(competition=competition)
+        row, _created = LogisticsSettings.objects.get_or_create(competition=competition)
         before = row.collect_special_needs
         row.collect_special_needs = enabled
         row.updated_at = timezone.now()

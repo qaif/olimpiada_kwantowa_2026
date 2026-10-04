@@ -22,6 +22,7 @@ from django.shortcuts import redirect
 from django.template.response import TemplateResponse
 from django.urls import reverse
 from django.utils.safestring import mark_safe
+from django.utils.translation import gettext as _
 from django.views.generic import View
 
 from apps.accounts import twofactor
@@ -164,7 +165,7 @@ class TwoFactorVerifyView(TwoFactorFeatureMixin, ThrottledFormMixin, LoginRequir
         self.consume_throttle()
         return self._render(
             request,
-            error="Kod nie pasuje. Przepisz nowy kod z aplikacji albo użyj kodu zapasowego.",
+            error=_("Kod nie pasuje. Przepisz nowy kod z aplikacji albo użyj kodu zapasowego."),
             status=400,
         )
 
@@ -221,8 +222,8 @@ class TwoFactorDisableView(TwoFactorFeatureMixin, LoginRequiredMixin, ActionView
 
     def perform(self, request, *args, **kwargs) -> str:
         if not twofactor.disable(request.user, actor=request.user, request=request):
-            raise DomainError("Na tym koncie nie ma włączonego drugiego składnika.")
-        return "Drugi składnik logowania został wyłączony."
+            raise DomainError(_("Na tym koncie nie ma włączonego drugiego składnika."))
+        return _("Drugi składnik logowania został wyłączony.")
 
     def get_success_url(self, *args, **kwargs) -> str:
         return reverse("web:twofactor-setup")

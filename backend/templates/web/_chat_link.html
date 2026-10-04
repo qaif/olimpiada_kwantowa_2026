@@ -8,8 +8,9 @@
 
   Nawigacja nie jest zabezpieczeniem: dostęp rozstrzyga ``ChatParticipantMixin`` w widoku.
 {% endcomment %}
+{% load i18n %}
 {% if chat_visible %}
   {% url 'web:chat' as chat_url %}
   <a class="account-bar__link" href="{{ chat_url }}"
-     {% if request.path == chat_url %}aria-current="page"{% endif %}>Wiadomości{% if chat_unread %} <span class="badge badge--count"><span class="visually-hidden">nieprzeczytane rozmowy: </span>{{ chat_unread }}</span>{% endif %}</a>
+     {% if request.path == chat_url %}aria-current="page"{% endif %}>{% translate "Wiadomości" %}{% if chat_unread %} <span class="badge badge--count"><span class="visually-hidden">{% translate "nieprzeczytane rozmowy:" %} </span>{{ chat_unread }}</span>{% endif %}</a>
 {% endif %}

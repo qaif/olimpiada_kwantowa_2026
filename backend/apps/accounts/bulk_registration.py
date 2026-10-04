@@ -70,6 +70,7 @@ from rest_framework import status
 
 from apps.core.api import DomainError
 from apps.core.models import audit
+from apps.tenancy import branding
 
 from .activation import absolute_url, mark_activated, queue_mail
 from .consents import is_minor
@@ -82,6 +83,7 @@ from .models import (
     User,
 )
 from .phones import normalize_phone
+from .preferences import language_for
 from .supervisor_consent import VIA_SUPERVISOR
 from .supervisor_consent import request_consent as request_supervisor_consent
 from .supervisors import normalize_supervisor_email
@@ -1134,7 +1136,14 @@ def _fallback_district(row: ImportRow, competition, fields: dict, district: str)
         return ""
     if custom is not None:
         return (custom.region_code or "").strip()
-    return ABROAD_CODE if row.institution_type == "FOREIGN" else ""
+    if row.institution_type != "FOREIGN":
+        return ""
+    # Konkurs dzielący na kraje (REG-01): placówka zagraniczna z kolumną „kraj” trafia do tego kraju,
+    # o ile jest on na liście konkursu. Inaczej – dotychczasowe „poza Polską”.
+    from .services import active_region
+
+    country = active_region(competition, (row.country or "").strip().lower())
+    return country.code if country is not None else ABROAD_CODE
 
 
 def _district_and_region(competition, district: str) -> dict:
@@ -1143,14 +1152,23 @@ def _district_and_region(competition, district: str) -> dict:
     Przy wyłączonej fladze ``custom_regions`` oddaje dzisiejszy napis i ``None``, **bez zapytania**:
     kolumna ``region`` jest wtedy pusta w każdym wierszu, tak samo jak w rejestracji (§ 1.4.2).
     """
-    from .models import region_for_district
-    from .services import CUSTOM_REGIONS_FLAG
+    from .services import CUSTOM_REGIONS_FLAG, active_region
 
     if competition is None or not competition.has_feature(CUSTOM_REGIONS_FLAG):
         return {"district": district, "region": None}
-    found = region_for_district(competition, district)
+    # Wyłącznie **aktywny** region (poprawka po przeglądzie REG-01): w konkursie przestawionym na
+    # kraje województwo szkoły nauczyciela i „poza Polską” są wycofane z listy, więc wiersz zostaje
+    # bez regionu – uczeń wybierze kraj przy przyjęciu zaproszenia, tak jak przy szkole spoza wykazu.
+    from .models import region_for_district
+    from .regions import ABROAD_CODE
+
+    found = active_region(competition, district)
+    if found is None and district == ABROAD_CODE:
+        # „Poza Polską” jest z założenia **ukryte** w formularzach (powstaje nieaktywne), a import
+        # przypisuje je placówkom zagranicznym celowo – to jedyny wyjątek od reguły „tylko aktywne”.
+        found = region_for_district(competition, district)
     if found is None:
-        return {"district": district, "region": None}
+        return {"district": "", "region": None}
     return {"district": found.code, "region": found}
 
 
@@ -1376,8 +1394,16 @@ def send_invitation(participant: Participant, *, request=None) -> None:
         "link": link,
         "days": INVITE_DAYS,
     }
-    subject = render_to_string(INVITE_SUBJECT_TEMPLATE, context).strip().replace("\n", " ")
-    queue_mail(subject, render_to_string(INVITE_BODY_TEMPLATE, context), participant.user.email)
+    # Zaproszenie składa nauczyciel albo koordynator – w **swoim** żądaniu i w swoim języku. List
+    # czyta uczeń, więc idzie w języku ucznia (``language_for``): konto z importu nie ma jeszcze
+    # zapisanego wyboru, więc w praktyce w języku konkursu.
+    with language_for(participant.user, participant.competition):
+        # Nazwa konkursu w języku listu: ``brand_names`` tłumaczy dzisiejszy literał albo podaje
+        # markę konkursu (``competition_branding_in_mail``) – wewnątrz ``language_for``.
+        context["brand"] = branding.brand_names(participant.competition)
+        subject = render_to_string(INVITE_SUBJECT_TEMPLATE, context).strip().replace("\n", " ")
+        body = render_to_string(INVITE_BODY_TEMPLATE, context)
+    queue_mail(subject, body, participant.user.email)
     Participant.objects.filter(pk=participant.pk).update(invitation_sent_at=timezone.now())
     participant.invitation_sent_at = timezone.now()
 
@@ -1455,7 +1481,7 @@ def accept_invitation(
     wiedzieć, jak nazywają się rodzaje zgód w modelu dowodowym.
     """
     from .consents import ConsentSource, given_from_fields
-    from .services import _require_voivodeship, _validate_password_or_raise, record_consents
+    from .services import _validate_password_or_raise, record_consents, resolve_district
 
     user = participant.user
     # ``given`` przychodzi z formularza, czyli z nazwami **pól** (``terms_consent`` …), a serwis
@@ -1463,13 +1489,17 @@ def accept_invitation(
     # dzięki niej nazwa pola i rodzaj zgody nie mają jak się rozjechać.
     given = given_from_fields(given)
     validate_consents_for(participant, given)
-    district = _require_voivodeship(district, required=True)
+    district, region = resolve_district(participant.competition, district, required=True)
     phone = normalize_phone(phone)
     _validate_password_or_raise(password, user)
 
     participant.district = district
     participant.phone = phone
-    participant.save(update_fields=["district", "phone"])
+    update_fields = ["district", "phone"]
+    if region is not None:
+        participant.region = region
+        update_fields.append("region")
+    participant.save(update_fields=update_fields)
     user.set_password(password)
     user.save(update_fields=["password"])
     record_consents(participant, given, source=ConsentSource.WEB, request=request)

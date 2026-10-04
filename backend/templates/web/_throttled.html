@@ -1,5 +1,5 @@
-{% comment %}
+{% load i18n %}{% comment %}
   Wariant fragmentaryczny komunikatu 429 – dla żądań HTMX (upload rozwiązania). Pełna strona
   z nagłówkiem i nawigacją wylądowałaby w środku karty zadania.
 {% endcomment %}
-<p class="msg msg-error">{{ message }} Ponowna próba będzie możliwa za około {{ retry_after }} s.</p>
+<p class="msg msg-error">{{ message }} {% blocktranslate with seconds=retry_after %}Ponowna próba będzie możliwa za około {{ seconds }} s.{% endblocktranslate %}</p>

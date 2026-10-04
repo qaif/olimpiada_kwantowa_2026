@@ -18,6 +18,7 @@ from django.http import Http404
 from django.shortcuts import redirect
 from django.template.response import TemplateResponse
 from django.urls import reverse
+from django.utils.translation import gettext as _
 from django.views.generic import View
 
 from apps.core.api import DomainError
@@ -70,7 +71,7 @@ class SupportTicketCreateView(ThrottledFormMixin, View):
             return self._render(request, form, status=exc.status_code)
         messages.success(
             request,
-            "Zgłoszenie zostało wysłane. Odpowiedź przyjdzie na Twój adres e-mail.",
+            _("Zgłoszenie zostało wysłane. Odpowiedź przyjdzie na Twój adres e-mail."),
         )
         if request.user.is_authenticated:
             return redirect(reverse("web:support-detail", args=[ticket.pk]))
@@ -149,7 +150,7 @@ class SupportTicketDetailView(LoginRequiredMixin, View):
             return self._render(
                 request, self._ticket(request, pk), SupportReplyForm(), status=exc.status_code
             )
-        messages.success(request, "Dopisaliśmy Twoją wiadomość do zgłoszenia.")
+        messages.success(request, _("Dopisaliśmy Twoją wiadomość do zgłoszenia."))
         return redirect(reverse("web:support-detail", args=[ticket.pk]))
 
     def _ticket(self, request, pk: int) -> SupportTicket:

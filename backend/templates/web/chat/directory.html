@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load static %}
+{% load i18n static %}
 {% comment %}
   Katalog uczestników do nowej rozmowy – wyłącznie osoby, które same się do niego zapisały.
 
@@ -8,27 +8,27 @@
   wystarcza, żeby rozpoznać osobę (``apps.forum.models.display_author``). Szablon dostaje gotowe
   napisy i adres z losowym tokenem – nie profil i nie konto – więc nie ma czego wypisać przez pomyłkę.
 {% endcomment %}
-{% block title %}Nowa rozmowa – Wiadomości{% endblock %}
+{% block title %}{% translate "Nowa rozmowa – Wiadomości" %}{% endblock %}
 {% block head %}<link rel="stylesheet" href="{% static 'css/chat.css' %}">{% endblock %}
 {% block content %}
 <div class="page-head">
-  <span class="eyebrow"><a href="{% url 'web:chat' %}">Wiadomości</a></span>
-  <h1>Nowa rozmowa</h1>
-  <p class="lead">Uczestnicy tego konkursu, którzy zgodzili się, żeby inni mogli ich znaleźć i do nich
-    napisać. Widzisz tylko imię, pierwszą literę nazwiska i województwo.</p>
+  <span class="eyebrow"><a href="{% url 'web:chat' %}">{% translate "Wiadomości" %}</a></span>
+  <h1>{% translate "Nowa rozmowa" %}</h1>
+  <p class="lead">{% blocktranslate trimmed %}Uczestnicy tego konkursu, którzy zgodzili się, żeby inni mogli ich znaleźć i do nich
+    napisać. Widzisz tylko imię, pierwszą literę nazwiska i województwo.{% endblocktranslate %}</p>
 </div>
 
 {% include "web/chat/_e2e_config.html" %}
 
 {% if not own_profile.discoverable %}
-  <p class="notice">Ciebie w katalogu nie ma – inni nie mogą zacząć z Tobą rozmowy. Możesz to zmienić w
-    <a href="{{ settings_url }}">ustawieniach wiadomości</a>.</p>
+  <p class="notice">{% blocktranslate trimmed %}Ciebie w katalogu nie ma – inni nie mogą zacząć z Tobą rozmowy. Możesz to zmienić w
+    <a href="{{ settings_url }}">ustawieniach wiadomości</a>.{% endblocktranslate %}</p>
 {% endif %}
 
 <form method="get" class="form chat-search" role="search">
-  <label for="chat-search">Szukaj po imieniu</label>
+  <label for="chat-search">{% translate "Szukaj po imieniu" %}</label>
   <input type="search" id="chat-search" name="q" value="{{ query }}" maxlength="60">
-  <button type="submit" class="btn btn--small btn--secondary">Szukaj</button>
+  <button type="submit" class="btn btn--small btn--secondary">{% translate "Szukaj" %}</button>
 </form>
 
 {% if people %}
@@ -37,26 +37,26 @@
       <li class="chat-directory__item card">
         <span class="chat-directory__name">{{ person.label }}</span>
         <span class="chat-directory__district hint">{{ person.district }}</span>
-        <a class="btn btn--small btn--primary" href="{{ person.url }}">Napisz</a>
+        <a class="btn btn--small btn--primary" href="{{ person.url }}">{% translate "Napisz" %}</a>
       </li>
     {% endfor %}
   </ul>
   {% if page_obj.has_other_pages %}
-    <nav class="row" aria-label="Strony katalogu">
+    <nav class="row" aria-label="{% translate 'Strony katalogu' %}">
       {% if page_obj.has_previous %}
-        <a class="btn btn--small btn--ghost" href="?page={{ page_obj.previous_page_number }}{% if query %}&amp;q={{ query|urlencode }}{% endif %}">Poprzednia</a>
+        <a class="btn btn--small btn--ghost" href="?page={{ page_obj.previous_page_number }}{% if query %}&amp;q={{ query|urlencode }}{% endif %}">{% translate "Poprzednia" %}</a>
       {% endif %}
-      <span class="hint">Strona {{ page_obj.number }} z {{ paginator.num_pages }}</span>
+      <span class="hint">{% blocktranslate trimmed with number=page_obj.number pages=paginator.num_pages %}Strona {{ number }} z {{ pages }}{% endblocktranslate %}</span>
       {% if page_obj.has_next %}
-        <a class="btn btn--small btn--ghost" href="?page={{ page_obj.next_page_number }}{% if query %}&amp;q={{ query|urlencode }}{% endif %}">Następna</a>
+        <a class="btn btn--small btn--ghost" href="?page={{ page_obj.next_page_number }}{% if query %}&amp;q={{ query|urlencode }}{% endif %}">{% translate "Następna" %}</a>
       {% endif %}
     </nav>
   {% endif %}
 {% else %}
   <div class="empty">
-    <span class="empty__title">{% if query %}Nikt o tym imieniu nie jest w katalogu{% else %}Katalog jest pusty{% endif %}</span>
-    <p class="empty__text">W katalogu są wyłącznie osoby, które same się do niego zapisały{% if e2e.enabled %} i mają
-      skonfigurowane szyfrowanie{% endif %}.</p>
+    <span class="empty__title">{% if query %}{% translate "Nikt o tym imieniu nie jest w katalogu" %}{% else %}{% translate "Katalog jest pusty" %}{% endif %}</span>
+    <p class="empty__text">{% if e2e.enabled %}{% blocktranslate trimmed %}W katalogu są wyłącznie osoby, które same się do niego zapisały i mają
+      skonfigurowane szyfrowanie.{% endblocktranslate %}{% else %}{% translate "W katalogu są wyłącznie osoby, które same się do niego zapisały." %}{% endif %}</p>
   </div>
 {% endif %}
 {% endblock %}

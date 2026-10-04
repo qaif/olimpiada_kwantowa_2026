@@ -35,6 +35,8 @@ from django.contrib.auth.forms import PasswordResetForm
 from django.db import transaction
 from django.template import loader
 
+from .activation import recipient_language
+
 logger = logging.getLogger(__name__)
 
 
@@ -49,6 +51,14 @@ class QueuedPasswordResetForm(PasswordResetForm):
     tak samo, jak robił to Django – test ``test_password_reset_queue.py`` porównuje oba listy.
     """
 
+    #: Żądanie, w którym składany jest list – ``PasswordResetForm.send_mail`` go nie dostaje,
+    #: więc ``save`` odkłada je tutaj. Potrzebne wyłącznie do pytania „czyje to żądanie”.
+    _request = None
+
+    def save(self, *args, request=None, **kwargs):
+        self._request = request
+        return super().save(*args, request=request, **kwargs)
+
     def send_mail(
         self,
         subject_template_name,
@@ -58,15 +68,19 @@ class QueuedPasswordResetForm(PasswordResetForm):
         to_email,
         html_email_template_name=None,
     ):
-        subject = loader.render_to_string(subject_template_name, context)
-        # Temat nie może mieć znaku nowej linii (wstrzyknięcie nagłówka) – ta sama linijka co w Django.
-        subject = "".join(subject.splitlines())
-        body = loader.render_to_string(email_template_name, context)
-        html = (
-            loader.render_to_string(html_email_template_name, context)
-            if html_email_template_name is not None
-            else None
-        )
+        # Samoobsługa (``/password-reset/``) składa list w żądaniu adresata – aktywny język jest
+        # już jego. Reset zlecony z panelu koordynatora powstaje w **cudzym** żądaniu, więc idzie
+        # w języku odbiorcy (``apps.accounts.activation.recipient_language``).
+        with recipient_language(context.get("user"), request=self._request):
+            subject = loader.render_to_string(subject_template_name, context)
+            # Temat nie może mieć znaku nowej linii (wstrzyknięcie nagłówka) – ta sama linijka co w Django.
+            subject = "".join(subject.splitlines())
+            body = loader.render_to_string(email_template_name, context)
+            html = (
+                loader.render_to_string(html_email_template_name, context)
+                if html_email_template_name is not None
+                else None
+            )
         # ``render_to_string`` oddaje ``SafeString``, a argumenty zadania jadą przez JSON brokera –
         # zwykły napis jest jedynym kształtem, który na pewno przejdzie bez niespodzianek.
         # ``str.__str__``, a nie ``str(...)``: ``SafeString.__str__`` zwraca samego siebie.

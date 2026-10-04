@@ -1,4 +1,4 @@
-{% comment %}
+{% load i18n %}{% comment %}
   Karta „Do pobrania” – wspólna dla dokumentu (``document_page.html``) i strony treści
   (``content_page.html``). Oczekuje zmiennej ``attachments``: uporządkowanej listy
   ``PageAttachment`` z dociągniętym ``document`` (patrz ``get_context`` obu modeli).
@@ -18,7 +18,7 @@
 {% endcomment %}
 {% if attachments %}
   <div class="card card--accent doc-download">
-    <p class="doc-download__title">Do pobrania</p>
+    <p class="doc-download__title">{% translate "Do pobrania" %}</p>
     <ul class="doc-files">
       {% for item in attachments %}
         <li class="doc-files__item doc-files__item--{{ item.document.file_extension|lower }}">
@@ -29,7 +29,7 @@
               · {{ item.document.get_file_size|filesizeformat }}</span>
           </div>
           <a class="btn btn--small {% if item.is_pdf %}btn--primary{% else %}btn--secondary{% endif %}"
-             href="{{ item.document.url }}" download>Pobierz {{ item.document.file_extension|upper }}</a>
+             href="{{ item.document.url }}" download>{% blocktranslate with format=item.document.file_extension|upper %}Pobierz {{ format }}{% endblocktranslate %}</a>
         </li>
       {% endfor %}
     </ul>

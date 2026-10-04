@@ -100,6 +100,12 @@ SCHOOL_YEAR_FIRST_MONTH = 9
 #: a nie adresem, pod którym cokolwiek nasłuchuje.
 DEFAULT_SITE_PORT = 80
 
+#: Podział uczestników nowego konkursu (``create_competition --regions``, REG-01 § 1.4).
+#: Województwa są wartością domyślną, bo tak zakładano każdy konkurs do tej pory.
+REGIONS_VOIVODESHIPS = "voivodeships"
+REGIONS_COUNTRIES = "countries"
+REGIONS_CHOICES: tuple[str, ...] = (REGIONS_VOIVODESHIPS, REGIONS_COUNTRIES)
+
 #: Pola ``cms.SiteSettings`` z wartościami domyślnymi Olimpiady Kwantowej, które nowy konkurs musi
 #: dostać **puste**. To nie jest kosmetyka: domyślny ``facebook_url`` wskazuje profil Olimpiady
 #: Kwantowej, a ``registration_note`` ogłasza jej datę startu — nowy konkurs pokazałby jedno
@@ -242,6 +248,7 @@ def create_competition_from_template(
     certificate_prefix: str = "",
     dry_run: bool = False,
     run_safe_seeds: bool = False,
+    regions: str = REGIONS_VOIVODESHIPS,
 ) -> ProvisioningResult:
     """Zakłada konkurs w komplecie: witrynę, drzewo stron, ustawienia, edycję, etapy i zestawy.
 
@@ -254,6 +261,11 @@ def create_competition_from_template(
     chwilowe wiersze w transakcji — jest żadna, a zysk polega na tym, że podgląd w panelu pokazuje
     liczby policzone przez ten sam kod, który za chwilę je zapisze.
 
+    ``regions`` wybiera podział uczestników: :data:`REGIONS_VOIVODESHIPS` (domyślnie, zestaw
+    startowy jak dotąd) albo :data:`REGIONS_COUNTRIES` – ten sam zestaw przestawiony od razu na
+    kraje przez ``apps.accounts.regions.switch_to_countries`` (docs/tasks/REG-01.md § 1.4), czyli
+    dokładnie to, co później zrobiłaby komenda ``regions_countries``.
+
     ``run_safe_seeds`` jest domyślnie **wyłączone** i to jest wartość dla żądania HTTP — patrz
     docstring modułu. Seedy chodzą **poza** transakcją (są globalne i idempotentne), więc przy
     ``dry_run`` nie chodzą nigdy: ich wierszy nie ma czego wycofywać.
@@ -263,6 +275,8 @@ def create_competition_from_template(
     hostname, port = split_domain(domain)
     if template not in TEMPLATES:
         raise ProvisioningError(f"Nie ma szablonu o nazwie „{template}”.")
+    if regions not in REGIONS_CHOICES:
+        raise ProvisioningError(f"Nieznany podział na regiony: „{regions}”.")
     template_name = template
     template_spec = TEMPLATES[template_name]
 
@@ -305,6 +319,13 @@ def create_competition_from_template(
         if coordinator is not None:
             _grant_coordinator(coordinator, competition)
         seeded = _seed_configuration(competition, coordinator)
+        if regions == REGIONS_COUNTRIES:
+            from apps.accounts.regions import switch_to_countries
+
+            switch = switch_to_countries(competition, actor=coordinator)
+            seeded["regions"] = seeded["regions"] + switch.added
+            seeded["regions_active"] = competition.regions.filter(is_active=True).count()
+        seeded["regions_mode"] = regions
         seeded["pipeline"] = len(_seed_pipeline(edition))
         platform, opened_platform = _open_platform_for_prefix(competition)
         if dry_run:

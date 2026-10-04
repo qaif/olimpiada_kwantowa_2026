@@ -13,6 +13,7 @@ import logging
 from django.db import transaction
 from django.db.models import Max, Prefetch
 from django.utils import timezone
+from django.utils.translation import gettext as _
 from rest_framework import status
 
 from apps.competitions.models import Problem, Stage, StageEntry, StageEntryStatus
@@ -49,7 +50,7 @@ def get_problem(stage: Stage, problem_number: int) -> Problem:
     problem = Problem.objects.filter(stage=stage, number=problem_number).first()
     if problem is None:
         raise DomainError(
-            "Nie ma takiego zadania w tym etapie.", "PROBLEM_NOT_FOUND", status.HTTP_404_NOT_FOUND
+            _("Nie ma takiego zadania w tym etapie."), "PROBLEM_NOT_FOUND", status.HTTP_404_NOT_FOUND
         )
     return problem
 
@@ -63,9 +64,9 @@ def _locked_entry(user, stage: Stage) -> StageEntry:
         .first()
     )
     if entry is None:
-        raise _forbidden("Nie jesteś zarejestrowany do tego etapu.", "NOT_REGISTERED")
+        raise _forbidden(_("Nie jesteś zarejestrowany do tego etapu."), "NOT_REGISTERED")
     if entry.status == StageEntryStatus.DISQUALIFIED:
-        raise _forbidden("Wpis do etapu jest zdyskwalifikowany.", "ENTRY_DISQUALIFIED")
+        raise _forbidden(_("Wpis do etapu jest zdyskwalifikowany."), "ENTRY_DISQUALIFIED")
     return entry
 
 
@@ -89,9 +90,9 @@ def _assert_window_open(stage: Stage, now) -> None:
     odpowiadały inaczej na to samo pytanie. ``closed_at`` zamyka okno niezależnie od zegara.
     """
     if now < stage.opens_at:
-        raise _forbidden("Etap jeszcze się nie otworzył.", "STAGE_NOT_OPEN")
+        raise _forbidden(_("Etap jeszcze się nie otworzył."), "STAGE_NOT_OPEN")
     if now >= stage.submission_deadline or stage.closed_at is not None:
-        raise _forbidden("Termin oddania rozwiązań minął.", "DEADLINE_PASSED")
+        raise _forbidden(_("Termin oddania rozwiązań minął."), "DEADLINE_PASSED")
 
 
 def _assert_accepts_files(stage: Stage) -> None:
@@ -103,7 +104,7 @@ def _assert_accepts_files(stage: Stage) -> None:
     """
     if stage.is_interview:
         raise DomainError(
-            "Ten etap odbywa się w formie rozmowy kwalifikacyjnej – nie przyjmuje plików.",
+            _("Ten etap odbywa się w formie rozmowy kwalifikacyjnej – nie przyjmuje plików."),
             "STAGE_NOT_ACCEPTING_FILES",
             status.HTTP_409_CONFLICT,
         )

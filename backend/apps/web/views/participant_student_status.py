@@ -25,6 +25,7 @@ from django.shortcuts import redirect
 from django.template.response import TemplateResponse
 from django.urls import reverse
 from django.utils.cache import add_never_cache_headers
+from django.utils.translation import gettext as _
 from django.views.generic import View
 
 from apps.competitions.services import current_edition
@@ -97,7 +98,7 @@ class StudentStatusView(_StudentStatusMixin, ThrottledFormMixin, View):
             return self._render(request, edition, form, status=400)
         messages.success(
             request,
-            "Zaświadczenie zostało wysłane. Koordynator sprawdzi je i poinformuje Cię e-mailem o decyzji.",
+            _("Zaświadczenie zostało wysłane. Koordynator sprawdzi je i poinformuje Cię e-mailem o decyzji."),
         )
         return redirect(reverse("web:student-status"))
 

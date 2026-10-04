@@ -7,7 +7,7 @@ from rest_framework import serializers, status
 
 from apps.core.api import DomainError
 
-from .models import GRADE_CHOICES, CommitteeMember, ConsentRecord, Participant, User, Voivodeship
+from .models import GRADE_CHOICES, CommitteeMember, ConsentRecord, Participant, User
 from .names import validate_person_name
 
 #: Komunikat odmowy CAPTCHY w API. Mówi, skąd wziąć nowe wyzwanie, bo para jest jednorazowa –
@@ -16,6 +16,23 @@ CAPTCHA_INVALID_MESSAGE = (
     "Wynik działania jest niepoprawny albo wyzwanie wygasło. Pobierz nowe wyzwanie "
     "(GET /captcha/refresh/) i wyślij rejestrację jeszcze raz."
 )
+
+
+class DistrictField(serializers.ChoiceField):
+    """Pole ``district`` z listą wartości **konkursu żądania** (docs/tasks/REG-01.md).
+
+    Lista liczy się przy każdym utworzeniu serializera – DRF kopiuje pola zadeklarowane w klasie
+    przez ponowne ``__init__`` – więc konkurs przestawiony na kraje dostaje w API kody krajów, a
+    Olimpiada Kwantowa dokładnie dotychczasową listę województw (bez zapytania). Konkurs bierzemy
+    z kontekstu, który w żądaniu wiąże ``CompetitionMiddleware``.
+    """
+
+    def __init__(self, **kwargs):
+        from apps.tenancy.context import current_competition
+
+        from .regions import district_choice_pairs
+
+        super().__init__(choices=district_choice_pairs(current_competition()), **kwargs)
 
 
 class CaptchaPairMixin(serializers.Serializer):
@@ -69,7 +86,7 @@ class ParticipantRegisterSerializer(CaptchaPairMixin, serializers.Serializer):
     school = serializers.CharField(max_length=255, required=False, allow_blank=True, default="")
     school_id = serializers.IntegerField(min_value=1, required=False, allow_null=True, default=None)
     grade = serializers.ChoiceField(choices=GRADE_CHOICES)
-    district = serializers.ChoiceField(choices=Voivodeship.choices)
+    district = DistrictField()
     # Data urodzenia w zapisie ISO (``RRRR-MM-DD``). Od niej zależy, czy wymagamy zgody opiekuna
     # (``accounts.services.validate_consents`` → ``consents.is_minor``), więc jest tu polem
     # pierwszej klasy, a nie dodatkiem do rocznika.
@@ -129,9 +146,7 @@ class CommitteeRegisterSerializer(CaptchaPairMixin, serializers.Serializer):
     first_name = serializers.CharField(max_length=150, validators=[validate_person_name])
     last_name = serializers.CharField(max_length=150, validators=[validate_person_name])
     invitation_code = serializers.CharField(write_only=True, max_length=128)
-    district = serializers.ChoiceField(
-        choices=Voivodeship.choices, required=False, allow_blank=True, allow_null=True
-    )
+    district = DistrictField(required=False, allow_blank=True, allow_null=True)
 
 
 class CommitteeRegisteredSerializer(serializers.ModelSerializer):
@@ -253,8 +268,7 @@ class VerifyDistrictSerializer(serializers.Serializer):
     pole jest opcjonalne, więc musi istnieć droga powrotna po pomyłkowym wpisie.
     """
 
-    district = serializers.ChoiceField(
-        choices=Voivodeship.choices,
+    district = DistrictField(
         required=False,
         allow_blank=True,
         allow_null=True,
@@ -312,7 +326,7 @@ class MeUpdateSerializer(serializers.Serializer):
     school = serializers.CharField(max_length=255, required=False, allow_blank=True)
     school_id = serializers.IntegerField(min_value=1, required=False, allow_null=True)
     grade = serializers.ChoiceField(choices=GRADE_CHOICES, required=False)
-    district = serializers.ChoiceField(choices=Voivodeship.choices, required=False)
+    district = DistrictField(required=False)
     birth_date = serializers.DateField(required=False, allow_null=True)
     birth_year = serializers.IntegerField(min_value=1900, max_value=2200, required=False)
 

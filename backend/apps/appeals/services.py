@@ -21,6 +21,7 @@ from decimal import Decimal
 from django.db import transaction
 from django.db.models import Prefetch
 from django.utils import timezone
+from django.utils.translation import gettext as _
 from rest_framework import status as http
 
 from apps.accounts.models import CommitteeMember, CommitteeStatus
@@ -84,7 +85,11 @@ def _clean_text(value: str | None, *, label: str, code: str) -> str:
     """
     cleaned = (value or "").strip()
     if len(cleaned) > MAX_TEXT_LENGTH:
-        raise _bad_request(f"{label} nie może przekraczać {MAX_TEXT_LENGTH} znaków.", code)
+        raise _bad_request(
+            _("%(label)s nie może przekraczać %(limit)s znaków.")
+            % {"label": label, "limit": MAX_TEXT_LENGTH},
+            code,
+        )
     return cleaned
 
 
@@ -150,25 +155,27 @@ def file_appeal(user, submission: Submission, argument: str, *, request=None) ->
     participant = participant_for(user, submission.competition)
     locked = _locked_submission(submission.pk)
     if participant is None or locked.entry.participant_id != participant.pk:
-        raise _not_found("Nie ma takiego rozwiązania.", "SUBMISSION_NOT_FOUND")
+        raise _not_found(_("Nie ma takiego rozwiązania."), "SUBMISSION_NOT_FOUND")
 
-    cleaned = _clean_text(argument, label="Uzasadnienie reklamacji", code="ARGUMENT_TOO_LONG")
+    cleaned = _clean_text(argument, label=_("Uzasadnienie reklamacji"), code="ARGUMENT_TOO_LONG")
     if len(cleaned) < MIN_ARGUMENT_LENGTH:
         raise _bad_request(
-            f"Uzasadnienie reklamacji musi mieć co najmniej {MIN_ARGUMENT_LENGTH} znaków.",
+            _("Uzasadnienie reklamacji musi mieć co najmniej %(limit)s znaków.")
+            % {"limit": MIN_ARGUMENT_LENGTH},
             "ARGUMENT_TOO_SHORT",
         )
     if Appeal.objects.filter(submission=locked).exists():
-        raise _conflict("Reklamacja na to rozwiązanie została już złożona.", "APPEAL_ALREADY_FILED")
+        raise _conflict(_("Reklamacja na to rozwiązanie została już złożona."), "APPEAL_ALREADY_FILED")
     if locked.status != SubmissionStatus.GRADED_PROVISIONAL:
         raise _conflict(
-            f"Rozwiązanie w stanie {locked.status} nie podlega reklamacji.", "SUBMISSION_NOT_GRADED"
+            _("Rozwiązanie w stanie %(status)s nie podlega reklamacji.") % {"status": locked.status},
+            "SUBMISSION_NOT_GRADED",
         )
 
     stage = locked.entry.stage
     now = timezone.now()
     if not stage.is_appeal_window_open(now):
-        raise _forbidden("Okno reklamacji jest zamknięte.", "APPEAL_WINDOW_CLOSED")
+        raise _forbidden(_("Okno reklamacji jest zamknięte."), "APPEAL_WINDOW_CLOSED")
 
     appeal = Appeal.objects.create(
         submission=locked,

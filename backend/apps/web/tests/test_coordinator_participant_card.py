@@ -158,7 +158,7 @@ def test_coordinator_sees_every_section(web_client, coordinator, participant, ca
     assert "Wyniki" in html
     # 5. Reklamacje
     assert "Reklamacje" in html
-    assert AppealStatus.ACCEPTED.label in html
+    assert str(AppealStatus.ACCEPTED.label) in html
     assert "Uzasadnienie" in html
     # 6. Historia (audyt)
     assert "submission.created" in html

@@ -578,32 +578,45 @@ def client_for(settings):
     return make
 
 
+@pytest.fixture(autouse=True)
+def _reset_translation():
+    """Po każdym teście język wraca do języka instalacji (``translation.deactivate``).
+
+    Aktywny język jest stanem **wątku**: test, który aktywował arabski (wprost albo przez żądanie
+    klienta testowego), zostawiłby go następnemu testowi w tym samym procesie xdist – a ten
+    dostawałby przetłumaczone napisy i padał w zależności od kolejności (I18N-01, uwaga z przeglądu).
+    """
+    yield
+    from django.utils import translation
+
+    translation.deactivate()
+
+
 @pytest.fixture
 def english_enabled_site(db):  # noqa: ARG001 - fikstura bazy, używana przez efekt uboczny
-    """``english_enabled_site()`` – włącza angielską wersję interfejsu witrynie tego konkursu.
+    """``english_enabled_site()`` – dokłada angielski do języków interfejsu tego konkursu.
 
-    Przełącznik ``cms.SiteSettings.english_interface_enabled`` jest **domyślnie wyłączony**, bo tak
-    poprosił organizator Olimpiady Kwantowej („do polskiej olimpiady niech będzie wersja tylko
-    w języku polskim na razie”). Każdy test, którego przedmiotem jest angielski – nagłówek
+    Zbiór ``tenancy.Competition.interface_languages`` Olimpiady Kwantowej to **sam polski**, bo
+    tak poprosił jej organizator („do polskiej olimpiady niech będzie wersja tylko w języku
+    polskim na razie”). Każdy test, którego przedmiotem jest angielski – nagłówek
     ``Accept-Language``, flaga w pasku konta, panel uczestnika po angielsku, list po angielsku –
     musi więc ten stan włączyć **jawnie**. Testy samej polskości zaczynają od stanu domyślnego
     i tej fikstury nie wołają; to jest ta sama umowa, co przy ``supervisor_registration_on``.
 
-    Fikstura jest wywoływalna, a nie „gotowym wierszem”, bo pytanie jest per witryna: żądania
-    ``Client()`` idą pod witrynę domyślną (tak rozstrzyga ``Site.find_for_request``), a listy
-    o konkursie – pod witrynę **tego** konkursu, i bywa to inna witryna niż domyślna.
+    Nazwa zostaje sprzed I18N-01 (wtedy był to przełącznik witryny), bo opisuje to samo: „ten
+    serwis ma też angielski”. Fikstura jest wywoływalna, a nie „gotowym wierszem”, bo pytanie
+    jest per konkurs: żądania ``Client()`` idą pod witrynę domyślną, a listy o konkursie – pod
+    witrynę **tego** konkursu, i bywa to inna witryna niż domyślna.
     """
 
-    def enable(competition=None):
-        from wagtail.models import Site
+    def enable(competition=None, languages=("pl", "en")):
+        from apps.tenancy.models import Competition
 
-        from apps.cms.models import SiteSettings
-
-        site = competition.site if competition is not None else Site.objects.get(is_default_site=True)
-        row = SiteSettings.for_site(site)
-        row.english_interface_enabled = True
-        row.save()
-        return row
+        if competition is None:
+            competition = Competition.objects.get(site__is_default_site=True)
+        competition.interface_languages = list(languages)
+        competition.save(update_fields=["interface_languages"])
+        return competition
 
     return enable
 

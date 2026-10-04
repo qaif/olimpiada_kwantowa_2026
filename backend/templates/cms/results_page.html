@@ -1,9 +1,9 @@
 {% extends "base.html" %}
-{% load wagtailcore_tags web_extras %}
+{% load i18n wagtailcore_tags web_extras %}
 {% block title %}{{ page.title }} – {{ settings.cms.SiteSettings.site_name }}{% endblock %}
 {% block content %}
 <div class="page-head">
-  <span class="eyebrow">Wyniki</span>
+  <span class="eyebrow">{% translate "Wyniki" %}</span>
   <h1>{{ page.title }}</h1>
   {% if page.intro %}<div class="lead">{{ page.intro|richtext }}</div>{% endif %}
 </div>
@@ -17,22 +17,22 @@
           nikogo nie kwalifikuje i jest poza olimpiadą. Odznaka jest jedyną rzeczą, która to mówi,
           więc stoi w nagłówku, a nie w przypisie.
         {% endcomment %}
-        {% if table.stage.is_training %}<span class="badge badge--neutral">trening</span>{% endif %}</h2>
-      <p class="hint">Ogłoszone {{ table.publication.published_at|local_time }}, tryb prezentacji:
-        {{ table.publication.get_anonymization_display }}.
-        {% if table.publication.qualified_only %}{% if table.stage.kind == "FINAL" %}Lista laureatów.{% else %}Lista osób zakwalifikowanych do następnego etapu.{% endif %}{% endif %}
-        <a href="{% url 'web:results' table.stage.pk %}">wersja pełnoekranowa</a></p>
+        {% if table.stage.is_training %}<span class="badge badge--neutral">{% translate "trening" %}</span>{% endif %}</h2>
+      <p class="hint">{% blocktranslate trimmed with published=table.publication.published_at|local_time mode=table.publication.get_anonymization_display %}Ogłoszone {{ published }}, tryb prezentacji:
+        {{ mode }}.{% endblocktranslate %}
+        {% if table.publication.qualified_only %}{% if table.stage.kind == "FINAL" %}{% translate "Lista laureatów." %}{% else %}{% translate "Lista osób zakwalifikowanych do następnego etapu." %}{% endif %}{% endif %}
+        <a href="{% url 'web:results' table.stage.pk %}">{% translate "wersja pełnoekranowa" %}</a></p>
     </div>
-    <div class="scroll" role="region" tabindex="0" aria-label="Tabela wyników: {{ table.stage.display_name }}">
+    <div class="scroll" role="region" tabindex="0" aria-label="{% blocktranslate with stage=table.stage.display_name %}Tabela wyników: {{ stage }}{% endblocktranslate %}">
       <table class="table table--rank table--sticky-rank">
         <thead>
           <tr>
-            <th>Miejsce</th>
-            <th>Uczestnik</th>
-            <th>Województwo</th>
-            {% for number in table.problem_numbers %}<th>Zad. {{ number }}{% with maximum=table.problem_maxima|dict_get:number %}{% if maximum is not None %} <span class="hint">(max {{ maximum|points }})</span>{% endif %}{% endwith %}</th>{% endfor %}
-            <th>Razem</th>
-            <th>Kwalifikacja</th>
+            <th>{% translate "Miejsce" %}</th>
+            <th>{% translate "Uczestnik" %}</th>
+            <th>{{ region_noun }}</th>
+            {% for number in table.problem_numbers %}<th>{% blocktranslate %}Zad. {{ number }}{% endblocktranslate %}{% with maximum=table.problem_maxima|dict_get:number %}{% if maximum is not None %} <span class="hint">{% blocktranslate with maximum=maximum|points %}(max {{ maximum }}){% endblocktranslate %}</span>{% endif %}{% endwith %}</th>{% endfor %}
+            <th>{% translate "Razem" %}</th>
+            <th>{% translate "Kwalifikacja" %}</th>
           </tr>
         </thead>
         <tbody>
@@ -46,18 +46,18 @@
               <td class="num total">{{ row.total|points }}</td>
               <td>
                 {% if row.qualified %}
-                  <span class="badge badge--ok">zakwalifikowany</span>
+                  <span class="badge badge--ok">{% translate "zakwalifikowany" %}</span>
                 {% else %}
-                  <span class="badge badge--neutral">nie</span>
+                  <span class="badge badge--neutral">{% translate "nie" %}</span>
                 {% endif %}
                 {# Decyzja komitetu wbrew progowi musi być widoczna – patrz templates/web/results.html. #}
                 {% if row.manual %}
-                  <span class="badge badge--warn">kwalifikacja decyzją komitetu</span>
+                  <span class="badge badge--warn">{% translate "kwalifikacja decyzją komitetu" %}</span>
                 {% endif %}
               </td>
             </tr>
           {% empty %}
-            <tr><td colspan="{{ table.problem_numbers|length|add:5 }}" class="empty">Tabela jest pusta.</td></tr>
+            <tr><td colspan="{{ table.problem_numbers|length|add:5 }}" class="empty">{% translate "Tabela jest pusta." %}</td></tr>
           {% endfor %}
         </tbody>
       </table>
@@ -71,20 +71,20 @@
   Patrz apps/cms/models.py.
 {% endcomment %}
 {% if archive %}
-  <h2 class="section-heading">Wcześniejsze edycje</h2>
+  <h2 class="section-heading">{% translate "Wcześniejsze edycje" %}</h2>
   <ul class="results-list">
     {% for item in archive %}
       <li>
         <a href="{% url 'web:results' item.stage.pk %}">{{ item.stage.edition.year_label }} –
           {{ item.stage.display_name }}</a>
-        <span class="hint">ogłoszone {{ item.publication.published_at|local_time }}</span>
+        <span class="hint">{% blocktranslate with published=item.publication.published_at|local_time %}ogłoszone {{ published }}{% endblocktranslate %}</span>
       </li>
     {% endfor %}
   </ul>
 {% endif %}
 
 {% if not tables and not archive %}
-  <p class="empty"><span class="empty__title">Wyników jeszcze nie ogłoszono</span>
-    Tabela pojawi się tutaj po ogłoszeniu wyników pierwszego etapu przez koordynatora.</p>
+  <p class="empty"><span class="empty__title">{% translate "Wyników jeszcze nie ogłoszono" %}</span>
+    {% translate "Tabela pojawi się tutaj po ogłoszeniu wyników pierwszego etapu przez koordynatora." %}</p>
 {% endif %}
 {% endblock %}

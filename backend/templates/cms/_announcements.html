@@ -1,4 +1,4 @@
-{% comment %}
+{% load i18n %}{% comment %}
   Baner komunikatów organizatora – pod nagłówkiem, nad treścią strony, na każdej stronie serwisu.
 
   Trzy rzeczy, które ten fragment musi zrobić dobrze:
@@ -24,12 +24,12 @@
            data-announcement="{{ item.pk }}"
            {% if item.dismissible %}data-announcement-dismissible{% endif %}
            role="{% if item.level == 'danger' %}alert{% else %}region{% endif %}"
-           aria-label="{% if item.level == 'danger' %}Komunikat o awarii{% else %}Komunikat organizatora{% endif %}">
+           aria-label="{% if item.level == 'danger' %}{% translate 'Komunikat o awarii' %}{% else %}{% translate 'Komunikat organizatora' %}{% endif %}">
         <p class="announcement__text">{{ item.text }}{% if item.has_link %}
           <a class="announcement__link" href="{{ item.link_url }}">{{ item.link_label }}</a>{% endif %}</p>
         {% if item.dismissible %}
           <button type="button" class="announcement__close" data-announcement-close hidden
-                  aria-label="Zamknij komunikat">×</button>
+                  aria-label="{% translate 'Zamknij komunikat' %}">×</button>
         {% endif %}
       </div>
     {% endfor %}

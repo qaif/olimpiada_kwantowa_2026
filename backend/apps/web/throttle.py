@@ -70,6 +70,7 @@ import time
 
 from django.core.cache import cache
 from django.template.response import TemplateResponse
+from django.utils.translation import gettext, gettext_noop
 from rest_framework.settings import api_settings
 
 from apps.core.models import client_ip
@@ -108,7 +109,9 @@ PER_USER_SCOPES = frozenset({"chat", "forum", "video", "video_rooms"})
 #: Jak często (sekundy) wolno zalogować awarię cache'a jednym procesem – patrz ``_report_outage``.
 OUTAGE_LOG_INTERVAL = 60
 
-THROTTLE_MESSAGE = "Zbyt wiele prób z tego adresu. Odczekaj chwilę i spróbuj ponownie."
+#: Komunikat odmowy. ``gettext_noop``: stała zostaje zwykłym ``str``, tłumaczy ją ``throttled_response``
+#: w chwili składania odpowiedzi, czyli w języku żądania.
+THROTTLE_MESSAGE = gettext_noop("Zbyt wiele prób z tego adresu. Odczekaj chwilę i spróbuj ponownie.")
 
 #: Dozwolony kształt identyfikatora z nagłówka ``HX-Target`` (nasze szablony generują np.
 #: ``problem-12``). Wartość idzie do ``HX-Retarget`` jako selektor CSS, więc nie może nieść
@@ -419,7 +422,7 @@ class ThrottledFormMixin:
         response = TemplateResponse(
             request,
             template,
-            {"message": THROTTLE_MESSAGE, "retry_after": retry_after},
+            {"message": gettext(THROTTLE_MESSAGE), "retry_after": retry_after},
             status=429,
         )
         response["Retry-After"] = str(retry_after)

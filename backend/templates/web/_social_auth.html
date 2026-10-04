@@ -1,4 +1,4 @@
-{% comment %}
+{% load i18n %}{% comment %}
   Sekcja „Lub kontynuuj z” na stronie logowania i rejestracji.
 
   Renderuje się wyłącznie dla dostawców, którzy mają w środowisku komplet kluczy – listę podaje
@@ -13,7 +13,7 @@
 {% endcomment %}
 {% if social_providers %}
   <div class="social-auth">
-    <p class="social-auth__label"><span>Lub kontynuuj z:</span></p>
+    <p class="social-auth__label"><span>{% translate "Lub kontynuuj z:" %}</span></p>
     {% for provider in social_providers %}
       <form method="post" action="{{ provider.login_url }}" class="social-auth__form">
         {% csrf_token %}

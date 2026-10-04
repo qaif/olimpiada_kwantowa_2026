@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load i18n %}
 {% comment %}
   Publiczna weryfikacja dyplomu po kodzie z papieru.
 
@@ -11,53 +12,53 @@
   odpowiedzi HTTP rozróżniający oba przypadki zamieniłby ten adres w narzędzie do sprawdzania
   kodów maszynowo.
 {% endcomment %}
-{% block title %}Weryfikacja dokumentu{% endblock %}
+{% block title %}{% translate "Weryfikacja dokumentu" %}{% endblock %}
 {% block content %}
 <div class="page-head">
   <span class="eyebrow">Olimpiada Kwantowa</span>
-  <h1>Weryfikacja dokumentu</h1>
-  <p class="lead">Kod z dokumentu: <span class="code-chip">{{ code }}</span></p>
+  <h1>{% translate "Weryfikacja dokumentu" %}</h1>
+  <p class="lead">{% translate "Kod z dokumentu:" %} <span class="code-chip">{{ code }}</span></p>
 </div>
 
 <section class="section">
   <div class="card">
     {% if certificate %}
-      <p class="msg msg-success">Dokument o tym kodzie został wystawiony przez organizatora
-        olimpiady.</p>
+      <p class="msg msg-success">{% blocktranslate trimmed %}Dokument o tym kodzie został wystawiony przez organizatora
+        olimpiady.{% endblocktranslate %}</p>
       <dl class="meta-list">
-        <dt>Rodzaj</dt><dd>{{ certificate.title }} ({{ certificate.kind }})</dd>
-        <dt>Edycja</dt><dd>{{ certificate.edition }}</dd>
-        <dt>Numer</dt><dd>{{ certificate.number }}</dd>
-        <dt>Data wystawienia</dt><dd>{{ certificate.issued_on }}</dd>
+        <dt>{% translate "Rodzaj" %}</dt><dd>{{ certificate.title }} ({{ certificate.kind }})</dd>
+        <dt>{% translate "Edycja" %}</dt><dd>{{ certificate.edition }}</dd>
+        <dt>{% translate "Numer" %}</dt><dd>{{ certificate.number }}</dd>
+        <dt>{% translate "Data wystawienia" %}</dt><dd>{{ certificate.issued_on }}</dd>
         {% comment %}
           Pieczęć elektroniczna dotyczy pliku PDF, a nie samego dokumentu: dyplom bez pieczęci
           jest ważny i właśnie go tu potwierdzamy. Mówimy o niej mimo to, bo ktoś, kto dostał
           plik pocztą, chce wiedzieć, czy da się go sprawdzić także czytnikiem PDF-ów.
         {% endcomment %}
-        <dt>Pieczęć elektroniczna</dt>
+        <dt>{% translate "Pieczęć elektroniczna" %}</dt>
         <dd>
           {% if certificate.signed %}
-            Plik PDF pobrany z serwisu jest podpisany elektronicznie{% if certificate.signer_name %}
-            przez: {{ certificate.signer_name }}{% endif %}.
+            {% if certificate.signer_name %}{% blocktranslate trimmed with signer=certificate.signer_name %}Plik PDF pobrany z serwisu jest podpisany elektronicznie
+            przez: {{ signer }}.{% endblocktranslate %}{% else %}{% translate "Plik PDF pobrany z serwisu jest podpisany elektronicznie." %}{% endif %}
           {% else %}
-            <span class="hint">Dokument wydawany jest bez pieczęci elektronicznej. Potwierdza go
-              ten kod weryfikacyjny — brak pieczęci nie jest wadą dokumentu.</span>
+            <span class="hint">{% blocktranslate trimmed %}Dokument wydawany jest bez pieczęci elektronicznej. Potwierdza go
+              ten kod weryfikacyjny — brak pieczęci nie jest wadą dokumentu.{% endblocktranslate %}</span>
           {% endif %}
         </dd>
-        <dt>Odbiorca</dt>
+        <dt>{% translate "Odbiorca" %}</dt>
         <dd>
           {% if certificate.recipient %}
             {{ certificate.recipient }}
           {% else %}
-            <span class="hint">Odbiorca nie zgodził się na publikację imienia i nazwiska.
-              Brak tej informacji nie jest wadą dokumentu.</span>
+            <span class="hint">{% blocktranslate trimmed %}Odbiorca nie zgodził się na publikację imienia i nazwiska.
+              Brak tej informacji nie jest wadą dokumentu.{% endblocktranslate %}</span>
           {% endif %}
         </dd>
       </dl>
     {% else %}
-      <p class="msg msg-error">Nie mamy dokumentu o takim kodzie.</p>
-      <p class="hint">Sprawdź, czy kod został przepisany dokładnie. W kodach nie występują znaki
-        łatwe do pomylenia: zera, jedynki ani litery „I”, „L” i „O”.</p>
+      <p class="msg msg-error">{% translate "Nie mamy dokumentu o takim kodzie." %}</p>
+      <p class="hint">{% blocktranslate trimmed %}Sprawdź, czy kod został przepisany dokładnie. W kodach nie występują znaki
+        łatwe do pomylenia: zera, jedynki ani litery „I”, „L” i „O”.{% endblocktranslate %}</p>
     {% endif %}
   </div>
 </section>

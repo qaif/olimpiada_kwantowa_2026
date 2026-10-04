@@ -111,7 +111,7 @@
   display: inline-block;
   width: 0.5rem;
   height: 0.5rem;
-  margin-left: var(--sp-2);
+  margin-inline-start: var(--sp-2);
   border-radius: 50%;
   background: var(--accent);
   vertical-align: middle;
@@ -191,7 +191,7 @@
 }
 
 .chat-msg--organizer {
-  border-left: 4px solid var(--accent);
+  border-inline-start: 4px solid var(--accent);
 }
 
 .chat-msg--context {
@@ -233,7 +233,7 @@
 
 .chat-msg__body--quoted {
   padding: var(--sp-2) var(--sp-3);
-  border-left: 3px solid var(--line-strong);
+  border-inline-start: 3px solid var(--line-strong);
   background: var(--surface-inset);
 }
 

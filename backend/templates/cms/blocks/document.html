@@ -1,5 +1,5 @@
-<p class="cms-doc">
+{% load i18n %}<p class="cms-doc">
   <a class="btn btn--secondary" href="{{ value.document.url }}">
-    Pobierz: {{ value.label|default:value.document.title }}</a>
+    {% blocktranslate with name=value.label|default:value.document.title %}Pobierz: {{ name }}{% endblocktranslate %}</a>
   <span class="hint">({{ value.document.file_extension|upper }}, {{ value.document.file_size|filesizeformat }})</span>
 </p>

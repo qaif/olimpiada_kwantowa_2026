@@ -122,7 +122,7 @@ def test_with_a_measurement_id_the_page_carries_the_id_and_the_loader(web_client
     content = response.content.decode()
 
     assert f'<meta name="ga-measurement-id" content="{MEASUREMENT_ID}">' in content
-    assert f'<html lang="pl" data-ga-id="{MEASUREMENT_ID}">' in content
+    assert f'<html lang="pl" dir="ltr" data-ga-id="{MEASUREMENT_ID}">' in content
     # Tag Google „jak każe instrukcja”: zaraz po <head>, z nonce (CSP bez wyjątku), a za nim nasz
     # odpowiednik snippetu inline – synchroniczny, bez ``defer`` (consent default przed biblioteką).
     head = content.split("</head>", 1)[0]

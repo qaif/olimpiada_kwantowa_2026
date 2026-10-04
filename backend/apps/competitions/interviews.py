@@ -73,7 +73,7 @@ def _assert_interview_stage(stage: Stage, *, http_status: int) -> None:
     """
     if not stage.is_interview:
         raise DomainError(
-            "Ten etap nie odbywa się w formie rozmowy kwalifikacyjnej.",
+            _("Ten etap nie odbywa się w formie rozmowy kwalifikacyjnej."),
             "STAGE_NOT_INTERVIEW",
             http_status,
         )
@@ -220,7 +220,7 @@ def _entry_for(participant, stage: Stage) -> StageEntry:
     entry = StageEntry.objects.filter(participant=participant, stage=stage).first()
     if entry is None or entry.status == StageEntryStatus.DISQUALIFIED:
         raise DomainError(
-            "Do rozmowy przystępują wyłącznie osoby zakwalifikowane w poprzednim etapie.",
+            _("Do rozmowy przystępują wyłącznie osoby zakwalifikowane w poprzednim etapie."),
             "NOT_QUALIFIED",
             status.HTTP_403_FORBIDDEN,
         )
@@ -237,7 +237,7 @@ def _assert_stage_open(stage: Stage) -> None:
     """
     if stage.closed_at is not None:
         raise _conflict(
-            "Etap jest zamknięty – zapisy na rozmowy nie są już możliwe.",
+            _("Etap jest zamknięty – zapisy na rozmowy nie są już możliwe."),
             "STAGE_CLOSED",
         )
 
@@ -250,7 +250,7 @@ def _assert_bookable(stage: Stage) -> None:
         # rocznik – a uczestnik, który zobaczy „to nie jest etap w formie rozmowy” na ekranie pełnym
         # terminów rozmów, dostaje komunikat wprost mu przeczący.
         raise DomainError(
-            "Ten etap należy do edycji archiwalnej – zapisy na rozmowy są w niej zamknięte.",
+            _("Ten etap należy do edycji archiwalnej – zapisy na rozmowy są w niej zamknięte."),
             "EDITION_NOT_CURRENT",
             status.HTTP_403_FORBIDDEN,
         )
@@ -355,21 +355,21 @@ def book_slot(participant, slot: InterviewSlot, *, now=None, request=None) -> In
     entry = _entry_for(participant, stage)
 
     if locked.starts_at <= now:
-        raise _conflict("Ten termin już się rozpoczął – wybierz inny.", "SLOT_STARTED")
+        raise _conflict(_("Ten termin już się rozpoczął – wybierz inny."), "SLOT_STARTED")
 
     existing = InterviewBooking.objects.filter(entry=entry).select_related("slot").first()
     if existing is not None:
         if existing.slot_id == locked.pk:
-            raise _conflict("Jesteś już zapisany na ten termin.", "ALREADY_BOOKED")
+            raise _conflict(_("Jesteś już zapisany na ten termin."), "ALREADY_BOOKED")
         if existing.slot.starts_at <= now:
             raise _conflict(
-                "Twoja rozmowa już się rozpoczęła – terminu nie można już zmienić.",
+                _("Twoja rozmowa już się rozpoczęła – terminu nie można już zmienić."),
                 "BOOKING_LOCKED",
             )
 
     taken = InterviewBooking.objects.filter(slot=locked).count()
     if taken >= locked.capacity:
-        raise _conflict("Na tym terminie nie ma już wolnych miejsc.", "SLOT_FULL")
+        raise _conflict(_("Na tym terminie nie ma już wolnych miejsc."), "SLOT_FULL")
 
     from apps.core.models import audit
 
@@ -413,9 +413,9 @@ def cancel_booking(participant, *, stage: Stage, now=None, request=None) -> None
     _assert_stage_open(stage)
     booking = InterviewBooking.objects.select_for_update(of=("self",)).filter(entry=entry).first()
     if booking is None:
-        raise _conflict("Nie masz zapisanego terminu w tym etapie.", "BOOKING_NOT_FOUND")
+        raise _conflict(_("Nie masz zapisanego terminu w tym etapie."), "BOOKING_NOT_FOUND")
     if booking.slot.starts_at <= now:
-        raise _conflict("Rozmowa już się rozpoczęła – terminu nie można odwołać.", "BOOKING_LOCKED")
+        raise _conflict(_("Rozmowa już się rozpoczęła – terminu nie można odwołać."), "BOOKING_LOCKED")
 
     from apps.core.models import audit
 

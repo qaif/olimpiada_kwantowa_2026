@@ -119,7 +119,7 @@
           {% for workshop in workshops %}
             <tr>
               <td>{{ workshop.date_value|date:"j E Y" }}</td>
-              <td><a href="{{ workshop.url }}">{{ workshop.topic|default:"Warsztaty" }}</a></td>
+              <td><a href="{{ workshop.url }}">{% if workshop.topic %}{{ workshop.topic }}{% else %}{% translate "Warsztaty" %}{% endif %}</a></td>
             </tr>
           {% endfor %}
         </tbody>

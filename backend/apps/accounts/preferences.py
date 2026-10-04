@@ -27,18 +27,20 @@ konta, pasek konta i stopka, lista i szczegóły recenzji oraz listy wysyłane d
 koordynatora zostają po polsku (organizator jest polski i to jego narzędzie pracy), a treść
 redakcyjna w CMS-ie ma własną drogę – redaktor pisze ją w edytorze, nie w pliku ``.po``.
 
-**Czy angielski w ogóle jest oferowany, rozstrzyga serwis, a nie kod.** Przełącznik
-``cms.SiteSettings.english_interface_enabled`` jest domyślnie wyłączony, bo tak poprosił
-organizator Olimpiady Kwantowej: „strona tylko w wersji polskiej (sam CMS może dawać opcję
-zrobienia strony w wersji angielskiej, ale do polskiej olimpiady niech będzie wersja tylko
-w języku polskim na razie)”. Wyłączony znaczy tu **naprawdę** wyłączony: polski obowiązuje także
-wtedy, gdy przeglądarka prosi o ``Accept-Language: en``, gdy w ciasteczku stoi ``en`` i gdy konto
-ma zapisany angielski – bo inaczej organizator zobaczyłby swoją stronę po polsku, a uczeń
-z angielskim systemem po angielsku, czyli dokładnie to, o czym poprosił, żeby się nie działo.
+**Które języki są w ogóle oferowane, rozstrzyga konkurs, a nie kod.** Zbiór stoi w
+``tenancy.Competition.interface_languages`` (I18N-01 § 1; wcześniej jeden przełącznik
+``cms.SiteSettings.english_interface_enabled``). Olimpiada Kwantowa ma tam sam polski, bo tak
+poprosił jej organizator: „strona tylko w wersji polskiej (…) do polskiej olimpiady niech będzie
+wersja tylko w języku polskim na razie”. Jeden język znaczy tu **naprawdę** jeden: polski
+obowiązuje także wtedy, gdy przeglądarka prosi o ``Accept-Language: en``, gdy w ciasteczku stoi
+``en`` i gdy konto ma zapisany angielski – bo inaczej organizator zobaczyłby swoją stronę po
+polsku, a uczeń z angielskim systemem po angielsku, czyli dokładnie to, o czym poprosił, żeby się
+nie działo. Międzynarodowy konkurs ``iqo`` ma w zbiorze jedenaście języków, w tym arabski
+pisany od prawej do lewej (``interface_direction``).
 
 Zapisu na koncie **nie kasujemy**: ``UserPreference.language`` zostaje w bazie i wraca do użytku
-w dniu, w którym organizator angielski włączy. Odebranie komuś ustawienia przy zmianie
-konfiguracji serwisu byłoby odpowiedzią na pytanie, którego nikt nie zadał.
+w dniu, w którym konkurs ten język włączy. Odebranie komuś ustawienia przy zmianie konfiguracji
+serwisu byłoby odpowiedzią na pytanie, którego nikt nie zadał.
 """
 
 from __future__ import annotations
@@ -46,7 +48,6 @@ from __future__ import annotations
 from contextlib import contextmanager
 
 from django.conf import settings
-from django.db import DatabaseError
 from django.utils import translation
 from django.utils.http import url_has_allowed_host_and_scheme
 
@@ -64,57 +65,50 @@ LANGUAGE_COOKIE_MAX_AGE = 365 * 24 * 3600
 CONTRAST_ATTRIBUTE_VALUE = "high"
 
 
-def english_enabled(request) -> bool:
-    """Czy **ta witryna** oferuje angielską wersję interfejsu (``cms.SiteSettings``).
+def offered_languages(request) -> tuple[str, ...]:
+    """Języki, które oferuje **konkurs tego żądania** (``Competition.ui_languages``).
 
     Odczyt jest darmowy i to jest warunek, pod którym w ogóle wolno go zadać z warstwy pośredniej:
-    ``BaseSiteSetting.for_request`` zapamiętuje wiersz na obiekcie żądania, a ten sam wiersz czyta
-    potem szablon bazowy (``settings.cms.SiteSettings`` w ``<html>``, nazwa serwisu i dane
-    organizatora w stopce). Pytanie zadane tutaj jedynie **wyprzedza** tamten odczyt, więc progi
-    z ``apps/tenancy/tests/test_invariants.py`` zostają nietknięte.
+    ``request.competition`` wiąże ``apps.tenancy.middleware`` jednym zapytaniem, którym i tak
+    znajduje konkurs, a zbiór jest kolumną tego samego wiersza. Progi zapytań
+    z ``apps/tenancy/tests/test_invariants.py`` zostają więc nietknięte także w żądaniach API.
 
-    Każdy powód, dla którego ustawień nie da się przeczytać – żądanie bez hosta pasującego do
-    jakiejkolwiek witryny, ``RequestFactory`` w teście jednostkowym, baza bez tabeli ustawień –
-    znaczy „angielskiego nie oferujemy”. Odwrót jest celowo po stronie **prośby organizatora**:
-    strona, o której nic nie wiadomo, ma być polska, a nie zgadywana z nagłówka przeglądarki.
+    Żądanie bez konkursu – host, który nie pasuje do żadnej witryny, ``RequestFactory`` w teście
+    jednostkowym – dostaje wyłącznie język instalacji. Odwrót jest celowo po stronie **prośby
+    organizatora**: strona, o której nic nie wiadomo, ma być polska, a nie zgadywana z nagłówka
+    przeglądarki.
     """
-    if request is None:
-        return False
-    # Droga bez zapytania: rozstrzygnięcie konkursu (``apps.tenancy.resolution``) niesie tę opcję
-    # jako adnotację tego samego zapytania, którym i tak znajduje konkurs. Bez niej żądania API –
-    # które nie renderują szablonu bazowego i nie czytają ``SiteSettings`` – płaciłyby dodatkowym
-    # zapytaniem za każde wywołanie. Adnotacja opisuje **witrynę konkursu**; żądanie obsłużone
-    # przez witrynę-alias (druga wersja językowa treści) idzie drogą zapasową poniżej.
     competition = getattr(request, "competition", None)
-    if competition is not None and hasattr(competition, "site_english_interface"):
-        site = getattr(request, "_wagtail_site", None)
-        if site is None or site.pk == competition.site_id:
-            return bool(competition.site_english_interface)
-    from apps.cms.models import SiteSettings
-
-    try:
-        return bool(SiteSettings.for_request(request).english_interface_enabled)
-    except Exception:  # noqa: BLE001 - patrz docstring: żaden błąd odczytu nie włącza angielskiego
-        return False
+    languages = getattr(competition, "ui_languages", None)
+    return tuple(languages) if languages else (settings.LANGUAGE_CODE,)
 
 
 def available_languages(request=None) -> tuple[str, ...]:
     """Kody języków, które serwis naprawdę ma **w tym żądaniu**. Źródłem jest ``settings.LANGUAGES``.
 
-    Bez żądania odpowiadamy za całą instalację, czyli tak, jak przed dołożeniem przełącznika:
-    wołają tak komenda, zadanie w tle i test jednostkowy, a żadne z nich nie ma witryny, o którą
-    można by zapytać. Z żądaniem odpowiedź jest zawężona do języka podstawowego, dopóki organizator
-    nie włączy angielskiego w ``/cms/`` → Ustawienia.
+    Bez żądania odpowiadamy za całą instalację: wołają tak komenda, zadanie w tle i test
+    jednostkowy, a żadne z nich nie ma konkursu, o który można by zapytać. Z żądaniem odpowiedź
+    jest zawężona do zbioru jego konkursu (:func:`offered_languages`).
 
     Jedna funkcja na oba pytania, a nie dwie: „jakie języki serwis ma” i „jakie języki wolno teraz
     wybrać” to z punktu widzenia każdego wołającego (przełącznik, zapis, rozstrzygnięcie żądania)
     to samo pytanie, a rozdzielenie ich byłoby pierwszym miejscem, w którym jedno z nich zostanie
     zadane w złej postaci.
     """
-    languages = tuple(code for code, _label in settings.LANGUAGES)
-    if request is not None and not english_enabled(request):
-        return (settings.LANGUAGE_CODE,)
-    return languages
+    if request is not None:
+        return offered_languages(request)
+    return tuple(code for code, _label in settings.LANGUAGES)
+
+
+def text_direction(language: str | None) -> str:
+    """``"rtl"`` dla języka pisanego od prawej do lewej (``settings.LANGUAGES_BIDI``), inaczej ``"ltr"``.
+
+    Z listy Django, a nie z własnej: ``LANGUAGES_BIDI`` zna też języki, których dziś nie mamy
+    (hebrajski, perski, urdu), więc dołożenie któregoś do ``LANGUAGES`` nie wymaga pamiętania
+    o drugim miejscu.
+    """
+    base = (language or "").split("-")[0].lower()
+    return "rtl" if base in settings.LANGUAGES_BIDI else "ltr"
 
 
 #: Polecenie przełącznika zapisane w języku, na który przełącza. Stoi obok ``LANGUAGES`` z tego
@@ -125,6 +119,15 @@ def available_languages(request=None) -> tuple[str, ...]:
 LANGUAGE_SWITCH_LABELS = {
     "pl": "Przełącz na polski",
     "en": "Switch to English",
+    "zh-hans": "切换到简体中文",
+    "hi": "हिन्दी में बदलें",
+    "es": "Cambiar a español",
+    "ar": "التبديل إلى العربية",
+    "fr": "Passer en français",
+    "bn": "বাংলায় দেখুন",
+    "pt": "Mudar para português",
+    "ru": "Переключить на русский",
+    "id": "Beralih ke Bahasa Indonesia",
 }
 
 
@@ -135,17 +138,24 @@ def language_choices(request=None) -> list[dict]:
     swojego języka na liście, szuka go zapisanego po swojemu. Dlatego etykiety są w ``LANGUAGES``
     zapisane natywnie i nie przechodzą przez gettext.
 
-    ``switch_label`` jest nazwą dostępną przycisku w pasku konta. Przycisk pokazuje dziś flagę
-    (organizator poprosił o ikonę zamiast napisu „EN”), a flaga jest **obrazkiem bez tekstu** –
-    bez tej etykiety czytnik ekranu przeczytałby „przycisk”, i tyle.
+    ``switch_label`` jest nazwą dostępną przycisku w pasku konta. Przy dwóch językach przycisk
+    pokazuje flagę (organizator poprosił o ikonę zamiast napisu „EN”), a flaga jest **obrazkiem
+    bez tekstu** – bez tej etykiety czytnik ekranu przeczytałby „przycisk”, i tyle.
+    ``direction`` trafia do atrybutu ``dir`` pozycji menu: arabska nazwa na liście
+    lewostronnej ma się wyrównać i złamać jak tekst arabski.
 
-    Serwis z wyłączonym angielskim dostaje listę **jednoelementową**, a szablon paska konta nie
-    rysuje wtedy formularza języka w ogóle: przełącznik z jedną pozycją, która i tak już obowiązuje,
+    Konkurs z jednym językiem dostaje listę **jednoelementową**, a szablon paska konta nie rysuje
+    wtedy formularza języka w ogóle: przełącznik z jedną pozycją, która i tak już obowiązuje,
     byłby przyciskiem, po którego kliknięciu nic się nie dzieje.
     """
     codes = available_languages(request)
     return [
-        {"code": code, "label": label, "switch_label": LANGUAGE_SWITCH_LABELS.get(code, label)}
+        {
+            "code": code,
+            "label": label,
+            "switch_label": LANGUAGE_SWITCH_LABELS.get(code, label),
+            "direction": text_direction(code),
+        }
         for code, label in settings.LANGUAGES
         if code in codes
     ]
@@ -162,18 +172,60 @@ def stored_preference(user):
     return getattr(user, "preference", None)
 
 
+def _supported(code: str | None, languages: tuple[str, ...]) -> str:
+    """Kod z ``languages`` odpowiadający ``code`` (z wariantami: ``zh-CN`` → ``zh-hans``) albo ``""``.
+
+    Dopasowanie wariantów robi Django (``get_supported_language_variant`` z ``LANG_INFO``), a my
+    tylko przycinamy wynik do zbioru konkursu – dlatego ``pt-BR`` trafia w ``pt``, a ``zh-TW``
+    w ``zh-hans`` jedynie wtedy, gdy konkurs chiński w ogóle oferuje.
+    """
+    if not code:
+        return ""
+    try:
+        variant = translation.get_supported_language_variant(code)
+    except LookupError:
+        return ""
+    return variant if variant in languages else ""
+
+
+def _browser_language(request, languages: tuple[str, ...]) -> str:
+    """Pierwszy język nagłówka ``Accept-Language`` (w kolejności wag), który konkurs oferuje.
+
+    Własne przejście po nagłówku, a nie ``translation.get_language_from_request``: tamto przy
+    braku dopasowania oddaje ``settings.LANGUAGE_CODE``, czyli polski, i nie da się odróżnić
+    „przeglądarka prosi o polski” od „przeglądarka nie prosi o nic, co znamy”. Konkurs
+    angielskojęzyczny pokazywałby wtedy gościowi bez nagłówka stronę po polsku.
+    """
+    from django.utils.translation.trans_real import parse_accept_lang_header
+
+    header = request.META.get("HTTP_ACCEPT_LANGUAGE", "") if hasattr(request, "META") else ""
+    for accepted, _quality in parse_accept_lang_header(header):
+        if accepted == "*":
+            break
+        found = _supported(accepted, languages)
+        if found:
+            return found
+    return ""
+
+
 def resolve(request) -> dict:
     """Co obowiązuje dla tego żądania: ``{"language": …, "high_contrast": …}``.
 
-    Kolejność źródeł: zapis konta → sesja/ciasteczko → rozstrzygnięcie ``LocaleMiddleware``
-    (czyli ciasteczko albo ``Accept-Language``). Pusty ``language`` w zapisie konta znaczy „nie
-    wybierałem, idź za przeglądarką”, a nie „polski” – to dwie różne odpowiedzi i tylko pierwsza
-    jest prawdziwa dla kogoś, kto nigdy nie dotknął przełącznika.
+    Kolejność źródeł języka (I18N-01 § 2), każde **przycięte** do zbioru konkursu:
 
-    Wszystkie trzy źródła są na końcu **przycięte** do języków, które ten serwis oferuje. Bez tego
-    przycięcia wyłączenie angielskiego byłoby pozorne: zapisany na koncie ``en`` przeszedłby
-    pierwszym warunkiem, a ``Accept-Language: en`` – trzecim, więc ta sama strona byłaby polska
-    dla organizatora i angielska dla ucznia z angielskim systemem.
+    1. zapis konta (``UserPreference.language``) – jedyna odpowiedź udzielona świadomie,
+    2. ciasteczko języka (wybór gościa z przełącznika),
+    3. ``Accept-Language`` przeglądarki – najlepsze dopasowanie w zbiorze,
+    4. ``Competition.default_language`` – język, w którym organizator prowadzi konkurs,
+    5. pierwszy język zbioru.
+
+    Pusty ``language`` w zapisie konta znaczy „nie wybierałem, idź za przeglądarką”, a nie
+    „polski” – to dwie różne odpowiedzi i tylko pierwsza jest prawdziwa dla kogoś, kto nigdy nie
+    dotknął przełącznika.
+
+    Przycięcie jest sednem: bez niego jednojęzyczność byłaby pozorna – zapisany na koncie ``en``
+    przeszedłby pierwszym warunkiem, a ``Accept-Language: en`` – trzecim, więc ta sama strona
+    byłaby polska dla organizatora i angielska dla ucznia z angielskim systemem.
     """
     languages = available_languages(request)
     preference = stored_preference(getattr(request, "user", None))
@@ -186,9 +238,14 @@ def resolve(request) -> dict:
         session = getattr(request, "session", None)
         high_contrast = bool(session.get(CONTRAST_SESSION_KEY)) if session is not None else False
     if language not in languages:
-        language = translation.get_language() or settings.LANGUAGE_CODE
-    if language not in languages:
-        language = languages[0]
+        language = ""
+    if not language and len(languages) > 1:
+        cookies = getattr(request, "COOKIES", {}) or {}
+        language = _supported(cookies.get(settings.LANGUAGE_COOKIE_NAME), languages)
+        language = language or _browser_language(request, languages)
+    if not language:
+        default = getattr(getattr(request, "competition", None), "default_language", "")
+        language = default if default in languages else languages[0]
     return {"language": language, "high_contrast": high_contrast}
 
 
@@ -253,53 +310,18 @@ def competition_languages(competition) -> tuple[str, ...]:
     """Języki, w których wolno napisać list o tym konkursie – tak, jak widzi je jego serwis.
 
     To jest odpowiednik ``available_languages(request)`` dla kodu, który żądania nie ma: przy
-    liście składanym hurtem nie ma nagłówka ``Host``, ale jest **konkurs**, a konkurs ma witrynę
-    i jej ustawienia (relacja ``Competition.site`` jeden do jednego).
-
-    Odpowiedź jest zapamiętywana **na obiekcie konkursu**, a nie w pamięci procesu z czasem życia.
-    Powód jest dokładnie ten: ogłoszenie wyników woła ``language_for`` raz na uczestnika, zawsze
-    z tym samym obiektem konkursu, więc jedno zapamiętanie zamienia „zapytanie na list” w „zapytanie
-    na wysyłkę”. Pamięć procesu dawałaby to samo, a przy okazji podawałaby odpowiedź sprzed zmiany
-    ustawienia (i sprzed wycofania transakcji w teście) jeszcze przez kilkadziesiąt sekund.
+    liście składanym hurtem nie ma nagłówka ``Host``, ale jest **konkurs**, a zbiór jest kolumną
+    jego wiersza (``Competition.ui_languages``) – ogłoszenie wyników do tysiąca uczestników nie
+    płaci za to ani jednego zapytania.
 
     Konkurs nieznany (wołający nie podał, kontekst pusty) znaczy „nie wiadomo, czyj to list”
-    i zostaje przy językach instalacji: to jest zachowanie sprzed przełącznika, a odbieranie
-    komukolwiek zapisanego wyboru na podstawie **braku** informacji byłoby zgadywaniem.
+    i zostaje przy językach instalacji: odbieranie komukolwiek zapisanego wyboru na podstawie
+    **braku** informacji byłoby zgadywaniem.
     """
     if competition is None:
         return available_languages()
-    remembered = getattr(competition, "_english_interface_enabled", None)
-    if remembered is None:
-        remembered = _site_offers_english(getattr(competition, "site_id", None))
-        try:
-            competition._english_interface_enabled = remembered
-        except AttributeError:  # pragma: no cover - obiekt bez zapisywalnych atrybutów
-            pass
-    if remembered:
-        return available_languages()
-    return (settings.LANGUAGE_CODE,)
-
-
-def _site_offers_english(site_id) -> bool:
-    """Czy witryna o tym identyfikatorze ma włączoną angielską wersję interfejsu.
-
-    Czytamy **jedną kolumnę** po kluczu głównym relacji ``OneToOne``, bez pobierania witryny
-    i bez ``get_or_create``: to jest odczyt wołany z wysyłki poczty, a nie z panelu redakcyjnego,
-    więc nie ma tu prawa powstać żaden wiersz. Brak ustawień znaczy „wyłączone”, czyli to samo,
-    co wartość domyślna pola.
-    """
-    if site_id is None:
-        return False
-    from apps.cms.models import SiteSettings
-
-    try:
-        return bool(
-            SiteSettings.objects.filter(site_id=site_id)
-            .values_list("english_interface_enabled", flat=True)
-            .first()
-        )
-    except DatabaseError:  # pragma: no cover - baza bez migracji tabeli ustawień
-        return False
+    languages = getattr(competition, "ui_languages", None)
+    return tuple(languages) if languages else (settings.LANGUAGE_CODE,)
 
 
 @contextmanager
@@ -310,10 +332,10 @@ def language_for(user, competition=None):
 
     1. zapis na koncie odbiorcy (``UserPreference.language``) – jedyna z tych odpowiedzi, której
        ktoś udzielił świadomie, więc wygrywa z każdą inną – **o ile serwis tego konkursu ten język
-       w ogóle oferuje**. Konkurs bez angielskiej wersji interfejsu nie wysyła angielskich listów
-       do kogoś, kto angielski zapisał sobie kiedy indziej: uczestnik, który całą stronę widzi po
-       polsku, dostałby inaczej list w języku, którego na tej stronie nie ma. Zapis zostaje
-       w bazie nietknięty i wraca razem z przełącznikiem,
+       w ogóle oferuje** (``Competition.ui_languages``). Konkurs tylko po polsku nie wysyła
+       angielskich listów do kogoś, kto angielski zapisał sobie kiedy indziej: uczestnik, który
+       całą stronę widzi po polsku, dostałby inaczej list w języku, którego na tej stronie nie
+       ma. Zapis zostaje w bazie nietknięty i wraca razem z językiem w zbiorze konkursu,
     2. ``Competition.default_language`` konkursu, o którym jest list – podanego wprost albo
        wziętego z kontekstu. Bez tego kroku konkurs prowadzony po angielsku wysyłałby list po
        polsku z serwisu, który uczestnik widział wyłącznie po angielsku
@@ -404,11 +426,22 @@ class PreferencesMiddleware:
         translation.activate(state["language"])
         request.LANGUAGE_CODE = state["language"]
         request.high_contrast = state["high_contrast"]
-        response = self.get_response(request)
-        # Nagłówek ``Content-Language`` ma mówić o języku, który faktycznie wyszedł – a ten mogła
-        # zmienić ta warstwa już po tym, jak ``LocaleMiddleware`` ustawiło swój.
-        response.setdefault("Content-Language", state["language"])
-        return response
+        response = None
+        try:
+            response = self.get_response(request)
+            # Nagłówek ``Content-Language`` ma mówić o języku, który faktycznie wyszedł – a ten mogła
+            # zmienić ta warstwa już po tym, jak ``LocaleMiddleware`` ustawiło swój.
+            response.setdefault("Content-Language", state["language"])
+            return response
+        finally:
+            # Język jest ustawieniem **wątku**, a gunicorn w trybie ``gthread`` obsługuje w jednym
+            # wątku kolejne żądania i kod spoza nich (sygnały po odpowiedzi, zadania wołane
+            # synchronicznie). Bez sprzątania arabski z ostatniego żądania zostawałby aktywny do
+            # następnego ``activate`` – dla kodu, który języka nie ustawia sam (list do koordynatora,
+            # log), byłby to język przypadkowy. Wyjątkiem jest odpowiedź **strumieniowa**: jej treść
+            # powstaje dopiero przy wysyłaniu, już za tą warstwą, i ma powstać w języku żądania.
+            if response is None or not getattr(response, "streaming", False):
+                translation.deactivate()
 
 
 def interface(request) -> dict:
@@ -418,13 +451,22 @@ def interface(request) -> dict:
     bo szablon wstawia go wprost w atrybut ``data-contrast`` na ``<html>``. Pusty napis znaczy
     „nie renderuj atrybutu” i tak wygląda tryb domyślny – arkusz nie ma wtedy czego zaczepić.
 
-    ``interface_languages`` bywa listą **jednoelementową** – w serwisie bez angielskiego – i to
+    ``interface_languages`` bywa listą **jednoelementową** – w konkursie jednojęzycznym – i to
     jest jedyne miejsce, w którym szablon paska konta się o tym dowiaduje.
+
+    ``interface_direction`` (``ltr``/``rtl``) idzie w atrybut ``dir`` na ``<html>``, a
+    ``interface_language_label`` – natywna nazwa bieżącego języka – jest napisem przycisku menu
+    języków, gdy konkurs ma ich więcej niż dwa (I18N-01 § 3).
     """
     high_contrast = bool(getattr(request, "high_contrast", False))
+    language = getattr(request, "LANGUAGE_CODE", settings.LANGUAGE_CODE)
+    choices = language_choices(request)
+    current = next((item for item in choices if item["code"] == language), None)
     return {
         "interface_contrast": CONTRAST_ATTRIBUTE_VALUE if high_contrast else "",
         "interface_high_contrast": high_contrast,
-        "interface_languages": language_choices(request),
-        "interface_language": getattr(request, "LANGUAGE_CODE", settings.LANGUAGE_CODE),
+        "interface_languages": choices,
+        "interface_language": language,
+        "interface_language_label": current["label"] if current else language,
+        "interface_direction": text_direction(language),
     }

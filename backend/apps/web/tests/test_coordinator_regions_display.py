@@ -93,7 +93,11 @@ def test_a_participant_without_a_region_keeps_the_voivodeship(coordinator_client
     response = coordinator_client.get(card_url(participant))
 
     assert response.context["region_label"] == ""
-    assert "Województwo" in response.content.decode()
+    page = response.content.decode()
+    # Wartość zostaje województwem uczestnika; nagłówek mówi słowem podziału konkursu (REG-01 § 1.2) –
+    # przy mieszanym zestawie (Polska + województwa) neutralnie „Region”.
+    assert participant.get_district_display() in page
+    assert "<dt>Region</dt>" in page
 
 
 def test_the_region_costs_the_card_no_extra_query(coordinator_client, competition):

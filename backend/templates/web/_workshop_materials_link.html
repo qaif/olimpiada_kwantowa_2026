@@ -1,4 +1,4 @@
-{% comment %}
+{% load i18n %}{% comment %}
   „Materiały z warsztatów” w pasku konta (decyzja organizatora z 24.09.2026). Dwa warunki naraz:
 
   - rola w tym konkursie – te same klucze, co reszta paska (``apps.web.context_processors.roles``,
@@ -14,6 +14,6 @@
   {% if workshop_materials_available %}
     {% url 'web:workshop-materials' as workshop_materials_url %}
     <a class="account-bar__link" href="{{ workshop_materials_url }}"
-       {% if request.path == workshop_materials_url %}aria-current="page"{% endif %}>Materiały z warsztatów</a>
+       {% if request.path == workshop_materials_url %}aria-current="page"{% endif %}>{% translate "Materiały z warsztatów" %}</a>
   {% endif %}
 {% endif %}

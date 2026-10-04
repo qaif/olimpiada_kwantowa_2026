@@ -1,4 +1,4 @@
-{% load web_extras chat_extras %}
+{% load i18n web_extras chat_extras %}
 {% comment %}
   Lista wiadomości wątku. Ten sam fragment wydaje widok pod ``?fragment=messages``: element sam
   odpytuje go co 15 s (htmx, bez własnego skryptu – wzorzec ``_ai_problem.html``). Odpowiedź 204
@@ -29,35 +29,35 @@
                 Odznaka roli to osobny element, zależny wyłącznie od ``sender_role`` (``entry.organizer``)
                 – imię nadawcy jest zwykłym tekstem obok i nie może jej udawać (pakiet 5).
               {% endcomment %}
-              {% if entry.organizer %}<span class="badge badge--accent chat-msg__role" data-sender-role="organizer">Organizator</span>{% endif %}
+              {% if entry.organizer %}<span class="badge badge--accent chat-msg__role" data-sender-role="organizer">{% translate "Organizator" %}</span>{% endif %}
               {% if entry.author %}<span class="chat-msg__author">{{ entry.author }}</span>{% endif %}
               <time datetime="{{ message.created_at|date:'c' }}">{{ message.created_at|local_datetime }}</time>
-              {% if message.is_pending %}<span class="badge badge--warn">czeka na akceptację</span>{% endif %}
-              {% if message.is_rejected %}<span class="badge badge--danger">odrzucona</span>{% endif %}
+              {% if message.is_pending %}<span class="badge badge--warn">{% translate "czeka na akceptację" %}</span>{% endif %}
+              {% if message.is_rejected %}<span class="badge badge--danger">{% translate "odrzucona" %}</span>{% endif %}
             </p>
             {% if message.is_hidden %}
-              <p class="chat-msg__body chat-msg__body--muted">Wiadomość ukryta przez moderatora.</p>
+              <p class="chat-msg__body chat-msg__body--muted">{% translate "Wiadomość ukryta przez moderatora." %}</p>
             {% elif message.is_encrypted %}
               <div class="chat-msg__body chat-msg__body--e2e" data-e2e-message
                    data-conversation-id="{{ message.conversation_id }}"
                    data-sender-key="{{ message.sender_public_key }}" data-recipient-key="{{ message.recipient_public_key }}"
                    data-ciphertext="{{ message.ciphertext }}" data-iv="{{ message.iv }}">
-                <span class="chat-msg__plaintext" data-e2e-plaintext>Wiadomość zaszyfrowana – odblokuj rozmowy szyfrowane, żeby ją przeczytać.</span>
+                <span class="chat-msg__plaintext" data-e2e-plaintext>{% translate "Wiadomość zaszyfrowana – odblokuj rozmowy szyfrowane, żeby ją przeczytać." %}</span>
                 {% if entry.can_report %}{% include "web/chat/_report.html" %}{% endif %}
               </div>
             {% else %}
               <div class="chat-msg__body">{{ message.body|message_body }}</div>
             {% endif %}
             {% if message.is_rejected and message.moderation_note %}
-              <p class="hint">Uzasadnienie organizatora: {{ message.moderation_note }}</p>
+              <p class="hint">{% blocktranslate trimmed with note=message.moderation_note %}Uzasadnienie organizatora: {{ note }}{% endblocktranslate %}</p>
             {% endif %}
             {% if entry.can_report and not message.is_encrypted %}{% include "web/chat/_report.html" %}{% endif %}
-            {% if entry.reported %}<p class="hint">Zgłosiłeś tę wiadomość organizatorowi.</p>{% endif %}
+            {% if entry.reported %}<p class="hint">{% translate "Zgłosiłeś tę wiadomość organizatorowi." %}</p>{% endif %}
           </li>
         {% endwith %}
       {% endif %}
     {% empty %}
-      <li class="chat-messages__empty hint">{% if conversation %}Nie ma jeszcze wiadomości – napisz pierwszą.{% else %}Napisz pierwszą wiadomość.{% endif %}</li>
+      <li class="chat-messages__empty hint">{% if conversation %}{% translate "Nie ma jeszcze wiadomości – napisz pierwszą." %}{% else %}{% translate "Napisz pierwszą wiadomość." %}{% endif %}</li>
     {% endfor %}
   </ol>
 </div>

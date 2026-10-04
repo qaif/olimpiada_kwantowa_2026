@@ -15,6 +15,7 @@ z trzech stron naraz (``apps.web.views.coordinator_student_status``).
 
 from __future__ import annotations
 
+from django.utils.translation import gettext as _
 from rest_framework import status
 
 from apps.core.api import DomainError
@@ -80,19 +81,24 @@ def validate_scan(upload) -> tuple[str, str]:
     """
     size = _size(upload)
     if size == 0:
-        raise _invalid("Plik jest pusty.", "EMPTY_FILE")
+        raise _invalid(_("Plik jest pusty."), "EMPTY_FILE")
     if size > MAX_FILE_MB * MEGABYTE:
         raise DomainError(
-            f"Plik ma {size / MEGABYTE:.1f} MB – limit to {MAX_FILE_MB} MB. Zrób zdjęcie w niższej "
-            "rozdzielczości albo zapisz skan jako PDF.",
+            _(
+                "Plik ma %(size)s MB – limit to %(limit)s MB. Zrób zdjęcie w niższej "
+                "rozdzielczości albo zapisz skan jako PDF."
+            )
+            % {"size": f"{size / MEGABYTE:.1f}", "limit": MAX_FILE_MB},
             "FILE_TOO_LARGE",
             status.HTTP_400_BAD_REQUEST,
         )
     fmt = detect_format(upload)
     if fmt is None:
         raise _invalid(
-            "Treść pliku nie jest ani PDF-em, ani zdjęciem JPG/PNG. Rozpoznajemy format po "
-            "zawartości, nie po rozszerzeniu – zapisz skan ponownie jako PDF, JPG albo PNG.",
+            _(
+                "Treść pliku nie jest ani PDF-em, ani zdjęciem JPG/PNG. Rozpoznajemy format po "
+                "zawartości, nie po rozszerzeniu – zapisz skan ponownie jako PDF, JPG albo PNG."
+            ),
             "INVALID_FILE_TYPE",
         )
     return fmt, FORMATS[fmt][1]

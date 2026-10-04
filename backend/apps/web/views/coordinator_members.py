@@ -21,7 +21,7 @@ from apps.accounts.models import CommitteeMember, CommitteeStatus, Region
 from apps.accounts.services import CUSTOM_REGIONS_FLAG
 from apps.competitions.services import current_edition
 from apps.grading.models import ReviewStatus
-from apps.web.forms import VOIVODESHIP_CHOICES
+from apps.web.forms import district_choices
 from apps.web.list_controls import ListControls
 from apps.web.mixins import CoordinatorRequiredMixin
 
@@ -113,7 +113,7 @@ class CommitteeMemberCardView(CoordinatorRequiredMixin, TemplateView):
         context.update(member_card(member))
         context.update(
             {
-                "voivodeship_choices": VOIVODESHIP_CHOICES,
+                "voivodeship_choices": district_choices(),
                 "region_label": member.region.name if by_region and member.region_id else "",
                 "pending_status": CommitteeStatus.PENDING,
                 # Odebrać wolno recenzję w każdym stanie poza anulowaną – także wystawioną.

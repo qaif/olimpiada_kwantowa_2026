@@ -26,10 +26,12 @@ from django.conf import settings
 from django.db import transaction
 from django.urls import reverse
 from django.utils import timezone
-from django.utils.translation import get_language
+from django.utils.translation import get_language, gettext_lazy
+from django.utils.translation import gettext as _
 from rest_framework import status as http
 
 from apps.accounts.activation import absolute_url, queue_mail
+from apps.accounts.preferences import language_for
 from apps.core.api import DomainError
 from apps.core.models import audit
 from apps.tenancy import branding
@@ -63,18 +65,27 @@ CONTEXT_STAGE_LIMIT = 5
 #: dosłownie, więc dostaje go już podstawionego.
 TICKET_OPENED_SUBJECT = "Nowe zgłoszenie #%(ticket)s – Olimpiada Kwantowa"
 TICKET_OPENED_SUBJECT_TEMPLATE = "Nowe zgłoszenie #%(ticket)s – %(competition)s"
-TICKET_ANSWERED_SUBJECT = "Odpowiedź na zgłoszenie #%(ticket)s – Olimpiada Kwantowa"
-TICKET_ANSWERED_SUBJECT_TEMPLATE = "Odpowiedź na zgłoszenie #%(ticket)s – %(competition)s"
+#:
+#: List o nowej sprawie idzie do organizatora i zostaje po polsku; list o odpowiedzi czyta
+#: zgłaszający, więc jego tematy są przetłumaczalne (leniwe – ``%`` rozwiązuje je w chwili
+#: składania, w bloku ``language_for``).
+TICKET_ANSWERED_SUBJECT = gettext_lazy("Odpowiedź na zgłoszenie #%(ticket)s – Olimpiada Kwantowa")
+TICKET_ANSWERED_SUBJECT_TEMPLATE = gettext_lazy("Odpowiedź na zgłoszenie #%(ticket)s – %(competition)s")
 
 
 def _clean_text(value: str, *, field: str, label: str) -> str:
     """Tekst od użytkownika: bez białych znaków na brzegach, niepusty, w granicach limitu."""
     text = (value or "").strip()
     if not text:
-        raise DomainError(f"{label} nie może być puste.", f"{field}_REQUIRED", http.HTTP_400_BAD_REQUEST)
+        raise DomainError(
+            _("%(label)s nie może być puste.") % {"label": label},
+            f"{field}_REQUIRED",
+            http.HTTP_400_BAD_REQUEST,
+        )
     if len(text) > MAX_BODY_LENGTH:
         raise DomainError(
-            f"{label} jest za długie (limit {MAX_BODY_LENGTH} znaków).",
+            _("%(label)s jest za długie (limit %(limit)s znaków).")
+            % {"label": label, "limit": MAX_BODY_LENGTH},
             f"{field}_TOO_LONG",
             http.HTTP_400_BAD_REQUEST,
         )
@@ -272,30 +283,33 @@ def _notify_reporter(ticket: SupportTicket, *, request=None) -> None:
     if not recipient:  # pragma: no cover - constraint wymaga konta albo adresu
         return
     competition = ticket.competition
-    if ticket.user_id is not None:
-        link = absolute_url(reverse("web:support-detail", args=[ticket.pk]), request, competition)
-        tail = ["Odpowiedź jest w Twoim panelu:", link]
-    else:
-        tail = ["Odpowiedź przyjdzie osobną wiadomością od organizatora."]
-    message = "\n".join(
-        [
-            f"Organizator odpowiedział na Twoje zgłoszenie #{ticket.pk}.",
-            f"Temat: {ticket.subject}",
-            "",
-            *tail,
-        ]
+    link = (
+        absolute_url(reverse("web:support-detail", args=[ticket.pk]), request, competition)
+        if ticket.user_id is not None
+        else ""
     )
-    queue_mail(
-        branding.subject(
+    # Odpowiedź pisze organizator – w **swoim** żądaniu. List czyta zgłaszający, więc idzie w jego
+    # języku; zgłoszenie bez konta dostaje język konkursu (``language_for(None, …)``).
+    with language_for(ticket.user if ticket.user_id is not None else None, competition):
+        if link:
+            tail = [_("Odpowiedź jest w Twoim panelu:"), link]
+        else:
+            tail = [_("Odpowiedź przyjdzie osobną wiadomością od organizatora.")]
+        message = "\n".join(
+            [
+                _("Organizator odpowiedział na Twoje zgłoszenie #%(ticket)s.") % {"ticket": ticket.pk},
+                _("Temat: %(subject)s") % {"subject": ticket.subject},
+                "",
+                *tail,
+            ]
+        )
+        subject = branding.subject(
             TICKET_ANSWERED_SUBJECT_TEMPLATE,
             TICKET_ANSWERED_SUBJECT % {"ticket": ticket.pk},
             competition,
             ticket=ticket.pk,
-        ),
-        message,
-        recipient,
-        competition=competition,
-    )
+        )
+    queue_mail(subject, message, recipient, competition=competition)
 
 
 @transaction.atomic
@@ -320,14 +334,14 @@ def open_ticket(
     (CAPTCHA, pułapka, próg czasu) wnosi formularz, tak samo jak przy rejestracji.
     """
     if category not in SupportCategory.values:
-        raise DomainError("Wybierz kategorię z listy.", "CATEGORY_INVALID", http.HTTP_400_BAD_REQUEST)
-    clean_subject = _clean_text(subject, field="SUBJECT", label="Temat")[:200]
-    clean_body = _clean_text(body, field="BODY", label="Opis zgłoszenia")
+        raise DomainError(_("Wybierz kategorię z listy."), "CATEGORY_INVALID", http.HTTP_400_BAD_REQUEST)
+    clean_subject = _clean_text(subject, field="SUBJECT", label=_("Temat"))[:200]
+    clean_body = _clean_text(body, field="BODY", label=_("Opis zgłoszenia"))
     account = user if (user is not None and user.is_authenticated) else None
     address = "" if account is not None else (email or "").strip().lower()
     if account is None and not address:
         raise DomainError(
-            "Podaj adres e-mail – bez niego nie mamy dokąd odpowiedzieć.",
+            _("Podaj adres e-mail – bez niego nie mamy dokąd odpowiedzieć."),
             "EMAIL_REQUIRED",
             http.HTTP_400_BAD_REQUEST,
         )
@@ -372,11 +386,11 @@ def reply(
     """
     if ticket.is_closed:
         raise DomainError(
-            "To zgłoszenie jest zamknięte. Załóż nowe, jeśli sprawa wróciła.",
+            _("To zgłoszenie jest zamknięte. Załóż nowe, jeśli sprawa wróciła."),
             "TICKET_CLOSED",
             http.HTTP_409_CONFLICT,
         )
-    clean_body = _clean_text(body, field="BODY", label="Treść odpowiedzi")
+    clean_body = _clean_text(body, field="BODY", label=_("Treść odpowiedzi"))
     message = SupportMessage.objects.create(
         ticket=ticket,
         author=author if getattr(author, "is_authenticated", False) else None,

@@ -31,6 +31,7 @@ from django.db import transaction
 from django.db.models import Count, Q
 from django.utils import timezone
 from django.utils.text import slugify
+from django.utils.translation import gettext as _
 from rest_framework import status as http
 
 from apps.core.api import DomainError
@@ -214,11 +215,13 @@ def ensure_can_write(user, competition) -> None:
     """
     if not can_read(user, competition):
         raise DomainError(
-            "Forum jest dostępne dla uczestników tego konkursu.", "FORUM_FORBIDDEN", http.HTTP_403_FORBIDDEN
+            _("Forum jest dostępne dla uczestników tego konkursu."),
+            "FORUM_FORBIDDEN",
+            http.HTTP_403_FORBIDDEN,
         )
     if settings_for(competition).is_read_only:
         raise DomainError(
-            "Forum jest w trybie tylko do odczytu – nowych wpisów nie przyjmujemy.",
+            _("Forum jest w trybie tylko do odczytu – nowych wpisów nie przyjmujemy."),
             "FORUM_READ_ONLY",
             http.HTTP_400_BAD_REQUEST,
         )
@@ -332,10 +335,14 @@ def _clean(value: str, *, limit: int, field: str, label: str) -> str:
     """
     text = (value or "").strip()
     if not text:
-        raise DomainError(f"{label} nie może być puste.", f"{field}_REQUIRED", http.HTTP_400_BAD_REQUEST)
+        raise DomainError(
+            _("%(label)s nie może być puste.") % {"label": label},
+            f"{field}_REQUIRED",
+            http.HTTP_400_BAD_REQUEST,
+        )
     if len(text) > limit:
         raise DomainError(
-            f"{label} jest za długie (limit {limit} znaków).",
+            _("%(label)s jest za długie (limit %(limit)s znaków).") % {"label": label, "limit": limit},
             f"{field}_TOO_LONG",
             http.HTTP_400_BAD_REQUEST,
         )
@@ -356,12 +363,12 @@ def create_thread(*, user, competition, category, title: str, body: str, request
         raise DomainError("Nie ma takiej kategorii.", "FORUM_CATEGORY_NOT_FOUND", http.HTTP_404_NOT_FOUND)
     if not category.is_open:
         raise DomainError(
-            "Ten dział jest zamknięty dla nowych wątków.",
+            _("Ten dział jest zamknięty dla nowych wątków."),
             "FORUM_CATEGORY_CLOSED",
             http.HTTP_400_BAD_REQUEST,
         )
-    clean_title = _clean(title, limit=MAX_TITLE_LENGTH, field="TITLE", label="Temat")
-    clean_body = _clean(body, limit=MAX_POST_LENGTH, field="BODY", label="Treść")
+    clean_title = _clean(title, limit=MAX_TITLE_LENGTH, field="TITLE", label=_("Temat"))
+    clean_body = _clean(body, limit=MAX_POST_LENGTH, field="BODY", label=_("Treść"))
     now = timezone.now()
     status = initial_status(competition, now)
     thread = ForumThread.objects.create(
@@ -392,14 +399,14 @@ def reply(*, user, competition, thread: ForumThread, body: str, request=None) ->
     """Odpowiedź w wątku."""
     ensure_can_write(user, competition)
     if thread.is_locked:
-        raise DomainError("Ten wątek jest zamknięty.", "FORUM_THREAD_LOCKED", http.HTTP_400_BAD_REQUEST)
+        raise DomainError(_("Ten wątek jest zamknięty."), "FORUM_THREAD_LOCKED", http.HTTP_400_BAD_REQUEST)
     if not thread.is_published:
         # Do wątku czekającego na moderację nie dopisuje nikt, także jego autor: moderator ma
         # ocenić temat, a nie rozmowę, która zdążyła pod nim urosnąć.
         raise DomainError(
-            "Ten wątek czeka na moderację.", "FORUM_THREAD_NOT_PUBLISHED", http.HTTP_400_BAD_REQUEST
+            _("Ten wątek czeka na moderację."), "FORUM_THREAD_NOT_PUBLISHED", http.HTTP_400_BAD_REQUEST
         )
-    clean_body = _clean(body, limit=MAX_POST_LENGTH, field="BODY", label="Treść")
+    clean_body = _clean(body, limit=MAX_POST_LENGTH, field="BODY", label=_("Treść"))
     now = timezone.now()
     status = initial_status(competition, now)
     post = ForumPost.objects.create(
@@ -446,12 +453,13 @@ def edit_post(*, post: ForumPost, user, body: str, request=None) -> ForumPost:
     """
     if not can_edit(post, user):
         raise DomainError(
-            f"Wpis można poprawić tylko przez {EDIT_WINDOW_MINUTES} minut od dodania.",
+            _("Wpis można poprawić tylko przez %(minutes)s minut od dodania.")
+            % {"minutes": EDIT_WINDOW_MINUTES},
             "FORUM_EDIT_WINDOW_CLOSED",
             http.HTTP_400_BAD_REQUEST,
         )
     ensure_can_write(user, post.competition)
-    post.body = _clean(body, limit=MAX_POST_LENGTH, field="BODY", label="Treść")
+    post.body = _clean(body, limit=MAX_POST_LENGTH, field="BODY", label=_("Treść"))
     post.edited_at = timezone.now()
     fields = ["body", "edited_at"]
     if effective_mode(post.competition) == ModerationMode.PRE:
@@ -476,7 +484,7 @@ def delete_own_post(*, post: ForumPost, user, request=None) -> ForumPost:
     Dla czytelnika różnicy nie ma – wpis znika z wątku natychmiast.
     """
     if not _identified(user) or post.author_id != user.pk:
-        raise DomainError("To nie jest Twój wpis.", "FORUM_NOT_AUTHOR", http.HTTP_403_FORBIDDEN)
+        raise DomainError(_("To nie jest Twój wpis."), "FORUM_NOT_AUTHOR", http.HTTP_403_FORBIDDEN)
     if post.status == ModerationStatus.HIDDEN:
         return post
     post.status = ModerationStatus.HIDDEN
@@ -494,9 +502,11 @@ def report_post(*, post: ForumPost, user, reason: str, request=None) -> ForumRep
     """
     if not can_read(user, post.competition):
         raise DomainError(
-            "Forum jest dostępne dla uczestników tego konkursu.", "FORUM_FORBIDDEN", http.HTTP_403_FORBIDDEN
+            _("Forum jest dostępne dla uczestników tego konkursu."),
+            "FORUM_FORBIDDEN",
+            http.HTTP_403_FORBIDDEN,
         )
-    clean_reason = _clean(reason, limit=MAX_REASON_LENGTH, field="REASON", label="Powód zgłoszenia")
+    clean_reason = _clean(reason, limit=MAX_REASON_LENGTH, field="REASON", label=_("Powód zgłoszenia"))
     return ForumReport.objects.create(
         competition=post.competition, post=post, reporter=user, reason=clean_reason
     )
@@ -748,7 +758,7 @@ def save_settings(*, competition, actor, mode: str, is_read_only: bool, request=
     """Zapisuje tryb moderacji i przełącznik „tylko do odczytu”. Wiersz powstaje przy pierwszym zapisie."""
     if mode not in ModerationMode.values:
         raise DomainError("Nieznany tryb moderacji.", "FORUM_MODE_UNKNOWN", http.HTTP_400_BAD_REQUEST)
-    row, _ = ForumSettings.objects.get_or_create(competition=competition)
+    row, _created = ForumSettings.objects.get_or_create(competition=competition)
     row.mode = mode
     row.is_read_only = bool(is_read_only)
     row.updated_at = timezone.now()
