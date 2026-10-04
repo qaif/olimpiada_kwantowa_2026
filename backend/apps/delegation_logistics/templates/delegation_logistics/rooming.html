@@ -8,7 +8,9 @@
 {% block panel_title %}Pokoje{% endblock %}
 {% block panel_lead %}
   <p class="lead">Łóżek: {{ beds }}, potrzebujących noclegu: {{ needed }}. Wiek liczony na {{ day|date:"j.m.Y" }}.
-    Niepełnoletni nie dzieli pokoju z dorosłym, a pokój „dowolna płeć” jest wyłącznie dla dorosłych.</p>
+    Niepełnoletni nie dzieli pokoju z dorosłym, pokój „dowolna płeć” jest dla dorosłych, a niepełnoletni
+    bez podanej płci mieszka sam.</p>
+  {% if violations %}<p class="notice notice--warning">Pokoje z naruszeniem zasad: {{ violations }} – oznaczone niżej.</p>{% endif %}
 {% endblock %}
 {% block panel_actions %}
   <a class="btn btn--secondary" href="{% url 'web:coordinator-onsite-export' 'rooming' %}">Rooming list CSV</a>
@@ -26,7 +28,8 @@
       <tbody>
         {% for row in rows %}
           <tr>
-            <th scope="row">{{ row.room }}{% if row.room.note %}<br><span class="hint">{{ row.room.note }}</span>{% endif %}</th>
+            <th scope="row">{{ row.room }}{% if row.room.note %}<br><span class="hint">{{ row.room.note }}</span>{% endif %}
+              {% for problem in row.problems %}<br><span class="badge badge--danger">{{ problem }}</span>{% endfor %}</th>
             <td>{{ row.room.get_gender_display }}</td>
             <td class="num">{{ row.occupants|length }} / {{ row.room.capacity }}</td>
             <td>

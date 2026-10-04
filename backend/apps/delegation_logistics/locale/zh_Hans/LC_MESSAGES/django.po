@@ -233,6 +233,14 @@ msgstr "无麸质"
 msgid "Inna (opis w uwagach)"
 msgstr "其他（请在备注中说明）"
 
+#: services.py templates/delegation_logistics/leader_dashboard.html
+msgid "Finał się zakończył, a dane delegacji zostały usunięte."
+msgstr "决赛已结束，代表团数据已被删除。"
+
+#: services.py templates/delegation_logistics/leader_dashboard.html
+msgid "Organizator nie ustalił jeszcze dat finału – dane dokumentu podróży i o zdrowiu przyjmiemy po ich ustaleniu."
+msgstr "主办方尚未确定决赛日期——日期确定后才能接收旅行证件和健康信息。"
+
 #: services.py
 #, python-format
 msgid "Termin na uzupełnienie sekcji „%(group)s” minął – zmiany wprowadza już tylko organizator."
@@ -255,12 +263,12 @@ msgid "Wyjazd nie może być przed przyjazdem."
 msgstr "离开日期不能早于抵达日期。"
 
 #: services.py
+msgid "Wybierz dietę z listy."
+msgstr "请从列表中选择饮食。"
+
+#: services.py
 msgid "Dane o wyżywieniu i zdrowiu zapiszemy dopiero po zaznaczeniu zgody osoby (albo jej rodzica, jeśli jest niepełnoletnia) na ich przetwarzanie."
 msgstr "只有勾选此人（如为未成年人，则其父母）同意处理这些信息后，才能保存餐饮和健康信息。"
-
-#: services.py templates/delegation_logistics/leader_dashboard.html
-msgid "Finał się zakończył, a dane delegacji zostały usunięte."
-msgstr "决赛已结束，代表团数据已被删除。"
 
 #: services.py
 msgid "Wybierz rolę z listy."
@@ -278,6 +286,14 @@ msgstr "每个代表团最多可有 %(count)s 位嘉宾。"
 #: services.py
 msgid "Zdjęcie musi być plikiem JPG albo PNG."
 msgstr "照片必须是 JPG 或 PNG 文件。"
+
+#: services.py
+msgid "Nie udało się odczytać zdjęcia – wgraj inny plik JPG lub PNG."
+msgstr "无法读取照片——请上传其他 JPG 或 PNG 文件。"
+
+#: services.py
+msgid "Zdjęcie ma zbyt dużą rozdzielczość."
+msgstr "照片分辨率过高。"
 
 #: services.py
 msgid "Plik jest pusty."
@@ -556,6 +572,10 @@ msgstr "已将此人加入代表团——请补全其资料。"
 #, python-format
 msgid "Zapisano dane: %(name)s."
 msgstr "已保存资料：%(name)s。"
+
+#: views.py
+msgid "Przydział pokoju został zdjęty – osoba nie spełnia już zasad zakwaterowania tego pokoju."
+msgstr "已取消房间分配——此人不再符合该房间的住宿规则。"
 
 #: views.py
 msgid "Wybierz plik ze zdjęciem."

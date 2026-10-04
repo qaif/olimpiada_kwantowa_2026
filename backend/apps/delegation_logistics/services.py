@@ -61,6 +61,14 @@ PHOTO_FORMATS = {
     "jpg": (b"\xff\xd8\xff", "image/jpeg"),
     "png": (b"\x89PNG\r\n\x1a\n", "image/png"),
 }
+#: Zdjęcie po czystym skanie jest przekodowywane (Pillow) do JPEG-a najwyżej tej wielkości – bez EXIF-u
+#: (współrzędne GPS z telefonu, model aparatu) i bez ryzyka, że PDF identyfikatorów kilkuset osób
+#: dostanie kilkaset zdjęć po 12 Mpx (poprawka po przeglądzie, M3).
+PHOTO_MAX_SIZE = (600, 800)
+PHOTO_JPEG_QUALITY = 85
+#: Najwięcej pikseli zdjęcia **przed** dekodowaniem – obrona przed „bombą dekompresyjną” (mały plik,
+#: ogromny obraz). 40 Mpx mieści każdy aparat telefonu z zapasem.
+PHOTO_MAX_PIXELS = 40_000_000
 
 #: Pola każdej grupy – kolejność jest kolejnością formularza.
 GROUP_FIELDS: dict[str, tuple[str, ...]] = {
@@ -178,8 +186,21 @@ def save_event(competition, edition, *, actor, request=None, **fields) -> FinalE
         )
     event.updated_at = timezone.now()
     event.save()
+    #: Liczba pokoi z naruszeniem zasad po zmianie pierwszego dnia finału (wiek liczony na ten dzień).
+    #: Naruszenia są oznaczane, a nie naprawiane – powód w docstringu ``rooming`` (H2).
+    event.room_violations = 0
+    if "starts_on" in changed:
+        from .rooming import edition_room_problems
+
+        event.room_violations = len(edition_room_problems(edition))
     if changed:
-        audit(actor, "logistics.event_updated", event, {"fields": changed}, request=request)
+        audit(
+            actor,
+            "logistics.event_updated",
+            event,
+            {"fields": changed, "room_violations": event.room_violations},
+            request=request,
+        )
     return event
 
 
@@ -193,6 +214,39 @@ def group_locked(event: FinalEvent | None, group: str, now=None) -> bool:
         return True
     deadline = group_deadline(event, group)
     return deadline is not None and deadline <= (now or timezone.now())
+
+
+def is_purged(edition) -> bool:
+    event = event_for(edition)
+    return event is not None and event.purged_at is not None
+
+
+def require_not_purged(edition) -> None:
+    """Po retencji finału nikt – także oficer – nie wpisuje nowych danych osób (M1)."""
+    if is_purged(edition):
+        raise DomainError(
+            _("Finał się zakończył, a dane delegacji zostały usunięte."),
+            "LOGISTICS_PURGED",
+            status.HTTP_409_CONFLICT,
+        )
+
+
+def require_retention_anchor(event: FinalEvent | None) -> None:
+    """Dane paszportowe i o zdrowiu przyjmujemy dopiero, gdy wiadomo, kiedy zostaną usunięte (M1).
+
+    Termin usunięcia liczy się od ostatniego dnia finału. Bez niego automat retencji nie ma od czego
+    liczyć, więc taki numer paszportu leżałby w bazie bez końca – odmowa jest uczciwsza niż zastępczy
+    termin, którego nikt nie ustalił.
+    """
+    if event is None or event.ends_on is None:
+        raise DomainError(
+            _(
+                "Organizator nie ustalił jeszcze dat finału – dane dokumentu podróży i o zdrowiu "
+                "przyjmiemy po ich ustaleniu."
+            ),
+            "LOGISTICS_NO_EVENT_DATES",
+            status.HTTP_409_CONFLICT,
+        )
 
 
 def groups_for(competition) -> list[str]:
@@ -230,13 +284,39 @@ def _delete_photos_on_commit(keys) -> None:
 
 
 def delete_members(queryset) -> int:
-    """Usuwa wiersze członków razem z plikami zdjęć (kaskada bazy nie wie o buckecie)."""
+    """Usuwa wiersze członków razem z plikami zdjęć i z ich wierszami w migawkach listów wizowych.
+
+    Kaskada bazy nie wie ani o buckecie, ani o zaszyfrowanym JSON-ie listu: osoba wypisana z delegacji,
+    usunięty gość czy skasowane konto nie może zostać z numerem paszportu w liście, który da się
+    pobrać jeszcze miesiąc (poprawka po przeglądzie, M4). Każda droga usuwania członka idzie tędy.
+    """
+    from .letters import drop_person
+    from .models import InvitationLetter
+
+    rows = list(queryset.values_list("pk", "delegation_id"))
     keys = list(queryset.exclude(photo_key="").values_list("photo_key", flat=True))
     guest_ids = list(queryset.exclude(guest__isnull=True).values_list("guest_id", flat=True))
-    deleted, _by_model = queryset.delete()
+    if rows:
+        member_ids = [pk for pk, _delegation in rows]
+        letters = InvitationLetter.objects.filter(
+            delegation_id__in={delegation for _pk, delegation in rows}, content_purged_at__isnull=True
+        ).exclude(content="")
+        for letter in letters:
+            drop_person(letter, member_ids)
+    deleted, _by_model = DelegationMember.objects.filter(pk__in=[pk for pk, _d in rows]).delete()
     DelegationGuest.objects.filter(pk__in=guest_ids).delete()
     _delete_photos_on_commit(keys)
     return deleted
+
+
+def _sync_once(delegation, request) -> None:
+    """Synchronizacja najwyżej raz na żądanie dla danej delegacji (L10)."""
+    if request is not None:
+        done = request.__dict__.setdefault("_logistics_synced", set())
+        if delegation.pk in done:
+            return
+        done.add(delegation.pk)
+    sync_members(delegation)
 
 
 @transaction.atomic
@@ -252,6 +332,9 @@ def sync_members(delegation) -> None:
     from apps.accounts.delegations import DelegationLeader
     from apps.accounts.models import Participant
 
+    if is_purged(delegation.edition):
+        # Po retencji nie zakładamy pustych wierszy od nowa – finał się odbył, dane mają nie wracać.
+        return
     students = set(
         Participant.objects.filter(delegation=delegation).exclude_anonymised().values_list("pk", flat=True)
     )
@@ -282,27 +365,27 @@ def sync_members(delegation) -> None:
 KIND_ORDER = {MemberKind.LEADER: 0, MemberKind.STUDENT: 1, MemberKind.GUEST: 2}
 
 
-def members_of(delegation, *, sync: bool = True) -> list[DelegationMember]:
+def members_of(delegation, *, sync: bool = True, request=None) -> list[DelegationMember]:
     """Członkowie delegacji: opiekunowie, uczniowie, goście – w tej kolejności, potem nazwiska.
 
     To jest też **interfejs dla płatności delegacji (PAY-01)**: lista osób, za które delegacja płaci,
     bez żadnych danych pobytu poza tym, co niesie wiersz (rola, imię, nazwisko).
     """
     if sync:
-        sync_members(delegation)
+        _sync_once(delegation, request)
     members = list(_member_queryset().filter(delegation=delegation))
     members.sort(key=lambda m: (KIND_ORDER.get(m.kind, 9), m.last_name.lower(), m.first_name.lower(), m.pk))
     return members
 
 
-def edition_members(edition, *, sync: bool = True) -> list[DelegationMember]:
+def edition_members(edition, *, sync: bool = True, request=None) -> list[DelegationMember]:
     """Członkowie wszystkich delegacji edycji – materiał zestawień oficera."""
     from apps.accounts.delegations import Delegation
 
     delegations = list(Delegation.objects.filter(edition=edition).select_related("country"))
     if sync:
         for delegation in delegations:
-            sync_members(delegation)
+            _sync_once(delegation, request)
     members = list(_member_queryset().filter(delegation__edition=edition))
     members.sort(
         key=lambda m: (
@@ -324,9 +407,12 @@ def member_for_leader(leader, pk: int) -> DelegationMember:
     return member
 
 
-def member_for_competition(competition, pk: int) -> DelegationMember:
-    """Członek delegacji **tego konkursu** albo 404 – dla ekranów oficera."""
-    member = _member_queryset().for_competition(competition).filter(pk=pk).first()
+def member_for_competition(competition, pk: int, edition=None) -> DelegationMember:
+    """Członek delegacji **tego konkursu** (i bieżącej edycji, gdy podana) albo 404 – ekrany oficera."""
+    members = _member_queryset().for_competition(competition)
+    if edition is not None:
+        members = members.filter(delegation__edition=edition)
+    member = members.filter(pk=pk).first()
     if member is None:
         raise Http404("Nie ma takiej osoby w delegacjach tego konkursu.")
     return member
@@ -437,9 +523,18 @@ def save_member(
     3. dane o zdrowiu wymagają wyraźnej zgody (art. 9 ust. 2 lit. a RODO): niepuste pole zdrowia
        bez zapisanej i bez właśnie złożonej zgody jest odmową. Zgoda zapisuje się z osobą, chwilą
        i wersją tekstu,
-    4. walidacja (obywatelstwo, daty, ważność paszportu w czasie finału, wyjazd po przyjeździe).
+    4. walidacja (obywatelstwo, dieta z listy, daty, ważność paszportu w czasie finału, wyjazd po
+       przyjeździe); dane paszportowe i o zdrowiu wyłącznie przy znanym końcu finału (retencja),
+    5. po retencji – odmowa dla wszystkich, także oficera,
+    6. zapis **wyłącznie zmienionych kolumn** (``update_fields``): pole, którego nie dało się
+       odszyfrować (klucz bez fallbacku), czyta się jako pusty napis – i nie może tym pustym napisem
+       nadpisać szyfrogramu, który jeszcze da się odzyskać starym kluczem,
+    7. osoba z pokojem, której zmieniła się płeć, data urodzenia albo potrzeba noclegu, jest
+       sprawdzana ponownie (``rooming.recheck_member``) – niepasująca traci przydział, a w wyniku
+       pojawia się ``"room"``.
     """
     competition = member.delegation.competition
+    require_not_purged(member.delegation.edition)
     event = event_for(member.delegation.edition)
     now = now or timezone.now()
     allowed_groups = groups_for(competition)
@@ -458,6 +553,10 @@ def save_member(
                 continue
             if not as_officer and group_locked(event, group, now):
                 raise _locked_error(group)
+            if field == "diet" and value not in ("", *Diet.values):
+                raise DomainError(_("Wybierz dietę z listy."), "DIET_INVALID", status.HTTP_400_BAD_REQUEST)
+            if group in (FieldGroup.IDENTITY, FieldGroup.HEALTH) and value not in ("", None):
+                require_retention_anchor(event)
             setattr(member, field, value)
             changed.append(field)
     if FieldGroup.HEALTH in allowed_groups:
@@ -485,7 +584,10 @@ def save_member(
         return []
     _validate(member, event, changed)
     member.updated_at = now
-    member.save()
+    columns = [field for field in changed if field != "health_consent"] + ["updated_at"]
+    if "health_consent" in changed:
+        columns += ["health_consent_at", "health_consent_by", "health_consent_version"]
+    member.save(update_fields=columns)
     audit(
         actor,
         "logistics.member_updated",
@@ -493,44 +595,68 @@ def save_member(
         {"fields": changed, "delegation": member.delegation_id, "by_officer": as_officer},
         request=request,
     )
+    if member.room_id and set(changed) & {"gender", "date_of_birth", "needs_accommodation"}:
+        from .rooming import recheck_member
+
+        if recheck_member(member, actor=actor, request=request):
+            changed.append("room")
     return changed
 
 
 @transaction.atomic
 def withdraw_health_consent(member: DelegationMember, *, actor, request=None) -> None:
-    """Cofnięcie zgody na dane o zdrowiu: zgoda i **wszystkie** dane zdrowia znikają od razu."""
+    """Cofnięcie zgody na dane o zdrowiu: zgoda i **wszystkie** dane zdrowia znikają od razu.
+
+    Pod blokadą wiersza i wyłącznie kolumny zdrowia (``update_fields``) – równoległy zapis formularza
+    nie może przywrócić alergii, a pola innych grup nie są przepisywane (L3).
+    """
+    member = DelegationMember.objects.select_for_update().get(pk=member.pk)
     for field in HEALTH_FIELDS:
         setattr(member, field, "")
     member.health_consent_at = None
     member.health_consent_by = None
     member.health_consent_version = ""
     member.updated_at = timezone.now()
-    member.save()
+    member.save(
+        update_fields=[
+            *HEALTH_FIELDS,
+            "health_consent_at",
+            "health_consent_by",
+            "health_consent_version",
+            "updated_at",
+        ]
+    )
     audit(actor, "logistics.health_consent_withdrawn", member, {}, request=request)
 
 
 # --- goście -----------------------------------------------------------------------------------------
 
 
-def _require_not_purged(delegation) -> None:
-    event = event_for(delegation.edition)
-    if event is not None and event.purged_at is not None:
-        raise DomainError(
-            _("Finał się zakończył, a dane delegacji zostały usunięte."),
-            "LOGISTICS_PURGED",
-            status.HTTP_409_CONFLICT,
-        )
+def _require_guest_editable(delegation, as_officer: bool) -> None:
+    """Skład gości zamyka się razem z dokumentem podróży (L2): po tym terminie lista osób do listów
+    wizowych i identyfikatorów jest ostateczna, a zmiany wprowadza oficer."""
+    require_not_purged(delegation.edition)
+    if not as_officer and group_locked(event_for(delegation.edition), FieldGroup.IDENTITY):
+        raise _locked_error(FieldGroup.IDENTITY)
 
 
 @transaction.atomic
 def add_guest(
-    delegation, *, first_name: str, last_name: str, email: str = "", role: str, actor, request=None
+    delegation,
+    *,
+    first_name: str,
+    last_name: str,
+    email: str = "",
+    role: str,
+    actor,
+    as_officer: bool = False,
+    request=None,
 ):
     """Dodaje gościa (obserwatora) do delegacji – wiersz gościa i jego wiersz członka razem."""
     from apps.accounts.delegations import Delegation
 
     Delegation.objects.select_for_update().filter(pk=delegation.pk).values_list("pk", flat=True).first()
-    _require_not_purged(delegation)
+    _require_guest_editable(delegation, as_officer)
     if role not in GuestRole.values:
         raise DomainError(_("Wybierz rolę z listy."), "GUEST_ROLE_INVALID", status.HTTP_400_BAD_REQUEST)
     first_name, last_name = (first_name or "").strip(), (last_name or "").strip()
@@ -559,10 +685,19 @@ def add_guest(
 
 @transaction.atomic
 def update_guest(
-    member: DelegationMember, *, first_name: str, last_name: str, email: str, role: str, actor, request=None
+    member: DelegationMember,
+    *,
+    first_name: str,
+    last_name: str,
+    email: str,
+    role: str,
+    actor,
+    as_officer: bool = False,
+    request=None,
 ):
     if member.kind != MemberKind.GUEST:
         raise Http404("To nie jest gość delegacji.")
+    _require_guest_editable(member.delegation, as_officer)
     if role not in GuestRole.values:
         raise DomainError(_("Wybierz rolę z listy."), "GUEST_ROLE_INVALID", status.HTTP_400_BAD_REQUEST)
     guest = member.guest
@@ -599,6 +734,55 @@ def _photo_format(upload) -> tuple[str, str]:
     )
 
 
+def _unreadable_photo() -> DomainError:
+    return DomainError(
+        _("Nie udało się odczytać zdjęcia – wgraj inny plik JPG lub PNG."),
+        "PHOTO_UNREADABLE",
+        status.HTTP_400_BAD_REQUEST,
+    )
+
+
+def _check_dimensions(upload) -> None:
+    """Sam nagłówek obrazu (bez dekodowania pikseli): format zgodny z sygnaturą i limit pikseli."""
+    from PIL import Image, UnidentifiedImageError
+
+    upload.seek(0)
+    try:
+        with Image.open(upload) as image:
+            fmt, (width, height) = image.format, image.size
+    except (UnidentifiedImageError, OSError, ValueError, Image.DecompressionBombError) as exc:
+        raise _unreadable_photo() from exc
+    finally:
+        upload.seek(0)
+    if fmt not in ("JPEG", "PNG"):
+        raise _unreadable_photo()
+    if width * height > PHOTO_MAX_PIXELS:
+        raise DomainError(
+            _("Zdjęcie ma zbyt dużą rozdzielczość."), "PHOTO_TOO_MANY_PIXELS", status.HTTP_400_BAD_REQUEST
+        )
+
+
+def reencode_photo(data: bytes) -> bytes:
+    """Przekodowanie zdjęcia po czystym skanie: obrót z EXIF-u, RGB, najwyżej 600×800, JPEG bez metadanych.
+
+    Dekodujemy dopiero plik, który przeszedł ClamAV, i tylko po sprawdzeniu liczby pikseli w nagłówku.
+    Wynik nie niesie niczego z oryginału poza pikselami – EXIF (GPS, aparat, data) znika.
+    """
+    from io import BytesIO
+
+    from PIL import Image, ImageOps
+
+    with Image.open(BytesIO(data)) as source:
+        if source.size[0] * source.size[1] > PHOTO_MAX_PIXELS:
+            raise ValueError("za dużo pikseli")
+        image = ImageOps.exif_transpose(source)
+        image = image.convert("RGB")
+        image.thumbnail(PHOTO_MAX_SIZE)
+        out = BytesIO()
+        image.save(out, format="JPEG", quality=PHOTO_JPEG_QUALITY, optimize=True)
+    return out.getvalue()
+
+
 def _size(upload) -> int:
     size = getattr(upload, "size", None)
     if size is None:
@@ -626,6 +810,7 @@ def upload_photo(
     Zdjęcie pokazujemy (identyfikator, ekran skanowania) **dopiero po czystym skanie**. Poprzednie
     zdjęcie znika ze storage po commicie – trzymanie dwóch zdjęć tej samej osoby nie ma celu.
     """
+    require_not_purged(member.delegation.edition)
     event = event_for(member.delegation.edition)
     if not as_officer and group_locked(event, FieldGroup.PERSONAL):
         raise _locked_error(FieldGroup.PERSONAL)
@@ -637,6 +822,7 @@ def upload_photo(
             _("Zdjęcie może mieć najwyżej 5 MB."), "PHOTO_TOO_LARGE", status.HTTP_400_BAD_REQUEST
         )
     ext, mime = _photo_format(upload)
+    _check_dimensions(upload)
     sha = _sha256(upload)
     locked = DelegationMember.objects.select_for_update().get(pk=member.pk)
     previous = locked.photo_key
@@ -672,16 +858,55 @@ def upload_photo(
     return locked
 
 
+def _store_reencoded(member: DelegationMember, key: str) -> str | None:
+    """Czysty oryginał → przekodowany JPEG pod nowym kluczem. ``None``, gdy obrazu nie da się odczytać."""
+    from apps.submissions.tasks import MissingStorageObject, _open_object
+
+    storage = get_submission_storage()
+    try:
+        stream = _open_object(storage, key)
+    except MissingStorageObject:
+        return None
+    try:
+        data = stream.read()
+    finally:
+        close = getattr(stream, "close", None)
+        if callable(close):
+            close()
+    try:
+        jpeg = reencode_photo(data)
+    except Exception:  # noqa: BLE001 - Pillow zgłasza wiele klas błędów; skutek jest jeden: plik odrzucony
+        logger.warning("Zdjęcie identyfikatora %s nie dało się przekodować – odrzucone.", member.pk)
+        return None
+    from io import BytesIO
+
+    new_key = key.rsplit("/", 1)[0] + f"/{hashlib.sha256(jpeg).hexdigest()}.jpg"
+    storage.put(new_key, BytesIO(jpeg), "image/jpeg")
+    member.photo_size = len(jpeg)
+    member.photo_mime = "image/jpeg"
+    return new_key
+
+
 def apply_photo_scan(pk: int, key: str, verdict: str) -> DelegationMember | None:
-    """Zapisuje werdykt skanu – o ile zdjęcie nie zostało w międzyczasie podmienione."""
+    """Zapisuje werdykt skanu – o ile zdjęcie nie zostało w międzyczasie podmienione.
+
+    Czysty plik jest przekodowywany (:func:`reencode_photo`) i dopiero przekodowany JPEG staje się
+    zdjęciem osoby; oryginał znika ze storage. Plik, którego Pillow nie odczyta, kończy jak błąd skanu.
+    """
     with transaction.atomic():
         member = DelegationMember.objects.select_for_update().filter(pk=pk, photo_key=key).first()
         if member is None or member.photo_scan != ScanStatus.PENDING:
             return member
         if verdict == ScanStatus.CLEAN:
-            member.photo_scan = ScanStatus.CLEAN
-            member.save(update_fields=["photo_scan"])
-            return member
+            new_key = _store_reencoded(member, key)
+            if new_key is not None:
+                member.photo_scan = ScanStatus.CLEAN
+                member.photo_key = new_key
+                member.save(update_fields=["photo_scan", "photo_key", "photo_size", "photo_mime"])
+                if new_key != key:
+                    _delete_photos_on_commit([key])
+                return member
+            verdict = ScanStatus.ERROR
         # Zainfekowane albo nieczytelne – plik znika, opiekun wgrywa nowe zdjęcie.
         member.photo_scan = verdict if verdict in ScanStatus.values else ScanStatus.ERROR
         member.photo_key = ""
@@ -714,13 +939,3 @@ def photo_bytes(member: DelegationMember) -> bytes | None:
         close = getattr(stream, "close", None)
         if callable(close):
             close()
-
-
-@transaction.atomic
-def remove_photo(member: DelegationMember, *, actor, request=None) -> None:
-    key = member.photo_key
-    DelegationMember.objects.filter(pk=member.pk).update(
-        photo_key="", photo_scan="", photo_size=0, photo_mime=""
-    )
-    _delete_photos_on_commit([key])
-    audit(actor, "logistics.photo_removed", member, {}, request=request)

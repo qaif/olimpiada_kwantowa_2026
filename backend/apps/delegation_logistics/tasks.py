@@ -49,6 +49,14 @@ def scan_badge_photo(self, member_id: int, key: str) -> str:
         apply_photo_scan(member_id, key, ScanStatus.ERROR)
         return ScanStatus.ERROR
     except ClamAVUnavailable as exc:
+        if self.request.retries >= self.max_retries:
+            # Ponowienia wyczerpane: zdjęcie nie może wisieć „w skanowaniu” bez końca – opiekun ma
+            # zobaczyć, że trzeba wgrać je jeszcze raz (L9).
+            logger.error(
+                "Skan zdjęcia identyfikatora %s porzucony po %s próbach.", member_id, self.max_retries
+            )
+            apply_photo_scan(member_id, key, ScanStatus.ERROR)
+            return ScanStatus.ERROR
         countdown = min(RETRY_BASE_SECONDS * (2**self.request.retries), RETRY_MAX_SECONDS)
         logger.warning("ClamAV niedostępny przy skanie zdjęcia identyfikatora %s: %s", member_id, exc)
         raise self.retry(exc=exc, countdown=countdown) from exc

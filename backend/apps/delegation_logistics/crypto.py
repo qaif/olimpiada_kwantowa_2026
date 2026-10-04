@@ -9,7 +9,7 @@ Różnica wobec tamtych modułów jest jedna i ma powód: tu odczyt próbuje tak
 ``SECRET_KEY_FALLBACKS`` (``MultiFernet``). Sekret TOTP i klucz API da się wpisać ponownie, gdy
 zmiana ``SECRET_KEY`` je unieważni; numeru paszportu ośmiu członków delegacji tydzień przed finałem
 – nie. Rotacja klucza ma więc odbywać się tak, jak przewiduje Django: nowy klucz w ``SECRET_KEY``,
-stary w ``SECRET_KEY_FALLBACKS`` do końca retencji (``docs/OPERACJE.md`` § 29). Zapis zawsze idzie
+stary w ``SECRET_KEY_FALLBACKS`` do końca retencji (``docs/OPERACJE.md`` § 31). Zapis zawsze idzie
 kluczem bieżącym, więc każda poprawka wiersza przepisuje go na nowy klucz.
 
 Co to chroni, a czego nie: wyciek **samej bazy** (kopia zapasowa, zrzut do debugowania, replika)

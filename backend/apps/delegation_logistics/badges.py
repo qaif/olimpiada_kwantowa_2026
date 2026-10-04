@@ -51,16 +51,54 @@ def checkin_url(member: DelegationMember, request=None, competition=None) -> str
     return absolute_url(checkin_path(member), request, competition or member.delegation.competition)
 
 
-def member_by_token(competition, token: str) -> DelegationMember | None:
-    """Członek delegacji **tego konkursu** o tym tokenie albo ``None`` (nieznany, nieważny, cudzy)."""
+def member_by_token(competition, token: str, edition=None) -> DelegationMember | None:
+    """Członek delegacji **tego konkursu** (i bieżącej edycji) o tym tokenie albo ``None``.
+
+    ``None`` dla tokenu nieznanego, unieważnionego, cudzego konkursu i zeszłorocznej edycji (L7) –
+    identyfikator z poprzedniego finału nie otwiera niczego na tegorocznym wejściu.
+    """
     token = (token or "").strip()
     if not token or len(token) > 64:
         return None
+    members = DelegationMember.objects.for_competition(competition)
+    if edition is not None:
+        members = members.filter(delegation__edition=edition)
     return (
-        DelegationMember.objects.for_competition(competition)
-        .select_related("participant__user", "user", "guest", "delegation__country", "delegation__edition")
+        members.select_related(
+            "participant__user", "user", "guest", "delegation__country", "delegation__edition"
+        )
         .filter(badge_token=token)
         .first()
+    )
+
+
+#: Kolumny potrzebne wyszukiwarce obsługi. Pozostałe – w tym wszystkie szyfrowane – zostają
+#: odroczone, więc wyszukiwanie nazwiska nie odszyfrowuje paszportów całej edycji (L10).
+SEARCH_FIELDS = (
+    "id",
+    "kind",
+    "badge_token",
+    "delegation",
+    "participant",
+    "user",
+    "guest",
+    "delegation__country__name",
+    "participant__user__first_name",
+    "participant__user__last_name",
+    "user__first_name",
+    "user__last_name",
+    "guest__first_name",
+    "guest__last_name",
+    "guest__role",
+)
+
+
+def searchable_members(edition) -> list[DelegationMember]:
+    """Członkowie edycji do wyszukiwarki obsługi – bez odszyfrowywania czegokolwiek."""
+    return list(
+        DelegationMember.objects.filter(delegation__edition=edition)
+        .select_related("delegation__country", "participant__user", "user", "guest")
+        .only(*SEARCH_FIELDS)
     )
 
 

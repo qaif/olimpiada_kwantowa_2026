@@ -233,6 +233,14 @@ msgstr "ग्लूटेन-मुक्त"
 msgid "Inna (opis w uwagach)"
 msgstr "अन्य (टिप्पणी में बताएँ)"
 
+#: services.py templates/delegation_logistics/leader_dashboard.html
+msgid "Finał się zakończył, a dane delegacji zostały usunięte."
+msgstr "फ़ाइनल समाप्त हो चुका है और प्रतिनिधिमंडल का डेटा हटा दिया गया है।"
+
+#: services.py templates/delegation_logistics/leader_dashboard.html
+msgid "Organizator nie ustalił jeszcze dat finału – dane dokumentu podróży i o zdrowiu przyjmiemy po ich ustaleniu."
+msgstr "आयोजक ने अभी फ़ाइनल की तिथियाँ तय नहीं की हैं – तिथियाँ तय होने के बाद ही यात्रा दस्तावेज़ और स्वास्थ्य डेटा स्वीकार किया जाएगा।"
+
 #: services.py
 #, python-format
 msgid "Termin na uzupełnienie sekcji „%(group)s” minął – zmiany wprowadza już tylko organizator."
@@ -255,12 +263,12 @@ msgid "Wyjazd nie może być przed przyjazdem."
 msgstr "प्रस्थान, आगमन से पहले नहीं हो सकता।"
 
 #: services.py
+msgid "Wybierz dietę z listy."
+msgstr "सूची से आहार चुनें।"
+
+#: services.py
 msgid "Dane o wyżywieniu i zdrowiu zapiszemy dopiero po zaznaczeniu zgody osoby (albo jej rodzica, jeśli jest niepełnoletnia) na ich przetwarzanie."
 msgstr "भोजन और स्वास्थ्य जानकारी तभी सहेजी जाएगी जब आप व्यक्ति (या नाबालिग होने पर उसके माता-पिता) की प्रसंस्करण सहमति पर निशान लगाएँगे।"
-
-#: services.py templates/delegation_logistics/leader_dashboard.html
-msgid "Finał się zakończył, a dane delegacji zostały usunięte."
-msgstr "फ़ाइनल समाप्त हो चुका है और प्रतिनिधिमंडल का डेटा हटा दिया गया है।"
 
 #: services.py
 msgid "Wybierz rolę z listy."
@@ -278,6 +286,14 @@ msgstr "एक प्रतिनिधिमंडल में अधिकत
 #: services.py
 msgid "Zdjęcie musi być plikiem JPG albo PNG."
 msgstr "फ़ोटो JPG या PNG फ़ाइल होनी चाहिए।"
+
+#: services.py
+msgid "Nie udało się odczytać zdjęcia – wgraj inny plik JPG lub PNG."
+msgstr "फ़ोटो पढ़ी नहीं जा सकी – कृपया कोई दूसरी JPG या PNG फ़ाइल अपलोड करें।"
+
+#: services.py
+msgid "Zdjęcie ma zbyt dużą rozdzielczość."
+msgstr "फ़ोटो का रिज़ॉल्यूशन बहुत अधिक है।"
 
 #: services.py
 msgid "Plik jest pusty."
@@ -556,6 +572,10 @@ msgstr "व्यक्ति को प्रतिनिधिमंडल म
 #, python-format
 msgid "Zapisano dane: %(name)s."
 msgstr "डेटा सहेजा गया: %(name)s।"
+
+#: views.py
+msgid "Przydział pokoju został zdjęty – osoba nie spełnia już zasad zakwaterowania tego pokoju."
+msgstr "कमरे का आवंटन हटा दिया गया – व्यक्ति अब उस कमरे के आवास नियमों को पूरा नहीं करता।"
 
 #: views.py
 msgid "Wybierz plik ze zdjęciem."

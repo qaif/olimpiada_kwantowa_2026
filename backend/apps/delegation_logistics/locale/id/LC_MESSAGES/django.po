@@ -233,6 +233,14 @@ msgstr "Bebas gluten"
 msgid "Inna (opis w uwagach)"
 msgstr "Lainnya (jelaskan di catatan)"
 
+#: services.py templates/delegation_logistics/leader_dashboard.html
+msgid "Finał się zakończył, a dane delegacji zostały usunięte."
+msgstr "Final telah berakhir dan data delegasi telah dihapus."
+
+#: services.py templates/delegation_logistics/leader_dashboard.html
+msgid "Organizator nie ustalił jeszcze dat finału – dane dokumentu podróży i o zdrowiu przyjmiemy po ich ustaleniu."
+msgstr "Penyelenggara belum menetapkan tanggal final – data dokumen perjalanan dan kesehatan akan diterima setelah tanggal ditetapkan."
+
 #: services.py
 #, python-format
 msgid "Termin na uzupełnienie sekcji „%(group)s” minął – zmiany wprowadza już tylko organizator."
@@ -255,12 +263,12 @@ msgid "Wyjazd nie może być przed przyjazdem."
 msgstr "Waktu keberangkatan tidak boleh sebelum waktu kedatangan."
 
 #: services.py
+msgid "Wybierz dietę z listy."
+msgstr "Pilih diet dari daftar."
+
+#: services.py
 msgid "Dane o wyżywieniu i zdrowiu zapiszemy dopiero po zaznaczeniu zgody osoby (albo jej rodzica, jeśli jest niepełnoletnia) na ich przetwarzanie."
 msgstr "Data konsumsi dan kesehatan baru dapat disimpan setelah Anda mencentang persetujuan orang tersebut (atau orang tuanya, jika di bawah umur) atas pemrosesannya."
-
-#: services.py templates/delegation_logistics/leader_dashboard.html
-msgid "Finał się zakończył, a dane delegacji zostały usunięte."
-msgstr "Final telah berakhir dan data delegasi telah dihapus."
 
 #: services.py
 msgid "Wybierz rolę z listy."
@@ -278,6 +286,14 @@ msgstr "Satu delegasi paling banyak dapat memiliki %(count)s tamu."
 #: services.py
 msgid "Zdjęcie musi być plikiem JPG albo PNG."
 msgstr "Foto harus berupa berkas JPG atau PNG."
+
+#: services.py
+msgid "Nie udało się odczytać zdjęcia – wgraj inny plik JPG lub PNG."
+msgstr "Foto tidak dapat dibaca – unggah berkas JPG atau PNG lain."
+
+#: services.py
+msgid "Zdjęcie ma zbyt dużą rozdzielczość."
+msgstr "Resolusi foto terlalu tinggi."
 
 #: services.py
 msgid "Plik jest pusty."
@@ -556,6 +572,10 @@ msgstr "Orang tersebut telah ditambahkan ke delegasi – lengkapi datanya."
 #, python-format
 msgid "Zapisano dane: %(name)s."
 msgstr "Data disimpan: %(name)s."
+
+#: views.py
+msgid "Przydział pokoju został zdjęty – osoba nie spełnia już zasad zakwaterowania tego pokoju."
+msgstr "Penempatan kamar telah dicabut – orang tersebut tidak lagi memenuhi aturan akomodasi kamar itu."
 
 #: views.py
 msgid "Wybierz plik ze zdjęciem."

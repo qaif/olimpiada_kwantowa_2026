@@ -15,7 +15,7 @@ w danych delegacji {{ country }} na finał wciąż brakuje informacji:
 - {{ line.name }}: {{ line.groups|join:", " }}{% endfor %}
 {% if deadlines %}
 {% translate "Terminy:" %}{% for row in deadlines %}
-- {{ row.group }}: {{ row.deadline|date:"j.m.Y H:i" }}{% endfor %}
+- {{ row.group }}: {{ row.deadline|date:"j.m.Y H:i T" }}{% endfor %}
 {% endif %}
 {% translate "Uzupełnij dane w panelu opiekuna drużyny:" %}
 

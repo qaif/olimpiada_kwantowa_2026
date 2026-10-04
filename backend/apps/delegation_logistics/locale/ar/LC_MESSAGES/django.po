@@ -233,6 +233,14 @@ msgstr "خالٍ من الغلوتين"
 msgid "Inna (opis w uwagach)"
 msgstr "أخرى (يرجى الوصف في الملاحظات)"
 
+#: services.py templates/delegation_logistics/leader_dashboard.html
+msgid "Finał się zakończył, a dane delegacji zostały usunięte."
+msgstr "انتهى النهائي وحُذفت بيانات الوفد."
+
+#: services.py templates/delegation_logistics/leader_dashboard.html
+msgid "Organizator nie ustalił jeszcze dat finału – dane dokumentu podróży i o zdrowiu przyjmiemy po ich ustaleniu."
+msgstr "لم يحدد المنظِّم مواعيد النهائي بعد – ستُقبل بيانات وثيقة السفر والصحة بعد تحديدها."
+
 #: services.py
 #, python-format
 msgid "Termin na uzupełnienie sekcji „%(group)s” minął – zmiany wprowadza już tylko organizator."
@@ -255,12 +263,12 @@ msgid "Wyjazd nie może być przed przyjazdem."
 msgstr "لا يمكن أن يكون موعد المغادرة قبل موعد الوصول."
 
 #: services.py
+msgid "Wybierz dietę z listy."
+msgstr "اختر نظامًا غذائيًا من القائمة."
+
+#: services.py
 msgid "Dane o wyżywieniu i zdrowiu zapiszemy dopiero po zaznaczeniu zgody osoby (albo jej rodzica, jeśli jest niepełnoletnia) na ich przetwarzanie."
 msgstr "لا يمكن حفظ معلومات الوجبات والصحة إلا بعد تحديد موافقة الشخص (أو والده إذا كان قاصرًا) على معالجتها."
-
-#: services.py templates/delegation_logistics/leader_dashboard.html
-msgid "Finał się zakończył, a dane delegacji zostały usunięte."
-msgstr "انتهى النهائي وحُذفت بيانات الوفد."
 
 #: services.py
 msgid "Wybierz rolę z listy."
@@ -278,6 +286,14 @@ msgstr "يمكن أن يضم الوفد %(count)s ضيوف كحد أقصى."
 #: services.py
 msgid "Zdjęcie musi być plikiem JPG albo PNG."
 msgstr "يجب أن تكون الصورة ملف JPG أو PNG."
+
+#: services.py
+msgid "Nie udało się odczytać zdjęcia – wgraj inny plik JPG lub PNG."
+msgstr "تعذّرت قراءة الصورة – يرجى رفع ملف JPG أو PNG آخر."
+
+#: services.py
+msgid "Zdjęcie ma zbyt dużą rozdzielczość."
+msgstr "دقة الصورة عالية جدًا."
 
 #: services.py
 msgid "Plik jest pusty."
@@ -556,6 +572,10 @@ msgstr "أُضيف الشخص إلى الوفد – يرجى استكمال بي
 #, python-format
 msgid "Zapisano dane: %(name)s."
 msgstr "تم حفظ البيانات: %(name)s."
+
+#: views.py
+msgid "Przydział pokoju został zdjęty – osoba nie spełnia już zasad zakwaterowania tego pokoju."
+msgstr "أُلغي تخصيص الغرفة – لم يعد الشخص مستوفيًا لقواعد الإقامة في تلك الغرفة."
 
 #: views.py
 msgid "Wybierz plik ze zdjęciem."

@@ -95,7 +95,7 @@ class LeaderDashboardView(LeaderMixin, View):
         competition = self.competition
         groups = services.groups_for(competition)
         event = services.event_for(delegation.edition)
-        members = services.members_of(delegation)
+        members = services.members_of(delegation, request=request)
         rows = [
             {
                 "member": member,
@@ -118,6 +118,9 @@ class LeaderDashboardView(LeaderMixin, View):
             "guest_form": GuestForm(),
             "letters": letters.letters_of(competition, delegation.edition, delegation),
             "purged": event is not None and event.purged_at is not None,
+            # Bez końca finału nie przyjmujemy paszportów ani danych o zdrowiu (M1) – opiekun ma to
+            # wiedzieć, zanim zacznie wpisywać.
+            "no_event_dates": event is None or event.ends_on is None,
             "guest_count": sum(1 for member in members if member.kind == MemberKind.GUEST),
             "max_guests": services.MAX_GUESTS,
         }
@@ -186,7 +189,7 @@ class MemberFormMixin:
         data = submitted(form)
         consent = bool(data.pop("health_consent", False))
         try:
-            services.save_member(
+            self.changed = services.save_member(
                 member,
                 data,
                 actor=request.user,
@@ -215,6 +218,11 @@ class LeaderMemberView(LeaderMixin, ThrottledFormMixin, MemberFormMixin, View):
         if saved is None:
             return self._render(request, member, form, status=400)
         messages.success(request, _("Zapisano dane: %(name)s.") % {"name": member.full_name})
+        if "room" in self.changed:
+            messages.warning(
+                request,
+                _("Przydział pokoju został zdjęty – osoba nie spełnia już zasad zakwaterowania tego pokoju."),
+            )
         return redirect("web:delegation-logistics")
 
     def _render(self, request, member, form, *, status: int = 200):
@@ -319,7 +327,27 @@ class CoordinatorMixin(CoordinatorRequiredMixin):
 
     @property
     def edition(self):
-        return services.current_edition(self.competition)
+        cached = self.__dict__.get("_edition")
+        if cached is None:
+            cached = self.__dict__["_edition"] = services.current_edition(self.competition)
+        return cached
+
+    def delegation_or_404(self, raw):
+        """Delegacja konkursu **w bieżącej edycji** (L7) – zeszłoroczna delegacja nie istnieje tutaj."""
+        delegation = (
+            Delegation.objects.for_competition(self.competition)
+            .filter(edition=self.edition, pk=raw)
+            .select_related("country", "edition")
+            .first()
+            if str(raw).isdigit()
+            else None
+        )
+        if delegation is None:
+            raise Http404("Nie ma takiej delegacji w bieżącej edycji.")
+        return delegation
+
+    def member_or_404(self, pk):
+        return services.member_for_competition(self.competition, pk, edition=self.edition)
 
     def base_context(self, **extra):
         return {
@@ -348,7 +376,7 @@ class OverviewView(CoordinatorMixin, View):
     def get(self, request):
         competition = self.competition
         edition = self.edition
-        members = services.edition_members(edition)
+        members = services.edition_members(edition, request=request)
         groups = services.groups_for(competition)
         event = services.event_for(edition)
         latest = reports.last_reminders(edition)
@@ -386,13 +414,19 @@ class SettingsView(CoordinatorMixin, ThrottledFormMixin, View):
         if not form.is_valid():
             return self._render(request, form, status=400)
         try:
-            services.save_event(
+            event = services.save_event(
                 self.competition, self.edition, actor=request.user, request=request, **form.cleaned_data
             )
         except DomainError as exc:
             form.add_error(None, str(exc.detail))
             return self._render(request, form, status=400)
         messages.success(request, "Zapisano ustawienia finału.")
+        if event.room_violations:
+            messages.warning(
+                request,
+                f"Po zmianie pierwszego dnia finału pokoi z naruszeniem zasad: {event.room_violations} "
+                "(wiek liczony na ten dzień) – sprawdź zakładkę „Pokoje”.",
+            )
         return redirect("web:coordinator-onsite-settings")
 
     def _render(self, request, form, *, status: int = 200):
@@ -474,7 +508,7 @@ class CheckpointDeleteView(CoordinatorMixin, ThrottledFormMixin, View):
         return redirect("web:coordinator-onsite-settings")
 
 
-class RemindersView(CoordinatorMixin, ThrottledFormMixin, View):
+class RemindersView(OfficerMixin, ThrottledFormMixin, View):
     """POST – przypomnienia o brakach do opiekunów (wszystkich delegacji albo jednej)."""
 
     throttle_scope = THROTTLE_SCOPE
@@ -483,9 +517,7 @@ class RemindersView(CoordinatorMixin, ThrottledFormMixin, View):
         delegations = None
         raw = request.POST.get("delegation")
         if raw:
-            delegation = Delegation.objects.for_competition(self.competition).filter(pk=raw).first()
-            if delegation is None:
-                raise Http404("Nie ma takiej delegacji.")
+            delegation = self.delegation_or_404(raw)
             delegations = [delegation]
         sent = reports.send_reminders(
             self.competition, self.edition, delegations=delegations, actor=request.user, request=request
@@ -499,7 +531,7 @@ class MembersView(OfficerMixin, View):
 
     def get(self, request):
         competition = self.competition
-        members = services.edition_members(self.edition)
+        members = services.edition_members(self.edition, request=request)
         groups = services.groups_for(competition)
         delegation_id = request.GET.get("delegation", "")
         if delegation_id.isdigit():
@@ -524,15 +556,15 @@ class OfficerGuestAddView(OfficerMixin, ThrottledFormMixin, View):
     throttle_scope = THROTTLE_SCOPE
 
     def post(self, request, pk: int):
-        delegation = Delegation.objects.for_competition(self.competition).filter(pk=pk).first()
-        if delegation is None:
-            raise Http404("Nie ma takiej delegacji.")
+        delegation = self.delegation_or_404(pk)
         form = GuestForm(request.POST)
         if not form.is_valid():
             messages.error(request, "Podaj imię, nazwisko i rolę gościa.")
             return redirect("web:coordinator-onsite-members")
         try:
-            member = services.add_guest(delegation, **form.cleaned_data, actor=request.user, request=request)
+            member = services.add_guest(
+                delegation, **form.cleaned_data, actor=request.user, as_officer=True, request=request
+            )
         except DomainError as exc:
             messages.error(request, str(exc.detail))
             return redirect("web:coordinator-onsite-members")
@@ -546,17 +578,21 @@ class OfficerMemberView(OfficerMixin, ThrottledFormMixin, MemberFormMixin, View)
     throttle_scope = THROTTLE_SCOPE
 
     def get(self, request, pk: int):
-        member = services.member_for_competition(self.competition, pk)
+        member = self.member_or_404(pk)
         # Otwarcie karty z paszportem i zdrowiem jest zdarzeniem – „kto oglądał” ma mieć odpowiedź.
         audit(request.user, "logistics.member_viewed", member, {}, request=request)
         return self._render(request, member, self._form(member))
 
     def post(self, request, pk: int):
-        member = services.member_for_competition(self.competition, pk)
+        member = self.member_or_404(pk)
         saved, form = self._save(request, member)
         if saved is None:
             return self._render(request, member, form, status=400)
         messages.success(request, "Zapisano dane osoby.")
+        if "room" in self.changed:
+            messages.warning(
+                request, "Przydział pokoju zdjęty – po zmianie danych osoba nie spełnia zasad tego pokoju."
+            )
         return redirect("web:coordinator-onsite-member", pk=member.pk)
 
     def _render(self, request, member, form, *, status: int = 200):
@@ -584,10 +620,10 @@ class OfficerPhotoView(OfficerMixin, ThrottledFormMixin, View):
     throttle_scope = THROTTLE_SCOPE
 
     def get(self, request, pk: int):
-        return _photo_response(services.member_for_competition(self.competition, pk))
+        return _photo_response(self.member_or_404(pk))
 
     def post(self, request, pk: int):
-        member = services.member_for_competition(self.competition, pk)
+        member = self.member_or_404(pk)
         form = PhotoForm(request.POST, request.FILES)
         if form.is_valid():
             try:
@@ -608,12 +644,12 @@ class OfficerMemberActionView(OfficerMixin, ThrottledFormMixin, View):
     action = ""
 
     def post(self, request, pk: int):
-        member = services.member_for_competition(self.competition, pk)
+        member = self.member_or_404(pk)
         target = redirect("web:coordinator-onsite-member", pk=member.pk)
         try:
             if self.action == "room":
                 raw = request.POST.get("room", "")
-                room = rooming.room_for(self.competition, int(raw)) if raw.isdigit() else None
+                room = rooming.room_for(self.competition, int(raw), self.edition) if raw.isdigit() else None
                 rooming.assign(member, room, actor=request.user, request=request)
                 messages.success(request, "Zmieniono przydział pokoju.")
                 if request.POST.get("next") == "rooming":
@@ -640,7 +676,7 @@ class TravelView(OfficerMixin, View):
 
     def get(self, request):
         direction = "departure" if request.GET.get("direction") == "departure" else "arrival"
-        members = services.edition_members(self.edition)
+        members = services.edition_members(self.edition, request=request)
         return self.render(
             request,
             "travel.html",
@@ -670,7 +706,7 @@ class RoomingView(OfficerMixin, ThrottledFormMixin, View):
 
     def _render(self, request, form, *, status: int = 200):
         edition = self.edition
-        members = services.edition_members(edition)
+        members = services.edition_members(edition, request=request)
         data = rooming.rooming_rows(edition, members)
         return self.render(
             request,
@@ -684,14 +720,16 @@ class RoomDeleteView(OfficerMixin, ThrottledFormMixin, View):
     throttle_scope = THROTTLE_SCOPE
 
     def post(self, request, pk: int):
-        rooming.delete_room(rooming.room_for(self.competition, pk), actor=request.user, request=request)
+        rooming.delete_room(
+            rooming.room_for(self.competition, pk, self.edition), actor=request.user, request=request
+        )
         messages.success(request, "Usunięto pokój – jego mieszkańcy wrócili na listę nieprzydzielonych.")
         return redirect("web:coordinator-onsite-rooming")
 
 
 class DietaryView(OfficerMixin, View):
     def get(self, request):
-        members = services.edition_members(self.edition)
+        members = services.edition_members(self.edition, request=request)
         return self.render(
             request,
             "dietary.html",
@@ -704,7 +742,7 @@ class DietaryView(OfficerMixin, View):
 
 class TshirtsView(OfficerMixin, View):
     def get(self, request):
-        members = services.edition_members(self.edition)
+        members = services.edition_members(self.edition, request=request)
         return self.render(request, "tshirts.html", {"summary": reports.tshirt_summary(members)})
 
 
@@ -714,7 +752,9 @@ class ExportView(OfficerMixin, View):
     def get(self, request, kind: str):
         if kind not in reports.EXPORT_KINDS:
             raise Http404("Nie ma takiego zestawienia.")
-        members = services.edition_members(self.edition)
+        if kind == "dietary" and not services.collects_health(self.competition):
+            raise Http404("Konkurs nie zbiera danych o wyżywieniu i zdrowiu.")
+        members = services.edition_members(self.edition, request=request)
         dataset = reports.dataset(kind, self.competition, self.edition, members)
         audit(
             request.user,
@@ -745,18 +785,11 @@ class LettersView(OfficerMixin, ThrottledFormMixin, View):
         )
 
     def post(self, request):
-        raw = request.POST.get("delegation", "")
-        delegation = (
-            Delegation.objects.for_competition(self.competition).filter(pk=raw).first()
-            if raw.isdigit()
-            else None
-        )
-        if delegation is None:
-            raise Http404("Nie ma takiej delegacji.")
+        delegation = self.delegation_or_404(request.POST.get("delegation", ""))
         member = None
         raw_member = request.POST.get("member", "")
         if raw_member.isdigit():
-            member = services.member_for_competition(self.competition, int(raw_member))
+            member = self.member_or_404(int(raw_member))
         try:
             letter = letters.issue_letter(
                 self.competition, delegation, member=member, actor=request.user, request=request
@@ -783,16 +816,23 @@ class LetterPdfView(OfficerMixin, View):
 
 
 class BadgesView(OfficerMixin, View):
-    """PDF identyfikatorów – wszystkich albo jednej delegacji (``?delegation=``) / osoby (``?member=``)."""
+    """PDF identyfikatorów jednej delegacji (``?delegation=``) albo jednej osoby (``?member=``).
+
+    Nie ma wariantu „wszyscy naraz” (M3): kilkaset kart ze zdjęciami składanych w jednym żądaniu
+    to pamięć i czas odpowiedzi workera WWW. Delegacja to kilkanaście kart, a zdjęcia są już
+    przekodowane do 600×800.
+    """
 
     def get(self, request):
-        members = services.edition_members(self.edition)
-        raw = request.GET.get("delegation", "")
-        if raw.isdigit():
-            members = [m for m in members if m.delegation_id == int(raw)]
         raw_member = request.GET.get("member", "")
         if raw_member.isdigit():
-            members = [m for m in members if m.pk == int(raw_member)]
+            members = [self.member_or_404(int(raw_member))]
+        elif request.GET.get("delegation", ""):
+            delegation = self.delegation_or_404(request.GET["delegation"])
+            members = services.members_of(delegation, request=request)
+        else:
+            messages.error(request, "Wybierz kraj – identyfikatory drukuje się delegacjami.")
+            return redirect("web:coordinator-onsite-members")
         data = badges.badges_pdf(
             members, competition=self.competition, event=services.event_for(self.edition), request=request
         )
@@ -830,6 +870,8 @@ class CheckinMixin(LoginRequiredMixin, ThrottledFormMixin):
         edition = services.current_edition(self.competition)
         checkpoints = list(badges.checkpoints_of(edition))
         selected = badges.checkpoint_for(self.competition, request.GET.get("cp") or request.POST.get("cp"))
+        if selected is not None and selected.edition_id != edition.pk:
+            selected = None
         if selected is None and checkpoints:
             selected = checkpoints[0]
         return edition, checkpoints, selected
@@ -841,7 +883,7 @@ class CheckinView(CheckinMixin, View):
     def get(self, request):
         edition, checkpoints, selected = self.checkpoint(request)
         query = request.GET.get("q", "")
-        found = badges.search(services.edition_members(edition, sync=False), query) if query else []
+        found = badges.search(badges.searchable_members(edition), query) if query else []
         return TemplateResponse(
             request,
             "delegation_logistics/checkin.html",
@@ -853,7 +895,7 @@ class CheckinPhotoView(CheckinMixin, View):
     """Zdjęcie osoby ze skanu – dla obsługi, która nie jest koordynatorem (wybór po tokenie)."""
 
     def get(self, request, token: str):
-        member = badges.member_by_token(self.competition, token)
+        member = badges.member_by_token(self.competition, token, services.current_edition(self.competition))
         if member is None:
             raise Http404("Nieznany identyfikator.")
         return _photo_response(member)
@@ -864,7 +906,7 @@ class CheckinMemberView(CheckinMixin, View):
 
     def get(self, request, token: str):
         edition, checkpoints, selected = self.checkpoint(request)
-        member = badges.member_by_token(self.competition, token)
+        member = badges.member_by_token(self.competition, token, edition)
         if member is None:
             return TemplateResponse(
                 request,
@@ -886,7 +928,7 @@ class CheckinMemberView(CheckinMixin, View):
 
     def post(self, request, token: str):
         edition, checkpoints, selected = self.checkpoint(request)
-        member = badges.member_by_token(self.competition, token)
+        member = badges.member_by_token(self.competition, token, edition)
         if member is None or selected is None:
             raise Http404("Nieznany identyfikator albo brak punktu kontroli.")
         if request.POST.get("undo") == "1":
