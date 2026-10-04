@@ -1,0 +1,150 @@
+# Indonesian – medale olimpiady międzynarodowej (docs/tasks/MED-01.md).
+# Zrodlem (msgid) jest polski. Katalog aplikacji apps.medals – Django scala go z backend/locale.
+#
+# UWAGA: tlumaczenie MASZYNOWE (model jezykowy). Przed szeroka komunikacja
+# do uczestnikow powinien je przejrzec native speaker - patrz docs/OPERACJE.md.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Olimpiada – medale\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-04 18:00+0200\n"
+"PO-Revision-Date: 2026-10-04 18:00+0200\n"
+"Last-Translator: Olimpiada Kwantowa\n"
+"Language-Team: Indonesian\n"
+"Language: id\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+msgid "złoty medal"
+msgstr "medali emas"
+
+msgid "srebrny medal"
+msgstr "medali perak"
+
+msgid "brązowy medal"
+msgstr "medali perunggu"
+
+msgid "wyróżnienie"
+msgstr "penghargaan kehormatan"
+
+msgid "bez nagrody"
+msgstr "tanpa penghargaan"
+
+msgid "Złoty medal"
+msgstr "Medali Emas"
+
+msgid "Srebrny medal"
+msgstr "Medali Perak"
+
+msgid "Brązowy medal"
+msgstr "Medali Perunggu"
+
+msgid "Wyróżnienie"
+msgstr "Penghargaan Kehormatan"
+
+msgid "Zaświadczenie o udziale"
+msgstr "Sertifikat Partisipasi"
+
+#, python-format
+msgid "za wybitny wynik w zawodach %(competition)s"
+msgstr "atas prestasi luar biasa dalam %(competition)s"
+
+#, python-format
+msgid "za wyróżniający się wynik w zawodach %(competition)s"
+msgstr "atas prestasi terpuji dalam %(competition)s"
+
+#, python-format
+msgid "za udział w zawodach %(competition)s"
+msgstr "atas partisipasi dalam %(competition)s"
+
+#, python-format
+msgid "edycja %(edition)s"
+msgstr "edisi %(edition)s"
+
+msgid "Przewodniczący Komitetu Organizacyjnego"
+msgstr "Ketua Panitia Penyelenggara"
+
+#, python-format
+msgid "Numer dokumentu: %(number)s"
+msgstr "Nomor dokumen: %(number)s"
+
+#, python-format
+msgid "Kod weryfikacyjny: %(code)s"
+msgstr "Kode verifikasi: %(code)s"
+
+#, python-format
+msgid "Data wystawienia: %(date)s"
+msgstr "Tanggal terbit: %(date)s"
+
+#, python-format
+msgid "Weryfikacja: %(url)s"
+msgstr "Verifikasi: %(url)s"
+
+msgid "Medale"
+msgstr "Medali"
+
+msgid "Ranking krajów"
+msgstr "Peringkat negara"
+
+#, python-format
+msgid "Ogłoszone %(announced)s. Złoto, srebro i brąz przyznaje się z rankingu etapu; ten sam wynik zawsze daje tę samą nagrodę."
+msgstr "Diumumkan %(announced)s. Emas, perak, dan perunggu diberikan berdasarkan peringkat babak; nilai yang sama selalu mendapat penghargaan yang sama."
+
+msgid "Pełna tabela wyników"
+msgstr "Tabel hasil lengkap"
+
+msgid "Wszystkie kraje"
+msgstr "Semua negara"
+
+msgid "Pokaż"
+msgstr "Tampilkan"
+
+#, python-format
+msgid "%(name)s – uczestnicy: %(contestants)s, złoto: %(gold)s, srebro: %(silver)s, brąz: %(bronze)s, wyróżnienia: %(hm)s."
+msgstr "%(name)s – peserta: %(contestants)s, emas: %(gold)s, perak: %(silver)s, perunggu: %(bronze)s, penghargaan kehormatan: %(hm)s."
+
+msgid "Lista obejmuje wyłącznie osoby, których kraj wolno pokazać przy wyniku."
+msgstr "Daftar hanya memuat peserta yang negaranya boleh ditampilkan di samping hasilnya."
+
+msgid "Tabela medali"
+msgstr "Tabel medali"
+
+msgid "Nagroda"
+msgstr "Penghargaan"
+
+msgid "decyzja komitetu"
+msgstr "keputusan komite"
+
+msgid "Ranking nieoficjalny: olimpiada jest zawodami indywidualnymi. Tabela pokazuje wyłącznie sumy dla kraju – bez wyników poszczególnych uczestników."
+msgstr "Peringkat tidak resmi: olimpiade adalah kompetisi perorangan. Tabel hanya menampilkan jumlah per negara – tanpa hasil perorangan."
+
+msgid "Kolejność według sumy punktów"
+msgstr "Urutkan menurut total nilai"
+
+msgid "Kolejność według medali"
+msgstr "Urutkan menurut medali"
+
+msgid "Złoto"
+msgstr "Emas"
+
+msgid "Srebro"
+msgstr "Perak"
+
+msgid "Brąz"
+msgstr "Perunggu"
+
+msgid "Wyróżnienia"
+msgstr "Penghargaan kehormatan"
+
+msgid "Średnia"
+msgstr "Rata-rata"
+
+#, python-format
+msgid "Suma i średnia punktów są podane tylko dla krajów z co najmniej %(minimum)s wynikami – przy mniejszej drużynie byłyby wynikiem konkretnej osoby."
+msgstr "Total dan rata-rata nilai hanya ditampilkan untuk negara dengan sedikitnya %(minimum)s hasil – pada tim yang lebih kecil angka itu akan mengungkap hasil perorangan."
+
+msgid "Ten dokument nie jest już aktualny: nagroda, którą poświadcza, została zmieniona albo jest w trakcie korekty. Aktualny dokument wydaje organizator."
+msgstr "Dokumen ini sudah tidak berlaku: penghargaan yang dinyatakannya telah diubah atau sedang dikoreksi. Dokumen yang berlaku diterbitkan oleh penyelenggara."

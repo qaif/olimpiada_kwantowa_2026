@@ -81,6 +81,13 @@ class DocumentKind(models.TextChoices):
     #: osobny model tekstu: organizator poprawia zdanie zaświadczenia tym samym ekranem i z tym
     #: samym wersjonowaniem, co zdanie na dyplomie – to jest ta sama czynność na innym papierze.
     STUDENT_STATUS = "STUDENT_STATUS", "zaświadczenie o statusie ucznia"
+    #: Nagrody olimpiady międzynarodowej (MED-01, ``apps.medals``) – kopie rodzajów
+    #: ``results.CertificateKind``. Tekst organizatora obowiązuje w języku domyślnym konkursu;
+    #: pozostałe języki dokumentu biorą tłumaczenia wbudowane (szablon tekstu jest jednojęzyczny).
+    MEDAL_GOLD = "MEDAL_GOLD", "dyplom – złoty medal"
+    MEDAL_SILVER = "MEDAL_SILVER", "dyplom – srebrny medal"
+    MEDAL_BRONZE = "MEDAL_BRONZE", "dyplom – brązowy medal"
+    HON_MENTION = "HON_MENTION", "dyplom – wyróżnienie"
 
 
 #: Znaczniki dozwolone w treści szablonu – **lista zamknięta**, sprawdzana przy zapisie.

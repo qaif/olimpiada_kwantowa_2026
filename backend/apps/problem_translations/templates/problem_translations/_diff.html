@@ -1,0 +1,2 @@
+{% comment %}Różnice wierszami (``services.diff_lines``). Treść uciekana przez szablon – tekst pochodzi od użytkowników.{% endcomment %}<pre class="tr-diff">{% for line in diff %}<span class="tr-diff__{{ line.tag }}">{% if line.tag == "insert" %}+ {% elif line.tag == "delete" %}- {% else %}  {% endif %}{{ line.text }}</span>
+{% endfor %}</pre>

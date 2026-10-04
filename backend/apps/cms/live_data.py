@@ -99,7 +99,12 @@ def problems_state(competition, now=None) -> ProblemsState:
     now = now or timezone.now()
     edition = current_edition(competition)
     stage = current_stage(edition, now) if edition else None
-    has_opened = bool(stage and stage.has_opened(now))
+    # Etap z oknami czasowymi (TZ-01) jest tu jawny dopiero po końcu ostatniego okna: strona
+    # publiczna nie wie, kto ją czyta, a uczeń z późniejszego okna nie może zobaczyć zadań
+    # wcześniej. Bez flagi konkursu to dokładnie ``has_opened(now)``, bez zapytania.
+    from apps.time_windows.access import statements_visible
+
+    has_opened = bool(stage and statements_visible(stage, competition=competition, now=now))
     training = training_stage(edition)
     training_has_opened = bool(training and training.has_opened(now))
     return ProblemsState(

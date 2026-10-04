@@ -45,8 +45,19 @@ UNGATED_WITH_REASON = {
     "web:problem-model-solution": "rozwiązanie wzorcowe – wyłącznie panel recenzenta",
     "web:participant-feedback": "informacja zwrotna po publikacji wyników",
 }
-#: Przestrzenie i prefiksy wyłącznie dla personelu (panel koordynatora, admin, API komisji).
-STAFF_PREFIXES = ("admin:", "wagtail", "simple_translation:", "web:coordinator-", "grading:", "integrations:")
+#: Przestrzenie i prefiksy wyłącznie dla personelu (panel koordynatora, admin, API komisji) – oraz
+#: dwie drogi, które treści zadań **uczniowi** nie dają: edytor tłumaczeń opiekuna drużyny (TR-01,
+#: własne okno tłumaczeń i własne bramki) i przegląd tłumaczeń interfejsu (L10N-01 – napisy ekranów).
+STAFF_PREFIXES = (
+    "admin:",
+    "wagtail",
+    "simple_translation:",
+    "web:coordinator-",
+    "grading:",
+    "integrations:",
+    "web:delegation-translation",
+    "web:translation",
+)
 CONTENT = re.compile(r"(problem|statement|quiz|translation|submission-create)")
 
 

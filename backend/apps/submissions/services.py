@@ -123,7 +123,13 @@ def create_submission(
     problem = get_problem(stage, problem_number)
     entry = _locked_entry(user, stage)
     now = now or timezone.now()
-    _assert_window_open(stage, now)
+    # Okno czasowe ucznia (TZ-01): w etapie z oknami terminy są **jego** – start okna i koniec
+    # z dodatkowym czasem. Bez flagi konkursu ``personal_stage`` oddaje ten sam obiekt bez
+    # zapytania, więc ścieżka uploadu Olimpiady Kwantowej się nie zmienia.
+    from apps.time_windows.access import personal_stage
+
+    window_stage = personal_stage(stage, entry.participant) if entry.participant_id else stage
+    _assert_window_open(window_stage, now)
     # Nadzór zdalny (PROC-01): etap z nadzorem przyjmuje pracę dopiero od ucznia z gotową sesją –
     # druga linia obrony za bramką adresów. Bez flagi ``proctoring`` – zero zapytań.
     from apps.proctoring.services import assert_stage_access
@@ -144,7 +150,7 @@ def create_submission(
         competition_id=stage.edition.competition_id,
         version=(previous or 0) + 1,
         submitted_at=now,
-        is_late=now > stage.deadline_at,
+        is_late=now > window_stage.deadline_at,
         status=SubmissionStatus.SUBMITTED,
     )
 

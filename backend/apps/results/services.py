@@ -1590,6 +1590,11 @@ def publish_results(
             "ANONYMIZATION_NOT_ALLOWED_FOR_STAGE",
         )
     _assert_appeal_window_closed(stage)
+    # Okna czasowe (TZ-01): tabela wyników przed końcem ostatniego okna zdradzałaby, że zadania
+    # już są rozwiązywane i jak – rama etapu zwykle to wyklucza, ale reguła ma stać tutaj jawnie.
+    from apps.time_windows.access import assert_results_publishable
+
+    assert_results_publishable(stage)
 
     summary = apply_qualification(stage, actor=actor, request=request)
     snapshot = build_snapshot(summary["rows"], anonymization, qualified_only=qualified_only)

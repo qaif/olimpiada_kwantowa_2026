@@ -110,6 +110,9 @@ IDENTITY_FIELDS = ("email", "username")
 #:
 #: ``delegation`` (DEL-01) – opiekun drużyny i koordynator są zalogowani, a koszt (listy na wpisane
 #: adresy) przypada na konto: dwie delegacje z jednej szkoły za jednym NAT-em nie dzielą budżetu.
+#: ``translation`` (TR-01) – edytor tłumaczeń zadań: autozapis i czynności zalogowanych opiekunów.
+#: ``checkout`` i ``payments_admin`` (PAY-01) – płacący i koordynator są zalogowani, a koszt (sesje
+#: u operatora płatności, zwroty przez API) przypada na konto.
 #:
 #: ``proctoring_token`` / ``proctoring_coordinator_token`` / ``proctoring_action`` /
 #: ``proctoring_client`` (PROC-01) – tokeny nadzoru, czynności nadzorujących i kroki konsoli ucznia:
@@ -123,6 +126,9 @@ PER_USER_SCOPES = frozenset(
         "delegation",
         "webinar_join",
         "webinar_control",
+        "translation",
+        "checkout",
+        "payments_admin",
         "proctoring_token",
         "proctoring_coordinator_token",
         "proctoring_action",

@@ -204,9 +204,17 @@ def supervisor_profile(user, competition=None) -> SchoolSupervisor | None:
 
     if not user or not user.is_authenticated or not user.is_active:
         return None
-    if not has_role(user, competition or current_competition(), GROUP_SUPERVISOR):
+    competition = competition or current_competition()
+    if not has_role(user, competition, GROUP_SUPERVISOR):
         return None
-    return getattr(user, "school_supervisor", None)
+    profile = getattr(user, "school_supervisor", None)
+    # Profil jest **jeden na konto** i należy do konkursu, w którym go założono. Rola w innym
+    # konkursie (grupa Django jest globalna) nie czyni go profilem tamtego konkursu: bez tej reguły
+    # panel konkursu B pokazywał profil – i weryfikację szkoły – nadane przez organizatora A
+    # (poprawka po przeglądzie STAT-01, M2).
+    if profile is not None and competition is not None and profile.competition_id != competition.pk:
+        return None
+    return profile
 
 
 @transaction.atomic

@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% load static %}
+{% comment %}
+  Widok do druku (TR-01 § 2): zatwierdzone wersje zadań etapu w jednym języku, każde zadanie od
+  nowej strony. Formuły rysuje KaTeX, pismo – kroje systemu przeglądarki, więc „Zapisz jako PDF”
+  daje poprawny arkusz także dla chińskiego, hindi czy arabskiego, których serwer nie złoży.
+  Arkusz ``@media print`` (``static/css/app.css`` + ``translations.css``) zdejmuje nawigację.
+{% endcomment %}
+{% block title %}{{ stage.display_name }} – {{ language_label }}{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'problem_translations/vendor/katex/katex.min.css' %}">
+<link rel="stylesheet" href="{% static 'problem_translations/css/translations.css' %}">{% endblock %}
+{% block content %}
+<div class="page-head tr-print-hide">
+  <span class="eyebrow"><a href="{% url 'web:coordinator-translations-stage' stage.pk %}">Tłumaczenia: {{ stage.display_name }}</a></span>
+  <h1>{{ language_label }}{% if delegation %} – {{ delegation.country.name }}{% endif %}</h1>
+  <p class="lead">Zadania bez zatwierdzonego tłumaczenia są oznaczone – na wydruku zostaje po nich pusta strona z informacją.</p>
+  <div class="actions"><button type="button" class="btn btn--primary" data-print hidden>Drukuj / zapisz jako PDF</button></div>
+</div>
+{% for row in rows %}
+  <article class="tr-print-page" lang="{{ language }}"{% if rtl %} dir="rtl"{% endif %}>
+    {% if row.revision %}
+      <h2>{{ row.problem.number }}. {{ row.revision.title|default:row.problem.title }}</h2>
+      {% if row.stale %}<p class="notice" lang="en">{{ stale_note }}</p>{% endif %}
+      {% if row.revision.kind == "PDF" %}
+        <p class="tr-print-hide"><a href="{% url 'web:coordinator-translation-revision-file' row.revision.pk %}">PDF tłumaczenia (wersja {{ row.revision.number }})</a> – wydrukuj osobno albo użyj eksportu PDF.</p>
+      {% else %}
+        <div class="tr-doc">{{ row.html }}</div>
+      {% endif %}
+    {% else %}
+      <h2>{{ row.problem.number }}. {{ row.problem.title }}</h2>
+      <p class="notice">Brak zatwierdzonego tłumaczenia.</p>
+    {% endif %}
+  </article>
+{% endfor %}
+{% endblock %}
+{% block scripts %}
+  <script defer nonce="{{ request.csp_nonce }}" src="{% static 'js/print.js' %}"></script>
+  <script defer nonce="{{ request.csp_nonce }}" src="{% static 'problem_translations/vendor/katex/katex.min.js' %}"></script>
+  <script defer nonce="{{ request.csp_nonce }}" src="{% static 'problem_translations/js/math.js' %}"></script>
+{% endblock %}

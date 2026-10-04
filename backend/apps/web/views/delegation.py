@@ -33,6 +33,7 @@ from apps.accounts import delegation_services as service
 from apps.accounts.models import CompetitionRole
 from apps.accounts.services import has_role
 from apps.core.api import DomainError
+from apps.time_windows.access import enabled as time_windows_enabled
 from apps.web.delegation_forms import LeaderConfirmForm, LeaderSignupForm, StudentForm
 from apps.web.mixins import RoleRequiredMixin
 from apps.web.throttle import ThrottledFormMixin
@@ -104,8 +105,14 @@ class DelegationDashboardView(TeamLeaderRequiredMixin, TemplateView):
                 "window_open": window_open,
                 "stage_started": started,
                 "can_add": delegation.is_open and window_open and len(students) < delegation.max_students,
+                # Okna czasowe drużyny (TZ-01) – odnośnik wyłącznie w konkursie z tą flagą.
+                "time_windows_enabled": time_windows_enabled(self.competition),
             }
         )
+        # Sekcja „Opłaty” (PAY-01) – pusty kontekst, gdy konkurs nie pobiera opłat (flaga ``fees``).
+        from apps.payments.services import delegation_card
+
+        context.update(delegation_card(delegation))
         return context
 
 

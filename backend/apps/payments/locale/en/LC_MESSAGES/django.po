@@ -1,0 +1,365 @@
+# Płatności online (PAY-01) – katalog aplikacji apps.payments.
+# Tłumaczenia maszynowe do przeglądu przez native speakerów (jak I18N-01 § 8).
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: olimpiada\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-04 19:20+0200\n"
+"PO-Revision-Date: 2026-10-04 20:00+0200\n"
+"Last-Translator: Claude (machine translation)\n"
+"Language-Team: olimpiada\n"
+"Language: en\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Faktura"
+msgstr "Invoice"
+
+msgid "Faktura pro forma"
+msgstr "Pro forma invoice"
+
+msgid "Data sprzedaży"
+msgstr "Date of sale"
+
+msgid "Zapłacono"
+msgstr "Paid"
+
+msgid "Kod referencyjny"
+msgstr "Reference code"
+
+msgid "NIP / VAT ID"
+msgstr "Tax / VAT ID"
+
+msgid "Sprzedawca"
+msgstr "Seller"
+
+msgid "Nabywca"
+msgstr "Buyer"
+
+msgid "Pozycja"
+msgstr "Item"
+
+msgid "Ilość"
+msgstr "Quantity"
+
+msgid "Cena"
+msgstr "Price"
+
+msgid "Razem do zapłaty"
+msgstr "Total due"
+
+msgid "Bank"
+msgstr "Bank"
+
+msgid "Tytuł przelewu"
+msgstr "Transfer reference"
+
+msgid "Dane do przelewu"
+msgstr "Bank transfer details"
+
+msgid "Faktura pro forma nie jest dokumentem księgowym. Fakturę wystawimy po zaksięgowaniu wpłaty."
+msgstr "A pro forma invoice is not an accounting document. We will issue the invoice once the payment has been received."
+
+msgid "Nazwa instytucji albo imię i nazwisko"
+msgstr "Institution name or full name"
+
+msgid "Adres"
+msgstr "Address"
+
+msgid "Opcjonalnie – jeśli instytucja ma numer podatkowy, który ma znaleźć się na fakturze."
+msgstr "Optional – if the institution has a tax number that should appear on the invoice."
+
+msgid "E-mail do rozliczeń"
+msgstr "Billing e-mail"
+
+msgid "Liczba obserwatorów"
+msgstr "Number of observers"
+
+msgid "Osoby towarzyszące drużynie bez roli opiekuna – płatne według cennika."
+msgstr "People accompanying the team who are not team leaders – charged according to the price list."
+
+msgid "Opłata za delegację"
+msgstr "Delegation fee"
+
+msgid "Uczeń"
+msgstr "Student"
+
+msgid "Opiekun drużyny"
+msgstr "Team leader"
+
+msgid "Obserwator"
+msgstr "Observer"
+
+msgid "Opłata za udział"
+msgstr "Participation fee"
+
+msgid "Zniżka"
+msgstr "Discount"
+
+msgid "cena wczesna"
+msgstr "early price"
+
+msgid "cena podstawowa"
+msgstr "regular price"
+
+msgid "cena późna"
+msgstr "late price"
+
+msgid "Instytucja"
+msgstr "Institution"
+
+msgid "Osoba prywatna"
+msgstr "Private individual"
+
+msgid "Zwolnienie z opłat"
+msgstr "Fee waiver"
+
+msgid "czeka na wpłatę"
+msgstr "awaiting payment"
+
+msgid "zapłacone"
+msgstr "paid"
+
+msgid "anulowane"
+msgstr "cancelled"
+
+msgid "zwrócone"
+msgstr "refunded"
+
+msgid "Karta płatnicza (Stripe)"
+msgstr "Payment card (Stripe)"
+
+msgid "Przelew bankowy"
+msgstr "Bank transfer"
+
+msgid "w toku"
+msgstr "in progress"
+
+msgid "przyjęta"
+msgstr "received"
+
+msgid "nieudana"
+msgstr "failed"
+
+msgid "przerwana"
+msgstr "abandoned"
+
+msgid "do wyjaśnienia"
+msgstr "under review"
+
+msgid "wykonany"
+msgstr "completed"
+
+msgid "nieudany"
+msgstr "failed"
+
+msgid "Najpierw uzupełnij dane do faktury."
+msgstr "Please fill in the billing details first."
+
+msgid "Organizator nie opublikował jeszcze cennika."
+msgstr "The organiser has not published the price list yet."
+
+msgid "Delegacja jest zwolniona z opłat."
+msgstr "The delegation is exempt from fees."
+
+msgid "Nie ma nic nowego do zapłaty."
+msgstr "There is nothing new to pay."
+
+msgid "Ta opłata jest już rozliczona."
+msgstr "This fee has already been settled."
+
+msgid "Nie ma nic do zapłaty."
+msgstr "There is nothing to pay."
+
+msgid "Płatność tego zamówienia jest właśnie przetwarzana. Spróbuj ponownie za kilka minut."
+msgstr "A payment for this order is being processed right now. Please try again in a few minutes."
+
+#, python-format
+msgid "Płatność Przelewy24 tego zamówienia jest w toku. Spróbuj ponownie za %(minutes)s minut."
+msgstr "A Przelewy24 payment for this order is in progress. Please try again in %(minutes)s minutes."
+
+msgid "Anulować można wyłącznie zamówienie czekające na wpłatę."
+msgstr "Only an order awaiting payment can be cancelled."
+
+msgid "To zamówienie nie czeka na wpłatę."
+msgstr "This order is not awaiting payment."
+
+msgid "Ta metoda płatności nie jest dostępna."
+msgstr "This payment method is not available."
+
+msgid "Dostawca płatności jest chwilowo niedostępny. Spróbuj ponownie za chwilę."
+msgstr "The payment provider is temporarily unavailable. Please try again shortly."
+
+msgid "Opłaty"
+msgstr "Fees"
+
+msgid "Drużyna jest zwolniona z opłat."
+msgstr "The team is exempt from fees."
+
+msgid "Opłaty są rozliczone."
+msgstr "All fees are settled."
+
+#, python-format
+msgid "Do zapłaty: %(amount)s %(currency)s."
+msgstr "Amount due: %(amount)s %(currency)s."
+
+msgid "Opłaty i faktury"
+msgstr "Fees and invoices"
+
+msgid "Zapłać online"
+msgstr "Pay online"
+
+msgid "Dane do faktury"
+msgstr "Billing details"
+
+msgid "Opłaty drużyny"
+msgstr "Team fees"
+
+msgid "Nabywcą może być instytucja (np. ministerstwo, szkoła, fundacja) albo osoba prywatna. Zmiana danych dotyczy kolejnych dokumentów – wystawione wcześniej zostają bez zmian."
+msgstr "The buyer can be an institution (e.g. a ministry, school or foundation) or a private individual. Changes apply to future documents – documents already issued stay unchanged."
+
+#, python-format
+msgid "Opłaty: %(country)s"
+msgstr "Fees: %(country)s"
+
+msgid "Opłatę za drużynę wnosi się na podstawie faktury pro forma: wystaw ją, a potem zapłać kartą albo przelewem. Po zaksięgowaniu wpłaty wystawimy fakturę i wyślemy potwierdzenie e-mailem."
+msgstr "Team fees are paid against a pro forma invoice: issue it, then pay by card or bank transfer. Once the payment is received, we will issue an invoice and send a confirmation by e-mail."
+
+msgid "Zestawienie"
+msgstr "Summary"
+
+msgid "Waluta"
+msgstr "Currency"
+
+msgid "Zwrócono"
+msgstr "Refunded"
+
+msgid "Czeka na wpłatę"
+msgstr "Awaiting payment"
+
+msgid "Do wystawienia"
+msgstr "To be invoiced"
+
+msgid "Pozycje kolejnej faktury pro forma"
+msgstr "Items of the next pro forma invoice"
+
+msgid "Wystaw fakturę pro forma"
+msgstr "Issue pro forma invoice"
+
+msgid "Przed wystawieniem faktury pro forma uzupełnij dane do faktury."
+msgstr "Fill in the billing details before issuing the pro forma invoice."
+
+msgid "Nie podano jeszcze danych do faktury."
+msgstr "No billing details yet."
+
+msgid "Zmień dane do faktury"
+msgstr "Edit billing details"
+
+msgid "Zamówienia"
+msgstr "Orders"
+
+msgid "Zamówienia drużyny"
+msgstr "Team orders"
+
+msgid "Wystawiono"
+msgstr "Issued"
+
+msgid "Dokumenty"
+msgstr "Documents"
+
+msgid "Nie wystawiono jeszcze żadnego zamówienia."
+msgstr "No orders have been issued yet."
+
+#, python-format
+msgid "Dziękujemy – otrzymaliśmy wpłatę za udział w konkursie %(competition)s."
+msgstr "Thank you – we have received your payment for taking part in %(competition)s."
+
+msgid "Fakturę i historię płatności znajdziesz po zalogowaniu:"
+msgstr "You will find the invoice and payment history after logging in:"
+
+#, python-format
+msgid "Potwierdzenie wpłaty %(reference)s – %(competition)s"
+msgstr "Payment confirmation %(reference)s – %(competition)s"
+
+#, python-format
+msgid "Organizator konkursu %(competition)s zwrócił część albo całość Twojej wpłaty."
+msgstr "The organiser of %(competition)s has refunded part or all of your payment."
+
+msgid "Kwota zwrotu"
+msgstr "Refund amount"
+
+msgid "Pieniądze wracają tą samą drogą, którą zostały wpłacone; zaksięgowanie po stronie banku może potrwać kilka dni roboczych. Szczegóły:"
+msgstr "The money is returned the same way it was paid; it may take a few business days for your bank to post it. Details:"
+
+#, python-format
+msgid "Zwrot wpłaty %(reference)s – %(competition)s"
+msgstr "Refund %(reference)s – %(competition)s"
+
+#, python-format
+msgid "Zamówienie %(reference)s"
+msgstr "Order %(reference)s"
+
+#, python-format
+msgid "termin płatności: %(due)s"
+msgstr "due date: %(due)s"
+
+msgid "Pozycje zamówienia"
+msgstr "Order items"
+
+msgid "Zapłać"
+msgstr "Pay"
+
+msgid "Zapłać kartą"
+msgstr "Pay by card"
+
+msgid "Zapłać przez Przelewy24"
+msgstr "Pay with Przelewy24"
+
+msgid "Płatność odbywa się na stronie operatora płatności. Nie przechowujemy danych karty."
+msgstr "The payment takes place on the payment provider's page. We do not store card details."
+
+msgid "Wpisz kod referencyjny w tytule przelewu – po nim organizator odnajdzie wpłatę. Przelew zaksięgujemy w ciągu kilku dni roboczych; koszty banku ponosi płacący."
+msgstr "Enter the reference code as the transfer reference – the organiser uses it to match your payment. We will post the transfer within a few business days; bank charges are paid by the payer."
+
+msgid "Płatności online nie są jeszcze dostępne. Skontaktuj się z organizatorem."
+msgstr "Online payments are not available yet. Please contact the organiser."
+
+msgid "Anuluj zamówienie"
+msgstr "Cancel order"
+
+msgid "Anuluj zamówienie, jeśli zmienił się skład drużyny albo dane do faktury – potem wystaw nowe."
+msgstr "Cancel the order if the team composition or the billing details have changed – then issue a new one."
+
+msgid "Brak dokumentów."
+msgstr "No documents."
+
+msgid "Historia płatności"
+msgstr "Payment history"
+
+msgid "zwrócono"
+msgstr "refunded"
+
+#, python-format
+msgid "Do zapłaty: %(amount)s %(currency)s. Podaj dane do faktury – wystawimy fakturę pro forma, a po zaksięgowaniu wpłaty fakturę."
+msgstr "Amount due: %(amount)s %(currency)s. Enter your billing details – we will issue a pro forma invoice and, once the payment is received, an invoice."
+
+msgid "Dalej"
+msgstr "Continue"
+
+msgid "Dane do faktury zostały zapisane."
+msgstr "Billing details saved."
+
+msgid "Wystawiliśmy fakturę pro forma. Wybierz sposób zapłaty."
+msgstr "The pro forma invoice has been issued. Choose how to pay."
+
+msgid "Dziękujemy. Czekamy na potwierdzenie wpłaty od operatora płatności – odśwież stronę za chwilę."
+msgstr "Thank you. We are waiting for the payment provider to confirm the payment – refresh the page in a moment."
+
+msgid "Płatność została przerwana. Możesz spróbować ponownie."
+msgstr "The payment was interrupted. You can try again."
+
+msgid "Zamówienie zostało anulowane."
+msgstr "The order has been cancelled."

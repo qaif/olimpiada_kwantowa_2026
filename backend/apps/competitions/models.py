@@ -639,6 +639,14 @@ class Stage(models.Model):
     def __str__(self) -> str:
         return f"{self.edition.year_label} – {self.display_name}"
 
+    def save(self, *args, **kwargs):
+        # Kopia etapu z terminami jednego ucznia (``apps.time_windows.access.personal_stage``,
+        # TZ-01) niesie **jego** okno w ``opens_at``/``deadline_at``. Zapis takiej kopii nadpisałby
+        # ramę etapu oknem jednej osoby – dlatego odmowa, a nie cichy zapis.
+        if getattr(self, "_personal_window", None) is not None:
+            raise RuntimeError("Kopii etapu z oknem ucznia nie zapisuje się – zapisz etap z bazy.")
+        super().save(*args, **kwargs)
+
     @property
     def display_name(self) -> str:
         """Podpis etapu na każdym ekranie: własna nazwa albo etykieta rodzaju.
