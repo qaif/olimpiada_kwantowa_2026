@@ -40,7 +40,8 @@ render() {
   # zwraca kod wyjścia generatora. Argumenty 3–5 są **zawsze** przekazywane (choćby puste), bo
   # zmienna nieustawiona każe generatorowi czytać `.env` – a test ma sprawdzać generator, a nie
   # czyjś plik konfiguracyjny.
-  EXTRA_DOMAINS="$1" PLATFORM_SUBDOMAINS="${3:-}" DJCMS_ENABLED="${4:-}" DJCMS_PRIMARY="${5:-}" LIVEKIT_PROXY="${6:-}" CADDYFILE_OUT="$2"     bash "$RENDER" >"$WORK/stdout" 2>"$WORK/stderr"
+  EXTRA_DOMAINS="$1" PLATFORM_SUBDOMAINS="${3:-}" DJCMS_ENABLED="${4:-}" DJCMS_PRIMARY="${5:-}" LIVEKIT_PROXY="${6:-}" \
+    NOTEBOOK_LAB_HOST="${7:-}" CADDYFILE_OUT="$2" bash "$RENDER" >"$WORK/stdout" 2>"$WORK/stderr"
 }
 
 # 1. Pusta lista domen = dzisiejsza konfiguracja, co do bajtu.
@@ -733,6 +734,142 @@ check "LIVEKIT_PROXY=1 przy subdomenach: live. ze zwykłym certyfikatem" $?
 render "" "$WORK/lk-bad.caddy" "" "" "" "tak"
 [ $? -eq 1 ] && grep -qF 'LIVEKIT_PROXY' "$WORK/stderr"
 check "LIVEKIT_PROXY=tak zatrzymuje generator z komunikatem" $?
+
+# --- NOTEBOOK_LAB_HOST: laboratorium notatników na osobnym hoście (docs/tasks/QC-02.md § 3) ----------
+#
+# Ta sama para gwarancji: pusty = bajt w bajt jak dotąd (przy każdej kombinacji pozostałych zmiennych),
+# niepusty = blok hosta laboratorium na końcu i `notebook_lab_moved` w KAŻDYM bloku aplikacji – a reszta
+# pliku bez zmian (wynik minus wstawki = wynik bez zmiennej).
+LAB=lab.example.org
+render "" "$WORK/lab-off.caddy" "" "" "" "" ""
+cmp -s "$SRC" "$WORK/lab-off.caddy"
+check "NOTEBOOK_LAB_HOST pusty daje kopię deploy/Caddyfile bajt w bajt" $?
+
+for bad in 'lab.example.org:8443' 'https://lab.example.org' 'lab' 'lab.example.org/x' 'a.pl b.pl' 'lab{x}.pl' '-lab.pl'; do
+  render "" "$WORK/lab-bad.caddy" "" "" "" "" "$bad"
+  [ $? -ne 0 ] && grep -qF 'NOTEBOOK_LAB_HOST' "$WORK/stderr"
+  check "generator odmawia dla NOTEBOOK_LAB_HOST=„$bad”" $?
+done
+render "konkurs.example lab.example.org" "$WORK/lab-dup.caddy" "" "" "" "" "$LAB"
+[ $? -ne 0 ] && grep -qF 'EXTRA_DOMAINS' "$WORK/stderr"
+check "NOTEBOOK_LAB_HOST obecny też w EXTRA_DOMAINS = odmowa" $?
+
+lab_strip() {  # lab_strip <plik> – wynik bez wstawek NOTEBOOK_LAB_HOST (fragment, blok hosta, nazwa importu)
+  awk '
+    /^# Laboratorium na osobnym hoście \(QC-02, NOTEBOOK_LAB_HOST\)/ { skip = 1 }
+    skip && $0 == "(notebook_lab) {" { skip = 0 }
+    /^# Wygenerowane przez scripts\/render_caddyfile.sh z NOTEBOOK_LAB_HOST/ { tail = 1 }
+    skip || tail { next }
+    $0 == "    import notebook_lab_moved" { print "    import notebook_lab"; next }
+    { print }
+  ' "$1" | sed '$ { /^$/d }'
+}
+for combo in "|" "olimpiadafizyczna.pl konkurs.example|" "|1" "olimpiadafizyczna.pl www.olimpiadafizyczna.pl konkurs.example|1"; do
+  extra="${combo%|*}"; sub="${combo#*|}"
+  render "$extra" "$WORK/lab-ref.caddy" "$sub" "" "" "" ""
+  render "$extra" "$WORK/lab-on.caddy" "$sub" "" "" "" "$LAB"
+  rc=$?
+  lab_strip "$WORK/lab-on.caddy" | cmp -s - "$WORK/lab-ref.caddy"
+  check "NOTEBOOK_LAB_HOST (EXTRA=„$extra”, subdomeny=„$sub”): wynik minus wstawki = wynik bez zmiennej (kod $rc)" $?
+done
+
+render "olimpiadafizyczna.pl www.olimpiadafizyczna.pl konkurs.example" "$WORK/lab-full.caddy" "1" "" "" "" "LAB.Example.org"
+check "generator kończy się sukcesem przy NOTEBOOK_LAB_HOST (+ EXTRA_DOMAINS, subdomeny; wielkie litery)" $?
+grep -qF 'laboratorium notatników: lab.example.org' "$WORK/stdout"
+check "podsumowanie generatora podaje host laboratorium (małymi literami)" $?
+# Bloki aplikacji: domena główna, olimpiadafizyczna.pl, konkurs.example, `*.` – każdy z `notebook_lab_moved`;
+# `notebook_lab` zostaje wyłącznie w bloku hosta laboratorium; `www.` (301) – bez żadnego.
+[ "$(grep -cxF '    import notebook_lab_moved' "$WORK/lab-full.caddy")" -eq 4 ] \
+  && [ "$(grep -cxF '    import notebook_lab' "$WORK/lab-full.caddy")" -eq 1 ]
+check "notebook_lab_moved w czterech blokach aplikacji, notebook_lab tylko w bloku laboratorium" $?
+awk '$0 == "(notebook_lab_moved) {" { d = NR } $0 == "    import notebook_lab_moved" && !u { u = NR } END { exit !(d && u && d < u) }' "$WORK/lab-full.caddy"
+check "fragment notebook_lab_moved zdefiniowany przed pierwszym użyciem" $?
+block_body "$WORK/lab-full.caddy" '(notebook_lab_moved) {' >"$WORK/lab-moved.txt"
+for needle in '    handle /static/notebook-lab/* {' '        redir https://lab.example.org{uri} 302' \
+              '    handle /notebook-starter/* {' '        respond 404'; do
+  grep -qxF -- "$needle" "$WORK/lab-moved.txt"
+  check "fragment notebook_lab_moved zawiera „${needle#"${needle%%[! ]*}"}”" $?
+done
+tail -n 1 "$WORK/lab-full.caddy" | grep -qx '}' && \
+  [ "$(grep -n '^lab.example.org {$' "$WORK/lab-full.caddy" | cut -d: -f1)" -gt "$(grep -n '^\*\.{\$SITE_DOMAIN} {$' "$WORK/lab-full.caddy" | cut -d: -f1)" ]
+check "blok hosta laboratorium jest ostatni (za blokiem *.)" $?
+block_body "$WORK/lab-full.caddy" 'lab.example.org {' >"$WORK/lab-block.txt"
+for needle in '    import notebook_lab' '    handle /static/notebook-lab/* {' '        root * /srv' '        file_server' \
+              '    handle /notebook-starter/* {' '        reverse_proxy web:8000 {' '    handle {' '        respond 404' \
+              '    @lab_other not path /static/notebook-lab/*' \
+              "    header @lab_other Content-Security-Policy \"default-src 'none'; frame-ancestors 'none'; sandbox\"" \
+              '        Referrer-Policy "strict-origin"' '        Cross-Origin-Resource-Policy "same-origin"' \
+              '        X-Frame-Options "DENY"' '        key_type p256'; do
+  grep -qxF -- "$needle" "$WORK/lab-block.txt"
+  check "blok hosta laboratorium zawiera „${needle#"${needle%%[! ]*}"}”" $?
+done
+! grep -qF 'import maintenance' "$WORK/lab-block.txt"
+check "blok hosta laboratorium bez strony prac technicznych" $?
+[ "$(grep -c 'reverse_proxy web:8000' "$WORK/lab-block.txt")" -eq 1 ]
+check "blok hosta laboratorium: web wyłącznie dla /notebook-starter/*" $?
+render "" "$WORK/lab-nosub.caddy" "" "" "" "" "$LAB"
+! block_body "$WORK/lab-nosub.caddy" 'lab.example.org {' | grep -qF 'key_type'
+check "bez subdomen platformy blok laboratorium nie przypina polityki TLS" $?
+render "" "$WORK/lab-dj.caddy" "1" "1" "0" "1" "$LAB"
+[ $? -eq 0 ] && [ "$(grep -cxF '    import notebook_lab_moved' "$WORK/lab-dj.caddy")" -eq 2 ] \
+  && tail -n 40 "$WORK/lab-dj.caddy" | grep -qx 'lab.example.org {'
+check "NOTEBOOK_LAB_HOST razem z DJCMS_ENABLED i LIVEKIT_PROXY: blok laboratorium ostatni, oba bloki aplikacji przeniesione" $?
+
+# Caddy sam (jak § 19): `caddy validate` i kolejność tras po `caddy adapt` – przekierowanie ścieżki
+# laboratorium przed `/static/*` w każdym bloku aplikacji, host laboratorium: nagłówki → pliki →
+# notatnik startowy → 404, zwykły certyfikat (nie on-demand) dla hosta laboratorium.
+if declare -F caddy_run >/dev/null && [ -n "${python_bin:-}" ]; then
+  for f in lab-full lab-dj; do
+    caddy_run "$WORK/$f.caddy" validate >"$WORK/validate.out" 2>&1
+    rc=$?
+    check "caddy validate ($CADDY_IMAGE): $f.caddy" "$rc"
+  done
+  caddy_run "$WORK/lab-full.caddy" adapt 2>/dev/null | grep '^{' >"$WORK/adapt-lab.json"
+  "$python_bin" - "$WORK/adapt-lab.json" <<'PY'
+import json, sys
+cfg = json.load(open(sys.argv[1], encoding="utf-8"))
+srv = next(s for s in cfg["apps"]["http"]["servers"].values() if ":443" in s["listen"])
+def routes(host):
+    for r in srv["routes"]:
+        if any(host in m.get("host", []) for m in r.get("match", [])):
+            return [json.dumps(x.get("match")) + "|" + json.dumps(x["handle"]) for x in r["handle"][0]["routes"]]
+    raise SystemExit(f"brak bloku {host}")
+errors = 0
+for host in ("example.org", "olimpiadafizyczna.pl", "konkurs.example", "*.example.org"):
+    txt = routes(host)
+    idx = lambda pred: next((i for i, t in enumerate(txt) if pred(t)), None)
+    moved = idx(lambda t: t.startswith('[{"path": ["/static/notebook-lab/*"]}]') and '"https://lab.example.org{http.request.uri}"' in t and "302" in t)
+    starter = idx(lambda t: t.startswith('[{"path": ["/notebook-starter/*"]}]') and '"status_code": 404' in t)
+    static = idx(lambda t: t.startswith('[{"path": ["/static/*"]}]'))
+    if None in (moved, starter, static) or not (moved < static):
+        print(f"FAIL {host}: przekierowanie={moved} starter={starter} static={static}"); errors += 1
+    if any("Cross-Origin-Embedder-Policy" in t for t in txt):
+        print(f"FAIL {host}: nagłówki laboratorium nadal w bloku serwisu"); errors += 1
+txt = routes("lab.example.org")
+idx = lambda pred: next((i for i, t in enumerate(txt) if pred(t)), None)
+order = {
+    "policy": idx(lambda t: "Cross-Origin-Embedder-Policy" in t and "{http.request.scheme}://{http.request.hostport}/static/notebook-lab/" in t),
+    "files": idx(lambda t: t.startswith('[{"path": ["/static/notebook-lab/*"]}]') and '"root": "/srv"' in t and "file_server" in t),
+    "starter": idx(lambda t: t.startswith('[{"path": ["/notebook-starter/*"]}]') and '"web:8000"' in t),
+    "rest": idx(lambda t: t.startswith("null|") and '"status_code": 404' in t),
+}
+if None in order.values() or not (order["policy"] < order["files"] < order["starter"] < order["rest"]):
+    print(f"FAIL lab.example.org: kolejność {order}"); errors += 1
+whole = "\n".join(routes("lab.example.org"))
+if whole.count('"web:8000"') != 1 or "try_files" in whole:
+    print("FAIL lab.example.org: web poza notatnikiem startowym albo strona prac technicznych"); errors += 1
+pols = cfg["apps"]["tls"]["automation"]["policies"]
+def matches(name, subj):
+    return name == subj or (subj.startswith("*.") and "." in name and name.split(".", 1)[1] == subj[2:])
+pol = next((p for p in pols if not p.get("subjects") or any(matches("lab.example.org", s) for s in p["subjects"])), None)
+if pol is None or pol.get("on_demand"):
+    print(f"FAIL lab.example.org: polityka TLS {json.dumps(pol)}"); errors += 1
+sys.exit(errors)
+PY
+  check "caddy adapt (NOTEBOOK_LAB_HOST): 302 laboratorium przed /static/* w każdym bloku aplikacji; host laboratorium: nagłówki → pliki → starter → 404; zwykły certyfikat" $?
+else
+  printf 'skip caddy validate/adapt dla NOTEBOOK_LAB_HOST (brak Dockera albo Pythona)\n'
+fi
 
 if [ "$failures" -ne 0 ]; then
   printf '\n%d test(ów) nie przeszło.\n' "$failures"

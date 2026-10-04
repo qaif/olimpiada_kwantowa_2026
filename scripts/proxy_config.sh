@@ -142,7 +142,7 @@ render() {
   seed_live
   # Generator czyta WYŁĄCZNIE .env – zmienna z powłoki operatora nie może po cichu wygrać z plikiem
   # (ta sama zasada co w scripts/djcms_switch.sh). Zła wartość w .env = kod ≠ 0 generatora.
-  env -u EXTRA_DOMAINS -u PLATFORM_SUBDOMAINS -u DJCMS_ENABLED -u DJCMS_PRIMARY -u DJCMS_ROUTES_ENV \
+  env -u EXTRA_DOMAINS -u PLATFORM_SUBDOMAINS -u DJCMS_ENABLED -u DJCMS_PRIMARY -u DJCMS_ROUTES_ENV -u NOTEBOOK_LAB_HOST \
     -u CADDYFILE_SRC CADDYFILE_OUT="$NEXT" bash scripts/render_caddyfile.sh
   if [ "$RUNNING" = 1 ]; then
     VALIDATE_OUT="$(mktemp)"
@@ -231,7 +231,7 @@ status() {
   fi
   local tmp seen
   tmp="$(mktemp)"
-  if env -u EXTRA_DOMAINS -u PLATFORM_SUBDOMAINS -u DJCMS_ENABLED -u DJCMS_PRIMARY -u DJCMS_ROUTES_ENV \
+  if env -u EXTRA_DOMAINS -u PLATFORM_SUBDOMAINS -u DJCMS_ENABLED -u DJCMS_PRIMARY -u DJCMS_ROUTES_ENV -u NOTEBOOK_LAB_HOST \
       -u CADDYFILE_SRC CADDYFILE_OUT="$tmp" bash scripts/render_caddyfile.sh >/dev/null 2>&1 && cmp -s "$tmp" "$LIVE"; then
     echo "$LIVE: zgodny z deploy/Caddyfile i .env"
   else
