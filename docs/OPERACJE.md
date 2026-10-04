@@ -4014,8 +4014,17 @@ docker compose exec -T web python manage.py theme_install - --activate iqo < /tm
 ```
 
 `--activate` przenosi bieżące opcje konkursu (warianty istniejące także w 1.1.0, akcent marki, kolory
-tokenów o tych samych nazwach, menu). Bez `--activate` wersja czeka w galerii („Podgląd”, potem
-„Aktywuj”). Cofnięcie: aktywacja 1.0.0 w galerii (wersja zostaje w katalogu).
+tokenów o tych samych nazwach, menu). **Uwaga:** `iqo` ma dziś `footer=compact` z 1.0.0, a ten wariant
+istnieje też w 1.1.0 – zostanie, choć nowym domyślnym jest `columns`; nagłówek `minimal` w 1.1.0 nie
+istnieje, więc wraca do domyślnego `split`. Po aktywacji: galeria → karta 1.1.0 → stopka `columns` →
+„Zapisz opcje” (albo „Kolory i opcje motywu”). Bez `--activate` wersja czeka w galerii („Podgląd”,
+potem „Aktywuj”). Sprawdzenie po wgraniu: strona główna gościa w en i ar (`curl -s https://iqo-official.org/
+| grep -o 'data-theme="[^"]*"'` → `iqo-quantum`), `/coordinator/competition/theme/customize/` pokazuje
+obie palety. Cofnięcie: aktywacja 1.0.0 w galerii (wersja zostaje w katalogu).
+
+Kontekst szablonów paczek dostał w THEME-02 także `sponsor_slider` (same napisy i liczby – IQO 1.1.0
+stawia taśmę sponsorów w stopce), a dostosowanie – promienie `radius-*` z `tokens.json`
+(0–48 px albo 0–3 rem; IQO: `radius-leaf`, kształt przycisków).
 
 
 ## 28. Delegacje krajowe – rejestracja przez opiekunów drużyn (DEL-01, `docs/tasks/DEL-01.md`)

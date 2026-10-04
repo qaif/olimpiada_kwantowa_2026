@@ -155,6 +155,29 @@ cudzy konkurs → 404, CSP bez zmian, trafienie cache gościa z motywem i nadpis
 cache, Konkurs #1 bez zmian (testy złote/niezmienności `apps/tenancy/tests`), paczka IQO 1.1.0 przechodzi
 walidację i renderuje się w en i ar.
 
-## 7. Realizacja i odstępstwa
+## 7. Realizacja i odstępstwa (gałąź `feature/motywy-2`, 4.10.2026)
 
-(uzupełniane po implementacji)
+Zbudowane: `apps/themes/menu.py`, `customize.py`, modele `SiteMenu`/`ThemeCustomization` (migracja
+`themes.0003`), slot `nav`, ekrany `apps/web/views/coordinator_theme_settings.py`, arkusz `custom.css`,
+paczka IQO Quantum 1.1.0 (fikstura `backend/apps/themes/tests/fixtures/iqo-quantum-1.1.0.zip`).
+
+1. **Promienie** (dopisane po przeglądzie paczki): poza kolorami koordynator nadpisuje tokeny
+   `radius-*` zadeklarowane w `tokens.json` (`0–48px` albo `0–3rem`; IQO: `radius-leaf`). Opcja
+   `radius` w `theme_options` i w podpisie arkusza.
+2. **Pary kontrastu z nazw** obejmują też `X-accent` na `X` (IQO: `cover-accent` na `cover`);
+   `cover-text` na `cover` – reguła `X-text`.
+3. **`sponsor_slider`** trafił do kontekstu szablonów paczek (słownik napisów i liczb) – motyw stawia
+   taśmę sponsorów we własnym miejscu tylko, gdy są wpisy (IQO: stopka). W 1.0.0 nagłówek IQO pytał
+   o `sponsor_slider.entries`, którego kontekst paczki nie miał – taśma nigdy się nie pokazywała.
+4. **Wymiary logo** – `theme.logo.id` wybiera szerokość/wysokość `<img>` w szablonie paczki
+   (`partials/logo.html`); platforma przekazuje tylko adresy i identyfikator.
+5. **Menu bez podglądu** – zapis menu obowiązuje od razu (podgląd dotyczy wyłącznie motywu i kolorów).
+6. **„Klasyczny” bez dostosowania kolorów** – kolory marki Olimpiady Kwantowej żyją w „Ustawieniach
+   konkursu”; ekran dostosowania wyjaśnia to i odsyła do galerii.
+7. **Akcent marki ma pierwszeństwo** przed kolorem `accent` z dostosowania (arkusz akcentu stoi za
+   `theme.css`, `custom.css` – przed nim).
+8. Napisy panelu – katalog `apps/themes/locale/en` (panel jest polski, IQO angielski); jedyny nowy napis
+   stron publicznych („Menu” w nagłówku IQO) – w 10 katalogach `apps/themes/locale/*`.
+
+Znane luki: brak przeciągania pozycji menu (kolejność liczbami i przyciskami – bez JavaScriptu); brak
+podglądu kontrastu na żywo przed wysłaniem formularza (kontrola po stronie serwera); djcms bez motywów.

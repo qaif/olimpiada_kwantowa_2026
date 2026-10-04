@@ -283,7 +283,15 @@ def test_package_can_override_only_the_nav_slot(client_for, competition):
     services.activate(competition, version)
     _save(
         competition,
-        [{"key": "link-00000001", "type": "link", "url": "https://x.example/", "new_tab": True, "labels": {"pl": "X"}}],
+        [
+            {
+                "key": "link-00000001",
+                "type": "link",
+                "url": "https://x.example/",
+                "new_tab": True,
+                "labels": {"pl": "X"},
+            }
+        ],
         client_for,
     )
     competition.refresh_from_db()

@@ -20,7 +20,9 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
   per wersja motywu; arkusz `/_theme/custom.css` z podpisanego zestawu opcji (CSP bez zmian).
 - Audyt (`theme.menu_saved`, `theme.menu_reset`, `theme.customized`, `theme.customization_reset`),
   limit POST `theme_settings` (120/h na konto), unieważnienie cache gościa po zapisie.
-- **Slot `nav`** (menu serwisu) – motyw może przerysować samo menu.
+- **Slot `nav`** (menu serwisu) – motyw może przerysować samo menu; kontekst szablonów paczek
+  dostał `sponsor_slider` (taśma sponsorów we własnym miejscu motywu); dostosowanie obejmuje też
+  promienie `radius-*` z `tokens.json`.
 - **IQO Quantum 1.1.0** (`themes/iqo-quantum/`): nowy wygląd odchodzący od Olimpiady Kwantowej
   (nagłówek nad planszą, typografia, karty, sekcje, stopka, motywy orbitali/fal), tryb jasny, warianty
   logo i krojów. Wgranie: `docs/OPERACJE.md` § 30.7.
