@@ -3942,6 +3942,75 @@ panele, logowanie i formularze mają zawsze ramę aplikacji (tokeny i arkusz mot
 (CI buduje go z pyproject). Bez niej import walidatora się nie powiedzie dopiero przy wgraniu paczki;
 render stron z już aktywnym motywem jej nie potrzebuje.
 
+### 30.4. Menu serwisu z panelu (THEME-02, `docs/tasks/THEME-02.md` § 1)
+
+Koordynator konkursu z flagą `themes` ustawia menu stron publicznych w **„Motyw serwisu → Menu
+serwisu”** (`/coordinator/competition/theme/menu/`): kolejność, ukrycie, nazwy per język interfejsu,
+własne odnośniki (`https://…`, `http://…` albo ścieżka `/…`; nic innego – `javascript:`, `data:`,
+`//host` są odrzucane) i grupy rozwijane (jeden poziom). Działa z każdym motywem, także z „Klasycznym”.
+
+- **Dane:** tabela `themes_sitemenu` (wiersz na konkurs, lista JSON + rewizja). Rewizja jest powielona
+  w `Competition.theme_options["menu"]`; bez tego klucza menu buduje się jak dotąd i **bez zapytania**
+  (Olimpiada Kwantowa bez nadpisań – bez zmian). Zapis unieważnia cache gościa konkursu.
+- **Audyt:** `theme.menu_saved` (przed/po), `theme.menu_reset`.
+- **Cofnięcie:** przycisk „Przywróć menu domyślne” albo z konsoli:
+  ```sh
+  docker compose exec -T web python manage.py shell -c "from apps.tenancy.models import Competition; from apps.themes.services import reset_menu; reset_menu(Competition.objects.get(slug='iqo'))"
+  ```
+- Nowa strona dodana w `/cms/` po zapisaniu menu pojawia się **na końcu** menu (nic nie znika po cichu);
+  własny odnośnik do strony wycofanej z publikacji znika z menu sam.
+
+### 30.5. Kolory, schemat, logo i kroje z panelu (THEME-02 § 2)
+
+**„Motyw serwisu → Kolory i opcje motywu”** (`/coordinator/competition/theme/customize/[?version=<id>]`):
+schemat (jasny/ciemny/systemowy – gdy `tokens.json` motywu ma obie palety), wariant logo i para krojów
+(nowe, opcjonalne pola manifestu `logos`/`fonts`), warianty układów i kolor każdego tokenu palety
+z `tokens.json`. Kontrast liczony na serwerze: para poniżej WCAG AA (4.5:1 tekst, 3:1 obwódka fokusu),
+którą zmienił koordynator, **blokuje zapis**.
+
+- **Dane:** `themes_themecustomization` (konkurs + wersja motywu); kopia opcji wersji aktywnej
+  w `Competition.theme_options` (`scheme`, `logo`, `font`, `colors`). Powrót do wcześniejszej wersji
+  w galerii przywraca jej kolory.
+- **Arkusz:** `/_theme/custom.css?s=<podpis>` z własnej domeny (CSP `'self'` – **polityka bez zmian**),
+  `Cache-Control: immutable`; podpis (`SECRET_KEY`, sól `apps.themes.custom`) obejmuje konkurs, wersję
+  i opcje, więc adres nie generuje arkuszy z dowolnymi kolorami ani dla cudzego konkursu.
+  **Zmiana `SECRET_KEY`** unieważnia te adresy: strony w cache gościa (≤ `PAGE_CACHE_SECONDS`)
+  przez chwilę linkują arkusz 404 (motyw bez dostosowania), potem renderują się z nowym podpisem.
+- **Audyt:** `theme.customized` (przed/po, wersja, czy aktywna), `theme.customization_reset`.
+- **Cofnięcie:** „Przywróć domyślne” na ekranie albo:
+  ```sh
+  docker compose exec -T web python manage.py shell -c "from apps.tenancy.models import Competition; from apps.themes.models import ThemeVersion; from apps.themes.services import reset_customization; c = Competition.objects.get(slug='iqo'); reset_customization(c, c.theme_version)"
+  ```
+- Tryb wysokiego kontrastu (`data-contrast="high"`) dalej wygrywa – dostosowanie zmienia tokeny
+  `--t-*`, a tryb kontrastu nadpisuje role.
+
+### 30.6. Limit i uprawnienia
+
+Oba ekrany: wyłącznie koordynator konkursu, którego domeną przyszło żądanie (inny konkurs – 403),
+flaga `themes` (wyłączona – 404), POST-y limitem `theme_settings` = **120/h na konto**
+(`REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]`). Ekrany renderują się zawsze **bez** motywu.
+
+### 30.7. Nowy slot `nav` i paczka IQO Quantum 1.1.0
+
+Lista slotów ma nowy, ósmy slot `nav` (samo menu serwisu – `templates/theme/nav.html`); domyślny
+nagłówek woła go w miejscu dawnego `<nav class="nav nav--cms">` (Olimpiada Kwantowa co do bajtu).
+Paczka `themes/iqo-quantum/` w wersji **1.1.0** korzysta z `nav`, `logos`, `fonts` i obu palet,
+więc wymaga aplikacji z THEME-02 (wgranie na starszej wersji: błąd „Szablon spoza listy dozwolonej”).
+
+Wdrożenie (po wdrożeniu aplikacji z THEME-02 – migracja `themes.0003` idzie w `scripts/deploy.sh`):
+
+```sh
+python themes/iqo-quantum/build_zip.py                     # → themes/iqo-quantum/dist/iqo-quantum-1.1.0.zip
+scp -i ~/.ssh/olimpiada_deploy themes/iqo-quantum/dist/iqo-quantum-1.1.0.zip deploy@<serwer>:/tmp/
+ssh -i ~/.ssh/olimpiada_deploy deploy@<serwer>
+cd /opt/olimpiada
+docker compose exec -T web python manage.py theme_install - --activate iqo < /tmp/iqo-quantum-1.1.0.zip
+```
+
+`--activate` przenosi bieżące opcje konkursu (warianty istniejące także w 1.1.0, akcent marki, kolory
+tokenów o tych samych nazwach, menu). Bez `--activate` wersja czeka w galerii („Podgląd”, potem
+„Aktywuj”). Cofnięcie: aktywacja 1.0.0 w galerii (wersja zostaje w katalogu).
+
 
 ## 28. Delegacje krajowe – rejestracja przez opiekunów drużyn (DEL-01, `docs/tasks/DEL-01.md`)
 

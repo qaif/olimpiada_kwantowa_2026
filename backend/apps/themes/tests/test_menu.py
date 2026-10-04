@@ -269,6 +269,30 @@ def test_overrides_do_not_leak_to_another_competition(client_for, competition, o
     assert "Tylko nasz" not in client_for(other_competition).get("/").content.decode()
 
 
+def test_package_can_override_only_the_nav_slot(client_for, competition):
+    """Slot ``nav`` (THEME-02 § 4): motyw przerysowuje samo menu, nagłówek aplikacji zostaje."""
+    from .helpers import zip_with
+
+    nav = (
+        '{% load i18n %}<nav class="pkg-nav" aria-label="{% translate \'Serwis\' %}">'
+        '{% for item in cms_menu %}<a href="{{ item.url }}"{% if item.new_tab %} target="_blank" '
+        'rel="noopener noreferrer"{% endif %}>{{ item.title }}</a>{% endfor %}</nav>'
+    )
+    version, result = services.install_package(zip_with({"templates/theme/nav.html": nav}))
+    assert result.errors == []
+    services.activate(competition, version)
+    _save(
+        competition,
+        [{"key": "link-00000001", "type": "link", "url": "https://x.example/", "new_tab": True, "labels": {"pl": "X"}}],
+        client_for,
+    )
+    competition.refresh_from_db()
+    html = client_for(competition).get("/").content.decode()
+    assert 'class="pkg-nav"' in html and "topbar--account" in html
+    assert 'href="https://x.example/" target="_blank" rel="noopener noreferrer">X</a>' in html
+    assert 'class="nav nav--cms"' not in html
+
+
 def test_reset_menu_restores_default(client_for, competition):
     default = _default_menu(client_for, competition)
     _save(competition, [{"key": "home", "type": "auto", "hidden": True}], client_for)
