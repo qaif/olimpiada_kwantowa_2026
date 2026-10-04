@@ -8,6 +8,26 @@ dokładnie jednemu wierszowi tej tabeli.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## [Unreleased] – Nadzór zdalny etapów online (PROC-01)
+
+- **Nadzór zdalny** (`apps.proctoring`, flaga konkursu `proctoring`, domyślnie wyłączona; włączany per
+  etap online): konsola ucznia `/me/proctoring/<etap>/` – wersjonowana informacja i zgoda (niepełnoletni:
+  wymagana potwierdzona online zgoda opiekuna), sprawdzenie sprzętu, opcjonalne zdjęcie dokumentu,
+  kamera 320×240/10 kl./s (+ ekran/mikrofon, gdy etap wymaga) do pokoju LiveKit; start otwiera etap
+  dopiero, gdy serwer LiveKit potwierdzi nadawanie. Zerwanie strumienia: komunikat, pasek na stronie
+  etapu, dziennik. „Nie mogę użyć kamery” → alternatywa zatwierdzana przez koordynatora.
+- **Bramka treści etapu** (`ProctoringGateMiddleware`): PDF zadania, wysyłka (WWW i API), start
+  i strona testu wymagają gotowej sesji; autozapis testu nigdy. LiveKit niedostępny: `allow`
+  (praca ze znacznikiem „bez nadzoru”, domyślnie) albo `block`.
+- **Nadzorujący** `/proctoring/<etap>/`: siatka 12/16/24 kafli, subskrypcja tylko widocznej strony,
+  wiadomości (serwer → `SendData` + odpytanie), „pokaż pokój/dokument”, incydenty, obecność.
+  Pokoje per delegacja / przydział: opiekun drużyny dostaje token wyłącznie do pokoju swojej delegacji.
+- **Komisja**: raport ucznia, eksport incydentów CSV, nagrania (domyślnie wyłączone; Track Egress bez
+  transkodowania) z audytem; retencja nośników 30 dni po wynikach i oknie reklamacji (beat), wstrzymanie.
+- RODO: wiersz rejestru czynności, sekcja `nadzor_zdalny` w eksporcie konta, anonimizacja kasuje
+  nośniki, nota DPIA w podręczniku organizatora. Katalogi tłumaczeń aplikacji (`apps/*/locale/`)
+  kompilowane w `Dockerfile` i sprawdzane testami. Opis: `docs/tasks/PROC-01.md`, `docs/OPERACJE.md` § 29.
+
 ## [Unreleased] – Webinary w LiveKit (WEB-01)
 
 - **Webinary** (`apps.webinars`, flaga konkursu `webinars`, domyślnie wyłączona): koordynator planuje

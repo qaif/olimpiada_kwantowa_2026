@@ -1950,6 +1950,63 @@ prośbę z importu listy — to oni decydują, kto widzi ich postęp, nie organi
 
 ---
 
+## 10c. Nadzór zdalny etapów online — `/coordinator/proctoring/`
+
+**Tylko w konkursie z przełącznikiem `proctoring`** (włącza operator) i na serwerze LiveKit (ten sam, co
+webinary). Nadzór włączasz **osobno dla każdego etapu online** (rozwiązania pisemne albo test).
+
+**Ustawienia etapu:** udostępnienie ekranu i mikrofon (domyślnie wyłączone – to dodatkowe dane), zdjęcie
+dokumentu (wył./opcjonalne/wymagane), **nagrywanie kamer (domyślnie wyłączone)**, zachowanie przy awarii
+serwera nadzoru („pozwól” – uczeń pracuje, sesja dostaje znacznik „bez nadzoru”; „zablokuj” – treść
+etapu zamknięta do Twojej decyzji), dopisek z instrukcją dla uczniów.
+
+**Nadzorujący:** koordynatorzy widzą zawsze wszystkich uczniów. Dodaj członków komisji (widzą uczniów
+sobie przydzielonych) i – w olimpiadzie z delegacjami – **opiekunów drużyn**, którzy widzą **wyłącznie
+uczniów swojej delegacji**: każda delegacja ma osobny pokój LiveKit, a token opiekuna otwiera tylko jej
+pokój (serwer odrzuci próbę obejrzenia ucznia innego kraju). „Rozdziel uczniów bez nadzorującego”
+przydziela uczniów delegacji ich opiekunom, a pozostałych po równo komisji. Uczniowie komisji też
+nadają do pokoi „swojego” nadzorującego – zmiana nadzorującego w trakcie etapu przenosi ucznia
+automatycznie (konsola łączy się ponownie).
+
+**W trakcie etapu** (`/proctoring/<etap>/`): siatka po 12/16/24 kafle (obraz pobierany tylko dla widocznej
+strony), wiadomość do ucznia, „pokaż pokój”, „pokaż dokument”, obecny/nieobecny, **incydent** (kategoria,
+waga, notatka, czas). Uczeń bez kamery prosi o alternatywę – zatwierdzasz ją (z ustaleniem, np.
+„nadzór telefoniczny o 9:00”) albo odrzucasz na ekranie etapu. **Raport ucznia** i **eksport
+incydentów (CSV)** widzą koordynatorzy i komisja odwoławcza; każde otwarcie raportu i nagrania jest
+w audycie.
+
+**Retencja:** nagrania, zdjęcia dokumentu, dziennik połączeń i wiadomości znikają automatycznie 30 dni po
+ogłoszeniu wyników i zamknięciu okna reklamacji (najpóźniej 180 dni po etapie). Gdy sprawa ucznia jest
+w toku – wpisz „powód wstrzymania usunięcia” przy uczniu. Incydenty, obecność i zgody zostają
+w dokumentacji zawodów.
+
+### Ocena skutków dla ochrony danych (DPIA) – nota dla organizatora
+
+Nadzór zdalny to przetwarzanie **wysokiego ryzyka** (art. 35 RODO: systematyczne monitorowanie, wizerunek
+osób w większości niepełnoletnich, w ich domach) – **przed pierwszym włączeniem** organizator (administrator
+danych) przeprowadza i dokumentuje ocenę skutków. Punkty, które platforma dostarcza do tej oceny:
+
+- **Cel i niezbędność:** samodzielność pracy w etapie online; nadzór tylko dla etapów, w których nie da
+  się go zastąpić etapem stacjonarnym; decyzja per etap.
+- **Podstawa:** wyraźna, wersjonowana zgoda ucznia (dowód: wersja, skrót treści, czas, IP); u osoby
+  niepełnoletniej – dodatkowo potwierdzona online zgoda opiekuna (mechanizm platformy). **Zaktualizuj
+  wzór zgody opiekuna i politykę prywatności** o nadzór zdalny (platforma nie wysyła opiekunowi osobnej
+  prośby o zgodę na nadzór). Brak zgody nie wyklucza z zawodów: jest droga alternatywna.
+- **Minimalizacja:** brak automatycznej analizy obrazu i śledzenia przeglądarki; kamera 320×240, 10 kl./s;
+  ekran, mikrofon i zdjęcie dokumentu – tylko gdy włączysz; nagrywanie domyślnie wyłączone i tylko kamera;
+  uczeń nie widzi innych uczniów; pseudonimy w pokojach; wynik sprawdzenia sprzętu bez odcisku urządzenia.
+- **Dostęp:** nadzorujący tylko w swoim zakresie (opiekun – własna delegacja, wymuszone tokenem); raporty
+  i nagrania – koordynator i komisja odwoławcza; audyt dostępu (`proctoring.*` w `/coordinator/audit/`).
+- **Retencja:** jak wyżej; usuwanie automatyczne; anonimizacja konta kasuje nośniki.
+- **Odbiorcy:** hosting platformy, serwer LiveKit operatora (najlepiej własna maszyna w UE).
+- **Ryzyka do oceny przez organizatora:** obraz domu i osób trzecich w kadrze (instrukcja dla ucznia:
+  kadr bez domowników), nadmierne zbieranie przy ekranie/mikrofonie, nierówność dostępu do sprzętu
+  (alternatywa), błędne oskarżenie (incydent to notatka człowieka, decyzję podejmuje komisja z prawem
+  ucznia do wyjaśnień).
+- Wpis w rejestrze czynności („Nadzór zdalny etapów online”) pojawia się sam po włączeniu przełącznika.
+
+---
+
 ## 10a. Zaświadczenia o statusie ucznia — `/coordinator/student-status/`
 
 **Tylko w konkursie z włączonymi zaświadczeniami** (przełącznik `student_status_certificate`, włącza go

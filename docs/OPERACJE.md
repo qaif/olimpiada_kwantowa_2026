@@ -4016,3 +4016,81 @@ Awaryjnie bez wdrożenia: zdjąć flagę `webinars` (adresy 404) albo wyczyści�
 przerywa restart serwera LiveKit – poza godzinami webinarów). Zatrzymanie wariantu (b):
 `docker compose -f docker-compose.yml -f deploy/livekit/docker-compose.livekit.yml --profile livekit stop livekit livekit-egress livekit-redis`
 i `LIVEKIT_PROXY=0` + `scripts/proxy_config.sh update`.
+
+## 29. Nadzór zdalny etapów online (PROC-01, `docs/tasks/PROC-01.md`)
+
+Koordynator włącza nadzór **dla wybranego etapu online** (`Etapy → Nadzór zdalny`); uczeń przechodzi
+w konsoli `/me/proctoring/<etap>/` zgodę, sprawdzenie sprzętu, (opcjonalnie) zdjęcie dokumentu
+i nadaje kamerę do pokoju LiveKit; nadzorujący pracują w siatce `/proctoring/<etap>/`. Serwer LiveKit,
+klucze i webhook – **te same, co webinary** (§ 28). Bez flagi `proctoring` nic się nie zmienia: adresy
+404, bramka treści etapu nie robi zapytań.
+
+### 29.1. Włączenie (kolejność)
+
+1. Wdrożenie z migracją `proctoring.0001` (obraz kompiluje też `apps/*/locale/` – `Dockerfile`).
+2. Serwer LiveKit wg § 28 – przy nadzorze **wariant (a)** (osobna maszyna, § 29.3). Webhook ten sam
+   (`/integrations/livekit/webhook/`); LiveKit wysyła domyślnie wszystkie zdarzenia, nadzór używa
+   `participant_joined/left`, `track_published/unpublished`, `egress_ended`.
+3. Nagrywanie (tylko gdy organizator je włączy): polityka konta egress w MinIO obejmuje teraz także
+   `submissions/proctoring/*` – zaktualizuj ją z `deploy/livekit/policy-egress.json`
+   (`mc admin policy create local egress-livekit policy-egress.json` → `mc admin policy attach …`)
+   i ustaw w `egress.yaml` `cpu_cost.track_cpu_cost` (komentarz w przykładzie).
+4. Restart `web worker beat` (nowe zadanie beat `proctoring-purge`, 03:40 – retencja nośników).
+5. Flaga konkursu `proctoring` w `/admin/` (`feature_flags`) – **po** decyzji organizatora i ocenie
+   skutków (DPIA, `docs/PODRECZNIK-ORGANIZATORA.md` § 10c), aktualizacji polityki prywatności
+   (sekcja „Nadzór zdalny”) i regulaminu etapu.
+6. Okna w strefach (TZ-01): po scaleniu ustaw `PROCTORING_WINDOW_ADAPTER=<moduł.funkcja>`
+   (`(stage, participant) -> (opens, closes)`); pusty = okno globalne etapu.
+7. Próba generalna: etap treningowy nie podlega nadzorowi – zrób etap testowy (rodzaj „Runda”) z dwoma
+   kontami uczniów i jednym nadzorującym, sprawdź siatkę, wiadomość, incydent, raport i (gdy włączone)
+   nagranie.
+
+Zmienne (`.env`, opcjonalne): `PROCTORING_LEAD_MINUTES` (30), `PROCTORING_GRACE_MINUTES` (30),
+`PROCTORING_RETENTION_DAYS` (30), `PROCTORING_MAX_RETENTION_DAYS` (180), `PROCTORING_WINDOW_ADAPTER`.
+
+### 29.2. Bezpieczeństwo – jak to działa
+
+- **Pokoje per grupa**: `proc-<konkurs>-<klucz>-<grupa>`, grupa = `d<delegacja>` (IQO), inaczej
+  `a<przydział nadzorującego>`, inaczej `m` (bez przydziału). Token nadzorującego otwiera **jeden**
+  pokój; opiekun drużyny dostaje wyłącznie pokój swojej delegacji, członek komisji – pokoje swoich
+  uczniów. Uprawnień subskrypcji per ścieżka nie używamy, bo ustawia je przeglądarka nadawcy.
+- Uczeń: `canSubscribe=false`, `canPublishData=false`, `canPublishSources` = kamera (+ ekran/mikrofon,
+  gdy wymagane), pusta nazwa (inni uczniowie w pokoju widzą tylko pseudonimy). Nadzorujący: `hidden`,
+  bez nadawania. Wiadomości idą przez serwer (`RoomService/SendData`) – zapis i audyt najpierw.
+- Start otwiera etap dopiero, gdy `RoomService/GetParticipant` potwierdzi ścieżkę kamery.
+- Limity per konto: `proctoring_token` 60/h, `proctoring_action` 600/h, `proctoring_client` 600/h
+  (odpowiedź 429 w JSON-ie).
+- Nagrania (Track Egress, WebM, bez transkodowania): `submissions/proctoring/<konkurs>/<klucz>/<pseudonim>/…`,
+  odczyt adresem na 15 min, wyłącznie koordynator i komisja odwoławcza, audyt `proctoring.recording_viewed`.
+
+### 29.3. Pojemność – szacunek dla 300 uczniów (kamera 320×240, 10 kl./s)
+
+| Pozycja | Szacunek |
+|---|---|
+| Strumień kamery (VP8, limit 150 kb/s, bez simulcastu) | ~100–150 kb/s + ~10 % narzutu RTP/SRTP |
+| Wejście do SFU, 300 kamer | **~45–50 Mb/s** |
+| Wyjście do nadzorujących (np. 15 osób × 20 kafli widocznej strony) | ~45 Mb/s (+3–4 Mb/s na każdą stronę 24 kafli koordynatora) |
+| Ekran (gdy wymagany; 2 kl./s, ≤ 300 kb/s) | +~90 Mb/s wejścia przy 300 uczniach; wyjście tylko „na żądanie” |
+| Mikrofon (gdy wymagany; Opus) | +~30 kb/s na ucznia; nadzorujący odbiera dźwięk jednego kafla naraz |
+| Transfer w etapie 3 h (sama kamera) | ~60 GB wejścia + ~60 GB wyjścia |
+| Nagrania (tylko przy `record`) | ~65 MB/h na ucznia → **~60 GB** na etap 3 h × 300 uczniów |
+| Platforma (Django) | puls 300/min (5 żądań/s), odpytanie wiadomości co 20 s (~15 żądań/s), webhooki w falach przy starcie |
+
+Zalecenie: **osobna maszyna LiveKit 8 vCPU (dedykowane, nie VPS z „steal” – § 28.1), 8–16 GB RAM,
+łącze ≥ 500 Mb/s symetryczne**; SFU przy tak niskich przepływnościach ma duży zapas CPU (przekazuje
+pakiety, nie koduje). Porty: przy kilkuset uczestnikach zakres 50000–50100 nie wystarczy – ustaw
+`rtc.udp_port` (multipleksowanie UDP na jednym porcie) albo szerszy zakres i zaporę. Nagrywanie: Track
+Egress nie transkoduje, ale każdy egress to osobny proces – na 300 nagrań naraz zaplanuj 2–3 węzły egress
+(8 vCPU / 16 GB, `track_cpu_cost` 0.1–0.2) i **próbę obciążeniową** przed etapem; miejsce w buckecie
+~60 GB na etap z 30-dniową retencją. Wariant (b) (ten sam host) – wyłącznie próby i małe grupy.
+
+### 29.4. Awarie i wyłączenie
+
+- LiveKit niedostępny w trakcie etapu: ustawienie etapu `allow` (domyślne) – uczniowie klikają
+  „Kontynuuj bez nadzoru”, sesje dostają znacznik (`unproctored`, w dzienniku `server_reachable`);
+  `block` – treść etapu zamknięta, koordynator zatwierdza ręcznie alternatywę.
+- Awaryjnie: zdjąć flagę `proctoring` (bramka znika natychmiast, nic nie blokuje etapu) albo
+  przestawić etap na `allow`.
+- Retencja: beat `apps.proctoring.tasks.purge_expired` (codziennie); ręcznie –
+  `docker compose exec web python manage.py shell -c "from apps.proctoring.services import purge_expired; print(purge_expired())"`.
+  Wstrzymanie usunięcia ucznia – pole „powód wstrzymania” na ekranie nadzoru etapu.
