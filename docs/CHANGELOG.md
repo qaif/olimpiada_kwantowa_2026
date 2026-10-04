@@ -271,6 +271,42 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
 - Dokumentacja: `docs/OPERACJE.md` § 28, `docs/PODRECZNIK-ORGANIZATORA.md` § 10b,
   `docs/PODRECZNIK-OPIEKUNA-DRUZYNY.md`.
 
+## [Unreleased] – Sieć absolwentów i mentoring (ALUM-01)
+
+- **Absolwenci (`apps.alumni`, flaga `alumni`, domyślnie wyłączona):** byli uczestnicy z
+  osiągnięciem w zakończonej edycji (próg ustawia koordynator: laureat / finalista / awans /
+  każdy uczestnik) dołączają do sieci **za osobną zgodą** (wersjonowany dowód zgody, wycofanie
+  jednym przyciskiem usuwa profil). Tylko osoby pełnoletnie. Osiągnięcia liczone na żywo
+  wyłącznie z ogłoszonych wyników i wystawionych dyplomów; rejestr źródeł na medale.
+- **Profil:** podpis „Imię N.” (pełne nazwisko tylko z wyborem i zgodą na publikację nazwiska),
+  uczelnia, kierunek, miasto, kraj, bio, zainteresowania z listy zamkniętej, LinkedIn/GitHub
+  (tylko https, tylko te serwisy, `rel=nofollow`), gotowość do mentoringu z tematami i liczbą miejsc.
+  Katalog dla zalogowanych `/me/alumni/directory/`, publiczna ściana `/alumni/` (tylko profile
+  oznaczone jako publiczne, minimalne pola).
+- **Mentoring przez Wiadomości:** prośba → akceptacja → zwykła rozmowa P2P czatu. Nowy punkt
+  rozszerzenia czatu (`PeerPolicy`, `register_peer_policy`, `ensure_peer_conversation`): mentee
+  małoletni przy zasadzie „ta sama grupa wiekowa” albo wyłączonych rozmowach uczestników – każda
+  wiadomość czeka na akceptację organizatora (kanał nadzorowany); przy „bez ograniczeń” – co
+  najmniej postmoderacja. Zakończenie relacji zamyka rozmowę do odczytu. Nadzór koordynatora
+  `/coordinator/alumni/mentoring/` (zakończenie z notatką, zgłoszenia problemów – list do
+  koordynatorów od razu).
+- **Zaproszenia** `/coordinator/alumni/invitations/` (warsztaty, webinary, jury; filtry: edycja,
+  poziom, zainteresowania, mentorzy) w języku odbiorcy, z wypisem jednym kliknięciem (RFC 8058).
+  **Statystyki** „gdzie są teraz” z progiem k-anonimowości 5.
+- **RODO:** czynność `ALUMNI_ACTIVITY` w rejestrze (wersja 1.19, tylko przy fladze), sekcja
+  `absolwenci` w eksporcie danych konta, czyszczenie przy anonimizacji, wstrzymanie automatu
+  retencji na czas ważnej zgody (`BLOCKED_ALUMNI`). Nowy zakres limitu `alumni` (30/h, per konto).
+- **Po przeglądzie krytyka:** notatka prośby małoletniego i opis mentora dla małoletnich dopiero po
+  akceptacji koordynatora, automatyczne zgłoszenia (wzorce danych kontaktowych, zmiana daty urodzenia
+  w trakcie relacji, rozmowa szyfrowana pod wymuszoną moderacją); data urodzenia mentee zapisana przy
+  akceptacji i potwierdzona pełnoletność mentora; pierwsze 5 wiadomości nowej pary dorosły–małoletni
+  w premoderacji także przy „bez ograniczeń”; ukrycie profilu kończy relacje mentora; minimalizacja
+  zamiast pełnej anonimizacji przy wstrzymanej retencji; wycofanie zgody przy wyłączonej fladze;
+  dowód zgody z językiem i skrótem treści i odnowienie zgody po zmianie wersji; polityki rozmowy
+  łączone po najostrzejszej; statystyki bez komórek komplementarnych; limity próśb.
+- **Medale (MED-01) jako osiągnięcia absolwentów:** ogłoszony medal albo wyróżnienie widać na profilu
+  („2025/2026: złoty medal”) i liczy się do progu dołączenia (medal = laureat).
+
 ## [Unreleased] – Wielojęzyczność per konkurs (I18N-01) i kraje zamiast województw (REG-01)
 
 - **Języki interfejsu per konkurs:** `Competition.interface_languages` obok `default_language`

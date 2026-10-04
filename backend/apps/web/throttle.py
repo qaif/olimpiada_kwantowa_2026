@@ -113,6 +113,7 @@ IDENTITY_FIELDS = ("email", "username")
 #: ``onsite_logistics`` i ``onsite_checkin`` (LOG-01) – opiekun, oficer logistyki i obsługa
 #: rejestracji są zalogowani; obsługa przy wejściu skanuje z kilku telefonów za jednym Wi-Fi.
 #:
+#: ``alumni`` (ALUM-01) – prośby o mentoring, zgłoszenia i zaproszenia; listy idą na koszt konta.
 #: ``translation`` (TR-01) – edytor tłumaczeń zadań: autozapis i czynności zalogowanych opiekunów.
 #: ``checkout`` i ``payments_admin`` (PAY-01) – płacący i koordynator są zalogowani, a koszt (sesje
 #: u operatora płatności, zwroty przez API) przypada na konto.
@@ -130,6 +131,7 @@ PER_USER_SCOPES = frozenset(
         "onsite_checkin",
         "checkout",
         "payments_admin",
+        "alumni",
     }
 )
 

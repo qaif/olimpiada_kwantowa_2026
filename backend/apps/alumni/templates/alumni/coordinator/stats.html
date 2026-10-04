@@ -1,0 +1,35 @@
+{% extends "web/coordinator/base.html" %}
+{% load i18n %}
+{% comment %}
+  „Gdzie są teraz” – rozkłady jednowymiarowe z progiem k-anonimowości (``apps.alumni.stats``).
+  Grupy poniżej progu są w „inne”; „< 5” zamiast liczby, gdy i „inne” jest poniżej progu.
+{% endcomment %}
+{% block title %}{% translate "Gdzie są teraz – panel koordynatora" %}{% endblock %}
+{% block panel_eyebrow %}<a href="{% url 'web:coordinator-alumni' %}">{% translate "Absolwenci" %}</a>{% endblock %}
+{% block panel_title %}{% translate "Gdzie są teraz" %}{% endblock %}
+{% block panel_lead %}
+  <p class="lead">{% blocktranslate trimmed with k=k %}Zagregowane dane z profili absolwentów. Grupy mniejsze niż {{ k }} osób nie są
+    pokazywane osobno – nikogo nie da się z tych tabel rozpoznać.{% endblocktranslate %}</p>
+{% endblock %}
+{% block panel_actions %}{% include "alumni/coordinator/_tabs.html" %}{% endblock %}
+{% block panel_content %}
+<p>{% blocktranslate trimmed with total=total %}Absolwentów w sieci: {{ total }}.{% endblocktranslate %}
+  {% if mentors is not None %}{% blocktranslate trimmed with mentors=mentors %}Mentorów: {{ mentors }}.{% endblocktranslate %}{% else %}{% blocktranslate trimmed with k=k %}Mentorów: mniej niż {{ k }}.{% endblocktranslate %}{% endif %}</p>
+{% if too_small %}
+  <p class="notice">{% blocktranslate trimmed with k=k %}Sieć ma mniej niż {{ k }} osób – rozkładów nie pokazujemy, bo każda liczba
+    mówiłaby o konkretnych ludziach.{% endblocktranslate %}</p>
+{% else %}
+  {% for table in tables %}
+    <section class="section">
+      <h2>{{ table.title }}</h2>
+      <div class="scroll">
+        <table class="table">
+          <tbody>
+            {% for row in table.rows %}<tr><td>{{ row.label }}</td><td>{{ row.shown }}</td></tr>{% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  {% endfor %}
+{% endif %}
+{% endblock %}

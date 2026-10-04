@@ -472,6 +472,33 @@ Inni tłumacze nie widzą, kto zaproponował poprawkę ani kto zgłosił błąd.
 
 ---
 
+## 8c. Absolwenci i mentoring — `/me/alumni/`
+
+Pojawia się w pasku konta, gdy organizator włączył sieć absolwentów.
+
+- **Dołączenie** jest dobrowolne i wymaga osobnej zgody. Mogą dołączyć osoby **pełnoletnie** z
+  osiągnięciem w zakończonej edycji (próg ustala organizator). Osiągnięcia biorą się z ogłoszonych
+  wyników – nie wpisuje się ich samemu.
+- **Profil:** wszystkie pola są opcjonalne. Inni zalogowani uczestnicy widzą „Imię N.” (pełne imię
+  i nazwisko tylko, jeśli to zaznaczysz i masz w konkursie zgodę na publikację nazwiska), uczelnię,
+  kierunek, miasto, kraj, opis, zainteresowania i odnośniki LinkedIn/GitHub. Nigdy adres e-mail,
+  szkołę ani kod uczestnika. Na publicznej ścianie `/alumni/` jesteś tylko wtedy, gdy to zaznaczysz
+  – i widać tam wyłącznie podpis, osiągnięcia, uczelnię i kierunek.
+- **Wycofanie zgody** usuwa profil od razu; relacje, w których jesteś mentorem, się kończą. Działa także
+  wtedy, gdy organizator wyłączył sieć absolwentów (`/me/alumni/` pokazuje wtedy tylko ten przycisk).
+- **Zmiana treści zgody:** gdy organizator zmieni treść zgody, profil jest niewidoczny, dopóki nie
+  potwierdzisz nowej treści na `/me/alumni/`.
+- **Mentoring:** uczestnik bieżącej edycji wybiera w katalogu `/me/alumni/directory/` mentora z
+  wolnym miejscem i wysyła prośbę z krótką notatką (bez danych kontaktowych – przeczyta ją mentor
+  i organizator; jeśli jesteś niepełnoletni, mentor przeczyta ją dopiero po akceptacji organizatora).
+  Jeśli jesteś niepełnoletni, opis mentora zobaczysz dopiero po akceptacji organizatora. Prośby są
+  ograniczone (najwyżej 5 dziennie i 2 tygodniowo do tej samej osoby). Po akceptacji rozmowa otwiera się w **Wiadomościach**. Jeśli jesteś
+  niepełnoletni, organizator czyta wiadomości tej rozmowy – zależnie od zasad konkursu przed
+  doręczeniem albo po nim. Każda strona może zakończyć relację albo **zgłosić problem**
+  organizatorowi (zgłoszenie trafia do niego od razu); pojedynczą wiadomość zgłaszasz w Wiadomościach.
+- **Zaproszenia** od organizatora (warsztaty, webinary, jury) przychodzą e-mailem; wyłączysz je w
+  profilu albo odnośnikiem wypisu w każdym liście.
+
 ## 9. Coś nie działa
 
 1. **Sprawdź `/status/`** — strona mówi, czy działa baza, magazyn prac i kolejka zadań, i podaje

@@ -4715,3 +4715,67 @@ zadanie robi dwa puste zapytania.
   w `.env` usługi `web`.
 - Wycofanie: wyłączenie flagi `fees` ukrywa ekrany (404); dane zostają. Migracje `payments.0001`–`0002` są
   odwracalna, ale **dokumenty księgowe** trzeba przed tym wyeksportować (5 lat przechowywania).
+
+## 38. Sieć absolwentów i mentoring (ALUM-01, `docs/tasks/ALUM-01.md`)
+
+Funkcja jest za flagą konkursu **`alumni`** (domyślnie wyłączona) i nie ma jej w ekranie
+„Ustawienia konkursu” – to nowa czynność przetwarzania na podstawie zgody i kontakt dorosłych
+mentorów z małoletnimi, więc włącza ją operator po decyzji organizatora (jak forum, § 6.4):
+
+```sh
+docker compose exec web python manage.py shell -c "from apps.tenancy.models import Competition as C; c=C.objects.get(slug='kwantowa'); c.feature_flags={**(c.feature_flags or {}), 'alumni': True}; c.save(update_fields=['feature_flags'])"
+```
+
+Po włączeniu koordynator ustawia w `/coordinator/alumni/`: kto może dołączyć (domyślnie finaliści),
+mentoring (domyślnie wyłączony) i publiczną ścianę (domyślnie wyłączona). Mentoring wymaga
+włączonych Wiadomości (`/coordinator/chat/settings/`).
+
+**Wdrożenie:** migracje `alumni.0001_initial` i `alumni.0002_review_safeguards` (nowe tabele
+i kolumny wyłącznie w `alumni_*`, bez zmian w istniejących), nowy segment
+adresu `/alumni/` w kontrakcie tras (`backend/djcms_contract/app_routes.*` – generator Caddy'ego
+wkleja go przy wdrożeniu, § 23), nowy zakres limitu `alumni` w `REST_FRAMEWORK`. Nic do zrobienia
+ręcznie poza ewentualnym włączeniem flagi.
+
+**Retencja:** aktywna zgoda absolwenta (profil nieukryty, konto aktywne) wstrzymuje **pełną**
+anonimizację konta (`apps.accounts.retention`, przeszkoda „należy do sieci absolwentów (zgoda)” na
+ekranie `/coordinator/retention/`, sprawdzana **po** reklamacjach i nieogłoszonych wynikach). Przebieg
+retencji robi wtedy **minimalizację** (`apps.alumni.services.minimise_participant`, wpis audytu
+`account.minimised_by_retention`): czyści telefon, szkołę (nazwę i powiązania ze słownikami), region
+i województwo, klasę, adresy opiekuna szkolnego i rodzica oraz dzień urodzenia (zostaje rocznik).
+Zostają imię, nazwisko, adres e-mail, kod publiczny, wpisy do etapów i dyplomy (z nich liczą się
+osiągnięcia) i wiersze sieci. Pełnoletność potrzebna regułom mentoringu jest zapisana na profilu
+absolwenta (`adult_confirmed_at`). Wycofanie zgody, ukrycie profilu albo wyłączenie flagi przywraca
+zwykłą retencję przy najbliższym przebiegu nocnym.
+
+**Co dzieje się z danymi po wyłączeniu flagi (dokładnie):** adresy `/alumni/…`, katalog, prośby,
+zaproszenia i ekrany koordynatora dają 404; `/me/alumni/` zostaje **wyłącznie** dla osób z profilem
+i pokazuje jedno – wycofanie zgody (działa także przy wyłączonej fladze). Profile, dowody zgody,
+relacje i zgłoszenia zostają w bazie bez zmian, ale nikomu nie są pokazywane ani używane (nie ma
+zaproszeń, statystyk ani katalogu). Rozmowy mentorskie w Wiadomościach są tylko do odczytu („Organizator
+wstrzymał mentoring”) – sprawdzenie kosztuje jedno zapytanie przy wiadomości P2P wyłącznie w konkursie,
+który flagę **kiedyś** zapisał (konkurs, który jej nigdy nie włączał, nie płaci nic). Wstrzymanie
+retencji przestaje działać – przy najbliższym przebiegu przeterminowane konta są anonimizowane, a wraz
+z nimi znikają profile absolwentów (`erase_for_user`). Ponowne włączenie flagi przywraca wszystko
+w stanie sprzed wyłączenia.
+
+**Dokumentacja bezpieczeństwa mentoringu:** strony relacji, daty, kanał, powód zakończenia, notatka
+organizatora, zgłoszenia (także automatyczne: wzorce danych kontaktowych w notatce, zmiana daty
+urodzenia osoby w otwartej relacji, rozmowa szyfrowana pod wymuszoną moderacją) i wpisy dziennika
+zdarzeń zostają do anonimizacji kont stron. Przy anonimizacji znika notatka prośby, treść zgłoszeń tej
+osoby i zapisana przy akceptacji data urodzenia mentee. **Zakończonej relacji nie da się wznowić**
+(także koordynatorowi): mentee wysyła nową prośbę, a po akceptacji rozmowa sprzed relacji znów
+przyjmuje wiadomości na zasadach mentoringu.
+
+**Zmiana treści zgody:** podbicie `ALUMNI_CONSENT_VERSION` (`apps/alumni/models.py`) usypia profile
+z poprzednią wersją (znikają z katalogu, ściany i zaproszeń) do czasu potwierdzenia nowej treści na
+`/me/alumni/`. Dowód zgody zapisuje wersję, język i skrót SHA-256 pokazanej treści.
+
+**Moderacja mentoringu:** wiadomości rozmów mentorskich trafiają do istniejącej kolejki
+`/coordinator/chat/moderation/` (premoderacja przy małoletnim mentee i zasadzie „ta sama grupa
+wiekowa” albo przy wyłączonych rozmowach uczestników; przy „bez ograniczeń” premoderacja pierwszych
+5 wiadomości nowej pary, potem postmoderacja). Notatki próśb małoletnich i opisy mentorów widoczne dla
+małoletnich czekają na akceptację w `/coordinator/alumni/mentoring/` i `/coordinator/alumni/`. Przy
+włączonym mentoringu z małoletnimi organizator musi mieć dyżur moderacyjny.
+
+**Definitywne wycofanie funkcji:** wyłączenie flagi (skutki wyżej) i – bo zgoda dotyczyła działającej
+sieci – usunięcie profili (`AlumniProfile.objects.filter(participant__competition=c).delete()`).

@@ -304,6 +304,13 @@ FEATURE_DEFAULTS: dict[str, bool] = {
     # komendą ``theme_install --activate``) renderuje się w motywie także przy fladze wyłączonej –
     # flaga decyduje wyłącznie o tym, czy koordynator może motyw zmieniać sam.
     "themes": False,
+    # --- sieć absolwentów ---------------------------------------------------------------------------
+    # Absolwenci, mentoring przez Wiadomości, zaproszenia i statystyki (ALUM-01, ``apps.alumni``).
+    # Wyłączona znaczy, że adresów ``/alumni/…``, ``/me/alumni/…`` i ``/coordinator/alumni/…`` **nie ma**
+    # (404), a menu i rejestr czynności są co do bajtu dzisiejsze. Domyślnie wyłączona, bo to nowa
+    # czynność przetwarzania na podstawie zgody i kontakt dorosłych mentorów z małoletnimi – decyzja
+    # organizatora (dyżur moderacyjny, wpis w rejestrze), a nie skutek wdrożenia.
+    "alumni": False,
 }
 
 

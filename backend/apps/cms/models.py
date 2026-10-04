@@ -75,6 +75,8 @@ RESERVED_SLUGS = frozenset(
         "accounts",
         "activate",
         "admin",
+        # Publiczna ściana absolwentów i wypis z zaproszeń (ALUM-01, ``apps/alumni/urls.py``).
+        "alumni",
         "api",
         "appeals",
         "captcha",

@@ -229,6 +229,17 @@ EXPECTED_WEBINAR_SUBJECTS = {
     "webinar_reminder": f"Przypomnienie o webinarze: {TITLE_MARK} – Olimpiada Kwantowa",
 }
 
+#: Pięć tematów listów sieci absolwentów (ALUM-01, ``apps.alumni.notifications``) – z prefiksem
+#: konkursu, z tego samego powodu co forum: listy są nowe, a „[Olimpiada Kwantowa] Absolwenci:”
+#: pozwala odfiltrować całą rodzinę naraz. Wysyłkę sprawdza ``apps/alumni/tests/test_mentoring.py``.
+EXPECTED_ALUMNI_SUBJECTS = {
+    "alumni_requested": f"{EXPECTED_SUBJECT_PREFIX}Absolwenci: prośba o mentoring",
+    "alumni_accepted": f"{EXPECTED_SUBJECT_PREFIX}Absolwenci: mentor przyjął Twoją prośbę",
+    "alumni_declined": f"{EXPECTED_SUBJECT_PREFIX}Absolwenci: odpowiedź na prośbę o mentoring",
+    "alumni_ended": f"{EXPECTED_SUBJECT_PREFIX}Absolwenci: relacja mentorska zakończona",
+    "alumni_flag": f"{EXPECTED_SUBJECT_PREFIX}Absolwenci: zgłoszono problem z relacją mentorską",
+}
+
 #: Komplet tematów wychodzących z instalacji. **Liczby tu nie ma i ma jej nie być**: do 25.09.2026
 #: test porównywał długości tych słowników z literałami (11/7/7/25), więc każdy nowy list wymagał
 #: poprawienia liczby w miejscu, które z tym listem nie miało nic wspólnego – a przy tym niczego nie
@@ -239,6 +250,7 @@ ALL_EXPECTED_SUBJECTS = {
     **EXPECTED_SERVICE_SUBJECTS,
     **EXPECTED_FORUM_SUBJECTS,
     **EXPECTED_WEBINAR_SUBJECTS,
+    **EXPECTED_ALUMNI_SUBJECTS,
 }
 
 #: Każda stała tematu listu w kodzie (nazwa z ``SUBJECT``) → klucz zamrożonego brzmienia wyżej.
@@ -269,6 +281,11 @@ SUBJECT_CONSTANTS = {
     "apps.accounts.supervisor_consent.SUPERVISOR_CONSENT_SUBJECT": "supervisor_consent",
     "apps.accounts.supervisor_consent.SUPERVISOR_CONSENT_SUBJECT_TEMPLATE": "supervisor_consent",
     "apps.accounts.services.INVITATION_SUBJECT_TEMPLATE": "invitation",
+    "apps.alumni.notifications.SUBJECT_REQUESTED": "alumni_requested",
+    "apps.alumni.notifications.SUBJECT_ACCEPTED": "alumni_accepted",
+    "apps.alumni.notifications.SUBJECT_DECLINED": "alumni_declined",
+    "apps.alumni.notifications.SUBJECT_ENDED": "alumni_ended",
+    "apps.alumni.notifications.SUBJECT_FLAG": "alumni_flag",
     "apps.chat.notifications.SUBJECT": "chat_message",
     "apps.payments.notifications.RECEIPT_SUBJECT": "payment_receipt",
     "apps.payments.notifications.REFUND_SUBJECT": "payment_refund",
