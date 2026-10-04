@@ -49,7 +49,9 @@ def test_rotations_and_u_gate():
     qc = QuantumCircuit(1)
     qc.ry(theta, 0)
     assert np.allclose(Statevector(qc).data, [math.cos(theta / 2), math.sin(theta / 2)])
-    assert np.allclose(RYGate(theta).to_matrix(), [[math.cos(0.35), -math.sin(0.35)], [math.sin(0.35), math.cos(0.35)]])
+    assert np.allclose(
+        RYGate(theta).to_matrix(), [[math.cos(0.35), -math.sin(0.35)], [math.sin(0.35), math.cos(0.35)]]
+    )
     u = QuantumCircuit(1)
     u.u(math.pi, 0, math.pi, 0)  # U(π, 0, π) = X
     assert Operator(u).equiv(Operator(np.array([[0, 1], [1, 0]])))
@@ -282,7 +284,9 @@ def test_parity_counts_keys_with_real_qiskit():
         return qc
 
     ours = AerSimulator().run(build(QuantumCircuit, qclab.ClassicalRegister, qclab.QuantumRegister), shots=8)
-    theirs = QBasic().run(build(qiskit.QuantumCircuit, qiskit.ClassicalRegister, qiskit.QuantumRegister), shots=8)
+    theirs = QBasic().run(
+        build(qiskit.QuantumCircuit, qiskit.ClassicalRegister, qiskit.QuantumRegister), shots=8
+    )
     assert ours.result().get_counts() == theirs.result().get_counts()
 
 
@@ -293,4 +297,6 @@ def test_parity_qft_and_depth_with_real_qiskit():
 
     for n in (2, 3, 4):
         assert np.allclose(Operator(QFT(n)).data, QOperator(QQFT(n)).data, atol=1e-9)
-        assert np.allclose(Operator(QFT(n, approximation_degree=1)).data, QOperator(QQFT(n, approximation_degree=1)).data)
+        assert np.allclose(
+            Operator(QFT(n, approximation_degree=1)).data, QOperator(QQFT(n, approximation_degree=1)).data
+        )

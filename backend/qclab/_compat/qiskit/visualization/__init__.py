@@ -8,4 +8,10 @@ from qclab.visualization import (
     plot_histogram,
 )
 
-__all__ = ["array_to_latex", "circuit_drawer", "plot_bloch_multivector", "plot_distribution", "plot_histogram"]
+__all__ = [
+    "array_to_latex",
+    "circuit_drawer",
+    "plot_bloch_multivector",
+    "plot_distribution",
+    "plot_histogram",
+]

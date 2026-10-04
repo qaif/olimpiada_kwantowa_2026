@@ -167,7 +167,9 @@ class Statevector:
         if isinstance(other, QuantumCircuit):
             if qargs is None:
                 if other.num_qubits != self._num_qubits:
-                    raise QclabError("evolve(): the circuit and the state must have the same number of qubits.")
+                    raise QclabError(
+                        "evolve(): the circuit and the state must have the same number of qubits."
+                    )
                 return Statevector(evolve_unitary(other, self._data.copy()))
             other = Operator(other)
         if isinstance(other, Instruction):
@@ -366,7 +368,8 @@ class Operator:
 
     def __repr__(self) -> str:
         values = np.array2string(self._data, precision=4, separator=", ", suppress_small=True)
-        return f"Operator({values},\n         input_dims={(2,) * self._num_qubits}, output_dims={(2,) * self._num_qubits})"
+        dims = (2,) * self._num_qubits
+        return f"Operator({values},\n         input_dims={dims}, output_dims={dims})"
 
 
 class Pauli:
@@ -461,4 +464,12 @@ def random_statevector(dims, seed=None) -> Statevector:
     return Statevector(vector / np.linalg.norm(vector))
 
 
-__all__ = ["Operator", "Pauli", "SparsePauliOp", "Statevector", "random_statevector", "sample_counts", "state_fidelity"]
+__all__ = [
+    "Operator",
+    "Pauli",
+    "SparsePauliOp",
+    "Statevector",
+    "random_statevector",
+    "sample_counts",
+    "state_fidelity",
+]

@@ -43,7 +43,9 @@ def _check_qubits(num_qubits: int) -> None:
         raise QclabError(f"The simulator supports at most {MAX_QUBITS} qubits.")
 
 
-def _apply_operation(state: np.ndarray, num_qubits: int, operation: Instruction, qubits: list[int]) -> np.ndarray:
+def _apply_operation(
+    state: np.ndarray, num_qubits: int, operation: Instruction, qubits: list[int]
+) -> np.ndarray:
     if operation.definition is not None and operation._matrix is None:
         sub = operation.definition
         for sub_op, sub_q, _sub_c in sub.instruction_indices():

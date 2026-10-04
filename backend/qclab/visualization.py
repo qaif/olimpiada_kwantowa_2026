@@ -54,7 +54,9 @@ def plot_bloch_multivector(state, title: str = "", **kwargs):
         for label in ("X", "Y", "Z"):
             full = "".join(label if q == qubit else "I" for q in reversed(range(n)))
             vector.append(float(np.real(state.expectation_value(Pauli(full)))))
-        lines.append(f"qubit {qubit}: Bloch (x, y, z) = ({vector[0]:+.3f}, {vector[1]:+.3f}, {vector[2]:+.3f})")
+        lines.append(
+            f"qubit {qubit}: Bloch (x, y, z) = ({vector[0]:+.3f}, {vector[1]:+.3f}, {vector[2]:+.3f})"
+        )
     return TextFigure("\n".join(lines))
 
 

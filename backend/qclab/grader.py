@@ -65,7 +65,8 @@ MESSAGES = {
         "unsupported": "„{target}” ma typ, którego ten test nie sprawdza ({kind}).",
         "wrong_qubits": "Obwód ma {got} kubitów, a oczekiwano {expected}.",
         "sv_mismatch": "Wektor stanu różni się od oczekiwanego (największa różnica {diff:.3g}).",
-        "prob_mismatch": "Rozkład prawdopodobieństwa różni się od oczekiwanego (największa różnica {diff:.3g}).",
+        "prob_mismatch": "Rozkład prawdopodobieństwa różni się od oczekiwanego "
+        "(największa różnica {diff:.3g}).",
         "counts_mismatch": "Rozkład wyników różni się od oczekiwanego (odległość {diff:.3g} > {tol:.3g}).",
         "unitary_mismatch": "Macierz obwodu różni się od oczekiwanej (największa różnica {diff:.3g}).",
         "value_mismatch": "Wartość różni się od oczekiwanej.",
@@ -87,8 +88,10 @@ MESSAGES = {
         "unsupported": "“{target}” has a type this test does not check ({kind}).",
         "wrong_qubits": "The circuit has {got} qubits, expected {expected}.",
         "sv_mismatch": "The statevector differs from the expected one (max difference {diff:.3g}).",
-        "prob_mismatch": "The probability distribution differs from the expected one (max difference {diff:.3g}).",
-        "counts_mismatch": "The outcome distribution differs from the expected one (distance {diff:.3g} > {tol:.3g}).",
+        "prob_mismatch": "The probability distribution differs from the expected one "
+        "(max difference {diff:.3g}).",
+        "counts_mismatch": "The outcome distribution differs from the expected one "
+        "(distance {diff:.3g} > {tol:.3g}).",
         "unitary_mismatch": "The circuit matrix differs from the expected one (max difference {diff:.3g}).",
         "value_mismatch": "The value differs from the expected one.",
         "too_deep": "The circuit depth is {got}, at most {limit} allowed.",
@@ -159,8 +162,10 @@ def parse_number(value) -> complex:
     def walk(node) -> complex:
         if isinstance(node, ast.Expression):
             return walk(node.body)
-        if isinstance(node, ast.Constant) and isinstance(node.value, (int, float, complex)) and not isinstance(
-            node.value, bool
+        if (
+            isinstance(node, ast.Constant)
+            and isinstance(node.value, (int, float, complex))
+            and not isinstance(node.value, bool)
         ):
             return complex(node.value)
         if isinstance(node, ast.Name) and node.id in _CONSTS:
@@ -168,7 +173,9 @@ def parse_number(value) -> complex:
         if isinstance(node, ast.UnaryOp) and isinstance(node.op, (ast.UAdd, ast.USub)):
             inner = walk(node.operand)
             return -inner if isinstance(node.op, ast.USub) else inner
-        if isinstance(node, ast.BinOp) and isinstance(node.op, (ast.Add, ast.Sub, ast.Mult, ast.Div, ast.Pow)):
+        if isinstance(node, ast.BinOp) and isinstance(
+            node.op, (ast.Add, ast.Sub, ast.Mult, ast.Div, ast.Pow)
+        ):
             left, right = walk(node.left), walk(node.right)
             if isinstance(node.op, ast.Add):
                 return left + right
@@ -208,7 +215,7 @@ def normalize_target(target) -> dict:
     if isinstance(target, str):
         target = {"name": target}
     if not isinstance(target, dict):
-        raise SpecError("„target” musi być nazwą zmiennej albo obiektem {\"call\": …, \"args\": […]}.")
+        raise SpecError('„target” musi być nazwą zmiennej albo obiektem {"call": …, "args": […]}.')
     if "call" in target:
         name = target.get("call")
         args = target.get("args", [])
@@ -234,7 +241,9 @@ def _validate_expected(check: str, expected, test: dict) -> None:
         if isinstance(expected, dict):
             widths = {len(k) for k in expected}
             if not expected or len(widths) != 1 or not all(LABEL_RE.match(k) for k in expected):
-                raise SpecError("Oczekiwany wektor stanu jako słownik: klucze to napisy bitów jednej długości.")
+                raise SpecError(
+                    "Oczekiwany wektor stanu jako słownik: klucze to napisy bitów jednej długości."
+                )
             for value in expected.values():
                 parse_number(value)
         elif isinstance(expected, list):
@@ -243,10 +252,10 @@ def _validate_expected(check: str, expected, test: dict) -> None:
             for value in expected:
                 parse_number(value)
         else:
-            raise SpecError("Oczekiwany wektor stanu: lista amplitud albo słownik {\"00\": amplituda}.")
+            raise SpecError('Oczekiwany wektor stanu: lista amplitud albo słownik {"00": amplituda}.')
     elif check in ("probabilities", "counts"):
         if not isinstance(expected, dict) or not expected:
-            raise SpecError("Oczekiwany rozkład: słownik {\"00\": 0.5, \"11\": 0.5}.")
+            raise SpecError('Oczekiwany rozkład: słownik {"00": 0.5, "11": 0.5}.')
         for key, value in expected.items():
             if not isinstance(key, str) or not re.fullmatch(r"[01 ]{1,40}", key):
                 raise SpecError(f"Nieprawidłowy klucz rozkładu: {key!r}")
@@ -271,20 +280,26 @@ def _validate_expected(check: str, expected, test: dict) -> None:
         allowed = {"num_qubits", "max_depth", "max_size", "max_gates", "allowed_gates", "required_gates",
                    "measurements"}  # fmt: skip
         if not any(key in test for key in allowed):
-            raise SpecError("Test „circuit” wymaga co najmniej jednego warunku (np. max_depth, allowed_gates).")
+            raise SpecError(
+                "Test „circuit” wymaga co najmniej jednego warunku (np. max_depth, allowed_gates)."
+            )
         for key in ("num_qubits", "max_depth", "max_size"):
-            if key in test and (not isinstance(test[key], int) or isinstance(test[key], bool) or test[key] < 0):
+            if key in test and (
+                not isinstance(test[key], int) or isinstance(test[key], bool) or test[key] < 0
+            ):
                 raise SpecError(f"„{key}” musi być nieujemną liczbą całkowitą.")
         if "max_gates" in test and (
             not isinstance(test["max_gates"], dict)
             or not all(isinstance(v, int) and v >= 0 for v in test["max_gates"].values())
         ):
-            raise SpecError("„max_gates” to słownik {\"cx\": 2}.")
+            raise SpecError('„max_gates” to słownik {"cx": 2}.')
         for key in ("allowed_gates", "required_gates"):
-            if key in test and (not isinstance(test[key], list) or not all(isinstance(g, str) for g in test[key])):
+            if key in test and (
+                not isinstance(test[key], list) or not all(isinstance(g, str) for g in test[key])
+            ):
                 raise SpecError(f"„{key}” to lista nazw bramek.")
         if "measurements" in test and test["measurements"] not in ("required", "forbidden"):
-            raise SpecError("„measurements” to \"required\" albo \"forbidden\".")
+            raise SpecError('„measurements” to "required" albo "forbidden".')
 
 
 def validate_tests(raw) -> list[dict]:
@@ -315,13 +330,28 @@ def validate_tests(raw) -> list[dict]:
             if check not in CHECKS:
                 raise SpecError(f"„check” musi być jednym z: {', '.join(CHECKS)}.")
             points = test.get("points", 1)
-            if not isinstance(points, (int, float)) or isinstance(points, bool) or not 0 <= points <= MAX_POINTS:
+            if (
+                not isinstance(points, (int, float))
+                or isinstance(points, bool)
+                or not 0 <= points <= MAX_POINTS
+            ):
                 raise SpecError(f"„points” musi być liczbą od 0 do {MAX_POINTS}.")
             tolerance = test.get("tolerance", DEFAULT_TOLERANCE.get(check, 0))
-            if not isinstance(tolerance, (int, float)) or isinstance(tolerance, bool) or not 0 <= tolerance <= 1:
+            if (
+                not isinstance(tolerance, (int, float))
+                or isinstance(tolerance, bool)
+                or not 0 <= tolerance <= 1
+            ):
                 raise SpecError("„tolerance” musi być liczbą od 0 do 1.")
             name = str(test.get("name") or test_id)[:120]
-            item = {**test, "id": test_id, "name": name, "check": check, "points": points, "tolerance": tolerance}
+            item = {
+                **test,
+                "id": test_id,
+                "name": name,
+                "check": check,
+                "points": points,
+                "tolerance": tolerance,
+            }
             item["target"] = normalize_target(test.get("target"))
             if check != "circuit":
                 if "expected" not in test:
@@ -337,8 +367,11 @@ def validate_tests(raw) -> list[dict]:
 
 def public_view(tests: list[dict]) -> list[dict]:
     """Testy widoczne w postaci dla notatnika (bez pól spoza formatu)."""
-    keep = ("id", "name", "points", "target", "check", "expected", "tolerance", "global_phase", "num_qubits",
-            "max_depth", "max_size", "max_gates", "allowed_gates", "required_gates", "measurements")  # fmt: skip
+    keep = (
+        "id", "name", "points", "target", "check", "expected", "tolerance", "global_phase",
+        "num_qubits", "max_depth", "max_size", "max_gates", "allowed_gates", "required_gates",
+        "measurements",
+    )  # fmt: skip
     return [{k: t[k] for k in keep if k in t} for t in tests]
 
 
@@ -448,8 +481,13 @@ def artifact_of(value) -> dict:
         circuit = QuantumCircuit(value.num_qubits, value.num_clbits)
         circuit.append(value, range(value.num_qubits), range(value.num_clbits))
         return serialize_circuit(circuit)
-    if isinstance(value, dict) and value and all(isinstance(k, str) for k in value) and all(
-        isinstance(v, (numbers.Integral, np.integer)) and not isinstance(v, bool) for v in value.values()
+    if (
+        isinstance(value, dict)
+        and value
+        and all(isinstance(k, str) for k in value)
+        and all(
+            isinstance(v, (numbers.Integral, np.integer)) and not isinstance(v, bool) for v in value.values()
+        )
     ):
         return {"type": "counts", "data": {k[:64]: int(v) for k, v in list(value.items())[:MAX_VALUE_ITEMS]}}
     return {"type": "value", "data": _plain_value(value)}
@@ -792,9 +830,7 @@ def evaluate(test: dict, artifact: dict | None, language: str = "pl") -> Outcome
                 actual = Operator(circuit.remove_final_measurements(inplace=False)).data
             elif kind == "operator" or (kind == "value" and isinstance(artifact.get("data"), list)):
                 rows = artifact["data"]
-                actual = np.array(
-                    [[parse_number(v) for v in row] for row in rows], dtype=complex
-                )
+                actual = np.array([[parse_number(v) for v in row] for row in rows], dtype=complex)
             else:
                 return _fail(test, message(language, "unsupported", target=label, kind=kind))
             expected = np.array([[parse_number(v) for v in row] for row in test["expected"]], dtype=complex)

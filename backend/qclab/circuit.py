@@ -11,10 +11,11 @@ from __future__ import annotations
 
 import itertools
 import math
-import re
 import numbers
+import re
 from collections import OrderedDict
-from typing import Any, Iterable, NamedTuple
+from collections.abc import Iterable
+from typing import Any, NamedTuple
 
 import numpy as np
 
@@ -694,7 +695,9 @@ class QuantumCircuit:
             raise QclabError("mcp(): the angle must be a number (parameters are not supported here).")
         from . import gates
 
-        gate = Gate("mcphase", len(controls) + 1, [value], matrix=controlled(gates.phase(value), len(controls)))
+        gate = Gate(
+            "mcphase", len(controls) + 1, [value], matrix=controlled(gates.phase(value), len(controls))
+        )
         self._append_indices(gate, [*controls, target[0]])
         return InstructionSet([self._data[-1]])
 
@@ -768,7 +771,9 @@ class QuantumCircuit:
     # --- przekształcenia ---
 
     def copy(self, name: str | None = None) -> QuantumCircuit:
-        clone = QuantumCircuit(*self.qregs, *self.cregs, name=name or self.name, global_phase=self.global_phase)
+        clone = QuantumCircuit(
+            *self.qregs, *self.cregs, name=name or self.name, global_phase=self.global_phase
+        )
         clone.metadata = dict(self.metadata)
         clone._data = list(self._data)
         return clone
@@ -792,12 +797,8 @@ class QuantumCircuit:
         if not isinstance(other, QuantumCircuit):
             raise QclabError("compose() expects a circuit or a gate.")
         target = self if inplace else self.copy()
-        qmap = (
-            target._resolve(qubits, quantum=True) if qubits is not None else list(range(other.num_qubits))
-        )
-        cmap = (
-            target._resolve(clbits, quantum=False) if clbits is not None else list(range(other.num_clbits))
-        )
+        qmap = target._resolve(qubits, quantum=True) if qubits is not None else list(range(other.num_qubits))
+        cmap = target._resolve(clbits, quantum=False) if clbits is not None else list(range(other.num_clbits))
         if len(qmap) != other.num_qubits or len(cmap) != other.num_clbits:
             raise QclabError("compose(): qubit/clbit counts do not match the composed circuit.")
         if other.num_qubits > target.num_qubits or other.num_clbits > target.num_clbits:
@@ -847,7 +848,9 @@ class QuantumCircuit:
             ordered = self.parameters
             values_list = list(parameters)
             if len(values_list) != len(ordered):
-                raise QclabError(f"The circuit has {len(ordered)} parameter(s), got {len(values_list)} value(s).")
+                raise QclabError(
+                    f"The circuit has {len(ordered)} parameter(s), got {len(values_list)} value(s)."
+                )
             values = dict(zip(ordered, values_list, strict=True))
         if strict:
             unknown = [p for p in values if p not in set(self.parameters)]
@@ -855,7 +858,8 @@ class QuantumCircuit:
                 raise QclabError(f"The circuit has no parameter(s): {', '.join(str(p) for p in unknown)}.")
         target = self if inplace else self.copy()
         target._data = [
-            CircuitInstruction(item.operation.bound(values), item.qubits, item.clbits) for item in target._data
+            CircuitInstruction(item.operation.bound(values), item.qubits, item.clbits)
+            for item in target._data
         ]
         if isinstance(target.global_phase, ParameterExpression):
             target.global_phase = target.global_phase.bind(values)
@@ -886,7 +890,9 @@ class QuantumCircuit:
         return Gate(self.name, self.num_qubits, [], definition=definition, label=label)
 
     def to_instruction(self, label: str | None = None) -> Instruction:
-        return Instruction(self.name, self.num_qubits, self.num_clbits, [], definition=self.copy(), label=label)
+        return Instruction(
+            self.name, self.num_qubits, self.num_clbits, [], definition=self.copy(), label=label
+        )
 
     # --- miary obwodu ---
 
@@ -944,7 +950,10 @@ class QuantumCircuit:
         return str(self.draw())
 
     def __repr__(self) -> str:
-        return f"<QuantumCircuit '{self.name}': {self.num_qubits} qubit(s), {self.num_clbits} clbit(s), {self.size()} operation(s)>"
+        return (
+            f"<QuantumCircuit '{self.name}': {self.num_qubits} qubit(s), {self.num_clbits} clbit(s), "
+            f"{self.size()} operation(s)>"
+        )
 
     def _repr_pretty_(self, printer, cycle) -> None:  # pragma: no cover - wyświetlanie w IPythonie
         printer.text(str(self.draw()))

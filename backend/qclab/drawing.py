@@ -14,7 +14,7 @@ def _fmt_param(value) -> str:
         return str(value)
     try:
         number = float(value)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return str(value)
     for den in (1, 2, 3, 4, 6, 8):
         for sign in (1, -1):

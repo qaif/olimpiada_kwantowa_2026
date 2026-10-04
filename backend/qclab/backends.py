@@ -17,7 +17,9 @@ DEFAULT_SHOTS = 1024
 
 
 class Result:
-    def __init__(self, circuits: list[QuantumCircuit], counts: list, memories: list, statevectors: list) -> None:
+    def __init__(
+        self, circuits: list[QuantumCircuit], counts: list, memories: list, statevectors: list
+    ) -> None:
         self._circuits = circuits
         self._counts = counts
         self._memories = memories
@@ -95,12 +97,23 @@ class BasicSimulator:
         self.options = options
         self.num_qubits = 20
 
-    def run(self, circuits, shots: int | None = None, seed_simulator: int | None = None, memory: bool = False, **kw):
+    def run(
+        self,
+        circuits,
+        shots: int | None = None,
+        seed_simulator: int | None = None,
+        memory: bool = False,
+        **kw,
+    ):
         items = _as_list(circuits)
         shots = int(shots or self.options.get("shots") or DEFAULT_SHOTS)
         counts, memories, states = [], [], []
         for circuit in items:
-            if any(isinstance(p, ParameterExpression) for op, _q, _c in circuit.instruction_indices() for p in op.params):
+            if any(
+                isinstance(p, ParameterExpression)
+                for op, _q, _c in circuit.instruction_indices()
+                for p in op.params
+            ):
                 raise QclabError("The circuit has unbound parameters – use assign_parameters().")
             saves = any(op.name == "save_statevector" for op, _q, _c in circuit.instruction_indices())
             wants_state = saves or (self.method == "statevector_only" and not _has_measurements(circuit))
@@ -238,8 +251,8 @@ class StatevectorSampler:
     def run(self, pubs, *, shots: int | None = None):
         results = PrimitiveResult()
         for pub in _pubs(pubs):
-            circuit, values, pub_shots = (pub, None, None) if isinstance(pub, QuantumCircuit) else (
-                (list(pub) + [None, None])[:3]
+            circuit, values, pub_shots = (
+                (pub, None, None) if isinstance(pub, QuantumCircuit) else ((list(pub) + [None, None])[:3])
             )
             bound = _bind_pub(circuit, values)
             count = int(pub_shots or shots or self.default_shots)
