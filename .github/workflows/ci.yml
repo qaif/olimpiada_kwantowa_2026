@@ -145,7 +145,7 @@ jobs:
         working-directory: backend
         run: |
           set -eu
-          for po in locale/*/LC_MESSAGES/django.po; do
+          for po in locale/*/LC_MESSAGES/django.po apps/*/locale/*/LC_MESSAGES/django.po; do
             [ -e "$po" ] || continue
             echo "== $po"
             msgfmt --check --output-file=/dev/null "$po"
