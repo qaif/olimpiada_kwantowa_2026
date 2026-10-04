@@ -80,7 +80,8 @@ def test_h1_control_a_coordinator_changes_the_email_of_a_plain_account(coordinat
     account = UserFactory(email="konto@example.test")
 
     coordinator_client.post(
-        f"/coordinator/accounts/{account.pk}/", _account_fields(account, **{"account-email": "nowy@example.test"})
+        f"/coordinator/accounts/{account.pk}/",
+        _account_fields(account, **{"account-email": "nowy@example.test"}),
     )
 
     account.refresh_from_db()
@@ -123,7 +124,8 @@ def test_h1_the_super_coordinator_may_change_the_email(client, competition):
     enable_for(account)
 
     client.post(
-        f"/coordinator/accounts/{account.pk}/", _account_fields(account, **{"account-email": "nowy@example.test"})
+        f"/coordinator/accounts/{account.pk}/",
+        _account_fields(account, **{"account-email": "nowy@example.test"}),
     )
 
     account.refresh_from_db()
