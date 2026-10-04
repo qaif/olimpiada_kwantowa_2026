@@ -79,6 +79,17 @@ def _may_grant_officer(actor, competition) -> bool:
     return not LogisticsAccess.objects.filter(competition=competition, role=AccessRole.OFFICER).exists()
 
 
+def _may_manage_checkin(actor, competition) -> bool:
+    """Obsługę rejestracji nadaje i odbiera oficer albo superkoordynator (L1).
+
+    Obsługa widzi zdjęcia i nazwiska całej delegacji, więc przydział nie może być czymś, co
+    dowolny koordynator daje sobie albo znajomemu bez wiedzy osoby odpowiedzialnej za logistykę.
+    """
+    from apps.accounts.super_coordinator import is_super_coordinator
+
+    return is_super_coordinator(actor) or is_officer(actor, competition)
+
+
 def grant(competition, *, email: str, role: str, actor, request=None) -> LogisticsAccess:
     """Nadaje przydział kontu o tym adresie. Oficer musi być koordynatorem tego konkursu."""
     if role not in AccessRole.values:
@@ -92,6 +103,19 @@ def grant(competition, *, email: str, role: str, actor, request=None) -> Logisti
             "ACCESS_USER_UNKNOWN",
             status.HTTP_400_BAD_REQUEST,
         )
+    if role == AccessRole.CHECKIN:
+        if not _may_manage_checkin(actor, competition):
+            raise DomainError(
+                "Obsługę rejestracji nadaje oficer logistyki albo superkoordynator.",
+                "ACCESS_CHECKIN_FORBIDDEN",
+                status.HTTP_403_FORBIDDEN,
+            )
+        if user.pk == actor.pk:
+            raise DomainError(
+                "Przydziału obsługi rejestracji nie nadaje się samemu sobie.",
+                "ACCESS_SELF_GRANT",
+                status.HTTP_400_BAD_REQUEST,
+            )
     if role == AccessRole.OFFICER:
         if not _may_grant_officer(actor, competition):
             raise DomainError(
@@ -118,6 +142,12 @@ def revoke(access: LogisticsAccess, *, actor, request=None) -> None:
         raise DomainError(
             "Przydział oficera odbiera superkoordynator albo inny oficer logistyki.",
             "ACCESS_OFFICER_FORBIDDEN",
+            status.HTTP_403_FORBIDDEN,
+        )
+    if access.role == AccessRole.CHECKIN and not _may_manage_checkin(actor, access.competition):
+        raise DomainError(
+            "Przydział obsługi rejestracji odbiera oficer logistyki albo superkoordynator.",
+            "ACCESS_CHECKIN_FORBIDDEN",
             status.HTTP_403_FORBIDDEN,
         )
     audit(

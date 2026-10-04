@@ -48,7 +48,7 @@ swoje dane i wnioski w eksporcie danych konta (art. 15/20 RODO).
 **Decyzja: zatwierdza oficer logistyki, nie każdy koordynator.** Zatwierdzenie wystawia list z numerem
 paszportu – czyli dotyka danych, które w LOG-01 widzi wyłącznie oficer.
 
-## 2. Model (migracja `delegation_logistics.0002`)
+## 2. Model (migracja `delegation_logistics.0003`)
 
 - `LetterRequest` – wniosek: delegacja, członek (`DelegationMember`, `CASCADE` – znika z danymi
   osoby przy retencji, wypisaniu i usunięciu konta), język listu, stan `PENDING` / `APPROVED` /
@@ -132,9 +132,9 @@ Gdzie: `apps/delegation_logistics/` – `letter_requests.py` (wnioski, decyzje, 
 `verification.py` (dane strony weryfikacji), `letter_texts.py` (teksty listu w 7 językach),
 `letters.py` (LOG-01 + kod, język, migawka wydarzenia, ramka weryfikacji z QR, `revoke_letter`),
 `views_letters.py` + wpisy na końcu `urls.py`, szablony `leader_letters.html`, `letter_requests.html`,
-`verify.html`, `email/letter_decision_*.txt`; migracja `0002_visa_letter_workflow`; katalogi `.po`
-aplikacji (41 napisów × 10 języków, maszynowe). Dokumentacja: OPERACJE § 29.7, podręcznik organizatora
-§ 10c, przewodnik opiekuna § 7.
+`verify.html`, `email/letter_decision_*.txt`; migracja `0003_visa_letter_workflow`; katalogi `.po`
+aplikacji (41 napisów × 10 języków, maszynowe). Dokumentacja: OPERACJE § 31.8, podręcznik organizatora
+§ 10d, przewodnik opiekuna § 7.
 
 Odstępstwa od pierwotnego zamówienia (z powodem):
 1. **Brak osobnej aplikacji, modelu paszportu i flagi `visa_letters`** – decyzja koordynatora prac:

@@ -233,6 +233,14 @@ msgstr "Sans gluten"
 msgid "Inna (opis w uwagach)"
 msgstr "Autre (à préciser dans les remarques)"
 
+#: services.py templates/delegation_logistics/leader_dashboard.html
+msgid "Finał się zakończył, a dane delegacji zostały usunięte."
+msgstr "La finale est terminée et les données de la délégation ont été supprimées."
+
+#: services.py templates/delegation_logistics/leader_dashboard.html
+msgid "Organizator nie ustalił jeszcze dat finału – dane dokumentu podróży i o zdrowiu przyjmiemy po ich ustaleniu."
+msgstr "L’organisateur n’a pas encore fixé les dates de la finale – les données du document de voyage et de santé seront acceptées une fois les dates fixées."
+
 #: services.py
 #, python-format
 msgid "Termin na uzupełnienie sekcji „%(group)s” minął – zmiany wprowadza już tylko organizator."
@@ -255,12 +263,12 @@ msgid "Wyjazd nie może być przed przyjazdem."
 msgstr "Le départ ne peut pas précéder l’arrivée."
 
 #: services.py
+msgid "Wybierz dietę z listy."
+msgstr "Choisissez un régime dans la liste."
+
+#: services.py
 msgid "Dane o wyżywieniu i zdrowiu zapiszemy dopiero po zaznaczeniu zgody osoby (albo jej rodzica, jeśli jest niepełnoletnia) na ich przetwarzanie."
 msgstr "Les informations de repas et de santé ne seront enregistrées qu’après avoir coché le consentement de la personne (ou de son parent, si elle est mineure) à leur traitement."
-
-#: services.py templates/delegation_logistics/leader_dashboard.html
-msgid "Finał się zakończył, a dane delegacji zostały usunięte."
-msgstr "La finale est terminée et les données de la délégation ont été supprimées."
 
 #: services.py
 msgid "Wybierz rolę z listy."
@@ -278,6 +286,14 @@ msgstr "Une délégation peut compter au plus %(count)s invités."
 #: services.py
 msgid "Zdjęcie musi być plikiem JPG albo PNG."
 msgstr "La photo doit être un fichier JPG ou PNG."
+
+#: services.py
+msgid "Nie udało się odczytać zdjęcia – wgraj inny plik JPG lub PNG."
+msgstr "Impossible de lire la photo – téléversez un autre fichier JPG ou PNG."
+
+#: services.py
+msgid "Zdjęcie ma zbyt dużą rozdzielczość."
+msgstr "La résolution de la photo est trop élevée."
 
 #: services.py
 msgid "Plik jest pusty."
@@ -556,6 +572,10 @@ msgstr "La personne a été ajoutée à la délégation – complétez ses donn�
 #, python-format
 msgid "Zapisano dane: %(name)s."
 msgstr "Données enregistrées : %(name)s."
+
+#: views.py
+msgid "Przydział pokoju został zdjęty – osoba nie spełnia już zasad zakwaterowania tego pokoju."
+msgstr "L’attribution de chambre a été retirée – la personne ne respecte plus les règles d’hébergement de cette chambre."
 
 #: views.py
 msgid "Wybierz plik ze zdjęciem."

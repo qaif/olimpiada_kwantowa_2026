@@ -1,0 +1,3 @@
+/* Motyw „classic” nie ma własnego arkusza: cały wygląd jest w backend/static/css/app.css
+   (tokeny --t-* w sekcji 2). Nowy motyw zaczyna od skopiowania tokens.json i zmiany wartości;
+   theme.css jest miejscem na reguły, których tokeny nie wyrażą (układ nagłówka, hero, karty). */

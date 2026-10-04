@@ -283,10 +283,27 @@ def _travel(competition, edition, members):
 
 
 def _rooming(competition, edition, members):
-    from .rooming import reference_day
+    from .rooming import reference_day, room_problems
 
     day = reference_day(edition)
-    header = [*BASE_HEADER, "budynek", "pokój", "płeć", "niepełnoletni", "nocleg", "preferencja", "uwagi"]
+    header = [
+        *BASE_HEADER,
+        "budynek",
+        "pokój",
+        "płeć",
+        "niepełnoletni",
+        "nocleg",
+        "preferencja",
+        "uwagi",
+        "naruszenie zasad pokoju",
+    ]
+    by_room: dict = defaultdict(list)
+    for member in members:
+        if member.room_id:
+            by_room[member.room_id].append(member)
+    # Naruszenia liczone dla pokoju takiego, jaki jest (H2) – plik dla hotelu ma pokazać problem,
+    # zanim ktoś wręczy klucze.
+    problems = {room_id: room_problems(people[0].room, people, day) for room_id, people in by_room.items()}
     ordered = sorted(members, key=lambda m: (m.room is None, str(m.room or ""), m.last_name))
     rows = [
         [
@@ -298,6 +315,7 @@ def _rooming(competition, edition, members):
             "tak" if m.needs_accommodation else "nie",
             m.roommate_preference,
             m.accommodation_notes,
+            "; ".join(problems.get(m.room_id, [])) if m.room_id else "",
         ]
         for m in ordered
     ]
@@ -305,7 +323,12 @@ def _rooming(competition, edition, members):
 
 
 def _dietary(competition, edition, members):
+    from .services import collects_health
+
     header = [*BASE_HEADER, "dieta", "uwagi do diety", "alergie"]
+    if not collects_health(competition):
+        # Bez decyzji D21 nie ma czego eksportować – także dawnych wpisów sprzed jej wyłączenia (L4).
+        return header, [], "Wyżywienie"
     rows = [
         [*_base(m), m.get_diet_display() if m.diet else "", m.diet_notes, m.allergies]
         for m in members

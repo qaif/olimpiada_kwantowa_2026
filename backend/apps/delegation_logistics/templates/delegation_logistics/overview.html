@@ -13,10 +13,12 @@
     w ich języku.</p>
 {% endblock %}
 {% block panel_actions %}
-  <form method="post" action="{% url 'web:coordinator-onsite-reminders' %}" class="inline">
-    {% csrf_token %}
-    <button type="submit" class="btn btn--secondary">Przypomnij wszystkim z brakami</button>
-  </form>
+  {% if is_officer %}
+    <form method="post" action="{% url 'web:coordinator-onsite-reminders' %}" class="inline">
+      {% csrf_token %}
+      <button type="submit" class="btn btn--secondary">Przypomnij wszystkim z brakami</button>
+    </form>
+  {% endif %}
 {% endblock %}
 {% block panel_content %}
 {% include "delegation_logistics/_tabs.html" %}
@@ -34,7 +36,7 @@
   </div>
   <ul>
     {% for row in deadlines %}
-      <li>{{ row.label }}: {% if row.deadline %}{{ row.deadline|date:"j.m.Y H:i" }}{% else %}bez terminu{% endif %}</li>
+      <li>{{ row.label }}: {% if row.deadline %}{{ row.deadline|date:"j.m.Y H:i T" }}{% else %}bez terminu{% endif %}</li>
     {% endfor %}
   </ul>
 </section>
@@ -66,7 +68,7 @@
             {% for count in row.by_group %}<td class="num">{% if count %}<span class="badge badge--warn">{{ count }}</span>{% else %}0{% endif %}</td>{% endfor %}
             <td>{% if row.last_reminder %}{{ row.last_reminder.sent_at|date:"j.m.Y H:i" }}{% else %}—{% endif %}</td>
             <td class="actions">
-              {% if row.complete < row.members %}
+              {% if is_officer and row.complete < row.members %}
                 <form method="post" action="{% url 'web:coordinator-onsite-reminders' %}" class="inline">
                   {% csrf_token %}
                   <input type="hidden" name="delegation" value="{{ row.delegation.pk }}">

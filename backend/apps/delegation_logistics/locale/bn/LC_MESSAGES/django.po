@@ -233,6 +233,14 @@ msgstr "গ্লুটেন-মুক্ত"
 msgid "Inna (opis w uwagach)"
 msgstr "অন্যান্য (মন্তব্যে লিখুন)"
 
+#: services.py templates/delegation_logistics/leader_dashboard.html
+msgid "Finał się zakończył, a dane delegacji zostały usunięte."
+msgstr "ফাইনাল শেষ হয়েছে এবং প্রতিনিধিদলের তথ্য মুছে ফেলা হয়েছে।"
+
+#: services.py templates/delegation_logistics/leader_dashboard.html
+msgid "Organizator nie ustalił jeszcze dat finału – dane dokumentu podróży i o zdrowiu przyjmiemy po ich ustaleniu."
+msgstr "আয়োজক এখনো ফাইনালের তারিখ ঠিক করেননি – তারিখ ঠিক হলে ভ্রমণ নথি ও স্বাস্থ্য তথ্য গ্রহণ করা হবে।"
+
 #: services.py
 #, python-format
 msgid "Termin na uzupełnienie sekcji „%(group)s” minął – zmiany wprowadza już tylko organizator."
@@ -255,12 +263,12 @@ msgid "Wyjazd nie może być przed przyjazdem."
 msgstr "প্রস্থানের তারিখ আগমনের আগে হতে পারে না।"
 
 #: services.py
+msgid "Wybierz dietę z listy."
+msgstr "তালিকা থেকে খাদ্যাভ্যাস বেছে নিন।"
+
+#: services.py
 msgid "Dane o wyżywieniu i zdrowiu zapiszemy dopiero po zaznaczeniu zgody osoby (albo jej rodzica, jeśli jest niepełnoletnia) na ich przetwarzanie."
 msgstr "ব্যক্তির (অথবা অপ্রাপ্তবয়স্ক হলে তার পিতা-মাতার) প্রক্রিয়াকরণ সম্মতিতে টিক দেওয়ার পরেই খাবার ও স্বাস্থ্য তথ্য সংরক্ষণ করা হবে।"
-
-#: services.py templates/delegation_logistics/leader_dashboard.html
-msgid "Finał się zakończył, a dane delegacji zostały usunięte."
-msgstr "ফাইনাল শেষ হয়েছে এবং প্রতিনিধিদলের তথ্য মুছে ফেলা হয়েছে।"
 
 #: services.py
 msgid "Wybierz rolę z listy."
@@ -278,6 +286,14 @@ msgstr "একটি প্রতিনিধিদলে সর্বোচ্�
 #: services.py
 msgid "Zdjęcie musi być plikiem JPG albo PNG."
 msgstr "ছবিটি JPG বা PNG ফাইল হতে হবে।"
+
+#: services.py
+msgid "Nie udało się odczytać zdjęcia – wgraj inny plik JPG lub PNG."
+msgstr "ছবিটি পড়া যায়নি – অন্য একটি JPG বা PNG ফাইল আপলোড করুন।"
+
+#: services.py
+msgid "Zdjęcie ma zbyt dużą rozdzielczość."
+msgstr "ছবির রেজোলিউশন খুব বেশি।"
 
 #: services.py
 msgid "Plik jest pusty."
@@ -556,6 +572,10 @@ msgstr "ব্যক্তিকে প্রতিনিধিদলে যো�
 #, python-format
 msgid "Zapisano dane: %(name)s."
 msgstr "তথ্য সংরক্ষিত: %(name)s।"
+
+#: views.py
+msgid "Przydział pokoju został zdjęty – osoba nie spełnia już zasad zakwaterowania tego pokoju."
+msgstr "কক্ষ বরাদ্দ বাতিল করা হয়েছে – ব্যক্তি আর সেই কক্ষের থাকার নিয়ম পূরণ করেন না।"
 
 #: views.py
 msgid "Wybierz plik ze zdjęciem."

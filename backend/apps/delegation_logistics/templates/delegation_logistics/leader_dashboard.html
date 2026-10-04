@@ -19,13 +19,15 @@
 
 {% if purged %}
   <p class="notice">{% translate "Finał się zakończył, a dane delegacji zostały usunięte." %}</p>
+{% elif no_event_dates %}
+  <p class="notice">{% translate "Organizator nie ustalił jeszcze dat finału – dane dokumentu podróży i o zdrowiu przyjmiemy po ich ustaleniu." %}</p>
 {% endif %}
 
 <section class="section">
   <div class="section__head"><h2 class="mt-0">{% translate "Terminy" %}</h2></div>
   <ul>
     {% for row in deadlines %}
-      <li>{{ row.label }}: {% if row.deadline %}{{ row.deadline|date:"j.m.Y H:i" }}{% if row.locked %} <span class="badge badge--neutral">{% translate "zamknięte" %}</span>{% endif %}{% else %}{% translate "bez terminu" %}{% endif %}</li>
+      <li>{{ row.label }}: {% if row.deadline %}{{ row.deadline|date:"j.m.Y H:i T" }}{% if row.locked %} <span class="badge badge--neutral">{% translate "zamknięte" %}</span>{% endif %}{% else %}{% translate "bez terminu" %}{% endif %}</li>
     {% endfor %}
   </ul>
 </section>

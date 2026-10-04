@@ -437,4 +437,4 @@ def test_letters_issued_before_visa_01_get_codes_in_migration(iqo, leader, stude
 
 
 #: Migracja VISA-01 w aplikacji ``delegation_logistics`` (po migracjach LOG-01).
-VISA_MIGRATION = "0002_visa_letter_workflow"
+VISA_MIGRATION = "0003_visa_letter_workflow"

@@ -1,0 +1,7 @@
+{% load i18n wagtailcore_tags %}{% comment %}
+  Slot motywu ``page_header`` (THEME-01 § 3) – nagłówek strony treści CMS (tytuł).
+  Treść domyślna (motyw ``classic``) przeniesiona co do bajtu z szablonu, który ją zawierał;
+  paczka motywu nadpisuje ją plikiem ``templates/theme/page_header.html``.
+{% endcomment %}<div class="page-head">
+      <h1>{{ page.title }}</h1>
+    </div>

@@ -233,6 +233,14 @@ msgstr "Безглютеновое"
 msgid "Inna (opis w uwagach)"
 msgstr "Другое (опишите в примечаниях)"
 
+#: services.py templates/delegation_logistics/leader_dashboard.html
+msgid "Finał się zakończył, a dane delegacji zostały usunięte."
+msgstr "Финал завершён, данные делегации удалены."
+
+#: services.py templates/delegation_logistics/leader_dashboard.html
+msgid "Organizator nie ustalił jeszcze dat finału – dane dokumentu podróży i o zdrowiu przyjmiemy po ich ustaleniu."
+msgstr "Организатор ещё не назначил даты финала – данные проездного документа и о здоровье примем после их назначения."
+
 #: services.py
 #, python-format
 msgid "Termin na uzupełnienie sekcji „%(group)s” minął – zmiany wprowadza już tylko organizator."
@@ -255,12 +263,12 @@ msgid "Wyjazd nie może być przed przyjazdem."
 msgstr "Дата отъезда не может быть раньше даты приезда."
 
 #: services.py
+msgid "Wybierz dietę z listy."
+msgstr "Выберите питание из списка."
+
+#: services.py
 msgid "Dane o wyżywieniu i zdrowiu zapiszemy dopiero po zaznaczeniu zgody osoby (albo jej rodzica, jeśli jest niepełnoletnia) na ich przetwarzanie."
 msgstr "Данные о питании и здоровье сохраняются только после отметки согласия человека (или его родителя, если он несовершеннолетний) на их обработку."
-
-#: services.py templates/delegation_logistics/leader_dashboard.html
-msgid "Finał się zakończył, a dane delegacji zostały usunięte."
-msgstr "Финал завершён, данные делегации удалены."
 
 #: services.py
 msgid "Wybierz rolę z listy."
@@ -278,6 +286,14 @@ msgstr "В делегации может быть не более %(count)s го
 #: services.py
 msgid "Zdjęcie musi być plikiem JPG albo PNG."
 msgstr "Фото должно быть файлом JPG или PNG."
+
+#: services.py
+msgid "Nie udało się odczytać zdjęcia – wgraj inny plik JPG lub PNG."
+msgstr "Не удалось прочитать фото – загрузите другой файл JPG или PNG."
+
+#: services.py
+msgid "Zdjęcie ma zbyt dużą rozdzielczość."
+msgstr "Слишком высокое разрешение фото."
 
 #: services.py
 msgid "Plik jest pusty."
@@ -556,6 +572,10 @@ msgstr "Человек добавлен в делегацию – заполни
 #, python-format
 msgid "Zapisano dane: %(name)s."
 msgstr "Данные сохранены: %(name)s."
+
+#: views.py
+msgid "Przydział pokoju został zdjęty – osoba nie spełnia już zasad zakwaterowania tego pokoju."
+msgstr "Распределение в комнату снято – человек больше не соответствует правилам проживания в этой комнате."
 
 #: views.py
 msgid "Wybierz plik ze zdjęciem."

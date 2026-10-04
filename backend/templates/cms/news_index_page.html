@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load i18n wagtailcore_tags %}
+{% load i18n wagtailcore_tags theme_tags %}
 {% block title %}{{ page.title }} – {{ settings.cms.SiteSettings.site_name }}{% endblock %}
 {% block content %}
 <div class="page-head">
@@ -11,12 +11,7 @@
 <ul class="cards cards--wide news-list">
   {% for item in news %}
     <li>
-      <article class="card news-card">
-        <span class="news-card__date">{{ item.date }}</span>
-        <h2><a href="{% pageurl item %}">{{ item.title }}</a></h2>
-        {% if item.lead %}<p>{{ item.lead }}</p>{% endif %}
-        <p class="card__foot"><a href="{% pageurl item %}">{% translate "Czytaj dalej" %}</a></p>
-      </article>
+      {% theme_slot "news_card" %}
     </li>
   {% empty %}
     <li>

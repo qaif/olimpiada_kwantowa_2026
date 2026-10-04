@@ -30,7 +30,7 @@ import re
 from html import escape
 from io import BytesIO
 
-from django.db import IntegrityError, transaction
+from django.db import IntegrityError, connection, transaction
 from django.db.models import Max
 from django.http import Http404
 from django.urls import reverse
@@ -62,6 +62,8 @@ logger = logging.getLogger(__name__)
 CODE_ATTEMPTS = 3
 
 PAGE_MARGIN_MM = 20
+#: Przesunięcie klucza blokady doradczej numeracji listów – odróżnia ją od innych blokad w bazie.
+LOCK_NAMESPACE = 0x4C4F4700  # „LOG\0”
 PREFIX_RE = re.compile(r"[^A-Za-z0-9-]")
 
 
@@ -188,6 +190,11 @@ def _create_letter(competition, delegation, edition, member, scope, people, snap
         event = _require_event(FinalEvent.objects.select_for_update().filter(edition=edition).first())
         now = timezone.now()
         year = timezone.localdate(now).year
+        # Numeracja jest per (konkurs, rok), a nie per finał: dwie edycje w jednym roku kalendarzowym
+        # dzielą licznik. Blokada doradcza PostgreSQL-a na tę parę szereguje wystawienia dokładnie
+        # tam, gdzie powstaje wyścig, i nie dotyka żadnego wiersza (L8).
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT pg_advisory_xact_lock(%s, %s)", [LOCK_NAMESPACE + competition.pk, year])
         top = (
             InvitationLetter.objects.filter(competition=competition, year=year).aggregate(
                 top=Max("sequence")
@@ -286,10 +293,13 @@ def people_of(letter: InvitationLetter) -> list[dict]:
         return []
 
 
-def drop_person(letter: InvitationLetter, member_id: int) -> None:
-    """Wymazuje jedną osobę z migawki (usunięcie konta) – reszta listu delegacji zostaje."""
+def drop_person(letter: InvitationLetter, member_ids) -> None:
+    """Wymazuje osoby z migawki (usunięcie członka, konta, gościa) – reszta listu delegacji zostaje."""
+    if isinstance(member_ids, int):
+        member_ids = [member_ids]
+    wanted = set(member_ids)
     before = people_of(letter)
-    people = [person for person in before if person.get("member_id") != member_id]
+    people = [person for person in before if person.get("member_id") not in wanted]
     if len(people) == len(before):
         return
     letter.content = json.dumps(people, ensure_ascii=False) if people else ""

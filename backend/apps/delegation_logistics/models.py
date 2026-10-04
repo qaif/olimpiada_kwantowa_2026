@@ -17,9 +17,10 @@ Bramka obszaru: flaga konkursu ``onsite_logistics`` (§ 1.5.2) **i** tryb rejest
 
 **Dane wrażliwe są szyfrowane w bazie** (:class:`~apps.delegation_logistics.crypto.EncryptedTextField`):
 numer i data ważności paszportu, imię i nazwisko z paszportu, data urodzenia, dane o zdrowiu
-i kontakt alarmowy. Pola, po których się liczy (dieta, rozmiar koszulki, daty przylotów, płeć do
-przydziału pokoi), są jawne – szyfrowanie ich zabrałoby zestawienia, a nie dodało ochrony, której
-nie daje już kontrola dostępu (tylko oficer logistyki widzi cokolwiek per osoba).
+**łącznie z dietą** (halal, koszerna, bezglutenowa to dane z art. 9 RODO) i kontakt alarmowy. Jawne
+są pola, które niczego szczególnego o osobie nie mówią, a po których się liczy: rozmiar koszulki,
+daty przylotów, płeć do przydziału pokoi. Liczenie diet idzie w Pythonie po odszyfrowaniu – kilkaset
+wierszy jednej edycji.
 """
 
 from __future__ import annotations
@@ -404,7 +405,9 @@ class DelegationMember(models.Model):
     )
 
     # --- 4. wyżywienie i zdrowie (szyfrowane; tylko przy D21 i ze zgodą) ---
-    diet = models.CharField("dieta", max_length=16, choices=Diet.choices, blank=True)
+    #: Szyfrowana jak reszta grupy (poprawka po przeglądzie): dieta religijna albo medyczna jest daną
+    #: szczególną. Lista wyboru zostaje (etykiety, walidacja); sprawdza ją też serwis.
+    diet = EncryptedTextField("dieta", choices=Diet.choices, blank=True)
     diet_notes = EncryptedTextField("uwagi do diety", blank=True)
     allergies = EncryptedTextField("alergie", blank=True)
     medical_notes = EncryptedTextField("uwagi medyczne", blank=True)

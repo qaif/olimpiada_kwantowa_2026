@@ -3879,6 +3879,69 @@ Nowy konkurs od razu z krajami: `create_competition … --regions countries` (do
 
 Kolejność dla `iqo` po wdrożeniu: § 26.1 (języki) i ta komenda – niezależne od siebie.
 
+## 30. Motywy wizualne (THEME-01, `docs/tasks/THEME-01.md`)
+
+Wygląd konkursu zmienia się **paczką motywu** (ZIP: `manifest.json`, `theme.css`, `tokens.json`,
+`assets/`, opcjonalnie `templates/theme/*.html` i `screenshot.png`), bez wydania aplikacji. Paczka nie
+wykonuje kodu Pythona i nie dokłada JavaScriptu; przy wgraniu przechodzi walidację (ścieżki ZIP, bomba
+ZIP, typy i magiczne bajty plików, CSS przez parser, SVG oczyszczane, lint i kompilacja szablonów,
+tokeny) i skan ClamAV. Konkurs bez motywu (Olimpiada Kwantowa) nie zmienia się ani o bajt HTML.
+
+### 30.1. Wgranie i aktywacja na produkcji
+
+```sh
+# 1. paczka na serwer (z laptopa)
+scp -i ~/.ssh/olimpiada_deploy iqo-quantum-1.0.0.zip deploy@<serwer>:/tmp/
+# 2. wgranie (walidacja + ClamAV + publikacja do bucketu public-media) i aktywacja w konkursie
+ssh -i ~/.ssh/olimpiada_deploy deploy@<serwer>
+cd /opt/olimpiada
+docker compose exec -T web python manage.py theme_install - --activate iqo < /tmp/iqo-quantum-1.0.0.zip
+```
+
+Kod wyjścia ≠ 0 = paczka odrzucona (błędy na ekranie, wersja „odrzucona” z raportem w katalogu).
+Bez `--activate` motyw czeka w katalogu; wybiera go koordynator konkursu w panelu
+(**„Motyw serwisu”**, przełącznik konkursu `themes` – włącza operator jak każdą flagę, § 6) albo
+superkoordynator w `/coordinator/platform/themes/` (katalog: wgranie przez przeglądarkę, raport,
+usunięcie nieużywanej wersji). Aktywacja czyści pełnostronicowy cache gościa tego konkursu sama.
+
+**Cofnięcie:** wybór poprzedniej wersji (albo „Klasyczny”) w panelu. Z konsoli (z wpisem audytu):
+
+```sh
+docker compose exec -T web python manage.py shell -c "from apps.tenancy.models import Competition; from apps.themes.services import activate; activate(Competition.objects.get(slug='iqo'), None)"
+```
+
+Wersje zostają, dopóki operator ich nie usunie; wersji używanej przez konkurs nie da się usunąć
+(`PROTECT`).
+
+**Awaryjnie** (motyw psuje stronę): superkoordynator dopisuje do adresu `?theme=off` – strona
+renderuje się bez motywu tylko dla niego; ekran „Motyw serwisu” i katalog motywów są zawsze bez
+motywu, więc przycisk przywrócenia „Klasycznego” jest zawsze widoczny. Szablony slotów z paczki
+działają wyłącznie na stronach publicznych (CMS, statystyki, plakaty, wyniki, weryfikacja dyplomu);
+panele, logowanie i formularze mają zawsze ramę aplikacji (tokeny i arkusz motywu – tak).
+
+### 30.2. Pliki w buckecie, CSP, CORS
+
+- Pliki publiczne leżą w `public-media` pod **niezmiennym** prefiksem `themes/<slug>/<wersja>-<sha8>/`
+  z `Cache-Control: public, max-age=31536000, immutable` (nowa wersja = nowy prefiks). Szablony
+  i manifest nie trafiają do bucketu (są w bazie), paczka ZIP – do bucketu prywatnego.
+- **CSP:** strona z motywem dostaje origin bucketu (`S3_PUBLIC_ENDPOINT_URL`) także w `style-src`
+  i `font-src` (w `img-src` był już wcześniej). `script-src` nie zmienia się nigdy; strona bez motywu
+  ma politykę co do bajtu dawną.
+- **CORS dla krojów:** przeglądarka pobiera `woff2` z innego originu (`:9000`) w trybie CORS. MinIO
+  odpowiada `Access-Control-Allow-Origin` z originem żądania dla każdego originu (ustawienie domyślne
+  `MINIO_API_CORS_ALLOW_ORIGIN=*`, § 16.3), a blok S3 w Caddy nagłówków CORS nie rusza – sprawdzone
+  w devie (`curl -H "Origin: https://olimpiadakwantowa.pl" -I …/public-media/themes/…/x.woff2`).
+  **Jeżeli kiedyś zawęzicie CORS MinIO**, dopiszcie do listy domeny wszystkich konkursów – inaczej
+  motyw cicho spadnie na kroje systemowe.
+- Arkusz motywu odwołuje się do swoich plików adresami **względnymi** (`url("assets/…")`), więc
+  przeniesienie bucketu pod własną domenę S3 nie wymaga ponownego wgrywania motywów.
+
+### 30.3. Nowa zależność
+
+`tinycss2` (parser CSS) jest w `backend/pyproject.toml` – obraz `web`/`worker` musi być **przebudowany**
+(CI buduje go z pyproject). Bez niej import walidatora się nie powiedzie dopiero przy wgraniu paczki;
+render stron z już aktywnym motywem jej nie potrzebuje.
+
 
 ## 28. Delegacje krajowe – rejestracja przez opiekunów drużyn (DEL-01, `docs/tasks/DEL-01.md`)
 
@@ -3948,17 +4011,18 @@ Przestawienie trybu z powrotem na `OPEN` otwiera samodzielną rejestrację i ukr
 dane delegacji, opiekunów i uczniów zostają w bazie. Migracje `accounts.0036`–`0038` i `tenancy.0013` są
 odwracalne (nowe tabele i kolumny nullowalne albo z wartością domyślną).
 
-## 29. Logistyka finału dla delegacji (LOG-01, `docs/tasks/LOG-01.md`)
+## 31. Logistyka finału dla delegacji (LOG-01, `docs/tasks/LOG-01.md`)
 
 Aplikacja `apps.delegation_logistics`: dane pobytu członków delegacji (paszport do wizy, przylot,
 pokój, dieta, koszulka, kontakt alarmowy, zdjęcie), listy zapraszające do wizy z rejestrem numerów,
 identyfikatory z kodem QR i odhaczanie obsługi na telefonach. Działa **wyłącznie** w konkursie
 w trybie `DELEGATIONS` (§ 28) **z** flagą `onsite_logistics`. Olimpiada Kwantowa nie widzi niczego.
 
-### 29.1. Włączenie dla `iqo` (kolejność)
+### 31.1. Włączenie dla `iqo` (kolejność)
 
-1. Migracje wydania: `delegation_logistics.0001` (nowe, puste tabele) i `tenancy.0014` (nowy rodzaj
-   szablonu dokumentu „list zapraszający (wiza)” – sama lista wyboru). `scripts/deploy.sh` je wykona.
+1. Migracje wydania: `delegation_logistics.0001`–`0002` (nowe tabele; dieta szyfrowana) i
+   `tenancy.0015_document_kind_visa_invitation` (nowy rodzaj szablonu dokumentu „list zapraszający
+   (wiza)” – sama lista wyboru, po `tenancy.0014_merge_20261004_1935`). `scripts/deploy.sh` je wykona.
 2. Flaga konkursu (jedna z dróg):
    - `/admin/` → Konkursy → `iqo` → `feature_flags`: dopisać `"onsite_logistics": true`,
    - powłoka:
@@ -3970,11 +4034,13 @@ w trybie `DELEGATIONS` (§ 28) **z** flagą `onsite_logistics`. Olimpiada Kwanto
    `/coordinator/venues/` jest **tą samą** decyzją D21 dla danych o zdrowiu w logistyce finału.
 3. Panel `iqo` → „Uczestnicy i konta → Logistyka finału” (`/coordinator/logistics/`) → „Ustawienia
    i dostęp”: nazwa, miasto, daty finału, terminy pięciu sekcji, retencja (dni po ostatnim dniu,
-   domyślnie 30), prefiks numeru listów (np. `IQO`).
+   domyślnie 30), prefiks numeru listów (np. `IQO`). **Bez ostatniego dnia finału serwis nie przyjmuje
+   danych paszportowych ani o zdrowiu** – retencja nie miałaby od czego liczyć terminu usunięcia.
 4. **Oficer logistyki** – przydział „oficer logistyki” dla 1–2 koordynatorów (pierwszy przydział może
    nadać dowolny koordynator; kolejne – superkoordynator albo oficer). Tylko oficer widzi dane osób.
 5. **Obsługa rejestracji** – przydział „obsługa rejestracji” dla kont wolontariuszy (konto musi
-   istnieć; rola w konkursie niepotrzebna). Punkty kontroli („Przyjazd”, „Ceremonia otwarcia”…)
+   istnieć; rola w konkursie niepotrzebna). Nadaje go **oficer** (albo superkoordynator), nigdy samemu
+   sobie. Przypomnienia o brakach wysyła również wyłącznie oficer. Punkty kontroli („Przyjazd”, „Ceremonia otwarcia”…)
    w tej samej zakładce.
 6. Dane o zdrowiu (dieta, alergie, uwagi medyczne) – dopiero po decyzji organizatora: `/coordinator/venues/`
    → „zbieraj potrzeby szczególne”. Bez niej sekcja „Wyżywienie i zdrowie” nie istnieje.
@@ -3984,21 +4050,24 @@ w trybie `DELEGATIONS` (§ 28) **z** flagą `onsite_logistics`. Olimpiada Kwanto
    z szablonu graficznego dyplomów (rodzaj „wszystkie”); pieczęć elektroniczna – jak dyplomy
    (`CERT_SIGN_P12_PATH`).
 
-### 29.2. Szyfrowanie i klucz
+### 31.2. Szyfrowanie i klucz
 
-Numer, data ważności i nazwisko z paszportu, data urodzenia, dane o zdrowiu i kontakt alarmowy są
+Numer, data ważności i nazwisko z paszportu, data urodzenia, dane o zdrowiu (z dietą) i kontakt alarmowy są
 szyfrowane w bazie (Fernet, klucz wyprowadzony z `SECRET_KEY` z etykietą `delegation-logistics`).
 **Rotacja `SECRET_KEY`**: stary klucz **musi** zostać w `SECRET_KEY_FALLBACKS` do końca retencji
 finału – inaczej zapisane dane stają się nieczytelne (ekran pokaże puste pola, w logu ostrzeżenie
 „nie udało się odszyfrować pola”). Kopia zapasowa bazy bez `SECRET_KEY` nie odsłania tych danych.
 
-### 29.3. Zdjęcia i skan
+### 31.3. Zdjęcia i skan
 
 Zdjęcia do identyfikatorów idą do prywatnego magazynu rozwiązań (`final-badges/…`) i przez ClamAV
 (kolejka `scan`, zadanie `apps.delegation_logistics.tasks.scan_badge_photo`) – worker `scan` musi
-działać. Zdjęcie jest widoczne dopiero po czystym skanie; zainfekowane jest usuwane.
+działać. Zdjęcie jest widoczne dopiero po czystym skanie; zainfekowane jest usuwane. Po czystym skanie
+jest przekodowywane (Pillow) do JPEG-a najwyżej 600×800 bez metadanych EXIF; obraz ponad 40 Mpx jest
+odrzucany już przy wgraniu, a plik nieczytelny dla Pillow kończy jak błąd skanu. Skan porzucony po
+wyczerpaniu ponowień (ClamAV niedostępny) też kończy się błędem – opiekun widzi prośbę o ponowne wgranie.
 
-### 29.4. Retencja
+### 31.4. Retencja
 
 Zadanie dobowe `delegation-logistics-purge-expired` (`CELERY_BEAT_SCHEDULE`, `DatabaseScheduler`
 dopisze je przy starcie beat) usuwa po `ends_on + retencja` wszystkie dane członków delegacji edycji
@@ -4008,24 +4077,34 @@ Ręcznie (np. test na kopii):
 docker compose exec web python manage.py shell -c "from apps.delegation_logistics.privacy import purge_expired; print(purge_expired())"
 ```
 
-### 29.5. Obsługa na miejscu
+### 31.5. Obsługa na miejscu
 
-Identyfikatory: „Osoby” → „Identyfikatory PDF” (A4, cztery karty A6). Kod QR zawiera wyłącznie adres
+Identyfikatory: „Osoby” → wybór kraju → „Identyfikatory PDF (ten kraj)” albo karta osoby (A4, cztery
+karty A6). Wydruku wszystkich naraz nie ma – kilkaset kart ze zdjęciami w jednym żądaniu WWW to
+pamięć i limit czasu workera. Kod QR zawiera wyłącznie adres
 `/coordinator/logistics/checkin/<token>/` – bez danych osobowych; aparat telefonu otwiera go sam
 (obsługa musi być zalogowana). Zgubiona karta: karta osoby → „Wydaj nowy identyfikator” (stary kod
 przestaje działać). Limity żądań: `onsite_logistics` 600/h i `onsite_checkin` 3000/h na konto.
 
-### 29.6. Wycofanie
+### 31.6. Wycofanie
 
 Wyłączenie flagi ukrywa ekrany (404) i pozycję menu; dane zostają do retencji albo do ręcznego
-`purge_event`. Migracje są odwracalne (nowe tabele; `tenancy.0014` zmienia wyłącznie listę wyboru).
+`purge_event`. Migracje są odwracalne (nowe tabele; `tenancy.0015` zmienia wyłącznie listę wyboru).
 
-### 29.7. Listy zapraszające – wnioski, weryfikacja, unieważnienie (VISA-01, `docs/tasks/VISA-01.md`)
+### 31.7. Pokoje po zmianie danych albo daty finału
+
+Zmiana płci, daty urodzenia albo „bez noclegu” u osoby z pokojem **zdejmuje przydział**, gdy osoba
+przestaje spełniać zasady pokoju (wpis audytu `logistics.room_unassigned`, komunikat dla zapisującego).
+Zmiana pierwszego dnia finału niczego nie przenosi sama – pokoje z naruszeniem są oznaczone na
+zakładce „Pokoje” i w kolumnie „naruszenie zasad pokoju” rooming listy CSV, a komunikat po zapisie
+ustawień podaje ich liczbę. Niepełnoletni z płcią „inna” mieszka w pokoju jednoosobowym.
+
+### 31.8. Listy zapraszające – wnioski, weryfikacja, unieważnienie (VISA-01, `docs/tasks/VISA-01.md`)
 
 Przyrost na tej samej bramce (flaga `onsite_logistics` + tryb `DELEGATIONS`) – **nic do włączenia**
-poza krokami § 29.1. Wdrożenie:
+poza krokami § 31.1. Wdrożenie:
 
-1. Migracja `delegation_logistics.0002_visa_letter_workflow` (`scripts/deploy.sh`): nowa tabela
+1. Migracja `delegation_logistics.0003_visa_letter_workflow` (`scripts/deploy.sh`): nowa tabela
    wniosków, nowe kolumny rejestru listów; listy wystawione wcześniej dostają kod weryfikacyjny
    i migawkę wydarzenia z ustawień finału.
 2. **Kontrakt tras:** nowy pierwszy segment adresu `visa/` (`/visa/verify/`, `/visa/verify/<kod>/`) –
@@ -4040,7 +4119,7 @@ poza krokami § 29.1. Wdrożenie:
    DejaVu nie ma tych znaków). Szablon z bazy (`document_templates`, „list zapraszający (wiza)”) jest
    jednojęzyczny i ma pierwszeństwo – wtedy język zmienia tylko etykiety tabeli i ramkę weryfikacji;
    w szablonie można użyć `{code}` (kod weryfikacyjny).
-5. Przydział oficera logistyki (§ 29.1 p. 4) jest warunkiem decyzji – zwykły koordynator dostaje 403.
+5. Przydział oficera logistyki (§ 31.1 p. 4) jest warunkiem decyzji – zwykły koordynator dostaje 403.
 
 Sprawdzenie po wdrożeniu (na `iqo`, z oficerem): wystaw list próbny z karty osoby → pobierz PDF → zeskanuj
 QR telefonem (ma otworzyć `https://<domena iqo>/visa/verify/<kod>/` ze stanem „ważny”) → „Unieważnij”

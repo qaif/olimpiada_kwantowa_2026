@@ -38,7 +38,7 @@ from apps.core.models import audit
 from . import access
 from .letters import _identity_complete, issue_letter, require_language, revoke_letter
 from .models import InvitationLetter, LetterRequest, LetterRequestStatus, LetterScope
-from .services import _require_not_purged, member_for_leader
+from .services import member_for_leader, require_not_purged
 
 logger = logging.getLogger(__name__)
 
@@ -63,7 +63,7 @@ def request_letters(leader, member_ids, *, language: str, request=None) -> dict:
     """
     require_language(language)
     delegation = leader.delegation
-    _require_not_purged(delegation)
+    require_not_purged(delegation.edition)
     ids = sorted({int(pk) for pk in member_ids})
     if not ids:
         raise DomainError(_("Zaznacz co najmniej jedną osobę."), "NO_MEMBERS", status.HTTP_400_BAD_REQUEST)

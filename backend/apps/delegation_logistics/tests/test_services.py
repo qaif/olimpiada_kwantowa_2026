@@ -29,7 +29,7 @@ from apps.delegation_logistics.models import (
     enabled,
 )
 
-from .conftest import enable, years_ago
+from .conftest import enable, image_bytes, years_ago
 
 pytestmark = pytest.mark.django_db
 
@@ -99,7 +99,7 @@ def test_leader_reaches_only_members_of_own_delegation(leader, other_leader, stu
     assert services.member_for_leader(leader, own.pk) == own
 
 
-def test_sensitive_fields_are_encrypted_at_rest(leader, students):
+def test_sensitive_fields_are_encrypted_at_rest(leader, students, event):
     member = member_of(leader, students[0])
     services.save_member(member, dict(PASSPORT), actor=leader.user)
 
@@ -118,7 +118,7 @@ def test_sensitive_fields_are_encrypted_at_rest(leader, students):
     assert reloaded.nationality == "DE"
 
 
-def test_audit_names_fields_but_never_values(leader, students):
+def test_audit_names_fields_but_never_values(leader, students, event):
     member = member_of(leader, students[0])
     services.save_member(member, dict(PASSPORT), actor=leader.user)
 
@@ -148,7 +148,7 @@ def test_passport_must_be_valid_during_the_final(leader, students, event):
         services.save_member(member, data, actor=leader.user)
 
 
-def test_health_data_needs_d21_and_explicit_consent(iqo, leader, students):
+def test_health_data_needs_d21_and_explicit_consent(iqo, leader, students, event):
     member = member_of(leader, students[1])
     # Bez decyzji D21 pola zdrowia nie przechodzą przez serwis w ogóle.
     services.save_member(member, {"allergies": "peanuts", "tshirt_size": "S"}, actor=leader.user)
@@ -189,7 +189,7 @@ def test_guests_are_limited_and_removable(leader):
         services.add_guest(leader.delegation, first_name="G", last_name="X", role="GUEST", actor=leader.user)
 
 
-def test_missing_groups_drive_completeness(iqo, leader, students):
+def test_missing_groups_drive_completeness(iqo, leader, students, event):
     member = member_of(leader, students[0])
     groups = services.groups_for(iqo)
     assert FieldGroup.HEALTH not in groups
@@ -211,13 +211,14 @@ def test_photo_is_validated_by_content_and_shown_only_after_clean_scan(leader, s
     with pytest.raises(DomainError):
         services.upload_photo(member, BytesIO(b"<html>"), actor=leader.user)
 
-    photo = BytesIO(b"\x89PNG\r\n\x1a\n" + b"\x00" * 64)
+    photo = BytesIO(image_bytes())
     member = services.upload_photo(member, photo, actor=leader.user)
     assert member.photo_scan == ScanStatus.PENDING and services.open_photo(member) is None
 
     services.apply_photo_scan(member.pk, member.photo_key, ScanStatus.CLEAN)
     member.refresh_from_db()
-    assert services.photo_bytes(member).startswith(b"\x89PNG")
+    # Po czystym skanie zdjęcie jest przekodowanym JPEG-iem (M3).
+    assert services.photo_bytes(member).startswith(b"\xff\xd8\xff") and member.photo_mime == "image/jpeg"
 
     services.apply_photo_scan(
         member.pk, member.photo_key, ScanStatus.INFECTED
@@ -231,7 +232,7 @@ def test_infected_photo_is_removed(leader, students, monkeypatch):
 
     monkeypatch.setattr(tasks.scan_badge_photo, "delay", lambda *args, **kwargs: None)
     member = services.upload_photo(
-        member_of(leader, students[0]), BytesIO(b"\xff\xd8\xff" + b"\x00" * 32), actor=leader.user
+        member_of(leader, students[0]), BytesIO(image_bytes(fmt="JPEG")), actor=leader.user
     )
     services.apply_photo_scan(member.pk, member.photo_key, ScanStatus.INFECTED)
     member.refresh_from_db()
@@ -371,7 +372,14 @@ def test_officer_grants_follow_the_rules(iqo, coordinator):
         )  # nie koordynator
     with pytest.raises(DomainError):
         access.grant(iqo, email=coordinator.email, role=AccessRole.OFFICER, actor=second)  # nie oficer
-    access.grant(iqo, email=volunteer.email, role=AccessRole.CHECKIN, actor=second)
+    # Obsługę rejestracji nadaje oficer albo superkoordynator (L1), nigdy samemu sobie.
+    with pytest.raises(DomainError):
+        access.grant(iqo, email=volunteer.email, role=AccessRole.CHECKIN, actor=second)
+    with pytest.raises(DomainError):
+        access.grant(iqo, email=coordinator.email, role=AccessRole.CHECKIN, actor=coordinator)
+    access.grant(iqo, email=volunteer.email, role=AccessRole.CHECKIN, actor=coordinator)
+    with pytest.raises(DomainError):
+        access.revoke(LogisticsAccess.objects.get(user=volunteer), actor=second)
     assert access.can_check_in(volunteer, iqo) and not access.is_officer(volunteer, iqo)
     assert access.is_officer(coordinator, iqo) and not access.is_officer(second, iqo)
     grant = LogisticsAccess.objects.get(user=coordinator)
@@ -390,7 +398,7 @@ def test_retention_purges_members_photos_and_letter_snapshots(
     monkeypatch.setattr(tasks.scan_badge_photo, "delay", lambda *args, **kwargs: None)
     member = member_of(leader, students[0])
     services.save_member(member, dict(PASSPORT), actor=leader.user)
-    services.upload_photo(member, BytesIO(b"\x89PNG\r\n\x1a\n" + b"\x00" * 8), actor=leader.user)
+    services.upload_photo(member, BytesIO(image_bytes()), actor=leader.user)
     letter = letters.issue_letter(iqo, leader.delegation, actor=officer)
 
     assert privacy.purge_expired() == 0  # finał jeszcze się nie odbył
@@ -425,7 +433,7 @@ def test_account_erasure_removes_logistics_and_letter_rows(iqo, leader, students
     assert letters.people_of(letter) == []
 
 
-def test_data_export_contains_the_logistics_section(leader, students):
+def test_data_export_contains_the_logistics_section(leader, students, event):
     from apps.accounts.data_export import export_payload
 
     member = member_of(leader, kind=MemberKind.LEADER)
@@ -469,3 +477,304 @@ def test_reports_summaries(leader, students, officer):
     assert shirts["total"] == 1 and shirts["unknown_total"] == 2
     csv = reports.dataset("full", leader.delegation.competition, leader.delegation.edition, members)
     assert csv.count == 3
+
+
+# --- poprawki po przeglądzie (H2, M1–M4, L1–L11) ------------------------------------------------------
+
+
+def _roomed(iqo, leader, participant, officer, *, gender, room_gender=RoomGender.FEMALE, capacity=2):
+    member = member_of(leader, participant)
+    services.save_member(member, {"gender": gender}, actor=officer, as_officer=True)
+    member.refresh_from_db()
+    room = rooming.create_room(
+        iqo,
+        leader.delegation.edition,
+        name=f"R{member.pk}",
+        capacity=capacity,
+        gender=room_gender,
+        actor=officer,
+    )
+    rooming.assign(member, room, actor=officer)
+    member.refresh_from_db()
+    return member, room
+
+
+def test_gender_change_of_a_roomed_person_removes_the_assignment(iqo, leader, students, officer, event):
+    member, _room = _roomed(iqo, leader, students[0], officer, gender="F")
+
+    changed = services.save_member(member, {"gender": "M"}, actor=officer, as_officer=True)
+
+    member.refresh_from_db()
+    assert "room" in changed and member.room_id is None
+    assert AuditLog.objects.filter(action="logistics.room_unassigned", target_id=str(member.pk)).exists()
+
+
+def test_no_accommodation_needed_removes_the_assignment(iqo, leader, students, officer, event):
+    member, _room = _roomed(iqo, leader, students[0], officer, gender="F")
+    services.save_member(member, {"needs_accommodation": False}, actor=leader.user)
+    member.refresh_from_db()
+    assert member.room_id is None
+
+
+def test_birth_date_change_keeps_a_still_valid_assignment(iqo, leader, students, officer, event):
+    member, room = _roomed(iqo, leader, students[0], officer, gender="F")
+    changed = services.save_member(member, {**PASSPORT, "date_of_birth": years_ago(20)}, actor=leader.user)
+    member.refresh_from_db()
+    assert "room" not in changed and member.room_id == room.pk
+
+
+def test_event_start_change_flags_room_violations(iqo, leader, students, officer, event):
+    """Uczeń kończy 18 lat w trakcie okna dat – przesunięcie finału robi z niego niepełnoletniego."""
+    adult, _minor = students
+    start = event.starts_on
+    member = member_of(leader, adult)
+    born = start.replace(year=start.year - 18) - timedelta(days=1)  # dorosły w dniu ``start``
+    services.save_member(member, {**PASSPORT, "date_of_birth": born, "gender": "F"}, actor=leader.user)
+    leader_member = member_of(leader, kind=MemberKind.LEADER)
+    services.save_member(leader_member, {"gender": "F"}, actor=officer, as_officer=True)
+    member.refresh_from_db()
+    leader_member.refresh_from_db()
+    room = rooming.create_room(
+        iqo, event.edition, name="A1", capacity=2, gender=RoomGender.FEMALE, actor=officer
+    )
+    rooming.assign(member, room, actor=officer)
+    rooming.assign(leader_member, room, actor=officer)
+
+    saved = services.save_event(iqo, event.edition, actor=officer, starts_on=start - timedelta(days=10))
+
+    assert saved.room_violations == 1
+    data = rooming.rooming_rows(event.edition, services.members_of(leader.delegation))
+    assert data["violations"] == 1 and data["rows"][0]["problems"]
+    csv = reports.dataset("rooming", iqo, event.edition, services.members_of(leader.delegation))
+    rows = list(csv.rows)
+    assert any("Niepełnoletni" in row[-1] for row in rows)
+    # Nikt nie został wyprowadzony automatycznie – decyzja należy do oficera.
+    assert DelegationMember.objects.get(pk=member.pk).room_id == room.pk
+
+
+def test_minor_without_binary_gender_lives_alone(iqo, leader, students, officer, event):
+    _adult, minor = students
+    member = member_of(leader, minor)
+    services.save_member(member, {"gender": "X"}, actor=officer, as_officer=True)
+    member.refresh_from_db()
+    single = rooming.create_room(
+        iqo, event.edition, name="S1", capacity=2, gender=RoomGender.ANY, actor=officer
+    )
+    rooming.assign(member, single, actor=officer)  # pusty pokój – wolno
+
+    other = member_of(leader, students[0])
+    services.save_member(other, {"gender": "X"}, actor=officer, as_officer=True)
+    other.refresh_from_db()
+    with pytest.raises(DomainError):
+        rooming.assign(other, single, actor=officer)
+
+
+def test_purge_stops_sync_and_every_write(iqo, leader, students, officer, event, monkeypatch):
+    from apps.delegation_logistics import tasks
+
+    monkeypatch.setattr(tasks.scan_badge_photo, "delay", lambda *args, **kwargs: None)
+    member = member_of(leader, students[0])
+    privacy.purge_event(event)
+
+    assert services.members_of(leader.delegation) == []  # brak odtworzenia pustych wierszy
+    assert not DelegationMember.objects.filter(delegation=leader.delegation).exists()
+    ghost = DelegationMember.objects.create(
+        delegation=leader.delegation, kind=MemberKind.LEADER, user=leader.user
+    )
+    for call in (
+        lambda: services.save_member(ghost, {"tshirt_size": "M"}, actor=officer, as_officer=True),
+        lambda: services.upload_photo(ghost, BytesIO(image_bytes()), actor=officer, as_officer=True),
+    ):
+        with pytest.raises(DomainError) as error:
+            call()
+        assert error.value.machine_code == "LOGISTICS_PURGED"
+    assert member.pk
+
+
+def test_identity_and_health_need_known_end_of_the_final(iqo, leader, students):
+    enable(iqo, health=True)
+    member = member_of(leader, students[0])
+    with pytest.raises(DomainError) as error:
+        services.save_member(member, {"passport_number": "X"}, actor=leader.user)
+    assert error.value.machine_code == "LOGISTICS_NO_EVENT_DATES"
+    with pytest.raises(DomainError):
+        services.save_member(member, {"diet": Diet.VEGAN}, actor=leader.user, health_consent=True)
+    services.save_member(member, {"tshirt_size": "M"}, actor=leader.user)  # reszta – bez przeszkód
+
+
+def test_diet_is_encrypted_and_validated(iqo, leader, students, event):
+    enable(iqo, health=True)
+    member = member_of(leader, students[0])
+    services.save_member(member, {"diet": Diet.HALAL}, actor=leader.user, health_consent=True)
+    with connection.cursor() as cursor:
+        cursor.execute("SELECT diet FROM delegation_logistics_delegationmember WHERE id = %s", [member.pk])
+        (raw,) = cursor.fetchone()
+    assert raw.startswith("enc1:") and "HALAL" not in raw
+    assert DelegationMember.objects.get(pk=member.pk).diet == Diet.HALAL
+    with pytest.raises(DomainError) as error:
+        services.save_member(member, {"diet": "PIZZA"}, actor=leader.user)
+    assert error.value.machine_code == "DIET_INVALID"
+
+
+def test_photo_is_reencoded_without_exif_and_downsized(leader, students, monkeypatch):
+    from PIL import Image
+
+    from apps.delegation_logistics import tasks
+
+    monkeypatch.setattr(tasks.scan_badge_photo, "delay", lambda *args, **kwargs: None)
+    member = services.upload_photo(
+        member_of(leader, students[0]), BytesIO(image_bytes(1200, 1800, "JPEG", exif=True)), actor=leader.user
+    )
+    original = member.photo_key
+    services.apply_photo_scan(member.pk, original, ScanStatus.CLEAN)
+    member.refresh_from_db()
+    assert member.photo_key != original
+    with Image.open(BytesIO(services.photo_bytes(member))) as image:
+        assert image.format == "JPEG" and image.size[0] <= 600 and image.size[1] <= 800
+        assert not image.getexif()
+
+
+def test_photo_over_the_pixel_cap_is_refused(leader, students, monkeypatch):
+    monkeypatch.setattr(services, "PHOTO_MAX_PIXELS", 100)
+    with pytest.raises(DomainError) as error:
+        services.upload_photo(member_of(leader, students[0]), BytesIO(image_bytes(20, 20)), actor=leader.user)
+    assert error.value.machine_code == "PHOTO_TOO_MANY_PIXELS"
+
+
+def test_unreadable_clean_file_ends_as_error(leader, students, monkeypatch):
+    from apps.delegation_logistics import tasks
+
+    monkeypatch.setattr(tasks.scan_badge_photo, "delay", lambda *args, **kwargs: None)
+    member = services.upload_photo(member_of(leader, students[0]), BytesIO(image_bytes()), actor=leader.user)
+    monkeypatch.setattr(services, "reencode_photo", lambda data: (_ for _ in ()).throw(OSError("broken")))
+    services.apply_photo_scan(member.pk, member.photo_key, ScanStatus.CLEAN)
+    member.refresh_from_db()
+    assert member.photo_key == "" and member.photo_scan == ScanStatus.ERROR
+
+
+def test_scan_gives_up_after_max_retries(leader, students, monkeypatch):
+    from apps.delegation_logistics import tasks
+    from apps.submissions.antivirus import ClamAVUnavailable
+
+    monkeypatch.setattr(tasks.scan_badge_photo, "delay", lambda *args, **kwargs: None)
+    member = services.upload_photo(member_of(leader, students[0]), BytesIO(image_bytes()), actor=leader.user)
+
+    def unavailable(*args, **kwargs):
+        raise ClamAVUnavailable("down")
+
+    monkeypatch.setattr(tasks, "scan_stream", unavailable)
+    result = tasks.scan_badge_photo.apply(
+        args=(member.pk, member.photo_key), retries=tasks.scan_badge_photo.max_retries
+    )
+    assert result.get() == ScanStatus.ERROR
+    member.refresh_from_db()
+    assert member.photo_scan == ScanStatus.ERROR and member.photo_key == ""
+
+
+def test_removing_a_guest_drops_them_from_letter_snapshots(iqo, leader, officer, event):
+    guest = services.add_guest(
+        leader.delegation, first_name="O", last_name="Bs", role="OBSERVER", actor=leader.user
+    )
+    services.save_member(guest, dict(PASSPORT), actor=leader.user)
+    letter = letters.issue_letter(iqo, leader.delegation, actor=officer)
+    assert [p["member_id"] for p in letters.people_of(letter)] == [guest.pk]
+
+    services.remove_guest(guest, actor=leader.user)
+
+    letter.refresh_from_db()
+    assert letters.people_of(letter) == [] and letter.content_purged_at is not None
+
+
+def test_guests_lock_with_the_identity_deadline(leader, officer, event):
+    guest = services.add_guest(
+        leader.delegation, first_name="O", last_name="Bs", role="OBSERVER", actor=leader.user
+    )
+    event.deadline_identity = timezone.now() - timedelta(minutes=1)
+    event.save()
+    with pytest.raises(DomainError):
+        services.add_guest(
+            leader.delegation, first_name="N", last_name="New", role="GUEST", actor=leader.user
+        )
+    with pytest.raises(DomainError):
+        services.update_guest(guest, first_name="X", last_name="Y", email="", role="GUEST", actor=leader.user)
+    services.add_guest(
+        leader.delegation, first_name="N", last_name="New", role="GUEST", actor=officer, as_officer=True
+    )
+    services.update_guest(
+        guest, first_name="X", last_name="Y", email="", role="GUEST", actor=officer, as_officer=True
+    )
+
+
+def test_undecryptable_fields_are_never_overwritten(iqo, leader, students, event):
+    enable(iqo, health=True)
+    member = member_of(leader, students[0])
+    services.save_member(member, {"allergies": "nuts"}, actor=leader.user, health_consent=True)
+    with connection.cursor() as cursor:
+        cursor.execute(
+            "UPDATE delegation_logistics_delegationmember SET passport_number = 'enc1:garbage' WHERE id = %s",
+            [member.pk],
+        )
+    services.save_member(member, {"tshirt_size": "L"}, actor=leader.user)
+    services.withdraw_health_consent(member, actor=leader.user)
+    with connection.cursor() as cursor:
+        cursor.execute(
+            "SELECT passport_number FROM delegation_logistics_delegationmember WHERE id = %s", [member.pk]
+        )
+        (raw,) = cursor.fetchone()
+    assert raw == "enc1:garbage"
+
+
+def test_dietary_export_is_empty_without_d21(iqo, leader, students, event):
+    enable(iqo, health=True)
+    member = member_of(leader, students[0])
+    services.save_member(
+        member, {"allergies": "nuts", "diet": Diet.VEGAN}, actor=leader.user, health_consent=True
+    )
+    from apps.competitions.logistics import LogisticsSettings
+
+    LogisticsSettings.objects.filter(competition=iqo).update(collect_special_needs=False)
+    csv = reports.dataset("dietary", iqo, event.edition, services.members_of(leader.delegation))
+    assert csv.count == 0
+
+
+def test_lookups_are_limited_to_the_current_edition(iqo, leader, students, event):
+    from django.http import Http404
+
+    from apps.accounts.delegations import Delegation
+    from apps.competitions.tests.factories import EditionFactory
+
+    old_edition = EditionFactory(competition=iqo)
+    old = Delegation.objects.create(
+        competition=iqo, edition=old_edition, country=leader.delegation.country, max_students=6
+    )
+    stale = DelegationMember.objects.create(delegation=old, kind=MemberKind.LEADER, user=leader.user)
+    with pytest.raises(Http404):
+        services.member_for_competition(iqo, stale.pk, edition=event.edition)
+    assert badges.member_by_token(iqo, stale.badge_token, event.edition) is None
+    assert badges.member_by_token(iqo, stale.badge_token) == stale
+
+
+def test_checkin_search_decrypts_nothing(iqo, leader, students, event, monkeypatch):
+    from apps.delegation_logistics import crypto
+
+    services.members_of(leader.delegation)
+
+    def forbidden(token):
+        raise AssertionError("wyszukiwarka nie może odszyfrowywać pól")
+
+    monkeypatch.setattr(crypto, "decrypt", forbidden)
+    found = badges.search(badges.searchable_members(event.edition), "adult")
+    assert [m.participant_id for m in found] == [students[0].pk]
+
+
+def test_export_contains_check_ins_and_letters(iqo, leader, students, officer, event):
+    adult, _minor = students
+    member = member_of(leader, adult)
+    services.save_member(member, dict(PASSPORT), actor=leader.user)
+    checkpoint = badges.create_checkpoint(iqo, event.edition, name="Arrival", actor=officer)
+    badges.check_in(member, checkpoint, actor=officer)
+    letter = letters.issue_letter(iqo, leader.delegation, actor=officer)
+
+    section = privacy.export_section(adult.user)[0]
+    assert section["odhaczenia"][0]["punkt"] == "Arrival"
+    assert section["listy_zapraszajace"][0]["numer"] == letter.number

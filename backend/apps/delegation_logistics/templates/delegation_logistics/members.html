@@ -6,10 +6,11 @@
 {% block title %}Logistyka finału – osoby{% endblock %}
 {% block panel_title %}Logistyka finału – osoby{% endblock %}
 {% block panel_lead %}
-  <p class="lead">Uczniowie, opiekunowie i goście wszystkich delegacji. Identyfikatory drukują się czwórkami na A4.</p>
+  <p class="lead">Uczniowie, opiekunowie i goście wszystkich delegacji. Identyfikatory drukuje się
+    krajami (wybierz kraj), czwórkami na A4.</p>
 {% endblock %}
 {% block panel_actions %}
-  <a class="btn btn--secondary" href="{% url 'web:coordinator-onsite-badges' %}{% if selected %}?delegation={{ selected }}{% endif %}">Identyfikatory PDF</a>
+  {% if selected %}<a class="btn btn--secondary" href="{% url 'web:coordinator-onsite-badges' %}?delegation={{ selected }}">Identyfikatory PDF (ten kraj)</a>{% endif %}
   <a class="btn btn--secondary" href="{% url 'web:coordinator-onsite-export' 'full' %}">Eksport pełny CSV</a>
 {% endblock %}
 {% block panel_content %}

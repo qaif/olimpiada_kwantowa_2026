@@ -71,6 +71,11 @@ dependencies = [
     # (Wagtail ciągnie openpyxl tranzytywnie, ale zależność, na której stoi nasz kod, ma być
     # nazwana wprost – inaczej usunięcie jej z Wagtaila wywróciłoby eksport bez ostrzeżenia.)
     "openpyxl>=3.1,<4.0",
+    # Parser CSS zgodny ze specyfikacją (CSS Syntax Level 3) – walidacja i przepisanie ``theme.css``
+    # z paczek motywów (``apps.themes.css``, THEME-01 § 2). Parser, a nie wyrażenia regularne:
+    # ucieczki CSS (``@\69mport``, ``exp\72 ession(``) rozbijają każdy filtr tekstowy. Czysty
+    # Python, jedna zależność (``webencodings``).
+    "tinycss2>=1.4,<2.0",
     # Skład dyplomów i zaświadczeń (``apps.results.certificates``). Zależność zwykła, a nie dev:
     # dokument wystawia koordynator w panelu na produkcji, a uczestnik pobiera go ze swojego
     # panelu. Kroje DejaVu są w repozytorium (``backend/static/fonts/``) razem z licencją –

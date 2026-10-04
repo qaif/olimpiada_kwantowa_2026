@@ -233,6 +233,14 @@ msgstr "Gluten-free"
 msgid "Inna (opis w uwagach)"
 msgstr "Other (describe in the notes)"
 
+#: services.py templates/delegation_logistics/leader_dashboard.html
+msgid "Finał się zakończył, a dane delegacji zostały usunięte."
+msgstr "The final has ended and the delegation’s data has been deleted."
+
+#: services.py templates/delegation_logistics/leader_dashboard.html
+msgid "Organizator nie ustalił jeszcze dat finału – dane dokumentu podróży i o zdrowiu przyjmiemy po ich ustaleniu."
+msgstr "The organiser has not set the dates of the final yet – travel document and health data will be accepted once they are set."
+
 #: services.py
 #, python-format
 msgid "Termin na uzupełnienie sekcji „%(group)s” minął – zmiany wprowadza już tylko organizator."
@@ -255,12 +263,12 @@ msgid "Wyjazd nie może być przed przyjazdem."
 msgstr "Departure cannot be before arrival."
 
 #: services.py
+msgid "Wybierz dietę z listy."
+msgstr "Choose a diet from the list."
+
+#: services.py
 msgid "Dane o wyżywieniu i zdrowiu zapiszemy dopiero po zaznaczeniu zgody osoby (albo jej rodzica, jeśli jest niepełnoletnia) na ich przetwarzanie."
 msgstr "Meal and health information can only be saved once you tick the consent of the person (or their parent, if they are a minor) to its processing."
-
-#: services.py templates/delegation_logistics/leader_dashboard.html
-msgid "Finał się zakończył, a dane delegacji zostały usunięte."
-msgstr "The final has ended and the delegation’s data has been deleted."
 
 #: services.py
 msgid "Wybierz rolę z listy."
@@ -278,6 +286,14 @@ msgstr "A delegation can have at most %(count)s guests."
 #: services.py
 msgid "Zdjęcie musi być plikiem JPG albo PNG."
 msgstr "The photo must be a JPG or PNG file."
+
+#: services.py
+msgid "Nie udało się odczytać zdjęcia – wgraj inny plik JPG lub PNG."
+msgstr "The photo could not be read – please upload another JPG or PNG file."
+
+#: services.py
+msgid "Zdjęcie ma zbyt dużą rozdzielczość."
+msgstr "The photo resolution is too high."
 
 #: services.py
 msgid "Plik jest pusty."
@@ -556,6 +572,10 @@ msgstr "The person has been added to the delegation – please complete their da
 #, python-format
 msgid "Zapisano dane: %(name)s."
 msgstr "Data saved: %(name)s."
+
+#: views.py
+msgid "Przydział pokoju został zdjęty – osoba nie spełnia już zasad zakwaterowania tego pokoju."
+msgstr "The room assignment has been removed – the person no longer meets the accommodation rules of that room."
 
 #: views.py
 msgid "Wybierz plik ze zdjęciem."

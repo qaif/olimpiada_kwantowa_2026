@@ -68,20 +68,10 @@ def _members_of_user(user):
 
 def erase_for_user(user) -> int:
     """Usunięcie albo anonimizacja konta: dane pobytu tej osoby, jej zdjęcie i jej wiersze w listach."""
-    from .letters import drop_person
     from .services import delete_members
 
-    rows = list(_members_of_user(user).values_list("pk", "delegation_id"))
-    if not rows:
-        return 0
-    members = [pk for pk, _delegation in rows]
-    letters = InvitationLetter.objects.filter(
-        delegation_id__in={delegation for _pk, delegation in rows}, content_purged_at__isnull=True
-    ).exclude(content="")
-    for letter in letters:
-        for member_id in members:
-            drop_person(letter, member_id)
-    return delete_members(DelegationMember.objects.filter(pk__in=members))
+    # Migawki listów sprząta ``delete_members`` – ta sama droga dla każdego usunięcia członka (M4).
+    return delete_members(_members_of_user(user))
 
 
 def export_section(user) -> list[dict]:
@@ -136,6 +126,12 @@ def export_section(user) -> list[dict]:
                 "kontakt_alarmowy": member.emergency_name,
                 "telefon_alarmowy": member.emergency_phone,
                 "zdjecie_do_identyfikatora": bool(member.photo_key),
+                # Obecność i listy wizowe – też dane o tej osobie (L11).
+                "odhaczenia": [
+                    {"punkt": row.checkpoint.name, "czas": timezone.localtime(row.at).isoformat()}
+                    for row in member.check_ins.select_related("checkpoint").order_by("at")
+                ],
+                "listy_zapraszajace": _letters_of(member),
                 "wnioski_o_list_zapraszajacy": letter_requests_section(member),
             }
         )
@@ -164,3 +160,21 @@ def letter_requests_section(member) -> list[dict]:
         }
         for row in member.letter_requests.select_related("letter").order_by("requested_at", "id")
     ]
+
+
+def _letters_of(member) -> list[dict]:
+    """Listy, na których ta osoba jest (imienne i delegacji) – numer, data i jej wiersz z migawki."""
+    from .letters import people_of
+
+    result = []
+    for letter in InvitationLetter.objects.filter(delegation_id=member.delegation_id).order_by("issued_at"):
+        mine = [person for person in people_of(letter) if person.get("member_id") == member.pk]
+        if mine:
+            result.append(
+                {
+                    "numer": letter.number,
+                    "wystawiono": timezone.localtime(letter.issued_at).isoformat(),
+                    "dane_na_liscie": mine[0],
+                }
+            )
+    return result

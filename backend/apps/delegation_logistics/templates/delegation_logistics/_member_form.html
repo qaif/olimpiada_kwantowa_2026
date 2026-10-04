@@ -11,7 +11,7 @@
     <fieldset class="card">
       <legend><strong>{{ group.label }}</strong></legend>
       {% if group.deadline %}
-        <p class="hint">{% blocktranslate trimmed with deadline=group.deadline|date:"j.m.Y H:i" %}Termin: {{ deadline }}{% endblocktranslate %}
+        <p class="hint">{% blocktranslate trimmed with deadline=group.deadline|date:"j.m.Y H:i T" %}Termin: {{ deadline }}{% endblocktranslate %}
           {% if group.locked %}<span class="badge badge--neutral">{% translate "zamknięte" %}</span>{% endif %}</p>
       {% endif %}
       {% if group.group == "HEALTH" and member.health_consent_at %}

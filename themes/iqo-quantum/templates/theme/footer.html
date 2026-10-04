@@ -1,0 +1,53 @@
+{% load i18n wagtailimages_tags %}{% comment %}
+  IQO Quantum – slot ``theme/footer.html`` (układ ``compact``).
+
+  Ta sama treść co stopka w ``base.html`` (te same msgid, ``data-cookie-settings`` dla
+  ``consent.js``), ułożona w dwa poziome pasy: znak + nazwa + odnośniki prawne + profile,
+  a pod kreską jeden wiersz metadanych w kroju mono (organizator, adres, kontakt, wersja).
+  Znak to ``<img>`` z zasobów paczki (``theme.assets``); stopka jest ciemna w każdym schemacie.
+{% endcomment %}
+<footer class="footer iqo-footer">
+  {% with site=settings.cms.SiteSettings %}
+  <div class="iqo-footer__inner">
+    <div class="iqo-footer__top">
+      <p class="iqo-footer__brand">
+        <img class="iqo-footer__mark" src="{{ theme.assets }}assets/logo/mark-white.svg" alt="" width="44" height="44" loading="lazy">
+        <span><strong>{{ site.site_name }}</strong>{% if site.tagline %}<span class="iqo-footer__tagline">{{ site.tagline }}</span>{% endif %}</span>
+      </p>
+      <p class="footer__links iqo-footer__links">
+        <a href="{{ site_root|default:"/" }}dokumenty/rodo/">{% translate "Polityka prywatności (RODO)" %}</a>
+        <a href="{{ site_root|default:"/" }}dokumenty/cookies/">{% translate "Polityka plików cookie" %}</a>
+        {% include "web/_support_link.html" with css_class="footer__link" %}
+        {% if promo_available %}
+          <a href="{% url 'web:posters' %}">{% translate "Plakaty do pobrania" %}</a>
+        {% endif %}
+        {% if site.ga_measurement_id %}
+          <button type="button" class="footer__link-button" data-cookie-settings>{% translate "Ustawienia cookies" %}</button>
+        {% endif %}
+      </p>
+      {% include "cms/_social_links.html" with links=site.social_links css_class="footer__social iqo-footer__social" %}
+    </div>
+
+    <p class="iqo-footer__privacy">{% translate "Dane osobowe uczestników są przetwarzane zgodnie z zasadą minimalizacji (RODO): w publicznych tabelach wyników występuje wyłącznie kod uczestnika, a pełne dane widzi jedynie koordynator." %}</p>
+
+    <div class="iqo-footer__meta">
+      <p class="iqo-footer__organizer">
+        {% if site.organizer_logo %}
+          <span class="footer__logo iqo-footer__org-logo">{% image site.organizer_logo max-240x80 alt="" loading="lazy" %}</span>
+        {% endif %}
+        <span>{% translate "Organizator:" %} <strong>{{ site.organizer_name }}</strong></span>
+      </p>
+      {% if site.organizer_address %}<p>{{ site.organizer_address }}</p>{% endif %}
+      {% if site.organizer_registry %}<p>{{ site.organizer_registry }}</p>{% endif %}
+      {% if site.contact_email or site.contact_phone or site.contact_url %}
+        <p class="iqo-footer__contact">
+          {% if site.contact_email %}<a href="mailto:{{ site.contact_email }}">{{ site.contact_email }}</a>{% endif %}
+          {% if site.contact_phone %}<a href="tel:{{ site.contact_phone|cut:' ' }}">{{ site.contact_phone }}</a>{% endif %}
+          {% if site.contact_url %}<a href="{{ site.contact_url }}">{{ site.contact_url }}</a>{% endif %}
+        </p>
+      {% endif %}
+      <p class="iqo-footer__version">{% blocktranslate trimmed with version=app_version %}wersja {{ version }}{% endblocktranslate %}</p>
+    </div>
+  </div>
+  {% endwith %}
+</footer>

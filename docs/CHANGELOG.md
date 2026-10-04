@@ -21,8 +21,8 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
 - **Unieważnienie listu** z powodem (audyt, strona weryfikacji „unieważniony”, PDF nie do pobrania).
 - **Język listu**: en, pl, es, fr, pt, ru, id (teksty w `letter_texts.py`); migawka wydarzenia w rejestrze.
 - RODO: wnioski w eksporcie danych konta i w retencji/usuwaniu razem z osobą; rejestr czynności 1.13
-  (nowy odbiorca – osoba znająca kod listu). Migracja `delegation_logistics.0002`.
-- Dokumentacja: `docs/OPERACJE.md` § 29.7, `docs/PODRECZNIK-ORGANIZATORA.md` § 10c,
+  (nowy odbiorca – osoba znająca kod listu). Migracja `delegation_logistics.0003`.
+- Dokumentacja: `docs/OPERACJE.md` § 31.8, `docs/PODRECZNIK-ORGANIZATORA.md` § 10d,
   `docs/PODRECZNIK-OPIEKUNA-DRUZYNY.md` § 7, `docs/tasks/VISA-01.md`.
 
 ## [Unreleased] – Logistyka finału dla delegacji (LOG-01)
@@ -37,7 +37,7 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
   (zasady: niepełnoletni nigdy z dorosłym, płeć pokoju, pojemność), wyżywienie, koszulki, eksporty CSV,
   przypomnienia e-mail w języku opiekuna.
 - **Listy zapraszające do wizy** – PDF z rejestrem numerów `PREFIKS/ROK/NNNN`, zaszyfrowana migawka
-  danych, nowy rodzaj szablonu dokumentu `VISA_INVITATION` (`tenancy.0014`), podpisy i pieczęć jak dyplomy.
+  danych, nowy rodzaj szablonu dokumentu `VISA_INVITATION` (`tenancy.0015`), podpisy i pieczęć jak dyplomy.
 - **Identyfikatory** PDF (A6, zdjęcie, kraj, rola, QR z losowym tokenem bez danych osobowych) i ekran
   odhaczania na telefonie (punkty kontroli, wyszukiwarka, skaner w przeglądarce z `BarcodeDetector`).
 - **RODO:** szyfrowanie pól wrażliwych (Fernet z obsługą `SECRET_KEY_FALLBACKS`), retencja dobowa po
@@ -46,8 +46,34 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
 - **i18n:** katalogi tłumaczeń w aplikacji (`apps/<nazwa>/locale`) – kompilowane przez `Dockerfile`,
   CI i `conftest.py`, sprawdzane przez `test_translations.py`; 125 nowych napisów w 10 językach
   (maszynowe, do przeglądu).
-- Dokumentacja: `docs/OPERACJE.md` § 29, `docs/PODRECZNIK-ORGANIZATORA.md` § 10c,
+- **Poprawki po przeglądzie:** reguły pokoi sprawdzane po zmianie danych osoby (zdjęcie przydziału)
+  i daty finału (oznaczenie naruszeń, kolumna CSV), niepełnoletni z płcią „inna” w pokoju
+  jednoosobowym; dane paszportowe i o zdrowiu tylko przy znanym końcu finału, po retencji żadnych
+  zapisów; dieta szyfrowana (`delegation_logistics.0002`); zdjęcia przekodowane bez EXIF, limit pikseli,
+  identyfikatory per kraj; usunięcie członka czyści migawki listów; obsługę rejestracji nadaje oficer;
+  przypomnienia tylko oficer; zapisy `update_fields`; numeracja listów pod blokadą (konkurs, rok);
+  eksport danych konta z obecnością i listami.
+- Dokumentacja: `docs/OPERACJE.md` § 31, `docs/PODRECZNIK-ORGANIZATORA.md` § 10d,
   `docs/PODRECZNIK-OPIEKUNA-DRUZYNY.md` § 7, `docs/tasks/LOG-01.md`.
+
+## [Unreleased] – Motywy wizualne wgrywane paczkami (THEME-01)
+
+- **Tokeny motywu:** arkusze (`static/css/*.css`) czytają kolory, kroje, promienie i odstępy przez
+  zmienne `--t-*`; wartości domyślne to wbudowany motyw „Klasyczny” (wygląd co do wartości wyliczonej
+  sprzed zmiany, Olimpiada Kwantowa co do bajtu HTML i zapytań). Tryb wysokiego kontrastu wygrywa
+  z każdym motywem.
+- **Paczki ZIP** (`manifest.json`, `theme.css`, `tokens.json`, `assets/`, sloty `templates/theme/*.html`):
+  walidacja przy wgraniu (ZIP-slip, bomba ZIP, typy plików, CSS parserem `tinycss2` bez `@import`
+  i zewnętrznych `url()`, SVG oczyszczane, lint szablonów i kompilacja ograniczonym silnikiem, tokeny
+  z ostrzeżeniami kontrastu, ClamAV), wersje niezmienne pod `themes/<slug>/<wersja>-<sha8>/`.
+- **Sloty:** `header`, `brand`, `footer`, `page_wrapper`, `home_hero`, `news_card`, `page_header`;
+  `base.html` zostaje właścicielem `<head>` (nonce CSP, skrypty, skip-link). CSP: origin bucketu
+  w `style-src`/`font-src` wyłącznie na stronach z motywem.
+- **Panele:** katalog motywów superkoordynatora (`/coordinator/platform/themes/`) i „Motyw serwisu”
+  koordynatora (`/coordinator/competition/theme/`, flaga `themes`) z podglądem tylko dla koordynatora,
+  wariantami układów, akcentem marki i aktywacją (audyt). Komenda `manage.py theme_install <zip|->
+  [--activate <slug>]` (`docs/OPERACJE.md` § 28).
+- **Wymaga przebudowy obrazu** (nowa zależność `tinycss2`).
 
 ## [Unreleased] – Delegacje krajowe: rejestracja przez opiekunów drużyn narodowych (DEL-01)
 
