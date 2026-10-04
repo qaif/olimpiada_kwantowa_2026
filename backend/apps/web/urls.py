@@ -2,9 +2,10 @@
 
 from django.urls import path
 
+from apps.problem_translations.urls import urlpatterns as translation_urlpatterns
+
 # Statystyki szkół (STAT-01) – widoki mieszkają w nowej aplikacji, montaż jak u pozostałych wydań.
 from apps.school_stats.urls import urlpatterns as school_stats_urlpatterns
-from apps.problem_translations.urls import urlpatterns as translation_urlpatterns
 
 # Wzorce ekranów wydań E–K stoją w osobnych modułach, bo powstały równolegle (T11, T13, T20, T23,
 # T27, T34, T42), a ten plik ma w etapie 2 **jednego** właściciela na wydanie
@@ -14,6 +15,7 @@ from apps.problem_translations.urls import urlpatterns as translation_urlpattern
 # widok (§ 2.1), bo mapa adresów zależna od konkursu znaczyłaby ``reverse()`` dający raz adres,
 # a raz ``NoReverseMatch``.
 from apps.time_windows.urls import urlpatterns as time_windows_urlpatterns
+from apps.translation_review.urls import urlpatterns as translation_review_urlpatterns
 
 from .urls_ai_grading import urlpatterns as ai_grading_urlpatterns
 from .urls_chat import urlpatterns as chat_urlpatterns
@@ -1163,4 +1165,6 @@ urlpatterns = [
     *time_windows_urlpatterns,
     # --- tłumaczenia zadań przez delegacje (TR-01, 4.10.2026) -----------------------------------
     *translation_urlpatterns,
+    # --- przegląd tłumaczeń interfejsu (zadanie L10N-01) -----------------------------------------
+    *translation_review_urlpatterns,
 ]

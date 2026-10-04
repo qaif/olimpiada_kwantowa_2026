@@ -407,6 +407,7 @@ def export_payload(user: User) -> dict:
         "oceny_ai": _ai_section(participant),
         "okna_czasowe": _time_windows_section(participant),
         "ustawienia_interfejsu": _preferences_section(user),
+        "tlumaczenia": _translation_review_section(user),
     }
 
 
@@ -415,6 +416,16 @@ def _time_windows_section(participant) -> dict:
     from apps.time_windows.privacy import export_section
 
     return export_section(participant)
+
+
+def _translation_review_section(user: User) -> dict:
+    """Przegląd tłumaczeń (L10N-01): rola tłumacza, własne propozycje, liczba głosów i zgłoszenia.
+
+    Sekcja jest zawsze (pusta dla konta bez roli) – kształt pliku ma być ten sam dla każdego konta.
+    """
+    from apps.translation_review.services import export_section
+
+    return export_section(user)
 
 
 def _student_status_section(participant) -> list[dict]:

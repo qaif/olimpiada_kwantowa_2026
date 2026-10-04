@@ -571,6 +571,12 @@ def groups(stages: list, competition=None) -> list[Group]:
                 match=("coordinator-venues", "coordinator-venues-", "coordinator-venue"),
             ),
         )
+    if competition is not None and len(competition.ui_languages) > 1:
+        # Tłumacze interfejsu (zadanie L10N-01) – wyłącznie w konkursie z więcej niż jednym
+        # językiem interfejsu, tak samo jak bramka ekranu; Konkurs #1 (sam polski) ma menu bez zmian.
+        settings_items += (
+            Item("Tłumacze interfejsu", ("web:coordinator-translators",), match=("coordinator-translators",)),
+        )
     if stage is not None:
         reports += (
             Item(

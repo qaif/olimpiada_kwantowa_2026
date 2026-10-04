@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% comment %}
+  „Zgłoś tłumaczenie” ze stopki (L10N-01 § 8). Ścieżka strony przychodzi w adresie (``?page=``),
+  jest przycięta do samej ścieżki w serwisie (``services.clean_page``) i jedzie dalej ukrytym polem.
+{% endcomment %}
+{% block title %}{% translate "Zgłoś tłumaczenie" %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow"><a href="{% url 'web:translations' %}">{% translate "Tłumaczenia" %}</a></span>
+  <h1>{% translate "Zgłoś tłumaczenie" %}</h1>
+  <p class="lead">{% translate "Napisz, który napis jest źle przetłumaczony i jak powinien brzmieć. Recenzent tłumaczeń Twojego języka poprawi go dla wszystkich." %}</p>
+</div>
+<section class="section">
+  <div class="card">
+    {% if page %}<p class="hint">{% translate "Strona" %}: <code>{{ page }}</code></p>{% endif %}
+    <form method="post" class="form" novalidate>
+      {% csrf_token %}
+      {{ form.non_field_errors }}
+      <input type="hidden" name="{{ form.page.html_name }}" value="{{ page }}">
+      {% for field in form.visible_fields %}
+        <p>
+          {{ field.errors }}
+          {{ field.label_tag }}
+          {{ field }}
+          {% if field.help_text %}<span class="helptext">{{ field.help_text }}</span>{% endif %}
+        </p>
+      {% endfor %}
+      <div class="actions">
+        <button type="submit" class="btn btn--primary">{% translate "Wyślij zgłoszenie" %}</button>
+      </div>
+    </form>
+  </div>
+</section>
+{% endblock %}

@@ -90,10 +90,12 @@ from apps.competitions.models import DEFAULT_RETENTION_MONTHS
 #: opiekun szkolny widzi przebieg i ogłoszone wyniki swoich uczniów przez kolejne edycje, na tle
 #: agregatów szkoły i województwa. Nowych danych nie ma, ale jest nowy cel (informacja zwrotna dla
 #: szkoły) i nowy odbiorca (dyrektor – raport zbiorczy), więc zmiana jest materialna.
-#: 1.12 (04.10.2026, zadanie TR-01) – tłumaczenia zadań przez delegacje: czynność „Delegacje krajowe”
+#: 1.13 (04.10.2026, zadanie TR-01) – tłumaczenia zadań przez delegacje: czynność „Delegacje krajowe”
 #: dostaje nowe kategorie danych (język zadań przypisany uczniowi, autorstwo i daty wysłanych wersji
 #: tłumaczeń, dziennik wglądu w tajne zadania) i nowy środek (okno tłumaczeń, znak wodny, audyt).
-REGISTER_VERSION = "1.12"
+#: 1.14 (04.10.2026, zadanie L10N-01) – Przegląd tłumaczeń interfejsu: wiersz warunkowy (konkurs
+#: z więcej niż jednym językiem interfejsu) – rola tłumacza, propozycje poprawek, głosy i zgłoszenia.
+REGISTER_VERSION = "1.14"
 REGISTER_DATE = date(2026, 10, 4)
 
 #: Zdanie o okresie przechowywania danych uczestnika. Liczba pochodzi z tego samego miejsca, co
@@ -1014,6 +1016,43 @@ TIME_WINDOWS_ACTIVITY = _activity(
 )
 
 
+#: Czynność **warunkowa**: przegląd tłumaczeń interfejsu przez wolontariuszy (zadanie L10N-01).
+#: Tylko w konkursie z więcej niż jednym językiem interfejsu – w jednojęzycznym nikt nie dostaje roli
+#: tłumacza z panelu koordynatora, więc rejestr nie opisuje przetwarzania, którego tam nie ma.
+TRANSLATION_REVIEW_ACTIVITY = _activity(
+    key="tlumaczenia",
+    name="Przegląd tłumaczeń interfejsu serwisu",
+    purpose=(
+        "Poprawianie tłumaczeń napisów interfejsu serwisu przez wolontariuszy znających dany język "
+        "(np. kierowników delegacji): propozycje poprawek, głosy, decyzje recenzenta i zgłoszenia błędów."
+    ),
+    legal_basis=(
+        "art. 6 ust. 1 lit. f RODO (prawnie uzasadniony interes administratora – zrozumiały interfejs "
+        "dla uczestników z różnych krajów); udział jest dobrowolny i wymaga nadania roli"
+    ),
+    subjects="osoby, którym koordynator albo superkoordynator nadał rolę tłumacza lub recenzenta tłumaczeń",
+    categories=[
+        "powiązanie konta z językiem i poziomem roli (tłumacz, recenzent), kto i kiedy ją nadał",
+        "autorstwo propozycji tłumaczeń i oddanych głosów (sam tekst tłumaczenia nie jest daną osobową)",
+        "zgłoszenia ze stopki: ścieżka strony (bez parametrów adresu), napis widziany na stronie, uwaga",
+    ],
+    recipients=[
+        HOSTING_RECIPIENT,
+        "recenzenci tłumaczeń tego samego języka – treść zgłoszeń i propozycji, **bez** tożsamości autora",
+        "koordynator konkursu i superkoordynator – lista osób z rolą tłumacza (adres e-mail konta)",
+    ],
+    retention=(
+        "rola do odebrania albo usunięcia konta; zgłoszenia i głosy usuwane z kontem; propozycje "
+        "zostają bez autora, bo są tekstem interfejsu, a nie daną o osobie"
+    ),
+    measures=[
+        "tłumacze nie widzą, kto zaproponował cudzą poprawkę ani kto zgłosił błąd",
+        "każda decyzja (nadanie roli, zatwierdzenie, cofnięcie) zostawia wpis w dzienniku zdarzeń "
+        "bez treści zgłoszeń",
+    ],
+)
+
+
 def activities_for(competition=None) -> tuple[ProcessingActivity, ...]:
     """Rejestr **tego** konkursu: czynności wspólne plus te, które wynikają z jego konfiguracji.
 
@@ -1058,6 +1097,8 @@ def activities_for(competition=None) -> tuple[ProcessingActivity, ...]:
         activities = (*activities, SCHOOL_STATISTICS_ACTIVITY)
     if competition is not None and competition.has_feature("stage_time_windows"):
         activities = (*activities, TIME_WINDOWS_ACTIVITY)
+    if competition is not None and len(competition.ui_languages) > 1:
+        activities = (*activities, TRANSLATION_REVIEW_ACTIVITY)
     return activities
 
 

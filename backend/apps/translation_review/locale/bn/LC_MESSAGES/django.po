@@ -1,0 +1,609 @@
+# Przegląd tłumaczeń interfejsu (apps.translation_review, zadanie L10N-01) – Bengali.
+# Napisy tej aplikacji; Django scala ten katalog z katalogiem projektu (backend/locale).
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Olimpiada Kwantowa\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-04 19:12+0200\n"
+"PO-Revision-Date: 2026-10-04 19:30+0200\n"
+"Last-Translator: Olimpiada Kwantowa\n"
+"Language-Team: Bengali\n"
+"Language: bn\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: forms.py:19
+msgid "Pokaż"
+msgstr "দেখান"
+
+#: forms.py:22
+msgid "wszystkie napisy"
+msgstr "সব স্ট্রিং"
+
+#: forms.py:23
+msgid "bez tłumaczenia"
+msgstr "অনূদিত নয়"
+
+#: forms.py:24
+msgid "tłumaczenie maszynowe (nieprzejrzane)"
+msgstr "যান্ত্রিক অনুবাদ (পর্যালোচনা হয়নি)"
+
+#: forms.py:25 templates/translation_review/detail.html:33
+#: templates/translation_review/detail.html:35
+#: templates/translation_review/list.html:50
+msgid "przejrzane"
+msgstr "পর্যালোচিত"
+
+#: forms.py:26
+msgid "z oczekującą propozycją"
+msgstr "অপেক্ষমাণ প্রস্তাবসহ"
+
+#: forms.py:29
+msgid "Szukaj"
+msgstr "খুঁজুন"
+
+#: forms.py:34 templates/translation_review/detail.html:112
+msgid "Twoja propozycja"
+msgstr "আপনার প্রস্তাব"
+
+#: forms.py:38
+msgid "Zatwierdź od razu (recenzent)"
+msgstr "এখনই অনুমোদন করুন (পর্যালোচক)"
+
+#: forms.py:42 forms.py:63
+#: templates/translation_review/coordinator_translators.html:32
+#: templates/translation_review/coordinator_translators.html:41
+msgid "Język"
+msgstr "ভাষা"
+
+#: forms.py:45 templates/translation_review/reports.html:21
+msgid "Napis na stronie"
+msgstr "পৃষ্ঠার লেখা"
+
+#: forms.py:48
+msgid "Skopiuj fragment źle przetłumaczonego tekstu – po nim znajdziemy napis."
+msgstr ""
+"ভুল অনুবাদ করা লেখার একটি অংশ কপি করুন – এর মাধ্যমে আমরা স্ট্রিংটি খুঁজে "
+"পাব।"
+
+#: forms.py:51
+msgid "Co jest nie tak / jak powinno brzmieć"
+msgstr "কী ভুল / কেমন হওয়া উচিত"
+
+#: forms.py:62
+msgid "Adres e-mail konta"
+msgstr "অ্যাকাউন্টের ই-মেইল ঠিকানা"
+
+#: forms.py:64 templates/translation_review/coordinator_translators.html:33
+#: templates/translation_review/coordinator_translators.html:42
+msgid "Poziom"
+msgstr "স্তর"
+
+#: forms.py:69
+msgid "tłumacz – proponuje i głosuje"
+msgstr "অনুবাদক – প্রস্তাব দেন ও ভোট দেন"
+
+#: forms.py:71
+msgid "recenzent – także zatwierdza poprawki"
+msgstr "পর্যালোচক – সংশোধনও অনুমোদন করেন"
+
+#: services.py:146 views.py:56
+msgid "Nie masz uprawnień do tłumaczeń tego języka."
+msgstr "এই ভাষার অনুবাদ করার অনুমতি আপনার নেই।"
+
+#: services.py:201
+msgid "Nie możesz nadawać ról tłumaczy."
+msgstr "আপনি অনুবাদকের ভূমিকা দিতে পারবেন না।"
+
+#: services.py:203
+msgid "Nieznany język."
+msgstr "অজানা ভাষা।"
+
+#: services.py:205
+msgid "Nieznany poziom uprawnień."
+msgstr "অজানা অনুমতির স্তর।"
+
+#: services.py:208
+msgid "Rolę recenzenta tłumaczeń nadaje wyłącznie superkoordynator."
+msgstr "অনুবাদ পর্যালোচকের ভূমিকা শুধু সুপার সমন্বয়ক দিতে পারেন।"
+
+#: services.py:210
+msgid "Ten język nie jest językiem interfejsu tego konkursu."
+msgstr "এই ভাষাটি এই প্রতিযোগিতার ইন্টারফেস ভাষা নয়।"
+
+#: services.py:215
+msgid "Nie znaleziono aktywnego konta z tym adresem w tym konkursie."
+msgstr "এই প্রতিযোগিতায় এই ঠিকানার কোনো সক্রিয় অ্যাকাউন্ট পাওয়া যায়নি।"
+
+#: services.py:244
+msgid "Nie możesz odbierać ról tłumaczy."
+msgstr "আপনি অনুবাদকের ভূমিকা প্রত্যাহার করতে পারবেন না।"
+
+#: services.py:249
+msgid "Tę osobę może zmienić wyłącznie superkoordynator."
+msgstr "এই ব্যক্তির পরিবর্তন শুধু সুপার সমন্বয়ক করতে পারেন।"
+
+#: services.py:434
+msgid "Ta propozycja jest identyczna z obecnym tłumaczeniem."
+msgstr "এই প্রস্তাবটি বর্তমান অনুবাদের মতোই।"
+
+#: services.py:465
+msgid "Na rozstrzygniętą propozycję nie można już głosować."
+msgstr "সিদ্ধান্ত হয়ে যাওয়া প্রস্তাবে আর ভোট দেওয়া যায় না।"
+
+#: services.py:467
+msgid "Nie można głosować na własną propozycję."
+msgstr "নিজের প্রস্তাবে ভোট দেওয়া যায় না।"
+
+#: services.py:500 services.py:537
+msgid "Ta propozycja została już rozstrzygnięta."
+msgstr "এই প্রস্তাবের সিদ্ধান্ত আগেই হয়ে গেছে।"
+
+#: services.py:554
+msgid "Ten napis nie ma jeszcze tłumaczenia – zaproponuj je."
+msgstr "এই স্ট্রিংয়ের এখনো কোনো অনুবাদ নেই – একটি প্রস্তাব দিন।"
+
+#: services.py:557
+msgid "To tłumaczenie jest już przejrzane."
+msgstr "এই অনুবাদটি আগেই পর্যালোচিত হয়েছে।"
+
+#: services.py:614
+msgid "Opisz, co jest nie tak z tłumaczeniem."
+msgstr "অনুবাদে কী ভুল তা বর্ণনা করুন।"
+
+#: services.py:616
+msgid "Zgłoszenie jest za długie."
+msgstr "রিপোর্টটি খুব দীর্ঘ।"
+
+#: templates/translation_review/coordinator_translators.html:8
+#: templates/translation_review/coordinator_translators.html:27
+msgid "Tłumacze"
+msgstr "অনুবাদকগণ"
+
+#: templates/translation_review/coordinator_translators.html:8
+msgid "panel koordynatora"
+msgstr "সমন্বয়ক প্যানেল"
+
+#: templates/translation_review/coordinator_translators.html:9
+msgid "Tłumacze interfejsu"
+msgstr "ইন্টারফেস অনুবাদকগণ"
+
+#: templates/translation_review/coordinator_translators.html:11
+msgid ""
+"Osoby, które mogą przeglądać i poprawiać tłumaczenia napisów serwisu, np. "
+"kierownicy delegacji. Zatwierdzona poprawka działa w całym serwisie."
+msgstr ""
+"যাঁরা সাইটের স্ট্রিংয়ের অনুবাদ পর্যালোচনা ও সংশোধন করতে পারেন, যেমন "
+"প্রতিনিধিদলের প্রধান। অনুমোদিত সংশোধন পুরো সাইটে প্রযোজ্য হয়।"
+
+#: templates/translation_review/coordinator_translators.html:16
+msgid "Nadaj rolę"
+msgstr "ভূমিকা দিন"
+
+#: templates/translation_review/coordinator_translators.html:21
+msgid ""
+"Rolę recenzenta tłumaczeń nadaje superkoordynator. Konto musi należeć do "
+"tego konkursu."
+msgstr ""
+"অনুবাদ পর্যালোচকের ভূমিকা সুপার সমন্বয়ক দেন। অ্যাকাউন্টটি এই প্রতিযোগিতার "
+"হতে হবে।"
+
+#: templates/translation_review/coordinator_translators.html:22
+msgid "Nadaj"
+msgstr "দিন"
+
+#: templates/translation_review/coordinator_translators.html:31
+#: templates/translation_review/coordinator_translators.html:40
+msgid "Konto"
+msgstr "অ্যাকাউন্ট"
+
+#: templates/translation_review/coordinator_translators.html:34
+msgid "Czynności"
+msgstr "কার্যক্রম"
+
+#: templates/translation_review/coordinator_translators.html:42
+#: templates/translation_review/home.html:20
+msgid "recenzent"
+msgstr "পর্যালোচক"
+
+#: templates/translation_review/coordinator_translators.html:42
+msgid "tłumacz"
+msgstr "অনুবাদক"
+
+#: templates/translation_review/coordinator_translators.html:48
+msgid "Odbierz"
+msgstr "প্রত্যাহার করুন"
+
+#: templates/translation_review/coordinator_translators.html:54
+msgid "Nikt nie ma jeszcze roli tłumacza."
+msgstr "এখনো কারও অনুবাদকের ভূমিকা নেই।"
+
+#: templates/translation_review/detail.html:10
+msgid "Napis"
+msgstr "স্ট্রিং"
+
+#: templates/translation_review/detail.html:14
+msgid "Napis do przejrzenia"
+msgstr "পর্যালোচনার জন্য স্ট্রিং"
+
+#: templates/translation_review/detail.html:20
+#: templates/translation_review/list.html:33
+#: templates/translation_review/list.html:42
+msgid "Tekst źródłowy (polski)"
+msgstr "উৎস লেখা (পোলিশ)"
+
+#: templates/translation_review/detail.html:26
+#: templates/translation_review/list.html:35
+#: templates/translation_review/list.html:47
+msgid "Obecne tłumaczenie"
+msgstr "বর্তমান অনুবাদ"
+
+#: templates/translation_review/detail.html:29
+msgid "katalog zmienił się od decyzji – przejrzyj ponownie"
+msgstr "সিদ্ধান্তের পরে ক্যাটালগ বদলেছে – আবার পর্যালোচনা করুন"
+
+#: templates/translation_review/detail.html:31
+msgid "zatwierdzone w serwisie, czeka na przeniesienie do repozytorium"
+msgstr "সাইটে অনুমোদিত, রিপোজিটরিতে স্থানান্তরের অপেক্ষায়"
+
+#: templates/translation_review/detail.html:37
+#: templates/translation_review/list.html:51
+msgid "maszynowe"
+msgstr "যান্ত্রিক"
+
+#: templates/translation_review/detail.html:41
+msgid "Decyzja recenzenta (nieaktualna)"
+msgstr "পর্যালোচকের সিদ্ধান্ত (পুরোনো)"
+
+#: templates/translation_review/detail.html:45
+msgid "Tłumaczenie w katalogu"
+msgstr "ক্যাটালগে থাকা অনুবাদ"
+
+#: templates/translation_review/detail.html:49
+msgid "Forma mnoga"
+msgstr "বহুবচন রূপ"
+
+#: templates/translation_review/detail.html:53
+msgid "Kontekst"
+msgstr "প্রসঙ্গ"
+
+#: templates/translation_review/detail.html:57
+msgid "Uwagi dla tłumacza"
+msgstr "অনুবাদকের জন্য নোট"
+
+#: templates/translation_review/detail.html:60
+msgid "Gdzie występuje"
+msgstr "কোথায় দেখা যায়"
+
+#: templates/translation_review/detail.html:63
+msgid ""
+"Zmienne w nawiasach i znaczniki HTML muszą zostać dokładnie takie, jak w "
+"tekście źródłowym. Zamiast cudzysłowów prostych używaj typograficznych."
+msgstr ""
+"বন্ধনীর ভেতরের চলক ও HTML ট্যাগ উৎস লেখার মতোই হুবহু থাকতে হবে। সোজা "
+"উদ্ধৃতিচিহ্নের বদলে টাইপোগ্রাফিক উদ্ধৃতিচিহ্ন ব্যবহার করুন।"
+
+#: templates/translation_review/detail.html:69
+msgid "Przywróć tłumaczenie z katalogu"
+msgstr "ক্যাটালগের অনুবাদ ফিরিয়ে আনুন"
+
+#: templates/translation_review/detail.html:75
+msgid "Obecne tłumaczenie jest poprawne"
+msgstr "বর্তমান অনুবাদটি সঠিক"
+
+#: templates/translation_review/detail.html:85
+msgid "Zaproponuj poprawkę"
+msgstr "সংশোধন প্রস্তাব করুন"
+
+#: templates/translation_review/detail.html:97
+msgid "Wyślij propozycję"
+msgstr "প্রস্তাব পাঠান"
+
+#: templates/translation_review/detail.html:104
+msgid "Propozycje"
+msgstr "প্রস্তাবসমূহ"
+
+#: templates/translation_review/detail.html:110
+msgid "czeka na recenzenta"
+msgstr "পর্যালোচকের অপেক্ষায়"
+
+#: templates/translation_review/detail.html:110
+msgid "zatwierdzona"
+msgstr "অনুমোদিত"
+
+#: templates/translation_review/detail.html:110
+msgid "odrzucona"
+msgstr "প্রত্যাখ্যাত"
+
+#: templates/translation_review/detail.html:110
+msgid "zastąpiona"
+msgstr "প্রতিস্থাপিত"
+
+#: templates/translation_review/detail.html:111
+msgid "głosy"
+msgstr "ভোট"
+
+#: templates/translation_review/detail.html:112
+msgid "inny tłumacz"
+msgstr "অন্য অনুবাদক"
+
+#: templates/translation_review/detail.html:122
+msgid "Cofnij głos"
+msgstr "ভোট প্রত্যাহার করুন"
+
+#: templates/translation_review/detail.html:122
+msgid "Popieram"
+msgstr "আমি সমর্থন করি"
+
+#: templates/translation_review/detail.html:129
+msgid "Zatwierdź"
+msgstr "অনুমোদন করুন"
+
+#: templates/translation_review/detail.html:134
+msgid "Odrzuć"
+msgstr "প্রত্যাখ্যান করুন"
+
+#: templates/translation_review/detail.html:141
+msgid "Nikt jeszcze nie zaproponował poprawki tego napisu."
+msgstr "এই স্ট্রিংয়ের জন্য এখনো কেউ সংশোধন প্রস্তাব করেননি।"
+
+#: templates/translation_review/home.html:7
+#: templates/translation_review/home.html:11
+msgid "Tłumaczenia interfejsu"
+msgstr "ইন্টারফেসের অনুবাদ"
+
+#: templates/translation_review/home.html:10
+#: templates/translation_review/list.html:12
+#: templates/translation_review/report.html:10
+msgid "Tłumaczenia"
+msgstr "অনুবাদ"
+
+#: templates/translation_review/home.html:12
+msgid ""
+"Sprawdź tłumaczenia napisów serwisu w swoim języku i zaproponuj poprawki. "
+"Tekst źródłowy jest po polsku; obok widzisz wersję angielską."
+msgstr ""
+"আপনার ভাষায় সাইটের স্ট্রিংয়ের অনুবাদ যাচাই করুন এবং সংশোধন প্রস্তাব করুন। "
+"উৎস লেখা পোলিশে; পাশে ইংরেজি সংস্করণ দেখানো হয়।"
+
+#: templates/translation_review/home.html:21
+#: templates/translation_review/home.html:26
+msgid "Oczekujące propozycje"
+msgstr "অপেক্ষমাণ প্রস্তাব"
+
+#: templates/translation_review/home.html:25
+msgid "Przeglądaj napisy"
+msgstr "স্ট্রিং দেখুন"
+
+#: templates/translation_review/home.html:28
+#: templates/translation_review/reports.html:9
+msgid "Zgłoszenia"
+msgstr "রিপোর্টসমূহ"
+
+#: templates/translation_review/list.html:9
+#: templates/translation_review/list.html:29
+msgid "Napisy"
+msgstr "স্ট্রিং"
+
+#: templates/translation_review/list.html:14
+msgid ""
+"Kliknij napis, żeby zobaczyć kontekst, zaproponować poprawkę albo zagłosować "
+"na cudzą."
+msgstr ""
+"প্রসঙ্গ দেখতে, সংশোধন প্রস্তাব করতে বা অন্যের প্রস্তাবে ভোট দিতে কোনো "
+"স্ট্রিংয়ে ক্লিক করুন।"
+
+#: templates/translation_review/list.html:21
+msgid "Filtruj"
+msgstr "ফিল্টার করুন"
+
+#: templates/translation_review/list.html:22
+msgid "Wyczyść"
+msgstr "মুছুন"
+
+#: templates/translation_review/list.html:25
+msgid "Znalezione napisy"
+msgstr "পাওয়া স্ট্রিং"
+
+#: templates/translation_review/list.html:36
+#: templates/translation_review/list.html:48
+msgid "Stan"
+msgstr "অবস্থা"
+
+#: templates/translation_review/list.html:44
+msgid "forma"
+msgstr "রূপ"
+
+#: templates/translation_review/list.html:49
+msgid "do ponownego przeglądu"
+msgstr "পুনরায় পর্যালোচনার জন্য"
+
+#: templates/translation_review/list.html:52
+msgid "brak"
+msgstr "নেই"
+
+#: templates/translation_review/list.html:53
+msgid "propozycje"
+msgstr "প্রস্তাব"
+
+#: templates/translation_review/list.html:57
+msgid "Brak napisów spełniających filtr."
+msgstr "ফিল্টারের সঙ্গে মেলে এমন কোনো স্ট্রিং নেই।"
+
+#: templates/translation_review/list.html:65
+msgid "Poprzednia"
+msgstr "আগের"
+
+#: templates/translation_review/list.html:67
+#, python-format
+msgid "Strona %(number)s z %(pages)s"
+msgstr "পৃষ্ঠা %(number)s / %(pages)s"
+
+#: templates/translation_review/list.html:69
+msgid "Następna"
+msgstr "পরের"
+
+#: templates/translation_review/report.html:7
+#: templates/translation_review/report.html:11
+#: templatetags/translation_review.py:37
+msgid "Zgłoś tłumaczenie"
+msgstr "অনুবাদ রিপোর্ট করুন"
+
+#: templates/translation_review/report.html:12
+msgid ""
+"Napisz, który napis jest źle przetłumaczony i jak powinien brzmieć. "
+"Recenzent tłumaczeń Twojego języka poprawi go dla wszystkich."
+msgstr ""
+"কোন লেখাটি ভুল অনুবাদ হয়েছে এবং তা কেমন হওয়া উচিত লিখুন। আপনার ভাষার "
+"অনুবাদ পর্যালোচক সবার জন্য তা ঠিক করে দেবেন।"
+
+#: templates/translation_review/report.html:16
+#: templates/translation_review/reports.html:19
+msgid "Strona"
+msgstr "পৃষ্ঠা"
+
+#: templates/translation_review/report.html:30
+msgid "Wyślij zgłoszenie"
+msgstr "রিপোর্ট পাঠান"
+
+#: templates/translation_review/reports.html:13
+msgid "Zgłoszenia tłumaczeń"
+msgstr "অনুবাদ রিপোর্ট"
+
+#: templates/translation_review/reports.html:22
+msgid "szukaj na liście"
+msgstr "তালিকায় খুঁজুন"
+
+#: templates/translation_review/reports.html:24
+msgid "Uwaga"
+msgstr "মন্তব্য"
+
+#: templates/translation_review/reports.html:29
+msgid "Zamknij zgłoszenie"
+msgstr "রিপোর্ট বন্ধ করুন"
+
+#: templates/translation_review/reports.html:33
+msgid "Nie ma otwartych zgłoszeń."
+msgstr "কোনো খোলা রিপোর্ট নেই।"
+
+#: validation.py:110
+msgid "Tłumaczenie nie może być puste."
+msgstr "অনুবাদ খালি হতে পারে না।"
+
+#: validation.py:121
+#, python-format
+msgid "Tłumaczenie jest za długie (najwyżej %(limit)d znaków)."
+msgstr "অনুবাদটি খুব দীর্ঘ (সর্বোচ্চ %(limit)d অক্ষর)।"
+
+#: validation.py:125
+msgid "Tłumaczenie zawiera niedozwolony znak sterujący kierunkiem tekstu."
+msgstr "অনুবাদে লেখার দিক নিয়ন্ত্রণের একটি নিষিদ্ধ অক্ষর আছে।"
+
+#: validation.py:129
+msgid "nowa linia"
+msgstr "নতুন লাইন"
+
+#: validation.py:129
+msgid "tabulator"
+msgstr "ট্যাব"
+
+#: validation.py:130
+#, python-format
+msgid "Niedozwolony znak sterujący: %(char)s."
+msgstr "নিষিদ্ধ নিয়ন্ত্রণ অক্ষর: %(char)s।"
+
+#: validation.py:134 validation.py:150 validation.py:156
+msgid "(brak)"
+msgstr "(কিছু নেই)"
+
+#: validation.py:136
+#, python-format
+msgid ""
+"Znaczniki HTML muszą być dokładnie takie, jak w tekście źródłowym: %(tags)s"
+msgstr "HTML ট্যাগ হুবহু উৎস লেখার মতো হতে হবে: %(tags)s"
+
+#: validation.py:141
+msgid ""
+"Znak „<” poza znacznikiem z tekstu źródłowego może stać tylko przed spacją "
+"albo cyfrą."
+msgstr ""
+"উৎস লেখার ট্যাগের বাইরে “<” অক্ষরটি কেবল ফাঁকা স্থান বা অঙ্কের আগে বসতে "
+"পারে।"
+
+#: validation.py:145
+#, python-format
+msgid ""
+"Użyj cudzysłowów typograficznych (np. “…”, «…», „…”) zamiast znaku %(char)s."
+msgstr ""
+"%(char)s অক্ষরের বদলে টাইপোগ্রাফিক উদ্ধৃতিচিহ্ন (যেমন “…”, «…», „…”) "
+"ব্যবহার করুন।"
+
+#: validation.py:152 validation.py:158
+#, python-format
+msgid ""
+"Tłumaczenie musi zawierać te same zmienne, co tekst źródłowy: "
+"%(placeholders)s"
+msgstr "অনুবাদে উৎস লেখার মতো একই চলক থাকতে হবে: %(placeholders)s"
+
+#: validation.py:166
+msgid ""
+"Ten napis ma kilka zmiennych bez nazw – jego tłumaczenie można poprawić "
+"tylko w repozytorium; zgłoś je ze stopki."
+msgstr ""
+"এই স্ট্রিংয়ে কয়েকটি নামহীন চলক আছে – এর অনুবাদ শুধু রিপোজিটরিতে ঠিক করা "
+"যায়; ফুটার থেকে রিপোর্ট করুন।"
+
+#: validation.py:173
+msgid ""
+"Znaki procentu i nawiasów klamrowych mają w tym napisie znaczenie techniczne "
+"– zapisz je dokładnie tak, jak w tekście źródłowym."
+msgstr ""
+"এই স্ট্রিংয়ে শতাংশ চিহ্ন ও কোঁকড়া বন্ধনীর কারিগরি অর্থ আছে – এগুলো হুবহু "
+"উৎস লেখার মতো লিখুন।"
+
+#: views.py:78 views.py:225
+msgid "Twoje konto nie ma roli tłumacza."
+msgstr "আপনার অ্যাকাউন্টে অনুবাদকের ভূমিকা নেই।"
+
+#: views.py:159
+msgid "Propozycja została zapisana."
+msgstr "প্রস্তাবটি সংরক্ষিত হয়েছে।"
+
+#: views.py:171
+msgid "Tłumaczenie zatwierdzone – działa w serwisie w ciągu kilku sekund."
+msgstr "অনুবাদ অনুমোদিত – কয়েক সেকেন্ডের মধ্যে সাইটে দেখা যাবে।"
+
+#: views.py:175
+msgid "Propozycja została odrzucona."
+msgstr "প্রস্তাবটি প্রত্যাখ্যাত হয়েছে।"
+
+#: views.py:178
+msgid "Tłumaczenie oznaczone jako przejrzane."
+msgstr "অনুবাদটি পর্যালোচিত হিসেবে চিহ্নিত হয়েছে।"
+
+#: views.py:181
+msgid "Przywrócono tłumaczenie z katalogu."
+msgstr "ক্যাটালগের অনুবাদ ফিরিয়ে আনা হয়েছে।"
+
+#: views.py:204
+msgid "Zgłoszenia przegląda recenzent tłumaczeń."
+msgstr "রিপোর্টগুলো অনুবাদ পর্যালোচক দেখেন।"
+
+#: views.py:215
+msgid "Zgłoszenie zamknięte."
+msgstr "রিপোর্ট বন্ধ করা হয়েছে।"
+
+#: views.py:257
+msgid "Dziękujemy – recenzent tłumaczeń zobaczy zgłoszenie."
+msgstr "ধন্যবাদ – অনুবাদ পর্যালোচক আপনার রিপোর্ট দেখবেন।"
+
+#: views.py:313
+msgid "Rola tłumacza została odebrana."
+msgstr "অনুবাদকের ভূমিকা প্রত্যাহার করা হয়েছে।"
+
+#: views.py:330
+msgid "Rola tłumacza została nadana."
+msgstr "অনুবাদকের ভূমিকা দেওয়া হয়েছে।"

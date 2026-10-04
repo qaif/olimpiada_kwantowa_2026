@@ -15,6 +15,19 @@ from apps.core.points import format_points, input_value
 
 register = template.Library()
 
+
+@register.simple_tag(takes_context=True)
+def translation_report_url(context) -> str:
+    """Adres „Zgłoś tłumaczenie” (L10N-01) dla tego żądania albo pusty napis – sam tekst, bez HTML-a.
+
+    W ``web_extras``, bo tylko ta biblioteka (a nie ``translation_review``) jest dozwolona w szablonach
+    paczek motywów (``apps.themes.slots``); odnośnik rysuje fragment ``web/_translation_report_link.html``.
+    """
+    from apps.translation_review.templatetags.translation_review import report_url
+
+    return report_url(context.get("request"))
+
+
 #: Mapa kodu stanu → „ton” wizualny odznaki. Wyłącznie prezentacja: nazwy stanów pochodzą
 #: z ``TextChoices`` modeli (SubmissionStatus, AvStatus, ReviewStatus, StageEntryStatus,
 #: AppealStatus, CommitteeStatus), a szablon nie podejmuje na ich podstawie żadnej decyzji poza

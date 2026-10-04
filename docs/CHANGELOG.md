@@ -79,9 +79,44 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
 - **Poufność:** źródło tylko w oknie i tylko dla opiekunów z delegacją w bieżącej edycji, `no-store`,
   audyt każdego wglądu i pobrania, znak wodny kraju na PDF-ach opiekunów.
 - **Wspólne:** obraz kompiluje katalogi tłumaczeń aplikacji (`apps/*/locale`), test katalogów obejmuje
-  je; scope throttlingu `translation`; rejestr czynności 1.12; sekcja `tlumaczenia_zadan` w eksporcie
+  je; scope throttlingu `translation`; rejestr czynności 1.13; sekcja `tlumaczenia_zadan` w eksporcie
   danych konta. Dokumentacja: `docs/tasks/TR-01.md`, `OPERACJE.md` § 34,
   `PODRECZNIK-ORGANIZATORA.md` § 10g, `PODRECZNIK-OPIEKUNA-DRUZYNY.md` § 6, `PODRECZNIK-UCZESTNIKA.md` § 3.
+
+## [Unreleased] – Przegląd tłumaczeń przez native speakerów (L10N-01)
+
+- **Panel tłumacza** `/translations/` (nowa aplikacja `apps.translation_review`): napisy jednego języka
+  z katalogu projektu i katalogów aplikacji – tekst polski, angielski jako odniesienie, obecne
+  tłumaczenie, kontekst z `.po` (miejsca w kodzie, uwagi, `msgctxt`, formy mnogie); filtry
+  „bez tłumaczenia / maszynowe / przejrzane / z propozycją”, wyszukiwanie, propozycje z głosami
+  (anonimowe wobec innych tłumaczy), decyzje recenzenta (zatwierdź, odrzuć, potwierdź, cofnij).
+- **Role:** tłumacz (nadaje koordynator konkursu z >1 językiem interfejsu, tylko osobom z konkursu –
+  `/coordinator/translators/`) i recenzent tłumaczeń (wyłącznie superkoordynator). Superkoordynator
+  jest recenzentem każdego języka.
+- **Nakładka w czasie działania:** zatwierdzone tłumaczenie wchodzi do gettext jako pierwszy katalog
+  (`trans_real.translation` owinięte w `ready()`); w cache'u sam numer wersji per język, każdy proces
+  przebudowuje nakładkę z bazy po zmianie wersji (≤ 5 s), bufor stron gości czyszczony przy zmianie;
+  `TRANSLATION_OVERRIDES_ENABLED` wyłącza bez wydania. Potwierdzenia („obecne jest dobre”) nigdy nie
+  trafiają do gettext, a poprawka podjęta wobec starszego `msgstr` ustępuje nowemu tekstowi z wydania
+  (znacznik „do ponownego przeglądu”; migracja `translation_review.0002`).
+- **Zasięg nadania:** rola nadana przez koordynatora należy do jego konkursu (widzą ją i odbierają
+  wszyscy koordynatorzy konkursu) i działa tylko, dopóki osoba jest z konkursem związana; koordynator
+  nadaje tylko w językach interfejsu swojego konkursu.
+- **Bezpieczeństwo poprawek:** tłumaczenie to zwykły tekst – te same placeholdery, **dokładnie** te same
+  znaczniki HTML co w `msgid`, żadnego nowego `<`/`>` ani prostego cudzysłowu (napisy bywają
+  w atrybutach, a `{% translate %}` nie escapuje), bez znaków sterujących i bidi override; ponowna
+  walidacja przy zatwierdzeniu i przy imporcie z JSON-a.
+- **`manage.py export_translations`:** nakładki → `msgstr` w `.po` (diff wyłącznie poprawionych wpisów +
+  `# l10n-reviewed`; potwierdzenie – sam znacznik; konflikt, gdy katalog zmienił się od decyzji),
+  `--to-json`/`--from-json` (produkcja bez gita), zapis do `.po` tylko w checkoucie (`DEBUG` + `.git`,
+  inaczej `--force`), `--prune` dopiero gdy tekst jest w skompilowanym `.mo`, `--prune-stale`,
+  `--dry-run` (`docs/OPERACJE.md` § 33).
+- **„Zgłoś tłumaczenie” w stopce** dla zalogowanego tłumacza (konkurs wielojęzyczny, strona nie po
+  polsku): ścieżka strony bez parametrów + fraza + uwaga; lista zgłoszeń dla recenzenta.
+- **Audyt** `translation.*`, throttling `translations` (120/h na konto), rejestr czynności **1.11**
+  (wiersz warunkowy „Przegląd tłumaczeń interfejsu”), sekcja `tlumaczenia` w eksporcie danych konta,
+  anonimizacja usuwa rolę, głosy i zgłoszenia. Obraz i testy kompilują teraz także katalogi aplikacji
+  (`apps/*/locale`). Ocena wariantu Weblate: `docs/tasks/L10N-01.md` § 1.
 
 ## [Unreleased] – Motywy wizualne wgrywane paczkami (THEME-01)
 
