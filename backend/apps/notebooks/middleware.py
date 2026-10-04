@@ -54,6 +54,7 @@ class NotebookLabRequestGuardMiddleware:
                 )
             ):
                 return HttpResponseForbidden(
-                    "Requests from the notebook lab to the platform are not allowed.", content_type="text/plain"
+                    "Requests from the notebook lab to the platform are not allowed.",
+                    content_type="text/plain",
                 )
         return self.get_response(request)

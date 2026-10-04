@@ -13,7 +13,8 @@
     <dt>{% translate "Zadanie" %}</dt><dd>{{ problem.number }}. {{ problem.display_title }}</dd>
     {% if run.submission %}
       <dt>{% translate "Kod uczestnika" %}</dt><dd>{{ run.submission.entry.participant.public_code }}</dd>
-      <dt>{% translate "Wersja pracy" %}</dt><dd>{{ run.submission.version }}</dd>
+      <dt>{% translate "Wersja pracy" %}</dt><dd>{{ run.submission.version }}
+        <a class="btn btn--ghost btn--small" href="{% url 'web:notebook-submission-view' run.submission.pk %}">{% translate "Podgląd notatnika (tylko do odczytu)" %}</a></dd>
     {% else %}
       <dt>{% translate "Rodzaj" %}</dt><dd>{% translate "rozwiązanie wzorcowe" %}</dd>
     {% endif %}

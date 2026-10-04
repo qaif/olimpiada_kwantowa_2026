@@ -32,6 +32,8 @@ def notebook_card_panel(context, row, stage=None):
         "show": True,
         "task": task,
         "problem": problem,
+        # Konto z rolą personelu nie dostaje laboratorium (``services.has_staff_role``).
+        "staff": services.request_has_staff_role(request),
         "opened": problem.stage.has_opened(),
         "run": run,
         "transfer_mb": lab.transfer_megabytes(),
@@ -51,6 +53,7 @@ def notebook_review_panel(context, submission):
     return {
         "show": True,
         "task": task,
+        "submission": submission,
         "run": run,
         "error": services.error_text(run.error_code) if run is not None and run.error_code else "",
     }

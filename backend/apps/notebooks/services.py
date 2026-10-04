@@ -39,6 +39,9 @@ IPYNB_MIME = "application/x-ipynb+json"
 RUNNER_GRACE_SECONDS = 60
 #: Przebieg ``RUNNING`` starszy niż to jest zgubiony (restart workera między wysyłką a odbiorem).
 STALE_RUNNING = timedelta(minutes=15)
+#: Przebieg ``PENDING`` starszy niż to nie ma kto podjąć: brak workera kolejki ``notebooks``
+#: (usługa ``notebook-worker`` w profilu compose ``notebooks`` nie działa).
+STALE_PENDING = timedelta(minutes=30)
 MAX_SUBMISSION_BYTES = 25 * 1024 * 1024
 OUTPUT_TAIL_CHARS = 4000
 
@@ -246,6 +249,14 @@ def pump(now=None) -> dict[str, int]:
     )
     for run_id in stale:
         mark_error(run_id, "runner_timeout")
+    orphaned = list(
+        NotebookRun.objects.filter(
+            status=RunStatus.PENDING, requested_at__lt=now - STALE_PENDING
+        ).values_list("pk", flat=True)
+    )
+    for run_id in orphaned:
+        mark_error(run_id, "runner_unavailable")
+    stale = [*stale, *orphaned]
     tasks = [
         task
         for task in NotebookTask.objects.filter(mode=NotebookMode.AUTOGRADED).select_related(
@@ -270,6 +281,19 @@ def pump(now=None) -> dict[str, int]:
     for item in candidates:
         submission = item.submission
         if latest.get((submission.entry_id, submission.problem_id)) != submission.version:
+            # Starsza wersja: wiersz ``SUPERSEDED`` raz na zawsze – inaczej beat przeglądałby ten plik
+            # co minutę do końca edycji (zapytanie wyklucza wyłącznie pliki, które mają przebieg).
+            NotebookRun.objects.get_or_create(
+                submission_file=item,
+                is_reference=False,
+                defaults={
+                    "competition_id": submission.competition_id,
+                    "task": by_problem[submission.problem_id],
+                    "submission": submission,
+                    "status": RunStatus.SUPERSEDED,
+                    "finished_at": now,
+                },
+            )
             continue
         task = by_problem[submission.problem_id]
         with transaction.atomic():
@@ -305,6 +329,59 @@ def mark_error(run_id: int, code: str, detail: str = "") -> None:
         error_message=(detail or ERROR_MESSAGES.get(code, ERROR_MESSAGES["error"]))[:500],
         finished_at=timezone.now(),
     )
+
+
+def has_staff_role(user) -> bool:
+    """Czy konto ma **jakąkolwiek** rolę personelu – w dowolnym konkursie i w instalacji (M4).
+
+    Laboratorium wykonuje kod z notatnika w domenie serwisu, z sesją osoby, która je otworzyła.
+    Dla uczestnika to „self-XSS” (szkodzi sobie), dla koordynatora czy recenzenta – droga do jego
+    uprawnień (np. przez podesłany notatnik „do sprawdzenia”). Dlatego laboratorium dostaje wyłącznie
+    konto bez żadnej roli personelu; personel ogląda notatniki w podglądzie tylko do odczytu
+    (``apps.notebooks.render``). Reguła jest szeroka celowo: rola w **innym** konkursie też się liczy,
+    bo sesja jest jedna na całą instalację.
+    """
+    from apps.accounts.models import GROUP_PARTICIPANT, CompetitionRole, Membership
+
+    if not getattr(user, "is_authenticated", False):
+        return False
+    if user.is_superuser or user.is_staff:
+        return True
+    if user.groups.exclude(name=GROUP_PARTICIPANT).exists():
+        return True
+    if Membership.objects.filter(user=user).exclude(role=CompetitionRole.PARTICIPANT).exists():
+        return True
+    # Opiekun drużyny (DEL-01) – także odwołany z delegacji: konto miało dostęp do danych uczniów.
+    if user.delegation_leaderships.exists():
+        return True
+    return any(hasattr(user, name) for name in ("committee_member", "school_supervisor"))
+
+
+def request_has_staff_role(request) -> bool:
+    """``has_staff_role`` liczone raz na żądanie (karta zadania wstawia panel w każdym wierszu)."""
+    if request is None:
+        return False
+    cached = getattr(request, "_notebook_staff_role", None)
+    if cached is None:
+        cached = has_staff_role(getattr(request, "user", None))
+        request._notebook_staff_role = cached
+    return cached
+
+
+def read_submission_notebook(file: SubmissionFile | None) -> dict:
+    """Notatnik z pliku pracy (czysty skan, limit rozmiaru) – ``NotebookError``, gdy się nie da."""
+    if file is None or not file.object_key or file.av_status != AvStatus.CLEAN:
+        raise notebook_io.NotebookError("file not available")
+    stream = get_submission_storage().open(file.object_key)
+    try:
+        data = stream.read(MAX_SUBMISSION_BYTES + 1)
+    finally:
+        close = getattr(stream, "close", None)
+        if callable(close):
+            close()
+    if len(data) > MAX_SUBMISSION_BYTES:
+        raise notebook_io.NotebookError("too large")
+    return notebook_io.load(data)
 
 
 def _read_notebook(run: NotebookRun) -> dict:

@@ -7,7 +7,12 @@
 <div class="notebook-panel card card--quiet">
   <p class="mt-0"><strong>{% translate "Notatnik w przeglądarce" %}</strong>
     {% if task.is_autograded %}<span class="badge badge--info">{% translate "sprawdzanie automatyczne" %}</span>{% endif %}</p>
-  {% if opened %}
+  {% if opened and staff %}
+    <p class="actions">
+      <a class="btn btn--secondary btn--small" href="{% url 'web:participant-notebook' problem.pk %}">{% translate "Podgląd notatnika (tylko do odczytu)" %}</a>
+    </p>
+    <p class="hint">{% translate "Twoje konto ma rolę personelu, więc laboratorium (wykonywanie kodu w przeglądarce) jest dla niego wyłączone. Do rozwiązywania zadań używaj osobnego konta uczestnika." %}</p>
+  {% elif opened %}
     <p class="actions">
       <a class="btn btn--primary btn--small" href="{% url 'web:participant-notebook' problem.pk %}">{% translate "Otwórz notatnik" %}</a>
     </p>

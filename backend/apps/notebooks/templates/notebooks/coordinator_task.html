@@ -19,6 +19,8 @@
 {% block panel_actions %}
   {% if task %}
     <a class="btn btn--secondary btn--small" href="{% url 'web:coordinator-notebook-starter' problem.pk %}">{% translate "Pobierz notatnik jak uczestnik" %}</a>
+    <a class="btn btn--secondary btn--small" href="{% url 'web:coordinator-notebook-view' problem.pk 'starter' %}">{% translate "Podgląd notatnika (tylko do odczytu)" %}</a>
+    {% if task.reference_notebook %}<a class="btn btn--ghost btn--small" href="{% url 'web:coordinator-notebook-view' problem.pk 'reference' %}">{% translate "Notatnik wzorcowy – podgląd" %}</a>{% endif %}
     {% if task.is_autograded %}<a class="btn btn--secondary btn--small" href="{% url 'web:coordinator-notebook-results' problem.pk %}">{% translate "Wyniki prac" %}</a>{% endif %}
   {% endif %}
 {% endblock %}

@@ -3,13 +3,14 @@
 from django.urls import path
 
 from apps.medals.urls import urlpatterns as medal_urlpatterns  # MED-01
+
+# Notatniki kwantowe (QC-01) – wzorce w module aplikacji, rozwinięte na końcu listy.
+from apps.notebooks.urls import urlpatterns as notebook_urlpatterns
 from apps.payments.urls import urlpatterns as payment_urlpatterns
 from apps.problem_translations.urls import urlpatterns as translation_urlpatterns
 
 # Statystyki szkół (STAT-01) – widoki mieszkają w nowej aplikacji, montaż jak u pozostałych wydań.
 from apps.school_stats.urls import urlpatterns as school_stats_urlpatterns
-# Notatniki kwantowe (QC-01) – wzorce w module aplikacji, rozwinięte na końcu listy.
-from apps.notebooks.urls import urlpatterns as notebook_urlpatterns
 
 # Wzorce ekranów wydań E–K stoją w osobnych modułach, bo powstały równolegle (T11, T13, T20, T23,
 # T27, T34, T42), a ten plik ma w etapie 2 **jednego** właściciela na wydanie

@@ -256,9 +256,18 @@ def _build(module_circuit, spec, n):
     return qc
 
 
+#: Testy zgodności z **prawdziwym** Qiskit (L3). Qiskit nie jest zależnością projektu (ani runtime,
+#: ani ``dev`` – to kilkadziesiąt MB z rozszerzeniem w Rust), więc w CI te testy są pominięte z tym
+#: komunikatem, a nie po cichu. Uruchamia się je w obrazie z doinstalowanym ``qiskit`` przy każdej
+#: zmianie ``qclab`` (docs/TESTY.md, QC-01 § 9).
+REAL_QISKIT_SKIP = (
+    "QISKIT-PARITY: brak pakietu qiskit – zgodność z prawdziwym Qiskit NIESPRAWDZONA (QC-01 § 9)"
+)
+
+
 @pytest.mark.parametrize("seed", range(12))
 def test_parity_statevector_with_real_qiskit(seed):
-    qiskit = pytest.importorskip("qiskit")
+    qiskit = pytest.importorskip("qiskit", reason=REAL_QISKIT_SKIP)
     from qiskit.quantum_info import Statevector as QStatevector
 
     n = 2 + seed % 3
@@ -269,7 +278,7 @@ def test_parity_statevector_with_real_qiskit(seed):
 
 
 def test_parity_counts_keys_with_real_qiskit():
-    qiskit = pytest.importorskip("qiskit")
+    qiskit = pytest.importorskip("qiskit", reason=REAL_QISKIT_SKIP)
     from qiskit.providers.basic_provider import BasicSimulator as QBasic
 
     def build(cls, creg_cls, qreg_cls):
@@ -291,7 +300,7 @@ def test_parity_counts_keys_with_real_qiskit():
 
 
 def test_parity_qft_and_depth_with_real_qiskit():
-    pytest.importorskip("qiskit")
+    pytest.importorskip("qiskit", reason=REAL_QISKIT_SKIP)
     from qiskit.circuit.library import QFT as QQFT
     from qiskit.quantum_info import Operator as QOperator
 

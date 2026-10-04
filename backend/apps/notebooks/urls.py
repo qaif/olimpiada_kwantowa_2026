@@ -33,7 +33,16 @@ urlpatterns = [
         views.NotebookRunDetailView.as_view(),
         name="coordinator-notebook-run",
     ),
+    path(
+        "coordinator/notebooks/problems/<int:pk>/view/<slug:kind>/",
+        views.TaskNotebookView.as_view(),
+        name="coordinator-notebook-view",
+    ),
     path("me/notebooks/<int:pk>/", views.ParticipantLabView.as_view(), name="participant-notebook"),
+    # Podgląd pracy .ipynb tylko do odczytu (personel; widoczność jak przy pobraniu pliku).
+    path(
+        "review/notebooks/<int:pk>/", views.SubmissionNotebookView.as_view(), name="notebook-submission-view"
+    ),
     # Bez prefiksu konkursu i z tokenem – patrz ``ParticipantStarterView`` i polityka laboratorium.
     path(
         "notebook-starter/<str:token>/<str:filename>",

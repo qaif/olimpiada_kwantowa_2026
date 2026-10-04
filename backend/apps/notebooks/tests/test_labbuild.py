@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
 import sys
 import zipfile
@@ -124,6 +125,10 @@ def test_caddyfile_sends_the_same_lab_policy():
     if not caddyfile.exists():
         caddyfile = Path("/deploy/Caddyfile")
     if not caddyfile.exists():
+        if os.environ.get("CI"):
+            pytest.fail(
+                "deploy/Caddyfile nie znaleziony w CI – test zgodności polityki nie może być pominięty"
+            )
         pytest.skip("deploy/Caddyfile poza zasięgiem testu (obraz z samym backendem)")
     text = caddyfile.read_text(encoding="utf-8")
     block = re.search(r"^\(notebook_lab\) \{\n(.*?)\n\}", text, re.S | re.M)
@@ -147,3 +152,27 @@ def test_lite_config_keeps_everything_local():
     assert kernel["disablePyPIFallback"] is True
     assert not kernel["pyodideUrl"].startswith("http")
     assert config["jupyter-config-data"]["contentsStorageName"]
+
+
+def _wheel(path: Path, metadata: str) -> Path:
+    with zipfile.ZipFile(path, "w") as archive:
+        archive.writestr("pkg-1.0.dist-info/METADATA", metadata)
+    return path
+
+
+def test_licence_list_is_complete_or_the_build_stops(tmp_path, monkeypatch):
+    """L5: manifest wymienia licencję **każdego** koła; koło bez licencji zatrzymuje budowę."""
+    site = tmp_path / "site"
+    site.mkdir()
+    _wheel(site / "alpha-1.0-py3-none-any.whl", "Name: alpha\nLicense-Expression: MIT\n\nbody")
+    _wheel(
+        site / "beta_pkg-2.0-py3-none-any.whl",
+        "Name: beta\nClassifier: License :: OSI Approved :: BSD License\n",
+    )
+    _wheel(site / "gamma-1.0-py3-none-any.whl", "Name: gamma\nLicense: Apache-2.0\n")
+    assert build.licences_of(site) == {"alpha": "MIT", "beta-pkg": "BSD License", "gamma": "Apache-2.0"}
+    _wheel(site / "delta-1.0-py3-none-any.whl", "Name: delta\nLicense: UNKNOWN\n")
+    with pytest.raises(RuntimeError, match="delta"):
+        build.licences_of(site)
+    monkeypatch.setitem(build.CONFIG, "licence_overrides", {"delta": "BSD-3-Clause"})
+    assert build.licences_of(site)["delta"] == "BSD-3-Clause"

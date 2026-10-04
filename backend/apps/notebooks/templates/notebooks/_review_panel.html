@@ -1,9 +1,12 @@
 {% load i18n %}{% if show %}{% comment %}
   Panel recenzenta (tag ``notebook_review_panel``): punkty za testy ukryte tej wersji pracy.
   Bez danych uczestnika – anonimowość recenzji zostaje. Podpowiedź, nie ocena (QC-01 § 0).
+  Bez szczegółowych komunikatów testów (różnice, limity bramek) – te widzi wyłącznie koordynator
+  (QC-01 § 7, L2): recenzent ocenia pracę, a nie odtwarza testy ukryte.
 {% endcomment %}
 <details class="card card--quiet" open>
   <summary><strong>{% translate "Testy automatyczne (notatnik)" %}</strong></summary>
+  <p><a class="btn btn--secondary btn--small" href="{% url 'web:notebook-submission-view' submission.pk %}">{% translate "Podgląd notatnika (tylko do odczytu)" %}</a></p>
   {% if run is None %}
     <p class="hint">{% translate "Ta wersja pracy nie została jeszcze sprawdzona testami." %}</p>
   {% elif run.status == "DONE" %}
@@ -12,13 +15,12 @@
     {% endblocktranslate %}</p>
     <div class="scroll">
       <table class="table">
-        <thead><tr><th>{% translate "Test" %}</th><th>{% translate "Punkty" %}</th><th>{% translate "Komunikat" %}</th></tr></thead>
+        <thead><tr><th>{% translate "Test" %}</th><th>{% translate "Punkty" %}</th></tr></thead>
         <tbody>
           {% for item in run.results %}
             <tr>
               <td>{% if item.passed %}✔{% else %}✘{% endif %} {{ item.name }}</td>
               <td class="num">{{ item.points|floatformat:"-2" }} / {{ item.max_points|floatformat:"-2" }}</td>
-              <td>{{ item.message }}</td>
             </tr>
           {% endfor %}
         </tbody>

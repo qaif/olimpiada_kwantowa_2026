@@ -18,7 +18,7 @@ from apps.notebooks.models import NotebookMode, NotebookRun, NotebookTask
 from apps.tenancy.tests.factories import grant_membership
 from apps.web.middleware import NOTEBOOK_LAB_HEADERS, build_notebook_lab_policy
 
-from .conftest import GOOD, HIDDEN_SENTINEL, HIDDEN_TESTS, VISIBLE_TESTS, enable, submit
+from .conftest import GOOD, HIDDEN_SENTINEL, HIDDEN_TESTS, VISIBLE_TESTS, WRONG, enable, notebook, submit
 
 pytestmark = pytest.mark.django_db
 
@@ -302,6 +302,9 @@ def test_reviewer_panel_shows_points(
     html = response.content.decode()
     assert "Testy automatyczne" in html and "Stan Bella" in html
     assert participant.user.email not in html
+    # L2: recenzent widzi punkty i nazwy testów, bez komunikatów (różnic, limitów) testów ukrytych.
+    assert "Wektor stanu różni" not in html and "Obwód ma" not in html
+    assert f"/review/notebooks/{submission.pk}/" in html
 
 
 # --- CSP ścieżki laboratorium ---------------------------------------------------------------------
@@ -369,3 +372,158 @@ def test_coordinator_screens_warn_about_same_origin(web, competition, coordinato
     for url in (LIST_URL, task_url(problem)):
         html = web.get(url).content.decode()
         assert "laboratorium działa w domenie serwisu" in html and "§ 40.6" in html
+
+
+# --- M4: laboratorium wyłącznie dla kont bez roli personelu ----------------------------------------
+
+
+def _make_staff(kind, user, competition, other_competition):
+    from apps.accounts.tests.factories import CommitteeMemberFactory
+
+    if kind == "is_staff":
+        user.is_staff = True
+        user.save(update_fields=["is_staff"])
+    elif kind == "superuser":
+        user.is_superuser = True
+        user.save(update_fields=["is_superuser"])
+    elif kind == "reviewer_group":
+        from django.contrib.auth.models import Group
+
+        user.groups.add(Group.objects.get_or_create(name="reviewer")[0])
+    elif kind == "coordinator_elsewhere":
+        grant_membership(user, other_competition, CompetitionRole.COORDINATOR)
+    elif kind == "team_leader":
+        grant_membership(user, competition, CompetitionRole.TEAM_LEADER)
+    elif kind == "committee":
+        CommitteeMemberFactory(user=user, competition=competition)
+
+
+STAFF_KINDS = ["is_staff", "superuser", "reviewer_group", "coordinator_elsewhere", "team_leader", "committee"]
+
+
+@pytest.mark.parametrize("kind", STAFF_KINDS)
+def test_staff_role_never_gets_the_lab(
+    web, competition, other_competition, coordinator, problem, participant, lab_built, kind
+):
+    enable(competition)
+    configured(problem, coordinator)
+    path = starter_path(problem, participant)  # token wystawiony, zanim konto dostało rolę
+    assert not services.has_staff_role(participant.user)
+    _make_staff(kind, participant.user, competition, other_competition)
+    assert services.has_staff_role(participant.user)
+    web.force_login(participant.user)
+    response = web.get(lab_url(problem))
+    assert response.status_code == 200
+    html = response.content.decode()
+    assert "notebook-lab/" not in html and "/notebook-starter/" not in html
+    assert "laboratorium (wykonywanie kodu w przeglądarce) jest dla niego wyłączone" in html
+    assert HIDDEN_SENTINEL not in html
+    # Notatnik startowy dla laboratorium – też nie (token sprzed nadania roli nie pomaga).
+    assert web.get(path).status_code == 404
+    assert "Otwórz notatnik" not in web.get("/me/").content.decode()
+
+
+def test_plain_participant_keeps_the_lab(web, competition, coordinator, problem, participant, lab_built):
+    enable(competition)
+    configured(problem, coordinator)
+    web.force_login(participant.user)
+    assert "Otwórz notatnik" in web.get("/me/").content.decode()
+    assert "notebook-lab/" in web.get(lab_url(problem)).content.decode()
+
+
+PNG_1PX = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
+HOSTILE = {
+    "nbformat": 4,
+    "nbformat_minor": 5,
+    "metadata": {},
+    "cells": [
+        {"cell_type": "markdown", "metadata": {}, "source": "<script>alert('md')</script>**bold**"},
+        {
+            "cell_type": "code",
+            "metadata": {},
+            "execution_count": 1,
+            "source": "print('<b>x</b>')",
+            "outputs": [
+                {"output_type": "stream", "name": "stdout",
+                 "text": "<img src=x onerror=alert(1)>\u001b[31mred"},
+                {"output_type": "display_data", "metadata": {},
+                 "data": {"text/html": "<script>alert('html')</script>",
+                          "application/javascript": "alert('js')"}},
+                {"output_type": "display_data", "metadata": {},
+                 "data": {"image/svg+xml": "<svg onload=alert(1)>", "text/plain": "<Figure>"}},
+                {"output_type": "display_data", "metadata": {}, "data": {"image/png": PNG_1PX}},
+                {"output_type": "display_data", "metadata": {},
+                 "data": {"image/png": "PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg=="}},
+            ],
+        },
+    ],
+}  # fmt: skip
+
+
+def test_readonly_view_never_renders_notebook_html_or_scripts(
+    web, competition, coordinator, problem, participant
+):
+    enable(competition)
+    configured(problem, coordinator)
+    submission = submit(problem, participant, HOSTILE)
+    web.force_login(coordinator)
+    response = web.get(f"/review/notebooks/{submission.pk}/")
+    assert response.status_code == 200
+    html = response.content.decode()
+    for raw in ("<script>alert", "<img src=x", "<svg onload", "alert('js')", "\x1b["):
+        assert raw not in html, raw
+    assert "&lt;script&gt;alert(&#x27;md&#x27;)" in html
+    assert "&lt;img src=x onerror=alert(1)&gt;red" in html
+    assert "&lt;Figure&gt;" in html  # SVG pominięty, został tekst
+    assert "Pominięto wyjście typu application/javascript, text/html" in html
+    assert html.count('src="data:image/png;base64,') == 1  # drugi „PNG” to nie obraz – pominięty
+
+
+def test_readonly_submission_view_permissions(web, competition, coordinator, problem, participant):
+    enable(competition)
+    configured(problem, coordinator)
+    submission = submit(problem, participant, GOOD)
+    url = f"/review/notebooks/{submission.pk}/"
+    assert web.get(url).status_code == 302  # logowanie
+    reviewer = ActiveReviewerFactory()
+    grant_membership(reviewer.user, competition, CompetitionRole.REVIEWER)
+    web.force_login(reviewer.user)
+    assert web.get(url).status_code == 404  # recenzent bez przydziału tej pracy
+    other = ParticipantFactory(user=UserFactory(email="ktos@example.test", groups=["participant"]))
+    grant_membership(other.user, competition, CompetitionRole.PARTICIPANT)
+    web.force_login(other.user)
+    assert web.get(url).status_code == 404
+    web.force_login(coordinator)
+    assert web.get(url).status_code == 200
+    competition.feature_flags = {**competition.feature_flags, "quantum_notebooks": False}
+    competition.save(update_fields=["feature_flags"])
+    assert web.get(url).status_code == 404
+
+
+def test_coordinator_readonly_starter_and_reference(web, competition, coordinator, problem):
+    enable(competition)
+    task = configured(problem, coordinator)
+    task.reference_notebook = WRONG
+    task.save(update_fields=["reference_notebook"])
+    web.force_login(coordinator)
+    base = f"/coordinator/notebooks/problems/{problem.pk}/view/"
+    starter = web.get(base + "starter/")
+    assert starter.status_code == 200 and "check(TESTS" in starter.content.decode()
+    assert HIDDEN_SENTINEL not in starter.content.decode()
+    assert web.get(base + "reference/").status_code == 200
+    assert web.get(base + "other/").status_code == 404
+    reviewer = ActiveReviewerFactory()
+    grant_membership(reviewer.user, competition, CompetitionRole.REVIEWER)
+    web.force_login(reviewer.user)
+    assert web.get(base + "starter/").status_code in (403, 404)
+
+
+def test_render_cells_handles_garbage():
+    from apps.notebooks import render
+
+    cells = render.render_cells(
+        {"cells": [1, {"cell_type": "code", "source": ["a", "b"], "outputs": [1, {"output_type": "x"}]},
+                   {"cell_type": "weird"}]}
+    )  # fmt: skip
+    assert cells == [{"type": "code", "source": "ab", "outputs": [], "count": None}]
+    assert notebook("x")["cells"][0]["source"] == "x"

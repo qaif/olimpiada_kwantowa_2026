@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from unittest.mock import patch
 
 import pytest
 
@@ -100,7 +101,31 @@ def test_only_latest_clean_version_is_graded(competition, problem, coordinator, 
     assert committed(services.pump)["created"] == 0
     newest.files.update(av_status="CLEAN")
     assert committed(services.pump)["created"] == 1
-    assert list(NotebookRun.objects.values_list("submission_id", flat=True)) == [newest.pk]
+    graded = NotebookRun.objects.exclude(status=RunStatus.SUPERSEDED)
+    assert list(graded.values_list("submission_id", flat=True)) == [newest.pk]
+    # L4: starsze wersje dostają jednorazowy wiersz SUPERSEDED – beat nie przegląda ich ponownie.
+    superseded = NotebookRun.objects.filter(status=RunStatus.SUPERSEDED)
+    assert superseded.count() == 2
+    assert committed(services.pump) == {"created": 0, "recovered": 0}
+    assert NotebookRun.objects.count() == 3
+
+
+def test_orphaned_pending_run_is_closed(competition, problem, coordinator, participant, committed):
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    enable(competition)
+    autograded(problem, coordinator)
+    submit(problem, participant, GOOD)
+    with patch("apps.notebooks.services._enqueue"):  # zadanie Celery „zgubione” (np. brak workera)
+        assert committed(services.pump)["created"] == 1
+    run = NotebookRun.objects.get()
+    assert run.status == RunStatus.PENDING
+    later = timezone.now() + services.STALE_PENDING + timedelta(minutes=1)
+    assert committed(lambda: services.pump(now=later))["recovered"] == 1
+    run.refresh_from_db()
+    assert run.status == RunStatus.ERROR and run.error_code == "runner_unavailable"
 
 
 def test_free_mode_and_flag_off_create_no_runs(competition, problem, coordinator, participant, committed):

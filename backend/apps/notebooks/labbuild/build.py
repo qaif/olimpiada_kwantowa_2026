@@ -207,6 +207,54 @@ def inputs_digest() -> str:
     return digest.hexdigest()[:12]
 
 
+def wheel_licence(wheel: Path) -> str:
+    """Licencja z ``METADATA`` koła: ``License-Expression``, ``License`` (pierwsza linia) albo
+    klasyfikatory ``License ::``. Pusty napis, gdy koło nie deklaruje licencji wcale."""
+    with zipfile.ZipFile(wheel) as archive:
+        name = next((n for n in archive.namelist() if n.endswith(".dist-info/METADATA")), None)
+        if name is None:
+            return ""
+        text = archive.read(name).decode("utf-8", errors="replace")
+    headers, _sep, _body = text.partition("\n\n")
+    fields: dict[str, list[str]] = {}
+    for line in headers.splitlines():
+        key, sep, value = line.partition(":")
+        if sep and not line.startswith((" ", "\t")):
+            fields.setdefault(key.strip(), []).append(value.strip())
+    if fields.get("License-Expression"):
+        return fields["License-Expression"][0]
+    licence = (fields.get("License") or [""])[0].splitlines()[0].strip() if fields.get("License") else ""
+    if licence and len(licence) < 80 and licence.upper() not in ("UNKNOWN", "NONE"):
+        return licence
+    classifiers = [
+        c.split("::")[-1].strip() for c in fields.get("Classifier", []) if c.startswith("License ::")
+    ]
+    return ", ".join(classifiers)
+
+
+def licences_of(site: Path) -> dict[str, str]:
+    """Licencja każdego koła w budowie (Pyodide, piplite, qclab) – ``RuntimeError`` przy braku.
+
+    Lista w ``manifest.json`` ma być **kompletna**: koło bez zadeklarowanej licencji zatrzymuje
+    budowę, zamiast trafić do przeglądarek uczniów bez informacji, na jakich warunkach.
+    Licencje kodu JavaScript (JupyterLab i rozszerzenia) leżą obok, w ``third-party-licenses.json``
+    budowy – też w manifeście (``js_licence_files``).
+    """
+    result: dict[str, str] = {}
+    missing = []
+    for wheel in sorted(site.rglob("*.whl")):
+        package = wheel.name.split("-")[0].lower().replace("_", "-")
+        licence = wheel_licence(wheel)
+        if not licence:
+            licence = CONFIG.get("licence_overrides", {}).get(package, "")
+        if not licence:
+            missing.append(wheel.name)
+        result[package] = licence
+    if missing:
+        raise RuntimeError(f"wheels without a declared licence: {', '.join(missing)}")
+    return result
+
+
 def site_sizes(site: Path) -> tuple[int, int, int]:
     files = [p for p in site.rglob("*") if p.is_file()]
     raw = sum(p.stat().st_size for p in files)
@@ -254,7 +302,10 @@ def main(argv: list[str] | None = None) -> int:
             "qclab": qclab_version,
             "tools": (HERE / "requirements.in").read_text(encoding="utf-8").strip().splitlines()[-3:],
             "packages": sorted(json.loads((target_pyodide / "pyodide-lock.json").read_text())["packages"]),
-            "licences": CONFIG["licences"],
+            "licences": {**CONFIG["licences"], **licences_of(site)},
+            "js_licence_files": sorted(
+                path.relative_to(site).as_posix() for path in site.rglob("third-party-licenses.json")
+            ),
             "files": count,
             "size_bytes": raw,
             "transfer_bytes": compressed,

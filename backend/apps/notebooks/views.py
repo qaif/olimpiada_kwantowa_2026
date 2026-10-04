@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 
 from django.contrib import messages
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.template.response import TemplateResponse
@@ -23,7 +24,7 @@ from apps.web.mixins import CoordinatorRequiredMixin, ParticipantRequiredMixin
 from apps.web.throttle import ThrottledFormMixin
 from qclab import grader
 
-from . import lab, services
+from . import lab, notebook_io, render, services
 from .forms import TESTS_EXAMPLE, NotebookTaskForm, tests_as_text
 from .models import NotebookRun, NotebookTask, RunStatus
 
@@ -301,6 +302,16 @@ class ParticipantLabView(_ParticipantNotebookMixin, View):
     def get(self, request, pk: int):
         task = self.task(pk)
         problem = task.problem
+        if services.request_has_staff_role(request):
+            # Konto z rolą personelu nie dostaje laboratorium (wykonanie kodu z jego sesją) – tylko
+            # podgląd notatnika startowego (``services.has_staff_role``, QC-01 § 3.5).
+            return _readonly_response(
+                request,
+                services.starter_notebook(task),
+                title=_("Notatnik startowy – podgląd"),
+                problem=problem,
+                staff_notice=True,
+            )
         starter_url = services.starter_url(task, self.participant, request.user)
         return TemplateResponse(
             request,
@@ -326,10 +337,74 @@ class ParticipantStarterView(View):
     """
 
     def get(self, request, token: str, filename: str):
-        if not request.user.is_authenticated:
+        if not request.user.is_authenticated or services.request_has_staff_role(request):
             raise Http404
         task = services.task_from_starter_token(token, request.user)
         if task is None or filename != services.starter_filename(task):
             raise Http404
         attachment = request.GET.get("download") == "1"
         return _notebook_response(services.starter_notebook(task), filename, attachment=attachment)
+
+
+# --- podgląd tylko do odczytu (personel) -----------------------------------------------------------
+
+
+READONLY_TEMPLATE = "notebooks/readonly.html"
+
+
+def _readonly_response(request, notebook: dict, *, title: str, problem=None, staff_notice: bool = False):
+    return TemplateResponse(
+        request,
+        READONLY_TEMPLATE,
+        {
+            "cells": render.render_cells(notebook),
+            "title": title,
+            "problem": problem,
+            "staff_notice": staff_notice,
+        },
+    )
+
+
+class SubmissionNotebookView(LoginRequiredMixin, View):
+    """Praca ``.ipynb`` w podglądzie tylko do odczytu – dla każdego, kto może pobrać tę pracę.
+
+    Widoczność jest ta sama, co przy pobraniu pliku (``Submission.objects.for_user``: koordynator
+    konkursu, recenzent z przydziałem, komisja przy reklamacji, autor). Nic się nie wykonuje, wyjścia
+    HTML/JS są pomijane (``apps.notebooks.render``) – to jest droga personelu do notatników zamiast
+    laboratorium.
+    """
+
+    def get(self, request, pk: int):
+        from apps.submissions.models import Submission
+
+        competition = getattr(request, "competition", None)
+        if not services.is_enabled(competition):
+            raise Http404
+        submission = get_object_or_404(
+            Submission.objects.for_user(request.user, competition).select_related("problem"), pk=pk
+        )
+        try:
+            notebook = services.read_submission_notebook(submission.latest_file)
+        except notebook_io.NotebookError as exc:
+            raise Http404 from exc
+        except Exception as exc:  # noqa: BLE001 - storage rzuca własnymi wyjątkami
+            raise Http404 from exc
+        title = _("Praca – podgląd notatnika (wersja %(version)s)") % {"version": submission.version}
+        return _readonly_response(request, notebook, title=title, problem=submission.problem)
+
+
+class TaskNotebookView(NotebookCoordinatorMixin, View):
+    """Notatnik startowy (jak u uczestnika) albo wzorcowy w podglądzie tylko do odczytu."""
+
+    def get(self, request, pk: int, kind: str):
+        problem = self.problem(pk)
+        task = services.task_for(problem)
+        if task is None:
+            raise Http404
+        if kind == "starter":
+            notebook, title = services.starter_notebook(task), _("Notatnik startowy – podgląd")
+        elif kind == "reference" and task.reference_notebook:
+            notebook, title = task.reference_notebook, _("Notatnik wzorcowy – podgląd")
+        else:
+            raise Http404
+        return _readonly_response(request, notebook, title=title, problem=problem)
