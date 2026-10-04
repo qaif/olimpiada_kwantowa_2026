@@ -1,0 +1,662 @@
+# Indonesian - Nadzór zdalny (PROC-01) – tłumaczenie maszynowe, do przejrzenia przez native speakera.
+# Zrodlem (msgid) jest polski.
+#
+# UWAGA: tlumaczenie MASZYNOWE (model jezykowy). Przed szeroka komunikacja
+# do uczestnikow powinien je przejrzec native speaker - patrz docs/OPERACJE.md.
+#
+# Plik .mo powstaje z tego zrodla: django-admin compilemessages (obraz ma gettext).
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Olimpiada Kwantowa\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-04 19:52+0200\n"
+"PO-Revision-Date: 2026-10-04 20:00+0200\n"
+"Last-Translator: Olimpiada Kwantowa\n"
+"Language-Team: Indonesian\n"
+"Language: id\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+msgid "Powód"
+msgstr "Alasan"
+
+msgid "Nie mam kamery"
+msgstr "Saya tidak punya kamera"
+
+msgid "Kamera nie działa"
+msgstr "Kamera saya tidak berfungsi"
+
+msgid "Moja przeglądarka nie obsługuje nadzoru"
+msgstr "Browser saya tidak mendukung pengawasan"
+
+msgid "Potrzeby dostępności"
+msgstr "Kebutuhan aksesibilitas"
+
+msgid "Inny powód"
+msgstr "Alasan lain"
+
+msgid "Krótka uwaga (opcjonalnie)"
+msgstr "Catatan singkat (opsional)"
+
+msgid ""
+"Nie wpisuj informacji o zdrowiu – organizator skontaktuje się z Tobą, jeśli "
+"będzie trzeba."
+msgstr "Jangan menuliskan informasi kesehatan – penyelenggara akan menghubungi Anda jika diperlukan."
+
+msgid ""
+"Ten etap jest nadzorowany zdalnie. Najpierw włącz nadzór w konsoli nadzoru."
+msgstr "Tahap ini diawasi dari jarak jauh. Aktifkan pengawasan terlebih dahulu di konsol pengawasan."
+
+msgid ""
+"Zapoznałem/-am się z informacją o nadzorze zdalnym tego etapu i wyrażam "
+"zgodę na przekazywanie obrazu z mojej kamery (oraz – jeśli etap tego wymaga "
+"– mojego ekranu i dźwięku) osobom nadzorującym na zasadach opisanych powyżej."
+msgstr "Saya telah membaca informasi tentang pengawasan jarak jauh untuk tahap ini dan menyetujui pengiriman gambar dari kamera saya (serta – jika tahap ini mengharuskannya – layar dan suara saya) kepada pengawas sesuai ketentuan yang dijelaskan di atas."
+
+msgid "Serwer nadzoru nie odpowiada. Spróbuj za chwilę."
+msgstr "Server pengawasan tidak merespons. Silakan coba lagi sebentar lagi."
+
+#, python-format
+msgid "uczniowie: %(name)s"
+msgstr "siswa: %(name)s"
+
+msgid "uczniowie bez przydziału"
+msgstr "siswa tanpa penugasan"
+
+msgid ""
+"Najpierw potrzebna jest zgoda Twojego rodzica lub opiekuna prawnego, "
+"potwierdzona online. Poproś o nią w panelu, w zakładce „Zgody”."
+msgstr "Pertama-tama diperlukan persetujuan orang tua atau wali sah Anda yang dikonfirmasi secara daring. Mintalah melalui panel, di tab “Persetujuan”."
+
+msgid "Ten etap nie zbiera zdjęcia dokumentu."
+msgstr "Tahap ini tidak mengumpulkan foto dokumen."
+
+msgid "Zdjęcie nie zostało zapisane. Spróbuj jeszcze raz."
+msgstr "Foto tidak tersimpan. Silakan coba lagi."
+
+msgid "Najpierw wyraź zgodę na nadzór."
+msgstr "Berikan persetujuan untuk pengawasan terlebih dahulu."
+
+msgid "Najpierw sprawdź sprzęt."
+msgstr "Periksa perangkat Anda terlebih dahulu."
+
+msgid "Najpierw zrób zdjęcie dokumentu."
+msgstr "Ambil foto dokumen terlebih dahulu."
+
+#, python-format
+msgid "Nadzór będzie można włączyć od %(when)s."
+msgstr "Pengawasan dapat diaktifkan mulai %(when)s."
+
+msgid "Czas tego etapu minął."
+msgstr "Waktu tahap ini telah berakhir."
+
+msgid ""
+"Serwer nadzoru jeszcze nie widzi Twojej kamery. Poczekaj chwilę i spróbuj "
+"ponownie."
+msgstr "Server pengawasan belum mendeteksi kamera Anda. Tunggu sebentar, lalu coba lagi."
+
+msgid "Ten etap wymaga działającego nadzoru. Skontaktuj się z organizatorem."
+msgstr "Tahap ini memerlukan pengawasan yang berjalan. Hubungi penyelenggara."
+
+msgid "Wybierz powód z listy."
+msgstr "Pilih alasan dari daftar."
+
+msgid "Pokój nadzoru jest teraz zamknięty."
+msgstr "Ruang pengawasan saat ini ditutup."
+
+msgid "Wpisz treść wiadomości."
+msgstr "Tulis isi pesan."
+
+msgid "Wybierz kategorię i wagę incydentu."
+msgstr "Pilih kategori dan tingkat keparahan insiden."
+
+msgid "Nadzór zdalny"
+msgstr "Pengawasan jarak jauh"
+
+msgid ""
+"Ten etap jest nadzorowany zdalnie. Konsola nadzoru musi być otwarta w "
+"osobnej karcie do końca etapu."
+msgstr "Tahap ini diawasi dari jarak jauh. Konsol pengawasan harus tetap terbuka di tab terpisah hingga tahap berakhir."
+
+msgid ""
+"Ten etap jest nadzorowany zdalnie. Zanim zobaczysz zadania, wyraź zgodę, "
+"sprawdź sprzęt i włącz nadzór w konsoli."
+msgstr "Tahap ini diawasi dari jarak jauh. Sebelum melihat soal, berikan persetujuan, periksa perangkat, dan aktifkan pengawasan di konsol."
+
+msgid "Nadzór działa."
+msgstr "Pengawasan berjalan."
+
+msgid ""
+"Nadzór nie działa – wróć do karty konsoli nadzoru albo otwórz ją ponownie."
+msgstr "Pengawasan tidak berjalan – kembali ke tab konsol pengawasan atau buka kembali."
+
+msgid "Stan nadzoru: sprawdź kartę konsoli nadzoru."
+msgstr "Status pengawasan: periksa tab konsol pengawasan."
+
+msgid "Konsola nadzoru"
+msgstr "Konsol pengawasan"
+
+msgid "Etap:"
+msgstr "Tahap:"
+
+msgid "Nadzór możesz włączyć od:"
+msgstr "Anda dapat mengaktifkan pengawasan mulai:"
+
+msgid "Nadzór zdalny wymaga włączonego JavaScriptu."
+msgstr "Pengawasan jarak jauh memerlukan JavaScript yang aktif."
+
+msgid ""
+"Nadzór jest chwilowo niedostępny – brakuje komponentu wideo na serwerze. Daj "
+"znać organizatorowi."
+msgstr "Pengawasan untuk sementara tidak tersedia – komponen video di server tidak ada. Beri tahu penyelenggara."
+
+msgid "Organizator zatwierdził inną formę nadzoru"
+msgstr "Penyelenggara telah menyetujui bentuk pengawasan lain"
+
+msgid "Przejdź do etapu"
+msgstr "Lanjut ke tahap"
+
+msgid "1. Informacja o nadzorze i zgoda"
+msgstr "1. Informasi pengawasan dan persetujuan"
+
+msgid ""
+"W czasie etapu obraz z Twojej kamery (mała rozdzielczość) widzą na żywo "
+"osoby nadzorujące wskazane przez organizatora: koordynatorzy i członkowie "
+"komisji, a w olimpiadzie międzynarodowej także opiekun Twojej drużyny "
+"narodowej – wyłącznie uczniów swojej drużyny."
+msgstr "Selama tahap berlangsung, gambar dari kamera Anda (resolusi rendah) dapat dilihat secara langsung oleh pengawas yang ditunjuk penyelenggara: koordinator dan anggota komite, serta – dalam olimpiade internasional – pemimpin tim nasional Anda, yang hanya dapat melihat siswa dari timnya sendiri."
+
+msgid ""
+"Etap wymaga udostępnienia całego ekranu – osoby nadzorujące mogą go zobaczyć."
+msgstr "Tahap ini mengharuskan Anda membagikan seluruh layar – pengawas dapat melihatnya."
+
+msgid "Etap wymaga włączonego mikrofonu – osoby nadzorujące mogą Cię słyszeć."
+msgstr "Tahap ini mengharuskan mikrofon aktif – pengawas dapat mendengar Anda."
+
+msgid ""
+"Przed startem zrobisz kamerą zdjęcie dokumentu tożsamości (legitymacji "
+"szkolnej). Zasłoń numer PESEL i adres – wystarczy imię, nazwisko i zdjęcie."
+msgstr "Sebelum mulai, Anda akan memotret dokumen identitas (kartu pelajar) dengan kamera. Tutupi nomor PESEL (nomor identitas nasional Polandia) dan alamat – cukup nama dan foto."
+
+msgid "Obraz z kamery jest nagrywany."
+msgstr "Gambar dari kamera direkam."
+
+#, python-format
+msgid ""
+"Nagranie widzą wyłącznie koordynator i komisja odwoławcza (każde odtworzenie "
+"jest zapisywane). Usuwamy je %(days)s dni po ogłoszeniu wyników i zamknięciu "
+"okna reklamacji, chyba że trwa wyjaśnianie Twojej sprawy."
+msgstr "Rekaman hanya dapat dilihat oleh koordinator dan komite banding (setiap pemutaran dicatat). Kami menghapusnya %(days)s hari setelah hasil diumumkan dan masa banding ditutup, kecuali kasus Anda sedang dalam proses klarifikasi."
+
+msgid "Obraz nie jest nagrywany – osoby nadzorujące widzą go tylko na żywo."
+msgstr "Gambar tidak direkam – pengawas hanya melihatnya secara langsung."
+
+msgid ""
+"Nie stosujemy automatycznej analizy obrazu ani śledzenia tego, co robisz w "
+"przeglądarce. Decyzje podejmują ludzie."
+msgstr "Kami tidak menggunakan analisis gambar otomatis maupun pelacakan aktivitas Anda di browser. Keputusan diambil oleh manusia."
+
+#, python-format
+msgid ""
+"Zapisujemy czasy połączeń, wiadomości od osób nadzorujących i ich notatki o "
+"incydentach. Dziennik połączeń i wiadomości usuwamy %(days)s dni po "
+"ogłoszeniu wyników; notatki o incydentach zostają w dokumentacji zawodów "
+"(odwołania)."
+msgstr "Kami mencatat waktu koneksi, pesan dari pengawas, dan catatan mereka tentang insiden. Log koneksi dan pesan dihapus %(days)s hari setelah hasil diumumkan; catatan insiden tetap disimpan dalam dokumentasi kompetisi (untuk banding)."
+
+msgid ""
+"Zgodę możesz wycofać w każdej chwili. Jeśli nie możesz albo nie chcesz "
+"używać kamery, poproś organizatora o inną formę nadzoru (na dole strony)."
+msgstr "Anda dapat menarik persetujuan kapan saja. Jika Anda tidak dapat atau tidak ingin menggunakan kamera, mintalah bentuk pengawasan lain kepada penyelenggara (di bagian bawah halaman)."
+
+msgid ""
+"Szczegóły przetwarzania danych: polityka prywatności organizatora (sekcja "
+"„Nadzór zdalny”)."
+msgstr "Rincian pemrosesan data: kebijakan privasi penyelenggara (bagian “Pengawasan jarak jauh”)."
+
+#, python-format
+msgid "Zgoda wyrażona %(when)s (wersja %(version)s)."
+msgstr "Persetujuan diberikan pada %(when)s (versi %(version)s)."
+
+msgid "Wycofaj zgodę"
+msgstr "Tarik persetujuan"
+
+msgid ""
+"Jesteś osobą niepełnoletnią: zanim wyrazisz zgodę, Twój rodzic lub opiekun "
+"prawny musi potwierdzić online swoją zgodę na Twój udział."
+msgstr "Anda belum dewasa: sebelum Anda memberikan persetujuan, orang tua atau wali sah Anda harus mengonfirmasi secara daring persetujuannya atas keikutsertaan Anda."
+
+msgid "Poproś opiekuna o zgodę"
+msgstr "Minta persetujuan wali"
+
+msgid "Zgoda Twojego opiekuna prawnego została potwierdzona online."
+msgstr "Persetujuan wali sah Anda telah dikonfirmasi secara daring."
+
+#, python-format
+msgid "Wersja informacji: %(version)s."
+msgstr "Versi informasi: %(version)s."
+
+msgid "Wyrażam zgodę"
+msgstr "Saya setuju"
+
+msgid "2. Sprawdzenie sprzętu"
+msgstr "2. Pemeriksaan perangkat"
+
+msgid "Podgląd kamery"
+msgstr "Pratinjau kamera"
+
+msgid "Przeglądarka"
+msgstr "Browser"
+
+msgid "Kamera"
+msgstr "Kamera"
+
+msgid "Mikrofon"
+msgstr "Mikrofon"
+
+msgid "Udostępnianie ekranu"
+msgstr "Berbagi layar"
+
+msgid "Sprawdź sprzęt"
+msgstr "Periksa perangkat"
+
+msgid "Sprzęt sprawdzony."
+msgstr "Perangkat sudah diperiksa."
+
+msgid "3. Zdjęcie dokumentu"
+msgstr "3. Foto dokumen"
+
+msgid "opcjonalne"
+msgstr "opsional"
+
+msgid ""
+"Pokaż do kamery legitymację szkolną albo inny dokument ze zdjęciem i kliknij "
+"„Zrób zdjęcie”."
+msgstr "Tunjukkan kartu pelajar atau dokumen lain yang berfoto ke kamera, lalu klik “Ambil foto”."
+
+msgid "Zrób zdjęcie"
+msgstr "Ambil foto"
+
+msgid "Zdjęcie zapisane."
+msgstr "Foto tersimpan."
+
+msgid "4. Start nadzoru"
+msgstr "4. Mulai pengawasan"
+
+msgid "3. Start nadzoru"
+msgstr "3. Mulai pengawasan"
+
+msgid "Etap jest dla Ciebie otwarty."
+msgstr "Tahap ini sudah terbuka untuk Anda."
+
+msgid "Nagrywanie kamery włączone"
+msgstr "Perekaman kamera aktif"
+
+msgid "Włącz nadzór"
+msgstr "Aktifkan pengawasan"
+
+msgid "Udostępnij ekran"
+msgstr "Bagikan layar"
+
+msgid "Kontynuuj bez nadzoru"
+msgstr "Lanjutkan tanpa pengawasan"
+
+msgid "Przejdź do etapu (nowa karta)"
+msgstr "Lanjut ke tahap (tab baru)"
+
+msgid ""
+"Zostaw tę kartę otwartą do końca etapu – zamknięcie jej przerywa nadzór. "
+"Etap otworzy się w nowej karcie."
+msgstr "Biarkan tab ini tetap terbuka hingga tahap berakhir – menutupnya akan menghentikan pengawasan. Tahap akan terbuka di tab baru."
+
+msgid "Serwer nadzoru jest niedostępny. Skontaktuj się z organizatorem."
+msgstr "Server pengawasan tidak tersedia. Hubungi penyelenggara."
+
+msgid "Twój obraz w nadzorze"
+msgstr "Gambar Anda dalam pengawasan"
+
+msgid "Nie mogę użyć kamery"
+msgstr "Saya tidak dapat menggunakan kamera"
+
+msgid ""
+"Twoja prośba czeka na decyzję organizatora. Odpowiedź pojawi się na tej "
+"stronie."
+msgstr "Permintaan Anda sedang menunggu keputusan penyelenggara. Jawabannya akan muncul di halaman ini."
+
+msgid "Organizator nie zatwierdził innej formy nadzoru."
+msgstr "Penyelenggara tidak menyetujui bentuk pengawasan lain."
+
+msgid "Poproś o inną formę nadzoru"
+msgstr "Minta bentuk pengawasan lain"
+
+msgid "Nadzór"
+msgstr "Pengawasan"
+
+msgid "Łączenie…"
+msgstr "Menghubungkan…"
+
+msgid "Eksport incydentów (CSV)"
+msgstr "Ekspor insiden (CSV)"
+
+msgid "Siatka nadzoru wymaga włączonego JavaScriptu."
+msgstr "Grid pengawasan memerlukan JavaScript yang aktif."
+
+msgid ""
+"Obraz jest chwilowo niedostępny – brakuje komponentu wideo na serwerze. "
+"Lista uczniów i czynności działają."
+msgstr "Gambar untuk sementara tidak tersedia – komponen video di server tidak ada. Daftar siswa dan tindakan tetap berfungsi."
+
+msgid ""
+"Serwer nadzoru nie jest skonfigurowany. Lista uczniów i czynności działają."
+msgstr "Server pengawasan belum dikonfigurasi. Daftar siswa dan tindakan tetap berfungsi."
+
+msgid "Widok"
+msgstr "Tampilan"
+
+msgid "Grupa"
+msgstr "Grup"
+
+msgid "Kafli na stronie"
+msgstr "Kotak per halaman"
+
+msgid "Poprzednia"
+msgstr "Sebelumnya"
+
+msgid "Następna"
+msgstr "Berikutnya"
+
+msgid "Włącz dźwięk"
+msgstr "Aktifkan suara"
+
+msgid "Incydent"
+msgstr "Insiden"
+
+msgid "Kategoria"
+msgstr "Kategori"
+
+msgid "Waga"
+msgstr "Tingkat keparahan"
+
+msgid "Notatka"
+msgstr "Catatan"
+
+msgid "Czas incydentu zapisze się jako chwila otwarcia tego okna."
+msgstr "Waktu insiden akan dicatat sebagai saat jendela ini dibuka."
+
+msgid "Zapisz incydent"
+msgstr "Simpan insiden"
+
+msgid "Anuluj"
+msgstr "Batal"
+
+msgid "Etapy do nadzoru"
+msgstr "Tahap yang perlu diawasi"
+
+msgid "Otwórz siatkę nadzoru"
+msgstr "Buka grid pengawasan"
+
+msgid "Nie masz etapów do nadzoru."
+msgstr "Anda tidak memiliki tahap untuk diawasi."
+
+msgid "Raport nadzoru"
+msgstr "Laporan pengawasan"
+
+msgid "Zgoda"
+msgstr "Persetujuan"
+
+msgid "wycofana"
+msgstr "ditarik"
+
+msgid "zgoda opiekuna potwierdzona online"
+msgstr "persetujuan wali dikonfirmasi secara daring"
+
+msgid "brak"
+msgstr "tidak ada"
+
+msgid "Sprawdzenie sprzętu"
+msgstr "Pemeriksaan perangkat"
+
+msgid "Nadzór rozpoczęty"
+msgstr "Pengawasan dimulai"
+
+msgid "Bez nadzoru od"
+msgstr "Tanpa pengawasan sejak"
+
+msgid "Obecność"
+msgstr "Kehadiran"
+
+msgid "Inna forma nadzoru"
+msgstr "Bentuk pengawasan lain"
+
+msgid "Zdjęcie dokumentu"
+msgstr "Foto dokumen"
+
+msgid "otwórz (15 min)"
+msgstr "buka (15 menit)"
+
+msgid "Wstrzymanie usunięcia"
+msgstr "Penangguhan penghapusan"
+
+msgid "Nośniki usunięte"
+msgstr "Media telah dihapus"
+
+msgid "Incydenty"
+msgstr "Insiden"
+
+msgid "Czas"
+msgstr "Waktu"
+
+msgid "Zgłosił"
+msgstr "Dilaporkan oleh"
+
+msgid "Brak incydentów."
+msgstr "Tidak ada insiden."
+
+msgid "Wiadomości do ucznia"
+msgstr "Pesan untuk siswa"
+
+msgid "potwierdzona"
+msgstr "dikonfirmasi"
+
+msgid "Brak wiadomości."
+msgstr "Tidak ada pesan."
+
+msgid "Nagrania"
+msgstr "Rekaman"
+
+msgid "odtwórz (15 min)"
+msgstr "putar (15 menit)"
+
+msgid "Brak nagrań."
+msgstr "Tidak ada rekaman."
+
+msgid "Dziennik"
+msgstr "Log"
+
+msgid "Dziennik jest pusty albo został już usunięty (retencja)."
+msgstr "Log kosong atau sudah dihapus (masa retensi)."
+
+msgid "Za dużo żądań. Spróbuj za chwilę."
+msgstr "Terlalu banyak permintaan. Silakan coba lagi sebentar lagi."
+
+msgid "Sprawdzanie…"
+msgstr "Memeriksa…"
+
+msgid "działa"
+msgstr "berfungsi"
+
+msgid "nie działa"
+msgstr "tidak berfungsi"
+
+msgid "niewymagane"
+msgstr "tidak diperlukan"
+
+msgid ""
+"Ta przeglądarka nie obsługuje nadzoru wideo. Użyj aktualnej przeglądarki "
+"Chrome, Edge, Firefox albo Safari."
+msgstr "Browser ini tidak mendukung pengawasan video. Gunakan versi terbaru Chrome, Edge, Firefox, atau Safari."
+
+msgid ""
+"Brak dostępu do kamery. Zezwól na kamerę w ustawieniach przeglądarki i "
+"spróbuj ponownie."
+msgstr "Tidak ada akses ke kamera. Izinkan kamera di pengaturan browser, lalu coba lagi."
+
+msgid "Łączenie z serwerem nadzoru…"
+msgstr "Menghubungkan ke server pengawasan…"
+
+msgid "Nadzór działa. Zostaw tę kartę otwartą do końca etapu."
+msgstr "Pengawasan berjalan. Biarkan tab ini tetap terbuka hingga tahap berakhir."
+
+msgid ""
+"Połączenie nadzoru zostało przerwane. Nie zamykaj tej karty – trwa ponowne "
+"łączenie."
+msgstr "Koneksi pengawasan terputus. Jangan tutup tab ini – sedang menghubungkan ulang."
+
+msgid "Połączenie nadzoru przywrócone."
+msgstr "Koneksi pengawasan telah pulih."
+
+msgid "Nie udało się połączyć z serwerem nadzoru."
+msgstr "Gagal terhubung ke server pengawasan."
+
+msgid "Udostępnianie ekranu zostało zatrzymane. Udostępnij ekran ponownie."
+msgstr "Berbagi layar telah berhenti. Bagikan layar Anda lagi."
+
+msgid "Wiadomość od osoby nadzorującej"
+msgstr "Pesan dari pengawas"
+
+msgid "Osoba nadzorująca prosi: pokaż kamerą pokój dookoła siebie."
+msgstr "Pengawas meminta: tunjukkan ruangan di sekitar Anda dengan kamera."
+
+msgid "Osoba nadzorująca prosi: pokaż do kamery dokument tożsamości."
+msgstr "Pengawas meminta: tunjukkan dokumen identitas Anda ke kamera."
+
+msgid "Rozumiem"
+msgstr "Saya mengerti"
+
+msgid "Coś poszło nie tak. Spróbuj ponownie."
+msgstr "Terjadi kesalahan. Silakan coba lagi."
+
+msgid "Spróbuj ponownie"
+msgstr "Coba lagi"
+
+msgid "Zgoda na nadzór wycofana."
+msgstr "Persetujuan pengawasan telah ditarik."
+
+msgid "Zaznacz pole zgody, żeby przejść dalej."
+msgstr "Centang kotak persetujuan untuk melanjutkan."
+
+msgid "Prośba wysłana. Organizator odpowie w tej konsoli."
+msgstr "Permintaan terkirim. Penyelenggara akan menjawab di konsol ini."
+
+msgid "Połączono z pokojem nadzoru."
+msgstr "Terhubung ke ruang pengawasan."
+
+msgid "Rozłączono z pokojem nadzoru. Odśwież stronę."
+msgstr "Terputus dari ruang pengawasan. Muat ulang halaman."
+
+msgid "Nie udało się połączyć z pokojem nadzoru."
+msgstr "Gagal terhubung ke ruang pengawasan."
+
+#, python-format
+msgid "Strona %(page)s z %(pages)s"
+msgstr "Halaman %(page)s dari %(pages)s"
+
+msgid "Brak uczniów w tej grupie."
+msgstr "Tidak ada siswa dalam grup ini."
+
+msgid "nadaje"
+msgstr "sedang mengirim"
+
+msgid "czeka na start"
+msgstr "menunggu mulai"
+
+msgid "strumień przerwany"
+msgstr "siaran terputus"
+
+msgid "brak sygnału"
+msgstr "tidak ada sinyal"
+
+msgid "bez nadzoru"
+msgstr "tanpa pengawasan"
+
+msgid "alternatywa"
+msgstr "alternatif"
+
+msgid "brak zgody"
+msgstr "belum ada persetujuan"
+
+msgid "Wiadomość"
+msgstr "Pesan"
+
+msgid "Treść wiadomości do ucznia:"
+msgstr "Isi pesan untuk siswa:"
+
+msgid "Pokaż pokój"
+msgstr "Tunjukkan ruangan"
+
+msgid "Pokaż dokument"
+msgstr "Tunjukkan dokumen"
+
+msgid "Obecny"
+msgstr "Hadir"
+
+msgid "Nieobecny"
+msgstr "Tidak hadir"
+
+msgid "Ekran"
+msgstr "Layar"
+
+msgid "Ukryj ekran"
+msgstr "Sembunyikan layar"
+
+#, python-format
+msgid "incydenty: %(count)s"
+msgstr "insiden: %(count)s"
+
+msgid "Wysłano."
+msgstr "Terkirim."
+
+msgid "Zapisano."
+msgstr "Tersimpan."
+
+msgid "Dźwięk"
+msgstr "Suara"
+
+msgid "Raport"
+msgstr "Laporan"
+
+msgid "uczeń poza kadrem"
+msgstr "siswa di luar bingkai kamera"
+
+msgid "inna osoba w kadrze"
+msgstr "ada orang lain dalam bingkai"
+
+msgid "inne urządzenie"
+msgstr "perangkat lain"
+
+msgid "rozmowa lub komunikacja"
+msgstr "percakapan atau komunikasi"
+
+msgid "niedozwolone materiały"
+msgstr "materi terlarang"
+
+msgid "ekran"
+msgstr "layar"
+
+msgid "problem techniczny"
+msgstr "masalah teknis"
+
+msgid "inne"
+msgstr "lainnya"
+
+msgid "informacja"
+msgstr "informasi"
+
+msgid "ostrzeżenie"
+msgstr "peringatan"
+
+msgid "poważny"
+msgstr "serius"

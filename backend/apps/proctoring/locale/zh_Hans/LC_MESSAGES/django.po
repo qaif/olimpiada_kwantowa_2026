@@ -1,0 +1,662 @@
+# Chinese (Simplified) - Nadzór zdalny (PROC-01) – tłumaczenie maszynowe, do przejrzenia przez native speakera.
+# Zrodlem (msgid) jest polski.
+#
+# UWAGA: tlumaczenie MASZYNOWE (model jezykowy). Przed szeroka komunikacja
+# do uczestnikow powinien je przejrzec native speaker - patrz docs/OPERACJE.md.
+#
+# Plik .mo powstaje z tego zrodla: django-admin compilemessages (obraz ma gettext).
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Olimpiada Kwantowa\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-04 19:52+0200\n"
+"PO-Revision-Date: 2026-10-04 20:00+0200\n"
+"Last-Translator: Olimpiada Kwantowa\n"
+"Language-Team: Chinese (Simplified)\n"
+"Language: zh_Hans\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+msgid "Powód"
+msgstr "原因"
+
+msgid "Nie mam kamery"
+msgstr "我没有摄像头"
+
+msgid "Kamera nie działa"
+msgstr "摄像头无法使用"
+
+msgid "Moja przeglądarka nie obsługuje nadzoru"
+msgstr "我的浏览器不支持监考"
+
+msgid "Potrzeby dostępności"
+msgstr "无障碍需求"
+
+msgid "Inny powód"
+msgstr "其他原因"
+
+msgid "Krótka uwaga (opcjonalnie)"
+msgstr "简短说明（可选）"
+
+msgid ""
+"Nie wpisuj informacji o zdrowiu – organizator skontaktuje się z Tobą, jeśli "
+"będzie trzeba."
+msgstr "请勿填写健康信息——如有需要，组织方会与您联系。"
+
+msgid ""
+"Ten etap jest nadzorowany zdalnie. Najpierw włącz nadzór w konsoli nadzoru."
+msgstr "本阶段采用远程监考。请先在监考控制台中开启监考。"
+
+msgid ""
+"Zapoznałem/-am się z informacją o nadzorze zdalnym tego etapu i wyrażam "
+"zgodę na przekazywanie obrazu z mojej kamery (oraz – jeśli etap tego wymaga "
+"– mojego ekranu i dźwięku) osobom nadzorującym na zasadach opisanych powyżej."
+msgstr "我已阅读本阶段远程监考的说明，并同意按照上述规定将我的摄像头画面（以及在本阶段要求时，我的屏幕画面和声音）传送给监考人员。"
+
+msgid "Serwer nadzoru nie odpowiada. Spróbuj za chwilę."
+msgstr "监考服务器无响应。请稍后再试。"
+
+#, python-format
+msgid "uczniowie: %(name)s"
+msgstr "学生：%(name)s"
+
+msgid "uczniowie bez przydziału"
+msgstr "未分配的学生"
+
+msgid ""
+"Najpierw potrzebna jest zgoda Twojego rodzica lub opiekuna prawnego, "
+"potwierdzona online. Poproś o nią w panelu, w zakładce „Zgody”."
+msgstr "首先需要您的父母或法定监护人在线确认同意。请在个人面板的「同意事项」选项卡中提出请求。"
+
+msgid "Ten etap nie zbiera zdjęcia dokumentu."
+msgstr "本阶段不收集证件照片。"
+
+msgid "Zdjęcie nie zostało zapisane. Spróbuj jeszcze raz."
+msgstr "照片未保存。请重试。"
+
+msgid "Najpierw wyraź zgodę na nadzór."
+msgstr "请先同意监考。"
+
+msgid "Najpierw sprawdź sprzęt."
+msgstr "请先检查设备。"
+
+msgid "Najpierw zrób zdjęcie dokumentu."
+msgstr "请先拍摄证件照片。"
+
+#, python-format
+msgid "Nadzór będzie można włączyć od %(when)s."
+msgstr "监考将于 %(when)s 起可以开启。"
+
+msgid "Czas tego etapu minął."
+msgstr "本阶段时间已结束。"
+
+msgid ""
+"Serwer nadzoru jeszcze nie widzi Twojej kamery. Poczekaj chwilę i spróbuj "
+"ponownie."
+msgstr "监考服务器尚未检测到您的摄像头。请稍候再试。"
+
+msgid "Ten etap wymaga działającego nadzoru. Skontaktuj się z organizatorem."
+msgstr "本阶段要求监考正常运行。请联系组织方。"
+
+msgid "Wybierz powód z listy."
+msgstr "请从列表中选择原因。"
+
+msgid "Pokój nadzoru jest teraz zamknięty."
+msgstr "监考室目前已关闭。"
+
+msgid "Wpisz treść wiadomości."
+msgstr "请输入消息内容。"
+
+msgid "Wybierz kategorię i wagę incydentu."
+msgstr "请选择事件的类别和严重程度。"
+
+msgid "Nadzór zdalny"
+msgstr "远程监考"
+
+msgid ""
+"Ten etap jest nadzorowany zdalnie. Konsola nadzoru musi być otwarta w "
+"osobnej karcie do końca etapu."
+msgstr "本阶段采用远程监考。监考控制台必须在单独的标签页中保持打开，直至本阶段结束。"
+
+msgid ""
+"Ten etap jest nadzorowany zdalnie. Zanim zobaczysz zadania, wyraź zgodę, "
+"sprawdź sprzęt i włącz nadzór w konsoli."
+msgstr "本阶段采用远程监考。在查看题目之前，请先表示同意、检查设备，并在控制台中开启监考。"
+
+msgid "Nadzór działa."
+msgstr "监考正在运行。"
+
+msgid ""
+"Nadzór nie działa – wróć do karty konsoli nadzoru albo otwórz ją ponownie."
+msgstr "监考未在运行——请返回监考控制台标签页，或重新打开它。"
+
+msgid "Stan nadzoru: sprawdź kartę konsoli nadzoru."
+msgstr "监考状态：请查看监考控制台标签页。"
+
+msgid "Konsola nadzoru"
+msgstr "监考控制台"
+
+msgid "Etap:"
+msgstr "阶段："
+
+msgid "Nadzór możesz włączyć od:"
+msgstr "您可以开启监考的时间："
+
+msgid "Nadzór zdalny wymaga włączonego JavaScriptu."
+msgstr "远程监考需要启用 JavaScript。"
+
+msgid ""
+"Nadzór jest chwilowo niedostępny – brakuje komponentu wideo na serwerze. Daj "
+"znać organizatorowi."
+msgstr "监考暂时不可用——服务器缺少视频组件。请告知组织方。"
+
+msgid "Organizator zatwierdził inną formę nadzoru"
+msgstr "组织方已批准其他监考方式"
+
+msgid "Przejdź do etapu"
+msgstr "进入本阶段"
+
+msgid "1. Informacja o nadzorze i zgoda"
+msgstr "1. 监考说明与同意"
+
+msgid ""
+"W czasie etapu obraz z Twojej kamery (mała rozdzielczość) widzą na żywo "
+"osoby nadzorujące wskazane przez organizatora: koordynatorzy i członkowie "
+"komisji, a w olimpiadzie międzynarodowej także opiekun Twojej drużyny "
+"narodowej – wyłącznie uczniów swojej drużyny."
+msgstr "在本阶段进行期间，组织方指定的监考人员可以实时查看您的摄像头画面（低分辨率）：包括协调员和委员会成员；在国际奥林匹克中，还包括您所在国家队的领队——领队只能查看本队的学生。"
+
+msgid ""
+"Etap wymaga udostępnienia całego ekranu – osoby nadzorujące mogą go zobaczyć."
+msgstr "本阶段要求共享整个屏幕——监考人员可以看到您的屏幕。"
+
+msgid "Etap wymaga włączonego mikrofonu – osoby nadzorujące mogą Cię słyszeć."
+msgstr "本阶段要求开启麦克风——监考人员可以听到您的声音。"
+
+msgid ""
+"Przed startem zrobisz kamerą zdjęcie dokumentu tożsamości (legitymacji "
+"szkolnej). Zasłoń numer PESEL i adres – wystarczy imię, nazwisko i zdjęcie."
+msgstr "开始前，您需要用摄像头拍摄一张身份证件（学生证）的照片。请遮住 PESEL 号码（波兰国民身份号码）和地址——只需显示姓名和照片即可。"
+
+msgid "Obraz z kamery jest nagrywany."
+msgstr "摄像头画面将被录制。"
+
+#, python-format
+msgid ""
+"Nagranie widzą wyłącznie koordynator i komisja odwoławcza (każde odtworzenie "
+"jest zapisywane). Usuwamy je %(days)s dni po ogłoszeniu wyników i zamknięciu "
+"okna reklamacji, chyba że trwa wyjaśnianie Twojej sprawy."
+msgstr "只有协调员和申诉委员会可以查看录像（每次播放都会被记录）。我们会在成绩公布且申诉期结束 %(days)s 天后删除录像，除非您的案件仍在核查中。"
+
+msgid "Obraz nie jest nagrywany – osoby nadzorujące widzą go tylko na żywo."
+msgstr "画面不会被录制——监考人员只能实时查看。"
+
+msgid ""
+"Nie stosujemy automatycznej analizy obrazu ani śledzenia tego, co robisz w "
+"przeglądarce. Decyzje podejmują ludzie."
+msgstr "我们不使用自动图像分析，也不跟踪您在浏览器中的操作。所有决定均由人工做出。"
+
+#, python-format
+msgid ""
+"Zapisujemy czasy połączeń, wiadomości od osób nadzorujących i ich notatki o "
+"incydentach. Dziennik połączeń i wiadomości usuwamy %(days)s dni po "
+"ogłoszeniu wyników; notatki o incydentach zostają w dokumentacji zawodów "
+"(odwołania)."
+msgstr "我们会记录连接时间、监考人员发送的消息以及他们关于事件的记录。连接和消息日志将在成绩公布 %(days)s 天后删除；事件记录将保留在竞赛文档中（用于申诉）。"
+
+msgid ""
+"Zgodę możesz wycofać w każdej chwili. Jeśli nie możesz albo nie chcesz "
+"używać kamery, poproś organizatora o inną formę nadzoru (na dole strony)."
+msgstr "您可以随时撤回同意。如果您无法或不愿使用摄像头，请向组织方申请其他监考方式（见页面底部）。"
+
+msgid ""
+"Szczegóły przetwarzania danych: polityka prywatności organizatora (sekcja "
+"„Nadzór zdalny”)."
+msgstr "数据处理详情：请参阅组织方的隐私政策（「远程监考」部分）。"
+
+#, python-format
+msgid "Zgoda wyrażona %(when)s (wersja %(version)s)."
+msgstr "已于 %(when)s 表示同意（版本 %(version)s）。"
+
+msgid "Wycofaj zgodę"
+msgstr "撤回同意"
+
+msgid ""
+"Jesteś osobą niepełnoletnią: zanim wyrazisz zgodę, Twój rodzic lub opiekun "
+"prawny musi potwierdzić online swoją zgodę na Twój udział."
+msgstr "您尚未成年：在您表示同意之前，您的父母或法定监护人必须在线确认同意您参加。"
+
+msgid "Poproś opiekuna o zgodę"
+msgstr "请求监护人同意"
+
+msgid "Zgoda Twojego opiekuna prawnego została potwierdzona online."
+msgstr "您的法定监护人已在线确认同意。"
+
+#, python-format
+msgid "Wersja informacji: %(version)s."
+msgstr "说明版本：%(version)s。"
+
+msgid "Wyrażam zgodę"
+msgstr "我同意"
+
+msgid "2. Sprawdzenie sprzętu"
+msgstr "2. 设备检查"
+
+msgid "Podgląd kamery"
+msgstr "摄像头预览"
+
+msgid "Przeglądarka"
+msgstr "浏览器"
+
+msgid "Kamera"
+msgstr "摄像头"
+
+msgid "Mikrofon"
+msgstr "麦克风"
+
+msgid "Udostępnianie ekranu"
+msgstr "屏幕共享"
+
+msgid "Sprawdź sprzęt"
+msgstr "检查设备"
+
+msgid "Sprzęt sprawdzony."
+msgstr "设备检查完成。"
+
+msgid "3. Zdjęcie dokumentu"
+msgstr "3. 证件照片"
+
+msgid "opcjonalne"
+msgstr "可选"
+
+msgid ""
+"Pokaż do kamery legitymację szkolną albo inny dokument ze zdjęciem i kliknij "
+"„Zrób zdjęcie”."
+msgstr "请将学生证或其他带照片的证件对准摄像头，然后点击「拍照」。"
+
+msgid "Zrób zdjęcie"
+msgstr "拍照"
+
+msgid "Zdjęcie zapisane."
+msgstr "照片已保存。"
+
+msgid "4. Start nadzoru"
+msgstr "4. 开始监考"
+
+msgid "3. Start nadzoru"
+msgstr "3. 开始监考"
+
+msgid "Etap jest dla Ciebie otwarty."
+msgstr "本阶段已对您开放。"
+
+msgid "Nagrywanie kamery włączone"
+msgstr "摄像头录制已开启"
+
+msgid "Włącz nadzór"
+msgstr "开启监考"
+
+msgid "Udostępnij ekran"
+msgstr "共享屏幕"
+
+msgid "Kontynuuj bez nadzoru"
+msgstr "在无监考的情况下继续"
+
+msgid "Przejdź do etapu (nowa karta)"
+msgstr "进入本阶段（新标签页）"
+
+msgid ""
+"Zostaw tę kartę otwartą do końca etapu – zamknięcie jej przerywa nadzór. "
+"Etap otworzy się w nowej karcie."
+msgstr "请保持此标签页打开直至本阶段结束——关闭它会中断监考。本阶段将在新标签页中打开。"
+
+msgid "Serwer nadzoru jest niedostępny. Skontaktuj się z organizatorem."
+msgstr "监考服务器不可用。请联系组织方。"
+
+msgid "Twój obraz w nadzorze"
+msgstr "您在监考中的画面"
+
+msgid "Nie mogę użyć kamery"
+msgstr "我无法使用摄像头"
+
+msgid ""
+"Twoja prośba czeka na decyzję organizatora. Odpowiedź pojawi się na tej "
+"stronie."
+msgstr "您的申请正在等待组织方决定。答复将显示在此页面上。"
+
+msgid "Organizator nie zatwierdził innej formy nadzoru."
+msgstr "组织方未批准其他监考方式。"
+
+msgid "Poproś o inną formę nadzoru"
+msgstr "申请其他监考方式"
+
+msgid "Nadzór"
+msgstr "监考"
+
+msgid "Łączenie…"
+msgstr "正在连接…"
+
+msgid "Eksport incydentów (CSV)"
+msgstr "导出事件（CSV）"
+
+msgid "Siatka nadzoru wymaga włączonego JavaScriptu."
+msgstr "监考网格需要启用 JavaScript。"
+
+msgid ""
+"Obraz jest chwilowo niedostępny – brakuje komponentu wideo na serwerze. "
+"Lista uczniów i czynności działają."
+msgstr "画面暂时不可用——服务器缺少视频组件。学生列表和各项操作仍可正常使用。"
+
+msgid ""
+"Serwer nadzoru nie jest skonfigurowany. Lista uczniów i czynności działają."
+msgstr "监考服务器尚未配置。学生列表和各项操作仍可正常使用。"
+
+msgid "Widok"
+msgstr "视图"
+
+msgid "Grupa"
+msgstr "分组"
+
+msgid "Kafli na stronie"
+msgstr "每页画面数"
+
+msgid "Poprzednia"
+msgstr "上一页"
+
+msgid "Następna"
+msgstr "下一页"
+
+msgid "Włącz dźwięk"
+msgstr "开启声音"
+
+msgid "Incydent"
+msgstr "事件"
+
+msgid "Kategoria"
+msgstr "类别"
+
+msgid "Waga"
+msgstr "严重程度"
+
+msgid "Notatka"
+msgstr "备注"
+
+msgid "Czas incydentu zapisze się jako chwila otwarcia tego okna."
+msgstr "事件时间将记录为打开此窗口的时刻。"
+
+msgid "Zapisz incydent"
+msgstr "保存事件"
+
+msgid "Anuluj"
+msgstr "取消"
+
+msgid "Etapy do nadzoru"
+msgstr "需监考的阶段"
+
+msgid "Otwórz siatkę nadzoru"
+msgstr "打开监考网格"
+
+msgid "Nie masz etapów do nadzoru."
+msgstr "您没有需要监考的阶段。"
+
+msgid "Raport nadzoru"
+msgstr "监考报告"
+
+msgid "Zgoda"
+msgstr "同意"
+
+msgid "wycofana"
+msgstr "已撤回"
+
+msgid "zgoda opiekuna potwierdzona online"
+msgstr "监护人同意已在线确认"
+
+msgid "brak"
+msgstr "无"
+
+msgid "Sprawdzenie sprzętu"
+msgstr "设备检查"
+
+msgid "Nadzór rozpoczęty"
+msgstr "监考已开始"
+
+msgid "Bez nadzoru od"
+msgstr "无监考起始时间"
+
+msgid "Obecność"
+msgstr "出勤"
+
+msgid "Inna forma nadzoru"
+msgstr "其他监考方式"
+
+msgid "Zdjęcie dokumentu"
+msgstr "证件照片"
+
+msgid "otwórz (15 min)"
+msgstr "打开（15 分钟）"
+
+msgid "Wstrzymanie usunięcia"
+msgstr "暂缓删除"
+
+msgid "Nośniki usunięte"
+msgstr "媒体文件已删除"
+
+msgid "Incydenty"
+msgstr "事件"
+
+msgid "Czas"
+msgstr "时间"
+
+msgid "Zgłosił"
+msgstr "报告人"
+
+msgid "Brak incydentów."
+msgstr "无事件。"
+
+msgid "Wiadomości do ucznia"
+msgstr "发给学生的消息"
+
+msgid "potwierdzona"
+msgstr "已确认"
+
+msgid "Brak wiadomości."
+msgstr "无消息。"
+
+msgid "Nagrania"
+msgstr "录像"
+
+msgid "odtwórz (15 min)"
+msgstr "播放（15 分钟）"
+
+msgid "Brak nagrań."
+msgstr "无录像。"
+
+msgid "Dziennik"
+msgstr "日志"
+
+msgid "Dziennik jest pusty albo został już usunięty (retencja)."
+msgstr "日志为空或已被删除（超过保留期限）。"
+
+msgid "Za dużo żądań. Spróbuj za chwilę."
+msgstr "请求过多。请稍后再试。"
+
+msgid "Sprawdzanie…"
+msgstr "正在检查…"
+
+msgid "działa"
+msgstr "正常"
+
+msgid "nie działa"
+msgstr "不正常"
+
+msgid "niewymagane"
+msgstr "不需要"
+
+msgid ""
+"Ta przeglądarka nie obsługuje nadzoru wideo. Użyj aktualnej przeglądarki "
+"Chrome, Edge, Firefox albo Safari."
+msgstr "此浏览器不支持视频监考。请使用最新版本的 Chrome、Edge、Firefox 或 Safari 浏览器。"
+
+msgid ""
+"Brak dostępu do kamery. Zezwól na kamerę w ustawieniach przeglądarki i "
+"spróbuj ponownie."
+msgstr "无法访问摄像头。请在浏览器设置中允许使用摄像头，然后重试。"
+
+msgid "Łączenie z serwerem nadzoru…"
+msgstr "正在连接监考服务器…"
+
+msgid "Nadzór działa. Zostaw tę kartę otwartą do końca etapu."
+msgstr "监考正在运行。请保持此标签页打开直至本阶段结束。"
+
+msgid ""
+"Połączenie nadzoru zostało przerwane. Nie zamykaj tej karty – trwa ponowne "
+"łączenie."
+msgstr "监考连接已中断。请勿关闭此标签页——正在重新连接。"
+
+msgid "Połączenie nadzoru przywrócone."
+msgstr "监考连接已恢复。"
+
+msgid "Nie udało się połączyć z serwerem nadzoru."
+msgstr "无法连接到监考服务器。"
+
+msgid "Udostępnianie ekranu zostało zatrzymane. Udostępnij ekran ponownie."
+msgstr "屏幕共享已停止。请重新共享屏幕。"
+
+msgid "Wiadomość od osoby nadzorującej"
+msgstr "来自监考人员的消息"
+
+msgid "Osoba nadzorująca prosi: pokaż kamerą pokój dookoła siebie."
+msgstr "监考人员请求：请用摄像头展示您周围的房间环境。"
+
+msgid "Osoba nadzorująca prosi: pokaż do kamery dokument tożsamości."
+msgstr "监考人员请求：请将身份证件对准摄像头展示。"
+
+msgid "Rozumiem"
+msgstr "我知道了"
+
+msgid "Coś poszło nie tak. Spróbuj ponownie."
+msgstr "出了点问题。请重试。"
+
+msgid "Spróbuj ponownie"
+msgstr "重试"
+
+msgid "Zgoda na nadzór wycofana."
+msgstr "已撤回监考同意。"
+
+msgid "Zaznacz pole zgody, żeby przejść dalej."
+msgstr "请勾选同意框以继续。"
+
+msgid "Prośba wysłana. Organizator odpowie w tej konsoli."
+msgstr "申请已发送。组织方将在此控制台中答复。"
+
+msgid "Połączono z pokojem nadzoru."
+msgstr "已连接到监考室。"
+
+msgid "Rozłączono z pokojem nadzoru. Odśwież stronę."
+msgstr "已与监考室断开连接。请刷新页面。"
+
+msgid "Nie udało się połączyć z pokojem nadzoru."
+msgstr "无法连接到监考室。"
+
+#, python-format
+msgid "Strona %(page)s z %(pages)s"
+msgstr "第 %(page)s 页，共 %(pages)s 页"
+
+msgid "Brak uczniów w tej grupie."
+msgstr "该分组中没有学生。"
+
+msgid "nadaje"
+msgstr "正在传输"
+
+msgid "czeka na start"
+msgstr "等待开始"
+
+msgid "strumień przerwany"
+msgstr "视频流中断"
+
+msgid "brak sygnału"
+msgstr "无信号"
+
+msgid "bez nadzoru"
+msgstr "无监考"
+
+msgid "alternatywa"
+msgstr "替代方式"
+
+msgid "brak zgody"
+msgstr "未同意"
+
+msgid "Wiadomość"
+msgstr "消息"
+
+msgid "Treść wiadomości do ucznia:"
+msgstr "发给学生的消息内容："
+
+msgid "Pokaż pokój"
+msgstr "展示房间"
+
+msgid "Pokaż dokument"
+msgstr "展示证件"
+
+msgid "Obecny"
+msgstr "在场"
+
+msgid "Nieobecny"
+msgstr "缺席"
+
+msgid "Ekran"
+msgstr "屏幕"
+
+msgid "Ukryj ekran"
+msgstr "隐藏屏幕"
+
+#, python-format
+msgid "incydenty: %(count)s"
+msgstr "事件：%(count)s"
+
+msgid "Wysłano."
+msgstr "已发送。"
+
+msgid "Zapisano."
+msgstr "已保存。"
+
+msgid "Dźwięk"
+msgstr "声音"
+
+msgid "Raport"
+msgstr "报告"
+
+msgid "uczeń poza kadrem"
+msgstr "学生不在画面内"
+
+msgid "inna osoba w kadrze"
+msgstr "画面中有其他人"
+
+msgid "inne urządzenie"
+msgstr "其他设备"
+
+msgid "rozmowa lub komunikacja"
+msgstr "交谈或通讯"
+
+msgid "niedozwolone materiały"
+msgstr "违规材料"
+
+msgid "ekran"
+msgstr "屏幕"
+
+msgid "problem techniczny"
+msgstr "技术问题"
+
+msgid "inne"
+msgstr "其他"
+
+msgid "informacja"
+msgstr "信息"
+
+msgid "ostrzeżenie"
+msgstr "警告"
+
+msgid "poważny"
+msgstr "严重"

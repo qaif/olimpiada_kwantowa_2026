@@ -1,0 +1,739 @@
+# French - Nadzór zdalny (PROC-01) – tłumaczenie maszynowe, do przejrzenia przez native speakera.
+# Zrodlem (msgid) jest polski; wspolny katalog (backend/locale/fr) byl odniesieniem terminologii.
+#
+# UWAGA: tlumaczenie MASZYNOWE (model jezykowy). Przed szeroka komunikacja
+# do uczestnikow powinien je przejrzec native speaker - patrz docs/OPERACJE.md.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Olimpiada Kwantowa\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-04 19:52+0200\n"
+"PO-Revision-Date: 2026-10-04 20:00+0200\n"
+"Last-Translator: Olimpiada Kwantowa\n"
+"Language-Team: French\n"
+"Language: fr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+
+msgid "Powód"
+msgstr "Motif"
+
+msgid "Nie mam kamery"
+msgstr "Je n’ai pas de caméra"
+
+msgid "Kamera nie działa"
+msgstr "Ma caméra ne fonctionne pas"
+
+msgid "Moja przeglądarka nie obsługuje nadzoru"
+msgstr "Mon navigateur ne prend pas en charge la surveillance"
+
+msgid "Potrzeby dostępności"
+msgstr "Besoins d’accessibilité"
+
+msgid "Inny powód"
+msgstr "Autre motif"
+
+msgid "Krótka uwaga (opcjonalnie)"
+msgstr "Courte remarque (facultatif)"
+
+msgid ""
+"Nie wpisuj informacji o zdrowiu – organizator skontaktuje się z Tobą, jeśli "
+"będzie trzeba."
+msgstr ""
+"N’indiquez aucune information de santé – l’organisateur vous contactera si "
+"nécessaire."
+
+msgid ""
+"Ten etap jest nadzorowany zdalnie. Najpierw włącz nadzór w konsoli nadzoru."
+msgstr ""
+"Cette étape fait l’objet d’une surveillance à distance. Activez d’abord la "
+"surveillance dans la console de surveillance."
+
+msgid ""
+"Zapoznałem/-am się z informacją o nadzorze zdalnym tego etapu i wyrażam "
+"zgodę na przekazywanie obrazu z mojej kamery (oraz – jeśli etap tego wymaga "
+"– mojego ekranu i dźwięku) osobom nadzorującym na zasadach opisanych powyżej."
+msgstr ""
+"J’ai pris connaissance des informations sur la surveillance à distance de "
+"cette étape et je consens à la transmission de l’image de ma caméra (ainsi "
+"que – si l’étape l’exige – de mon écran et du son) aux surveillants, selon "
+"les modalités décrites ci-dessus."
+
+msgid "Serwer nadzoru nie odpowiada. Spróbuj za chwilę."
+msgstr "Le serveur de surveillance ne répond pas. Réessayez dans un instant."
+
+#, python-format
+msgid "uczniowie: %(name)s"
+msgstr "élèves : %(name)s"
+
+msgid "uczniowie bez przydziału"
+msgstr "élèves non attribués"
+
+msgid ""
+"Najpierw potrzebna jest zgoda Twojego rodzica lub opiekuna prawnego, "
+"potwierdzona online. Poproś o nią w panelu, w zakładce „Zgody”."
+msgstr ""
+"Il faut d’abord le consentement de votre parent ou représentant légal, "
+"confirmé en ligne. Demandez-le dans le tableau de bord, onglet « "
+"Consentements »."
+
+msgid "Ten etap nie zbiera zdjęcia dokumentu."
+msgstr "Cette étape ne demande pas de photo de pièce d’identité."
+
+msgid "Zdjęcie nie zostało zapisane. Spróbuj jeszcze raz."
+msgstr "La photo n’a pas été enregistrée. Réessayez."
+
+msgid "Najpierw wyraź zgodę na nadzór."
+msgstr "Donnez d’abord votre consentement à la surveillance."
+
+msgid "Najpierw sprawdź sprzęt."
+msgstr "Vérifiez d’abord votre matériel."
+
+msgid "Najpierw zrób zdjęcie dokumentu."
+msgstr "Prenez d’abord une photo de votre pièce d’identité."
+
+#, python-format
+msgid "Nadzór będzie można włączyć od %(when)s."
+msgstr "La surveillance pourra être activée à partir de %(when)s."
+
+msgid "Czas tego etapu minął."
+msgstr "Le temps de cette étape est écoulé."
+
+msgid ""
+"Serwer nadzoru jeszcze nie widzi Twojej kamery. Poczekaj chwilę i spróbuj "
+"ponownie."
+msgstr ""
+"Le serveur de surveillance ne voit pas encore votre caméra. Patientez un "
+"instant et réessayez."
+
+msgid "Ten etap wymaga działającego nadzoru. Skontaktuj się z organizatorem."
+msgstr ""
+"Cette étape nécessite une surveillance active. Contactez l’organisateur."
+
+msgid "Wybierz powód z listy."
+msgstr "Choisissez un motif dans la liste."
+
+msgid "Pokój nadzoru jest teraz zamknięty."
+msgstr "La salle de surveillance est actuellement fermée."
+
+msgid "Wpisz treść wiadomości."
+msgstr "Saisissez le texte du message."
+
+msgid "Wybierz kategorię i wagę incydentu."
+msgstr "Choisissez la catégorie et la gravité de l’incident."
+
+msgid "Nadzór zdalny"
+msgstr "Surveillance à distance"
+
+msgid ""
+"Ten etap jest nadzorowany zdalnie. Konsola nadzoru musi być otwarta w "
+"osobnej karcie do końca etapu."
+msgstr ""
+"Cette étape fait l’objet d’une surveillance à distance. La console de "
+"surveillance doit rester ouverte dans un onglet séparé jusqu’à la fin de "
+"l’étape."
+
+msgid ""
+"Ten etap jest nadzorowany zdalnie. Zanim zobaczysz zadania, wyraź zgodę, "
+"sprawdź sprzęt i włącz nadzór w konsoli."
+msgstr ""
+"Cette étape fait l’objet d’une surveillance à distance. Avant de voir les "
+"problèmes, donnez votre consentement, vérifiez votre matériel et activez la "
+"surveillance dans la console."
+
+msgid "Nadzór działa."
+msgstr "La surveillance est active."
+
+msgid ""
+"Nadzór nie działa – wróć do karty konsoli nadzoru albo otwórz ją ponownie."
+msgstr ""
+"La surveillance ne fonctionne pas – revenez à l’onglet de la console de "
+"surveillance ou rouvrez-le."
+
+msgid "Stan nadzoru: sprawdź kartę konsoli nadzoru."
+msgstr ""
+"État de la surveillance : consultez l’onglet de la console de surveillance."
+
+msgid "Konsola nadzoru"
+msgstr "Console de surveillance"
+
+msgid "Etap:"
+msgstr "Étape :"
+
+msgid "Nadzór możesz włączyć od:"
+msgstr "Vous pouvez activer la surveillance à partir de :"
+
+msgid "Nadzór zdalny wymaga włączonego JavaScriptu."
+msgstr "La surveillance à distance nécessite que JavaScript soit activé."
+
+msgid ""
+"Nadzór jest chwilowo niedostępny – brakuje komponentu wideo na serwerze. Daj "
+"znać organizatorowi."
+msgstr ""
+"La surveillance est temporairement indisponible – le composant vidéo est "
+"absent du serveur. Prévenez l’organisateur."
+
+msgid "Organizator zatwierdził inną formę nadzoru"
+msgstr "L’organisateur a approuvé une autre forme de surveillance"
+
+msgid "Przejdź do etapu"
+msgstr "Accéder à l’étape"
+
+msgid "1. Informacja o nadzorze i zgoda"
+msgstr "1. Information sur la surveillance et consentement"
+
+msgid ""
+"W czasie etapu obraz z Twojej kamery (mała rozdzielczość) widzą na żywo "
+"osoby nadzorujące wskazane przez organizatora: koordynatorzy i członkowie "
+"komisji, a w olimpiadzie międzynarodowej także opiekun Twojej drużyny "
+"narodowej – wyłącznie uczniów swojej drużyny."
+msgstr ""
+"Pendant l’étape, l’image de votre caméra (basse résolution) est visible en "
+"direct par les surveillants désignés par l’organisateur : les coordinateurs "
+"et les membres du jury, et, pour l’olympiade internationale, également le "
+"chef de votre équipe nationale – uniquement pour les élèves de son équipe."
+
+msgid ""
+"Etap wymaga udostępnienia całego ekranu – osoby nadzorujące mogą go zobaczyć."
+msgstr ""
+"L’étape exige le partage de l’écran entier – les surveillants peuvent le "
+"voir."
+
+msgid "Etap wymaga włączonego mikrofonu – osoby nadzorujące mogą Cię słyszeć."
+msgstr ""
+"L’étape exige un micro activé – les surveillants peuvent vous entendre."
+
+msgid ""
+"Przed startem zrobisz kamerą zdjęcie dokumentu tożsamości (legitymacji "
+"szkolnej). Zasłoń numer PESEL i adres – wystarczy imię, nazwisko i zdjęcie."
+msgstr ""
+"Avant de commencer, vous prendrez avec la caméra une photo d’une pièce "
+"d’identité (carte d’élève). Masquez le numéro PESEL (numéro "
+"d’identification national polonais) et l’adresse – le prénom, le nom et la "
+"photo suffisent."
+
+msgid "Obraz z kamery jest nagrywany."
+msgstr "L’image de la caméra est enregistrée."
+
+#, python-format
+msgid ""
+"Nagranie widzą wyłącznie koordynator i komisja odwoławcza (każde odtworzenie "
+"jest zapisywane). Usuwamy je %(days)s dni po ogłoszeniu wyników i zamknięciu "
+"okna reklamacji, chyba że trwa wyjaśnianie Twojej sprawy."
+msgstr ""
+"Seuls le coordinateur et la commission d’appel peuvent voir "
+"l’enregistrement (chaque lecture est consignée). Nous le supprimons "
+"%(days)s jours après la publication des résultats et la clôture de la "
+"période de réclamation, sauf si votre dossier est en cours d’examen."
+
+msgid "Obraz nie jest nagrywany – osoby nadzorujące widzą go tylko na żywo."
+msgstr ""
+"L’image n’est pas enregistrée – les surveillants la voient uniquement en "
+"direct."
+
+msgid ""
+"Nie stosujemy automatycznej analizy obrazu ani śledzenia tego, co robisz w "
+"przeglądarce. Decyzje podejmują ludzie."
+msgstr ""
+"Nous n’utilisons ni analyse automatique de l’image ni suivi de ce que vous "
+"faites dans le navigateur. Les décisions sont prises par des personnes."
+
+#, python-format
+msgid ""
+"Zapisujemy czasy połączeń, wiadomości od osób nadzorujących i ich notatki o "
+"incydentach. Dziennik połączeń i wiadomości usuwamy %(days)s dni po "
+"ogłoszeniu wyników; notatki o incydentach zostają w dokumentacji zawodów "
+"(odwołania)."
+msgstr ""
+"Nous enregistrons les heures de connexion, les messages des surveillants et "
+"leurs notes sur les incidents. Le journal des connexions et des messages "
+"est supprimé %(days)s jours après la publication des résultats ; les notes "
+"sur les incidents restent dans la documentation du concours (recours)."
+
+msgid ""
+"Zgodę możesz wycofać w każdej chwili. Jeśli nie możesz albo nie chcesz "
+"używać kamery, poproś organizatora o inną formę nadzoru (na dole strony)."
+msgstr ""
+"Vous pouvez retirer votre consentement à tout moment. Si vous ne pouvez pas "
+"ou ne souhaitez pas utiliser de caméra, demandez à l’organisateur une autre "
+"forme de surveillance (en bas de la page)."
+
+msgid ""
+"Szczegóły przetwarzania danych: polityka prywatności organizatora (sekcja "
+"„Nadzór zdalny”)."
+msgstr ""
+"Détails du traitement des données : politique de confidentialité de "
+"l’organisateur (section « Surveillance à distance »)."
+
+#, python-format
+msgid "Zgoda wyrażona %(when)s (wersja %(version)s)."
+msgstr "Consentement donné le %(when)s (version %(version)s)."
+
+msgid "Wycofaj zgodę"
+msgstr "Retirer mon consentement"
+
+msgid ""
+"Jesteś osobą niepełnoletnią: zanim wyrazisz zgodę, Twój rodzic lub opiekun "
+"prawny musi potwierdzić online swoją zgodę na Twój udział."
+msgstr ""
+"Vous êtes mineur(e) : avant que vous ne donniez votre consentement, votre "
+"parent ou représentant légal doit confirmer en ligne son accord pour votre "
+"participation."
+
+msgid "Poproś opiekuna o zgodę"
+msgstr "Demander le consentement du représentant légal"
+
+msgid "Zgoda Twojego opiekuna prawnego została potwierdzona online."
+msgstr "Le consentement de votre représentant légal a été confirmé en ligne."
+
+#, python-format
+msgid "Wersja informacji: %(version)s."
+msgstr "Version de l’information : %(version)s."
+
+msgid "Wyrażam zgodę"
+msgstr "Je donne mon consentement"
+
+msgid "2. Sprawdzenie sprzętu"
+msgstr "2. Vérification du matériel"
+
+msgid "Podgląd kamery"
+msgstr "Aperçu de la caméra"
+
+msgid "Przeglądarka"
+msgstr "Navigateur"
+
+msgid "Kamera"
+msgstr "Caméra"
+
+msgid "Mikrofon"
+msgstr "Micro"
+
+msgid "Udostępnianie ekranu"
+msgstr "Partage d’écran"
+
+msgid "Sprawdź sprzęt"
+msgstr "Vérifier le matériel"
+
+msgid "Sprzęt sprawdzony."
+msgstr "Matériel vérifié."
+
+msgid "3. Zdjęcie dokumentu"
+msgstr "3. Photo de la pièce d’identité"
+
+msgid "opcjonalne"
+msgstr "facultatif"
+
+msgid ""
+"Pokaż do kamery legitymację szkolną albo inny dokument ze zdjęciem i kliknij "
+"„Zrób zdjęcie”."
+msgstr ""
+"Montrez à la caméra votre carte d’élève ou une autre pièce d’identité avec "
+"photo, puis cliquez sur « Prendre la photo »."
+
+msgid "Zrób zdjęcie"
+msgstr "Prendre la photo"
+
+msgid "Zdjęcie zapisane."
+msgstr "Photo enregistrée."
+
+msgid "4. Start nadzoru"
+msgstr "4. Démarrage de la surveillance"
+
+msgid "3. Start nadzoru"
+msgstr "3. Démarrage de la surveillance"
+
+msgid "Etap jest dla Ciebie otwarty."
+msgstr "L’étape est ouverte pour vous."
+
+msgid "Nagrywanie kamery włączone"
+msgstr "Enregistrement de la caméra activé"
+
+msgid "Włącz nadzór"
+msgstr "Activer la surveillance"
+
+msgid "Udostępnij ekran"
+msgstr "Partager l’écran"
+
+msgid "Kontynuuj bez nadzoru"
+msgstr "Continuer sans surveillance"
+
+msgid "Przejdź do etapu (nowa karta)"
+msgstr "Accéder à l’étape (nouvel onglet)"
+
+msgid ""
+"Zostaw tę kartę otwartą do końca etapu – zamknięcie jej przerywa nadzór. "
+"Etap otworzy się w nowej karcie."
+msgstr ""
+"Laissez cet onglet ouvert jusqu’à la fin de l’étape – le fermer interrompt "
+"la surveillance. L’étape s’ouvrira dans un nouvel onglet."
+
+msgid "Serwer nadzoru jest niedostępny. Skontaktuj się z organizatorem."
+msgstr "Le serveur de surveillance est indisponible. Contactez l’organisateur."
+
+msgid "Twój obraz w nadzorze"
+msgstr "Votre image transmise à la surveillance"
+
+msgid "Nie mogę użyć kamery"
+msgstr "Je ne peux pas utiliser de caméra"
+
+msgid ""
+"Twoja prośba czeka na decyzję organizatora. Odpowiedź pojawi się na tej "
+"stronie."
+msgstr ""
+"Votre demande est en attente de la décision de l’organisateur. La réponse "
+"s’affichera sur cette page."
+
+msgid "Organizator nie zatwierdził innej formy nadzoru."
+msgstr "L’organisateur n’a pas approuvé d’autre forme de surveillance."
+
+msgid "Poproś o inną formę nadzoru"
+msgstr "Demander une autre forme de surveillance"
+
+msgid "Nadzór"
+msgstr "Surveillance"
+
+msgid "Łączenie…"
+msgstr "Connexion…"
+
+msgid "Eksport incydentów (CSV)"
+msgstr "Exporter les incidents (CSV)"
+
+msgid "Siatka nadzoru wymaga włączonego JavaScriptu."
+msgstr "La grille de surveillance nécessite que JavaScript soit activé."
+
+msgid ""
+"Obraz jest chwilowo niedostępny – brakuje komponentu wideo na serwerze. "
+"Lista uczniów i czynności działają."
+msgstr ""
+"L’image est temporairement indisponible – le composant vidéo est absent du "
+"serveur. La liste des élèves et les actions restent disponibles."
+
+msgid ""
+"Serwer nadzoru nie jest skonfigurowany. Lista uczniów i czynności działają."
+msgstr ""
+"Le serveur de surveillance n’est pas configuré. La liste des élèves et les "
+"actions restent disponibles."
+
+msgid "Widok"
+msgstr "Vue"
+
+msgid "Grupa"
+msgstr "Groupe"
+
+msgid "Kafli na stronie"
+msgstr "Vignettes par page"
+
+msgid "Poprzednia"
+msgstr "Précédente"
+
+msgid "Następna"
+msgstr "Suivante"
+
+msgid "Włącz dźwięk"
+msgstr "Activer le son"
+
+msgid "Incydent"
+msgstr "Incident"
+
+msgid "Kategoria"
+msgstr "Catégorie"
+
+msgid "Waga"
+msgstr "Gravité"
+
+msgid "Notatka"
+msgstr "Note"
+
+msgid "Czas incydentu zapisze się jako chwila otwarcia tego okna."
+msgstr ""
+"L’heure de l’incident sera enregistrée comme le moment d’ouverture de cette "
+"fenêtre."
+
+msgid "Zapisz incydent"
+msgstr "Enregistrer l’incident"
+
+msgid "Anuluj"
+msgstr "Annuler"
+
+msgid "Etapy do nadzoru"
+msgstr "Étapes à surveiller"
+
+msgid "Otwórz siatkę nadzoru"
+msgstr "Ouvrir la grille de surveillance"
+
+msgid "Nie masz etapów do nadzoru."
+msgstr "Vous n’avez aucune étape à surveiller."
+
+msgid "Raport nadzoru"
+msgstr "Rapport de surveillance"
+
+msgid "Zgoda"
+msgstr "Consentement"
+
+msgid "wycofana"
+msgstr "retiré"
+
+msgid "zgoda opiekuna potwierdzona online"
+msgstr "consentement du représentant légal confirmé en ligne"
+
+msgid "brak"
+msgstr "aucun"
+
+msgid "Sprawdzenie sprzętu"
+msgstr "Vérification du matériel"
+
+msgid "Nadzór rozpoczęty"
+msgstr "Surveillance démarrée"
+
+msgid "Bez nadzoru od"
+msgstr "Sans surveillance depuis"
+
+msgid "Obecność"
+msgstr "Présence"
+
+msgid "Inna forma nadzoru"
+msgstr "Autre forme de surveillance"
+
+msgid "Zdjęcie dokumentu"
+msgstr "Photo de la pièce d’identité"
+
+msgid "otwórz (15 min)"
+msgstr "ouvrir (15 min)"
+
+msgid "Wstrzymanie usunięcia"
+msgstr "Suspension de la suppression"
+
+msgid "Nośniki usunięte"
+msgstr "Médias supprimés"
+
+msgid "Incydenty"
+msgstr "Incidents"
+
+msgid "Czas"
+msgstr "Heure"
+
+msgid "Zgłosił"
+msgstr "Signalé par"
+
+msgid "Brak incydentów."
+msgstr "Aucun incident."
+
+msgid "Wiadomości do ucznia"
+msgstr "Messages à l’élève"
+
+msgid "potwierdzona"
+msgstr "confirmé"
+
+msgid "Brak wiadomości."
+msgstr "Aucun message."
+
+msgid "Nagrania"
+msgstr "Enregistrements"
+
+msgid "odtwórz (15 min)"
+msgstr "lire (15 min)"
+
+msgid "Brak nagrań."
+msgstr "Aucun enregistrement."
+
+msgid "Dziennik"
+msgstr "Journal"
+
+msgid "Dziennik jest pusty albo został już usunięty (retencja)."
+msgstr "Le journal est vide ou a déjà été supprimé (durée de conservation)."
+
+msgid "Za dużo żądań. Spróbuj za chwilę."
+msgstr "Trop de requêtes. Réessayez dans un instant."
+
+msgid "Sprawdzanie…"
+msgstr "Vérification…"
+
+msgid "działa"
+msgstr "fonctionne"
+
+msgid "nie działa"
+msgstr "ne fonctionne pas"
+
+msgid "niewymagane"
+msgstr "non requis"
+
+msgid ""
+"Ta przeglądarka nie obsługuje nadzoru wideo. Użyj aktualnej przeglądarki "
+"Chrome, Edge, Firefox albo Safari."
+msgstr ""
+"Ce navigateur ne prend pas en charge la surveillance vidéo. Utilisez une "
+"version récente de Chrome, Edge, Firefox ou Safari."
+
+msgid ""
+"Brak dostępu do kamery. Zezwól na kamerę w ustawieniach przeglądarki i "
+"spróbuj ponownie."
+msgstr ""
+"Pas d’accès à la caméra. Autorisez la caméra dans les paramètres du "
+"navigateur et réessayez."
+
+msgid "Łączenie z serwerem nadzoru…"
+msgstr "Connexion au serveur de surveillance…"
+
+msgid "Nadzór działa. Zostaw tę kartę otwartą do końca etapu."
+msgstr ""
+"La surveillance est active. Laissez cet onglet ouvert jusqu’à la fin de "
+"l’étape."
+
+msgid ""
+"Połączenie nadzoru zostało przerwane. Nie zamykaj tej karty – trwa ponowne "
+"łączenie."
+msgstr ""
+"La connexion de surveillance a été interrompue. Ne fermez pas cet onglet – "
+"reconnexion en cours."
+
+msgid "Połączenie nadzoru przywrócone."
+msgstr "Connexion de surveillance rétablie."
+
+msgid "Nie udało się połączyć z serwerem nadzoru."
+msgstr "Impossible de se connecter au serveur de surveillance."
+
+msgid "Udostępnianie ekranu zostało zatrzymane. Udostępnij ekran ponownie."
+msgstr "Le partage d’écran a été arrêté. Partagez de nouveau votre écran."
+
+msgid "Wiadomość od osoby nadzorującej"
+msgstr "Message du surveillant"
+
+msgid "Osoba nadzorująca prosi: pokaż kamerą pokój dookoła siebie."
+msgstr ""
+"Le surveillant vous demande : montrez avec la caméra la pièce autour de "
+"vous."
+
+msgid "Osoba nadzorująca prosi: pokaż do kamery dokument tożsamości."
+msgstr ""
+"Le surveillant vous demande : montrez votre pièce d’identité à la caméra."
+
+msgid "Rozumiem"
+msgstr "J’ai compris"
+
+msgid "Coś poszło nie tak. Spróbuj ponownie."
+msgstr "Une erreur s’est produite. Réessayez."
+
+msgid "Spróbuj ponownie"
+msgstr "Réessayer"
+
+msgid "Zgoda na nadzór wycofana."
+msgstr "Consentement à la surveillance retiré."
+
+msgid "Zaznacz pole zgody, żeby przejść dalej."
+msgstr "Cochez la case de consentement pour continuer."
+
+msgid "Prośba wysłana. Organizator odpowie w tej konsoli."
+msgstr "Demande envoyée. L’organisateur répondra dans cette console."
+
+msgid "Połączono z pokojem nadzoru."
+msgstr "Connecté à la salle de surveillance."
+
+msgid "Rozłączono z pokojem nadzoru. Odśwież stronę."
+msgstr "Déconnecté de la salle de surveillance. Actualisez la page."
+
+msgid "Nie udało się połączyć z pokojem nadzoru."
+msgstr "Impossible de se connecter à la salle de surveillance."
+
+#, python-format
+msgid "Strona %(page)s z %(pages)s"
+msgstr "Page %(page)s sur %(pages)s"
+
+msgid "Brak uczniów w tej grupie."
+msgstr "Aucun élève dans ce groupe."
+
+msgid "nadaje"
+msgstr "en direct"
+
+msgid "czeka na start"
+msgstr "en attente de démarrage"
+
+msgid "strumień przerwany"
+msgstr "flux interrompu"
+
+msgid "brak sygnału"
+msgstr "aucun signal"
+
+msgid "bez nadzoru"
+msgstr "sans surveillance"
+
+msgid "alternatywa"
+msgstr "alternative"
+
+msgid "brak zgody"
+msgstr "pas de consentement"
+
+msgid "Wiadomość"
+msgstr "Message"
+
+msgid "Treść wiadomości do ucznia:"
+msgstr "Texte du message à l’élève :"
+
+msgid "Pokaż pokój"
+msgstr "Montrer la pièce"
+
+msgid "Pokaż dokument"
+msgstr "Montrer le document"
+
+msgid "Obecny"
+msgstr "Présent"
+
+msgid "Nieobecny"
+msgstr "Absent"
+
+msgid "Ekran"
+msgstr "Écran"
+
+msgid "Ukryj ekran"
+msgstr "Masquer l’écran"
+
+#, python-format
+msgid "incydenty: %(count)s"
+msgstr "incidents : %(count)s"
+
+msgid "Wysłano."
+msgstr "Envoyé."
+
+msgid "Zapisano."
+msgstr "Enregistré."
+
+msgid "Dźwięk"
+msgstr "Son"
+
+msgid "Raport"
+msgstr "Rapport"
+
+msgid "uczeń poza kadrem"
+msgstr "élève hors champ"
+
+msgid "inna osoba w kadrze"
+msgstr "autre personne dans le champ"
+
+msgid "inne urządzenie"
+msgstr "autre appareil"
+
+msgid "rozmowa lub komunikacja"
+msgstr "conversation ou communication"
+
+msgid "niedozwolone materiały"
+msgstr "documents non autorisés"
+
+msgid "ekran"
+msgstr "écran"
+
+msgid "problem techniczny"
+msgstr "problème technique"
+
+msgid "inne"
+msgstr "autre"
+
+msgid "informacja"
+msgstr "information"
+
+msgid "ostrzeżenie"
+msgstr "avertissement"
+
+msgid "poważny"
+msgstr "grave"

@@ -1,0 +1,660 @@
+# Bengali - Nadzór zdalny (PROC-01) – tłumaczenie maszynowe, do przejrzenia przez native speakera.
+# Zrodlem (msgid) jest polski.
+#
+# UWAGA: tlumaczenie MASZYNOWE (model jezykowy). Przed szeroka komunikacja
+# do uczestnikow powinien je przejrzec native speaker - patrz docs/OPERACJE.md.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Olimpiada Kwantowa\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-04 19:52+0200\n"
+"PO-Revision-Date: 2026-10-04 20:00+0200\n"
+"Last-Translator: Olimpiada Kwantowa\n"
+"Language-Team: Bengali\n"
+"Language: bn\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Powód"
+msgstr "কারণ"
+
+msgid "Nie mam kamery"
+msgstr "আমার ক্যামেরা নেই"
+
+msgid "Kamera nie działa"
+msgstr "ক্যামেরা কাজ করছে না"
+
+msgid "Moja przeglądarka nie obsługuje nadzoru"
+msgstr "আমার ব্রাউজার নজরদারি সমর্থন করে না"
+
+msgid "Potrzeby dostępności"
+msgstr "প্রবেশযোগ্যতা-সংক্রান্ত প্রয়োজন"
+
+msgid "Inny powód"
+msgstr "অন্য কারণ"
+
+msgid "Krótka uwaga (opcjonalnie)"
+msgstr "সংক্ষিপ্ত মন্তব্য (ঐচ্ছিক)"
+
+msgid ""
+"Nie wpisuj informacji o zdrowiu – organizator skontaktuje się z Tobą, jeśli "
+"będzie trzeba."
+msgstr "স্বাস্থ্য-সংক্রান্ত তথ্য লিখবেন না – প্রয়োজন হলে আয়োজক আপনার সঙ্গে যোগাযোগ করবেন।"
+
+msgid ""
+"Ten etap jest nadzorowany zdalnie. Najpierw włącz nadzór w konsoli nadzoru."
+msgstr "এই পর্বে দূরবর্তী নজরদারি চলে। প্রথমে নজরদারি কনসোলে নজরদারি চালু করুন।"
+
+msgid ""
+"Zapoznałem/-am się z informacją o nadzorze zdalnym tego etapu i wyrażam "
+"zgodę na przekazywanie obrazu z mojej kamery (oraz – jeśli etap tego wymaga "
+"– mojego ekranu i dźwięku) osobom nadzorującym na zasadach opisanych powyżej."
+msgstr "আমি এই পর্বের দূরবর্তী নজরদারি সম্পর্কিত তথ্য পড়েছি এবং উপরে বর্ণিত শর্তে আমার ক্যামেরার ছবি (এবং – পর্বে প্রয়োজন হলে – আমার স্ক্রিন ও শব্দ) নজরদারিকারীদের কাছে পাঠানোর জন্য সম্মতি দিচ্ছি।"
+
+msgid "Serwer nadzoru nie odpowiada. Spróbuj za chwilę."
+msgstr "নজরদারি সার্ভার সাড়া দিচ্ছে না। একটু পরে আবার চেষ্টা করুন।"
+
+#, python-format
+msgid "uczniowie: %(name)s"
+msgstr "শিক্ষার্থী: %(name)s"
+
+msgid "uczniowie bez przydziału"
+msgstr "বরাদ্দহীন শিক্ষার্থী"
+
+msgid ""
+"Najpierw potrzebna jest zgoda Twojego rodzica lub opiekuna prawnego, "
+"potwierdzona online. Poproś o nią w panelu, w zakładce „Zgody”."
+msgstr "প্রথমে আপনার মা-বাবা বা আইনগত অভিভাবকের সম্মতি প্রয়োজন, যা অনলাইনে নিশ্চিত করা হয়েছে। প্যানেলের “সম্মতি” ট্যাবে এর জন্য অনুরোধ করুন।"
+
+msgid "Ten etap nie zbiera zdjęcia dokumentu."
+msgstr "এই পর্বে নথির ছবি নেওয়া হয় না।"
+
+msgid "Zdjęcie nie zostało zapisane. Spróbuj jeszcze raz."
+msgstr "ছবিটি সংরক্ষিত হয়নি। আবার চেষ্টা করুন।"
+
+msgid "Najpierw wyraź zgodę na nadzór."
+msgstr "প্রথমে নজরদারিতে সম্মতি দিন।"
+
+msgid "Najpierw sprawdź sprzęt."
+msgstr "প্রথমে সরঞ্জাম পরীক্ষা করুন।"
+
+msgid "Najpierw zrób zdjęcie dokumentu."
+msgstr "প্রথমে নথির ছবি তুলুন।"
+
+#, python-format
+msgid "Nadzór będzie można włączyć od %(when)s."
+msgstr "নজরদারি %(when)s থেকে চালু করা যাবে।"
+
+msgid "Czas tego etapu minął."
+msgstr "এই পর্বের সময় শেষ হয়ে গেছে।"
+
+msgid ""
+"Serwer nadzoru jeszcze nie widzi Twojej kamery. Poczekaj chwilę i spróbuj "
+"ponownie."
+msgstr "নজরদারি সার্ভার এখনো আপনার ক্যামেরা দেখতে পাচ্ছে না। একটু অপেক্ষা করে আবার চেষ্টা করুন।"
+
+msgid "Ten etap wymaga działającego nadzoru. Skontaktuj się z organizatorem."
+msgstr "এই পর্বে সক্রিয় নজরদারি প্রয়োজন। আয়োজকের সঙ্গে যোগাযোগ করুন।"
+
+msgid "Wybierz powód z listy."
+msgstr "তালিকা থেকে একটি কারণ বেছে নিন।"
+
+msgid "Pokój nadzoru jest teraz zamknięty."
+msgstr "নজরদারি কক্ষ এখন বন্ধ।"
+
+msgid "Wpisz treść wiadomości."
+msgstr "বার্তার বিষয়বস্তু লিখুন।"
+
+msgid "Wybierz kategorię i wagę incydentu."
+msgstr "ঘটনার বিভাগ ও গুরুত্ব বেছে নিন।"
+
+msgid "Nadzór zdalny"
+msgstr "দূরবর্তী নজরদারি"
+
+msgid ""
+"Ten etap jest nadzorowany zdalnie. Konsola nadzoru musi być otwarta w "
+"osobnej karcie do końca etapu."
+msgstr "এই পর্বে দূরবর্তী নজরদারি চলে। পর্ব শেষ না হওয়া পর্যন্ত নজরদারি কনসোল একটি আলাদা ট্যাবে খোলা রাখতে হবে।"
+
+msgid ""
+"Ten etap jest nadzorowany zdalnie. Zanim zobaczysz zadania, wyraź zgodę, "
+"sprawdź sprzęt i włącz nadzór w konsoli."
+msgstr "এই পর্বে দূরবর্তী নজরদারি চলে। সমস্যাগুলো দেখার আগে সম্মতি দিন, সরঞ্জাম পরীক্ষা করুন এবং কনসোলে নজরদারি চালু করুন।"
+
+msgid "Nadzór działa."
+msgstr "নজরদারি চালু আছে।"
+
+msgid ""
+"Nadzór nie działa – wróć do karty konsoli nadzoru albo otwórz ją ponownie."
+msgstr "নজরদারি কাজ করছে না – নজরদারি কনসোলের ট্যাবে ফিরে যান অথবা সেটি আবার খুলুন।"
+
+msgid "Stan nadzoru: sprawdź kartę konsoli nadzoru."
+msgstr "নজরদারির অবস্থা: নজরদারি কনসোলের ট্যাবটি দেখুন।"
+
+msgid "Konsola nadzoru"
+msgstr "নজরদারি কনসোল"
+
+msgid "Etap:"
+msgstr "পর্ব:"
+
+msgid "Nadzór możesz włączyć od:"
+msgstr "নজরদারি চালু করা যাবে এই সময় থেকে:"
+
+msgid "Nadzór zdalny wymaga włączonego JavaScriptu."
+msgstr "দূরবর্তী নজরদারির জন্য JavaScript চালু থাকা প্রয়োজন।"
+
+msgid ""
+"Nadzór jest chwilowo niedostępny – brakuje komponentu wideo na serwerze. Daj "
+"znać organizatorowi."
+msgstr "নজরদারি সাময়িকভাবে অনুপলব্ধ – সার্ভারে ভিডিও উপাদান নেই। আয়োজককে জানান।"
+
+msgid "Organizator zatwierdził inną formę nadzoru"
+msgstr "আয়োজক নজরদারির অন্য একটি পদ্ধতি অনুমোদন করেছেন"
+
+msgid "Przejdź do etapu"
+msgstr "পর্বে যান"
+
+msgid "1. Informacja o nadzorze i zgoda"
+msgstr "1. নজরদারি সম্পর্কিত তথ্য ও সম্মতি"
+
+msgid ""
+"W czasie etapu obraz z Twojej kamery (mała rozdzielczość) widzą na żywo "
+"osoby nadzorujące wskazane przez organizatora: koordynatorzy i członkowie "
+"komisji, a w olimpiadzie międzynarodowej także opiekun Twojej drużyny "
+"narodowej – wyłącznie uczniów swojej drużyny."
+msgstr "পর্ব চলাকালীন আপনার ক্যামেরার ছবি (কম রেজোলিউশনে) আয়োজকের নির্ধারিত নজরদারিকারীরা সরাসরি দেখেন: সমন্বয়ক ও কমিটির সদস্যরা, এবং আন্তর্জাতিক অলিম্পিয়াডে আপনার জাতীয় দলের দলনেতাও – শুধু নিজের দলের শিক্ষার্থীদের।"
+
+msgid ""
+"Etap wymaga udostępnienia całego ekranu – osoby nadzorujące mogą go zobaczyć."
+msgstr "এই পর্বে পুরো স্ক্রিন শেয়ার করতে হবে – নজরদারিকারীরা তা দেখতে পারেন।"
+
+msgid "Etap wymaga włączonego mikrofonu – osoby nadzorujące mogą Cię słyszeć."
+msgstr "এই পর্বে মাইক্রোফোন চালু রাখতে হবে – নজরদারিকারীরা আপনার কথা শুনতে পারেন।"
+
+msgid ""
+"Przed startem zrobisz kamerą zdjęcie dokumentu tożsamości (legitymacji "
+"szkolnej). Zasłoń numer PESEL i adres – wystarczy imię, nazwisko i zdjęcie."
+msgstr "শুরু করার আগে আপনি ক্যামেরা দিয়ে আপনার পরিচয়পত্রের (স্কুলের পরিচয়পত্র) ছবি তুলবেন। PESEL নম্বর (পোল্যান্ডের জাতীয় পরিচয় নম্বর) ও ঠিকানা ঢেকে রাখুন – শুধু নাম, পদবি ও ছবিই যথেষ্ট।"
+
+msgid "Obraz z kamery jest nagrywany."
+msgstr "ক্যামেরার ছবি রেকর্ড করা হচ্ছে।"
+
+#, python-format
+msgid ""
+"Nagranie widzą wyłącznie koordynator i komisja odwoławcza (każde odtworzenie "
+"jest zapisywane). Usuwamy je %(days)s dni po ogłoszeniu wyników i zamknięciu "
+"okna reklamacji, chyba że trwa wyjaśnianie Twojej sprawy."
+msgstr "রেকর্ডিং শুধু সমন্বয়ক ও আপিল কমিটি দেখতে পারেন (প্রতিবার চালানোর হিসাব রাখা হয়)। ফলাফল ঘোষণা ও অভিযোগ জানানোর সময়সীমা শেষ হওয়ার %(days)s দিন পরে আমরা এটি মুছে ফেলি, যদি না আপনার বিষয়টি নিয়ে তদন্ত চলতে থাকে।"
+
+msgid "Obraz nie jest nagrywany – osoby nadzorujące widzą go tylko na żywo."
+msgstr "ছবি রেকর্ড করা হয় না – নজরদারিকারীরা এটি শুধু সরাসরি দেখেন।"
+
+msgid ""
+"Nie stosujemy automatycznej analizy obrazu ani śledzenia tego, co robisz w "
+"przeglądarce. Decyzje podejmują ludzie."
+msgstr "আমরা ছবির স্বয়ংক্রিয় বিশ্লেষণ করি না এবং আপনি ব্রাউজারে কী করছেন তাও অনুসরণ করি না। সিদ্ধান্ত নেন মানুষ।"
+
+#, python-format
+msgid ""
+"Zapisujemy czasy połączeń, wiadomości od osób nadzorujących i ich notatki o "
+"incydentach. Dziennik połączeń i wiadomości usuwamy %(days)s dni po "
+"ogłoszeniu wyników; notatki o incydentach zostają w dokumentacji zawodów "
+"(odwołania)."
+msgstr "আমরা সংযোগের সময়, নজরদারিকারীদের বার্তা ও ঘটনা সম্পর্কে তাঁদের নোট সংরক্ষণ করি। সংযোগ ও বার্তার লগ আমরা ফলাফল ঘোষণার %(days)s দিন পরে মুছে ফেলি; ঘটনার নোট প্রতিযোগিতার নথিতে থেকে যায় (আপিলের জন্য)।"
+
+msgid ""
+"Zgodę możesz wycofać w każdej chwili. Jeśli nie możesz albo nie chcesz "
+"używać kamery, poproś organizatora o inną formę nadzoru (na dole strony)."
+msgstr "আপনি যেকোনো সময় সম্মতি প্রত্যাহার করতে পারেন। আপনি যদি ক্যামেরা ব্যবহার করতে না পারেন বা না চান, তাহলে আয়োজকের কাছে নজরদারির অন্য পদ্ধতির অনুরোধ করুন (পৃষ্ঠার নিচে)।"
+
+msgid ""
+"Szczegóły przetwarzania danych: polityka prywatności organizatora (sekcja "
+"„Nadzór zdalny”)."
+msgstr "তথ্য প্রক্রিয়াকরণের বিস্তারিত: আয়োজকের গোপনীয়তা নীতি (“দূরবর্তী নজরদারি” অংশ)।"
+
+#, python-format
+msgid "Zgoda wyrażona %(when)s (wersja %(version)s)."
+msgstr "সম্মতি দেওয়া হয়েছে %(when)s (সংস্করণ %(version)s)।"
+
+msgid "Wycofaj zgodę"
+msgstr "সম্মতি প্রত্যাহার করুন"
+
+msgid ""
+"Jesteś osobą niepełnoletnią: zanim wyrazisz zgodę, Twój rodzic lub opiekun "
+"prawny musi potwierdzić online swoją zgodę na Twój udział."
+msgstr "আপনি অপ্রাপ্তবয়স্ক: সম্মতি দেওয়ার আগে আপনার মা-বাবা বা আইনগত অভিভাবককে অনলাইনে আপনার অংশগ্রহণে তাঁর সম্মতি নিশ্চিত করতে হবে।"
+
+msgid "Poproś opiekuna o zgodę"
+msgstr "অভিভাবকের কাছে সম্মতি চান"
+
+msgid "Zgoda Twojego opiekuna prawnego została potwierdzona online."
+msgstr "আপনার আইনগত অভিভাবকের সম্মতি অনলাইনে নিশ্চিত হয়েছে।"
+
+#, python-format
+msgid "Wersja informacji: %(version)s."
+msgstr "তথ্যের সংস্করণ: %(version)s।"
+
+msgid "Wyrażam zgodę"
+msgstr "আমি সম্মতি দিচ্ছি"
+
+msgid "2. Sprawdzenie sprzętu"
+msgstr "2. সরঞ্জাম পরীক্ষা"
+
+msgid "Podgląd kamery"
+msgstr "ক্যামেরার প্রিভিউ"
+
+msgid "Przeglądarka"
+msgstr "ব্রাউজার"
+
+msgid "Kamera"
+msgstr "ক্যামেরা"
+
+msgid "Mikrofon"
+msgstr "মাইক্রোফোন"
+
+msgid "Udostępnianie ekranu"
+msgstr "স্ক্রিন শেয়ার"
+
+msgid "Sprawdź sprzęt"
+msgstr "সরঞ্জাম পরীক্ষা করুন"
+
+msgid "Sprzęt sprawdzony."
+msgstr "সরঞ্জাম পরীক্ষা সম্পন্ন।"
+
+msgid "3. Zdjęcie dokumentu"
+msgstr "3. নথির ছবি"
+
+msgid "opcjonalne"
+msgstr "ঐচ্ছিক"
+
+msgid ""
+"Pokaż do kamery legitymację szkolną albo inny dokument ze zdjęciem i kliknij "
+"„Zrób zdjęcie”."
+msgstr "ক্যামেরার সামনে আপনার স্কুলের পরিচয়পত্র বা ছবিসহ অন্য কোনো নথি দেখান এবং “ছবি তুলুন”-এ ক্লিক করুন।"
+
+msgid "Zrób zdjęcie"
+msgstr "ছবি তুলুন"
+
+msgid "Zdjęcie zapisane."
+msgstr "ছবি সংরক্ষিত হয়েছে।"
+
+msgid "4. Start nadzoru"
+msgstr "4. নজরদারি শুরু"
+
+msgid "3. Start nadzoru"
+msgstr "3. নজরদারি শুরু"
+
+msgid "Etap jest dla Ciebie otwarty."
+msgstr "পর্বটি আপনার জন্য খোলা।"
+
+msgid "Nagrywanie kamery włączone"
+msgstr "ক্যামেরা রেকর্ডিং চালু"
+
+msgid "Włącz nadzór"
+msgstr "নজরদারি চালু করুন"
+
+msgid "Udostępnij ekran"
+msgstr "স্ক্রিন শেয়ার করুন"
+
+msgid "Kontynuuj bez nadzoru"
+msgstr "নজরদারি ছাড়া চালিয়ে যান"
+
+msgid "Przejdź do etapu (nowa karta)"
+msgstr "পর্বে যান (নতুন ট্যাব)"
+
+msgid ""
+"Zostaw tę kartę otwartą do końca etapu – zamknięcie jej przerywa nadzór. "
+"Etap otworzy się w nowej karcie."
+msgstr "পর্ব শেষ না হওয়া পর্যন্ত এই ট্যাবটি খোলা রাখুন – এটি বন্ধ করলে নজরদারি বন্ধ হয়ে যায়। পর্বটি একটি নতুন ট্যাবে খুলবে।"
+
+msgid "Serwer nadzoru jest niedostępny. Skontaktuj się z organizatorem."
+msgstr "নজরদারি সার্ভার অনুপলব্ধ। আয়োজকের সঙ্গে যোগাযোগ করুন।"
+
+msgid "Twój obraz w nadzorze"
+msgstr "নজরদারিতে আপনার ছবি"
+
+msgid "Nie mogę użyć kamery"
+msgstr "আমি ক্যামেরা ব্যবহার করতে পারছি না"
+
+msgid ""
+"Twoja prośba czeka na decyzję organizatora. Odpowiedź pojawi się na tej "
+"stronie."
+msgstr "আপনার অনুরোধ আয়োজকের সিদ্ধান্তের অপেক্ষায় আছে। উত্তর এই পৃষ্ঠাতেই দেখা যাবে।"
+
+msgid "Organizator nie zatwierdził innej formy nadzoru."
+msgstr "আয়োজক নজরদারির অন্য পদ্ধতি অনুমোদন করেননি।"
+
+msgid "Poproś o inną formę nadzoru"
+msgstr "নজরদারির অন্য পদ্ধতির অনুরোধ করুন"
+
+msgid "Nadzór"
+msgstr "নজরদারি"
+
+msgid "Łączenie…"
+msgstr "সংযোগ করা হচ্ছে…"
+
+msgid "Eksport incydentów (CSV)"
+msgstr "ঘটনা রপ্তানি (CSV)"
+
+msgid "Siatka nadzoru wymaga włączonego JavaScriptu."
+msgstr "নজরদারি গ্রিডের জন্য JavaScript চালু থাকা প্রয়োজন।"
+
+msgid ""
+"Obraz jest chwilowo niedostępny – brakuje komponentu wideo na serwerze. "
+"Lista uczniów i czynności działają."
+msgstr "ভিডিও সাময়িকভাবে অনুপলব্ধ – সার্ভারে ভিডিও উপাদান নেই। শিক্ষার্থীদের তালিকা ও অন্যান্য কাজ চালু আছে।"
+
+msgid ""
+"Serwer nadzoru nie jest skonfigurowany. Lista uczniów i czynności działają."
+msgstr "নজরদারি সার্ভার কনফিগার করা নেই। শিক্ষার্থীদের তালিকা ও অন্যান্য কাজ চালু আছে।"
+
+msgid "Widok"
+msgstr "দৃশ্য"
+
+msgid "Grupa"
+msgstr "গ্রুপ"
+
+msgid "Kafli na stronie"
+msgstr "প্রতি পৃষ্ঠায় টাইল"
+
+msgid "Poprzednia"
+msgstr "আগের"
+
+msgid "Następna"
+msgstr "পরের"
+
+msgid "Włącz dźwięk"
+msgstr "শব্দ চালু করুন"
+
+msgid "Incydent"
+msgstr "ঘটনা"
+
+msgid "Kategoria"
+msgstr "বিভাগ"
+
+msgid "Waga"
+msgstr "গুরুত্ব"
+
+msgid "Notatka"
+msgstr "নোট"
+
+msgid "Czas incydentu zapisze się jako chwila otwarcia tego okna."
+msgstr "এই উইন্ডো খোলার মুহূর্তটিই ঘটনার সময় হিসেবে সংরক্ষিত হবে।"
+
+msgid "Zapisz incydent"
+msgstr "ঘটনা সংরক্ষণ করুন"
+
+msgid "Anuluj"
+msgstr "বাতিল"
+
+msgid "Etapy do nadzoru"
+msgstr "নজরদারির জন্য পর্ব"
+
+msgid "Otwórz siatkę nadzoru"
+msgstr "নজরদারি গ্রিড খুলুন"
+
+msgid "Nie masz etapów do nadzoru."
+msgstr "আপনার নজরদারির জন্য কোনো পর্ব নেই।"
+
+msgid "Raport nadzoru"
+msgstr "নজরদারি প্রতিবেদন"
+
+msgid "Zgoda"
+msgstr "সম্মতি"
+
+msgid "wycofana"
+msgstr "প্রত্যাহার করা হয়েছে"
+
+msgid "zgoda opiekuna potwierdzona online"
+msgstr "অভিভাবকের সম্মতি অনলাইনে নিশ্চিত"
+
+msgid "brak"
+msgstr "নেই"
+
+msgid "Sprawdzenie sprzętu"
+msgstr "সরঞ্জাম পরীক্ষা"
+
+msgid "Nadzór rozpoczęty"
+msgstr "নজরদারি শুরু হয়েছে"
+
+msgid "Bez nadzoru od"
+msgstr "নজরদারি ছাড়া (কখন থেকে)"
+
+msgid "Obecność"
+msgstr "উপস্থিতি"
+
+msgid "Inna forma nadzoru"
+msgstr "নজরদারির অন্য পদ্ধতি"
+
+msgid "Zdjęcie dokumentu"
+msgstr "নথির ছবি"
+
+msgid "otwórz (15 min)"
+msgstr "খুলুন (15 মিনিট)"
+
+msgid "Wstrzymanie usunięcia"
+msgstr "মুছে ফেলা স্থগিত"
+
+msgid "Nośniki usunięte"
+msgstr "মিডিয়া ফাইল মুছে ফেলা হয়েছে"
+
+msgid "Incydenty"
+msgstr "ঘটনাসমূহ"
+
+msgid "Czas"
+msgstr "সময়"
+
+msgid "Zgłosił"
+msgstr "যিনি জানিয়েছেন"
+
+msgid "Brak incydentów."
+msgstr "কোনো ঘটনা নেই।"
+
+msgid "Wiadomości do ucznia"
+msgstr "শিক্ষার্থীকে পাঠানো বার্তা"
+
+msgid "potwierdzona"
+msgstr "নিশ্চিত করা হয়েছে"
+
+msgid "Brak wiadomości."
+msgstr "কোনো বার্তা নেই।"
+
+msgid "Nagrania"
+msgstr "রেকর্ডিং"
+
+msgid "odtwórz (15 min)"
+msgstr "চালান (15 মিনিট)"
+
+msgid "Brak nagrań."
+msgstr "কোনো রেকর্ডিং নেই।"
+
+msgid "Dziennik"
+msgstr "লগ"
+
+msgid "Dziennik jest pusty albo został już usunięty (retencja)."
+msgstr "লগ খালি অথবা ইতিমধ্যে মুছে ফেলা হয়েছে (সংরক্ষণের মেয়াদ)।"
+
+msgid "Za dużo żądań. Spróbuj za chwilę."
+msgstr "অনেক বেশি অনুরোধ। একটু পরে আবার চেষ্টা করুন।"
+
+msgid "Sprawdzanie…"
+msgstr "পরীক্ষা করা হচ্ছে…"
+
+msgid "działa"
+msgstr "কাজ করছে"
+
+msgid "nie działa"
+msgstr "কাজ করছে না"
+
+msgid "niewymagane"
+msgstr "প্রয়োজন নেই"
+
+msgid ""
+"Ta przeglądarka nie obsługuje nadzoru wideo. Użyj aktualnej przeglądarki "
+"Chrome, Edge, Firefox albo Safari."
+msgstr "এই ব্রাউজার ভিডিও নজরদারি সমর্থন করে না। Chrome, Edge, Firefox বা Safari-এর হালনাগাদ সংস্করণ ব্যবহার করুন।"
+
+msgid ""
+"Brak dostępu do kamery. Zezwól na kamerę w ustawieniach przeglądarki i "
+"spróbuj ponownie."
+msgstr "ক্যামেরায় প্রবেশাধিকার নেই। ব্রাউজারের সেটিংসে ক্যামেরার অনুমতি দিন এবং আবার চেষ্টা করুন।"
+
+msgid "Łączenie z serwerem nadzoru…"
+msgstr "নজরদারি সার্ভারের সঙ্গে সংযোগ করা হচ্ছে…"
+
+msgid "Nadzór działa. Zostaw tę kartę otwartą do końca etapu."
+msgstr "নজরদারি চালু আছে। পর্ব শেষ না হওয়া পর্যন্ত এই ট্যাবটি খোলা রাখুন।"
+
+msgid ""
+"Połączenie nadzoru zostało przerwane. Nie zamykaj tej karty – trwa ponowne "
+"łączenie."
+msgstr "নজরদারির সংযোগ বিচ্ছিন্ন হয়েছে। এই ট্যাবটি বন্ধ করবেন না – আবার সংযোগের চেষ্টা চলছে।"
+
+msgid "Połączenie nadzoru przywrócone."
+msgstr "নজরদারির সংযোগ পুনরুদ্ধার হয়েছে।"
+
+msgid "Nie udało się połączyć z serwerem nadzoru."
+msgstr "নজরদারি সার্ভারের সঙ্গে সংযোগ করা যায়নি।"
+
+msgid "Udostępnianie ekranu zostało zatrzymane. Udostępnij ekran ponownie."
+msgstr "স্ক্রিন শেয়ার বন্ধ হয়ে গেছে। আবার স্ক্রিন শেয়ার করুন।"
+
+msgid "Wiadomość od osoby nadzorującej"
+msgstr "নজরদারিকারীর বার্তা"
+
+msgid "Osoba nadzorująca prosi: pokaż kamerą pokój dookoła siebie."
+msgstr "নজরদারিকারীর অনুরোধ: ক্যামেরা দিয়ে আপনার চারপাশের ঘরটি দেখান।"
+
+msgid "Osoba nadzorująca prosi: pokaż do kamery dokument tożsamości."
+msgstr "নজরদারিকারীর অনুরোধ: ক্যামেরার সামনে আপনার পরিচয়পত্র দেখান।"
+
+msgid "Rozumiem"
+msgstr "বুঝেছি"
+
+msgid "Coś poszło nie tak. Spróbuj ponownie."
+msgstr "কিছু একটা ভুল হয়েছে। আবার চেষ্টা করুন।"
+
+msgid "Spróbuj ponownie"
+msgstr "আবার চেষ্টা করুন"
+
+msgid "Zgoda na nadzór wycofana."
+msgstr "নজরদারির সম্মতি প্রত্যাহার করা হয়েছে।"
+
+msgid "Zaznacz pole zgody, żeby przejść dalej."
+msgstr "এগিয়ে যেতে সম্মতির ঘরে টিক দিন।"
+
+msgid "Prośba wysłana. Organizator odpowie w tej konsoli."
+msgstr "অনুরোধ পাঠানো হয়েছে। আয়োজক এই কনসোলেই উত্তর দেবেন।"
+
+msgid "Połączono z pokojem nadzoru."
+msgstr "নজরদারি কক্ষের সঙ্গে সংযুক্ত হয়েছে।"
+
+msgid "Rozłączono z pokojem nadzoru. Odśwież stronę."
+msgstr "নজরদারি কক্ষ থেকে সংযোগ বিচ্ছিন্ন হয়েছে। পৃষ্ঠাটি রিফ্রেশ করুন।"
+
+msgid "Nie udało się połączyć z pokojem nadzoru."
+msgstr "নজরদারি কক্ষের সঙ্গে সংযোগ করা যায়নি।"
+
+#, python-format
+msgid "Strona %(page)s z %(pages)s"
+msgstr "পৃষ্ঠা %(page)s / %(pages)s"
+
+msgid "Brak uczniów w tej grupie."
+msgstr "এই গ্রুপে কোনো শিক্ষার্থী নেই।"
+
+msgid "nadaje"
+msgstr "সম্প্রচার চলছে"
+
+msgid "czeka na start"
+msgstr "শুরুর অপেক্ষায়"
+
+msgid "strumień przerwany"
+msgstr "স্ট্রিম বিচ্ছিন্ন"
+
+msgid "brak sygnału"
+msgstr "সিগন্যাল নেই"
+
+msgid "bez nadzoru"
+msgstr "নজরদারি ছাড়া"
+
+msgid "alternatywa"
+msgstr "বিকল্প"
+
+msgid "brak zgody"
+msgstr "সম্মতি নেই"
+
+msgid "Wiadomość"
+msgstr "বার্তা"
+
+msgid "Treść wiadomości do ucznia:"
+msgstr "শিক্ষার্থীর জন্য বার্তার বিষয়বস্তু:"
+
+msgid "Pokaż pokój"
+msgstr "ঘর দেখান"
+
+msgid "Pokaż dokument"
+msgstr "নথি দেখান"
+
+msgid "Obecny"
+msgstr "উপস্থিত"
+
+msgid "Nieobecny"
+msgstr "অনুপস্থিত"
+
+msgid "Ekran"
+msgstr "স্ক্রিন"
+
+msgid "Ukryj ekran"
+msgstr "স্ক্রিন লুকান"
+
+#, python-format
+msgid "incydenty: %(count)s"
+msgstr "ঘটনা: %(count)s"
+
+msgid "Wysłano."
+msgstr "পাঠানো হয়েছে।"
+
+msgid "Zapisano."
+msgstr "সংরক্ষিত হয়েছে।"
+
+msgid "Dźwięk"
+msgstr "শব্দ"
+
+msgid "Raport"
+msgstr "প্রতিবেদন"
+
+msgid "uczeń poza kadrem"
+msgstr "শিক্ষার্থী ফ্রেমের বাইরে"
+
+msgid "inna osoba w kadrze"
+msgstr "ফ্রেমে অন্য কেউ"
+
+msgid "inne urządzenie"
+msgstr "অন্য ডিভাইস"
+
+msgid "rozmowa lub komunikacja"
+msgstr "কথোপকথন বা যোগাযোগ"
+
+msgid "niedozwolone materiały"
+msgstr "অননুমোদিত উপকরণ"
+
+msgid "ekran"
+msgstr "স্ক্রিন"
+
+msgid "problem techniczny"
+msgstr "প্রযুক্তিগত সমস্যা"
+
+msgid "inne"
+msgstr "অন্যান্য"
+
+msgid "informacja"
+msgstr "তথ্য"
+
+msgid "ostrzeżenie"
+msgstr "সতর্কতা"
+
+msgid "poważny"
+msgstr "গুরুতর"
