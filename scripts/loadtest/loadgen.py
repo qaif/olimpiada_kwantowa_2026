@@ -121,6 +121,7 @@ def is_error(sample: Sample) -> bool:
 
 CSRF_RE = re.compile(r'name="csrfmiddlewaretoken" value="([^"]+)"')
 POLL_RE = re.compile(r'hx-get="([^"]*fragment=messages[^"]*)"')
+EVERY_RE = re.compile(r'hx-trigger="every (\d+)s, chat-visible')
 QUESTION_RE = re.compile(r'name="q(\d+)"[^>]*value="(\d+)"')
 
 
@@ -135,6 +136,7 @@ class VirtualUser:
 
     def _headers(self, extra: dict | None = None) -> dict:
         headers = {"X-Loadtest-Client-IP": self.ip, "User-Agent": f"olimpiada-loadgen/{self.label}"}
+        headers.update(self.gen.extra_headers)
         if self.cookies:
             headers["Cookie"] = "; ".join(f"{k}={v}" for k, v in self.cookies.items())
         if extra:
@@ -214,6 +216,7 @@ class Generator:
         self.client: httpx.AsyncClient | None = None
         self.uploads = {mb: fake_pdf(mb * 1024 * 1024) for mb in (1, 2, 3, 5)}
         self.counters: dict[str, int] = defaultdict(int)
+        self.extra_headers = dict(item.split(":", 1) for item in args.header if ":" in item)
 
     # wspólne
 
@@ -270,8 +273,12 @@ class Generator:
             if match
             else f"/me/messages/{conversation_id}/?fragment=messages"
         )
+        # Odstęp z wyrenderowanego ``hx-trigger`` – ten sam, którego użyłaby przeglądarka
+        # (``CHAT_POLL_SECONDS`` serwera, domyślnie 15 s).
+        every = EVERY_RE.search(page.text)
+        interval = int(every.group(1)) if every else 15
         while self.until_end():
-            await asyncio.sleep(15)
+            await asyncio.sleep(interval)
             await vu.request("GET chat poll", "GET", poll, expect=(200, 204), headers={"HX-Request": "true"})
 
     async def _quiz_loop(self, vu: VirtualUser) -> None:
@@ -666,6 +673,12 @@ def parse_args(argv=None):
     parser.add_argument("--abort-error-rate", type=float, default=0.25)
     parser.add_argument("--abort-p95-ms", type=float, default=30000)
     parser.add_argument("--allow-remote-host", default="")
+    parser.add_argument(
+        "--header",
+        action="append",
+        default=[],
+        help="NAZWA:WARTOŚĆ do każdego żądania (np. przepustka strony prac technicznych, § 42.6)",
+    )
     parser.add_argument("--remote-max-students", type=int, default=200)
     parser.add_argument("--seed", type=int, default=1)
     parser.add_argument("--out", default="/out/run")

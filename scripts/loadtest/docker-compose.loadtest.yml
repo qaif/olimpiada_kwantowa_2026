@@ -45,6 +45,8 @@ x-lt-env: &lt-env
   DEFAULT_FROM_EMAIL: loadtest@loadtest.local
   DB_APPLICATION_NAME: olimpiada-web
   LOADTEST_STACK: "1"
+  # Odstęp odpytywania czatu (§ 42.5) – do porównania 15 s z wartością na dzień zawodów.
+  CHAT_POLL_SECONDS: ${CHAT_POLL_SECONDS:-15}
 
 x-lt-app: &lt-app
   image: ${LOADTEST_WEB_IMAGE:-olimpiada/web:dev}

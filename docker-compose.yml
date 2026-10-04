@@ -149,7 +149,7 @@ services:
     # ~230–260 MB RSS na worker, czyli 1,4–1,6 GB przy produkcyjnych 6 workerach – za blisko 2g, gdy
     # rotacja `--max-requests` trzyma chwilę stary i nowy proces naraz. Każda rotacja pod obciążeniem
     # to też kilka 502 (połączenia czekające w kolejce wychodzącego workera). Domyślne wartości bez
-    # zmian; zalecenie na dzień zawodów przy 6 workerach: WEB_MEM_LIMIT=3g, WEB_MAX_REQUESTS=20000.
+    # zmian; zalecenie na dzień zawodów przy 6 workerach: WEB_MEM_LIMIT=3g, WEB_MAX_REQUESTS=0 (bez rotacji).
     mem_limit: ${WEB_MEM_LIMIT:-2g}
     volumes:
       - static_files:/app/staticfiles

@@ -491,6 +491,9 @@ PAGE_CACHE_ENABLED = env.bool("PAGE_CACHE_ENABLED", default=not DEBUG)
 # dwa niezależne wyłączniki, bo jeden bywa wygodniejszy operacyjnie (zmienna środowiskowa przy
 # incydencie), a drugi programistycznie (test, który włącza cache, ale ze świadomie krótkim TTL).
 PAGE_CACHE_SECONDS = env.int("PAGE_CACHE_SECONDS", default=120)
+# Odstęp odpytywania otwartego wątku Wiadomości (PERF-01, docs/OPERACJE.md § 42.5): najczęstsze
+# żądanie dnia zawodów; na czas etapu operator może go wydłużyć bez wdrożenia (np. 45).
+CHAT_POLL_SECONDS = env.int("CHAT_POLL_SECONDS", default=15)
 
 CELERY_BROKER_URL = env("CELERY_BROKER_URL", default="redis://localhost:6379/1")
 CELERY_RESULT_BACKEND = None

@@ -65,6 +65,21 @@ def test_unchanged_chat_poll_stays_within_budget(web_client, competition):
     assert queries <= CHAT_POLL_BUDGET
 
 
+@pytest.mark.parametrize(("configured", "rendered"), [(None, 15), (45, 45), (1, 5)])
+def test_chat_poll_interval_follows_the_setting(web_client, competition, settings, configured, rendered):
+    if configured is not None:
+        settings.CHAT_POLL_SECONDS = configured
+    ala = participant_of(competition)
+    conversation = chat.write_to_organizer(
+        user=ala.user, competition=competition, body="Pytanie"
+    ).conversation
+    web_client.force_login(ala.user)
+
+    body = web_client.get(f"/me/messages/{conversation.pk}/").content.decode()
+
+    assert f'hx-trigger="every {rendered}s, chat-visible from:document"' in body
+
+
 # --- treść zadania ----------------------------------------------------------------------------------
 
 
@@ -201,3 +216,15 @@ def test_upload_limit_is_counted_per_account_not_per_address(participant):
     assert "upload" in throttle.PER_USER_SCOPES
     assert throttle.user_throttle_keys("upload", first) != throttle.user_throttle_keys("upload", second)
     assert ":user:" in throttle.user_throttle_keys("upload", first)[0]
+
+
+def test_entry_format_is_part_of_the_key(competition):
+    """Kod sprzed kompresji (klucz bez formatu) nie trafi we wpis skompresowany – rollback, wdrożenie."""
+    from django.contrib.auth.models import AnonymousUser
+
+    request = RequestFactory().get("/")
+    request.competition, request.user, request.LANGUAGE_CODE = competition, AnonymousUser(), "pl"
+
+    key = page_cache.build_key(request)
+
+    assert key.startswith(f"{page_cache.CACHE_PREFIX}:{page_cache.ENTRY_FORMAT}:")

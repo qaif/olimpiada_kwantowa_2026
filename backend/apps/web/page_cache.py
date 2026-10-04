@@ -88,7 +88,7 @@ nie wiadomo, które podmienić – więc taka odpowiedź **w ogóle nie trafia d
   a po kompresji kilkanaście razy mniej – rozpakowanie przy trafieniu kosztuje ułamek milisekundy,
   render tej strony ok. 190 ms CPU (PERF-01).
 
-**Klucz:** ``(wersja globalna, wersja witryny konkursu, konkurs, język interfejsu, ścieżka,
+**Klucz:** ``(format wpisu, wersja globalna, wersja witryny konkursu, konkurs, język interfejsu, ścieżka,
 parametr page)`` – patrz ``build_key``. Wersje to liczniki w Redisie: unieważnienie = ``INCR``,
 nigdy enumeracja istniejących wpisów. Wersja **witryny** obejmuje zdarzenia przypisane do
 konkretnego konkursu (publikacja/wycofanie/przeniesienie/skasowanie strony, zapis ``SiteSettings``,
@@ -204,6 +204,12 @@ DEFAULT_TTL_SECONDS = 120
 #: **przed** kompresją; w Redisie leży wersja skompresowana (``COMPRESS_MIN_BYTES``), czyli zwykle
 #: 10–20 razy mniej.
 PAGE_CACHE_MAX_BYTES = 4 * 1024 * 1024
+
+#: Format wpisu w kluczu. Wpis skompresowany (PERF-01) jest dla kodu sprzed tej zmiany nieczytelny –
+#: odczytałby bajty ``zlib`` jako HTML i oddał je gościowi. Dwa kody naraz na jednym Redisie to zwykła
+#: chwila wdrożenia (stary i nowy kontener ``web``) i każdy rollback, więc nowy format dostaje własną
+#: przestrzeń kluczy: stary kod nigdy nie trafi we wpis nowego i odwrotnie (wykryte pomiarem A/B).
+ENTRY_FORMAT = "f2"
 
 #: Treść od tej długości zapisujemy skompresowaną. Krótsze strony (typowo 25–40 KB) zostają bez
 #: kompresji: zysk w Redisie byłby mały, a odtworzenie trafienia ma zostać najtańszą drogą.
@@ -343,6 +349,7 @@ def build_key(request) -> str | None:
     language = getattr(request, "LANGUAGE_CODE", settings.LANGUAGE_CODE)
     parts = [
         CACHE_PREFIX,
+        ENTRY_FORMAT,
         str(global_version),
         str(site_version),
         str(competition_id or "none"),
