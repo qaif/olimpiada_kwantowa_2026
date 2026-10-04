@@ -1,22 +1,32 @@
 /* =================================================================================================
-   IQO Quantum 1.0.0 – motyw International Quantum Olympiad („laboratorium nocą”).
+   IQO Quantum 1.1.0 – motyw International Quantum Olympiad.
 
-   Ten arkusz ładuje się PO app.css i po arkuszu tokenów (tokens.json → zmienne --t-*).
-   Zasady paczki (THEME-01 § 2): bez @import, url() wyłącznie do assets/ tej paczki,
-   właściwości logiczne (RTL), żadnego JavaScriptu, żadnych animacji.
+   Tożsamość „międzynarodowej olimpiady naukowej”, wyraźnie inna niż wygląd Olimpiady Kwantowej:
+   przezroczysty nagłówek na pełnoekranowej planszy ze sferą Blocha, wystawowa skala pisma
+   (Space Grotesk, ciasne rozstrzelenie, etykiety w kroju mono), numerowane pasy sekcji na całą
+   szerokość okna, karty-kadry z narożnikami przyrządu, przyciski w kształcie liścia, stopka
+   z wielkim znakiem słownym. Ciemny domyślnie, z dopracowaną paletą jasną.
+
+   Ten arkusz ładuje się PO app.css i po arkuszu tokenów (tokens.json → zmienne --t-*; przy
+   nadpisaniach koordynatora także po arkuszu /_theme/custom.css). Zasady paczki (THEME-01 § 2):
+   bez @import, url() wyłącznie do assets/ tej paczki, właściwości logiczne (RTL), bez JavaScriptu.
+   Arkusz NIGDY nie ustawia --t-* – tylko je czyta, więc nadpisania kolorów, schematu i krojów
+   z panelu koordynatora zawsze wygrywają. Grafiki (assets/motifs, assets/icons) są maskami
+   barwionymi tokenami – zmiana `cta`/`accent`/`cover` przemalowuje także rysunki.
 
    Kolejność:
      1. kroje (Space Grotesk – zmienna oś wght, Space Mono 400; OFL, assets/fonts/)
-     2. aliasy --iqo-* ← --t-* (z wartościami zapasowymi wariantu ciemnego)
+     2. aliasy --iqo-* ← --t-* (+ pochodne), tryb wysokiego kontrastu
      3. most do zmiennych app.css (--bg, --ink, --brand…) – z tego korzystają panele
      4. kroje dla pism spoza łaciny, interlinia
-     5. dokument: tło z siatką, typografia, odnośniki, fokus
-     6. nagłówek „minimal” (slot theme/header.html)
-     7. hero „full-bleed” (slot theme/home_hero.html)
-     8. sekcje strony głównej, ornament ket |…⟩
-     9. komponenty: przyciski, karty „outline”, oś czasu, kroki, odznaki, aktualności…
-    10. stopka „compact” (slot theme/footer.html), dok osi czasu, baner cookies
-    11. wysoki kontrast, forced-colors, druk
+     5. dokument: tło, skala pisma, odnośniki, fokus, ikony
+     6. nagłówek (slot header + nav): układy „split” i „centered”, nakładka na planszę
+     7. plansza (slot home_hero): układy „full-bleed” i „split”
+     8. sekcje: pasy na całą szerokość, etykiety |01⟩, nagłówki stron CMS (slot page_header)
+     9. komponenty: przyciski, karty „outline”/„elevated”, oś czasu, kroki, odznaki, aktualności
+        (slot news_card), tabele wyników, treść, formularze
+    10. stopka (slot footer): układy „columns” i „compact”; dok osi czasu, baner cookies
+    11. wysoki kontrast (uzupełnienia), forced-colors, ruch, druk
    ============================================================================================== */
 
 /* --- 1. Kroje ----------------------------------------------------------------------------- */
@@ -43,9 +53,9 @@
 }
 
 /* --- 2. Aliasy ----------------------------------------------------------------------------- */
-/* Każdy kolor motywu bierze się z tokenu --t-*. Zapas po przecinku = wariant ciemny z tokens.json,
-   więc arkusz działa także wtedy, gdy tokenów (jeszcze) nie wstrzyknięto. Arkusz nigdy nie
-   ustawia --t-* sam – nadpisania koordynatora („theme_options”) zawsze wygrywają. */
+/* Każdy kolor motywu bierze się z tokenu --t-*. Zapas po przecinku = wariant ciemny z tokens.json
+   (arkusz działa także bez wstrzykniętych tokenów). Pochodne liczy color-mix() – z tokenów, więc
+   nadpisanie np. `bg` przez koordynatora przesuwa też pasy sekcji i półprzezroczyste szkła. */
 
 :root {
   --iqo-bg: var(--t-bg, #0b0a24);
@@ -54,20 +64,18 @@
   --iqo-text: var(--t-text, #f4f4ff);
   --iqo-text-soft: var(--t-text-soft, #c9ccf5);
   --iqo-muted: var(--t-muted, #a9acdb);
-  /* Wezwanie do działania (periwinkle) to własne tokeny motywu (cta*), a nie ``primary``:
-     w aplikacji ``primary`` jest POWIERZCHNIĄ marki (pasek, „Co teraz”, odliczanie, oś czasu)
-     z napisem ``primary-contrast`` – tu granat #14123A z jasnym napisem. */
+  /* Wezwanie do działania to własne tokeny motywu (cta*), a nie ``primary``: w aplikacji
+     ``primary`` jest POWIERZCHNIĄ marki (pasek paneli, „Co teraz”, odliczanie) – tu granat. */
   --iqo-primary: var(--t-cta, #7c88ff);
   --iqo-primary-hover: var(--t-cta-hover, #a9b1ff);
   --iqo-primary-contrast: var(--t-cta-ink, #0b0a24);
   --iqo-primary-fill: var(--t-primary-fill, #5260ff);
   --iqo-accent: var(--t-accent, #ff6b98);
-  --iqo-accent-contrast: var(--t-accent-contrast, #0b0a24);
+  --iqo-accent-contrast: var(--t-accent-contrast, var(--t-on-accent, #0b0a24));
   --iqo-border: var(--t-border, #2e2c6e);
   --iqo-border-strong: var(--t-border-strong, #6c6ab8);
   --iqo-link: var(--t-link, #a9b1ff);
-  /* Pierścień fokusu z własnego tokenu: akcent marki konkursu (theme_options.brand_accent)
-     nadpisuje --t-focus i mógłby stracić kontrast na granacie. */
+  /* Pierścień fokusu z własnego tokenu: akcent marki konkursu nadpisuje --t-focus. */
   --iqo-focus: var(--t-ring, #ff6b98);
   --iqo-brand: var(--t-brand, #0b0a24);
   --iqo-brand-text: var(--t-brand-text, #f4f4ff);
@@ -76,48 +84,67 @@
   --iqo-danger: var(--t-danger, #ff8a80);
   --iqo-info: var(--t-info, #8e98ff);
 
+  /* „Okładki” strony – plansza, stopka, dok osi czasu, baner cookies – są ciemne w OBU
+     schematach (rysunek sfery i prążków jest projektowany na ciemne tło). Własne tokeny `cover*`,
+     więc koordynator może je przemalować niezależnie od tła strony. */
+  --iqo-cover: var(--t-cover, #07061a);
+  --iqo-on-cover: var(--t-cover-text, #f4f4ff);
+  --iqo-cover-accent: var(--t-cover-accent, #ff6b98);
+  --iqo-on-cover-soft: color-mix(in srgb, var(--iqo-on-cover) 82%, var(--iqo-cover));
+  --iqo-on-cover-muted: color-mix(in srgb, var(--iqo-on-cover) 70%, var(--iqo-cover));
+  --iqo-cover-line: color-mix(in srgb, var(--iqo-on-cover) 15%, transparent);
+  --iqo-cover-line-strong: color-mix(in srgb, var(--iqo-on-cover) 40%, transparent);
+  --iqo-cover-glass: color-mix(in srgb, var(--iqo-cover) 70%, transparent);
+  --iqo-cover-dot: color-mix(in srgb, var(--iqo-on-cover) 14%, transparent);
+
+  /* Pochodne palety strony. */
+  --iqo-band: color-mix(in srgb, var(--iqo-surface-2) 55%, var(--iqo-bg));
+  --iqo-dot: color-mix(in srgb, var(--iqo-text) 9%, transparent);
+  --iqo-tint: color-mix(in srgb, var(--iqo-primary) 11%, transparent);
+  --iqo-tint-accent: color-mix(in srgb, var(--iqo-accent) 12%, transparent);
+  --iqo-glass: color-mix(in srgb, var(--iqo-surface) 62%, transparent);
+  --iqo-row-hover: color-mix(in srgb, var(--iqo-primary) 8%, var(--iqo-surface));
+  /* Wypełnienie masek-rysunków: od wezwania do działania do akcentu. */
+  --iqo-motif: linear-gradient(125deg, var(--iqo-primary) 15%, var(--iqo-accent) 90%);
+
   --iqo-font-body: var(--t-font-body, "Space Grotesk", "Segoe UI", system-ui, -apple-system, Roboto, "Noto Sans", sans-serif);
   --iqo-font-display: var(--t-font-display, var(--iqo-font-body));
   --iqo-font-mono: var(--t-font-mono, "Space Mono", ui-monospace, "Cascadia Mono", "SF Mono", Menlo, Consolas, monospace);
-  /* Ornament ket i liczniki kroków: Space Grotesk ma glify | i ⟩ (U+27E9), Space Mono nie. */
+  /* Ornament ket i liczniki: Space Grotesk ma glify | i ⟩ (U+27E9), Space Mono nie. */
   --iqo-font-ket: "Space Grotesk", var(--iqo-font-body);
 
   --iqo-radius-sm: var(--t-radius-sm, 2px);
   --iqo-radius: var(--t-radius-md, 4px);
-  --iqo-radius-lg: var(--t-radius-lg, 10px);
+  --iqo-radius-lg: var(--t-radius-lg, 16px);
   --iqo-radius-pill: var(--t-radius-pill, 999px);
-  --iqo-header-h: var(--t-header-height, 4rem);
-  --iqo-max: var(--t-max-width, 1200px);
-  --iqo-shadow-md: var(--t-shadow-md, 0 0 0 1px rgba(124, 136, 255, 0.18), 0 12px 32px rgba(3, 2, 18, 0.45));
-  --iqo-shadow-glow: var(--t-shadow-glow, 0 0 0 1px rgba(124, 136, 255, 0.55), 0 0 24px rgba(124, 136, 255, 0.25));
+  --iqo-radius-leaf: var(--t-radius-leaf, 1.125rem);
+  --iqo-header-h: var(--t-header-height, 4.75rem);
+  --iqo-max: var(--t-max-width, 1240px);
+  --iqo-section-space: var(--t-space-section, clamp(3.5rem, 1.5rem + 5vw, 6.5rem));
+  --iqo-shadow-md: var(--t-shadow-md, 0 0 0 1px rgba(124, 136, 255, 0.18), 0 14px 36px rgba(3, 2, 18, 0.55));
+  --iqo-shadow-glow: var(--t-shadow-glow, 0 0 0 1px rgba(124, 136, 255, 0.55), 0 0 28px rgba(124, 136, 255, 0.28));
 
-  /* Linie siatki i półprzezroczyste wypełnienia liczone z tokenów – działają w obu wariantach. */
-  --iqo-grid-line: color-mix(in srgb, var(--iqo-border) 38%, transparent);
-  --iqo-tint: color-mix(in srgb, var(--iqo-primary) 10%, transparent);
-  --iqo-tint-accent: color-mix(in srgb, var(--iqo-accent) 12%, transparent);
-
-  /* Hero, stopka i dok osi czasu są ciemne w OBU wariantach („okładki” strony), więc mają
-     własne stałe – granat i błękit z księgi znaku, sprawdzone na kontrast z białym tekstem. */
-  --iqo-deep: #0b0a24;
-  --iqo-navy: #14123a;
-  --iqo-on-deep: #f4f4ff;
-  --iqo-on-deep-soft: #c9ccf5;
-  --iqo-on-deep-muted: #a9acdb;
-  --iqo-blue-on-deep: #7c88ff;
-  --iqo-blue-on-deep-hover: #a9b1ff;
-  --iqo-pink-on-deep: #ff6b98;
-  --iqo-line-on-deep: #2e2c6e;
-  --iqo-line-strong-on-deep: #6c6ab8;
+  /* Skala nagłówków: panele (bez slotów motywu) – umiarkowana; strony publiczne – wystawowa
+     (przestawia ją reguła ``body:has(> .iqo-header)`` w sekcji 5). */
+  --iqo-h1: clamp(2rem, 1.4rem + 2.2vw, 3rem);
+  --iqo-h2: clamp(1.4rem, 1.2rem + 0.8vw, 1.75rem);
+  /* Ile miejsca zostawić u góry planszy pod przezroczystym nagłówkiem (sekcja 6). */
+  --iqo-header-clear: 5.25rem;
+  /* Etykiety w kroju mono (daty, odznaki, liczniki sekcji). */
+  --iqo-micro-size: 0.75rem;
+  --iqo-micro-track: 0.14em;
 }
 
-/* Tryb wysokiego kontrastu aplikacji (czerń, biel, żółć) ma pierwszeństwo przed paletą motywu. */
+/* Tryb wysokiego kontrastu aplikacji (czerń, biel, żółć) ma pierwszeństwo przed paletą motywu –
+   także przed nadpisaniami koordynatora (tu przestawiamy aliasy, a nie --t-*). Usunięcie
+   atrybutu przywraca motyw (czysty CSS). */
 :root[data-contrast="high"] {
   --iqo-bg: #000;
   --iqo-surface: #000;
   --iqo-surface-2: #000;
   --iqo-text: #fff;
   --iqo-text-soft: #fff;
-  --iqo-muted: #f2f2f2;
+  --iqo-muted: #fff;
   --iqo-primary: #ffe500;
   --iqo-primary-hover: #fff;
   --iqo-primary-contrast: #000;
@@ -130,37 +157,43 @@
   --iqo-focus: #ffe500;
   --iqo-brand: #000;
   --iqo-brand-text: #fff;
-  --iqo-deep: #000;
-  --iqo-navy: #000;
-  --iqo-on-deep: #fff;
-  --iqo-on-deep-soft: #fff;
-  --iqo-on-deep-muted: #f2f2f2;
-  --iqo-blue-on-deep: #ffe500;
-  --iqo-blue-on-deep-hover: #fff;
-  --iqo-pink-on-deep: #ffe500;
-  --iqo-line-on-deep: #fff;
-  --iqo-line-strong-on-deep: #fff;
-  --iqo-grid-line: transparent;
+  --iqo-success: #fff;
+  --iqo-warning: #ffe500;
+  --iqo-danger: #fff;
+  --iqo-info: #fff;
+  --iqo-cover: #000;
+  --iqo-on-cover: #fff;
+  --iqo-cover-accent: #ffe500;
+  --iqo-on-cover-soft: #fff;
+  --iqo-on-cover-muted: #fff;
+  --iqo-cover-line: #fff;
+  --iqo-cover-line-strong: #fff;
+  --iqo-cover-glass: #000;
+  --iqo-cover-dot: transparent;
+  --iqo-band: #000;
+  --iqo-dot: transparent;
+  --iqo-tint: #000;
+  --iqo-tint-accent: #000;
+  --iqo-glass: #000;
+  --iqo-row-hover: #000;
+  --iqo-motif: linear-gradient(#ffe500, #ffe500);
   --iqo-shadow-md: none;
   --iqo-shadow-glow: none;
 }
 
-/* ``color-scheme`` ustawia tokens.css systemu (z ``color_scheme`` manifestu). Wariant jasny
-   (zestaw ``colors``) działa wyłącznie przy ``color_scheme: light|auto`` – patrz README. */
-
 /* --- 3. Most do zmiennych app.css ------------------------------------------------------------ */
 /* app.css (i arkusze paneli) używają ról --bg/--ink/--line/--brand…; ustawiamy je z aliasów, żeby
    panele uczestnika, koordynatora i recenzenta dziedziczyły paletę bez szablonów motywu.
-   Selektor bez [data-contrast="high"] – tam zostają wartości trybu kontrastu z app.css. Ta sama
-   swoistość co ``:root`` w @media (prefers-color-scheme) app.css, ale późniejsza kolejność, więc
-   motyw wygrywa z ustawieniem systemu operacyjnego. */
+   Selektor bez [data-contrast="high"] – tam zostają wartości trybu kontrastu z app.css.
+   Odcienie „soft” są NIEPRZEZROCZYSTE (mieszane z `surface`): przyklejone kolumny tabel wyników
+   biorą tło z wiersza (`background: inherit`) i przezroczyste przepuszczałyby przewijaną treść. */
 
 :root:not([data-contrast="high"]) {
   --bg: var(--iqo-bg);
   --bg-muted: var(--iqo-bg);
   --surface: var(--iqo-surface);
   --surface-2: var(--iqo-surface-2);
-  --surface-inset: color-mix(in srgb, var(--iqo-bg) 70%, var(--iqo-surface));
+  --surface-inset: color-mix(in srgb, var(--iqo-surface-2) 60%, var(--iqo-surface));
   --surface-raised: var(--iqo-surface);
   --surface-sunken: color-mix(in srgb, var(--iqo-bg) 70%, var(--iqo-surface));
   --ink: var(--iqo-text);
@@ -178,22 +211,22 @@
 
   --accent: var(--iqo-accent);
   --accent-ink: var(--iqo-accent);
-  --accent-soft: var(--iqo-tint-accent);
-  --accent-on-brand: var(--iqo-pink-on-deep);
+  --accent-soft: color-mix(in srgb, var(--iqo-accent) 12%, var(--iqo-surface));
+  --accent-on-brand: var(--iqo-cover-accent);
   --accent-rule: var(--iqo-accent);
 
   --ok: var(--iqo-success);
   --ok-ink: var(--iqo-success);
-  --ok-soft: color-mix(in srgb, var(--iqo-success) 12%, transparent);
+  --ok-soft: color-mix(in srgb, var(--iqo-success) 13%, var(--iqo-surface));
   --warn: var(--iqo-warning);
   --warn-ink: var(--iqo-warning);
-  --warn-soft: color-mix(in srgb, var(--iqo-warning) 12%, transparent);
+  --warn-soft: color-mix(in srgb, var(--iqo-warning) 13%, var(--iqo-surface));
   --danger: var(--iqo-danger);
   --danger-ink: var(--iqo-danger);
-  --danger-soft: color-mix(in srgb, var(--iqo-danger) 12%, transparent);
+  --danger-soft: color-mix(in srgb, var(--iqo-danger) 13%, var(--iqo-surface));
   --info: var(--iqo-info);
   --info-ink: var(--iqo-info);
-  --info-soft: var(--iqo-tint);
+  --info-soft: color-mix(in srgb, var(--iqo-info) 13%, var(--iqo-surface));
   --neutral-ink: var(--iqo-text-soft);
   --neutral-soft: var(--iqo-surface-2);
 
@@ -202,11 +235,11 @@
   --focus: var(--iqo-focus);
 
   /* Stopnie palety, których app.css używa wprost (przyciski, stopka, baner cookies). */
-  --navy-900: var(--iqo-deep);
-  --navy-800: var(--iqo-navy);
+  --navy-900: var(--iqo-cover);
+  --navy-800: var(--t-primary, #14123a);
   --navy-700: var(--iqo-primary-fill);
   --navy-600: var(--iqo-primary-fill);
-  --red-300: var(--iqo-pink-on-deep);
+  --red-300: var(--iqo-cover-accent);
   --red-500: var(--iqo-accent);
   --red-600: var(--iqo-primary-fill);
   --red-700: var(--iqo-primary-fill);
@@ -229,7 +262,8 @@
 /* --- 4. Pisma spoza łaciny ------------------------------------------------------------------- */
 /* Space Grotesk ma tylko łacinę (+ wietnamski). Łacińskie wtręty (nazwy, liczby, |IQO⟩) zostają
    w kroju marki, reszta idzie krojem systemowym danego pisma – kolejność: Windows, Apple, Noto.
-   Swoistość jak w app.css (:root:lang), późniejsza kolejność – wygrywa motyw. */
+   Swoistość jak w app.css (:root:lang), późniejsza kolejność – wygrywa motyw. Para krojów wybrana
+   przez koordynatora działa dla pism łacińskich; tu wygrywa krój, który ma glify danego pisma. */
 
 :root:lang(ar) {
   --iqo-font-body: "Space Grotesk", "Segoe UI", "Geeza Pro", "Noto Sans Arabic", "Noto Naskh Arabic", Tahoma, system-ui, sans-serif;
@@ -275,11 +309,28 @@
   line-height: 1.75;
 }
 
+/* Pisma z wysokimi znakami: ciasna interlinia nagłówków ucinałaby górne i dolne znaki,
+   a ujemne rozstrzelenie skleja litery. */
+:root:is(:lang(hi), :lang(bn), :lang(ar)) :is(h1, h2, h3, h4, .iqo-hero__title, .iqo-footer__wordmark) {
+  line-height: 1.4;
+  letter-spacing: normal;
+}
+
+:root:is(:lang(hi), :lang(bn), :lang(ar)) .steps__item::before {
+  line-height: 1.2;
+}
+
+:root:lang(ru) :is(h1, h2, .iqo-hero__title, .iqo-footer__wordmark) {
+  letter-spacing: -0.02em;
+}
+
 /* Wersaliki i rozstrzelenie są zabiegiem łacińskim – w arabskim rwą połączenia liter, a hindi,
    bengalski i chiński nie mają wielkich liter. */
 :root:is(:lang(ar), :lang(hi), :lang(bn), :lang(zh-hans)) :is(
   .iqo-hero__kicker, .iqo-brand__edition, .eyebrow, .badge, .news-card__date, .timeline__dates,
-  .card__meta, .iqo-footer__meta, .hero-slider__pause) {
+  .card__meta, .iqo-footer__label, .iqo-footer__version, .hero-slider__pause, .table th, .grid th,
+  .section__head > a, .section__head .hint a, .iqo-news__more, .iqo-page-head__kicker,
+  .doc-toc__title, .iqo-acct__who, .iqo-hero__status, .iqo-menu__toggle) {
   letter-spacing: normal;
   text-transform: none;
 }
@@ -296,18 +347,19 @@ body {
   line-height: 1.6;
   color: var(--iqo-text);
   background-color: var(--iqo-bg);
-  /* Siatka laboratoryjna 48 px + poświata u góry. Statyczna, bez obrazów do pobrania. */
-  background-image:
-    radial-gradient(1100px 520px at 85% -160px, var(--iqo-tint), transparent 70%),
-    linear-gradient(var(--iqo-grid-line) 1px, transparent 1px),
-    linear-gradient(90deg, var(--iqo-grid-line) 1px, transparent 1px);
-  background-size: auto, 48px 48px, 48px 48px;
-  background-repeat: no-repeat, repeat, repeat;
-  background-attachment: scroll;
-  /* Hero „full-bleed” ma szerokość 100vw – bez tego pasek przewijania dodałby przewijanie w bok. */
+  /* Raster punktów 28 px – „papier milimetrowy” laboratorium. Statyczny, bez obrazów. */
+  background-image: radial-gradient(circle at 1px 1px, var(--iqo-dot) 1px, transparent 1.6px);
+  background-size: 28px 28px;
+  /* Plansza i pasy sekcji mają szerokość 100vw – bez tego pasek przewijania dodałby przewijanie
+     w bok. */
   overflow-x: hidden; /* starsze Safari bez ``clip`` */
   overflow-x: clip;
-  font-feature-settings: "ss01" 0;
+}
+
+/* Strony publiczne (jest nagłówek motywu): wystawowa skala nagłówków. */
+body:has(> .iqo-header) {
+  --iqo-h1: clamp(2.5rem, 1.2rem + 4.4vw, 5rem);
+  --iqo-h2: clamp(1.9rem, 1.1rem + 2.6vw, 3.25rem);
 }
 
 ::selection {
@@ -321,28 +373,34 @@ h3,
 h4 {
   font-family: var(--iqo-font-display);
   color: var(--iqo-text);
-  font-weight: 600;
-  letter-spacing: -0.02em;
-  line-height: 1.15;
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  text-wrap: balance;
 }
 
 h1 {
-  font-size: clamp(2rem, 1.4rem + 2.2vw, 3rem);
-  font-weight: 500;
+  font-size: var(--iqo-h1);
+  letter-spacing: -0.045em;
+  line-height: 1.02;
 }
 
 h2 {
-  font-size: clamp(1.4rem, 1.2rem + 0.8vw, 1.75rem);
+  font-size: var(--iqo-h2);
+  letter-spacing: -0.035em;
 }
 
 h3 {
-  font-size: 1.15rem;
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
 }
 
 a {
   color: var(--iqo-link);
   text-decoration-thickness: 1px;
-  text-underline-offset: 0.2em;
+  text-underline-offset: 0.22em;
 }
 
 a:hover {
@@ -353,7 +411,6 @@ a:hover {
 :focus-visible {
   outline: 2px solid var(--iqo-focus);
   outline-offset: 3px;
-  border-radius: var(--iqo-radius-sm);
 }
 
 code,
@@ -370,21 +427,20 @@ hr {
 .skip-link {
   background: var(--iqo-accent);
   color: var(--iqo-accent-contrast);
-  border-radius: 0 0 var(--iqo-radius) 0;
   font-weight: 600;
+  z-index: 100;
 }
 
 .page {
   max-width: var(--iqo-max);
 }
 
-/* Strona główna: hero przykleja się do nagłówka (bez górnego odstępu treści). */
+/* Strona główna: plansza przykleja się do górnej krawędzi (bez górnego odstępu treści). */
 .page:has(> .iqo-hero:first-child) {
   padding-top: 0;
 }
 
-.hint,
-.lead {
+.hint {
   color: var(--iqo-muted);
 }
 
@@ -392,47 +448,189 @@ hr {
   color: var(--iqo-text-soft);
 }
 
-/* --- 6. Nagłówek „minimal” ------------------------------------------------------------------ */
-
-.iqo-header {
-  position: relative;
-  z-index: 40;
-  background: color-mix(in srgb, var(--iqo-brand) 88%, transparent);
-  -webkit-backdrop-filter: blur(12px);
-  backdrop-filter: blur(12px);
-  border-block-end: 1px solid var(--iqo-border);
-  color: var(--iqo-brand-text);
+/* Etykiety „przyrządowe” w kroju mono. */
+.eyebrow,
+.iqo-page-head__kicker,
+.iqo-footer__label {
+  font-family: var(--iqo-font-mono);
+  font-weight: 400;
+  font-size: var(--iqo-micro-size);
+  letter-spacing: var(--iqo-micro-track);
+  text-transform: uppercase;
 }
 
-.iqo-header__inner {
-  /* Szerszy niż treść: od 1400 px logo, menu i konto (gościa) mieszczą się w jednym wierszu. */
-  max-inline-size: max(var(--iqo-max), 1440px);
+.eyebrow {
+  color: var(--iqo-accent);
+}
+
+/* 5.1 Ikony: maska SVG z assets/icons barwiona kolorem tekstu (currentColor). Ikona zawsze stoi
+   obok napisu (albo jest dekoracją z aria-hidden) – gdyby maska się nie wczytała, znika sam
+   rysunek, nie znaczenie. */
+.iqo-icon {
+  display: inline-block;
+  flex: none;
+  inline-size: 1.25em;
+  block-size: 1.25em;
+  vertical-align: -0.25em;
+  background-color: currentColor;
+  -webkit-mask: center / contain no-repeat;
+  mask: center / contain no-repeat;
+}
+
+.iqo-icon--menu {
+  -webkit-mask-image: url("assets/icons/menu.svg");
+  mask-image: url("assets/icons/menu.svg");
+}
+
+.iqo-icon--account {
+  -webkit-mask-image: url("assets/icons/account.svg");
+  mask-image: url("assets/icons/account.svg");
+}
+
+.iqo-icon--chevron {
+  inline-size: 1em;
+  block-size: 1em;
+  -webkit-mask-image: url("assets/icons/chevron.svg");
+  mask-image: url("assets/icons/chevron.svg");
+}
+
+.iqo-icon--arrow {
+  -webkit-mask-image: url("assets/icons/arrow.svg");
+  mask-image: url("assets/icons/arrow.svg");
+}
+
+[dir="rtl"] .iqo-icon--arrow {
+  transform: scaleX(-1);
+}
+
+/* Odnośnik spoza serwisu (pozycja menu ``external``): strzałka ↗ jako glif z pustym tekstem
+   zastępczym – Space Grotesk ma U+2197. */
+.iqo-ext::after {
+  content: "\2197" / "";
+  display: inline-block;
+  margin-inline-start: 0.3em;
+  font-family: var(--iqo-font-ket);
+  font-size: 0.85em;
+  font-weight: 400;
+  opacity: 0.75;
+}
+
+[dir="rtl"] .iqo-ext::after {
+  transform: scaleX(-1);
+}
+
+/* --- 6. Nagłówek ------------------------------------------------------------------------------ */
+/* Kolory paska w zmiennych --h-*: na zwykłych stronach z palety (`brand`/`brand-text`), na planszy
+   strony głównej – z kolorów okładki (pasek przezroczysty, leży na ciemnej planszy). */
+
+.iqo-header {
+  --h-bg: var(--iqo-brand);
+  --h-fg: var(--iqo-brand-text);
+  --h-fg-soft: color-mix(in srgb, var(--iqo-brand-text) 80%, var(--iqo-brand));
+  --h-line: color-mix(in srgb, var(--iqo-brand-text) 13%, var(--iqo-brand));
+  --h-line-strong: color-mix(in srgb, var(--iqo-brand-text) 42%, var(--iqo-brand));
+  --h-hover: color-mix(in srgb, var(--iqo-brand-text) 8%, transparent);
+  --h-mark: var(--iqo-accent);
+  --h-panel: var(--iqo-brand);
+  --h-pad: clamp(1rem, 3vw, 2rem);
+  position: relative;
+  z-index: 40;
+  background: var(--h-bg);
+  color: var(--h-fg);
+  border-block-end: 1px solid var(--h-line);
+}
+
+/* Tryb nakładki: strona główna z planszą „full-bleed” jako pierwszym elementem treści i bez
+   komunikatów nad treścią (baner organizatora, komunikaty sesji, pasek podglądu motywu) – pasek
+   wychodzi z obiegu i leży na planszy. Bez :has() (stare przeglądarki) zostaje pełny pasek nad
+   planszą – też poprawny. */
+:root:not([data-layout-home-hero="split"]) body:has(> .page > .iqo-hero:first-child):not(:has(> .announcements, > .messages, > .theme-preview-bar)) > .iqo-header {
+  --h-bg: transparent;
+  --h-fg: var(--iqo-on-cover);
+  --h-fg-soft: var(--iqo-on-cover-soft);
+  --h-line: var(--iqo-cover-line);
+  --h-line-strong: var(--iqo-cover-line-strong);
+  --h-hover: color-mix(in srgb, var(--iqo-on-cover) 10%, transparent);
+  --h-mark: var(--iqo-cover-accent);
+  --h-panel: var(--iqo-cover);
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline: 0;
+}
+
+:root:not([data-layout-home-hero="split"]) body:has(> .page > .iqo-hero:first-child):not(:has(> .announcements, > .messages, > .theme-preview-bar)) > .iqo-header :focus-visible {
+  outline-color: var(--iqo-cover-accent);
+}
+
+/* Na planszy (i w trybie wysokiego kontrastu, gdzie pasek jest czarny) logo w wariancie na ciemne
+   tło; poza nią – plik dobrany do schematu (partials/logo.html). */
+.iqo-logo.iqo-logo--cover-only {
+  display: none;
+}
+
+:root:not([data-layout-home-hero="split"]) body:has(> .page > .iqo-hero:first-child):not(:has(> .announcements, > .messages, > .theme-preview-bar)) > .iqo-header :is(.iqo-logo--page:not(.iqo-logo--cover)),
+:root[data-contrast="high"] .iqo-header .iqo-logo--page:not(.iqo-logo--cover) {
+  display: none;
+}
+
+:root:not([data-layout-home-hero="split"]) body:has(> .page > .iqo-hero:first-child):not(:has(> .announcements, > .messages, > .theme-preview-bar)) > .iqo-header .iqo-logo--cover-only,
+:root[data-contrast="high"] .iqo-header .iqo-logo--cover-only {
+  display: block;
+}
+
+/* Siatka paska. Telefon/tablet: logo | konto | „Menu”, panel menu w drugim wierszu;
+   od 1200 px: logo | menu (wyśrodkowane) | konto. */
+.iqo-header__bar {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  grid-template-areas: "brand . account menu" "nav nav nav nav";
+  align-items: center;
+  column-gap: clamp(0.75rem, 2vw, 2rem);
+  max-inline-size: 1440px;
   min-block-size: var(--iqo-header-h);
   margin-inline: auto;
-  padding: 0.5rem 1rem;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem 1.25rem;
+  padding: 0.5rem var(--h-pad);
 }
 
 .iqo-brand {
+  grid-area: brand;
   display: inline-flex;
   align-items: center;
   gap: 0.75rem;
-  flex: none;
-  color: var(--iqo-brand-text);
+  min-inline-size: 0;
+  color: var(--h-fg);
   text-decoration: none;
   border-radius: var(--iqo-radius);
 }
 
-.iqo-brand__logo {
-  display: block;
-  inline-size: auto;
-  block-size: 2.7rem;
+.iqo-brand:hover {
+  color: var(--h-fg);
 }
 
-/* Nazwa serwisu: niewidoczna dla oka (logo ją niesie), czytana przez czytnik ekranu. */
+.iqo-logo,
+.iqo-logo-picture {
+  display: block;
+  flex: none;
+  inline-size: auto;
+  block-size: 2.75rem;
+}
+
+.iqo-logo-picture .iqo-logo {
+  block-size: 100%;
+}
+
+.iqo-brand--full .iqo-logo,
+.iqo-brand--full .iqo-logo-picture {
+  block-size: 3.25rem;
+}
+
+.iqo-brand--mark .iqo-logo,
+.iqo-brand--mark .iqo-logo-picture {
+  block-size: 2.5rem;
+}
+
+/* Nazwa serwisu: niewidoczna dla oka (logo ją niesie), czytana przez czytnik ekranu; w wariancie
+   logo „mark” stoi obok znaku jako tekst. */
 .iqo-brand__name {
   position: absolute;
   inline-size: 1px;
@@ -443,54 +641,154 @@ hr {
   white-space: nowrap;
 }
 
+.iqo-brand--mark .iqo-brand__name {
+  position: static;
+  inline-size: auto;
+  block-size: auto;
+  margin: 0;
+  overflow: visible;
+  clip-path: none;
+  white-space: normal;
+  max-inline-size: 15ch;
+  font-family: var(--iqo-font-display);
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -0.015em;
+}
+
 .iqo-brand__edition {
+  display: none;
   font-family: var(--iqo-font-mono);
   font-size: 0.6875rem;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--iqo-muted);
-  border: 1px solid var(--iqo-border);
+  color: var(--h-fg-soft);
+  border: 1px solid var(--h-line-strong);
   border-radius: var(--iqo-radius-pill);
   padding: 0.125rem 0.625rem;
   white-space: nowrap;
 }
 
-.iqo-brand:hover .iqo-brand__edition {
-  color: var(--iqo-brand-text);
-  border-color: var(--iqo-border-strong);
+@media (min-width: 1360px) {
+  .iqo-brand__edition {
+    display: inline-block;
+  }
 }
 
-/* Menu serwisu */
-.iqo-nav {
-  flex: 1 1 auto;
-  gap: 0.25rem 1.25rem;
+/* 6.1 Przycisk „Menu” (pusty <details> – stan przełącznika) */
+.iqo-menu {
+  grid-area: menu;
+  margin: 0;
+}
+
+.iqo-menu__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-block-size: 2.5rem;
+  padding: 0.375rem 0.875rem;
+  list-style: none;
+  cursor: pointer;
+  color: var(--h-fg);
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  border: 1px solid var(--h-line-strong);
+  border-start-start-radius: var(--iqo-radius-sm);
+  border-start-end-radius: var(--iqo-radius-leaf);
+  border-end-end-radius: var(--iqo-radius-sm);
+  border-end-start-radius: var(--iqo-radius-leaf);
+}
+
+.iqo-menu__toggle::-webkit-details-marker {
+  display: none;
+}
+
+.iqo-menu__toggle::marker {
+  content: "";
+}
+
+.iqo-menu__toggle:hover {
+  background: var(--h-hover);
+  border-color: var(--h-fg);
+}
+
+.iqo-menu[open] > .iqo-menu__toggle {
+  border-color: var(--h-mark);
+  background: var(--h-hover);
+}
+
+.iqo-menu[open] .iqo-icon--menu {
+  -webkit-mask-image: url("assets/icons/close.svg");
+  mask-image: url("assets/icons/close.svg");
+}
+
+/* 6.2 Menu serwisu */
+.iqo-header__nav {
+  grid-area: nav;
   min-inline-size: 0;
+}
+
+.iqo-nav {
+  display: block;
+}
+
+.iqo-nav__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.iqo-nav__item {
+  margin: 0;
 }
 
 .iqo-header .nav__link,
 .iqo-header .nav-menu__summary {
-  color: var(--iqo-text-soft);
+  color: var(--h-fg-soft);
   font-size: 0.9375rem;
   font-weight: 500;
-  padding-block: 0.375rem;
-  border-bottom: 1px solid transparent;
+  padding-block: 0.5rem;
+  border-bottom: 0;
+  text-decoration: none;
 }
 
 .iqo-header .nav__link:hover,
 .iqo-header .nav-menu__summary:hover {
-  color: var(--iqo-brand-text);
-  border-bottom-color: var(--iqo-border-strong);
+  color: var(--h-fg);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-decoration-color: var(--h-line-strong);
+  text-underline-offset: 0.5em;
 }
 
 .iqo-header .nav__link[aria-current="page"],
+.iqo-header .is-active > .nav__link,
 .iqo-header .nav-menu__summary--active {
-  color: var(--iqo-brand-text);
+  color: var(--h-fg);
   font-weight: 600;
-  border-bottom-color: var(--iqo-primary);
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-decoration-color: var(--h-mark);
+  text-underline-offset: 0.5em;
+}
+
+/* Lista rozwijana grupy: pływający panel w kolorach palety (także nad planszą). */
+.iqo-header .nav-menu__list {
+  color: var(--iqo-text);
+}
+
+.iqo-header .nav-menu__list > li:first-child {
+  border-bottom: 0;
+  margin-bottom: 0;
+  padding-bottom: 0;
 }
 
 .iqo-header .nav-menu__link {
   color: var(--iqo-text-soft);
+  border-radius: var(--iqo-radius);
+  border-inline-start: 2px solid transparent;
 }
 
 .iqo-header .nav-menu__link:hover {
@@ -500,82 +798,346 @@ hr {
 
 .iqo-header .nav-menu__link[aria-current="page"] {
   color: var(--iqo-text);
-  border-inline-start-color: var(--iqo-primary);
+  font-weight: 600;
+  border-inline-start-color: var(--iqo-accent);
 }
 
-.iqo-header .nav-menu__list > li:first-child {
-  border-bottom-color: var(--iqo-border);
-}
+/* Telefon i tablet: menu w panelu pod paskiem, odsłaniane przyciskiem „Menu”. Grupy rozwijają się
+   wyłącznie kliknięciem (bez otwierania najechaniem z app.css – w pionowej liście skakałoby). */
+@media (max-width: 1199.98px) {
+  .iqo-header__nav {
+    display: none;
+    margin-inline: calc(-1 * var(--h-pad));
+    padding: 0.5rem var(--h-pad) 1.25rem;
+    background: var(--h-panel);
+    border-block-start: 1px solid var(--h-line);
+    box-shadow: 0 24px 40px -24px rgba(0, 0, 0, 0.45);
+  }
 
-@media (min-width: 900px) {
+  .iqo-menu[open] ~ .iqo-header__nav {
+    display: block;
+  }
+
+  .iqo-nav__list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+    column-gap: 2rem;
+  }
+
+  .iqo-nav__item {
+    border-block-end: 1px solid var(--h-line);
+  }
+
+  .iqo-header .nav__link,
+  .iqo-header .nav-menu__summary {
+    display: flex;
+    justify-content: space-between;
+    padding-block: 0.8rem;
+    font-family: var(--iqo-font-display);
+    font-size: 1.125rem;
+    letter-spacing: -0.01em;
+  }
+
+  .iqo-header .nav-menu:not([open]) > .nav-menu__list {
+    display: none;
+  }
+
+  .iqo-header .nav-menu:not([open])::details-content {
+    content-visibility: hidden;
+  }
+
   .iqo-header .nav-menu__list {
+    position: static;
+    min-width: 0;
+    margin: 0 0 0.75rem;
+    padding: 0 0 0 0.75rem;
+    background: transparent;
+    border: 0;
+    border-inline-start: 1px solid var(--h-line-strong);
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .iqo-header .nav-menu__link {
+    color: var(--h-fg-soft);
+  }
+
+  .iqo-header .nav-menu__link:hover,
+  .iqo-header .nav-menu__link[aria-current="page"] {
+    color: var(--h-fg);
+    background: var(--h-hover);
+  }
+}
+
+@media (min-width: 1200px) {
+  .iqo-header__bar {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas: "brand nav account";
+  }
+
+  .iqo-menu {
+    display: none;
+  }
+
+  .iqo-nav__list {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: 0.125rem 1.4rem;
+  }
+
+  .iqo-header .nav-menu__list {
+    min-width: 15rem;
+    padding: 0.5rem;
     background: var(--iqo-surface);
     border: 1px solid var(--iqo-border-strong);
-    border-top: 2px solid var(--iqo-primary);
-    border-radius: 0 0 var(--iqo-radius) var(--iqo-radius);
+    border-radius: var(--iqo-radius-lg);
     box-shadow: var(--iqo-shadow-md);
   }
 }
 
-/* Pasek konta: tekstowe odnośniki, pigułki przycisków. */
+/* Długie menu (od 9 pozycji – koordynator dodał odnośniki i grupy albo etykiety są długie): menu
+   schodzi do własnego wiersza na całą szerokość paska, zamiast ściskać się w trzech liniach
+   między logo a kontem. Plansza zostawia pod paskiem więcej miejsca. */
+@media (min-width: 1200px) {
+  .iqo-header:has(.iqo-nav__item:nth-child(9)) .iqo-header__bar {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas: "brand . account" "nav nav nav";
+  }
+
+  .iqo-header:has(.iqo-nav__item:nth-child(9)) .iqo-header__nav {
+    border-block-start: 1px solid var(--h-line);
+    padding-block: 0.25rem;
+  }
+
+  :root:has(.iqo-nav__item:nth-child(9)) {
+    --iqo-header-clear: 8.5rem;
+  }
+}
+
+/* Układ „centered”: logo na osi, menu w osobnym wierszu pod nim, konto na końcu pierwszego. */
+@media (min-width: 1200px) {
+  :root[data-layout-header="centered"] .iqo-header__bar {
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    grid-template-areas: ". brand account" "nav nav nav";
+    row-gap: 0.25rem;
+    padding-block-start: 1rem;
+  }
+
+  :root[data-layout-header="centered"] .iqo-logo,
+  :root[data-layout-header="centered"] .iqo-logo-picture {
+    block-size: 3.5rem;
+  }
+
+  :root[data-layout-header="centered"] .iqo-header__nav {
+    margin-block-start: 0.5rem;
+    border-block-start: 1px solid var(--h-line);
+    padding-block: 0.25rem;
+  }
+
+  :root[data-layout-header="centered"] {
+    --iqo-header-clear: 9rem;
+  }
+}
+
+/* 6.3 Konto */
 .iqo-account {
-  margin-inline-start: auto;
-  gap: 0.375rem 0.875rem;
-}
-
-.iqo-header .account-bar__link {
-  color: var(--iqo-text-soft);
-  font-size: 0.875rem;
-  border-bottom: 1px solid transparent;
-}
-
-.iqo-header .account-bar__link:hover {
-  color: var(--iqo-brand-text);
-  border-bottom-color: var(--iqo-border-strong);
-}
-
-.iqo-header .account-bar__link[aria-current="page"] {
-  color: var(--iqo-brand-text);
-  border-bottom-color: var(--iqo-primary);
+  grid-area: account;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.375rem 0.625rem;
+  margin: 0;
 }
 
 .iqo-header .account-bar__sep {
-  background: var(--iqo-border);
-}
-
-.iqo-header .account-bar__who {
-  color: var(--iqo-muted);
-  font-family: var(--iqo-font-mono);
-  font-size: 0.75rem;
+  display: none;
 }
 
 .iqo-header .btn--ghost {
-  color: var(--iqo-text-soft);
+  color: var(--h-fg-soft);
 }
 
 .iqo-header .btn--ghost:hover {
-  color: var(--iqo-brand-text);
-  background: var(--iqo-tint);
+  color: var(--h-fg);
+  background: var(--h-hover);
+}
+
+.iqo-header .account-bar__prefs button {
+  min-width: 2.25rem;
+}
+
+.iqo-header .account-bar__link {
+  color: var(--h-fg-soft);
+  font-size: 0.875rem;
+  border-bottom: 0;
+}
+
+.iqo-header .account-bar__link:hover {
+  color: var(--h-fg);
+  text-decoration: underline;
 }
 
 .iqo-header .account-bar .btn--secondary {
   background: transparent;
-  color: var(--iqo-brand-text);
-  border-color: var(--iqo-border-strong);
+  color: var(--h-fg);
+  border-color: var(--h-line-strong);
 }
 
 .iqo-header .account-bar .btn--secondary:hover {
-  border-color: var(--iqo-primary);
+  background: var(--h-hover);
+  border-color: var(--h-fg);
+  color: var(--h-fg);
+}
+
+/* „Zgłoś problem” gościa: w pasku dopiero na bardzo szerokich ekranach; węższe oddają miejsce
+   menu serwisu i przyciskom konta – ten sam odnośnik jest w stopce każdej strony. */
+@media (max-width: 1439.98px) {
+  .iqo-account__support {
+    display: none;
+  }
+}
+
+/* Rozwijane „Konto” zalogowanego */
+.iqo-acct {
+  position: relative;
+}
+
+.iqo-acct__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-block-size: 2.25rem;
+  padding: 0.25rem 0.75rem;
+  list-style: none;
+  cursor: pointer;
+  color: var(--h-fg);
+  font-size: 0.875rem;
+  font-weight: 600;
+  border: 1px solid var(--h-line-strong);
+  border-radius: var(--iqo-radius-pill);
+}
+
+.iqo-acct__toggle::-webkit-details-marker {
+  display: none;
+}
+
+.iqo-acct__toggle::marker {
+  content: "";
+}
+
+.iqo-acct__toggle:hover,
+.iqo-acct[open] > .iqo-acct__toggle {
+  background: var(--h-hover);
+  border-color: var(--h-fg);
+}
+
+.iqo-acct[open] .iqo-icon--chevron {
+  transform: rotate(180deg);
+}
+
+.iqo-acct__panel {
+  position: absolute;
+  inset-inline-end: 0;
+  inset-block-start: calc(100% + 0.5rem);
+  z-index: 60;
+  inline-size: max-content;
+  min-inline-size: 15rem;
+  max-inline-size: min(22rem, calc(100vw - 2rem));
+  padding: 0.75rem;
+  color: var(--iqo-text);
+  background: var(--iqo-surface);
+  border: 1px solid var(--iqo-border-strong);
+  border-radius: var(--iqo-radius-lg);
+  box-shadow: var(--iqo-shadow-md);
+}
+
+.iqo-acct__who {
+  display: block;
+  max-width: none;
+  margin: 0 0 0.5rem;
+  padding: 0 0.625rem 0.625rem;
+  font-family: var(--iqo-font-mono);
+  font-size: 0.75rem;
+  color: var(--iqo-muted);
+  border-block-end: 1px solid var(--iqo-border);
+}
+
+.iqo-acct__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.iqo-acct__list > li {
+  margin: 0;
+}
+
+.iqo-acct__extra {
+  display: flex;
+  flex-direction: column;
+}
+
+.iqo-acct__extra:not(:empty) {
+  margin-block-start: 0.25rem;
+  padding-block-start: 0.25rem;
+  border-block-start: 1px solid var(--iqo-border);
+}
+
+.iqo-header .iqo-acct__panel .account-bar__link {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.625rem;
+  color: var(--iqo-text-soft);
+  font-size: 0.9375rem;
+  border-radius: var(--iqo-radius);
+  border-inline-start: 2px solid transparent;
+  text-decoration: none;
+}
+
+.iqo-header .iqo-acct__panel .account-bar__link:hover {
+  color: var(--iqo-text);
   background: var(--iqo-tint);
-  color: var(--iqo-brand-text);
+}
+
+.iqo-header .iqo-acct__panel .account-bar__link[aria-current="page"] {
+  color: var(--iqo-text);
+  font-weight: 600;
+  border-inline-start-color: var(--iqo-accent);
+}
+
+.iqo-acct__panel .iqo-acct__logout {
+  display: flex;
+  inline-size: 100%;
+  margin: 0.625rem 0 0;
+}
+
+.iqo-header .iqo-acct__logout .btn--secondary {
+  flex: 1;
+  color: var(--iqo-text);
+  border-color: var(--iqo-border-strong);
+}
+
+.iqo-header .iqo-acct__logout .btn--secondary:hover {
+  color: var(--iqo-text);
+  background: var(--iqo-tint);
+  border-color: var(--iqo-primary);
 }
 
 .lang-menu__list {
   background: var(--iqo-surface);
   color: var(--iqo-text);
   border-color: var(--iqo-border-strong);
-  border-radius: var(--iqo-radius);
+  border-radius: var(--iqo-radius-lg);
   box-shadow: var(--iqo-shadow-md);
+  padding: 0.375rem;
+}
+
+.lang-menu__item {
+  border-radius: var(--iqo-radius);
 }
 
 .lang-menu__item:hover,
@@ -584,36 +1146,40 @@ hr {
 }
 
 .lang-menu__item--current {
-  color: var(--iqo-primary);
+  color: var(--iqo-accent);
 }
 
-/* Taśma sponsorów pod paskiem – poza elementem przyklejonym (pojawia się tylko z wpisami). */
-.iqo-sponsors {
-  background: var(--iqo-brand);
-  border-block-end: 1px solid var(--iqo-border);
-}
+/* 6.4 Telefon: logo | „Menu”; konto w drugim wierszu, wyrównane do początku. */
+@media (max-width: 639.98px) {
+  :root {
+    --iqo-header-clear: 8.5rem;
+  }
 
-.iqo-sponsors .sponsor-slider-dock {
-  max-inline-size: var(--iqo-max);
-  margin-inline: auto;
-  padding: 0 1rem 0.5rem;
-}
+  .iqo-header__bar {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: "brand menu" "account account" "nav nav";
+    row-gap: 0.5rem;
+  }
 
-/* Pasek mieści logo + menu + konto w jednym wierszu dopiero od ~1400 px (dla zalogowanego
-   konto jest jeszcze dłuższe), więc poniżej menu serwisu schodzi do drugiego wiersza na całą
-   szerokość, a logo i konto zostają razem w pierwszym. */
-@media (max-width: 1399px) {
-  .iqo-nav {
-    order: 3;
-    flex-basis: 100%;
-    padding-block-start: 0.25rem;
-    border-block-start: 1px solid var(--iqo-border);
+  .iqo-logo,
+  .iqo-logo-picture {
+    block-size: 2.4rem;
+  }
+
+  .iqo-account {
+    justify-content: flex-start;
+    padding-block-end: 0.25rem;
+  }
+
+  .iqo-acct__panel {
+    inset-inline-end: auto;
+    inset-inline-start: 0;
   }
 }
 
-/* Przyklejony wyłącznie wtedy, gdy mieści się w jednym wierszu (≥ 1400 px) i okno jest dość
-   wysokie: dwuwierszowy pasek z długimi etykietami (de/ru) zabierałby za dużo ekranu. */
-@media (min-width: 1400px) and (min-height: 640px) {
+/* Przyklejony pasek – wyłącznie poza planszą (pasek nakładki ma ``position: absolute``) i gdy
+   jest jednowierszowy i okno dość wysokie. */
+@media (min-width: 1200px) and (min-height: 700px) {
   .iqo-header {
     position: sticky;
     top: 0;
@@ -624,76 +1190,108 @@ hr {
   }
 }
 
-/* Telefon: konto pod logo, wyrównane do początku. */
-@media (max-width: 560px) {
-  .iqo-account {
-    margin-inline-start: 0;
-    inline-size: 100%;
-    justify-content: flex-start;
-  }
-}
-
-/* --- 7. Hero „full-bleed” --------------------------------------------------------------------- */
+/* --- 7. Plansza ------------------------------------------------------------------------------- */
+/* Kolory planszy w zmiennych --hero-*: „full-bleed” – okładka (ciemna w obu schematach),
+   „split” – paleta strony. */
 
 .iqo-hero {
+  --hero-bg: var(--iqo-cover);
+  --hero-fg: var(--iqo-on-cover);
+  --hero-soft: var(--iqo-on-cover-soft);
+  --hero-muted: var(--iqo-on-cover-muted);
+  --hero-line: var(--iqo-cover-line);
+  --hero-line-strong: var(--iqo-cover-line-strong);
+  --hero-accent: var(--iqo-cover-accent);
+  --hero-dot: var(--iqo-cover-dot);
+  --hero-glass: var(--iqo-cover-glass);
   position: relative;
-  /* Wyjście z kontenera treści na całą szerokość okna; działa też poza <main> (wtedy zero). */
-  margin-inline: calc(50% - 50vw);
-  margin-block: 0 var(--sp-12, 3rem);
   isolation: isolate;
   overflow: hidden;
-  color: var(--iqo-on-deep);
-  background-color: var(--iqo-deep);
+  /* Wyjście z kontenera treści na całą szerokość okna. */
+  margin-inline: calc(50% - 50vw);
+  margin-block: 0;
+  color: var(--hero-fg);
+  background-color: var(--hero-bg);
   background-image:
-    linear-gradient(rgba(124, 136, 255, 0.11) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(124, 136, 255, 0.11) 1px, transparent 1px),
-    radial-gradient(900px 600px at 15% 120%, rgba(60, 75, 255, 0.28), transparent 70%),
-    linear-gradient(180deg, var(--iqo-deep), var(--iqo-navy));
-  background-size: 48px 48px, 48px 48px, auto, auto;
-  border-block-end: 1px solid var(--iqo-line-on-deep);
+    radial-gradient(55% 70% at 78% 40%, color-mix(in srgb, var(--iqo-primary) 30%, transparent), transparent 72%),
+    radial-gradient(45% 60% at 0% 100%, color-mix(in srgb, var(--hero-accent) 16%, transparent), transparent 70%),
+    radial-gradient(circle at 1px 1px, var(--hero-dot) 1px, transparent 1.6px);
+  background-size: auto, auto, 30px 30px;
 }
 
-/* Tło z paczką falową – osobna warstwa, żeby dało się ją odbić w RTL i przyciemnić na telefonie. */
-.iqo-hero::before {
-  content: "";
+[dir="rtl"] .iqo-hero {
+  background-image:
+    radial-gradient(55% 70% at 22% 40%, color-mix(in srgb, var(--iqo-primary) 30%, transparent), transparent 72%),
+    radial-gradient(45% 60% at 100% 100%, color-mix(in srgb, var(--hero-accent) 16%, transparent), transparent 70%),
+    radial-gradient(circle at 1px 1px, var(--hero-dot) 1px, transparent 1.6px);
+}
+
+/* Warstwa rysunku: maski SVG barwione tokenami. */
+.iqo-hero__art {
   position: absolute;
   inset: 0;
   z-index: -1;
-  /* Pierwsza warstwa przyciemnia stronę „start”, na której stoi tekst (prążki pod literami). */
-  background:
-    linear-gradient(90deg, rgba(11, 10, 36, 0.75), rgba(11, 10, 36, 0) 55%),
-    url("assets/hero/wave-field.svg") no-repeat right center / auto 100%;
   pointer-events: none;
 }
 
-[dir="rtl"] .iqo-hero::before {
-  transform: scaleX(-1);
-}
-
-/* Cienka linia „skanu” u dołu hero – akcent malinowy. */
-.iqo-hero::after {
-  content: "";
+.iqo-hero__sphere,
+.iqo-hero__orbit {
   position: absolute;
-  inset-block-end: -1px;
-  inset-inline-start: 0;
-  inline-size: min(36rem, 60%);
-  block-size: 2px;
-  background: linear-gradient(90deg, var(--iqo-pink-on-deep), transparent);
-  pointer-events: none;
+  inset-block-start: 50%;
+  aspect-ratio: 1;
+  -webkit-mask: center / contain no-repeat;
+  mask: center / contain no-repeat;
 }
 
-[dir="rtl"] .iqo-hero::after {
-  background: linear-gradient(270deg, var(--iqo-pink-on-deep), transparent);
+.iqo-hero__sphere {
+  inset-inline-end: max(1.5rem, calc((100vw - var(--iqo-max)) / 2 + 1rem));
+  inline-size: clamp(15rem, 34vw, 32rem);
+  translate: 0 -42%;
+  background: linear-gradient(135deg, var(--iqo-primary) 20%, var(--hero-accent) 88%);
+  -webkit-mask-image: url("assets/motifs/bloch.svg");
+  mask-image: url("assets/motifs/bloch.svg");
+}
+
+.iqo-hero__orbit {
+  inset-inline-end: calc(max(1.5rem, (100vw - var(--iqo-max)) / 2 + 1rem) - 13vw);
+  inline-size: clamp(24rem, 52vw, 50rem);
+  translate: 0 -46%;
+  rotate: -14deg;
+  background: var(--hero-fg);
+  opacity: 0.13;
+  -webkit-mask-image: url("assets/motifs/orbital.svg");
+  mask-image: url("assets/motifs/orbital.svg");
+}
+
+.iqo-hero__fringes {
+  position: absolute;
+  inset-inline: 0;
+  inset-block-end: 0;
+  block-size: clamp(3.5rem, 8vw, 7rem);
+  background: linear-gradient(90deg, transparent 4%, var(--iqo-primary) 50%, transparent 96%);
+  opacity: 0.5;
+  -webkit-mask: url("assets/motifs/fringes.svg") 0 0 / 100% 100% no-repeat;
+  mask: url("assets/motifs/fringes.svg") 0 0 / 100% 100% no-repeat;
+}
+
+/* Rysunek sfery ma kierunek (wektor stanu w prawo) – w RTL odbity, razem z orbitami. */
+[dir="rtl"] .iqo-hero__sphere,
+[dir="rtl"] .iqo-hero__orbit {
+  scale: -1 1;
 }
 
 .iqo-hero .hero-slider__viewport {
-  min-block-size: clamp(30rem, 74vh, 44rem);
+  min-block-size: clamp(34rem, 84vh, 54rem);
 }
 
 .iqo-hero .hero-slide {
   display: flex;
   align-items: center;
-  padding: clamp(3rem, 6vw, 5.5rem) 0 clamp(4rem, 7vw, 6rem);
+  padding: clamp(3rem, 7vw, 6rem) 0 clamp(5rem, 9vw, 8rem);
+}
+
+:root:not([data-layout-home-hero="split"]) body:has(> .page > .iqo-hero:first-child):not(:has(> .announcements, > .messages, > .theme-preview-bar)) .iqo-hero .hero-slide {
+  padding-block-start: calc(var(--iqo-header-clear) + clamp(2.5rem, 6vw, 5rem));
 }
 
 .iqo-hero .hero-slide::after {
@@ -705,79 +1303,66 @@ hr {
   inline-size: 100%;
   max-inline-size: var(--iqo-max);
   margin-inline: auto;
-  padding-inline: 1rem;
+  padding-inline: clamp(1rem, 4vw, 2rem);
 }
 
 .iqo-hero__inner > * {
-  max-inline-size: 40rem;
+  max-inline-size: 44rem;
 }
 
-/* Na średnich ekranach kolumna tekstu kończy się przed medalem (dłuższe słowa w ru/de). */
-@media (min-width: 721px) {
+@media (min-width: 900px) {
   .iqo-hero__inner > * {
-    max-inline-size: min(40rem, 48vw);
+    max-inline-size: min(44rem, 56%);
+  }
+
+  .iqo-hero__inner > .iqo-hero__title {
+    max-inline-size: min(56rem, 64%);
   }
 }
 
-/* Etykieta nad tytułem w kroju mono: |Edycja 2027⟩ */
+/* Etykieta nad tytułem: kreska w kolorze akcentu + napis w kroju mono. */
 .iqo-hero__kicker {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 0.5em;
-  margin: 0 0 1.25rem;
-  padding: 0.3rem 0.875rem;
+  gap: 0.875rem;
+  margin: 0 0 1.75rem;
   font-family: var(--iqo-font-mono);
   font-size: 0.8125rem;
-  letter-spacing: 0.1em;
+  letter-spacing: var(--iqo-micro-track);
   text-transform: uppercase;
-  color: var(--iqo-on-deep-soft);
-  background: rgba(11, 10, 36, 0.6);
-  border: 1px solid var(--iqo-line-strong-on-deep);
-  border-radius: var(--iqo-radius-pill);
+  color: var(--hero-soft);
 }
 
 .iqo-hero__kicker::before {
   content: "";
-  inline-size: 0.5rem;
-  block-size: 0.5rem;
-  border-radius: 50%;
-  background: var(--iqo-pink-on-deep);
-  box-shadow: 0 0 0 3px rgba(255, 107, 152, 0.25);
   flex: none;
+  inline-size: 2.75rem;
+  block-size: 2px;
+  background: var(--hero-accent);
 }
 
 .iqo-hero__title {
-  margin: 0 0 1.25rem;
+  margin: 0 0 1.75rem;
   font-family: var(--iqo-font-display);
-  font-size: var(--t-size-3xl, clamp(2.4rem, 1.6rem + 3.2vw, 4.25rem));
+  font-size: var(--t-size-3xl, clamp(2.75rem, 1.2rem + 5.4vw, 6.25rem));
   font-weight: 500;
-  line-height: 1.04;
-  letter-spacing: -0.035em;
-  color: var(--iqo-on-deep);
+  line-height: 0.98;
+  letter-spacing: -0.05em;
+  color: var(--hero-fg);
   overflow-wrap: break-word;
   hyphens: auto;
   text-wrap: balance;
 }
 
 .iqo-hero__title--news {
-  font-size: clamp(1.9rem, 1.3rem + 2.2vw, 3.1rem);
-}
-
-/* Pisma z wysokimi znakami: ciaśniejsza interlinia tytułu ucinałaby górne i dolne znaki. */
-:root:is(:lang(hi), :lang(bn), :lang(ar)) .iqo-hero__title {
-  line-height: 1.35;
-  letter-spacing: normal;
-}
-
-:root:lang(ru) .iqo-hero__title {
-  letter-spacing: -0.02em;
+  font-size: clamp(2.1rem, 1.2rem + 3.4vw, 4.25rem);
 }
 
 .iqo-hero__text {
-  font-size: 1.125rem;
+  font-size: clamp(1.0625rem, 1rem + 0.35vw, 1.25rem);
   line-height: 1.6;
-  color: var(--iqo-on-deep-soft);
-  margin: 0 0 0.5rem;
+  color: var(--hero-soft);
+  margin: 0;
 }
 
 .iqo-hero__text p {
@@ -786,102 +1371,98 @@ hr {
 
 .iqo-hero__text a,
 .iqo-hero__note a {
-  color: var(--iqo-blue-on-deep-hover);
+  color: var(--hero-fg);
 }
 
 .iqo-hero__actions {
   display: flex;
   flex-wrap: wrap;
   gap: 0.75rem;
-  margin: 2rem 0 0;
+  margin: 2.25rem 0 0;
 }
 
 .iqo-hero .btn {
-  min-block-size: 3rem;
-  padding-inline: 1.5rem;
+  min-block-size: 3.25rem;
+  padding-inline: 1.6rem;
   font-size: 1rem;
 }
 
-.iqo-hero .btn--accent {
-  background: var(--iqo-blue-on-deep);
-  border-color: var(--iqo-blue-on-deep);
-  color: var(--iqo-deep);
-}
-
-.iqo-hero .btn--accent:hover {
-  background: var(--iqo-blue-on-deep-hover);
-  border-color: var(--iqo-blue-on-deep-hover);
-  color: var(--iqo-deep);
-}
-
 .iqo-hero .btn--secondary {
-  background: rgba(11, 10, 36, 0.55);
-  border-color: var(--iqo-line-strong-on-deep);
-  color: var(--iqo-on-deep);
+  background: var(--hero-glass);
+  border-color: var(--hero-line-strong);
+  color: var(--hero-fg);
 }
 
 .iqo-hero .btn--secondary:hover {
-  border-color: var(--iqo-on-deep);
-  background: rgba(124, 136, 255, 0.14);
-  color: var(--iqo-on-deep);
+  border-color: var(--hero-fg);
+  background: color-mix(in srgb, var(--hero-fg) 10%, transparent);
+  color: var(--hero-fg);
 }
 
 .iqo-hero :focus-visible {
-  outline-color: var(--iqo-pink-on-deep);
+  outline-color: var(--hero-accent);
 }
 
 .iqo-hero__note {
-  margin: 1rem 0 0;
-  font-size: 0.875rem;
-  color: var(--iqo-on-deep-muted);
+  margin: 1.25rem 0 0;
+  font-size: 0.9375rem;
+  color: var(--hero-muted);
 }
 
-/* Stan systemu („Etap bieżący…”) jako odczyt przyrządu: mono, ramka, kreska po stronie start. */
+/* Stan etapu jako pasek odczytu przyrządu: mono, szkło, kreska po stronie początkowej. */
 .iqo-hero__status {
-  display: inline-block;
-  margin: 1.75rem 0 0;
-  padding: 0.5rem 0.875rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.5rem;
+  margin: 3rem 0 0;
+  padding: 0.875rem 1.125rem;
   font-family: var(--iqo-font-mono);
   font-size: 0.8125rem;
   line-height: 1.5;
-  color: var(--iqo-on-deep-soft);
-  background: rgba(11, 10, 36, 0.7);
-  border: 1px solid var(--iqo-line-on-deep);
-  border-inline-start: 2px solid var(--iqo-pink-on-deep);
-  border-radius: var(--iqo-radius);
+  color: var(--hero-soft);
+  background: var(--hero-glass);
+  border: 1px solid var(--hero-line);
+  border-inline-start: 3px solid var(--hero-accent);
+  border-start-end-radius: var(--iqo-radius);
+  border-end-end-radius: var(--iqo-radius);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
 }
 
 .iqo-hero__status strong {
-  color: var(--iqo-on-deep);
+  color: var(--hero-fg);
   font-weight: 700;
 }
 
 .iqo-hero__stamp {
   display: inline-block;
-  margin: 1.5rem 0 0;
+  margin: 1.75rem 0 0;
   font-family: var(--iqo-font-mono);
   font-size: 0.8125rem;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--iqo-pink-on-deep);
+  color: var(--hero-accent);
 }
 
-/* Plakaty redakcji: wariant „granatowy” i „papier” różnią się tylko akcentem etykiety. */
+/* Plakaty redakcji: warianty różnią się kolorem kreski etykiety. */
 .iqo-slide--granatowy .iqo-hero__kicker::before {
-  background: var(--iqo-blue-on-deep);
-  box-shadow: 0 0 0 3px rgba(124, 136, 255, 0.25);
+  background: var(--iqo-primary);
 }
 
 .iqo-slide--papier .iqo-hero__kicker::before {
-  background: var(--iqo-on-deep);
-  box-shadow: none;
+  background: var(--hero-fg);
 }
 
-/* Gotowe obrazy (plakaty JPG) stoją w całości na ciemnym tle. */
+/* Gotowe obrazy (plakaty JPG) stoją w całości na tle planszy. */
 .iqo-hero .hero-slide--image {
   justify-content: center;
   padding: 1.5rem 1rem 3.5rem;
-  background: var(--iqo-deep);
+  background: var(--hero-bg);
+}
+
+:root:not([data-layout-home-hero="split"]) body:has(> .page > .iqo-hero:first-child):not(:has(> .announcements, > .messages, > .theme-preview-bar)) .iqo-hero .hero-slide--image {
+  padding-block-start: calc(var(--iqo-header-clear) + 1rem);
 }
 
 .iqo-hero .hero-image__img {
@@ -892,48 +1473,63 @@ hr {
 .iqo-hero__controls {
   inset-inline-end: max(1rem, calc((100vw - var(--iqo-max)) / 2 + 1rem));
   inset-block-end: 1.25rem;
+  background: var(--hero-glass);
+  border: 1px solid var(--hero-line);
 }
 
 .iqo-hero .hero-slider__arrow,
 .iqo-hero .hero-slider__pause {
-  background: rgba(11, 10, 36, 0.7);
-  color: var(--iqo-on-deep);
-  border: 1px solid var(--iqo-line-strong-on-deep);
+  color: var(--hero-fg);
   border-radius: var(--iqo-radius-pill);
 }
 
 .iqo-hero .hero-slider__pause {
   font-family: var(--iqo-font-mono);
   font-size: 0.75rem;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
 .iqo-hero .hero-slider__arrow:hover,
 .iqo-hero .hero-slider__pause:hover {
-  border-color: var(--iqo-on-deep);
-  background: rgba(124, 136, 255, 0.18);
+  background: color-mix(in srgb, var(--hero-fg) 14%, transparent);
 }
 
 .iqo-hero .hero-slider__dot {
   background: transparent;
-  border: 1px solid var(--iqo-on-deep-muted);
+  border: 1px solid var(--hero-muted);
 }
 
 .iqo-hero .hero-slider__dot[aria-current="true"] {
-  background: var(--iqo-pink-on-deep);
-  border-color: var(--iqo-pink-on-deep);
+  background: var(--hero-accent);
+  border-color: var(--hero-accent);
+}
+
+.iqo-hero .hero-slider__arrow:focus-visible,
+.iqo-hero .hero-slider__pause:focus-visible,
+.iqo-hero .hero-slider__dot:focus-visible {
+  outline-color: var(--hero-accent);
 }
 
 [dir="rtl"] .iqo-hero .hero-slider__arrow {
   transform: scaleX(-1);
 }
 
-/* Telefon: obraz tła cichnie, żeby tekst leżący na nim zostawał czytelny. */
-@media (max-width: 720px) {
-  .iqo-hero::before {
-    opacity: 0.28;
-    background-position: 0 0, 70% center;
+/* Telefon: rysunek cichnie i chowa się za tekstem, żeby tekst leżący na nim był czytelny. */
+@media (max-width: 899.98px) {
+  .iqo-hero__sphere {
+    inset-block-start: auto;
+    inset-block-end: 2.5rem;
+    inset-inline-end: -3rem;
+    inline-size: min(78vw, 22rem);
+    translate: none;
+    opacity: 0.32;
+  }
+
+  .iqo-hero__orbit {
+    inset-inline-end: -40vw;
+    inline-size: 120vw;
+    opacity: 0.08;
   }
 
   .iqo-hero .hero-slider__viewport {
@@ -941,63 +1537,197 @@ hr {
   }
 }
 
-/* --- 8. Sekcje strony głównej ----------------------------------------------------------------- */
+/* 7.1 Układ „split”: dwie kolumny w kolorach palety, rysunek w ramce przyrządu. Pasek nie leży
+   na planszy (pełny nagłówek), plansza stoi w kontenerze treści. */
+:root[data-layout-home-hero="split"] .iqo-hero {
+  --hero-bg: transparent;
+  --hero-fg: var(--iqo-text);
+  --hero-soft: var(--iqo-text-soft);
+  --hero-muted: var(--iqo-muted);
+  --hero-line: var(--iqo-border);
+  --hero-line-strong: var(--iqo-border-strong);
+  --hero-accent: var(--iqo-accent);
+  --hero-dot: var(--iqo-dot);
+  --hero-glass: var(--iqo-glass);
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
+  gap: clamp(1.5rem, 4vw, 3.5rem);
+  align-items: stretch;
+  margin-inline: 0;
+  margin-block: clamp(1.5rem, 4vw, 3rem) 0;
+  overflow: visible;
+  background: none;
+}
 
-.section {
-  margin-block-end: clamp(3rem, 6vw, 5rem);
+:root[data-layout-home-hero="split"] .iqo-hero__viewport {
+  grid-column: 1;
+  grid-row: 1;
+  min-block-size: clamp(26rem, 60vh, 38rem);
+}
+
+:root[data-layout-home-hero="split"] .iqo-hero__art {
+  position: relative;
+  inset: auto;
+  z-index: 0;
+  grid-column: 2;
+  grid-row: 1;
+  min-block-size: 22rem;
+  overflow: hidden;
+  border: 1px solid var(--iqo-border);
+  border-radius: var(--iqo-radius-lg);
+  background-color: var(--iqo-surface);
+  background-image:
+    radial-gradient(60% 60% at 50% 45%, var(--iqo-tint), transparent 70%),
+    radial-gradient(circle at 1px 1px, var(--iqo-dot) 1px, transparent 1.6px);
+  background-size: auto, 22px 22px;
+}
+
+:root[data-layout-home-hero="split"] .iqo-hero__sphere {
+  inset: 12% 12% 18%;
+  inline-size: auto;
+  translate: none;
+}
+
+:root[data-layout-home-hero="split"] .iqo-hero__orbit {
+  inset-block-start: -15%;
+  inset-inline-end: -35%;
+  inline-size: 130%;
+  translate: none;
+  opacity: 0.1;
+}
+
+:root[data-layout-home-hero="split"] .iqo-hero__fringes {
+  block-size: 3.5rem;
+  opacity: 0.4;
+}
+
+:root[data-layout-home-hero="split"] .iqo-hero .hero-slide {
+  padding: clamp(1.5rem, 4vw, 3rem) 0 clamp(4rem, 6vw, 5rem);
+}
+
+:root[data-layout-home-hero="split"] .iqo-hero__inner {
+  padding-inline: 0;
+}
+
+:root[data-layout-home-hero="split"] .iqo-hero__inner > *,
+:root[data-layout-home-hero="split"] .iqo-hero__inner > .iqo-hero__title {
+  max-inline-size: none;
+}
+
+:root[data-layout-home-hero="split"] .iqo-hero__title {
+  font-size: clamp(2.5rem, 1.2rem + 4vw, 5rem);
+}
+
+:root[data-layout-home-hero="split"] .iqo-hero__controls {
+  inset-inline-start: 0;
+  inset-inline-end: auto;
+  inset-block-end: 0.75rem;
+}
+
+:root[data-layout-home-hero="split"] .iqo-hero .hero-slide--image {
+  background: var(--iqo-surface);
+  border-radius: var(--iqo-radius-lg);
+}
+
+@media (max-width: 899.98px) {
+  :root[data-layout-home-hero="split"] .iqo-hero {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  :root[data-layout-home-hero="split"] .iqo-hero__art {
+    grid-column: 1;
+    grid-row: 2;
+    min-block-size: 0;
+    aspect-ratio: 16 / 10;
+  }
+
+  :root[data-layout-home-hero="split"] .iqo-hero__sphere {
+    inset: 10% 25% 15%;
+    opacity: 1;
+  }
+}
+
+/* --- 8. Sekcje i nagłówki stron ---------------------------------------------------------------- */
+/* Strona główna (i wyniki): sekcje to pasy z hojnym oddechem; co druga ma tło `band` na całą
+   szerokość okna (cień rozciągnięty o 100vmax i przycięty w pionie – bez dodatkowych elementów
+   i bez przewijania w bok). Nad tytułem licznik |01⟩ w kroju mono. Panele zostają przy rytmie
+   aplikacji – reguły dotyczą tylko stron z nagłówkiem motywu. */
+
+body:has(> .iqo-header) .page {
+  counter-reset: iqo-section;
+}
+
+body:has(> .iqo-header) .page > .section {
+  position: relative;
+  margin: 0;
+  padding-block: var(--iqo-section-space);
+  counter-increment: iqo-section;
+}
+
+body:has(> .iqo-header) .page > .section:nth-child(even of .section) {
+  background: var(--iqo-band);
+  box-shadow: 0 0 0 100vmax var(--iqo-band);
+  clip-path: inset(0 -100vmax);
+}
+
+body:has(> .iqo-header) .page > .section > .section__head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 1rem 2.5rem;
+  margin: 0 0 clamp(2rem, 4vw, 3.25rem);
+  padding: 0;
+  border: 0;
+}
+
+body:has(> .iqo-header) .page > .section > .section__head::before {
+  content: "|" counter(iqo-section, decimal-leading-zero) "\27E9" / "";
+  grid-column: 1 / -1;
+  justify-self: start;
+  padding-inline-end: 4.25rem;
+  font-family: var(--iqo-font-ket);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  color: var(--iqo-accent);
+  /* Zapis matematyczny – zawsze od lewej do prawej, także w RTL. */
+  direction: ltr;
+  unicode-bidi: isolate;
+  background: linear-gradient(currentColor, currentColor) no-repeat right center / 3.25rem 1px;
+}
+
+body:has(> .iqo-header) .page > .section > .section__head h2 {
+  margin: 0;
+  font-size: var(--iqo-h2);
+  font-weight: 500;
+  letter-spacing: -0.04em;
+  line-height: 1.04;
+  max-inline-size: 24ch;
 }
 
 .section__head {
-  align-items: flex-end;
-  border-bottom: 1px solid var(--iqo-border);
-  padding-block-end: 0.75rem;
-  margin: 0 0 1.75rem;
+  border-bottom-color: var(--iqo-border);
 }
-
-.section__head h2 {
-  margin: 0;
-  font-size: clamp(1.5rem, 1.2rem + 1vw, 2rem);
-  font-weight: 500;
-  letter-spacing: -0.025em;
-}
-
-/* Ornament ket: |Nagłówek⟩ – kreska w błękicie, nawias ostry w malinie (jak w logo). */
-.section__head h2::before,
-.page-head h1::before {
-  content: "";
-  display: inline-block;
-  inline-size: 0.12em;
-  block-size: 0.95em;
-  margin-inline-end: 0.3em;
-  vertical-align: -0.12em;
-  background: var(--iqo-primary);
-  border-radius: 1px;
-}
-
-.section__head h2::after,
-.page-head h1::after {
-  content: "⟩" / "";
-  margin-inline-start: 0.12em;
-  font-family: var(--iqo-font-ket);
-  font-weight: 300;
-  color: var(--iqo-accent);
-}
-
-/* Nawias odbija się w RTL sam (U+27E9 jest znakiem lustrzanym w algorytmie dwukierunkowym),
-   jak każdy nawias w tekście – reguła nie jest potrzebna. Glif, a nie maska SVG: maska z innego
-   originu (bucket motywów) wymagałaby CORS, a glif ma zapas w krojach systemowych. */
 
 .section__head .hint,
 .section__head > a {
-  font-size: 0.875rem;
   margin: 0;
+}
+
+body:has(> .iqo-header) .section__head .hint {
+  max-inline-size: 36ch;
+  font-size: 0.9375rem;
+  text-align: end;
 }
 
 .section__head > a,
 .section__head .hint a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
   font-family: var(--iqo-font-mono);
   font-size: 0.8125rem;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   text-decoration: none;
   white-space: nowrap;
@@ -1005,12 +1735,17 @@ hr {
 
 .section__head > a::after,
 .section__head .hint a::after {
-  content: " →";
+  content: "";
+  inline-size: 1.1em;
+  block-size: 1.1em;
+  background-color: currentColor;
+  -webkit-mask: url("assets/icons/arrow.svg") center / contain no-repeat;
+  mask: url("assets/icons/arrow.svg") center / contain no-repeat;
 }
 
 [dir="rtl"] .section__head > a::after,
 [dir="rtl"] .section__head .hint a::after {
-  content: " ←";
+  transform: scaleX(-1);
 }
 
 .section__head > a:hover,
@@ -1018,12 +1753,14 @@ hr {
   text-decoration: underline;
 }
 
-.eyebrow {
-  font-family: var(--iqo-font-mono);
-  font-weight: 400;
-  font-size: 0.75rem;
-  letter-spacing: 0.12em;
-  color: var(--iqo-accent);
+@media (max-width: 719.98px) {
+  body:has(> .iqo-header) .page > .section > .section__head {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  body:has(> .iqo-header) .section__head .hint {
+    text-align: start;
+  }
 }
 
 .cms-body,
@@ -1031,19 +1768,166 @@ hr {
   color: var(--iqo-text-soft);
 }
 
+.prose h2,
+.prose h3 {
+  color: var(--iqo-text);
+}
+
+body:has(> .iqo-header) .prose h2 {
+  font-size: clamp(1.5rem, 1.2rem + 1.1vw, 2.125rem);
+}
+
 .prose blockquote {
   font-family: var(--iqo-font-display);
-  border-inline-start: 2px solid var(--iqo-accent);
+  font-size: 1.25rem;
+  line-height: 1.45;
+  color: var(--iqo-text);
+  border-inline-start: 3px solid var(--iqo-accent);
+}
+
+/* 8.1 Nagłówek strony (slot page_header i ``.page-head`` aktualności i wyników): pas na całą
+   szerokość z prążkami interferencyjnymi po stronie końcowej. */
+body:has(> .iqo-header) .page:has(> .page-head:first-child, > .doc-layout:first-child > .doc-head:first-child > .page-head:first-child) {
+  padding-top: 0;
+}
+
+body:has(> .iqo-header) .page-head {
+  position: relative;
+  isolation: isolate;
+  margin: 0 0 clamp(2rem, 4vw, 3.5rem);
+  padding-block: clamp(3rem, 7vw, 6rem) clamp(2rem, 4vw, 3.5rem);
+  background: var(--iqo-band);
+  box-shadow: 0 0 0 100vmax var(--iqo-band);
+  clip-path: inset(0 -100vmax);
+}
+
+body:has(> .iqo-header) .page-head::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset-block: 0;
+  inset-inline-end: 0;
+  inline-size: min(42%, 30rem);
+  background: var(--iqo-motif);
+  opacity: 0.32;
+  -webkit-mask: url("assets/motifs/fringes.svg") 0 0 / 100% 100% no-repeat;
+  mask: url("assets/motifs/fringes.svg") 0 0 / 100% 100% no-repeat;
+  pointer-events: none;
+}
+
+body:has(> .iqo-header) .page-head h1 {
+  position: relative;
+  margin: 0;
+  max-inline-size: 22ch;
+  font-size: var(--iqo-h1);
+}
+
+body:has(> .iqo-header) .page-head .lead {
+  position: relative;
+  max-inline-size: 60ch;
+  margin-block-start: 1.25rem;
+  font-size: 1.125rem;
+}
+
+.page-head .eyebrow,
+.iqo-page-head__kicker {
+  display: block;
+  margin: 0 0 1.25rem;
+  color: var(--iqo-accent);
+}
+
+/* Etykieta w notacji ket: |Nazwa serwisu⟩ (nawiasy jako dekoracja z pustym tekstem). */
+.iqo-page-head__kicker::before,
+.page-head .eyebrow::before {
+  content: "|" / "";
+  margin-inline-end: 0.35em;
+  font-family: var(--iqo-font-ket);
+}
+
+.iqo-page-head__kicker::after,
+.page-head .eyebrow::after {
+  content: "\27E9" / "";
+  margin-inline-start: 0.2em;
+  font-family: var(--iqo-font-ket);
+}
+
+/* Strona treści ze spisem sekcji: nagłówek na całą szerokość nad spisem i tekstem. */
+@media (min-width: 1100px) {
+  body:has(> .iqo-header) .doc-layout:not(.doc-layout--plain) {
+    grid-template-areas: "head head" "toc body";
+  }
+
+  body:has(> .iqo-header) .doc-toc {
+    top: calc(var(--iqo-header-h) + 1.5rem);
+  }
+}
+
+.doc-toc {
+  background: transparent;
+  border: 0;
+  border-inline-start: 1px solid var(--iqo-border-strong);
+  border-radius: 0;
+  padding: 0.25rem 0 0.25rem 1.25rem;
+}
+
+.doc-toc__title {
+  font-family: var(--iqo-font-mono);
+  font-weight: 400;
+  font-size: var(--iqo-micro-size);
+  letter-spacing: var(--iqo-micro-track);
+  color: var(--iqo-accent);
+}
+
+.doc-toc__list {
+  list-style: decimal-leading-zero;
+  padding-inline-start: 2rem;
+}
+
+.doc-toc__list ::marker {
+  font-family: var(--iqo-font-mono);
+  font-size: 0.8em;
+  color: var(--iqo-muted);
+}
+
+/* Artykuł (aktualność) */
+.article > h1 {
+  font-size: var(--iqo-h1);
+  margin-block: 0.5rem 1.25rem;
+}
+
+.article__meta {
+  font-family: var(--iqo-font-mono);
+  font-size: 0.8125rem;
+  border-bottom-color: var(--iqo-border);
+}
+
+.article__lead {
+  font-family: var(--iqo-font-display);
+  font-size: 1.375rem;
+  line-height: 1.45;
+  letter-spacing: -0.01em;
 }
 
 /* --- 9. Komponenty ---------------------------------------------------------------------------- */
 
-/* 9.1 Przyciski: pigułki; wypełniony błękit = wezwanie do działania, obrys = drugi wybór. */
+/* 9.1 Przyciski: kształt liścia (dwa przeciwległe narożniki zaokrąglone, logicznie – lustro w RTL);
+   wypełniony = wezwanie do działania, obrys = drugi wybór. */
 .btn {
-  border-radius: var(--iqo-radius-pill);
   font-weight: 600;
   letter-spacing: 0.005em;
-  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+  border-start-start-radius: var(--iqo-radius-sm);
+  border-start-end-radius: var(--iqo-radius-leaf);
+  border-end-end-radius: var(--iqo-radius-sm);
+  border-end-start-radius: var(--iqo-radius-leaf);
+}
+
+.btn--small {
+  border-start-end-radius: 0.65rem;
+  border-end-start-radius: 0.65rem;
+}
+
+.btn:not(.btn--small) {
+  padding-inline: 1.25rem;
 }
 
 .btn--accent,
@@ -1094,13 +1978,23 @@ hr {
   color: var(--iqo-primary-hover);
 }
 
-/* Szersze pole tylko dla zwykłych przycisków – małe (tabele paneli) zostają zwarte. */
-.btn:not(.btn--small) {
-  padding-inline: 1.15rem;
+/* Strzałka po napisie wezwania do działania (plansza). */
+.iqo-btn--arrow::after {
+  content: "";
+  flex: none;
+  inline-size: 1.15em;
+  block-size: 1.15em;
+  background-color: currentColor;
+  -webkit-mask: url("assets/icons/arrow.svg") center / contain no-repeat;
+  mask: url("assets/icons/arrow.svg") center / contain no-repeat;
+}
+
+[dir="rtl"] .iqo-btn--arrow::after {
+  transform: scaleX(-1);
 }
 
 /* app.css w @media (prefers-color-scheme: dark) wymusza ciemną czerwień na .btn--accent –
-   ta sama swoistość, późniejsza kolejność: wraca błękit motywu. */
+   ta sama swoistość, późniejsza kolejność: wraca kolor motywu. */
 @media (prefers-color-scheme: dark) {
   .btn--accent {
     background: var(--iqo-primary);
@@ -1115,27 +2009,43 @@ hr {
   }
 }
 
-/* 9.2 Karty „outline”: przezroczyste, cienka linia, znaczniki narożników jak na kadrze przyrządu. */
+/* 9.2 Karty. Układ „outline” (domyślny): szkło na rastrze punktów, linia 1 px i cztery narożniki
+   wizjera w kolorze wezwania do działania. Układ „elevated”: pełna powierzchnia, duży promień,
+   miękki cień. */
 .card,
-.timeline__item,
-.steps__item {
-  background-color: color-mix(in srgb, var(--iqo-surface) 55%, transparent);
+.timeline__item {
+  background-color: var(--iqo-glass);
   background-image:
+    linear-gradient(var(--iqo-primary), var(--iqo-primary)),
+    linear-gradient(var(--iqo-primary), var(--iqo-primary)),
+    linear-gradient(var(--iqo-primary), var(--iqo-primary)),
+    linear-gradient(var(--iqo-primary), var(--iqo-primary)),
     linear-gradient(var(--iqo-primary), var(--iqo-primary)),
     linear-gradient(var(--iqo-primary), var(--iqo-primary)),
     linear-gradient(var(--iqo-primary), var(--iqo-primary)),
     linear-gradient(var(--iqo-primary), var(--iqo-primary));
   background-repeat: no-repeat;
-  background-size: 10px 1px, 1px 10px, 10px 1px, 1px 10px;
-  background-position: left top, left top, right bottom, right bottom;
+  background-size: 12px 1px, 1px 12px, 12px 1px, 1px 12px, 12px 1px, 1px 12px, 12px 1px, 1px 12px;
+  background-position: left top, left top, right top, right top, left bottom, left bottom, right bottom, right bottom;
   border: 1px solid var(--iqo-border);
-  border-radius: var(--iqo-radius);
+  border-radius: var(--iqo-radius-sm);
   box-shadow: none;
 }
 
 .card:hover,
-.timeline__item:hover,
-.steps__item:hover {
+.timeline__item:hover {
+  border-color: var(--iqo-border-strong);
+}
+
+:root[data-layout-cards="elevated"] :is(.card, .timeline__item) {
+  background-color: var(--iqo-surface);
+  background-image: none;
+  border-color: color-mix(in srgb, var(--iqo-border) 70%, transparent);
+  border-radius: var(--iqo-radius-lg);
+  box-shadow: var(--iqo-shadow-md);
+}
+
+:root[data-layout-cards="elevated"] :is(.card, .timeline__item):hover {
   border-color: var(--iqo-border-strong);
 }
 
@@ -1143,24 +2053,26 @@ hr {
   border-inline-start: 2px solid var(--iqo-accent);
 }
 
-.card--quiet {
+.card--quiet,
+:root[data-layout-cards="elevated"] .card--quiet {
   background-color: transparent;
   background-image: none;
+  box-shadow: none;
 }
 
 .card__title {
   font-family: var(--iqo-font-display);
   font-weight: 600;
-  letter-spacing: -0.015em;
+  letter-spacing: -0.02em;
 }
 
 .card__meta,
 .news-card__date {
   font-family: var(--iqo-font-mono);
-  font-size: 0.75rem;
-  letter-spacing: 0.06em;
+  font-size: var(--iqo-micro-size);
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--iqo-primary);
+  color: var(--iqo-muted);
 }
 
 .card__head {
@@ -1168,60 +2080,143 @@ hr {
 }
 
 .cards {
-  gap: 1rem;
+  gap: clamp(1rem, 2vw, 1.5rem);
 }
 
-/* 9.3 Aktualności */
+/* 9.3 Aktualności (strona główna i slot news_card): pas prążków u góry, cała karta klikalna. */
 .news-card {
+  position: relative;
   display: flex;
   flex-direction: column;
+  padding-block-start: 0;
 }
 
+.news-card::before {
+  content: "";
+  display: block;
+  block-size: 2.5rem;
+  margin: 0 -1.5rem 1.25rem;
+  background: var(--iqo-motif);
+  opacity: 0.55;
+  -webkit-mask: url("assets/motifs/fringes.svg") 0 0 / 100% 100% no-repeat;
+  mask: url("assets/motifs/fringes.svg") 0 0 / 100% 100% no-repeat;
+}
+
+.news-card h2,
 .news-card h3 {
-  font-size: 1.2rem;
+  margin-block: 0.5rem 0.75rem;
+  font-size: 1.375rem;
   font-weight: 600;
-  letter-spacing: -0.015em;
-  margin-block-start: 0.5rem;
+  line-height: 1.2;
+  letter-spacing: -0.025em;
 }
 
 .news-card h2 a,
 .news-card h3 a {
   color: var(--iqo-text);
+  text-decoration: none;
+}
+
+/* Odnośnik tytułu rozciąga się na całą kartę; fokus rysuje karta. */
+.news-card h2 a::after,
+.news-card h3 a::after {
+  content: "";
+  position: absolute;
+  inset: 0;
 }
 
 .news-card h2 a:hover,
 .news-card h3 a:hover {
-  color: var(--iqo-primary-hover);
-  text-decoration-color: var(--iqo-primary);
+  color: var(--iqo-text);
+  text-decoration: underline;
+  text-decoration-color: var(--iqo-accent);
+  text-decoration-thickness: 2px;
+}
+
+.news-card h2 a:focus-visible,
+.news-card h3 a:focus-visible {
+  outline: none;
+}
+
+.news-card:has(a:focus-visible) {
+  outline: 2px solid var(--iqo-focus);
+  outline-offset: 3px;
+}
+
+.news-card:hover {
+  border-color: var(--iqo-border-strong);
+  box-shadow: var(--iqo-shadow-glow);
 }
 
 .news-card p {
   color: var(--iqo-text-soft);
+  font-size: 0.9375rem;
 }
 
-/* 9.4 Oś czasu etapów */
+.iqo-news__meta {
+  margin: 0;
+}
+
+.iqo-news__lead {
+  margin: 0 0 1.25rem;
+}
+
+.iqo-news .card__foot.iqo-news__more {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: auto 0 0;
+  padding: 0;
+  border: 0;
+  font-family: var(--iqo-font-mono);
+  font-size: var(--iqo-micro-size);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--iqo-link);
+}
+
+.news-list {
+  gap: clamp(1rem, 2vw, 1.5rem);
+}
+
+/* 9.4 Oś czasu etapów: węzły na wspólnej linii (schemat przyrządu), etap otwarty świeci. */
 .timeline {
-  gap: 1rem;
+  position: relative;
+  gap: clamp(1rem, 2vw, 1.5rem);
 }
 
 .timeline__item {
   border-top-width: 1px;
   border-top-color: var(--iqo-border);
-  padding: 1.25rem;
+  padding: 1.75rem 1.5rem 1.5rem;
+}
+
+.timeline__item::before {
+  content: "";
+  position: absolute;
+  inset-block-start: -7px;
+  inset-inline-start: 1.5rem;
+  inline-size: 13px;
+  block-size: 13px;
+  border-radius: 50%;
+  background: var(--iqo-bg);
+  border: 2px solid var(--iqo-border-strong);
+}
+
+.timeline__item--done::before {
+  background: var(--iqo-success);
+  border-color: var(--iqo-success);
 }
 
 .timeline__item--open {
   border-color: var(--iqo-primary);
   box-shadow: var(--iqo-shadow-glow);
-  background-color: color-mix(in srgb, var(--iqo-surface-2) 80%, transparent);
 }
 
-.timeline__item--done {
-  border-top-color: var(--iqo-border);
-}
-
-.timeline__item--done .timeline__kind {
-  color: var(--iqo-text-soft);
+.timeline__item--open::before {
+  background: var(--iqo-accent);
+  border-color: var(--iqo-accent);
+  box-shadow: 0 0 0 5px color-mix(in srgb, var(--iqo-accent) 25%, transparent);
 }
 
 .timeline__item--next {
@@ -1229,11 +2224,26 @@ hr {
   background-color: transparent;
 }
 
+.timeline__item--done .timeline__kind {
+  color: var(--iqo-text-soft);
+}
+
+@media (min-width: 780px) {
+  .timeline::before {
+    content: "";
+    position: absolute;
+    inset-inline: 0;
+    inset-block-start: 0;
+    border-block-start: 1px dashed var(--iqo-border-strong);
+  }
+}
+
 .timeline__kind {
   font-family: var(--iqo-font-display);
   font-weight: 600;
-  font-size: 1.15rem;
-  letter-spacing: -0.015em;
+  font-size: 1.25rem;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
 }
 
 .timeline__dates {
@@ -1242,7 +2252,7 @@ hr {
 
 .timeline__dates div {
   border-block-end: 1px dotted var(--iqo-border);
-  padding-block: 0.3rem;
+  padding-block: 0.35rem;
 }
 
 .timeline__dates dt {
@@ -1255,45 +2265,59 @@ hr {
   color: var(--iqo-text);
 }
 
-/* 9.5 Kroki: licznik w notacji ket |01⟩ – zapis matematyczny, więc zawsze od lewej do prawej. */
-.steps__item {
-  border-top-width: 1px;
-  border-top-color: var(--iqo-border);
-  padding: 1.25rem;
+/* 9.5 Kroki: kolumny rozdzielone kreską, wielkie cienkie numery 01 02 03 (lista <ol> podaje
+   kolejność czytnikowi – numer ma pusty tekst zastępczy). */
+.steps {
+  gap: clamp(1.5rem, 3vw, 2.5rem) 0;
+}
+
+.steps__item,
+:root[data-layout-cards="elevated"] .steps__item {
+  background: none;
+  border: 0;
+  border-inline-start: 1px solid var(--iqo-border-strong);
+  border-radius: 0;
+  box-shadow: none;
+  padding: 0 clamp(1rem, 2.5vw, 2rem) 0.5rem;
 }
 
 .steps__item::before {
-  /* Tekst zastępczy pusty: numer kroku podaje czytnikowi sama lista <ol>. */
-  content: "|" counter(krok, decimal-leading-zero) "⟩" / "";
-  direction: ltr;
-  unicode-bidi: isolate;
-  font-family: var(--iqo-font-ket);
-  font-size: 1.5rem;
-  font-weight: 500;
-  letter-spacing: 0.02em;
-  color: var(--iqo-accent);
-  margin-block-end: 0.75rem;
+  content: counter(krok, decimal-leading-zero) / "";
+  display: block;
+  margin-block-end: 1.25rem;
+  font-family: var(--iqo-font-display);
+  font-size: clamp(3rem, 2rem + 3vw, 4.75rem);
+  font-weight: 300;
+  line-height: 1;
+  letter-spacing: -0.05em;
+  font-variant-numeric: tabular-nums;
+  color: var(--iqo-primary);
 }
 
 .steps__title {
   font-family: var(--iqo-font-display);
   font-weight: 600;
-  font-size: 1.15rem;
-  letter-spacing: -0.015em;
+  font-size: 1.375rem;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
 }
 
 .steps__text {
   color: var(--iqo-text-soft);
 }
 
-/* 9.6 Odznaki: pigułki z obrysem, kropka stanu zostaje (kolor nie jest jedynym nośnikiem). */
+.steps__cta {
+  margin-block-start: clamp(1.5rem, 3vw, 2.5rem);
+}
+
+/* 9.6 Odznaki: pigułki z obrysem w kroju mono; kropka stanu zostaje (kolor nie jest jedynym
+   nośnikiem informacji). */
 .badge {
   font-family: var(--iqo-font-mono);
   font-weight: 400;
   font-size: 0.6875rem;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  background: transparent;
 }
 
 .badge--accent {
@@ -1310,9 +2334,10 @@ hr {
 .badge--neutral {
   color: var(--iqo-muted);
   border-color: var(--iqo-border-strong);
+  background: transparent;
 }
 
-/* 9.7 Partnerzy: znaki instytucji potrzebują jasnego tła – białe kadry, cienka ramka. */
+/* 9.7 Partnerzy: znaki instytucji potrzebują jasnego tła – białe kadry. */
 .partner-strip__frame {
   border-radius: var(--iqo-radius);
 }
@@ -1343,7 +2368,7 @@ hr {
 
 .announcement {
   border: 1px solid var(--iqo-border);
-  border-inline-start: 2px solid var(--iqo-info);
+  border-inline-start: 3px solid var(--iqo-info);
   border-radius: var(--iqo-radius);
 }
 
@@ -1361,7 +2386,72 @@ hr {
   border-color: var(--iqo-border);
 }
 
-/* 9.10 Formularze i tabele (panele) – tylko ramy; kolory przychodzą z mostu w sekcji 3. */
+/* 9.10 Tabele (wyniki, panele): nagłówki kolumn jako etykiety mono, liczby w kroju mono,
+   wiersze nieprzezroczyste (przyklejone kolumny biorą tło z wiersza). */
+.table,
+.grid {
+  border-color: var(--iqo-border);
+  border-radius: var(--iqo-radius-sm);
+}
+
+.table th,
+.grid th {
+  font-family: var(--iqo-font-mono);
+  font-size: 0.6875rem;
+  font-weight: 400;
+  letter-spacing: 0.1em;
+  color: var(--iqo-text-soft);
+  background: var(--iqo-surface-2);
+  border-bottom: 1px solid var(--iqo-border-strong);
+  padding-block: 0.75rem;
+}
+
+.table tbody th,
+.grid tbody th {
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: 600;
+  letter-spacing: 0;
+  color: var(--iqo-text);
+  background: transparent;
+  border-bottom: 1px solid var(--iqo-border);
+  padding-block: 0.75rem;
+}
+
+.table td,
+.grid td {
+  border-bottom-color: var(--iqo-border);
+}
+
+.table tbody tr:hover {
+  background: var(--iqo-row-hover);
+}
+
+.table .num,
+.table td.total {
+  font-family: var(--iqo-font-mono);
+  font-size: 0.875rem;
+}
+
+.table td.total {
+  font-weight: 700;
+  color: var(--iqo-text);
+}
+
+.table--rank tbody tr > :first-child {
+  font-family: var(--iqo-font-mono);
+  color: var(--iqo-primary);
+}
+
+[dir="rtl"] .table tr.is-qualified td:first-child {
+  box-shadow: inset -3px 0 0 var(--ok);
+}
+
+.results-block .scroll {
+  border-radius: var(--iqo-radius-sm);
+}
+
+/* 9.11 Formularze (panele) – tylko ramy; kolory przychodzą z mostu w sekcji 3. */
 input,
 select,
 textarea {
@@ -1378,31 +2468,28 @@ textarea:focus {
   background: var(--iqo-surface-2);
 }
 
-/* --- 10. Stopka „compact”, dok osi czasu, cookies -------------------------------------------- */
+/* --- 10. Stopka, dok osi czasu, cookies ------------------------------------------------------- */
 
 .timeline-dock {
-  background: var(--iqo-deep);
-  color: var(--iqo-on-deep);
-  border-block-start: 1px solid var(--iqo-line-on-deep);
+  background: var(--iqo-cover);
+  color: var(--iqo-on-cover);
+  border-block-start: 1px solid var(--iqo-cover-line);
 }
 
 .timeline-strip {
   max-width: var(--iqo-max);
-  --tl-current: var(--iqo-pink-on-deep);
-  --tl-past: var(--iqo-blue-on-deep);
+  --tl-current: var(--iqo-cover-accent);
+  --tl-past: var(--iqo-on-cover-muted);
 }
 
 .iqo-footer {
-  background: var(--iqo-deep);
-  color: var(--iqo-on-deep-muted);
-  border-top: 1px solid var(--iqo-line-on-deep);
-  font-size: 0.875rem;
-}
-
-.iqo-footer__inner {
-  max-inline-size: var(--iqo-max);
-  margin-inline: auto;
-  padding: 2rem 1rem 1.5rem;
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background: var(--iqo-cover);
+  color: var(--iqo-on-cover-muted);
+  border-top: 0;
+  font-size: 0.9375rem;
 }
 
 .iqo-footer p {
@@ -1412,59 +2499,118 @@ textarea:focus {
 
 .iqo-footer a,
 .iqo-footer .footer__link-button {
-  color: var(--iqo-on-deep-soft);
+  color: var(--iqo-on-cover-soft);
   text-decoration: none;
 }
 
 .iqo-footer a:hover,
 .iqo-footer .footer__link-button:hover {
-  color: var(--iqo-on-deep);
+  color: var(--iqo-on-cover);
   text-decoration: underline;
 }
 
 .iqo-footer :focus-visible {
-  outline-color: var(--iqo-pink-on-deep);
+  outline-color: var(--iqo-cover-accent);
 }
 
-.iqo-footer__top {
+/* Taśma sponsorów – pas nad stopką; bez wpisów fragment nie rysuje taśmy, a pas znika. */
+.iqo-footer__partners {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 1rem 2rem;
-  padding-block-end: 1.25rem;
-  border-block-end: 1px solid var(--iqo-line-on-deep);
+  gap: 0.75rem 2rem;
+  padding: 1.25rem clamp(1rem, 4vw, 2rem);
+  background: color-mix(in srgb, var(--iqo-on-cover) 5%, var(--iqo-cover));
+  border-block-end: 1px solid var(--iqo-cover-line);
 }
 
-.iqo-footer__brand {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  flex: 1 1 18rem;
+.iqo-footer__partners:not(:has(.sponsor-slider)) {
+  display: none;
 }
 
-.iqo-footer__brand strong {
-  display: block;
-  color: var(--iqo-on-deep);
-  font-weight: 600;
-  font-size: 1rem;
+.iqo-footer__partners .iqo-footer__label {
+  margin: 0;
 }
 
-.iqo-footer__tagline {
-  display: block;
-  color: var(--iqo-on-deep-muted);
-  font-size: 0.8125rem;
+.iqo-footer__partners .sponsor-slider-dock {
+  flex: 1 1 20rem;
+  min-inline-size: 0;
 }
 
-.iqo-footer__mark {
-  flex: none;
-  display: block;
-  inline-size: 2.75rem;
-  block-size: 2.75rem;
+.iqo-footer__inner {
+  position: relative;
+  max-inline-size: var(--iqo-max);
+  margin-inline: auto;
+  padding: clamp(3.5rem, 8vw, 6.5rem) clamp(1rem, 4vw, 2rem) 2rem;
+}
+
+/* Orbity w tle znaku słownego (maska barwiona kolorem napisów okładki). */
+.iqo-footer__orbit {
+  position: absolute;
+  z-index: -1;
+  inset-block-start: -5rem;
+  inset-inline-end: -9rem;
+  inline-size: clamp(22rem, 46vw, 40rem);
+  aspect-ratio: 1;
+  rotate: 18deg;
+  background: var(--iqo-on-cover);
+  opacity: 0.08;
+  -webkit-mask: url("assets/motifs/orbital.svg") center / contain no-repeat;
+  mask: url("assets/motifs/orbital.svg") center / contain no-repeat;
+  pointer-events: none;
+}
+
+.iqo-footer__wordmark {
+  max-inline-size: 15ch;
+  font-family: var(--iqo-font-display);
+  font-size: clamp(2.5rem, 0.9rem + 6.2vw, 6.75rem);
+  font-weight: 500;
+  line-height: 0.95;
+  letter-spacing: -0.055em;
+  color: var(--iqo-on-cover);
+  text-wrap: balance;
+  overflow-wrap: break-word;
+}
+
+.iqo-footer .iqo-footer__tagline {
+  max-inline-size: 48ch;
+  margin-block-start: 1.25rem;
+  font-size: 1.125rem;
+  color: var(--iqo-on-cover-soft);
+}
+
+.iqo-footer__cols {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 2.5rem;
+  margin-block-start: clamp(3rem, 6vw, 5rem);
+  padding-block-start: 2.5rem;
+  border-block-start: 1px solid var(--iqo-cover-line);
+}
+
+.iqo-footer .iqo-footer__label {
+  margin: 0 0 1rem;
+  color: var(--iqo-cover-accent);
+}
+
+.iqo-footer__col > p + p {
+  margin-block-start: 0.5rem;
+}
+
+.iqo-footer__logo {
+  display: inline-block;
+  border-radius: var(--iqo-radius);
+}
+
+.iqo-footer__logo .iqo-logo {
+  block-size: 3.25rem;
 }
 
 .iqo-footer__links {
-  gap: 0.25rem 1.25rem;
-  font-size: 0.8125rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.6rem;
 }
 
 .iqo-footer__links a + a::before,
@@ -1472,48 +2618,35 @@ textarea:focus {
   content: none;
 }
 
+.iqo-footer .footer__link-button {
+  padding: 0;
+  font: inherit;
+}
+
 .iqo-footer__social {
-  margin: 0;
+  margin: 1.5rem 0 0;
 }
 
 .iqo-footer__social a {
-  color: var(--iqo-on-deep-soft);
+  color: var(--iqo-on-cover-soft);
 }
 
 .iqo-footer__social a:hover,
 .iqo-footer__social a:focus-visible {
-  color: var(--iqo-on-deep);
-  background: rgba(124, 136, 255, 0.14);
-}
-
-.iqo-footer__privacy {
-  padding-block: 1rem;
-  font-size: 0.8125rem;
-  color: var(--iqo-on-deep-muted);
-  max-inline-size: 90ch;
-}
-
-/* Jeden wiersz metadanych w kroju mono, rozdzielany kreskami. */
-.iqo-footer__meta {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.375rem 1.5rem;
-  font-family: var(--iqo-font-mono);
-  font-size: 0.75rem;
-  letter-spacing: 0.02em;
-  color: var(--iqo-on-deep-muted);
-}
-
-.iqo-footer__meta strong {
-  color: var(--iqo-on-deep);
-  font-weight: 400;
+  color: var(--iqo-on-cover);
+  background: color-mix(in srgb, var(--iqo-on-cover) 12%, transparent);
 }
 
 .iqo-footer__organizer {
-  display: inline-flex;
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.75rem;
+}
+
+.iqo-footer__organizer strong {
+  color: var(--iqo-on-cover);
+  font-weight: 600;
 }
 
 .iqo-footer__org-logo {
@@ -1527,59 +2660,223 @@ textarea:focus {
 }
 
 .iqo-footer__contact {
-  display: inline-flex;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-family: var(--iqo-font-mono);
+  font-size: 0.8125rem;
+}
+
+.iqo-footer__base {
+  display: flex;
   flex-wrap: wrap;
-  gap: 0.25rem 1rem;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 1rem 3rem;
+  margin-block-start: 3rem;
+  padding-block-start: 1.5rem;
+  border-block-start: 1px solid var(--iqo-cover-line);
+  font-size: 0.8125rem;
+}
+
+.iqo-footer .iqo-footer__privacy {
+  max-inline-size: 80ch;
 }
 
 .iqo-footer .iqo-footer__version {
-  margin-inline-start: auto;
-  color: var(--iqo-blue-on-deep);
+  font-family: var(--iqo-font-mono);
+  font-size: var(--iqo-micro-size);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--iqo-on-cover-muted);
+  white-space: nowrap;
+}
+
+/* Układ „compact”: znak słowny w rozmiarze tytułu, kolumny bez etykiet w jednym pasie. */
+:root[data-layout-footer="compact"] .iqo-footer__inner {
+  padding-block: 2.5rem 1.5rem;
+}
+
+:root[data-layout-footer="compact"] .iqo-footer__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 1.25rem;
+}
+
+:root[data-layout-footer="compact"] .iqo-footer__wordmark {
+  max-inline-size: none;
+  font-size: 1.5rem;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+:root[data-layout-footer="compact"] .iqo-footer .iqo-footer__tagline {
+  margin: 0;
+  font-size: 0.9375rem;
+}
+
+:root[data-layout-footer="compact"] .iqo-footer__orbit {
+  inline-size: 16rem;
+  inset-block-start: -5rem;
+  inset-inline-end: -4rem;
+}
+
+:root[data-layout-footer="compact"] .iqo-footer__cols {
+  grid-template-columns: repeat(auto-fit, minmax(12rem, auto));
+  justify-content: space-between;
+  gap: 1.5rem 2.5rem;
+  margin-block-start: 1.5rem;
+  padding-block-start: 1.5rem;
+}
+
+:root[data-layout-footer="compact"] .iqo-footer__col .iqo-footer__label {
+  display: none;
+}
+
+:root[data-layout-footer="compact"] .iqo-footer__logo .iqo-logo {
+  block-size: 2.5rem;
+}
+
+:root[data-layout-footer="compact"] .iqo-footer__links {
+  flex-flow: row wrap;
+  gap: 0.4rem 1.25rem;
+}
+
+:root[data-layout-footer="compact"] .iqo-footer__base {
+  margin-block-start: 1.5rem;
 }
 
 .cookie-notice {
-  background: var(--iqo-navy);
-  color: var(--iqo-on-deep-soft);
-  border-top: 1px solid var(--iqo-line-strong-on-deep);
+  background: var(--iqo-cover);
+  color: var(--iqo-on-cover-soft);
+  border-top: 1px solid var(--iqo-cover-line-strong);
   box-shadow: 0 -12px 32px rgba(3, 2, 18, 0.5);
 }
 
 .cookie-notice__link {
-  color: var(--iqo-blue-on-deep-hover);
+  color: var(--iqo-on-cover);
 }
 
 .cookie-notice .btn--secondary {
-  color: var(--iqo-on-deep);
-  border-color: var(--iqo-line-strong-on-deep);
+  color: var(--iqo-on-cover);
+  border-color: var(--iqo-cover-line-strong);
 }
 
-.cookie-notice .btn--accent {
-  background: var(--iqo-blue-on-deep);
-  border-color: var(--iqo-blue-on-deep);
-  color: var(--iqo-deep);
+.cookie-notice :focus-visible {
+  outline-color: var(--iqo-cover-accent);
 }
 
-/* --- 11. Wysoki kontrast, forced-colors, druk ---------------------------------- */
+/* --- 11. Wysoki kontrast, forced-colors, ruch, druk -------------------------------------------- */
 
-:root[data-contrast="high"] .iqo-hero::before {
-  opacity: 0.3;
-}
-
-:root[data-contrast="high"] :is(.card, .timeline__item, .steps__item) {
+/* Uzupełnienia trybu wysokiego kontrastu (aliasy przestawia sekcja 2): bez poświat, rastrów
+   i półtonów – czysta żółć, biel i czerń. */
+:root[data-contrast="high"] body,
+:root[data-contrast="high"] .iqo-hero {
   background-image: none;
 }
 
-/* Tryb wymuszonych kolorów (Windows): logo jest <img>, więc zostaje; znika tylko ornament. */
+:root[data-contrast="high"] .iqo-header {
+  --h-fg-soft: #fff;
+  --h-line: #fff;
+  --h-line-strong: #fff;
+  --h-hover: #000;
+  --h-mark: #ffe500;
+  --h-panel: #000;
+}
+
+:root[data-contrast="high"] :is(.iqo-hero__orbit, .iqo-hero__fringes, .iqo-footer__orbit),
+:root[data-contrast="high"] .news-card::before,
+:root[data-contrast="high"] .page-head::after {
+  display: none;
+}
+
+:root[data-contrast="high"] :is(.card, .timeline__item) {
+  background-image: none;
+  border-color: #fff;
+}
+
+:root[data-contrast="high"] .iqo-hero__status,
+:root[data-contrast="high"] .iqo-hero .btn--secondary {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+:root[data-contrast="high"] .btn--accent,
+:root[data-contrast="high"] .btn--primary {
+  background: #ffe500;
+  border-color: #ffe500;
+  color: #000;
+}
+
+:root[data-contrast="high"] .btn--accent:hover,
+:root[data-contrast="high"] .btn--primary:hover {
+  background: #fff;
+  border-color: #fff;
+  color: #000;
+}
+
+:root[data-contrast="high"] :is(.nav-menu__list, .iqo-acct__panel, .lang-menu__list) {
+  background: #000;
+  border: 2px solid #fff;
+}
+
+/* Tryb wymuszonych kolorów (Windows): logo jest <img>, więc zostaje; rysunki z masek znikają,
+   ikony dostają kolor tekstu systemu. */
 @media (forced-colors: active) {
-  .section__head h2::after,
-  .page-head h1::after {
+  .iqo-hero__art,
+  .iqo-footer__orbit,
+  .news-card::before,
+  .page-head::after {
     display: none;
+  }
+
+  .iqo-icon,
+  .iqo-btn--arrow::after,
+  .section__head > a::after,
+  .section__head .hint a::after {
+    forced-color-adjust: none;
+    background-color: CanvasText;
   }
 }
 
-/* Motyw nie dokłada żadnej animacji; tu wygaszamy też płynne przejścia aplikacji. */
-@media (prefers-reduced-motion: reduce) {
+/* Ruch: przejścia i uniesienie kart wyłącznie wtedy, gdy człowiek nie prosi o jego ograniczenie. */
+@media (prefers-reduced-motion: no-preference) {
   .btn {
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .news-card,
+  .timeline__item {
+    transition: translate 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .news-card:hover {
+    translate: 0 -3px;
+  }
+
+  .iqo-btn--arrow::after {
+    transition: translate 0.15s ease;
+  }
+
+  .iqo-btn--arrow:hover::after {
+    translate: 0.2em 0;
+  }
+
+  [dir="rtl"] .iqo-btn--arrow:hover::after {
+    translate: -0.2em 0;
+  }
+
+  .iqo-acct .iqo-icon--chevron {
+    transition: transform 0.15s ease;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn,
+  .card,
+  .news-card,
+  .timeline__item {
     transition: none;
   }
 }
@@ -1598,15 +2895,17 @@ textarea:focus {
     --iqo-primary-contrast: #fff;
     --iqo-accent: #000;
     --iqo-border: #999;
-    --iqo-deep: #fff;
-    --iqo-navy: #fff;
-    --iqo-on-deep: #000;
-    --iqo-on-deep-soft: #222;
-    --iqo-on-deep-muted: #444;
-    --iqo-blue-on-deep: #000;
-    --iqo-pink-on-deep: #000;
-    --iqo-line-on-deep: #999;
-    --iqo-grid-line: transparent;
+    --iqo-border-strong: #666;
+    --iqo-cover: #fff;
+    --iqo-on-cover: #000;
+    --iqo-on-cover-soft: #222;
+    --iqo-on-cover-muted: #444;
+    --iqo-cover-accent: #000;
+    --iqo-cover-line: #999;
+    --iqo-cover-glass: transparent;
+    --iqo-band: #fff;
+    --iqo-dot: transparent;
+    --iqo-glass: transparent;
   }
 
   body {
@@ -1616,12 +2915,14 @@ textarea:focus {
   }
 
   .iqo-header,
-  .iqo-sponsors,
-  .iqo-hero::before,
-  .iqo-hero::after,
+  .iqo-hero__art,
   .iqo-hero__controls,
+  .iqo-footer__partners,
+  .iqo-footer__orbit,
   .timeline-dock,
-  .cookie-notice {
+  .cookie-notice,
+  .news-card::before,
+  .page-head::after {
     display: none;
   }
 
@@ -1631,10 +2932,19 @@ textarea:focus {
     color: #000;
   }
 
-  .iqo-hero__kicker,
+  .iqo-hero .hero-slide {
+    padding-block: 1rem;
+  }
+
   .iqo-hero__status,
   .iqo-hero .btn--secondary {
     background: none;
+  }
+
+  body:has(> .iqo-header) .page > .section:nth-child(even of .section),
+  body:has(> .iqo-header) .page-head {
+    box-shadow: none;
+    clip-path: none;
   }
 
   .iqo-footer {
@@ -1642,7 +2952,11 @@ textarea:focus {
     color: #000;
   }
 
-  .iqo-footer__mark {
+  .iqo-footer__wordmark {
+    font-size: 1.5rem;
+  }
+
+  .iqo-footer__logo {
     display: none;
   }
 }
