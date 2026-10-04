@@ -167,7 +167,9 @@ jobs:
     # - backend: `backend/` nie ma pliku blokady (obraz instaluje z zakresów w pyproject), więc
     #   „zbiór zależności” to wynik **tego samego rozwiązania**, które zrobi budowanie obrazu
     #   w tej chwili (`uv pip compile`, Python i platforma obrazu, z ekstrą dev – obraz ją instaluje),
-    # - djcms: dokładnie `djcms/uv.lock` (`uv export --frozen`).
+    # - djcms: dokładnie `djcms/uv.lock` (`uv export --frozen`),
+    # - notebook-lab: narzędzia budowy JupyterLite (`backend/apps/notebooks/labbuild/requirements.txt`,
+    #   przypięte ze skrótami; QC-01) – nie trafiają do runtime, ale to one składają statykę laboratorium.
     # Czerwono tylko przy podatności z wydaną poprawką; bez poprawki – ostrzeżenie w podsumowaniu.
     # Wyjątki z terminem i uzasadnieniem: `.security/pip-audit-ignore.toml`.
     # Zainstalowane pakiety obrazu (to, co faktycznie wdrażamy) sprawdza dodatkowo Trivy w `image-scan`.
@@ -195,7 +197,8 @@ jobs:
             --no-header --no-annotate -o "$RUNNER_TEMP/backend.txt"
           (cd djcms && uv export --frozen --extra dev --no-emit-project --no-hashes \
             --no-header --no-annotate -o "$RUNNER_TEMP/djcms.txt")
-          wc -l "$RUNNER_TEMP/backend.txt" "$RUNNER_TEMP/djcms.txt"
+          cp backend/apps/notebooks/labbuild/requirements.txt "$RUNNER_TEMP/notebook-lab.txt"
+          wc -l "$RUNNER_TEMP"/*.txt
 
       # `--no-deps --disable-pip`: zbiór jest już rozwiązany co do wersji, pip-audit ma go tylko
       # sprawdzić, a nie rozwiązywać drugi raz (inną metodą i z innym wynikiem). Baza OSV: obejmuje
@@ -203,7 +206,7 @@ jobs:
       # raportu (awaria narzędzia albo sieci) bramka traktuje jak błąd, nie jak „zero podatności”.
       - name: pip-audit
         run: |
-          for set in backend djcms; do
+          for set in backend djcms notebook-lab; do
             uvx --from "pip-audit==$PIP_AUDIT_VERSION" pip-audit -r "$RUNNER_TEMP/$set.txt" \
               --no-deps --disable-pip --vulnerability-service osv --progress-spinner off \
               --format json --output "$RUNNER_TEMP/$set-audit.json" || true
@@ -212,7 +215,7 @@ jobs:
       - name: Bramka (poprawka dostępna = czerwono, wyjątki z terminem)
         run: |
           rc=0
-          for set in backend djcms; do
+          for set in backend djcms notebook-lab; do
             python scripts/security/pip_audit_gate.py --label "$set" "$RUNNER_TEMP/$set-audit.json" || rc=1
           done
           exit "$rc"

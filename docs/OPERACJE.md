@@ -5410,7 +5410,7 @@ i co zrobić z raportem okresowym.
 
 | Gdzie | Kiedy | Co sprawdza | Skutek |
 |---|---|---|---|
-| CI `pip-audit` | każdy PR, `main`, `v*` | zależności Pythona backendu i djcms (OSV) | czerwono przy podatności **z poprawką** |
+| CI `pip-audit` | każdy PR, `main`, `v*` | zależności Pythona: backend, djcms, narzędzia budowy JupyterLite (OSV) | czerwono przy podatności **z poprawką** |
 | CI `trivy (obraz web/djcms)` | jw., po `image` | pakiety Debiana i Pythona w zbudowanym obrazie | czerwono przy CRITICAL/HIGH **z poprawką**; SARIF → Security |
 | CI `łańcuch dostaw` | jw. | SHA akcji, wyjątki Trivy, vendor JS ↔ zapis wersji/skrótów | czerwono przy złamaniu reguły |
 | `security-scan.yml` | poniedziałek 4:17 UTC | obrazy usług z compose + nasz `olimpiada-web:main` z GHCR | zgłoszenie `security-scan` (raport) |

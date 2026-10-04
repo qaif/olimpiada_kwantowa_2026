@@ -41,8 +41,8 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
 
 ## [Unreleased] – Skanowanie zależności i obrazów w CI (SEC-02)
 
-- **CI `pip-audit`**: zależności Pythona backendu (rozwiązanie jak w obrazie, `uv pip compile`) i djcms
-  (`uv.lock`) przez OSV; czerwono tylko przy podatności z wydaną poprawką, wyjątki z terminem
+- **CI `pip-audit`**: zależności Pythona backendu (rozwiązanie jak w obrazie, `uv pip compile`), djcms
+  (`uv.lock`) i narzędzi budowy JupyterLite (QC-01) przez OSV; czerwono tylko przy podatności z wydaną poprawką, wyjątki z terminem
   i uzasadnieniem w `.security/pip-audit-ignore.toml` (`scripts/security/pip_audit_gate.py`).
 - **CI `trivy (obraz web/djcms)`** po jobie `image`: bramka CRITICAL/HIGH z poprawką, SARIF do code
   scanning + artefakt, baza Trivy w cache'u, wyjątki z `expired_at` w `.security/trivyignore.yaml`.

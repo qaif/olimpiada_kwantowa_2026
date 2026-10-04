@@ -28,7 +28,10 @@ Czego zadanie **nie** robi:
 
 - Zbiory: **backend** – wynik `uv pip compile backend/pyproject.toml --extra dev` dla Pythona 3.14
   i platformy obrazu (backend nie ma pliku blokady; obraz instaluje „najnowsze w zakresie”, więc
-  sprawdzamy dokładnie to, co zbudowałoby się teraz); **djcms** – `uv export --frozen` z `djcms/uv.lock`.
+  sprawdzamy dokładnie to, co zbudowałoby się teraz); **djcms** – `uv export --frozen` z `djcms/uv.lock`;
+  **notebook-lab** – narzędzia budowy JupyterLite (QC-01, `apps/notebooks/labbuild/requirements.txt`,
+  przypięte ze skrótami). Koła Pyodide w samym laboratorium (wykonywane w przeglądarce ucznia) są poza
+  zakresem – ich wersje wyznacza wydanie Pyodide (QC-01).
 - `pip-audit --no-deps --disable-pip --vulnerability-service osv -f json`, wersja przypięta
   (`PIP_AUDIT_VERSION` w `ci.yml`).
 - Bramka `scripts/security/pip_audit_gate.py`: **czerwono** przy podatności z wydaną poprawką;
@@ -108,7 +111,7 @@ Alpine CSP, Swagger UI, pdf.js) i zewnętrzne bez wersji (gtag.js – z uzasadni
 - Ruff (konfiguracja backendu) obejmuje `scripts/security` w jobie `lint`.
 - Lokalnie (5.10.2026): pip-audit i Trivy **nie** są zainstalowane na maszynie dewelopera – zgodnie
   z poleceniem nie instalowaliśmy ich; zbiory zależności sprawdzone zapytaniem do API OSV
-  (149 pakietów backendu, 42 djcms: **zero znanych podatności**); `vendor_check.py upstream`
+  (150 pakietów backendu, 42 djcms, 8 notebook-lab: **zero znanych podatności**); `vendor_check.py upstream`
   uruchomiony (bez uwag bezpieczeństwa; nowsze wydania htmx, Alpine, Swagger UI, pdf.js 6.x).
   Wynik Trivy dla obrazów – dopiero w pierwszym przebiegu CI na PR.
 
