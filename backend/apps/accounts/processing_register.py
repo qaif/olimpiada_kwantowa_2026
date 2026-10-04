@@ -82,8 +82,10 @@ from apps.competitions.models import DEFAULT_RETENTION_MONTHS
 #: odbiorców (druga strona rozmowy, moderator w trybach z moderacją i przy zgłoszeniach), w tym
 #: opcjonalne szyfrowanie end-to-end rozmów między uczestnikami. Zdanie w wierszu forum „forum nie
 #: ma wiadomości prywatnych” zostało doprecyzowane: forum ich nadal nie ma, ale serwis – tak.
-REGISTER_VERSION = "1.10"
-REGISTER_DATE = date(2026, 9, 30)
+#: 1.11 (04.10.2026, zadanie L10N-01) – Przegląd tłumaczeń interfejsu: wiersz warunkowy (konkurs
+#: z więcej niż jednym językiem interfejsu) – rola tłumacza, propozycje poprawek, głosy i zgłoszenia.
+REGISTER_VERSION = "1.11"
+REGISTER_DATE = date(2026, 10, 4)
 
 #: Zdanie o okresie przechowywania danych uczestnika. Liczba pochodzi z tego samego miejsca, co
 #: domyślna wartość ``Edition.data_retention_months`` – gdyby organizator zmienił ją dla rocznika,
@@ -864,6 +866,43 @@ def ai_grading_activity(competition=None) -> ProcessingActivity:
     return replace(AI_GRADING_ACTIVITY, recipients=[base[0], *processors, *base[2:]])
 
 
+#: Czynność **warunkowa**: przegląd tłumaczeń interfejsu przez wolontariuszy (zadanie L10N-01).
+#: Tylko w konkursie z więcej niż jednym językiem interfejsu – w jednojęzycznym nikt nie dostaje roli
+#: tłumacza z panelu koordynatora, więc rejestr nie opisuje przetwarzania, którego tam nie ma.
+TRANSLATION_REVIEW_ACTIVITY = _activity(
+    key="tlumaczenia",
+    name="Przegląd tłumaczeń interfejsu serwisu",
+    purpose=(
+        "Poprawianie tłumaczeń napisów interfejsu serwisu przez wolontariuszy znających dany język "
+        "(np. kierowników delegacji): propozycje poprawek, głosy, decyzje recenzenta i zgłoszenia błędów."
+    ),
+    legal_basis=(
+        "art. 6 ust. 1 lit. f RODO (prawnie uzasadniony interes administratora – zrozumiały interfejs "
+        "dla uczestników z różnych krajów); udział jest dobrowolny i wymaga nadania roli"
+    ),
+    subjects="osoby, którym koordynator albo superkoordynator nadał rolę tłumacza lub recenzenta tłumaczeń",
+    categories=[
+        "powiązanie konta z językiem i poziomem roli (tłumacz, recenzent), kto i kiedy ją nadał",
+        "autorstwo propozycji tłumaczeń i oddanych głosów (sam tekst tłumaczenia nie jest daną osobową)",
+        "zgłoszenia ze stopki: ścieżka strony (bez parametrów adresu), napis widziany na stronie, uwaga",
+    ],
+    recipients=[
+        HOSTING_RECIPIENT,
+        "recenzenci tłumaczeń tego samego języka – treść zgłoszeń i propozycji, **bez** tożsamości autora",
+        "koordynator konkursu i superkoordynator – lista osób z rolą tłumacza (adres e-mail konta)",
+    ],
+    retention=(
+        "rola do odebrania albo usunięcia konta; zgłoszenia i głosy usuwane z kontem; propozycje "
+        "zostają bez autora, bo są tekstem interfejsu, a nie daną o osobie"
+    ),
+    measures=[
+        "tłumacze nie widzą, kto zaproponował cudzą poprawkę ani kto zgłosił błąd",
+        "każda decyzja (nadanie roli, zatwierdzenie, cofnięcie) zostawia wpis w dzienniku zdarzeń "
+        "bez treści zgłoszeń",
+    ],
+)
+
+
 def activities_for(competition=None) -> tuple[ProcessingActivity, ...]:
     """Rejestr **tego** konkursu: czynności wspólne plus te, które wynikają z jego konfiguracji.
 
@@ -896,6 +935,8 @@ def activities_for(competition=None) -> tuple[ProcessingActivity, ...]:
         activities = (*activities, WORKSHOP_MATERIALS_ACTIVITY)
     if competition is not None and competition.has_feature(AI_GRADING_FLAG):
         activities = (*activities, ai_grading_activity(competition))
+    if competition is not None and len(competition.ui_languages) > 1:
+        activities = (*activities, TRANSLATION_REVIEW_ACTIVITY)
     return activities
 
 

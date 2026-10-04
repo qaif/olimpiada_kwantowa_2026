@@ -569,6 +569,12 @@ def anonymise_account(user: User, *, actor: User | None = None, request=None) ->
 
     erase_chat_state(user)
 
+    # Przegląd tłumaczeń (L10N-01): rola tłumacza, głosy i zgłoszenia znikają; propozycje (sam tekst
+    # tłumaczenia, część interfejsu albo praca dla recenzenta) zostają bez autora.
+    from apps.translation_review.services import erase_for_user as erase_translation_review
+
+    erase_translation_review(user)
+
     _drop_credentials(user)
     audit(actor or user, "account.anonymised", user, {"user_id": user.pk}, request=request)
     return user

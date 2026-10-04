@@ -382,7 +382,18 @@ def export_payload(user: User) -> dict:
         "zaswiadczenia_statusu_ucznia": _student_status_section(participant),
         "oceny_ai": _ai_section(participant),
         "ustawienia_interfejsu": _preferences_section(user),
+        "tlumaczenia": _translation_review_section(user),
     }
+
+
+def _translation_review_section(user: User) -> dict:
+    """Przegląd tłumaczeń (L10N-01): rola tłumacza, własne propozycje, liczba głosów i zgłoszenia.
+
+    Sekcja jest zawsze (pusta dla konta bez roli) – kształt pliku ma być ten sam dla każdego konta.
+    """
+    from apps.translation_review.services import export_section
+
+    return export_section(user)
 
 
 def _student_status_section(participant) -> list[dict]:
