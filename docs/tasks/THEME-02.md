@@ -202,5 +202,18 @@ paczka IQO Quantum 1.1.0 (fikstura `backend/apps/themes/tests/fixtures/iqo-quant
   strona)” i nie blokuje zapisu; błąd pozycji podaje jej nazwę. **L6** – arkusz akcentu marki
   liczony od palety efektywnej.
 
+### 7.2. Druga, niezależna runda przeglądu
+
+- Identyfikatory i pozycje z formularzy wyłącznie z cyfr ASCII (`menu.ascii_int`): `"١٢"`, `"²"` dają
+  400/404, a nie 500.
+- Etykiety menu: normalizacja NFC i białych znaków; znaki formatujące Unicode (`Cf` – przełączniki
+  BiDi, znaki zerowej szerokości, miękki dywiz) odrzucane, poza ZWJ/ZWNJ (pisownia perska, indyjska, emoji).
+- Zapis kolorów w jednym schemacie nie kasuje nadpisań drugiej palety (scalanie per paleta; paleta
+  obecna w formularzu zastępowana w całości).
+- Pary ogólne: `text`, `text-soft`, `muted`, `link`, `cta` na `bg`, `surface`, `surface-2` (4.5:1).
+- Aktywacja zapisuje opcje, z którymi wersja weszła, jako jej `ThemeCustomization` – kolejne „Zapisz
+  opcje” w galerii nie gubi schematu/logo/krojów przeniesionych przez `theme_install`.
+- IQO 1.1.0: `min_app_version` = **0.44.0** (wydanie z THEME-02).
+
 Znane luki: brak przeciągania pozycji menu (kolejność liczbami i przyciskami – bez JavaScriptu); brak
 podglądu kontrastu na żywo przed wysłaniem formularza (kontrola po stronie serwera); djcms bez motywów.

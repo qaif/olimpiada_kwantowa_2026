@@ -222,7 +222,8 @@ def test_customize_bad_contrast_is_400_and_saves_nothing(coordinator_client, com
     )
     assert response.status_code == 400
     assert "WCAG" in response.content.decode()
-    assert not ThemeCustomization.objects.exists()
+    # Aktywacja zapisuje opcje wersji (bez kolorów) – odrzucony zapis/podgląd niczego nie dokłada.
+    assert not any(row.options.get("colors") for row in ThemeCustomization.objects.all())
 
 
 def test_customize_preview_shows_colours_only_to_coordinator(
@@ -235,7 +236,8 @@ def test_customize_preview_shows_colours_only_to_coordinator(
     assert response.status_code == 302 and response["Location"].startswith(f"/?{PREVIEW_PARAM}=")
     assert "/_theme/custom.css?s=" in coordinator_client.get(response["Location"]).content.decode()
     assert "/_theme/custom.css" not in client_for(competition).get(response["Location"]).content.decode()
-    assert not ThemeCustomization.objects.exists()
+    # Aktywacja zapisuje opcje wersji (bez kolorów) – odrzucony zapis/podgląd niczego nie dokłada.
+    assert not any(row.options.get("colors") for row in ThemeCustomization.objects.all())
 
 
 def test_customize_inactive_version_is_stored_for_activation(coordinator_client, competition, example):

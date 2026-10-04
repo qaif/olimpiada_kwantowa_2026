@@ -23,7 +23,7 @@ CUSTOM_HREF = re.compile(r'href="(/_theme/custom\.css\?s=[^"]+)"')
 
 @pytest.fixture
 def iqo(competition, monkeypatch):
-    monkeypatch.setenv("APP_VERSION", "v0.43.0")
+    monkeypatch.setenv("APP_VERSION", "v0.44.0")
     version, result = services.install_package(IQO_110.read_bytes())
     assert result.errors == [], result.errors
     competition.interface_languages = ["en", "ar"]
@@ -47,7 +47,7 @@ def _client(client_for, competition, language):
 
 
 def test_package_validates_without_errors():
-    result = validate_package(IQO_110.read_bytes(), app_version="v0.43.0")
+    result = validate_package(IQO_110.read_bytes(), app_version="v0.44.0")
     assert result.errors == []
     assert result.manifest["version"] == "1.1.0" and result.manifest["color_scheme"] == "dark"
     assert {"theme/header.html", "theme/nav.html", "theme/footer.html", "theme/home_hero.html"} <= set(

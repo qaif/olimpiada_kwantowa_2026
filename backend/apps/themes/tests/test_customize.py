@@ -114,7 +114,8 @@ def test_contrast_regression_blocks_save(themed, example):
     with pytest.raises(customize.CustomizationError) as excinfo:
         services.save_customization(themed, example, {"colors": {"light": {"text": "#fefefe"}}})
     assert any("text" in message and "4.5" in message for message in excinfo.value.messages)
-    assert not ThemeCustomization.objects.exists()
+    # Aktywacja zapisuje opcje wersji (bez kolorów) – odrzucony zapis/podgląd niczego nie dokłada.
+    assert not any(row.options.get("colors") for row in ThemeCustomization.objects.all())
     assert not AuditLog.objects.filter(action=services.AUDIT_CUSTOMIZED).exists()
 
 

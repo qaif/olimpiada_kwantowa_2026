@@ -29,7 +29,7 @@ pasów). 1.1.0 ma **własną kompozycję** – tożsamość międzynarodowej oli
 
 | Plik | Rola |
 |---|---|
-| `manifest.json` | schema 1, `iqo-quantum` **1.1.0**, `min_app_version` 0.41.0, `color_scheme: dark`, `layouts` (warianty niżej), `logos`, `fonts` |
+| `manifest.json` | schema 1, `iqo-quantum` **1.1.0**, `min_app_version` **0.44.0** (wydanie z THEME-02), `color_scheme: dark`, `layouts` (warianty niżej), `logos`, `fonts` |
 | `tokens.json` | `colors` (paleta jasna), `dark` (ciemna, z własnymi `shadow-*`), `tokens` (kroje, skala, promienie, odstępy, cienie, `header-height`, `max-width`). Każdy klucz → `--t-<klucz>` |
 | `theme.css` | jedyny arkusz: kroje, aliasy `--iqo-*` ← `--t-*`, most do ról `app.css` (panele), sloty, warianty układów, wysoki kontrast, forced-colors, druk |
 | `templates/theme/header.html` | logo, przycisk „Menu”, `{% include "theme/nav.html" %}`, konto (role, forum, wiadomości, materiały, zgłoszenie, „Moja drużyna”, „Wyloguj”) |

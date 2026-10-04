@@ -116,7 +116,7 @@ def test_stale_form_keeps_rows_it_did_not_show(client_for, competition):
 
 @pytest.fixture
 def iqo(competition, monkeypatch):
-    monkeypatch.setenv("APP_VERSION", "v0.43.0")
+    monkeypatch.setenv("APP_VERSION", "v0.44.0")
     version, result = services.install_package(IQO_110.read_bytes())
     assert result.errors == [], result.errors
     services.activate(competition, version)
@@ -140,7 +140,7 @@ def test_critic_probes_are_blocked(competition, iqo, colors, token):
 
 
 def test_iqo_declares_pairs_and_brand_ink_comes_from_token():
-    result = services.validate_package(IQO_110.read_bytes(), app_version="v0.43.0")
+    result = services.validate_package(IQO_110.read_bytes(), app_version="v0.44.0")
     assert ["on-primary-fill", "primary-fill", 4.5] in result.tokens.contrast
     assert "--brand-ink: var(--t-on-primary-fill" in result.theme_css
 

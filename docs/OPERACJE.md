@@ -4002,7 +4002,8 @@ flaga `themes` (wyłączona – 404), POST-y limitem `theme_settings` = **120/h 
 Lista slotów ma nowy, ósmy slot `nav` (samo menu serwisu – `templates/theme/nav.html`); domyślny
 nagłówek woła go w miejscu dawnego `<nav class="nav nav--cms">` (Olimpiada Kwantowa co do bajtu).
 Paczka `themes/iqo-quantum/` w wersji **1.1.0** korzysta z `nav`, `logos`, `fonts` i obu palet,
-więc wymaga aplikacji z THEME-02 (wgranie na starszej wersji: błąd „Szablon spoza listy dozwolonej”).
+więc wymaga aplikacji z THEME-02 – manifest ma `min_app_version` **0.44.0** (wgranie na starszej
+wersji: błąd „Motyw wymaga wersji aplikacji 0.44.0…”; `APP_VERSION=dev` pomija porównanie).
 
 Wdrożenie (po wdrożeniu aplikacji z THEME-02 – migracja `themes.0003` idzie w `scripts/deploy.sh`):
 
