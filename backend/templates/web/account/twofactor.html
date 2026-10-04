@@ -18,6 +18,16 @@
   <p class="lead">{% translate "Drugi składnik to sześciocyfrowy kod z aplikacji w telefonie. Nawet gdy ktoś pozna Twoje hasło, bez telefonu nie wejdzie na konto." %}</p>
 </div>
 
+{% comment %}
+  SEC-01: czy na tym koncie 2FA jest wymagane (rola personelu) i do kiedy trwa okres przejściowy.
+  Zdanie, a nie tabela ról – nazwa roli niczego właścicielowi nie wyjaśnia, termin tak.
+{% endcomment %}
+{% if two_factor_required and not enabled %}
+  <p class="alert alert--warning">{% if two_factor_deadline %}{% blocktranslate trimmed with deadline=two_factor_deadline|date:"j E Y" %}
+    Twoja rola w tym serwisie wymaga logowania dwuskładnikowego. Włącz je do {{ deadline }} – potem bez niego nie wejdziesz do panelu.
+  {% endblocktranslate %}{% else %}{% translate "Twoja rola w tym serwisie wymaga logowania dwuskładnikowego. Włącz je teraz, żeby wrócić do panelu." %}{% endif %}</p>
+{% endif %}
+
 {% if enabled %}
   <section class="section">
     <div class="card">
@@ -39,11 +49,45 @@
   </section>
 
   <section class="section">
+    <div class="card">
+      <h2 class="mt-0">{% translate "Kody zapasowe" %}</h2>
+      <p class="hint">{% translate "Nowy komplet unieważnia wszystkie dotychczasowe kody. Potrzebne będą hasło i bieżący kod." %}</p>
+      <p><a class="btn btn--secondary" href="{% url 'web:twofactor-regenerate' %}">{% translate "Wygeneruj nowe kody zapasowe" %}</a></p>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="card">
+      <h2 class="mt-0">{% translate "Zapamiętane urządzenia" %}</h2>
+      <p class="hint">{% translate "Przeglądarki, w których zaznaczono „nie pytaj o kod”, przestaną być zapamiętane – także te, do których nie masz już dostępu." %}</p>
+      <form method="post" action="{% url 'web:twofactor-forget-devices' %}" class="inline">
+        {% csrf_token %}
+        <button type="submit" class="btn btn--secondary">{% translate "Zapomnij wszystkie urządzenia" %}</button>
+      </form>
+    </div>
+  </section>
+
+  {% comment %}
+    Wyłączenie wymaga hasła i bieżącego kodu (SEC-01 § 4): sesja bywa porzucona albo
+    „zapamiętana”, a zdjęcie zabezpieczenia to dokładnie to, czego chce ktoś, kto ją zastał.
+  {% endcomment %}
+  <section class="section">
     <div class="card card--quiet">
       <h2 class="mt-0">{% translate "Wyłączenie" %}</h2>
       <p class="hint">{% translate "Po wyłączeniu konto będzie chronione samym hasłem. Dotychczasowe kody zapasowe przestaną działać." %}</p>
-      <form method="post" action="{% url 'web:twofactor-disable' %}" class="inline">
+      {% if two_factor_required %}
+        <p class="alert alert--warning">{% translate "Twoja rola wymaga logowania dwuskładnikowego – po wyłączeniu trzeba będzie od razu skonfigurować je ponownie." %}</p>
+      {% endif %}
+      <form method="post" action="{% url 'web:twofactor-disable' %}" class="form">
         {% csrf_token %}
+        <p>
+          <label for="id_disable_password">{% translate "Hasło" %}</label>
+          <input type="password" id="id_disable_password" name="password" autocomplete="current-password" required>
+        </p>
+        <p>
+          <label for="id_disable_code">{% translate "Kod z aplikacji albo kod zapasowy" %}</label>
+          <input type="text" id="id_disable_code" name="code" inputmode="numeric" autocomplete="one-time-code" required>
+        </p>
         <button type="submit" class="btn btn--danger">{% translate "Wyłącz drugi składnik" %}</button>
       </form>
     </div>

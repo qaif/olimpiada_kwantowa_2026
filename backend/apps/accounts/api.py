@@ -152,13 +152,17 @@ class LoginView(GenericAPIView):
         - konto z potwierdzonym urządzeniem: bez kodu ``TWO_FACTOR_REQUIRED``, ze złym
           ``TWO_FACTOR_INVALID`` (kod z aplikacji albo kod zapasowy – ``twofactor.verify``),
         - konto, od którego drugi składnik jest wymagany, a go nie ma: ``TWO_FACTOR_SETUP_REQUIRED``
-          – konfiguracja jest w przeglądarce, API jej nie zastępuje,
+          – konfiguracja jest w przeglądarce, API jej nie zastępuje. Od SEC-01 dopiero **po**
+          okresie przejściowym (w jego trakcie token jak dotąd – tak samo przepuszcza przeglądarkę),
+        - konto w blokadzie po serii złych kodów: ``429 TWO_FACTOR_LOCKED``,
         - pozostałe konta i wyłączona funkcja: bez zmian.
         """
         if not twofactor.is_enabled():
             return False
         if twofactor.confirmed_device(user) is None:
-            if twofactor.is_required_for(user):
+            if twofactor.setup_overdue(
+                user, getattr(request._request, "competition", None), request=request._request
+            ):
                 raise DomainError(
                     "To konto musi mieć logowanie dwuskładnikowe. Skonfiguruj je w przeglądarce.",
                     "TWO_FACTOR_SETUP_REQUIRED",
@@ -170,6 +174,12 @@ class LoginView(GenericAPIView):
                 "Podaj kod z aplikacji uwierzytelniającej (pole „code”).",
                 "TWO_FACTOR_REQUIRED",
                 status.HTTP_400_BAD_REQUEST,
+            )
+        if twofactor.is_locked(user):
+            raise DomainError(
+                "Zbyt wiele błędnych kodów. Logowanie kodem jest chwilowo wstrzymane.",
+                "TWO_FACTOR_LOCKED",
+                status.HTTP_429_TOO_MANY_REQUESTS,
             )
         if not twofactor.verify(user, code, request=request._request):
             raise DomainError(

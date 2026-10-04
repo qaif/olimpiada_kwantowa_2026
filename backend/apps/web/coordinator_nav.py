@@ -417,6 +417,18 @@ def groups(stages: list, competition=None) -> list[Group]:
         ),
         Item("Audyt", ("web:coordinator-audit",), match=("coordinator-audit",)),
     )
+    from apps.accounts.twofactor import is_enabled as two_factor_enabled
+
+    if two_factor_enabled():
+        # SEC-01: polityka 2FA konkursu i stan personelu. Za wyłącznikiem instalacji, a nie flagą
+        # konkursu – przy ``TWO_FACTOR_ENABLED=0`` menu jest bajt w bajt dzisiejsze.
+        reports += (
+            Item(
+                "Bezpieczeństwo logowania",
+                ("web:coordinator-two-factor",),
+                match=("coordinator-two-factor",),
+            ),
+        )
     settings_items: tuple[Item, ...] = ()
     if competition is not None and competition.has_feature("competition_settings_page"):
         # Pierwsza pozycja sekcji, bo opisuje **konkurs**, a reszta sekcji – jego rocznik.

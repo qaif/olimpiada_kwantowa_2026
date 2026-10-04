@@ -703,11 +703,10 @@ usług i wolne miejsce na wolumenach) oraz podpiąć się pod istniejące `/heal
 Dopóki go nie ma, zewnętrzny monitor konfiguruje się adresem `/status.json` i czyta pole `status`;
 kod odpowiedzi jest tam **zawsze 200**, więc alert trzeba oprzeć na treści, a nie na kodzie HTTP.
 
-**Uwierzytelnianie dwuskładnikowe `apps/accounts/twofactor.py` (w przygotowaniu).** Ma dołożyć drugi
-składnik (TOTP) dla kont funkcyjnych — koordynatora i komitetu — czyli dla tych, które widzą dane
-osobowe uczestników i mogą zmieniać oceny. Do czasu jego wprowadzenia jedynym zabezpieczeniem tych kont
-jest hasło i skrzynka pocztowa, więc warto wymusić na nich długie, unikatowe hasła i trzymać liczbę kont
-koordynatora przy minimum.
+**Uwierzytelnianie dwuskładnikowe `apps/accounts/twofactor.py` + `apps/staff_mfa`.** Drugi składnik
+(TOTP) za wyłącznikiem `TWO_FACTOR_ENABLED`; od SEC-01 wymagany od personelu (superkoordynator,
+`/admin/`, personel konkursów z danymi wrażliwymi) z okresem przejściowym, blokadą po złych kodach
+i resetem konta personelu wyłącznie przez superkoordynatora – `docs/OPERACJE.md` § 5 i § 41.
 
 **Integracje `apps/integrations` (w przygotowaniu).** Aplikacja na wymianę danych z systemami zewnętrznymi
 organizatora. Z punktu widzenia utrzymania oznacza to nowe sekrety w `.env`, prawdopodobnie nowe hosty

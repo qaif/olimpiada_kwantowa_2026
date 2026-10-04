@@ -11,6 +11,10 @@ Trzy adresy i wyraźny podział ról między nimi:
 Reguł domenowych nie ma tu ani jednej: wszystkie stoją w ``apps.accounts.twofactor`` (protokół,
 jednorazowość kodu, audyt), bo tę samą czynność wykonuje też koordynator ze swojego panelu
 i przyszły klient API. Widok wyłącznie orkiestruje i dobiera zdanie dla człowieka.
+
+SEC-01: każda odpowiedź tych ekranów ma ``Cache-Control: private, no-store`` (sekret TOTP, kody
+zapasowe), wyłączenie wymaga hasła **i** kodu, a drugi krok logowania ma pole „zapamiętaj to
+urządzenie” i komunikat o blokadzie konta. Nowy komplet kodów: ``apps.staff_mfa.views``.
 """
 
 from __future__ import annotations
@@ -21,13 +25,13 @@ from django.http import Http404
 from django.shortcuts import redirect
 from django.template.response import TemplateResponse
 from django.urls import reverse
+from django.utils.cache import add_never_cache_headers
 from django.utils.safestring import mark_safe
 from django.utils.translation import gettext as _
 from django.views.generic import View
 
 from apps.accounts import twofactor
 from apps.core.api import DomainError
-from apps.web.mixins import ActionViewMixin
 from apps.web.throttle import ThrottledFormMixin
 
 SETUP_TEMPLATE = "web/account/twofactor.html"
@@ -51,7 +55,12 @@ class TwoFactorFeatureMixin:
     def dispatch(self, request, *args, **kwargs):
         if not twofactor.is_enabled():
             raise Http404("Logowanie dwuskładnikowe jest wyłączone na tej instalacji.")
-        return super().dispatch(request, *args, **kwargs)
+        response = super().dispatch(request, *args, **kwargs)
+        # ``private, no-store`` na **każdej** odpowiedzi (także przekierowaniu): sekret TOTP i kody
+        # zapasowe w pamięci podręcznej przeglądarki na wspólnym komputerze to wyciek bez włamania.
+        add_never_cache_headers(response)
+        response["Cache-Control"] = "private, no-store, no-cache, must-revalidate, max-age=0"
+        return response
 
 
 #: Klucz sesji, pod którym świeżo wygenerowane kody zapasowe czekają na jedno wyświetlenie.
@@ -107,6 +116,7 @@ class TwoFactorSetupView(TwoFactorFeatureMixin, LoginRequiredMixin, View):
             "error": error,
             "digits": twofactor.CODE_DIGITS,
             "enabled": False,
+            **_requirement_context(request),
         }
         return TemplateResponse(request, SETUP_TEMPLATE, context, status=status)
 
@@ -117,8 +127,23 @@ class TwoFactorSetupView(TwoFactorFeatureMixin, LoginRequiredMixin, View):
             "backup_codes_left": device.backup_codes_left,
             "backup_codes_total": twofactor.BACKUP_CODE_COUNT,
             "last_used_at": device.last_used_at,
+            "digits": twofactor.CODE_DIGITS,
+            **_requirement_context(request),
         }
         return TemplateResponse(request, SETUP_TEMPLATE, context)
+
+
+def _requirement_context(request) -> dict:
+    """Czy na tym koncie 2FA jest wymagane i do kiedy trwa okres przejściowy – do jednego zdania.
+
+    ``start_grace=False``: samo obejrzenie ekranu nie zaczyna okresu przejściowego (zaczyna go
+    warstwa wymuszająca przy pierwszym żądaniu, więc w praktyce wiersz i tak już jest).
+    """
+    found = twofactor.requirement(request.user, getattr(request, "competition", None), start_grace=False)
+    return {
+        "two_factor_required": found is not None,
+        "two_factor_deadline": found.deadline if found is not None and not found.overdue() else None,
+    }
 
 
 class TwoFactorCodesView(TwoFactorFeatureMixin, LoginRequiredMixin, View):
@@ -158,16 +183,37 @@ class TwoFactorVerifyView(TwoFactorFeatureMixin, ThrottledFormMixin, LoginRequir
         redirection = self._skip_if_not_needed(request)
         if redirection is not None:
             return redirection
-        if twofactor.verify(request.user, request.POST.get("code", ""), request=request):
+        user = request.user
+        if twofactor.is_locked(user):
+            # Blokada konta (SEC-01 § 5): ani słowa o tym, czy kod był dobry. ``verify`` i tak
+            # odrzuciłby go bez sprawdzania – tu chodzi wyłącznie o zdanie dla człowieka.
+            twofactor.verify(user, request.POST.get("code", ""), request=request)
+            self.consume_throttle()
+            return self._render(request, error=self._locked_message(user), status=429)
+        if twofactor.verify(user, request.POST.get("code", ""), request=request):
+            from apps.staff_mfa import trust
+
             self.reset_throttle()
             twofactor.mark_verified(request)
-            return redirect(self._next_url(request))
+            response = redirect(self._next_url(request))
+            if request.POST.get("remember") == "1":
+                trust.remember(response, request, user, twofactor.confirmed_device(user))
+            return response
         self.consume_throttle()
+        if twofactor.is_locked(user):
+            return self._render(request, error=self._locked_message(user), status=429)
         return self._render(
             request,
             error=_("Kod nie pasuje. Przepisz nowy kod z aplikacji albo użyj kodu zapasowego."),
             status=400,
         )
+
+    @staticmethod
+    def _locked_message(user) -> str:
+        return _(
+            "Zbyt wiele błędnych kodów z rzędu. Logowanie kodem jest wstrzymane na %(minutes)s min – "
+            "wysłaliśmy też list na adres konta."
+        ) % {"minutes": twofactor.lock_minutes_left(user)}
 
     def _skip_if_not_needed(self, request):
         if twofactor.session_is_verified(request):
@@ -196,34 +242,63 @@ class TwoFactorVerifyView(TwoFactorFeatureMixin, ThrottledFormMixin, LoginRequir
         return default_panel_url(request)
 
     def _render(self, request, *, error: str = "", status: int = 200):
+        from datetime import timedelta
+
+        from django.utils import timezone
+
+        from apps.staff_mfa.policy import remember_days
+
+        days = remember_days(getattr(request, "competition", None))
         device = twofactor.confirmed_device(request.user)
         context = {
             "error": error,
             "digits": twofactor.CODE_DIGITS,
             "next": request.POST.get("next") or request.GET.get("next") or "",
             "backup_codes_left": device.backup_codes_left if device else 0,
+            # Zero = pola „zapamiętaj” nie ma (ustawienie platformy albo polityka konkursu).
+            "remember_days": days,
+            "remember_until": timezone.now() + timedelta(days=days),
         }
         return TemplateResponse(request, VERIFY_TEMPLATE, context, status=status)
 
 
-class TwoFactorDisableView(TwoFactorFeatureMixin, LoginRequiredMixin, ActionViewMixin, View):
+class TwoFactorDisableView(TwoFactorFeatureMixin, ThrottledFormMixin, LoginRequiredMixin, View):
     """``/account/2fa/disable/`` – wyłączenie drugiego składnika na własnym koncie (POST).
 
-    Bez ekranu potwierdzenia i bez pytania o hasło, i to wymaga uzasadnienia: żeby tu w ogóle
-    dojść, sesja musiała już przejść **cały** drugi składnik (warstwa wymuszająca nie przepuszcza
-    nikogo innego), czyli ten, kto klika, ma w ręce telefon albo kartkę z kodami. Dokładanie tu
-    hasła chroniłoby przed scenariuszem „porzucona, w pełni zweryfikowana sesja” – a przed nim
-    broni wylogowanie i termin ważności sesji, a nie kolejne pole.
+    Od SEC-01 z **hasłem i bieżącym kodem** (``twofactor.check_credentials``). Wcześniej
+    uzasadnieniem braku pytania było „sesja i tak przeszła drugi składnik” – ale sesja bywa
+    porzucona na komputerze w pokoju komisji, a od „zapamiętaj to urządzenie” bywa też sprzed tygodnia.
+    Wyłączenie zabezpieczenia jest dokładnie tym, czego potrzebuje ktoś, kto zastał cudzą sesję.
+    Złe próby liczy limit ``two_factor`` i blokada konta, tak jak przy logowaniu.
 
-    Konto z roli objętej ``TWO_FACTOR_REQUIRED_ROLES`` wyłączy drugi składnik i natychmiast
-    zostanie odesłane z powrotem na ekran konfiguracji przez warstwę wymuszającą. To jest
-    zachowanie prawidłowe: taka jest właśnie treść tego ustawienia.
+    Konto, od którego 2FA jest wymagane, wyłączy drugi składnik i zostanie odesłane na ekran
+    konfiguracji przez warstwę wymuszającą (okres przejściowy jest jednorazowy). To jest zachowanie
+    prawidłowe: taka jest właśnie treść wymogu.
     """
 
-    def perform(self, request, *args, **kwargs) -> str:
-        if not twofactor.disable(request.user, actor=request.user, request=request):
-            raise DomainError(_("Na tym koncie nie ma włączonego drugiego składnika."))
-        return _("Drugi składnik logowania został wyłączony.")
+    throttle_scope = twofactor.THROTTLE_SCOPE
+    throttle_on_request = False
 
-    def get_success_url(self, *args, **kwargs) -> str:
-        return reverse("web:twofactor-setup")
+    def post(self, request):
+        from apps.staff_mfa import trust
+
+        user = request.user
+        try:
+            twofactor.check_credentials(
+                user, request.POST.get("password", ""), request.POST.get("code", ""), request=request
+            )
+        except DomainError as exc:
+            self.consume_throttle()
+            messages.error(request, str(exc.detail))
+            return redirect(reverse("web:twofactor-setup"))
+        self.reset_throttle()
+        if not twofactor.disable(user, actor=user, request=request):
+            messages.error(request, _("Na tym koncie nie ma włączonego drugiego składnika."))
+            return redirect(reverse("web:twofactor-setup"))
+        # Znaczniki sesji liczone od nowa: bez tego sesja „zweryfikowana” przeżyłaby wyłączenie,
+        # a konto, od którego 2FA jest wymagane, nie trafiłoby na ekran konfiguracji.
+        twofactor.clear_session_markers(request)
+        messages.success(request, _("Drugi składnik logowania został wyłączony."))
+        response = redirect(reverse("web:twofactor-setup"))
+        trust.forget(response)
+        return response
