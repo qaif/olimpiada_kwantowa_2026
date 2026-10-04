@@ -959,6 +959,78 @@ oraz wgranie, ocena i usunięcie pracy testowej zostawiają wpis `ai_grading.*`.
 
 ---
 
+### 4.13 Notatniki kwantowe — `/coordinator/notebooks/`
+
+Zadanie z notatnikiem Jupytera w przeglądarce (JupyterLite – uczestnik niczego nie instaluje).
+Ekran istnieje przy włączonej fladze konkursu `quantum_notebooks` (włącza operator, `docs/OPERACJE.md`
+§ 37). Lista pokazuje zadania bieżącej edycji; „Dodaj notatnik” / „Ustawienia” przy zadaniu.
+
+**Tryby:**
+
+- **Notatnik swobodny** – uczestnik dostaje notatnik startowy przy zadaniu, oddaje plik `.ipynb`,
+  ocenia komisja jak każdą pracę (podgląd kodu w ekranie recenzenta działa jak dotąd).
+- **Sprawdzanie automatyczne** – jak wyżej, a dodatkowo każda najnowsza wersja pracy jest w ciągu
+  minuty od czystego skanu antywirusowego wykonywana na serwerze w piaskownicy i liczona testami.
+  Punkty z testów są **podpowiedzią** dla komisji (panel „Testy automatyczne” w ekranie oceny,
+  tabela „Wyniki”), a nie oceną – skalę zadania stosują recenzenci. Zadanie musi przyjmować pliki
+  `.ipynb` (format w ustawieniach zadania).
+
+**Ustawienia:** język treści notatnika (polski/angielski – szablon notatnika startowego i komunikaty
+testów; interfejs JupyterLab jest angielski), limit czasu (5–60 s) i pamięci, kto widzi wynik testów
+ukrytych (domyślnie **tylko organizator i komisja**; „po zamknięciu etapu”; „od razu” – tylko na
+etapach treningowych, bo daje uczestnikowi wyrocznię), notatnik startowy (własny `.ipynb` do 1 MB
+albo szablon; wyjścia komórek są czyszczone) i notatnik wzorcowy.
+
+**Środowisko uczestnika:** `from qiskit import QuantumCircuit` działa, ale to **zgodny podzbiór
+Qiskita** (symulator `qclab`, wektor stanu do 20 kubitów, `Operator` do 10), a nie pełny Qiskit –
+pełnego nie da się uruchomić w przeglądarce (`docs/tasks/QC-01.md` § 1). Są: bramki
+`x y z h s sdg t tdg sx rx ry rz p u cx cy cz ch cp crx cry crz swap iswap rxx ryy rzz ccx ccz cswap
+mcx mcp unitary`, pomiar, reset, bariera, parametry, `compose`, `inverse`, `to_gate`, `QFT`,
+`Statevector`, `Operator`, `SparsePauliOp`, `StatevectorSampler`/`StatevectorEstimator`,
+`BasicSimulator`/`AerSimulator`, rysunek tekstowy, histogram tekstowy, NumPy. Nie ma: sprzętu IBM,
+szumu, transpilacji do bazy, OpenQASM, `if_test`, matplotlib. Zadanie układaj tak, żeby nie wymagało
+niczego spoza tej listy – i sprawdź to notatnikiem wzorcowym.
+
+**Testy** to lista obiektów JSON (pola „Testy widoczne” i „Testy ukryte”). Przykład:
+
+```json
+[
+  {"id": "bell", "name": "Stan Bella", "points": 2, "target": "qc",
+   "check": "statevector", "expected": {"00": "1/sqrt(2)", "11": "1/sqrt(2)"}},
+  {"id": "ghz", "name": "GHZ dla n=4", "points": 2, "target": {"call": "ghz", "args": [4]},
+   "check": "probabilities", "expected": {"0000": 0.5, "1111": 0.5}},
+  {"id": "depth", "name": "Płytki obwód", "points": 1, "target": "qc",
+   "check": "circuit", "max_depth": 2, "allowed_gates": ["h", "cx"]}
+]
+```
+
+- `target` – nazwa zmiennej z notatnika (`"qc"`) albo wywołanie funkcji ucznia
+  (`{"call": "ghz", "args": [4]}`; argumenty w JSON-ie),
+- `check`: `statevector` (lista amplitud albo `{"etykieta": amplituda}`; do fazy globalnej, chyba że
+  `"global_phase": false`), `probabilities` (`{"00": 0.5}`), `counts` (rozkład wyników pomiaru;
+  z obwodu liczony dokładnie, ze słownika zliczeń – z tolerancją odległości, domyślnie 0,05),
+  `unitary` (macierz do 6 kubitów), `value` (liczba, lista, napis, wartość logiczna),
+  `circuit` (`num_qubits`, `max_depth`, `max_size`, `max_gates` np. `{"cx": 2}`, `allowed_gates`,
+  `required_gates`, `measurements`: `required`/`forbidden`),
+- liczby można pisać wyrażeniami: `"1/sqrt(2)"`, `"exp(i*pi/4)"`, `"-0.5j"`; `tolerance` – dopuszczalna
+  różnica (domyślnie 1e-6),
+- etykiety bitów jak w Qiskicie: kubit 0 **z prawej** (`"01"` = kubit 0 w stanie 1),
+- test zaliczony = pełne `points`, niezaliczony = 0; wynik pracy = suma testów ukrytych (bez
+  ukrytych – widocznych).
+
+**Uczciwość:** testy ukryte nie trafiają ani do przeglądarki, ani do piaskownicy z kodem ucznia –
+piaskownica dostaje tylko listę celów („co odczytać”), oczekiwania zna wyłącznie serwer. Testy
+widoczne są w notatniku uczestnika (ostatnia komórka) – traktuj je jak przykład, nie jak ocenę.
+Błąd w jednej komórce nie przerywa pozostałych (przypadkowe `plot_histogram` nie zeruje zadania).
+
+**Sprawdź testy na wzorcu:** wgraj notatnik wzorcowy i kliknij „Sprawdź testy na wzorcu” – po kilku
+sekundach (odświeżenie strony) widać wynik każdego testu i błędy komórek. „Pobierz notatnik jak
+uczestnik” daje plik dokładnie w tej postaci, w jakiej dostanie go uczestnik.
+
+**Wyniki** (`…/results/`): najnowsza wersja każdego uczestnika, punkty za każdy test, suma, CSV,
+szczegół przebiegu (błędy komórek, początek wyjścia programu). Po zmianie testów wiersze dostają
+znacznik „testy zmienione” – „Przelicz wszystko” liczy je od nowa (wpis w audycie).
+
 ## 5. Wyniki
 
 ### 5.1 Reklamacje — `/appeals/`

@@ -8,6 +8,27 @@ dokładnie jednemu wierszowi tej tabeli.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## [Unreleased] – Notatniki kwantowe w przeglądarce (QC-01)
+
+- **Notatnik przy zadaniu:** JupyterLite 0.8.5 z jądrem Pyodide 314.0.7 hostowany u nas
+  (`/static/notebook-lab/<BUILD_ID>/`, bez CDN w czasie działania, wersje i skróty przypięte, etap
+  `notebook-lab` obrazu). Strona laboratorium `/me/notebooks/<zadanie>/` z ramką; notatnik startowy
+  z testami widocznymi otwiera się sam (`fromURL`). Oddanie – zwykła wysyłka `.ipynb`.
+- **qclab:** własny symulator z API podzbioru Qiskita (`from qiskit import QuantumCircuit` działa
+  w przeglądarce i na serwerze; Qiskit 2.x nie ma kół dla Pyodide). Zgodność z Qiskitem 2.5.2
+  sprawdzana testami parzystości.
+- **Sprawdzanie automatyczne:** testy widoczne (w przeglądarce) i ukryte (wyłącznie serwer) w JSON-ie
+  (`statevector`, `probabilities`, `counts`, `unitary`, `value`, `circuit`), punkty za test, wyniki
+  z CSV, „Przelicz wszystko”, sprawdzenie na notatniku wzorcowym, panel w ekranie recenzenta.
+  Podpowiedź dla komisji, nie ocena.
+- **Piaskownica:** kontener `notebook-runner` (profil compose `notebooks`, `network_mode: none`, bez
+  sekretów, osobne UID, `setrlimit`, hak audytowy), wymiana z workerem przez wolumen `notebook_spool`.
+- **CSP:** osobna polityka wyłącznie dla ścieżki laboratorium (Caddy `(notebook_lab)` i middleware
+  w dev: `'wasm-unsafe-eval'`, `'unsafe-eval'` dla JupyterLab, `worker-src blob:`); reszta serwisu bez
+  zmian poza `frame-src 'self'` na stronie laboratorium.
+- Flaga konkursu `quantum_notebooks` (domyślnie wyłączona), nowa zależność `numpy>=2.4,<2.5`,
+  katalogi tłumaczeń aplikacji (`apps/*/locale`) kompilowane w obrazie i testowane. Wdrożenie:
+  `docs/OPERACJE.md` § 37.
 ## [Unreleased] – Webinary w LiveKit (WEB-01)
 
 - **Webinary** (`apps.webinars`, flaga konkursu `webinars`, domyślnie wyłączona): koordynator planuje

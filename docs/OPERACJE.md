@@ -4148,3 +4148,88 @@ Awaryjnie bez wdrożenia: zdjąć flagę `webinars` (adresy 404) albo wyczyści�
 przerywa restart serwera LiveKit – poza godzinami webinarów). Zatrzymanie wariantu (b):
 `docker compose -f docker-compose.yml -f deploy/livekit/docker-compose.livekit.yml --profile livekit stop livekit livekit-egress livekit-redis`
 i `LIVEKIT_PROXY=0` + `scripts/proxy_config.sh update`.
+
+## 37. Notatniki kwantowe: JupyterLite i piaskownica (QC-01, `docs/tasks/QC-01.md`)
+
+Zadania z notatnikiem Jupytera w przeglądarce i sprawdzaniem automatycznym. Trzy części, każda
+z innym krokiem operatora:
+
+| Część | Gdzie | Krok operatora |
+|---|---|---|
+| JupyterLite (statyczne, ~40 MB na dysku, do ~19 MB po kompresji przy pierwszym otwarciu) | etap `notebook-lab` w `backend/Dockerfile` → `/app/notebook_lab_dist` → `entrypoint.sh` kopiuje do `staticfiles/notebook-lab/<BUILD_ID>/` | nic – buduje się z obrazem (sieć **w czasie budowy**: PyPI, GitHub, cdn.jsdelivr.net; w czasie działania żadnej) |
+| CSP ścieżki laboratorium | fragment `(notebook_lab)` w `deploy/Caddyfile`, `import notebook_lab` w każdym bloku aplikacji | nic – krok 4/8 wdrożenia (§ 23) przeładowuje proxy |
+| Piaskownica `notebook-runner` | `docker-compose.yml`, profil `notebooks`, wolumen `notebook_spool` | **dopisać** `COMPOSE_PROFILES=notebooks` w `.env` (obok `djcms`: `COMPOSE_PROFILES=djcms,notebooks`) |
+
+### 37.1. Włączenie
+
+1. `.env` serwera: `COMPOSE_PROFILES=notebooks` (z przecinkiem, jeśli jest już `djcms`), opcjonalnie
+   `NOTEBOOK_RUNNER_SLOTS` (domyślnie 2 zadania naraz) i `NOTEBOOK_RUNNER_MEMORY_MB` (768).
+2. Wdrożenie (`scripts/deploy.sh`) – zbuduje obraz z JupyterLite i podniesie `notebook-runner`.
+   Ręcznie: `docker compose up -d worker notebook-runner` (worker dostaje wolumen `notebook_spool`).
+3. Flaga konkursu `quantum_notebooks` w `/admin/` (Konkursy → przełączniki), jak `ai_grading`.
+4. Sprawdzenie (wyłącznie odczyt):
+
+```sh
+docker compose logs --tail 5 notebook-runner        # "notebook runner: spool /spool, 2 slot(s), uid switching True"
+docker compose exec web cat staticfiles/notebook-lab/current.json   # build_id, rozmiary, licencje
+curl -sI https://<domena>/static/notebook-lab/<build_id>/lab/index.html | grep -i content-security
+docker compose exec web python manage.py check      # notebooks.E001 = NOTEBOOK_RUNNER_INLINE w produkcji
+```
+
+Bez profilu `notebooks` wszystko poza sprawdzaniem działa (notatnik w przeglądarce, oddawanie
+`.ipynb`), a przebiegi oceny kończą się po `limit + 60 s` błędem „środowisko sprawdzania nie
+odpowiedziało na czas” – nic nie wisi.
+
+### 37.2. Izolacja piaskownicy (co gwarantuje kontener)
+
+`network_mode: none`, `read_only`, tmpfs `/tmp` z `noexec,nosuid,nodev` (512 MB), **bez** `env_file`
+(żadnego sekretu w środowisku), `cap_drop: ALL` + `SETUID, SETGID, KILL`, `no-new-privileges`,
+`pids_limit: 128`, `mem_limit: 1536m`, `cpus: 2`. Nadzorca (root bez innych uprawnień) uruchamia
+każde zadanie jako UID `60000 + slot` bez grup, z limitami `setrlimit`; czas ścienny i `killpg`
+pilnuje nadzorca. Wolumen `notebook_spool` (`2770`, grupa workera) widzi worker i nadzorca –
+dziecko nie. Hak audytowy w dziecku (sieć, podprocesy, `fork`, `ctypes`, wątki, pliki) to druga,
+słabsza warstwa – szczegóły w `apps/notebooks/runner/__init__.py`.
+
+Odbiór z 4.10.2026 (lokalnie, obraz z tego wydania, ustawienia kontenera jak w compose): dziecko
+UID 60001 bez grup; `socket`, `os.fork`, `ctypes.CDLL`, zapis do `/app`, listowanie `/spool` –
+odmowa; pętla nieskończona – zabita po limicie. Bez haka (proces jako 60000 w sieci `none`):
+`/spool` – `Permission denied`, `1.1.1.1` – `Network is unreachable`, `redis`/`db` – brak nazwy.
+
+### 37.3. Rozwiązywanie problemów
+
+- **„Środowisko sprawdzania jest niedostępne”** – worker nie widzi `/spool` (brak wolumenu po
+  ręcznym `up` ze starszą konfiguracją): `docker compose up -d worker`.
+- **„…nie odpowiedziało na czas”** – `notebook-runner` nie działa albo nie nadąża:
+  `docker compose ps notebook-runner`, `docker compose logs notebook-runner`; więcej slotów
+  `NOTEBOOK_RUNNER_SLOTS` (każdy slot to do `NOTEBOOK_RUNNER_MEMORY_MB` pamięci).
+- **Przeliczenie po awarii** – koordynator: „Przelicz wszystko” w wynikach zadania; zgubione
+  przebiegi `RUNNING` beat domyka po 15 minutach (`notebooks-pump`).
+- **Laboratorium „nie jest zainstalowane”** – obraz bez etapu `notebook-lab` albo `web`
+  wystartował z `RUN_COLLECTSTATIC=0`: `docker compose restart web`.
+
+### 37.4. Aktualizacja JupyterLite / Pyodide
+
+Wersje są przypięte w `backend/apps/notebooks/labbuild/` – `requirements.in` → `requirements.txt`
+(`uv pip compile --generate-hashes`), `pyodide.json` (wersja, adres i SHA-256 rdzenia; pakiety
+z `pyodide-lock.json`). Wersje muszą pasować do tabeli zgodności `jupyterlite-pyodide-kernel`
+(0.8.x ↔ Pyodide 314.x), a NumPy w `backend/pyproject.toml` – do linii NumPy tej wersji Pyodide
+(testy widoczne w przeglądarce i ukryte na serwerze liczy ten sam kod). Nowa budowa = nowy
+`BUILD_ID` w adresie, więc pamięć podręczna przeglądarek (`immutable`) nie przeszkadza; praca
+uczniów w IndexedDB zostaje (stała nazwa magazynu).
+
+### 37.5. Dev i testy
+
+- Laboratorium lokalnie: `docker build --target notebook-lab -t notebook-lab backend`, potem
+  `docker create --name nl notebook-lab`, `docker cp nl:/opt/notebook-lab backend/notebook_lab_dist`,
+  `docker rm nl`. Przy `DJANGO_DEBUG=1` WhiteNoise podaje katalog spod `/static/notebook-lab/` z tą
+  samą polityką CSP (`apps/web/middleware.py`).
+- Sprawdzanie bez kontenera piaskownicy: `NOTEBOOK_RUNNER_INLINE=1` (wyłącznie z `DJANGO_DEBUG=1`;
+  przy `DEBUG=0` start zatrzymuje `notebooks.E001`). Testy używają tego trybu.
+
+### 37.6. Opcjonalnie: osobna domena laboratorium
+
+Laboratorium działa na domenie serwisu, więc kod z notatnika ma w przeglądarce sesję ucznia
+(„self-XSS” – szkodzi wyłącznie sobie; CSP nie wypuszcza danych poza serwis). Pełną izolację dałby
+osobny origin (`lab.<domena>`) z tym samym katalogiem statycznym i fragmentem `(notebook_lab)` –
+wymaga DNS-u, certyfikatu, CORS-u dla notatnika startowego i zmiany `apps/notebooks/lab.py`; nie jest
+wdrożone (`docs/tasks/QC-01.md` § 3.5).

@@ -155,6 +155,35 @@ jest kanałem zabezpieczonym; wynik jest w serwisie.
 
 ---
 
+### 3a. Notatnik w przeglądarce (zadania z obliczeń kwantowych)
+
+Przy niektórych zadaniach karta ma blok **„Notatnik w przeglądarce”** i przycisk **„Otwórz notatnik”**.
+Otwiera się notatnik Jupytera (JupyterLite) – Python działa w Twojej przeglądarce, **niczego nie
+instalujesz**; wystarczy aktualny Chrome, Edge, Firefox albo Safari.
+
+1. **Otwórz notatnik.** Pierwsze otwarcie pobiera ok. 15–20 MB (napis przy przycisku podaje
+   dokładniej), kolejne korzystają z pamięci przeglądarki. Po wczytaniu notatnik działa bez sieci.
+2. **Pisz i uruchamiaj kod** – Shift+Enter uruchamia komórkę. Pisz jak w Qiskicie:
+   `from qiskit import QuantumCircuit`, `from qiskit.quantum_info import Statevector`. To zgodny
+   **podzbiór** Qiskita (symulator do 20 kubitów, bez sprzętu IBM, szumu i wykresów matplotlib –
+   wykresy są tekstowe); ten sam kod uruchomisz też w prawdziwym Qiskicie na swoim komputerze.
+3. **Testy przykładowe** – ostatnia komórka sprawdza rozwiązanie na przykładach i wypisuje
+   ✔/✘ z punktami. To tylko podpowiedź: ocenę liczą **testy ukryte** na serwerze (i ostatecznie komisja).
+4. **Oddaj pracę:** w JupyterLab *File → Download*, potem wyślij pobrany plik `.ipynb` zwykłym
+   formularzem w karcie zadania (§ 3). Liczy się ostatnia wysłana wersja.
+
+Dobrze wiedzieć:
+
+- praca zapisuje się **w tej przeglądarce**, nie na serwerze – na wspólnym komputerze (pracownia
+  szkolna) pobierz plik przed wyjściem; po wyczyszczeniu danych przeglądarki notatnik wraca do
+  startowego,
+- przy ponownym otwarciu JupyterLab pyta, czy nadpisać plik – **„Cancel”** zostawia Twoją pracę,
+  „Overwrite” przywraca notatnik startowy,
+- serwer wykonuje komórki po kolei, a błąd w jednej nie przerywa kolejnych; magie (`%pip`, `!ls`) są
+  pomijane, sieci i plików spoza notatnika nie ma,
+- wynik testów ukrytych widzisz w karcie zadania tylko wtedy, gdy organizator tak ustawił (zwykle
+  po zamknięciu etapu albo wcale – punkty i tak wystawia komisja).
+
 ## 4. Rozmowa kwalifikacyjna (gdy etap ma taką formę)
 
 Etap w formie rozmowy nie ma zadań ani wysyłki plików. W karcie etapu w `/me/` wybierasz termin
