@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% load i18n web_extras %}
+{% comment %}
+  Przyjęcie zaproszenia opiekuna drużyny narodowej (DEL-01). Cztery stany (``state``):
+
+  - ``signup`` – adres bez konta: imię, nazwisko, hasło i zgody,
+  - ``login`` – adres ma już konto: najpierw zalogowanie, potem powrót tutaj,
+  - ``confirm`` – zalogowany adresat: same zgody,
+  - ``mismatch`` – zalogowany ktoś inny: odmowa i wylogowanie.
+
+  Adres e-mail jest **pokazany**, a nie edytowalny – pochodzi z zaproszenia. Pole do zmiany
+  pozwalałoby przenieść cudze zaproszenie na własną skrzynkę.
+{% endcomment %}
+{% block title %}{% translate "Zaproszenie dla opiekuna drużyny" %}{% endblock %}
+{% block timeline_strip %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow">{% translate "Zaproszenie" %}</span>
+  <h1>{% blocktranslate trimmed with country=delegation.country.name %}Opiekun drużyny: {{ country }}{% endblocktranslate %}</h1>
+  <p class="lead">{% blocktranslate trimmed with competition_name=competition.name email=invitation.email %}
+    Organizator konkursu {{ competition_name }} zaprasza Cię do roli opiekuna drużyny narodowej.
+    Zaproszenie wysłano na adres {{ email }}.
+  {% endblocktranslate %}</p>
+  <p class="hint">{% translate "Opiekun drużyny zgłasza uczniów swojego kraju i widzi wyłącznie ich – bez prac i ocen. Jeśli z Twojego kraju jest kilku opiekunów, prowadzicie jedną wspólną drużynę." %}</p>
+</div>
+
+<section class="section">
+  <div class="card">
+    {% if state == "login" %}
+      <p>{% translate "Ten adres ma już konto w serwisie. Zaloguj się nim – po zalogowaniu wrócisz na tę stronę i przyjmiesz zaproszenie." %}</p>
+      <div class="actions">
+        <a class="btn btn--primary" href="{{ accept_login_url }}">{% translate "Zaloguj się" %}</a>
+        <a class="btn btn--secondary" href="{% url 'web:password-reset' %}">{% translate "Nie pamiętasz hasła?" %}</a>
+      </div>
+    {% elif state == "mismatch" %}
+      <p>{% blocktranslate trimmed with email=invitation.email %}
+        Jesteś zalogowany na inne konto. To zaproszenie można przyjąć wyłącznie kontem {{ email }} – wyloguj się i otwórz link jeszcze raz.
+      {% endblocktranslate %}</p>
+      <form method="post" action="{% url 'web:delegation-accept-logout' token %}" class="actions">
+        {% csrf_token %}
+        <button type="submit" class="btn btn--primary">{% translate "Wyloguj" %}</button>
+      </form>
+    {% else %}
+      <form method="post" class="form" novalidate>
+        {% csrf_token %}
+        {{ form.non_field_errors }}
+        {% if state == "signup" %}
+          <p class="form__required-note">{% translate "Pola oznaczone * są obowiązkowe." %}</p>
+          <p>{% translate "Adres e-mail (login):" %} <strong>{{ invitation.email }}</strong></p>
+        {% endif %}
+        {% for field in form %}
+          {% if field.name not in form.consent_field_names %}
+            <p>
+              {{ field.errors }}
+              {{ field.label_tag }}
+              {{ field }}
+              {% if field.help_text %}<span class="helptext" id="{{ field.auto_id }}_helptext">{{ field.help_text }}</span>{% endif %}
+            </p>
+          {% endif %}
+        {% endfor %}
+        <fieldset class="consents">
+          <legend>{% translate "Oświadczenia" %}</legend>
+          {% for field in form %}
+            {% if field.name in form.consent_field_names %}
+              <p>
+                {{ field.errors }}
+                {{ field.label_tag }}
+                {{ field }}
+              </p>
+            {% endif %}
+          {% endfor %}
+        </fieldset>
+        <div class="actions">
+          <button type="submit" class="btn btn--primary">{% if state == "signup" %}{% translate "Załóż konto i przyjmij zaproszenie" %}{% else %}{% translate "Przyjmuję zaproszenie" %}{% endif %}</button>
+        </div>
+      </form>
+    {% endif %}
+    <p class="hint">{% blocktranslate trimmed with until=valid_until|local_datetime %}
+      Link jest ważny do {{ until }}. Jeśli nie spodziewasz się tego zaproszenia – zamknij tę stronę.
+    {% endblocktranslate %}</p>
+  </div>
+</section>
+{% endblock %}

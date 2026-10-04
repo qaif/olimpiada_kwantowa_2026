@@ -71,6 +71,8 @@ def default_panel_url(request) -> str:
         # Opiekun szkolny na końcu listy: jego panel jest jedynym, jaki ma, ale konto opiekuna
         # nie wyklucza żadnej innej roli, a tamte prowadzą do pracy przy zawodach.
         ("is_supervisor", "web:supervisor"),
+        # Opiekun drużyny narodowej (DEL-01) – po opiekunie szkolnym z tego samego powodu.
+        ("is_team_leader", "web:delegation"),
     ):
         if context.get(flag):
             return str(reverse_lazy(name))

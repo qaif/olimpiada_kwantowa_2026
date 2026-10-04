@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% comment %}
+  Potwierdzenie wypisania ucznia z drużyny (DEL-01). Osobna strona, a nie okienko ze skryptem:
+  czynność usuwa konto ucznia, więc ma się dać ją przeczytać i odwołać bez JavaScriptu.
+{% endcomment %}
+{% block title %}{% translate "Wypisz ucznia" %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow"><a href="{% url 'web:delegation' %}">{% blocktranslate trimmed with country=delegation.country.name %}Drużyna: {{ country }}{% endblocktranslate %}</a></span>
+  <h1>{% translate "Wypisz ucznia" %}</h1>
+  <p class="lead">{% blocktranslate trimmed with name=participant.user.get_full_name email=participant.user.email %}
+    Uczeń {{ name }} ({{ email }}) zostanie wypisany z drużyny, a jego konto – usunięte.
+  {% endblocktranslate %}</p>
+  {% if active %}
+    <p class="notice">{% translate "Ten uczeń uruchomił już konto. Wypisz go tylko wtedy, gdy na pewno nie wystartuje." %}</p>
+  {% endif %}
+  <form method="post" class="actions">
+    {% csrf_token %}
+    <button type="submit" class="btn btn--primary">{% translate "Wypisz ucznia" %}</button>
+    <a class="btn btn--ghost" href="{% url 'web:delegation' %}">{% translate "Anuluj" %}</a>
+  </form>
+</div>
+{% endblock %}

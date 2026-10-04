@@ -95,10 +95,13 @@ class StudentInviteView(ThrottledFormMixin, View):
             participant = read_invite_token(token)
         except DomainError as exc:
             return self._invalid(request, exc)
-        form = InviteAcceptForm(request.POST)
+        form = self._form(participant, request.POST)
         if not form.is_valid():
             return self._render(request, participant, token, form, status=400)
         data = dict(form.cleaned_data)
+        if participant.delegation_id is not None:
+            # Kraj ucznia delegacji jest krajem delegacji – serwis i tak go nie zmieni (DEL-01).
+            data["district"] = participant.district
         given = {name: bool(data.pop(name, False)) for name in CONSENT_FIELD_NAMES}
         try:
             accept_invitation(participant, **data, given=given, request=request)
@@ -113,7 +116,20 @@ class StudentInviteView(ThrottledFormMixin, View):
 
     def _initial_form(self, participant) -> InviteAcceptForm:
         """Wartości początkowe: to, co nauczyciel zdążył podać, i nic ponadto."""
-        return InviteAcceptForm(initial={"phone": participant.phone, "district": participant.district or ""})
+        return self._form(
+            participant, initial={"phone": participant.phone, "district": participant.district or ""}
+        )
+
+    def _form(self, participant, data=None, **kwargs) -> InviteAcceptForm:
+        """Formularz przyjęcia – bez pola kraju dla ucznia zgłoszonego przez delegację (DEL-01).
+
+        Uczeń delegacji startuje z kraju swojej drużyny; lista wyboru dawałaby mu złudzenie, że
+        może to zmienić, a serwis i tak zapisze kraj delegacji.
+        """
+        form = InviteAcceptForm(data, **kwargs)
+        if participant.delegation_id is not None:
+            form.fields.pop("district", None)
+        return form
 
     def _render(self, request, participant, token: str, form, *, status: int = 200):
         context = {
@@ -123,6 +139,7 @@ class StudentInviteView(ThrottledFormMixin, View):
             "email": participant.user.email,
             "valid_days": INVITE_DAYS,
             "consent_field_names": CONSENT_FIELD_NAMES,
+            "delegation": participant.delegation if participant.delegation_id else None,
         }
         return TemplateResponse(request, FORM_TEMPLATE, context, status=status)
 

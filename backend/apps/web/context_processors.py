@@ -87,6 +87,7 @@ def roles(request) -> dict:
             "is_coordinator": False,
             "is_appeals_committee": False,
             "is_supervisor": False,
+            "is_team_leader": False,
             "can_use_forum": False,
             "chat_visible": False,
             "chat_unread": 0,
@@ -108,6 +109,12 @@ def roles(request) -> dict:
         # Opiekun szkolny – ta sama definicja, co w mixinie widoku i w przekierowaniu po
         # zalogowaniu (``apps.accounts.supervisors.supervisor_profile``).
         "is_supervisor": supervisor_profile(user, competition) is not None,
+        # Opiekun drużyny narodowej (DEL-01). Sama rola – bez zapytania o wiersz delegacji: pozycja
+        # w pasku konta jest nawigacją, a panel i tak sprawdza delegację (404 bez niej). Rola przychodzi
+        # z ``names``, które już mamy, więc pasek konta Olimpiady Kwantowej nie płaci nic.
+        "is_team_leader": CompetitionRole.TEAM_LEADER in names
+        and competition is not None
+        and competition.uses_delegations,
         # Forum uczestników: pozycja w pasku konta jest **wyłącznie** wtedy, gdy adres odpowie.
         # Dwa warunki naraz, bo forum ma dwie bramki i obie muszą być spełnione – przełącznik
         # konkursu (bez niego ``/forum/`` daje 404) i rola czytelnika. Liczone z ``names`` i

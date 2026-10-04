@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% comment %}
+  Zaproszenie opiekuna drużyny złe, wygasłe, cofnięte albo już przyjęte (DEL-01). Jeden komunikat
+  na wszystkie powody – rozróżnienie mówiłoby obcemu, które zaproszenie istnieje i co się z nim stało.
+{% endcomment %}
+{% block title %}{% translate "Link jest nieprawidłowy" %}{% endblock %}
+{% block timeline_strip %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow">{% translate "Zaproszenie" %}</span>
+  <h1>{% translate "Ten link nie działa" %}</h1>
+  <p class="lead">{{ detail }}</p>
+  <p class="hint">{% translate "Jeśli zaproszenie zostało już przyjęte, po prostu się zaloguj. Jeśli link wygasł – poproś organizatora o nowe zaproszenie." %}</p>
+  <div class="actions">
+    <a class="btn btn--primary" href="{% url 'web:login' %}">{% translate "Zaloguj" %}</a>
+  </div>
+</div>
+{% endblock %}
