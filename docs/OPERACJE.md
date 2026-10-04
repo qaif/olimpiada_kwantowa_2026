@@ -1689,6 +1689,32 @@ drogą z § 4.2) i odtwórz `web`, `worker` oraz `beat`. Migracji ani danych to 
 niczego nie zapisuje w bazie, a dokumenty powstają od nowa przy każdym pobraniu
 (`apps/results/certificates.py`), więc wycofanie jest natychmiastowe i bezstratne.
 
+### 9.7. Reset hasła: host, język, nadawca, konta bez hasła (AUTH-01a, `docs/tasks/AUTH-01a.md`)
+
+Jak działa: link w liście prowadzi pod **host, z którego przyszło żądanie** (`iqo-official.org`,
+`olimpiadakwantowa.pl`, `/<prefiks>/` konkursu pod prefiksem), list jest w języku interfejsu tego
+konkursu i – od AUTH-01a – wychodzi od **nadawcy konkursu** (`Competition.from_email`, pusty =
+`DEFAULT_FROM_EMAIL`), tak jak aktywacja i zaproszenia. List idzie zadaniem na kolejce `mail`.
+Konto z Google/Facebooka bez hasła dostaje link i ustawia nim hasło; konto nieuruchomione
+(zaproszony uczeń, rejestracja bez aktywacji) dostaje zamiast resetu zaproszenie albo link
+aktywacyjny; konto zablokowane i zanonimizowane – nic. Strona odpowiedzi jest zawsze ta sama.
+
+Do sprawdzenia na produkcji (jednorazowo i po każdej zmianie nadawcy konkursu):
+
+1. **Nadawca każdego konkursu jest dopuszczony przez relay.** Usługa `mail` (wariant A) przyjmuje
+   kopertę wyłącznie z domeny `ALLOWED_SENDER_DOMAINS` = `SITE_DOMAIN`. Jeśli `from_email` konkursu
+   `iqo` jest w domenie `iqo-official.org`, relay **odrzuci** reset (i już dziś odrzuca aktywację
+   i zaproszenia IQO) – objaw tylko w logu workera. Sprawdzenie:
+   `docker compose exec web python manage.py shell -c "from apps.tenancy.models import Competition as C; print(list(C.objects.values_list('slug','from_email')))"`
+   i `docker compose logs mail | grep -i reject`. Wyjście: pusty `from_email` (nadawca instalacji)
+   albo dopuszczenie drugiej domeny w relayu razem z SPF/DKIM/DMARC tej domeny.
+2. **Odwrotny DNS i SPF/DKIM** domeny nadawcy – README § 4.2 (bez zmian).
+3. **`https` w linku**: `SECURE_PROXY_SSL_HEADER` (production.py) + `X-Forwarded-Proto` z Caddy –
+   każda domena z `EXTRA_DOMAINS` ma blok proxy z tym nagłówkiem (`scripts/render_caddyfile.sh`).
+4. **Próba na żywo**: „Nie pamiętasz hasła?” na `https://iqo-official.org/password-reset/` i na
+   `https://olimpiadakwantowa.pl/password-reset/` na skrzynkę testową – list po angielsku/polsku,
+   link pod ten sam host, nadawca konkursu, worker loguje „Wysłano 1 wiadomości”.
+
 ## 10. CI: podział testów na shardy (v0.27.3)
 
 Zadanie `pytest` w `.github/workflows/ci.yml` idzie w pięciu równoległych shardach

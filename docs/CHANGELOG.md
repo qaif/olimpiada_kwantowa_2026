@@ -28,6 +28,21 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
   logo i krojów. Wgranie: `docs/OPERACJE.md` § 30.7.
 - Migracja `themes.0003` (dwie nowe tabele).
 
+## [Unreleased] – Reset hasła: nadawca konkursu, konta bez hasła i konta nieuruchomione (AUTH-01a)
+
+- **Nadawca listu resetu** to nadawca konkursu żądania (`Competition.from_email`), jak przy aktywacji
+  i zaproszeniach – do tej pory zawsze `DEFAULT_FROM_EMAIL` (IQO dostawało list od nadawcy OK).
+- **Konto bez hasła platformy** (Google/Facebook, hasło wyczyszczone przez allauth) dostaje link
+  resetu i ustawia nim hasło – Django po cichu pomijało takie konta, wbrew obietnicy z ekranów.
+- **Konto nieuruchomione** (zaproszony uczeń z importu lub delegacji, rejestracja bez aktywacji)
+  dostaje z „Nie pamiętasz hasła?” zaproszenie albo link aktywacyjny zamiast ciszy; odpowiedź strony
+  bez zmian (brak enumeracji). Reset nie aktywuje konta.
+- **Zaproszony uczeń nie uruchomi konta linkiem aktywacyjnym** (z pominięciem zgód): „Wyślij link
+  ponownie” wysyła mu zaproszenie, a `activate_with_token` odmawia takiego konta.
+- Testy całej drogi pod domeną IQO, domeną OK i prefiksem ścieżki (host linku, język, nadawca, token
+  wygasły, pamięć stron, CSRF, motyw IQO); `docs/tasks/AUTH-01a.md`, `docs/OPERACJE.md` § 9.7
+  (kontrola nadawcy w relayu na produkcji).
+
 ## [Unreleased] – Listy zapraszające do wizy: wnioski, weryfikacja, unieważnienie (VISA-01)
 
 - **Wnioski opiekuna drużyny** o list imienny (`/delegation/logistics/letters/`) dla osób z kompletnym
