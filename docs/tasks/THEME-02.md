@@ -90,7 +90,8 @@ opublikowana albo nie leży w drzewie witryny konkursu – pomijany.
 ### 2.2. Kontrast
 
 Dla każdej palety po scaleniu z nadpisaniami (i pochodnymi) sprawdzane są pary `CONTRAST_PAIRS`
-z THEME-01 oraz pary wynikające z nazw tokenów motywu: `X-contrast`/`X`, `X-text`/`X`, `on-X`/`X`
+z THEME-01, pary zadeklarowane w `tokens.json` (grupa `contrast`) oraz pary wynikające z nazw
+tokenów motywu: `X-contrast`/`X`, `X-text`/`X`, `X-accent`/`X`, `on-X`/`X`, `on-X-…`/`X`, `A-on-X`/`X`
 i `X-ink`/`X` (tylko dla `X-ink` spoza rejestru `classic`), próg 4.5:1; `focus` i `ring` na `bg`
 – próg 3:1 (element nietekstowy, WCAG 1.4.11). Para poniżej progu, w której **którykolwiek kolor
 nadpisał koordynator**, **blokuje zapis**; para słaba już w motywie (bez udziału nadpisań) – ostrzeżenie.
@@ -124,7 +125,7 @@ wcześniejszej wersji przywraca jej kolory. „Przywróć domyślne” czyści k
   wynik kontroli kontrastu, „Podgląd” (ten sam mechanizm `?theme_preview=` co galeria), „Zapisz”,
   „Przywróć domyślne”.
 - Wszystkie trzy: koordynator konkursu z domeny żądania, za flagą `themes`, bez motywu (THEME_FREE_VIEWS),
-  POST-y z limitem `theme_settings` (60/h, per konto), każdy zapis z wpisem audytu
+  POST-y z limitem `theme_settings` (120/h, per konto), każdy zapis z wpisem audytu
   (`theme.menu_saved`, `theme.customized`, `theme.customization_reset`, `theme.menu_reset`), po zapisie
   unieważnienie pełnostronicowego cache gościa konkursu (`invalidate_competition`).
 
@@ -174,10 +175,32 @@ paczka IQO Quantum 1.1.0 (fikstura `backend/apps/themes/tests/fixtures/iqo-quant
 5. **Menu bez podglądu** – zapis menu obowiązuje od razu (podgląd dotyczy wyłącznie motywu i kolorów).
 6. **„Klasyczny” bez dostosowania kolorów** – kolory marki Olimpiady Kwantowej żyją w „Ustawieniach
    konkursu”; ekran dostosowania wyjaśnia to i odsyła do galerii.
-7. **Akcent marki ma pierwszeństwo** przed kolorem `accent` z dostosowania (arkusz akcentu stoi za
-   `theme.css`, `custom.css` – przed nim).
+7. **Kolejność arkuszy:** `app.css` → `tokens.css` → `theme.css` → `custom.css` → arkusz akcentu marki.
+   `custom.css` stoi **za** `theme.css`, więc nadpisanie koordynatora wygrywa także z motywem, który
+   sam ustawia `--t-*` (przy wgraniu taki motyw dostaje ostrzeżenie). Akcent marki ma pierwszeństwo
+   przed kolorem `accent` z dostosowania; jego arkusz liczy pochodne od palety **po** dostosowaniu,
+   a adres niesie skrót opcji (`?v=<wersja>-<kolor>-<skrót>`).
 8. Napisy panelu – katalog `apps/themes/locale/en` (panel jest polski, IQO angielski); jedyny nowy napis
    stron publicznych („Menu” w nagłówku IQO) – w 10 katalogach `apps/themes/locale/*`.
+
+### 7.1. Poprawki po przeglądzie krytyka (4.10.2026)
+
+- **H1** – rewizja menu to losowy znacznik (`secrets.token_hex(8)`) w `SiteMenu.revision`
+  (`CharField`) i w `theme_options["menu"]`; po „przywróć domyślne” i ponownym zapisie żaden proces
+  nie poda menu sprzed resetu z pamięci.
+- **M1** – formularz menu niesie listę `row_keys`; wiersze spoza formularza (strona dodana w /cms/
+  po otwarciu ekranu, zapis w drugiej karcie) zostają bez zmian – nie znikają i nie tracą etykiet.
+- **M2** – `tokens.json` może deklarować pary kontrastu (grupa `contrast`: `[pierwszy plan, tło,
+  próg?]`, element = token albo `#hex`); reguły nazw rozszerzone o `A-on-X` i `on-X-…`. IQO 1.1.0
+  bierze napis na wypełnieniu marki z tokenu `on-primary-fill` (nie stała biel) i deklaruje swoje pary.
+- **M3** – aktywacja sprawdza kontrast kolorów dostosowania; nieprzechodzące są odrzucane (audyt
+  `dropped_colors`, komunikat w galerii / na wyjściu komendy). `theme_install --activate` przenosi
+  wyłącznie układy, akcent marki, schemat, logo i kroje (bez kolorów i promieni).
+- **L1** – zapisy menu/dostosowania/aktywacji blokują wiersz konkursu (`select_for_update`) i scalają
+  świeże `theme_options`. **L2** – wersja generatora w podpisie `custom.css`. **L3** – ukryta grupa
+  ukrywa swoje pozycje. **L4** – zapisana strona niedostępna zostaje w formularzu jako „(niedostępna
+  strona)” i nie blokuje zapisu; błąd pozycji podaje jej nazwę. **L6** – arkusz akcentu marki
+  liczony od palety efektywnej.
 
 Znane luki: brak przeciągania pozycji menu (kolejność liczbami i przyciskami – bez JavaScriptu); brak
 podglądu kontrastu na żywo przed wysłaniem formularza (kontrola po stronie serwera); djcms bez motywów.

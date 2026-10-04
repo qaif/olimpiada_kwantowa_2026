@@ -206,7 +206,9 @@
   --border: var(--iqo-border);
 
   --brand: var(--iqo-primary-fill);
-  --brand-ink: #fff;
+  /* Napis na wypełnieniu marki – z tokenu (nadpisywalny i sprawdzany przez platformę parą
+     on-primary-fill / primary-fill), a nie stała biel. */
+  --brand-ink: var(--t-on-primary-fill, #fff);
   --brand-soft: var(--iqo-surface-2);
 
   --accent: var(--iqo-accent);

@@ -137,8 +137,8 @@ def test_good_colours_are_saved_audited_and_emitted(client_for, themed, example)
     client = client_for(themed)
     html = client.get("/").content.decode()
     href = CUSTOM_HREF.search(html).group(1).replace("&amp;", "&")
-    # Kolejność: tokens.css → custom.css → theme.css (motyw czyta wartości po nadpisaniu).
-    assert html.index("tokens.css") < html.index("/_theme/custom.css") < html.index("theme.css")
+    # Kolejność: tokens.css → theme.css → custom.css (nadpisanie wygrywa także z motywem).
+    assert html.index("tokens.css") < html.index("theme.css") < html.index("/_theme/custom.css")
     response = client.get(href)
     assert response.status_code == 200 and response["Content-Type"].startswith("text/css")
     assert "immutable" in response["Cache-Control"]

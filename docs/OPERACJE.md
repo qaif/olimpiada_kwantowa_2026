@@ -3978,6 +3978,7 @@ którą zmienił koordynator, **blokuje zapis**.
   w `Competition.theme_options` (`scheme`, `logo`, `font`, `colors`). Powrót do wcześniejszej wersji
   w galerii przywraca jej kolory.
 - **Arkusz:** `/_theme/custom.css?s=<podpis>` z własnej domeny (CSP `'self'` – **polityka bez zmian**),
+  dołączany **po** `theme.css` (kolejność: `tokens.css` → `theme.css` → `custom.css` → akcent marki),
   `Cache-Control: immutable`; podpis (`SECRET_KEY`, sól `apps.themes.custom`) obejmuje konkurs, wersję
   i opcje, więc adres nie generuje arkuszy z dowolnymi kolorami ani dla cudzego konkursu.
   **Zmiana `SECRET_KEY`** unieważnia te adresy: strony w cache gościa (≤ `PAGE_CACHE_SECONDS`)
@@ -4013,8 +4014,11 @@ cd /opt/olimpiada
 docker compose exec -T web python manage.py theme_install - --activate iqo < /tmp/iqo-quantum-1.1.0.zip
 ```
 
-`--activate` przenosi bieżące opcje konkursu (warianty istniejące także w 1.1.0, akcent marki, kolory
-tokenów o tych samych nazwach, menu). **Uwaga:** `iqo` ma dziś `footer=compact` z 1.0.0, a ten wariant
+`--activate` przenosi z wersji dotychczasowej **wyłącznie** warianty układów (te, które 1.1.0 też ma),
+akcent marki, schemat, logo i kroje (o ile 1.1.0 je deklaruje) oraz menu – **bez** kolorów i promieni
+dostosowania (tokeny nowej wersji mogą znaczyć co innego). Kolory zapisane wcześniej dla samej 1.1.0
+wracają, o ile przechodzą kontrolę kontrastu; odrzucone komenda wypisuje jako „kolory dostosowania
+pominięte (kontrast)”. **Uwaga:** `iqo` ma dziś `footer=compact` z 1.0.0, a ten wariant
 istnieje też w 1.1.0 – zostanie, choć nowym domyślnym jest `columns`; nagłówek `minimal` w 1.1.0 nie
 istnieje, więc wraca do domyślnego `split`. Po aktywacji: galeria → karta 1.1.0 → stopka `columns` →
 „Zapisz opcje” (albo „Kolory i opcje motywu”). Bez `--activate` wersja czeka w galerii („Podgląd”,

@@ -133,9 +133,10 @@ def test_reorder_hide_rename_link_and_group(client_for, competition, english_ena
     ]
     _save(competition, items, client_for)
     competition.refresh_from_db()
-    assert competition.theme_options["menu"] == 1
+    token = competition.theme_options["menu"]
+    assert isinstance(token, str) and len(token) == 16
     entry = AuditLog.objects.get(action=services.AUDIT_MENU_SAVED)
-    assert entry.competition_id == competition.pk and entry.diff["revision"] == 1
+    assert entry.competition_id == competition.pk and entry.diff["revision"] == token
 
     client = client_for(competition)
     html = client.get("/").content.decode()
@@ -185,7 +186,7 @@ def test_menu_marker_survives_theme_activation(client_for, competition):
     competition.refresh_from_db()
     services.activate(competition, None)
     competition.refresh_from_db()
-    assert competition.theme_options == {"menu": 1}
+    assert competition.theme_options == {"menu": SiteMenu.objects.get(competition=competition).revision}
 
 
 def test_revision_change_reaches_other_processes(client_for, competition):
@@ -195,9 +196,9 @@ def test_revision_change_reaches_other_processes(client_for, competition):
     assert "Start" in _nav(client_for(competition).get("/").content.decode())
     row = SiteMenu.objects.get(competition=competition)
     row.items = [{**row.items[0], "labels": {"pl": "Początek"}}]
-    row.revision = 2
+    row.revision = "feedfacecafebeef"
     row.save()
-    competition.theme_options = {**competition.theme_options, "menu": 2}
+    competition.theme_options = {**competition.theme_options, "menu": "feedfacecafebeef"}
     competition.save(update_fields=["theme_options"])
     assert "Początek" in _nav(client_for(competition).get("/").content.decode())
 

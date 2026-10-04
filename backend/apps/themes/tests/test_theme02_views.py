@@ -124,7 +124,7 @@ def test_add_link_hide_and_reorder_via_form(coordinator_client, client_for, comp
     # Formularz tabeli: link na samą górę, „home” ukryty.
     editor = coordinator_client.get(MENU_URL)
     rows = editor.context["rows"]
-    data = {"action": "save"}
+    data = {"action": "save", "row_keys": [entry["key"] for entry in rows]}
     for position, entry in enumerate(rows, start=1):
         data[f"order_{entry['key']}"] = position + 1
         if entry["key"] != "home":
@@ -141,7 +141,7 @@ def test_add_link_hide_and_reorder_via_form(coordinator_client, client_for, comp
 
 def test_move_buttons(coordinator_client, client_for, competition):
     rows = coordinator_client.get(MENU_URL).context["rows"]
-    data = {"action": "save", "move": f"{rows[1]['key']}:up"}
+    data = {"action": "save", "move": f"{rows[1]['key']}:up", "row_keys": [entry["key"] for entry in rows]}
     for position, entry in enumerate(rows, start=1):
         data[f"order_{entry['key']}"] = position
         data[f"visible_{entry['key']}"] = "on"
