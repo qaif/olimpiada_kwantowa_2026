@@ -65,3 +65,7 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_CLASSES": [],
     "DEFAULT_THROTTLE_RATES": dict.fromkeys(REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]),
 }
+
+# Skan ClamAV paczek motywów (``apps.themes.services.scan_package``) – w testach bez clamd;
+# testy skanu podstawiają własny skaner.
+THEMES_AV_SCAN = False

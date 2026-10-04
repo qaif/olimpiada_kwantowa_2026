@@ -49,6 +49,7 @@ from .views import (
     coordinator_sponsor_slider,
     coordinator_stages,
     coordinator_support,
+    coordinator_themes,
     coordinator_workshops,
     forum,
     guardian,
@@ -75,6 +76,10 @@ urlpatterns = [
     # Korzenia ``/`` tu nie ma: od T-09 obsługuje go ``cms.HomePage`` (Wagtail catch-all na końcu
     # ``config/urls.py``). Wszystkie pozostałe ścieżki ``apps.web`` są dopasowywane wcześniej.
     path("login/", public.LoginView.as_view(), name="login"),
+    # Akcent marki konkursu nad motywem (THEME-01 § 4, ``theme_options.brand_accent``): mały arkusz
+    # z własnej domeny (``'self'`` w CSP) zamiast stylu inline. Ścieżki ``apps.web`` są dopasowywane
+    # przed drzewem stron Wagtaila, a ``_theme/`` nie jest slugiem żadnej strony serwisu.
+    path("_theme/overrides.css", coordinator_themes.theme_overrides_css, name="theme-overrides"),
     # Drugi krok logowania (TOTP). Adres stoi przy logowaniu, a nie przy koncie, bo to jest
     # **ciąg dalszy logowania**: sesja, która tu trafia, nie może jeszcze nic innego (patrz
     # ``apps.accounts.twofactor.TwoFactorMiddleware``).
@@ -393,6 +398,24 @@ urlpatterns = [
         "coordinator/competition/",
         coordinator_competition.CompetitionSettingsView.as_view(),
         name="coordinator-competition",
+    ),
+    # Motyw serwisu konkursu (THEME-01 § 6): galeria, podgląd, aktywacja. Bez identyfikatora – konkurs
+    # wskazuje domena żądania. Za flagą ``themes`` (wyłączona = 404).
+    path(
+        "coordinator/competition/theme/",
+        coordinator_themes.CompetitionThemeView.as_view(),
+        name="coordinator-theme",
+    ),
+    # Katalog motywów **platformy** – wyłącznie superkoordynator (wgrywanie paczek, raporty, wersje).
+    path(
+        "coordinator/platform/themes/",
+        coordinator_themes.PlatformThemesView.as_view(),
+        name="coordinator-platform-themes",
+    ),
+    path(
+        "coordinator/platform/themes/<int:pk>/",
+        coordinator_themes.PlatformThemeVersionView.as_view(),
+        name="coordinator-platform-theme",
     ),
     # Okno rejestracji uczestników – ustawienie edycji, nie etapu, stąd adres bez identyfikatora.
     path(
