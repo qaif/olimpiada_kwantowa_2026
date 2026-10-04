@@ -88,3 +88,15 @@ msgstr "يتطلب تغيير كلمة المرور إدخال الحالية. �
 #, python-format
 msgid "Ustawienia konta: %(address)s"
 msgstr "إعدادات الحساب: %(address)s"
+
+msgid "Zbyt wiele błędnych haseł z rzędu – ze względów bezpieczeństwa wylogowaliśmy Cię. Zaloguj się ponownie."
+msgstr "عدد كبير جدًا من كلمات المرور الخاطئة المتتالية – حرصًا على أمانك سجّلنا خروجك. يرجى تسجيل الدخول مرة أخرى."
+
+msgid "Zbyt wiele prób na tym koncie. Odczekaj chwilę i spróbuj ponownie."
+msgstr "عدد كبير جدًا من المحاولات على هذا الحساب. انتظر قليلًا ثم حاول مرة أخرى."
+
+msgid "Otwarta na innym urządzeniu sesja edytora django CMS nie jest kończona od razu – wygasa sama po kilku godzinach. Jeśli podejrzewasz przejęcie konta, poproś organizatora o jej zamknięcie."
+msgstr "لا تنتهي جلسة محرر django CMS المفتوحة على جهاز آخر فورًا – بل تنتهي تلقائيًا بعد بضع ساعات. إذا اشتبهت في الاستيلاء على حسابك، فاطلب من المنظِّم إغلاقها."
+
+msgid "Zmiana adresu wymaga potwierdzenia hasłem. To konto nie ma jeszcze hasła – ustaw je najpierw w sekcji „Hasło” niżej."
+msgstr "يتطلب تغيير العنوان التأكيد بكلمة المرور. لا توجد لهذا الحساب كلمة مرور بعد – عيّنها أولًا في قسم «كلمة المرور» أدناه."

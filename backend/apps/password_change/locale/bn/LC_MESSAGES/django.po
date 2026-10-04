@@ -88,3 +88,15 @@ msgstr "পাসওয়ার্ড পরিবর্তনের জন্�
 #, python-format
 msgid "Ustawienia konta: %(address)s"
 msgstr "অ্যাকাউন্ট সেটিংস: %(address)s"
+
+msgid "Zbyt wiele błędnych haseł z rzędu – ze względów bezpieczeństwa wylogowaliśmy Cię. Zaloguj się ponownie."
+msgstr "পরপর অনেকবার ভুল পাসওয়ার্ড – আপনার নিরাপত্তার জন্য আমরা আপনাকে লগ আউট করেছি। অনুগ্রহ করে আবার লগ ইন করুন।"
+
+msgid "Zbyt wiele prób na tym koncie. Odczekaj chwilę i spróbuj ponownie."
+msgstr "এই অ্যাকাউন্টে অনেক বেশি চেষ্টা হয়েছে। একটু অপেক্ষা করে আবার চেষ্টা করুন।"
+
+msgid "Otwarta na innym urządzeniu sesja edytora django CMS nie jest kończona od razu – wygasa sama po kilku godzinach. Jeśli podejrzewasz przejęcie konta, poproś organizatora o jej zamknięcie."
+msgstr "অন্য ডিভাইসে খোলা django CMS সম্পাদকের সেশন সঙ্গে সঙ্গে শেষ হয় না – কয়েক ঘণ্টা পরে নিজে থেকেই মেয়াদ শেষ হয়। অ্যাকাউন্ট বেহাত হয়েছে বলে সন্দেহ হলে আয়োজককে সেটি বন্ধ করতে বলুন।"
+
+msgid "Zmiana adresu wymaga potwierdzenia hasłem. To konto nie ma jeszcze hasła – ustaw je najpierw w sekcji „Hasło” niżej."
+msgstr "ঠিকানা পরিবর্তনের জন্য পাসওয়ার্ড দিয়ে নিশ্চিত করতে হয়। এই অ্যাকাউন্টের এখনও কোনো পাসওয়ার্ড নেই – আগে নিচের „পাসওয়ার্ড” অংশে সেট করুন।"

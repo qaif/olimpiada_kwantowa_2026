@@ -69,11 +69,19 @@
       Obecny adres: <strong>{{ address }}</strong>. Zmiana wymaga potwierdzenia – wyślemy link na
       <strong>nowy</strong> adres, a do kliknięcia logujesz się dotychczasowym.
     {% endblocktranslate %}</p>
-    <form method="post" action="{% url 'web:email-change' %}" class="form">
-      {% csrf_token %}
-      {{ email_form.as_p }}
-      <button type="submit" class="btn btn--secondary">{% translate "Wyślij link potwierdzający" %}</button>
-    </form>
+    {% comment %}
+      Zmiana adresu wymaga aktualnego hasła (AUTH-01b, przegląd H1) – konto bez hasła
+      (Google/Facebook) dostaje zamiast formularza drogę do ustawienia hasła.
+    {% endcomment %}
+    {% if request.user.has_usable_password %}
+      <form method="post" action="{% url 'web:email-change' %}" class="form">
+        {% csrf_token %}
+        {{ email_form.as_p }}
+        <button type="submit" class="btn btn--secondary">{% translate "Wyślij link potwierdzający" %}</button>
+      </form>
+    {% else %}
+      <p class="hint">{% translate "Zmiana adresu wymaga potwierdzenia hasłem. To konto nie ma jeszcze hasła – ustaw je najpierw w sekcji „Hasło” niżej." %}</p>
+    {% endif %}
   </div>
 </section>
 

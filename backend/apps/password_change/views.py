@@ -6,7 +6,8 @@ jak przy zmianie adresu e-mail w ``apps.web.views.account``). Reguły są w ``se
 
 Kolejność domieszek jest częścią zabezpieczenia: ``LoginRequiredMixin`` stoi **przed** limitem,
 więc gość dostaje przekierowanie do logowania, nie zużywając niczyjego kubełka, a ``never_cache``
-owija całość – także to przekierowanie.
+owija całość – także to przekierowanie. Limit liczy konto, nie adres
+(``apps.web.throttle.PerAccountThrottleMixin``).
 """
 
 from __future__ import annotations
@@ -20,11 +21,12 @@ from django.views.decorators.cache import never_cache
 from django.views.generic import FormView, View
 
 from apps.core.api import DomainError
-from apps.web.throttle import ThrottledFormMixin, user_throttle_keys
-from apps.web.views.account import profile_url
+from apps.web.throttle import PerAccountThrottleMixin
+from apps.web.views.account import profile_url, relogin_after_lock
 
 from . import services
 from .forms import PasswordChangeForm
+from .notifications import djcms_note, is_djcms_editor
 
 #: Pola, do których serwis przypina odmowę (po kodzie maszynowym). Reszta idzie nad formularz.
 ERROR_FIELDS = {
@@ -32,19 +34,6 @@ ERROR_FIELDS = {
     services.CODE_INVALID_NEW: "new_password1",
     services.CODE_UNCHANGED: "new_password1",
 }
-
-
-class PerAccountThrottleMixin(ThrottledFormMixin):
-    """Limit liczony **per konto**, bez kubełka adresu IP – jak ``apps.web.throttle.PER_USER_SCOPES``.
-
-    Własna domieszka zamiast dopisania scope'ów do tamtej listy: ekran jest wyłącznie za logowaniem,
-    a koszt, który limit ogranicza (zgadywanie aktualnego hasła z cudzej sesji, listy), przypada na
-    konto. Kubełek IP karałby całą pracownię za jednym NAT-em, a zgadującemu dawałby nowy budżet
-    z każdym nowym adresem.
-    """
-
-    def get_throttle_keys(self, request) -> list[str]:
-        return user_throttle_keys(self.throttle_scope, request)
 
 
 @method_decorator(never_cache, name="dispatch")
@@ -73,17 +62,24 @@ class PasswordChangeView(LoginRequiredMixin, PerAccountThrottleMixin, FormView):
         return context
 
     def form_valid(self, form):
+        user = self.request.user
         try:
             services.change_password(
-                self.request.user,
+                user,
                 old_password=form.cleaned_data["old_password"],
                 new_password=form.cleaned_data["new_password1"],
                 request=self.request,
             )
         except DomainError as exc:
+            if exc.machine_code == services.CODE_LOCKED:
+                return relogin_after_lock(self.request, str(exc.detail))
             form.add_error(ERROR_FIELDS.get(exc.machine_code), str(exc.detail))
             return self.form_invalid(form)
         messages.success(self.request, self.success_message)
+        if is_djcms_editor(user):
+            # Sesji edytora django CMS na innych urządzeniach zmiana hasła nie kończy (osobna baza
+            # sesji) – mówimy to wprost, zamiast obiecywać „wszystkie urządzenia” (przegląd L2).
+            messages.info(self.request, djcms_note())
         return redirect(profile_url(self.request))
 
 

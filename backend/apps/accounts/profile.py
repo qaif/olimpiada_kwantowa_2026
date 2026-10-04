@@ -263,17 +263,28 @@ def _assert_email_free(email: str, *, exclude_pk: int | None = None) -> str:
     return normalized
 
 
-def request_email_change(user: User, *, new_email: str, request=None) -> str:
+@sensitive_variables("current_password")
+def request_email_change(user: User, *, new_email: str, current_password: str, request=None) -> str:
     """Wysyła na **nowy** adres link potwierdzający. Do kliknięcia obowiązuje adres dotychczasowy.
 
     Kolejność jest tu całą treścią zabezpieczenia: gdyby adres zmieniał się od razu po wpisaniu,
     literówka zamykałaby drogę powrotu (login i reset hasła idą przez adres), a przejęta sesja
     pozwalałaby przenieść konto na adres napastnika jednym POST-em. Potwierdzenie na nowym adresie
     dowodzi, że skrzynka istnieje i należy do osoby, która o zmianę poprosiła.
+
+    Samo potwierdzenie nie wystarcza (przegląd H1 AUTH-01b): skrzynką „nowego adresu” jest skrzynka
+    tego, kto wpisał adres – czyli w przejętej sesji napastnika. Dlatego najpierw **aktualne hasło**
+    (``apps.accounts.reauth``: pomyłki w audycie ``account.email_change_failed``, seria pomyłek
+    kończy sesję). Konto bez hasła (Google/Facebook) ustawia je najpierw linkiem na obecny adres.
     """
+    from .reauth import confirm_current_password
+
     normalized = _assert_email_free(new_email, exclude_pk=user.pk)
     if normalized == user.email:
         raise DomainError(_("To już jest adres tego konta."), "EMAIL_UNCHANGED", status.HTTP_400_BAD_REQUEST)
+    confirm_current_password(
+        user, current_password, failed_action="account.email_change_failed", request=request
+    )
     send_email_change_confirmation(user, normalized, request=request)
     audit(user, "account.email_change_requested", user, {"confirmation_sent": True}, request=request)
     return normalized

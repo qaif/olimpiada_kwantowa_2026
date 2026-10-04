@@ -88,3 +88,15 @@ msgstr "Le changement de mot de passe exige le mot de passe actuel. Après le ch
 #, python-format
 msgid "Ustawienia konta: %(address)s"
 msgstr "Paramètres du compte : %(address)s"
+
+msgid "Zbyt wiele błędnych haseł z rzędu – ze względów bezpieczeństwa wylogowaliśmy Cię. Zaloguj się ponownie."
+msgstr "Trop de mots de passe erronés d’affilée – par sécurité, nous vous avons déconnecté. Veuillez vous reconnecter."
+
+msgid "Zbyt wiele prób na tym koncie. Odczekaj chwilę i spróbuj ponownie."
+msgstr "Trop de tentatives sur ce compte. Patientez un instant et réessayez."
+
+msgid "Otwarta na innym urządzeniu sesja edytora django CMS nie jest kończona od razu – wygasa sama po kilku godzinach. Jeśli podejrzewasz przejęcie konta, poproś organizatora o jej zamknięcie."
+msgstr "Une session ouverte de l’éditeur django CMS sur un autre appareil n’est pas fermée immédiatement – elle expire d’elle-même au bout de quelques heures. Si vous soupçonnez une prise de contrôle de votre compte, demandez à l’organisateur de la fermer."
+
+msgid "Zmiana adresu wymaga potwierdzenia hasłem. To konto nie ma jeszcze hasła – ustaw je najpierw w sekcji „Hasło” niżej."
+msgstr "Le changement d’adresse doit être confirmé par le mot de passe. Ce compte n’a pas encore de mot de passe – définissez-le d’abord dans la section « Mot de passe » ci-dessous."

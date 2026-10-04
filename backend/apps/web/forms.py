@@ -1118,8 +1118,21 @@ class AccountNamesForm(forms.Form):
 
 
 class EmailChangeForm(forms.Form):
-    """Wniosek o zmianę adresu e-mail konta. Adres zmienia się dopiero po kliknięciu w potwierdzenie."""
+    """Wniosek o zmianę adresu e-mail konta. Adres zmienia się dopiero po kliknięciu w potwierdzenie.
 
+    ``current_password`` (AUTH-01b, przegląd H1): adres jest loginem i drogą resetu hasła, więc jego
+    przeniesienie z przejętej sesji byłoby przejęciem konta. Pole nie jest wymagane **w formularzu**
+    – o tym, że hasło jest potrzebne (i że konto bez hasła musi je najpierw ustawić), rozstrzyga
+    serwis (``apps.accounts.reauth``), jak przy usunięciu konta.
+    """
+
+    current_password = forms.CharField(
+        label=gettext_lazy("Aktualne hasło"),
+        required=False,
+        strip=False,
+        max_length=200,
+        widget=forms.PasswordInput(attrs={"autocomplete": "current-password"}),
+    )
     new_email = forms.EmailField(
         label=gettext_lazy("Nowy adres e-mail"),
         max_length=254,

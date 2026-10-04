@@ -88,3 +88,15 @@ msgstr "Mengubah kata sandi memerlukan kata sandi saat ini. Setelah diubah, pera
 #, python-format
 msgid "Ustawienia konta: %(address)s"
 msgstr "Pengaturan akun: %(address)s"
+
+msgid "Zbyt wiele błędnych haseł z rzędu – ze względów bezpieczeństwa wylogowaliśmy Cię. Zaloguj się ponownie."
+msgstr "Terlalu banyak kata sandi salah berturut-turut – demi keamanan, kami telah mengeluarkan Anda. Silakan masuk kembali."
+
+msgid "Zbyt wiele prób na tym koncie. Odczekaj chwilę i spróbuj ponownie."
+msgstr "Terlalu banyak percobaan pada akun ini. Tunggu sebentar lalu coba lagi."
+
+msgid "Otwarta na innym urządzeniu sesja edytora django CMS nie jest kończona od razu – wygasa sama po kilku godzinach. Jeśli podejrzewasz przejęcie konta, poproś organizatora o jej zamknięcie."
+msgstr "Sesi editor django CMS yang terbuka di perangkat lain tidak langsung diakhiri – sesi itu berakhir sendiri setelah beberapa jam. Jika Anda mencurigai akun Anda diambil alih, minta penyelenggara untuk menutupnya."
+
+msgid "Zmiana adresu wymaga potwierdzenia hasłem. To konto nie ma jeszcze hasła – ustaw je najpierw w sekcji „Hasło” niżej."
+msgstr "Perubahan alamat harus dikonfirmasi dengan kata sandi. Akun ini belum memiliki kata sandi – atur terlebih dahulu di bagian „Kata sandi” di bawah."

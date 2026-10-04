@@ -7,11 +7,10 @@ kolejność logowania i limitu, zachowanie sesji) żyje w warstwie widoku i wars
 
 from __future__ import annotations
 
-import io
 import re
-import zipfile
 
 import pytest
+from django.contrib.auth.hashers import PBKDF2PasswordHasher
 from django.contrib.auth.models import Group
 from django.core import mail
 from django.urls import reverse
@@ -103,6 +102,10 @@ def test_every_role_reaches_the_screen_from_account_settings_and_changes_the_pas
     settings_page = web.get(reverse("web:account-profile"), follow=True)
     assert settings_page.status_code == 200
     assert f'href="{URL}"' in settings_page.content.decode()
+    settings_url = reverse("web:profile") if role == "participant" else reverse("web:account-profile")
+    if role == "participant":
+        # Uczestnik ma pełny formularz danych pod /me/profile/ – tam prowadzi go też /account/profile/.
+        assert settings_page.redirect_chain == [(settings_url, 302)]
 
     screen = web.get(URL)
     assert screen.status_code == 200
@@ -112,6 +115,7 @@ def test_every_role_reaches_the_screen_from_account_settings_and_changes_the_pas
         response = web.post(URL, change_payload())
 
     assert response.status_code == 302
+    assert response["Location"] == settings_url
     user.refresh_from_db()
     assert user.check_password(NEW_PASSWORD)
     assert [message.to for message in mail.outbox] == [[user.email]]
@@ -138,7 +142,7 @@ def test_wrong_current_password_is_refused_and_audited_without_the_text(web, acc
     account.refresh_from_db()
     assert account.check_password(DEFAULT_PASSWORD)
     entry = AuditLog.objects.get(action=services.AUDIT_FAILED)
-    assert entry.diff == {"reason": "wrong_current"}
+    assert entry.diff == {"reason": "wrong_current", "consecutive": 1, "session_ended": False}
     assert entry.actor_id == account.pk and entry.target_id == str(account.pk)
     assert not mail.outbox
 
@@ -399,32 +403,24 @@ def test_two_factor_verification_survives_the_change(
 # --- motyw ---------------------------------------------------------------------------------------
 
 
-def test_iqo_theme_header_can_include_the_account_link(client_for, competition, monkeypatch, account):
-    """Nagłówek paczki dołącza fragment aplikacji ``web/_account_who.html`` – lint paczki go przepuszcza.
+def test_iqo_theme_111_package_links_the_account_settings(client_for, competition, monkeypatch, account):
+    """Prawdziwa paczka ``iqo-quantum-1.1.1.zip`` (zbudowana z ``themes/iqo-quantum``) – przegląd L6.
 
-    Paczka 1.1.1 (``themes/iqo-quantum``) różni się od 1.1.0 dokładnie tą podmianą w nagłówku; robimy
-    ją tutaj na fikstórze 1.1.0, bo katalogu ``themes/`` nie ma w obrazie testowym.
+    Wymaga aplikacji 0.45.0 (wydanie z fragmentem ``web/_account_who.html``); na starszej wersji
+    walidator ją odrzuca, zamiast dopuścić ``include`` szablonu, którego aplikacja nie ma.
     """
     from apps.themes import services as theme_services
+    from apps.themes.package import validate_package
     from apps.themes.rendering import forget_engines
     from apps.themes.runtime import forget_runtime
     from apps.themes.tests.helpers import FIXTURES
 
-    monkeypatch.setenv("APP_VERSION", "v0.44.0")
-    source = zipfile.ZipFile(io.BytesIO((FIXTURES / "iqo-quantum-1.1.0.zip").read_bytes()))
-    patched = io.BytesIO()
-    before = '<p class="account-bar__who who iqo-acct__who">{{ request.user.email }}</p>'
-    after = '{% include "web/_account_who.html" with css_class="account-bar__who who iqo-acct__who" %}'
-    with zipfile.ZipFile(patched, "w", zipfile.ZIP_DEFLATED) as target:
-        for info in source.infolist():
-            data = source.read(info)
-            if info.filename.endswith("templates/theme/header.html"):
-                text = data.decode("utf-8")
-                assert before in text
-                data = text.replace(before, after).encode("utf-8")
-            target.writestr(info, data)
-    version, result = theme_services.install_package(patched.getvalue())
+    package = (FIXTURES / "iqo-quantum-1.1.1.zip").read_bytes()
+    assert validate_package(package, app_version="v0.44.0").errors
+    monkeypatch.setenv("APP_VERSION", "v0.45.0")
+    version, result = theme_services.install_package(package)
     assert result.errors == []
+    assert result.manifest["version"] == "1.1.1" and result.manifest["min_app_version"] == "0.45.0"
     theme_services.activate(competition, version)
     forget_runtime()
     forget_engines()
@@ -435,3 +431,245 @@ def test_iqo_theme_header_can_include_the_account_link(client_for, competition, 
 
     assert 'class="iqo-header"' in html
     assert f'class="account-bar__who who iqo-acct__who" href="{reverse("web:account-profile")}"' in html
+
+
+# --- przegląd: H1 – inne drogi do hasła i adresu ---------------------------------------------------
+
+
+def test_wagtail_account_page_has_no_password_or_email_panel(client_for, competition):
+    coordinator = _account(CompetitionRole.COORDINATOR.value, competition)
+    web = client_for(competition)
+    web.force_login(coordinator)
+
+    page = web.get("/cms/account/")
+
+    assert page.status_code == 200
+    body = page.content.decode()
+    assert 'name="password-old_password"' not in body
+    assert 'name="name_email-email"' not in body
+
+
+@pytest.mark.parametrize("path", ["/admin/password_change/", "/admin/password_change/done/"])
+def test_django_admin_password_change_redirects_to_the_account_screen(client_for, competition, path):
+    web = client_for(competition)
+    web.force_login(UserFactory(is_staff=True, is_superuser=True))
+
+    assert web.get(path)["Location"] == URL
+    response = web.post(path, change_payload())
+    assert response.status_code == 302 and response["Location"] == URL
+
+
+EMAIL_URL = "/account/email/"
+
+
+def test_email_change_requires_the_current_password(web, account, django_capture_on_commit_callbacks):
+    web.force_login(account)
+
+    with django_capture_on_commit_callbacks(execute=True):
+        missing = web.post(EMAIL_URL, {"new_email": "napastnik@example.test"})
+        wrong = web.post(EMAIL_URL, {"new_email": "napastnik@example.test", "current_password": "Zle-Haslo"})
+
+    for response in (missing, wrong):
+        assert response.status_code == 200
+        assert response.context["form"].errors["current_password"] == ["Aktualne hasło jest nieprawidłowe."]
+    assert not mail.outbox
+    failures = AuditLog.objects.filter(action="account.email_change_failed").order_by("pk")
+    assert [row.diff["consecutive"] for row in failures] == [1, 2]
+
+    with django_capture_on_commit_callbacks(execute=True):
+        accepted = web.post(
+            EMAIL_URL, {"new_email": "nowy-ola@example.test", "current_password": DEFAULT_PASSWORD}
+        )
+    assert accepted.status_code == 302
+    assert [message.to for message in mail.outbox] == [["nowy-ola@example.test"]]
+
+
+def test_email_change_of_an_account_without_password_is_refused(web, django_capture_on_commit_callbacks):
+    user = UserFactory()
+    user.set_unusable_password()
+    user.save(update_fields=["password"])
+    web.force_login(user)
+
+    assert 'action="/account/email/"' not in web.get(reverse("web:account-profile")).content.decode()
+    with django_capture_on_commit_callbacks(execute=True):
+        response = web.post(EMAIL_URL, {"new_email": "napastnik@example.test"})
+
+    assert response.status_code == 200
+    assert "nie ma jeszcze hasła" in response.content.decode()
+    assert not mail.outbox
+
+
+# --- przegląd: M1 – awaria brokera ----------------------------------------------------------------
+
+
+@pytest.mark.django_db(transaction=True)
+def test_broker_outage_neither_fails_the_change_nor_logs_the_user_out(client_for, monkeypatch, caplog):
+    """``on_commit`` biegnie tu naprawdę (test transakcyjny) – kolejka niedostępna, zmiana i sesja zostają."""
+    from apps.core import tasks
+
+    competition = make_competition("awaria.test", "awaria-test")
+    user = UserFactory()
+
+    def broken_delay(*args, **kwargs):
+        raise ConnectionError("broker niedostępny")
+
+    monkeypatch.setattr(tasks.send_mail_task, "delay", broken_delay)
+    web = client_for(competition)
+    web.force_login(user)
+
+    response = web.post(URL, change_payload())
+
+    assert response.status_code == 302
+    user.refresh_from_db()
+    assert user.check_password(NEW_PASSWORD)
+    assert web.get(URL).status_code == 200
+    assert f"dla konta {user.pk}" in caplog.text
+
+
+# --- przegląd: L1 – podniesienie skrótu hasła ------------------------------------------------------
+
+
+class FastPBKDF2(PBKDF2PasswordHasher):
+    """Szybki PBKDF2 – test podniesienia skrótu nie ma czekać sekundy na każde liczenie."""
+
+    iterations = 1000
+
+
+def test_hash_upgrade_during_a_refused_change_keeps_the_session(web, account, settings):
+    settings.PASSWORD_HASHERS = [
+        "apps.password_change.tests.test_password_change.FastPBKDF2",
+        "django.contrib.auth.hashers.MD5PasswordHasher",
+    ]
+    assert account.password.startswith("md5$")
+    web.force_login(account)
+
+    refused = web.post(URL, change_payload(new="krotkie"))
+
+    assert refused.status_code == 200 and refused.context["form"].errors["new_password1"]
+    account.refresh_from_db()
+    assert account.password.startswith("pbkdf2_sha256$")
+    # Skrót sesji przepisany razem z hashem – bez tego następne żądanie byłoby już wylogowane.
+    assert web.get(URL).status_code == 200
+
+
+# --- przegląd: L3 – seria pomyłek, komunikat limitu ------------------------------------------------
+
+
+def test_five_wrong_passwords_in_a_row_end_the_session_across_screens(web, account):
+    web.force_login(account)
+
+    for _attempt in range(2):
+        web.post(EMAIL_URL, {"new_email": "x@example.test", "current_password": "Zle-Haslo"})
+    for _attempt in range(2):
+        assert web.post(URL, change_payload(old="Zle-Haslo")).status_code == 200
+    locked = web.post(URL, change_payload(old="Zle-Haslo"))
+
+    assert locked.status_code == 302
+    assert locked["Location"] == f"/login/?next={URL}"
+    assert web.get(URL)["Location"].startswith("/login/")
+    last = AuditLog.objects.filter(action=services.AUDIT_FAILED).order_by("pk").last()
+    assert last.diff == {"reason": "wrong_current", "consecutive": 5, "session_ended": True}
+
+
+def test_a_correct_password_resets_the_series(web, account, django_capture_on_commit_callbacks):
+    web.force_login(account)
+    for _attempt in range(4):
+        web.post(URL, change_payload(old="Zle-Haslo"))
+
+    with django_capture_on_commit_callbacks(execute=True):
+        assert web.post(URL, change_payload()).status_code == 302
+    assert "reauth_failures" not in web.session
+
+
+def test_throttle_message_names_the_account_not_the_address(web, account, settings):
+    settings.REST_FRAMEWORK = _rest_framework_with(settings, password_change="1/hour")
+    web.force_login(account)
+    web.post(URL, change_payload(old="Zle-Haslo"))
+
+    blocked = web.post(URL, change_payload(old="Zle-Haslo"))
+
+    assert blocked.status_code == 429
+    assert "Zbyt wiele prób na tym koncie." in blocked.content.decode()
+    assert "z tego adresu" not in blocked.content.decode()
+
+
+# --- przegląd: L2 – sesje django CMS --------------------------------------------------------------
+
+
+def test_djcms_editor_is_told_that_editor_sessions_are_not_ended(
+    client_for, competition, settings, django_capture_on_commit_callbacks
+):
+    settings.DJCMS_SSO_KEY = "k" * 40
+    coordinator = _account(CompetitionRole.COORDINATOR.value, competition)
+    web = client_for(competition)
+    web.force_login(coordinator)
+
+    with django_capture_on_commit_callbacks(execute=True):
+        page = web.post(URL, change_payload(), follow=True).content.decode()
+
+    assert "sesja edytora django CMS" in page
+    [letter] = mail.outbox
+    assert "sesja edytora django CMS" in letter.body
+
+
+def test_non_editor_letter_has_no_djcms_sentence(web, account, settings, django_capture_on_commit_callbacks):
+    settings.DJCMS_SSO_KEY = "k" * 40
+    web.force_login(account)
+
+    with django_capture_on_commit_callbacks(execute=True):
+        web.post(URL, change_payload())
+
+    [letter] = mail.outbox
+    assert "django CMS" not in letter.body
+
+
+# --- przegląd: L7 – brakujące ścieżki ---------------------------------------------------------------
+
+
+def test_set_link_is_throttled_per_account(web, settings, django_capture_on_commit_callbacks):
+    settings.REST_FRAMEWORK = _rest_framework_with(settings, password_reset="1/hour")
+    user = UserFactory()
+    user.set_unusable_password()
+    user.save(update_fields=["password"])
+    web.force_login(user)
+
+    with django_capture_on_commit_callbacks(execute=True):
+        assert web.post(SET_LINK_URL).status_code == 302
+        blocked = web.post(SET_LINK_URL)
+
+    assert blocked.status_code == 429
+    assert len(mail.outbox) == 1
+
+
+def test_set_link_is_refused_for_an_account_with_an_unconfirmed_address(
+    web, django_capture_on_commit_callbacks
+):
+    user = UserFactory(email_verified_at=None)
+    user.set_unusable_password()
+    user.save(update_fields=["password"])
+    web.force_login(user)
+
+    with django_capture_on_commit_callbacks(execute=True):
+        page = web.post(SET_LINK_URL, follow=True).content.decode()
+
+    assert "Na to konto nie można teraz wysłać linku" in page
+    assert not mail.outbox
+    assert not AuditLog.objects.filter(action=services.AUDIT_SET_LINK_SENT).exists()
+
+
+# --- przegląd: L8 – strefa czasowa w liście -------------------------------------------------------
+
+
+def test_letter_names_the_competition_timezone_unambiguously(
+    client_for, account, django_capture_on_commit_callbacks
+):
+    tokyo = make_competition("tokio.test", "tokio-test", time_zone="Asia/Tokyo")
+    web = client_for(tokyo)
+    web.force_login(account)
+
+    with django_capture_on_commit_callbacks(execute=True):
+        web.post(URL, change_payload())
+
+    [letter] = mail.outbox
+    assert "(Asia/Tokyo, UTC+09:00)" in letter.body
+    assert "CEST" not in letter.body and "CET" not in letter.body

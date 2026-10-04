@@ -33,8 +33,10 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
 from django.utils.translation import gettext as _
+from django.views.decorators.debug import sensitive_variables
 from rest_framework import status
 
+from apps.accounts import reauth
 from apps.accounts.password_reset import QueuedPasswordResetForm
 from apps.core.api import DomainError
 from apps.core.models import audit
@@ -51,8 +53,9 @@ AUDIT_FAILED = "password.change_failed"
 AUDIT_SET_LINK_SENT = "password.set_link_sent"
 
 #: Kody maszynowe odmów – widok przypina po nich błąd do właściwego pola formularza.
-CODE_NO_PASSWORD = "PASSWORD_NOT_SET"
-CODE_WRONG_CURRENT = "PASSWORD_INCORRECT"
+CODE_NO_PASSWORD = reauth.CODE_NO_PASSWORD
+CODE_WRONG_CURRENT = reauth.CODE_WRONG
+CODE_LOCKED = reauth.CODE_LOCKED
 CODE_INVALID_NEW = "PASSWORD_INVALID"
 CODE_UNCHANGED = "PASSWORD_UNCHANGED"
 CODE_HAS_PASSWORD = "PASSWORD_ALREADY_SET"
@@ -66,34 +69,27 @@ def _revoke_api_tokens(user) -> int:
     return Token.objects.filter(user=user).delete()[0]
 
 
+@sensitive_variables("old_password", "new_password")
 def change_password(user, *, old_password: str, new_password: str, request=None) -> None:
     """Zmienia hasło konta po sprawdzeniu aktualnego. Odmowa = ``DomainError`` z kodem maszynowym.
 
-    Kolejność sprawdzeń jest celowa: najpierw to, co nie kosztuje (konto ma hasło, nowe różni się
-    od starego), potem jeden kosztowny ``check_password``, a walidatory na końcu – żeby ktoś, kto
-    zgaduje aktualne hasło, nie dostawał przy okazji podpowiedzi o regułach nowego.
+    Kolejność sprawdzeń jest celowa: najpierw to, co nie kosztuje (nowe różni się od starego),
+    potem jeden kosztowny ``check_password`` (``apps.accounts.reauth`` – razem z licznikiem pomyłek
+    w sesji i przepisaniem skrótu sesji po podniesieniu hasha), a walidatory na końcu – żeby ktoś,
+    kto zgaduje aktualne hasło, nie dostawał przy okazji podpowiedzi o regułach nowego.
 
     ``request`` (gdy jest i należy do tego samego konta) zachowuje bieżącą sesję:
     ``update_session_auth_hash`` przepisuje skrót hasła w sesji i zmienia jej klucz – dane sesji,
-    w tym znacznik przejścia drugiego składnika, zostają.
+    w tym znacznik przejścia drugiego składnika, zostają. Dzieje się to **przed** kolejkowaniem
+    listu, więc awaria brokera nie może wylogować człowieka, któremu zmiana się udała (przegląd M1).
     """
-    if not user.has_usable_password():
-        raise DomainError(
-            _("To konto nie ma jeszcze hasła – ustaw je linkiem wysłanym na adres konta."),
-            CODE_NO_PASSWORD,
-            status.HTTP_400_BAD_REQUEST,
-        )
-    if old_password and new_password and old_password == new_password:
+    if user.has_usable_password() and old_password and new_password and old_password == new_password:
         # Porównanie napisów przed ``check_password``: odpowiedź nic nie zdradza (dotyczy tylko
         # tego, co człowiek sam wpisał w dwa pola), a oszczędza kosztowny skrót.
         raise DomainError(
             _("Nowe hasło musi się różnić od aktualnego."), CODE_UNCHANGED, status.HTTP_400_BAD_REQUEST
         )
-    if not user.check_password(old_password or ""):
-        audit(user, AUDIT_FAILED, user, {"reason": "wrong_current"}, request=request)
-        raise DomainError(
-            _("Aktualne hasło jest nieprawidłowe."), CODE_WRONG_CURRENT, status.HTTP_400_BAD_REQUEST
-        )
+    reauth.confirm_current_password(user, old_password, failed_action=AUDIT_FAILED, request=request)
     try:
         validate_password(new_password, user=user)
     except ValidationError as exc:
@@ -105,11 +101,11 @@ def change_password(user, *, old_password: str, new_password: str, request=None)
         user.save(update_fields=["password"])
         revoked = _revoke_api_tokens(user)
         audit(user, AUDIT_CHANGED, user, {"via": "account", "api_tokens_revoked": revoked}, request=request)
-        # List po commicie (``queue_mail``): wycofana zmiana nie może ogłosić właścicielowi, że
-        # hasło jest nowe.
+        if request is not None and getattr(getattr(request, "user", None), "pk", None) == user.pk:
+            update_session_auth_hash(request, user)
+        # List po commicie i odporny na awarię brokera (``notifications``): wycofana zmiana nie może
+        # ogłosić właścicielowi, że hasło jest nowe, a niedziałający Redis – zamienić udanej zmiany w 500.
         send_password_changed_notice(user, request=request, changed_at=changed_at)
-    if request is not None and getattr(request, "user", None) is not None and request.user.pk == user.pk:
-        update_session_auth_hash(request, user)
 
 
 def send_set_password_link(user, *, request) -> None:
