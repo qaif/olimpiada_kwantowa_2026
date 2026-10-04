@@ -44,6 +44,15 @@ Pyta o to jedna funkcja, :func:`is_enabled` – patrz jej docstring.
 puste) pozwala pójść dalej i zażądać go od wskazanych ról – ale to jest decyzja organizatora
 podejmowana wtedy, gdy komitet ma już aplikacje na telefonach, a nie domyślna konfiguracja,
 która w dniu wdrożenia zamyka koordynatorowi drogę do własnego panelu.
+
+**SEC-01 (04.10.2026): wymóg dla personelu.** Od kogo drugi składnik jest wymagany, rozstrzyga
+``apps.staff_mfa.policy`` – lista ról platformy (``TWO_FACTOR_REQUIRED_ROLES``, teraz domyślnie
+``superkoordynator,admin``) i polityka konkursu (domyślnie personel konkursów z danymi
+wrażliwymi), z jednorazowym **okresem przejściowym** (baner, potem poczekalnia). Ten moduł dokłada
+do protokołu: blokadę konta po serii złych kodów, jednorazowość odporną na równoległe żądania,
+ponowne potwierdzenie hasłem i kodem przy wyłączaniu i przy nowym komplecie kodów, „zapamiętaj to
+urządzenie” (``apps.staff_mfa.trust``) i listy do właściciela (``apps.staff_mfa.notifications``).
+Szczegóły i uzasadnienia: ``docs/tasks/SEC-01.md``.
 """
 
 from __future__ import annotations
@@ -94,11 +103,34 @@ BACKUP_CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 #: wartość logiczna przetrwałaby ponowne zalogowanie się w tej samej sesji na inne konto, gdyby
 #: Django kiedykolwiek przestało czyścić sesję przy zmianie użytkownika. Porównanie z ``user.pk``
 #: kosztuje jedno porównanie liczb i zamyka całą tę klasę błędów.
-SESSION_VERIFIED_KEY = "2fa_verified"
+#:
+#: Nazwa zmieniona przy SEC-01 (przegląd, M3c): sesje sprzed wdrożenia mogły nieść ``2fa_verified``
+#: postawione kontom **bez** wymogu (stara warstwa znaczyła tak także zwolnienie). Nowa nazwa
+#: sprawia, że po wdrożeniu każda sesja przechodzi bramkę od nowa, według nowej polityki.
+SESSION_VERIFIED_KEY = "2fa_passed"
 
 #: Scope limitu prób – ten sam mechanizm, co przy logowaniu (``apps.web.throttle``). Stawka stoi
 #: w ``REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]``; brak wpisu (tak jest w testach) wyłącza limit.
 THROTTLE_SCOPE = "two_factor"
+
+#: Znaczniki sesji warstwy wymuszającej dla kont **bez** urządzenia (SEC-01 § 3). Oba niosą
+#: ``[konto, konkurs, wersja polityki]``: odpowiedź „nie musisz” albo „masz czas do…” jest odpowiedzią
+#: dla jednego konkursu (konkurs pod prefiksem ścieżki dzieli sesję z gospodarzem) i jednej wersji
+#: polityki (``apps.staff_mfa.policy.version``). Przy ``2fa_grace`` czwarty element to termin
+#: (znacznik czasu uniksowego) – po nim sesja liczy wymóg od nowa. ``2fa_exempt`` ma czwarty element
+#: „ważne do” (``EXEMPT_TTL_SECONDS``, przegląd M3a) i piąty: czy konto nie ma żadnej roli, którą
+#: polityka mogłaby objąć (wtedy warstwa nie czyta nawet wersji polityki – przegląd L8).
+SESSION_EXEMPT_KEY = "2fa_exempt"
+SESSION_GRACE_KEY = "2fa_grace"
+EXEMPT_TTL_SECONDS = 10 * 60
+
+#: Blokada konta po serii złych kodów (SEC-01 § 5). Limit ``two_factor`` liczy próby z jednego
+#: adresu; blokada liczy próby na **konto**, niezależnie od adresu – kto zna hasło i rozkłada próby
+#: kodu na wiele adresów, po pięciu porażkach i tak czeka kwadrans. Sześć cyfr przy pięciu próbach
+#: na kwadrans to statystycznie kilkadziesiąt lat zgadywania.
+LOCKOUT_THRESHOLD = 5
+LOCKOUT_WINDOW_SECONDS = 15 * 60
+LOCKOUT_SECONDS = 15 * 60
 
 
 # --- szyfrowanie sekretu ----------------------------------------------------------------------
@@ -337,24 +369,147 @@ def is_enabled() -> bool:
 
 
 def required_roles() -> set[str]:
-    """Role, od których organizator wymaga drugiego składnika (``TWO_FACTOR_REQUIRED_ROLES``)."""
-    configured = getattr(settings, "TWO_FACTOR_REQUIRED_ROLES", None) or []
-    return {name.strip() for name in configured if name.strip()}
+    """Role platformy, od których wymagany jest drugi składnik (``TWO_FACTOR_REQUIRED_ROLES``)."""
+    from apps.staff_mfa.policy import platform_roles
+
+    return set(platform_roles())
 
 
-def is_required_for(user) -> bool:
-    """Czy to konto **musi** mieć drugi składnik. Domyślnie (puste ustawienie) – nie musi żadne.
+def _competition_or_context(competition):
+    if competition is not None:
+        return competition
+    from apps.tenancy.context import current_competition
 
-    Wyłącznik główny wygrywa z listą ról i sprawdzamy go **pierwszy**: ``TWO_FACTOR_REQUIRED_ROLES``
+    return current_competition()
+
+
+def is_required_for(user, competition=None) -> bool:
+    """Czy to konto **musi** mieć drugi składnik w tym konkursie (bez względu na okres przejściowy).
+
+    Wyłącznik główny wygrywa z każdą polityką i sprawdzamy go **pierwszy**: ``TWO_FACTOR_REQUIRED_ROLES``
     zostawione w ``.env`` z poprzedniej konfiguracji nie może po wyłączeniu funkcji odsyłać
-    koordynatora na ekran, którego już nie ma (404 w pętli).
+    koordynatora na ekran, którego już nie ma (404 w pętli). Konkurs niepodany – z kontekstu żądania.
     """
-    if not is_enabled():
+    if not is_enabled() or not user or not getattr(user, "is_authenticated", False):
         return False
-    roles = required_roles()
-    if not roles or not user or not getattr(user, "is_authenticated", False):
+    from apps.staff_mfa.policy import matching_roles
+
+    return bool(matching_roles(user, _competition_or_context(competition)))
+
+
+def requirement(user, competition=None, *, request=None, start_grace: bool = True):
+    """Wymóg z terminem (``apps.staff_mfa.policy.Requirement``) albo ``None``."""
+    if not is_enabled() or not user or not getattr(user, "is_authenticated", False):
+        return None
+    from apps.staff_mfa.policy import requirement_for
+
+    return requirement_for(
+        user, _competition_or_context(competition), request=request, start_grace=start_grace
+    )
+
+
+def setup_overdue(user, competition=None, *, request=None) -> bool:
+    """Czy konto bez urządzenia jest już **po terminie** okresu przejściowego (API, token)."""
+    if confirmed_device(user) is not None:
         return False
-    return user.groups.filter(name__in=roles).exists()
+    found = requirement(user, competition, request=request)
+    return found is not None and found.overdue()
+
+
+# --- blokada po serii złych kodów ---------------------------------------------------------------
+
+
+def _fail_key(user) -> str:
+    return f"2fa:fails:{user.pk}"
+
+
+def _lock_key(user) -> str:
+    return f"2fa:lock:{user.pk}"
+
+
+def locked_until(user) -> float | None:
+    """Znacznik czasu końca blokady albo ``None``. Awaria cache'a = brak blokady (jak limity)."""
+    from django.core.cache import cache
+
+    try:
+        value = float(cache.get(_lock_key(user)) or 0)
+    except Exception:  # noqa: BLE001 - awaria cache'a albo śmieć w kluczu
+        return None
+    return value if value > time.time() else None
+
+
+def is_locked(user) -> bool:
+    return locked_until(user) is not None
+
+
+def lock_minutes_left(user) -> int:
+    until = locked_until(user)
+    return max(1, int((until - time.time() + 59) // 60)) if until else 0
+
+
+def _count_attempt(user) -> int | None:
+    """Zajmuje miejsce próby **przed** sprawdzeniem kodu (przegląd, L2). ``None`` = cache nie działa.
+
+    Licznik przed sprawdzeniem, a nie po porażce: seria równoległych żądań z różnymi kodami
+    sprawdzałaby inaczej wszystkie kody, zanim pierwsza porażka zdążyłaby zapisać się w liczniku.
+    Udana próba zeruje licznik (:func:`_clear_failures`).
+
+    Wynik spoza liczb całkowitych (``django-redis`` z ``IGNORE_EXCEPTIONS`` oddaje przy awarii
+    ``None``) nie może skończyć się błędem 500 na ekranie logowania (przegląd, L1) – logujemy
+    i przepuszczamy, tak jak limity w ``apps.web.throttle``.
+    """
+    from django.core.cache import cache
+
+    key = _fail_key(user)
+    try:
+        cache.add(key, 0, LOCKOUT_WINDOW_SECONDS)
+        try:
+            count = cache.incr(key)
+        except ValueError:  # klucz wygasł między ``add`` a ``incr``
+            cache.set(key, 1, LOCKOUT_WINDOW_SECONDS)
+            count = 1
+    except Exception:  # noqa: BLE001 - awaria cache'a nie zamyka logowania
+        logger.error("2FA: licznik prób niedostępny (cache) – blokada konta nie działa.")
+        return None
+    if not isinstance(count, int) or isinstance(count, bool):
+        logger.error("2FA: licznik prób oddał %r zamiast liczby – blokada konta nie działa.", count)
+        return None
+    return count
+
+
+def _lock(user, request=None) -> None:
+    """Zakłada blokadę konta, audyt i list do właściciela."""
+    from django.core.cache import cache
+
+    from apps.core.models import audit
+
+    try:
+        cache.set(_lock_key(user), time.time() + LOCKOUT_SECONDS, LOCKOUT_SECONDS)
+        cache.delete(_fail_key(user))
+    except Exception:  # noqa: BLE001
+        logger.error("2FA: nie udało się zapisać blokady konta (cache).")
+        return
+    audit(user, "2fa.locked", user, {"seconds": LOCKOUT_SECONDS}, request)
+    _notify(user, "locked", request=request, minutes=LOCKOUT_SECONDS // 60)
+
+
+def _clear_failures(user) -> None:
+    from django.core.cache import cache
+
+    try:
+        cache.delete(_fail_key(user))
+    except Exception:  # noqa: BLE001
+        logger.error("2FA: nie udało się wyzerować licznika prób (cache).")
+
+
+def _notify(user, event: str, *, request=None, **params) -> None:
+    """List do właściciela (``apps.staff_mfa.notifications``). Awaria składania listu nie cofa zdarzenia."""
+    try:
+        from apps.staff_mfa.notifications import notify
+
+        notify(user, event, request=request, **params)
+    except Exception:  # noqa: BLE001 - list jest skutkiem ubocznym, nie warunkiem czynności
+        logger.exception("2FA: nie udało się zakolejkować listu %s.", event)
 
 
 # --- czynności ----------------------------------------------------------------------------------
@@ -415,20 +570,78 @@ def confirm_setup(user, code: str, *, request=None) -> list[str]:
     from rest_framework.authtoken.models import Token
 
     Token.objects.filter(user=user).delete()
+    # Inne sesje tego konta (przegląd, M3b) weszły samym hasłem i niosą znacznik zwolnienia albo
+    # okresu przejściowego – po włączeniu 2FA mają zalogować się od nowa, już z kodem.
+    from apps.staff_mfa.security import drop_other_sessions
+
+    drop_other_sessions(user, keep_session_key=_own_session_key(user, request))
     audit(user, "2fa.enabled", user, {"backup_codes": len(hashed)}, request)
+    _notify(user, "enabled", request=request)
     return plain
 
 
 def disable(user, *, actor=None, request=None) -> bool:
-    """Wyłącza drugi składnik na własnym koncie. Zwraca ``False``, gdy nie było czego wyłączać."""
+    """Wyłącza drugi składnik na własnym koncie. Zwraca ``False``, gdy nie było czego wyłączać.
+
+    Bez sprawdzania poświadczeń – to robi :func:`check_credentials` w ekranie właściciela.
+    """
     from apps.core.models import audit
 
     device = device_for(user)
     if device is None:
         return False
+    was_confirmed = device.is_confirmed
     device.delete()
     audit(actor or user, "2fa.disabled", user, {}, request)
+    if was_confirmed:
+        from apps.staff_mfa.policy import close_grace
+        from apps.staff_mfa.security import drop_other_sessions
+
+        close_grace(user)
+        drop_other_sessions(user, keep_session_key=_own_session_key(user, request))
+        _notify(user, "disabled", request=request)
     return True
+
+
+def check_credentials(user, password: str, code: str, *, request=None) -> None:
+    """Hasło **i** bieżący kod (z aplikacji albo zapasowy) – przed wyłączeniem i nowym kompletem kodów.
+
+    Dlaczego oba, skoro sesja przeszła już drugi składnik: sesja bywa porzucona (komputer w pokoju
+    komisji, „zapamiętane urządzenie”), a te dwie czynności są dokładnie tym, czego potrzebuje ktoś,
+    kto chce zabezpieczenie zdjąć albo przejąć na stałe (nowe kody = dostęp bez telefonu). Hasło
+    sprawdza ``check_password`` (bez ``authenticate``: konto jest już zalogowane, a backendy
+    zewnętrzne nie mają tu nic do powiedzenia). Zły kod liczy się do blokady konta tak samo, jak
+    przy logowaniu – inaczej ten formularz byłby wyrocznią do zgadywania kodów.
+    """
+    from apps.core.api import DomainError
+
+    if not password or not user.check_password(password):
+        raise DomainError(_("Hasło się nie zgadza."), "TWO_FACTOR_BAD_PASSWORD", 400)
+    if is_locked(user):
+        raise DomainError(
+            _("Zbyt wiele błędnych kodów. Spróbuj ponownie za %(minutes)s min.")
+            % {"minutes": lock_minutes_left(user)},
+            "TWO_FACTOR_LOCKED",
+            429,
+        )
+    if not verify(user, code, request=request):
+        raise DomainError(_("Kod nie pasuje."), "TWO_FACTOR_INVALID", 400)
+
+
+def regenerate_backup_codes(user, *, request=None) -> list[str]:
+    """Nowy komplet kodów zapasowych; poprzednie przestają działać. Poświadczenia sprawdza wołający."""
+    from apps.core.api import DomainError
+    from apps.core.models import audit
+
+    device = confirmed_device(user)
+    if device is None:
+        raise DomainError(_("Na tym koncie nie ma włączonego drugiego składnika."))
+    plain, hashed = generate_backup_codes()
+    device.backup_codes = hashed
+    device.save(update_fields=["backup_codes"])
+    audit(user, "2fa.codes_regenerated", user, {"backup_codes": len(hashed)}, request)
+    _notify(user, "codes_regenerated", request=request)
+    return plain
 
 
 def reset_by_coordinator(user, *, actor, request=None) -> bool:
@@ -441,14 +654,56 @@ def reset_by_coordinator(user, *, actor, request=None) -> bool:
     Kod zapasowy jest drogą pierwszą, a ta – drugą. Dlatego reset zostawia konto **bez** drugiego
     składnika (a nie z nowym sekretem): człowiek, który stracił telefon, ma po tym wejść hasłem
     i skonfigurować 2FA od nowa na nowym urządzeniu.
+
+    SEC-01: konto **personelu** resetuje wyłącznie superkoordynator (``staff_mfa.policy.may_reset``)
+    – sprawdzane tutaj, w serwisie, a nie tylko w widoku. Właściciel dostaje list.
     """
+    from django.core.exceptions import PermissionDenied
+
+    from apps.staff_mfa.policy import may_reset
+
+    competition = _competition_or_context(
+        getattr(request, "competition", None) if request is not None else None
+    )
+    if not may_reset(actor, user, competition):
+        raise PermissionDenied(
+            "Drugi składnik konta personelu zdejmuje wyłącznie superkoordynator (docs/OPERACJE.md § 41)."
+        )
+    return _reset(user, actor=actor, request=request, diff={"email": bool(user.email)})
+
+
+def reset_by_operator(user, *, note: str = "") -> bool:
+    """Reset z powłoki serwera (``manage.py reset_2fa``) – droga ostatnia, gdy nie ma superkoordynatora.
+
+    Bez ``may_reset``: kto ma powłokę serwera, ma i bazę. Audyt bez wykonawcy z panelu
+    (``actor=None``) i z notatką operatora; list do właściciela tak samo, jak przy resecie z panelu.
+    """
+    return _reset(user, actor=None, request=None, diff={"via": "cli", "note": (note or "")[:200]})
+
+
+def _own_session_key(user, request) -> str | None:
+    """Klucz bieżącej sesji – tylko gdy należy do ``user`` (jej nie zamykamy, resztę tak)."""
+    if request is None or getattr(getattr(request, "user", None), "pk", None) != user.pk:
+        return None
+    session = getattr(request, "session", None)
+    return getattr(session, "session_key", None)
+
+
+def _reset(user, *, actor, request, diff: dict) -> bool:
     from apps.core.models import audit
+    from apps.staff_mfa.policy import close_grace
+    from apps.staff_mfa.security import drop_other_sessions
 
     device = device_for(user)
     if device is None:
         return False
     device.delete()
-    audit(actor, "2fa.reset", user, {"email": bool(user.email)}, request)
+    close_grace(user)
+    # Wszystkie sesje właściciela (przegląd, M3b): znacznik „zweryfikowano” w jego przeglądarkach
+    # dotyczył urządzenia, którego już nie ma.
+    drop_other_sessions(user, keep_session_key=_own_session_key(user, request))
+    audit(actor, "2fa.reset", user, diff, request)
+    _notify(user, "reset", request=request)
     return True
 
 
@@ -473,27 +728,47 @@ def _check_totp(device: TwoFactorDevice, code: str, *, save: bool = True) -> boo
             continue
         if hmac.compare_digest(totp_code(secret, counter), digits):
             if save:
+                # Warunkowy ``UPDATE`` zamiast ``save()`` (SEC-01 § 5): dwa równoległe żądania
+                # z tym samym kodem czytają ten sam ``last_counter`` i oba przechodziły sprawdzenie
+                # wyżej. Baza przyjmuje krok **raz** – drugie żądanie dostaje zero wierszy.
+                now_dt = timezone.now()
+                accepted = TwoFactorDevice.objects.filter(pk=device.pk, last_counter__lt=counter).update(
+                    last_counter=counter, last_used_at=now_dt
+                )
+                if accepted != 1:
+                    return False
                 device.last_counter = counter
-                device.last_used_at = timezone.now()
-                device.save(update_fields=["last_counter", "last_used_at"])
+                device.last_used_at = now_dt
             return True
     return False
 
 
 def _check_backup_code(device: TwoFactorDevice, code: str) -> bool:
-    """Sprawdza kod zapasowy i **zużywa** go. Jednorazowość jest tu całą wartością tych kodów."""
+    """Sprawdza kod zapasowy i **zużywa** go. Jednorazowość jest tu całą wartością tych kodów.
+
+    Pod ``select_for_update``: lista kodów jest jednym polem JSON, więc dwa równoległe żądania
+    z tym samym kodem bez blokady wiersza oba znajdowały go na liście i oba wpuszczały.
+    """
+    from django.db import transaction
+
     normalized = normalize_backup_code(code)
     if len(normalized) != BACKUP_CODE_LENGTH:
         return False
     digest = hash_backup_code(normalized)
-    remaining = list(device.backup_codes or [])
-    for index, stored in enumerate(remaining):
-        if hmac.compare_digest(str(stored), digest):
-            del remaining[index]
-            device.backup_codes = remaining
-            device.last_used_at = timezone.now()
-            device.save(update_fields=["backup_codes", "last_used_at"])
-            return True
+    with transaction.atomic():
+        locked = TwoFactorDevice.objects.select_for_update().filter(pk=device.pk).first()
+        if locked is None:
+            return False
+        remaining = list(locked.backup_codes or [])
+        for index, stored in enumerate(remaining):
+            if hmac.compare_digest(str(stored), digest):
+                del remaining[index]
+                locked.backup_codes = remaining
+                locked.last_used_at = timezone.now()
+                locked.save(update_fields=["backup_codes", "last_used_at"])
+                device.backup_codes = remaining
+                device.last_used_at = locked.last_used_at
+                return True
     return False
 
 
@@ -503,16 +778,30 @@ def verify(user, code: str, *, request=None) -> bool:
     Kolejność wynika z częstości, nie z bezpieczeństwa: sześciocyfrowy kod z aplikacji jest tym,
     co ludzie wpisują w 99 przypadkach na 100, a kod zapasowy ma inną długość, więc pomyłka
     „wpisałem nie to pole” nie istnieje.
+
+    Konto w blokadzie (:func:`is_locked`) dostaje ``False`` **bez sprawdzania kodu** – inaczej
+    blokada byłaby wyłącznie spowolnieniem, a odpowiedź „dobry kod” nadal wyciekałaby w trakcie.
     """
     from apps.core.models import audit
 
     device = confirmed_device(user)
     if device is None:
         return False
+    if is_locked(user):
+        audit(user, "2fa.failed", user, {"stage": "locked"}, request)
+        return False
+    attempt = _count_attempt(user)
+    if attempt is not None and attempt > LOCKOUT_THRESHOLD:
+        # Próba ponad limit w równoległej serii – blokada bez sprawdzania kodu.
+        audit(user, "2fa.failed", user, {"stage": "locked"}, request)
+        _lock(user, request)
+        return False
     if _check_totp(device, code):
+        _clear_failures(user)
         audit(user, "2fa.verified", user, {"method": "totp"}, request)
         return True
     if _check_backup_code(device, code):
+        _clear_failures(user)
         audit(
             user,
             "2fa.verified",
@@ -520,8 +809,11 @@ def verify(user, code: str, *, request=None) -> bool:
             {"method": "backup", "codes_left": device.backup_codes_left},
             request,
         )
+        _notify(user, "backup_used", request=request, codes_left=device.backup_codes_left)
         return True
     audit(user, "2fa.failed", user, {"stage": "login"}, request)
+    if attempt is not None and attempt >= LOCKOUT_THRESHOLD:
+        _lock(user, request)
     return False
 
 
@@ -535,6 +827,18 @@ def mark_verified(request) -> None:
 
 def session_is_verified(request) -> bool:
     return request.session.get(SESSION_VERIFIED_KEY) == getattr(request.user, "pk", None)
+
+
+def clear_session_markers(request) -> None:
+    """Kasuje wszystkie znaczniki tej warstwy z sesji – następne żądanie liczy bramkę od nowa."""
+    for key in (SESSION_VERIFIED_KEY, SESSION_EXEMPT_KEY, SESSION_GRACE_KEY):
+        request.session.pop(key, None)
+
+
+def _from_timestamp(value: float):
+    from datetime import UTC, datetime
+
+    return datetime.fromtimestamp(float(value), tz=UTC)
 
 
 class TwoFactorMiddleware:
@@ -555,6 +859,13 @@ class TwoFactorMiddleware:
     drugiego składnika nie ma) sesja niesie znacznik i kolejne żądania nie pytają już o nic.
     Postawienie znacznika kontu bez 2FA nie jest luką: samo włączenie 2FA później w tej samej
     sesji jest dowodem posiadania telefonu, a wylogowanie czyści sesję w całości.
+
+    SEC-01: konto bez urządzenia dostaje znacznik **konkursu** (``2fa_exempt``) albo znacznik okresu
+    przejściowego z terminem (``2fa_grace``; ``request.two_factor_grace_until`` czyta baner). Po
+    terminie – ta sama poczekalnia „skonfiguruj”, co dotąd, dla **całej** sesji, a nie tylko paneli:
+    sesja po samym haśle na koncie personelu nie może też zmienić adresu e-mail ani zabrać eksportu
+    danych z ``/account/``. Konto z urządzeniem i ważnym ciasteczkiem „zapamiętaj to urządzenie”
+    (``apps.staff_mfa.trust``) przechodzi bramkę bez kodu.
     """
 
     def __init__(self, get_response):
@@ -570,23 +881,75 @@ class TwoFactorMiddleware:
         if user is None or not user.is_authenticated or session_is_verified(request):
             return self.get_response(request)
 
-        target = self._required_step(user)
+        # Odpowiedzi zapamiętane w sesji dla konta **bez** urządzenia (SEC-01 § 3): „nie musisz”
+        # i „masz czas do …” – obie dla jednego konkursu. Dzięki nim polityka nie kosztuje
+        # zapytania na każdym żądaniu, a termin okresu przejściowego i tak działa w trakcie sesji.
+        from apps.staff_mfa.policy import version
+
+        competition_id = getattr(getattr(request, "competition", None), "pk", None)
+        now = time.time()
+        exempt = request.session.get(SESSION_EXEMPT_KEY)
+        exempt_fresh = (
+            isinstance(exempt, list)
+            and len(exempt) == 5
+            and exempt[:2] == [user.pk, competition_id]
+            and now < exempt[3]
+        )
+        # Konto bez żadnej roli, którą polityka mogłaby objąć (uczestnik): ważny znacznik wystarcza,
+        # bez czytania wersji polityki z cache'a (przegląd, L8). Nadanie roli – najpóźniej po TTL.
+        if exempt_fresh and exempt[4]:
+            return self.get_response(request)
+        # Znacznik = [konto, konkurs, wersja polityki]: zmiana polityki (także nadanie roli –
+        # sygnały w ``apps.staff_mfa.signals``) albo konkurs pod prefiksem ścieżki liczy bramkę od nowa.
+        marker = [user.pk, competition_id, version()]
+        if exempt_fresh and exempt[:3] == marker:
+            return self.get_response(request)
+        grace = request.session.get(SESSION_GRACE_KEY)
+        if isinstance(grace, list) and len(grace) == 4 and grace[:3] == marker and now < grace[3]:
+            request.two_factor_grace_until = _from_timestamp(grace[3])
+            return self.get_response(request)
+
+        target = self._required_step(request, user, marker)
         if target is None:
-            # Konto bez drugiego składnika i bez obowiązku jego posiadania: bramka jest przejściem
-            # otwartym, więc stawiamy znacznik i nie pytamy o to bazy przy każdym kolejnym żądaniu.
-            mark_verified(request)
             return self.get_response(request)
         if self._is_allowed(request, target):
             return self.get_response(request)
         return self._stop(request, target)
 
-    def _required_step(self, user) -> str | None:
-        """Nazwa adresu, na który trzeba odesłać: weryfikacja, konfiguracja albo ``None``."""
-        if confirmed_device(user) is not None:
+    def _required_step(self, request, user, marker) -> str | None:
+        """Nazwa adresu, na który trzeba odesłać: weryfikacja, konfiguracja albo ``None``.
+
+        ``None`` zostawia w sesji znacznik (zwolnienie, okres przejściowy albo potwierdzenie przez
+        zapamiętane urządzenie), więc kolejne żądania nie pytają już bazy.
+        """
+        from apps.core.models import audit
+        from apps.staff_mfa import trust
+
+        device = confirmed_device(user)
+        if device is not None:
+            if trust.is_trusted(request, user, device):
+                mark_verified(request)
+                audit(user, "2fa.remembered", user, {}, request)
+                return None
             return "web:twofactor-verify"
-        if is_required_for(user):
-            return "web:twofactor-setup"
-        return None
+        found = requirement(user, getattr(request, "competition", None), request=request)
+        if found is None:
+            # Konto bez drugiego składnika i bez obowiązku jego posiadania: bramka jest przejściem
+            # otwartym, więc stawiamy znacznik i nie pytamy o to bazy przy każdym kolejnym żądaniu –
+            # przez ``EXEMPT_TTL_SECONDS`` (przegląd, M3a), potem liczymy od nowa.
+            from apps.staff_mfa.policy import has_any_role_key
+
+            request.session[SESSION_EXEMPT_KEY] = [
+                *marker,
+                time.time() + EXEMPT_TTL_SECONDS,
+                not has_any_role_key(user),
+            ]
+            return None
+        if not found.overdue():
+            request.session[SESSION_GRACE_KEY] = [*marker, found.deadline.timestamp()]
+            request.two_factor_grace_until = found.deadline
+            return None
+        return "web:twofactor-setup"
 
     def _is_allowed(self, request, target: str) -> bool:
         """Czy ten adres wolno obsłużyć bez drugiego składnika.
@@ -596,8 +959,10 @@ class TwoFactorMiddleware:
         czyli także na ``/account/2fa/disable/`` – i cały mechanizm dałby się zdjąć jednym POST-em
         przez kogoś, kto zna wyłącznie hasło. Konto czekające na kod widzi więc tylko ekran kodu.
         """
+        from django.urls import get_script_prefix
+
         path = request.path
-        return any(path.startswith(prefix) for prefix in _allowed_prefixes(target))
+        return any(path.startswith(prefix) for prefix in _allowed_prefixes(target, get_script_prefix()))
 
     def _stop(self, request, target: str):
         """Przekierowanie dla przeglądarki, 403 dla API – każdy dostaje odpowiedź, którą rozumie."""
@@ -616,9 +981,15 @@ class TwoFactorMiddleware:
 _PUBLIC_PREFIXES = ("/status/", "/status.json", "/healthz/", "/static/")
 
 
-@lru_cache(maxsize=4)
-def _allowed_prefixes(target: str) -> tuple[str, ...]:
-    """Adresy dostępne dla sesji czekającej na krok ``target``. Liczone raz, z urlconfa.
+@lru_cache(maxsize=64)
+def _allowed_prefixes(target: str, script_prefix: str = "/") -> tuple[str, ...]:
+    """Adresy dostępne dla sesji czekającej na krok ``target``. Liczone raz na prefiks, z urlconfa.
+
+    Klucz pamięci obejmuje **prefiks skryptu** (przegląd, L5): konkurs pod prefiksem ścieżki
+    (``/druga/…``) ustawia go na czas żądania, a ``reverse`` dokleja go do adresu. Pamięć liczona
+    tylko po ``target`` oddawałaby adresy z prefiksem pierwszego żądania procesu – sesja czekająca
+    na kod pod drugim konkursem nie dostałaby się wtedy na własny ekran kodu (pętla przekierowań).
+    ``script_prefix`` nie jest czytany w ciele funkcji – ``reverse`` bierze go sam z wątku.
 
     Z ``reverse``, a nie z literałów: adres ekranu weryfikacji jest zapisany w jednym miejscu
     (``apps/web/urls.py``) i literał w tym module rozjechałby się z nim po cichu – a skutkiem
