@@ -27,7 +27,14 @@ from django.conf import settings
 from django.utils.translation import to_locale
 
 LOCALE_DIR = Path(settings.BASE_DIR) / "locale"
-CATALOGS = sorted(LOCALE_DIR.glob("*/LC_MESSAGES/django.po"))
+#: Wspólny katalog i katalogi aplikacji (``apps/<nazwa>/locale``) – Django scala je przy tłumaczeniu,
+#: więc te same sprawdzenia (kompilacja, placeholdery, kompletność) obowiązują oba rodzaje.
+CATALOGS = sorted(
+    [
+        *LOCALE_DIR.glob("*/LC_MESSAGES/django.po"),
+        *(Path(settings.BASE_DIR) / "apps").glob("*/locale/*/LC_MESSAGES/django.po"),
+    ]
+)
 
 #: ``%(name)s``, ``%s``, ``%d``, ``%.2f`` … oraz ``{name}``. ``%%`` to znak procentu, nie placeholder.
 PERCENT = re.compile(r"%(?:\([A-Za-z_][A-Za-z0-9_]*\))?[-#0 +]*\d*(?:\.\d+)?[sdifr]")
