@@ -100,3 +100,7 @@ msgstr "অন্য ডিভাইসে খোলা django CMS সম্প�
 
 msgid "Zmiana adresu wymaga potwierdzenia hasłem. To konto nie ma jeszcze hasła – ustaw je najpierw w sekcji „Hasło” niżej."
 msgstr "ঠিকানা পরিবর্তনের জন্য পাসওয়ার্ড দিয়ে নিশ্চিত করতে হয়। এই অ্যাকাউন্টের এখনও কোনো পাসওয়ার্ড নেই – আগে নিচের „পাসওয়ার্ড” অংশে সেট করুন।"
+
+#, python-format
+msgid "To konto nie ma hasła – logujesz się przez zewnętrznego dostawcę (np. Google, Facebook) i tak zostaje. Adres <strong>%(address)s</strong> nie jest potwierdzony, więc nie wyślemy na niego linku do ustawienia hasła. Hasło da się ustawić dopiero po potwierdzeniu adresu przez dostawcę logowania; jeśli Twój dostawca adresu nie potwierdza, napisz do organizatora."
+msgstr "এই অ্যাকাউন্টের কোনো পাসওয়ার্ড নেই – আপনি বাহ্যিক প্রদানকারীর (যেমন Google, Facebook) মাধ্যমে লগ ইন করেন এবং তা-ই থাকবে। ঠিকানা <strong>%(address)s</strong> যাচাই করা হয়নি, তাই আমরা সেখানে পাসওয়ার্ড সেট করার লিংক পাঠাব না। লগ ইন প্রদানকারী ঠিকানাটি যাচাই করার পরেই পাসওয়ার্ড সেট করা যাবে; আপনার প্রদানকারী ঠিকানা যাচাই না করলে আয়োজককে লিখুন।"

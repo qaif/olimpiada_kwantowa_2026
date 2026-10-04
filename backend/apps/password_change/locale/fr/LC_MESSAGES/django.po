@@ -100,3 +100,7 @@ msgstr "Une session ouverte de l’éditeur django CMS sur un autre appareil n�
 
 msgid "Zmiana adresu wymaga potwierdzenia hasłem. To konto nie ma jeszcze hasła – ustaw je najpierw w sekcji „Hasło” niżej."
 msgstr "Le changement d’adresse doit être confirmé par le mot de passe. Ce compte n’a pas encore de mot de passe – définissez-le d’abord dans la section « Mot de passe » ci-dessous."
+
+#, python-format
+msgid "To konto nie ma hasła – logujesz się przez zewnętrznego dostawcę (np. Google, Facebook) i tak zostaje. Adres <strong>%(address)s</strong> nie jest potwierdzony, więc nie wyślemy na niego linku do ustawienia hasła. Hasło da się ustawić dopiero po potwierdzeniu adresu przez dostawcę logowania; jeśli Twój dostawca adresu nie potwierdza, napisz do organizatora."
+msgstr "Ce compte n’a pas de mot de passe – vous vous connectez via un fournisseur externe (par ex. Google, Facebook), et cela ne change pas. L’adresse <strong>%(address)s</strong> n’est pas vérifiée, nous n’y enverrons donc pas de lien pour définir un mot de passe. Un mot de passe ne pourra être défini qu’une fois l’adresse vérifiée par votre fournisseur de connexion ; si votre fournisseur ne vérifie pas les adresses, écrivez à l’organisateur."

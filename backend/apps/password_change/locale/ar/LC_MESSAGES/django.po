@@ -100,3 +100,7 @@ msgstr "لا تنتهي جلسة محرر django CMS المفتوحة على ج�
 
 msgid "Zmiana adresu wymaga potwierdzenia hasłem. To konto nie ma jeszcze hasła – ustaw je najpierw w sekcji „Hasło” niżej."
 msgstr "يتطلب تغيير العنوان التأكيد بكلمة المرور. لا توجد لهذا الحساب كلمة مرور بعد – عيّنها أولًا في قسم «كلمة المرور» أدناه."
+
+#, python-format
+msgid "To konto nie ma hasła – logujesz się przez zewnętrznego dostawcę (np. Google, Facebook) i tak zostaje. Adres <strong>%(address)s</strong> nie jest potwierdzony, więc nie wyślemy na niego linku do ustawienia hasła. Hasło da się ustawić dopiero po potwierdzeniu adresu przez dostawcę logowania; jeśli Twój dostawca adresu nie potwierdza, napisz do organizatora."
+msgstr "لا توجد لهذا الحساب كلمة مرور – تسجّل الدخول عبر مزوّد خارجي (مثل Google أو Facebook) وسيبقى الأمر كذلك. العنوان <strong>%(address)s</strong> غير مؤكَّد، لذا لن نرسل إليه رابطًا لتعيين كلمة المرور. لا يمكن تعيين كلمة مرور إلا بعد أن يؤكّد مزوّد تسجيل الدخول العنوان؛ إذا كان مزوّدك لا يؤكّد العناوين، فراسل المنظِّم."

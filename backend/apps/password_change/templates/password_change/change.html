@@ -28,6 +28,17 @@
       </form>
       <p class="auth__alt">{% blocktranslate trimmed %}Nie pamiętasz aktualnego hasła?{% endblocktranslate %}
         <a href="{% url 'web:password-reset' %}">{% translate "Ustaw nowe przez link e-mail" %}</a>.</p>
+    {% elif not can_send_link %}
+      {% comment %}
+        Konto bez hasła z adresem niepotwierdzonym (``reset_eligible`` fałsz – np. Facebook): link na
+        taki adres mógłby trafić do cudzej skrzynki, więc przycisku nie ma (decyzja z przeglądu #70).
+      {% endcomment %}
+      <p class="auth__intro">{% blocktranslate trimmed with address=request.user.email %}
+        To konto nie ma hasła – logujesz się przez zewnętrznego dostawcę (np. Google, Facebook) i tak
+        zostaje. Adres <strong>{{ address }}</strong> nie jest potwierdzony, więc nie wyślemy na niego
+        linku do ustawienia hasła. Hasło da się ustawić dopiero po potwierdzeniu adresu przez
+        dostawcę logowania; jeśli Twój dostawca adresu nie potwierdza, napisz do organizatora.
+      {% endblocktranslate %}</p>
     {% else %}
       <p class="auth__intro">{% blocktranslate trimmed with address=request.user.email %}
         To konto nie ma hasła – logujesz się przez zewnętrznego dostawcę (np. Google). Jeśli chcesz

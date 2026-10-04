@@ -20,6 +20,7 @@ from django.utils.translation import gettext_lazy
 from django.views.decorators.cache import never_cache
 from django.views.generic import FormView, View
 
+from apps.accounts.password_reset import reset_eligible
 from apps.core.api import DomainError
 from apps.web.throttle import PerAccountThrottleMixin
 from apps.web.views.account import profile_url, relogin_after_lock
@@ -57,7 +58,10 @@ class PasswordChangeView(LoginRequiredMixin, PerAccountThrottleMixin, FormView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["has_password"] = self.request.user.has_usable_password()
+        user = self.request.user
+        context["has_password"] = user.has_usable_password()
+        # Konto bez hasła: przycisk linku tylko tam, gdzie wysłałby go reset (``reset_eligible``).
+        context["can_send_link"] = not context["has_password"] and reset_eligible(user)
         context["profile_url"] = profile_url(self.request)
         return context
 

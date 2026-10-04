@@ -665,6 +665,11 @@ def test_set_link_follows_the_reset_eligibility_rule(web, fields, django_capture
     user = passwordless(**fields)
     web.force_login(user)
 
+    # Ekran nie proponuje przycisku, tylko mówi, co zrobić (decyzja z przeglądu #70).
+    screen = web.get(URL).content.decode()
+    assert f'action="{SET_LINK_URL}"' not in screen
+    assert "nie jest potwierdzony" in screen and "napisz do organizatora" in screen
+
     with django_capture_on_commit_callbacks(execute=True):
         page = web.post(SET_LINK_URL, follow=True).content.decode()
 

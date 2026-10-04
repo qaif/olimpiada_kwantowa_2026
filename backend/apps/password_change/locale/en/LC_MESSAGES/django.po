@@ -100,3 +100,7 @@ msgstr "An open django CMS editor session on another device is not ended immedia
 
 msgid "Zmiana adresu wymaga potwierdzenia hasłem. To konto nie ma jeszcze hasła – ustaw je najpierw w sekcji „Hasło” niżej."
 msgstr "Changing the address requires confirmation with your password. This account does not have a password yet – set one first in the “Password” section below."
+
+#, python-format
+msgid "To konto nie ma hasła – logujesz się przez zewnętrznego dostawcę (np. Google, Facebook) i tak zostaje. Adres <strong>%(address)s</strong> nie jest potwierdzony, więc nie wyślemy na niego linku do ustawienia hasła. Hasło da się ustawić dopiero po potwierdzeniu adresu przez dostawcę logowania; jeśli Twój dostawca adresu nie potwierdza, napisz do organizatora."
+msgstr "This account has no password – you sign in through an external provider (e.g. Google, Facebook), and that stays as it is. The address <strong>%(address)s</strong> is not verified, so we will not send a password-setting link to it. A password can only be set once the address has been verified by your sign-in provider; if your provider does not verify addresses, write to the organiser."
