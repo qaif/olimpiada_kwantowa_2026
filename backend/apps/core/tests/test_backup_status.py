@@ -48,7 +48,7 @@ def test_a_fresh_report_is_fresh():
 
 def test_a_report_older_than_the_threshold_stops_being_fresh():
     backup.record(ok=True, at=timezone.now() - timedelta(hours=backup.MAX_BACKUP_AGE_HOURS + 1))
-    backup.record(verified=True, at=timezone.now() - timedelta(days=backup.MAX_VERIFY_AGE_DAYS + 1))
+    backup.record(verified=True, at=timezone.now() - timedelta(hours=backup.MAX_VERIFY_AGE_HOURS + 1))
 
     state = backup.state()
 
