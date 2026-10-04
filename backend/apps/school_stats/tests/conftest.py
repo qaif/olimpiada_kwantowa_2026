@@ -85,7 +85,7 @@ def student(
         school=school.name if school else kw.pop("school_text", "LO bez wykazu"),
         school_ref=school,
         district=kw.pop("district", school.voivodeship if school else Voivodeship.MAZOWIECKIE),
-        supervisor_email=SUPERVISOR_EMAIL if mine else "",
+        supervisor_email=kw.pop("supervisor_email", SUPERVISOR_EMAIL if mine else ""),
         **kw,
     )
     entry = StageEntryFactory(stage=stage, participant=participant, status=status)

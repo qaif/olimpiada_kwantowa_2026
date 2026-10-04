@@ -137,6 +137,7 @@
     Szkoły, które miały uczestników w edycji {{ edition }}, a w tej edycji nie mają nikogo – adresaci akcji promocyjnej.
   {% endblocktranslate %}</p>
   {% if lost %}
+    <p class="actions"><a class="btn btn--secondary btn--small" href="{% url 'web:coordinator-school-stats-lost-export' %}?edition={{ edition.pk }}">{% translate "Eksport CSV" %}</a></p>
     <div class="table-scroll">
       <table class="table ss-table">
         <thead>

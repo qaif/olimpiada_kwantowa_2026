@@ -2,7 +2,8 @@
 {% comment %}
   Tabela porównania jednego etapu: wiersze z ``services._comparison`` / ``services.school_report``.
   Wiersz z ``visible=False`` nie pokazuje **żadnej** liczby – nawet liczby uczestników, bo przy
-  progu z dopełnieniem to ona zdradza, ilu „obcych” uczniów jest w grupie.
+  progu z dopełnieniem to ona zdradza, ilu „obcych” uczniów jest w grupie. Średnia stoi w
+  ``line.mean`` – serwis wpisuje tam ``None`` także wtedy, gdy ocenionych wpisów jest mniej niż próg.
 {% endcomment %}
 <div class="table-scroll">
   <table class="table ss-table">
@@ -29,7 +30,7 @@
               <td class="num">{{ line.aggregate.on_time }}</td>
             {% endif %}
             <td class="num">{% if stage.published %}{{ line.aggregate.qualified }}{% else %}—{% endif %}</td>
-            <td class="num">{% if stage.has_means and line.aggregate.mean is not None %}{{ line.aggregate.mean|points }}{% else %}—{% endif %}</td>
+            <td class="num">{% if line.mean is not None %}{{ line.mean|points }}{% else %}—{% endif %}</td>
           {% else %}
             <td colspan="{% if stage.has_submissions %}5{% else %}3{% endif %}" class="hint">{% blocktranslate trimmed with k=k_anonymity %}
               grupa ukryta – mniej niż {{ k }} osób

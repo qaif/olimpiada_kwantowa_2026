@@ -64,7 +64,7 @@ def _line_cells(stage, line, styles) -> list:
     submitted = _number(aggregate.submitted) if stage.has_submissions else "—"
     on_time = _number(aggregate.on_time) if stage.has_submissions else "—"
     qualified = _number(aggregate.qualified) if stage.published else "—"
-    mean = format_points(aggregate.mean) if stage.has_means and aggregate.mean is not None else "—"
+    mean = format_points(line["mean"]) if line.get("mean") is not None else "—"
     return [
         *cells,
         _para(str(aggregate.entries), styles["cell"]),
@@ -154,6 +154,7 @@ def compose_pdf(report: dict, competition) -> bytes:
     story.append(_para(_("Udział szkoły w kolejnych edycjach"), styles["heading"]))
     history = [[_para(_("Edycja"), styles["head"]), _para(_("Uczestnicy ze szkoły"), styles["head"])]]
     for item in report["history"]:
+        # Liczba osób tylko wtedy, gdy nie da się z niej odjąć znanych uczniów (L2, ``school_report``).
         count = str(item["participants"]) if item["visible"] else _("mniej niż %(k)s") % {"k": K_ANONYMITY}
         history.append([_para(item["edition"].year_label, styles["cell"]), _para(count, styles["cell"])])
     table = Table(history, colWidths=[width * 0.6, width * 0.4])

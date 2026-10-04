@@ -7,7 +7,9 @@ pamięć podręczna i ekrany są w obu przypadkach te same – różni je wyłą
 drugą kopię całego modułu; z osią znaczy jedną nową klasę i jedną gałąź w :func:`axis_for`.
 
 Oś czyta krotkę wpisu (:class:`EntryRow`), a nie model – serwis pobiera wpisy jednym zapytaniem
-``values_list`` i oś nie ma prawa dociągać niczego z bazy na wiersz.
+``values_list`` i oś nie ma prawa dociągać niczego z bazy na wiersz. Wynikiem osi jest
+:class:`MemberRow` – ta sama postać, którą ma przynależność **zamrożona** przy publikacji
+(``apps.school_stats.models.FrozenMembership``), więc agregaty nie rozróżniają obu źródeł.
 """
 
 from __future__ import annotations
@@ -16,6 +18,7 @@ from dataclasses import dataclass
 from typing import NamedTuple
 
 from apps.accounts.models import Voivodeship
+from apps.accounts.profile import ANONYMISED_SCHOOL
 from apps.core.text import fold
 
 
@@ -37,6 +40,7 @@ class EntryRow(NamedTuple):
     school_rspo: int | None
     has_submission: bool
     has_late: bool
+    anonymised: bool
 
 
 class Group(NamedTuple):
@@ -46,6 +50,31 @@ class Group(NamedTuple):
     label: str
     city: str
     school_id: int | None
+    rspo: int | None = None
+
+
+class MemberRow(NamedTuple):
+    """Przynależność wpisu do grupy i regionu plus to, co z niego liczy agregat.
+
+    ``participant_id`` jest ``None`` w wierszu zamrożonym – zamrożenie nie przechowuje identyfikatora
+    osoby, bo agregatowi nie jest potrzebny (liczebność osób w grupie liczy się z wpisów żywych).
+    ``anonymised`` – konto po anonimizacji w chwili odczytu: taki wpis nie ma grupy ani regionu,
+    zostaje wyłącznie w „całości” (STAT-01 § 2).
+    """
+
+    entry_id: int
+    stage_id: int
+    participant_id: int | None
+    qualified: bool
+    group: Group | None
+    region: str
+    has_submission: bool
+    has_late: bool
+    anonymised: bool = False
+
+    @property
+    def group_key(self) -> str | None:
+        return self.group.key if self.group is not None else None
 
 
 @dataclass(frozen=True)
@@ -62,6 +91,21 @@ class GroupAxis:
 
     def region_label(self, code: str) -> str:  # pragma: no cover - interfejs
         raise NotImplementedError
+
+    def member(self, row: EntryRow, *, qualified_status: str) -> MemberRow:
+        """Wpis → przynależność. Konto po anonimizacji nie ma ani grupy, ani regionu (STAT-01 M1)."""
+        anonymised = bool(row.anonymised)
+        return MemberRow(
+            entry_id=row.entry_id,
+            stage_id=row.stage_id,
+            participant_id=row.participant_id,
+            qualified=row.status == qualified_status,
+            group=None if anonymised else self.group_of(row),
+            region="" if anonymised else self.region_of(row),
+            has_submission=bool(row.has_submission),
+            has_late=bool(row.has_late),
+            anonymised=anonymised,
+        )
 
 
 class SchoolAxis(GroupAxis):
@@ -87,9 +131,12 @@ class SchoolAxis(GroupAxis):
                 row.school_name or row.school_text,
                 row.school_city or "",
                 row.school_ref_id,
+                row.school_rspo,
             )
         text = " ".join((row.school_text or "").split())
-        if not text:
+        # Kreska wpisywana przy anonimizacji konta (``ANONYMISED_SCHOOL``) nie jest szkołą – bez tej
+        # reguły wszystkie usunięte konta zlewałyby się w jedną „szkołę” w rankingu.
+        if not text or text == ANONYMISED_SCHOOL:
             return None
         return Group(f"t{fold(text)}", text, "", None)
 
@@ -112,8 +159,8 @@ SCHOOL_AXIS = SchoolAxis()
 def axis_for(competition) -> GroupAxis:
     """Oś statystyk konkursu. Dziś zawsze szkoła.
 
-    Punkt zaczepienia dla IQO: po scaleniu ``feature/delegacje`` konkurs z delegacjami dostanie tu
-    ``DelegationAxis`` (klucz – delegacja uczestnika, region – ``Participant.country``). Do tego
-    czasu również IQO liczy po szkołach z profilu – to poprawna, choć uboższa odpowiedź.
+    Punkt zaczepienia dla IQO: konkurs z delegacjami (DEL-01) dostanie tu ``DelegationAxis`` (klucz –
+    delegacja uczestnika, region – ``Participant.country``). Do tego czasu również IQO liczy po
+    szkołach z profilu – to poprawna, choć uboższa odpowiedź.
     """
     return SCHOOL_AXIS

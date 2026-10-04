@@ -108,16 +108,19 @@ class SupervisorReportView(_FlagMixin, SupervisorRequiredMixin, View):
         self.flag_or_404()
         supervisor = self.supervisor
         edition = self.chosen_edition()
-        if edition is None or not (supervisor.school_ref_id and supervisor.verified):
+        # Profil z innego konkursu (albo bez konkursu) nie jest zweryfikowany **tutaj** (M2) – ta sama
+        # reguła, co ``services.supervisor_scope``, więc przycisk i adres nie mogą się rozjechać.
+        verified = supervisor.verified and supervisor.competition_id == getattr(self.competition, "pk", None)
+        if edition is None or not (supervisor.school_ref_id and verified):
             raise Http404("Raport szkoły wymaga szkoły z wykazu zweryfikowanej przez organizatora.")
         from apps.accounts.supervisors import students_of
 
-        axis = axis_for(self.competition)
-        stages = services.competition_stages(edition)
-        own_rows = services.entry_rows(
-            [stage.pk for stage in stages], [student.pk for student in students_of(supervisor)]
+        report = services.school_report(
+            supervisor.school_ref,
+            edition,
+            own_participant_ids=[student.pk for student in students_of(supervisor)],
+            axis=axis_for(self.competition),
         )
-        report = services.school_report(supervisor.school_ref, edition, own_rows=own_rows, axis=axis)
         return _pdf_response(request, report, self.competition)
 
 
@@ -178,6 +181,25 @@ class CoordinatorExportView(_FlagMixin, CoordinatorRequiredMixin, View):
         return exports.build_response(dataset, "csv")
 
 
+class CoordinatorLostSchoolsExportView(_FlagMixin, CoordinatorRequiredMixin, View):
+    """``/coordinator/school-stats/lost.csv`` – szkoły „do odzyskania” (adresaci akcji promocyjnej)."""
+
+    def get(self, request):
+        self.flag_or_404()
+        edition = self.chosen_edition()
+        if edition is None:
+            raise Http404("Ten konkurs nie ma jeszcze żadnej edycji.")
+        dataset = services.lost_schools_dataset(edition, axis=axis_for(self.competition))
+        audit(
+            request.user,
+            "export.generated",
+            edition,
+            {"kind": "school_statistics_lost", "format": "csv", "rows": dataset.count},
+            request=request,
+        )
+        return exports.build_response(dataset, "csv")
+
+
 class CoordinatorReportView(_FlagMixin, CoordinatorRequiredMixin, View):
     """``/coordinator/school-stats/schools/<id>/report.pdf`` – raport szkoły z rankingu.
 
@@ -195,7 +217,14 @@ class CoordinatorReportView(_FlagMixin, CoordinatorRequiredMixin, View):
         if f"s{school_id}" not in services.edition_summary(edition, axis).groups:
             raise Http404("Ta szkoła nie ma uczestników w tej edycji.")
         school = get_object_or_404(School, pk=school_id)
-        report = services.school_report(school, edition, axis=axis)
+        # M4: raport trafia do szkoły, więc odbiorca zna wyniki uczniów **wszystkich** jej opiekunów –
+        # wobec ich sumy liczymy dopełnienie i zagnieżdżenie.
+        report = services.school_report(
+            school,
+            edition,
+            own_participant_ids=services.school_supervisor_participants(self.competition.pk, school.pk),
+            axis=axis,
+        )
         return _pdf_response(request, report, self.competition)
 
 

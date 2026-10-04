@@ -30,11 +30,15 @@ SCHOOL_STATISTICS_ACTIVITY = _activity(
     ),
     subjects="uczestnicy, którzy wskazali opiekuna szkolnego; opiekunowie szkolni",
     categories=[
-        "brak nowych kategorii – odczyt istniejących: wpisy do etapów, fakt i termin oddania pracy, "
-        "suma punktów i kwalifikacja z oficjalnie ogłoszonych wyników, szkoła i województwo z profilu",
+        "odczyt istniejących danych: wpisy do etapów, fakt i termin oddania pracy, suma punktów "
+        "i kwalifikacja z oficjalnie ogłoszonych wyników, szkoła i województwo z profilu",
+        "przynależność wpisu zamrożona przy publikacji wyników etapu (`FrozenMembership`): "
+        "identyfikator wpisu, szkoła (nazwa, RSPO), województwo, awans i oddanie pracy – bez imienia, "
+        "nazwiska, adresu i identyfikatora osoby; służy wyłącznie do agregatów",
         "agregaty szkół i województw (liczba uczestników, oddanych prac, zakwalifikowanych, średnia) "
-        "ukrywane, gdy grupa liczy mniej niż 5 osób; u opiekuna także, gdy poza jego uczniami jest "
-        "w grupie od 1 do 4 osób",
+        "ukrywane, gdy grupa liczy mniej niż 5 osób, gdy poza uczniami znanymi czytelnikowi jest w niej "
+        "od 1 do 4 osób albo gdy tyle osób daje różnica dwóch pokazanych grup (np. województwo minus "
+        "szkoła); średnia dopiero od 5 wyników",
     ],
     recipients=[
         HOSTING_RECIPIENT,
@@ -43,14 +47,18 @@ SCHOOL_STATISTICS_ACTIVITY = _activity(
         "dyrektor szkoły – raport PDF zawierający wyłącznie dane zbiorcze, bez nazwisk i kodów uczestników",
     ],
     retention=(
-        "nic nie jest przechowywane trwale: zestawienia liczone są przy wyświetleniu, a w pamięci "
-        "podręcznej serwera leżą wyłącznie agregaty (do doby); PDF i CSV powstają przy pobraniu"
+        "zestawienia liczone są przy wyświetleniu, a w pamięci podręcznej serwera leżą wyłącznie "
+        "agregaty (do doby); PDF i CSV powstają przy pobraniu. Zamrożona przynależność wpisu żyje "
+        "tak długo, jak publikacja wyników etapu (zdjęcie publikacji albo usunięcie etapu kasuje ją); "
+        "po anonimizacji konta zostaje bez możliwości powiązania z osobą i liczy się już tylko do "
+        "agregatów"
     ),
     measures=[
         "funkcja domyślnie **wyłączona** (flaga konkursu `school_statistics`)",
         "punkty i kwalifikacja wyłącznie z zamrożonej publikacji wyników – nic przed ogłoszeniem, "
         "a przy ogłoszeniu samej listy awansujących bez średnich i bez punktów osób spoza listy",
-        "próg k-anonimowości 5 z regułą dopełnienia przeciw odejmowaniu agregatów",
+        "próg k-anonimowości 5 z regułą dopełnienia i zagnieżdżenia przeciw odejmowaniu agregatów; "
+        "plik dla szkoły liczony wobec uczniów wszystkich opiekunów tej szkoły",
         "pobrania CSV i PDF zapisywane w dzienniku zdarzeń bez danych osobowych",
     ],
 )

@@ -32,6 +32,11 @@ urlpatterns = [
         name="coordinator-school-stats-export",
     ),
     path(
+        "coordinator/school-stats/lost.csv",
+        views.CoordinatorLostSchoolsExportView.as_view(),
+        name="coordinator-school-stats-lost-export",
+    ),
+    path(
         "coordinator/school-stats/schools/<int:school_id>/report.pdf",
         views.CoordinatorReportView.as_view(),
         name="coordinator-school-stats-report",

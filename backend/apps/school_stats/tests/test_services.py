@@ -108,7 +108,7 @@ def test_qualified_only_list_hides_means_and_points_of_students_off_the_list(
     assert on_cell.total == Decimal(20)
     assert off_cell.off_list is True and off_cell.total is None
     (comparison,) = data["comparisons"]
-    assert all(line["aggregate"].mean is None for line in comparison["lines"])
+    assert all(line["mean"] is None for line in comparison["lines"])
 
 
 def test_supervisor_sees_only_students_who_chose_them(competition, edition, stage, school, supervisor):
@@ -269,7 +269,8 @@ def test_summary_query_count_does_not_grow_with_entries(
     publish(stage, {})
     stages = services.competition_stages(edition)
 
-    with django_assert_max_num_queries(2):
+    # Publikacje, wpisy, zamrożone wiersze i jednorazowe leniwe zamrożenie – bez względu na liczbę wpisów.
+    with django_assert_max_num_queries(4):
         services.build_summary(edition, stages)
 
 
