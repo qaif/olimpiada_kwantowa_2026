@@ -8,6 +8,22 @@ dokładnie jednemu wierszowi tej tabeli.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## [Unreleased] – Monitoring z zewnątrz (OPS-03)
+
+- **`.github/workflows/uptime.yml`**: GitHub Actions co 10 minut (+ ręcznie) sprawdza z zewnątrz
+  `olimpiadakwantowa.pl` i `iqo-official.org` (`/` – kod 200 i czas, `/healthz/`, `/status.json` –
+  `status` i `backup_restore_check`), LiveKit (`live.` → `OK`) i ważność certyfikatów TLS (ostrzeżenie
+  < 14 dni, awaria < 7). Wykrywa śmierć całego serwera, której watchdog i Uptime Kuma z tego samego
+  hosta nie zobaczą. Zero kosztów, zero kont, tylko `GITHUB_TOKEN` (`contents: read`, `issues: write`),
+  jedyna akcja (`actions/checkout`) przypięta pełnym SHA.
+- Alarm: **jedno** zgłoszenie z etykietą `awaria` przy awarii potwierdzonej w dwóch próbach (2 min
+  odstępu), komentarz tylko przy zmianie zestawu awarii, automatyczne zamknięcie po powrocie; GitHub
+  wysyła listy obserwującym repozytorium.
+- `scripts/uptime_external.py` – sama biblioteka standardowa, składnia Pythona 3.10; testy bez sieci
+  `scripts/tests/test_uptime_external.py`, nowy job CI `uptime-script`.
+- Dokumentacja: `docs/tasks/OPS-03.md`, `docs/OPERACJE.md` § 46 (w tym opóźnienia crona i wyłączanie
+  po 60 dniach bez commitów), `deploy/monitoring/README.md` § 5 – darmowy pinger jako druga opinia.
+
 ## [Unreleased] – Notatniki kwantowe w przeglądarce (QC-01)
 
 - **Notatnik przy zadaniu:** JupyterLite 0.8.5 z jądrem Pyodide 314.0.7 hostowany u nas
