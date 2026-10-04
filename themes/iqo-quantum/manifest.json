@@ -1,0 +1,17 @@
+{
+  "schema": 1,
+  "slug": "iqo-quantum",
+  "name": "IQO Quantum",
+  "version": "1.0.0",
+  "author": "International Quantum Olympiad (QAIF)",
+  "description": "Dark-first theme of the International Quantum Olympiad: hybrid-D medal logo with |IQO⟩ wordmark, full-bleed wave-packet hero, outline cards on a laboratory grid, Space Grotesk.",
+  "supports": ["public", "panels"],
+  "layouts": {
+    "header": "minimal",
+    "home_hero": "full-bleed",
+    "footer": "compact",
+    "cards": "outline"
+  },
+  "color_scheme": "dark",
+  "min_app_version": "0.41.0"
+}
