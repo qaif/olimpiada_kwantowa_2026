@@ -920,6 +920,48 @@ DELEGATIONS_ACTIVITY = _activity(
 )
 
 
+#: Czynność **warunkowa**: medale olimpiady międzynarodowej i ranking krajów (MED-01). Wchodzi do
+#: rejestru wyłącznie konkursom z flagą ``medals`` – Olimpiada Kwantowa nagradza tytułem laureata
+#: w ramach czynności „wyniki”.
+MEDALS_ACTIVITY = _activity(
+    key="medale",
+    name="Medale, dyplomy medalowe i ranking krajów",
+    purpose=(
+        "Przyznanie złotego, srebrnego, brązowego medalu albo wyróżnienia z ostatecznego rankingu "
+        "etapu, wystawienie dyplomu w języku ucznia, ogłoszenie medali i nieoficjalnego rankingu krajów "
+        "oraz lista nagrodzonych na galę."
+    ),
+    legal_basis=(
+        "art. 6 ust. 1 lit. b RODO (wykonanie umowy – nagrody z Regulaminu) oraz art. 6 ust. 1 lit. a "
+        "RODO dla publikacji imienia i nazwiska przy medalu – wyłącznie za odrębną zgodą"
+    ),
+    subjects="uczestnicy etapu, z którego rankingu liczone są nagrody",
+    categories=[
+        "nagroda wyliczona i ostateczna, miejsce i suma punktów, kraj (delegacja albo region)",
+        "ręczna zmiana nagrody: uzasadnienie komitetu, autor i data",
+        "język dokumentu zapamiętany przy wystawieniu dyplomu",
+        "lista na galę (eksport koordynatora): imię i nazwisko, kraj, szkoła, nagroda",
+    ],
+    recipients=[
+        HOSTING_RECIPIENT,
+        "publiczność serwisu – medal przy kodzie albo przy nazwisku (za zgodą); kraj przy wierszu "
+        "wyłącznie tam, gdzie tabela wyników i tak go pokazuje, albo przy nazwisku opublikowanym za zgodą",
+        "ranking krajów – wyłącznie liczby zagregowane per kraj, bez danych pojedynczych osób",
+    ],
+    retention=(
+        "ogłoszone medale są zamrożonym dokumentem zawodów, jak tabela wyników, i zostają bezterminowo "
+        "w postaci pseudonimowej; ręczna zmiana nagrody znika razem z wpisem do etapu"
+    ),
+    measures=[
+        "funkcja działa wyłącznie w konkursie z włączoną flagą ``medals``",
+        "podpisy wierszy publicznej tabeli liczy ta sama funkcja, co tabela wyników (te same zgody)",
+        "nazwiska na liście na galę czytane w chwili eksportu – nie leżą w zamrożonej tabeli",
+        "każdy eksport z nazwiskami i każda ręczna zmiana jest wpisem w dzienniku zdarzeń (bez treści "
+        "uzasadnienia)",
+    ],
+)
+
+
 def activities_for(competition=None) -> tuple[ProcessingActivity, ...]:
     """Rejestr **tego** konkursu: czynności wspólne plus te, które wynikają z jego konfiguracji.
 
@@ -954,6 +996,8 @@ def activities_for(competition=None) -> tuple[ProcessingActivity, ...]:
         activities = (*activities, ai_grading_activity(competition))
     if competition is not None and competition.uses_delegations:
         activities = (*activities, DELEGATIONS_ACTIVITY)
+    if competition is not None and competition.has_feature("medals"):
+        activities = (*activities, MEDALS_ACTIVITY)
     return activities
 
 

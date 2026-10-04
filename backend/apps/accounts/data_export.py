@@ -396,8 +396,21 @@ def export_payload(user: User) -> dict:
         "ustawienia_wiadomosci": _chat_settings_section(user),
         "zaswiadczenia_statusu_ucznia": _student_status_section(participant),
         "oceny_ai": _ai_section(participant),
+        "medale": _medals_section(participant),
         "ustawienia_interfejsu": _preferences_section(user),
     }
+
+
+def _medals_section(participant) -> list[dict]:
+    """Nagrody olimpiady międzynarodowej (MED-01): ogłoszony medal i ręczna zmiana z uzasadnieniem.
+
+    Sekcja jest w pliku **zawsze** (pusta lista w konkursie bez medali) – kształt pliku ma być ten sam
+    dla każdego konta. Uzasadnienie ręcznej zmiany jest zdaniem o tej osobie, więc należy się jej;
+    autora zmiany nie podajemy – to dane pracownika organizatora (ta sama granica, co przy recenzjach).
+    """
+    from apps.medals.export import participant_medals
+
+    return participant_medals(participant)
 
 
 def _student_status_section(participant) -> list[dict]:
