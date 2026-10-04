@@ -6,11 +6,11 @@ from celery import shared_task
 
 
 @shared_task
-def start_track_recording(session_pk: int, track_sid: str) -> bool:
+def start_track_recording(session_pk: int, track_sid: str, room: str = "") -> bool:
     """Track Egress kamery – kolejkowane przez webhook ``track_published`` przy ``record=True``."""
     from .services import start_recording
 
-    return start_recording(session_pk, track_sid) is not None
+    return start_recording(session_pk, track_sid, room) is not None
 
 
 @shared_task

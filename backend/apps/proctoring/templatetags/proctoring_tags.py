@@ -35,5 +35,6 @@ def proctoring_card(context, stage, compact=False):
         "stage": stage,
         "compact": compact,
         "ready": services.is_ready(session, config),
+        "interview": stage.is_interview,
         "request": request,
     }

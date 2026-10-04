@@ -758,3 +758,75 @@ msgstr "поздний старт: %(minutes)s мин"
 
 msgid "Kamera nie działa albo nie masz do niej dostępu. Jeśli nie możesz jej użyć, poproś o inną formę nadzoru (na dole strony)."
 msgstr "Камера не работает или у вас нет к ней доступа. Если вы не можете её использовать, запросите другую форму наблюдения (внизу страницы)."
+
+msgid "Tej osoby nie ma teraz w pokoju."
+msgstr "Этого человека сейчас нет в комнате."
+
+msgid "Twoja rozmowa jest nadzorowana zdalnie. Zgoda i sprzęt są gotowe – wejdź na rozmowę przyciskiem „Dołącz do rozmowy”."
+msgstr "Ваше собеседование проходит под дистанционным наблюдением. Согласие и оборудование готовы – войдите кнопкой «Присоединиться к собеседованию»."
+
+msgid "Rozmowa"
+msgstr "Собеседование"
+
+msgid "Nadzór obejmuje Twoją rozmowę w pokoju na platformie – osobnego nadawania nie trzeba włączać. Wejdź na rozmowę z panelu przyciskiem „Dołącz do rozmowy”."
+msgstr "Наблюдение охватывает ваше собеседование в комнате платформы – отдельную трансляцию включать не нужно. Войдите на собеседование из панели кнопкой «Присоединиться к собеседованию»."
+
+msgid "Wyjdź"
+msgstr "Выйти"
+
+msgid "Obraz uczestników"
+msgstr "Видео участников"
+
+msgid "Uczestnicy"
+msgstr "Участники"
+
+msgid "Czat"
+msgstr "Чат"
+
+msgid "Wyślij"
+msgstr "Отправить"
+
+msgid "Sterowanie"
+msgstr "Управление"
+
+msgid "Podnieś rękę"
+msgstr "Поднять руку"
+
+msgid "Widok prelegenta"
+msgstr "Вид докладчика"
+
+#, python-format
+msgid "Pokój rozmowy otworzy się %(when)s (czas polski) – wróć wtedy do panelu."
+msgstr "Комната собеседования откроется %(when)s (по польскому времени) – тогда вернитесь в панель."
+
+msgid "Czas tej rozmowy minął – pokój jest już zamknięty."
+msgstr "Время этого собеседования прошло – комната уже закрыта."
+
+#, python-format
+msgid "Próba sprzętu – %(stage)s"
+msgstr "Проверка оборудования – %(stage)s"
+
+#, python-format
+msgid "Rozmowa – %(stage)s"
+msgstr "Собеседование – %(stage)s"
+
+msgid "Serwer wideo nie odpowiada. Spróbuj za chwilę."
+msgstr "Видеосервер не отвечает. Попробуйте чуть позже."
+
+msgid "Ta rozmowa jest nadzorowana zdalnie. Najpierw wyraź zgodę i sprawdź sprzęt w konsoli nadzoru."
+msgstr "Это собеседование проходит под дистанционным наблюдением. Сначала дайте согласие и проверьте оборудование в консоли наблюдения."
+
+msgid "Twoja rozmowa jest nadzorowana zdalnie. Przed wejściem na rozmowę wyraź zgodę i sprawdź sprzęt w konsoli nadzoru."
+msgstr "Ваше собеседование проходит под дистанционным наблюдением. Перед входом дайте согласие и проверьте оборудование в консоли наблюдения."
+
+msgid "Przejdź do rozmowy"
+msgstr "Перейти к собеседованию"
+
+msgid "Rozmowa kwalifikacyjna"
+msgstr "Квалификационное собеседование"
+
+msgid "Pokój rozmowy wymaga włączonego JavaScriptu."
+msgstr "Для комнаты собеседования нужен включённый JavaScript."
+
+msgid "Pokój jest chwilowo niedostępny – brakuje komponentu wideo na serwerze. Daj znać organizatorowi."
+msgstr "Комната временно недоступна – на сервере нет видеокомпонента. Сообщите организатору."

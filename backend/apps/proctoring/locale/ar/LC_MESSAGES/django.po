@@ -736,3 +736,75 @@ msgstr "بدء متأخر: %(minutes)s دقيقة"
 
 msgid "Kamera nie działa albo nie masz do niej dostępu. Jeśli nie możesz jej użyć, poproś o inną formę nadzoru (na dole strony)."
 msgstr "الكاميرا لا تعمل أو لا تملك صلاحية الوصول إليها. إذا لم تتمكن من استخدامها، فاطلب شكلًا آخر من المراقبة (أسفل الصفحة)."
+
+msgid "Tej osoby nie ma teraz w pokoju."
+msgstr "هذا الشخص غير موجود في الغرفة الآن."
+
+msgid "Twoja rozmowa jest nadzorowana zdalnie. Zgoda i sprzęt są gotowe – wejdź na rozmowę przyciskiem „Dołącz do rozmowy”."
+msgstr "مقابلتك خاضعة للمراقبة عن بُعد. الموافقة والأجهزة جاهزة – ادخل عبر زر «الانضمام إلى المقابلة»."
+
+msgid "Rozmowa"
+msgstr "المقابلة"
+
+msgid "Nadzór obejmuje Twoją rozmowę w pokoju na platformie – osobnego nadawania nie trzeba włączać. Wejdź na rozmowę z panelu przyciskiem „Dołącz do rozmowy”."
+msgstr "تشمل المراقبة مقابلتك في غرفة المنصة – لا حاجة إلى تشغيل بث منفصل. ادخل إلى المقابلة من لوحتك عبر زر «الانضمام إلى المقابلة»."
+
+msgid "Wyjdź"
+msgstr "غادر"
+
+msgid "Obraz uczestników"
+msgstr "فيديو المشاركين"
+
+msgid "Uczestnicy"
+msgstr "المشاركون"
+
+msgid "Czat"
+msgstr "الدردشة"
+
+msgid "Wyślij"
+msgstr "إرسال"
+
+msgid "Sterowanie"
+msgstr "عناصر التحكم"
+
+msgid "Podnieś rękę"
+msgstr "ارفع يدك"
+
+msgid "Widok prelegenta"
+msgstr "عرض المتحدث"
+
+#, python-format
+msgid "Pokój rozmowy otworzy się %(when)s (czas polski) – wróć wtedy do panelu."
+msgstr "ستُفتح غرفة المقابلة %(when)s (بتوقيت بولندا) – عُد إلى اللوحة حينها."
+
+msgid "Czas tej rozmowy minął – pokój jest już zamknięty."
+msgstr "انقضى وقت هذه المقابلة – الغرفة مغلقة الآن."
+
+#, python-format
+msgid "Próba sprzętu – %(stage)s"
+msgstr "اختبار الأجهزة – %(stage)s"
+
+#, python-format
+msgid "Rozmowa – %(stage)s"
+msgstr "المقابلة – %(stage)s"
+
+msgid "Serwer wideo nie odpowiada. Spróbuj za chwilę."
+msgstr "خادم الفيديو لا يستجيب. حاول مرة أخرى بعد قليل."
+
+msgid "Ta rozmowa jest nadzorowana zdalnie. Najpierw wyraź zgodę i sprawdź sprzęt w konsoli nadzoru."
+msgstr "هذه المقابلة خاضعة للمراقبة عن بُعد. امنح موافقتك أولًا وتحقق من أجهزتك في وحدة تحكم المراقبة."
+
+msgid "Twoja rozmowa jest nadzorowana zdalnie. Przed wejściem na rozmowę wyraź zgodę i sprawdź sprzęt w konsoli nadzoru."
+msgstr "مقابلتك خاضعة للمراقبة عن بُعد. قبل الدخول امنح موافقتك وتحقق من أجهزتك في وحدة تحكم المراقبة."
+
+msgid "Przejdź do rozmowy"
+msgstr "الانتقال إلى المقابلة"
+
+msgid "Rozmowa kwalifikacyjna"
+msgstr "مقابلة التأهيل"
+
+msgid "Pokój rozmowy wymaga włączonego JavaScriptu."
+msgstr "تتطلب غرفة المقابلة تفعيل JavaScript."
+
+msgid "Pokój jest chwilowo niedostępny – brakuje komponentu wideo na serwerze. Daj znać organizatorowi."
+msgstr "الغرفة غير متاحة مؤقتًا – مكوّن الفيديو مفقود على الخادم. أبلغ المنظّم."

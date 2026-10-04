@@ -769,3 +769,75 @@ msgstr "início atrasado: %(minutes)s min"
 
 msgid "Kamera nie działa albo nie masz do niej dostępu. Jeśli nie możesz jej użyć, poproś o inną formę nadzoru (na dole strony)."
 msgstr "A câmera não funciona ou você não tem acesso a ela. Se não puder usá-la, peça outra forma de supervisão (no fim da página)."
+
+msgid "Tej osoby nie ma teraz w pokoju."
+msgstr "Esta pessoa não está na sala agora."
+
+msgid "Twoja rozmowa jest nadzorowana zdalnie. Zgoda i sprzęt są gotowe – wejdź na rozmowę przyciskiem „Dołącz do rozmowy”."
+msgstr "A sua entrevista tem supervisão remota. Consentimento e equipamento prontos – entre com o botão “Entrar na entrevista”."
+
+msgid "Rozmowa"
+msgstr "Entrevista"
+
+msgid "Nadzór obejmuje Twoją rozmowę w pokoju na platformie – osobnego nadawania nie trzeba włączać. Wejdź na rozmowę z panelu przyciskiem „Dołącz do rozmowy”."
+msgstr "A supervisão abrange a sua entrevista na sala da plataforma – não é preciso iniciar uma transmissão separada. Entre na entrevista pelo painel com o botão “Entrar na entrevista”."
+
+msgid "Wyjdź"
+msgstr "Sair"
+
+msgid "Obraz uczestników"
+msgstr "Vídeo dos participantes"
+
+msgid "Uczestnicy"
+msgstr "Participantes"
+
+msgid "Czat"
+msgstr "Chat"
+
+msgid "Wyślij"
+msgstr "Enviar"
+
+msgid "Sterowanie"
+msgstr "Controles"
+
+msgid "Podnieś rękę"
+msgstr "Levantar a mão"
+
+msgid "Widok prelegenta"
+msgstr "Visualização do palestrante"
+
+#, python-format
+msgid "Pokój rozmowy otworzy się %(when)s (czas polski) – wróć wtedy do panelu."
+msgstr "A sala da entrevista abrirá %(when)s (horário da Polônia) – volte ao painel nesse momento."
+
+msgid "Czas tej rozmowy minął – pokój jest już zamknięty."
+msgstr "O horário desta entrevista já passou – a sala está fechada."
+
+#, python-format
+msgid "Próba sprzętu – %(stage)s"
+msgstr "Teste do equipamento – %(stage)s"
+
+#, python-format
+msgid "Rozmowa – %(stage)s"
+msgstr "Entrevista – %(stage)s"
+
+msgid "Serwer wideo nie odpowiada. Spróbuj za chwilę."
+msgstr "O servidor de vídeo não está respondendo. Tente novamente em instantes."
+
+msgid "Ta rozmowa jest nadzorowana zdalnie. Najpierw wyraź zgodę i sprawdź sprzęt w konsoli nadzoru."
+msgstr "Esta entrevista tem supervisão remota. Primeiro dê o seu consentimento e verifique o equipamento no console de supervisão."
+
+msgid "Twoja rozmowa jest nadzorowana zdalnie. Przed wejściem na rozmowę wyraź zgodę i sprawdź sprzęt w konsoli nadzoru."
+msgstr "A sua entrevista tem supervisão remota. Antes de entrar, dê o seu consentimento e verifique o equipamento no console de supervisão."
+
+msgid "Przejdź do rozmowy"
+msgstr "Ir para a entrevista"
+
+msgid "Rozmowa kwalifikacyjna"
+msgstr "Entrevista de qualificação"
+
+msgid "Pokój rozmowy wymaga włączonego JavaScriptu."
+msgstr "A sala da entrevista requer JavaScript ativado."
+
+msgid "Pokój jest chwilowo niedostępny – brakuje komponentu wideo na serwerze. Daj znać organizatorowi."
+msgstr "A sala está temporariamente indisponível – falta o componente de vídeo no servidor. Avise o organizador."

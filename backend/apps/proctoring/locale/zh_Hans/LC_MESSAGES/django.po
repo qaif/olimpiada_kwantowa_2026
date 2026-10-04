@@ -694,3 +694,75 @@ msgstr "迟开始：%(minutes)s 分钟"
 
 msgid "Kamera nie działa albo nie masz do niej dostępu. Jeśli nie możesz jej użyć, poproś o inną formę nadzoru (na dole strony)."
 msgstr "摄像头无法工作或您未授予访问权限。如果无法使用，请申请其他监考方式（页面底部）。"
+
+msgid "Tej osoby nie ma teraz w pokoju."
+msgstr "此人目前不在房间中。"
+
+msgid "Twoja rozmowa jest nadzorowana zdalnie. Zgoda i sprzęt są gotowe – wejdź na rozmowę przyciskiem „Dołącz do rozmowy”."
+msgstr "您的面试实行远程监考。同意和设备已就绪——请点击“加入面试”按钮进入。"
+
+msgid "Rozmowa"
+msgstr "面试"
+
+msgid "Nadzór obejmuje Twoją rozmowę w pokoju na platformie – osobnego nadawania nie trzeba włączać. Wejdź na rozmowę z panelu przyciskiem „Dołącz do rozmowy”."
+msgstr "监考涵盖您在平台房间中的面试——无需另外开启推流。请在面板中点击“加入面试”按钮进入面试。"
+
+msgid "Wyjdź"
+msgstr "离开"
+
+msgid "Obraz uczestników"
+msgstr "参与者视频"
+
+msgid "Uczestnicy"
+msgstr "参赛人数"
+
+msgid "Czat"
+msgstr "聊天"
+
+msgid "Wyślij"
+msgstr "发送"
+
+msgid "Sterowanie"
+msgstr "控制"
+
+msgid "Podnieś rękę"
+msgstr "举手"
+
+msgid "Widok prelegenta"
+msgstr "演讲者视图"
+
+#, python-format
+msgid "Pokój rozmowy otworzy się %(when)s (czas polski) – wróć wtedy do panelu."
+msgstr "面试房间将于 %(when)s（波兰时间）开放，届时请返回面板。"
+
+msgid "Czas tej rozmowy minął – pokój jest już zamknięty."
+msgstr "本场面试时间已过，房间已关闭。"
+
+#, python-format
+msgid "Próba sprzętu – %(stage)s"
+msgstr "设备测试 – %(stage)s"
+
+#, python-format
+msgid "Rozmowa – %(stage)s"
+msgstr "面试 – %(stage)s"
+
+msgid "Serwer wideo nie odpowiada. Spróbuj za chwilę."
+msgstr "视频服务器无响应，请稍后再试。"
+
+msgid "Ta rozmowa jest nadzorowana zdalnie. Najpierw wyraź zgodę i sprawdź sprzęt w konsoli nadzoru."
+msgstr "本次面试实行远程监考。请先在监考控制台中表示同意并检查设备。"
+
+msgid "Twoja rozmowa jest nadzorowana zdalnie. Przed wejściem na rozmowę wyraź zgodę i sprawdź sprzęt w konsoli nadzoru."
+msgstr "您的面试实行远程监考。进入前请在监考控制台中表示同意并检查设备。"
+
+msgid "Przejdź do rozmowy"
+msgstr "前往面试"
+
+msgid "Rozmowa kwalifikacyjna"
+msgstr "资格面试"
+
+msgid "Pokój rozmowy wymaga włączonego JavaScriptu."
+msgstr "面试房间需要启用 JavaScript。"
+
+msgid "Pokój jest chwilowo niedostępny – brakuje komponentu wideo na serwerze. Daj znać organizatorowi."
+msgstr "房间暂时不可用——服务器缺少视频组件。请告知主办方。"

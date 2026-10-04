@@ -771,3 +771,75 @@ msgstr "démarrage tardif : %(minutes)s min"
 
 msgid "Kamera nie działa albo nie masz do niej dostępu. Jeśli nie możesz jej użyć, poproś o inną formę nadzoru (na dole strony)."
 msgstr "La caméra ne fonctionne pas ou vous n’y avez pas accès. Si vous ne pouvez pas l’utiliser, demandez une autre forme de surveillance (en bas de la page)."
+
+msgid "Tej osoby nie ma teraz w pokoju."
+msgstr "Cette personne n’est pas dans la salle pour le moment."
+
+msgid "Twoja rozmowa jest nadzorowana zdalnie. Zgoda i sprzęt są gotowe – wejdź na rozmowę przyciskiem „Dołącz do rozmowy”."
+msgstr "Votre entretien est surveillé à distance. Consentement et matériel prêts – rejoignez-le avec le bouton « Rejoindre l’entretien »."
+
+msgid "Rozmowa"
+msgstr "Entretien"
+
+msgid "Nadzór obejmuje Twoją rozmowę w pokoju na platformie – osobnego nadawania nie trzeba włączać. Wejdź na rozmowę z panelu przyciskiem „Dołącz do rozmowy”."
+msgstr "La surveillance couvre votre entretien dans la salle de la plateforme – inutile de lancer une diffusion séparée. Rejoignez l’entretien depuis votre tableau de bord avec le bouton « Rejoindre l’entretien »."
+
+msgid "Wyjdź"
+msgstr "Quitter"
+
+msgid "Obraz uczestników"
+msgstr "Vidéo des participants"
+
+msgid "Uczestnicy"
+msgstr "Participants"
+
+msgid "Czat"
+msgstr "Discussion"
+
+msgid "Wyślij"
+msgstr "Envoyer"
+
+msgid "Sterowanie"
+msgstr "Commandes"
+
+msgid "Podnieś rękę"
+msgstr "Lever la main"
+
+msgid "Widok prelegenta"
+msgstr "Vue intervenant"
+
+#, python-format
+msgid "Pokój rozmowy otworzy się %(when)s (czas polski) – wróć wtedy do panelu."
+msgstr "La salle d’entretien ouvrira %(when)s (heure de Pologne) – revenez alors sur l’espace participant."
+
+msgid "Czas tej rozmowy minął – pokój jest już zamknięty."
+msgstr "L’heure de cet entretien est passée – la salle est fermée."
+
+#, python-format
+msgid "Próba sprzętu – %(stage)s"
+msgstr "Test du matériel – %(stage)s"
+
+#, python-format
+msgid "Rozmowa – %(stage)s"
+msgstr "Entretien – %(stage)s"
+
+msgid "Serwer wideo nie odpowiada. Spróbuj za chwilę."
+msgstr "Le serveur vidéo ne répond pas. Réessayez dans un instant."
+
+msgid "Ta rozmowa jest nadzorowana zdalnie. Najpierw wyraź zgodę i sprawdź sprzęt w konsoli nadzoru."
+msgstr "Cet entretien est surveillé à distance. Donnez d’abord votre consentement et vérifiez votre matériel dans la console de surveillance."
+
+msgid "Twoja rozmowa jest nadzorowana zdalnie. Przed wejściem na rozmowę wyraź zgodę i sprawdź sprzęt w konsoli nadzoru."
+msgstr "Votre entretien est surveillé à distance. Avant d’entrer, donnez votre consentement et vérifiez votre matériel dans la console de surveillance."
+
+msgid "Przejdź do rozmowy"
+msgstr "Aller à l’entretien"
+
+msgid "Rozmowa kwalifikacyjna"
+msgstr "Entretien de qualification"
+
+msgid "Pokój rozmowy wymaga włączonego JavaScriptu."
+msgstr "La salle d’entretien nécessite JavaScript."
+
+msgid "Pokój jest chwilowo niedostępny – brakuje komponentu wideo na serwerze. Daj znać organizatorowi."
+msgstr "La salle est temporairement indisponible – le composant vidéo manque sur le serveur. Prévenez l’organisateur."

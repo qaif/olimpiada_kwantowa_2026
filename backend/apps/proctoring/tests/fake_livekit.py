@@ -21,6 +21,7 @@ REQUIRED_GRANT = {
     "SendData": "roomAdmin",
     "GetParticipant": "roomAdmin",
     "RemoveParticipant": "roomAdmin",
+    "UpdateParticipant": "roomAdmin",
     "StartTrackEgress": "roomRecord",
     "StopEgress": "roomRecord",
 }
@@ -78,6 +79,11 @@ class FakeLiveKit:
         if tracks is None:
             return self._not_found()
         return self._ok({"identity": payload["identity"], "tracks": tracks})
+
+    def _UpdateParticipant(self, payload):  # noqa: N802
+        if payload["identity"] not in self.rooms.get(payload["room"], {}):
+            return self._not_found()
+        return self._ok({"identity": payload["identity"]})
 
     def _RemoveParticipant(self, payload):  # noqa: N802
         if self.rooms.get(payload["room"], {}).pop(payload["identity"], None) is None:

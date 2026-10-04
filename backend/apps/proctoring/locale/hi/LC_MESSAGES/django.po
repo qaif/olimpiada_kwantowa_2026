@@ -692,3 +692,75 @@ msgstr "देर से शुरुआत: %(minutes)s मिनट"
 
 msgid "Kamera nie działa albo nie masz do niej dostępu. Jeśli nie możesz jej użyć, poproś o inną formę nadzoru (na dole strony)."
 msgstr "कैमरा काम नहीं कर रहा है या आपके पास उसकी पहुँच नहीं है। यदि आप इसका उपयोग नहीं कर सकते, तो निगरानी के किसी अन्य रूप का अनुरोध करें (पृष्ठ के नीचे)।"
+
+msgid "Tej osoby nie ma teraz w pokoju."
+msgstr "यह व्यक्ति अभी कक्ष में नहीं है।"
+
+msgid "Twoja rozmowa jest nadzorowana zdalnie. Zgoda i sprzęt są gotowe – wejdź na rozmowę przyciskiem „Dołącz do rozmowy”."
+msgstr "आपका साक्षात्कार दूरस्थ निगरानी में है। सहमति और उपकरण तैयार हैं – “साक्षात्कार में शामिल हों” बटन से प्रवेश करें।"
+
+msgid "Rozmowa"
+msgstr "साक्षात्कार"
+
+msgid "Nadzór obejmuje Twoją rozmowę w pokoju na platformie – osobnego nadawania nie trzeba włączać. Wejdź na rozmowę z panelu przyciskiem „Dołącz do rozmowy”."
+msgstr "निगरानी प्लेटफ़ॉर्म के कक्ष में आपके साक्षात्कार को शामिल करती है – अलग प्रसारण शुरू करने की आवश्यकता नहीं है। पैनल से “साक्षात्कार में शामिल हों” बटन द्वारा साक्षात्कार में प्रवेश करें।"
+
+msgid "Wyjdź"
+msgstr "बाहर निकलें"
+
+msgid "Obraz uczestników"
+msgstr "प्रतिभागियों का वीडियो"
+
+msgid "Uczestnicy"
+msgstr "प्रतिभागी"
+
+msgid "Czat"
+msgstr "चैट"
+
+msgid "Wyślij"
+msgstr "भेजें"
+
+msgid "Sterowanie"
+msgstr "नियंत्रण"
+
+msgid "Podnieś rękę"
+msgstr "हाथ उठाएँ"
+
+msgid "Widok prelegenta"
+msgstr "वक्ता दृश्य"
+
+#, python-format
+msgid "Pokój rozmowy otworzy się %(when)s (czas polski) – wróć wtedy do panelu."
+msgstr "साक्षात्कार कक्ष %(when)s (पोलैंड का समय) पर खुलेगा – उस समय पैनल पर वापस आएँ।"
+
+msgid "Czas tej rozmowy minął – pokój jest już zamknięty."
+msgstr "इस साक्षात्कार का समय बीत चुका है – कक्ष बंद हो गया है।"
+
+#, python-format
+msgid "Próba sprzętu – %(stage)s"
+msgstr "उपकरण परीक्षण – %(stage)s"
+
+#, python-format
+msgid "Rozmowa – %(stage)s"
+msgstr "साक्षात्कार – %(stage)s"
+
+msgid "Serwer wideo nie odpowiada. Spróbuj za chwilę."
+msgstr "वीडियो सर्वर प्रतिक्रिया नहीं दे रहा है। थोड़ी देर बाद पुनः प्रयास करें।"
+
+msgid "Ta rozmowa jest nadzorowana zdalnie. Najpierw wyraź zgodę i sprawdź sprzęt w konsoli nadzoru."
+msgstr "यह साक्षात्कार दूरस्थ निगरानी में है। पहले निगरानी कंसोल में सहमति दें और अपने उपकरण जाँचें।"
+
+msgid "Twoja rozmowa jest nadzorowana zdalnie. Przed wejściem na rozmowę wyraź zgodę i sprawdź sprzęt w konsoli nadzoru."
+msgstr "आपका साक्षात्कार दूरस्थ निगरानी में है। प्रवेश से पहले निगरानी कंसोल में सहमति दें और अपने उपकरण जाँचें।"
+
+msgid "Przejdź do rozmowy"
+msgstr "साक्षात्कार पर जाएँ"
+
+msgid "Rozmowa kwalifikacyjna"
+msgstr "योग्यता साक्षात्कार"
+
+msgid "Pokój rozmowy wymaga włączonego JavaScriptu."
+msgstr "साक्षात्कार कक्ष के लिए JavaScript चालू होना आवश्यक है।"
+
+msgid "Pokój jest chwilowo niedostępny – brakuje komponentu wideo na serwerze. Daj znać organizatorowi."
+msgstr "कमरा अस्थायी रूप से उपलब्ध नहीं है – सर्वर पर वीडियो घटक नहीं है। आयोजक को बताएँ।"

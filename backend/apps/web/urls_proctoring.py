@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from django.urls import path
 
-from .views import proctoring
+from .views import proctoring, stage_rooms
 
 urlpatterns = [
     path(
@@ -78,5 +78,46 @@ urlpatterns = [
         "coordinator/proctoring/<int:stage_id>/",
         proctoring.CoordinatorProctoringStageView.as_view(),
         name="coordinator-proctoring-stage",
+    ),
+    # --- pokoje rozmów etapu w LiveKit (STAGE-LK-01) – wejście przez widoki Jitsi/LiveKit z urls_video ---
+    path(
+        "me/stages/<int:stage_id>/interview/room/<slug:kind>/",
+        stage_rooms.InterviewRoomView.as_view(),
+        name="interview-room",
+    ),
+    path(
+        "me/stages/<int:stage_id>/interview/room/<slug:kind>/token/",
+        stage_rooms.InterviewRoomTokenView.as_view(),
+        name="interview-room-token",
+    ),
+    path(
+        "coordinator/interview-slots/<int:pk>/room/<slug:kind>/",
+        stage_rooms.CoordinatorSlotRoomView.as_view(),
+        name="coordinator-interview-slot-room",
+    ),
+    path(
+        "coordinator/interview-slots/<int:pk>/room/<slug:kind>/token/",
+        stage_rooms.CoordinatorSlotRoomTokenView.as_view(),
+        name="coordinator-interview-slot-room-token",
+    ),
+    path(
+        "coordinator/interview-slots/<int:pk>/room-control/",
+        stage_rooms.CoordinatorSlotRoomControlView.as_view(),
+        name="coordinator-interview-slot-room-control",
+    ),
+    path(
+        "review/interview-slots/<int:pk>/room/<slug:kind>/",
+        stage_rooms.CommitteeSlotRoomView.as_view(),
+        name="committee-interview-slot-room",
+    ),
+    path(
+        "review/interview-slots/<int:pk>/room/<slug:kind>/token/",
+        stage_rooms.CommitteeSlotRoomTokenView.as_view(),
+        name="committee-interview-slot-room-token",
+    ),
+    path(
+        "review/interview-slots/<int:pk>/room-control/",
+        stage_rooms.CommitteeSlotRoomControlView.as_view(),
+        name="committee-interview-slot-room-control",
     ),
 ]

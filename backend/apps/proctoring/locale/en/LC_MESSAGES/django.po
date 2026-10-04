@@ -755,3 +755,75 @@ msgstr "late start: %(minutes)s min"
 
 msgid "Kamera nie działa albo nie masz do niej dostępu. Jeśli nie możesz jej użyć, poproś o inną formę nadzoru (na dole strony)."
 msgstr "Your camera is not working or you have not allowed access to it. If you cannot use it, request another form of proctoring (at the bottom of the page)."
+
+msgid "Tej osoby nie ma teraz w pokoju."
+msgstr "This person is not in the room right now."
+
+msgid "Twoja rozmowa jest nadzorowana zdalnie. Zgoda i sprzęt są gotowe – wejdź na rozmowę przyciskiem „Dołącz do rozmowy”."
+msgstr "Your interview is remotely proctored. Your consent and equipment are ready – join with the “Join the interview” button."
+
+msgid "Rozmowa"
+msgstr "Interview"
+
+msgid "Nadzór obejmuje Twoją rozmowę w pokoju na platformie – osobnego nadawania nie trzeba włączać. Wejdź na rozmowę z panelu przyciskiem „Dołącz do rozmowy”."
+msgstr "Proctoring covers your interview in the platform room – you do not need to start a separate stream. Join the interview from your dashboard with the “Join the interview” button."
+
+msgid "Wyjdź"
+msgstr "Leave"
+
+msgid "Obraz uczestników"
+msgstr "Participants’ video"
+
+msgid "Uczestnicy"
+msgstr "Participants"
+
+msgid "Czat"
+msgstr "Chat"
+
+msgid "Wyślij"
+msgstr "Send"
+
+msgid "Sterowanie"
+msgstr "Controls"
+
+msgid "Podnieś rękę"
+msgstr "Raise hand"
+
+msgid "Widok prelegenta"
+msgstr "Speaker view"
+
+#, python-format
+msgid "Pokój rozmowy otworzy się %(when)s (czas polski) – wróć wtedy do panelu."
+msgstr "The interview room opens at %(when)s (Polish time) – come back to the panel then."
+
+msgid "Czas tej rozmowy minął – pokój jest już zamknięty."
+msgstr "The time of this interview has passed – the room is closed."
+
+#, python-format
+msgid "Próba sprzętu – %(stage)s"
+msgstr "Equipment test – %(stage)s"
+
+#, python-format
+msgid "Rozmowa – %(stage)s"
+msgstr "Interview – %(stage)s"
+
+msgid "Serwer wideo nie odpowiada. Spróbuj za chwilę."
+msgstr "The video server is not responding. Please try again in a moment."
+
+msgid "Ta rozmowa jest nadzorowana zdalnie. Najpierw wyraź zgodę i sprawdź sprzęt w konsoli nadzoru."
+msgstr "This interview is remotely proctored. First give your consent and check your equipment in the proctoring console."
+
+msgid "Twoja rozmowa jest nadzorowana zdalnie. Przed wejściem na rozmowę wyraź zgodę i sprawdź sprzęt w konsoli nadzoru."
+msgstr "Your interview is remotely proctored. Before joining, give your consent and check your equipment in the proctoring console."
+
+msgid "Przejdź do rozmowy"
+msgstr "Go to the interview"
+
+msgid "Rozmowa kwalifikacyjna"
+msgstr "Qualifying interview"
+
+msgid "Pokój rozmowy wymaga włączonego JavaScriptu."
+msgstr "The interview room requires JavaScript to be enabled."
+
+msgid "Pokój jest chwilowo niedostępny – brakuje komponentu wideo na serwerze. Daj znać organizatorowi."
+msgstr "The room is temporarily unavailable – the video component is missing on the server. Please let the organiser know."

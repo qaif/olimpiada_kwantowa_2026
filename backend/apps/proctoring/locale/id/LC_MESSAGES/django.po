@@ -694,3 +694,75 @@ msgstr "mulai terlambat: %(minutes)s mnt"
 
 msgid "Kamera nie działa albo nie masz do niej dostępu. Jeśli nie możesz jej użyć, poproś o inną formę nadzoru (na dole strony)."
 msgstr "Kamera tidak berfungsi atau Anda tidak memiliki akses ke kamera. Jika tidak dapat menggunakannya, ajukan bentuk pengawasan lain (di bagian bawah halaman)."
+
+msgid "Tej osoby nie ma teraz w pokoju."
+msgstr "Orang ini sedang tidak ada di ruangan."
+
+msgid "Twoja rozmowa jest nadzorowana zdalnie. Zgoda i sprzęt są gotowe – wejdź na rozmowę przyciskiem „Dołącz do rozmowy”."
+msgstr "Wawancara Anda diawasi dari jarak jauh. Persetujuan dan perangkat siap – masuk dengan tombol “Gabung ke wawancara”."
+
+msgid "Rozmowa"
+msgstr "Wawancara"
+
+msgid "Nadzór obejmuje Twoją rozmowę w pokoju na platformie – osobnego nadawania nie trzeba włączać. Wejdź na rozmowę z panelu przyciskiem „Dołącz do rozmowy”."
+msgstr "Pengawasan mencakup wawancara Anda di ruang platform – tidak perlu menyalakan siaran terpisah. Masuk ke wawancara dari panel dengan tombol “Gabung ke wawancara”."
+
+msgid "Wyjdź"
+msgstr "Keluar"
+
+msgid "Obraz uczestników"
+msgstr "Video peserta"
+
+msgid "Uczestnicy"
+msgstr "Peserta"
+
+msgid "Czat"
+msgstr "Obrolan"
+
+msgid "Wyślij"
+msgstr "Kirim"
+
+msgid "Sterowanie"
+msgstr "Kontrol"
+
+msgid "Podnieś rękę"
+msgstr "Angkat tangan"
+
+msgid "Widok prelegenta"
+msgstr "Tampilan pembicara"
+
+#, python-format
+msgid "Pokój rozmowy otworzy się %(when)s (czas polski) – wróć wtedy do panelu."
+msgstr "Ruang wawancara akan dibuka pada %(when)s (waktu Polandia) – kembalilah ke panel pada saat itu."
+
+msgid "Czas tej rozmowy minął – pokój jest już zamknięty."
+msgstr "Waktu wawancara ini telah lewat – ruangan sudah ditutup."
+
+#, python-format
+msgid "Próba sprzętu – %(stage)s"
+msgstr "Uji perangkat – %(stage)s"
+
+#, python-format
+msgid "Rozmowa – %(stage)s"
+msgstr "Wawancara – %(stage)s"
+
+msgid "Serwer wideo nie odpowiada. Spróbuj za chwilę."
+msgstr "Server video tidak merespons. Coba lagi sebentar lagi."
+
+msgid "Ta rozmowa jest nadzorowana zdalnie. Najpierw wyraź zgodę i sprawdź sprzęt w konsoli nadzoru."
+msgstr "Wawancara ini diawasi dari jarak jauh. Berikan persetujuan dan periksa perangkat Anda di konsol pengawasan terlebih dahulu."
+
+msgid "Twoja rozmowa jest nadzorowana zdalnie. Przed wejściem na rozmowę wyraź zgodę i sprawdź sprzęt w konsoli nadzoru."
+msgstr "Wawancara Anda diawasi dari jarak jauh. Sebelum masuk, berikan persetujuan dan periksa perangkat Anda di konsol pengawasan."
+
+msgid "Przejdź do rozmowy"
+msgstr "Ke wawancara"
+
+msgid "Rozmowa kwalifikacyjna"
+msgstr "Wawancara kualifikasi"
+
+msgid "Pokój rozmowy wymaga włączonego JavaScriptu."
+msgstr "Ruang wawancara memerlukan JavaScript yang aktif."
+
+msgid "Pokój jest chwilowo niedostępny – brakuje komponentu wideo na serwerze. Daj znać organizatorowi."
+msgstr "Ruangan sementara tidak tersedia – komponen video tidak ada di server. Beri tahu penyelenggara."

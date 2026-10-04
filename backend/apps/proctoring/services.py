@@ -387,7 +387,7 @@ def entry_for(participant, stage):
 def session_for(stage, participant, *, create: bool = True) -> ProctoringSession | None:
     # ``participant`` i ``proctor`` – czyta je zaraz grupa pokoju i zgoda (bez leniwych zapytań).
     found = (
-        ProctoringSession.objects.select_related("participant__user", "proctor")
+        ProctoringSession.objects.select_related("participant__user", "proctor", "stage")
         .filter(stage=stage, participant=participant)
         .first()
     )
@@ -630,6 +630,8 @@ def is_ready(session, config) -> bool:
     """
     if session is None:
         return False
+    if session.stage.is_interview:
+        return interview_ready(session, config)  # rozmowa LiveKit (STAGE-LK-01)
     if session.alternative_approved:
         return True
     if active_consent(session, config) is None:
@@ -649,6 +651,8 @@ def step(session, config) -> str:
         return "check"
     if not photo_done(session, config):
         return "photo"
+    if session.stage.is_interview:
+        return "interview"  # rozmowa LiveKit – dalej przez panel („Dołącz do rozmowy”)
     if session.started_at is None and session.unproctored_at is None:
         return "start"
     return "live"
@@ -1188,10 +1192,30 @@ CONFIG_FIELDS = (
 
 
 def proctorable(stage) -> bool:
-    """Nadzór ma sens wyłącznie dla etapu online: rozwiązania pisemne albo test."""
+    """Nadzór ma sens dla etapu online: rozwiązania pisemne, test – albo rozmowa w pokoju **LiveKit**
+    (STAGE-LK-01: rozmowę na Jitsi nadzoru nie da się połączyć, bo pokój nie jest na naszym serwerze)."""
     from apps.competitions.models import StageFormat
+    from apps.competitions.video import VideoProvider
 
-    return stage.format in (StageFormat.SUBMISSIONS, StageFormat.QUIZ) and not stage.is_training
+    if stage.is_training:
+        return False
+    if stage.format == StageFormat.INTERVIEW:
+        return stage.video_provider == VideoProvider.LIVEKIT
+    return stage.format in (StageFormat.SUBMISSIONS, StageFormat.QUIZ)
+
+
+def interview_ready(session, config) -> bool:
+    """Rozmowa LiveKit w etapie z nadzorem: zgoda, sprawdzony sprzęt (i zdjęcie, gdy wymagane) albo
+    zatwierdzona alternatywa. Kamery nie trzeba „włączać” osobno – pokój rozmowy **jest** obrazem."""
+    if session is None:
+        return False
+    if session.alternative_approved:
+        return True
+    return (
+        active_consent(session, config) is not None
+        and session.check_passed_at is not None
+        and photo_done(session, config)
+    )
 
 
 def save_config(stage, actor, data: dict, *, request=None) -> ProctoringConfig:
@@ -1562,8 +1586,10 @@ def recording_key(session, config, now) -> str:
     )
 
 
-def start_recording(session_pk: int, track_sid: str) -> ProctoringRecording | None:
-    """Track Egress kamery – wyłącznie przy ``record=True`` i włączonym nadzorze (zadanie Celery)."""
+def start_recording(session_pk: int, track_sid: str, room: str = "") -> ProctoringRecording | None:
+    """Track Egress kamery – wyłącznie przy ``record=True`` i włączonym nadzorze (zadanie Celery).
+
+    ``room`` – pokój rozmowy LiveKit (STAGE-LK-01); pusty = pokój nadzoru grupy ucznia."""
     session = (
         ProctoringSession.objects.select_related("stage__edition__competition").filter(pk=session_pk).first()
     )
@@ -1577,7 +1603,7 @@ def start_recording(session_pk: int, track_sid: str) -> ProctoringRecording | No
     now = timezone.now()
     key = recording_key(session, config, now)
     try:
-        egress_id = livekit_api.start_track_recording(config.room_name(session.group), track_sid, key)
+        egress_id = livekit_api.start_track_recording(room or config.room_name(session.group), track_sid, key)
     except livekit_api.LiveKitUnavailable, livekit_api.LiveKitError:
         logger.warning("Nadzór: egress kamery sesji %s się nie uruchomił.", session.pk)
         log_event(session, EventKind.RECORDING, EventSource.SYSTEM, detail={"status": "failed_to_start"})

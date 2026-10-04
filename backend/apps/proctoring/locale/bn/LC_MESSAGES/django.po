@@ -692,3 +692,75 @@ msgstr "দেরিতে শুরু: %(minutes)s মিনিট"
 
 msgid "Kamera nie działa albo nie masz do niej dostępu. Jeśli nie możesz jej użyć, poproś o inną formę nadzoru (na dole strony)."
 msgstr "ক্যামেরা কাজ করছে না বা আপনার এতে অ্যাক্সেস নেই। আপনি এটি ব্যবহার করতে না পারলে অন্য ধরনের নজরদারির অনুরোধ করুন (পৃষ্ঠার নিচে)।"
+
+msgid "Tej osoby nie ma teraz w pokoju."
+msgstr "এই ব্যক্তি এখন কক্ষে নেই।"
+
+msgid "Twoja rozmowa jest nadzorowana zdalnie. Zgoda i sprzęt są gotowe – wejdź na rozmowę przyciskiem „Dołącz do rozmowy”."
+msgstr "আপনার সাক্ষাৎকার দূরবর্তী নজরদারির অধীনে। সম্মতি ও সরঞ্জাম প্রস্তুত – “সাক্ষাৎকারে যোগ দিন” বোতামে প্রবেশ করুন।"
+
+msgid "Rozmowa"
+msgstr "সাক্ষাৎকার"
+
+msgid "Nadzór obejmuje Twoją rozmowę w pokoju na platformie – osobnego nadawania nie trzeba włączać. Wejdź na rozmowę z panelu przyciskiem „Dołącz do rozmowy”."
+msgstr "নজরদারি প্ল্যাটফর্মের কক্ষে আপনার সাক্ষাৎকারকে অন্তর্ভুক্ত করে – আলাদা সম্প্রচার চালু করতে হবে না। প্যানেল থেকে “সাক্ষাৎকারে যোগ দিন” বোতামে সাক্ষাৎকারে প্রবেশ করুন।"
+
+msgid "Wyjdź"
+msgstr "বেরিয়ে যান"
+
+msgid "Obraz uczestników"
+msgstr "অংশগ্রহণকারীদের ভিডিও"
+
+msgid "Uczestnicy"
+msgstr "অংশগ্রহণকারী"
+
+msgid "Czat"
+msgstr "চ্যাট"
+
+msgid "Wyślij"
+msgstr "পাঠান"
+
+msgid "Sterowanie"
+msgstr "নিয়ন্ত্রণ"
+
+msgid "Podnieś rękę"
+msgstr "হাত তুলুন"
+
+msgid "Widok prelegenta"
+msgstr "বক্তা ভিউ"
+
+#, python-format
+msgid "Pokój rozmowy otworzy się %(when)s (czas polski) – wróć wtedy do panelu."
+msgstr "সাক্ষাৎকারের ঘরটি খুলবে %(when)s-এ (পোল্যান্ডের সময়) – তখন প্যানেলে ফিরে আসুন।"
+
+msgid "Czas tej rozmowy minął – pokój jest już zamknięty."
+msgstr "এই সাক্ষাৎকারের সময় পেরিয়ে গেছে – ঘরটি বন্ধ হয়ে গেছে।"
+
+#, python-format
+msgid "Próba sprzętu – %(stage)s"
+msgstr "সরঞ্জাম পরীক্ষা – %(stage)s"
+
+#, python-format
+msgid "Rozmowa – %(stage)s"
+msgstr "সাক্ষাৎকার – %(stage)s"
+
+msgid "Serwer wideo nie odpowiada. Spróbuj za chwilę."
+msgstr "ভিডিও সার্ভার সাড়া দিচ্ছে না। কিছুক্ষণ পর আবার চেষ্টা করুন।"
+
+msgid "Ta rozmowa jest nadzorowana zdalnie. Najpierw wyraź zgodę i sprawdź sprzęt w konsoli nadzoru."
+msgstr "এই সাক্ষাৎকারটি দূরবর্তী নজরদারির অধীনে। প্রথমে নজরদারি কনসোলে সম্মতি দিন এবং আপনার সরঞ্জাম পরীক্ষা করুন।"
+
+msgid "Twoja rozmowa jest nadzorowana zdalnie. Przed wejściem na rozmowę wyraź zgodę i sprawdź sprzęt w konsoli nadzoru."
+msgstr "আপনার সাক্ষাৎকার দূরবর্তী নজরদারির অধীনে। প্রবেশের আগে নজরদারি কনসোলে সম্মতি দিন এবং সরঞ্জাম পরীক্ষা করুন।"
+
+msgid "Przejdź do rozmowy"
+msgstr "সাক্ষাৎকারে যান"
+
+msgid "Rozmowa kwalifikacyjna"
+msgstr "যোগ্যতা সাক্ষাৎকার"
+
+msgid "Pokój rozmowy wymaga włączonego JavaScriptu."
+msgstr "সাক্ষাৎকার কক্ষের জন্য JavaScript চালু থাকা প্রয়োজন।"
+
+msgid "Pokój jest chwilowo niedostępny – brakuje komponentu wideo na serwerze. Daj znać organizatorowi."
+msgstr "কক্ষটি সাময়িকভাবে অনুপলব্ধ – সার্ভারে ভিডিও উপাদান নেই। আয়োজককে জানান।"

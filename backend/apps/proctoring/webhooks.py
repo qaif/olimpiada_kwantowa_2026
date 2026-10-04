@@ -100,17 +100,59 @@ def _update(session, **fields) -> None:
     ProctoringSession.objects.filter(pk=session.pk).update(**fields)
 
 
+def interview_room_session(room_name: str, identity: str):
+    """``(ustawienia nadzoru, sesja ucznia)`` dla pokoju rozmowy LiveKit etapu z nadzorem – albo ``None``.
+
+    ``None`` dla pokoju, który nie jest pokojem rozmowy, i dla etapu bez nadzoru (wtedy zdarzenie nie
+    jest nasze). Sesja ``None`` – w pokoju jest ktoś, kto nie jest uczniem tego etapu (komisja).
+    Uczeń rozpoznawany po pseudonimie konta (``u-…``, WEB-01) wśród zapisów **tego** etapu.
+    """
+    from apps.competitions.models import InterviewBooking
+    from apps.webinars.services import pseudonym
+
+    from .services import config_for, enabled, session_for
+    from .stage_rooms import stage_for_room
+
+    if not room_name.startswith("olimpiada-"):
+        return None
+    stage = stage_for_room(room_name)
+    if stage is None or not enabled(stage.edition.competition):
+        return None
+    config = config_for(stage)
+    if config is None:
+        return None
+    if not identity.startswith("u-"):
+        return config, None
+    bookings = InterviewBooking._base_manager.filter(slot__stage=stage).select_related(
+        "entry__participant__user"
+    )
+    for booking in bookings:
+        participant = booking.entry.participant
+        if participant is not None and pseudonym(participant.user) == identity:
+            return config, session_for(stage, participant)
+    return config, None
+
+
 def handle_event(name: str, event: dict, at) -> str | None:
     """Zdarzenie zweryfikowanego webhooka. ``None`` – nie dotyczy nadzoru."""
     if name.startswith("egress_"):
         return _handle_egress(event.get("egressInfo") or event.get("egress_info") or {}, name, at)
     room = event.get("room") or {}
-    found = config_for_room(str(room.get("name") or ""))
-    if found is None:
-        return None
-    config, _group = found
+    room_name = str(room.get("name") or "")
     participant = event.get("participant") or {}
-    session = _session(config, str(participant.get("identity") or ""))
+    identity = str(participant.get("identity") or "")
+    found = config_for_room(room_name)
+    if found is not None:
+        config, _group = found
+        session = _session(config, identity)
+        recording_room = ""
+    else:
+        # Pokój rozmowy etapu w LiveKit (STAGE-LK-01) z nadzorem – zdarzenia ucznia do jego sesji.
+        found = interview_room_session(room_name, identity)
+        if found is None:
+            return None
+        config, session = found
+        recording_room = room_name
     if session is None:
         # Pokój nadzoru, ale nie uczeń (nadzorujący ``x-…``, start/koniec pokoju) – nasze, bez zmian.
         return "ignored"
@@ -128,7 +170,7 @@ def handle_event(name: str, event: dict, at) -> str | None:
             from .tasks import start_track_recording
 
             session_pk, track_sid = session.pk, str(track.get("sid") or "")[:64]
-            transaction.on_commit(lambda: start_track_recording.delay(session_pk, track_sid))
+            transaction.on_commit(lambda: start_track_recording.delay(session_pk, track_sid, recording_room))
     elif name == "track_unpublished" and livekit_api.is_camera(track):
         _update(session, camera_live=False)
         log_event(session, EventKind.CAMERA_OFF, EventSource.WEBHOOK, at=at)

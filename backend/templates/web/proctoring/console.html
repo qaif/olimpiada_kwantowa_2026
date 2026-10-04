@@ -117,6 +117,14 @@
   {% endif %}
 
   {# --- 4. start i nadzór ---------------------------------------------------------------- #}
+  {% if stage.is_interview %}
+    <section class="card" aria-labelledby="pc-interview" {% if step != "interview" %}hidden{% endif %}>
+      <h2 class="mt-0" id="pc-interview">{% translate "Rozmowa" %}</h2>
+      <p>{% translate "Nadzór obejmuje Twoją rozmowę w pokoju na platformie – osobnego nadawania nie trzeba włączać. Wejdź na rozmowę z panelu przyciskiem „Dołącz do rozmowy”." %}</p>
+      {% if config.record %}<p class="pc__record-badge">● {% translate "Nagrywanie kamery włączone" %}</p>{% endif %}
+      <p><a class="btn btn--primary" href="{% url 'web:me' %}#rozmowa">{% translate "Przejdź do rozmowy" %}</a></p>
+    </section>
+  {% else %}
   <section class="card" aria-labelledby="pc-start" {% if step == "consent" or step == "check" or step == "photo" %}hidden{% endif %} data-section="start">
     <h2 class="mt-0" id="pc-start">{% if id_photo_enabled %}{% translate "4. Start nadzoru" %}{% else %}{% translate "3. Start nadzoru" %}{% endif %}</h2>
     <p class="pc__status" data-status role="status" aria-live="polite">
@@ -137,6 +145,7 @@
     <div class="pc__preview pc__preview--live"><video data-live muted playsinline aria-label="{% translate 'Twój obraz w nadzorze' %}"></video></div>
     <ol class="pc__messages" data-messages aria-live="assertive"></ol>
   </section>
+  {% endif %}
 
   {# --- alternatywa ---------------------------------------------------------------------- #}
   {% if not session.alternative_approved %}
