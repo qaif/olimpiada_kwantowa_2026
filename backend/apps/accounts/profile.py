@@ -575,6 +575,13 @@ def anonymise_account(user: User, *, actor: User | None = None, request=None) ->
 
     erase_chat_state(user)
 
+    # Sieć absolwentów (ALUM-01): profil absolwenta znika, relacje mentorskie się kończą, a notatki
+    # prośby i treść własnych zgłoszeń są czyszczone. Historia relacji (kto, kiedy) zostaje do
+    # nadzoru koordynatora – bez podpisu, bo konta już nie ma.
+    from apps.alumni.services import erase_for_user as erase_alumni
+
+    erase_alumni(user)
+
     _drop_credentials(user)
     audit(actor or user, "account.anonymised", user, {"user_id": user.pk}, request=request)
     return user

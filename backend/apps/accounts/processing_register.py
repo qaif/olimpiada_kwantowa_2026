@@ -86,7 +86,11 @@ from apps.competitions.models import DEFAULT_RETENTION_MONTHS
 #: uczniom swojego kraju. Nowa czynność (warunkowa – wyłącznie konkursy z trybem rejestracji
 #: ``DELEGATIONS``) z nowym kręgiem osób (opiekunowie drużyn) i nowym odbiorcą danych uczniów
 #: (współopiekunowie tego samego kraju widzą listę drużyny).
-REGISTER_VERSION = "1.11"
+#: 1.12 (04.10.2026, zadanie ALUM-01) – sieć absolwentów (``apps.alumni``, flaga ``alumni``): nowa
+#: czynność **na podstawie zgody** (art. 6 ust. 1 lit. a), z nowym kręgiem odbiorców (zalogowani
+#: uczestnicy, opcjonalnie publiczna ściana) i nowym celem (mentoring, zaproszenia, statystyki).
+#: Warunkowa jak forum – wiersz wchodzi do rejestru wyłącznie konkursom z włączoną flagą.
+REGISTER_VERSION = "1.12"
 REGISTER_DATE = date(2026, 10, 4)
 
 #: Zdanie o okresie przechowywania danych uczestnika. Liczba pochodzi z tego samego miejsca, co
@@ -669,6 +673,62 @@ CHAT_ACTIVITY = _activity(
 )
 
 
+#: Czynność **warunkowa**: sieć absolwentów (ALUM-01, flaga ``alumni``). Jedyna w rejestrze oparta
+#: na **zgodzie** – udział w sieci po zawodach nie jest potrzebny do przeprowadzenia zawodów, więc
+#: nie ma innej podstawy. Stąd okres przechowywania „do wycofania zgody”, a nie termin edycji, i stąd
+#: wstrzymanie automatu retencji konta na czas ważnej zgody (``apps.accounts.retention``).
+ALUMNI_ACTIVITY = _activity(
+    key="absolwenci",
+    name="Sieć absolwentów i mentoring",
+    purpose=(
+        "Utrzymanie dobrowolnej sieci byłych uczestników: profil widoczny dla zalogowanych uczestników "
+        "konkursu (opcjonalnie na publicznej ścianie), mentoring obecnych uczestników przez Wiadomości, "
+        "zaproszenia na warsztaty, webinary i do jury oraz zagregowane statystyki „gdzie są teraz”."
+    ),
+    legal_basis=(
+        "art. 6 ust. 1 lit. a RODO (zgoda absolwenta wyrażona osobnym polem wyboru, niezależna od zgód "
+        "konkursowych, wycofywana jednym przyciskiem); dołączają wyłącznie osoby pełnoletnie"
+    ),
+    subjects="absolwenci konkursu (byli uczestnicy, pełnoletni) oraz uczestnicy proszący o mentoring",
+    categories=[
+        "imię i inicjał nazwiska; pełne imię i nazwisko tylko na wyraźny wybór i przy zgodzie na "
+        "publikację nazwiska",
+        "osiągnięcia wyliczane z ogłoszonych wyników i wystawionych dyplomów (edycja, poziom)",
+        "dane wpisane przez absolwenta (wszystkie opcjonalne): uczelnia, kierunek, miasto, kraj, opis, "
+        "zainteresowania, odnośniki LinkedIn i GitHub, gotowość do mentoringu, tematy i liczba miejsc",
+        "dowód zgody (chwila udzielenia i wycofania, wersja treści)",
+        "relacje mentorskie: strony, temat, notatka prośby, stan, daty, zgłoszenia problemów",
+        "liczba odbiorców wysłanych zaproszeń (bez listy osób) i wybór „nie chcę zaproszeń”",
+    ],
+    recipients=[
+        HOSTING_RECIPIENT,
+        MAIL_RECIPIENT + " – zaproszenia i listy o mentoringu, bez treści notatek i zgłoszeń",
+        "zalogowani uczestnicy konkursu (katalog absolwentów); publicznie – tylko profile oznaczone przez "
+        "absolwenta jako publiczne, w minimalnym zakresie (podpis, osiągnięcia, uczelnia, kierunek)",
+        "koordynatorzy konkursu (lista absolwentów, nadzór relacji mentorskich, zgłoszenia, statystyki "
+        "z progiem k-anonimowości 5)",
+        "druga strona relacji mentorskiej (podpis „Imię N.” i notatka prośby)",
+    ],
+    retention=(
+        "do wycofania zgody, wyłączenia sieci przez organizatora albo usunięcia konta – profil znika "
+        "od razu; dowód zgody (bez danych poza pseudonimowym profilem) i historia relacji mentorskich "
+        "zostają do czasu anonimizacji konta. Na czas ważnej zgody automat retencji konta jest wstrzymany"
+    ),
+    measures=[
+        "funkcja domyślnie **wyłączona** (flaga konkursu); profil powstaje wyłącznie po wyraźnej zgodzie",
+        "osiągnięcia liczone na żywo wyłącznie z ogłoszonych wyników – cofnięta publikacja znika z profilu",
+        "katalog i ściana nigdy nie pokazują adresu e-mail, kodu publicznego, szkoły ani daty urodzenia",
+        "odnośniki tylko https i tylko LinkedIn/GitHub, renderowane z rel=nofollow",
+        "rozmowy mentorskie w Wiadomościach: przy mentee niepełnoletnim organizator czyta wiadomości – "
+        "przed doręczeniem (zasada „ta sama grupa wiekowa” albo wyłączone rozmowy uczestników) albo po "
+        "doręczeniu (zasada „bez ograniczeń”); rozmowy mentorskie nie są szyfrowane",
+        "statystyki jednowymiarowe z progiem k-anonimowości 5; zaproszenia z wypisem jednym kliknięciem",
+        "każda decyzja koordynatora (ukrycie profilu, zakończenie relacji, wysłanie zaproszenia) zostawia "
+        "wpis w dzienniku zdarzeń bez treści profilu i notatek",
+    ],
+)
+
+
 #: Czynność **warunkowa**: zaświadczenia o statusie ucznia (prośba organizatora z 24.09.2026,
 #: flaga ``student_status_certificate``). Obok :data:`ACTIVITIES` z tego samego powodu, co forum:
 #: rejestr opisuje przetwarzanie, które **naprawdę zachodzi**, a konkurs bez flagi nie zbiera ani
@@ -954,6 +1014,8 @@ def activities_for(competition=None) -> tuple[ProcessingActivity, ...]:
         activities = (*activities, ai_grading_activity(competition))
     if competition is not None and competition.uses_delegations:
         activities = (*activities, DELEGATIONS_ACTIVITY)
+    if competition is not None and competition.has_feature("alumni"):
+        activities = (*activities, ALUMNI_ACTIVITY)
     return activities
 
 

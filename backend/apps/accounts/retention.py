@@ -156,6 +156,9 @@ BLOCKED_OPEN_APPEAL = "open_appeal"
 BLOCKED_UNPUBLISHED_RESULTS = "unpublished_results"
 BLOCKED_ALREADY_ANONYMISED = "already_anonymised"
 BLOCKED_OTHER_COMPETITION = "other_competition"
+#: Aktywna zgoda absolwenta (ALUM-01, ``apps.alumni``) – nowa podstawa przetwarzania, niezależna od
+#: terminu edycji. Wycofanie zgody albo wyłączenie sieci przywraca zwykłą retencję.
+BLOCKED_ALUMNI = "alumni"
 
 #: Zdania dla człowieka. Osobno od kodów, bo kod idzie do audytu i do liczników, a zdanie na ekran.
 BLOCKED_LABELS = {
@@ -164,6 +167,7 @@ BLOCKED_LABELS = {
     BLOCKED_UNPUBLISHED_RESULTS: "ma etap bez ogłoszonych wyników",
     BLOCKED_ALREADY_ANONYMISED: "już zanonimizowane",
     BLOCKED_OTHER_COMPETITION: "ma rolę albo profil w innym konkursie",
+    BLOCKED_ALUMNI: "należy do sieci absolwentów (zgoda)",
 }
 
 
@@ -233,6 +237,10 @@ def _blocked_reason(participant: Participant, *, expired_ids: set[int]) -> str:
         return BLOCKED_LATER_EDITION
     if _active_in_another_competition(participant):
         return BLOCKED_OTHER_COMPETITION
+    from apps.alumni.services import retention_hold
+
+    if retention_hold(participant):
+        return BLOCKED_ALUMNI
     if Appeal.objects.filter(filed_by=participant, status__in=PENDING_STATUSES).exists():
         return BLOCKED_OPEN_APPEAL
     if entries.filter(stage__results_published_at__isnull=True).exists():

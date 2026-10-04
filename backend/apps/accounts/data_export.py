@@ -396,8 +396,21 @@ def export_payload(user: User) -> dict:
         "ustawienia_wiadomosci": _chat_settings_section(user),
         "zaswiadczenia_statusu_ucznia": _student_status_section(participant),
         "oceny_ai": _ai_section(participant),
+        "absolwenci": _alumni_section(user, participant),
         "ustawienia_interfejsu": _preferences_section(user),
     }
+
+
+def _alumni_section(user: User, participant) -> dict:
+    """Sieć absolwentów (ALUM-01): profil, dowód zgody, relacje mentorskie i własne zgłoszenia.
+
+    Sekcja jest w pliku **zawsze** (puste wartości przy konkursie bez sieci) – kształt pliku ma być
+    ten sam dla każdego konta. Treść składa ``apps.alumni.services.export_for``, bo tylko ona wie,
+    które pola są danymi absolwenta, a które dokumentacją zawodów.
+    """
+    from apps.alumni.services import export_for
+
+    return export_for(user, participant)
 
 
 def _student_status_section(participant) -> list[dict]:
