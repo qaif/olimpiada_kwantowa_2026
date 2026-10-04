@@ -1,5 +1,5 @@
 {% load i18n wagtailimages_tags %}{% comment %}
-  IQO Quantum 1.1.0 – slot ``theme/footer.html`` (układy ``columns`` i ``compact``).
+  IQO Quantum 1.1.2 – slot ``theme/footer.html`` (układy ``columns`` i ``compact``).
 
   Ta sama treść co stopka w ``base.html`` (te same msgid, ``data-cookie-settings`` dla
   ``consent.js``), nowa kompozycja na tle ``cover`` (ciemnym w obu schematach):
@@ -44,6 +44,8 @@
         <p class="footer__links iqo-footer__links">
           <a href="{{ site_root|default:"/" }}dokumenty/rodo/">{% translate "Polityka prywatności (RODO)" %}</a>
           <a href="{{ site_root|default:"/" }}dokumenty/cookies/">{% translate "Polityka plików cookie" %}</a>
+          {# 1.1.2 (A11Y-01): deklaracja dostępności – strona CMS, msgid z apps/accessibility. #}
+          <a href="{{ site_root|default:"/" }}dokumenty/deklaracja-dostepnosci/">{% translate "Deklaracja dostępności" %}</a>
           {% include "web/_support_link.html" with css_class="footer__link" %}
           {% if promo_available %}
             <a href="{% url 'web:posters' %}">{% translate "Plakaty do pobrania" %}</a>

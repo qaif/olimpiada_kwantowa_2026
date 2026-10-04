@@ -1,4 +1,4 @@
-# IQO Quantum – motyw International Quantum Olympiad (1.1.1)
+# IQO Quantum – motyw International Quantum Olympiad (1.1.2)
 
 Paczka motywu w formacie THEME-01 (§ 1–3, § 1a) z rozszerzeniami THEME-02 (§ 2.1 `logos`/`fonts`,
 § 4 slot `nav`) dla [iqo-official.org](https://iqo-official.org). Ciemna domyślnie, z dopracowaną
@@ -32,11 +32,26 @@ nagłówek dołącza fragment aplikacji `web/_account_who.html` (AUTH-01b) zamia
 `theme.css` dostaje regułę najechania. Paczka wymaga aplikacji z tym fragmentem – na starszej
 walidator odrzuci paczkę przy wgraniu (`min_app_version` **0.45.0**).
 
+## 1.1.2
+
+Poprawki dostępności po audycie A11Y-01 (`docs/tasks/A11Y-01.md`):
+
+- **paski ramy aplikacji** (logowanie, rejestracja, panele, weryfikacja listu wizowego) stoją na
+  granacie `primary`, a nie na niebieskim `primary-fill`: `app.css` rysuje w nich przygaszone napisy
+  w kolorze `primary-contrast` z przezroczystością 0,5–0,9, dobrane do granatu. Na `#5260ff`
+  (schemat ciemny) napisy miały 2,3–4,3:1 – axe zgłaszał `color-contrast` (serious) na każdym
+  ekranie ramy. Reguła dotyczy wyłącznie `.topbar` i `.timeline-dock`; nagłówek stron publicznych
+  (`.iqo-header`) i `--brand` w treści paneli bez zmian,
+- **stopka**: odnośnik „Deklaracja dostępności” (`/dokumenty/deklaracja-dostepnosci/`, msgid z
+  `apps/accessibility`).
+
+`min_app_version` **0.47.0** – wydanie z deklaracją dostępności i katalogiem tłumaczeń odnośnika.
+
 ## Zawartość
 
 | Plik | Rola |
 |---|---|
-| `manifest.json` | schema 1, `iqo-quantum` **1.1.1**, `min_app_version` **0.45.0** (wydanie z AUTH-01b – fragment `web/_account_who.html`; 1.1.0 wymagała 0.44.0 z THEME-02), `color_scheme: dark`, `layouts` (warianty niżej), `logos`, `fonts` |
+| `manifest.json` | schema 1, `iqo-quantum` **1.1.2**, `min_app_version` **0.47.0** (wydanie z A11Y-01 – deklaracja dostępności; 1.1.1 wymagała 0.45.0 z AUTH-01b, 1.1.0 – 0.44.0 z THEME-02), `color_scheme: dark`, `layouts` (warianty niżej), `logos`, `fonts` |
 | `tokens.json` | `colors` (paleta jasna), `dark` (ciemna, z własnymi `shadow-*`), `tokens` (kroje, skala, promienie, odstępy, cienie, `header-height`, `max-width`). Każdy klucz → `--t-<klucz>` |
 | `theme.css` | jedyny arkusz: kroje, aliasy `--iqo-*` ← `--t-*`, most do ról `app.css` (panele), sloty, warianty układów, wysoki kontrast, forced-colors, druk |
 | `templates/theme/header.html` | logo, przycisk „Menu”, `{% include "theme/nav.html" %}`, konto (role, forum, wiadomości, materiały, zgłoszenie, „Moja drużyna”, „Wyloguj”) |
@@ -176,7 +191,7 @@ przycisku 5.8:1). Generator platformy nie zgłasza ostrzeżeń dla `dark`, `ligh
 ## Budowanie i podgląd
 
 ```bash
-python themes/iqo-quantum/build_zip.py        # → themes/iqo-quantum/dist/iqo-quantum-1.1.1.zip
+python themes/iqo-quantum/build_zip.py        # → themes/iqo-quantum/dist/iqo-quantum-1.1.2.zip
 ```
 
 Skrypt sprawdza lokalnie reguły walidatora (rozszerzenia, `url()`, `@import`, SVG, biblioteki tagów,
