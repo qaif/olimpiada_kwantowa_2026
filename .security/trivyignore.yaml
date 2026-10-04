@@ -1,0 +1,18 @@
+# Zaakceptowane podatności obrazów kontenerów (SEC-02, docs/OPERACJE.md § 47.2).
+#
+# Format natywny Trivy (plik ignorowania YAML), przekazywany w jobie CI `image-scan`
+# (`trivyignores:`). Trivy sam honoruje `expired_at`: po tej dacie wpis przestaje działać
+# i podatność znów blokuje. `scripts/security/policy_check.py` (job `supply-chain`) dokłada to,
+# czego Trivy nie sprawdza: każdy wpis MUSI mieć `statement` (uzasadnienie) i `expired_at`
+# najdalej 180 dni od dziś.
+#
+# Wzór (zawęź wpis do pakietu przez `purls`, jeśli ta sama podatność może dotyczyć kilku):
+#
+# vulnerabilities:
+#   - id: CVE-2026-00000
+#     purls:
+#       - "pkg:deb/debian/libexample@1.2.3-1?distro=debian-13"
+#     statement: "Podatność w funkcji X biblioteki, której nie woła żaden proces w obrazie; Debian trixie nie wydał jeszcze poprawki."
+#     expired_at: 2026-12-31
+
+vulnerabilities: []
