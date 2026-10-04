@@ -49,10 +49,15 @@ class IdPhoto(models.TextChoices):
 
 
 class OnUnavailable(models.TextChoices):
-    """Co robi bramka etapu, gdy serwer LiveKit nie działa (``PROC-01`` § 6)."""
+    """Co robi bramka etapu, gdy serwer LiveKit nie działa (``PROC-01`` § 6).
 
-    ALLOW = "allow", "uczeń pracuje, sesja dostaje znacznik „bez nadzoru”"
-    BLOCK = "block", "treść etapu zamknięta do decyzji koordynatora"
+    Domyślnie ``block``: etap z nadzorem bez nadzoru jest wyjątkiem, który ma przyznać człowiek
+    (alternatywa koordynatora), a nie przycisk w przeglądarce ucznia. ``allow`` to świadomy wybór
+    organizatora dla etapów, w których awaria serwera nie może zatrzymać zawodów.
+    """
+
+    ALLOW = "allow", "pozwól pracować przy awarii serwera nadzoru (sesja ze znacznikiem)"
+    BLOCK = "block", "zamknij treść etapu do decyzji koordynatora"
 
 
 class ProctoringConfig(models.Model):
@@ -71,7 +76,7 @@ class ProctoringConfig(models.Model):
     #: najdalej idącą formą tego przetwarzania i ma być świadomą decyzją, a nie ustawieniem fabrycznym.
     record = models.BooleanField("nagrywanie kamer", default=False)
     on_unavailable = models.CharField(
-        "gdy LiveKit nie działa", max_length=8, choices=OnUnavailable.choices, default=OnUnavailable.ALLOW
+        "gdy LiveKit nie działa", max_length=8, choices=OnUnavailable.choices, default=OnUnavailable.BLOCK
     )
     instructions = models.TextField(
         "dodatkowe instrukcje dla uczniów", max_length=INSTRUCTIONS_MAX_LENGTH, blank=True
@@ -200,6 +205,9 @@ class ProctoringSession(models.Model):
     started_at = models.DateTimeField("nadzór rozpoczęty", null=True, blank=True)
     #: Praca bez nadzoru przy ``on_unavailable=allow`` (LiveKit nie działał) – znacznik dla komisji.
     unproctored_at = models.DateTimeField("bez nadzoru od", null=True, blank=True)
+    #: Dlaczego wolno było pracować bez nadzoru: ``not_configured`` / ``server_unreachable`` (serwer
+    #: niedostępny dla **platformy**) / ``connect_failures`` (serwer działał, połączenia ucznia nie).
+    unproctored_reason = models.CharField("powód pracy bez nadzoru", max_length=24, blank=True)
     connected = models.BooleanField("połączony", default=False)
     camera_live = models.BooleanField("kamera nadaje", default=False)
     screen_live = models.BooleanField("ekran udostępniony", default=False)
@@ -260,7 +268,12 @@ class ProctoringConsent(models.Model):
 
     session = models.ForeignKey(ProctoringSession, on_delete=models.CASCADE, related_name="consents")
     version = models.CharField("wersja", max_length=64)
+    #: Skrót wersji, oświadczenia **i ustawień etapu** (nagrywanie, mikrofon, ekran, zdjęcie) – zmiana
+    #: ustawień po zgodzie unieważnia ją (``services.active_consent``).
     text_sha256 = models.CharField("skrót treści", max_length=64)
+    terms = models.JSONField("ustawienia etapu w chwili zgody", default=dict, blank=True)
+    #: Niepełnoletni zaznaczył oświadczenie, że opiekun zna informację o nadzorze i się zgadza.
+    guardian_statement = models.BooleanField("oświadczenie o zgodzie opiekuna na nadzór", default=False)
     given_at = models.DateTimeField("wyrażona", default=timezone.now)
     ip = models.GenericIPAddressField("adres IP", null=True, blank=True)
     #: Wpis zgody opiekuna złożonej online (``apps.accounts.guardian``), na którym oparto zgodę
@@ -294,6 +307,7 @@ class EventKind(models.TextChoices):
     SCREEN_ON = "screen_on", "ekran udostępniony"
     SCREEN_OFF = "screen_off", "udostępnianie ekranu zakończone"
     STREAM_DROPPED = "stream_dropped", "zerwany strumień (zgłoszenie przeglądarki)"
+    CONNECT_FAILED = "connect_failed", "nieudane połączenie (zgłoszenie przeglądarki)"
     RECONNECTED = "reconnected", "ponowne połączenie (zgłoszenie przeglądarki)"
     LIVEKIT_UNAVAILABLE = "livekit_unavailable", "serwer nadzoru niedostępny"
     MESSAGE = "message", "wiadomość nadzorującego"

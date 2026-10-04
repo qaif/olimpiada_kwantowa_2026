@@ -1068,14 +1068,20 @@ WEBINAR_RETENTION_DAYS = env.int("WEBINAR_RETENTION_DAYS", default=365)
 # --- nadzór zdalny etapów online (zadanie PROC-01, ``apps.proctoring``) -------------------------------
 # Ten sam serwer LiveKit, co webinary. ``LEAD`` – ile minut przed otwarciem okna ucznia wolno włączyć
 # nadzór (sprawdzenie sprzętu na spokojnie), ``GRACE`` – ile po zamknięciu działa pokój nadzorujących.
-# Retencja nośników (nagrania, zdjęcia dokumentu, dziennik, wiadomości): ``RETENTION_DAYS`` po
-# publikacji wyników i końcu okna reklamacji; ``MAX_RETENTION_DAYS`` po końcu etapu, gdy wyniki nigdy
-# nie wyszły. ``WINDOW_ADAPTER`` – funkcja okna ucznia z TZ-01 (pusty = okno globalne etapu).
+# Retencja nośników (nagrania, dziennik, wiadomości): ``RETENTION_DAYS`` po publikacji wyników i końcu
+# okna reklamacji; ``MAX_RETENTION_DAYS`` po końcu etapu, gdy wyniki nigdy nie wyszły; zdjęcia
+# dokumentu – zaraz po etapie. ``WINDOW_ADAPTER`` – własna funkcja okna ucznia; pusty = okna TZ-01
+# (``apps.time_windows``), gdy aplikacja jest zainstalowana, inaczej okno globalne etapu.
+# ``UNPROCTORED_AFTER_FAILURES`` – ile zgłoszonych nieudanych połączeń (przy działającym serwerze)
+# otwiera „kontynuuj bez nadzoru” w etapie z ``allow``; ``LATE_START_MINUTES`` – próg znacznika
+# „późny start” w siatce, raporcie i CSV.
 PROCTORING_LEAD_MINUTES = env.int("PROCTORING_LEAD_MINUTES", default=30)
 PROCTORING_GRACE_MINUTES = env.int("PROCTORING_GRACE_MINUTES", default=30)
 PROCTORING_RETENTION_DAYS = env.int("PROCTORING_RETENTION_DAYS", default=30)
 PROCTORING_MAX_RETENTION_DAYS = env.int("PROCTORING_MAX_RETENTION_DAYS", default=180)
 PROCTORING_WINDOW_ADAPTER = env("PROCTORING_WINDOW_ADAPTER", default="")
+PROCTORING_UNPROCTORED_AFTER_FAILURES = env.int("PROCTORING_UNPROCTORED_AFTER_FAILURES", default=3)
+PROCTORING_LATE_START_MINUTES = env.int("PROCTORING_LATE_START_MINUTES", default=15)
 
 WAGTAIL_SITE_NAME = env("WAGTAIL_SITE_NAME", default="Olimpiada Kwantowa")
 WAGTAILADMIN_BASE_URL = env("WAGTAILADMIN_BASE_URL", default=f"https://{SITE_DOMAIN}")
@@ -1313,6 +1319,9 @@ REST_FRAMEWORK = {
         # ponownych połączeń na etap), czynności nadzorującego (wiadomości, incydenty, obecność przy
         # 24 uczniach na stronie) i kroki konsoli ucznia (sprawdzenie, puls co minutę przez kilka godzin).
         "proctoring_token": "60/hour",
+        # Koordynator nadzoru: przełączanie grup (w IQO ~100 delegacji) i ponowne łączenia przez kilka
+        # godzin etapu – osobny, wyższy kubełek, żeby nie dzielić limitu z komisją i opiekunami.
+        "proctoring_coordinator_token": "1200/hour",
         "proctoring_action": "600/hour",
         "proctoring_client": "600/hour",
         # Zakładanie konkursu z panelu koordynatora (``/coordinator/competitions/new/``). Stawka

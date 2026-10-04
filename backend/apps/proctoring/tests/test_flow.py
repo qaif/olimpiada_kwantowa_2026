@@ -187,7 +187,7 @@ def test_proctor_json_throttle_answers_json(proctoring_on, config, stage, coordi
     from django.core.cache import cache
 
     rates = dict(settings.REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"])
-    rates["proctoring_token"] = "1/hour"
+    rates["proctoring_coordinator_token"] = "1/hour"
     settings.REST_FRAMEWORK = {**settings.REST_FRAMEWORK, "DEFAULT_THROTTLE_RATES": rates}
     cache.clear()
     client = logged(coordinator)

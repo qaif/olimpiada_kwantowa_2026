@@ -19,8 +19,9 @@
     <dd>{% if consent %}{{ consent.version }}, {{ consent.given_at|date:"d.m.Y H:i:s" }}{% if consent.withdrawn_at %} – {% translate "wycofana" %} {{ consent.withdrawn_at|date:"d.m.Y H:i:s" }}{% endif %}{% if consent.guardian_record_id %} ({% translate "zgoda opiekuna potwierdzona online" %}){% endif %}{% else %}{% translate "brak" %}{% endif %}</dd>
     <dt>{% translate "Sprawdzenie sprzętu" %}</dt>
     <dd>{% if session.check_passed_at %}{{ session.check_passed_at|date:"d.m.Y H:i:s" }}{% else %}–{% endif %}{% if session.check_result %} ({% for key, value in session.check_result.items %}{{ key }}: {{ value }}{% if not forloop.last %}, {% endif %}{% endfor %}){% endif %}</dd>
-    <dt>{% translate "Nadzór rozpoczęty" %}</dt><dd>{{ session.started_at|date:"d.m.Y H:i:s"|default:"–" }}</dd>
-    <dt>{% translate "Bez nadzoru od" %}</dt><dd>{{ session.unproctored_at|date:"d.m.Y H:i:s"|default:"–" }}</dd>
+    {% if consent.terms %}<dt>{% translate "Ustawienia etapu w chwili zgody" %}</dt><dd>{% for key, value in consent.terms.items %}{{ key }}: {{ value }}{% if not forloop.last %}, {% endif %}{% endfor %}</dd>{% endif %}
+    <dt>{% translate "Nadzór rozpoczęty" %}</dt><dd>{{ session.started_at|date:"d.m.Y H:i:s"|default:"–" }}{% if late_minutes %} – <strong>{% blocktranslate trimmed with minutes=late_minutes %}późny start: {{ minutes }} min{% endblocktranslate %}</strong>{% endif %}</dd>
+    <dt>{% translate "Bez nadzoru od" %}</dt><dd>{{ session.unproctored_at|date:"d.m.Y H:i:s"|default:"–" }}{% if unproctored_label %} – {{ unproctored_label }}{% endif %}</dd>
     <dt>{% translate "Obecność" %}</dt><dd>{{ session.get_attendance_display }}{% if session.attendance_at %} ({{ session.attendance_at|date:"d.m.Y H:i:s" }}){% endif %}</dd>
     <dt>{% translate "Inna forma nadzoru" %}</dt><dd>{% if session.alternative_status %}{{ session.get_alternative_status_display }} – {{ session.get_alternative_reason_display }}{% if session.alternative_decision %}: {{ session.alternative_decision }}{% endif %}{% else %}–{% endif %}</dd>
     {% if session.id_photo_key %}<dt>{% translate "Zdjęcie dokumentu" %}</dt><dd><a href="{% url 'web:proctoring-media' stage.pk 'photo' session.pk %}" target="_blank" rel="noopener">{% translate "otwórz (15 min)" %}</a></dd>{% endif %}

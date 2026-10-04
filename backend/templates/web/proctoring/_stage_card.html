@@ -15,7 +15,8 @@
     <p class="pc-banner" data-proctoring-banner data-stage-id="{{ stage.pk }}" data-state="neutral" role="status" aria-live="polite"
        data-text-ok="{% translate 'Nadzór działa.' %}"
        data-text-bad="{% translate 'Nadzór nie działa – wróć do karty konsoli nadzoru albo otwórz ją ponownie.' %}"
-       data-text-neutral="{% translate 'Stan nadzoru: sprawdź kartę konsoli nadzoru.' %}">
+       data-text-neutral="{% translate 'Stan nadzoru: sprawdź kartę konsoli nadzoru.' %}"
+       data-text-unproctored="{% translate 'Praca bez nadzoru – awaria serwera nadzoru została odnotowana.' %}">
       <span data-proctoring-text>{% translate "Stan nadzoru: sprawdź kartę konsoli nadzoru." %}</span>
       <a class="btn btn--secondary btn--small" href="{% url 'web:proctoring-console' stage.pk %}" target="proctoring-console-{{ stage.pk }}">{% translate "Konsola nadzoru" %}</a>
     </p>

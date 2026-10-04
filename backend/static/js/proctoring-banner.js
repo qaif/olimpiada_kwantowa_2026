@@ -17,10 +17,18 @@
 
   function render() {
     var stale = Date.now() - lastSeen > 15000;
+    // Praca bez nadzoru (awaria serwera) NIE jest „nadzór działa” – osobny, ostrzegawczy stan.
+    var unproctored = !stale && lastState === "unproctored";
     var bad = stale || lastState === "dropped" || lastState === "stopped" || lastState === "unavailable";
-    var good = !stale && (lastState === "live" || lastState === "unproctored");
-    bar.dataset.state = bad ? "bad" : good ? "ok" : "neutral";
-    text.textContent = bad ? bar.dataset.textBad : good ? bar.dataset.textOk : bar.dataset.textNeutral;
+    var good = !stale && lastState === "live";
+    bar.dataset.state = unproctored ? "warn" : bad ? "bad" : good ? "ok" : "neutral";
+    text.textContent = unproctored
+      ? bar.dataset.textUnproctored
+      : bad
+        ? bar.dataset.textBad
+        : good
+          ? bar.dataset.textOk
+          : bar.dataset.textNeutral;
   }
 
   new BroadcastChannel("proctoring-" + bar.dataset.stageId).onmessage = function (event) {

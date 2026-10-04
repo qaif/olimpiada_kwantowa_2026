@@ -33,6 +33,11 @@
   <p>Uczniów: {{ summary.total }} · ze zgodą: {{ summary.consented }} · nadzór rozpoczęty: {{ summary.started }}
     · bez nadzoru: {{ summary.unproctored }} · prośby o alternatywę: {{ summary.alternatives }}
     · bez nadzorującego: {{ summary.unassigned }}</p>
+  {% if summary.main_group_warning %}
+    <p class="alert alert--warning" role="status">W grupie „bez przydziału” jest {{ summary.main_group }} uczniów
+      (więcej niż {{ summary.main_group_limit }}). Jeden pokój LiveKit działa na jednym węźle serwera – dodaj
+      nadzorujących i kliknij „Rozdziel uczniów”, żeby rozłożyć uczniów na mniejsze pokoje.</p>
+  {% endif %}
 </section>
 
 <section class="section" aria-labelledby="pr-proctors">

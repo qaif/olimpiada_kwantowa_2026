@@ -8,5 +8,8 @@ class ProctoringConfig(AppConfig):
     verbose_name = "nadzór zdalny (LiveKit)"
 
     def ready(self) -> None:
-        # Sprzątanie plików w buckecie przy kasowaniu wierszy – także kaskadą z usuniętego konta.
-        from . import signals  # noqa: F401
+        # Sprzątanie plików w buckecie przy kasowaniu wierszy – także kaskadą z usuniętego konta –
+        # i wyproszenie odwołanego opiekuna drużyny z pokoju jego delegacji (DEL-01).
+        from . import signals
+
+        signals.connect_delegation_signals()

@@ -85,8 +85,29 @@ CONSENT_STATEMENT_SOURCE = (
 BROWSER_FAMILIES = ("chrome", "edge", "firefox", "safari", "opera", "other")
 #: Klucze wyniku sprawdzenia (wartości logiczne). Reszta tego, co przyśle przeglądarka, przepada.
 CHECK_KEYS = ("webrtc", "camera", "microphone", "screen")
+#: Oświadczenie niepełnoletniego o nadzorze **konkretnie** (dodatkowe pole przy zgodzie). Ogólna
+#: zgoda opiekuna z rejestracji dotyczy udziału i danych, a nie obrazu z domu – to pole mówi, że
+#: opiekun zna tę informację. Podstawę prawną opisuje nota DPIA (podręcznik organizatora § 10m).
+GUARDIAN_STATEMENT = gettext_lazy(
+    "Mój rodzic lub opiekun prawny zna tę informację o nadzorze zdalnym i zgadza się na niego."
+)
+GUARDIAN_STATEMENT_SOURCE = (
+    "Mój rodzic lub opiekun prawny zna tę informację o nadzorze zdalnym i zgadza się na niego."
+)
+
 #: Zdarzenia, które wolno zgłosić przeglądarce ucznia. Kamera i ekran – z webhooków serwera.
-CLIENT_EVENTS = (EventKind.STREAM_DROPPED, EventKind.RECONNECTED)
+CLIENT_EVENTS = (EventKind.STREAM_DROPPED, EventKind.RECONNECTED, EventKind.CONNECT_FAILED)
+#: Powody nieudanego połączenia, które liczą się do „kontynuuj bez nadzoru”. Kamera odmówiona albo
+#: odłączona **nie** jest awarią serwera – to sprawa na alternatywę z decyzją koordynatora.
+NETWORK_FAILURES = ("token", "connect", "publish")
+CAMERA_FAILURES = ("camera",)
+#: Powody pracy bez nadzoru (``ProctoringSession.unproctored_reason``).
+UNPROCTORED_NOT_CONFIGURED = "not_configured"
+UNPROCTORED_SERVER_UNREACHABLE = "server_unreachable"
+UNPROCTORED_CONNECT_FAILURES = "connect_failures"
+#: Grupa ``m`` (uczniowie bez przydziału) większa niż tyle osób – ostrzeżenie na ekranie koordynatora:
+#: jeden pokój LiveKit żyje na jednym węźle, więc duża grupa bez przydziału to jeden gorący węzeł.
+MAIN_GROUP_WARNING = 250
 #: Najwięcej bajtów zdjęcia dokumentu (JPEG 640×480 z konsoli waży ~60 KB).
 ID_PHOTO_MAX_BYTES = 300 * 1024
 JPEG_MAGIC = b"\xff\xd8\xff"
@@ -119,6 +140,21 @@ def config_for(stage) -> ProctoringConfig | None:
     return config.first()
 
 
+def stage_competition(stage):
+    """Konkurs etapu bez zapytania, gdy kontekst żądania to ten sam konkurs (ścieżki mierzone testami)."""
+    from apps.tenancy.context import current_competition
+
+    current = current_competition()
+    if current is None:
+        return stage.edition.competition
+    # Etap z załadowaną edycją sprawdzamy darmowo; bez niej ufamy kontekstowi – etap przyszedł
+    # z zawężonego querysetu konkursu żądania, a cudzy etap i tak skończył się wcześniej 404.
+    edition = stage._state.fields_cache.get("edition")
+    if edition is not None and edition.competition_id != current.pk:
+        return edition.competition
+    return current
+
+
 def _not_found(message: str = "Nie ma takiej sesji nadzoru.") -> DomainError:
     return DomainError(message, "PROCTORING_NOT_FOUND", 404)
 
@@ -146,23 +182,29 @@ def proctor_identity(stage, user) -> str:
     return "x-" + _hmac(f"x:{stage.pk}:{user.pk}")
 
 
-def group_for(participant, proctor_id: int | None = None) -> str:
-    """Grupa (pokój) ucznia: ``d<delegacja>``, inaczej ``a<przydział nadzorującego>``, inaczej ``m``.
+def group_for(participant, proctor: ProctorAssignment | None = None) -> str:
+    """Grupa (pokój) ucznia.
+
+    - przydział do koordynatora albo członka komisji → ``a<przydział>`` (także uczeń delegacji:
+      członek komisji nie może dostać tokenu do pokoju całej delegacji, bo zobaczyłby cudzych uczniów),
+    - uczeń delegacji bez przydziału albo przydzielony opiekunowi tej delegacji → ``d<delegacja>``,
+    - pozostali → ``m`` (bez przydziału; widzą ich koordynatorzy).
 
     Pokój na przydział, a nie jeden wspólny: (1) członek komisji dostaje token wyłącznie do pokoi
     swoich uczniów – nie zasubskrybuje cudzego ucznia nawet przerobionym skryptem, (2) pokój w
-    LiveKit żyje na jednym węźle, a etap online Olimpiady Kwantowej bywa liczony w tysiącach – pokoje
-    po kilkanaście–kilkadziesiąt osób rozkładają się na węzły klastra. ``m`` zostaje dla uczniów bez
-    przydziału (widzą ich koordynatorzy).
+    LiveKit żyje na jednym węźle, a etap online bywa liczony w setkach – pokoje po kilkanaście–
+    kilkadziesiąt osób rozkładają się na węzły klastra.
     """
+    if proctor is not None and proctor.kind != ProctorKind.LEADER:
+        return f"a{proctor.pk}"
     delegation_id = delegations.participant_delegation_id(participant)
     if delegation_id:
         return f"d{delegation_id}"
-    return f"a{proctor_id}" if proctor_id else MAIN_GROUP
+    return f"a{proctor.pk}" if proctor is not None else MAIN_GROUP
 
 
 def session_group(session) -> str:
-    return group_for(session.participant, session.proctor_id)
+    return group_for(session.participant, session.proctor)
 
 
 def group_delegation(group: str) -> int | None:
@@ -343,7 +385,12 @@ def entry_for(participant, stage):
 
 
 def session_for(stage, participant, *, create: bool = True) -> ProctoringSession | None:
-    found = ProctoringSession.objects.filter(stage=stage, participant=participant).first()
+    # ``participant`` i ``proctor`` – czyta je zaraz grupa pokoju i zgoda (bez leniwych zapytań).
+    found = (
+        ProctoringSession.objects.select_related("participant__user", "proctor")
+        .filter(stage=stage, participant=participant)
+        .first()
+    )
     if found is not None or not create:
         return found
     try:
@@ -367,18 +414,62 @@ def guardian_requirement(participant):
     return True, confirmed_record(participant)
 
 
-def active_consent(session) -> ProctoringConsent | None:
-    return session.consents.filter(withdrawn_at__isnull=True, version=CONSENT_VERSION).first()
+def consent_terms(config) -> dict:
+    """Ustawienia etapu, na które uczeń się zgadza – wchodzą do skrótu dowodu zgody.
+
+    Zgoda na „obraz z kamery na żywo” nie jest zgodą na nagranie ani na dźwięk: zmiana któregoś
+    z tych ustawień po zgodzie zmienia skrót, więc dotychczasowa zgoda przestaje być ważna i uczeń
+    składa ją jeszcze raz, widząc nową informację.
+    """
+    return {
+        "record": bool(config.record),
+        "microphone": bool(config.require_microphone),
+        "screen": bool(config.require_screen_share),
+        "id_photo": str(config.id_photo),
+    }
 
 
-def _consent_digest() -> str:
-    return hashlib.sha256(f"{CONSENT_VERSION}\n{CONSENT_STATEMENT_SOURCE}".encode()).hexdigest()
+def consent_digest(config, *, minor: bool = False) -> str:
+    terms = ",".join(f"{key}={value}" for key, value in sorted(consent_terms(config).items()))
+    parts = [CONSENT_VERSION, CONSENT_STATEMENT_SOURCE, terms]
+    if minor:
+        parts.append(GUARDIAN_STATEMENT_SOURCE)
+    return hashlib.sha256("\n".join(parts).encode()).hexdigest()
 
 
-def give_consent(session, *, user, request=None) -> ProctoringConsent:
-    """Zgoda ucznia. Niepełnoletni – wyłącznie przy **potwierdzonej online** zgodzie opiekuna."""
+def _config_of(session, config=None):
+    return config if config is not None else ProctoringConfig.objects.get(stage_id=session.stage_id)
+
+
+def active_consent(session, config=None) -> ProctoringConsent | None:
+    """Ważna zgoda: obecna wersja, **te same ustawienia etapu** i – u niepełnoletniego – zgoda
+    opiekuna, która dziś nadal obowiązuje (wycofanie zgody opiekuna gasi zgodę na nadzór)."""
+    if session is None:
+        return None
+    config = _config_of(session, config)
+    required, _guardian = guardian_requirement(session.participant)
+    consent = (
+        session.consents.filter(
+            withdrawn_at__isnull=True,
+            version=CONSENT_VERSION,
+            text_sha256=consent_digest(config, minor=required),
+        )
+        .select_related("guardian_record")
+        .first()
+    )
+    if consent is None:
+        return None
+    if required and (consent.guardian_record is None or consent.guardian_record.withdrawn_at is not None):
+        return None
+    return consent
+
+
+def give_consent(session, *, user, config=None, guardian_statement: bool = False, request=None):
+    """Zgoda ucznia. Niepełnoletni – przy **potwierdzonej online** zgodzie opiekuna i z oświadczeniem
+    o nadzorze (``guardian_statement``)."""
     from apps.core.models import client_ip
 
+    config = _config_of(session, config)
     required, guardian = guardian_requirement(session.participant)
     if required and guardian is None:
         raise DomainError(
@@ -389,15 +480,23 @@ def give_consent(session, *, user, request=None) -> ProctoringConsent:
             "PROCTORING_GUARDIAN_REQUIRED",
             409,
         )
-    existing = active_consent(session)
+    if required and not guardian_statement:
+        raise DomainError(
+            _("Zaznacz też oświadczenie o wiedzy i zgodzie rodzica lub opiekuna prawnego."),
+            "PROCTORING_GUARDIAN_STATEMENT",
+            400,
+        )
+    existing = active_consent(session, config)
     if existing is not None:
         return existing
     consent = ProctoringConsent.objects.create(
         session=session,
         version=CONSENT_VERSION,
-        text_sha256=_consent_digest(),
+        text_sha256=consent_digest(config, minor=required),
+        terms=consent_terms(config),
         ip=client_ip(request) if request is not None else None,
         guardian_record=guardian,
+        guardian_statement=required,
     )
     log_event(session, EventKind.CONSENT_GIVEN, EventSource.CLIENT, detail={"version": CONSENT_VERSION})
     _audit(user, "proctoring.consent_given", session, {"version": CONSENT_VERSION}, request=request)
@@ -405,12 +504,67 @@ def give_consent(session, *, user, request=None) -> ProctoringConsent:
 
 
 def withdraw_consent(session, *, user, request=None) -> int:
-    """Wycofanie zgody – nadzór tej osoby wymaga odtąd decyzji koordynatora (alternatywa)."""
+    """Wycofanie zgody – uczeń znika z pokoju od razu (token ważny jeszcze kilka minut by nie
+    wystarczył: połączenie raz nawiązane trwa), nagrywanie staje, dalej – decyzja koordynatora."""
     count = session.consents.filter(withdrawn_at__isnull=True).update(withdrawn_at=timezone.now())
     if count:
+        kick_student(session)
         log_event(session, EventKind.CONSENT_WITHDRAWN, EventSource.CLIENT)
         _audit(user, "proctoring.consent_withdrawn", session, request=request)
     return count
+
+
+# --- polecenia do LiveKit: wyproszenie z pokoju -------------------------------------------------------
+
+
+def kick_student(session) -> None:
+    """Wyprasza ucznia z pokoju jego grupy i zatrzymuje jego aktywne nagrania. Awaria – w logu."""
+    if not configured():
+        return
+    from apps.webinars import livekit
+
+    config = (
+        ProctoringConfig.objects.select_related("stage__edition__competition")
+        .filter(stage_id=session.stage_id)
+        .first()
+    )
+    if config is None:
+        return
+    for recording in session.recordings.filter(status=RecordingStatus.ACTIVE):
+        try:
+            livekit_api.stop_egress(recording.egress_id)
+        except livekit.LiveKitUnavailable, livekit.LiveKitError:
+            logger.warning("Nadzór: nie udało się zatrzymać nagrania %s.", recording.pk)
+    try:
+        livekit.remove_participant(config.room_name(session.group), session.identity)
+    except livekit.LiveKitUnavailable, livekit.LiveKitError:
+        logger.info("Nadzór: uczeń sesji %s nie był w pokoju.", session.pk)
+
+
+def kick_proctor(stage, user, groups) -> int:
+    """Wyprasza nadzorującego z pokoi grup ``groups`` – po odebraniu przydziału albo delegacji.
+
+    Token żyje kilka minut, ale **połączenie** raz nawiązane trwa – bez tego odwołany opiekun
+    oglądałby uczniów do końca etapu.
+    """
+    if not configured():
+        return 0
+    from apps.webinars import livekit
+
+    config = (
+        ProctoringConfig.objects.select_related("stage__edition__competition").filter(stage=stage).first()
+    )
+    if config is None:
+        return 0
+    identity = proctor_identity(stage, user)
+    removed = 0
+    for group in sorted(set(groups)):
+        try:
+            livekit.remove_participant(config.room_name(group), identity)
+            removed += 1
+        except livekit.LiveKitUnavailable, livekit.LiveKitError:
+            continue
+    return removed
 
 
 def record_check(session, config, result: dict, *, user, request=None) -> bool:
@@ -478,7 +632,7 @@ def is_ready(session, config) -> bool:
         return False
     if session.alternative_approved:
         return True
-    if active_consent(session) is None:
+    if active_consent(session, config) is None:
         return False
     if session.started_at is not None:
         return True
@@ -489,7 +643,7 @@ def step(session, config) -> str:
     """Krok konsoli ucznia: ``consent`` → ``check`` → ``photo`` → ``start`` → ``live``."""
     if session.alternative_approved:
         return "alternative"
-    if active_consent(session) is None:
+    if active_consent(session, config) is None:
         return "consent"
     if session.check_passed_at is None:
         return "check"
@@ -500,31 +654,89 @@ def step(session, config) -> str:
     return "live"
 
 
-def gate_blocks(user, stage, competition) -> ProctoringSession | bool:
-    """Bramka treści etapu: ``False`` = przepuść; sesja (albo ``True``) = zatrzymaj i odeślij do konsoli.
+#: Odpowiedzi bramki (``gate_decision``): ``None`` = przepuść.
+GATE_CONSOLE = "console"  # uczeń etapu bez gotowej sesji – do konsoli nadzoru
+GATE_LOGIN = "login"  # osoba niezalogowana w oknie etapu
+GATE_DENIED = "denied"  # zalogowany bez zgłoszenia do etapu i bez roli personelu
 
-    Przepuszcza bez pytania: konkurs bez flagi (zero zapytań), etap bez nadzoru, osobę bez zgłoszenia
-    do etapu (koordynator, recenzent podglądający PDF) i chwilę **poza** oknem ucznia – przed
-    otwarciem treść i tak jest zamknięta przez serwisy etapu, a po zamknięciu nic już nie ma do zrobienia.
+
+def is_staff(user, competition) -> bool:
+    """Personel, który w oknie etapu z nadzorem dalej widzi treść: koordynator, aktywna komisja."""
+    return (
+        bool(getattr(user, "is_superuser", False))
+        or is_coordinator(user, competition)
+        or committee_ok(user, competition)
+    )
+
+
+def gate_decision(user, stage, competition, now=None) -> str | None:
+    """Bramka treści etapu z nadzorem: kto w **oknie etapu** może zobaczyć zadania.
+
+    - konkurs bez flagi albo etap bez nadzoru – przepuść (bez flagi: zero zapytań),
+    - niezalogowany w oknie – ``login``: treść zadań nie może wyjść poza nadzór anonimowym adresem,
+    - zalogowany bez (niezdyskwalifikowanego) zgłoszenia – ``denied``, chyba że to personel
+      (koordynator, komisja) – ci zachowują dostęp,
+    - uczeń etapu w swoim oknie bez gotowej sesji – ``console``.
+
+    Poza oknem bramka nie wtrąca się: przed otwarciem treść zamykają serwisy etapu (i TZ-01), po
+    zamknięciu nie ma już czego nadzorować.
     """
     from apps.accounts.services import participant_for
 
     if not enabled(competition):
-        return False
+        return None
     config = config_for(stage)
     if config is None:
-        return False
+        return None
+    now = now or timezone.now()
+    if user is None or not getattr(user, "is_authenticated", False):
+        opens, closes = windows.envelope(stage)
+        return GATE_LOGIN if opens <= now < closes else None
     participant = participant_for(user, competition)
-    if participant is None or entry_for(participant, stage) is None:
-        return False
+    entry = entry_for(participant, stage) if participant is not None else None
+    if entry is None:
+        if is_staff(user, competition):
+            return None
+        opens, closes = windows.envelope(stage)
+        return GATE_DENIED if opens <= now < closes else None
     opens, closes = windows.effective_window(stage, participant)
-    now = timezone.now()
     if not (opens <= now < closes):
-        return False
+        return None
     session = session_for(stage, participant, create=False)
-    if is_ready(session, config):
-        return False
-    return session or True
+    return None if is_ready(session, config) else GATE_CONSOLE
+
+
+def assert_stage_access(stage, entry, now=None) -> None:
+    """Druga linia obrony w serwisach (wysyłka rozwiązania, start testu) – ta sama reguła ucznia,
+    co bramka adresów: w oknie bez gotowej sesji nadzoru – ``DomainError`` 403.
+
+    Bez flagi konkursu zero zapytań: flagę czytamy z konkursu kontekstu, **zanim** dotkniemy etapu
+    (``stage`` może być funkcją bez argumentów – np. ``lambda: quiz.stage`` – liczoną dopiero wtedy).
+    """
+    from apps.tenancy.context import current_competition
+
+    current = current_competition()
+    if current is not None and not enabled(current):
+        return
+    if callable(stage):
+        stage = stage()
+    competition = stage_competition(stage)
+    if not enabled(competition):
+        return
+    config = config_for(stage)
+    if config is None:
+        return
+    participant = entry.participant
+    now = now or timezone.now()
+    opens, closes = windows.effective_window(stage, participant)
+    if not (opens <= now < closes):
+        return
+    if not is_ready(session_for(stage, participant, create=False), config):
+        raise DomainError(
+            _("Ten etap jest nadzorowany zdalnie. Najpierw włącz nadzór w konsoli nadzoru."),
+            "PROCTORING_REQUIRED",
+            403,
+        )
 
 
 def student_token(session, config, *, user, request=None, now=None) -> dict:
@@ -534,7 +746,7 @@ def student_token(session, config, *, user, request=None, now=None) -> dict:
         raise _unavailable()
     if entry_for(session.participant, session.stage) is None:
         raise _not_found()
-    if active_consent(session) is None:
+    if active_consent(session, config) is None:
         raise DomainError(_("Najpierw wyraź zgodę na nadzór."), "PROCTORING_CONSENT_REQUIRED", 409)
     if session.check_passed_at is None:
         raise DomainError(_("Najpierw sprawdź sprzęt."), "PROCTORING_CHECK_REQUIRED", 409)
@@ -583,7 +795,7 @@ def confirm_started(session, config, *, user, request=None) -> ProctoringSession
     Bez tego wystarczyłoby wysłać „nadaję” z konsoli, nie włączając kamery. Ekran – gdy etap go
     wymaga – też musi być udostępniony.
     """
-    if active_consent(session) is None:
+    if active_consent(session, config) is None:
         raise DomainError(_("Najpierw wyraź zgodę na nadzór."), "PROCTORING_CONSENT_REQUIRED", 409)
     room = config.room_name(session.group)
     try:
@@ -617,52 +829,95 @@ def confirm_started(session, config, *, user, request=None) -> ProctoringSession
     return session
 
 
-def continue_unproctored(session, config, *, user, request=None) -> ProctoringSession:
-    """„Kontynuuj bez nadzoru” – tylko przy ``on_unavailable=allow`` i ze zgodą.
+def failure_threshold() -> int:
+    return max(1, int(getattr(settings, "PROCTORING_UNPROCTORED_AFTER_FAILURES", 3)))
 
-    Serwer sprawdza przy tym, czy **sam** sięga do LiveKit: wynik idzie do dziennika
-    (``server_reachable``), więc komisja odróżni awarię serwera od zablokowanego połączenia u ucznia.
+
+def network_failures(session) -> int:
+    """Zgłoszone przez konsolę nieudane połączenia z serwerem (token, połączenie, publikacja)."""
+    return session.events.filter(kind=EventKind.CONNECT_FAILED, detail__reason__in=NETWORK_FAILURES).count()
+
+
+def server_reachability(session, config) -> bool:
+    """Czy **platforma** sięga do LiveKit (``GetParticipant``) – niezależnie od tego, co mówi uczeń."""
+    if not configured():
+        return False
+    try:
+        livekit_api.get_participant(config.room_name(session.group), session.identity)
+    except livekit_api.LiveKitError:
+        return True  # serwer odpowiedział (np. „nie ma takiego uczestnika”) – działa
+    except livekit_api.LiveKitUnavailable:
+        return False
+    return True
+
+
+def unproctored_reason(session, config) -> str | None:
+    """Powód, dla którego wolno dziś pracować bez nadzoru – albo ``None`` (nie wolno).
+
+    Wyłącznie awaria **po stronie nadzoru**: serwer nieskonfigurowany, serwer nieosiągalny dla
+    platformy albo co najmniej ``PROCTORING_UNPROCTORED_AFTER_FAILURES`` zgłoszonych nieudanych
+    połączeń (np. sieć szkoły blokuje WebRTC). Kamera odmówiona albo odłączona – nie: to sprawa na
+    alternatywę z decyzją koordynatora, bo inaczej „wyłącz kamerę i kliknij” omijałoby nadzór.
     """
+    if not configured():
+        return UNPROCTORED_NOT_CONFIGURED
+    if not server_reachability(session, config):
+        return UNPROCTORED_SERVER_UNREACHABLE
+    if network_failures(session) >= failure_threshold():
+        return UNPROCTORED_CONNECT_FAILURES
+    return None
+
+
+def continue_unproctored(session, config, *, user, request=None) -> ProctoringSession:
+    """„Kontynuuj bez nadzoru” – tylko przy ``on_unavailable=allow``, ze zgodą i z powodem z
+    :func:`unproctored_reason`. Powód i ``server_reachable`` idą do sesji, dziennika, raportu i CSV."""
     if config.on_unavailable != OnUnavailable.ALLOW:
         raise DomainError(
             _("Ten etap wymaga działającego nadzoru. Skontaktuj się z organizatorem."),
             "PROCTORING_BLOCKED",
             409,
         )
-    if active_consent(session) is None:
+    if active_consent(session, config) is None:
         raise DomainError(_("Najpierw wyraź zgodę na nadzór."), "PROCTORING_CONSENT_REQUIRED", 409)
-    reachable = False
-    if configured():
-        try:
-            livekit_api.get_participant(config.room_name(session.group), session.identity)
-            reachable = True
-        except livekit_api.LiveKitError:
-            reachable = True
-        except livekit_api.LiveKitUnavailable:
-            reachable = False
-    if session.unproctored_at is None:
-        session.unproctored_at = timezone.now()
-        session.save(update_fields=["unproctored_at"])
-        log_event(
-            session,
-            EventKind.LIVEKIT_UNAVAILABLE,
-            EventSource.CLIENT,
-            detail={"server_reachable": reachable, "configured": configured()},
+    if session.unproctored_at is not None:
+        return session
+    reason = unproctored_reason(session, config)
+    if reason is None:
+        raise DomainError(
+            _(
+                "Serwer nadzoru działa – spróbuj połączyć się jeszcze raz. Jeśli nie możesz użyć "
+                "kamery, poproś o inną formę nadzoru."
+            ),
+            "PROCTORING_SERVER_WORKS",
+            409,
         )
-        log_event(session, EventKind.UNPROCTORED, EventSource.SYSTEM)
-        _audit(user, "proctoring.unproctored", session, {"server_reachable": reachable}, request=request)
+    reachable = reason == UNPROCTORED_CONNECT_FAILURES
+    session.unproctored_at = timezone.now()
+    session.unproctored_reason = reason
+    session.save(update_fields=["unproctored_at", "unproctored_reason"])
+    log_event(
+        session,
+        EventKind.LIVEKIT_UNAVAILABLE,
+        EventSource.SYSTEM,
+        detail={"server_reachable": reachable, "configured": configured(), "reason": reason},
+    )
+    log_event(session, EventKind.UNPROCTORED, EventSource.SYSTEM, detail={"reason": reason})
+    _audit(user, "proctoring.unproctored", session, {"reason": reason}, request=request)
     return session
 
 
-def client_event(session, kind: str, *, heartbeat: bool = False) -> None:
-    """Zgłoszenie konsoli: zerwanie / powrót strumienia albo puls (sam czas, bez wiersza)."""
+def client_event(session, kind: str, *, heartbeat: bool = False, reason: str = "") -> None:
+    """Zgłoszenie konsoli: zerwanie / powrót strumienia, nieudane połączenie albo puls (sam czas)."""
     now = timezone.now()
     if heartbeat:
         ProctoringSession.objects.filter(pk=session.pk).update(last_seen_at=now)
         return
     if kind not in CLIENT_EVENTS:
         raise DomainError("Nieznane zdarzenie.", "PROCTORING_EVENT", 400)
-    log_event(session, kind, EventSource.CLIENT, at=now)
+    detail = {}
+    if kind == EventKind.CONNECT_FAILED:
+        detail["reason"] = reason if reason in (*NETWORK_FAILURES, *CAMERA_FAILURES) else "connect"
+    log_event(session, kind, EventSource.CLIENT, at=now, detail=detail)
     ProctoringSession.objects.filter(pk=session.pk).update(last_seen_at=now)
 
 
@@ -762,13 +1017,16 @@ def roster(scope: ProctorScope, *, group: str, page: int = 1, size: int = 12) ->
     size = size if size in PAGE_SIZES else PAGE_SIZES[0]
     if not scope.allows_group(group):
         raise _not_found("Nie ma takiej grupy.")
+    # Ta sama ważność, co ``active_consent`` (wersja, ustawienia etapu, nieodwołana zgoda opiekuna),
+    # policzona jednym podzapytaniem dla całej strony.
+    digests = [consent_digest(scope.config), consent_digest(scope.config, minor=True)]
     consented = ProctoringConsent.objects.filter(
-        session=OuterRef("pk"), withdrawn_at__isnull=True, version=CONSENT_VERSION
-    )
+        session=OuterRef("pk"), withdrawn_at__isnull=True, version=CONSENT_VERSION, text_sha256__in=digests
+    ).filter(Q(guardian_record__isnull=True) | Q(guardian_record__withdrawn_at__isnull=True))
     rows = (
         scope.sessions()
         .filter(group=group)
-        .select_related("participant__user", "proctor__user")
+        .select_related("participant__user", "proctor__user", "stage__edition__competition")
         .annotate(incident_count=Count("incidents", distinct=True), has_consent=Exists(consented))
         .order_by("participant__user__last_name", "participant__user__first_name", "pk")
     )
@@ -789,10 +1047,26 @@ def roster(scope: ProctorScope, *, group: str, page: int = 1, size: int = 12) ->
                 "attendance": session.attendance,
                 "incidents": session.incident_count,
                 "unproctored": session.unproctored_at is not None,
+                "unproctored_reason": session.unproctored_reason,
+                "late": late_start_minutes(session),
                 "alternative": session.alternative_status,
             }
         )
     return {"group": group, "page": page, "pages": pages, "size": size, "total": total, "items": items}
+
+
+def late_start_minutes(session) -> int:
+    """Ile minut po otwarciu **swojego** okna uczeń włączył nadzór – gdy więcej niż próg, inaczej 0.
+
+    Późny start nie jest przewinieniem (awaria, spóźnienie), ale komisja ma go widzieć: uczeń mógł
+    w tym czasie czytać zadania otwarte inną drogą. Próg: ``PROCTORING_LATE_START_MINUTES``.
+    """
+    if session.started_at is None:
+        return 0
+    opens, _closes = windows.effective_window(session.stage, session.participant)
+    minutes = int((session.started_at - opens).total_seconds() // 60)
+    threshold = max(0, int(getattr(settings, "PROCTORING_LATE_START_MINUTES", 15)))
+    return minutes if minutes > threshold else 0
 
 
 def proctor_token(scope: ProctorScope, group: str, *, request=None, now=None) -> dict:
@@ -988,9 +1262,23 @@ def remove_assignment(stage, actor, pk, *, request=None) -> None:
     assignment = ProctorAssignment.objects.filter(stage=stage, pk=pk).first() if str(pk).isdigit() else None
     if assignment is None:
         raise _not_found("Nie ma takiego przydziału.")
-    user_id = assignment.user_id
+    user = assignment.user
+    groups = {f"a{assignment.pk}", *assignment.sessions.values_list("group", flat=True)}
+    if assignment.delegation_id:
+        groups.add(f"d{assignment.delegation_id}")
+    moved = list(assignment.sessions.select_related("participant", "proctor"))
     assignment.delete()
-    _audit(actor, "proctoring.unassigned", stage, {"user": user_id}, request=request)
+    # Uczniowie odpiętego nadzorującego wracają do grupy bez przydziału (albo delegacji) – z pokoju
+    # „a<przydział>” serwer ich wyprasza, konsola łączy się ponownie już do nowego pokoju.
+    for session in moved:
+        session.proctor = None
+        old_group = session.group
+        session.group = session_group(session)
+        session.save(update_fields=["group"])
+        if old_group != session.group and session.connected:
+            _leave_room(stage, old_group, session)
+    kick_proctor(stage, user, groups)
+    _audit(actor, "proctoring.unassigned", stage, {"user": user.pk}, request=request)
 
 
 def ensure_sessions(stage) -> int:
@@ -1029,24 +1317,37 @@ def distribute(stage, actor, *, request=None) -> dict:
             general.append(assignment)
     load = {assignment.pk: assignment.sessions.count() for assignment in assignments}
     assigned = 0
+    moved: list = []
     with transaction.atomic():
-        for session in ProctoringSession.objects.filter(stage=stage, proctor__isnull=True).order_by("pk"):
-            pool = leaders.get(group_delegation(session.group) or 0) or general
+        unassigned = ProctoringSession.objects.filter(stage=stage, proctor__isnull=True).select_related(
+            "participant"
+        )
+        for session in unassigned.order_by("pk"):
+            pool = leaders.get(delegations.participant_delegation_id(session.participant) or 0) or general
             if not pool:
                 continue
             target = min(pool, key=lambda item: (load[item.pk], item.pk))
+            old_group = session.group
             session.proctor = target
             session.group = session_group(session)
             session.save(update_fields=["proctor", "group"])
+            if old_group != session.group and session.connected:
+                moved.append((old_group, session))
             load[target.pk] += 1
             assigned += 1
+    # Po commicie: uczeń nadający do starego pokoju (np. ``m``) zostaje z niego wyproszony i wraca
+    # z nowym tokenem do pokoju nadzorującego – inaczej koordynator widziałby go w złej grupie.
+    for old_group, session in moved:
+        _leave_room(stage, old_group, session)
     _audit(actor, "proctoring.distributed", stage, {"assigned": assigned}, request=request)
     return {"assigned": assigned}
 
 
 def reassign(stage, session_pk, assignment_pk, actor, *, request=None) -> ProctoringSession:
     session = (
-        ProctoringSession.objects.filter(stage=stage, pk=session_pk).first()
+        ProctoringSession.objects.select_related("participant", "proctor")
+        .filter(stage=stage, pk=session_pk)
+        .first()
         if str(session_pk).isdigit()
         else None
     )
@@ -1057,7 +1358,8 @@ def reassign(stage, session_pk, assignment_pk, actor, *, request=None) -> Procto
         assignment = ProctorAssignment.objects.filter(stage=stage, pk=assignment_pk).first()
         if assignment is None:
             raise _not_found("Nie ma takiego przydziału.")
-        if assignment.kind == ProctorKind.LEADER and session.group != f"d{assignment.delegation_id}":
+        delegation_id = delegations.participant_delegation_id(session.participant)
+        if assignment.kind == ProctorKind.LEADER and delegation_id != assignment.delegation_id:
             raise DomainError(
                 "Opiekun drużyny może nadzorować wyłącznie uczniów swojej delegacji.",
                 "PROCTORING_LEADER_SCOPE",
@@ -1067,7 +1369,7 @@ def reassign(stage, session_pk, assignment_pk, actor, *, request=None) -> Procto
     session.proctor = assignment
     session.group = session_group(session)
     session.save(update_fields=["proctor", "group"])
-    if old_group != session.group and session.connected and configured():
+    if old_group != session.group and session.connected:
         # Uczeń nadaje do pokoju poprzedniego nadzorującego – serwer go stamtąd wyprasza, a konsola
         # łączy się ponownie z nowym tokenem, czyli już do pokoju nowego nadzorującego.
         _leave_room(stage, old_group, session)
@@ -1084,6 +1386,8 @@ def reassign(stage, session_pk, assignment_pk, actor, *, request=None) -> Procto
 def _leave_room(stage, group: str, session) -> None:
     from apps.webinars import livekit
 
+    if not configured():
+        return
     config = config_for(stage)
     if config is None:
         return
@@ -1127,8 +1431,22 @@ INCIDENT_CSV_HEADER = (
     "zgłosił",
     "obecność",
     "bez nadzoru",
+    "późny start (min)",
     "alternatywa",
 )
+
+#: Powody pracy bez nadzoru – raport (komisja, w IQO po angielsku), CSV i siatka.
+UNPROCTORED_LABELS = {
+    UNPROCTORED_NOT_CONFIGURED: gettext_lazy("serwer nadzoru nieskonfigurowany"),
+    UNPROCTORED_SERVER_UNREACHABLE: gettext_lazy("serwer nadzoru niedostępny"),
+    UNPROCTORED_CONNECT_FAILURES: gettext_lazy("nieudane połączenia ucznia – serwer działał"),
+}
+
+
+def unproctored_label(session) -> str:
+    if session.unproctored_at is None:
+        return ""
+    return str(UNPROCTORED_LABELS.get(session.unproctored_reason, "tak"))
 
 
 def _csv_cell(value) -> str:
@@ -1145,11 +1463,22 @@ def incidents_csv(stage) -> str:
     writer.writerow(INCIDENT_CSV_HEADER)
     rows = (
         ProctoringIncident.objects.filter(session__stage=stage)
-        .select_related("session__participant", "reported_by")
+        .select_related("session__participant", "session__stage", "reported_by")
         .order_by("session__participant__public_code", "occurred_at", "pk")
     )
+
+    def session_cells(session) -> tuple:
+        return (
+            session.get_attendance_display(),
+            unproctored_label(session),
+            late_start_minutes(session) or "",
+            session.get_alternative_status_display() if session.alternative_status else "",
+        )
+
+    with_incidents = set()
     for incident in rows:
         session = incident.session
+        with_incidents.add(session.pk)
         writer.writerow(
             [
                 _csv_cell(cell)
@@ -1161,9 +1490,33 @@ def incidents_csv(stage) -> str:
                     incident.get_severity_display(),
                     incident.note,
                     short_name(incident.reported_by) if incident.reported_by else "",
-                    session.get_attendance_display(),
-                    "tak" if session.unproctored_at else "",
-                    session.get_alternative_status_display() if session.alternative_status else "",
+                    *session_cells(session),
+                )
+            ]
+        )
+    # Uczniowie bez incydentu, ale z pracą bez nadzoru albo późnym startem – też dla komisji.
+    others = (
+        ProctoringSession.objects.filter(stage=stage)
+        .filter(Q(started_at__isnull=False) | Q(unproctored_at__isnull=False))
+        .exclude(pk__in=with_incidents)
+        .select_related("participant", "stage")
+        .order_by("participant__public_code", "pk")
+    )
+    for session in others:
+        if not session.unproctored_at and not late_start_minutes(session):
+            continue
+        writer.writerow(
+            [
+                _csv_cell(cell)
+                for cell in (
+                    session.participant.public_code,
+                    session.group,
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    *session_cells(session),
                 )
             ]
         )
@@ -1271,8 +1624,31 @@ def purge_session(session, *, now=None) -> dict:
     removed["messages"], _rows = session.messages.all().delete()
     session.id_photo_key = ""
     session.check_result = {}
+    # Uwaga ucznia do prośby o alternatywę bywa opisem sytuacji osobistej – znika z nośnikami;
+    # zostaje sam powód z listy i decyzja koordynatora (dokumentacja zawodów).
+    session.alternative_note = ""
     session.purged_at = now
-    session.save(update_fields=["id_photo_key", "check_result", "purged_at"])
+    session.save(update_fields=["id_photo_key", "check_result", "alternative_note", "purged_at"])
+    return removed
+
+
+def purge_id_photos(now=None) -> int:
+    """Zdjęcia dokumentu znikają **po etapie** (nie dopiero z resztą nośników): służą rozpoznaniu
+    ucznia w czasie pisania, a nie odwołaniom. Wyjątek – sesja z wstrzymaniem usunięcia."""
+    from apps.competitions.models import Stage
+
+    now = now or timezone.now()
+    removed = 0
+    stages = Stage.objects.filter(proctoring_sessions__id_photo_at__isnull=False).distinct()
+    for stage in stages.select_related("edition__competition"):
+        _opens, closes = windows.proctor_window(stage)
+        if closes > now:
+            continue
+        for session in ProctoringSession.objects.filter(stage=stage, hold_reason="").exclude(id_photo_key=""):
+            delete_quietly(session.id_photo_key)
+            ProctoringSession.objects.filter(pk=session.pk).update(id_photo_key="")
+            log_event(session, EventKind.ID_PHOTO, EventSource.SYSTEM, detail={"status": "deleted"}, at=now)
+            removed += 1
     return removed
 
 
@@ -1281,6 +1657,7 @@ def purge_expired(now=None) -> int:
     from apps.competitions.models import Stage
 
     now = now or timezone.now()
+    purge_id_photos(now)
     stages = Stage.objects.filter(proctoring_sessions__purged_at__isnull=True).distinct()
     total = 0
     for stage in stages.select_related("edition__competition"):
@@ -1372,6 +1749,8 @@ def erase_for_participants(participants) -> int:
     sessions = list(ProctoringSession.objects.filter(participant__in=participants))
     now = timezone.now()
     for session in sessions:
+        # Uczeń, który usuwa konto w trakcie etapu, znika też z pokoju i z nagrywania.
+        kick_student(session)
         purge_session(session, now=now)
     ProctoringConsent.objects.filter(session__in=sessions, withdrawn_at__isnull=True).update(withdrawn_at=now)
     return len(sessions)
@@ -1380,17 +1759,23 @@ def erase_for_participants(participants) -> int:
 # --- statystyki dla ekranu koordynatora ----------------------------------------------------------------
 
 
-def stage_summary(stage) -> dict:
+def stage_summary(stage, config=None) -> dict:
+    """Liczniki ekranu koordynatora. ``distinct`` wszędzie: złączenie ze zgodami mnożyłoby wiersze."""
     rows = ProctoringSession.objects.filter(stage=stage)
-    return rows.aggregate(
-        total=Count("pk"),
-        consented=Count(
-            "pk",
-            filter=Q(consents__withdrawn_at__isnull=True, consents__version=CONSENT_VERSION),
-            distinct=True,
-        ),
-        started=Count("pk", filter=Q(started_at__isnull=False)),
-        unproctored=Count("pk", filter=Q(unproctored_at__isnull=False)),
-        alternatives=Count("pk", filter=Q(alternative_status=AlternativeStatus.REQUESTED)),
-        unassigned=Count("pk", filter=Q(proctor__isnull=True)),
+    consent_filter = Q(consents__withdrawn_at__isnull=True, consents__version=CONSENT_VERSION)
+    if config is not None:
+        consent_filter &= Q(
+            consents__text_sha256__in=[consent_digest(config), consent_digest(config, minor=True)]
+        )
+    summary = rows.aggregate(
+        total=Count("pk", distinct=True),
+        consented=Count("pk", filter=consent_filter, distinct=True),
+        started=Count("pk", filter=Q(started_at__isnull=False), distinct=True),
+        unproctored=Count("pk", filter=Q(unproctored_at__isnull=False), distinct=True),
+        alternatives=Count("pk", filter=Q(alternative_status=AlternativeStatus.REQUESTED), distinct=True),
+        unassigned=Count("pk", filter=Q(proctor__isnull=True), distinct=True),
+        main_group=Count("pk", filter=Q(group=MAIN_GROUP), distinct=True),
     )
+    summary["main_group_warning"] = summary["main_group"] > MAIN_GROUP_WARNING
+    summary["main_group_limit"] = MAIN_GROUP_WARNING
+    return summary

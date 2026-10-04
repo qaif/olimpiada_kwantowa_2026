@@ -121,6 +121,18 @@
       incidents.textContent = T.incidents.replace("%(count)s", item.incidents);
       badges.appendChild(incidents);
     }
+    if (item.late) {
+      var late = document.createElement("span");
+      late.className = "badge badge--warn";
+      late.textContent = T.late.replace("%(minutes)s", item.late);
+      badges.appendChild(late);
+    }
+    if (item.unproctored && item.unproctored_reason) {
+      var reason = document.createElement("span");
+      reason.className = "badge badge--warn";
+      reason.textContent = T["reason_" + item.unproctored_reason] || item.unproctored_reason;
+      badges.appendChild(reason);
+    }
     if (item.attendance !== "unknown") {
       var attendance = document.createElement("span");
       attendance.className = "badge";

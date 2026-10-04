@@ -235,17 +235,29 @@
     }
   }
 
-  function unavailable(detail) {
+  // Nieudane połączenie zgłaszamy serwerowi z powodem (token / connect / publish / camera). Przycisk
+  // „Kontynuuj bez nadzoru” pokazujemy WYŁĄCZNIE, gdy serwer odpowie, że wolno (awaria nadzoru albo
+  // kilka nieudanych połączeń przy działającym serwerze). Kamera odmówiona albo odłączona to nie
+  // awaria serwera – wtedy prowadzimy do prośby o inną formę nadzoru.
+  function unavailable(detail, reason) {
     state = "unavailable";
     broadcast();
-    setAlert(detail || T.unavailable);
-    if (unproctoredButton && allowUnproctored) {
-      unproctoredButton.hidden = false;
-    }
     if (startButton) {
       startButton.disabled = false;
       startButton.textContent = T.retry;
     }
+    if (reason === "camera") {
+      setAlert(T.cameraUnavailable);
+    } else {
+      setAlert(detail || T.unavailable);
+    }
+    request(actionUrl("event"), form({ kind: "connect_failed", reason: reason || "connect" }))
+      .then(function (json) {
+        if (unproctoredButton && allowUnproctored && json.unproctored_allowed) {
+          unproctoredButton.hidden = false;
+        }
+      })
+      .catch(function () {});
   }
 
   function confirmStarted(attempt) {
@@ -266,7 +278,7 @@
           });
         }
         if (error.status === 502) {
-          return unavailable(error.detail);
+          return unavailable(error.detail, "connect");
         }
         setAlert(error.detail);
       });
@@ -323,8 +335,9 @@
   }
 
   function start(isRetry) {
+    var phase = "token";
     if (!LK) {
-      return unavailable();
+      return unavailable(null, "connect");
     }
     if (startButton) {
       startButton.disabled = true;
@@ -332,6 +345,7 @@
     setStatus(T.connecting);
     request(root.dataset.tokenUrl)
       .then(function (data) {
+        phase = "connect";
         room = new LK.Room({ adaptiveStream: false, dynacast: false });
         room.on(LK.RoomEvent.Disconnected, onDisconnected);
         room.on(LK.RoomEvent.Reconnecting, function () {
@@ -361,9 +375,11 @@
         return room.connect(data.url, data.token, { autoSubscribe: false });
       })
       .then(function () {
+        phase = "camera";
         return LK.createLocalVideoTrack({ resolution: { width: 320, height: 240, frameRate: 10 } });
       })
       .then(function (track) {
+        phase = "publish";
         var live = root.querySelector("[data-live]");
         if (live) {
           track.attach(live);
@@ -399,7 +415,7 @@
           }
           return;
         }
-        unavailable(error && error.detail);
+        unavailable(error && error.detail, phase);
       });
   }
 

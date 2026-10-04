@@ -862,8 +862,9 @@ PROCTORING_ACTIVITY = _activity(
         "komisja odwoławcza – raport incydentów i nagrania (każde odtworzenie w audycie)",
     ],
     retention=(
-        "obraz na żywo – nie jest przechowywany; nagrania, zdjęcia dokumentu, dziennik połączeń i "
-        "wiadomości – usuwane automatycznie 30 dni po ogłoszeniu wyników i zamknięciu okna reklamacji "
+        "obraz na żywo – nie jest przechowywany; zdjęcia dokumentu – usuwane po etapie; nagrania, "
+        "dziennik połączeń, wiadomości i uwagi do próśb o inną formę nadzoru – usuwane automatycznie "
+        "30 dni po ogłoszeniu wyników i zamknięciu okna reklamacji "
         "(najpóźniej 180 dni po etapie; komisja może wstrzymać usunięcie do wyjaśnienia sprawy); "
         "incydenty, obecność i zgody – jak dokumentacja zawodów (retencja edycji)"
     ),

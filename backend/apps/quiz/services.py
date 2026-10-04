@@ -399,6 +399,11 @@ def start_attempt(*, quiz: Quiz, entry: StageEntry, now=None, request=None) -> Q
     # Dyskwalifikacja przed wszystkim innym, także przed powrotem do trwającego podejścia: żadna
     # z dalszych odpowiedzi („test zamknięty”, „limit podejść”) nie jest dla tej osoby prawdziwa.
     _assert_entry_not_disqualified(entry.pk)
+    # Nadzór zdalny (PROC-01): start testu w etapie z nadzorem – tylko z gotową sesją (druga linia
+    # obrony za bramką adresów). Bez flagi ``proctoring`` – zero zapytań.
+    from apps.proctoring.services import assert_stage_access
+
+    assert_stage_access(lambda: quiz.stage, entry, now=now)
     questions = _questions_with_options(quiz)
     if not questions:
         raise _conflict(_("Ten test nie ma jeszcze pytań."), "QUIZ_EMPTY")

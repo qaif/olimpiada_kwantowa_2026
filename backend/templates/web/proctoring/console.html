@@ -81,7 +81,10 @@
       <form method="post" action="{% url 'web:proctoring-consent' stage.pk %}" class="form">
         {% csrf_token %}
         <p><label><input type="checkbox" name="consent" value="1" required> {{ consent_statement }}</label></p>
-        {% if guardian_required %}<p class="hint">{% translate "Zgoda Twojego opiekuna prawnego została potwierdzona online." %}</p>{% endif %}
+        {% if guardian_required %}
+          <p><label><input type="checkbox" name="guardian_statement" value="1" required> {{ guardian_statement }}</label></p>
+          <p class="hint">{% translate "Zgoda Twojego opiekuna prawnego została potwierdzona online." %}</p>
+        {% endif %}
         <p class="hint">{% blocktranslate trimmed with version=consent_version %}Wersja informacji: {{ version }}.{% endblocktranslate %}</p>
         <button type="submit" class="btn btn--primary">{% translate "Wyrażam zgodę" %}</button>
       </form>

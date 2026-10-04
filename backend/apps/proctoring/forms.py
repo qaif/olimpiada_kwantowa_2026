@@ -28,8 +28,10 @@ class ProctoringConfigForm(forms.ModelForm):
             "włącz tylko, gdy regulamin etapu tego wymaga; uczniowie zobaczą to w informacji przed zgodą.",
             "require_microphone": "Dźwięk z domu ucznia to dodatkowe dane – zostaw wyłączone, "
             "jeśli obraz wystarcza.",
-            "on_unavailable": "„Pozwól” nie zatrzymuje zawodów przy awarii serwera nadzoru; "
-            "sesja dostaje znacznik.",
+            "on_unavailable": "Domyślnie „zamknij”: bez działającego nadzoru uczeń czeka na Twoją decyzję "
+            "(inna forma nadzoru). „Pozwól” wpuszcza do etapu przy awarii po stronie serwera nadzoru "
+            "(albo po kilku nieudanych połączeniach) – sesja dostaje znacznik z powodem; odmowa kamery "
+            "nigdy nie wystarcza.",
         }
 
     def service_data(self) -> dict:

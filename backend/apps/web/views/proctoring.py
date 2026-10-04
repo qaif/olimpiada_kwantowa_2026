@@ -102,6 +102,14 @@ class JsonThrottleMixin(ThrottledFormMixin):
         return response
 
 
+def _pk_or_404(raw) -> int:
+    """Identyfikator z formularza: liczba albo 404 – nigdy ``ValueError`` z bazy (błąd 500)."""
+    raw = str(raw or "").strip()
+    if not raw.isdigit() or len(raw) > 18:
+        raise Http404("Nieprawidłowy identyfikator.")
+    return int(raw)
+
+
 def _stage(request, stage_id: int):
     from apps.competitions.models import Stage
 
@@ -145,6 +153,10 @@ def console_strings() -> dict[str, str]:
         "dropped": _("Połączenie nadzoru zostało przerwane. Nie zamykaj tej karty – trwa ponowne łączenie."),
         "reconnected": _("Połączenie nadzoru przywrócone."),
         "unavailable": _("Nie udało się połączyć z serwerem nadzoru."),
+        "cameraUnavailable": _(
+            "Kamera nie działa albo nie masz do niej dostępu. Jeśli nie możesz jej użyć, "
+            "poproś o inną formę nadzoru (na dole strony)."
+        ),
         "screenStopped": _("Udostępnianie ekranu zostało zatrzymane. Udostępnij ekran ponownie."),
         "shareScreen": _("Udostępnij ekran"),
         "message": _("Wiadomość od osoby nadzorującej"),
@@ -172,8 +184,9 @@ class ProctoringConsoleView(_StudentMixin, View):
             "session": session,
             "step": services.step(session, config),
             "ready": services.is_ready(session, config),
-            "consent": services.active_consent(session),
+            "consent": services.active_consent(session, config),
             "consent_statement": services.CONSENT_STATEMENT,
+            "guardian_statement": services.GUARDIAN_STATEMENT,
             "consent_version": services.CONSENT_VERSION,
             "guardian_required": required,
             "guardian_missing": required and guardian is None,
@@ -201,13 +214,19 @@ class ProctoringConsentView(_StudentMixin, ThrottledFormMixin, View):
     throttle_scope = "proctoring_client"
 
     def post(self, request, stage_id: int):
-        _stage_, _config, session = self.load(request, stage_id)
+        _stage_, config, session = self.load(request, stage_id)
         if request.POST.get("withdraw") == "1":
             services.withdraw_consent(session, user=request.user, request=request)
             messages.info(request, _("Zgoda na nadzór wycofana."))
         elif request.POST.get("consent") == "1":
             try:
-                services.give_consent(session, user=request.user, request=request)
+                services.give_consent(
+                    session,
+                    user=request.user,
+                    config=config,
+                    guardian_statement=request.POST.get("guardian_statement") == "1",
+                    request=request,
+                )
             except DomainError as exc:
                 messages.error(request, str(exc.detail))
         else:
@@ -277,10 +296,19 @@ class ProctoringStudentApiView(_StudentMixin, JsonThrottleMixin, View):
                 services.continue_unproctored(session, config, user=user, request=request)
             elif action == "event":
                 services.client_event(
-                    session, request.POST.get("kind", ""), heartbeat=request.POST.get("heartbeat") == "1"
+                    session,
+                    request.POST.get("kind", ""),
+                    heartbeat=request.POST.get("heartbeat") == "1",
+                    reason=request.POST.get("reason", "")[:16],
                 )
+                if request.POST.get("kind") == "connect_failed":
+                    # Konsola pokazuje „Kontynuuj bez nadzoru” wyłącznie wtedy, gdy serwer na to pozwoli.
+                    allowed = config.on_unavailable == "allow" and (
+                        services.unproctored_reason(session, config) is not None
+                    )
+                    return _json({"ok": True, "unproctored_allowed": allowed})
             elif action == "ack":
-                services.ack_message(session, request.POST.get("id", "0") or "0")
+                services.ack_message(session, _pk_or_404(request.POST.get("id")))
         except DomainError as exc:
             return _json_error(exc)
         return _json(
@@ -373,6 +401,10 @@ def grid_strings() -> dict[str, str]:
         "error": _("Coś poszło nie tak. Spróbuj ponownie."),
         "startAudio": _("Włącz dźwięk"),
         "audio": _("Dźwięk"),
+        "late": _("późny start: %(minutes)s min"),
+        "reason_not_configured": _("serwer nadzoru nieskonfigurowany"),
+        "reason_server_unreachable": _("serwer nadzoru niedostępny"),
+        "reason_connect_failures": _("nieudane połączenia ucznia – serwer działał"),
         "report": _("Raport"),
     }
 
@@ -450,9 +482,19 @@ class ProctorRosterView(_ProctorMixin, View):
 
 
 class ProctorTokenView(_ProctorMixin, JsonThrottleMixin, View):
-    """``POST /proctoring/<etap>/token/`` – token do pokoju **jednej** grupy z zakresu."""
+    """``POST /proctoring/<etap>/token/`` – token do pokoju **jednej** grupy z zakresu.
+
+    Koordynator przełącza się między grupami (w IQO ~100 delegacji), więc ma osobny, wyższy kubełek
+    (``proctoring_coordinator_token``) – nie zjada limitu komisji i opiekunów, a oni – jego.
+    """
 
     throttle_scope = "proctoring_token"
+
+    def dispatch(self, request, *args, **kwargs):
+        competition = getattr(request, "competition", None)
+        if request.user.is_authenticated and services.is_coordinator(request.user, competition):
+            self.throttle_scope = "proctoring_coordinator_token"
+        return super().dispatch(request, *args, **kwargs)
 
     def post(self, request, stage_id: int):
         scope = self.scope(request, stage_id)
@@ -540,7 +582,14 @@ class ProctoringReportView(_ReviewMixin, View):
         session = self.session(stage, pk)
         services._audit(request.user, "proctoring.report_viewed", session, request=request)
         context = services.report_for(session)
-        context.update({"stage": stage, "label": services.student_label(session.participant)})
+        context.update(
+            {
+                "stage": stage,
+                "label": services.student_label(session.participant),
+                "late_minutes": services.late_start_minutes(session),
+                "unproctored_label": services.unproctored_label(session),
+            }
+        )
         return _no_referrer(TemplateResponse(request, REPORT_TEMPLATE, context))
 
 
@@ -650,7 +699,7 @@ class CoordinatorProctoringStageView(_CoordinatorMixin, ThrottledFormMixin, View
             "kinds": ProctorKind.choices,
             "sessions": sessions,
             "alternatives": [s for s in sessions if s.alternative_status == AlternativeStatus.REQUESTED],
-            "summary": services.stage_summary(stage),
+            "summary": services.stage_summary(stage, config) if config else {},
             "configured": services.configured(),
         }
         return _form_page(TemplateResponse(request, COORDINATOR_STAGE_TEMPLATE, context, status=status))
@@ -674,7 +723,7 @@ class CoordinatorProctoringStageView(_CoordinatorMixin, ThrottledFormMixin, View
                 services.save_config(stage, user, form.service_data(), request=request)
                 messages.success(request, "Ustawienia nadzoru zapisane.")
             elif action == "assign":
-                target = get_object_or_404(User, pk=request.POST.get("user") or 0)
+                target = get_object_or_404(User, pk=_pk_or_404(request.POST.get("user")))
                 services.add_assignment(stage, user, target, request.POST.get("kind", ""), request=request)
                 messages.success(request, "Nadzorujący dodany.")
             elif action == "unassign":
@@ -694,7 +743,7 @@ class CoordinatorProctoringStageView(_CoordinatorMixin, ThrottledFormMixin, View
                 messages.success(request, "Nadzorujący ucznia zmieniony.")
             elif action == "alternative":
                 session = get_object_or_404(
-                    ProctoringSession, stage=stage, pk=request.POST.get("session") or 0
+                    ProctoringSession, stage=stage, pk=_pk_or_404(request.POST.get("session"))
                 )
                 services.decide_alternative(
                     session,
@@ -706,7 +755,7 @@ class CoordinatorProctoringStageView(_CoordinatorMixin, ThrottledFormMixin, View
                 messages.success(request, "Decyzja zapisana – uczeń zobaczy ją w konsoli.")
             elif action == "hold":
                 session = get_object_or_404(
-                    ProctoringSession, stage=stage, pk=request.POST.get("session") or 0
+                    ProctoringSession, stage=stage, pk=_pk_or_404(request.POST.get("session"))
                 )
                 services.set_hold(session, user, request.POST.get("reason", ""), request=request)
                 messages.success(request, "Zapisano.")

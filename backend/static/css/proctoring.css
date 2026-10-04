@@ -76,6 +76,12 @@
   border-color: var(--success, #067647);
 }
 
+.pc-banner[data-state="warn"] {
+  border-color: var(--warning, #b54708);
+  border-width: 2px;
+  font-weight: 600;
+}
+
 .pc-banner[data-state="bad"] {
   color: #fff;
   background: var(--danger, #b42318);
