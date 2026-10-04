@@ -1,0 +1,37 @@
+{% load i18n %}{% comment %}
+  Karta absolwenta. Dostaje ``card`` (``apps.alumni.services.Card``) i ``public`` (ściana publiczna:
+  tylko podpis, osiągnięcia, uczelnia i kierunek). Nigdy e-mail, kod publiczny, szkoła ani data
+  urodzenia – karta nie ma do nich dostępu. Odnośniki są zwalidowane (tylko https, tylko LinkedIn
+  i GitHub) i nie podbijają nikomu pozycji w wyszukiwarce (``nofollow``, ``ugc``).
+{% endcomment %}
+<article class="card alumni-card">
+  <h3 class="mt-0">{{ card.name }}</h3>
+  {% if card.achievements %}
+    <ul class="alumni-card__achievements">
+      {% for item in card.achievements %}<li><span class="badge badge--info">{{ item.edition_label }}</span> {{ item.title }}</li>{% endfor %}
+    </ul>
+  {% endif %}
+  {% if card.profile.university or card.profile.field_of_study %}
+    <p>{{ card.profile.university }}{% if card.profile.university and card.profile.field_of_study %} · {% endif %}{{ card.profile.field_of_study }}</p>
+  {% endif %}
+  {% if not public %}
+    {% if card.profile.city or card.country_name %}<p class="hint">{{ card.profile.city }}{% if card.profile.city and card.country_name %}, {% endif %}{{ card.country_name }}</p>{% endif %}
+    {% if card.profile.bio %}<p>{{ card.profile.bio|linebreaksbr }}</p>{% endif %}
+    {% if card.interests %}<p class="hint">{% translate "Zainteresowania:" %} {{ card.interests|join:", " }}</p>{% endif %}
+    {% if card.profile.linkedin_url or card.profile.github_url %}
+      <p>
+        {% if card.profile.linkedin_url %}<a href="{{ card.profile.linkedin_url }}" rel="nofollow noopener noreferrer ugc" target="_blank">LinkedIn</a>{% endif %}
+        {% if card.profile.github_url %}<a href="{{ card.profile.github_url }}" rel="nofollow noopener noreferrer ugc" target="_blank">GitHub</a>{% endif %}
+      </p>
+    {% endif %}
+    {% if card.profile.mentor_available %}
+      <p><span class="badge badge--ok">{% translate "Mentor" %}</span>
+        {% if card.mentor_topics %}{{ card.mentor_topics|join:", " }}{% endif %}
+        {% if card.free_slots %}<span class="hint">· {% blocktranslate trimmed with slots=card.free_slots %}wolne miejsca: {{ slots }}{% endblocktranslate %}</span>{% else %}<span class="hint">· {% translate "brak wolnych miejsc" %}</span>{% endif %}
+      </p>
+      {% if can_request and card.free_slots %}
+        <p><a class="btn btn--small btn--primary" href="{% url 'web:alumni-request' card.profile.token %}">{% translate "Poproś o mentoring" %}</a></p>
+      {% endif %}
+    {% endif %}
+  {% endif %}
+</article>

@@ -107,7 +107,7 @@ IDENTITY_FIELDS = ("email", "username")
 #:
 #: ``delegation`` (DEL-01) – opiekun drużyny i koordynator są zalogowani, a koszt (listy na wpisane
 #: adresy) przypada na konto: dwie delegacje z jednej szkoły za jednym NAT-em nie dzielą budżetu.
-PER_USER_SCOPES = frozenset({"chat", "forum", "video", "video_rooms", "delegation"})
+PER_USER_SCOPES = frozenset({"chat", "forum", "video", "video_rooms", "delegation", "alumni"})
 
 #: Jak często (sekundy) wolno zalogować awarię cache'a jednym procesem – patrz ``_report_outage``.
 OUTAGE_LOG_INTERVAL = 60

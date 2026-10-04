@@ -39,6 +39,7 @@ def catalog_id(path: Path) -> str:
     """``en`` dla katalogu wspólnego, ``alumni-en`` dla katalogu aplikacji – identyfikatory bez kolizji."""
     return path.parts[-3] if path in CATALOGS else f"{path.parts[-5]}-{path.parts[-3]}"
 
+
 #: ``%(name)s``, ``%s``, ``%d``, ``%.2f`` … oraz ``{name}``. ``%%`` to znak procentu, nie placeholder.
 PERCENT = re.compile(r"%(?:\([A-Za-z_][A-Za-z0-9_]*\))?[-#0 +]*\d*(?:\.\d+)?[sdifr]")
 BRACE = re.compile(r"(?<!\{)\{[A-Za-z_][A-Za-z0-9_]*\}(?!\})")

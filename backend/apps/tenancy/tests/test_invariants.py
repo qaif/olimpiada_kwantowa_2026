@@ -217,7 +217,23 @@ EXPECTED_FORUM_SUBJECTS = {
 #: poprawienia liczby w miejscu, które z tym listem nie miało nic wspólnego – a przy tym niczego nie
 #: pilnował, bo liczył wiersze tabeli, a nie tematy w kodzie (trzy tematy przeszły obok niego).
 #: Kompletności pilnuje dziś ``test_every_subject_in_the_code_is_frozen`` niżej.
-ALL_EXPECTED_SUBJECTS = {**EXPECTED_SUBJECTS, **EXPECTED_SERVICE_SUBJECTS, **EXPECTED_FORUM_SUBJECTS}
+#: Pięć tematów listów sieci absolwentów (ALUM-01, ``apps.alumni.notifications``) – z prefiksem
+#: konkursu, z tego samego powodu co forum: listy są nowe, a „[Olimpiada Kwantowa] Absolwenci:”
+#: pozwala odfiltrować całą rodzinę naraz. Wysyłkę sprawdza ``apps/alumni/tests/test_mentoring.py``.
+EXPECTED_ALUMNI_SUBJECTS = {
+    "alumni_requested": f"{EXPECTED_SUBJECT_PREFIX}Absolwenci: prośba o mentoring",
+    "alumni_accepted": f"{EXPECTED_SUBJECT_PREFIX}Absolwenci: mentor przyjął Twoją prośbę",
+    "alumni_declined": f"{EXPECTED_SUBJECT_PREFIX}Absolwenci: odpowiedź na prośbę o mentoring",
+    "alumni_ended": f"{EXPECTED_SUBJECT_PREFIX}Absolwenci: relacja mentorska zakończona",
+    "alumni_flag": f"{EXPECTED_SUBJECT_PREFIX}Absolwenci: zgłoszono problem z relacją mentorską",
+}
+
+ALL_EXPECTED_SUBJECTS = {
+    **EXPECTED_SUBJECTS,
+    **EXPECTED_SERVICE_SUBJECTS,
+    **EXPECTED_FORUM_SUBJECTS,
+    **EXPECTED_ALUMNI_SUBJECTS,
+}
 
 #: Każda stała tematu listu w kodzie (nazwa z ``SUBJECT``) → klucz zamrożonego brzmienia wyżej.
 #: Wariant z marką konkursu (``*_TEMPLATE`` z ``%(competition)s``) wskazuje ten sam klucz co stała
@@ -245,6 +261,11 @@ SUBJECT_CONSTANTS = {
     "apps.accounts.supervisor_consent.SUPERVISOR_CONSENT_SUBJECT": "supervisor_consent",
     "apps.accounts.supervisor_consent.SUPERVISOR_CONSENT_SUBJECT_TEMPLATE": "supervisor_consent",
     "apps.accounts.services.INVITATION_SUBJECT_TEMPLATE": "invitation",
+    "apps.alumni.notifications.SUBJECT_REQUESTED": "alumni_requested",
+    "apps.alumni.notifications.SUBJECT_ACCEPTED": "alumni_accepted",
+    "apps.alumni.notifications.SUBJECT_DECLINED": "alumni_declined",
+    "apps.alumni.notifications.SUBJECT_ENDED": "alumni_ended",
+    "apps.alumni.notifications.SUBJECT_FLAG": "alumni_flag",
     "apps.chat.notifications.SUBJECT": "chat_message",
     "apps.chat.notifications.SUBJECT_TEMPLATE": "chat_message",
     "apps.forum.notifications.SUBJECT_MODERATION": "forum_moderation",

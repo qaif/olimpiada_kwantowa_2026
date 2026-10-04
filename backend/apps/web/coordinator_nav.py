@@ -768,6 +768,18 @@ def groups(stages: list, competition=None) -> list[Group]:
                 match=("coordinator-student-status", "coordinator-student-status-"),
             ),
         )
+    if competition is not None and competition.has_feature("alumni"):
+        # Sieć absolwentów (ALUM-01) – w „Uczestnikach i kontach”, bo to są ludzie (byli uczestnicy)
+        # i nadzór nad relacjami mentorskimi, na końcu sekcji z tego samego powodu, co pozycje
+        # wyżej. Bez odznaki (§ 2.2): zgłoszenie problemu z mentoringiem idzie do koordynatorów
+        # listem od razu, więc ekran nie jest kolejką, o której trzeba pamiętać.
+        people_items += (
+            Item(
+                "Absolwenci",
+                ("web:coordinator-alumni",),
+                match=("coordinator-alumni", "coordinator-alumni-"),
+            ),
+        )
     stage_group: tuple[Item, ...] = stage_items(stages, competition)
     if competition is not None and competition.has_feature("process_editor"):
         # Edytor przebiegu (§ 1.2, T27). „Przebieg edycji” stoi **nad** listą etapów, bo opisuje

@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}{% translate "Zgłoś problem z mentoringiem" %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow"><a href="{% url 'web:alumni' %}">{% translate "Absolwenci" %}</a></span>
+  <h1>{% translate "Zgłoś problem z mentoringiem" %}</h1>
+  <p class="lead">{% blocktranslate trimmed %}Zgłoszenie trafi od razu do organizatora. Jeśli problem dotyczy konkretnej wiadomości,
+    zgłoś ją także w Wiadomościach przyciskiem „Zgłoś”.{% endblocktranslate %}</p>
+</div>
+<form method="post" class="form">
+  {% csrf_token %}
+  {{ form.as_div }}
+  <p class="actions"><button type="submit" class="btn btn--primary">{% translate "Wyślij zgłoszenie" %}</button></p>
+</form>
+{% endblock %}
