@@ -31,7 +31,11 @@ webhook:
     - https://<SITE_DOMAIN>/integrations/livekit/webhook/
 
 room:
-  # Pusty pokój znika po 5 minutach; limit osób – bezpiecznik zasobów maszyny.
+  # Pokój zakłada WYŁĄCZNIE platforma (CreateRoom po sprawdzeniu reguł wejścia) – token wystawiony
+  # przed „Zakończ” nie otworzy pokoju na nowo.
+  auto_create: false
+  # Pusty pokój znika po 5 minutach (pokój z platformy ma własne empty_timeout 10 min); limit osób –
+  # bezpiecznik zasobów maszyny.
   empty_timeout: 300
   max_participants: 300
 

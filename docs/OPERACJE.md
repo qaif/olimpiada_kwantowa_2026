@@ -3912,18 +3912,31 @@ Bez konfiguracji i bez flagi `webinars` (§ 6.4) nic się nie zmienia – także
 
 ### 28.2. Wdrożenie wariantu (b) – kroki operatora (na serwerze, `cd /opt/olimpiada`)
 
-1. `scripts/deploy.sh root@olimpiadakwantowa.pl` – kod, migracja `webinars.0001` (pięć nowych tabel,
-   bez blokad), zadanie beat `webinars-reminders` (co 5 min; bez flagi nic nie robi), kontrakt tras djcms
-   (nowe segmenty `webinars`, `integrations`).
+1. `scripts/deploy.sh root@olimpiadakwantowa.pl` – kod, migracje `webinars.0001`–`0002` (nowe tabele,
+   bez blokad), zadanie beat `webinars-reminders` (co 5 min: przypomnienia, uzgadnianie wiszących nagrań,
+   retencja; bez flagi nie robi nic), kontrakt tras djcms (nowe segmenty `webinars`, `integrations`).
+   Compose dokłada do `proxy` sieć `livekit_signal` (172.30.5.0/24) – przy pierwszym wdrożeniu Caddy
+   jest odtwarzany (kilka sekund, zasłania to strona zastępcza). Sieć jest w pliku podstawowym, a nie
+   w nakładce, bo zwykłe wdrożenie odtwarzałoby proxy bez niej i odcinało sygnalizację LiveKit.
 2. SDK przeglądarkowe (jednorazowo, na laptopie z repozytorium, wynik commitowany):
    `scripts/vendor_livekit_client.sh` – pobiera `livekit-client` z rejestru npm, **sprawdza sumę
    paczki z rejestrem**, kopiuje `livekit-client.umd.js` + `LICENSE` do `backend/static/vendor/livekit-client/`
    i zapisuje `VERSION` i `SHA384`. Bez tego pliku pokój mówi „brakuje komponentu wideo”, zamiast działać.
-3. DNS: rekord `A live.<domena>` → adres serwera. Zapora: `ufw allow 7881/tcp`, `ufw allow 50000:50100/udp`.
+   Skrypt **usuwa ostatni wiersz paczki** (`//# sourceMappingURL=…map`) – mapy nie dostarczamy, a
+   `collectstatic` z manifestem kończyłby się na nim błędem i `web` by nie wstał (VERSION to odnotowuje,
+   pilnuje tego `apps/webinars/tests/test_static.py`).
+3. DNS: rekord `A live.<domena>` → adres serwera. **Zapora:** porty 7881/tcp i 50000–50100/udp publikuje
+   Docker, a Docker wpisuje własne reguły iptables **przed** ufw – `ufw allow` jest tu dokumentacją,
+   a `ufw deny` niczego nie zamknie. Zamyka się je zdjęciem `ports:` z nakładki albo regułą w łańcuchu
+   `DOCKER-USER` (np. `iptables -I DOCKER-USER -p udp --dport 50000:50100 -j DROP` na czas wyłączenia).
+   Sieć mostkowa, a nie `network_mode: host`: host dałby LiveKitowi wszystkie usługi hosta i porty
+   compose'a na 127.0.0.1, a ceną mostka (docker-proxy na 101 portów) przy 100 portach UDP jest do przyjęcia.
 4. Klucze: `openssl rand -hex 32` (sekret) i dowolny klucz (np. `APIolimp1`). W `.env`:
    `LIVEKIT_URL=wss://live.<domena>`, `LIVEKIT_API_KEY=…`, `LIVEKIT_API_SECRET=…`,
    `LIVEKIT_API_URL=http://livekit:7880`, `LIVEKIT_PROXY=1`.
-5. Konto MinIO dla egress (zapis wyłącznie do `submissions/webinars/*`):
+5. Konto MinIO dla egress (zapis wyłącznie do `submissions/webinars/*`). Egress zapisuje przez
+   **publiczny** adres S3 (`S3_PUBLIC_ENDPOINT_URL`) – nie stoi w sieci `internal`, więc nie widzi bazy,
+   `web`, poczty ani MinIO od środka (sieci: `livekit` wewnętrzna + `livekit_signal`):
 
    ```sh
    docker compose cp deploy/livekit/policy-egress.json minio:/tmp/policy-egress.json
@@ -3935,7 +3948,9 @@ Bez konfiguracji i bez flagi `webinars` (§ 6.4) nic się nie zmienia – także
    (alias `local` w kontenerze `minio`: `mc alias set local http://localhost:9000 <root> <hasło>`).
 6. Konfiguracja LiveKit: `mkdir -p livekit && cp deploy/livekit/livekit.yaml.example livekit/livekit.yaml &&
    cp deploy/livekit/egress.yaml.example livekit/egress.yaml && chmod 600 livekit/*.yaml`, podmienić
-   `<…>` (klucz i sekret jak w `.env`, `SITE_DOMAIN`, konto egress z kroku 5). Obok położyć profil
+   `<…>` (klucz i sekret jak w `.env`, `SITE_DOMAIN`, konto egress z kroku 5, `endpoint` = publiczny
+   adres S3). `livekit.yaml` ma `room.auto_create: false`: pokój zakłada wyłącznie platforma przed
+   wystawieniem tokenu, więc token sprzed „Zakończ” nie otworzy pokoju na nowo. Obok położyć profil
    seccomp piaskownicy Chrome dla egressu: `livekit/chrome-sandboxing-seccomp-profile.json` z
    repozytorium `livekit/egress` w tagu `v1.14.1` (README egress, „Chrome sandboxing”); bez niego
    `livekit-egress` nie wystartuje. Polecenia `docker compose` z tego paragrafu – z `/opt/olimpiada`
@@ -3950,9 +3965,16 @@ Bez konfiguracji i bez flagi `webinars` (§ 6.4) nic się nie zmienia – także
 8. Sprawdzenie (tylko odczyt): `curl -s https://live.<domena>/` → `OK`; w przeglądarce
    `/coordinator/webinars/` nie mówi już „nie jest skonfigurowany”.
 9. Flaga konkursu: `/admin/ → Konkursy → <konkurs> → feature_flags` → `{"webinars": true}`.
-10. Próba: webinar testowy na za 5 minut, „Rozpocznij i wejdź do pokoju” (koordynator), drugie konto
-    uczestnika – „Dołącz”, podniesienie ręki, „Daj głos”, nagranie 1 min → po kilku minutach wiersz
-    „gotowe” (webhook `egress_ended`) i odtwarzanie.
+10. Próba (staging, potem produkcja): webinar testowy na za 5 minut, „Rozpocznij i wejdź do pokoju”
+    (koordynator), drugie konto uczestnika – „Dołącz”, podniesienie ręki, „Daj głos”, „Usuń z pokoju”
+    (powrót ma zostać odrzucony) i „Wpuść ponownie”, nagranie 1 min → po kilku minutach wiersz „gotowe”
+    (webhook `egress_ended`) i odtwarzanie. **Nagrywanie sprawdza łączność egressu z pokojem**: egress
+    dołącza jak uczestnik pod adres ogłaszany przez `use_external_ip` (publiczny adres serwera), czyli
+    wymaga, żeby ruch z kontenera do własnego publicznego adresu wracał do hosta (hairpin NAT). Gdy
+    nagranie kończy się stanem „błąd” po ~30 s, a `docker compose logs livekit-egress` mówi o ICE/timeout,
+    ustaw w `livekit.yaml` `rtc.node_ip: <adres publiczny>` i dopisz `rtc.ips.includes: [172.30.5.0/24]`
+    (kandydaci z sieci `livekit_signal` dla egressu), restart `livekit`, próba jeszcze raz. Na koniec
+    w panelu: lista obecności z czasami (webhooki dochodzą).
 
 ### 28.3. TURN/TLS i duże wydarzenia
 
@@ -3973,7 +3995,18 @@ spotkania. Kilkuset uczestników = wariant (a), ewentualnie kilka węzłów z Re
   (2 h) i kasuje. Kopia nocna – jak materiały z warsztatów (§ 16): bucket `submissions` w kopii jest.
 - Transmisja YouTube: klucz strumienia nie jest zapisywany (idzie tylko do egress).
 - CSP: `connect-src` + `wss://live.<domena>` i `https://live.<domena>` – tylko przy konfiguracji.
-- Limity: `webinar_join` 60/h na konto, `webinar_guest` 120/h na IP.
+- Limity: `webinar_join` 60/h na konto (tokeny), `webinar_control` 600/h na konto (polecenia
+  prowadzącego – osobny kubełek, żeby sesja pytań nie odcinała prowadzącego), `webinar_guest` 120/h
+  na IP. Odmowa dla pokoju to JSON 429 z `Retry-After` (pokój pokazuje komunikat).
+- „Usuń z pokoju” zapamiętuje osobę (`removed_at`) – nowego tokenu nie dostanie, dopóki koordynator
+  nie kliknie „Wpuść ponownie” na liście obecności. Gość z nową sesją ma nowy identyfikator – wtedy
+  „Wygeneruj nowy link” (stary od razu 404; ponowne włączenie linku też daje nowy).
+- Nagranie „nagrywa” bez webhooka `egress_ended` uzgadnia zadanie beat (`ListEgress`) po 10 minutach;
+  koordynator ma też „Sprawdź / oznacz jako nieudane”.
+- Retencja: nagrania (plik i wiersz) i lista obecności znikają `WEBINAR_RETENTION_DAYS` (365) dni po
+  webinarze; usunięcie konta kasuje obecność tej osoby; eksport danych konta ma sekcję `webinary`.
+  Przed wejściem do pokoju webinaru z nagrywaniem jest informacja o nagrywaniu, a w trakcie – stały
+  znacznik „Trwa nagrywanie”.
 
 ### 28.5. Wyłączenie i rotacja
 

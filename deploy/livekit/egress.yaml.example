@@ -14,8 +14,9 @@ s3:
   access_key: <EGRESS_S3_ACCESS_KEY>
   secret: <EGRESS_S3_SECRET_KEY>
   region: us-east-1
-  # Wariant (b): MinIO w sieci `internal`. Wariant (a): publiczny adres S3 platformy (https://…).
-  endpoint: http://minio:9000
+  # Publiczny adres S3 platformy (`S3_PUBLIC_ENDPOINT_URL`, np. https://<domena>:9000) – w obu
+  # wariantach: egress nie stoi w sieci `internal` (docs/OPERACJE.md § 28.2).
+  endpoint: <S3_PUBLIC_ENDPOINT_URL>
   bucket: submissions
   # MinIO adresuje buckety ścieżką (`http://minio:9000/submissions/…`), nie poddomeną. Pole jest
   # w konfiguracji S3 egressu (ForcePathStyle) – README v1.14.1 go nie wymienia, więc przy pierwszym
