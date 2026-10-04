@@ -30,7 +30,9 @@ LOCALE_DIR = Path(settings.BASE_DIR) / "locale"
 #: Katalog wspólny i katalogi aplikacji (``apps/<aplikacja>/locale``) – te same reguły dla obu.
 #: Kompletność zestawu języków (``test_every_configured_language_has_a_catalog``) dotyczy wspólnego.
 SHARED_CATALOGS = sorted(LOCALE_DIR.glob("*/LC_MESSAGES/django.po"))
-CATALOGS = SHARED_CATALOGS + sorted((Path(settings.BASE_DIR) / "apps").glob("*/locale/*/LC_MESSAGES/django.po"))
+CATALOGS = SHARED_CATALOGS + sorted(
+    (Path(settings.BASE_DIR) / "apps").glob("*/locale/*/LC_MESSAGES/django.po")
+)
 
 #: ``%(name)s``, ``%s``, ``%d``, ``%.2f`` … oraz ``{name}``. ``%%`` to znak procentu, nie placeholder.
 PERCENT = re.compile(r"%(?:\([A-Za-z_][A-Za-z0-9_]*\))?[-#0 +]*\d*(?:\.\d+)?[sdifr]")
