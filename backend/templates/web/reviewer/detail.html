@@ -211,6 +211,8 @@
     {% endif %}
 
     {% if ai %}{% include "web/reviewer/_ai_assessment.html" %}{% endif %}
+    {# Testy automatyczne notatnika (QC-01) – tylko przy włączonej fladze i zadaniu sprawdzanym automatycznie. #}
+    {% load notebook_tags %}{% notebook_review_panel submission %}
 
     {% include "web/reviewer/_issue_banner.html" %}
 

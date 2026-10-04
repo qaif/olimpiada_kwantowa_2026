@@ -37,6 +37,37 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
 - `TWO_FACTOR_ENABLED=0` (domyślnie) – zachowanie bez zmian. Migracje `staff_mfa.0001`–`0002`
   (cztery puste tabele). Operator: `docs/OPERACJE.md` § 41.
 
+## [Unreleased] – Notatniki kwantowe w przeglądarce (QC-01)
+
+- **Notatnik przy zadaniu:** JupyterLite 0.8.5 z jądrem Pyodide 314.0.7 hostowany u nas
+  (`/static/notebook-lab/<BUILD_ID>/`, bez CDN w czasie działania, wersje i skróty przypięte, etap
+  `notebook-lab` obrazu, licencja każdego koła w manifeście). Strona `/me/notebooks/<zadanie>/`
+  otwiera laboratorium w nowej karcie; notatnik startowy z testami widocznymi (podpisany adres
+  `/notebook-starter/…`) otwiera się sam (`fromURL`). Oddanie – zwykła wysyłka `.ipynb`.
+- **qclab:** własny symulator z API podzbioru Qiskita (`from qiskit import QuantumCircuit` działa
+  w przeglądarce i na serwerze; Qiskit 2.x nie ma kół dla Pyodide). Zgodność z Qiskitem 2.5.2
+  sprawdzana testami parzystości (poza CI – Qiskit nie jest zależnością).
+- **Sprawdzanie automatyczne:** testy widoczne (w przeglądarce) i ukryte (wyłącznie serwer) w JSON-ie
+  (`statevector`, `probabilities`, `counts`, `unitary`, `value`, `circuit`), punkty za test, wyniki
+  z CSV, „Przelicz wszystko”, sprawdzenie na notatniku wzorcowym, panel w ekranie recenzenta.
+  Podpowiedź dla komisji, nie ocena. Ocena w budżecie symulacji (obwód ponad budżet – błąd zamiast
+  minut CPU), odporna na NaN/±inf; tolerancja zliczeń ucznia skalowana liczbą strzałów.
+- **Piaskownica:** kontener `notebook-runner` (profil compose `notebooks`, `network_mode: none`, bez
+  sekretów, losowy UID na zadanie ze sprzątaniem procesów i plików, `setrlimit`, hak audytowy jako
+  obrona w głąb, healthcheck), wymiana przez wolumen `notebook_spool` z nowym workerem
+  `notebook-worker` (kolejka Celery `notebooks`, krótkie limity czasu).
+- **Bezpieczeństwo:** osobna polityka CSP ścieżki laboratorium ze źródłami zawężonymi do ścieżki
+  (Caddy `(notebook_lab)` i middleware w dev), COOP/COEP, strażnik żądań z laboratorium; reszta
+  serwisu bez zmian. Laboratorium wyłącznie dla kont bez roli personelu – personel ogląda notatniki
+  w podglądzie tylko do odczytu (bez wykonywania, bez HTML/JS z wyjść); recenzent bez komunikatów
+  testów ukrytych.
+- Flaga konkursu `quantum_notebooks` (domyślnie wyłączona), nowa zależność `numpy>=2.4,<2.5`,
+  katalog tłumaczeń `apps/notebooks/locale` (10 języków). Wdrożenie: `docs/OPERACJE.md` § 40
+  (`COMPOSE_PROFILES=notebooks` podnosi `notebook-runner` i `notebook-worker`); podręczniki:
+  organizatora § 10n, recenzenta § 3b, uczestnika § 3a.
+- **Nadzór zdalny (PROC-01):** strona laboratorium (`web:participant-notebook`) stoi w `GATED_VIEWS`,
+  a notatnik startowy z tokenem sprawdza bramkę nadzoru w widoku (403 bez gotowej sesji).
+
 ## [Unreleased] – Zmiana hasła w panelu konta (AUTH-01b)
 
 - **Ekran „Zmień hasło”** (`/account/password/`) dla każdej roli: aktualne hasło + nowe dwa razy,

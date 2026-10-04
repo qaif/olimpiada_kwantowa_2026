@@ -8,6 +8,23 @@ COPY pyproject.toml ./
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv venv /opt/venv && uv pip install --python /opt/venv/bin/python -r pyproject.toml --extra dev
 
+# Etap 1b: JupyterLite dla notatników kwantowych (QC-01, docs/tasks/QC-01.md § 3.1). Osobny etap, bo
+# narzędzia budowy (jupyterlite-core, doit…) i pobrane archiwa Pyodide nie mają czego szukać w obrazie
+# runtime – przechodzi wyłącznie gotowy katalog statyczny. Wszystko z przypiętym skrótem: narzędzia
+# `--require-hashes`, rdzeń Pyodide i koła pakietów – SHA-256 z pyodide.json i z pyodide-lock.json.
+# Cache BuildKit trzyma pobrane archiwa między budowami (zmiana kodu qclab nie pobiera Pyodide od nowa).
+FROM python:3.14-slim-trixie AS notebook-lab
+WORKDIR /build
+COPY apps/notebooks/labbuild/requirements.txt apps/notebooks/labbuild/requirements.txt
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --root-user-action=ignore --require-hashes --no-deps -r apps/notebooks/labbuild/requirements.txt
+COPY apps/__init__.py apps/__init__.py
+COPY apps/notebooks/__init__.py apps/notebooks/__init__.py
+COPY apps/notebooks/labbuild apps/notebooks/labbuild
+COPY qclab qclab
+RUN --mount=type=cache,target=/root/.cache/notebook-lab \
+    python -m apps.notebooks.labbuild --out /opt/notebook-lab --cache /root/.cache/notebook-lab
+
 # Etap 2: runtime (nie-root, minimalny)
 # ``gettext`` dochodzi do warstwy apt, bo Django czyta wyłącznie **skompilowane** katalogi
 # tłumaczeń (``.mo``), a w repozytorium trzymamy źródła (``.po``) – tylko one dają się czytać
@@ -21,7 +38,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends libpq5 curl pro
 WORKDIR /app
 COPY --from=builder /opt/venv /opt/venv
 COPY --chown=app:app . .
+# Zbudowane JupyterLite (etap ``notebook-lab``); entrypoint procesu web kopiuje je do STATIC_ROOT.
+COPY --from=notebook-lab --chown=app:app /opt/notebook-lab /app/notebook_lab_dist
 RUN mkdir -p /app/staticfiles && chown app:app /app/staticfiles && chmod +x /app/entrypoint.sh
+# Katalog wymiany z piaskownicą notatników (QC-01, wolumen `notebook_spool`). Pusty wolumen nazwany
+# przejmuje właściciela i tryb z obrazu: worker (app) pisze, nadzorca piaskownicy wchodzi przez grupę
+# (`group_add`), a dzieci piaskownicy (inne UID, bez grup) – nie mają wstępu (2770, setgid).
+RUN mkdir -p /spool && chown app:app /spool && chmod 2770 /spool
 # Katalogi tłumaczeń: ``msgfmt`` wprost, a nie ``manage.py compilemessages``. Powody są dwa:
 # komenda Django ładuje ustawienia (czyli wymagałaby kompletu zmiennych środowiskowych już na
 # etapie budowania obrazu) i przechodzi po **całym** drzewie, łącznie z katalogami tłumaczeń
