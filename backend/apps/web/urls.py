@@ -2,6 +2,8 @@
 
 from django.urls import path
 
+from apps.medals.urls import urlpatterns as medal_urlpatterns  # MED-01
+
 # Wzorce ekranów wydań E–K stoją w osobnych modułach, bo powstały równolegle (T11, T13, T20, T23,
 # T27, T34, T42), a ten plik ma w etapie 2 **jednego** właściciela na wydanie
 # (``docs/UNIWERSALNY-ETAP-2.md`` § 4.1). Montaż jest rozwinięciem tych list na **końcu**
@@ -1125,4 +1127,6 @@ urlpatterns = [
     *video_urlpatterns,
     # --- delegacje krajowe: opiekun drużyny i ekran koordynatora (DEL-01, 4.10.2026) ------------
     *delegation_urlpatterns,
+    # --- medale olimpiady międzynarodowej i ranking krajów (MED-01, flaga ``medals``) -----------
+    *medal_urlpatterns,
 ]

@@ -1,0 +1,140 @@
+# Arabic – medale olimpiady międzynarodowej (docs/tasks/MED-01.md).
+# Zrodlem (msgid) jest polski. Katalog aplikacji apps.medals – Django scala go z backend/locale.
+#
+# UWAGA: tlumaczenie MASZYNOWE (model jezykowy). Przed szeroka komunikacja
+# do uczestnikow powinien je przejrzec native speaker - patrz docs/OPERACJE.md.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Olimpiada – medale\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-04 18:00+0200\n"
+"PO-Revision-Date: 2026-10-04 18:00+0200\n"
+"Last-Translator: Olimpiada Kwantowa\n"
+"Language-Team: Arabic\n"
+"Language: ar\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=6; plural=(n==0 ? 0 : n==1 ? 1 : n==2 ? 2 : n%100>=3 && n%100<=10 ? 3 : n%100>=11 ? 4 : 5);\n"
+
+msgid "złoty medal"
+msgstr "ميدالية ذهبية"
+
+msgid "srebrny medal"
+msgstr "ميدالية فضية"
+
+msgid "brązowy medal"
+msgstr "ميدالية برونزية"
+
+msgid "wyróżnienie"
+msgstr "تنويه شرفي"
+
+msgid "bez nagrody"
+msgstr "بدون جائزة"
+
+msgid "Złoty medal"
+msgstr "الميدالية الذهبية"
+
+msgid "Srebrny medal"
+msgstr "الميدالية الفضية"
+
+msgid "Brązowy medal"
+msgstr "الميدالية البرونزية"
+
+msgid "Wyróżnienie"
+msgstr "تنويه شرفي"
+
+msgid "Zaświadczenie o udziale"
+msgstr "شهادة مشاركة"
+
+#, python-format
+msgid "za wybitny wynik w zawodach %(competition)s"
+msgstr "تقديرًا للأداء المتميز في %(competition)s"
+
+#, python-format
+msgid "za wyróżniający się wynik w zawodach %(competition)s"
+msgstr "تقديرًا للأداء المشرّف في %(competition)s"
+
+#, python-format
+msgid "za udział w zawodach %(competition)s"
+msgstr "للمشاركة في %(competition)s"
+
+#, python-format
+msgid "edycja %(edition)s"
+msgstr "الدورة %(edition)s"
+
+msgid "Przewodniczący Komitetu Organizacyjnego"
+msgstr "رئيس اللجنة المنظمة"
+
+#, python-format
+msgid "Numer dokumentu: %(number)s"
+msgstr "رقم الوثيقة: %(number)s"
+
+#, python-format
+msgid "Kod weryfikacyjny: %(code)s"
+msgstr "رمز التحقق: %(code)s"
+
+#, python-format
+msgid "Data wystawienia: %(date)s"
+msgstr "تاريخ الإصدار: %(date)s"
+
+#, python-format
+msgid "Weryfikacja: %(url)s"
+msgstr "التحقق: %(url)s"
+
+msgid "Medale"
+msgstr "الميداليات"
+
+msgid "Ranking krajów"
+msgstr "ترتيب الدول"
+
+#, python-format
+msgid "Ogłoszone %(announced)s. Złoto, srebro i brąz przyznaje się z rankingu etapu; ten sam wynik zawsze daje tę samą nagrodę."
+msgstr "أُعلنت في %(announced)s. تُمنح الميداليات الذهبية والفضية والبرونزية وفق ترتيب المرحلة، والنتيجة نفسها تنال دائمًا الجائزة نفسها."
+
+msgid "Pełna tabela wyników"
+msgstr "جدول النتائج الكامل"
+
+msgid "Wszystkie kraje"
+msgstr "جميع الدول"
+
+msgid "Pokaż"
+msgstr "عرض"
+
+#, python-format
+msgid "%(name)s – uczestnicy: %(contestants)s, złoto: %(gold)s, srebro: %(silver)s, brąz: %(bronze)s, wyróżnienia: %(hm)s."
+msgstr "%(name)s – المشاركون: %(contestants)s، ذهبية: %(gold)s، فضية: %(silver)s، برونزية: %(bronze)s، تنويهات شرفية: %(hm)s."
+
+msgid "Lista obejmuje wyłącznie osoby, których kraj wolno pokazać przy wyniku."
+msgstr "تتضمن القائمة فقط المشاركين الذين يجوز إظهار دولتهم بجانب نتيجتهم."
+
+msgid "Tabela medali"
+msgstr "جدول الميداليات"
+
+msgid "Nagroda"
+msgstr "الجائزة"
+
+msgid "decyzja komitetu"
+msgstr "قرار اللجنة"
+
+msgid "Ranking nieoficjalny: olimpiada jest zawodami indywidualnymi. Tabela pokazuje wyłącznie sumy dla kraju – bez wyników poszczególnych uczestników."
+msgstr "ترتيب غير رسمي: الأولمبياد مسابقة فردية. يعرض الجدول مجاميع الدول فقط – دون النتائج الفردية."
+
+msgid "Kolejność według sumy punktów"
+msgstr "الترتيب حسب مجموع النقاط"
+
+msgid "Kolejność według medali"
+msgstr "الترتيب حسب الميداليات"
+
+msgid "Złoto"
+msgstr "ذهب"
+
+msgid "Srebro"
+msgstr "فضة"
+
+msgid "Brąz"
+msgstr "برونز"
+
+msgid "Wyróżnienia"
+msgstr "تنويهات شرفية"

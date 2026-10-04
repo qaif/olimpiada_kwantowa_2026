@@ -1,0 +1,140 @@
+# Hindi – medale olimpiady międzynarodowej (docs/tasks/MED-01.md).
+# Zrodlem (msgid) jest polski. Katalog aplikacji apps.medals – Django scala go z backend/locale.
+#
+# UWAGA: tlumaczenie MASZYNOWE (model jezykowy). Przed szeroka komunikacja
+# do uczestnikow powinien je przejrzec native speaker - patrz docs/OPERACJE.md.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Olimpiada – medale\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-04 18:00+0200\n"
+"PO-Revision-Date: 2026-10-04 18:00+0200\n"
+"Last-Translator: Olimpiada Kwantowa\n"
+"Language-Team: Hindi\n"
+"Language: hi\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "złoty medal"
+msgstr "स्वर्ण पदक"
+
+msgid "srebrny medal"
+msgstr "रजत पदक"
+
+msgid "brązowy medal"
+msgstr "कांस्य पदक"
+
+msgid "wyróżnienie"
+msgstr "सम्माननीय उल्लेख"
+
+msgid "bez nagrody"
+msgstr "कोई पुरस्कार नहीं"
+
+msgid "Złoty medal"
+msgstr "स्वर्ण पदक"
+
+msgid "Srebrny medal"
+msgstr "रजत पदक"
+
+msgid "Brązowy medal"
+msgstr "कांस्य पदक"
+
+msgid "Wyróżnienie"
+msgstr "सम्माननीय उल्लेख"
+
+msgid "Zaświadczenie o udziale"
+msgstr "प्रतिभागिता प्रमाणपत्र"
+
+#, python-format
+msgid "za wybitny wynik w zawodach %(competition)s"
+msgstr "%(competition)s में उत्कृष्ट प्रदर्शन के लिए"
+
+#, python-format
+msgid "za wyróżniający się wynik w zawodach %(competition)s"
+msgstr "%(competition)s में सराहनीय प्रदर्शन के लिए"
+
+#, python-format
+msgid "za udział w zawodach %(competition)s"
+msgstr "%(competition)s में भाग लेने के लिए"
+
+#, python-format
+msgid "edycja %(edition)s"
+msgstr "संस्करण %(edition)s"
+
+msgid "Przewodniczący Komitetu Organizacyjnego"
+msgstr "आयोजन समिति के अध्यक्ष"
+
+#, python-format
+msgid "Numer dokumentu: %(number)s"
+msgstr "दस्तावेज़ संख्या: %(number)s"
+
+#, python-format
+msgid "Kod weryfikacyjny: %(code)s"
+msgstr "सत्यापन कोड: %(code)s"
+
+#, python-format
+msgid "Data wystawienia: %(date)s"
+msgstr "जारी करने की तिथि: %(date)s"
+
+#, python-format
+msgid "Weryfikacja: %(url)s"
+msgstr "सत्यापन: %(url)s"
+
+msgid "Medale"
+msgstr "पदक"
+
+msgid "Ranking krajów"
+msgstr "देशों की रैंकिंग"
+
+#, python-format
+msgid "Ogłoszone %(announced)s. Złoto, srebro i brąz przyznaje się z rankingu etapu; ten sam wynik zawsze daje tę samą nagrodę."
+msgstr "%(announced)s को घोषित। स्वर्ण, रजत और कांस्य पदक चरण की रैंकिंग के आधार पर दिए जाते हैं; समान अंक पर हमेशा समान पुरस्कार मिलता है।"
+
+msgid "Pełna tabela wyników"
+msgstr "पूरी परिणाम तालिका"
+
+msgid "Wszystkie kraje"
+msgstr "सभी देश"
+
+msgid "Pokaż"
+msgstr "दिखाएँ"
+
+#, python-format
+msgid "%(name)s – uczestnicy: %(contestants)s, złoto: %(gold)s, srebro: %(silver)s, brąz: %(bronze)s, wyróżnienia: %(hm)s."
+msgstr "%(name)s – प्रतिभागी: %(contestants)s, स्वर्ण: %(gold)s, रजत: %(silver)s, कांस्य: %(bronze)s, सम्माननीय उल्लेख: %(hm)s।"
+
+msgid "Lista obejmuje wyłącznie osoby, których kraj wolno pokazać przy wyniku."
+msgstr "सूची में केवल वे प्रतिभागी हैं जिनका देश उनके परिणाम के साथ दिखाया जा सकता है।"
+
+msgid "Tabela medali"
+msgstr "पदक तालिका"
+
+msgid "Nagroda"
+msgstr "पुरस्कार"
+
+msgid "decyzja komitetu"
+msgstr "समिति का निर्णय"
+
+msgid "Ranking nieoficjalny: olimpiada jest zawodami indywidualnymi. Tabela pokazuje wyłącznie sumy dla kraju – bez wyników poszczególnych uczestników."
+msgstr "अनौपचारिक रैंकिंग: ओलंपियाड एक व्यक्तिगत प्रतियोगिता है। तालिका केवल देशों के कुल योग दिखाती है – व्यक्तिगत परिणाम नहीं।"
+
+msgid "Kolejność według sumy punktów"
+msgstr "कुल अंकों के अनुसार क्रम"
+
+msgid "Kolejność według medali"
+msgstr "पदकों के अनुसार क्रम"
+
+msgid "Złoto"
+msgstr "स्वर्ण"
+
+msgid "Srebro"
+msgstr "रजत"
+
+msgid "Brąz"
+msgstr "कांस्य"
+
+msgid "Wyróżnienia"
+msgstr "सम्माननीय उल्लेख"

@@ -164,6 +164,8 @@ INSTALLED_APPS = [
     # **Po** aplikacjach domeny, bo czyta je wszystkie (edycje, wyniki, zgłoszenia), a żadna z nich
     # nie czyta jej – zależność idzie w jedną stronę i kolejność w tej liście ma to pokazywać.
     "apps.integrations",
+    # Medale olimpiady międzynarodowej, dyplomy w języku ucznia i ranking krajów (MED-01, flaga ``medals``).
+    "apps.medals",
     "apps.web",
     # Logowanie przez dostawców zewnętrznych (Google, Facebook). ``allauth.account`` jest wymagane
     # przez ``allauth.socialaccount`` (model ``EmailAddress``, adaptery) – jego **widoki** nie są
@@ -1221,6 +1223,8 @@ REST_FRAMEWORK = {
         # przez opiekuna, więc limit chroni cudze skrzynki; sześćdziesiąt na godzinę mieści z zapasem
         # drużynę (kilka osób) i zaproszenia dla kilkudziesięciu krajów w jednym posiedzeniu.
         "delegation": "60/hour",
+        # Ekran medali (MED-01): przeliczenie podglądu, ogłoszenie, dokumenty i eksporty – kosztowne POST-y.
+        "medals": "120/hour",
         # Bramka linku-zaproszenia (``/zaproszenie/wideo/<klucz>/``, POST „Dołącz”) – bez konta,
         # więc liczona po adresie IP, jak każdy publiczny formularz. Wysoko, bo za jednym NAT-em
         # bywa cała sala gości wchodzących na to samo zebranie naraz; nisko na tyle, żeby

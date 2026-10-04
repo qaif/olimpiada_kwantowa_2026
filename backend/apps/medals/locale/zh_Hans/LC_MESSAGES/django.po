@@ -1,0 +1,140 @@
+# Chinese (Simplified) – medale olimpiady międzynarodowej (docs/tasks/MED-01.md).
+# Zrodlem (msgid) jest polski. Katalog aplikacji apps.medals – Django scala go z backend/locale.
+#
+# UWAGA: tlumaczenie MASZYNOWE (model jezykowy). Przed szeroka komunikacja
+# do uczestnikow powinien je przejrzec native speaker - patrz docs/OPERACJE.md.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Olimpiada – medale\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-04 18:00+0200\n"
+"PO-Revision-Date: 2026-10-04 18:00+0200\n"
+"Last-Translator: Olimpiada Kwantowa\n"
+"Language-Team: Chinese (Simplified)\n"
+"Language: zh_Hans\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+msgid "złoty medal"
+msgstr "金牌"
+
+msgid "srebrny medal"
+msgstr "银牌"
+
+msgid "brązowy medal"
+msgstr "铜牌"
+
+msgid "wyróżnienie"
+msgstr "荣誉提名"
+
+msgid "bez nagrody"
+msgstr "无奖项"
+
+msgid "Złoty medal"
+msgstr "金牌"
+
+msgid "Srebrny medal"
+msgstr "银牌"
+
+msgid "Brązowy medal"
+msgstr "铜牌"
+
+msgid "Wyróżnienie"
+msgstr "荣誉提名"
+
+msgid "Zaświadczenie o udziale"
+msgstr "参赛证书"
+
+#, python-format
+msgid "za wybitny wynik w zawodach %(competition)s"
+msgstr "以表彰其在%(competition)s中的卓越表现"
+
+#, python-format
+msgid "za wyróżniający się wynik w zawodach %(competition)s"
+msgstr "以表彰其在%(competition)s中的优异表现"
+
+#, python-format
+msgid "za udział w zawodach %(competition)s"
+msgstr "以证明其参加了%(competition)s"
+
+#, python-format
+msgid "edycja %(edition)s"
+msgstr "届次：%(edition)s"
+
+msgid "Przewodniczący Komitetu Organizacyjnego"
+msgstr "组委会主席"
+
+#, python-format
+msgid "Numer dokumentu: %(number)s"
+msgstr "证书编号：%(number)s"
+
+#, python-format
+msgid "Kod weryfikacyjny: %(code)s"
+msgstr "验证码：%(code)s"
+
+#, python-format
+msgid "Data wystawienia: %(date)s"
+msgstr "颁发日期：%(date)s"
+
+#, python-format
+msgid "Weryfikacja: %(url)s"
+msgstr "验证：%(url)s"
+
+msgid "Medale"
+msgstr "奖牌"
+
+msgid "Ranking krajów"
+msgstr "国家排名"
+
+#, python-format
+msgid "Ogłoszone %(announced)s. Złoto, srebro i brąz przyznaje się z rankingu etapu; ten sam wynik zawsze daje tę samą nagrodę."
+msgstr "公布于 %(announced)s。金、银、铜牌根据本轮排名颁发；相同分数始终获得相同奖项。"
+
+msgid "Pełna tabela wyników"
+msgstr "完整成绩表"
+
+msgid "Wszystkie kraje"
+msgstr "所有国家"
+
+msgid "Pokaż"
+msgstr "显示"
+
+#, python-format
+msgid "%(name)s – uczestnicy: %(contestants)s, złoto: %(gold)s, srebro: %(silver)s, brąz: %(bronze)s, wyróżnienia: %(hm)s."
+msgstr "%(name)s – 参赛者：%(contestants)s，金牌：%(gold)s，银牌：%(silver)s，铜牌：%(bronze)s，荣誉提名：%(hm)s。"
+
+msgid "Lista obejmuje wyłącznie osoby, których kraj wolno pokazać przy wyniku."
+msgstr "列表仅包含可在成绩旁显示国家的参赛者。"
+
+msgid "Tabela medali"
+msgstr "奖牌榜"
+
+msgid "Nagroda"
+msgstr "奖项"
+
+msgid "decyzja komitetu"
+msgstr "委员会决定"
+
+msgid "Ranking nieoficjalny: olimpiada jest zawodami indywidualnymi. Tabela pokazuje wyłącznie sumy dla kraju – bez wyników poszczególnych uczestników."
+msgstr "非官方排名：本奥林匹克为个人赛。表格仅显示各国汇总，不含个人成绩。"
+
+msgid "Kolejność według sumy punktów"
+msgstr "按总分排序"
+
+msgid "Kolejność według medali"
+msgstr "按奖牌排序"
+
+msgid "Złoto"
+msgstr "金"
+
+msgid "Srebro"
+msgstr "银"
+
+msgid "Brąz"
+msgstr "铜"
+
+msgid "Wyróżnienia"
+msgstr "荣誉提名"

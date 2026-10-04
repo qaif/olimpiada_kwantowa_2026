@@ -1,0 +1,140 @@
+# French – medale olimpiady międzynarodowej (docs/tasks/MED-01.md).
+# Zrodlem (msgid) jest polski. Katalog aplikacji apps.medals – Django scala go z backend/locale.
+#
+# UWAGA: tlumaczenie MASZYNOWE (model jezykowy). Przed szeroka komunikacja
+# do uczestnikow powinien je przejrzec native speaker - patrz docs/OPERACJE.md.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Olimpiada – medale\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-04 18:00+0200\n"
+"PO-Revision-Date: 2026-10-04 18:00+0200\n"
+"Last-Translator: Olimpiada Kwantowa\n"
+"Language-Team: French\n"
+"Language: fr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+
+msgid "złoty medal"
+msgstr "médaille d'or"
+
+msgid "srebrny medal"
+msgstr "médaille d'argent"
+
+msgid "brązowy medal"
+msgstr "médaille de bronze"
+
+msgid "wyróżnienie"
+msgstr "mention honorable"
+
+msgid "bez nagrody"
+msgstr "sans distinction"
+
+msgid "Złoty medal"
+msgstr "Médaille d'or"
+
+msgid "Srebrny medal"
+msgstr "Médaille d'argent"
+
+msgid "Brązowy medal"
+msgstr "Médaille de bronze"
+
+msgid "Wyróżnienie"
+msgstr "Mention honorable"
+
+msgid "Zaświadczenie o udziale"
+msgstr "Attestation de participation"
+
+#, python-format
+msgid "za wybitny wynik w zawodach %(competition)s"
+msgstr "pour une performance remarquable lors de la compétition %(competition)s"
+
+#, python-format
+msgid "za wyróżniający się wynik w zawodach %(competition)s"
+msgstr "pour une performance méritoire lors de la compétition %(competition)s"
+
+#, python-format
+msgid "za udział w zawodach %(competition)s"
+msgstr "pour sa participation à la compétition %(competition)s"
+
+#, python-format
+msgid "edycja %(edition)s"
+msgstr "édition %(edition)s"
+
+msgid "Przewodniczący Komitetu Organizacyjnego"
+msgstr "Présidence du comité d'organisation"
+
+#, python-format
+msgid "Numer dokumentu: %(number)s"
+msgstr "Numéro du document : %(number)s"
+
+#, python-format
+msgid "Kod weryfikacyjny: %(code)s"
+msgstr "Code de vérification : %(code)s"
+
+#, python-format
+msgid "Data wystawienia: %(date)s"
+msgstr "Date de délivrance : %(date)s"
+
+#, python-format
+msgid "Weryfikacja: %(url)s"
+msgstr "Vérification : %(url)s"
+
+msgid "Medale"
+msgstr "Médailles"
+
+msgid "Ranking krajów"
+msgstr "Classement des pays"
+
+#, python-format
+msgid "Ogłoszone %(announced)s. Złoto, srebro i brąz przyznaje się z rankingu etapu; ten sam wynik zawsze daje tę samą nagrodę."
+msgstr "Annoncé le %(announced)s. L'or, l'argent et le bronze sont attribués d'après le classement de l'épreuve ; un même score donne toujours la même distinction."
+
+msgid "Pełna tabela wyników"
+msgstr "Tableau complet des résultats"
+
+msgid "Wszystkie kraje"
+msgstr "Tous les pays"
+
+msgid "Pokaż"
+msgstr "Afficher"
+
+#, python-format
+msgid "%(name)s – uczestnicy: %(contestants)s, złoto: %(gold)s, srebro: %(silver)s, brąz: %(bronze)s, wyróżnienia: %(hm)s."
+msgstr "%(name)s – participants : %(contestants)s, or : %(gold)s, argent : %(silver)s, bronze : %(bronze)s, mentions honorables : %(hm)s."
+
+msgid "Lista obejmuje wyłącznie osoby, których kraj wolno pokazać przy wyniku."
+msgstr "La liste ne comprend que les participants dont le pays peut être affiché à côté du résultat."
+
+msgid "Tabela medali"
+msgstr "Tableau des médailles"
+
+msgid "Nagroda"
+msgstr "Distinction"
+
+msgid "decyzja komitetu"
+msgstr "décision du comité"
+
+msgid "Ranking nieoficjalny: olimpiada jest zawodami indywidualnymi. Tabela pokazuje wyłącznie sumy dla kraju – bez wyników poszczególnych uczestników."
+msgstr "Classement non officiel : l'olympiade est une compétition individuelle. Le tableau ne montre que les totaux par pays, sans résultats individuels."
+
+msgid "Kolejność według sumy punktów"
+msgstr "Trier par total de points"
+
+msgid "Kolejność według medali"
+msgstr "Trier par médailles"
+
+msgid "Złoto"
+msgstr "Or"
+
+msgid "Srebro"
+msgstr "Argent"
+
+msgid "Brąz"
+msgstr "Bronze"
+
+msgid "Wyróżnienia"
+msgstr "Mentions honorables"

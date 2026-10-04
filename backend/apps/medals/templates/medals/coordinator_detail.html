@@ -1,0 +1,187 @@
+{% extends "web/coordinator/base.html" %}
+{% load static web_extras medals %}
+{% comment %}
+  Medale jednego etapu (MED-01): progi, podgląd z rankingu, ręczne zmiany z uzasadnieniem,
+  ogłoszenie (zamrożenie), dokumenty i eksport na galę. Każda czynność ma własny adres POST
+  (``apps.medals.urls``); logika w ``apps.medals.services``. Po ogłoszeniu tabela pokazuje
+  nagrody zamrożone, a formularze zmian znikają – zmiana wymaga odmrożenia z uzasadnieniem.
+{% endcomment %}
+{% block title %}Medale: {{ stage.display_name }} – panel koordynatora{% endblock %}
+{% block panel_head %}<link rel="stylesheet" href="{% static 'medals/medals.css' %}">{% endblock %}
+{% block panel_eyebrow %}<a href="{% url 'web:coordinator-medals' %}">Medale</a>{% endblock %}
+{% block panel_title %}Medale: {{ stage.display_name }}{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Edycja {{ stage.edition.year_label }}.
+    {% if scheme.is_frozen %}Medale ogłoszone {{ scheme.frozen_at|local_datetime }}.{% elif publication %}Wyniki opublikowane {{ publication.published_at|local_datetime }} – medale czekają na ogłoszenie.{% else %}Wyniki etapu nie są jeszcze opublikowane – podgląd liczy się z bieżących ocen.{% endif %}</p>
+  {% if republished %}
+    <p class="notice">Wyniki etapu opublikowano ponownie po ogłoszeniu medali. Medale zostały przy poprzedniej
+      tabeli – jeśli sumy się zmieniły, odmroź medale i ogłoś je jeszcze raz.</p>
+  {% endif %}
+{% endblock %}
+{% block panel_actions %}
+  {% if scheme.is_frozen %}
+    <a class="btn btn--secondary" href="{% url 'web:results-medals' stage.pk %}">Strona medali</a>
+    <a class="btn btn--secondary" href="{% url 'web:results-countries' stage.pk %}">Ranking krajów</a>
+    <a class="btn btn--secondary" href="{% url 'web:coordinator-medal-export-csv' stage.pk %}">Eksport CSV</a>
+    <a class="btn btn--secondary" href="{% url 'web:coordinator-medal-export-pdf' stage.pk %}">Lista na galę (PDF)</a>
+  {% endif %}
+{% endblock %}
+{% block panel_content %}
+
+<section class="section">
+  <div class="card">
+    <h2 class="mt-0">Progi i kryteria</h2>
+    {% if scheme.is_frozen %}
+      <p>Złoto {{ scheme.gold_percent|points }} %, srebro kolejne {{ scheme.silver_percent|points }} %, brąz kolejne
+        {{ scheme.bronze_percent|points }} % ({{ scheme.get_tie_policy_display }}).
+        Wyróżnienie: {% if scheme.hm_percent_of_best is not None %}≥ {{ scheme.hm_percent_of_best|points }} % najlepszego wyniku{% else %}bez progu procentowego{% endif %}{% if scheme.hm_full_solution %}, albo pełne rozwiązanie zadania{% endif %}.</p>
+    {% else %}
+      <form method="post" class="form" novalidate>
+        {% csrf_token %}
+        {{ form.as_p }}
+        <div class="actions">
+          <button type="submit" class="btn btn--primary">Zapisz progi</button>
+        </div>
+      </form>
+    {% endif %}
+  </div>
+</section>
+
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">{% if scheme.is_frozen %}Ogłoszone nagrody{% else %}Podgląd{% endif %}</h2>
+  </div>
+  <div class="scroll">
+    <table class="table">
+      <caption class="visually-hidden">Progi i liczności</caption>
+      <thead>
+        <tr>
+          <th scope="col">Nagroda</th>
+          <th scope="col">Pula (miejsc)</th>
+          <th scope="col">Próg punktowy</th>
+          <th scope="col">Wyliczono</th>
+          <th scope="col">Odsetek pola</th>
+          <th scope="col">Po zmianach ręcznych</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for value, label in medal_choices %}{% if value != "NONE" %}
+          <tr>
+            <th scope="row"><span class="{{ value|award_class }}">{{ label }}</span></th>
+            <td class="num">{{ thresholds.slots|dict_get:value|default:"—" }}</td>
+            <td class="num">{% if value == "HM" %}{% if thresholds.hm_cutoff is not None %}≥ {{ thresholds.hm_cutoff|points }}{% else %}—{% endif %}{% else %}{% with cut=thresholds.cutoffs|dict_get:value %}{% if cut is not None %}≥ {{ cut|points }}{% else %}—{% endif %}{% endwith %}{% endif %}</td>
+            <td class="num">{{ thresholds.counts|dict_get:value }}</td>
+            <td class="num">{% with share=shares|dict_get:value %}{% if share is not None %}{{ share|points }} %{% else %}—{% endif %}{% endwith %}</td>
+            <td class="num">{{ final_counts|dict_get:value }}</td>
+          </tr>
+        {% endif %}{% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <p class="hint">Pole: {{ thresholds.field_size }} uczestników (bez zdyskwalifikowanych){% if thresholds.best is not None %}, najlepszy wynik {{ thresholds.best|points }}{% endif %}.
+    Próg jest wartością sumy punktów – ten sam wynik zawsze daje tę samą nagrodę, także przy kryteriach rozstrzygania remisów.</p>
+</section>
+
+<section class="section">
+  <div class="card">
+    {% if scheme.is_frozen %}
+      <h2 class="mt-0">Dokumenty</h2>
+      <form method="post" action="{% url 'web:coordinator-medal-certificates' stage.pk %}" class="form" novalidate>
+        {% csrf_token %}
+        {{ issue_form.as_p }}
+        <p class="hint">Dyplomy medalowe dostają nagrodzeni; język dokumentu to język ucznia (zamrażany przy wystawieniu).
+          Ponowne „Wystaw” oddaje te same numery.</p>
+        <div class="actions">
+          <button type="submit" class="btn btn--primary">Wystaw dokumenty</button>
+          <a class="btn btn--secondary" href="{% url 'web:coordinator-medal-certificates-zip' stage.pk %}">Pobierz paczkę ZIP</a>
+        </div>
+      </form>
+      <h2>Odmrożenie</h2>
+      <form method="post" action="{% url 'web:coordinator-medal-unfreeze' stage.pk %}" class="form" novalidate>
+        {% csrf_token %}
+        {{ unfreeze_form.as_p }}
+        <div class="actions">
+          <button type="submit" class="btn btn--secondary">Odmroź medale</button>
+        </div>
+      </form>
+    {% else %}
+      <h2 class="mt-0">Ogłoszenie</h2>
+      <p>Ogłoszenie zamraża nagrody z ogłoszonego rankingu etapu i publikuje stronę medali oraz ranking krajów.
+        Wymaga opublikowanych wyników, a sumy punktów muszą być równe sumom z publikacji.</p>
+      <form method="post" action="{% url 'web:coordinator-medal-freeze' stage.pk %}" class="form" novalidate>
+        {% csrf_token %}
+        <div class="actions">
+          <button type="submit" class="btn btn--primary"{% if not publication %} disabled{% endif %}>Ogłoś medale</button>
+        </div>
+      </form>
+    {% endif %}
+  </div>
+</section>
+
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">Uczestnicy</h2>
+  </div>
+  <div class="scroll">
+    <table class="table table--rank">
+      <caption class="visually-hidden">Ranking etapu z nagrodami</caption>
+      <thead>
+        <tr>
+          <th scope="col">Miejsce</th>
+          <th scope="col">Kod</th>
+          <th scope="col">Uczestnik</th>
+          <th scope="col">Kraj</th>
+          <th scope="col">Suma</th>
+          <th scope="col">Wyliczona</th>
+          <th scope="col">Ostateczna</th>
+          <th scope="col">Zmiana ręczna</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in rows %}
+          <tr>
+            <td class="num">{{ item.row.rank }}</td>
+            <td><code>{{ item.row.public_code }}</code></td>
+            <td>{{ item.row.first_name }} {{ item.row.last_name }}{% if item.row.status == "DISQUALIFIED" %} <span class="badge badge--danger">zdyskwalifikowany</span>{% endif %}</td>
+            <td>{{ item.row.district }}</td>
+            <td class="num">{{ item.row.total|points }}</td>
+            <td>{% if item.computed != "NONE" %}<span class="{{ item.computed|award_class }}">{{ item.computed|award_label }}</span>{% else %}—{% endif %}</td>
+            <td>{% if item.final != "NONE" %}<span class="{{ item.final|award_class }}">{{ item.final|award_label }}</span>{% else %}—{% endif %}</td>
+            <td>
+              {% if item.override %}
+                <p class="hint">{{ item.override.get_award_display }}: {{ item.override.justification }}
+                  ({{ item.override.created_by.get_full_name|default:"—" }}, {{ item.override.updated_at|local_datetime }})</p>
+                {% if not scheme.is_frozen %}
+                  <form method="post" action="{% url 'web:coordinator-medal-override-remove' stage.pk item.row.entry_id %}" class="inline">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn--secondary btn--small">Usuń zmianę</button>
+                  </form>
+                {% endif %}
+              {% endif %}
+              {% if not scheme.is_frozen and item.row.status != "DISQUALIFIED" %}
+                <details>
+                  <summary>Zmień nagrodę</summary>
+                  <form method="post" action="{% url 'web:coordinator-medal-override' stage.pk %}" class="form" novalidate>
+                    {% csrf_token %}
+                    <input type="hidden" name="entry_id" value="{{ item.row.entry_id }}">
+                    <p><label for="award-{{ item.row.entry_id }}">Nagroda</label>
+                      <select name="award" id="award-{{ item.row.entry_id }}">
+                        {% for value, label in medal_choices %}<option value="{{ value }}"{% if value == item.final %} selected{% endif %}>{{ label }}</option>{% endfor %}
+                      </select></p>
+                    <p><label for="justification-{{ item.row.entry_id }}">Uzasadnienie</label>
+                      <textarea name="justification" id="justification-{{ item.row.entry_id }}" rows="2" maxlength="2000" required></textarea></p>
+                    <p class="hint">Bez danych osobowych – wpis widzą wszyscy koordynatorzy.</p>
+                    <button type="submit" class="btn btn--primary btn--small">Zapisz zmianę</button>
+                  </form>
+                </details>
+              {% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="8" class="empty">Etap nie ma jeszcze żadnych wpisów.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

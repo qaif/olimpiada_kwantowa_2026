@@ -1,0 +1,140 @@
+# Spanish – medale olimpiady międzynarodowej (docs/tasks/MED-01.md).
+# Zrodlem (msgid) jest polski. Katalog aplikacji apps.medals – Django scala go z backend/locale.
+#
+# UWAGA: tlumaczenie MASZYNOWE (model jezykowy). Przed szeroka komunikacja
+# do uczestnikow powinien je przejrzec native speaker - patrz docs/OPERACJE.md.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Olimpiada – medale\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-04 18:00+0200\n"
+"PO-Revision-Date: 2026-10-04 18:00+0200\n"
+"Last-Translator: Olimpiada Kwantowa\n"
+"Language-Team: Spanish\n"
+"Language: es\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "złoty medal"
+msgstr "medalla de oro"
+
+msgid "srebrny medal"
+msgstr "medalla de plata"
+
+msgid "brązowy medal"
+msgstr "medalla de bronce"
+
+msgid "wyróżnienie"
+msgstr "mención honorífica"
+
+msgid "bez nagrody"
+msgstr "sin premio"
+
+msgid "Złoty medal"
+msgstr "Medalla de oro"
+
+msgid "Srebrny medal"
+msgstr "Medalla de plata"
+
+msgid "Brązowy medal"
+msgstr "Medalla de bronce"
+
+msgid "Wyróżnienie"
+msgstr "Mención honorífica"
+
+msgid "Zaświadczenie o udziale"
+msgstr "Certificado de participación"
+
+#, python-format
+msgid "za wybitny wynik w zawodach %(competition)s"
+msgstr "por su destacado desempeño en la competición %(competition)s"
+
+#, python-format
+msgid "za wyróżniający się wynik w zawodach %(competition)s"
+msgstr "por su meritorio desempeño en la competición %(competition)s"
+
+#, python-format
+msgid "za udział w zawodach %(competition)s"
+msgstr "por su participación en la competición %(competition)s"
+
+#, python-format
+msgid "edycja %(edition)s"
+msgstr "edición %(edition)s"
+
+msgid "Przewodniczący Komitetu Organizacyjnego"
+msgstr "Presidencia del Comité Organizador"
+
+#, python-format
+msgid "Numer dokumentu: %(number)s"
+msgstr "Número de documento: %(number)s"
+
+#, python-format
+msgid "Kod weryfikacyjny: %(code)s"
+msgstr "Código de verificación: %(code)s"
+
+#, python-format
+msgid "Data wystawienia: %(date)s"
+msgstr "Fecha de emisión: %(date)s"
+
+#, python-format
+msgid "Weryfikacja: %(url)s"
+msgstr "Verificación: %(url)s"
+
+msgid "Medale"
+msgstr "Medallas"
+
+msgid "Ranking krajów"
+msgstr "Clasificación por países"
+
+#, python-format
+msgid "Ogłoszone %(announced)s. Złoto, srebro i brąz przyznaje się z rankingu etapu; ten sam wynik zawsze daje tę samą nagrodę."
+msgstr "Publicado el %(announced)s. El oro, la plata y el bronce se otorgan según la clasificación de la fase; la misma puntuación siempre recibe el mismo premio."
+
+msgid "Pełna tabela wyników"
+msgstr "Tabla completa de resultados"
+
+msgid "Wszystkie kraje"
+msgstr "Todos los países"
+
+msgid "Pokaż"
+msgstr "Mostrar"
+
+#, python-format
+msgid "%(name)s – uczestnicy: %(contestants)s, złoto: %(gold)s, srebro: %(silver)s, brąz: %(bronze)s, wyróżnienia: %(hm)s."
+msgstr "%(name)s – participantes: %(contestants)s, oro: %(gold)s, plata: %(silver)s, bronce: %(bronze)s, menciones honoríficas: %(hm)s."
+
+msgid "Lista obejmuje wyłącznie osoby, których kraj wolno pokazać przy wyniku."
+msgstr "La lista incluye solo a los participantes cuyo país puede mostrarse junto a su resultado."
+
+msgid "Tabela medali"
+msgstr "Medallero"
+
+msgid "Nagroda"
+msgstr "Premio"
+
+msgid "decyzja komitetu"
+msgstr "decisión del comité"
+
+msgid "Ranking nieoficjalny: olimpiada jest zawodami indywidualnymi. Tabela pokazuje wyłącznie sumy dla kraju – bez wyników poszczególnych uczestników."
+msgstr "Clasificación no oficial: la olimpiada es una competición individual. La tabla muestra solo los totales por país, sin resultados individuales."
+
+msgid "Kolejność według sumy punktów"
+msgstr "Ordenar por puntuación total"
+
+msgid "Kolejność według medali"
+msgstr "Ordenar por medallas"
+
+msgid "Złoto"
+msgstr "Oro"
+
+msgid "Srebro"
+msgstr "Plata"
+
+msgid "Brąz"
+msgstr "Bronce"
+
+msgid "Wyróżnienia"
+msgstr "Menciones honoríficas"
