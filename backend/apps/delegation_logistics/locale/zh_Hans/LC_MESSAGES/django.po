@@ -1,0 +1,591 @@
+# Logistyka finału (LOG-01) – katalog aplikacji apps.delegation_logistics.
+# Tłumaczenia maszynowe (do przeglądu native speakerów), jak w katalogu głównym (I18N-01 § 8).
+msgid ""
+msgstr ""
+"Project-Id-Version: olimpiada\n"
+"Language: zh_Hans\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+#: forms.py
+msgid "Imię i nazwisko dokładnie jak w paszporcie"
+msgstr "护照上的完整姓名（须完全一致）"
+
+#: forms.py
+msgid "Obywatelstwo (dwuliterowy kod kraju, np. DE)"
+msgstr "国籍（两位国家代码，例如 DE）"
+
+#: forms.py
+msgid "Data urodzenia"
+msgstr "出生日期"
+
+#: forms.py
+msgid "Numer paszportu"
+msgstr "护照号码"
+
+#: forms.py
+msgid "Paszport ważny do"
+msgstr "护照有效期至"
+
+#: forms.py
+msgid "Dzień przyjazdu"
+msgstr "抵达日期"
+
+#: forms.py
+msgid "Godzina przyjazdu (czas lokalny)"
+msgstr "抵达时间（当地时间）"
+
+#: forms.py
+msgid "Środek transportu"
+msgstr "交通方式"
+
+#: forms.py
+msgid "Numer lotu / pociągu"
+msgstr "航班号 / 车次"
+
+#: forms.py
+msgid "Lotnisko / dworzec przyjazdu"
+msgstr "抵达机场 / 车站"
+
+#: forms.py
+msgid "Dzień wyjazdu"
+msgstr "离开日期"
+
+#: forms.py
+msgid "Godzina wyjazdu (czas lokalny)"
+msgstr "离开时间（当地时间）"
+
+#: forms.py
+msgid "Środek transportu (wyjazd)"
+msgstr "交通方式（离开）"
+
+#: forms.py
+msgid "Numer lotu / pociągu (wyjazd)"
+msgstr "航班号 / 车次（离开）"
+
+#: forms.py
+msgid "Lotnisko / dworzec wyjazdu"
+msgstr "离开机场 / 车站"
+
+#: forms.py
+msgid "Potrzebuje noclegu"
+msgstr "需要住宿"
+
+#: forms.py
+msgid "Płeć (wyłącznie do przydziału pokoi)"
+msgstr "性别（仅用于分配房间）"
+
+#: forms.py
+msgid "Preferowany współlokator (imię i nazwisko)"
+msgstr "希望同住的室友（姓名）"
+
+#: forms.py
+msgid "Uwagi do zakwaterowania (bez informacji o zdrowiu)"
+msgstr "住宿备注（请勿填写健康信息）"
+
+#: forms.py
+msgid "Dieta"
+msgstr "饮食"
+
+#: forms.py
+msgid "Uwagi do diety"
+msgstr "饮食备注"
+
+#: forms.py
+msgid "Alergie (pokarmowe i inne istotne)"
+msgstr "过敏（食物及其他相关过敏）"
+
+#: forms.py
+msgid "Informacje medyczne potrzebne na miejscu (np. stałe leki, postępowanie w nagłym wypadku)"
+msgstr "现场需要的医疗信息（例如常用药物、紧急情况处理方式）"
+
+#: forms.py
+msgid "Rozmiar koszulki"
+msgstr "T恤尺码"
+
+#: forms.py
+msgid "Kontakt alarmowy – imię i nazwisko"
+msgstr "紧急联系人 – 姓名"
+
+#: forms.py
+msgid "Kontakt alarmowy – telefon (z numerem kierunkowym kraju)"
+msgstr "紧急联系人 – 电话（含国家区号）"
+
+#: forms.py
+msgid "Potwierdzam, że ta osoba – a jeśli jest niepełnoletnia, jej rodzic lub opiekun prawny – wyraziła wyraźną zgodę na przetwarzanie podanych danych o diecie i zdrowiu przez organizatora wyłącznie w celu zapewnienia jej bezpieczeństwa i wyżywienia podczas finału. Dane zostaną usunięte po zakończeniu finału; zgodę można w każdej chwili wycofać."
+msgstr "我确认此人（如为未成年人，则其父母或法定监护人）已明确同意主办方处理所提供的饮食和健康信息，仅用于保障其在决赛期间的安全和餐饮。决赛结束后数据将被删除；可随时撤回同意。"
+
+#: forms.py
+msgid "Imię"
+msgstr "名"
+
+#: forms.py
+msgid "Nazwisko"
+msgstr "姓"
+
+#: forms.py
+msgid "Adres e-mail (opcjonalnie)"
+msgstr "电子邮箱（可选）"
+
+#: forms.py
+msgid "Rola w delegacji"
+msgstr "在代表团中的角色"
+
+#: forms.py
+msgid "Zdjęcie do identyfikatora (JPG lub PNG, do 5 MB, twarz na wprost)"
+msgstr "胸牌照片（JPG 或 PNG，最大 5 MB，正面免冠）"
+
+#: models.py
+msgid "Dokument podróży"
+msgstr "旅行证件"
+
+#: models.py
+msgid "Przyjazd i wyjazd"
+msgstr "抵达与离开"
+
+#: models.py
+msgid "Zakwaterowanie"
+msgstr "住宿"
+
+#: models.py
+msgid "Wyżywienie i zdrowie"
+msgstr "餐饮与健康"
+
+#: models.py
+msgid "Identyfikator i kontakt alarmowy"
+msgstr "胸牌与紧急联系人"
+
+#: models.py
+msgid "Uczeń"
+msgstr "学生"
+
+#: models.py
+msgid "Opiekun drużyny"
+msgstr "领队"
+
+#: models.py
+msgid "Gość"
+msgstr "嘉宾"
+
+#: models.py
+msgid "Obserwator"
+msgstr "观察员"
+
+#: models.py
+msgid "Samolot"
+msgstr "飞机"
+
+#: models.py
+msgid "Pociąg"
+msgstr "火车"
+
+#: models.py
+msgid "Autobus"
+msgstr "大巴"
+
+#: models.py
+msgid "Samochód"
+msgstr "汽车"
+
+#: models.py
+msgid "Inny"
+msgstr "其他"
+
+#: models.py
+msgid "Kobieta"
+msgstr "女"
+
+#: models.py
+msgid "Mężczyzna"
+msgstr "男"
+
+#: models.py
+msgid "Inna / wolę nie podawać"
+msgstr "其他 / 不愿透露"
+
+#: models.py
+msgid "Bez ograniczeń"
+msgstr "无限制"
+
+#: models.py
+msgid "Wegetariańska"
+msgstr "素食"
+
+#: models.py
+msgid "Wegańska"
+msgstr "纯素"
+
+#: models.py
+msgid "Halal"
+msgstr "清真"
+
+#: models.py
+msgid "Koszerna"
+msgstr "犹太洁食"
+
+#: models.py
+msgid "Bezglutenowa"
+msgstr "无麸质"
+
+#: models.py
+msgid "Inna (opis w uwagach)"
+msgstr "其他（请在备注中说明）"
+
+#: services.py
+#, python-format
+msgid "Termin na uzupełnienie sekcji „%(group)s” minął – zmiany wprowadza już tylko organizator."
+msgstr "“%(group)s”部分的截止时间已过——现在只有主办方可以修改。"
+
+#: services.py
+msgid "Obywatelstwo podaj dwuliterowym kodem kraju (np. DE, PL)."
+msgstr "请用两位国家代码填写国籍（例如 DE、PL）。"
+
+#: services.py
+msgid "Niepoprawna data."
+msgstr "日期无效。"
+
+#: services.py
+msgid "Paszport traci ważność przed końcem finału – podaj dokument ważny w czasie pobytu."
+msgstr "护照在决赛结束前到期——请提供在停留期间有效的证件。"
+
+#: services.py
+msgid "Wyjazd nie może być przed przyjazdem."
+msgstr "离开日期不能早于抵达日期。"
+
+#: services.py
+msgid "Dane o wyżywieniu i zdrowiu zapiszemy dopiero po zaznaczeniu zgody osoby (albo jej rodzica, jeśli jest niepełnoletnia) na ich przetwarzanie."
+msgstr "只有勾选此人（如为未成年人，则其父母）同意处理这些信息后，才能保存餐饮和健康信息。"
+
+#: services.py templates/delegation_logistics/leader_dashboard.html
+msgid "Finał się zakończył, a dane delegacji zostały usunięte."
+msgstr "决赛已结束，代表团数据已被删除。"
+
+#: services.py
+msgid "Wybierz rolę z listy."
+msgstr "请从列表中选择角色。"
+
+#: services.py
+msgid "Podaj imię i nazwisko."
+msgstr "请填写姓名。"
+
+#: services.py
+#, python-format
+msgid "Delegacja może mieć najwyżej %(count)s gości."
+msgstr "每个代表团最多可有 %(count)s 位嘉宾。"
+
+#: services.py
+msgid "Zdjęcie musi być plikiem JPG albo PNG."
+msgstr "照片必须是 JPG 或 PNG 文件。"
+
+#: services.py
+msgid "Plik jest pusty."
+msgstr "文件为空。"
+
+#: services.py
+msgid "Zdjęcie może mieć najwyżej 5 MB."
+msgstr "照片最大为 5 MB。"
+
+#: templates/delegation_logistics/_member_form.html
+#, python-format
+msgid "Termin: %(deadline)s"
+msgstr "截止时间：%(deadline)s"
+
+#: templates/delegation_logistics/_member_form.html
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "zamknięte"
+msgstr "已关闭"
+
+#: templates/delegation_logistics/_member_form.html
+#, python-format
+msgid "Zgoda na przetwarzanie danych o wyżywieniu i zdrowiu złożona %(date)s."
+msgstr "已于 %(date)s 同意处理餐饮和健康信息。"
+
+#: templates/delegation_logistics/_member_form.html
+#: templates/delegation_logistics/leader_member.html
+msgid "Zapisz"
+msgstr "保存"
+
+#: templates/delegation_logistics/_member_form.html
+msgid "Anuluj"
+msgstr "取消"
+
+#: templates/delegation_logistics/checkin.html
+#: templates/delegation_logistics/checkin_member.html
+msgid "Rejestracja uczestników finału"
+msgstr "决赛签到"
+
+#: templates/delegation_logistics/checkin.html
+msgid "Zeskanuj kod QR z identyfikatora aparatem telefonu albo wyszukaj osobę po nazwisku."
+msgstr "用手机相机扫描胸牌上的二维码，或按姓名搜索。"
+
+#: templates/delegation_logistics/checkin.html
+msgid "Punkt kontroli"
+msgstr "签到点"
+
+#: templates/delegation_logistics/checkin.html
+msgid "Imię, nazwisko lub kraj"
+msgstr "姓名或国家"
+
+#: templates/delegation_logistics/checkin.html
+msgid "Szukaj"
+msgstr "搜索"
+
+#: templates/delegation_logistics/checkin.html
+#: templates/delegation_logistics/checkin_member.html
+msgid "Organizator nie dodał jeszcze punktów kontroli."
+msgstr "主办方尚未添加签到点。"
+
+#: templates/delegation_logistics/checkin.html
+msgid "Skieruj aparat na kod QR."
+msgstr "将相机对准二维码。"
+
+#: templates/delegation_logistics/checkin.html
+msgid "Skanuj w przeglądarce"
+msgstr "在浏览器中扫描"
+
+#: templates/delegation_logistics/checkin.html
+msgid "Nikogo nie znaleziono."
+msgstr "未找到任何人。"
+
+#: templates/delegation_logistics/checkin_member.html
+msgid "niepełnoletni"
+msgstr "未成年"
+
+#: templates/delegation_logistics/checkin_member.html
+#: templates/delegation_logistics/leader_member.html
+msgid "Zdjęcie"
+msgstr "照片"
+
+#: templates/delegation_logistics/checkin_member.html
+msgid "Brak zdjęcia – sprawdź tożsamość dokumentem."
+msgstr "没有照片——请核对证件确认身份。"
+
+#: templates/delegation_logistics/checkin_member.html
+#, python-format
+msgid "Odhaczono w punkcie „%(point)s” o %(time)s."
+msgstr "已于 %(time)s 在“%(point)s”签到。"
+
+#: templates/delegation_logistics/checkin_member.html
+#, python-format
+msgid "Odhacz: %(point)s"
+msgstr "签到：%(point)s"
+
+#: templates/delegation_logistics/checkin_member.html
+msgid "Cofnij"
+msgstr "撤销"
+
+#: templates/delegation_logistics/checkin_unknown.html
+msgid "Nieznany identyfikator"
+msgstr "未知胸牌"
+
+#: templates/delegation_logistics/checkin_unknown.html
+msgid "Ten kod nie należy do żadnej osoby finału – identyfikator mógł zostać unieważniony. Wyszukaj osobę po nazwisku."
+msgstr "此代码不属于决赛的任何人——胸牌可能已作废。请按姓名搜索。"
+
+#: templates/delegation_logistics/checkin_unknown.html
+msgid "Wróć do skanowania"
+msgstr "返回扫描"
+
+#: templates/delegation_logistics/email/reminder_body.txt
+#, python-format
+msgid "Dzień dobry %(name)s,"
+msgstr "%(name)s，您好："
+
+#: templates/delegation_logistics/email/reminder_body.txt
+#, python-format
+msgid "w danych delegacji %(country)s na finał wciąż brakuje informacji:"
+msgstr "%(country)s 代表团的决赛资料仍缺少以下信息："
+
+#: templates/delegation_logistics/email/reminder_body.txt
+msgid "Terminy:"
+msgstr "截止时间："
+
+#: templates/delegation_logistics/email/reminder_body.txt
+msgid "Uzupełnij dane w panelu opiekuna drużyny:"
+msgstr "请在领队面板中补全资料："
+
+#: templates/delegation_logistics/email/reminder_body.txt
+msgid "Po terminie sekcja zostaje zamknięta i zmiany wprowadza już tylko organizator."
+msgstr "截止时间过后该部分将被锁定，只有主办方可以修改。"
+
+#: templates/delegation_logistics/email/reminder_body.txt
+#: templates/delegation_logistics/email/reminder_subject.txt
+msgid "Olimpiada Kwantowa"
+msgstr "量子奥林匹克"
+
+#: templates/delegation_logistics/email/reminder_body.txt
+msgid "Wiadomość wysłana automatycznie; prosimy na nią nie odpowiadać."
+msgstr "此邮件为系统自动发送，请勿回复。"
+
+#: templates/delegation_logistics/email/reminder_subject.txt
+#, python-format
+msgid "Brakujące dane do logistyki finału – %(competition)s"
+msgstr "决赛后勤资料缺失 – %(competition)s"
+
+#: templates/delegation_logistics/leader_dashboard.html
+#: templates/delegation_logistics/leader_member.html
+msgid "Logistyka finału"
+msgstr "决赛后勤"
+
+#: templates/delegation_logistics/leader_dashboard.html
+#, python-format
+msgid "Drużyna: %(country)s"
+msgstr "代表队：%(country)s"
+
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "Uzupełnij dane każdej osoby z delegacji: dokument podróży (do zaproszenia wizowego), przyjazd i wyjazd, zakwaterowanie, rozmiar koszulki, kontakt alarmowy i zdjęcie do identyfikatora. Po terminie sekcja zostaje zamknięta – zmiany wprowadza wtedy organizator."
+msgstr "请补全代表团每位成员的资料：旅行证件（用于签证邀请函）、抵达与离开、住宿、T恤尺码、紧急联系人和胸牌照片。截止时间过后该部分将被锁定，之后由主办方修改。"
+
+#: templates/delegation_logistics/leader_dashboard.html
+#, python-format
+msgid "Miejsce: %(city)s, %(start)s – %(end)s."
+msgstr "地点：%(city)s，%(start)s – %(end)s。"
+
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "Terminy"
+msgstr "截止时间"
+
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "bez terminu"
+msgstr "无截止时间"
+
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "Osoby w delegacji"
+msgstr "代表团成员"
+
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "Imię i nazwisko"
+msgstr "姓名"
+
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "Rola"
+msgstr "角色"
+
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "Brakuje"
+msgstr "缺少"
+
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "Operacje"
+msgstr "操作"
+
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "komplet"
+msgstr "完整"
+
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "Uzupełnij"
+msgstr "补全"
+
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "Delegacja nie ma jeszcze członków."
+msgstr "代表团尚无成员。"
+
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "Dodaj obserwatora lub gościa"
+msgstr "添加观察员或嘉宾"
+
+#: templates/delegation_logistics/leader_dashboard.html
+#, python-format
+msgid "Osoby bez konta, które przyjeżdżają z delegacją (%(count)s z %(limit)s). Uczniów i opiekunów dodaje się na liście drużyny."
+msgstr "随代表团同行但没有账户的人员（%(count)s / %(limit)s）。学生和领队请在队伍名单中添加。"
+
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "Dodaj"
+msgstr "添加"
+
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "Listy zapraszające (wiza)"
+msgstr "邀请函（签证）"
+
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "Listy wystawia organizator na podstawie danych dokumentu podróży."
+msgstr "邀请函由主办方根据旅行证件资料出具。"
+
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "Brak wystawionych listów."
+msgstr "尚未出具邀请函。"
+
+#: templates/delegation_logistics/leader_member.html
+msgid "Dane widzą wyłącznie opiekunowie Twojej drużyny i organizator odpowiedzialny za logistykę. Zostaną usunięte po zakończeniu finału."
+msgstr "这些资料仅对您队伍的领队和负责后勤的主办方可见，决赛结束后将被删除。"
+
+#: templates/delegation_logistics/leader_member.html
+msgid "Wycofaj zgodę i usuń dane o zdrowiu"
+msgstr "撤回同意并删除健康信息"
+
+#: templates/delegation_logistics/leader_member.html
+msgid "Zdjęcie do identyfikatora"
+msgstr "胸牌照片"
+
+#: templates/delegation_logistics/leader_member.html
+msgid "Zdjęcie jest sprawdzane – pojawi się za chwilę."
+msgstr "照片正在检查中——稍后显示。"
+
+#: templates/delegation_logistics/leader_member.html
+msgid "Poprzedni plik został odrzucony przy sprawdzaniu – wgraj zdjęcie ponownie."
+msgstr "之前的文件未通过检查——请重新上传照片。"
+
+#: templates/delegation_logistics/leader_member.html
+msgid "Brak zdjęcia."
+msgstr "没有照片。"
+
+#: templates/delegation_logistics/leader_member.html
+msgid "Wgraj zdjęcie"
+msgstr "上传照片"
+
+#: templates/delegation_logistics/leader_member.html
+msgid "Dane gościa"
+msgstr "嘉宾信息"
+
+#: templates/delegation_logistics/leader_member.html
+msgid "Usuń z delegacji"
+msgstr "从代表团中移除"
+
+#: views.py
+msgid "Podaj imię, nazwisko i rolę gościa."
+msgstr "请填写嘉宾的姓名和角色。"
+
+#: views.py
+msgid "Dodano osobę do delegacji – uzupełnij jej dane."
+msgstr "已将此人加入代表团——请补全其资料。"
+
+#: views.py
+#, python-format
+msgid "Zapisano dane: %(name)s."
+msgstr "已保存资料：%(name)s。"
+
+#: views.py
+msgid "Wybierz plik ze zdjęciem."
+msgstr "请选择照片文件。"
+
+#: views.py
+msgid "Zdjęcie przesłane – pojawi się po automatycznym sprawdzeniu pliku."
+msgstr "照片已上传——文件自动检查后将显示。"
+
+#: views.py
+msgid "Zapisano."
+msgstr "已保存。"
+
+#: views.py
+msgid "Usunięto osobę z delegacji razem z jej danymi."
+msgstr "已将此人及其资料从代表团中移除。"
+
+#: views.py
+msgid "Zgoda wycofana – dane o wyżywieniu i zdrowiu tej osoby zostały usunięte."
+msgstr "已撤回同意——此人的餐饮和健康信息已删除。"
+
+#: views.py
+msgid "Ten ekran jest dostępny wyłącznie dla obsługi rejestracji finału."
+msgstr "此页面仅供决赛签到工作人员使用。"
+
+#: views.py
+msgid "Cofnięto odhaczenie."
+msgstr "已撤销签到。"
+
+#: views.py
+#, python-format
+msgid "Odhaczono: %(name)s."
+msgstr "已签到：%(name)s。"

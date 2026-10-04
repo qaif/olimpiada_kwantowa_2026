@@ -1,0 +1,591 @@
+# Logistyka finału (LOG-01) – katalog aplikacji apps.delegation_logistics.
+# Tłumaczenia maszynowe (do przeglądu native speakerów), jak w katalogu głównym (I18N-01 § 8).
+msgid ""
+msgstr ""
+"Project-Id-Version: olimpiada\n"
+"Language: id\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+#: forms.py
+msgid "Imię i nazwisko dokładnie jak w paszporcie"
+msgstr "Nama lengkap persis seperti di paspor"
+
+#: forms.py
+msgid "Obywatelstwo (dwuliterowy kod kraju, np. DE)"
+msgstr "Kewarganegaraan (kode negara dua huruf, mis. DE)"
+
+#: forms.py
+msgid "Data urodzenia"
+msgstr "Tanggal lahir"
+
+#: forms.py
+msgid "Numer paszportu"
+msgstr "Nomor paspor"
+
+#: forms.py
+msgid "Paszport ważny do"
+msgstr "Paspor berlaku hingga"
+
+#: forms.py
+msgid "Dzień przyjazdu"
+msgstr "Tanggal kedatangan"
+
+#: forms.py
+msgid "Godzina przyjazdu (czas lokalny)"
+msgstr "Waktu kedatangan (waktu setempat)"
+
+#: forms.py
+msgid "Środek transportu"
+msgstr "Moda transportasi"
+
+#: forms.py
+msgid "Numer lotu / pociągu"
+msgstr "Nomor penerbangan / kereta"
+
+#: forms.py
+msgid "Lotnisko / dworzec przyjazdu"
+msgstr "Bandara / stasiun kedatangan"
+
+#: forms.py
+msgid "Dzień wyjazdu"
+msgstr "Tanggal keberangkatan"
+
+#: forms.py
+msgid "Godzina wyjazdu (czas lokalny)"
+msgstr "Waktu keberangkatan (waktu setempat)"
+
+#: forms.py
+msgid "Środek transportu (wyjazd)"
+msgstr "Moda transportasi (keberangkatan)"
+
+#: forms.py
+msgid "Numer lotu / pociągu (wyjazd)"
+msgstr "Nomor penerbangan / kereta (keberangkatan)"
+
+#: forms.py
+msgid "Lotnisko / dworzec wyjazdu"
+msgstr "Bandara / stasiun keberangkatan"
+
+#: forms.py
+msgid "Potrzebuje noclegu"
+msgstr "Membutuhkan akomodasi"
+
+#: forms.py
+msgid "Płeć (wyłącznie do przydziału pokoi)"
+msgstr "Jenis kelamin (hanya untuk pembagian kamar)"
+
+#: forms.py
+msgid "Preferowany współlokator (imię i nazwisko)"
+msgstr "Teman sekamar yang diinginkan (nama lengkap)"
+
+#: forms.py
+msgid "Uwagi do zakwaterowania (bez informacji o zdrowiu)"
+msgstr "Catatan akomodasi (tanpa informasi kesehatan)"
+
+#: forms.py
+msgid "Dieta"
+msgstr "Diet"
+
+#: forms.py
+msgid "Uwagi do diety"
+msgstr "Catatan diet"
+
+#: forms.py
+msgid "Alergie (pokarmowe i inne istotne)"
+msgstr "Alergi (makanan dan lainnya yang penting)"
+
+#: forms.py
+msgid "Informacje medyczne potrzebne na miejscu (np. stałe leki, postępowanie w nagłym wypadku)"
+msgstr "Informasi medis yang diperlukan di lokasi (mis. obat rutin, tindakan saat keadaan darurat)"
+
+#: forms.py
+msgid "Rozmiar koszulki"
+msgstr "Ukuran kaus"
+
+#: forms.py
+msgid "Kontakt alarmowy – imię i nazwisko"
+msgstr "Kontak darurat – nama lengkap"
+
+#: forms.py
+msgid "Kontakt alarmowy – telefon (z numerem kierunkowym kraju)"
+msgstr "Kontak darurat – telepon (dengan kode negara)"
+
+#: forms.py
+msgid "Potwierdzam, że ta osoba – a jeśli jest niepełnoletnia, jej rodzic lub opiekun prawny – wyraziła wyraźną zgodę na przetwarzanie podanych danych o diecie i zdrowiu przez organizatora wyłącznie w celu zapewnienia jej bezpieczeństwa i wyżywienia podczas finału. Dane zostaną usunięte po zakończeniu finału; zgodę można w każdej chwili wycofać."
+msgstr "Saya menyatakan bahwa orang ini – atau, jika masih di bawah umur, orang tua atau wali sahnya – telah memberikan persetujuan tegas kepada penyelenggara untuk memproses data diet dan kesehatan yang diberikan, semata-mata untuk menjamin keselamatan dan konsumsinya selama final. Data akan dihapus setelah final; persetujuan dapat ditarik kapan saja."
+
+#: forms.py
+msgid "Imię"
+msgstr "Nama depan"
+
+#: forms.py
+msgid "Nazwisko"
+msgstr "Nama belakang"
+
+#: forms.py
+msgid "Adres e-mail (opcjonalnie)"
+msgstr "Alamat email (opsional)"
+
+#: forms.py
+msgid "Rola w delegacji"
+msgstr "Peran dalam delegasi"
+
+#: forms.py
+msgid "Zdjęcie do identyfikatora (JPG lub PNG, do 5 MB, twarz na wprost)"
+msgstr "Foto untuk tanda pengenal (JPG atau PNG, maks. 5 MB, wajah menghadap depan)"
+
+#: models.py
+msgid "Dokument podróży"
+msgstr "Dokumen perjalanan"
+
+#: models.py
+msgid "Przyjazd i wyjazd"
+msgstr "Kedatangan dan keberangkatan"
+
+#: models.py
+msgid "Zakwaterowanie"
+msgstr "Akomodasi"
+
+#: models.py
+msgid "Wyżywienie i zdrowie"
+msgstr "Konsumsi dan kesehatan"
+
+#: models.py
+msgid "Identyfikator i kontakt alarmowy"
+msgstr "Tanda pengenal dan kontak darurat"
+
+#: models.py
+msgid "Uczeń"
+msgstr "Siswa"
+
+#: models.py
+msgid "Opiekun drużyny"
+msgstr "Pemimpin tim"
+
+#: models.py
+msgid "Gość"
+msgstr "Tamu"
+
+#: models.py
+msgid "Obserwator"
+msgstr "Pengamat"
+
+#: models.py
+msgid "Samolot"
+msgstr "Pesawat"
+
+#: models.py
+msgid "Pociąg"
+msgstr "Kereta"
+
+#: models.py
+msgid "Autobus"
+msgstr "Bus"
+
+#: models.py
+msgid "Samochód"
+msgstr "Mobil"
+
+#: models.py
+msgid "Inny"
+msgstr "Lainnya"
+
+#: models.py
+msgid "Kobieta"
+msgstr "Perempuan"
+
+#: models.py
+msgid "Mężczyzna"
+msgstr "Laki-laki"
+
+#: models.py
+msgid "Inna / wolę nie podawać"
+msgstr "Lainnya / memilih tidak menyebutkan"
+
+#: models.py
+msgid "Bez ograniczeń"
+msgstr "Tanpa batasan"
+
+#: models.py
+msgid "Wegetariańska"
+msgstr "Vegetarian"
+
+#: models.py
+msgid "Wegańska"
+msgstr "Vegan"
+
+#: models.py
+msgid "Halal"
+msgstr "Halal"
+
+#: models.py
+msgid "Koszerna"
+msgstr "Kosher"
+
+#: models.py
+msgid "Bezglutenowa"
+msgstr "Bebas gluten"
+
+#: models.py
+msgid "Inna (opis w uwagach)"
+msgstr "Lainnya (jelaskan di catatan)"
+
+#: services.py
+#, python-format
+msgid "Termin na uzupełnienie sekcji „%(group)s” minął – zmiany wprowadza już tylko organizator."
+msgstr "Batas waktu bagian “%(group)s” telah lewat – sekarang hanya penyelenggara yang dapat mengubahnya."
+
+#: services.py
+msgid "Obywatelstwo podaj dwuliterowym kodem kraju (np. DE, PL)."
+msgstr "Isi kewarganegaraan dengan kode negara dua huruf (mis. DE, PL)."
+
+#: services.py
+msgid "Niepoprawna data."
+msgstr "Tanggal tidak valid."
+
+#: services.py
+msgid "Paszport traci ważność przed końcem finału – podaj dokument ważny w czasie pobytu."
+msgstr "Paspor habis masa berlakunya sebelum final berakhir – berikan dokumen yang berlaku selama masa tinggal."
+
+#: services.py
+msgid "Wyjazd nie może być przed przyjazdem."
+msgstr "Waktu keberangkatan tidak boleh sebelum waktu kedatangan."
+
+#: services.py
+msgid "Dane o wyżywieniu i zdrowiu zapiszemy dopiero po zaznaczeniu zgody osoby (albo jej rodzica, jeśli jest niepełnoletnia) na ich przetwarzanie."
+msgstr "Data konsumsi dan kesehatan baru dapat disimpan setelah Anda mencentang persetujuan orang tersebut (atau orang tuanya, jika di bawah umur) atas pemrosesannya."
+
+#: services.py templates/delegation_logistics/leader_dashboard.html
+msgid "Finał się zakończył, a dane delegacji zostały usunięte."
+msgstr "Final telah berakhir dan data delegasi telah dihapus."
+
+#: services.py
+msgid "Wybierz rolę z listy."
+msgstr "Pilih peran dari daftar."
+
+#: services.py
+msgid "Podaj imię i nazwisko."
+msgstr "Masukkan nama depan dan nama belakang."
+
+#: services.py
+#, python-format
+msgid "Delegacja może mieć najwyżej %(count)s gości."
+msgstr "Satu delegasi paling banyak dapat memiliki %(count)s tamu."
+
+#: services.py
+msgid "Zdjęcie musi być plikiem JPG albo PNG."
+msgstr "Foto harus berupa berkas JPG atau PNG."
+
+#: services.py
+msgid "Plik jest pusty."
+msgstr "Berkas kosong."
+
+#: services.py
+msgid "Zdjęcie może mieć najwyżej 5 MB."
+msgstr "Ukuran foto maksimal 5 MB."
+
+#: templates/delegation_logistics/_member_form.html
+#, python-format
+msgid "Termin: %(deadline)s"
+msgstr "Batas waktu: %(deadline)s"
+
+#: templates/delegation_logistics/_member_form.html
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "zamknięte"
+msgstr "ditutup"
+
+#: templates/delegation_logistics/_member_form.html
+#, python-format
+msgid "Zgoda na przetwarzanie danych o wyżywieniu i zdrowiu złożona %(date)s."
+msgstr "Persetujuan pemrosesan data konsumsi dan kesehatan diberikan pada %(date)s."
+
+#: templates/delegation_logistics/_member_form.html
+#: templates/delegation_logistics/leader_member.html
+msgid "Zapisz"
+msgstr "Simpan"
+
+#: templates/delegation_logistics/_member_form.html
+msgid "Anuluj"
+msgstr "Batal"
+
+#: templates/delegation_logistics/checkin.html
+#: templates/delegation_logistics/checkin_member.html
+msgid "Rejestracja uczestników finału"
+msgstr "Registrasi peserta final"
+
+#: templates/delegation_logistics/checkin.html
+msgid "Zeskanuj kod QR z identyfikatora aparatem telefonu albo wyszukaj osobę po nazwisku."
+msgstr "Pindai kode QR pada tanda pengenal dengan kamera ponsel atau cari orang berdasarkan nama."
+
+#: templates/delegation_logistics/checkin.html
+msgid "Punkt kontroli"
+msgstr "Titik pemeriksaan"
+
+#: templates/delegation_logistics/checkin.html
+msgid "Imię, nazwisko lub kraj"
+msgstr "Nama atau negara"
+
+#: templates/delegation_logistics/checkin.html
+msgid "Szukaj"
+msgstr "Cari"
+
+#: templates/delegation_logistics/checkin.html
+#: templates/delegation_logistics/checkin_member.html
+msgid "Organizator nie dodał jeszcze punktów kontroli."
+msgstr "Penyelenggara belum menambahkan titik pemeriksaan."
+
+#: templates/delegation_logistics/checkin.html
+msgid "Skieruj aparat na kod QR."
+msgstr "Arahkan kamera ke kode QR."
+
+#: templates/delegation_logistics/checkin.html
+msgid "Skanuj w przeglądarce"
+msgstr "Pindai di peramban"
+
+#: templates/delegation_logistics/checkin.html
+msgid "Nikogo nie znaleziono."
+msgstr "Tidak ada yang ditemukan."
+
+#: templates/delegation_logistics/checkin_member.html
+msgid "niepełnoletni"
+msgstr "di bawah umur"
+
+#: templates/delegation_logistics/checkin_member.html
+#: templates/delegation_logistics/leader_member.html
+msgid "Zdjęcie"
+msgstr "Foto"
+
+#: templates/delegation_logistics/checkin_member.html
+msgid "Brak zdjęcia – sprawdź tożsamość dokumentem."
+msgstr "Tidak ada foto – periksa identitas dengan dokumen."
+
+#: templates/delegation_logistics/checkin_member.html
+#, python-format
+msgid "Odhaczono w punkcie „%(point)s” o %(time)s."
+msgstr "Tercatat di “%(point)s” pukul %(time)s."
+
+#: templates/delegation_logistics/checkin_member.html
+#, python-format
+msgid "Odhacz: %(point)s"
+msgstr "Catat: %(point)s"
+
+#: templates/delegation_logistics/checkin_member.html
+msgid "Cofnij"
+msgstr "Batalkan"
+
+#: templates/delegation_logistics/checkin_unknown.html
+msgid "Nieznany identyfikator"
+msgstr "Tanda pengenal tidak dikenal"
+
+#: templates/delegation_logistics/checkin_unknown.html
+msgid "Ten kod nie należy do żadnej osoby finału – identyfikator mógł zostać unieważniony. Wyszukaj osobę po nazwisku."
+msgstr "Kode ini bukan milik siapa pun di final – tanda pengenal mungkin telah dibatalkan. Cari orang berdasarkan nama."
+
+#: templates/delegation_logistics/checkin_unknown.html
+msgid "Wróć do skanowania"
+msgstr "Kembali ke pemindaian"
+
+#: templates/delegation_logistics/email/reminder_body.txt
+#, python-format
+msgid "Dzień dobry %(name)s,"
+msgstr "Halo %(name)s,"
+
+#: templates/delegation_logistics/email/reminder_body.txt
+#, python-format
+msgid "w danych delegacji %(country)s na finał wciąż brakuje informacji:"
+msgstr "data delegasi %(country)s untuk final masih kekurangan informasi:"
+
+#: templates/delegation_logistics/email/reminder_body.txt
+msgid "Terminy:"
+msgstr "Batas waktu:"
+
+#: templates/delegation_logistics/email/reminder_body.txt
+msgid "Uzupełnij dane w panelu opiekuna drużyny:"
+msgstr "Lengkapi data di panel pemimpin tim:"
+
+#: templates/delegation_logistics/email/reminder_body.txt
+msgid "Po terminie sekcja zostaje zamknięta i zmiany wprowadza już tylko organizator."
+msgstr "Setelah batas waktu, bagian dikunci dan hanya penyelenggara yang dapat mengubahnya."
+
+#: templates/delegation_logistics/email/reminder_body.txt
+#: templates/delegation_logistics/email/reminder_subject.txt
+msgid "Olimpiada Kwantowa"
+msgstr "Olimpiade Kuantum"
+
+#: templates/delegation_logistics/email/reminder_body.txt
+msgid "Wiadomość wysłana automatycznie; prosimy na nią nie odpowiadać."
+msgstr "Pesan ini dikirim secara otomatis; mohon tidak membalasnya."
+
+#: templates/delegation_logistics/email/reminder_subject.txt
+#, python-format
+msgid "Brakujące dane do logistyki finału – %(competition)s"
+msgstr "Data logistik final yang belum lengkap – %(competition)s"
+
+#: templates/delegation_logistics/leader_dashboard.html
+#: templates/delegation_logistics/leader_member.html
+msgid "Logistyka finału"
+msgstr "Logistik final"
+
+#: templates/delegation_logistics/leader_dashboard.html
+#, python-format
+msgid "Drużyna: %(country)s"
+msgstr "Tim: %(country)s"
+
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "Uzupełnij dane każdej osoby z delegacji: dokument podróży (do zaproszenia wizowego), przyjazd i wyjazd, zakwaterowanie, rozmiar koszulki, kontakt alarmowy i zdjęcie do identyfikatora. Po terminie sekcja zostaje zamknięta – zmiany wprowadza wtedy organizator."
+msgstr "Lengkapi data setiap orang dalam delegasi: dokumen perjalanan (untuk surat undangan visa), kedatangan dan keberangkatan, akomodasi, ukuran kaus, kontak darurat, dan foto tanda pengenal. Setelah batas waktu bagian dikunci – perubahan dilakukan oleh penyelenggara."
+
+#: templates/delegation_logistics/leader_dashboard.html
+#, python-format
+msgid "Miejsce: %(city)s, %(start)s – %(end)s."
+msgstr "Tempat: %(city)s, %(start)s – %(end)s."
+
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "Terminy"
+msgstr "Batas waktu"
+
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "bez terminu"
+msgstr "tanpa batas waktu"
+
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "Osoby w delegacji"
+msgstr "Anggota delegasi"
+
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "Imię i nazwisko"
+msgstr "Nama lengkap"
+
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "Rola"
+msgstr "Peran"
+
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "Brakuje"
+msgstr "Kurang"
+
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "Operacje"
+msgstr "Tindakan"
+
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "komplet"
+msgstr "lengkap"
+
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "Uzupełnij"
+msgstr "Lengkapi"
+
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "Delegacja nie ma jeszcze członków."
+msgstr "Delegasi belum memiliki anggota."
+
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "Dodaj obserwatora lub gościa"
+msgstr "Tambahkan pengamat atau tamu"
+
+#: templates/delegation_logistics/leader_dashboard.html
+#, python-format
+msgid "Osoby bez konta, które przyjeżdżają z delegacją (%(count)s z %(limit)s). Uczniów i opiekunów dodaje się na liście drużyny."
+msgstr "Orang tanpa akun yang ikut bersama delegasi (%(count)s dari %(limit)s). Siswa dan pemimpin tim ditambahkan di daftar tim."
+
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "Dodaj"
+msgstr "Tambah"
+
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "Listy zapraszające (wiza)"
+msgstr "Surat undangan (visa)"
+
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "Listy wystawia organizator na podstawie danych dokumentu podróży."
+msgstr "Surat diterbitkan oleh penyelenggara berdasarkan data dokumen perjalanan."
+
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "Brak wystawionych listów."
+msgstr "Belum ada surat yang diterbitkan."
+
+#: templates/delegation_logistics/leader_member.html
+msgid "Dane widzą wyłącznie opiekunowie Twojej drużyny i organizator odpowiedzialny za logistykę. Zostaną usunięte po zakończeniu finału."
+msgstr "Data ini hanya dapat dilihat oleh pemimpin tim Anda dan penyelenggara yang bertanggung jawab atas logistik. Data akan dihapus setelah final."
+
+#: templates/delegation_logistics/leader_member.html
+msgid "Wycofaj zgodę i usuń dane o zdrowiu"
+msgstr "Tarik persetujuan dan hapus data kesehatan"
+
+#: templates/delegation_logistics/leader_member.html
+msgid "Zdjęcie do identyfikatora"
+msgstr "Foto tanda pengenal"
+
+#: templates/delegation_logistics/leader_member.html
+msgid "Zdjęcie jest sprawdzane – pojawi się za chwilę."
+msgstr "Foto sedang diperiksa – akan segera muncul."
+
+#: templates/delegation_logistics/leader_member.html
+msgid "Poprzedni plik został odrzucony przy sprawdzaniu – wgraj zdjęcie ponownie."
+msgstr "Berkas sebelumnya ditolak saat pemeriksaan – unggah ulang foto."
+
+#: templates/delegation_logistics/leader_member.html
+msgid "Brak zdjęcia."
+msgstr "Tidak ada foto."
+
+#: templates/delegation_logistics/leader_member.html
+msgid "Wgraj zdjęcie"
+msgstr "Unggah foto"
+
+#: templates/delegation_logistics/leader_member.html
+msgid "Dane gościa"
+msgstr "Data tamu"
+
+#: templates/delegation_logistics/leader_member.html
+msgid "Usuń z delegacji"
+msgstr "Hapus dari delegasi"
+
+#: views.py
+msgid "Podaj imię, nazwisko i rolę gościa."
+msgstr "Masukkan nama depan, nama belakang, dan peran tamu."
+
+#: views.py
+msgid "Dodano osobę do delegacji – uzupełnij jej dane."
+msgstr "Orang tersebut telah ditambahkan ke delegasi – lengkapi datanya."
+
+#: views.py
+#, python-format
+msgid "Zapisano dane: %(name)s."
+msgstr "Data disimpan: %(name)s."
+
+#: views.py
+msgid "Wybierz plik ze zdjęciem."
+msgstr "Pilih berkas foto."
+
+#: views.py
+msgid "Zdjęcie przesłane – pojawi się po automatycznym sprawdzeniu pliku."
+msgstr "Foto terunggah – akan muncul setelah berkas diperiksa otomatis."
+
+#: views.py
+msgid "Zapisano."
+msgstr "Tersimpan."
+
+#: views.py
+msgid "Usunięto osobę z delegacji razem z jej danymi."
+msgstr "Orang tersebut beserta datanya telah dihapus dari delegasi."
+
+#: views.py
+msgid "Zgoda wycofana – dane o wyżywieniu i zdrowiu tej osoby zostały usunięte."
+msgstr "Persetujuan ditarik – data konsumsi dan kesehatan orang ini telah dihapus."
+
+#: views.py
+msgid "Ten ekran jest dostępny wyłącznie dla obsługi rejestracji finału."
+msgstr "Layar ini hanya tersedia bagi petugas registrasi final."
+
+#: views.py
+msgid "Cofnięto odhaczenie."
+msgstr "Pencatatan dibatalkan."
+
+#: views.py
+#, python-format
+msgid "Odhaczono: %(name)s."
+msgstr "Tercatat: %(name)s."

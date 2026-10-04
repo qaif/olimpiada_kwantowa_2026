@@ -1,0 +1,591 @@
+# Logistyka finału (LOG-01) – katalog aplikacji apps.delegation_logistics.
+# Tłumaczenia maszynowe (do przeglądu native speakerów), jak w katalogu głównym (I18N-01 § 8).
+msgid ""
+msgstr ""
+"Project-Id-Version: olimpiada\n"
+"Language: ru\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
+
+#: forms.py
+msgid "Imię i nazwisko dokładnie jak w paszporcie"
+msgstr "Полное имя точно как в паспорте"
+
+#: forms.py
+msgid "Obywatelstwo (dwuliterowy kod kraju, np. DE)"
+msgstr "Гражданство (двухбуквенный код страны, напр. DE)"
+
+#: forms.py
+msgid "Data urodzenia"
+msgstr "Дата рождения"
+
+#: forms.py
+msgid "Numer paszportu"
+msgstr "Номер паспорта"
+
+#: forms.py
+msgid "Paszport ważny do"
+msgstr "Паспорт действителен до"
+
+#: forms.py
+msgid "Dzień przyjazdu"
+msgstr "Дата прибытия"
+
+#: forms.py
+msgid "Godzina przyjazdu (czas lokalny)"
+msgstr "Время прибытия (местное)"
+
+#: forms.py
+msgid "Środek transportu"
+msgstr "Вид транспорта"
+
+#: forms.py
+msgid "Numer lotu / pociągu"
+msgstr "Номер рейса / поезда"
+
+#: forms.py
+msgid "Lotnisko / dworzec przyjazdu"
+msgstr "Аэропорт / вокзал прибытия"
+
+#: forms.py
+msgid "Dzień wyjazdu"
+msgstr "Дата отъезда"
+
+#: forms.py
+msgid "Godzina wyjazdu (czas lokalny)"
+msgstr "Время отъезда (местное)"
+
+#: forms.py
+msgid "Środek transportu (wyjazd)"
+msgstr "Вид транспорта (отъезд)"
+
+#: forms.py
+msgid "Numer lotu / pociągu (wyjazd)"
+msgstr "Номер рейса / поезда (отъезд)"
+
+#: forms.py
+msgid "Lotnisko / dworzec wyjazdu"
+msgstr "Аэропорт / вокзал отъезда"
+
+#: forms.py
+msgid "Potrzebuje noclegu"
+msgstr "Нужно проживание"
+
+#: forms.py
+msgid "Płeć (wyłącznie do przydziału pokoi)"
+msgstr "Пол (только для распределения комнат)"
+
+#: forms.py
+msgid "Preferowany współlokator (imię i nazwisko)"
+msgstr "Предпочтительный сосед по комнате (имя и фамилия)"
+
+#: forms.py
+msgid "Uwagi do zakwaterowania (bez informacji o zdrowiu)"
+msgstr "Примечания к проживанию (без сведений о здоровье)"
+
+#: forms.py
+msgid "Dieta"
+msgstr "Питание"
+
+#: forms.py
+msgid "Uwagi do diety"
+msgstr "Примечания к питанию"
+
+#: forms.py
+msgid "Alergie (pokarmowe i inne istotne)"
+msgstr "Аллергии (пищевые и другие важные)"
+
+#: forms.py
+msgid "Informacje medyczne potrzebne na miejscu (np. stałe leki, postępowanie w nagłym wypadku)"
+msgstr "Медицинская информация, нужная на месте (напр. постоянные лекарства, действия в экстренной ситуации)"
+
+#: forms.py
+msgid "Rozmiar koszulki"
+msgstr "Размер футболки"
+
+#: forms.py
+msgid "Kontakt alarmowy – imię i nazwisko"
+msgstr "Экстренный контакт – имя и фамилия"
+
+#: forms.py
+msgid "Kontakt alarmowy – telefon (z numerem kierunkowym kraju)"
+msgstr "Экстренный контакт – телефон (с кодом страны)"
+
+#: forms.py
+msgid "Potwierdzam, że ta osoba – a jeśli jest niepełnoletnia, jej rodzic lub opiekun prawny – wyraziła wyraźną zgodę na przetwarzanie podanych danych o diecie i zdrowiu przez organizatora wyłącznie w celu zapewnienia jej bezpieczeństwa i wyżywienia podczas finału. Dane zostaną usunięte po zakończeniu finału; zgodę można w każdej chwili wycofać."
+msgstr "Подтверждаю, что этот человек – а если он несовершеннолетний, его родитель или законный представитель – дал явное согласие на обработку организатором указанных данных о питании и здоровье исключительно для обеспечения его безопасности и питания во время финала. Данные будут удалены после финала; согласие можно отозвать в любой момент."
+
+#: forms.py
+msgid "Imię"
+msgstr "Имя"
+
+#: forms.py
+msgid "Nazwisko"
+msgstr "Фамилия"
+
+#: forms.py
+msgid "Adres e-mail (opcjonalnie)"
+msgstr "Адрес электронной почты (необязательно)"
+
+#: forms.py
+msgid "Rola w delegacji"
+msgstr "Роль в делегации"
+
+#: forms.py
+msgid "Zdjęcie do identyfikatora (JPG lub PNG, do 5 MB, twarz na wprost)"
+msgstr "Фото для бейджа (JPG или PNG, до 5 МБ, лицо анфас)"
+
+#: models.py
+msgid "Dokument podróży"
+msgstr "Проездной документ"
+
+#: models.py
+msgid "Przyjazd i wyjazd"
+msgstr "Прибытие и отъезд"
+
+#: models.py
+msgid "Zakwaterowanie"
+msgstr "Проживание"
+
+#: models.py
+msgid "Wyżywienie i zdrowie"
+msgstr "Питание и здоровье"
+
+#: models.py
+msgid "Identyfikator i kontakt alarmowy"
+msgstr "Бейдж и экстренный контакт"
+
+#: models.py
+msgid "Uczeń"
+msgstr "Ученик"
+
+#: models.py
+msgid "Opiekun drużyny"
+msgstr "Руководитель команды"
+
+#: models.py
+msgid "Gość"
+msgstr "Гость"
+
+#: models.py
+msgid "Obserwator"
+msgstr "Наблюдатель"
+
+#: models.py
+msgid "Samolot"
+msgstr "Самолёт"
+
+#: models.py
+msgid "Pociąg"
+msgstr "Поезд"
+
+#: models.py
+msgid "Autobus"
+msgstr "Автобус"
+
+#: models.py
+msgid "Samochód"
+msgstr "Автомобиль"
+
+#: models.py
+msgid "Inny"
+msgstr "Другое"
+
+#: models.py
+msgid "Kobieta"
+msgstr "Женский"
+
+#: models.py
+msgid "Mężczyzna"
+msgstr "Мужской"
+
+#: models.py
+msgid "Inna / wolę nie podawać"
+msgstr "Другой / предпочитаю не указывать"
+
+#: models.py
+msgid "Bez ograniczeń"
+msgstr "Без ограничений"
+
+#: models.py
+msgid "Wegetariańska"
+msgstr "Вегетарианское"
+
+#: models.py
+msgid "Wegańska"
+msgstr "Веганское"
+
+#: models.py
+msgid "Halal"
+msgstr "Халяль"
+
+#: models.py
+msgid "Koszerna"
+msgstr "Кошерное"
+
+#: models.py
+msgid "Bezglutenowa"
+msgstr "Безглютеновое"
+
+#: models.py
+msgid "Inna (opis w uwagach)"
+msgstr "Другое (опишите в примечаниях)"
+
+#: services.py
+#, python-format
+msgid "Termin na uzupełnienie sekcji „%(group)s” minął – zmiany wprowadza już tylko organizator."
+msgstr "Срок для раздела «%(group)s» истёк – теперь изменения вносит только организатор."
+
+#: services.py
+msgid "Obywatelstwo podaj dwuliterowym kodem kraju (np. DE, PL)."
+msgstr "Укажите гражданство двухбуквенным кодом страны (напр. DE, PL)."
+
+#: services.py
+msgid "Niepoprawna data."
+msgstr "Неверная дата."
+
+#: services.py
+msgid "Paszport traci ważność przed końcem finału – podaj dokument ważny w czasie pobytu."
+msgstr "Паспорт истекает до окончания финала – укажите документ, действительный на время пребывания."
+
+#: services.py
+msgid "Wyjazd nie może być przed przyjazdem."
+msgstr "Дата отъезда не может быть раньше даты приезда."
+
+#: services.py
+msgid "Dane o wyżywieniu i zdrowiu zapiszemy dopiero po zaznaczeniu zgody osoby (albo jej rodzica, jeśli jest niepełnoletnia) na ich przetwarzanie."
+msgstr "Данные о питании и здоровье сохраняются только после отметки согласия человека (или его родителя, если он несовершеннолетний) на их обработку."
+
+#: services.py templates/delegation_logistics/leader_dashboard.html
+msgid "Finał się zakończył, a dane delegacji zostały usunięte."
+msgstr "Финал завершён, данные делегации удалены."
+
+#: services.py
+msgid "Wybierz rolę z listy."
+msgstr "Выберите роль из списка."
+
+#: services.py
+msgid "Podaj imię i nazwisko."
+msgstr "Укажите имя и фамилию."
+
+#: services.py
+#, python-format
+msgid "Delegacja może mieć najwyżej %(count)s gości."
+msgstr "В делегации может быть не более %(count)s гостей."
+
+#: services.py
+msgid "Zdjęcie musi być plikiem JPG albo PNG."
+msgstr "Фото должно быть файлом JPG или PNG."
+
+#: services.py
+msgid "Plik jest pusty."
+msgstr "Файл пустой."
+
+#: services.py
+msgid "Zdjęcie może mieć najwyżej 5 MB."
+msgstr "Размер фото – не более 5 МБ."
+
+#: templates/delegation_logistics/_member_form.html
+#, python-format
+msgid "Termin: %(deadline)s"
+msgstr "Срок: %(deadline)s"
+
+#: templates/delegation_logistics/_member_form.html
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "zamknięte"
+msgstr "закрыто"
+
+#: templates/delegation_logistics/_member_form.html
+#, python-format
+msgid "Zgoda na przetwarzanie danych o wyżywieniu i zdrowiu złożona %(date)s."
+msgstr "Согласие на обработку данных о питании и здоровье дано %(date)s."
+
+#: templates/delegation_logistics/_member_form.html
+#: templates/delegation_logistics/leader_member.html
+msgid "Zapisz"
+msgstr "Сохранить"
+
+#: templates/delegation_logistics/_member_form.html
+msgid "Anuluj"
+msgstr "Отмена"
+
+#: templates/delegation_logistics/checkin.html
+#: templates/delegation_logistics/checkin_member.html
+msgid "Rejestracja uczestników finału"
+msgstr "Регистрация участников финала"
+
+#: templates/delegation_logistics/checkin.html
+msgid "Zeskanuj kod QR z identyfikatora aparatem telefonu albo wyszukaj osobę po nazwisku."
+msgstr "Отсканируйте QR-код бейджа камерой телефона или найдите человека по фамилии."
+
+#: templates/delegation_logistics/checkin.html
+msgid "Punkt kontroli"
+msgstr "Пункт контроля"
+
+#: templates/delegation_logistics/checkin.html
+msgid "Imię, nazwisko lub kraj"
+msgstr "Имя, фамилия или страна"
+
+#: templates/delegation_logistics/checkin.html
+msgid "Szukaj"
+msgstr "Найти"
+
+#: templates/delegation_logistics/checkin.html
+#: templates/delegation_logistics/checkin_member.html
+msgid "Organizator nie dodał jeszcze punktów kontroli."
+msgstr "Организатор ещё не добавил пункты контроля."
+
+#: templates/delegation_logistics/checkin.html
+msgid "Skieruj aparat na kod QR."
+msgstr "Наведите камеру на QR-код."
+
+#: templates/delegation_logistics/checkin.html
+msgid "Skanuj w przeglądarce"
+msgstr "Сканировать в браузере"
+
+#: templates/delegation_logistics/checkin.html
+msgid "Nikogo nie znaleziono."
+msgstr "Никого не найдено."
+
+#: templates/delegation_logistics/checkin_member.html
+msgid "niepełnoletni"
+msgstr "несовершеннолетний"
+
+#: templates/delegation_logistics/checkin_member.html
+#: templates/delegation_logistics/leader_member.html
+msgid "Zdjęcie"
+msgstr "Фото"
+
+#: templates/delegation_logistics/checkin_member.html
+msgid "Brak zdjęcia – sprawdź tożsamość dokumentem."
+msgstr "Фото нет – проверьте личность по документу."
+
+#: templates/delegation_logistics/checkin_member.html
+#, python-format
+msgid "Odhaczono w punkcie „%(point)s” o %(time)s."
+msgstr "Отмечен в пункте «%(point)s» в %(time)s."
+
+#: templates/delegation_logistics/checkin_member.html
+#, python-format
+msgid "Odhacz: %(point)s"
+msgstr "Отметить: %(point)s"
+
+#: templates/delegation_logistics/checkin_member.html
+msgid "Cofnij"
+msgstr "Отменить"
+
+#: templates/delegation_logistics/checkin_unknown.html
+msgid "Nieznany identyfikator"
+msgstr "Неизвестный бейдж"
+
+#: templates/delegation_logistics/checkin_unknown.html
+msgid "Ten kod nie należy do żadnej osoby finału – identyfikator mógł zostać unieważniony. Wyszukaj osobę po nazwisku."
+msgstr "Этот код не принадлежит ни одному участнику финала – бейдж мог быть аннулирован. Найдите человека по фамилии."
+
+#: templates/delegation_logistics/checkin_unknown.html
+msgid "Wróć do skanowania"
+msgstr "Вернуться к сканированию"
+
+#: templates/delegation_logistics/email/reminder_body.txt
+#, python-format
+msgid "Dzień dobry %(name)s,"
+msgstr "Здравствуйте, %(name)s!"
+
+#: templates/delegation_logistics/email/reminder_body.txt
+#, python-format
+msgid "w danych delegacji %(country)s na finał wciąż brakuje informacji:"
+msgstr "в данных делегации %(country)s для финала всё ещё не хватает сведений:"
+
+#: templates/delegation_logistics/email/reminder_body.txt
+msgid "Terminy:"
+msgstr "Сроки:"
+
+#: templates/delegation_logistics/email/reminder_body.txt
+msgid "Uzupełnij dane w panelu opiekuna drużyny:"
+msgstr "Заполните данные в панели руководителя команды:"
+
+#: templates/delegation_logistics/email/reminder_body.txt
+msgid "Po terminie sekcja zostaje zamknięta i zmiany wprowadza już tylko organizator."
+msgstr "После срока раздел закрывается, и изменения вносит только организатор."
+
+#: templates/delegation_logistics/email/reminder_body.txt
+#: templates/delegation_logistics/email/reminder_subject.txt
+msgid "Olimpiada Kwantowa"
+msgstr "Квантовая олимпиада"
+
+#: templates/delegation_logistics/email/reminder_body.txt
+msgid "Wiadomość wysłana automatycznie; prosimy na nią nie odpowiadać."
+msgstr "Это письмо отправлено автоматически; пожалуйста, не отвечайте на него."
+
+#: templates/delegation_logistics/email/reminder_subject.txt
+#, python-format
+msgid "Brakujące dane do logistyki finału – %(competition)s"
+msgstr "Недостающие данные для логистики финала – %(competition)s"
+
+#: templates/delegation_logistics/leader_dashboard.html
+#: templates/delegation_logistics/leader_member.html
+msgid "Logistyka finału"
+msgstr "Логистика финала"
+
+#: templates/delegation_logistics/leader_dashboard.html
+#, python-format
+msgid "Drużyna: %(country)s"
+msgstr "Команда: %(country)s"
+
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "Uzupełnij dane każdej osoby z delegacji: dokument podróży (do zaproszenia wizowego), przyjazd i wyjazd, zakwaterowanie, rozmiar koszulki, kontakt alarmowy i zdjęcie do identyfikatora. Po terminie sekcja zostaje zamknięta – zmiany wprowadza wtedy organizator."
+msgstr "Заполните данные каждого члена делегации: проездной документ (для визового приглашения), прибытие и отъезд, проживание, размер футболки, экстренный контакт и фото для бейджа. После срока раздел закрывается – изменения вносит организатор."
+
+#: templates/delegation_logistics/leader_dashboard.html
+#, python-format
+msgid "Miejsce: %(city)s, %(start)s – %(end)s."
+msgstr "Место: %(city)s, %(start)s – %(end)s."
+
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "Terminy"
+msgstr "Сроки"
+
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "bez terminu"
+msgstr "без срока"
+
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "Osoby w delegacji"
+msgstr "Члены делегации"
+
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "Imię i nazwisko"
+msgstr "Имя и фамилия"
+
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "Rola"
+msgstr "Роль"
+
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "Brakuje"
+msgstr "Не хватает"
+
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "Operacje"
+msgstr "Действия"
+
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "komplet"
+msgstr "всё заполнено"
+
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "Uzupełnij"
+msgstr "Заполнить"
+
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "Delegacja nie ma jeszcze członków."
+msgstr "В делегации пока нет участников."
+
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "Dodaj obserwatora lub gościa"
+msgstr "Добавить наблюдателя или гостя"
+
+#: templates/delegation_logistics/leader_dashboard.html
+#, python-format
+msgid "Osoby bez konta, które przyjeżdżają z delegacją (%(count)s z %(limit)s). Uczniów i opiekunów dodaje się na liście drużyny."
+msgstr "Люди без учётной записи, которые едут с делегацией (%(count)s из %(limit)s). Учеников и руководителей добавляют в списке команды."
+
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "Dodaj"
+msgstr "Добавить"
+
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "Listy zapraszające (wiza)"
+msgstr "Приглашения (виза)"
+
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "Listy wystawia organizator na podstawie danych dokumentu podróży."
+msgstr "Приглашения выдаёт организатор на основе данных проездного документа."
+
+#: templates/delegation_logistics/leader_dashboard.html
+msgid "Brak wystawionych listów."
+msgstr "Приглашений нет."
+
+#: templates/delegation_logistics/leader_member.html
+msgid "Dane widzą wyłącznie opiekunowie Twojej drużyny i organizator odpowiedzialny za logistykę. Zostaną usunięte po zakończeniu finału."
+msgstr "Эти данные видят только руководители вашей команды и организатор, отвечающий за логистику. Они будут удалены после финала."
+
+#: templates/delegation_logistics/leader_member.html
+msgid "Wycofaj zgodę i usuń dane o zdrowiu"
+msgstr "Отозвать согласие и удалить данные о здоровье"
+
+#: templates/delegation_logistics/leader_member.html
+msgid "Zdjęcie do identyfikatora"
+msgstr "Фото для бейджа"
+
+#: templates/delegation_logistics/leader_member.html
+msgid "Zdjęcie jest sprawdzane – pojawi się za chwilę."
+msgstr "Фото проверяется – скоро появится."
+
+#: templates/delegation_logistics/leader_member.html
+msgid "Poprzedni plik został odrzucony przy sprawdzaniu – wgraj zdjęcie ponownie."
+msgstr "Предыдущий файл не прошёл проверку – загрузите фото ещё раз."
+
+#: templates/delegation_logistics/leader_member.html
+msgid "Brak zdjęcia."
+msgstr "Фото нет."
+
+#: templates/delegation_logistics/leader_member.html
+msgid "Wgraj zdjęcie"
+msgstr "Загрузить фото"
+
+#: templates/delegation_logistics/leader_member.html
+msgid "Dane gościa"
+msgstr "Данные гостя"
+
+#: templates/delegation_logistics/leader_member.html
+msgid "Usuń z delegacji"
+msgstr "Удалить из делегации"
+
+#: views.py
+msgid "Podaj imię, nazwisko i rolę gościa."
+msgstr "Укажите имя, фамилию и роль гостя."
+
+#: views.py
+msgid "Dodano osobę do delegacji – uzupełnij jej dane."
+msgstr "Человек добавлен в делегацию – заполните его данные."
+
+#: views.py
+#, python-format
+msgid "Zapisano dane: %(name)s."
+msgstr "Данные сохранены: %(name)s."
+
+#: views.py
+msgid "Wybierz plik ze zdjęciem."
+msgstr "Выберите файл с фото."
+
+#: views.py
+msgid "Zdjęcie przesłane – pojawi się po automatycznym sprawdzeniu pliku."
+msgstr "Фото загружено – оно появится после автоматической проверки файла."
+
+#: views.py
+msgid "Zapisano."
+msgstr "Сохранено."
+
+#: views.py
+msgid "Usunięto osobę z delegacji razem z jej danymi."
+msgstr "Человек удалён из делегации вместе с его данными."
+
+#: views.py
+msgid "Zgoda wycofana – dane o wyżywieniu i zdrowiu tej osoby zostały usunięte."
+msgstr "Согласие отозвано – данные о питании и здоровье этого человека удалены."
+
+#: views.py
+msgid "Ten ekran jest dostępny wyłącznie dla obsługi rejestracji finału."
+msgstr "Этот экран доступен только сотрудникам регистрации финала."
+
+#: views.py
+msgid "Cofnięto odhaczenie."
+msgstr "Отметка отменена."
+
+#: views.py
+#, python-format
+msgid "Odhaczono: %(name)s."
+msgstr "Отмечен: %(name)s."
