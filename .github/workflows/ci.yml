@@ -189,12 +189,15 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
+      # `cd backend` przed `uv pip compile` jest konieczne: `[tool.uv] override-dependencies`
+      # (django-celery-beat a Django 6.1) uv czyta z pyproject katalogu roboczego, a nie z pliku
+      # podanego argumentem – z korzenia repozytorium rozwiązanie kończy się „unsatisfiable”.
       - name: Zbiory zależności (backend – rozwiązanie jak w obrazie, djcms – uv.lock)
         run: |
           set -eu
-          uv pip compile backend/pyproject.toml --extra dev \
+          (cd backend && uv pip compile pyproject.toml --extra dev \
             --python-version "$PYTHON_VERSION" --python-platform x86_64-manylinux_2_28 \
-            --no-header --no-annotate -o "$RUNNER_TEMP/backend.txt"
+            --no-header --no-annotate -o "$RUNNER_TEMP/backend.txt")
           (cd djcms && uv export --frozen --extra dev --no-emit-project --no-hashes \
             --no-header --no-annotate -o "$RUNNER_TEMP/djcms.txt")
           cp backend/apps/notebooks/labbuild/requirements.txt "$RUNNER_TEMP/notebook-lab.txt"

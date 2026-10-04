@@ -26,7 +26,8 @@ Czego zadanie **nie** robi:
 
 ## 1. Zależności Pythona – job CI `pip-audit`
 
-- Zbiory: **backend** – wynik `uv pip compile backend/pyproject.toml --extra dev` dla Pythona 3.14
+- Zbiory: **backend** – wynik `uv pip compile pyproject.toml --extra dev` (z katalogu `backend/`, żeby
+  uv wziął `[tool.uv] override-dependencies`) dla Pythona 3.14
   i platformy obrazu (backend nie ma pliku blokady; obraz instaluje „najnowsze w zakresie”, więc
   sprawdzamy dokładnie to, co zbudowałoby się teraz); **djcms** – `uv export --frozen` z `djcms/uv.lock`;
   **notebook-lab** – narzędzia budowy JupyterLite (QC-01, `apps/notebooks/labbuild/requirements.txt`,

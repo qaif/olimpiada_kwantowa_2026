@@ -5467,7 +5467,8 @@ uczniów w IndexedDB zostaje (stała nazwa magazynu).
 - Testy zgodności `docker-compose.yml` i `deploy/Caddyfile` w CI (`CI=true`) **nie** dają się pominąć –
   brak pliku to błąd. Testy z prawdziwym Qiskitem (`*_with_real_qiskit`) w CI są pominięte z powodem
   `QISKIT-PARITY` (Qiskit nie jest zależnością); uruchom je w obrazie z `pip install qiskit` przy
-  zmianach `backend/qclab`.
+  zmianach `backend/qclab` (obraz nie ma systemowego pipa od SEC-02 – najpierw
+  `docker compose exec -u root web python -m ensurepip`).
 
 ### 40.6. Personel bez laboratorium; docelowo osobna domena laboratorium
 
@@ -5601,7 +5602,8 @@ z poprawką. Kolejność decyzji:
 Podatność **bez** poprawki jest ostrzeżeniem (żółta adnotacja), nie blokadą – wraca w każdym
 przebiegu, dopóki nie wyjdzie poprawka, i wtedy job zrobi się czerwony sam.
 
-Lokalnie (gdy ktoś ma `uv`): `uv pip compile backend/pyproject.toml --extra dev --python-version 3.14
+Lokalnie (gdy ktoś ma `uv`; **z katalogu `backend/`** – tylko tak uv widzi `[tool.uv]` z override'em
+Django): `cd backend && uv pip compile pyproject.toml --extra dev --python-version 3.14
 --python-platform x86_64-manylinux_2_28 -o /tmp/req.txt && uvx pip-audit -r /tmp/req.txt --no-deps
 --disable-pip --vulnerability-service osv`.
 
@@ -5611,12 +5613,14 @@ Log kroku „Trivy – bramka” ma tabelę: pakiet, zainstalowana wersja, wersj
 (także podatności bez poprawki) – zakładka **Security → Code scanning** (kategoria `trivy-web` /
 `trivy-djcms`) albo artefakt `trivy-<obraz>` przebiegu (SARIF).
 
-- **Pakiet Debiana** (`libssl3t64`, `libc6`…): obraz `python:3.14-slim-trixie` jest przebudowywany
-  przez opiekunów często, więc zwykle wystarczy ponowić przebieg za dzień–dwa (CI pobiera nowy digest
-  obrazu bazowego). Gdy poprawka jest w Debianie, a obrazu bazowego jeszcze nie ma – dopisanie
-  `apt-get upgrade -y` w warstwie runtime `backend/Dockerfile` (osobny PR, świadomie: obraz przestaje
-  być w 100% powtarzalny).
+- **Pakiet Debiana** (`libssl3t64`, `libc6`…): warstwa runtime obu Dockerfile'ów robi
+  `apt-get upgrade` (łatki z `trixie-security`, których obraz bazowy jeszcze nie ma – pierwszy
+  przypadek: libpcre2, CVE-2026-103111). Warstwa jest w cache'u, dopóki nie zmieni się obraz bazowy;
+  gdy poprawka wyszła później, przebuduj bez cache'u albo poczekaj na nowy digest
+  `python:3.14-slim-trixie` (zwykle dzień–dwa). Brak poprawki w Debianie = wyjątek niżej.
 - **Pakiet Pythona** w `/opt/venv`: jak w § 47.1 – Trivy widzi to, co faktycznie zainstalowano.
+  Systemowego `pip` z obrazu bazowego nie ma (usuwany w Dockerfile'ach): pip 26.2.1 niesie zwendorowane
+  urllib3/msgpack/setuptools ze znanymi podatnościami, a aplikacja go nie używa.
 - **Wyjątek** – `.security/trivyignore.yaml` (format Trivy):
 
   ```yaml
