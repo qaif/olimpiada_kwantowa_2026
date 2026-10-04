@@ -491,3 +491,30 @@
     margin-left: 0;
   }
 }
+
+/* --- Motyw serwisu (THEME-01 § 6): galeria wersji motywów ----------------------------------- */
+.theme-gallery {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--sp-6);
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 20rem), 1fr));
+}
+
+.theme-card--active {
+  border-color: var(--ok);
+  box-shadow: 0 0 0 2px var(--ok);
+}
+
+.theme-card__title {
+  margin-top: var(--sp-2);
+}
+
+.theme-card__shot {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+}

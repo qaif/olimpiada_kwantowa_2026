@@ -2770,6 +2770,14 @@ msgstr "Compte"
 msgid "Mój panel"
 msgstr "Mon espace"
 
+#: apps/themes/slots.py
+msgid "Koordynator"
+msgstr "Coordinateur"
+
+#: apps/themes/slots.py
+msgid "Panel koordynatora"
+msgstr "Espace coordinateur"
+
 #: templates/base.html:210
 msgid "Recenzje"
 msgstr "Corrections"

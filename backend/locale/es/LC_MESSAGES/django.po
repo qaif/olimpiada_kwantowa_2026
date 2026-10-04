@@ -2766,6 +2766,14 @@ msgstr "Cuenta"
 msgid "Mój panel"
 msgstr "Mi panel"
 
+#: apps/themes/slots.py
+msgid "Koordynator"
+msgstr "Coordinador"
+
+#: apps/themes/slots.py
+msgid "Panel koordynatora"
+msgstr "Panel del coordinador"
+
 #: templates/base.html:210
 msgid "Recenzje"
 msgstr "Revisiones"

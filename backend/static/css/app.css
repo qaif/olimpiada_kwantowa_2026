@@ -6832,3 +6832,20 @@ img.captcha {
   direction: ltr;
   unicode-bidi: isolate;
 }
+
+/* --- Podgląd motywu (THEME-01 § 4) ----------------------------------------------------------
+   Pasek widzi wyłącznie koordynator oglądający stronę z ``?theme_preview=…`` – kolory z tokenów
+   ostrzeżenia, a nie z motywu, bo pasek ma być czytelny na każdym motywie. */
+.theme-preview-bar {
+  padding: var(--sp-2) var(--sp-4);
+  background: var(--warn-soft);
+  color: var(--warn-ink);
+  border-bottom: 2px solid var(--warn);
+  text-align: center;
+  font-size: 0.9375rem;
+}
+
+.theme-preview-bar a {
+  color: inherit;
+  font-weight: 600;
+}

@@ -26,6 +26,8 @@ from __future__ import annotations
 
 import re
 
+from django.utils.translation import gettext_noop
+
 #: Sloty v1: nazwa → opis (panel, dokumentacja). Kolejność = kolejność na stronie.
 SLOTS: dict[str, str] = {
     "header": "oba paski nagłówka: pasek konta (logo, język, konto) i menu serwisu",
@@ -191,3 +193,13 @@ def include_cycles(templates: dict[str, str]) -> list[str]:
     for node in sorted(graph):
         visit(node, [])
     return errors
+
+
+#: Napisy, których używają szablony paczek motywów (np. ``iqo-quantum`` – nagłówek z pozycją
+#: „Koordynator”), a których szablony aplikacji nie tłumaczą (panel koordynatora jest po polsku).
+#: Oznaczone tutaj, żeby ``makemessages`` trzymał je w katalogach – motyw nie wnosi własnych
+#: tłumaczeń, korzysta z katalogów aplikacji.
+THEME_MSGIDS = (
+    gettext_noop("Koordynator"),
+    gettext_noop("Panel koordynatora"),
+)
