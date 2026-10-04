@@ -13,6 +13,7 @@ Uruchomienie (stos testu obciążenia, po ``run.sh seed``)::
 Działa wyłącznie na bazie z ``loadtest`` w nazwie (ten sam bezpiecznik, co ``loadtest_seed``).
 """
 
+import json
 import re
 import statistics
 import time
@@ -24,7 +25,8 @@ from django.test.utils import CaptureQueriesContext
 
 from apps.accounts.models import User
 from apps.chat.models import Conversation
-from apps.competitions.models import Problem, Stage
+from apps.competitions.models import Problem, Stage, StageEntry
+from apps.quiz import services as quiz_services
 from apps.results.models import ResultsPublication
 
 assert "loadtest" in str(connection.settings_dict.get("NAME")), "tylko baza testu obciążenia"
@@ -82,6 +84,20 @@ thread = me.get(f"/me/messages/{conversation.pk}/", **HOST).content.decode()
 poll = re.search(r'hx-get="([^"]*fragment=messages[^"]*)"', thread).group(1).replace("&amp;", "&")
 measure("GET chat poll (204)", me, "get", poll, HTTP_HX_REQUEST="true")
 measure("GET quiz start", me, "get", f"/me/stages/{quiz_stage.pk}/test/")
+entry = StageEntry.objects.get(stage=quiz_stage, participant__user=student)
+attempt = quiz_services.start_attempt(quiz=quiz_stage.quiz, entry=entry)
+answers = {
+    str(q.pk): {"options": [q.options.order_by("order", "id").first().pk]}
+    for q in quiz_services.attempt_questions(attempt)
+}
+measure(
+    f"POST quiz autosave ({len(answers)} odp.)",
+    me,
+    "post",
+    f"/me/test/{attempt.pk}/zapis/",
+    data=json.dumps({"answers": answers}),
+    content_type="application/json",
+)
 
 coord = Client()
 coord.force_login(coordinator)

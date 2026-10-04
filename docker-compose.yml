@@ -133,7 +133,8 @@ services:
       gunicorn config.wsgi:application
       --bind 0.0.0.0:8000 --workers ${WEB_WORKERS:-4} --threads ${WEB_THREADS:-4}
       --worker-class gthread
-      --timeout 120 --graceful-timeout 30 --max-requests 2000 --max-requests-jitter 200
+      --timeout 120 --graceful-timeout 30
+      --max-requests ${WEB_MAX_REQUESTS:-2000} --max-requests-jitter ${WEB_MAX_REQUESTS_JITTER:-200}
       --access-logfile -
     # `mem_limit`/`mem_reservation`, nie `deploy.resources`: to drugie czyta wyłącznie Swarm,
     # a ten compose stoi na jednej maszynie bez Swarma – limit w `deploy:` byłby dokumentacją,
@@ -144,7 +145,12 @@ services:
     # przeciekowi pamięci w widoku zjeść całej maszyny i zabrać RAM-u Postgresowi. Bez limitu CPU
     # celowo: pojedynczy proces zajmujący więcej rdzeni pod chwilowym szczytem ruchu nie jest
     # awarią, a dławienie CPU tylko wydłużyłoby czas odpowiedzi każdemu żądaniu naraz.
-    mem_limit: 2g
+    # `WEB_MEM_LIMIT` i `WEB_MAX_REQUESTS` (PERF-01, docs/OPERACJE.md § 42.5): test obciążenia zmierzył
+    # ~230–260 MB RSS na worker, czyli 1,4–1,6 GB przy produkcyjnych 6 workerach – za blisko 2g, gdy
+    # rotacja `--max-requests` trzyma chwilę stary i nowy proces naraz. Każda rotacja pod obciążeniem
+    # to też kilka 502 (połączenia czekające w kolejce wychodzącego workera). Domyślne wartości bez
+    # zmian; zalecenie na dzień zawodów przy 6 workerach: WEB_MEM_LIMIT=3g, WEB_MAX_REQUESTS=20000.
+    mem_limit: ${WEB_MEM_LIMIT:-2g}
     volumes:
       - static_files:/app/staticfiles
     networks: [edge, internal, cache]

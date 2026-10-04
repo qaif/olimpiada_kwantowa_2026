@@ -54,7 +54,9 @@ x-lt-app: &lt-app
     # Kod z bieżącego drzewa roboczego (to ono jest mierzone). Do zapisu wyłącznie dlatego, że Docker
     # musi założyć w nim punkt montowania `staticfiles` (zbiór statyków idzie do osobnego wolumenu,
     # tego samego, który Caddy serwuje pod /static/); oprócz niego powstają tylko `__pycache__`.
-    - ../../backend:/app
+    # LOADTEST_BACKEND_DIR = inny katalog `backend` (np. `git archive origin/main backend`) – pomiar
+    # A/B dwóch wersji kodu na tym samym stosie, tej samej bazie i w tej samej sesji (§ 42.3).
+    - ${LOADTEST_BACKEND_DIR:-../../backend}:/app
     - lt_static:/app/staticfiles
   depends_on:
     db: { condition: service_healthy }
