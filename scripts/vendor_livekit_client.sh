@@ -50,11 +50,24 @@ PY
 echo "3/4 wypakowanie dist/livekit-client.umd.js i licencji"
 tar -xzf "$WORK/pkg.tgz" -C "$WORK" package/dist/livekit-client.umd.js package/LICENSE
 mkdir -p "$DEST"
-cp "$WORK/package/dist/livekit-client.umd.js" "$DEST/livekit-client.umd.js"
+# Ostatni wiersz paczki to `//# sourceMappingURL=livekit-client.umd.js.map`, a mapy nie dostarczamy:
+# ManifestStaticFilesStorage (collectstatic na produkcji) traktuje to jak odwołanie do pliku i bez
+# niego kończy się ValueError – `web` nie wstaje. Usuwamy dokładnie ten jeden wiersz (deterministycznie)
+# i zapisujemy w VERSION, że plik różni się od paczki; integrity w VERSION dotyczy paczki z npm,
+# a SHA384 – pliku po tej zmianie (apps/webinars/tests/test_static.py pilnuje obu reguł).
+python3 - "$WORK/package/dist/livekit-client.umd.js" "$DEST/livekit-client.umd.js" <<'PY'
+import re, sys
+data = open(sys.argv[1], "rb").read()
+stripped = re.sub(rb"\n//# sourceMappingURL=[^\n]*\n?\Z", b"\n", data)
+if b"sourceMappingURL" in stripped:
+    sys.exit("Nieoczekiwane odwołanie do mapy źródeł w środku pliku – sprawdź paczkę ręcznie.")
+open(sys.argv[2], "wb").write(stripped)
+PY
 cp "$WORK/package/LICENSE" "$DEST/LICENSE"
 
 echo "4/4 VERSION i SHA384"
 printf 'livekit-client %s\nnpm integrity %s\nlicense %s\n' "$VERSION" "$INTEGRITY" "$LICENSE" > "$DEST/VERSION"
+printf '%s\n' "modified: usunięty ostatni wiersz '//# sourceMappingURL=livekit-client.umd.js.map' (mapy nie dostarczamy)" >> "$DEST/VERSION"
 python3 - "$DEST/livekit-client.umd.js" > "$DEST/SHA384" <<'PY'
 import base64, hashlib, sys
 print("sha384-" + base64.b64encode(hashlib.sha384(open(sys.argv[1], "rb").read()).digest()).decode())
