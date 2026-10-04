@@ -62,7 +62,36 @@ def mail_from(competition=None) -> str | None:
     (``docs/UNIWERSALNY-ETAP-2.md`` § 0.1 i § 0.2, poz. 4). Prefiks czeka więc na osobną decyzję
     organizatora razem z ``Reply-To`` – a nie wchodzi „przy okazji” podłączania nadawcy.
     """
-    return (getattr(competition, "from_email", "") or "").strip() or None
+    sender = (getattr(competition, "from_email", "") or "").strip() or None
+    if sender is not None and not sender_domain_allowed(sender):
+        # Relay odrzuciłby kopertę (AUTH-01a, M3): lepiej list od nadawcy instalacji niż żaden.
+        # Ostrzeżenie raz na proces i nadawcę – inaczej każdy list konkursu powtarzałby ten wpis.
+        if sender not in _warned_senders:
+            _warned_senders.add(sender)
+            logger.warning(
+                "Nadawca konkursu %s jest spoza ALLOWED_SENDER_DOMAINS (%s) – listy idą "
+                "od DEFAULT_FROM_EMAIL.",
+                sender,
+                " ".join(settings.MAIL_ALLOWED_SENDER_DOMAINS or []),
+            )
+        return None
+    return sender
+
+
+#: Nadawcy, o których ostrzeżenie już poszło w tym procesie (``mail_from``).
+_warned_senders: set[str] = set()
+
+
+def sender_domain_allowed(sender: str) -> bool:
+    """Czy relay przyjmie kopertę od tego adresu (``MAIL_ALLOWED_SENDER_DOMAINS``; ``None`` = każdy).
+
+    Porównanie dokładne, bez subdomen – tak samo, jak lista ``ALLOWED_SENDER_DOMAINS`` usługi ``mail``.
+    """
+    allowed = getattr(settings, "MAIL_ALLOWED_SENDER_DOMAINS", None)
+    if allowed is None:
+        return True
+    domain = sender.rpartition("@")[2].strip().rstrip(">").lower()
+    return domain in {item.lower() for item in allowed}
 
 
 @shared_task(

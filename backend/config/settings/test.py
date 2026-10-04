@@ -39,6 +39,9 @@ TRANSLATION_OVERRIDES_ENABLED = False
 # (``pytest_django/plugin.py``, fixture ``django_test_environment``). Że obie drogi naprawdę
 # prowadzą do ``mail.outbox``, sprawdza ``apps/core/tests/test_mailers_config.py``.
 MAILERS = {"default": {"BACKEND": "django.core.mail.backends.locmem.EmailBackend"}}
+# Testy nadawców konkursów posługują się domenami ``.test`` spoza ``SITE_DOMAIN`` – ograniczenie
+# relaya (``MAIL_ALLOWED_SENDER_DOMAINS``) włączają wyłącznie testy, które go dotyczą.
+MAIL_ALLOWED_SENDER_DOMAINS = None
 # Testy nie dotykają MinIO ani sieci: pliki rozwiązań lądują pod MEDIA_ROOT (tmp_path per test).
 SUBMISSION_STORAGE_BACKEND = "apps.submissions.storage.LocalSubmissionStorage"
 # CAPTCHA w trybie testowym: pakiet przyjmuje odpowiedź „PASSED” niezależnie od wyzwania, więc

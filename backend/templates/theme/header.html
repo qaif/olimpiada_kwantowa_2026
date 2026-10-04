@@ -85,9 +85,9 @@
         {% include "alumni/_nav_link.html" %}
         {% include "web/_support_link.html" %}
         <span class="account-bar__sep" aria-hidden="true"></span>
-        {% comment %}``request.user``, a nie ``user``: widok może podać w kontekście własne ``user`` (karta członka
-          komisji podaje konto oglądanej osoby) i pasek pokazywałby wtedy cudzy adres jako „zalogowany”.{% endcomment %}
-        <span class="account-bar__who who" title="{{ request.user.email }}">{{ request.user.email }}</span>
+        {% comment %}Adres zalogowanej osoby – odnośnik do ustawień konta (AUTH-01b), we fragmencie wspólnym
+          z nagłówkiem motywu. Tam też powód, dla którego to ``request.user``, a nie ``user``.{% endcomment %}
+        {% include "web/_account_who.html" %}
         <form method="post" action="{% url 'web:logout' %}" class="inline account-bar__logout">
           {% csrf_token %}
           <button type="submit" class="btn btn--small btn--secondary account-bar__btn">{% translate "Wyloguj" %}</button>

@@ -1,0 +1,106 @@
+# Zmiana hasła w panelu konta (AUTH-01b) – katalog aplikacji apps/password_change.
+msgid ""
+msgstr ""
+"Project-Id-Version: olimpiada\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-04 22:00+0200\n"
+"PO-Revision-Date: 2026-10-04 22:00+0200\n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: ru\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=4; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && (n%100<12 || n%100>14) ? 1 : n%10==0 || (n%10>=5 && n%10<=9) || (n%100>=11 && n%100<=14)? 2 : 3);\n"
+
+msgid "Hasło do konta zostało zmienione – Olimpiada Kwantowa"
+msgstr "Пароль аккаунта изменён – Квантовая олимпиада"
+
+#, python-format
+msgid "Hasło do konta zostało zmienione – %(competition)s"
+msgstr "Пароль аккаунта изменён – %(competition)s"
+
+#, python-format
+msgid "Hasło do Twojego konta w serwisie %(competition_genitive)s zostało zmienione (%(when)s)."
+msgstr "Пароль вашего аккаунта на сайте «%(competition_genitive)s» был изменён (%(when)s)."
+
+msgid "Pozostałe urządzenia, na których było otwarte to konto, zostały wylogowane. Na urządzeniu, na którym zmieniono hasło, sesja trwa dalej."
+msgstr "На всех остальных устройствах, где был открыт этот аккаунт, выполнен выход. На устройстве, где был изменён пароль, сеанс продолжается."
+
+msgid "Jeśli to nie Ty zmieniłeś hasło, natychmiast ustaw nowe przez formularz „Nie pamiętasz hasła?” i skontaktuj się z organizatorem:"
+msgstr "Если пароль меняли не вы, немедленно задайте новый через форму «Забыли пароль?» и свяжитесь с организатором:"
+
+msgid "To konto nie ma jeszcze hasła – ustaw je linkiem wysłanym na adres konta."
+msgstr "У этого аккаунта ещё нет пароля – задайте его по ссылке, отправленной на адрес электронной почты аккаунта."
+
+msgid "Nowe hasło musi się różnić od aktualnego."
+msgstr "Новый пароль должен отличаться от текущего."
+
+msgid "Aktualne hasło jest nieprawidłowe."
+msgstr "Текущий пароль неверен."
+
+msgid "To konto ma już hasło – zmień je formularzem zmiany hasła."
+msgstr "У этого аккаунта уже есть пароль – измените его через форму смены пароля."
+
+msgid "Na to konto nie można teraz wysłać linku – skontaktuj się z organizatorem."
+msgstr "Сейчас нельзя отправить ссылку для этого аккаунта – свяжитесь с организатором."
+
+msgid "Co najmniej 10 znaków; nie może być popularnym hasłem, ciągiem samych cyfr ani przypominać Twojego imienia, nazwiska lub adresu e-mail."
+msgstr "Не менее 10 символов; пароль не может быть распространённым, состоять только из цифр или напоминать ваше имя, фамилию или адрес электронной почты."
+
+msgid "Powtórz nowe hasło"
+msgstr "Повторите новый пароль"
+
+msgid "Hasło zostało zmienione. Pozostałe urządzenia zostały wylogowane, a na adres konta wysłaliśmy potwierdzenie."
+msgstr "Пароль изменён. На остальных устройствах выполнен выход, а на адрес электронной почты аккаунта отправлено подтверждение."
+
+msgid "Wysłaliśmy link do ustawienia hasła na adres konta. Link jest ważny 24 godziny."
+msgstr "Мы отправили ссылку для установки пароля на адрес электронной почты аккаунта. Ссылка действует 24 часа."
+
+msgid "Zmiana hasła"
+msgstr "Смена пароля"
+
+msgid "Podaj aktualne hasło i dwa razy nowe. Po zmianie pozostaniesz zalogowany na tym urządzeniu, a wszystkie inne urządzenia i aplikacje zostaną wylogowane. Na adres konta wyślemy potwierdzenie."
+msgstr "Введите текущий пароль и дважды новый. После смены вы останетесь в системе на этом устройстве, а на всех остальных устройствах и в приложениях будет выполнен выход. Мы отправим подтверждение на адрес электронной почты аккаунта."
+
+msgid "Zmień hasło"
+msgstr "Сменить пароль"
+
+msgid "Nie pamiętasz aktualnego hasła?"
+msgstr "Не помните текущий пароль?"
+
+msgid "Ustaw nowe przez link e-mail"
+msgstr "Задайте новый по ссылке из письма"
+
+#, python-format
+msgid "To konto nie ma hasła – logujesz się przez zewnętrznego dostawcę (np. Google). Jeśli chcesz logować się także hasłem, wyślemy link do jego ustawienia na adres konta (<strong>%(address)s</strong>). Dopiero kliknięcie w link potwierdza, że skrzynka należy do Ciebie."
+msgstr "У этого аккаунта нет пароля – вы входите через внешнего провайдера (например, Google). Если вы хотите входить и по паролю, мы отправим ссылку для его установки на адрес электронной почты аккаунта (<strong>%(address)s</strong>). Только переход по ссылке подтверждает, что почтовый ящик принадлежит вам."
+
+msgid "Wyślij mi link do ustawienia hasła"
+msgstr "Отправить мне ссылку для установки пароля"
+
+msgid "Wróć do ustawień konta"
+msgstr "Вернуться к настройкам аккаунта"
+
+msgid "Zmiana hasła wymaga podania aktualnego. Po zmianie pozostałe urządzenia zostaną wylogowane, a na adres konta przyjdzie potwierdzenie."
+msgstr "Для смены пароля нужно ввести текущий. После смены на остальных устройствах будет выполнен выход, а на адрес электронной почты аккаунта придёт подтверждение."
+
+#, python-format
+msgid "Ustawienia konta: %(address)s"
+msgstr "Настройки аккаунта: %(address)s"
+
+msgid "Zbyt wiele błędnych haseł z rzędu – ze względów bezpieczeństwa wylogowaliśmy Cię. Zaloguj się ponownie."
+msgstr "Слишком много неверных паролей подряд – в целях безопасности мы завершили ваш сеанс. Войдите снова."
+
+msgid "Zbyt wiele prób na tym koncie. Odczekaj chwilę i spróbuj ponownie."
+msgstr "Слишком много попыток для этого аккаунта. Подождите немного и попробуйте снова."
+
+msgid "Otwarta na innym urządzeniu sesja edytora django CMS nie jest kończona od razu – wygasa sama po kilku godzinach. Jeśli podejrzewasz przejęcie konta, poproś organizatora o jej zamknięcie."
+msgstr "Открытый на другом устройстве сеанс редактора django CMS не завершается сразу – он истекает сам через несколько часов. Если вы подозреваете взлом аккаунта, попросите организатора закрыть его."
+
+msgid "Zmiana adresu wymaga potwierdzenia hasłem. To konto nie ma jeszcze hasła – ustaw je najpierw w sekcji „Hasło” niżej."
+msgstr "Смену адреса нужно подтвердить паролем. У этого аккаунта ещё нет пароля – сначала задайте его в разделе «Пароль» ниже."
+
+#, python-format
+msgid "To konto nie ma hasła – logujesz się przez zewnętrznego dostawcę (np. Google, Facebook) i tak zostaje. Adres <strong>%(address)s</strong> nie jest potwierdzony, więc nie wyślemy na niego linku do ustawienia hasła. Hasło da się ustawić dopiero po potwierdzeniu adresu przez dostawcę logowania; jeśli Twój dostawca adresu nie potwierdza, napisz do organizatora."
+msgstr "У этого аккаунта нет пароля – вы входите через внешнего провайдера (например, Google, Facebook), и так и останется. Адрес <strong>%(address)s</strong> не подтверждён, поэтому мы не отправим на него ссылку для установки пароля. Пароль можно будет задать только после того, как провайдер входа подтвердит адрес; если ваш провайдер не подтверждает адреса, напишите организатору."

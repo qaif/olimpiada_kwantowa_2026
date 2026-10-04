@@ -1,4 +1,4 @@
-# IQO Quantum – motyw International Quantum Olympiad (1.1.0)
+# IQO Quantum – motyw International Quantum Olympiad (1.1.1)
 
 Paczka motywu w formacie THEME-01 (§ 1–3, § 1a) z rozszerzeniami THEME-02 (§ 2.1 `logos`/`fonts`,
 § 4 slot `nav`) dla [iqo-official.org](https://iqo-official.org). Ciemna domyślnie, z dopracowaną
@@ -25,11 +25,18 @@ pasów). 1.1.0 ma **własną kompozycję** – tożsamość międzynarodowej oli
 | Stopka | dwa poziome pasy | **wielki znak słowny** (nazwa serwisu) z orbitami w tle, kolumny Serwis / Kontakt, taśma sponsorów nad stopką |
 | Paleta jasna | nieużywana | pełnoprawna (sprawdzona zrzutami i kontrastem) |
 
+## 1.1.1
+
+Adres e-mail w rozwijanym „Konto” jest odnośnikiem do ustawień konta (zmiana hasła, adresu, 2FA):
+nagłówek dołącza fragment aplikacji `web/_account_who.html` (AUTH-01b) zamiast samego tekstu,
+`theme.css` dostaje regułę najechania. Paczka wymaga aplikacji z tym fragmentem – na starszej
+walidator odrzuci paczkę przy wgraniu (`min_app_version` **0.45.0**).
+
 ## Zawartość
 
 | Plik | Rola |
 |---|---|
-| `manifest.json` | schema 1, `iqo-quantum` **1.1.0**, `min_app_version` **0.44.0** (wydanie z THEME-02), `color_scheme: dark`, `layouts` (warianty niżej), `logos`, `fonts` |
+| `manifest.json` | schema 1, `iqo-quantum` **1.1.1**, `min_app_version` **0.45.0** (wydanie z AUTH-01b – fragment `web/_account_who.html`; 1.1.0 wymagała 0.44.0 z THEME-02), `color_scheme: dark`, `layouts` (warianty niżej), `logos`, `fonts` |
 | `tokens.json` | `colors` (paleta jasna), `dark` (ciemna, z własnymi `shadow-*`), `tokens` (kroje, skala, promienie, odstępy, cienie, `header-height`, `max-width`). Każdy klucz → `--t-<klucz>` |
 | `theme.css` | jedyny arkusz: kroje, aliasy `--iqo-*` ← `--t-*`, most do ról `app.css` (panele), sloty, warianty układów, wysoki kontrast, forced-colors, druk |
 | `templates/theme/header.html` | logo, przycisk „Menu”, `{% include "theme/nav.html" %}`, konto (role, forum, wiadomości, materiały, zgłoszenie, „Moja drużyna”, „Wyloguj”) |
@@ -169,7 +176,7 @@ przycisku 5.8:1). Generator platformy nie zgłasza ostrzeżeń dla `dark`, `ligh
 ## Budowanie i podgląd
 
 ```bash
-python themes/iqo-quantum/build_zip.py        # → themes/iqo-quantum/dist/iqo-quantum-1.1.0.zip
+python themes/iqo-quantum/build_zip.py        # → themes/iqo-quantum/dist/iqo-quantum-1.1.1.zip
 ```
 
 Skrypt sprawdza lokalnie reguły walidatora (rozszerzenia, `url()`, `@import`, SVG, biblioteki tagów,

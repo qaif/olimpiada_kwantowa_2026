@@ -974,17 +974,19 @@ mkdir -p secrets
 chmod 700 secrets
 chmod +x scripts/backup.sh scripts/restore.sh scripts/backup_verify.sh scripts/upgrade_postgres18.sh 2>/dev/null || true
 
-# Godziny: kopia o 3:15 (najniższy ruch, po nocnych zadaniach beatu), test odtwarzania w niedzielę
-# o 4:40 – po kopii, żeby sprawdzał paczkę z tej samej nocy, i nie w tej samej minucie, bo oba
-# przebiegi zajmują dysk i pamięć.
+# Godziny: kopia o 3:15 (najniższy ruch, po nocnych zadaniach beatu), test odtwarzania CODZIENNIE
+# o 4:40 (OPS-01; do 4.10.2026 – w niedzielę) – po kopii, żeby sprawdzał paczkę z tej samej nocy.
+# Oba pod jednym `flock`: kopia, która w sezonie trwa dłużej niż 85 minut, nie może zostać
+# sprawdzona w połowie zapisu (test czekałby na jej koniec do 2 h, potem się poddaje i melduje
+# w logu brak blokady – watchdog zgłosi brak testu po 36 h).
 cat > /etc/cron.d/olimpiada-backup <<CRON
 # Kopie zapasowe platformy Olimpiady. Plik zakłada scripts/deploy.sh (krok 8/8) – zmiany
 # wprowadzaj tam, bo kolejne wdrożenie nadpisze ten plik.
 SHELL=/bin/bash
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 MAILTO=""
-15 3 * * *   root  cd ${REMOTE_DIR} && ./scripts/backup.sh        >> /var/log/olimpiada-backup.log 2>&1
-40 4 * * 0   root  cd ${REMOTE_DIR} && ./scripts/backup_verify.sh >> /var/log/olimpiada-backup.log 2>&1
+15 3 * * *   root  cd ${REMOTE_DIR} && flock -w 7200 /var/lock/olimpiada-backup.lock ./scripts/backup.sh        >> /var/log/olimpiada-backup.log 2>&1
+40 4 * * *   root  cd ${REMOTE_DIR} && flock -w 7200 /var/lock/olimpiada-backup.lock ./scripts/backup_verify.sh >> /var/log/olimpiada-backup.log 2>&1
 CRON
 chmod 644 /etc/cron.d/olimpiada-backup
 
