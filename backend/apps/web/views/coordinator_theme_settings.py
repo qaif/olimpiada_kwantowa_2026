@@ -211,9 +211,8 @@ class CompetitionMenuView(ThemeSettingsMixin, View):
                 continue
             if row["type"] != menu_mod.TYPE_AUTO and request.POST.get(f"delete_{key}") == "on":
                 continue
-            try:
-                order = int(request.POST.get(f"order_{key}", index + 1))
-            except ValueError:
+            order = menu_mod.ascii_int(request.POST.get(f"order_{key}"))
+            if order is None:
                 order = index + 1
             updated = {
                 **row,
@@ -262,7 +261,7 @@ class CompetitionMenuView(ThemeSettingsMixin, View):
         for index, row in enumerate(rows):
             row["position"] = index + 1
             if isinstance(row.get("page"), str):
-                row["page"] = int(row["page"]) if row["page"].isdigit() else None
+                row["page"] = menu_mod.ascii_int(row["page"])
             # Zapisana strona, której nie ma już na liście (wycofana z publikacji): zostaje wybrana
             # w formularzu jako „(niedostępna strona)”, żeby zapis tabeli jej po cichu nie zgubił.
             row["page_missing"] = bool(row.get("page")) and row["page"] not in page_ids
@@ -301,9 +300,10 @@ class CompetitionThemeCustomizeView(ThemeSettingsMixin, View):
     def _version(self, request, competition) -> ThemeVersion | None:
         raw = request.GET.get("version") or request.POST.get("version") or ""
         if raw:
-            if not raw.isdigit():
+            pk = menu_mod.ascii_int(raw)
+            if pk is None:
                 raise Http404
-            return get_object_or_404(ThemeVersion, pk=int(raw), status=ThemeVersion.Status.VALID)
+            return get_object_or_404(ThemeVersion, pk=pk, status=ThemeVersion.Status.VALID)
         if competition.theme_version_id is None:
             return None
         return ThemeVersion.objects.filter(
@@ -337,9 +337,12 @@ class CompetitionThemeCustomizeView(ThemeSettingsMixin, View):
             return redirect(url)
         if action not in ("save", "preview"):
             raise Http404
-        options = clean_options(
-            runtime, {**self._saved(competition, version), **self._posted(request, runtime)}
-        )
+        saved = self._saved(competition, version)
+        posted = self._posted(request, runtime)
+        # Formularz pokazuje palety **wybranego** schematu – paleta, której pól nie było, zachowuje
+        # zapisane nadpisania (zapis w schemacie ciemnym nie kasuje kolorów jasnych).
+        posted["colors"] = {**(saved.get("colors") or {}), **posted["colors"]}
+        options = clean_options(runtime, {**saved, **posted})
         errors, _warnings = services.customization_report(runtime, options)
         if errors:
             for error in errors:
@@ -389,10 +392,14 @@ class CompetitionThemeCustomizeView(ThemeSettingsMixin, View):
                 options[key] = request.POST[key]
         colors: dict[str, dict[str, str]] = {}
         for mode in ("light", "dark"):
-            for token in customize.editable_colors(runtime, mode):
-                value = request.POST.get(f"color_{mode}_{token}")
-                if value:
-                    colors.setdefault(mode, {})[token] = value
+            fields = {
+                token: request.POST.get(f"color_{mode}_{token}")
+                for token in customize.editable_colors(runtime, mode)
+                if f"color_{mode}_{token}" in request.POST
+            }
+            if fields:
+                # Paleta obecna w formularzu – zastępuje zapisaną w całości (także „wróć do domyślnego”).
+                colors[mode] = {token: value for token, value in fields.items() if value}
         options["colors"] = colors
         options["radius"] = {
             name: request.POST.get(f"radius_{name}", "")

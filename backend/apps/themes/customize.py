@@ -39,6 +39,8 @@ RADIUS_LIMITS = {"px": 48.0, "rem": 3.0}
 #: Próg dla elementów nietekstowych (obwódka fokusu na tle) – WCAG 2.1 SC 1.4.11.
 MIN_NON_TEXT = 3.0
 FOCUS_TOKENS = ("focus", "ring")
+GENERIC_TEXT = ("text", "text-soft", "muted", "link", "cta")
+GENERIC_SURFACES = ("bg", "surface", "surface-2")
 
 
 class CustomizationError(ValueError):
@@ -175,6 +177,14 @@ def _pairs(palette: dict[str, str], declared=()) -> list[tuple[str, str, str, fl
     """
     pairs = [(fg, bg, label, tk.MIN_CONTRAST) for fg, bg, label in tk.CONTRAST_PAIRS]
     pairs += [(str(fg), str(bg), "", float(threshold)) for fg, bg, threshold in declared]
+    # Tekst każdego stopnia na każdej powierzchni, na której stoi w arkuszach aplikacji i motywów
+    # (przegląd THEME-02, druga runda) – plus ``cta`` używany też jako kolor odnośnika/napisu.
+    pairs += [
+        (fg, bg, f"{fg} na {bg}", tk.MIN_CONTRAST)
+        for fg in GENERIC_TEXT
+        for bg in GENERIC_SURFACES
+        if fg in palette and bg in palette
+    ]
     known = {(fg, bg) for fg, bg, *_ in pairs}
     for name in sorted(palette):
         bases = []

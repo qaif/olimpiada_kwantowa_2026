@@ -278,6 +278,20 @@ def activate(
         locked = _lock(competition)
         previous = locked.theme_version_id
         _store(competition, locked, _keep_menu(locked, cleaned), version=version)
+        if version is not None:
+            # Opcje, z którymi wersja weszła (także przeniesione z poprzedniej przez ``theme_install``),
+            # są od teraz jej zapisanym dostosowaniem – kolejne „Zapisz opcje” w galerii (układy
+            # i akcent) scala się z nimi zamiast je gubić (przegląd THEME-02, druga runda).
+            from .models import ThemeCustomization
+
+            ThemeCustomization.objects.update_or_create(
+                competition=competition,
+                theme_version=version,
+                defaults={
+                    "options": cleaned,
+                    "updated_by": actor if getattr(actor, "is_authenticated", False) else None,
+                },
+            )
         audit(
             actor,
             AUDIT_ACTIVATED,

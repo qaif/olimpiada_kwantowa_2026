@@ -24,6 +24,7 @@ import logging
 import re
 import secrets
 import threading
+import unicodedata
 from urllib.parse import urlsplit
 
 from django.utils.translation import get_language
@@ -48,7 +49,25 @@ MAX_URL = 500
 #: Klucze pozycji automatycznych (``cms_menu``) i własnych (``link-…``/``group-…``).
 KEY_RE = re.compile(r"^(home|teachers|p\d{1,10}|f:[a-z0-9/_-]{1,80}|link-[0-9a-f]{8}|group-[0-9a-f]{8})$")
 LANG_RE = re.compile(r"^[a-z]{2,3}(?:[-_][A-Za-z]{2,4})?$")
-CONTROL = re.compile(r"[\x00-\x1f\x7f  ]")
+CONTROL = re.compile(r"[\x00-\x1f\x7f\u2028\u2029]")
+#: Znaki formatujące (kategoria Unicode ``Cf``) dozwolone w etykiecie: łącznik i rozłącznik
+#: zerowej szerokości (ZWJ/ZWNJ) są częścią pisowni (perski, hindi, bengalski, emoji). Pozostałe –
+#: przełączniki kierunku BiDi (U+202A–202E, U+2066–2069), spacje i znaczniki zerowej szerokości –
+#: pozwalają odwrócić albo ukryć tekst etykiety w nagłówku (przegląd THEME-02, druga runda).
+ALLOWED_FORMAT = frozenset({"\u200c", "\u200d"})
+
+
+def ascii_int(value) -> int | None:
+    """Liczba całkowita z formularza – wyłącznie cyfry ASCII (``"١٢"``, ``"²"`` → ``None``).
+
+    ``str.isdigit`` przepuszcza cyfry indyjsko-arabskie i indeksy górne, a ``int("²")`` rzuca
+    ``ValueError`` – bez tej bramki taki POST kończył się błędem 500.
+    """
+    text = str(value if value is not None else "").strip()
+    if not text or len(text) > 12 or not (text.isascii() and text.isdigit()):
+        return None
+    return int(text)
+
 
 _CACHE: dict[int, tuple[int, list[dict]]] = {}
 _LOCK = threading.Lock()
@@ -71,8 +90,10 @@ def clean_label(value) -> str:
         return ""
     if not isinstance(value, str):
         raise MenuError(_("Etykieta musi być napisem."))
-    value = " ".join(value.split())
-    if CONTROL.search(value):
+    value = " ".join(unicodedata.normalize("NFC", value).split())
+    if CONTROL.search(value) or any(
+        unicodedata.category(ch) == "Cf" and ch not in ALLOWED_FORMAT for ch in value
+    ):
         raise MenuError(_("Etykieta zawiera niedozwolone znaki."))
     if len(value) > MAX_LABEL:
         raise MenuError(_("Etykieta może mieć najwyżej %(limit)d znaków.") % {"limit": MAX_LABEL})
@@ -233,9 +254,10 @@ def _clean_entry(raw: dict, languages, auto_keys, seen: set[str]) -> dict | None
     if kind == TYPE_LINK:
         page = raw.get("page")
         if page not in (None, ""):
-            if not str(page).isdigit():
+            page_id = page if isinstance(page, int) and not isinstance(page, bool) else ascii_int(page)
+            if page_id is None:
                 raise MenuError(_("Nieznana strona serwisu."))
-            entry["page"] = int(page)
+            entry["page"] = page_id
             entry["url"] = ""
         else:
             entry["page"] = None

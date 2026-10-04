@@ -173,9 +173,12 @@ class CompetitionThemeView(CoordinatorRequiredMixin, View):
         choice = request.POST.get("version", "")
         version = None
         if choice != CLASSIC_SLUG:
-            if not choice.isdigit():
+            from apps.themes.menu import ascii_int
+
+            pk = ascii_int(choice)
+            if pk is None:
                 raise Http404("Nieznany motyw.")
-            version = get_object_or_404(ThemeVersion, pk=int(choice), status=ThemeVersion.Status.VALID)
+            version = get_object_or_404(ThemeVersion, pk=pk, status=ThemeVersion.Status.VALID)
         options = {
             "layouts": {
                 key: request.POST.get(f"layout_{key}", "")
@@ -263,7 +266,7 @@ def theme_overrides_css(request):
     accent = (getattr(competition, "accent_colour", "") or "").lower()
     if (
         competition is None
-        or not version_part.isdigit()
+        or not (version_part.isascii() and version_part.isdigit())
         or not HEX.match(accent)
         or colour != accent.lstrip("#")
     ):
