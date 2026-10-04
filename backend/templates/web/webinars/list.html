@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% load i18n static tz %}
+{% comment %}
+  Webinary odbiorcy (zadanie WEB-01, ``apps.web.views.webinars.WebinarsView``) – uczestnik, komisja,
+  kapitan drużyny, współprowadzący. Godziny w strefie konkursu; ``static/js/webinars.js`` dopisuje
+  czas lokalny przeglądarki, gdy jest inny. „Dołącz” prowadzi do **pokoju na platformie** w nowej
+  karcie; tokenu nie ma w tej stronie (pobiera go pokój osobnym POST-em).
+{% endcomment %}
+{% block title %}{% translate "Webinary" %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow">{% translate "Panel" %}</span>
+  <h1>{% translate "Webinary" %}</h1>
+  <p class="lead">{% blocktranslate trimmed with zone=zone.key %}
+    Spotkania online organizatora. Przycisk „Dołącz” działa od kilkunastu minut przed początkiem,
+    gdy prowadzący rozpocznie webinar – spotkanie otworzy się w nowej karcie. Godziny w strefie {{ zone }}.
+  {% endblocktranslate %}</p>
+  {% if is_participant %}
+    <p class="actions"><a class="btn btn--secondary btn--small" href="{% url 'web:me' %}">{% translate "Wróć do panelu" %}</a></p>
+  {% endif %}
+</div>
+
+<section class="section" aria-labelledby="webinars-upcoming"
+         data-webinars-zone="{{ zone.key }}" data-local-label="{% translate 'u Ciebie:' %}">
+  <div class="section__head"><h2 class="mt-0" id="webinars-upcoming">{% translate "Nadchodzące" %}</h2></div>
+  {% if rows %}
+    <ul class="list">
+      {% for row in rows %}
+        <li class="card">
+          <h3 class="mt-0">{{ row.webinar.title }}</h3>
+          <p>
+            <time datetime="{{ row.webinar.starts_at|utc|date:'c' }}" data-local-time>{% timezone zone %}{{ row.webinar.starts_at|date:"d.m.Y, H:i" }}{% endtimezone %}</time>
+            · {% blocktranslate trimmed with minutes=row.webinar.duration_minutes %}{{ minutes }} min{% endblocktranslate %}
+          </p>
+          {% if row.webinar.description %}<p>{{ row.webinar.description|linebreaksbr }}</p>{% endif %}
+          {% if row.moderator %}
+            <a class="btn btn--primary" href="{% url 'web:webinar-room' row.webinar.pk %}"
+               target="_blank" rel="noopener">{% translate "Rozpocznij jako prowadzący" %}</a>
+          {% elif row.state == "open" %}
+            <a class="btn btn--primary" href="{% url 'web:webinar-room' row.webinar.pk %}"
+               target="_blank" rel="noopener">{% translate "Dołącz" %}</a>
+          {% else %}
+            <p class="hint">{% translate "Wejście od:" %} <time datetime="{{ row.opens_at|utc|date:'c' }}" data-local-time>{% timezone zone %}{{ row.opens_at|date:"d.m.Y, H:i" }}{% endtimezone %}</time></p>
+          {% endif %}
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="empty">{% translate "Nie ma zaplanowanych webinarów." %}</p>
+  {% endif %}
+</section>
+
+{% if past_rows %}
+  <section class="section" aria-labelledby="webinars-recordings">
+    <div class="section__head"><h2 class="mt-0" id="webinars-recordings">{% translate "Nagrania" %}</h2></div>
+    <ul class="list">
+      {% for row in past_rows %}
+        <li>
+          <strong>{{ row.webinar.title }}</strong>
+          <span class="hint">{% timezone zone %}{{ row.webinar.starts_at|date:"d.m.Y" }}{% endtimezone %}</span>
+          {% for recording in row.recordings %}
+            <a class="btn btn--secondary btn--small" href="{% url 'web:webinar-recording' row.webinar.pk recording.pk %}"
+               target="_blank" rel="noopener noreferrer nofollow">{% if row.recordings|length > 1 %}{% blocktranslate trimmed with number=forloop.counter %}Odtwórz nagranie {{ number }}{% endblocktranslate %}{% else %}{% translate "Odtwórz nagranie" %}{% endif %}</a>
+          {% endfor %}
+        </li>
+      {% endfor %}
+    </ul>
+  </section>
+{% endif %}
+
+<section class="section" id="powiadomienia" aria-labelledby="webinars-mail">
+  <div class="section__head"><h2 class="mt-0" id="webinars-mail">{% translate "Powiadomienia e-mail" %}</h2></div>
+  <form method="post" action="{% url 'web:webinar-notifications' %}" class="form">
+    {% csrf_token %}
+    {% if notifications %}
+      <p>{% translate "Dostajesz zaproszenia i przypomnienia o webinarach." %}</p>
+      <input type="hidden" name="email_on_webinar" value="0">
+      <button type="submit" class="btn btn--secondary btn--small">{% translate "Wyłącz listy o webinarach" %}</button>
+    {% else %}
+      <p>{% translate "Listy o webinarach są wyłączone – webinary widzisz tylko na tej stronie." %}</p>
+      <input type="hidden" name="email_on_webinar" value="1">
+      <button type="submit" class="btn btn--secondary btn--small">{% translate "Włącz listy o webinarach" %}</button>
+    {% endif %}
+  </form>
+</section>
+<script nonce="{{ request.csp_nonce }}" src="{% static 'js/webinars.js' %}" defer></script>
+{% endblock %}

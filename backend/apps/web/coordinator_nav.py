@@ -302,6 +302,22 @@ def stage_items(stages: list, competition=None) -> tuple[Item, ...]:
                     ("coordinator-stage-attendance",),
                 ),
             )
+        if (
+            competition is not None
+            and competition.has_feature("stage_time_windows")
+            and not stage.is_interview
+            and not stage.is_training
+        ):
+            # Okna czasowe etapu według stref (TZ-01). Dziecko etapu, bo plan okien jest jeden na
+            # etap; rozmowa i trening okien nie mają (ekran oddaje dla nich 404).
+            children += (
+                Item(
+                    "Okna czasowe",
+                    ("web:coordinator-stage-windows",),
+                    (stage.pk,),
+                    ("coordinator-stage-windows", "coordinator-stage-windows-"),
+                ),
+            )
         items.append(
             Item(
                 stage.display_name,
@@ -560,6 +576,12 @@ def groups(stages: list, competition=None) -> list[Group]:
                 match=("coordinator-venues", "coordinator-venues-", "coordinator-venue"),
             ),
         )
+    if competition is not None and len(competition.ui_languages) > 1:
+        # Tłumacze interfejsu (zadanie L10N-01) – wyłącznie w konkursie z więcej niż jednym
+        # językiem interfejsu, tak samo jak bramka ekranu; Konkurs #1 (sam polski) ma menu bez zmian.
+        settings_items += (
+            Item("Tłumacze interfejsu", ("web:coordinator-translators",), match=("coordinator-translators",)),
+        )
     if stage is not None:
         reports += (
             Item(
@@ -615,6 +637,17 @@ def groups(stages: list, competition=None) -> list[Group]:
             match=("coordinator-certificate-templates", "coordinator-certificate-template-"),
         ),
     )
+    if competition is not None and competition.has_feature("medals"):
+        # Medale olimpiady międzynarodowej (MED-01) – w „Raportach” obok dyplomów, bo to z nich
+        # wychodzą dyplomy medalowe. Bramka ta sama, co w widoku (flaga ``medals``): Olimpiada
+        # Kwantowa ma menu co do bajtu takie, jak przed tą zmianą.
+        reports += (
+            Item(
+                "Medale",
+                ("web:coordinator-medals",),
+                match=("coordinator-medals", "coordinator-medal", "coordinator-medal-"),
+            ),
+        )
     if competition is not None and competition.has_feature("document_templates"):
         # Teksty dokumentów (etap 2 § 2.2, T13) – **zaraz za** „Dyplomami: szablony”, bo obie
         # pozycje dotyczą tego samego papieru i różnią się tym, czego dotyczą: tamta wyglądem
@@ -644,6 +677,12 @@ def groups(stages: list, competition=None) -> list[Group]:
                 ("web:coordinator-fees",),
                 match=("coordinator-fees", "coordinator-fees-", "coordinator-fee-"),
             ),
+            # Płatności online (PAY-01): zamówienia, faktury, Stripe/Przelewy24, zwroty – ta sama flaga.
+            Item(
+                "Płatności",
+                ("web:coordinator-payments",),
+                match=("coordinator-payments", "coordinator-payments-"),
+            ),
         )
     reports += (
         Item(
@@ -661,6 +700,16 @@ def groups(stages: list, competition=None) -> list[Group]:
                 "Materiały z warsztatów",
                 ("web:coordinator-workshop-materials",),
                 match=("coordinator-workshop-materials", "coordinator-workshop-material-"),
+            ),
+        )
+    if competition is not None and competition.has_feature("school_statistics"):
+        # Statystyki szkół (STAT-01) – raport, więc w „Raportach”, przed zaświadczeniami opiekunów.
+        # Bramka ta sama, co w widoku: przy wyłączonej fladze ekran oddaje 404.
+        reports += (
+            Item(
+                "Statystyki szkół",
+                ("web:coordinator-school-stats",),
+                match=("coordinator-school-stats", "coordinator-school-stats-"),
             ),
         )
     reports += (
@@ -729,6 +778,18 @@ def groups(stages: list, competition=None) -> list[Group]:
                 "Pokoje wideo",
                 ("web:coordinator-video-rooms",),
                 match=("coordinator-video-rooms", "coordinator-video-room-", "coordinator-video-issuer"),
+            ),
+        )
+    if competition is not None and competition.has_feature("webinars"):
+        # Webinary w LiveKit (zadanie WEB-01). Bramką jest **flaga konkursu**, a nie konfiguracja
+        # serwera LiveKit: koordynator konkursu z flagą ma zobaczyć ekran także wtedy, gdy operator
+        # jeszcze nie wpisał ``LIVEKIT_URL`` – ekran mówi wtedy wprost, czego brakuje, zamiast
+        # funkcji, która po cichu nie istnieje. Bez flagi menu jest co do bajtu takie, jak dotąd.
+        communication += (
+            Item(
+                "Webinary",
+                ("web:coordinator-webinars",),
+                match=("coordinator-webinars", "coordinator-webinar", "coordinator-webinar-"),
             ),
         )
     people_items: tuple[Item, ...] = ()
@@ -800,6 +861,21 @@ def groups(stages: list, competition=None) -> list[Group]:
                     ),
                 ),
             )
+    if competition is not None and competition.uses_delegations:
+        # Tłumaczenia zadań przez delegacje (TR-01) – na końcu sekcji „Etapy”, bo okno tłumaczeń
+        # jest terminem etapu. Ta sama bramka, co w widoku: poza trybem delegacji ekran oddaje 404.
+        stage_group += (
+            Item(
+                "Tłumaczenia zadań",
+                ("web:coordinator-translations",),
+                match=(
+                    "coordinator-translations",
+                    "coordinator-translations-",
+                    "coordinator-translation",
+                    "coordinator-translation-",
+                ),
+            ),
+        )
     return [
         Group("Pulpit", (Item("Co wymaga uwagi", ("web:coordinator",), match=("coordinator",)),)),
         Group("Etapy", stage_group),

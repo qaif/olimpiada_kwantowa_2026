@@ -91,6 +91,9 @@ RESERVED_SLUGS = frozenset(
         "forum",
         "healthz",
         "i18n",
+        # Webhook serwera LiveKit (``/integrations/livekit/webhook/``, zadanie WEB-01) – adres dla
+        # maszyny; strona CMS o tym slugu byłaby martwa.
+        "integrations",
         # Gałąź adresów wewnętrznych platformy (``/internal/tls-allowed`` – pytanie Caddy'ego
         # o certyfikat konkursu w subdomenie). Woła ją infrastruktura, nie człowiek, więc strona
         # CMS o tym slugu byłaby martwa **i** przykryłaby adres, od którego zależy TLS.
@@ -105,6 +108,8 @@ RESERVED_SLUGS = frozenset(
         # Zgoda ucznia na opiekuna szkolnego z importu (``/opiekun/zgoda/<token>/``).
         "opiekun",
         "password-reset",
+        # Płatności online: strona zamówienia, dokumenty i webhooki operatorów płatności (PAY-01).
+        "payments",
         "plakaty",
         "register",
         "rejestracja",
@@ -120,6 +125,10 @@ RESERVED_SLUGS = frozenset(
         "statystyki",
         "supervisor",
         "support",
+        # Webinary LiveKit (zadanie WEB-01): strona odbiorców i pokój ``/webinars/<id>/room/``.
+        "webinars",
+        # Przegląd tłumaczeń interfejsu (``/translations/…``, zadanie L10N-01).
+        "translations",
         "zaproszenie",
         "zgoda",
     }

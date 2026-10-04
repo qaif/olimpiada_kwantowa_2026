@@ -25,6 +25,174 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
   (nagłówek nad planszą, typografia, karty, sekcje, stopka, motywy orbitali/fal), tryb jasny, warianty
   logo i krojów. Wgranie: `docs/OPERACJE.md` § 30.7.
 - Migracja `themes.0003` (dwie nowe tabele).
+## [Unreleased] – Medale olimpiady międzynarodowej, dyplomy w języku ucznia i ranking krajów (MED-01)
+
+- **Medale z rankingu** (`apps.medals`, flaga konkursu `medals`, domyślnie wyłączona): schemat per etap
+  (domyślnie IPhO 8/17/25 %, polityka remisu, wyróżnienie za ≥ X % najlepszego wyniku albo pełne
+  zadanie), podgląd z `compute_stage_results`, ręczne zmiany z uzasadnieniem (audyt bez treści),
+  ogłoszenie zamrażające nagrody po publikacji wyników (bramka zgodności sum), odmrożenie z uzasadnieniem.
+  Ekran `/coordinator/medals/` (menu „Raporty → Medale”).
+- **Dyplomy w języku ucznia:** rodzaje `MEDAL_GOLD`/`MEDAL_SILVER`/`MEDAL_BRONZE`/`HON_MENTION`
+  (`results.0008`, `tenancy.0015`), zaświadczenie o udziale w konkursie z medalami; skład wielopismowy
+  (`apps/medals/typesetting.py`: kierunek RTL, kroje Noto Arabic/Devanagari/Bengali i Droid Sans Fallback
+  w repozytorium, kształtowanie HarfBuzz) wpięty w `render_pdf` (`register_composer`); język zamrażany
+  przy wystawieniu; odwrót na angielski, gdy pisma nie da się złożyć. Nowa zależność: `uharfbuzz`.
+- **Publiczne strony** `/results/<etap>/medals/` (filtr kraju, zgody jak w tabeli wyników) i
+  `/results/<etap>/countries/` (nieoficjalny ranking krajów, tylko agregaty); eksport CSV i lista na galę
+  (PDF) dla koordynatora, w audycie.
+- Olimpiada Kwantowa bez zmian: formularz „Wystaw” bez rodzajów medalowych, brak menu i odnośników.
+- **RODO:** czynność „Medale, dyplomy medalowe i ranking krajów” (warunkowa), sekcja `medale` w eksporcie
+  danych konta. **i18n:** 37 napisów w katalogu aplikacji `apps/medals/locale` (10 języków, maszynowe);
+  `Dockerfile` i `test_translations` obejmują katalogi aplikacji.
+- Po przeglądzie: kraj przy wierszu tylko w `CODE` i przy nazwisku za zgodą; cyfry arabsko-indyjskie
+  w kolejności LTR; ranking krajów z sumą/średnią tylko od 3 wyników; bramka ogłoszenia porównuje też
+  wpisy i stany; dyplom niezgodny z nagrodą nieaktualny (weryfikacja, „Moje dyplomy”); język przypinany
+  przy wystawieniu, brak kształtowania przy pobraniu – błąd zamiast cichego angielskiego; `uharfbuzz`
+  przypięty do 0.56.
+- Dokumentacja: `docs/OPERACJE.md` § 37, `docs/PODRECZNIK-ORGANIZATORA.md` § 10k, przewodnik opiekuna
+  drużyny § 5a, podręcznik uczestnika § 7.
+
+## [Unreleased] – Webinary w LiveKit (WEB-01)
+
+- **Webinary** (`apps.webinars`, flaga konkursu `webinars`, domyślnie wyłączona): koordynator planuje
+  webinar (termin, odbiorcy: konkurs / edycja / etap / komisja / kapitanowie, współprowadzący,
+  nagrywanie, link dla gości), odbiorcy wchodzą do **pokoju na platformie** (`/webinars/<id>/room/`:
+  siatka i widok prelegenta, ekran, mikrofon/kamera, lista uczestników, ręka, czat; motyw konkursu,
+  11 języków, RTL). Widz bez nadawania – „Daj głos” przez `UpdateParticipant`.
+- **LiveKit** (własny serwer, Apache 2.0): tokeny HS256 na 10 min z serwera (bez sekretu w HTML/JS),
+  webhook `/integrations/livekit/webhook/` z obowiązkowym podpisem i ochroną przed powtórką (stan
+  pokoju, **lista obecności**, koniec nagrania), nagrania przez Egress do prywatnego bucketu (MP4,
+  publikacja, adres podpisany na 2 h), transmisja RTMP na YouTube (klucz niezapisywany).
+- **Infrastruktura:** `deploy/livekit/` (nakładka compose z profilem `livekit`, przykłady `livekit.yaml`
+  i `egress.yaml`, polityka MinIO egress), `LIVEKIT_PROXY` w `render_caddyfile.sh` (blok `live.`),
+  `scripts/vendor_livekit_client.sh` (SDK z npm ze sprawdzeniem sumy, bez CDN). CSP: origin LiveKit
+  w `connect-src` tylko przy konfiguracji. Nowe segmenty `webinars`, `integrations` w kontrakcie tras.
+- Listy: zaproszenie (raz) i przypomnienie (beat co 5 min), z wyłączeniem; rejestr czynności
+  „Webinary online (LiveKit)” przy fladze. Opis: `docs/tasks/WEB-01.md`, `docs/OPERACJE.md` § 36.
+
+## [Unreleased] – Statystyki szkół i opiekunów szkolnych (STAT-01)
+
+- **Flaga `school_statistics`** (domyślnie wyłączona), nowa aplikacja `apps.school_stats` bez modeli.
+  Opiekun szkolny (`/supervisor/statistics/`): jego uczniowie
+  w edycjach i etapach (zapis, oddanie, termin; punkty i awans **wyłącznie** z ogłoszonych publikacji,
+  lista „tylko awansujący” bez punktów osób spoza listy), porównanie ze szkołą (tylko szkoła z wykazu
+  zweryfikowana przez organizatora), województwem i całością z progiem k-anonimowości 5 i regułą
+  dopełnienia, wykres SVG postępu przez edycje (bez JS), raport PDF szkoły dla dyrektora (same
+  agregaty). Koordynator (`/coordinator/school-stats/`, menu „Raporty”): ranking szkół z porównaniem
+  rok do roku, województwa, „szkoły do odzyskania”, eksport CSV, raport PDF dowolnej szkoły. Agregaty
+  edycji w pamięci podręcznej z odciskiem publikacji (2 zapytania na edycję). Rejestr czynności 1.12
+  (wiersz warunkowy). Katalogi tłumaczeń aplikacji (`apps/<nazwa>/locale`) kompilowane w obrazie
+  i sprawdzane testem (`docs/tasks/STAT-01.md`, `docs/OPERACJE.md` § 29).
+- **Poprawki po przeglądzie:** reguła zagnieżdżenia (szkoła ⊂ województwo ⊂ całość; województwo minus
+  pokazane szkoły), dopełnienie wobec uczniów wszystkich opiekunów szkoły w CSV/PDF, średnia od 5
+  wyników, przynależność wpisów zamrażana przy publikacji (`FrozenMembership`, migracja
+  `school_stats.0001`), konta zanonimizowane poza szkołami, profil opiekuna z innego konkursu nie działa
+  w tym konkursie (`supervisor_profile`), CSV szkół do odzyskania, CI sprawdza katalogi `apps/*/locale`.
+
+## [Unreleased] – Okna czasowe etapu według stref czasowych (TZ-01)
+
+- **Tryb okien** etapu zdalnego (nowa aplikacja `apps.time_windows`, flaga konkursu `stage_time_windows`,
+  domyślnie wyłączona): N okien o stałym czasie pracy, przydział krajów domyślnie ze strefy stolicy
+  (poprawka strefy kraju, przydział ręczny), wyjątki uczniów (inne okno, dodatkowy czas z powodem).
+  Zmiany tylko przed startem okien, każda w audycie.
+- **Egzekwowanie po stronie serwera:** upload (HTML i API) i `is_late` z okna ucznia; treść zadań uczniowi
+  od startu jego okna, publicznie (strona „Zadania”, API, archiwum) po końcu ostatniego; test online
+  w oknie ucznia; premoderacja forum i czatu przez cały czas okien; publikacja wyników po ujawnieniu;
+  rama etapu nie może wyciąć okien.
+- **Panel ucznia:** karta „Twoje okno”, odliczanie do własnego startu i terminu, godziny w strefie ucznia
+  (strefę ustawia opiekun drużyny – nie zmienia okna), własne okno w kalendarzu osobistym.
+- **Ekrany:** „Okna czasowe” pod etapem w panelu koordynatora (oś czasu z liczbami na żywo, kraje,
+  wyjątki, kto w którym oknie) i „Okna czasowe drużyny” u opiekuna. RODO: czynność w rejestrze, eksport,
+  anonimizacja. Katalogi tłumaczeń aplikacji (`apps/*/locale`) kompilowane w obrazie, CI i testach.
+- Dokumentacja: `docs/OPERACJE.md` § 32, `docs/PODRECZNIK-ORGANIZATORA.md` § 10e,
+  `docs/PODRECZNIK-UCZESTNIKA.md` § 3, `docs/PODRECZNIK-OPIEKUNA-DRUZYNY.md` § 5a.
+
+## [Unreleased] – Tłumaczenia zadań przez delegacje krajowe („noc tłumaczeń”, TR-01)
+
+- **Nowa aplikacja `apps.problem_translations`** (tylko konkursy w trybie `DELEGATIONS`): okno tłumaczeń
+  etapu (zamyka się najpóźniej z otwarciem etapu), tryb osobny/wspólny dla delegacji jednego języka,
+  wersja oficjalna jako tekst Markdown + LaTeX z numerem wersji, 1–2 języki delegacji i język ucznia
+  (domyślny + nadpisanie przez opiekuna).
+- **Opiekun** (`/delegation/translations/`): edytor obok wersji oficjalnej z autozapisem (HTMX) i
+  podglądem wzorów (KaTeX zwendorowany; htmx i Alpine strony bazowej nadal z CDN-ów z SRI), alternatywnie PDF (skan antywirusowy), wysłanie do
+  akceptacji, cofnięcie, aktualizacja po zmianie wersji oficjalnej z różnicami źródła.
+- **Komisja** (`/coordinator/translations/`): kolejka, przegląd z różnicami wersji, zatwierdzenie
+  (blokada) i zwrot z komentarzem; zmiana wersji oficjalnej (także PDF-u z ekranu zadań) oznacza
+  tłumaczenia jako nieaktualne i wysyła listy; eksport do druku per język (PDF i widok do druku).
+- **Uczeń:** po otwarciu etapu „Treść w języku: …” na karcie zadania obok wersji oficjalnej.
+- **Poufność:** źródło tylko w oknie i tylko dla opiekunów z delegacją w bieżącej edycji, `no-store`,
+  audyt każdego wglądu i pobrania, znak wodny kraju na PDF-ach opiekunów.
+- **Wspólne:** obraz kompiluje katalogi tłumaczeń aplikacji (`apps/*/locale`), test katalogów obejmuje
+  je; scope throttlingu `translation`; rejestr czynności 1.13; sekcja `tlumaczenia_zadan` w eksporcie
+  danych konta. Dokumentacja: `docs/tasks/TR-01.md`, `OPERACJE.md` § 34,
+  `PODRECZNIK-ORGANIZATORA.md` § 10g, `PODRECZNIK-OPIEKUNA-DRUZYNY.md` § 6, `PODRECZNIK-UCZESTNIKA.md` § 3.
+
+## [Unreleased] – Przegląd tłumaczeń przez native speakerów (L10N-01)
+
+- **Panel tłumacza** `/translations/` (nowa aplikacja `apps.translation_review`): napisy jednego języka
+  z katalogu projektu i katalogów aplikacji – tekst polski, angielski jako odniesienie, obecne
+  tłumaczenie, kontekst z `.po` (miejsca w kodzie, uwagi, `msgctxt`, formy mnogie); filtry
+  „bez tłumaczenia / maszynowe / przejrzane / z propozycją”, wyszukiwanie, propozycje z głosami
+  (anonimowe wobec innych tłumaczy), decyzje recenzenta (zatwierdź, odrzuć, potwierdź, cofnij).
+- **Role:** tłumacz (nadaje koordynator konkursu z >1 językiem interfejsu, tylko osobom z konkursu –
+  `/coordinator/translators/`) i recenzent tłumaczeń (wyłącznie superkoordynator). Superkoordynator
+  jest recenzentem każdego języka.
+- **Nakładka w czasie działania:** zatwierdzone tłumaczenie wchodzi do gettext jako pierwszy katalog
+  (`trans_real.translation` owinięte w `ready()`); w cache'u sam numer wersji per język, każdy proces
+  przebudowuje nakładkę z bazy po zmianie wersji (≤ 5 s), bufor stron gości czyszczony przy zmianie;
+  `TRANSLATION_OVERRIDES_ENABLED` wyłącza bez wydania. Potwierdzenia („obecne jest dobre”) nigdy nie
+  trafiają do gettext, a poprawka podjęta wobec starszego `msgstr` ustępuje nowemu tekstowi z wydania
+  (znacznik „do ponownego przeglądu”; migracja `translation_review.0002`).
+- **Zasięg nadania:** rola nadana przez koordynatora należy do jego konkursu (widzą ją i odbierają
+  wszyscy koordynatorzy konkursu) i działa tylko, dopóki osoba jest z konkursem związana; koordynator
+  nadaje tylko w językach interfejsu swojego konkursu.
+- **Bezpieczeństwo poprawek:** tłumaczenie to zwykły tekst – te same placeholdery, **dokładnie** te same
+  znaczniki HTML co w `msgid`, żadnego nowego `<`/`>` ani prostego cudzysłowu (napisy bywają
+  w atrybutach, a `{% translate %}` nie escapuje), bez znaków sterujących i bidi override; ponowna
+  walidacja przy zatwierdzeniu i przy imporcie z JSON-a.
+- **`manage.py export_translations`:** nakładki → `msgstr` w `.po` (diff wyłącznie poprawionych wpisów +
+  `# l10n-reviewed`; potwierdzenie – sam znacznik; konflikt, gdy katalog zmienił się od decyzji),
+  `--to-json`/`--from-json` (produkcja bez gita), zapis do `.po` tylko w checkoucie (`DEBUG` + `.git`,
+  inaczej `--force`), `--prune` dopiero gdy tekst jest w skompilowanym `.mo`, `--prune-stale`,
+  `--dry-run` (`docs/OPERACJE.md` § 33).
+- **„Zgłoś tłumaczenie” w stopce** dla zalogowanego tłumacza (konkurs wielojęzyczny, strona nie po
+  polsku): ścieżka strony bez parametrów + fraza + uwaga; lista zgłoszeń dla recenzenta.
+- **Audyt** `translation.*`, throttling `translations` (120/h na konto), rejestr czynności **1.11**
+  (wiersz warunkowy „Przegląd tłumaczeń interfejsu”), sekcja `tlumaczenia` w eksporcie danych konta,
+  anonimizacja usuwa rolę, głosy i zgłoszenia. Obraz i testy kompilują teraz także katalogi aplikacji
+  (`apps/*/locale`). Ocena wariantu Weblate: `docs/tasks/L10N-01.md` § 1.
+
+## [Unreleased] – Płatności online za udział: Stripe, Przelewy24, przelew, faktury (PAY-01)
+
+- **Nowa aplikacja `apps.payments`** za flagą `fees` (Olimpiada Kwantowa bez zmian): cennik delegacji per
+  edycja (delegacja, uczeń, opiekun, obserwator; ceny „early”/„late”; waluta), zamówienia liczone na
+  serwerze z pokryciem składu (dopisany uczeń = nowe zamówienie tylko na przyrost), zniżki i zwolnienia
+  delegacji z uzasadnieniem i audytem.
+- **Faktura pro forma i faktura** (PDF, ReportLab jak dyplomy) z numeracją ciągłą per konkurs/rodzaj/rok
+  (`IQO/FV/2026/0001`), migawka danych sprzedawcy (pola organizatora + `PaymentSettings`) i nabywcy
+  (instytucja albo osoba, VAT ID opcjonalnie). D15 zmieniona: numeracja tak, rejestr VAT/korekty – nie.
+- **Operatorzy płatności** za wspólnym interfejsem: Stripe Checkout + webhook z weryfikacją podpisu
+  (bez SDK), Przelewy24 (rejestracja, powiadomienie SHA-384, `verify`, zwrot), przelew z kodem
+  referencyjnym i zapisem koordynatora (dowód wpłaty skanowany ClamAV). Idempotentne webhooki
+  (`ProviderEvent`), porównanie kwoty i waluty, „do wyjaśnienia” przy rozbieżności i podwójnej wpłacie.
+- **Zwroty** przez API operatora (albo zapis zwrotu przelewu), częściowe i pełne; pełny zwrot uczestnika
+  trafia do rejestru wpisowego (`record_refund`). Potwierdzenia wpłaty i zwrotu e-mailem w języku płacącego.
+- **Ekrany:** opiekun `/delegation/payments/`, strona zamówienia `/payments/orders/<id>/`, uczestnik
+  „Zapłać online” na kaflu „Wpisowe” (`/me/fees/pay/`), koordynator `/coordinator/payments/` (sumy per
+  waluta, delegacje, zamówienia, eksport CSV dla księgowości, cennik i ustawienia).
+- **Bezpieczeństwo:** kwota nigdy z formularza, podpis webhooka obowiązkowy (brak sekretu = 404), sekrety
+  wyłącznie ze środowiska (`STRIPE_*`, `P24_*`), limity `checkout`/`payments_admin`, przekierowanie tylko na
+  hosty operatora, panel `/admin/` płatności tylko do odczytu.
+- **Po przeglądzie:** dostęp tylko czynnego opiekuna, zwroty pozycjami (zastępca płaci), warunkowy zapis
+  sesji Checkout i `GET` sesji po nieudanym `expire`, sprzątanie beatem `payments-sweep` (porzucone sesje,
+  zgubione webhooki, ponawianie zwrotów tym samym kluczem), przelew zapisywany pod blokadą i tylko na
+  zamówienie otwarte, wpłata na anulowane → „do wyjaśnienia”, `livemode`, limit `payment_webhooks`.
+- **RODO:** czynność „Płatności” w rejestrze (wersja 1.16, warunkowa), sekcja w eksporcie danych konta
+  (z profilami delegacji edytowanymi przez konto); anonimizacja kasuje profil nabywcy uczestnika.
+- **i18n:** katalog aplikacji `apps/payments/locale` (113 napisów, 10 języków, maszynowe); `Dockerfile`,
+  `conftest.py` i `test_translations.py` obejmują katalogi aplikacji.
+- Dokumentacja: `docs/OPERACJE.md` § 35, `docs/PODRECZNIK-ORGANIZATORA.md` § 10h,
+  `docs/PODRECZNIK-OPIEKUNA-DRUZYNY.md` § 6, `docs/PODRECZNIK-UCZESTNIKA.md` § 2.
 
 ## [Unreleased] – Motywy wizualne wgrywane paczkami (THEME-01)
 

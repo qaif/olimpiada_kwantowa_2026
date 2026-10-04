@@ -26,6 +26,7 @@ from apps.competitions.models import Edition, Problem, Stage, StageEntry, StageK
 from apps.competitions.scoping import resolve_competition, scope_to_competition
 from apps.competitions.services import current_edition, training_stage
 from apps.results.feedback import participant_feedback
+from apps.time_windows.access import statements_visible
 from apps.web.mixins import ParticipantRequiredMixin
 
 
@@ -151,7 +152,9 @@ def archived_editions(competition=None) -> list[ArchiveEdition]:
         stages = [
             ArchiveStage(stage=stage, problems=_archive_problems(stage))
             for stage in sorted(edition.stages.all(), key=lambda item: (item.opens_at, item.pk))
-            if stage.kind != StageKind.TRAINING and stage.has_opened()
+            # ``statements_visible`` = ``has_opened`` z oknami czasowymi (TZ-01): archiwum jest
+            # publiczne w treści, więc etap z oknami wchodzi do niego po końcu ostatniego okna.
+            if stage.kind != StageKind.TRAINING and statements_visible(stage, competition=competition)
         ]
         stages = [row for row in stages if row.problems]
         if stages:

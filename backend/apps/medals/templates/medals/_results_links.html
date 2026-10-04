@@ -1,0 +1,4 @@
+{% load i18n %}<p class="actions">
+  <a class="btn btn--primary btn--small" href="{% url 'web:results-medals' stage.pk %}">{% translate "Medale" %}</a>
+  <a class="btn btn--secondary btn--small" href="{% url 'web:results-countries' stage.pk %}">{% translate "Ranking krajów" %}</a>
+</p>

@@ -1,0 +1,286 @@
+# Indonesian – katalog aplikacji ``apps.school_stats`` (zadanie STAT-01).
+# Zrodlem (msgid) jest polski. UWAGA: tlumaczenie MASZYNOWE (model jezykowy) – patrz
+# docs/OPERACJE.md (przeglad przez native speakera przed szeroka komunikacja).
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Olimpiada Kwantowa\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-04 19:40+0200\n"
+"PO-Revision-Date: 2026-10-04 19:40+0200\n"
+"Last-Translator: Olimpiada Kwantowa\n"
+"Language-Team: Indonesian\n"
+"Language: id\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+#, python-format
+msgid "mniej niż %(k)s uczestników – dane ukryte"
+msgstr "kurang dari %(k)s peserta – data disembunyikan"
+
+msgid "Raport szkoły"
+msgstr "Laporan sekolah"
+
+#, python-format
+msgid "Edycja: %(edition)s · stan na %(date)s"
+msgstr "Edisi: %(edition)s · per %(date)s"
+
+msgid "Grupa"
+msgstr "Kelompok"
+
+msgid "Uczestnicy"
+msgstr "Peserta"
+
+msgid "Oddane prace"
+msgstr "Solusi yang diserahkan"
+
+msgid "W terminie"
+msgstr "Tepat waktu"
+
+msgid "Zakwalifikowani"
+msgstr "Lolos"
+
+msgid "Średnia pkt"
+msgstr "Rata-rata poin"
+
+msgid "wyniki ogłoszone"
+msgstr "hasil diumumkan"
+
+msgid "wyniki jeszcze nieogłoszone"
+msgstr "hasil belum diumumkan"
+
+msgid "Udział szkoły w kolejnych edycjach"
+msgstr "Partisipasi sekolah dari edisi ke edisi"
+
+msgid "Edycja"
+msgstr "Edisi"
+
+msgid "Uczestnicy ze szkoły"
+msgstr "Peserta dari sekolah"
+
+#, python-format
+msgid "mniej niż %(k)s"
+msgstr "kurang dari %(k)s"
+
+#, python-format
+msgid "Raport zawiera wyłącznie dane zbiorcze. Grupy mniejsze niż %(k)s osób są ukryte, żeby z liczb nie dało się odczytać wyniku konkretnego ucznia. Punkty i kwalifikacja pochodzą z oficjalnie ogłoszonych wyników etapu; etap bez ogłoszonych wyników ma tylko liczbę uczestników i oddanych prac."
+msgstr "Laporan ini hanya berisi data agregat. Kelompok yang beranggotakan kurang dari %(k)s orang disembunyikan agar hasil siswa tertentu tidak dapat disimpulkan dari angka-angka tersebut. Poin dan kelolosan berasal dari hasil tahap yang diumumkan secara resmi; tahap yang hasilnya belum diumumkan hanya menampilkan jumlah peserta dan solusi yang diserahkan."
+
+msgid "Moi uczniowie"
+msgstr "Siswa saya"
+
+msgid "Szkoła"
+msgstr "Sekolah"
+
+msgid "Wszyscy uczestnicy"
+msgstr "Semua peserta"
+
+msgid "RSPO"
+msgstr "RSPO"
+
+msgid "Miejscowość"
+msgstr "Kota"
+
+msgid "Województwo"
+msgstr "Provinsi"
+
+msgid "Uczestnicy w poprzedniej edycji"
+msgstr "Peserta pada edisi sebelumnya"
+
+msgid "Zmiana"
+msgstr "Perubahan"
+
+msgid "wpisy"
+msgstr "pendaftaran"
+
+msgid "średnia"
+msgstr "rata-rata"
+
+msgid "zakwalifikowani"
+msgstr "lolos"
+
+msgid "Statystyki szkół"
+msgstr "Statistik sekolah"
+
+msgid "Te same wartości stoją w tabeli pod wykresem."
+msgstr "Nilai yang sama tercantum dalam tabel di bawah grafik."
+
+#, python-format
+msgid "grupa ukryta – mniej niż %(k)s osób"
+msgstr "kelompok disembunyikan – kurang dari %(k)s orang"
+
+msgid "panel koordynatora"
+msgstr "panel koordinator"
+
+msgid "Udział szkół w edycji, porównanie z poprzednią edycją i – po ogłoszeniu wyników – średnie oraz liczba zakwalifikowanych."
+msgstr "Partisipasi sekolah dalam edisi ini, perbandingan dengan edisi sebelumnya, dan – setelah hasil diumumkan – rata-rata serta jumlah siswa yang lolos."
+
+#, python-format
+msgid "Średnie i liczby zakwalifikowanych grup mniejszych niż %(k)s wpisów są ukryte – także w eksporcie CSV i w raportach PDF."
+msgstr "Rata-rata dan jumlah siswa lolos untuk kelompok dengan kurang dari %(k)s pendaftaran disembunyikan – juga dalam ekspor CSV dan laporan PDF."
+
+msgid "Eksport CSV"
+msgstr "Ekspor CSV"
+
+msgid "Ten konkurs nie ma jeszcze żadnej edycji."
+msgstr "Kompetisi ini belum memiliki edisi."
+
+msgid "Kolejność"
+msgstr "Urutan"
+
+msgid "Pokaż"
+msgstr "Tampilkan"
+
+msgid "Szkoły z uczestnikami"
+msgstr "Sekolah dengan peserta"
+
+#, python-format
+msgid "Szkoły w edycji %(edition)s"
+msgstr "Sekolah pada edisi %(edition)s"
+
+msgid "Szkoły bez uczestników w tej edycji"
+msgstr "Sekolah tanpa peserta pada edisi ini"
+
+msgid "Ranking szkół"
+msgstr "Peringkat sekolah"
+
+msgid "awans"
+msgstr "lolos"
+
+msgid "Raport"
+msgstr "Laporan"
+
+msgid "spoza wykazu"
+msgstr "di luar daftar"
+
+msgid "grupa pod progiem"
+msgstr "kelompok di bawah ambang"
+
+msgid "W tej edycji nikt jeszcze nie jest zapisany do etapu."
+msgstr "Belum ada yang terdaftar di tahap mana pun pada edisi ini."
+
+msgid "Województwa"
+msgstr "Provinsi"
+
+msgid "Szkoły"
+msgstr "Sekolah"
+
+msgid "brak województwa"
+msgstr "tanpa provinsi"
+
+msgid "Brak danych."
+msgstr "Tidak ada data."
+
+msgid "Szkoły do odzyskania"
+msgstr "Sekolah yang perlu diajak kembali"
+
+#, python-format
+msgid "Szkoły, które miały uczestników w edycji %(edition)s, a w tej edycji nie mają nikogo – adresaci akcji promocyjnej."
+msgstr "Sekolah yang memiliki peserta pada edisi %(edition)s tetapi tidak ada seorang pun pada edisi ini – sasaran kegiatan promosi."
+
+msgid "Każda szkoła z poprzedniej edycji ma uczestników także w tej."
+msgstr "Setiap sekolah dari edisi sebelumnya juga memiliki peserta pada edisi ini."
+
+msgid "Statystyki uczniów i szkoły"
+msgstr "Statistik siswa dan sekolah"
+
+msgid "Panel opiekuna szkolnego"
+msgstr "Panel pembina sekolah"
+
+msgid "Udział Twoich uczniów w kolejnych etapach i edycjach. Punkty i kwalifikacja pojawiają się dopiero po oficjalnym ogłoszeniu wyników etapu."
+msgstr "Partisipasi siswa Anda di setiap tahap dan edisi. Poin dan kelolosan baru muncul setelah hasil tahap diumumkan secara resmi."
+
+#, python-format
+msgid "Dane szkoły, województwa i całej olimpiady są zbiorcze. Grupy, z których dałoby się odczytać wynik konkretnej osoby (mniej niż %(k)s uczestników poza Twoimi uczniami), są ukryte."
+msgstr "Data sekolah, provinsi, dan seluruh olimpiade bersifat agregat. Kelompok yang memungkinkan hasil seseorang disimpulkan (kurang dari %(k)s peserta selain siswa Anda) disembunyikan."
+
+msgid "Wróć do listy uczniów"
+msgstr "Kembali ke daftar siswa"
+
+msgid "Raport szkoły (PDF)"
+msgstr "Laporan sekolah (PDF)"
+
+msgid "Porównanie z całą szkołą i raport dla dyrektora są dostępne, gdy Twoja szkoła jest wybrana z wykazu szkół i zweryfikowana przez organizatora. Do tego czasu widzisz swoich uczniów, województwo i całą olimpiadę."
+msgstr "Perbandingan dengan seluruh sekolah dan laporan untuk kepala sekolah tersedia setelah sekolah Anda dipilih dari daftar sekolah dan diverifikasi oleh penyelenggara. Sampai saat itu Anda melihat siswa Anda, provinsi, dan seluruh olimpiade."
+
+msgid "Olimpiada nie ma jeszcze żadnej edycji."
+msgstr "Olimpiade ini belum memiliki edisi."
+
+#, python-format
+msgid "Uczniowie w edycji %(edition)s"
+msgstr "Siswa pada edisi %(edition)s"
+
+msgid "Nikt jeszcze nie wskazał Twojego adresu jako adresu opiekuna."
+msgstr "Belum ada yang mencantumkan alamat Anda sebagai alamat pembina."
+
+msgid "Ta edycja nie ma jeszcze etapów."
+msgstr "Edisi ini belum memiliki tahap."
+
+msgid "Uczeń"
+msgstr "Siswa"
+
+msgid "nie startuje"
+msgstr "tidak ikut"
+
+msgid "zapisany"
+msgstr "terdaftar"
+
+msgid "oddane w terminie"
+msgstr "diserahkan tepat waktu"
+
+msgid "oddane po terminie"
+msgstr "diserahkan terlambat"
+
+msgid "brak pracy"
+msgstr "tidak ada solusi"
+
+msgid "brak na liście awansujących"
+msgstr "tidak ada dalam daftar yang lolos"
+
+msgid "pkt"
+msgstr "poin"
+
+msgid "wyniki nieogłoszone"
+msgstr "hasil belum diumumkan"
+
+msgid "Porównanie po ogłoszeniu wyników"
+msgstr "Perbandingan setelah hasil diumumkan"
+
+msgid "ogłoszono tylko listę awansujących"
+msgstr "hanya daftar yang lolos yang diumumkan"
+
+msgid "W tej edycji żaden etap nie ma jeszcze ogłoszonych wyników."
+msgstr "Belum ada tahap pada edisi ini yang hasilnya diumumkan."
+
+msgid "Postęp w kolejnych edycjach"
+msgstr "Perkembangan dari edisi ke edisi"
+
+msgid "Średnia punktów w pierwszym etapie edycji z ogłoszoną pełną tabelą wyników."
+msgstr "Rata-rata poin pada tahap pertama edisi yang tabel hasilnya diumumkan lengkap."
+
+msgid "Średnia punktów w kolejnych edycjach"
+msgstr "Rata-rata poin dari edisi ke edisi"
+
+msgid "Moich uczniów"
+msgstr "Siswa saya"
+
+#, python-format
+msgid "„—” oznacza brak ogłoszonych wyników albo grupę ukrytą, bo liczy mniej niż %(k)s osób."
+msgstr "“—” berarti tidak ada hasil yang diumumkan atau kelompok disembunyikan karena beranggotakan kurang dari %(k)s orang."
+
+msgid "Brak danych z poprzednich edycji."
+msgstr "Tidak ada data dari edisi sebelumnya."
+
+msgid "Region"
+msgstr "Wilayah"
+
+msgid "liczba uczestników"
+msgstr "jumlah peserta"
+
+msgid "wyniki"
+msgstr "hasil"
+
+msgid "nazwa"
+msgstr "nama"

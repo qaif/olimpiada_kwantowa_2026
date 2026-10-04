@@ -169,6 +169,10 @@ FEATURE_DEFAULTS: dict[str, bool] = {
     "appeals": True,
     # Dyplomy i zaświadczenia – jw.
     "certificates": True,
+    # Medale olimpiady międzynarodowej (złoto/srebro/brąz/wyróżnienie z rankingu), dyplomy w języku
+    # ucznia i ranking krajów (MED-01, ``apps.medals``). Domyślnie wyłączona: Olimpiada Kwantowa
+    # nagradza tytułem laureata i ma zostać bez zmian; ``iqo`` włącza ją operator w ``/admin/``.
+    "medals": False,
     # --- etap 2: konfiguracja, proces, rejestracja (``docs/UNIWERSALNY-ETAP-2.md`` § 0.6) -------
     # Katalog dostaje **komplet** flag etapu 2 naraz, także te, których pierwszy czytelnik powstanie
     # dopiero za kilka wydań. Flaga bez czytelnika jest nieszkodliwa (``has_feature`` podnosi
@@ -273,6 +277,26 @@ FEATURE_DEFAULTS: dict[str, bool] = {
     # prace uczestników wychodzą wtedy do podmiotu przetwarzającego (Anthropic) poza organizatorem,
     # co wymaga umowy powierzenia i zmiany polityki prywatności (``docs/OPERACJE.md``).
     "ai_grading": False,
+    # --- webinary (LiveKit) -------------------------------------------------------------------------
+    # Zadanie WEB-01 (``apps.webinars``): koordynator planuje webinary, odbiorcy wchodzą do pokoju na
+    # platformie. Wyłączona znaczy, że adresów ``/coordinator/webinars/…``, ``/webinars/…`` i
+    # ``/zaproszenie/webinar/…`` **nie ma** (404), a menu i panele wyglądają jak dziś. Domyślnie
+    # wyłączona, bo włączenie wymaga serwera LiveKit (``LIVEKIT_URL``, klucz i sekret API – krok
+    # operatora, ``docs/OPERACJE.md`` § 36) i decyzji organizatora o nagrywaniu.
+    "webinars": False,
+    # --- statystyki szkół (STAT-01) -----------------------------------------------------------------
+    # Ranking szkół dla koordynatora i statystyki uczniów dla opiekuna szkolnego (``apps.school_stats``).
+    # Wyłączona znaczy, że adresów ``/supervisor/statistics/`` i ``/coordinator/school-stats/`` nie ma
+    # (404), a menu i pulpit opiekuna wyglądają co do bajtu jak dziś. Domyślnie wyłączona, bo opiekun
+    # zaczyna widzieć wyniki uczniów przez kolejne edycje – organizator włącza to świadomie, razem
+    # z wierszem rejestru czynności, który flaga dokłada (``apps.accounts.processing_register``).
+    "school_statistics": False,
+    # --- okna czasowe etapu (TZ-01, 4.10.2026) -----------------------------------------------------
+    # Etap zdalny rozłożony na kilka startów według stref czasowych krajów (``apps.time_windows``).
+    # Wyłączona znaczy, że żadna bramka okien nie pyta bazy, ekranu „Okna czasowe” nie ma (404),
+    # a menu i panel uczestnika są co do bajtu takie, jak przed tą zmianą. Przełącza operator
+    # w ``/admin/``: wyłączenie w trakcie trwania okien ujawniłoby zadania wszystkim naraz.
+    "stage_time_windows": False,
     # --- motywy wizualne (THEME-01) ----------------------------------------------------------------
     # Ekran „Motyw serwisu” w panelu koordynatora (``/coordinator/competition/theme/``) i jego
     # pozycja w menu. Wyłączona znaczy, że adresu **nie ma** (404), a menu wygląda co do bajtu jak

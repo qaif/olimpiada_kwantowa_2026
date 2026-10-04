@@ -1,0 +1,20 @@
+Kroje dokumentów w języku ucznia (MED-01, apps/medals/typesetting.py)
+=====================================================================
+
+Kroje są w repozytorium, a nie w obrazie systemowym: dokument ma się składać tak samo na laptopie
+dewelopera, w CI i na produkcji, a PDF osadza ich podzbiory (embedding dozwolony obiema licencjami).
+Łacinę, cyrylicę i grekę składa DejaVu Sans z backend/static/fonts (licencja: DejaVu-LICENSE.txt).
+
+Plik                               Pismo                     Źródło (pobrane 4.10.2026)                                                     Licencja
+NotoSansArabic-Regular.ttf         arabskie                  https://notofonts.github.io/arabic/fonts/NotoSansArabic/hinted/ttf/           SIL OFL 1.1 (OFL-Noto.txt)
+NotoSansArabic-Bold.ttf            arabskie                  jw.                                                                            SIL OFL 1.1
+NotoSansDevanagari-Regular.ttf     dewanagari (hindi)        https://notofonts.github.io/devanagari/fonts/NotoSansDevanagari/hinted/ttf/   SIL OFL 1.1
+NotoSansDevanagari-Bold.ttf        dewanagari                jw.                                                                            SIL OFL 1.1
+NotoSansBengali-Regular.ttf        bengalskie                https://notofonts.github.io/bengali/fonts/NotoSansBengali/unhinted/ttf/       SIL OFL 1.1
+NotoSansBengali-Bold.ttf           bengalskie                jw.                                                                            SIL OFL 1.1
+DroidSansFallbackFull.ttf          chińskie (CJK), hangul    AOSP platform/frameworks/base, data/fonts/DroidSansFallbackFull.ttf           Apache 2.0 (LICENSE-Apache-2.0-DroidSansFallback.txt)
+
+Dlaczego Droid Sans Fallback, a nie Noto Sans SC/CJK: Noto CJK jest krojem OpenType z konturami CFF,
+których ReportLab nie osadza (obsługuje wyłącznie kontury TrueType), a wersja TrueType Noto Sans SC
+waży 17,7 MB. Droid Sans Fallback ma kontury TrueType, pokrywa chiński uproszczony (GB2312 i więcej)
+i waży 4 MB. Nie ma odmiany pogrubionej – pogrubienie tytułu w piśmie CJK jest symulowane obrysem.

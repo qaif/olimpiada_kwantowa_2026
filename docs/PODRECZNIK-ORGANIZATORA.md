@@ -31,7 +31,7 @@ edycji i zgłoszenia po numerze. Fraza krótsza niż dwa znaki nie szuka niczego
 | **Uczestnicy i konta** | Uczestnicy, Wszystkie konta, Opiekunowie szkolni, Aktywacje, *Status ucznia* (tylko z włączonymi zaświadczeniami, § 10a) |
 | **Komitet** | Członkowie, Zatwierdzenia, Zaproszenia, Województwa |
 | **Komunikacja** | Komunikaty, Zgłoszenia, Ogłoszenia |
-| **Raporty** | Eksport danych, Audyt, Symulacja kwalifikacji, Dyplomy, Retencja danych, Rejestr czynności; *Materiały z warsztatów* (tylko przy włączonej fladze `workshop_materials`, § 4.11) |
+| **Raporty** | Eksport danych, Audyt, Symulacja kwalifikacji, Dyplomy, Retencja danych, Rejestr czynności; *Materiały z warsztatów* (tylko przy włączonej fladze `workshop_materials`, § 4.11); *Wpisowe* i *Płatności* (tylko przy włączonej fladze `fees`, § 10h) |
 | **Ustawienia** | Rejestracja uczestników, Wydarzenia linii czasu, Skala punktacji, Slider sponsorów, Plakaty do pobrania |
 
 Przy czterech pozycjach (Moderacja, Aktywacje, Zatwierdzenia, Zgłoszenia) stoją **liczniki spraw
@@ -1073,6 +1073,7 @@ decyzja człowieka, a nie wynik obliczenia.
 | **Zgłoszenia** (support desk) | `/coordinator/support/` | kolejka spraw od ludzi, z wątkiem i odpowiedzią |
 | **Forum uczestników** | `/coordinator/forum/` | rozmowa uczestników między sobą, moderowana przez Ciebie |
 | **Pokoje wideo** | `/coordinator/video-rooms/` | pokoje na Jitsi olimpiady poza terminami rozmów: zebrania komisji, konsultacje, goście bez konta (§ 6.4b) |
+| **Webinary** | `/coordinator/webinars/` | spotkania z terminem w pokoju na platformie (LiveKit), z nagraniami i listą obecności (§ 10i) |
 | **FAQ** | `/faq/` (redakcja w `/cms/`) | odpowiedzi, które mają wyprzedzić zgłoszenia |
 | **Strona statusu** | `/status/` | „nie mogę wysłać pracy — to u was, czy u mnie?” |
 
@@ -1942,6 +1943,204 @@ czy jest teraz otwarte.
 trafia do drużyny przez organizatora), złożyć zgód za ucznia ani potwierdzić zgody rodzica — tę uczeń
 niepełnoletni zbiera sam po uruchomieniu konta (zgoda opiekuna online).
 
+## 10e. Okna czasowe etapu — `/coordinator/stages/<id>/windows/`
+
+**Tylko w konkursie z włączonymi oknami czasowymi** (flaga `stage_time_windows`, włącza operator –
+`OPERACJE.md` § 32). Pozycja „Okna czasowe” stoi pod etapem w menu (nie ma jej przy rozmowach
+i treningu).
+
+**Po co.** Etap zdalny olimpiady międzynarodowej rozkładasz na kilka startów w ciągu doby (np. trzy
+okna co 8 godzin), każdy z **tym samym** czasem pracy (np. 5 h). Kraje trafiają do okien według swojej
+strefy, więc nikt nie pisze w środku nocy.
+
+**Włączenie.** Przed otwarciem etapu (po otwarciu treść zadań była już jawna dla wszystkich): czas pracy,
+start pierwszego okna (czas polski), liczba okien, odstęp i „preferowana godzina startu w kraju”
+(domyślnie 10:00). Okna z dodatkowym czasem uczniów muszą mieścić się w ramie etapu
+(otwarcie – termin oddania); rama nadal decyduje o zamknięciu etapu, recenzjach, reklamacjach
+i publikacji wyników. Ramy nie da się potem zawęzić tak, żeby wycięła okno.
+
+**Przydział.** Kraj trafia domyślnie do okna, którego start w strefie jego stolicy jest najbliżej
+godziny preferowanej. Strefę kraju wielostrefowego (USA, Kanada, Rosja, Brazylia, Australia, Meksyk,
+Indonezja…) poprawisz w tabeli „Kraje”; okno kraju – tamże. Uczeń bez delegacji trafia do **ostatniego**
+okna – konto niepodpięte do drużyny nie może zobaczyć zadań wcześniej niż ktokolwiek (inne okno ustawisz mu
+wyjątkiem). Od startu pierwszego okna przydział domyślny krajów jest zapisywany na stałe (ekran pokaże go
+jako „ręcznie”) – późniejsza zmiana strefy albo mapy stref nie przenosi kraju. Zadania przed końcem
+ostatniego okna widzi wyłącznie uczeń **zgłoszony do etapu**.
+
+**Wyjątki uczniów.** Po kodzie uczestnika: inne okno i/lub dodatkowy czas (dostosowanie, awaria łącza),
+zawsze z powodem. **W powodzie nie wpisuj danych o zdrowiu** („dostosowanie wg decyzji komisji” wystarczy –
+dokumentacja zostaje poza platformą).
+
+**Reguły czasu (pilnuje ich serwer, nie tylko ekran).**
+- okna, czas pracy, godzina preferowana – do startu pierwszego okna (okna nie mogą na siebie nachodzić);
+  wyłączenie trybu – do otwarcia etapu,
+- przydział kraju lub ucznia – tylko gdy **ani stare, ani nowe** okno się jeszcze nie zaczęło,
+- dodatkowy czas – do końca obecnego terminu ucznia,
+- zmiana strefy kraju w trakcie zawodów nie przesuwa krajów w etapach już rozpoczętych.
+Każda zmiana zostaje w dzienniku zdarzeń (`time_windows.*`).
+
+**Co widzi uczeń.** Kartę „Twoje okno” (start i koniec w jego strefie), odliczanie do **swojego** startu
+i terminu, zadania (karty, PDF) dopiero od startu swojego okna, test online tylko w swoim oknie
+(dodatkowy czas wydłuża też podejście do testu). Godziny w panelu ucznia są w jego strefie (ustawia ją
+opiekun drużyny; domyślnie strefa kraju) – wyłącznie w panelu uczestnika i wyłącznie dla konta bez roli
+personelu; Twój panel koordynatora jest zawsze w czasie polskim. Test, który pokazuje wynik „od razu”,
+ekran okien oznacza ostrzeżeniem – przy oknach ustaw „po zamknięciu testu”.
+
+**Ochrona przed przeciekiem.** Strona „Zadania”, API i archiwum pokazują treść dopiero po końcu
+ostatniego okna (z dodatkowym czasem); forum i wiadomości są przez cały czas okien w premoderacji
+(od startu pierwszego okna); wyników nie opublikujesz przed końcem ostatniego okna; wynik testu
+„po zamknięciu” też dopiero wtedy.
+
+**Ryzyko jednego zestawu zadań.** Wszystkie okna mają te same zadania. Platforma zamyka swoje kanały,
+ale nie powstrzyma ucznia z okna A przed przekazaniem treści uczniowi z okna C poza nią (komunikator,
+telefon). Środki organizacyjne: oświadczenie uczestnika, krótkie odstępy między oknami, kontrola
+podobieństwa prac po etapie. **Faza 2 (nie zbudowana):** zestawy wariantowe – osobny
+zestaw zadań na okno (wariant przy zadaniu i przy oknie, ta sama skala), zwykle przy dwóch–trzech oknach.
+
+**Liczby na żywo.** Oś czasu pokazuje dla każdego okna: kraje, uczniów, „teraz piszą” i „oddali”; niżej
+lista „kto w którym oknie” ze źródłem przydziału (kraj, ręcznie, wyjątek).
+
+## 10g. Tłumaczenia zadań — `/coordinator/translations/`
+
+**Tylko w konkursie z delegacjami krajowymi** (menu „Etapy → Tłumaczenia zadań”; `OPERACJE.md` § 34).
+Opiekunowie drużyn tłumaczą zadania z wersji oficjalnej (angielskiej) na języki swoich delegacji,
+a Ty (komisja) zatwierdzasz tłumaczenia. Po otwarciu etapu uczeń widzi zadanie w zatwierdzonym języku
+swojej drużyny i zawsze także wersję oficjalną.
+
+**Okno tłumaczeń.** Dla każdego etapu ustalasz otwarcie i zamknięcie okna — zamknięcie najpóźniej
+w chwili otwarcia etapu (gdy przesuniesz etap wcześniej, okno zgaśnie razem z jego otwarciem). Tylko
+w oknie opiekun widzi treść zadań. Wybierasz też tryb: **osobne** (każda delegacja ma własne
+tłumaczenie) albo **wspólne** (delegacje jednego języka, np. Niemcy i Austria, pracują na jednym
+tekście). Tryb ustala się przed pierwszym tłumaczeniem.
+
+**Wersja oficjalna.** PDF i tytuł zmieniasz jak dotąd na ekranie zadań; przy zadaniu jest też
+„Tekst oficjalny” (Markdown, wzory w `$…$`), który tłumacz widzi obok edytora i może skopiować.
+Każda zmiana podnosi numer wersji — tłumaczenia starszej wersji dostają znacznik „nieaktualne”,
+a ich opiekunowie list. Nieaktualnego tłumaczenia nie zatwierdzisz: zwróć je do aktualizacji.
+
+**Przegląd.** „Do przeglądu” na ekranie głównym: tłumaczenie obok wersji oficjalnej, różnice wobec
+poprzedniej wysłanej wersji, historia. „Zatwierdź” blokuje tłumaczenie; „Zwróć do poprawy” wymaga
+komentarza (opiekun czyta go w panelu — list mówi tylko, że jest zwrot). Zwrot zatwierdzonego
+tłumaczenia nie zabiera go uczniom, dopóki nie zatwierdzisz nowej wersji.
+
+Jeśli opiekun wyśle nową wersję, gdy masz otwarty ekran przeglądu, „Zatwierdź”/„Zwróć” odmówi
+i pokaże bieżącą wersję — decyzja zawsze dotyczy tekstu, który widzisz.
+
+**Eksport na finał.** Ekran etapu → „Eksport do druku”: dla każdego języka (w trybie osobnym — każdej
+delegacji) **PDF** złożony z zatwierdzonych wersji albo **Widok do druku** w przeglądarce. Tekst ze
+wzorami albo po chińsku, w hindi, bengalsku czy arabsku drukuj z widoku do druku („Zapisz jako PDF”).
+
+**Poufność.** Każde otwarcie, pobranie i eksport jest w „Audycie” (akcje `translation.…`); pliki PDF
+pobrane przez opiekunów mają znak wodny kraju.
+
+---
+
+## 10k. Medale — `/coordinator/medals/`
+
+**Tylko w konkursie z flagą `medals`** (olimpiada międzynarodowa `iqo`; `OPERACJE.md` § 37). Olimpiada
+Kwantowa nagradza dalej tytułem laureata i finalisty (§ 8).
+
+**Progi.** Wybierz etap będący rankingiem ostatecznym (zwykle finał). Domyślnie jak na IPhO: złoto —
+najlepsze 8 % uczestników, srebro — kolejne 17 %, brąz — kolejne 25 % (łącznie połowa pola). Pula jest
+zaokrąglana w górę (8 % z 20 osób to 2 złote medale), zdyskwalifikowani nie liczą się do pola, a wynik
+0 nie daje nagrody. **Ten sam wynik zawsze daje tę samą nagrodę** — remis na granicy puli idzie w całości
+w górę („na korzyść uczestników”) albo w dół („w granicach puli”), zależnie od ustawienia; kryteria
+rozstrzygania remisów etapu ustawiają miejsca, ale nie dzielą medali. Przy polityce „w granicach puli”
+na małym albo remisowym polu ekran ostrzega, gdy jakiejś nagrody nie dostaje nikt. **Wyróżnienie** dostaje uczestnik
+bez medalu z wynikiem ≥ X % najlepszego wyniku (domyślnie 50 %; puste pole wyłącza kryterium) albo —
+jak na IMO — z pełnym rozwiązaniem choć jednego zadania.
+
+**Podgląd i ręczne zmiany.** Tabela pokazuje pule, progi punktowe, liczności i rzeczywiste odsetki,
+a przy każdym uczestniku nagrodę wyliczoną i ostateczną. „Zmień nagrodę” wymaga uzasadnienia (nie wpisuj
+danych osobowych — widzą je wszyscy koordynatorzy, a uczestnik dostaje je w eksporcie swoich danych).
+Zdyskwalifikowanemu ręcznej nagrody nie da się wpisać.
+
+**Ogłoszenie.** „Ogłoś medale” działa dopiero po publikacji wyników etapu i zamraża nagrody, tabelę
+publiczną i ranking krajów; potem progów ani zmian nie da się edytować. „Odmroź medale” (z uzasadnieniem)
+zdejmuje stronę publiczną do ponownego ogłoszenia. Ogłoszenie odmawia, gdy tabela zmieniła się po publikacji
+wyników (sumy, nowy wpis, dyskwalifikacja) — opublikuj wtedy wyniki ponownie. Jeśli po ogłoszeniu opublikujesz wyniki ponownie,
+ekran ostrzeże, że medale zostały przy poprzedniej tabeli.
+
+**Strony publiczne.** `/results/<etap>/medals/` — miejsce, podpis wiersza z tabeli wyników (nazwisko
+wyłącznie za zgodą), kraj, suma i medal, z filtrem kraju; kraj stoi przy wierszu tylko w trybie
+„kod uczestnika” albo przy nazwisku opublikowanym za zgodą (nie przy „inicjałach i szkole”).
+`/results/<etap>/countries/` — nieoficjalny ranking krajów: wyłącznie liczby (uczestnicy, złoto, srebro,
+brąz, wyróżnienia; suma i średnia punktów oraz miejsce tylko dla krajów z co najmniej 3 wynikami).
+
+**Dokumenty.** „Wystaw dokumenty” — dyplomy medalowe dla nagrodzonych i (opcjonalnie) zaświadczenia
+o udziale dla wszystkich, w **języku ucznia** (arabski od prawej do lewej, chiński, hindi, bengalski…).
+Język jest przypinany przy wystawieniu (gdy serwer nie składa pisma ucznia — angielski i ostrzeżenie
+z numerami). Numer, kod weryfikacyjny, pieczęć i strona `/dyplomy/<kod>/` — jak przy każdym dyplomie;
+dyplom niezgodny z ogłoszoną nagrodą strona weryfikacji oznacza jako nieaktualny, a uczeń go nie widzi. Grafikę (tło,
+logo, podpisy, osobne tło np. dla złotego medalu) ustawiasz w „Dyplomy: szablony”; nagłówek dokumentu to
+nazwa konkursu, chyba że szablon wpisuje własny. Tekst organizatora z „Szablonów dokumentów” obowiązuje
+w języku domyślnym konkursu; pozostałe języki mają tłumaczenia wbudowane (maszynowe — przejrzyj przed galą).
+
+**Gala.** „Lista na galę (PDF)” — kolejność wręczania (wyróżnienia, brąz, srebro, złoto), w grupie po
+kraju i nazwisku; „Eksport CSV” — cały ranking z nazwiskami. Oba pliki zawierają dane osobowe i każde
+pobranie jest zapisywane w audycie.
+
+---
+
+## 10h. Płatności — `/coordinator/payments/`
+
+**Tylko w konkursie z włączonymi opłatami** (flaga `fees`; `OPERACJE.md` § 35). Olimpiada Kwantowa jest
+bezpłatna i tego ekranu nie ma.
+
+**Kto płaci.** W olimpiadzie międzynarodowej (tryb delegacji) płaci **delegacja**: opiekun drużyny
+wystawia w swoim panelu fakturę pro forma i płaci kartą (Stripe), przez Przelewy24 (tylko PLN) albo
+przelewem. W konkursie z rejestracją otwartą płaci **uczestnik** – należność nalicza ekran „Wpisowe”
+(`/coordinator/fees/`), a uczestnik dostaje na kaflu „Wpisowe” przycisk „Zapłać online”.
+
+**Cennik i ustawienia** (`Cennik i ustawienia`). Najpierw dane sprzedawcy: NIP/VAT ID, rachunek
+(IBAN, SWIFT, bank), prefiks numeracji, adnotacja VAT (np. podstawa zwolnienia – **system nie liczy
+podatku**; brzmienie ustala księgowa), uwagi na dokumentach, termin płatności pro formy i włączone
+metody. Nazwa, adres i dane rejestrowe sprzedawcy pochodzą z danych organizatora konkursu. Potem cennik
+delegacji edycji: waluta (dla IQO – EUR), „cena wczesna do” i „cena późna od” oraz siatka cen: opłata za
+delegację, za ucznia, za opiekuna i za obserwatora, w trzech okresach. Puste pole okresu = cena
+podstawowa; puste pole ceny podstawowej = pozycja bezpłatna. Zmiana cennika **nie zmienia** wystawionych
+pro form.
+
+**Jak liczymy delegację.** Skład = 1 delegacja + uczniowie zgłoszeni w panelu + opiekunowie + obserwatorzy
+zadeklarowani przez opiekuna. Pro forma obejmuje to, czego nie obejmują wcześniejsze zamówienia (otwarte
+albo zapłacone): drużyna dopisująca ucznia po terminie „late” zapłaci za niego cenę późną, a wcześniej
+opłaceni zostają przy swojej cenie. Zmiana składu przed zapłatą: opiekun (albo Ty) anuluje zamówienie
+i wystawia nowe; anulowana pro forma zostaje w rejestrze ze swoim numerem.
+
+**Zniżki i zwolnienia** (ekran delegacji). Zniżka kwotowa zmniejsza kolejne zamówienia (raz); zwolnienie
+blokuje wystawianie nowych zamówień (otwarte anuluj, zapłacone zwróć). Uzasadnienie jest obowiązkowe,
+cofnięcie wymaga osobnego powodu; obie decyzje są w audycie. Zwolnienie i umorzenie **uczestnika** –
+na ekranie „Wpisowe”, jak dotąd.
+
+**Pulpit.** Sumy osobno dla każdej waluty (wystawiono, zapłacono, zwrócono, czeka na wpłatę, jeszcze
+niewystawione), delegacje ze stanem (rozliczona, czeka na wpłatę, do wystawienia, zwolniona), lista
+zamówień i **„Do wyjaśnienia”**: wpłata, której kwota albo waluta nie zgadza się z zamówieniem, podwójna
+wpłata tego samego zamówienia albo wpłata na zamówienie anulowane (do zwrotu) i zwroty nieudane albo
+w toku. Opiekun odwołany z delegacji traci wgląd w zamówienia i dokumenty swojej delegacji. „Eksport CSV dla księgowości” –
+jeden wiersz na zamówienie z nabywcą, VAT ID, numerami pro formy i faktury.
+
+**Zamówienie.** Pozycje, nabywca, dokumenty (PDF), wpłaty i zwroty. **Wpływ przelewu**: gdy na wyciągu
+jest przelew z kodem zamówienia na właściwą kwotę – data wpływu, notatka i opcjonalnie dowód wpłaty
+(skanowany antywirusowo; do pobrania po werdykcie „czysty”). Zapis tworzy fakturę i wysyła płacącemu
+potwierdzenie w jego języku. Przelew zapisujesz wyłącznie na zamówienie **otwarte** – przelew
+z kodem anulowanej pro formy zwróć płacącemu w banku. **Zwrot**: wskazujesz **pozycje i ilości**
+(np. 1 × uczeń, gdy uczeń zrezygnował) i powód – kwotę liczy system; zwrócone miejsce przestaje być
+opłacone, więc zastępca tego ucznia zapłaci za siebie. Wpłatę „do wyjaśnienia” zwracasz w całości.
+Karta i Przelewy24 – zwrot zlecany u operatora (gdy operator nie odpowie, system ponowi go sam),
+przelew – zapis zwrotu wykonanego przez Ciebie w banku. Pełny zwrot przywraca pozycje do zapłaty,
+a u uczestnika ustawia należność jako „zwrócone”.
+
+**Faktury.** Pro forma powstaje przy wystawieniu zamówienia, faktura – automatycznie po wpłacie.
+Numeracja ciągła, osobno dla pro form i faktur, per konkurs i rok (`IQO/FV/2026/0001`). Dokument jest
+w języku płacącego (języki bez czcionek w PDF – chiński, hindi, arabski, bengalski – po angielsku).
+**System nie jest programem księgowym** (decyzja D15 po zmianie z 4.10.2026): numeruje dokumenty, ale
+nie liczy VAT, nie prowadzi rejestru VAT/JPK i nie wystawia faktur korygujących – korektę po zwrocie
+wystawia księgowość organizatora. Wzór dokumentu zatwierdź z księgową przed pierwszym konkursem z opłatami.
+
+**Czego nie ma.** Płatności częściowych i rat, przeliczeń walut, automatycznego dopasowania wyciągu
+bankowego (przelew zapisujesz ręcznie po kodzie). Danych kart system nie widzi – płacący wpisuje je
+na stronie operatora płatności.
+
 ---
 
 ## 10a. Zaświadczenia o statusie ucznia — `/coordinator/student-status/`
@@ -2059,6 +2258,114 @@ jest za słaba. **„Podgląd”** pokazuje stronę główną z tymi ustawieniam
 kolorów, logo i krojów z paczki. Ustawienia zapamiętywane są osobno dla każdej wersji motywu: możesz
 przygotować kolory nowej wersji przed jej aktywacją, a powrót do poprzedniej wersji przywraca jej kolory.
 Tryb wysokiego kontrastu wybrany przez odwiedzającego zawsze ma pierwszeństwo.
+
+## 10i. Webinary — `/coordinator/webinars/`
+
+Menu **Komunikacja → Webinary** (gdy operator włączył webinary w konkursie). Webinar to spotkanie
+z terminem w **pokoju na platformie**: obraz, dźwięk, udostępnianie ekranu, czat i podniesiona ręka
+działają w przeglądarce, bez instalowania czegokolwiek. Jeśli ekran mówi „Serwer LiveKit nie jest
+skonfigurowany”, poproś operatora o uruchomienie serwera (`docs/OPERACJE.md` § 36).
+
+**Nowy webinar.** Tytuł, opis (stoi w zaproszeniu), początek (strefa konkursu), czas trwania, **odbiorcy**:
+wszyscy uczestnicy konkursu, uczestnicy bieżącej edycji, uczestnicy wybranego etapu (bez
+zdyskwalifikowanych), komisja (recenzenci i komisja odwoławcza), kapitanowie drużyn (gdy konkurs ma
+drużyny); opcjonalnie „także komisja”. **Współprowadzący** – inni koordynatorzy albo członkowie komisji
+(np. wykładowca) – wchodzą jako prowadzący. **Nagrywanie** (czy wolno nagrywać), **przypomnienie
+e-mailem** (raz, około godziny przed startem), **link dla gości bez konta** (domyślnie wyłączony).
+
+**Przebieg.** Odbiorcy widzą webinar na stronie „Webinary” (pasek panelu `/me/`, karta w panelu
+komisji). „**Rozpocznij i wejdź do pokoju**” otwiera pokój; odbiorcy wchodzą od 15 minut przed
+początkiem, ale dopiero gdy webinar jest rozpoczęty. **Widzowie nie nadają obrazu ani dźwięku** –
+podnoszą rękę, a Ty na liście uczestników klikasz „**Daj głos**” (i „Odbierz głos” po pytaniu).
+„Usuń z pokoju” wyprasza osobę i nie wpuszcza jej z powrotem, dopóki na liście obecności nie klikniesz
+„Wpuść ponownie” (gościa z nową sesją zatrzyma dopiero „Wygeneruj nowy link”). „**Zakończ webinar**”
+zamyka pokój dla wszystkich.
+
+**Nagrania.** „Nagrywaj” (w pokoju albo na ekranie webinaru) – plik MP4 pojawia się kilka minut po
+zatrzymaniu („gotowe”). Odbiorcy widzą nagranie dopiero po „**Opublikuj**”; „Wycofaj” je chowa,
+„Usuń” (z zaznaczonym potwierdzeniem) kasuje plik na zawsze. Nagranie, które wisi w stanie „nagrywa”, sprawdzisz przyciskiem
+„Sprawdź / oznacz jako nieudane”. Uczestnicy widzą przed wejściem informację, że webinar może być
+nagrywany, a w trakcie nagrania – czerwony znacznik. Nagrania i lista obecności są kasowane
+automatycznie po roku od webinaru (ustawienie operatora).
+
+**Transmisja na YouTube.** Na ekranie trwającego webinaru wklej klucz transmisji z YouTube Studio (albo
+pełny adres `rtmp(s)://…`) i „Włącz transmisję”. Klucza nie zapisujemy – przy kolejnej transmisji wpisz
+go ponownie.
+
+**Zaproszenie e-mailem** – jednorazowo, do wszystkich odbiorców, którzy nie wyłączyli listów o
+webinarach. List nie zawiera żadnego „magicznego linku” – prowadzi na stronę webinarów po zalogowaniu.
+
+**Lista obecności** – kto wszedł, kiedy pierwszy raz i ile minut był w pokoju (z danych serwera
+wideo); posłuży też do zaświadczeń o udziale.
+
+W dzienniku zdarzeń: założenie, zmiany, rozpoczęcie, zakończenie, odwołanie, wejścia (rola), danie
+i odebranie głosu, nagrania, transmisja, zaproszenie – bez tokenów, kluczy i nazw gości.
+
+---
+
+## 10c. Statystyki szkół — `/coordinator/school-stats/`
+
+**Tylko w konkursie z włączoną funkcją** (przełącznik `school_statistics`, włącza go operator —
+`OPERACJE.md` § 29). Menu → *Raporty* → **Statystyki szkół**.
+
+**Co jest na ekranie.** Wybór edycji (domyślnie bieżąca) i kolejności (liczba uczestników, wyniki,
+nazwa), a pod nim:
+
+- **ranking szkół** — liczba uczestników edycji, zmiana wobec poprzedniej edycji, a dla każdego etapu
+  z **ogłoszonymi** wynikami: średnia punktów i liczba awansujących. Szkoła spoza wykazu RSPO
+  (nazwa wpisana ręcznie) ma znaczek „spoza wykazu” i nie ma raportu PDF,
+- **województwa** — liczba szkół i uczestników (słupek) oraz średnia i awanse w pierwszym etapie
+  z pełną publikacją,
+- **szkoły do odzyskania** — miały uczestników w poprzedniej edycji, w tej nie mają nikogo; to lista
+  adresatów akcji promocyjnej (z numerem RSPO do korespondencji seryjnej, osobny **Eksport CSV**).
+  Konta usunięte (zanonimizowane) nie liczą się do żadnej szkoły.
+
+**Próg 5.** Średnia i liczba awansujących grupy mniejszej niż 5 wpisów są ukryte („<5”) — na ekranie,
+w **Eksporcie CSV** i w raporcie PDF, bo oba pliki zwykle wędrują dalej (kuratorium, szkoła). Ukryte są
+też szkoły, których wynik dałoby się odczytać z różnicy (województwo minus pokazane szkoły ≤ 4 osoby;
+szkoła, w której poza uczniami jej opiekunów są 1–4 osoby), a średnia pokazuje się od 5 wyników.
+Statystyka etapu jest **zamrożona w chwili publikacji** — późniejsza zmiana szkoły ucznia jej nie zmienia.
+Liczba uczestników jest widoczna zawsze. Punkty pochodzą z ogłoszonej tabeli (stan z chwili
+publikacji); etap ogłoszony jako „tylko awansujący” nie ma średnich.
+
+**Raport PDF szkoły** (odnośnik „PDF” w wierszu) — jedna kartka dla dyrektora: etapy edycji, szkoła na
+tle województwa i całej olimpiady, udział szkoły w kolejnych edycjach. Bez nazwisk i kodów
+uczestników. Pobranie CSV i PDF zostaje w audycie (`export.generated`,
+`school_stats.report_downloaded`).
+
+**Co widzi opiekun szkolny** (`/supervisor/statistics/`, przycisk na jego pulpicie): uczniów, którzy
+wskazali jego adres (ta sama reguła co pulpit — § 10), z zapisem, oddaniem i terminem w każdym etapie,
+a po ogłoszeniu wyników także punkty i awans; porównanie z województwem i całą olimpiadą oraz wykres
+średnich w kolejnych edycjach. **Agregat szkoły i raport PDF** dostaje wyłącznie opiekun ze szkołą
+wybraną z wykazu i **zweryfikowaną** przez organizatora (karta opiekuna, pole „dane szkoły
+zweryfikowane”). U opiekuna próg ma drugi warunek: grupa jest ukryta także wtedy, gdy poza jego
+uczniami jest w niej od 1 do 4 osób — inaczej z różnicy dałoby się wyliczyć wynik „obcego” ucznia.
+
+**RODO.** Rejestr czynności dostaje przy włączonej funkcji wiersz „Statystyki szkół i opiekunów
+szkolnych” (§ 9.2). Nowych danych funkcja nie zbiera.
+
+## 10f. Tłumacze interfejsu — `/coordinator/translators/`
+
+Tylko w konkursie z **więcej niż jednym językiem interfejsu** (np. IQO); pozycja „Tłumacze interfejsu”
+w sekcji „Ustawienia”. Tłumaczenia poza angielskim są maszynowe – ten ekran pozwala oddać ich przegląd
+ludziom, którzy znają język, np. kierownikom delegacji.
+
+- **Nadaj rolę:** adres e-mail konta, język (do wyboru są języki interfejsu Twojego konkursu), poziom
+  „tłumacz”. Konto musi należeć do Twojego konkursu (członkostwo albo profil uczestnika); w innym
+  wypadku ekran odpowie, że konta nie znaleziono.
+- **Rola należy do konkursu:** widzisz (i możesz odebrać) każde nadanie swojego konkursu, także
+  wykonane przez innego koordynatora. Gdy osoba przestaje należeć do konkursu (wypisanie, odebranie
+  roli), rola tłumacza przestaje działać sama – wiersz zostaje na liście, żebyś mógł go usunąć.
+- **Tłumacz** widzi pod `/translations/` listę napisów swojego języka (tekst polski, angielski, obecne
+  tłumaczenie, miejsce w kodzie), proponuje poprawki i głosuje na cudze. W stopce ma „Zgłoś tłumaczenie”.
+- **Recenzent tłumaczeń** (zatwierdza poprawki) – tę rolę nadaje wyłącznie **superkoordynator**, bo
+  zatwierdzona poprawka zmienia napis na **całej platformie**, we wszystkich konkursach.
+- **Odbierz** usuwa rolę od razu. Tłumacze nie widzą nawzajem swoich kont ani danych uczestników.
+
+Poprawki trafiają do repozytorium okresowo (operator, `docs/OPERACJE.md` § 33.3). Napisy ekranów
+koordynatora zostają po polsku i nie są przedmiotem przeglądu.
+
+---
 
 ## 11. Kalendarz prowadzenia edycji — ściągawka
 

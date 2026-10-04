@@ -483,6 +483,10 @@ def anonymise_account(user: User, *, actor: User | None = None, request=None) ->
     from .delegation_services import erase_for_user as erase_delegation_roles
 
     erase_delegation_roles(user)
+    # Płatności (PAY-01): profil nabywcy uczestnika znika; zamówienia i faktury zostają (księgowość).
+    from apps.payments.services import erase_for_user as erase_billing_profiles
+
+    erase_billing_profiles(user)
 
     # Konkurs z kontekstu, odwrotem miękkim: anonimizację wnosi albo właściciel konta (żądanie
     # pod domeną konkursu), albo kosiarka retencji, która chodzi po konkursach z ``each_competition``
@@ -555,6 +559,12 @@ def anonymise_account(user: User, *, actor: User | None = None, request=None) ->
 
     erase_for_participants(participants)
 
+    # Okna czasowe (TZ-01): strefa ucznia znika, wyjątek w oknie zostaje bez powodu – powód bywa
+    # śladem dostosowania, a okno i dodatkowy czas są dokumentacją warunków pracy.
+    from apps.time_windows.privacy import erase_for_participants as erase_time_window_data
+
+    erase_time_window_data(participants)
+
     # Pseudonimy widza materiałów z warsztatów (``apps.workshop_materials``) – licznik wyświetleń
     # materiału zostaje, liczba unikalnych widzów spada o to konto.
     from apps.workshop_materials.stats import erase_for_user as erase_workshop_views
@@ -574,6 +584,17 @@ def anonymise_account(user: User, *, actor: User | None = None, request=None) ->
     from apps.chat.services import erase_for_user as erase_chat_state
 
     erase_chat_state(user)
+
+    # Webinary (WEB-01): lista obecności tej osoby, ustawienie listów i współprowadzenie znikają –
+    # obecność jest daną o osobie, a nie dokumentacją zawodów.
+    from apps.webinars.services import erase_for_user as erase_webinar_state
+
+    erase_webinar_state(user)
+    # Przegląd tłumaczeń (L10N-01): rola tłumacza, głosy i zgłoszenia znikają; propozycje (sam tekst
+    # tłumaczenia, część interfejsu albo praca dla recenzenta) zostają bez autora.
+    from apps.translation_review.services import erase_for_user as erase_translation_review
+
+    erase_translation_review(user)
 
     _drop_credentials(user)
     audit(actor or user, "account.anonymised", user, {"user_id": user.pk}, request=request)
@@ -623,6 +644,10 @@ def _erase_account(user: User, *, actor: User | None = None, request=None) -> st
     from .delegation_services import erase_for_user as erase_delegation_roles
 
     erase_delegation_roles(user)
+    # Płatności (PAY-01): profil nabywcy uczestnika znika; zamówienia i faktury zostają (księgowość).
+    from apps.payments.services import erase_for_user as erase_billing_profiles
+
+    erase_billing_profiles(user)
     _drop_credentials(user)
     # Audyt **przed** skasowaniem wiersza: po ``delete()`` nie ma z czego wziąć ``target_type``,
     # a ``actor`` będący samym kasowanym kontem i tak zgaśnie na ``SET_NULL``. W ``diff`` jest

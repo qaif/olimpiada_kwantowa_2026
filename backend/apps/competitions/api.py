@@ -16,6 +16,7 @@ from rest_framework.throttling import AnonRateThrottle
 
 from apps.accounts.permissions import IsCoordinator, IsParticipant
 from apps.core.api import DomainError
+from apps.time_windows.access import statements_visible
 
 from .models import Problem, Stage
 from .scoping import competition_of, scope_to_competition
@@ -107,7 +108,12 @@ class ProblemStatementView(GenericAPIView):
             scope_to_competition(Problem.objects.select_related("stage"), competition_of(request)),
             pk=pk,
         )
-        visible = problem.stage.has_opened() or IsCoordinator().has_permission(request, self)
+        # ``statements_visible`` to ``has_opened`` z oknami czasowymi (TZ-01): w etapie z oknami
+        # uczeń dostaje PDF od startu **swojego** okna, a reszta świata – po końcu ostatniego.
+        # Bez flagi konkursu odpowiedź jest dokładnie ``has_opened()``, bez zapytania.
+        visible = statements_visible(
+            problem.stage, user=request.user, competition=competition_of(request)
+        ) or IsCoordinator().has_permission(request, self)
         if not visible or not problem.statement_pdf:
             raise Http404
         # Wersja językowa wybiera się sama: ``statement_file`` oddaje plik angielski, gdy jest

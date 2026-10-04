@@ -9391,3 +9391,320 @@ msgstr "Для школ/учителей"
 #: apps/cms/context_processors.py
 msgid "Rejestracja nauczyciela"
 msgstr "Регистрация учителя"
+
+#: apps/webinars/services.py
+msgid "Serwer webinarów nie odpowiada. Spróbuj za chwilę."
+msgstr "Сервер вебинаров не отвечает. Попробуйте ещё раз через минуту."
+
+#: apps/webinars/services.py
+#, python-format
+msgid "Wejście otworzy się %(when)s. Wróć wtedy na tę stronę."
+msgstr "Вход откроется %(when)s. Вернитесь на эту страницу в это время."
+
+#: apps/webinars/services.py
+msgid "Ten webinar już się zakończył."
+msgstr "Этот вебинар уже закончился."
+
+#: apps/webinars/services.py
+msgid "Prowadzący jeszcze nie rozpoczął webinaru. Spróbuj ponownie za kilka minut."
+msgstr "Ведущий ещё не начал вебинар. Попробуйте снова через несколько минут."
+
+#: apps/webinars/services.py
+msgid "Ten link nie jest już aktywny."
+msgstr "Эта ссылка больше не действует."
+
+#: apps/web/views/webinars.py
+msgid "Ta strona jest dostępna dla uczestników i komisji konkursu."
+msgstr "Эта страница доступна участникам и жюри конкурса."
+
+#: apps/web/views/webinars.py
+msgid "Listy o webinarach włączone."
+msgstr "Письма о вебинарах включены."
+
+#: apps/web/views/webinars.py
+msgid "Listy o webinarach wyłączone."
+msgstr "Письма о вебинарах отключены."
+
+#: apps/web/views/webinars.py
+msgid "Jako prowadzący wejdź przyciskiem „Rozpocznij” w panelu webinarów."
+msgstr "Как ведущий, входите кнопкой «Начать» на странице вебинаров."
+
+#: apps/web/views/participant.py
+msgid "Webinary"
+msgstr "Вебинары"
+
+#: apps/webinars/notifications.py
+#, python-format
+msgid "Zaproszenie na webinar: %(title)s – Olimpiada Kwantowa"
+msgstr "Приглашение на вебинар: %(title)s – Квантовая олимпиада"
+
+#: apps/webinars/notifications.py
+#, python-format
+msgid "Zaproszenie na webinar: %(title)s – %(competition)s"
+msgstr "Приглашение на вебинар: %(title)s – %(competition)s"
+
+#: apps/webinars/notifications.py
+#, python-format
+msgid "Przypomnienie o webinarze: %(title)s – Olimpiada Kwantowa"
+msgstr "Напоминание о вебинаре: %(title)s – Квантовая олимпиада"
+
+#: apps/webinars/notifications.py
+#, python-format
+msgid "Przypomnienie o webinarze: %(title)s – %(competition)s"
+msgstr "Напоминание о вебинаре: %(title)s – %(competition)s"
+
+#: apps/webinars/notifications.py
+#, python-format
+msgid "Zapraszamy na webinar „%(title)s”."
+msgstr "Приглашаем на вебинар «%(title)s»."
+
+#: apps/webinars/notifications.py
+#, python-format
+msgid "Przypominamy: webinar „%(title)s” zaczyna się wkrótce."
+msgstr "Напоминаем: вебинар «%(title)s» скоро начнётся."
+
+#: apps/webinars/notifications.py
+#, python-format
+msgid "Termin: %(when)s (strefa %(zone)s), czas trwania: %(minutes)s min."
+msgstr "Время: %(when)s (часовой пояс %(zone)s), продолжительность: %(minutes)s мин."
+
+#: apps/webinars/notifications.py
+#, python-format
+msgid "Dołączysz po zalogowaniu, przyciskiem „Dołącz” na stronie: %(link)s"
+msgstr "Войдите в аккаунт и нажмите «Присоединиться» на этой странице: %(link)s"
+
+#: apps/webinars/notifications.py
+msgid "Przycisk działa od kilkunastu minut przed początkiem webinaru."
+msgstr "Кнопка работает примерно за пятнадцать минут до начала вебинара."
+
+#: apps/webinars/notifications.py
+#, python-format
+msgid "Nie chcesz dostawać listów o webinarach? Wyłącz je tutaj: %(link)s"
+msgstr "Не хотите получать письма о вебинарах? Отключите их здесь: %(link)s"
+
+#: templates/web/webinars/list.html
+msgid "Spotkania online organizatora. Przycisk „Dołącz” działa od kilkunastu minut przed początkiem, gdy prowadzący rozpocznie webinar – spotkanie otworzy się w nowej karcie. Godziny w strefie %(zone)s."
+msgstr "Онлайн-встречи организатора. Кнопка «Присоединиться» работает примерно за пятнадцать минут до начала, когда ведущий запустит вебинар, – встреча откроется в новой вкладке. Время указано в поясе %(zone)s."
+
+#: templates/web/webinars/list.html
+msgid "Nadchodzące"
+msgstr "Предстоящие"
+
+#: templates/web/webinars/list.html
+msgid "u Ciebie:"
+msgstr "у вас:"
+
+#: templates/web/webinars/list.html
+msgid "Rozpocznij jako prowadzący"
+msgstr "Начать как ведущий"
+
+#: templates/web/webinars/list.html
+msgid "Wejście od:"
+msgstr "Вход с:"
+
+#: templates/web/webinars/list.html
+msgid "Nie ma zaplanowanych webinarów."
+msgstr "Запланированных вебинаров нет."
+
+#: templates/web/webinars/list.html
+msgid "Nagrania"
+msgstr "Записи"
+
+#: templates/web/webinars/list.html
+msgid "Odtwórz nagranie %(number)s"
+msgstr "Смотреть запись %(number)s"
+
+#: templates/web/webinars/list.html
+msgid "Odtwórz nagranie"
+msgstr "Смотреть запись"
+
+#: templates/web/webinars/list.html
+msgid "Powiadomienia e-mail"
+msgstr "Уведомления по почте"
+
+#: templates/web/webinars/list.html
+msgid "Dostajesz zaproszenia i przypomnienia o webinarach."
+msgstr "Вы получаете приглашения и напоминания о вебинарах."
+
+#: templates/web/webinars/list.html
+msgid "Wyłącz listy o webinarach"
+msgstr "Отключить письма о вебинарах"
+
+#: templates/web/webinars/list.html
+msgid "Listy o webinarach są wyłączone – webinary widzisz tylko na tej stronie."
+msgstr "Письма о вебинарах отключены – вебинары видны только на этой странице."
+
+#: templates/web/webinars/list.html
+msgid "Włącz listy o webinarach"
+msgstr "Включить письма о вебинарах"
+
+#: templates/web/webinars/guest.html
+msgid "Zaproszenie na webinar"
+msgstr "Приглашение на вебинар"
+
+#: templates/web/webinars/guest.html
+msgid "Webinar"
+msgstr "Вебинар"
+
+#: templates/web/webinars/guest.html
+msgid "Imię i nazwisko (albo nazwa) widoczne w spotkaniu"
+msgstr "Имя, видимое на встрече"
+
+
+#: templates/web/webinars/_committee_card.html
+msgid "Wszystkie webinary"
+msgstr "Все вебинары"
+
+#: templates/web/webinars/list.html
+msgid "Panel"
+msgstr "Панель"
+
+#: apps/web/views/webinars.py
+msgid "Łączenie…"
+msgstr "Подключение…"
+
+#: apps/web/views/webinars.py
+msgid "Jesteś w pokoju."
+msgstr "Вы в комнате."
+
+#: apps/web/views/webinars.py
+msgid "Rozłączono. Odśwież stronę, żeby wrócić."
+msgstr "Соединение прервано. Обновите страницу, чтобы вернуться."
+
+#: apps/web/views/webinars.py
+msgid "Spróbuj ponownie"
+msgstr "Повторить"
+
+#: apps/web/views/webinars.py
+msgid "Nie udało się połączyć z pokojem."
+msgstr "Не удалось подключиться к комнате."
+
+#: apps/web/views/webinars.py
+msgid "prowadzący"
+msgstr "ведущий"
+
+#: apps/web/views/webinars.py
+msgid "podniesiona ręka"
+msgstr "поднята рука"
+
+#: apps/web/views/webinars.py
+msgid "Podnieś rękę"
+msgstr "Поднять руку"
+
+#: apps/web/views/webinars.py
+msgid "Opuść rękę"
+msgstr "Опустить руку"
+
+#: apps/web/views/webinars.py
+msgid "Daj głos"
+msgstr "Дать слово"
+
+#: apps/web/views/webinars.py
+msgid "Odbierz głos"
+msgstr "Лишить слова"
+
+#: apps/web/views/webinars.py
+msgid "Usuń z pokoju"
+msgstr "Удалить из комнаты"
+
+#: apps/web/views/webinars.py
+msgid "Usunąć tę osobę z pokoju?"
+msgstr "Удалить этого человека из комнаты?"
+
+#: apps/web/views/webinars.py
+msgid "Widok siatki"
+msgstr "Сетка"
+
+#: apps/web/views/webinars.py
+msgid "Widok prelegenta"
+msgstr "Вид докладчика"
+
+#: apps/web/views/webinars.py
+msgid "Nagrywaj"
+msgstr "Записывать"
+
+#: apps/web/views/webinars.py
+msgid "Zatrzymaj nagrywanie"
+msgstr "Остановить запись"
+
+#: apps/web/views/webinars.py
+msgid "Trwa nagrywanie"
+msgstr "Идёт запись"
+
+#: apps/web/views/webinars.py
+msgid "Prowadzący dał Ci głos – możesz włączyć mikrofon i kamerę."
+msgstr "Ведущий дал вам слово – можно включить микрофон и камеру."
+
+#: apps/web/views/webinars.py
+msgid "Prowadzący odebrał Ci głos."
+msgstr "Ведущий лишил вас слова."
+
+#: apps/web/views/webinars.py
+msgid "Udostępnij ekran"
+msgstr "Показать экран"
+
+#: apps/web/views/webinars.py
+msgid "Zakończ udostępnianie"
+msgstr "Остановить показ"
+
+#: apps/web/views/webinars.py
+#, python-format
+msgid "Ekran: %(name)s"
+msgstr "Экран: %(name)s"
+
+#: apps/web/views/webinars.py
+msgid "Coś poszło nie tak. Spróbuj ponownie."
+msgstr "Что-то пошло не так. Попробуйте ещё раз."
+
+#: templates/web/webinars/room.html
+msgid "Wyjdź"
+msgstr "Выйти"
+
+#: templates/web/webinars/room.html
+msgid "Pokój webinaru wymaga włączonego JavaScriptu."
+msgstr "Для комнаты вебинара нужен JavaScript."
+
+#: templates/web/webinars/room.html
+msgid "Pokój jest chwilowo niedostępny – brakuje komponentu wideo na serwerze. Daj znać organizatorowi."
+msgstr "Комната временно недоступна – на сервере нет видеокомпонента. Сообщите организатору."
+
+#: templates/web/webinars/room.html
+msgid "Obraz uczestników"
+msgstr "Видео участников"
+
+#: templates/web/webinars/room.html
+msgid "Czat"
+msgstr "Чат"
+
+#: templates/web/webinars/room.html
+msgid "Sterowanie"
+msgstr "Управление"
+
+#: templates/web/webinars/room.html
+msgid "Mikrofon"
+msgstr "Микрофон"
+
+#: templates/web/webinars/room.html
+msgid "Kamera"
+msgstr "Камера"
+
+#: templates/web/webinars/guest.html
+msgid "Wejście działa od kilkunastu minut przed początkiem, gdy prowadzący rozpocznie webinar. Wchodzisz jako widz – głos daje prowadzący."
+msgstr "Вход открывается примерно за пятнадцать минут до начала, когда ведущий запустит вебинар. Вы входите как зритель – слово даёт ведущий."
+
+#: apps/webinars/services.py
+msgid "Prowadzący usunął Cię z tego webinaru."
+msgstr "Ведущий удалил вас из этого вебинара."
+
+#: apps/webinars/services.py
+#, python-format
+msgid "%(name)s (gość)"
+msgstr "%(name)s (гость)"
+
+#: templates/web/webinars/room.html
+msgid "Włącz dźwięk"
+msgstr "Включить звук"
+
+#: templates/web/webinars/room.html
+msgid "Ten webinar może być nagrywany. Gdy nagrywanie trwa, u góry pokoju widać czerwony znacznik „Trwa nagrywanie”; nagranie może zawierać Twój głos, obraz i wiadomości czatu, jeśli je włączysz lub wyślesz."
+msgstr "Этот вебинар может записываться. Во время записи вверху комнаты виден красный значок «Идёт запись»; запись может содержать ваш голос, изображение и сообщения чата, если вы их включите или отправите."

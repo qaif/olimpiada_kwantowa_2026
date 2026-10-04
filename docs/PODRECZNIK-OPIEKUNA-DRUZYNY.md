@@ -2,8 +2,11 @@
 
 This guide is for **national team leaders** of an international olympiad run on this platform
 (e.g. the International Quantum Olympiad). It is in English because the competition is. The
-organiser's side is described in `PODRECZNIK-ORGANIZATORA.md` § 10b, the operator's in
-`OPERACJE.md` § 28.
+organiser's side is described in `PODRECZNIK-ORGANIZATORA.md` § 10b (problem translations: § 10g),
+the operator's in `OPERACJE.md` § 28 (§ 34).
+
+organiser's side is described in `PODRECZNIK-ORGANIZATORA.md` § 10b (fees: § 10h), the operator's in
+`OPERACJE.md` § 28 (fees: § 35).
 
 ## 1. What a team leader does
 
@@ -63,7 +66,99 @@ that case.
   account stays: the student is removed from your team, receives an e-mail, and the organiser decides
   what happens next. After the start only the organiser can withdraw a student.
 
+## 5a. Time windows and time zones – *Delegation → Time windows and students' time zones*
+
+When the organiser runs a remote round in **time windows**, each country starts at a different hour
+(e.g. three starts 8 hours apart), with the same working time for everyone. The organiser assigns your
+country to a window; you cannot change it yourself – write to the organiser well **before** the window
+starts if the hour does not work for your team.
+
+- The page shows, for every round with windows, each student's window, start and end – in the
+  **student's** time zone – and any extra time granted by the organiser.
+- **Student's time zone:** by default the time zone of your country's capital. If a student lives in
+  another zone (e.g. a different part of the USA), pick it from the list. This changes only how times
+  are displayed in the student's panel – it never moves the student to another window.
+- Students see the problems only when **their** window starts. Until the last window of all countries
+  has ended, the forum and messages are moderated – please remind your students not to discuss the
+  problems with anyone in the meantime (also outside the platform).
+
+## 5a. Medals and certificates
+
+Medals are awarded from the final ranking: by default gold for the top 8 % of contestants, silver for
+the next 17 % and bronze for the next 25 %; contestants without a medal receive an honourable mention
+for at least half of the best score or for a full solution of one problem. Equal scores always receive
+the same award. After the organiser announces the medals, the public pages *Medals* and *Country ranking*
+are linked from the results table. The country ranking is unofficial and shows aggregates only; total and average scores appear only for
+countries with at least three results.
+
+Each student downloads their medal certificate and certificate of participation under *My certificates*
+(`/me/certificates/`), in the language they chose for the website (11 languages, including Arabic,
+Chinese, Hindi and Bengali). Ask your students to set their language before the organiser issues the
+certificates – the language is fixed when the document is issued.
+
 ## 6. Your data
+
+## 6. Fees and invoices
+
+If the olympiad charges participation fees, your team panel shows a **Fees** section with a link to
+*Fees and invoices* (`/delegation/payments/`).
+
+1. **Billing details** – who the invoice is made out to: an institution (ministry, school,
+   foundation) or a private person, address, country, optional VAT/tax ID, billing e-mail, and the
+   number of **observers** travelling with the team (people who are not team leaders).
+2. **Issue pro forma invoice** – the amount is calculated by the platform from the price list:
+   delegation fee, students, team leaders and observers. Prices may differ before the *early* and
+   after the *late* deadline; the price that applies is the one on the day you issue the pro forma.
+3. **Pay** on the order page: by **card** (you are redirected to the payment provider's page – we never
+   see your card details), with **Przelewy24** (PLN only) or by **bank transfer** to the account shown,
+   with the **reference code** as the transfer reference.
+4. As soon as the payment is confirmed (card: within seconds; bank transfer: once the organiser has
+   recorded it) the order becomes *paid*, an **invoice** is issued and everyone who prepared it plus the
+   billing e-mail receive a confirmation in their language.
+
+If you register another student later, the summary shows only the **new** items – issue another pro
+forma for them. If the team or the billing details change before you pay, **cancel** the order and
+issue a new one (the cancelled pro forma keeps its number). Discounts, fee waivers and refunds are
+decided by the organiser – contact them if needed. All team leaders of a country see the same orders.
+
+## 7. Your data
+
+## 6. Translating the problems
+
+Open **Problem translations** from your team page (`/delegation/translations/`).
+
+- **Languages:** declare one or two languages for your delegation. The first one is the default
+  language of your students; you can assign the second one to individual students in the
+  *Students' language* table.
+- **Translation window:** the problems are secret until the competition starts. You can see the
+  official version only while the organiser's translation window is open, and every view and download
+  is logged. PDF files you download carry your delegation's watermark.
+- **Editor:** the official version is on the left, your translation on the right. Write in Markdown
+  (`# heading`, `**bold**`, `*italic*`, lists, `|` tables) with LaTeX formulas in `$…$` (inline) or
+  `$$…$$` (on their own line); the preview renders the formulas. The draft saves itself a few seconds
+  after you stop typing. Instead of text you can upload a translated PDF.
+- **Submit for approval:** the translation committee approves it or returns it with comments (you get
+  an e-mail; the comments are on the translation page). While it waits you can *Withdraw* it to make
+  changes. An approved translation is locked.
+- **Outdated:** if the organiser changes the official version, your translation is marked *outdated*
+  and you get an e-mail. Use *Update translation*, check *What changed in the official version* and
+  submit again. Your students keep the previously approved version until the new one is approved.
+- **Shared translations:** if the organiser chose shared mode, all delegations with the same language
+  work on one common text.
+- **Saving conflicts:** if someone else (another team leader in shared mode, or you in another browser
+  tab) saved the translation after you opened it, your save is refused with a message instead of
+  overwriting their work. Copy your text, reload the page and merge. If autosave cannot save (for
+  example the translation window has just closed), the message appears right under the editor.
+- **Official version changed while you were writing:** *Submit* is refused and the page shows what
+  changed; your text stays in the editor. Check the changes and submit again.
+- **PDF translations:** after uploading a PDF the text editor is hidden; use *Switch to text* to go back.
+- **Official PDF:** you download exactly the file your students will get (in an English-language
+  competition this is the English PDF).
+
+After the competition starts, each student sees the problem in their assigned language and always
+also the official version.
+
+## 7. Your data
 
 You can download or delete your own account data under *Account*. Deleting your account removes your
 team leader role and your invitations; the students you registered stay in the team.

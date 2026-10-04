@@ -8905,3 +8905,320 @@ msgstr "学校/教师"
 #: apps/cms/context_processors.py
 msgid "Rejestracja nauczyciela"
 msgstr "教师注册"
+
+#: apps/webinars/services.py
+msgid "Serwer webinarów nie odpowiada. Spróbuj za chwilę."
+msgstr "网络研讨会服务器没有响应。请稍后再试。"
+
+#: apps/webinars/services.py
+#, python-format
+msgid "Wejście otworzy się %(when)s. Wróć wtedy na tę stronę."
+msgstr "入口将于 %(when)s 开放。届时请回到本页面。"
+
+#: apps/webinars/services.py
+msgid "Ten webinar już się zakończył."
+msgstr "本次网络研讨会已经结束。"
+
+#: apps/webinars/services.py
+msgid "Prowadzący jeszcze nie rozpoczął webinaru. Spróbuj ponownie za kilka minut."
+msgstr "主持人尚未开始网络研讨会。请几分钟后再试。"
+
+#: apps/webinars/services.py
+msgid "Ten link nie jest już aktywny."
+msgstr "此链接已失效。"
+
+#: apps/web/views/webinars.py
+msgid "Ta strona jest dostępna dla uczestników i komisji konkursu."
+msgstr "此页面仅供本竞赛的参赛者和委员会使用。"
+
+#: apps/web/views/webinars.py
+msgid "Listy o webinarach włączone."
+msgstr "已开启网络研讨会邮件通知。"
+
+#: apps/web/views/webinars.py
+msgid "Listy o webinarach wyłączone."
+msgstr "已关闭网络研讨会邮件通知。"
+
+#: apps/web/views/webinars.py
+msgid "Jako prowadzący wejdź przyciskiem „Rozpocznij” w panelu webinarów."
+msgstr "作为主持人，请通过网络研讨会页面上的“开始”按钮进入。"
+
+#: apps/web/views/participant.py
+msgid "Webinary"
+msgstr "网络研讨会"
+
+#: apps/webinars/notifications.py
+#, python-format
+msgid "Zaproszenie na webinar: %(title)s – Olimpiada Kwantowa"
+msgstr "网络研讨会邀请：%(title)s – 量子奥林匹克"
+
+#: apps/webinars/notifications.py
+#, python-format
+msgid "Zaproszenie na webinar: %(title)s – %(competition)s"
+msgstr "网络研讨会邀请：%(title)s – %(competition)s"
+
+#: apps/webinars/notifications.py
+#, python-format
+msgid "Przypomnienie o webinarze: %(title)s – Olimpiada Kwantowa"
+msgstr "网络研讨会提醒：%(title)s – 量子奥林匹克"
+
+#: apps/webinars/notifications.py
+#, python-format
+msgid "Przypomnienie o webinarze: %(title)s – %(competition)s"
+msgstr "网络研讨会提醒：%(title)s – %(competition)s"
+
+#: apps/webinars/notifications.py
+#, python-format
+msgid "Zapraszamy na webinar „%(title)s”."
+msgstr "诚邀您参加网络研讨会“%(title)s”。"
+
+#: apps/webinars/notifications.py
+#, python-format
+msgid "Przypominamy: webinar „%(title)s” zaczyna się wkrótce."
+msgstr "提醒：网络研讨会“%(title)s”即将开始。"
+
+#: apps/webinars/notifications.py
+#, python-format
+msgid "Termin: %(when)s (strefa %(zone)s), czas trwania: %(minutes)s min."
+msgstr "时间：%(when)s（时区 %(zone)s），时长：%(minutes)s 分钟。"
+
+#: apps/webinars/notifications.py
+#, python-format
+msgid "Dołączysz po zalogowaniu, przyciskiem „Dołącz” na stronie: %(link)s"
+msgstr "请登录后在此页面点击“加入”按钮：%(link)s"
+
+#: apps/webinars/notifications.py
+msgid "Przycisk działa od kilkunastu minut przed początkiem webinaru."
+msgstr "按钮在网络研讨会开始前约十五分钟起可用。"
+
+#: apps/webinars/notifications.py
+#, python-format
+msgid "Nie chcesz dostawać listów o webinarach? Wyłącz je tutaj: %(link)s"
+msgstr "不想收到网络研讨会邮件？请在此关闭：%(link)s"
+
+#: templates/web/webinars/list.html
+msgid "Spotkania online organizatora. Przycisk „Dołącz” działa od kilkunastu minut przed początkiem, gdy prowadzący rozpocznie webinar – spotkanie otworzy się w nowej karcie. Godziny w strefie %(zone)s."
+msgstr "主办方的在线会议。主持人开始网络研讨会后，“加入”按钮在开始前约十五分钟起可用，会议将在新标签页中打开。时间为 %(zone)s 时区。"
+
+#: templates/web/webinars/list.html
+msgid "Nadchodzące"
+msgstr "即将举行"
+
+#: templates/web/webinars/list.html
+msgid "u Ciebie:"
+msgstr "您的时间："
+
+#: templates/web/webinars/list.html
+msgid "Rozpocznij jako prowadzący"
+msgstr "以主持人身份开始"
+
+#: templates/web/webinars/list.html
+msgid "Wejście od:"
+msgstr "入场时间："
+
+#: templates/web/webinars/list.html
+msgid "Nie ma zaplanowanych webinarów."
+msgstr "暂无已安排的网络研讨会。"
+
+#: templates/web/webinars/list.html
+msgid "Nagrania"
+msgstr "录像"
+
+#: templates/web/webinars/list.html
+msgid "Odtwórz nagranie %(number)s"
+msgstr "播放录像 %(number)s"
+
+#: templates/web/webinars/list.html
+msgid "Odtwórz nagranie"
+msgstr "播放录像"
+
+#: templates/web/webinars/list.html
+msgid "Powiadomienia e-mail"
+msgstr "邮件通知"
+
+#: templates/web/webinars/list.html
+msgid "Dostajesz zaproszenia i przypomnienia o webinarach."
+msgstr "您会收到网络研讨会的邀请和提醒。"
+
+#: templates/web/webinars/list.html
+msgid "Wyłącz listy o webinarach"
+msgstr "关闭网络研讨会邮件"
+
+#: templates/web/webinars/list.html
+msgid "Listy o webinarach są wyłączone – webinary widzisz tylko na tej stronie."
+msgstr "网络研讨会邮件已关闭——您只能在本页面查看网络研讨会。"
+
+#: templates/web/webinars/list.html
+msgid "Włącz listy o webinarach"
+msgstr "开启网络研讨会邮件"
+
+#: templates/web/webinars/guest.html
+msgid "Zaproszenie na webinar"
+msgstr "网络研讨会邀请"
+
+#: templates/web/webinars/guest.html
+msgid "Webinar"
+msgstr "网络研讨会"
+
+#: templates/web/webinars/guest.html
+msgid "Imię i nazwisko (albo nazwa) widoczne w spotkaniu"
+msgstr "会议中显示的名称"
+
+
+#: templates/web/webinars/_committee_card.html
+msgid "Wszystkie webinary"
+msgstr "全部网络研讨会"
+
+#: templates/web/webinars/list.html
+msgid "Panel"
+msgstr "面板"
+
+#: apps/web/views/webinars.py
+msgid "Łączenie…"
+msgstr "正在连接…"
+
+#: apps/web/views/webinars.py
+msgid "Jesteś w pokoju."
+msgstr "您已进入房间。"
+
+#: apps/web/views/webinars.py
+msgid "Rozłączono. Odśwież stronę, żeby wrócić."
+msgstr "连接已断开。刷新页面即可重新加入。"
+
+#: apps/web/views/webinars.py
+msgid "Spróbuj ponownie"
+msgstr "重试"
+
+#: apps/web/views/webinars.py
+msgid "Nie udało się połączyć z pokojem."
+msgstr "无法连接到房间。"
+
+#: apps/web/views/webinars.py
+msgid "prowadzący"
+msgstr "主持人"
+
+#: apps/web/views/webinars.py
+msgid "podniesiona ręka"
+msgstr "已举手"
+
+#: apps/web/views/webinars.py
+msgid "Podnieś rękę"
+msgstr "举手"
+
+#: apps/web/views/webinars.py
+msgid "Opuść rękę"
+msgstr "放下手"
+
+#: apps/web/views/webinars.py
+msgid "Daj głos"
+msgstr "允许发言"
+
+#: apps/web/views/webinars.py
+msgid "Odbierz głos"
+msgstr "取消发言"
+
+#: apps/web/views/webinars.py
+msgid "Usuń z pokoju"
+msgstr "移出房间"
+
+#: apps/web/views/webinars.py
+msgid "Usunąć tę osobę z pokoju?"
+msgstr "将此人移出房间？"
+
+#: apps/web/views/webinars.py
+msgid "Widok siatki"
+msgstr "网格视图"
+
+#: apps/web/views/webinars.py
+msgid "Widok prelegenta"
+msgstr "演讲者视图"
+
+#: apps/web/views/webinars.py
+msgid "Nagrywaj"
+msgstr "录制"
+
+#: apps/web/views/webinars.py
+msgid "Zatrzymaj nagrywanie"
+msgstr "停止录制"
+
+#: apps/web/views/webinars.py
+msgid "Trwa nagrywanie"
+msgstr "正在录制"
+
+#: apps/web/views/webinars.py
+msgid "Prowadzący dał Ci głos – możesz włączyć mikrofon i kamerę."
+msgstr "主持人已允许您发言——您可以打开麦克风和摄像头。"
+
+#: apps/web/views/webinars.py
+msgid "Prowadzący odebrał Ci głos."
+msgstr "主持人已取消您的发言。"
+
+#: apps/web/views/webinars.py
+msgid "Udostępnij ekran"
+msgstr "共享屏幕"
+
+#: apps/web/views/webinars.py
+msgid "Zakończ udostępnianie"
+msgstr "停止共享"
+
+#: apps/web/views/webinars.py
+#, python-format
+msgid "Ekran: %(name)s"
+msgstr "屏幕：%(name)s"
+
+#: apps/web/views/webinars.py
+msgid "Coś poszło nie tak. Spróbuj ponownie."
+msgstr "出了点问题。请重试。"
+
+#: templates/web/webinars/room.html
+msgid "Wyjdź"
+msgstr "离开"
+
+#: templates/web/webinars/room.html
+msgid "Pokój webinaru wymaga włączonego JavaScriptu."
+msgstr "网络研讨会房间需要启用 JavaScript。"
+
+#: templates/web/webinars/room.html
+msgid "Pokój jest chwilowo niedostępny – brakuje komponentu wideo na serwerze. Daj znać organizatorowi."
+msgstr "房间暂时不可用——服务器缺少视频组件。请告知主办方。"
+
+#: templates/web/webinars/room.html
+msgid "Obraz uczestników"
+msgstr "参与者视频"
+
+#: templates/web/webinars/room.html
+msgid "Czat"
+msgstr "聊天"
+
+#: templates/web/webinars/room.html
+msgid "Sterowanie"
+msgstr "控制"
+
+#: templates/web/webinars/room.html
+msgid "Mikrofon"
+msgstr "麦克风"
+
+#: templates/web/webinars/room.html
+msgid "Kamera"
+msgstr "摄像头"
+
+#: templates/web/webinars/guest.html
+msgid "Wejście działa od kilkunastu minut przed początkiem, gdy prowadzący rozpocznie webinar. Wchodzisz jako widz – głos daje prowadzący."
+msgstr "主持人开始网络研讨会后，开始前约十五分钟起即可进入。您以观众身份进入——由主持人允许发言。"
+
+#: apps/webinars/services.py
+msgid "Prowadzący usunął Cię z tego webinaru."
+msgstr "主持人已将您移出本次网络研讨会。"
+
+#: apps/webinars/services.py
+#, python-format
+msgid "%(name)s (gość)"
+msgstr "%(name)s（访客）"
+
+#: templates/web/webinars/room.html
+msgid "Włącz dźwięk"
+msgstr "开启声音"
+
+#: templates/web/webinars/room.html
+msgid "Ten webinar może być nagrywany. Gdy nagrywanie trwa, u góry pokoju widać czerwony znacznik „Trwa nagrywanie”; nagranie może zawierać Twój głos, obraz i wiadomości czatu, jeśli je włączysz lub wyślesz."
+msgstr "本次网络研讨会可能会被录制。录制期间，房间顶部会显示红色的“正在录制”标记；如果您开启或发送，录像可能包含您的声音、画面和聊天消息。"

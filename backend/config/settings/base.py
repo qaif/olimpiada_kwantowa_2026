@@ -163,10 +163,27 @@ INSTALLED_APPS = [
     # i własną drogę danych poza serwer; **po** ``apps.grading`` i ``apps.results``, bo czyta
     # skalę, rubrykę i publikację wyników, a żadna z nich nie czyta jej.
     "apps.ai_grading",
+    # Webinary w LiveKit (zadanie WEB-01, flaga ``webinars``). Osobna aplikacja, a nie dostawca
+    # w pokojach Jitsi (``apps.competitions.video_rooms``): webinar ma termin, odbiorców, własny pokój
+    # na platformie, listę obecności z webhooków i nagrania. **Po** ``apps.competitions`` i ``apps.accounts``,
+    # bo czyta etapy, drużyny i role; **przed** ``apps.web``, który ją wyświetla.
+    "apps.webinars",
+    # Okna czasowe etapu według stref czasowych krajów (TZ-01, 4.10.2026, flaga ``stage_time_windows``).
+    "apps.time_windows",
+    "apps.problem_translations",  # tłumaczenia zadań przez delegacje krajowe (TR-01, 4.10.2026)
     # Warstwa integracyjna: klucze API dla systemów zewnętrznych, webhooki i eksporty na zewnątrz.
     # **Po** aplikacjach domeny, bo czyta je wszystkie (edycje, wyniki, zgłoszenia), a żadna z nich
     # nie czyta jej – zależność idzie w jedną stronę i kolejność w tej liście ma to pokazywać.
     "apps.integrations",
+    # Statystyki szkół i opiekunów szkolnych (STAT-01, flaga ``school_statistics``) – bez modeli, sam odczyt.
+    "apps.school_stats",
+    # Przegląd tłumaczeń interfejsu przez rodzimych użytkowników języka (zadanie L10N-01). Przed
+    # ``apps.web``, który montuje jej adresy; w ``ready()`` wkłada nakładkę poprawek do gettext.
+    "apps.translation_review",
+    # Medale olimpiady międzynarodowej, dyplomy w języku ucznia i ranking krajów (MED-01, flaga ``medals``).
+    "apps.medals",
+    # Płatności online za udział (PAY-01): cennik delegacji, zamówienia, Stripe/Przelewy24, faktury.
+    "apps.payments",
     "apps.web",
     # Logowanie przez dostawców zewnętrznych (Google, Facebook). ``allauth.account`` jest wymagane
     # przez ``allauth.socialaccount`` (model ``EmailAddress``, adaptery) – jego **widoki** nie są
@@ -230,6 +247,9 @@ MIDDLEWARE = [
     # Sesja po samym haśle jest tu w poczekalni: przechodzą wyłącznie adresy z listy
     # w ``apps.accounts.twofactor`` (ekran weryfikacji, wylogowanie, strona statusu).
     "apps.accounts.twofactor.TwoFactorMiddleware",
+    # Strefa czasowa ucznia na czas żądania (okna czasowe, TZ-01). Za konkursem i uwierzytelnieniem,
+    # bo pyta o profil uczestnika **w tym konkursie**; bez flagi ``stage_time_windows`` nie robi nic.
+    "apps.time_windows.middleware.ParticipantTimezoneMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     # Zasięg redaktora w ``/cms/``: dwa adresy Wagtaila, których nie zawężają haki (wybór strony
@@ -491,10 +511,17 @@ CELERY_TASK_ROUTES = {
     "apps.workshop_materials.tasks.scan_material": {"queue": "scan"},
     # Skan pracy testowej oceny AI (``apps.ai_grading.sandbox``) – ta sama praca, ta sama kolejka.
     "apps.ai_grading.tasks.scan_ai_test_work": {"queue": "scan"},
+    # Skan dowodu wpłaty przelewem (PAY-01) – ta sama praca, ta sama kolejka.
+    "apps.payments.tasks.scan_payment_proof": {"queue": "scan"},
 }
 CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
 CELERY_TIMEZONE = "UTC"
 CELERY_BEAT_SCHEDULE = {
+    # Płatności (PAY-01): porzucone sesje Stripe/P24 i zwroty o nieznanym wyniku (OPERACJE § 35).
+    "payments-sweep": {
+        "task": "apps.payments.tasks.sweep_payments",
+        "schedule": 900.0,
+    },
     # Zamknięcie etapu po deadline: LOCKED na najnowszych wersjach + znacznik Stage.closed_at.
     "close-due-stages": {
         "task": "apps.submissions.tasks.close_due_stages",
@@ -604,6 +631,15 @@ CELERY_BEAT_SCHEDULE = {
     "forum-daily-digest": {
         "task": "apps.forum.tasks.send_daily_forum_digest",
         "schedule": crontab(minute=0, hour=env.int("FORUM_DAILY_DIGEST_HOUR_UTC", default=5)),
+    },
+    # Przypomnienia o webinarach (apps/webinars/tasks.py) – ``WEBINAR_REMINDER_MINUTES`` przed
+    # startem, raz na webinar (``Webinar.reminder_sent_at``). Co pięć minut, bo przypomnienie ma
+    # przyjść „około godzinę przed”, a nie „gdzieś w ciągu doby”. Konkurs bez flagi albo instalacja
+    # bez serwera LiveKit kosztuje zero zapytań o webinary (``services.available``). Przy okazji
+    # sprząta identyfikatory przetworzonych webhooków starsze niż tydzień.
+    "webinars-reminders": {
+        "task": "apps.webinars.tasks.remind_webinars",
+        "schedule": 300.0,
     },
 }
 
@@ -777,6 +813,11 @@ WAGTAIL_I18N_ENABLED = env.bool("WAGTAIL_I18N_ENABLED", default=False)
 # Konkurs ``iqo`` świadomie **nie** ma drzew treści w dziesięciu językach (I18N-01 § 10) – lista
 # mówi, co jest możliwe, a nie co jest założone.
 WAGTAIL_CONTENT_LANGUAGES = LANGUAGES
+# Nakładka zatwierdzonych poprawek tłumaczy na katalogi gettext (L10N-01 § 6). Wyłączenie wraca do
+# samych katalogów z repozytorium bez wydania – zatwierdzone poprawki zostają w bazie. Proces
+# sprawdza wersję nakładki w cache'u najwyżej co tyle sekund.
+TRANSLATION_OVERRIDES_ENABLED = env.bool("TRANSLATION_OVERRIDES_ENABLED", default=True)
+TRANSLATION_OVERRIDES_CHECK_SECONDS = 5
 USE_TZ = True  # wszystkie DateTimeField w UTC; deadline'y porównywane przez timezone.now()
 
 STATIC_URL = "/static/"
@@ -1011,6 +1052,34 @@ JITSI_JWT_GATEWAY_MINUTES = env.int("JITSI_JWT_GATEWAY_MINUTES", default=10)
 JITSI_JWT_ROOM_MAX_DAYS = env.int("JITSI_JWT_ROOM_MAX_DAYS", default=60)
 JITSI_JWT_COMMITTEE_ROOM_MAX_DAYS = env.int("JITSI_JWT_COMMITTEE_ROOM_MAX_DAYS", default=30)
 
+# --- webinary w LiveKit (zadanie WEB-01, ``apps.webinars``) --------------------------------------
+# LiveKit (Apache 2.0) stoi na **własnym** serwerze – osobnej maszynie (zalecane przy dużych
+# wydarzeniach) albo w profilu compose ``livekit`` na tym hoście (małe spotkania); docs/OPERACJE.md
+# § 36. ``LIVEKIT_URL`` – adres sygnalizacji dla przeglądarki (``wss://live.<domena>``),
+# ``LIVEKIT_API_KEY``/``LIVEKIT_API_SECRET`` – para kluczy z ``livekit.yaml`` (``keys:``). Pusty
+# którykolwiek = funkcja wyłączona: koordynator konkursu z flagą ``webinars`` widzi „serwer LiveKit
+# nie jest skonfigurowany”, odbiorcy – nic, a polityka CSP nie zmienia się ani o znak.
+# ``LIVEKIT_API_URL`` – opcjonalny adres API dla poleceń serwerowych z sieci compose
+# (``http://livekit:7880``); pusty = ``https`` z ``LIVEKIT_URL``. Token wejścia żyje
+# ``TOKEN_TTL`` sekund (LiveKit utrzymuje połączenie sam). Okno wejścia odbiorcy: ``LEAD`` minut przed
+# początkiem do ``GRACE`` minut po planowanym końcu. Nagrania zapisuje egress do bucketu
+# ``LIVEKIT_RECORDINGS_BUCKET`` (pusty = prywatny bucket prac ``S3_SUBMISSIONS_BUCKET``, prefiks
+# ``webinars/``).
+LIVEKIT_URL = env("LIVEKIT_URL", default="")
+LIVEKIT_API_URL = env("LIVEKIT_API_URL", default="")
+LIVEKIT_API_KEY = env("LIVEKIT_API_KEY", default="")
+LIVEKIT_API_SECRET = env("LIVEKIT_API_SECRET", default="")
+LIVEKIT_TOKEN_TTL_SECONDS = env.int("LIVEKIT_TOKEN_TTL_SECONDS", default=600)
+LIVEKIT_TIMEOUT_SECONDS = env.float("LIVEKIT_TIMEOUT_SECONDS", default=8.0)
+LIVEKIT_RECORDINGS_BUCKET = env("LIVEKIT_RECORDINGS_BUCKET", default="")
+WEBINAR_JOIN_LEAD_MINUTES = env.int("WEBINAR_JOIN_LEAD_MINUTES", default=15)
+WEBINAR_JOIN_GRACE_MINUTES = env.int("WEBINAR_JOIN_GRACE_MINUTES", default=30)
+WEBINAR_REMINDER_MINUTES = env.int("WEBINAR_REMINDER_MINUTES", default=60)
+# Retencja (dni od końca webinaru): po tym czasie znikają nagrania i lista obecności
+# (``apps.webinars.services.purge_expired``, zadanie beat ``webinars-reminders``). Rok – jedna
+# edycja konkursu z zapasem na reklamacje i zaświadczenia; 0 = bez automatycznego kasowania.
+WEBINAR_RETENTION_DAYS = env.int("WEBINAR_RETENTION_DAYS", default=365)
+
 WAGTAIL_SITE_NAME = env("WAGTAIL_SITE_NAME", default="Olimpiada Kwantowa")
 WAGTAILADMIN_BASE_URL = env("WAGTAILADMIN_BASE_URL", default=f"https://{SITE_DOMAIN}")
 # Reset hasła ma jedną drogę: ``/password-reset/`` (limit prób, wysyłka w tle, audyt). Własny reset
@@ -1224,11 +1293,30 @@ REST_FRAMEWORK = {
         # przez opiekuna, więc limit chroni cudze skrzynki; sześćdziesiąt na godzinę mieści z zapasem
         # drużynę (kilka osób) i zaproszenia dla kilkudziesięciu krajów w jednym posiedzeniu.
         "delegation": "60/hour",
+        # Tłumaczenia zadań (TR-01): autozapis szkicu co ~3 s pisania, czynności opiekuna i komisji.
+        # Per konto (``PER_USER_SCOPES``) – sala tłumaczeń za jednym NAT-em nie dzieli budżetu.
+        "translation": "1200/hour",
+        # Ekran medali (MED-01): przeliczenie podglądu, ogłoszenie, dokumenty i eksporty – kosztowne POST-y.
+        "medals": "120/hour",
         # Bramka linku-zaproszenia (``/zaproszenie/wideo/<klucz>/``, POST „Dołącz”) – bez konta,
         # więc liczona po adresie IP, jak każdy publiczny formularz. Wysoko, bo za jednym NAT-em
         # bywa cała sala gości wchodzących na to samo zebranie naraz; nisko na tyle, żeby
         # przeszukiwanie kluczy (192 bity) i tak nie miało sensu, a pętla „Dołącz” – kosztu.
         "video_gateway": "120/hour",
+        # Webinary (``apps.web.views.webinars``): token wejścia do pokoju LiveKit i czynności
+        # prowadzącego (rozpocznij, zakończ, daj głos, nagrywanie) – wejście wystawia poświadczenie,
+        # a czynność to polecenie dla serwera LiveKit. Per konto (``PER_USER_SCOPES``), ta sama
+        # stawka i ten sam powód, co ``video``: przeglądarka zrywająca połączenie wraca kilka razy,
+        # skrypt z cudzej sesji – nie.
+        "webinar_join": "60/hour",
+        # Polecenia prowadzącego z pokoju i z panelu webinaru (daj/odbierz głos, usuń, nagrywanie,
+        # transmisja). Osobny, wyższy limit niż wejścia: w czasie pytań prowadzący klika „Daj głos”
+        # dziesiątki razy na godzinę i wspólny kubełek z tokenami odcinał go w połowie sesji Q&A.
+        # Per konto – limit chroni serwer LiveKit przed skryptem z cudzej sesji, nie prowadzącego.
+        "webinar_control": "600/hour",
+        # Link dla gości (``/zaproszenie/webinar/<klucz>/``, POST „Dołącz” i token) – bez konta, po IP, jak
+        # bramka pokoi Jitsi: cała sala za jednym NAT-em wchodzi naraz.
+        "webinar_guest": "120/hour",
         # Zakładanie konkursu z panelu koordynatora (``/coordinator/competitions/new/``). Stawka
         # jest **dzienna i niska**, bo taka jest ta czynność: konkurs zakłada się raz na sezon,
         # a każde założenie to nowa witryna, nowe drzewo stron, nowa edycja i wniosek o certyfikat
@@ -1241,6 +1329,17 @@ REST_FRAMEWORK = {
         # to więcej, niż wyklika nauczyciel pobierający wszystkie plakaty po kolei – także cała
         # pracownia za jednym adresem szkoły – a mniej, niż potrzeba do nabijania licznika.
         "poster_download": "30/min",
+        # Przegląd tłumaczeń (L10N-01): propozycje, głosy, decyzje i zgłoszenia ze stopki. Per
+        # konto (widoki za logowaniem): tłumacz klika szybko, ale nie sto razy na godzinę.
+        "translations": "120/hour",
+        # Płatności (PAY-01), per konto: „Wystaw pro formę” i „Zapłać” (każde kliknięcie to sesja
+        # u operatora płatności) oraz czynności koordynatora (wpływ przelewu, zwrot przez API).
+        "checkout": "20/hour",
+        "payments_admin": "120/hour",
+        # Webhooki operatorów płatności (Stripe, P24) – per IP, wyżej niż stub ``payments``: Stripe
+        # doręcza z kilku adresów naraz, a po awarii ponawia zaległe zdarzenia całą serią. Tożsamością
+        # jest podpis; limit chroni wyłącznie koszt weryfikacji.
+        "payment_webhooks": "600/min",
         # Menu serwisu i dostosowanie motywu (THEME-02, ``/coordinator/competition/theme/…``). Per konto
         # (``apps.web.throttle.PER_USER_SCOPES``). Każdy zapis unieważnia cache stron konkursu, a podgląd
         # kolorów to też POST – sto dwadzieścia na godzinę mieści długie dopasowywanie palety.
@@ -1361,6 +1460,19 @@ CERT_SIGN_P12_PASSWORD = env("CERT_SIGN_P12_PASSWORD", default="")
 CERT_SIGN_TSA_URL = env("CERT_SIGN_TSA_URL", default="")
 CERT_SIGN_REASON = env("CERT_SIGN_REASON", default="Dokument wystawiony przez Olimpiadę Kwantową")
 CERT_SIGN_LOCATION = env("CERT_SIGN_LOCATION", default="")
+
+# --- operatorzy płatności (PAY-01, docs/OPERACJE.md § 35) ---------------------------------------
+# Sekrety wyłącznie ze środowiska – nigdy z bazy i nigdy od klienta. Pusty klucz = operator wyłączony
+# (przycisk płatności nie pojawia się, webhook odpowiada 404). Klucze testowe Stripe: ``sk_test_…``.
+STRIPE_SECRET_KEY = env("STRIPE_SECRET_KEY", default="")
+# ``whsec_…``; kilka po przecinku – rotacja albo kilka adresów webhooka w panelu Stripe.
+STRIPE_WEBHOOK_SECRET = env("STRIPE_WEBHOOK_SECRET", default="")
+# ``or 0``: pusty wpis w ``.env`` (``P24_MERCHANT_ID=``) to napis pusty, a ``int("")`` nie przejdzie.
+P24_MERCHANT_ID = int(env("P24_MERCHANT_ID", default="") or 0)
+P24_POS_ID = int(env("P24_POS_ID", default="") or 0)
+P24_API_KEY = env("P24_API_KEY", default="")
+P24_CRC = env("P24_CRC", default="")
+P24_SANDBOX = env.bool("P24_SANDBOX", default=False)
 
 DATA_UPLOAD_MAX_MEMORY_SIZE = 2 * 1024 * 1024  # pliki idą strumieniem na dysk tymczasowy powyżej 2 MB
 FILE_UPLOAD_MAX_MEMORY_SIZE = 2 * 1024 * 1024

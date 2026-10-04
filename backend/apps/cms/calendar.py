@@ -220,6 +220,46 @@ def _interview_items(participant, edition, now) -> list[CalendarItem]:
     return items
 
 
+def _time_window_items(participant, edition, now, competition=None) -> list[CalendarItem]:
+    """Własne okno czasowe w każdym etapie z oknami (TZ-01) – z godzinami, jak termin rozmowy.
+
+    Bez flagi ``stage_time_windows`` konkursu – pusta lista bez zapytania. Etap w kalendarzu edycji
+    dalej pokazuje ramę; ta pozycja mówi, **kiedy ten uczeń** pisze.
+    """
+    from django.utils.translation import gettext as _
+
+    from apps.tenancy.context import current_competition
+    from apps.time_windows.access import effective_window
+    from apps.time_windows.access import enabled as time_windows_enabled
+
+    owner = competition if competition is not None else current_competition()
+    if owner is None or owner.pk != edition.competition_id:
+        owner = edition.competition
+    if participant is None or not time_windows_enabled(owner):
+        return []
+    today = _localdate(now)
+    items = []
+    for stage in edition.stages.order_by("opens_at", "id"):
+        window = effective_window(stage, participant, owner)
+        if window is None:
+            continue
+        start = timezone.localtime(window.opens_at).date()
+        end = timezone.localtime(window.deadline_at).date()
+        items.append(
+            CalendarItem(
+                kind="stage",
+                title=_("Twoje okno czasowe %(label)s: %(stage)s")
+                % {"label": window.window.label, "stage": stage.display_name},
+                start=start,
+                end=end,
+                status=_status_for(start, end, today),
+                starts_at=window.opens_at,
+                ends_at=window.deadline_at,
+            )
+        )
+    return items
+
+
 def _timeline_items(edition, now, competition=None) -> list[CalendarItem]:
     """Kalendarz edycji z linii czasu, przepisany na pozycje całodniowe."""
     return [
@@ -256,6 +296,7 @@ def participant_calendar(participant, *, edition=None, competition=None, now=Non
     items = [
         *_timeline_items(edition, now, competition),
         *_interview_items(participant, edition, now),
+        *_time_window_items(participant, edition, now, competition),
     ]
     items.sort(key=lambda item: (item.start, item.end, item.title))
     return items

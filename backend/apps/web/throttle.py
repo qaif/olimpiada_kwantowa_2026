@@ -105,12 +105,31 @@ IDENTITY_FIELDS = ("email", "username")
 #: linkami. Też wyłącznie za logowaniem, a koszt (wystawione przepustki) też przypada na konto:
 #: komisja rozmawiająca z jednej sali za jednym NAT-em nie może dzielić jednego budżetu wejść.
 #:
+#: ``webinar_join`` (WEB-01) – token wejścia na webinar i czynności prowadzącego, z tego samego powodu.
+#: ``webinar_control`` – polecenia prowadzącego (osobny, wyższy kubełek).
 #: ``delegation`` (DEL-01) – opiekun drużyny i koordynator są zalogowani, a koszt (listy na wpisane
 #: adresy) przypada na konto: dwie delegacje z jednej szkoły za jednym NAT-em nie dzielą budżetu.
+#: ``translation`` (TR-01) – edytor tłumaczeń zadań: autozapis i czynności zalogowanych opiekunów.
+#: ``checkout`` i ``payments_admin`` (PAY-01) – płacący i koordynator są zalogowani, a koszt (sesje
+#: u operatora płatności, zwroty przez API) przypada na konto.
 #:
 #: ``theme_settings`` (THEME-02) – menu i dostosowanie motywu; wyłącznie koordynator, koszt
 #: (unieważnienie cache stron konkursu) przypada na konto.
-PER_USER_SCOPES = frozenset({"chat", "forum", "video", "video_rooms", "delegation", "theme_settings"})
+PER_USER_SCOPES = frozenset(
+    {
+        "chat",
+        "forum",
+        "video",
+        "video_rooms",
+        "delegation",
+        "webinar_join",
+        "webinar_control",
+        "translation",
+        "checkout",
+        "payments_admin",
+        "theme_settings",
+    }
+)
 
 #: Jak często (sekundy) wolno zalogować awarię cache'a jednym procesem – patrz ``_report_outage``.
 OUTAGE_LOG_INTERVAL = 60

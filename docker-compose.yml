@@ -103,7 +103,11 @@ services:
       # Przepustka operatora przez stronę prac technicznych (nagłówek X-Maintenance-Bypass albo
       # ciasteczko z /__maintenance/bypass?token=…). Pusta albo krótsza niż 32 znaki = nikt.
       MAINTENANCE_BYPASS_TOKEN: ${MAINTENANCE_BYPASS_TOKEN:-}
-    networks: [edge, internal]   # internal: trasa s3.<domena> -> minio
+    # internal: trasa s3.<domena> -> minio. livekit_signal: trasa live.<domena> -> livekit:7880
+    # (webinary WEB-01, nakładka deploy/livekit/) – sieć jest tu, a nie w nakładce, bo zwykłe
+    # wdrożenie (`docker compose up` bez nakładki) odtwarzałoby proxy bez niej i odcinało sygnalizację.
+    # Bez nakładki stoi w niej sam Caddy, więc nic się nie zmienia.
+    networks: [edge, internal, livekit_signal]
     depends_on:
       web: { condition: service_healthy }
     healthcheck:
@@ -589,6 +593,15 @@ networks:
     ipam:
       config:
         - subnet: 172.30.4.0/24
+  # Sygnalizacja LiveKit (webinary, WEB-01): Caddy ↔ `livekit`, plus wyjście do internetu dla
+  # serwera LiveKit i egressu (STUN, webhooki do portalu, zapis nagrań przez publiczny adres S3).
+  # **Nie** w TRUSTED_PROXY_IPS ani w `mynetworks` Postfiksa – LiveKit nie jest zaufanym proxy ani
+  # klientem relaya, a `edge` i `internal` (zaufane) zostają bez niego. Bez nakładki – sam Caddy.
+  livekit_signal:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.30.5.0/24
 
 volumes:
   # PostgreSQL 18 – dane bazy (patrz komentarz przy usłudze `db`).

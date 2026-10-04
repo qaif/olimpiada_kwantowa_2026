@@ -130,6 +130,39 @@ class CertificateKind(models.TextChoices):
     UCZESTNIK = "UCZESTNIK", _("uczestnik")
     OPIEKUN = "OPIEKUN", _("opiekun")
     WARSZTATY = "WARSZTATY", _("uczestnik warsztatów")
+    # Nagrody olimpiady międzynarodowej (MED-01, ``apps.medals``). Wynikają z rankingu, a nie
+    # z decyzji komitetu, więc wystawia je wyłącznie ekran medali – z zamrożonych nagród, a nie
+    # formularz „Wystaw” (``MANUAL_KIND_CHOICES`` niżej). Skład PDF-a należy do ``apps.medals``.
+    MEDAL_GOLD = "MEDAL_GOLD", _("złoty medal")
+    MEDAL_SILVER = "MEDAL_SILVER", _("srebrny medal")
+    MEDAL_BRONZE = "MEDAL_BRONZE", _("brązowy medal")
+    HON_MENTION = "HON_MENTION", _("wyróżnienie")
+
+
+#: Rodzaje, które wystawia wyłącznie ``apps.medals`` (MED-01). Formularz „Wystaw” ich nie oferuje:
+#: medal wynika z zamrożonego rankingu i jego ręczne wystawienie obok ekranu medali dałoby dyplom
+#: niezgodny z ogłoszoną tabelą.
+AWARD_KINDS = frozenset(
+    {
+        CertificateKind.MEDAL_GOLD,
+        CertificateKind.MEDAL_SILVER,
+        CertificateKind.MEDAL_BRONZE,
+        CertificateKind.HON_MENTION,
+    }
+)
+#: Lista wyboru formularza „Wystaw” – dotychczasowe pięć rodzajów, co do pozycji i etykiety.
+MANUAL_KIND_CHOICES = [choice for choice in CertificateKind.choices if choice[0] not in AWARD_KINDS]
+
+
+def template_kind_choices(competition=None) -> list:
+    """Rodzaje do wyboru w szablonie graficznym: medalowe wyłącznie w konkursie z flagą ``medals``.
+
+    Szablon graficzny medalu (osobne tło złotego dyplomu) ma sens tylko tam, gdzie medale są –
+    panel Olimpiady Kwantowej ma pokazywać tę samą listę pięciu rodzajów, co przed MED-01.
+    """
+    if competition is not None and competition.has_feature("medals"):
+        return list(CertificateKind.choices)
+    return list(MANUAL_KIND_CHOICES)
 
 
 #: Prefiks numeru dokumentu: ``OK/<rok>/<kolejny>``. „OK” od Olimpiady Kwantowej – numer trafia

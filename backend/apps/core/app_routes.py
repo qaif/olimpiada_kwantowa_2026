@@ -65,6 +65,8 @@ PRIVATE_PREFIXES = (
     "me",
     "review",
     "supervisor",
+    "webinars",
+    "translations",
 )
 
 #: Pierwszy segment prefiksu konkursu w ``APP_RE_PREFIXED``. Dowolny segment, a nie

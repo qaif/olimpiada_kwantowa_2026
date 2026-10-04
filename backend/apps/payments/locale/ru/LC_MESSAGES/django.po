@@ -1,0 +1,367 @@
+# Płatności online (PAY-01) – katalog aplikacji apps.payments.
+# Tłumaczenia maszynowe do przeglądu przez native speakerów (jak I18N-01 § 8).
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: olimpiada\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-04 19:20+0200\n"
+"PO-Revision-Date: 2026-10-04 20:00+0200\n"
+"Last-Translator: Claude (machine translation)\n"
+"Language-Team: olimpiada\n"
+"Language: ru\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=4; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && "
+"n%10<=4 && (n%100<12 || n%100>14) ? 1 : n%10==0 || (n%10>=5 && n%10<=9) || "
+"(n%100>=11 && n%100<=14)? 2 : 3);\n"
+
+msgid "Faktura"
+msgstr "Счёт-фактура"
+
+msgid "Faktura pro forma"
+msgstr "Счёт-проформа"
+
+msgid "Data sprzedaży"
+msgstr "Дата продажи"
+
+msgid "Zapłacono"
+msgstr "Оплачено"
+
+msgid "Kod referencyjny"
+msgstr "Код платежа"
+
+msgid "NIP / VAT ID"
+msgstr "ИНН / номер плательщика НДС"
+
+msgid "Sprzedawca"
+msgstr "Продавец"
+
+msgid "Nabywca"
+msgstr "Покупатель"
+
+msgid "Pozycja"
+msgstr "Позиция"
+
+msgid "Ilość"
+msgstr "Количество"
+
+msgid "Cena"
+msgstr "Цена"
+
+msgid "Razem do zapłaty"
+msgstr "Итого к оплате"
+
+msgid "Bank"
+msgstr "Банк"
+
+msgid "Tytuł przelewu"
+msgstr "Назначение платежа"
+
+msgid "Dane do przelewu"
+msgstr "Реквизиты для перевода"
+
+msgid "Faktura pro forma nie jest dokumentem księgowym. Fakturę wystawimy po zaksięgowaniu wpłaty."
+msgstr "Счёт-проформа не является бухгалтерским документом. Счёт-фактуру мы выставим после поступления оплаты."
+
+msgid "Nazwa instytucji albo imię i nazwisko"
+msgstr "Название организации или ФИО"
+
+msgid "Adres"
+msgstr "Адрес"
+
+msgid "Opcjonalnie – jeśli instytucja ma numer podatkowy, który ma znaleźć się na fakturze."
+msgstr "Необязательно – если у организации есть налоговый номер, который нужно указать в счёте."
+
+msgid "E-mail do rozliczeń"
+msgstr "E-mail для расчётов"
+
+msgid "Liczba obserwatorów"
+msgstr "Количество наблюдателей"
+
+msgid "Osoby towarzyszące drużynie bez roli opiekuna – płatne według cennika."
+msgstr "Сопровождающие команду лица, не являющиеся руководителями, – оплачиваются по прайс-листу."
+
+msgid "Opłata za delegację"
+msgstr "Взнос за делегацию"
+
+msgid "Uczeń"
+msgstr "Ученик"
+
+msgid "Opiekun drużyny"
+msgstr "Руководитель команды"
+
+msgid "Obserwator"
+msgstr "Наблюдатель"
+
+msgid "Opłata za udział"
+msgstr "Регистрационный взнос"
+
+msgid "Zniżka"
+msgstr "Скидка"
+
+msgid "cena wczesna"
+msgstr "ранняя цена"
+
+msgid "cena podstawowa"
+msgstr "базовая цена"
+
+msgid "cena późna"
+msgstr "поздняя цена"
+
+msgid "Instytucja"
+msgstr "Организация"
+
+msgid "Osoba prywatna"
+msgstr "Частное лицо"
+
+msgid "Zwolnienie z opłat"
+msgstr "Освобождение от оплаты"
+
+msgid "czeka na wpłatę"
+msgstr "ожидает оплаты"
+
+msgid "zapłacone"
+msgstr "оплачено"
+
+msgid "anulowane"
+msgstr "отменено"
+
+msgid "zwrócone"
+msgstr "возвращено"
+
+msgid "Karta płatnicza (Stripe)"
+msgstr "Банковская карта (Stripe)"
+
+msgid "Przelew bankowy"
+msgstr "Банковский перевод"
+
+msgid "w toku"
+msgstr "в обработке"
+
+msgid "przyjęta"
+msgstr "получен"
+
+msgid "nieudana"
+msgstr "не удался"
+
+msgid "przerwana"
+msgstr "прерван"
+
+msgid "do wyjaśnienia"
+msgstr "требует проверки"
+
+msgid "wykonany"
+msgstr "выполнен"
+
+msgid "nieudany"
+msgstr "не удался"
+
+msgid "Najpierw uzupełnij dane do faktury."
+msgstr "Сначала заполните реквизиты для счёта."
+
+msgid "Organizator nie opublikował jeszcze cennika."
+msgstr "Организатор ещё не опубликовал прайс-лист."
+
+msgid "Delegacja jest zwolniona z opłat."
+msgstr "Делегация освобождена от оплаты."
+
+msgid "Nie ma nic nowego do zapłaty."
+msgstr "Новых сумм к оплате нет."
+
+msgid "Ta opłata jest już rozliczona."
+msgstr "Этот взнос уже оплачен."
+
+msgid "Nie ma nic do zapłaty."
+msgstr "Оплачивать нечего."
+
+msgid "Płatność tego zamówienia jest właśnie przetwarzana. Spróbuj ponownie za kilka minut."
+msgstr "Платёж по этому заказу сейчас обрабатывается. Повторите попытку через несколько минут."
+
+#, python-format
+msgid "Płatność Przelewy24 tego zamówienia jest w toku. Spróbuj ponownie za %(minutes)s minut."
+msgstr "Платёж Przelewy24 по этому заказу ещё выполняется. Повторите попытку через %(minutes)s мин."
+
+msgid "Anulować można wyłącznie zamówienie czekające na wpłatę."
+msgstr "Отменить можно только заказ, ожидающий оплаты."
+
+msgid "To zamówienie nie czeka na wpłatę."
+msgstr "Этот заказ не ожидает оплаты."
+
+msgid "Ta metoda płatności nie jest dostępna."
+msgstr "Этот способ оплаты недоступен."
+
+msgid "Dostawca płatności jest chwilowo niedostępny. Spróbuj ponownie za chwilę."
+msgstr "Платёжный сервис временно недоступен. Повторите попытку чуть позже."
+
+msgid "Opłaty"
+msgstr "Взносы"
+
+msgid "Drużyna jest zwolniona z opłat."
+msgstr "Команда освобождена от оплаты."
+
+msgid "Opłaty są rozliczone."
+msgstr "Все взносы оплачены."
+
+#, python-format
+msgid "Do zapłaty: %(amount)s %(currency)s."
+msgstr "К оплате: %(amount)s %(currency)s."
+
+msgid "Opłaty i faktury"
+msgstr "Взносы и счета"
+
+msgid "Zapłać online"
+msgstr "Оплатить онлайн"
+
+msgid "Dane do faktury"
+msgstr "Реквизиты для счёта"
+
+msgid "Opłaty drużyny"
+msgstr "Взносы команды"
+
+msgid "Nabywcą może być instytucja (np. ministerstwo, szkoła, fundacja) albo osoba prywatna. Zmiana danych dotyczy kolejnych dokumentów – wystawione wcześniej zostają bez zmian."
+msgstr "Покупателем может быть организация (например, министерство, школа, фонд) или частное лицо. Изменения касаются следующих документов – уже выставленные не меняются."
+
+#, python-format
+msgid "Opłaty: %(country)s"
+msgstr "Взносы: %(country)s"
+
+msgid "Opłatę za drużynę wnosi się na podstawie faktury pro forma: wystaw ją, a potem zapłać kartą albo przelewem. Po zaksięgowaniu wpłaty wystawimy fakturę i wyślemy potwierdzenie e-mailem."
+msgstr "Взнос команды оплачивается по счёту-проформе: выставьте его, затем оплатите картой или банковским переводом. После поступления оплаты мы выставим счёт-фактуру и пришлём подтверждение по e-mail."
+
+msgid "Zestawienie"
+msgstr "Сводка"
+
+msgid "Waluta"
+msgstr "Валюта"
+
+msgid "Zwrócono"
+msgstr "Возвращено"
+
+msgid "Czeka na wpłatę"
+msgstr "Ожидает оплаты"
+
+msgid "Do wystawienia"
+msgstr "К выставлению"
+
+msgid "Pozycje kolejnej faktury pro forma"
+msgstr "Позиции следующего счёта-проформы"
+
+msgid "Wystaw fakturę pro forma"
+msgstr "Выставить счёт-проформу"
+
+msgid "Przed wystawieniem faktury pro forma uzupełnij dane do faktury."
+msgstr "Перед выставлением счёта-проформы заполните реквизиты."
+
+msgid "Nie podano jeszcze danych do faktury."
+msgstr "Реквизиты для счёта ещё не указаны."
+
+msgid "Zmień dane do faktury"
+msgstr "Изменить реквизиты"
+
+msgid "Zamówienia"
+msgstr "Заказы"
+
+msgid "Zamówienia drużyny"
+msgstr "Заказы команды"
+
+msgid "Wystawiono"
+msgstr "Выставлен"
+
+msgid "Dokumenty"
+msgstr "Документы"
+
+msgid "Nie wystawiono jeszcze żadnego zamówienia."
+msgstr "Заказы ещё не выставлялись."
+
+#, python-format
+msgid "Dziękujemy – otrzymaliśmy wpłatę za udział w konkursie %(competition)s."
+msgstr "Спасибо – мы получили ваш платёж за участие в %(competition)s."
+
+msgid "Fakturę i historię płatności znajdziesz po zalogowaniu:"
+msgstr "Счёт и историю платежей вы найдёте после входа в систему:"
+
+#, python-format
+msgid "Potwierdzenie wpłaty %(reference)s – %(competition)s"
+msgstr "Подтверждение оплаты %(reference)s – %(competition)s"
+
+#, python-format
+msgid "Organizator konkursu %(competition)s zwrócił część albo całość Twojej wpłaty."
+msgstr "Организатор %(competition)s вернул часть или всю сумму вашего платежа."
+
+msgid "Kwota zwrotu"
+msgstr "Сумма возврата"
+
+msgid "Pieniądze wracają tą samą drogą, którą zostały wpłacone; zaksięgowanie po stronie banku może potrwać kilka dni roboczych. Szczegóły:"
+msgstr "Деньги возвращаются тем же способом, которым были оплачены; зачисление банком может занять несколько рабочих дней. Подробности:"
+
+#, python-format
+msgid "Zwrot wpłaty %(reference)s – %(competition)s"
+msgstr "Возврат платежа %(reference)s – %(competition)s"
+
+#, python-format
+msgid "Zamówienie %(reference)s"
+msgstr "Заказ %(reference)s"
+
+#, python-format
+msgid "termin płatności: %(due)s"
+msgstr "срок оплаты: %(due)s"
+
+msgid "Pozycje zamówienia"
+msgstr "Позиции заказа"
+
+msgid "Zapłać"
+msgstr "Оплатить"
+
+msgid "Zapłać kartą"
+msgstr "Оплатить картой"
+
+msgid "Zapłać przez Przelewy24"
+msgstr "Оплатить через Przelewy24"
+
+msgid "Płatność odbywa się na stronie operatora płatności. Nie przechowujemy danych karty."
+msgstr "Оплата проходит на странице платёжного сервиса. Мы не храним данные карт."
+
+msgid "Wpisz kod referencyjny w tytule przelewu – po nim organizator odnajdzie wpłatę. Przelew zaksięgujemy w ciągu kilku dni roboczych; koszty banku ponosi płacący."
+msgstr "Укажите код платежа в назначении перевода – по нему организатор найдёт ваш платёж. Мы зачтём перевод в течение нескольких рабочих дней; банковские комиссии оплачивает плательщик."
+
+msgid "Płatności online nie są jeszcze dostępne. Skontaktuj się z organizatorem."
+msgstr "Онлайн-оплата пока недоступна. Свяжитесь с организатором."
+
+msgid "Anuluj zamówienie"
+msgstr "Отменить заказ"
+
+msgid "Anuluj zamówienie, jeśli zmienił się skład drużyny albo dane do faktury – potem wystaw nowe."
+msgstr "Отмените заказ, если изменился состав команды или реквизиты, – затем выставьте новый."
+
+msgid "Brak dokumentów."
+msgstr "Документов нет."
+
+msgid "Historia płatności"
+msgstr "История платежей"
+
+msgid "zwrócono"
+msgstr "возвращено"
+
+#, python-format
+msgid "Do zapłaty: %(amount)s %(currency)s. Podaj dane do faktury – wystawimy fakturę pro forma, a po zaksięgowaniu wpłaty fakturę."
+msgstr "К оплате: %(amount)s %(currency)s. Укажите реквизиты – мы выставим счёт-проформу, а после поступления оплаты – счёт-фактуру."
+
+msgid "Dalej"
+msgstr "Далее"
+
+msgid "Dane do faktury zostały zapisane."
+msgstr "Реквизиты сохранены."
+
+msgid "Wystawiliśmy fakturę pro forma. Wybierz sposób zapłaty."
+msgstr "Счёт-проформа выставлен. Выберите способ оплаты."
+
+msgid "Dziękujemy. Czekamy na potwierdzenie wpłaty od operatora płatności – odśwież stronę za chwilę."
+msgstr "Спасибо. Ждём подтверждения от платёжного сервиса – обновите страницу через минуту."
+
+msgid "Płatność została przerwana. Możesz spróbować ponownie."
+msgstr "Оплата прервана. Можно попробовать ещё раз."
+
+msgid "Zamówienie zostało anulowane."
+msgstr "Заказ отменён."
