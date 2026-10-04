@@ -75,6 +75,19 @@ def _last_competition_table_migration() -> tuple[str, str]:
         for operation in loader.disk_migrations[node].operations:
             if getattr(operation, "model_name", "").lower() == "competition":
                 chosen = node
+    # Dwie gałęzie zmieniające tabelę konkursu równolegle (4.10.2026: ``0013_…registration_mode``
+    # i ``0013_…theme_version``, spięte ``0014_merge``) – „ostatnia w kolejności planu” to tylko
+    # jedna z nich, a żywy model zna kolumny obu. Wtedy celem jest czoło, które zawiera wszystkie.
+    if chosen != head and any(
+        node[0] == "tenancy"
+        and node not in loader.graph.forwards_plan(chosen)
+        and any(
+            getattr(op, "model_name", "").lower() == "competition"
+            for op in loader.disk_migrations[node].operations
+        )
+        for node in loader.graph.forwards_plan(head)
+    ):
+        return head
     return chosen
 
 

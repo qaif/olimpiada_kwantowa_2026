@@ -3879,6 +3879,69 @@ Nowy konkurs od razu z krajami: `create_competition … --regions countries` (do
 
 Kolejność dla `iqo` po wdrożeniu: § 26.1 (języki) i ta komenda – niezależne od siebie.
 
+## 30. Motywy wizualne (THEME-01, `docs/tasks/THEME-01.md`)
+
+Wygląd konkursu zmienia się **paczką motywu** (ZIP: `manifest.json`, `theme.css`, `tokens.json`,
+`assets/`, opcjonalnie `templates/theme/*.html` i `screenshot.png`), bez wydania aplikacji. Paczka nie
+wykonuje kodu Pythona i nie dokłada JavaScriptu; przy wgraniu przechodzi walidację (ścieżki ZIP, bomba
+ZIP, typy i magiczne bajty plików, CSS przez parser, SVG oczyszczane, lint i kompilacja szablonów,
+tokeny) i skan ClamAV. Konkurs bez motywu (Olimpiada Kwantowa) nie zmienia się ani o bajt HTML.
+
+### 30.1. Wgranie i aktywacja na produkcji
+
+```sh
+# 1. paczka na serwer (z laptopa)
+scp -i ~/.ssh/olimpiada_deploy iqo-quantum-1.0.0.zip deploy@<serwer>:/tmp/
+# 2. wgranie (walidacja + ClamAV + publikacja do bucketu public-media) i aktywacja w konkursie
+ssh -i ~/.ssh/olimpiada_deploy deploy@<serwer>
+cd /opt/olimpiada
+docker compose exec -T web python manage.py theme_install - --activate iqo < /tmp/iqo-quantum-1.0.0.zip
+```
+
+Kod wyjścia ≠ 0 = paczka odrzucona (błędy na ekranie, wersja „odrzucona” z raportem w katalogu).
+Bez `--activate` motyw czeka w katalogu; wybiera go koordynator konkursu w panelu
+(**„Motyw serwisu”**, przełącznik konkursu `themes` – włącza operator jak każdą flagę, § 6) albo
+superkoordynator w `/coordinator/platform/themes/` (katalog: wgranie przez przeglądarkę, raport,
+usunięcie nieużywanej wersji). Aktywacja czyści pełnostronicowy cache gościa tego konkursu sama.
+
+**Cofnięcie:** wybór poprzedniej wersji (albo „Klasyczny”) w panelu. Z konsoli (z wpisem audytu):
+
+```sh
+docker compose exec -T web python manage.py shell -c "from apps.tenancy.models import Competition; from apps.themes.services import activate; activate(Competition.objects.get(slug='iqo'), None)"
+```
+
+Wersje zostają, dopóki operator ich nie usunie; wersji używanej przez konkurs nie da się usunąć
+(`PROTECT`).
+
+**Awaryjnie** (motyw psuje stronę): superkoordynator dopisuje do adresu `?theme=off` – strona
+renderuje się bez motywu tylko dla niego; ekran „Motyw serwisu” i katalog motywów są zawsze bez
+motywu, więc przycisk przywrócenia „Klasycznego” jest zawsze widoczny. Szablony slotów z paczki
+działają wyłącznie na stronach publicznych (CMS, statystyki, plakaty, wyniki, weryfikacja dyplomu);
+panele, logowanie i formularze mają zawsze ramę aplikacji (tokeny i arkusz motywu – tak).
+
+### 30.2. Pliki w buckecie, CSP, CORS
+
+- Pliki publiczne leżą w `public-media` pod **niezmiennym** prefiksem `themes/<slug>/<wersja>-<sha8>/`
+  z `Cache-Control: public, max-age=31536000, immutable` (nowa wersja = nowy prefiks). Szablony
+  i manifest nie trafiają do bucketu (są w bazie), paczka ZIP – do bucketu prywatnego.
+- **CSP:** strona z motywem dostaje origin bucketu (`S3_PUBLIC_ENDPOINT_URL`) także w `style-src`
+  i `font-src` (w `img-src` był już wcześniej). `script-src` nie zmienia się nigdy; strona bez motywu
+  ma politykę co do bajtu dawną.
+- **CORS dla krojów:** przeglądarka pobiera `woff2` z innego originu (`:9000`) w trybie CORS. MinIO
+  odpowiada `Access-Control-Allow-Origin` z originem żądania dla każdego originu (ustawienie domyślne
+  `MINIO_API_CORS_ALLOW_ORIGIN=*`, § 16.3), a blok S3 w Caddy nagłówków CORS nie rusza – sprawdzone
+  w devie (`curl -H "Origin: https://olimpiadakwantowa.pl" -I …/public-media/themes/…/x.woff2`).
+  **Jeżeli kiedyś zawęzicie CORS MinIO**, dopiszcie do listy domeny wszystkich konkursów – inaczej
+  motyw cicho spadnie na kroje systemowe.
+- Arkusz motywu odwołuje się do swoich plików adresami **względnymi** (`url("assets/…")`), więc
+  przeniesienie bucketu pod własną domenę S3 nie wymaga ponownego wgrywania motywów.
+
+### 30.3. Nowa zależność
+
+`tinycss2` (parser CSS) jest w `backend/pyproject.toml` – obraz `web`/`worker` musi być **przebudowany**
+(CI buduje go z pyproject). Bez niej import walidatora się nie powiedzie dopiero przy wgraniu paczki;
+render stron z już aktywnym motywem jej nie potrzebuje.
+
 
 ## 28. Delegacje krajowe – rejestracja przez opiekunów drużyn (DEL-01, `docs/tasks/DEL-01.md`)
 
@@ -3948,13 +4011,13 @@ Przestawienie trybu z powrotem na `OPEN` otwiera samodzielną rejestrację i ukr
 dane delegacji, opiekunów i uczniów zostają w bazie. Migracje `accounts.0036`–`0038` i `tenancy.0013` są
 odwracalne (nowe tabele i kolumny nullowalne albo z wartością domyślną).
 
-## 29. Okna czasowe etapu według stref (TZ-01, `docs/tasks/TZ-01.md`)
+## 32. Okna czasowe etapu według stref (TZ-01, `docs/tasks/TZ-01.md`)
 
 Etap zdalny konkursu z flagą **`stage_time_windows`** może pracować w kilku oknach czasowych (np. trzy
 starty co 8 h, każdy po 5 h) z przydziałem krajów według strefy. Bez flagi (Olimpiada Kwantowa) nic się
 nie zmienia: żadna bramka okien nie pyta bazy, ekranu nie ma (404), menu i panel uczestnika są te same.
 
-### 29.1. Włączenie dla `iqo`
+### 32.1. Włączenie dla `iqo`
 
 1. Wdrożenie zakłada tabele aplikacji `time_windows` (migracja `time_windows.0001`, same nowe tabele –
    żadna istniejąca tabela się nie zmienia). Nowych segmentów adresów nie ma (`coordinator/…`,
@@ -3964,10 +4027,10 @@ nie zmienia: żadna bramka okien nie pyta bazy, ekranu nie ma (404), menu i pane
    docker compose exec web python manage.py shell -c "from apps.tenancy.models import Competition; c = Competition.objects.get(slug='iqo'); c.feature_flags = {**(c.feature_flags or {}), 'stage_time_windows': True}; c.save(update_fields=['feature_flags'])"
    ```
 3. Koordynator ustawia okna **przed otwarciem etapu**: „Etapy → <etap> → Okna czasowe”
-   (`PODRECZNIK-ORGANIZATORA.md` § 10c). Rama etapu (otwarcie – termin oddania) musi obejmować wszystkie
+   (`PODRECZNIK-ORGANIZATORA.md` § 10e). Rama etapu (otwarcie – termin oddania) musi obejmować wszystkie
    okna razem z dodatkowym czasem uczniów; beat zamyka etap (`LOCKED`) dopiero po ramie.
 
-### 29.2. Czego nie robić
+### 32.2. Czego nie robić
 
 - **Nie wyłączaj flagi, dopóki trwają okna** (od startu pierwszego okna do końca ostatniego z dodatkowym
   czasem – „moment ujawnienia” na ekranie okien). Bez flagi etap wraca do jednej ramy: treść zadań staje
@@ -3975,7 +4038,7 @@ nie zmienia: żadna bramka okien nie pyta bazy, ekranu nie ma (404), menu i pane
 - Nie zmieniaj okien przez `/admin/` – modele są tam tylko do odczytu, bo reguły „po starcie nie wolno”
   i audyt są w serwisie.
 
-### 29.3. Co pilnuje serwer
+### 32.3. Co pilnuje serwer
 
 Upload (HTML i `POST /api/submissions/…`), `is_late`, PDF treści (`/api/competitions/problems/<id>/statement/`),
 lista zadań w API bieżącej edycji, strona „Zadania” w CMS (i jej API dla django CMS), archiwum, test
@@ -3984,14 +4047,14 @@ wyników (`WINDOWS_NOT_FINISHED`), zmiana ramy etapu (`STAGE_WINDOWS_OUTSIDE`). 
 aktywuje warstwa `apps.time_windows.middleware.ParticipantTimezoneMiddleware` (tylko konkurs z flagą
 i zalogowany uczestnik; podpis „czas polski” zamienia się wtedy na nazwę strefy).
 
-### 29.4. RODO i tłumaczenia
+### 32.4. RODO i tłumaczenia
 
 Nowa czynność w rejestrze „Okna czasowe etapu” (tylko konkursy z flagą), sekcja `okna_czasowe` w eksporcie
 danych konta; anonimizacja usuwa strefę ucznia i powód wyjątku (okno i dodatkowy czas zostają jako
 dokumentacja warunków pracy). Katalogi tłumaczeń aplikacji (`backend/apps/*/locale`) kompilują obraz
 (`backend/Dockerfile`), CI i `backend/conftest.py`.
 
-### 29.5. Wycofanie
+### 32.5. Wycofanie
 
 Usunięcie planu (ekran okien, przed otwarciem etapu) przywraca etapowi jedną ramę. Migracja
 `time_windows.0001` jest odwracalna (`migrate time_windows zero` usuwa wyłącznie tabele tej aplikacji).

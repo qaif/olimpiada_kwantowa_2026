@@ -1,0 +1,14 @@
+/* Fikstura testów: font i obraz z assets/, warianty układu z <html data-layout-*>. */
+@font-face {
+  font-family: "Demo Sans";
+  src: url(assets/fonts/demo.woff2) format("woff2");
+  font-display: swap;
+}
+.example-footer {
+  background: var(--t-primary) url("./assets/img/pixel.png") repeat;
+  color: var(--t-primary-contrast);
+}
+:root[data-layout-cards="outline"] .card {
+  box-shadow: none;
+  border: 1px solid var(--t-border);
+}

@@ -2711,6 +2711,14 @@ msgstr "Akun"
 msgid "Mój panel"
 msgstr "Panel saya"
 
+#: apps/themes/slots.py
+msgid "Koordynator"
+msgstr "Koordinator"
+
+#: apps/themes/slots.py
+msgid "Panel koordynatora"
+msgstr "Panel koordinator"
+
 #: templates/base.html:210
 msgid "Recenzje"
 msgstr "Peninjauan"

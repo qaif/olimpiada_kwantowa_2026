@@ -1,0 +1,117 @@
+{% load i18n wagtailcore_tags wagtailimages_tags web_extras %}{% comment %}
+  IQO Quantum – slot ``theme/home_hero.html`` (układ ``full-bleed``).
+
+  Ten sam kontekst i ta sama mechanika slidera co ``cms/home_page.html`` (``data-hero-slider*``
+  dla ``static/js/hero-slider.js``, scroll-snap bez JS), inna rama:
+
+  - sekcja ``iqo-hero`` wychodzi na całą szerokość okna (arkusz: ``margin-inline`` liczony od
+    ``50vw``), więc działa zarówno wewnątrz ``<main class="page">``, jak i poza nim,
+  - tło to statyczny SVG z paczki (``assets/hero/wave-field.svg``): medal z logo przecięty paczką
+    falową na prążkach interferencyjnych – bez JS, bez animacji,
+  - plakaty redakcji (``poster``) dostają ramę motywu zamiast sfery „K” konkursu kwantowa.
+{% endcomment %}
+<section class="iqo-hero hero--slider" data-hero-slider aria-roledescription="{% translate 'karuzela' %}" aria-label="{% translate 'Najważniejsze informacje' %}">
+  {% if not hero_show_intro %}<h1 class="visually-hidden">{{ page.hero_title|default:page.title }}</h1>{% endif %}
+  <div class="hero-slider__viewport iqo-hero__viewport" data-hero-slider-viewport tabindex="-1">
+    {% for block in hero_slides_visible %}
+      {% if block.block_type == "poster" %}
+        {% with poster=block.value %}
+          <div class="hero-slide iqo-slide iqo-slide--poster iqo-slide--{{ poster.theme|default:'czerwony' }}" data-hero-slide
+               role="group" aria-roledescription="{% translate 'plansza' %}" aria-label="{{ poster.title }}">
+            <div class="iqo-hero__inner">
+              {% if poster.kicker %}<p class="iqo-hero__kicker">{{ poster.kicker }}</p>{% endif %}
+              <p class="iqo-hero__title">{{ poster.title }}</p>
+              {% if poster.text %}<p class="iqo-hero__text">{{ poster.text }}</p>{% endif %}
+              {% if poster.show_registration_end and registration.closes_at %}
+                <p class="iqo-hero__status">{% blocktranslate trimmed with closes=registration.closes_at|date:"j E Y" %}Rejestracja trwa do
+                  <strong>{{ closes }}</strong>{% endblocktranslate %}</p>
+              {% endif %}
+              {% if poster.button_label and poster.button_url %}
+                <p class="iqo-hero__actions">
+                  <a class="btn btn--accent" href="{{ poster.button_url }}">{{ poster.button_label }}</a>
+                </p>
+              {% endif %}
+              {% if poster.stamp %}<p class="iqo-hero__stamp">{{ poster.stamp }}</p>{% endif %}
+            </div>
+          </div>
+        {% endwith %}
+      {% elif block.block_type == "image" %}
+        {% with slide=block.value %}
+          <div class="hero-slide hero-slide--image iqo-slide iqo-slide--image" data-hero-slide
+               role="group" aria-roledescription="{% translate 'plansza' %}" aria-label="{{ slide.alt }}">
+            {% if slide.link_url %}<a class="hero-image__link" href="{{ slide.link_url }}">{% endif %}
+            {% if forloop.first %}
+              {% image slide.image max-1600x900 alt=slide.alt class="hero-image__img" decoding="async" %}
+            {% else %}
+              {% image slide.image max-1600x900 alt=slide.alt class="hero-image__img" decoding="async" loading="lazy" %}
+            {% endif %}
+            {% if slide.link_url %}</a>{% endif %}
+          </div>
+        {% endwith %}
+      {% endif %}
+    {% endfor %}
+
+    {% if hero_show_intro %}
+      <div class="hero-slide iqo-slide iqo-slide--intro" data-hero-slide role="group" aria-roledescription="{% translate 'plansza' %}"
+           aria-label="{{ page.hero_title|default:page.title }}">
+        <div class="iqo-hero__inner">
+          {% if edition %}{% translate "Edycja" as edition_prefix %}<p class="iqo-hero__kicker">{{ edition.year_label|edition_title:edition_prefix }}</p>{% endif %}
+          <h1 class="iqo-hero__title">{{ page.hero_title|default:page.title }}</h1>
+          {% if page.hero_text %}<div class="iqo-hero__text">{{ page.hero_text|richtext }}</div>{% endif %}
+
+          <div class="iqo-hero__actions">
+            {% if user.is_authenticated %}
+              {% if is_participant %}
+                <a class="btn btn--accent" href="{% url 'web:me' %}">{% translate "Mój panel" %}</a>
+              {% elif is_reviewer %}
+                <a class="btn btn--accent" href="{% url 'web:review-list' %}">{% translate "Moje recenzje" %}</a>
+              {% elif is_coordinator %}
+                <a class="btn btn--accent" href="{% url 'web:coordinator' %}">{% translate "Panel koordynatora" %}</a>
+              {% endif %}
+            {% else %}
+              {% if registration.is_open %}
+                <a class="btn btn--accent" href="{% url 'web:register' %}">{% translate "Zarejestruj się" %}</a>
+              {% elif registration.reason == "not_yet" %}
+                <a class="btn btn--accent" href="{% url 'web:register' %}">{% blocktranslate with opens=registration.opens_at|date:"j E Y" %}Rejestracja rusza {{ opens }}{% endblocktranslate %}</a>
+              {% endif %}
+              <a class="btn btn--secondary" href="{% url 'web:login' %}">{% translate "Zaloguj się" %}</a>
+            {% endif %}
+          </div>
+
+          {% if settings.cms.SiteSettings.registration_note %}
+            <p class="iqo-hero__note">{{ settings.cms.SiteSettings.registration_note }}</p>
+          {% endif %}
+
+          {% if current_stage %}
+            <p class="iqo-hero__status">{% blocktranslate trimmed with stage=current_stage.display_name deadline=current_stage.deadline_at|local_time %}Etap bieżący: <strong>{{ stage }}</strong>
+              · termin oddania rozwiązań {{ deadline }}{% endblocktranslate %}</p>
+          {% endif %}
+        </div>
+      </div>
+    {% endif %}
+
+    {% if page.hero_show_news %}
+      {% for item in latest_news %}
+        <div class="hero-slide iqo-slide iqo-slide--news" data-hero-slide role="group" aria-roledescription="{% translate 'plansza' %}"
+             aria-label="{% blocktranslate with title=item.title %}Aktualność: {{ title }}{% endblocktranslate %}">
+          <div class="iqo-hero__inner">
+            <p class="iqo-hero__kicker">{% blocktranslate with date=item.date %}Aktualności · {{ date }}{% endblocktranslate %}</p>
+            <h2 class="iqo-hero__title iqo-hero__title--news">{{ item.title }}</h2>
+            {% if item.lead %}<p class="iqo-hero__text">{{ item.lead }}</p>{% endif %}
+            <div class="iqo-hero__actions">
+              <a class="btn btn--accent" href="{% pageurl item %}">{% translate "Czytaj dalej" %}</a>
+              {% if news_index %}<a class="btn btn--secondary" href="{% pageurl news_index %}">{% translate "Wszystkie aktualności" %}</a>{% endif %}
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    {% endif %}
+  </div>
+
+  <div class="hero-slider__controls iqo-hero__controls" data-hero-slider-controls hidden>
+    <button type="button" class="hero-slider__arrow" data-hero-slider-prev aria-label="{% translate 'Poprzednia plansza' %}">&#8249;</button>
+    <div class="hero-slider__dots" data-hero-slider-dots></div>
+    <button type="button" class="hero-slider__arrow" data-hero-slider-next aria-label="{% translate 'Następna plansza' %}">&#8250;</button>
+    <button type="button" class="hero-slider__pause" data-hero-slider-pause aria-pressed="false">{% translate "Wstrzymaj" %}</button>
+  </div>
+</section>
