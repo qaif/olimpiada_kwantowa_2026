@@ -4570,18 +4570,28 @@ z innym krokiem operatora:
 |---|---|---|
 | JupyterLite (statyczne, ~40 MB na dysku, do ~19 MB po kompresji przy pierwszym otwarciu) | etap `notebook-lab` w `backend/Dockerfile` → `/app/notebook_lab_dist` → `entrypoint.sh` kopiuje do `staticfiles/notebook-lab/<BUILD_ID>/` | nic – buduje się z obrazem (sieć **w czasie budowy**: PyPI, GitHub, cdn.jsdelivr.net; w czasie działania żadnej) |
 | CSP ścieżki laboratorium | fragment `(notebook_lab)` w `deploy/Caddyfile`, `import notebook_lab` w każdym bloku aplikacji | nic – krok 4/8 wdrożenia (§ 23) przeładowuje proxy |
-| Piaskownica `notebook-runner` | `docker-compose.yml`, profil `notebooks`, wolumen `notebook_spool` | **dopisać** `COMPOSE_PROFILES=notebooks` w `.env` (obok `djcms`: `COMPOSE_PROFILES=djcms,notebooks`) |
+| Piaskownica `notebook-runner` i worker oceny `notebook-worker` (kolejka Celery `notebooks`) | `docker-compose.yml`, profil `notebooks`, wolumen `notebook_spool` (tylko te dwie usługi) | **dopisać** `COMPOSE_PROFILES=notebooks` w `.env` (obok `djcms`: `COMPOSE_PROFILES=djcms,notebooks`) |
 
 ### 40.1. Włączenie
 
 1. `.env` serwera: `COMPOSE_PROFILES=notebooks` (z przecinkiem, jeśli jest już `djcms`), opcjonalnie
    `NOTEBOOK_RUNNER_SLOTS` (domyślnie 2 zadania naraz) i `NOTEBOOK_RUNNER_MEMORY_MB` (768).
-2. Wdrożenie (`scripts/deploy.sh`) – zbuduje obraz z JupyterLite i podniesie `notebook-runner`.
-   Ręcznie: `docker compose up -d worker notebook-runner` (worker dostaje wolumen `notebook_spool`).
+   `NOTEBOOK_RUNNER_MEMORY_MB` jest **górną granicą operatora**: limit zadania to
+   `min(wartość nadzorcy, limit z ustawień zadania, sufit 2048)`, więc zadanie z ustawionym 1024 MB
+   dostanie 768 MB, dopóki nie podniesiesz tej zmiennej (pamiętaj o `mem_limit: 1536m` kontenera
+   przy kilku slotach). Tak samo czas: `NOTEBOOK_RUNNER_WALL_SECONDS` (75), `…_CPU_SECONDS` (60).
+2. Wdrożenie (`scripts/deploy.sh`) – zbuduje obraz z JupyterLite i podniesie `notebook-runner`
+   oraz `notebook-worker`. Ręcznie: `docker compose up -d notebook-worker notebook-runner`.
+   **Od wydania z poprawkami po przeglądzie** zadania oceny idą na kolejkę Celery `notebooks`, którą
+   obsługuje wyłącznie `notebook-worker` (jeden proces, `mem_limit 768m`, krótkie limity czasu zadań
+   60/75 s i 90/120 s); główny `worker` (`-Q default,scan,mail`) nie ma już wolumenu `notebook_spool`.
+   Po aktualizacji ze starszej konfiguracji: `docker compose up -d worker notebook-worker`
+   (worker traci wolumen, nowy worker wstaje).
 3. Flaga konkursu `quantum_notebooks` w `/admin/` (Konkursy → przełączniki), jak `ai_grading`.
 4. Sprawdzenie (wyłącznie odczyt):
 
 ```sh
+docker compose ps notebook-runner notebook-worker   # oba "healthy" (runner: znacznik życia < 60 s)
 docker compose logs --tail 5 notebook-runner        # "notebook runner: spool /spool, 2 slot(s), uid switching True"
 docker compose exec web cat staticfiles/notebook-lab/current.json   # build_id, rozmiary, licencje
 curl -sI https://<domena>/static/notebook-lab/<build_id>/lab/index.html | grep -i content-security
@@ -4597,20 +4607,34 @@ odpowiedziało na czas” – nic nie wisi.
 `network_mode: none`, `read_only`, tmpfs `/tmp` z `noexec,nosuid,nodev` (512 MB), **bez** `env_file`
 (żadnego sekretu w środowisku), `cap_drop: ALL` + `SETUID, SETGID, KILL`, `no-new-privileges`,
 `pids_limit: 128`, `mem_limit: 1536m`, `cpus: 2`. Nadzorca (root bez innych uprawnień) uruchamia
-każde zadanie jako UID `60000 + slot` bez grup, z limitami `setrlimit`; czas ścienny i `killpg`
-pilnuje nadzorca. Wolumen `notebook_spool` (`2770`, grupa workera) widzi worker i nadzorca –
-dziecko nie. Hak audytowy w dziecku (sieć, podprocesy, `fork`, `ctypes`, wątki, pliki) to druga,
-słabsza warstwa – szczegóły w `apps/notebooks/runner/__init__.py`.
+każde zadanie jako **losowy, nieużywany w tej chwili UID** z puli `60000 … 109999` bez grup,
+z limitami `setrlimit`; czas ścienny i `killpg` pilnuje nadzorca, a **po każdym zadaniu** uruchamia
+jako ten UID sprzątanie: `kill(-1, SIGKILL)` (każdy proces tego UID, także taki, który wyszedł
+z grupy procesów) i usunięcie plików tego UID w `/tmp`. Resztki zadania (gdyby sprzątanie zawiodło)
+należą do innego UID niż następne zadanie. Wolumen `notebook_spool` (`2770`, grupa workera) widzi
+`notebook-worker` i nadzorca – dziecko nie. Healthcheck: pętla nadzorcy dotyka
+`/tmp/notebook-runner.heartbeat` co pół sekundy; starszy niż 60 s = `unhealthy`.
 
-Odbiór z 4.10.2026 (lokalnie, obraz z tego wydania, ustawienia kontenera jak w compose): dziecko
-UID 60001 bez grup; `socket`, `os.fork`, `ctypes.CDLL`, zapis do `/app`, listowanie `/spool` –
+Hak audytowy w dziecku (sieć, podprocesy, `fork`, `ctypes`, wątki, pliki, rozszerzenia natywne
+spoza bibliotek) to **obrona w głąb, a nie granica bezpieczeństwa** – Python sam to zastrzega, a kod
+ucznia działa w tym samym procesie co hak. Granicą są kontener i osobny UID z limitami; hak daje
+czytelne błędy i utrudnia nadużycia. Szczegóły w `apps/notebooks/runner/__init__.py`.
+
+Ocena wyników (symulacja obwodu ucznia w `notebook-worker`) ma budżet: koszt `Σ 2^(n+k)` po
+operacjach liczony przed symulacją, najwyżej 2·10⁸ na artefakt i 10⁹ na przebieg – obwód ponad
+budżet kończy test błędem „obwód za duży do oceny” bez liczenia (`docs/tasks/QC-01.md` § 5).
+
+Odbiór z 4.10.2026 (lokalnie, obraz z pierwszej wersji – stałe UID slotów, przed losowaniem UID
+i sprzątaniem; ustawienia kontenera jak w compose): dziecko UID 60001 bez grup; `socket`, `os.fork`, `ctypes.CDLL`, zapis do `/app`, listowanie `/spool` –
 odmowa; pętla nieskończona – zabita po limicie. Bez haka (proces jako 60000 w sieci `none`):
 `/spool` – `Permission denied`, `1.1.1.1` – `Network is unreachable`, `redis`/`db` – brak nazwy.
 
 ### 40.3. Rozwiązywanie problemów
 
-- **„Środowisko sprawdzania jest niedostępne”** – worker nie widzi `/spool` (brak wolumenu po
-  ręcznym `up` ze starszą konfiguracją): `docker compose up -d worker`.
+- **„Środowisko sprawdzania jest niedostępne”** – `notebook-worker` nie widzi `/spool` albo nie
+  działa wcale (zadania czekają w kolejce `notebooks`; beat zamyka przebiegi `PENDING` starsze niż
+  30 minut tym komunikatem): `docker compose ps notebook-worker`, `docker compose up -d notebook-worker`.
+  Po naprawie – „Przelicz wszystko” w wynikach zadania.
 - **„…nie odpowiedziało na czas”** – `notebook-runner` nie działa albo nie nadąża:
   `docker compose ps notebook-runner`, `docker compose logs notebook-runner`; więcej slotów
   `NOTEBOOK_RUNNER_SLOTS` (każdy slot to do `NOTEBOOK_RUNNER_MEMORY_MB` pamięci).
@@ -4637,11 +4661,38 @@ uczniów w IndexedDB zostaje (stała nazwa magazynu).
   samą polityką CSP (`apps/web/middleware.py`).
 - Sprawdzanie bez kontenera piaskownicy: `NOTEBOOK_RUNNER_INLINE=1` (wyłącznie z `DJANGO_DEBUG=1`;
   przy `DEBUG=0` start zatrzymuje `notebooks.E001`). Testy używają tego trybu.
+- Kolejka `notebooks` w dev: `docker compose --profile notebooks up -d notebook-worker`
+  (`docker-compose.dev.yml` montuje mu `./backend` jak pozostałym) – bez tego zadania oceny czekają
+  w Redisie, a dev-owy `worker` (`-Q default,scan,mail`) ich nie weźmie. Doraźnie można też
+  uruchomić `docker compose exec worker celery -A config worker -Q notebooks -c 1` (z trybem inline).
+- Testy zgodności `docker-compose.yml` i `deploy/Caddyfile` w CI (`CI=true`) **nie** dają się pominąć –
+  brak pliku to błąd. Testy z prawdziwym Qiskitem (`*_with_real_qiskit`) w CI są pominięte z powodem
+  `QISKIT-PARITY` (Qiskit nie jest zależnością); uruchom je w obrazie z `pip install qiskit` przy
+  zmianach `backend/qclab`.
 
-### 40.6. Opcjonalnie: osobna domena laboratorium
+### 40.6. Personel bez laboratorium; docelowo osobna domena laboratorium
 
-Laboratorium działa na domenie serwisu, więc kod z notatnika ma w przeglądarce sesję ucznia
-(„self-XSS” – szkodzi wyłącznie sobie; CSP nie wypuszcza danych poza serwis). Pełną izolację dałby
-osobny origin (`lab.<domena>`) z tym samym katalogiem statycznym i fragmentem `(notebook_lab)` –
-wymaga DNS-u, certyfikatu, CORS-u dla notatnika startowego i zmiany `apps/notebooks/lab.py`; nie jest
-wdrożone (`docs/tasks/QC-01.md` § 3.5).
+Laboratorium działa na domenie serwisu, więc kod z notatnika wykonuje się w przeglądarce osoby,
+która je otworzyła, w originie serwisu. Polityka CSP ścieżki laboratorium (źródła zawężone do
+`/static/notebook-lab/` i `/notebook-starter/`, `form-action 'none'`, COOP/COEP) blokuje z niego API,
+panele i formularze serwisu, ale to nie jest pełna izolacja.
+
+**Stan obecny (decyzja koordynatora):** laboratorium otwierają **wyłącznie konta uczestników bez
+żadnej roli personelu** (superużytkownik, `is_staff`, koordynator, recenzent, komisja, opiekun
+szkolny, opiekun delegacji – w **którymkolwiek** konkursie instalacji). Personel dostaje podgląd
+notatnika tylko do odczytu (nic się nie wykonuje; HTML/JS z wyjść pominięte). Operator nie ma tu nic
+do zrobienia, ale: **nie nadawaj ról personelu kontom, z których ktoś rozwiązuje zadania** – po
+nadaniu roli laboratorium znika z tego konta (osoba testująca zadania potrzebuje osobnego konta
+uczestnika).
+
+**Docelowa naprawa (niewdrożona): osobna domena rejestrowalna**, np. `olimpiada-lab.pl` –
+**nie** `lab.<domena serwisu>`. Subdomena nie wystarcza: `CSRF_TRUSTED_ORIGINS` zawiera
+`https://*.<SITE_DOMAIN>` (subdomeny konkursów, `config/settings/base.py`), więc kod z
+`lab.<domena>` byłby dla Django zaufanym originem żądań POST, a ta sama domena rejestrowalna to ten
+sam „site” dla ciasteczek `SameSite=Lax`. Kroki, gdy zapadnie decyzja: rekord DNS i certyfikat drugiej
+domeny; blok Caddy'ego tej domeny podający **wyłącznie** `/static/notebook-lab/*` z fragmentem
+`(notebook_lab)` (i nic z `web`); notatnik startowy dostępny z tej domeny bez sesji serwisu (token
+w adresie już jest podpisany – wystarczy CORS `Access-Control-Allow-Origin: https://olimpiada-lab.pl`
+na `/notebook-starter/` i `connect-src` laboratorium wskazujący domenę serwisu); adres laboratorium
+w `apps/notebooks/lab.py`; potem zdjęcie bramki ról (`services.has_staff_role`). Szczegóły i
+uzasadnienie: `docs/tasks/QC-01.md` § 3.5.

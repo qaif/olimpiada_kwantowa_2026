@@ -12,7 +12,7 @@ Kolejność kroków jest częścią zabezpieczenia:
 3. import NumPy i qclab **przed** hakiem audytowym (biblioteki czytają swoje pliki),
 4. hak audytowy (``_install_guard``) – od tej chwili tylko odczyt bibliotek i zapis w katalogu
    roboczym, bez sieci, podprocesów, wątków i ``ctypes``,
-5. komórki ucznia, każda osobno (błąd w jednej nie przerywa kolejnych – patrz QC-01 § 6.3),
+5. komórki ucznia, każda osobno (błąd w jednej nie przerywa kolejnych – patrz QC-01 § 6),
 6. ekstrakcja artefaktów celów (``qclab.grader.extract_artifacts``).
 
 Hak audytowy **nie jest** granicą bezpieczeństwa (Python sam to zastrzega) – utrudnia nadużycia

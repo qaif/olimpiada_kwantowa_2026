@@ -259,9 +259,9 @@ def _build(module_circuit, spec, n):
 #: Testy zgodności z **prawdziwym** Qiskit (L3). Qiskit nie jest zależnością projektu (ani runtime,
 #: ani ``dev`` – to kilkadziesiąt MB z rozszerzeniem w Rust), więc w CI te testy są pominięte z tym
 #: komunikatem, a nie po cichu. Uruchamia się je w obrazie z doinstalowanym ``qiskit`` przy każdej
-#: zmianie ``qclab`` (docs/TESTY.md, QC-01 § 9).
+#: zmianie ``qclab`` (docs/TESTY.md, QC-01 § 8).
 REAL_QISKIT_SKIP = (
-    "QISKIT-PARITY: brak pakietu qiskit – zgodność z prawdziwym Qiskit NIESPRAWDZONA (QC-01 § 9)"
+    "QISKIT-PARITY: brak pakietu qiskit – zgodność z prawdziwym Qiskit NIESPRAWDZONA (QC-01 § 8)"
 )
 
 

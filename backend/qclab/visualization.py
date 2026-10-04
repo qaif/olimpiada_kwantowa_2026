@@ -1,4 +1,4 @@
-"""Wykresy w wersji tekstowej. matplotlib nie jest częścią środowiska (rozmiar pobrania – QC-01 § 5)."""
+"""Wykresy w wersji tekstowej. matplotlib nie jest częścią środowiska (rozmiar pobrania – QC-01 § 2.3)."""
 
 from __future__ import annotations
 

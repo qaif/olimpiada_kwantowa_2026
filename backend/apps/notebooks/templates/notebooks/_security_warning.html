@@ -4,11 +4,12 @@
 <div class="msg msg-warning">
   <p class="mt-0"><strong>{% translate "Bezpieczeństwo: laboratorium działa w domenie serwisu." %}</strong></p>
   <p>{% blocktranslate trimmed %}
-    Polityka laboratorium blokuje z notatnika wywołania API i paneli serwisu, formularze i dostęp do
-    innych kart serwisu. Nie jest to jednak pełna izolacja: kod, który uczestnik wklei do notatnika
-    (np. podesłany przez kogoś „rozwiązanie”), wykonuje się w jego przeglądarce i może odczytać dane,
-    które serwis zapisał w tej przeglądarce, oraz przenieść kartę na obcą stronę. Pełną izolację daje
-    osobna domena laboratorium – krok operatora opisany w docs/OPERACJE.md § 40.6. Uprzedź uczestników,
-    żeby nie wklejali cudzego kodu.
+    Kod z notatnika wykonuje się w przeglądarce osoby, która otworzyła laboratorium, w domenie
+    serwisu. Polityka laboratorium blokuje z niego wywołania API i paneli serwisu oraz formularze, ale
+    nie jest to pełna izolacja. Dlatego laboratorium otwierają wyłącznie konta uczestników bez żadnej
+    roli personelu – koordynator, recenzent, komisja i opiekunowie oglądają notatniki w podglądzie
+    tylko do odczytu, w którym nic się nie wykonuje. Nie otwieraj cudzych notatników w laboratorium
+    z konta uczestnika, a uczestników uprzedź, żeby nie wklejali cudzego kodu. Pełną izolację da
+    osobna domena laboratorium – docs/OPERACJE.md § 40.6.
   {% endblocktranslate %}</p>
 </div>

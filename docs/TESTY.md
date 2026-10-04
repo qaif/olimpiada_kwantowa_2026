@@ -112,6 +112,14 @@ docker compose exec -T web python -m pytest -q --create-db -p _durations_plugin
 Wtyczka (`backend/_durations_plugin.py`) działa też z `-n auto` i nadpisuje plik; commituje się go
 jak każdy inny. Nowy test, którego w pliku nie ma, dostaje czas średni.
 
+**Pliki spoza `backend/` w testach** (notatniki kwantowe, QC-01): zgodność polityki CSP
+z `deploy/Caddyfile` i konfiguracja `docker-compose.yml` są czytane ze ścieżek względem korzenia
+repozytorium (CI ma pełny checkout). Poza CI test bez tych plików jest pomijany (obraz z samym
+backendem), w CI (`CI=true`) – **pada**. Testy zgodności `qclab` z prawdziwym Qiskitem
+(`apps/notebooks/tests/test_qclab.py::*_with_real_qiskit`) w CI są pominięte z powodem
+`QISKIT-PARITY: … NIESPRAWDZONA` (widać go w `pytest -rs`): Qiskit nie jest zależnością projektu.
+Przy zmianach w `backend/qclab` uruchom je w kontenerze z doinstalowanym `qiskit`.
+
 ## 6. Dopisywanie bez ruszania cudzych testów
 
 Asercje mają sprawdzać **regułę per element**, a nie liczbę elementów, którą każda nowa funkcja

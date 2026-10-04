@@ -187,7 +187,8 @@ Przy niektórych zadaniach karta ma blok **„Notatnik w przeglądarce”** i pr
 Otwiera się notatnik Jupytera (JupyterLite) – Python działa w Twojej przeglądarce, **niczego nie
 instalujesz**; wystarczy aktualny Chrome, Edge, Firefox albo Safari.
 
-1. **Otwórz notatnik.** Pierwsze otwarcie pobiera ok. 15–20 MB (napis przy przycisku podaje
+1. **Otwórz notatnik.** Strona zadania ma instrukcję i odnośnik, który otwiera JupyterLab
+   w **nowej karcie**. Pierwsze otwarcie pobiera ok. 15–20 MB (napis przy przycisku podaje
    dokładniej), kolejne korzystają z pamięci przeglądarki. Po wczytaniu notatnik działa bez sieci.
 2. **Pisz i uruchamiaj kod** – Shift+Enter uruchamia komórkę. Pisz jak w Qiskicie:
    `from qiskit import QuantumCircuit`, `from qiskit.quantum_info import Statevector`. To zgodny
@@ -208,7 +209,11 @@ Dobrze wiedzieć:
 - serwer wykonuje komórki po kolei, a błąd w jednej nie przerywa kolejnych; magie (`%pip`, `!ls`) są
   pomijane, sieci i plików spoza notatnika nie ma,
 - wynik testów ukrytych widzisz w karcie zadania tylko wtedy, gdy organizator tak ustawił (zwykle
-  po zamknięciu etapu albo wcale – punkty i tak wystawia komisja).
+  po zamknięciu etapu albo wcale – punkty i tak wystawia komisja),
+- **nie wklejaj do notatnika kodu od innych osób** („wklej, a zobaczysz rozwiązanie”) – wykonuje się
+  w Twojej przeglądarce, na Twoim koncie,
+- konto, które ma w serwisie jakąkolwiek rolę organizatora, recenzenta czy opiekuna, zamiast
+  notatnika widzi tylko jego podgląd – do rozwiązywania zadań potrzebne jest zwykłe konto uczestnika.
 
 ## 4. Rozmowa kwalifikacyjna (gdy etap ma taką formę)
 

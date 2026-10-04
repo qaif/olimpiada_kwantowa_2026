@@ -2337,6 +2337,26 @@ Zadanie z notatnikiem Jupytera w przeglądarce (JupyterLite – uczestnik niczeg
 Ekran istnieje przy włączonej fladze konkursu `quantum_notebooks` (włącza operator, `docs/OPERACJE.md`
 § 40). Lista pokazuje zadania bieżącej edycji; „Dodaj notatnik” / „Ustawienia” przy zadaniu.
 
+> **⚠ Bezpieczeństwo – przeczytaj, zanim włączysz notatniki.** Laboratorium (JupyterLab
+> w przeglądarce) wykonuje kod z notatnika **w domenie serwisu, w przeglądarce osoby, która je
+> otworzyła**. Polityka bezpieczeństwa blokuje z niego panele, API i formularze serwisu, ale to nie
+> jest pełna izolacja. Dlatego:
+>
+> - laboratorium otwiera się **wyłącznie na koncie uczestnika bez żadnej roli personelu**.
+>   Koordynator, recenzent, członek komisji, opiekun szkolny, opiekun delegacji, superużytkownik –
+>   w **którymkolwiek** konkursie na tym serwerze – zamiast laboratorium dostaje **podgląd tylko do
+>   odczytu** (kod się nie wykonuje, wyjścia HTML/JavaScript są pominięte);
+> - **nigdy nie otwieraj notatnika uczestnika w laboratorium** – ani swoim kontem (nie da się), ani
+>   „na chwilę” kontem uczestnika. Prace sprawdzasz podglądem („Podgląd notatnika (tylko do odczytu)”
+>   w ekranie oceny i w wynikach), a notatnik startowy i wzorcowy – podglądem w ustawieniach zadania;
+> - zadanie przetestuj jako uczestnik na **osobnym koncie testowym bez ról** (nie nadawaj mu potem
+>   roli – laboratorium z niego zniknie);
+> - uprzedź uczestników (komunikat, regulamin), żeby **nie wklejali do notatnika kodu od innych
+>   osób** – wykonuje się na ich koncie.
+>
+> Docelowo laboratorium ma dostać osobną domenę (`docs/OPERACJE.md` § 40.6); wtedy te ograniczenia
+> znikną.
+
 **Tryby:**
 
 - **Notatnik swobodny** – uczestnik dostaje notatnik startowy przy zadaniu, oddaje plik `.ipynb`,
@@ -2397,7 +2417,17 @@ Błąd w jednej komórce nie przerywa pozostałych (przypadkowe `plot_histogram`
 
 **Sprawdź testy na wzorcu:** wgraj notatnik wzorcowy i kliknij „Sprawdź testy na wzorcu” – po kilku
 sekundach (odświeżenie strony) widać wynik każdego testu i błędy komórek. „Pobierz notatnik jak
-uczestnik” daje plik dokładnie w tej postaci, w jakiej dostanie go uczestnik.
+uczestnik” daje plik dokładnie w tej postaci, w jakiej dostanie go uczestnik; „Podgląd” pokazuje
+notatnik startowy i wzorcowy bez wykonywania.
+
+**Testy na zliczeniach** (`counts` ze słownikiem zliczeń ucznia) mają tolerancję co najmniej
+`√(liczba wyników / liczba strzałów)` – poprawne rozwiązanie z 1024 strzałami nie obleje testu przez
+szum losowania; poniżej 100 strzałów test nie przechodzi. Gdy potrzebujesz ciasnej tolerancji,
+testuj **obwód** (`"target": "qc"`) – jego rozkład serwer liczy dokładnie. Obwody bardzo duże
+(np. 20 kubitów i tysiące bramek) serwer odrzuca bez liczenia („obwód za duży do oceny”).
+
+**Komunikaty testów** (różnice, limity bramek) widzisz tylko Ty – w wynikach i szczególe
+przebiegu. Recenzent i uczestnik widzą nazwy testów i punkty.
 
 **Wyniki** (`…/results/`): najnowsza wersja każdego uczestnika, punkty za każdy test, suma, CSV,
 szczegół przebiegu (błędy komórek, początek wyjścia programu). Po zmianie testów wiersze dostają

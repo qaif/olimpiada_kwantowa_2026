@@ -11,7 +11,7 @@ startowego, ani formularza. Ten strażnik to druga, **słabsza** linia po stroni
 
 Słabsza, bo ``Referer`` da się stłumić (``referrerpolicy="no-referrer"`` w ``fetch``) – nie jest
 więc granicą bezpieczeństwa, tylko siatką na przypadek, w którym przeglądarka nie egzekwuje CSP.
-Pełną izolację daje dopiero osobny origin laboratorium (``docs/OPERACJE.md`` § 40.6).
+Pełną izolację daje dopiero osobna domena rejestrowalna laboratorium (``docs/OPERACJE.md`` § 40.6).
 """
 
 from __future__ import annotations
