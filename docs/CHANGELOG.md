@@ -15,7 +15,7 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
   wersja oficjalna jako tekst Markdown + LaTeX z numerem wersji, 1–2 języki delegacji i język ucznia
   (domyślny + nadpisanie przez opiekuna).
 - **Opiekun** (`/delegation/translations/`): edytor obok wersji oficjalnej z autozapisem (HTMX) i
-  podglądem wzorów (KaTeX zwendorowany, bez CDN), alternatywnie PDF (skan antywirusowy), wysłanie do
+  podglądem wzorów (KaTeX zwendorowany; htmx i Alpine strony bazowej nadal z CDN-ów z SRI), alternatywnie PDF (skan antywirusowy), wysłanie do
   akceptacji, cofnięcie, aktualizacja po zmianie wersji oficjalnej z różnicami źródła.
 - **Komisja** (`/coordinator/translations/`): kolejka, przegląd z różnicami wersji, zatwierdzenie
   (blokada) i zwrot z komentarzem; zmiana wersji oficjalnej (także PDF-u z ekranu zadań) oznacza

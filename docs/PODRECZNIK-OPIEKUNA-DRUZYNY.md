@@ -85,6 +85,15 @@ Open **Problem translations** from your team page (`/delegation/translations/`).
   submit again. Your students keep the previously approved version until the new one is approved.
 - **Shared translations:** if the organiser chose shared mode, all delegations with the same language
   work on one common text.
+- **Saving conflicts:** if someone else (another team leader in shared mode, or you in another browser
+  tab) saved the translation after you opened it, your save is refused with a message instead of
+  overwriting their work. Copy your text, reload the page and merge. If autosave cannot save (for
+  example the translation window has just closed), the message appears right under the editor.
+- **Official version changed while you were writing:** *Submit* is refused and the page shows what
+  changed; your text stays in the editor. Check the changes and submit again.
+- **PDF translations:** after uploading a PDF the text editor is hidden; use *Switch to text* to go back.
+- **Official PDF:** you download exactly the file your students will get (in an English-language
+  competition this is the English PDF).
 
 After the competition starts, each student sees the problem in their assigned language and always
 also the official version.

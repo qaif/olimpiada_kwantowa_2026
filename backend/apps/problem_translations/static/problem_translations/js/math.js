@@ -2,8 +2,10 @@
  *
  * Serwer (``apps/problem_translations/markup.py``) wstawia każdą formułę jako **tekst** w
  * ``<span class="tr-math" data-display="0|1">``; ten skrypt zamienia ją na skład KaTeX-a.
- * Biblioteka leży w ``vendor/katex`` (bez CDN-u): strona z tajnym zadaniem nie pyta obcego
- * serwera o nic, a polityka CSP nie potrzebuje żadnego wyjątku.
+ * Biblioteka leży w ``vendor/katex`` (bez CDN-u): treść zadania i formuły są składane w przeglądarce,
+ * a pliki KaTeX-a przychodzą z tego samego serwera – CSP nie potrzebuje wyjątku. Strona jako całość
+ * ładuje jednak htmx i Alpine z CDN-ów przypiętych skrótem SRI (``templates/base.html``); te żądania
+ * nie niosą treści zadania (Referer nie wychodzi poza serwis – ``SECURE_REFERRER_POLICY``).
  *
  * ``katex.render`` buduje węzły DOM (nie ``innerHTML``), z ``trust: false`` (bez ``\href``,
  * ``\includegraphics`` i podobnych) i ``throwOnError: false`` – błędna formuła zostaje czerwonym

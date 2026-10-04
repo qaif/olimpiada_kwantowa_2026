@@ -4015,13 +4015,14 @@ odwracalne (nowe tabele i kolumny nullowalne albo z wartością domyślną).
 
 Funkcja istnieje wyłącznie w konkursie w trybie **`DELEGATIONS`** (§ 28) – w Olimpiadzie Kwantowej
 nie ma ani ekranów (404), ani pozycji menu, ani odnośnika na karcie zadania. Nowa aplikacja
-`apps.problem_translations` (migracja `problem_translations.0001`, same nowe tabele – odwracalna).
+`apps.problem_translations` (migracje `problem_translations.0001`–`0002`, same nowe tabele i kolumny – odwracalne).
 
 ### 34.1. Wdrożenie
 
 - `scripts/deploy.sh` jak zwykle (migracja + `collectstatic`). KaTeX jest **zwendorowany**
   (`apps/problem_translations/static/problem_translations/vendor/katex/`, wersja 0.19.0, MIT) – CSP bez
-  zmian, żadnego CDN-u.
+  zmian (KaTeX nie idzie z CDN-u; htmx i Alpine strony bazowej – jak w całym serwisie – z CDN-ów przypiętych
+  SRI, bez treści zadania w żądaniu). Wersja, skróty i sposób przycięcia CSS: `vendor/katex/VERSION`.
 - Obraz kompiluje teraz także katalogi tłumaczeń aplikacji (`apps/*/locale/*/LC_MESSAGES/django.po`,
   `backend/Dockerfile`) – bez przebudowy obrazu ekrany opiekuna byłyby po polsku.
 - Nowy scope throttlingu `translation` (1200/h na konto) – bez zmian w `.env`.

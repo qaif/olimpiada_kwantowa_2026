@@ -113,12 +113,22 @@ class TranslationWindow(models.Model):
 
 
 def source_fingerprint(problem, body_md: str) -> str:
-    """Odcisk wersji oficjalnej: tytuł, **nazwa** pliku PDF i tekst.
+    """Odcisk wersji oficjalnej: tytuły i **nazwy** plików PDF (wersja główna i angielska) oraz tekst.
 
-    Nazwa pliku, a nie jego treść: każde wgranie nowego PDF-u dostaje w storage nową nazwę, a czytanie
-    całego pliku przy każdym zapisie zadania kosztowałoby pobranie go z MinIO.
+    Obie wersje językowe, bo w konkursie anglojęzycznym uczeń dostaje ``statement_pdf_en``
+    (``Problem.statement_file``) – erratum wgrane tylko do pliku angielskiego jest zmianą tego, co
+    tłumacze przekładają. Nazwa pliku, a nie jego treść: każde wgranie nowego PDF-u dostaje w storage
+    nową nazwę, a czytanie całego pliku przy każdym zapisie zadania kosztowałoby pobranie go z MinIO.
     """
-    raw = "\x00".join([problem.title or "", problem.statement_pdf.name or "", body_md or ""])
+    raw = "\x00".join(
+        [
+            problem.title or "",
+            problem.statement_pdf.name or "",
+            body_md or "",
+            problem.title_en or "",
+            problem.statement_pdf_en.name or "",
+        ]
+    )
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 
@@ -154,6 +164,8 @@ class SourceRevision(models.Model):
     title = models.CharField("tytuł", max_length=300)
     body_md = models.TextField("treść (Markdown)", blank=True)
     pdf_name = models.CharField("plik PDF", max_length=300, blank=True)
+    title_en = models.CharField("tytuł (EN)", max_length=300, blank=True)
+    pdf_en_name = models.CharField("plik PDF (EN)", max_length=300, blank=True)
     created_at = models.DateTimeField("utworzona", default=timezone.now)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
@@ -250,6 +262,10 @@ class Translation(models.Model):
     )
     #: Wersja oficjalna, z której tłumacz pracował przy ostatnim wysłaniu (albo założeniu szkicu).
     source_version = models.PositiveIntegerField("wersja źródła", default=1)
+    #: Licznik zapisów – żeton optymistycznej współbieżności. Formularz edytora niesie wartość, z którą
+    #: go wyrenderowano; zapis z inną wartością (drugi opiekun w trybie wspólnym, druga karta) dostaje
+    #: odmowę zamiast cicho nadpisać cudzą pracę.
+    edit_version = models.PositiveIntegerField("licznik zapisów", default=0)
     #: Kiedy wersja oficjalna zmieniła się pod tym tłumaczeniem. Czyści ją dopiero ponowne wysłanie.
     outdated_since = models.DateTimeField("nieaktualne od", null=True, blank=True)
     review_comment = models.TextField("komentarz komisji", blank=True, max_length=4000)

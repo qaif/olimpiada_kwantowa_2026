@@ -101,6 +101,9 @@ class BundleItem:
     heading: str
     pdf: bytes | None = None
     body_md: str = ""
+    #: Adnotacja pod nagłówkiem (np. „wersja oficjalna zmieniła się po zatwierdzeniu”). Przy PDF-ie
+    #: tłumaczenia staje na osobnej stronie przed nim – w cudzy plik nie wpisujemy tekstu.
+    note: str = ""
 
 
 def _text_pages(item: BundleItem, footer: str) -> bytes:
@@ -124,6 +127,8 @@ def _text_pages(item: BundleItem, footer: str) -> bytes:
         return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
     story: list = [Paragraph(escape(item.heading), head)]
+    if item.note:
+        story.append(Paragraph(escape(item.note), sub))
     for kind, value in plain_blocks(item.body_md):
         if kind == "heading":
             story.append(Paragraph(escape(value), sub))
@@ -152,9 +157,12 @@ def bundle(items: Iterable[BundleItem], footer: str) -> bytes:
 
     writer = PdfWriter()
     for item in items:
-        data = item.pdf if item.pdf is not None else _text_pages(item, footer)
-        for page in PdfReader(io.BytesIO(data), strict=False).pages:
-            writer.add_page(page)
+        parts = [item.pdf] if item.pdf is not None else [_text_pages(item, footer)]
+        if item.pdf is not None and item.note:
+            parts.insert(0, _text_pages(BundleItem(heading=item.heading, note=item.note), footer))
+        for data in parts:
+            for page in PdfReader(io.BytesIO(data), strict=False).pages:
+                writer.add_page(page)
     output = io.BytesIO()
     writer.write(output)
     return output.getvalue()

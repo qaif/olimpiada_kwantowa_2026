@@ -1965,6 +1965,9 @@ poprzedniej wysłanej wersji, historia. „Zatwierdź” blokuje tłumaczenie; �
 komentarza (opiekun czyta go w panelu — list mówi tylko, że jest zwrot). Zwrot zatwierdzonego
 tłumaczenia nie zabiera go uczniom, dopóki nie zatwierdzisz nowej wersji.
 
+Jeśli opiekun wyśle nową wersję, gdy masz otwarty ekran przeglądu, „Zatwierdź”/„Zwróć” odmówi
+i pokaże bieżącą wersję — decyzja zawsze dotyczy tekstu, który widzisz.
+
 **Eksport na finał.** Ekran etapu → „Eksport do druku”: dla każdego języka (w trybie osobnym — każdej
 delegacji) **PDF** złożony z zatwierdzonych wersji albo **Widok do druku** w przeglądarce. Tekst ze
 wzorami albo po chińsku, w hindi, bengalsku czy arabsku drukuj z widoku do druku („Zapisz jako PDF”).

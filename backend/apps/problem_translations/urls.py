@@ -63,6 +63,11 @@ urlpatterns = [
         name="delegation-translation-reopen",
     ),
     path(
+        "delegation/translations/problems/<int:pk>/<str:language>/use-text/",
+        leader.UseTextView.as_view(),
+        name="delegation-translation-use-text",
+    ),
+    path(
         "delegation/translations/problems/<int:pk>/<str:language>/file.pdf",
         leader.TranslationPdfView.as_view(),
         name="delegation-translation-file",

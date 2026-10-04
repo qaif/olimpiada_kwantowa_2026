@@ -23,13 +23,13 @@
     <div class="actions">
       {% if translation.status == statuses.SUBMITTED and not outdated %}
         <form method="post" action="{% url 'web:coordinator-translation-approve' translation.pk %}" class="inline">
-          {% csrf_token %}
+          {% csrf_token %}<input type="hidden" name="revision" value="{{ latest.number }}">
           <button type="submit" class="btn btn--primary">Zatwierdź wersję {{ latest.number }}</button>
         </form>
       {% endif %}
     </div>
     <form method="post" action="{% url 'web:coordinator-translation-return' translation.pk %}" class="form" novalidate>
-      {% csrf_token %}
+      {% csrf_token %}<input type="hidden" name="revision" value="{{ latest.number|default:"" }}">
       {{ form.as_p }}
       <div class="actions"><button type="submit" class="btn btn--secondary">Zwróć do poprawy</button></div>
     </form>

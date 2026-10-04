@@ -4,13 +4,20 @@
   Edytor tłumaczenia „obok siebie” (TR-01 § 2): wersja oficjalna po lewej, tłumaczenie po prawej.
 
   Autozapis to HTMX na formularzu: ``hx-post`` na adres autozapisu po 3 s przerwy w pisaniu,
-  odpowiedź (stan zapisu + podgląd) podmienia ``#autosave``. Bez JavaScriptu formularz działa jak
-  zwykły – przycisk „Zapisz szkic” wysyła go na adres edytora. „Wyślij do akceptacji” jest
-  przyciskiem **tego samego** formularza (``formaction``), więc wysyła to, co jest w polu, a nie to,
-  co zdążył zapisać autozapis.
+  odpowiedź (stan zapisu) trafia do ``#autosave-status``, a podgląd i nowy żeton – „out of band”.
+  Bez JavaScriptu formularz działa jak zwykły – przycisk „Zapisz szkic” wysyła go na adres edytora.
+  „Wyślij do akceptacji” jest przyciskiem **tego samego** formularza (``formaction``), więc wysyła to,
+  co jest w polu, a nie to, co zdążył zapisać autozapis.
 
-  Formuły rysuje KaTeX z plików statycznych aplikacji (``math.js``) – bez CDN-u: przeglądarka sali
-  tłumaczeń nie pyta obcego serwera o nic, kiedy na ekranie jest tajne zadanie.
+  Dwa ukryte pola pilnują współbieżności: ``edit_version`` (żeton – zapis drugiego opiekuna albo drugiej
+  karty od chwili wyrenderowania daje odmowę 409 zamiast cichego nadpisania) i ``source_version``
+  (wersja oficjalna, którą opiekun ma przed oczami – nowsza po stronie serwera blokuje wysłanie
+  i pokazuje różnice).
+
+  Formuły rysuje KaTeX z plików statycznych aplikacji (``math.js``) – treść zadania i formuły nie
+  opuszczają serwera. Strona ładuje jednak, jak każda, htmx (cdnjs) i Alpine (jsDelivr) z CDN-ów
+  przypiętych skrótem SRI (``base.html``): CDN widzi samo żądanie pliku biblioteki (adres IP i czas;
+  nagłówka Referer nie dostaje – ``SECURE_REFERRER_POLICY = "same-origin"``), nie treść zadania.
 {% endcomment %}
 {% block title %}{% blocktranslate trimmed with number=problem.number language=language_label %}Zadanie {{ number }} – {{ language }}{% endblocktranslate %}{% endblock %}
 {% block head %}<link rel="stylesheet" href="{% static 'problem_translations/vendor/katex/katex.min.css' %}">
@@ -27,7 +34,7 @@
   {% if translation.review_comment and translation.status == statuses.RETURNED %}
     <div class="notice"><strong>{% translate "Uwagi komisji:" %}</strong> {{ translation.review_comment|linebreaksbr }}</div>
   {% endif %}
-  {% if translation.is_outdated %}
+  {% if translation.is_outdated or source_changes %}
     <div class="notice">
       <p>{% blocktranslate trimmed with version=source.version %}Wersja oficjalna zmieniła się (teraz wersja {{ version }}). Zaktualizuj tłumaczenie i wyślij je ponownie.{% endblocktranslate %}</p>
       {% if translation.status == statuses.APPROVED %}
@@ -37,7 +44,7 @@
         </form>
       {% endif %}
       {% if source_changes %}
-        <details class="p-details">
+        <details class="p-details" open>
           <summary>{% translate "Co się zmieniło w wersji oficjalnej" %}</summary>
           {% include "problem_translations/_diff.html" with diff=source_changes %}
         </details>
@@ -49,9 +56,9 @@
 <div class="tr-split">
   <section class="tr-pane" aria-labelledby="source-head">
     <h2 id="source-head" class="mt-0">{% blocktranslate trimmed with version=source.version %}Wersja oficjalna (v{{ version }}){% endblocktranslate %}</h2>
-    <p><strong>{{ problem.title }}</strong></p>
-    {% if problem.statement_pdf %}
-      <p><a class="btn btn--secondary btn--small" href="{% url 'web:delegation-translation-source-pdf' problem.pk %}">{% translate "PDF wersji oficjalnej (ze znakiem wodnym)" %}</a></p>
+    <p><strong>{{ official_title }}</strong></p>
+    {% if official_pdf %}
+      <p><a class="btn btn--secondary btn--small" href="{% url 'web:delegation-translation-source-pdf' problem.pk %}">{% if official_pdf_is_en %}{% translate "PDF wersji oficjalnej – angielski, jak u uczniów (ze znakiem wodnym)" %}{% else %}{% translate "PDF wersji oficjalnej (ze znakiem wodnym)" %}{% endif %}</a></p>
     {% endif %}
     {% if source.body_md %}
       <div class="tr-doc" lang="en">{{ source_html }}</div>
@@ -66,12 +73,41 @@
 
   <section class="tr-pane" aria-labelledby="translation-head">
     <h2 id="translation-head" class="mt-0">{% translate "Tłumaczenie" %}</h2>
-    {% if editable %}
+    {% if editable and is_pdf %}
+      {% comment %}
+        Bieżącym tłumaczeniem jest PDF: formularza tekstowego nie ma, bo autozapis z niego zmieniłby
+        rodzaj tłumaczenia po cichu. Powrót do tekstu to osobna, świadoma czynność.
+      {% endcomment %}
+      <p>{% translate "Bieżące tłumaczenie to plik PDF." %}
+        <a href="{% url 'web:delegation-translation-file' problem.pk language %}">{% translate "Podgląd (ze znakiem wodnym)" %}</a></p>
+      <div class="actions">
+        <form method="post" action="{% url 'web:delegation-translation-submit' problem.pk language %}" class="inline">
+          {% csrf_token %}
+          <input type="hidden" name="edit_version" value="{{ token }}">
+          <input type="hidden" name="source_version" value="{{ source.version }}">
+          <button type="submit" class="btn btn--primary">{% translate "Wyślij PDF do akceptacji" %}</button>
+        </form>
+        <form method="post" action="{% url 'web:delegation-translation-use-text' problem.pk language %}" class="inline">
+          {% csrf_token %}
+          <button type="submit" class="btn btn--secondary">{% translate "Przejdź na tekst" %}</button>
+        </form>
+      </div>
+      <details class="p-details">
+        <summary>{% translate "Wgraj nowy PDF" %}</summary>
+        <form method="post" enctype="multipart/form-data" class="form" action="{% url 'web:delegation-translation-upload' problem.pk language %}">
+          {% csrf_token %}
+          {{ pdf_form.as_p }}
+          <div class="actions"><button type="submit" class="btn btn--secondary">{% translate "Wgraj PDF" %}</button></div>
+        </form>
+      </details>
+    {% elif editable %}
       <form method="post" class="form" action="{% url 'web:delegation-translation' problem.pk language %}"
             hx-post="{% url 'web:delegation-translation-autosave' problem.pk language %}"
             hx-trigger="input delay:3s"
-            hx-target="#autosave" hx-swap="innerHTML">
+            hx-target="#autosave-status" hx-swap="innerHTML">
         {% csrf_token %}
+        <input type="hidden" name="edit_version" id="tr-edit-version" value="{{ token }}">
+        <input type="hidden" name="source_version" value="{{ source.version }}">
         <p><label for="{{ form.title.id_for_label }}">{{ form.title.label }}</label>
           <input type="text" name="title" id="{{ form.title.id_for_label }}" maxlength="300" lang="{{ language }}"{% if rtl %} dir="rtl"{% endif %} value="{{ form.title.value|default:'' }}"></p>
         <p><label for="{{ form.body_md.id_for_label }}">{{ form.body_md.label }}</label>
@@ -82,9 +118,12 @@
           <button type="submit" class="btn btn--primary" formaction="{% url 'web:delegation-translation-submit' problem.pk language %}">{% translate "Wyślij do akceptacji" %}</button>
         </div>
       </form>
-      <div id="autosave" aria-live="polite">
-        {% include "problem_translations/leader/_autosave.html" with preview_html=preview_html saved_at=translation.updated_at %}
+      <div id="autosave-status" aria-live="polite"
+           data-error-message="{% translate 'Autozapis nie powiódł się – zmiany nie są zapisane. Skopiuj swój tekst i odśwież stronę.' %}">
+        {% if translation %}<p class="hint tr-saved">{% blocktranslate trimmed with at=translation.updated_at|local_datetime %}Szkic zapisany: {{ at }}{% endblocktranslate %}</p>{% endif %}
       </div>
+      <div id="tr-preview">{% if preview_html %}<h3 class="tr-preview-head">{% translate "Podgląd" %}</h3>
+        <div class="tr-doc" lang="{{ language }}"{% if rtl %} dir="rtl"{% endif %}>{{ preview_html }}</div>{% endif %}</div>
 
       <details class="p-details">
         <summary>{% translate "Zamiast tekstu: wgraj przetłumaczony PDF" %}</summary>
@@ -93,14 +132,6 @@
           {{ pdf_form.as_p }}
           <div class="actions"><button type="submit" class="btn btn--secondary">{% translate "Wgraj PDF" %}</button></div>
         </form>
-        {% if translation.kind == "PDF" and translation.pdf %}
-          <p>{% translate "Bieżące tłumaczenie to plik PDF." %}
-            <a href="{% url 'web:delegation-translation-file' problem.pk language %}">{% translate "Podgląd (ze znakiem wodnym)" %}</a></p>
-          <form method="post" action="{% url 'web:delegation-translation-submit' problem.pk language %}" class="inline">
-            {% csrf_token %}
-            <button type="submit" class="btn btn--primary">{% translate "Wyślij PDF do akceptacji" %}</button>
-          </form>
-        {% endif %}
       </details>
     {% else %}
       {% if translation.status == statuses.SUBMITTED %}
@@ -138,4 +169,5 @@
 {% block scripts %}
   <script defer nonce="{{ request.csp_nonce }}" src="{% static 'problem_translations/vendor/katex/katex.min.js' %}"></script>
   <script defer nonce="{{ request.csp_nonce }}" src="{% static 'problem_translations/js/math.js' %}"></script>
+  <script defer nonce="{{ request.csp_nonce }}" src="{% static 'problem_translations/js/editor.js' %}"></script>
 {% endblock %}

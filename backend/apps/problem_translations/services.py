@@ -29,7 +29,7 @@ from dataclasses import dataclass
 from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
 from django.db import IntegrityError, transaction
-from django.db.models import Max, Q
+from django.db.models import Max
 from django.http import Http404
 from django.template.loader import render_to_string
 from django.urls import reverse
@@ -271,8 +271,40 @@ def _snapshot(source: ProblemSource, problem, *, actor) -> None:
         title=problem.title,
         body_md=source.body_md,
         pdf_name=problem.statement_pdf.name or "",
+        title_en=problem.title_en or "",
+        pdf_en_name=problem.statement_pdf_en.name or "",
         created_by=actor,
     )
+
+
+def official_is_english(problem) -> bool:
+    """Czy wersją oficjalną dla uczniów jest wersja angielska zadania (``statement_pdf_en``).
+
+    Ta sama reguła, co ``Problem.statement_file`` (``competitions.models._prefers_english``: każdy język
+    poza polskim dostaje wersję angielską, gdy jest) – ale liczona dla **języka konkursu**, a nie
+    języka żądania: opiekun bywa w innym interfejsie niż uczniowie, a tłumaczy ma dokładnie to, co
+    uczniowie dostaną jako wersję oficjalną. W ``iqo`` (konkurs anglojęzyczny) to plik angielski.
+    """
+    competition = problem.stage.edition.competition
+    language = (getattr(competition, "default_language", "") or "pl").split("-")[0].lower()
+    return language != "pl"
+
+
+def official_pdf(problem):
+    """Plik wersji oficjalnej, który uczniowie tego konkursu naprawdę dostają (z odwrotem na główny)."""
+    if official_is_english(problem) and problem.statement_pdf_en:
+        return problem.statement_pdf_en
+    return problem.statement_pdf
+
+
+def official_title(problem) -> str:
+    if official_is_english(problem) and problem.title_en:
+        return problem.title_en
+    return problem.title
+
+
+def official_pdf_is_en(problem) -> bool:
+    return bool(official_is_english(problem) and problem.statement_pdf_en)
 
 
 def update_source_text(problem, body_md: str, *, actor, request=None) -> ProblemSource:
@@ -455,23 +487,74 @@ def _for_update(leader: DelegationLeader, problem, language: str, *, actor) -> T
     return Translation.objects.select_for_update().get(problem=problem, language=language, delegation=owner)
 
 
+def _check_token(translation: Translation, expected_version: int | None) -> None:
+    """Optymistyczna współbieżność: zapis z żetonem innym niż bieżący licznik to odmowa (409).
+
+    Sprawdzane **pod blokadą wiersza** (``_for_update``), więc dwa zapisy z tym samym żetonem nie
+    przejdą oba: drugi zobaczy licznik podbity przez pierwszego. ``None`` = wołający spoza formularza
+    (komenda, test) – bez sprawdzenia.
+    """
+    if expected_version is not None and expected_version != translation.edit_version:
+        raise _error(
+            _(
+                "Tłumaczenie zmieniło się w międzyczasie (inny opiekun albo inna karta). "
+                "Skopiuj swój tekst i odśwież stronę."
+            ),
+            "TRANSLATION_CONFLICT",
+        )
+
+
+def _touch(translation: Translation, actor) -> None:
+    translation.edit_version += 1
+    translation.updated_at = timezone.now()
+    translation.updated_by = actor
+
+
 @transaction.atomic
 def save_draft(
-    leader: DelegationLeader, problem, language: str, *, title: str, body_md: str, actor
+    leader: DelegationLeader,
+    problem,
+    language: str,
+    *,
+    title: str,
+    body_md: str,
+    actor,
+    expected_version: int | None = None,
 ) -> Translation:
-    """Autozapis szkicu tekstowego. Bez audytu – to zapis co kilka sekund, nie wgląd ani decyzja."""
+    """Autozapis szkicu tekstowego. Bez audytu – to zapis co kilka sekund, nie wgląd ani decyzja.
+
+    Tłumaczenie, którego bieżącą postacią jest PDF, nie zmienia rodzaju po cichu: autozapis z pola
+    tekstowego to odmowa, a powrót do tekstu jest osobną czynnością (:func:`use_text`).
+    """
     body_md = (body_md or "").replace("\r\n", "\n")
     if len(body_md) > BODY_MAX_LENGTH:
         raise _error(_("Tekst jest za długi."), "TRANSLATION_TOO_LONG", status.HTTP_400_BAD_REQUEST)
     translation = _for_update(leader, problem, language, actor=actor)
     if not translation.is_editable_status:
         raise _locked(translation)
+    _check_token(translation, expected_version)
+    if translation.kind == TranslationKind.PDF and translation.pdf:
+        raise _error(
+            _("Bieżące tłumaczenie to plik PDF – najpierw wybierz „Przejdź na tekst”."), "TRANSLATION_IS_PDF"
+        )
     translation.title = (title or "").strip()[:TITLE_MAX_LENGTH]
     translation.body_md = body_md
     translation.kind = TranslationKind.TEXT
-    translation.updated_at = timezone.now()
-    translation.updated_by = actor
-    translation.save(update_fields=["title", "body_md", "kind", "updated_at", "updated_by"])
+    _touch(translation, actor)
+    translation.save(update_fields=["title", "body_md", "kind", "edit_version", "updated_at", "updated_by"])
+    return translation
+
+
+@transaction.atomic
+def use_text(leader: DelegationLeader, problem, language: str, *, actor, request=None) -> Translation:
+    """Rodzaj tłumaczenia z PDF z powrotem na tekst (plik zostaje do czasu następnego wgrania)."""
+    translation = _for_update(leader, problem, language, actor=actor)
+    if not translation.is_editable_status:
+        raise _locked(translation)
+    translation.kind = TranslationKind.TEXT
+    _touch(translation, actor)
+    translation.save(update_fields=["kind", "edit_version", "updated_at", "updated_by"])
+    audit(actor, "translation.kind_text", translation, {"language": language}, request=request)
     return translation
 
 
@@ -529,8 +612,7 @@ def upload_pdf(
         translation.kind = TranslationKind.PDF
         if title:
             translation.title = title.strip()[:TITLE_MAX_LENGTH]
-        translation.updated_at = timezone.now()
-        translation.updated_by = actor
+        _touch(translation, actor)
         translation.save()
         audit(
             actor,
@@ -546,14 +628,37 @@ def upload_pdf(
 
 
 @transaction.atomic
-def submit(leader: DelegationLeader, problem, language: str, *, actor, request=None) -> TranslationRevision:
-    """„Wyślij do akceptacji”: migawka (nowa wersja), stan ``SUBMITTED``, wersja źródła bieżąca."""
+def submit(
+    leader: DelegationLeader,
+    problem,
+    language: str,
+    *,
+    actor,
+    request=None,
+    expected_version: int | None = None,
+    seen_source_version: int | None = None,
+) -> TranslationRevision:
+    """„Wyślij do akceptacji”: migawka (nowa wersja), stan ``SUBMITTED``, wersja źródła bieżąca.
+
+    ``seen_source_version`` – wersja oficjalna, z którą opiekun miał przed oczami edytor. Starsza od
+    bieżącej to odmowa (409): wysłanie oznaczyłoby jako aktualny tekst przetłumaczony ze starej wersji.
+    """
     translation = _for_update(leader, problem, language, actor=actor)
     if not translation.is_editable_status:
         raise _locked(translation)
+    _check_token(translation, expected_version)
     if not translation.has_content:
         raise _error(_("Tłumaczenie jest puste."), "TRANSLATION_EMPTY", status.HTTP_400_BAD_REQUEST)
     source = ensure_source(problem)
+    if seen_source_version is not None and seen_source_version < source.version:
+        raise _error(
+            _(
+                "Wersja oficjalna zmieniła się, odkąd otworzono edytor (teraz wersja %(version)s). "
+                "Sprawdź zmiany poniżej i wyślij ponownie."
+            )
+            % {"version": source.version},
+            "TRANSLATION_SOURCE_CHANGED",
+        )
     number = (translation.revisions.aggregate(top=Max("number"))["top"] or 0) + 1
     revision = TranslationRevision.objects.create(
         translation=translation,
@@ -570,8 +675,7 @@ def submit(leader: DelegationLeader, problem, language: str, *, actor, request=N
     translation.source_version = source.version
     translation.outdated_since = None
     translation.review_comment = ""
-    translation.updated_at = timezone.now()
-    translation.updated_by = actor
+    _touch(translation, actor)
     translation.save()
     audit(
         actor,
@@ -596,7 +700,8 @@ def withdraw(leader: DelegationLeader, problem, language: str, *, actor, request
         latest.decided_by = actor
         latest.save(update_fields=["decision", "decided_at", "decided_by"])
     translation.status = TranslationStatus.DRAFT
-    translation.save(update_fields=["status"])
+    _touch(translation, actor)
+    translation.save(update_fields=["status", "edit_version", "updated_at", "updated_by"])
     audit(actor, "translation.withdrawn", translation, {"language": language}, request=request)
     return translation
 
@@ -611,7 +716,8 @@ def reopen(leader: DelegationLeader, problem, language: str, *, actor, request=N
             "TRANSLATION_LOCKED",
         )
     translation.status = TranslationStatus.DRAFT
-    translation.save(update_fields=["status"])
+    _touch(translation, actor)
+    translation.save(update_fields=["status", "edit_version", "updated_at", "updated_by"])
     audit(actor, "translation.reopened", translation, {"language": language}, request=request)
     return translation
 
@@ -635,14 +741,33 @@ def latest_revision(translation: Translation) -> TranslationRevision | None:
     return translation.revisions.order_by("-number").first()
 
 
+def _check_revision(revision: TranslationRevision | None, expected_revision: int | None) -> None:
+    """Decyzja dotyczy wersji, którą komisja **widziała**. Inna najnowsza wersja = odmowa (409).
+
+    Bez tego wyścig „opiekun cofa i wysyła ponownie, komisja klika Zatwierdź na starym ekranie”
+    zatwierdzałby tekst, którego nikt z komisji nie przeczytał. Sprawdzane pod blokadą tłumaczenia.
+    """
+    if expected_revision is None:
+        return
+    current = revision.number if revision is not None else None
+    if current != expected_revision:
+        raise _error(
+            f"Opiekun wysłał w międzyczasie nową wersję ({current}) – przeczytaj ją przed decyzją.",
+            "TRANSLATION_REVISION_CHANGED",
+        )
+
+
 @transaction.atomic
-def approve(translation: Translation, *, actor, request=None) -> TranslationRevision:
+def approve(
+    translation: Translation, *, actor, request=None, expected_revision: int | None = None
+) -> TranslationRevision:
     translation = Translation.objects.select_for_update().get(pk=translation.pk)
+    revision = latest_revision(translation)
+    _check_revision(revision, expected_revision)
     if translation.status != TranslationStatus.SUBMITTED:
         raise _error(
             "Zatwierdzić można tylko tłumaczenie wysłane do akceptacji.", "TRANSLATION_NOT_SUBMITTED"
         )
-    revision = latest_revision(translation)
     source = ensure_source(translation.problem)
     if revision is None or revision.source_version < source.version:
         raise _error(
@@ -662,7 +787,9 @@ def approve(translation: Translation, *, actor, request=None) -> TranslationRevi
 
 
 @transaction.atomic
-def return_translation(translation: Translation, comment: str, *, actor, request=None) -> Translation:
+def return_translation(
+    translation: Translation, comment: str, *, actor, request=None, expected_revision: int | None = None
+) -> Translation:
     """Zwrot do poprawy z komentarzem. Z zatwierdzonego też – uczniowie zachowują zatwierdzoną wersję."""
     comment = (comment or "").strip()
     if not comment:
@@ -672,9 +799,10 @@ def return_translation(translation: Translation, comment: str, *, actor, request
             status.HTTP_400_BAD_REQUEST,
         )
     translation = Translation.objects.select_for_update().get(pk=translation.pk)
+    revision = latest_revision(translation)
+    _check_revision(revision, expected_revision)
     if translation.status not in (TranslationStatus.SUBMITTED, TranslationStatus.APPROVED):
         raise _error("Zwrócić można tłumaczenie wysłane albo zatwierdzone.", "TRANSLATION_NOT_SUBMITTED")
-    revision = latest_revision(translation)
     if translation.status == TranslationStatus.SUBMITTED and revision is not None and not revision.decision:
         revision.decision, revision.decided_at, revision.decided_by = (
             RevisionDecision.RETURNED,
@@ -755,7 +883,13 @@ def source_diff(problem, since_version: int) -> list[DiffLine]:
         return []
 
     def flat(rev: SourceRevision) -> str:
-        return f"# {rev.title}\n[PDF: {rev.pdf_name.rsplit('/', 1)[-1] or '—'}]\n{rev.body_md}"
+        def name(path: str) -> str:
+            return path.rsplit("/", 1)[-1] or "—"
+
+        return (
+            f"# {rev.title}\n# EN: {rev.title_en or '—'}\n[PDF: {name(rev.pdf_name)}]\n"
+            f"[PDF EN: {name(rev.pdf_en_name)}]\n{rev.body_md}"
+        )
 
     return diff_lines(flat(old), flat(new))
 
@@ -773,15 +907,30 @@ def approved_for_student(participant: Participant | None, problem) -> Translatio
     language = student_language(participant)
     if language is None:
         return None
+    # Odwrót (TR-01 § 6 p. 9): język ucznia bez zatwierdzonego tłumaczenia → drugi język jego delegacji,
+    # z adnotacją na stronie. Lepszy znany drugi język drużyny niż sama wersja oficjalna.
+    order = [language, *[code for code in languages_of(participant.delegation) if code != language]]
     owner = participant.delegation if sharing_mode_of(stage) == SharingMode.SEPARATE else None
-    translation = (
-        Translation.objects.filter(problem=problem, language=language, delegation=owner)
-        .select_related("approved_revision")
-        .first()
-    )
-    if translation is None or translation.approved_revision is None:
-        return None
-    return translation.approved_revision
+    found = {
+        t.language: t.approved_revision
+        for t in Translation.objects.filter(
+            problem=problem, language__in=order, delegation=owner, approved_revision__isnull=False
+        ).select_related("approved_revision", "approved_revision__translation")
+    }
+    for code in order:
+        if code in found:
+            return found[code]
+    return None
+
+
+def is_fallback(participant: Participant, revision: TranslationRevision) -> bool:
+    """Czy uczeń dostał drugi język delegacji, bo w jego języku nie ma zatwierdzonego tłumaczenia."""
+    return revision.translation.language != student_language(participant)
+
+
+def is_stale(revision: TranslationRevision, problem) -> bool:
+    """Czy wersja oficjalna zmieniła się **po** tej zatwierdzonej wersji tłumaczenia (TR-01, M5)."""
+    return revision.source_version < ensure_source(problem).version
 
 
 def problem_for_student(participant: Participant, pk: int):
@@ -869,6 +1018,12 @@ def export_delegation(stage, delegation_pk: str | None) -> Delegation | None:
     return delegation
 
 
+#: Adnotacja w pakiecie do druku (po angielsku jak cały pakiet IQO – czyta ją uczeń na sali).
+STALE_NOTE = (
+    "Note: the official version was updated after this translation was approved – check the official version."
+)
+
+
 def _read(field) -> bytes:
     with field.open("rb") as handle:
         return handle.read()
@@ -893,6 +1048,7 @@ def export_pdf(stage, language: str, delegation: Delegation | None, *, actor, re
             heading=heading_for(problem, revision),
             pdf=_read(revision.pdf) if revision.kind == TranslationKind.PDF else None,
             body_md=revision.body_md,
+            note=STALE_NOTE if is_stale(revision, problem) else "",
         )
         for problem, revision in rows
     ]
@@ -923,10 +1079,18 @@ def watermark_lines(leader: DelegationLeader) -> list[str]:
 def source_pdf_for_leader(leader: DelegationLeader, problem, *, request=None) -> bytes:
     from .pdf import watermark
 
-    if not problem.statement_pdf:
+    official = official_pdf(problem)
+    if not official:
         raise Http404("Zadanie nie ma pliku PDF.")
-    data = watermark(_read(problem.statement_pdf), watermark_lines(leader))
-    record_view(leader.user, "source_downloaded", problem, request=request, delegation=leader.delegation_id)
+    data = watermark(_read(official), watermark_lines(leader))
+    record_view(
+        leader.user,
+        "source_downloaded",
+        problem,
+        request=request,
+        delegation=leader.delegation_id,
+        file="en" if official_pdf_is_en(problem) else "main",
+    )
     return data
 
 
@@ -947,14 +1111,17 @@ def _recipients(translation: Translation):
     """Opiekunowie, których dotyczy tłumaczenie: jego delegacji albo (wspólne) wszystkich delegacji języka."""
     from apps.accounts.models import User
 
+    # Wyłącznie czynni opiekunowie (``active()`` – bez odwołanych, ``removed_at``): odwołany z delegacji
+    # nie dostaje już listów o tajnych zadaniach, choć jego konto i wiersz zostają.
+    leaders = DelegationLeader.objects.active().filter(user__is_active=True)
     if translation.delegation_id:
-        condition = Q(delegation_leaderships__delegation_id=translation.delegation_id)
+        leaders = leaders.filter(delegation_id=translation.delegation_id)
     else:
-        condition = Q(
-            delegation_leaderships__delegation__translation_languages__code=translation.language,
-            delegation_leaderships__edition_id=translation.problem.stage.edition_id,
+        leaders = leaders.filter(
+            delegation__translation_languages__code=translation.language,
+            edition_id=translation.problem.stage.edition_id,
         )
-    return User.objects.filter(condition, is_active=True).distinct()
+    return User.objects.filter(pk__in=leaders.values("user_id"))
 
 
 def _send(user, competition, template: str, context: dict, *, request=None) -> None:

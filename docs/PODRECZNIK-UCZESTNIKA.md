@@ -111,7 +111,9 @@ rozmiaru pliku i przycisk **„Treść zadania (PDF)”**.
 
 **Olimpiada międzynarodowa (drużyny krajowe).** Gdy komisja zatwierdziła tłumaczenie zadania na język,
 który przypisał Ci opiekun drużyny, na karcie jest też przycisk **„Treść w języku: …”** (np. „Deutsch”).
-Pojawia się dopiero po starcie etapu; wersja oficjalna („Treść zadania (PDF)”) jest zawsze obok.
+Pojawia się dopiero po starcie etapu; wersja oficjalna („Treść zadania (PDF)”) jest zawsze obok. Gdy w Twoim
+języku nie ma zatwierdzonego tłumaczenia, dostajesz drugi język drużyny (z informacją na stronie), a gdy
+wersja oficjalna zmieniła się po zatwierdzeniu tłumaczenia – ostrzeżenie, żeby sprawdzić wersję oficjalną.
 
 ### Jak wysłać
 

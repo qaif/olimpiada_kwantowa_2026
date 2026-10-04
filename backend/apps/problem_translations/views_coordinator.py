@@ -235,17 +235,41 @@ class ReviewView(CoordinatorMixin, View):
         return private(TemplateResponse(request, REVIEW_TEMPLATE, context, status=status))
 
 
+def form_revision(data) -> int:
+    """Numer wersji, którą komisja miała na ekranie (ukryte pole). Brak = ``-1``, czyli zawsze konflikt."""
+    try:
+        return int(data.get("revision", ""))
+    except TypeError, ValueError:
+        return -1
+
+
+def _refused(request, translation, exc: DomainError, form=None):
+    """Odmowa decyzji komisji: ekran przeglądu z komunikatem i kodem odpowiedzi odmowy (409 przy wyścigu).
+
+    Ekran pokazuje już **bieżącą** wersję – komisja czyta to, co faktycznie leży do decyzji.
+    """
+    messages.error(request, str(exc.detail))
+    translation.refresh_from_db()
+    return ReviewView(request=request).render(
+        request, translation, form or ReturnForm(), status=exc.status_code
+    )
+
+
 class ApproveView(CoordinatorMixin, ThrottledFormMixin, View):
     throttle_scope = "translation"
 
     def post(self, request, pk: int):
         translation = service.translation_for_coordinator(self.competition, pk)
         try:
-            revision = service.approve(translation, actor=request.user, request=request)
+            revision = service.approve(
+                translation,
+                actor=request.user,
+                request=request,
+                expected_revision=form_revision(request.POST),
+            )
         except DomainError as exc:
-            messages.error(request, str(exc.detail))
-        else:
-            messages.success(request, f"Zatwierdzono wersję {revision.number}.")
+            return _refused(request, translation, exc)
+        messages.success(request, f"Zatwierdzono wersję {revision.number}.")
         return redirect(reverse("web:coordinator-translation", args=[pk]))
 
 
@@ -259,12 +283,15 @@ class ReturnView(CoordinatorMixin, ThrottledFormMixin, View):
             return ReviewView(request=request).render(request, translation, form, status=400)
         try:
             service.return_translation(
-                translation, form.cleaned_data["comment"], actor=request.user, request=request
+                translation,
+                form.cleaned_data["comment"],
+                actor=request.user,
+                request=request,
+                expected_revision=form_revision(request.POST),
             )
         except DomainError as exc:
-            messages.error(request, str(exc.detail))
-        else:
-            messages.success(request, "Tłumaczenie zwrócone do poprawy – opiekunowie dostali list.")
+            return _refused(request, translation, exc, form)
+        messages.success(request, "Tłumaczenie zwrócone do poprawy – opiekunowie dostali list.")
         return redirect(reverse("web:coordinator-translation", args=[pk]))
 
 
@@ -304,6 +331,7 @@ class ExportPrintView(CoordinatorMixin, View):
                 "html": render(revision.body_md)
                 if revision and revision.kind == TranslationKind.TEXT
                 else "",
+                "stale": revision is not None and service.is_stale(revision, problem),
             }
             for problem, revision in service.export_rows(stage, language, delegation)
         ]
@@ -323,6 +351,7 @@ class ExportPrintView(CoordinatorMixin, View):
             "rtl": languages.is_rtl(language),
             "delegation": delegation,
             "rows": rows,
+            "stale_note": service.STALE_NOTE,
         }
         return private(TemplateResponse(request, PRINT_TEMPLATE, context))
 

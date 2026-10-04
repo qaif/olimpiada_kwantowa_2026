@@ -46,6 +46,14 @@ class StudentProblemView(StudentMixin, View):
             "language_label": languages.native_name(language),
             "rtl": languages.is_rtl(language),
             "html": render(revision.body_md) if revision.kind == TranslationKind.TEXT else "",
+            # Uczeń dostał drugi język drużyny, bo w przypisanym nie ma zatwierdzonego tłumaczenia.
+            "fallback_from": (
+                languages.native_name(service.student_language(self.participant))
+                if service.is_fallback(self.participant, revision)
+                else ""
+            ),
+            # Wersja oficjalna zmieniła się po zatwierdzeniu tego tłumaczenia (TR-01, M5).
+            "stale": service.is_stale(revision, problem),
         }
         return private(TemplateResponse(request, STUDENT_TEMPLATE, context))
 

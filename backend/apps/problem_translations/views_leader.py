@@ -152,6 +152,23 @@ class StudentLanguageView(LeaderMixin, ThrottledFormMixin, View):
         return redirect(reverse("web:delegation-translations") + "#students")
 
 
+def form_int(data, name: str) -> int:
+    """Liczba z ukrytego pola formularza. Brak albo śmieci = ``-1``: żeton, który nigdy nie pasuje.
+
+    Brak żetonu traktujemy jak konflikt, a nie jak „nie sprawdzaj” – formularz bez niego to stara karta
+    sprzed wdrożenia albo żądanie złożone ręcznie, i jedno, i drugie ma zobaczyć odmowę.
+    """
+    try:
+        return int(data.get(name, ""))
+    except TypeError, ValueError:
+        return -1
+
+
+#: Kody odmów, przy których edytor wraca **z tekstem z formularza** (409) zamiast przekierowania:
+#: tekst opiekuna nie może przepaść dlatego, że ktoś inny zapisał wcześniej albo zmieniło się źródło.
+KEEP_TEXT_CODES = {"TRANSLATION_CONFLICT", "TRANSLATION_SOURCE_CHANGED"}
+
+
 class ProblemMixin(LeaderMixin):
     """Zadanie w otwartym oknie i język delegacji – oba z serwisu, oba 404 poza zakresem."""
 
@@ -159,6 +176,53 @@ class ProblemMixin(LeaderMixin):
         self.problem = service.problem_for_leader(self.leader, pk)
         self.language = language
         self.translation = service.find_translation(self.leader, self.problem, language)
+
+    def render_editor(self, request, form, *, status: int = 200, seen_source_version=None):
+        """Edytor. ``seen_source_version`` starsze od bieżącego = pokaż, co się zmieniło od niego."""
+        problem, translation = self.problem, self.translation
+        source = service.ensure_source(problem)
+        if seen_source_version is not None and seen_source_version < source.version:
+            source_changes = service.source_diff(problem, seen_source_version)
+        elif translation is not None and translation.is_outdated:
+            source_changes = service.source_diff(problem, translation.source_version)
+        else:
+            source_changes = []
+        context = {
+            "delegation": self.delegation,
+            "problem": problem,
+            "language": self.language,
+            "language_label": languages.label(self.language),
+            "rtl": languages.is_rtl(self.language),
+            "source": source,
+            "source_html": render(source.body_md),
+            "official_title": service.official_title(problem),
+            "official_pdf": service.official_pdf(problem),
+            "official_pdf_is_en": service.official_pdf_is_en(problem),
+            "translation": translation,
+            "token": translation.edit_version if translation else 0,
+            "preview_html": render(translation.body_md) if translation else "",
+            "editable": translation is None or translation.is_editable_status,
+            "is_pdf": translation is not None and translation.kind == "PDF" and bool(translation.pdf),
+            "form": form,
+            "pdf_form": PdfForm(),
+            "window": service.window_for(problem.stage),
+            "shared": service.sharing_mode_of(problem.stage) == SharingMode.SHARED,
+            "revisions": list(translation.revisions.all()) if translation else [],
+            "source_changes": source_changes,
+            "statuses": TranslationStatus,
+        }
+        return private(TemplateResponse(request, EDITOR_TEMPLATE, context, status=status))
+
+    def refused(self, request, exc: DomainError):
+        """Odmowa z zachowaniem tekstu: 409, komunikat i (przy zmianie źródła) różnice od tej wersji."""
+        messages.error(request, str(exc.detail))
+        self.translation = service.find_translation(self.leader, self.problem, self.language)
+        return self.render_editor(
+            request,
+            DraftForm(request.POST),
+            status=exc.status_code,
+            seen_source_version=form_int(request.POST, "source_version"),
+        )
 
 
 class EditorView(ProblemMixin, ThrottledFormMixin, View):
@@ -183,72 +247,84 @@ class EditorView(ProblemMixin, ThrottledFormMixin, View):
                 "body_md": translation.body_md if translation else "",
             }
         )
-        return self.render(request, form)
+        return self.render_editor(request, form)
 
     def post(self, request, pk: int, language: str):
-        """Zapis bez JavaScriptu – ten sam serwis, co autozapis."""
+        """Zapis bez JavaScriptu – ten sam serwis i te same żetony, co autozapis."""
         self.load(pk, language)
         form = DraftForm(request.POST)
         if form.is_valid():
             try:
                 service.save_draft(
-                    self.leader, self.problem, language, actor=request.user, **form.cleaned_data
+                    self.leader,
+                    self.problem,
+                    language,
+                    actor=request.user,
+                    expected_version=form_int(request.POST, "edit_version"),
+                    **form.cleaned_data,
                 )
             except DomainError as exc:
+                if exc.machine_code in KEEP_TEXT_CODES:
+                    return self.refused(request, exc)
                 messages.error(request, str(exc.detail))
             else:
                 messages.success(request, _("Szkic zapisany."))
+                if form_int(request.POST, "source_version") < service.ensure_source(self.problem).version:
+                    messages.warning(request, source_changed_warning())
         return redirect(reverse("web:delegation-translation", args=[pk, language]))
 
-    def render(self, request, form, *, status: int = 200):
-        problem, translation = self.problem, self.translation
-        source = service.ensure_source(problem)
-        context = {
-            "delegation": self.delegation,
-            "problem": problem,
-            "language": self.language,
-            "language_label": languages.label(self.language),
-            "rtl": languages.is_rtl(self.language),
-            "source": source,
-            "source_html": render(source.body_md),
-            "translation": translation,
-            "preview_html": render(translation.body_md) if translation else "",
-            "editable": translation is None or translation.is_editable_status,
-            "form": form,
-            "pdf_form": PdfForm(),
-            "window": service.window_for(problem.stage),
-            "shared": service.sharing_mode_of(problem.stage) == SharingMode.SHARED,
-            "revisions": list(translation.revisions.all()) if translation else [],
-            "source_changes": (
-                service.source_diff(problem, translation.source_version)
-                if translation is not None and translation.is_outdated
-                else []
-            ),
-            "statuses": TranslationStatus,
-        }
-        return private(TemplateResponse(request, EDITOR_TEMPLATE, context, status=status))
+
+def source_changed_warning() -> str:
+    return _("Wersja oficjalna zmieniła się, odkąd otworzono edytor – sprawdź zmiany przed wysłaniem.")
 
 
 class AutosaveView(ProblemMixin, ThrottledFormMixin, View):
-    """HTMX: zapis szkicu i podgląd. Odpowiedź to fragment (stan zapisu + podgląd z formułami)."""
+    """HTMX: zapis szkicu i podgląd. Odpowiedź to fragment stanu zapisu (+ podgląd i żeton „out of band”).
+
+    Każda odmowa, którą da się opisać, wraca jako **200 z komunikatem** w ``#autosave-status``: htmx nie
+    podmienia treści przy 4xx, a cichy autozapis, który przestał zapisywać (okno zamknięte w trakcie
+    pisania, konflikt z drugim opiekunem), to utracona praca. Odmowy spoza widoku (rola, throttling)
+    obsługuje ``static/problem_translations/js/editor.js`` stałym komunikatem.
+    """
 
     throttle_scope = "translation"
 
     def post(self, request, pk: int, language: str):
-        self.load(pk, language)
-        form = DraftForm(request.POST)
         context = {"language": language, "rtl": languages.is_rtl(language)}
+        try:
+            self.load(pk, language)
+        except Http404:
+            context["error"] = _(
+                "Okno tłumaczeń jest zamknięte – zmiany nie zostały zapisane. Skopiuj swój tekst."
+            )
+            return private(TemplateResponse(request, AUTOSAVE_TEMPLATE, context))
+        form = DraftForm(request.POST)
         if not form.is_valid():
             context["error"] = " ".join(str(e) for errors in form.errors.values() for e in errors)
-            return private(TemplateResponse(request, AUTOSAVE_TEMPLATE, context, status=400))
+            return private(TemplateResponse(request, AUTOSAVE_TEMPLATE, context))
         try:
             translation = service.save_draft(
-                self.leader, self.problem, language, actor=request.user, **form.cleaned_data
+                self.leader,
+                self.problem,
+                language,
+                actor=request.user,
+                expected_version=form_int(request.POST, "edit_version"),
+                **form.cleaned_data,
             )
         except DomainError as exc:
-            context["error"] = str(exc.detail)
-            return private(TemplateResponse(request, AUTOSAVE_TEMPLATE, context, status=exc.status_code))
-        context.update({"saved_at": translation.updated_at, "preview_html": render(translation.body_md)})
+            context.update({"error": str(exc.detail), "code": exc.machine_code})
+            return private(TemplateResponse(request, AUTOSAVE_TEMPLATE, context))
+        seen = form_int(request.POST, "source_version")
+        source = service.ensure_source(self.problem)
+        context.update(
+            {
+                "saved_at": translation.updated_at,
+                "token": translation.edit_version,
+                "preview_html": render(translation.body_md),
+                "source_warning": source_changed_warning() if seen < source.version else "",
+                "source_changes": service.source_diff(self.problem, seen) if seen < source.version else [],
+            }
+        )
         return private(TemplateResponse(request, AUTOSAVE_TEMPLATE, context))
 
 
@@ -264,6 +340,8 @@ class _ActionView(ProblemMixin, ThrottledFormMixin, View):
         try:
             self.perform(request)
         except DomainError as exc:
+            if exc.machine_code in KEEP_TEXT_CODES:
+                return self.refused(request, exc)
             messages.error(request, str(exc.detail))
         else:
             messages.success(request, self.success_message)
@@ -296,18 +374,33 @@ class UploadView(_ActionView):
 
 class SubmitView(_ActionView):
     """„Wyślij do akceptacji”. Z formularza edytora przychodzi też tekst – zapisujemy go najpierw,
-    żeby wysłać to, co widać w polu, a nie to, co zdążył zapisać autozapis."""
+    żeby wysłać to, co widać w polu, a nie to, co zdążył zapisać autozapis. Oba kroki niosą żeton
+    (optymistyczna współbieżność) i wersję źródła, z którą wyrenderowano edytor."""
 
     def perform(self, request):
         self.success_message = _("Tłumaczenie wysłane do akceptacji.")
+        token = form_int(request.POST, "edit_version")
         if "body_md" in request.POST:
             form = DraftForm(request.POST)
             if not form.is_valid():
                 raise DomainError(_("Tekst jest za długi."), "TRANSLATION_TOO_LONG")
-            service.save_draft(
-                self.leader, self.problem, self.language, actor=request.user, **form.cleaned_data
-            )
-        service.submit(self.leader, self.problem, self.language, actor=request.user, request=request)
+            token = service.save_draft(
+                self.leader,
+                self.problem,
+                self.language,
+                actor=request.user,
+                expected_version=token,
+                **form.cleaned_data,
+            ).edit_version
+        service.submit(
+            self.leader,
+            self.problem,
+            self.language,
+            actor=request.user,
+            request=request,
+            expected_version=token,
+            seen_source_version=form_int(request.POST, "source_version"),
+        )
 
 
 class WithdrawView(_ActionView):
@@ -324,17 +417,37 @@ class ReopenView(_ActionView):
         service.reopen(self.leader, self.problem, self.language, actor=request.user, request=request)
 
 
-class SourcePdfView(LeaderMixin, View):
-    """PDF wersji oficjalnej ze znakiem wodnym delegacji – w otwartym oknie, z audytem pobrania."""
+class UseTextView(_ActionView):
+    """PDF z powrotem na tekst – osobna czynność, żeby autozapis nie zmieniał rodzaju tłumaczenia po cichu."""
+
+    def perform(self, request):
+        self.success_message = _("Tłumaczenie jest znowu tekstem – możesz pisać w edytorze.")
+        service.use_text(self.leader, self.problem, self.language, actor=request.user, request=request)
+
+
+class SourcePdfView(LeaderMixin, ThrottledFormMixin, View):
+    """PDF wersji oficjalnej ze znakiem wodnym delegacji – w otwartym oknie, z audytem i limitem pobrań.
+
+    Plik to ten, który dostaną uczniowie (``services.official_pdf`` – w konkursie anglojęzycznym
+    ``statement_pdf_en``). Limit (``throttle_methods`` z GET) chroni proces: każdy znak wodny to
+    przepisanie całego PDF-u.
+    """
+
+    throttle_scope = "translation"
+    throttle_methods = ("GET",)
 
     def get(self, request, pk: int):
         problem = service.problem_for_leader(self.leader, pk)
         data = service.source_pdf_for_leader(self.leader, problem, request=request)
-        return pdf_response(data, f"problem-{problem.number}-official.pdf")
+        suffix = "official-en" if service.official_pdf_is_en(problem) else "official"
+        return pdf_response(data, f"problem-{problem.number}-{suffix}.pdf")
 
 
-class TranslationPdfView(ProblemMixin, View):
-    """Wgrany PDF tłumaczenia ze znakiem wodnym – ten sam zakres, co edytor."""
+class TranslationPdfView(ProblemMixin, ThrottledFormMixin, View):
+    """Wgrany PDF tłumaczenia ze znakiem wodnym – ten sam zakres i ten sam limit, co PDF źródła."""
+
+    throttle_scope = "translation"
+    throttle_methods = ("GET",)
 
     def get(self, request, pk: int, language: str):
         self.load(pk, language)

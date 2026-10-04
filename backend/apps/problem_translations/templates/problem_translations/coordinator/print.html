@@ -20,6 +20,7 @@
   <article class="tr-print-page" lang="{{ language }}"{% if rtl %} dir="rtl"{% endif %}>
     {% if row.revision %}
       <h2>{{ row.problem.number }}. {{ row.revision.title|default:row.problem.title }}</h2>
+      {% if row.stale %}<p class="notice" lang="en">{{ stale_note }}</p>{% endif %}
       {% if row.revision.kind == "PDF" %}
         <p class="tr-print-hide"><a href="{% url 'web:coordinator-translation-revision-file' row.revision.pk %}">PDF tłumaczenia (wersja {{ row.revision.number }})</a> – wydrukuj osobno albo użyj eksportu PDF.</p>
       {% else %}

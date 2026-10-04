@@ -13,6 +13,12 @@
   <h1 lang="{{ language }}"{% if rtl %} dir="rtl"{% endif %}>{{ problem.number }}. {{ revision.title|default:problem.display_title }}</h1>
   <p class="lead">{% blocktranslate trimmed with language=language_label %}Tłumaczenie: {{ language }}.{% endblocktranslate %}
     {% if problem.statement_pdf %}<a href="{% url 'competitions:problem-statement' problem.pk %}">{% translate "Wersja oficjalna (PDF)" %}</a>{% endif %}</p>
+  {% if stale %}
+    <p class="notice" role="note">{% translate "Wersja oficjalna została zmieniona po zatwierdzeniu tego tłumaczenia – sprawdź wersję oficjalną (PDF)." %}</p>
+  {% endif %}
+  {% if fallback_from %}
+    <p class="notice" role="note">{% blocktranslate trimmed with wanted=fallback_from shown=language_label %}Tłumaczenie na język {{ wanted }} nie jest dostępne – pokazujemy język {{ shown }}, drugi język Twojej drużyny.{% endblocktranslate %}</p>
+  {% endif %}
 </div>
 <section class="section">
   {% if revision.kind == "PDF" %}

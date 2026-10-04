@@ -3,7 +3,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Olimpiada Kwantowa\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-04 19:18+0200\n"
+"POT-Creation-Date: 2026-10-04 20:19+0200\n"
 "PO-Revision-Date: 2026-10-04 19:30+0200\n"
 "Last-Translator: Olimpiada Kwantowa\n"
 "Language-Team: Arabic\n"
@@ -11,7 +11,8 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: nplurals=6; plural=n==0 ? 0 : n==1 ? 1 : n==2 ? 2 : n%100>=3 && n%100<=10 ? 3 : n%100>=11 && n%100<=99 ? 4 : 5;\n"
+"Plural-Forms: nplurals=6; plural=n==0 ? 0 : n==1 ? 1 : n==2 ? 2 : n%100>=3 "
+"&& n%100<=10 ? 3 : n%100>=11 && n%100<=99 ? 4 : 5;\n"
 
 #: forms.py:19
 msgid "Język 1 (domyślny dla uczniów)"
@@ -33,74 +34,93 @@ msgstr "النص (Markdown، والصيغ بين $…$)"
 msgid "Przetłumaczony PDF"
 msgstr "ملف PDF المترجم"
 
-#: services.py:348
+#: services.py:380
 msgid "Wybierz jeden albo dwa języki."
 msgstr "اختر لغة واحدة أو لغتين."
 
-#: services.py:352
+#: services.py:384
 msgid "Nieznany język."
 msgstr "لغة غير معروفة."
 
-#: services.py:365
+#: services.py:397
 msgid "Nie można usunąć języka, w którym delegacja wysłała już tłumaczenie."
 msgstr "لا يمكن حذف لغة سبق أن أرسل الوفد ترجمةً بها."
 
-#: services.py:412
+#: services.py:444
 msgid "Ten język nie jest językiem delegacji."
 msgstr "هذه اللغة ليست من لغات الوفد."
 
-#: services.py:430 templates/problem_translations/leader/editor.html:113
+#: services.py:462 templates/problem_translations/leader/editor.html:145
 msgid "Tłumaczenie jest zatwierdzone i zablokowane."
 msgstr "الترجمة معتمدة ومقفلة."
 
-#: services.py:432
+#: services.py:464
 msgid ""
 "Tłumaczenie czeka na decyzję komisji – cofnij wysłanie, żeby je poprawić."
 msgstr "الترجمة بانتظار قرار اللجنة – اسحب الإرسال لتتمكن من تصحيحها."
 
-#: services.py:465 views_leader.py:306
+#: services.py:500
+msgid ""
+"Tłumaczenie zmieniło się w międzyczasie (inny opiekun albo inna karta). "
+"Skopiuj swój tekst i odśwież stronę."
+msgstr "تغيّرت الترجمة في هذه الأثناء (قائد فريق آخر أو علامة تبويب أخرى). انسخ نصك وأعد تحميل الصفحة."
+
+#: services.py:531 views_leader.py:386
 msgid "Tekst jest za długi."
 msgstr "النص طويل جدًا."
 
-#: services.py:489
+#: services.py:538
+msgid "Bieżące tłumaczenie to plik PDF – najpierw wybierz „Przejdź na tekst”."
+msgstr "الترجمة الحالية ملف PDF – اختر أولًا «التحويل إلى نص»."
+
+#: services.py:572
 msgid ""
 "Nie udało się sprawdzić pliku programem antywirusowym. Spróbuj ponownie za "
 "chwilę."
 msgstr ""
 "تعذّر فحص الملف ببرنامج مكافحة الفيروسات. يُرجى المحاولة مرة أخرى بعد قليل."
 
-#: services.py:495
+#: services.py:578
 msgid "Plik został odrzucony przez program antywirusowy."
 msgstr "رفض برنامج مكافحة الفيروسات الملف."
 
-#: services.py:515
+#: services.py:598
 msgid "Nie można odczytać pliku PDF (uszkodzony albo zaszyfrowany)."
 msgstr "تعذّرت قراءة ملف PDF (تالف أو مشفّر)."
 
-#: services.py:520
+#: services.py:603
 msgid "Plik ma za dużo stron."
 msgstr "يحتوي الملف على عدد كبير جدًا من الصفحات."
 
-#: services.py:555
+#: services.py:651
 msgid "Tłumaczenie jest puste."
 msgstr "الترجمة فارغة."
 
-#: services.py:591
+#: services.py:656
+#, python-format
+msgid ""
+"Wersja oficjalna zmieniła się, odkąd otworzono edytor (teraz wersja "
+"%(version)s). Sprawdź zmiany poniżej i wyślij ponownie."
+msgstr "تغيّرت النسخة الرسمية منذ فتح المحرر (الآن النسخة %(version)s). راجع التغييرات أدناه وأرسل مجددًا."
+
+#: services.py:695
 msgid "Tylko wysłane tłumaczenie można cofnąć."
 msgstr "لا يمكن سحب إلا الترجمة المُرسَلة."
 
-#: services.py:610
+#: services.py:715
 msgid ""
 "Zatwierdzone tłumaczenie można otworzyć ponownie tylko po zmianie wersji "
 "oficjalnej."
 msgstr "لا يمكن إعادة فتح الترجمة المعتمدة إلا بعد تغيير النسخة الرسمية."
 
-#: templates/problem_translations/leader/_autosave.html:1
+#: templates/problem_translations/leader/_autosave.html:6
+#: templates/problem_translations/leader/editor.html:124
 #, python-format
 msgid "Szkic zapisany: %(at)s"
 msgstr "حُفظت المسودة: %(at)s"
 
-#: templates/problem_translations/leader/_autosave.html:2
+#: templates/problem_translations/leader/_autosave.html:9
+#: templates/problem_translations/leader/editor.html:126
 msgid "Podgląd"
 msgstr "معاينة"
 
@@ -130,7 +150,7 @@ msgstr "غير محدَّثة"
 
 #: templates/problem_translations/leader/dashboard.html:10
 #: templates/problem_translations/leader/dashboard.html:16
-#: templates/problem_translations/leader/editor.html:20
+#: templates/problem_translations/leader/editor.html:27
 msgid "Tłumaczenia zadań"
 msgstr "ترجمات المسائل"
 
@@ -146,8 +166,8 @@ msgid ""
 "zapisywane, a pobrane pliki PDF mają znak wodny Twojej delegacji."
 msgstr ""
 "المسائل سرية حتى بدء المسابقة. لا يمكنك الاطلاع على النسخة الرسمية إلا خلال "
-"فترة الترجمة التي يحددها المنظِّم – يُسجَّل كل فتح وتنزيل، وتحمل ملفات PDF "
-"التي تنزّلها العلامة المائية لوفدك."
+"فترة الترجمة التي يحددها المنظِّم – يُسجَّل كل فتح وتنزيل، وتحمل ملفات PDF التي "
+"تنزّلها العلامة المائية لوفدك."
 
 #: templates/problem_translations/leader/dashboard.html:22
 msgid "Języki delegacji"
@@ -251,133 +271,151 @@ msgstr "حفظ"
 msgid "Nie zgłoszono jeszcze żadnego ucznia."
 msgstr "لم يُسجَّل أي طالب بعد."
 
-#: templates/problem_translations/leader/editor.html:15
-#: templates/problem_translations/leader/editor.html:21
+#: templates/problem_translations/leader/editor.html:22
+#: templates/problem_translations/leader/editor.html:28
 #, python-format
 msgid "Zadanie %(number)s – %(language)s"
 msgstr "المسألة %(number)s – %(language)s"
 
-#: templates/problem_translations/leader/editor.html:24
+#: templates/problem_translations/leader/editor.html:31
 msgid "tłumaczenie wspólne delegacji tego języka"
 msgstr "ترجمة مشتركة بين وفود هذه اللغة"
 
-#: templates/problem_translations/leader/editor.html:25
+#: templates/problem_translations/leader/editor.html:32
 #, python-format
 msgid "Okno zamyka się %(closes)s."
 msgstr "تنتهي الفترة في %(closes)s."
 
-#: templates/problem_translations/leader/editor.html:28
+#: templates/problem_translations/leader/editor.html:35
 msgid "Uwagi komisji:"
 msgstr "ملاحظات اللجنة:"
 
-#: templates/problem_translations/leader/editor.html:32
+#: templates/problem_translations/leader/editor.html:39
 #, python-format
 msgid ""
 "Wersja oficjalna zmieniła się (teraz wersja %(version)s). Zaktualizuj "
 "tłumaczenie i wyślij je ponownie."
 msgstr ""
-"تغيّرت النسخة الرسمية (الإصدار الحالي %(version)s). حدِّث الترجمة وأرسلها "
-"مجددًا."
+"تغيّرت النسخة الرسمية (الإصدار الحالي %(version)s). حدِّث الترجمة وأرسلها مجددًا."
 
-#: templates/problem_translations/leader/editor.html:36
+#: templates/problem_translations/leader/editor.html:43
 msgid "Zaktualizuj tłumaczenie"
 msgstr "تحديث الترجمة"
 
-#: templates/problem_translations/leader/editor.html:41
+#: templates/problem_translations/leader/editor.html:48
 msgid "Co się zmieniło w wersji oficjalnej"
 msgstr "ما الذي تغيّر في النسخة الرسمية"
 
-#: templates/problem_translations/leader/editor.html:51
+#: templates/problem_translations/leader/editor.html:58
 #, python-format
 msgid "Wersja oficjalna (v%(version)s)"
 msgstr "النسخة الرسمية (v%(version)s)"
 
-#: templates/problem_translations/leader/editor.html:54
+#: templates/problem_translations/leader/editor.html:61
+msgid "PDF wersji oficjalnej – angielski, jak u uczniów (ze znakiem wodnym)"
+msgstr "ملف PDF للنسخة الرسمية – بالإنجليزية كما يتسلمها الطلاب (بعلامة مائية)"
+
+#: templates/problem_translations/leader/editor.html:61
 msgid "PDF wersji oficjalnej (ze znakiem wodnym)"
 msgstr "ملف PDF للنسخة الرسمية (بعلامة مائية)"
 
-#: templates/problem_translations/leader/editor.html:59
+#: templates/problem_translations/leader/editor.html:66
 msgid "Tekst źródłowy (Markdown) do skopiowania"
 msgstr "النص المصدر (Markdown) للنسخ"
 
-#: templates/problem_translations/leader/editor.html:63
+#: templates/problem_translations/leader/editor.html:70
 msgid "Organizator udostępnił wersję oficjalną tylko jako PDF."
 msgstr "أتاح المنظِّم النسخة الرسمية بصيغة PDF فقط."
 
-#: templates/problem_translations/leader/editor.html:68
+#: templates/problem_translations/leader/editor.html:75
 msgid "Tłumaczenie"
 msgstr "الترجمة"
 
-#: templates/problem_translations/leader/editor.html:79
+#: templates/problem_translations/leader/editor.html:82
+msgid "Bieżące tłumaczenie to plik PDF."
+msgstr "الترجمة الحالية ملف PDF."
+
+#: templates/problem_translations/leader/editor.html:83
+msgid "Podgląd (ze znakiem wodnym)"
+msgstr "معاينة (بعلامة مائية)"
+
+#: templates/problem_translations/leader/editor.html:89
+msgid "Wyślij PDF do akceptacji"
+msgstr "إرسال ملف PDF للموافقة"
+
+#: templates/problem_translations/leader/editor.html:93
+msgid "Przejdź na tekst"
+msgstr "التحويل إلى نص"
+
+#: templates/problem_translations/leader/editor.html:97
+msgid "Wgraj nowy PDF"
+msgstr "رفع ملف PDF جديد"
+
+#: templates/problem_translations/leader/editor.html:101
+#: templates/problem_translations/leader/editor.html:134
+msgid "Wgraj PDF"
+msgstr "رفع ملف PDF"
+
+#: templates/problem_translations/leader/editor.html:116
 msgid ""
 "Markdown: # nagłówek, **pogrubienie**, *kursywa*, listy „- ”, tabele z „|”. "
 "Wzory LaTeX: $E=mc^2$ w tekście, $$…$$ w osobnym wierszu. Szkic zapisuje się "
 "sam po chwili przerwy w pisaniu."
 msgstr ""
-"Markdown: # عنوان، **غامق**، *مائل*، القوائم «- »، الجداول بـ «|». صيغ LaTeX:"
-" $E=mc^2$ داخل النص، و $$…$$ في سطر مستقل. تُحفظ المسودة تلقائيًا بعد توقف "
-"قصير عن الكتابة."
+"Markdown: # عنوان، **غامق**، *مائل*، القوائم «- »، الجداول بـ «|». صيغ "
+"LaTeX: $E=mc^2$ داخل النص، و $$…$$ في سطر مستقل. تُحفظ المسودة تلقائيًا بعد "
+"توقف قصير عن الكتابة."
 
-#: templates/problem_translations/leader/editor.html:81
+#: templates/problem_translations/leader/editor.html:118
 msgid "Zapisz szkic"
 msgstr "حفظ المسودة"
 
-#: templates/problem_translations/leader/editor.html:82
+#: templates/problem_translations/leader/editor.html:119
 msgid "Wyślij do akceptacji"
 msgstr "إرسال للموافقة"
 
-#: templates/problem_translations/leader/editor.html:90
+#: templates/problem_translations/leader/editor.html:123
+msgid ""
+"Autozapis nie powiódł się – zmiany nie są zapisane. Skopiuj swój tekst i "
+"odśwież stronę."
+msgstr "فشل الحفظ التلقائي – لم تُحفظ التغييرات. انسخ نصك وأعد تحميل الصفحة."
+
+#: templates/problem_translations/leader/editor.html:130
 msgid "Zamiast tekstu: wgraj przetłumaczony PDF"
 msgstr "بدلًا من النص: ارفع ملف PDF مترجمًا"
 
-#: templates/problem_translations/leader/editor.html:94
-msgid "Wgraj PDF"
-msgstr "رفع ملف PDF"
-
-#: templates/problem_translations/leader/editor.html:97
-msgid "Bieżące tłumaczenie to plik PDF."
-msgstr "الترجمة الحالية ملف PDF."
-
-#: templates/problem_translations/leader/editor.html:98
-msgid "Podgląd (ze znakiem wodnym)"
-msgstr "معاينة (بعلامة مائية)"
-
-#: templates/problem_translations/leader/editor.html:101
-msgid "Wyślij PDF do akceptacji"
-msgstr "إرسال ملف PDF للموافقة"
-
-#: templates/problem_translations/leader/editor.html:107
+#: templates/problem_translations/leader/editor.html:139
 msgid ""
-"Tłumaczenie czeka na decyzję komisji. Możesz cofnąć wysłanie, żeby wprowadzić"
-" poprawki."
+"Tłumaczenie czeka na decyzję komisji. Możesz cofnąć wysłanie, żeby "
+"wprowadzić poprawki."
 msgstr "الترجمة بانتظار قرار اللجنة. يمكنك سحب الإرسال لإجراء التصحيحات."
 
-#: templates/problem_translations/leader/editor.html:110
+#: templates/problem_translations/leader/editor.html:142
 msgid "Cofnij wysłanie"
 msgstr "سحب الإرسال"
 
-#: templates/problem_translations/leader/editor.html:116
+#: templates/problem_translations/leader/editor.html:148
 msgid "Podgląd PDF (ze znakiem wodnym)"
 msgstr "معاينة ملف PDF (بعلامة مائية)"
 
-#: templates/problem_translations/leader/editor.html:124
+#: templates/problem_translations/leader/editor.html:156
 msgid "Historia wersji"
 msgstr "سجل الإصدارات"
 
-#: templates/problem_translations/leader/editor.html:127
+#: templates/problem_translations/leader/editor.html:159
 #, python-format
 msgid "wersja %(number)s, wysłana %(at)s"
 msgstr "الإصدار %(number)s، أُرسل في %(at)s"
 
-#: templates/problem_translations/leader/editor.html:128
+#: templates/problem_translations/leader/editor.html:160
 msgid "zatwierdzona"
 msgstr "معتمَد"
 
-#: templates/problem_translations/leader/editor.html:129
+#: templates/problem_translations/leader/editor.html:161
 msgid "zwrócona"
 msgstr "مُعاد"
 
-#: templates/problem_translations/leader/editor.html:130
+#: templates/problem_translations/leader/editor.html:162
 msgid "wycofana"
 msgstr "مسحوب"
 
@@ -414,9 +452,9 @@ msgid ""
 "%(version)s). Tłumaczenia na języki: %(languages)s są oznaczone jako "
 "nieaktualne – zaktualizuj je i wyślij ponownie do akceptacji."
 msgstr ""
-"غيّر المنظِّم النسخة الرسمية للمسألة %(number)s (الإصدار الحالي %(version)s)."
-" الترجمات إلى اللغات: %(languages)s مُعلَّمة على أنها غير محدَّثة – حدِّثها "
-"وأرسلها مجددًا للموافقة."
+"غيّر المنظِّم النسخة الرسمية للمسألة %(number)s (الإصدار الحالي %(version)s). "
+"الترجمات إلى اللغات: %(languages)s مُعلَّمة على أنها غير محدَّثة – حدِّثها وأرسلها "
+"مجددًا للموافقة."
 
 #: templates/problem_translations/mail/outdated_subject.txt:1
 #, python-format
@@ -458,7 +496,20 @@ msgstr "الترجمة: %(language)s."
 msgid "Wersja oficjalna (PDF)"
 msgstr "النسخة الرسمية (PDF)"
 
-#: templates/problem_translations/student/problem.html:19
+#: templates/problem_translations/student/problem.html:17
+msgid ""
+"Wersja oficjalna została zmieniona po zatwierdzeniu tego tłumaczenia – "
+"sprawdź wersję oficjalną (PDF)."
+msgstr "عُدّلت النسخة الرسمية بعد اعتماد هذه الترجمة – راجع النسخة الرسمية (PDF)."
+
+#: templates/problem_translations/student/problem.html:20
+#, python-format
+msgid ""
+"Tłumaczenie na język %(wanted)s nie jest dostępne – pokazujemy język "
+"%(shown)s, drugi język Twojej drużyny."
+msgstr "الترجمة إلى %(wanted)s غير متاحة – تُعرض %(shown)s، اللغة الأخرى لفريقك."
+
+#: templates/problem_translations/student/problem.html:25
 msgid "Treść zadania (PDF)"
 msgstr "نص المسألة (PDF)"
 
@@ -475,29 +526,44 @@ msgstr "حُفظت لغات الوفد."
 msgid "Język ucznia został zapisany."
 msgstr "حُفظت لغة الطالب."
 
-#: views_leader.py:200
+#: views_leader.py:271
 msgid "Szkic zapisany."
 msgstr "حُفظت المسودة."
 
 #: views_leader.py:278
+msgid ""
+"Wersja oficjalna zmieniła się, odkąd otworzono edytor – sprawdź zmiany przed "
+"wysłaniem."
+msgstr "تغيّرت النسخة الرسمية منذ فتح المحرر – راجع التغييرات قبل الإرسال."
+
+#: views_leader.py:298
+msgid ""
+"Okno tłumaczeń jest zamknięte – zmiany nie zostały zapisane. Skopiuj swój "
+"tekst."
+msgstr "نافذة الترجمة مغلقة – لم تُحفظ التغييرات. انسخ نصك."
+
+#: views_leader.py:356
 msgid "Wybierz plik PDF."
 msgstr "اختر ملف PDF."
 
-#: views_leader.py:293
+#: views_leader.py:371
 msgid "Plik PDF został zapisany jako tłumaczenie."
 msgstr "حُفظ ملف PDF بوصفه الترجمة."
 
-#: views_leader.py:302
+#: views_leader.py:381
 msgid "Tłumaczenie wysłane do akceptacji."
 msgstr "أُرسلت الترجمة للموافقة."
 
-#: views_leader.py:315
+#: views_leader.py:408
 msgid "Wysłanie cofnięte – tłumaczenie jest znowu szkicem."
 msgstr "سُحب الإرسال – أصبحت الترجمة مسودة من جديد."
 
-#: views_leader.py:322
+#: views_leader.py:415
 msgid ""
 "Tłumaczenie otwarte do aktualizacji. Uczniowie widzą dotąd zatwierdzoną "
 "wersję."
-msgstr ""
-"فُتحت الترجمة للتحديث. يرى الطلاب حتى ذلك الحين النسخة المعتمدة سابقًا."
+msgstr "فُتحت الترجمة للتحديث. يرى الطلاب حتى ذلك الحين النسخة المعتمدة سابقًا."
+
+#: views_leader.py:424
+msgid "Tłumaczenie jest znowu tekstem – możesz pisać w edytorze."
+msgstr "عادت الترجمة نصًا – يمكنك الكتابة في المحرر."

@@ -115,7 +115,7 @@ def test_autosave_saves_draft_and_returns_preview(client_for, iqo, window, probl
     client = logged_in(client_for, iqo, leader_de.user)
     response = client.post(
         reverse("web:delegation-translation-autosave", args=[problem.pk, "de"]),
-        {"title": "Oszillator", "body_md": "**Aufgabe** $x^2$"},
+        {"title": "Oszillator", "body_md": "**Aufgabe** $x^2$", "edit_version": "0", "source_version": "1"},
         HTTP_HX_REQUEST="true",
     )
 
@@ -130,7 +130,7 @@ def test_submit_from_editor_sends_what_is_in_the_field(client_for, iqo, window, 
     client = logged_in(client_for, iqo, leader_de.user)
     response = client.post(
         reverse("web:delegation-translation-submit", args=[problem.pk, "de"]),
-        {"title": "T", "body_md": "Endfassung"},
+        {"title": "T", "body_md": "Endfassung", "edit_version": "0", "source_version": "1"},
     )
 
     assert response.status_code == 302
@@ -169,7 +169,7 @@ def test_coordinator_review_approve_and_return(client_for, iqo, window, problem,
     )
     assert refused.status_code == 400
 
-    client.post(reverse("web:coordinator-translation-approve", args=[translation.pk]))
+    client.post(reverse("web:coordinator-translation-approve", args=[translation.pk]), {"revision": "1"})
     translation.refresh_from_db()
     assert translation.status == TranslationStatus.APPROVED
 
