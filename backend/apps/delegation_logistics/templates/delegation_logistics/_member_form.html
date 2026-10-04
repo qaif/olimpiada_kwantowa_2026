@@ -1,0 +1,29 @@
+{% load i18n %}
+{% comment %}
+  Formularz danych pobytu jednej osoby – wspólny dla opiekuna i oficera logistyki. Grupa po terminie
+  jest ``disabled`` (opiekun), a jej terminy stoją przy nagłówku. Zgoda na dane o zdrowiu jest polem
+  formularza do chwili jej złożenia; później – informacją z datą i przyciskiem „Wycofaj zgodę”.
+{% endcomment %}
+<form method="post" class="form" novalidate>
+  {% csrf_token %}
+  {% if form.non_field_errors %}<div class="notice notice--warning" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+  {% for group in form.group_rows %}
+    <fieldset class="card">
+      <legend><strong>{{ group.label }}</strong></legend>
+      {% if group.deadline %}
+        <p class="hint">{% blocktranslate trimmed with deadline=group.deadline|date:"j.m.Y H:i" %}Termin: {{ deadline }}{% endblocktranslate %}
+          {% if group.locked %}<span class="badge badge--neutral">{% translate "zamknięte" %}</span>{% endif %}</p>
+      {% endif %}
+      {% if group.group == "HEALTH" and member.health_consent_at %}
+        <p class="hint">{% blocktranslate trimmed with date=member.health_consent_at|date:"j.m.Y" %}Zgoda na przetwarzanie danych o wyżywieniu i zdrowiu złożona {{ date }}.{% endblocktranslate %}</p>
+      {% endif %}
+      {% for field in group.fields %}
+        {{ field.as_field_group }}
+      {% endfor %}
+    </fieldset>
+  {% endfor %}
+  <div class="actions">
+    <button type="submit" class="btn btn--primary">{% translate "Zapisz" %}</button>
+    <a class="btn btn--ghost" href="{{ cancel_url }}">{% translate "Anuluj" %}</a>
+  </div>
+</form>

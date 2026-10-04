@@ -1,0 +1,54 @@
+{% extends "web/coordinator/base.html" %}
+{% comment %}
+  Rejestr listów zapraszających do wizy (oficer logistyki). Numer nadaje serwis pod blokadą; PDF
+  powstaje przy pobraniu z zaszyfrowanej migawki danych z chwili wystawienia (``letters``). Po
+  retencji migawka znika, a wiersz rejestru zostaje.
+{% endcomment %}
+{% block title %}Logistyka finału – listy zapraszające{% endblock %}
+{% block panel_title %}Listy zapraszające (wizy){% endblock %}
+{% block panel_lead %}
+  <p class="lead">List dla delegacji obejmuje osoby z kompletnym dokumentem podróży. Tekst listu to szablon
+    „list zapraszający (wiza)” na ekranie „Szablony dokumentów” (bez niego – tekst wbudowany po angielsku);
+    podpisy z szablonu graficznego dyplomów, pieczęć elektroniczna – jeśli skonfigurowana.</p>
+{% endblock %}
+{% block panel_content %}
+{% include "delegation_logistics/_tabs.html" %}
+
+<section class="section">
+  <div class="card">
+    <h2 class="mt-0">Wystaw list dla delegacji</h2>
+    <form method="post" class="form form--inline">
+      {% csrf_token %}
+      <label for="letter-delegation">Delegacja</label>
+      <select id="letter-delegation" name="delegation">
+        {% for delegation in delegations %}<option value="{{ delegation.pk }}">{{ delegation.country.name }}</option>{% endfor %}
+      </select>
+      <button type="submit" class="btn btn--primary">Wystaw</button>
+    </form>
+    <p class="hint">List imienny wystawia się z karty osoby.</p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="scroll">
+    <table class="table">
+      <caption class="visually-hidden">Rejestr listów</caption>
+      <thead><tr><th scope="col">Numer</th><th scope="col">Kraj</th><th scope="col">Rodzaj</th><th scope="col">Osoby</th><th scope="col">Wystawiono</th><th scope="col">Wystawił(a)</th></tr></thead>
+      <tbody>
+        {% for letter in letters %}
+          <tr>
+            <th scope="row">{% if letter.content %}<a href="{% url 'web:coordinator-onsite-letter' letter.pk %}">{{ letter.number }}</a>{% else %}{{ letter.number }}{% endif %}</th>
+            <td>{{ letter.country_name }}</td>
+            <td>{{ letter.get_scope_display }}{% if letter.member %} – {{ letter.member.full_name }}{% endif %}</td>
+            <td class="num">{{ letter.people_count }}</td>
+            <td>{{ letter.issued_at|date:"j.m.Y H:i" }}</td>
+            <td>{{ letter.issued_by.email|default:"—" }}{% if letter.content_purged_at %} <span class="badge badge--neutral">dane usunięte</span>{% endif %}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="6" class="empty">Nie wystawiono jeszcze żadnego listu.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

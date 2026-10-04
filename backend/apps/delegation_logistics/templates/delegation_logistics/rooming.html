@@ -1,0 +1,102 @@
+{% extends "web/coordinator/base.html" %}
+{% comment %}
+  Lista pokoi (oficer logistyki). Zasady – pojemność, płeć pokoju, niepełnoletni nigdy z dorosłym,
+  pokój „dowolna płeć” tylko dla dorosłych – egzekwuje serwis (``rooming.assign``); tu tylko widać,
+  kto gdzie śpi i komu brakuje łóżka. Wiek liczony na pierwszy dzień finału.
+{% endcomment %}
+{% block title %}Logistyka finału – pokoje{% endblock %}
+{% block panel_title %}Pokoje{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Łóżek: {{ beds }}, potrzebujących noclegu: {{ needed }}. Wiek liczony na {{ day|date:"j.m.Y" }}.
+    Niepełnoletni nie dzieli pokoju z dorosłym, a pokój „dowolna płeć” jest wyłącznie dla dorosłych.</p>
+{% endblock %}
+{% block panel_actions %}
+  <a class="btn btn--secondary" href="{% url 'web:coordinator-onsite-export' 'rooming' %}">Rooming list CSV</a>
+{% endblock %}
+{% block panel_content %}
+{% include "delegation_logistics/_tabs.html" %}
+
+<section class="section">
+  <div class="scroll">
+    <table class="table">
+      <caption class="visually-hidden">Pokoje i mieszkańcy</caption>
+      <thead>
+        <tr><th scope="col">Pokój</th><th scope="col">Płeć</th><th scope="col">Miejsca</th><th scope="col">Mieszkańcy</th><th scope="col"><span class="visually-hidden">Operacje</span></th></tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+          <tr>
+            <th scope="row">{{ row.room }}{% if row.room.note %}<br><span class="hint">{{ row.room.note }}</span>{% endif %}</th>
+            <td>{{ row.room.get_gender_display }}</td>
+            <td class="num">{{ row.occupants|length }} / {{ row.room.capacity }}</td>
+            <td>
+              {% for item in row.occupants %}
+                <a href="{% url 'web:coordinator-onsite-member' item.member.pk %}">{{ item.member.full_name }}</a>
+                ({{ item.member.delegation.country.name }}{% if item.minor %}, &lt;18{% endif %})
+                <form method="post" action="{% url 'web:coordinator-onsite-member-room' item.member.pk %}" class="inline">
+                  {% csrf_token %}
+                  <input type="hidden" name="room" value="">
+                  <input type="hidden" name="next" value="rooming">
+                  <button type="submit" class="btn btn--ghost btn--small">wypisz</button>
+                </form>{% if not forloop.last %}<br>{% endif %}
+              {% empty %}—{% endfor %}
+            </td>
+            <td class="actions">
+              <form method="post" action="{% url 'web:coordinator-onsite-room-delete' row.room.pk %}" class="inline">
+                {% csrf_token %}
+                <button type="submit" class="btn btn--ghost btn--small">Usuń pokój</button>
+              </form>
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="5" class="empty">Nie ma jeszcze pokoi – dodaj je niżej.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="section">
+  <div class="section__head"><h2 class="mt-0">Bez pokoju ({{ unassigned|length }})</h2></div>
+  <div class="scroll">
+    <table class="table">
+      <caption class="visually-hidden">Osoby bez przydziału</caption>
+      <thead><tr><th scope="col">Osoba</th><th scope="col">Kraj</th><th scope="col">Płeć</th><th scope="col">Preferencja</th><th scope="col">Przydziel</th></tr></thead>
+      <tbody>
+        {% for item in unassigned %}
+          <tr>
+            <th scope="row"><a href="{% url 'web:coordinator-onsite-member' item.member.pk %}">{{ item.member.full_name }}</a>{% if item.minor %} <span class="badge badge--info">&lt;18</span>{% endif %}</th>
+            <td>{{ item.member.delegation.country.name }}</td>
+            <td>{{ item.member.get_gender_display|default:"—" }}</td>
+            <td>{{ item.member.roommate_preference|default:"—" }}</td>
+            <td>
+              <form method="post" action="{% url 'web:coordinator-onsite-member-room' item.member.pk %}" class="inline">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="rooming">
+                <label class="visually-hidden" for="room-{{ item.member.pk }}">Pokój</label>
+                <select id="room-{{ item.member.pk }}" name="room">
+                  {% for room in rooms %}<option value="{{ room.pk }}">{{ room }} ({{ room.get_gender_display }})</option>{% endfor %}
+                </select>
+                <button type="submit" class="btn btn--secondary btn--small">Przydziel</button>
+              </form>
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="5" class="empty">Wszyscy potrzebujący noclegu mają pokój.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="section">
+  <div class="card">
+    <h2 class="mt-0">Dodaj pokój</h2>
+    <form method="post" class="form" novalidate>
+      {% csrf_token %}
+      {{ form.as_p }}
+      <div class="actions"><button type="submit" class="btn btn--primary">Dodaj</button></div>
+    </form>
+  </div>
+</section>
+{% endblock %}

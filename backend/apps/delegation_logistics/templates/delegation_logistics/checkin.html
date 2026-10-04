@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% load i18n static %}
+{% comment %}
+  Ekran obsługi rejestracji na telefonie (LOG-01). Kod QR na identyfikatorze to adres strony osoby
+  z losowym tokenem – aparat telefonu otwiera go sam. Skrypt ``logistics-checkin.js`` dokłada skaner
+  w przeglądarce tam, gdzie jest ``BarcodeDetector``; bez niego działa aparat i wyszukiwarka.
+{% endcomment %}
+{% block title %}{% translate "Rejestracja uczestników finału" %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>{% translate "Rejestracja uczestników finału" %}</h1>
+  <p class="lead">{% translate "Zeskanuj kod QR z identyfikatora aparatem telefonu albo wyszukaj osobę po nazwisku." %}</p>
+</div>
+
+{% if checkpoints %}
+  <form method="get" class="form">
+    <label for="cp">{% translate "Punkt kontroli" %}</label>
+    <select id="cp" name="cp">
+      {% for checkpoint in checkpoints %}
+        <option value="{{ checkpoint.pk }}"{% if selected and checkpoint.pk == selected.pk %} selected{% endif %}>{{ checkpoint.name }}</option>
+      {% endfor %}
+    </select>
+    <label for="q">{% translate "Imię, nazwisko lub kraj" %}</label>
+    <input id="q" name="q" type="search" value="{{ query }}" autocomplete="off">
+    <button type="submit" class="btn btn--primary">{% translate "Szukaj" %}</button>
+  </form>
+{% else %}
+  <p class="notice">{% translate "Organizator nie dodał jeszcze punktów kontroli." %}</p>
+{% endif %}
+
+<div id="scanner" class="card" hidden data-base="{% url 'web:onsite-checkin' %}" data-cp="{{ selected.pk|default:'' }}">
+  <video id="scanner-video" playsinline muted width="300"></video>
+  <p class="hint">{% translate "Skieruj aparat na kod QR." %}</p>
+</div>
+<button type="button" id="scanner-start" class="btn btn--secondary" hidden>{% translate "Skanuj w przeglądarce" %}</button>
+
+{% if query %}
+  <ul>
+    {% for member in found %}
+      <li><a href="{% url 'web:onsite-checkin-member' member.badge_token %}{% if selected %}?cp={{ selected.pk }}{% endif %}">{{ member.full_name }}</a> – {{ member.delegation.country.name }} ({{ member.role_label }})</li>
+    {% empty %}
+      <li>{% translate "Nikogo nie znaleziono." %}</li>
+    {% endfor %}
+  </ul>
+{% endif %}
+{% endblock %}
+{% block scripts %}{{ block.super }}
+  <script nonce="{{ request.csp_nonce }}" src="{% static 'js/logistics-checkin.js' %}" defer></script>
+{% endblock %}

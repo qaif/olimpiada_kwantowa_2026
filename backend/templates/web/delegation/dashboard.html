@@ -24,6 +24,10 @@
     {% if can_add %}
       <a class="btn btn--primary" href="{% url 'web:delegation-student-add' %}">{% translate "Dodaj ucznia" %}</a>
     {% endif %}
+    {% load delegation_logistics %}{% final_logistics_enabled request.competition as logistics_on %}
+    {% if logistics_on %}
+      <a class="btn btn--secondary" href="{% url 'web:delegation-logistics' %}">{% translate "Logistyka finału" %}</a>
+    {% endif %}
   </div>
   {% if not delegation.is_open %}
     <p class="notice">{% translate "Delegacja jest zamknięta – lista uczniów nie może się już zmienić. W razie potrzeby skontaktuj się z organizatorem." %}</p>
