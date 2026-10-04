@@ -287,6 +287,12 @@ FEATURE_DEFAULTS: dict[str, bool] = {
     # zaczyna widzieć wyniki uczniów przez kolejne edycje – organizator włącza to świadomie, razem
     # z wierszem rejestru czynności, który flaga dokłada (``apps.accounts.processing_register``).
     "school_statistics": False,
+    # --- okna czasowe etapu (TZ-01, 4.10.2026) -----------------------------------------------------
+    # Etap zdalny rozłożony na kilka startów według stref czasowych krajów (``apps.time_windows``).
+    # Wyłączona znaczy, że żadna bramka okien nie pyta bazy, ekranu „Okna czasowe” nie ma (404),
+    # a menu i panel uczestnika są co do bajtu takie, jak przed tą zmianą. Przełącza operator
+    # w ``/admin/``: wyłączenie w trakcie trwania okien ujawniłoby zadania wszystkim naraz.
+    "stage_time_windows": False,
     # --- motywy wizualne (THEME-01) ----------------------------------------------------------------
     # Ekran „Motyw serwisu” w panelu koordynatora (``/coordinator/competition/theme/``) i jego
     # pozycja w menu. Wyłączona znaczy, że adresu **nie ma** (404), a menu wygląda co do bajtu jak

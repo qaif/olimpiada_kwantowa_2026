@@ -4182,3 +4182,55 @@ jak § 26.3). Obraz kompiluje od tego wydania także katalogi aplikacji (`apps/*
 **IQO:** oś grupowania to dziś szkoła z profilu uczestnika (`apps/school_stats/grouping.py`). Oś
 `delegation` (delegacje krajowe z § 28, region = kraj) jest przygotowanym punktem zaczepienia
 (`axis_for`) – dołożenie jej nie zmienia ekranów ani reguł progu.
+
+## 32. Okna czasowe etapu według stref (TZ-01, `docs/tasks/TZ-01.md`)
+
+Etap zdalny konkursu z flagą **`stage_time_windows`** może pracować w kilku oknach czasowych (np. trzy
+starty co 8 h, każdy po 5 h) z przydziałem krajów według strefy. Bez flagi (Olimpiada Kwantowa) nic się
+nie zmienia: żadna bramka okien nie pyta bazy, ekranu nie ma (404), menu i panel uczestnika są te same.
+
+### 32.1. Włączenie dla `iqo`
+
+1. Wdrożenie zakłada tabele aplikacji `time_windows` (migracja `time_windows.0001`, same nowe tabele –
+   żadna istniejąca tabela się nie zmienia). Nowych segmentów adresów nie ma (`coordinator/…`,
+   `delegation/…` są już w kontrakcie).
+2. Flaga – `/admin/` → Konkursy → `iqo` → „Feature flags”: dopisz `"stage_time_windows": true`, albo:
+   ```sh
+   docker compose exec web python manage.py shell -c "from apps.tenancy.models import Competition; c = Competition.objects.get(slug='iqo'); c.feature_flags = {**(c.feature_flags or {}), 'stage_time_windows': True}; c.save(update_fields=['feature_flags'])"
+   ```
+3. Koordynator ustawia okna **przed otwarciem etapu**: „Etapy → <etap> → Okna czasowe”
+   (`PODRECZNIK-ORGANIZATORA.md` § 10e). Rama etapu (otwarcie – termin oddania) musi obejmować wszystkie
+   okna razem z dodatkowym czasem uczniów; beat zamyka etap (`LOCKED`) dopiero po ramie.
+
+### 32.2. Czego nie robić
+
+- **Nie wyłączaj flagi, dopóki trwają okna** (od startu pierwszego okna do końca ostatniego z dodatkowym
+  czasem – „moment ujawnienia” na ekranie okien). Bez flagi etap wraca do jednej ramy: treść zadań staje
+  się jawna dla wszystkich od otwarcia ramy, a premoderacja forum/czatu trzyma się samej ramy.
+- Nie zmieniaj okien przez `/admin/` – modele są tam tylko do odczytu, bo reguły „po starcie nie wolno”
+  i audyt są w serwisie.
+
+### 32.3. Co pilnuje serwer
+
+Upload (HTML i `POST /api/submissions/…`), `is_late`, PDF treści (`/api/competitions/problems/<id>/statement/`),
+lista zadań w API bieżącej edycji, strona „Zadania” w CMS (i jej API dla django CMS), archiwum, test
+online (start podejścia, termin podejścia, wynik „po zamknięciu”), premoderacja forum i czatu, publikacja
+wyników (`WINDOWS_NOT_FINISHED`), zmiana ramy etapu (`STAGE_WINDOWS_OUTSIDE`). Strefę czasową ucznia
+aktywuje warstwa `apps.time_windows.middleware.ParticipantTimezoneMiddleware` (tylko konkurs z flagą
+i zalogowany uczestnik bez roli personelu, wyłącznie w widokach panelu uczestnika – panele koordynatora,
+recenzenta, `/admin/` i `/cms/` zostają w czasie polskim; podpis „czas polski” zamienia się wtedy na nazwę
+strefy). Od startu pierwszego okna przydział domyślny krajów jest zapisywany w bazie, więc aktualizacja
+`tzdata` albo mapy stref w trakcie zawodów nie przenosi kraju do innego okna. Migracja `time_windows.0002`
+zmienia wyłącznie zachowanie kluczy obcych (`RESTRICT`).
+
+### 32.4. RODO i tłumaczenia
+
+Nowa czynność w rejestrze „Okna czasowe etapu” (tylko konkursy z flagą), sekcja `okna_czasowe` w eksporcie
+danych konta; anonimizacja usuwa strefę ucznia i powód wyjątku (okno i dodatkowy czas zostają jako
+dokumentacja warunków pracy). Katalogi tłumaczeń aplikacji (`backend/apps/*/locale`) kompilują obraz
+(`backend/Dockerfile`), CI i `backend/conftest.py`.
+
+### 32.5. Wycofanie
+
+Usunięcie planu (ekran okien, przed otwarciem etapu) przywraca etapowi jedną ramę. Migracja
+`time_windows.0001` jest odwracalna (`migrate time_windows zero` usuwa wyłącznie tabele tej aplikacji).

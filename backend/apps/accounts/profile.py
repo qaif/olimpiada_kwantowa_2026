@@ -555,6 +555,12 @@ def anonymise_account(user: User, *, actor: User | None = None, request=None) ->
 
     erase_for_participants(participants)
 
+    # Okna czasowe (TZ-01): strefa ucznia znika, wyjątek w oknie zostaje bez powodu – powód bywa
+    # śladem dostosowania, a okno i dodatkowy czas są dokumentacją warunków pracy.
+    from apps.time_windows.privacy import erase_for_participants as erase_time_window_data
+
+    erase_time_window_data(participants)
+
     # Pseudonimy widza materiałów z warsztatów (``apps.workshop_materials``) – licznik wyświetleń
     # materiału zostaje, liczba unikalnych widzów spada o to konto.
     from apps.workshop_materials.stats import erase_for_user as erase_workshop_views

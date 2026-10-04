@@ -12,6 +12,8 @@ from apps.school_stats.urls import urlpatterns as school_stats_urlpatterns
 # przestawiamy. Bramki flagi tu nie ma — o tym, czy ekran istnieje w tym konkursie, rozstrzyga
 # widok (§ 2.1), bo mapa adresów zależna od konkursu znaczyłaby ``reverse()`` dający raz adres,
 # a raz ``NoReverseMatch``.
+from apps.time_windows.urls import urlpatterns as time_windows_urlpatterns
+
 from .urls_ai_grading import urlpatterns as ai_grading_urlpatterns
 from .urls_chat import urlpatterns as chat_urlpatterns
 from .urls_competitions import urlpatterns as competition_urlpatterns
@@ -1156,4 +1158,6 @@ urlpatterns = [
     *delegation_urlpatterns,
     # --- statystyki szkół i opiekunów (STAT-01, flaga ``school_statistics``) ----------------------
     *school_stats_urlpatterns,
+    # --- okna czasowe etapu według stref (TZ-01, 4.10.2026; widoki w ``apps.time_windows``) -------
+    *time_windows_urlpatterns,
 ]

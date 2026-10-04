@@ -63,6 +63,22 @@ that case.
   account stays: the student is removed from your team, receives an e-mail, and the organiser decides
   what happens next. After the start only the organiser can withdraw a student.
 
+## 5a. Time windows and time zones – *Delegation → Time windows and students' time zones*
+
+When the organiser runs a remote round in **time windows**, each country starts at a different hour
+(e.g. three starts 8 hours apart), with the same working time for everyone. The organiser assigns your
+country to a window; you cannot change it yourself – write to the organiser well **before** the window
+starts if the hour does not work for your team.
+
+- The page shows, for every round with windows, each student's window, start and end – in the
+  **student's** time zone – and any extra time granted by the organiser.
+- **Student's time zone:** by default the time zone of your country's capital. If a student lives in
+  another zone (e.g. a different part of the USA), pick it from the list. This changes only how times
+  are displayed in the student's panel – it never moves the student to another window.
+- Students see the problems only when **their** window starts. Until the last window of all countries
+  has ended, the forum and messages are moderated – please remind your students not to discuss the
+  problems with anyone in the meantime (also outside the platform).
+
 ## 6. Your data
 
 You can download or delete your own account data under *Account*. Deleting your account removes your

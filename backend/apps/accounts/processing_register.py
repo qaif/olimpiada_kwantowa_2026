@@ -973,6 +973,40 @@ DELEGATIONS_ACTIVITY = _activity(
 )
 
 
+#: Czynność **warunkowa**: okna czasowe etapu według stref (TZ-01). Wchodzi do rejestru wyłącznie
+#: konkursom z flagą ``stage_time_windows``. Nowe dane to strefa czasowa ucznia i wyjątek od okna
+#: (inne okno, dodatkowy czas, powód) – powód bywa śladem dostosowania, więc środki mówią wprost,
+#: że nie wpisuje się do niego danych o zdrowiu.
+TIME_WINDOWS_ACTIVITY = _activity(
+    key="okna-czasowe",
+    name="Okna czasowe etapu – przydział uczniów do okien i strefy czasowe",
+    purpose=(
+        "Przeprowadzenie etapu zdalnego w kilku oknach czasowych dopasowanych do stref krajów: "
+        "przydział ucznia do okna, dodatkowy czas pracy i wyświetlanie godzin w strefie ucznia."
+    ),
+    legal_basis=(
+        "art. 6 ust. 1 lit. b RODO (przeprowadzenie zawodów na zasadach Regulaminu); dodatkowy czas "
+        "– art. 6 ust. 1 lit. c/b RODO w zakresie dostosowania warunków udziału"
+    ),
+    subjects="uczestnicy etapu z oknami czasowymi",
+    categories=[
+        "okno ucznia (przydział kraju albo wyjątek), strefa czasowa ucznia, dodatkowy czas w minutach "
+        "i krótki powód wyjątku, kto i kiedy go ustawił",
+    ],
+    recipients=[
+        HOSTING_RECIPIENT,
+        "opiekun drużyny kraju ucznia – widzi okno i strefę uczniów swojej delegacji",
+    ],
+    retention=PARTICIPANT_RETENTION + " Wyjątki i strefy znikają razem z profilem uczestnika.",
+    measures=[
+        "funkcja działa wyłącznie w konkursie z włączonymi oknami czasowymi",
+        "powód wyjątku bez danych o zdrowiu (np. „dostosowanie wg decyzji komisji”) – dokumentacja "
+        "dostosowania zostaje poza platformą",
+        "zmiany przydziału możliwe tylko przed startem okien, każda w dzienniku zdarzeń",
+    ],
+)
+
+
 def activities_for(competition=None) -> tuple[ProcessingActivity, ...]:
     """Rejestr **tego** konkursu: czynności wspólne plus te, które wynikają z jego konfiguracji.
 
@@ -1015,6 +1049,8 @@ def activities_for(competition=None) -> tuple[ProcessingActivity, ...]:
         from apps.school_stats.register import SCHOOL_STATISTICS_ACTIVITY
 
         activities = (*activities, SCHOOL_STATISTICS_ACTIVITY)
+    if competition is not None and competition.has_feature("stage_time_windows"):
+        activities = (*activities, TIME_WINDOWS_ACTIVITY)
     return activities
 
 

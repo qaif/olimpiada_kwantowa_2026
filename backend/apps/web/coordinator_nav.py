@@ -302,6 +302,22 @@ def stage_items(stages: list, competition=None) -> tuple[Item, ...]:
                     ("coordinator-stage-attendance",),
                 ),
             )
+        if (
+            competition is not None
+            and competition.has_feature("stage_time_windows")
+            and not stage.is_interview
+            and not stage.is_training
+        ):
+            # Okna czasowe etapu według stref (TZ-01). Dziecko etapu, bo plan okien jest jeden na
+            # etap; rozmowa i trening okien nie mają (ekran oddaje dla nich 404).
+            children += (
+                Item(
+                    "Okna czasowe",
+                    ("web:coordinator-stage-windows",),
+                    (stage.pk,),
+                    ("coordinator-stage-windows", "coordinator-stage-windows-"),
+                ),
+            )
         items.append(
             Item(
                 stage.display_name,

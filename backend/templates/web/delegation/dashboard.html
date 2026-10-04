@@ -24,6 +24,9 @@
     {% if can_add %}
       <a class="btn btn--primary" href="{% url 'web:delegation-student-add' %}">{% translate "Dodaj ucznia" %}</a>
     {% endif %}
+    {% if time_windows_enabled %}
+      <a class="btn btn--secondary" href="{% url 'web:delegation-time-windows' %}">{% translate "Okna czasowe i strefy uczniów" %}</a>
+    {% endif %}
   </div>
   {% if not delegation.is_open %}
     <p class="notice">{% translate "Delegacja jest zamknięta – lista uczniów nie może się już zmienić. W razie potrzeby skontaktuj się z organizatorem." %}</p>

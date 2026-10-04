@@ -153,6 +153,19 @@ Listy, które dostajesz: potwierdzenie przyjęcia pliku, informacja o pliku odrz
 ogłoszenie wyników i rozstrzygnięcie reklamacji. **W listach nie ma punktów** — skrzynka pocztowa nie
 jest kanałem zabezpieczonym; wynik jest w serwisie.
 
+### Okna czasowe (olimpiada międzynarodowa)
+
+W etapie zdalnym olimpiady międzynarodowej organizator może rozłożyć etap na kilka **okien czasowych**
+(np. trzy starty w ciągu doby) z tym samym czasem pracy dla wszystkich. Twój kraj ma przydzielone jedno
+okno; na zakładce „Zadania” stoi karta **„Twoje okno czasowe”** ze startem i końcem w Twojej strefie
+czasowej (ustawia ją opiekun drużyny; domyślnie strefa Twojego kraju) i ewentualnym dodatkowym czasem.
+
+- Zadania (karty, PDF) i test online otwierają się **dopiero na starcie Twojego okna**; nagłówek
+  „Co teraz” odlicza do Twojego startu, a potem do Twojego terminu. Po terminie wysyłka jest zamknięta.
+- Do końca **ostatniego** okna wszystkich krajów nie rozmawiaj o zadaniach – także poza serwisem. Forum
+  i wiadomości są wtedy w premoderacji, a wyniki pojawią się dopiero po zakończeniu wszystkich okien.
+- Godziny w całym panelu (także w kalendarzu) są w Twojej strefie – obok godziny stoi nazwa strefy.
+
 ---
 
 ## 4. Rozmowa kwalifikacyjna (gdy etap ma taką formę)

@@ -45,6 +45,24 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
   `school_stats.0001`), konta zanonimizowane poza szkołami, profil opiekuna z innego konkursu nie działa
   w tym konkursie (`supervisor_profile`), CSV szkół do odzyskania, CI sprawdza katalogi `apps/*/locale`.
 
+## [Unreleased] – Okna czasowe etapu według stref czasowych (TZ-01)
+
+- **Tryb okien** etapu zdalnego (nowa aplikacja `apps.time_windows`, flaga konkursu `stage_time_windows`,
+  domyślnie wyłączona): N okien o stałym czasie pracy, przydział krajów domyślnie ze strefy stolicy
+  (poprawka strefy kraju, przydział ręczny), wyjątki uczniów (inne okno, dodatkowy czas z powodem).
+  Zmiany tylko przed startem okien, każda w audycie.
+- **Egzekwowanie po stronie serwera:** upload (HTML i API) i `is_late` z okna ucznia; treść zadań uczniowi
+  od startu jego okna, publicznie (strona „Zadania”, API, archiwum) po końcu ostatniego; test online
+  w oknie ucznia; premoderacja forum i czatu przez cały czas okien; publikacja wyników po ujawnieniu;
+  rama etapu nie może wyciąć okien.
+- **Panel ucznia:** karta „Twoje okno”, odliczanie do własnego startu i terminu, godziny w strefie ucznia
+  (strefę ustawia opiekun drużyny – nie zmienia okna), własne okno w kalendarzu osobistym.
+- **Ekrany:** „Okna czasowe” pod etapem w panelu koordynatora (oś czasu z liczbami na żywo, kraje,
+  wyjątki, kto w którym oknie) i „Okna czasowe drużyny” u opiekuna. RODO: czynność w rejestrze, eksport,
+  anonimizacja. Katalogi tłumaczeń aplikacji (`apps/*/locale`) kompilowane w obrazie, CI i testach.
+- Dokumentacja: `docs/OPERACJE.md` § 32, `docs/PODRECZNIK-ORGANIZATORA.md` § 10e,
+  `docs/PODRECZNIK-UCZESTNIKA.md` § 3, `docs/PODRECZNIK-OPIEKUNA-DRUZYNY.md` § 5a.
+
 ## [Unreleased] – Motywy wizualne wgrywane paczkami (THEME-01)
 
 - **Tokeny motywu:** arkusze (`static/css/*.css`) czytają kolory, kroje, promienie i odstępy przez
