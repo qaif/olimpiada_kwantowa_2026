@@ -273,6 +273,13 @@ FEATURE_DEFAULTS: dict[str, bool] = {
     # prace uczestników wychodzą wtedy do podmiotu przetwarzającego (Anthropic) poza organizatorem,
     # co wymaga umowy powierzenia i zmiany polityki prywatności (``docs/OPERACJE.md``).
     "ai_grading": False,
+    # --- webinary (LiveKit) -------------------------------------------------------------------------
+    # Zadanie WEB-01 (``apps.webinars``): koordynator planuje webinary, odbiorcy wchodzą do pokoju na
+    # platformie. Wyłączona znaczy, że adresów ``/coordinator/webinars/…``, ``/webinars/…`` i
+    # ``/zaproszenie/webinar/…`` **nie ma** (404), a menu i panele wyglądają jak dziś. Domyślnie
+    # wyłączona, bo włączenie wymaga serwera LiveKit (``LIVEKIT_URL``, klucz i sekret API – krok
+    # operatora, ``docs/OPERACJE.md`` § 36) i decyzji organizatora o nagrywaniu.
+    "webinars": False,
     # --- motywy wizualne (THEME-01) ----------------------------------------------------------------
     # Ekran „Motyw serwisu” w panelu koordynatora (``/coordinator/competition/theme/``) i jego
     # pozycja w menu. Wyłączona znaczy, że adresu **nie ma** (404), a menu wygląda co do bajtu jak

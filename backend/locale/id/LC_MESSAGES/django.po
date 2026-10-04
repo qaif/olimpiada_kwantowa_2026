@@ -9477,3 +9477,320 @@ msgstr "Untuk sekolah/guru"
 #: apps/cms/context_processors.py
 msgid "Rejestracja nauczyciela"
 msgstr "Pendaftaran guru"
+
+#: apps/webinars/services.py
+msgid "Serwer webinarów nie odpowiada. Spróbuj za chwilę."
+msgstr "Server webinar tidak merespons. Coba lagi sebentar lagi."
+
+#: apps/webinars/services.py
+#, python-format
+msgid "Wejście otworzy się %(when)s. Wróć wtedy na tę stronę."
+msgstr "Akses dibuka pada %(when)s. Kembali ke halaman ini saat itu."
+
+#: apps/webinars/services.py
+msgid "Ten webinar już się zakończył."
+msgstr "Webinar ini sudah berakhir."
+
+#: apps/webinars/services.py
+msgid "Prowadzący jeszcze nie rozpoczął webinaru. Spróbuj ponownie za kilka minut."
+msgstr "Pembawa acara belum memulai webinar. Coba lagi dalam beberapa menit."
+
+#: apps/webinars/services.py
+msgid "Ten link nie jest już aktywny."
+msgstr "Tautan ini sudah tidak aktif."
+
+#: apps/web/views/webinars.py
+msgid "Ta strona jest dostępna dla uczestników i komisji konkursu."
+msgstr "Halaman ini tersedia untuk peserta dan komite kompetisi."
+
+#: apps/web/views/webinars.py
+msgid "Listy o webinarach włączone."
+msgstr "Email tentang webinar diaktifkan."
+
+#: apps/web/views/webinars.py
+msgid "Listy o webinarach wyłączone."
+msgstr "Email tentang webinar dinonaktifkan."
+
+#: apps/web/views/webinars.py
+msgid "Jako prowadzący wejdź przyciskiem „Rozpocznij” w panelu webinarów."
+msgstr "Sebagai pembawa acara, masuk melalui tombol “Mulai” di halaman webinar."
+
+#: apps/web/views/participant.py
+msgid "Webinary"
+msgstr "Webinar"
+
+#: apps/webinars/notifications.py
+#, python-format
+msgid "Zaproszenie na webinar: %(title)s – Olimpiada Kwantowa"
+msgstr "Undangan webinar: %(title)s – Olimpiade Kuantum"
+
+#: apps/webinars/notifications.py
+#, python-format
+msgid "Zaproszenie na webinar: %(title)s – %(competition)s"
+msgstr "Undangan webinar: %(title)s – %(competition)s"
+
+#: apps/webinars/notifications.py
+#, python-format
+msgid "Przypomnienie o webinarze: %(title)s – Olimpiada Kwantowa"
+msgstr "Pengingat webinar: %(title)s – Olimpiade Kuantum"
+
+#: apps/webinars/notifications.py
+#, python-format
+msgid "Przypomnienie o webinarze: %(title)s – %(competition)s"
+msgstr "Pengingat webinar: %(title)s – %(competition)s"
+
+#: apps/webinars/notifications.py
+#, python-format
+msgid "Zapraszamy na webinar „%(title)s”."
+msgstr "Kami mengundang Anda ke webinar “%(title)s”."
+
+#: apps/webinars/notifications.py
+#, python-format
+msgid "Przypominamy: webinar „%(title)s” zaczyna się wkrótce."
+msgstr "Pengingat: webinar “%(title)s” segera dimulai."
+
+#: apps/webinars/notifications.py
+#, python-format
+msgid "Termin: %(when)s (strefa %(zone)s), czas trwania: %(minutes)s min."
+msgstr "Waktu: %(when)s (zona waktu %(zone)s), durasi: %(minutes)s menit."
+
+#: apps/webinars/notifications.py
+#, python-format
+msgid "Dołączysz po zalogowaniu, przyciskiem „Dołącz” na stronie: %(link)s"
+msgstr "Masuk lalu gunakan tombol “Gabung” di halaman ini: %(link)s"
+
+#: apps/webinars/notifications.py
+msgid "Przycisk działa od kilkunastu minut przed początkiem webinaru."
+msgstr "Tombol aktif sekitar lima belas menit sebelum webinar dimulai."
+
+#: apps/webinars/notifications.py
+#, python-format
+msgid "Nie chcesz dostawać listów o webinarach? Wyłącz je tutaj: %(link)s"
+msgstr "Tidak ingin menerima email tentang webinar? Nonaktifkan di sini: %(link)s"
+
+#: templates/web/webinars/list.html
+msgid "Spotkania online organizatora. Przycisk „Dołącz” działa od kilkunastu minut przed początkiem, gdy prowadzący rozpocznie webinar – spotkanie otworzy się w nowej karcie. Godziny w strefie %(zone)s."
+msgstr "Pertemuan daring penyelenggara. Tombol “Gabung” aktif sekitar lima belas menit sebelum mulai, setelah pembawa acara memulai webinar – pertemuan dibuka di tab baru. Waktu dalam zona %(zone)s."
+
+#: templates/web/webinars/list.html
+msgid "Nadchodzące"
+msgstr "Mendatang"
+
+#: templates/web/webinars/list.html
+msgid "u Ciebie:"
+msgstr "waktu Anda:"
+
+#: templates/web/webinars/list.html
+msgid "Rozpocznij jako prowadzący"
+msgstr "Mulai sebagai pembawa acara"
+
+#: templates/web/webinars/list.html
+msgid "Wejście od:"
+msgstr "Akses mulai:"
+
+#: templates/web/webinars/list.html
+msgid "Nie ma zaplanowanych webinarów."
+msgstr "Tidak ada webinar terjadwal."
+
+#: templates/web/webinars/list.html
+msgid "Nagrania"
+msgstr "Rekaman"
+
+#: templates/web/webinars/list.html
+msgid "Odtwórz nagranie %(number)s"
+msgstr "Putar rekaman %(number)s"
+
+#: templates/web/webinars/list.html
+msgid "Odtwórz nagranie"
+msgstr "Putar rekaman"
+
+#: templates/web/webinars/list.html
+msgid "Powiadomienia e-mail"
+msgstr "Notifikasi email"
+
+#: templates/web/webinars/list.html
+msgid "Dostajesz zaproszenia i przypomnienia o webinarach."
+msgstr "Anda menerima undangan dan pengingat webinar."
+
+#: templates/web/webinars/list.html
+msgid "Wyłącz listy o webinarach"
+msgstr "Nonaktifkan email webinar"
+
+#: templates/web/webinars/list.html
+msgid "Listy o webinarach są wyłączone – webinary widzisz tylko na tej stronie."
+msgstr "Email webinar dinonaktifkan – Anda hanya melihat webinar di halaman ini."
+
+#: templates/web/webinars/list.html
+msgid "Włącz listy o webinarach"
+msgstr "Aktifkan email webinar"
+
+#: templates/web/webinars/guest.html
+msgid "Zaproszenie na webinar"
+msgstr "Undangan webinar"
+
+#: templates/web/webinars/guest.html
+msgid "Webinar"
+msgstr "Webinar"
+
+#: templates/web/webinars/guest.html
+msgid "Imię i nazwisko (albo nazwa) widoczne w spotkaniu"
+msgstr "Nama yang terlihat dalam pertemuan"
+
+
+#: templates/web/webinars/_committee_card.html
+msgid "Wszystkie webinary"
+msgstr "Semua webinar"
+
+#: templates/web/webinars/list.html
+msgid "Panel"
+msgstr "Panel"
+
+#: apps/web/views/webinars.py
+msgid "Łączenie…"
+msgstr "Menghubungkan…"
+
+#: apps/web/views/webinars.py
+msgid "Jesteś w pokoju."
+msgstr "Anda berada di ruangan."
+
+#: apps/web/views/webinars.py
+msgid "Rozłączono. Odśwież stronę, żeby wrócić."
+msgstr "Terputus. Muat ulang halaman untuk kembali."
+
+#: apps/web/views/webinars.py
+msgid "Spróbuj ponownie"
+msgstr "Coba lagi"
+
+#: apps/web/views/webinars.py
+msgid "Nie udało się połączyć z pokojem."
+msgstr "Tidak dapat terhubung ke ruangan."
+
+#: apps/web/views/webinars.py
+msgid "prowadzący"
+msgstr "pembawa acara"
+
+#: apps/web/views/webinars.py
+msgid "podniesiona ręka"
+msgstr "angkat tangan"
+
+#: apps/web/views/webinars.py
+msgid "Podnieś rękę"
+msgstr "Angkat tangan"
+
+#: apps/web/views/webinars.py
+msgid "Opuść rękę"
+msgstr "Turunkan tangan"
+
+#: apps/web/views/webinars.py
+msgid "Daj głos"
+msgstr "Beri giliran bicara"
+
+#: apps/web/views/webinars.py
+msgid "Odbierz głos"
+msgstr "Cabut giliran bicara"
+
+#: apps/web/views/webinars.py
+msgid "Usuń z pokoju"
+msgstr "Keluarkan dari ruangan"
+
+#: apps/web/views/webinars.py
+msgid "Usunąć tę osobę z pokoju?"
+msgstr "Keluarkan orang ini dari ruangan?"
+
+#: apps/web/views/webinars.py
+msgid "Widok siatki"
+msgstr "Tampilan kisi"
+
+#: apps/web/views/webinars.py
+msgid "Widok prelegenta"
+msgstr "Tampilan pembicara"
+
+#: apps/web/views/webinars.py
+msgid "Nagrywaj"
+msgstr "Rekam"
+
+#: apps/web/views/webinars.py
+msgid "Zatrzymaj nagrywanie"
+msgstr "Hentikan rekaman"
+
+#: apps/web/views/webinars.py
+msgid "Trwa nagrywanie"
+msgstr "Sedang merekam"
+
+#: apps/web/views/webinars.py
+msgid "Prowadzący dał Ci głos – możesz włączyć mikrofon i kamerę."
+msgstr "Pembawa acara memberi Anda giliran bicara – Anda dapat menyalakan mikrofon dan kamera."
+
+#: apps/web/views/webinars.py
+msgid "Prowadzący odebrał Ci głos."
+msgstr "Pembawa acara mencabut giliran bicara Anda."
+
+#: apps/web/views/webinars.py
+msgid "Udostępnij ekran"
+msgstr "Bagikan layar"
+
+#: apps/web/views/webinars.py
+msgid "Zakończ udostępnianie"
+msgstr "Hentikan berbagi"
+
+#: apps/web/views/webinars.py
+#, python-format
+msgid "Ekran: %(name)s"
+msgstr "Layar: %(name)s"
+
+#: apps/web/views/webinars.py
+msgid "Coś poszło nie tak. Spróbuj ponownie."
+msgstr "Terjadi kesalahan. Coba lagi."
+
+#: templates/web/webinars/room.html
+msgid "Wyjdź"
+msgstr "Keluar"
+
+#: templates/web/webinars/room.html
+msgid "Pokój webinaru wymaga włączonego JavaScriptu."
+msgstr "Ruang webinar memerlukan JavaScript."
+
+#: templates/web/webinars/room.html
+msgid "Pokój jest chwilowo niedostępny – brakuje komponentu wideo na serwerze. Daj znać organizatorowi."
+msgstr "Ruangan sementara tidak tersedia – komponen video tidak ada di server. Beri tahu penyelenggara."
+
+#: templates/web/webinars/room.html
+msgid "Obraz uczestników"
+msgstr "Video peserta"
+
+#: templates/web/webinars/room.html
+msgid "Czat"
+msgstr "Obrolan"
+
+#: templates/web/webinars/room.html
+msgid "Sterowanie"
+msgstr "Kontrol"
+
+#: templates/web/webinars/room.html
+msgid "Mikrofon"
+msgstr "Mikrofon"
+
+#: templates/web/webinars/room.html
+msgid "Kamera"
+msgstr "Kamera"
+
+#: templates/web/webinars/guest.html
+msgid "Wejście działa od kilkunastu minut przed początkiem, gdy prowadzący rozpocznie webinar. Wchodzisz jako widz – głos daje prowadzący."
+msgstr "Akses dibuka sekitar lima belas menit sebelum mulai, setelah pembawa acara memulai webinar. Anda masuk sebagai penonton – giliran bicara diberikan pembawa acara."
+
+#: apps/webinars/services.py
+msgid "Prowadzący usunął Cię z tego webinaru."
+msgstr "Pembawa acara mengeluarkan Anda dari webinar ini."
+
+#: apps/webinars/services.py
+#, python-format
+msgid "%(name)s (gość)"
+msgstr "%(name)s (tamu)"
+
+#: templates/web/webinars/room.html
+msgid "Włącz dźwięk"
+msgstr "Nyalakan suara"
+
+#: templates/web/webinars/room.html
+msgid "Ten webinar może być nagrywany. Gdy nagrywanie trwa, u góry pokoju widać czerwony znacznik „Trwa nagrywanie”; nagranie może zawierać Twój głos, obraz i wiadomości czatu, jeśli je włączysz lub wyślesz."
+msgstr "Webinar ini dapat direkam. Selama perekaman, tanda merah “Sedang merekam” tampil di bagian atas ruangan; rekaman dapat memuat suara, video, dan pesan obrolan Anda jika Anda menyalakan atau mengirimnya."

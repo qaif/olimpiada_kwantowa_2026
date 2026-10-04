@@ -1,0 +1,271 @@
+{% extends "web/coordinator/base.html" %}
+{% load tz web_extras coordinator_extras %}
+{% comment %}
+  Jeden webinar (``CoordinatorWebinarDetailView``): stan, czynności, transmisja, link gościa,
+  lista obecności (z webhooków LiveKit) i nagrania (egress → prywatny bucket).
+
+  „Rozpocznij” jest POST-em: serwer oznacza webinar jako rozpoczęty i przenosi do **pokoju na
+  platformie** (``/webinars/<id>/room/``). Token LiveKit nie stoi w tej stronie ani w żadnej innej –
+  pobiera go JS pokoju osobnym POST-em. Klucz transmisji YouTube wpisuje się w pole formularza;
+  nie jest zapisywany ani pokazywany z powrotem. Usunięcie nagrania wymaga pola potwierdzenia
+  (serwer sprawdza ``confirm=1``). Strona jest ``no-store``.
+{% endcomment %}
+{% block title %}{{ webinar.title }} – webinary – panel koordynatora{% endblock %}
+{% block panel_eyebrow %}<a href="{% url 'web:coordinator-webinars' %}">Webinary</a>{% endblock %}
+{% block panel_title %}{{ webinar.title }}{% endblock %}
+{% block panel_lead %}
+  <p class="lead">{% timezone zone %}{{ webinar.starts_at|date:"d.m.Y, H:i" }}{% endtimezone %}
+    (strefa {{ zone.key }}) · {{ webinar.duration_minutes }} min ·
+    {{ webinar.get_audience_display }}{% if webinar.stage %}: {{ webinar.stage }}{% endif %}{% if webinar.include_committee %} + komisja{% endif %}</p>
+  {% if webinar.description %}<p>{{ webinar.description|linebreaksbr }}</p>{% endif %}
+{% endblock %}
+{% block panel_actions %}
+  {% if not webinar.cancelled_at %}
+    <a class="btn btn--secondary" href="{% url 'web:coordinator-webinar-edit' webinar.pk %}">Edytuj</a>
+  {% endif %}
+{% endblock %}
+{% block panel_content %}
+
+{% if not configured %}
+  <div class="alert alert--warning" role="status">
+    <p><strong>Serwer LiveKit nie jest skonfigurowany</strong> – rozpoczęcie, nagrywanie i transmisja są
+      niedostępne. Poproś operatora platformy o <code>LIVEKIT_URL</code> i klucze API.</p>
+  </div>
+{% endif %}
+
+<section class="section" aria-labelledby="webinar-live">
+  <div class="section__head"><h2 class="mt-0" id="webinar-live">Pokój</h2></div>
+  <div class="card">
+    {% if webinar.cancelled_at %}
+      <p><span class="badge badge--danger">odwołany</span> {{ webinar.cancelled_at|local_datetime }}</p>
+    {% else %}
+      <p>
+        {% if live %}
+          <span class="badge badge--ok">rozpoczęty</span>
+          {% if webinar.is_live %}w pokoju: <strong>{{ present }}</strong>{% endif %}
+        {% elif webinar.ended_at %}
+          <span class="badge">zakończony</span> {{ webinar.ended_at|local_datetime }}
+        {% else %}
+          <span class="badge badge--info">zaplanowany</span>
+        {% endif %}
+      </p>
+      {% if can_start %}
+        <div class="actions">
+          <form method="post" action="{% url 'web:coordinator-webinar-start' webinar.pk %}">
+            {% csrf_token %}
+            <button type="submit" class="btn btn--primary">{% if live %}Wejdź do pokoju{% else %}Rozpocznij i wejdź do pokoju{% endif %}</button>
+          </form>
+          {% if live %}
+            <form method="post" action="{% url 'web:coordinator-webinar-end' webinar.pk %}"
+                  x-data="confirmSubmit" x-on:submit="check"
+                  data-confirm="Zakończyć webinar? Pokój zamknie się dla wszystkich obecnych.">
+              {% csrf_token %}
+              <button type="submit" class="btn btn--danger">Zakończ webinar</button>
+            </form>
+          {% endif %}
+        </div>
+        <p class="hint">Odbiorcy wchodzą dopiero po rozpoczęciu. W pokoju dajesz głos osobom z podniesioną ręką.</p>
+      {% endif %}
+    {% endif %}
+  </div>
+</section>
+
+{% if live and configured %}
+<section class="section" aria-labelledby="webinar-stream">
+  <div class="section__head"><h2 class="mt-0" id="webinar-stream">Transmisja na YouTube</h2></div>
+  <div class="card">
+    {% if webinar.stream_egress_id %}
+      <p><span class="badge badge--ok">transmisja trwa</span></p>
+      <form method="post" action="{% url 'web:coordinator-webinar-stream' webinar.pk %}">
+        {% csrf_token %}
+        <button type="submit" name="action" value="stop" class="btn btn--secondary">Zatrzymaj transmisję</button>
+      </form>
+    {% else %}
+      <form method="post" action="{% url 'web:coordinator-webinar-stream' webinar.pk %}" class="form" autocomplete="off">
+        {% csrf_token %}
+        <p>
+          <label for="stream-target">Klucz transmisji YouTube albo pełny adres rtmp(s)://…</label>
+          <input id="stream-target" type="password" name="target" maxlength="500" required autocomplete="off">
+          <span class="hint">Klucza nie zapisujemy – idzie wyłącznie do serwera LiveKit. Przy następnej
+            transmisji wpisz go ponownie.</span>
+        </p>
+        <button type="submit" name="action" value="start" class="btn btn--secondary">Włącz transmisję</button>
+      </form>
+    {% endif %}
+  </div>
+</section>
+{% endif %}
+
+{% if not webinar.cancelled_at %}
+<section class="section" aria-labelledby="webinar-mail">
+  <div class="section__head"><h2 class="mt-0" id="webinar-mail">Zaproszenie e-mailem</h2></div>
+  <div class="card">
+    {% if webinar.announced_at %}
+      <p>Zaproszenie wysłane {{ webinar.announced_at|local_datetime }}.</p>
+    {% elif configured %}
+      <form method="post" action="{% url 'web:coordinator-webinar-announce' webinar.pk %}"
+            x-data="confirmSubmit" x-on:submit="check"
+            data-confirm="Wysłać zaproszenie do wszystkich odbiorców? Można to zrobić tylko raz.">
+        {% csrf_token %}
+        <p>List z tytułem, terminem i odnośnikiem do strony webinarów (bez żadnego poświadczenia) do
+          każdego odbiorcy, który nie wyłączył listów o webinarach. Jednorazowo.</p>
+        <button type="submit" class="btn btn--secondary">Wyślij zaproszenie</button>
+      </form>
+    {% endif %}
+    <p class="hint">Przypomnienie przed startem: {% if webinar.email_reminder %}włączone{% if webinar.reminder_sent_at %}, wysłane {{ webinar.reminder_sent_at|local_datetime }}{% endif %}{% else %}wyłączone{% endif %}.</p>
+  </div>
+</section>
+{% endif %}
+
+<section class="section" aria-labelledby="webinar-people">
+  <div class="section__head"><h2 class="mt-0" id="webinar-people">Prowadzący i goście</h2></div>
+  <div class="card">
+    <p>Prowadzą: każdy koordynator konkursu{% if co_moderators %} oraz {% for person in co_moderators %}{{ person|person }}{% if not forloop.last %}, {% endif %}{% endfor %}{% endif %}.</p>
+    {% if guest_link %}
+      <p>Link dla gości bez konta (gość wpisuje swoją nazwę i wchodzi jako widz):</p>
+      <p><code>{{ guest_link }}</code></p>
+      <form method="post" action="{% url 'web:coordinator-webinar-guest-link' webinar.pk %}"
+            x-data="confirmSubmit" x-on:submit="check"
+            data-confirm="Wygenerować nowy link dla gości? Obecny przestanie działać od razu.">
+        {% csrf_token %}
+        <button type="submit" class="btn btn--secondary btn--small">Wygeneruj nowy link</button>
+      </form>
+      <p class="hint">Gość usunięty z pokoju wróciłby z nową sesją – wtedy wygeneruj nowy link i roześlij go
+        tylko właściwym osobom. Wyłączenie linku w edycji webinaru unieważnia go od razu; ponowne włączenie
+        daje nowy link.</p>
+    {% else %}
+      <p class="hint">Link dla gości bez konta jest wyłączony.</p>
+    {% endif %}
+  </div>
+</section>
+
+<section class="section" aria-labelledby="webinar-attendance">
+  <div class="section__head"><h2 class="mt-0" id="webinar-attendance">Lista obecności</h2></div>
+  {% if attendees %}
+    <div class="scroll">
+      <table class="table">
+        <thead>
+          <tr>
+            <th scope="col">Osoba</th>
+            <th scope="col">Rola</th>
+            <th scope="col">Pierwsze wejście</th>
+            <th scope="col">Czas w pokoju</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for attendee in attendees %}
+            <tr>
+              <th scope="row">{% if attendee.user %}{{ attendee.user|person }}{% else %}{{ attendee.name }}{% endif %}
+                {% if attendee.present %}<span class="badge badge--ok">w pokoju</span>{% endif %}
+                {% if attendee.removed_at %}<span class="badge badge--danger">usunięty</span>
+                  <form method="post" action="{% url 'web:coordinator-webinar-attendee' webinar.pk %}" class="form--inline">
+                    {% csrf_token %}
+                    <input type="hidden" name="identity" value="{{ attendee.identity }}">
+                    <button type="submit" name="action" value="readmit" class="btn btn--secondary btn--small">Wpuść ponownie</button>
+                  </form>
+                {% endif %}</th>
+              <td>{{ attendee.get_role_display }}</td>
+              <td>{% if attendee.first_joined_at %}{{ attendee.first_joined_at|local_datetime }}{% else %}—{% endif %}</td>
+              <td class="num">{% widthratio attendee.seconds 60 1 %} min</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p class="hint">Czasy pochodzą ze zdarzeń serwera LiveKit (webhook); osoba, która dostała token, ale nie weszła, nie ma czasu wejścia.</p>
+  {% else %}
+    <p class="hint">Nikt jeszcze nie wszedł do pokoju.</p>
+  {% endif %}
+</section>
+
+{% if webinar.record %}
+<section class="section" aria-labelledby="webinar-recordings">
+  <div class="section__head"><h2 class="mt-0" id="webinar-recordings">Nagrania</h2></div>
+  {% if live and configured %}
+    <form method="post" action="{% url 'web:coordinator-webinar-recording' webinar.pk %}" class="actions">
+      {% csrf_token %}
+      {% if recording_active %}
+        <button type="submit" name="action" value="stop" class="btn btn--secondary">Zatrzymaj nagrywanie</button>
+      {% else %}
+        <button type="submit" name="action" value="start" class="btn btn--secondary">Nagrywaj</button>
+      {% endif %}
+    </form>
+  {% endif %}
+  {% if recordings %}
+    <div class="scroll">
+      <table class="table">
+        <thead>
+          <tr>
+            <th scope="col">Nagranie</th>
+            <th scope="col">Stan</th>
+            <th scope="col"><span class="visually-hidden">Operacje</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for recording in recordings %}
+            <tr>
+              <td>{% timezone zone %}{{ recording.started_at|date:"d.m.Y, H:i" }}{% endtimezone %}
+                {% if recording.duration_seconds %}<span class="hint">{% widthratio recording.duration_seconds 60 1 %} min</span>{% endif %}
+                {% if recording.status == "complete" %}<a href="{% url 'web:webinar-recording' webinar.pk recording.pk %}" target="_blank" rel="noopener noreferrer">odtwórz</a>{% endif %}</td>
+              <td>{{ recording.get_status_display }}
+                {% if recording.published %}<span class="badge badge--ok">opublikowane</span>{% endif %}
+                {% if recording.error %}<span class="hint">{{ recording.error }}</span>{% endif %}</td>
+              <td>
+                {% if recording.status == "active" %}
+                  <form method="post" action="{% url 'web:coordinator-webinar-recording' webinar.pk %}"
+                        x-data="confirmSubmit" x-on:submit="check"
+                        data-confirm="Uzgodnić stan nagrania z serwerem? Jeśli serwer go nie zna, nagranie zostanie oznaczone jako nieudane.">
+                    {% csrf_token %}
+                    <input type="hidden" name="recording" value="{{ recording.pk }}">
+                    <button type="submit" name="action" value="mark_failed" class="btn btn--secondary btn--small">Sprawdź / oznacz jako nieudane</button>
+                  </form>
+                {% endif %}
+                {% if recording.status != "active" %}
+                <div class="actions">
+                  {% if recording.status == "complete" %}
+                  <form method="post" action="{% url 'web:coordinator-webinar-recording' webinar.pk %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="recording" value="{{ recording.pk }}">
+                    {% if recording.published %}
+                      <button type="submit" name="action" value="unpublish" class="btn btn--secondary btn--small">Wycofaj</button>
+                    {% else %}
+                      <button type="submit" name="action" value="publish" class="btn btn--secondary btn--small">Opublikuj</button>
+                    {% endif %}
+                  </form>
+                  {% endif %}
+                  <form method="post" action="{% url 'web:coordinator-webinar-recording' webinar.pk %}"
+                        x-data="confirmSubmit" x-on:submit="check"
+                        data-confirm="Usunąć nagranie? Tego nie da się cofnąć.">
+                    {% csrf_token %}
+                    <input type="hidden" name="recording" value="{{ recording.pk }}">
+                    <label><input type="checkbox" name="confirm" value="1" required> potwierdzam usunięcie</label>
+                    <button type="submit" name="action" value="delete" class="btn btn--danger btn--small">Usuń</button>
+                  </form>
+                </div>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p class="hint">Opublikowane nagrania widzą odbiorcy webinaru na stronie webinarów (adres pliku ważny dwie godziny).
+      Nagrania i lista obecności są kasowane automatycznie {{ retention_days }} dni po webinarze.</p>
+  {% else %}
+    <p class="hint">Brak nagrań. Nagranie włączasz w trakcie webinaru – tu albo przyciskiem w pokoju.</p>
+  {% endif %}
+</section>
+{% endif %}
+
+{% if not webinar.cancelled_at %}
+<section class="section" aria-labelledby="webinar-cancel">
+  <div class="section__head"><h2 class="mt-0" id="webinar-cancel">Odwołanie</h2></div>
+  <form method="post" action="{% url 'web:coordinator-webinar-cancel' webinar.pk %}"
+        x-data="confirmSubmit" x-on:submit="check"
+        data-confirm="Odwołać webinar? Zniknie odbiorcom, a trwający pokój zostanie zamknięty.">
+    {% csrf_token %}
+    <button type="submit" class="btn btn--danger btn--small">Odwołaj webinar</button>
+  </form>
+</section>
+{% endif %}
+{% endblock %}

@@ -332,10 +332,21 @@ def _missing_numbers(user, entry, rows=None, competition=None) -> tuple[int, ...
     )
 
 
-def _panel_links() -> list[dict]:
+#: Webinary (zadanie WEB-01) – pozycja paska **tylko** przy fladze ``webinars`` i serwerze
+#: LiveKit (``apps.webinars.services.available``: pole wiersza konkursu i ustawienia, bez zapytania).
+#: Osobno od ``PANEL_LINKS``, bo tamte stoją zawsze, a ta – wyłącznie w konkursie z webinarami.
+WEBINARS_LINK = ("web:webinars", gettext_lazy("Webinary"))
+
+
+def _panel_links(competition=None) -> list[dict]:
     """Ekrany panelu wystawione w pasku zakładek jako zwykłe odnośniki."""
+    from apps.webinars.services import available as webinars_available
+
+    entries = list(PANEL_LINKS)
+    if webinars_available(competition):
+        entries.insert(1, WEBINARS_LINK)
     links = []
-    for name, label in PANEL_LINKS:
+    for name, label in entries:
         try:
             url = reverse(name)
         except NoReverseMatch:  # pragma: no cover - adres dołożony później albo wyłączony
@@ -413,7 +424,7 @@ class MeView(ParticipantRequiredMixin, TemplateView):
                     }
                     for key, label in PANEL_TABS
                 ],
-                "panel_links": _panel_links(),
+                "panel_links": _panel_links(self.competition),
                 "can_register": can_register,
                 "stage_opened": stage is not None and stage.has_opened(now),
                 "upload_open": upload_open,

@@ -163,6 +163,11 @@ INSTALLED_APPS = [
     # i własną drogę danych poza serwer; **po** ``apps.grading`` i ``apps.results``, bo czyta
     # skalę, rubrykę i publikację wyników, a żadna z nich nie czyta jej.
     "apps.ai_grading",
+    # Webinary w LiveKit (zadanie WEB-01, flaga ``webinars``). Osobna aplikacja, a nie dostawca
+    # w pokojach Jitsi (``apps.competitions.video_rooms``): webinar ma termin, odbiorców, własny pokój
+    # na platformie, listę obecności z webhooków i nagrania. **Po** ``apps.competitions`` i ``apps.accounts``,
+    # bo czyta etapy, drużyny i role; **przed** ``apps.web``, który ją wyświetla.
+    "apps.webinars",
     # Warstwa integracyjna: klucze API dla systemów zewnętrznych, webhooki i eksporty na zewnątrz.
     # **Po** aplikacjach domeny, bo czyta je wszystkie (edycje, wyniki, zgłoszenia), a żadna z nich
     # nie czyta jej – zależność idzie w jedną stronę i kolejność w tej liście ma to pokazywać.
@@ -605,6 +610,15 @@ CELERY_BEAT_SCHEDULE = {
         "task": "apps.forum.tasks.send_daily_forum_digest",
         "schedule": crontab(minute=0, hour=env.int("FORUM_DAILY_DIGEST_HOUR_UTC", default=5)),
     },
+    # Przypomnienia o webinarach (apps/webinars/tasks.py) – ``WEBINAR_REMINDER_MINUTES`` przed
+    # startem, raz na webinar (``Webinar.reminder_sent_at``). Co pięć minut, bo przypomnienie ma
+    # przyjść „około godzinę przed”, a nie „gdzieś w ciągu doby”. Konkurs bez flagi albo instalacja
+    # bez serwera LiveKit kosztuje zero zapytań o webinary (``services.available``). Przy okazji
+    # sprząta identyfikatory przetworzonych webhooków starsze niż tydzień.
+    "webinars-reminders": {
+        "task": "apps.webinars.tasks.remind_webinars",
+        "schedule": 300.0,
+    },
 }
 
 # --- powiadomienia z forum (``apps.forum.notifications``) ---------------------------------------
@@ -1011,6 +1025,34 @@ JITSI_JWT_GATEWAY_MINUTES = env.int("JITSI_JWT_GATEWAY_MINUTES", default=10)
 JITSI_JWT_ROOM_MAX_DAYS = env.int("JITSI_JWT_ROOM_MAX_DAYS", default=60)
 JITSI_JWT_COMMITTEE_ROOM_MAX_DAYS = env.int("JITSI_JWT_COMMITTEE_ROOM_MAX_DAYS", default=30)
 
+# --- webinary w LiveKit (zadanie WEB-01, ``apps.webinars``) --------------------------------------
+# LiveKit (Apache 2.0) stoi na **własnym** serwerze – osobnej maszynie (zalecane przy dużych
+# wydarzeniach) albo w profilu compose ``livekit`` na tym hoście (małe spotkania); docs/OPERACJE.md
+# § 36. ``LIVEKIT_URL`` – adres sygnalizacji dla przeglądarki (``wss://live.<domena>``),
+# ``LIVEKIT_API_KEY``/``LIVEKIT_API_SECRET`` – para kluczy z ``livekit.yaml`` (``keys:``). Pusty
+# którykolwiek = funkcja wyłączona: koordynator konkursu z flagą ``webinars`` widzi „serwer LiveKit
+# nie jest skonfigurowany”, odbiorcy – nic, a polityka CSP nie zmienia się ani o znak.
+# ``LIVEKIT_API_URL`` – opcjonalny adres API dla poleceń serwerowych z sieci compose
+# (``http://livekit:7880``); pusty = ``https`` z ``LIVEKIT_URL``. Token wejścia żyje
+# ``TOKEN_TTL`` sekund (LiveKit utrzymuje połączenie sam). Okno wejścia odbiorcy: ``LEAD`` minut przed
+# początkiem do ``GRACE`` minut po planowanym końcu. Nagrania zapisuje egress do bucketu
+# ``LIVEKIT_RECORDINGS_BUCKET`` (pusty = prywatny bucket prac ``S3_SUBMISSIONS_BUCKET``, prefiks
+# ``webinars/``).
+LIVEKIT_URL = env("LIVEKIT_URL", default="")
+LIVEKIT_API_URL = env("LIVEKIT_API_URL", default="")
+LIVEKIT_API_KEY = env("LIVEKIT_API_KEY", default="")
+LIVEKIT_API_SECRET = env("LIVEKIT_API_SECRET", default="")
+LIVEKIT_TOKEN_TTL_SECONDS = env.int("LIVEKIT_TOKEN_TTL_SECONDS", default=600)
+LIVEKIT_TIMEOUT_SECONDS = env.float("LIVEKIT_TIMEOUT_SECONDS", default=8.0)
+LIVEKIT_RECORDINGS_BUCKET = env("LIVEKIT_RECORDINGS_BUCKET", default="")
+WEBINAR_JOIN_LEAD_MINUTES = env.int("WEBINAR_JOIN_LEAD_MINUTES", default=15)
+WEBINAR_JOIN_GRACE_MINUTES = env.int("WEBINAR_JOIN_GRACE_MINUTES", default=30)
+WEBINAR_REMINDER_MINUTES = env.int("WEBINAR_REMINDER_MINUTES", default=60)
+# Retencja (dni od końca webinaru): po tym czasie znikają nagrania i lista obecności
+# (``apps.webinars.services.purge_expired``, zadanie beat ``webinars-reminders``). Rok – jedna
+# edycja konkursu z zapasem na reklamacje i zaświadczenia; 0 = bez automatycznego kasowania.
+WEBINAR_RETENTION_DAYS = env.int("WEBINAR_RETENTION_DAYS", default=365)
+
 WAGTAIL_SITE_NAME = env("WAGTAIL_SITE_NAME", default="Olimpiada Kwantowa")
 WAGTAILADMIN_BASE_URL = env("WAGTAILADMIN_BASE_URL", default=f"https://{SITE_DOMAIN}")
 # Reset hasła ma jedną drogę: ``/password-reset/`` (limit prób, wysyłka w tle, audyt). Własny reset
@@ -1229,6 +1271,20 @@ REST_FRAMEWORK = {
         # bywa cała sala gości wchodzących na to samo zebranie naraz; nisko na tyle, żeby
         # przeszukiwanie kluczy (192 bity) i tak nie miało sensu, a pętla „Dołącz” – kosztu.
         "video_gateway": "120/hour",
+        # Webinary (``apps.web.views.webinars``): token wejścia do pokoju LiveKit i czynności
+        # prowadzącego (rozpocznij, zakończ, daj głos, nagrywanie) – wejście wystawia poświadczenie,
+        # a czynność to polecenie dla serwera LiveKit. Per konto (``PER_USER_SCOPES``), ta sama
+        # stawka i ten sam powód, co ``video``: przeglądarka zrywająca połączenie wraca kilka razy,
+        # skrypt z cudzej sesji – nie.
+        "webinar_join": "60/hour",
+        # Polecenia prowadzącego z pokoju i z panelu webinaru (daj/odbierz głos, usuń, nagrywanie,
+        # transmisja). Osobny, wyższy limit niż wejścia: w czasie pytań prowadzący klika „Daj głos”
+        # dziesiątki razy na godzinę i wspólny kubełek z tokenami odcinał go w połowie sesji Q&A.
+        # Per konto – limit chroni serwer LiveKit przed skryptem z cudzej sesji, nie prowadzącego.
+        "webinar_control": "600/hour",
+        # Link dla gości (``/zaproszenie/webinar/<klucz>/``, POST „Dołącz” i token) – bez konta, po IP, jak
+        # bramka pokoi Jitsi: cała sala za jednym NAT-em wchodzi naraz.
+        "webinar_guest": "120/hour",
         # Zakładanie konkursu z panelu koordynatora (``/coordinator/competitions/new/``). Stawka
         # jest **dzienna i niska**, bo taka jest ta czynność: konkurs zakłada się raz na sezon,
         # a każde założenie to nowa witryna, nowe drzewo stron, nowa edycja i wniosek o certyfikat
