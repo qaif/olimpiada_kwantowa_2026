@@ -48,6 +48,14 @@ grep -qxF -- "-e transport_maps=lmdb:$WORK/olimpiada_bounce_transport" "$WORK/po
   && grep -qx "lmdb:$WORK/olimpiada_bounce_transport" "$WORK/postmap.log"
 check "discard: postmap obu tablic i transport_maps/virtual_alias_maps" $?
 
+run MAIL_BOUNCE_EXTRA_ADDRESSES='glitchtip@platforma.test uptime@platforma.test' MAIL_BOUNCE_ADDRESSES=x@iqo.test >/dev/null 2>&1
+grep -q '^glitchtip@platforma.test' "$WORK/olimpiada_bounce_transport" && grep -q '^uptime@platforma.test' "$WORK/olimpiada_bounce_transport" \
+  && grep -q '^x@iqo.test' "$WORK/olimpiada_bounce_transport"
+check "nadawcy monitoringu (MAIL_BOUNCE_EXTRA_ADDRESSES) dopisani zawsze, także przy jawnej liście" $?
+docker_compose_extra="$(sed -n 's/^ *MAIL_BOUNCE_EXTRA_ADDRESSES: //p' "$ROOT/docker-compose.yml")"
+printf '%s' "$docker_compose_extra" | grep -q 'glitchtip@' && printf '%s' "$docker_compose_extra" | grep -q 'uptime@'
+check "compose: odbicia GlitchTipa i monitora dostępności objęte (OPS-02)" $?
+
 run MAIL_BOUNCE_TARGET=ops@qaif.test >/dev/null 2>&1
 [ ! -s "$WORK/olimpiada_bounce_transport" ] && grep -qx $'noreply@iqo.test\tops@qaif.test' "$WORK/olimpiada_bounce_alias" \
   && grep -qx $'postmaster@mail.platforma.test\tops@qaif.test' "$WORK/olimpiada_bounce_alias"

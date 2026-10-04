@@ -15,7 +15,8 @@
 #       w logu: pierwotny list ma `status=bounced`, odbicie `status=sent (… discard …)`,
 #   MAIL_BOUNCE_TARGET=<adres e-mail> – przekierowanie (virtual_alias_maps) na skrzynkę operatora.
 # Adresy: MAIL_BOUNCE_ADDRESSES (spacje/przecinki; puste = noreply@ każdej domeny
-# z ALLOWED_SENDER_DOMAINS) plus zawsze postmaster, MAILER-DAEMON i double-bounce w domenie
+# z ALLOWED_SENDER_DOMAINS) plus zawsze MAIL_BOUNCE_EXTRA_ADDRESSES (compose: nadawcy GlitchTipa
+# i monitora dostępności, OPS-02) oraz postmaster, MAILER-DAEMON i double-bounce w domenie
 # myhostname – na nie Postfix wysyła podwójne odbicia.
 #
 # Skrypt nigdy nie kończy się błędem: relay bez tej poprawki nadal wysyła listy, a błąd w
@@ -57,6 +58,7 @@ olimpiada_bounces() (
       addresses="$addresses noreply@$domain"
     done
   fi
+  addresses="$addresses $(printf '%s' "${MAIL_BOUNCE_EXTRA_ADDRESSES:-}" | tr ',' ' ')"
   addresses="$addresses postmaster@$host MAILER-DAEMON@$host double-bounce@$host"
 
   # Jeden adres raz, małymi literami (postmap i tak składa klucze do małych liter), tylko adresy.

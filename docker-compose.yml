@@ -488,6 +488,9 @@ services:
       # deploy/mail/docker-init.d/50-bounces.sh, docs/OPERACJE.md § 49.6.
       MAIL_BOUNCE_TARGET: ${MAIL_BOUNCE_TARGET:-discard}
       MAIL_BOUNCE_ADDRESSES: ${MAIL_BOUNCE_ADDRESSES:-}
+      # Nadawcy usług monitoringu (OPS-02: GlitchTip i monitor dostępności) – ich odbicia wracałyby
+      # tą samą pętlą. Dopisywani zawsze, obok MAIL_BOUNCE_ADDRESSES / noreply@ domen.
+      MAIL_BOUNCE_EXTRA_ADDRESSES: glitchtip@${SITE_DOMAIN:-localhost} uptime@${SITE_DOMAIN:-localhost}
       POSTFIX_myhostname: mail.${SITE_DOMAIN:-localhost}
       # Klienci SMTP: wyłącznie podsieci compose (edge + internal). Bez SASL – poza tymi
       # podsieciami port 587 nie jest osiągalny (brak `ports:`), więc hasło niczego by nie dodało.
