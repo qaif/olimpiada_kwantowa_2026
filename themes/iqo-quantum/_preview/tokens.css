@@ -1,0 +1,102 @@
+/* Wygenerowane przez _preview/render.py z tokens.json – emulacja systemu motywów. */
+:root {
+  --t-bg: #F6F7FF;
+  --t-surface: #FFFFFF;
+  --t-surface-2: #EEF0FF;
+  --t-text: #14123A;
+  --t-text-soft: #34315F;
+  --t-muted: #55557A;
+  --t-primary: #3C4BFF;
+  --t-primary-hover: #2B37D6;
+  --t-primary-contrast: #FFFFFF;
+  --t-primary-fill: #3C4BFF;
+  --t-accent: #C2185B;
+  --t-accent-contrast: #FFFFFF;
+  --t-border: #D5D8F5;
+  --t-border-strong: #8C90C8;
+  --t-link: #2B37D6;
+  --t-focus: #C2185B;
+  --t-brand: #FFFFFF;
+  --t-brand-text: #14123A;
+  --t-success: #137A4F;
+  --t-warning: #8A5A00;
+  --t-danger: #B3261E;
+  --t-info: #2B37D6;
+  --t-font-body: "Space Grotesk", "Segoe UI", system-ui, -apple-system, Roboto, "Noto Sans", sans-serif;
+  --t-font-display: "Space Grotesk", "Segoe UI", system-ui, -apple-system, Roboto, "Noto Sans", sans-serif;
+  --t-font-mono: "Space Mono", ui-monospace, "Cascadia Mono", "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --t-size-xs: 0.75rem;
+  --t-size-sm: 0.875rem;
+  --t-size-md: 1rem;
+  --t-size-lg: 1.25rem;
+  --t-size-xl: 1.75rem;
+  --t-size-2xl: 2.5rem;
+  --t-size-3xl: clamp(2.4rem, 1.6rem + 3.2vw, 4.25rem);
+  --t-radius-sm: 2px;
+  --t-radius-md: 4px;
+  --t-radius-lg: 10px;
+  --t-radius-pill: 999px;
+  --t-space-1: 0.25rem;
+  --t-space-2: 0.5rem;
+  --t-space-3: 0.75rem;
+  --t-space-4: 1rem;
+  --t-space-6: 1.5rem;
+  --t-space-8: 2rem;
+  --t-space-12: 3rem;
+  --t-space-16: 4.5rem;
+  --t-shadow-sm: none;
+  --t-shadow-md: 0 0 0 1px rgba(124, 136, 255, 0.18), 0 12px 32px rgba(3, 2, 18, 0.45);
+  --t-shadow-glow: 0 0 0 1px rgba(124, 136, 255, 0.55), 0 0 24px rgba(124, 136, 255, 0.25);
+  --t-header-height: 4rem;
+  --t-max-width: 1200px;
+}
+:root[data-color-scheme="dark"] {
+  --t-bg: #0B0A24;
+  --t-surface: #14123A;
+  --t-surface-2: #1C1A4D;
+  --t-text: #F4F4FF;
+  --t-text-soft: #C9CCF5;
+  --t-muted: #A9ACDB;
+  --t-primary: #7C88FF;
+  --t-primary-hover: #A9B1FF;
+  --t-primary-contrast: #0B0A24;
+  --t-primary-fill: #5260FF;
+  --t-accent: #FF6B98;
+  --t-accent-contrast: #0B0A24;
+  --t-border: #2E2C6E;
+  --t-border-strong: #6C6AB8;
+  --t-link: #A9B1FF;
+  --t-focus: #FF6B98;
+  --t-brand: #0B0A24;
+  --t-brand-text: #F4F4FF;
+  --t-success: #4FD8A4;
+  --t-warning: #FFC86B;
+  --t-danger: #FF8A80;
+  --t-info: #8E98FF;
+}
+@media (prefers-color-scheme: dark) {
+:root[data-color-scheme="auto"] {
+  --t-bg: #0B0A24;
+  --t-surface: #14123A;
+  --t-surface-2: #1C1A4D;
+  --t-text: #F4F4FF;
+  --t-text-soft: #C9CCF5;
+  --t-muted: #A9ACDB;
+  --t-primary: #7C88FF;
+  --t-primary-hover: #A9B1FF;
+  --t-primary-contrast: #0B0A24;
+  --t-primary-fill: #5260FF;
+  --t-accent: #FF6B98;
+  --t-accent-contrast: #0B0A24;
+  --t-border: #2E2C6E;
+  --t-border-strong: #6C6AB8;
+  --t-link: #A9B1FF;
+  --t-focus: #FF6B98;
+  --t-brand: #0B0A24;
+  --t-brand-text: #F4F4FF;
+  --t-success: #4FD8A4;
+  --t-warning: #FFC86B;
+  --t-danger: #FF8A80;
+  --t-info: #8E98FF;
+}
+}
