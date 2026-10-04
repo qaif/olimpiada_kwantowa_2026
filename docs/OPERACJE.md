@@ -4303,7 +4303,7 @@ Bez konfiguracji i bez flagi `webinars` (§ 6.4) nic się nie zmienia – także
   `https://<domena>:9000`) – w `egress.yaml` `endpoint: <ten adres>`.
 - **(b) Ten sam host – małe spotkania (do kilkudziesięciu osób).** Nakładka compose z profilem
   `livekit` (`deploy/livekit/docker-compose.livekit.yml`: `livekit`, `livekit-egress`, `livekit-redis`),
-  sygnalizacja przez Caddy pod `live.<domena>` (`LIVEKIT_PROXY=1`), media UDP 50000–50100 i TCP 7881
+  sygnalizacja przez Caddy pod `live.<domena>` (`LIVEKIT_PROXY=1`), media UDP 7882 (jeden port z multipleksacją) i TCP 7881
   prosto do kontenera. TURN wyłączony (port 443 zajmuje Caddy) – uczestnicy za zaporami, które
   przepuszczają wyłącznie HTTPS, nie połączą się; dla nich wariant (a) z TURN/TLS na 443.
 
@@ -4322,12 +4322,12 @@ Bez konfiguracji i bez flagi `webinars` (§ 6.4) nic się nie zmienia – także
    Skrypt **usuwa ostatni wiersz paczki** (`//# sourceMappingURL=…map`) – mapy nie dostarczamy, a
    `collectstatic` z manifestem kończyłby się na nim błędem i `web` by nie wstał (VERSION to odnotowuje,
    pilnuje tego `apps/webinars/tests/test_static.py`).
-3. DNS: rekord `A live.<domena>` → adres serwera. **Zapora:** porty 7881/tcp i 50000–50100/udp publikuje
+3. DNS: rekord `A live.<domena>` → adres serwera. **Zapora:** porty 7881/tcp i 7882/udp publikuje
    Docker, a Docker wpisuje własne reguły iptables **przed** ufw – `ufw allow` jest tu dokumentacją,
    a `ufw deny` niczego nie zamknie. Zamyka się je zdjęciem `ports:` z nakładki albo regułą w łańcuchu
-   `DOCKER-USER` (np. `iptables -I DOCKER-USER -p udp --dport 50000:50100 -j DROP` na czas wyłączenia).
+   `DOCKER-USER` (np. `iptables -I DOCKER-USER -p udp --dport 7882 -j DROP` na czas wyłączenia).
    Sieć mostkowa, a nie `network_mode: host`: host dałby LiveKitowi wszystkie usługi hosta i porty
-   compose'a na 127.0.0.1, a ceną mostka (docker-proxy na 101 portów) przy 100 portach UDP jest do przyjęcia.
+   compose'a na 127.0.0.1, a ceną mostka jest jeden docker-proxy na porcie UDP 7882 (multipleksacja – wszyscy uczestnicy na jednym porcie).
 4. Klucze: `openssl rand -hex 32` (sekret) i dowolny klucz (np. `APIolimp1`). W `.env`:
    `LIVEKIT_URL=wss://live.<domena>`, `LIVEKIT_API_KEY=…`, `LIVEKIT_API_SECRET=…`,
    `LIVEKIT_API_URL=http://livekit:7880`, `LIVEKIT_PROXY=1`.

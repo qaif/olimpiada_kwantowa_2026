@@ -583,7 +583,7 @@ if [ "$LIVEKIT_ON" = "1" ]; then
 
 # Wygenerowane przez scripts/render_caddyfile.sh przy LIVEKIT_PROXY=1 – nie edytuj tego pliku.
 # Sygnalizacja LiveKit (WebSocket i /rtc/validate) dla pokoi webinarów (docs/OPERACJE.md § 36.2).
-# Media nie idą przez Caddy: UDP 50000–50100 i TCP 7881 prosto do kontenera `livekit`.
+# Media nie idą przez Caddy: UDP 7882 (multipleksacja) i TCP 7881 prosto do kontenera `livekit`.
 live.{$SITE_DOMAIN} {
 EOF
   if [ "$SUBDOMAINS_ON" = "1" ]; then
