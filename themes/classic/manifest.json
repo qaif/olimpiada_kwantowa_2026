@@ -1,0 +1,12 @@
+{
+  "schema": 1,
+  "slug": "classic",
+  "name": "Klasyczny",
+  "version": "1.0.0",
+  "author": "Platforma Olimpiady",
+  "description": "Wbudowany wygląd platformy (granat, papier, czerwień z logotypu; Inter i Source Serif 4). Wybór „Klasyczny” w panelu = brak motywu: żaden arkusz nie jest dołączany, a sloty renderują szablony aplikacji templates/theme/*.html. Paczka jest dokumentacją API tokenów (tokens.json = wartości z backend/static/css/app.css) i punktem startowym dla nowych motywów; slug „classic” jest zarezerwowany, więc tej paczki nie da się wgrać.",
+  "supports": ["public", "panels"],
+  "layouts": {"header": "split", "home_hero": "split", "footer": "columns", "cards": "elevated"},
+  "color_scheme": "auto",
+  "min_app_version": "0.41.0"
+}
