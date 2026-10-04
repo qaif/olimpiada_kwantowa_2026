@@ -39,6 +39,31 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
 - **Nadzór zdalny (PROC-01):** strona laboratorium (`web:participant-notebook`) stoi w `GATED_VIEWS`,
   a notatnik startowy z tokenem sprawdza bramkę nadzoru w widoku (403 bez gotowej sesji).
 
+## [Unreleased] – Zmiana hasła w panelu konta (AUTH-01b)
+
+- **Ekran „Zmień hasło”** (`/account/password/`) dla każdej roli: aktualne hasło + nowe dwa razy,
+  walidatory `AUTH_PASSWORD_VALIDATORS`, nowe ≠ aktualne. Nowa aplikacja `apps.password_change`
+  (bez migracji); reguły w serwisie, `never_cache`, CSRF, limit `password_change` 10/h na konto.
+- Po zmianie: bieżąca sesja zostaje (także znacznik 2FA), **pozostałe urządzenia wylogowane**, tokeny
+  API skasowane, audyt `password.changed` (nieudane próby `password.change_failed`), list
+  bezpieczeństwa „Hasło do konta zostało zmienione” w języku i pod hostem konkursu (z prefiksem
+  ścieżki), z linkiem do „Nie pamiętasz hasła?”, bez hasła.
+- **Konto bez hasła** (Google/Facebook): zamiast formularza przycisk „Wyślij mi link do ustawienia
+  hasła” – zwykły list resetu na własny adres konta (publiczny formularz resetu takich kont nie obsługuje),
+  audyt `password.set_link_sent`. Bez ustawiania hasła w samej sesji.
+- **Pasek konta:** adres e-mail jest odnośnikiem do ustawień konta (`web/_account_who.html`, także dla
+  nagłówka motywu); ekran edycji danych ma sekcję „Hasło”. Motyw `iqo-quantum` 1.1.1 dołącza ten fragment.
+- Poprawki po przeglądzie (PR #70): **zmiana adresu e-mail wymaga aktualnego hasła** (konto bez hasła
+  ustawia je najpierw); w `/cms/account/` nie ma już paneli hasła i e-maila
+  (`WAGTAIL_PASSWORD_MANAGEMENT_ENABLED`/`WAGTAIL_EMAIL_MANAGEMENT_ENABLED = False`), a
+  `/admin/password_change/` przekierowuje na `/account/password/`; 5 kolejnych złych haseł w sesji kończy
+  sesję (`apps.accounts.reauth`, wspólne dla obu ekranów); podniesienie skrótu hasła nie wylogowuje;
+  list odporny na awarię brokera, z godziną w strefie ucznia/konkursu (`Asia/Tokyo, UTC+09:00`);
+  uczciwe zdanie o sesjach edytora django CMS; limit zmiany adresu per konto, komunikat „na tym koncie”;
+  IQO 1.1.1 wymaga aplikacji 0.45.0 (fikstura paczki w testach).
+- Tłumaczenia w 10 katalogach `apps/password_change/locale`. Dokumentacja: `docs/tasks/AUTH-01b.md`,
+  `docs/OPERACJE.md` § 45, podręczniki uczestnika (§ 1) i organizatora (§ 9.3).
+
 ## [Unreleased] – Conocny, automatyczny test odtwarzania kopii zapasowej (OPS-01)
 
 - **`scripts/backup_verify.sh` codziennie o 4:40** (dotąd w niedzielę), z kopią z 3:15 pod jednym

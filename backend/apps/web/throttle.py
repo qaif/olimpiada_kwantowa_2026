@@ -492,3 +492,27 @@ class ThrottledFormMixin:
                 response["HX-Retarget"] = f"#{target}"
             response["HX-Reswap"] = "beforeend"
         return response
+
+
+#: Komunikat odmowy kubełka **konta** (``PerAccountThrottleMixin``) – „z tego adresu” byłoby tu
+#: nieprawdą: limit liczy próby tego konta, z dowolnego miejsca.
+ACCOUNT_THROTTLE_MESSAGE = gettext_noop("Zbyt wiele prób na tym koncie. Odczekaj chwilę i spróbuj ponownie.")
+
+
+class PerAccountThrottleMixin(ThrottledFormMixin):
+    """Limit liczony **per konto**, bez kubełka adresu IP – jak ``PER_USER_SCOPES``, ale per widok.
+
+    Dla ekranów ustawień konta (AUTH-01b: zmiana hasła, zmiana adresu e-mail, link do ustawienia
+    hasła): są wyłącznie za logowaniem, a koszt, który limit ogranicza (zgadywanie aktualnego hasła
+    z cudzej sesji, listy), przypada na konto. Kubełek IP karałby całą pracownię za jednym NAT-em,
+    a zgadującemu dawałby nowy budżet z każdym nowym adresem. Scope zostaje wspólny z innymi
+    widokami (np. ``password_reset``), zmienia się wyłącznie klucz i treść odmowy.
+    """
+
+    def get_throttle_keys(self, request) -> list[str]:
+        return user_throttle_keys(self.throttle_scope, request)
+
+    def throttled_response(self, request, wait: float):
+        response = super().throttled_response(request, wait)
+        response.context_data["message"] = gettext(ACCOUNT_THROTTLE_MESSAGE)
+        return response

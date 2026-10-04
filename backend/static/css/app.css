@@ -913,6 +913,15 @@ hr {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  text-decoration: none;
+}
+
+/* Od AUTH-01b adres jest odnośnikiem do ustawień konta (``web/_account_who.html``) – podkreślenie
+   dopiero po najechaniu, żeby pasek nie zamienił się w rząd podkreśleń. */
+.account-bar__who:hover,
+.account-bar__who[aria-current="page"] {
+  color: var(--t-on-primary-strong);
+  text-decoration: underline;
 }
 
 .account-bar__logout {

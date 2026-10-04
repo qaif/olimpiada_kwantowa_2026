@@ -8,6 +8,7 @@ from apps.medals.urls import urlpatterns as medal_urlpatterns  # MED-01
 
 # Notatniki kwantowe (QC-01) – wzorce w module aplikacji, rozwinięte na końcu listy.
 from apps.notebooks.urls import urlpatterns as notebook_urlpatterns
+from apps.password_change.urls import urlpatterns as password_change_urlpatterns  # AUTH-01b
 from apps.payments.urls import urlpatterns as payment_urlpatterns
 from apps.problem_translations.urls import urlpatterns as translation_urlpatterns
 
@@ -1199,6 +1200,8 @@ urlpatterns = [
     *notebook_urlpatterns,
     # --- sieć absolwentów i mentoring (ALUM-01, za flagą ``alumni``) ---------------------------------
     *alumni_urlpatterns,
+    # --- zmiana hasła w panelu konta (AUTH-01b, 4.10.2026) ------------------------------------------
+    *password_change_urlpatterns,
     # --- nadzór zdalny etapów online (zadanie PROC-01, flaga ``proctoring``) ---------------------
     *proctoring_urlpatterns,
 ]
