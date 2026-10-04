@@ -45,7 +45,8 @@
         <details class="iqo-acct">
           <summary class="iqo-acct__toggle" title="{{ request.user.email }}"><span class="iqo-icon iqo-icon--account" aria-hidden="true"></span><span class="iqo-acct__label">{% translate "Konto" %}</span><span class="iqo-icon iqo-icon--chevron" aria-hidden="true"></span></summary>
           <div class="iqo-acct__panel">
-            <p class="account-bar__who who iqo-acct__who">{{ request.user.email }}</p>
+            {% comment %}Adres prowadzi do ustawień konta (hasło, e-mail, 2FA) – fragment aplikacji (1.1.1).{% endcomment %}
+            {% include "web/_account_who.html" with css_class="account-bar__who who iqo-acct__who" %}
             <ul class="iqo-acct__list">
               {% if is_participant %}
                 {% url 'web:me' as me_url %}

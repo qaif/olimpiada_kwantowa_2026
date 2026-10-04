@@ -121,18 +121,21 @@ kasowania po stronie dostawcy nie jest potrzebny do niczego poza retencją – a
 zostawić regułom lifecycle dostawcy i odebrać kluczowi prawo `DeleteObject`. Wtedy ktoś, kto
 przejmie serwer, nie skasuje kopii tym samym kluczem, którym je wysyłał.
 
-### 1.4. Cotygodniowy test odtwarzania
+### 1.4. Conocny test odtwarzania
 
-`scripts/backup_verify.sh`, niedziela **4:40**: rozszyfrowuje najnowszą kopię, wstawia ją do
-**tymczasowego** kontenera Postgresa (dane na `tmpfs`, kontener kasowany bezwarunkowo) i liczy
-wiersze w `accounts_user`, `accounts_participant`, `competitions_stage`, `submissions_submission`
-i `core_auditlog`. Wynik melduje przez `record_backup_status --verified` (albo `--failed`).
+`scripts/backup_verify.sh`, **codziennie o 4:40** (do 4.10.2026 – w niedzielę): rozszyfrowuje
+najnowszą kopię strumieniem prosto do **tymczasowego** kontenera Postgresa (dane na `tmpfs`, sieć
+bez wyjścia, kontener kasowany bezwarunkowo), czyta w całości paczkę plików i uruchamia na
+odtworzonej bazie **wdrożoną wersję aplikacji**: migracje, liczności tabel kluczowych względem bazy
+żywej, czytelność każdego modelu, sekwencje, odszyfrowanie pól Fernet, próbka plików prac w paczce.
+Wynik: `/healthz/` i `/status.json` (`backup_restore_check`), list alarmowy przy porażce,
+`manage.py restore_check show`. Pełny opis, odczyt wyniku i postępowanie przy porażce: **§ 43**.
 
 Gdy obok sprawdzanej paczki leży `djcms-db-<ten sam stamp>.dump.gpg` (kopia z `dj.`), ten sam
 tymczasowy Postgres dostaje drugą bazę: `pg_restore` i wymóg co najmniej jednej strony
 w `cms_page`; paczka `djcms-files-<stamp>.tar.gpg` musi się rozszyfrować i dać przeczytać
 w całości (`tar -tf`). Brak paczki plików przy obecnej bazie, zero stron albo nieudany
-`pg_restore` = test nieudany (`--failed`, powód w notatce). Kopie przedwdrożeniowe
+`pg_restore` = test nieudany (sprawdzenia `djcms_db` / `djcms_files`, § 43.3). Kopie przedwdrożeniowe
 `djcms-db-pre-*.dump` nie biorą w tym udziału.
 
 Po co, skoro `backup.sh` kończy się bez błędu: „`pg_dump` zwrócił 0” nie znaczy „z tej paczki da
@@ -150,7 +153,8 @@ tail -50 /var/log/olimpiada-backup.log
 
 `/status.json` (publiczny) niesie `backup_last_ok`, `backup_last_verified` i `backup_offsite`
 (ostatnia kopia wyjechała poza serwer i zgadza się tam suma kontrolna, nie starsza niż 36 h) jako
-**wartości logiczne**. Dat tam nie ma świadomie: strona jest publiczna, a data ostatniej kopii mówi obcemu,
+**wartości logiczne**, a `backup_restore_check` (także w `/healthz/`) – poziom ostatniego testu
+odtwarzania: `ok|failed|stale|unknown` (§ 43.3). Dat tam nie ma świadomie: strona jest publiczna, a data ostatniej kopii mówi obcemu,
 kiedy uderzenie zaboli najbardziej.
 
 
@@ -527,7 +531,8 @@ Widzi to, czego nie widać z zewnątrz:
 | nieudane zadania Celery | ≥ 5 w 15 min | kolejka przyjmuje i gubi |
 | odpowiedzi 5xx | ≥ 10 w 15 min | ktoś właśnie nie może oddać pracy |
 | brak kopii zapasowej | > 36 h | patrz § 1 |
-| brak testu odtwarzania | > 10 dni | patrz § 1.4 |
+| brak udanego testu odtwarzania | > 36 h (do 4.10.2026: 10 dni) | patrz § 43.5 |
+| test odtwarzania nieudany | ostatni wynik `failed` (list od razu z testu, potem co godzinę) | patrz § 43.5 |
 | kopia przestała wyjeżdżać poza serwer | > 36 h od ostatniej kopii zdalnej, przy świeżej lokalnej | patrz § 1.6 (tylko gdy kopia zdalna kiedyś działała) |
 | połączenia z Postgresem | ≥ 80 % / ≥ 95 % `max_connections` | patrz § 11.2 – „Alarm zajętości połączeń” |
 
@@ -1693,6 +1698,41 @@ drogą z § 4.2) i odtwórz `web`, `worker` oraz `beat`. Migracji ani danych to 
 niczego nie zapisuje w bazie, a dokumenty powstają od nowa przy każdym pobraniu
 (`apps/results/certificates.py`), więc wycofanie jest natychmiastowe i bezstratne.
 
+### 9.7. Reset hasła: host, język, nadawca, konta bez hasła (AUTH-01a, `docs/tasks/AUTH-01a.md`)
+
+Jak działa: link w liście prowadzi pod **host, z którego przyszło żądanie** (`iqo-official.org`,
+`olimpiadakwantowa.pl`, `/<prefiks>/` konkursu pod prefiksem), list jest w języku interfejsu tego
+konkursu i – od AUTH-01a – wychodzi od **nadawcy konkursu** (`Competition.from_email`, pusty =
+`DEFAULT_FROM_EMAIL`), tak jak aktywacja i zaproszenia. List idzie zadaniem na kolejce `mail`.
+Konto z Google/Facebooka bez hasła dostaje link, gdy adres potwierdził dostawca albo nasza
+aktywacja; konto przed aktywacją dostaje link resetu, którego zapis aktywuje konto; zaproszony uczeń
+– ponowione zaproszenie (najwyżej raz na 10 min z formularzy publicznych); konto zablokowane
+i zanonimizowane – nic. Strona odpowiedzi jest zawsze ta sama. Limit: 5/h na IP, na IP+adres
+i **na adresata** (bez IP). Koordynator nie aktywuje ręcznie konta z niezaakceptowanym zaproszeniem
+– wysyła zaproszenie ponownie.
+
+**Nadawca a relay.** `ALLOWED_SENDER_DOMAINS` (domyślnie `SITE_DOMAIN`; lista rozdzielona spacją) czyta
+i usługa `mail`, i aplikacja: nadawca konkursu spoza listy jest pomijany – listy idą od
+`DEFAULT_FROM_EMAIL`, a w logu `web`/`worker` pada raz ostrzeżenie „Nadawca konkursu … jest spoza
+ALLOWED_SENDER_DOMAINS”. Dopisanie drugiej domeny (np. `olimpiadakwantowa.pl iqo-official.org`) wymaga
+rekordów SPF/DKIM/DMARC tej domeny (klucz DKIM generuje usługa `mail` przy starcie – rekord TXT
+z `docker compose exec mail cat /etc/opendkim/keys/<domena>.txt`) i odtworzenia `mail` oraz `web`/`worker`.
+W wariancie B (zewnętrzny dostawca) wolno ustawić `*` – wtedy aplikacja nie ogranicza nadawców.
+
+Do sprawdzenia na produkcji (jednorazowo i po każdej zmianie nadawcy konkursu):
+
+1. **Nadawca każdego konkursu jest w `ALLOWED_SENDER_DOMAINS`.** Inaczej aplikacja po cichu (poza
+   jednym ostrzeżeniem w logu) wysyła od `DEFAULT_FROM_EMAIL`. Sprawdzenie:
+   `docker compose exec web python manage.py shell -c "from apps.tenancy.models import Competition as C; print(list(C.objects.values_list('slug','from_email')))"`
+   i `docker compose logs web worker | grep ALLOWED_SENDER_DOMAINS`. Wyjście: pusty `from_email`
+   (nadawca instalacji) albo druga domena w `ALLOWED_SENDER_DOMAINS` razem z SPF/DKIM/DMARC.
+2. **Odwrotny DNS i SPF/DKIM** domeny nadawcy – README § 4.2 (bez zmian).
+3. **`https` w linku**: `SECURE_PROXY_SSL_HEADER` (production.py) + `X-Forwarded-Proto` z Caddy –
+   każda domena z `EXTRA_DOMAINS` ma blok proxy z tym nagłówkiem (`scripts/render_caddyfile.sh`).
+4. **Próba na żywo**: „Nie pamiętasz hasła?” na `https://iqo-official.org/password-reset/` i na
+   `https://olimpiadakwantowa.pl/password-reset/` na skrzynkę testową – list po angielsku/polsku,
+   link pod ten sam host, nadawca konkursu, worker loguje „Wysłano 1 wiadomości”.
+
 ## 10. CI: podział testów na shardy (v0.27.3)
 
 Zadanie `pytest` w `.github/workflows/ci.yml` idzie w pięciu równoległych shardach
@@ -2572,7 +2612,7 @@ wtedy pomijana (na serwerze Ubuntu: CET/CEST).
 
 ### 19.4. Przejście na produkcji
 
-**Kiedy:** poza godzinami zgłoszeń i oceniania, nie w oknie kopii nocnej (3:15, w niedzielę też
+**Kiedy:** poza godzinami zgłoszeń i oceniania, nie w oknie kopii nocnej (3:15 i test odtwarzania
 4:40 – skrypt odmówi, gdy kopia trwa). Dzień wcześniej koordynator może wystawić komunikat na
 stronie („przerwa techniczna ok. 5 minut o …”). Przez czas przerwy proxy podaje stronę
 **„Prace techniczne”** (503, § 20) z planowaną godziną końca – włącza ją i wyłącza sam skrypt.
@@ -3076,8 +3116,8 @@ polecenie odtworzenia wypisuje log kroku 4a.
 
 Kopia nocna (`scripts/backup.sh`, § 1.2) przy `DJCMS_ENABLED=1` obejmuje bazę
 (`djcms-db-<stamp>.dump.gpg`) i wolumen plików (`djcms-files-<stamp>.tar.gpg`) – zaszyfrowane,
-wysyłane i sprzątane razem z kopią główną; cotygodniowy test odtwarzania sprawdza je razem z nią
-(§ 1.4). Kopia plików wymaga **działającego** kontenera `djcms` – zatrzymany `djcms` w nocy daje
+wysyłane i sprzątane razem z kopią główną; conocny test odtwarzania sprawdza je razem z nią
+(§ 1.4, § 43). Kopia plików wymaga **działającego** kontenera `djcms` – zatrzymany `djcms` w nocy daje
 przebieg nieudany (kopia główna mimo to powstaje). Odtwarzanie: § 2.4.
 
 ```bash
@@ -5031,6 +5071,170 @@ Po kroku 2 sprawdź `docker compose exec web python manage.py check`: `staff_mfa
   bez sesji użytkownika (§ 41.7),
 - **WebAuthn/passkeys** – brak (wymagałyby nowej zależności).
 
+---
+
+## 43. Test odtwarzania kopii (OPS-01, `docs/tasks/OPS-01.md`)
+
+### 43.1. Po co
+
+Kopia, której nikt nie odtworzył, jest hipotezą. Co noc `scripts/backup_verify.sh` **udowadnia**,
+że najnowsza kopia daje się odtworzyć do działającej platformy – tą samą drogą, co prawdziwa
+awaria – i podnosi alarm, gdy się nie da albo gdy najnowszej kopii brakuje. Do 4.10.2026 test był
+cotygodniowy i liczył wiersze w pięciu tabelach; zepsutą kopię wykrywał po tygodniu, a obciętej do
+połowy nie wykrywał wcale.
+
+### 43.2. Jak to działa
+
+Cron hosta (`/etc/cron.d/olimpiada-backup`, zakłada go `scripts/deploy.sh`): kopia o **3:15**, test
+o **4:40**, codziennie, oba pod jednym `flock` (`/var/lock/olimpiada-backup.lock`) – test nigdy nie
+czyta paczki, którą kopia jeszcze pisze. Log: `/var/log/olimpiada-backup.log`.
+
+| Krok | Co | Gdzie |
+|---|---|---|
+| 1 | najnowsza `db-*.dump.gpg` i `files-<ten sam stamp>.tar.gpg` z `/opt/olimpiada-backups` | host |
+| 2 | liczności tabel kluczowych w **żywej** bazie (`restore_check live-counts`) | kontener `web` |
+| 3 | tymczasowy Postgres (`POSTGRES_IMAGE`), sieć `--internal`, dane na `tmpfs`, `--memory 3g --cpus 1` | nowy kontener `olimpiada-restore-check-<pid>` |
+| 4 | `gpg \| pg_restore --exit-on-error` **strumieniem** – jawny zrzut nie dotyka dysku | host → tymczasowy Postgres |
+| 5 | `gpg \| tar -tf -` – pełny odczyt paczki plików, sama lista obiektów | host (`nice`, `ionice -c3`) |
+| 5b | wersja porównawcza `dj.` (§ 22), gdy jest jej paczka z tej samej nocy | tymczasowy Postgres |
+| 6 | `restore_check verify` – sprawdzenia aplikacji (§ 43.3) | jednorazowy kontener z **obrazem i środowiskiem działającego `web`**, wyłącznie w sieci tymczasowej, `--read-only`, `--memory 1g` |
+| 7 | `restore_check record` – cache, audyt `backup.restore_check`, list przy porażce; wiersz w `/opt/olimpiada-backups/restore-checks.jsonl` | kontener `web`, host |
+
+**Bezpieczeństwo.** Cel odtworzenia to zawsze nowy kontener na nowej sieci bez wyjścia – nie widzi
+bazy produkcyjnej, Redisa ani MinIO. Podwójna bramka: skrypt odmawia, gdy cel jest kontenerem
+usługi `db`, a komenda `verify` – gdy baza nie ma przedrostka `restorecheck_`, nazywa się jak
+`POSTGRES_DB`, leży na hoście `db` albo brak `RESTORE_CHECK_ISOLATED=1`; sesja bazy jest tylko do
+odczytu. Hasło kopii idzie przez deskryptor (`--passphrase-fd`), hasło bazy tymczasowej jest losowe,
+plik ze środowiskiem `web` (z `SECRET_KEY`) leży w katalogu `700` i znika zaraz po sprawdzeniach.
+Wynik niesie wyłącznie nazwy i liczby – żadnych wartości pól; treść błędów `pg_restore` (może
+cytować wiersz) zostaje w logu crona, do listu idzie tylko kod.
+
+### 43.3. Jak czytać wynik
+
+```bash
+docker compose exec web python manage.py restore_check show          # ostatni wynik ze szczegółami
+docker compose exec web python manage.py record_backup_status --show  # znaczniki + poziom testu
+tail -3 /opt/olimpiada-backups/restore-checks.jsonl                    # historia (JSON na noc)
+grep -A14 '5/6 Sprawdzenia' /var/log/olimpiada-backup.log | tail -15   # ostatni przebieg w logu
+```
+
+Poziom (`/healthz/`, `/status.json` → `backup_restore_check`, pierwsza linia `show`):
+
+| Poziom | Znaczy |
+|---|---|
+| `ok` | ostatni test udany, nie starszy niż 36 h |
+| `failed` | ostatni test **nieudany** – kopia z tej nocy nie daje się odtworzyć albo jest niepełna; alarm co godzinę do pierwszego udanego testu |
+| `stale` | ostatni test udany, ale starszy niż 36 h – test przestał chodzić (cron, `flock`, `web` nie działał) |
+| `unknown` | brak wyniku (świeża instalacja, wyczyszczony Redis) |
+
+Sprawdzenia (`ok` / `warn` – wynik nadal udany / `fail` – wynik nieudany / `skip`):
+
+| Sprawdzenie | `fail`, gdy | `warn`, gdy |
+|---|---|---|
+| `backup_age` | kopia starsza niż 26 h (`RESTORE_CHECK_MAX_BACKUP_AGE_HOURS`) | – |
+| `migrations` | brak `django_migrations`, historia niespójna, brak migracji, które działająca wersja miała już przy zrzucie | migracje wdrożone **po** zrzucie (dokończy je `migrate`), migracje nieznane kodowi (wycofanie wersji) |
+| `row_counts` | tabela kluczowa poza widełkami 90–105 % ± 20 wierszy względem żywej bazy, brak tabeli, 0 kont | – |
+| `models_readable` | któryś model nie czyta odtworzonej bazy (rozjazd schematu z kodem) | – |
+| `sequences` | sekwencja klucza głównego za `max(id)` – pierwszy zapis po odtworzeniu by się wywrócił | – |
+| `superuser` | – | brak aktywnego superużytkownika |
+| `fernet` | szyfrogram pola logistyki nie odszyfrowuje się `SECRET_KEY` ani `SECRET_KEY_FALLBACKS` | odszyfrowuje się wyłącznie kluczem z `SECRET_KEY_FALLBACKS` |
+| `files_archive` | brak `files-<stamp>.tar.gpg` albo paczka nieczytelna | – |
+| `media_sample` | z losowej próbki 20 plików prac (`clean`) + mediów CMS brakuje w paczce > 10 % (min. 1) | brak w granicy tolerancji |
+| `djcms_db`, `djcms_files` | jak w § 1.4 | – |
+
+Przebieg przerwany przed sprawdzeniami melduje **nazwę kroku** zamiast listy: `no-backup`,
+`live-counts`, `app-image`, `app-env`, `postgres`, `guard`, `decrypt`, `pg_restore`, `checks`.
+
+### 43.4. RTO i RPO (pomiar lokalny, 4.10.2026)
+
+`scripts/tests/restore_check_e2e.sh` na stacji roboczej (Docker Desktop, WSL2), obraz
+`olimpiada/web:dev`, `postgres:18-alpine`:
+
+| Baza żywa | Zrzut `-Fc` | `pg_restore` (rozszyfrowanie w strumieniu) | Paczka plików (`tar -t`) | Sprawdzenia aplikacji | Cały test |
+|---|---|---|---|---|---|
+| po migracjach + dane testowe | 1,1 MB | 1,9 s | 0,2 s | 2,6 s | 17 s |
+| 426 MB (+1 mln wierszy audytu) | 10 MB | 8,3 s | 0,2 s | 3,5 s | 26 s |
+
+Około 10 s „całego testu” to start trzech procesów Django i kontenera Postgresa – stała, niezależna
+od rozmiaru. **RTO bazy** (od paczki do działającej bazy) rośnie liniowo z jej rozmiarem: lokalnie
+ok. 20 s na 1 GB odtworzonej bazy; na produkcji (VPS traci część czasu procesora na rzecz sąsiadów)
+licz 2–4 razy więcej. **Pełne RTO awarii serwera** to dodatkowo nowy host,
+`git` + obraz, ściągnięcie paczek z miejsca poza serwerem i odtworzenie kubełków (§ 2) – test go nie
+mierzy. Rzeczywiste liczby z produkcji: `restore_check show` (pole `czasy`) po pierwszym przebiegu –
+wpisz je tutaj.
+
+**RPO** – kopia raz na dobę o 3:15: w najgorszym razie tracimy ok. 24 h zmian (awaria tuż przed
+3:15). Test dowodzi, że ta kopia jest **użyteczna**; zepsutą kopię widać najpóźniej ok. 4:45 tej samej
+nocy (list), a brak kopii – po 26 h (`backup_age`) i po 36 h (watchdog `backup`).
+
+### 43.5. Co zrobić, gdy test się nie udał
+
+1. `docker compose exec web python manage.py restore_check show` – które sprawdzenie albo który krok.
+2. Według przyczyny:
+
+| Wynik | Najczęstsza przyczyna | Reakcja |
+|---|---|---|
+| `no-backup`, `backup_age` | kopia nocna nie powstała (§ 1.2, log `/var/log/olimpiada-backup.log`) | napraw kopię, `scripts/backup.sh`, potem test ręcznie (§ 43.6) |
+| `decrypt` | `BACKUP_PASSPHRASE` w `.env` inne niż to, którym zaszyfrowano kopię | **pilne**: porównaj z menedżerem haseł (§ 1.3); kopie zaszyfrowane nieznanym hasłem są stracone – zrób nową kopię od razu |
+| `pg_restore` | paczka obcięta (pełny dysk przy kopii), zrzut z innej wersji Postgresa | `df -h`, log `pg_restore` w `/var/log/olimpiada-backup.log`, nowa kopia |
+| `migrations` (fail) | zrzut z innej instalacji albo w połowie migracji | sprawdź, czy kopia jest z tej nocy; nowa kopia |
+| `row_counts` | zrzut obcięty **albo** masowe kasowanie w bazie żywej od nocy | porównaj liczby w `show`; jeśli zniknęło z bazy żywej – to incydent danych (§ 7), nie kopii |
+| `models_readable`, `sequences` | rozjazd kopii z wdrożonym kodem / brak `setval` w zrzucie | zgłoś programiście z wynikiem `show`; kopia sprzed wdrożenia odtworzy się po `migrate` |
+| `fernet` | zmieniony `SECRET_KEY` bez wpisania starego do `SECRET_KEY_FALLBACKS` (§ 31) | **pilne przed finałem**: przywróć stary klucz do `SECRET_KEY_FALLBACKS` w `.env`, `docker compose up -d web worker beat` |
+| `files_archive`, `media_sample` | lustro MinIO nie powstało albo jest niepełne (§ 1.2, krok 2) | log kopii, `docker compose ps minio`, nowa kopia |
+| `checks` | kontener sprawdzeń bez wyniku (pamięć, obraz) | log crona; `RESTORE_CHECK_APP_MEMORY=2g` w `.env` |
+| `postgres` | brak pamięci na `tmpfs` (baza > 3 GB) | `RESTORE_CHECK_PG_MEMORY` i `RESTORE_CHECK_TMPFS` w `.env` (np. `6g`), jeśli host ma zapas |
+
+3. Po naprawie – test ręcznie (§ 43.6). Udany wynik gasi alarm (`backup-restore-check`).
+
+Progi (w `.env` serwera, czyta je skrypt i przekazuje do sprawdzeń): `RESTORE_CHECK_MAX_BACKUP_AGE_HOURS`
+(26), `RESTORE_CHECK_MIN_RATIO` (0.90), `RESTORE_CHECK_MAX_RATIO` (1.05), `RESTORE_CHECK_SLACK_ROWS`
+(20), `RESTORE_CHECK_MEDIA_SAMPLE` (20), `RESTORE_CHECK_MEDIA_MAX_MISSING_RATIO` (0.10); limity:
+`RESTORE_CHECK_PG_MEMORY` (3g), `RESTORE_CHECK_TMPFS` (3g), `RESTORE_CHECK_PG_CPUS` (1),
+`RESTORE_CHECK_APP_MEMORY` (1g), `RESTORE_CHECK_CPU_SHARES` (256).
+
+### 43.6. Uruchomienie ręczne i test lokalny
+
+```bash
+# na serwerze (czeka na ewentualnie trwającą kopię; kilka minut)
+cd /opt/olimpiada && flock -w 3600 /var/lock/olimpiada-backup.lock scripts/backup_verify.sh
+# konkretna paczka, np. ściągnięta z miejsca poza serwerem (§ 2.2: restore.sh --fetch)
+scripts/backup_verify.sh /opt/olimpiada-backups/db-20261003T031500Z.dump.gpg
+```
+
+Kod wyjścia 0 = wynik `ok`, 1 = nieudany (meldunek i list poszły). Lokalnie, bez serwera:
+`scripts/tests/restore_check_e2e.sh` (pełny cykl na Dockerze: kopia → test → `ok`; zrzut uszkodzony →
+`failed` + list; kopia sprzed 30 h; brak paczki plików; bramka), `RESTORE_CHECK_E2E_AUDIT_ROWS=1000000`
+dokłada balast do pomiaru RTO. Polecenia skryptu na atrapach: `scripts/tests/backup_offsite_test.sh`
+(przypadki 14 i 16), sprawdzenia aplikacji: `pytest apps/core/tests/test_restore_check.py`.
+
+### 43.7. Kroki operatora na produkcji (po wdrożeniu wersji z OPS-01, za zgodą organizatora)
+
+1. Wdrożenie zwykłą drogą (`scripts/deploy.sh`) – krok 8/8 przepisuje `/etc/cron.d/olimpiada-backup`.
+   Sprawdzenie: `cat /etc/cron.d/olimpiada-backup` (dwie linie z `flock`, test `40 4 * * *`)
+   i `command -v flock` (pakiet `util-linux`, na Ubuntu jest zawsze).
+2. `grep ^ALERT_EMAILS= /opt/olimpiada/.env` – bez adresów list alarmowy nie wyjdzie (§ 3.2).
+3. Rozmiar bazy wobec limitu `tmpfs` (3 GB):
+   `docker compose exec db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "SELECT pg_size_pretty(pg_database_size(current_database()))"'`
+   i `free -h` (test zajmuje w nocy do 3 GB + 1 GB RAM). Baza > 2 GB – podnieś
+   `RESTORE_CHECK_PG_MEMORY`/`RESTORE_CHECK_TMPFS` w `.env`.
+4. Pierwszy test od razu (poza godzinami zgłoszeń):
+   `cd /opt/olimpiada && flock -w 3600 /var/lock/olimpiada-backup.lock scripts/backup_verify.sh`,
+   potem `docker compose exec web python manage.py restore_check show` – poziom `ok`.
+5. Czasy z `show` (pole `czasy`: `db_restore_s`, `total_s`) wpisz do § 43.4 jako RTO produkcji.
+6. `curl -s https://olimpiadakwantowa.pl/status.json | python3 -m json.tool | grep backup_restore_check`
+   – `"ok"`. W monitorze zewnętrznym (§ 3.1) dodaj monitor słowa kluczowego
+   `"backup_restore_check": "ok"` na `/status.json`.
+7. (Opcjonalnie) próba listu alarmowego: `docker compose exec web python manage.py restore_check
+   record --failure proba-alarmu --detail "próba listu"` – list do `ALERT_EMAILS`; alarm gaśnie po
+   kolejnym udanym teście (krok 4).
+8. Następnego ranka: `grep -A14 '5/6 Sprawdzenia' /var/log/olimpiada-backup.log | tail -15` – przebieg
+   z crona o 4:40.
+
+Wycofanie: wdrożenie poprzedniej wersji przywraca cotygodniowy wpis crona; po teście zostają tylko
+wpisy audytu `backup.restore_check`, klucz `backup:restore_check` w Redisie i plik
+`restore-checks.jsonl` (ok. 2 KB na noc, bez danych osobowych).
+
 ## 39. Nadzór zdalny etapów online (PROC-01, `docs/tasks/PROC-01.md`)
 
 Koordynator włącza nadzór **dla wybranego etapu online** (`Etapy → Nadzór zdalny`); uczeń przechodzi
@@ -5151,3 +5355,52 @@ egress to osobny proces – na 300 nagrań naraz zaplanuj 2–3 węzły egress (
   być LiveKit (np. z `/admin/`), ma nadzór ignorowany.
 - Pojemność: rozmowa to kilka osób w pokoju – pomijalne obciążenie wobec § 39.3.
 
+## 45. Zmiana hasła w panelu konta (AUTH-01b, `docs/tasks/AUTH-01b.md`)
+
+Nowa aplikacja `apps.password_change` – **bez migracji, bez zmiennych środowiskowych, bez flagi**:
+ekran `/account/password/` działa po wdrożeniu dla każdego zalogowanego konta, we wszystkich konkursach
+(także pod prefiksem ścieżki).
+
+- **Jedna droga do hasła i adresu.** Zmiana hasła i adresu e-mail żąda **aktualnego hasła**
+  (`apps.accounts.reauth`); konto bez hasła (Google/Facebook) ustawia je najpierw linkiem na obecny
+  adres. Pozostałe drogi są zamknięte: `WAGTAIL_PASSWORD_MANAGEMENT_ENABLED = False` i
+  `WAGTAIL_EMAIL_MANAGEMENT_ENABLED = False` (w `/cms/account/` nie ma paneli „Hasło” ani pola e-mail),
+  `/admin/password_change/` i `/admin/password_change/done/` przekierowują na `/account/password/`.
+  Superużytkownik zmienia **cudze** hasło w `/admin/` jak dotąd (formularz użytkownika) – to czynność
+  operatora, nie samoobsługa.
+- **Seria pomyłek:** 5 kolejnych złych haseł w jednej sesji (wspólnie: zmiana hasła i zmiana adresu)
+  kończy sesję – dalsze próby idą przez logowanie (limit `login`, 2FA). W audycie `diff.consecutive`
+  i `diff.session_ended`. Licznik żyje w sesji, nie trzeba go czyścić.
+- **Limit:** `password_change` – 10 POST-ów na godzinę **na konto** (`REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]`,
+  licznik `apps.web.throttle` w Redisie). Zmiana adresu e-mail i przycisk „Wyślij mi link do ustawienia
+  hasła” liczą się w scope `password_reset` (5/h) – od AUTH-01b też **na konto**, nie na adres IP.
+  Odmowa mówi „na tym koncie”, nie „z tego adresu”.
+- **Sesje:** zmiana hasła wylogowuje pozostałe sesje konta w aplikacji (skrót hasła w sesji Django) i kasuje
+  tokeny API; bieżąca sesja i znacznik 2FA zostają (także gdy `check_password` podniósł skrót po zmianie
+  `PASSWORD_HASHERS`). **Sesje edytora django CMS** (osobna baza, ciasteczko `djcms_sessionid`) zmiana
+  hasła **nie** kończy – wygasają po `DJCMS_SSO_SESSION_SECONDS` (domyślnie 2 h). Redaktor dostaje o tym
+  zdanie na ekranie i w liście; przy podejrzeniu przejęcia zablokuj konto w django CMS (§ 22.3).
+- **Poczta:** list „Hasło do konta zostało zmienione” idzie kolejką `mail` (worker) w języku żądania,
+  od nadawcy konkursu, z godziną w strefie ucznia (TZ-01) albo konkursu (`Competition.time_zone`) i
+  linkiem do `/password-reset/` pod hostem konkursu. Kolejkowanie jest odporne na awarię brokera:
+  zmiana się udaje, a w logu `web` zostaje `Nie udało się zakolejkować listu o zmianie hasła dla konta <id>`
+  – wtedy sprawdź Redis/worker jak przy innych listach.
+- **Audyt:** `password.changed`, `password.change_failed`, `account.email_change_failed`,
+  `password.set_link_sent` – bez sekretów.
+- **Motyw IQO:** w pasku konta adres e-mail jest odnośnikiem do ustawień konta (fragment
+  `web/_account_who.html`). Panele mają to od razu; na **stronach publicznych** z motywem `iqo-quantum`
+  odnośnik pojawi się po wgraniu paczki **1.1.1** (nagłówek i jedna reguła CSS; `min_app_version`
+  **0.45.0**, czyli dopiero po wdrożeniu wydania z AUTH-01b – na starszej aplikacji wgranie jest odrzucane):
+
+```sh
+python themes/iqo-quantum/build_zip.py   # → themes/iqo-quantum/dist/iqo-quantum-1.1.1.zip (laptop)
+scp -i ~/.ssh/olimpiada_deploy themes/iqo-quantum/dist/iqo-quantum-1.1.1.zip deploy@<serwer>:/tmp/
+docker compose exec -T web python manage.py theme_install - --activate iqo < /tmp/iqo-quantum-1.1.1.zip
+```
+
+  Bez tego kroku nic się nie psuje – 1.1.0 pokazuje adres jako zwykły tekst. Cofnięcie: aktywacja 1.1.0
+  (§ 30.1).
+- **Wycofanie funkcji:** usunięcie wiersza `apps.password_change` z `INSTALLED_APPS` i rozwinięcia
+  wzorców w `apps/web/urls.py` oraz sekcji „Hasło” w `web/account/profile.html` (danych do sprzątania
+  nie ma – funkcja niczego nie przechowuje poza `accounts.User.password` i audytem). Wymóg hasła przy
+  zmianie adresu i zamknięcie dróg Wagtaila/admina zostają – to poprawki bezpieczeństwa, nie część ekranu.

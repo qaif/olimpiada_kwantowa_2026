@@ -32,6 +32,7 @@ from django.views.generic import View
 from apps.accounts.anonymised import is_anonymised
 from apps.accounts.guardian import STATUS_MISSING, STATUS_PENDING, guardian_status
 from apps.accounts.models import COORDINATOR_GROUPS, GROUP_SUPER_COORDINATOR, Participant, User, Voivodeship
+from apps.accounts.password_reset import reset_eligible
 from apps.accounts.profile import (
     competition_footprint,
     delete_account_by_coordinator,
@@ -753,6 +754,9 @@ class CoordinatorAccountEditView(CoordinatorRequiredMixin, View):
             "account_form": forms.get("account"),
             "participant_form": forms.get("participant"),
             "committee_form": forms.get("committee"),
+            # Ta sama reguła, co w „Nie pamiętasz hasła?” (AUTH-01a, L4): przycisk resetu widzi
+            # także konto Google/Facebooka z potwierdzonym adresem.
+            "password_reset_allowed": reset_eligible(user),
         }
         return TemplateResponse(request, EDIT_TEMPLATE, context, status=status)
 
@@ -846,8 +850,10 @@ class CoordinatorPasswordResetView(CoordinatorRequiredMixin, View):
       aktywacji),
     - **konto zablokowane** (``is_active=False``) – blokada ma znaczyć „nie loguje się wcale”,
       a nie „loguje się nowym hasłem”,
-    - **konto bez hasła platformy** (``has_usable_password()`` fałsz, logowanie wyłącznie przez
-      zewnętrznego dostawcę) – nie ma czego resetować,
+    - **konto, któremu samoobsługa też nie wysłałaby linku** (``password_reset.reset_eligible``):
+      konto bez hasła platformy bez adresu potwierdzonego przez dostawcę albo konto z zaproszenia
+      bez kompletu zgód. Konto Google/Facebooka z potwierdzonym adresem link **dostaje** – tak
+      samo jak w „Nie pamiętasz hasła?” (AUTH-01a, L4) – i ustawia nim pierwsze hasło,
     - **konto własne koordynatora** – do tego służy „Nie pamiętasz hasła?” na stronie logowania,
       a nie ekran zarządzania cudzymi kontami.
     """
@@ -883,11 +889,12 @@ class CoordinatorPasswordResetView(CoordinatorRequiredMixin, View):
                 "(pole „Konto aktywne” w danych konta).",
             )
             return redirect(edit_url)
-        if not user.has_usable_password():
+        if not reset_eligible(user):
             messages.error(
                 request,
-                f"Konto {user.email} nie ma hasła platformy (logowanie przez zewnętrznego "
-                "dostawcę) – nie ma czego resetować.",
+                f"Konto {user.email} nie ma hasła platformy i link nie zostanie wysłany: adres nie "
+                "jest potwierdzony przez dostawcę logowania albo konto z zaproszenia nie ma kompletu "
+                "zgód. Uczeń z zaproszeniem uruchamia konto linkiem z zaproszenia.",
             )
             return redirect(edit_url)
 
@@ -900,7 +907,7 @@ class CoordinatorPasswordResetView(CoordinatorRequiredMixin, View):
             return redirect(edit_url)
 
         # Te same nazwy szablonów i ten sam kontekst, co w ``PasswordResetView`` – patrz docstring
-        # klasy. ``from_email`` pusty sięga po domyślnego nadawcę ustawień, tak jak tam.
+        # klasy. ``from_email`` pusty = nadawca konkursu (``QueuedPasswordResetForm.send_mail``), tak jak tam.
         form.save(
             use_https=request.is_secure(),
             token_generator=default_token_generator,

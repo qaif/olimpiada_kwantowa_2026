@@ -18,7 +18,7 @@ from django.urls import reverse
 
 from apps.accounts.models import Voivodeship
 from apps.accounts.profile import request_email_change
-from apps.accounts.tests.factories import UserFactory
+from apps.accounts.tests.factories import DEFAULT_PASSWORD, UserFactory
 from apps.core.models import AuditLog
 from apps.schools.tests.factories import SchoolFactory
 
@@ -213,7 +213,9 @@ def test_the_address_changes_only_after_the_link_is_clicked(
     web_client.force_login(participant.user)
 
     with django_capture_on_commit_callbacks(execute=True):
-        response = web_client.post(EMAIL_URL, {"new_email": "nowy@example.test"})
+        response = web_client.post(
+            EMAIL_URL, {"new_email": "nowy@example.test", "current_password": DEFAULT_PASSWORD}
+        )
 
     assert response.status_code == 302
     participant.user.refresh_from_db()
@@ -239,7 +241,9 @@ def test_an_address_already_taken_is_refused_case_insensitively(web_client, part
     UserFactory(email="zajety@example.test")
     web_client.force_login(participant.user)
 
-    response = web_client.post(EMAIL_URL, {"new_email": "Zajety@Example.TEST"})
+    response = web_client.post(
+        EMAIL_URL, {"new_email": "Zajety@Example.TEST", "current_password": DEFAULT_PASSWORD}
+    )
 
     assert response.status_code == 200
     assert "już istnieje" in response.content.decode()
@@ -249,7 +253,9 @@ def test_an_address_already_taken_is_refused_case_insensitively(web_client, part
 def test_the_current_address_is_not_a_change(web_client, participant):
     web_client.force_login(participant.user)
 
-    response = web_client.post(EMAIL_URL, {"new_email": participant.user.email.upper()})
+    response = web_client.post(
+        EMAIL_URL, {"new_email": participant.user.email.upper(), "current_password": DEFAULT_PASSWORD}
+    )
 
     assert response.status_code == 200
     assert "To już jest adres tego konta." in response.content.decode()
@@ -260,12 +266,16 @@ def test_a_confirmation_link_goes_stale_after_a_second_change(
 ):
     """Token niesie stary adres, więc link z poprzedniej próby nie wraca do adresu, którego nie ma."""
     with django_capture_on_commit_callbacks(execute=True):
-        request_email_change(participant.user, new_email="pierwszy@example.test")
+        request_email_change(
+            participant.user, new_email="pierwszy@example.test", current_password=DEFAULT_PASSWORD
+        )
     stale = link_from(mail.outbox[-1])
     mail.outbox.clear()
 
     with django_capture_on_commit_callbacks(execute=True):
-        request_email_change(participant.user, new_email="drugi@example.test")
+        request_email_change(
+            participant.user, new_email="drugi@example.test", current_password=DEFAULT_PASSWORD
+        )
     # Osobny blok: wywołania po commicie idą dopiero na wyjściu, więc listu nie ma jeszcze
     # w skrzynce, dopóki blok się nie zamknie.
     with django_capture_on_commit_callbacks(execute=True):

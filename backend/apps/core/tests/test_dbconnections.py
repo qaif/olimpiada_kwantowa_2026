@@ -193,9 +193,9 @@ def test_status_json_carries_the_level_after_the_older_keys(client, fetched):
 
     payload = json.loads(client.get("/status.json").content)
 
-    # Dołożony na końcu kontraktu w swoim wydaniu – za nim jest już tylko ``backup_offsite``
-    # (kopia poza serwerem, wydanie „kopie zapasowe na Dysku Google”).
-    assert list(payload)[-2:] == ["db_connections", "backup_offsite"]
+    # Dołożony na końcu kontraktu w swoim wydaniu – za nim są już tylko ``backup_offsite``
+    # (kopia poza serwerem, wydanie „kopie zapasowe na Dysku Google”) i ``backup_restore_check`` (OPS-01).
+    assert list(payload)[-3:] == ["db_connections", "backup_offsite", "backup_restore_check"]
     assert payload["db_connections"] == dbconnections.LEVEL_CRITICAL
     # Poziom nie gasi całej strony: przy braku połączeń zgaśnie i tak ``services.database``.
     assert payload["status"] == "ok"

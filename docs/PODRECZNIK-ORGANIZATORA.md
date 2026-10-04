@@ -1770,6 +1770,20 @@ co samoobsługowe „Nie pamiętasz hasła?” — nigdy nie zobaczysz ani noweg
 przycisk odmawia dla konta jeszcze nieaktywowanego, zablokowanego, bez hasła platformy i dla
 własnego konta.
 
+**Zmiana hasła przez samego użytkownika** (AUTH-01b) — każda rola, także Ty: kliknij swój adres
+e-mail w pasku konta (prowadzi do ustawień konta) → „Hasło” → **„Zmień hasło”** (`/account/password/`).
+Wymaga aktualnego hasła; po zmianie inne urządzenia i aplikacje są wylogowane, a na adres konta idzie
+list „Hasło do konta zostało zmienione”. Konto bez hasła (Google/Facebook) dostaje tam przycisk
+wysyłający link do ustawienia hasła na **własny** adres. W audycie: `password.changed`,
+`password.change_failed` (złe aktualne hasło — seria takich wpisów przy jednym koncie to sygnał, że
+ktoś zgaduje z otwartej sesji) i `password.set_link_sent`; żadnych haseł ani adresów w szczegółach.
+Pytanie „zmieniłem hasło i wylogowało mnie na telefonie” — to zamierzone. Wyjątek: otwarta sesja
+**edytora django CMS** na innym urządzeniu nie kończy się od razu (wygasa sama po kilku godzinach) —
+przy podejrzeniu przejęcia poproś administratora o zablokowanie konta w django CMS. Hasła i adresu
+nie zmienia się w `/cms/` (ekran konta Wagtaila nie ma już tych pól) ani w `/admin/` — zawsze
+w ustawieniach konta serwisu; **zmiana adresu e-mail wymaga aktualnego hasła**, a pięć błędnych
+haseł z rzędu kończy sesję (`diff.session_ended` w audycie).
+
 ### 9.4 Audyt — `/coordinator/audit/`
 
 Ekran **„Audyt”**: 100 wpisów na stronę, od najnowszego, z filtrami (fragment adresu wykonawcy, akcja,
