@@ -9130,3 +9130,27 @@ msgid ""
 msgstr ""
 "Recordings and files usually appear here a few days after the workshops. The "
 "schedule is on the <a href=\"/warsztaty/\">Workshops</a> page."
+
+#: apps/cms/context_processors.py
+msgid "Dokumenty"
+msgstr "Documents"
+
+#: apps/cms/context_processors.py
+msgid "Komitety"
+msgstr "Committees"
+
+#: apps/cms/context_processors.py
+msgid "Harmonogram"
+msgstr "Schedule"
+
+#: apps/cms/context_processors.py
+msgid "Kontakt"
+msgstr "Contact"
+
+#: apps/cms/context_processors.py
+msgid "Dla szkół/nauczycieli"
+msgstr "For schools/teachers"
+
+#: apps/cms/context_processors.py
+msgid "Rejestracja nauczyciela"
+msgstr "Teacher registration"

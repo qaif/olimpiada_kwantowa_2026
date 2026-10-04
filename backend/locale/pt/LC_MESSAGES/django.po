@@ -9194,3 +9194,27 @@ msgstr ""
 "As gravações e os arquivos costumam aparecer aqui alguns dias após os "
 "workshops. A programação está na página <a href=\"/warsztaty/\">Workshops</"
 "a>."
+
+#: apps/cms/context_processors.py
+msgid "Dokumenty"
+msgstr "Documentos"
+
+#: apps/cms/context_processors.py
+msgid "Komitety"
+msgstr "Comitês"
+
+#: apps/cms/context_processors.py
+msgid "Harmonogram"
+msgstr "Cronograma"
+
+#: apps/cms/context_processors.py
+msgid "Kontakt"
+msgstr "Contato"
+
+#: apps/cms/context_processors.py
+msgid "Dla szkół/nauczycieli"
+msgstr "Para escolas/professores"
+
+#: apps/cms/context_processors.py
+msgid "Rejestracja nauczyciela"
+msgstr "Cadastro de professor"

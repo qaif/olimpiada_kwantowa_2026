@@ -9103,3 +9103,27 @@ msgid ""
 msgstr ""
 "Записи и файлы обычно появляются здесь через несколько дней после семинара. "
 "Расписание — на странице <a href=\"/warsztaty/\">Семинары</a>."
+
+#: apps/cms/context_processors.py
+msgid "Dokumenty"
+msgstr "Документы"
+
+#: apps/cms/context_processors.py
+msgid "Komitety"
+msgstr "Комитеты"
+
+#: apps/cms/context_processors.py
+msgid "Harmonogram"
+msgstr "Расписание"
+
+#: apps/cms/context_processors.py
+msgid "Kontakt"
+msgstr "Контакты"
+
+#: apps/cms/context_processors.py
+msgid "Dla szkół/nauczycieli"
+msgstr "Для школ/учителей"
+
+#: apps/cms/context_processors.py
+msgid "Rejestracja nauczyciela"
+msgstr "Регистрация учителя"

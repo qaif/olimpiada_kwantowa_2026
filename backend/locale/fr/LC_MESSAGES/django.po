@@ -9334,3 +9334,27 @@ msgstr ""
 "Les enregistrements et fichiers sont généralement publiés ici quelques jours "
 "après les ateliers. Le calendrier figure sur la page <a href=\"/warsztaty/"
 "\">Ateliers</a>."
+
+#: apps/cms/context_processors.py
+msgid "Dokumenty"
+msgstr "Documents"
+
+#: apps/cms/context_processors.py
+msgid "Komitety"
+msgstr "Comités"
+
+#: apps/cms/context_processors.py
+msgid "Harmonogram"
+msgstr "Calendrier"
+
+#: apps/cms/context_processors.py
+msgid "Kontakt"
+msgstr "Contact"
+
+#: apps/cms/context_processors.py
+msgid "Dla szkół/nauczycieli"
+msgstr "Écoles/enseignants"
+
+#: apps/cms/context_processors.py
+msgid "Rejestracja nauczyciela"
+msgstr "Inscription enseignant"

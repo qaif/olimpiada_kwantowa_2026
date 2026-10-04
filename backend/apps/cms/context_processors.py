@@ -32,6 +32,8 @@ import logging
 
 from django.db import DatabaseError
 from django.db.models import Q
+from django.utils.translation import gettext
+from django.utils.translation import gettext_noop as N_
 
 logger = logging.getLogger(__name__)
 
@@ -75,6 +77,37 @@ PROMOTED_DOCUMENT_SLUGS = frozenset({"komitety"})
 #: Pierwsza pozycja menu: strona główna, rysowana w szablonie jako domek (``item.home``).
 HOME_ITEM_TITLE = "Strona główna"
 
+#: Tytuły, które menu **tłumaczy** na język interfejsu: stałe tego modułu i tytuły stron, które
+#: zakłada szablon konkursu (``apps.tenancy.templates_catalog``). Treść CMS jest jednojęzyczna
+#: (I18N-01 § 8), ale te nazwy są słownikiem ramy serwisu, nie treścią redakcji: IQO dostał drzewo
+#: z polskiego szablonu i jego menu zostawało po polsku w każdym z 11 języków (4.10.2026).
+#: Tytuł zmieniony przez redakcję nie pasuje do żadnego wpisu i zostaje taki, jak go wpisano;
+#: Konkurs #1 ma wyłącznie polski, więc ``gettext`` oddaje mu dokładnie ten sam napis.
+STANDARD_TITLES = frozenset(
+    {
+        N_("Strona główna"),
+        N_("Aktualności"),
+        N_("Zadania"),
+        N_("Archiwum"),
+        N_("Wyniki"),
+        N_("Dokumenty"),
+        N_("Komitety"),
+        N_("Partnerzy"),
+        N_("Harmonogram"),
+        N_("Warsztaty"),
+        N_("Kontakt"),
+        N_("Dla szkół/nauczycieli"),
+        N_("Rejestracja nauczyciela"),
+        N_("Plakaty do pobrania"),
+    }
+)
+
+
+def _label(title: str) -> str:
+    """Napis pozycji menu w języku żądania – tylko dla tytułów ze słownika ramy."""
+    return gettext(title) if title in STANDARD_TITLES else title
+
+
 #: Zapasowe menu = dokładnie te ścieżki, które tworzy migracja drzewa stron **witryny domyślnej**.
 #: Stała zostaje nietknięta (pilnuje jej ``test_menu_matches_seeded_tree``); zmieniło się to, komu
 #: wolno ją pokazać – patrz docstring modułu.
@@ -91,7 +124,7 @@ def _menu_item(slug: str, title: str, url: str, request, kids: list[dict] | None
     kids = kids or []
     return {
         "slug": slug,
-        "title": MENU_TITLES.get(slug, title),
+        "title": _label(MENU_TITLES.get(slug, title)),
         "url": url,
         "children": kids,
         # Pozycja rodzica jest podświetlona także wtedy, gdy czytelnik stoi na jej dziecku –
@@ -165,7 +198,7 @@ def _supervisor_menu_item(request) -> dict | None:
 
 def _child(title: str, url: str, request) -> dict:
     """Pozycja listy rozwijanej – ten sam kształt co dzieci sekcji dokumentów."""
-    return {"title": title, "url": url, "active": request.path == url}
+    return {"title": _label(title), "url": url, "active": request.path == url}
 
 
 def _expandable_children(pages: list, request) -> tuple[dict[int, list[dict]], list[dict]]:
@@ -254,6 +287,7 @@ def cms_menu(request) -> dict:
         [
             {
                 **item,
+                "title": _label(item["title"]),
                 "slug": item["url"].strip("/"),
                 "children": [],
                 "active": request.path == item["url"],

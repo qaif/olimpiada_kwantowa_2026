@@ -53,7 +53,9 @@
   <meta property="og:site_name" content="{{ settings.cms.SiteSettings.site_name }}">
   <meta property="og:title" content="{% block og_title %}{{ settings.cms.SiteSettings.site_name }}{% endblock %}">
   {% if competition.social_image_id %}{% image competition.social_image fill-1200x630 format-png as og %}
-  <meta property="og:image" content="{{ request.scheme }}://{{ request.get_host }}{{ og.url }}">
+  {% comment %}Rendycja z S3 ma już pełny adres (bucket publiczny pod własnym originem); doklejanie
+    hosta serwisu dawało „https://iqo-official.orghttps://…” (prod 4.10.2026).{% endcomment %}
+  <meta property="og:image" content="{% if og.url|slice:':4' == 'http' %}{{ og.url }}{% else %}{{ request.scheme }}://{{ request.get_host }}{{ og.url }}{% endif %}">
   {% else %}
   <meta property="og:image" content="{{ request.scheme }}://{{ request.get_host }}{% static 'img/og-image.png' %}">
   {% endif %}
