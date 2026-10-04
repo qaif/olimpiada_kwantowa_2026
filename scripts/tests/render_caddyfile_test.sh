@@ -40,7 +40,7 @@ render() {
   # zwraca kod wyjścia generatora. Argumenty 3–5 są **zawsze** przekazywane (choćby puste), bo
   # zmienna nieustawiona każe generatorowi czytać `.env` – a test ma sprawdzać generator, a nie
   # czyjś plik konfiguracyjny.
-  EXTRA_DOMAINS="$1" PLATFORM_SUBDOMAINS="${3:-}" DJCMS_ENABLED="${4:-}" DJCMS_PRIMARY="${5:-}" LIVEKIT_PROXY="${6:-}" CADDYFILE_OUT="$2"     bash "$RENDER" >"$WORK/stdout" 2>"$WORK/stderr"
+  EXTRA_DOMAINS="$1" PLATFORM_SUBDOMAINS="${3:-}" DJCMS_ENABLED="${4:-}" DJCMS_PRIMARY="${5:-}" LIVEKIT_PROXY="${6:-}" ERRORS_PROXY="${7:-}" CADDYFILE_OUT="$2"     bash "$RENDER" >"$WORK/stdout" 2>"$WORK/stderr"
 }
 
 # 1. Pusta lista domen = dzisiejsza konfiguracja, co do bajtu.
@@ -733,6 +733,37 @@ check "LIVEKIT_PROXY=1 przy subdomenach: live. ze zwykłym certyfikatem" $?
 render "" "$WORK/lk-bad.caddy" "" "" "" "tak"
 [ $? -eq 1 ] && grep -qF 'LIVEKIT_PROXY' "$WORK/stderr"
 check "LIVEKIT_PROXY=tak zatrzymuje generator z komunikatem" $?
+
+# ERRORS_PROXY (zadanie OPS-02): wyłączony = bajt w bajt jak dotąd; włączony = blok `errors.` na końcu
+# (GlitchTip, bez strony prac technicznych, z nagłówkami bezpieczeństwa), przy subdomenach – zwykły
+# certyfikat; razem z LIVEKIT_PROXY oba bloki; wartość spoza listy = błąd.
+render "" "$WORK/err-off.caddy" "" "" "" "" "0"
+cmp -s "$SRC" "$WORK/err-off.caddy"
+check "ERRORS_PROXY=0 daje kopię deploy/Caddyfile bajt w bajt" $?
+render "" "$WORK/err-on.caddy" "" "" "" "" "1"
+awk '/^errors\./,/^}/' "$WORK/err-on.caddy" >"$WORK/err-block.txt"
+grep -qxF 'errors.{$SITE_DOMAIN} {' "$WORK/err-block.txt" && grep -qxF '    reverse_proxy glitchtip:8000 {' "$WORK/err-block.txt" \
+  && head -c "$(wc -c <"$SRC")" "$WORK/err-on.caddy" | cmp -s - "$SRC"
+check "ERRORS_PROXY=1 dokłada blok errors. -> glitchtip:8000 za blokami źródłowymi" $?
+for needle in 'Strict-Transport-Security "max-age=31536000"' 'X-Content-Type-Options "nosniff"' 'X-Frame-Options "DENY"' 'max_size 10MB'; do
+  grep -qF "$needle" "$WORK/err-block.txt"
+  check "blok errors. zawiera „$needle”" $?
+done
+! grep -qE 'import maintenance|key_type' "$WORK/err-block.txt"
+check "blok errors. bez strony prac technicznych i bez przypięcia TLS (subdomeny wyłączone)" $?
+render "" "$WORK/err-sub.caddy" "1" "" "" "1" "1"
+awk '/^errors\./,/^}/' "$WORK/err-sub.caddy" | grep -qF 'key_type p256' && grep -qF 'live.{$SITE_DOMAIN} {' "$WORK/err-sub.caddy"
+check "ERRORS_PROXY=1 przy subdomenach i LiveKit: errors. ze zwykłym certyfikatem, live. obok" $?
+render "" "$WORK/err-bad.caddy" "" "" "" "" "tak"
+[ $? -eq 1 ] && grep -qF 'ERRORS_PROXY' "$WORK/stderr"
+check "ERRORS_PROXY=tak zatrzymuje generator z komunikatem" $?
+if [ "${SKIP_CADDY_VALIDATE:-0}" != "1" ] && command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
+  for f in "$WORK/err-on.caddy" "$WORK/err-sub.caddy"; do
+    caddy_run "$f" validate >"$WORK/validate.out" 2>&1
+    rc=$?
+    check "caddy validate ($CADDY_IMAGE): ${f##*/}" "$rc"
+  done
+fi
 
 if [ "$failures" -ne 0 ]; then
   printf '\n%d test(ów) nie przeszło.\n' "$failures"

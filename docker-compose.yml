@@ -474,6 +474,150 @@ services:
     security_opt:
       - no-new-privileges:true
 
+  glitchtip:
+    # Śledzenie błędów (OPS-02, docs/OPERACJE.md § 44): GlitchTip – otwarte oprogramowanie zgodne
+    # z protokołem Sentry, na tym serwerze, pod errors.<SITE_DOMAIN> (blok Caddy'ego przy
+    # ERRORS_PROXY=1, scripts/render_caddyfile.sh). Profil `monitoring` – nie wstaje przy zwykłym
+    # `up` ani przy wdrożeniu; włącza się świadomie: `docker compose --profile monitoring up -d
+    # glitchtip glitchtip-db`.
+    #
+    # Jeden proces, a nie para web + worker: GlitchTip 6 łączy obie role (`SERVER_ROLE=all_in_one`,
+    # serwer granian z wbudowaną kolejką zadań) i wycofuje podział – gałąź główna projektu odrzuca
+    # już `SERVER_ROLE=worker`. Kolejka i cache w Postgresie (`VALKEY_URL` pusty), więc Redis
+    # platformy (broker Celery, sieć `cache`) nie jest tu ani potrzebny, ani dostępny.
+    #
+    # Obraz przypięty tagiem i skrótem (indeks wieloarchitekturowy 6.2.6 z Docker Huba, 8.08.2026).
+    # Aktualizacja = nowy tag + skrót tutaj, w osobnym commicie; migracje bazy GlitchTip robi sam
+    # przy starcie.
+    #
+    # Rozdział sekretów: **bez** `env_file: .env` – GlitchTip nie widzi sekretów platformy. Zmienne
+    # bez `${…:?}` (interpolacja obejmuje cały plik niezależnie od profilu); brak sekretu wykryje
+    # GlitchTip przy starcie.
+    profiles: [monitoring]
+    image: glitchtip/glitchtip:6.2.6@sha256:a3d8eb1b36c1e1603d55ab32711ea3dd8115874742a781a57391a62a16e0dff6
+    restart: unless-stopped
+    logging: *default-logging
+    environment:
+      SERVER_ROLE: all_in_one
+      SECRET_KEY: ${GLITCHTIP_SECRET_KEY:-}
+      DATABASE_URL: postgres://glitchtip:${GLITCHTIP_DB_PASSWORD:-}@glitchtip-db:5432/glitchtip
+      VALKEY_URL: ""
+      GLITCHTIP_DOMAIN: https://errors.${SITE_DOMAIN:-localhost}
+      # `glitchtip` – DSN wewnętrzny z kontenera `web` (http://<klucz>@glitchtip:8000/<projekt>);
+      # 127.0.0.1 – healthcheck niżej.
+      ALLOWED_HOSTS: errors.${SITE_DOMAIN:-localhost},glitchtip,127.0.0.1
+      CSRF_TRUSTED_ORIGINS: https://errors.${SITE_DOMAIN:-localhost}
+      # Relay serwisu (usługa `mail`, sieć `edge` jest w jego `mynetworks`). Kopertę przyjmie
+      # wyłącznie od nadawcy z domeny serwisu – stąd glitchtip@<SITE_DOMAIN>.
+      EMAIL_URL: ${GLITCHTIP_EMAIL_URL:-smtp://mail:587}
+      DEFAULT_FROM_EMAIL: glitchtip@${SITE_DOMAIN:-localhost}
+      # Konta wyłącznie od administratora (`manage.py createsuperuser`, OPERACJE § 44.2) – bez
+      # samorejestracji i bez zakładania organizacji przez kogokolwiek poza nim.
+      ENABLE_USER_REGISTRATION: "False"
+      ENABLE_ORGANIZATION_CREATION: "False"
+      ENABLE_ADMIN: "False"
+      ENABLE_OPENAPI: "False"
+      GLITCHTIP_ENABLE_MCP: "False"
+      GLITCHTIP_ENABLE_DUCKDB: "False"
+      # Logi i sprawdzanie dostępności GlitchTipa wyłączone: logi zostają w `docker compose logs`,
+      # a dostępność sprawdza usługa `uptime` niżej (deduplikacja, TLS, listy przez relay).
+      GLITCHTIP_ENABLE_LOGS: "False"
+      GLITCHTIP_ENABLE_UPTIME: "False"
+      # Retencja 30 dni – zdarzenia, transakcje, pliki (mapy źródeł). Ta sama liczba stoi w rejestrze
+      # czynności przetwarzania (apps/monitoring/register.py, RETENTION_DAYS; test pilnuje zgodności).
+      GLITCHTIP_RETENTION_DAYS: "30"
+    volumes:
+      - glitchtip_uploads:/code/uploads
+    # `edge` – Caddy (errors.<domena>), relay `mail`, kontener `web` z DSN-em wewnętrznym i wyjście
+    # do internetu (powiadomienia webhookiem, jeśli ktoś je ustawi). `errors` – własna baza, nic więcej.
+    networks: [edge, errors]
+    # Limity, żeby zalew zdarzeń nie zabrał pamięci ani procesora Postgresowi i `web`. CPU tu jest
+    # ograniczone (w `web` celowo nie): GlitchTip jest narzędziem pomocniczym, a nie serwisem.
+    mem_limit: 768m
+    cpus: 1.0
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+    depends_on:
+      glitchtip-db: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/_health/', timeout=5).status==200 else 1)"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+
+  glitchtip-db:
+    # Baza GlitchTipa – **osobny** kontener i osobny wolumen, a nie baza na serwerze `db`: awaria albo
+    # zalew zdarzeń nie dotyka bazy olimpiady, a kopia zapasowa platformy (scripts/backup.sh) nie
+    # wozi śladów stosu. Ten sam obraz co `db` (bez nowego obrazu w instalacji). Wyłącznie sieć
+    # `errors` (internal: true) – sięga do niej tylko `glitchtip`.
+    profiles: [monitoring]
+    image: postgres:18-alpine
+    restart: unless-stopped
+    logging: *default-logging
+    environment:
+      POSTGRES_DB: glitchtip
+      POSTGRES_USER: glitchtip
+      POSTGRES_PASSWORD: ${GLITCHTIP_DB_PASSWORD:-}
+    volumes:
+      - glitchtip_pg:/var/lib/postgresql
+    networks: [errors]
+    mem_limit: 512m
+    cpus: 1.0
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U glitchtip -d glitchtip"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  uptime:
+    # Sprawdzanie dostępności „z zewnątrz” (OPS-02 § 4, docs/OPERACJE.md § 44.4): oba serwisy,
+    # /healthz/, /status.json, LiveKit i errors.<domena>, gdy włączone, certyfikaty TLS (< 14 dni).
+    # Listy przez relay `mail` z deduplikacją i rosnącą przerwą między przypomnieniami.
+    #
+    # Program to jeden plik z samą biblioteką standardową (backend/apps/monitoring/uptime.py) – tu na
+    # obrazie aplikacji, bo jest już na serwerze; `entrypoint` omija entrypoint.sh (bez bazy, bez
+    # migracji). Puka w adresy **publiczne** przez DNS i Caddy'ego. Śmierci tej maszyny nie zauważy –
+    # dlatego § 44.5 zaleca tę samą kopię (albo darmową usługę zewnętrzną) na innym serwerze.
+    #
+    # Bez `env_file` i bez sekretów: wyłącznie nazwy domen, odbiorcy i progi.
+    profiles: [monitoring]
+    image: ${WEB_IMAGE:-olimpiada/web:${APP_VERSION:-dev}}
+    entrypoint: ["python", "-m", "apps.monitoring.uptime"]
+    command: ["--loop"]
+    restart: unless-stopped
+    logging: *default-logging
+    environment:
+      SITE_DOMAIN: ${SITE_DOMAIN:-localhost}
+      EXTRA_DOMAINS: ${EXTRA_DOMAINS:-}
+      LIVEKIT_URL: ${LIVEKIT_URL:-}
+      ERRORS_PROXY: ${ERRORS_PROXY:-0}
+      UPTIME_URLS: ${UPTIME_URLS:-}
+      UPTIME_EXTRA_URLS: ${UPTIME_EXTRA_URLS:-}
+      UPTIME_ALERT_EMAILS: ${UPTIME_ALERT_EMAILS:-${ALERT_EMAILS:-}}
+      UPTIME_FROM: uptime@${SITE_DOMAIN:-localhost}
+      UPTIME_SMTP_HOST: ${UPTIME_SMTP_HOST:-mail}
+      UPTIME_SMTP_PORT: ${UPTIME_SMTP_PORT:-587}
+      UPTIME_TLS_WARN_DAYS: ${UPTIME_TLS_WARN_DAYS:-14}
+      # Katalog domowy użytkownika `app` z obrazu – wolumen nazwany przejmuje przy pierwszym montażu
+      # jego właściciela, więc proces bez roota może tam pisać stan (awarie przeżywają restart).
+      UPTIME_STATE_FILE: /home/app/uptime-state.json
+    volumes:
+      - uptime_state:/home/app
+    # Wyłącznie `edge`: wyjście do internetu (adresy publiczne) i relay `mail`. Żadnej usługi danych.
+    networks: [edge]
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m
+    mem_limit: 128m
+    cpus: 0.25
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+
   djcms:
     # Wersja porównawcza serwisu na django CMS pod dj.<SITE_DOMAIN> (docs/tasks/DJ-01.md).
     # Profil `djcms` = usługa **nie** wstaje przy zwykłym `docker compose up`; włącza ją świadomie
@@ -602,6 +746,15 @@ networks:
     ipam:
       config:
         - subnet: 172.30.5.0/24
+  # GlitchTip i jego baza (OPS-02, profil `monitoring`). Bez wyjścia do internetu (`glitchtip` wychodzi
+  # przez `edge`); nie w TRUSTED_PROXY_IPS ani w `mynetworks` Postfiksa. Compose zakłada ją dopiero
+  # wtedy, gdy wstaje usługa z profilu – bez niego instalacja jej nie ma.
+  errors:
+    driver: bridge
+    internal: true
+    ipam:
+      config:
+        - subnet: 172.30.6.0/24
 
 volumes:
   # PostgreSQL 18 – dane bazy (patrz komentarz przy usłudze `db`).
@@ -625,3 +778,9 @@ volumes:
   # Pliki wgrane przez redaktorów djcms (filer). Compose zakłada wolumen dopiero wtedy, gdy montuje
   # go uruchamiana usługa – bez profilu `djcms` nie powstaje.
   djcms_media:
+  # GlitchTip (OPS-02): baza zdarzeń (retencja 30 dni) i pliki (mapy źródeł). Bez profilu `monitoring`
+  # nie powstają. Celowo poza scripts/backup.sh – zdarzenia błędów nie są danymi do odtwarzania.
+  glitchtip_pg:
+  glitchtip_uploads:
+  # Stan monitora dostępności (trwające awarie, zaległe listy) – żeby restart nie gubił awarii.
+  uptime_state:
