@@ -39,9 +39,9 @@
         <p class="hint">{% blocktranslate trimmed with opens=row.window.opens_at|local_datetime closes=row.window.effective_closes_at|local_datetime %}
           Okno tłumaczeń: {{ opens }} – {{ closes }}.
         {% endblocktranslate %}
-        {% if row.state == "open" %}<span class="badge badge--ok">{% translate "otwarte" %}</span>
+        {% if row.state == "open" %}<span class="badge badge--ok">{% translate "otwarte" context "okno tłumaczeń" %}</span>
         {% elif row.state == "upcoming" %}<span class="badge badge--neutral">{% translate "jeszcze nie otwarte" %}</span>
-        {% else %}<span class="badge badge--neutral">{% translate "zamknięte" %}</span>{% endif %}
+        {% else %}<span class="badge badge--neutral">{% translate "zamknięte" context "okno tłumaczeń" %}</span>{% endif %}
         {% if row.window.sharing_mode == "SHARED" %}<br>{% translate "Delegacje tego samego języka tworzą jedno wspólne tłumaczenie." %}{% endif %}
         </p>
       {% endif %}

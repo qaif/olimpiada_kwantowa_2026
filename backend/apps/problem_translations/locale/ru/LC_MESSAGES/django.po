@@ -1,0 +1,512 @@
+# Tłumaczenia zadań (TR-01) – rosyjski.
+msgid ""
+msgstr ""
+"Project-Id-Version: Olimpiada Kwantowa\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-04 19:18+0200\n"
+"PO-Revision-Date: 2026-10-04 19:30+0200\n"
+"Last-Translator: Olimpiada Kwantowa\n"
+"Language-Team: Russian\n"
+"Language: ru\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=4; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && (n%100<12 || n%100>14) ? 1 : n%10==0 || (n%10>=5 && n%10<=9) || (n%100>=11 && n%100<=14)? 2 : 3);\n"
+
+#: forms.py:19
+msgid "Język 1 (domyślny dla uczniów)"
+msgstr "Язык 1 (по умолчанию для учеников)"
+
+#: forms.py:20
+msgid "Język 2 (opcjonalnie)"
+msgstr "Язык 2 (необязательно)"
+
+#: forms.py:33 forms.py:44
+msgid "Tytuł zadania"
+msgstr "Название задачи"
+
+#: forms.py:35
+msgid "Treść (Markdown, wzory w $…$)"
+msgstr "Текст (Markdown, формулы в $…$)"
+
+#: forms.py:43
+msgid "Przetłumaczony PDF"
+msgstr "Переведённый PDF"
+
+#: services.py:348
+msgid "Wybierz jeden albo dwa języki."
+msgstr "Выберите один или два языка."
+
+#: services.py:352
+msgid "Nieznany język."
+msgstr "Неизвестный язык."
+
+#: services.py:365
+msgid "Nie można usunąć języka, w którym delegacja wysłała już tłumaczenie."
+msgstr "Нельзя удалить язык, на котором делегация уже отправила перевод."
+
+#: services.py:412
+msgid "Ten język nie jest językiem delegacji."
+msgstr "Этот язык не является языком делегации."
+
+#: services.py:430 templates/problem_translations/leader/editor.html:113
+msgid "Tłumaczenie jest zatwierdzone i zablokowane."
+msgstr "Перевод одобрен и заблокирован."
+
+#: services.py:432
+msgid ""
+"Tłumaczenie czeka na decyzję komisji – cofnij wysłanie, żeby je poprawić."
+msgstr ""
+"Перевод ожидает решения комиссии — отзовите отправку, чтобы исправить его."
+
+#: services.py:465 views_leader.py:306
+msgid "Tekst jest za długi."
+msgstr "Текст слишком длинный."
+
+#: services.py:489
+msgid ""
+"Nie udało się sprawdzić pliku programem antywirusowym. Spróbuj ponownie za "
+"chwilę."
+msgstr "Не удалось проверить файл антивирусом. Повторите попытку чуть позже."
+
+#: services.py:495
+msgid "Plik został odrzucony przez program antywirusowy."
+msgstr "Файл отклонён антивирусом."
+
+#: services.py:515
+msgid "Nie można odczytać pliku PDF (uszkodzony albo zaszyfrowany)."
+msgstr "Не удаётся прочитать PDF-файл (он повреждён или зашифрован)."
+
+#: services.py:520
+msgid "Plik ma za dużo stron."
+msgstr "В файле слишком много страниц."
+
+#: services.py:555
+msgid "Tłumaczenie jest puste."
+msgstr "Перевод пуст."
+
+#: services.py:591
+msgid "Tylko wysłane tłumaczenie można cofnąć."
+msgstr "Отозвать можно только отправленный перевод."
+
+#: services.py:610
+msgid ""
+"Zatwierdzone tłumaczenie można otworzyć ponownie tylko po zmianie wersji "
+"oficjalnej."
+msgstr ""
+"Одобренный перевод можно открыть повторно только после изменения официальной "
+"версии."
+
+#: templates/problem_translations/leader/_autosave.html:1
+#, python-format
+msgid "Szkic zapisany: %(at)s"
+msgstr "Черновик сохранён: %(at)s"
+
+#: templates/problem_translations/leader/_autosave.html:2
+msgid "Podgląd"
+msgstr "Предпросмотр"
+
+#: templates/problem_translations/leader/_status.html:1
+msgid "nie rozpoczęte"
+msgstr "не начат"
+
+#: templates/problem_translations/leader/_status.html:1
+msgid "szkic"
+msgstr "черновик"
+
+#: templates/problem_translations/leader/_status.html:1
+msgid "czeka na akceptację"
+msgstr "ожидает одобрения"
+
+#: templates/problem_translations/leader/_status.html:1
+msgid "zwrócone do poprawy"
+msgstr "возвращён на доработку"
+
+#: templates/problem_translations/leader/_status.html:1
+msgid "zatwierdzone"
+msgstr "одобрен"
+
+#: templates/problem_translations/leader/_status.html:1
+msgid "nieaktualne"
+msgstr "устарел"
+
+#: templates/problem_translations/leader/dashboard.html:10
+#: templates/problem_translations/leader/dashboard.html:16
+#: templates/problem_translations/leader/editor.html:20
+msgid "Tłumaczenia zadań"
+msgstr "Переводы задач"
+
+#: templates/problem_translations/leader/dashboard.html:15
+#, python-format
+msgid "Drużyna: %(country)s"
+msgstr "Команда: %(country)s"
+
+#: templates/problem_translations/leader/dashboard.html:17
+msgid ""
+"Zadania są tajne do startu zawodów. Wersję oficjalną widzisz tylko w oknie "
+"tłumaczeń ustalonym przez organizatora – każde otwarcie i pobranie jest "
+"zapisywane, a pobrane pliki PDF mają znak wodny Twojej delegacji."
+msgstr ""
+"Задачи засекречены до начала соревнования. Официальную версию вы видите "
+"только в окне перевода, установленном организатором, — каждое открытие и "
+"скачивание фиксируется, а скачанные PDF-файлы содержат водяной знак вашей "
+"делегации."
+
+#: templates/problem_translations/leader/dashboard.html:22
+msgid "Języki delegacji"
+msgstr "Языки делегации"
+
+#: templates/problem_translations/leader/dashboard.html:23
+msgid ""
+"Jeden albo dwa języki. Pierwszy jest domyślnym językiem uczniów – dla "
+"pojedynczego ucznia możesz go zmienić niżej."
+msgstr ""
+"Один или два языка. Первый — язык учеников по умолчанию; для отдельного "
+"ученика его можно изменить ниже."
+
+#: templates/problem_translations/leader/dashboard.html:27
+msgid "Zapisz języki"
+msgstr "Сохранить языки"
+
+#: templates/problem_translations/leader/dashboard.html:37
+msgid "Organizator nie ustalił jeszcze okna tłumaczeń tego etapu."
+msgstr "Организатор ещё не установил окно перевода для этого этапа."
+
+#: templates/problem_translations/leader/dashboard.html:39
+#, python-format
+msgid "Okno tłumaczeń: %(opens)s – %(closes)s."
+msgstr "Окно перевода: %(opens)s – %(closes)s."
+
+#: templates/problem_translations/leader/dashboard.html:42
+msgctxt "okno tłumaczeń"
+msgid "otwarte"
+msgstr "открыто"
+
+#: templates/problem_translations/leader/dashboard.html:43
+msgid "jeszcze nie otwarte"
+msgstr "ещё не открыто"
+
+#: templates/problem_translations/leader/dashboard.html:44
+msgctxt "okno tłumaczeń"
+msgid "zamknięte"
+msgstr "закрыто"
+
+#: templates/problem_translations/leader/dashboard.html:45
+msgid "Delegacje tego samego języka tworzą jedno wspólne tłumaczenie."
+msgstr "Делегации с одним и тем же языком готовят один общий перевод."
+
+#: templates/problem_translations/leader/dashboard.html:50
+msgid "Zadeklaruj język delegacji, żeby zobaczyć zadania."
+msgstr "Укажите язык делегации, чтобы увидеть задачи."
+
+#: templates/problem_translations/leader/dashboard.html:55
+msgid "Zadania etapu i stan tłumaczeń"
+msgstr "Задачи этапа и статус переводов"
+
+#: templates/problem_translations/leader/dashboard.html:58
+msgid "Zadanie"
+msgstr "Задача"
+
+#: templates/problem_translations/leader/dashboard.html:69
+msgid "Otwórz"
+msgstr "Открыть"
+
+#: templates/problem_translations/leader/dashboard.html:80
+msgid "Bieżąca edycja nie ma jeszcze etapów."
+msgstr "В текущем сезоне ещё нет этапов."
+
+#: templates/problem_translations/leader/dashboard.html:85
+#: templates/problem_translations/leader/dashboard.html:93
+msgid "Język uczniów"
+msgstr "Язык учеников"
+
+#: templates/problem_translations/leader/dashboard.html:86
+msgid ""
+"Po starcie zawodów uczeń widzi zadanie w przypisanym języku (zatwierdzone "
+"tłumaczenie) oraz zawsze w wersji oficjalnej."
+msgstr ""
+"После начала соревнования ученик видит задачу на назначенном ему языке "
+"(одобренный перевод), а также всегда в официальной версии."
+
+#: templates/problem_translations/leader/dashboard.html:89
+msgid "Najpierw zadeklaruj języki delegacji."
+msgstr "Сначала укажите языки делегации."
+
+#: templates/problem_translations/leader/dashboard.html:94
+msgid "Uczeń"
+msgstr "Ученик"
+
+#: templates/problem_translations/leader/dashboard.html:94
+#: templates/problem_translations/leader/dashboard.html:102
+msgid "Język"
+msgstr "Язык"
+
+#: templates/problem_translations/leader/dashboard.html:104
+#, python-format
+msgid "domyślny (%(language)s)"
+msgstr "по умолчанию (%(language)s)"
+
+#: templates/problem_translations/leader/dashboard.html:109
+msgid "Zapisz"
+msgstr "Сохранить"
+
+#: templates/problem_translations/leader/dashboard.html:114
+msgid "Nie zgłoszono jeszcze żadnego ucznia."
+msgstr "Пока не зарегистрировано ни одного ученика."
+
+#: templates/problem_translations/leader/editor.html:15
+#: templates/problem_translations/leader/editor.html:21
+#, python-format
+msgid "Zadanie %(number)s – %(language)s"
+msgstr "Задача %(number)s – %(language)s"
+
+#: templates/problem_translations/leader/editor.html:24
+msgid "tłumaczenie wspólne delegacji tego języka"
+msgstr "общий перевод делегаций с этим языком"
+
+#: templates/problem_translations/leader/editor.html:25
+#, python-format
+msgid "Okno zamyka się %(closes)s."
+msgstr "Окно закрывается %(closes)s."
+
+#: templates/problem_translations/leader/editor.html:28
+msgid "Uwagi komisji:"
+msgstr "Замечания комиссии:"
+
+#: templates/problem_translations/leader/editor.html:32
+#, python-format
+msgid ""
+"Wersja oficjalna zmieniła się (teraz wersja %(version)s). Zaktualizuj "
+"tłumaczenie i wyślij je ponownie."
+msgstr ""
+"Официальная версия изменилась (теперь версия %(version)s). Обновите перевод и"
+" отправьте его снова."
+
+#: templates/problem_translations/leader/editor.html:36
+msgid "Zaktualizuj tłumaczenie"
+msgstr "Обновить перевод"
+
+#: templates/problem_translations/leader/editor.html:41
+msgid "Co się zmieniło w wersji oficjalnej"
+msgstr "Что изменилось в официальной версии"
+
+#: templates/problem_translations/leader/editor.html:51
+#, python-format
+msgid "Wersja oficjalna (v%(version)s)"
+msgstr "Официальная версия (v%(version)s)"
+
+#: templates/problem_translations/leader/editor.html:54
+msgid "PDF wersji oficjalnej (ze znakiem wodnym)"
+msgstr "PDF официальной версии (с водяным знаком)"
+
+#: templates/problem_translations/leader/editor.html:59
+msgid "Tekst źródłowy (Markdown) do skopiowania"
+msgstr "Исходный текст (Markdown) для копирования"
+
+#: templates/problem_translations/leader/editor.html:63
+msgid "Organizator udostępnił wersję oficjalną tylko jako PDF."
+msgstr "Организатор предоставил официальную версию только в формате PDF."
+
+#: templates/problem_translations/leader/editor.html:68
+msgid "Tłumaczenie"
+msgstr "Перевод"
+
+#: templates/problem_translations/leader/editor.html:79
+msgid ""
+"Markdown: # nagłówek, **pogrubienie**, *kursywa*, listy „- ”, tabele z „|”. "
+"Wzory LaTeX: $E=mc^2$ w tekście, $$…$$ w osobnym wierszu. Szkic zapisuje się "
+"sam po chwili przerwy w pisaniu."
+msgstr ""
+"Markdown: # заголовок, **жирный**, *курсив*, списки «- », таблицы с «|». "
+"Формулы LaTeX: $E=mc^2$ в тексте, $$…$$ на отдельной строке. Черновик "
+"сохраняется сам после небольшой паузы в наборе."
+
+#: templates/problem_translations/leader/editor.html:81
+msgid "Zapisz szkic"
+msgstr "Сохранить черновик"
+
+#: templates/problem_translations/leader/editor.html:82
+msgid "Wyślij do akceptacji"
+msgstr "Отправить на одобрение"
+
+#: templates/problem_translations/leader/editor.html:90
+msgid "Zamiast tekstu: wgraj przetłumaczony PDF"
+msgstr "Вместо текста: загрузите переведённый PDF"
+
+#: templates/problem_translations/leader/editor.html:94
+msgid "Wgraj PDF"
+msgstr "Загрузить PDF"
+
+#: templates/problem_translations/leader/editor.html:97
+msgid "Bieżące tłumaczenie to plik PDF."
+msgstr "Текущий перевод — PDF-файл."
+
+#: templates/problem_translations/leader/editor.html:98
+msgid "Podgląd (ze znakiem wodnym)"
+msgstr "Предпросмотр (с водяным знаком)"
+
+#: templates/problem_translations/leader/editor.html:101
+msgid "Wyślij PDF do akceptacji"
+msgstr "Отправить PDF на одобрение"
+
+#: templates/problem_translations/leader/editor.html:107
+msgid ""
+"Tłumaczenie czeka na decyzję komisji. Możesz cofnąć wysłanie, żeby wprowadzić"
+" poprawki."
+msgstr ""
+"Перевод ожидает решения комиссии. Вы можете отозвать отправку, чтобы внести "
+"исправления."
+
+#: templates/problem_translations/leader/editor.html:110
+msgid "Cofnij wysłanie"
+msgstr "Отозвать отправку"
+
+#: templates/problem_translations/leader/editor.html:116
+msgid "Podgląd PDF (ze znakiem wodnym)"
+msgstr "Предпросмотр PDF (с водяным знаком)"
+
+#: templates/problem_translations/leader/editor.html:124
+msgid "Historia wersji"
+msgstr "История версий"
+
+#: templates/problem_translations/leader/editor.html:127
+#, python-format
+msgid "wersja %(number)s, wysłana %(at)s"
+msgstr "версия %(number)s, отправлена %(at)s"
+
+#: templates/problem_translations/leader/editor.html:128
+msgid "zatwierdzona"
+msgstr "одобрена"
+
+#: templates/problem_translations/leader/editor.html:129
+msgid "zwrócona"
+msgstr "возвращена"
+
+#: templates/problem_translations/leader/editor.html:130
+msgid "wycofana"
+msgstr "отозвана"
+
+#: templates/problem_translations/mail/approved_body.txt:3
+#, python-format
+msgid ""
+"Komisja zatwierdziła tłumaczenie zadania %(number)s na język: %(language)s. "
+"Po starcie zawodów uczniowie Twojej drużyny zobaczą tę wersję."
+msgstr ""
+"Комиссия одобрила перевод задачи %(number)s на язык: %(language)s. После "
+"начала соревнования ученики вашей команды увидят эту версию."
+
+#: templates/problem_translations/mail/approved_body.txt:10
+#: templates/problem_translations/mail/outdated_body.txt:11
+#: templates/problem_translations/mail/returned_body.txt:13
+msgid "Olimpiada Kwantowa"
+msgstr "Квантовая олимпиада"
+
+#: templates/problem_translations/mail/approved_body.txt:11
+#: templates/problem_translations/mail/outdated_body.txt:12
+#: templates/problem_translations/mail/returned_body.txt:14
+msgid "Wiadomość wysłana automatycznie; prosimy na nią nie odpowiadać."
+msgstr "Это письмо отправлено автоматически; пожалуйста, не отвечайте на него."
+
+#: templates/problem_translations/mail/approved_subject.txt:1
+#, python-format
+msgid "Tłumaczenie zadania %(number)s (%(language)s) zatwierdzone"
+msgstr "Перевод задачи %(number)s (%(language)s) одобрен"
+
+#: templates/problem_translations/mail/outdated_body.txt:4
+#, python-format
+msgid ""
+"Organizator zmienił wersję oficjalną zadania %(number)s (teraz wersja "
+"%(version)s). Tłumaczenia na języki: %(languages)s są oznaczone jako "
+"nieaktualne – zaktualizuj je i wyślij ponownie do akceptacji."
+msgstr ""
+"Организатор изменил официальную версию задачи %(number)s (теперь версия "
+"%(version)s). Переводы на языки: %(languages)s отмечены как устаревшие — "
+"обновите их и снова отправьте на одобрение."
+
+#: templates/problem_translations/mail/outdated_subject.txt:1
+#, python-format
+msgid "Zmiana wersji oficjalnej zadania %(number)s – zaktualizuj tłumaczenie"
+msgstr "Изменение официальной версии задачи %(number)s — обновите перевод"
+
+#: templates/problem_translations/mail/returned_body.txt:4
+#, python-format
+msgid ""
+"Komisja zwróciła do poprawy tłumaczenie zadania %(number)s na język: "
+"%(language)s."
+msgstr ""
+"Комиссия вернула на доработку перевод задачи %(number)s на язык: "
+"%(language)s."
+
+#: templates/problem_translations/mail/returned_body.txt:8
+msgid ""
+"Uwagi komisji i edytor tłumaczenia znajdziesz w panelu opiekuna drużyny:"
+msgstr ""
+"Замечания комиссии и редактор перевода находятся в панели руководителя "
+"команды:"
+
+#: templates/problem_translations/mail/returned_subject.txt:1
+#, python-format
+msgid "Tłumaczenie zadania %(number)s (%(language)s) zwrócone do poprawy"
+msgstr "Перевод задачи %(number)s (%(language)s) возвращён на доработку"
+
+#: templates/problem_translations/student/problem.html:7
+#, python-format
+msgid "Zadanie %(number)s"
+msgstr "Задача %(number)s"
+
+#: templates/problem_translations/student/problem.html:12
+msgid "Moje zadania"
+msgstr "Мои задачи"
+
+#: templates/problem_translations/student/problem.html:14
+#, python-format
+msgid "Tłumaczenie: %(language)s."
+msgstr "Перевод: %(language)s."
+
+#: templates/problem_translations/student/problem.html:15
+msgid "Wersja oficjalna (PDF)"
+msgstr "Официальная версия (PDF)"
+
+#: templates/problem_translations/student/problem.html:19
+msgid "Treść zadania (PDF)"
+msgstr "Условие задачи (PDF)"
+
+#: templatetags/problem_translations.py:40
+#, python-format
+msgid "Treść w języku: %(language)s"
+msgstr "Текст на языке: %(language)s"
+
+#: views_leader.py:136
+msgid "Języki delegacji zostały zapisane."
+msgstr "Языки делегации сохранены."
+
+#: views_leader.py:151
+msgid "Język ucznia został zapisany."
+msgstr "Язык ученика сохранён."
+
+#: views_leader.py:200
+msgid "Szkic zapisany."
+msgstr "Черновик сохранён."
+
+#: views_leader.py:278
+msgid "Wybierz plik PDF."
+msgstr "Выберите PDF-файл."
+
+#: views_leader.py:293
+msgid "Plik PDF został zapisany jako tłumaczenie."
+msgstr "PDF-файл сохранён как перевод."
+
+#: views_leader.py:302
+msgid "Tłumaczenie wysłane do akceptacji."
+msgstr "Перевод отправлен на одобрение."
+
+#: views_leader.py:315
+msgid "Wysłanie cofnięte – tłumaczenie jest znowu szkicem."
+msgstr "Отправка отозвана — перевод снова стал черновиком."
+
+#: views_leader.py:322
+msgid ""
+"Tłumaczenie otwarte do aktualizacji. Uczniowie widzą dotąd zatwierdzoną "
+"wersję."
+msgstr ""
+"Перевод открыт для обновления. Пока ученики видят ранее одобренную версию."

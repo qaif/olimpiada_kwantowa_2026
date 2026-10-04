@@ -410,6 +410,16 @@ def test_markdown_lists_tables_and_headings():
     assert "<td>1</td><td>2</td>" in html
 
 
+def test_app_catalog_is_loaded_with_context():
+    """Katalog aplikacji (``apps/problem_translations/locale``) działa obok wspólnego – także z kontekstem."""
+    from django.utils.translation import gettext, override, pgettext
+
+    with override("en"):
+        assert gettext("Tłumaczenia zadań") == "Problem translations"
+    with override("zh-hans"):
+        assert pgettext("okno tłumaczeń", "otwarte") == "开放"
+
+
 def test_plain_blocks_for_pdf():
     blocks = plain_blocks("# H\ntext $x$\n\n$$y$$")
     assert blocks == [("heading", "H"), ("paragraph", "text $x$"), ("math", "y")]

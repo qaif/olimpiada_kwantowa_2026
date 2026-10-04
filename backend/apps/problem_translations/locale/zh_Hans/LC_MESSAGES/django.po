@@ -1,0 +1,489 @@
+# Tłumaczenia zadań (TR-01) – chiński uproszczony.
+msgid ""
+msgstr ""
+"Project-Id-Version: Olimpiada Kwantowa\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-04 19:18+0200\n"
+"PO-Revision-Date: 2026-10-04 19:30+0200\n"
+"Last-Translator: Olimpiada Kwantowa\n"
+"Language-Team: Simplified Chinese\n"
+"Language: zh_Hans\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+#: forms.py:19
+msgid "Język 1 (domyślny dla uczniów)"
+msgstr "语言 1（学生默认语言）"
+
+#: forms.py:20
+msgid "Język 2 (opcjonalnie)"
+msgstr "语言 2（可选）"
+
+#: forms.py:33 forms.py:44
+msgid "Tytuł zadania"
+msgstr "题目标题"
+
+#: forms.py:35
+msgid "Treść (Markdown, wzory w $…$)"
+msgstr "正文（Markdown，公式写在 $…$ 中）"
+
+#: forms.py:43
+msgid "Przetłumaczony PDF"
+msgstr "翻译后的 PDF"
+
+#: services.py:348
+msgid "Wybierz jeden albo dwa języki."
+msgstr "请选择一种或两种语言。"
+
+#: services.py:352
+msgid "Nieznany język."
+msgstr "未知语言。"
+
+#: services.py:365
+msgid "Nie można usunąć języka, w którym delegacja wysłała już tłumaczenie."
+msgstr "代表队已提交过该语言的翻译，无法删除该语言。"
+
+#: services.py:412
+msgid "Ten język nie jest językiem delegacji."
+msgstr "该语言不是代表队的语言。"
+
+#: services.py:430 templates/problem_translations/leader/editor.html:113
+msgid "Tłumaczenie jest zatwierdzone i zablokowane."
+msgstr "该翻译已批准并锁定。"
+
+#: services.py:432
+msgid ""
+"Tłumaczenie czeka na decyzję komisji – cofnij wysłanie, żeby je poprawić."
+msgstr "该翻译正在等待委员会决定——如需修改，请先撤回提交。"
+
+#: services.py:465 views_leader.py:306
+msgid "Tekst jest za długi."
+msgstr "文本过长。"
+
+#: services.py:489
+msgid ""
+"Nie udało się sprawdzić pliku programem antywirusowym. Spróbuj ponownie za "
+"chwilę."
+msgstr "无法对文件进行病毒扫描，请稍后重试。"
+
+#: services.py:495
+msgid "Plik został odrzucony przez program antywirusowy."
+msgstr "文件已被杀毒程序拒绝。"
+
+#: services.py:515
+msgid "Nie można odczytać pliku PDF (uszkodzony albo zaszyfrowany)."
+msgstr "无法读取 PDF 文件（文件已损坏或已加密）。"
+
+#: services.py:520
+msgid "Plik ma za dużo stron."
+msgstr "文件页数过多。"
+
+#: services.py:555
+msgid "Tłumaczenie jest puste."
+msgstr "翻译内容为空。"
+
+#: services.py:591
+msgid "Tylko wysłane tłumaczenie można cofnąć."
+msgstr "只有已提交的翻译才能撤回。"
+
+#: services.py:610
+msgid ""
+"Zatwierdzone tłumaczenie można otworzyć ponownie tylko po zmianie wersji "
+"oficjalnej."
+msgstr "只有在官方版本变更后，才能重新打开已批准的翻译。"
+
+#: templates/problem_translations/leader/_autosave.html:1
+#, python-format
+msgid "Szkic zapisany: %(at)s"
+msgstr "草稿已保存：%(at)s"
+
+#: templates/problem_translations/leader/_autosave.html:2
+msgid "Podgląd"
+msgstr "预览"
+
+#: templates/problem_translations/leader/_status.html:1
+msgid "nie rozpoczęte"
+msgstr "未开始"
+
+#: templates/problem_translations/leader/_status.html:1
+msgid "szkic"
+msgstr "草稿"
+
+#: templates/problem_translations/leader/_status.html:1
+msgid "czeka na akceptację"
+msgstr "等待批准"
+
+#: templates/problem_translations/leader/_status.html:1
+msgid "zwrócone do poprawy"
+msgstr "已退回修改"
+
+#: templates/problem_translations/leader/_status.html:1
+msgid "zatwierdzone"
+msgstr "已批准"
+
+#: templates/problem_translations/leader/_status.html:1
+msgid "nieaktualne"
+msgstr "已过时"
+
+#: templates/problem_translations/leader/dashboard.html:10
+#: templates/problem_translations/leader/dashboard.html:16
+#: templates/problem_translations/leader/editor.html:20
+msgid "Tłumaczenia zadań"
+msgstr "题目翻译"
+
+#: templates/problem_translations/leader/dashboard.html:15
+#, python-format
+msgid "Drużyna: %(country)s"
+msgstr "代表队：%(country)s"
+
+#: templates/problem_translations/leader/dashboard.html:17
+msgid ""
+"Zadania są tajne do startu zawodów. Wersję oficjalną widzisz tylko w oknie "
+"tłumaczeń ustalonym przez organizatora – każde otwarcie i pobranie jest "
+"zapisywane, a pobrane pliki PDF mają znak wodny Twojej delegacji."
+msgstr ""
+"竞赛开始前题目均为保密内容。您只能在组织方设定的翻译时段内查看官方版本——每次打开和下载都会被记录，下载的 PDF 文件带有您所在代表队的水印。"
+
+#: templates/problem_translations/leader/dashboard.html:22
+msgid "Języki delegacji"
+msgstr "代表队语言"
+
+#: templates/problem_translations/leader/dashboard.html:23
+msgid ""
+"Jeden albo dwa języki. Pierwszy jest domyślnym językiem uczniów – dla "
+"pojedynczego ucznia możesz go zmienić niżej."
+msgstr "一种或两种语言。第一种为学生的默认语言——可在下方为单个学生更改。"
+
+#: templates/problem_translations/leader/dashboard.html:27
+msgid "Zapisz języki"
+msgstr "保存语言"
+
+#: templates/problem_translations/leader/dashboard.html:37
+msgid "Organizator nie ustalił jeszcze okna tłumaczeń tego etapu."
+msgstr "组织方尚未设定本阶段的翻译时段。"
+
+#: templates/problem_translations/leader/dashboard.html:39
+#, python-format
+msgid "Okno tłumaczeń: %(opens)s – %(closes)s."
+msgstr "翻译时段：%(opens)s – %(closes)s。"
+
+#: templates/problem_translations/leader/dashboard.html:42
+msgctxt "okno tłumaczeń"
+msgid "otwarte"
+msgstr "开放"
+
+#: templates/problem_translations/leader/dashboard.html:43
+msgid "jeszcze nie otwarte"
+msgstr "尚未开放"
+
+#: templates/problem_translations/leader/dashboard.html:44
+msgctxt "okno tłumaczeń"
+msgid "zamknięte"
+msgstr "已关闭"
+
+#: templates/problem_translations/leader/dashboard.html:45
+msgid "Delegacje tego samego języka tworzą jedno wspólne tłumaczenie."
+msgstr "使用同一语言的各代表队共同完成一份翻译。"
+
+#: templates/problem_translations/leader/dashboard.html:50
+msgid "Zadeklaruj język delegacji, żeby zobaczyć zadania."
+msgstr "请先声明代表队的语言，才能查看题目。"
+
+#: templates/problem_translations/leader/dashboard.html:55
+msgid "Zadania etapu i stan tłumaczeń"
+msgstr "本阶段题目及翻译状态"
+
+#: templates/problem_translations/leader/dashboard.html:58
+msgid "Zadanie"
+msgstr "题目"
+
+#: templates/problem_translations/leader/dashboard.html:69
+msgid "Otwórz"
+msgstr "打开"
+
+#: templates/problem_translations/leader/dashboard.html:80
+msgid "Bieżąca edycja nie ma jeszcze etapów."
+msgstr "本届尚未设置任何阶段。"
+
+#: templates/problem_translations/leader/dashboard.html:85
+#: templates/problem_translations/leader/dashboard.html:93
+msgid "Język uczniów"
+msgstr "学生语言"
+
+#: templates/problem_translations/leader/dashboard.html:86
+msgid ""
+"Po starcie zawodów uczeń widzi zadanie w przypisanym języku (zatwierdzone "
+"tłumaczenie) oraz zawsze w wersji oficjalnej."
+msgstr "竞赛开始后，学生将看到其指定语言的题目（已批准的翻译），并始终可以查看官方版本。"
+
+#: templates/problem_translations/leader/dashboard.html:89
+msgid "Najpierw zadeklaruj języki delegacji."
+msgstr "请先声明代表队的语言。"
+
+#: templates/problem_translations/leader/dashboard.html:94
+msgid "Uczeń"
+msgstr "学生"
+
+#: templates/problem_translations/leader/dashboard.html:94
+#: templates/problem_translations/leader/dashboard.html:102
+msgid "Język"
+msgstr "语言"
+
+#: templates/problem_translations/leader/dashboard.html:104
+#, python-format
+msgid "domyślny (%(language)s)"
+msgstr "默认（%(language)s）"
+
+#: templates/problem_translations/leader/dashboard.html:109
+msgid "Zapisz"
+msgstr "保存"
+
+#: templates/problem_translations/leader/dashboard.html:114
+msgid "Nie zgłoszono jeszcze żadnego ucznia."
+msgstr "尚未报名任何学生。"
+
+#: templates/problem_translations/leader/editor.html:15
+#: templates/problem_translations/leader/editor.html:21
+#, python-format
+msgid "Zadanie %(number)s – %(language)s"
+msgstr "题目 %(number)s – %(language)s"
+
+#: templates/problem_translations/leader/editor.html:24
+msgid "tłumaczenie wspólne delegacji tego języka"
+msgstr "使用该语言的各代表队共用的翻译"
+
+#: templates/problem_translations/leader/editor.html:25
+#, python-format
+msgid "Okno zamyka się %(closes)s."
+msgstr "翻译时段将于 %(closes)s 结束。"
+
+#: templates/problem_translations/leader/editor.html:28
+msgid "Uwagi komisji:"
+msgstr "委员会意见："
+
+#: templates/problem_translations/leader/editor.html:32
+#, python-format
+msgid ""
+"Wersja oficjalna zmieniła się (teraz wersja %(version)s). Zaktualizuj "
+"tłumaczenie i wyślij je ponownie."
+msgstr "官方版本已更改（当前为版本 %(version)s）。请更新翻译并重新提交。"
+
+#: templates/problem_translations/leader/editor.html:36
+msgid "Zaktualizuj tłumaczenie"
+msgstr "更新翻译"
+
+#: templates/problem_translations/leader/editor.html:41
+msgid "Co się zmieniło w wersji oficjalnej"
+msgstr "官方版本的变更内容"
+
+#: templates/problem_translations/leader/editor.html:51
+#, python-format
+msgid "Wersja oficjalna (v%(version)s)"
+msgstr "官方版本（v%(version)s）"
+
+#: templates/problem_translations/leader/editor.html:54
+msgid "PDF wersji oficjalnej (ze znakiem wodnym)"
+msgstr "官方版本 PDF（带水印）"
+
+#: templates/problem_translations/leader/editor.html:59
+msgid "Tekst źródłowy (Markdown) do skopiowania"
+msgstr "可复制的源文本（Markdown）"
+
+#: templates/problem_translations/leader/editor.html:63
+msgid "Organizator udostępnił wersję oficjalną tylko jako PDF."
+msgstr "组织方仅提供了官方版本的 PDF。"
+
+#: templates/problem_translations/leader/editor.html:68
+msgid "Tłumaczenie"
+msgstr "翻译"
+
+#: templates/problem_translations/leader/editor.html:79
+msgid ""
+"Markdown: # nagłówek, **pogrubienie**, *kursywa*, listy „- ”, tabele z „|”. "
+"Wzory LaTeX: $E=mc^2$ w tekście, $$…$$ w osobnym wierszu. Szkic zapisuje się "
+"sam po chwili przerwy w pisaniu."
+msgstr ""
+"Markdown：# 标题，**粗体**，*斜体*，列表“- ”，表格用“|”。LaTeX 公式：行内用 $E=mc^2$，单独一行用 "
+"$$…$$。停止输入片刻后，草稿会自动保存。"
+
+#: templates/problem_translations/leader/editor.html:81
+msgid "Zapisz szkic"
+msgstr "保存草稿"
+
+#: templates/problem_translations/leader/editor.html:82
+msgid "Wyślij do akceptacji"
+msgstr "提交审批"
+
+#: templates/problem_translations/leader/editor.html:90
+msgid "Zamiast tekstu: wgraj przetłumaczony PDF"
+msgstr "也可以不填文本：上传翻译后的 PDF"
+
+#: templates/problem_translations/leader/editor.html:94
+msgid "Wgraj PDF"
+msgstr "上传 PDF"
+
+#: templates/problem_translations/leader/editor.html:97
+msgid "Bieżące tłumaczenie to plik PDF."
+msgstr "当前翻译为 PDF 文件。"
+
+#: templates/problem_translations/leader/editor.html:98
+msgid "Podgląd (ze znakiem wodnym)"
+msgstr "预览（带水印）"
+
+#: templates/problem_translations/leader/editor.html:101
+msgid "Wyślij PDF do akceptacji"
+msgstr "提交 PDF 审批"
+
+#: templates/problem_translations/leader/editor.html:107
+msgid ""
+"Tłumaczenie czeka na decyzję komisji. Możesz cofnąć wysłanie, żeby wprowadzić"
+" poprawki."
+msgstr "该翻译正在等待委员会决定。您可以撤回提交以进行修改。"
+
+#: templates/problem_translations/leader/editor.html:110
+msgid "Cofnij wysłanie"
+msgstr "撤回提交"
+
+#: templates/problem_translations/leader/editor.html:116
+msgid "Podgląd PDF (ze znakiem wodnym)"
+msgstr "PDF 预览（带水印）"
+
+#: templates/problem_translations/leader/editor.html:124
+msgid "Historia wersji"
+msgstr "版本历史"
+
+#: templates/problem_translations/leader/editor.html:127
+#, python-format
+msgid "wersja %(number)s, wysłana %(at)s"
+msgstr "版本 %(number)s，提交于 %(at)s"
+
+#: templates/problem_translations/leader/editor.html:128
+msgid "zatwierdzona"
+msgstr "已批准"
+
+#: templates/problem_translations/leader/editor.html:129
+msgid "zwrócona"
+msgstr "已退回"
+
+#: templates/problem_translations/leader/editor.html:130
+msgid "wycofana"
+msgstr "已撤回"
+
+#: templates/problem_translations/mail/approved_body.txt:3
+#, python-format
+msgid ""
+"Komisja zatwierdziła tłumaczenie zadania %(number)s na język: %(language)s. "
+"Po starcie zawodów uczniowie Twojej drużyny zobaczą tę wersję."
+msgstr "委员会已批准题目 %(number)s 的翻译（语言：%(language)s）。竞赛开始后，您代表队的学生将看到此版本。"
+
+#: templates/problem_translations/mail/approved_body.txt:10
+#: templates/problem_translations/mail/outdated_body.txt:11
+#: templates/problem_translations/mail/returned_body.txt:13
+msgid "Olimpiada Kwantowa"
+msgstr "量子奥林匹克"
+
+#: templates/problem_translations/mail/approved_body.txt:11
+#: templates/problem_translations/mail/outdated_body.txt:12
+#: templates/problem_translations/mail/returned_body.txt:14
+msgid "Wiadomość wysłana automatycznie; prosimy na nią nie odpowiadać."
+msgstr "此邮件为系统自动发送，请勿回复。"
+
+#: templates/problem_translations/mail/approved_subject.txt:1
+#, python-format
+msgid "Tłumaczenie zadania %(number)s (%(language)s) zatwierdzone"
+msgstr "题目 %(number)s 的翻译（%(language)s）已批准"
+
+#: templates/problem_translations/mail/outdated_body.txt:4
+#, python-format
+msgid ""
+"Organizator zmienił wersję oficjalną zadania %(number)s (teraz wersja "
+"%(version)s). Tłumaczenia na języki: %(languages)s są oznaczone jako "
+"nieaktualne – zaktualizuj je i wyślij ponownie do akceptacji."
+msgstr ""
+"组织方已更改题目 %(number)s 的官方版本（当前为版本 "
+"%(version)s）。以下语言的翻译已标记为过时：%(languages)s——请更新后重新提交审批。"
+
+#: templates/problem_translations/mail/outdated_subject.txt:1
+#, python-format
+msgid "Zmiana wersji oficjalnej zadania %(number)s – zaktualizuj tłumaczenie"
+msgstr "题目 %(number)s 的官方版本已更改——请更新翻译"
+
+#: templates/problem_translations/mail/returned_body.txt:4
+#, python-format
+msgid ""
+"Komisja zwróciła do poprawy tłumaczenie zadania %(number)s na język: "
+"%(language)s."
+msgstr "委员会已将题目 %(number)s 的翻译（语言：%(language)s）退回修改。"
+
+#: templates/problem_translations/mail/returned_body.txt:8
+msgid ""
+"Uwagi komisji i edytor tłumaczenia znajdziesz w panelu opiekuna drużyny:"
+msgstr "委员会意见和翻译编辑器可在领队面板中查看："
+
+#: templates/problem_translations/mail/returned_subject.txt:1
+#, python-format
+msgid "Tłumaczenie zadania %(number)s (%(language)s) zwrócone do poprawy"
+msgstr "题目 %(number)s 的翻译（%(language)s）已退回修改"
+
+#: templates/problem_translations/student/problem.html:7
+#, python-format
+msgid "Zadanie %(number)s"
+msgstr "题目 %(number)s"
+
+#: templates/problem_translations/student/problem.html:12
+msgid "Moje zadania"
+msgstr "我的题目"
+
+#: templates/problem_translations/student/problem.html:14
+#, python-format
+msgid "Tłumaczenie: %(language)s."
+msgstr "翻译：%(language)s。"
+
+#: templates/problem_translations/student/problem.html:15
+msgid "Wersja oficjalna (PDF)"
+msgstr "官方版本（PDF）"
+
+#: templates/problem_translations/student/problem.html:19
+msgid "Treść zadania (PDF)"
+msgstr "题目（PDF）"
+
+#: templatetags/problem_translations.py:40
+#, python-format
+msgid "Treść w języku: %(language)s"
+msgstr "正文语言：%(language)s"
+
+#: views_leader.py:136
+msgid "Języki delegacji zostały zapisane."
+msgstr "代表队语言已保存。"
+
+#: views_leader.py:151
+msgid "Język ucznia został zapisany."
+msgstr "学生语言已保存。"
+
+#: views_leader.py:200
+msgid "Szkic zapisany."
+msgstr "草稿已保存。"
+
+#: views_leader.py:278
+msgid "Wybierz plik PDF."
+msgstr "请选择 PDF 文件。"
+
+#: views_leader.py:293
+msgid "Plik PDF został zapisany jako tłumaczenie."
+msgstr "PDF 文件已保存为翻译。"
+
+#: views_leader.py:302
+msgid "Tłumaczenie wysłane do akceptacji."
+msgstr "翻译已提交审批。"
+
+#: views_leader.py:315
+msgid "Wysłanie cofnięte – tłumaczenie jest znowu szkicem."
+msgstr "已撤回提交——该翻译重新成为草稿。"
+
+#: views_leader.py:322
+msgid ""
+"Tłumaczenie otwarte do aktualizacji. Uczniowie widzą dotąd zatwierdzoną "
+"wersję."
+msgstr "翻译已重新打开以便更新。在此期间，学生看到的仍是之前已批准的版本。"
