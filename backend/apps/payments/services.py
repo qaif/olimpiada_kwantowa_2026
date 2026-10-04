@@ -60,13 +60,14 @@ from .models import (
     Provider,
     ProviderEvent,
     Refund,
+    RefundLine,
     RefundStatus,
     ScanStatus,
     enabled,
     new_reference,
 )
 from .providers import ProviderError, SignatureError, get_provider
-from .providers.base import CheckoutRequest, to_minor
+from .providers.base import HTTP_TIMEOUT, CheckoutRequest, to_minor
 from .providers.przelewy24 import TIME_LIMIT_MINUTES
 
 logger = logging.getLogger(__name__)
@@ -314,7 +315,8 @@ def is_leader(user, delegation) -> bool:
 
     if not getattr(user, "is_authenticated", False) or not user.is_active:
         return False
-    return DelegationLeader.objects.filter(delegation=delegation, user=user).exists()
+    # Wyłącznie opiekun **czynny** – odwołany (``removed_at``) traci wgląd w zamówienia i dokumenty (H1).
+    return DelegationLeader.objects.active().filter(delegation=delegation, user=user).exists()
 
 
 def can_pay(user, order: Order) -> bool:
@@ -517,33 +519,69 @@ def prepare_participant_order(fee, *, actor, request=None, **buyer) -> Order:
     return order
 
 
-def _close_pending(order: Order) -> None:
-    """Zamyka otwarte sesje dostawców zamówienia – albo odmawia, gdy któraś może jeszcze przyjąć wpłatę.
+#: Ile sekund po założeniu próby Stripe bez identyfikatora sesji uznajemy ją za „w toku”: tyle trwa
+#: najdłużej rozmowa z dostawcą (``HTTP_TIMEOUT``) plus zapas. Starsza bez identyfikatora – porzucona.
+STRIPE_UNREFERENCED_GRACE_SECONDS = HTTP_TIMEOUT + 10
 
-    Stripe: ``expire`` (sesja zapłacona w międzyczasie odpowie odmową – wtedy płatność jest w drodze).
-    P24 nie ma wygaszania: transakcja młodsza niż limit czasu u dostawcy blokuje, starsza jest porzucona.
+
+def _in_progress(message=None) -> DomainError:
+    return _error(
+        message or _("Płatność tego zamówienia jest właśnie przetwarzana. Spróbuj ponownie za kilka minut."),
+        "PAYMENT_IN_PROGRESS",
+    )
+
+
+def _pending_verdict(payment: Payment, now) -> str:
+    """Co zrobić z próbą ``PENDING`` przed nową próbą albo anulowaniem: ``closed`` albo ``in_progress``.
+
+    Woła dostawcę (HTTP), więc **nigdy** pod blokadą wiersza (L1). Stripe: ``expire``; gdy odmówi –
+    ``GET`` sesji: wygasła = zamknięta, otwarta albo zakończona = płatność w drodze (M2). Próba bez
+    identyfikatora sesji młodsza niż czas rozmowy z dostawcą jest „w toku” – druga karta przeglądarki
+    właśnie ją zakłada (M1). P24 nie ma wygaszania: blokuje do upływu limitu transakcji.
     """
+    if payment.provider == Provider.STRIPE:
+        if not payment.provider_ref:
+            young = payment.created_at > now - timedelta(seconds=STRIPE_UNREFERENCED_GRACE_SECONDS)
+            return "in_progress" if young else "closed"
+        provider = get_provider(Provider.STRIPE)
+        if provider.expire(payment):
+            return "closed"
+        state = provider.session_status(payment)
+        if state is not None and state["status"] == "expired":
+            return "closed"
+        return "in_progress"
+    if payment.created_at > now - timedelta(minutes=P24_ABANDON_MINUTES):
+        return "p24_wait"
+    return "closed"
+
+
+def _close_pending_unlocked(order: Order) -> None:
+    """Faza 1 (bez blokad): zamyka u dostawców otwarte próby zamówienia albo odmawia."""
     now = timezone.now()
-    for payment in (
-        order.payments.select_for_update(of=("self",))
-        .filter(status=PaymentStatus.PENDING)
-        .exclude(provider=Provider.BANK_TRANSFER)
-    ):
-        if payment.provider == Provider.STRIPE:
-            if payment.provider_ref and not get_provider(Provider.STRIPE).expire(payment):
-                raise _error(
-                    _("Płatność tego zamówienia jest właśnie przetwarzana. Spróbuj ponownie za kilka minut."),
-                    "PAYMENT_IN_PROGRESS",
-                )
-        elif payment.created_at > now - timedelta(minutes=P24_ABANDON_MINUTES):
-            raise _error(
+    pending = Payment.objects.filter(order=order, status=PaymentStatus.PENDING).exclude(
+        provider=Provider.BANK_TRANSFER
+    )
+    for payment in pending:
+        verdict = _pending_verdict(payment, now)
+        if verdict == "in_progress":
+            raise _in_progress()
+        if verdict == "p24_wait":
+            raise _in_progress(
                 _("Płatność Przelewy24 tego zamówienia jest w toku. Spróbuj ponownie za %(minutes)s minut.")
-                % {"minutes": P24_ABANDON_MINUTES},
-                "PAYMENT_IN_PROGRESS",
+                % {"minutes": P24_ABANDON_MINUTES}
             )
-        payment.status = PaymentStatus.CANCELLED
-        payment.closed_at = now
-        payment.save(update_fields=["status", "closed_at"])
+        _close(payment, PaymentStatus.CANCELLED)
+
+
+def _require_no_pending_locked(order: Order) -> None:
+    """Faza 2 (pod blokadą zamówienia): żadna próba nie może już czekać – inaczej doszła równolegle."""
+    if (
+        Payment.objects.select_for_update(of=("self",))
+        .filter(order=order, status=PaymentStatus.PENDING)
+        .exclude(provider=Provider.BANK_TRANSFER)
+        .exists()
+    ):
+        raise _in_progress()
 
 
 def cancel_order(order: Order, *, actor, reason: str = "", request=None) -> Order:
@@ -552,11 +590,14 @@ def cancel_order(order: Order, *, actor, reason: str = "", request=None) -> Orde
     require_enabled(competition)
     if not can_pay(actor, order):
         _require_coordinator(actor, competition)
+    if order.status != OrderStatus.OPEN:
+        raise _error(_("Anulować można wyłącznie zamówienie czekające na wpłatę."), "ORDER_NOT_OPEN")
+    _close_pending_unlocked(order)
     with transaction.atomic():
         order = Order.objects.select_for_update(of=("self",)).get(pk=order.pk)
         if order.status != OrderStatus.OPEN:
             raise _error(_("Anulować można wyłącznie zamówienie czekające na wpłatę."), "ORDER_NOT_OPEN")
-        _close_pending(order)
+        _require_no_pending_locked(order)
         order.status = OrderStatus.CANCELLED
         order.cancelled_at = timezone.now()
         order.cancelled_by = _actor(actor)
@@ -620,7 +661,15 @@ def _description(order: Order) -> str:
 
 
 def start_checkout(order: Order, provider_code: str, *, actor, request=None) -> str:
-    """Zakłada próbę zapłaty u dostawcy i oddaje adres, na który przekierować płacącego."""
+    """Zakłada próbę zapłaty u dostawcy i oddaje adres, na który przekierować płacącego.
+
+    Trzy fazy, żeby żadna rozmowa z dostawcą nie trwała pod blokadą wiersza (L1): (1) bez blokad
+    zamykamy poprzednie próby u dostawcy, (2) pod blokadą zamówienia sprawdzamy, że nic nie czeka,
+    i zakładamy wiersz próby, (3) bez blokad zakładamy sesję u dostawcy. Identyfikator sesji zapisuje
+    się **warunkowo** (``status=PENDING``): jeżeli równoległe żądanie zdążyło tę próbę zamknąć, nowa
+    sesja jest od razu wygaszana, a płacący dostaje odmowę – inaczej istniałyby dwie otwarte sesje
+    na jedno zamówienie (M1).
+    """
     from apps.accounts.activation import absolute_url
 
     competition = order.competition
@@ -632,6 +681,8 @@ def start_checkout(order: Order, provider_code: str, *, actor, request=None) -> 
             _("Ta metoda płatności nie jest dostępna."), "METHOD_UNAVAILABLE", http.HTTP_400_BAD_REQUEST
         )
     provider = get_provider(provider_code)
+    _require_payable(order)
+    _close_pending_unlocked(order)
     with transaction.atomic():
         order = (
             Order.objects.select_for_update(of=("self",))
@@ -639,14 +690,18 @@ def start_checkout(order: Order, provider_code: str, *, actor, request=None) -> 
             .get(pk=order.pk)
         )
         _require_payable(order)
-        _close_pending(order)
-        payment = Payment.objects.create(
+        _require_no_pending_locked(order)
+        payment = Payment(
             order=order,
             provider=provider_code,
             amount=order.total,
             currency=order.currency,
             created_by=_actor(actor),
         )
+        if provider_code == Provider.P24:
+            # Identyfikatorem sesji P24 jest nasz UUID – znany od razu, więc nie ma okna bez niego.
+            payment.provider_ref = str(payment.uuid)
+        payment.save()
     checkout = CheckoutRequest(
         payment_uuid=str(payment.uuid),
         amount=payment.amount,
@@ -662,7 +717,7 @@ def start_checkout(order: Order, provider_code: str, *, actor, request=None) -> 
     try:
         result = provider.create_checkout(checkout)
     except ProviderError as exc:
-        Payment.objects.filter(pk=payment.pk).update(
+        Payment.objects.filter(pk=payment.pk, status=PaymentStatus.PENDING).update(
             status=PaymentStatus.FAILED, closed_at=timezone.now(), detail=str(exc)[:300]
         )
         audit(
@@ -684,7 +739,15 @@ def start_checkout(order: Order, provider_code: str, *, actor, request=None) -> 
         or urlsplit(result.redirect_url).hostname not in provider.redirect_hosts
     ):
         raise _error("Nieoczekiwany adres dostawcy.", "PROVIDER_REDIRECT", http.HTTP_502_BAD_GATEWAY)
-    Payment.objects.filter(pk=payment.pk).update(provider_ref=result.provider_ref)
+    stored = Payment.objects.filter(pk=payment.pk, status=PaymentStatus.PENDING).update(
+        provider_ref=result.provider_ref
+    )
+    if not stored:
+        # Równoległe żądanie zamknęło tę próbę, zanim dostawca oddał sesję – wygaszamy ją od razu.
+        payment.provider_ref = result.provider_ref
+        provider.expire(payment)
+        audit(actor, "payments.checkout_superseded", payment, {"provider": provider_code}, request=request)
+        raise _in_progress()
     audit(
         actor,
         "payments.checkout_started",
@@ -720,35 +783,55 @@ def _fee_paid(order: Order, payment: Payment, actor) -> None:
         audit(None, "payments.fee_register_conflict", order, {"code": exc.machine_code})
 
 
+def _lock_order_and_payment(payment_pk: int) -> tuple[Order, Payment]:
+    """Blokady zawsze w tej samej kolejności: **zamówienie → wpłata** (L1) – bez zakleszczeń."""
+    order_id = Payment.objects.filter(pk=payment_pk).values_list("order_id", flat=True).get()
+    order = (
+        Order.objects.select_for_update(of=("self",))
+        .select_related("competition", "edition")
+        .get(pk=order_id)
+    )
+    payment = Payment.objects.select_for_update(of=("self",)).get(pk=payment_pk)
+    return order, payment
+
+
 def apply_success(
     payment: Payment, *, provider_payment_id: str = "", paid_at=None, actor=None, request=None
 ) -> Payment:
-    """Zapisuje udaną wpłatę: zamówienie zapłacone, faktura z numerem, list do płacącego. Idempotentne."""
+    """Zapisuje udaną wpłatę: zamówienie zapłacone, faktura z numerem, list do płacącego. Idempotentne.
+
+    Wpłata na zamówienie **niezapłacone i nieanulowane** zamyka je. Na zapłacone (druga karta
+    przeglądarki) albo anulowane (pozycje mogło już objąć nowsze zamówienie – L5) zostaje zapisana
+    jako ``MISMATCH`` do zwrotu: pieniądze są faktem, ale nie wolno nimi pokryć składu drugi raz.
+    """
     from . import notifications
 
     with transaction.atomic():
-        payment = Payment.objects.select_for_update(of=("self",)).get(pk=payment.pk)
+        order, payment = _lock_order_and_payment(payment.pk)
         if payment.status == PaymentStatus.SUCCEEDED:
             return payment
-        order = (
-            Order.objects.select_for_update(of=("self",))
-            .select_related("competition", "edition")
-            .get(pk=payment.order_id)
-        )
         now = timezone.now()
         payment.provider_payment_id = provider_payment_id or payment.provider_payment_id
         payment.succeeded_at = paid_at or now
         payment.closed_at = now
-        if order.status in (OrderStatus.PAID, OrderStatus.REFUNDED):
-            # Druga wpłata za to samo zamówienie (dwie karty przeglądarki, przelew i karta naraz).
+        if order.status != OrderStatus.OPEN:
             payment.status = PaymentStatus.MISMATCH
-            payment.detail = "Zamówienie było już zapłacone – podwójna wpłata do zwrotu."
+            payment.detail = (
+                "Zamówienie było anulowane – wpłata do zwrotu."
+                if order.status == OrderStatus.CANCELLED
+                else "Zamówienie było już zapłacone – podwójna wpłata do zwrotu."
+            )
             payment.save()
-            audit(actor, "payments.duplicate_payment", payment, {"order": order.reference}, request=request)
+            audit(
+                actor,
+                "payments.duplicate_payment",
+                payment,
+                {"order": order.reference, "order_status": order.status},
+                request=request,
+            )
             return payment
         payment.status = PaymentStatus.SUCCEEDED
         payment.save()
-        after_cancel = order.status == OrderStatus.CANCELLED
         order.status = OrderStatus.PAID
         order.paid_at = payment.succeeded_at
         order.save(update_fields=["status", "paid_at"])
@@ -765,7 +848,6 @@ def apply_success(
                 "amount": str(payment.amount),
                 "currency": payment.currency,
                 "invoice": invoice.number,
-                "after_cancel": after_cancel,
             },
             request=request,
         )
@@ -775,7 +857,7 @@ def apply_success(
 
 def _mark_mismatch(payment: Payment, detail: str, *, provider_payment_id: str = "") -> None:
     with transaction.atomic():
-        payment = Payment.objects.select_for_update(of=("self",)).get(pk=payment.pk)
+        _order, payment = _lock_order_and_payment(payment.pk)
         if payment.status == PaymentStatus.SUCCEEDED:
             return
         payment.status = PaymentStatus.MISMATCH
@@ -814,12 +896,24 @@ def _find_payment(provider_code: str, result) -> Payment | None:
     return None
 
 
+def _amount_matches(payment: Payment, result) -> bool:
+    return (
+        result.amount_minor is not None
+        and int(result.amount_minor) == to_minor(payment.amount)
+        and result.currency == payment.currency
+    )
+
+
 def handle_webhook(provider_code: str, body: bytes, headers, *, refund: bool = False) -> str:
     """Przetwarza doręczenie od dostawcy. Zwraca opis wyniku (do dziennika i odpowiedzi).
 
     ``Http404`` – dostawca nieskonfigurowany (bez sekretu podpisu nie ma czego sprawdzać, więc adresu
     nie ma); :class:`WebhookRejected` – zły podpis; ``ProviderError`` – nie udało się potwierdzić
     transakcji u dostawcy (widok odpowiada 503, dostawca ponowi).
+
+    Potwierdzenie u dostawcy (P24 ``verify``) idzie **przed** transakcją zapisu – rozmowa z dostawcą
+    nie trzyma żadnej blokady (L1). Powtórka po nieudanym ``verify`` zapyta go ponownie, co jest
+    u P24 bezpieczne (``verify`` jest idempotentny).
     """
     from apps.tenancy.context import competition_context
 
@@ -831,50 +925,54 @@ def handle_webhook(provider_code: str, body: bytes, headers, *, refund: bool = F
     except SignatureError as exc:
         logger.warning("Odrzucono webhook %s: zły podpis.", provider_code)
         raise WebhookRejected(provider_code) from exc
+    event_id = result.event_id[:255]
+    if ProviderEvent.objects.filter(provider=provider_code, event_id=event_id).exists():
+        return "duplicate"
+    payment = None
+    if not result.mode_mismatch and result.outcome != "refund":
+        payment = _find_payment(provider_code, result)
+        if payment is not None and result.outcome == "succeeded" and _amount_matches(payment, result):
+            if not provider.confirm(payment, result):
+                raise ProviderError("verification-failed", transient=True)
     with transaction.atomic():
         try:
             with transaction.atomic():
                 event = ProviderEvent.objects.create(
                     provider=provider_code,
-                    event_id=result.event_id[:255],
+                    event_id=event_id,
                     event_type=result.event_type[:80],
                     payload_hash=hashlib.sha256(body).hexdigest(),
+                    payment=payment,
                 )
         except IntegrityError:
             logger.info("Powtórzone doręczenie %s %s.", provider_code, result.event_id)
             return "duplicate"
-        if result.outcome == "refund":
+        if result.mode_mismatch:
+            logger.warning("Webhook %s z innego trybu (test/live) niż klucz – pominięty.", provider_code)
+            outcome = "mode_mismatch"
+        elif result.outcome == "refund":
             outcome = _webhook_refund(provider_code, result)
+        elif payment is None:
+            outcome = "ignored" if result.outcome == "ignored" else "unknown_payment"
         else:
-            payment = _find_payment(provider_code, result)
-            if payment is None:
-                outcome = "ignored" if result.outcome == "ignored" else "unknown_payment"
-            else:
-                event.payment = payment
-                with competition_context(payment.order.competition):
-                    outcome = _webhook_payment(provider, payment, result)
+            with competition_context(payment.order.competition):
+                outcome = _webhook_payment(payment, result)
         event.outcome = outcome
-        event.save(update_fields=["outcome", "payment"])
+        event.save(update_fields=["outcome"])
     return outcome
 
 
-def _webhook_payment(provider, payment: Payment, result) -> str:
+def _webhook_payment(payment: Payment, result) -> str:
+    """Skutek zdarzenia płatności. Potwierdzenie u dostawcy wykonał już wołający (poza blokadami)."""
     if result.outcome == "succeeded":
-        expected = to_minor(payment.amount)
-        if (
-            result.amount_minor is None
-            or int(result.amount_minor) != expected
-            or result.currency != payment.currency
-        ):
+        if not _amount_matches(payment, result):
             _mark_mismatch(
                 payment,
                 f"Dostawca potwierdził {result.amount_minor} {result.currency}, "
-                f"oczekiwano {expected} {payment.currency}.",
+                f"oczekiwano {to_minor(payment.amount)} {payment.currency}.",
                 provider_payment_id=result.provider_payment_id,
             )
             return "mismatch"
-        if not provider.confirm(payment, result):
-            raise ProviderError("verification-failed")
         apply_success(payment, provider_payment_id=result.provider_payment_id)
         return "succeeded"
     if result.outcome == "failed":
@@ -884,12 +982,30 @@ def _webhook_payment(provider, payment: Payment, result) -> str:
     return "ignored"
 
 
-def _webhook_refund(provider_code: str, result) -> str:
-    refund = (
-        Refund.objects.select_related("payment__order__competition")
-        .filter(payment__provider=provider_code, provider_refund_id=result.refund_id)
-        .first()
+def _find_refund(provider_code: str, result) -> Refund | None:
+    queryset = Refund.objects.select_related("payment__order__competition").filter(
+        payment__provider=provider_code
     )
+    if result.refund_id:
+        refund = queryset.filter(provider_refund_id=result.refund_id).first()
+        if refund is not None:
+            return refund
+    if result.refund_uuid:
+        # Odwrót (M5): odpowiedź API zwrotu zgubiła się, więc identyfikatora dostawcy nie znamy –
+        # ale zdarzenie niesie nasz UUID z metadanych.
+        try:
+            refund = queryset.filter(uuid=uuid_module.UUID(result.refund_uuid)).first()
+        except ValueError:
+            return None
+        if refund is not None and not refund.provider_refund_id and result.refund_id:
+            Refund.objects.filter(pk=refund.pk).update(provider_refund_id=result.refund_id)
+            refund.provider_refund_id = result.refund_id
+        return refund
+    return None
+
+
+def _webhook_refund(provider_code: str, result) -> str:
+    refund = _find_refund(provider_code, result)
     if refund is None:
         return "unknown_refund"
     from apps.tenancy.context import competition_context
@@ -905,14 +1021,24 @@ def _webhook_refund(provider_code: str, result) -> str:
 def record_bank_transfer(
     order: Order, *, received_on, note: str = "", proof=None, actor, request=None
 ) -> Payment:
-    """Koordynator zapisuje wpływ przelewu z kodem zamówienia (opcjonalnie z dowodem wpłaty)."""
+    """Koordynator zapisuje wpływ przelewu z kodem zamówienia (opcjonalnie z dowodem wpłaty).
+
+    Stan zamówienia sprawdzany **pod blokadą** (M4): dwa kliknięcia „Zapisz wpłatę” szeregują się na
+    wierszu zamówienia, a drugie widzi już „zapłacone” i odmawia – zamiast zapisać podwójną wpłatę.
+    Zamówienie anulowane jest odmową (L5): jego pozycje mogło objąć nowsze zamówienie.
+    """
     competition = order.competition
     require_enabled(competition)
     _require_coordinator(actor, competition)
-    if order.status not in (OrderStatus.OPEN, OrderStatus.CANCELLED):
-        raise _error("To zamówienie jest już zapłacone.", "ORDER_NOT_OPEN")
     paid_at = timezone.make_aware(datetime.combine(received_on, time(12, 0)))
     with transaction.atomic():
+        order = Order.objects.select_for_update(of=("self",)).get(pk=order.pk)
+        if order.status != OrderStatus.OPEN:
+            raise _error(
+                "Wpłatę zapisuje się wyłącznie na zamówienie czekające na wpłatę "
+                "(anulowane albo już zapłacone – zwróć przelew albo wystaw nowe zamówienie).",
+                "ORDER_NOT_OPEN",
+            )
         payment = Payment(
             order=order,
             provider=Provider.BANK_TRANSFER,
@@ -1039,82 +1165,165 @@ def open_proof(payment: Payment):
 
 REFUNDABLE_STATUSES = (PaymentStatus.SUCCEEDED, PaymentStatus.MISMATCH)
 
+#: Po ilu minutach zwrot w toku bez identyfikatora dostawcy (odpowiedź API zginęła) jest ponawiany.
+REFUND_RETRY_MINUTES = 2
 
-def refund_payment(payment: Payment, *, amount, reason: str, actor, request=None) -> Refund:
-    """Zwrot zlecony przez koordynatora: u dostawcy przez API, przelewu – zapisany jako wykonany ręcznie."""
-    from apps.accounts.activation import absolute_url
 
+def refundable_lines(order: Order) -> list[dict]:
+    """Pozycje zamówienia z ilością, którą jeszcze da się zwrócić (bez zniżki – jej się nie zwraca)."""
+    from django.db.models import Sum
+
+    taken = dict(
+        RefundLine.objects.filter(
+            line__order=order, refund__status__in=(RefundStatus.PENDING, RefundStatus.SUCCEEDED)
+        )
+        .values_list("line_id")
+        .annotate(total=Sum("quantity"))
+    )
+    rows = []
+    for line in order.lines.exclude(kind=PriceKind.DISCOUNT):
+        left = line.quantity - (taken.get(line.pk) or 0)
+        rows.append({"line": line, "left": max(0, left)})
+    return rows
+
+
+def refund_payment(
+    payment: Payment, *, lines: dict | None = None, reason: str, actor, request=None
+) -> Refund:
+    """Zwrot zlecony przez koordynatora: **pozycjami** (M3), u dostawcy przez API albo zapis przelewu.
+
+    Wpłata, która zapłaciła zamówienie (``SUCCEEDED``), wraca wyłącznie za wskazane pozycje
+    i ilości – kwota jest ich sumą (przycięta do tego, co z wpłaty zostało, gdy zamówienie miało
+    zniżkę). Dzięki temu zwrócony uczeń przestaje „pokrywać” miejsce i jego zastępca płaci. Wpłata
+    ``MISMATCH`` (podwójna, rozbieżna, po anulowaniu) wraca w całości i bez pozycji.
+    """
     competition = payment.order.competition
     require_enabled(competition)
     _require_coordinator(actor, competition)
     reason = (reason or "").strip()
     if not reason:
         raise _error("Zwrot wymaga podania powodu.", "REASON_REQUIRED", http.HTTP_400_BAD_REQUEST)
-    try:
-        amount = quantize_money(amount)
-    except (InvalidOperation, TypeError, ValueError) as exc:
-        raise _error("Podaj kwotę zwrotu.", "AMOUNT_REQUIRED", http.HTTP_400_BAD_REQUEST) from exc
+    requested = {int(key): int(value) for key, value in (lines or {}).items() if int(value or 0)}
     with transaction.atomic():
-        payment = Payment.objects.select_for_update(of=("self",)).select_related("order").get(pk=payment.pk)
+        order, payment = _lock_order_and_payment(payment.pk)
         if payment.status not in REFUNDABLE_STATUSES:
             raise _error("Zwrócić można wyłącznie przyjętą wpłatę.", "PAYMENT_NOT_REFUNDABLE")
         pending = sum((r.amount for r in payment.refunds.filter(status=RefundStatus.PENDING)), ZERO)
         left = payment.amount - payment.refunded_amount - pending
-        if amount <= 0 or amount > left:
-            raise _error(
-                f"Kwota zwrotu musi być z zakresu 0,01–{left} {payment.currency}.",
-                "REFUND_AMOUNT",
-                http.HTTP_400_BAD_REQUEST,
-            )
+        if left <= 0:
+            raise _error("Z tej wpłaty nie ma już czego zwrócić.", "REFUND_AMOUNT", http.HTTP_400_BAD_REQUEST)
+        drafts: list[tuple[OrderLine, int]] = []
+        if payment.status == PaymentStatus.SUCCEEDED:
+            available = {row["line"].pk: row for row in refundable_lines(order)}
+            if not requested:
+                raise _error(
+                    "Wskaż pozycje i ilości do zwrotu.", "REFUND_LINES_REQUIRED", http.HTTP_400_BAD_REQUEST
+                )
+            for line_pk, quantity in requested.items():
+                row = available.get(line_pk)
+                if row is None or quantity < 0 or quantity > row["left"]:
+                    raise _error(
+                        "Pozycja albo ilość zwrotu spoza zamówienia.",
+                        "REFUND_QUANTITY",
+                        http.HTTP_400_BAD_REQUEST,
+                    )
+                drafts.append((row["line"], quantity))
+            amount = min(left, sum((line.unit_price * quantity for line, quantity in drafts), ZERO))
+        else:
+            if requested:
+                raise _error(
+                    "Wpłata do wyjaśnienia nie pokrywa pozycji – wraca w całości.",
+                    "REFUND_LINES_NOT_ALLOWED",
+                    http.HTTP_400_BAD_REQUEST,
+                )
+            amount = left
         refund = Refund.objects.create(
             payment=payment, amount=amount, reason=reason, created_by=_actor(actor)
+        )
+        RefundLine.objects.bulk_create(
+            RefundLine(refund=refund, line=line, quantity=quantity, amount=line.unit_price * quantity)
+            for line, quantity in drafts
         )
     audit(
         actor,
         "payments.refund_requested",
         refund,
-        {"payment": str(payment.uuid), "provider": payment.provider, "amount": str(amount), "reason": reason},
+        {
+            "payment": str(payment.uuid),
+            "provider": payment.provider,
+            "amount": str(amount),
+            "reason": reason,
+            "lines": {str(line.pk): quantity for line, quantity in drafts},
+        },
         request=request,
     )
     if payment.provider == Provider.BANK_TRANSFER:
-        refund.detail = "Zwrot przelewem wykonany poza systemem."
-        refund.save(update_fields=["detail"])
+        Refund.objects.filter(pk=refund.pk).update(detail="Zwrot przelewem wykonany poza systemem.")
         apply_refund_status(refund, "succeeded", actor=actor)
         refund.refresh_from_db()
         return refund
+    _submit_refund(refund, actor=actor, request=request)
+    refund.refresh_from_db()
+    if refund.status == RefundStatus.FAILED:
+        raise _error(
+            "Dostawca odrzucił zwrot. Szczegóły w historii zamówienia.",
+            "REFUND_FAILED",
+            http.HTTP_502_BAD_GATEWAY,
+        )
+    return refund
+
+
+def _submit_refund(refund: Refund, *, actor=None, request=None) -> None:
+    """Zleca zwrot u dostawcy – także ponownie (M5), zawsze z tym samym kluczem idempotencji.
+
+    Brak odpowiedzi, przekroczony czas albo 5xx znaczą „wynik nieznany”: zwrot zostaje ``PENDING``
+    i sprzątanie (``sweep_payments``) zleca go jeszcze raz z tym samym UUID – Stripe po kluczu
+    idempotencji, P24 po ``requestId`` oddadzą ten sam zwrot zamiast drugiego. Odmowa (4xx) zamyka
+    zwrot jako ``FAILED``.
+    """
+    from apps.accounts.activation import absolute_url
+
+    payment = refund.payment
+    competition = payment.order.competition
     provider = get_provider(payment.provider)
     try:
         result = provider.refund(
             payment,
-            amount,
-            refund_uuid=str(refund.uuid),
-            reason=reason,
+            refund.amount,
+            refund_uuid=refund.uuid.hex,
+            reason=refund.reason,
             notify_url=absolute_url(reverse("web:payments-webhook-p24-refund"), request, competition),
         )
     except ProviderError as exc:
-        Refund.objects.filter(pk=refund.pk).update(
+        if exc.transient:
+            Refund.objects.filter(pk=refund.pk, status=RefundStatus.PENDING).update(
+                detail="Operator nie odpowiedział – zwrot zostanie zlecony ponownie."
+            )
+            audit(
+                actor, "payments.refund_retry_scheduled", refund, {"error": str(exc)[:120]}, request=request
+            )
+            return
+        Refund.objects.filter(pk=refund.pk, status=RefundStatus.PENDING).update(
             status=RefundStatus.FAILED, completed_at=timezone.now(), detail=str(exc)[:300]
         )
         audit(actor, "payments.refund_failed", refund, {"error": str(exc)[:120]}, request=request)
-        raise _error(
-            "Dostawca odrzucił zwrot albo nie odpowiada. Szczegóły w historii zamówienia.",
-            "REFUND_FAILED",
-            http.HTTP_502_BAD_GATEWAY,
-        ) from exc
-    Refund.objects.filter(pk=refund.pk).update(provider_refund_id=result.provider_refund_id)
+        return
+    Refund.objects.filter(pk=refund.pk).update(provider_refund_id=result.provider_refund_id, detail="")
     refund.provider_refund_id = result.provider_refund_id
     apply_refund_status(refund, result.status, actor=actor)
-    refund.refresh_from_db()
-    return refund
 
 
 def apply_refund_status(refund: Refund, status: str, *, actor=None) -> Refund:
-    """Wynik zwrotu (od razu z API albo później z webhooka). Idempotentne – zwrot rozstrzyga się raz."""
+    """Wynik zwrotu (od razu z API albo później z webhooka). Idempotentne – zwrot rozstrzyga się raz.
+
+    Blokady w kolejności zamówienie → wpłata → zwrot (L1).
+    """
     from . import notifications
 
     if status == "pending":
         return refund
     with transaction.atomic():
+        order, payment = _lock_order_and_payment(refund.payment_id)
         refund = Refund.objects.select_for_update(of=("self",)).get(pk=refund.pk)
         if refund.status != RefundStatus.PENDING:
             return refund
@@ -1126,10 +1335,8 @@ def apply_refund_status(refund: Refund, status: str, *, actor=None) -> Refund:
             return refund
         refund.status = RefundStatus.SUCCEEDED
         refund.save(update_fields=["status", "completed_at"])
-        payment = Payment.objects.select_for_update(of=("self",)).get(pk=refund.payment_id)
         payment.refunded_amount = min(payment.amount, payment.refunded_amount + refund.amount)
         payment.save(update_fields=["refunded_amount"])
-        order = Order.objects.select_for_update(of=("self",)).get(pk=payment.order_id)
         if payment.status == PaymentStatus.SUCCEEDED:
             # Zwrot podwójnej albo rozbieżnej wpłaty (``MISMATCH``) nie rusza zamówienia – ono jest
             # opłacone inną wpłatą albo dalej czeka na właściwą.
@@ -1151,6 +1358,86 @@ def apply_refund_status(refund: Refund, status: str, *, actor=None) -> Refund:
         audit(actor, "payments.refunded", refund, {"amount": str(refund.amount), "order": order.reference})
         notifications.send_refund_notice(refund)
     return refund
+
+
+# --- sprzątanie zaległych prób i zwrotów (beat) ----------------------------------------------------
+
+
+def _sweep_stripe_payment(payment: Payment) -> str:
+    provider = get_provider(Provider.STRIPE)
+    if not payment.provider_ref:
+        return _close(payment, PaymentStatus.CANCELLED)
+    state = provider.session_status(payment)
+    if state is None:
+        return "unknown"
+    if state["status"] == "expired":
+        return _close(payment, PaymentStatus.CANCELLED)
+    if state["status"] == "complete" and state["payment_status"] == "paid":
+        # Webhook zginął (albo endpoint był źle skonfigurowany), a sesja jest zapłacona: stan pobrany
+        # **naszym kluczem** z API dostawcy jest tak samo wiarygodny jak podpisane zdarzenie.
+        from .providers.base import WebhookResult
+
+        result = WebhookResult(
+            event_id=f"sweep:{payment.provider_ref}",
+            event_type="sweep",
+            outcome="succeeded",
+            provider_ref=payment.provider_ref,
+            provider_payment_id=state["payment_intent"],
+            amount_minor=state["amount_minor"],
+            currency=state["currency"],
+        )
+        return _webhook_payment(payment, result)
+    return "open"
+
+
+def sweep_payments(now=None) -> dict[str, int]:
+    """Zamyka porzucone próby zapłaty i ponawia zwroty o nieznanym wyniku (M2, M5). Woła beat.
+
+    - Stripe ``PENDING`` starsze niż czas życia sesji (albo bez identyfikatora sesji starsze niż czas
+      rozmowy z dostawcą): ``GET`` sesji – wygasła → przerwana, zapłacona → wpłata (jak z webhooka),
+    - P24 ``PENDING`` starsze niż limit transakcji z zapasem → przerwana (zapłacona P24 doręczyłaby
+      powiadomienie, a bez ``verify`` sam zwraca pieniądze),
+    - zwroty ``PENDING`` bez identyfikatora dostawcy starsze niż kilka minut → zlecone ponownie.
+    """
+    from apps.tenancy.context import competition_context
+
+    from .providers.stripe import SESSION_TTL_SECONDS
+
+    now = now or timezone.now()
+    stats = {"payments": 0, "refunds": 0}
+    stripe_configured = get_provider(Provider.STRIPE).is_configured()
+    stale = Payment.objects.select_related("order__competition").filter(status=PaymentStatus.PENDING)
+    for payment in stale.filter(provider=Provider.STRIPE):
+        limit = (
+            timedelta(seconds=SESSION_TTL_SECONDS + 600)
+            if payment.provider_ref
+            else timedelta(seconds=STRIPE_UNREFERENCED_GRACE_SECONDS)
+        )
+        if payment.created_at > now - limit or not stripe_configured:
+            continue
+        with competition_context(payment.order.competition):
+            _sweep_stripe_payment(payment)
+        stats["payments"] += 1
+    for payment in stale.filter(
+        provider=Provider.P24, created_at__lt=now - timedelta(minutes=P24_ABANDON_MINUTES + 60)
+    ):
+        _close(payment, PaymentStatus.CANCELLED)
+        stats["payments"] += 1
+    for refund in (
+        Refund.objects.select_related("payment__order__competition")
+        .filter(
+            status=RefundStatus.PENDING,
+            provider_refund_id="",
+            created_at__lt=now - timedelta(minutes=REFUND_RETRY_MINUTES),
+        )
+        .exclude(payment__provider=Provider.BANK_TRANSFER)
+    ):
+        if not get_provider(refund.payment.provider).is_configured():
+            continue
+        with competition_context(refund.payment.order.competition):
+            _submit_refund(refund)
+        stats["refunds"] += 1
+    return stats
 
 
 # --- zestawienia ----------------------------------------------------------------------------------
@@ -1322,10 +1609,15 @@ def export_section(user) -> list[dict]:
         }
         for order in Order.objects.filter(created_by=user).select_related("competition")
     ]
-    for profile in BillingProfile.objects.filter(participant__user=user):
+    profiles = BillingProfile.objects.filter(participant__user=user) | BillingProfile.objects.filter(
+        delegation__isnull=False, updated_by=user
+    )
+    for profile in profiles.distinct():
         rows.append(
             {
-                "rodzaj": "dane nabywcy",
+                "rodzaj": "dane nabywcy"
+                if profile.participant_id
+                else "dane nabywcy delegacji (wpisane przez to konto)",
                 "nabywca": profile.buyer_name,
                 "adres": profile.buyer_address,
                 "kraj": profile.buyer_country,
@@ -1334,3 +1626,14 @@ def export_section(user) -> list[dict]:
             }
         )
     return rows
+
+
+def erase_for_user(user) -> None:
+    """Anonimizacja i usunięcie konta (L6): profil nabywcy **uczestnika** znika, dokumenty zostają.
+
+    Zamówienia i faktury niosą migawkę nabywcy i są dokumentacją księgową (art. 6 ust. 1 lit. c RODO,
+    5 lat) – tego nie kasujemy. Profil to tylko wzór do kolejnych zamówień, więc po koncie nie zostaje.
+    Profil **delegacji** należy do delegacji (dane instytucji), a nie do osoby – odpinamy tylko autora.
+    """
+    BillingProfile.objects.filter(participant__user=user).delete()
+    BillingProfile.objects.filter(updated_by=user).update(updated_by=None)

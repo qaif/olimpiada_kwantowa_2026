@@ -131,11 +131,18 @@ class FakeResponse:
 def fake_http():
     """``requests.post``/``requests.request`` podmienione – test ustawia odpowiedzi i czyta wywołania."""
     with (
-        mock.patch("apps.payments.providers.stripe.requests.post") as stripe_post,
-        mock.patch("apps.payments.providers.przelewy24.requests.request") as p24_request,
+        mock.patch("apps.payments.providers.stripe.send") as stripe_post,
+        mock.patch("apps.payments.providers.przelewy24.send") as p24_request,
     ):
         yield {"stripe": stripe_post, "p24": p24_request}
 
 
-def stripe_event(event_type: str, obj: dict, event_id: str = "evt_1") -> bytes:
-    return json.dumps({"id": event_id, "type": event_type, "data": {"object": obj}}).encode()
+def stripe_event(event_type: str, obj: dict, event_id: str = "evt_1", livemode: bool = False) -> bytes:
+    return json.dumps(
+        {"id": event_id, "type": event_type, "livemode": livemode, "data": {"object": obj}}
+    ).encode()
+
+
+def all_lines(order) -> dict[int, int]:
+    """Zwrot całego zamówienia: każda pozycja (bez zniżki) w pełnej ilości."""
+    return {line.pk: line.quantity for line in order.lines.exclude(kind="DISCOUNT")}

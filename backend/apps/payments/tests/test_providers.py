@@ -25,7 +25,7 @@ from apps.payments.models import (
 from apps.payments.providers import przelewy24 as p24
 from apps.payments.providers import stripe
 
-from .conftest import STRIPE_SECRET, FakeResponse, stripe_event
+from .conftest import STRIPE_SECRET, FakeResponse, all_lines, stripe_event
 
 pytestmark = pytest.mark.django_db
 
@@ -110,7 +110,7 @@ def test_second_attempt_expires_the_previous_session(order, leader, stripe_keys,
     services.start_checkout(order, "stripe", actor=leader.user)
     first.refresh_from_db()
     assert first.status == PaymentStatus.CANCELLED
-    paths = [call.args[0] for call in fake_http["stripe"].call_args_list]
+    paths = [call.args[1] for call in fake_http["stripe"].call_args_list]
     assert f"{stripe.API_BASE}/checkout/sessions/cs_first/expire" in paths
 
 
@@ -285,13 +285,15 @@ def test_full_refund_through_the_api_refunds_the_order(
 ):
     payment = paid_by_stripe(order, leader, fake_http, client_for, iqo)
     fake_http["stripe"].return_value = FakeResponse(200, {"id": "re_1", "status": "succeeded"})
-    refund = services.refund_payment(payment, amount="250", reason="Delegation withdrew", actor=coordinator)
+    refund = services.refund_payment(
+        payment, lines=all_lines(order), reason="Delegation withdrew", actor=coordinator
+    )
     assert refund.status == RefundStatus.SUCCEEDED and refund.provider_refund_id == "re_1"
     data = fake_http["stripe"].call_args.kwargs["data"]
     assert data == {
         "payment_intent": "pi_123",
         "amount": 25000,
-        "metadata[refund_uuid]": str(refund.uuid),
+        "metadata[refund_uuid]": refund.uuid.hex,
         "metadata[payment_uuid]": str(payment.uuid),
     }
     order.refresh_from_db()
@@ -304,11 +306,14 @@ def test_partial_refund_keeps_the_order_paid_and_caps_the_amount(
 ):
     payment = paid_by_stripe(order, leader, fake_http, client_for, iqo)
     fake_http["stripe"].return_value = FakeResponse(200, {"id": "re_2", "status": "pending"})
-    refund = services.refund_payment(payment, amount="50", reason="One student withdrew", actor=coordinator)
+    student = order.lines.get(kind="STUDENT")
+    refund = services.refund_payment(
+        payment, lines={student.pk: 1}, reason="One student withdrew", actor=coordinator
+    )
     assert refund.status == RefundStatus.PENDING
     with pytest.raises(DomainError) as error:
-        services.refund_payment(payment, amount="201", reason="too much", actor=coordinator)
-    assert error.value.machine_code == "REFUND_AMOUNT"
+        services.refund_payment(payment, lines={student.pk: 2}, reason="too much", actor=coordinator)
+    assert error.value.machine_code == "REFUND_QUANTITY"
     body = stripe_event("refund.updated", {"id": "re_2", "status": "succeeded"}, event_id="evt_ref")
     post_stripe(client_for(iqo), body)
     order.refresh_from_db()
@@ -320,9 +325,9 @@ def test_refund_is_coordinator_only_and_needs_a_reason(
 ):
     payment = paid_by_stripe(order, leader, fake_http, client_for, iqo)
     with pytest.raises(DomainError):
-        services.refund_payment(payment, amount="10", reason="x", actor=leader.user)
+        services.refund_payment(payment, lines=all_lines(order), reason="x", actor=leader.user)
     with pytest.raises(DomainError):
-        services.refund_payment(payment, amount="10", reason=" ", actor=coordinator)
+        services.refund_payment(payment, lines=all_lines(order), reason=" ", actor=coordinator)
     assert not Refund.objects.exists()
 
 
@@ -332,7 +337,7 @@ def test_refused_refund_is_recorded_as_failed(
     payment = paid_by_stripe(order, leader, fake_http, client_for, iqo)
     fake_http["stripe"].return_value = FakeResponse(400, {"error": {"type": "invalid_request_error"}})
     with pytest.raises(DomainError):
-        services.refund_payment(payment, amount="10", reason="test", actor=coordinator)
+        services.refund_payment(payment, lines=all_lines(order), reason="test", actor=coordinator)
     assert Refund.objects.get().status == RefundStatus.FAILED
 
 
@@ -442,14 +447,16 @@ def test_p24_refund_completes_on_its_notification(
     client_for(iqo).post(P24_URL, data=p24_notification(payment), content_type="application/json")
     payment.refresh_from_db()
     fake_http["p24"].return_value = FakeResponse(201, {"data": [{"status": True}], "responseCode": 0})
-    refund = services.refund_payment(payment, amount="250", reason="Cancelled", actor=coordinator)
+    refund = services.refund_payment(
+        payment, lines=all_lines(pln_order), reason="Cancelled", actor=coordinator
+    )
     assert refund.status == RefundStatus.PENDING
     note = {
         "orderId": 777,
         "sessionId": str(payment.uuid),
         "merchantId": 11111,
-        "requestId": str(refund.uuid),
-        "refundsUuid": str(refund.uuid),
+        "requestId": refund.uuid.hex,
+        "refundsUuid": refund.uuid.hex,
         "amount": 25000,
         "currency": "PLN",
         "timestamp": 1,

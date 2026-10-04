@@ -14,7 +14,7 @@ from apps.core.models import AuditLog
 from apps.payments import services
 from apps.payments.models import DocumentKind, OrderStatus, Payment, PaymentStatus, ScanStatus
 
-from .conftest import BILLING, FakeResponse
+from .conftest import BILLING, FakeResponse, all_lines
 
 pytestmark = pytest.mark.django_db
 
@@ -221,7 +221,7 @@ def test_proof_that_is_not_a_document_is_refused(order, coordinator, bank_accoun
 
 def test_bank_transfer_refund_is_recorded_manually(order, coordinator, bank_account):
     payment = services.record_bank_transfer(order, received_on=date(2026, 10, 1), actor=coordinator)
-    refund = services.refund_payment(payment, amount="250", reason="Withdrawn", actor=coordinator)
+    refund = services.refund_payment(payment, lines=all_lines(order), reason="Withdrawn", actor=coordinator)
     assert refund.status == "SUCCEEDED"
     order.refresh_from_db()
     assert order.status == OrderStatus.REFUNDED
@@ -306,7 +306,7 @@ def test_participant_full_refund_reaches_the_fee_register(competition, participa
     )
     coordinator = CoordinatorFactory()
     payment = services.record_bank_transfer(order, received_on=date(2026, 10, 1), actor=coordinator)
-    services.refund_payment(payment, amount="49.99", reason="Withdrew", actor=coordinator)
+    services.refund_payment(payment, lines=all_lines(order), reason="Withdrew", actor=coordinator)
     participant_fee.refresh_from_db()
     assert participant_fee.status == FeeStatus.REFUNDED
 

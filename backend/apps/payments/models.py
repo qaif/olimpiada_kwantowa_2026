@@ -360,7 +360,9 @@ class OrderStatus(models.TextChoices):
 
 
 #: Zamówienia, które **pokrywają** skład delegacji – tych pozycji nie wystawia się drugi raz.
-COVERING_STATUSES: tuple[str, ...] = (OrderStatus.OPEN, OrderStatus.PAID)
+#: ``REFUNDED`` też: pokrycie liczy ilości pozycji **minus ilości zwrócone** (:class:`RefundLine`),
+#: więc zamówienie zwrócone w całości nie pokrywa już niczego, a zwrócone w części – resztę.
+COVERING_STATUSES: tuple[str, ...] = (OrderStatus.OPEN, OrderStatus.PAID, OrderStatus.REFUNDED)
 
 
 class Order(models.Model):
@@ -598,6 +600,31 @@ class Refund(models.Model):
 
     def __str__(self) -> str:
         return f"refund:{self.uuid}"
+
+
+class RefundLine(models.Model):
+    """Która pozycja zamówienia i w jakiej ilości wraca w tym zwrocie.
+
+    Zwrot jest przypisany do **pozycji**, a nie tylko do kwoty: inaczej uczeń wypisany po zapłacie
+    i zwrócony zostawałby „pokryty”, a jego zastępca nie zapłaciłby niczego (``pricing.covered``
+    odejmuje ilości zwrotów zakończonych). Zwrot wpłaty ``MISMATCH`` (podwójnej albo z rozbieżną
+    kwotą) pozycji nie ma – nie pokrywał niczego.
+    """
+
+    refund = models.ForeignKey(Refund, on_delete=models.CASCADE, related_name="lines")
+    line = models.ForeignKey(OrderLine, on_delete=models.PROTECT, related_name="refund_lines")
+    quantity = models.PositiveIntegerField("ilość")
+    amount = models.DecimalField("kwota", max_digits=10, decimal_places=2)
+
+    class Meta:
+        verbose_name = "pozycja zwrotu"
+        verbose_name_plural = "pozycje zwrotów"
+        constraints = [
+            models.CheckConstraint(condition=Q(quantity__gt=0), name="payments_refundline_quantity_positive"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.line_id} × {self.quantity}"
 
 
 class ProviderEvent(models.Model):

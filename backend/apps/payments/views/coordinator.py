@@ -290,9 +290,13 @@ class OrderAdminView(PaymentsScreenMixin, View):
                 "bank_form": BankTransferForm(),
                 "cancel_form": CoordinatorReasonForm(),
                 "refund_form": RefundForm(),
-                "can_mark_paid": order.status in (OrderStatus.OPEN, OrderStatus.CANCELLED),
+                "can_mark_paid": order.status == OrderStatus.OPEN,
                 "refundable": [
-                    p
+                    {
+                        "payment": p,
+                        # Wpłata zamówienia wraca pozycjami (M3); „do wyjaśnienia” – w całości.
+                        "lines": service.refundable_lines(order) if p.status == "SUCCEEDED" else [],
+                    }
                     for p in payments
                     if p.status in service.REFUNDABLE_STATUSES and p.amount > p.refunded_amount
                 ],
@@ -361,13 +365,21 @@ class RefundView(PaymentsScreenMixin, ThrottledFormMixin, View):
             Payment.objects.for_competition(competition).select_related("order"), pk=pk
         )
         form = RefundForm(request.POST)
-        if not form.is_valid():
-            messages.error(request, _errors(form))
+        try:
+            lines = {
+                int(key.removeprefix("line_")): int(value or 0)
+                for key, value in request.POST.items()
+                if key.startswith("line_")
+            }
+        except ValueError:
+            lines = None
+        if not form.is_valid() or lines is None:
+            messages.error(request, _errors(form) or "Ilości zwrotu muszą być liczbami całkowitymi.")
         else:
             try:
                 refund = service.refund_payment(
                     payment,
-                    amount=form.cleaned_data["amount"],
+                    lines=lines,
                     reason=form.cleaned_data["reason"],
                     actor=request.user,
                     request=request,

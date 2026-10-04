@@ -23,7 +23,7 @@ from apps.submissions.tasks import (
 )
 
 from .models import Payment, ScanStatus
-from .services import apply_proof_error, apply_proof_verdict
+from .services import apply_proof_error, apply_proof_verdict, sweep_payments
 
 logger = logging.getLogger(__name__)
 
@@ -53,3 +53,13 @@ def scan_payment_proof(self, payment_id: int) -> str:
     if verdict == ScanStatus.INFECTED:
         logger.warning("Dowód wpłaty %s zainfekowany (%s) – usunięty.", payment_id, signature)
     return verdict
+
+
+@shared_task(name="apps.payments.tasks.sweep_payments")
+def sweep_payments_task() -> dict:
+    """Beat co 15 minut: porzucone próby zapłaty i zwroty o nieznanym wyniku (``services.sweep_payments``).
+
+    Bez konkursów z flagą ``fees`` zapytania zwracają puste zbiory – Konkurs #1 nie płaci za to nic
+    poza dwoma pustymi zapytaniami na kwadrans.
+    """
+    return sweep_payments()

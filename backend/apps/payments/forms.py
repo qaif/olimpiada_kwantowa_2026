@@ -173,5 +173,6 @@ class BankTransferForm(forms.Form):
 
 
 class RefundForm(forms.Form):
-    amount = forms.DecimalField(label="Kwota zwrotu", min_value=0, max_digits=10, decimal_places=2)
+    """Powód zwrotu. Pozycje i ilości (``line_<id>``) czyta widok – kwotę liczy serwis z pozycji (M3)."""
+
     reason = forms.CharField(label="Powód", max_length=300)

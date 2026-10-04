@@ -38,6 +38,12 @@ from .base import (
 
 logger = logging.getLogger(__name__)
 
+
+def send(method: str, url: str, *, timeout: float, **kwargs):
+    """Jedno wyjście do sieci tego adaptera – testy podmieniają właśnie je (każdy adapter osobno)."""
+    return requests.request(method, url, timeout=timeout, **kwargs)
+
+
 API_BASE = "https://api.stripe.com/v1"
 
 #: Tolerancja znacznika czasu podpisu – tyle samo, co domyślnie w bibliotekach Stripe i u nas
@@ -127,18 +133,22 @@ class StripeProvider(PaymentProviderBase):
 
     # --- HTTP -------------------------------------------------------------------------------------
 
-    def _post(self, path: str, data: dict, *, idempotency_key: str) -> dict:
+    def _request(
+        self, method: str, path: str, data: dict | None = None, *, idempotency_key: str = ""
+    ) -> dict:
+        headers = {"Idempotency-Key": idempotency_key} if idempotency_key else {}
         try:
-            response = requests.post(
+            response = send(
+                method,
                 f"{API_BASE}{path}",
                 data=data,
                 auth=(secret_key(), ""),
-                headers={"Idempotency-Key": idempotency_key},
+                headers=headers,
                 timeout=HTTP_TIMEOUT,
             )
         except requests.RequestException as exc:
             logger.warning("Stripe nie odpowiedział (%s): %s", path, exc.__class__.__name__)
-            raise ProviderError("Stripe is not responding.") from exc
+            raise ProviderError("Stripe is not responding.", transient=True) from exc
         try:
             payload = response.json()
         except ValueError:
@@ -153,8 +163,13 @@ class StripeProvider(PaymentProviderBase):
                 error.get("type", ""),
                 error.get("code", ""),
             )
-            raise ProviderError(error.get("code") or f"HTTP {response.status_code}")
+            # 5xx i 429: wynik nieznany – powtórka z tym samym kluczem idempotencji jest bezpieczna.
+            transient = response.status_code >= 500 or response.status_code == 429
+            raise ProviderError(error.get("code") or f"HTTP {response.status_code}", transient=transient)
         return payload
+
+    def _post(self, path: str, data: dict, *, idempotency_key: str) -> dict:
+        return self._request("POST", path, data, idempotency_key=idempotency_key)
 
     # --- interfejs --------------------------------------------------------------------------------
 
@@ -199,6 +214,22 @@ class StripeProvider(PaymentProviderBase):
             return False
         return True
 
+    def session_status(self, payment) -> dict | None:
+        """``GET /v1/checkout/sessions/{id}`` – po nieudanym ``expire`` i w sprzątaniu zaległych prób."""
+        if not payment.provider_ref:
+            return None
+        try:
+            session = self._request("GET", f"/checkout/sessions/{payment.provider_ref}")
+        except ProviderError:
+            return None
+        return {
+            "status": session.get("status") or "",
+            "payment_status": session.get("payment_status") or "",
+            "amount_minor": session.get("amount_total"),
+            "currency": str(session.get("currency") or "").upper(),
+            "payment_intent": str(session.get("payment_intent") or ""),
+        }
+
     def refund(self, payment, amount, *, refund_uuid: str, reason: str, notify_url: str = "") -> RefundResult:
         if not payment.provider_payment_id:
             raise ProviderError("missing-payment-intent")
@@ -224,6 +255,12 @@ class StripeProvider(PaymentProviderBase):
         except (ValueError, KeyError, TypeError) as exc:
             raise SignatureError("stripe-payload") from exc
         result = WebhookResult(event_id=event_id, event_type=event_type, outcome="ignored")
+        livemode = event.get("livemode")
+        if isinstance(livemode, bool) and livemode == is_test_mode():
+            # Zdarzenie trybu live przy kluczu testowym (albo odwrotnie): dwa endpointy wskazujące ten
+            # sam adres. Podpis jest poprawny, ale ta instalacja tych pieniędzy nie prowadzi.
+            result.mode_mismatch = True
+            return result
         if event_type.startswith("checkout.session."):
             result.provider_ref = str(obj.get("id", ""))
             result.payment_uuid = str(
@@ -245,6 +282,7 @@ class StripeProvider(PaymentProviderBase):
         elif event_type in ("refund.updated", "refund.failed", "refund.created", "charge.refund.updated"):
             result.outcome = "refund"
             result.refund_id = str(obj.get("id", ""))
+            result.refund_uuid = str((obj.get("metadata") or {}).get("refund_uuid") or "")
             status = str(obj.get("status", ""))
             result.refund_status = {"succeeded": "succeeded", "failed": "failed", "canceled": "failed"}.get(
                 status, "pending"

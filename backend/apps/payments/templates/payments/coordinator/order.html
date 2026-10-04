@@ -81,17 +81,33 @@
 </section>
 {% endif %}
 
-{% for payment in refundable %}
+{% for item in refundable %}{% with payment=item.payment %}
 <section class="section">
   <div class="card">
     <h2 class="mt-0">Zwrot: {{ payment.get_provider_display }} {{ payment.amount }} {{ payment.currency }} (zwrócono {{ payment.refunded_amount }})</h2>
-    <p class="hint">{% if payment.provider == "bank_transfer" %}Zwrot przelewu wykonujesz w banku – tu go zapisujesz.{% else %}Zwrot zostanie zlecony u operatora płatności.{% endif %}</p>
+    <p class="hint">{% if payment.provider == "bank_transfer" %}Zwrot przelewu wykonujesz w banku – tu go zapisujesz.{% else %}Zwrot zostanie zlecony u operatora płatności.{% endif %}
+      {% if item.lines %}Wskaż pozycje i ilości: zwrócone miejsca przestają być opłacone, więc np. zastępca wypisanego ucznia zapłaci za siebie. Kwotę liczy system (przy zniżce – nie więcej niż zostało z wpłaty).{% else %}Wpłata do wyjaśnienia wraca w całości.{% endif %}</p>
     <form method="post" action="{% url 'web:coordinator-payments-refund' payment.pk %}" class="form" novalidate>
       {% csrf_token %}
+      {% if item.lines %}
+        <table class="table">
+          <caption class="visually-hidden">Pozycje do zwrotu</caption>
+          <thead><tr><th scope="col">Pozycja</th><th scope="col">Cena</th><th scope="col">Do zwrotu (najwyżej)</th></tr></thead>
+          <tbody>
+            {% for row in item.lines %}
+              <tr>
+                <th scope="row"><label for="refund-{{ payment.pk }}-{{ row.line.pk }}">{{ row.line.description }}</label></th>
+                <td>{{ row.line.unit_price }}</td>
+                <td><input type="number" id="refund-{{ payment.pk }}-{{ row.line.pk }}" name="line_{{ row.line.pk }}" min="0" max="{{ row.left }}" value="0"{% if not row.left %} disabled{% endif %}> / {{ row.left }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% endif %}
       {{ refund_form.as_p }}
       <div class="actions"><button type="submit" class="btn btn--secondary">Zleć zwrot</button></div>
     </form>
   </div>
 </section>
-{% endfor %}
+{% endwith %}{% endfor %}
 {% endblock %}

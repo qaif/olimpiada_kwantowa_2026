@@ -41,6 +41,12 @@ from .base import (
 
 logger = logging.getLogger(__name__)
 
+
+def send(method: str, url: str, *, timeout: float, **kwargs):
+    """Jedno wyjście do sieci tego adaptera – testy podmieniają właśnie je (każdy adapter osobno)."""
+    return requests.request(method, url, timeout=timeout, **kwargs)
+
+
 PRODUCTION_HOST = "secure.przelewy24.pl"
 SANDBOX_HOST = "sandbox.przelewy24.pl"
 
@@ -113,7 +119,7 @@ class Przelewy24Provider(PaymentProviderBase):
     def _request(self, method: str, path: str, payload: dict) -> dict:
         config = _config()
         try:
-            response = requests.request(
+            response = send(
                 method,
                 f"https://{config['host']}/api/v1{path}",
                 json=payload,
@@ -122,14 +128,15 @@ class Przelewy24Provider(PaymentProviderBase):
             )
         except requests.RequestException as exc:
             logger.warning("Przelewy24 nie odpowiedział (%s): %s", path, exc.__class__.__name__)
-            raise ProviderError("Przelewy24 is not responding.") from exc
+            raise ProviderError("Przelewy24 is not responding.", transient=True) from exc
         try:
             body = response.json()
         except ValueError:
             body = {}
         if response.status_code >= 400:
             logger.warning("Przelewy24 odmówił (%s): HTTP %s", path, response.status_code)
-            raise ProviderError(f"HTTP {response.status_code}")
+            transient = response.status_code >= 500 or response.status_code == 429
+            raise ProviderError(f"HTTP {response.status_code}", transient=transient)
         return body
 
     def create_checkout(self, request: CheckoutRequest) -> CheckoutResult:
@@ -245,6 +252,8 @@ class Przelewy24Provider(PaymentProviderBase):
     def refund(self, payment, amount, *, refund_uuid: str, reason: str, notify_url: str = "") -> RefundResult:
         if not payment.provider_payment_id:
             raise ProviderError("missing-order-id")
+        # ``refundsUuid``/``requestId`` mają u P24 najwyżej 32 znaki – UUID bez myślników (``uuid.hex``).
+        refund_uuid = refund_uuid.replace("-", "")
         payload = {
             "requestId": refund_uuid,
             "refundsUuid": refund_uuid,

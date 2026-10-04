@@ -12,7 +12,7 @@ Zmiana adresu organizatora albo nabywcy po fakcie nie zmienia faktury, którą k
 
 **Granice (D15 po zmianie z 4.10.2026).** Kwoty są brutto, podatku system nie liczy – adnotacja VAT
 jest tekstem organizatora. Faktur korygujących nie ma: zwrot jest zapisany w rejestrze i w audycie,
-a korektę wystawia księgowość organizatora (OPERACJE § 29).
+a korektę wystawia księgowość organizatora (OPERACJE § 35).
 """
 
 from __future__ import annotations

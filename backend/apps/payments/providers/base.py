@@ -25,7 +25,15 @@ HTTP_TIMEOUT = 20
 
 
 class ProviderError(Exception):
-    """Dostawca odmówił albo nie odpowiedział. Komunikat bez sekretów i bez danych płacącego."""
+    """Dostawca odmówił albo nie odpowiedział. Komunikat bez sekretów i bez danych płacącego.
+
+    ``transient=True`` – brak odpowiedzi, przekroczony czas, 5xx albo 429: wynik u dostawcy jest
+    **nieznany**, więc operację powtarza się z tym samym kluczem idempotencji, a nie uznaje za odmowę.
+    """
+
+    def __init__(self, message: str = "", *, transient: bool = False):
+        super().__init__(message)
+        self.transient = transient
 
 
 class SignatureError(Exception):
@@ -81,6 +89,11 @@ class WebhookResult:
     currency: str = ""
     refund_id: str = ""
     refund_status: str = ""
+    #: Nasz identyfikator zwrotu z metadanych zdarzenia – odwrót, gdy identyfikator dostawcy jeszcze
+    #: nie został zapisany (zwrot, którego odpowiedź API zgubiła się po drodze).
+    refund_uuid: str = ""
+    #: Zdarzenie z innego trybu niż skonfigurowany klucz (test ↔ live) – zapisujemy i pomijamy.
+    mode_mismatch: bool = False
     extra: dict = field(default_factory=dict)
 
 
@@ -118,6 +131,10 @@ class PaymentProviderBase:
     def expire(self, payment) -> bool:
         """Wygasza otwartą sesję. ``True`` = sesja zamknięta i nie przyjmie już zapłaty."""
         return False
+
+    def session_status(self, payment) -> dict | None:
+        """Stan sesji u dostawcy (``status``, ``payment_status``, kwota) albo ``None``, gdy nieznany."""
+        return None
 
     def refund(
         self, payment, amount: Decimal, *, refund_uuid: str, reason: str, notify_url: str = ""

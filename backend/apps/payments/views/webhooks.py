@@ -13,7 +13,7 @@ Kody odpowiedzi:
 - 200 – wszystko inne, także zdarzenie nieznane albo powtórzone: dostawca ma przestać ponawiać.
 
 Adres nie zależy od konkursu żądania: płatność odnajdujemy po identyfikatorze sesji u dostawcy,
-a konkurs bierzemy z niej – jeden adres webhooka na instalację (OPERACJE § 29).
+a konkurs bierzemy z niej – jeden adres webhooka na instalację (OPERACJE § 35).
 """
 
 from __future__ import annotations
@@ -36,7 +36,7 @@ class _WebhookView(APIView):
     authentication_classes: list = []
     permission_classes = [AllowAny]
     throttle_classes = [ScopedRateThrottle]
-    throttle_scope = "payments"
+    throttle_scope = "payment_webhooks"
     provider_code = ""
     refund = False
 

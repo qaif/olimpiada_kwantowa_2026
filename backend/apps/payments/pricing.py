@@ -78,24 +78,47 @@ def composition(delegation) -> dict[str, int]:
     return {
         PriceKind.DELEGATION: 1,
         PriceKind.STUDENT: Participant.objects.filter(delegation=delegation).count(),
-        PriceKind.LEADER: DelegationLeader.objects.filter(delegation=delegation).count(),
+        # Wyłącznie opiekunowie **czynni** – odwołany (``removed_at``) nie jedzie na zawody.
+        PriceKind.LEADER: DelegationLeader.objects.active().filter(delegation=delegation).count(),
         PriceKind.OBSERVER: profile.observers if profile else 0,
     }
 
 
 def covered(delegation) -> dict[str, int]:
+    """Ilości objęte zamówieniami otwartymi, zapłaconymi i zwróconymi **minus ilości zwrócone**.
+
+    Zwrot liczy się dopiero zakończony (``SUCCEEDED``): zwrot w toku, który się nie uda, nie może
+    zostawić pozycji „niepokrytej” – zastępca zapłaciłby wtedy drugi raz za to samo miejsce.
+    """
+    from .models import RefundLine, RefundStatus
+
     rows = (
         OrderLine.objects.filter(order__delegation=delegation, order__status__in=COVERING_STATUSES)
         .exclude(kind=PriceKind.DISCOUNT)
         .values("kind")
         .annotate(total=Sum("quantity"))
     )
-    return {row["kind"]: row["total"] or 0 for row in rows}
+    result = {row["kind"]: row["total"] or 0 for row in rows}
+    refunded = (
+        RefundLine.objects.filter(
+            line__order__delegation=delegation,
+            line__order__status__in=COVERING_STATUSES,
+            refund__status=RefundStatus.SUCCEEDED,
+        )
+        .values("line__kind")
+        .annotate(total=Sum("quantity"))
+    )
+    for row in refunded:
+        result[row["line__kind"]] = max(0, result.get(row["line__kind"], 0) - (row["total"] or 0))
+    return result
 
 
 def discount_used(delegation) -> Decimal:
+    """Zniżka zużyta przez zamówienia otwarte i zapłacone. Zamówienie zwrócone w całości ją oddaje."""
     used = OrderLine.objects.filter(
-        order__delegation=delegation, order__status__in=COVERING_STATUSES, kind=PriceKind.DISCOUNT
+        order__delegation=delegation,
+        order__status__in=(OrderStatus.OPEN, OrderStatus.PAID),
+        kind=PriceKind.DISCOUNT,
     ).aggregate(total=Sum("amount"))["total"]
     return -(used or ZERO)
 

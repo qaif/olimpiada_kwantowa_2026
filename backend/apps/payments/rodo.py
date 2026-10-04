@@ -44,7 +44,8 @@ PAYMENTS_ACTIVITY = _activity(
     retention=(
         "5 lat od końca roku kalendarzowego, w którym upłynął termin płatności podatku za rok wystawienia "
         "dokumentu (dokumentacja księgowa). Skan dowodu wpłaty – do zamknięcia rozliczenia edycji; plik "
-        "zainfekowany jest usuwany od razu. Usunięcie konta odpina autora zamówienia, dokumenty zostają."
+        "zainfekowany jest usuwany od razu. Anonimizacja i usunięcie konta kasują profil nabywcy uczestnika "
+        "i odpinają autora zamówień; zamówienia i dokumenty zostają."
     ),
     measures=[
         "funkcja działa wyłącznie w konkursie z włączonymi opłatami",

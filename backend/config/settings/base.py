@@ -499,6 +499,11 @@ CELERY_TASK_ROUTES = {
 CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
 CELERY_TIMEZONE = "UTC"
 CELERY_BEAT_SCHEDULE = {
+    # Płatności (PAY-01): porzucone sesje Stripe/P24 i zwroty o nieznanym wyniku (OPERACJE § 35).
+    "payments-sweep": {
+        "task": "apps.payments.tasks.sweep_payments",
+        "schedule": 900.0,
+    },
     # Zamknięcie etapu po deadline: LOCKED na najnowszych wersjach + znacznik Stage.closed_at.
     "close-due-stages": {
         "task": "apps.submissions.tasks.close_due_stages",
@@ -1249,6 +1254,10 @@ REST_FRAMEWORK = {
         # u operatora płatności) oraz czynności koordynatora (wpływ przelewu, zwrot przez API).
         "checkout": "20/hour",
         "payments_admin": "120/hour",
+        # Webhooki operatorów płatności (Stripe, P24) – per IP, wyżej niż stub ``payments``: Stripe
+        # doręcza z kilku adresów naraz, a po awarii ponawia zaległe zdarzenia całą serią. Tożsamością
+        # jest podpis; limit chroni wyłącznie koszt weryfikacji.
+        "payment_webhooks": "600/min",
     },
     "EXCEPTION_HANDLER": "apps.core.api.exception_handler",
 }
@@ -1366,7 +1375,7 @@ CERT_SIGN_TSA_URL = env("CERT_SIGN_TSA_URL", default="")
 CERT_SIGN_REASON = env("CERT_SIGN_REASON", default="Dokument wystawiony przez Olimpiadę Kwantową")
 CERT_SIGN_LOCATION = env("CERT_SIGN_LOCATION", default="")
 
-# --- operatorzy płatności (PAY-01, docs/OPERACJE.md § 29) ---------------------------------------
+# --- operatorzy płatności (PAY-01, docs/OPERACJE.md § 35) ---------------------------------------
 # Sekrety wyłącznie ze środowiska – nigdy z bazy i nigdy od klienta. Pusty klucz = operator wyłączony
 # (przycisk płatności nie pojawia się, webhook odpowiada 404). Klucze testowe Stripe: ``sk_test_…``.
 STRIPE_SECRET_KEY = env("STRIPE_SECRET_KEY", default="")
