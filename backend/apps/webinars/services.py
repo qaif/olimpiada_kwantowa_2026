@@ -1155,6 +1155,14 @@ def handle_webhook(event: dict) -> str:
 
 def _apply_event(name: str, event: dict, at) -> str:
     """Skutki jednego zdarzenia (wewnątrz transakcji :func:`handle_webhook`)."""
+    # Nadzór zdalny (PROC-01) dzieli z webinarami serwer LiveKit i ten adres webhooka: zdarzenia
+    # pokoi ``proc-…`` i egressów nagrań nadzoru obsługuje ``apps.proctoring`` – po tym samym
+    # podpisie, odcięciu powtórek i wieku zdarzenia, w tej samej transakcji. ``None`` = „nie nadzór”.
+    from apps.proctoring.webhooks import handle_event as handle_proctoring_event
+
+    proctoring_result = handle_proctoring_event(name, event, at)
+    if proctoring_result is not None:
+        return proctoring_result
     if name.startswith("egress_"):
         _handle_egress(event.get("egressInfo") or event.get("egress_info") or {}, name, at)
         return "ok"

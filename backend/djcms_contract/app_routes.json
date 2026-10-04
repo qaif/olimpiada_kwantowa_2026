@@ -31,6 +31,7 @@
     "password-reset",
     "payments",
     "plakaty",
+    "proctoring",
     "register",
     "rejestracja",
     "reset",
@@ -64,11 +65,12 @@
     "coordinator",
     "djcms",
     "me",
+    "proctoring",
     "review",
     "supervisor",
     "webinars",
     "translations"
   ],
-  "app_re": "^/(?:_theme|_util|account|accounts|activate|admin|alumni|api|appeals|captcha|cms|coordinator|delegation|documents|dyplomy|forum|healthz|i18n|integrations|internal|konto|login|logout|me|notebook-starter|opiekun|password-reset|payments|plakaty|register|rejestracja|reset|results|review|setup|status|statystyki|supervisor|support|translations|visa|warsztaty/materialy|webinars|zaproszenie|zgoda)(?:/.*)?$|^/[^/]+\\.html$|^/status\\.json$",
-  "app_re_prefixed": "^/[^/]+/(?:_theme|_util|account|accounts|activate|admin|alumni|api|appeals|captcha|cms|coordinator|delegation|documents|dyplomy|forum|healthz|i18n|integrations|internal|konto|login|logout|me|notebook-starter|opiekun|password-reset|payments|plakaty|register|rejestracja|reset|results|review|setup|status|statystyki|supervisor|support|translations|visa|warsztaty/materialy|webinars|zaproszenie|zgoda)(?:/.*)?$|^/[^/]+/[^/]+\\.html$|^/[^/]+/status\\.json$"
+  "app_re": "^/(?:_theme|_util|account|accounts|activate|admin|alumni|api|appeals|captcha|cms|coordinator|delegation|documents|dyplomy|forum|healthz|i18n|integrations|internal|konto|login|logout|me|notebook-starter|opiekun|password-reset|payments|plakaty|proctoring|register|rejestracja|reset|results|review|setup|status|statystyki|supervisor|support|translations|visa|warsztaty/materialy|webinars|zaproszenie|zgoda)(?:/.*)?$|^/[^/]+\\.html$|^/status\\.json$",
+  "app_re_prefixed": "^/[^/]+/(?:_theme|_util|account|accounts|activate|admin|alumni|api|appeals|captcha|cms|coordinator|delegation|documents|dyplomy|forum|healthz|i18n|integrations|internal|konto|login|logout|me|notebook-starter|opiekun|password-reset|payments|plakaty|proctoring|register|rejestracja|reset|results|review|setup|status|statystyki|supervisor|support|translations|visa|warsztaty/materialy|webinars|zaproszenie|zgoda)(?:/.*)?$|^/[^/]+/[^/]+\\.html$|^/[^/]+/status\\.json$"
 }

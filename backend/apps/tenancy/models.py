@@ -318,6 +318,12 @@ FEATURE_DEFAULTS: dict[str, bool] = {
     # czynność przetwarzania na podstawie zgody i kontakt dorosłych mentorów z małoletnimi – decyzja
     # organizatora (dyżur moderacyjny, wpis w rejestrze), a nie skutek wdrożenia.
     "alumni": False,
+    # --- nadzór zdalny (LiveKit) ---------------------------------------------------------------------
+    # Zadanie PROC-01 (``apps.proctoring``): koordynator włącza nadzór etapu online, uczniowie nadają
+    # kamerę do pokoju nadzoru. Wyłączona – adresów ``/proctoring/…``, ``/me/proctoring/…`` nie ma,
+    # bramka treści etapu nie robi zapytań. Domyślnie wyłączona: to przetwarzanie wysokiego ryzyka
+    # (obraz niepełnoletnich) i wymaga decyzji organizatora oraz oceny skutków (DPIA).
+    "proctoring": False,
 }
 
 

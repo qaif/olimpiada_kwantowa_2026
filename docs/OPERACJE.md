@@ -3796,6 +3796,19 @@ wejścia na rozmowy: `interview.joined` (`participant`/`coordinator`, `interview
 (znika razem z kontem – `SET_NULL`). Etykieta pokoju jest tekstem koordynatora – podręcznik prosi,
 żeby nie wpisywać w nią nazwisk gości.
 
+### 25.9. LiveKit jako alternatywa dla pokoi rozmów (STAGE-LK-01)
+
+Koordynator może dla etapu w formie rozmowy wybrać dostawcę **„LiveKit (pokój na platformie)”**
+(`docs/tasks/STAGE-LK-01.md`). Opcja pojawia się w formularzu etapu dopiero przy skonfigurowanym LiveKit
+(§ 36). Uprawnienia, okna i widoki wejścia są **te same**, co w tym rozdziale – reguła mieszka w
+`apps.competitions.room_access` i obsługuje oba serwery; Jitsi działa jak dotąd. Nadzór zdalny rozmowy
+(tylko LiveKit) – § 39.5. Wycofanie: zmiana dostawcy etapu na Jitsi przed zapisami. Pokój jest
+przypisany **terminowi**: zapisy już zrobione zostają w LiveKit do końca etapu, a **nowe zapisy na
+termin, który ma już zapis w LiveKit, też trafiają do LiveKit** (ten sam pokój – osoby jednego
+terminu mają się spotkać); nowy dostawca dotyczy terminów bez zapisów. Zmiana dostawcy z LiveKit przy
+włączonym nadzorze zdalnym jest odrzucana – najpierw wyłącz nadzór (§ 39.5). Polecenia moderatora:
+`POST /coordinator/interview-slots/<id>/room-control/` i `/review/interview-slots/<id>/room-control/`.
+
 ## 26. Języki interfejsu per konkurs (I18N-01, `docs/tasks/I18N-01.md`)
 
 Od tego wydania **konkurs** decyduje, w jakich językach mówi jego interfejs:
@@ -4799,6 +4812,190 @@ zadanie robi dwa puste zapytania.
 - Wycofanie: wyłączenie flagi `fees` ukrywa ekrany (404); dane zostają. Migracje `payments.0001`–`0002` są
   odwracalna, ale **dokumenty księgowe** trzeba przed tym wyeksportować (5 lat przechowywania).
 
+## 38. Sieć absolwentów i mentoring (ALUM-01, `docs/tasks/ALUM-01.md`)
+
+Funkcja jest za flagą konkursu **`alumni`** (domyślnie wyłączona) i nie ma jej w ekranie
+„Ustawienia konkursu” – to nowa czynność przetwarzania na podstawie zgody i kontakt dorosłych
+mentorów z małoletnimi, więc włącza ją operator po decyzji organizatora (jak forum, § 6.4):
+
+```sh
+docker compose exec web python manage.py shell -c "from apps.tenancy.models import Competition as C; c=C.objects.get(slug='kwantowa'); c.feature_flags={**(c.feature_flags or {}), 'alumni': True}; c.save(update_fields=['feature_flags'])"
+```
+
+Po włączeniu koordynator ustawia w `/coordinator/alumni/`: kto może dołączyć (domyślnie finaliści),
+mentoring (domyślnie wyłączony) i publiczną ścianę (domyślnie wyłączona). Mentoring wymaga
+włączonych Wiadomości (`/coordinator/chat/settings/`).
+
+**Wdrożenie:** migracje `alumni.0001_initial` i `alumni.0002_review_safeguards` (nowe tabele
+i kolumny wyłącznie w `alumni_*`, bez zmian w istniejących), nowy segment
+adresu `/alumni/` w kontrakcie tras (`backend/djcms_contract/app_routes.*` – generator Caddy'ego
+wkleja go przy wdrożeniu, § 23), nowy zakres limitu `alumni` w `REST_FRAMEWORK`. Nic do zrobienia
+ręcznie poza ewentualnym włączeniem flagi.
+
+**Retencja:** aktywna zgoda absolwenta (profil nieukryty, konto aktywne) wstrzymuje **pełną**
+anonimizację konta (`apps.accounts.retention`, przeszkoda „należy do sieci absolwentów (zgoda)” na
+ekranie `/coordinator/retention/`, sprawdzana **po** reklamacjach i nieogłoszonych wynikach). Przebieg
+retencji robi wtedy **minimalizację** (`apps.alumni.services.minimise_participant`, wpis audytu
+`account.minimised_by_retention`): czyści telefon, szkołę (nazwę i powiązania ze słownikami), region
+i województwo, klasę, adresy opiekuna szkolnego i rodzica oraz dzień urodzenia (zostaje rocznik).
+Zostają imię, nazwisko, adres e-mail, kod publiczny, wpisy do etapów i dyplomy (z nich liczą się
+osiągnięcia) i wiersze sieci. Pełnoletność potrzebna regułom mentoringu jest zapisana na profilu
+absolwenta (`adult_confirmed_at`). Wycofanie zgody, ukrycie profilu albo wyłączenie flagi przywraca
+zwykłą retencję przy najbliższym przebiegu nocnym.
+
+**Co dzieje się z danymi po wyłączeniu flagi (dokładnie):** adresy `/alumni/…`, katalog, prośby,
+zaproszenia i ekrany koordynatora dają 404; `/me/alumni/` zostaje **wyłącznie** dla osób z profilem
+i pokazuje jedno – wycofanie zgody (działa także przy wyłączonej fladze). Profile, dowody zgody,
+relacje i zgłoszenia zostają w bazie bez zmian, ale nikomu nie są pokazywane ani używane (nie ma
+zaproszeń, statystyk ani katalogu). Rozmowy mentorskie w Wiadomościach są tylko do odczytu („Organizator
+wstrzymał mentoring”) – sprawdzenie kosztuje jedno zapytanie przy wiadomości P2P wyłącznie w konkursie,
+który flagę **kiedyś** zapisał (konkurs, który jej nigdy nie włączał, nie płaci nic). Wstrzymanie
+retencji przestaje działać – przy najbliższym przebiegu przeterminowane konta są anonimizowane, a wraz
+z nimi znikają profile absolwentów (`erase_for_user`). Ponowne włączenie flagi przywraca wszystko
+w stanie sprzed wyłączenia.
+
+**Dokumentacja bezpieczeństwa mentoringu:** strony relacji, daty, kanał, powód zakończenia, notatka
+organizatora, zgłoszenia (także automatyczne: wzorce danych kontaktowych w notatce, zmiana daty
+urodzenia osoby w otwartej relacji, rozmowa szyfrowana pod wymuszoną moderacją) i wpisy dziennika
+zdarzeń zostają do anonimizacji kont stron. Przy anonimizacji znika notatka prośby, treść zgłoszeń tej
+osoby i zapisana przy akceptacji data urodzenia mentee. **Zakończonej relacji nie da się wznowić**
+(także koordynatorowi): mentee wysyła nową prośbę, a po akceptacji rozmowa sprzed relacji znów
+przyjmuje wiadomości na zasadach mentoringu.
+
+**Zmiana treści zgody:** podbicie `ALUMNI_CONSENT_VERSION` (`apps/alumni/models.py`) usypia profile
+z poprzednią wersją (znikają z katalogu, ściany i zaproszeń) do czasu potwierdzenia nowej treści na
+`/me/alumni/`. Dowód zgody zapisuje wersję, język i skrót SHA-256 pokazanej treści.
+
+**Moderacja mentoringu:** wiadomości rozmów mentorskich trafiają do istniejącej kolejki
+`/coordinator/chat/moderation/` (premoderacja przy małoletnim mentee i zasadzie „ta sama grupa
+wiekowa” albo przy wyłączonych rozmowach uczestników; przy „bez ograniczeń” premoderacja pierwszych
+5 wiadomości nowej pary, potem postmoderacja). Notatki próśb małoletnich i opisy mentorów widoczne dla
+małoletnich czekają na akceptację w `/coordinator/alumni/mentoring/` i `/coordinator/alumni/`. Przy
+włączonym mentoringu z małoletnimi organizator musi mieć dyżur moderacyjny.
+
+**Definitywne wycofanie funkcji:** wyłączenie flagi (skutki wyżej) i – bo zgoda dotyczyła działającej
+sieci – usunięcie profili (`AlumniProfile.objects.filter(participant__competition=c).delete()`).
+
+## 39. Nadzór zdalny etapów online (PROC-01, `docs/tasks/PROC-01.md`)
+
+Koordynator włącza nadzór **dla wybranego etapu online** (`Etapy → Nadzór zdalny`); uczeń przechodzi
+w konsoli `/me/proctoring/<etap>/` zgodę, sprawdzenie sprzętu, (opcjonalnie) zdjęcie dokumentu
+i nadaje kamerę do pokoju LiveKit; nadzorujący pracują w siatce `/proctoring/<etap>/`. Serwer LiveKit,
+klucze i webhook – **te same, co webinary** (§ 36). Bez flagi `proctoring` nic się nie zmienia: adresy
+404, bramka treści etapu i strażnicy w serwisach wysyłki i testu nie robią zapytań.
+
+### 39.1. Włączenie (kolejność)
+
+1. Wdrożenie z migracjami `proctoring.0001`–`0002` (obraz kompiluje też `apps/*/locale/`).
+2. Serwer LiveKit wg § 36 – przy nadzorze **wariant (a)** (osobna maszyna, § 39.3). Webhook ten sam
+   (`/integrations/livekit/webhook/`); nadzór używa `participant_joined/left`,
+   `track_published/unpublished`, `egress_ended`.
+3. Nagrywanie (tylko gdy organizator je włączy): polityka konta egress w MinIO obejmuje także
+   `submissions/proctoring/*` – zaktualizuj ją z `deploy/livekit/policy-egress.json`
+   (`mc admin policy create local egress-livekit policy-egress.json` → `mc admin policy attach …`)
+   i ustaw w `egress.yaml` `cpu_cost.track_cpu_cost` (komentarz w przykładzie).
+4. Restart `web worker beat` (zadanie beat `proctoring-purge`, 03:40 – retencja nośników i zdjęć).
+5. Flaga konkursu `proctoring` w `/admin/` (`feature_flags`) – **po** decyzji organizatora i ocenie
+   skutków (DPIA, `docs/PODRECZNIK-ORGANIZATORA.md` § 10m), aktualizacji polityki prywatności
+   (sekcja „Nadzór zdalny”), wzoru zgody opiekuna i regulaminu etapu.
+6. Okna w strefach (TZ-01): gdy w instalacji jest `apps.time_windows`, nadzór bierze okno ucznia
+   **sam** (`apps.time_windows.access.effective_window` → `opens_at`, `deadline_at` + tolerancja
+   etapu). `PROCTORING_WINDOW_ADAPTER` zostaje wyłącznie na inny, własny kalendarz.
+7. Próba generalna na etapie testowym (rodzaj „Runda”) z dwoma kontami uczniów i jednym nadzorującym:
+   siatka, wiadomość, incydent, raport, (gdy włączone) nagranie; awaria – zatrzymaj LiveKit i sprawdź
+   zachowanie `block`/`allow`.
+
+Zmienne (`.env`, opcjonalne): `PROCTORING_LEAD_MINUTES` (30), `PROCTORING_GRACE_MINUTES` (30),
+`PROCTORING_RETENTION_DAYS` (30), `PROCTORING_MAX_RETENTION_DAYS` (180), `PROCTORING_WINDOW_ADAPTER`,
+`PROCTORING_UNPROCTORED_AFTER_FAILURES` (3), `PROCTORING_LATE_START_MINUTES` (15).
+
+### 39.2. Bezpieczeństwo – jak to działa
+
+- **Bramka** (`ProctoringGateMiddleware`): w oknie etapu z nadzorem PDF zadania, wysyłka (WWW i API),
+  start i strona testu (oraz – po scaleniu TR-01 – tłumaczenia zadań) widzą wyłącznie uczniowie etapu
+  z gotową sesją i personel (koordynator, komisja). Niezalogowany – logowanie albo 403, zalogowany bez
+  zgłoszenia – 403. Konto liczone w kolejności DRF (token przed sesją). Wysyłka rozwiązania i start
+  testu powtarzają regułę w serwisach (druga linia obrony).
+- **Pokoje per grupa**: `proc-<konkurs>-<klucz>-<grupa>`; grupa = `a<przydział>` (uczeń przydzielony
+  koordynatorowi albo członkowi komisji – także uczeń delegacji), `d<delegacja>` (uczeń delegacji bez
+  przydziału albo przydzielony swojemu opiekunowi), `m` (bez przydziału). Token nadzorującego otwiera
+  **jeden** pokój; opiekun drużyny – wyłącznie pokój swojej delegacji, członek komisji – pokoje swoich
+  uczniów. Grupa `m` powyżej 250 osób – ostrzeżenie na ekranie koordynatora (rozdziel uczniów).
+- Uczeń: `canSubscribe=false`, `canPublishData=false`, `canPublishSources` = kamera (+ ekran/mikrofon,
+  gdy wymagane), pusta nazwa. Nadzorujący: `hidden`, bez nadawania. Wiadomości przez serwer (`SendData`).
+- **Wyproszenia** (`RoomService/RemoveParticipant`): wycofanie zgody i anonimizacja konta – uczeń
+  (i stop aktywnych nagrań); odpięcie przydziału – nadzorujący i jego uczniowie (wracają z nowym
+  tokenem do nowego pokoju); odwołanie opiekuna w DEL-01 – sygnał wyprasza go z pokoju delegacji;
+  zmiana przydziału / „Rozdziel” – uczeń ze starego pokoju.
+- **Zgoda** ważna tylko dla bieżącej wersji **i ustawień etapu** (nagrywanie, mikrofon, ekran, zdjęcie –
+  w skrócie dowodu); zmiana ustawień = nowa zgoda. Niepełnoletni: potwierdzona online zgoda opiekuna,
+  sprawdzana przy każdym tokenie i w bramce (wycofana – gasi zgodę na nadzór), plus oświadczenie
+  ucznia o wiedzy i zgodzie opiekuna na nadzór.
+- **Praca bez nadzoru**: domyślnie **`block`**. Przy `allow` – wyłącznie gdy serwer nieskonfigurowany,
+  nieosiągalny dla platformy albo po `PROCTORING_UNPROCTORED_AFTER_FAILURES` zgłoszonych nieudanych
+  połączeniach; odmowa/odłączenie kamery – prośba o alternatywę. Powód widać w siatce, raporcie i CSV.
+- Limity per konto: `proctoring_token` 60/h, `proctoring_coordinator_token` 1200/h (przełączanie
+  ~100 grup w IQO), `proctoring_action` 600/h, `proctoring_client` 600/h – odpowiedź 429 w JSON-ie.
+- Nagrania (Track Egress, WebM, bez transkodowania): `submissions/proctoring/<konkurs>/<klucz>/<pseudonim>/…`,
+  odczyt adresem na 15 min, wyłącznie koordynator i komisja odwoławcza, audyt `proctoring.recording_viewed`.
+
+### 39.3. Pojemność – szacunek dla 300 uczniów (kamera 320×240, 10 kl./s)
+
+| Pozycja | Szacunek |
+|---|---|
+| Strumień kamery (VP8, limit 150 kb/s, bez simulcastu) | ~100–150 kb/s + ~10 % narzutu RTP/SRTP |
+| Wejście do SFU, 300 kamer | **~45–50 Mb/s** |
+| Wyjście do nadzorujących (np. 15 osób × 20 kafli widocznej strony) | ~45 Mb/s (+3–4 Mb/s na każdą stronę 24 kafli koordynatora) |
+| Ekran (gdy wymagany; 2 kl./s, ≤ 300 kb/s) | +~90 Mb/s wejścia przy 300 uczniach; wyjście tylko „na żądanie” |
+| Mikrofon (gdy wymagany; Opus) | +~30 kb/s na ucznia; nadzorujący odbiera dźwięk jednego kafla naraz |
+| Transfer w etapie 3 h (sama kamera) | ~60 GB wejścia + ~60 GB wyjścia |
+| Nagrania (tylko przy `record`) | ~65 MB/h na ucznia → **~60 GB** na etap 3 h × 300 uczniów |
+| Platforma (Django) | puls 300/min (5 żądań/s), odpytanie wiadomości co 20 s (~15 żądań/s), webhooki w falach przy starcie |
+
+Zalecenie: **osobna maszyna LiveKit 8 vCPU (dedykowane, nie VPS z „steal” – § 36.1), 8–16 GB RAM,
+łącze ≥ 500 Mb/s symetryczne**; SFU przy tak niskich przepływnościach ma duży zapas CPU (przekazuje
+pakiety, nie koduje). Pokoje per przydział/delegację rozkładają się na węzły klastra (Redis). Porty:
+przy kilkuset uczestnikach zakres 50000–50100 nie wystarczy – ustaw `rtc.udp_port` (multipleksowanie
+UDP na jednym porcie) albo szerszy zakres i zaporę. Nagrywanie: Track Egress nie transkoduje, ale każdy
+egress to osobny proces – na 300 nagrań naraz zaplanuj 2–3 węzły egress (8 vCPU / 16 GB,
+`track_cpu_cost` 0.1–0.2) i **próbę obciążeniową** przed etapem; ~60 GB w buckecie na etap.
+
+### 39.4. Awarie, retencja i wyłączenie
+
+- LiveKit niedostępny w trakcie etapu: `block` (domyślne) – treść zamknięta, koordynator zatwierdza
+  alternatywę uczniom, którzy zgłoszą się w konsoli; `allow` – „Kontynuuj bez nadzoru” z powodem.
+- Awaryjnie: zdjąć flagę `proctoring` (bramka znika natychmiast) albo przestawić etap na `allow`.
+- Retencja: beat `apps.proctoring.tasks.purge_expired` (codziennie) – zdjęcia dokumentu po etapie,
+  nagrania, dziennik, wiadomości i uwagi do prośby o alternatywę 30 dni po wynikach i oknie reklamacji;
+  ręcznie – `docker compose exec web python manage.py shell -c "from apps.proctoring.services import purge_expired; print(purge_expired())"`.
+  Wstrzymanie usunięcia ucznia – pole „powód wstrzymania” na ekranie nadzoru etapu.
+
+### 39.5. Rozmowy etapu w LiveKit i nadzór rozmowy (STAGE-LK-01)
+
+- Etap-rozmowa z dostawcą `livekit` (§ 25.9) używa tego samego serwera i webhooka; adres pokoju przy
+  zapisie to `livekit://olimpiada-…` (identyfikator, nie link). Nowa migracja: `competitions.0034`
+  (lista wyboru dostawcy).
+- Uprawnienia LiveKit odwzorowują Jitsi: każda rola nadaje i odbiera; **żaden token przeglądarki
+  nie ma `roomAdmin`** – moderator (koordynator, aktywna komisja) wydaje polecenia przez platformę
+  (odbierz/oddaj głos, usuń, wpuść ponownie; `…/room-control/`, limit `interview_control` 600/h,
+  audyt `interview.room_control` z pseudonimem osoby). Token ważny w oknie terminu.
+- Przed każdym tokenem (rozmowa, próba sprzętu, pokoje nadzoru `proc-…`) platforma woła
+  `RoomService/CreateRoom` (idempotentnie) – serwer ma `room.auto_create: false`; awaria = 502.
+- Decyzje moderatora przeżywają ponowne wejście: osoba usunięta nie dostaje nowego tokenu na ten
+  termin, osoba bez głosu – token bez nadawania, dopóki moderator nie kliknie „Wpuść ponownie” /
+  „Oddaj głos” (lista na stronie pokoju moderatora).
+- Próba sprzętu ma **osobny pokój na zapis** (`…-b<zapis>-test`; komisja – `…-s<konto>-test`) – uczniowie
+  jednego terminu nie spotykają się bez moderatora i bez nadzoru.
+- `livekit://…` jest zawsze pokojem platformy (nigdy linkiem w ekranach i listach); bez serwera
+  wejście odpowiada „Serwer wideo nie odpowiada” (502), a nie 404.
+- Nagrywania pokoi rozmów **nie ma** (jak w Jitsi), chyba że etap ma nadzór z `record` – wtedy
+  nagrywana jest kamera ucznia **z ważną zgodą** (zgoda obejmuje `record`; włączenie nagrywania
+  w trakcie wymaga nowej zgody), nigdy ucznia z zatwierdzoną alternatywą; sesji nadzoru nie zakłada
+  webhook (Track Egress, retencja § 39.4).
+- Zmiana dostawcy etapu z LiveKit przy włączonym nadzorze – odmowa w formularzu; etap, który przestał
+  być LiveKit (np. z `/admin/`), ma nadzór ignorowany.
+- Pojemność: rozmowa to kilka osób w pokoju – pomijalne obciążenie wobec § 39.3.
+
 ## 40. Notatniki kwantowe: JupyterLite i piaskownica (QC-01, `docs/tasks/QC-01.md`)
 
 Zadania z notatnikiem Jupytera w przeglądarce i sprawdzaniem automatycznym. Trzy części, każda
@@ -4952,67 +5149,3 @@ w adresie już jest podpisany – wystarczy CORS `Access-Control-Allow-Origin: h
 na `/notebook-starter/` i `connect-src` laboratorium wskazujący domenę serwisu); adres laboratorium
 w `apps/notebooks/lab.py`; potem zdjęcie bramki ról (`services.has_staff_role`). Szczegóły i
 uzasadnienie: `docs/tasks/QC-01.md` § 3.5.
-
-## 38. Sieć absolwentów i mentoring (ALUM-01, `docs/tasks/ALUM-01.md`)
-
-Funkcja jest za flagą konkursu **`alumni`** (domyślnie wyłączona) i nie ma jej w ekranie
-„Ustawienia konkursu” – to nowa czynność przetwarzania na podstawie zgody i kontakt dorosłych
-mentorów z małoletnimi, więc włącza ją operator po decyzji organizatora (jak forum, § 6.4):
-
-```sh
-docker compose exec web python manage.py shell -c "from apps.tenancy.models import Competition as C; c=C.objects.get(slug='kwantowa'); c.feature_flags={**(c.feature_flags or {}), 'alumni': True}; c.save(update_fields=['feature_flags'])"
-```
-
-Po włączeniu koordynator ustawia w `/coordinator/alumni/`: kto może dołączyć (domyślnie finaliści),
-mentoring (domyślnie wyłączony) i publiczną ścianę (domyślnie wyłączona). Mentoring wymaga
-włączonych Wiadomości (`/coordinator/chat/settings/`).
-
-**Wdrożenie:** migracje `alumni.0001_initial` i `alumni.0002_review_safeguards` (nowe tabele
-i kolumny wyłącznie w `alumni_*`, bez zmian w istniejących), nowy segment
-adresu `/alumni/` w kontrakcie tras (`backend/djcms_contract/app_routes.*` – generator Caddy'ego
-wkleja go przy wdrożeniu, § 23), nowy zakres limitu `alumni` w `REST_FRAMEWORK`. Nic do zrobienia
-ręcznie poza ewentualnym włączeniem flagi.
-
-**Retencja:** aktywna zgoda absolwenta (profil nieukryty, konto aktywne) wstrzymuje **pełną**
-anonimizację konta (`apps.accounts.retention`, przeszkoda „należy do sieci absolwentów (zgoda)” na
-ekranie `/coordinator/retention/`, sprawdzana **po** reklamacjach i nieogłoszonych wynikach). Przebieg
-retencji robi wtedy **minimalizację** (`apps.alumni.services.minimise_participant`, wpis audytu
-`account.minimised_by_retention`): czyści telefon, szkołę (nazwę i powiązania ze słownikami), region
-i województwo, klasę, adresy opiekuna szkolnego i rodzica oraz dzień urodzenia (zostaje rocznik).
-Zostają imię, nazwisko, adres e-mail, kod publiczny, wpisy do etapów i dyplomy (z nich liczą się
-osiągnięcia) i wiersze sieci. Pełnoletność potrzebna regułom mentoringu jest zapisana na profilu
-absolwenta (`adult_confirmed_at`). Wycofanie zgody, ukrycie profilu albo wyłączenie flagi przywraca
-zwykłą retencję przy najbliższym przebiegu nocnym.
-
-**Co dzieje się z danymi po wyłączeniu flagi (dokładnie):** adresy `/alumni/…`, katalog, prośby,
-zaproszenia i ekrany koordynatora dają 404; `/me/alumni/` zostaje **wyłącznie** dla osób z profilem
-i pokazuje jedno – wycofanie zgody (działa także przy wyłączonej fladze). Profile, dowody zgody,
-relacje i zgłoszenia zostają w bazie bez zmian, ale nikomu nie są pokazywane ani używane (nie ma
-zaproszeń, statystyk ani katalogu). Rozmowy mentorskie w Wiadomościach są tylko do odczytu („Organizator
-wstrzymał mentoring”) – sprawdzenie kosztuje jedno zapytanie przy wiadomości P2P wyłącznie w konkursie,
-który flagę **kiedyś** zapisał (konkurs, który jej nigdy nie włączał, nie płaci nic). Wstrzymanie
-retencji przestaje działać – przy najbliższym przebiegu przeterminowane konta są anonimizowane, a wraz
-z nimi znikają profile absolwentów (`erase_for_user`). Ponowne włączenie flagi przywraca wszystko
-w stanie sprzed wyłączenia.
-
-**Dokumentacja bezpieczeństwa mentoringu:** strony relacji, daty, kanał, powód zakończenia, notatka
-organizatora, zgłoszenia (także automatyczne: wzorce danych kontaktowych w notatce, zmiana daty
-urodzenia osoby w otwartej relacji, rozmowa szyfrowana pod wymuszoną moderacją) i wpisy dziennika
-zdarzeń zostają do anonimizacji kont stron. Przy anonimizacji znika notatka prośby, treść zgłoszeń tej
-osoby i zapisana przy akceptacji data urodzenia mentee. **Zakończonej relacji nie da się wznowić**
-(także koordynatorowi): mentee wysyła nową prośbę, a po akceptacji rozmowa sprzed relacji znów
-przyjmuje wiadomości na zasadach mentoringu.
-
-**Zmiana treści zgody:** podbicie `ALUMNI_CONSENT_VERSION` (`apps/alumni/models.py`) usypia profile
-z poprzednią wersją (znikają z katalogu, ściany i zaproszeń) do czasu potwierdzenia nowej treści na
-`/me/alumni/`. Dowód zgody zapisuje wersję, język i skrót SHA-256 pokazanej treści.
-
-**Moderacja mentoringu:** wiadomości rozmów mentorskich trafiają do istniejącej kolejki
-`/coordinator/chat/moderation/` (premoderacja przy małoletnim mentee i zasadzie „ta sama grupa
-wiekowa” albo przy wyłączonych rozmowach uczestników; przy „bez ograniczeń” premoderacja pierwszych
-5 wiadomości nowej pary, potem postmoderacja). Notatki próśb małoletnich i opisy mentorów widoczne dla
-małoletnich czekają na akceptację w `/coordinator/alumni/mentoring/` i `/coordinator/alumni/`. Przy
-włączonym mentoringu z małoletnimi organizator musi mieć dyżur moderacyjny.
-
-**Definitywne wycofanie funkcji:** wyłączenie flagi (skutki wyżej) i – bo zgoda dotyczyła działającej
-sieci – usunięcie profili (`AlumniProfile.objects.filter(participant__competition=c).delete()`).

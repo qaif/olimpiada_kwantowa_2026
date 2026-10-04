@@ -170,6 +170,8 @@ FLAG_ITEMS: dict[str, tuple[frozenset[str], frozenset[str]]] = {
     "quantum_notebooks": (frozenset({"Notatniki kwantowe"}), frozenset({"Notatniki kwantowe"})),
     # --- sieć absolwentów (ALUM-01, 04.10.2026) ---------------------------------------------------
     "alumni": (frozenset({"Absolwenci"}), frozenset({"Absolwenci"})),
+    # --- nadzór zdalny etapów online (zadanie PROC-01) – w sekcji „Etapy” ---------------------------
+    "proctoring": (frozenset({"Nadzór zdalny"}), frozenset({"Nadzór zdalny"})),
 }
 
 #: Piętnaście flag **etapu 2** – zdanie z ``docs/UNIWERSALNY-ETAP-2.md`` § 0.6 („piętnaście flag to
