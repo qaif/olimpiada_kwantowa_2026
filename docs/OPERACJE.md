@@ -4011,14 +4011,14 @@ Przestawienie trybu z powrotem na `OPEN` otwiera samodzielną rejestrację i ukr
 dane delegacji, opiekunów i uczniów zostają w bazie. Migracje `accounts.0036`–`0038` i `tenancy.0013` są
 odwracalne (nowe tabele i kolumny nullowalne albo z wartością domyślną).
 
-## 29. Płatności online za udział – Stripe, Przelewy24, przelew, faktury (PAY-01, `docs/tasks/PAY-01.md`)
+## 35. Płatności online za udział – Stripe, Przelewy24, przelew, faktury (PAY-01, `docs/tasks/PAY-01.md`)
 
 Opłaty za udział płacone online: przez **delegacje** (IQO, cennik delegacji w EUR) i – w konkursach
 z rejestracją otwartą – przez **uczestników** (należność z ekranu „Wpisowe”, zwykle PLN). Wszystko za
 flagą konkursu **`fees`** (domyślnie wyłączona – Olimpiada Kwantowa nie widzi ani adresu, ani pozycji
 menu). Aplikacja `apps.payments`, migracja `payments.0001` (nowe tabele, odwracalna).
 
-### 29.1. Zmienne środowiskowe (`.env`, usługi `web` i `worker`)
+### 35.1. Zmienne środowiskowe (`.env`, usługi `web` i `worker`)
 
 | Zmienna | Wartość | Uwagi |
 |---|---|---|
@@ -4035,7 +4035,7 @@ Sekrety nie trafiają do bazy ani do audytu. Po zmianie `.env`: `docker compose 
 (restart, nie reload). Ekran `/coordinator/payments/prices/` pokazuje, czy operator jest skonfigurowany
 i czy Stripe jest w **trybie testowym**.
 
-### 29.2. Stripe – konfiguracja panelu (najpierw tryb testowy)
+### 35.2. Stripe – konfiguracja panelu (najpierw tryb testowy)
 
 1. Stripe Dashboard → przełącznik **Test mode** → Developers → API keys → skopiuj *Secret key* do
    `STRIPE_SECRET_KEY`.
@@ -4054,7 +4054,7 @@ i czy Stripe jest w **trybie testowym**.
 6. **Produkcja**: wyłącz Test mode, powtórz kroki 1–2 z kluczami live (endpoint live ma inny `whsec_`),
    wpisz `sk_live_…`, restart, jedna płatność kontrolna i jej zwrot.
 
-### 29.3. Przelewy24 – konfiguracja panelu (tylko PLN)
+### 35.3. Przelewy24 – konfiguracja panelu (tylko PLN)
 
 1. Konto sandbox (`sandbox.przelewy24.pl`) → Moje dane → Dane API: merchant ID, POS ID, klucz do
    raportów, klucz CRC → `P24_*`, `P24_SANDBOX=true`.
@@ -4067,7 +4067,7 @@ i czy Stripe jest w **trybie testowym**.
 4. **Stan:** adapter P24 jest zaimplementowany i przetestowany na atrapie HTTP (podpisy z dokumentacji
    REST v1), **nie** na sandboxie – przed włączeniem na produkcji zrób płatność i zwrot w sandboxie.
 
-### 29.4. Włączenie w konkursie
+### 35.4. Włączenie w konkursie
 
 1. Flaga: `/admin/` → Konkursy → `feature_flags` → `"fees": true` (albo powłoką jak w § 28.1).
 2. `/coordinator/payments/prices/`: **Sprzedawca, rachunek i dokumenty** – NIP/VAT ID, IBAN, SWIFT, bank,
@@ -4081,29 +4081,44 @@ i czy Stripe jest w **trybie testowym**.
    z opłatami: system numeruje dokumenty ciągle (per konkurs, rodzaj i rok), ale nie liczy VAT, nie
    prowadzi rejestru VAT/JPK i nie wystawia korekt (decyzja D15 po zmianie z 4.10.2026).
 
-### 29.5. Przelew tradycyjny, dowody wpłat, eksport
+### 35.5. Przelew tradycyjny, dowody wpłat, eksport
 
 - Płacący widzi IBAN i **kod referencyjny** (tytuł przelewu). Koordynator na ekranie zamówienia
   „Wpływ przelewu”: data wpływu, notatka, opcjonalnie dowód (PDF/JPG/PNG ≤ 10 MB) – plik idzie do bucketu
   prac (prefiks `payments/`) i do skanu ClamAV (kolejka `scan`); do pobrania dopiero po werdykcie „czysty”,
-  zawsze jako załącznik. Plik zainfekowany jest usuwany, wpłata zostaje.
+  zawsze jako załącznik. Plik zainfekowany jest usuwany, wpłata zostaje. Wpłatę zapisuje się
+  **wyłącznie na zamówienie otwarte** – przelew z kodem zamówienia anulowanego zwraca się płacącemu
+  w banku (poza systemem) albo zalicza po wystawieniu przez opiekuna nowej pro formy.
+- **Zwroty** wskazuje się **pozycjami i ilościami** (np. 1 × uczeń); kwotę liczy system. Zwrócone miejsca
+  przestają być opłacone. Wpłata „do wyjaśnienia” (podwójna, rozbieżna, po anulowaniu) wraca w całości.
+  Brak odpowiedzi operatora przy zwrocie → zwrot zostaje „w toku” i jest ponawiany automatycznie z tym
+  samym kluczem idempotencji (bez ryzyka podwójnego zwrotu); odmowa operatora → „nieudany”.
 - `/coordinator/payments/export.csv?edition=<id>` – jeden wiersz na zamówienie (nabywca, VAT ID, kwota,
   waluta, stan, metoda, identyfikator transakcji, zwroty, numery pro formy i faktury). Zdarzenie w audycie.
 
-### 29.6. Kontrakt adresów i limity
+### 35.6. Kontrakt adresów i limity
 
 Nowy pierwszy segment `payments/` (`RESERVED_SLUGS`, `backend/djcms_contract/` – zaktualizowane). Webhooki
-`/payments/webhooks/*` są **bez** sesji i CSRF (podpis), limit `payments` (60/min per IP). Nowe stawki
+`/payments/webhooks/*` są **bez** sesji i CSRF (podpis), limit `payment_webhooks` (600/min per IP; stub
+z wydania K zostaje przy `payments`, 60/min). Nowe stawki
 `checkout` (20/h per konto: „Wystaw pro formę”, „Zapłać”) i `payments_admin` (120/h, czynności koordynatora).
 Stub `/api/v1/payments/<slug>/` z wydania K zostaje bez zmian.
 
-### 29.7. Diagnoza i wycofanie
+**Sprzątanie (beat `payments-sweep`, co 15 min, `apps.payments.tasks.sweep_payments`)** – wymaga
+działającego `beat` i `worker`: próba Stripe starsza niż czas życia sesji (60 min + 10) → `GET` sesji
+(wygasła → przerwana, zapłacona a webhook zginął → wpłata rozliczona jak ze zdarzenia); próba bez
+identyfikatora sesji starsza niż 30 s → przerwana; P24 starsza niż 80 min → przerwana; zwrot „w toku”
+bez identyfikatora operatora starszy niż 2 min → zlecony ponownie. Bez flagi `fees` w żadnym konkursie
+zadanie robi dwa puste zapytania.
+
+### 35.7. Diagnoza i wycofanie
 
 - Dziennik doręczeń: `/admin/` → Płatności → „Doręczenia od dostawców” (panel płatności w `/admin/` jest
   tylko do odczytu – zmiany stanu wyłącznie przez ekrany koordynatora, z audytem).
   `outcome`: `succeeded`, `mismatch` (kwota/waluta inna niż zamówienie – pulpit „Do wyjaśnienia”),
-  `unknown_payment`, `duplicate` (nie zapisywane – odpowiedź), `ignored`.
+  `unknown_payment`, `duplicate` (nie zapisywane – odpowiedź), `ignored`, `mode_mismatch` (zdarzenie live
+  przy kluczu `sk_test_…` albo odwrotnie – pominięte; sprawdź, czy endpoint i klucz są z tego samego trybu).
 - 400 w panelu Stripe = zły `STRIPE_WEBHOOK_SECRET` (albo endpoint test/live pomylony); 404 = brak klucza
   w `.env` usługi `web`.
-- Wycofanie: wyłączenie flagi `fees` ukrywa ekrany (404); dane zostają. Migracja `payments.0001` jest
+- Wycofanie: wyłączenie flagi `fees` ukrywa ekrany (404); dane zostają. Migracje `payments.0001`–`0002` są
   odwracalna, ale **dokumenty księgowe** trzeba przed tym wyeksportować (5 lat przechowywania).

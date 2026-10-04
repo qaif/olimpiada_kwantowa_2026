@@ -92,20 +92,31 @@ i umorzenie uczestnika – istniejące czynności rejestru wpisowego.
 - `start_checkout(order, provider)`: zamówienie `OPEN`, płatne (należność nierozliczona, delegacja
   bez zwolnienia), dostawca skonfigurowany (zmienne środowiskowe) i włączony w ustawieniach
   konkursu, waluta obsługiwana (P24 – tylko PLN; waluty dwumiejscowe). Kwota **wyłącznie
-  z zamówienia** – formularz nie przesyła kwoty. Poprzednia otwarta sesja Stripe tego zamówienia
-  jest wygaszana (`/expire`), zanim powstanie nowa (podwójna zapłata); trwająca transakcja P24 blokuje
-  nową na czas limitu transakcji. Adres przekierowania sprawdzany względem listy hostów dostawcy.
-- Stan „zapłacone” ustawia **wyłącznie** webhook z poprawnym podpisem (albo koordynator dla
-  przelewu) – adres powrotu niczego nie zapisuje. Kwota i waluta z webhooka porównywane
-  z `Payment`; rozbieżność → `MISMATCH`, zamówienie zostaje otwarte, pulpit pokazuje „do wyjaśnienia”.
-- Zapłata (`apply_success`, pod blokadą wiersza, idempotentnie): zamówienie `PAID`, faktura z numerem,
-  potwierdzenie e-mail (płacący i nabywca, język płacącego), dla uczestnika `record_payment`.
+  z zamówienia** – formularz nie przesyła kwoty. Przed nową próbą (i przed anulowaniem) poprzednia
+  otwarta sesja Stripe jest wygaszana (`/expire`); gdy Stripe odmówi, `GET` sesji rozstrzyga: wygasła =
+  zamknięta, otwarta albo zakończona = płatność w drodze (odmowa). Próba Stripe bez identyfikatora
+  sesji młodsza niż czas rozmowy z dostawcą też jest „w toku”. Trwająca transakcja P24 blokuje nową na
+  czas limitu transakcji. Rozmowy z dostawcą idą **bez blokad wierszy**; pod blokadą zamówienia
+  sprawdzamy, że nic nie czeka. Identyfikator nowej sesji zapisuje się warunkowo (`status=PENDING`) –
+  gdy równoległe żądanie zdążyło próbę zamknąć, nowa sesja jest od razu wygaszana. Adres
+  przekierowania sprawdzany względem listy hostów dostawcy.
+- Stan „zapłacone” ustawia webhook z poprawnym podpisem, koordynator (przelew) albo sprzątanie
+  (`sweep_payments`, beat co 15 min): sesja Stripe zapłacona, której webhook zginął, jest odczytywana
+  **naszym kluczem** z API i rozliczana tak samo jak zdarzenie. Adres powrotu niczego nie zapisuje.
+  Kwota i waluta porównywane z `Payment`; rozbieżność → `MISMATCH`, zamówienie zostaje otwarte, pulpit
+  pokazuje „do wyjaśnienia”. Zdarzenie z innego trybu (live przy kluczu testowym i odwrotnie) jest
+  zapisywane i pomijane.
+- Zapłata (`apply_success`, blokady zamówienie → wpłata, idempotentnie): zamówienie `PAID`, faktura
+  z numerem, potwierdzenie e-mail (płacący i nabywca, język płacącego), dla uczestnika `record_payment`.
+  Wpłata na zamówienie **anulowane** albo już zapłacone → `MISMATCH` do zwrotu (pozycje mogło objąć
+  nowsze zamówienie); przelew zapisuje się wyłącznie na zamówienie otwarte (stan sprawdzany pod
+  blokadą – podwójne kliknięcie nie zapisze dwóch wpłat).
 
 ## 4. Webhooki
 
 `POST /payments/webhooks/stripe/`, `/payments/webhooks/przelewy24/`,
-`/payments/webhooks/przelewy24/refund/` – bez sesji i CSRF (tożsamością jest podpis), limit `payments`
-per IP, podpis **obowiązkowy** (brak sekretu w środowisku = 404), weryfikacja z surowych bajtów:
+`/payments/webhooks/przelewy24/refund/` – bez sesji i CSRF (tożsamością jest podpis), limit
+`payment_webhooks` (600/min per IP), podpis **obowiązkowy** (brak sekretu w środowisku = 404), weryfikacja z surowych bajtów:
 Stripe `Stripe-Signature` (HMAC-SHA256 `t.payload`, tolerancja 300 s, kilka sekretów po przecinku –
 rotacja), P24 – SHA-384 pól + CRC i obowiązkowe `transaction/verify`. Idempotencja: wiersz
 `ProviderEvent` w tej samej transakcji co skutek; duplikat → 200 bez zmian; błąd przetwarzania →
@@ -114,10 +125,15 @@ nie po domenie żądania) – jeden adres webhooka na instalację.
 
 ## 5. Zwroty
 
-Koordynator: kwota ≤ wpłata − zwroty, powód obowiązkowy, audyt. Stripe `/v1/refunds` (klucz
-idempotencji = UUID zwrotu), P24 `transaction/refund` (wynik asynchronicznie na adres zwrotów),
-przelew – zapis ręczny „zwrócono przelewem”. Pełny zwrot → zamówienie `REFUNDED` (przestaje pokrywać
-skład), dla uczestnika `record_refund`. List do płacącego w jego języku.
+Koordynator wskazuje **pozycje i ilości** (`RefundLine`); kwota = ich suma, przycięta do tego, co
+z wpłaty zostało (zniżka). Zwrócone ilości przestają pokrywać skład – zastępca wypisanego ucznia płaci.
+Wpłata `MISMATCH` (podwójna, rozbieżna, po anulowaniu) wraca w całości, bez pozycji. Powód obowiązkowy,
+audyt. Stripe `/v1/refunds` (klucz idempotencji `refund-<uuid.hex>`), P24 `transaction/refund`
+(`requestId`/`refundsUuid` = `uuid.hex`, 32 znaki; wynik asynchronicznie na adres zwrotów), przelew –
+zapis ręczny „zwrócono przelewem”. Brak odpowiedzi, timeout, 5xx/429 → zwrot zostaje `PENDING`
+i sprzątanie zleca go ponownie z tym samym kluczem; odmowa (4xx) → `FAILED`. Webhook zwrotu odnajduje
+zwrot po identyfikatorze dostawcy albo po `metadata.refund_uuid`. Pełny zwrot → zamówienie `REFUNDED`
+(i jego zniżka wraca do puli), dla uczestnika `record_refund`. List do płacącego w jego języku.
 
 ## 6. Ekrany
 
@@ -137,8 +153,10 @@ czynności (bez danych kart; kwoty tak, bo to rejestr rozliczeń), throttling PO
 per konto), CSRF na wszystkich formularzach, sekrety wyłącznie ze środowiska (`STRIPE_SECRET_KEY`,
 `STRIPE_WEBHOOK_SECRET`, `P24_MERCHANT_ID`, `P24_POS_ID`, `P24_API_KEY`, `P24_CRC`, `P24_SANDBOX`),
 CSP bez inline JS (ekrany bez JS), RODO: czynność „Płatności” w rejestrze (warunkowo – flaga `fees`),
-sekcja w eksporcie danych konta, dane rozliczeniowe zostają po usunięciu konta (obowiązek prawny –
-art. 6 ust. 1 lit. c), autor odpinany.
+sekcja w eksporcie danych konta (zamówienia wystawione przez konto, profil nabywcy uczestnika
+i profile nabywcy delegacji ostatnio zmienione przez to konto). Anonimizacja i usunięcie konta kasują
+profil nabywcy uczestnika i odpinają autora profili delegacji; **zamówienia i faktury** (migawka
+nabywcy) zostają jako dokumentacja księgowa (art. 6 ust. 1 lit. c, 5 lat), autor zamówienia odpinany.
 
 ## 8. Testy
 
@@ -175,15 +193,24 @@ Odstępstwa (z powodem):
 7. **Dokument w języku płacącego, z odwrotem na angielski** dla zh-Hans, hi, ar, bn (kroje DejaVu w PDF nie
    mają tych znaków). Ekrany i listy – we wszystkich 10 językach.
 8. **PDF nie jest załącznikiem listu** – list zawiera dane wpłaty i numer faktury, plik leży za logowaniem.
-9. **Wpłata „nie w porę” jest zapisywana**: po anulowaniu zamówienia → zamówienie zapłacone (audyt
-   `after_cancel`), po zapłacie inną próbą → `MISMATCH` do zwrotu. Pieniądze są faktem; odrzucenie
-   ukryłoby je przed koordynatorem.
+9. **Wpłata „nie w porę” jest zapisywana** jako `MISMATCH` do zwrotu – po anulowaniu zamówienia i po
+   zapłacie inną próbą (poprawka po przeglądzie, L5: wcześniej anulowane zamówienie stawało się
+   zapłacone). Pieniądze są faktem; odrzucenie ukryłoby je przed koordynatorem.
+10. **Poprawki po przeglądzie (4.10.2026):** dostęp wyłącznie czynnego opiekuna (H1) i skład liczący
+   czynnych opiekunów (L2); warunkowy zapis sesji i blokada prób bez identyfikatora (M1); `GET` sesji
+   po nieudanym `expire` i sprzątanie beatem (M2); zwroty pozycjami (M3); przelew pod blokadą (M4);
+   zwrot o nieznanym wyniku ponawiany tym samym kluczem i odwrót webhooka na `metadata.refund_uuid`
+   (M5); kolejność blokad zamówienie → wpłata → zwrot, bez HTTP pod blokadą (L1); `uuid.hex` dla P24
+   (L3); `livemode` (L4); odmowa przelewu na anulowane (L5); RODO profilu (L6); osobny limit webhooków
+   (L7).
 
 Znane luki:
-- adapter Przelewy24 przetestowany na atrapie HTTP, **nie** na sandboxie dostawcy (OPERACJE § 29.3),
+- adapter Przelewy24 przetestowany na atrapie HTTP, **nie** na sandboxie dostawcy (OPERACJE § 35.3),
 - brak listy dozwolonych adresów IP powiadomień P24 (podpis SHA-384 + `verify` są obowiązkowe),
-- rozbieżna kwota (`MISMATCH`) nie ma czynności „przyjmij mimo to” – zwrot i ponowna płatność albo zapis
-  przelewu przez koordynatora,
+- rozbieżna kwota (`MISMATCH`) nie ma czynności „przyjmij mimo to” – zwrot i ponowna płatność,
+- zwrot Stripe w stanie `pending` czeka na webhook `refund.updated` (sprzątanie ponawia wyłącznie zwroty
+  **bez** identyfikatora dostawcy); zwrotu P24 bez powiadomienia nie odpytujemy,
+- zniżka wraca do puli dopiero po zwrocie **całego** zamówienia (zwrot częściowy jej nie dzieli),
 - pulpit liczy zestawienie per delegacja osobnymi zapytaniami (kilkadziesiąt krajów – akceptowalne),
 - zamówienie wystawione przez koordynatora w imieniu opiekuna dostaje język koordynatora (ekran tego nie
   oferuje – ścieżka tylko z serwisu),

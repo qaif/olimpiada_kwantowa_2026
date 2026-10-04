@@ -29,10 +29,15 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
 - **Bezpieczeństwo:** kwota nigdy z formularza, podpis webhooka obowiązkowy (brak sekretu = 404), sekrety
   wyłącznie ze środowiska (`STRIPE_*`, `P24_*`), limity `checkout`/`payments_admin`, przekierowanie tylko na
   hosty operatora, panel `/admin/` płatności tylko do odczytu.
-- **RODO:** czynność „Płatności” w rejestrze (wersja 1.12, warunkowa), sekcja w eksporcie danych konta.
+- **Po przeglądzie:** dostęp tylko czynnego opiekuna, zwroty pozycjami (zastępca płaci), warunkowy zapis
+  sesji Checkout i `GET` sesji po nieudanym `expire`, sprzątanie beatem `payments-sweep` (porzucone sesje,
+  zgubione webhooki, ponawianie zwrotów tym samym kluczem), przelew zapisywany pod blokadą i tylko na
+  zamówienie otwarte, wpłata na anulowane → „do wyjaśnienia”, `livemode`, limit `payment_webhooks`.
+- **RODO:** czynność „Płatności” w rejestrze (wersja 1.12, warunkowa), sekcja w eksporcie danych konta
+  (z profilami delegacji edytowanymi przez konto); anonimizacja kasuje profil nabywcy uczestnika.
 - **i18n:** katalog aplikacji `apps/payments/locale` (113 napisów, 10 języków, maszynowe); `Dockerfile`,
   `conftest.py` i `test_translations.py` obejmują katalogi aplikacji.
-- Dokumentacja: `docs/OPERACJE.md` § 29, `docs/PODRECZNIK-ORGANIZATORA.md` § 10c,
+- Dokumentacja: `docs/OPERACJE.md` § 35, `docs/PODRECZNIK-ORGANIZATORA.md` § 10h,
   `docs/PODRECZNIK-OPIEKUNA-DRUZYNY.md` § 6, `docs/PODRECZNIK-UCZESTNIKA.md` § 2.
 
 ## [Unreleased] – Motywy wizualne wgrywane paczkami (THEME-01)

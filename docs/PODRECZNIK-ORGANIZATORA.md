@@ -31,7 +31,7 @@ edycji i zgłoszenia po numerze. Fraza krótsza niż dwa znaki nie szuka niczego
 | **Uczestnicy i konta** | Uczestnicy, Wszystkie konta, Opiekunowie szkolni, Aktywacje, *Status ucznia* (tylko z włączonymi zaświadczeniami, § 10a) |
 | **Komitet** | Członkowie, Zatwierdzenia, Zaproszenia, Województwa |
 | **Komunikacja** | Komunikaty, Zgłoszenia, Ogłoszenia |
-| **Raporty** | Eksport danych, Audyt, Symulacja kwalifikacji, Dyplomy, Retencja danych, Rejestr czynności; *Materiały z warsztatów* (tylko przy włączonej fladze `workshop_materials`, § 4.11); *Wpisowe* i *Płatności* (tylko przy włączonej fladze `fees`, § 10c) |
+| **Raporty** | Eksport danych, Audyt, Symulacja kwalifikacji, Dyplomy, Retencja danych, Rejestr czynności; *Materiały z warsztatów* (tylko przy włączonej fladze `workshop_materials`, § 4.11); *Wpisowe* i *Płatności* (tylko przy włączonej fladze `fees`, § 10h) |
 | **Ustawienia** | Rejestracja uczestników, Wydarzenia linii czasu, Skala punktacji, Slider sponsorów, Plakaty do pobrania |
 
 Przy czterech pozycjach (Moderacja, Aktywacje, Zatwierdzenia, Zgłoszenia) stoją **liczniki spraw
@@ -1944,9 +1944,9 @@ niepełnoletni zbiera sam po uruchomieniu konta (zgoda opiekuna online).
 
 ---
 
-## 10c. Płatności — `/coordinator/payments/`
+## 10h. Płatności — `/coordinator/payments/`
 
-**Tylko w konkursie z włączonymi opłatami** (flaga `fees`; `OPERACJE.md` § 29). Olimpiada Kwantowa jest
+**Tylko w konkursie z włączonymi opłatami** (flaga `fees`; `OPERACJE.md` § 35). Olimpiada Kwantowa jest
 bezpłatna i tego ekranu nie ma.
 
 **Kto płaci.** W olimpiadzie międzynarodowej (tryb delegacji) płaci **delegacja**: opiekun drużyny
@@ -1977,15 +1977,20 @@ na ekranie „Wpisowe”, jak dotąd.
 **Pulpit.** Sumy osobno dla każdej waluty (wystawiono, zapłacono, zwrócono, czeka na wpłatę, jeszcze
 niewystawione), delegacje ze stanem (rozliczona, czeka na wpłatę, do wystawienia, zwolniona), lista
 zamówień i **„Do wyjaśnienia”**: wpłata, której kwota albo waluta nie zgadza się z zamówieniem, podwójna
-wpłata tego samego zamówienia (do zwrotu) i zwroty nieudane albo w toku. „Eksport CSV dla księgowości” –
+wpłata tego samego zamówienia albo wpłata na zamówienie anulowane (do zwrotu) i zwroty nieudane albo
+w toku. Opiekun odwołany z delegacji traci wgląd w zamówienia i dokumenty swojej delegacji. „Eksport CSV dla księgowości” –
 jeden wiersz na zamówienie z nabywcą, VAT ID, numerami pro formy i faktury.
 
 **Zamówienie.** Pozycje, nabywca, dokumenty (PDF), wpłaty i zwroty. **Wpływ przelewu**: gdy na wyciągu
 jest przelew z kodem zamówienia na właściwą kwotę – data wpływu, notatka i opcjonalnie dowód wpłaty
 (skanowany antywirusowo; do pobrania po werdykcie „czysty”). Zapis tworzy fakturę i wysyła płacącemu
-potwierdzenie w jego języku. **Zwrot**: kwota (część albo całość) i powód; karta i Przelewy24 – zwrot
-zlecany u operatora, przelew – zapis zwrotu wykonanego przez Ciebie w banku. Pełny zwrot przywraca
-pozycje do zapłaty, a u uczestnika ustawia należność jako „zwrócone”.
+potwierdzenie w jego języku. Przelew zapisujesz wyłącznie na zamówienie **otwarte** – przelew
+z kodem anulowanej pro formy zwróć płacącemu w banku. **Zwrot**: wskazujesz **pozycje i ilości**
+(np. 1 × uczeń, gdy uczeń zrezygnował) i powód – kwotę liczy system; zwrócone miejsce przestaje być
+opłacone, więc zastępca tego ucznia zapłaci za siebie. Wpłatę „do wyjaśnienia” zwracasz w całości.
+Karta i Przelewy24 – zwrot zlecany u operatora (gdy operator nie odpowie, system ponowi go sam),
+przelew – zapis zwrotu wykonanego przez Ciebie w banku. Pełny zwrot przywraca pozycje do zapłaty,
+a u uczestnika ustawia należność jako „zwrócone”.
 
 **Faktury.** Pro forma powstaje przy wystawieniu zamówienia, faktura – automatycznie po wpłacie.
 Numeracja ciągła, osobno dla pro form i faktur, per konkurs i rok (`IQO/FV/2026/0001`). Dokument jest
