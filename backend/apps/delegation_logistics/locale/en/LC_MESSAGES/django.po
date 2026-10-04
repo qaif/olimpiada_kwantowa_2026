@@ -781,3 +781,29 @@ msgstr "rejected"
 #: models.py
 msgid "wycofany"
 msgstr "withdrawn"
+
+# --- VISA-01: poprawki po przeglądzie ---
+#: letters.py
+msgid "Nieobsługiwany język listu."
+msgstr "Unsupported letter language."
+
+#: letters.py
+msgid "Ten list został unieważniony – nie można go pobrać."
+msgstr "This letter has been revoked – it cannot be downloaded."
+
+#: letters.py
+msgid "Dane osób z tego listu zostały usunięte – list nie może być ponownie pobrany."
+msgstr "The personal data in this letter have been deleted – the letter cannot be downloaded again."
+
+#: templates/delegation_logistics/leader_letters.html
+#, python-format
+msgid "Dane paszportowe zmieniły się – nowy list unieważni list %(numbers)s."
+msgstr "The passport data have changed – a new letter will revoke letter %(numbers)s."
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "Ma już ważny list – nowy list z tymi samymi danymi nie unieważni poprzedniego."
+msgstr "Already has a valid letter – a new letter with the same data will not revoke the previous one."
+
+#: templates/delegation_logistics/verify.html
+msgid "List o tym kodzie został wystawiony przez organizatora, ale nie jest już ważny: dane osób usunięto przed wydarzeniem. Nie stanowi zaproszenia."
+msgstr "A letter with this code was issued by the organiser but is no longer valid: the personal data were deleted before the event. It is not an invitation."

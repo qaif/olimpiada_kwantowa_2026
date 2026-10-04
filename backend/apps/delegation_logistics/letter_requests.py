@@ -36,7 +36,8 @@ from apps.core.api import DomainError
 from apps.core.models import audit
 
 from . import access
-from .letters import _identity_complete, issue_letter, require_language, revoke_letter
+from .letter_texts import letter_languages
+from .letters import _identity_complete, issue_letter, letters_to_supersede, revoke_letter
 from .models import InvitationLetter, LetterRequest, LetterRequestStatus, LetterScope
 from .services import member_for_leader, require_not_purged
 
@@ -61,7 +62,12 @@ def request_letters(leader, member_ids, *, language: str, request=None) -> dict:
     oczekującym jest pomijana (``skipped``), a nie odmową: dwóch opiekunów jednej drużyny klikających
     naraz chce tego samego.
     """
-    require_language(language)
+    if language not in {code for code, _name in letter_languages(leader.delegation.competition)}:
+        # Wybór spoza listy ekranu: spreparowany formularz albo język wyłączony od chwili otwarcia
+        # strony (szablon z bazy wymusza angielski – L7).
+        raise DomainError(
+            _("Nieobsługiwany język listu."), "LETTER_LANGUAGE_INVALID", status.HTTP_400_BAD_REQUEST
+        )
     delegation = leader.delegation
     require_not_purged(delegation.edition)
     ids = sorted({int(pk) for pk in member_ids})
@@ -154,6 +160,11 @@ def leader_rows(delegation, members) -> list[dict]:
             "complete": _identity_complete(member),
             "request": latest.get(member.pk),
             "letters": valid.get(member.pk, []),
+            # Listy, które nowy list unieważni (zmienione dane istotne) – opiekun ma to wiedzieć,
+            # zanim poprosi o nowy list osobie, której stary list leży już w konsulacie (M1).
+            "would_revoke": [letter.number for letter in letters_to_supersede(member)]
+            if valid.get(member.pk)
+            else [],
         }
         for member in members
     ]
@@ -216,16 +227,13 @@ def pending_count(competition, edition) -> int:
     )
 
 
-def _supersede(letter: InvitationLetter, *, actor, request=None) -> int:
-    """Unieważnia wcześniejsze ważne listy imienne tej samej osoby – „zastąpiony listem …”."""
-    older = InvitationLetter.objects.filter(
-        member_id=letter.member_id, scope=LetterScope.PERSON, revoked_at__isnull=True
-    ).exclude(pk=letter.pk)
-    count = 0
-    for previous in older:
-        revoke_letter(previous, reason=f"zastąpiony listem {letter.number}", actor=actor, request=request)
-        count += 1
-    return count
+def would_revoke(rows) -> dict[int, list[str]]:
+    """Numery listów, które zatwierdzenie danego wniosku unieważni – podgląd na ekranie oficera (M1)."""
+    return {
+        row.pk: [letter.number for letter in letters_to_supersede(row.member)]
+        for row in rows
+        if row.is_pending
+    }
 
 
 def approve(competition, rows, *, actor, request=None) -> dict:
@@ -255,7 +263,8 @@ def approve(competition, rows, *, actor, request=None) -> dict:
                     request=request,
                     language=locked.language,
                 )
-                superseded = _supersede(letter, actor=actor, request=request)
+                # Wcześniejsze listy z innymi danymi istotnymi unieważnia już ``issue_letter`` (M1).
+                superseded = len(letter.superseded)
                 locked.status = LetterRequestStatus.APPROVED
                 locked.decided_by = actor
                 locked.decided_at = timezone.now()

@@ -781,3 +781,29 @@ msgstr "rechazada"
 #: models.py
 msgid "wycofany"
 msgstr "retirada"
+
+# --- VISA-01: poprawki po przeglądzie ---
+#: letters.py
+msgid "Nieobsługiwany język listu."
+msgstr "Idioma de la carta no admitido."
+
+#: letters.py
+msgid "Ten list został unieważniony – nie można go pobrać."
+msgstr "Esta carta ha sido revocada: no se puede descargar."
+
+#: letters.py
+msgid "Dane osób z tego listu zostały usunięte – list nie może być ponownie pobrany."
+msgstr "Los datos personales de esta carta se han eliminado: no se puede volver a descargar."
+
+#: templates/delegation_logistics/leader_letters.html
+#, python-format
+msgid "Dane paszportowe zmieniły się – nowy list unieważni list %(numbers)s."
+msgstr "Los datos del pasaporte han cambiado: una nueva carta revocará la carta %(numbers)s."
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "Ma już ważny list – nowy list z tymi samymi danymi nie unieważni poprzedniego."
+msgstr "Ya tiene una carta válida: una nueva carta con los mismos datos no revocará la anterior."
+
+#: templates/delegation_logistics/verify.html
+msgid "List o tym kodzie został wystawiony przez organizatora, ale nie jest już ważny: dane osób usunięto przed wydarzeniem. Nie stanowi zaproszenia."
+msgstr "La carta con este código fue expedida por el organizador, pero ya no es válida: los datos personales se eliminaron antes del evento. No constituye una invitación."

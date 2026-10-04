@@ -1,9 +1,14 @@
 """VISA-01: wnioski o listy zapraszające, kod weryfikacyjny, język, migawka wydarzenia, unieważnienie.
 
 Listy wystawione przed tą migracją dostają losowy kod weryfikacyjny (``_codes``), a migawkę wydarzenia
-z ustawień finału swojej edycji – inaczej strona weryfikacji nie miałaby ich czym pokazać. Kod liczony
+z ustawień finału swojej edycji; adres weryfikacji (``verification_base_url``) zostaje pusty – liczy się
+wtedy z bieżącego adresowania konkursu – inaczej strona weryfikacji nie miałaby ich czym pokazać. Kod liczony
 w migracji, a nie importem z aplikacji: alfabet i długość są kopią ``apps.results.models`` z dnia
 migracji (migracja ma działać tak samo za rok, choćby tamten moduł się zmienił).
+
+Cofnięcie usuwa kolumny razem z kodami, a ponowne zastosowanie nadaje kody **nowe** – kody na listach
+wydrukowanych wcześniej przestają wtedy działać (OPERACJE § 31.8). Na produkcji tej migracji nie cofa się
+po wystawieniu pierwszego listu.
 """
 
 import django.db.models.deletion
@@ -114,6 +119,11 @@ class Migration(migrations.Migration):
                 'ordering': ('-requested_at', '-id'),
                 'constraints': [models.UniqueConstraint(condition=models.Q(('status', 'PENDING')), fields=('member',), name='delegation_logistics_letter_request_one_pending')],
             },
+        ),
+        migrations.AddField(
+            model_name='invitationletter',
+            name='verification_base_url',
+            field=models.CharField(blank=True, max_length=300, verbose_name='adres weryfikacji (z chwili wystawienia)'),
         ),
         migrations.RunPython(_codes, migrations.RunPython.noop),
     ]

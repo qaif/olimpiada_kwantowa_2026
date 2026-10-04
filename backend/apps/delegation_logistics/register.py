@@ -18,7 +18,11 @@ def activity(competition=None):
 
     from .models import DEFAULT_RETENTION_DAYS, enabled
 
-    if not enabled(competition):
+    from .verification import has_letters
+
+    # Strona weryfikacji listów działa także po wyłączeniu logistyki (VISA-01 M3) – dopóki konkurs ma
+    # wystawione listy, przetwarzanie (imię i nazwisko na stronie weryfikacji) trwa i wiersz zostaje.
+    if not enabled(competition) and not has_letters(competition):
         return None
     return _activity(
         key="logistyka-finalu",

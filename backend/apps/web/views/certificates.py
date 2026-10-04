@@ -78,5 +78,7 @@ class CertificateVerifyView(View):
 
     def get(self, request, code: str):
         result = verify(code)
-        context = {"code": (code or "").strip().upper(), "certificate": result}
+        # ``no_analytics`` (VISA-01 M5): kod z dokumentu stoi w adresie strony, a adres trafiałby do
+        # statystyk odwiedzin Google – ``base.html`` nie ładuje tu tagu w ogóle.
+        context = {"code": (code or "").strip().upper(), "certificate": result, "no_analytics": True}
         return TemplateResponse(request, VERIFY_TEMPLATE, context)

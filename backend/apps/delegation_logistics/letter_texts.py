@@ -57,15 +57,14 @@ LETTER_TEXTS: dict[str, dict] = {
     "pl": {
         "title": "List zapraszający",
         "statement": (
-            "W imieniu {organizer} mamy przyjemność zaprosić wymienione niżej osoby, członków delegacji "
-            "narodowej ({country}), do udziału w wydarzeniu {event}, które odbędzie się w miejscowości "
-            "{city} w dniach {event_dates}. List wystawiono na wniosek delegacji narodowej w celu złożenia "
-            "wniosku wizowego."
+            "Organizator – {organizer} – ma przyjemność zaprosić wymienione niżej osoby, członków delegacji "
+            "narodowej (kraj: {country}), do udziału w wydarzeniu: {event}. Miejsce: {city}. Termin: "
+            "{event_dates}. List wystawiono na wniosek delegacji narodowej w celu złożenia wniosku wizowego."
         ),
         "signature_line": "w imieniu organizatora",
         "footer_note": (
-            "List nr {number} z dnia {date}. Autentyczność listu można potwierdzić na stronie weryfikacji "
-            "wskazanej niżej."
+            "List nr {number}, data wystawienia: {date}. Autentyczność listu można potwierdzić "
+            "na stronie weryfikacji wskazanej niżej."
         ),
         "columns": (
             "Imię i nazwisko (jak w paszporcie)",
@@ -169,15 +168,15 @@ LETTER_TEXTS: dict[str, dict] = {
     "ru": {
         "title": "Письмо-приглашение",
         "statement": (
-            "От имени {organizer} мы рады пригласить перечисленных ниже лиц, членов национальной делегации "
-            "({country}), принять участие в мероприятии {event}, которое состоится в городе {city} в даты: "
-            "{event_dates}. Настоящее письмо выдано по запросу национальной делегации для подачи заявления "
-            "на визу."
+            "Организатор – {organizer} – рад пригласить перечисленных ниже лиц, членов национальной "
+            "делегации (страна: {country}), принять участие в мероприятии: {event}. "
+            "Место проведения: {city}. Сроки: {event_dates}. Настоящее письмо выдано по запросу "
+            "национальной делегации для подачи заявления на визу."
         ),
         "signature_line": "от имени организатора",
         "footer_note": (
-            "Письмо № {number} от {date}. Подлинность письма можно подтвердить на странице проверки, "
-            "указанной ниже."
+            "Письмо № {number}, дата выдачи: {date}. Подлинность письма можно подтвердить "
+            "на странице проверки, указанной ниже."
         ),
         "columns": (
             "Полное имя (как в паспорте)",
@@ -235,11 +234,17 @@ def letter_languages(competition) -> list[tuple[str, str]]:
 
     Angielski zawsze, i zawsze pierwszy – nawet gdy konkurs ma interfejs wyłącznie po polsku, list
     do konsulatu po angielsku musi dać się wystawić. Nazwy z ``settings.LANGUAGES`` (tłumaczone).
+    Przy własnym tekście listu w „Szablonach dokumentów” – wyłącznie angielski (L7, patrz
+    ``letters.has_db_template``).
     """
     from django.conf import settings
 
+    from .letters import has_db_template
+
     names = dict(settings.LANGUAGES)
     chosen = [DEFAULT_LANGUAGE]
+    if has_db_template(competition):
+        return [(DEFAULT_LANGUAGE, str(names.get(DEFAULT_LANGUAGE, DEFAULT_LANGUAGE)))]
     for code in getattr(competition, "ui_languages", None) or []:
         if code in LETTER_TEXTS and code not in chosen:
             chosen.append(code)

@@ -61,6 +61,8 @@
               </td>
               <td>
                 {% for letter in row.letters %}<a href="{% url 'web:delegation-logistics-letter' letter.pk %}">{{ letter.number }}</a>{% if not forloop.last %}, {% endif %}{% empty %}—{% endfor %}
+                {% if row.would_revoke %}<br><span class="badge badge--warn">{% blocktranslate trimmed with numbers=row.would_revoke|join:", " %}Dane paszportowe zmieniły się – nowy list unieważni list {{ numbers }}.{% endblocktranslate %}</span>
+                {% elif row.letters %}<br><span class="hint">{% translate "Ma już ważny list – nowy list z tymi samymi danymi nie unieważni poprzedniego." %}</span>{% endif %}
               </td>
             </tr>
           {% empty %}

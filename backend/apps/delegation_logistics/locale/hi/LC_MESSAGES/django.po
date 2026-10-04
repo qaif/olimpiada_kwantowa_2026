@@ -781,3 +781,29 @@ msgstr "अस्वीकृत"
 #: models.py
 msgid "wycofany"
 msgstr "वापस लिया गया"
+
+# --- VISA-01: poprawki po przeglądzie ---
+#: letters.py
+msgid "Nieobsługiwany język listu."
+msgstr "पत्र की भाषा समर्थित नहीं है।"
+
+#: letters.py
+msgid "Ten list został unieważniony – nie można go pobrać."
+msgstr "यह पत्र रद्द कर दिया गया है – इसे डाउनलोड नहीं किया जा सकता।"
+
+#: letters.py
+msgid "Dane osób z tego listu zostały usunięte – list nie może być ponownie pobrany."
+msgstr "इस पत्र के व्यक्तियों का डेटा हटा दिया गया है – पत्र दोबारा डाउनलोड नहीं किया जा सकता।"
+
+#: templates/delegation_logistics/leader_letters.html
+#, python-format
+msgid "Dane paszportowe zmieniły się – nowy list unieważni list %(numbers)s."
+msgstr "पासपोर्ट विवरण बदल गया है – नया पत्र पत्र %(numbers)s को रद्द कर देगा।"
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "Ma już ważny list – nowy list z tymi samymi danymi nie unieważni poprzedniego."
+msgstr "पहले से एक मान्य पत्र है – समान विवरण वाला नया पत्र पिछले पत्र को रद्द नहीं करेगा।"
+
+#: templates/delegation_logistics/verify.html
+msgid "List o tym kodzie został wystawiony przez organizatora, ale nie jest już ważny: dane osób usunięto przed wydarzeniem. Nie stanowi zaproszenia."
+msgstr "इस कोड वाला पत्र आयोजक द्वारा जारी किया गया था, लेकिन अब मान्य नहीं है: कार्यक्रम से पहले व्यक्तियों का डेटा हटा दिया गया। यह आमंत्रण नहीं है।"

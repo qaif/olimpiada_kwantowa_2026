@@ -37,6 +37,8 @@ def purge_event(event: FinalEvent, *, now=None) -> int:
     removed = delete_members(DelegationMember.objects.filter(delegation__edition=event.edition))
     letters = InvitationLetter.objects.filter(edition=event.edition, content_purged_at__isnull=True)
     purged_letters = letters.update(content="", content_purged_at=moment)
+    # Powód unieważnienia bywa opisem osoby („odmowa wizy”) – po retencji znika (VISA-01 L3).
+    InvitationLetter.objects.filter(edition=event.edition).exclude(revoke_reason="").update(revoke_reason="")
     event.purged_at = moment
     event.save(update_fields=["purged_at"])
     audit(None, "logistics.purged", event, {"members": removed, "letters": purged_letters})

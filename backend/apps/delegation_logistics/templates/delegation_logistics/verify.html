@@ -23,6 +23,8 @@
     {% if result %}
       {% if result.valid %}
         <p class="msg msg-success">{% translate "List o tym kodzie został wystawiony przez organizatora i jest ważny." %}</p>
+      {% elif result.withdrawn %}
+        <p class="msg msg-error">{% translate "List o tym kodzie został wystawiony przez organizatora, ale nie jest już ważny: dane osób usunięto przed wydarzeniem. Nie stanowi zaproszenia." %}</p>
       {% else %}
         <p class="msg msg-error">{% blocktranslate trimmed with day=result.revoked_on|date:"j.m.Y" %}
           List o tym kodzie został wystawiony przez organizatora, ale <strong>unieważniony</strong> {{ day }}. Nie stanowi zaproszenia.

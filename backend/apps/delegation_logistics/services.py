@@ -283,7 +283,12 @@ def _delete_photos_on_commit(keys) -> None:
     transaction.on_commit(_delete)
 
 
-def delete_members(queryset) -> int:
+#: Powód unieważnienia listu imiennego osoby, która wypadła z delegacji (VISA-01 M2). Stały napis, bez
+#: danych osoby – zostaje w rejestrze także po wyczyszczeniu migawki.
+REMOVED_FROM_DELEGATION = "osoba wypisana z delegacji"
+
+
+def delete_members(queryset, *, removal: bool = False, actor=None, request=None) -> int:
     """Usuwa wiersze członków razem z plikami zdjęć i z ich wierszami w migawkach listów wizowych.
 
     Kaskada bazy nie wie ani o buckecie, ani o zaszyfrowanym JSON-ie listu: osoba wypisana z delegacji,
@@ -294,6 +299,21 @@ def delete_members(queryset) -> int:
     from .models import InvitationLetter
 
     rows = list(queryset.values_list("pk", "delegation_id"))
+    # VISA-01 M2: osoba **wypisana** z delegacji (uczeń odpięty, opiekun odwołany, gość usunięty) nie
+    # jedzie – jej ważne listy imienne mają przestać być ważne, a nie tylko stracić dane. Retencja
+    # i usunięcie konta (``removal=False``) idą bez tego: tam stronę weryfikacji rozstrzyga data
+    # wyczyszczenia migawki (``verification.verify``).
+    to_revoke = (
+        list(
+            InvitationLetter.objects.filter(
+                member_id__in=[pk for pk, _delegation in rows],
+                scope="PERSON",
+                revoked_at__isnull=True,
+            ).values_list("pk", flat=True)
+        )
+        if removal and rows
+        else []
+    )
     keys = list(queryset.exclude(photo_key="").values_list("photo_key", flat=True))
     guest_ids = list(queryset.exclude(guest__isnull=True).values_list("guest_id", flat=True))
     if rows:
@@ -306,6 +326,11 @@ def delete_members(queryset) -> int:
     deleted, _by_model = DelegationMember.objects.filter(pk__in=[pk for pk, _d in rows]).delete()
     DelegationGuest.objects.filter(pk__in=guest_ids).delete()
     _delete_photos_on_commit(keys)
+    if to_revoke:
+        from .letters import revoke_letter
+
+        for letter in InvitationLetter.objects.filter(pk__in=to_revoke, revoked_at__isnull=True):
+            revoke_letter(letter, reason=REMOVED_FROM_DELEGATION, actor=actor, request=request)
     return deleted
 
 
@@ -346,7 +371,7 @@ def sync_members(delegation) -> None:
         kind=MemberKind.LEADER
     ).exclude(user_id__in=leaders)
     if stale.exists():
-        delete_members(stale)
+        delete_members(stale, removal=True)
     have_students = set(rows.filter(kind=MemberKind.STUDENT).values_list("participant_id", flat=True))
     have_leaders = set(rows.filter(kind=MemberKind.LEADER).values_list("user_id", flat=True))
     DelegationMember.objects.bulk_create(
@@ -716,7 +741,7 @@ def remove_guest(member: DelegationMember, *, actor, request=None) -> None:
     if member.kind != MemberKind.GUEST:
         raise Http404("To nie jest gość delegacji.")
     audit(actor, "logistics.guest_removed", member, {"delegation": member.delegation_id}, request=request)
-    delete_members(DelegationMember.objects.filter(pk=member.pk))
+    delete_members(DelegationMember.objects.filter(pk=member.pk), removal=True, actor=actor, request=request)
 
 
 # --- zdjęcie do identyfikatora ------------------------------------------------------------------------

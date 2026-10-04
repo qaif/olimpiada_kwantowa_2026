@@ -781,3 +781,29 @@ msgstr "ditolak"
 #: models.py
 msgid "wycofany"
 msgstr "ditarik"
+
+# --- VISA-01: poprawki po przeglądzie ---
+#: letters.py
+msgid "Nieobsługiwany język listu."
+msgstr "Bahasa surat tidak didukung."
+
+#: letters.py
+msgid "Ten list został unieważniony – nie można go pobrać."
+msgstr "Surat ini telah dicabut – tidak dapat diunduh."
+
+#: letters.py
+msgid "Dane osób z tego listu zostały usunięte – list nie może być ponownie pobrany."
+msgstr "Data pribadi dalam surat ini telah dihapus – surat tidak dapat diunduh lagi."
+
+#: templates/delegation_logistics/leader_letters.html
+#, python-format
+msgid "Dane paszportowe zmieniły się – nowy list unieważni list %(numbers)s."
+msgstr "Data paspor berubah – surat baru akan mencabut surat %(numbers)s."
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "Ma już ważny list – nowy list z tymi samymi danymi nie unieważni poprzedniego."
+msgstr "Sudah memiliki surat yang berlaku – surat baru dengan data yang sama tidak akan mencabut surat sebelumnya."
+
+#: templates/delegation_logistics/verify.html
+msgid "List o tym kodzie został wystawiony przez organizatora, ale nie jest już ważny: dane osób usunięto przed wydarzeniem. Nie stanowi zaproszenia."
+msgstr "Surat dengan kode ini diterbitkan oleh penyelenggara, tetapi tidak berlaku lagi: data pribadi dihapus sebelum acara. Surat ini bukan undangan."

@@ -781,11 +781,13 @@ class LettersView(OfficerMixin, ThrottledFormMixin, View):
             .filter(edition=edition)
             .select_related("country")
         )
-        return self.render(
-            request,
-            "letters.html",
-            {"letters": letters.letters_of(self.competition, edition), "delegations": delegations},
-        )
+        rows = list(letters.letters_of(self.competition, edition))
+        # VISA-01 M1: list (zwłaszcza delegacji) z danymi istotnymi, które zmieniły się od wystawienia,
+        # nie jest unieważniany sam – rejestr go oznacza, a decyzja należy do oficera.
+        members = {member.pk: member for member in services.edition_members(edition)}
+        for letter in rows:
+            letter.outdated = letters.outdated_names(letter, members) if letter.content else []
+        return self.render(request, "letters.html", {"letters": rows, "delegations": delegations})
 
     def post(self, request):
         delegation = self.delegation_or_404(request.POST.get("delegation", ""))
@@ -806,6 +808,13 @@ class LettersView(OfficerMixin, ThrottledFormMixin, View):
             messages.error(request, str(exc.detail))
         else:
             messages.success(request, f"Wystawiono list {letter.number} ({letter.people_count} os.).")
+            if letter.superseded:
+                messages.info(
+                    request,
+                    "Unieważnione listy z innymi danymi dokumentu podróży: "
+                    + ", ".join(letter.superseded)
+                    + ".",
+                )
         if member is not None:
             return redirect("web:coordinator-onsite-member", pk=member.pk)
         return redirect("web:coordinator-onsite-letters")

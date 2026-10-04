@@ -640,6 +640,14 @@ class InvitationLetter(models.Model):
     verification_code = models.CharField(
         "kod weryfikacyjny", max_length=12, unique=True, null=True, blank=True, editable=False
     )
+    #: Bezwzględny adres strony weryfikacji (``…/visa/verify/``) z chwili wystawienia – ten, który stoi
+    #: na papierze i w kodzie QR. Zapamiętany, a nie liczony przy każdym pobraniu: zmiana domeny albo
+    #: prefiksu konkursu po wystawieniu nie może sprawić, że ponownie pobrany PDF tego samego listu
+    #: niesie inny adres niż egzemplarz złożony w konsulacie. Stary adres obsługuje przekierowanie
+    #: (``manage.py visa_letter_redirects``, OPERACJE § 31.8). Pusty – listy sprzed tej kolumny.
+    verification_base_url = models.CharField(
+        "adres weryfikacji (z chwili wystawienia)", max_length=300, blank=True
+    )
     #: Język tekstu listu (``letter_texts.LETTER_TEXTS``). Angielski – język olimpiady i konsulatów.
     language = models.CharField("język listu", max_length=10, default="en")
     #: Migawka wydarzenia z chwili wystawienia – strona weryfikacji pokazuje to, co stoi na papierze,

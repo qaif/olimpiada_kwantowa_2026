@@ -8,7 +8,7 @@ delegacja Francji z opiekunem, oficer logistyki, finał za 60 dni.
 from __future__ import annotations
 
 from datetime import timedelta
-from io import BytesIO
+from io import BytesIO, StringIO
 
 import pytest
 from django.conf import settings
@@ -194,16 +194,78 @@ def test_bulk_approve_sends_one_mail_per_leader_and_keeps_failures_pending(
     assert outcome["approved"][0].letter.number in mailoutbox[0].body
 
 
-def test_approval_supersedes_previous_valid_personal_letter(iqo, leader, students, officer, event):
+def test_approval_keeps_previous_letter_when_material_data_unchanged(iqo, leader, students, officer, event):
+    """M1: nowy list z tymi samymi danymi istotnymi nie unieważnia poprzedniego (leży w konsulacie)."""
     member = with_passport(leader, students[0])
     old = letters.issue_letter(iqo, leader.delegation, member=member, actor=officer)
+    # Zmiana daty ważności paszportu nie jest zmianą istotną.
+    services.save_member(
+        member, {"passport_expiry": timezone.localdate() + timedelta(days=1200)}, actor=leader.user
+    )
     row = letter_requests.request_letters(leader, [member.pk], language="en")["created"][0]
+    assert letter_requests.would_revoke([row]) == {row.pk: []}
     letter_requests.approve(iqo, [row], actor=officer)
 
     old.refresh_from_db()
     row.refresh_from_db()
+    assert old.revoked_at is None and row.letter.revoked_at is None
+
+
+def test_approval_supersedes_letter_with_changed_passport(iqo, leader, students, officer, event):
+    member = with_passport(leader, students[0])
+    old = letters.issue_letter(iqo, leader.delegation, member=member, actor=officer)
+    services.save_member(member, {"passport_number": "NEW999"}, actor=leader.user)
+    row = letter_requests.request_letters(leader, [member.pk], language="en")["created"][0]
+
+    # Podgląd dla oficera i ostrzeżenie dla opiekuna – zanim ktokolwiek kliknie.
+    assert letter_requests.would_revoke([row]) == {row.pk: [old.number]}
+    rows = letter_requests.leader_rows(leader.delegation, services.members_of(leader.delegation))
+    assert next(r for r in rows if r["member"].pk == member.pk)["would_revoke"] == [old.number]
+
+    letter_requests.approve(iqo, [row], actor=officer)
+    old.refresh_from_db()
+    row.refresh_from_db()
     assert old.revoked_at is not None and row.letter.number in old.revoke_reason
     assert row.letter.revoked_at is None
+
+
+def test_direct_issue_by_officer_follows_the_same_rule(iqo, leader, students, officer, event):
+    """LOG-01: list imienny wystawiony z karty osoby – ta sama reguła zastępowania (M1)."""
+    member = with_passport(leader, students[0])
+    first = letters.issue_letter(iqo, leader.delegation, member=member, actor=officer)
+    same = letters.issue_letter(iqo, leader.delegation, member=member, actor=officer)
+    assert same.superseded == []
+    services.save_member(member, {"passport_name": "ANNA NEW NAME"}, actor=leader.user)
+    third = letters.issue_letter(iqo, leader.delegation, member=member, actor=officer)
+    assert sorted(third.superseded) == sorted([first.number, same.number])
+
+
+def test_delegation_letter_with_outdated_data_is_flagged(client_for, iqo, leader, students, officer, event):
+    member = with_passport(leader, students[0])
+    letter = letters.issue_letter(iqo, leader.delegation, actor=officer)  # list delegacji
+    services.save_member(member, {"nationality": "fr"}, actor=leader.user)
+
+    members = {m.pk: m for m in services.edition_members(leader.delegation.edition)}
+    assert letters.outdated_names(letter, members) == ["ANNA ADULT"]
+    page = logged_in(client_for, iqo, officer).get(reverse("web:coordinator-onsite-letters"))
+    assert "nieaktualne dane: ANNA ADULT" in page.content.decode()
+    letter.refresh_from_db()
+    assert letter.revoked_at is None  # list delegacji nie jest unieważniany sam
+
+
+def test_supersede_skips_letter_revoked_concurrently(iqo, leader, students, officer, event, monkeypatch):
+    """L5: list unieważniony w międzyczasie (inny oficer) nie wywraca wystawienia nowego listu."""
+    member = with_passport(leader, students[0])
+    old = letters.issue_letter(iqo, leader.delegation, member=member, actor=officer)
+    services.save_member(member, {"passport_number": "NEW999"}, actor=leader.user)
+    fresh = services.member_for_leader(leader, member.pk)
+    stale = letters.letters_to_supersede(fresh)
+    assert [letter.pk for letter in stale] == [old.pk]
+    letters.revoke_letter(old, reason="ręcznie", actor=officer)
+    # Wyścig: lista „do unieważnienia” policzona przed cudzym unieważnieniem.
+    monkeypatch.setattr(letters, "letters_to_supersede", lambda member, exclude_pk=None: stale)
+    new = letters.issue_letter(iqo, leader.delegation, member=fresh, actor=officer)
+    assert new.superseded == [] and new.revoked_at is None
 
 
 def test_requests_csv_has_no_passport_data(client_for, iqo, leader, students, officer, event):
@@ -230,6 +292,34 @@ def test_pdf_contains_number_name_and_verification_code(iqo, leader, students, o
     assert letter.display_code in text
     assert "/visa/verify/" in text
     assert "Letter of invitation" in text
+
+
+@pytest.mark.parametrize("language", ["es", "pt", "ru", "id", "pl"])
+def test_pdf_renders_in_every_letter_language(iqo, leader, students, officer, event, language):
+    """L9: każda wersja językowa składa się (krój ma znaki, daty w formacie języka)."""
+    iqo.interface_languages = ["en", language]
+    iqo.save(update_fields=["interface_languages"])
+    member = with_passport(leader, students[0])
+    letter = letters.issue_letter(iqo, leader.delegation, member=member, actor=officer, language=language)
+    text = pdf_text(letters.letter_pdf(letter))
+    assert LETTER_TEXTS[language]["title"] in text
+    assert letter.number in text and "ANNA ADULT" in text
+    # Organizator jest dopowiedzeniem, nie dopełnieniem – zdanie nie zależy od przypadka nazwy (L7).
+    if language in ("pl", "ru"):
+        assert "{organizer}" in LETTER_TEXTS[language]["statement"].split("–")[1]
+
+
+def test_db_template_forces_english(iqo, leader, students, officer, event, monkeypatch):
+    """L7: przy własnym szablonie listu wybór języka znika, a list wychodzi po angielsku."""
+    iqo.interface_languages = ["en", "fr"]
+    iqo.save(update_fields=["interface_languages"])
+    monkeypatch.setattr(letters, "has_db_template", lambda competition: True)
+    assert [code for code, _name in letter_languages(iqo)] == ["en"]
+    member = with_passport(leader, students[0])
+    letter = letters.issue_letter(iqo, leader.delegation, member=member, actor=officer, language="fr")
+    assert letter.language == "en"
+    with pytest.raises(DomainError):
+        letter_requests.request_letters(leader, [member.pk], language="fr")
 
 
 def test_letter_language_changes_text_and_role(iqo, leader, students, officer, event):
@@ -291,27 +381,38 @@ def test_verify_page_shows_revocation(client_for, iqo, leader, students, officer
     assert "secret reason" not in page
 
 
-def test_verify_unknown_code_and_form_redirect(client_for, iqo, event):
+def issued(iqo, leader, students, officer):
+    member = with_passport(leader, students[0])
+    return letters.issue_letter(iqo, leader.delegation, member=member, actor=officer)
+
+
+def test_verify_unknown_code_and_form_renders_result_directly(
+    client_for, iqo, leader, students, officer, event
+):
+    letter = issued(iqo, leader, students, officer)
     client = client_for(iqo)
     response = client.get(reverse("web:visa-verify-code", args=["ZZZZZZZZZZZZ"]))
     assert response.status_code == 200 and verification.verify(iqo, "ZZZZZZZZZZZZ") is None
 
-    redirect = client.get(reverse("web:visa-verify") + "?code=abcd-efgh-jkmn")
-    assert redirect.status_code == 302 and redirect["Location"].endswith("/visa/verify/ABCDEFGHJKMN/")
+    # L2: formularz pokazuje wynik od razu – bez przekierowania (jedno miejsce w limicie żądań).
+    direct = client.get(reverse("web:visa-verify") + f"?code={letter.display_code.lower()}")
+    assert direct.status_code == 200 and letter.number in direct.content.decode()
 
 
-def test_verify_is_scoped_to_the_competition_of_the_request(iqo, leader, students, officer, event):
-    from apps.tenancy.models import Competition
-
-    member = with_passport(leader, students[0])
-    letter = letters.issue_letter(iqo, leader.delegation, member=member, actor=officer)
-    other = Competition.objects.exclude(pk=iqo.pk).first()
-    if other is not None:
-        assert verification.verify(other, letter.verification_code) is None
+def test_verify_is_scoped_to_the_competition_of_the_request(
+    client_for, iqo, other_competition, leader, students, officer, event
+):
+    letter = issued(iqo, leader, students, officer)
+    assert verification.verify(other_competition, letter.verification_code) is None
     assert verification.verify(iqo, letter.verification_code) is not None
+    # Drugi konkurs nie wystawił listów – strony weryfikacji w nim nie ma (M3), także dla cudzego kodu.
+    response = client_for(other_competition).get(
+        reverse("web:visa-verify-code", args=[letter.verification_code])
+    )
+    assert response.status_code == 404
 
 
-def test_verify_page_is_404_without_the_feature(client_for, competition):
+def test_verify_page_is_404_without_any_letters(client_for, competition):
     from apps.competitions.tests.factories import CurrentEditionFactory
 
     CurrentEditionFactory(competition=competition)
@@ -320,22 +421,124 @@ def test_verify_page_is_404_without_the_feature(client_for, competition):
     assert client_for(competition).get(reverse("web:visa-verify")).status_code == 404
 
 
+def test_verify_works_after_logistics_flag_is_switched_off(client_for, iqo, leader, students, officer, event):
+    """M3: list leży w konsulacie dłużej niż trwa logistyka finału – weryfikacja zostaje."""
+    from apps.delegation_logistics.models import FLAG
+    from apps.tenancy.models import RegistrationMode
+
+    letter = issued(iqo, leader, students, officer)
+    iqo.feature_flags = {**iqo.feature_flags, FLAG: False}
+    iqo.registration_mode = RegistrationMode.OPEN
+    iqo.save(update_fields=["feature_flags", "registration_mode"])
+
+    response = client_for(iqo).get(reverse("web:visa-verify-code", args=[letter.verification_code]))
+    assert response.status_code == 200 and letter.number in response.content.decode()
+
+
 def _rates(**rates) -> dict:
     config = dict(settings.REST_FRAMEWORK)
     config["DEFAULT_THROTTLE_RATES"] = {**config["DEFAULT_THROTTLE_RATES"], **rates}
     return config
 
 
-def test_verify_page_is_rate_limited(client_for, iqo, event):
+def test_verify_page_is_rate_limited_for_get_and_head(client_for, iqo, leader, students, officer, event):
     from django.core.cache import cache
 
+    issued(iqo, leader, students, officer)
     cache.clear()
     client = client_for(iqo)
     url = reverse("web:visa-verify-code", args=["ABCDEFGHJKMN"])
     with override_settings(REST_FRAMEWORK=_rates(visa_verify="2/hour")):
         assert client.get(url).status_code == 200
-        assert client.get(url).status_code == 200
+        assert client.head(url).status_code == 200
+        assert client.head(url).status_code == 429  # L1: HEAD liczy się tak samo jak GET
         assert client.get(url).status_code == 429
+
+
+def test_officer_is_not_rate_limited_on_verify_links(client_for, iqo, leader, students, officer, event):
+    from django.core.cache import cache
+
+    letter = issued(iqo, leader, students, officer)
+    cache.clear()
+    client = logged_in(client_for, iqo, officer)
+    url = reverse("web:visa-verify-code", args=[letter.verification_code])
+    with override_settings(REST_FRAMEWORK=_rates(visa_verify="1/hour")):
+        assert [client.get(url).status_code for _ in range(3)] == [200, 200, 200]
+
+
+# --- adres weryfikacji zapamiętany na liście (M4) ----------------------------------------------------
+
+
+def test_qr_address_is_stored_at_issue_and_survives_domain_change(iqo, leader, students, officer, event):
+    letter = issued(iqo, leader, students, officer)
+    assert letter.verification_base_url == "https://kwantowa.invalid/visa/verify/"
+    assert (
+        letters.verification_url(letter)
+        == f"https://kwantowa.invalid/visa/verify/{letter.verification_code}/"
+    )
+
+    iqo.primary_domain = "iqo-nowa.test"
+    iqo.save(update_fields=["primary_domain"])
+    letter = InvitationLetter.objects.get(pk=letter.pk)
+    assert letters.verification_url(letter).startswith("https://kwantowa.invalid/visa/verify/")
+    assert letters.current_verification_url(letter).startswith("https://iqo-nowa.test/visa/verify/")
+    assert "kwantowa.invalid/visa/verify/" in pdf_text(letters.letter_pdf(letter))
+
+
+def test_verification_base_for_path_routed_competition(other_competition):
+    from apps.tenancy.models import RoutingMode
+
+    other_competition.routing_mode = RoutingMode.PATH
+    other_competition.path_prefix = "druga"
+    other_competition.save(update_fields=["routing_mode", "path_prefix"])
+    assert letters.verification_entry_url(other_competition).endswith("/druga/visa/verify/")
+
+
+def test_moved_domain_redirects_to_the_current_address(
+    client_for, iqo, other_competition, leader, students, officer, event
+):
+    letter = issued(iqo, leader, students, officer)
+    # List wystawiony, gdy konkurs stał pod domeną, która dziś prowadzi do innego konkursu.
+    InvitationLetter.objects.filter(pk=letter.pk).update(
+        verification_base_url="https://inny.test/visa/verify/"
+    )
+    response = client_for(other_competition).get(
+        reverse("web:visa-verify-code", args=[letter.verification_code])
+    )
+    assert response.status_code == 302
+    assert response["Location"] == letters.current_verification_url(letter)
+
+
+def test_redirect_command_covers_old_path_prefix(client_for, iqo, leader, students, officer, event):
+    from django.core.management import call_command
+
+    letter = issued(iqo, leader, students, officer)
+    InvitationLetter.objects.filter(pk=letter.pk).update(
+        verification_base_url="https://kwantowa.invalid/stary/visa/verify/"
+    )
+    call_command("visa_letter_redirects", iqo.slug, stdout=StringIO())
+    response = client_for(iqo).get(f"/stary/visa/verify/{letter.verification_code}/")
+    assert response.status_code == 302
+    assert response["Location"] == letters.current_verification_url(letter)
+
+
+# --- bez analityki na stronach weryfikacji (M5) -----------------------------------------------------
+
+
+def test_verify_pages_do_not_load_analytics(client_for, iqo, leader, students, officer, event):
+    from apps.cms.models import SiteSettings
+
+    letter = issued(iqo, leader, students, officer)
+    site_settings = SiteSettings.for_site(iqo.site)
+    site_settings.ga_measurement_id = "G-TEST12345"
+    site_settings.save()
+    client = client_for(iqo)
+
+    assert "googletagmanager" in client.get(reverse("web:login")).content.decode()
+    visa = client.get(reverse("web:visa-verify-code", args=[letter.verification_code])).content.decode()
+    diploma = client.get(reverse("web:certificate-verify", args=["ABCDEFGHJKMN"])).content.decode()
+    assert "googletagmanager" not in visa and "G-TEST12345" not in visa
+    assert "googletagmanager" not in diploma and "G-TEST12345" not in diploma
 
 
 # --- ekrany ------------------------------------------------------------------------------------------------
@@ -387,6 +590,56 @@ def test_leader_screens_are_404_without_the_feature(client_for, competition):
 
 
 # --- RODO ------------------------------------------------------------------------------------------------
+
+
+def test_guest_removal_revokes_personal_letters(iqo, leader, students, officer, event):
+    """M2: osoba wypisana z delegacji nie jedzie – jej listy imienne przestają być ważne."""
+    guest = services.add_guest(
+        leader.delegation, first_name="Olga", last_name="Observer", role="OBSERVER", actor=leader.user
+    )
+    services.save_member(guest, {**PASSPORT, "passport_name": "OLGA OBSERVER"}, actor=leader.user)
+    letter = letters.issue_letter(iqo, leader.delegation, member=guest, actor=officer)
+
+    services.remove_guest(services.member_for_leader(leader, guest.pk), actor=leader.user)
+    letter.refresh_from_db()
+    assert letter.revoked_at is not None and letter.revoke_reason == services.REMOVED_FROM_DELEGATION
+    result = verification.verify(iqo, letter.verification_code)
+    assert result["valid"] is False and result["people"] == []
+
+
+def test_unlinked_student_letter_is_revoked_at_sync(iqo, leader, students, officer, event):
+    adult = students[0]
+    member = with_passport(leader, adult)
+    letter = letters.issue_letter(iqo, leader.delegation, member=member, actor=officer)
+    type(adult).objects.filter(pk=adult.pk).update(delegation=None)  # wypisanie (DEL-01)
+
+    services.members_of(leader.delegation)  # synchronizacja przy wejściu na ekran
+    letter.refresh_from_db()
+    assert letter.revoked_at is not None and letter.revoke_reason == services.REMOVED_FROM_DELEGATION
+
+
+def test_erasure_before_event_end_makes_letter_invalid(iqo, leader, students, officer, event):
+    """M2: dane wyczyszczone przed końcem wydarzenia (usunięcie konta) – list nie jest już ważny."""
+    from apps.accounts.profile import _erase_account
+
+    letter = issued(iqo, leader, students, officer)
+    _erase_account(students[0].user, actor=officer)
+    result = verification.verify(iqo, letter.verification_code)
+    assert result["valid"] is False and result["withdrawn"] is True
+
+
+def test_retention_clears_revoke_reasons(iqo, leader, students, officer, event):
+    """L3: powód unieważnienia (wolny tekst) znika razem z danymi osób."""
+    letter = issued(iqo, leader, students, officer)
+    letter_requests.revoke(iqo, letter, reason="odmowa wizy", actor=officer)
+    event.starts_on = timezone.localdate() - timedelta(days=50)
+    event.ends_on = timezone.localdate() - timedelta(days=40)
+    event.save()
+    privacy.purge_expired()
+    letter.refresh_from_db()
+    assert letter.revoke_reason == "" and letter.revoked_at is not None
+    # Wyczyszczone po końcu wydarzenia: list był ważny, strona mówi tylko o usunięciu danych.
+    assert verification.verify(iqo, letter.verification_code)["withdrawn"] is False
 
 
 def test_retention_removes_requests_and_verify_says_data_removed(iqo, leader, students, officer, event):

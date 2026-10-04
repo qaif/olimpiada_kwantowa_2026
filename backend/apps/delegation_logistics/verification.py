@@ -35,6 +35,41 @@ def normalise(code: str) -> str:
     return NON_CODE.sub("", (code or "").upper())[:32]
 
 
+def has_letters(competition) -> bool:
+    """Bramka stron weryfikacji (M3): konkurs wystawił kiedykolwiek choć jeden list.
+
+    **Nie** flaga logistyki ani tryb delegacji: list leży w konsulacie miesiącami, a organizator po
+    finale wyłącza logistykę albo przestawia tryb rejestracji – kod z papieru ma dalej odpowiadać.
+    Konkurs, który nigdy listu nie wystawił (Olimpiada Kwantowa), nie ma tych adresów (404). Sam
+    odczyt – jedno ``EXISTS`` po indeksie konkursu.
+    """
+    return competition is not None and InvitationLetter.objects.filter(competition=competition).exists()
+
+
+def moved_letter(request, code: str) -> InvitationLetter | None:
+    """List innego konkursu, którego **zapamiętany** adres weryfikacji wskazuje to żądanie (M4).
+
+    Konkurs przeniesiony na inną domenę: stara domena trafia (jako alias albo konkurs gospodarza)
+    do innego konkursu, a w nim kodu nie ma. Jeżeli list zapamiętał przy wystawieniu adres z tym
+    hostem i tą ścieżką, widok przekierowuje na dzisiejszy adres listu. Porównujemy host i ścieżkę
+    podstawy – nie sam kod – żeby kodem z jednego konkursu nie dało się „odkryć” listu innego.
+    """
+    from urllib.parse import urlparse
+
+    cleaned = normalise(code)
+    if not cleaned:
+        return None
+    letter = InvitationLetter.objects.filter(verification_code=cleaned).select_related("competition").first()
+    if letter is None or not letter.verification_base_url:
+        return None
+    base = urlparse(letter.verification_base_url)
+    # Ścieżka żądania bez ostatniego segmentu (kodu) – tak, jak ją widzi przeglądarka, z prefiksem.
+    requested = request.path.rstrip("/").rsplit("/", 1)[0]
+    if base.hostname != request.get_host().split(":")[0] or base.path.rstrip("/") != requested:
+        return None
+    return letter
+
+
 def verify(competition, code: str) -> dict | None:
     """Dane strony weryfikacji albo ``None``, gdy w tym konkursie takiego listu nie ma."""
     cleaned = normalise(code)
@@ -56,11 +91,21 @@ def verify(competition, code: str) -> dict | None:
         }
         for person in people_of(letter)
     ]
+    # Migawka wyczyszczona **przed** końcem wydarzenia (usunięcie konta, wypisanie z delegacji) –
+    # organizator nie może już ręczyć za list: danych osoby nie ma, a osoba najpewniej nie jedzie (M2).
+    # Retencja czyści migawkę po końcu wydarzenia – wtedy list był ważny i strona mówi tylko, że dane
+    # usunięto.
+    withdrawn = bool(
+        letter.content_purged_at
+        and letter.event_ends_on
+        and timezone.localtime(letter.content_purged_at).date() < letter.event_ends_on
+    )
     return {
         "number": letter.number,
         "code": letter.display_code,
         "issued_on": timezone.localtime(letter.issued_at).date(),
-        "valid": letter.revoked_at is None,
+        "valid": letter.revoked_at is None and not withdrawn,
+        "withdrawn": withdrawn and letter.revoked_at is None,
         "revoked_on": timezone.localtime(letter.revoked_at).date() if letter.revoked_at else None,
         "event_name": letter.event_name,
         "event_city": letter.event_city,

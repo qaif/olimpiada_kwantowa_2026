@@ -19,6 +19,7 @@ formularza wybierają adres atrybutem ``formaction``, a nie nazwą przycisku.
 from __future__ import annotations
 
 from django.contrib import messages
+from django.http import Http404
 from django.shortcuts import redirect
 from django.template.response import TemplateResponse
 from django.urls import reverse
@@ -138,6 +139,8 @@ class LetterRequestsView(OfficerMixin, View):
                 "countries": [(d.country.code, d.country.name) for d in countries],
                 "states": LetterRequestStatus.choices,
                 "pending_count": service.pending_count(self.competition, edition),
+                # Listy, które zatwierdzenie unieważni (M1) – oficer widzi to przed kliknięciem.
+                "would_revoke": service.would_revoke(rows),
                 "query": request.GET.urlencode(),
             },
         )
@@ -238,13 +241,27 @@ class LetterRevokeView(OfficerMixin, ThrottledFormMixin, View):
 
 
 class _VerifyMixin(ThrottledFormMixin):
-    """Bramka LOG-01 (404 bez logistyki finału) i limit żądań GET per adres IP."""
+    """Limit żądań per adres IP, bramka „konkurs wystawił listy”, ``no-store``, bez analityki.
+
+    - **bramka** (M3): strona istnieje w konkursie, który wystawił choć jeden list – niezależnie od
+      flagi logistyki i trybu rejestracji (list leży w konsulacie dłużej niż trwa logistyka finału).
+      Sprawdzana **po** limicie żądań: odpowiedź 404 albo przekierowanie mówi o istnieniu kodu,
+      więc ma kosztować miejsce w kubełku tak samo, jak odpowiedź z wynikiem,
+    - **limit** (L1): GET i HEAD – HEAD jest tym samym zapytaniem bez treści; oficer logistyki tego
+      konkursu, który klika kody w rejestrze listów, limitu nie zużywa (L2),
+    - **bez analityki** (M5): ``no_analytics`` wyłącza tag Google w ``base.html`` – kod z listu
+      w adresie strony nie ma prawa trafić do statystyk odwiedzin.
+    """
 
     throttle_scope = VERIFY_THROTTLE_SCOPE
-    throttle_methods = ("GET",)
+    throttle_methods = ("GET", "HEAD")
 
     def dispatch(self, request, *args, **kwargs):
-        services.require_enabled(getattr(request, "competition", None))
+        from . import access
+
+        competition = getattr(request, "competition", None)
+        if request.user.is_authenticated and access.is_officer(request.user, competition):
+            self.throttle_scope = ""
         response = super().dispatch(request, *args, **kwargs)
         # Wynik weryfikacji nie ma prawa zostać w pamięci podręcznej przeglądarki ani pośrednika: list
         # unieważniony godzinę temu ma się pokazać jako unieważniony, a nazwisko nie ma czego szukać
@@ -252,17 +269,26 @@ class _VerifyMixin(ThrottledFormMixin):
         response["X-Robots-Tag"] = "noindex, nofollow"
         return _no_store(response)
 
+    def check(self, request, code: str):
+        """Wynik dla kodu: przekierowanie (list przeniesionego konkursu), strona z wynikiem albo 404."""
+        competition = getattr(request, "competition", None)
+        cleaned = verification.normalise(code)
+        result = verification.verify(competition, cleaned) if cleaned else None
+        if result is None and cleaned:
+            moved = verification.moved_letter(request, cleaned)
+            if moved is not None and moved.competition_id != getattr(competition, "pk", None):
+                return redirect(letters.current_verification_url(moved))
+        if not verification.has_letters(competition):
+            raise Http404("Ten konkurs nie wystawia listów zapraszających.")
+        context = {"code": cleaned, "result": result, "form": result is None, "no_analytics": True}
+        return TemplateResponse(request, "delegation_logistics/verify.html", context)
+
 
 class VisaVerifyFormView(_VerifyMixin, View):
-    """``/visa/verify/`` – pole na kod; ``?code=`` przekierowuje na adres z kodem."""
+    """``/visa/verify/`` – pole na kod; ``?code=`` pokazuje wynik od razu (jedno miejsce w limicie, L2)."""
 
     def get(self, request):
-        code = verification.normalise(request.GET.get("code", ""))
-        if code:
-            return redirect("web:visa-verify-code", code=code)
-        return TemplateResponse(
-            request, "delegation_logistics/verify.html", {"code": "", "result": None, "form": True}
-        )
+        return self.check(request, request.GET.get("code", ""))
 
 
 class VisaVerifyView(_VerifyMixin, View):
@@ -273,6 +299,4 @@ class VisaVerifyView(_VerifyMixin, View):
     """
 
     def get(self, request, code: str):
-        result = verification.verify(request.competition, code)
-        context = {"code": verification.normalise(code), "result": result, "form": result is None}
-        return TemplateResponse(request, "delegation_logistics/verify.html", context)
+        return self.check(request, code)

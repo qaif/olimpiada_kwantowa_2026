@@ -46,7 +46,7 @@
             <td>{{ letter.get_scope_display }}{% if letter.member %} – {{ letter.member.full_name }}{% endif %}</td>
             <td class="num">{{ letter.people_count }}</td>
             <td>{{ letter.issued_at|date:"j.m.Y H:i" }}</td>
-            <td>{{ letter.issued_by.email|default:"—" }}{% if letter.content_purged_at %} <span class="badge badge--neutral">dane usunięte</span>{% endif %}</td>
+            <td>{{ letter.issued_by.email|default:"—" }}{% if letter.content_purged_at %} <span class="badge badge--neutral">dane usunięte</span>{% endif %}{% if letter.outdated %}<br><span class="badge badge--warn">nieaktualne dane: {{ letter.outdated|join:", " }}</span>{% endif %}</td>
             <td>{% if letter.verification_code %}<a href="{% url 'web:visa-verify-code' letter.verification_code %}"><code>{{ letter.display_code }}</code></a>{% else %}—{% endif %} · {{ letter.language }}</td>
             <td>
               {% if letter.revoked_at %}

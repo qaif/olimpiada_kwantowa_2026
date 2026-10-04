@@ -35,6 +35,7 @@ from django.db.models import Max
 from django.http import Http404
 from django.urls import reverse
 from django.utils import formats, timezone, translation
+from django.utils.translation import gettext as _
 from rest_framework import status
 
 from apps.core.api import DomainError
@@ -107,9 +108,110 @@ def require_language(language: str) -> str:
     """Kod języka listu albo odmowa – wybór spoza ``LETTER_TEXTS`` to spreparowany formularz."""
     if language not in LETTER_TEXTS:
         raise DomainError(
-            "Nieobsługiwany język listu.", "LETTER_LANGUAGE_INVALID", status.HTTP_400_BAD_REQUEST
+            _("Nieobsługiwany język listu."), "LETTER_LANGUAGE_INVALID", status.HTTP_400_BAD_REQUEST
         )
     return language
+
+
+def has_db_template(competition) -> bool:
+    """Czy konkurs ma własny tekst listu w „Szablonach dokumentów” (rodzaj ``VISA_INVITATION``).
+
+    Szablon z bazy jest **jednojęzyczny** (pisze go prawnik organizatora), więc przy nim wybór języka
+    znika, a list wychodzi po angielsku: polskie etykiety tabeli pod angielskim zdaniem głównym byłyby
+    dokumentem w dwóch językach naraz (L7 po przeglądzie).
+    """
+    return bool(current_version(competition, DocumentKind.VISA_INVITATION))
+
+
+def effective_language(competition, language: str) -> str:
+    """Język, w którym list naprawdę wyjdzie: wybrany albo angielski, gdy obowiązuje szablon z bazy."""
+    require_language(language)
+    return DEFAULT_LANGUAGE if has_db_template(competition) else language
+
+
+# --- dane istotne dla konsulatu: kiedy nowy list zastępuje stary ------------------------------------
+
+#: Pola migawki, których zmiana unieważnia wcześniejszy list (M1 po przeglądzie): numer paszportu,
+#: nazwisko z paszportu i obywatelstwo – po nich konsulat dopasowuje list do osoby. Zmiana daty
+#: ważności paszportu czy roli nie czyni starego listu fałszywym, więc oba zostają ważne.
+MATERIAL_FIELDS = ("passport", "name", "nationality")
+
+
+def _material(person: dict) -> tuple[str, ...]:
+    return tuple(" ".join(str(person.get(field) or "").split()).upper() for field in MATERIAL_FIELDS)
+
+
+def current_material(member: DelegationMember) -> tuple[str, ...]:
+    return _material(_person(member))
+
+
+def snapshot_of(letter: InvitationLetter, member_id: int) -> dict | None:
+    return next((p for p in people_of(letter) if p.get("member_id") == member_id), None)
+
+
+def valid_person_letters(member_id: int):
+    """Ważne listy imienne tej osoby (nieunieważnione, z migawką)."""
+    return InvitationLetter.objects.filter(
+        member_id=member_id,
+        scope=LetterScope.PERSON,
+        revoked_at__isnull=True,
+        content_purged_at__isnull=True,
+    ).order_by("issued_at", "id")
+
+
+def letters_to_supersede(
+    member: DelegationMember, *, exclude_pk: int | None = None
+) -> list[InvitationLetter]:
+    """Ważne listy imienne osoby, których dane istotne różnią się od **bieżących** danych osoby.
+
+    To one zostaną unieważnione przy wystawieniu nowego listu imiennego. List z tymi samymi danymi
+    zostaje ważny obok nowego: dwa egzemplarze tego samego zaproszenia nie wprowadzają konsulatu
+    w błąd, a unieważnienie listu złożonego już we wniosku wizowym – tak (M1 po przeglądzie).
+    """
+    wanted = current_material(member)
+    result = []
+    for letter in valid_person_letters(member.pk):
+        if letter.pk == exclude_pk:
+            continue
+        person = snapshot_of(letter, member.pk)
+        if person is not None and _material(person) != wanted:
+            result.append(letter)
+    return result
+
+
+def outdated_names(letter: InvitationLetter, members_by_id: dict) -> list[str]:
+    """Osoby z migawki ważnego listu, których dane istotne zmieniły się od wystawienia.
+
+    List **delegacji** nie jest unieważniany sam (obejmuje też osoby bez zmian) – rejestr oficera
+    oznacza go „nieaktualne dane: …”, a decyzja (nowy list, unieważnienie) należy do oficera.
+    ``members_by_id`` – bieżące wiersze członków edycji.
+    """
+    if letter.revoked_at is not None:
+        return []
+    names = []
+    for person in people_of(letter):
+        member = members_by_id.get(person.get("member_id"))
+        if member is not None and _material(person) != current_material(member):
+            names.append(person.get("name") or member.full_name)
+    return names
+
+
+def _supersede(letter: InvitationLetter, member: DelegationMember, *, actor, request=None) -> list[str]:
+    """Unieważnia wcześniejsze listy imienne osoby z innymi danymi istotnymi. Zwraca ich numery."""
+    numbers = []
+    for previous in letters_to_supersede(member, exclude_pk=letter.pk):
+        try:
+            revoke_letter(
+                previous,
+                reason=f"zastąpiony listem {letter.number} (zmiana danych dokumentu podróży)",
+                actor=actor,
+                request=request,
+            )
+        except DomainError:
+            # Unieważniony w międzyczasie przez kogoś innego (L5) – cel osiągnięty, idziemy dalej.
+            continue
+        numbers.append(previous.number)
+    return numbers
 
 
 def issue_letter(
@@ -130,7 +232,7 @@ def issue_letter(
     VISA-01: list dostaje losowy kod weryfikacyjny, język i migawkę wydarzenia (nazwa, miasto, daty),
     a rola osoby w migawce jest zapisana **w języku listu** – nie w języku ekranu oficera.
     """
-    require_language(language)
+    language = effective_language(competition, language)
     if delegation.competition_id != competition.pk:
         raise Http404("Delegacja należy do innego konkursu.")
     edition = delegation.edition
@@ -181,6 +283,9 @@ def issue_letter(
         },
         request=request,
     )
+    # Ta sama reguła przy liście z wniosku i przy liście wystawionym przez oficera wprost (M1): nowy
+    # list imienny unieważnia wyłącznie wcześniejsze listy tej osoby z **innymi** danymi istotnymi.
+    letter.superseded = _supersede(letter, member, actor=actor, request=request) if member is not None else []
     return letter
 
 
@@ -223,6 +328,7 @@ def _create_letter(competition, delegation, edition, member, scope, people, snap
             event_city=event.city,
             event_starts_on=event.starts_on,
             event_ends_on=event.ends_on,
+            verification_base_url=verification_entry_url(competition),
         )
 
 
@@ -248,8 +354,22 @@ def revoke_letter(letter: InvitationLetter, *, reason: str, actor, request=None)
     return locked
 
 
+def letter_base_url(letter: InvitationLetter) -> str:
+    """Adres formularza weryfikacji tego listu: zapamiętany przy wystawieniu albo (stare listy) bieżący."""
+    return letter.verification_base_url or verification_entry_url(letter.competition)
+
+
 def verification_url(letter: InvitationLetter) -> str:
-    """Bezwzględny adres strony weryfikacji listu – na domenie konkursu, który list wystawił."""
+    """Adres z kodem – ten w QR – od **zapamiętanej** podstawy (M4).
+
+    PDF pobrany ponownie po zmianie domeny albo prefiksu konkursu niesie ten sam adres, co egzemplarz
+    złożony w konsulacie; stary adres prowadzi dalej dzięki przekierowaniu (``visa_letter_redirects``).
+    """
+    return f"{letter_base_url(letter).rstrip('/')}/{letter.verification_code or ''}/"
+
+
+def current_verification_url(letter: InvitationLetter) -> str:
+    """Adres z kodem według **dzisiejszego** adresowania konkursu – cel przekierowań ze starych adresów."""
     from apps.accounts.activation import absolute_url
 
     return absolute_url(
@@ -305,7 +425,9 @@ def drop_person(letter: InvitationLetter, member_ids) -> None:
     letter.content = json.dumps(people, ensure_ascii=False) if people else ""
     if not people:
         letter.content_purged_at = timezone.now()
-    letter.save(update_fields=["content", "content_purged_at"])
+        # Powód unieważnienia bywa opisem osoby („odmowa wizy”) – znika razem z jej danymi (L3).
+        letter.revoke_reason = ""
+    letter.save(update_fields=["content", "content_purged_at", "revoke_reason"])
 
 
 def _day(value) -> str:
@@ -316,6 +438,16 @@ def _day(value) -> str:
     język go ma („4 października”), a angielski wychodzi jak dotąd („4 October 2026”).
     """
     return formats.date_format(value, "j E Y")
+
+
+def _iso_day(value: str) -> str:
+    """Data z migawki (napis ISO) w formacie języka aktywnego; napis nie-ISO bez zmian."""
+    from datetime import date
+
+    try:
+        return formats.date_format(date.fromisoformat(value), "DATE_FORMAT") if value else ""
+    except TypeError, ValueError:
+        return str(value)
 
 
 def _date_range(start, end) -> str:
@@ -388,12 +520,12 @@ def letter_pdf(letter: InvitationLetter) -> bytes:
         # Unieważniony list nie wychodzi ponownie z serwisu – kopia pobrana „na pamiątkę” trafiłaby
         # do konsulatu tak samo, jak ważna. Rejestr i strona weryfikacji mówią, że był i że nie jest.
         raise DomainError(
-            "Ten list został unieważniony – nie można go pobrać.", "LETTER_REVOKED", status.HTTP_410_GONE
+            _("Ten list został unieważniony – nie można go pobrać."), "LETTER_REVOKED", status.HTTP_410_GONE
         )
     people = people_of(letter)
     if not people:
         raise DomainError(
-            "Dane osób z tego listu zostały usunięte (retencja) – list nie może być ponownie pobrany.",
+            _("Dane osób z tego listu zostały usunięte – list nie może być ponownie pobrany."),
             "LETTER_PURGED",
             status.HTTP_410_GONE,
         )
@@ -406,10 +538,13 @@ def letter_pdf(letter: InvitationLetter) -> bytes:
     snapshot = _event_snapshot(letter, event)
     with translation.override(letter.language or DEFAULT_LANGUAGE):
         event_dates = _date_range(snapshot["starts_on"], snapshot["ends_on"])
+        # Data wystawienia i daty w tabeli w formacie języka listu (``DATE_FORMAT`` locale, L7):
+        # „04.10.2026” jest czytelne w Polsce, a w konsulacie anglojęzycznym – dwuznaczne.
+        issued_on = _day(issued.date())
     context = {
         "recipient": names,
         "number": letter.number,
-        "date": issued.strftime("%d.%m.%Y"),
+        "date": issued_on,
         "edition": letter.edition.year_label,
         "event": snapshot["name"],
         "event_dates": event_dates,
@@ -468,19 +603,22 @@ def letter_pdf(letter: InvitationLetter) -> bytes:
     header.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "TOP"), ("LEFTPADDING", (0, 0), (-1, -1), 0)]))
 
     table_rows = [[_para(label, head) for label in texts["columns"]]]
-    for person in people:
-        table_rows.append(
-            [
-                _para(person.get("name", ""), cell),
-                _para(person.get("nationality", ""), cell),
-                _para(person.get("birth_date", ""), cell),
-                _para(person.get("passport", ""), cell),
-                _para(person.get("expiry", ""), cell),
-                _para(person.get("role", ""), cell),
-            ]
-        )
+    with translation.override(letter.language or DEFAULT_LANGUAGE):
+        for person in people:
+            table_rows.append(
+                [
+                    _para(person.get("name", ""), cell),
+                    _para((person.get("nationality") or "").upper(), cell),
+                    _para(_iso_day(person.get("birth_date", "")), cell),
+                    _para(person.get("passport", ""), cell),
+                    _para(_iso_day(person.get("expiry", "")), cell),
+                    _para(person.get("role", ""), cell),
+                ]
+            )
+    # Kolumna obywatelstwa szersza niż kod kraju (L8): nagłówek „Kewarganegaraan” / „Гражданство” /
+    # „Nacionalidad” łamany co dwie litery czyni tabelę nieczytelną.
     persons = Table(
-        table_rows, colWidths=[w * width for w in (0.30, 0.11, 0.14, 0.17, 0.14, 0.14)], repeatRows=1
+        table_rows, colWidths=[w * width for w in (0.27, 0.15, 0.14, 0.16, 0.14, 0.14)], repeatRows=1
     )
     persons.setStyle(
         TableStyle(
@@ -545,7 +683,7 @@ def _verification_block(letter: InvitationLetter, texts: dict, small, head, widt
     from reportlab.platypus import Table, TableStyle
 
     code = letter.display_code
-    text = texts["verify_text"].format(url=verification_entry_url(letter.competition), code=code)
+    text = texts["verify_text"].format(url=letter_base_url(letter), code=code)
     qr_size = 26 * mm
     block = Table(
         [

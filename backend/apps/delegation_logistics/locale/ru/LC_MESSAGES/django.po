@@ -781,3 +781,29 @@ msgstr "отклонён"
 #: models.py
 msgid "wycofany"
 msgstr "отозван"
+
+# --- VISA-01: poprawki po przeglądzie ---
+#: letters.py
+msgid "Nieobsługiwany język listu."
+msgstr "Неподдерживаемый язык письма."
+
+#: letters.py
+msgid "Ten list został unieważniony – nie można go pobrać."
+msgstr "Это письмо отозвано – его нельзя скачать."
+
+#: letters.py
+msgid "Dane osób z tego listu zostały usunięte – list nie może być ponownie pobrany."
+msgstr "Персональные данные в этом письме удалены – скачать его повторно нельзя."
+
+#: templates/delegation_logistics/leader_letters.html
+#, python-format
+msgid "Dane paszportowe zmieniły się – nowy list unieważni list %(numbers)s."
+msgstr "Паспортные данные изменились – новое письмо отзовёт письмо %(numbers)s."
+
+#: templates/delegation_logistics/leader_letters.html
+msgid "Ma już ważny list – nowy list z tymi samymi danymi nie unieważni poprzedniego."
+msgstr "Уже есть действующее письмо – новое письмо с теми же данными не отзовёт предыдущее."
+
+#: templates/delegation_logistics/verify.html
+msgid "List o tym kodzie został wystawiony przez organizatora, ale nie jest już ważny: dane osób usunięto przed wydarzeniem. Nie stanowi zaproszenia."
+msgstr "Письмо с этим кодом было выдано организатором, но больше не действительно: персональные данные удалены до мероприятия. Оно не является приглашением."
