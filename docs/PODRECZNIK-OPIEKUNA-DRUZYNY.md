@@ -162,3 +162,51 @@ also the official version.
 
 You can download or delete your own account data under *Account*. Deleting your account removes your
 team leader role and your invitations; the students you registered stay in the team.
+
+## 7. Final logistics (on-site final)
+
+When the organiser opens the logistics of the on-site final, your team page shows **Final logistics**.
+For every person in your delegation – students, team leaders and the observers or guests you add there
+– fill in:
+
+- **Travel document** – full name exactly as in the passport, nationality, date of birth, passport number
+  and expiry date. The organiser uses it for the visa invitation letter; the passport must be valid during
+  the whole stay,
+- **Arrival and departure** – date, local time, means of transport, flight or train number, airport or
+  station (used to plan airport pick-ups),
+- **Accommodation** – whether the person needs a bed, gender (only for room allocation; minors never share
+  a room with adults, and a minor who does not state a binary gender gets a single room), preferred
+  roommate. Changing the gender, the date of birth or “needs accommodation” may remove an existing room
+  assignment – you will see a message,
+- **Meals and health** (only if the organiser collects it) – diet, allergies and medical information
+  needed on site. It is saved only after you confirm that the person, or their parent for a minor, gave
+  explicit consent; you can withdraw the consent at any time and the data is deleted at once,
+- **Badge and emergency contact** – T-shirt size, emergency contact (name and phone), a passport-style photo
+  (JPG or PNG, up to 5 MB; after an automatic virus check it is resized and stripped of metadata).
+
+Passport and health data can be entered only after the organiser has set the dates of the final (the
+page tells you if they are missing). Each section has its own **deadline**; observers and guests can be
+added or changed until the travel document deadline. After it, the section becomes read-only and changes go through the
+organiser. You will receive a reminder e-mail when something is missing. **Invitation letters** for visa
+applications are issued by the organiser; you can download the letters of your delegation from the same
+page.
+
+**Requesting an invitation letter.** On **Final logistics → Request an invitation letter** tick the people
+who need a visa (their travel document must be complete), choose the letter language (English, or another
+language offered there) and click **Request a letter for the selected people**. You can withdraw a request
+until the organiser decides. You will get an e-mail with the decision: approved letters can be downloaded
+on the same page; a rejected request shows the reason – correct the data and request again. Every letter
+has a QR code and a verification code; the consulate checks on the organiser's website that the letter is
+genuine and still valid. If the organiser revokes a letter, it can no longer be downloaded and the
+verification page shows it as revoked.
+
+**When a new letter replaces the old one.** If a person already has a valid letter, a new letter replaces
+(revokes) it **only when the passport number, the name as in the passport or the nationality has changed**
+– the page warns you about it next to the person ("a new letter will revoke letter …"). With unchanged
+passport data both letters stay valid, so a letter already submitted to the consulate is not affected.
+If you remove a person from the delegation (or remove a guest), their personal letters are revoked
+automatically – tell the consulate if a visa application is already pending.
+
+The data is visible only to the team leaders of your country and to the organiser's logistics officers,
+it is encrypted in the database and **deleted automatically after the final** (by default 30 days after
+the last day). The QR code on the badge contains only a random code – no personal data.

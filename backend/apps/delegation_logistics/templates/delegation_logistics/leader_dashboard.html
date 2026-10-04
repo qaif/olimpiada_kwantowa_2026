@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% load i18n static %}
+{% comment %}
+  Logistyka finału – panel opiekuna drużyny (LOG-01): członkowie delegacji ze stanem sekcji,
+  terminy, dodawanie gości i listy zapraszające swojej delegacji. Uczniowie i opiekunowie trafiają
+  tu sami z listy delegacji (DEL-01); goście (obserwatorzy) są dopisywani tutaj.
+{% endcomment %}
+{% block title %}{% translate "Logistyka finału" %}{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/coordinator-tools.css' %}">{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow"><a href="{% url 'web:delegation' %}">{% blocktranslate trimmed with country=delegation.country.name %}Drużyna: {{ country }}{% endblocktranslate %}</a></span>
+  <h1>{% translate "Logistyka finału" %}{% if event.name %}: {{ event.name }}{% endif %}</h1>
+  <p class="lead">{% translate "Uzupełnij dane każdej osoby z delegacji: dokument podróży (do zaproszenia wizowego), przyjazd i wyjazd, zakwaterowanie, rozmiar koszulki, kontakt alarmowy i zdjęcie do identyfikatora. Po terminie sekcja zostaje zamknięta – zmiany wprowadza wtedy organizator." %}</p>
+  {% if event.city and event.starts_on %}
+    <p>{% blocktranslate trimmed with city=event.city start=event.starts_on|date:"j.m.Y" end=event.ends_on|date:"j.m.Y" %}Miejsce: {{ city }}, {{ start }} – {{ end }}.{% endblocktranslate %}</p>
+  {% endif %}
+</div>
+
+{% if purged %}
+  <p class="notice">{% translate "Finał się zakończył, a dane delegacji zostały usunięte." %}</p>
+{% elif no_event_dates %}
+  <p class="notice">{% translate "Organizator nie ustalił jeszcze dat finału – dane dokumentu podróży i o zdrowiu przyjmiemy po ich ustaleniu." %}</p>
+{% endif %}
+
+<section class="section">
+  <div class="section__head"><h2 class="mt-0">{% translate "Terminy" %}</h2></div>
+  <ul>
+    {% for row in deadlines %}
+      <li>{{ row.label }}: {% if row.deadline %}{{ row.deadline|date:"j.m.Y H:i T" }}{% if row.locked %} <span class="badge badge--neutral">{% translate "zamknięte" %}</span>{% endif %}{% else %}{% translate "bez terminu" %}{% endif %}</li>
+    {% endfor %}
+  </ul>
+</section>
+
+<section class="section">
+  <div class="section__head"><h2 class="mt-0">{% translate "Osoby w delegacji" %}</h2></div>
+  <div class="scroll">
+    <table class="table">
+      <caption class="visually-hidden">{% translate "Osoby w delegacji" %}</caption>
+      <thead>
+        <tr>
+          <th scope="col">{% translate "Imię i nazwisko" %}</th>
+          <th scope="col">{% translate "Rola" %}</th>
+          <th scope="col">{% translate "Brakuje" %}</th>
+          <th scope="col"><span class="visually-hidden">{% translate "Operacje" %}</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+          <tr>
+            <th scope="row">{{ row.member.full_name }}</th>
+            <td>{{ row.member.role_label }}</td>
+            <td>{% for label in row.missing %}<span class="badge badge--warn">{{ label }}</span> {% empty %}<span class="badge badge--ok">{% translate "komplet" %}</span>{% endfor %}</td>
+            <td class="actions">{% if not purged %}<a class="btn btn--secondary btn--small" href="{% url 'web:delegation-logistics-member' row.member.pk %}">{% translate "Uzupełnij" %}</a>{% endif %}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="4" class="empty">{% translate "Delegacja nie ma jeszcze członków." %}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+{% if not purged %}
+<section class="section">
+  <div class="card">
+    <h2 class="mt-0">{% translate "Dodaj obserwatora lub gościa" %}</h2>
+    <p class="hint">{% blocktranslate trimmed with count=guest_count limit=max_guests %}Osoby bez konta, które przyjeżdżają z delegacją ({{ count }} z {{ limit }}). Uczniów i opiekunów dodaje się na liście drużyny.{% endblocktranslate %}</p>
+    <form method="post" action="{% url 'web:delegation-logistics-guest-add' %}" class="form" novalidate>
+      {% csrf_token %}
+      {{ guest_form.as_p }}
+      <div class="actions"><button type="submit" class="btn btn--secondary">{% translate "Dodaj" %}</button></div>
+    </form>
+  </div>
+</section>
+{% endif %}
+
+<section class="section">
+  <div class="section__head"><h2 class="mt-0">{% translate "Listy zapraszające (wiza)" %}</h2>
+    <p class="hint">{% translate "Listy wystawia organizator na podstawie danych dokumentu podróży." %}</p>
+    <p><a class="btn btn--secondary btn--small" href="{% url 'web:delegation-logistics-letters' %}">{% translate "Poproś o list zapraszający" %}</a></p></div>
+  <ul>
+    {% for letter in letters %}
+      <li>{% if letter.content and not letter.revoked_at %}<a href="{% url 'web:delegation-logistics-letter' letter.pk %}">{{ letter.number }}</a>{% else %}{{ letter.number }}{% endif %} – {{ letter.issued_at|date:"j.m.Y" }} ({{ letter.people_count }}){% if letter.revoked_at %} <span class="badge badge--warn">{% translate "unieważniony" %}</span>{% endif %}</li>
+    {% empty %}
+      <li>{% translate "Brak wystawionych listów." %}</li>
+    {% endfor %}
+  </ul>
+</section>
+{% endblock %}

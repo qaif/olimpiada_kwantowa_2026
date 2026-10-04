@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% comment %}
+  Osoba ze skanu identyfikatora (LOG-01): zdjęcie, imię i nazwisko, kraj, rola, stan w punkcie
+  kontroli i jeden duży przycisk. Danych paszportowych i zdrowia tu nie ma – obsługa ich nie potrzebuje.
+{% endcomment %}
+{% block title %}{{ member.full_name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow"><a href="{% url 'web:onsite-checkin' %}{% if selected %}?cp={{ selected.pk }}{% endif %}">{% translate "Rejestracja uczestników finału" %}</a></span>
+  <h1>{{ member.full_name }}</h1>
+  <p class="lead">{{ member.delegation.country.name }} · {{ member.role_label }}{% if minor %} · <span class="badge badge--info">{% translate "niepełnoletni" %}</span>{% endif %}</p>
+</div>
+
+<div class="card">
+  {% if member.photo_clean %}
+    <img src="{% url 'web:onsite-checkin-photo' member.badge_token %}" alt="{% translate 'Zdjęcie' %}" width="180">
+  {% else %}
+    <p class="hint">{% translate "Brak zdjęcia – sprawdź tożsamość dokumentem." %}</p>
+  {% endif %}
+
+  {% if selected %}
+    {% for key, row in status.items %}{% if key == selected.pk %}<p class="notice">{% blocktranslate trimmed with point=selected.name time=row.at|time:"H:i" %}Odhaczono w punkcie „{{ point }}” o {{ time }}.{% endblocktranslate %}</p>{% endif %}{% endfor %}
+    <form method="post" class="form">
+      {% csrf_token %}
+      <input type="hidden" name="cp" value="{{ selected.pk }}">
+      <button type="submit" class="btn btn--primary">{% blocktranslate trimmed with point=selected.name %}Odhacz: {{ point }}{% endblocktranslate %}</button>
+      <button type="submit" name="undo" value="1" class="btn btn--ghost">{% translate "Cofnij" %}</button>
+    </form>
+  {% else %}
+    <p class="notice">{% translate "Organizator nie dodał jeszcze punktów kontroli." %}</p>
+  {% endif %}
+</div>
+
+{% if checkpoints|length > 1 %}
+  <ul>
+    {% for checkpoint in checkpoints %}
+      <li><a href="?cp={{ checkpoint.pk }}">{{ checkpoint.name }}</a></li>
+    {% endfor %}
+  </ul>
+{% endif %}
+{% endblock %}

@@ -1172,6 +1172,11 @@ def erase_for_user(user) -> None:
     zgody na przetwarzanie danych w roli, której już nie ma.
     """
     email = (user.email or "").strip().lower()
+    # Dane pobytu na finale (LOG-01: paszport, zdrowie, zdjęcie) – ucznia i opiekuna. **Przed**
+    # kaskadą skasowania konta, bo kaskada bazy nie wie o zdjęciu w storage.
+    from apps.delegation_logistics.privacy import erase_for_user as erase_final_logistics
+
+    erase_final_logistics(user)
     DelegationInvitation.objects.filter(Q(accepted_by=user) | Q(email=email)).delete()
     DelegationLeader.objects.filter(user=user).delete()
     Membership.objects.filter(user=user, role=CompetitionRole.TEAM_LEADER).delete()

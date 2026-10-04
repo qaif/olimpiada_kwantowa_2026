@@ -100,6 +100,14 @@ from apps.competitions.models import DEFAULT_RETENTION_MONTHS
 #: 1.16 (04.10.2026, zadanie PAY-01) – płatności online za udział: zamówienia, faktury, operatorzy
 #: płatności (Stripe, Przelewy24) jako nowi odbiorcy i dokumentacja księgowa z własnym okresem
 #: przechowywania. Czynność warunkowa – wyłącznie konkursy z flagą ``fees`` (``apps.payments.rodo``).
+#: 1.12 (04.10.2026, zadanie LOG-01) – logistyka finału dla delegacji: dane paszportowe do wiz,
+#: przyloty, zakwaterowanie, dane o zdrowiu (za wyraźną zgodą), zdjęcia do identyfikatorów i kontakty
+#: alarmowe – nowe kategorie danych, nowe osoby (goście delegacji, kontakty alarmowe) i własny, krótki
+#: termin usunięcia. Czynność warunkowa, a jej treść mieszka w ``apps.delegation_logistics.register``.
+#: 1.13 (04.10.2026, zadanie VISA-01) – listy zapraszające do wizy dostają publiczną stronę weryfikacji
+#: po kodzie z listu: imię i nazwisko oraz obywatelstwo osób trafiają do **nowego odbiorcy** – każdego,
+#: kto zna kod (konsulat). Do tego wnioski opiekunów o listy (stan, powód odrzucenia) i unieważnienie
+#: listu. Treść w wierszu logistyki finału (``apps.delegation_logistics.register``).
 REGISTER_VERSION = "1.16"
 REGISTER_DATE = date(2026, 10, 4)
 
@@ -1154,6 +1162,12 @@ def activities_for(competition=None) -> tuple[ProcessingActivity, ...]:
         from apps.payments.rodo import PAYMENTS_ACTIVITY
 
         activities = (*activities, PAYMENTS_ACTIVITY)
+    # Logistyka finału dla delegacji (LOG-01) – wiersz warunkowy z własnej aplikacji.
+    from apps.delegation_logistics.register import activity as final_logistics_activity
+
+    final_logistics = final_logistics_activity(competition)
+    if final_logistics is not None:
+        activities = (*activities, final_logistics)
     return activities
 
 

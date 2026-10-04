@@ -1,0 +1,87 @@
+{% extends "web/coordinator/base.html" %}
+{% comment %}
+  Wnioski opiekunów o listy zapraszające (VISA-01) – oficer logistyki. Jeden formularz z zaznaczeniem
+  wierszy i dwoma przyciskami (``formaction``): „Zatwierdź i wystaw” (każdy wniosek = list imienny
+  z nowym numerem i kodem weryfikacyjnym; wcześniejszy ważny list tej osoby zostaje unieważniony)
+  i „Odrzuć” (jeden powód dla zaznaczonych, obowiązkowy). Opiekunowie dostają e-mail w swoim języku.
+  Ekran po polsku (ekrany koordynatora nie są tłumaczone).
+{% endcomment %}
+{% block title %}Logistyka finału – wnioski o listy zapraszające{% endblock %}
+{% block panel_title %}Wnioski o listy zapraszające{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Opiekunowie drużyn składają wnioski o list imienny dla osób z kompletnym dokumentem podróży.
+    Oczekuje na decyzję: <strong>{{ pending_count }}</strong>. Zatwierdzenie unieważnia wcześniejszy list
+    osoby wyłącznie wtedy, gdy zmienił się numer paszportu, nazwisko albo obywatelstwo – wtedy w kolumnie
+    „List” stoi „unieważni list …”.</p>
+{% endblock %}
+{% block panel_actions %}
+  <a class="btn btn--secondary" href="{% url 'web:coordinator-onsite-letter-requests-export' %}{% if query %}?{{ query }}{% endif %}">Eksport CSV</a>
+{% endblock %}
+{% block panel_content %}
+{% include "delegation_logistics/_tabs.html" %}
+
+<section class="section">
+  <form method="get" class="form form--inline">
+    <label for="filter-country">Kraj</label>
+    <select id="filter-country" name="country">
+      <option value="">wszystkie</option>
+      {% for code, name in countries %}<option value="{{ code }}"{% if filters.country == code %} selected{% endif %}>{{ name }}</option>{% endfor %}
+    </select>
+    <label for="filter-state">Stan</label>
+    <select id="filter-state" name="state">
+      <option value="">wszystkie</option>
+      {% for value, label in states %}<option value="{{ value }}"{% if filters.state == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+    </select>
+    <button type="submit" class="btn btn--secondary">Filtruj</button>
+  </form>
+</section>
+
+<section class="section">
+  <form method="post" class="form">
+    {% csrf_token %}
+    <input type="hidden" name="query" value="{{ query }}">
+    <div class="scroll">
+      <table class="table">
+        <caption class="visually-hidden">Wnioski o listy zapraszające</caption>
+        <thead>
+          <tr>
+            <th scope="col"><span class="visually-hidden">Zaznacz</span></th>
+            <th scope="col">Kraj</th>
+            <th scope="col">Osoba</th>
+            <th scope="col">Rola</th>
+            <th scope="col">Język</th>
+            <th scope="col">Złożony</th>
+            <th scope="col">Stan</th>
+            <th scope="col">List</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+            <tr>
+              <td>{% if row.is_pending %}<input type="checkbox" name="request" value="{{ row.pk }}" id="request-{{ row.pk }}">{% endif %}</td>
+              <td>{{ row.delegation.country.name }}</td>
+              <th scope="row"><label for="request-{{ row.pk }}"><a href="{% url 'web:coordinator-onsite-member' row.member_id %}">{{ row.member.full_name }}</a></label></th>
+              <td>{{ row.member.role_label }}</td>
+              <td>{{ row.language }}</td>
+              <td>{{ row.requested_at|date:"j.m.Y H:i" }}{% if row.requested_by %}<br><span class="hint">{{ row.requested_by.email }}</span>{% endif %}</td>
+              <td>{{ row.get_status_display }}{% if row.reject_reason %}<br><span class="hint">{{ row.reject_reason }}</span>{% endif %}{% if row.decided_by %}<br><span class="hint">{{ row.decided_by.email }}, {{ row.decided_at|date:"j.m.Y H:i" }}</span>{% endif %}</td>
+              <td>{% if row.letter %}{{ row.letter.number }}{% if row.letter.revoked_at %} <span class="badge badge--warn">unieważniony</span>{% endif %}{% else %}—{% endif %}
+                {% for key, numbers in would_revoke.items %}{% if key == row.pk and numbers %}<br><span class="badge badge--warn">unieważni list {{ numbers|join:", " }}</span>{% endif %}{% endfor %}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="8" class="empty">Brak wniosków spełniających filtr.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="card">
+      <p><label for="reject-reason">Powód odrzucenia (wymagany przy „Odrzuć”, trafia do opiekunów e-mailem)</label>
+        <textarea id="reject-reason" name="reason" rows="2" maxlength="500"></textarea></p>
+      <div class="actions">
+        <button type="submit" class="btn btn--primary" formaction="{% url 'web:coordinator-onsite-letter-requests-approve' %}">Zatwierdź i wystaw listy</button>
+        <button type="submit" class="btn btn--ghost" formaction="{% url 'web:coordinator-onsite-letter-requests-reject' %}">Odrzuć zaznaczone</button>
+      </div>
+    </div>
+  </form>
+</section>
+{% endblock %}

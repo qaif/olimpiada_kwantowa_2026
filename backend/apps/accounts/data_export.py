@@ -197,6 +197,13 @@ def _team_leader_consents(user: User) -> list[dict]:
     return _consent_rows(ConsentRecord.objects.filter(team_leader__user=user), "opiekun_druzyny")
 
 
+def _final_logistics_section(user: User) -> list[dict]:
+    """Dane pobytu na finale (LOG-01) – paszport, podróż, zdrowie – tej osoby, odszyfrowane."""
+    from apps.delegation_logistics.privacy import export_section
+
+    return export_section(user)
+
+
 def _payments_section(user: User) -> list[dict]:
     """Zamówienia wystawione przez to konto i dane nabywcy (PAY-01) – bez danych kart (nie mamy ich)."""
     from apps.payments.services import export_section
@@ -413,6 +420,7 @@ def export_payload(user: User) -> dict:
         "webinary": _webinars_section(user),
         "zaswiadczenia_statusu_ucznia": _student_status_section(participant),
         "oceny_ai": _ai_section(participant),
+        "logistyka_finalu": _final_logistics_section(user),
         "okna_czasowe": _time_windows_section(participant),
         "medale": _medals_section(participant),
         "ustawienia_interfejsu": _preferences_section(user),

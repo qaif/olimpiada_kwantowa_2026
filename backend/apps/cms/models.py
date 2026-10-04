@@ -125,6 +125,8 @@ RESERVED_SLUGS = frozenset(
         "statystyki",
         "supervisor",
         "support",
+        # Publiczna weryfikacja listu zapraszającego do wizy (VISA-01, ``/visa/verify/<kod>/``).
+        "visa",
         # Webinary LiveKit (zadanie WEB-01): strona odbiorców i pokój ``/webinars/<id>/room/``.
         "webinars",
         # Przegląd tłumaczeń interfejsu (``/translations/…``, zadanie L10N-01).
