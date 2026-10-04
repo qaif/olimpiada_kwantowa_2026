@@ -400,6 +400,17 @@ def groups(stages: list, competition=None) -> list[Group]:
                 match=("coordinator-ai-grading", "coordinator-ai-"),
             ),
         )
+    if competition is not None and competition.has_feature("quantum_notebooks"):
+        # Notatniki kwantowe (QC-01): testy i wyniki sprawdzania automatycznego – w „Ocenianiu”, obok
+        # oceny AI, bo to też podpowiedź punktów dla komisji. Przedrostek łapie ustawienia zadania,
+        # wyniki i szczegół przebiegu.
+        quality += (
+            Item(
+                "Notatniki kwantowe",
+                ("web:coordinator-notebooks",),
+                match=("coordinator-notebooks", "coordinator-notebook-"),
+            ),
+        )
     reports: tuple[Item, ...] = (
         Item(
             "Eksport danych", ("web:coordinator-export",), match=("coordinator-export", "coordinator-export-")

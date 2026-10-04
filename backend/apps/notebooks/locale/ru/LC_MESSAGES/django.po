@@ -1,0 +1,676 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-04 22:04+0200\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: ru\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && "
+"n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
+
+msgid "Tryb"
+msgstr "Режим"
+
+msgid "Język treści notatnika"
+msgstr "Язык содержимого блокнота"
+
+msgid ""
+"Język notatnika startowego i komunikatów testów. Interfejs JupyterLab jest "
+"angielski."
+msgstr ""
+"Язык стартового блокнота и сообщений тестов. Интерфейс JupyterLab — на "
+"английском."
+
+msgid "Limit czasu wykonania (s)"
+msgstr "Лимит времени выполнения (с)"
+
+msgid "Limit pamięci (MB)"
+msgstr "Лимит памяти (МБ)"
+
+msgid "Kto widzi wynik testów ukrytych"
+msgstr "Кто видит результаты скрытых тестов"
+
+msgid ""
+"„Od razu” daje uczestnikowi wyrocznię: może wysyłać kolejne wersje i "
+"patrzeć, które testy ukryte przechodzą. Wybieraj to wyłącznie na etapach "
+"treningowych."
+msgstr ""
+"«Сразу» даёт участнику оракул: он может отправлять новые версии и смотреть, "
+"какие скрытые тесты проходят. Выбирайте только для тренировочных этапов."
+
+msgid "Notatnik startowy (.ipynb)"
+msgstr "Стартовый блокнот (.ipynb)"
+
+msgid ""
+"Puste = zostaje obecny (albo generowany szablon). Wyjścia komórek zostaną "
+"wyczyszczone."
+msgstr ""
+"Пусто = остаётся текущий (или сгенерированный шаблон). Выводы ячеек будут "
+"очищены."
+
+msgid "Usuń wgrany notatnik startowy (użyj szablonu)"
+msgstr "Удалить загруженный стартовый блокнот (использовать шаблон)"
+
+msgid "Notatnik wzorcowy (.ipynb)"
+msgstr "Эталонный блокнот (.ipynb)"
+
+msgid ""
+"Twoje rozwiązanie – służy wyłącznie do sprawdzenia testów. Uczestnicy go nie "
+"widzą."
+msgstr "Ваше решение — только для проверки тестов. Участники его не видят."
+
+msgid "Testy widoczne (JSON)"
+msgstr "Видимые тесты (JSON)"
+
+msgid ""
+"Trafiają do notatnika uczestnika – uczestnik widzi je i uruchamia w "
+"przeglądarce."
+msgstr ""
+"Попадают в блокнот участника — участник видит их и запускает в браузере."
+
+msgid "Testy ukryte (JSON)"
+msgstr "Скрытые тесты (JSON)"
+
+msgid ""
+"Liczone wyłącznie na serwerze. Nigdy nie trafiają do przeglądarki uczestnika."
+msgstr ""
+"Вычисляются только на сервере. Никогда не попадают в браузер участника."
+
+msgid "To musi być plik .ipynb."
+msgstr "Это должен быть файл .ipynb."
+
+msgid "Notatnik jest za duży (najwyżej 1 MB)."
+msgstr "Блокнот слишком большой (не более 1 МБ)."
+
+msgid "To nie jest poprawny notatnik Jupytera (nbformat 4)."
+msgstr "Это не корректный блокнот Jupyter (nbformat 4)."
+
+msgid "Notatnik swobodny (ocenia komisja)"
+msgstr "Свободный блокнот (оценивает комиссия)"
+
+msgid "Sprawdzanie automatyczne (testy)"
+msgstr "Автоматическая проверка (тесты)"
+
+msgid "Tylko organizator i komisja"
+msgstr "Только организатор и комиссия"
+
+msgid "Uczestnik po zamknięciu etapu"
+msgstr "Участник после закрытия этапа"
+
+msgid "Uczestnik od razu (zalecane tylko na etapach treningowych)"
+msgstr "Участник сразу (рекомендуется только для тренировочных этапов)"
+
+msgid "zadanie"
+msgstr "задача"
+
+msgid "tryb"
+msgstr "режим"
+
+msgid "język treści notatnika"
+msgstr "язык содержимого блокнота"
+
+msgid "notatnik startowy"
+msgstr "стартовый блокнот"
+
+msgid "testy widoczne"
+msgstr "видимые тесты"
+
+msgid "testy ukryte"
+msgstr "скрытые тесты"
+
+msgid "notatnik wzorcowy"
+msgstr "эталонный блокнот"
+
+msgid "limit czasu (s)"
+msgstr "лимит времени (с)"
+
+msgid "limit pamięci (MB)"
+msgstr "лимит памяти (МБ)"
+
+msgid "widoczność wyników testów ukrytych"
+msgstr "видимость результатов скрытых тестов"
+
+msgid "zmieniono"
+msgstr "изменено"
+
+msgid "notatnik zadania"
+msgstr "блокнот задачи"
+
+msgid "notatniki zadań"
+msgstr "блокноты задач"
+
+msgid "w kolejce"
+msgstr "в очереди"
+
+msgid "sprawdzanie"
+msgstr "проверка"
+
+msgid "sprawdzono"
+msgstr "проверено"
+
+msgid "błąd sprawdzania"
+msgstr "ошибка проверки"
+
+msgid "zastąpiony nowszą wersją"
+msgstr "заменён более новой версией"
+
+msgid "przebieg oceny notatnika"
+msgstr "прогон проверки блокнота"
+
+msgid "przebiegi oceny notatników"
+msgstr "прогоны проверки блокнотов"
+
+msgid "Przekroczono limit czasu wykonania notatnika."
+msgstr "Блокнот превысил лимит времени выполнения."
+
+msgid "Przekroczono limit pamięci."
+msgstr "Превышен лимит памяти."
+
+msgid "Proces notatnika zakończył się awarią."
+msgstr "Процесс блокнота аварийно завершился."
+
+msgid "Plik nie jest poprawnym notatnikiem Jupytera."
+msgstr "Файл не является корректным блокнотом Jupyter."
+
+msgid "Środowisko sprawdzania jest niedostępne."
+msgstr "Среда проверки недоступна."
+
+msgid "Środowisko sprawdzania nie odpowiedziało na czas."
+msgstr "Среда проверки не ответила вовремя."
+
+msgid "Nie udało się odczytać pliku pracy."
+msgstr "Не удалось прочитать файл работы."
+
+msgid "Testy zadania są nieprawidłowe – popraw je w panelu."
+msgstr "Тесты задачи некорректны — исправьте их в панели."
+
+msgid "Błąd środowiska sprawdzania."
+msgstr "Ошибка среды проверки."
+
+msgid "Notatniki kwantowe są w tym konkursie wyłączone."
+msgstr "Квантовые блокноты в этом конкурсе отключены."
+
+msgid "Testy widoczne"
+msgstr "Видимые тесты"
+
+msgid "Testy ukryte"
+msgstr "Скрытые тесты"
+
+msgid ""
+"Zadanie sprawdzane automatycznie musi przyjmować pliki .ipynb – dopisz ten "
+"format w zadaniu."
+msgstr ""
+"Задача с автоматической проверкой должна принимать файлы .ipynb — добавьте "
+"этот формат в задачу."
+
+msgid "Zadanie sprawdzane automatycznie potrzebuje co najmniej jednego testu."
+msgstr "Задаче с автоматической проверкой нужен хотя бы один тест."
+
+msgid "Nie ma takiego notatnika."
+msgstr "Такого блокнота нет."
+
+msgid "To zadanie nie jest sprawdzane automatycznie."
+msgstr "Эта задача не проверяется автоматически."
+
+msgid "Najpierw wgraj notatnik wzorcowy."
+msgstr "Сначала загрузите эталонный блокнот."
+
+msgid "Sprawdzanie wzorca już trwa – poczekaj na wynik."
+msgstr "Проверка эталона уже идёт — дождитесь результата."
+
+msgid "Notatnik w przeglądarce"
+msgstr "Блокнот в браузере"
+
+msgid "sprawdzanie automatyczne"
+msgstr "автоматическая проверка"
+
+msgid "Podgląd notatnika (tylko do odczytu)"
+msgstr "Просмотр блокнота (только чтение)"
+
+msgid ""
+"Twoje konto ma rolę personelu, więc laboratorium (wykonywanie kodu w "
+"przeglądarce) jest dla niego wyłączone. Do rozwiązywania zadań używaj "
+"osobnego konta uczestnika."
+msgstr ""
+"У вашей учётной записи есть служебная роль, поэтому лаборатория (выполнение "
+"кода в браузере) для неё отключена. Для решения задач используйте отдельную "
+"учётную запись участника."
+
+msgid "Otwórz notatnik"
+msgstr "Открыть блокнот"
+
+#, python-format
+msgid ""
+"Bez instalowania czegokolwiek. Pierwsze otwarcie pobiera ok. %(size)s MB, "
+"kolejne korzystają z pamięci przeglądarki."
+msgstr ""
+"Ничего не нужно устанавливать. Первое открытие загружает около %(size)s МБ, "
+"дальше используется кеш браузера."
+
+msgid "Bez instalowania czegokolwiek – Python działa w przeglądarce."
+msgstr "Ничего не нужно устанавливать — Python работает в браузере."
+
+msgid ""
+"Gotowy notatnik pobierz z JupyterLab (File → Download) i wyślij formularzem "
+"poniżej."
+msgstr ""
+"Скачайте готовый блокнот из JupyterLab (File → Download) и отправьте его "
+"формой ниже."
+
+msgid "Notatnik będzie dostępny po otwarciu etapu."
+msgstr "Блокнот станет доступен после открытия этапа."
+
+msgid "Testy automatyczne ostatniej wersji"
+msgstr "Автотесты последней версии"
+
+#, python-format
+msgid "%(score)s z %(total)s pkt"
+msgstr "%(score)s из %(total)s баллов"
+
+msgid "Punkty z testów są podpowiedzią dla komisji – ocenę wystawia komisja."
+msgstr "Баллы тестов — подсказка для комиссии, оценку ставит комиссия."
+
+msgid "Testy automatyczne (notatnik)"
+msgstr "Автотесты (блокнот)"
+
+msgid "Ta wersja pracy nie została jeszcze sprawdzona testami."
+msgstr "Эта версия работы ещё не проверена тестами."
+
+#, python-format
+msgid "Wynik testów ukrytych: <strong>%(score)s z %(total)s pkt</strong>."
+msgstr ""
+"Результат скрытых тестов: <strong>%(score)s из %(total)s баллов</strong>."
+
+msgid "Test"
+msgstr "Тест"
+
+msgid "Punkty"
+msgstr "Баллы"
+
+#, python-format
+msgid "Komórki zakończone błędem: %(counter)s."
+msgstr "Ячеек, завершившихся ошибкой: %(counter)s."
+
+msgid ""
+"Punkty z testów są podpowiedzią – ocenę wystawiasz według skali zadania."
+msgstr "Баллы тестов — подсказка: оценку ставите по шкале задачи."
+
+msgid "Sprawdzanie w toku."
+msgstr "Проверка идёт."
+
+msgid "Bezpieczeństwo: laboratorium działa w domenie serwisu."
+msgstr "Безопасность: лаборатория работает в домене сайта."
+
+msgid ""
+"Kod z notatnika wykonuje się w przeglądarce osoby, która otworzyła "
+"laboratorium, w domenie serwisu. Polityka laboratorium blokuje z niego "
+"wywołania API i paneli serwisu oraz formularze, ale nie jest to pełna "
+"izolacja. Dlatego laboratorium otwierają wyłącznie konta uczestników bez "
+"żadnej roli personelu – koordynator, recenzent, komisja i opiekunowie "
+"oglądają notatniki w podglądzie tylko do odczytu, w którym nic się nie "
+"wykonuje. Nie otwieraj cudzych notatników w laboratorium z konta uczestnika, "
+"a uczestników uprzedź, żeby nie wklejali cudzego kodu. Pełną izolację da "
+"osobna domena laboratorium – docs/OPERACJE.md § 40.6."
+msgstr ""
+"Код из блокнота выполняется в браузере того, кто открыл лабораторию, в "
+"домене сайта. Политика лаборатории блокирует из неё обращения к API и "
+"панелям сайта и отправку форм, но это не полная изоляция. Поэтому "
+"лабораторию открывают только учётные записи участников без какой-либо "
+"служебной роли — координаторы, рецензенты, члены комиссии и руководители "
+"просматривают блокноты в режиме только для чтения, где ничего не "
+"выполняется. Не открывайте чужие блокноты в лаборатории из учётной записи "
+"участника и предупредите участников, чтобы они не вставляли чужой код. "
+"Полную изоляцию даст отдельный домен лаборатории — docs/OPERACJE.md § 40.6."
+
+msgid "Notatniki kwantowe"
+msgstr "Квантовые блокноты"
+
+msgid "panel koordynatora"
+msgstr "панель координатора"
+
+msgid ""
+"Zadania z notatnikiem Jupytera w przeglądarce (JupyterLite, bez instalowania "
+"czegokolwiek). Notatnik swobodny ocenia komisja; zadanie sprawdzane "
+"automatycznie liczy punkty za testy w piaskownicy na serwerze – jako "
+"podpowiedź dla komisji, jak ocena AI."
+msgstr ""
+"Задачи с блокнотом Jupyter в браузере (JupyterLite, без установки). "
+"Свободный блокнот оценивает комиссия; задача с автопроверкой начисляет баллы "
+"за тесты в песочнице на сервере — как подсказку для комиссии, как оценка ИИ."
+
+msgid ""
+"JupyterLite nie jest zbudowane na tym serwerze – uczestnicy zobaczą "
+"wyłącznie przycisk pobrania notatnika startowego. Patrz docs/OPERACJE.md "
+"(notatniki)."
+msgstr ""
+"JupyterLite на этом сервере не собран — участники увидят только кнопку "
+"скачивания стартового блокнота. См. docs/OPERACJE.md (блокноты)."
+
+msgid "Etap"
+msgstr "Этап"
+
+msgid "Zadanie"
+msgstr "Задача"
+
+msgid "Notatnik"
+msgstr "Блокнот"
+
+msgid "Testy (widoczne / ukryte)"
+msgstr "Тесты (видимые / скрытые)"
+
+msgid "Sprawdzone prace"
+msgstr "Проверенные работы"
+
+msgid "brak"
+msgstr "нет"
+
+msgid "Ustawienia"
+msgstr "Настройки"
+
+msgid "Dodaj notatnik"
+msgstr "Добавить блокнот"
+
+msgid "Wyniki"
+msgstr "Результаты"
+
+msgid "Bieżąca edycja nie ma jeszcze zadań."
+msgstr "В текущем выпуске пока нет задач."
+
+msgid "Wyniki testów notatnika"
+msgstr "Результаты тестов блокнота"
+
+msgid "Notatnik zadania"
+msgstr "Блокнот задачи"
+
+#, python-format
+msgid "Wyniki testów: zadanie %(number)s. %(title)s"
+msgstr "Результаты тестов: задача %(number)s. %(title)s"
+
+msgid ""
+"Najnowsza wersja pracy każdego uczestnika i punkty za testy ukryte. To "
+"podpowiedź dla komisji – ocenę wystawiają recenzenci według skali zadania."
+msgstr ""
+"Последняя версия работы каждого участника и баллы скрытых тестов. Это "
+"подсказка для комиссии — рецензенты оценивают по шкале задачи."
+
+msgid "Pobierz CSV"
+msgstr "Скачать CSV"
+
+msgid "Przelicz wszystko"
+msgstr "Пересчитать всё"
+
+msgid "Kod uczestnika"
+msgstr "Код участника"
+
+msgid "Wersja"
+msgstr "Версия"
+
+msgid "Status"
+msgstr "Статус"
+
+msgid "Suma"
+msgstr "Сумма"
+
+msgid "testy zmienione"
+msgstr "тесты изменены"
+
+msgid "Szczegóły"
+msgstr "Подробности"
+
+msgid ""
+"Nie ma jeszcze sprawdzonych prac. Przebiegi powstają w ciągu minuty od "
+"czystego skanu antywirusowego pliku .ipynb."
+msgstr ""
+"Проверенных работ пока нет. Прогоны создаются в течение минуты после чистой "
+"антивирусной проверки файла .ipynb."
+
+msgid "Przebieg sprawdzania"
+msgstr "Прогон проверки"
+
+msgid "Wyniki testów"
+msgstr "Результаты тестов"
+
+#, python-format
+msgid "Przebieg sprawdzania #%(id)s"
+msgstr "Прогон проверки №%(id)s"
+
+msgid ""
+"Szczegóły jednego sprawdzenia: wynik każdego testu, błędy komórek i początek "
+"wyjścia programu."
+msgstr ""
+"Подробности одной проверки: результат каждого теста, ошибки ячеек и начало "
+"вывода программы."
+
+msgid "Wersja pracy"
+msgstr "Версия работы"
+
+msgid "Rodzaj"
+msgstr "Тип"
+
+msgid "rozwiązanie wzorcowe"
+msgstr "эталонное решение"
+
+msgid "Komunikat"
+msgstr "Сообщение"
+
+msgid "ukryty"
+msgstr "скрытый"
+
+msgid "widoczny"
+msgstr "видимый"
+
+msgid "Błędy komórek"
+msgstr "Ошибки ячеек"
+
+#, python-format
+msgid "komórka %(cell)s"
+msgstr "ячейка %(cell)s"
+
+msgid "Początek wyjścia programu"
+msgstr "Начало вывода программы"
+
+#, python-format
+msgid "Notatnik: zadanie %(number)s. %(title)s"
+msgstr "Блокнот: задача %(number)s. %(title)s"
+
+msgid ""
+"Uczestnik otwiera notatnik przy zadaniu w przeglądarce i oddaje plik .ipynb "
+"zwykłą wysyłką. Testy ukryte liczy wyłącznie serwer – nie trafiają ani do "
+"przeglądarki, ani do piaskownicy, w której wykonuje się kod uczestnika."
+msgstr ""
+"Участник открывает блокнот рядом с задачей в браузере и сдаёт файл .ipynb "
+"обычной загрузкой. Скрытые тесты считает только сервер — они не попадают ни "
+"в браузер, ни в песочницу, где выполняется код участника."
+
+msgid "Pobierz notatnik jak uczestnik"
+msgstr "Скачать блокнот в виде, как у участника"
+
+msgid "Notatnik wzorcowy – podgląd"
+msgstr "эталонный блокнот"
+
+msgid "Wyniki prac"
+msgstr "Результаты работ"
+
+msgid ""
+"To zadanie nie przyjmuje plików .ipynb. Dopisz ten format w ustawieniach "
+"zadania, zanim włączysz sprawdzanie automatyczne."
+msgstr ""
+"Эта задача не принимает файлы .ipynb. Добавьте этот формат в настройках "
+"задачи, прежде чем включать автопроверку."
+
+msgid "Zapisz"
+msgstr "Сохранить"
+
+msgid "Format testów"
+msgstr "Формат тестов"
+
+msgid ""
+"Lista obiektów JSON. „target” to nazwa zmiennej z notatnika albo {\"call\": "
+"\"funkcja\", \"args\": [...]}. Liczby można pisać wyrażeniami: \"1/"
+"sqrt(2)\", \"exp(i*pi/4)\", \"-0.5j\". Test zaliczony daje pełne punkty, "
+"niezaliczony – zero."
+msgstr ""
+"Список объектов JSON. «target» — имя переменной блокнота или {\"call\": "
+"\"функция\", \"args\": [...]}. Числа можно писать выражениями: \"1/"
+"sqrt(2)\", \"exp(i*pi/4)\", \"-0.5j\". Пройденный тест даёт полный балл, "
+"непройденный — ноль."
+
+msgid "Rodzaje (check):"
+msgstr "Виды (check):"
+
+msgid ""
+"Szczegóły i wszystkie warunki: podręcznik organizatora, rozdział o "
+"notatnikach kwantowych."
+msgstr ""
+"Подробности и все условия: руководство организатора, глава о квантовых "
+"блокнотах."
+
+msgid "Sprawdzenie testów na rozwiązaniu wzorcowym"
+msgstr "Проверка тестов на эталонном решении"
+
+msgid "Sprawdź testy na wzorcu"
+msgstr "Проверить тесты на эталоне"
+
+msgid ""
+"Wgraj notatnik wzorcowy w formularzu powyżej, żeby sprawdzić, czy testy "
+"przechodzą."
+msgstr ""
+"Загрузите эталонный блокнот в форме выше, чтобы проверить, проходят ли тесты."
+
+msgid "Ostatnie sprawdzenie:"
+msgstr "Последняя проверка:"
+
+msgid "Błędy komórek wzorca:"
+msgstr "Ошибки ячеек эталона:"
+
+msgid "Sprawdzanie trwa zwykle kilka sekund – odśwież stronę."
+msgstr "Проверка обычно занимает несколько секунд — обновите страницу."
+
+msgid ""
+"Wyłączenie notatnika usuwa jego ustawienia, testy i wyniki sprawdzania. "
+"Oddane pliki prac zostają."
+msgstr ""
+"Отключение блокнота удаляет его настройки, тесты и результаты проверки. "
+"Сданные файлы работ остаются."
+
+msgid "Wyłącz notatnik w tym zadaniu"
+msgstr "Отключить блокнот в этой задаче"
+
+#, python-format
+msgid "Notatnik – zadanie %(number)s"
+msgstr "Блокнот — задача %(number)s"
+
+msgid "Panel uczestnika"
+msgstr "Панель участника"
+
+#, python-format
+msgid "Zadanie %(number)s: %(title)s"
+msgstr "Задача %(number)s: %(title)s"
+
+msgid ""
+"Notatnik otwiera się w nowej karcie – kod uruchamiasz klawiszami "
+"Shift+Enter. Wszystko liczy Twoja przeglądarka."
+msgstr ""
+"Блокнот откроется ниже — код запускается клавишами Shift+Enter. Всё считает "
+"ваш браузер."
+
+msgid ""
+"Ostatnia komórka uruchamia testy przykładowe. Ocenę liczą testy ukryte na "
+"serwerze."
+msgstr ""
+"Последняя ячейка запускает пробные тесты. Оценку считают скрытые тесты на "
+"сервере."
+
+msgid ""
+"Gotowe? W JupyterLab: File → Download. Pobrany plik .ipynb wyślij w karcie "
+"zadania na platformie."
+msgstr ""
+"Готово? В JupyterLab: File → Download. Отправьте скачанный файл .ipynb в "
+"карточке задачи на платформе."
+
+msgid ""
+"Praca zapisuje się w tej przeglądarce (nie na serwerze). Na wspólnym "
+"komputerze pobierz plik przed wyjściem."
+msgstr ""
+"Работа сохраняется в этом браузере (не на сервере). На общем компьютере "
+"скачайте файл перед уходом."
+
+#, python-format
+msgid "Pierwsze otwarcie pobiera ok. %(size)s MB."
+msgstr "Первое открытие загружает около %(size)s МБ."
+
+msgid ""
+"Nie wklejaj do notatnika kodu od innych osób – wykonuje się w Twojej "
+"przeglądarce, na Twoim koncie."
+msgstr ""
+"Не вставляйте в блокнот код от других людей — он выполняется в вашем "
+"браузере, от имени вашей учётной записи."
+
+msgid "Pobierz notatnik startowy"
+msgstr "Скачать стартовый блокнот"
+
+msgid "Wróć do zadania"
+msgstr "Вернуться к задаче"
+
+msgid ""
+"Notatnik w przeglądarce nie jest jeszcze zainstalowany na tym serwerze. "
+"Pobierz notatnik startowy i otwórz go we własnym Jupyterze albo napisz do "
+"organizatora."
+msgstr ""
+"Блокнот в браузере на этом сервере ещё не установлен. Скачайте стартовый "
+"блокнот и откройте его в своём Jupyter или напишите организатору."
+
+msgid ""
+"Podgląd tylko do odczytu: kod nie jest wykonywany, wyjścia HTML i JavaScript "
+"są pominięte."
+msgstr ""
+"Просмотр только для чтения: код не выполняется, выводы HTML и JavaScript "
+"пропущены."
+
+msgid "Wykres z notatnika"
+msgstr "Результаты тестов блокнота"
+
+#, python-format
+msgid "Pominięto wyjście typu %(mime)s."
+msgstr "Пропущен вывод типа %(mime)s."
+
+msgid "Notatnik nie ma komórek."
+msgstr "Квантовые блокноты"
+
+msgid "Notatnik wzorcowy poszedł do sprawdzenia – wynik pojawi się poniżej."
+msgstr "Эталонный блокнот отправлен на проверку — результат появится ниже."
+
+msgid "Notatnik zadania został wyłączony."
+msgstr "Блокнот задачи отключён."
+
+msgid ""
+"Testy się zmieniły – wyniki już sprawdzonych prac są nieaktualne. Użyj "
+"„Przelicz wszystko”."
+msgstr ""
+"Тесты изменились — результаты уже проверенных работ устарели. Нажмите "
+"«Пересчитать всё»."
+
+msgid "Zapisano ustawienia notatnika."
+msgstr "Настройки блокнота сохранены."
+
+#, python-format
+msgid "Do ponownego sprawdzenia: %(count)s prac."
+msgstr "На повторную проверку: работ — %(count)s."
+
+msgid "Notatnik startowy – podgląd"
+msgstr "стартовый блокнот"
+
+#, python-format
+msgid "Praca – podgląd notatnika (wersja %(version)s)"
+msgstr "Работа — просмотр блокнота (версия %(version)s)"

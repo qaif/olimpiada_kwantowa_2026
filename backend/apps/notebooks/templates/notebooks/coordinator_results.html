@@ -1,0 +1,56 @@
+{% extends "web/coordinator/base.html" %}
+{% load i18n %}
+{% block title %}{% translate "Wyniki testów notatnika" %} – {% translate "panel koordynatora" %}{% endblock %}
+{% block panel_eyebrow %}<a href="{% url 'web:coordinator-notebook-task' problem.pk %}">{% translate "Notatnik zadania" %}</a>{% endblock %}
+{% block panel_title %}{% blocktranslate trimmed with number=problem.number title=problem.display_title %}Wyniki testów: zadanie {{ number }}. {{ title }}{% endblocktranslate %}{% endblock %}
+{% block panel_lead %}
+  <p class="lead">{% blocktranslate trimmed %}
+    Najnowsza wersja pracy każdego uczestnika i punkty za testy ukryte. To podpowiedź dla komisji –
+    ocenę wystawiają recenzenci według skali zadania.
+  {% endblocktranslate %}</p>
+{% endblock %}
+{% block panel_actions %}
+  <a class="btn btn--secondary btn--small" href="?format=csv">{% translate "Pobierz CSV" %}</a>
+  <form method="post">
+    {% csrf_token %}
+    <button type="submit" class="btn btn--secondary btn--small">{% translate "Przelicz wszystko" %}</button>
+  </form>
+{% endblock %}
+{% block panel_content %}
+<section class="section">
+  {% if rows %}
+    <div class="scroll">
+      <table class="table table--wide">
+        <thead>
+          <tr>
+            <th>{% translate "Kod uczestnika" %}</th>
+            <th>{% translate "Wersja" %}</th>
+            <th>{% translate "Status" %}</th>
+            {% for test in tests %}<th class="num">{{ test.name }} <span class="hint">({{ test.points|floatformat:"-2" }})</span></th>{% endfor %}
+            <th class="num">{% translate "Suma" %}</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+            <tr>
+              <td>{{ row.run.submission.entry.participant.public_code }}</td>
+              <td class="num">{{ row.run.submission.version }}</td>
+              <td><span class="badge badge--neutral">{{ row.run.get_status_display }}</span>
+                {% if row.stale %}<span class="badge badge--warn">{% translate "testy zmienione" %}</span>{% endif %}
+                {% if row.error %}<br><span class="hint">{{ row.error }}</span>{% endif %}</td>
+              {% for cell in row.cells %}
+                <td class="num">{% if cell %}{% if cell.passed %}✔{% else %}✘{% endif %} {{ cell.points|floatformat:"-2" }}{% else %}–{% endif %}</td>
+              {% endfor %}
+              <td class="num">{% if row.run.score is not None %}<strong>{{ row.run.score|floatformat:"-2" }}</strong> / {{ row.run.max_score|floatformat:"-2" }}{% else %}–{% endif %}</td>
+              <td><a class="btn btn--ghost btn--small" href="{% url 'web:coordinator-notebook-run' row.run.pk %}">{% translate "Szczegóły" %}</a></td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="empty">{% translate "Nie ma jeszcze sprawdzonych prac. Przebiegi powstają w ciągu minuty od czystego skanu antywirusowego pliku .ipynb." %}</p>
+  {% endif %}
+</section>
+{% endblock %}
