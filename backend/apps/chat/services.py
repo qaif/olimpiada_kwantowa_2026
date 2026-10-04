@@ -32,6 +32,8 @@ import base64
 import binascii
 import hashlib
 import logging
+from collections.abc import Callable
+from dataclasses import dataclass
 from datetime import timedelta
 
 from django.db import IntegrityError, transaction
@@ -149,6 +151,83 @@ def mode_and_stage(competition, now=None, *, row: ChatSettings | None = None) ->
 def effective_peer_mode(competition, now=None, *, row: ChatSettings | None = None) -> PeerMode:
     """Tryb rozmów między uczestnikami obowiązujący **teraz** (uzasadnienie w docstringu modułu)."""
     return mode_and_stage(competition, now, row=row)[0]
+
+
+# --- polityka rozmowy (punkt rozszerzenia, ALUM-01 § 5.3) ---------------------------------------------
+
+
+#: Kolejność trybów od najluźniejszego do najostrzejszego – do podłogi ``PeerPolicy.at_least``.
+_STRICTNESS = (PeerMode.NONE, PeerMode.POST, PeerMode.PRE)
+
+
+@dataclass(frozen=True)
+class PeerPolicy:
+    """Reguły **jednej** rozmowy między uczestnikami nałożone przez inną funkcję platformy.
+
+    Po co: rozmowa mentorska (``apps.alumni``) jest zwykłą rozmową P2P – ta sama tabela, ten sam
+    wątek, ta sama kolejka moderacji – ale jej reguły zależą od faktu, którego czat nie zna
+    (aktywna relacja mentor–mentee, wiek mentee). Zamiast uczyć czat o mentoringu, czat pyta
+    zarejestrowane funkcje: „czy ta rozmowa ma własną politykę?”. Brak odpowiedzi = reguły czatu
+    co do bajtu takie, jak dotąd.
+
+    - ``mode`` – tryb **wymuszony** (np. ``PRE``: każdą wiadomość czyta organizator przed
+      doręczeniem); zastępuje tryb konkursu, także ``OFF``,
+    - ``at_least`` – **podłoga** trybu: ``NONE`` podnosi się do niej, ostrzejszy tryb zostaje,
+    - ``skip_age_policy`` – reguła grupy wiekowej (§ 12.3) nie zamyka tej rozmowy; wolno to tylko
+      razem z ``mode=PRE`` (świadek przed doręczeniem zastępuje zakaz rozmowy bez świadków),
+    - ``refusal`` – rozmowa tylko do odczytu, zdanie dla użytkownika,
+    - ``notice`` – notka nad wątkiem („Rozmowa mentorska…”).
+    """
+
+    mode: PeerMode | None = None
+    at_least: PeerMode | None = None
+    skip_age_policy: bool = False
+    refusal: str = ""
+    notice: str = ""
+
+
+_PEER_POLICIES: list[Callable[[Conversation], PeerPolicy | None]] = []
+
+
+def register_peer_policy(provider: Callable[[Conversation], PeerPolicy | None]) -> None:
+    """Rejestruje dostawcę polityki (woła się z ``AppConfig.ready``). Powtórna rejestracja – bez skutku."""
+    if provider not in _PEER_POLICIES:
+        _PEER_POLICIES.append(provider)
+
+
+def peer_policy(conversation: Conversation | None) -> PeerPolicy | None:
+    """Polityka tej rozmowy – pierwsza niepusta odpowiedź dostawców – albo ``None``.
+
+    Wyłącznie rozmowy między uczestnikami: kanał organizatora ma swoje reguły i nikt ich nie zmienia.
+    """
+    if conversation is None or conversation.pk is None or not conversation.is_peer:
+        return None
+    for provider in _PEER_POLICIES:
+        policy = provider(conversation)
+        if policy is not None:
+            return policy
+    return None
+
+
+def conversation_mode_and_stage(
+    conversation: Conversation, now=None, *, row: ChatSettings | None = None, policy: PeerPolicy | None = None
+) -> tuple[PeerMode, object]:
+    """:func:`mode_and_stage` konkursu z nałożoną polityką tej rozmowy (:func:`peer_policy`).
+
+    Tryb wymuszony polityką nie niesie etapu: zdanie „trwa etap X” nad formularzem mówiłoby
+    nieprawdę o tym, **dlaczego** wiadomość czeka.
+    """
+    mode, stage = mode_and_stage(conversation.competition, now, row=row)
+    policy = policy if policy is not None else peer_policy(conversation)
+    if policy is None:
+        return mode, stage
+    if policy.mode is not None:
+        return PeerMode(policy.mode), None
+    if policy.at_least is not None and mode in _STRICTNESS:
+        floor = PeerMode(policy.at_least)
+        if _STRICTNESS.index(mode) < _STRICTNESS.index(floor):
+            return floor, None
+    return mode, stage
 
 
 def e2e_writable(row: ChatSettings, mode: PeerMode) -> bool:
@@ -610,9 +689,12 @@ def _check_daily_limit(participant, row: ChatSettings, now=None) -> None:
         raise DomainError(DAILY_LIMIT, "CHAT_DAILY_LIMIT", http.HTTP_400_BAD_REQUEST)
 
 
-def _peer_conversation(a, b, *, encrypted: bool = False) -> Conversation:
+def _peer_conversation(a, b, *, encrypted: bool = False, started_by=None) -> Conversation:
     """Rozmowa pary uczestników – istniejąca albo nowa. ``encrypted`` liczy się **wyłącznie** przy
-    zakładaniu: istniejąca rozmowa zostaje taka, jaka była (``Conversation.is_encrypted``)."""
+    zakładaniu: istniejąca rozmowa zostaje taka, jaka była (``Conversation.is_encrypted``).
+
+    ``started_by`` domyślnie ``a`` (inicjator z katalogu – liczy się do dziennego limitu);
+    :func:`ensure_peer_conversation` podaje ``False``, czyli „rozmowy nie zaczął nikt z katalogu”."""
     existing = find_peer_conversation(a, b)
     if existing is not None:
         return existing
@@ -625,7 +707,7 @@ def _peer_conversation(a, b, *, encrypted: bool = False) -> Conversation:
                 participant_low=low,
                 participant_high=high,
                 is_encrypted=encrypted,
-                started_by=a,
+                started_by=None if started_by is False else (started_by or a),
             )
             ConversationMember.objects.bulk_create(
                 [
@@ -636,6 +718,22 @@ def _peer_conversation(a, b, *, encrypted: bool = False) -> Conversation:
             return conversation
     except IntegrityError:
         return find_peer_conversation(a, b)
+
+
+def ensure_peer_conversation(a, b) -> tuple[Conversation, bool]:
+    """Rozmowa P2P pary **bez** warunków katalogu i dziennego limitu – ``(rozmowa, istniała_wcześniej)``.
+
+    Dla serwisów, które same sprawdziły wolę obu stron (mentoring: prośba mentee + akceptacja
+    mentora, ``apps.alumni``). Rozmowa nowa jest zawsze **jawna**: kto zakłada rozmowę spoza
+    katalogu, zakłada ją pod czyjąś politykę (:class:`PeerPolicy`), a ta zwykle wymaga moderacji.
+    ``started_by`` zostaje puste – dzienny limit nowych rozmów dotyczy tego, co ktoś zaczął sam.
+    """
+    if a.pk == b.pk or a.competition_id != b.competition_id:
+        raise DomainError(CANNOT_SEND, "CHAT_CANNOT_START", http.HTTP_400_BAD_REQUEST)
+    existing = find_peer_conversation(a, b)
+    if existing is not None:
+        return existing, True
+    return _peer_conversation(a, b, started_by=False), False
 
 
 def visible_to_participant_q(participant) -> Q:
@@ -764,6 +862,9 @@ def peer_write_refusal(
     """
     if not conversation.is_peer:
         return ""
+    policy = peer_policy(conversation)
+    if policy is not None and policy.refusal:
+        return policy.refusal
     if mode == PeerMode.OFF:
         return PEER_OFF
     if conversation.is_encrypted:
@@ -774,7 +875,8 @@ def peer_write_refusal(
     if other is None or not other.user.is_active:
         return CANNOT_SEND
     row = row or settings_for(conversation.competition)
-    if row.age_policy == AgePolicy.SAME_GROUP and not same_age_group(participant, other):
+    skip_age = policy is not None and policy.skip_age_policy and mode == PeerMode.PRE
+    if not skip_age and row.age_policy == AgePolicy.SAME_GROUP and not same_age_group(participant, other):
         # Sprawdzane przy **każdej** wiadomości, nie tylko przy zaczęciu rozmowy: w trakcie rozmowy
         # jedna ze stron mogła skończyć 18 lat.
         return AGE_CLOSED
@@ -930,7 +1032,7 @@ def send_participant_message(
     status = MessageStatus.PUBLISHED
     if conversation.is_peer:
         row = settings_for(competition)
-        mode, stage = mode_and_stage(competition, now, row=row)
+        mode, stage = conversation_mode_and_stage(conversation, now, row=row)
         refusal = peer_write_refusal(conversation, participant, mode=mode, row=row, stage=stage)
         if refusal:
             raise DomainError(refusal, "CHAT_CANNOT_WRITE", http.HTTP_400_BAD_REQUEST)
@@ -1698,7 +1800,7 @@ def _delivery_refusal(message: Message) -> str:
     if sender is None:
         return CANNOT_SEND
     row = settings_for(conversation.competition)
-    mode, stage = mode_and_stage(conversation.competition, row=row)
+    mode, stage = conversation_mode_and_stage(conversation, row=row)
     return peer_write_refusal(conversation, sender, mode=mode, row=row, stage=stage)
 
 

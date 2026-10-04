@@ -271,9 +271,14 @@ class ChatParticipantMixin(ParticipantRequiredMixin):
         row = self.chat_settings
         # Etap liczony razem z trybem (``mode_and_stage``): ekran mówi, **który** etap wymusił
         # premoderację albo wstrzymał rozmowy szyfrowane, a pytanie o etapy nie ma iść dwa razy.
-        mode, stage = (
-            chat.mode_and_stage(self.competition, row=row) if is_peer else (PeerMode(row.peer_mode), None)
-        )
+        # Polityka rozmowy (ALUM-01 § 5.3): rozmowa mentorska ma własny tryb i własną notkę.
+        policy = chat.peer_policy(conversation) if is_peer else None
+        if conversation is not None and is_peer:
+            mode, stage = chat.conversation_mode_and_stage(conversation, row=row, policy=policy)
+        else:
+            mode, stage = (
+                chat.mode_and_stage(self.competition, row=row) if is_peer else (PeerMode(row.peer_mode), None)
+            )
         refusal = ""
         blocked_by_me = False
         other = None
@@ -312,6 +317,7 @@ class ChatParticipantMixin(ParticipantRequiredMixin):
             "can_block": is_peer and other is not None,
             "blocked_by_me": blocked_by_me,
             "privacy_notice": privacy,
+            "policy_notice": policy.notice if policy is not None else "",
             # Etap pokazujemy nad formularzem tylko wtedy, gdy **zaostrzył** tryb rozmowy jawnej;
             # rozmowę szyfrowaną wstrzymuje, a to mówi już zdanie odmowy.
             "forcing_stage": stage if not encrypted else None,
