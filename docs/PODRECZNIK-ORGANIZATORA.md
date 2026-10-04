@@ -1449,6 +1449,23 @@ zgłoszenie może odesłać do konkretnego pytania, a odnośnik przeżyje popraw
 dopisuje pytania w `/cms/`. Formularz zgłoszenia zaczyna się od odnośnika „Zanim zgłosisz: FAQ” — im
 lepsze FAQ, tym krótsza kolejka.
 
+### 6.6 Tłumacze interfejsu — `/coordinator/translators/`
+
+Tylko w konkursie z **więcej niż jednym językiem interfejsu** (np. IQO); pozycja „Tłumacze interfejsu”
+w sekcji „Ustawienia”. Tłumaczenia poza angielskim są maszynowe – ten ekran pozwala oddać ich przegląd
+ludziom, którzy znają język, np. kierownikom delegacji.
+
+- **Nadaj rolę:** adres e-mail konta, język, poziom „tłumacz”. Konto musi należeć do Twojego konkursu
+  (członkostwo albo profil uczestnika); w innym wypadku ekran odpowie, że konta nie znaleziono.
+- **Tłumacz** widzi pod `/translations/` listę napisów swojego języka (tekst polski, angielski, obecne
+  tłumaczenie, miejsce w kodzie), proponuje poprawki i głosuje na cudze. W stopce ma „Zgłoś tłumaczenie”.
+- **Recenzent tłumaczeń** (zatwierdza poprawki) – tę rolę nadaje wyłącznie **superkoordynator**, bo
+  zatwierdzona poprawka zmienia napis na **całej platformie**, we wszystkich konkursach.
+- **Odbierz** usuwa rolę od razu. Tłumacze nie widzą nawzajem swoich kont ani danych uczestników.
+
+Poprawki trafiają do repozytorium okresowo (operator, `docs/OPERACJE.md` § 28.2). Napisy ekranów
+koordynatora zostają po polsku i nie są przedmiotem przeglądu.
+
 ---
 
 ## 7. Dokumenty i zgody

@@ -3834,7 +3834,8 @@ Katalogi `backend/locale/<kod>/LC_MESSAGES/django.po` dla `zh_Hans`, `hi`, `es`,
 odniesieniem). Przed szeroką komunikacją do uczestników z danego kraju warto dać plik `.po` do
 przeglądu native speakerowi (każdy edytor PO, np. Poedit). Po poprawkach: `django-admin
 compilemessages` (obraz robi to przy budowaniu; testy `apps/core/tests/test_translations.py`
-pilnują kompilacji, kompletu tłumaczeń i zgodności placeholderów).
+pilnują kompilacji, kompletu tłumaczeń i zgodności placeholderów). Przegląd **w serwisie** przez
+wolontariuszy (kierowników delegacji) bez plików i bez gita: § 28.
 
 ### 26.4. Czego nie tłumaczymy
 
@@ -3878,3 +3879,57 @@ Nowy konkurs od razu z krajami: `create_competition … --regions countries` (do
 `custom_regions` wyłączona, formularze i wydruki co do bajtu jak dotąd).
 
 Kolejność dla `iqo` po wdrożeniu: § 26.1 (języki) i ta komenda – niezależne od siebie.
+
+## 28. Przegląd tłumaczeń przez native speakerów (L10N-01, `docs/tasks/L10N-01.md`)
+
+Wolontariusze z rolą **tłumacza** (np. kierownicy delegacji `iqo`) przeglądają napisy interfejsu
+w swoim języku pod `/translations/`, proponują poprawki i głosują; **recenzent tłumaczeń** zatwierdza.
+Zatwierdzona poprawka działa od razu (nakładka w bazie na katalogi gettext, ≤ 5 s na wszystkich
+procesach), a do repozytorium trafia komendą `export_translations` jako zwykły PR. Dlaczego nie
+Weblate: spec § 1 (nowy serwer albo zasoby produkcji, klucz z prawem zapisu do repozytorium, drugi
+system kont).
+
+### 28.1. Role
+
+- **Tłumacz** (proponuje, głosuje, zgłasza błąd ze stopki) – nadaje koordynator konkursu z więcej niż
+  jednym językiem interfejsu: „Ustawienia → Tłumacze interfejsu” (`/coordinator/translators/`),
+  wyłącznie osobom związanym z konkursem (członkostwo albo profil uczestnika).
+- **Recenzent tłumaczeń** (zatwierdza, odrzuca, cofa, zamyka zgłoszenia) – nadaje **wyłącznie
+  superkoordynator** (ten sam ekran, pod adresem dowolnego konkursu). Superkoordynator jest
+  recenzentem każdego języka.
+- Każde nadanie, odebranie i każda decyzja – wpis audytu `translation.*` (bez treści zgłoszeń).
+
+### 28.2. Z bazy do repozytorium (po serii poprawek)
+
+```sh
+# produkcja – zrzut zatwierdzonych poprawek (sam tekst tłumaczeń, bez danych osób)
+docker compose exec -T web python manage.py export_translations --to-json - > overrides.json
+# checkout dewelopera – zapis do .po (katalog projektu i katalogi aplikacji), potem PR
+docker compose run --rm web python manage.py export_translations --from-json overrides.json --dry-run
+docker compose run --rm web python manage.py export_translations --from-json overrides.json
+# produkcja, PO wdrożeniu tego PR-a – usunięcie nakładek, które są już w katalogach
+docker compose exec web python manage.py export_translations --prune
+```
+
+Eksport zmienia wyłącznie linie `msgstr` poprawionych wpisów i dopisuje komentarz `# l10n-reviewed`
+(znacznik „przejrzane” przeżywa `makemessages`). Tekst z JSON-a przechodzi tę samą walidację, co
+w panelu; wpis, którego nie ma już w katalogach, jest pomijany i wypisany jako „nieaktualny”.
+`--prune` usuwa tylko nakładki z tekstem **identycznym** z katalogiem – pozostałe działają dalej.
+
+### 28.3. Wyłączenie i awarie
+
+- `TRANSLATION_OVERRIDES_ENABLED=0` w `.env` + restart `web`, `worker`, `beat` – serwis wraca do samych
+  katalogów z repozytorium; poprawki zostają w bazie. Cofnięcie pojedynczej poprawki: „Przywróć
+  tłumaczenie z katalogu” na ekranie napisu (recenzent).
+- Nakładka żyje w Redisie bez terminu ważności; po restarcie Redisa pierwsze żądanie w danym języku
+  przebudowuje ją jednym zapytaniem. Błąd nakładki nigdy nie psuje strony – log
+  `apps.translation_review.runtime` i katalog z repozytorium.
+- Limit POST-ów w panelu tłumacza: scope `translations` (120/h na konto).
+
+### 28.4. Wdrożenie tej wersji
+
+`migrate` (nowa aplikacja `translation_review`, tylko nowe tabele) – bez kroków ręcznych. Obraz
+kompiluje teraz także katalogi aplikacji (`apps/*/locale`). Zmienił się manifest adresów
+(`/translations/` – `backend/djcms_contract/app_routes.*`), więc konfiguracja proxy z § 23 musi
+zostać przeładowana (robi to `deploy.sh`). Olimpiada Kwantowa (sam polski) nie widzi żadnej zmiany:
+brak pozycji w menu, brak odnośnika w stopce, brak wiersza w rejestrze czynności.

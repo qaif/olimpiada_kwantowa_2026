@@ -8,6 +8,33 @@ dokładnie jednemu wierszowi tej tabeli.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## [Unreleased] – Przegląd tłumaczeń przez native speakerów (L10N-01)
+
+- **Panel tłumacza** `/translations/` (nowa aplikacja `apps.translation_review`): napisy jednego języka
+  z katalogu projektu i katalogów aplikacji – tekst polski, angielski jako odniesienie, obecne
+  tłumaczenie, kontekst z `.po` (miejsca w kodzie, uwagi, `msgctxt`, formy mnogie); filtry
+  „bez tłumaczenia / maszynowe / przejrzane / z propozycją”, wyszukiwanie, propozycje z głosami
+  (anonimowe wobec innych tłumaczy), decyzje recenzenta (zatwierdź, odrzuć, potwierdź, cofnij).
+- **Role:** tłumacz (nadaje koordynator konkursu z >1 językiem interfejsu, tylko osobom z konkursu –
+  `/coordinator/translators/`) i recenzent tłumaczeń (wyłącznie superkoordynator). Superkoordynator
+  jest recenzentem każdego języka.
+- **Nakładka w czasie działania:** zatwierdzone tłumaczenie wchodzi do gettext jako pierwszy katalog
+  (`trans_real.translation` owinięte w `ready()`), wersja w cache'u per język, ≤ 5 s do wszystkich
+  procesów; `TRANSLATION_OVERRIDES_ENABLED` wyłącza bez wydania.
+- **Bezpieczeństwo poprawek:** tłumaczenie to zwykły tekst – te same placeholdery, **dokładnie** te same
+  znaczniki HTML co w `msgid`, żadnego nowego `<`/`>` ani prostego cudzysłowu (napisy bywają
+  w atrybutach, a `{% translate %}` nie escapuje), bez znaków sterujących i bidi override; ponowna
+  walidacja przy zatwierdzeniu i przy imporcie z JSON-a.
+- **`manage.py export_translations`:** nakładki → `msgstr` w `.po` (diff wyłącznie poprawionych wpisów +
+  `# l10n-reviewed`), `--to-json`/`--from-json` (produkcja bez gita), `--prune` po wdrożeniu,
+  `--dry-run` (`docs/OPERACJE.md` § 28).
+- **„Zgłoś tłumaczenie” w stopce** dla zalogowanego tłumacza (konkurs wielojęzyczny, strona nie po
+  polsku): ścieżka strony bez parametrów + fraza + uwaga; lista zgłoszeń dla recenzenta.
+- **Audyt** `translation.*`, throttling `translations` (120/h na konto), rejestr czynności **1.11**
+  (wiersz warunkowy „Przegląd tłumaczeń interfejsu”), sekcja `tlumaczenia` w eksporcie danych konta,
+  anonimizacja usuwa rolę, głosy i zgłoszenia. Obraz i testy kompilują teraz także katalogi aplikacji
+  (`apps/*/locale`). Ocena wariantu Weblate: `docs/tasks/L10N-01.md` § 1.
+
 ## [Unreleased] – Wielojęzyczność per konkurs (I18N-01) i kraje zamiast województw (REG-01)
 
 - **Języki interfejsu per konkurs:** `Competition.interface_languages` obok `default_language`
