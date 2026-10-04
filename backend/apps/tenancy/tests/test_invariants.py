@@ -212,11 +212,13 @@ EXPECTED_FORUM_SUBJECTS = {
     "forum_daily": f"{EXPECTED_SUBJECT_PREFIX}Forum: podsumowanie dnia",
 }
 
-#: Komplet tematów wychodzących z instalacji. **Liczby tu nie ma i ma jej nie być**: do 25.09.2026
-#: test porównywał długości tych słowników z literałami (11/7/7/25), więc każdy nowy list wymagał
-#: poprawienia liczby w miejscu, które z tym listem nie miało nic wspólnego – a przy tym niczego nie
-#: pilnował, bo liczył wiersze tabeli, a nie tematy w kodzie (trzy tematy przeszły obok niego).
-#: Kompletności pilnuje dziś ``test_every_subject_in_the_code_is_frozen`` niżej.
+#: Webinary (zadanie WEB-01, ``apps.webinars.notifications``): zaproszenie i przypomnienie.
+#: Tytuł webinaru jest daną listu (jak temat wątku forum), więc w brzmieniu stoi znacznik.
+EXPECTED_WEBINAR_SUBJECTS = {
+    "webinar_invite": f"Zaproszenie na webinar: {TITLE_MARK} – Olimpiada Kwantowa",
+    "webinar_reminder": f"Przypomnienie o webinarze: {TITLE_MARK} – Olimpiada Kwantowa",
+}
+
 #: Pięć tematów listów sieci absolwentów (ALUM-01, ``apps.alumni.notifications``) – z prefiksem
 #: konkursu, z tego samego powodu co forum: listy są nowe, a „[Olimpiada Kwantowa] Absolwenci:”
 #: pozwala odfiltrować całą rodzinę naraz. Wysyłkę sprawdza ``apps/alumni/tests/test_mentoring.py``.
@@ -228,10 +230,16 @@ EXPECTED_ALUMNI_SUBJECTS = {
     "alumni_flag": f"{EXPECTED_SUBJECT_PREFIX}Absolwenci: zgłoszono problem z relacją mentorską",
 }
 
+#: Komplet tematów wychodzących z instalacji. **Liczby tu nie ma i ma jej nie być**: do 25.09.2026
+#: test porównywał długości tych słowników z literałami (11/7/7/25), więc każdy nowy list wymagał
+#: poprawienia liczby w miejscu, które z tym listem nie miało nic wspólnego – a przy tym niczego nie
+#: pilnował, bo liczył wiersze tabeli, a nie tematy w kodzie (trzy tematy przeszły obok niego).
+#: Kompletności pilnuje dziś ``test_every_subject_in_the_code_is_frozen`` niżej.
 ALL_EXPECTED_SUBJECTS = {
     **EXPECTED_SUBJECTS,
     **EXPECTED_SERVICE_SUBJECTS,
     **EXPECTED_FORUM_SUBJECTS,
+    **EXPECTED_WEBINAR_SUBJECTS,
     **EXPECTED_ALUMNI_SUBJECTS,
 }
 
@@ -298,6 +306,10 @@ SUBJECT_CONSTANTS = {
     "apps.support.services.TICKET_OPENED_SUBJECT_TEMPLATE": "support_opened",
     "apps.support.services.TICKET_ANSWERED_SUBJECT": "support_answered",
     "apps.support.services.TICKET_ANSWERED_SUBJECT_TEMPLATE": "support_answered",
+    "apps.webinars.notifications.INVITE_SUBJECT": "webinar_invite",
+    "apps.webinars.notifications.INVITE_SUBJECT_TEMPLATE": "webinar_invite",
+    "apps.webinars.notifications.REMINDER_SUBJECT": "webinar_reminder",
+    "apps.webinars.notifications.REMINDER_SUBJECT_TEMPLATE": "webinar_reminder",
 }
 
 #: Stałe z ``SUBJECT`` w nazwie, które **nie są** tematem wychodzącego listu – każda z powodem.

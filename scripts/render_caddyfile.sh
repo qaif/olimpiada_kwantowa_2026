@@ -126,6 +126,22 @@ if [ "$PRIMARY_ON" = "1" ] && [ "$DJCMS_ON" != "1" ]; then
   exit 1
 fi
 
+# `LIVEKIT_PROXY` (zadanie WEB-01, docs/OPERACJE.md § 36.2) – sygnalizacja LiveKit na tym samym
+# hoście (wariant (b)): blok `live.{$SITE_DOMAIN}` → `livekit:7880`. Ten sam odczyt i ta sama walidacja,
+# co przełączniki wyżej. Wyłączony (domyślnie) = wynik bajt w bajt jak dotąd – i żadnego wniosku
+# o certyfikat dla `live.` na instalacji bez LiveKit (bez rekordu DNS byłby błędem i zużyciem limitu).
+if [ -z "${LIVEKIT_PROXY+x}" ] && [ -f "$ROOT/.env" ]; then
+  LIVEKIT_PROXY="$(sed -n 's/^LIVEKIT_PROXY=//p' "$ROOT/.env" | tail -n 1 | tr -d '\r\042\047')"
+fi
+case "$(printf '%s' "${LIVEKIT_PROXY:-}" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')" in
+  1|true|yes|on)   LIVEKIT_ON=1 ;;
+  ''|0|false|no|off) LIVEKIT_ON=0 ;;
+  *)
+    echo "render_caddyfile: nie rozumiem LIVEKIT_PROXY=„${LIVEKIT_PROXY:-}” (użyj 1/true albo 0/false)" >&2
+    exit 1
+    ;;
+esac
+
 # Kontrakt tras aplikacji (DJ-02 § 6): dwa wyrażenia generowane z urlconfu `web` przez
 # `manage.py djcms_routes --write` i commitowane. Potrzebny wyłącznie przy DJCMS_ENABLED=1 – bez
 # przełącznika plik nie jest nawet czytany. Czytany `sed`-em, nie `source` (jak `.env`): wartość
@@ -562,6 +578,24 @@ EOF
 '     '    handle {'     "        redir $dj_target 302"     '    }'     '}' >> "$tmp"
 fi
 
+if [ "$LIVEKIT_ON" = "1" ]; then
+  cat >> "$tmp" <<'EOF'
+
+# Wygenerowane przez scripts/render_caddyfile.sh przy LIVEKIT_PROXY=1 – nie edytuj tego pliku.
+# Sygnalizacja LiveKit (WebSocket i /rtc/validate) dla pokoi webinarów (docs/OPERACJE.md § 36.2).
+# Media nie idą przez Caddy: UDP 50000–50100 i TCP 7881 prosto do kontenera `livekit`.
+live.{$SITE_DOMAIN} {
+EOF
+  if [ "$SUBDOMAINS_ON" = "1" ]; then
+    printf '%s\n' \
+      '    # Zwykły certyfikat (nie on-demand bloku *.) – scripts/render_caddyfile.sh, PLATFORM_SUBDOMAINS=1.' \
+      '    tls {' '        key_type p256' '    }' >> "$tmp"
+  fi
+  printf '%s\n' \
+    '    header {' '        Referrer-Policy no-referrer' '        -Server' '    }' \
+    '    reverse_proxy livekit:7880' '}' >> "$tmp"
+fi
+
 mkdir -p "$(dirname "$OUT")"
 cat "$tmp" > "$OUT"
 # Podsumowanie rozszerzane tylko o przełączniki włączone – przy wyłączonych linijka jest ta sama
@@ -569,4 +603,5 @@ cat "$tmp" > "$OUT"
 extras=""
 [ "$SUBDOMAINS_ON" = "1" ] && extras="$extras, subdomeny platformy: włączone"
 [ "$DJCMS_ON" = "1" ] && extras="$extras, dj. (django CMS): włączone, DJCMS_PRIMARY=$PRIMARY_ON ($DJCMS_MODE)"
+[ "$LIVEKIT_ON" = "1" ] && extras="$extras, live. (LiveKit): włączone"
 echo "render_caddyfile: $OUT (domen dodatkowych: $added$extras)"

@@ -60,6 +60,7 @@ from apps.grading.worklog import format_duration, review_seconds
 from apps.web.forms import ReviewDraftForm, ReviewSubmitForm
 from apps.web.mixins import ReviewerRequiredMixin
 from apps.web.points_fields import score_form_error
+from apps.webinars.services import committee_webinars_context
 
 
 class ReviewerScopedMixin(ReviewerRequiredMixin):
@@ -182,6 +183,8 @@ class ReviewListView(ReviewerScopedMixin, TemplateView):
             )
         context["tabs"] = tabs
         context.update(committee_rooms_context(self.request.user, self.competition))
+        # Webinary (WEB-01) – pusty słownik bez zapytań w konkursie bez webinarów.
+        context.update(committee_webinars_context(self.request.user, self.competition))
         # Zakładka otwierana przy wejściu: pierwsza niepusta, czyli zwykle „Do zrobienia”.
         # Otwieranie pustej zakładki tylko dlatego, że stoi pierwsza, pokazywałoby recenzentowi
         # komunikat „nic tu nie ma” nad listą, w której coś jest.

@@ -27,17 +27,18 @@ from django.conf import settings
 from django.utils.translation import to_locale
 
 LOCALE_DIR = Path(settings.BASE_DIR) / "locale"
-CATALOGS = sorted(LOCALE_DIR.glob("*/LC_MESSAGES/django.po"))
-#: Katalogi **aplikacji** (``apps/<nazwa>/locale``): nowe funkcje trzymają swoje napisy u siebie,
-#: żeby równoległe zadania nie kłóciły się o jeden wspólny plik. Django scala je z ``LOCALE_PATHS``
-#: przy odczycie, więc sprawdzamy je tymi samymi testami składni, placeholderów i kompletności.
-APP_CATALOGS = sorted((Path(settings.BASE_DIR) / "apps").glob("*/locale/*/LC_MESSAGES/django.po"))
-ALL_CATALOGS = [*CATALOGS, *APP_CATALOGS]
+#: Katalog główny i katalogi aplikacji (``apps/<nazwa>/locale``). Django scala je przy tłumaczeniu,
+#: więc napis z katalogu aplikacji ma spełniać te same warunki, co napis z głównego – inaczej nowa
+#: aplikacja mogłaby wnieść niekompilujący się albo niepełny katalog, którego żaden test nie czyta.
+CATALOGS = sorted(LOCALE_DIR.glob("*/LC_MESSAGES/django.po")) + sorted(
+    (Path(settings.BASE_DIR) / "apps").glob("*/locale/*/LC_MESSAGES/django.po")
+)
 
 
 def catalog_id(path: Path) -> str:
-    """``en`` dla katalogu wspólnego, ``alumni-en`` dla katalogu aplikacji – identyfikatory bez kolizji."""
-    return path.parts[-3] if path in CATALOGS else f"{path.parts[-5]}-{path.parts[-3]}"
+    """``en`` dla katalogu głównego, ``delegation_logistics/en`` dla katalogu aplikacji."""
+    language = path.parts[-3]
+    return language if path.parents[2] == LOCALE_DIR else f"{path.parts[-5]}/{language}"
 
 
 #: ``%(name)s``, ``%s``, ``%d``, ``%.2f`` … oraz ``{name}``. ``%%`` to znak procentu, nie placeholder.
@@ -108,7 +109,7 @@ def test_every_configured_language_has_a_catalog():
     assert not missing
 
 
-@pytest.mark.parametrize("catalog", ALL_CATALOGS, ids=catalog_id)
+@pytest.mark.parametrize("catalog", CATALOGS, ids=catalog_id)
 def test_catalog_compiles(catalog, tmp_path):
     msgfmt = shutil.which("msgfmt")
     if msgfmt is None:
@@ -122,7 +123,7 @@ def test_catalog_compiles(catalog, tmp_path):
     assert result.returncode == 0, result.stderr
 
 
-@pytest.mark.parametrize("catalog", ALL_CATALOGS, ids=catalog_id)
+@pytest.mark.parametrize("catalog", CATALOGS, ids=catalog_id)
 def test_placeholders_match(catalog):
     problems = []
     for entry in parse_po(catalog):
@@ -151,7 +152,7 @@ def test_placeholders_match(catalog):
     assert not problems, "\n".join(problems[:20])
 
 
-@pytest.mark.parametrize("catalog", ALL_CATALOGS, ids=catalog_id)
+@pytest.mark.parametrize("catalog", CATALOGS, ids=catalog_id)
 def test_catalog_has_no_fuzzy_entries(catalog):
     """``fuzzy`` znaczy „Django tego nie użyje” – tłumaczenie uznane za dobre nie może nim być."""
     fuzzy = [
@@ -162,7 +163,7 @@ def test_catalog_has_no_fuzzy_entries(catalog):
     assert not fuzzy, fuzzy[:10]
 
 
-@pytest.mark.parametrize("catalog", ALL_CATALOGS, ids=catalog_id)
+@pytest.mark.parametrize("catalog", CATALOGS, ids=catalog_id)
 def test_catalog_is_complete(catalog):
     """Każdy napis źródłowy ma tłumaczenie – brak to polskie słowo w środku obcej strony."""
     missing = [

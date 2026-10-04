@@ -269,3 +269,37 @@ def test_iqo_theme_renders_home_and_panel(client_for, competition, monkeypatch, 
 def test_manifest_layouts_documented_in_example():
     manifest = json.loads(example_files()["manifest.json"])
     assert manifest["layouts"]["header"].startswith("minimal")
+
+
+def test_csp_on_page_cache_hit_still_allows_theme_assets(client_for, themed, settings):
+    """Trafienie w cache strony gościa nie renderuje szablonu – CSP ma mimo to wpuścić arkusze motywu.
+
+    Prod 4.10.2026: pierwsze wejście (MISS) miało motyw, każde następne (HIT) – arkusze motywu
+    zablokowane przez ``style-src`` i wygląd klasyczny.
+    """
+    settings.S3_PUBLIC_ENDPOINT_URL = "https://s3.example.test"
+    settings.PAGE_CACHE_ENABLED = True
+    client = client_for(themed)
+
+    miss = client.get("/")
+    hit = client.get("/")
+
+    assert miss["X-Page-Cache"] == "MISS"
+    assert hit["X-Page-Cache"] == "HIT"
+    for response in (miss, hit):
+        policy = _csp(response)
+        assert "https://s3.example.test" in policy["style-src"]
+        assert "https://s3.example.test" in policy["font-src"]
+
+
+def test_csp_on_page_cache_hit_without_theme_stays_the_old_policy(client_for, competition, settings):
+    settings.S3_PUBLIC_ENDPOINT_URL = "https://s3.example.test"
+    settings.PAGE_CACHE_ENABLED = True
+    client = client_for(competition)
+
+    client.get("/")
+    hit = client.get("/")
+
+    assert hit["X-Page-Cache"] == "HIT"
+    assert "https://s3.example.test" not in _csp(hit)["style-src"]
+    assert "https://s3.example.test" not in _csp(hit)["font-src"]

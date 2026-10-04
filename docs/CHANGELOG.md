@@ -8,6 +8,24 @@ dokładnie jednemu wierszowi tej tabeli.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## [Unreleased] – Webinary w LiveKit (WEB-01)
+
+- **Webinary** (`apps.webinars`, flaga konkursu `webinars`, domyślnie wyłączona): koordynator planuje
+  webinar (termin, odbiorcy: konkurs / edycja / etap / komisja / kapitanowie, współprowadzący,
+  nagrywanie, link dla gości), odbiorcy wchodzą do **pokoju na platformie** (`/webinars/<id>/room/`:
+  siatka i widok prelegenta, ekran, mikrofon/kamera, lista uczestników, ręka, czat; motyw konkursu,
+  11 języków, RTL). Widz bez nadawania – „Daj głos” przez `UpdateParticipant`.
+- **LiveKit** (własny serwer, Apache 2.0): tokeny HS256 na 10 min z serwera (bez sekretu w HTML/JS),
+  webhook `/integrations/livekit/webhook/` z obowiązkowym podpisem i ochroną przed powtórką (stan
+  pokoju, **lista obecności**, koniec nagrania), nagrania przez Egress do prywatnego bucketu (MP4,
+  publikacja, adres podpisany na 2 h), transmisja RTMP na YouTube (klucz niezapisywany).
+- **Infrastruktura:** `deploy/livekit/` (nakładka compose z profilem `livekit`, przykłady `livekit.yaml`
+  i `egress.yaml`, polityka MinIO egress), `LIVEKIT_PROXY` w `render_caddyfile.sh` (blok `live.`),
+  `scripts/vendor_livekit_client.sh` (SDK z npm ze sprawdzeniem sumy, bez CDN). CSP: origin LiveKit
+  w `connect-src` tylko przy konfiguracji. Nowe segmenty `webinars`, `integrations` w kontrakcie tras.
+- Listy: zaproszenie (raz) i przypomnienie (beat co 5 min), z wyłączeniem; rejestr czynności
+  „Webinary online (LiveKit)” przy fladze. Opis: `docs/tasks/WEB-01.md`, `docs/OPERACJE.md` § 36.
+
 ## [Unreleased] – Motywy wizualne wgrywane paczkami (THEME-01)
 
 - **Tokeny motywu:** arkusze (`static/css/*.css`) czytają kolory, kroje, promienie i odstępy przez
@@ -44,6 +62,7 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
 - **i18n:** 70 nowych napisów ekranów opiekuna i listów w 10 katalogach (maszynowe, do przeglądu).
 - Dokumentacja: `docs/OPERACJE.md` § 28, `docs/PODRECZNIK-ORGANIZATORA.md` § 10b,
   `docs/PODRECZNIK-OPIEKUNA-DRUZYNY.md`.
+
 ## [Unreleased] – Sieć absolwentów i mentoring (ALUM-01)
 
 - **Absolwenci (`apps.alumni`, flaga `alumni`, domyślnie wyłączona):** byli uczestnicy z
@@ -66,11 +85,9 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
 - **Zaproszenia** `/coordinator/alumni/invitations/` (warsztaty, webinary, jury; filtry: edycja,
   poziom, zainteresowania, mentorzy) w języku odbiorcy, z wypisem jednym kliknięciem (RFC 8058).
   **Statystyki** „gdzie są teraz” z progiem k-anonimowości 5.
-- **RODO:** czynność `ALUMNI_ACTIVITY` w rejestrze (wersja 1.11, tylko przy fladze), sekcja
+- **RODO:** czynność `ALUMNI_ACTIVITY` w rejestrze (wersja 1.12, tylko przy fladze), sekcja
   `absolwenci` w eksporcie danych konta, czyszczenie przy anonimizacji, wstrzymanie automatu
   retencji na czas ważnej zgody (`BLOCKED_ALUMNI`). Nowy zakres limitu `alumni` (30/h, per konto).
-- **Tłumaczenia aplikacji we własnym katalogu** (`apps/<nazwa>/locale`) – Dockerfile, CI, conftest
-  i `test_translations` obejmują teraz także katalogi aplikacji.
 
 ## [Unreleased] – Wielojęzyczność per konkurs (I18N-01) i kraje zamiast województw (REG-01)
 

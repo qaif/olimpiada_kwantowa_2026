@@ -1073,6 +1073,7 @@ decyzja człowieka, a nie wynik obliczenia.
 | **Zgłoszenia** (support desk) | `/coordinator/support/` | kolejka spraw od ludzi, z wątkiem i odpowiedzią |
 | **Forum uczestników** | `/coordinator/forum/` | rozmowa uczestników między sobą, moderowana przez Ciebie |
 | **Pokoje wideo** | `/coordinator/video-rooms/` | pokoje na Jitsi olimpiady poza terminami rozmów: zebrania komisji, konsultacje, goście bez konta (§ 6.4b) |
+| **Webinary** | `/coordinator/webinars/` | spotkania z terminem w pokoju na platformie (LiveKit), z nagraniami i listą obecności (§ 10i) |
 | **FAQ** | `/faq/` (redakcja w `/cms/`) | odpowiedzi, które mają wyprzedzić zgłoszenia |
 | **Strona statusu** | `/status/` | „nie mogę wysłać pracy — to u was, czy u mnie?” |
 
@@ -1441,36 +1442,6 @@ pokoi; jego **linki-zaproszenia działają dalej**, dopóki nie zamkniesz jego p
 Co zostaje w dzienniku zdarzeń (bez linków, przepustek i nazw gości): założenie pokoju, pokazanie
 linków, wymiana linku, zamknięcie, każde wejście (rola: koordynator, komisja, autor, link gospodarza,
 link gościa), nadanie i odebranie uprawnienia.
-
-### 6.4c Absolwenci i mentoring — `/coordinator/alumni/`
-
-Sieć byłych uczestników (za flagą `alumni` – włącza ją operator, `docs/OPERACJE.md` § 31).
-
-- **Kto dołącza:** pełnoletni uczestnik z osiągnięciem w **zakończonej** edycji na poziomie co
-  najmniej tym z ustawień (laureat, finalista, awans do kolejnego etapu albo każdy uczestnik).
-  Osiągnięcia liczą się wyłącznie z **ogłoszonych** wyników i wystawionych dyplomów – cofnięcie
-  publikacji zdejmuje je z profili. Edycja bieżąca liczy się jako zakończona, gdy wszystkie jej
-  etapy mają ogłoszone wyniki.
-- **Zgoda:** osobna, z własną treścią; wycofanie jednym przyciskiem usuwa profil od razu.
-  Na liście widzisz pełne dane osoby (jak na karcie uczestnika) i możesz **ukryć** profil
-  (np. niestosowne bio) – znika z katalogu i ze ściany.
-- **Publiczna ściana** `/alumni/` – tylko profile, które absolwent sam oznaczył jako publiczne;
-  pokazuje podpis, osiągnięcia, uczelnię i kierunek.
-- **Mentoring** (`/coordinator/alumni/mentoring/`): uczestnik bieżącej edycji prosi mentora,
-  mentor przyjmuje, rozmowa otwiera się w Wiadomościach. Gdy uczestnik jest **niepełnoletni**:
-  przy zasadzie Wiadomości „ta sama grupa wiekowa” każdą wiadomość akceptujesz przed doręczeniem
-  (kolejka moderacji Wiadomości); przy „bez ograniczeń” wiadomości dochodzą od razu, ale trafiają
-  do przeglądu (postmoderacja). Przy wyłączonych rozmowach uczestników mentoring działa wyłącznie
-  z akceptacją każdej wiadomości. Treści rozmów nie ma na ekranie mentoringu – czytasz ją tylko
-  w kolejce moderacji. Możesz zakończyć każdą relację (notatka obowiązkowa, obie strony dostają list)
-  i zamykać zgłoszenia problemów – zgłoszenie przychodzi do Ciebie e-mailem od razu.
-- **Zaproszenia** (`/coordinator/alumni/invitations/`): warsztaty, webinar (wklej adres wydarzenia),
-  jury. Filtry: edycje, najniższe osiągnięcie, zainteresowania, tylko mentorzy. „Policz odbiorców”
-  niczego nie wysyła. List idzie w języku odbiorcy, z odnośnikiem wypisu; w historii zostaje liczba
-  odbiorców, nie ich lista.
-- **Gdzie są teraz** (`/coordinator/alumni/stats/`): kraje, uczelnie, kierunki, zainteresowania
-  i najwyższe osiągnięcie – grupy mniejsze niż 5 osób są łączone w „inne”, a przy sieci mniejszej
-  niż 5 osób rozkładów nie ma wcale.
 
 ### 6.5 FAQ
 
@@ -2052,6 +2023,78 @@ po wgraniu nowszej.
 **Nowy motyw albo poprawka motywu** to paczka ZIP wgrywana przez operatora platformy
 (superkoordynatora) w **„Katalogu motywów platformy”** — nie w tym ekranie. Paczka przechodzi
 kontrolę bezpieczeństwa i antywirusową; odrzucona zostaje w katalogu z raportem błędów.
+
+## 10i. Webinary — `/coordinator/webinars/`
+
+Menu **Komunikacja → Webinary** (gdy operator włączył webinary w konkursie). Webinar to spotkanie
+z terminem w **pokoju na platformie**: obraz, dźwięk, udostępnianie ekranu, czat i podniesiona ręka
+działają w przeglądarce, bez instalowania czegokolwiek. Jeśli ekran mówi „Serwer LiveKit nie jest
+skonfigurowany”, poproś operatora o uruchomienie serwera (`docs/OPERACJE.md` § 36).
+
+**Nowy webinar.** Tytuł, opis (stoi w zaproszeniu), początek (strefa konkursu), czas trwania, **odbiorcy**:
+wszyscy uczestnicy konkursu, uczestnicy bieżącej edycji, uczestnicy wybranego etapu (bez
+zdyskwalifikowanych), komisja (recenzenci i komisja odwoławcza), kapitanowie drużyn (gdy konkurs ma
+drużyny); opcjonalnie „także komisja”. **Współprowadzący** – inni koordynatorzy albo członkowie komisji
+(np. wykładowca) – wchodzą jako prowadzący. **Nagrywanie** (czy wolno nagrywać), **przypomnienie
+e-mailem** (raz, około godziny przed startem), **link dla gości bez konta** (domyślnie wyłączony).
+
+**Przebieg.** Odbiorcy widzą webinar na stronie „Webinary” (pasek panelu `/me/`, karta w panelu
+komisji). „**Rozpocznij i wejdź do pokoju**” otwiera pokój; odbiorcy wchodzą od 15 minut przed
+początkiem, ale dopiero gdy webinar jest rozpoczęty. **Widzowie nie nadają obrazu ani dźwięku** –
+podnoszą rękę, a Ty na liście uczestników klikasz „**Daj głos**” (i „Odbierz głos” po pytaniu).
+„Usuń z pokoju” wyprasza osobę i nie wpuszcza jej z powrotem, dopóki na liście obecności nie klikniesz
+„Wpuść ponownie” (gościa z nową sesją zatrzyma dopiero „Wygeneruj nowy link”). „**Zakończ webinar**”
+zamyka pokój dla wszystkich.
+
+**Nagrania.** „Nagrywaj” (w pokoju albo na ekranie webinaru) – plik MP4 pojawia się kilka minut po
+zatrzymaniu („gotowe”). Odbiorcy widzą nagranie dopiero po „**Opublikuj**”; „Wycofaj” je chowa,
+„Usuń” (z zaznaczonym potwierdzeniem) kasuje plik na zawsze. Nagranie, które wisi w stanie „nagrywa”, sprawdzisz przyciskiem
+„Sprawdź / oznacz jako nieudane”. Uczestnicy widzą przed wejściem informację, że webinar może być
+nagrywany, a w trakcie nagrania – czerwony znacznik. Nagrania i lista obecności są kasowane
+automatycznie po roku od webinaru (ustawienie operatora).
+
+**Transmisja na YouTube.** Na ekranie trwającego webinaru wklej klucz transmisji z YouTube Studio (albo
+pełny adres `rtmp(s)://…`) i „Włącz transmisję”. Klucza nie zapisujemy – przy kolejnej transmisji wpisz
+go ponownie.
+
+**Zaproszenie e-mailem** – jednorazowo, do wszystkich odbiorców, którzy nie wyłączyli listów o
+webinarach. List nie zawiera żadnego „magicznego linku” – prowadzi na stronę webinarów po zalogowaniu.
+
+**Lista obecności** – kto wszedł, kiedy pierwszy raz i ile minut był w pokoju (z danych serwera
+wideo); posłuży też do zaświadczeń o udziale.
+
+W dzienniku zdarzeń: założenie, zmiany, rozpoczęcie, zakończenie, odwołanie, wejścia (rola), danie
+i odebranie głosu, nagrania, transmisja, zaproszenie – bez tokenów, kluczy i nazw gości.
+
+## 10l. Absolwenci i mentoring — `/coordinator/alumni/`
+
+Sieć byłych uczestników (za flagą `alumni` – włącza ją operator, `docs/OPERACJE.md` § 38).
+
+- **Kto dołącza:** pełnoletni uczestnik z osiągnięciem w **zakończonej** edycji na poziomie co
+  najmniej tym z ustawień (laureat, finalista, awans do kolejnego etapu albo każdy uczestnik).
+  Osiągnięcia liczą się wyłącznie z **ogłoszonych** wyników i wystawionych dyplomów – cofnięcie
+  publikacji zdejmuje je z profili. Edycja bieżąca liczy się jako zakończona, gdy wszystkie jej
+  etapy mają ogłoszone wyniki.
+- **Zgoda:** osobna, z własną treścią; wycofanie jednym przyciskiem usuwa profil od razu.
+  Na liście widzisz pełne dane osoby (jak na karcie uczestnika) i możesz **ukryć** profil
+  (np. niestosowne bio) – znika z katalogu i ze ściany.
+- **Publiczna ściana** `/alumni/` – tylko profile, które absolwent sam oznaczył jako publiczne;
+  pokazuje podpis, osiągnięcia, uczelnię i kierunek.
+- **Mentoring** (`/coordinator/alumni/mentoring/`): uczestnik bieżącej edycji prosi mentora,
+  mentor przyjmuje, rozmowa otwiera się w Wiadomościach. Gdy uczestnik jest **niepełnoletni**:
+  przy zasadzie Wiadomości „ta sama grupa wiekowa” każdą wiadomość akceptujesz przed doręczeniem
+  (kolejka moderacji Wiadomości); przy „bez ograniczeń” wiadomości dochodzą od razu, ale trafiają
+  do przeglądu (postmoderacja). Przy wyłączonych rozmowach uczestników mentoring działa wyłącznie
+  z akceptacją każdej wiadomości. Treści rozmów nie ma na ekranie mentoringu – czytasz ją tylko
+  w kolejce moderacji. Możesz zakończyć każdą relację (notatka obowiązkowa, obie strony dostają list)
+  i zamykać zgłoszenia problemów – zgłoszenie przychodzi do Ciebie e-mailem od razu.
+- **Zaproszenia** (`/coordinator/alumni/invitations/`): warsztaty, webinar (wklej adres wydarzenia),
+  jury. Filtry: edycje, najniższe osiągnięcie, zainteresowania, tylko mentorzy. „Policz odbiorców”
+  niczego nie wysyła. List idzie w języku odbiorcy, z odnośnikiem wypisu; w historii zostaje liczba
+  odbiorców, nie ich lista.
+- **Gdzie są teraz** (`/coordinator/alumni/stats/`): kraje, uczelnie, kierunki, zainteresowania
+  i najwyższe osiągnięcie – grupy mniejsze niż 5 osób są łączone w „inne”, a przy sieci mniejszej
+  niż 5 osób rozkładów nie ma wcale.
 
 ## 11. Kalendarz prowadzenia edycji — ściągawka
 
