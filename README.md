@@ -1405,7 +1405,7 @@ tabela). Reszta narzędzi etapu siedzi pod „Więcej”.
 
 > **Runbook produkcyjny: [`docs/OPERACJE.md`](docs/OPERACJE.md).** Tam są rzeczy, które robi się
 > na działającym serwisie i pod presją czasu: automatyczne kopie zapasowe poza serwer razem
-> z cotygodniowym testem odtwarzania, monitoring i alarmy, wdrożenie z GitHub Actions, polityka
+> z conocnym testem odtwarzania, monitoring i alarmy, wdrożenie z GitHub Actions, polityka
 > logowania dwuskładnikowego oraz **lista kontrolna incydentu**. Sekcje niżej zostają jako opis
 > pojedynczych czynności wykonywanych ręcznie.
 >

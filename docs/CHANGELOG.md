@@ -8,6 +8,32 @@ dokładnie jednemu wierszowi tej tabeli.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## [Unreleased] – Conocny, automatyczny test odtwarzania kopii zapasowej (OPS-01)
+
+- **`scripts/backup_verify.sh` codziennie o 4:40** (dotąd w niedzielę), z kopią z 3:15 pod jednym
+  `flock` (wpis crona zakłada `scripts/deploy.sh`). Tymczasowy Postgres na nowej sieci `--internal`
+  z limitami pamięci i CPU, dane na `tmpfs`; zrzut rozszyfrowany **strumieniem** do `pg_restore`
+  (jawny zrzut nie dotyka dysku); paczka plików czytana w całości (`gpg | tar -tf`); `nice`/`ionice`
+  dla procesów hosta.
+- **Sprawdzenia aplikacji** (`apps/core/restore_check.py`, `manage.py restore_check verify`) w
+  jednorazowym kontenerze z obrazem i środowiskiem działającego `web`, podłączonym wyłącznie do bazy
+  tymczasowej: wiek kopii (26 h), migracje względem wdrożonej wersji, liczności tabel kluczowych w
+  widełkach względem bazy żywej, czytelność każdego modelu, sekwencje kluczy, superużytkownik,
+  odszyfrowanie pól Fernet (logistyka) bieżącym kluczem, próbka plików prac i mediów CMS w paczce,
+  `dj.` jak dotąd. Pomiar czasów (`db_restore_s`, `files_list_s`, `checks_s`, `total_s`).
+- **Wynik i alarmy**: `restore_check record` (cache, audyt `backup.restore_check`, natychmiastowy list
+  do `ALERT_EMAILS` przy porażce), watchdog: alarm `backup-restore-check` do pierwszego udanego testu,
+  próg „brak udanego testu” 36 h (dotąd 10 dni, `MAX_VERIFY_AGE_HOURS`); historia na hoście
+  `/opt/olimpiada-backups/restore-checks.jsonl`; `restore_check show`.
+- **`/healthz/` i `/status.json`**: nowy klucz `backup_restore_check` (`ok|failed|stale|unknown`, na
+  końcu kontraktu, bez dat; nie zmienia kodu odpowiedzi ani `status`).
+- Bezpieczeństwo: podwójna bramka izolacji (skrypt + komenda: przedrostek `restorecheck_`, host różny
+  od `db`, `RESTORE_CHECK_ISOLATED=1`), sesja tylko do odczytu, hasło kopii przez deskryptor, wynik bez
+  wartości pól; każdy błąd przebiegu = meldunek nieudany z nazwą kroku.
+- Testy: `apps/core/tests/test_restore_check.py`, `scripts/tests/backup_offsite_test.sh` (przypadki 14,
+  16), nowy `scripts/tests/restore_check_e2e.sh` (pełny cykl na lokalnym Dockerze, pomiar RTO).
+- Dokumentacja: `docs/OPERACJE.md` § 43 (oraz § 1.4, § 3.2), `docs/tasks/OPS-01.md`.
+
 ## [Unreleased] – LiveKit: jeden port UDP z multipleksacją
 
 - **Zmienione:** wariant „LiveKit na tym hoście” (OPERACJE § 36) – media przez jeden port UDP 7882
