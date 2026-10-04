@@ -183,4 +183,28 @@ class StageEntrySerializer(serializers.ModelSerializer):
         data = super().to_representation(instance)
         if instance.stage.results_published_at is None:
             data["total_points"] = None
+        window = _entry_time_window(instance, self.context)
+        if window is not None:
+            # Okno czasowe ucznia (TZ-01) – klucz **tylko** w etapie z oknami: odpowiedź każdego
+            # innego konkursu zostaje co do klucza ta sama. ``stage.opens_at``/``deadline_at`` to
+            # rama etapu; uczeń zaczyna i kończy w swoim oknie.
+            data["time_window"] = {
+                "label": window.window.label,
+                "opens_at": window.opens_at.isoformat(),
+                "deadline_at": window.deadline_at.isoformat(),
+                "submission_deadline": window.submission_deadline.isoformat(),
+                "extra_minutes": window.extra_minutes,
+            }
         return data
+
+
+def _entry_time_window(entry: StageEntry, context):
+    """Okno ucznia wpisu albo ``None`` (bez flagi konkursu – bez zapytania)."""
+    from apps.time_windows.access import effective_window
+    from apps.time_windows.access import enabled as time_windows_enabled
+
+    request = context.get("request")
+    competition = getattr(request, "competition", None)
+    if entry.participant_id is None or not time_windows_enabled(competition):
+        return None
+    return effective_window(entry.stage, entry.participant, competition)

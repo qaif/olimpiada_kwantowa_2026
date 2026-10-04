@@ -122,9 +122,11 @@ class DelegationWindow(models.Model):
     delegation = models.ForeignKey(
         "accounts.Delegation", on_delete=models.CASCADE, related_name="time_windows", verbose_name="delegacja"
     )
-    #: ``PROTECT``: okna z przydziałem nie da się skasować po cichu – serwis każe najpierw
-    #: przenieść kraj, żeby nikt nie wylądował w „pierwszym oknie” przez przypadek.
-    window = models.ForeignKey(TimeWindow, on_delete=models.PROTECT, related_name="delegation_assignments")
+    #: ``RESTRICT``: okna z przydziałem nie da się skasować samego – serwis każe najpierw przenieść
+    #: kraj, żeby nikt nie wylądował w innym oknie przez przypadek. W odróżnieniu od ``PROTECT``
+    #: usunięcie **całego** planu (albo etapu, albo konkursu) kaskadą przechodzi: okno i przydział
+    #: znikają wtedy razem, z tego samego korzenia.
+    window = models.ForeignKey(TimeWindow, on_delete=models.RESTRICT, related_name="delegation_assignments")
     assigned_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
     )
@@ -158,9 +160,10 @@ class ParticipantWindow(models.Model):
         related_name="time_windows",
         verbose_name="uczestnik",
     )
+    #: ``RESTRICT`` – uzasadnienie przy ``DelegationWindow.window``.
     window = models.ForeignKey(
         TimeWindow,
-        on_delete=models.PROTECT,
+        on_delete=models.RESTRICT,
         null=True,
         blank=True,
         related_name="participant_assignments",

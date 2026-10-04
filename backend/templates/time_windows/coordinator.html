@@ -44,6 +44,11 @@
     <p class="hint">Czas pracy: {{ view.plan.duration_minutes|minutes_as_hours }}. Ujawnienie zadań i koniec premoderacji:
       <strong>{{ release_at|local_time }}</strong> (koniec ostatniego okna + największy dodatkowy czas + tolerancja etapu).</p>
   </div>
+  {% if quiz_results_immediately %}
+    <p class="notice" data-warning="quiz-results-immediately"><strong>Uwaga:</strong> test online tego etapu pokazuje wynik <strong>od razu</strong> po zakończeniu
+      podejścia. Uczeń z okna A może przekazać uczniom z późniejszych okien, które odpowiedzi były dobre. Przy oknach
+      ustaw w ustawieniach testu „wynik po zamknięciu testu” (pokaże się po końcu ostatniego okna) albo „nigdy”.</p>
+  {% endif %}
   {% if quiz_has_own_window %}
     <p class="notice">Test online tego etapu ma własne terminy otwarcia/zamknięcia – w trybie okien są pomijane: każdy uczeń zaczyna test w swoim oknie.</p>
   {% endif %}

@@ -116,9 +116,18 @@ class StageWindowsView(StageWindowsMixin, View):
                     "windows": view.windows,
                     "stage_opened": now >= stage.opens_at,
                     "quiz_has_own_window": _quiz_has_own_window(stage),
+                    "quiz_results_immediately": _quiz_results_immediately(stage),
                 }
             )
         return TemplateResponse(request, COORDINATOR_TEMPLATE, context)
+
+
+def _quiz_results_immediately(stage) -> bool:
+    """Czy test etapu pokazuje wynik od razu – przy oknach to wyciek między strefami (ostrzeżenie)."""
+    from apps.quiz.models import ShowResultsAfter
+
+    quiz = getattr(stage, "quiz", None) if stage.is_quiz else None
+    return quiz is not None and quiz.show_results_after == ShowResultsAfter.IMMEDIATELY
 
 
 def _quiz_has_own_window(stage) -> bool:
