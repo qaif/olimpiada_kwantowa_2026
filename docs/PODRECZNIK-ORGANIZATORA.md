@@ -1994,6 +1994,45 @@ retencja i usunięcie konta — § 9.1.
 
 ---
 
+## 10c. Statystyki szkół — `/coordinator/school-stats/`
+
+**Tylko w konkursie z włączoną funkcją** (przełącznik `school_statistics`, włącza go operator —
+`OPERACJE.md` § 29). Menu → *Raporty* → **Statystyki szkół**.
+
+**Co jest na ekranie.** Wybór edycji (domyślnie bieżąca) i kolejności (liczba uczestników, wyniki,
+nazwa), a pod nim:
+
+- **ranking szkół** — liczba uczestników edycji, zmiana wobec poprzedniej edycji, a dla każdego etapu
+  z **ogłoszonymi** wynikami: średnia punktów i liczba awansujących. Szkoła spoza wykazu RSPO
+  (nazwa wpisana ręcznie) ma znaczek „spoza wykazu” i nie ma raportu PDF,
+- **województwa** — liczba szkół i uczestników (słupek) oraz średnia i awanse w pierwszym etapie
+  z pełną publikacją,
+- **szkoły do odzyskania** — miały uczestników w poprzedniej edycji, w tej nie mają nikogo; to lista
+  adresatów akcji promocyjnej (z numerem RSPO do korespondencji seryjnej).
+
+**Próg 5.** Średnia i liczba awansujących grupy mniejszej niż 5 wpisów są ukryte („<5”) — na ekranie,
+w **Eksporcie CSV** i w raporcie PDF, bo oba pliki zwykle wędrują dalej (kuratorium, szkoła).
+Liczba uczestników jest widoczna zawsze. Punkty pochodzą z ogłoszonej tabeli (stan z chwili
+publikacji); etap ogłoszony jako „tylko awansujący” nie ma średnich.
+
+**Raport PDF szkoły** (odnośnik „PDF” w wierszu) — jedna kartka dla dyrektora: etapy edycji, szkoła na
+tle województwa i całej olimpiady, udział szkoły w kolejnych edycjach. Bez nazwisk i kodów
+uczestników. Pobranie CSV i PDF zostaje w audycie (`export.generated`,
+`school_stats.report_downloaded`).
+
+**Co widzi opiekun szkolny** (`/supervisor/statistics/`, przycisk na jego pulpicie): uczniów, którzy
+wskazali jego adres (ta sama reguła co pulpit — § 10), z zapisem, oddaniem i terminem w każdym etapie,
+a po ogłoszeniu wyników także punkty i awans; porównanie z województwem i całą olimpiadą oraz wykres
+średnich w kolejnych edycjach. **Agregat szkoły i raport PDF** dostaje wyłącznie opiekun ze szkołą
+wybraną z wykazu i **zweryfikowaną** przez organizatora (karta opiekuna, pole „dane szkoły
+zweryfikowane”). U opiekuna próg ma drugi warunek: grupa jest ukryta także wtedy, gdy poza jego
+uczniami jest w niej od 1 do 4 osób — inaczej z różnicy dałoby się wyliczyć wynik „obcego” ucznia.
+
+**RODO.** Rejestr czynności dostaje przy włączonej funkcji wiersz „Statystyki szkół i opiekunów
+szkolnych” (§ 9.2). Nowych danych funkcja nie zbiera.
+
+---
+
 ## 11. Kalendarz prowadzenia edycji — ściągawka
 
 | Kiedy | Co zrobić | Gdzie |

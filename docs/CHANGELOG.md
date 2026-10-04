@@ -8,6 +8,20 @@ dokładnie jednemu wierszowi tej tabeli.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## [Unreleased] – Statystyki szkół i opiekunów szkolnych (STAT-01)
+
+- **Flaga `school_statistics`** (domyślnie wyłączona), nowa aplikacja `apps.school_stats` bez modeli.
+  Opiekun szkolny (`/supervisor/statistics/`): jego uczniowie
+  w edycjach i etapach (zapis, oddanie, termin; punkty i awans **wyłącznie** z ogłoszonych publikacji,
+  lista „tylko awansujący” bez punktów osób spoza listy), porównanie ze szkołą (tylko szkoła z wykazu
+  zweryfikowana przez organizatora), województwem i całością z progiem k-anonimowości 5 i regułą
+  dopełnienia, wykres SVG postępu przez edycje (bez JS), raport PDF szkoły dla dyrektora (same
+  agregaty). Koordynator (`/coordinator/school-stats/`, menu „Raporty”): ranking szkół z porównaniem
+  rok do roku, województwa, „szkoły do odzyskania”, eksport CSV, raport PDF dowolnej szkoły. Agregaty
+  edycji w pamięci podręcznej z odciskiem publikacji (2 zapytania na edycję). Rejestr czynności 1.12
+  (wiersz warunkowy). Katalogi tłumaczeń aplikacji (`apps/<nazwa>/locale`) kompilowane w obrazie
+  i sprawdzane testem (`docs/tasks/STAT-01.md`, `docs/OPERACJE.md` § 29).
+
 ## [Unreleased] – Delegacje krajowe: rejestracja przez opiekunów drużyn narodowych (DEL-01)
 
 - **Tryb rejestracji konkursu** `Competition.registration_mode`: `OPEN` (domyślnie – każdy istniejący

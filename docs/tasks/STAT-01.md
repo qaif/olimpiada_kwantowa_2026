@@ -105,7 +105,7 @@ gałąź w `axis_for(competition)`, a nie przepisanie agregatów.
   `school_stats.report_downloaded` (szkoła, edycja) – bez danych osobowych.
 - Rejestr czynności: warunkowy wiersz „Statystyki szkół i opiekunów” (za flagą) z podstawą
   art. 6 ust. 1 lit. f RODO dla wglądu opiekuna w wyniki uczniów, którzy go wskazali, oraz opisem
-  k-anonimowości agregatów; wersja rejestru 1.11.
+  k-anonimowości agregatów; wersja rejestru 1.12 (1.11 zajęły delegacje, DEL-01).
 
 ## 8. Testy (`apps/school_stats/tests/`)
 

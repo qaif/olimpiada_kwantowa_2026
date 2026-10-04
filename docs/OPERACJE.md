@@ -3947,3 +3947,34 @@ jest renderowany z `app_routes.env` osobno, trzeba go wyrenderować ponownie.
 Przestawienie trybu z powrotem na `OPEN` otwiera samodzielną rejestrację i ukrywa ekrany delegacji (404);
 dane delegacji, opiekunów i uczniów zostają w bazie. Migracje `accounts.0036`–`0038` i `tenancy.0013` są
 odwracalne (nowe tabele i kolumny nullowalne albo z wartością domyślną).
+
+## 29. Statystyki szkół (STAT-01, flaga `school_statistics`)
+
+Funkcja nie ma modeli ani migracji – liczy agregaty z istniejących danych. Wdrożenie nie wymaga
+żadnego kroku; flaga jest domyślnie **wyłączona** (adresy `/supervisor/statistics/…`
+i `/coordinator/school-stats/…` dają 404, menu i pulpit opiekuna bez zmian).
+
+**Zapalenie** (`/admin/ → Konkursy → <konkurs> → feature_flags`, § 6.4):
+
+```json
+{"school_statistics": true}
+```
+
+Razem z flagą rejestr czynności konkursu dostaje wiersz „Statystyki szkół i opiekunów szkolnych”
+(wersja 1.12) – zapalenie jest więc decyzją organizatora o nowym celu przetwarzania (opiekun widzi
+przebieg ucznia przez edycje), nie skutkiem wdrożenia. Przed zapaleniem warto zweryfikować opiekunów
+(`SchoolSupervisor.verified` + szkoła z wykazu) – bez tego opiekun widzi swoich uczniów, województwo
+i całość, ale nie agregat szkoły i nie pobierze raportu PDF.
+
+**Pamięć podręczna** (Redis): klucze `school_stats:v1:<oś>:<edycja>:<odcisk publikacji>`; doba dla
+edycji, w której każdy etap ma publikację, 5 minut dla edycji w toku. Ponowna publikacja zmienia
+odcisk, więc nic nie trzeba czyścić ręcznie. W kluczach są wyłącznie agregaty (bez identyfikatorów
+osób).
+
+**Tłumaczenia:** napisy aplikacji mają własny katalog `backend/apps/school_stats/locale/` (maszynowe,
+jak § 26.3). Obraz kompiluje od tego wydania także katalogi aplikacji (`apps/*/locale`), a test
+`apps/core/tests/test_translations.py` sprawdza je tą samą miarą co katalog wspólny.
+
+**IQO:** oś grupowania to dziś szkoła z profilu uczestnika (`apps/school_stats/grouping.py`). Oś
+`delegation` (delegacje krajowe z § 28, region = kraj) jest przygotowanym punktem zaczepienia
+(`axis_for`) – dołożenie jej nie zmienia ekranów ani reguł progu.
