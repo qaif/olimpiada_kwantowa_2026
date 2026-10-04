@@ -1,0 +1,366 @@
+# Płatności online (PAY-01) – katalog aplikacji apps.payments.
+# Tłumaczenia maszynowe do przeglądu przez native speakerów (jak I18N-01 § 8).
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: olimpiada\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-04 19:20+0200\n"
+"PO-Revision-Date: 2026-10-04 20:00+0200\n"
+"Last-Translator: Claude (machine translation)\n"
+"Language-Team: olimpiada\n"
+"Language: es\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=3; plural=n == 1 ? 0 : n != 0 && n % 1000000 == 0 ? "
+"1 : 2;\n"
+
+msgid "Faktura"
+msgstr "Factura"
+
+msgid "Faktura pro forma"
+msgstr "Factura proforma"
+
+msgid "Data sprzedaży"
+msgstr "Fecha de venta"
+
+msgid "Zapłacono"
+msgstr "Pagado"
+
+msgid "Kod referencyjny"
+msgstr "Código de referencia"
+
+msgid "NIP / VAT ID"
+msgstr "NIF / número de IVA"
+
+msgid "Sprzedawca"
+msgstr "Vendedor"
+
+msgid "Nabywca"
+msgstr "Comprador"
+
+msgid "Pozycja"
+msgstr "Concepto"
+
+msgid "Ilość"
+msgstr "Cantidad"
+
+msgid "Cena"
+msgstr "Precio"
+
+msgid "Razem do zapłaty"
+msgstr "Total a pagar"
+
+msgid "Bank"
+msgstr "Banco"
+
+msgid "Tytuł przelewu"
+msgstr "Concepto de la transferencia"
+
+msgid "Dane do przelewu"
+msgstr "Datos para la transferencia"
+
+msgid "Faktura pro forma nie jest dokumentem księgowym. Fakturę wystawimy po zaksięgowaniu wpłaty."
+msgstr "La factura proforma no es un documento contable. Emitiremos la factura cuando recibamos el pago."
+
+msgid "Nazwa instytucji albo imię i nazwisko"
+msgstr "Nombre de la institución o nombre completo"
+
+msgid "Adres"
+msgstr "Dirección"
+
+msgid "Opcjonalnie – jeśli instytucja ma numer podatkowy, który ma znaleźć się na fakturze."
+msgstr "Opcional: si la institución tiene un número fiscal que debe figurar en la factura."
+
+msgid "E-mail do rozliczeń"
+msgstr "Correo electrónico de facturación"
+
+msgid "Liczba obserwatorów"
+msgstr "Número de observadores"
+
+msgid "Osoby towarzyszące drużynie bez roli opiekuna – płatne według cennika."
+msgstr "Personas que acompañan al equipo sin ser jefes de equipo; se cobran según la lista de precios."
+
+msgid "Opłata za delegację"
+msgstr "Cuota de la delegación"
+
+msgid "Uczeń"
+msgstr "Estudiante"
+
+msgid "Opiekun drużyny"
+msgstr "Jefe de equipo"
+
+msgid "Obserwator"
+msgstr "Observador"
+
+msgid "Opłata za udział"
+msgstr "Cuota de participación"
+
+msgid "Zniżka"
+msgstr "Descuento"
+
+msgid "cena wczesna"
+msgstr "precio anticipado"
+
+msgid "cena podstawowa"
+msgstr "precio normal"
+
+msgid "cena późna"
+msgstr "precio tardío"
+
+msgid "Instytucja"
+msgstr "Institución"
+
+msgid "Osoba prywatna"
+msgstr "Particular"
+
+msgid "Zwolnienie z opłat"
+msgstr "Exención de cuotas"
+
+msgid "czeka na wpłatę"
+msgstr "pendiente de pago"
+
+msgid "zapłacone"
+msgstr "pagado"
+
+msgid "anulowane"
+msgstr "cancelado"
+
+msgid "zwrócone"
+msgstr "reembolsado"
+
+msgid "Karta płatnicza (Stripe)"
+msgstr "Tarjeta de pago (Stripe)"
+
+msgid "Przelew bankowy"
+msgstr "Transferencia bancaria"
+
+msgid "w toku"
+msgstr "en curso"
+
+msgid "przyjęta"
+msgstr "recibido"
+
+msgid "nieudana"
+msgstr "fallido"
+
+msgid "przerwana"
+msgstr "interrumpido"
+
+msgid "do wyjaśnienia"
+msgstr "en revisión"
+
+msgid "wykonany"
+msgstr "completado"
+
+msgid "nieudany"
+msgstr "fallido"
+
+msgid "Najpierw uzupełnij dane do faktury."
+msgstr "Primero completa los datos de facturación."
+
+msgid "Organizator nie opublikował jeszcze cennika."
+msgstr "El organizador aún no ha publicado la lista de precios."
+
+msgid "Delegacja jest zwolniona z opłat."
+msgstr "La delegación está exenta de cuotas."
+
+msgid "Nie ma nic nowego do zapłaty."
+msgstr "No hay nada nuevo que pagar."
+
+msgid "Ta opłata jest już rozliczona."
+msgstr "Esta cuota ya está liquidada."
+
+msgid "Nie ma nic do zapłaty."
+msgstr "No hay nada que pagar."
+
+msgid "Płatność tego zamówienia jest właśnie przetwarzana. Spróbuj ponownie za kilka minut."
+msgstr "El pago de este pedido se está procesando. Inténtalo de nuevo en unos minutos."
+
+#, python-format
+msgid "Płatność Przelewy24 tego zamówienia jest w toku. Spróbuj ponownie za %(minutes)s minut."
+msgstr "Hay un pago de Przelewy24 en curso para este pedido. Inténtalo de nuevo dentro de %(minutes)s minutos."
+
+msgid "Anulować można wyłącznie zamówienie czekające na wpłatę."
+msgstr "Solo se puede cancelar un pedido pendiente de pago."
+
+msgid "To zamówienie nie czeka na wpłatę."
+msgstr "Este pedido no está pendiente de pago."
+
+msgid "Ta metoda płatności nie jest dostępna."
+msgstr "Este método de pago no está disponible."
+
+msgid "Dostawca płatności jest chwilowo niedostępny. Spróbuj ponownie za chwilę."
+msgstr "El proveedor de pagos no está disponible temporalmente. Inténtalo de nuevo en breve."
+
+msgid "Opłaty"
+msgstr "Cuotas"
+
+msgid "Drużyna jest zwolniona z opłat."
+msgstr "El equipo está exento de cuotas."
+
+msgid "Opłaty są rozliczone."
+msgstr "Todas las cuotas están liquidadas."
+
+#, python-format
+msgid "Do zapłaty: %(amount)s %(currency)s."
+msgstr "Importe pendiente: %(amount)s %(currency)s."
+
+msgid "Opłaty i faktury"
+msgstr "Cuotas y facturas"
+
+msgid "Zapłać online"
+msgstr "Pagar en línea"
+
+msgid "Dane do faktury"
+msgstr "Datos de facturación"
+
+msgid "Opłaty drużyny"
+msgstr "Cuotas del equipo"
+
+msgid "Nabywcą może być instytucja (np. ministerstwo, szkoła, fundacja) albo osoba prywatna. Zmiana danych dotyczy kolejnych dokumentów – wystawione wcześniej zostają bez zmian."
+msgstr "El comprador puede ser una institución (p. ej., un ministerio, una escuela o una fundación) o un particular. Los cambios se aplican a los documentos siguientes; los ya emitidos no cambian."
+
+#, python-format
+msgid "Opłaty: %(country)s"
+msgstr "Cuotas: %(country)s"
+
+msgid "Opłatę za drużynę wnosi się na podstawie faktury pro forma: wystaw ją, a potem zapłać kartą albo przelewem. Po zaksięgowaniu wpłaty wystawimy fakturę i wyślemy potwierdzenie e-mailem."
+msgstr "La cuota del equipo se paga con una factura proforma: emítela y paga con tarjeta o transferencia. Cuando recibamos el pago, emitiremos la factura y enviaremos una confirmación por correo."
+
+msgid "Zestawienie"
+msgstr "Resumen"
+
+msgid "Waluta"
+msgstr "Moneda"
+
+msgid "Zwrócono"
+msgstr "Reembolsado"
+
+msgid "Czeka na wpłatę"
+msgstr "Pendiente de pago"
+
+msgid "Do wystawienia"
+msgstr "Pendiente de facturar"
+
+msgid "Pozycje kolejnej faktury pro forma"
+msgstr "Conceptos de la próxima factura proforma"
+
+msgid "Wystaw fakturę pro forma"
+msgstr "Emitir factura proforma"
+
+msgid "Przed wystawieniem faktury pro forma uzupełnij dane do faktury."
+msgstr "Completa los datos de facturación antes de emitir la factura proforma."
+
+msgid "Nie podano jeszcze danych do faktury."
+msgstr "Aún no se han indicado los datos de facturación."
+
+msgid "Zmień dane do faktury"
+msgstr "Cambiar datos de facturación"
+
+msgid "Zamówienia"
+msgstr "Pedidos"
+
+msgid "Zamówienia drużyny"
+msgstr "Pedidos del equipo"
+
+msgid "Wystawiono"
+msgstr "Emitido"
+
+msgid "Dokumenty"
+msgstr "Documentos"
+
+msgid "Nie wystawiono jeszcze żadnego zamówienia."
+msgstr "Aún no se ha emitido ningún pedido."
+
+#, python-format
+msgid "Dziękujemy – otrzymaliśmy wpłatę za udział w konkursie %(competition)s."
+msgstr "Gracias: hemos recibido tu pago por la participación en %(competition)s."
+
+msgid "Fakturę i historię płatności znajdziesz po zalogowaniu:"
+msgstr "Encontrarás la factura y el historial de pagos tras iniciar sesión:"
+
+#, python-format
+msgid "Potwierdzenie wpłaty %(reference)s – %(competition)s"
+msgstr "Confirmación de pago %(reference)s – %(competition)s"
+
+#, python-format
+msgid "Organizator konkursu %(competition)s zwrócił część albo całość Twojej wpłaty."
+msgstr "El organizador de %(competition)s ha reembolsado parte o la totalidad de tu pago."
+
+msgid "Kwota zwrotu"
+msgstr "Importe del reembolso"
+
+msgid "Pieniądze wracają tą samą drogą, którą zostały wpłacone; zaksięgowanie po stronie banku może potrwać kilka dni roboczych. Szczegóły:"
+msgstr "El dinero se devuelve por el mismo medio con el que se pagó; el banco puede tardar unos días hábiles en abonarlo. Detalles:"
+
+#, python-format
+msgid "Zwrot wpłaty %(reference)s – %(competition)s"
+msgstr "Reembolso %(reference)s – %(competition)s"
+
+#, python-format
+msgid "Zamówienie %(reference)s"
+msgstr "Pedido %(reference)s"
+
+#, python-format
+msgid "termin płatności: %(due)s"
+msgstr "fecha límite de pago: %(due)s"
+
+msgid "Pozycje zamówienia"
+msgstr "Conceptos del pedido"
+
+msgid "Zapłać"
+msgstr "Pagar"
+
+msgid "Zapłać kartą"
+msgstr "Pagar con tarjeta"
+
+msgid "Zapłać przez Przelewy24"
+msgstr "Pagar con Przelewy24"
+
+msgid "Płatność odbywa się na stronie operatora płatności. Nie przechowujemy danych karty."
+msgstr "El pago se realiza en la página del proveedor de pagos. No guardamos los datos de la tarjeta."
+
+msgid "Wpisz kod referencyjny w tytule przelewu – po nim organizator odnajdzie wpłatę. Przelew zaksięgujemy w ciągu kilku dni roboczych; koszty banku ponosi płacący."
+msgstr "Indica el código de referencia en el concepto de la transferencia: con él el organizador identificará tu pago. Registraremos la transferencia en unos días hábiles; las comisiones bancarias corren a cargo del pagador."
+
+msgid "Płatności online nie są jeszcze dostępne. Skontaktuj się z organizatorem."
+msgstr "Los pagos en línea aún no están disponibles. Ponte en contacto con el organizador."
+
+msgid "Anuluj zamówienie"
+msgstr "Cancelar pedido"
+
+msgid "Anuluj zamówienie, jeśli zmienił się skład drużyny albo dane do faktury – potem wystaw nowe."
+msgstr "Cancela el pedido si ha cambiado la composición del equipo o los datos de facturación y emite uno nuevo."
+
+msgid "Brak dokumentów."
+msgstr "No hay documentos."
+
+msgid "Historia płatności"
+msgstr "Historial de pagos"
+
+msgid "zwrócono"
+msgstr "reembolsado"
+
+#, python-format
+msgid "Do zapłaty: %(amount)s %(currency)s. Podaj dane do faktury – wystawimy fakturę pro forma, a po zaksięgowaniu wpłaty fakturę."
+msgstr "Importe pendiente: %(amount)s %(currency)s. Indica tus datos de facturación: emitiremos una factura proforma y, al recibir el pago, la factura."
+
+msgid "Dalej"
+msgstr "Continuar"
+
+msgid "Dane do faktury zostały zapisane."
+msgstr "Datos de facturación guardados."
+
+msgid "Wystawiliśmy fakturę pro forma. Wybierz sposób zapłaty."
+msgstr "Hemos emitido la factura proforma. Elige cómo pagar."
+
+msgid "Dziękujemy. Czekamy na potwierdzenie wpłaty od operatora płatności – odśwież stronę za chwilę."
+msgstr "Gracias. Estamos esperando la confirmación del proveedor de pagos; actualiza la página en un momento."
+
+msgid "Płatność została przerwana. Możesz spróbować ponownie."
+msgstr "El pago se ha interrumpido. Puedes intentarlo de nuevo."
+
+msgid "Zamówienie zostało anulowane."
+msgstr "El pedido ha sido cancelado."
