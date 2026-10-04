@@ -1,0 +1,42 @@
+{% extends "web/coordinator/base.html" %}
+{% comment %}
+  Nadzór zdalny – lista etapów bieżącej edycji (zadanie PROC-01, ``CoordinatorProctoringView``).
+  Ekran istnieje przy fladze ``proctoring``; bez serwera LiveKit mówi o tym wprost.
+{% endcomment %}
+{% block title %}Nadzór zdalny – panel koordynatora{% endblock %}
+{% block panel_title %}Nadzór zdalny{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Nadzór zdalny etapów online: uczniowie nadają obraz z kamery (mała rozdzielczość) do
+    pokoju nadzoru na własnym serwerze LiveKit, nadzorujący widzą siatkę swoich uczniów. Włącza się go
+    osobno dla każdego etapu. To przetwarzanie wysokiego ryzyka (obraz niepełnoletnich) – przed pierwszym
+    użyciem przeczytaj notę o ocenie skutków w podręczniku organizatora.</p>
+{% endblock %}
+{% block panel_content %}
+{% if not configured %}
+  <div class="alert alert--warning" role="status">
+    <p><strong>Serwer LiveKit nie jest skonfigurowany.</strong> Nadzór działa na tym samym serwerze, co
+      webinary (<code>LIVEKIT_URL</code>, <code>LIVEKIT_API_KEY</code>, <code>LIVEKIT_API_SECRET</code>).
+      Bez niego uczniowie etapu z nadzorem dostaną zachowanie „serwer niedostępny” z ustawień etapu.</p>
+  </div>
+{% endif %}
+<section class="section">
+  {% if rows %}
+    <table class="table">
+      <thead><tr><th>Etap</th><th>Termin</th><th>Forma</th><th>Nadzór</th><th></th></tr></thead>
+      <tbody>
+        {% for row in rows %}
+          <tr>
+            <td>{{ row.stage.display_name }}</td>
+            <td>{{ row.stage.opens_at|date:"d.m.Y H:i" }} – {{ row.stage.submission_deadline|date:"d.m.Y H:i" }}</td>
+            <td>{{ row.stage.get_format_display }}</td>
+            <td>{% if row.config.enabled %}<span class="badge badge--info">włączony</span>{% if row.config.record %} <span class="badge badge--warn">nagrywanie</span>{% endif %}{% else %}–{% endif %}</td>
+            <td>{% if row.proctorable %}<a class="btn btn--small btn--secondary" href="{% url 'web:coordinator-proctoring-stage' row.stage.pk %}">Ustawienia</a>{% if row.config.enabled %} <a class="btn btn--small btn--secondary" href="{% url 'web:proctoring-grid' row.stage.pk %}">Siatka</a>{% endif %}{% else %}<span class="hint">etap nie jest online</span>{% endif %}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p class="empty">Bieżąca edycja nie ma etapów.</p>
+  {% endif %}
+</section>
+{% endblock %}

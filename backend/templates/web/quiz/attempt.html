@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load static i18n web_extras %}
+{% load static i18n web_extras proctoring_tags %}
 {% comment %}
   Arkusz testu: wszystkie pytania na jednej stronie, przyklejony licznik u góry.
 
@@ -31,6 +31,7 @@
   <span class="eyebrow">{{ stage.display_name }}</span>
   <h1>{{ quiz.title }}</h1>
 </div>
+{% proctoring_card stage compact=True %}
 
 {% comment %}
   Licznik jest **przyklejony** i renderowany przez serwer z gotową liczbą sekund – bez

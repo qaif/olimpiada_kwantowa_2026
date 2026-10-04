@@ -31,6 +31,7 @@ from .urls_documents import urlpatterns as document_urlpatterns
 from .urls_fees import urlpatterns as fee_urlpatterns
 from .urls_institutions import urlpatterns as institution_urlpatterns
 from .urls_pipeline import urlpatterns as pipeline_urlpatterns
+from .urls_proctoring import urlpatterns as proctoring_urlpatterns
 from .urls_regions import urlpatterns as region_urlpatterns
 from .urls_scoring import urlpatterns as scoring_urlpatterns
 from .urls_student_status import urlpatterns as student_status_urlpatterns
@@ -1196,4 +1197,6 @@ urlpatterns = [
     *alumni_urlpatterns,
     # --- zmiana hasła w panelu konta (AUTH-01b, 4.10.2026) ------------------------------------------
     *password_change_urlpatterns,
+    # --- nadzór zdalny etapów online (zadanie PROC-01, flaga ``proctoring``) ---------------------
+    *proctoring_urlpatterns,
 ]

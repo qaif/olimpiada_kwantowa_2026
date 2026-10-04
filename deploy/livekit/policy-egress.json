@@ -9,7 +9,7 @@
     {
       "Effect": "Allow",
       "Action": ["s3:PutObject", "s3:AbortMultipartUpload", "s3:ListMultipartUploadParts"],
-      "Resource": ["arn:aws:s3:::submissions/webinars/*"]
+      "Resource": ["arn:aws:s3:::submissions/webinars/*", "arn:aws:s3:::submissions/proctoring/*"]
     }
   ]
 }

@@ -107,6 +107,7 @@ IDENTITY_FIELDS = ("email", "username")
 #:
 #: ``webinar_join`` (WEB-01) – token wejścia na webinar i czynności prowadzącego, z tego samego powodu.
 #: ``webinar_control`` – polecenia prowadzącego (osobny, wyższy kubełek).
+#:
 #: ``delegation`` (DEL-01) – opiekun drużyny i koordynator są zalogowani, a koszt (listy na wpisane
 #: adresy) przypada na konto: dwie delegacje z jednej szkoły za jednym NAT-em nie dzielą budżetu.
 #:
@@ -118,6 +119,10 @@ IDENTITY_FIELDS = ("email", "username")
 #: ``checkout`` i ``payments_admin`` (PAY-01) – płacący i koordynator są zalogowani, a koszt (sesje
 #: u operatora płatności, zwroty przez API) przypada na konto.
 #:
+#: ``proctoring_token`` / ``proctoring_coordinator_token`` / ``proctoring_action`` /
+#: ``proctoring_client`` (PROC-01) – tokeny nadzoru, czynności nadzorujących i kroki konsoli ucznia:
+#: cała szkoła pisze etap za jednym NAT-em. ``interview_control`` (STAGE-LK-01) – polecenia moderatora
+#: pokoju rozmowy LiveKit (odbierz/oddaj głos, usuń, wpuść ponownie).
 #: ``theme_settings`` (THEME-02) – menu i dostosowanie motywu; wyłącznie koordynator, koszt
 #: (unieważnienie cache stron konkursu) przypada na konto.
 PER_USER_SCOPES = frozenset(
@@ -136,6 +141,11 @@ PER_USER_SCOPES = frozenset(
         "payments_admin",
         "theme_settings",
         "alumni",
+        "proctoring_token",
+        "proctoring_coordinator_token",
+        "proctoring_action",
+        "proctoring_client",
+        "interview_control",
     }
 )
 
@@ -205,6 +215,21 @@ def throttle_keys(scope: str, request, identity: str | None = None) -> list[str]
     if value:
         keys.append(f"{CACHE_PREFIX}:{scope}:id:{_digest(f'{address}|{value}')}")
     return keys
+
+
+def recipient_throttle_keys(scope: str, request) -> list[str]:
+    """Kubełek **adresata** listu: sam e-mail z POST-a, bez adresu IP (AUTH-01a, L3).
+
+    Dla formularzy, które wysyłają list na adres wpisany przez anonima (reset hasła, ponowienie
+    aktywacji). Kubełki IP nie chronią skrzynki ofiary przed nadawcą, który zmienia adresy IP;
+    ten – tak. Zużywa go **każdy** POST, także na adres bez konta, więc pełny kubełek nie mówi
+    nic o tym, czy konto istnieje. Ceną jest to, że obcy może na godzinę wyczerpać komuś limit
+    resetu – świadomie: to mniejsze zło niż nielimitowane listy na cudzą skrzynkę.
+    """
+    value = posted_identity(request)
+    if not value:
+        return []
+    return [f"{CACHE_PREFIX}:{scope}:to:{_digest(value)}"]
 
 
 def user_throttle_keys(scope: str, request) -> list[str]:

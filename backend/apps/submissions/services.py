@@ -130,6 +130,11 @@ def create_submission(
 
     window_stage = personal_stage(stage, entry.participant) if entry.participant_id else stage
     _assert_window_open(window_stage, now)
+    # Nadzór zdalny (PROC-01): etap z nadzorem przyjmuje pracę dopiero od ucznia z gotową sesją –
+    # druga linia obrony za bramką adresów. Bez flagi ``proctoring`` – zero zapytań.
+    from apps.proctoring.services import assert_stage_access
+
+    assert_stage_access(stage, entry, now=now)
 
     ext, mime = validate_upload(upload, problem.allowed_formats, problem.max_file_mb)
     sha256 = _sha256_of(upload)

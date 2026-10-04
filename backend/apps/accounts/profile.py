@@ -575,6 +575,12 @@ def anonymise_account(user: User, *, actor: User | None = None, request=None) ->
     from apps.time_windows.privacy import erase_for_participants as erase_time_window_data
 
     erase_time_window_data(participants)
+    # Nadzór zdalny (PROC-01): nagrania kamer, zdjęcia dokumentu, dziennik połączeń i wiadomości
+    # znikają, zgody na nadzór dostają ``withdrawn_at``. Incydenty i obecność zostają przy
+    # pseudonimowym profilu – jak prace i oceny, są dokumentacją zawodów.
+    from apps.proctoring.services import erase_for_participants as erase_proctoring
+
+    erase_proctoring(participants)
 
     # Pseudonimy widza materiałów z warsztatów (``apps.workshop_materials``) – licznik wyświetleń
     # materiału zostaje, liczba unikalnych widzów spada o to konto.
@@ -896,6 +902,19 @@ def update_account_by_coordinator(
             "NO_COMMITTEE_PROFILE",
             status.HTTP_400_BAD_REQUEST,
         )
+
+    if values.get("is_active") and not user.is_active:
+        from .activation import pending_invitation
+
+        if pending_invitation(user) is not None:
+            # AUTH-01a (H1): odblokowanie konta z niezaakceptowanym zaproszeniem dałoby aktywne konto
+            # bez zgód i bez hasła – uczeń uruchamia je sam linkiem z zaproszenia.
+            raise DomainError(
+                "To konto czeka na przyjęcie zaproszenia – uczeń uruchamia je sam linkiem z listu "
+                "(zgody, hasło). Wyślij zaproszenie ponownie zamiast zaznaczać „Konto aktywne”.",
+                "INVITATION_PENDING",
+                status.HTTP_400_BAD_REQUEST,
+            )
 
     diff: dict = {}
     previous_email = user.email
