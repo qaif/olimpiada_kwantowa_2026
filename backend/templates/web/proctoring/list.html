@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% comment %}
+  Etapy z nadzorem tej osoby (zadanie PROC-01, ``ProctorStagesView``) – koordynator, komisja z przydziałem,
+  opiekun drużyny z przydziałem (wyłącznie swoja delegacja).
+{% endcomment %}
+{% block title %}{% translate "Nadzór zdalny" %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow">{% translate "Nadzór zdalny" %}</span>
+  <h1>{% translate "Etapy do nadzoru" %}</h1>
+</div>
+{% if stages %}
+  <ul class="list">
+    {% for stage in stages %}
+      <li class="card">
+        <h2 class="mt-0">{{ stage.display_name }}</h2>
+        <p>{{ stage.opens_at|date:"d.m.Y, H:i" }} – {{ stage.submission_deadline|date:"d.m.Y, H:i" }}</p>
+        <a class="btn btn--primary" href="{% url 'web:proctoring-grid' stage.pk %}">{% translate "Otwórz siatkę nadzoru" %}</a>
+      </li>
+    {% endfor %}
+  </ul>
+{% else %}
+  <p class="empty">{% translate "Nie masz etapów do nadzoru." %}</p>
+{% endif %}
+{% endblock %}

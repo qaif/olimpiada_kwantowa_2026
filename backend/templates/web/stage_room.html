@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% load i18n static %}
+{% comment %}
+  Pokój rozmowy etapu w LiveKit (STAGE-LK-01, ``apps.web.views.stage_rooms``). Ten sam interfejs, co
+  pokój webinaru (``static/js/webinar-room.js``, ``css/webinar-room.css``, SDK z ``static/vendor/``):
+  moderator (komisja, koordynator) – ``presenter`` z czynnościami „odbierz/oddaj głos” i „usuń z pokoju”
+  (polecenia idą przez platformę, ``data-control-url``); uczestnik – nadaje i odbiera jak w Jitsi.
+  Strona nie niesie tokenu – JS pobiera go POST-em (``data-token-url``).
+{% endcomment %}
+{% block title %}{{ room_title }}{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/webinar-room.css' %}">{% endblock %}
+{% block content %}
+<div class="wr" id="webinar-room"
+     data-token-url="{{ token_url }}"
+     data-control-url="{{ control_url }}"
+     data-role="{{ role }}"
+     data-can-record="0">
+  {% csrf_token %}
+  <header class="wr__head">
+    <div>
+      <span class="eyebrow">{% translate "Rozmowa kwalifikacyjna" %}</span>
+      <h1 class="wr__title">{{ room_title }}</h1>
+    </div>
+    <p class="wr__status" data-status role="status" aria-live="polite">{% translate "Łączenie…" %}</p>
+    <a class="btn btn--secondary btn--small" href="{{ back_url }}" data-leave>{% translate "Wyjdź" %}</a>
+  </header>
+
+  <noscript><p class="alert alert--warning">{% translate "Pokój rozmowy wymaga włączonego JavaScriptu." %}</p></noscript>
+  {% if not sdk_url %}
+    <p class="alert alert--warning" role="alert">{% translate "Pokój jest chwilowo niedostępny – brakuje komponentu wideo na serwerze. Daj znać organizatorowi." %}</p>
+  {% endif %}
+
+  <div class="wr__body">
+    <main class="wr__stage" data-stage data-layout="grid" aria-label="{% translate 'Obraz uczestników' %}"></main>
+    <aside class="wr__side">
+      <section aria-labelledby="wr-people">
+        <h2 class="wr__side-title" id="wr-people">{% translate "Uczestnicy" %} <span data-count></span></h2>
+        <ul class="wr__people" data-people></ul>
+      </section>
+      <section aria-labelledby="wr-chat">
+        <h2 class="wr__side-title" id="wr-chat">{% translate "Czat" %}</h2>
+        <ol class="wr__chat" data-chat aria-live="polite"></ol>
+        <form class="wr__chat-form" data-chat-form>
+          <label class="visually-hidden" for="wr-chat-input">{% translate "Wiadomość" %}</label>
+          <input id="wr-chat-input" type="text" maxlength="500" autocomplete="off" data-chat-input disabled>
+          <button type="submit" class="btn btn--secondary btn--small" disabled data-chat-send>{% translate "Wyślij" %}</button>
+        </form>
+      </section>
+    </aside>
+  </div>
+
+  {% if control_url and blocks %}
+    {% comment %}
+      Decyzje moderatorów tego terminu (przegląd STAGE-LK-01, L-4): wyproszony uczeń nie dostaje nowego
+      tokenu, uczeń bez głosu – token bez nadawania, dopóki moderator tego nie cofnie tutaj.
+    {% endcomment %}
+    <section class="card" aria-labelledby="wr-blocks" id="room-blocks" data-control-url="{{ control_url }}">
+      <h2 class="wr__side-title" id="wr-blocks">{% translate "Decyzje moderatora w tym terminie" %}</h2>
+      <ul class="list">
+        {% for block in blocks %}
+          <li>
+            {{ block.label|default:block.identity }} –
+            {% if block.kind == "removed" %}{% translate "usunięty z pokoju" %}{% else %}{% translate "bez głosu" %}{% endif %}
+            <button type="button" class="btn btn--small btn--secondary"
+                    data-block-action="{% if block.kind == 'removed' %}readmit{% else %}speaker{% endif %}"
+                    data-identity="{{ block.identity }}">{% if block.kind == "removed" %}{% translate "Wpuść ponownie" %}{% else %}{% translate "Oddaj głos" %}{% endif %}</button>
+          </li>
+        {% endfor %}
+      </ul>
+    </section>
+  {% endif %}
+
+  <nav class="wr__controls" aria-label="{% translate 'Sterowanie' %}">
+    <button type="button" class="btn btn--secondary" data-action="mic" disabled aria-pressed="false">{% translate "Mikrofon" %}</button>
+    <button type="button" class="btn btn--secondary" data-action="cam" disabled aria-pressed="false">{% translate "Kamera" %}</button>
+    <button type="button" class="btn btn--secondary" data-action="screen" disabled aria-pressed="false">{% translate "Udostępnij ekran" %}</button>
+    <button type="button" class="btn btn--secondary" data-action="hand" disabled aria-pressed="false">{% translate "Podnieś rękę" %}</button>
+    <button type="button" class="btn btn--secondary" data-action="layout" disabled aria-pressed="false">{% translate "Widok prelegenta" %}</button>
+  </nav>
+</div>
+{{ strings|json_script:"webinar-room-strings" }}
+{% if sdk_url %}
+  <script nonce="{{ request.csp_nonce }}" src="{{ sdk_url }}" defer></script>
+  <script nonce="{{ request.csp_nonce }}" src="{% static 'js/webinar-room.js' %}" defer></script>
+{% endif %}
+{% if control_url and blocks %}<script nonce="{{ request.csp_nonce }}" src="{% static 'js/stage-room-blocks.js' %}" defer></script>{% endif %}
+{% endblock %}

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load i18n static web_extras %}
+{% load i18n static web_extras proctoring_tags %}
 {% comment %}
   Pulpit uczestnika: nagłówek „Co teraz”, pasek zakładek i **jedna** sekcja.
 
@@ -121,6 +121,9 @@
     <p class="hint">{% translate "Skład drużyny układa organizator. Zmianę zgłoś opiekunowi albo organizatorowi." %}</p>
   </section>
 {% endif %}
+
+{# Nadzór zdalny etapu (PROC-01) – pusto bez flagi ``proctoring`` i bez zapytań. #}
+{% proctoring_card stage %}
 
 {% include "web/participant/_tabs.html" %}
 

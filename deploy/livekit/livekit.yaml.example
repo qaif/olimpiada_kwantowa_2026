@@ -38,6 +38,8 @@ room:
   # Pusty pokój znika po 5 minutach (pokój z platformy ma własne empty_timeout 10 min); limit osób –
   # bezpiecznik zasobów maszyny.
   empty_timeout: 300
+  # Nadzór zdalny (PROC-01) dzieli uczniów na pokoje po nadzorującym/delegacji (kilkanaście–kilkadziesiąt
+  # osób), więc ten limit jest bezpiecznikiem także dla niego.
   max_participants: 300
 
 # TURN (wariant (a) przy uczestnikach za restrykcyjnymi zaporami): włącz z certyfikatem domeny

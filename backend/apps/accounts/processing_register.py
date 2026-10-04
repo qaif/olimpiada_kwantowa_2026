@@ -112,10 +112,14 @@ from apps.competitions.models import DEFAULT_RETENTION_MONTHS
 #: czynność **na podstawie zgody** (art. 6 ust. 1 lit. a), z nowym kręgiem odbiorców (zalogowani
 #: uczestnicy, opcjonalnie publiczna ściana) i nowym celem (mentoring, zaproszenia, statystyki).
 #: Warunkowa jak forum – wiersz wchodzi do rejestru wyłącznie konkursom z włączoną flagą.
-#: 1.20 (04.10.2026, zadanie OPS-02) – monitorowanie błędów aplikacji (``apps.monitoring.register``): wiersz
+#: 1.20 (04.10.2026, zadanie PROC-01 + STAGE-LK-01) – nadzór zdalny etapów online (flaga ``proctoring``,
+#: wiersz warunkowy): obraz z kamery na żywo, nagrania wyłącznie przy włączonym nagrywaniu etapu,
+#: zdjęcie dokumentu, incydenty; także rozmowy etapu w pokoju LiveKit połączone z nadzorem – wiersz
+#: „rozmowy” wymienia serwer LiveKit wśród odbiorców i jego środki, wiersz nadzoru – zakres rozmowy.
+#: 1.21 (04.10.2026, zadanie OPS-02) – monitorowanie błędów aplikacji (``apps.monitoring.register``): wiersz
 #: warunkowy (niepusty ``SENTRY_DSN``) – nowy cel pomocniczy i nowy, **wewnętrzny** podmiot przetwarzający
 #: (własna instancja GlitchTip na serwerze organizatora, bez przekazania do państwa trzeciego).
-REGISTER_VERSION = "1.20"
+REGISTER_VERSION = "1.21"
 REGISTER_DATE = date(2026, 10, 4)
 
 #: Zdanie o okresie przechowywania danych uczestnika. Liczba pochodzi z tego samego miejsca, co
@@ -377,8 +381,15 @@ ACTIVITIES: tuple[ProcessingActivity, ...] = (
         categories=[
             "wybrany termin rozmowy i adres pokoju spotkania",
             "wizerunek i głos w czasie rozmowy (transmisja, bez nagrywania)",
+            "w pokoju LiveKit (gdy etap go używa): pseudonim konta (HMAC, bez e-maila i identyfikatora) "
+            "i decyzje moderatora w terminie (usunięcie z pokoju, odebranie głosu)",
         ],
-        recipients=[HOSTING_RECIPIENT, JITSI_RECIPIENT],
+        recipients=[
+            HOSTING_RECIPIENT,
+            JITSI_RECIPIENT,
+            "serwer LiveKit operatora platformy – wyłącznie gdy koordynator wybrał dla etapu pokój LiveKit "
+            "(przekazywanie obrazu i dźwięku w czasie rzeczywistym, bez nagrywania)",
+        ],
         retention=(
             "zapis na termin – do końca okresu retencji edycji; sama rozmowa nie jest nagrywana, "
             "więc nie powstaje żaden plik do przechowywania"
@@ -386,6 +397,11 @@ ACTIVITIES: tuple[ProcessingActivity, ...] = (
         measures=[
             "własna instancja Jitsi Meet organizatora – transmisja nie wychodzi do dostawcy obcego",
             "adres pokoju budowany z identyfikatora terminu, nie z danych uczestnika",
+            "LiveKit: pokój zakładany przez platformę dopiero po sprawdzeniu uprawnień, token ważny "
+            "wyłącznie w oknie terminu, bez uprawnień administratora w przeglądarce; polecenia moderatora "
+            "przez platformę z audytem, a osoba usunięta nie dostaje nowego tokenu na ten termin",
+            "LiveKit: osobny pokój próby sprzętu dla każdego zapisu; rozmowa nie jest nagrywana – wyjątek "
+            "to etap z nadzorem zdalnym i nagrywaniem, opisany w czynności „Nadzór zdalny etapów online”",
         ],
     ),
     _activity(
@@ -921,6 +937,65 @@ WEBINARS_ACTIVITY = _activity(
 )
 
 
+#: Czynność **warunkowa**: nadzór zdalny etapów online (zadanie PROC-01, przełącznik ``proctoring``).
+#: Przetwarzanie **wysokiego ryzyka** – obraz osób w większości niepełnoletnich, w ich domach – więc
+#: wiersz nazywa wprost minimalizację (bez analizy automatycznej, niska rozdzielczość, nagrywanie
+#: domyślnie wyłączone) i odsyła do oceny skutków (DPIA), którą organizator robi przed włączeniem.
+PROCTORING_ACTIVITY = _activity(
+    key="nadzor-zdalny",
+    name="Nadzór zdalny etapów online (LiveKit)",
+    purpose=(
+        "Zapewnienie samodzielności pracy w etapach rozgrywanych online: podgląd na żywo obrazu z kamery "
+        "uczestnika (i – gdy etap tego wymaga – ekranu lub dźwięku) przez osoby nadzorujące, wiadomości "
+        "nadzorujących, notatki o incydentach do rozpatrzenia przez komisję, obecność oraz – wyłącznie "
+        "gdy koordynator włączy je dla etapu – nagrania obrazu z kamery do celów odwoławczych."
+    ),
+    legal_basis=(
+        "art. 6 ust. 1 lit. a RODO (wyraźna zgoda uczestnika, wersjonowana; u osoby niepełnoletniej – "
+        "przy potwierdzonej online zgodzie rodzica lub opiekuna prawnego); osoba bez zgody albo bez "
+        "kamery może poprosić o inną formę nadzoru (decyzja koordynatora)"
+    ),
+    subjects="uczestnicy etapów online z włączonym nadzorem (w większości osoby niepełnoletnie)",
+    categories=[
+        "wizerunek (obraz z kamery na żywo; nagranie – tylko przy włączonym nagrywaniu)",
+        "obraz ekranu i głos – wyłącznie gdy etap tego wymaga",
+        "zdjęcie dokumentu tożsamości – wyłącznie gdy etap tego wymaga",
+        "pseudonim w pokoju (HMAC, osobny na etap), czasy połączeń i zerwań strumienia",
+        "wynik sprawdzenia sprzętu (wartości logiczne i rodzina przeglądarki – bez odcisku urządzenia)",
+        "wiadomości nadzorujących, notatki o incydentach, obecność, prośby o alternatywę (powód z listy)",
+        "wersja i czas zgody, adres IP przy zgodzie",
+        "rozmowa etapu w LiveKit z nadzorem (STAGE-LK-01): pseudonim konta (wspólny dla platformy, "
+        "nie osobny na etap), obraz i głos kamery w jakości rozmowy (nie 320×240), w pokoju wspólnym "
+        "z innymi uczestnikami terminu, gdy termin ma więcej niż jedno miejsce; token ważny w oknie "
+        "terminu; nagranie – wyłącznie ucznia z ważną zgodą i przy włączonym nagrywaniu",
+    ],
+    recipients=[
+        HOSTING_RECIPIENT,
+        "serwer LiveKit operatora platformy (przekazywanie obrazu w czasie rzeczywistym, "
+        "nagrania przez Egress)",
+        "nadzorujący wskazani przez koordynatora: koordynatorzy, członkowie komisji, w olimpiadzie "
+        "międzynarodowej opiekun drużyny – wyłącznie uczniów swojej delegacji",
+        "komisja odwoławcza – raport incydentów i nagrania (każde odtworzenie w audycie)",
+    ],
+    retention=(
+        "obraz na żywo – nie jest przechowywany; zdjęcia dokumentu – usuwane po etapie; nagrania, "
+        "dziennik połączeń, wiadomości i uwagi do próśb o inną formę nadzoru – usuwane automatycznie "
+        "30 dni po ogłoszeniu wyników i zamknięciu okna reklamacji "
+        "(najpóźniej 180 dni po etapie; komisja może wstrzymać usunięcie do wyjaśnienia sprawy); "
+        "incydenty, obecność i zgody – jak dokumentacja zawodów (retencja edycji)"
+    ),
+    measures=[
+        "funkcja domyślnie wyłączona, włączana osobno dla każdego etapu; nagrywanie domyślnie wyłączone",
+        "brak automatycznej analizy obrazu i śledzenia przeglądarki – decyzje podejmują ludzie",
+        "kamera 320×240, 10 kl./s; uczeń nie odbiera obrazu innych uczniów (uprawnienia tokenu)",
+        "opiekun drużyny dostaje token wyłącznie do pokoju swojej delegacji",
+        "tokeny krótkotrwałe, wystawiane po sprawdzeniu roli przy każdym wejściu",
+        "nagrania i zdjęcia w prywatnym buckecie, adres ważny 15 minut, audyt każdego odtworzenia",
+        "ocena skutków dla ochrony danych (DPIA) przed pierwszym użyciem – nota w podręczniku organizatora",
+    ],
+)
+
+
 #: Czynność **warunkowa**: wchodzi do rejestru wyłącznie konkursom z włączoną oceną AI
 #: (przełącznik ``ai_grading``, prośba organizatora z 24.09.2026) – z tego samego powodu, co forum:
 #: rejestr opisuje przetwarzanie, które naprawdę zachodzi.
@@ -1244,6 +1319,8 @@ def activities_for(competition=None) -> tuple[ProcessingActivity, ...]:
         activities = (*activities, final_logistics)
     if competition is not None and competition.has_feature("alumni"):
         activities = (*activities, ALUMNI_ACTIVITY)
+    if competition is not None and competition.has_feature("proctoring"):
+        activities = (*activities, PROCTORING_ACTIVITY)
     # Monitorowanie błędów (OPS-02) – wiersz warunkowy instalacji (niepusty ``SENTRY_DSN``).
     from apps.monitoring.register import activity as error_tracking_activity
 

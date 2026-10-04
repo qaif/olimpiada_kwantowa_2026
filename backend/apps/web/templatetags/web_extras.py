@@ -203,9 +203,10 @@ def platform_room(meeting_url) -> bool:
     """Czy do tego pokoju wchodzi się przepustką platformy (v0.39.0), a nie zwykłym linkiem.
 
     Gdy tak, ekran **nie** pokazuje adresu pokoju jako odnośnika – prowadzi do widoku wejścia
-    (``apps.web.views.video``). Reguła mieszka w ``apps.competitions.jitsi_jwt.is_platform_room``.
+    (``apps.web.views.video``). Reguła mieszka w ``apps.competitions.room_access.is_platform_room``
+    (Jitsi z przepustkami albo pokój LiveKit etapu, STAGE-LK-01).
     """
-    from apps.competitions.jitsi_jwt import is_platform_room
+    from apps.competitions.room_access import is_platform_room
 
     return is_platform_room(str(meeting_url or ""))
 
