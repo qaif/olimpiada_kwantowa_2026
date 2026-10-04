@@ -22,6 +22,15 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
 - **Język listu**: en, pl, es, fr, pt, ru, id (teksty w `letter_texts.py`); migawka wydarzenia w rejestrze.
 - RODO: wnioski w eksporcie danych konta i w retencji/usuwaniu razem z osobą; rejestr czynności 1.13
   (nowy odbiorca – osoba znająca kod listu). Migracja `delegation_logistics.0003`.
+- Poprawki po przeglądzie: list imienny zastępuje wcześniejszy tylko przy zmianie numeru paszportu,
+  nazwiska albo obywatelstwa (ostrzeżenie u opiekuna, „unieważni list …” u oficera, ta sama reguła
+  przy wystawieniu z karty osoby; list delegacji z nieaktualnymi danymi oznaczony w rejestrze);
+  wypisanie osoby z delegacji unieważnia jej listy imienne; dane usunięte przed wydarzeniem = list
+  nieważny na stronie weryfikacji; strona weryfikacji za bramką „konkurs ma listy” (niezależnie od
+  flagi), adres weryfikacji zapamiętany na liście (`verification_base_url`) i komenda
+  `visa_letter_redirects`; bez Google Analytics na `/visa/verify/` i `/dyplomy/<kod>/`; limit także dla
+  HEAD, oficer bez limitu; daty w formacie języka listu, zdania pl/ru niezależne od przypadka nazwy
+  organizatora, przy szablonie z bazy list tylko po angielsku.
 - Dokumentacja: `docs/OPERACJE.md` § 31.8, `docs/PODRECZNIK-ORGANIZATORA.md` § 10d,
   `docs/PODRECZNIK-OPIEKUNA-DRUZYNY.md` § 7, `docs/tasks/VISA-01.md`.
 

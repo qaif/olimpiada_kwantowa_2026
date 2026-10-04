@@ -155,8 +155,15 @@ language offered there) and click **Request a letter for the selected people**. 
 until the organiser decides. You will get an e-mail with the decision: approved letters can be downloaded
 on the same page; a rejected request shows the reason – correct the data and request again. Every letter
 has a QR code and a verification code; the consulate checks on the organiser's website that the letter is
-genuine and still valid. If the organiser revokes a letter (for example after a passport change), it can no
-longer be downloaded and the verification page shows it as revoked.
+genuine and still valid. If the organiser revokes a letter, it can no longer be downloaded and the
+verification page shows it as revoked.
+
+**When a new letter replaces the old one.** If a person already has a valid letter, a new letter replaces
+(revokes) it **only when the passport number, the name as in the passport or the nationality has changed**
+– the page warns you about it next to the person ("a new letter will revoke letter …"). With unchanged
+passport data both letters stay valid, so a letter already submitted to the consulate is not affected.
+If you remove a person from the delegation (or remove a guest), their personal letters are revoked
+automatically – tell the consulate if a visa application is already pending.
 
 The data is visible only to the team leaders of your country and to the organiser's logistics officers,
 it is encrypted in the database and **deleted automatically after the final** (by default 30 days after

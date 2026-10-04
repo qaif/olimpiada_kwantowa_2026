@@ -4107,12 +4107,23 @@ ustawień podaje ich liczbę. Niepełnoletni z płcią „inna” mieszka w poko
 
 ### 31.8. Listy zapraszające – wnioski, weryfikacja, unieważnienie (VISA-01, `docs/tasks/VISA-01.md`)
 
-Przyrost na tej samej bramce (flaga `onsite_logistics` + tryb `DELEGATIONS`) – **nic do włączenia**
-poza krokami § 31.1. Wdrożenie:
+Ekrany wniosków stoją na tej samej bramce (flaga `onsite_logistics` + tryb `DELEGATIONS`) – **nic do
+włączenia** poza krokami § 31.1. Strona weryfikacji ma bramkę własną: istnieje w konkursie, który
+wystawił choć jeden list – także po wyłączeniu logistyki albo zmianie trybu rejestracji (list leży
+w konsulacie dłużej niż trwa logistyka finału). Wdrożenie:
 
+0. **Przed wdrożeniem – slug `visa` na produkcji.** Adres `/visa/…` należy od tego wydania do aplikacji;
+   strona CMS o slugu `visa` na drugim poziomie drzewa stałaby się nieosiągalna pod `/visa/verify/…`.
+   W repozytorium (seed, fikstury) takiej strony nie ma; na produkcji sprawdź:
+   ```sh
+   docker compose exec web python manage.py shell -c "from wagtail.models import Page; print(list(Page.objects.filter(slug='visa').values_list('url_path', flat=True)))"
+   ```
+   Wynik z `…/visa/` na trzecim poziomie (`/home/visa/`) – zmień slug strony przed wdrożeniem.
 1. Migracja `delegation_logistics.0003_visa_letter_workflow` (`scripts/deploy.sh`): nowa tabela
    wniosków, nowe kolumny rejestru listów; listy wystawione wcześniej dostają kod weryfikacyjny
-   i migawkę wydarzenia z ustawień finału.
+   i migawkę wydarzenia z ustawień finału (adres weryfikacji tych listów liczy się z bieżącego
+   adresowania). **Nie cofaj tej migracji po wystawieniu pierwszego listu**: cofnięcie usuwa kolumnę
+   z kodami, a ponowne zastosowanie nadaje kody **nowe** – kody wydrukowane na listach przestają działać.
 2. **Kontrakt tras:** nowy pierwszy segment adresu `visa/` (`/visa/verify/`, `/visa/verify/<kod>/`) –
    `RESERVED_SLUGS` i `backend/djcms_contract/` zaktualizowane w tym wydaniu. Jeśli Caddyfile jest
    renderowany z `app_routes.env` osobno, wyrenderuj go ponownie (inaczej po przełączeniu na djcms
@@ -4126,14 +4137,40 @@ poza krokami § 31.1. Wdrożenie:
    jednojęzyczny i ma pierwszeństwo – wtedy język zmienia tylko etykiety tabeli i ramkę weryfikacji;
    w szablonie można użyć `{code}` (kod weryfikacyjny).
 5. Przydział oficera logistyki (§ 31.1 p. 4) jest warunkiem decyzji – zwykły koordynator dostaje 403.
+   Oficer klikający kody w rejestrze listów nie zużywa limitu `visa_verify`.
+6. Strony `/visa/verify/…` i `/dyplomy/<kod>/` nie ładują tagu Google Analytics (`no_analytics`
+   w `base.html`) – kod z dokumentu w adresie nie trafia do statystyk.
+
+**Reguły, które warto znać przy obsłudze zgłoszeń:**
+- nowy list imienny (z wniosku albo wystawiony przez oficera z karty osoby) unieważnia wcześniejszy
+  list tej osoby **tylko**, gdy zmienił się numer paszportu, nazwisko z paszportu albo obywatelstwo;
+  przy tych samych danych oba listy zostają ważne. Ekran wniosków pokazuje „unieważni list …” przed
+  zatwierdzeniem; list **delegacji** z nieaktualnymi danymi nie jest unieważniany sam – rejestr listów
+  oznacza go „nieaktualne dane: …”,
+- wypisanie osoby z delegacji (uczeń odpięty, opiekun odwołany, gość usunięty) unieważnia jej listy
+  imienne z powodem „osoba wypisana z delegacji”; usunięcie konta przed końcem wydarzenia czyści dane
+  osoby z listu, a strona weryfikacji pokazuje list jako „nieważny”. Retencja po finale tylko czyści
+  dane (i powody unieważnień) – strona mówi wtedy „dane usunięte”.
+
+**Zmiana domeny albo prefiksu konkursu po wystawieniu listów.** Kod QR niesie adres z chwili wystawienia
+(`InvitationLetter.verification_base_url`), także w PDF-ie pobranym ponownie. Po zmianie adresowania:
+```sh
+docker compose exec web python manage.py visa_letter_redirects iqo --dry-run   # ile listów ma stary adres
+docker compose exec web python manage.py visa_letter_redirects iqo             # przekierowania Wagtaila
+```
+Komenda zakłada przekierowania ze starej ścieżki z kodem (np. `/stary-prefiks/visa/verify/<kod>/`) na
+dzisiejszy adres listu; działa, dopóki stary host trafia na nasz serwer. Gdy stara **domena** trafia do
+innego konkursu z listami, widok weryfikacji przekierowuje sam (po zapamiętanym adresie listu). Domena
+porzucona całkiem (DNS wskazuje gdzie indziej) – kody działają już tylko przez nowy adres i formularz
+`/visa/verify/` (kod przepisany ręcznie).
 
 Sprawdzenie po wdrożeniu (na `iqo`, z oficerem): wystaw list próbny z karty osoby → pobierz PDF → zeskanuj
 QR telefonem (ma otworzyć `https://<domena iqo>/visa/verify/<kod>/` ze stanem „ważny”) → „Unieważnij”
 z powodem „test” → strona pokazuje „unieważniony”.
 
-Wycofanie: wyłączenie flagi ukrywa także strony weryfikacji (404) – listy już wydane przestają dawać się
-sprawdzić, więc w trakcie sezonu wizowego flagi nie wyłączamy. Migracja jest odwracalna (nowa tabela,
-nowe kolumny nullowalne albo z wartością domyślną).
+Wycofanie: wyłączenie flagi ukrywa ekrany wniosków i rejestru, ale **nie** strony weryfikacji (te
+istnieją, dopóki konkurs ma wystawione listy). Migracja jest odwracalna schematem (nowa tabela, nowe
+kolumny nullowalne albo z wartością domyślną) – z zastrzeżeniem kodów z punktu 1.
 
 ## 36. Webinary w LiveKit (WEB-01, `docs/tasks/WEB-01.md`)
 

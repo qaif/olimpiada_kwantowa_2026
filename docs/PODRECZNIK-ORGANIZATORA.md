@@ -2090,8 +2090,11 @@ francuski, portugalski, rosyjski, indonezyjski) i składa wniosek. Oficer logist
 w zakładce *Wnioski o listy* (filtry: kraj, stan; eksport CSV bez danych paszportowych):
 
 - zaznacza wnioski i klika **„Zatwierdź i wystaw listy”** – każdy wniosek to list imienny z nowym
-  numerem i kodem weryfikacyjnym; jeśli osoba miała już ważny list imienny, zostaje on unieważniony
-  („zastąpiony listem …”). Wniosek, którego nie da się zatwierdzić (opiekun skasował numer paszportu,
+  numerem i kodem weryfikacyjnym; wcześniejszy ważny list imienny osoby zostaje unieważniony
+  („zastąpiony listem …”) **tylko wtedy, gdy zmienił się numer paszportu, nazwisko albo obywatelstwo** –
+  kolumna „List” pokazuje to przed kliknięciem („unieważni list …”). Ta sama reguła obowiązuje przy
+  liście imiennym wystawionym z karty osoby. List delegacji z nieaktualnymi danymi rejestr oznacza
+  „nieaktualne dane: …” – nowy list i ewentualne unieważnienie starego to decyzja oficera. Wniosek, którego nie da się zatwierdzić (opiekun skasował numer paszportu,
   finał nie ma dat), zostaje oczekujący, a ekran mówi dlaczego,
 - albo wpisuje powód i klika **„Odrzuć zaznaczone”** – powód dostaje opiekun e-mailem i widzi go
   w panelu; po poprawce składa nowy wniosek.
@@ -2105,7 +2108,10 @@ numer i datę listu, stan (**ważny** albo **unieważniony**), wydarzenie z data
 i obywatelstwo osób z listu – **bez** numeru paszportu i daty urodzenia. W rejestrze listów (*Listy
 wizowe*) przy każdym liście jest kod, język i przycisk **„Unieważnij”** (powód obowiązkowy – widzi go
 opiekun, nie konsulat). Unieważnionego listu nie da się już pobrać; strona weryfikacji od razu mówi
-„unieważniony”. Poprawiony list to zawsze nowy numer i nowy kod.
+„unieważniony”. Poprawiony list to zawsze nowy numer i nowy kod. Wypisanie osoby z delegacji (także
+usunięcie gościa) unieważnia jej listy imienne samo, z powodem „osoba wypisana z delegacji”.
+Strona weryfikacji działa także po wyłączeniu logistyki finału – dopóki konkurs ma wystawione listy.
+Po zmianie domeny albo prefiksu konkursu poproś operatora o przekierowania (`OPERACJE.md` § 31.8).
 
 ---
 

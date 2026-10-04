@@ -154,3 +154,23 @@ Odstępstwa od pierwotnego zamówienia (z powodem):
 
 Znane luki: brak e-maila do osoby, której dotyczy list (dostaje go od opiekuna); tłumaczenia tekstów
 listu i napisów do przeglądu; po wyłączeniu flagi strona weryfikacji znika razem z resztą logistyki.
+
+## 9. Poprawki po przeglądzie (Critic, 4.10.2026)
+
+| ID | Co zmieniono |
+|---|---|
+| M1 | Zastąpienie listu imiennego tylko przy zmianie numeru paszportu, nazwiska albo obywatelstwa (`letters.MATERIAL_FIELDS`, `letters_to_supersede`), w `issue_letter` – więc tak samo dla wniosku i dla wystawienia z karty osoby; podgląd „unieważni list …” u oficera, ostrzeżenie u opiekuna; list delegacji z nieaktualnymi danymi oznaczony w rejestrze (`outdated_names`), nie unieważniany sam. |
+| M2 | Wypisanie z delegacji i usunięcie gościa (`delete_members(removal=True)`) unieważnia listy imienne z powodem „osoba wypisana z delegacji”; `verify()` – list nieważny, gdy migawkę wyczyszczono przed `event_ends_on`. |
+| M3 | Strona weryfikacji za bramką „konkurs wystawił listy” (`verification.has_letters`), niezależną od flagi i trybu; ekrany opiekuna/oficera bez zmian. |
+| M4 | `InvitationLetter.verification_base_url` zapisywany przy wystawieniu i używany w QR i treści listu; komenda `visa_letter_redirects` (przekierowania Wagtaila ze starej ścieżki); przekierowanie w widoku dla listu przeniesionej domeny (`verification.moved_letter`). Wzorzec URL ze zmiennym pierwszym segmentem nie jest możliwy (kontrakt tras djcms go odrzuca) – stąd przekierowania w bazie. |
+| M5 | `no_analytics` w `base.html` – brak tagu Google na `/visa/verify/…` i `/dyplomy/<kod>/`. |
+| L1 | Limit `visa_verify` także dla HEAD. |
+| L2 | Formularz `?code=` pokazuje wynik od razu (jedno miejsce w limicie); oficer logistyki konkursu bez limitu. |
+| L3 | Powód unieważnienia czyszczony przy retencji i przy wyczyszczeniu migawki (`drop_person`). |
+| L4 | OPERACJE § 31.8: cofnięcie + ponowne zastosowanie migracji nadaje nowe kody – nie cofać po pierwszym liście (kolumna z kodami znika przy cofnięciu, więc zachowanie kodów nie jest możliwe). Test cofnięcia w `test_visa_migration.py`. |
+| L5 | Unieważnienie zastępowanego listu pomija list unieważniony w międzyczasie. |
+| L6 | Komunikaty widoczne dla opiekuna (język, list unieważniony, dane usunięte) przez gettext, w 10 katalogach. |
+| L7 | Szablon z bazy wymusza angielski i ukrywa wybór języka; daty listu w formacie języka (`DATE_FORMAT`, `j E Y`); zdania pl/ru z organizatorem jako dopowiedzeniem (bez zależności od przypadka). |
+| L8 | Szersza kolumna obywatelstwa (kod wielkimi literami). |
+| L9 | Test zakresu z prawdziwym drugim konkursem, adres QR (domena, prefiks, zmiana domeny), HEAD, zastępowanie/wycofanie, PDF w es/pt/ru/id/pl, cofnięcie migracji, przekierowania, analityka. |
+| L10 | W repozytorium nie ma strony o slugu `visa`; OPERACJE § 31.8 p. 0 – sprawdzenie na produkcji przed wdrożeniem. |
