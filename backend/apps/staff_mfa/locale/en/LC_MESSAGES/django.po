@@ -107,3 +107,15 @@ msgstr "Tick this only on your own computer – not on a shared one at school or
 
 msgid "Włącz teraz"
 msgstr "Turn on now"
+
+msgid "Zapamiętane urządzenia"
+msgstr "Remembered devices"
+
+msgid "Przeglądarki, w których zaznaczono „nie pytaj o kod”, przestaną być zapamiętane – także te, do których nie masz już dostępu."
+msgstr "Browsers where “don't ask for a code” was ticked will no longer be remembered – including ones you no longer have access to."
+
+msgid "Zapomnij wszystkie urządzenia"
+msgstr "Forget all devices"
+
+msgid "Zapomnieliśmy wszystkie zapamiętane urządzenia – przy następnym logowaniu podasz kod."
+msgstr "All remembered devices have been forgotten – you will be asked for a code the next time you sign in."

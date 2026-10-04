@@ -56,6 +56,17 @@
     </div>
   </section>
 
+  <section class="section">
+    <div class="card">
+      <h2 class="mt-0">{% translate "Zapamiętane urządzenia" %}</h2>
+      <p class="hint">{% translate "Przeglądarki, w których zaznaczono „nie pytaj o kod”, przestaną być zapamiętane – także te, do których nie masz już dostępu." %}</p>
+      <form method="post" action="{% url 'web:twofactor-forget-devices' %}" class="inline">
+        {% csrf_token %}
+        <button type="submit" class="btn btn--secondary">{% translate "Zapomnij wszystkie urządzenia" %}</button>
+      </form>
+    </div>
+  </section>
+
   {% comment %}
     Wyłączenie wymaga hasła i bieżącego kodu (SEC-01 § 4): sesja bywa porzucona albo
     „zapamiętana”, a zdjęcie zabezpieczenia to dokładnie to, czego chce ktoś, kto ją zastał.

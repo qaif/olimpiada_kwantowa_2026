@@ -16,6 +16,7 @@ from django.http import Http404
 from django.shortcuts import redirect
 from django.template.response import TemplateResponse
 from django.urls import reverse
+from django.utils.translation import gettext as _
 from django.views.generic import View
 
 from apps.accounts import twofactor
@@ -67,6 +68,28 @@ class RegenerateCodesView(TwoFactorFeatureMixin, ThrottledFormMixin, LoginRequir
         return TemplateResponse(request, self.template_name, {"error": error}, status=status)
 
 
+class ForgetDevicesView(TwoFactorFeatureMixin, LoginRequiredMixin, View):
+    """``/account/2fa/forget-devices/`` (POST) – „zapomnij wszystkie urządzenia” (przegląd, L4).
+
+    Unieważnia każde wydane wcześniej ciasteczko ``2fa_trust`` tego konta – także w przeglądarkach,
+    do których właściciel nie ma już dostępu (zgubiony laptop, komputer w hotelu). Bez hasła: to
+    czynność, która wyłącznie **dokłada** pytanie o kod, więc nie ma czego przed nią chronić.
+    """
+
+    def post(self, request):
+        from apps.staff_mfa import security, trust
+
+        security.revoke_trusted_devices(request.user)
+        audit(request.user, "2fa.devices_forgotten", request.user, {}, request)
+        messages.success(
+            request,
+            _("Zapomnieliśmy wszystkie zapamiętane urządzenia – przy następnym logowaniu podasz kod."),
+        )
+        response = redirect(reverse("web:twofactor-setup"))
+        trust.forget(response)
+        return response
+
+
 # --- panel koordynatora -------------------------------------------------------------------------
 
 
@@ -95,26 +118,67 @@ def _staff_rows(competition) -> list[dict]:
         .distinct()
         .order_by("last_name", "email")
     )
-    required = policy.required_roles(competition)
+    users = list(candidates.prefetch_related("groups")[:500])
+    ids = [user.pk for user in users]
+    # Role liczone hurtem (przegląd, L6): stała liczba zapytań niezależnie od liczby kont, ta sama
+    # reguła, co ``roles_for`` (członkostwa przy ``memberships_enforced``, inaczej grupy Django;
+    # superkoordynator jest koordynatorem każdego konkursu) i ``role_keys_of`` (logistyka, admin).
+    from apps.accounts.models import Membership
+    from apps.accounts.services import memberships_enforced
+    from apps.delegation_logistics.models import LogisticsAccess
+
+    enforced = memberships_enforced(competition)
+    by_membership: dict[int, set[str]] = {}
+    if enforced:
+        for user_id, role in Membership.objects.filter(competition=competition, user_id__in=ids).values_list(
+            "user_id", "role"
+        ):
+            by_membership.setdefault(user_id, set()).add(role)
+    logistics = set(
+        LogisticsAccess.objects.filter(competition=competition, user_id__in=ids).values_list(
+            "user_id", flat=True
+        )
+    )
     devices = {
         row.user_id: row
-        for row in twofactor.TwoFactorDevice.objects.filter(user__in=candidates, confirmed_at__isnull=False)
+        for row in twofactor.TwoFactorDevice.objects.filter(user_id__in=ids, confirmed_at__isnull=False)
     }
-    graces = {row.user_id: row for row in TwoFactorGrace.objects.filter(user__in=candidates)}
-    days = policy.grace_days(competition)
+    graces = {row.user_id: row for row in TwoFactorGrace.objects.filter(user_id__in=ids)}
+    required = policy.required_roles(competition)
+    staff_role_keys = set(policy.COMPETITION_ROLE_KEYS) - {"logistics"}
+    days_cache: dict[frozenset, int] = {}
+
+    def _days(matched: frozenset) -> int:
+        if matched not in days_cache:
+            days_cache[matched] = policy.grace_days_for(matched, competition)
+        return days_cache[matched]
+
     rows = []
-    for user in candidates[:500]:
-        keys = policy.role_keys_of(user, competition)
+    for user in users:
+        groups = {group.name for group in user.groups.all()}
+        keys: set[str] = set()
+        if user.is_staff or user.is_superuser:
+            keys.add("admin")
+        if GROUP_SUPER_COORDINATOR in groups:
+            keys |= {"superkoordynator", "coordinator"}
+        keys |= (by_membership.get(user.pk, set()) if enforced else groups) & staff_role_keys
+        if user.pk in logistics:
+            keys.add("logistics")
         if not keys:
             continue
         grace = graces.get(user.pk)
+        matched = keys & required
         rows.append(
             {
                 "user": user,
                 "roles": [policy.ROLE_KEYS[key] for key in policy.ROLE_KEYS if key in keys],
-                "required": bool(keys & required),
+                "required": bool(matched),
                 "device": devices.get(user.pk),
-                "deadline": grace.required_since + timedelta(days=days) if grace else None,
+                "deadline": (
+                    grace.required_since + timedelta(days=_days(frozenset(matched)))
+                    if grace and matched
+                    else None
+                ),
             }
         )
     return rows
@@ -168,9 +232,12 @@ class PolicyView(CoordinatorRequiredMixin, View):
 
     def _render(self, request, form, *, status: int = 200):
         competition = self.competition
+        may_edit = self._may_edit(request)
         context = {
             "form": form,
-            "may_edit": self._may_edit(request),
+            "may_edit": may_edit,
+            # Lista personelu (kto nie ma 2FA = cel ataku) – wyłącznie dla superkoordynatora (L6).
+            "rows": _staff_rows(competition) if may_edit else None,
             "platform_roles": [
                 policy.ROLE_KEYS[key] for key in policy.ROLE_KEYS if key in policy.platform_roles()
             ],
@@ -182,7 +249,6 @@ class PolicyView(CoordinatorRequiredMixin, View):
             "sensitive": policy.sensitive_features(competition),
             "grace_days": policy.grace_days(competition),
             "remember_days": policy.remember_days(competition),
-            "rows": _staff_rows(competition),
         }
         return TemplateResponse(request, self.template_name, context, status=status)
 

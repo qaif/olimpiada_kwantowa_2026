@@ -107,3 +107,15 @@ msgstr "حدّد هذا الخيار على حاسوبك الشخصي فقط –
 
 msgid "Włącz teraz"
 msgstr "فعّل الآن"
+
+msgid "Zapamiętane urządzenia"
+msgstr "الأجهزة المحفوظة"
+
+msgid "Przeglądarki, w których zaznaczono „nie pytaj o kod”, przestaną być zapamiętane – także te, do których nie masz już dostępu."
+msgstr "لن تُحفظ بعد الآن المتصفحات التي حُدد فيها خيار «لا تطلب رمزًا» – بما فيها المتصفحات التي لم يعد بإمكانك الوصول إليها."
+
+msgid "Zapomnij wszystkie urządzenia"
+msgstr "نسيان جميع الأجهزة"
+
+msgid "Zapomnieliśmy wszystkie zapamiętane urządzenia – przy następnym logowaniu podasz kod."
+msgstr "تم نسيان جميع الأجهزة المحفوظة – سيُطلب منك رمز عند تسجيل الدخول التالي."

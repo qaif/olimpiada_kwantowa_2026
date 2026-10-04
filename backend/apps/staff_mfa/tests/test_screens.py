@@ -35,7 +35,8 @@ def test_a_coordinator_sees_the_policy_and_the_staff_but_cannot_save(client, com
 
     body = page.content.decode()
     assert page.status_code == 200
-    assert "koordynator@example.test" in body and "bez2fa@example.test" in body
+    # Lista personelu wyłącznie dla superkoordynatora (przegląd, L6 – test_review_fixes.py).
+    assert "bez2fa@example.test" not in body
     assert "fees" in body
     assert "Zapisz politykę" not in body
     assert page["Cache-Control"].startswith("private")

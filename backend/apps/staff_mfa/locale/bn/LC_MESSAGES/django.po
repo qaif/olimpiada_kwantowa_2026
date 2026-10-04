@@ -107,3 +107,15 @@ msgstr "শুধু নিজের কম্পিউটারে টিক �
 
 msgid "Włącz teraz"
 msgstr "এখনই চালু করুন"
+
+msgid "Zapamiętane urządzenia"
+msgstr "মনে রাখা ডিভাইস"
+
+msgid "Przeglądarki, w których zaznaczono „nie pytaj o kod”, przestaną być zapamiętane – także te, do których nie masz już dostępu."
+msgstr "যেসব ব্রাউজারে “কোড চাইবেন না” টিক দেওয়া হয়েছিল, সেগুলো আর মনে রাখা হবে না – যেগুলোতে আপনার আর প্রবেশাধিকার নেই সেগুলোও।"
+
+msgid "Zapomnij wszystkie urządzenia"
+msgstr "সব ডিভাইস ভুলে যান"
+
+msgid "Zapomnieliśmy wszystkie zapamiętane urządzenia – przy następnym logowaniu podasz kod."
+msgstr "মনে রাখা সব ডিভাইস ভুলে যাওয়া হয়েছে – পরের বার লগ ইন করার সময় কোড চাওয়া হবে।"

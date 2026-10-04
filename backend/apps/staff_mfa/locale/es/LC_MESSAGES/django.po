@@ -107,3 +107,15 @@ msgstr "Márcalo solo en tu propio ordenador, no en uno compartido en la escuela
 
 msgid "Włącz teraz"
 msgstr "Activar ahora"
+
+msgid "Zapamiętane urządzenia"
+msgstr "Dispositivos recordados"
+
+msgid "Przeglądarki, w których zaznaczono „nie pytaj o kod”, przestaną być zapamiętane – także te, do których nie masz już dostępu."
+msgstr "Los navegadores en los que se marcó «no pedir código» dejarán de recordarse, incluidos aquellos a los que ya no tienes acceso."
+
+msgid "Zapomnij wszystkie urządzenia"
+msgstr "Olvidar todos los dispositivos"
+
+msgid "Zapomnieliśmy wszystkie zapamiętane urządzenia – przy następnym logowaniu podasz kod."
+msgstr "Se han olvidado todos los dispositivos recordados: la próxima vez que inicies sesión se te pedirá un código."

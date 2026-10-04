@@ -92,3 +92,14 @@ def notify(user, event: str, *, request=None, **params) -> None:
         }
         body = _body(event, user, competition=competition, params=params)
     queue_mail(subject, body, user.email, competition=competition)
+    if event in SENT_TO_PREVIOUS_ADDRESSES:
+        # Przegląd SEC-01 (H1): adres zmieniony niedawno mógł zmienić przejmujący – list o zdjęciu
+        # zabezpieczenia idzie też tam, gdzie właściciel go jeszcze czyta.
+        from .security import recent_previous_emails
+
+        for previous in recent_previous_emails(user):
+            queue_mail(subject, body, previous, competition=competition)
+
+
+#: Zdarzenia, o których zawiadamiamy także poprzednie adresy konta z ostatnich dni.
+SENT_TO_PREVIOUS_ADDRESSES = frozenset({"reset", "disabled"})

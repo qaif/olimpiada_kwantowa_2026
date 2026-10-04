@@ -107,3 +107,15 @@ msgstr "Centang hanya di komputer Anda sendiri – bukan di komputer bersama di 
 
 msgid "Włącz teraz"
 msgstr "Aktifkan sekarang"
+
+msgid "Zapamiętane urządzenia"
+msgstr "Perangkat yang diingat"
+
+msgid "Przeglądarki, w których zaznaczono „nie pytaj o kod”, przestaną być zapamiętane – także te, do których nie masz już dostępu."
+msgstr "Browser yang dicentang “jangan minta kode” tidak akan diingat lagi – termasuk yang sudah tidak dapat Anda akses."
+
+msgid "Zapomnij wszystkie urządzenia"
+msgstr "Lupakan semua perangkat"
+
+msgid "Zapomnieliśmy wszystkie zapamiętane urządzenia – przy następnym logowaniu podasz kod."
+msgstr "Semua perangkat yang diingat telah dilupakan – Anda akan diminta kode saat masuk berikutnya."

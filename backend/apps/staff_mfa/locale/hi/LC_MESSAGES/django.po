@@ -107,3 +107,15 @@ msgstr "इसे केवल अपने कंप्यूटर पर च�
 
 msgid "Włącz teraz"
 msgstr "अभी चालू करें"
+
+msgid "Zapamiętane urządzenia"
+msgstr "याद रखे गए डिवाइस"
+
+msgid "Przeglądarki, w których zaznaczono „nie pytaj o kod”, przestaną być zapamiętane – także te, do których nie masz już dostępu."
+msgstr "जिन ब्राउज़रों में “कोड न पूछें” चुना गया था, वे अब याद नहीं रखे जाएँगे – उनमें वे भी शामिल हैं जिन तक अब आपकी पहुँच नहीं है।"
+
+msgid "Zapomnij wszystkie urządzenia"
+msgstr "सभी डिवाइस भूल जाएँ"
+
+msgid "Zapomnieliśmy wszystkie zapamiętane urządzenia – przy następnym logowaniu podasz kod."
+msgstr "सभी याद रखे गए डिवाइस भुला दिए गए हैं – अगली बार लॉग इन करते समय आपसे कोड माँगा जाएगा।"

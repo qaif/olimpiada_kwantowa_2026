@@ -4917,10 +4917,11 @@ Po zmianie: `docker compose up -d web worker beat`.
 - okres przejściowy konkursu (puste = `TWO_FACTOR_GRACE_DAYS`, 0 = od razu, maks. 90),
 - „pozwól zapamiętać urządzenie” (wyłączone = kod przy każdym logowaniu).
 
-**Zmienia wyłącznie superkoordynator** (koordynator widzi politykę i listę personelu; POST = 403)
+**Zmienia wyłącznie superkoordynator** (koordynator widzi samą politykę; POST = 403)
 albo operator w `/admin/` (`staff_mfa → polityki 2FA konkursów`). Zapis: audyt `2fa.policy_changed`
 (przed → po) i nowa wersja polityki – działające sesje liczą wymóg od następnego żądania.
-Lista personelu na tym ekranie: role, 2FA tak/nie, termin okresu przejściowego, odnośnik do konta.
+Lista personelu (role, 2FA tak/nie, termin okresu przejściowego, odnośnik do konta) – **wyłącznie
+dla superkoordynatora**: „kto nie ma 2FA” to lista najłatwiejszych celów.
 
 ### 41.3. Okres przejściowy i wymuszanie
 
@@ -4933,36 +4934,67 @@ Lista personelu na tym ekranie: role, 2FA tak/nie, termin okresu przejściowego,
 - wymóg liczony per konkurs żądania: ten sam koordynator może musieć mieć 2FA na `iqo-official.org`,
   a nie musieć na olimpiadakwantowa.pl. Urządzenie jest jedno dla konta – kto je ma, podaje kod wszędzie,
 - uczestnik nigdy nie dostaje banera ani poczekalni „skonfiguruj” (2FA włączone dobrowolnie działa jak dotąd),
-- nadanie roli w trakcie sesji: wymóg obejmie konto od następnego logowania (albo od najbliższego
-  zapisu polityki konkursu).
+- termin dla ról **platformy** (`superkoordynator`, `admin`) liczy się wyłącznie z
+  `TWO_FACTOR_GRACE_DAYS` – polityka konkursu go nie wydłuży; przy rolach z obu źródeł – wcześniejszy,
+- zmiana ról w trakcie sesji: nadanie roli personelu (grupa, `Membership`, przydział logistyki,
+  opiekun delegacji) i zmiana przełączników konkursu podbijają wersję polityki – działające sesje
+  liczą wymóg od następnego żądania. Znacznik „nie musisz” żyje najwyżej 10 min; konto bez żadnej
+  roli personelu (uczestnik) nie czyta przy każdym żądaniu wersji z Redisa, więc rola nadana
+  uczestnikowi zadziała u niego najpóźniej po 10 min,
+- włączenie, wyłączenie i reset 2FA zamykają **inne** sesje konta (reset – wszystkie),
+- po wdrożeniu SEC-01 każda sesja przechodzi bramkę od nowa (klucz sesji `2fa_passed` zamiast
+  `2fa_verified`).
 
 ### 41.4. Bezpieczeństwo kodów
 
 - **blokada konta**: 5 złych kodów w 15 min → 15 min blokady (w blokadzie nawet dobry kod jest
-  odrzucany); audyt `2fa.locked`, list do właściciela, API `429 TWO_FACTOR_LOCKED`. Licznik w Redisie –
-  awaria Redisa wyłącza blokadę (limit `two_factor` 10/min per IP też stoi w Redisie),
+  odrzucany); audyt `2fa.locked`, list do właściciela, API `429 TWO_FACTOR_LOCKED`. Próba jest
+  liczona **przed** sprawdzeniem kodu – równoległa seria nie przekroczy limitu. Licznik w Redisie –
+  awaria Redisa wyłącza blokadę (błąd w logu, logowanie działa; limit `two_factor` 10/min per IP też
+  stoi w Redisie),
 - jednorazowość kodu TOTP (warunkowy `UPDATE`) i kodu zapasowego (`select_for_update`) odporna na
   równoległe żądania,
 - wyłączenie 2FA i nowy komplet kodów (`/account/2fa/codes/regenerate/`) wymagają hasła **i** kodu,
 - „zapamiętaj to urządzenie”: podpisane ciasteczko `2fa_trust` (`HttpOnly`, `SameSite=Lax`, `Secure`
-  jak sesja), unieważniane zmianą hasła, wyłączeniem i resetem 2FA; audyt `2fa.remembered`,
+  jak sesja), ważne wyłącznie w konkursie, który je wydał (konkurs pod prefiksem ścieżki dzieli
+  ciasteczka z gospodarzem), unieważniane zmianą hasła, wyłączeniem i resetem 2FA oraz przyciskiem
+  „Zapomnij wszystkie urządzenia” na `/account/2fa/` (audyt `2fa.devices_forgotten`); audyt `2fa.remembered`,
 - ekrany 2FA: `Cache-Control: private, no-store`; pełnostronicowy cache ich nie dotyczy.
 
 ### 41.5. „Zgubiłem telefon” – reset przez organizatora
 
 `Panel → Konta → (konto) → Logowanie dwuskładnikowe → Zdejmij drugi składnik`:
 
-- konto **personelu** (dowolna rola z § 41.1 poza `supervisor`): **wyłącznie superkoordynator**;
-  koordynator widzi zdanie „wyłącznie superkoordynator”, POST = 403. Wyjątek: na platformie nie ma
-  żadnego aktywnego superkoordynatora – wtedy może koordynator (inaczej nie byłoby drogi powrotu),
+- konto **personelu** – rola z § 41.1 poza `supervisor` w **dowolnym** konkursie (grupy, `Membership`,
+  przydział logistyki, opiekun delegacji, `is_staff`), także konto **zablokowane**: **wyłącznie
+  superkoordynator**; koordynator widzi zdanie „wyłącznie superkoordynator”, POST = 403,
+- wyjątek, gdy na platformie nie ma żadnego aktywnego superkoordynatora: koordynator może zresetować
+  personel **swojego** konkursu – nigdy konto `admin`/superkoordynatora ani personel innego konkursu.
+  Przy `migrate`/`manage.py check` pojawia się wtedy ostrzeżenie `staff_mfa.W002`,
 - uczestnik i opiekun szkolny: koordynator, jak dotąd,
 - zawsze: potwierdź tożsamość drogą inną niż e-mail z tego konta (§ 5.4); audyt `2fa.reset`; właściciel
-  dostaje list. Nadanie roli superkoordynatora: komenda `superkoordynator` (`--help`).
+  dostaje list – także na **poprzedni** adres, jeśli adres konta zmieniono w ostatnich 30 dniach;
+  wszystkie sesje właściciela zostają zamknięte. Nadanie roli superkoordynatora: komenda
+  `superkoordynator` (`--help`),
+- **zmiana adresu e-mail** konta z 2FA albo konta personelu (przy `TWO_FACTOR_ENABLED=1`): wyłącznie
+  superkoordynator albo `/admin/`. Koordynator dostaje odmowę – zmiana adresu to pierwszy krok
+  przejęcia (nowy adres → reset hasła),
+- **reset z powłoki** (droga ostatnia, np. konto `admin` bez superkoordynatora):
+
+  ```bash
+  docker compose exec web python manage.py reset_2fa adres@example.org \
+    --note "zgłoszenie tel. 4.10, tożsamość potwierdzona wideo – J. Kowalski"
+  ```
+
+  Audyt `2fa.reset` bez wykonawcy z panelu (`via: cli`, notatka), list do właściciela, zamknięte sesje.
 
 ### 41.6. Listy do właściciela konta
 
 Włączenie, wyłączenie, nowe kody zapasowe, użycie kodu zapasowego, reset przez organizatora,
 blokada po złych kodach – kolejka `mail`, w języku konta, bez sekretów i bez linków logowania.
+List o resecie i o wyłączeniu idzie też na poprzednie adresy konta z ostatnich 30 dni
+(`staff_mfa.PreviousEmail`, zapisywane przy zmianie adresu tylko przy `TWO_FACTOR_ENABLED=1`;
+znikają z kontem i przy anonimizacji).
 
 ### 41.7. API
 
@@ -4973,7 +5005,7 @@ blokada po złych kodach – kolejka `mail`, w języku konta, bez sekretów i be
 
 ### 41.8. Wdrożenie na produkcji (kolejność)
 
-1. wdrożenie (migracja `staff_mfa.0001` – dwie puste tabele, bez przerwy),
+1. wdrożenie (migracje `staff_mfa.0001`–`0002` – cztery puste tabele, bez przerwy),
 2. `.env`: `TWO_FACTOR_REQUIRED_ROLES=superkoordynator,admin`, `TWO_FACTOR_GRACE_DAYS=14`,
    `TWO_FACTOR_REMEMBER_DAYS=7`, a dopiero potem `TWO_FACTOR_ENABLED=1`; `docker compose up -d web worker beat`,
 3. komunikat do personelu (koordynatorzy, opiekunowie drużyn IQO, oficerowie logistyki): „w ciągu
@@ -4981,6 +5013,23 @@ blokada po złych kodach – kolejka `mail`, w języku konta, bez sekretów i be
 4. po kilku dniach: `/coordinator/security/2fa/` – kto jeszcze nie ma; w razie potrzeby polityka
    `custom` z `reviewer`/`appeals`,
 5. wycofanie: `TWO_FACTOR_ENABLED=0` (urządzenia i okresy przejściowe zostają w bazie; § 5.6).
+
+Po kroku 2 sprawdź `docker compose exec web python manage.py check`: `staff_mfa.W001` = puste
+`TWO_FACTOR_REQUIRED_ROLES`, `staff_mfa.W002` = brak aktywnego superkoordynatora.
+
+### 41.9. Znane ograniczenia
+
+- **Redis** niesie licznik blokady, wersję polityki i limit `two_factor`: jego awaria wyłącza blokadę
+  i limit (logowanie działa, błąd w logu), a wyczyszczenie go to jednorazowe przeliczenie bramki
+  w każdej sesji,
+- **zmiana roli** dociera do sesji uczestnika (konta bez roli personelu) najpóźniej po 10 min,
+  do pozostałych – od następnego żądania (wersja polityki); zmiana `is_staff` – najpóźniej po 10 min,
+- **okres przejściowy** liczy się od pierwszego wejścia konta po objęciu wymogiem, a nie od
+  włączenia funkcji – konto, które nie loguje się miesiącami, dostanie pełne 14 dni przy pierwszym
+  logowaniu (także przejmujący z samym hasłem; hasło nadal jest potrzebne),
+- **klucze integracji** (`/api/v1/`, `apps.integrations`) nie podlegają 2FA – to osobny mechanizm
+  bez sesji użytkownika (§ 41.7),
+- **WebAuthn/passkeys** – brak (wymagałyby nowej zależności).
 
 ## 39. Nadzór zdalny etapów online (PROC-01, `docs/tasks/PROC-01.md`)
 

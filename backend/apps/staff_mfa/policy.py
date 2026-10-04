@@ -224,9 +224,81 @@ def matching_roles(user, competition) -> frozenset[str]:
     return role_keys_of(user, competition, wanted)
 
 
-def is_staff_account(user, competition) -> bool:
-    """Czy konto jest „personelem” w rozumieniu resetu 2FA (SEC-01 § 4): rola z § 1 poza opiekunem."""
-    return bool(role_keys_of(user, competition, frozenset(ROLE_KEYS) - {"supervisor"}))
+#: Grupy Django, które dają rolę personelu (bez opiekuna szkolnego i uczestnika).
+STAFF_GROUPS = ("coordinator", "reviewer", "appeals", "team_leader")
+
+
+def staff_footprint(user) -> dict:
+    """Ślad personelu konta **w całej platformie**, niezależnie od ``is_active`` (przegląd SEC-01, H1/H2).
+
+    Czytane wprost z tabel, a nie przez ``roles_for``/``has_role``: tamte odpowiadają „nie” dla konta
+    zablokowanego i patrzą na jeden konkurs. Tu pytanie brzmi inaczej – „czy to konto jest personelem
+    gdziekolwiek” – bo na nim opiera się zgoda na reset 2FA i zużycie okresu przejściowego.
+    Koordynator, który najpierw blokuje konto opiekuna drużyny, a potem zdejmuje mu 2FA i zmienia
+    adres, nie może dostać odpowiedzi „to nie personel”.
+
+    Zwraca ``{"platform": {...}, "keys": {...}, "competitions": {id, …}}``: role platformy
+    (``admin``, ``superkoordynator``), wszystkie klucze ról personelu i konkursy, w których konto ma
+    rolę personelu wierszem (``Membership``, ``LogisticsAccess``, ``DelegationLeader``). Rola z samej
+    grupy Django nie ma konkursu (instalacje bez ``memberships_enforced``).
+    """
+    from apps.accounts.delegations import DelegationLeader
+    from apps.accounts.models import GROUP_SUPER_COORDINATOR, Membership
+    from apps.delegation_logistics.models import LogisticsAccess
+
+    platform: set[str] = set()
+    keys: set[str] = set()
+    competitions: set[int] = set()
+    if user is None or not getattr(user, "pk", None):
+        return {"platform": platform, "keys": keys, "competitions": competitions}
+    if user.is_staff or user.is_superuser:
+        platform.add("admin")
+    groups = set(user.groups.values_list("name", flat=True))
+    if GROUP_SUPER_COORDINATOR in groups:
+        platform.add("superkoordynator")
+    keys |= groups & set(STAFF_GROUPS)
+    memberships = Membership.objects.filter(user=user, role__in=STAFF_GROUPS)
+    for role, competition_id in memberships.values_list("role", "competition_id"):
+        keys.add(role)
+        competitions.add(competition_id)
+    logistics = set(LogisticsAccess.objects.filter(user=user).values_list("competition_id", flat=True))
+    if logistics:
+        keys.add("logistics")
+        competitions |= logistics
+    leaders = set(
+        DelegationLeader.objects.filter(user=user).values_list("delegation__competition_id", flat=True)
+    )
+    if leaders:
+        keys.add("team_leader")
+        competitions |= leaders
+    keys |= platform
+    return {"platform": platform, "keys": keys, "competitions": competitions}
+
+
+def is_staff_anywhere(user) -> bool:
+    """Czy konto ma rolę personelu (poza opiekunem szkolnym) gdziekolwiek – także zablokowane."""
+    return bool(staff_footprint(user)["keys"])
+
+
+def has_any_role_key(user) -> bool:
+    """Czy konto ma **jakąkolwiek** rolę, którą polityka może objąć (także opiekun szkolny).
+
+    Tanie sito warstwy wymuszającej (przegląd, L8): konto bez żadnej takiej roli (uczestnik) nie
+    czyta przy każdym żądaniu wersji polityki z cache'a – żadna wersja polityki go nie obejmie.
+    Nadanie roli takiemu kontu działa najpóźniej po ``EXEMPT_TTL_SECONDS``.
+    """
+    from apps.accounts.models import GROUP_SUPERVISOR, Membership
+
+    if is_staff_anywhere(user):
+        return True
+    if user.groups.filter(name=GROUP_SUPERVISOR).exists():
+        return True
+    return Membership.objects.filter(user=user, role=GROUP_SUPERVISOR).exists()
+
+
+def is_staff_account(user, competition=None) -> bool:
+    """Czy konto jest „personelem” w rozumieniu resetu 2FA – w **całej** platformie (przegląd, H2)."""
+    return is_staff_anywhere(user)
 
 
 # --- okres przejściowy -----------------------------------------------------------------------------
@@ -246,38 +318,67 @@ def grace_row(user, *, start: bool, request=None):
     return row
 
 
-def close_grace(user, competition) -> None:
-    """Wyłączenie 2FA przez konto objęte wymogiem zużywa okres przejściowy (SEC-01 § 3).
+def close_grace(user, competition=None) -> None:
+    """Wyłączenie albo reset 2FA konta personelu zużywa okres przejściowy (SEC-01 § 3).
 
     Konto, które włączyło 2FA, zanim warstwa wymuszająca zobaczyła u niego wymóg, nie ma jeszcze
     wiersza okresu przejściowego – bez tego kroku „wyłącz” dawałoby mu świeże czternaście dni bez
     drugiego składnika. Wiersz już istniejący zostaje, jaki był (termin się nie przesuwa).
+
+    Personel liczony w **całej** platformie i bez względu na ``is_active`` (przegląd, H1/H2): konto
+    zablokowane na chwilę resetu, a potem odblokowane, nie może dostać nowego okresu przejściowego.
     """
     from .models import TwoFactorGrace
 
-    if matching_roles(user, competition):
+    if is_staff_anywhere(user):
         TwoFactorGrace.objects.get_or_create(
             user=user, defaults={"required_since": timezone.now() - timedelta(days=3650)}
         )
 
 
 def requirement_for(user, competition, *, request=None, start_grace: bool = True) -> Requirement | None:
-    """Wymóg 2FA konta w konkursie albo ``None``. Nie patrzy, czy konto ma już urządzenie."""
+    """Wymóg 2FA konta w konkursie albo ``None``. Nie patrzy, czy konto ma już urządzenie.
+
+    Termin (przegląd, M2): role **platformy** liczą okres wyłącznie z ``TWO_FACTOR_GRACE_DAYS`` –
+    polityka konkursu nie może wydłużyć okresu superkoordynatorowi ani kontu ``/admin/``, które
+    widzą wszystkie konkursy. Gdy konto ma i rolę platformy, i rolę konkursu, obowiązuje termin
+    wcześniejszy.
+    """
     roles = matching_roles(user, competition)
     if not roles:
         return None
     row = grace_row(user, start=start_grace, request=request)
     since = row.required_since if row is not None else timezone.now()
-    return Requirement(roles=roles, deadline=since + timedelta(days=grace_days(competition)))
+    return Requirement(roles=roles, deadline=since + timedelta(days=grace_days_for(roles, competition)))
+
+
+def grace_days_for(roles, competition) -> int:
+    """Długość okresu dla zbioru ról: platforma – ``TWO_FACTOR_GRACE_DAYS``, konkurs – jego polityka (M2)."""
+    by_platform = set(roles) & platform_roles()
+    by_competition = set(roles) & competition_roles(competition)
+    days = []
+    if by_platform:
+        days.append(int(getattr(settings, "TWO_FACTOR_GRACE_DAYS", DEFAULT_GRACE_DAYS)))
+    if by_competition or not by_platform:
+        days.append(grace_days(competition))
+    return min(days)
+
+
+def any_active_super_coordinator() -> bool:
+    from apps.accounts.models import GROUP_SUPER_COORDINATOR, User
+
+    return User.objects.filter(groups__name=GROUP_SUPER_COORDINATOR, is_active=True).exists()
 
 
 def may_reset(actor, target, competition) -> bool:
-    """Czy ``actor`` może zdjąć drugi składnik z konta ``target`` (SEC-01 § 4).
+    """Czy ``actor`` może zdjąć drugi składnik z konta ``target`` (SEC-01 § 4, przegląd H1/H2/M1).
 
-    - konto personelu: wyłącznie superkoordynator. Wyjątek: na platformie nie ma żadnego aktywnego
-      superkoordynatora – wtedy koordynator (inaczej instalacja bez tej roli nie miałaby drogi
-      powrotu dla koordynatora bez telefonu poza powłoką serwera),
-    - pozostałe konta (uczestnik, opiekun szkolny): koordynator konkursu, jak dotąd.
+    - superkoordynator: zawsze,
+    - konto bez śladu personelu w całej platformie (uczestnik, opiekun szkolny): koordynator, jak dotąd,
+    - konto personelu (gdziekolwiek, także zablokowane): wyłącznie superkoordynator. Wyjątek, gdy na
+      platformie nie ma żadnego aktywnego superkoordynatora: koordynator tego konkursu – ale nigdy dla
+      konta ``admin``/``superkoordynator`` i nigdy dla personelu **innego** konkursu (wiersz roli
+      w konkursie innym niż ten, z którego panelu idzie żądanie). Wtedy zostaje komenda ``reset_2fa``.
 
     Sprawdzenie roli koordynatora robi wołający (bramka panelu); tu – wyłącznie dodatkowy próg.
     """
@@ -285,8 +386,12 @@ def may_reset(actor, target, competition) -> bool:
 
     if is_super_coordinator(actor):
         return True
-    if not is_staff_account(target, competition):
+    footprint = staff_footprint(target)
+    if not footprint["keys"]:
         return True
-    from apps.accounts.models import GROUP_SUPER_COORDINATOR, User
-
-    return not User.objects.filter(groups__name=GROUP_SUPER_COORDINATOR, is_active=True).exists()
+    if any_active_super_coordinator():
+        return False
+    if footprint["platform"]:
+        return False
+    here = getattr(competition, "pk", None)
+    return here is not None and footprint["competitions"] <= {here}

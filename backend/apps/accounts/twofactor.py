@@ -103,7 +103,11 @@ BACKUP_CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 #: wartość logiczna przetrwałaby ponowne zalogowanie się w tej samej sesji na inne konto, gdyby
 #: Django kiedykolwiek przestało czyścić sesję przy zmianie użytkownika. Porównanie z ``user.pk``
 #: kosztuje jedno porównanie liczb i zamyka całą tę klasę błędów.
-SESSION_VERIFIED_KEY = "2fa_verified"
+#:
+#: Nazwa zmieniona przy SEC-01 (przegląd, M3c): sesje sprzed wdrożenia mogły nieść ``2fa_verified``
+#: postawione kontom **bez** wymogu (stara warstwa znaczyła tak także zwolnienie). Nowa nazwa
+#: sprawia, że po wdrożeniu każda sesja przechodzi bramkę od nowa, według nowej polityki.
+SESSION_VERIFIED_KEY = "2fa_passed"
 
 #: Scope limitu prób – ten sam mechanizm, co przy logowaniu (``apps.web.throttle``). Stawka stoi
 #: w ``REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]``; brak wpisu (tak jest w testach) wyłącza limit.
@@ -113,9 +117,12 @@ THROTTLE_SCOPE = "two_factor"
 #: ``[konto, konkurs, wersja polityki]``: odpowiedź „nie musisz” albo „masz czas do…” jest odpowiedzią
 #: dla jednego konkursu (konkurs pod prefiksem ścieżki dzieli sesję z gospodarzem) i jednej wersji
 #: polityki (``apps.staff_mfa.policy.version``). Przy ``2fa_grace`` czwarty element to termin
-#: (znacznik czasu uniksowego) – po nim sesja liczy wymóg od nowa.
+#: (znacznik czasu uniksowego) – po nim sesja liczy wymóg od nowa. ``2fa_exempt`` ma czwarty element
+#: „ważne do” (``EXEMPT_TTL_SECONDS``, przegląd M3a) i piąty: czy konto nie ma żadnej roli, którą
+#: polityka mogłaby objąć (wtedy warstwa nie czyta nawet wersji polityki – przegląd L8).
 SESSION_EXEMPT_KEY = "2fa_exempt"
 SESSION_GRACE_KEY = "2fa_grace"
+EXEMPT_TTL_SECONDS = 10 * 60
 
 #: Blokada konta po serii złych kodów (SEC-01 § 5). Limit ``two_factor`` liczy próby z jednego
 #: adresu; blokada liczy próby na **konto**, niezależnie od adresu – kto zna hasło i rozkłada próby
@@ -424,8 +431,11 @@ def locked_until(user) -> float | None:
     """Znacznik czasu końca blokady albo ``None``. Awaria cache'a = brak blokady (jak limity)."""
     from django.core.cache import cache
 
-    value = cache.get(_lock_key(user))
-    return float(value) if value and float(value) > time.time() else None
+    try:
+        value = float(cache.get(_lock_key(user)) or 0)
+    except Exception:  # noqa: BLE001 - awaria cache'a albo śmieć w kluczu
+        return None
+    return value if value > time.time() else None
 
 
 def is_locked(user) -> bool:
@@ -437,23 +447,48 @@ def lock_minutes_left(user) -> int:
     return max(1, int((until - time.time() + 59) // 60)) if until else 0
 
 
-def _register_failure(user, request=None) -> None:
-    """Liczy złą próbę kodu; piąta w oknie zakłada blokadę, audyt i list do właściciela."""
+def _count_attempt(user) -> int | None:
+    """Zajmuje miejsce próby **przed** sprawdzeniem kodu (przegląd, L2). ``None`` = cache nie działa.
+
+    Licznik przed sprawdzeniem, a nie po porażce: seria równoległych żądań z różnymi kodami
+    sprawdzałaby inaczej wszystkie kody, zanim pierwsza porażka zdążyłaby zapisać się w liczniku.
+    Udana próba zeruje licznik (:func:`_clear_failures`).
+
+    Wynik spoza liczb całkowitych (``django-redis`` z ``IGNORE_EXCEPTIONS`` oddaje przy awarii
+    ``None``) nie może skończyć się błędem 500 na ekranie logowania (przegląd, L1) – logujemy
+    i przepuszczamy, tak jak limity w ``apps.web.throttle``.
+    """
+    from django.core.cache import cache
+
+    key = _fail_key(user)
+    try:
+        cache.add(key, 0, LOCKOUT_WINDOW_SECONDS)
+        try:
+            count = cache.incr(key)
+        except ValueError:  # klucz wygasł między ``add`` a ``incr``
+            cache.set(key, 1, LOCKOUT_WINDOW_SECONDS)
+            count = 1
+    except Exception:  # noqa: BLE001 - awaria cache'a nie zamyka logowania
+        logger.error("2FA: licznik prób niedostępny (cache) – blokada konta nie działa.")
+        return None
+    if not isinstance(count, int) or isinstance(count, bool):
+        logger.error("2FA: licznik prób oddał %r zamiast liczby – blokada konta nie działa.", count)
+        return None
+    return count
+
+
+def _lock(user, request=None) -> None:
+    """Zakłada blokadę konta, audyt i list do właściciela."""
     from django.core.cache import cache
 
     from apps.core.models import audit
 
-    key = _fail_key(user)
-    cache.add(key, 0, LOCKOUT_WINDOW_SECONDS)
     try:
-        count = cache.incr(key)
-    except ValueError:  # klucz wygasł między ``add`` a ``incr``
-        cache.set(key, 1, LOCKOUT_WINDOW_SECONDS)
-        count = 1
-    if count < LOCKOUT_THRESHOLD:
+        cache.set(_lock_key(user), time.time() + LOCKOUT_SECONDS, LOCKOUT_SECONDS)
+        cache.delete(_fail_key(user))
+    except Exception:  # noqa: BLE001
+        logger.error("2FA: nie udało się zapisać blokady konta (cache).")
         return
-    cache.set(_lock_key(user), time.time() + LOCKOUT_SECONDS, LOCKOUT_SECONDS)
-    cache.delete(key)
     audit(user, "2fa.locked", user, {"seconds": LOCKOUT_SECONDS}, request)
     _notify(user, "locked", request=request, minutes=LOCKOUT_SECONDS // 60)
 
@@ -461,7 +496,10 @@ def _register_failure(user, request=None) -> None:
 def _clear_failures(user) -> None:
     from django.core.cache import cache
 
-    cache.delete(_fail_key(user))
+    try:
+        cache.delete(_fail_key(user))
+    except Exception:  # noqa: BLE001
+        logger.error("2FA: nie udało się wyzerować licznika prób (cache).")
 
 
 def _notify(user, event: str, *, request=None, **params) -> None:
@@ -532,6 +570,11 @@ def confirm_setup(user, code: str, *, request=None) -> list[str]:
     from rest_framework.authtoken.models import Token
 
     Token.objects.filter(user=user).delete()
+    # Inne sesje tego konta (przegląd, M3b) weszły samym hasłem i niosą znacznik zwolnienia albo
+    # okresu przejściowego – po włączeniu 2FA mają zalogować się od nowa, już z kodem.
+    from apps.staff_mfa.security import drop_other_sessions
+
+    drop_other_sessions(user, keep_session_key=_own_session_key(user, request))
     audit(user, "2fa.enabled", user, {"backup_codes": len(hashed)}, request)
     _notify(user, "enabled", request=request)
     return plain
@@ -552,8 +595,10 @@ def disable(user, *, actor=None, request=None) -> bool:
     audit(actor or user, "2fa.disabled", user, {}, request)
     if was_confirmed:
         from apps.staff_mfa.policy import close_grace
+        from apps.staff_mfa.security import drop_other_sessions
 
-        close_grace(user, _competition_or_context(getattr(request, "competition", None)))
+        close_grace(user)
+        drop_other_sessions(user, keep_session_key=_own_session_key(user, request))
         _notify(user, "disabled", request=request)
     return True
 
@@ -615,7 +660,6 @@ def reset_by_coordinator(user, *, actor, request=None) -> bool:
     """
     from django.core.exceptions import PermissionDenied
 
-    from apps.core.models import audit
     from apps.staff_mfa.policy import may_reset
 
     competition = _competition_or_context(
@@ -625,14 +669,40 @@ def reset_by_coordinator(user, *, actor, request=None) -> bool:
         raise PermissionDenied(
             "Drugi składnik konta personelu zdejmuje wyłącznie superkoordynator (docs/OPERACJE.md § 41)."
         )
+    return _reset(user, actor=actor, request=request, diff={"email": bool(user.email)})
+
+
+def reset_by_operator(user, *, note: str = "") -> bool:
+    """Reset z powłoki serwera (``manage.py reset_2fa``) – droga ostatnia, gdy nie ma superkoordynatora.
+
+    Bez ``may_reset``: kto ma powłokę serwera, ma i bazę. Audyt bez wykonawcy z panelu
+    (``actor=None``) i z notatką operatora; list do właściciela tak samo, jak przy resecie z panelu.
+    """
+    return _reset(user, actor=None, request=None, diff={"via": "cli", "note": (note or "")[:200]})
+
+
+def _own_session_key(user, request) -> str | None:
+    """Klucz bieżącej sesji – tylko gdy należy do ``user`` (jej nie zamykamy, resztę tak)."""
+    if request is None or getattr(getattr(request, "user", None), "pk", None) != user.pk:
+        return None
+    session = getattr(request, "session", None)
+    return getattr(session, "session_key", None)
+
+
+def _reset(user, *, actor, request, diff: dict) -> bool:
+    from apps.core.models import audit
+    from apps.staff_mfa.policy import close_grace
+    from apps.staff_mfa.security import drop_other_sessions
+
     device = device_for(user)
     if device is None:
         return False
     device.delete()
-    from apps.staff_mfa.policy import close_grace
-
-    close_grace(user, competition)
-    audit(actor, "2fa.reset", user, {"email": bool(user.email)}, request)
+    close_grace(user)
+    # Wszystkie sesje właściciela (przegląd, M3b): znacznik „zweryfikowano” w jego przeglądarkach
+    # dotyczył urządzenia, którego już nie ma.
+    drop_other_sessions(user, keep_session_key=_own_session_key(user, request))
+    audit(actor, "2fa.reset", user, diff, request)
     _notify(user, "reset", request=request)
     return True
 
@@ -720,6 +790,12 @@ def verify(user, code: str, *, request=None) -> bool:
     if is_locked(user):
         audit(user, "2fa.failed", user, {"stage": "locked"}, request)
         return False
+    attempt = _count_attempt(user)
+    if attempt is not None and attempt > LOCKOUT_THRESHOLD:
+        # Próba ponad limit w równoległej serii – blokada bez sprawdzania kodu.
+        audit(user, "2fa.failed", user, {"stage": "locked"}, request)
+        _lock(user, request)
+        return False
     if _check_totp(device, code):
         _clear_failures(user)
         audit(user, "2fa.verified", user, {"method": "totp"}, request)
@@ -736,7 +812,8 @@ def verify(user, code: str, *, request=None) -> bool:
         _notify(user, "backup_used", request=request, codes_left=device.backup_codes_left)
         return True
     audit(user, "2fa.failed", user, {"stage": "login"}, request)
-    _register_failure(user, request)
+    if attempt is not None and attempt >= LOCKOUT_THRESHOLD:
+        _lock(user, request)
     return False
 
 
@@ -809,13 +886,26 @@ class TwoFactorMiddleware:
         # zapytania na każdym żądaniu, a termin okresu przejściowego i tak działa w trakcie sesji.
         from apps.staff_mfa.policy import version
 
-        # Znacznik = [konto, konkurs, wersja polityki]: zmiana polityki albo konkurs pod prefiksem
-        # ścieżki (wspólna sesja) liczy bramkę od nowa.
-        marker = [user.pk, getattr(getattr(request, "competition", None), "pk", None), version()]
-        if request.session.get(SESSION_EXEMPT_KEY) == marker:
+        competition_id = getattr(getattr(request, "competition", None), "pk", None)
+        now = time.time()
+        exempt = request.session.get(SESSION_EXEMPT_KEY)
+        exempt_fresh = (
+            isinstance(exempt, list)
+            and len(exempt) == 5
+            and exempt[:2] == [user.pk, competition_id]
+            and now < exempt[3]
+        )
+        # Konto bez żadnej roli, którą polityka mogłaby objąć (uczestnik): ważny znacznik wystarcza,
+        # bez czytania wersji polityki z cache'a (przegląd, L8). Nadanie roli – najpóźniej po TTL.
+        if exempt_fresh and exempt[4]:
+            return self.get_response(request)
+        # Znacznik = [konto, konkurs, wersja polityki]: zmiana polityki (także nadanie roli –
+        # sygnały w ``apps.staff_mfa.signals``) albo konkurs pod prefiksem ścieżki liczy bramkę od nowa.
+        marker = [user.pk, competition_id, version()]
+        if exempt_fresh and exempt[:3] == marker:
             return self.get_response(request)
         grace = request.session.get(SESSION_GRACE_KEY)
-        if isinstance(grace, list) and grace[:3] == marker and time.time() < grace[3]:
+        if isinstance(grace, list) and len(grace) == 4 and grace[:3] == marker and now < grace[3]:
             request.two_factor_grace_until = _from_timestamp(grace[3])
             return self.get_response(request)
 
@@ -845,8 +935,15 @@ class TwoFactorMiddleware:
         found = requirement(user, getattr(request, "competition", None), request=request)
         if found is None:
             # Konto bez drugiego składnika i bez obowiązku jego posiadania: bramka jest przejściem
-            # otwartym, więc stawiamy znacznik i nie pytamy o to bazy przy każdym kolejnym żądaniu.
-            request.session[SESSION_EXEMPT_KEY] = marker
+            # otwartym, więc stawiamy znacznik i nie pytamy o to bazy przy każdym kolejnym żądaniu –
+            # przez ``EXEMPT_TTL_SECONDS`` (przegląd, M3a), potem liczymy od nowa.
+            from apps.staff_mfa.policy import has_any_role_key
+
+            request.session[SESSION_EXEMPT_KEY] = [
+                *marker,
+                time.time() + EXEMPT_TTL_SECONDS,
+                not has_any_role_key(user),
+            ]
             return None
         if not found.overdue():
             request.session[SESSION_GRACE_KEY] = [*marker, found.deadline.timestamp()]
@@ -862,8 +959,10 @@ class TwoFactorMiddleware:
         czyli także na ``/account/2fa/disable/`` – i cały mechanizm dałby się zdjąć jednym POST-em
         przez kogoś, kto zna wyłącznie hasło. Konto czekające na kod widzi więc tylko ekran kodu.
         """
+        from django.urls import get_script_prefix
+
         path = request.path
-        return any(path.startswith(prefix) for prefix in _allowed_prefixes(target))
+        return any(path.startswith(prefix) for prefix in _allowed_prefixes(target, get_script_prefix()))
 
     def _stop(self, request, target: str):
         """Przekierowanie dla przeglądarki, 403 dla API – każdy dostaje odpowiedź, którą rozumie."""
@@ -882,9 +981,15 @@ class TwoFactorMiddleware:
 _PUBLIC_PREFIXES = ("/status/", "/status.json", "/healthz/", "/static/")
 
 
-@lru_cache(maxsize=4)
-def _allowed_prefixes(target: str) -> tuple[str, ...]:
-    """Adresy dostępne dla sesji czekającej na krok ``target``. Liczone raz, z urlconfa.
+@lru_cache(maxsize=64)
+def _allowed_prefixes(target: str, script_prefix: str = "/") -> tuple[str, ...]:
+    """Adresy dostępne dla sesji czekającej na krok ``target``. Liczone raz na prefiks, z urlconfa.
+
+    Klucz pamięci obejmuje **prefiks skryptu** (przegląd, L5): konkurs pod prefiksem ścieżki
+    (``/druga/…``) ustawia go na czas żądania, a ``reverse`` dokleja go do adresu. Pamięć liczona
+    tylko po ``target`` oddawałaby adresy z prefiksem pierwszego żądania procesu – sesja czekająca
+    na kod pod drugim konkursem nie dostałaby się wtedy na własny ekran kodu (pętla przekierowań).
+    ``script_prefix`` nie jest czytany w ciele funkcji – ``reverse`` bierze go sam z wątku.
 
     Z ``reverse``, a nie z literałów: adres ekranu weryfikacji jest zapisany w jednym miejscu
     (``apps/web/urls.py``) i literał w tym module rozjechałby się z nim po cichu – a skutkiem

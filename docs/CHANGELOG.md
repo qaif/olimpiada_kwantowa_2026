@@ -27,8 +27,15 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
 - **Listy do właściciela konta** (włączenie, wyłączenie, nowe kody, użycie kodu zapasowego, reset,
   blokada) i audyt `2fa.locked`, `2fa.remembered`, `2fa.codes_regenerated`, `2fa.grace_started`.
 - Ekrany 2FA z `Cache-Control: private, no-store`; tłumaczenia w `apps/staff_mfa/locale` (10 języków).
-- `TWO_FACTOR_ENABLED=0` (domyślnie) – zachowanie bez zmian. Migracja `staff_mfa.0001` (dwie puste
-  tabele). Operator: `docs/OPERACJE.md` § 41.
+- Poprawki po przeglądzie: personel do resetu liczony w całej platformie i także gdy konto jest
+  zablokowane; zmiana adresu konta z 2FA albo konta personelu – tylko superkoordynator; list o resecie
+  także na poprzedni adres (30 dni); wąski wyjątek bez superkoordynatora i komenda `reset_2fa`;
+  ostrzeżenia `staff_mfa.W001`/`W002`; termin ról platformy tylko z `TWO_FACTOR_GRACE_DAYS`; znacznik
+  zwolnienia z TTL 10 min i wersją podbijaną przy zmianie ról; zamykanie innych sesji przy włączeniu,
+  wyłączeniu i resecie; „Zapomnij wszystkie urządzenia”; ciasteczko zaufania związane z konkursem;
+  licznik prób przed sprawdzeniem kodu; lista personelu tylko dla superkoordynatora (bez N+1).
+- `TWO_FACTOR_ENABLED=0` (domyślnie) – zachowanie bez zmian. Migracje `staff_mfa.0001`–`0002`
+  (cztery puste tabele). Operator: `docs/OPERACJE.md` § 41.
 
 ## [Unreleased] – LiveKit: jeden port UDP z multipleksacją
 

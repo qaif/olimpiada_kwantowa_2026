@@ -60,6 +60,11 @@
   </div>
 </section>
 
+{% comment %}
+  Lista personelu ze stanem 2FA tylko dla superkoordynatora (przegląd SEC-01, L6): „kto jeszcze nie
+  ma drugiego składnika” to lista najłatwiejszych celów, a koordynator nie ma czego z nią zrobić.
+{% endcomment %}
+{% if rows is not None %}
 <section class="section">
   <div class="section__head">
     <h2 class="mt-0">Personel</h2>
@@ -86,4 +91,5 @@
     <p class="hint">Zgubiony telefon: na ekranie konta → „Zdejmij drugi składnik”. Konto personelu – wyłącznie superkoordynator, po potwierdzeniu tożsamości inną drogą niż e-mail.</p>
   </div>
 </section>
+{% endif %}
 {% endblock %}

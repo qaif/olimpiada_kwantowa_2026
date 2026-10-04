@@ -107,3 +107,15 @@ msgstr "Marque apenas no seu próprio computador – não em um computador compa
 
 msgid "Włącz teraz"
 msgstr "Ativar agora"
+
+msgid "Zapamiętane urządzenia"
+msgstr "Dispositivos lembrados"
+
+msgid "Przeglądarki, w których zaznaczono „nie pytaj o kod”, przestaną być zapamiętane – także te, do których nie masz już dostępu."
+msgstr "Os navegadores em que foi marcado “não pedir código” deixarão de ser lembrados – inclusive aqueles aos quais você não tem mais acesso."
+
+msgid "Zapomnij wszystkie urządzenia"
+msgstr "Esquecer todos os dispositivos"
+
+msgid "Zapomnieliśmy wszystkie zapamiętane urządzenia – przy następnym logowaniu podasz kod."
+msgstr "Todos os dispositivos lembrados foram esquecidos – o código será solicitado no seu próximo login."

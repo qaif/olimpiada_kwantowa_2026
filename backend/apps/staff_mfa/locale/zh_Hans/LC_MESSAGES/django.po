@@ -107,3 +107,15 @@ msgstr "仅在您自己的电脑上勾选——不要在学校或办公室的公
 
 msgid "Włącz teraz"
 msgstr "立即启用"
+
+msgid "Zapamiętane urządzenia"
+msgstr "已记住的设备"
+
+msgid "Przeglądarki, w których zaznaczono „nie pytaj o kod”, przestaną być zapamiętane – także te, do których nie masz już dostępu."
+msgstr "勾选过“不再要求验证码”的浏览器将不再被记住——包括您已无法访问的浏览器。"
+
+msgid "Zapomnij wszystkie urządzenia"
+msgstr "忘记所有设备"
+
+msgid "Zapomnieliśmy wszystkie zapamiętane urządzenia – przy następnym logowaniu podasz kod."
+msgstr "已忘记所有记住的设备——下次登录时需要输入验证码。"

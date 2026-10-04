@@ -53,3 +53,8 @@ class TwoFactorGraceAdmin(admin.ModelAdmin):
 
     def has_change_permission(self, request, obj=None):
         return False
+
+    def has_delete_permission(self, request, obj=None):
+        # Skasowanie wiersza dałoby kontu świeży okres przejściowy (przegląd, L3) – czyli obejście
+        # wymogu jednym kliknięciem w /admin/. Wiersz znika wyłącznie z kontem albo przy anonimizacji.
+        return False

@@ -97,3 +97,49 @@ class TwoFactorGrace(models.Model):
 
     def __str__(self) -> str:
         return f"2FA grace: {self.user_id} od {self.required_since:%Y-%m-%d}"
+
+
+#: Ile dni pamiętamy poprzedni adres e-mail konta (drugi odbiorca listu o resecie 2FA).
+PREVIOUS_EMAIL_DAYS = 30
+
+
+class PreviousEmail(models.Model):
+    """Adres, z którego konto przeniesiono w ostatnich dniach – drugi odbiorca listu o resecie 2FA.
+
+    Przegląd SEC-01 (H1): przejęcie konta personelu z panelu wygląda tak – zmiana adresu, reset 2FA,
+    reset hasła. List o resecie poszedłby wtedy wyłącznie na **nowy** adres, czyli do przejmującego.
+    Ten wiersz pozwala wysłać go także na adres poprzedni, który należy do właściciela.
+
+    Wiersze żyją ``PREVIOUS_EMAIL_DAYS`` dni (sprzątane przy każdym zapisie) i znikają z kontem oraz
+    przy anonimizacji – dane osobowe zbierane wyłącznie w celu bezpieczeństwa konta.
+    """
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="+", verbose_name="konto"
+    )
+    email = models.EmailField("poprzedni adres")
+    changed_at = models.DateTimeField("zmieniono", default=timezone.now)
+
+    class Meta:
+        verbose_name = "poprzedni adres e-mail (bezpieczeństwo 2FA)"
+        verbose_name_plural = "poprzednie adresy e-mail (bezpieczeństwo 2FA)"
+        indexes = [models.Index(fields=["user", "changed_at"], name="staff_mfa_prevemail_idx")]
+
+    def __str__(self) -> str:
+        return f"poprzedni adres: {self.user_id} ({self.changed_at:%Y-%m-%d})"
+
+
+class TrustRevocation(models.Model):
+    """„Zapomnij wszystkie urządzenia”: zaświadczenia ``2fa_trust`` wydane wcześniej są nieważne (L4)."""
+
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="+", verbose_name="konto"
+    )
+    revoked_at = models.DateTimeField("unieważniono", default=timezone.now)
+
+    class Meta:
+        verbose_name = "unieważnienie zapamiętanych urządzeń"
+        verbose_name_plural = "unieważnienia zapamiętanych urządzeń"
+
+    def __str__(self) -> str:
+        return f"urządzenia zapomniane: {self.user_id} ({self.revoked_at:%Y-%m-%d})"
