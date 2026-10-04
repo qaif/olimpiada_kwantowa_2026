@@ -260,6 +260,41 @@ Każde wydarzenie (np. warsztat) jest **osobnym** wpisem. Dodanie: „Dodaj wyda
 
 ---
 
+### 2.7 Języki interfejsu — `/coordinator/competition/` (I18N-01)
+
+Ekran **„Ustawienia konkursu”**, pola **„Język domyślny”** i **„Języki interfejsu”**. Do wyboru:
+polski oraz dziesięć najczęściej używanych języków świata (English, 简体中文, हिन्दी, Español,
+العربية, Français, বাংলা, Português, Русский, Bahasa Indonesia).
+
+- **Jeden język** = brak przełącznika języka; strona zawsze w tym języku (tak stoi Olimpiada
+  Kwantowa — tylko polski).
+- **Więcej języków** = w pasku konta pojawia się glob z menu języków. Uczestnik dostaje swój język
+  także w listach; kto nie wybrał, dostaje język przeglądarki (jeśli jest na liście), a w ostateczności
+  język domyślny konkursu.
+- Arabski wyświetla się od prawej do lewej.
+- Tłumaczenia poza polskim i angielskim są **maszynowe** — przed szerszą komunikacją warto poprosić
+  native speakera o przegląd (zgłoszenie do operatora, `docs/OPERACJE.md` § 26.3).
+- **Nie tłumaczą się:** treści stron w `/cms/` (dla konkursu międzynarodowego piszemy je po angielsku),
+  ekrany koordynatora i komisji. Tytuł i PDF zadania w wersji angielskiej (`title_en`, `statement_pdf_en`)
+  widzi uczestnik w każdym języku poza polskim.
+
+### 2.8 Kraje zamiast województw (REG-01)
+
+Konkurs międzynarodowy dzieli uczestników na **kraje**. Przestawienie robi operator jedną komendą
+(`manage.py regions_countries --competition <slug>`, `docs/OPERACJE.md` § 27): włącza własny podział
+(`custom_regions`), zakłada listę 199 krajów (nazwy angielskie) i wyłącza z listy 16 województw
+oraz „poza Polską” — nie kasuje ich, bo mogą na nie wskazywać profile z poprzednich lat.
+
+Od tej chwili:
+
+- formularze rejestracji, profilu, komisji i zaproszeń pytają o **„Kraj”** zamiast o województwo
+  (lista aktywnych krajów konkursu); kod spoza listy jest odrzucany,
+- karta uczestnika, eksporty, katalog czatu i listy pokazują **nazwę kraju** („Germany”), a nagłówki
+  kolumn mówią „Kraj”,
+- konflikt interesów recenzenta (etap regionalny) porównuje kraje,
+- nazwę kraju i kolejność poprawia się w ekranie **„Regiony”** (`/coordinator/regions/`) — ponowne
+  uruchomienie komendy nie nadpisze poprawek.
+
 ## 3. Komitet
 
 ### 3.1 Zaproszenia — `/coordinator/committee/`

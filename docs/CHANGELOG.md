@@ -8,6 +8,28 @@ dokładnie jednemu wierszowi tej tabeli.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## [Unreleased] – Wielojęzyczność per konkurs (I18N-01) i kraje zamiast województw (REG-01)
+
+- **Języki interfejsu per konkurs:** `Competition.interface_languages` obok `default_language`
+  zastępuje przełącznik `SiteSettings.english_interface_enabled` (migracje `tenancy.0011`
+  – przepisanie stanu, `cms.0031` – usunięcie kolumny). Instalacja zna 11 języków: polski oraz
+  `en`, `zh-hans`, `hi`, `es`, `ar` (RTL), `fr`, `bn`, `pt`, `ru`, `id`. Olimpiada Kwantowa zostaje
+  wyłącznie po polsku (brak przełącznika, polski mimo `Accept-Language`). Rozstrzyganie: konto →
+  ciasteczko → `Accept-Language` (warianty `zh-CN`, `pt-BR`) → język domyślny konkursu. Menu języków
+  (`<details>`, bez JS) przy więcej niż dwóch językach. Edycja: „Ustawienia konkursu”, `/admin/`,
+  komenda `competition_languages` (`docs/OPERACJE.md` § 26).
+- **RTL i kroje:** `<html dir>`, arkusze uczestnika na właściwościach logicznych CSS, systemowe stosy
+  krojów dla arabskiego, dewanagari, bengalskiego, chińskiego i cyrylicy (bez CDN – CSP bez zmian).
+- **Napisy:** oznaczone do tłumaczenia przepływy uczestnika i strony publiczne (rejestracja,
+  logowanie, reset hasła, `/me/`, czat, forum, biuro wsparcia, napisy szablonów CMS, komunikaty
+  serwisów, listy). Listy poza żądaniem adresata idą przez `language_for`.
+- **Tłumaczenia:** komplet 1709 napisów dla 10 języków – **maszynowe**, do przeglądu przez native
+  speakerów (`docs/OPERACJE.md` § 26.3). Testy kompilacji, kompletności i zgodności placeholderów.
+- **Kraje (REG-01):** lista 199 państw, `manage.py regions_countries --competition <slug>`,
+  `create_competition --regions countries`; formularze przy `custom_regions` pokazują aktywne regiony
+  konkursu (etykieta „Kraj”), wyświetlanie nazwy kraju zamiast kodu, konflikt interesów na krajach
+  (`docs/OPERACJE.md` § 27). Olimpiada Kwantowa bez zmian.
+
 ## v0.39.1 – 2026-10-02 – Formularze pokoi wideo przechodzą CSRF
 
 - **Poprawka:** ekran „Pokoje wideo” i strona linku-zaproszenia miały `Referrer-Policy: no-referrer`,

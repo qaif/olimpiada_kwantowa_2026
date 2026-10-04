@@ -3790,3 +3790,77 @@ wejścia na rozmowy: `interview.joined` (`participant`/`coordinator`, `interview
 **Retencja:** wiersze `VideoRoom` są danymi operacyjnymi; jedyną daną osobową jest `created_by`
 (znika razem z kontem – `SET_NULL`). Etykieta pokoju jest tekstem koordynatora – podręcznik prosi,
 żeby nie wpisywać w nią nazwisk gości.
+
+## 26. Języki interfejsu per konkurs (I18N-01, `docs/tasks/I18N-01.md`)
+
+Od tego wydania **konkurs** decyduje, w jakich językach mówi jego interfejs:
+`tenancy.Competition.interface_languages` (zbiór) obok `default_language` (język domyślny). Przełącznik
+„angielska wersja interfejsu” w `/cms/` → Ustawienia → Dane serwisu **zniknął** – migracja
+`tenancy.0011` przepisała go do zbioru (włączony → `["pl", "en"]`, wyłączony → `[język domyślny]`),
+a `cms.0031` skasowała kolumnę.
+
+Instalacja zna 11 języków (`settings.LANGUAGES`): polski oraz dziesięć najczęściej używanych języków
+świata – `en`, `zh-hans`, `hi`, `es`, `ar` (od prawej do lewej), `fr`, `bn`, `pt`, `ru`, `id`.
+
+### 26.1. Co ustawić
+
+- **Olimpiada Kwantowa (`kwantowa`) – nic.** Migracja zostawia `["pl"]`: brak przełącznika języka,
+  strona po polsku niezależnie od przeglądarki, ciasteczka i zapisu na koncie.
+- **International Quantum Olympiad (`iqo`)** – po wdrożeniu, jedną z trzech dróg:
+  ```sh
+  docker compose exec web python manage.py competition_languages iqo \
+      en zh-hans hi es ar fr bn pt ru id pl --default en
+  ```
+  albo ekran koordynatora `/coordinator/competition/` („Języki interfejsu”, „Język domyślny”),
+  albo `/admin/` → Konkursy. Komenda bez kodów tylko pokazuje stan; zapis zostawia wpis audytu
+  `competition.languages_changed`. Dopiero po tym kroku `iqo` pokazuje menu języków (glob w pasku
+  konta), a gość bez ustawień przeglądarki dostaje angielski.
+
+### 26.2. Jak serwis wybiera język
+
+Zapis na koncie → ciasteczko `django_language` → `Accept-Language` (warianty: `zh-CN` → `zh-hans`,
+`pt-BR` → `pt`) → `default_language` konkursu → pierwszy język zbioru. Każde źródło jest przycięte
+do zbioru konkursu. Listy do uczestnika idą w jego języku (`language_for`), a gdy go nie wybrał –
+w języku domyślnym konkursu.
+
+### 26.3. Tłumaczenia – maszynowe, do przeglądu
+
+Katalogi `backend/locale/<kod>/LC_MESSAGES/django.po` dla `zh_Hans`, `hi`, `es`, `ar`, `fr`, `bn`,
+`pt`, `ru`, `id` są **tłumaczeniem maszynowym** (model językowy, z polskiego z angielskim jako
+odniesieniem). Przed szeroką komunikacją do uczestników z danego kraju warto dać plik `.po` do
+przeglądu native speakerowi (każdy edytor PO, np. Poedit). Po poprawkach: `django-admin
+compilemessages` (obraz robi to przy budowaniu; testy `apps/core/tests/test_translations.py`
+pilnują kompilacji, kompletu tłumaczeń i zgodności placeholderów).
+
+### 26.4. Czego nie tłumaczymy
+
+- **Treść stron w `/cms/`** – jest jednojęzyczna (dla `iqo`: angielska). Interfejs dookoła niej
+  (menu, stopka, formularze, panel uczestnika) mówi językiem wybranym przez czytelnika. Drugie
+  drzewo treści w innym języku to istniejący mechanizm aliasu witryny (`content_translations`,
+  `WAGTAIL_I18N_ENABLED`, osobna subdomena) – bez zmian w kodzie, ale z DNS-em i Caddym.
+- **Ekrany koordynatora, komisji i operatora** – zostają po polsku.
+- **Napisy w skryptach JS** (podgląd wgrywanego pliku, wybór szkoły, szyfrowanie czatu) – po polsku;
+  lista w `docs/tasks/I18N-01.md` § 14.
+- Treść zadań: pola `title_en`/`statement_pdf_en` obsługują **każdy** język poza polskim.
+
+## 27. Kraje zamiast województw (REG-01, `docs/tasks/REG-01.md`)
+
+Konkurs międzynarodowy (`iqo`) dzieli uczestników na **kraje**. Przestawienie to jedna komenda –
+idempotentna, w jednej transakcji, z wpisem audytu `regions.countries_enabled`:
+
+```sh
+docker compose exec web python manage.py regions_countries --competition iqo --dry-run   # podgląd
+docker compose exec web python manage.py regions_countries --competition iqo
+```
+
+Komenda włącza flagę `custom_regions`, zakłada brakujące kraje z `apps/accounts/countries.py`
+(199 pozycji, kody ISO 3166-1 alfa-2 małymi literami, nazwy angielskie), **dezaktywuje** 16 województw
+i „poza Polską” (wiersze zostają – mogą na nie wskazywać profile), a region `pl` przemianowuje na
+„Poland”, o ile nikt wcześniej nie zmienił jego nazwy. Wydruk podaje liczbę uczestników, których region
+jest teraz nieaktywny – tych trzeba przypisać do kraju ręcznie w karcie uczestnika.
+
+Nowy konkurs od razu z krajami: `create_competition … --regions countries` (domyślnie
+`voivodeships` – bez zmiany zachowania). **Olimpiada Kwantowa nie wymaga niczego** (flaga
+`custom_regions` wyłączona, formularze i wydruki co do bajtu jak dotąd).
+
+Kolejność dla `iqo` po wdrożeniu: § 26.1 (języki) i ta komenda – niezależne od siebie.
