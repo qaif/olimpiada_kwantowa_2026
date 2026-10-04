@@ -29,6 +29,9 @@ from apps.tenancy.models import FEATURE_DEFAULTS, MAX_FORWARD_EMAILS, Competitio
 #: Pola, które koordynator zmienia z panelu – w kolejności sekcji na ekranie. Krotka, a nie
 #: ``exclude``: lista pól modelu rośnie w kolejnych etapach, a ``exclude`` wpuściłoby każde nowe
 #: pole do formularza **po cichu**, łącznie z takim, które należy do operatora.
+#: Pola wskazujące obraz z biblioteki Wagtaila – lista wyboru zamiast okna wyboru (patrz ``__init__``).
+IMAGE_FIELDS: tuple[str, ...] = ("logo", "favicon", "site_logo", "social_image")
+
 EDITABLE_FIELDS: tuple[str, ...] = (
     # marka
     "name",
@@ -39,6 +42,8 @@ EDITABLE_FIELDS: tuple[str, ...] = (
     "accent_colour",
     "logo",
     "favicon",
+    "site_logo",
+    "social_image",
     # organizator
     "organizer_name",
     "organizer_address",
@@ -148,6 +153,8 @@ class CompetitionSettingsForm(forms.ModelForm):
             "accent_colour": "Kolor akcentu",
             "logo": "Logotyp",
             "favicon": "Favikona",
+            "site_logo": "Logotyp w nagłówku serwisu",
+            "social_image": "Obraz do udostępniania",
             "organizer_name": "Organizator",
             "organizer_address": "Adres organizatora",
             "organizer_registry": "Dane rejestrowe",
@@ -172,6 +179,11 @@ class CompetitionSettingsForm(forms.ModelForm):
             "accent_colour": "Zapis szesnastkowy z krzyżykiem, np. #1f6feb. Puste = kolor domyślny.",
             "logo": "Grafika z biblioteki obrazów (/cms/ → Obrazy). Najpierw wgraj plik tam.",
             "favicon": "Ikona zakładki. Kwadrat, najlepiej co najmniej 512 × 512.",
+            "site_logo": (
+                "Znak w nagłówku każdej strony serwisu (PNG, szerokość co najmniej 1200 px). "
+                "Puste = logotyp domyślny serwisu. Pole „Logotyp” wyżej zostaje znakiem organizatora."
+            ),
+            "social_image": "Podgląd odnośnika w mediach społecznościowych, 1200 × 630. Puste = domyślny.",
             "dpo_email": (
                 "Adres inspektora ochrony danych organizatora. Stoi w klauzuli informacyjnej – "
                 "administratorem danych uczestników jest organizator, nie operator platformy."
@@ -220,7 +232,7 @@ class CompetitionSettingsForm(forms.ModelForm):
         # **bez JavaScriptu** i pod ścisłą polityką CSP (``apps.web.middleware``), a okno wyboru
         # jest komponentem panelu redakcyjnego razem z jego skryptami. Wgranie pliku zostaje
         # tam, gdzie było – w ``/cms/`` → „Obrazy”; tutaj się go tylko wskazuje.
-        for name in ("logo", "favicon"):
+        for name in IMAGE_FIELDS:
             self.fields[name].queryset = self.fields[name].queryset.order_by("-created_at", "-id")
             self.fields[name].empty_label = "bez grafiki"
         # Prefiks tematu listów **nie jest przycinany**. Domyślne ``strip=True`` Django zjadałoby
@@ -287,7 +299,7 @@ class CompetitionSettingsForm(forms.ModelForm):
         porównanie bez tego sprowadzenia zgłaszałoby zmianę obrazu przy każdym zapisie.
         """
         value = self.cleaned_data.get(name)
-        if name in ("logo", "favicon"):
+        if name in IMAGE_FIELDS:
             return getattr(value, "pk", None)
         return value
 

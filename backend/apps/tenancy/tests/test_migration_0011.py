@@ -37,6 +37,17 @@ def rewound(django_db_setup, django_db_blocker):
         yield db
 
 
+def _languages(rewound) -> list[str]:
+    """Sama kolumna zbioru języków. Żywy model zna kolumny z **późniejszych** migracji
+    (``0012``: ``site_logo``, ``social_image``), których baza cofnięta do ``0011`` jeszcze nie ma –
+    pełny ``SELECT`` modelu padałby na brakującej kolumnie."""
+    return (
+        Competition.objects.filter(pk=rewound.competition.pk)
+        .values_list("interface_languages", flat=True)
+        .get()
+    )
+
+
 def _set_switch(state, competition, enabled: bool) -> None:
     """Przełącznik witryny konkursu – modelem **historycznym** (żywy model kolumny już nie zna)."""
     settings_model = state.get_model("cms", "SiteSettings")
@@ -53,7 +64,7 @@ def test_switch_off_keeps_polish_only(rewound):
 
     migrate_to(AFTER)
 
-    assert Competition.objects.get(pk=rewound.competition.pk).interface_languages == ["pl"]
+    assert _languages(rewound) == ["pl"]
 
 
 def test_switch_on_keeps_polish_and_english(rewound):
@@ -61,9 +72,7 @@ def test_switch_on_keeps_polish_and_english(rewound):
 
     migrate_to(AFTER)
 
-    competition = Competition.objects.get(pk=rewound.competition.pk)
-    assert competition.interface_languages == ["pl", "en"]
-    assert competition.ui_languages == ("pl", "en")
+    assert _languages(rewound) == ["pl", "en"]
 
 
 def test_english_default_without_the_switch_becomes_english(rewound):
@@ -72,7 +81,7 @@ def test_english_default_without_the_switch_becomes_english(rewound):
 
     migrate_to(AFTER)
 
-    assert Competition.objects.get(pk=rewound.competition.pk).interface_languages == ["en"]
+    assert _languages(rewound) == ["en"]
 
 
 def test_reverse_restores_the_switch(rewound):
@@ -102,4 +111,4 @@ def test_english_switched_on_only_on_an_alias_site_is_kept(rewound):
 
     migrate_to(AFTER)
 
-    assert Competition.objects.get(pk=rewound.competition.pk).interface_languages == ["pl", "en"]
+    assert _languages(rewound) == ["pl", "en"]
