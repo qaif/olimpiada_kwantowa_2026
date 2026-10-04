@@ -1697,11 +1697,34 @@ def _relax_video_fields(form: forms.ModelForm) -> None:
     for name in ("video_provider", "video_base_url"):
         if name in form.fields:
             form.fields[name].required = False
+    _livekit_choice_only_when_available(form)
+
+
+def _livekit_choice_only_when_available(form: forms.ModelForm) -> None:
+    """Opcja „LiveKit” (STAGE-LK-01) tylko przy skonfigurowanym serwerze LiveKit – albo gdy etap już
+    ją ma. Instalacja bez LiveKit widzi listę dostawców co do opcji taką, jak przed tą zmianą."""
+    from apps.webinars import livekit
+
+    field = form.fields.get("video_provider")
+    if field is None or livekit.configured():
+        return
+    current = getattr(getattr(form, "instance", None), "video_provider", "")
+    if current == VideoProvider.LIVEKIT:
+        return
+    field.choices = [choice for choice in field.choices if choice[0] != VideoProvider.LIVEKIT]
 
 
 def _clean_video_provider(form: forms.ModelForm) -> str:
     """Puste pole dostawcy znaczy „bez wideo”, a nie pustą wartość w kolumnie z zamkniętą listą."""
-    return form.cleaned_data.get("video_provider") or VideoProvider.NONE
+    value = form.cleaned_data.get("video_provider") or VideoProvider.NONE
+    if value == VideoProvider.LIVEKIT:
+        from apps.webinars import livekit
+
+        if not livekit.configured():
+            raise forms.ValidationError(
+                "Serwer LiveKit nie jest skonfigurowany – wybierz Jitsi albo poproś operatora platformy."
+            )
+    return value
 
 
 def _clean_video_base_url(form: forms.ModelForm) -> str:

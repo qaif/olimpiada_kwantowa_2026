@@ -46,19 +46,15 @@ from django.views.decorators.cache import never_cache
 from django.views.generic import View
 
 from apps.accounts.models import CommitteeMember, CommitteeStatus
-from apps.competitions.interviews import booking_for_participant
+from apps.competitions import room_access
 from apps.competitions.jitsi_jwt import (
-    interview_window,
-    is_platform_room,
     issue,
     join_url,
     jwt_enabled,
-    precheck_lifetime,
     room_of,
     short_name,
 )
-from apps.competitions.models import InterviewSlot, Stage, StageEntryStatus
-from apps.competitions.video import PRECHECK_SUFFIX, booking_meeting_url, precheck_url, slot_meeting_url
+from apps.competitions.models import InterviewSlot, Stage
 from apps.competitions.video_rooms import (
     DISPLAY_NAME_MAX_LENGTH,
     VARIANTS,
@@ -159,26 +155,67 @@ def _when(value) -> str:
     return timezone.localtime(value).strftime("%d.%m.%Y, %H:%M")
 
 
+# --- pokój rozmowy etapu: wspólne dla dostawców (Jitsi, LiveKit) ----------------------------------
+
+
+class StageRoomFeatureMixin:
+    """Bramka wejść do pokoi **rozmów etapu**: przepustki Jitsi **albo** serwer LiveKit (STAGE-LK-01).
+
+    Bez żadnego z nich adresy nie istnieją (404) – dokładnie jak przed STAGE-LK-01 przy samym Jitsi.
+    Pokój, którego dostawca nie jest skonfigurowany, i tak kończy się 404 w ``room_access``.
+    """
+
+    def dispatch(self, request, *args, **kwargs):
+        from apps.webinars import livekit
+
+        if not jwt_enabled() and not livekit.configured():
+            raise Http404("Przepustki do pokoi wideo nie są skonfigurowane.")
+        return super().dispatch(request, *args, **kwargs)
+
+
+class StageJoinViewMixin(StageRoomFeatureMixin, ThrottledFormMixin):
+    """Jak :class:`JoinViewMixin`, ale dla pokoi rozmów etapu (oba dostawcy)."""
+
+    throttle_scope = "video"
+    throttle_methods = ("GET",)
+
+    @method_decorator(never_cache)
+    def dispatch(self, request, *args, **kwargs):
+        return super().dispatch(request, *args, **kwargs)
+
+
+def _enter(room_pass: room_access.RoomPass, *, livekit_url: str) -> HttpResponseRedirect:
+    """Bilet dostawcy dla rozstrzygnięcia ``room_access``: Jitsi – 302 z przepustką we fragmencie,
+    LiveKit – 302 na stronę pokoju na platformie (token pobiera tam JS, POST-em)."""
+    if room_access.provider_of(room_pass.url) == "livekit":
+        return _no_referrer(HttpResponseRedirect(livekit_url))
+    token = issue(
+        room_of(room_pass.url),
+        not_before=room_pass.not_before,
+        expires_at=room_pass.expires_at,
+        display_name=room_pass.display_name,
+        moderator=room_pass.moderator,
+    )
+    return _redirect_to_room(join_url(room_pass.url, token))
+
+
 # --- uczestnik -----------------------------------------------------------------------------------
 
 
-class _ParticipantInterviewMixin(ParticipantRequiredMixin, JoinViewMixin):
+class _ParticipantInterviewMixin(ParticipantRequiredMixin, StageJoinViewMixin):
     """Własny zapis uczestnika w etapie tego konkursu albo 404 – innej drogi do cudzego pokoju nie ma."""
 
     def booking(self, request, stage_id: int):
         stage = get_object_or_404(
             Stage.objects.for_competition(request.competition).select_related("edition"), pk=stage_id
         )
-        booking = booking_for_participant(stage, self.participant)
         # Zapis odwołany nie istnieje (``cancel_booking`` go kasuje), a zdyskwalifikowany uczestnik
-        # nie staje przed komisją – w obu przypadkach odpowiedź jest ta sama: nie ma tu pokoju.
-        if booking is None or booking.entry.status == StageEntryStatus.DISQUALIFIED:
+        # nie staje przed komisją; pokój poza platformą (albo bez adresu) nie potrzebuje biletu –
+        # panel pokazuje wtedy zwykły link. Reguła: ``apps.competitions.room_access``.
+        found = room_access.participant_booking(stage, self.participant)
+        if found is None:
             raise Http404("Nie masz zapisu na rozmowę w tym etapie.")
-        url = booking_meeting_url(booking)
-        if not is_platform_room(url):
-            # Pokój poza naszym Jitsi (albo bez adresu): przepustki nie ma czego otwierać. Panel
-            # pokazuje wtedy zwykły link – tak jak przed v0.39.0.
-            raise Http404("Ten pokój nie wymaga przepustki platformy.")
+        booking, url = found
         return stage, booking, url
 
     def back(self):
@@ -189,62 +226,53 @@ class InterviewJoinView(_ParticipantInterviewMixin, View):
     """``GET /me/stages/<id>/interview/join/`` – wejście na własną rozmowę, w oknie terminu."""
 
     def get(self, request, stage_id: int):
-        _stage, booking, url = self.booking(request, stage_id)
-        now = timezone.now()
-        opens_at, closes_at = interview_window(booking.slot)
-        if now < opens_at:
+        stage, booking, url = self.booking(request, stage_id)
+        try:
+            room_pass = room_access.participant_pass(booking, url, request.user, kind=room_access.INTERVIEW)
+        except room_access.RoomNotYet as exc:
             messages.info(
                 request,
                 _("Pokój rozmowy otworzy się %(when)s (czas polski) – wróć wtedy do panelu.")
-                % {"when": _when(opens_at)},
+                % {"when": _when(exc.opens_at)},
             )
             return self.back()
-        if now >= closes_at:
+        except room_access.RoomOver:
             messages.error(request, _("Czas tej rozmowy minął – pokój jest już zamknięty."))
             return self.back()
-        token = issue(
-            room_of(url),
-            not_before=opens_at,
-            expires_at=closes_at,
-            display_name=short_name(request.user),
-        )
-        _audit_join(request.user, booking.entry, role="participant", kind="interview", request=request)
-        return _redirect_to_room(join_url(url, token))
+        if room_access.provider_of(room_pass.url) != "livekit":  # LiveKit: audyt przy tokenie
+            _audit_join(request.user, booking.entry, role="participant", kind="interview", request=request)
+        return _enter(room_pass, livekit_url=reverse("web:interview-room", args=[stage.pk, "interview"]))
 
 
 class InterviewPrecheckView(_ParticipantInterviewMixin, View):
     """``GET /me/stages/<id>/interview/precheck/`` – pusty pokój „na próbę” (``…-test``), krótko."""
 
     def get(self, request, stage_id: int):
-        _stage, booking, url = self.booking(request, stage_id)
-        now = timezone.now()
-        _opens_at, closes_at = interview_window(booking.slot)
-        if now >= closes_at:
+        stage, booking, url = self.booking(request, stage_id)
+        try:
+            room_pass = room_access.participant_pass(booking, url, request.user, kind=room_access.PRECHECK)
+        except room_access.RoomOver:
             messages.error(request, _("Czas tej rozmowy minął – próba sprzętu nie jest już potrzebna."))
             return self.back()
-        test_url = precheck_url(url)
-        token = issue(
-            room_of(test_url),
-            not_before=now,
-            expires_at=now + precheck_lifetime(),
-            display_name=short_name(request.user),
-        )
-        _audit_join(request.user, booking.entry, role="participant", kind="precheck", request=request)
-        return _redirect_to_room(join_url(test_url, token))
+        if room_access.provider_of(room_pass.url) != "livekit":
+            _audit_join(request.user, booking.entry, role="participant", kind="precheck", request=request)
+        return _enter(room_pass, livekit_url=reverse("web:interview-room", args=[stage.pk, "precheck"]))
 
 
 # --- pokój terminu: koordynator i komisja ---------------------------------------------------------
 
 
-class _SlotRoomMixin(JoinViewMixin):
-    """Termin **tego** konkursu i jego pokój na naszym Jitsi – inaczej 404. Wejście jako gospodarz.
+class _SlotRoomMixin(StageJoinViewMixin):
+    """Termin **tego** konkursu i jego pokój na platformie – inaczej 404. Wejście jako gospodarz.
 
     Wspólne dla koordynatora (ekran terminów) i komisji (panel recenzenta i komisji odwoławczej):
     rozmowę prowadzi komisja, a koordynator może wejść zawsze. Różni je wyłącznie bramka roli
-    (mixin przed tym w MRO), rola w audycie (``join_role``) i strona powrotu (:meth:`back`).
+    (mixin przed tym w MRO), rola w audycie (``join_role``), strona powrotu (:meth:`back`) i strona
+    pokoju LiveKit (``room_url_name``).
     """
 
     join_role = ""
+    room_url_name = ""
 
     def slot(self, request, pk: int):
         slot = get_object_or_404(
@@ -253,8 +281,8 @@ class _SlotRoomMixin(JoinViewMixin):
             .prefetch_related("bookings"),
             pk=pk,
         )
-        url = slot_meeting_url(slot)
-        if not is_platform_room(url):
+        url = room_access.slot_room_url(slot)
+        if not url:
             raise Http404("Ten termin nie ma pokoju na Jitsi platformy.")
         return slot, url
 
@@ -262,45 +290,38 @@ class _SlotRoomMixin(JoinViewMixin):
         raise NotImplementedError
 
     def join(self, request, pk: int):
-        """Przepustka moderatora w oknie terminu (to samo okno, co uczestnika)."""
+        """Bilet moderatora w oknie terminu (to samo okno, co uczestnika)."""
         slot, url = self.slot(request, pk)
-        now = timezone.now()
-        opens_at, closes_at = interview_window(slot)
-        if now < opens_at:
-            messages.info(request, f"Pokój tego terminu otworzy się {_when(opens_at)} (czas polski).")
+        try:
+            room_pass = room_access.staff_pass(
+                slot, url, request.user, role=self.join_role, kind=room_access.INTERVIEW
+            )
+        except room_access.RoomNotYet as exc:
+            messages.info(request, f"Pokój tego terminu otworzy się {_when(exc.opens_at)} (czas polski).")
             return self.back(slot)
-        if now >= closes_at:
+        except room_access.RoomOver:
             messages.error(request, "Czas tego terminu minął – pokój jest już zamknięty.")
             return self.back(slot)
-        token = issue(
-            room_of(url),
-            not_before=opens_at,
-            expires_at=closes_at,
-            display_name=short_name(request.user) or "Komisja",
-            moderator=True,
-        )
-        _audit_join(request.user, slot, role=self.join_role, kind="interview", request=request)
-        return _redirect_to_room(join_url(url, token))
+        if room_access.provider_of(room_pass.url) != "livekit":  # LiveKit: audyt przy tokenie
+            _audit_join(request.user, slot, role=self.join_role, kind="interview", request=request)
+        return _enter(room_pass, livekit_url=reverse(self.room_url_name, args=[slot.pk, "interview"]))
 
     def precheck(self, request, pk: int):
-        """Pokój „na próbę” terminu (``…-test``), krótka przepustka bez moderatora."""
+        """Pokój „na próbę” terminu (``…-test``), krótki bilet bez moderatora."""
         slot, url = self.slot(request, pk)
-        now = timezone.now()
-        test_url = f"{url}{PRECHECK_SUFFIX}"
-        token = issue(
-            room_of(test_url),
-            not_before=now,
-            expires_at=now + precheck_lifetime(),
-            display_name=short_name(request.user) or "Komisja",
+        room_pass = room_access.staff_pass(
+            slot, url, request.user, role=self.join_role, kind=room_access.PRECHECK
         )
-        _audit_join(request.user, slot, role=self.join_role, kind="precheck", request=request)
-        return _redirect_to_room(join_url(test_url, token))
+        if room_access.provider_of(room_pass.url) != "livekit":
+            _audit_join(request.user, slot, role=self.join_role, kind="precheck", request=request)
+        return _enter(room_pass, livekit_url=reverse(self.room_url_name, args=[slot.pk, "precheck"]))
 
 
 class _SlotJoinMixin(CoordinatorRequiredMixin, _SlotRoomMixin):
     """Koordynator: prawo z ekranu terminów (rola koordynatora konkursu + zawężony queryset)."""
 
     join_role = "coordinator"
+    room_url_name = "web:coordinator-interview-slot-room"
 
     def back(self, slot):
         return redirect(reverse("web:coordinator-stage-interviews", args=[slot.stage_id]))
@@ -715,6 +736,7 @@ class _CommitteeSlotMixin(CommitteeRequiredMixin, _SlotRoomMixin):
     jako gospodarz. Termin innego konkursu – 404 (zawężony queryset), obca rola – 403."""
 
     join_role = "committee"
+    room_url_name = "web:committee-interview-slot-room"
 
     def back(self, slot):
         return redirect(_committee_home(self.request))
