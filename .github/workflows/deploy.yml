@@ -62,7 +62,7 @@ jobs:
     environment: production
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           # `git archive HEAD` w kroku 2/7 skryptu wysyła na serwer **to, co jest w HEAD**, więc
           # płytkie sklonowanie wystarcza. Znaczniki są potrzebne osobno – patrz krok niżej.

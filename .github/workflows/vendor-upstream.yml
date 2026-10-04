@@ -1,0 +1,55 @@
+# Comiesięczne przypomnienie o JavaScripcie spoza repozytorium (SEC-02, docs/OPERACJE.md § 47.4).
+#
+# Zwendorowane biblioteki (livekit-client, KaTeX) i skrypty z CDN z SRI (htmx, Alpine, Swagger UI,
+# pdf.js) nie mają menedżera pakietów, więc Dependabot ich nie widzi. Ten workflow porównuje nasze
+# wersje z rejestrem npm, sprawdza znane podatności (OSV), sumę paczki zapisaną przy wendorowaniu
+# i SRI plików na CDN – i opisuje to w JEDNYM zgłoszeniu z etykietą `vendor-js`.
+#
+# Wyłącznie raport: niczego nie aktualizuje. Podbicie wersji to świadoma zmiana z testem
+# (livekit: scripts/vendor_livekit_client.sh i § 36; KaTeX: VERSION w katalogu biblioteki; CDN: nowe
+# SRI w szablonie). Gdy wszystko jest aktualne, otwarte zgłoszenie zostaje zamknięte.
+name: Vendor JS – porównanie z upstreamem (miesięczne)
+
+on:
+  schedule:
+    # 1. dzień miesiąca, 5:23 UTC.
+    - cron: "23 5 1 * *"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  upstream:
+    name: wersje npm, OSV, SRI
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - name: Porównanie
+        run: |
+          set -eu
+          python3 scripts/security/vendor_check.py upstream --attention-file attention > vendor.md
+          cat vendor.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Zgłoszenie (jedno, aktualizowane)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          state=clean
+          [ "$(cat attention)" = yes ] && state=attention
+          {
+            echo "Comiesięczne porównanie JS spoza repozytorium z upstreamem (SEC-02, \`docs/OPERACJE.md\` § 47.4)."
+            echo "Raport, nie automat: aktualizacja = osobna zmiana z testem (procedura w § 47.4)."
+            echo
+            cat vendor.md
+          } > body.md
+          bash scripts/security/upsert_issue.sh vendor-js \
+            "JS spoza repozytorium: nowsze wydania i uwagi" \
+            body.md "$(sha256sum vendor.md | cut -c1-16)" "$state"

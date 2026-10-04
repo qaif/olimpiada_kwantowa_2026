@@ -1,0 +1,95 @@
+# Cotygodniowy skan obrazów kontenerów, których nie budujemy (SEC-02, docs/OPERACJE.md § 47.3).
+#
+# Caddy, Postgres, Redis, MinIO, ClamAV, Postfix, Uptime Kuma, LiveKit, Jitsi… – tagi z plików
+# compose (domyślne wartości `${VAR:-…}`) plus nasz obraz `main` z GHCR (to, co już opublikowane,
+# starzeje się tak samo: nowe CVE w niezmienionym obrazie). Nowe podatności pojawiają się tu bez
+# żadnej zmiany w repozytorium, więc skan chodzi z zegara.
+#
+# Wyłącznie raport: wynik trafia do JEDNEGO zgłoszenia z etykietą `security-scan` (aktualizowanego,
+# komentarz tylko przy zmianie wyników) i do podsumowania przebiegu. Nic nie jest blokowane ani
+# aktualizowane automatycznie – podbicie obrazu to zmiana w compose z wpisem w OPERACJE.
+name: Skan obrazów (tygodniowy)
+
+on:
+  schedule:
+    # Poniedziałek 4:17 UTC – przed początkiem tygodnia pracy, poza pełną godziną (kolejki GitHuba).
+    - cron: "17 4 * * 1"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: security-scan
+  cancel-in-progress: false
+
+env:
+  # Ta sama wersja co w ci.yml (komentarz tam: dlaczego przypięta).
+  TRIVY_VERSION: v0.74.0
+
+jobs:
+  third-party-images:
+    name: trivy – obrazy z plików compose
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    permissions:
+      contents: read
+      issues: write
+      packages: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
+        with:
+          version: ${{ env.TRIVY_VERSION }}
+          cache: true
+
+      # Wyłącznie baza podatności (`db/`), a nie cache warstw: obrazy LiveKit egress czy Jitsi
+      # to gigabajty, które przekroczyłyby limit cache'u repozytorium, a co tydzień i tak są inne.
+      - name: Cache bazy Trivy
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ~/.cache/trivy/db
+          key: trivy-db-${{ github.run_id }}
+          restore-keys: trivy-db-
+
+      # Nasz obraz w GHCR może być prywatny; Trivy czyta poświadczenia z ~/.docker/config.json,
+      # więc logowanie dotyczy wyłącznie ghcr.io (Docker Hub dalej anonimowo).
+      - name: Logowanie do GHCR (odczyt)
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Skan
+        env:
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          set -eu
+          own="ghcr.io/$(printf '%s' "$OWNER" | tr '[:upper:]' '[:lower:]')/olimpiada-web:main"
+          python3 scripts/security/third_party_images.py scan --out trivy-third-party --extra "$own"
+
+      - name: Raport
+        run: python3 scripts/security/third_party_images.py report --out trivy-third-party >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Pełne wyniki (artefakt)
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: trivy-third-party
+          path: trivy-third-party/
+          retention-days: 90
+          if-no-files-found: ignore
+
+      - name: Zgłoszenie (jedno, aktualizowane)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          state=clean
+          [ "$(cat trivy-third-party/attention)" = yes ] && state=attention
+          bash scripts/security/upsert_issue.sh security-scan \
+            "Skan obrazów kontenerów: podatności CRITICAL/HIGH" \
+            trivy-third-party/report.md "$(cat trivy-third-party/fingerprint)" "$state"
