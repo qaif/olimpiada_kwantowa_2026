@@ -192,6 +192,7 @@ INSTALLED_APPS = [
     # Płatności online za udział (PAY-01): cennik delegacji, zamówienia, Stripe/Przelewy24, faktury.
     "apps.payments",
     "apps.password_change",  # zmiana hasła w panelu konta (AUTH-01b, 4.10.2026), bez modeli
+    "apps.mail_domains",  # domeny nadawców poczty: check_mail_dns i ostrzeżenia (MAIL-01, 5.10.2026)
     "apps.web",
     # Logowanie przez dostawców zewnętrznych (Google, Facebook). ``allauth.account`` jest wymagane
     # przez ``allauth.socialaccount`` (model ``EmailAddress``, adaptery) – jego **widoki** nie są
@@ -998,6 +999,14 @@ _sender_domains = env("ALLOWED_SENDER_DOMAINS", default=SITE_DOMAIN).replace(","
 MAIL_ALLOWED_SENDER_DOMAINS = (
     None if "*" in _sender_domains else [domain.strip().lower() for domain in _sender_domains]
 )
+
+# Sprawdzenie rekordów poczty domen nadawców (MAIL-01, ``manage.py check_mail_dns``). Selektor ten
+# sam, co usługi ``mail`` (compose: ``DKIM_SELECTOR: olimpiada``); IP relaya pusty = rekord A
+# ``mail.<SITE_DOMAIN>``; serwery DNS puste = ``/etc/resolv.conf`` kontenera.
+MAIL_DKIM_SELECTOR = env("DKIM_SELECTOR", default="olimpiada")
+MAIL_PUBLIC_IP = env("MAIL_PUBLIC_IP", default="")
+MAIL_DMARC_RUA = env("DMARC_RUA", default="contact@qaif.org")
+MAIL_DNS_NAMESERVERS = env.list("MAIL_DNS_NAMESERVERS", default=[])
 
 # --- konkursy w subdomenach platformy ----------------------------------------------------------
 # Wyłącznik funkcji „koordynator zakłada konkurs z panelu, a konkurs stoi pod

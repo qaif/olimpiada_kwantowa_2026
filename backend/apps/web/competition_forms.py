@@ -194,8 +194,9 @@ class CompetitionSettingsForm(forms.ModelForm):
                 "administratorem danych uczestników jest organizator, nie operator platformy."
             ),
             "from_email": (
-                "Puste = nadawca instalacji. Adres w obcej domenie przejdzie, ale bez rekordów "
-                "SPF/DKIM tej domeny listy trafią do spamu."
+                "Puste = nadawca instalacji. Adres w innej domenie działa dopiero, gdy operator "
+                "platformy doda ją do serwera poczty i potwierdzi jej rekordy SPF/DKIM/DMARC – "
+                "do tego czasu listy idą od nadawcy instalacji albo trafiają do spamu."
             ),
             "email_subject_prefix": "Np. „[Olimpiada Kwantowa] ”. Puste = prefiks instalacji.",
             "public_code_prefix": (
