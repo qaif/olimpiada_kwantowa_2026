@@ -1045,6 +1045,10 @@ LIVEKIT_RECORDINGS_BUCKET = env("LIVEKIT_RECORDINGS_BUCKET", default="")
 WEBINAR_JOIN_LEAD_MINUTES = env.int("WEBINAR_JOIN_LEAD_MINUTES", default=15)
 WEBINAR_JOIN_GRACE_MINUTES = env.int("WEBINAR_JOIN_GRACE_MINUTES", default=30)
 WEBINAR_REMINDER_MINUTES = env.int("WEBINAR_REMINDER_MINUTES", default=60)
+# Retencja (dni od końca webinaru): po tym czasie znikają nagrania i lista obecności
+# (``apps.webinars.services.purge_expired``, zadanie beat ``webinars-reminders``). Rok – jedna
+# edycja konkursu z zapasem na reklamacje i zaświadczenia; 0 = bez automatycznego kasowania.
+WEBINAR_RETENTION_DAYS = env.int("WEBINAR_RETENTION_DAYS", default=365)
 
 WAGTAIL_SITE_NAME = env("WAGTAIL_SITE_NAME", default="Olimpiada Kwantowa")
 WAGTAILADMIN_BASE_URL = env("WAGTAILADMIN_BASE_URL", default=f"https://{SITE_DOMAIN}")
@@ -1264,6 +1268,11 @@ REST_FRAMEWORK = {
         # stawka i ten sam powód, co ``video``: przeglądarka zrywająca połączenie wraca kilka razy,
         # skrypt z cudzej sesji – nie.
         "webinar_join": "60/hour",
+        # Polecenia prowadzącego z pokoju i z panelu webinaru (daj/odbierz głos, usuń, nagrywanie,
+        # transmisja). Osobny, wyższy limit niż wejścia: w czasie pytań prowadzący klika „Daj głos”
+        # dziesiątki razy na godzinę i wspólny kubełek z tokenami odcinał go w połowie sesji Q&A.
+        # Per konto – limit chroni serwer LiveKit przed skryptem z cudzej sesji, nie prowadzącego.
+        "webinar_control": "600/hour",
         # Link dla gości (``/zaproszenie/webinar/<klucz>/``, POST „Dołącz” i token) – bez konta, po IP, jak
         # bramka pokoi Jitsi: cała sala za jednym NAT-em wchodzi naraz.
         "webinar_guest": "120/hour",

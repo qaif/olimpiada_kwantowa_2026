@@ -8941,3 +8941,20 @@ msgstr "摄像头"
 #: templates/web/webinars/guest.html
 msgid "Wejście działa od kilkunastu minut przed początkiem, gdy prowadzący rozpocznie webinar. Wchodzisz jako widz – głos daje prowadzący."
 msgstr "主持人开始网络研讨会后，开始前约十五分钟起即可进入。您以观众身份进入——由主持人允许发言。"
+
+#: apps/webinars/services.py
+msgid "Prowadzący usunął Cię z tego webinaru."
+msgstr "主持人已将您移出本次网络研讨会。"
+
+#: apps/webinars/services.py
+#, python-format
+msgid "%(name)s (gość)"
+msgstr "%(name)s（访客）"
+
+#: templates/web/webinars/room.html
+msgid "Włącz dźwięk"
+msgstr "开启声音"
+
+#: templates/web/webinars/room.html
+msgid "Ten webinar może być nagrywany. Gdy nagrywanie trwa, u góry pokoju widać czerwony znacznik „Trwa nagrywanie”; nagranie może zawierać Twój głos, obraz i wiadomości czatu, jeśli je włączysz lub wyślesz."
+msgstr "本次网络研讨会可能会被录制。录制期间，房间顶部会显示红色的“正在录制”标记；如果您开启或发送，录像可能包含您的声音、画面和聊天消息。"

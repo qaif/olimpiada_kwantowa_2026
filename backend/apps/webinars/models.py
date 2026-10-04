@@ -189,6 +189,10 @@ class WebinarAttendee(models.Model):
     last_joined_at = models.DateTimeField("ostatnie wejście", null=True, blank=True)
     left_at = models.DateTimeField("wyjście", null=True, blank=True)
     seconds = models.PositiveIntegerField("czas obecności (s)", default=0)
+    #: „Usuń z pokoju” prowadzącego. Bez tego znacznika usunięty wracałby od razu z nowym tokenem –
+    #: platforma odmawia tokenu temu identyfikatorowi w tym webinarze, dopóki koordynator nie
+    #: wpuści go ponownie (gość z nową sesją ma nowy identyfikator – na to jest wymiana linku gościa).
+    removed_at = models.DateTimeField("usunięty z pokoju", null=True, blank=True)
 
     class Meta:
         verbose_name = "uczestnik webinaru"

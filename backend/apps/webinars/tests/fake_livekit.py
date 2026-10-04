@@ -24,6 +24,8 @@ REQUIRED_GRANT = {
     "UpdateParticipant": "roomAdmin",
     "RemoveParticipant": "roomAdmin",
     "DeleteRoom": "roomCreate",
+    "CreateRoom": "roomCreate",
+    "ListEgress": "roomRecord",
     "StartRoomCompositeEgress": "roomRecord",
     "StopEgress": "roomRecord",
 }
@@ -86,6 +88,22 @@ class FakeLiveKit:
             return self._not_found()
         return self._ok({})
 
+    def _CreateRoom(self, payload):  # noqa: N802
+        self.rooms.setdefault(payload["name"], {})
+        return self._ok({"name": payload["name"], "empty_timeout": payload.get("empty_timeout")})
+
+    def _ListEgress(self, payload):  # noqa: N802
+        egress = self.egresses.get(payload.get("egress_id"))
+        if egress is None:
+            return self._ok({"items": []})
+        status = egress.get("status") or ("EGRESS_ACTIVE" if egress["active"] else "EGRESS_COMPLETE")
+        item = {
+            "egress_id": payload["egress_id"],
+            "status": status,
+            "file_results": egress.get("file_results", []),
+        }
+        return self._ok({"items": [item]})
+
     def _DeleteRoom(self, payload):  # noqa: N802
         self.rooms.pop(payload["room"], None)
         return self._ok({})
@@ -101,6 +119,8 @@ class FakeLiveKit:
         egress = self.egresses.get(payload["egress_id"])
         if egress is None:
             return self._not_found()
+        if not egress["active"]:
+            return 412, json.dumps({"code": "failed_precondition", "msg": "egress already ended"}).encode()
         egress["active"] = False
         return self._ok({"egress_id": payload["egress_id"], "status": "EGRESS_ENDING"})
 

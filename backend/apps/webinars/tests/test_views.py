@@ -318,7 +318,7 @@ def test_guest_link_flow(webinars_on, fake_livekit, client_for, logged, coordina
     logged(coordinator).post(f"{detail(webinar)}start/")
     token = guest.post(f"{url}token/")
     guest_claims = claims(token)
-    assert guest_claims["name"] == "Prof. Gość" and guest_claims["sub"].startswith("g-")
+    assert guest_claims["name"] == "Prof. Gość (gość)" and guest_claims["sub"].startswith("g-")
     assert guest_claims["video"]["canPublish"] is False
 
     webinar.public_link = False

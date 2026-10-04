@@ -42,15 +42,20 @@ def remind_webinars() -> int:
 
     Zajęcie webinaru jest warunkowym ``UPDATE`` (``reminder_sent_at IS NULL``): beat po restarcie
     potrafi puścić zadanie dwa razy pod rząd, a drugi przebieg nie może wysłać drugiego kompletu.
+
+    Przy okazji (te same pięć minut rytmu): sprzątanie identyfikatorów webhooków, uzgodnienie
+    wiszących nagrań z serwerem (zgubiony ``egress_ended``) i retencja nagrań i obecności.
     """
     from apps.competitions.scoping import each_competition
 
     from .models import Webinar
     from .notifications import REMINDER, send
-    from .services import available, purge_webhook_events
+    from .services import available, purge_expired, purge_webhook_events, reconcile_stale_recordings
 
     now = timezone.now()
     purge_webhook_events(now)
+    reconcile_stale_recordings(now)
+    purge_expired(now)
     horizon = now + timedelta(minutes=max(1, int(settings.WEBINAR_REMINDER_MINUTES)))
     total = 0
     for competition in each_competition():

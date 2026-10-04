@@ -569,6 +569,12 @@ def anonymise_account(user: User, *, actor: User | None = None, request=None) ->
 
     erase_chat_state(user)
 
+    # Webinary (WEB-01): lista obecności tej osoby, ustawienie listów i współprowadzenie znikają –
+    # obecność jest daną o osobie, a nie dokumentacją zawodów.
+    from apps.webinars.services import erase_for_user as erase_webinar_state
+
+    erase_webinar_state(user)
+
     _drop_credentials(user)
     audit(actor or user, "account.anonymised", user, {"user_id": user.pk}, request=request)
     return user

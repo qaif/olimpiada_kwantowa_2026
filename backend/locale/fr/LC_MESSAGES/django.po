@@ -9658,3 +9658,20 @@ msgstr "Caméra"
 #: templates/web/webinars/guest.html
 msgid "Wejście działa od kilkunastu minut przed początkiem, gdy prowadzący rozpocznie webinar. Wchodzisz jako widz – głos daje prowadzący."
 msgstr "L’accès fonctionne environ quinze minutes avant le début, une fois le webinaire lancé par l’animateur. Vous entrez en spectateur – l’animateur donne la parole."
+
+#: apps/webinars/services.py
+msgid "Prowadzący usunął Cię z tego webinaru."
+msgstr "L’animateur vous a retiré de ce webinaire."
+
+#: apps/webinars/services.py
+#, python-format
+msgid "%(name)s (gość)"
+msgstr "%(name)s (invité)"
+
+#: templates/web/webinars/room.html
+msgid "Włącz dźwięk"
+msgstr "Activer le son"
+
+#: templates/web/webinars/room.html
+msgid "Ten webinar może być nagrywany. Gdy nagrywanie trwa, u góry pokoju widać czerwony znacznik „Trwa nagrywanie”; nagranie może zawierać Twój głos, obraz i wiadomości czatu, jeśli je włączysz lub wyślesz."
+msgstr "Ce webinaire peut être enregistré. Pendant l’enregistrement, un badge rouge « Enregistrement en cours » s’affiche en haut de la salle ; l’enregistrement peut contenir votre voix, votre image et vos messages si vous les activez ou les envoyez."

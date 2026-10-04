@@ -803,8 +803,10 @@ WEBINARS_ACTIVITY = _activity(
         "YouTube (Google) – wyłącznie gdy koordynator włączy transmisję na żywo",
     ],
     retention=(
-        "obraz i dźwięk – nie są przechowywane poza nagraniem; nagrania – do usunięcia przez "
-        "koordynatora; lista obecności – razem z webinarem; wpisy audytu wejść – jak pozostały audyt"
+        "obraz i dźwięk – nie są przechowywane poza nagraniem; nagrania i lista obecności – "
+        "kasowane automatycznie po WEBINAR_RETENTION_DAYS dniach od końca webinaru (domyślnie 365; "
+        "wcześniej – na żądanie koordynatora albo przy usunięciu konta); wpisy audytu wejść – jak "
+        "pozostały audyt"
     ),
     measures=[
         "funkcja domyślnie wyłączona i wymaga własnego serwera LiveKit",
@@ -812,6 +814,8 @@ WEBINARS_ACTIVITY = _activity(
         "i nie trafia do listów ani do stron",
         "widz nie nadaje obrazu ani dźwięku, dopóki prowadzący nie da mu głosu",
         "nagranie widzą odbiorcy webinaru dopiero po opublikowaniu, przez adres ważny dwie godziny",
+        "przed wejściem do pokoju webinaru z nagrywaniem – informacja o nagrywaniu; w trakcie "
+        "nagrania – stały znacznik „Trwa nagrywanie”",
         "link dla gości domyślnie wyłączony",
     ],
 )

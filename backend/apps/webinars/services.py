@@ -51,6 +51,7 @@ from .models import (
     WebinarNotificationSettings,
     WebinarRecording,
     WebinarWebhookEvent,
+    new_public_key,
 )
 from .storage import KEY_PREFIX, RECORDING_URL_TTL_SECONDS, get_recording_storage
 
@@ -74,6 +75,16 @@ WEBHOOK_EVENT_RETENTION_DAYS = 7
 RTMP_URL = re.compile(r"^rtmps?://[A-Za-z0-9.-]+(:\d+)?/\S+$")
 #: Domyślny serwer YouTube Live, gdy koordynator wkleja sam klucz strumienia.
 YOUTUBE_RTMP = "rtmps://a.rtmps.youtube.com/live2/"
+#: Stany egressu, w których nagranie jest już zamknięte (``livekit.EgressStatus``).
+EGRESS_FINISHED = frozenset({"EGRESS_COMPLETE", "EGRESS_FAILED", "EGRESS_ABORTED", "EGRESS_LIMIT_REACHED"})
+EGRESS_FAILED_STATES = frozenset({"EGRESS_FAILED", "EGRESS_ABORTED", "EGRESS_LIMIT_REACHED"})
+#: Kody Twirp, którymi serwer odpowiada na zatrzymanie egressu, który już się zakończył.
+EGRESS_GONE_CODES = frozenset({"not_found", "failed_precondition"})
+#: Po ilu minutach od startu aktywne nagranie uzgadniamy z serwerem (``ListEgress``) w zadaniu beat –
+#: zgubiony webhook ``egress_ended`` nie może zostawić wiersza „nagrywa” na zawsze.
+RECONCILE_AFTER_MINUTES = 10
+#: Ile sekund pusty pokój czeka na powrót prowadzącego, zanim LiveKit go zamknie (``CreateRoom``).
+ROOM_EMPTY_TIMEOUT_SECONDS = 600
 #: Identyfikator w pokoju: pseudonim konta albo gościa – nic poza tym alfabetem nie przechodzi.
 IDENTITY = re.compile(r"^[ug]-[0-9a-f]{20}$")
 
@@ -502,6 +513,10 @@ def update_webinar(webinar: Webinar, actor, data: dict, co_moderators=(), reques
         # Zmiana terminu po wysłanym przypomnieniu: nowe przypomnienie ma pójść przed nowym terminem.
         if "starts_at" in changed:
             webinar.reminder_sent_at = None
+        # Link gościa włączony ponownie dostaje **nowy** klucz: stary link (rozesłany kiedyś, może
+        # dalej, niż chciał organizator) nie ożywa razem z przełącznikiem.
+        if "public_link" in changed and webinar.public_link:
+            webinar.public_key = new_public_key()
         webinar.save()
         before = set(webinar.co_moderators.values_list("pk", flat=True))
         after = {user.pk for user in co_moderators}
@@ -510,6 +525,17 @@ def update_webinar(webinar: Webinar, actor, data: dict, co_moderators=(), reques
             changed.append("co_moderators")
         if changed:
             _audit(actor, "webinar.updated", webinar, {"fields": changed}, request=request)
+    return webinar
+
+
+def rotate_guest_link(webinar: Webinar, actor, request=None) -> Webinar:
+    """Nowy klucz linku gościa – stary przestaje działać od razu (także dla gościa usuniętego
+    z pokoju, który wróciłby z nową sesją i nowym identyfikatorem)."""
+    if not webinar.public_link:
+        raise DomainError("Link dla gości jest wyłączony.", "WEBINAR_LINK_OFF", 409)
+    webinar.public_key = new_public_key()
+    webinar.save(update_fields=["public_key", "updated_at"])
+    _audit(actor, "webinar.guest_link_rotated", webinar, request=request)
     return webinar
 
 
@@ -623,6 +649,26 @@ def _viewer_gate(webinar: Webinar, now) -> None:
         )
 
 
+def _ensure_room(webinar: Webinar) -> None:
+    """``CreateRoom`` przed wystawieniem tokenu (serwer ma ``auto_create: false``). Idempotentne –
+    istniejący pokój zostaje bez zmian. Wołane wyłącznie po sprawdzeniu reguł wejścia, więc pokój
+    po „Zakończ” nie powstaje na nowo z tokenu wystawionego wcześniej."""
+    try:
+        livekit.create_room(webinar.room_name, empty_timeout=ROOM_EMPTY_TIMEOUT_SECONDS)
+    except livekit.LiveKitUnavailable as exc:
+        raise _unavailable() from exc
+    except livekit.LiveKitError as exc:
+        raise DomainError(f"LiveKit odmówił założenia pokoju ({exc.code}).", "LIVEKIT_ROOM", 502) from exc
+
+
+def _refuse_removed(webinar: Webinar, identity: str) -> None:
+    """Osoba usunięta z pokoju przez prowadzącego nie dostaje nowego tokenu (M1 przeglądu)."""
+    if WebinarAttendee.objects.filter(webinar=webinar, identity=identity, removed_at__isnull=False).exists():
+        raise DomainError(
+            _("Prowadzący usunął Cię z tego webinaru."), "WEBINAR_REMOVED", status.HTTP_403_FORBIDDEN
+        )
+
+
 def _remember_attendee(webinar: Webinar, *, identity: str, user, name: str, role: str) -> None:
     """Wiersz obecności przy pierwszym tokenie (kto to jest); czasy dopiszą webhooki."""
     try:
@@ -651,6 +697,9 @@ def join_token(webinar: Webinar, viewer: Viewer, request=None, now=None) -> dict
     else:
         _viewer_gate(webinar, now)
     identity = pseudonym(viewer.user)
+    if not presenter:
+        _refuse_removed(webinar, identity)
+    _ensure_room(webinar)
     name = display_name(viewer.user, "Prowadzący" if presenter else "")
     _remember_attendee(
         webinar,
@@ -690,6 +739,11 @@ def guest_token(webinar: Webinar, *, identity: str, name: str, user=None, reques
     if not IDENTITY.match(identity or ""):
         raise DomainError("Nieprawidłowy identyfikator gościa.", "WEBINAR_GUEST", 400)
     _viewer_gate(webinar, now)
+    _refuse_removed(webinar, identity)
+    _ensure_room(webinar)
+    # Gość jest oznaczony w samej nazwie (widzą ją wszyscy w pokoju): nikt spoza konkursu nie może
+    # podpisać się tak, żeby wyglądać jak uczestnik albo prowadzący z konta.
+    name = _("%(name)s (gość)") % {"name": name}
     _remember_attendee(webinar, identity=identity, user=None, name=name, role=AttendeeRole.GUEST)
     # Bez nazwy gościa w audycie – wpisuje ją sam i bywa nią imię i nazwisko.
     _audit(user, "webinar.joined", webinar, {"role": "guest"}, request=request)
@@ -706,6 +760,16 @@ def _attendee(webinar: Webinar, identity: str) -> WebinarAttendee:
     return found
 
 
+def _still_allowed(webinar: Webinar, attendee: WebinarAttendee) -> bool:
+    """Czy osoba z wiersza obecności **dziś** ma prawo być w pokoju (L3 przeglądu): konto – rola
+    w webinarze (odbiorca albo prowadzący), gość – włączony link; usunięty – nie."""
+    if attendee.removed_at is not None:
+        return False
+    if attendee.user_id is not None:
+        return Viewer.of(attendee.user, webinar.competition).role(webinar) is not None
+    return webinar.public_link and webinar.cancelled_at is None
+
+
 def set_speaker(webinar: Webinar, actor, identity: str, speaker: bool, request=None) -> None:
     """„Daj głos” / „odbierz głos” widzowi (np. po podniesieniu ręki) – ``UpdateParticipant``.
 
@@ -714,6 +778,12 @@ def set_speaker(webinar: Webinar, actor, identity: str, speaker: bool, request=N
     """
     _require_server()
     attendee = _attendee(webinar, identity)
+    if speaker and not _still_allowed(webinar, attendee):
+        raise DomainError(
+            "Ta osoba nie należy już do odbiorców webinaru – nie można dać jej głosu.",
+            "WEBINAR_NOT_AUDIENCE",
+            409,
+        )
     try:
         livekit.set_can_publish(webinar.room_name, attendee.identity, speaker)
     except livekit.LiveKitUnavailable as exc:
@@ -726,15 +796,30 @@ def set_speaker(webinar: Webinar, actor, identity: str, speaker: bool, request=N
 
 
 def remove_from_room(webinar: Webinar, actor, identity: str, request=None) -> None:
+    """Wyprasza osobę z pokoju **i** zapamiętuje to (``removed_at``) – bez znacznika wróciłaby od razu
+    z nowym tokenem. Prowadzącego nie da się usunąć (prawa nadaje mu rola, nie ten wiersz)."""
     _require_server()
     attendee = _attendee(webinar, identity)
+    if attendee.role == AttendeeRole.PRESENTER:
+        raise DomainError("Prowadzącego nie można usunąć z pokoju.", "WEBINAR_PRESENTER", 409)
+    WebinarAttendee.objects.filter(pk=attendee.pk).update(removed_at=timezone.now())
     try:
         livekit.remove_participant(webinar.room_name, attendee.identity)
     except livekit.LiveKitUnavailable as exc:
         raise _unavailable() from exc
-    except livekit.LiveKitError as exc:
-        raise DomainError("Tej osoby nie ma teraz w pokoju.", "WEBINAR_NOT_IN_ROOM", 409) from exc
-    _audit(actor, "webinar.participant_removed", webinar, request=request)
+    except livekit.LiveKitError:
+        # Już wyszedł – znacznik i tak zostaje, więc nie wróci.
+        logger.info("Webinar %s: osoby nie było w pokoju przy usuwaniu.", webinar.pk)
+    _audit(
+        actor, "webinar.participant_removed", webinar, {"guest": attendee.user_id is None}, request=request
+    )
+
+
+def readmit(webinar: Webinar, actor, identity: str, request=None) -> None:
+    """„Wpuść ponownie” – zdejmuje znacznik usunięcia."""
+    attendee = _attendee(webinar, identity)
+    WebinarAttendee.objects.filter(pk=attendee.pk).update(removed_at=None)
+    _audit(actor, "webinar.participant_readmitted", webinar, request=request)
 
 
 def present_count(webinar: Webinar) -> int:
@@ -786,12 +871,89 @@ def stop_recording(webinar: Webinar, actor, request=None) -> int:
             livekit.stop_egress(recording.egress_id)
         except livekit.LiveKitUnavailable as exc:
             raise _unavailable() from exc
-        except livekit.LiveKitError:
-            logger.info("Webinar %s: egress %s już zakończony.", webinar.pk, recording.egress_id)
+        except livekit.LiveKitError as exc:
+            # Egress już się skończył (zgubiony webhook) – stan bierzemy od serwera, zamiast czekać
+            # na zdarzenie, które nie przyjdzie.
+            logger.info(
+                "Webinar %s: egress %s już zakończony (%s).", webinar.pk, recording.egress_id, exc.code
+            )
+            if exc.code in EGRESS_GONE_CODES:
+                reconcile_recording(recording)
         stopped += 1
     if stopped:
         _audit(actor, "webinar.recording_stopped", webinar, request=request)
     return stopped
+
+
+def reconcile_recording(recording: WebinarRecording, now=None) -> str:
+    """Uzgadnia aktywne nagranie z serwerem (``ListEgress``). Zwraca stan po uzgodnieniu.
+
+    Egress zakończony – ten sam zapis, co z webhooka ``egress_ended``. Egress, którego serwer nie
+    zna – nagranie nieudane (plik nie powstał albo serwer stracił stan). Awaria sieci – bez zmian
+    (następny przebieg spróbuje znowu).
+    """
+    if recording.status != RecordingStatus.ACTIVE:
+        return recording.status
+    try:
+        items = livekit.list_egress(recording.egress_id)
+    except livekit.LiveKitUnavailable:
+        return recording.status
+    except livekit.LiveKitError as exc:
+        if exc.code != "not_found":
+            return recording.status
+        items = []
+    now = now or timezone.now()
+    item = next(
+        (
+            row
+            for row in items
+            if str(row.get("egress_id") or row.get("egressId") or "") == recording.egress_id
+        ),
+        None,
+    )
+    if item is None:
+        WebinarRecording.objects.filter(pk=recording.pk, status=RecordingStatus.ACTIVE).update(
+            status=RecordingStatus.FAILED, error="serwer LiveKit nie zna tego nagrania", ended_at=now
+        )
+    elif str(item.get("status") or "") in EGRESS_FINISHED:
+        _handle_egress(item, "egress_ended", now)
+    recording.refresh_from_db()
+    return recording.status
+
+
+def reconcile_stale_recordings(now=None) -> int:
+    """Zadanie beat: aktywne nagrania starsze niż :data:`RECONCILE_AFTER_MINUTES` – z serwerem."""
+    if not livekit.configured():
+        return 0
+    now = now or timezone.now()
+    stale = WebinarRecording.objects.filter(
+        status=RecordingStatus.ACTIVE, started_at__lt=now - timedelta(minutes=RECONCILE_AFTER_MINUTES)
+    )
+    return sum(1 for recording in stale if reconcile_recording(recording, now) != RecordingStatus.ACTIVE)
+
+
+def mark_recording_failed(webinar: Webinar, pk, actor, request=None) -> WebinarRecording:
+    """Koordynator zamyka wiszące nagranie ręcznie: najpierw próba zatrzymania i uzgodnienia,
+    a gdy serwer dalej nic nie mówi – stan „błąd” z adnotacją."""
+    recording = own_recording(webinar, pk)
+    if recording.status != RecordingStatus.ACTIVE:
+        return recording
+    if livekit.configured():
+        try:
+            livekit.stop_egress(recording.egress_id)
+        except livekit.LiveKitUnavailable, livekit.LiveKitError:
+            pass
+        if reconcile_recording(recording) != RecordingStatus.ACTIVE:
+            _audit(
+                actor, "webinar.recording_reconciled", webinar, {"recording": recording.pk}, request=request
+            )
+            return recording
+    WebinarRecording.objects.filter(pk=recording.pk).update(
+        status=RecordingStatus.FAILED, error="oznaczone ręcznie jako nieudane", ended_at=timezone.now()
+    )
+    recording.refresh_from_db()
+    _audit(actor, "webinar.recording_marked_failed", webinar, {"recording": recording.pk}, request=request)
+    return recording
 
 
 def rtmp_target(raw: str) -> str:
@@ -943,9 +1105,7 @@ def _handle_egress(egress: dict, event_name: str, at) -> None:
     if event_name != "egress_ended":
         return
     status_value = str(egress.get("status") or "")
-    failed = status_value in ("EGRESS_FAILED", "EGRESS_ABORTED", "EGRESS_LIMIT_REACHED") or bool(
-        egress.get("error")
-    )
+    failed = status_value in EGRESS_FAILED_STATES or bool(egress.get("error"))
     results = egress.get("fileResults") or egress.get("file_results") or [{}]
     first = results[0] if results else {}
     recording.status = RecordingStatus.FAILED if failed else RecordingStatus.COMPLETE
@@ -978,13 +1138,23 @@ def handle_webhook(event: dict) -> str:
     at = _event_time(event)
     if abs((timezone.now() - at).total_seconds()) > WEBHOOK_MAX_AGE_SECONDS:
         return "stale"
-    if event_id:
-        try:
-            with transaction.atomic():
-                WebinarWebhookEvent.objects.create(event_id=event_id, event=name[:40])
-        except IntegrityError:
-            return "duplicate"
+    # Zapis „to zdarzenie już było” i jego skutki w **jednej** transakcji: błąd w przetwarzaniu
+    # cofa także znacznik, więc ponowienie LiveKit nie zostanie odrzucone jako powtórka (L1 przeglądu).
+    try:
+        with transaction.atomic():
+            if event_id:
+                try:
+                    with transaction.atomic():
+                        WebinarWebhookEvent.objects.create(event_id=event_id, event=name[:40])
+                except IntegrityError:
+                    return "duplicate"
+            return _apply_event(name, event, at)
+    except IntegrityError:  # pragma: no cover - wyścig dwóch dostarczeń tego samego zdarzenia
+        return "duplicate"
 
+
+def _apply_event(name: str, event: dict, at) -> str:
+    """Skutki jednego zdarzenia (wewnątrz transakcji :func:`handle_webhook`)."""
     if name.startswith("egress_"):
         _handle_egress(event.get("egressInfo") or event.get("egress_info") or {}, name, at)
         return "ok"
@@ -1029,6 +1199,86 @@ def purge_webhook_events(now=None) -> int:
     cutoff = (now or timezone.now()) - timedelta(days=WEBHOOK_EVENT_RETENTION_DAYS)
     deleted, _rows = WebinarWebhookEvent.objects.filter(received_at__lt=cutoff).delete()
     return deleted
+
+
+# --- retencja i dane osobowe -----------------------------------------------------------------------
+
+
+def purge_expired(now=None) -> dict[str, int]:
+    """Retencja (M6 przeglądu): po ``WEBINAR_RETENTION_DAYS`` od końca webinaru znikają nagrania
+    (plik i wiersz) i lista obecności. Sam webinar (tytuł, termin, odbiorcy) zostaje – to dokumentacja
+    zajęć organizatora, bez danych uczestników. Wołane z zadania beat ``remind_webinars``."""
+    now = now or timezone.now()
+    days = int(getattr(settings, "WEBINAR_RETENTION_DAYS", 365) or 0)
+    if days <= 0:
+        return {"recordings": 0, "attendees": 0}
+    cutoff = now - timedelta(days=days)
+    # ``starts_at`` < granica − 8 h (najdłuższy webinar) to tanie, indeksowane zawężenie; dokładny
+    # koniec (``ends_at``) liczymy już w Pythonie na tej krótkiej liście.
+    expired = [
+        webinar
+        for webinar in Webinar._base_manager.filter(starts_at__lt=cutoff).only(
+            "pk", "starts_at", "duration_minutes"
+        )
+        if webinar.ends_at < cutoff
+    ]
+    ids = [webinar.pk for webinar in expired]
+    storage = get_recording_storage()
+    recordings = 0
+    for recording in WebinarRecording.objects.filter(webinar_id__in=ids).exclude(
+        status=RecordingStatus.ACTIVE
+    ):
+        if recording.storage_key.startswith(KEY_PREFIX):
+            try:
+                storage.delete(recording.storage_key)
+            except Exception:  # noqa: BLE001 - wiersz zostaje, następny przebieg spróbuje znowu
+                logger.warning(
+                    "Webinar %s: nie udało się skasować nagrania po retencji.", recording.webinar_id
+                )
+                continue
+        recording.delete()
+        recordings += 1
+    attendees, _rows = WebinarAttendee.objects.filter(webinar_id__in=ids).delete()
+    return {"recordings": recordings, "attendees": attendees}
+
+
+def erase_for_user(user) -> int:
+    """Anonimizacja konta: znikają wiersze obecności tej osoby, ustawienie listów i współprowadzenie.
+
+    Lista obecności to dane o osobie (kiedy i jak długo była w pokoju), a nie dokumentacja zawodów –
+    po anonimizacji nie ma do kogo jej przypisać, więc wiersze są kasowane, a nie odpinane od konta.
+    """
+    removed = WebinarAttendee.objects.filter(user=user).delete()[0]
+    removed += WebinarNotificationSettings.objects.filter(user=user).delete()[0]
+    for webinar in Webinar._base_manager.filter(co_moderators=user):
+        webinar.co_moderators.remove(user)
+        removed += 1
+    return removed
+
+
+def export_for_user(user) -> dict:
+    """Sekcja eksportu danych konta: obecność na webinarach i ustawienie listów."""
+    rows = (
+        WebinarAttendee.objects.filter(user=user)
+        .select_related("webinar__competition")
+        .order_by("first_token_at")
+    )
+    return {
+        "listy_o_webinarach": notifications_enabled(user),
+        "obecnosc": [
+            {
+                "konkurs": row.webinar.competition.name,
+                "webinar": row.webinar.title,
+                "termin": row.webinar.starts_at.isoformat(),
+                "rola": row.get_role_display(),
+                "nazwa_w_pokoju": row.name,
+                "pierwsze_wejscie": row.first_joined_at.isoformat() if row.first_joined_at else None,
+                "czas_obecnosci_s": row.seconds,
+                "usuniety_z_pokoju": row.removed_at.isoformat() if row.removed_at else None,
+            }
+            for row in rows
+        ],
+    }
 
 
 # --- ustawienia listów ----------------------------------------------------------------------------

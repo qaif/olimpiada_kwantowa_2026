@@ -9427,3 +9427,20 @@ msgstr "Камера"
 #: templates/web/webinars/guest.html
 msgid "Wejście działa od kilkunastu minut przed początkiem, gdy prowadzący rozpocznie webinar. Wchodzisz jako widz – głos daje prowadzący."
 msgstr "Вход открывается примерно за пятнадцать минут до начала, когда ведущий запустит вебинар. Вы входите как зритель – слово даёт ведущий."
+
+#: apps/webinars/services.py
+msgid "Prowadzący usunął Cię z tego webinaru."
+msgstr "Ведущий удалил вас из этого вебинара."
+
+#: apps/webinars/services.py
+#, python-format
+msgid "%(name)s (gość)"
+msgstr "%(name)s (гость)"
+
+#: templates/web/webinars/room.html
+msgid "Włącz dźwięk"
+msgstr "Включить звук"
+
+#: templates/web/webinars/room.html
+msgid "Ten webinar może być nagrywany. Gdy nagrywanie trwa, u góry pokoju widać czerwony znacznik „Trwa nagrywanie”; nagranie może zawierać Twój głos, obraz i wiadomości czatu, jeśli je włączysz lub wyślesz."
+msgstr "Этот вебинар может записываться. Во время записи вверху комнаты виден красный значок «Идёт запись»; запись может содержать ваш голос, изображение и сообщения чата, если вы их включите или отправите."

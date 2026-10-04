@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import json
 
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied
@@ -66,6 +67,24 @@ def _json(data: dict, status: int = 200) -> JsonResponse:
 
 def _json_error(exc: DomainError) -> JsonResponse:
     return _json({"code": exc.machine_code, "detail": str(exc.detail)}, status=exc.status_code)
+
+
+class JsonThrottleMixin:
+    """429 jako JSON dla adresów wołanych przez ``webinar-room.js`` (token, polecenia prowadzącego).
+
+    Strona HTML z limitem (``ThrottledFormMixin.throttled_response``) nie dałaby się pokazać w pokoju –
+    JS czyta ``detail`` i wyświetla je w pasku stanu, a ``Retry-After`` mówi, kiedy spróbować znowu.
+    """
+
+    def throttled_response(self, request, wait: float):
+        from apps.web.throttle import THROTTLE_MESSAGE
+
+        retry_after = max(1, int(wait) + 1)
+        response = _json(
+            {"code": "THROTTLED", "detail": _(THROTTLE_MESSAGE), "retry_after": retry_after}, 429
+        )
+        response["Retry-After"] = str(retry_after)
+        return response
 
 
 class WebinarFeatureMixin:
@@ -190,6 +209,7 @@ class CoordinatorWebinarDetailView(_CoordinatorMixin, View):
             "co_moderators": list(webinar.co_moderators.order_by("last_name", "first_name")),
             "guest_link": guest_link,
             "zone": services.competition_zone(request.competition),
+            "retention_days": settings.WEBINAR_RETENTION_DAYS,
         }
         return _form_page(TemplateResponse(request, COORDINATOR_DETAIL_TEMPLATE, context))
 
@@ -235,7 +255,7 @@ class CoordinatorWebinarEditView(_CoordinatorMixin, View):
 class _CoordinatorActionMixin(_CoordinatorMixin, ThrottledFormMixin):
     """Czynność POST na jednym webinarze: limit per konto, ``no-store``, powrót na szczegóły."""
 
-    throttle_scope = "webinar_join"
+    throttle_scope = "webinar_control"
 
     @method_decorator(never_cache)
     def dispatch(self, request, *args, **kwargs):
@@ -345,6 +365,13 @@ class CoordinatorWebinarRecordingView(_CoordinatorActionMixin, View):
                 ),
                 "Nagranie opublikowane." if action == "publish" else "Nagranie wycofane.",
             )
+        if action == "mark_failed":
+            return self.run(
+                request,
+                webinar,
+                lambda: services.mark_recording_failed(webinar, recording, user, request=request),
+                "Stan nagrania uzgodniony z serwerem.",
+            )
         if action == "delete":
             if request.POST.get("confirm") != "1":
                 messages.error(request, "Zaznacz potwierdzenie – usuniętego nagrania nie da się odzyskać.")
@@ -384,6 +411,35 @@ class CoordinatorWebinarStreamView(_CoordinatorActionMixin, View):
                 "Transmisja zatrzymana.",
             )
         raise Http404("Nieznana czynność.")
+
+
+class CoordinatorWebinarGuestLinkView(_CoordinatorActionMixin, View):
+    """``POST /coordinator/webinars/<id>/guest-link/`` – nowy klucz linku gościa (stary od razu 404)."""
+
+    def post(self, request, pk: int):
+        webinar = self.webinar(request, pk)
+        return self.run(
+            request,
+            webinar,
+            lambda: services.rotate_guest_link(webinar, request.user, request=request),
+            "Nowy link dla gości jest gotowy – poprzedni już nie działa.",
+        )
+
+
+class CoordinatorWebinarAttendeeView(_CoordinatorActionMixin, View):
+    """``POST /coordinator/webinars/<id>/attendees/`` – ``readmit`` (wpuść ponownie usuniętą osobę)."""
+
+    def post(self, request, pk: int):
+        webinar = self.webinar(request, pk)
+        if request.POST.get("action") != "readmit":
+            raise Http404("Nieznana czynność.")
+        identity = request.POST.get("identity", "")
+        return self.run(
+            request,
+            webinar,
+            lambda: services.readmit(webinar, request.user, identity, request=request),
+            "Ta osoba może wejść ponownie.",
+        )
 
 
 # --- odbiorcy (uczestnik, komisja, kapitan, prowadzący) -------------------------------------------
@@ -546,7 +602,7 @@ class WebinarRoomView(_AudienceMixin, View):
         return _form_page(TemplateResponse(request, ROOM_TEMPLATE, context))
 
 
-class WebinarTokenView(_AudienceMixin, ThrottledFormMixin, View):
+class WebinarTokenView(JsonThrottleMixin, _AudienceMixin, ThrottledFormMixin, View):
     """``POST /webinars/<id>/token/`` – token wejścia (JSON, ``no-store``). Limit per konto.
 
     POST z CSRF, a nie GET: token jest poświadczeniem, a prowadzący przy tym **rozpoczyna** webinar.
@@ -571,15 +627,16 @@ class WebinarTokenView(_AudienceMixin, ThrottledFormMixin, View):
         return _json(data)
 
 
-class WebinarControlView(_AudienceMixin, ThrottledFormMixin, View):
+class WebinarControlView(JsonThrottleMixin, _AudienceMixin, ThrottledFormMixin, View):
     """``POST /webinars/<id>/control/`` – polecenia prowadzącego z pokoju (JSON).
 
     ``action``: ``speaker`` / ``listener`` (daj / odbierz głos), ``remove`` – z polem ``identity``;
     ``record_start`` / ``record_stop``. Wyłącznie prowadzący **tego** webinaru (``Viewer.is_moderator``);
-    reszta – 404, jak webinar, którego nie ma.
+    reszta – 404, jak webinar, którego nie ma. Własny kubełek ``webinar_control`` (600/h): sesja
+    pytań to dziesiątki „Daj głos” na godzinę i wspólny limit z tokenami odcinał prowadzącego.
     """
 
-    throttle_scope = "webinar_join"
+    throttle_scope = "webinar_control"
 
     @method_decorator(never_cache)
     def dispatch(self, request, *args, **kwargs):
@@ -707,7 +764,7 @@ class WebinarGuestRoomView(_GuestMixin, View):
         return _form_page(TemplateResponse(request, ROOM_TEMPLATE, context))
 
 
-class WebinarGuestTokenView(_GuestMixin, ThrottledFormMixin, View):
+class WebinarGuestTokenView(JsonThrottleMixin, _GuestMixin, ThrottledFormMixin, View):
     """``POST /zaproszenie/webinar/<klucz>/token/`` – token gościa (widz) dla pseudonimu z sesji."""
 
     throttle_scope = "webinar_guest"

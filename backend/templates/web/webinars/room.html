@@ -24,9 +24,14 @@
       <h1 class="wr__title">{{ webinar.title }}</h1>
     </div>
     <p class="wr__status" data-status role="status" aria-live="polite">{% translate "Łączenie…" %}</p>
+    <span class="badge badge--danger wr__rec" data-recording-badge hidden>{% translate "Trwa nagrywanie" %}</span>
+    <button type="button" class="btn btn--primary btn--small" data-start-audio hidden>{% translate "Włącz dźwięk" %}</button>
     <a class="btn btn--secondary btn--small" href="{{ back_url }}" data-leave>{% translate "Wyjdź" %}</a>
   </header>
 
+  {% if webinar.record %}
+    <p class="alert alert--info wr__notice">{% translate "Ten webinar może być nagrywany. Gdy nagrywanie trwa, u góry pokoju widać czerwony znacznik „Trwa nagrywanie”; nagranie może zawierać Twój głos, obraz i wiadomości czatu, jeśli je włączysz lub wyślesz." %}</p>
+  {% endif %}
   <noscript><p class="alert alert--warning">{% translate "Pokój webinaru wymaga włączonego JavaScriptu." %}</p></noscript>
   {% if not sdk_url %}
     <p class="alert alert--warning" role="alert">{% translate "Pokój jest chwilowo niedostępny – brakuje komponentu wideo na serwerze. Daj znać organizatorowi." %}</p>

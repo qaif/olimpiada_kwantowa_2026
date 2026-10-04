@@ -9191,3 +9191,20 @@ msgstr "الكاميرا"
 #: templates/web/webinars/guest.html
 msgid "Wejście działa od kilkunastu minut przed początkiem, gdy prowadzący rozpocznie webinar. Wchodzisz jako widz – głos daje prowadzący."
 msgstr "يعمل الدخول قبل البدء بنحو خمس عشرة دقيقة بعد أن يبدأ المقدّم الندوة. تدخل كمشاهد – والمقدّم هو من يمنح الكلمة."
+
+#: apps/webinars/services.py
+msgid "Prowadzący usunął Cię z tego webinaru."
+msgstr "أزالك المقدّم من هذه الندوة."
+
+#: apps/webinars/services.py
+#, python-format
+msgid "%(name)s (gość)"
+msgstr "%(name)s (ضيف)"
+
+#: templates/web/webinars/room.html
+msgid "Włącz dźwięk"
+msgstr "تشغيل الصوت"
+
+#: templates/web/webinars/room.html
+msgid "Ten webinar może być nagrywany. Gdy nagrywanie trwa, u góry pokoju widać czerwony znacznik „Trwa nagrywanie”; nagranie może zawierać Twój głos, obraz i wiadomości czatu, jeśli je włączysz lub wyślesz."
+msgstr "قد تُسجَّل هذه الندوة. أثناء التسجيل تظهر أعلى الغرفة شارة حمراء «التسجيل جارٍ»؛ وقد يتضمن التسجيل صوتك وصورتك ورسائل الدردشة إن شغّلتها أو أرسلتها."

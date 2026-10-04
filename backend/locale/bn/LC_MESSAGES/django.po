@@ -9258,3 +9258,20 @@ msgstr "ক্যামেরা"
 #: templates/web/webinars/guest.html
 msgid "Wejście działa od kilkunastu minut przed początkiem, gdy prowadzący rozpocznie webinar. Wchodzisz jako widz – głos daje prowadzący."
 msgstr "উপস্থাপক ওয়েবিনার শুরু করলে শুরুর প্রায় পনেরো মিনিট আগে থেকে প্রবেশ করা যায়। আপনি দর্শক হিসেবে প্রবেশ করবেন – কথা বলার সুযোগ দেন উপস্থাপক।"
+
+#: apps/webinars/services.py
+msgid "Prowadzący usunął Cię z tego webinaru."
+msgstr "উপস্থাপক আপনাকে এই ওয়েবিনার থেকে সরিয়ে দিয়েছেন।"
+
+#: apps/webinars/services.py
+#, python-format
+msgid "%(name)s (gość)"
+msgstr "%(name)s (অতিথি)"
+
+#: templates/web/webinars/room.html
+msgid "Włącz dźwięk"
+msgstr "শব্দ চালু করুন"
+
+#: templates/web/webinars/room.html
+msgid "Ten webinar może być nagrywany. Gdy nagrywanie trwa, u góry pokoju widać czerwony znacznik „Trwa nagrywanie”; nagranie może zawierać Twój głos, obraz i wiadomości czatu, jeśli je włączysz lub wyślesz."
+msgstr "এই ওয়েবিনার রেকর্ড করা হতে পারে। রেকর্ডিং চলার সময় কক্ষের উপরে লাল «রেকর্ডিং চলছে» চিহ্ন দেখা যায়; আপনি চালু করলে বা পাঠালে আপনার কণ্ঠ, ছবি ও চ্যাট বার্তা রেকর্ডিংয়ে থাকতে পারে।"

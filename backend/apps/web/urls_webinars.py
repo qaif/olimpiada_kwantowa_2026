@@ -59,6 +59,16 @@ urlpatterns = [
         webinars.CoordinatorWebinarStreamView.as_view(),
         name="coordinator-webinar-stream",
     ),
+    path(
+        "coordinator/webinars/<int:pk>/guest-link/",
+        webinars.CoordinatorWebinarGuestLinkView.as_view(),
+        name="coordinator-webinar-guest-link",
+    ),
+    path(
+        "coordinator/webinars/<int:pk>/attendees/",
+        webinars.CoordinatorWebinarAttendeeView.as_view(),
+        name="coordinator-webinar-attendee",
+    ),
     path("webinars/", webinars.WebinarsView.as_view(), name="webinars"),
     path(
         "webinars/notifications/", webinars.WebinarNotificationsView.as_view(), name="webinar-notifications"

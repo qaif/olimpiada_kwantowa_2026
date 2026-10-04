@@ -199,9 +199,15 @@ def decode_hs256(token: str, secret: str, now=None) -> dict:
     if not hmac.compare_digest(expected, signature):
         raise WebhookInvalid("Zły podpis.")
     now = int(now if now is not None else time.time())
-    if "exp" in claims and int(claims["exp"]) + CLOCK_SKEW_SECONDS < now:
+    # ``exp`` i ``nbf`` są **obowiązkowe**: podpisany token bez terminu ważności byłby ważny zawsze,
+    # czyli przechwycone zdarzenie dałoby się odtworzyć po latach (LiveKit wystawia oba claimy).
+    try:
+        expires, not_before = int(claims["exp"]), int(claims["nbf"])
+    except (KeyError, TypeError, ValueError) as exc:
+        raise WebhookInvalid("Token bez terminu ważności.") from exc
+    if expires + CLOCK_SKEW_SECONDS < now:
         raise WebhookInvalid("Token po terminie.")
-    if "nbf" in claims and int(claims["nbf"]) - CLOCK_SKEW_SECONDS > now:
+    if not_before - CLOCK_SKEW_SECONDS > now:
         raise WebhookInvalid("Token jeszcze nieważny.")
     return claims
 
@@ -229,6 +235,10 @@ def verify_webhook(body: bytes, authorization: str, now=None) -> dict:
         raise WebhookInvalid("Treść nie jest JSON-em.") from exc
     if not isinstance(event, dict):
         raise WebhookInvalid("Treść nie jest obiektem.")
+    # Identyfikator i czas zdarzenia są warunkiem ochrony przed powtórką (``services.handle_webhook``):
+    # zdarzenie bez nich nie dałoby się ani zapamiętać, ani odrzucić jako stare.
+    if not str(event.get("id") or "").strip() or not str(event.get("createdAt") or "").strip():
+        raise WebhookInvalid("Zdarzenie bez identyfikatora albo czasu.")
     return event
 
 
@@ -293,6 +303,23 @@ def remove_participant(room: str, identity: str) -> dict:
         {"room": room, "identity": identity},
         {"roomAdmin": True, "room": room},
     )
+
+
+def create_room(room: str, *, empty_timeout: int = 600, max_participants: int = 0) -> dict:
+    """Zakłada pokój (idempotentnie – istniejący zwraca bez zmian). Serwer ma ``auto_create: false``
+    (``deploy/livekit/livekit.yaml.example``), więc pokój istnieje **tylko** wtedy, gdy założyła go
+    platforma po sprawdzeniu reguł – token sprzed „Zakończ” nie otworzy pokoju na nowo."""
+    payload = {"name": room, "empty_timeout": int(empty_timeout)}
+    if max_participants:
+        payload["max_participants"] = int(max_participants)
+    return twirp("RoomService", "CreateRoom", payload, {"roomCreate": True})
+
+
+def list_egress(egress_id: str) -> list[dict]:
+    """Stan jednego egressu (``Egress/ListEgress``) – do uzgodnienia nagrania, gdy webhook zaginął."""
+    data = twirp("Egress", "ListEgress", {"egress_id": egress_id}, {"roomRecord": True})
+    items = data.get("items") or []
+    return [item for item in items if isinstance(item, dict)]
 
 
 def delete_room(room: str) -> dict:

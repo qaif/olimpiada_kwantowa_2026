@@ -134,7 +134,9 @@ def test_no_call_without_configuration(settings):
 # --- webhook --------------------------------------------------------------------------------------
 
 
-BODY = json.dumps({"event": "room_started", "id": "EV_1", "room": {"name": "olimp-k-1"}}).encode()
+BODY = json.dumps(
+    {"event": "room_started", "id": "EV_1", "createdAt": int(time.time()), "room": {"name": "olimp-k-1"}}
+).encode()
 
 
 def test_webhook_with_valid_signature_is_accepted(fake_livekit):

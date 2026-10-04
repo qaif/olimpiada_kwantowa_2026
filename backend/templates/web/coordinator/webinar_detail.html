@@ -124,7 +124,15 @@
     {% if guest_link %}
       <p>Link dla gości bez konta (gość wpisuje swoją nazwę i wchodzi jako widz):</p>
       <p><code>{{ guest_link }}</code></p>
-      <p class="hint">Wyłączenie linku w edycji webinaru unieważnia go od razu.</p>
+      <form method="post" action="{% url 'web:coordinator-webinar-guest-link' webinar.pk %}"
+            x-data="confirmSubmit" x-on:submit="check"
+            data-confirm="Wygenerować nowy link dla gości? Obecny przestanie działać od razu.">
+        {% csrf_token %}
+        <button type="submit" class="btn btn--secondary btn--small">Wygeneruj nowy link</button>
+      </form>
+      <p class="hint">Gość usunięty z pokoju wróciłby z nową sesją – wtedy wygeneruj nowy link i roześlij go
+        tylko właściwym osobom. Wyłączenie linku w edycji webinaru unieważnia go od razu; ponowne włączenie
+        daje nowy link.</p>
     {% else %}
       <p class="hint">Link dla gości bez konta jest wyłączony.</p>
     {% endif %}
@@ -148,7 +156,14 @@
           {% for attendee in attendees %}
             <tr>
               <th scope="row">{% if attendee.user %}{{ attendee.user|person }}{% else %}{{ attendee.name }}{% endif %}
-                {% if attendee.present %}<span class="badge badge--ok">w pokoju</span>{% endif %}</th>
+                {% if attendee.present %}<span class="badge badge--ok">w pokoju</span>{% endif %}
+                {% if attendee.removed_at %}<span class="badge badge--danger">usunięty</span>
+                  <form method="post" action="{% url 'web:coordinator-webinar-attendee' webinar.pk %}" class="form--inline">
+                    {% csrf_token %}
+                    <input type="hidden" name="identity" value="{{ attendee.identity }}">
+                    <button type="submit" name="action" value="readmit" class="btn btn--secondary btn--small">Wpuść ponownie</button>
+                  </form>
+                {% endif %}</th>
               <td>{{ attendee.get_role_display }}</td>
               <td>{% if attendee.first_joined_at %}{{ attendee.first_joined_at|local_datetime }}{% else %}—{% endif %}</td>
               <td class="num">{% widthratio attendee.seconds 60 1 %} min</td>
@@ -196,6 +211,15 @@
                 {% if recording.published %}<span class="badge badge--ok">opublikowane</span>{% endif %}
                 {% if recording.error %}<span class="hint">{{ recording.error }}</span>{% endif %}</td>
               <td>
+                {% if recording.status == "active" %}
+                  <form method="post" action="{% url 'web:coordinator-webinar-recording' webinar.pk %}"
+                        x-data="confirmSubmit" x-on:submit="check"
+                        data-confirm="Uzgodnić stan nagrania z serwerem? Jeśli serwer go nie zna, nagranie zostanie oznaczone jako nieudane.">
+                    {% csrf_token %}
+                    <input type="hidden" name="recording" value="{{ recording.pk }}">
+                    <button type="submit" name="action" value="mark_failed" class="btn btn--secondary btn--small">Sprawdź / oznacz jako nieudane</button>
+                  </form>
+                {% endif %}
                 {% if recording.status != "active" %}
                 <div class="actions">
                   {% if recording.status == "complete" %}
@@ -225,7 +249,8 @@
         </tbody>
       </table>
     </div>
-    <p class="hint">Opublikowane nagrania widzą odbiorcy webinaru na stronie webinarów (adres pliku ważny dwie godziny).</p>
+    <p class="hint">Opublikowane nagrania widzą odbiorcy webinaru na stronie webinarów (adres pliku ważny dwie godziny).
+      Nagrania i lista obecności są kasowane automatycznie {{ retention_days }} dni po webinarze.</p>
   {% else %}
     <p class="hint">Brak nagrań. Nagranie włączasz w trakcie webinaru – tu albo przyciskiem w pokoju.</p>
   {% endif %}

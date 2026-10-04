@@ -106,7 +106,8 @@ IDENTITY_FIELDS = ("email", "username")
 #: komisja rozmawiająca z jednej sali za jednym NAT-em nie może dzielić jednego budżetu wejść.
 #:
 #: ``webinar_join`` (WEB-01) – token wejścia na webinar i czynności prowadzącego, z tego samego powodu.
-PER_USER_SCOPES = frozenset({"chat", "forum", "video", "video_rooms", "webinar_join"})
+#: ``webinar_control`` – polecenia prowadzącego (osobny, wyższy kubełek).
+PER_USER_SCOPES = frozenset({"chat", "forum", "video", "video_rooms", "webinar_join", "webinar_control"})
 
 #: Jak często (sekundy) wolno zalogować awarię cache'a jednym procesem – patrz ``_report_outage``.
 OUTAGE_LOG_INTERVAL = 60

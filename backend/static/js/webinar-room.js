@@ -30,6 +30,8 @@
   var chatInput = root.querySelector("[data-chat-input]");
   var chatSend = root.querySelector("[data-chat-send]");
   var statusLine = root.querySelector("[data-status]");
+  var recordingBadge = root.querySelector("[data-recording-badge]");
+  var startAudio = root.querySelector("[data-start-audio]");
   var csrf = root.querySelector("input[name=csrfmiddlewaretoken]").value;
   var isPresenter = root.dataset.role === "presenter";
   var controlUrl = root.dataset.controlUrl || "";
@@ -38,6 +40,7 @@
   var hands = new Set();
   var handRaised = false;
   var room = null;
+  var leaving = false;
 
   function button(name) {
     return root.querySelector('[data-action="' + name + '"]');
@@ -211,11 +214,53 @@
 
   // --- kanał danych: czat i ręka -------------------------------------------------------------------
 
-  function send(topic, payload) {
-    return room.localParticipant.publishData(encoder.encode(JSON.stringify(payload)), {
-      reliable: true,
-      topic: topic,
+  function send(topic, payload, destinations) {
+    var options = { reliable: true, topic: topic };
+    if (destinations) {
+      options.destinationIdentities = destinations;
+    }
+    return room.localParticipant.publishData(encoder.encode(JSON.stringify(payload)), options);
+  }
+
+  // Znacznik nagrywania widoczny przez cały czas nagrania (nie tylko w pasku stanu, który zmienia
+  // się przy każdym zdarzeniu) – uczestnik ma wiedzieć, że jest nagrywany.
+  function syncRecording() {
+    recordingBadge.hidden = !(room && room.isRecording);
+  }
+
+  // Przeglądarka blokuje odtwarzanie dźwięku bez gestu użytkownika (autoplay). SDK zgłasza to
+  // zdarzeniem; przycisk „Włącz dźwięk” wywołuje ``room.startAudio()`` w obsłudze kliknięcia.
+  function syncAudio() {
+    startAudio.hidden = !room || room.canPlaybackAudio;
+  }
+
+  startAudio.addEventListener("click", function () {
+    if (room) {
+      room.startAudio().then(syncAudio, syncAudio);
+    }
+  });
+
+  function resetStage() {
+    stage.textContent = "";
+    people.textContent = "";
+    root.querySelectorAll("audio").forEach(function (element) {
+      element.remove();
     });
+    hands.clear();
+  }
+
+  function offerRetry(message) {
+    setStatus(message);
+    var retry = document.createElement("button");
+    retry.type = "button";
+    retry.className = "btn btn--small btn--primary";
+    retry.textContent = T.retry;
+    retry.addEventListener("click", function () {
+      retry.remove();
+      connect();
+    });
+    statusLine.appendChild(document.createTextNode(" "));
+    statusLine.appendChild(retry);
   }
 
   function addChat(name, text) {
@@ -334,6 +379,17 @@
   // --- połączenie --------------------------------------------------------------------------------
 
   function connect() {
+    // Ponowne połączenie zaczyna od zera: stary pokój rozłączony i bez nasłuchów, scena wyczyszczona.
+    if (room) {
+      var old = room;
+      room = null;
+      old.removeAllListeners();
+      old.disconnect();
+    }
+    resetStage();
+    handRaised = false;
+    button("hand").textContent = T.raiseHand;
+    button("hand").setAttribute("aria-pressed", "false");
     setStatus(T.connecting);
     post(root.dataset.tokenUrl)
       .then(function (data) {
@@ -353,7 +409,15 @@
             detachTrack(publication.track, room.localParticipant);
             syncControls();
           })
-          .on(LK.RoomEvent.ParticipantConnected, renderPeople)
+          .on(LK.RoomEvent.ParticipantConnected, function (participant) {
+            // Prowadzący, który dołączył później, nie widział wcześniejszego „podnieś rękę” –
+            // ręka jest stanem, więc wysyłamy ją nowej osobie jeszcze raz.
+            if (handRaised) {
+              send("hand", { raised: true }, [participant.identity]);
+            }
+            renderPeople();
+          })
+          .on(LK.RoomEvent.AudioPlaybackStatusChanged, syncAudio)
           .on(LK.RoomEvent.ParticipantDisconnected, function (participant) {
             hands.delete(participant.identity);
             renderPeople();
@@ -388,14 +452,20 @@
           })
           .on(LK.RoomEvent.RecordingStatusChanged, function () {
             setStatus(room.isRecording ? T.recording : T.connected);
+            syncRecording();
             syncControls();
           })
           .on(LK.RoomEvent.DataReceived, onData)
           .on(LK.RoomEvent.Disconnected, function () {
-            setStatus(T.disconnected);
             ["mic", "cam", "screen", "hand"].forEach(function (name) {
               button(name).disabled = true;
             });
+            recordingBadge.hidden = true;
+            if (!leaving) {
+              // Zerwane połączenie (sieć, usunięcie z pokoju, koniec webinaru) – nowy token przez
+              // platformę rozstrzygnie, czy wolno wrócić (usunięty i po „Zakończ” dostanie odmowę).
+              offerRetry(T.disconnected);
+            }
           });
         return room.connect(data.url, data.token).then(function () {
           setStatus(room.isRecording ? T.recording : T.connected);
@@ -408,32 +478,26 @@
           });
           renderPeople();
           syncControls();
+          syncRecording();
+          syncAudio();
           if (isPresenter) {
             room.localParticipant.setMicrophoneEnabled(true).then(syncControls, syncControls);
           }
         });
       })
       .catch(function (error) {
-        setStatus((error && error.detail) || T.failed);
-        var retry = document.createElement("button");
-        retry.type = "button";
-        retry.className = "btn btn--small btn--primary";
-        retry.textContent = T.retry;
-        retry.addEventListener("click", function () {
-          retry.remove();
-          connect();
-        });
-        statusLine.appendChild(document.createTextNode(" "));
-        statusLine.appendChild(retry);
+        offerRetry((error && error.detail) || T.failed);
       });
   }
 
   root.querySelector("[data-leave]").addEventListener("click", function () {
+    leaving = true;
     if (room) {
       room.disconnect();
     }
   });
   window.addEventListener("pagehide", function () {
+    leaving = true;
     if (room) {
       room.disconnect();
     }
