@@ -198,9 +198,10 @@ def region_noun(competition) -> str:
 
     Przy wyłączonej fladze ``custom_regions`` – „Województwo”, **bez zapytania** (Olimpiada
     Kwantowa nie płaci za tę funkcję niczym). Przy włączonej: „Kraj”, gdy każdy aktywny region jest
-    na poziomie ``COUNTRY``, w przeciwnym razie neutralne „Region”. Odpowiedź jest zapamiętywana na
-    obiekcie konkursu – nagłówek tabeli, etykieta pola i filtr pytają o nią w jednym żądaniu kilka
-    razy.
+    na poziomie ``COUNTRY``, w przeciwnym razie neutralne „Region”. Odpowiedzi **nie** zapamiętujemy
+    na obiekcie konkursu: rozstrzyganie konkursu bywa buforowane w pamięci procesu, więc taki zapis
+    przeżyłby zmianę regionów w panelu. Szablony pytają przez leniwy ``region_noun`` z procesora
+    kontekstu (raz na render), formularze – raz na etykietę pola.
 
     Napis przechodzi przez gettext: uczestnik konkursu międzynarodowego czyta „Country” albo
     „国家”, a nie polskie słowo.
@@ -211,14 +212,8 @@ def region_noun(competition) -> str:
 
     if competition is None or not competition.has_feature(CUSTOM_REGIONS_FLAG):
         return gettext("Województwo")
-    level = getattr(competition, "_region_level_cache", None)
-    if level is None:
-        levels = set(
-            Region.objects.for_competition(competition).active().values_list("level", flat=True).distinct()
-        )
-        level = RegionLevel.COUNTRY if levels == {RegionLevel.COUNTRY} else RegionLevel.REGION
-        try:
-            competition._region_level_cache = level
-        except AttributeError:  # pragma: no cover - obiekt bez zapisywalnych atrybutów
-            pass
+    levels = set(
+        Region.objects.for_competition(competition).active().values_list("level", flat=True).distinct()
+    )
+    level = RegionLevel.COUNTRY if levels == {RegionLevel.COUNTRY} else RegionLevel.REGION
     return gettext("Kraj") if level == RegionLevel.COUNTRY else gettext("Region")
