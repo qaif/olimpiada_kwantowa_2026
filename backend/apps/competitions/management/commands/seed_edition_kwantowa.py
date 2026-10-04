@@ -51,7 +51,7 @@ from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
 from apps.competitions.models import Edition, Stage, StageFormat, StageKind
@@ -178,6 +178,23 @@ def _event_dates(plan: StagePlan) -> dict:
     return {"event_starts_on": date(*starts), "event_ends_on": date(*ends)}
 
 
+#: Konkurs, którego edycję zakłada ta komenda. Identyfikator, a nie ``pk=1``: testy i świeże
+#: instalacje zakładają Konkurs #1 migracją ``tenancy.0002`` z tym właśnie slugiem.
+COMPETITION_SLUG = "kwantowa"
+
+
+def _kwantowa():
+    """Konkurs Olimpiady Kwantowej. Brak = błąd komendy, a nie edycja przypisana „komuś”."""
+    from apps.tenancy.models import Competition
+
+    competition = Competition.objects.filter(slug=COMPETITION_SLUG).first()
+    if competition is None:
+        raise CommandError(
+            f"Nie ma konkursu „{COMPETITION_SLUG}” – seed_edition_kwantowa nie ma czego zasilić."
+        )
+    return competition
+
+
 class Command(BaseCommand):
     help = "Tworzy edycję „I edycja 2026/2027” z trzema etapami wg harmonogramu organizatora."
 
@@ -198,9 +215,14 @@ class Command(BaseCommand):
 
     @transaction.atomic
     def handle(self, *args, **options):
+        competition = _kwantowa()
         # ``defaults`` działa wyłącznie przy tworzeniu – istniejąca edycja zachowuje okno
         # rejestracji ustawione w panelu, nawet jeżeli koordynator przesunął je albo wyłączył.
+        # Szukamy **w konkursie** Olimpiady Kwantowej: konkurs założony z szablonu „kwantowa”
+        # (IQO, 4.10.2026) dostaje edycję o tej samej nazwie, a zapytanie po samej nazwie zwracało
+        # wtedy dwie edycje i wysypywało krok 6/8 każdego wdrożenia (``MultipleObjectsReturned``).
         edition, created = Edition.objects.get_or_create(
+            competition=competition,
             year_label=EDITION_LABEL,
             defaults={"registration_enabled": True, "registration_opens_at": REGISTRATION_OPENS},
         )
@@ -214,7 +236,11 @@ class Command(BaseCommand):
         if options["make_current"]:
             self._make_current(edition)
         else:
-            current = Edition.objects.filter(is_current=True).exclude(pk=edition.pk).first()
+            current = (
+                Edition.objects.filter(competition=competition, is_current=True)
+                .exclude(pk=edition.pk)
+                .first()
+            )
             self.stdout.write(
                 f"bieżąca edycja bez zmian: {current.year_label if current else 'brak'} "
                 "(użyj --make-current, żeby przełączyć)"
@@ -285,8 +311,15 @@ class Command(BaseCommand):
         )
 
     def _make_current(self, edition: Edition) -> None:
-        """Znacznik bieżącej edycji jest w bazie unikalny częściowym indeksem – najpierw go zdejmujemy."""
-        Edition.objects.filter(is_current=True).exclude(pk=edition.pk).update(is_current=False)
+        """Znacznik bieżącej edycji jest unikalny **w konkursie** – najpierw zdejmujemy go z poprzedniej.
+
+        Wyłącznie w konkursie tej edycji: bez filtra ``--make-current`` zdejmował znacznik także
+        bieżącej edycji każdego innego konkursu platformy (np. IQO), czyli wyłączał mu rejestrację
+        i panel etapów.
+        """
+        Edition.objects.filter(competition_id=edition.competition_id, is_current=True).exclude(
+            pk=edition.pk
+        ).update(is_current=False)
         if not edition.is_current:
             edition.is_current = True
             edition.save(update_fields=["is_current"])

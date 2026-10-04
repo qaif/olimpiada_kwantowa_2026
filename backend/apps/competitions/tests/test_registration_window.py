@@ -267,3 +267,36 @@ def test_seed_does_not_touch_an_existing_edition(now):
     edition = Edition.objects.get(year_label=EDITION_LABEL)
     assert edition.registration_enabled is False
     assert edition.registration_opens_at == moved
+
+
+def test_seed_works_when_another_competition_has_an_edition_with_the_same_label(
+    competition, other_competition
+):
+    """Prod 4.10.2026: IQO z szablonu „kwantowa” ma edycję o tej samej nazwie – krok 6/8 wdrożenia padał."""
+    from django.core.management import call_command
+
+    from apps.competitions.management.commands.seed_edition_kwantowa import EDITION_LABEL
+
+    foreign = CurrentEditionFactory(competition=other_competition, year_label=EDITION_LABEL)
+
+    call_command("seed_edition_kwantowa", verbosity=0)
+
+    ours = Edition.objects.get(competition=competition, year_label=EDITION_LABEL)
+    assert ours.stages.exists()
+    foreign.refresh_from_db()
+    assert foreign.stages.count() == 0
+
+
+def test_make_current_does_not_unset_the_current_edition_of_another_competition(
+    competition, other_competition
+):
+    """``--make-current`` zdejmował znacznik „bieżąca” także edycji innego konkursu platformy."""
+    from django.core.management import call_command
+
+    foreign = CurrentEditionFactory(competition=other_competition, year_label="2026")
+
+    call_command("seed_edition_kwantowa", "--make-current", verbosity=0)
+
+    foreign.refresh_from_db()
+    assert foreign.is_current is True
+    assert Edition.objects.get(competition=competition, is_current=True).year_label != "2026"
