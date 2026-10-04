@@ -1960,23 +1960,30 @@ i publikacji wyników. Ramy nie da się potem zawęzić tak, żeby wycięła okn
 
 **Przydział.** Kraj trafia domyślnie do okna, którego start w strefie jego stolicy jest najbliżej
 godziny preferowanej. Strefę kraju wielostrefowego (USA, Kanada, Rosja, Brazylia, Australia, Meksyk,
-Indonezja…) poprawisz w tabeli „Kraje”; okno kraju – tamże. Uczeń bez delegacji trafia do pierwszego okna
-(inne okno ustawisz mu wyjątkiem).
+Indonezja…) poprawisz w tabeli „Kraje”; okno kraju – tamże. Uczeń bez delegacji trafia do **ostatniego**
+okna – konto niepodpięte do drużyny nie może zobaczyć zadań wcześniej niż ktokolwiek (inne okno ustawisz mu
+wyjątkiem). Od startu pierwszego okna przydział domyślny krajów jest zapisywany na stałe (ekran pokaże go
+jako „ręcznie”) – późniejsza zmiana strefy albo mapy stref nie przenosi kraju. Zadania przed końcem
+ostatniego okna widzi wyłącznie uczeń **zgłoszony do etapu**.
 
 **Wyjątki uczniów.** Po kodzie uczestnika: inne okno i/lub dodatkowy czas (dostosowanie, awaria łącza),
 zawsze z powodem. **W powodzie nie wpisuj danych o zdrowiu** („dostosowanie wg decyzji komisji” wystarczy –
 dokumentacja zostaje poza platformą).
 
 **Reguły czasu (pilnuje ich serwer, nie tylko ekran).**
-- okna, czas pracy, godzina preferowana – do startu pierwszego okna; wyłączenie trybu – do otwarcia etapu,
+- okna, czas pracy, godzina preferowana – do startu pierwszego okna (okna nie mogą na siebie nachodzić);
+  wyłączenie trybu – do otwarcia etapu,
 - przydział kraju lub ucznia – tylko gdy **ani stare, ani nowe** okno się jeszcze nie zaczęło,
 - dodatkowy czas – do końca obecnego terminu ucznia,
 - zmiana strefy kraju w trakcie zawodów nie przesuwa krajów w etapach już rozpoczętych.
 Każda zmiana zostaje w dzienniku zdarzeń (`time_windows.*`).
 
 **Co widzi uczeń.** Kartę „Twoje okno” (start i koniec w jego strefie), odliczanie do **swojego** startu
-i terminu, zadania (karty, PDF) dopiero od startu swojego okna, test online tylko w swoim oknie.
-Godziny w panelu ucznia są w jego strefie (ustawia ją opiekun drużyny; domyślnie strefa kraju).
+i terminu, zadania (karty, PDF) dopiero od startu swojego okna, test online tylko w swoim oknie
+(dodatkowy czas wydłuża też podejście do testu). Godziny w panelu ucznia są w jego strefie (ustawia ją
+opiekun drużyny; domyślnie strefa kraju) – wyłącznie w panelu uczestnika i wyłącznie dla konta bez roli
+personelu; Twój panel koordynatora jest zawsze w czasie polskim. Test, który pokazuje wynik „od razu”,
+ekran okien oznacza ostrzeżeniem – przy oknach ustaw „po zamknięciu testu”.
 
 **Ochrona przed przeciekiem.** Strona „Zadania”, API i archiwum pokazują treść dopiero po końcu
 ostatniego okna (z dodatkowym czasem); forum i wiadomości są przez cały czas okien w premoderacji

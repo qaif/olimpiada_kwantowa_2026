@@ -13,7 +13,7 @@ from apps.competitions.services import update_stage
 from apps.competitions.tests.factories import CurrentEditionFactory, InterviewStageFactory, StageFactory
 from apps.core.api import DomainError
 from apps.core.models import AuditLog
-from apps.time_windows import access, services
+from apps.time_windows import access, services, zones
 from apps.time_windows.models import (
     DelegationWindow,
     ParticipantTimezone,
@@ -91,17 +91,34 @@ def test_resolution_order_participant_then_delegation_then_first(world):
     assert services.resolve(view, world.student_b).source == services.SOURCE_PARTICIPANT
 
     loner = ParticipantFactory(competition=world.competition)
-    assert services.resolve(view, loner).window.label == "A"
-    assert services.resolve(view, loner).source == services.SOURCE_FIRST
+    # Bez delegacji i bez wyjątku – **ostatnie** okno (H1): konto niepodpięte do drużyny nie
+    # dostaje treści wcześniej niż ktokolwiek inny.
+    assert services.resolve(view, loner).window.label == "C"
+    assert services.resolve(view, loner).source == services.SOURCE_LAST
 
 
 def test_delegation_without_assignment_gets_the_country_default(world):
     DelegationWindow.objects.filter(delegation=world.delegation_jp).delete()
-    view = services.load_plan(world.stage)
+    view = services._load(world.stage)
 
     effective = services.resolve(view, world.student_a)
     assert effective.source == services.SOURCE_COUNTRY
     assert effective.window == services.default_window(view, "Asia/Tokyo")
+
+
+def test_default_assignment_is_frozen_once_the_first_window_starts(world, monkeypatch):
+    """L4: po starcie przydział domyślny jest zapisany – zmiana mapy stref (wdrożenie, ``tzdata``)
+    w trakcie zawodów nie przenosi kraju do innego okna."""
+    DelegationWindow.objects.filter(delegation=world.delegation_jp).delete()
+    expected = services.default_window(services._load(world.stage), "Asia/Tokyo")
+
+    services.load_plan(world.stage, world.now)
+    frozen = DelegationWindow.objects.get(plan=world.plan, delegation=world.delegation_jp)
+    assert frozen.window == expected
+
+    # Inna strefa „stolicy” po wdrożeniu – przydział zostaje.
+    monkeypatch.setitem(zones.COUNTRY_TIMEZONES, "jp", "America/Lima")
+    assert services.resolve(services.load_plan(world.stage, world.now), world.student_a).window == expected
 
 
 def test_participant_timezone_does_not_move_the_window(world):
@@ -128,8 +145,9 @@ def test_effective_terms_include_extra_time_and_grace(world):
     assert effective.opens_at == window.starts_at
     assert effective.deadline_at == window.starts_at + timedelta(minutes=330)
     assert effective.submission_deadline == effective.deadline_at + timedelta(seconds=60)
-    # Moment ujawnienia: koniec ostatniego okna + największy dodatkowy czas + tolerancja.
-    assert view.release_at == world.windows["C"].starts_at + timedelta(minutes=330, seconds=60)
+    # Moment ujawnienia: najpóźniejszy **własny** termin ucznia + tolerancja (L2). Dodatkowe 30 min
+    # w oknie A nie przesuwa końca okna C.
+    assert view.release_at == world.windows["C"].starts_at + timedelta(minutes=300, seconds=60)
 
 
 # --- kopia etapu ucznia -----------------------------------------------------------------------
