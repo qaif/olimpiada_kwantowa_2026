@@ -394,6 +394,7 @@ def export_payload(user: User) -> dict:
         "wiadomosci_wyslane": _chat_messages_section(user),
         "zgloszenia_wiadomosci": _chat_reports_section(user),
         "ustawienia_wiadomosci": _chat_settings_section(user),
+        "webinary": _webinars_section(user),
         "zaswiadczenia_statusu_ucznia": _student_status_section(participant),
         "oceny_ai": _ai_section(participant),
         "medale": _medals_section(participant),
@@ -571,6 +572,13 @@ def _chat_reports_section(user: User) -> list[dict]:
         }
         for report in rows
     ]
+
+
+def _webinars_section(user: User) -> dict:
+    """Webinary (WEB-01): obecność (kiedy i jak długo, w jakiej roli) i ustawienie listów."""
+    from apps.webinars.services import export_for_user
+
+    return export_for_user(user)
 
 
 def _chat_settings_section(user: User) -> dict:

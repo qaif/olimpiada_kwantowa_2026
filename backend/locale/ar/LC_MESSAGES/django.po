@@ -9155,3 +9155,320 @@ msgstr "للمدارس/المعلمين"
 #: apps/cms/context_processors.py
 msgid "Rejestracja nauczyciela"
 msgstr "تسجيل المعلم"
+
+#: apps/webinars/services.py
+msgid "Serwer webinarów nie odpowiada. Spróbuj za chwilę."
+msgstr "خادم الندوات عبر الإنترنت لا يستجيب. حاول مرة أخرى بعد قليل."
+
+#: apps/webinars/services.py
+#, python-format
+msgid "Wejście otworzy się %(when)s. Wróć wtedy na tę stronę."
+msgstr "سيُفتح الدخول في %(when)s. عُد إلى هذه الصفحة حينها."
+
+#: apps/webinars/services.py
+msgid "Ten webinar już się zakończył."
+msgstr "انتهت هذه الندوة عبر الإنترنت بالفعل."
+
+#: apps/webinars/services.py
+msgid "Prowadzący jeszcze nie rozpoczął webinaru. Spróbuj ponownie za kilka minut."
+msgstr "لم يبدأ المقدّم الندوة بعد. حاول مرة أخرى بعد بضع دقائق."
+
+#: apps/webinars/services.py
+msgid "Ten link nie jest już aktywny."
+msgstr "هذا الرابط لم يعد نشطًا."
+
+#: apps/web/views/webinars.py
+msgid "Ta strona jest dostępna dla uczestników i komisji konkursu."
+msgstr "هذه الصفحة متاحة للمشاركين ولجنة المسابقة."
+
+#: apps/web/views/webinars.py
+msgid "Listy o webinarach włączone."
+msgstr "تم تفعيل رسائل البريد حول الندوات."
+
+#: apps/web/views/webinars.py
+msgid "Listy o webinarach wyłączone."
+msgstr "تم إيقاف رسائل البريد حول الندوات."
+
+#: apps/web/views/webinars.py
+msgid "Jako prowadzący wejdź przyciskiem „Rozpocznij” w panelu webinarów."
+msgstr "بصفتك مقدّمًا، ادخل باستخدام زر «ابدأ» في صفحة الندوات."
+
+#: apps/web/views/participant.py
+msgid "Webinary"
+msgstr "الندوات عبر الإنترنت"
+
+#: apps/webinars/notifications.py
+#, python-format
+msgid "Zaproszenie na webinar: %(title)s – Olimpiada Kwantowa"
+msgstr "دعوة إلى ندوة عبر الإنترنت: %(title)s – أولمبياد الكم"
+
+#: apps/webinars/notifications.py
+#, python-format
+msgid "Zaproszenie na webinar: %(title)s – %(competition)s"
+msgstr "دعوة إلى ندوة عبر الإنترنت: %(title)s – %(competition)s"
+
+#: apps/webinars/notifications.py
+#, python-format
+msgid "Przypomnienie o webinarze: %(title)s – Olimpiada Kwantowa"
+msgstr "تذكير بالندوة عبر الإنترنت: %(title)s – أولمبياد الكم"
+
+#: apps/webinars/notifications.py
+#, python-format
+msgid "Przypomnienie o webinarze: %(title)s – %(competition)s"
+msgstr "تذكير بالندوة عبر الإنترنت: %(title)s – %(competition)s"
+
+#: apps/webinars/notifications.py
+#, python-format
+msgid "Zapraszamy na webinar „%(title)s”."
+msgstr "ندعوك إلى الندوة عبر الإنترنت «%(title)s»."
+
+#: apps/webinars/notifications.py
+#, python-format
+msgid "Przypominamy: webinar „%(title)s” zaczyna się wkrótce."
+msgstr "تذكير: تبدأ الندوة عبر الإنترنت «%(title)s» قريبًا."
+
+#: apps/webinars/notifications.py
+#, python-format
+msgid "Termin: %(when)s (strefa %(zone)s), czas trwania: %(minutes)s min."
+msgstr "الموعد: %(when)s (المنطقة الزمنية %(zone)s)، المدة: %(minutes)s دقيقة."
+
+#: apps/webinars/notifications.py
+#, python-format
+msgid "Dołączysz po zalogowaniu, przyciskiem „Dołącz” na stronie: %(link)s"
+msgstr "سجّل الدخول واستخدم زر «انضم» في هذه الصفحة: %(link)s"
+
+#: apps/webinars/notifications.py
+msgid "Przycisk działa od kilkunastu minut przed początkiem webinaru."
+msgstr "يعمل الزر قبل بدء الندوة بنحو خمس عشرة دقيقة."
+
+#: apps/webinars/notifications.py
+#, python-format
+msgid "Nie chcesz dostawać listów o webinarach? Wyłącz je tutaj: %(link)s"
+msgstr "لا تريد رسائل حول الندوات؟ أوقفها من هنا: %(link)s"
+
+#: templates/web/webinars/list.html
+msgid "Spotkania online organizatora. Przycisk „Dołącz” działa od kilkunastu minut przed początkiem, gdy prowadzący rozpocznie webinar – spotkanie otworzy się w nowej karcie. Godziny w strefie %(zone)s."
+msgstr "اجتماعات المنظّم عبر الإنترنت. يعمل زر «انضم» قبل البدء بنحو خمس عشرة دقيقة بعد أن يبدأ المقدّم الندوة – يُفتح الاجتماع في علامة تبويب جديدة. الأوقات بتوقيت %(zone)s."
+
+#: templates/web/webinars/list.html
+msgid "Nadchodzące"
+msgstr "القادمة"
+
+#: templates/web/webinars/list.html
+msgid "u Ciebie:"
+msgstr "بتوقيتك:"
+
+#: templates/web/webinars/list.html
+msgid "Rozpocznij jako prowadzący"
+msgstr "ابدأ كمقدّم"
+
+#: templates/web/webinars/list.html
+msgid "Wejście od:"
+msgstr "الدخول من:"
+
+#: templates/web/webinars/list.html
+msgid "Nie ma zaplanowanych webinarów."
+msgstr "لا توجد ندوات مجدولة."
+
+#: templates/web/webinars/list.html
+msgid "Nagrania"
+msgstr "التسجيلات"
+
+#: templates/web/webinars/list.html
+msgid "Odtwórz nagranie %(number)s"
+msgstr "تشغيل التسجيل %(number)s"
+
+#: templates/web/webinars/list.html
+msgid "Odtwórz nagranie"
+msgstr "تشغيل التسجيل"
+
+#: templates/web/webinars/list.html
+msgid "Powiadomienia e-mail"
+msgstr "إشعارات البريد الإلكتروني"
+
+#: templates/web/webinars/list.html
+msgid "Dostajesz zaproszenia i przypomnienia o webinarach."
+msgstr "تتلقى دعوات وتذكيرات الندوات."
+
+#: templates/web/webinars/list.html
+msgid "Wyłącz listy o webinarach"
+msgstr "إيقاف رسائل الندوات"
+
+#: templates/web/webinars/list.html
+msgid "Listy o webinarach są wyłączone – webinary widzisz tylko na tej stronie."
+msgstr "رسائل الندوات متوقفة – تظهر لك الندوات في هذه الصفحة فقط."
+
+#: templates/web/webinars/list.html
+msgid "Włącz listy o webinarach"
+msgstr "تفعيل رسائل الندوات"
+
+#: templates/web/webinars/guest.html
+msgid "Zaproszenie na webinar"
+msgstr "دعوة إلى ندوة عبر الإنترنت"
+
+#: templates/web/webinars/guest.html
+msgid "Webinar"
+msgstr "ندوة عبر الإنترنت"
+
+#: templates/web/webinars/guest.html
+msgid "Imię i nazwisko (albo nazwa) widoczne w spotkaniu"
+msgstr "الاسم الظاهر في الاجتماع"
+
+
+#: templates/web/webinars/_committee_card.html
+msgid "Wszystkie webinary"
+msgstr "كل الندوات"
+
+#: templates/web/webinars/list.html
+msgid "Panel"
+msgstr "لوحة التحكم"
+
+#: apps/web/views/webinars.py
+msgid "Łączenie…"
+msgstr "جارٍ الاتصال…"
+
+#: apps/web/views/webinars.py
+msgid "Jesteś w pokoju."
+msgstr "أنت في الغرفة."
+
+#: apps/web/views/webinars.py
+msgid "Rozłączono. Odśwież stronę, żeby wrócić."
+msgstr "انقطع الاتصال. حدّث الصفحة للعودة."
+
+#: apps/web/views/webinars.py
+msgid "Spróbuj ponownie"
+msgstr "حاول مرة أخرى"
+
+#: apps/web/views/webinars.py
+msgid "Nie udało się połączyć z pokojem."
+msgstr "تعذّر الاتصال بالغرفة."
+
+#: apps/web/views/webinars.py
+msgid "prowadzący"
+msgstr "مقدّم"
+
+#: apps/web/views/webinars.py
+msgid "podniesiona ręka"
+msgstr "يد مرفوعة"
+
+#: apps/web/views/webinars.py
+msgid "Podnieś rękę"
+msgstr "ارفع يدك"
+
+#: apps/web/views/webinars.py
+msgid "Opuść rękę"
+msgstr "أنزل يدك"
+
+#: apps/web/views/webinars.py
+msgid "Daj głos"
+msgstr "امنح الكلمة"
+
+#: apps/web/views/webinars.py
+msgid "Odbierz głos"
+msgstr "اسحب الكلمة"
+
+#: apps/web/views/webinars.py
+msgid "Usuń z pokoju"
+msgstr "إزالة من الغرفة"
+
+#: apps/web/views/webinars.py
+msgid "Usunąć tę osobę z pokoju?"
+msgstr "إزالة هذا الشخص من الغرفة؟"
+
+#: apps/web/views/webinars.py
+msgid "Widok siatki"
+msgstr "عرض الشبكة"
+
+#: apps/web/views/webinars.py
+msgid "Widok prelegenta"
+msgstr "عرض المتحدث"
+
+#: apps/web/views/webinars.py
+msgid "Nagrywaj"
+msgstr "سجّل"
+
+#: apps/web/views/webinars.py
+msgid "Zatrzymaj nagrywanie"
+msgstr "أوقف التسجيل"
+
+#: apps/web/views/webinars.py
+msgid "Trwa nagrywanie"
+msgstr "التسجيل جارٍ"
+
+#: apps/web/views/webinars.py
+msgid "Prowadzący dał Ci głos – możesz włączyć mikrofon i kamerę."
+msgstr "منحك المقدّم الكلمة – يمكنك تشغيل الميكروفون والكاميرا."
+
+#: apps/web/views/webinars.py
+msgid "Prowadzący odebrał Ci głos."
+msgstr "سحب المقدّم منك الكلمة."
+
+#: apps/web/views/webinars.py
+msgid "Udostępnij ekran"
+msgstr "شارك الشاشة"
+
+#: apps/web/views/webinars.py
+msgid "Zakończ udostępnianie"
+msgstr "أوقف المشاركة"
+
+#: apps/web/views/webinars.py
+#, python-format
+msgid "Ekran: %(name)s"
+msgstr "الشاشة: %(name)s"
+
+#: apps/web/views/webinars.py
+msgid "Coś poszło nie tak. Spróbuj ponownie."
+msgstr "حدث خطأ ما. حاول مرة أخرى."
+
+#: templates/web/webinars/room.html
+msgid "Wyjdź"
+msgstr "غادر"
+
+#: templates/web/webinars/room.html
+msgid "Pokój webinaru wymaga włączonego JavaScriptu."
+msgstr "تتطلب غرفة الندوة تفعيل JavaScript."
+
+#: templates/web/webinars/room.html
+msgid "Pokój jest chwilowo niedostępny – brakuje komponentu wideo na serwerze. Daj znać organizatorowi."
+msgstr "الغرفة غير متاحة مؤقتًا – مكوّن الفيديو مفقود على الخادم. أبلغ المنظّم."
+
+#: templates/web/webinars/room.html
+msgid "Obraz uczestników"
+msgstr "فيديو المشاركين"
+
+#: templates/web/webinars/room.html
+msgid "Czat"
+msgstr "الدردشة"
+
+#: templates/web/webinars/room.html
+msgid "Sterowanie"
+msgstr "عناصر التحكم"
+
+#: templates/web/webinars/room.html
+msgid "Mikrofon"
+msgstr "الميكروفون"
+
+#: templates/web/webinars/room.html
+msgid "Kamera"
+msgstr "الكاميرا"
+
+#: templates/web/webinars/guest.html
+msgid "Wejście działa od kilkunastu minut przed początkiem, gdy prowadzący rozpocznie webinar. Wchodzisz jako widz – głos daje prowadzący."
+msgstr "يعمل الدخول قبل البدء بنحو خمس عشرة دقيقة بعد أن يبدأ المقدّم الندوة. تدخل كمشاهد – والمقدّم هو من يمنح الكلمة."
+
+#: apps/webinars/services.py
+msgid "Prowadzący usunął Cię z tego webinaru."
+msgstr "أزالك المقدّم من هذه الندوة."
+
+#: apps/webinars/services.py
+#, python-format
+msgid "%(name)s (gość)"
+msgstr "%(name)s (ضيف)"
+
+#: templates/web/webinars/room.html
+msgid "Włącz dźwięk"
+msgstr "تشغيل الصوت"
+
+#: templates/web/webinars/room.html
+msgid "Ten webinar może być nagrywany. Gdy nagrywanie trwa, u góry pokoju widać czerwony znacznik „Trwa nagrywanie”; nagranie może zawierać Twój głos, obraz i wiadomości czatu, jeśli je włączysz lub wyślesz."
+msgstr "قد تُسجَّل هذه الندوة. أثناء التسجيل تظهر أعلى الغرفة شارة حمراء «التسجيل جارٍ»؛ وقد يتضمن التسجيل صوتك وصورتك ورسائل الدردشة إن شغّلتها أو أرسلتها."

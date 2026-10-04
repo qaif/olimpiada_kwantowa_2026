@@ -524,6 +524,14 @@ class PageCacheMiddleware:
         if cached.get("csp"):
             nonce = getattr(request, "csp_nonce", "")
             response["Content-Security-Policy"] = _materialize_header(nonce, cached["csp"], marks)
+        if cached.get("theme_assets"):
+            # Trafienie nie renderuje szablonu, więc ``{% theme_head %}`` nie ustawi flagi, z której
+            # ``ContentSecurityPolicyMiddleware`` (wyżej w łańcuchu) dokłada origin bucketu do
+            # ``style-src``/``font-src``. Bez tego strona z cache'u linkuje arkusze motywu, których
+            # przeglądarka nie wczyta – motyw znika od drugiego wejścia gościa (prod 4.10.2026).
+            from apps.themes.templatetags.theme_tags import CSP_FLAG
+
+            setattr(request, CSP_FLAG, True)
         response["X-Page-Cache"] = "HIT"
         response["Cache-Control"] = CACHE_CONTROL_VALUE
         return response
@@ -543,6 +551,8 @@ class PageCacheMiddleware:
             "content_language": response.get("Content-Language", ""),
             "csp": _placeholder_header(nonce, csp, marks) if csp else "",
             "marks": marks,
+            # Ustawione przez ``{% theme_head %}`` przy renderowaniu – patrz ``_serve_hit``.
+            "theme_assets": bool(getattr(request, "_theme_assets_used", False)),
         }
         _safe_set(key, payload, _ttl_seconds())
 

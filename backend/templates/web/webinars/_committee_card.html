@@ -1,0 +1,23 @@
+{% load i18n tz %}{% comment %}
+  Webinary w panelu recenzenta i komisji odwoławczej (zadanie WEB-01). Kontekst daje
+  ``apps.webinars.services.committee_webinars_context`` – w konkursie bez webinarów pusty słownik
+  bez zapytań, więc karty nie ma. Wejście i nagrania – na wspólnej stronie ``/webinars/``.
+{% endcomment %}
+{% if committee_webinars_on %}
+  <section class="section" aria-labelledby="committee-webinars-title">
+    <div class="section__head">
+      <h2 class="mt-0" id="committee-webinars-title">{% translate "Webinary" %}</h2>
+      <a class="btn btn--secondary btn--small" href="{% url 'web:webinars' %}">{% translate "Wszystkie webinary" %}</a>
+    </div>
+    {% if committee_webinars %}
+      <ul class="list">
+        {% for webinar in committee_webinars %}
+          <li><strong>{{ webinar.title }}</strong>
+            <span class="hint">{{ webinar.starts_at|date:"d.m.Y, H:i" }}</span></li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="hint">{% translate "Nie ma zaplanowanych webinarów." %}</p>
+    {% endif %}
+  </section>
+{% endif %}

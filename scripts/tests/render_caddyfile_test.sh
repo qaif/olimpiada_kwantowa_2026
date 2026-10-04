@@ -40,7 +40,7 @@ render() {
   # zwraca kod wyjścia generatora. Argumenty 3–5 są **zawsze** przekazywane (choćby puste), bo
   # zmienna nieustawiona każe generatorowi czytać `.env` – a test ma sprawdzać generator, a nie
   # czyjś plik konfiguracyjny.
-  EXTRA_DOMAINS="$1" PLATFORM_SUBDOMAINS="${3:-}" DJCMS_ENABLED="${4:-}" DJCMS_PRIMARY="${5:-}" CADDYFILE_OUT="$2"     bash "$RENDER" >"$WORK/stdout" 2>"$WORK/stderr"
+  EXTRA_DOMAINS="$1" PLATFORM_SUBDOMAINS="${3:-}" DJCMS_ENABLED="${4:-}" DJCMS_PRIMARY="${5:-}" LIVEKIT_PROXY="${6:-}" CADDYFILE_OUT="$2"     bash "$RENDER" >"$WORK/stdout" 2>"$WORK/stderr"
 }
 
 # 1. Pusta lista domen = dzisiejsza konfiguracja, co do bajtu.
@@ -717,6 +717,22 @@ PY
 else
   printf 'skip caddy validate/adapt (brak Dockera albo SKIP_CADDY_VALIDATE=1)\n'
 fi
+
+# LIVEKIT_PROXY (zadanie WEB-01): wyłączony = bajt w bajt jak dotąd; włączony = blok `live.` na końcu
+# (z przypiętym zwykłym certyfikatem przy subdomenach platformy); wartość spoza listy = błąd.
+render "" "$WORK/lk-off.caddy" "" "" "" "0"
+cmp -s "$SRC" "$WORK/lk-off.caddy"
+check "LIVEKIT_PROXY=0 daje kopię deploy/Caddyfile bajt w bajt" $?
+render "" "$WORK/lk-on.caddy" "" "" "" "1"
+grep -qF 'live.{$SITE_DOMAIN} {' "$WORK/lk-on.caddy" && grep -qF 'reverse_proxy livekit:7880' "$WORK/lk-on.caddy" \
+  && head -c "$(wc -c <"$SRC")" "$WORK/lk-on.caddy" | cmp -s - "$SRC"
+check "LIVEKIT_PROXY=1 dokłada blok live. -> livekit:7880 za blokami źródłowymi" $?
+render "" "$WORK/lk-sub.caddy" "1" "" "" "1"
+awk '/^live\./,/^}/' "$WORK/lk-sub.caddy" | grep -qF 'key_type p256'
+check "LIVEKIT_PROXY=1 przy subdomenach: live. ze zwykłym certyfikatem" $?
+render "" "$WORK/lk-bad.caddy" "" "" "" "tak"
+[ $? -eq 1 ] && grep -qF 'LIVEKIT_PROXY' "$WORK/stderr"
+check "LIVEKIT_PROXY=tak zatrzymuje generator z komunikatem" $?
 
 if [ "$failures" -ne 0 ]; then
   printf '\n%d test(ów) nie przeszło.\n' "$failures"
