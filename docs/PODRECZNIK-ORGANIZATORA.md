@@ -1942,6 +1942,56 @@ czy jest teraz otwarte.
 trafia do drużyny przez organizatora), złożyć zgód za ucznia ani potwierdzić zgody rodzica — tę uczeń
 niepełnoletni zbiera sam po uruchomieniu konta (zgoda opiekuna online).
 
+## 10c. Okna czasowe etapu — `/coordinator/stages/<id>/windows/`
+
+**Tylko w konkursie z włączonymi oknami czasowymi** (flaga `stage_time_windows`, włącza operator –
+`OPERACJE.md` § 29). Pozycja „Okna czasowe” stoi pod etapem w menu (nie ma jej przy rozmowach
+i treningu).
+
+**Po co.** Etap zdalny olimpiady międzynarodowej rozkładasz na kilka startów w ciągu doby (np. trzy
+okna co 8 godzin), każdy z **tym samym** czasem pracy (np. 5 h). Kraje trafiają do okien według swojej
+strefy, więc nikt nie pisze w środku nocy.
+
+**Włączenie.** Przed otwarciem etapu (po otwarciu treść zadań była już jawna dla wszystkich): czas pracy,
+start pierwszego okna (czas polski), liczba okien, odstęp i „preferowana godzina startu w kraju”
+(domyślnie 10:00). Okna z dodatkowym czasem uczniów muszą mieścić się w ramie etapu
+(otwarcie – termin oddania); rama nadal decyduje o zamknięciu etapu, recenzjach, reklamacjach
+i publikacji wyników. Ramy nie da się potem zawęzić tak, żeby wycięła okno.
+
+**Przydział.** Kraj trafia domyślnie do okna, którego start w strefie jego stolicy jest najbliżej
+godziny preferowanej. Strefę kraju wielostrefowego (USA, Kanada, Rosja, Brazylia, Australia, Meksyk,
+Indonezja…) poprawisz w tabeli „Kraje”; okno kraju – tamże. Uczeń bez delegacji trafia do pierwszego okna
+(inne okno ustawisz mu wyjątkiem).
+
+**Wyjątki uczniów.** Po kodzie uczestnika: inne okno i/lub dodatkowy czas (dostosowanie, awaria łącza),
+zawsze z powodem. **W powodzie nie wpisuj danych o zdrowiu** („dostosowanie wg decyzji komisji” wystarczy –
+dokumentacja zostaje poza platformą).
+
+**Reguły czasu (pilnuje ich serwer, nie tylko ekran).**
+- okna, czas pracy, godzina preferowana – do startu pierwszego okna; wyłączenie trybu – do otwarcia etapu,
+- przydział kraju lub ucznia – tylko gdy **ani stare, ani nowe** okno się jeszcze nie zaczęło,
+- dodatkowy czas – do końca obecnego terminu ucznia,
+- zmiana strefy kraju w trakcie zawodów nie przesuwa krajów w etapach już rozpoczętych.
+Każda zmiana zostaje w dzienniku zdarzeń (`time_windows.*`).
+
+**Co widzi uczeń.** Kartę „Twoje okno” (start i koniec w jego strefie), odliczanie do **swojego** startu
+i terminu, zadania (karty, PDF) dopiero od startu swojego okna, test online tylko w swoim oknie.
+Godziny w panelu ucznia są w jego strefie (ustawia ją opiekun drużyny; domyślnie strefa kraju).
+
+**Ochrona przed przeciekiem.** Strona „Zadania”, API i archiwum pokazują treść dopiero po końcu
+ostatniego okna (z dodatkowym czasem); forum i wiadomości są przez cały czas okien w premoderacji
+(od startu pierwszego okna); wyników nie opublikujesz przed końcem ostatniego okna; wynik testu
+„po zamknięciu” też dopiero wtedy.
+
+**Ryzyko jednego zestawu zadań.** Wszystkie okna mają te same zadania. Platforma zamyka swoje kanały,
+ale nie powstrzyma ucznia z okna A przed przekazaniem treści uczniowi z okna C poza nią (komunikator,
+telefon). Środki organizacyjne: oświadczenie uczestnika, krótkie odstępy między oknami, kontrola
+podobieństwa prac po etapie. **Faza 2 (nie zbudowana):** zestawy wariantowe – osobny
+zestaw zadań na okno (wariant przy zadaniu i przy oknie, ta sama skala), zwykle przy dwóch–trzech oknach.
+
+**Liczby na żywo.** Oś czasu pokazuje dla każdego okna: kraje, uczniów, „teraz piszą” i „oddali”; niżej
+lista „kto w którym oknie” ze źródłem przydziału (kraj, ręcznie, wyjątek).
+
 ---
 
 ## 10a. Zaświadczenia o statusie ucznia — `/coordinator/student-status/`
