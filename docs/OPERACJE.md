@@ -5312,9 +5312,9 @@ uczniów w IndexedDB zostaje (stała nazwa magazynu).
   `QISKIT-PARITY` (Qiskit nie jest zależnością); uruchom je w obrazie z `pip install qiskit` przy
   zmianach `backend/qclab`.
 
-### 40.6. Personel bez laboratorium; docelowo osobna domena laboratorium
+### 40.6. Personel bez laboratorium; osobny host laboratorium (§ 40.7)
 
-Laboratorium działa na domenie serwisu, więc kod z notatnika wykonuje się w przeglądarce osoby,
+Bez `NOTEBOOK_LAB_HOST` (§ 40.7) laboratorium działa na domenie serwisu, więc kod z notatnika wykonuje się w przeglądarce osoby,
 która je otworzyła, w originie serwisu. Polityka CSP ścieżki laboratorium (źródła zawężone do
 `/static/notebook-lab/` i `/notebook-starter/`, `form-action 'none'`, COOP/COEP) blokuje z niego API,
 panele i formularze serwisu, ale to nie jest pełna izolacja.
@@ -5340,17 +5340,76 @@ do zrobienia, ale: **nie nadawaj ról personelu kontom, z których ktoś rozwią
 nadaniu roli laboratorium znika z tego konta (osoba testująca zadania potrzebuje osobnego konta
 uczestnika).
 
-**Docelowa naprawa (niewdrożona): osobna domena rejestrowalna**, np. `olimpiada-lab.pl` –
-**nie** `lab.<domena serwisu>`. Subdomena nie wystarcza: `CSRF_TRUSTED_ORIGINS` zawiera
-`https://*.<SITE_DOMAIN>` (subdomeny konkursów, `config/settings/base.py`), więc kod z
-`lab.<domena>` byłby dla Django zaufanym originem żądań POST, a ta sama domena rejestrowalna to ten
-sam „site” dla ciasteczek `SameSite=Lax`. Kroki, gdy zapadnie decyzja: rekord DNS i certyfikat drugiej
-domeny; blok Caddy'ego tej domeny podający **wyłącznie** `/static/notebook-lab/*` z fragmentem
-`(notebook_lab)` (i nic z `web`); notatnik startowy dostępny z tej domeny bez sesji serwisu (token
-w adresie już jest podpisany – wystarczy CORS `Access-Control-Allow-Origin: https://olimpiada-lab.pl`
-na `/notebook-starter/` i `connect-src` laboratorium wskazujący domenę serwisu); adres laboratorium
-w `apps/notebooks/lab.py`; potem zdjęcie bramki ról (`services.has_staff_role`). Szczegóły i
-uzasadnienie: `docs/tasks/QC-01.md` § 3.5.
+**Naprawa: osobny host laboratorium (QC-02, § 40.7).** Zbudowana, włączana jedną zmienną
+`NOTEBOOK_LAB_HOST` – opis wyżej dotyczy instalacji **bez** niej. Z nią magazyny originu serwisu
+(`csrftoken`, `localStorage`, IndexedDB) są poza zasięgiem kodu z notatnika, a serwis odrzuca żądania
+z laboratorium. Subdomena `lab.<domena>` (DNS już jest) zostawia ryzyka „same-site” (podrzucanie
+ciasteczek na domenę nadrzędną, obrona CSRF oparta na `Origin`) – osobna domena rejestrowalna
+(np. `olimpiada-lab.pl`) usuwa i je. Bramka ról zostaje (zdjęcie – osobna decyzja po odbiorze).
+
+### 40.7. Laboratorium na osobnym hoście (QC-02, `docs/tasks/QC-02.md`)
+
+**Co robi `NOTEBOOK_LAB_HOST=<host>`** (`.env`; czytają ją Django i `scripts/render_caddyfile.sh`):
+
+- Caddy: nowy blok `<host>` na końcu `caddy/Caddyfile` – wyłącznie `/static/notebook-lab/*` (pliki
+  z wolumenu statycznego, nagłówki fragmentu `(notebook_lab)`: CSP zawężona do ścieżki, COOP/COEP/CORP)
+  i `/notebook-starter/*` (do `web`); reszta 404; `Referrer-Policy: strict-origin`; bez strony prac
+  technicznych. Bloki serwisu (domena główna, `EXTRA_DOMAINS`, `*.`) importują `notebook_lab_moved`:
+  ścieżka laboratorium → **302** na `<host>`, `/notebook-starter/*` → 404,
+- Django: host w `ALLOWED_HOSTS`, **nie** w `CSRF_TRUSTED_ORIGINS`; `NotebookLabHostMiddleware` robi
+  ten sam rozdział hostów (druga zapora, jedyna w dev); notatnik startowy na `<host>` bez sesji –
+  podpisany token (osobna sól, ważny 2 h) i bramki uczestnika na bieżącym stanie konta;
+  `NotebookLabRequestGuardMiddleware` odrzuca (403) na hostach serwisu każde żądanie z `Origin`/`Referer`
+  hosta laboratorium poza zwykłą nawigacją GET – także gdy wzorzec `https://*.<domena>` uznałby ten
+  origin za zaufany dla CSRF,
+- strona zadania podaje adresy bezwzględne na `<host>` (laboratorium i „Pobierz notatnik startowy”),
+  ramka ostrzeżenia koordynatora podaje host; etykieta `lab` jest zarezerwowana dla konkursów.
+
+**Ciasteczka:** wszystkie ciasteczka aplikacji są host-only (`sessionid`, `csrftoken`, `django_language`,
+`djcms_*`, `olimpiada_maintenance_bypass` – bez `Domain`), więc `<host>` ich nie dostaje (test
+`apps/notebooks/tests/test_labhost.py::test_platform_cookies_are_host_only`). **Nie ustawiaj**
+`SESSION_COOKIE_DOMAIN`/`CSRF_COOKIE_DOMAIN`. Wyjątek: ciasteczka Google Analytics `_ga*` (po zgodzie)
+leżą na domenie rejestrowalnej i w wariancie `lab.<domena>` widzi je laboratorium (pseudonimowy
+identyfikator, nie sekret).
+
+**Warianty – kompromisy:**
+
+| | `lab.<SITE_DOMAIN>` | osobna domena (np. `olimpiada-lab.pl`) |
+|---|---|---|
+| DNS / koszt | nic (rekord `*.olimpiadakwantowa.pl` → 169.58.242.197, sprawdzone `nslookup` 5.10.2026) | zakup domeny + rekord A |
+| magazyny serwisu, sesja, `csrftoken` | odcięte | odcięte |
+| ciasteczka `Lax` serwisu na `fetch`/POST z laboratorium | **jadą** (same-site) – bronią CSP laboratorium, strażnik `Origin`, CSRF | nie jadą (cross-site) |
+| podrzucenie ciasteczka na domenę nadrzędną (`sessionid` cudzej sesji) | **możliwe** – zostaje ostrzeżenie uczestników | niemożliwe |
+| IQO (`iqo-official.org`) | cross-site już teraz | cross-site |
+
+Zalecenie: osobna domena, gdy będzie kupiona; do tego czasu `lab.olimpiadakwantowa.pl` jest
+wyraźnie lepsze niż laboratorium w originie serwisu.
+
+**Włączenie (produkcja):**
+
+1. (tylko osobna domena) rekord A domeny laboratorium → IP serwera; `nslookup <host>`.
+2. `.env`: `NOTEBOOK_LAB_HOST=lab.olimpiadakwantowa.pl` (sama nazwa, bez `https://` i portu).
+3. `bash scripts/proxy_config.sh update && docker compose up -d web` – albo `scripts/deploy.sh`.
+   Start `web` zatrzymuje `notebooks.E002`, gdy wartość jest hostem serwisu albo nie jest nazwą hosta.
+4. Sprawdzenie (odczyt):
+
+```sh
+curl -sI https://<host>/static/notebook-lab/<build_id>/lab/index.html | grep -iE 'content-security|cross-origin'
+curl -sI https://<domena>/static/notebook-lab/<build_id>/lab/index.html | grep -i '^location'   # https://<host>/…
+curl -sI https://<host>/ | head -1             # 404
+curl -sI https://<domena>/notebook-starter/x/y.ipynb | head -1   # 404
+```
+
+5. Odbiór w przeglądarce (konto uczestnika): laboratorium pod `<host>`, jądro wstaje, notatnik
+   startowy się wczytuje; w konsoli laboratorium `document.cookie` puste, `fetch('https://<domena>/me/',
+   {credentials:'include'})` zablokowany przez CSP.
+
+**Przełączaj przed etapem:** praca uczniów w IndexedDB jest per origin – po zmianie adresu notatniki
+z poprzedniego originu nie są widoczne (pobrane `.ipynb` i oddane prace nie giną). **Wyłączenie:**
+usuń zmienną i powtórz krok 3 (wynik generatora wraca bajt w bajt do QC-01).
+
+**Dev:** `NOTEBOOK_LAB_HOST=lab.localhost:8000` przy `runserver --nostatic` na `localhost:8000`
+(przeglądarki rozwiązują `*.localhost` lokalnie; port dopuszcza tylko Django, nie generator proxy).
 
 ## 45. Zmiana hasła w panelu konta (AUTH-01b, `docs/tasks/AUTH-01b.md`)
 

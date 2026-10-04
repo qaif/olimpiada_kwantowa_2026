@@ -2599,8 +2599,12 @@ Ekran istnieje przy włączonej fladze konkursu `quantum_notebooks` (włącza op
 > - uprzedź uczestników (komunikat, regulamin), żeby **nie wklejali do notatnika kodu od innych
 >   osób** – wykonuje się na ich koncie.
 >
-> Docelowo laboratorium ma dostać osobną domenę (`docs/OPERACJE.md` § 40.6); wtedy te ograniczenia
-> znikną.
+> Operator może przenieść laboratorium na **osobny adres** (`NOTEBOOK_LAB_HOST`, np.
+> `lab.olimpiadakwantowa.pl` albo osobna domena – `docs/OPERACJE.md` § 40.7). Wtedy kod z notatnika
+> nie widzi sesji, ciasteczek ani danych serwisu, a serwis odrzuca wysyłane z niego żądania; ramka
+> ostrzeżenia w ustawieniach notatników podaje ten adres. Ograniczenia ról wyżej zostają do
+> osobnej decyzji po odbiorze. Przełączaj **przed** etapem: praca uczniów zapisana w przeglądarce
+> pod starym adresem nie będzie widoczna pod nowym.
 
 **Tryby:**
 

@@ -8,6 +8,22 @@ dokładnie jednemu wierszowi tej tabeli.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## [Unreleased] – Laboratorium notatników na osobnym hoście (QC-02)
+
+- **`NOTEBOOK_LAB_HOST`** (opcjonalne, `.env`): JupyterLite i notatnik startowy wyłącznie pod
+  osobnym hostem (`lab.<SITE_DOMAIN>` albo osobna domena). Caddy (`scripts/render_caddyfile.sh`):
+  blok hosta laboratorium (pliki laboratorium z polityką z QC-01, `/notebook-starter/*` do `web`,
+  reszta 404, `Referrer-Policy: strict-origin`), a bloki serwisu – fragment `notebook_lab_moved`
+  (ścieżka laboratorium → 302 na host laboratorium, `/notebook-starter/*` → 404). Pusta zmienna =
+  konfiguracja proxy bajt w bajt jak dotąd.
+- Django: `NotebookLabHostMiddleware` (ten sam rozdział hostów, przed WhiteNoise), notatnik startowy
+  na hoście laboratorium bez sesji (token z osobną solą, 2 h, bramki na bieżącym stanie konta,
+  nadzór zdalny), strażnik odrzucający na hostach serwisu żądania z `Origin`/`Referer` laboratorium
+  poza nawigacją GET – przed CSRF, także wobec `https://*.<SITE_DOMAIN>`; host w `ALLOWED_HOSTS`,
+  nie w `CSRF_TRUSTED_ORIGINS`; sprawdzenie `notebooks.E002`; etykieta `lab` zarezerwowana.
+- Ciasteczka aplikacji potwierdzone jako host-only (test). Kompromisy subdomena vs osobna domena
+  i kroki operatora: `docs/OPERACJE.md` § 40.7, `docs/tasks/QC-02.md`.
+
 ## [Unreleased] – Notatniki kwantowe w przeglądarce (QC-01)
 
 - **Notatnik przy zadaniu:** JupyterLite 0.8.5 z jądrem Pyodide 314.0.7 hostowany u nas
