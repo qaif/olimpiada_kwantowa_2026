@@ -108,6 +108,8 @@ RESERVED_SLUGS = frozenset(
         # Zgoda ucznia na opiekuna szkolnego z importu (``/opiekun/zgoda/<token>/``).
         "opiekun",
         "password-reset",
+        # Płatności online: strona zamówienia, dokumenty i webhooki operatorów płatności (PAY-01).
+        "payments",
         "plakaty",
         "register",
         "rejestracja",

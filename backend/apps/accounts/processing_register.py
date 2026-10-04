@@ -95,7 +95,12 @@ from apps.competitions.models import DEFAULT_RETENTION_MONTHS
 #: tłumaczeń, dziennik wglądu w tajne zadania) i nowy środek (okno tłumaczeń, znak wodny, audyt).
 #: 1.14 (04.10.2026, zadanie L10N-01) – Przegląd tłumaczeń interfejsu: wiersz warunkowy (konkurs
 #: z więcej niż jednym językiem interfejsu) – rola tłumacza, propozycje poprawek, głosy i zgłoszenia.
-REGISTER_VERSION = "1.14"
+#: 1.15 (04.10.2026, zadanie MED-01) – medale olimpiady międzynarodowej (flaga ``medals``, wiersz
+#: warunkowy): ogłoszona nagroda, ręczne zmiany z uzasadnieniem, publiczna lista medalistów i ranking krajów.
+#: 1.16 (04.10.2026, zadanie PAY-01) – płatności online za udział: zamówienia, faktury, operatorzy
+#: płatności (Stripe, Przelewy24) jako nowi odbiorcy i dokumentacja księgowa z własnym okresem
+#: przechowywania. Czynność warunkowa – wyłącznie konkursy z flagą ``fees`` (``apps.payments.rodo``).
+REGISTER_VERSION = "1.16"
 REGISTER_DATE = date(2026, 10, 4)
 
 #: Zdanie o okresie przechowywania danych uczestnika. Liczba pochodzi z tego samego miejsca, co
@@ -1053,6 +1058,50 @@ TRANSLATION_REVIEW_ACTIVITY = _activity(
 )
 
 
+#: Czynność **warunkowa**: medale olimpiady międzynarodowej i ranking krajów (MED-01). Wchodzi do
+#: rejestru wyłącznie konkursom z flagą ``medals`` – Olimpiada Kwantowa nagradza tytułem laureata
+#: w ramach czynności „wyniki”.
+MEDALS_ACTIVITY = _activity(
+    key="medale",
+    name="Medale, dyplomy medalowe i ranking krajów",
+    purpose=(
+        "Przyznanie złotego, srebrnego, brązowego medalu albo wyróżnienia z ostatecznego rankingu "
+        "etapu, wystawienie dyplomu w języku ucznia, ogłoszenie medali i nieoficjalnego rankingu krajów "
+        "oraz lista nagrodzonych na galę."
+    ),
+    legal_basis=(
+        "art. 6 ust. 1 lit. b RODO (wykonanie umowy – nagrody z Regulaminu) oraz art. 6 ust. 1 lit. a "
+        "RODO dla publikacji imienia i nazwiska przy medalu – wyłącznie za odrębną zgodą"
+    ),
+    subjects="uczestnicy etapu, z którego rankingu liczone są nagrody",
+    categories=[
+        "nagroda wyliczona i ostateczna, miejsce i suma punktów, kraj (delegacja albo region)",
+        "ręczna zmiana nagrody: uzasadnienie komitetu, autor i data",
+        "język dokumentu zapamiętany przy wystawieniu dyplomu",
+        "lista na galę (eksport koordynatora): imię i nazwisko, kraj, szkoła, nagroda",
+    ],
+    recipients=[
+        HOSTING_RECIPIENT,
+        "publiczność serwisu – medal przy kodzie albo przy nazwisku (za zgodą); kraj przy wierszu "
+        "wyłącznie w trybie „kod uczestnika” albo przy nazwisku opublikowanym za zgodą w trybie imiennym",
+        "ranking krajów – wyłącznie liczby zagregowane per kraj, bez danych pojedynczych osób; suma "
+        "i średnia punktów tylko dla kraju z co najmniej 3 wynikami (przy publikacji „tylko awansujący” – "
+        "wyłącznie z wyników nagrodzonych)",
+    ],
+    retention=(
+        "ogłoszone medale są zamrożonym dokumentem zawodów, jak tabela wyników, i zostają bezterminowo "
+        "w postaci pseudonimowej; ręczna zmiana nagrody znika razem z wpisem do etapu"
+    ),
+    measures=[
+        "funkcja działa wyłącznie w konkursie z włączoną flagą ``medals``",
+        "podpisy wierszy publicznej tabeli liczy ta sama funkcja, co tabela wyników (te same zgody)",
+        "nazwiska na liście na galę czytane w chwili eksportu – nie leżą w zamrożonej tabeli",
+        "każdy eksport z nazwiskami i każda ręczna zmiana jest wpisem w dzienniku zdarzeń (bez treści "
+        "uzasadnienia)",
+    ],
+)
+
+
 def activities_for(competition=None) -> tuple[ProcessingActivity, ...]:
     """Rejestr **tego** konkursu: czynności wspólne plus te, które wynikają z jego konfiguracji.
 
@@ -1099,6 +1148,12 @@ def activities_for(competition=None) -> tuple[ProcessingActivity, ...]:
         activities = (*activities, TIME_WINDOWS_ACTIVITY)
     if competition is not None and len(competition.ui_languages) > 1:
         activities = (*activities, TRANSLATION_REVIEW_ACTIVITY)
+    if competition is not None and competition.has_feature("medals"):
+        activities = (*activities, MEDALS_ACTIVITY)
+    if competition is not None and competition.has_feature("fees"):
+        from apps.payments.rodo import PAYMENTS_ACTIVITY
+
+        activities = (*activities, PAYMENTS_ACTIVITY)
     return activities
 
 

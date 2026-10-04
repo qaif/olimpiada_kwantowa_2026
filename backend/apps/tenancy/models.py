@@ -169,6 +169,10 @@ FEATURE_DEFAULTS: dict[str, bool] = {
     "appeals": True,
     # Dyplomy i zaświadczenia – jw.
     "certificates": True,
+    # Medale olimpiady międzynarodowej (złoto/srebro/brąz/wyróżnienie z rankingu), dyplomy w języku
+    # ucznia i ranking krajów (MED-01, ``apps.medals``). Domyślnie wyłączona: Olimpiada Kwantowa
+    # nagradza tytułem laureata i ma zostać bez zmian; ``iqo`` włącza ją operator w ``/admin/``.
+    "medals": False,
     # --- etap 2: konfiguracja, proces, rejestracja (``docs/UNIWERSALNY-ETAP-2.md`` § 0.6) -------
     # Katalog dostaje **komplet** flag etapu 2 naraz, także te, których pierwszy czytelnik powstanie
     # dopiero za kilka wydań. Flaga bez czytelnika jest nieszkodliwa (``has_feature`` podnosi

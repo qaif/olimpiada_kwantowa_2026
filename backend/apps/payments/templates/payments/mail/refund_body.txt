@@ -1,0 +1,16 @@
+{% load i18n %}{% autoescape off %}{% comment %}
+  Potwierdzenie zwrotu (PAY-01, ``apps.payments.notifications.send_refund_notice``). Język płacącego.
+{% endcomment %}{% blocktranslate trimmed with competition=brand.competition %}
+Organizator konkursu {{ competition }} zwrócił część albo całość Twojej wpłaty.
+{% endblocktranslate %}
+
+{% translate "Kod referencyjny" %}: {{ order.reference }}
+{% translate "Kwota zwrotu" %}: {{ refund.amount }} {{ order.currency }}
+
+{% translate "Pieniądze wracają tą samą drogą, którą zostały wpłacone; zaksięgowanie po stronie banku może potrwać kilka dni roboczych. Szczegóły:" %}
+{{ link }}
+
+--
+{{ brand.competition }}
+{% translate "Wiadomość wysłana automatycznie; prosimy na nią nie odpowiadać." %}
+{% endautoescape %}
