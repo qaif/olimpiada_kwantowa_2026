@@ -380,6 +380,11 @@ class CompetitionThemeCustomizeView(ThemeSettingsMixin, View):
                 if value:
                     colors.setdefault(mode, {})[token] = value
         options["colors"] = colors
+        options["radius"] = {
+            name: request.POST.get(f"radius_{name}", "")
+            for name in customize.editable_radii(runtime)
+            if request.POST.get(f"radius_{name}")
+        }
         return options
 
     def _render(self, request, competition, version, runtime, options, *, status: int = 200):
@@ -427,6 +432,14 @@ class CompetitionThemeCustomizeView(ThemeSettingsMixin, View):
                     "font": options.get("font") or (runtime.fonts[0]["id"] if runtime.fonts else ""),
                     "layouts": layouts,
                     "palettes": palettes,
+                    "radii": [
+                        {
+                            "name": name,
+                            "default": value,
+                            "value": (options.get("radius") or {}).get(name, value),
+                        }
+                        for name, value in customize.editable_radii(runtime).items()
+                    ],
                     "contrast_errors": errors,
                     "contrast_warnings": warnings,
                 }
@@ -450,7 +463,13 @@ def theme_custom_css(request):
     if runtime is None:
         raise Http404
     options = clean_options(
-        runtime, {"scheme": payload.get("s"), "font": payload.get("f"), "colors": payload.get("k")}
+        runtime,
+        {
+            "scheme": payload.get("s"),
+            "font": payload.get("f"),
+            "colors": payload.get("k"),
+            "radius": payload.get("r"),
+        },
     )
     response = HttpResponse(customize.css_for(runtime, options), content_type="text/css; charset=utf-8")
     response["Cache-Control"] = "public, max-age=31536000, immutable"

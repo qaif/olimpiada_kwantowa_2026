@@ -321,3 +321,14 @@ msgstr "An item with its own drop-down cannot belong to a group."
 
 msgid "Wybrana strona nie należy do serwisu tego konkursu albo nie jest opublikowana."
 msgstr "The selected page does not belong to this competition's site or is not published."
+
+#. Przycisk rozwijający menu serwisu na wąskim ekranie (szablony paczek motywów).
+msgid "Menu"
+msgstr "Menu"
+
+msgid "Zaokrąglenia"
+msgstr "Corner radii"
+
+#, python-format
+msgid "Domyślnie %(default)s. Wartość w px (0–48) albo rem (0–3), np. 0.5rem."
+msgstr "Default %(default)s. A value in px (0–48) or rem (0–3), e.g. 0.5rem."

@@ -27,6 +27,10 @@ SIGN_SALT = "apps.themes.custom"
 SCHEMES = ("light", "dark", "auto")
 HEX6 = re.compile(r"^#[0-9a-f]{6}$")
 OPTION_ID = re.compile(r"^[a-z0-9][a-z0-9-]{0,31}$")
+#: Promień zaokrąglenia (THEME-02, np. ``radius-leaf`` IQO): liczba w ``px``/``rem`` z ograniczonym
+#: zakresem – wartość trafia do ``--t-radius-*`` w arkuszu, więc kształt jest zamknięty.
+RADIUS_VALUE = re.compile(r"^(\d{1,2}(?:\.\d{1,3})?)(px|rem)$")
+RADIUS_LIMITS = {"px": 48.0, "rem": 3.0}
 
 #: Próg dla elementów nietekstowych (obwódka fokusu na tle) – WCAG 2.1 SC 1.4.11.
 MIN_NON_TEXT = 3.0
@@ -112,6 +116,34 @@ def clean_colors(runtime, raw) -> dict[str, dict[str, str]]:
     return out
 
 
+def editable_radii(runtime) -> dict[str, str]:
+    """Promienie ``radius-*`` z ``tokens.json`` wersji (grupy ``tokens``/``radius``) – nazwa → wartość."""
+    other = (runtime.tokens or {}).get("other") or {}
+    return {
+        name: value
+        for name, value in other.items()
+        if name.startswith("radius-") and RADIUS_VALUE.match(value)
+    }
+
+
+def clean_radii(runtime, raw) -> dict[str, str]:
+    """Nadpisania promieni: wyłącznie promienie wersji, ``0–48px`` albo ``0–3rem``, różne od domyślnych."""
+    if not isinstance(raw, dict):
+        return {}
+    allowed = editable_radii(runtime)
+    out = {}
+    for name in sorted(raw):
+        value = raw[name]
+        if name not in allowed or not isinstance(value, str):
+            continue
+        value = value.strip()
+        match = RADIUS_VALUE.match(value)
+        if not match or float(match.group(1)) > RADIUS_LIMITS[match.group(2)] or value == allowed[name]:
+            continue
+        out[name] = value
+    return out
+
+
 def option_ids(entries) -> tuple[str, ...]:
     return tuple(entry["id"] for entry in entries or ())
 
@@ -134,7 +166,9 @@ def _pairs(palette: dict[str, str]) -> list[tuple[str, str, str, float]]:
     pairs = [(fg, bg, label, tk.MIN_CONTRAST) for fg, bg, label in tk.CONTRAST_PAIRS]
     known = {(fg, bg) for fg, bg, *_ in pairs}
     for name in sorted(palette):
-        for prefix, suffix in (("", "-contrast"), ("", "-text"), ("on-", ""), ("", "-ink")):
+        # ``-accent`` (np. ``cover-accent`` IQO) – wyróżnienie pisane na powierzchni bazowej;
+        # ``accent-*`` z rejestru ``classic`` mają inne znaczenie i nie kończą się tak.
+        for prefix, suffix in (("", "-contrast"), ("", "-text"), ("on-", ""), ("", "-ink"), ("", "-accent")):
             if prefix and name.startswith(prefix):
                 base = name[len(prefix) :]
             elif suffix and name.endswith(suffix):
@@ -205,7 +239,12 @@ def needs_css(runtime, options: dict) -> bool:
     font = options.get("font") or ""
     colors = options.get("colors") or {}
     active_colors = any(colors.get(mode) for mode in palette_modes(runtime, scheme))
-    return scheme != runtime.color_scheme or active_colors or bool(fonts and font and font != fonts[0])
+    return (
+        scheme != runtime.color_scheme
+        or active_colors
+        or bool(fonts and font and font != fonts[0])
+        or bool(options.get("radius"))
+    )
 
 
 def _font_tokens(runtime, font_id: str) -> dict[str, str]:
@@ -247,9 +286,12 @@ def build_css(runtime, options: dict) -> str:
                     ":root {\n", ":root {\n" + "".join(f"  --t-{k}: {v};\n" for k, v in reset.items()), 1
                 )
         parts.append(css.rstrip("\n"))
-    fonts = _font_tokens(runtime, options.get("font") or "")
-    if fonts:
-        parts.append(":root {\n" + "".join(f"  --t-{k}: {v};\n" for k, v in fonts.items()) + "}")
+    radius = dict(options.get("radius") or {})
+    # Synonim (``radius-md``) zapisujemy też pod nazwą kanoniczną (``radius``), jak ``tokens.css``.
+    radius.update({tk.ALIASES[name]: value for name, value in list(radius.items()) if name in tk.ALIASES})
+    extra = {**_font_tokens(runtime, options.get("font") or ""), **radius}
+    if extra:
+        parts.append(":root {\n" + "".join(f"  --t-{k}: {v};\n" for k, v in extra.items()) + "}")
     return "\n".join(parts) + "\n"
 
 
@@ -297,6 +339,7 @@ def _payload(competition_id: int, runtime, options: dict) -> dict:
             mode: dict(sorted(values.items()))
             for mode, values in sorted((options.get("colors") or {}).items())
         },
+        "r": dict(sorted((options.get("radius") or {}).items())),
     }
 
 

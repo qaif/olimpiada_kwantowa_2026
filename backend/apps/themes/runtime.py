@@ -191,7 +191,7 @@ class ActiveTheme:
 
 
 #: Opcje dostosowania (THEME-02) – zapisywane przy wersji i w ``Competition.theme_options``.
-CUSTOM_KEYS = ("scheme", "logo", "font", "colors")
+CUSTOM_KEYS = ("scheme", "logo", "font", "colors", "radius")
 
 
 def clean_options(runtime: ThemeRuntime, options: dict | None) -> dict:
@@ -221,6 +221,9 @@ def clean_options(runtime: ThemeRuntime, options: dict | None) -> dict:
     colors = customize.clean_colors(runtime, options.get("colors"))
     if colors:
         cleaned["colors"] = colors
+    radius = customize.clean_radii(runtime, options.get("radius"))
+    if radius:
+        cleaned["radius"] = radius
     return cleaned
 
 

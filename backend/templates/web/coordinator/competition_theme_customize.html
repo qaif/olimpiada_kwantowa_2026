@@ -88,6 +88,19 @@
         </p>
       {% endfor %}
 
+      {% if radii %}
+        <fieldset>
+          <legend>{% translate "Zaokrąglenia" %}</legend>
+          {% for radius in radii %}
+            <p>
+              <label for="radius-{{ radius.name }}"><code>{{ radius.name }}</code></label>
+              <input type="text" id="radius-{{ radius.name }}" name="radius_{{ radius.name }}" value="{{ radius.value }}" maxlength="10" inputmode="decimal">
+              <span class="hint">{% blocktranslate trimmed with default=radius.default %}Domyślnie {{ default }}. Wartość w px (0–48) albo rem (0–3), np. 0.5rem.{% endblocktranslate %}</span>
+            </p>
+          {% endfor %}
+        </fieldset>
+      {% endif %}
+
       {% for palette in palettes %}
         <fieldset>
           <legend>{{ palette.label }}</legend>
