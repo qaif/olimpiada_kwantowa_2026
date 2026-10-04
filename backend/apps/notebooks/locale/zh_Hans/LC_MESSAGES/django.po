@@ -634,3 +634,19 @@ msgstr "初始笔记本"
 #, python-format
 msgid "Praca – podgląd notatnika (wersja %(version)s)"
 msgstr "提交作品——笔记本预览（版本 %(version)s）"
+
+#, python-format
+msgid "Bezpieczeństwo: laboratorium działa pod osobnym adresem %(host)s."
+msgstr "安全：实验室运行在单独的地址 %(host)s。"
+
+msgid ""
+"Kod z notatnika wykonuje się w przeglądarce, w osobnym originie "
+"laboratorium: nie widzi sesji, ciasteczek ani danych zapisanych przez "
+"serwis, a serwis odrzuca wysyłane z niego żądania. Laboratorium nadal "
+"otwierają wyłącznie konta uczestników bez żadnej roli personelu. Uprzedź "
+"uczestników, żeby nie wklejali cudzego kodu. Szczegóły: docs/OPERACJE.md § "
+"40.7."
+msgstr ""
+"笔记本中的代码在浏览器中、在实验室独立的源（origin）中运行：它看不到网站的会话、Cookie "
+"或网站保存的数据，网站也会拒绝从实验室发出的请求。实验室仍然只向没有任何工作人员角色的参赛者账户开放。请提醒参赛者不要粘贴他人的代码。详情：docs/OPERACJE.md "
+"§ 40.7。"

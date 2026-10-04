@@ -688,3 +688,22 @@ msgstr "cuaderno inicial"
 #, python-format
 msgid "Praca – podgląd notatnika (wersja %(version)s)"
 msgstr "Trabajo: vista previa del cuaderno (versión %(version)s)"
+
+#, python-format
+msgid "Bezpieczeństwo: laboratorium działa pod osobnym adresem %(host)s."
+msgstr "Seguridad: el laboratorio funciona en una dirección aparte %(host)s."
+
+msgid ""
+"Kod z notatnika wykonuje się w przeglądarce, w osobnym originie "
+"laboratorium: nie widzi sesji, ciasteczek ani danych zapisanych przez "
+"serwis, a serwis odrzuca wysyłane z niego żądania. Laboratorium nadal "
+"otwierają wyłącznie konta uczestników bez żadnej roli personelu. Uprzedź "
+"uczestników, żeby nie wklejali cudzego kodu. Szczegóły: docs/OPERACJE.md § "
+"40.7."
+msgstr ""
+"El código del cuaderno se ejecuta en el navegador, en el origen separado del "
+"laboratorio: no ve la sesión, las cookies ni los datos guardados por el "
+"sitio, y el sitio rechaza las solicitudes enviadas desde él. El laboratorio "
+"sigue disponible solo para cuentas de participantes sin ningún rol de "
+"personal. Advierte a los participantes que no peguen código ajeno. Detalles: "
+"docs/OPERACJE.md § 40.7."

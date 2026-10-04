@@ -38,16 +38,40 @@ def build_info() -> dict | None:
     return info
 
 
-def base_url() -> str | None:
+def lab_host() -> str:
+    """Osobny host laboratorium (QC-02) albo ``""`` – laboratorium w originie serwisu (QC-01)."""
+    return getattr(settings, "NOTEBOOK_LAB_HOST", "") or ""
+
+
+def is_lab_host(request) -> bool:
+    host = lab_host()
+    return bool(host) and request.get_host().lower() == host
+
+
+def lab_origin(request) -> str:
+    """Origin laboratorium dla adresów bezwzględnych na stronach serwisu; ``""`` bez osobnego hosta.
+
+    Schemat z żądania (w produkcji ``https`` przez ``SECURE_PROXY_SSL_HEADER``, w dev ``http``) –
+    host laboratorium stoi za tym samym proxy co serwis.
+    """
+    host = lab_host()
+    return f"{request.scheme}://{host}" if host else ""
+
+
+def base_url(origin: str = "") -> str | None:
     info = build_info()
     if info is None:
         return None
-    return f"{settings.STATIC_URL}notebook-lab/{info['build_id']}/"
+    return f"{origin}{settings.STATIC_URL}notebook-lab/{info['build_id']}/"
 
 
-def lab_url(starter_path: str) -> str | None:
-    """Adres JupyterLab otwierającego notatnik startowy (rozszerzenie ``fromURL``)."""
-    base = base_url()
+def lab_url(starter_path: str, origin: str = "") -> str | None:
+    """Adres JupyterLab otwierającego notatnik startowy (rozszerzenie ``fromURL``).
+
+    ``fromURL`` zostaje względny: rozwiązuje się względem originu laboratorium, czyli wskazuje
+    ``/notebook-starter/`` tego samego hosta, który dopuszcza ``connect-src`` polityki laboratorium.
+    """
+    base = base_url(origin)
     if base is None:
         return None
     return f"{base}lab/index.html?fromURL={quote(starter_path, safe='/')}"
