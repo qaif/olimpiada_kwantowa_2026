@@ -206,6 +206,9 @@ Dobrze wiedzieć:
   startowego,
 - przy ponownym otwarciu JupyterLab pyta, czy nadpisać plik – **„Cancel”** zostawia Twoją pracę,
   „Overwrite” przywraca notatnik startowy,
+- jeśli zamiast uruchomionego Pythona pojawi się okno „Select Kernel” z samym „No Kernel” (zdarza
+  się, gdy notatnik wczytywał się w karcie w tle), zamknij je i wybierz *Kernel → Change Kernel… →
+  Python (Pyodide)* albo odśwież kartę,
 - serwer wykonuje komórki po kolei, a błąd w jednej nie przerywa kolejnych; magie (`%pip`, `!ls`) są
   pomijane, sieci i plików spoza notatnika nie ma,
 - wynik testów ukrytych widzisz w karcie zadania tylko wtedy, gdy organizator tak ustawił (zwykle

@@ -4797,6 +4797,9 @@ odmowa; pętla nieskończona – zabita po limicie. Bez haka (proces jako 60000 
   przebiegi `RUNNING` beat domyka po 15 minutach (`notebooks-pump`).
 - **Laboratorium „nie jest zainstalowane”** – obraz bez etapu `notebook-lab` albo `web`
   wystartował z `RUN_COLLECTSTATIC=0`: `docker compose restart web`.
+- **Uczestnik widzi „Select Kernel” z samym „No Kernel”** – karta laboratorium ładowała się w tle
+  (JupyterLab nie odświeża listy jąder w ukrytej karcie). Nie jest to błąd serwera: *Kernel → Change
+  Kernel… → Python (Pyodide)* albo odświeżenie karty (podręcznik uczestnika § 3a).
 
 ### 40.4. Aktualizacja JupyterLite / Pyodide
 
@@ -4813,7 +4816,9 @@ uczniów w IndexedDB zostaje (stała nazwa magazynu).
 - Laboratorium lokalnie: `docker build --target notebook-lab -t notebook-lab backend`, potem
   `docker create --name nl notebook-lab`, `docker cp nl:/opt/notebook-lab backend/notebook_lab_dist`,
   `docker rm nl`. Przy `DJANGO_DEBUG=1` WhiteNoise podaje katalog spod `/static/notebook-lab/` z tą
-  samą polityką CSP (`apps/web/middleware.py`).
+  samą polityką CSP (`apps/web/middleware.py`). Uwaga na `manage.py runserver`: jego własna obsługa
+  `/static/` omija middleware, więc laboratorium przychodzi **bez** polityki i COOP/COEP – do odbioru
+  laboratorium `runserver --nostatic` (albo gunicorn jak w compose).
 - Sprawdzanie bez kontenera piaskownicy: `NOTEBOOK_RUNNER_INLINE=1` (wyłącznie z `DJANGO_DEBUG=1`;
   przy `DEBUG=0` start zatrzymuje `notebooks.E001`). Testy używają tego trybu.
 - Kolejka `notebooks` w dev: `docker compose --profile notebooks up -d notebook-worker`
@@ -4831,6 +4836,19 @@ Laboratorium działa na domenie serwisu, więc kod z notatnika wykonuje się w p
 która je otworzyła, w originie serwisu. Polityka CSP ścieżki laboratorium (źródła zawężone do
 `/static/notebook-lab/` i `/notebook-starter/`, `form-action 'none'`, COOP/COEP) blokuje z niego API,
 panele i formularze serwisu, ale to nie jest pełna izolacja.
+
+Co blokuje polityka w tej samej domenie (odbiór w przeglądarce 4.10.2026, `docs/tasks/QC-01.md`
+§ 3.3a): `fetch`/XHR/obrazy do `/api/`, `/me/`, `/coordinator/` i obcych hostów – ze strony i z workera
+jądra (żądanie nie wychodzi), formularze (`form-action 'none'`), osadzanie w ramce; serwer dodatkowo
+odrzuca (403) żądania zmieniające stan, `/api/` i żądania skryptowe (`Sec-Fetch-Dest: empty`)
+z `Referer` laboratorium (pas bezpieczeństwa – `Referer` da się wyciąć). COOP `same-origin` + COEP
+`require-corp` dają `crossOriginIsolated`: okna serwisu otwarte z laboratorium trafiają do innej grupy
+kontekstów, a jądro synchronizuje pliki przez `SharedArrayBuffer` bez service workera – **nie zdejmuj
+COEP**, bo bez niego (i bez działającego service workera) pliki zapisane z Pythona nie trafią do
+JupyterLab. Czego polityka **nie** blokuje: odczytu magazynów całego originu (`localStorage`,
+IndexedDB, ciasteczka bez `HttpOnly`, np. `csrftoken`), nawigacji karty na dowolny adres (w tym obcy –
+dane mogą wyjść w adresie) i zwykłych nawigacji GET do stron serwisu. Dlatego flaga
+`quantum_notebooks` jest domyślnie wyłączona, a ekrany koordynatora pokazują ostrzeżenie.
 
 **Stan obecny (decyzja koordynatora):** laboratorium otwierają **wyłącznie konta uczestników bez
 żadnej roli personelu** (superużytkownik, `is_staff`, koordynator, recenzent, komisja, opiekun
