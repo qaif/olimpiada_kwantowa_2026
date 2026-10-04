@@ -5237,8 +5237,10 @@ Program: `backend/apps/monitoring/uptime.py` – jeden plik, sama biblioteka sta
 Pythonie 3.10). Cele z tych samych zmiennych, z których Caddy składa konfigurację:
 `https://<SITE_DOMAIN>/` i `/healthz/` (`"status": "ok"`), to samo dla każdej domeny z `EXTRA_DOMAINS`
 (dla nas `iqo-official.org`; bez `www.`), `https://<SITE_DOMAIN>/status.json`, `https://live.<…>/`
-(gdy `LIVEKIT_URL`), `https://errors.<domena>/_health/` (gdy `ERRORS_PROXY=1`) oraz `UPTIME_EXTRA_URLS`
-(np. notebook: `https://…/hub/health|json`). Do tego certyfikat TLS każdego hosta.
+(gdy `LIVEKIT_URL`), `https://errors.<domena>/_health/` (gdy `ERRORS_PROXY=1`), laboratorium
+notebooków `https://<SITE_DOMAIN>/static/notebook-lab/current.json` (gdy `UPTIME_NOTEBOOK_LAB=1`, § QC-01;
+wykonawca `notebook-runner` nie ma sieci – jego stan pokazuje healthcheck compose'a) oraz
+`UPTIME_EXTRA_URLS` (sufiks `|json` = wymagaj `"status": "ok"`). Do tego certyfikat TLS każdego hosta.
 
 | Zdarzenie | List |
 |---|---|

@@ -131,6 +131,10 @@ def default_targets(env: dict) -> tuple[Target, ...]:
         targets.append(Target(f"https://{site}/status.json", "json-ok"))
         if _truthy(env.get("ERRORS_PROXY")):
             targets.append(Target(f"https://errors.{site}/_health/"))
+        if _truthy(env.get("UPTIME_NOTEBOOK_LAB")):
+            # Laboratorium notebooków (QC-01): statyczny JupyterLite z obrazu `web` – ``current.json``
+            # znika, gdy obraz nie ma etapu `notebook-lab` albo entrypoint nie skopiował paczki.
+            targets.append(Target(f"https://{site}/static/notebook-lab/current.json"))
     livekit = (env.get("LIVEKIT_URL") or "").strip()
     if livekit.startswith(("wss://", "https://")):
         host = urlsplit(livekit).netloc

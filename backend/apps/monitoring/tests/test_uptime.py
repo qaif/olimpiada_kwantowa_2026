@@ -48,6 +48,7 @@ def test_default_targets_cover_both_sites_health_status_livekit_and_errors():
             "EXTRA_DOMAINS": "iqo-official.org www.iqo-official.org localhost:8001",
             "LIVEKIT_URL": "wss://live.olimpiadakwantowa.pl",
             "ERRORS_PROXY": "1",
+            "UPTIME_NOTEBOOK_LAB": "1",
             "UPTIME_EXTRA_URLS": "https://nb.example.org/hub/health|json",
         }
     )
@@ -59,6 +60,7 @@ def test_default_targets_cover_both_sites_health_status_livekit_and_errors():
         ("https://iqo-official.org/healthz/", "json-ok"),
         ("https://olimpiadakwantowa.pl/status.json", "json-ok"),
         ("https://errors.olimpiadakwantowa.pl/_health/", "page"),
+        ("https://olimpiadakwantowa.pl/static/notebook-lab/current.json", "page"),
         ("https://live.olimpiadakwantowa.pl/", "page"),
         ("https://nb.example.org/hub/health", "json-ok"),
     ]

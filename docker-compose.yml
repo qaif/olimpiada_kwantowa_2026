@@ -697,6 +697,8 @@ services:
       ERRORS_PROXY: ${ERRORS_PROXY:-0}
       UPTIME_URLS: ${UPTIME_URLS:-}
       UPTIME_EXTRA_URLS: ${UPTIME_EXTRA_URLS:-}
+      # 1 = sprawdzaj też laboratorium notebooków (QC-01, /static/notebook-lab/current.json).
+      UPTIME_NOTEBOOK_LAB: ${UPTIME_NOTEBOOK_LAB:-0}
       UPTIME_ALERT_EMAILS: ${UPTIME_ALERT_EMAILS:-${ALERT_EMAILS:-}}
       UPTIME_FROM: uptime@${SITE_DOMAIN:-localhost}
       UPTIME_SMTP_HOST: ${UPTIME_SMTP_HOST:-mail}
