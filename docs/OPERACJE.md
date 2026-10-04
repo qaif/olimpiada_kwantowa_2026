@@ -3938,6 +3938,108 @@ Nowy konkurs od razu z krajami: `create_competition … --regions countries` (do
 
 Kolejność dla `iqo` po wdrożeniu: § 26.1 (języki) i ta komenda – niezależne od siebie.
 
+## 28. Delegacje krajowe – rejestracja przez opiekunów drużyn (DEL-01, `docs/tasks/DEL-01.md`)
+
+W konkursie w trybie **`DELEGATIONS`** uczniów zgłaszają opiekunowie drużyn narodowych (team leaders)
+zaproszeni przez koordynatora. Samodzielna rejestracja uczestnika jest wtedy zamknięta **na każdej
+drodze**: formularz `/register/`, `POST /api/auth/register/participant/`, Google/Facebook (konto nowe),
+import listy klasowej (opiekun szkolny i koordynator) oraz rejestracja opiekuna szkolnego
+(`/register/supervisor/` → 404). Logowanie istniejących kont działa normalnie.
+
+**Domyślnie każdy konkurs ma tryb `OPEN`** (migracja `tenancy.0013` wpisuje `OPEN` wszystkim
+istniejącym konkursom; `create_competition`, ekran „Nowy konkurs” i kreator `/setup/` zakładają
+`OPEN`, a katalog szablonów nie ma tego pola). Olimpiada Kwantowa nie wymaga niczego.
+
+### 28.1. Przestawienie `iqo` (kolejność)
+
+1. Kraje (§ 27): `docker compose exec web python manage.py regions_countries --competition iqo`.
+2. Bieżąca edycja `iqo` musi istnieć, a jej okno rejestracji (`/coordinator/registration/`) **obowiązuje
+   opiekunów**: dodanie ucznia wymaga `registration_enabled = tak` oraz daty „teraz” między otwarciem
+   a zamknięciem (puste daty = bez ograniczenia). Przy zamkniętym oknie opiekun nie doda ucznia, a pulpit
+   koordynatora pokazuje „przez delegacje krajowe – okno dla opiekunów drużyn zamknięte”.
+   Tryb `DELEGATIONS` da się zapisać dopiero, gdy konkurs ma aktywne kraje (walidacja modelu).
+3. Tryb rejestracji – jedna z dróg:
+   - panel: `/coordinator/competition/` (ekran „Ustawienia konkursu”, flaga `competition_settings_page`)
+     → „Tryb rejestracji uczestników” = „przez delegacje krajowe”, opcjonalnie „Domyślny limit uczniów
+     delegacji” (domyślnie 6); zapis zostawia wpis audytu `competition.registration_mode_changed`,
+   - `/admin/` → Konkursy → `iqo` → te same dwa pola,
+   - powłoka (bez panelu):
+     ```sh
+     docker compose exec web python manage.py shell -c "from apps.tenancy.models import Competition; c = Competition.objects.get(slug='iqo'); c.registration_mode = 'DELEGATIONS'; c.save(update_fields=['registration_mode'])"
+     ```
+4. W menu panelu `iqo` pojawia się „Uczestnicy i konta → Delegacje” (`/coordinator/delegations/`).
+   „Zaproś opiekuna”: adres e-mail + kraj. Delegacja kraju powstaje przy pierwszym zaproszeniu; kolejny
+   opiekun tego kraju dołącza do niej. List idzie w języku domyślnym konkursu (dla `iqo` – angielskim).
+
+Nowy konkurs od razu w tym trybie: `create_competition … --regions countries --registration delegations`
+(delegacje wymagają podziału na kraje; domyślnie `--registration open`).
+
+### 28.2. Zaproszenie, konto opiekuna, uczniowie
+
+- Zaproszenie: ważne 14 dni, jednorazowe, w bazie tylko skrót SHA-256 tokenu; „Wyślij ponownie” wymienia
+  token (stary link przestaje działać); „Cofnij” unieważnia. Adres prowadzący już delegację innego kraju
+  w tej edycji dostaje odmowę.
+- Przyjęcie (`/delegation/accept/<token>/`): adres bez konta zakłada je od razu aktywne (kliknięcie linku
+  potwierdza adres) i składa zgody (regulamin, RODO); adres z kontem musi się zalogować – zaproszenie nie
+  zmienia hasła; zalogowany na inne konto dostaje odmowę.
+- Panel opiekuna `/delegation/`: uczniowie kraju, współopiekunowie, „Dodaj ucznia”. Uczeń dostaje list
+  z linkiem `/zaproszenie/<token>/` (ten sam mechanizm, co import listy klasowej): sam ustawia hasło
+  i składa zgody, kraj jest krajem delegacji. Limit delegacji liczony pod blokadą wiersza.
+- Wypisanie ucznia przez opiekuna (do startu pierwszego etapu): konto **nieuruchomione** jest usuwane;
+  konto **uruchomione** zostaje – opiekun tylko odpina je od delegacji, uczeń dostaje list, a ekran
+  delegacji pokazuje go w sekcji „Wypisani przez opiekuna – czekają na decyzję”. Usunięcie takiego konta
+  należy do koordynatora (karta konta w „Uczestnicy i konta”).
+- Odwołanie opiekuna zostawia jego wiersz ze znacznikiem `removed_at` (dowody zgód zostają); opiekun
+  bez delegacji w bieżącej edycji widzi pod `/delegation/` wyjaśnienie, a nie błąd.
+- Zamknięcie delegacji (ekran delegacji) zamraża listę uczniów. Eksport CSV: przycisk na liście delegacji.
+- Opiekun drużyny **nie** ma dostępu do wiadomości (`apps/chat`) ani do prac i ocen.
+
+### 28.3. Kontrakt adresów
+
+Nowy pierwszy segment adresu aplikacji: `delegation/` (`RESERVED_SLUGS`, `backend/djcms_contract/` –
+zaktualizowane w tym wydaniu). Wdrożenie przez `scripts/deploy.sh` przenosi kontrakt; jeśli Caddyfile
+jest renderowany z `app_routes.env` osobno, trzeba go wyrenderować ponownie.
+
+### 28.4. Wycofanie
+
+Przestawienie trybu z powrotem na `OPEN` otwiera samodzielną rejestrację i ukrywa ekrany delegacji (404);
+dane delegacji, opiekunów i uczniów zostają w bazie. Migracje `accounts.0036`–`0038` i `tenancy.0013` są
+odwracalne (nowe tabele i kolumny nullowalne albo z wartością domyślną).
+
+## 29. Statystyki szkół (STAT-01, flaga `school_statistics`)
+
+Funkcja liczy agregaty z istniejących danych; jedyna tabela to `school_stats_frozenmembership`
+(migracja `school_stats.0001_initial`, odwracalna) – przynależność wpisów do szkół zamrożona przy
+publikacji wyników (`docs/tasks/STAT-01.md` § 10, M3). Wdrożenie nie wymaga kroku ręcznego poza
+zwykłym `migrate`; etapy ogłoszone wcześniej zamrażają się same przy pierwszym wejściu na ekran.
+Flaga jest domyślnie **wyłączona** (adresy `/supervisor/statistics/…`
+i `/coordinator/school-stats/…` dają 404, menu i pulpit opiekuna bez zmian).
+
+**Zapalenie** (`/admin/ → Konkursy → <konkurs> → feature_flags`, § 6.4):
+
+```json
+{"school_statistics": true}
+```
+
+Razem z flagą rejestr czynności konkursu dostaje wiersz „Statystyki szkół i opiekunów szkolnych”
+(wersja 1.12) – zapalenie jest więc decyzją organizatora o nowym celu przetwarzania (opiekun widzi
+przebieg ucznia przez edycje), nie skutkiem wdrożenia. Przed zapaleniem warto zweryfikować opiekunów
+(`SchoolSupervisor.verified` + szkoła z wykazu) – bez tego opiekun widzi swoich uczniów, województwo
+i całość, ale nie agregat szkoły i nie pobierze raportu PDF.
+
+**Pamięć podręczna** (Redis): klucze `school_stats:v2:<oś>:<edycja>:<odcisk publikacji>`; doba dla
+edycji zamkniętej publikacjami albo nie bieżącej, 5 minut dla bieżącej w toku. Ponowna publikacja zmienia
+odcisk, więc nic nie trzeba czyścić ręcznie. W kluczach są wyłącznie agregaty (bez identyfikatorów
+osób).
+
+**Tłumaczenia:** napisy aplikacji mają własny katalog `backend/apps/school_stats/locale/` (maszynowe,
+jak § 26.3). Obraz kompiluje od tego wydania także katalogi aplikacji (`apps/*/locale`), a test
+`apps/core/tests/test_translations.py` sprawdza je tą samą miarą co katalog wspólny.
+
+**IQO:** oś grupowania to dziś szkoła z profilu uczestnika (`apps/school_stats/grouping.py`). Oś
+`delegation` (delegacje krajowe z § 28, region = kraj) jest przygotowanym punktem zaczepienia
+(`axis_for`) – dołożenie jej nie zmienia ekranów ani reguł progu.
+
 ## 30. Motywy wizualne (THEME-01, `docs/tasks/THEME-01.md`)
 
 Wygląd konkursu zmienia się **paczką motywu** (ZIP: `manifest.json`, `theme.css`, `tokens.json`,
@@ -4083,75 +4185,6 @@ obie palety. Cofnięcie: aktywacja 1.0.0 w galerii (wersja zostaje w katalogu).
 Kontekst szablonów paczek dostał w THEME-02 także `sponsor_slider` (same napisy i liczby – IQO 1.1.0
 stawia taśmę sponsorów w stopce), a dostosowanie – promienie `radius-*` z `tokens.json`
 (0–48 px albo 0–3 rem; IQO: `radius-leaf`, kształt przycisków).
-
-
-## 28. Delegacje krajowe – rejestracja przez opiekunów drużyn (DEL-01, `docs/tasks/DEL-01.md`)
-
-W konkursie w trybie **`DELEGATIONS`** uczniów zgłaszają opiekunowie drużyn narodowych (team leaders)
-zaproszeni przez koordynatora. Samodzielna rejestracja uczestnika jest wtedy zamknięta **na każdej
-drodze**: formularz `/register/`, `POST /api/auth/register/participant/`, Google/Facebook (konto nowe),
-import listy klasowej (opiekun szkolny i koordynator) oraz rejestracja opiekuna szkolnego
-(`/register/supervisor/` → 404). Logowanie istniejących kont działa normalnie.
-
-**Domyślnie każdy konkurs ma tryb `OPEN`** (migracja `tenancy.0013` wpisuje `OPEN` wszystkim
-istniejącym konkursom; `create_competition`, ekran „Nowy konkurs” i kreator `/setup/` zakładają
-`OPEN`, a katalog szablonów nie ma tego pola). Olimpiada Kwantowa nie wymaga niczego.
-
-### 28.1. Przestawienie `iqo` (kolejność)
-
-1. Kraje (§ 27): `docker compose exec web python manage.py regions_countries --competition iqo`.
-2. Bieżąca edycja `iqo` musi istnieć, a jej okno rejestracji (`/coordinator/registration/`) **obowiązuje
-   opiekunów**: dodanie ucznia wymaga `registration_enabled = tak` oraz daty „teraz” między otwarciem
-   a zamknięciem (puste daty = bez ograniczenia). Przy zamkniętym oknie opiekun nie doda ucznia, a pulpit
-   koordynatora pokazuje „przez delegacje krajowe – okno dla opiekunów drużyn zamknięte”.
-   Tryb `DELEGATIONS` da się zapisać dopiero, gdy konkurs ma aktywne kraje (walidacja modelu).
-3. Tryb rejestracji – jedna z dróg:
-   - panel: `/coordinator/competition/` (ekran „Ustawienia konkursu”, flaga `competition_settings_page`)
-     → „Tryb rejestracji uczestników” = „przez delegacje krajowe”, opcjonalnie „Domyślny limit uczniów
-     delegacji” (domyślnie 6); zapis zostawia wpis audytu `competition.registration_mode_changed`,
-   - `/admin/` → Konkursy → `iqo` → te same dwa pola,
-   - powłoka (bez panelu):
-     ```sh
-     docker compose exec web python manage.py shell -c "from apps.tenancy.models import Competition; c = Competition.objects.get(slug='iqo'); c.registration_mode = 'DELEGATIONS'; c.save(update_fields=['registration_mode'])"
-     ```
-4. W menu panelu `iqo` pojawia się „Uczestnicy i konta → Delegacje” (`/coordinator/delegations/`).
-   „Zaproś opiekuna”: adres e-mail + kraj. Delegacja kraju powstaje przy pierwszym zaproszeniu; kolejny
-   opiekun tego kraju dołącza do niej. List idzie w języku domyślnym konkursu (dla `iqo` – angielskim).
-
-Nowy konkurs od razu w tym trybie: `create_competition … --regions countries --registration delegations`
-(delegacje wymagają podziału na kraje; domyślnie `--registration open`).
-
-### 28.2. Zaproszenie, konto opiekuna, uczniowie
-
-- Zaproszenie: ważne 14 dni, jednorazowe, w bazie tylko skrót SHA-256 tokenu; „Wyślij ponownie” wymienia
-  token (stary link przestaje działać); „Cofnij” unieważnia. Adres prowadzący już delegację innego kraju
-  w tej edycji dostaje odmowę.
-- Przyjęcie (`/delegation/accept/<token>/`): adres bez konta zakłada je od razu aktywne (kliknięcie linku
-  potwierdza adres) i składa zgody (regulamin, RODO); adres z kontem musi się zalogować – zaproszenie nie
-  zmienia hasła; zalogowany na inne konto dostaje odmowę.
-- Panel opiekuna `/delegation/`: uczniowie kraju, współopiekunowie, „Dodaj ucznia”. Uczeń dostaje list
-  z linkiem `/zaproszenie/<token>/` (ten sam mechanizm, co import listy klasowej): sam ustawia hasło
-  i składa zgody, kraj jest krajem delegacji. Limit delegacji liczony pod blokadą wiersza.
-- Wypisanie ucznia przez opiekuna (do startu pierwszego etapu): konto **nieuruchomione** jest usuwane;
-  konto **uruchomione** zostaje – opiekun tylko odpina je od delegacji, uczeń dostaje list, a ekran
-  delegacji pokazuje go w sekcji „Wypisani przez opiekuna – czekają na decyzję”. Usunięcie takiego konta
-  należy do koordynatora (karta konta w „Uczestnicy i konta”).
-- Odwołanie opiekuna zostawia jego wiersz ze znacznikiem `removed_at` (dowody zgód zostają); opiekun
-  bez delegacji w bieżącej edycji widzi pod `/delegation/` wyjaśnienie, a nie błąd.
-- Zamknięcie delegacji (ekran delegacji) zamraża listę uczniów. Eksport CSV: przycisk na liście delegacji.
-- Opiekun drużyny **nie** ma dostępu do wiadomości (`apps/chat`) ani do prac i ocen.
-
-### 28.3. Kontrakt adresów
-
-Nowy pierwszy segment adresu aplikacji: `delegation/` (`RESERVED_SLUGS`, `backend/djcms_contract/` –
-zaktualizowane w tym wydaniu). Wdrożenie przez `scripts/deploy.sh` przenosi kontrakt; jeśli Caddyfile
-jest renderowany z `app_routes.env` osobno, trzeba go wyrenderować ponownie.
-
-### 28.4. Wycofanie
-
-Przestawienie trybu z powrotem na `OPEN` otwiera samodzielną rejestrację i ukrywa ekrany delegacji (404);
-dane delegacji, opiekunów i uczniów zostają w bazie. Migracje `accounts.0036`–`0038` i `tenancy.0013` są
-odwracalne (nowe tabele i kolumny nullowalne albo z wartością domyślną).
 
 ## 31. Logistyka finału dla delegacji (LOG-01, `docs/tasks/LOG-01.md`)
 
@@ -4308,6 +4341,311 @@ Wycofanie: wyłączenie flagi ukrywa ekrany wniosków i rejestru, ale **nie** st
 istnieją, dopóki konkurs ma wystawione listy). Migracja jest odwracalna schematem (nowa tabela, nowe
 kolumny nullowalne albo z wartością domyślną) – z zastrzeżeniem kodów z punktu 1.
 
+## 32. Okna czasowe etapu według stref (TZ-01, `docs/tasks/TZ-01.md`)
+
+Etap zdalny konkursu z flagą **`stage_time_windows`** może pracować w kilku oknach czasowych (np. trzy
+starty co 8 h, każdy po 5 h) z przydziałem krajów według strefy. Bez flagi (Olimpiada Kwantowa) nic się
+nie zmienia: żadna bramka okien nie pyta bazy, ekranu nie ma (404), menu i panel uczestnika są te same.
+
+### 32.1. Włączenie dla `iqo`
+
+1. Wdrożenie zakłada tabele aplikacji `time_windows` (migracja `time_windows.0001`, same nowe tabele –
+   żadna istniejąca tabela się nie zmienia). Nowych segmentów adresów nie ma (`coordinator/…`,
+   `delegation/…` są już w kontrakcie).
+2. Flaga – `/admin/` → Konkursy → `iqo` → „Feature flags”: dopisz `"stage_time_windows": true`, albo:
+   ```sh
+   docker compose exec web python manage.py shell -c "from apps.tenancy.models import Competition; c = Competition.objects.get(slug='iqo'); c.feature_flags = {**(c.feature_flags or {}), 'stage_time_windows': True}; c.save(update_fields=['feature_flags'])"
+   ```
+3. Koordynator ustawia okna **przed otwarciem etapu**: „Etapy → <etap> → Okna czasowe”
+   (`PODRECZNIK-ORGANIZATORA.md` § 10e). Rama etapu (otwarcie – termin oddania) musi obejmować wszystkie
+   okna razem z dodatkowym czasem uczniów; beat zamyka etap (`LOCKED`) dopiero po ramie.
+
+### 32.2. Czego nie robić
+
+- **Nie wyłączaj flagi, dopóki trwają okna** (od startu pierwszego okna do końca ostatniego z dodatkowym
+  czasem – „moment ujawnienia” na ekranie okien). Bez flagi etap wraca do jednej ramy: treść zadań staje
+  się jawna dla wszystkich od otwarcia ramy, a premoderacja forum/czatu trzyma się samej ramy.
+- Nie zmieniaj okien przez `/admin/` – modele są tam tylko do odczytu, bo reguły „po starcie nie wolno”
+  i audyt są w serwisie.
+
+### 32.3. Co pilnuje serwer
+
+Upload (HTML i `POST /api/submissions/…`), `is_late`, PDF treści (`/api/competitions/problems/<id>/statement/`),
+lista zadań w API bieżącej edycji, strona „Zadania” w CMS (i jej API dla django CMS), archiwum, test
+online (start podejścia, termin podejścia, wynik „po zamknięciu”), premoderacja forum i czatu, publikacja
+wyników (`WINDOWS_NOT_FINISHED`), zmiana ramy etapu (`STAGE_WINDOWS_OUTSIDE`). Strefę czasową ucznia
+aktywuje warstwa `apps.time_windows.middleware.ParticipantTimezoneMiddleware` (tylko konkurs z flagą
+i zalogowany uczestnik bez roli personelu, wyłącznie w widokach panelu uczestnika – panele koordynatora,
+recenzenta, `/admin/` i `/cms/` zostają w czasie polskim; podpis „czas polski” zamienia się wtedy na nazwę
+strefy). Od startu pierwszego okna przydział domyślny krajów jest zapisywany w bazie, więc aktualizacja
+`tzdata` albo mapy stref w trakcie zawodów nie przenosi kraju do innego okna. Migracja `time_windows.0002`
+zmienia wyłącznie zachowanie kluczy obcych (`RESTRICT`).
+
+### 32.4. RODO i tłumaczenia
+
+Nowa czynność w rejestrze „Okna czasowe etapu” (tylko konkursy z flagą), sekcja `okna_czasowe` w eksporcie
+danych konta; anonimizacja usuwa strefę ucznia i powód wyjątku (okno i dodatkowy czas zostają jako
+dokumentacja warunków pracy). Katalogi tłumaczeń aplikacji (`backend/apps/*/locale`) kompilują obraz
+(`backend/Dockerfile`), CI i `backend/conftest.py`.
+
+### 32.5. Wycofanie
+
+Usunięcie planu (ekran okien, przed otwarciem etapu) przywraca etapowi jedną ramę. Migracja
+`time_windows.0001` jest odwracalna (`migrate time_windows zero` usuwa wyłącznie tabele tej aplikacji).
+
+## 33. Przegląd tłumaczeń przez native speakerów (L10N-01, `docs/tasks/L10N-01.md`)
+
+Wolontariusze z rolą **tłumacza** (np. kierownicy delegacji `iqo`) przeglądają napisy interfejsu
+w swoim języku pod `/translations/`, proponują poprawki i głosują; **recenzent tłumaczeń** zatwierdza.
+Zatwierdzona poprawka działa bez wydania (nakładka z bazy na katalogi gettext), a do repozytorium
+trafia komendą `export_translations` jako zwykły PR. Kiedy ją widać: proces, który ją zatwierdził –
+od razu; pozostałe procesy `web`/`worker` – po najwyżej 5 s (`TRANSLATION_OVERRIDES_CHECK_SECONDS`);
+bufor stron dla gości (`apps.web.page_cache`, 120 s) jest czyszczony przy każdej zmianie. Dlaczego
+nie Weblate: spec § 1 (nowy serwer albo zasoby produkcji, klucz z prawem zapisu do repozytorium,
+drugi system kont). Serwis publiczny na django CMS (`djcms`) to osobny proces – nakładka go nie
+obejmuje.
+
+### 33.1. Role
+
+- **Tłumacz** (proponuje, głosuje, zgłasza błąd ze stopki) – nadaje koordynator konkursu z więcej niż
+  jednym językiem interfejsu: „Ustawienia → Tłumacze interfejsu” (`/coordinator/translators/`),
+  wyłącznie osobom związanym z konkursem (członkostwo albo profil uczestnika) i wyłącznie w językach
+  interfejsu tego konkursu.
+- **Nadanie koordynatora należy do konkursu**: widzi je i odbiera każdy koordynator tego konkursu
+  (także po odejściu nadającego), a działa **tylko dopóki** osoba jest z konkursem związana – po
+  wypisaniu, odebraniu roli albo usunięciu profilu rola tłumacza przestaje działać sama (wiersz
+  zostaje na liście koordynatora do usunięcia).
+- **Recenzent tłumaczeń** (zatwierdza, odrzuca, cofa, potwierdza, zamyka zgłoszenia) – nadaje
+  **wyłącznie superkoordynator** (ten sam ekran, pod adresem dowolnego konkursu); jego nadania są
+  platformowe (bez konkursu). Superkoordynator jest recenzentem każdego języka.
+- Każde nadanie, odebranie i każda decyzja – wpis audytu `translation.*` (bez treści zgłoszeń).
+
+### 33.2. Decyzje recenzenta – co trafia do serwisu
+
+- **Poprawka** (zatwierdzona propozycja) – trafia do gettext, ale tylko dopóki `msgstr` w katalogu
+  jest ten sam, co w chwili decyzji. Jeśli wydanie zmieni go w międzyczasie, wygrywa katalog,
+  a napis ma na liście znacznik „do ponownego przeglądu”.
+- **Potwierdzenie** („Obecne tłumaczenie jest poprawne”) – **nigdy** nie trafia do gettext; to sam
+  znacznik „przejrzane”, który eksport zapisuje jako `# l10n-reviewed`.
+
+### 33.3. Z bazy do repozytorium (po serii poprawek)
+
+```sh
+# produkcja – zrzut zatwierdzonych decyzji (sam tekst tłumaczeń, bez danych osób)
+docker compose exec -T web python manage.py export_translations --to-json - > overrides.json
+scp olimpiada:/opt/olimpiada/overrides.json backend/overrides.json   # do checkoutu dewelopera
+
+# checkout dewelopera (DEBUG=1, montowany backend, .git podpięty do kontenera) – zapis do .po, potem PR
+docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm -v "$PWD/.git:/.git:ro" \
+    web python manage.py export_translations --from-json /app/overrides.json --dry-run
+docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm -v "$PWD/.git:/.git:ro" \
+    web python manage.py export_translations --from-json /app/overrides.json
+rm backend/overrides.json
+
+# produkcja, PO wdrożeniu tego PR-a – usunięcie nakładek, które są już w skompilowanych katalogach
+docker compose exec web python manage.py export_translations --prune
+```
+
+- Zapis do `.po` jest **odmawiany** poza checkoutem dewelopera (`DEBUG` i katalog `.git` w `backend`
+  albo nad nim – stąd podpięte `.git` w poleceniu wyżej); w kontenerze produkcyjnym trafiłby do
+  warstwy obrazu i rozjechał z `.mo`. Świadome obejście: `--force`.
+- Eksport zmienia wyłącznie linie `msgstr` poprawek i dopisuje `# l10n-reviewed` (potwierdzenie:
+  sam znacznik). Tekst z JSON-a przechodzi tę samą walidację, co w panelu; poprawka podjęta wobec
+  innego `msgstr` niż dzisiejszy jest wypisana jako **konflikt** i nie nadpisuje nowszego tekstu;
+  wpis, którego nie ma już w katalogach – jako „nieaktualny”.
+- `--prune` usuwa poprawkę tylko wtedy, gdy **skompilowany** katalog (`.mo` – to on trafia do
+  gettext) oddaje już dokładnie jej tekst, a potwierdzenie – gdy wpis ma znacznik. Przed wdrożeniem
+  nie usunie niczego. Nakładki napisów usuniętych z kodu tylko wypisuje; usuwa je `--prune-stale`.
+
+### 33.4. Wyłączenie i awarie
+
+- `TRANSLATION_OVERRIDES_ENABLED=0` w `.env` + restart `web`, `worker`, `beat` – serwis wraca do samych
+  katalogów z repozytorium; decyzje zostają w bazie. Cofnięcie pojedynczej decyzji: „Przywróć
+  tłumaczenie z katalogu” na ekranie napisu (recenzent).
+- W Redisie stoi tylko numer wersji nakładki (bez terminu ważności); każdy proces po zmianie wersji
+  buduje nakładkę z bazy sam (jedno zapytanie). Po restarcie Redisa – nowa wersja i to samo. Błąd
+  nakładki nigdy nie psuje strony – log `apps.translation_review.runtime` i katalog z repozytorium.
+- Limit POST-ów w panelu tłumacza: scope `translations` (120/h na konto).
+
+### 33.5. Wdrożenie tej wersji
+
+`migrate` (`translation_review.0001`–`0002`, tylko nowe tabele i kolumny) – bez kroków ręcznych.
+Obraz kompiluje teraz także katalogi aplikacji (`apps/*/locale`). Zmienił się manifest adresów
+(`/translations/` – `backend/djcms_contract/app_routes.*`), więc konfiguracja proxy z § 23 musi
+zostać przeładowana (robi to `deploy.sh`). Odnośnik „Zgłoś tłumaczenie” stoi w domyślnej stopce
+(`templates/theme/footer.html`); paczka motywu, która nadpisuje slot `footer`, dołącza go tym samym
+fragmentem: `{% include "web/_translation_report_link.html" with css_class="footer__link" %}`. Olimpiada Kwantowa
+(sam polski) nie widzi żadnej zmiany: brak pozycji w menu, brak odnośnika w stopce, brak wiersza
+w rejestrze czynności.
+
+## 34. Tłumaczenia zadań przez delegacje (TR-01, `docs/tasks/TR-01.md`)
+
+Funkcja istnieje wyłącznie w konkursie w trybie **`DELEGATIONS`** (§ 28) – w Olimpiadzie Kwantowej
+nie ma ani ekranów (404), ani pozycji menu, ani odnośnika na karcie zadania. Nowa aplikacja
+`apps.problem_translations` (migracje `problem_translations.0001`–`0002`, same nowe tabele i kolumny – odwracalne).
+
+### 34.1. Wdrożenie
+
+- `scripts/deploy.sh` jak zwykle (migracja + `collectstatic`). KaTeX jest **zwendorowany**
+  (`apps/problem_translations/static/problem_translations/vendor/katex/`, wersja 0.19.0, MIT) – CSP bez
+  zmian (KaTeX nie idzie z CDN-u; htmx i Alpine strony bazowej – jak w całym serwisie – z CDN-ów przypiętych
+  SRI, bez treści zadania w żądaniu). Wersja, skróty i sposób przycięcia CSS: `vendor/katex/VERSION`.
+- Obraz kompiluje teraz także katalogi tłumaczeń aplikacji (`apps/*/locale/*/LC_MESSAGES/django.po`,
+  `backend/Dockerfile`) – bez przebudowy obrazu ekrany opiekuna byłyby po polsku.
+- Nowy scope throttlingu `translation` (1200/h na konto) – bez zmian w `.env`.
+- Wgranie PDF-u tłumaczenia skanuje clamd **synchronicznie**; gdy clamd nie odpowiada, wgranie jest
+  odrzucane (komunikat „spróbuj ponownie”), edytor tekstowy działa dalej. Przed nocą tłumaczeń:
+  `docker compose ps clamav` (healthy).
+
+### 34.2. Przebieg (koordynator)
+
+1. „Etapy → Tłumaczenia zadań” (`/coordinator/translations/`) → etap → **okno tłumaczeń** (otwarcie,
+   zamknięcie ≤ otwarcie etapu) i tryb: *osobne* (każda delegacja tłumaczy sama) albo *wspólne* (jedno
+   tłumaczenie na język). Trybu nie da się zmienić, gdy w etapie są już tłumaczenia.
+2. Wersja oficjalna: tytuł i PDF – jak dotąd na ekranie zadań etapu; **tekst** (Markdown + LaTeX) –
+   „Tekst oficjalny” przy zadaniu. Każda zmiana tekstu, tytułu albo PDF-u podnosi wersję; tłumaczenia
+   oparte na starszej dostają znacznik „nieaktualne”, a opiekunowie – list.
+3. Opiekunowie deklarują języki (`/delegation/translations/`) i w oknie tłumaczą (edytor z autozapisem
+   albo PDF), potem „Wyślij do akceptacji”.
+4. Kolejka „Do przeglądu” → „Zatwierdź” albo „Zwróć do poprawy” (komentarz obowiązkowy). Zatwierdzone
+   jest zablokowane; nieaktualnego nie da się zatwierdzić.
+5. Po otwarciu etapu uczeń ma na karcie zadania „Treść w języku: …” (zatwierdzona wersja) obok wersji
+   oficjalnej.
+6. Finał stacjonarny: ekran etapu → „Eksport do druku” → PDF (serwer) albo „Widok do druku”
+   (przeglądarka → „Zapisz jako PDF”; konieczny dla wzorów i pism CJK/indyjskich/arabskich).
+
+### 34.3. Poufność i dziennik
+
+Źródło przed otwarciem etapu widzi koordynator i opiekun z delegacją w bieżącej edycji – **tylko
+w otwartym oknie**. Odpowiedzi mają `Cache-Control: no-store`. Dziennik (`/coordinator/audit/`,
+akcje `translation.*`): `source_viewed`, `source_downloaded`, `file_downloaded`, `reviewed`,
+`file_reviewed`, `student_viewed`, `student_downloaded`, `exported`, `submitted`, `withdrawn`,
+`reopened`, `approved`, `returned`, `pdf_uploaded`, `languages_declared`, `student_language_set`,
+`window_set`, `source_changed`. Kto pobrał arkusz przed zawodami:
+
+```sh
+docker compose exec web python manage.py shell -c "from apps.core.models import AuditLog; [print(a.at, a.actor_id, a.action, a.target_id, a.diff) for a in AuditLog.objects.filter(action__in=['translation.source_downloaded','translation.file_downloaded','translation.source_viewed']).order_by('at')]"
+```
+
+PDF-y pobrane przez opiekuna mają znak wodny: kod kraju, „CONFIDENTIAL”, data i id konta.
+
+### 34.4. Wycofanie
+
+Wyłączenie trybu delegacji ukrywa wszystkie ekrany (404); dane zostają. Wycofanie kodu: `migrate
+problem_translations zero` (usuwa tabele tłumaczeń – najpierw eksport do druku, jeśli potrzebny).
+
+## 35. Płatności online za udział – Stripe, Przelewy24, przelew, faktury (PAY-01, `docs/tasks/PAY-01.md`)
+
+Opłaty za udział płacone online: przez **delegacje** (IQO, cennik delegacji w EUR) i – w konkursach
+z rejestracją otwartą – przez **uczestników** (należność z ekranu „Wpisowe”, zwykle PLN). Wszystko za
+flagą konkursu **`fees`** (domyślnie wyłączona – Olimpiada Kwantowa nie widzi ani adresu, ani pozycji
+menu). Aplikacja `apps.payments`, migracja `payments.0001` (nowe tabele, odwracalna).
+
+### 35.1. Zmienne środowiskowe (`.env`, usługi `web` i `worker`)
+
+| Zmienna | Wartość | Uwagi |
+|---|---|---|
+| `STRIPE_SECRET_KEY` | `sk_test_…` (test) / `sk_live_…` | Stripe → Developers → API keys → Secret key. Może być *restricted key* z prawem zapisu do Checkout Sessions i Refunds. |
+| `STRIPE_WEBHOOK_SECRET` | `whsec_…` | Signing secret endpointu webhooka; kilka po przecinku (rotacja, kilka endpointów). |
+| `P24_MERCHANT_ID` | liczba | Panel Przelewy24 → Moje dane → Dane API. |
+| `P24_POS_ID` | liczba | Zwykle = merchant ID. |
+| `P24_API_KEY` | napis | „Klucz do raportów” (REST API). |
+| `P24_CRC` | napis | Klucz CRC (podpis SHA-384). |
+| `P24_SANDBOX` | `true`/`false` | `true` = `sandbox.przelewy24.pl` (osobne konto sandbox). |
+
+Pusty klucz = operator wyłączony: przycisk płatności się nie pokazuje, a jego webhook odpowiada **404**.
+Sekrety nie trafiają do bazy ani do audytu. Po zmianie `.env`: `docker compose up -d web worker`
+(restart, nie reload). Ekran `/coordinator/payments/prices/` pokazuje, czy operator jest skonfigurowany
+i czy Stripe jest w **trybie testowym**.
+
+### 35.2. Stripe – konfiguracja panelu (najpierw tryb testowy)
+
+1. Stripe Dashboard → przełącznik **Test mode** → Developers → API keys → skopiuj *Secret key* do
+   `STRIPE_SECRET_KEY`.
+2. Developers → **Webhooks** → *Add endpoint*: URL `https://<domena-konkursu>/payments/webhooks/stripe/`
+   (jeden endpoint na instalację – płatność odnajdujemy po identyfikatorze sesji, nie po domenie; może
+   to być domena dowolnego konkursu z tej instalacji). Zdarzenia: `checkout.session.completed`,
+   `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`,
+   `checkout.session.expired`, `refund.updated`, `refund.failed`. *Signing secret* → `STRIPE_WEBHOOK_SECRET`.
+3. Settings → Payment methods: karty (opcjonalnie inne metody; metody odroczone, np. SEPA, kończą się
+   `async_payment_succeeded` i są obsługiwane). Settings → Branding: nazwa i logo organizatora.
+4. Próba: konkurs z `fees`, cennik, opiekun wystawia pro formę → „Zapłać kartą” → karta testowa
+   `4242 4242 4242 4242` (dowolna przyszła data, dowolny CVC) → po kilku sekundach zamówienie „zapłacone”,
+   faktura `…/FV/<rok>/0001`, list do płacącego. W panelu Stripe → Webhooks → endpoint: odpowiedzi 200.
+   Lokalnie: `stripe listen --forward-to https://<host>/payments/webhooks/stripe/` (CLI poda własny `whsec_`).
+5. Zwrot próbny z ekranu zamówienia koordynatora („Zleć zwrot”) – w Stripe pojawia się Refund.
+6. **Produkcja**: wyłącz Test mode, powtórz kroki 1–2 z kluczami live (endpoint live ma inny `whsec_`),
+   wpisz `sk_live_…`, restart, jedna płatność kontrolna i jej zwrot.
+
+### 35.3. Przelewy24 – konfiguracja panelu (tylko PLN)
+
+1. Konto sandbox (`sandbox.przelewy24.pl`) → Moje dane → Dane API: merchant ID, POS ID, klucz do
+   raportów, klucz CRC → `P24_*`, `P24_SANDBOX=true`.
+2. Adres powiadomień (`urlStatus`) wysyłamy przy rejestracji każdej transakcji:
+   `https://<domena-konkursu>/payments/webhooks/przelewy24/` (zwroty: `…/przelewy24/refund/`). W panelu
+   P24 nie trzeba go wpisywać; jeśli konto ma listę dozwolonych adresów powiadomień – dopisz oba.
+3. Wpłata jest zapisywana dopiero po udanym `PUT /transaction/verify` – nieudany verify daje 503 i P24
+   ponawia powiadomienie. Limit transakcji 15 min: nowa próba tego samego zamówienia jest możliwa po
+   20 min (ochrona przed podwójną zapłatą).
+4. **Stan:** adapter P24 jest zaimplementowany i przetestowany na atrapie HTTP (podpisy z dokumentacji
+   REST v1), **nie** na sandboxie – przed włączeniem na produkcji zrób płatność i zwrot w sandboxie.
+
+### 35.4. Włączenie w konkursie
+
+1. Flaga: `/admin/` → Konkursy → `feature_flags` → `"fees": true` (albo powłoką jak w § 28.1).
+2. `/coordinator/payments/prices/`: **Sprzedawca, rachunek i dokumenty** – NIP/VAT ID, IBAN, SWIFT, bank,
+   prefiks numeracji (domyślnie slug, np. `IQO/FV/2026/0001`), adnotacja VAT, uwagi, termin pro formy,
+   metody płatności. Nazwa, adres i dane rejestrowe sprzedawcy pochodzą z pól organizatora konkursu.
+3. Cennik delegacji edycji (konkurs w trybie delegacji): waluta, „cena wczesna do”, „cena późna od”,
+   siatka cen (delegacja, uczeń, opiekun, obserwator × wczesna/podstawowa/późna).
+4. Konkurs z rejestracją otwartą: cennik i naliczenie należności na ekranie „Wpisowe” (`/coordinator/fees/`)
+   – uczestnik dostaje przycisk „Zapłać online” na kaflu „Wpisowe”.
+5. **Wzór faktury** (pro forma i faktura, PDF) zatwierdza księgowa organizatora przed pierwszym konkursem
+   z opłatami: system numeruje dokumenty ciągle (per konkurs, rodzaj i rok), ale nie liczy VAT, nie
+   prowadzi rejestru VAT/JPK i nie wystawia korekt (decyzja D15 po zmianie z 4.10.2026).
+
+### 35.5. Przelew tradycyjny, dowody wpłat, eksport
+
+- Płacący widzi IBAN i **kod referencyjny** (tytuł przelewu). Koordynator na ekranie zamówienia
+  „Wpływ przelewu”: data wpływu, notatka, opcjonalnie dowód (PDF/JPG/PNG ≤ 10 MB) – plik idzie do bucketu
+  prac (prefiks `payments/`) i do skanu ClamAV (kolejka `scan`); do pobrania dopiero po werdykcie „czysty”,
+  zawsze jako załącznik. Plik zainfekowany jest usuwany, wpłata zostaje. Wpłatę zapisuje się
+  **wyłącznie na zamówienie otwarte** – przelew z kodem zamówienia anulowanego zwraca się płacącemu
+  w banku (poza systemem) albo zalicza po wystawieniu przez opiekuna nowej pro formy.
+- **Zwroty** wskazuje się **pozycjami i ilościami** (np. 1 × uczeń); kwotę liczy system. Zwrócone miejsca
+  przestają być opłacone. Wpłata „do wyjaśnienia” (podwójna, rozbieżna, po anulowaniu) wraca w całości.
+  Brak odpowiedzi operatora przy zwrocie → zwrot zostaje „w toku” i jest ponawiany automatycznie z tym
+  samym kluczem idempotencji (bez ryzyka podwójnego zwrotu); odmowa operatora → „nieudany”.
+- `/coordinator/payments/export.csv?edition=<id>` – jeden wiersz na zamówienie (nabywca, VAT ID, kwota,
+  waluta, stan, metoda, identyfikator transakcji, zwroty, numery pro formy i faktury). Zdarzenie w audycie.
+
+### 35.6. Kontrakt adresów i limity
+
+Nowy pierwszy segment `payments/` (`RESERVED_SLUGS`, `backend/djcms_contract/` – zaktualizowane). Webhooki
+`/payments/webhooks/*` są **bez** sesji i CSRF (podpis), limit `payment_webhooks` (600/min per IP; stub
+z wydania K zostaje przy `payments`, 60/min). Nowe stawki
+`checkout` (20/h per konto: „Wystaw pro formę”, „Zapłać”) i `payments_admin` (120/h, czynności koordynatora).
+Stub `/api/v1/payments/<slug>/` z wydania K zostaje bez zmian.
+
+**Sprzątanie (beat `payments-sweep`, co 15 min, `apps.payments.tasks.sweep_payments`)** – wymaga
+działającego `beat` i `worker`: próba Stripe starsza niż czas życia sesji (60 min + 10) → `GET` sesji
+(wygasła → przerwana, zapłacona a webhook zginął → wpłata rozliczona jak ze zdarzenia); próba bez
+identyfikatora sesji starsza niż 30 s → przerwana; P24 starsza niż 80 min → przerwana; zwrot „w toku”
+bez identyfikatora operatora starszy niż 2 min → zlecony ponownie. Bez flagi `fees` w żadnym konkursie
+zadanie robi dwa puste zapytania.
+
+### 35.7. Diagnoza i wycofanie
+
+- Dziennik doręczeń: `/admin/` → Płatności → „Doręczenia od dostawców” (panel płatności w `/admin/` jest
+  tylko do odczytu – zmiany stanu wyłącznie przez ekrany koordynatora, z audytem).
+  `outcome`: `succeeded`, `mismatch` (kwota/waluta inna niż zamówienie – pulpit „Do wyjaśnienia”),
+  `unknown_payment`, `duplicate` (nie zapisywane – odpowiedź), `ignored`, `mode_mismatch` (zdarzenie live
+  przy kluczu `sk_test_…` albo odwrotnie – pominięte; sprawdź, czy endpoint i klucz są z tego samego trybu).
+- 400 w panelu Stripe = zły `STRIPE_WEBHOOK_SECRET` (albo endpoint test/live pomylony); 404 = brak klucza
+  w `.env` usługi `web`.
+- Wycofanie: wyłączenie flagi `fees` ukrywa ekrany (404); dane zostają. Migracje `payments.0001`–`0002` są
+  odwracalna, ale **dokumenty księgowe** trzeba przed tym wyeksportować (5 lat przechowywania).
+
 ## 36. Webinary w LiveKit (WEB-01, `docs/tasks/WEB-01.md`)
 
 Koordynator planuje webinary w panelu (`Komunikacja → Webinary`); uczestnicy, komisja i (opcjonalnie)
@@ -4441,233 +4779,6 @@ przerywa restart serwera LiveKit – poza godzinami webinarów). Zatrzymanie war
 `docker compose -f docker-compose.yml -f deploy/livekit/docker-compose.livekit.yml --profile livekit stop livekit livekit-egress livekit-redis`
 i `LIVEKIT_PROXY=0` + `scripts/proxy_config.sh update`.
 
-## 29. Statystyki szkół (STAT-01, flaga `school_statistics`)
-
-Funkcja liczy agregaty z istniejących danych; jedyna tabela to `school_stats_frozenmembership`
-(migracja `school_stats.0001_initial`, odwracalna) – przynależność wpisów do szkół zamrożona przy
-publikacji wyników (`docs/tasks/STAT-01.md` § 10, M3). Wdrożenie nie wymaga kroku ręcznego poza
-zwykłym `migrate`; etapy ogłoszone wcześniej zamrażają się same przy pierwszym wejściu na ekran.
-Flaga jest domyślnie **wyłączona** (adresy `/supervisor/statistics/…`
-i `/coordinator/school-stats/…` dają 404, menu i pulpit opiekuna bez zmian).
-
-**Zapalenie** (`/admin/ → Konkursy → <konkurs> → feature_flags`, § 6.4):
-
-```json
-{"school_statistics": true}
-```
-
-Razem z flagą rejestr czynności konkursu dostaje wiersz „Statystyki szkół i opiekunów szkolnych”
-(wersja 1.12) – zapalenie jest więc decyzją organizatora o nowym celu przetwarzania (opiekun widzi
-przebieg ucznia przez edycje), nie skutkiem wdrożenia. Przed zapaleniem warto zweryfikować opiekunów
-(`SchoolSupervisor.verified` + szkoła z wykazu) – bez tego opiekun widzi swoich uczniów, województwo
-i całość, ale nie agregat szkoły i nie pobierze raportu PDF.
-
-**Pamięć podręczna** (Redis): klucze `school_stats:v2:<oś>:<edycja>:<odcisk publikacji>`; doba dla
-edycji zamkniętej publikacjami albo nie bieżącej, 5 minut dla bieżącej w toku. Ponowna publikacja zmienia
-odcisk, więc nic nie trzeba czyścić ręcznie. W kluczach są wyłącznie agregaty (bez identyfikatorów
-osób).
-
-**Tłumaczenia:** napisy aplikacji mają własny katalog `backend/apps/school_stats/locale/` (maszynowe,
-jak § 26.3). Obraz kompiluje od tego wydania także katalogi aplikacji (`apps/*/locale`), a test
-`apps/core/tests/test_translations.py` sprawdza je tą samą miarą co katalog wspólny.
-
-**IQO:** oś grupowania to dziś szkoła z profilu uczestnika (`apps/school_stats/grouping.py`). Oś
-`delegation` (delegacje krajowe z § 28, region = kraj) jest przygotowanym punktem zaczepienia
-(`axis_for`) – dołożenie jej nie zmienia ekranów ani reguł progu.
-
-## 32. Okna czasowe etapu według stref (TZ-01, `docs/tasks/TZ-01.md`)
-
-Etap zdalny konkursu z flagą **`stage_time_windows`** może pracować w kilku oknach czasowych (np. trzy
-starty co 8 h, każdy po 5 h) z przydziałem krajów według strefy. Bez flagi (Olimpiada Kwantowa) nic się
-nie zmienia: żadna bramka okien nie pyta bazy, ekranu nie ma (404), menu i panel uczestnika są te same.
-
-### 32.1. Włączenie dla `iqo`
-
-1. Wdrożenie zakłada tabele aplikacji `time_windows` (migracja `time_windows.0001`, same nowe tabele –
-   żadna istniejąca tabela się nie zmienia). Nowych segmentów adresów nie ma (`coordinator/…`,
-   `delegation/…` są już w kontrakcie).
-2. Flaga – `/admin/` → Konkursy → `iqo` → „Feature flags”: dopisz `"stage_time_windows": true`, albo:
-   ```sh
-   docker compose exec web python manage.py shell -c "from apps.tenancy.models import Competition; c = Competition.objects.get(slug='iqo'); c.feature_flags = {**(c.feature_flags or {}), 'stage_time_windows': True}; c.save(update_fields=['feature_flags'])"
-   ```
-3. Koordynator ustawia okna **przed otwarciem etapu**: „Etapy → <etap> → Okna czasowe”
-   (`PODRECZNIK-ORGANIZATORA.md` § 10e). Rama etapu (otwarcie – termin oddania) musi obejmować wszystkie
-   okna razem z dodatkowym czasem uczniów; beat zamyka etap (`LOCKED`) dopiero po ramie.
-
-### 32.2. Czego nie robić
-
-- **Nie wyłączaj flagi, dopóki trwają okna** (od startu pierwszego okna do końca ostatniego z dodatkowym
-  czasem – „moment ujawnienia” na ekranie okien). Bez flagi etap wraca do jednej ramy: treść zadań staje
-  się jawna dla wszystkich od otwarcia ramy, a premoderacja forum/czatu trzyma się samej ramy.
-- Nie zmieniaj okien przez `/admin/` – modele są tam tylko do odczytu, bo reguły „po starcie nie wolno”
-  i audyt są w serwisie.
-
-### 32.3. Co pilnuje serwer
-
-Upload (HTML i `POST /api/submissions/…`), `is_late`, PDF treści (`/api/competitions/problems/<id>/statement/`),
-lista zadań w API bieżącej edycji, strona „Zadania” w CMS (i jej API dla django CMS), archiwum, test
-online (start podejścia, termin podejścia, wynik „po zamknięciu”), premoderacja forum i czatu, publikacja
-wyników (`WINDOWS_NOT_FINISHED`), zmiana ramy etapu (`STAGE_WINDOWS_OUTSIDE`). Strefę czasową ucznia
-aktywuje warstwa `apps.time_windows.middleware.ParticipantTimezoneMiddleware` (tylko konkurs z flagą
-i zalogowany uczestnik bez roli personelu, wyłącznie w widokach panelu uczestnika – panele koordynatora,
-recenzenta, `/admin/` i `/cms/` zostają w czasie polskim; podpis „czas polski” zamienia się wtedy na nazwę
-strefy). Od startu pierwszego okna przydział domyślny krajów jest zapisywany w bazie, więc aktualizacja
-`tzdata` albo mapy stref w trakcie zawodów nie przenosi kraju do innego okna. Migracja `time_windows.0002`
-zmienia wyłącznie zachowanie kluczy obcych (`RESTRICT`).
-
-### 32.4. RODO i tłumaczenia
-
-Nowa czynność w rejestrze „Okna czasowe etapu” (tylko konkursy z flagą), sekcja `okna_czasowe` w eksporcie
-danych konta; anonimizacja usuwa strefę ucznia i powód wyjątku (okno i dodatkowy czas zostają jako
-dokumentacja warunków pracy). Katalogi tłumaczeń aplikacji (`backend/apps/*/locale`) kompilują obraz
-(`backend/Dockerfile`), CI i `backend/conftest.py`.
-
-### 32.5. Wycofanie
-
-Usunięcie planu (ekran okien, przed otwarciem etapu) przywraca etapowi jedną ramę. Migracja
-`time_windows.0001` jest odwracalna (`migrate time_windows zero` usuwa wyłącznie tabele tej aplikacji).
-
-## 34. Tłumaczenia zadań przez delegacje (TR-01, `docs/tasks/TR-01.md`)
-
-Funkcja istnieje wyłącznie w konkursie w trybie **`DELEGATIONS`** (§ 28) – w Olimpiadzie Kwantowej
-nie ma ani ekranów (404), ani pozycji menu, ani odnośnika na karcie zadania. Nowa aplikacja
-`apps.problem_translations` (migracje `problem_translations.0001`–`0002`, same nowe tabele i kolumny – odwracalne).
-
-### 34.1. Wdrożenie
-
-- `scripts/deploy.sh` jak zwykle (migracja + `collectstatic`). KaTeX jest **zwendorowany**
-  (`apps/problem_translations/static/problem_translations/vendor/katex/`, wersja 0.19.0, MIT) – CSP bez
-  zmian (KaTeX nie idzie z CDN-u; htmx i Alpine strony bazowej – jak w całym serwisie – z CDN-ów przypiętych
-  SRI, bez treści zadania w żądaniu). Wersja, skróty i sposób przycięcia CSS: `vendor/katex/VERSION`.
-- Obraz kompiluje teraz także katalogi tłumaczeń aplikacji (`apps/*/locale/*/LC_MESSAGES/django.po`,
-  `backend/Dockerfile`) – bez przebudowy obrazu ekrany opiekuna byłyby po polsku.
-- Nowy scope throttlingu `translation` (1200/h na konto) – bez zmian w `.env`.
-- Wgranie PDF-u tłumaczenia skanuje clamd **synchronicznie**; gdy clamd nie odpowiada, wgranie jest
-  odrzucane (komunikat „spróbuj ponownie”), edytor tekstowy działa dalej. Przed nocą tłumaczeń:
-  `docker compose ps clamav` (healthy).
-
-### 34.2. Przebieg (koordynator)
-
-1. „Etapy → Tłumaczenia zadań” (`/coordinator/translations/`) → etap → **okno tłumaczeń** (otwarcie,
-   zamknięcie ≤ otwarcie etapu) i tryb: *osobne* (każda delegacja tłumaczy sama) albo *wspólne* (jedno
-   tłumaczenie na język). Trybu nie da się zmienić, gdy w etapie są już tłumaczenia.
-2. Wersja oficjalna: tytuł i PDF – jak dotąd na ekranie zadań etapu; **tekst** (Markdown + LaTeX) –
-   „Tekst oficjalny” przy zadaniu. Każda zmiana tekstu, tytułu albo PDF-u podnosi wersję; tłumaczenia
-   oparte na starszej dostają znacznik „nieaktualne”, a opiekunowie – list.
-3. Opiekunowie deklarują języki (`/delegation/translations/`) i w oknie tłumaczą (edytor z autozapisem
-   albo PDF), potem „Wyślij do akceptacji”.
-4. Kolejka „Do przeglądu” → „Zatwierdź” albo „Zwróć do poprawy” (komentarz obowiązkowy). Zatwierdzone
-   jest zablokowane; nieaktualnego nie da się zatwierdzić.
-5. Po otwarciu etapu uczeń ma na karcie zadania „Treść w języku: …” (zatwierdzona wersja) obok wersji
-   oficjalnej.
-6. Finał stacjonarny: ekran etapu → „Eksport do druku” → PDF (serwer) albo „Widok do druku”
-   (przeglądarka → „Zapisz jako PDF”; konieczny dla wzorów i pism CJK/indyjskich/arabskich).
-
-### 34.3. Poufność i dziennik
-
-Źródło przed otwarciem etapu widzi koordynator i opiekun z delegacją w bieżącej edycji – **tylko
-w otwartym oknie**. Odpowiedzi mają `Cache-Control: no-store`. Dziennik (`/coordinator/audit/`,
-akcje `translation.*`): `source_viewed`, `source_downloaded`, `file_downloaded`, `reviewed`,
-`file_reviewed`, `student_viewed`, `student_downloaded`, `exported`, `submitted`, `withdrawn`,
-`reopened`, `approved`, `returned`, `pdf_uploaded`, `languages_declared`, `student_language_set`,
-`window_set`, `source_changed`. Kto pobrał arkusz przed zawodami:
-
-```sh
-docker compose exec web python manage.py shell -c "from apps.core.models import AuditLog; [print(a.at, a.actor_id, a.action, a.target_id, a.diff) for a in AuditLog.objects.filter(action__in=['translation.source_downloaded','translation.file_downloaded','translation.source_viewed']).order_by('at')]"
-```
-
-PDF-y pobrane przez opiekuna mają znak wodny: kod kraju, „CONFIDENTIAL”, data i id konta.
-
-### 34.4. Wycofanie
-
-Wyłączenie trybu delegacji ukrywa wszystkie ekrany (404); dane zostają. Wycofanie kodu: `migrate
-problem_translations zero` (usuwa tabele tłumaczeń – najpierw eksport do druku, jeśli potrzebny).
-
-## 33. Przegląd tłumaczeń przez native speakerów (L10N-01, `docs/tasks/L10N-01.md`)
-
-Wolontariusze z rolą **tłumacza** (np. kierownicy delegacji `iqo`) przeglądają napisy interfejsu
-w swoim języku pod `/translations/`, proponują poprawki i głosują; **recenzent tłumaczeń** zatwierdza.
-Zatwierdzona poprawka działa bez wydania (nakładka z bazy na katalogi gettext), a do repozytorium
-trafia komendą `export_translations` jako zwykły PR. Kiedy ją widać: proces, który ją zatwierdził –
-od razu; pozostałe procesy `web`/`worker` – po najwyżej 5 s (`TRANSLATION_OVERRIDES_CHECK_SECONDS`);
-bufor stron dla gości (`apps.web.page_cache`, 120 s) jest czyszczony przy każdej zmianie. Dlaczego
-nie Weblate: spec § 1 (nowy serwer albo zasoby produkcji, klucz z prawem zapisu do repozytorium,
-drugi system kont). Serwis publiczny na django CMS (`djcms`) to osobny proces – nakładka go nie
-obejmuje.
-
-### 33.1. Role
-
-- **Tłumacz** (proponuje, głosuje, zgłasza błąd ze stopki) – nadaje koordynator konkursu z więcej niż
-  jednym językiem interfejsu: „Ustawienia → Tłumacze interfejsu” (`/coordinator/translators/`),
-  wyłącznie osobom związanym z konkursem (członkostwo albo profil uczestnika) i wyłącznie w językach
-  interfejsu tego konkursu.
-- **Nadanie koordynatora należy do konkursu**: widzi je i odbiera każdy koordynator tego konkursu
-  (także po odejściu nadającego), a działa **tylko dopóki** osoba jest z konkursem związana – po
-  wypisaniu, odebraniu roli albo usunięciu profilu rola tłumacza przestaje działać sama (wiersz
-  zostaje na liście koordynatora do usunięcia).
-- **Recenzent tłumaczeń** (zatwierdza, odrzuca, cofa, potwierdza, zamyka zgłoszenia) – nadaje
-  **wyłącznie superkoordynator** (ten sam ekran, pod adresem dowolnego konkursu); jego nadania są
-  platformowe (bez konkursu). Superkoordynator jest recenzentem każdego języka.
-- Każde nadanie, odebranie i każda decyzja – wpis audytu `translation.*` (bez treści zgłoszeń).
-
-### 33.2. Decyzje recenzenta – co trafia do serwisu
-
-- **Poprawka** (zatwierdzona propozycja) – trafia do gettext, ale tylko dopóki `msgstr` w katalogu
-  jest ten sam, co w chwili decyzji. Jeśli wydanie zmieni go w międzyczasie, wygrywa katalog,
-  a napis ma na liście znacznik „do ponownego przeglądu”.
-- **Potwierdzenie** („Obecne tłumaczenie jest poprawne”) – **nigdy** nie trafia do gettext; to sam
-  znacznik „przejrzane”, który eksport zapisuje jako `# l10n-reviewed`.
-
-### 33.3. Z bazy do repozytorium (po serii poprawek)
-
-```sh
-# produkcja – zrzut zatwierdzonych decyzji (sam tekst tłumaczeń, bez danych osób)
-docker compose exec -T web python manage.py export_translations --to-json - > overrides.json
-scp olimpiada:/opt/olimpiada/overrides.json backend/overrides.json   # do checkoutu dewelopera
-
-# checkout dewelopera (DEBUG=1, montowany backend, .git podpięty do kontenera) – zapis do .po, potem PR
-docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm -v "$PWD/.git:/.git:ro" \
-    web python manage.py export_translations --from-json /app/overrides.json --dry-run
-docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm -v "$PWD/.git:/.git:ro" \
-    web python manage.py export_translations --from-json /app/overrides.json
-rm backend/overrides.json
-
-# produkcja, PO wdrożeniu tego PR-a – usunięcie nakładek, które są już w skompilowanych katalogach
-docker compose exec web python manage.py export_translations --prune
-```
-
-- Zapis do `.po` jest **odmawiany** poza checkoutem dewelopera (`DEBUG` i katalog `.git` w `backend`
-  albo nad nim – stąd podpięte `.git` w poleceniu wyżej); w kontenerze produkcyjnym trafiłby do
-  warstwy obrazu i rozjechał z `.mo`. Świadome obejście: `--force`.
-- Eksport zmienia wyłącznie linie `msgstr` poprawek i dopisuje `# l10n-reviewed` (potwierdzenie:
-  sam znacznik). Tekst z JSON-a przechodzi tę samą walidację, co w panelu; poprawka podjęta wobec
-  innego `msgstr` niż dzisiejszy jest wypisana jako **konflikt** i nie nadpisuje nowszego tekstu;
-  wpis, którego nie ma już w katalogach – jako „nieaktualny”.
-- `--prune` usuwa poprawkę tylko wtedy, gdy **skompilowany** katalog (`.mo` – to on trafia do
-  gettext) oddaje już dokładnie jej tekst, a potwierdzenie – gdy wpis ma znacznik. Przed wdrożeniem
-  nie usunie niczego. Nakładki napisów usuniętych z kodu tylko wypisuje; usuwa je `--prune-stale`.
-
-### 33.4. Wyłączenie i awarie
-
-- `TRANSLATION_OVERRIDES_ENABLED=0` w `.env` + restart `web`, `worker`, `beat` – serwis wraca do samych
-  katalogów z repozytorium; decyzje zostają w bazie. Cofnięcie pojedynczej decyzji: „Przywróć
-  tłumaczenie z katalogu” na ekranie napisu (recenzent).
-- W Redisie stoi tylko numer wersji nakładki (bez terminu ważności); każdy proces po zmianie wersji
-  buduje nakładkę z bazy sam (jedno zapytanie). Po restarcie Redisa – nowa wersja i to samo. Błąd
-  nakładki nigdy nie psuje strony – log `apps.translation_review.runtime` i katalog z repozytorium.
-- Limit POST-ów w panelu tłumacza: scope `translations` (120/h na konto).
-
-### 33.5. Wdrożenie tej wersji
-
-`migrate` (`translation_review.0001`–`0002`, tylko nowe tabele i kolumny) – bez kroków ręcznych.
-Obraz kompiluje teraz także katalogi aplikacji (`apps/*/locale`). Zmienił się manifest adresów
-(`/translations/` – `backend/djcms_contract/app_routes.*`), więc konfiguracja proxy z § 23 musi
-zostać przeładowana (robi to `deploy.sh`). Odnośnik „Zgłoś tłumaczenie” stoi w domyślnej stopce
-(`templates/theme/footer.html`); paczka motywu, która nadpisuje slot `footer`, dołącza go tym samym
-fragmentem: `{% include "web/_translation_report_link.html" with css_class="footer__link" %}`. Olimpiada Kwantowa
-(sam polski) nie widzi żadnej zmiany: brak pozycji w menu, brak odnośnika w stopce, brak wiersza
-w rejestrze czynności.
-
 ## 37. Medale olimpiady międzynarodowej, dyplomy w języku ucznia i ranking krajów (MED-01, `docs/tasks/MED-01.md`)
 
 Złoto, srebro, brąz i wyróżnienia liczone z rankingu etapu (domyślnie jak IPhO: 8 % / kolejne 17 % /
@@ -4740,118 +4851,6 @@ Wyłączenie flagi ukrywa ekrany i strony publiczne (404) i przywraca polski sk�
 `UCZESTNIK`; dane (`MedalScheme`, `MedalOverride`, `CertificateLanguage`) zostają. Migracje są
 odwracalne.
 
-## 35. Płatności online za udział – Stripe, Przelewy24, przelew, faktury (PAY-01, `docs/tasks/PAY-01.md`)
-
-Opłaty za udział płacone online: przez **delegacje** (IQO, cennik delegacji w EUR) i – w konkursach
-z rejestracją otwartą – przez **uczestników** (należność z ekranu „Wpisowe”, zwykle PLN). Wszystko za
-flagą konkursu **`fees`** (domyślnie wyłączona – Olimpiada Kwantowa nie widzi ani adresu, ani pozycji
-menu). Aplikacja `apps.payments`, migracja `payments.0001` (nowe tabele, odwracalna).
-
-### 35.1. Zmienne środowiskowe (`.env`, usługi `web` i `worker`)
-
-| Zmienna | Wartość | Uwagi |
-|---|---|---|
-| `STRIPE_SECRET_KEY` | `sk_test_…` (test) / `sk_live_…` | Stripe → Developers → API keys → Secret key. Może być *restricted key* z prawem zapisu do Checkout Sessions i Refunds. |
-| `STRIPE_WEBHOOK_SECRET` | `whsec_…` | Signing secret endpointu webhooka; kilka po przecinku (rotacja, kilka endpointów). |
-| `P24_MERCHANT_ID` | liczba | Panel Przelewy24 → Moje dane → Dane API. |
-| `P24_POS_ID` | liczba | Zwykle = merchant ID. |
-| `P24_API_KEY` | napis | „Klucz do raportów” (REST API). |
-| `P24_CRC` | napis | Klucz CRC (podpis SHA-384). |
-| `P24_SANDBOX` | `true`/`false` | `true` = `sandbox.przelewy24.pl` (osobne konto sandbox). |
-
-Pusty klucz = operator wyłączony: przycisk płatności się nie pokazuje, a jego webhook odpowiada **404**.
-Sekrety nie trafiają do bazy ani do audytu. Po zmianie `.env`: `docker compose up -d web worker`
-(restart, nie reload). Ekran `/coordinator/payments/prices/` pokazuje, czy operator jest skonfigurowany
-i czy Stripe jest w **trybie testowym**.
-
-### 35.2. Stripe – konfiguracja panelu (najpierw tryb testowy)
-
-1. Stripe Dashboard → przełącznik **Test mode** → Developers → API keys → skopiuj *Secret key* do
-   `STRIPE_SECRET_KEY`.
-2. Developers → **Webhooks** → *Add endpoint*: URL `https://<domena-konkursu>/payments/webhooks/stripe/`
-   (jeden endpoint na instalację – płatność odnajdujemy po identyfikatorze sesji, nie po domenie; może
-   to być domena dowolnego konkursu z tej instalacji). Zdarzenia: `checkout.session.completed`,
-   `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`,
-   `checkout.session.expired`, `refund.updated`, `refund.failed`. *Signing secret* → `STRIPE_WEBHOOK_SECRET`.
-3. Settings → Payment methods: karty (opcjonalnie inne metody; metody odroczone, np. SEPA, kończą się
-   `async_payment_succeeded` i są obsługiwane). Settings → Branding: nazwa i logo organizatora.
-4. Próba: konkurs z `fees`, cennik, opiekun wystawia pro formę → „Zapłać kartą” → karta testowa
-   `4242 4242 4242 4242` (dowolna przyszła data, dowolny CVC) → po kilku sekundach zamówienie „zapłacone”,
-   faktura `…/FV/<rok>/0001`, list do płacącego. W panelu Stripe → Webhooks → endpoint: odpowiedzi 200.
-   Lokalnie: `stripe listen --forward-to https://<host>/payments/webhooks/stripe/` (CLI poda własny `whsec_`).
-5. Zwrot próbny z ekranu zamówienia koordynatora („Zleć zwrot”) – w Stripe pojawia się Refund.
-6. **Produkcja**: wyłącz Test mode, powtórz kroki 1–2 z kluczami live (endpoint live ma inny `whsec_`),
-   wpisz `sk_live_…`, restart, jedna płatność kontrolna i jej zwrot.
-
-### 35.3. Przelewy24 – konfiguracja panelu (tylko PLN)
-
-1. Konto sandbox (`sandbox.przelewy24.pl`) → Moje dane → Dane API: merchant ID, POS ID, klucz do
-   raportów, klucz CRC → `P24_*`, `P24_SANDBOX=true`.
-2. Adres powiadomień (`urlStatus`) wysyłamy przy rejestracji każdej transakcji:
-   `https://<domena-konkursu>/payments/webhooks/przelewy24/` (zwroty: `…/przelewy24/refund/`). W panelu
-   P24 nie trzeba go wpisywać; jeśli konto ma listę dozwolonych adresów powiadomień – dopisz oba.
-3. Wpłata jest zapisywana dopiero po udanym `PUT /transaction/verify` – nieudany verify daje 503 i P24
-   ponawia powiadomienie. Limit transakcji 15 min: nowa próba tego samego zamówienia jest możliwa po
-   20 min (ochrona przed podwójną zapłatą).
-4. **Stan:** adapter P24 jest zaimplementowany i przetestowany na atrapie HTTP (podpisy z dokumentacji
-   REST v1), **nie** na sandboxie – przed włączeniem na produkcji zrób płatność i zwrot w sandboxie.
-
-### 35.4. Włączenie w konkursie
-
-1. Flaga: `/admin/` → Konkursy → `feature_flags` → `"fees": true` (albo powłoką jak w § 28.1).
-2. `/coordinator/payments/prices/`: **Sprzedawca, rachunek i dokumenty** – NIP/VAT ID, IBAN, SWIFT, bank,
-   prefiks numeracji (domyślnie slug, np. `IQO/FV/2026/0001`), adnotacja VAT, uwagi, termin pro formy,
-   metody płatności. Nazwa, adres i dane rejestrowe sprzedawcy pochodzą z pól organizatora konkursu.
-3. Cennik delegacji edycji (konkurs w trybie delegacji): waluta, „cena wczesna do”, „cena późna od”,
-   siatka cen (delegacja, uczeń, opiekun, obserwator × wczesna/podstawowa/późna).
-4. Konkurs z rejestracją otwartą: cennik i naliczenie należności na ekranie „Wpisowe” (`/coordinator/fees/`)
-   – uczestnik dostaje przycisk „Zapłać online” na kaflu „Wpisowe”.
-5. **Wzór faktury** (pro forma i faktura, PDF) zatwierdza księgowa organizatora przed pierwszym konkursem
-   z opłatami: system numeruje dokumenty ciągle (per konkurs, rodzaj i rok), ale nie liczy VAT, nie
-   prowadzi rejestru VAT/JPK i nie wystawia korekt (decyzja D15 po zmianie z 4.10.2026).
-
-### 35.5. Przelew tradycyjny, dowody wpłat, eksport
-
-- Płacący widzi IBAN i **kod referencyjny** (tytuł przelewu). Koordynator na ekranie zamówienia
-  „Wpływ przelewu”: data wpływu, notatka, opcjonalnie dowód (PDF/JPG/PNG ≤ 10 MB) – plik idzie do bucketu
-  prac (prefiks `payments/`) i do skanu ClamAV (kolejka `scan`); do pobrania dopiero po werdykcie „czysty”,
-  zawsze jako załącznik. Plik zainfekowany jest usuwany, wpłata zostaje. Wpłatę zapisuje się
-  **wyłącznie na zamówienie otwarte** – przelew z kodem zamówienia anulowanego zwraca się płacącemu
-  w banku (poza systemem) albo zalicza po wystawieniu przez opiekuna nowej pro formy.
-- **Zwroty** wskazuje się **pozycjami i ilościami** (np. 1 × uczeń); kwotę liczy system. Zwrócone miejsca
-  przestają być opłacone. Wpłata „do wyjaśnienia” (podwójna, rozbieżna, po anulowaniu) wraca w całości.
-  Brak odpowiedzi operatora przy zwrocie → zwrot zostaje „w toku” i jest ponawiany automatycznie z tym
-  samym kluczem idempotencji (bez ryzyka podwójnego zwrotu); odmowa operatora → „nieudany”.
-- `/coordinator/payments/export.csv?edition=<id>` – jeden wiersz na zamówienie (nabywca, VAT ID, kwota,
-  waluta, stan, metoda, identyfikator transakcji, zwroty, numery pro formy i faktury). Zdarzenie w audycie.
-
-### 35.6. Kontrakt adresów i limity
-
-Nowy pierwszy segment `payments/` (`RESERVED_SLUGS`, `backend/djcms_contract/` – zaktualizowane). Webhooki
-`/payments/webhooks/*` są **bez** sesji i CSRF (podpis), limit `payment_webhooks` (600/min per IP; stub
-z wydania K zostaje przy `payments`, 60/min). Nowe stawki
-`checkout` (20/h per konto: „Wystaw pro formę”, „Zapłać”) i `payments_admin` (120/h, czynności koordynatora).
-Stub `/api/v1/payments/<slug>/` z wydania K zostaje bez zmian.
-
-**Sprzątanie (beat `payments-sweep`, co 15 min, `apps.payments.tasks.sweep_payments`)** – wymaga
-działającego `beat` i `worker`: próba Stripe starsza niż czas życia sesji (60 min + 10) → `GET` sesji
-(wygasła → przerwana, zapłacona a webhook zginął → wpłata rozliczona jak ze zdarzenia); próba bez
-identyfikatora sesji starsza niż 30 s → przerwana; P24 starsza niż 80 min → przerwana; zwrot „w toku”
-bez identyfikatora operatora starszy niż 2 min → zlecony ponownie. Bez flagi `fees` w żadnym konkursie
-zadanie robi dwa puste zapytania.
-
-### 35.7. Diagnoza i wycofanie
-
-- Dziennik doręczeń: `/admin/` → Płatności → „Doręczenia od dostawców” (panel płatności w `/admin/` jest
-  tylko do odczytu – zmiany stanu wyłącznie przez ekrany koordynatora, z audytem).
-  `outcome`: `succeeded`, `mismatch` (kwota/waluta inna niż zamówienie – pulpit „Do wyjaśnienia”),
-  `unknown_payment`, `duplicate` (nie zapisywane – odpowiedź), `ignored`, `mode_mismatch` (zdarzenie live
-  przy kluczu `sk_test_…` albo odwrotnie – pominięte; sprawdź, czy endpoint i klucz są z tego samego trybu).
-- 400 w panelu Stripe = zły `STRIPE_WEBHOOK_SECRET` (albo endpoint test/live pomylony); 404 = brak klucza
-  w `.env` usługi `web`.
-- Wycofanie: wyłączenie flagi `fees` ukrywa ekrany (404); dane zostają. Migracje `payments.0001`–`0002` są
-  odwracalna, ale **dokumenty księgowe** trzeba przed tym wyeksportować (5 lat przechowywania).
-
 ## 38. Sieć absolwentów i mentoring (ALUM-01, `docs/tasks/ALUM-01.md`)
 
 Funkcja jest za flagą konkursu **`alumni`** (domyślnie wyłączona) i nie ma jej w ekranie
@@ -4915,6 +4914,126 @@ włączonym mentoringu z małoletnimi organizator musi mieć dyżur moderacyjny.
 
 **Definitywne wycofanie funkcji:** wyłączenie flagi (skutki wyżej) i – bo zgoda dotyczyła działającej
 sieci – usunięcie profili (`AlumniProfile.objects.filter(participant__competition=c).delete()`).
+
+## 39. Nadzór zdalny etapów online (PROC-01, `docs/tasks/PROC-01.md`)
+
+Koordynator włącza nadzór **dla wybranego etapu online** (`Etapy → Nadzór zdalny`); uczeń przechodzi
+w konsoli `/me/proctoring/<etap>/` zgodę, sprawdzenie sprzętu, (opcjonalnie) zdjęcie dokumentu
+i nadaje kamerę do pokoju LiveKit; nadzorujący pracują w siatce `/proctoring/<etap>/`. Serwer LiveKit,
+klucze i webhook – **te same, co webinary** (§ 36). Bez flagi `proctoring` nic się nie zmienia: adresy
+404, bramka treści etapu i strażnicy w serwisach wysyłki i testu nie robią zapytań.
+
+### 39.1. Włączenie (kolejność)
+
+1. Wdrożenie z migracjami `proctoring.0001`–`0002` (obraz kompiluje też `apps/*/locale/`).
+2. Serwer LiveKit wg § 36 – przy nadzorze **wariant (a)** (osobna maszyna, § 39.3). Webhook ten sam
+   (`/integrations/livekit/webhook/`); nadzór używa `participant_joined/left`,
+   `track_published/unpublished`, `egress_ended`.
+3. Nagrywanie (tylko gdy organizator je włączy): polityka konta egress w MinIO obejmuje także
+   `submissions/proctoring/*` – zaktualizuj ją z `deploy/livekit/policy-egress.json`
+   (`mc admin policy create local egress-livekit policy-egress.json` → `mc admin policy attach …`)
+   i ustaw w `egress.yaml` `cpu_cost.track_cpu_cost` (komentarz w przykładzie).
+4. Restart `web worker beat` (zadanie beat `proctoring-purge`, 03:40 – retencja nośników i zdjęć).
+5. Flaga konkursu `proctoring` w `/admin/` (`feature_flags`) – **po** decyzji organizatora i ocenie
+   skutków (DPIA, `docs/PODRECZNIK-ORGANIZATORA.md` § 10m), aktualizacji polityki prywatności
+   (sekcja „Nadzór zdalny”), wzoru zgody opiekuna i regulaminu etapu.
+6. Okna w strefach (TZ-01): gdy w instalacji jest `apps.time_windows`, nadzór bierze okno ucznia
+   **sam** (`apps.time_windows.access.effective_window` → `opens_at`, `deadline_at` + tolerancja
+   etapu). `PROCTORING_WINDOW_ADAPTER` zostaje wyłącznie na inny, własny kalendarz.
+7. Próba generalna na etapie testowym (rodzaj „Runda”) z dwoma kontami uczniów i jednym nadzorującym:
+   siatka, wiadomość, incydent, raport, (gdy włączone) nagranie; awaria – zatrzymaj LiveKit i sprawdź
+   zachowanie `block`/`allow`.
+
+Zmienne (`.env`, opcjonalne): `PROCTORING_LEAD_MINUTES` (30), `PROCTORING_GRACE_MINUTES` (30),
+`PROCTORING_RETENTION_DAYS` (30), `PROCTORING_MAX_RETENTION_DAYS` (180), `PROCTORING_WINDOW_ADAPTER`,
+`PROCTORING_UNPROCTORED_AFTER_FAILURES` (3), `PROCTORING_LATE_START_MINUTES` (15).
+
+### 39.2. Bezpieczeństwo – jak to działa
+
+- **Bramka** (`ProctoringGateMiddleware`): w oknie etapu z nadzorem PDF zadania, wysyłka (WWW i API),
+  start i strona testu (oraz – po scaleniu TR-01 – tłumaczenia zadań) widzą wyłącznie uczniowie etapu
+  z gotową sesją i personel (koordynator, komisja). Niezalogowany – logowanie albo 403, zalogowany bez
+  zgłoszenia – 403. Konto liczone w kolejności DRF (token przed sesją). Wysyłka rozwiązania i start
+  testu powtarzają regułę w serwisach (druga linia obrony).
+- **Pokoje per grupa**: `proc-<konkurs>-<klucz>-<grupa>`; grupa = `a<przydział>` (uczeń przydzielony
+  koordynatorowi albo członkowi komisji – także uczeń delegacji), `d<delegacja>` (uczeń delegacji bez
+  przydziału albo przydzielony swojemu opiekunowi), `m` (bez przydziału). Token nadzorującego otwiera
+  **jeden** pokój; opiekun drużyny – wyłącznie pokój swojej delegacji, członek komisji – pokoje swoich
+  uczniów. Grupa `m` powyżej 250 osób – ostrzeżenie na ekranie koordynatora (rozdziel uczniów).
+- Uczeń: `canSubscribe=false`, `canPublishData=false`, `canPublishSources` = kamera (+ ekran/mikrofon,
+  gdy wymagane), pusta nazwa. Nadzorujący: `hidden`, bez nadawania. Wiadomości przez serwer (`SendData`).
+- **Wyproszenia** (`RoomService/RemoveParticipant`): wycofanie zgody i anonimizacja konta – uczeń
+  (i stop aktywnych nagrań); odpięcie przydziału – nadzorujący i jego uczniowie (wracają z nowym
+  tokenem do nowego pokoju); odwołanie opiekuna w DEL-01 – sygnał wyprasza go z pokoju delegacji;
+  zmiana przydziału / „Rozdziel” – uczeń ze starego pokoju.
+- **Zgoda** ważna tylko dla bieżącej wersji **i ustawień etapu** (nagrywanie, mikrofon, ekran, zdjęcie –
+  w skrócie dowodu); zmiana ustawień = nowa zgoda. Niepełnoletni: potwierdzona online zgoda opiekuna,
+  sprawdzana przy każdym tokenie i w bramce (wycofana – gasi zgodę na nadzór), plus oświadczenie
+  ucznia o wiedzy i zgodzie opiekuna na nadzór.
+- **Praca bez nadzoru**: domyślnie **`block`**. Przy `allow` – wyłącznie gdy serwer nieskonfigurowany,
+  nieosiągalny dla platformy albo po `PROCTORING_UNPROCTORED_AFTER_FAILURES` zgłoszonych nieudanych
+  połączeniach; odmowa/odłączenie kamery – prośba o alternatywę. Powód widać w siatce, raporcie i CSV.
+- Limity per konto: `proctoring_token` 60/h, `proctoring_coordinator_token` 1200/h (przełączanie
+  ~100 grup w IQO), `proctoring_action` 600/h, `proctoring_client` 600/h – odpowiedź 429 w JSON-ie.
+- Nagrania (Track Egress, WebM, bez transkodowania): `submissions/proctoring/<konkurs>/<klucz>/<pseudonim>/…`,
+  odczyt adresem na 15 min, wyłącznie koordynator i komisja odwoławcza, audyt `proctoring.recording_viewed`.
+
+### 39.3. Pojemność – szacunek dla 300 uczniów (kamera 320×240, 10 kl./s)
+
+| Pozycja | Szacunek |
+|---|---|
+| Strumień kamery (VP8, limit 150 kb/s, bez simulcastu) | ~100–150 kb/s + ~10 % narzutu RTP/SRTP |
+| Wejście do SFU, 300 kamer | **~45–50 Mb/s** |
+| Wyjście do nadzorujących (np. 15 osób × 20 kafli widocznej strony) | ~45 Mb/s (+3–4 Mb/s na każdą stronę 24 kafli koordynatora) |
+| Ekran (gdy wymagany; 2 kl./s, ≤ 300 kb/s) | +~90 Mb/s wejścia przy 300 uczniach; wyjście tylko „na żądanie” |
+| Mikrofon (gdy wymagany; Opus) | +~30 kb/s na ucznia; nadzorujący odbiera dźwięk jednego kafla naraz |
+| Transfer w etapie 3 h (sama kamera) | ~60 GB wejścia + ~60 GB wyjścia |
+| Nagrania (tylko przy `record`) | ~65 MB/h na ucznia → **~60 GB** na etap 3 h × 300 uczniów |
+| Platforma (Django) | puls 300/min (5 żądań/s), odpytanie wiadomości co 20 s (~15 żądań/s), webhooki w falach przy starcie |
+
+Zalecenie: **osobna maszyna LiveKit 8 vCPU (dedykowane, nie VPS z „steal” – § 36.1), 8–16 GB RAM,
+łącze ≥ 500 Mb/s symetryczne**; SFU przy tak niskich przepływnościach ma duży zapas CPU (przekazuje
+pakiety, nie koduje). Pokoje per przydział/delegację rozkładają się na węzły klastra (Redis). Porty:
+przy kilkuset uczestnikach zakres 50000–50100 nie wystarczy – ustaw `rtc.udp_port` (multipleksowanie
+UDP na jednym porcie) albo szerszy zakres i zaporę. Nagrywanie: Track Egress nie transkoduje, ale każdy
+egress to osobny proces – na 300 nagrań naraz zaplanuj 2–3 węzły egress (8 vCPU / 16 GB,
+`track_cpu_cost` 0.1–0.2) i **próbę obciążeniową** przed etapem; ~60 GB w buckecie na etap.
+
+### 39.4. Awarie, retencja i wyłączenie
+
+- LiveKit niedostępny w trakcie etapu: `block` (domyślne) – treść zamknięta, koordynator zatwierdza
+  alternatywę uczniom, którzy zgłoszą się w konsoli; `allow` – „Kontynuuj bez nadzoru” z powodem.
+- Awaryjnie: zdjąć flagę `proctoring` (bramka znika natychmiast) albo przestawić etap na `allow`.
+- Retencja: beat `apps.proctoring.tasks.purge_expired` (codziennie) – zdjęcia dokumentu po etapie,
+  nagrania, dziennik, wiadomości i uwagi do prośby o alternatywę 30 dni po wynikach i oknie reklamacji;
+  ręcznie – `docker compose exec web python manage.py shell -c "from apps.proctoring.services import purge_expired; print(purge_expired())"`.
+  Wstrzymanie usunięcia ucznia – pole „powód wstrzymania” na ekranie nadzoru etapu.
+
+### 39.5. Rozmowy etapu w LiveKit i nadzór rozmowy (STAGE-LK-01)
+
+- Etap-rozmowa z dostawcą `livekit` (§ 25.9) używa tego samego serwera i webhooka; adres pokoju przy
+  zapisie to `livekit://olimpiada-…` (identyfikator, nie link). Nowa migracja: `competitions.0034`
+  (lista wyboru dostawcy).
+- Uprawnienia LiveKit odwzorowują Jitsi: każda rola nadaje i odbiera; **żaden token przeglądarki
+  nie ma `roomAdmin`** – moderator (koordynator, aktywna komisja) wydaje polecenia przez platformę
+  (odbierz/oddaj głos, usuń, wpuść ponownie; `…/room-control/`, limit `interview_control` 600/h,
+  audyt `interview.room_control` z pseudonimem osoby). Token ważny w oknie terminu.
+- Przed każdym tokenem (rozmowa, próba sprzętu, pokoje nadzoru `proc-…`) platforma woła
+  `RoomService/CreateRoom` (idempotentnie) – serwer ma `room.auto_create: false`; awaria = 502.
+- Decyzje moderatora przeżywają ponowne wejście: osoba usunięta nie dostaje nowego tokenu na ten
+  termin, osoba bez głosu – token bez nadawania, dopóki moderator nie kliknie „Wpuść ponownie” /
+  „Oddaj głos” (lista na stronie pokoju moderatora).
+- Próba sprzętu ma **osobny pokój na zapis** (`…-b<zapis>-test`; komisja – `…-s<konto>-test`) – uczniowie
+  jednego terminu nie spotykają się bez moderatora i bez nadzoru.
+- `livekit://…` jest zawsze pokojem platformy (nigdy linkiem w ekranach i listach); bez serwera
+  wejście odpowiada „Serwer wideo nie odpowiada” (502), a nie 404.
+- Nagrywania pokoi rozmów **nie ma** (jak w Jitsi), chyba że etap ma nadzór z `record` – wtedy
+  nagrywana jest kamera ucznia **z ważną zgodą** (zgoda obejmuje `record`; włączenie nagrywania
+  w trakcie wymaga nowej zgody), nigdy ucznia z zatwierdzoną alternatywą; sesji nadzoru nie zakłada
+  webhook (Track Egress, retencja § 39.4).
+- Zmiana dostawcy etapu z LiveKit przy włączonym nadzorze – odmowa w formularzu; etap, który przestał
+  być LiveKit (np. z `/admin/`), ma nadzór ignorowany.
+- Pojemność: rozmowa to kilka osób w pokoju – pomijalne obciążenie wobec § 39.3.
 
 ## 43. Test odtwarzania kopii (OPS-01, `docs/tasks/OPS-01.md`)
 
@@ -5077,126 +5196,6 @@ dokłada balast do pomiaru RTO. Polecenia skryptu na atrapach: `scripts/tests/ba
 Wycofanie: wdrożenie poprzedniej wersji przywraca cotygodniowy wpis crona; po teście zostają tylko
 wpisy audytu `backup.restore_check`, klucz `backup:restore_check` w Redisie i plik
 `restore-checks.jsonl` (ok. 2 KB na noc, bez danych osobowych).
-
-## 39. Nadzór zdalny etapów online (PROC-01, `docs/tasks/PROC-01.md`)
-
-Koordynator włącza nadzór **dla wybranego etapu online** (`Etapy → Nadzór zdalny`); uczeń przechodzi
-w konsoli `/me/proctoring/<etap>/` zgodę, sprawdzenie sprzętu, (opcjonalnie) zdjęcie dokumentu
-i nadaje kamerę do pokoju LiveKit; nadzorujący pracują w siatce `/proctoring/<etap>/`. Serwer LiveKit,
-klucze i webhook – **te same, co webinary** (§ 36). Bez flagi `proctoring` nic się nie zmienia: adresy
-404, bramka treści etapu i strażnicy w serwisach wysyłki i testu nie robią zapytań.
-
-### 39.1. Włączenie (kolejność)
-
-1. Wdrożenie z migracjami `proctoring.0001`–`0002` (obraz kompiluje też `apps/*/locale/`).
-2. Serwer LiveKit wg § 36 – przy nadzorze **wariant (a)** (osobna maszyna, § 39.3). Webhook ten sam
-   (`/integrations/livekit/webhook/`); nadzór używa `participant_joined/left`,
-   `track_published/unpublished`, `egress_ended`.
-3. Nagrywanie (tylko gdy organizator je włączy): polityka konta egress w MinIO obejmuje także
-   `submissions/proctoring/*` – zaktualizuj ją z `deploy/livekit/policy-egress.json`
-   (`mc admin policy create local egress-livekit policy-egress.json` → `mc admin policy attach …`)
-   i ustaw w `egress.yaml` `cpu_cost.track_cpu_cost` (komentarz w przykładzie).
-4. Restart `web worker beat` (zadanie beat `proctoring-purge`, 03:40 – retencja nośników i zdjęć).
-5. Flaga konkursu `proctoring` w `/admin/` (`feature_flags`) – **po** decyzji organizatora i ocenie
-   skutków (DPIA, `docs/PODRECZNIK-ORGANIZATORA.md` § 10m), aktualizacji polityki prywatności
-   (sekcja „Nadzór zdalny”), wzoru zgody opiekuna i regulaminu etapu.
-6. Okna w strefach (TZ-01): gdy w instalacji jest `apps.time_windows`, nadzór bierze okno ucznia
-   **sam** (`apps.time_windows.access.effective_window` → `opens_at`, `deadline_at` + tolerancja
-   etapu). `PROCTORING_WINDOW_ADAPTER` zostaje wyłącznie na inny, własny kalendarz.
-7. Próba generalna na etapie testowym (rodzaj „Runda”) z dwoma kontami uczniów i jednym nadzorującym:
-   siatka, wiadomość, incydent, raport, (gdy włączone) nagranie; awaria – zatrzymaj LiveKit i sprawdź
-   zachowanie `block`/`allow`.
-
-Zmienne (`.env`, opcjonalne): `PROCTORING_LEAD_MINUTES` (30), `PROCTORING_GRACE_MINUTES` (30),
-`PROCTORING_RETENTION_DAYS` (30), `PROCTORING_MAX_RETENTION_DAYS` (180), `PROCTORING_WINDOW_ADAPTER`,
-`PROCTORING_UNPROCTORED_AFTER_FAILURES` (3), `PROCTORING_LATE_START_MINUTES` (15).
-
-### 39.2. Bezpieczeństwo – jak to działa
-
-- **Bramka** (`ProctoringGateMiddleware`): w oknie etapu z nadzorem PDF zadania, wysyłka (WWW i API),
-  start i strona testu (oraz – po scaleniu TR-01 – tłumaczenia zadań) widzą wyłącznie uczniowie etapu
-  z gotową sesją i personel (koordynator, komisja). Niezalogowany – logowanie albo 403, zalogowany bez
-  zgłoszenia – 403. Konto liczone w kolejności DRF (token przed sesją). Wysyłka rozwiązania i start
-  testu powtarzają regułę w serwisach (druga linia obrony).
-- **Pokoje per grupa**: `proc-<konkurs>-<klucz>-<grupa>`; grupa = `a<przydział>` (uczeń przydzielony
-  koordynatorowi albo członkowi komisji – także uczeń delegacji), `d<delegacja>` (uczeń delegacji bez
-  przydziału albo przydzielony swojemu opiekunowi), `m` (bez przydziału). Token nadzorującego otwiera
-  **jeden** pokój; opiekun drużyny – wyłącznie pokój swojej delegacji, członek komisji – pokoje swoich
-  uczniów. Grupa `m` powyżej 250 osób – ostrzeżenie na ekranie koordynatora (rozdziel uczniów).
-- Uczeń: `canSubscribe=false`, `canPublishData=false`, `canPublishSources` = kamera (+ ekran/mikrofon,
-  gdy wymagane), pusta nazwa. Nadzorujący: `hidden`, bez nadawania. Wiadomości przez serwer (`SendData`).
-- **Wyproszenia** (`RoomService/RemoveParticipant`): wycofanie zgody i anonimizacja konta – uczeń
-  (i stop aktywnych nagrań); odpięcie przydziału – nadzorujący i jego uczniowie (wracają z nowym
-  tokenem do nowego pokoju); odwołanie opiekuna w DEL-01 – sygnał wyprasza go z pokoju delegacji;
-  zmiana przydziału / „Rozdziel” – uczeń ze starego pokoju.
-- **Zgoda** ważna tylko dla bieżącej wersji **i ustawień etapu** (nagrywanie, mikrofon, ekran, zdjęcie –
-  w skrócie dowodu); zmiana ustawień = nowa zgoda. Niepełnoletni: potwierdzona online zgoda opiekuna,
-  sprawdzana przy każdym tokenie i w bramce (wycofana – gasi zgodę na nadzór), plus oświadczenie
-  ucznia o wiedzy i zgodzie opiekuna na nadzór.
-- **Praca bez nadzoru**: domyślnie **`block`**. Przy `allow` – wyłącznie gdy serwer nieskonfigurowany,
-  nieosiągalny dla platformy albo po `PROCTORING_UNPROCTORED_AFTER_FAILURES` zgłoszonych nieudanych
-  połączeniach; odmowa/odłączenie kamery – prośba o alternatywę. Powód widać w siatce, raporcie i CSV.
-- Limity per konto: `proctoring_token` 60/h, `proctoring_coordinator_token` 1200/h (przełączanie
-  ~100 grup w IQO), `proctoring_action` 600/h, `proctoring_client` 600/h – odpowiedź 429 w JSON-ie.
-- Nagrania (Track Egress, WebM, bez transkodowania): `submissions/proctoring/<konkurs>/<klucz>/<pseudonim>/…`,
-  odczyt adresem na 15 min, wyłącznie koordynator i komisja odwoławcza, audyt `proctoring.recording_viewed`.
-
-### 39.3. Pojemność – szacunek dla 300 uczniów (kamera 320×240, 10 kl./s)
-
-| Pozycja | Szacunek |
-|---|---|
-| Strumień kamery (VP8, limit 150 kb/s, bez simulcastu) | ~100–150 kb/s + ~10 % narzutu RTP/SRTP |
-| Wejście do SFU, 300 kamer | **~45–50 Mb/s** |
-| Wyjście do nadzorujących (np. 15 osób × 20 kafli widocznej strony) | ~45 Mb/s (+3–4 Mb/s na każdą stronę 24 kafli koordynatora) |
-| Ekran (gdy wymagany; 2 kl./s, ≤ 300 kb/s) | +~90 Mb/s wejścia przy 300 uczniach; wyjście tylko „na żądanie” |
-| Mikrofon (gdy wymagany; Opus) | +~30 kb/s na ucznia; nadzorujący odbiera dźwięk jednego kafla naraz |
-| Transfer w etapie 3 h (sama kamera) | ~60 GB wejścia + ~60 GB wyjścia |
-| Nagrania (tylko przy `record`) | ~65 MB/h na ucznia → **~60 GB** na etap 3 h × 300 uczniów |
-| Platforma (Django) | puls 300/min (5 żądań/s), odpytanie wiadomości co 20 s (~15 żądań/s), webhooki w falach przy starcie |
-
-Zalecenie: **osobna maszyna LiveKit 8 vCPU (dedykowane, nie VPS z „steal” – § 36.1), 8–16 GB RAM,
-łącze ≥ 500 Mb/s symetryczne**; SFU przy tak niskich przepływnościach ma duży zapas CPU (przekazuje
-pakiety, nie koduje). Pokoje per przydział/delegację rozkładają się na węzły klastra (Redis). Porty:
-przy kilkuset uczestnikach zakres 50000–50100 nie wystarczy – ustaw `rtc.udp_port` (multipleksowanie
-UDP na jednym porcie) albo szerszy zakres i zaporę. Nagrywanie: Track Egress nie transkoduje, ale każdy
-egress to osobny proces – na 300 nagrań naraz zaplanuj 2–3 węzły egress (8 vCPU / 16 GB,
-`track_cpu_cost` 0.1–0.2) i **próbę obciążeniową** przed etapem; ~60 GB w buckecie na etap.
-
-### 39.4. Awarie, retencja i wyłączenie
-
-- LiveKit niedostępny w trakcie etapu: `block` (domyślne) – treść zamknięta, koordynator zatwierdza
-  alternatywę uczniom, którzy zgłoszą się w konsoli; `allow` – „Kontynuuj bez nadzoru” z powodem.
-- Awaryjnie: zdjąć flagę `proctoring` (bramka znika natychmiast) albo przestawić etap na `allow`.
-- Retencja: beat `apps.proctoring.tasks.purge_expired` (codziennie) – zdjęcia dokumentu po etapie,
-  nagrania, dziennik, wiadomości i uwagi do prośby o alternatywę 30 dni po wynikach i oknie reklamacji;
-  ręcznie – `docker compose exec web python manage.py shell -c "from apps.proctoring.services import purge_expired; print(purge_expired())"`.
-  Wstrzymanie usunięcia ucznia – pole „powód wstrzymania” na ekranie nadzoru etapu.
-
-### 39.5. Rozmowy etapu w LiveKit i nadzór rozmowy (STAGE-LK-01)
-
-- Etap-rozmowa z dostawcą `livekit` (§ 25.9) używa tego samego serwera i webhooka; adres pokoju przy
-  zapisie to `livekit://olimpiada-…` (identyfikator, nie link). Nowa migracja: `competitions.0034`
-  (lista wyboru dostawcy).
-- Uprawnienia LiveKit odwzorowują Jitsi: każda rola nadaje i odbiera; **żaden token przeglądarki
-  nie ma `roomAdmin`** – moderator (koordynator, aktywna komisja) wydaje polecenia przez platformę
-  (odbierz/oddaj głos, usuń, wpuść ponownie; `…/room-control/`, limit `interview_control` 600/h,
-  audyt `interview.room_control` z pseudonimem osoby). Token ważny w oknie terminu.
-- Przed każdym tokenem (rozmowa, próba sprzętu, pokoje nadzoru `proc-…`) platforma woła
-  `RoomService/CreateRoom` (idempotentnie) – serwer ma `room.auto_create: false`; awaria = 502.
-- Decyzje moderatora przeżywają ponowne wejście: osoba usunięta nie dostaje nowego tokenu na ten
-  termin, osoba bez głosu – token bez nadawania, dopóki moderator nie kliknie „Wpuść ponownie” /
-  „Oddaj głos” (lista na stronie pokoju moderatora).
-- Próba sprzętu ma **osobny pokój na zapis** (`…-b<zapis>-test`; komisja – `…-s<konto>-test`) – uczniowie
-  jednego terminu nie spotykają się bez moderatora i bez nadzoru.
-- `livekit://…` jest zawsze pokojem platformy (nigdy linkiem w ekranach i listach); bez serwera
-  wejście odpowiada „Serwer wideo nie odpowiada” (502), a nie 404.
-- Nagrywania pokoi rozmów **nie ma** (jak w Jitsi), chyba że etap ma nadzór z `record` – wtedy
-  nagrywana jest kamera ucznia **z ważną zgodą** (zgoda obejmuje `record`; włączenie nagrywania
-  w trakcie wymaga nowej zgody), nigdy ucznia z zatwierdzoną alternatywą; sesji nadzoru nie zakłada
-  webhook (Track Egress, retencja § 39.4).
-- Zmiana dostawcy etapu z LiveKit przy włączonym nadzorze – odmowa w formularzu; etap, który przestał
-  być LiveKit (np. z `/admin/`), ma nadzór ignorowany.
-- Pojemność: rozmowa to kilka osób w pokoju – pomijalne obciążenie wobec § 39.3.
 
 ## 45. Zmiana hasła w panelu konta (AUTH-01b, `docs/tasks/AUTH-01b.md`)
 
