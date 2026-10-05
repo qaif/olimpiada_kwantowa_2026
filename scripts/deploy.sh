@@ -843,6 +843,15 @@ REMOTE
   MAINT_MAYBE_ON=0
 fi
 
+log "5b/8 Bufor całych stron gościa: page_cache_clear"
+# Nowa wersja wstała, a jej entrypoint zrobił `collectstatic --clear` – pliki statyczne poprzedniej
+# wersji zniknęły. Strony z bufora (OPERACJE § 13, do 120 s) odsyłałyby do nich (strona bez stylów
+# i skryptów), więc bufor wszystkich konkursów gaśnie TERAZ, przed kontrolą dymną. Niepowodzenie nie
+# zatrzymuje wdrożenia: klucz bufora i tak zawiera wydanie (APP_VERSION, OPS-04), więc HTML
+# poprzedniej wersji nie trafi do nikogo – to jest tylko sprzątanie zawczasu.
+"${SSH[@]}" "cd '$REMOTE_DIR' && docker compose exec -T web python manage.py page_cache_clear </dev/null" \
+  || echo "UWAGA: page_cache_clear nieudane – bufor stron wygaśnie sam (klucz zawiera wydanie)"
+
 if [ "$DEPLOY_SMOKE" = "0" ]; then
   log "5b/8 Kontrola dymna – POMINIĘTA (DEPLOY_SMOKE=0)"
   NEW_STARTED=2

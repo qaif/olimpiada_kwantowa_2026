@@ -98,6 +98,7 @@ case "$*" in
   "image inspect --format {{.Id}} olimpiada/djcms:previous") echo sha256:dj ;;
   *"exec -T db psql"*"django_migrations"*) cat "$STUB_BOX/migrations" ;;
   *"check_domains --hosts"*) echo olimpiada.example ;;
+  *"manage.py page_cache_clear"*) exit "${STUB_PCC_RC:-0}" ;;   # STUB_PCC_RC≠0 – web nie odpowiada
   *"compose ps"*) printf 'db=healthy\nweb=healthy\nproxy=healthy\ndjcms=healthy\n' ;;
   *"exec -T db psql"*"datname = 'olimpiada_djcms'"*) echo 1 ;;
   *"exec -T db psql"*"ON_ERROR_STOP"*) cat >>"$DOCKER_LOG.sql" ;;   # scripts/djcms_db.sh (SQL na stdin)
@@ -259,7 +260,7 @@ run_deploy() {
   # Kontrola dymna i wycofanie (OPS-04) bez czekania: jedna próba, bez przerw; ponawianie
   # sync_competitions bez przerw. Atrapa ssh przekazuje środowisko dalej, więc dochodzą do „serwera”.
   ( env -u DJCMS_ENABLE -u DJCMS_IMAGE -u DJCMS_ADMIN_EMAIL -u DJCMS_ADMIN_PASSWORD -u WEB_IMAGE \
-      -u STUB_SMOKE_FAIL -u STUB_NEW_MIGRATION -u STUB_SYNC_FAILS -u DEPLOY_SMOKE \
+      -u STUB_SMOKE_FAIL -u STUB_NEW_MIGRATION -u STUB_SYNC_FAILS -u DEPLOY_SMOKE -u STUB_PCC_RC \
       -u DJCMS_PRIMARY -u STUB_CURL_MODE -u STUB_SYNC_RC -u STUB_SYNC_OLD -u STUB_VALIDATE_RC -u STUB_RELOAD_RC       -u STUB_HEALTHZ_CODE -u STUB_ROUTES_DIFF -u OLIMPIADA_PROXY_LOCK -u NEW_COMPETITION_SLUG -u COORDINATOR_EMAIL -u COORDINATOR_PASSWORD       -u MAINTENANCE_MESSAGE -u MAINTENANCE_MINUTES       PATH="$BIN:$PATH" DOCKER_LOG="$DOCKER_LOG" SSH_LOG="$SSH_LOG" SRC_TAR="${SRC_TAR:-$WORK/tree.tar}" \
       STUB_BOX="$BOX" \
       SMOKE_RETRIES=1 SMOKE_RETRY_DELAY=0 ROLLBACK_WAIT_SECONDS=0 DJCMS_SYNC_RETRY_DELAYS="0 0 0" \
@@ -298,6 +299,7 @@ compose up -d --remove-orphans db redis minio minio-init clamav mail web worker 
 compose exec -T proxy sha256sum /etc/caddy/Caddyfile
 compose exec -T proxy caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile
 compose ps --format {{.Service}}={{.Health}}
+compose exec -T web python manage.py page_cache_clear
 compose exec -T web python manage.py check_domains --hosts
 compose ps -q web
 inspect --format {{.Image}} c0ffee
@@ -357,7 +359,7 @@ no_proxy_cfg() {  # no_proxy_cfg docker|ssh|env|out  (stdin → stdout)
   # Pomija też to, co celowo dokłada OPS-04 (migawka 2a/8, kontrola dymna 5b/8, zapis udanego wdrożenia).
   case "$1" in
     docker) grep -vE '^compose (ps -q --status running proxy|exec -T proxy (sh -c .*caddy validate|sha256sum /etc/caddy/Caddyfile|cat /etc/caddy/Caddyfile|caddy reload |wget )|up -d --force-recreate --no-deps proxy)' \
-      | grep -vE '^(compose ps -q (web|djcms)|inspect --format \{\{\.Image\}\} |tag sha256:|compose exec -T db psql .*django_migrations|compose exec -T web python manage.py check_domains --hosts)' ;;
+      | grep -vE '^(compose ps -q (web|djcms)|inspect --format \{\{\.Image\}\} |tag sha256:|compose exec -T db psql .*django_migrations|compose exec -T web python manage.py (check_domains --hosts|page_cache_clear))' ;;
     ssh) grep -vF 'bash scripts/proxy_config.sh apply' | grep -vF "/caddy/.lock'" | grep -vE 'scripts/(rollback|smoke)\.sh' \
       | sed 's/ ! -name deploy-state -exec/ -exec/; s/ ! -name caddy -exec/ -exec/; s/ OLIMPIADA_PROXY_LOCK=held / /' ;;
     env) grep -vE '^(CADDYFILE_PATH=|CADDY_CONFIG_DIR=|# Konfiguracja proxy|# i EXTRA_DOMAINS przez scripts/render_caddyfile|# przez scripts/proxy_config\.sh)' ;;
@@ -438,6 +440,7 @@ compose up -d --remove-orphans db redis minio minio-init clamav mail web worker 
 compose exec -T proxy sha256sum /etc/caddy/Caddyfile
 compose exec -T proxy caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile
 compose ps --format {{.Service}}={{.Health}}
+compose exec -T web python manage.py page_cache_clear
 compose exec -T web python manage.py check_domains --hosts
 compose ps -q web
 inspect --format {{.Image}} c0ffee
@@ -875,6 +878,17 @@ l3="$(grep -n 'SITE_DOMAIN=' "$WORK/sm-ok.ssh" | head -n 1 | cut -d: -f1)"
 lrm="$(grep -nF -- '! -name deploy-state -exec rm -rf' "$WORK/sm-ok.ssh" | cut -d: -f1)"
 [ -n "$l2a" ] && [ -n "$l3" ] && [ -n "$lrm" ] && [ "$lrm" -lt "$l2a" ] && [ "$l2a" -lt "$l3" ]
 check "OPS-04: krok 2/8 omija deploy-state, migawka po rozpakowaniu kodu i PRZED krokiem 3/8 (APP_VERSION)" $?
+
+pcc="$(line_no "$WORK/sm-ok.docker" 'compose exec -T web python manage.py page_cache_clear')"
+upn="$(line_no "$WORK/sm-ok.docker" "$UP_CMD")"
+smk="$(line_no "$WORK/sm-ok.docker" 'compose exec -T web python manage.py check_domains --hosts')"
+[ -n "$pcc" ] && [ -n "$upn" ] && [ -n "$smk" ] && [ "$upn" -lt "$pcc" ] && [ "$pcc" -lt "$smk" ]
+check "OPS-04: bufor stron gościa czyszczony po starcie nowej wersji (collectstatic), przed kontrolą dymną" $?
+reset_server
+installed_proxy_cfg
+run_deploy "$DEPLOY" sm-pcc APP_VERSION=v2 STUB_PCC_RC=1
+[ $? = 0 ] && grep -qF 'page_cache_clear nieudane' "$WORK/sm-pcc.out" && grep -q 'seed_edition_kwantowa' "$WORK/sm-pcc.docker"
+check "OPS-04: nieudane page_cache_clear – ostrzeżenie, wdrożenie idzie dalej (klucz bufora zawiera wydanie)" $?
 
 # 11a. Kontrola nie przechodzi na v2, bez nowych migracji → automatyczne wycofanie do vtest.
 reset_server

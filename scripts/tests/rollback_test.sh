@@ -217,6 +217,8 @@ check "run: tag poprzedniej wersji wskazuje obraz z migawki" $?
 check "run: jedno polecenie up – wyłącznie web worker beat, --no-deps --no-build" $?
 no_data_commands "$WORK/run1.docker"
 check "run: żadnego polecenia dotykającego bazy, wolumenów, usług danych ani proxy" $?
+[ "$(tail -n 1 "$WORK/run1.docker")" = "compose exec -T web python manage.py page_cache_clear" ]
+check "run: po wycofaniu (usługi healthy) bufor stron gościa czyszczony" $?
 diff "$WORK/env.v2" "$SRV/.env" | grep -E '^[<>]' >"$WORK/run1.envdiff"
 [ "$(cat "$WORK/run1.envdiff")" = "< APP_VERSION=v2
 > APP_VERSION=v1" ]

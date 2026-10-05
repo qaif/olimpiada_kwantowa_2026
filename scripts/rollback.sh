@@ -294,6 +294,9 @@ do_rollback() {  # właściwe wycofanie (warunki sprawdzone wcześniej); kod 0 =
   } >"$STATE/last-rollback.env"
   chmod 600 "$STATE/last-rollback.env"
   if [ "$healthy" = 1 ]; then
+    # Bufor całych stron gościa: wersja z wycofania ma własną przestrzeń kluczy (APP_VERSION), ale
+    # wpisy z niej mogą jeszcze pamiętać chwilę sprzed wdrożenia – sprzątanie, nie warunek.
+    compose exec -T web python manage.py page_cache_clear </dev/null >/dev/null 2>&1 || true
     echo "wycofanie: usługi healthy na wersji ${prev_ver:-poprzedniej}"
     return 0
   fi
