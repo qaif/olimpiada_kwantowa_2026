@@ -8,7 +8,8 @@ import pytest
 from django.core.management import CommandError, call_command
 from django.db import connection
 
-from apps.accounts.models import Participant
+from apps.accounts.consents import required_kinds
+from apps.accounts.models import ConsentRecord, Participant
 from apps.chat.models import Conversation
 from apps.competitions.models import StageEntry
 from apps.results.models import ResultsPublication
@@ -60,3 +61,12 @@ def test_seeds_students_entries_conversations_and_a_manifest(competition, settin
     assert StageEntry.objects.filter(participant__user__email__endswith="@loadtest.local").count() == 12
     assert Conversation.objects.count() == 4
     assert len(ResultsPublication.objects.get(stage_id=data["results_stage_id"]).rows) == 4
+    # Komplet wymaganych zgód (bez duplikatów po drugim przebiegu) – bramka CONS-01 przepuszcza ucznia.
+    from apps.consent_gate.state import missing_consents
+
+    students = list(
+        Participant.objects.filter(user__email__endswith="@loadtest.local").select_related("user")
+    )
+    assert all(missing_consents(student.user, competition) == () for student in students)
+    expected = sum(len(required_kinds(s.birth_date, s.birth_year, competition=competition)) for s in students)
+    assert ConsentRecord.objects.filter(participant__in=students).count() == expected

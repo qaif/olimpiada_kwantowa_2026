@@ -1,0 +1,127 @@
+# Uzupełnienie zgód po zalogowaniu (CONS-01) – katalog aplikacji apps/consent_gate.
+msgid ""
+msgstr ""
+"Project-Id-Version: olimpiada\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-05 10:00+0200\n"
+"PO-Revision-Date: 2026-10-05 10:00+0200\n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: ar\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=6; plural=n==0 ? 0 : n==1 ? 1 : n==2 ? 2 : n%100>=3 && n%100<=10 ? 3 : n%100>=11 && n%100<=99 ? 4 : 5;\n"
+
+msgid "Ta zgoda jest wymagana."
+msgstr "هذه الموافقة مطلوبة."
+
+msgid "Zanim przejdziesz dalej, uzupełnij wymagane zgody."
+msgstr "قبل المتابعة، يُرجى استكمال الموافقات المطلوبة."
+
+#, python-format
+msgid "%(kind)s (wersja %(version)s)"
+msgstr "%(kind)s (الإصدار %(version)s)"
+
+msgid "Kod uczestnika"
+msgstr "رمز المشارك"
+
+msgid "Imię"
+msgstr "الاسم الأول"
+
+msgid "Nazwisko"
+msgstr "اسم العائلة"
+
+msgid "E-mail"
+msgstr "البريد الإلكتروني"
+
+msgid "Brakujące zgody"
+msgstr "الموافقات الناقصة"
+
+msgid "Zgody uczestników"
+msgstr "موافقات المشاركين"
+
+msgid "Uczestnicy z brakującymi zgodami"
+msgstr "مشاركون لديهم موافقات ناقصة"
+
+msgid ""
+"Brak wymaganej zgody albo zgoda pod starszą wersją dokumentu – przy "
+"wejściu do panelu zobaczą ekran „Uzupełnij zgody”. Pobierz listę "
+"(CSV)."
+msgstr ""
+"موافقة مطلوبة ناقصة أو أُعطيت لإصدار أقدم من المستند – سيرون شاشة "
+"«استكمل موافقاتك» عند فتح لوحة المشارك. نزّل القائمة (CSV)."
+
+msgid ""
+"Bramka zgód jest wyłączona na tej instalacji (CONSENT_GATE_ENABLED). "
+"Pobierz listę (CSV)."
+msgstr ""
+"التحقق من الموافقات معطّل في هذا التثبيت (CONSENT_GATE_ENABLED). نزّل "
+"القائمة (CSV)."
+
+msgid "Uzupełnij zgody"
+msgstr "استكمل موافقاتك"
+
+msgid "Zgody"
+msgstr "الموافقات"
+
+msgid ""
+"Zanim przejdziesz do panelu uczestnika, potrzebujemy Twoich oświadczeń "
+"poniżej. Bez nich nie możesz wysyłać rozwiązań, rozwiązywać testów ani "
+"korzystać z wiadomości."
+msgstr ""
+"قبل الانتقال إلى لوحة المشارك نحتاج إلى الإقرارات أدناه. بدونها لا "
+"يمكنك إرسال الحلول أو إجراء الاختبارات أو استخدام الرسائل."
+
+msgid ""
+"Organizator zmienił co najmniej jeden dokument. Zgoda złożona pod "
+"poprzednią wersją nie obejmuje nowej treści – przeczytaj dokument i "
+"potwierdź go ponownie."
+msgstr ""
+"حدّث المنظِّم مستندًا واحدًا على الأقل. الموافقة على الإصدار السابق لا "
+"تشمل النص الجديد – يُرجى قراءة المستند وتأكيده مرة أخرى."
+
+msgid "Oświadczenia"
+msgstr "الإقرارات"
+
+#, python-format
+msgid ""
+"Dokument się zmienił: obowiązuje wersja %(version)s, a Twoja zgoda "
+"dotyczyła wersji %(previous)s."
+msgstr ""
+"تغيّر المستند: الإصدار المعمول به الآن هو %(version)s، بينما كانت "
+"موافقتك على الإصدار %(previous)s."
+
+#, python-format
+msgid "Wersja dokumentu: %(version)s."
+msgstr "إصدار المستند: %(version)s."
+
+msgid "Zapisuję oświadczenia"
+msgstr "تأكيد ومتابعة"
+
+msgid "Nie zgadzasz się?"
+msgstr "لا توافق؟"
+
+msgid ""
+"Bez wymaganych zgód nie możesz brać udziału w zawodach, ale Twoje "
+"prawa do danych zostają: możesz je pobrać, usunąć konto albo napisać "
+"do organizatora."
+msgstr ""
+"بدون الموافقات المطلوبة لا يمكنك المشاركة في المسابقة، لكن حقوقك في "
+"بياناتك تبقى قائمة: يمكنك تنزيل بياناتك أو حذف حسابك أو مراسلة "
+"المنظِّم."
+
+msgid "Pobierz swoje dane"
+msgstr "تنزيل بياناتك"
+
+msgid "Usuń konto"
+msgstr "حذف الحساب"
+
+msgid "Napisz do organizatora"
+msgstr "مراسلة المنظِّم"
+
+msgid "Wyloguj się"
+msgstr "تسجيل الخروج"
+
+msgid "Dziękujemy – zgody zostały zapisane."
+msgstr "شكرًا – تم حفظ موافقاتك."

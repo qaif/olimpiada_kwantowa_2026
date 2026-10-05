@@ -89,7 +89,10 @@ QUERY_BUDGETS: dict[str, int] = {
     # w tej samej minutowej pamięci liczników, co pozostałe odznaki (próg mierzy stan zimny).
     # +1 od 5.10.2026: odnośnik „Deklaracja dostępności” w stopce – patrz komentarz przy ``"/"``.
     # Zmierzone 5.10.2026 po scaleniu z PERF-01: 53 na zimno (52 + deklaracja) – sufit = pomiar.
-    "/coordinator/": 53,
+    # +1 od 5.10.2026: kafelek „Uczestnicy z brakującymi zgodami” (CONS-01, ``apps.consent_gate.report``)
+    # – jedno zapytanie (profile + wpisy zgód w ``ArraySubquery``) na zimno, potem minutowa pamięć;
+    # nie rośnie z liczbą uczestników (``test_panel_query_count_does_not_grow_with_participants``).
+    "/coordinator/": 54,
     # --- karty i listy panelu koordynatora ---------------------------------------------------------
     # Bezpieczniki „rzędu wielkości” obok asercji o niezmienności kosztu względem danych: sama
     # asercja porównuje dwa pomiary ze sobą, sufit łapie regresję, która podniosła oba naraz.
