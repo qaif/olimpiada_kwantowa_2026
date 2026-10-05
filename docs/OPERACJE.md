@@ -6376,7 +6376,10 @@ PR-y w poniedziałki: drobne podbicia zebrane w jeden PR na ekosystem, wersje g�
 wydanie „odleżałe” 7 dni. Backend (`pip`, bez blokady) dostaje PR wyłącznie, gdy wydanie wychodzi poza
 zakres w `backend/pyproject.toml` – łatki w zakresie wchodzą same przy budowaniu obrazu. djcms idzie
 ekosystemem `uv` (pyproject + `uv.lock` razem). Python 3.14 → 3.15 oraz wersje główne Postgresa
-i Redisa są ignorowane – to decyzje z własną procedurą. PR Dependabota przechodzi ten sam CI
+i Redisa są ignorowane – to decyzje z własną procedurą. Tak samo (DEP-01, 5.10.2026; uzasadnienia
+w komentarzach `.github/dependabot.yml`): numpy ≥ 2.5 (linia Pyodide w notebook-lab, QC-01),
+redis-py ≥ 6.5 (kombu 5.6, transport Celery, obsługuje `<6.5`; 7.x/8.x dopiero kombu 5.7), wersja główna Uptime Kumy (2.x migruje dane bez drogi powrotu) i obraz
+Playwrighta (idzie w parze z `playwright==` w `e2e/requirements.txt`). PR Dependabota przechodzi ten sam CI
 co każdy inny (testy + skany); scalanie ręcznie, po przeglądzie.
 
 ### 47.7. Jednorazowo w ustawieniach repozytorium (administrator GitHuba)
