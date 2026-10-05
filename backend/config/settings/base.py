@@ -1046,7 +1046,7 @@ AI_GRADING_MAX_BATCH = env.int("AI_GRADING_MAX_BATCH", default=500)
 
 CLAMAV_HOST = env("CLAMAV_HOST", default="clamav")
 CLAMAV_PORT = env.int("CLAMAV_PORT", default=3310)
-# ``StreamMaxLength`` clamd (obraz clamav 1.4 → 100 MB). Powyżej tej wartości clamd zrywa połączenie
+# ``StreamMaxLength`` clamd (obrazy clamav 1.4 i 1.5 → 100 MB). Powyżej tej wartości clamd zrywa połączenie
 # w trakcie INSTREAM, co wyglądałoby jak awaria usługi i uruchamiało bezsensowne retry.
 CLAMAV_STREAM_MAX_BYTES = env.int("CLAMAV_STREAM_MAX_BYTES", default=100 * 1024 * 1024)
 

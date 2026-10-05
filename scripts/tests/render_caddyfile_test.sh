@@ -179,6 +179,15 @@ check "blok wieloznaczny stoi za blokami z EXTRA_DOMAINS" $?
 pinned="$(awk '/^[^ #].* \{$/ { head = $0 } $0 == "        key_type p256" { print head }' "$WORK/sub-extra.caddy" | tr '\n' '|')"
 [ "$pinned" = 'www.{$SITE_DOMAIN} {|{$SITE_DOMAIN} {|{$S3_PUBLIC_ADDRESS} {|meet.{$SITE_DOMAIN} {|monitor.{$SITE_DOMAIN} {|' ]
 check "PLATFORM_SUBDOMAINS=1: tls { key_type p256 } w www., domenie głównej, S3, meet., monitor. i nigdzie indziej (jest: $pinned)" $?
+# Caddy 2.10 (DEP-02): nazwa pokryta przez `*.{$SITE_DOMAIN}` nie dostaje certyfikatu, o ile nie ma
+# `force_automate` – każde przypięcie ma go mieć, a bloki EXTRA_DOMAINS (bez przypięcia) też, bo
+# generator nie wie, która z nich jest subdomeną platformy. Działanie: § 19 (`certificates.automate`).
+[ "$(grep -cxF '        key_type p256' "$WORK/sub-extra.caddy")" -eq "$(grep -cxF '    tls force_automate {' "$WORK/sub-extra.caddy")" ] \
+  && ! grep -qxF '    tls {' <(grep -B1 -xF '        key_type p256' "$WORK/sub-extra.caddy")
+check "PLATFORM_SUBDOMAINS=1: każde przypięcie TLS to „tls force_automate { key_type p256 }”" $?
+extra_fa="$(awk '/^[^ #].* \{$/ { head = $0 } $0 == "    tls force_automate" { print head }' "$WORK/sub-extra.caddy" | tr '\n' '|')"
+[ "$extra_fa" = 'olimpiadafizyczna.pl {|www.olimpiadafizyczna.pl {|konkurs.example {|' ]
+check "PLATFORM_SUBDOMAINS=1: „tls force_automate” w każdym bloku EXTRA_DOMAINS i nigdzie indziej (jest: $extra_fa)" $?
 
 # Odmowa `/<prefiks>/internal/…` (konkursy pod prefiksem ścieżki) – wyłącznie w bloku domeny głównej.
 [ "$(grep -c '^    @internal_prefixed path_regexp \^/\[^/\]+/internal(/\.\*)?\$$' "$WORK/sub-extra.caddy")" -eq 1 ] &&
@@ -536,7 +545,7 @@ awk '$0 == "    handle @s3_minio_api {" { d = NR } $0 == "        reverse_proxy 
 check "blok S3: odmowa /minio/* przed reverse_proxy, proxy wyłącznie w handle" $?
 # Ten sam blok (z tymi samymi regułami) w każdym wariancie generatora – przełączniki go nie ruszają.
 for f in "$WORK/sub-extra.caddy" "$WORK/dj-both.caddy" "$WORK/pr-on.caddy"; do
-  block_body "$f" '{$S3_PUBLIC_ADDRESS} {' | grep -vE '^    # Zwykły certyfikat |^    tls \{$|^        key_type p256$|^    \}$' \
+  block_body "$f" '{$S3_PUBLIC_ADDRESS} {' | grep -vE '^    # Zwykły certyfikat |^    tls force_automate \{$|^        key_type p256$|^    \}$' \
     | cmp -s - <(grep -vE '^    \}$' "$WORK/s3-block.txt")
   check "blok S3 w ${f##*/} = blok z deploy/Caddyfile (poza przypięciem TLS)" $?
 done
@@ -694,9 +703,17 @@ if p is None or not p.get("on_demand"):
     print(f"FAIL nowy-konkurs.example.org (blok *.): polityka bez on_demand {json.dumps(p)}"); errors += 1
 if cfg["apps"]["tls"]["automation"].get("on_demand", {}).get("permission", {}).get("endpoint") != "http://web:8000/internal/tls-allowed":
     print("FAIL on_demand bez endpointu zgody"); errors += 1
+# Caddy 2.10: nazwa pod zarządzanym `*.` dostaje własny certyfikat wyłącznie z listy `automate`
+# (`tls force_automate`) – bez tego www./meet./dj./… zostawały bez certyfikatu (DEP-02).
+automate = set(cfg["apps"]["tls"].get("certificates", {}).get("automate", []))
+missing = [n for n in sys.argv[2].split() if n not in automate]
+if missing:
+    print(f"FAIL brak w certificates.automate: {missing}"); errors += 1
+if any(n.startswith("*.") for n in automate):
+    print(f"FAIL nazwa wieloznaczna w certificates.automate: {sorted(automate)}"); errors += 1
 sys.exit(errors)
 PY
-          check "caddy adapt ($variant, S3=$s3): nazwy dosłowne – zwykły certyfikat, on-demand tylko nieznane subdomeny *." $?
+          check "caddy adapt ($variant, S3=$s3): nazwy dosłowne – zwykły certyfikat (force_automate), on-demand tylko nieznane subdomeny *." $?
         done
       done
     done
@@ -843,7 +860,7 @@ for needle in '    import notebook_lab' '    handle /static/notebook-lab/* {' ' 
               '    @lab_other not path /static/notebook-lab/*' \
               "    header @lab_other Content-Security-Policy \"default-src 'none'; frame-ancestors 'none'; sandbox\"" \
               '        Referrer-Policy "strict-origin"' '        Cross-Origin-Resource-Policy "same-origin"' \
-              '        X-Frame-Options "DENY"' '        key_type p256'; do
+              '        X-Frame-Options "DENY"' '        key_type p256' '    tls force_automate {'; do
   grep -qxF -- "$needle" "$WORK/lab-block.txt"
   check "blok hosta laboratorium zawiera „${needle#"${needle%%[! ]*}"}”" $?
 done

@@ -1156,9 +1156,12 @@ kończą się komunikatem w formularzu i niczego nie zapisują. Najpierw § 6.1.
    `on_demand_tls { ask http://web:8000/internal/tls-allowed }` i blokiem `*.<domena>`
    (`tls { on_demand }`). Na koniec wdrożenie wypisuje przypomnienie o rekordzie DNS — tylko wtedy,
    gdy przełącznik jest włączony. Bloki nazw stałych (`www.`, sama domena, `meet.`, `monitor.`,
-   blok S3, `dj.`) dostają wtedy `tls { key_type p256 }` – wartość domyślną, ale zapisaną jawnie:
+   blok S3, `dj.`, `live.`, `errors.`, host laboratorium) dostają wtedy
+   `tls force_automate { key_type p256 }` – `key_type` to wartość domyślna, ale zapisana jawnie:
    dzięki niej ich certyfikaty są zwykłe (wystawiane przy starcie i odnawiane ~30 dni przed końcem),
    a nie on-demand z bloku `*.`, bo `/internal/tls-allowed` tych nazw nie zna i by ich odmówił.
+   `force_automate` wymaga Caddy ≥ 2.10 (od 2.10 nazwa pod `*.` bez tej opcji nie dostaje certyfikatu
+   wcale – § 47.8); bloki z `EXTRA_DOMAINS` mają samo `tls force_automate`.
 4. **Flaga `competition_creation`** na konkursie, **którego** koordynatorzy mają zakładać kolejne
    (`/admin/ → Konkursy → <konkurs> → feature_flags`, § 6.4):
 
@@ -3522,10 +3525,13 @@ bash scripts/proxy_config.sh apply    # samo przeładowanie (albo odtworzenie ko
   w **działającym** proxy (`header_up X-Djcms-Mode …`): różne = przerwane przełączenie albo ręczna
   zmiana `.env` – odmowa (kod 1, nic nie zapisane) z poleceniem `djcms_switch.sh on|off`. Tryb
   zmienia wyłącznie przełącznik (kontrola dymna, powrót przy porażce), nigdy wdrożenie.
-- `caddy validate` idzie w obrazie i środowisku **działającego** kontenera. Wydanie, które zmienia
-  wersję obrazu `caddy` albo dokłada zmienną środowiskową proxy, sprawdza nowy plik starszym
-  Caddym; taki kontener i tak jest odtwarzany w 4b (zmiana konfiguracji compose'a), a ewentualny
-  błąd pokaże `docker compose logs proxy` i krok 5/8.
+- `caddy validate` idzie w obrazie i środowisku **działającego** kontenera. Gdy obraz proxy
+  z `docker compose config` różni się od obrazu działającego kontenera (wydanie podbija `caddy`,
+  DEP-02), walidacja idzie w jednorazowym kontenerze **nowego** obrazu
+  (`docker compose run --rm --no-deps -T --entrypoint sh proxy …`; brakujący obraz compose pobierze) –
+  stary Caddy odrzuciłby składnię nowego (`tls force_automate`). Wydanie, które dokłada wyłącznie
+  zmienną środowiskową proxy, dalej sprawdza plik w starym środowisku; taki kontener i tak jest
+  odtwarzany w 4b, a ewentualny błąd pokaże `docker compose logs proxy` i krok 5/8.
 - Nie edytuj `caddy/Caddyfile` ręcznie – kolejne wdrożenie złoży go od nowa z `deploy/Caddyfile`
   i `.env`. Zmiana konfiguracji = zmiana `deploy/Caddyfile` w repozytorium albo `.env`.
 
@@ -5967,7 +5973,7 @@ wewnętrzny (ten serwer, Contabo, Niemcy), bez przekazania do państwa trzeciego
    projekt typu **Django** („platforma”). *Settings → Projects → platforma → Client Keys (DSN)* –
    skopiuj DSN i **ustaw limit zdarzeń klucza** (rate limit, np. 300 zdarzeń / 60 s). Bez limitu pętla
    błędów albo ktoś z publicznym kluczem przeglądarki (§ 44.6) zapełni bazę GlitchTipa. Caddy w
-   obrazie `caddy:2.8` nie ma modułu limitu żądań (wymagałby własnego obrazu z wtyczką) – limit jest
+   obrazie `caddy:2.10` (jak wcześniej w 2.8) nie ma modułu limitu żądań (wymagałby własnego obrazu z wtyczką) – limit jest
    po stronie GlitchTipa, plus limity zasobów kontenerów niżej.
 7. **Aplikacja**: w `.env` **DSN wewnętrzny** (sieć `errors_ingest` – `worker` i `beat` nie mają wyjścia
    do internetu, więc adres publiczny dla nich nie działa):
@@ -6402,6 +6408,67 @@ gh label create github-actions --color 000000 --force
   `łańcuch dostaw (SHA akcji, vendor JS, wyjątki)`, `trivy (obraz web)`, `trivy (obraz djcms)`.
 - Workflowy okresowe ruszają dopiero po scaleniu do `main` (harmonogram działa tylko na gałęzi
   domyślnej); pierwszy przebieg najlepiej wywołać ręcznie (*Run workflow*).
+
+### 47.8. Obrazy usług compose: Caddy 2.10, ClamAV 1.5 (DEP-02, 5.10.2026)
+
+PR Dependabota `compose-images`: `caddy` 2.8 → 2.10, `clamav/clamav` 1.4 → 1.5, `louislam/uptime-kuma`
+1.23.16 → 1.23.17 (łatka bezpieczeństwa linii 1.x, reguła `ignore` dla 2.x zostaje), `axllent/mailpit`
+v1.24 → v1.30 (wyłącznie profil `dev`). Wchodzą `scripts/deploy.sh` (krok 4/8 `pull`, 4b odtwarza
+`proxy` i `clamav`). Bez migracji i bez nowych zmiennych.
+
+**Caddy 2.10 – zmiana, która bez poprawki zdjęłaby certyfikaty.** Od 2.10 Caddy nie zarządza
+certyfikatem nazwy, którą pokrywa zarządzana nazwa wieloznaczna z konfiguracji (caddyserver/caddy#6959,
+„wildcards used by default”). Przy `PLATFORM_SUBDOMAINS=1` blok `*.{$SITE_DOMAIN}` jest taką nazwą –
+choć z `on_demand` nigdy nie dostaje certyfikatu wieloznacznego (on-demand wystawia na nazwę z SNI
+przez HTTP-01/TLS-ALPN; DNS-01 nie mamy i 2.10 go nie próbuje – sprawdzone). Skutek bez poprawki
+(żywy caddy:2.10, ACME na nieosiągalnym CA): przy starcie zarządzane wyłącznie domena główna
+i `iqo-official.org`; `www.`, `meet.`, `monitor.`, `dj.`, `live.`, `lab.`, `errors.` – bez certyfikatu
+(polityka nie on-demand → błąd TLS). Poprawka w `scripts/render_caddyfile.sh`: przypięcie
+`tls force_automate { key_type p256 }` w tych blokach i `tls force_automate` w blokach `EXTRA_DOMAINS`;
+`scripts/tests/render_caddyfile_test.sh` § 19 pilnuje listy `certificates.automate` po `caddy adapt`,
+a `djcms_routing_test.sh` – uzgadniania TLS `www.`/`dj.` na żywym Caddym. `tls force_automate` nie
+istnieje w 2.8, dlatego `proxy_config.sh render` waliduje plik w nowym obrazie (§ 23.3), a **powrót do
+`caddy:2.8` wymaga cofnięcia całego PR-u** (sam tag obrazu z nowym generatorem nie wystartuje).
+Pozostałe zmiany 2.9/2.10 bez wpływu na nas: ECH i profile ACME tylko z jawną opcją (nie mamy),
+ARI przy odnowieniach (certmagic), wymiana klucza X25519MLKEM768 domyślnie, nagłówek `Via` zamiast
+podwójnego `Server` z `reverse_proxy`, `GOMEMLIMIT` z limitu kontenera; ostrzeżenia
+„Unnecessary header_up X-Forwarded-Proto” i „input is not formatted” – te same co w 2.8.
+
+**ClamAV 1.5** (1.5.4): `StreamMaxLength` dalej 100 MB (`CLAMAV_STREAM_MAX_BYTES` bez zmian), TCP 3310,
+`no-new-privileges` działa (freshclam i clamd jako `clamav`), ~1,0 GB w spoczynku (limit 3g wystarcza),
+freshclam pobiera też nowe pliki podpisów `*.cvd.sign`. Klient z `apps/submissions/antivirus.py` na żywym
+1.5: PING, EICAR → `Eicar-Test-Signature`, czysty plik wieloczęściowy, 99 MB – w porządku.
+
+**Po wdrożeniu – sprawdź** (na serwerze, `cd /opt/olimpiada`):
+
+```bash
+docker compose exec -T proxy caddy version                    # v2.10.x
+docker compose logs --since 15m proxy | grep -E '"level":"error"|could not get certificate' | tail
+# Certyfikat każdej nazwy (wystawca, ważność) – przez proxy na tym serwerze, bez DNS:
+# (pusta kolumna = brak certyfikatu)
+for h in olimpiadakwantowa.pl www.olimpiadakwantowa.pl iqo-official.org www.iqo-official.org \
+         live.olimpiadakwantowa.pl lab.olimpiadakwantowa.pl dj.olimpiadakwantowa.pl \
+         meet.olimpiadakwantowa.pl monitor.olimpiadakwantowa.pl errors.olimpiadakwantowa.pl; do
+  printf '%-34s %s\n' "$h" "$(echo | openssl s_client -connect 127.0.0.1:443 -servername "$h" 2>/dev/null \
+    | openssl x509 -noout -issuer -enddate 2>/dev/null | tr '\n' ' ')"
+done
+echo | openssl s_client -connect 127.0.0.1:9000 -servername olimpiadakwantowa.pl 2>/dev/null \
+  | openssl x509 -noout -subject -enddate                       # S3 pod :9000
+curl -sS -o /dev/null -w '%{http_code}\n' https://olimpiadakwantowa.pl/status.json
+# Subdomena konkursu (on-demand, zgoda z /internal/tls-allowed) – istniejący slug, np. z panelu:
+curl -sS -o /dev/null -w '%{http_code}\n' --resolve <slug>.olimpiadakwantowa.pl:443:127.0.0.1 https://<slug>.olimpiadakwantowa.pl/
+# ClamAV: wersja, PING i EICAR przez klienta aplikacji
+docker compose exec -T clamav clamd --version                 # ClamAV 1.5.x/<daily>
+docker compose exec -T clamav clamdcheck.sh                   # Clamd is up
+# EICAR zakodowany base64 – bez `!` i `$` w wierszu polecenia (rozwinięcia powłoki interaktywnej)
+docker compose exec -T web python manage.py shell -c "import base64,io; from apps.submissions.antivirus import ping,scan_stream; e=base64.b64decode('WDVPIVAlQEFQWzRcUFpYNTQoUF4pN0NDKTd9JEVJQ0FSLVNUQU5EQVJELUFOVElWSVJVUy1URVNULUZJTEUhJEgrSCo='); print(ping(), scan_stream(io.BytesIO(e)))"
+docker compose logs --since 30m clamav | grep -E 'daily.c[lv]d (updated|is up-to-date)|ERROR' | tail -3
+```
+
+Oczekiwane: każda nazwa z wystawcą Let's Encrypt (albo ZeroSSL) i datą końca w przyszłości (nazwy,
+których rekordu DNS jeszcze nie ma, np. `errors.`, mogą czekać na certyfikat – to nie regresja), 200
+z `status.json`, `True ('INFECTED', 'Eicar-Test-Signature')`. Brak certyfikatu `www.`/`dj.`/`live.`
+mimo tej wersji = proxy działa na starym pliku: `bash scripts/proxy_config.sh status`.
 
 ## 48. Smoke test i wycofanie wdrożenia (OPS-04, `docs/tasks/OPS-04.md`)
 

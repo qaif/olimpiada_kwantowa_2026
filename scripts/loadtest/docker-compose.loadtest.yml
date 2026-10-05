@@ -130,7 +130,7 @@ services:
     restart: "no"
 
   clamav:
-    image: clamav/clamav:1.4
+    image: clamav/clamav:1.5
     environment:
       # Bez freshclam: sieć nie ma wyjścia na świat, a sygnatury z obrazu wystarczą do pomiaru.
       CLAMAV_NO_FRESHCLAMD: "true"
@@ -187,7 +187,7 @@ services:
       clamav: { condition: service_healthy }
 
   proxy:
-    image: caddy:2.8
+    image: caddy:2.10
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - lt_static:/srv/static:ro

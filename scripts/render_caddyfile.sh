@@ -407,10 +407,18 @@ if [ "$GUARD_ON" = "1" ]; then
   # S3 bywa pod `<domena>:9000` (produkcja), a ta sama nazwa w dwóch blokach z różnymi ustawieniami
   # TLS to błąd konfiguracji. Kontrola: render_caddyfile_test.sh (§ 19, polityki po `caddy adapt`
   # przy ACME i local_certs, S3 pod `s3.` i pod `<domena>:9000`).
+  #
+  # `force_automate` (DEP-02, Caddy 2.10): od 2.10 Caddy domyślnie NIE zarządza certyfikatem nazwy,
+  # którą „pokrywa” zarządzana nazwa wieloznaczna z konfiguracji (caddyserver/caddy#6959) – a blok
+  # `*.{$SITE_DOMAIN}` taką nazwą jest, choć z `on_demand` nigdy nie dostaje certyfikatu
+  # wieloznacznego (on-demand wystawia na nazwę z SNI, HTTP-01/TLS-ALPN; DNS-01 nie mamy). Bez tej
+  # opcji `www.`, `meet.`, `monitor.`, `dj.`, `live.`, `errors.`, `lab.` nie miałyby certyfikatu
+  # wcale (ich polityka nie jest on-demand) – sprawdzone na żywym caddy:2.10 w djcms_routing_test.sh.
+  # Domena główna i `<domena>:9000` nie są pod `*.`, opcja jest tam bez skutku, ale nieszkodliwa.
   WHY1="$why1" WHY2="$why2" WHY3="$why3" awk -v want_opts="$SUBDOMAINS_ON" '
     function tls_pin() {
       print "    # Zwykły certyfikat (nie on-demand bloku *.) – scripts/render_caddyfile.sh, PLATFORM_SUBDOMAINS=1."
-      print "    tls {"
+      print "    tls force_automate {"
       print "        key_type p256"
       print "    }"
       pins++
@@ -486,6 +494,18 @@ if [ "$DJCMS_ON" = "1" ]; then
   cat "$tmp.sub" > "$tmp"
 fi
 
+extra_force_automate() {
+  # Bloki z EXTRA_DOMAINS przy PLATFORM_SUBDOMAINS=1: `force_automate` z tego samego powodu co
+  # w `tls_pin` wyżej (Caddy 2.10 pomija nazwy pokryte przez `*.{$SITE_DOMAIN}`). Generator nie zna
+  # wartości SITE_DOMAIN (to symbol zastępczy Caddy'ego), więc nie wie, która domena z listy jest
+  # subdomeną platformy – opcja trafia do każdej; dla domen spoza `*.` jest bez skutku. Bez
+  # `key_type`: polityka tych nazw zostaje taka jak dotąd (§ 19 testu generatora).
+  [ "$SUBDOMAINS_ON" = "1" ] || return 0
+  printf '%s\n' \
+    '    # Własny certyfikat także pod blokiem *. (Caddy 2.10) – scripts/render_caddyfile.sh, PLATFORM_SUBDOMAINS=1.' \
+    '    tls force_automate'
+}
+
 added=0
 for host in $EXTRA_DOMAINS; do
   if [ "${host#www.}" != "$host" ] && apex_listed "$host"; then
@@ -497,6 +517,9 @@ for host in $EXTRA_DOMAINS; do
 
 # Wygenerowane przez scripts/render_caddyfile.sh z EXTRA_DOMAINS – nie edytuj tego pliku.
 $host {
+EOF
+    extra_force_automate >> "$tmp"
+    cat >> "$tmp" <<EOF
     redir https://${host#www.}{uri} permanent
 }
 EOF
@@ -512,6 +535,7 @@ EOF
 # Wygenerowane przez scripts/render_caddyfile.sh z EXTRA_DOMAINS – nie edytuj tego pliku.
 $host {
 EOF
+    extra_force_automate >> "$tmp"
     # Odmowa `/internal/*` tylko przy włączonym przełączniku (PLATFORM_SUBDOMAINS albo
     # DJCMS_ENABLED): przy wyłączonych ten plik ma być kopią `deploy/Caddyfile` co do bajtu.
     if [ "$GUARD_ON" = "1" ]; then internal_guard >> "$tmp"; fi
@@ -637,7 +661,7 @@ EOF
   if [ "$SUBDOMAINS_ON" = "1" ]; then
     printf '%s\n' \
       '    # Zwykły certyfikat (nie on-demand bloku *.) – scripts/render_caddyfile.sh, PLATFORM_SUBDOMAINS=1.' \
-      '    tls {' '        key_type p256' '    }' >> "$tmp"
+      '    tls force_automate {' '        key_type p256' '    }' >> "$tmp"
   fi
   internal_guard >> "$tmp"
   printf '%s
@@ -655,7 +679,7 @@ EOF
   if [ "$SUBDOMAINS_ON" = "1" ]; then
     printf '%s\n' \
       '    # Zwykły certyfikat (nie on-demand bloku *.) – scripts/render_caddyfile.sh, PLATFORM_SUBDOMAINS=1.' \
-      '    tls {' '        key_type p256' '    }' >> "$tmp"
+      '    tls force_automate {' '        key_type p256' '    }' >> "$tmp"
   fi
   printf '%s\n' \
     '    header {' '        Referrer-Policy no-referrer' '        -Server' '    }' \
@@ -678,7 +702,7 @@ EOF
   if [ "$SUBDOMAINS_ON" = "1" ]; then
     printf '%s\n' \
       '    # Zwykły certyfikat (nie on-demand bloku *.) – scripts/render_caddyfile.sh, PLATFORM_SUBDOMAINS=1.' \
-      '    tls {' '        key_type p256' '    }' >> "$tmp"
+      '    tls force_automate {' '        key_type p256' '    }' >> "$tmp"
   fi
   if [ -n "$ERRORS_UI_ALLOW" ]; then
     # Panel GlitchTipa tylko z podanych adresów; przyjmowanie zdarzeń (koperta/store/minidump/raporty
@@ -760,7 +784,7 @@ if [ -n "$LAB_HOST" ]; then
     if [ "$SUBDOMAINS_ON" = "1" ]; then
       printf '%s\n' \
         '    # Zwykły certyfikat (nie on-demand bloku *.) – scripts/render_caddyfile.sh, PLATFORM_SUBDOMAINS=1.' \
-        '    tls {' '        key_type p256' '    }'
+        '    tls force_automate {' '        key_type p256' '    }'
     fi
     cat <<'EOF'
     import notebook_lab

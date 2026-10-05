@@ -12,6 +12,20 @@ podsekcją `### <tytuł>` wydania `## v<x.y.z> – <data tagu> – <opis tagu>`.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## [Unreleased] – Obrazy usług: Caddy 2.10, ClamAV 1.5 (DEP-02)
+
+- **Obrazy compose (Dependabot `compose-images`):** `caddy` 2.8 → 2.10, `clamav/clamav` 1.4 → 1.5,
+  `louislam/uptime-kuma` 1.23.16 → 1.23.17 (łatka bezpieczeństwa), `axllent/mailpit` v1.24 → v1.30 (dev);
+  loadtest na tych samych wersjach Caddy'ego i ClamAV.
+- **Caddy 2.10 a certyfikaty:** 2.10 pomija certyfikaty nazw pokrytych przez blok `*.<domena>` – przy
+  `PLATFORM_SUBDOMAINS=1` `www.`, `meet.`, `monitor.`, `dj.`, `live.`, `lab.`, `errors.` zostałyby bez
+  certyfikatu. Generator dopisuje im `tls force_automate` (wymaga 2.10; powrót do 2.8 = cofnięcie
+  całego PR-u). Wieloznacznego certyfikatu (DNS-01) Caddy nie próbuje – on-demand dalej per host.
+- **`scripts/proxy_config.sh render`:** przy zmianie obrazu proxy walidacja w jednorazowym kontenerze
+  nowego obrazu zamiast w działającym starym (inaczej krok 4/8 odrzuciłby składnię 2.10).
+- Test `scripts/security/tests` czyta przypięty tag z compose zamiast `caddy:2.8` na sztywno.
+  Lista kontrolna po wdrożeniu: `docs/OPERACJE.md` § 47.8.
+
 ## [Unreleased] – Aktualizacje zależności z Dependabota (DEP-01)
 
 - **Wchodzą z następnym wdrożeniem (obraz web i djcms):** gunicorn 23 → 26.2 (backend i djcms) z flagą
