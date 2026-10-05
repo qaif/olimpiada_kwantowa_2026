@@ -224,6 +224,11 @@ printf '%s\n' "$LOGIN_HTML" | respond "$O/login/" 200 "$CSP"
 expect_fail "logowanie bez ciasteczka csrftoken → błąd" "bez ciasteczka csrftoken"
 printf '%s\n' "$LOGIN_HTML" | respond "$O/login/" 200 "Set-Cookie: csrftoken=abc"
 expect_fail "logowanie bez CSP → błąd" "GET https://olimpiada.example/login/ – 200, ale bez nagłówka Content-Security-Policy"
+# Ciasteczko z prefiksem __Host- (NOTEBOOK_LAB_HOST, QC-02) – też poprawne (prod 5.10.2026: fałszywy alarm).
+printf '%s
+' "$LOGIN_HTML" | respond "$O/login/" 200 "$CSP" "Set-Cookie: __Host-csrftoken=abc; Path=/; Secure"
+run_smoke hostcookie "$O"
+check "logowanie z ciasteczkiem __Host-csrftoken → ok" $?
 printf '<form><input name="csrfmiddlewaretoken"></form><link rel="stylesheet" href="/static/css/app.css">\n' \
   | respond "$O/login/" 200 "$CSP" "Set-Cookie: csrftoken=abc"
 expect_fail "brak pliku statycznego z hashem manifestu → błąd" "brak pliku /static/"
