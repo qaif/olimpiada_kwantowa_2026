@@ -8,6 +8,25 @@ dokładnie jednemu wierszowi tej tabeli.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## [Unreleased] – Dostępność: audyt WCAG 2.1 AA, testy axe w CI, deklaracja dostępności (A11Y-01)
+
+- **Suita e2e dostępności** (`e2e/a11y/`, `scripts/a11y.sh`, job CI `a11y`): axe-core 4.13.0
+  (MPL-2.0, w `e2e/vendor/` – poza obrazem, suma z rejestru npm) na ~70 ekranach obu konkursów
+  i obu motywów (publiczne, rejestracja z błędami, logowanie, 2FA, reset/zmiana hasła, panel
+  uczestnika, upload, test, czat, panel koordynatora i ciężkie tabele, recenzent, opiekun drużyny,
+  weryfikacja listu wizowego, arabski RTL, wysoki kontrast) + kontrole klawiatury, widocznego
+  fokusu, menu bez JS, reflow 320 px / 200 % i powiązania błędów z polami. CSP strony bez zmian
+  (axe przez protokół DevTools). Nowe naruszenie critical/serious spoza `baseline.json` przewraca CI.
+- **Poprawki:** 25 podpowiedzi pól bez `id` (wiszące `aria-describedby` – czytnik nie czytał
+  podpowiedzi, m.in. w rejestracji); CAPTCHA powiązana z podpowiedzią i błędem; błąd kodu 2FA
+  powiązany z polem; wysoki kontrast – `.btn--accent` czarny na żółci (było 1,3:1); menu panelu
+  koordynatora otwarte atrybutem `open` od 900 px.
+- **Motyw IQO Quantum 1.1.2:** paski ramy aplikacji na granacie (kontrast napisów 2,3–4,3:1 → AA),
+  odnośnik „Deklaracja dostępności” w stopce; `min_app_version` 0.47.0.
+- **Deklaracja dostępności:** nowa aplikacja `apps.accessibility`, komenda
+  `seed_accessibility_statement <slug>` – projekt strony `/dokumenty/deklaracja-dostepnosci/` (PL/EN)
+  do zatwierdzenia przez organizatora; odnośnik w stopce obu motywów. `docs/OPERACJE.md` § 50.
+
 ## [Unreleased] – Monitoring z zewnątrz (OPS-03)
 
 - **`.github/workflows/uptime.yml`**: GitHub Actions co 10 minut (+ ręcznie) sprawdza z zewnątrz
@@ -83,6 +102,7 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
   organizatora § 10n, recenzenta § 3b, uczestnika § 3a.
 - **Nadzór zdalny (PROC-01):** strona laboratorium (`web:participant-notebook`) stoi w `GATED_VIEWS`,
   a notatnik startowy z tokenem sprawdza bramkę nadzoru w widoku (403 bez gotowej sesji).
+
 
 ## [Unreleased] – Zmiana hasła w panelu konta (AUTH-01b)
 
