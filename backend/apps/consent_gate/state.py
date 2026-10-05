@@ -151,19 +151,69 @@ def missing_consents(user, competition) -> tuple[Consent, ...] | None:
     return None if found is None else found[0]
 
 
-def gap(user, competition) -> tuple[tuple[Consent, ...], bool] | None:
-    """``(brakujące zgody, czy to wyłącznie ponowienia)``; ``None`` – konto nie jest tu uczestnikiem.
+def gap(user, competition) -> tuple[tuple[Consent, ...], bool, int] | None:
+    """``(brakujące zgody, czy to wyłącznie ponowienia, id profilu)``; ``None`` – nie uczestnik tutaj.
 
     „Ponowienie” to brak, przy którym uczestnik ma aktywną zgodę **tego samego rodzaju** pod inną
-    wersją – czyli organizator zmienił dokument, a nie: uczestnik nigdy się nie zgodził. Tylko taki
-    brak przepuszcza zapis pracy w toku (CONS-01 H1, ``middleware.WORK_IN_PROGRESS_VIEWS``).
+    wersją – czyli organizator zmienił dokument, a nie: uczestnik nigdy się nie zgodził. Ponowienie
+    przepuszcza zapis pracy w toku bez dalszych pytań (CONS-01 H1, ``middleware.WORK_IN_PROGRESS_VIEWS``);
+    brak „nowy” – dopiero po sprawdzeniu, że uczestnik ma wpis w otwartym etapie (:func:`has_open_work`).
     """
     participant_id, birth_date, birth_year, records = participant_state(user, competition)
     if participant_id is None:
         return None
     missing = missing_from(consents_for(competition), birth_date, birth_year, records)
     consented_kinds = {kind for kind, _version in records}
-    return missing, all(consent.kind in consented_kinds for consent in missing)
+    return missing, all(consent.kind in consented_kinds for consent in missing), participant_id
+
+
+def has_open_work(participant_id: int, *, now=None) -> bool:
+    """Czy uczestnik ma wpis w **trwającym** etapie – pracę, której zmiana zestawu zgód nie przerwie.
+
+    Trwający = otwarty (``opens_at`` minął), niezamknięty (``closed_at`` puste) i jeszcze coś przyjmuje:
+    okno oddawania z tolerancją (``deadline_at + grace_seconds``), okno reklamacji albo podejście do testu
+    w toku. Jedno zapytanie, liczone **wyłącznie** dla widoków zapisu pracy i wyłącznie przy braku, który
+    nie jest ponowieniem (nowa wymagana zgoda w trakcie etapu, decyzja koordynatora po przeglądzie #97) –
+    reszta ruchu go nie płaci. Granice okien egzekwują i tak same widoki; tu chodzi wyłącznie o to, czy
+    uczestnik był już w zawodach, zanim zestaw zgód się zmienił.
+    """
+    from datetime import timedelta
+
+    from django.db.models import (
+        DateTimeField,
+        DurationField,
+        Exists,
+        ExpressionWrapper,
+        F,
+        OuterRef,
+        Q,
+        Value,
+    )
+    from django.utils import timezone
+
+    from apps.competitions.models import StageEntry
+    from apps.quiz.models import AttemptStatus, QuizAttempt
+
+    now = now or timezone.now()
+    grace = ExpressionWrapper(
+        F("stage__grace_seconds") * Value(timedelta(seconds=1), output_field=DurationField()),
+        output_field=DurationField(),
+    )
+    attempt_in_progress = QuizAttempt.objects.filter(entry=OuterRef("pk"), status=AttemptStatus.IN_PROGRESS)
+    return (
+        StageEntry.objects.filter(
+            participant_id=participant_id, stage__closed_at__isnull=True, stage__opens_at__lte=now
+        )
+        .annotate(
+            submissions_end=ExpressionWrapper(F("stage__deadline_at") + grace, output_field=DateTimeField())
+        )
+        .filter(
+            Q(submissions_end__gt=now)
+            | Q(stage__appeal_window_opens_at__lte=now, stage__appeal_window_closes_at__gt=now)
+            | Exists(attempt_in_progress)
+        )
+        .exists()
+    )
 
 
 def previous_versions(records: frozenset[tuple[str, str]]) -> dict[str, list[str]]:

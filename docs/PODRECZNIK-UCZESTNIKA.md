@@ -127,9 +127,10 @@ zaakceptowano wcześniej. Zaznacz oświadczenia (odnośnik w każdym prowadzi do
 **„Zapisuję oświadczenia”** — wrócisz tam, dokąd szedłeś.
 
 - Do tego czasu **nie wyślesz rozwiązania, nie rozwiążesz testu, nie napiszesz wiadomości** i nie
-  wejdziesz na forum. **Wyjątek: praca w toku.** Jeśli zgodziłeś się na poprzednią wersję dokumentu,
-  a organizator zmienił go w trakcie etapu, rozpoczęty test (także „Zakończ”) i wysyłka rozwiązania
-  działają dalej — zobaczysz tylko baner z prośbą o potwierdzenie nowej wersji po skończeniu pracy.
+  wejdziesz na forum. **Wyjątek: praca w toku.** Jeśli organizator zmienił dokument albo dołożył
+  wymaganą zgodę w trakcie etapu, w którym już startujesz, rozpoczęty test (także „Zakończ”), wysyłka
+  rozwiązania i reklamacja działają dalej — zobaczysz tylko baner z prośbą o potwierdzenie zgody po
+  skończeniu pracy.
 - Jeśli dokument zmieni się, kiedy ekran zgód jest otwarty, pole wróci puste z prośbą o ponowne
   przeczytanie — zgoda zawsze dotyczy tej wersji, którą widzisz.
 - **Zawsze działają:** wylogowanie, zmiana hasła, ustawienia konta, **pobranie swoich danych

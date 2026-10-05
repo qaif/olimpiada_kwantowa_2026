@@ -6783,12 +6783,17 @@ Duża liczba przed etapem z terminem → uzgodnij z organizatorem komunikat do u
 i potwierdź nowy regulamin”, `/coordinator/messages/`) **przed** wdrożeniem. Listę osób koordynator
 pobiera z pulpitu (kafelek „Uczestnicy z brakującymi zgodami” → CSV).
 
-**Praca w toku nie jest blokowana** (przegląd H1): uczestnik, który zgodził się na **poprzednią**
-wersję, dalej zapisuje pracę – arkusz i „Zakończ” testu, wysyłka rozwiązania (WWW i API
-`submissions`), reklamacja, laboratorium notatnika – z banerem „potwierdź nową wersję”; klient API
-dostaje nagłówek `X-Consents-Required`. Pozostałe ekrany (panel, start testu, czat, forum) odsyłają na
-ekran zgód. Uczestnik bez żadnej zgody danego rodzaju nie oddaje pracy w ogóle. Mimo to wersję
-dokumentu zmieniaj **poza** oknem etapu, jeśli się da.
+**Praca w toku nie jest blokowana** (przegląd H1 i decyzja koordynatora): arkusz i „Zakończ” testu,
+wysyłka rozwiązania (WWW i API `submissions`), reklamacja i laboratorium notatnika przechodzą z banerem
+„potwierdź nową wersję” (klient API – nagłówek `X-Consents-Required`), gdy:
+
+- brak jest **ponowieniem** (uczestnik zgodził się na poprzednią wersję dokumentu) – bez zapytań, albo
+- brakuje zgody **nowej** (np. koordynator przestawił zgodę na wymaganą w trakcie etapu), a uczestnik ma
+  wpis w **trwającym** etapie: otwartym, niezamkniętym, z otwartym oknem oddawania (z tolerancją), oknem
+  reklamacji albo podejściem do testu w toku – jedno zapytanie, wyłącznie na tej ścieżce.
+
+Konto bez wpisu w trwającym etapie pracy nie oddaje. Pozostałe ekrany (panel, start testu, czat, forum)
+zawsze odsyłają na ekran zgód. Mimo to zestaw zgód zmieniaj **poza** oknem etapu, jeśli się da.
 
 ### 51.2. Wyłącznik (incydent)
 

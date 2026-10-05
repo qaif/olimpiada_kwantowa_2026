@@ -72,11 +72,14 @@ na ekran.
 **Praca w toku (przegląd H1).** Zmiana wersji dokumentu w trakcie etapu nie może zabrać pracy.
 Widoki zapisu pracy pod terminem (`middleware.WORK_IN_PROGRESS_VIEWS`: arkusz i „Zakończ” testu
 `web:quiz-attempt`, `web:problem-upload`, `submissions:submission-create`, `web:appeal-create`,
-`web:participant-notebook`; autozapis jest na liście dozwolonej od początku) przechodzą, gdy braki są
-wyłącznie **ponowieniami** (aktywna zgoda tego samego rodzaju pod inną wersją – `state.gap`), z banerem
-(komunikat) albo nagłówkiem `X-Consents-Required` (API). Otwartości podejścia i okna bramka nie
-sprawdza – egzekwują je widoki, a pytanie o nie kosztowałoby zapytania. Brak zgody „od zawsze” blokuje
-także zapis.
+`web:participant-notebook`; autozapis jest na liście dozwolonej od początku) przechodzą z banerem
+(komunikat) albo nagłówkiem `X-Consents-Required` (API), gdy braki są wyłącznie **ponowieniami**
+(aktywna zgoda tego samego rodzaju pod inną wersją – `state.gap`, bez zapytań), **albo** – decyzja
+koordynatora po przeglądzie – gdy brakuje zgody nowej (np. dołożonej jako wymagana w trakcie etapu),
+a uczestnik ma wpis w **trwającym** etapie (`state.has_open_work`: `opens_at` minął, `closed_at` puste
+i otwarte okno oddawania z `grace_seconds`, okno reklamacji albo podejście `IN_PROGRESS`; jedno
+zapytanie, tylko na tej ścieżce). Konto bez takiego wpisu pracy nie oddaje; reszta obszaru (panel,
+start testu, czat, forum) zawsze odsyła na ekran. Granice okien egzekwują nadal same widoki.
 
 API z nagłówkiem `Authorization` (token): konto liczone w kolejności DRF (`proctoring.middleware.
 request_user`) – jedno zapytanie o token, wyłącznie na adresach przestrzeni z bramką.

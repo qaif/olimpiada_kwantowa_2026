@@ -38,7 +38,9 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
   i „Zakończ” testu, upload (WWW i API), reklamacja i notatnik przechodzą przy ponowieniu zgody
   z banerem / nagłówkiem `X-Consents-Required` (H1); wersja dokumentu jedzie z formularzem i jest
   sprawdzana pod blokadą (L3); ekran bez braków czyści nieświeży stan cache'a (L4); `next` dla HTMX
-  z `HX-Current-URL` tego samego serwisu (L5).
+  z `HX-Current-URL` tego samego serwisu (L5). Ten sam wyjątek dla pracy w toku obejmuje też zgodę
+  **nową** (np. przestawioną na wymaganą w trakcie etapu), gdy uczestnik ma wpis w trwającym etapie
+  (jedno zapytanie wyłącznie na tej ścieżce); konto bez takiego wpisu dalej nie oddaje pracy.
 
 ## v0.47.2 – 2026-10-05 – Dostępność WCAG 2.1 AA, deklaracja dostępności, motyw IQO 1.1.2 (A11Y-01)
 

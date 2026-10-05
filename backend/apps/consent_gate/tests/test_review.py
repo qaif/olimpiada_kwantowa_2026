@@ -129,8 +129,13 @@ def test_api_upload_mid_window_succeeds_and_flags_the_renewal(web, competition, 
     assert Submission.objects.filter(entry=entry).count() == 1
 
 
-def test_participant_who_never_consented_cannot_upload(web, adult):
+def test_without_an_entry_in_a_running_stage_a_new_consent_still_blocks_work(web, adult):
+    """Brak „nowy” (nie ponowienie) i wpis tylko w etapie zamkniętym – zapis pracy zablokowany."""
+    from django.utils import timezone
+
     entry = _open_stage(adult)
+    entry.stage.closed_at = timezone.now()
+    entry.stage.save(update_fields=["closed_at"])
     give(adult, {ConsentKind.TERMS})
     web.force_login(adult.user)
 
@@ -144,7 +149,100 @@ def test_participant_who_never_consented_cannot_upload(web, adult):
     assert response.status_code == 403
     assert response["HX-Redirect"].startswith(SCREEN)
     assert api.status_code == 403
+    assert api.json()["code"] == "CONSENTS_REQUIRED"
     assert not Submission.objects.filter(entry=entry).exists()
+
+
+def test_participant_with_no_entry_at_all_is_blocked_on_work_views(web, competition):
+    newcomer = make_adult(competition=competition)
+    give(newcomer, {ConsentKind.TERMS})
+    stage = StageFactory(edition=CurrentEditionFactory(), kind=StageKind.ELIM)
+    ProblemFactory(stage=stage, number=1)
+    web.force_login(newcomer.user)
+
+    response = web.post(f"/api/stages/{stage.pk}/problems/1/submissions/", {"file": pdf_upload()})
+
+    assert response.status_code == 403
+    assert response.json()["code"] == "CONSENTS_REQUIRED"
+
+
+# --- decyzja po przeglądzie: nowa wymagana zgoda w trakcie etapu -------------------------------------
+
+
+def _require_publish_name(competition) -> None:
+    definition = ConsentDefinition.objects.get(competition=competition, kind=ConsentKind.PUBLISH_NAME)
+    definition.required = True
+    definition.save(update_fields=["required"])
+
+
+def test_new_required_consent_mid_stage_does_not_block_an_upload_in_the_open_window(
+    web, competition, consenting
+):
+    entry = _open_stage(consenting)
+    web.force_login(consenting.user)
+    assert web.get("/me/").status_code == 200
+
+    _require_publish_name(competition)
+    response = web.post(
+        f"/me/stages/{entry.stage_id}/problems/1/upload/",
+        {"file": pdf_upload(), "confirmed": "1"},
+        HTTP_HX_REQUEST="true",
+    )
+    api = web.post(f"/api/stages/{entry.stage_id}/problems/1/submissions/", {"file": pdf_upload()})
+
+    assert response.status_code == 200
+    assert api.status_code == 201, api.content
+    assert api["X-Consents-Required"] == SCREEN
+    assert Submission.objects.filter(entry=entry).count() == 2
+    # Reszta panelu prosi o nową zgodę – z banerem z wysyłki.
+    panel = web.get("/me/", follow=True)
+    assert panel.redirect_chain[-1][0].startswith(SCREEN)
+    assert BANNER in panel.content.decode()
+    assert 'name="publish_name_consent"' in panel.content.decode()
+
+
+def test_new_required_consent_mid_attempt_still_lets_the_finish_save_every_answer(
+    web, competition, consenting
+):
+    quiz = QuizFactory(stage=QuizStageFactory(edition=CurrentEditionFactory()))
+    entry = StageEntryFactory(participant=consenting, stage=quiz.stage, status=StageEntryStatus.QUALIFIED)
+    choice = choice_question(quiz, points=Decimal("2"))
+    web.force_login(consenting.user)
+    web.post(reverse("web:quiz-start", args=[quiz.stage.pk]))
+    attempt = QuizAttempt.objects.get(entry=entry)
+
+    _require_publish_name(competition)
+    correct = choice.options.filter(is_correct=True).first().pk
+    finish = web.post(reverse("web:quiz-attempt", args=[attempt.pk]), {f"q{choice.pk}": str(correct)})
+
+    assert finish["Location"] == reverse("web:quiz-result", args=[attempt.pk])
+    attempt.refresh_from_db()
+    assert attempt.status == AttemptStatus.SUBMITTED
+    assert attempt.score == Decimal("2.00")
+    # Start **nowego** testu nie jest pracą w toku – ten wymaga zgody.
+    assert web.post(reverse("web:quiz-start", args=[quiz.stage.pk]))["Location"].startswith(SCREEN)
+
+
+def test_open_work_check_costs_nothing_for_renewals(competition, consenting, django_assert_num_queries):
+    """Ponowienie zgody przechodzi bez pytania o etap – zapytanie płaci tylko „nowy” brak."""
+    from django.test import RequestFactory
+    from django.urls import resolve
+
+    from apps.consent_gate import middleware
+
+    entry = _open_stage(consenting)
+    bump_privacy(competition)
+    path = f"/me/stages/{entry.stage_id}/problems/1/upload/"
+    request = RequestFactory().post(path)
+    request.user = consenting.user
+    request.competition = competition
+    request.resolver_match = resolve(path)
+    gate = middleware.ConsentGateMiddleware(lambda r: None)
+    gate.process_view(request, None, (), {})  # rozgrzanie stanu w cache'u
+
+    with django_assert_num_queries(0):
+        assert gate.process_view(request, None, (), {}) is None
+    assert state.has_open_work(consenting.pk) is True
 
 
 # --- L3: wersja dokumentu jedzie z formularzem -------------------------------------------------------

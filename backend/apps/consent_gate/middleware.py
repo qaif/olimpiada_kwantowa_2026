@@ -59,10 +59,11 @@ ALLOWED_VIEWS = frozenset(
 #: Zapis pracy pod terminem (CONS-01, przegląd H1). Zmiana wersji dokumentu w trakcie etapu nie może
 #: zabrać uczniowi pracy w toku: zakończenie testu (POST „Zakończ” niesie komplet odpowiedzi), arkusz
 #: testu (odświeżenie w trakcie podejścia), wysyłka rozwiązania (WWW i API), reklamacja w jej oknie
-#: i laboratorium notatnika. Przepuszczamy je wyłącznie przy **ponowieniu** zgody (uczestnik zgodził
-#: się na poprzednią wersję – ``state.gap``), z banerem zamiast blokady; uczestnik, który zgody nie
-#: złożył nigdy, nie oddaje pracy bez niej. Terminy i okna egzekwują same widoki – bramka nie musi
-#: (i nie powinna, bo kosztowałoby to zapytania) wiedzieć, czy podejście albo okno jest otwarte.
+#: i laboratorium notatnika. Przepuszczamy je, z banerem zamiast blokady, przy **ponowieniu** zgody
+#: (uczestnik zgodził się na poprzednią wersję – ``state.gap``, bez zapytań) albo – gdy brakuje zgody
+#: nowej, np. dołożonej jako wymagana w trakcie etapu – uczestnikowi z wpisem w **trwającym** etapie
+#: (``state.has_open_work``, jedno zapytanie tylko na tej ścieżce; decyzja koordynatora po przeglądzie
+#: #97). Konto bez takiego wpisu pracy nie oddaje. Granice okien egzekwują i tak same widoki.
 WORK_IN_PROGRESS_VIEWS = frozenset(
     {
         "web:quiz-attempt",
@@ -178,10 +179,15 @@ class ConsentGateMiddleware:
         found = gap(user, competition)
         if found is None or not found[0]:
             return None
-        renewal_only = found[1]
-        if renewal_only and match.view_name in WORK_IN_PROGRESS_VIEWS:
-            _renewal_notice(request)
-            return None
+        _missing, renewal_only, participant_id = found
+        if match.view_name in WORK_IN_PROGRESS_VIEWS:
+            from .state import has_open_work
+
+            # Ponowienie zgody – bez pytania o etap; nowa wymagana zgoda – gdy uczestnik ma wpis
+            # w trwającym etapie (praca w toku sprzed zmiany zestawu zgód nie może przepaść).
+            if renewal_only or has_open_work(participant_id):
+                _renewal_notice(request)
+                return None
         return self._stop(request)
 
     def _stop(self, request):
