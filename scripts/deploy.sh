@@ -95,6 +95,17 @@
 # (CADDY_CONFIG_DIR=./caddy w .env), który krok 2/8 omija; dawny montaż pojedynczego pliku
 # z deploy/ zostawał po kroku 2/8 przy skasowanej, starej treści. Kontener, który mimo to widzi
 # inną treść (albo nie działa), 4c/8 odtwarza – kilka sekund bez HTTPS.
+#
+# Kontrola dymna i wycofanie (docs/OPERACJE.md § 48, docs/tasks/OPS-04.md) – przy KAŻDYM wdrożeniu.
+# Krok 2a/8 (scripts/rollback.sh snapshot) taguje obraz DZIAŁAJĄCEGO web (i djcms) jako
+# olimpiada/web:previous i zapisuje zastosowane migracje w <REMOTE_DIR>/deploy-state/ (krok 2/8 go
+# omija). Krok 5b/8 (scripts/smoke.sh --server) sprawdza każdy host konkursu przez proxy tego
+# serwera; porażka = scripts/rollback.sh auto: bez nowych migracji – powrót web/worker/beat/djcms do
+# obrazów :previous (baza i wolumeny nietknięte), z nowymi – BEZ wycofania; w obu przypadkach list do
+# ALERT_EMAILS, ramka w logu i kod 1 (kroki 6–8 się nie wykonują). Furtka operatora:
+#   DEPLOY_SMOKE=warn  – porażka kontroli = ostrzeżenie, wdrożenie idzie dalej, bez wycofania;
+#   DEPLOY_SMOKE=0     – bez kontroli (np. awaria certyfikatu niezwiązana z wydaniem).
+# Wycofanie ręczne: ssh <cel> "cd /opt/olimpiada && bash scripts/rollback.sh run".
 set -euo pipefail
 
 MAINTENANCE=0
@@ -121,6 +132,11 @@ case "$SSH_HOST_KEY_CHECKING" in
 esac
 SSH=(ssh -i "$SSH_KEY" -o BatchMode=yes -o StrictHostKeyChecking="$SSH_HOST_KEY_CHECKING" "$TARGET")
 APP_VERSION="${APP_VERSION:-$(git describe --tags --always)}"
+DEPLOY_SMOKE="${DEPLOY_SMOKE:-1}"
+case "$DEPLOY_SMOKE" in
+  1|warn|0) ;;
+  *) echo "deploy: DEPLOY_SMOKE=„$DEPLOY_SMOKE” – dozwolone 1 (domyślnie), warn albo 0" >&2; exit 2 ;;
+esac
 
 log() { printf '\n==> %s\n' "$*"; }
 
@@ -141,8 +157,16 @@ fi
 #       przy proxy bez montażu nie zostawiają strony włączonej – wtedy ramki nie ma);
 #   1 – strona włączona (krok 4/8 zakończony) aż do potwierdzonego wyłączenia w 5a.
 MAINT_MAYBE_ON=0
+# Nowe kontenery aplikacji: 0 – jeszcze nie wystartowały, 1 – wystartowały (4b), a kontrola dymna
+# (5b) jeszcze nie rozstrzygnęła; 2 – rozstrzygnięte (przeszła albo zajął się tym rollback.sh auto).
+NEW_STARTED=0
 maintenance_exit() {
   local rc=$?
+  if [ "$rc" -ne 0 ] && [ "$NEW_STARTED" = "1" ]; then
+    printf '\n!!! Wdrożenie przerwane (kod %s) PO starcie nowych kontenerów, przed kontrolą dymną.\n' "$rc" >&2
+    printf '!!! Kontrola:  ssh %s "cd %s && bash scripts/smoke.sh --server ."\n' "$TARGET" "$REMOTE_DIR" >&2
+    printf '!!! Wycofanie: ssh %s "cd %s && bash scripts/rollback.sh run"   (docs/OPERACJE.md § 48)\n' "$TARGET" "$REMOTE_DIR" >&2
+  fi
   if [ "$rc" -ne 0 ] && [ "$MAINT_MAYBE_ON" = "2" ]; then
     if "${SSH[@]}" "test -f '$REMOTE_DIR/maintenance/on'" 2>/dev/null; then
       MAINT_MAYBE_ON=1
@@ -211,8 +235,18 @@ esac
 # backup_offsite.sh) zostaje z tego samego powodu, co `.env`: nie ma go w repozytorium.
 # `caddy` (konfiguracja proxy, scripts/proxy_config.sh) – jak `maintenance`: montuje go działające
 # proxy, a katalog skasowany i utworzony od nowa widziałoby jako stary (OPERACJE § 23).
-"${SSH[@]}" "mkdir -p '$REMOTE_DIR' && find '$REMOTE_DIR' -mindepth 1 -maxdepth 1 ! -name .env ! -name 'e2e' ! -name maintenance ! -name secrets ! -name caddy -exec rm -rf {} +"
+# `deploy-state` (migawka do wycofania i zapis ostatniego udanego wdrożenia, scripts/rollback.sh) –
+# jak `.env`: stan serwera, nie kod; skasowany razem z kodem odebrałby wycofaniu wszystko, co wie.
+"${SSH[@]}" "mkdir -p '$REMOTE_DIR' && find '$REMOTE_DIR' -mindepth 1 -maxdepth 1 ! -name .env ! -name 'e2e' ! -name maintenance ! -name secrets ! -name caddy ! -name deploy-state -exec rm -rf {} +"
 git archive --format=tar HEAD | "${SSH[@]}" "tar -x -C '$REMOTE_DIR'"
+
+log "2a/8 Migawka do wycofania: obrazy działających kontenerów i zastosowane migracje"
+# Teraz, a nie później: .env ma jeszcze APP_VERSION sprzed wdrożenia (krok 3/8 go zmienia), obraz
+# poprzedniej wersji jeszcze działa (budowanie w 4/8 może mu odebrać tag), a migracje nowej wersji
+# jeszcze nie ruszyły (entrypoint web w 4b). Skrypt jest już z NOWEGO kodu (krok 2/8). Nieudana
+# migawka nie zatrzymuje wdrożenia – wyłącza tylko wycofanie automatyczne w kroku 5b/8.
+"${SSH[@]}" "cd '$REMOTE_DIR' && bash scripts/rollback.sh snapshot </dev/null" \
+  || echo "UWAGA: migawka nieudana – wycofanie automatyczne w tym wdrożeniu niemożliwe (wdrożenie idzie dalej)"
 
 log "3/8 .env (tworzony tylko przy pierwszym wdrożeniu)"
 "${SSH[@]}" env SITE_DOMAIN="${SITE_DOMAIN:-}" ACME_EMAIL="${ACME_EMAIL:-}" S3_PUBLIC_ADDRESS="${S3_PUBLIC_ADDRESS:-}" APP_VERSION="$APP_VERSION" REMOTE_DIR="$REMOTE_DIR" bash -s <<'REMOTE'
@@ -749,8 +783,21 @@ log "4b/8 Start usług (migracje wykonuje entrypoint kontenera web)"
 # Przy DJCMS_ENABLED=1 lista dostaje `djcms` na końcu; bez niego polecenie jest znak w znak dzisiejsze.
 DJCMS_SVC=""
 [ "$DJCMS_ON" = "1" ] && DJCMS_SVC=" djcms"
-"${SSH[@]}" "cd '$REMOTE_DIR' && docker compose up -d --remove-orphans db redis minio minio-init clamav mail web worker beat proxy$DJCMS_SVC"
+NEW_STARTED=1
+# Najczęstsze złe wydanie – nowy web, który nie wstaje (błąd importu, migracja, crash-loop) – kończy
+# TO polecenie błędem: proxy zależy od `web: service_healthy`, więc compose zwraca kod ≠ 0. Pod
+# `set -e` wdrożenie urwałoby się tutaj, przed kontrolą dymną i decyzją o wycofaniu – a to dokładnie
+# przypadek, dla którego wycofanie istnieje. Kod zapamiętujemy: kroki 4c–5a (proxy, czekanie,
+# strona prac technicznych) są wtedy pomijane, a 5b/8 idzie prosto do kontroli i `rollback.sh auto`
+# (który wycofa wyłącznie wtedy, gdy nie przybyły migracje) – niezależnie od DEPLOY_SMOKE.
+UP_RC=0
+"${SSH[@]}" "cd '$REMOTE_DIR' && docker compose up -d --remove-orphans db redis minio minio-init clamav mail web worker beat proxy$DJCMS_SVC" || UP_RC=$?
+if [ "$UP_RC" -ne 0 ]; then
+  printf '\n!!! docker compose up -d zakończył się kodem %s (zwykle: nowy web nie staje się healthy –\n' "$UP_RC" >&2
+  printf '!!! docker compose logs web). Pomijam kroki 4c–5a; kontrola dymna i decyzja o wycofaniu (5b/8).\n' >&2
+fi
 
+if [ "$UP_RC" = 0 ]; then
 log "4c/8 Konfiguracja proxy: caddy reload"
 # `up -d` wyżej odtwarza proxy wyłącznie przy zmianie jego konfiguracji compose'a (obraz, montaże,
 # środowisko) – zmiana samej treści caddy/Caddyfile z kroku 4/8 do działającego Caddy'ego nie
@@ -806,6 +853,57 @@ bash scripts/maintenance.sh off
 rm -f maintenance/.deploy-maintenance-on
 REMOTE
   MAINT_MAYBE_ON=0
+fi
+fi  # UP_RC = 0 (kroki 4c–5a)
+
+log "5b/8 Bufor całych stron gościa: page_cache_clear"
+# Nowa wersja wstała, a jej entrypoint zrobił `collectstatic --clear` – pliki statyczne poprzedniej
+# wersji zniknęły. Strony z bufora (OPERACJE § 13, do 120 s) odsyłałyby do nich (strona bez stylów
+# i skryptów), więc bufor wszystkich konkursów gaśnie TERAZ, przed kontrolą dymną. Niepowodzenie nie
+# zatrzymuje wdrożenia: klucz bufora i tak zawiera wydanie (APP_VERSION, OPS-04), więc HTML
+# poprzedniej wersji nie trafi do nikogo – to jest tylko sprzątanie zawczasu.
+"${SSH[@]}" "cd '$REMOTE_DIR' && docker compose exec -T web python manage.py page_cache_clear </dev/null" \
+  || echo "UWAGA: page_cache_clear nieudane – bufor stron wygaśnie sam (klucz zawiera wydanie)"
+
+if [ "$DEPLOY_SMOKE" = "0" ] && [ "$UP_RC" = 0 ]; then
+  log "5b/8 Kontrola dymna – POMINIĘTA (DEPLOY_SMOKE=0)"
+  NEW_STARTED=2
+else
+  log "5b/8 Kontrola dymna (scripts/smoke.sh) – po porażce decyzja o wycofaniu (scripts/rollback.sh)"
+  # Na serwerze, przez jego proxy (curl --resolve <host>:443:127.0.0.1): wynik nie zależy od DNS,
+  # od sieci operatora ani od pośredniczącego proxy firmowego, które na laptopie podmienia
+  # certyfikaty – fałszywa porażka oznaczałaby tu wycofanie dobrej wersji. Po kroku 5a, więc przy
+  # --maintenance strona jest już wyłączona; przepustkę i tak dostaje (gdyby wisiała z innego powodu).
+  # Przed seedami (krok 6): wersja, która nie przechodzi kontroli, nie pisze już niczego do bazy.
+  SMOKE_RC=0
+  "${SSH[@]}" "cd '$REMOTE_DIR' && mkdir -p deploy-state && bash scripts/smoke.sh --server '$REMOTE_DIR' --expect-version $(printf '%q' "$APP_VERSION") --report deploy-state/last-smoke.txt </dev/null" || SMOKE_RC=$?
+  # Nieudany start usług (4b) jest porażką także wtedy, gdy kontrola przypadkiem przeszła (np. stary
+  # kontener web jeszcze odpowiada) – i nie podlega furtce DEPLOY_SMOKE=warn.
+  RB_REASON=""
+  if [ "$UP_RC" -ne 0 ]; then
+    RB_REASON="docker compose up -d (krok 4b/8) zakończył się kodem $UP_RC – nowe kontenery nie wstały"
+    [ "$SMOKE_RC" -ne 0 ] || SMOKE_RC=1
+  fi
+  if [ "$SMOKE_RC" -ne 0 ] && [ "$DEPLOY_SMOKE" = "warn" ] && [ "$UP_RC" = 0 ]; then
+    printf '\n!!! Kontrola dymna wersji %s NIE przeszła (kod %s) – DEPLOY_SMOKE=warn: bez wycofania, wdrożenie idzie dalej.\n' "$APP_VERSION" "$SMOKE_RC" >&2
+    printf '!!! Wycofanie ręczne: ssh %s "cd %s && bash scripts/rollback.sh run"\n' "$TARGET" "$REMOTE_DIR" >&2
+  elif [ "$SMOKE_RC" -ne 0 ]; then
+    RB_RC=0
+    "${SSH[@]}" "cd '$REMOTE_DIR' && OLIMPIADA_PROXY_LOCK=held bash scripts/rollback.sh auto --failed-version $(printf '%q' "$APP_VERSION")${RB_REASON:+ --reason $(printf '%q' "$RB_REASON")} </dev/null" || RB_RC=$?
+    NEW_STARTED=2
+    case "$RB_RC" in
+      10) printf '\nWdrożenie %s NIEUDANE i WYCOFANE do poprzednich obrazów (kontrola po wycofaniu przeszła).\n' "$APP_VERSION" >&2 ;;
+      12) printf '\nWdrożenie %s NIEUDANE, wycofane – ale serwis NADAL nie przechodzi kontroli. Incydent: docs/OPERACJE.md § 7.\n' "$APP_VERSION" >&2 ;;
+      11) printf '\nWdrożenie %s NIEUDANE i NIE wycofane (migracje albo brak migawki) – decyzja ręczna, docs/OPERACJE.md § 48.5.\n' "$APP_VERSION" >&2 ;;
+      *) printf '\nWdrożenie %s NIEUDANE; scripts/rollback.sh auto zakończył się kodem %s – sprawdź stan: bash scripts/rollback.sh status\n' "$APP_VERSION" "$RB_RC" >&2 ;;
+    esac
+    exit 1
+  fi
+  # Zapis „ta wersja działa” – źródło PREV_GIT_COMMIT dla migawki następnego wdrożenia.
+  GIT_COMMIT="$(git rev-parse HEAD 2>/dev/null || true)"
+  "${SSH[@]}" "cd '$REMOTE_DIR' && bash scripts/rollback.sh record-success --git-commit $(printf '%q' "$GIT_COMMIT") </dev/null" \
+    || echo "UWAGA: nie zapisano deploy-state/deployed.env (wycofanie działa i bez tego)"
+  NEW_STARTED=2
 fi
 
 log "6/8 Seedy treści i konto koordynatora"
@@ -894,6 +992,40 @@ IP="${MAIL_PUBLIC_IP:-$(hostname -I | tr ' ' '\n' | grep -E '^[0-9]+\.' | grep -
 DKIM_RAW="$(docker compose exec -T mail cat "/etc/opendkim/keys/${DOMAIN}.txt" </dev/null 2>/dev/null || true)"
 DKIM_VALUE="$(printf '%s' "$DKIM_RAW" | tr -d '\r\n\t' | grep -oE '"[^"]*"' | tr -d '"' | tr -d '\n' || true)"
 
+# MAIL-01: klucze leżą na wolumenie `mail_dkim`, którego wdrożenie nie dotyka – ale wolumen
+# odtworzony od zera (nowa maszyna, `down -v`) dostaje przy starcie `mail` NOWY klucz, a stary rekord
+# w DNS-ie przestaje pasować bez żadnego błędu. Porównanie z poprzednim mail-dns.txt (domena główna)
+# i z mail-dns-<domena>.txt (domeny dodane scripts/mail_add_domain.sh) mówi o tym głośno.
+dkim_p() { tr -d ' \r\n\t' | grep -oE 'p=[A-Za-z0-9+/=]+' | head -n 1 | cut -c3- || true; }
+NEW_P="$(printf '%s' "$DKIM_VALUE" | dkim_p)"
+OLD_P="$( { grep -A1 '^2) DKIM' mail-dns.txt 2>/dev/null || true; } | dkim_p)"
+if [ -n "$OLD_P" ] && [ -n "$NEW_P" ] && [ "$OLD_P" != "$NEW_P" ]; then
+  echo "!!! UWAGA: klucz DKIM domeny ${DOMAIN} jest INNY niż w poprzednim mail-dns.txt (wolumen mail_dkim"
+  echo "!!! odtworzony?). Zaktualizuj rekord ${SELECTOR}._domainkey.${DOMAIN} w DNS-ie – do tego czasu DKIM nie przechodzi."
+fi
+EXTRA_DOMAINS_MAIL=""
+set -f
+for extra in $(sed -n 's/^ALLOWED_SENDER_DOMAINS=//p' .env | tail -n 1 | tr -d '"\047\r' | tr ',' ' '); do
+  [ "$extra" = "$DOMAIN" ] || [ "$extra" = "*" ] && continue
+  EXTRA_DOMAINS_MAIL="$EXTRA_DOMAINS_MAIL $extra"
+  # `|| true`: pipefail + set -e zakończyłyby krok na brakującym pliku albo kluczu – a to jest
+  # właśnie stan, o którym ten fragment ma powiedzieć.
+  KEY_P="$( { docker compose exec -T mail cat "/etc/opendkim/keys/${extra}.txt" </dev/null 2>/dev/null || true; } \
+    | tr -d '\r\n\t' | { grep -oE '"[^"]*"' || true; } | tr -d '"' | dkim_p)"
+  SAVED_P="$( { sed -n 's/^DKIM_P=//p' "mail-dns-${extra}.txt" 2>/dev/null || true; } | tr -d '\r' | head -n 1)"
+  if [ -z "$KEY_P" ]; then
+    echo "!!! UWAGA: brak klucza DKIM domeny ${extra} w usłudze mail – scripts/mail_add_domain.sh ${extra}"
+  elif [ -z "$SAVED_P" ]; then
+    echo "Domena nadawcy ${extra}: brak mail-dns-${extra}.txt – rekordy: scripts/mail_add_domain.sh --print ${extra}"
+  elif [ "$KEY_P" != "$SAVED_P" ]; then
+    echo "!!! UWAGA: klucz DKIM domeny ${extra} jest INNY niż w mail-dns-${extra}.txt (wolumen mail_dkim odtworzony?)."
+    echo "!!! Rekordy od nowa: scripts/mail_add_domain.sh --print ${extra}, potem wklej DKIM i --check (OPERACJE § 49)."
+  else
+    echo "Domena nadawcy ${extra}: klucz DKIM bez zmian (mail-dns-${extra}.txt)."
+  fi
+done
+set +f
+
 {
   echo "# Rekordy DNS dla poczty wychodzącej – ${DOMAIN}"
   echo "# Wygenerowane przez scripts/deploy.sh, $(date -Iseconds). Dodaj je u operatora strefy."
@@ -918,6 +1050,11 @@ DKIM_VALUE="$(printf '%s' "$DKIM_RAW" | tr -d '\r\n\t' | grep -oE '"[^"]*"' | tr
   echo "5) PTR (rDNS) – NIE w strefie domeny: ustawia się w panelu dostawcy serwera"
   echo "   ${IP}  ->  mail.${DOMAIN}"
   echo "   Bez tego Gmail i Outlook odrzucają pocztę niezależnie od SPF i DKIM."
+  if [ -n "$EXTRA_DOMAINS_MAIL" ]; then
+    echo
+    echo "Dodatkowe domeny nadawców (ALLOWED_SENDER_DOMAINS):${EXTRA_DOMAINS_MAIL}"
+    echo "   rekordy każdej: mail-dns-<domena>.txt (scripts/mail_add_domain.sh, docs/OPERACJE.md § 49)"
+  fi
 } > mail-dns.txt
 chmod 600 mail-dns.txt
 cat mail-dns.txt
@@ -1019,14 +1156,18 @@ log "Porządki: stare obrazy"
 # na miejscu – bez WEB_IMAGE, czyli droga domyślna dla Olimpiady Kwantowej) i bez sprzątania warstwy
 # rosną bez końca: miesiąc cotygodniowych wydań to kilkanaście gigabajtów, których reszta serwisu
 # (kopie bazy w kroku 4a, wolumeny danych) i tak potrzebuje. Zostają **dwa** tagi, nie jeden:
-# bieżący i poprzedni – poprzedni jest gotowym rollbackiem bez ponownego budowania (`docker compose
+# bieżący i poprzedni (wycofanie i tak idzie po tagu :previous – scripts/rollback.sh, OPERACJE § 48)
+# – poprzedni jest gotowym rollbackiem bez ponownego budowania (`docker compose
 # up -d web worker beat` po przestawieniu `APP_VERSION` w .env na tamtą wersję i restarcie), a
 # rollback z jednym zostawionym tagiem, czyli tym samym co bieżący, nie różniłby się niczym od
 # braku rollbacku. Sortowanie po dacie utworzenia obrazu (nie po numerze wersji): `WEB_IMAGE`
 # ustawiane i zdejmowane między wdrożeniami mogłoby dać tagi, które nie sortują się leksykograficznie
 # w kolejności wydań. `|| true`: obraz w użyciu (np. kontener nie zdążył jeszcze zniknąć po `up -d`
 # kroku 4b) nie ma być powodem czerwonego wdrożenia – posprząta się przy następnym przebiegu.
-"${SSH[@]}" "docker images --filter=reference='olimpiada/web' --format '{{.CreatedAt}}|{{.Repository}}:{{.Tag}}' | sort -r | tail -n +3 | cut -d'|' -f2 | xargs -r docker rmi" || true
+# Tag `olimpiada/web:previous` (migawka z kroku 2a/8, scripts/rollback.sh) nie wchodzi do rachunku i nie
+# jest kasowany: to on, a nie tag wersji, trzyma obraz, do którego wraca `rollback.sh run` – także
+# wtedy, gdy wdrożenie tej samej wersji przebudowało jej tag.
+"${SSH[@]}" "docker images --filter=reference='olimpiada/web' --format '{{.CreatedAt}}|{{.Repository}}:{{.Tag}}' | grep -v '|olimpiada/web:previous\$' | sort -r | tail -n +3 | cut -d'|' -f2 | xargs -r docker rmi" || true
 # Dangling (warstwy budowania bez tagu – etap `builder` obrazu wielostopniowego, buildy przerwane
 # w połowie): bezpieczne do skasowania zawsze, bo z definicji nic ich nie referencuje.
 "${SSH[@]}" "docker image prune -f"
@@ -1071,6 +1212,7 @@ if [ "$DJCMS_ON" = "1" ]; then
     printf 'REMOTE_DIR=%q\n' "$REMOTE_DIR"
     printf 'DJCMS_ADMIN_EMAIL=%q\n' "${DJCMS_ADMIN_EMAIL:-}"
     printf 'DJCMS_ADMIN_PASSWORD=%q\n' "${DJCMS_ADMIN_PASSWORD:-}"
+    printf 'DJCMS_SYNC_RETRY_DELAYS=%q\n' "${DJCMS_SYNC_RETRY_DELAYS:-5 10 20}"
     cat <<'REMOTE'
 set -euo pipefail
 export DJCMS_ADMIN_EMAIL DJCMS_ADMIN_PASSWORD
@@ -1100,8 +1242,29 @@ fi
 SYNC_ARGS=""
 SYNC_HELP="$(docker compose exec -T djcms python manage.py sync_competitions --help </dev/null 2>/dev/null || true)"
 case "$SYNC_HELP" in *--import-missing*) SYNC_ARGS="--import-missing" ;; esac
-# shellcheck disable=SC2086 # SYNC_ARGS: zero albo jeden argument bez spacji
-docker compose exec -T djcms python manage.py sync_competitions $SYNC_ARGS </dev/null
+# Ponawianie z przerwami (OPS-04 § 4): komenda pyta API `web`, który chwilę wcześniej wstał po
+# restarcie. Obraz djcms sprzed OPS-04 ma na tę jedną listę limit odsłony strony (1 s na gniazdo)
+# i kończył się „Lista konkursów z API niedostępna: timeout” przy prawie każdym wdrożeniu, choć
+# minutę później przechodził. Ponawiamy WYŁĄCZNIE ten błąd – inny (np. importu `--import-missing`)
+# kończy krok od razu: częściowy import przy drugiej próbie widziałby już strony i milczał.
+case "$DJCMS_SYNC_RETRY_DELAYS" in *[!0-9\ ]*|'') DJCMS_SYNC_RETRY_DELAYS="5 10 20" ;; esac
+sync_attempt=0
+for sync_delay in $DJCMS_SYNC_RETRY_DELAYS last; do
+  sync_attempt=$((sync_attempt + 1))
+  SYNC_RC=0
+  # shellcheck disable=SC2086 # SYNC_ARGS: zero albo jeden argument bez spacji
+  SYNC_OUT="$(docker compose exec -T djcms python manage.py sync_competitions $SYNC_ARGS </dev/null 2>&1)" || SYNC_RC=$?
+  printf '%s\n' "$SYNC_OUT"
+  [ "$SYNC_RC" = 0 ] && break
+  case "$SYNC_OUT" in *"Lista konkursów z API niedostępna"*) ;; *) exit "$SYNC_RC" ;; esac
+  if [ "$sync_delay" = last ]; then
+    echo "BŁĄD: lista konkursów z API niedostępna po $sync_attempt próbach – docker compose logs web djcms;"
+    echo "      ponów ręcznie: docker compose exec -T djcms python manage.py sync_competitions $SYNC_ARGS"
+    exit "$SYNC_RC"
+  fi
+  echo "dj.: lista konkursów z API niedostępna (próba $sync_attempt) – ponawiam za $sync_delay s"
+  sleep "$sync_delay"
+done
 IMPORT="$(sed -n 's/^DJCMS_INITIAL_IMPORT=//p' .env | tail -n 1 | tr -d '\r\042\047')"
 if [ "$IMPORT" = "pending" ]; then
   # Pierwszy import treści Wagtaila – raz, przy pierwszym włączeniu (znacznik z DJ-01h zostaje dla
@@ -1155,5 +1318,37 @@ esac
 REMOTE
   } | "${SSH[@]}" bash -s
 fi
+
+log "Monitoring błędów i dostępności (OPS-02, docs/OPERACJE.md § 44)"
+# Tylko ostrzeżenia – nic tu nie zatrzymuje wdrożenia. Profil `monitoring` jest opcjonalny, więc bez
+# działających kontenerów GlitchTipa/uptime ten krok niczego nie robi.
+# 1. ERRORS_PROXY=1, a GlitchTip nie ma ani jednego konta: pierwszy, kto wejdzie na errors.<domena>,
+#    założy sobie konto (GlitchTip wyłącza samorejestrację dopiero po pierwszym użytkowniku).
+# 2. `uptime` chodzi na obrazie aplikacji – krok 4b go nie dotyka, więc tu wstaje na nowym obrazie.
+"${SSH[@]}" "cd '$REMOTE_DIR' && bash -s" <<'REMOTE' || true
+errors_proxy="$(sed -n 's/^ERRORS_PROXY=//p' .env 2>/dev/null | tail -n 1 | tr -d '\r\042\047' | tr '[:upper:]' '[:lower:]')"
+gt_running="$(docker compose --profile monitoring ps -q --status running glitchtip 2>/dev/null)"
+case "$errors_proxy" in
+  1|true|yes|on)
+    if [ -z "$gt_running" ]; then
+      echo "UWAGA: ERRORS_PROXY=1, a kontener glitchtip nie działa – errors.<domena> odpowiada 502."
+    else
+      users="$(docker compose --profile monitoring exec -T glitchtip ./manage.py shell -c \
+        'from django.contrib.auth import get_user_model as U; print(U().objects.count())' </dev/null 2>/dev/null | tail -n 1 | tr -dc '0-9')"
+      if [ "${users:-0}" = "0" ]; then
+        echo "UWAGA: GlitchTip pod errors.<domena> NIE MA żadnego konta – samorejestracja jest otwarta!"
+        echo "       Natychmiast: docker compose --profile monitoring exec glitchtip ./manage.py createsuperuser"
+        echo "       albo ERRORS_PROXY=0 i bash scripts/proxy_config.sh update (docs/OPERACJE.md § 44.2)."
+      else
+        echo "GlitchTip: kont $users, errors.<domena> włączone."
+      fi
+    fi
+    ;;
+  *) [ -n "$gt_running" ] && echo "GlitchTip działa bez adresu publicznego (ERRORS_PROXY=0)." ;;
+esac
+if [ -n "$(docker compose --profile monitoring ps -q uptime 2>/dev/null)" ]; then
+  docker compose --profile monitoring up -d uptime && echo "uptime: odtworzony na obrazie tego wdrożenia."
+fi
+REMOTE
 
 log "Gotowe: https://${SITE_DOMAIN:-<domena z .env>}/  (panel: /coordinator/, CMS: /cms/, admin: /admin/)"

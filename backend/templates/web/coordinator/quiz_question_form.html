@@ -37,12 +37,12 @@
       {% endcomment %}
       <p>{{ form.kind.errors }}{{ form.kind.label_tag }} {{ form.kind }}</p>
       <p>{{ form.pool.errors }}{{ form.pool.label_tag }} {{ form.pool }}
-        <span class="hint">{{ form.pool.help_text }}</span></p>
+        <span class="hint" id="{{ form.pool.auto_id }}_helptext">{{ form.pool.help_text }}</span></p>
       <p>{{ form.order.errors }}{{ form.order.label_tag }} {{ form.order }}</p>
       <p>{{ form.text.errors }}{{ form.text.label_tag }} {{ form.text }}</p>
       <p>{{ form.points.errors }}{{ form.points.label_tag }} {{ form.points }}</p>
       <p>{{ form.negative_points.errors }}{{ form.negative_points.label_tag }} {{ form.negative_points }}
-        <span class="hint">{{ form.negative_points.help_text }}</span></p>
+        <span class="hint" id="{{ form.negative_points.auto_id }}_helptext">{{ form.negative_points.help_text }}</span></p>
       <p>{{ form.image.errors }}{{ form.image.label_tag }} {{ form.image }}</p>
       <p>{{ form.clear_image.label_tag }} {{ form.clear_image }}</p>
       {% if question.image %}<p class="hint">Obecna ilustracja jest wgrana. Nowy plik ją zastąpi.</p>{% endif %}
@@ -51,14 +51,14 @@
     <fieldset>
       <legend>Klucz: jednokrotny i wielokrotny wybór</legend>
       <p>{{ form.options.errors }}{{ form.options.label_tag }} {{ form.options }}
-        <span class="hint">{{ form.options.help_text }}</span></p>
+        <span class="hint" id="{{ form.options.auto_id }}_helptext">{{ form.options.help_text }}</span></p>
       <p>{{ form.partial_credit.errors }}{{ form.partial_credit.label_tag }} {{ form.partial_credit }}</p>
     </fieldset>
 
     <fieldset>
       <legend>Klucz: krótka odpowiedź tekstowa</legend>
       <p>{{ form.accepted.errors }}{{ form.accepted.label_tag }} {{ form.accepted }}
-        <span class="hint">{{ form.accepted.help_text }}</span></p>
+        <span class="hint" id="{{ form.accepted.auto_id }}_helptext">{{ form.accepted.help_text }}</span></p>
       <p>{{ form.fold_case.label_tag }} {{ form.fold_case }}</p>
       <p>{{ form.fold_whitespace.label_tag }} {{ form.fold_whitespace }}</p>
       <p>{{ form.fold_diacritics.label_tag }} {{ form.fold_diacritics }}</p>
@@ -71,11 +71,11 @@
       <legend>Klucz: odpowiedź liczbowa</legend>
       <p>{{ form.answer.errors }}{{ form.answer.label_tag }} {{ form.answer }}</p>
       <p>{{ form.tolerance_abs.errors }}{{ form.tolerance_abs.label_tag }} {{ form.tolerance_abs }}
-        <span class="hint">{{ form.tolerance_abs.help_text }}</span></p>
+        <span class="hint" id="{{ form.tolerance_abs.auto_id }}_helptext">{{ form.tolerance_abs.help_text }}</span></p>
       <p>{{ form.tolerance_rel.errors }}{{ form.tolerance_rel.label_tag }} {{ form.tolerance_rel }}
         <span class="hint">Ułamek, np. 0,01 = 1%. Działa obok bezwzględnej – wystarczy zmieścić się w jednej.</span></p>
       <p>{{ form.unit.errors }}{{ form.unit.label_tag }} {{ form.unit }}
-        <span class="hint">{{ form.unit.help_text }}</span></p>
+        <span class="hint" id="{{ form.unit.auto_id }}_helptext">{{ form.unit.help_text }}</span></p>
       <p class="hint">Uczestnik może wpisać przecinek zamiast kropki i zapis wykładniczy
         („1,5e-3”) – obie postacie są czytane jako liczba.</p>
     </fieldset>

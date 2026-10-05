@@ -12,7 +12,221 @@ podsekcją `### <tytuł>` wydania `## v<x.y.z> – <data tagu> – <opis tagu>`.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
-## [Unreleased] – Notatniki kwantowe w przeglądarce (QC-01)
+## v0.47.2 – 2026-10-05 – Dostępność WCAG 2.1 AA, deklaracja dostępności, motyw IQO 1.1.2 (A11Y-01)
+
+- **Suita e2e dostępności** (`e2e/a11y/`, `scripts/a11y.sh`, job CI `a11y`): axe-core 4.13.0
+  (MPL-2.0, w `e2e/vendor/` – poza obrazem, suma z rejestru npm) na ~70 ekranach obu konkursów
+  i obu motywów (publiczne, rejestracja z błędami, logowanie, 2FA, reset/zmiana hasła, panel
+  uczestnika, upload, test, czat, panel koordynatora i ciężkie tabele, recenzent, opiekun drużyny,
+  weryfikacja listu wizowego, arabski RTL, wysoki kontrast) + kontrole klawiatury, widocznego
+  fokusu, menu bez JS, reflow 320 px / 200 % i powiązania błędów z polami. CSP strony bez zmian
+  (axe przez protokół DevTools). Nowe naruszenie critical/serious spoza `baseline.json` przewraca CI.
+- **Poprawki:** 25 podpowiedzi pól bez `id` (wiszące `aria-describedby` – czytnik nie czytał
+  podpowiedzi, m.in. w rejestracji); CAPTCHA powiązana z podpowiedzią i błędem; błąd kodu 2FA
+  powiązany z polem; wysoki kontrast – `.btn--accent` czarny na żółci (było 1,3:1); menu panelu
+  koordynatora otwarte atrybutem `open` od 900 px.
+- **Motyw IQO Quantum 1.1.2:** paski ramy aplikacji na granacie (kontrast napisów 2,3–4,3:1 → AA),
+  odnośnik „Deklaracja dostępności” w stopce; `min_app_version` 0.47.0.
+- **Deklaracja dostępności:** nowa aplikacja `apps.accessibility`, komenda
+  `seed_accessibility_statement <slug>` – projekt strony `/dokumenty/deklaracja-dostepnosci/` (PL/EN)
+  do zatwierdzenia przez organizatora; odnośnik w stopce obu motywów **dopiero po publikacji** strony
+  w danym konkursie (pamięć podręczna unieważniana sygnałami Wagtaila; budżety zapytań +1 na zimno).
+  `docs/OPERACJE.md` § 50.
+
+## v0.47.1 – 2026-10-05 – Kontrola dymna po wdrożeniu i szybkie wycofanie (OPS-04)
+
+Tagu `v0.47.0` nie ma – numer pominięty przy wydaniu.
+
+- **`scripts/smoke.sh`** – kontrola dymna wyłącznie odczytem (GET, bez logowania): dla każdego hosta
+  konkursu strona główna z CSP, kluczowe strony, `/healthz/`, `/status.json` (wersja – ostrzeżenie),
+  logowanie z CSRF (pole + ciasteczko) i CSP, plik statyczny z hashem manifestu i arkusze motywu (IQO)
+  ze strony logowania, API (`editions/current/`), LiveKit `live.` i djcms (`/djcms/healthz/`,
+  `/djcms/preview/`), gdy włączone; czasy, ponowienia, podsumowanie, kod 0/1/2. Tryb `--server`
+  (hosty z `.env` i `check_domains --hosts`, przez proxy serwera `--resolve 127.0.0.1`, przepustka
+  prac technicznych przez `-K -`).
+- **`scripts/rollback.sh`** (na serwerze): `snapshot` (tag `olimpiada/web:previous` / `djcms:previous`
+  z obrazu działającego kontenera, migracje z `django_migrations`), `decide` (auto / manual przy nowych
+  migracjach albo nieznanym stanie / impossible), `run [--yes] [--allow-migrations]` (tylko `web worker
+  beat [djcms]`, `--no-deps --no-build`, w `.env` wyłącznie `APP_VERSION`/`WEB_IMAGE`/`DJCMS_IMAGE`,
+  baza i wolumeny nietknięte), `auto` (wycofanie + ponowna kontrola + list do `ALERT_EMAILS`, albo list
+  z procedurą ręczną), `record-success`, `status`. Stan w `/opt/olimpiada/deploy-state/`.
+- **`scripts/deploy.sh`**: krok 2/8 omija `deploy-state`; nowy krok **2a/8** (migawka) i **5b/8**
+  (kontrola dymna → `record-success` albo `rollback.sh auto` i kod 1, bez kroków 6–8); furtka
+  `DEPLOY_SMOKE=warn|0`; podpowiedź wycofania w pułapce EXIT po starcie nowych kontenerów; porządki
+  nie kasują tagu `:previous`; `sync_competitions` w kroku „dj.” ponawiane (4 próby, 5/10/20 s) przy
+  „Lista konkursów z API niedostępna”.
+- **Przyczyna czerwonych wdrożeń „dj.”**: `MainApi.fetch_competitions()` (komendy djcms) korzystał
+  z limitu odsłony strony (1 s na gniazdo) tuż po restarcie `web` – teraz `COMMAND_TIMEOUT_SECONDS = 30`
+  (`djcms/apps/live/client.py`); odsłony stron bez zmian.
+- `manage.py check_domains --hosts` – same hosty aktywnych konkursów z własnym hostem (dla kontroli dymnej).
+- **Bufor całych stron po wdrożeniu**: gość przez do 120 s po wdrożeniu dostawał z bufora HTML poprzedniej
+  wersji z odnośnikami do plików statycznych skasowanych przez `collectstatic --clear` (strona bez stylów).
+  Teraz klucz bufora zawiera wydanie (`APP_VERSION`, `apps/web/page_cache.py`), a wdrożenie (krok 5b/8)
+  i wycofanie wołają `page_cache_clear` przed kontrolą dymną.
+- Testy: `scripts/tests/smoke_test.sh`, `scripts/tests/rollback_test.sh`, `scripts/tests/deploy_djcms_test.sh`
+  (część 11 i zaktualizowane listy poleceń), `djcms/apps/live/tests/test_client.py`,
+  `apps/tenancy/tests/test_check_domains.py`. Dokumentacja: `docs/OPERACJE.md` § 48 (i § 4.2),
+  `docs/tasks/OPS-04.md`.
+
+## v0.46.5 – 2026-10-05 – Test obciążenia i poprawki gorących ścieżek (PERF-01)
+
+- **Narzędzie**: `scripts/loadtest/` – osobny, lokalny stos compose `olimpiada-loadtest` (sieć bez
+  wyjścia na świat) i generator scenariusza dnia zawodów w Pythonie (asyncio + `httpx` z obrazu):
+  logowanie przed T0, wejście wszystkich w T0 z PDF-ami treści, czat, autozapis testu, wysyłki skanów,
+  koordynatorzy z eksportem CSV, goście; p50/p95/p99, błędy, req/s per adres i faza, raport
+  CSV/Markdown, wiele procesów generatora, bezpiecznik hosta (produkcja odrzucana zawsze) i kryteria
+  przerwania. `manage.py loadtest_seed` – odmawia bez `DEBUG`/`--i-know-this-is-not-prod` **i** bez
+  `loadtest` w nazwie bazy.
+- **Poprawki gorących ścieżek**: profil uczestnika pamiętany na czas żądania (`/me/` 38 → 30 zapytań,
+  był czytany 9×), autozapis testu hurtem (95 → 15 zapytań), cache stron obejmuje linki z `utm_*`,
+  `/results/<id>/` i strony > 512 KiB (kompresja `zlib`, format wpisu w kluczu – ~160 ms → ~6 ms CPU
+  dla tabeli 3000 wierszy), limit wysyłek per konto zamiast per IP (sala za NAT-em), PDF treści
+  kawałkami 64 KiB.
+- **Nowe zmienne `.env`** (domyślnie bez zmian zachowania): `WEB_MAX_REQUESTS`/`_JITTER`
+  (rotacja workera pod obciążeniem zrywała żądania w toku – 500/502 na wysyłkach), `WEB_MEM_LIMIT`,
+  `CHAT_POLL_SECONDS`. Wyniki, ekstrapolacja na VPS (z kradzieżą CPU), konfiguracja na dzień zawodów,
+  procedura testu na serwerze i rekomendacja: `docs/OPERACJE.md` § 42, `docs/tasks/PERF-01.md`.
+
+## v0.46.4 – 2026-10-05 – Laboratorium na osobnym hoście (QC-02), skanowanie zależności (SEC-02)
+
+### Laboratorium notatników na osobnym hoście (QC-02)
+
+- **`NOTEBOOK_LAB_HOST`** (opcjonalne, `.env`): JupyterLite i notatnik startowy wyłącznie pod
+  osobnym hostem (`lab.<SITE_DOMAIN>` albo osobna domena). Caddy (`scripts/render_caddyfile.sh`):
+  blok hosta laboratorium (pliki laboratorium z polityką z QC-01, `/notebook-starter/*` do `web`,
+  reszta 404, `Referrer-Policy: strict-origin`), a bloki serwisu – fragment `notebook_lab_moved`
+  (ścieżka laboratorium → 302 na host laboratorium, `/notebook-starter/*` → 404). Pusta zmienna =
+  konfiguracja proxy bajt w bajt jak dotąd.
+- Django: `NotebookLabHostMiddleware` (ten sam rozdział hostów, przed WhiteNoise), notatnik startowy
+  na hoście laboratorium bez sesji (token z osobną solą, 2 h, bramki na bieżącym stanie konta,
+  nadzór zdalny), strażnik odrzucający na hostach serwisu żądania z `Origin`/`Referer` laboratorium
+  poza nawigacją GET – przed CSRF, także wobec `https://*.<SITE_DOMAIN>`; host w `ALLOWED_HOSTS`,
+  nie w `CSRF_TRUSTED_ORIGINS`; sprawdzenie `notebooks.E002`; etykieta `lab` zarezerwowana.
+- Ciasteczka aplikacji potwierdzone jako host-only (test). Kompromisy subdomena vs osobna domena
+  i kroki operatora: `docs/OPERACJE.md` § 40.7, `docs/tasks/QC-02.md`.
+- **Po przeglądzie (podrzucanie ciasteczek z `lab.<domena>`):** w produkcji z laboratorium ciasteczka
+  `__Host-sessionid`/`__Host-csrftoken` (jednorazowe wylogowanie przy włączeniu; skrypty czytające
+  token obsługują obie nazwy), wygaszanie zdublowanych ciasteczek sesji/CSRF/języka na domenie
+  nadrzędnej (przekierowanie 302/307, potem żądanie bez obu kopii), ten sam strażnik i wygaszanie
+  w djcms (`NOTEBOOK_LAB_HOST` w compose), 403 dla żądań same-site z `Origin: null` albo bez
+  nagłówków pochodzenia, `notebooks.E002` także dla hostów usług (`dj.`, `live.`, `meet.`, `monitor.`,
+  `errors.`, S3, Jitsi) i konkursów. Zalecany wariant: osobna domena rejestrowalna.
+
+### Skanowanie zależności i obrazów w CI (SEC-02)
+
+- **CI `pip-audit`**: zależności Pythona backendu (rozwiązanie jak w obrazie, `uv pip compile`), djcms
+  (`uv.lock`) i narzędzi budowy JupyterLite (QC-01) przez OSV; czerwono tylko przy podatności z wydaną poprawką, wyjątki z terminem
+  i uzasadnieniem w `.security/pip-audit-ignore.toml` (`scripts/security/pip_audit_gate.py`).
+- **CI `trivy (obraz web/djcms)`** po jobie `image`: bramka CRITICAL/HIGH z poprawką, SARIF do code
+  scanning + artefakt, baza Trivy w cache'u, wyjątki z `expired_at` w `.security/trivyignore.yaml`.
+  djcms jest teraz budowany w CI (własny zakres cache'u).
+- **Co tydzień** (`security-scan.yml`): Trivy na obrazach usług z plików compose i na
+  `olimpiada-web:main` z GHCR – raport w jednym zgłoszeniu `security-scan`.
+- **Dependabot** (`.github/dependabot.yml`): pip (backend), uv (djcms), docker, docker-compose,
+  github-actions; co tydzień, grupowane, cooldown 7 dni, etykiety.
+- **Vendor JS**: rejestr `.security/vendor.toml`, `vendor_check.py check` w CI (skrót każdego pliku,
+  nic spoza rejestru; KaTeX dostał `SHA256SUMS` krojów) i comiesięczne porównanie z npm/OSV/SRI
+  (`vendor-upstream.yml`, zgłoszenie `vendor-js`, bez automatycznych aktualizacji).
+- **Akcje GitHuba przypięte pełnym SHA** (także istniejące w `ci.yml`/`deploy.yml`), pilnuje
+  `policy_check.py`; `ci.yml` z domyślnym `permissions: contents: read`. Dokumentacja:
+  `docs/tasks/SEC-02.md`, `docs/OPERACJE.md` § 47.
+
+## v0.46.3 – 2026-10-05 – Poczta z domeny konkursu i koniec pętli zwrotów (MAIL-01)
+
+- **Druga domena nadawcy w relayu `mail`** (IQO: `iqo-official.org`): `scripts/mail_add_domain.sh <domena>`
+  na serwerze – idempotentnie dopisuje domenę do `ALLOWED_SENDER_DOMAINS`, generuje klucz DKIM w kontenerze
+  `mail` (nigdy nie nadpisuje istniejącego), odtwarza tylko `mail` i wypisuje rekordy do wklejenia
+  (`mail-dns-<domena>.txt`): SPF **scalony** z obecnym (rekord ochronny `v=spf1 -all` → zmiana, nigdy drugi
+  `v=spf1`), DKIM, DMARC bez drugiego rekordu (brak = `p=none` z planem na `quarantine`), MX bez zmian;
+  `--check` (`opendkim-testkey` + `check_mail_dns`), `--print`. Podpis wielu domen robi obraz (bez zmiany wersji).
+- **`manage.py check_mail_dns <domena>`** (nowa aplikacja `apps.mail_domains`, migracja `0001`): SPF
+  oceniany jak u odbiorcy (include/redirect/a/mx, limit 10 zapytań), DKIM z porównaniem klucza relaya,
+  DMARC; klient DNS na bibliotece standardowej (bez nowych zależności). Wynik w `SenderDomain`.
+- **Ostrzeżenie dla koordynatora** na pulpicie i w „Ustawieniach konkursu”, gdy nadawca listów konkursu
+  jest spoza relaya albo jego domena nie przeszła `check_mail_dns` (bez zapytań DNS w żądaniu).
+- **Poczta zwrotna bez pętli** („loops back to myself”): odbicia na `noreply@` domen, nadawców monitoringu
+  i `postmaster@` relaya → `discard` albo skrzynka operatora (`MAIL_BOUNCE_TARGET`,
+  `deploy/mail/docker-init.d/50-bounces.sh`); restrykcje OPS-02 nietknięte.
+- **Wdrożenie (krok 7/8)** ostrzega, gdy klucz DKIM którejś domeny różni się od opublikowanego.
+- Dokumentacja: `docs/tasks/MAIL-01.md`, `docs/OPERACJE.md` § 49 (krok po kroku dla Squarespace), § 9.7.
+
+## v0.46.2 – 2026-10-05 – Monitoring błędów (OPS-02) i monitoring z zewnątrz (OPS-03)
+
+### Monitoring błędów i dostępności (OPS-02)
+
+- **Śledzenie błędów** (nowa aplikacja `apps.monitoring`): klient `sentry-sdk` 2.71.x (integracje Django,
+  Celery, Redis) wysyłający do **własnego** GlitchTipa; wyłączony bez `SENTRY_DSN` (bez importu pakietu,
+  bez zmian w warstwach, CSP i HTML). Filtr danych osobowych przed wysyłką: bez treści żądań, ciasteczek,
+  zapytań, IP, konta i zmiennych lokalnych; e-mail, PESEL, telefon, tokeny i wartości z błędów Postgresa
+  → `[Filtered]`. Tag `competition` (slug), `release` = `APP_VERSION`, próbkowanie konfigurowalne.
+- **GlitchTip 6.2.6** (obraz przypięty skrótem) w profilu compose `monitoring`: `glitchtip` (web + worker
+  w jednym procesie) i `glitchtip-db` (osobny Postgres w izolowanej sieci `errors`), bez Redisa, bez
+  `.env` platformy, limity pamięci i CPU, retencja 30 dni, poczta przez relay, rejestracja wyłączona.
+  Blok Caddy'ego `errors.<domena>` przy `ERRORS_PROXY=1` (`scripts/render_caddyfile.sh`); slug `errors`
+  zarezerwowany.
+- **Monitor dostępności** (`apps/monitoring/uptime.py`, usługa `uptime`): oba serwisy, `/healthz/`,
+  `/status.json`, LiveKit i GlitchTip, certyfikaty TLS (< 14 dni); listy o awarii i powrocie z
+  deduplikacją, rosnącymi przypomnieniami (1 h → 24 h), jednym listem na przebieg i limitem 6/h. Sama
+  biblioteka standardowa – kopia działa z crona na innej maszynie.
+- **Błędy JavaScriptu** (opcjonalnie, `SENTRY_BROWSER=1`): własny loader z `/static/` (bez SDK i CDN),
+  origin `errors.<domena>` w `connect-src` tylko przy włączonej funkcji.
+- Poprawki po przeglądzie (`docs/tasks/OPS-02.md` § 9): tokeny w ścieżkach adresów (wzorzec trasy
+  albo maska), linie `DETAIL:` Postgresa, adresy IP, Redis bez kluczy, zamknięta lista integracji,
+  wyrażenia liniowe; GlitchTip poza `edge` – sieci `errors_front`/`errors_ingest`/`errors_egress`,
+  relay z jednym nadawcą (`MAIL_CLIENT_NETWORKS` oddzielone od `TRUSTED_PROXY_IPS`); opcjonalne
+  `ERRORS_UI_ALLOW`; ostrzeżenie w `deploy.sh`; wyciszenie `uptime` w przerwie planowej.
+- RODO: rejestr czynności 1.21 – wiersz warunkowy „Monitorowanie błędów aplikacji” (podmiot wewnętrzny,
+  bez państwa trzeciego). Dokumentacja: `docs/OPERACJE.md` § 44, `docs/tasks/OPS-02.md`, rekord DNS
+  `errors` w `deploy/dns-olimpiadakwantowa.pl.md`.
+
+### Monitoring z zewnątrz (OPS-03)
+
+- **`.github/workflows/uptime.yml`**: GitHub Actions co 10 minut (+ ręcznie) sprawdza z zewnątrz
+  `olimpiadakwantowa.pl` i `iqo-official.org` (`/` – kod 200 i czas, `/healthz/`, `/status.json` –
+  `status` i `backup_restore_check`), LiveKit (`live.` → `OK`) i ważność certyfikatów TLS (ostrzeżenie
+  < 14 dni, awaria < 7). Wykrywa śmierć całego serwera, której watchdog i Uptime Kuma z tego samego
+  hosta nie zobaczą. Zero kosztów, zero kont, tylko `GITHUB_TOKEN` (`contents: read`, `issues: write`),
+  jedyna akcja (`actions/checkout`) przypięta pełnym SHA.
+- Alarm: **jedno** zgłoszenie z etykietą `awaria` przy awarii potwierdzonej w dwóch próbach (2 min
+  odstępu), komentarz tylko przy zmianie zestawu awarii, automatyczne zamknięcie po powrocie; GitHub
+  wysyła listy obserwującym repozytorium.
+- `scripts/uptime_external.py` – sama biblioteka standardowa, składnia Pythona 3.10; testy bez sieci
+  `scripts/tests/test_uptime_external.py`, nowy job CI `uptime-script`.
+- Dokumentacja: `docs/tasks/OPS-03.md`, `docs/OPERACJE.md` § 46 (w tym opóźnienia crona i wyłączanie
+  po 60 dniach bez commitów), `deploy/monitoring/README.md` § 5 – darmowy pinger jako druga opinia.
+
+## v0.46.1 – 2026-10-05 – 2FA personelu (SEC-01), notatniki kwantowe (QC-01)
+
+### Logowanie dwuskładnikowe dla personelu (SEC-01)
+
+- **Polityka wymogu** (`apps/staff_mfa`): role platformy `TWO_FACTOR_REQUIRED_ROLES` (nowa wartość
+  domyślna `superkoordynator,admin`) i polityka konkursu – tryb automatyczny (konkurs z delegacjami,
+  `fees`, `onsite_logistics` albo `proctoring` wymaga 2FA od koordynatorów, opiekunów drużyn
+  i przydziałów logistyki) albo wybrane role. Uczestnika nie da się objąć wymogiem.
+- **Okres przejściowy** (`TWO_FACTOR_GRACE_DAYS`, domyślnie 14 dni, jednorazowy) z banerem na każdej
+  stronie (także w motywie IQO), potem poczekalnia konfiguracji dla całej sesji, API i tokenów.
+- **Ekran `/coordinator/security/2fa/`**: polityka (zmienia wyłącznie superkoordynator, audyt
+  `2fa.policy_changed`) i lista personelu ze stanem 2FA i terminem.
+- **Odzyskiwanie i kody**: nowy komplet kodów zapasowych (`/account/2fa/codes/regenerate/`) i wyłączenie
+  2FA z hasłem **i** kodem; reset 2FA konta personelu wyłącznie przez superkoordynatora (wyjątek:
+  instalacja bez superkoordynatora); blokada konta po 5 złych kodach na 15 min (`429 TWO_FACTOR_LOCKED`);
+  jednorazowość kodu TOTP i kodu zapasowego odporna na równoległe żądania.
+- **„Zapamiętaj to urządzenie”** (`TWO_FACTOR_REMEMBER_DAYS`, domyślnie 7; podpisane ciasteczko
+  unieważniane zmianą hasła, wyłączeniem i resetem; polityka konkursu może je wyłączyć).
+- **Listy do właściciela konta** (włączenie, wyłączenie, nowe kody, użycie kodu zapasowego, reset,
+  blokada) i audyt `2fa.locked`, `2fa.remembered`, `2fa.codes_regenerated`, `2fa.grace_started`.
+- Ekrany 2FA z `Cache-Control: private, no-store`; tłumaczenia w `apps/staff_mfa/locale` (10 języków).
+- Poprawki po przeglądzie: personel do resetu liczony w całej platformie i także gdy konto jest
+  zablokowane; zmiana adresu konta z 2FA albo konta personelu – tylko superkoordynator; list o resecie
+  także na poprzedni adres (30 dni); wąski wyjątek bez superkoordynatora i komenda `reset_2fa`;
+  ostrzeżenia `staff_mfa.W001`/`W002`; termin ról platformy tylko z `TWO_FACTOR_GRACE_DAYS`; znacznik
+  zwolnienia z TTL 10 min i wersją podbijaną przy zmianie ról; zamykanie innych sesji przy włączeniu,
+  wyłączeniu i resecie; „Zapomnij wszystkie urządzenia”; ciasteczko zaufania związane z konkursem;
+  licznik prób przed sprawdzeniem kodu; lista personelu tylko dla superkoordynatora (bez N+1).
+- `TWO_FACTOR_ENABLED=0` (domyślnie) – zachowanie bez zmian. Migracje `staff_mfa.0001`–`0002`
+  (cztery puste tabele). Operator: `docs/OPERACJE.md` § 41.
+
+### Notatniki kwantowe w przeglądarce (QC-01)
 
 - **Notatnik przy zadaniu:** JupyterLite 0.8.5 z jądrem Pyodide 314.0.7 hostowany u nas
   (`/static/notebook-lab/<BUILD_ID>/`, bez CDN w czasie działania, wersje i skróty przypięte, etap
@@ -47,7 +261,7 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
 
 Tag wskazuje **ten sam commit** co `v0.45.1` (`7e7f022`, scalenie PR #70) – zmiany opisuje sekcja
 v0.45.1 niżej. Opis tagu wymienia też notatniki kwantowe (QC-01) – ten kod wszedł do `main` później
-(PR #68) i czeka na wydanie (blok `[Unreleased]` wyżej).
+(PR #68) i wydany został w v0.46.1.
 
 ## v0.45.1 – 2026-10-05 – Zmiana hasła w panelu, test odtwarzania kopii (AUTH-01b, OPS-01)
 

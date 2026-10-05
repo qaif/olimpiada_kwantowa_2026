@@ -38,6 +38,13 @@
 # Przełącza `scripts/djcms_switch.sh on|off` (render + `caddy reload`, bez restartu kontenerów).
 # `DJCMS_PRIMARY=1` bez `DJCMS_ENABLED=1` = błąd (kod 1).
 #
+# `NOTEBOOK_LAB_HOST=<host>` – laboratorium notatników kwantowych na **osobnym hoście** (QC-02,
+# docs/tasks/QC-02.md § 3), **puste domyślnie**. Wtedy (i tylko wtedy) każdy blok aplikacji importuje
+# `notebook_lab_moved` zamiast `notebook_lab` (ścieżka laboratorium → 302 na host laboratorium,
+# `/notebook-starter/*` → 404), a na końcu pliku staje blok hosta laboratorium: wyłącznie pliki
+# laboratorium (z wolumenu statycznego, z fragmentem `(notebook_lab)`) i notatnik startowy z `web`.
+# Ta sama zmienna w `.env` steruje Django (config/settings/base.py) – jedno źródło prawdy.
+#
 # Kontrakt, na którym stoi test `scripts/tests/render_caddyfile_test.sh`:
 # **przy pustym `EXTRA_DOMAINS` i wyłączonych `PLATFORM_SUBDOMAINS` oraz `DJCMS_ENABLED` wynik jest
 # bajt w bajt kopią `deploy/Caddyfile`.** Dzięki temu instalacja jednokonkursowa – czyli dziś
@@ -51,6 +58,8 @@
 #   PLATFORM_SUBDOMAINS=1 scripts/render_caddyfile.sh
 #   DJCMS_ENABLED=1 scripts/render_caddyfile.sh
 #   DJCMS_ENABLED=1 DJCMS_PRIMARY=1 scripts/render_caddyfile.sh
+#   ERRORS_PROXY=1 scripts/render_caddyfile.sh      # errors.<domena> → GlitchTip (OPS-02)
+#   NOTEBOOK_LAB_HOST=lab.olimpiadakwantowa.pl scripts/render_caddyfile.sh
 #   CADDYFILE_OUT=/tmp/x scripts/render_caddyfile.sh
 #   DJCMS_ROUTES_ENV=/inny/app_routes.env …      # kontrakt tras (domyślnie backend/djcms_contract/)
 #
@@ -142,6 +151,43 @@ case "$(printf '%s' "${LIVEKIT_PROXY:-}" | tr '[:upper:]' '[:lower:]' | tr -d '[
     ;;
 esac
 
+# `ERRORS_PROXY` (zadanie OPS-02, docs/OPERACJE.md § 44) – GlitchTip (śledzenie błędów, profil compose
+# `monitoring`) pod `errors.{$SITE_DOMAIN}` → `glitchtip:8000`. Odczyt i walidacja jak przy LIVEKIT_PROXY.
+# Wyłączony (domyślnie) = wynik bajt w bajt jak dotąd i żadnego wniosku o certyfikat dla `errors.`.
+if [ -z "${ERRORS_PROXY+x}" ] && [ -f "$ROOT/.env" ]; then
+  ERRORS_PROXY="$(sed -n 's/^ERRORS_PROXY=//p' "$ROOT/.env" | tail -n 1 | tr -d '\r\042\047')"
+fi
+case "$(printf '%s' "${ERRORS_PROXY:-}" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')" in
+  1|true|yes|on)   ERRORS_ON=1 ;;
+  ''|0|false|no|off) ERRORS_ON=0 ;;
+  *)
+    echo "render_caddyfile: nie rozumiem ERRORS_PROXY=„${ERRORS_PROXY:-}” (użyj 1/true albo 0/false)" >&2
+    exit 1
+    ;;
+esac
+# `ERRORS_UI_ALLOW` (opcjonalnie, OPS-02 L2) – adresy/podsieci (spacją), z których wolno otworzyć panel
+# GlitchTipa; puste = panel z każdego adresu (za logowaniem GlitchTipa). Wartość trafia do Caddyfile'a
+# jako składnia, więc dopuszczamy wyłącznie znaki adresu IP i maski.
+if [ -z "${ERRORS_UI_ALLOW+x}" ] && [ -f "$ROOT/.env" ]; then
+  ERRORS_UI_ALLOW="$(sed -n 's/^ERRORS_UI_ALLOW=//p' "$ROOT/.env" | tail -n 1 | tr -d '\r\042\047')"
+fi
+ERRORS_UI_ALLOW="$(printf '%s' "${ERRORS_UI_ALLOW:-}" | tr -s '[:space:]' ' ' | sed 's/^ //; s/ $//')"
+for ip in $ERRORS_UI_ALLOW; do
+  if ! [[ $ip =~ ^[0-9A-Fa-f:.]+(/[0-9]{1,3})?$ ]]; then
+    echo "render_caddyfile: „$ip” w ERRORS_UI_ALLOW nie jest adresem IP ani podsiecią" >&2
+    exit 1
+  fi
+done
+
+# `NOTEBOOK_LAB_HOST` (QC-02) – ten sam odczyt (środowisko wygrywa z `.env`). To nie przełącznik,
+# tylko nazwa hosta, która trafia do pliku jako **składnia** – walidacja niżej, obok EXTRA_DOMAINS.
+if [ -z "${NOTEBOOK_LAB_HOST+x}" ] && [ -f "$ROOT/.env" ]; then
+  NOTEBOOK_LAB_HOST="$(sed -n 's/^NOTEBOOK_LAB_HOST=//p' "$ROOT/.env" | tail -n 1 | tr -d '\r\042\047')"
+fi
+# Odstępy zdejmowane tylko z brzegów: „a.pl b.pl” ma zatrzymać walidację, a nie skleić się w jedną nazwę.
+LAB_HOST="$(printf '%s' "${NOTEBOOK_LAB_HOST:-}" | tr '[:upper:]' '[:lower:]' | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')"
+LAB_HOST="${LAB_HOST%.}"
+
 # Kontrakt tras aplikacji (DJ-02 § 6): dwa wyrażenia generowane z urlconfu `web` przez
 # `manage.py djcms_routes --write` i commitowane. Potrzebny wyłącznie przy DJCMS_ENABLED=1 – bez
 # przełącznika plik nie jest nawet czytany. Czytany `sed`-em, nie `source` (jak `.env`): wartość
@@ -188,6 +234,24 @@ for host in $EXTRA_DOMAINS; do
     exit 1
   fi
 done
+
+# Host laboratorium (QC-02): sama nazwa – bez portu (certyfikat HTTP-01 wystawia się na nazwę), co
+# najmniej jedna kropka – i nie host serwisu z EXTRA_DOMAINS: dwa bloki o tej samej nazwie to błąd
+# Caddy'ego, a host serwisu jako „laboratorium” oddałby kod uczniów originowi z sesją. Zgodności
+# z SITE_DOMAIN generator nie zna (to symbol zastępczy) – pilnuje jej `notebooks.E002` w Django.
+LAB_HOST_RE='^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$'
+if [ -n "$LAB_HOST" ]; then
+  if ! [[ $LAB_HOST =~ $LAB_HOST_RE ]]; then
+    echo "render_caddyfile: NOTEBOOK_LAB_HOST=„${NOTEBOOK_LAB_HOST}” nie wygląda na nazwę hosta (bez schematu, portu i ścieżki)" >&2
+    exit 1
+  fi
+  for host in $EXTRA_DOMAINS; do
+    if [ "$(printf '%s' "$host" | tr '[:upper:]' '[:lower:]')" = "$LAB_HOST" ]; then
+      echo "render_caddyfile: NOTEBOOK_LAB_HOST=„$LAB_HOST” jest też w EXTRA_DOMAINS – laboratorium musi mieć własny host" >&2
+      exit 1
+    fi
+  done
+fi
 
 apex_listed() {
   # Czy „goła” domena hosta `www.x` też jest na liście. Od tego zależy, czy `www.x` dostaje blok
@@ -598,6 +662,140 @@ EOF
     '    reverse_proxy livekit:7880' '}' >> "$tmp"
 fi
 
+if [ "$ERRORS_ON" = "1" ]; then
+  # GlitchTip (OPS-02). Bez `import maintenance`: zgłoszenia błędów mają przechodzić także w czasie
+  # przerwy (wtedy są najcenniejsze), a panel GlitchTipa nie zależy od `web`. Limit żądania 10 MB –
+  # koperta zdarzenia z mapą źródeł mieści się z zapasem, a nic większego tu nie przychodzi.
+  # Uwierzytelnienie jest po stronie GlitchTipa (konto administratora, samorejestracja wyłączona).
+  # CORS dla kopert z przeglądarek (SENTRY_BROWSER=1) obsługuje sam GlitchTip.
+  cat >> "$tmp" <<'EOF'
+
+# Wygenerowane przez scripts/render_caddyfile.sh przy ERRORS_PROXY=1 – nie edytuj tego pliku.
+# Śledzenie błędów – GlitchTip (profil `monitoring`, docs/OPERACJE.md § 44). Wymaga rekordu DNS
+# `errors.<domena>`; dopóki go nie ma, blok tylko czeka na certyfikat.
+errors.{$SITE_DOMAIN} {
+EOF
+  if [ "$SUBDOMAINS_ON" = "1" ]; then
+    printf '%s\n' \
+      '    # Zwykły certyfikat (nie on-demand bloku *.) – scripts/render_caddyfile.sh, PLATFORM_SUBDOMAINS=1.' \
+      '    tls {' '        key_type p256' '    }' >> "$tmp"
+  fi
+  if [ -n "$ERRORS_UI_ALLOW" ]; then
+    # Panel GlitchTipa tylko z podanych adresów; przyjmowanie zdarzeń (koperta/store/minidump/raporty
+    # CSP) i sonda `/_health/` – z każdego, bo wysyłają przeglądarki uczestników i monitor dostępności.
+    # `respond` stoi w kolejności dyrektyw Caddy'ego przed `reverse_proxy`, więc odmowa wygrywa.
+    printf '%s\n' \
+      '    # Panel tylko z ERRORS_UI_ALLOW (scripts/render_caddyfile.sh) – przyjmowanie zdarzeń z każdego adresu.' \
+      '    @errors_ui {' \
+      '        not path_regexp ^/api/[0-9]+/(envelope|store|minidump|security)/?$' \
+      '        not path /_health/' \
+      "        not remote_ip $ERRORS_UI_ALLOW" \
+      '    }' \
+      '    respond @errors_ui 403' >> "$tmp"
+  fi
+  printf '%s\n' \
+    '    encode gzip zstd' \
+    '    request_body {' '        max_size 10MB' '    }' \
+    '    reverse_proxy glitchtip:8000 {' \
+    '        header_up X-Forwarded-Proto {scheme}' \
+    '    }' \
+    '    header {' \
+    '        Strict-Transport-Security "max-age=31536000"' \
+    '        X-Content-Type-Options "nosniff"' \
+    '        X-Frame-Options "DENY"' \
+    '        Referrer-Policy "same-origin"' \
+    '        -Server' \
+    '    }' \
+    '}' >> "$tmp"
+fi
+
+if [ -n "$LAB_HOST" ]; then
+  # 1. Bloki aplikacji (domena główna, EXTRA_DOMAINS, `*.` – wszystkie są już w pliku) przestają
+  #    podawać laboratorium: każde `import notebook_lab` → `import notebook_lab_moved`. Definicja
+  #    fragmentu staje tuż przed `(notebook_lab)` – Caddy rozwija `import` w kolejności pliku, więc
+  #    fragment musi być zdefiniowany przed pierwszym użyciem. Brak kotwic zatrzymuje generator.
+  #    Ścieżka laboratorium → 302 (nie 404): stare zakładki i otwarte karty trafiają na nowy host;
+  #    `/notebook-starter/*` → 404 – notatnik startowy podaje już wyłącznie host laboratorium.
+  #    `handle` o dłuższej ścieżce Caddy stawia przed `handle_path /static/*` (sprawdza
+  #    render_caddyfile_test.sh po `caddy adapt`).
+  LAB_HOST="$LAB_HOST" awk '
+    BEGIN { lab = ENVIRON["LAB_HOST"]; defined = 0; moved = 0 }
+    $0 == "(notebook_lab) {" && !defined {
+      print "# Laboratorium na osobnym hoście (QC-02, NOTEBOOK_LAB_HOST) – wstawione przez scripts/render_caddyfile.sh."
+      print "# Bloki aplikacji importują ten fragment zamiast `notebook_lab`: ścieżki laboratorium już nie podają."
+      print "(notebook_lab_moved) {"
+      print "    handle /static/notebook-lab/* {"
+      print "        redir https://" lab "{uri} 302"
+      print "    }"
+      print "    handle /notebook-starter/* {"
+      print "        respond 404"
+      print "    }"
+      print "}"
+      print ""
+      defined = 1
+    }
+    $0 == "    import notebook_lab" { print "    import notebook_lab_moved"; moved++; next }
+    { print }
+    END { if (!defined || !moved) exit 3 }
+  ' "$tmp" > "$tmp.sub" || {
+    echo "render_caddyfile: nie znalazłem kotwic NOTEBOOK_LAB_HOST (\`(notebook_lab) {\`, \`    import notebook_lab\`) w $SRC – popraw generator razem z plikiem źródłowym" >&2
+    exit 1
+  }
+  cat "$tmp.sub" > "$tmp"
+
+  # 2. Blok hosta laboratorium – na końcu pliku (nazwa dosłowna i tak wygrywa z `*.`). Wyłącznie:
+  #    pliki laboratorium z wolumenu statycznego (`root /srv` + ścieżka `/static/notebook-lab/…` =
+  #    `/srv/static/notebook-lab/…`) z nagłówkami fragmentu `(notebook_lab)` – CSP zawężona do ścieżki,
+  #    COOP/COEP/CORP; `{scheme}://{hostport}` jest tu originem laboratorium – oraz notatnik startowy
+  #    z `web` (podpisany token, bez sesji – QC-02 § 6). Reszta: 404. `Referrer-Policy: strict-origin`
+  #    – adres laboratorium niesie token w `?fromURL=`, na zewnątrz wychodzi sam origin, a po nim
+  #    serwis rozpoznaje żądania z laboratorium (QC-02 § 4). Poza ścieżką laboratorium CSP `sandbox`.
+  #    Bez `import maintenance`: pliki laboratorium nie zależą od `web`.
+  {
+    printf '\n%s\n' '# Wygenerowane przez scripts/render_caddyfile.sh z NOTEBOOK_LAB_HOST – nie edytuj tego pliku.'
+    printf '%s\n' '# Laboratorium notatników kwantowych na osobnym hoście (docs/tasks/QC-02.md § 3).'
+    printf '%s {\n' "$LAB_HOST"
+    # Przy subdomenach platformy – przypięcie zwykłego certyfikatu jak w `live.`/`dj.` (komentarz przy
+    # wstawkach awk wyżej): bez niego `lab.<domena>` trafiałby do polityki on-demand bloku `*.`.
+    if [ "$SUBDOMAINS_ON" = "1" ]; then
+      printf '%s\n' \
+        '    # Zwykły certyfikat (nie on-demand bloku *.) – scripts/render_caddyfile.sh, PLATFORM_SUBDOMAINS=1.' \
+        '    tls {' '        key_type p256' '    }'
+    fi
+    cat <<'EOF'
+    import notebook_lab
+    encode gzip zstd
+    request_body {
+        max_size 1MB
+    }
+    handle /static/notebook-lab/* {
+        header Cache-Control "public, max-age=31536000, immutable"
+        root * /srv
+        file_server
+    }
+    handle /notebook-starter/* {
+        reverse_proxy web:8000 {
+            header_up X-Forwarded-Proto {scheme}
+            header_up X-Real-IP {remote_host}
+        }
+    }
+    handle {
+        respond 404
+    }
+    @lab_other not path /static/notebook-lab/*
+    header @lab_other Content-Security-Policy "default-src 'none'; frame-ancestors 'none'; sandbox"
+    header {
+        Strict-Transport-Security "max-age=31536000"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        Referrer-Policy "strict-origin"
+        Cross-Origin-Resource-Policy "same-origin"
+    }
+}
+EOF
+  } >> "$tmp"
+fi
+
 mkdir -p "$(dirname "$OUT")"
 cat "$tmp" > "$OUT"
 # Podsumowanie rozszerzane tylko o przełączniki włączone – przy wyłączonych linijka jest ta sama
@@ -606,4 +804,6 @@ extras=""
 [ "$SUBDOMAINS_ON" = "1" ] && extras="$extras, subdomeny platformy: włączone"
 [ "$DJCMS_ON" = "1" ] && extras="$extras, dj. (django CMS): włączone, DJCMS_PRIMARY=$PRIMARY_ON ($DJCMS_MODE)"
 [ "$LIVEKIT_ON" = "1" ] && extras="$extras, live. (LiveKit): włączone"
+[ "$ERRORS_ON" = "1" ] && extras="$extras, errors. (GlitchTip): włączone"
+[ -n "$LAB_HOST" ] && extras="$extras, laboratorium notatników: $LAB_HOST"
 echo "render_caddyfile: $OUT (domen dodatkowych: $added$extras)"

@@ -2466,7 +2466,6 @@ pobranie jest zapisywane w audycie.
 
 ---
 
-
 ## 10l. Absolwenci i mentoring — `/coordinator/alumni/`
 
 Sieć byłych uczestników (za flagą `alumni` – włącza ją operator, `docs/OPERACJE.md` § 38).
@@ -2599,8 +2598,12 @@ Ekran istnieje przy włączonej fladze konkursu `quantum_notebooks` (włącza op
 > - uprzedź uczestników (komunikat, regulamin), żeby **nie wklejali do notatnika kodu od innych
 >   osób** – wykonuje się na ich koncie.
 >
-> Docelowo laboratorium ma dostać osobną domenę (`docs/OPERACJE.md` § 40.6); wtedy te ograniczenia
-> znikną.
+> Operator może przenieść laboratorium na **osobny adres** (`NOTEBOOK_LAB_HOST`, np.
+> `lab.olimpiadakwantowa.pl` albo osobna domena – `docs/OPERACJE.md` § 40.7). Wtedy kod z notatnika
+> nie widzi sesji, ciasteczek ani danych serwisu, a serwis odrzuca wysyłane z niego żądania; ramka
+> ostrzeżenia w ustawieniach notatników podaje ten adres. Ograniczenia ról wyżej zostają do
+> osobnej decyzji po odbiorze. Przełączaj **przed** etapem: praca uczniów zapisana w przeglądarce
+> pod starym adresem nie będzie widoczna pod nowym.
 
 **Tryby:**
 
@@ -2678,6 +2681,66 @@ przebiegu. Recenzent i uczestnik widzą nazwy testów i punkty.
 szczegół przebiegu (błędy komórek, początek wyjścia programu). Po zmianie testów wiersze dostają
 znacznik „testy zmienione” – „Przelicz wszystko” liczy je od nowa (wpis w audycie).
 
+## 10o. Deklaracja dostępności — `/dokumenty/deklaracja-dostepnosci/`
+
+Serwis ma w stopce odnośnik „Deklaracja dostępności” (wymóg wzoru deklaracji z ustawy o dostępności
+cyfrowej; organizator stosuje ją dobrowolnie, miarą jest WCAG 2.1 AA). Treść przygotował zespół
+techniczny jako **projekt** po audycie z października 2026 r. Co zrobić:
+
+1. W `/cms/` → Dokumenty → „Deklaracja dostępności” otwórz podgląd wersji roboczej.
+2. Uzupełnij pola w nawiasach kwadratowych: **datę publikacji serwisu**, **osobę kontaktową**,
+   adres siedziby (sekcja „Dostępność architektoniczna”). Sprawdź listę „Treści niedostępne” –
+   to zobowiązanie wobec czytelnika (np. „opis rysunków na żądanie”), więc ma być prawdziwe.
+3. Usuń ramkę „Projekt – do zatwierdzenia”, zmień pole „status” (np. „Obowiązuje od …”) i **opublikuj**.
+   Odnośnik w stopce pojawi się sam zaraz po publikacji (wcześniej go nie ma).
+4. Raz w roku i po każdej większej zmianie serwisu zaktualizuj datę „ostatniej istotnej aktualizacji”.
+   Na żądania zapewnienia dostępności (np. „proszę o opis rysunku w zadaniu 3”) odpowiada się w 7 dni.
+
+Konkurs międzynarodowy (IQO) ma deklarację po angielsku – ten sam układ.
+
+## 10p. Bezpieczeństwo logowania — `/coordinator/security/2fa/`
+
+Logowanie dwuskładnikowe (2FA) to sześciocyfrowy kod z aplikacji w telefonie (Aegis, FreeOTP,
+Google Authenticator, menedżer haseł) podawany po haśle. Od SEC-01 serwis **wymaga** go od personelu
+konkursów, które przechowują dane wrażliwe: paszporty i dane o zdrowiu delegacji, płatności
+i faktury, nagrania nadzoru zdalnego. Ekran jest w menu „Raporty → Bezpieczeństwo logowania”, o ile
+operator włączył funkcję (`TWO_FACTOR_ENABLED`, `docs/OPERACJE.md` § 41).
+
+**Kto musi mieć 2FA.**
+
+- zawsze: superkoordynator i konta z dostępem do `/admin/` (ustawienie platformy),
+- w konkursie z delegacjami, płatnościami, logistyką finału albo nadzorem zdalnym (tryb
+  „automatycznie”): koordynatorzy (także oficer logistyki), opiekunowie drużyn narodowych i osoby
+  z przydziałem w logistyce finału (także obsługa rejestracji),
+- w trybie „wybrane role”: dokładnie role zaznaczone przez superkoordynatora (np. komitet i komisja
+  odwoławcza),
+- **nigdy uczestnicy** – mogą włączyć 2FA sami, ale serwis nigdy go od nich nie żąda.
+
+**Okres przejściowy.** Osoba objęta wymogiem ma domyślnie 14 dni od pierwszego wejścia: na każdej
+stronie widzi baner z terminem i odnośnikiem „Włącz teraz”. Po terminie serwis wpuszcza ją wyłącznie
+na ekran konfiguracji. Okres jest jednorazowy – wyłączenie 2FA go nie odnawia.
+
+**Co widzi koordynator na ekranie.** Obowiązujące role (platformy i konkursu), funkcje wrażliwe
+konkursu, długość okresu przejściowego, oraz listę personelu: kto ma 2FA, kto nie i do kiedy ma czas.
+Politykę **zmienia wyłącznie superkoordynator** – koordynator mógłby nią poluzować wymóg wobec samego
+siebie.
+
+**Twoje konto.** `Twoje konto → Logowanie dwuskładnikowe` (`/account/2fa/`): kod QR, potwierdzenie
+kodem, dziesięć kodów zapasowych pokazanych raz (wydrukuj, schowaj poza telefonem). Tam też: nowy
+komplet kodów zapasowych i wyłączenie – oba wymagają hasła **i** bieżącego kodu. Na własnym
+komputerze możesz zaznaczyć „Nie pytaj o kod na tym urządzeniu do …” (domyślnie 7 dni) – nigdy na
+komputerze wspólnym. Po pięciu błędnych kodach z rzędu logowanie kodem jest wstrzymane na 15 minut,
+a właściciel konta dostaje list. List przychodzi też po włączeniu, wyłączeniu, nowych kodach
+i użyciu kodu zapasowego – jeśli to nie Ty, zmień hasło i daj znać organizatorowi.
+
+**„Zgubiłem telefon”.** Najpierw kod zapasowy (wpisuje się go w to samo pole, co kod z aplikacji).
+Bez kodu: na ekranie konta w panelu „Zdejmij drugi składnik”. Konto personelu resetuje **wyłącznie
+superkoordynator** (koordynator zobaczy w tym miejscu tylko informację), konto uczestnika lub opiekuna
+szkolnego – koordynator. Zanim klikniesz, potwierdź tożsamość inną drogą niż e-mail z tego konta
+(telefon, wideo): prośba z przejętej skrzynki wygląda tak samo jak prawdziwa. Reset zostaje w audycie
+pod Twoim nazwiskiem, a właściciel dostaje list i po zalogowaniu hasłem od razu konfiguruje 2FA
+na nowym telefonie.
+
 ## 11. Kalendarz prowadzenia edycji — ściągawka
 
 | Kiedy | Co zrobić | Gdzie |
@@ -2717,10 +2780,8 @@ techniczne: **zgody wyraża osoba, a nie szkoła**, więc konto założone hurte
 przejść przez blok zgód i aktywację adresu przy pierwszym logowaniu. Do czasu wdrożenia jedyną drogą
 jest otwarta rejestracja z `/register/`.
 
-**Uwierzytelnianie dwuskładnikowe (`apps/accounts/twofactor.py`, w przygotowaniu).** Drugi składnik
-logowania dla kont funkcyjnych — koordynatora i komitetu, czyli tych, które widzą dane osobowe i mogą
-zmieniać oceny. Do tego czasu chroni je samo hasło i skrzynka pocztowa: trzymaj liczbę kont koordynatora
-przy minimum i wymagaj od komitetu długich, unikatowych haseł.
+**Uwierzytelnianie dwuskładnikowe** – już nie „w przygotowaniu”: działa za wyłącznikiem operatora
+(`TWO_FACTOR_ENABLED`) i od SEC-01 jest wymagane od personelu konkursów z danymi wrażliwymi – § 10p.
 
 **Integracje zewnętrzne (`apps/integrations`, w przygotowaniu).** Wymiana danych z systemami organizatora.
 Cokolwiek się w niej znajdzie, będzie **nowym odbiorcą danych** — czyli wymaga wiersza w rejestrze

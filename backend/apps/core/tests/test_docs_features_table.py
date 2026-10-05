@@ -3,7 +3,8 @@
 Operator szuka przełącznika w dokumentacji, a nie w ``apps/tenancy/models.py``. Tabela pisana ręcznie
 rozjeżdża się z kodem przy pierwszej nowej fladze – więc test wymaga, żeby każda flaga z katalogu
 miała wiersz z poprawną wartością domyślną, a każda flaga z tabeli istniała w kodzie. Przełączniki
-``.env`` sprawdzamy słabiej: nazwa ma występować w ustawieniach albo w ``.env.example``.
+``.env`` sprawdzamy słabiej: nazwa ma występować w ustawieniach, ``.env.example``, compose albo
+skrypcie wdrożenia (``ENV_SOURCES``).
 
 Jak ``test_docs_section_refs``: potrzebuje ``docs/`` obok ``backend/`` – w kontenerze, który montuje
 tylko ``backend/``, jest pomijany; CI uruchamia go z pełnego checkoutu.
@@ -66,11 +67,19 @@ def test_table_lists_only_existing_flags():
     assert len(flags) == len(set(flags)), "flaga w dwóch wierszach tabeli"
 
 
-def test_env_switches_exist_in_settings_or_env_example():
-    known = (REPO / "backend" / "config" / "settings" / "base.py").read_text(encoding="utf-8") + (
-        REPO / ".env.example"
-    ).read_text(encoding="utf-8")
-    env = [n for row in table_rows() if row["Rodzaj"] == "`.env`" for n in names(row["Przełącznik"])]
+#: Gdzie przełącznik instalacji może być czytany: ustawienia Django, wzór ``.env``, compose i skrypt
+#: wdrożenia (np. ``WEB_MEM_LIMIT`` czyta tylko compose, ``DEPLOY_SMOKE`` – tylko ``deploy.sh``).
+ENV_SOURCES = ("backend/config/settings/base.py", ".env.example", "docker-compose.yml", "scripts/deploy.sh")
+
+
+def test_env_switches_exist_in_settings_env_example_or_deploy():
+    known = "".join((REPO / rel).read_text(encoding="utf-8") for rel in ENV_SOURCES)
+    env = [
+        n
+        for row in table_rows()
+        if row["Rodzaj"] in ("`.env`", "zmienna `scripts/deploy.sh`")
+        for n in names(row["Przełącznik"])
+    ]
     assert env, "tabela bez przełączników .env"
     unknown = [n for n in env if not re.search(rf"\b{re.escape(n)}\b", known)]
-    assert not unknown, f"Przełączniki .env nieznane ustawieniom ani .env.example: {unknown}"
+    assert not unknown, f"Przełączniki nieznane w {', '.join(ENV_SOURCES)}: {unknown}"

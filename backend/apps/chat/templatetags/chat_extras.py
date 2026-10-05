@@ -15,11 +15,25 @@ drogą, którą cudza treść trafia do strony osoby niepełnoletniej.
 """
 
 from django import template
+from django.conf import settings
 from django.template.defaultfilters import linebreaksbr
 from django.utils.html import urlize
 from django.utils.safestring import mark_safe
 
 register = template.Library()
+
+
+@register.simple_tag
+def chat_poll_seconds() -> int:
+    """Co ile sekund otwarty wątek odpytuje serwer (``CHAT_POLL_SECONDS``, PERF-01).
+
+    Odpytanie bez zmian to najczęstsze żądanie dnia zawodów: co 15 s u każdego ucznia z otwartą
+    rozmową – przy 3000 uczniach ok. 100 żądań/s, więcej niż wszystkie pozostałe adresy razem.
+    Operator wydłuża odstęp na czas etapu bez wdrożenia (``docs/OPERACJE.md`` § 42.5); wiadomość
+    przychodzi wtedy z opóźnieniem do tylu sekund, a po powrocie do karty – od razu (``chat-visible``).
+    """
+    return max(5, int(getattr(settings, "CHAT_POLL_SECONDS", 15)))
+
 
 #: Atrybut dokładany przez ``urlize(nofollow=True)`` – podmieniany na pełny zestaw niżej.
 DJANGO_NOFOLLOW = 'rel="nofollow"'

@@ -31,7 +31,7 @@
       <span class="hint">Plik tekstowy w kodowaniu UTF-8, najwyżej 512 kB.</span></p>
     <p>{{ form.text.errors }}{{ form.text.label_tag }} {{ form.text }}</p>
     <p>{{ form.replace.errors }}{{ form.replace.label_tag }} {{ form.replace }}
-      <span class="hint">{{ form.replace.help_text }}</span></p>
+      <span class="hint" id="{{ form.replace.auto_id }}_helptext">{{ form.replace.help_text }}</span></p>
     <div class="actions">
       <button type="submit" class="btn btn--accent">Wczytaj pytania</button>
     </div>

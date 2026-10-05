@@ -169,7 +169,7 @@
           {{ form.body.errors }}
           {{ form.body.label_tag }}
           {{ form.body }}
-          {% if form.body.help_text %}<span class="helptext">{{ form.body.help_text }}</span>{% endif %}
+          {% if form.body.help_text %}<span class="helptext" id="{{ form.body.auto_id }}_helptext">{{ form.body.help_text }}</span>{% endif %}
         </p>
         <div class="actions">
           <button type="submit" class="btn btn--primary">{% translate "Wyślij odpowiedź" %}</button>

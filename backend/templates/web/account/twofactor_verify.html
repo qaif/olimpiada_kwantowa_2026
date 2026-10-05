@@ -17,15 +17,28 @@
     <p class="auth__intro">{% blocktranslate trimmed with digits=digits %}
       Przepisz {{ digits }}-cyfrowy kod z aplikacji uwierzytelniającej. Kod zmienia się co 30 sekund.
     {% endblocktranslate %}</p>
-    {% if error %}<p class="alert alert--error">{{ error }}</p>{% endif %}
+    {% if error %}<p class="alert alert--error" id="id_code_error" role="alert">{{ error }}</p>{% endif %}
     <form method="post" class="form">
       {% csrf_token %}
       <p>
         <label for="id_code">{% translate "Kod" %}</label>
         <input type="text" id="id_code" name="code" inputmode="numeric"
-               autocomplete="one-time-code" autofocus required>
+               autocomplete="one-time-code" autofocus required{% if error %} aria-invalid="true" aria-describedby="id_code_error"{% endif %}>
       </p>
       <input type="hidden" name="next" value="{{ next }}">
+      {% comment %}
+        SEC-01: „zapamiętaj to urządzenie” – podpisane ciasteczko na ``remember_days`` dni
+        (apps/staff_mfa/trust.py). Bez pola, gdy platforma albo polityka konkursu go nie dopuszcza.
+      {% endcomment %}
+      {% if remember_days %}
+        <p class="checkbox">
+          <label><input type="checkbox" name="remember" value="1">
+            {% blocktranslate trimmed with until=remember_until|date:"j E Y" %}
+              Nie pytaj o kod na tym urządzeniu do {{ until }}
+            {% endblocktranslate %}</label>
+        </p>
+        <p class="hint">{% translate "Zaznacz wyłącznie na własnym komputerze – nie na wspólnym w szkole ani w biurze." %}</p>
+      {% endif %}
       <button type="submit" class="btn btn--primary btn--block">{% translate "Potwierdź" %}</button>
     </form>
     <p class="auth__alt">

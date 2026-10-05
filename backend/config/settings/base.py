@@ -193,7 +193,11 @@ INSTALLED_APPS = [
     "apps.medals",
     # Płatności online za udział (PAY-01): cennik delegacji, zamówienia, Stripe/Przelewy24, faktury.
     "apps.payments",
+    "apps.staff_mfa",  # 2FA personelu: polityka konkursu, okres przejściowy, odzyskiwanie (SEC-01)
     "apps.password_change",  # zmiana hasła w panelu konta (AUTH-01b, 4.10.2026), bez modeli
+    "apps.mail_domains",  # domeny nadawców poczty: check_mail_dns i ostrzeżenia (MAIL-01, 5.10.2026)
+    "apps.monitoring",  # śledzenie błędów (GlitchTip) i dostępność – OPS-02, wyłączone bez SENTRY_DSN
+    "apps.accessibility",  # deklaracja dostępności i napisy stopki (A11Y-01, 5.10.2026), bez modeli
     "apps.web",
     # Logowanie przez dostawców zewnętrznych (Google, Facebook). ``allauth.account`` jest wymagane
     # przez ``allauth.socialaccount`` (model ``EmailAddress``, adaptery) – jego **widoki** nie są
@@ -228,6 +232,11 @@ MIDDLEWARE = [
     # apps/web/tests/test_public.py); dla samego zliczania kodu odpowiedzi ta różnica jest bez
     # znaczenia. Warstwa niczego nie modyfikuje i nie może rzucić.
     "apps.core.middleware.ServerErrorCounterMiddleware",
+    # Osobny host laboratorium notatników (QC-02 § 3): **przed** WhiteNoise, bo rozstrzyga też o
+    # ``/static/notebook-lab/`` (host serwisu → 302 na host laboratorium). Na hoście laboratorium
+    # kończy każde żądanie poza plikami laboratorium sam – bez sesji, konkursu i CSRF. Bez
+    # ``NOTEBOOK_LAB_HOST`` nie robi nic.
+    "apps.notebooks.middleware.NotebookLabHostMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     # Język z ciasteczka albo z nagłówka ``Accept-Language``. Za sesją (czyta ją) i przed
@@ -355,6 +364,8 @@ TEMPLATES = [
                 # szkolnego. Wartość leniwa, z pamięci podręcznej unieważnianej przy zapisie plakatu
                 # (``apps.promo.availability``).
                 "apps.promo.availability.promo_materials",
+                # Odnośnik do deklaracji dostępności w stopce – tylko gdy strona jest opublikowana (A11Y-01).
+                "apps.accessibility.availability.accessibility_statement",
                 # Czy pokazać odnośnik „Materiały z warsztatów” w pasku konta i na pulpicie
                 # uczestnika – przełącznik konkursu i pamięć podręczna unieważniana przy zapisie
                 # materiału (``apps.workshop_materials.availability``); wartość leniwa.
@@ -497,6 +508,9 @@ PAGE_CACHE_ENABLED = env.bool("PAGE_CACHE_ENABLED", default=not DEBUG)
 # dwa niezależne wyłączniki, bo jeden bywa wygodniejszy operacyjnie (zmienna środowiskowa przy
 # incydencie), a drugi programistycznie (test, który włącza cache, ale ze świadomie krótkim TTL).
 PAGE_CACHE_SECONDS = env.int("PAGE_CACHE_SECONDS", default=120)
+# Odstęp odpytywania otwartego wątku Wiadomości (PERF-01, docs/OPERACJE.md § 42.5): najczęstsze
+# żądanie dnia zawodów; na czas etapu operator może go wydłużyć bez wdrożenia (np. 45).
+CHAT_POLL_SECONDS = env.int("CHAT_POLL_SECONDS", default=15)
 
 CELERY_BROKER_URL = env("CELERY_BROKER_URL", default="redis://localhost:6379/1")
 CELERY_RESULT_BACKEND = None
@@ -734,7 +748,22 @@ TWO_FACTOR_ENABLED = env.bool("TWO_FACTOR_ENABLED", default=False)
 # aplikację uwierzytelniającą. Kolejność jest odwrotna – najpierw komitet włącza 2FA dobrowolnie
 # (ekran ``/account/2fa/``), a dopiero potem organizator domyka furtkę tą zmienną.
 # Sensowna wartość produkcyjna: ``TWO_FACTOR_REQUIRED_ROLES=coordinator,reviewer,appeals``.
-TWO_FACTOR_REQUIRED_ROLES = env.list("TWO_FACTOR_REQUIRED_ROLES", default=[])
+#
+# SEC-01 (04.10.2026): to jest **polityka platformy** – role wymagane w każdym konkursie, obok
+# polityki konkursu (``apps.staff_mfa``, domyślnie personel konkursów z danymi wrażliwymi). Klucze:
+# ``superkoordynator``, ``admin`` (``is_staff``/superuser), ``coordinator``, ``team_leader``,
+# ``logistics``, ``reviewer``, ``appeals``, ``supervisor``; ``participant`` jest odrzucany.
+# Domyślnie ``superkoordynator,admin`` – te role widzą wszystkie konkursy naraz. Obawa sprzed SEC-01
+# („zamknie koordynatorowi panel w dniu wdrożenia”) znika razem z okresem przejściowym niżej.
+TWO_FACTOR_REQUIRED_ROLES = env.list("TWO_FACTOR_REQUIRED_ROLES", default=["superkoordynator", "admin"])
+
+# Okres przejściowy (dni) od pierwszego żądania konta, od którego 2FA stało się wymagane: baner
+# na każdej stronie, potem poczekalnia „skonfiguruj”. Polityka konkursu może go skrócić/wydłużyć.
+TWO_FACTOR_GRACE_DAYS = env.int("TWO_FACTOR_GRACE_DAYS", default=14)
+
+# „Zapamiętaj to urządzenie” na drugim kroku logowania (dni; 0 = pola nie ma). Podpisane ciasteczko
+# ``2fa_trust`` (apps/staff_mfa/trust.py) – unieważnia je zmiana hasła, wyłączenie i reset 2FA.
+TWO_FACTOR_REMEMBER_DAYS = env.int("TWO_FACTOR_REMEMBER_DAYS", default=7)
 
 # --- Poczta wychodząca -----------------------------------------------------------------------
 # Konfiguracja poczty jest **słownikiem** ``MAILERS`` (Django 6.1), a nie ustawieniami ``EMAIL_*``:
@@ -1015,6 +1044,14 @@ _sender_domains = env("ALLOWED_SENDER_DOMAINS", default=SITE_DOMAIN).replace(","
 MAIL_ALLOWED_SENDER_DOMAINS = (
     None if "*" in _sender_domains else [domain.strip().lower() for domain in _sender_domains]
 )
+
+# Sprawdzenie rekordów poczty domen nadawców (MAIL-01, ``manage.py check_mail_dns``). Selektor ten
+# sam, co usługi ``mail`` (compose: ``DKIM_SELECTOR: olimpiada``); IP relaya pusty = rekord A
+# ``mail.<SITE_DOMAIN>``; serwery DNS puste = ``/etc/resolv.conf`` kontenera.
+MAIL_DKIM_SELECTOR = env("DKIM_SELECTOR", default="olimpiada")
+MAIL_PUBLIC_IP = env("MAIL_PUBLIC_IP", default="")
+MAIL_DMARC_RUA = env("DMARC_RUA", default="contact@qaif.org")
+MAIL_DNS_NAMESERVERS = env.list("MAIL_DNS_NAMESERVERS", default=[])
 
 # --- konkursy w subdomenach platformy ----------------------------------------------------------
 # Wyłącznik funkcji „koordynator zakłada konkurs z panelu, a konkurs stoi pod
@@ -1573,6 +1610,27 @@ NOTEBOOK_RUNNER_INLINE = env.bool("NOTEBOOK_RUNNER_INLINE", default=False)
 NOTEBOOK_LAB_DIR = env("NOTEBOOK_LAB_DIR", default=str(BASE_DIR / "notebook_lab_dist"))
 if DEBUG and Path(NOTEBOOK_LAB_DIR).is_dir():
     STATICFILES_DIRS = [*STATICFILES_DIRS, ("notebook-lab", NOTEBOOK_LAB_DIR)]
+# Osobny host laboratorium (QC-02, docs/tasks/QC-02.md): ``lab.<SITE_DOMAIN>`` albo osobna domena
+# rejestrowalna. Pusty = laboratorium w originie serwisu jak w QC-01. Ta sama zmienna steruje blokiem
+# Caddy'ego (scripts/render_caddyfile.sh). Host trafia do ``ALLOWED_HOSTS`` (notatnik startowy podaje
+# ``web``), ale **nie** do ``CSRF_TRUSTED_ORIGINS`` – kod z laboratorium nie może być zaufanym originem
+# żądań POST; przy subdomenie i ``PLATFORM_SUBDOMAINS=1`` wzorzec ``https://*.<domena>`` i tak by go
+# objął, dlatego żądania z laboratorium odrzuca też ``NotebookLabRequestGuardMiddleware`` (QC-02 § 4).
+# Poprawność wartości: sprawdzenie ``notebooks.E002`` (apps/notebooks/checks.py).
+NOTEBOOK_LAB_HOST = env("NOTEBOOK_LAB_HOST", default="").strip().lower().rstrip(".")
+if NOTEBOOK_LAB_HOST:
+    ALLOWED_HOSTS = list(dict.fromkeys([*ALLOWED_HOSTS, NOTEBOOK_LAB_HOST.split(":")[0]]))
+
+
+def host_prefixed_cookie_name(name: str, *, lab_host: str, secure: bool) -> str:
+    """``__Host-<nazwa>`` przy osobnym hoście laboratorium i ciasteczku ``Secure`` (QC-02 § 5, M1).
+
+    Prefiks wymaga ``Secure`` (inaczej przeglądarka odrzuci ciasteczko – dev bez TLS zostaje przy
+    zwykłej nazwie i ochronie ``apps.notebooks.cookieguard``), ``Path=/`` i braku ``Domain`` – co
+    Django i tak ustawia (``*_COOKIE_PATH``/``*_COOKIE_DOMAIN`` domyślne). Używa production.py.
+    """
+    return f"__Host-{name}" if lab_host and secure else name
+
 
 # --- pieczęć elektroniczna dyplomów (apps.results.signing) -------------------------------------
 # Bez ścieżki do pliku PKCS#12 podpisywanie jest **wyłączone** i dokumenty wychodzą niepodpisane –
@@ -1600,6 +1658,25 @@ P24_POS_ID = int(env("P24_POS_ID", default="") or 0)
 P24_API_KEY = env("P24_API_KEY", default="")
 P24_CRC = env("P24_CRC", default="")
 P24_SANDBOX = env.bool("P24_SANDBOX", default=False)
+
+# --- śledzenie błędów: GlitchTip, protokół Sentry (OPS-02, docs/OPERACJE.md § 44) ---------------
+# Pusty ``SENTRY_DSN`` (domyślnie) = funkcja wyłączona i **zero zmian**: ``sentry_sdk`` nie jest
+# importowany, lista warstw jest dawna, CSP i HTML stron – co do bajtu te same. Klienta uruchamia
+# ``apps.monitoring.apps.MonitoringConfig.ready()``; filtr danych osobowych: apps/monitoring/scrubbing.py.
+SENTRY_DSN = env("SENTRY_DSN", default="")
+SENTRY_ENVIRONMENT = env("SENTRY_ENVIRONMENT", default="production")
+SENTRY_SAMPLE_RATE = env.float("SENTRY_SAMPLE_RATE", default=1.0)
+# Transakcje (APM) domyślnie wyłączone: każda to kolejne zapytania SQL i adresy do filtrowania.
+SENTRY_TRACES_SAMPLE_RATE = env.float("SENTRY_TRACES_SAMPLE_RATE", default=0.0)
+# Błędy JavaScriptu (OPS-02 § 5) – osobny przełącznik; DSN przeglądarki domyślnie ten sam co serwera.
+SENTRY_BROWSER = env.bool("SENTRY_BROWSER", default=False)
+SENTRY_BROWSER_DSN = env("SENTRY_BROWSER_DSN", default="")
+if SENTRY_DSN:
+    # Tag ``competition`` (slug) – zaraz za warstwą, która ustawia ``request.competition``.
+    MIDDLEWARE.insert(
+        MIDDLEWARE.index("apps.tenancy.middleware.CompetitionMiddleware") + 1,
+        "apps.monitoring.middleware.ErrorTrackingTagMiddleware",
+    )
 
 DATA_UPLOAD_MAX_MEMORY_SIZE = 2 * 1024 * 1024  # pliki idą strumieniem na dysk tymczasowy powyżej 2 MB
 FILE_UPLOAD_MAX_MEMORY_SIZE = 2 * 1024 * 1024

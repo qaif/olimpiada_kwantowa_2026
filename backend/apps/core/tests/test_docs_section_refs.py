@@ -51,7 +51,8 @@ NUM = r"\d+[a-z]?(?:\.\d+[a-z]?)*"
 #: „§ 30.4”, „§ 30.4–30.7” (zakres bez spacji), „§ 4.1, 7.2a, 9.1” (kolejne numery należą do tego §).
 REF = re.compile(
     rf"§§?\s*(?P<first>{NUM})(?:[–-](?P<last>{NUM}))?"
-    rf"(?P<more>(?:,\s*{NUM}(?=[,;)\s]|$)(?!\s*(?:ust|pkt|r\.|%)))*)"
+    # Kolejne numery tylko z kropką albo literą („7.2a”, „10a”) – „§ 13, 120 s” to nie dwa odwołania.
+    rf"(?P<more>(?:,\s*\d+(?:[a-z]|(?:\.\d+[a-z]?)+)(?=[,;)\s]|$)(?!\s*(?:ust|pkt|r\.|%)))*)"
 )
 
 #: Odwołanie należy do nazwy, jeśli dzieli je od niej (albo od poprzedniego odwołania z łańcucha)
@@ -62,7 +63,8 @@ POSTFIX_GAP = 12
 #: Dokumenty z ``docs/``, których nazwa jest zwykłym słowem („API”, „TESTY”, „PROJEKT”) – liczą
 #: się wyłącznie zapisane jako plik (``API.md``). Bez rozszerzenia wolno pisać: OPERACJE, podręczniki,
 #: plany etapów i kody zadań (``DEL-01``, ``THEME-02``).
-BARE_OK = re.compile(r"^(?:OPERACJE|PODRECZNIK-.+|SECURITY_CHECKLIST|[A-Z0-9]+(?:-[A-Z0-9]+)*-\d+[A-Z]?)$")
+TASK_CODE = re.compile(r"^[A-Z0-9]+(?:-[A-Z0-9]+)*-\d+[A-Z]?$")
+BARE_OK = re.compile(rf"^(?:OPERACJE|PODRECZNIK-.+|SECURITY_CHECKLIST)$|{TASK_CODE.pattern}")
 
 #: Polskie nazwy dokumentów używane w tekście zamiast nazwy pliku.
 ALIASES = (
@@ -161,6 +163,11 @@ def _doc_mentions(line: str, docs: dict[str, set[str]]) -> list[tuple[int, int, 
     for m in re.finditer(
         rf"(?<![\w-])(?:docs/)?(?:tasks/)?({stems})(\.md)?(?![\w-])", line.translate(_ASCII)
     ):
+        bare_code = not m.group(2) and TASK_CODE.match(m.group(1))
+        # Kod zadania bez „.md” jest nazwą dokumentu tylko tuż przed „§” („THEME-02 § 2.3”); w „(QC-02,
+        # § 40.7)” albo „od OPS-04 – § 48” to etykieta zmiany, a § należy do dokumentu wokół.
+        if bare_code and not line[m.end() : m.end() + 4].lstrip(" `*").startswith("§"):
+            continue
         if m.group(2) or BARE_OK.match(m.group(1)):
             found.append((m.start(), m.end(), m.group(1)))
     for pattern, doc in ALIASES:

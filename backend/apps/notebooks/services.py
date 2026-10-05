@@ -28,7 +28,7 @@ from apps.submissions.models import AvStatus, Submission, SubmissionFile
 from apps.submissions.storage import get_submission_storage
 from qclab import grader
 
-from . import notebook_io, spool
+from . import lab, notebook_io, spool
 from .models import NotebookMode, NotebookRun, NotebookTask, ResultsVisibility, RunStatus
 
 logger = logging.getLogger(__name__)
@@ -167,16 +167,28 @@ def starter_filename(task: NotebookTask) -> str:
 STARTER_SALT = "notebooks.starter"
 #: Ważność adresu notatnika startowego. Laboratorium pobiera go raz, przy otwarciu.
 STARTER_MAX_AGE = 12 * 3600
+#: Osobny host laboratorium (QC-02 § 6): token jest tam **jedynym** poświadczeniem (host nie dostaje
+#: ciasteczek serwisu), więc ma własną sól – token z trybu QC-01 (wiązany z sesją, 12 h) nie działa
+#: na hoście laboratorium i odwrotnie – i krótszy termin. Dwie godziny wystarczają na otwarcie
+#: laboratorium i odświeżenie karty w trakcie pracy; po terminie praca zostaje w IndexedDB,
+#: a nowy adres daje strona zadania.
+LAB_STARTER_SALT = "notebooks.starter.lab-host"
+LAB_STARTER_MAX_AGE = 2 * 3600
 
 
 def starter_url(task: NotebookTask, participant, user) -> str:
-    """Adres notatnika startowego dla laboratorium – ścieżka stała, bez prefiksu konkursu."""
+    """Adres notatnika startowego dla laboratorium – ścieżka stała, bez prefiksu konkursu.
+
+    Ścieżka względna: przy osobnym hoście laboratorium (QC-02) stronę zadania składa adres
+    bezwzględny z ``lab.lab_origin``, a ``fromURL`` w laboratorium rozwiązuje się względem jego hosta.
+    """
     from django.core import signing
 
     from apps.web.middleware import NOTEBOOK_STARTER_PATH
 
     competition_id = task.problem.stage.edition.competition_id
-    token = signing.dumps({"c": competition_id, "t": task.pk, "u": user.pk}, salt=STARTER_SALT, compress=True)
+    salt = LAB_STARTER_SALT if lab.lab_host() else STARTER_SALT
+    token = signing.dumps({"c": competition_id, "t": task.pk, "u": user.pk}, salt=salt, compress=True)
     return f"{NOTEBOOK_STARTER_PATH}{token}/{starter_filename(task)}"
 
 
@@ -184,14 +196,41 @@ def task_from_starter_token(token: str, user, now=None) -> NotebookTask | None:
     """Zadanie z tokenu – albo ``None`` (podpis, termin, inne konto, bramki uczestnika)."""
     from django.core import signing
 
-    from apps.accounts.services import participant_for
-
     try:
         data = signing.loads(token, salt=STARTER_SALT, max_age=STARTER_MAX_AGE)
     except signing.BadSignature:
         return None
     if not isinstance(data, dict) or data.get("u") != user.pk:
         return None
+    return _task_for_token(data, user, now)
+
+
+def lab_host_starter_target(token: str, now=None):
+    """``(zadanie, konto)`` z tokenu hosta laboratorium (QC-02 § 6) – albo ``None``.
+
+    Bez sesji: konto bierzemy z tokenu, a każdą bramkę sprawdzamy na **bieżącym** stanie konta,
+    nie na stanie z chwili wystawienia – nieaktywne konto, nadana w międzyczasie rola personelu,
+    skreślenie z etapu albo wyłączona flaga zamykają adres przed upływem terminu.
+    """
+    from django.contrib.auth import get_user_model
+    from django.core import signing
+
+    try:
+        data = signing.loads(token, salt=LAB_STARTER_SALT, max_age=LAB_STARTER_MAX_AGE)
+    except signing.BadSignature:
+        return None
+    if not isinstance(data, dict) or not isinstance(data.get("u"), int):
+        return None
+    user = get_user_model().objects.filter(pk=data["u"], is_active=True).first()
+    if user is None or has_staff_role(user):
+        return None
+    task = _task_for_token(data, user, now)
+    return (task, user) if task is not None else None
+
+
+def _task_for_token(data: dict, user, now=None) -> NotebookTask | None:
+    from apps.accounts.services import participant_for
+
     task = (
         NotebookTask.objects.select_related("problem__stage__edition__competition")
         .filter(pk=data.get("t"), problem__stage__edition__competition_id=data.get("c"))
