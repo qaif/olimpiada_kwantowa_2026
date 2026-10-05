@@ -37,7 +37,7 @@ dependencies = [
     # Reszta – te same zakresy co w ``backend/pyproject.toml`` (uzasadnienia tam).
     "django-environ>=0.14,<0.15",
     "psycopg[binary]>=3.2.10,<3.3",
-    "gunicorn>=23.0,<24.0",
+    "gunicorn>=23.0,<27.0",
     "whitenoise>=6.12,<7.0",
 ]
 
