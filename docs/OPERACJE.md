@@ -6516,5 +6516,8 @@ kontrast, a stopka – bez odnośnika do deklaracji.
   `{{ field.help_text }}` musi ją powtórzyć.
 - Menu panelu koordynatora dostaje atrybut `open` od 900 px (`static/js/coordinator-nav.js`).
 - Tryb wysokiego kontrastu: `.btn--accent` z czarnym napisem na żółci.
-- Nowych zależności Pythona nie ma; `axe-core` jest wyłącznie w `e2e/vendor/` (poza obrazem).
+- Nowych zależności Pythona nie ma; `axe-core` jest wyłącznie w `e2e/vendor/` (poza obrazem) i jest
+  wpisany do rejestru `.security/vendor.toml` (§ 47.4: wersja, integrity npm, SHA384; miesięczny
+  przegląd `upstream` pokaże nowe wydanie i znane podatności). Job CI `a11y` ma akcje przypięte SHA
+  i `permissions: contents: read`.
 
