@@ -22,17 +22,44 @@ ACTIVE = """() => {
   return `${a.tagName.toLowerCase()}${cls ? '.' + cls : ''} „${text}”`;
 }"""
 
+#: Dwie klatki i jedno zadanie: strona zdąży odpowiedzieć na przesunięcie fokusu (obserwatory, style).
+SETTLE = (
+    "() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(r, 0))))"
+)
+
 #: Czy element z fokusem ma widoczny wskaźnik: obrys albo cień (pierścień), który znika bez fokusu.
-FOCUS_STYLE = """() => {
+#:
+#: Pomiar czeka dwie klatki: Playwright naciska Tab szybciej niż człowiek, a strona reaguje na
+#: przesunięcie fokusu asynchronicznie (przewinięcie → IntersectionObserver przyklejonego paska,
+#: przeglądarka zdejmuje fokus z elementu, który właśnie zniknął). Bez czekania test mierzył stan
+#: w pół drogi – element już schowany (0×0), a opis brany osobnym wywołaniem pokazywał ``body``.
+#: Opis elementu idzie tu, w tym samym pomiarze, żeby komunikat dotyczył tego, co zmierzono.
+#:
+#: ``body`` po Tabie: jeśli dokument stracił fokus (``hasFocus() === false``), Tab wyszedł za
+#: ostatni przystanek do przeglądarki – to zawinięcie, nie błąd strony. Jeśli dokument ma fokus,
+#: a aktywny jest ``body``, strona **zgubiła** fokus (element zniknął spod kursora) – to błąd.
+FOCUS_STYLE = (
+    """async () => {
+  await ("""
+    + SETTLE
+    + """)();
   const a = document.activeElement;
-  if (!a || a === document.body) return {ok: true, skip: true};
+  const describe = """
+    + ACTIVE
+    + """;
+  if (!a || a === document.body || a === document.documentElement) {
+    if (!document.hasFocus()) return {ok: true, skip: true};
+    return {ok: false, visible: false, el: 'body (fokus zgubiony)', outline: '-', shadow: '-'};
+  }
   const cs = getComputedStyle(a);
   const outline = cs.outlineStyle !== 'none' && parseFloat(cs.outlineWidth) >= 2;
   const shadow = cs.boxShadow && cs.boxShadow !== 'none';
   const rect = a.getBoundingClientRect();
-  return {ok: outline || shadow, visible: rect.width > 0 && rect.height > 0,
+  return {ok: outline || shadow, visible: rect.width > 0 && rect.height > 0, el: describe(),
+          size: Math.round(rect.width) + '×' + Math.round(rect.height),
           outline: cs.outlineStyle + ' ' + cs.outlineWidth + ' ' + cs.outlineColor, shadow: cs.boxShadow};
 }"""
+)
 
 OVERFLOW = """() => {
   const doc = document.scrollingElement || document.documentElement;
@@ -151,7 +178,8 @@ def test_every_tab_stop_has_visible_focus(browser, base, contexts, role, path, s
                 continue
             if not state["ok"] or not state["visible"]:
                 failures.append(
-                    f"{page.evaluate(ACTIVE)} – outline {state.get('outline')}, cień {state.get('shadow')}"
+                    f"{state['el']} ({state.get('size', '0×0')}) – outline {state.get('outline')},"
+                    f" cień {state.get('shadow')}"
                 )
         if failures:
             shot(page, f"FAIL-focus-{role}{path.replace('/', '_')}")
@@ -160,6 +188,40 @@ def test_every_tab_stop_has_visible_focus(browser, base, contexts, role, path, s
         page.close()
         if role == "anon":
             context.close()
+
+
+def test_sticky_bar_keeps_focused_item_when_menu_returns(browser, base):
+    """Pozycja przyklejonego paska z fokusem nie znika, gdy menu serwisu wraca na ekran.
+
+    Pozycje ``.nav--primary`` są widoczne tylko w przyklejonym pasku (static/js/sticky-bar.js).
+    Przewinięcie do góry odkleja pasek; gdyby fokus stał na jednej z tych pozycji, przeglądarka
+    zgubiłaby go na ``<body>``. Pasek ma czekać z odklejeniem, aż fokus z niego wyjdzie.
+    """
+    context = _context(browser, base, viewport={"width": 1280, "height": 500})
+    page = context.new_page()
+    try:
+        page.goto(f"{base}/iqo/login/", wait_until="networkidle")
+        page.evaluate("() => window.scrollTo(0, document.scrollingElement.scrollHeight)")
+        page.wait_for_selector(".topbar--account.is-stuck", state="attached")
+        link = page.locator(".topbar--account .nav--primary a").first
+        link.focus()
+        page.evaluate("() => window.scrollTo(0, 0)")
+        page.evaluate(SETTLE)
+        page.evaluate(SETTLE)
+        state = page.evaluate(
+            "() => { const a = document.activeElement; const r = a.getBoundingClientRect();"
+            " return {primary: !!a.closest('.nav--primary'), w: r.width, h: r.height}; }"
+        )
+        assert state["primary"] and state["w"] > 0 and state["h"] > 0, (
+            f"po przewinięciu do góry fokus z paska trafił w {page.evaluate(ACTIVE)} ({state})"
+        )
+        page.keyboard.press("Shift+Tab")
+        page.wait_for_selector(".topbar--account:not(.is-stuck)", state="attached")
+        assert page.evaluate(
+            "() => document.activeElement.matches('.topbar--account a, .topbar--account summary')"
+        ), f"Shift+Tab z paska trafia w {page.evaluate(ACTIVE)}"
+    finally:
+        context.close()
 
 
 @pytest.mark.parametrize("path", ["/", "/iqo/"], ids=["classic", "iqo"])
@@ -344,7 +406,7 @@ ERROR_FORMS = (
     ("leader", "/iqo/delegation/students/add/"),
 )
 
-LINKED = """() => {
+LINKED = r"""() => {
   const invalid = [...document.querySelectorAll('[aria-invalid="true"]')];
   const broken = [];
   for (const el of invalid) {

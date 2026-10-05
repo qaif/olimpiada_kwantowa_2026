@@ -45,7 +45,7 @@ from apps.core.models import audit, client_ip
 from apps.tenancy import branding
 
 from .activation import absolute_url, queue_mail, signature_lines
-from .consents import BY_KIND, ConsentKind, ConsentSource, is_minor, organizer_name, plain_text
+from .consents import BY_KIND, ConsentKind, ConsentSource, consent_set, is_minor, organizer_name, plain_text
 from .models import ConsentRecord, Participant
 from .preferences import language_for
 
@@ -162,19 +162,33 @@ def read_token(token: str) -> Participant:
     return participant
 
 
-def consent_text() -> str:
+def _guardian_consent(competition=None):
+    """Zgoda opiekuna z zestawu **tego** konkursu (``consent_set``), a bez niej – ze stałej.
+
+    Do CONS-01 treść i wersja szły zawsze ze stałej ``BY_KIND``. W konkursie z flagą
+    ``per_competition_consents`` i nowszą wersją wzoru (ekran „Zgody konkursu”) opiekun potwierdzał
+    więc zgodę pod wersją, której zestaw konkursu już nie zna – a bramka zgód (``apps.consent_gate``)
+    porównuje wersję dowodu z bieżącą i odsyłałaby ucznia do ekranu mimo potwierdzenia.
+    """
+    for consent in consent_set(competition):
+        if consent.kind == ConsentKind.GUARDIAN:
+            return consent
+    return BY_KIND[ConsentKind.GUARDIAN]
+
+
+def consent_text(competition=None) -> str:
     """Treść oświadczenia opiekuna – ta sama, co przy rejestracji, bez znaczników HTML.
 
     Bierzemy ją z ``apps.accounts.consents``, a nie przepisujemy do szablonu: gdyby brzmienie
     istniało w dwóch miejscach, jedno z nich prędzej czy później byłoby nieaktualne, a wersja
     zapisana w dowodzie odsyłałaby do tekstu, którego nikt nie widział.
     """
-    return plain_text(BY_KIND[ConsentKind.GUARDIAN], organizer=organizer_name())
+    return plain_text(_guardian_consent(competition), organizer=organizer_name(competition))
 
 
-def consent_version() -> str:
+def consent_version(competition=None) -> str:
     """Wersja dokumentu zgody opiekuna obowiązująca teraz – trafia do ``ConsentRecord``."""
-    return BY_KIND[ConsentKind.GUARDIAN].version
+    return _guardian_consent(competition).version
 
 
 def request_message(link: str, first_name: str, school: str, competition=None) -> str:
@@ -308,7 +322,7 @@ def confirm_consent(participant: Participant, *, request=None) -> ConsentRecord:
     record = ConsentRecord.objects.create(
         participant=participant,
         kind=ConsentKind.GUARDIAN,
-        document_version=consent_version(),
+        document_version=consent_version(participant.competition),
         given_at=timezone.now(),
         source=ConsentSource.WEB,
         given_by_email=(participant.guardian_email or "").strip().lower(),

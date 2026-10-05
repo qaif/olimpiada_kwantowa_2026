@@ -24,9 +24,43 @@
 
   var STUCK_CLASS = "is-stuck";
   var observer = null;
+  var primary = bar.querySelector("[data-sticky-nav]");
+  /* Stan, którego chce obserwator – może chwilowo różnić się od klasy na pasku (niżej). */
+  var wanted = false;
 
+  function focusInPrimary() {
+    return primary !== null && primary.contains(document.activeElement);
+  }
+
+  function apply() {
+    bar.classList.toggle(STUCK_CLASS, wanted);
+  }
+
+  /* Odklejenie chowa pozycje paska (``display: none``). Gdyby fokus stał akurat na jednej z nich,
+     przeglądarka zgubiłaby go na ``<body>`` – osoba z klawiaturą traci miejsce na stronie, a obrys
+     fokusu znika (WCAG 2.4.3, 2.4.7). Zdarza się to, gdy ktoś z fokusem w pasku przewinie stronę
+     do góry (Home, PageUp) albo gdy Tab trafi w pasek, zanim obserwator zdąży zareagować na
+     przewinięcie do góry. Dlatego dopóki fokus jest w tych pozycjach, pasek zostaje przyklejony,
+     a odkleja się dopiero, gdy fokus z nich wyjdzie. */
   function setStuck(stuck) {
-    bar.classList.toggle(STUCK_CLASS, stuck);
+    wanted = stuck;
+    if (!stuck && focusInPrimary()) {
+      return;
+    }
+    apply();
+  }
+
+  if (primary !== null) {
+    primary.addEventListener("focusout", function () {
+      /* ``focusout`` pada przed ustawieniem nowego fokusu – stan sprawdzamy w następnym zadaniu.
+         Gdy okno tylko straciło fokus (przełączenie karty), ``activeElement`` nadal jest w pasku
+         i pasek zostaje, żeby po powrocie fokus miał gdzie wrócić. */
+      window.setTimeout(function () {
+        if (!focusInPrimary()) {
+          apply();
+        }
+      }, 0);
+    });
   }
 
   function observe() {

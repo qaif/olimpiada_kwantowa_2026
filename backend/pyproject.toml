@@ -30,7 +30,7 @@ dependencies = [
     # 3.2.10: pierwsze wydanie z kołami ``psycopg-binary`` dla CPythona 3.14 (``cp314``); starsze
     # nie mają ani koła, ani źródeł (``psycopg-binary`` wychodzi wyłącznie jako koła), więc na
     # 3.14 w ogóle się nie instalują.
-    "psycopg[binary,pool]>=3.2.10,<3.3",
+    "psycopg[binary,pool]>=3.2.10,<3.4",
     "redis>=5.0,<6.0",
     # 7.0: pierwsza linia z ``Django>=5.2`` w metadanych; 5.4 nie instaluje się obok Django 6.1.
     "django-redis>=7.0,<7.1",
@@ -47,9 +47,9 @@ dependencies = [
     # polecenie”: od 25.1 gunicorn domyślnie otwiera gniazdo sterujące w ``~/.gunicorn/`` – w kontenerze
     # z ``read_only: true`` kończy się to błędem w logu przy każdym starcie – więc polecenie w
     # docker-compose.yml i Dockerfile wyłącza je flagą ``--no-control-socket``, której 23.x nie zna
-    # (gunicorn z taką flagą nie wystartowałby). Granica z flagą muszą się zmieniać razem.
+    # (gunicorn z taką flagą nie wystartowałby). Granica i flaga muszą się zmieniać razem.
     "gunicorn>=26.2,<27",
-    "uvicorn[standard]>=0.30,<0.36",
+    "uvicorn[standard]>=0.30,<0.55",
     "django-storages[s3]>=1.14,<1.15",
     "boto3>=1.35,<2.0",
     "nbformat>=5.10,<6.0",
