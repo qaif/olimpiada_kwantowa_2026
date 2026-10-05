@@ -110,5 +110,21 @@ msgstr "联系组织者"
 msgid "Wyloguj się"
 msgstr "退出登录"
 
+msgid ""
+"Organizator zmienił dokument, na który się zgodziłeś. Twoja praca "
+"zapisuje się normalnie – gdy skończysz, potwierdź nową wersję na "
+"ekranie „Uzupełnij zgody”."
+msgstr "组织者更新了您已同意的文件。您的作答照常保存——完成后，请在“完成同意”页面确认新版本。"
+
+msgid ""
+"Ten dokument zmienił się, kiedy ten ekran był otwarty. Przeczytaj go "
+"jeszcze raz i zaznacz pole ponownie."
+msgstr "在此页面打开期间，该文件已更改。请重新阅读并再次勾选。"
+
+msgid ""
+"Dokument zmienił się w trakcie zapisu. Przeczytaj go jeszcze raz i "
+"potwierdź."
+msgstr "保存过程中文件已更改。请重新阅读并确认。"
+
 msgid "Dziękujemy – zgody zostały zapisane."
 msgstr "谢谢——您的同意已保存。"

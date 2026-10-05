@@ -65,8 +65,18 @@ stała, bez zapytania. Unieważnienie: sygnały `post_save`/`post_delete` na `Co
 sygnałów nie wysyła), `ConsentDefinition`; TTL jako siatka bezpieczeństwa (urodziny).
 
 **Odpowiedź bramki**: GET przeglądarki – 302 na `/me/consents/complete/?next=<adres>`; HTMX – 403
-z `HX-Redirect`; API/JSON – 403 `{"code": "CONSENTS_REQUIRED", "detail", "url"}`; pozostałe POST-y
-przeglądarki – 302 na ekran (treść POST-u przepada; komunikat ekranu mówi, co zrobić).
+z `HX-Redirect` (``next`` z `HX-Current-URL`, wyłącznie ten sam host i schemat – przegląd L5);
+API/JSON – 403 `{"code": "CONSENTS_REQUIRED", "detail", "url"}`; pozostałe POST-y przeglądarki – 302
+na ekran.
+
+**Praca w toku (przegląd H1).** Zmiana wersji dokumentu w trakcie etapu nie może zabrać pracy.
+Widoki zapisu pracy pod terminem (`middleware.WORK_IN_PROGRESS_VIEWS`: arkusz i „Zakończ” testu
+`web:quiz-attempt`, `web:problem-upload`, `submissions:submission-create`, `web:appeal-create`,
+`web:participant-notebook`; autozapis jest na liście dozwolonej od początku) przechodzą, gdy braki są
+wyłącznie **ponowieniami** (aktywna zgoda tego samego rodzaju pod inną wersją – `state.gap`), z banerem
+(komunikat) albo nagłówkiem `X-Consents-Required` (API). Otwartości podejścia i okna bramka nie
+sprawdza – egzekwują je widoki, a pytanie o nie kosztowałoby zapytania. Brak zgody „od zawsze” blokuje
+także zapis.
 
 API z nagłówkiem `Authorization` (token): konto liczone w kolejności DRF (`proctoring.middleware.
 request_user`) – jedno zapytanie o token, wyłącznie na adresach przestrzeni z bramką.
@@ -91,7 +101,11 @@ włączają ją same, tak jak cache stron).
   – język interfejsu i skrót SHA-256 dokładnie tej treści, którą uczestnik widział (`plain_text`).
   `ConsentRecord` nie ma kolumn języka i skrótu; dokładanie ich byłoby migracją wspólnego modelu
   dla jednej drogi – audyt jest dowodem uzupełniającym, łączonym po profilu i czasie.
-- Brak czegokolwiek do uzupełnienia → przekierowanie na `next` (sprawdzony
+- Przy każdym polu ukryta wersja dokumentu, którą uczestnik widział (przegląd L3); inna niż bieżąca
+  w chwili POST-u → ekran wraca z pustym polem i zdaniem „dokument zmienił się, kiedy ten ekran był
+  otwarty”; serwis sprawdza wersje jeszcze raz pod blokadą (`CONSENT_VERSION_CHANGED`).
+- Brak czegokolwiek do uzupełnienia → unieważnienie stanu w cache'u (przegląd L4 – bez pętli
+  z bramką na nieświeżym stanie) i przekierowanie na `next` (sprawdzony
   `url_has_allowed_host_and_scheme`) albo panel. Konto bez profilu uczestnika – 403.
 - Sekcja „Nie zgadzasz się?”: eksport danych, usunięcie konta, zgłoszenie do organizatora,
   wylogowanie.

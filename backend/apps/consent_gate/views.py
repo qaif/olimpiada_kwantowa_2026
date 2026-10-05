@@ -23,7 +23,7 @@ from apps.core.models import audit
 from apps.web.mixins import CoordinatorRequiredMixin, ParticipantRequiredMixin
 
 from . import report, services
-from .forms import ConsentCompletionForm
+from .forms import VERSION_CHANGED, ConsentCompletionForm, version_field_name
 
 TEMPLATE = "consent_gate/complete.html"
 
@@ -56,7 +56,7 @@ class ConsentCompleteView(ParticipantRequiredMixin, View):
         participant = self.participant
         missing, records = services.participant_missing(participant)
         if not missing:
-            return redirect(next_url(request))
+            return self._nothing_missing(request, participant)
         organizer = organizer_name(participant.competition)
         form = ConsentCompletionForm(consents=missing, organizer=organizer)
         return self._render(request, participant, form, missing, records)
@@ -65,18 +65,45 @@ class ConsentCompleteView(ParticipantRequiredMixin, View):
         participant = self.participant
         missing, records = services.participant_missing(participant)
         if not missing:
-            return redirect(next_url(request))
+            return self._nothing_missing(request, participant)
         organizer = organizer_name(participant.competition)
         form = ConsentCompletionForm(request.POST, consents=missing, organizer=organizer)
         if not form.is_valid():
+            if form.changed:
+                # Zaznaczenie dotyczyło innej wersji – pole wraca puste, z bieżącą wersją w ukrytym polu.
+                form = self._recheck(request, form, missing, organizer)
             return self._render(request, participant, form, missing, records, status=400)
         try:
-            services.complete_consents(participant, form.given_kinds(), request=request)
+            services.complete_consents(
+                participant, form.given_kinds(), versions=form.versions(), request=request
+            )
         except DomainError as exc:
             form.add_error(None, str(exc.detail))
             return self._render(request, participant, form, missing, records, status=400)
         messages.success(request, _("Dziękujemy – zgody zostały zapisane."))
         return redirect(next_url(request))
+
+    def _nothing_missing(self, request, participant):
+        """Komplet zgód w bazie – a bramka mogła tu odesłać ze stanem z cache'a sprzed zapisu.
+
+        Bez unieważnienia (przegląd L4) nieświeży stan w cache'u odesłałby uczestnika z ``next``
+        z powrotem tutaj, a stąd znów na ``next`` – pętla do końca TTL.
+        """
+        from . import state
+
+        state.forget_state(participant.competition_id, participant.user_id)
+        return redirect(next_url(request))
+
+    def _recheck(self, request, form, missing, organizer):
+        data = request.POST.copy()
+        for consent in form.changed:
+            data.pop(consent.field_name, None)
+            data[version_field_name(consent)] = consent.version
+        fresh = ConsentCompletionForm(data, consents=missing, organizer=organizer)
+        fresh.is_valid()
+        for consent in form.changed:
+            fresh.errors[consent.field_name] = fresh.error_class([VERSION_CHANGED])
+        return fresh
 
     def _render(self, request, participant, form, missing, records, *, status: int = 200):
         previous = {}

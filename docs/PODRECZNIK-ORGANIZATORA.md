@@ -1651,7 +1651,9 @@ Zalogowany uczestnik, któremu brakuje **wymaganej** zgody (regulamin, RODO, a o
 także oświadczenie o zgodzie opiekuna) **albo** którego zgoda dotyczy starszej wersji dokumentu, trafia
 przed panelem na ekran **„Uzupełnij zgody”**. Do czasu potwierdzenia nie wyśle rozwiązania, nie rozwiąże
 testu, nie napisze wiadomości i nie wejdzie na forum. Ekrany personelu (koordynator, komisja, nadzór)
-bramka pomija w całości.
+bramka pomija w całości. **Pracy w toku zmiana wersji nie przerywa:** uczestnik, który zgodził się na poprzednią
+wersję, kończy rozpoczęty test i wysyła rozwiązania w otwartym oknie, widząc tylko baner z prośbą
+o potwierdzenie nowej wersji. Mimo to wersje zmieniaj najlepiej poza oknem etapu.
 
 Kiedy to się dzieje:
 

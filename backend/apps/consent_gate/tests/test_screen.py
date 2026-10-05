@@ -29,7 +29,7 @@ from apps.consent_gate import services
 from apps.core.models import AuditLog
 from conftest import make_competition
 
-from .conftest import give, make_adult
+from .conftest import give, make_adult, seen
 
 pytestmark = pytest.mark.django_db
 
@@ -69,7 +69,7 @@ def test_saving_records_the_evidence_and_returns_to_next(web, adult):
 
     response = web.post(
         SCREEN,
-        {"terms_consent": "on", "gdpr_consent": "on", "next": "/me/?tab=zgody"},
+        seen(adult.competition, terms_consent="on", gdpr_consent="on", next="/me/?tab=zgody"),
         REMOTE_ADDR="203.0.113.7",
         HTTP_ACCEPT_LANGUAGE="pl",
     )
@@ -103,7 +103,9 @@ def test_saving_records_the_evidence_and_returns_to_next(web, adult):
 def test_ip_address_follows_the_shared_proxy_rule(web, adult):
     """Ten sam odczyt adresu co w audycie i przy zgodzie opiekuna (``client_ip``)."""
     web.force_login(adult.user)
-    web.post(SCREEN, {"terms_consent": "on", "gdpr_consent": "on"}, REMOTE_ADDR="203.0.113.7")
+    web.post(
+        SCREEN, seen(adult.competition, terms_consent="on", gdpr_consent="on"), REMOTE_ADDR="203.0.113.7"
+    )
 
     record = ConsentRecord.objects.filter(participant=adult).first()
     entry = AuditLog.objects.get(action="participant.consents_completed")
@@ -113,7 +115,7 @@ def test_ip_address_follows_the_shared_proxy_rule(web, adult):
 def test_unticked_box_is_refused_and_nothing_is_written(web, adult):
     web.force_login(adult.user)
 
-    response = web.post(SCREEN, {"terms_consent": "on"})
+    response = web.post(SCREEN, seen(adult.competition, terms_consent="on"))
 
     assert response.status_code == 400
     assert "Zgoda na przetwarzanie danych osobowych jest wymagana." in response.content.decode()
@@ -134,7 +136,7 @@ def test_external_next_is_ignored(web, adult):
     web.force_login(adult.user)
 
     response = web.post(
-        SCREEN, {"terms_consent": "on", "gdpr_consent": "on", "next": "https://evil.example/"}
+        SCREEN, seen(adult.competition, terms_consent="on", gdpr_consent="on", next="https://evil.example/")
     )
 
     assert response["Location"] == reverse("web:me")
@@ -186,7 +188,7 @@ def test_minor_saves_the_statement_and_keeps_the_existing_guardian_projection(we
     give(minor, {ConsentKind.TERMS, ConsentKind.PRIVACY})
     web.force_login(minor.user)
 
-    response = web.post(SCREEN, {"guardian_consent": "on", "next": "/me/"})
+    response = web.post(SCREEN, seen(minor.competition, guardian_consent="on", next="/me/"))
 
     assert response["Location"] == "/me/"
     minor.refresh_from_db()

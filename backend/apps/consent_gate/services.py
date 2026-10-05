@@ -58,19 +58,33 @@ def participant_missing(participant: Participant):
 
 @transaction.atomic
 def complete_consents(
-    participant: Participant, given_kinds: set[str], *, request=None
+    participant: Participant,
+    given_kinds: set[str],
+    *,
+    versions: dict[str, str] | None = None,
+    request=None,
 ) -> list[ConsentRecord]:
     """Zapisuje brakujące zgody uczestnika. Odmowa, gdy któraś z brakujących nie jest zaznaczona.
 
     Blokada wiersza profilu i ponowne policzenie braków w transakcji: drugi, równoległy POST tego
     samego formularza nie dopisze drugiego kompletu wpisów, tylko zobaczy, że nie ma już czego
     uzupełniać. Pusta lista braków nie jest błędem – zwracamy pustą listę.
+
+    ``versions`` – rodzaj → wersja, którą uczestnik widział na ekranie. Każda brakująca zgoda musi
+    mieć tu wersję **bieżącą**: między walidacją formularza a blokadą koordynator mógł zmienić
+    dokument, a zgoda na tekst, którego nikt nie widział, nie jest zgodą (przegląd L3).
     """
     locked = Participant.objects.select_for_update().select_related("competition").get(pk=participant.pk)
     missing, records = participant_missing(locked)
     if not missing:
         return []
     for consent in missing:
+        if versions is not None and versions.get(consent.kind) != consent.version:
+            raise DomainError(
+                _("Dokument zmienił się w trakcie zapisu. Przeczytaj go jeszcze raz i potwierdź."),
+                "CONSENT_VERSION_CHANGED",
+                status.HTTP_409_CONFLICT,
+            )
         if consent.kind not in given_kinds:
             raise DomainError(
                 consent.missing_message or _("Ta zgoda jest wymagana."),

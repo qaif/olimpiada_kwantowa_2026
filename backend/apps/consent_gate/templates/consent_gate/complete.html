@@ -36,6 +36,8 @@
       {% csrf_token %}
       <input type="hidden" name="next" value="{{ next }}">
       {{ form.non_field_errors }}
+      {# Wersja dokumentu, którą uczestnik widzi – zmiana przed wysłaniem każe zaznaczyć pole ponownie. #}
+      {% for hidden in form.hidden_fields %}{{ hidden }}{% endfor %}
       <fieldset class="consents">
         <legend>{% translate "Oświadczenia" %}</legend>
         {% for row in rows %}

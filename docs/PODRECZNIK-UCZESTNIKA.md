@@ -127,7 +127,11 @@ zaakceptowano wcześniej. Zaznacz oświadczenia (odnośnik w każdym prowadzi do
 **„Zapisuję oświadczenia”** — wrócisz tam, dokąd szedłeś.
 
 - Do tego czasu **nie wyślesz rozwiązania, nie rozwiążesz testu, nie napiszesz wiadomości** i nie
-  wejdziesz na forum. Rozpoczęty test zapisuje się dalej w tle — odpowiedzi nie przepadają.
+  wejdziesz na forum. **Wyjątek: praca w toku.** Jeśli zgodziłeś się na poprzednią wersję dokumentu,
+  a organizator zmienił go w trakcie etapu, rozpoczęty test (także „Zakończ”) i wysyłka rozwiązania
+  działają dalej — zobaczysz tylko baner z prośbą o potwierdzenie nowej wersji po skończeniu pracy.
+- Jeśli dokument zmieni się, kiedy ekran zgód jest otwarty, pole wróci puste z prośbą o ponowne
+  przeczytanie — zgoda zawsze dotyczy tej wersji, którą widzisz.
 - **Zawsze działają:** wylogowanie, zmiana hasła, ustawienia konta, **pobranie swoich danych
   i usunięcie konta**, język i kontrast, edycja profilu, zgłoszenie do organizatora i strony publiczne
   (także same dokumenty). Jeśli nie zgadzasz się na nową treść — napisz do organizatora albo usuń konto.

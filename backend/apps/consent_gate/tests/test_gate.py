@@ -24,7 +24,7 @@ from apps.consent_gate import middleware, state
 from apps.tenancy.models import RoutingMode
 from conftest import make_competition
 
-from .conftest import give, make_adult, make_minor
+from .conftest import give, make_adult, make_minor, seen
 
 pytestmark = pytest.mark.django_db
 
@@ -140,7 +140,7 @@ def test_version_bump_on_the_consents_screen_forces_re_consent_from_the_next_req
     consents.change_version(definition, "2.0 z 1 listopada 2026")
 
     assert web.get("/me/")["Location"] == screen_for("/me/")
-    response = web.post(SCREEN, {"gdpr_consent": "on", "next": "/me/"})
+    response = web.post(SCREEN, seen(competition, gdpr_consent="on", next="/me/"))
     assert response["Location"] == "/me/"
     assert ConsentRecord.objects.filter(
         participant=adult, kind=ConsentKind.PRIVACY, document_version="2.0 z 1 listopada 2026"
@@ -313,7 +313,8 @@ def test_htmx_request_gets_a_full_page_redirect_header(web, adult):
     response = web.get("/me/", HTTP_HX_REQUEST="true")
 
     assert response.status_code == 403
-    assert response["HX-Redirect"] == screen_for("/me/")
+    # Bez ``HX-Current-URL`` nie wiadomo, na jakiej stronie stoi przeglądarka – ekran bez ``next``.
+    assert response["HX-Redirect"] == SCREEN
 
 
 def test_api_with_session_gets_a_json_refusal(web, adult):

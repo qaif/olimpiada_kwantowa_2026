@@ -147,10 +147,23 @@ def missing_from(
 
 def missing_consents(user, competition) -> tuple[Consent, ...] | None:
     """Brakujące zgody konta w konkursie; ``None`` – konto nie jest tu uczestnikiem."""
+    found = gap(user, competition)
+    return None if found is None else found[0]
+
+
+def gap(user, competition) -> tuple[tuple[Consent, ...], bool] | None:
+    """``(brakujące zgody, czy to wyłącznie ponowienia)``; ``None`` – konto nie jest tu uczestnikiem.
+
+    „Ponowienie” to brak, przy którym uczestnik ma aktywną zgodę **tego samego rodzaju** pod inną
+    wersją – czyli organizator zmienił dokument, a nie: uczestnik nigdy się nie zgodził. Tylko taki
+    brak przepuszcza zapis pracy w toku (CONS-01 H1, ``middleware.WORK_IN_PROGRESS_VIEWS``).
+    """
     participant_id, birth_date, birth_year, records = participant_state(user, competition)
     if participant_id is None:
         return None
-    return missing_from(consents_for(competition), birth_date, birth_year, records)
+    missing = missing_from(consents_for(competition), birth_date, birth_year, records)
+    consented_kinds = {kind for kind, _version in records}
+    return missing, all(consent.kind in consented_kinds for consent in missing)
 
 
 def previous_versions(records: frozenset[tuple[str, str]]) -> dict[str, list[str]]:

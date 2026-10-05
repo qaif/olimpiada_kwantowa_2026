@@ -34,6 +34,11 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
   ostrzega, że wymusi ponowną zgodę. Komenda `consent_gate_report` (liczby bez danych osobowych).
 - **Poprawka:** potwierdzenie zgody opiekuna online zapisuje wersję wzoru z zestawu konkursu, a nie ze
   stałej. Budżet zapytań pulpitu koordynatora 53 → 54. `docs/OPERACJE.md` § 51.
+- **Po przeglądzie #97:** zmiana wersji w trakcie etapu nie blokuje pracy w toku – arkusz
+  i „Zakończ” testu, upload (WWW i API), reklamacja i notatnik przechodzą przy ponowieniu zgody
+  z banerem / nagłówkiem `X-Consents-Required` (H1); wersja dokumentu jedzie z formularzem i jest
+  sprawdzana pod blokadą (L3); ekran bez braków czyści nieświeży stan cache'a (L4); `next` dla HTMX
+  z `HX-Current-URL` tego samego serwisu (L5).
 
 ## v0.47.2 – 2026-10-05 – Dostępność WCAG 2.1 AA, deklaracja dostępności, motyw IQO 1.1.2 (A11Y-01)
 

@@ -44,6 +44,12 @@ def give(participant, kinds=None, *, version: str | None = None, **fields) -> li
     ]
 
 
+def seen(competition, **fields) -> dict:
+    """Dane formularza ekranu zgód razem z wersjami, które „widział” uczestnik (bieżącymi)."""
+    versions = {f"{consent.field_name}__version": consent.version for consent in consent_set(competition)}
+    return {**versions, **fields}
+
+
 def make_adult(**kwargs):
     return ParticipantFactory(birth_year=timezone.localdate().year - 25, **kwargs)
 

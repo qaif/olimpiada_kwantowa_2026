@@ -6766,21 +6766,29 @@ warstwa `ConsentGateMiddleware` między 2FA a bramką nadzoru (PROC-01).
 
 ### 51.1. Przed wdrożeniem: ilu uczestników zobaczy ekran
 
-Wersja jest porównywana **dokładnie**, więc każdy, kto zaakceptował regulamin przed zmianą
-`TERMS_VERSION` (Olimpiada Kwantowa – „z 20 września 2026”) albo przed zmianą wersji na ekranie
-„Zgody konkursu” (IQO), zobaczy ekran przy najbliższym wejściu do panelu. Sprawdź skalę **przed**
-wdrożeniem na kopii bazy albo zaraz po nim (komenda tylko czyta, bez danych osobowych):
+Wersja jest porównywana **dokładnie**: ekran zobaczy każdy, kto zaakceptował dokument pod wcześniejszą
+wersją albo nie ma wpisu dowodowego w ogóle. Odczyt produkcji z 5.10.2026 (kwantowa): regulamin
+„z 20 września 2026” – 361 uczestników, stara wersja „1.0 z 2 września 2026” – **2**; RODO, zgoda
+opiekuna i publikacja nazwiska – wszyscy na bieżących wersjach. Skutek wdrożenia to więc ok. 2 osoby
+plus konta bez żadnych wpisów – **liczbę sprawdź komendą** (tylko czyta, bez danych osobowych), przed
+wdrożeniem na kopii bazy albo zaraz po nim:
 
 ```sh
 docker compose exec -T web python manage.py consent_gate_report
-# kwantowa: 412 uczestników z brakującymi zgodami
-#   TERMS (wymagana wersja: z 20 września 2026): 409
-#   GUARDIAN (wymagana wersja: 0.1 (projekt) z 10 września 2026): 3
+# <slug>: <N> uczestników z brakującymi zgodami
+#   <RODZAJ> (wymagana wersja: <wersja>): <liczba>
 ```
 
-Liczba w setkach przed etapem z terminem → uzgodnij z organizatorem komunikat do uczestników
-(„zaloguj się i potwierdź nowy regulamin”, `/coordinator/messages/`) **przed** wdrożeniem. Listę osób
-koordynator pobiera z pulpitu (kafelek „Uczestnicy z brakującymi zgodami” → CSV).
+Duża liczba przed etapem z terminem → uzgodnij z organizatorem komunikat do uczestników („zaloguj się
+i potwierdź nowy regulamin”, `/coordinator/messages/`) **przed** wdrożeniem. Listę osób koordynator
+pobiera z pulpitu (kafelek „Uczestnicy z brakującymi zgodami” → CSV).
+
+**Praca w toku nie jest blokowana** (przegląd H1): uczestnik, który zgodził się na **poprzednią**
+wersję, dalej zapisuje pracę – arkusz i „Zakończ” testu, wysyłka rozwiązania (WWW i API
+`submissions`), reklamacja, laboratorium notatnika – z banerem „potwierdź nową wersję”; klient API
+dostaje nagłówek `X-Consents-Required`. Pozostałe ekrany (panel, start testu, czat, forum) odsyłają na
+ekran zgód. Uczestnik bez żadnej zgody danego rodzaju nie oddaje pracy w ogóle. Mimo to wersję
+dokumentu zmieniaj **poza** oknem etapu, jeśli się da.
 
 ### 51.2. Wyłącznik (incydent)
 

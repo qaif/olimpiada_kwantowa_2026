@@ -56,6 +56,24 @@ ALLOWED_VIEWS = frozenset(
 )
 
 
+#: Zapis pracy pod terminem (CONS-01, przegląd H1). Zmiana wersji dokumentu w trakcie etapu nie może
+#: zabrać uczniowi pracy w toku: zakończenie testu (POST „Zakończ” niesie komplet odpowiedzi), arkusz
+#: testu (odświeżenie w trakcie podejścia), wysyłka rozwiązania (WWW i API), reklamacja w jej oknie
+#: i laboratorium notatnika. Przepuszczamy je wyłącznie przy **ponowieniu** zgody (uczestnik zgodził
+#: się na poprzednią wersję – ``state.gap``), z banerem zamiast blokady; uczestnik, który zgody nie
+#: złożył nigdy, nie oddaje pracy bez niej. Terminy i okna egzekwują same widoki – bramka nie musi
+#: (i nie powinna, bo kosztowałoby to zapytania) wiedzieć, czy podejście albo okno jest otwarte.
+WORK_IN_PROGRESS_VIEWS = frozenset(
+    {
+        "web:quiz-attempt",
+        "web:problem-upload",
+        "web:appeal-create",
+        "web:participant-notebook",
+        "submissions:submission-create",
+    }
+)
+
+
 def enabled() -> bool:
     return bool(getattr(settings, "CONSENT_GATE_ENABLED", True))
 
@@ -85,12 +103,50 @@ def _user_for(request, match):
     return getattr(request, "user", None)
 
 
+def _hx_current_path(request) -> str | None:
+    """Adres strony, na której stoi przeglądarka przy żądaniu HTMX – tylko z tego samego serwisu.
+
+    Żądanie HTMX dotyczy fragmentu (np. karty zadania), więc jego własny adres byłby złym ``next``:
+    po zgodzie przeglądarka wróciłaby na goły fragment. ``HX-Current-URL`` to adres strony – ale
+    przychodzi od klienta, więc host i schemat muszą się zgadzać z żądaniem (inaczej brak ``next``).
+    """
+    from urllib.parse import urlsplit, urlunsplit
+
+    raw = request.headers.get("HX-Current-URL") or ""
+    parts = urlsplit(raw)
+    if parts.scheme not in ("http", "https") or parts.netloc != request.get_host():
+        return None
+    if parts.scheme != request.scheme:
+        return None
+    return urlunsplit(("", "", parts.path or "/", parts.query, ""))
+
+
 def consent_url(request) -> str:
-    """Adres ekranu zgód z powrotem na bieżący adres (``next``) – tylko dla GET-a."""
+    """Adres ekranu zgód z powrotem na bieżącą stronę (``next``) – dla GET-a i dla HTMX."""
     target = reverse(CONSENT_VIEW)
+    if request.headers.get("HX-Request"):
+        current = _hx_current_path(request)
+        return f"{target}?{urlencode({'next': current})}" if current else target
     if request.method == "GET":
         return f"{target}?{urlencode({'next': request.get_full_path()})}"
     return target
+
+
+def _renewal_notice(request) -> None:
+    """Baner zamiast blokady przy pracy w toku – przeglądarka: komunikat; API: nagłówek odpowiedzi."""
+    request.consent_renewal_url = reverse(CONSENT_VIEW)
+    if (request.resolver_match.route or "").startswith("api/"):
+        return
+    from django.contrib import messages
+
+    messages.warning(
+        request,
+        _(
+            "Organizator zmienił dokument, na który się zgodziłeś. Twoja praca zapisuje się normalnie – "
+            "gdy skończysz, potwierdź nową wersję na ekranie „Uzupełnij zgody”."
+        ),
+        fail_silently=True,
+    )
 
 
 class ConsentGateMiddleware:
@@ -98,7 +154,12 @@ class ConsentGateMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
-        return self.get_response(request)
+        response = self.get_response(request)
+        url = getattr(request, "consent_renewal_url", None)
+        if url:
+            # Klient API dostaje informację o zaległym ponowieniu zgody bez odmowy (CONS-01 H1).
+            response["X-Consents-Required"] = url
+        return response
 
     def process_view(self, request, view_func, view_args, view_kwargs):
         if not enabled():
@@ -112,10 +173,14 @@ class ConsentGateMiddleware:
         user = _user_for(request, match)
         if user is None or not user.is_authenticated or user.is_staff or user.is_superuser:
             return None
-        from .state import missing_consents
+        from .state import gap
 
-        missing = missing_consents(user, competition)
-        if not missing:
+        found = gap(user, competition)
+        if found is None or not found[0]:
+            return None
+        renewal_only = found[1]
+        if renewal_only and match.view_name in WORK_IN_PROGRESS_VIEWS:
+            _renewal_notice(request)
             return None
         return self._stop(request)
 
