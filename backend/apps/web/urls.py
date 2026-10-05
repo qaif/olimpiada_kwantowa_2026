@@ -3,7 +3,9 @@
 from django.urls import path
 
 from apps.alumni.urls import urlpatterns as alumni_urlpatterns
+from apps.consent_gate.urls import urlpatterns as consent_gate_urlpatterns  # CONS-01
 from apps.delegation_logistics.urls import urlpatterns as final_logistics_urlpatterns
+from apps.email_delivery.urls import urlpatterns as email_delivery_urlpatterns  # MAIL-02: odbicia
 from apps.medals.urls import urlpatterns as medal_urlpatterns  # MED-01
 
 # Notatniki kwantowe (QC-01) – wzorce w module aplikacji, rozwinięte na końcu listy.
@@ -1189,6 +1191,8 @@ urlpatterns = [
     *school_stats_urlpatterns,
     # --- logowanie dwuskładnikowe personelu: nowe kody, polityka konkursu (SEC-01) -------------
     *staff_mfa_urlpatterns,
+    # --- odbicia poczty: potwierdzenie adresu, lista koordynatora (MAIL-02, 5.10.2026) -----------
+    *email_delivery_urlpatterns,
     # --- okna czasowe etapu według stref (TZ-01, 4.10.2026; widoki w ``apps.time_windows``) -------
     *time_windows_urlpatterns,
     # --- tłumaczenia zadań przez delegacje (TR-01, 4.10.2026) -----------------------------------
@@ -1207,4 +1211,6 @@ urlpatterns = [
     *password_change_urlpatterns,
     # --- nadzór zdalny etapów online (zadanie PROC-01, flaga ``proctoring``) ---------------------
     *proctoring_urlpatterns,
+    # --- uzupełnienie zgód po zalogowaniu i eksport braków (CONS-01) -----------------------------
+    *consent_gate_urlpatterns,
 ]

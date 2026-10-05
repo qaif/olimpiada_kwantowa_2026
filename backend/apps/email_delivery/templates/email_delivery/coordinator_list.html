@@ -1,0 +1,60 @@
+{% extends "web/coordinator/base.html" %}
+{% comment %}
+  Adresy niedoręczalne (MAIL-02 § 2.6). Ekran koordynatora – po polsku (I18N-01 § 0). Lista zawiera
+  wyłącznie konta widoczne dla koordynatora tego konkursu (``users_for_competition``).
+{% endcomment %}
+{% block title %}Adresy niedoręczalne – panel koordynatora{% endblock %}
+{% block panel_title %}Adresy niedoręczalne{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Konta, na których adres poczta nie dochodzi: serwer odbiorcy odpowiedział, że skrzynka
+    albo domena nie istnieje. Listy nieobowiązkowe (forum, czat, webinary, komunikaty) są na te adresy
+    wstrzymane, a właściciel konta widzi po zalogowaniu prośbę o poprawienie adresu.</p>
+{% endblock %}
+{% block panel_content %}
+<section class="section">
+  <div class="card">
+    <p><a class="btn btn--secondary btn--small" href="?format=csv">Pobierz CSV</a></p>
+    {% if rows %}
+      <div class="scroll" data-scroll>
+        <table class="table">
+          <caption class="visually-hidden">Konta z niedoręczalnym adresem e-mail</caption>
+          <thead>
+            <tr>
+              <th scope="col">Adres</th>
+              <th scope="col">Osoba</th>
+              <th scope="col">Od</th>
+              <th scope="col">Powód</th>
+              <th scope="col">Odbicia miękkie</th>
+              <th scope="col"><span class="visually-hidden">Czynność</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in rows %}
+              <tr>
+                <td>{{ row.user.email }}{% if not row.user.is_active %} <span class="badge">nieaktywne</span>{% endif %}</td>
+                <td>{{ row.user.first_name }} {{ row.user.last_name }}</td>
+                <td>{{ row.status.undeliverable_at|date:"Y-m-d H:i" }}</td>
+                <td><code>{{ row.status.status_code|default:"—" }}</code> {{ row.status.get_source_display }}<br>
+                  <small>{{ row.status.reason|truncatechars:200 }}</small></td>
+                <td>{{ row.status.soft_bounces }}</td>
+                <td>
+                  <form method="post" action="{% url 'web:coordinator-undeliverable-email-clear' row.status.pk %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn--small btn--secondary">Oznacz jako doręczalny</button>
+                  </form>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="empty">Brak kont z niedoręczalnym adresem.</p>
+    {% endif %}
+    <p class="hint">„Oznacz jako doręczalny” wznawia wysyłkę (np. po rozmowie telefonicznej, gdy uczestnik
+      potwierdził adres albo założył skrzynkę). Jeśli adres dalej nie istnieje, następny list odbije znowu.
+      Poprawny adres wpisuje się w <em>Kontach</em> – zmiana adresu kasuje ten wpis sama. Opis:
+      docs/OPERACJE.md § 52.</p>
+  </div>
+</section>
+{% endblock %}

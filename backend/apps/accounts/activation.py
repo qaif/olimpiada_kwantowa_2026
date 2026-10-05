@@ -352,6 +352,7 @@ def queue_mail(
     competition=None,
     headers: dict[str, str] | None = None,
     html_message: str | None = None,
+    essential: bool = True,
 ) -> None:
     """Kolejkuje list **po commicie** – wzorzec z ``apps.competitions.interviews._send_confirmation``.
 
@@ -374,9 +375,20 @@ def queue_mail(
     opiekuna szkolnego, ``apps.accounts.supervisor_consent``). Ta sama umowa, co przy nagłówkach:
     bez niej zadanie dostaje dokładnie te argumenty, co dotąd, a z nią – słowo kluczowe, nigdy
     pozycję (piąty argument pozycyjny zadania to właśnie ``html_message``).
+
+    ``essential=False`` (MAIL-02 § 2.7) – list nieobowiązkowy (powiadomienie forum, czatu, webinaru,
+    sieci absolwentów): na adres, który twardo odbił, nie wychodzi wcale. Domyślnie ``True`` – listy
+    aktywacji, resetu hasła, zgód czy wyników idą zawsze, bo są też jedyną drogą, którą właściciel
+    może sprawdzić, że skrzynka znowu działa.
     """
     if not recipient:
         return
+    if not essential:
+        from apps.email_delivery.services import is_suppressed
+
+        if is_suppressed(recipient):
+            logger.info("List nieobowiązkowy pominięty – adres odbiorcy twardo odbił (MAIL-02).")
+            return
 
     from apps.core.tasks import mail_from
 

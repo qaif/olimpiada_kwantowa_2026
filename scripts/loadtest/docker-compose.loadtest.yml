@@ -152,7 +152,7 @@ services:
     command: >
       gunicorn config.wsgi:application
       --bind 0.0.0.0:8000 --workers ${WEB_WORKERS:-4} --threads ${WEB_THREADS:-4}
-      --worker-class gthread
+      --worker-class gthread --no-control-socket
       --timeout 120 --graceful-timeout 30
       --max-requests ${WEB_MAX_REQUESTS:-2000} --max-requests-jitter ${WEB_MAX_REQUESTS_JITTER:-200}
       --keep-alive ${WEB_KEEPALIVE:-2}

@@ -1,0 +1,151 @@
+# Uzupełnienie zgód po zalogowaniu (CONS-01) – katalog aplikacji apps/consent_gate.
+msgid ""
+msgstr ""
+"Project-Id-Version: olimpiada\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-05 10:00+0200\n"
+"PO-Revision-Date: 2026-10-05 10:00+0200\n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: hi\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Ta zgoda jest wymagana."
+msgstr "यह सहमति आवश्यक है।"
+
+msgid "Zanim przejdziesz dalej, uzupełnij wymagane zgody."
+msgstr "आगे बढ़ने से पहले कृपया आवश्यक सहमतियाँ पूरी करें।"
+
+#, python-format
+msgid "%(kind)s (wersja %(version)s)"
+msgstr "%(kind)s (संस्करण %(version)s)"
+
+msgid "Kod uczestnika"
+msgstr "प्रतिभागी कोड"
+
+msgid "Imię"
+msgstr "पहला नाम"
+
+msgid "Nazwisko"
+msgstr "उपनाम"
+
+msgid "E-mail"
+msgstr "ईमेल"
+
+msgid "Brakujące zgody"
+msgstr "अनुपलब्ध सहमतियाँ"
+
+msgid "Zgody uczestników"
+msgstr "प्रतिभागियों की सहमतियाँ"
+
+msgid "Uczestnicy z brakującymi zgodami"
+msgstr "अनुपलब्ध सहमतियों वाले प्रतिभागी"
+
+msgid ""
+"Brak wymaganej zgody albo zgoda pod starszą wersją dokumentu – przy "
+"wejściu do panelu zobaczą ekran „Uzupełnij zgody”. Pobierz listę "
+"(CSV)."
+msgstr ""
+"कोई आवश्यक सहमति अनुपलब्ध है या दस्तावेज़ के पुराने संस्करण के लिए दी "
+"गई थी – पैनल खोलने पर उन्हें “सहमतियाँ पूरी करें” स्क्रीन दिखेगी। सूची "
+"डाउनलोड करें (CSV)।"
+
+msgid ""
+"Bramka zgód jest wyłączona na tej instalacji (CONSENT_GATE_ENABLED). "
+"Pobierz listę (CSV)."
+msgstr ""
+"इस इंस्टॉलेशन पर सहमति जाँच बंद है (CONSENT_GATE_ENABLED)। सूची "
+"डाउनलोड करें (CSV)।"
+
+msgid "Uzupełnij zgody"
+msgstr "सहमतियाँ पूरी करें"
+
+msgid "Zgody"
+msgstr "सहमतियाँ"
+
+msgid ""
+"Zanim przejdziesz do panelu uczestnika, potrzebujemy Twoich oświadczeń "
+"poniżej. Bez nich nie możesz wysyłać rozwiązań, rozwiązywać testów ani "
+"korzystać z wiadomości."
+msgstr ""
+"प्रतिभागी पैनल में जाने से पहले हमें नीचे दी गई घोषणाएँ चाहिए। इनके "
+"बिना आप समाधान जमा नहीं कर सकते, टेस्ट नहीं दे सकते और संदेशों का "
+"उपयोग नहीं कर सकते।"
+
+msgid ""
+"Organizator zmienił co najmniej jeden dokument. Zgoda złożona pod "
+"poprzednią wersją nie obejmuje nowej treści – przeczytaj dokument i "
+"potwierdź go ponownie."
+msgstr ""
+"आयोजक ने कम से कम एक दस्तावेज़ बदला है। पिछले संस्करण पर दी गई सहमति "
+"नए पाठ पर लागू नहीं होती – कृपया दस्तावेज़ पढ़ें और उसे फिर से पुष्टि "
+"करें।"
+
+msgid "Oświadczenia"
+msgstr "घोषणाएँ"
+
+#, python-format
+msgid ""
+"Dokument się zmienił: obowiązuje wersja %(version)s, a Twoja zgoda "
+"dotyczyła wersji %(previous)s."
+msgstr ""
+"दस्तावेज़ बदल गया है: अब संस्करण %(version)s लागू है, जबकि आपकी सहमति "
+"संस्करण %(previous)s के लिए थी।"
+
+#, python-format
+msgid "Wersja dokumentu: %(version)s."
+msgstr "दस्तावेज़ संस्करण: %(version)s।"
+
+msgid "Zapisuję oświadczenia"
+msgstr "पुष्टि करें और आगे बढ़ें"
+
+msgid "Nie zgadzasz się?"
+msgstr "सहमत नहीं हैं?"
+
+msgid ""
+"Bez wymaganych zgód nie możesz brać udziału w zawodach, ale Twoje "
+"prawa do danych zostają: możesz je pobrać, usunąć konto albo napisać "
+"do organizatora."
+msgstr ""
+"आवश्यक सहमतियों के बिना आप प्रतियोगिता में भाग नहीं ले सकते, लेकिन "
+"आपके डेटा अधिकार बने रहते हैं: आप अपना डेटा डाउनलोड कर सकते हैं, खाता "
+"हटा सकते हैं या आयोजक को लिख सकते हैं।"
+
+msgid "Pobierz swoje dane"
+msgstr "अपना डेटा डाउनलोड करें"
+
+msgid "Usuń konto"
+msgstr "खाता हटाएँ"
+
+msgid "Napisz do organizatora"
+msgstr "आयोजक को लिखें"
+
+msgid "Wyloguj się"
+msgstr "लॉग आउट करें"
+
+msgid ""
+"Organizator zmienił dokument, na który się zgodziłeś. Twoja praca "
+"zapisuje się normalnie – gdy skończysz, potwierdź nową wersję na "
+"ekranie „Uzupełnij zgody”."
+msgstr ""
+"आयोजक ने वह दस्तावेज़ बदल दिया है जिस पर आपने सहमति दी थी। आपका काम "
+"सामान्य रूप से सहेजा जा रहा है – काम पूरा होने पर “सहमतियाँ पूरी करें” "
+"स्क्रीन पर नए संस्करण की पुष्टि करें।"
+
+msgid ""
+"Ten dokument zmienił się, kiedy ten ekran był otwarty. Przeczytaj go "
+"jeszcze raz i zaznacz pole ponownie."
+msgstr ""
+"यह पेज खुला रहने के दौरान यह दस्तावेज़ बदल गया। कृपया इसे फिर से पढ़ें "
+"और बॉक्स दोबारा चुनें।"
+
+msgid ""
+"Dokument zmienił się w trakcie zapisu. Przeczytaj go jeszcze raz i "
+"potwierdź."
+msgstr "सहेजते समय दस्तावेज़ बदल गया। कृपया इसे फिर से पढ़ें और पुष्टि करें।"
+
+msgid "Dziękujemy – zgody zostały zapisane."
+msgstr "धन्यवाद – आपकी सहमतियाँ सहेज ली गई हैं।"

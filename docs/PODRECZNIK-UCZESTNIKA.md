@@ -44,8 +44,20 @@ Po rejestracji strona `/register/done/` mówi „sprawdź skrzynkę”. Na podan
 - **listu nie ma?** Zajrzyj do spamu, a potem użyj **„Wyślij link ponownie”** (`/activate/resend/`,
   odnośnik stały na stronie logowania),
 - **literówka w adresie?** Zarejestruj się ponownie po upływie 24 godzin albo napisz do organizatora
-  (`/support/new/`) — on aktywuje konto ręcznie,
+  (`/support/new/`) — on aktywuje konto ręcznie. Formularz łapie większość literówek sam: przy
+  `gmial.com`, `o2.plo` czy `wp.pll` pyta „Czy chodziło Ci o …?” (zaznacz poprawkę albo wyślij formularz
+  jeszcze raz, żeby zostawić adres), a domeny, która nie istnieje, nie przyjmie wcale,
 - konto z logowania przez **Google** jest aktywne od razu (Google potwierdza adres); z Facebooka — nie.
+
+### Baner „Nie możemy dostarczyć poczty na adres …”
+
+Pojawia się po zalogowaniu, gdy serwer Twojej poczty odpowiedział nam, że skrzynka albo domena **nie
+istnieje** (np. konto pocztowe zostało zamknięte). Do czasu poprawki nie wysyłamy Ci powiadomień
+(forum, wiadomości, webinary, komunikaty). Co zrobić:
+
+- **„Zmień adres e-mail”** — wpisz działający adres i potwierdź go linkiem z listu; baner znika,
+- **„Mój adres jest poprawny”** — gdy skrzynka już działa (np. założyłeś ją po rejestracji). Wysyłka
+  wraca; jeśli list znowu nie dotrze, baner wróci.
 
 ### Logowanie, hasło, dane
 
@@ -117,6 +129,29 @@ zakwalifikowana** w poprzednim.
 kartą (na stronie operatora płatności – serwis nie widzi danych karty), Przelewy24 albo przelewem
 z kodem referencyjnym w tytule. Po zaksięgowaniu wpłaty dostajesz potwierdzenie e-mailem, a fakturę
 pobierzesz ze strony zamówienia.
+
+### Ekran „Uzupełnij zgody” — `/me/consents/complete/`
+
+Czasem zamiast panelu zobaczysz najpierw ekran **„Uzupełnij zgody”**. Dzieje się tak, gdy brakuje
+którejś **wymaganej** zgody albo gdy organizator **zmienił dokument** (np. regulamin), a Twoja zgoda
+dotyczyła poprzedniej wersji — przy takiej zgodzie ekran pisze, która wersja obowiązuje teraz, a którą
+zaakceptowano wcześniej. Zaznacz oświadczenia (odnośnik w każdym prowadzi do dokumentu) i kliknij
+**„Zapisuję oświadczenia”** — wrócisz tam, dokąd szedłeś.
+
+- Do tego czasu **nie wyślesz rozwiązania, nie rozwiążesz testu, nie napiszesz wiadomości** i nie
+  wejdziesz na forum. **Wyjątek: praca w toku.** Jeśli organizator zmienił dokument albo dołożył
+  wymaganą zgodę w trakcie etapu, w którym już startujesz, rozpoczęty test (także „Zakończ”), wysyłka
+  rozwiązania i reklamacja działają dalej — zobaczysz tylko baner z prośbą o potwierdzenie zgody po
+  skończeniu pracy.
+- Jeśli dokument zmieni się, kiedy ekran zgód jest otwarty, pole wróci puste z prośbą o ponowne
+  przeczytanie — zgoda zawsze dotyczy tej wersji, którą widzisz.
+- **Zawsze działają:** wylogowanie, zmiana hasła, ustawienia konta, **pobranie swoich danych
+  i usunięcie konta**, język i kontrast, edycja profilu, zgłoszenie do organizatora i strony publiczne
+  (także same dokumenty). Jeśli nie zgadzasz się na nową treść — napisz do organizatora albo usuń konto.
+- **Osoba niepełnoletnia** zaznacza też oświadczenie o zgodzie opiekuna (tak jak przy rejestracji),
+  a pod formularzem widzi stan zgody opiekuna online i przycisk **„Wyślij ponownie”** (rozdział 5).
+  Potwierdzenie online od opiekuna nie blokuje panelu — jest potrzebne tylko do nadzoru zdalnego (8d).
+- Zgoda na **publikację nazwiska** jest dobrowolna i nigdy nie zatrzymuje Cię na tym ekranie.
 
 ---
 
