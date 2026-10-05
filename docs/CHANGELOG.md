@@ -29,6 +29,25 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
   w danym konkursie (pamięć podręczna unieważniana sygnałami Wagtaila; budżety zapytań +1 na zimno).
   `docs/OPERACJE.md` § 50.
 
+## [Unreleased] – Test obciążenia i plan pojemności przed etapem IQO (PERF-01)
+
+- **Narzędzie**: `scripts/loadtest/` – osobny, lokalny stos compose `olimpiada-loadtest` (sieć bez
+  wyjścia na świat) i generator scenariusza dnia zawodów w Pythonie (asyncio + `httpx` z obrazu):
+  logowanie przed T0, wejście wszystkich w T0 z PDF-ami treści, czat, autozapis testu, wysyłki skanów,
+  koordynatorzy z eksportem CSV, goście; p50/p95/p99, błędy, req/s per adres i faza, raport
+  CSV/Markdown, wiele procesów generatora, bezpiecznik hosta (produkcja odrzucana zawsze) i kryteria
+  przerwania. `manage.py loadtest_seed` – odmawia bez `DEBUG`/`--i-know-this-is-not-prod` **i** bez
+  `loadtest` w nazwie bazy.
+- **Poprawki gorących ścieżek**: profil uczestnika pamiętany na czas żądania (`/me/` 38 → 30 zapytań,
+  był czytany 9×), autozapis testu hurtem (95 → 15 zapytań), cache stron obejmuje linki z `utm_*`,
+  `/results/<id>/` i strony > 512 KiB (kompresja `zlib`, format wpisu w kluczu – ~160 ms → ~6 ms CPU
+  dla tabeli 3000 wierszy), limit wysyłek per konto zamiast per IP (sala za NAT-em), PDF treści
+  kawałkami 64 KiB.
+- **Nowe zmienne `.env`** (domyślnie bez zmian zachowania): `WEB_MAX_REQUESTS`/`_JITTER`
+  (rotacja workera pod obciążeniem zrywała żądania w toku – 500/502 na wysyłkach), `WEB_MEM_LIMIT`,
+  `CHAT_POLL_SECONDS`. Wyniki, ekstrapolacja na VPS (z kradzieżą CPU), konfiguracja na dzień zawodów,
+  procedura testu na serwerze i rekomendacja: `docs/OPERACJE.md` § 42, `docs/tasks/PERF-01.md`.
+
 ## [Unreleased] – Poczta z domeny konkursu (MAIL-01)
 
 - **Druga domena nadawcy w relayu `mail`** (IQO: `iqo-official.org`): `scripts/mail_add_domain.sh <domena>`

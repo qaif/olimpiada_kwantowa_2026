@@ -67,6 +67,7 @@ QUERY_BUDGETS: dict[str, int] = {
     # Ten sam wzorzec, co plakaty: godzinna pamięć unieważniana sygnałami Wagtaila (publikacja,
     # wycofanie, przeniesienie, skasowanie), jedno ``EXISTS`` na zimno. Że trafienie w pamięć nie
     # pyta bazy, sprawdza ``apps/accessibility/tests/test_statement.py``. Ten sam +1 niżej.
+    # Zmierzone 5.10.2026 po scaleniu z PERF-01: 36 na zimno (35 + deklaracja) – sufit = pomiar.
     "/": 36,
     # 47 = 46 + zapytanie nagłówka CSP o identyfikator GA4, liczone od 21.09.2026 zawsze na zimno
     # (``_reset_panel_counters`` w ``test_invariants.py``). To nie jest nowy koszt strony, tylko
@@ -78,12 +79,16 @@ QUERY_BUDGETS: dict[str, int] = {
     # (zadanie CZ-01, ``apps.chat.services.nav_state``) – przełącznik modułu i licznik jako dwa
     # podzapytania **jednego** ``SELECT``-a, liczone wyłącznie dla konta z profilem uczestnika.
     # +1 od 5.10.2026: odnośnik „Deklaracja dostępności” w stopce – patrz komentarz przy ``"/"``.
-    "/me/": 52,
+    # 43 od 5.10.2026 (zmierzone po scaleniu A11Y-01 z PERF-01): pamięć uczestnika na żądanie
+    # (PERF-01, ``apps.accounts.request_memo``) obniżyła panel do 42 zapytań na zimno (sufit był 51),
+    # deklaracja dostępności dokłada 1 (``EXISTS`` na zimno). Sufit = pomiar, bez zapasu.
+    "/me/": 43,
     # 50 + 1 od 23.09.2026: odnośnik „Plakaty do pobrania” w stopce – patrz komentarz przy ``"/"``.
     # +1 od 30.09.2026: odznaka „Wiadomości” w menu panelu (zadanie CZ-01,
     # ``apps.chat.services.coordinator_attention``) – przełącznik i cztery liczby jednym zapytaniem,
     # w tej samej minutowej pamięci liczników, co pozostałe odznaki (próg mierzy stan zimny).
     # +1 od 5.10.2026: odnośnik „Deklaracja dostępności” w stopce – patrz komentarz przy ``"/"``.
+    # Zmierzone 5.10.2026 po scaleniu z PERF-01: 53 na zimno (52 + deklaracja) – sufit = pomiar.
     "/coordinator/": 53,
     # --- karty i listy panelu koordynatora ---------------------------------------------------------
     # Bezpieczniki „rzędu wielkości” obok asercji o niezmienności kosztu względem danych: sama

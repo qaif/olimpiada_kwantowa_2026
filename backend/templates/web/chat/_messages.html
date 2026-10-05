@@ -1,7 +1,7 @@
 {% load i18n web_extras chat_extras %}
 {% comment %}
   Lista wiadomości wątku. Ten sam fragment wydaje widok pod ``?fragment=messages``: element sam
-  odpytuje go co 15 s (htmx, bez własnego skryptu – wzorzec ``_ai_problem.html``). Odpowiedź 204
+  odpytuje go co ``CHAT_POLL_SECONDS`` (domyślnie 15 s; htmx, bez własnego skryptu – wzorzec ``_ai_problem.html``). Odpowiedź 204
   (nic się nie zmieniło, ``apps.chat.services.thread_version``) niczego nie podmienia, więc otwarty
   formularz „Zgłoś” nie znika w połowie pisania.
 
@@ -16,7 +16,7 @@
   ``static/js/chat.js``, gdy karta jest widoczna i ma fokus; ``chat-visible`` to odpytanie od razu
   po powrocie do karty.
 {% endcomment %}
-<div class="chat-messages" id="chat-messages"{% if poll_url %} hx-get="{{ poll_url }}" hx-trigger="every 15s, chat-visible from:document" hx-swap="outerHTML"{% endif %}>
+<div class="chat-messages" id="chat-messages"{% if poll_url %} hx-get="{{ poll_url }}" hx-trigger="every {% chat_poll_seconds %}s, chat-visible from:document" hx-swap="outerHTML"{% endif %}>
   <ol class="chat-messages__list">
     {% for entry in entries %}
       {% if entry.notice %}
