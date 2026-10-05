@@ -6583,3 +6583,89 @@ gh label create github-actions --color 000000 --force
   `łańcuch dostaw (SHA akcji, vendor JS, wyjątki)`, `trivy (obraz web)`, `trivy (obraz djcms)`.
 - Workflowy okresowe ruszają dopiero po scaleniu do `main` (harmonogram działa tylko na gałęzi
   domyślnej); pierwszy przebieg najlepiej wywołać ręcznie (*Run workflow*).
+
+## 50. Dostępność (A11Y-01, `docs/tasks/A11Y-01.md`)
+
+Serwis ma spełniać WCAG 2.1 AA. Pilnuje tego suita **axe-core + klawiatura** (`e2e/a11y/`), która
+biegnie w CI (job `a11y`) i lokalnie jednym poleceniem. Organizator publikuje **deklarację
+dostępności** (`/dokumenty/deklaracja-dostepnosci/`, odnośnik w stopce obu motywów).
+
+### 50.1. Uruchomienie testów lokalnie
+
+```sh
+./scripts/a11y.sh                       # pełny przebieg (ok. 5 min): serwer + 119 testów, sprzątanie
+./scripts/a11y.sh -k iqo                # argumenty idą do pytest
+A11Y_SERVE_ONLY=1 ./scripts/a11y.sh     # tylko serwer (zostaje w sieci olimpiada-a11y-net)
+A11Y_REUSE=1 ./scripts/a11y.sh -k home  # testy na serwerze z poprzedniego kroku
+```
+
+Wymaga Dockera, obrazu `olimpiada/web:dev` (kod montowany z hosta) i obrazu Playwrighta scenariusza E2E.
+Obraz deweloperski starszy od `pyproject.toml` (brak nowej zależności, np. `numpy` z QC-01) –
+`A11Y_EXTRA_PIP="numpy>=2.4,<2.5" ./scripts/a11y.sh` doinstaluje pakiet na czas przebiegu.
+Stosu compose dewelopera **nie dotyka**: własna sieć, własny Postgres w tmpfs, ustawienia
+`config.settings.a11y` (bez Redisa, MinIO, ClamAV i workera; tylko do testów – `DEBUG` na sztywno).
+Raport: `e2e/artifacts/a11y/report.md` (+ `report.json`, zrzuty `FAIL-*.png`); w CI – artefakt
+`a11y-report`. Podgląd naruszeń jednego ekranu dla autora szablonu (serwer z `A11Y_SERVE_ONLY=1`):
+`python a11y/probe.py /sciezka/` w kontenerze Playwrighta (opis w pliku).
+
+### 50.2. Co przewraca CI i co z tym zrobić
+
+- **nowe naruszenie `critical`/`serious`** (axe, reguły WCAG 2.1 A/AA, oraz reguła własna
+  `a11y-idref` – `aria-describedby` do nieistniejącego `id`) na którymkolwiek z ~70 ekranów,
+- każdy niezaliczony test klawiatury, fokusu, RTL, reflow (320 px / 200 %) albo powiązania błędów pól.
+
+Kolejność postępowania: **naprawić** (zwykle szablon albo token koloru); gdy naprawa nie jest możliwa
+w tym wydaniu – dopisać wpis do `e2e/a11y/baseline.json` (`page`, `rule`, `reason`) **z uzasadnieniem**
+i zadaniem w `docs/BACKLOG.md`. `A11Y_UPDATE_BASELINE=1 ./scripts/a11y.sh` dopisuje bieżące naruszenia
+z powodem „TODO…”, ale taki wpis przewraca kolejny przebieg, dopóki ktoś nie wpisze prawdziwego powodu.
+Nowy ekran do audytu = jeden wiersz w `e2e/a11y/pages.py` (dane, jeśli potrzebne – `e2e/a11y/seed.py`).
+
+Aktualizacja silnika: `AXE_CORE_VERSION=4.x.y scripts/vendor_axe_core.sh` (suma paczki sprawdzana
+z rejestrem npm), przebieg, przegląd raportu – nowa wersja axe potrafi dołożyć regułę.
+
+### 50.3. Deklaracja dostępności – wdrożenie (za zgodą organizatora)
+
+1. Po wdrożeniu wydania z A11Y-01 projekt deklaracji dla każdego konkursu (wersja robocza):
+
+   ```sh
+   docker compose exec -T web python manage.py seed_accessibility_statement kwantowa   # polska
+   docker compose exec -T web python manage.py seed_accessibility_statement iqo        # angielska
+   ```
+
+2. Organizator w `/cms/` → Dokumenty → „Deklaracja dostępności” (podgląd): uzupełnia **datę publikacji
+   serwisu**, **osobę kontaktową**, adres siedziby (sekcja „Dostępność architektoniczna”), poprawia
+   listę treści niedostępnych, usuwa ramkę „Projekt – do zatwierdzenia”, zmienia pole „status”
+   i **publikuje**. Odnośnik w stopce pojawia się sam po publikacji (pamięć podręczna unieważniana
+   sygnałem Wagtaila); wycofanie publikacji w `/cms/` chowa go z powrotem.
+3. Aktualizacja raz w roku (wzór deklaracji) i po każdej istotnej zmianie serwisu – data w treści.
+   Ponowne uruchomienie komendy na opublikowanej stronie jest odmawiane (`--force` zapisuje nowy
+   projekt jako wersję roboczą, opublikowanej nie rusza).
+
+### 50.4. Motyw IQO Quantum 1.1.2
+
+Poprawka kontrastu pasków ramy aplikacji (logowanie, panele, weryfikacja listu) i odnośnik deklaracji
+w stopce. `min_app_version` **0.47.0** – wgranie dopiero po wdrożeniu wydania z A11Y-01:
+
+```sh
+python themes/iqo-quantum/build_zip.py   # → themes/iqo-quantum/dist/iqo-quantum-1.1.2.zip (laptop)
+scp -i ~/.ssh/olimpiada_deploy themes/iqo-quantum/dist/iqo-quantum-1.1.2.zip deploy@<serwer>:/tmp/
+docker compose exec -T web python manage.py theme_install - --activate iqo < /tmp/iqo-quantum-1.1.2.zip
+```
+
+Cofnięcie: aktywacja 1.1.1 (§ 30.1). Bez 1.1.2 IQO działa, ale paski ramy aplikacji mają za niski
+kontrast, a stopka – bez odnośnika do deklaracji.
+
+### 50.5. Zmiany w aplikacji, o których warto wiedzieć
+
+- **Nowa aplikacja** `apps.accessibility` (bez modeli, bez migracji, bez adresów) – komenda deklaracji
+  i katalog tłumaczeń odnośnika. Wycofanie: usunięcie wiersza z `INSTALLED_APPS` i odnośników ze stopek.
+- Podpowiedzi pól w szablonach mają `id="<auto_id>_helptext"` (reguła pilnowana testem
+  `apps/accessibility/tests/test_form_descriptions.py`) – nowy szablon z ręcznie rysowanym
+  `{{ field.help_text }}` musi ją powtórzyć.
+- Menu panelu koordynatora dostaje atrybut `open` od 900 px (`static/js/coordinator-nav.js`).
+- Tryb wysokiego kontrastu: `.btn--accent` z czarnym napisem na żółci.
+- Nowych zależności Pythona nie ma; `axe-core` jest wyłącznie w `e2e/vendor/` (poza obrazem) i jest
+  wpisany do rejestru `.security/vendor.toml` (§ 47.4: wersja, integrity npm, SHA384; miesięczny
+  przegląd `upstream` pokaże nowe wydanie i znane podatności). Job CI `a11y` ma akcje przypięte SHA
+  i `permissions: contents: read`.
+

@@ -2725,6 +2725,24 @@ przebiegu. Recenzent i uczestnik widzą nazwy testów i punkty.
 szczegół przebiegu (błędy komórek, początek wyjścia programu). Po zmianie testów wiersze dostają
 znacznik „testy zmienione” – „Przelicz wszystko” liczy je od nowa (wpis w audycie).
 
+## 10o. Deklaracja dostępności — `/dokumenty/deklaracja-dostepnosci/`
+
+Serwis ma w stopce odnośnik „Deklaracja dostępności” (wymóg wzoru deklaracji z ustawy o dostępności
+cyfrowej; organizator stosuje ją dobrowolnie, miarą jest WCAG 2.1 AA). Treść przygotował zespół
+techniczny jako **projekt** po audycie z października 2026 r. Co zrobić:
+
+1. W `/cms/` → Dokumenty → „Deklaracja dostępności” otwórz podgląd wersji roboczej.
+2. Uzupełnij pola w nawiasach kwadratowych: **datę publikacji serwisu**, **osobę kontaktową**,
+   adres siedziby (sekcja „Dostępność architektoniczna”). Sprawdź listę „Treści niedostępne” –
+   to zobowiązanie wobec czytelnika (np. „opis rysunków na żądanie”), więc ma być prawdziwe.
+3. Usuń ramkę „Projekt – do zatwierdzenia”, zmień pole „status” (np. „Obowiązuje od …”) i **opublikuj**.
+   Odnośnik w stopce pojawi się sam zaraz po publikacji (wcześniej go nie ma).
+4. Raz w roku i po każdej większej zmianie serwisu zaktualizuj datę „ostatniej istotnej aktualizacji”.
+   Na żądania zapewnienia dostępności (np. „proszę o opis rysunku w zadaniu 3”) odpowiada się w 7 dni.
+
+Konkurs międzynarodowy (IQO) ma deklarację po angielsku – ten sam układ.
+
+
 ## 11. Kalendarz prowadzenia edycji — ściągawka
 
 | Kiedy | Co zrobić | Gdzie |
