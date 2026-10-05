@@ -6114,6 +6114,21 @@ danych i wolumeny **nigdy** nie są przy tym ruszane.
 | 5b/8 – przeszła | `rollback.sh record-success` (wersja, commit, obrazy), dalej kroki 6–8 i „dj.” | `deploy-state/deployed.env` |
 | 5b/8 – nie przeszła | `rollback.sh auto` → wycofanie albo decyzja człowieka (§ 48.3), list do `ALERT_EMAILS`, ramka w logu, **kod 1** – kroki 6–8 i „dj.” się nie wykonują | `deploy-state/last-rollback.env`, `rollback-smoke.txt` |
 
+**Nowy `web`, który nie wstaje** (najczęstsze złe wydanie): `docker compose up -d` w kroku 4b kończy
+się błędem (proxy zależy od `web: healthy`). Wdrożenie nie urywa się wtedy, tylko pomija kroki 4c–5a
+i przechodzi do 5b/8: kontrola dymna i `rollback.sh auto --reason …` – także przy `DEPLOY_SMOKE=0|warn`
+i nawet gdy kontrola przypadkiem przejdzie (nieudany start jest porażką sam w sobie). Przy
+`--maintenance` strona prac technicznych zostaje włączona (wycofanie jej nie rusza) – wyłącz ją po
+sprawdzeniu serwisu z przepustką.
+
+Wycofanie wraca razem z `web`/`worker`/`beat` także **działające** usługi w profilach na tym samym
+obrazie: `notebook-worker`, `notebook-runner` (profil `notebooks`) i `uptime` (`monitoring`);
+niedziałających nie włącza. Migawka ostrzega (i zapisuje `PREV_SMOKE_VERIFIED=0`), gdy obraz `:previous`
+nie jest tym, który ostatnio przeszedł kontrolę (`deploy-state/deployed.env`) – np. po wdrożeniu
+z `DEPLOY_SMOKE=0`; decyzja `auto` mówi wtedy o tym w uzasadnieniu i w liście. Kontrola dymna śledzi
+przekierowania sama i wyłącznie w obrębie hosta (bez `curl -L`) – przepustka prac technicznych nie
+trafia pod adres z `Location` na innym hoście.
+
 Porządki po wdrożeniu nie kasują tagu `:previous` (nie liczy się do dwóch zostawianych tagów
 `olimpiada/web`). Migawka sprzed wdrożenia przeżywa więc także wdrożenie tej samej wersji, które
 odbiera staremu obrazowi tag wersji (`docker image prune` skasowałby obraz bez tagu).

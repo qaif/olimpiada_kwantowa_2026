@@ -53,8 +53,6 @@ if [ -f "$d.fail" ] && [ "$(cat "$d.fail")" -gt 0 ]; then
   printf 'HTTP/2 503\r\n\r\n' >"$hdr"; printf 'chwilowo' >"$body"; printf '503 0.010'; exit 0
 fi
 [ -f "$d.code" ] || { echo "curl: (7) Failed to connect" >&2; printf '000 0.000'; exit 7; }
-# Przekierowanie (przy -L): dwa bloki nagłówków, liczy się ostatni.
-[ -f "$d.redirect" ] && printf 'HTTP/2 302\r\nlocation: /\r\ncontent-security-policy: stara\r\n\r\n' >>"$hdr"
 { printf 'HTTP/2 %s\r\n' "$(cat "$d.code")"; [ -f "$d.headers" ] && sed 's/$/\r/' "$d.headers"; printf '\r\n'; } >>"$hdr"
 cat "$d.body" >"$body"
 printf '%s 0.012' "$(cat "$d.code")"
@@ -207,9 +205,18 @@ echo '<html>bez CSP</html>' | respond "$O/" 200 "content-type: text/html"
 expect_fail "strona główna bez Content-Security-Policy → błąd" "bez nagłówka Content-Security-Policy"
 echo '<html>x</html>' | respond "$O/" 500
 expect_fail "strona główna 500 → błąd" "GET https://olimpiada.example/ – 500"
-echo '<html>x</html>' | respond "$O/" 200 "content-type: text/html"
-touch "$(fixt "$O/" redirect)"
+echo '' | respond "$O/" 302 "location: /pl/" "$CSP"
+echo '<html>pl</html>' | respond "$O/pl/" 200 "content-type: text/html"
 expect_fail "CSP tylko w odpowiedzi-przekierowaniu (nie w ostatniej) → błąd" "bez nagłówka Content-Security-Policy"
+rm -f "$FIXT/$(key "$O/pl/")".*
+
+# Przekierowanie w obrębie hosta – śledzone (bez curl -L).
+echo '' | respond "$O/" 302 "location: /pl/"
+echo '<html>pl</html>' | respond "$O/pl/" 200 "$CSP"
+run_smoke redir "$O"
+[ $? = 0 ] && [ "$(calls redir "$O/pl/")" = 1 ] && ! grep -q -- ' -L' "$WORK/redir.curl"
+check "przekierowanie w obrębie hosta śledzone samodzielnie (bez curl -L)" $?
+site "$O"; rm -f "$FIXT/$(key "$O/pl/")".*
 printf '<html><link rel="stylesheet" href="/static/css/app.0123456789ab.css"></html>\n' \
   | respond "$O/login/" 200 "$CSP" "Set-Cookie: csrftoken=abc"
 expect_fail "logowanie bez pola csrfmiddlewaretoken → błąd" "bez pola csrfmiddlewaretoken"
@@ -300,6 +307,15 @@ grep -q 'LiveKit https://live.olimpiada.example/ – 200' "$WORK/server.out" &&
 check "--server: LiveKit (LIVEKIT_PROXY=1) i djcms (DJCMS_ENABLED=1) sprawdzone" $?
 cmp -s "$WORK/server.out" "$WORK/report.txt"
 check "--report: kopia wydruku w pliku (treść listu alarmowego)" $?
+
+# Przekierowanie na inny host przy przepustce: nie podążamy (przepustka nie może wyjść poza serwis).
+echo '' | respond "$O/password-reset/" 302 "location: https://obcy.example/kradnij"
+echo 'ok' | respond "https://obcy.example/kradnij" 200
+run_smoke offhost --server "$SRV"
+[ $? = 1 ] && grep -q 'password-reset/ – 302 .*przekierowanie na inny host (https://obcy.example/kradnij) – nie podążam' "$WORK/offhost.out" &&
+  ! grep -q 'obcy.example/kradnij' "$WORK/offhost.curl"
+check "--server: przekierowanie na inny host nie jest śledzone – przepustka nie wychodzi poza serwis" $?
+site "$O"
 
 # SITE_DOMAIN z błędem TLS – to już błąd.
 echo 60 >"$(fixt "$O/" rc)"

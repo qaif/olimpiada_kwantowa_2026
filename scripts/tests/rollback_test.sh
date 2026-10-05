@@ -40,6 +40,8 @@ tagfile() { printf '%s/tags/%s' "$BOX" "$(printf '%s' "$1" | tr '/:' '__')"; }
 case "$*" in
   "compose ps -q web") cat "$BOX/web.cid" 2>/dev/null ;;
   "compose ps -q djcms") cat "$BOX/djcms.cid" 2>/dev/null ;;
+  # Usługi w profilach na obrazie aplikacji (notatniki, uptime): działają, gdy jest $BOX/<usługa>.cid.
+  "compose --profile "*" ps -q "*) cat "$BOX/${a##* }.cid" 2>/dev/null ;;
   "inspect --format {{.Image}} "*) cat "$BOX/cid.${a##* }" 2>/dev/null || exit 1 ;;
   "image inspect --format {{.Id}} "*) cat "$(tagfile "${a##* }")" 2>/dev/null || exit 1 ;;
   "tag "*)
@@ -317,6 +319,39 @@ world; deploy_v2
 rb auto4 auto --failed-version v2
 [ $? = 11 ] && grep -q 'brak migawki' "$BOX/alert.exec"
 check "auto bez migawki: kod 11 i list" $?
+
+# ================================================================================================
+# 4a. Przegląd PR #80: usługi w profilach na obrazie aplikacji, obraz niesprawdzony, powód z wdrożenia.
+# ================================================================================================
+world; rb s snapshot; deploy_v2
+echo n1 >"$BOX/notebook-worker.cid"; echo u1 >"$BOX/uptime.cid"
+rb prof run --yes
+[ "$(grep -E '^compose .*up -d' "$WORK/prof.docker")" = "compose --profile notebooks --profile monitoring up -d --no-deps --no-build web worker beat notebook-worker uptime" ] &&
+  ! grep -q 'notebook-runner' <(grep -E '^compose .*up -d' "$WORK/prof.docker")
+check "run: działające usługi na obrazie aplikacji (notebook-worker, uptime) wracają razem z web; niedziałające (notebook-runner) nie są włączane" $?
+
+world
+printf 'APP_VERSION=v1\nWEB_IMAGE_ID=sha256:inny\n' >"$SRV/deploy-state.tmp"; mkdir -p "$SRV/deploy-state"; mv "$SRV/deploy-state.tmp" "$SRV/deploy-state/deployed.env"
+rb unver snapshot
+grep -q 'to NIE ten, który ostatnio przeszedł kontrolę dymną' "$WORK/unver.out" && [ "$(st previous.env PREV_SMOKE_VERIFIED)" = 0 ]
+check "snapshot: obraz :previous ≠ WEB_IMAGE_ID z deployed.env → ostrzeżenie, PREV_SMOKE_VERIFIED=0" $?
+deploy_v2
+rb unver-dec decide
+[ $? = 0 ] && grep -q 'UWAGA: obraz :previous nie jest tym, który ostatnio przeszedł kontrolę dymną' "$WORK/unver-dec.out"
+check "decide: auto, ale z ostrzeżeniem o niesprawdzonym obrazie :previous" $?
+world
+printf 'APP_VERSION=v1\nWEB_IMAGE_ID=sha256:old\n' >"$WORK/dep.env"; mkdir -p "$SRV/deploy-state"; cp "$WORK/dep.env" "$SRV/deploy-state/deployed.env"
+rb ver snapshot
+! grep -q 'NIE ten' "$WORK/ver.out" && [ "$(st previous.env PREV_SMOKE_VERIFIED)" = 1 ]
+check "snapshot: obraz :previous = ostatnio sprawdzony → PREV_SMOKE_VERIFIED=1, bez ostrzeżenia" $?
+
+world; rb s snapshot; deploy_v2
+mkdir -p "$SRV/maintenance"; touch "$SRV/maintenance/on"
+printf 'x.0001\n' >>"$BOX/mig.olimpiada"
+rb reason auto --failed-version v2 --reason "docker compose up -d (krok 4b/8) zakończył się kodem 1"
+[ $? = 11 ] && grep -q 'zakończył się kodem 1' "$BOX/alert.exec" && grep -q 'jest WŁĄCZONA' "$BOX/alert.exec" &&
+  grep -q 'powód porażki wdrożenia' "$WORK/reason.out"
+check "auto --reason: powód w liście i w logu; włączona strona prac technicznych opisana zgodnie z prawdą" $?
 
 # ================================================================================================
 # 5. record-success i commit poprzedniej wersji w kolejnej migawce.

@@ -134,6 +134,8 @@ case "$*" in
   # montażu katalogu (stan `stale` zostaje `stale`).
   *"compose up -d --remove-orphans "*" proxy"*)
     [ "${STUB_NEW_MIGRATION:-0}" = 1 ] && echo "results.0099_nowa_kolumna" >>"$STUB_BOX/migrations"
+    # STUB_UP_RC≠0: nowy web nie staje się healthy – compose kończy `up` błędem (proxy zależy od web).
+    [ "${STUB_UP_RC:-0}" = 0 ] || { echo "dependency failed to start: container web is unhealthy" >&2; exit "$STUB_UP_RC"; }
     [ "$(cat "$STUB_BOX/state")" = down ] && { echo live >"$STUB_BOX/state"; cp caddy/Caddyfile "$STUB_BOX/loaded"; } ;;
   # Kontrakt tras z obrazu web (krok dj. przy DJCMS_PRIMARY=1); STUB_ROUTES_DIFF=1 – obraz w innej wersji.
   *"djcms_routes --format env"*)
@@ -260,7 +262,7 @@ run_deploy() {
   # Kontrola dymna i wycofanie (OPS-04) bez czekania: jedna próba, bez przerw; ponawianie
   # sync_competitions bez przerw. Atrapa ssh przekazuje środowisko dalej, więc dochodzą do „serwera”.
   ( env -u DJCMS_ENABLE -u DJCMS_IMAGE -u DJCMS_ADMIN_EMAIL -u DJCMS_ADMIN_PASSWORD -u WEB_IMAGE \
-      -u STUB_SMOKE_FAIL -u STUB_NEW_MIGRATION -u STUB_SYNC_FAILS -u DEPLOY_SMOKE -u STUB_PCC_RC \
+      -u STUB_SMOKE_FAIL -u STUB_NEW_MIGRATION -u STUB_SYNC_FAILS -u DEPLOY_SMOKE -u STUB_PCC_RC -u STUB_UP_RC \
       -u DJCMS_PRIMARY -u STUB_CURL_MODE -u STUB_SYNC_RC -u STUB_SYNC_OLD -u STUB_VALIDATE_RC -u STUB_RELOAD_RC       -u STUB_HEALTHZ_CODE -u STUB_ROUTES_DIFF -u OLIMPIADA_PROXY_LOCK -u NEW_COMPETITION_SLUG -u COORDINATOR_EMAIL -u COORDINATOR_PASSWORD       -u MAINTENANCE_MESSAGE -u MAINTENANCE_MINUTES       PATH="$BIN:$PATH" DOCKER_LOG="$DOCKER_LOG" SSH_LOG="$SSH_LOG" SRC_TAR="${SRC_TAR:-$WORK/tree.tar}" \
       STUB_BOX="$BOX" \
       SMOKE_RETRIES=1 SMOKE_RETRY_DELAY=0 ROLLBACK_WAIT_SECONDS=0 DJCMS_SYNC_RETRY_DELAYS="0 0 0" \
@@ -906,6 +908,40 @@ check "OPS-04: ramka w logu, list alarmowy, kroki 6–8 nie wykonane" $?
 awk -v s="$ROLLBACK_UP" 'f { print } $0 == s { f = 1 }' "$WORK/sm-rb.docker" >"$WORK/sm-rb.after"
 ! grep -qE '(^| )(down|volume|rm|rmi|prune)( |$)| -v( |$)|pg_restore|compose up' "$WORK/sm-rb.after"
 check "OPS-04: wycofanie bez down/-v/rm/pg_restore i bez drugiego up (baza i wolumeny nietknięte)" $?
+
+# 11a'. Przegląd PR #80 (M1): nowy web nie wstaje → `docker compose up -d` w 4b kończy się błędem.
+#       Wdrożenie nie urywa się pod `set -e`, tylko idzie do 5b: kontrola i rollback.sh auto – także
+#       przy DEPLOY_SMOKE=0 i nawet gdy kontrola przypadkiem przechodzi (stary proxy/web odpowiada).
+reset_server
+installed_proxy_cfg
+run_deploy "$DEPLOY" up-fail APP_VERSION=v2 STUB_UP_RC=1 DEPLOY_SMOKE=0
+rc=$?
+[ $rc = 1 ] && grep -qxF "$ROLLBACK_UP" "$WORK/up-fail.docker" && [ "$(env_line APP_VERSION)" = vtest ] &&
+  ! grep -qxF "$RELOAD_CMD" "$WORK/up-fail.docker" && ! grep -q '^==> 5/8 ' "$WORK/up-fail.out" &&
+  grep -q 'docker compose up -d zakończył się kodem 1' "$WORK/up-fail.out" &&
+  grep -q 'powód porażki wdrożenia: docker compose up -d (krok 4b/8)' "$WORK/up-fail.out" &&
+  ! grep -q 'seed_edition_kwantowa' "$WORK/up-fail.docker" && grep -qF 'NIEUDANE i WYCOFANE' "$WORK/up-fail.out"
+rc=$?
+check "M1: nieudane up -d (web nie healthy) → kroki 4c–5a pominięte, kontrola i automatyczne wycofanie do vtest, kod 1" $rc
+show_on_fail $rc "$WORK/up-fail.out"
+reset_server
+installed_proxy_cfg
+run_deploy "$DEPLOY" up-fail-mig APP_VERSION=v2 STUB_UP_RC=1 STUB_NEW_MIGRATION=1
+rc=$?
+[ $rc = 1 ] && ! grep -qxF "$ROLLBACK_UP" "$WORK/up-fail-mig.docker" && [ "$(env_line APP_VERSION)" = v2 ] &&
+  grep -qF 'NIE wycofane' "$WORK/up-fail-mig.out"
+rc=$?
+check "M1: nieudane up -d po migracji → bez wycofania, kod 1, decyzja ręczna" $rc
+show_on_fail $rc "$WORK/up-fail-mig.out"
+reset_server
+installed_proxy_cfg
+DEPLOY_FLAGS=--maintenance run_deploy "$DEPLOY" up-fail-mnt APP_VERSION=v2 STUB_UP_RC=1
+rc=$?
+[ $rc = 1 ] && grep -qxF "$ROLLBACK_UP" "$WORK/up-fail-mnt.docker" && [ -e "$SRV/maintenance/on" ] &&
+  grep -qF 'PRACE TECHNICZNE' "$WORK/up-fail-mnt.out" && ! grep -q '^==> 5a/8 ' "$WORK/up-fail-mnt.out"
+rc=$?
+check "M1 z --maintenance: wycofanie za stroną prac technicznych, strona zostaje włączona z komunikatem" $rc
+show_on_fail $rc "$WORK/up-fail-mnt.out"
 
 # 11b. Kontrola nie przechodzi, a wdrożenie zastosowało migrację → BEZ wycofania.
 reset_server

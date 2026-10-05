@@ -784,8 +784,20 @@ log "4b/8 Start usług (migracje wykonuje entrypoint kontenera web)"
 DJCMS_SVC=""
 [ "$DJCMS_ON" = "1" ] && DJCMS_SVC=" djcms"
 NEW_STARTED=1
-"${SSH[@]}" "cd '$REMOTE_DIR' && docker compose up -d --remove-orphans db redis minio minio-init clamav mail web worker beat proxy$DJCMS_SVC"
+# Najczęstsze złe wydanie – nowy web, który nie wstaje (błąd importu, migracja, crash-loop) – kończy
+# TO polecenie błędem: proxy zależy od `web: service_healthy`, więc compose zwraca kod ≠ 0. Pod
+# `set -e` wdrożenie urwałoby się tutaj, przed kontrolą dymną i decyzją o wycofaniu – a to dokładnie
+# przypadek, dla którego wycofanie istnieje. Kod zapamiętujemy: kroki 4c–5a (proxy, czekanie,
+# strona prac technicznych) są wtedy pomijane, a 5b/8 idzie prosto do kontroli i `rollback.sh auto`
+# (który wycofa wyłącznie wtedy, gdy nie przybyły migracje) – niezależnie od DEPLOY_SMOKE.
+UP_RC=0
+"${SSH[@]}" "cd '$REMOTE_DIR' && docker compose up -d --remove-orphans db redis minio minio-init clamav mail web worker beat proxy$DJCMS_SVC" || UP_RC=$?
+if [ "$UP_RC" -ne 0 ]; then
+  printf '\n!!! docker compose up -d zakończył się kodem %s (zwykle: nowy web nie staje się healthy –\n' "$UP_RC" >&2
+  printf '!!! docker compose logs web). Pomijam kroki 4c–5a; kontrola dymna i decyzja o wycofaniu (5b/8).\n' >&2
+fi
 
+if [ "$UP_RC" = 0 ]; then
 log "4c/8 Konfiguracja proxy: caddy reload"
 # `up -d` wyżej odtwarza proxy wyłącznie przy zmianie jego konfiguracji compose'a (obraz, montaże,
 # środowisko) – zmiana samej treści caddy/Caddyfile z kroku 4/8 do działającego Caddy'ego nie
@@ -842,6 +854,7 @@ rm -f maintenance/.deploy-maintenance-on
 REMOTE
   MAINT_MAYBE_ON=0
 fi
+fi  # UP_RC = 0 (kroki 4c–5a)
 
 log "5b/8 Bufor całych stron gościa: page_cache_clear"
 # Nowa wersja wstała, a jej entrypoint zrobił `collectstatic --clear` – pliki statyczne poprzedniej
@@ -852,7 +865,7 @@ log "5b/8 Bufor całych stron gościa: page_cache_clear"
 "${SSH[@]}" "cd '$REMOTE_DIR' && docker compose exec -T web python manage.py page_cache_clear </dev/null" \
   || echo "UWAGA: page_cache_clear nieudane – bufor stron wygaśnie sam (klucz zawiera wydanie)"
 
-if [ "$DEPLOY_SMOKE" = "0" ]; then
+if [ "$DEPLOY_SMOKE" = "0" ] && [ "$UP_RC" = 0 ]; then
   log "5b/8 Kontrola dymna – POMINIĘTA (DEPLOY_SMOKE=0)"
   NEW_STARTED=2
 else
@@ -864,12 +877,19 @@ else
   # Przed seedami (krok 6): wersja, która nie przechodzi kontroli, nie pisze już niczego do bazy.
   SMOKE_RC=0
   "${SSH[@]}" "cd '$REMOTE_DIR' && mkdir -p deploy-state && bash scripts/smoke.sh --server '$REMOTE_DIR' --expect-version $(printf '%q' "$APP_VERSION") --report deploy-state/last-smoke.txt </dev/null" || SMOKE_RC=$?
-  if [ "$SMOKE_RC" -ne 0 ] && [ "$DEPLOY_SMOKE" = "warn" ]; then
+  # Nieudany start usług (4b) jest porażką także wtedy, gdy kontrola przypadkiem przeszła (np. stary
+  # kontener web jeszcze odpowiada) – i nie podlega furtce DEPLOY_SMOKE=warn.
+  RB_REASON=""
+  if [ "$UP_RC" -ne 0 ]; then
+    RB_REASON="docker compose up -d (krok 4b/8) zakończył się kodem $UP_RC – nowe kontenery nie wstały"
+    [ "$SMOKE_RC" -ne 0 ] || SMOKE_RC=1
+  fi
+  if [ "$SMOKE_RC" -ne 0 ] && [ "$DEPLOY_SMOKE" = "warn" ] && [ "$UP_RC" = 0 ]; then
     printf '\n!!! Kontrola dymna wersji %s NIE przeszła (kod %s) – DEPLOY_SMOKE=warn: bez wycofania, wdrożenie idzie dalej.\n' "$APP_VERSION" "$SMOKE_RC" >&2
     printf '!!! Wycofanie ręczne: ssh %s "cd %s && bash scripts/rollback.sh run"\n' "$TARGET" "$REMOTE_DIR" >&2
   elif [ "$SMOKE_RC" -ne 0 ]; then
     RB_RC=0
-    "${SSH[@]}" "cd '$REMOTE_DIR' && OLIMPIADA_PROXY_LOCK=held bash scripts/rollback.sh auto --failed-version $(printf '%q' "$APP_VERSION") </dev/null" || RB_RC=$?
+    "${SSH[@]}" "cd '$REMOTE_DIR' && OLIMPIADA_PROXY_LOCK=held bash scripts/rollback.sh auto --failed-version $(printf '%q' "$APP_VERSION")${RB_REASON:+ --reason $(printf '%q' "$RB_REASON")} </dev/null" || RB_RC=$?
     NEW_STARTED=2
     case "$RB_RC" in
       10) printf '\nWdrożenie %s NIEUDANE i WYCOFANE do poprzednich obrazów (kontrola po wycofaniu przeszła).\n' "$APP_VERSION" >&2 ;;

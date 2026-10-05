@@ -42,7 +42,7 @@ Sprawdzenia dla każdego hosta (`B` = adres bazowy, z prefiksem ścieżki, jeśl
 
 | # | Żądanie | Warunek |
 |---|---|---|
-| 1 | `GET B/` (przekierowania ≤ 5) | 200, nagłówek `Content-Security-Policy` |
+| 1 | `GET B/` (przekierowania ≤ 5, wyłącznie w obrębie hosta – przepustka nie wychodzi poza niego) | 200, nagłówek `Content-Security-Policy` |
 | 2 | `GET B<strona>` dla `SMOKE_PAGES` (domyślnie `/status/ /password-reset/`) | 200 |
 | 3 | `GET /healthz/` | 200 i `"status": "ok"` |
 | 4 | `GET /status.json` | 200 i `"status": "ok"`; inna `version` niż `--expect-version` = **ostrzeżenie** (odpowiedź jest buforowana 30 s) |

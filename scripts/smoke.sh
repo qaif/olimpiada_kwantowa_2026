@@ -102,10 +102,29 @@ F_TIME="0"
 F_RC=0
 CHECK_TIME=0
 
-fetch() {  # fetch <url> [follow] – nagłówki do $HDR, treść do $BODY; F_CODE, F_TIME, F_RC
-  local url="$1" follow="${2:-0}" out
+F_OFFHOST=""
+# Przekierowania śledzimy sami (bez `curl -L`) i WYŁĄCZNIE w obrębie tego samego pochodzenia:
+# `-L` wysłałby nagłówek przepustki prac technicznych (`-K -`) także pod adres z `Location` – na
+# inny host, którego nie kontrolujemy. Przekierowanie na inny host = koniec, adres w F_OFFHOST.
+fetch() {  # fetch <url> [follow] – nagłówki do $HDR, treść do $BODY; F_CODE, F_TIME, F_RC, F_OFFHOST
+  local url="$1" follow="${2:-0}" hops=0 loc next
+  F_OFFHOST=""
+  while :; do
+    fetch_once "$url"
+    [ "$follow" = 1 ] || return 0
+    case "$F_CODE" in 301|302|303|307|308) ;; *) return 0 ;; esac
+    loc="$(header_value location)"
+    [ -n "$loc" ] || return 0
+    next="$(absolute_url "$(url_origin "$url")" "$loc")"
+    if [ "$(url_origin "$next")" != "$(url_origin "$url")" ]; then F_OFFHOST="$next"; return 0; fi
+    hops=$((hops + 1))
+    [ "$hops" -le 5 ] || return 0
+    url="$next"
+  done
+}
+fetch_once() {  # fetch_once <url> – jedno żądanie, bez przekierowań
+  local url="$1" out
   local args=(-sS --max-time "$SMOKE_TIMEOUT" -D "$HDR" -o "$BODY" -w '%{http_code} %{time_total}')
-  [ "$follow" = 1 ] && args+=(-L --max-redirs 5)
   [ "$INSECURE" = 1 ] && args+=(-k)
   [ -n "$RESOLVE_IP" ] && args+=(--resolve "$(url_host "$url"):$(url_port "$url"):$RESOLVE_IP")
   : >"$HDR"; : >"$BODY"
@@ -124,7 +143,7 @@ fetch() {  # fetch <url> [follow] – nagłówki do $HDR, treść do $BODY; F_CO
   CHECK_TIME="$(awk -v a="$CHECK_TIME" -v b="$F_TIME" 'BEGIN { printf "%.2f", a + b }')"
 }
 
-# Nagłówki OSTATNIEJ odpowiedzi (przy -L curl zapisuje wszystkie po kolei).
+# Nagłówki OSTATNIEJ odpowiedzi w pliku (gdyby kiedyś było ich kilka bloków – liczy się ostatni).
 last_headers() { tr -d '\r' <"$HDR" | awk '/^HTTP\// { buf = "" } { buf = buf $0 "\n" } END { printf "%s", buf }'; }
 header_value() {  # header_value <nazwa> – wartość nagłówka ostatniej odpowiedzi (bez względu na wielkość liter)
   last_headers | awk -v n="$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')" '
@@ -146,7 +165,10 @@ theme_css() {  # theme_css <plik HTML> – arkusze motywu (<link rel="stylesheet
     | sed -E 's/^[Hh][Rr][Ee][Ff]="//; s/"$//; s/&amp;/\&/g' | grep -E '/themes/|/_theme/' | awk '!seen[$0]++'
 }
 tls_error() { case "$F_RC" in 35|51|58|59|60|77|80|82|83|90|91) return 0 ;; esac; return 1; }
-curl_note() { if [ "$F_RC" != 0 ]; then printf 'curl %s: %s' "$F_RC" "$(head -c 160 "$WORK/err" | tr -d '\r\n')"; fi; }
+curl_note() {
+  if [ "$F_RC" != 0 ]; then printf 'curl %s: %s' "$F_RC" "$(head -c 160 "$WORK/err" | tr -d '\r\n')"; fi
+  if [ -n "$F_OFFHOST" ]; then printf 'przekierowanie na inny host (%s) – nie podążam' "$F_OFFHOST"; fi
+}
 
 # --- Sprawdzenia -----------------------------------------------------------------------------------
 # Każde: 0 – ok, 1 – błąd (ponawiany), 2 – ostrzeżenie (bez ponawiania), 3 – informacja.

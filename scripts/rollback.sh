@@ -150,6 +150,19 @@ cmd_snapshot() {
   esac
   local prev_git=""
   [ "$(state_value deployed.env APP_VERSION)" = "$prev_ver" ] && prev_git="$(state_value deployed.env GIT_COMMIT)"
+  # Czy obraz, do którego ewentualnie wrócimy, przeszedł kiedyś kontrolę dymną: deployed.env pisze
+  # wyłącznie `record-success`. Inny obraz (wdrożenie z DEPLOY_SMOKE=0, ręczna przebudowa, `up`
+  # z innym tagiem) to wciąż najlepszy kandydat – ale operator ma wiedzieć, że nie sprawdzony.
+  local verified deployed_id
+  deployed_id="$(state_value deployed.env WEB_IMAGE_ID)"
+  if [ -z "$deployed_id" ]; then
+    verified=unknown
+  elif [ "$deployed_id" = "$web_id" ]; then
+    verified=1
+  else
+    verified=0
+    warn "obraz web sprzed wdrożenia ($web_id) to NIE ten, który ostatnio przeszedł kontrolę dymną ($deployed_id, deploy-state/deployed.env) – wycofanie wróci do niesprawdzonego obrazu"
+  fi
   {
     echo "# Migawka przed wdrożeniem – scripts/rollback.sh snapshot (krok 2a/8 scripts/deploy.sh)."
     echo "SNAPSHOT_AT=$(date -Iseconds)"
@@ -160,6 +173,7 @@ cmd_snapshot() {
     echo "WEB_IMAGE_ID=$web_id"
     echo "DJCMS_IMAGE_ID=$dj_id"
     echo "MIGRATIONS_KNOWN=$known"
+    echo "PREV_SMOKE_VERIFIED=$verified"
   } >"$STATE/previous.env.tmp"
   chmod 600 "$STATE/previous.env.tmp"
   mv "$STATE/previous.env.tmp" "$STATE/previous.env"
@@ -212,6 +226,9 @@ decide() {  # decide – kod 0 auto / 3 manual / 4 impossible; uzasadnienie w DE
     return 3
   fi
   DECISION_REASON="bez nowych migracji od migawki – poprzednie obrazy pasują do schematu bazy"
+  if [ "$(state_value previous.env PREV_SMOKE_VERIFIED)" = 0 ]; then
+    DECISION_REASON="$DECISION_REASON (UWAGA: obraz :previous nie jest tym, który ostatnio przeszedł kontrolę dymną)"
+  fi
   return 0
 }
 
@@ -271,10 +288,23 @@ do_rollback() {  # właściwe wycofanie (warunki sprawdzone wcześniej); kod 0 =
   fi
   chmod 600 "$ROOT/.env"
 
+  # Pozostałe usługi na obrazie aplikacji (docker-compose.yml: image WEB_IMAGE/olimpiada/web), w
+  # profilach – wracają razem z web, ale tylko te, które DZIAŁAJĄ (profil włączony na serwerze):
+  # inaczej notatniki albo `uptime` zostałyby na kodzie nieudanego wydania, a wycofanie włączałoby
+  # usługi, których operator nie uruchomił.
+  local pair profile svc profiles=()
+  for pair in notebooks:notebook-worker notebooks:notebook-runner monitoring:uptime; do
+    profile="${pair%%:*}"; svc="${pair#*:}"
+    if [ -n "$(compose --profile "$profile" ps -q "$svc" </dev/null 2>/dev/null | head -n 1 | tr -d '\r' || true)" ]; then
+      services="$services $svc"
+      profiles+=(--profile "$profile")
+    fi
+  done
+
   log "Wycofanie: ${from_ver:-?} -> ${prev_ver:-poprzedni obraz} ($services)"
   # --no-deps: db, redis, minio, proxy zostają nietknięte; --no-build: wyłącznie obraz lokalny.
   # shellcheck disable=SC2086 # services: stała lista nazw usług
-  compose up -d --no-deps --no-build $services </dev/null
+  compose "${profiles[@]+"${profiles[@]}"}" up -d --no-deps --no-build $services </dev/null
 
   local healthy=0 ps_out i
   for i in $(seq 1 $((ROLLBACK_WAIT_SECONDS / 5 + 1))); do
@@ -316,7 +346,8 @@ Procedura ręczna (docs/OPERACJE.md § 48.5) – na serwerze, cd $ROOT:
       migracjami (\$BACKUP_DIR/pre-deploy-*.dump, OPERACJE § 2) przy włączonej stronie prac technicznych
       (bash scripts/maintenance.sh on), potem bash scripts/rollback.sh run --allow-migrations.
   Kontrola:              bash scripts/smoke.sh --server $ROOT
-  Strona prac technicznych NIE została włączona – https://${domain:-<domena>}/ działa na nowej wersji.
+  Wycofanie nie włącza ani nie wyłącza strony prac technicznych (https://${domain:-<domena>}/):
+                         bash scripts/maintenance.sh status
 EOF
 }
 
@@ -389,10 +420,12 @@ banner() {
 }
 
 cmd_auto() {
-  local failed="" rc=0 domain prev smoke_report body
+  local failed="" rc=0 domain prev smoke_report body reason="" maint
   while [ $# -gt 0 ]; do
     case "$1" in
       --failed-version) failed="${2-}"; shift 2 ;;
+      # Dodatkowy powód porażki od wdrożenia (np. nieudane `docker compose up -d` w kroku 4b/8).
+      --reason) reason="${2-}"; shift 2 ;;
       *) die "nieznana opcja $1" 2 ;;
     esac
   done
@@ -400,6 +433,18 @@ cmd_auto() {
   domain="$(env_value SITE_DOMAIN)"
   prev="$(state_value previous.env PREV_APP_VERSION)"
   smoke_report="$(cat "$STATE/last-smoke.txt" 2>/dev/null | tail -n 60 || true)"
+  if [ -n "$reason" ]; then
+    echo "rollback: powód porażki wdrożenia: $reason"
+    smoke_report="$reason
+$smoke_report"
+  fi
+  # Wycofanie strony prac technicznych nie rusza; wdrożenie z --maintenance, które padło przed 5a,
+  # zostawia ją włączoną – list ma mówić prawdę o tym, co widzą uczestnicy.
+  if [ -f "$ROOT/maintenance/on" ]; then
+    maint="Strona „Prace techniczne” jest WŁĄCZONA (wdrożenie z --maintenance) – wyłącz ją po sprawdzeniu: bash scripts/maintenance.sh off"
+  else
+    maint="Strona „Prace techniczne” nie została włączona – serwis odpowiada tym, co działa."
+  fi
 
   decide || rc=$?
 
@@ -415,6 +460,7 @@ Wdrożona wersja: $failed – kontrola dymna NIE przeszła.
 Wycofano obrazy web/worker/beat do: ${prev:-poprzedniego obrazu} (baza i wolumeny nietknięte; $DECISION_REASON).
 Usługi po wycofaniu healthy: $([ "$rb_ok" = 1 ] && echo tak || echo NIE). Kontrola po wycofaniu: $([ "$smoke_ok" = 1 ] && echo przeszła || echo NIE PRZESZŁA).
 Kod i konfiguracja proxy w $ROOT zostały w wersji $failed – pełny powrót: wdrożenie poprzedniego tagu.
+$maint
 
 Kontrola dymna wersji $failed:
 $smoke_report"
@@ -433,7 +479,7 @@ $smoke_report"
   body="Host: ${domain:-?}
 Wdrożona wersja: $failed – kontrola dymna NIE przeszła.
 NIE wycofano automatycznie: $DECISION_REASON
-Strona „Prace techniczne” nie została włączona – serwis działa na wersji $failed.
+$maint
 
 $(manual_help)
 
@@ -442,7 +488,7 @@ $smoke_report"
   send_alert "[Olimpiada] ${domain:-?}: wdrożenie $failed NIE PRZESZŁO kontroli – potrzebna decyzja" "$body"
   banner "Kontrola dymna wersji $failed NIE przeszła i wycofanie automatyczne NIE jest bezpieczne:" \
          "$DECISION_REASON" \
-         "Strona prac technicznych NIE została włączona. Decyzja należy do dyżurnego:"
+         "$maint" "Decyzja należy do dyżurnego:"
   manual_help
   return 11
 }
