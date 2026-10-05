@@ -12,6 +12,19 @@ podsekcją `### <tytuł>` wydania `## v<x.y.z> – <data tagu> – <opis tagu>`.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## [Unreleased] – Aktualizacje zależności z Dependabota (DEP-01)
+
+- **Wchodzą z następnym wdrożeniem (obraz web i djcms):** gunicorn 23 → 26.2 (backend i djcms) z flagą
+  `--no-control-socket` w poleceniach (docker-compose.yml, oba Dockerfile'e, loadtest) – od 25.1 gunicorn
+  zakłada gniazdo sterujące w `~/.gunicorn/`, co w kontenerze `read_only` dawało ERROR przy każdym
+  starcie; psycopg 3.2 → 3.3 (backend i djcms); redis-py 5.x → 6.4 (granica kombu 5.6: `<6.5`);
+  uvicorn do 0.54 (zainstalowany, nieużywany – serwis chodzi pod WSGI/gthread).
+- **CI:** actions/setup-python 7, actions/cache 6, docker/build-push-action 7, docker/setup-buildx-action 4,
+  docker/login-action 4 (wszystkie przypięte SHA, Node 24).
+- **Nie weszły:** numpy 2.5 (linia Pyodide w notebook-lab), Uptime Kuma 2 (migracja danych), grupa obrazów
+  compose (Playwright musi iść z `e2e/requirements.txt`; Caddy 2.10 i ClamAV 1.5 czekają na decyzję
+  operatora). Reguły `ignore` w `.github/dependabot.yml`, `docs/OPERACJE.md` § 47.6.
+
 ## [Unreleased] – Literówki w adresach e-mail i odbicia poczty (MAIL-02)
 
 - **„Czy chodziło Ci o …?”** w polach adresu (rejestracja uczestnika, komitetu i opiekuna szkolnego,
