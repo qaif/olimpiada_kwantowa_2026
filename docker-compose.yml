@@ -71,7 +71,7 @@ x-app-base: &app-base
 
 services:
   proxy:
-    image: caddy:2.8
+    image: caddy:2.10
     restart: unless-stopped
     logging: *default-logging
     ports:
@@ -825,7 +825,7 @@ services:
 
   mailpit:
     profiles: [dev]
-    image: axllent/mailpit:v1.24
+    image: axllent/mailpit:v1.30
     logging: *default-logging
     # Wyłącznie na pętli zwrotnej hosta: podgląd poczty deweloperskiej (z linkami aktywacji i resetu
     # hasła) nie ma być widoczny z sieci, w której stoi laptop – tak jak porty z docker-compose.dev.yml.
