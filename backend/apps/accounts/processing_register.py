@@ -119,8 +119,11 @@ from apps.competitions.models import DEFAULT_RETENTION_MONTHS
 #: 1.21 (04.10.2026, zadanie OPS-02) – monitorowanie błędów aplikacji (``apps.monitoring.register``): wiersz
 #: warunkowy (niepusty ``SENTRY_DSN``) – nowy cel pomocniczy i nowy, **wewnętrzny** podmiot przetwarzający
 #: (własna instancja GlitchTip na serwerze organizatora, bez przekazania do państwa trzeciego).
-REGISTER_VERSION = "1.21"
-REGISTER_DATE = date(2026, 10, 4)
+#: 1.22 (05.10.2026, zadanie MAIL-02) – doręczalność poczty (``apps.email_delivery.register``): wiersz
+#: warunkowy (``EMAIL_BOUNCE_TRACKING``) – nowa kategoria danych (odbicia listów: kod i treść odpowiedzi
+#: serwera odbiorcy) z własnym terminem usunięcia i nowym kręgiem odbiorców (lista koordynatora).
+REGISTER_VERSION = "1.22"
+REGISTER_DATE = date(2026, 10, 5)
 
 #: Zdanie o okresie przechowywania danych uczestnika. Liczba pochodzi z tego samego miejsca, co
 #: domyślna wartość ``Edition.data_retention_months`` – gdyby organizator zmienił ją dla rocznika,
@@ -1327,6 +1330,12 @@ def activities_for(competition=None) -> tuple[ProcessingActivity, ...]:
     error_tracking = error_tracking_activity()
     if error_tracking is not None:
         activities = (*activities, error_tracking)
+    # Doręczalność poczty (MAIL-02) – wiersz warunkowy instalacji (``EMAIL_BOUNCE_TRACKING``).
+    from apps.email_delivery.register import activity as email_delivery_activity
+
+    email_delivery = email_delivery_activity()
+    if email_delivery is not None:
+        activities = (*activities, email_delivery)
     return activities
 
 

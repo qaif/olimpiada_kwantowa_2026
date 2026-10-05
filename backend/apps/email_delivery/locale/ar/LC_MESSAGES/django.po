@@ -1,0 +1,47 @@
+# Doręczalność poczty (MAIL-02) – katalog aplikacji apps.email_delivery.
+# Angielski przejrzany ręcznie; pozostałe języki maszynowe (do przeglądu native speakerów, I18N-01 § 8).
+msgid ""
+msgstr ""
+"Project-Id-Version: olimpiada\n"
+"Language: ar\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=6; plural=(n==0 ? 0 : n==1 ? 1 : n==2 ? 2 : n%100>=3 && n%100<=10 ? 3 : n%100>=11 ? 4 : 5);\n"
+
+#, python-format
+msgid "Czy chodziło Ci o %s?"
+msgstr "هل تقصد %s؟"
+
+#, python-format
+msgid "Użyj %s"
+msgstr "استخدم %s"
+
+#, python-format
+msgid "Sprawdź adres – czy chodziło Ci o %(suggestion)s? Zaznacz poprawkę poniżej albo wyślij formularz jeszcze raz, żeby zostawić adres bez zmian."
+msgstr "تحقق من العنوان – هل تقصد %(suggestion)s؟ حدِّد التصحيح أدناه أو أرسل النموذج مرة أخرى للإبقاء على العنوان كما هو."
+
+#, python-format
+msgid "Domena %(domain)s nie istnieje albo nie przyjmuje poczty. Sprawdź adres."
+msgstr "النطاق %(domain)s غير موجود أو لا يستقبل البريد الإلكتروني. يُرجى التحقق من العنوان."
+
+#, python-format
+msgid "Domena %(domain)s nie istnieje albo nie przyjmuje poczty. Czy chodziło Ci o %(suggestion)s?"
+msgstr "النطاق %(domain)s غير موجود أو لا يستقبل البريد الإلكتروني. هل تقصد %(suggestion)s؟"
+
+#, python-format
+msgid "Użyj adresu <strong>%(address)s</strong>"
+msgstr "استخدم <strong>%(address)s</strong>"
+
+#, python-format
+msgid "Nie możemy dostarczyć poczty na adres %(email)s – serwer odbiorcy odpowiada, że taka skrzynka albo domena nie istnieje. Nie dostaniesz od nas listów, dopóki adres nie zostanie poprawiony."
+msgstr "لا يمكننا توصيل البريد إلى %(email)s – يفيد خادم المستلم بأن صندوق البريد هذا أو النطاق غير موجود. لن تصلك منا أي رسائل إلى أن يُصحَّح العنوان."
+
+msgid "Zmień adres e-mail"
+msgstr "تغيير عنوان البريد الإلكتروني"
+
+msgid "Mój adres jest poprawny"
+msgstr "عنواني صحيح"
+
+msgid "Dziękujemy. Wznowiliśmy wysyłkę na Twój adres – jeśli list znów nie dotrze, baner wróci."
+msgstr "شكرًا لك. استأنفنا الإرسال إلى عنوانك – إذا تعذّر توصيل رسالة مرة أخرى، فسيظهر هذا التنبيه من جديد."

@@ -64,4 +64,4 @@ EXPOSE 8000
 ENTRYPOINT ["/app/entrypoint.sh"]
 # To samo polecenie co ``command:`` usługi ``djcms`` w docker-compose.yml – ``docker run`` obrazu
 # bez compose'a (debugowanie) ma uruchamiać dokładnie ten sam model współbieżności.
-CMD ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "2", "--threads", "2", "--worker-class", "gthread", "--timeout", "60", "--graceful-timeout", "20", "--access-logfile", "-"]
+CMD ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "2", "--threads", "2", "--worker-class", "gthread", "--no-control-socket", "--timeout", "60", "--graceful-timeout", "20", "--access-logfile", "-"]

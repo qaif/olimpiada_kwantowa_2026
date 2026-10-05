@@ -69,6 +69,10 @@ from apps.competitions.scoring import stage_free_values
 from apps.competitions.services import EDITION_EDITABLE_FIELDS, STAGE_EDITABLE_FIELDS
 from apps.competitions.video import DEFAULT_VIDEO_BASE_URL, VideoProvider
 from apps.core.api import DomainError
+from apps.email_delivery.fields import (  # MAIL-02: literówki i martwe domeny
+    CheckedEmailField,
+    EmailDomainCheckMixin,
+)
 from apps.grading.rubric import criteria_for, format_criteria_lines, parse_criteria_lines
 from apps.grading.snippets import format_snippet_lines, parse_snippet_lines, problem_snippets
 from apps.results.models import Anonymization
@@ -877,7 +881,7 @@ PARTICIPANT_FIELD_ORDER = (
 )
 
 
-class ParticipantRegisterForm(CaptchaFormMixin, ConsentFieldsMixin, SchoolChoiceMixin):
+class ParticipantRegisterForm(EmailDomainCheckMixin, CaptchaFormMixin, ConsentFieldsMixin, SchoolChoiceMixin):
     """Rejestracja otwarta uczestnika – dane wchodzą prosto do ``register_participant``.
 
     ``CaptchaFormMixin`` stoi pierwszy: dokłada CAPTCHĘ i pułapki antyspamowe na koniec formularza
@@ -888,7 +892,7 @@ class ParticipantRegisterForm(CaptchaFormMixin, ConsentFieldsMixin, SchoolChoice
     required_css_class = REQUIRED_CSS_CLASS
     field_order = [name for name in PARTICIPANT_FIELD_ORDER]
 
-    email = forms.EmailField(label=gettext_lazy("Adres e-mail"), max_length=254)
+    email = CheckedEmailField(label=gettext_lazy("Adres e-mail"), max_length=254)
     password = password_field()
     password2 = password_field(gettext_lazy("Powtórz hasło"))
     first_name = forms.CharField(
@@ -941,7 +945,7 @@ class SocialParticipantSignupForm(ConsentFieldsMixin, SchoolChoiceMixin):
     clean_birth_date = _clean_birth_date_method
 
 
-class CommitteeRegisterForm(CaptchaFormMixin):
+class CommitteeRegisterForm(EmailDomainCheckMixin, CaptchaFormMixin):
     """Rejestracja członka komitetu na kod zaproszenia.
 
     CAPTCHA jest tu także po to, żeby kodu zaproszenia nie dało się zgadywać maszynowo – limit
@@ -959,7 +963,7 @@ class CommitteeRegisterForm(CaptchaFormMixin):
         "district",
     ]
 
-    email = forms.EmailField(label=gettext_lazy("Adres e-mail"), max_length=254)
+    email = CheckedEmailField(label=gettext_lazy("Adres e-mail"), max_length=254)
     password = password_field()
     password2 = password_field(gettext_lazy("Powtórz hasło"))
     first_name = forms.CharField(
@@ -1117,7 +1121,7 @@ class AccountNamesForm(forms.Form):
     )
 
 
-class EmailChangeForm(forms.Form):
+class EmailChangeForm(EmailDomainCheckMixin, forms.Form):
     """Wniosek o zmianę adresu e-mail konta. Adres zmienia się dopiero po kliknięciu w potwierdzenie.
 
     ``current_password`` (AUTH-01b, przegląd H1): adres jest loginem i drogą resetu hasła, więc jego
@@ -1133,7 +1137,7 @@ class EmailChangeForm(forms.Form):
         max_length=200,
         widget=forms.PasswordInput(attrs={"autocomplete": "current-password"}),
     )
-    new_email = forms.EmailField(
+    new_email = CheckedEmailField(
         label=gettext_lazy("Nowy adres e-mail"),
         max_length=254,
         help_text=gettext_lazy(
@@ -1340,7 +1344,7 @@ class VerifyDistrictForm(forms.Form):
 # nie zderzają, a widok przekazuje do serwisu trzy osobne słowniki.
 
 
-class CoordinatorAccountForm(forms.Form):
+class CoordinatorAccountForm(EmailDomainCheckMixin, forms.Form):
     """Dane samego konta zmieniane przez koordynatora: nazwisko, adres e-mail, blokada logowania.
 
     Imię i nazwisko są **nieobowiązkowe**, choć rejestracja ich wymaga: konta zakładane komendą
@@ -1357,7 +1361,7 @@ class CoordinatorAccountForm(forms.Form):
 
     first_name = forms.CharField(label="Imię", max_length=150, required=False)
     last_name = forms.CharField(label="Nazwisko", max_length=150, required=False)
-    email = forms.EmailField(
+    email = CheckedEmailField(
         label="Adres e-mail",
         max_length=254,
         help_text=(

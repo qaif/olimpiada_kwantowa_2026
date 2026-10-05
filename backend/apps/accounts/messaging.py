@@ -496,11 +496,23 @@ def send_broadcast_chunk(self, broadcast_id: int, recipients: list[str]) -> int:
 
     # Nadawcę czytamy raz na porcję: jest własnością konkursu, a nie pojedynczej koperty.
     from_email = mail_from(broadcast.competition)
+    # MAIL-02 § 2.7: adres, który twardo odbił, nie dostaje komunikatu – list i tak by nie dotarł,
+    # a każde kolejne odbicie psuje reputację relaya. Pominięty adres liczy się jako obsłużony
+    # (``sent_count``), inaczej komunikat nigdy nie przeszedłby w stan „wysłany”.
+    from apps.email_delivery.services import suppressed_among
+
+    suppressed = suppressed_among(recipients)
     queued = 0
     for recipient in recipients:
+        if recipient.strip().lower() in suppressed:
+            continue
         send_mail_task.delay(broadcast.subject, broadcast.body, [recipient], from_email)
         queued += 1
-    MessageBroadcast.objects.filter(pk=broadcast_id).update(sent_count=F("sent_count") + queued)
+    if suppressed:
+        logger.info(
+            "Komunikat %s: pominięto %s adresów niedoręczalnych.", broadcast_id, len(recipients) - queued
+        )
+    MessageBroadcast.objects.filter(pk=broadcast_id).update(sent_count=F("sent_count") + len(recipients))
     broadcast.refresh_from_db(fields=["sent_count", "recipient_count"])
     if broadcast.sent_count >= broadcast.recipient_count:
         MessageBroadcast.objects.filter(pk=broadcast_id).update(status=BroadcastStatus.SENT)

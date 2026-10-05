@@ -97,7 +97,10 @@ musi mieć wiersz z poprawną wartością domyślną, a każda flaga z tabeli �
 | Kontrola dymna po wdrożeniu | `DEPLOY_SMOKE` | zmienna `scripts/deploy.sh` | `1` (kontrola + wycofanie) | § 48.1 | — |
 | Domeny nadawcy przekaźnika poczty | `ALLOWED_SENDER_DOMAINS` | `.env` | `SITE_DOMAIN` | § 9.7, § 49 | — |
 | Sieci klientów przekaźnika poczty | `MAIL_CLIENT_NETWORKS` | `.env` | `TRUSTED_PROXY_IPS` | § 49.7 | — |
-| Poczta zwrotna (bounce) | `MAIL_BOUNCE_TARGET` | `.env` | `discard` | § 49.7 | — |
+| Poczta zwrotna (bounce) | `MAIL_BOUNCE_TARGET` | `.env` | `capture` (compose; skrypt bez zmiennej – `discard`) | § 49.7, § 52 | `discard` do wdrożenia MAIL-02 |
+| Odbicia w aplikacji: baner, lista koordynatora, wstrzymanie | `EMAIL_BOUNCE_TRACKING` | `.env` | wł. (compose), wył. (bez compose) | § 52 | — |
+| Blokada domen bez MX/A w formularzach adresu | `EMAIL_DOMAIN_DNS_CHECK` | `.env` | wł. | § 52.1 | — |
+| Bramka „Uzupełnij zgody” dla uczestników | `CONSENT_GATE_ENABLED` | `.env` | wł. | § 51 | — (nowe w CONS-01) |
 <!-- funkcje-i-flagi: koniec -->
 
 ---
@@ -6645,7 +6648,9 @@ w kolejce. Od MAIL-01 skrypt startowy `deploy/mail/docker-init.d/50-bounces.sh` 
 `noreply@<każda domena z ALLOWED_SENDER_DOMAINS>`, na nadawców monitoringu (`glitchtip@`, `uptime@`,
 OPS-02) i podwójne odbicia na `postmaster@mail.<domena>`:
 
-- `MAIL_BOUNCE_TARGET=discard` (domyślnie) – wyrzucenie. Ślad zostaje: list pierwotny
+- `MAIL_BOUNCE_TARGET=capture` (domyślnie w compose od MAIL-02) – zawiadomienia do skrzynki Maildir,
+  którą czyta worker: lista adresów niedoręczalnych, baner, wstrzymanie wysyłki – **§ 52**.
+- `MAIL_BOUNCE_TARGET=discard` (domyślnie do MAIL-02) – wyrzucenie. Ślad zostaje: list pierwotny
   `status=bounced (…powód…)`, odbicie `postfix/discard … status=sent (olimpiada-bounce)`.
   Lista niedoręczonych: `docker compose logs mail | grep status=bounced`.
 - `MAIL_BOUNCE_TARGET=ops@qaif.org` w `.env` – przekierowanie na skrzynkę operatora (odbicia od
@@ -6755,3 +6760,202 @@ kontrast, a stopka – bez odnośnika do deklaracji.
   wpisany do rejestru `.security/vendor.toml` (§ 47.4: wersja, integrity npm, SHA384; miesięczny
   przegląd `upstream` pokaże nowe wydanie i znane podatności). Job CI `a11y` ma akcje przypięte SHA
   i `permissions: contents: read`.
+
+## 51. Uzupełnienie zgód po zalogowaniu (CONS-01, `docs/tasks/CONS-01.md`)
+
+Zalogowany **uczestnik**, któremu brakuje wymaganej zgody (regulamin, RODO, od małoletniego także
+oświadczenie o zgodzie opiekuna) **albo** którego zgoda dotyczy innej wersji dokumentu niż bieżąca,
+dostaje przed obszarem uczestnika (`/me/…`, `/forum/`, `/webinars/`, `/warsztaty/`, `/payments/`,
+`/notebook-starter/`, API zgłoszeń/zadań/reklamacji) ekran `/me/consents/complete/`. Personel, anonim,
+`/account/…` (eksport danych, usunięcie konta, hasło, język), wylogowanie, strony publiczne
+i `/zgoda/<token>/` – bez zmian. Nowa aplikacja `apps.consent_gate` (bez modeli i migracji),
+warstwa `ConsentGateMiddleware` między 2FA a bramką nadzoru (PROC-01).
+
+### 51.1. Przed wdrożeniem: ilu uczestników zobaczy ekran
+
+Wersja jest porównywana **dokładnie**: ekran zobaczy każdy, kto zaakceptował dokument pod wcześniejszą
+wersją albo nie ma wpisu dowodowego w ogóle. Odczyt produkcji z 5.10.2026 (kwantowa): regulamin
+„z 20 września 2026” – 361 uczestników, stara wersja „1.0 z 2 września 2026” – **2**; RODO, zgoda
+opiekuna i publikacja nazwiska – wszyscy na bieżących wersjach. Skutek wdrożenia to więc ok. 2 osoby
+plus konta bez żadnych wpisów – **liczbę sprawdź komendą** (tylko czyta, bez danych osobowych), przed
+wdrożeniem na kopii bazy albo zaraz po nim:
+
+```sh
+docker compose exec -T web python manage.py consent_gate_report
+# <slug>: <N> uczestników z brakującymi zgodami
+#   <RODZAJ> (wymagana wersja: <wersja>): <liczba>
+```
+
+Duża liczba przed etapem z terminem → uzgodnij z organizatorem komunikat do uczestników („zaloguj się
+i potwierdź nowy regulamin”, `/coordinator/messages/`) **przed** wdrożeniem. Listę osób koordynator
+pobiera z pulpitu (kafelek „Uczestnicy z brakującymi zgodami” → CSV).
+
+**Praca w toku nie jest blokowana** (przegląd H1 i decyzja koordynatora): arkusz i „Zakończ” testu,
+wysyłka rozwiązania (WWW i API `submissions`), reklamacja i laboratorium notatnika przechodzą z banerem
+„potwierdź nową wersję” (klient API – nagłówek `X-Consents-Required`), gdy:
+
+- brak jest **ponowieniem** (uczestnik zgodził się na poprzednią wersję dokumentu) – bez zapytań, albo
+- brakuje zgody **nowej** (np. koordynator przestawił zgodę na wymaganą w trakcie etapu), a uczestnik ma
+  wpis w **trwającym** etapie: otwartym, niezamkniętym, z otwartym oknem oddawania (z tolerancją), oknem
+  reklamacji albo podejściem do testu w toku – jedno zapytanie, wyłącznie na tej ścieżce.
+
+Konto bez wpisu w trwającym etapie pracy nie oddaje. Pozostałe ekrany (panel, start testu, czat, forum)
+zawsze odsyłają na ekran zgód. Mimo to zestaw zgód zmieniaj **poza** oknem etapu, jeśli się da.
+
+### 51.2. Wyłącznik (incydent)
+
+Pomyłkowa zmiana wersji dokumentu w trakcie etapu odsyła do ekranu wszystkich naraz. Wyłączenie bez
+wdrożenia:
+
+```sh
+cd /opt/olimpiada
+echo 'CONSENT_GATE_ENABLED=false' >> .env
+docker compose up -d web          # restart web, ~10 s
+```
+
+Potem napraw przyczynę (cofnij wersję na ekranie „Zgody konkursu” – zmiana trafia do audytu jako
+`consent_definition.version_changed`) i przywróć `CONSENT_GATE_ENABLED=true` albo usuń wiersz.
+Wyłączona bramka nie zmienia niczego innego: ekran i CSV działają, kafelek mówi, że bramka jest wyłączona.
+
+### 51.3. Koszt i pamięć podręczna
+
+- Anonim, `is_staff`/superużytkownik i adresy spoza obszaru – zero zapytań.
+- Uczestnik – odczyt Redisa; przy chybieniu **jedno** zapytanie (profil + wpisy zgód), wynik na 5 min
+  (`consent_gate:v1:state:<konkurs>:<konto>`). Zestaw zgód konkursu z flagą `per_competition_consents` –
+  osobny wpis na 5 min (`consent_gate:v1:defs:<konkurs>`). API z tokenem na adresach z bramką – jedno
+  zapytanie o token (jak w bramce nadzoru).
+- Unieważnianie: sygnały zapisu `ConsentRecord`, `Participant` i `ConsentDefinition`. Zapis z pominięciem
+  ORM-u (ręczny SQL, `update()` na definicjach) zadziała najpóźniej po 5 min; od razu:
+  `docker compose exec -T web python manage.py shell -c "from django.core.cache import cache; cache.delete_pattern('consent_gate:v1:*')"`.
+- Awaria Redisa: bramka liczy stan zapytaniem przy każdym żądaniu (jak przy chybieniu) – działa, wolniej.
+- Pulpit koordynatora: +1 zapytanie na zimno (kafelek, pamięć 60 s).
+
+### 51.4. Dowód zgody i RODO
+
+Każda uzupełniona zgoda to `ConsentRecord` (wersja, czas, droga `panel`, adres IP wg `TRUSTED_PROXY_IPS`
+– ta sama reguła co w audycie). Wpis audytu `participant.consents_completed` niesie język interfejsu
+i SHA-256 treści oświadczenia; `consent_gate.exported` – pobranie CSV przez koordynatora. Nowych
+kategorii danych osobowych nie ma (IP przy zgodzie zbierała już zgoda opiekuna online), rejestr
+czynności przetwarzania bez zmian.
+
+Przy okazji poprawione: potwierdzenie zgody opiekuna online zapisuje wersję wzoru **z zestawu konkursu**
+(dotąd ze stałej) – w konkursie z własną wersją wzoru dowód wskazywał wersję, której konkurs nie znał.
+
+### 51.5. Wycofanie
+
+Usunięcie wiersza `apps.consent_gate.middleware.ConsentGateMiddleware` z `MIDDLEWARE` (albo
+`CONSENT_GATE_ENABLED=false`) zatrzymuje bramkę; wpisy zgód zebrane przez ekran zostają poprawnymi
+dowodami. Aplikacja nie ma migracji – wycofanie wydania nie wymaga cofania bazy.
+
+## 52. Literówki w adresach i odbicia poczty (MAIL-02, `docs/tasks/MAIL-02.md`)
+
+Dwie rzeczy: formularze łapią literówkę w domenie adresu **zanim** konto powstanie, a serwis zapisuje
+odbicia (bounce) listów, które już wyszły – i mówi o nich właścicielowi adresu oraz koordynatorowi.
+Prawdziwe przypadki z logu relaya (5.10.2026): `kcadera@o2.plo` (relay: „Domain not found”) i kilka
+adresów `…@gmail.com` z odpowiedzią Google'a 550 5.1.1 „user not found”.
+
+### 52.1. Formularze: „Czy chodziło Ci o …?” i blokada martwej domeny
+
+Pola adresu w rejestracji uczestnika, komitetu i opiekuna szkolnego, w zmianie adresu (`/account/email/`),
+w koncie edytowanym przez koordynatora, w zaproszeniu opiekuna drużyny (DEL-01) i w uczniu dodawanym
+przez opiekuna drużyny (adres ucznia i rodzica):
+
+- **literówka w domenie** (`gmial.com`, `o2.plo`, `wp.pll`, `firma.con`) – po opuszczeniu pola skrypt
+  podpowiada poprawkę z przyciskiem „Użyj …”; po wysłaniu formularz wraca **raz** z pytaniem i polem
+  wyboru „Użyj adresu …”. Ponowne wysłanie tego samego adresu przechodzi – nietypowy adres da się zawsze
+  zostawić. Lista znanych dostawców i mapa literówek TLD: `apps/email_delivery/typos.py` (kopia w
+  `static/email_delivery/email-check.js`; test pilnuje zgodności),
+- **domena, która na pewno nie przyjmuje poczty** (brak MX i A albo „null MX”) – błąd bez możliwości
+  pozostawienia. Pytanie DNS zadaje `web` **dopiero po** całej pozostałej walidacji formularza
+  (CAPTCHA, antyspam, hasła), najwyżej 4 naraz w procesie (resolwer z `/etc/resolv.conf`, limit 1,5 s,
+  wynik w cache: „tak” 24 h, „nie” 1 h, „nie wiadomo” 5 min). **Każdy błąd DNS przepuszcza adres**.
+  Adres rodzica w panelu uczestnika (`/me/guardian/`) ma wyłącznie blokadę (ekran nie rysuje pola ponownie).
+
+Wyłącznik blokady (np. przy kłopotach z DNS serwera): `EMAIL_DOMAIN_DNS_CHECK=false` w `.env` i
+`docker compose up -d web`. Podpowiedzi literówek działają dalej (nie pytają DNS-u).
+
+### 52.2. Skąd serwis wie o niedoręczeniu
+
+- **Odmowa relaya** w chwili wysyłki (backend `apps.email_delivery.backends.TrackingSMTPBackend`,
+  podstawiany przy `EMAIL_BOUNCE_TRACKING`): odmowa twarda wg tablicy kodów (np. `5.1.1`) dla **każdego**
+  odbiorcy – zapis i koniec bez trzech ponowień; każda inna (np. `450 4.1.2 … Domain not found` –
+  `unknown_address_reject_code` relaya zostaje domyślny, chwilowy NXDOMAIN nie może zgubić listu
+  aktywacyjnego; `554 5.7.1` – polityka/konfiguracja relaya) leci jak dotąd: ponowienia, log workera,
+  GlitchTip. Polityka i konfiguracja **nie** są zapisywane przy adresie odbiorcy.
+- **Zawiadomienie o niedoręczeniu (DSN)** po przyjęciu listu przez relay (np. 550 5.1.1 od Gmaila):
+  `MAIL_BOUNCE_TARGET=capture` (domyślne w compose od MAIL-02) kieruje zawiadomienia na `noreply@<domena>`
+  agentem `virtual` Postfiksa do skrzynki Maildir na wolumenie `mail_bounces`
+  (`mail:/var/mail/olimpiada/bounces/`, `worker:/var/mail-bounces/bounces/`, pliki UID/GID 1000).
+  Worker co 5 minut (`apps.email_delivery.tasks.process_bounce_mailbox`, wpis beat `email-bounces`)
+  czyta `new/`, zapisuje odbicia i **kasuje** pliki (zawiadomienie niesie kopię listu – z linkiem
+  aktywacyjnym). Plik, którego nie udało się przetworzyć, leży w `bounces/cur/` 7 dni. Podwójne odbicia
+  i nadawcy monitoringu (`postmaster@`, `glitchtip@`, `uptime@`) – nadal `discard`.
+- **Podrzucone zawiadomienie** z sieci compose nie przejdzie: relay odrzuca pusty nadawcę koperty
+  (`MAIL FROM:<>`) od każdego klienta SMTP (`check_sender_access inline:{ <>=REJECT }`, 554 5.7.1 –
+  prawdziwe zawiadomienia powstają w samym relayu, z pominięciem smtpd), a worker przyjmuje tylko DSN
+  z `Reporting-MTA` = `MAIL_BOUNCE_REPORTING_MTA` (compose: `mail.<SITE_DOMAIN>`) i czyta wyłącznie
+  części najwyższego poziomu (nie raport schowany w załączonym liście).
+- Logów relaya aplikacja **nie** czyta (wymagałoby to gniazda Dockera w kontenerze) – `docker compose
+  logs mail | grep -E "status=bounced|NOQUEUE"` zostaje narzędziem operatora.
+
+Klasyfikacja wyłącznie po kodzie rozszerzonym (tablica w `apps/email_delivery/bounces.py`): twarde =
+`5.1.1`, `5.1.2`, `5.1.3`, `5.1.6`, `5.1.10`, `5.2.1`, `5.4.4`; miękkie (liczone, bez skutków) = pozostałe
+kody adresu i skrzynki (`4.1.2`, `5.2.2` …); reszta (`5.7.x`, `5.0.350` Microsoftu z treścią „mailbox
+unavailable”, opóźnienia `4.4.x`) – tylko linia w logu workera. Odbicia 5.7.x od dużych odbiorców to
+sygnał o **naszej** reputacji (SPF/DKIM/DMARC, § 49), nie o adresie.
+
+### 52.3. Co się dzieje z adresem, który twardo odbił
+
+- **Baner** dla zalogowanego właściciela: „Nie możemy dostarczyć poczty na adres …” z odnośnikiem do
+  zmiany adresu i przyciskiem „Mój adres jest poprawny” (wznawia wysyłkę; audyt
+  `email.undeliverable_confirmed`). Konto nieaktywowane (link aktywacyjny nie dotarł) zalogować się
+  nie może – takie konta widzi koordynator.
+- **Panel koordynatora → Raporty → „Adresy niedoręczalne”** (`/coordinator/undeliverable-emails/`,
+  tylko konta tego konkursu): data, kod, powód, liczba odbić miękkich, CSV (audyt
+  `email.undeliverable_exported`) i „Oznacz jako doręczalny” (audyt `email.undeliverable_cleared`).
+  Poprawny adres wpisuje się w „Kontach” – zmiana adresu kasuje wpis sama.
+- **Wstrzymanie listów nieobowiązkowych**: powiadomienia forum, czatu, webinarów, sieci absolwentów
+  i komunikaty grupowe nie wychodzą na taki adres (komunikat liczy go jako obsłużony). Aktywacja, reset
+  hasła, zmiana adresu, zgody, wyniki, rozmowy, płatności i biuro wsparcia – wychodzą zawsze.
+- **Reset**: zmiana adresu konta (każda droga), „Mój adres jest poprawny”, decyzja koordynatora,
+  usunięcie konta.
+
+### 52.4. Wdrożenie (operator)
+
+1. Wdrożenie wydania z MAIL-02 (`scripts/deploy.sh`) – compose zakłada wolumen `mail_bounces`,
+   odtwarza `mail` (nowe zmienne) i `worker` (nowy wolumen). Migracja `email_delivery.0001` idzie
+   w `web` jak każda.
+2. Jeśli `.env` serwera ma `MAIL_BOUNCE_TARGET=discard` albo adres skrzynki – **usuń** ten wiersz
+   (albo wpisz `capture`) i `docker compose up -d mail`. Z adresem skrzynki operator dostaje odbicia
+   pocztą, ale serwis ich nie widzi – obu naraz nie ma.
+3. Sprawdzenie:
+
+   ```sh
+   docker compose logs mail | grep olimpiada-bounces    # „poczta zwrotna -> capture (/var/mail/olimpiada/bounces/, 1000:1000)”
+   docker compose exec mail postconf smtpd_sender_restrictions virtual_mailbox_base transport_maps
+   docker compose exec worker ls -la /var/mail-bounces/ # bounces/ właściciela 1000 (po pierwszym odbiciu)
+   ```
+
+   Próba na żywo: zmiana adresu konta testowego na nieistniejącą skrzynkę Gmaila
+   (`ktos-kogo-nie-ma-2026@gmail.com` – domena istnieje, więc formularz go przepuści); list
+   potwierdzający odbije, po ≤ 5 minutach adres stoi na liście koordynatora z kodem 5.1.1.
+4. Zaległe odbicia sprzed wdrożenia (log relaya) – wypisanie i ręczny zapis:
+
+   ```sh
+   docker compose logs mail --since 720h | grep -E "status=bounced|NOQUEUE: reject" | grep -oE "to=<[^>]+>" | sort -u
+   docker compose exec web python manage.py shell -c "from apps.email_delivery.bounces import Bounce; from apps.email_delivery.services import record_bounce; record_bounce(Bounce(email='adres@domena', hard=True, status='5.1.1', reason='z logu relaya'))"
+   ```
+
+### 52.5. RODO, retencja, wyłączenie
+
+- Rejestr czynności 1.22: wiersz „Doręczalność poczty” (warunkowy – `EMAIL_BOUNCE_TRACKING`);
+  eksport danych konta: sekcja `doreczalnosc_poczty`.
+- Retencja: stan adresu kasuje zadanie dzienne `email-delivery-purge` po 365 dniach bez zdarzenia;
+  pliki Maildir – po przetworzeniu (nieczytelne po 7 dniach). Wolumen `mail_bounces` jest poza kopiami
+  zapasowymi (§ 1) – pliki żyją kilka minut, a stan adresów jest w bazie.
+- Wyłączenie: `EMAIL_BOUNCE_TRACKING=false` i `MAIL_BOUNCE_TARGET=discard` w `.env`,
+  `docker compose up -d mail web worker beat`; stare wpisy kasuje retencja albo od razu:
+  `docker compose exec web python manage.py shell -c "from apps.email_delivery.models import DeliveryStatus as D; print(D.objects.all().delete())"`.
+- Zawiadomienia trafiają do skrzynki wyłącznie dla adresów `noreply@<domena z ALLOWED_SENDER_DOMAINS>`
+  (albo `MAIL_BOUNCE_ADDRESSES`). Konkurs z nadawcą innym niż `noreply@…` (`Competition.from_email`) –
+  dopisz jego adres do `MAIL_BOUNCE_ADDRESSES`, inaczej jego odbicia nie wrócą do serwisu.

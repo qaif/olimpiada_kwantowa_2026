@@ -31,6 +31,12 @@ x-app-env: &app-env
   S3_PUBLIC_BUCKET: public-media
   CLAMAV_HOST: clamav
   CLAMAV_PORT: "3310"
+  # Odbicia poczty (MAIL-02, docs/OPERACJE.md § 52): backend zapisujący odmowy relaya, skrzynka Maildir
+  # zawiadomień (wolumen `mail_bounces` w workerze), baner i lista koordynatora. `false` w .env wyłącza.
+  EMAIL_BOUNCE_TRACKING: ${EMAIL_BOUNCE_TRACKING:-true}
+  MAIL_BOUNCE_MAILDIR: /var/mail-bounces/bounces
+  # Pole Reporting-MTA prawdziwego zawiadomienia = hostname relaya (usługa `mail`, niżej).
+  MAIL_BOUNCE_REPORTING_MTA: mail.${SITE_DOMAIN:-localhost}
   # Backend honoruje X-Real-IP tylko z tych adresów (sieci compose poniżej mają stałe podsieci).
   # Celowo BEZ sieci `cache` (Redis) i `clamav_egress` (wyjście ClamAV-a do aktualizacji sygnatur):
   # proxy w nich nie stoi, więc żaden prawdziwy nagłówek X-Real-IP stamtąd nie przychodzi – wpisane
@@ -130,11 +136,13 @@ services:
     # `gthread` daje worker **wielowątkowy** bez zmiany w kodzie widoków: concurrency procesu to
     # `--workers` razy `--threads` (4×4 = 16 równoległych żądań). Połączenia z bazą bierze z puli
     # psycopg (jedna na proces, domyślnie `DB_POOL_MAX_SIZE` = `WEB_THREADS`) – patrz `DATABASES`
-    # w `backend/config/settings/base.py`.
+    # w `backend/config/settings/base.py`. `--no-control-socket` (gunicorn ≥ 25.1): bez niej gunicorn
+    # próbuje założyć gniazdo sterujące w `~/.gunicorn/` i na systemie plików tylko do odczytu
+    # (`read_only: true` w `x-app-base`) loguje ERROR przy każdym starcie – patrz backend/pyproject.toml.
     command: >
       gunicorn config.wsgi:application
       --bind 0.0.0.0:8000 --workers ${WEB_WORKERS:-4} --threads ${WEB_THREADS:-4}
-      --worker-class gthread
+      --worker-class gthread --no-control-socket
       --timeout 120 --graceful-timeout 30
       --max-requests ${WEB_MAX_REQUESTS:-2000} --max-requests-jitter ${WEB_MAX_REQUESTS_JITTER:-200}
       --access-logfile -
@@ -183,6 +191,10 @@ services:
       # Połączeniem rządzi wtedy DB_CONN_MAX_AGE (jedno na proces potomny, CELERY_CONCURRENCY).
       DB_POOL: "0"
       DB_APPLICATION_NAME: olimpiada-worker
+    # Zawiadomienia o niedoręczeniu zapisane przez relay `mail` (MAIL-02): worker czyta `bounces/new/`
+    # i kasuje przetworzone pliki (UID 1000 = `app` – relay zapisuje je jako ten użytkownik).
+    volumes:
+      - mail_bounces:/var/mail-bounces
     depends_on:
       db:     { condition: service_healthy }
       redis:  { condition: service_healthy }
@@ -492,7 +504,9 @@ services:
       # Poczta zwrotna na noreply@ (i podwójne odbicia na postmaster@): `discard` albo adres
       # skrzynki operatora. Bez tego odbicia krążą („loops back to myself”) – skrypt
       # deploy/mail/docker-init.d/50-bounces.sh, docs/OPERACJE.md § 49.7.
-      MAIL_BOUNCE_TARGET: ${MAIL_BOUNCE_TARGET:-discard}
+      # MAIL-02: domyślnie `capture` – zawiadomienia (DSN) na noreply@ trafiają do Maildira na wolumenie
+      # `mail_bounces`, skąd czyta je worker (lista niedoręczalnych adresów, OPERACJE § 52).
+      MAIL_BOUNCE_TARGET: ${MAIL_BOUNCE_TARGET:-capture}
       MAIL_BOUNCE_ADDRESSES: ${MAIL_BOUNCE_ADDRESSES:-}
       # Nadawcy usług monitoringu (OPS-02: GlitchTip i monitor dostępności) – ich odbicia wracałyby
       # tą samą pętlą. Dopisywani zawsze, obok MAIL_BOUNCE_ADDRESSES / noreply@ domen.
@@ -513,7 +527,12 @@ services:
       # list GlitchTipa odpadnie na sprawdzeniu domeny nadawcy, zanim dojdzie do tej reguły.
       POSTFIX_smtpd_restriction_classes: errors_sender_only
       POSTFIX_errors_sender_only: "check_sender_access inline:{ glitchtip@${SITE_DOMAIN:-localhost}=OK }, reject"
-      POSTFIX_smtpd_sender_restrictions: "check_client_access cidr:{ { 172.30.9.0/24 errors_sender_only } }, permit_mynetworks, reject"
+      # MAIL-02: pusty nadawca koperty (MAIL FROM:<>) od **każdego** klienta SMTP – odmowa 554. Tak
+      # wyglądałoby sfałszowane zawiadomienie o niedoręczeniu wysłane z sieci compose do noreply@ (skrzynka
+      # odbić, § 52). Prawdziwe zawiadomienia generuje sam Postfix (demon bounce → cleanup), z pominięciem
+      # smtpd, więc dalej trafiają do skrzynki – sprawdzone na boky/postfix:v5.1.0-alpine 5.10.2026.
+      # Aplikacja, GlitchTip i monitor dostępności zawsze podają nadawcę, więc odmowa ich nie dotyczy.
+      POSTFIX_smtpd_sender_restrictions: "check_sender_access inline:{ <>=REJECT }, check_client_access cidr:{ { 172.30.9.0/24 errors_sender_only } }, permit_mynetworks, reject"
       # TLS do MX-a odbiorcy oportunistycznie: szyfruj, gdy druga strona ogłosi STARTTLS,
       # ale nie odrzucaj listu, gdy nie ogłosi (`encrypt` zablokowałby część odbiorców).
       POSTFIX_smtp_tls_security_level: may
@@ -531,6 +550,10 @@ services:
       POSTFIX_message_size_limit: "41943040"
       # Sieć docker-bridge nie ma IPv6; bez tego Postfix próbuje rekordów AAAA i czeka na timeout.
       POSTFIX_inet_protocols: ipv4
+      # `unknown_address_reject_code` celowo domyślny (450): odmowa adresu z nieistniejącą domeną
+      # (`reject_unknown_recipient_domain` obrazu) jest chwilowa i list jest ponawiany. Chwilowy NXDOMAIN
+      # (świeżo zarejestrowana domena, kłopot resolwera) nie może trwale zgubić listu aktywacyjnego –
+      # domeny bez MX/A łapie formularz (MAIL-02 § 1.2), a trwałe odbicia – zawiadomienia (§ 2.1).
       DKIM_AUTOGENERATE: "true"
       DKIM_SELECTOR: olimpiada
       TZ: Europe/Warsaw
@@ -542,6 +565,8 @@ services:
       # Skrypty startowe obrazu (wykonywane przy każdym starcie, po konfiguracji z env): poczta
       # zwrotna (MAIL-01). Tylko do odczytu – kontener ich nie zmienia.
       - ./deploy/mail/docker-init.d:/docker-init.d:ro
+      # Skrzynka Maildir zawiadomień o niedoręczeniu (MAIL-02, MAIL_BOUNCE_TARGET=capture) – wspólna z workerem.
+      - mail_bounces:/var/mail/olimpiada
     # `internal` – tu sięgają web/worker/beat. `edge` – bo `internal` ma internal:true, a doręczenie
     # wprost do MX-a odbiorcy wymaga wyjścia na świat. Portów nie publikujemy: relay jest widoczny
     # tylko z sieci compose. `errors_egress` – tu sięga GlitchTip (OPS-02) z jednym dozwolonym nadawcą.
@@ -767,7 +792,7 @@ services:
     command: >
       gunicorn config.wsgi:application --bind 0.0.0.0:8000
       --workers ${DJCMS_WORKERS:-3} --threads ${DJCMS_THREADS:-4}
-      --worker-class gthread --timeout 60 --graceful-timeout 20 --access-logfile -
+      --worker-class gthread --no-control-socket --timeout 60 --graceful-timeout 20 --access-logfile -
     environment:
       DJANGO_SETTINGS_MODULE: config.settings.production
       DJCMS_SECRET_KEY: ${DJCMS_SECRET_KEY:-}
@@ -919,6 +944,9 @@ volumes:
   clamav_db:
   mail_dkim:
   mail_spool:
+  # Zawiadomienia o niedoręczeniu (MAIL-02): relay pisze, worker czyta i kasuje. Poza kopiami zapasowymi –
+  # pliki żyją kilka minut, a stan adresów jest w bazie.
+  mail_bounces:
   static_files:
   # Pliki zadań i wyników piaskownicy notatników (QC-01) – wspólne dla `notebook-worker` i `notebook-runner`.
   notebook_spool:

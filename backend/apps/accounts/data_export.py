@@ -427,6 +427,7 @@ def export_payload(user: User) -> dict:
         "nadzor_zdalny": _proctoring_section(participant),
         "ustawienia_interfejsu": _preferences_section(user),
         "tlumaczenia": _translation_review_section(user),
+        "doreczalnosc_poczty": _email_delivery_section(user),
     }
 
 
@@ -641,6 +642,13 @@ def _chat_reports_section(user: User) -> list[dict]:
         }
         for report in rows
     ]
+
+
+def _email_delivery_section(user: User) -> dict:
+    """Doręczalność adresu konta (MAIL-02): czy odbija, od kiedy, z jakim powodem, ile odbić."""
+    from apps.email_delivery.services import export_section
+
+    return export_section(user)
 
 
 def _webinars_section(user: User) -> dict:
