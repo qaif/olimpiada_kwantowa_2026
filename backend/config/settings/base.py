@@ -198,6 +198,7 @@ INSTALLED_APPS = [
     "apps.mail_domains",  # domeny nadawców poczty: check_mail_dns i ostrzeżenia (MAIL-01, 5.10.2026)
     "apps.monitoring",  # śledzenie błędów (GlitchTip) i dostępność – OPS-02, wyłączone bez SENTRY_DSN
     "apps.accessibility",  # deklaracja dostępności i napisy stopki (A11Y-01, 5.10.2026), bez modeli
+    "apps.email_delivery",  # literówki w adresach i odbicia poczty (MAIL-02, 5.10.2026)
     "apps.web",
     # Logowanie przez dostawców zewnętrznych (Google, Facebook). ``allauth.account`` jest wymagane
     # przez ``allauth.socialaccount`` (model ``EmailAddress``, adaptery) – jego **widoki** nie są
@@ -556,6 +557,16 @@ CELERY_TASK_ROUTES = {
 CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
 CELERY_TIMEZONE = "UTC"
 CELERY_BEAT_SCHEDULE = {
+    # Odbicia poczty (MAIL-02): skrzynka Maildir relaya co 5 minut, retencja stanów adresów raz na dobę.
+    # Oba zadania bez ``EMAIL_BOUNCE_TRACKING`` kończą się od razu – wpis może stać zawsze.
+    "email-bounces": {
+        "task": "apps.email_delivery.tasks.process_bounce_mailbox",
+        "schedule": 300.0,
+    },
+    "email-delivery-purge": {
+        "task": "apps.email_delivery.tasks.purge_delivery_statuses",
+        "schedule": crontab(minute=20, hour=3),
+    },
     # Notatniki kwantowe (QC-01): przebiegi oceny dla nowych czystych plików .ipynb i domknięcie
     # zgubionych. Bez zmian w ``apps.submissions`` – beat zauważa nowy plik sam, najpóźniej po minucie.
     "notebooks-pump": {
@@ -816,6 +827,19 @@ else:
 #: organizatora) to dopisanie klucza tutaj i ``using="alias"`` w miejscu wysyłki – patrz
 #: docs/OPERACJE.md § 9.5.
 MAILERS = {"default": {"BACKEND": _email_backend, "OPTIONS": _mailer_options}}
+
+# Odbicia poczty (MAIL-02, docs/tasks/MAIL-02.md § 3, OPERACJE § 52). Przełącznik instalacji: backend
+# zapisujący odmowy relaya (podklasa backendu SMTP – opcje bez zmian), zadanie czytające skrzynkę
+# Maildir relaya, pozycja menu koordynatora i wiersz rejestru czynności. compose ustawia ``true``;
+# domyślnie wyłączony, więc dev z mailpitem i testy są bajt w bajt jak dotąd.
+EMAIL_BOUNCE_TRACKING = env.bool("EMAIL_BOUNCE_TRACKING", default=False)
+#: Katalog Maildir zawiadomień o niedoręczeniu w kontenerze workera (wolumen ``mail_bounces``).
+MAIL_BOUNCE_MAILDIR = env("MAIL_BOUNCE_MAILDIR", default="/var/mail-bounces/bounces")
+if EMAIL_BOUNCE_TRACKING and _email_backend == _smtp_backend:
+    MAILERS["default"]["BACKEND"] = "apps.email_delivery.backends.TrackingSMTPBackend"
+#: Twarda blokada domen bez MX i A w formularzach adresu (MAIL-02 § 1.2). Wyłącznik na wypadek, gdyby
+#: DNS serwera działał tak źle, że limit 1,5 s na pytanie byłby odczuwalny przy każdej rejestracji.
+EMAIL_DOMAIN_DNS_CHECK = env.bool("EMAIL_DOMAIN_DNS_CHECK", default=True)
 
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="noreply@localhost")
 # Nadawca wiadomości systemowych (``mail_admins``, raporty 500). Ten sam adres: MTA odbiorcy i tak
@@ -1398,6 +1422,9 @@ REST_FRAMEWORK = {
         # ma powstrzymać zgadywanie aktualnego hasła z cudzej, otwartej sesji. Dziesięć prób na
         # godzinę to więcej, niż potrzebuje człowiek mylący się przy przepisywaniu nowego hasła.
         "password_change": "10/hour",
+        # „Mój adres jest poprawny” na banerze odbić (MAIL-02 § 2.4). Każde kliknięcie przywraca
+        # wysyłkę na adres, który odbił – limit nie pozwala zamienić przycisku w pętlę odbić.
+        "email_confirm": "10/hour",
         # Webhook płatności (``/api/v1/payments/<dostawca>/``, § 1.5.1). Limit liczy się per adres
         # nadawcy, bo żądanie przychodzi bez konta i bez klucza – jedynym poświadczeniem jest
         # podpis, a podpis sprawdza się **po** przyjęciu żądania. Sześćdziesiąt na minutę mieści

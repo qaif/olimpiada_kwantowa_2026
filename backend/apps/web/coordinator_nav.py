@@ -429,6 +429,18 @@ def groups(stages: list, competition=None) -> list[Group]:
                 match=("coordinator-two-factor",),
             ),
         )
+    from apps.email_delivery.services import tracking_enabled as bounce_tracking_enabled
+
+    if bounce_tracking_enabled():
+        # MAIL-02: konta z adresem, który twardo odbił. Za przełącznikiem instalacji, jak SEC-01 –
+        # przy ``EMAIL_BOUNCE_TRACKING=0`` menu jest bajt w bajt dzisiejsze.
+        reports += (
+            Item(
+                "Adresy niedoręczalne",
+                ("web:coordinator-undeliverable-emails",),
+                match=("coordinator-undeliverable-emails", "coordinator-undeliverable-email-clear"),
+            ),
+        )
     settings_items: tuple[Item, ...] = ()
     if competition is not None and competition.has_feature("competition_settings_page"):
         # Pierwsza pozycja sekcji, bo opisuje **konkurs**, a reszta sekcji – jego rocznik.
