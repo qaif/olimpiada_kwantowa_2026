@@ -37,6 +37,17 @@ version_pattern = 'pakiet katex@(?P<version>[0-9][0-9A-Za-z.+-]*)'
 integrity_pattern = 'npm integrity tarballa: (?P<integrity>sha512-\S+)'
 hash_files = ["VERSION", "SHA256SUMS"]
 
+[[vendored]]
+name = "axe-core (wyłącznie testy dostępności e2e, poza obrazem)"
+npm = "axe-core"
+dir = "e2e/vendor/axe-core"
+version_file = "VERSION"
+version_pattern = '(?m)^axe-core (?P<version>\S+)$'
+integrity_pattern = '(?m)^npm integrity (?P<integrity>sha512-\S+)$'
+hash_files = ["SHA384"]
+# Licencja MPL-2.0 (plik LICENSE w katalogu). Aktualizacja: scripts/vendor_axe_core.sh (pobiera paczkę,
+# sprawdza sumę z rejestrem npm, zapisuje VERSION/SHA384), potem scripts/a11y.sh – A11Y-01, OPERACJE § 50.
+
 # --- skrypty z CDN (SRI w szablonie) -------------------------------------------------------
 # `files` – wszystkie miejsca, w których wersja jest wpisana; mają mówić o tej samej,
 # `sri = true` – w `upstream` pobierz każdy `src="https://…"` z `integrity="sha384-…"` z tych plików

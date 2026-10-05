@@ -87,6 +87,18 @@ case "$*" in
   "compose config") echo "name: olimpiada" ;;
   "volume inspect "*) exit 1 ;;
   *"compose ps -q --status running proxy"*) [ "$(cat "$STUB_BOX/state")" = down ] || echo 0123abcd ;;
+  # Migawka do wycofania (krok 2a/8) i decyzja (scripts/rollback.sh, OPS-04): działający web
+  # (c0ffee → sha256:web), djcms – gdy włączony w .env; zastosowane migracje w $STUB_BOX/migrations
+  # (STUB_NEW_MIGRATION=1: start usług w 4b dopisuje migrację – jak entrypoint web nowej wersji).
+  "compose ps -q web") echo c0ffee ;;
+  "compose ps -q djcms") grep -q '^DJCMS_ENABLED=1' .env 2>/dev/null && echo d0ffee ;;
+  "inspect --format {{.Image}} c0ffee") echo sha256:web ;;
+  "inspect --format {{.Image}} d0ffee") echo sha256:dj ;;
+  "image inspect --format {{.Id}} olimpiada/web:previous") echo sha256:web ;;
+  "image inspect --format {{.Id}} olimpiada/djcms:previous") echo sha256:dj ;;
+  *"exec -T db psql"*"django_migrations"*) cat "$STUB_BOX/migrations" ;;
+  *"check_domains --hosts"*) echo olimpiada.example ;;
+  *"manage.py page_cache_clear"*) exit "${STUB_PCC_RC:-0}" ;;   # STUB_PCC_RC≠0 – web nie odpowiada
   *"compose ps"*) printf 'db=healthy\nweb=healthy\nproxy=healthy\ndjcms=healthy\n' ;;
   *"exec -T db psql"*"datname = 'olimpiada_djcms'"*) echo 1 ;;
   *"exec -T db psql"*"ON_ERROR_STOP"*) cat >>"$DOCKER_LOG.sql" ;;   # scripts/djcms_db.sh (SQL na stdin)
@@ -121,6 +133,9 @@ case "$*" in
   # bo konfiguracja compose'a proxy się nie zmienia – dokładnie ten przypadek był błędem sprzed
   # montażu katalogu (stan `stale` zostaje `stale`).
   *"compose up -d --remove-orphans "*" proxy"*)
+    [ "${STUB_NEW_MIGRATION:-0}" = 1 ] && echo "results.0099_nowa_kolumna" >>"$STUB_BOX/migrations"
+    # STUB_UP_RC≠0: nowy web nie staje się healthy – compose kończy `up` błędem (proxy zależy od web).
+    [ "${STUB_UP_RC:-0}" = 0 ] || { echo "dependency failed to start: container web is unhealthy" >&2; exit "$STUB_UP_RC"; }
     [ "$(cat "$STUB_BOX/state")" = down ] && { echo live >"$STUB_BOX/state"; cp caddy/Caddyfile "$STUB_BOX/loaded"; } ;;
   # Kontrakt tras z obrazu web (krok dj. przy DJCMS_PRIMARY=1); STUB_ROUTES_DIFF=1 – obraz w innej wersji.
   *"djcms_routes --format env"*)
@@ -131,7 +146,15 @@ case "$*" in
   *"sync_competitions --help"*)
     echo "usage: manage.py sync_competitions [-h] [--dry-run] [--list-hosts]"
     [ "${STUB_SYNC_OLD:-0}" = 1 ] || echo "  --import-missing  Zaimportuj treść z API do witryn bez stron." ;;
-  *"sync_competitions"*) exit "${STUB_SYNC_RC:-0}" ;;
+  # STUB_SYNC_FAILS=N: pierwsze N wywołań kończy się błędem API (jak tuż po restarcie web, OPS-04 § 4).
+  *"sync_competitions"*)
+    n="$(cat "$STUB_BOX/sync_fails" 2>/dev/null || echo "${STUB_SYNC_FAILS:-0}")"
+    if [ "$n" -gt 0 ]; then
+      echo $((n - 1)) >"$STUB_BOX/sync_fails"
+      echo "CommandError: Lista konkursów z API niedostępna: timeout" >&2
+      exit 1
+    fi
+    exit "${STUB_SYNC_RC:-0}" ;;
 esac
 exit 0
 STUB
@@ -152,6 +175,29 @@ printf '%s\n' "$*" >>"$DOCKER_LOG.curl"
 # Konfiguracja z `-K -` (przepustka prac technicznych) – do dziennika jako „config: …”.
 case " $* " in *" -K - "*) sed 's/^/config: /' >>"$DOCKER_LOG.curl" ;; esac
 url="${!#}"; path="/${url#https://*/}"
+# Kontrola dymna po wdrożeniu (scripts/smoke.sh, krok 5b/8, OPS-04): `-D plik -o plik -w '%{http_code}
+# %{time_total}'` – zdrowy serwis; STUB_SMOKE_FAIL=<wersja>|* – /healthz/ 503, gdy APP_VERSION w .env
+# (katalog bieżący = REMOTE_DIR) to ta wersja (np. tylko nowa, a po wycofaniu już nie).
+case " $* " in *" %{http_code} %{time_total} "*)
+  hdr=/dev/null body=/dev/null prev=""
+  for a in "$@"; do case "$prev" in -D) hdr="$a" ;; -o) body="$a" ;; esac; prev="$a"; done
+  ver="$(sed -n 's/^APP_VERSION=//p' .env 2>/dev/null | tail -n 1)"
+  code=200 h="content-type: text/html" b="ok"
+  case "$path" in
+    /healthz/) b='{"status": "ok"}'
+      case "${STUB_SMOKE_FAIL:-}" in '') ;; '*'|"$ver") code=503; b='{"status": "degraded"}' ;; esac ;;
+    /status.json) b="{\"status\": \"ok\", \"version\": \"$ver\"}" ;;
+    /login/) h="content-security-policy: default-src 'self'
+set-cookie: csrftoken=x; Secure"
+      b='<input name="csrfmiddlewaretoken"><link rel="stylesheet" href="/static/css/app.0123456789ab.css">' ;;
+    /api/*) code=404; h="content-type: application/json"; b='{}' ;;
+    /) h="content-security-policy: default-src 'self'" ;;
+  esac
+  printf 'HTTP/2 %s\r\n%s\r\n\r\n' "$code" "$h" >"$hdr"
+  printf '%s' "$b" >"$body"
+  printf '%s 0.001' "$code"
+  exit 0 ;;
+esac
 # Kontrola z przepustką przy --maintenance (krok 5a): `-w '%{http_code}' -o /dev/null`.
 case " $* " in *" %{http_code} "*) echo "${STUB_HEALTHZ_CODE:-200}"; exit 0 ;; esac
 case "$path" in
@@ -199,6 +245,7 @@ reset_server() {  # czysty serwer z .env z fixture'a (albo z pliku podanego w $1
   mkdir -p "$SRV" "$BAK" "$WORK/home" "$BOX"
   cp "${1:-$WORK/env.fixture}" "$SRV/.env"
   echo down >"$BOX/state"
+  echo core.0001_initial >"$BOX/migrations"   # zastosowane migracje (atrapa psql, OPS-04)
 }
 
 installed_proxy_cfg() {  # serwer po wcześniejszym wdrożeniu z CADDY_CONFIG_DIR: caddy/Caddyfile jest, proxy go widzi
@@ -211,10 +258,14 @@ run_deploy() {
   # run_deploy <plik deploy.sh> <etykieta> [ZMIENNA=wartość…] – jeden pełny przebieg; kod wyjścia.
   local script="$1" label="$2"; shift 2
   DOCKER_LOG="$WORK/$label.docker"; SSH_LOG="$WORK/$label.ssh"; OUT="$WORK/$label.out"
-  : >"$DOCKER_LOG"; : >"$SSH_LOG"; rm -f "$DOCKER_LOG.sql" "$DOCKER_LOG.curl"
+  : >"$DOCKER_LOG"; : >"$SSH_LOG"; rm -f "$DOCKER_LOG.sql" "$DOCKER_LOG.curl" "$BOX/sync_fails"
+  # Kontrola dymna i wycofanie (OPS-04) bez czekania: jedna próba, bez przerw; ponawianie
+  # sync_competitions bez przerw. Atrapa ssh przekazuje środowisko dalej, więc dochodzą do „serwera”.
   ( env -u DJCMS_ENABLE -u DJCMS_IMAGE -u DJCMS_ADMIN_EMAIL -u DJCMS_ADMIN_PASSWORD -u WEB_IMAGE \
+      -u STUB_SMOKE_FAIL -u STUB_NEW_MIGRATION -u STUB_SYNC_FAILS -u DEPLOY_SMOKE -u STUB_PCC_RC -u STUB_UP_RC \
       -u DJCMS_PRIMARY -u STUB_CURL_MODE -u STUB_SYNC_RC -u STUB_SYNC_OLD -u STUB_VALIDATE_RC -u STUB_RELOAD_RC       -u STUB_HEALTHZ_CODE -u STUB_ROUTES_DIFF -u OLIMPIADA_PROXY_LOCK -u NEW_COMPETITION_SLUG -u COORDINATOR_EMAIL -u COORDINATOR_PASSWORD       -u MAINTENANCE_MESSAGE -u MAINTENANCE_MINUTES       PATH="$BIN:$PATH" DOCKER_LOG="$DOCKER_LOG" SSH_LOG="$SSH_LOG" SRC_TAR="${SRC_TAR:-$WORK/tree.tar}" \
       STUB_BOX="$BOX" \
+      SMOKE_RETRIES=1 SMOKE_RETRY_DELAY=0 ROLLBACK_WAIT_SECONDS=0 DJCMS_SYNC_RETRY_DELAYS="0 0 0" \
       FAKE_HOME="$WORK/home" REMOTE_DIR="$SRV" BACKUP_DIR="$BAK" SSH_KEY=/dev/null \
       APP_VERSION=vtest MAIL_PUBLIC_IP=203.0.113.7 "$@" \
       bash "$script" ${DEPLOY_FLAGS:-} root@test.invalid ) </dev/null >"$OUT" 2>&1
@@ -229,7 +280,14 @@ show_on_fail() {  # show_on_fail <kod> <plik> – przy porażce pokaż plik (wci
 # które widzi katalog caddy/. Stan sprzed DJ-01 plus konfiguracja proxy (OPERACJE § 23): walidacja
 # nowego pliku w kroku 4/8, przed budowaniem, i `caddy reload` w kroku 4c/8, po starcie usług; na końcu
 # dwa odczyty profilu `monitoring` (OPS-02 – ostrzeżenie o GlitchTipie bez kont, odświeżenie `uptime`).
-DZISIAJ='compose config
+# Od OPS-04: migawka do wycofania na początku (krok 2a/8: obraz działającego web → :previous,
+# odczyt django_migrations) oraz kontrola dymna po kroku 5/8 (hosty z check_domains --hosts, reszta
+# przez curl) i zapis udanego wdrożenia (obraz działającego web) – bez djcms przy wyłączonym dj.
+DZISIAJ='compose ps -q web
+inspect --format {{.Image}} c0ffee
+tag sha256:web olimpiada/web:previous
+compose exec -T db psql -X -U olimpiada -d olimpiada -Atc SELECT app || '"'.'"' || name FROM django_migrations ORDER BY 1
+compose config
 volume inspect olimpiada_pg_data
 compose ps -q --status running proxy
 compose exec -T proxy sh -c cat > /tmp/Caddyfile.next && caddy validate --config /tmp/Caddyfile.next --adapter caddyfile
@@ -243,6 +301,10 @@ compose up -d --remove-orphans db redis minio minio-init clamav mail web worker 
 compose exec -T proxy sha256sum /etc/caddy/Caddyfile
 compose exec -T proxy caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile
 compose ps --format {{.Service}}={{.Health}}
+compose exec -T web python manage.py page_cache_clear
+compose exec -T web python manage.py check_domains --hosts
+compose ps -q web
+inspect --format {{.Image}} c0ffee
 compose exec -T web python manage.py seed_edition_kwantowa
 compose exec -T web python manage.py seed_schools
 compose ps --format table {{.Service}}\t{{.State}}\t{{.Health}}
@@ -296,11 +358,14 @@ mask() {  # znaczniki czasu, rozmiary plików i wiersz z ls -lh zmieniają się 
 # różni się tylko tym: poleceniami proxy w dockerze, krokiem 4c/8 i katalogiem caddy w ssh, linijkami
 # CADDYFILE_PATH / CADDY_CONFIG_DIR w .env i komunikatami proxy_config.sh. Porównanie je pomija.
 no_proxy_cfg() {  # no_proxy_cfg docker|ssh|env|out  (stdin → stdout)
+  # Pomija też to, co celowo dokłada OPS-04 (migawka 2a/8, kontrola dymna 5b/8, zapis udanego wdrożenia).
   case "$1" in
-    docker) grep -vE '^compose (ps -q --status running proxy|exec -T proxy (sh -c .*caddy validate|sha256sum /etc/caddy/Caddyfile|cat /etc/caddy/Caddyfile|caddy reload |wget )|up -d --force-recreate --no-deps proxy)' ;;
-    ssh) grep -vF 'bash scripts/proxy_config.sh apply' | grep -vF "/caddy/.lock'" | sed 's/ ! -name caddy -exec/ -exec/; s/ OLIMPIADA_PROXY_LOCK=held / /' ;;
+    docker) grep -vE '^compose (ps -q --status running proxy|exec -T proxy (sh -c .*caddy validate|sha256sum /etc/caddy/Caddyfile|cat /etc/caddy/Caddyfile|caddy reload |wget )|up -d --force-recreate --no-deps proxy)' \
+      | grep -vE '^(compose ps -q (web|djcms)|inspect --format \{\{\.Image\}\} |tag sha256:|compose exec -T db psql .*django_migrations|compose exec -T web python manage.py (check_domains --hosts|page_cache_clear))' ;;
+    ssh) grep -vF 'bash scripts/proxy_config.sh apply' | grep -vF "/caddy/.lock'" | grep -vE 'scripts/(rollback|smoke)\.sh' \
+      | sed 's/ ! -name deploy-state -exec/ -exec/; s/ ! -name caddy -exec/ -exec/; s/ OLIMPIADA_PROXY_LOCK=held / /' ;;
     env) grep -vE '^(CADDYFILE_PATH=|CADDY_CONFIG_DIR=|# Konfiguracja proxy|# i EXTRA_DOMAINS przez scripts/render_caddyfile|# przez scripts/proxy_config\.sh)' ;;
-    out) grep -vE '^(proxy: |==> 4c/8 |blokada zmian serwisu |UWAGA: brak flock na serwerze|$)' | sed -E 's/^render_caddyfile: [^ ]+ /render_caddyfile: OUT /' ;;
+    out) grep -vE '^(proxy: |==> 4c/8 |==> 2a/8 |==> 5b/8 |migawka: |smoke: |  (ok|–) |== https://|zapisano: wersja |blokada zmian serwisu |UWAGA: brak flock na serwerze|$)' | sed -E 's/^render_caddyfile: [^ ]+ /render_caddyfile: OUT /' ;;
   esac
 }
 if [ -n "${DEPLOY_BASELINE_REF:-}" ]; then
@@ -356,7 +421,11 @@ check ".env: istniejące linijki nietknięte (djcms tylko dopisuje na końcu)" $
 grep -q '^dj\.{\$SITE_DOMAIN} {$' "$SRV/caddy/Caddyfile" && cmp -s "$SRV/caddy/Caddyfile" "$BOX/loaded"
 check "konfiguracja proxy z blokiem dj., załadowana w proxy" $?
 
-WLACZONE='compose config
+WLACZONE='compose ps -q web
+inspect --format {{.Image}} c0ffee
+tag sha256:web olimpiada/web:previous
+compose exec -T db psql -X -U olimpiada -d olimpiada -Atc SELECT app || '"'.'"' || name FROM django_migrations ORDER BY 1
+compose config
 volume inspect olimpiada_pg_data
 compose ps -q --status running proxy
 compose build --pull web
@@ -373,6 +442,12 @@ compose up -d --remove-orphans db redis minio minio-init clamav mail web worker 
 compose exec -T proxy sha256sum /etc/caddy/Caddyfile
 compose exec -T proxy caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile
 compose ps --format {{.Service}}={{.Health}}
+compose exec -T web python manage.py page_cache_clear
+compose exec -T web python manage.py check_domains --hosts
+compose ps -q web
+inspect --format {{.Image}} c0ffee
+compose ps -q djcms
+inspect --format {{.Image}} d0ffee
 compose exec -T web python manage.py seed_edition_kwantowa
 compose exec -T web python manage.py seed_schools
 compose ps --format table {{.Service}}\t{{.State}}\t{{.Health}}
@@ -405,7 +480,7 @@ check "log wdrożenia ma krok dj. z adresem i trybem serwisu (Wagtail)" $?
 grep -q 'header_up X-Djcms-Mode preview' "$SRV/caddy/Caddyfile" &&
   [ "$(grep -c '^    # >>> django CMS ' "$SRV/caddy/Caddyfile")" -ge 1 ]
 check "konfiguracja proxy z sekcją tras djcms w trybie preview (kontrakt tras z paczki kodu)" $?
-[ ! -s "$WORK/on.docker.curl" ]
+! grep -q -- "-o /dev/null -D -" "$WORK/on.docker.curl"
 check "przy DJCMS_PRIMARY=0 wdrożenie nie robi kontroli dymnej djcms" $?
 
 # Hasło doszło do skryptu zdalnego nienaruszone (printf %q w pierwszych linijkach stdin).
@@ -616,7 +691,7 @@ check "PRIMARY=1: krok dj. porównuje kontrakt tras hosta z obrazem web" $?
 run_deploy "$DEPLOY" routes-diff STUB_ROUTES_DIFF=1 STUB_CURL_MODE=primary
 rc=$?
 [ $rc -ne 0 ] && grep -qF 'różni się od kontraktu tras obrazu web' "$WORK/routes-diff.out" &&
-  grep -q 'check_domains' "$WORK/routes-diff.docker" && [ ! -s "$WORK/routes-diff.docker.curl" ]
+  grep -q 'check_domains' "$WORK/routes-diff.docker" && ! grep -q -- "-o /dev/null -D -" "$WORK/routes-diff.docker.curl"
 check "PRIMARY=1, kontrakt tras obrazu web ≠ kod: kod ≠ 0 z komunikatem, bez kontroli dymnej" $?
 # 9g. .env w innym trybie niż działające proxy (przerwane `djcms_switch.sh on|off` albo ręczna zmiana
 #     DJCMS_PRIMARY): wdrożenie staje w kroku 4/8, zanim cokolwiek zbuduje – dokończyłoby przełączenie
@@ -779,6 +854,142 @@ rc=$?
   [ -e "$SRV/maintenance/on" ] && grep -qF 'PRACE TECHNICZNE' "$WORK/rl.out" &&
   ! grep -q 'X-Release-Marker' "$SRV/caddy/Caddyfile" && ! grep -q 'X-Release-Marker' "$BOX/loaded"
 check "odrzucony caddy reload przy --maintenance: kod ≠ 0 przed kontrolą 5a, strona zostaje włączona z komunikatem, caddy/Caddyfile wraca do poprzedniej treści" $?
+
+# ================================================================================================
+# 11. Kontrola dymna i wycofanie (OPS-04, docs/OPERACJE.md § 48): porażka kontroli po wdrożeniu
+#     nowej wersji – bez nowych migracji powrót do obrazów :previous, z nowymi – bez wycofania;
+#     w obu przypadkach kod 1 i żadnych seedów. Furtka DEPLOY_SMOKE=warn|0.
+# ================================================================================================
+ROLLBACK_UP='compose up -d --no-deps --no-build web worker beat'
+reset_server
+installed_proxy_cfg
+run_deploy "$DEPLOY" sm-ok APP_VERSION=v2
+rc=$?
+check "OPS-04: udane wdrożenie v2 – kod 0, kontrola dymna przeszła" $rc
+show_on_fail $rc "$WORK/sm-ok.out"
+grep -q '^==> 2a/8 ' "$WORK/sm-ok.out" && grep -q '^==> 5b/8 ' "$WORK/sm-ok.out" &&
+  grep -qE '^smoke: [0-9]+ sprawdzeń, błędów: 0, ostrzeżeń: 0' "$WORK/sm-ok.out"
+check "OPS-04: log ma migawkę (2a/8) i kontrolę dymną (5b/8) bez błędów i ostrzeżeń (wersja v2 w /status.json)" $?
+[ "$(sed -n 's/^PREV_APP_VERSION=//p' "$SRV/deploy-state/previous.env")" = vtest ] &&
+  [ "$(sed -n 's/^APP_VERSION=//p' "$SRV/deploy-state/deployed.env")" = v2 ] && [ -s "$SRV/deploy-state/last-smoke.txt" ]
+check "OPS-04: deploy-state – migawka sprzed wdrożenia (vtest), zapis udanego (v2), wydruk kontroli" $?
+grep -q -- "--resolve olimpiada.example:443:127.0.0.1" "$WORK/sm-ok.docker.curl" && ! grep -qF "$ROLLBACK_UP" "$WORK/sm-ok.docker"
+check "OPS-04: kontrola przez proxy serwera (--resolve 127.0.0.1), bez wycofania" $?
+l2a="$(grep -n 'scripts/rollback.sh snapshot' "$WORK/sm-ok.ssh" | cut -d: -f1)"
+l3="$(grep -n 'SITE_DOMAIN=' "$WORK/sm-ok.ssh" | head -n 1 | cut -d: -f1)"
+lrm="$(grep -nF -- '! -name deploy-state -exec rm -rf' "$WORK/sm-ok.ssh" | cut -d: -f1)"
+[ -n "$l2a" ] && [ -n "$l3" ] && [ -n "$lrm" ] && [ "$lrm" -lt "$l2a" ] && [ "$l2a" -lt "$l3" ]
+check "OPS-04: krok 2/8 omija deploy-state, migawka po rozpakowaniu kodu i PRZED krokiem 3/8 (APP_VERSION)" $?
+
+pcc="$(line_no "$WORK/sm-ok.docker" 'compose exec -T web python manage.py page_cache_clear')"
+upn="$(line_no "$WORK/sm-ok.docker" "$UP_CMD")"
+smk="$(line_no "$WORK/sm-ok.docker" 'compose exec -T web python manage.py check_domains --hosts')"
+[ -n "$pcc" ] && [ -n "$upn" ] && [ -n "$smk" ] && [ "$upn" -lt "$pcc" ] && [ "$pcc" -lt "$smk" ]
+check "OPS-04: bufor stron gościa czyszczony po starcie nowej wersji (collectstatic), przed kontrolą dymną" $?
+reset_server
+installed_proxy_cfg
+run_deploy "$DEPLOY" sm-pcc APP_VERSION=v2 STUB_PCC_RC=1
+[ $? = 0 ] && grep -qF 'page_cache_clear nieudane' "$WORK/sm-pcc.out" && grep -q 'seed_edition_kwantowa' "$WORK/sm-pcc.docker"
+check "OPS-04: nieudane page_cache_clear – ostrzeżenie, wdrożenie idzie dalej (klucz bufora zawiera wydanie)" $?
+
+# 11a. Kontrola nie przechodzi na v2, bez nowych migracji → automatyczne wycofanie do vtest.
+reset_server
+installed_proxy_cfg
+run_deploy "$DEPLOY" sm-rb APP_VERSION=v2 STUB_SMOKE_FAIL=v2
+rc=$?
+[ $rc = 1 ] && grep -qxF "$ROLLBACK_UP" "$WORK/sm-rb.docker" && grep -qx 'tag olimpiada/web:previous olimpiada/web:vtest' "$WORK/sm-rb.docker" &&
+  [ "$(env_line APP_VERSION)" = vtest ]
+rc=$?
+check "OPS-04: kontrola nie przeszła, bez migracji → wycofanie web/worker/beat do vtest, APP_VERSION=vtest, kod 1" $rc
+show_on_fail $rc "$WORK/sm-rb.out"
+grep -qF 'NIEUDANE i WYCOFANE' "$WORK/sm-rb.out" && ! grep -q 'seed_edition_kwantowa' "$WORK/sm-rb.docker" &&
+  grep -q 'shell -c' "$WORK/sm-rb.docker"
+check "OPS-04: ramka w logu, list alarmowy, kroki 6–8 nie wykonane" $?
+awk -v s="$ROLLBACK_UP" 'f { print } $0 == s { f = 1 }' "$WORK/sm-rb.docker" >"$WORK/sm-rb.after"
+! grep -qE '(^| )(down|volume|rm|rmi|prune)( |$)| -v( |$)|pg_restore|compose up' "$WORK/sm-rb.after"
+check "OPS-04: wycofanie bez down/-v/rm/pg_restore i bez drugiego up (baza i wolumeny nietknięte)" $?
+
+# 11a'. Przegląd PR #80 (M1): nowy web nie wstaje → `docker compose up -d` w 4b kończy się błędem.
+#       Wdrożenie nie urywa się pod `set -e`, tylko idzie do 5b: kontrola i rollback.sh auto – także
+#       przy DEPLOY_SMOKE=0 i nawet gdy kontrola przypadkiem przechodzi (stary proxy/web odpowiada).
+reset_server
+installed_proxy_cfg
+run_deploy "$DEPLOY" up-fail APP_VERSION=v2 STUB_UP_RC=1 DEPLOY_SMOKE=0
+rc=$?
+[ $rc = 1 ] && grep -qxF "$ROLLBACK_UP" "$WORK/up-fail.docker" && [ "$(env_line APP_VERSION)" = vtest ] &&
+  ! grep -qxF "$RELOAD_CMD" "$WORK/up-fail.docker" && ! grep -q '^==> 5/8 ' "$WORK/up-fail.out" &&
+  grep -q 'docker compose up -d zakończył się kodem 1' "$WORK/up-fail.out" &&
+  grep -q 'powód porażki wdrożenia: docker compose up -d (krok 4b/8)' "$WORK/up-fail.out" &&
+  ! grep -q 'seed_edition_kwantowa' "$WORK/up-fail.docker" && grep -qF 'NIEUDANE i WYCOFANE' "$WORK/up-fail.out"
+rc=$?
+check "M1: nieudane up -d (web nie healthy) → kroki 4c–5a pominięte, kontrola i automatyczne wycofanie do vtest, kod 1" $rc
+show_on_fail $rc "$WORK/up-fail.out"
+reset_server
+installed_proxy_cfg
+run_deploy "$DEPLOY" up-fail-mig APP_VERSION=v2 STUB_UP_RC=1 STUB_NEW_MIGRATION=1
+rc=$?
+[ $rc = 1 ] && ! grep -qxF "$ROLLBACK_UP" "$WORK/up-fail-mig.docker" && [ "$(env_line APP_VERSION)" = v2 ] &&
+  grep -qF 'NIE wycofane' "$WORK/up-fail-mig.out"
+rc=$?
+check "M1: nieudane up -d po migracji → bez wycofania, kod 1, decyzja ręczna" $rc
+show_on_fail $rc "$WORK/up-fail-mig.out"
+reset_server
+installed_proxy_cfg
+DEPLOY_FLAGS=--maintenance run_deploy "$DEPLOY" up-fail-mnt APP_VERSION=v2 STUB_UP_RC=1
+rc=$?
+[ $rc = 1 ] && grep -qxF "$ROLLBACK_UP" "$WORK/up-fail-mnt.docker" && [ -e "$SRV/maintenance/on" ] &&
+  grep -qF 'PRACE TECHNICZNE' "$WORK/up-fail-mnt.out" && ! grep -q '^==> 5a/8 ' "$WORK/up-fail-mnt.out"
+rc=$?
+check "M1 z --maintenance: wycofanie za stroną prac technicznych, strona zostaje włączona z komunikatem" $rc
+show_on_fail $rc "$WORK/up-fail-mnt.out"
+
+# 11b. Kontrola nie przechodzi, a wdrożenie zastosowało migrację → BEZ wycofania.
+reset_server
+installed_proxy_cfg
+run_deploy "$DEPLOY" sm-mig APP_VERSION=v2 STUB_SMOKE_FAIL=v2 STUB_NEW_MIGRATION=1
+rc=$?
+[ $rc = 1 ] && ! grep -qF "$ROLLBACK_UP" "$WORK/sm-mig.docker" && [ "$(env_line APP_VERSION)" = v2 ] &&
+  grep -qF 'results.0099_nowa_kolumna' "$WORK/sm-mig.out" && grep -qF 'NIE wycofane' "$WORK/sm-mig.out" &&
+  ! grep -q 'seed_edition_kwantowa' "$WORK/sm-mig.docker" && [ ! -e "$SRV/maintenance/on" ]
+rc=$?
+check "OPS-04: kontrola nie przeszła po migracji → bez wycofania, kod 1, powód w logu, strona prac technicznych wyłączona" $rc
+show_on_fail $rc "$WORK/sm-mig.out"
+
+# 11c. DEPLOY_SMOKE=warn – porażka kontroli to ostrzeżenie, wdrożenie idzie dalej; DEPLOY_SMOKE=0 – bez kontroli.
+reset_server
+installed_proxy_cfg
+run_deploy "$DEPLOY" sm-warn APP_VERSION=v2 STUB_SMOKE_FAIL=v2 DEPLOY_SMOKE=warn
+rc=$?
+[ $rc = 0 ] && ! grep -qF "$ROLLBACK_UP" "$WORK/sm-warn.docker" && grep -q 'seed_edition_kwantowa' "$WORK/sm-warn.docker" &&
+  grep -qF 'DEPLOY_SMOKE=warn' "$WORK/sm-warn.out"
+check "OPS-04: DEPLOY_SMOKE=warn – ostrzeżenie, bez wycofania, wdrożenie dokończone" $?
+run_deploy "$DEPLOY" sm-off APP_VERSION=v3 DEPLOY_SMOKE=0
+[ $? = 0 ] && [ ! -s "$WORK/sm-off.docker.curl" ] && grep -q 'POMINIĘTA (DEPLOY_SMOKE=0)' "$WORK/sm-off.out"
+check "OPS-04: DEPLOY_SMOKE=0 – bez kontroli dymnej" $?
+reset_server
+run_deploy "$DEPLOY" sm-bad DEPLOY_SMOKE=tak
+[ $? = 2 ] && [ ! -s "$WORK/sm-bad.ssh" ]
+check "OPS-04: DEPLOY_SMOKE=„tak” – odmowa bez żadnego ssh" $?
+
+# 11d. Ponawianie sync_competitions (dj.) przy „Lista konkursów z API niedostępna” – OPS-04 § 4.
+reset_server
+run_deploy "$DEPLOY" sync-on DJCMS_ENABLE=1
+run_deploy "$DEPLOY" sync-retry STUB_SYNC_FAILS=2
+rc=$?
+[ $rc = 0 ] && [ "$(grep -cx 'compose exec -T djcms python manage.py sync_competitions --import-missing' "$WORK/sync-retry.docker")" = 3 ] &&
+  grep -q 'lista konkursów z API niedostępna (próba 2) – ponawiam' "$WORK/sync-retry.out"
+rc=$?
+check "dj.: sync_competitions – dwa błędy API, trzecia próba przechodzi, wdrożenie z kodem 0" $rc
+show_on_fail $rc "$WORK/sync-retry.out"
+run_deploy "$DEPLOY" sync-giveup STUB_SYNC_FAILS=9
+rc=$?
+[ $rc -ne 0 ] && [ "$(grep -cx 'compose exec -T djcms python manage.py sync_competitions --import-missing' "$WORK/sync-giveup.docker")" = 4 ] &&
+  grep -q 'niedostępna po 4 próbach' "$WORK/sync-giveup.out"
+check "dj.: sync_competitions – po 4 próbach błąd z instrukcją" $?
+run_deploy "$DEPLOY" sync-other STUB_SYNC_RC=1
+rc=$?
+[ $rc -ne 0 ] && [ "$(grep -cx 'compose exec -T djcms python manage.py sync_competitions --import-missing' "$WORK/sync-other.docker")" = 1 ]
+check "dj.: inny błąd sync_competitions (np. importu) – bez ponawiania" $?
 
 if [ "$failures" -ne 0 ]; then
   printf '\n%d test(ów) nie przeszło.\n' "$failures"

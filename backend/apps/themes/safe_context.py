@@ -295,6 +295,8 @@ def curated_context(full: dict, request) -> dict:
         for key in ("is_open", "reason", "opens_at", "closes_at", "message")
     }
     values["promo_available"] = bool(full.get("promo_available"))
+    # Deklaracja dostępności (A11Y-01): stopka paczki pokazuje odnośnik tylko do opublikowanej strony.
+    values["accessibility_statement_available"] = bool(full.get("accessibility_statement_available"))
     values["user"] = user_data
     values["request"] = {"path": getattr(request, "path", ""), "user": user_data}
     values["settings"] = {"cms": {"SiteSettings": _site_settings(full)}}

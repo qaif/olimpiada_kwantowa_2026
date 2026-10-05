@@ -79,11 +79,11 @@
       {% csrf_token %}
       {{ form.non_field_errors }}
       <p>{{ form.file.errors }}{{ form.file.label_tag }} {{ form.file }}
-        <span class="helptext">{{ form.file.help_text }}</span></p>
+        <span class="helptext" id="{{ form.file.auto_id }}_helptext">{{ form.file.help_text }}</span></p>
       <p>{{ form.deactivate_missing.errors }}{{ form.deactivate_missing.label_tag }} {{ form.deactivate_missing }}
-        <span class="helptext">{{ form.deactivate_missing.help_text }}</span></p>
+        <span class="helptext" id="{{ form.deactivate_missing.auto_id }}_helptext">{{ form.deactivate_missing.help_text }}</span></p>
       <p>{{ form.source_label.errors }}{{ form.source_label.label_tag }} {{ form.source_label }}
-        <span class="helptext">{{ form.source_label.help_text }}</span></p>
+        <span class="helptext" id="{{ form.source_label.auto_id }}_helptext">{{ form.source_label.help_text }}</span></p>
       {{ form.confirm }}
       <div class="actions">
         <button type="submit" class="btn btn--primary">{% if report %}Wgraj ten plik i zapisz{% else %}Pokaż podgląd{% endif %}</button>

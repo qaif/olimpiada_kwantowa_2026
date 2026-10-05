@@ -2,6 +2,8 @@
   Baner okresu przejściowego 2FA (SEC-01 § 3). Klasy ``messages``/``msg-warning`` – te same, co
   komunikaty sesyjne, więc wygląda poprawnie w motywie klasycznym i w każdym motywie paczki, bez
   własnego CSS i bez JavaScriptu (CSP).
-{% endcomment %}<ul class="messages" role="status"><li class="msg msg-warning">{% blocktranslate trimmed with deadline=deadline|date:"j E Y" %}
+  ``role="status"`` na opakowaniu, nie na ``<ul>``: lista z rolą przestaje być listą i jej
+  ``<li>`` traci rodzica (axe ``listitem``, A11Y-01).
+{% endcomment %}<div role="status"><ul class="messages"><li class="msg msg-warning">{% blocktranslate trimmed with deadline=deadline|date:"j E Y" %}
   Twoja rola w tym serwisie wymaga logowania dwuskładnikowego. Włącz je do {{ deadline }} – potem bez niego nie wejdziesz do panelu.
-{% endblocktranslate %} <a href="{% url 'web:twofactor-setup' %}">{% translate "Włącz teraz" %}</a></li></ul>
+{% endblocktranslate %} <a href="{% url 'web:twofactor-setup' %}">{% translate "Włącz teraz" %}</a></li></ul></div>

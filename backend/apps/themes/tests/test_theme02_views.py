@@ -172,7 +172,9 @@ def test_menu_save_invalidates_page_cache(coordinator_client, competition, monke
     calls = []
     monkeypatch.setattr("apps.web.page_cache.invalidate_competition", lambda pk: calls.append(pk))
     coordinator_client.post(MENU_URL, {"action": "add_group", "group_label_pl": "Więcej"})
-    assert calls == [competition.pk]
+    # Także zapis samego konkursu czyści cache witryny (PERF-01, przegląd L1) – liczy się, że
+    # unieważniona jest ta witryna, a nie ile razy.
+    assert calls and set(calls) == {competition.pk}
 
 
 def test_posts_are_throttled(coordinator_client, settings):

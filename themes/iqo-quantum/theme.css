@@ -261,6 +261,17 @@
   --font-serif: var(--iqo-font-display);
 }
 
+/* 1.1.2 (A11Y-01): paski ramy aplikacji (logowanie, rejestracja, panele, weryfikacja listu) stoją na
+   granacie ``primary``, a nie na wypełnieniu ``primary-fill``. app.css rysuje w nich przygaszone
+   napisy jako ``rgba(--t-primary-contrast, 0.5–0.9)`` – kolor dobrany do tła ``--t-primary``.
+   Na niebieskim ``primary-fill`` (#5260ff w schemacie ciemnym) nawet pełny napis miał 4,3:1,
+   a przygaszone 2,3–3,8:1 (audyt axe, reguła color-contrast). Zmienna tylko w tych paskach:
+   ``--brand`` jako kolor tekstu i obrysu w treści paneli zostaje bez zmian. */
+:root:not([data-contrast="high"]) :is(.topbar, .timeline-dock) {
+  --brand: var(--t-primary, #14123a);
+  --brand-ink: var(--t-primary-contrast, #f4f4ff);
+}
+
 /* --- 4. Pisma spoza łaciny ------------------------------------------------------------------- */
 /* Space Grotesk ma tylko łacinę (+ wietnamski). Łacińskie wtręty (nazwy, liczby, |IQO⟩) zostają
    w kroju marki, reszta idzie krojem systemowym danego pisma – kolejność: Windows, Apple, Noto.

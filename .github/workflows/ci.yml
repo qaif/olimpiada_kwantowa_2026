@@ -488,6 +488,54 @@ jobs:
             exit 1
           fi
 
+  a11y:
+    # Testy dostępności (A11Y-01, docs/OPERACJE.md § 50): axe-core (WCAG 2.1 A/AA) na ~70 ekranach
+    # obu konkursów i obu motywów + klawiatura, fokus, menu bez JS, wysoki kontrast, RTL, reflow.
+    # Ten sam skrypt, co lokalnie (scripts/a11y.sh): własna sieć Dockera, Postgres w tmpfs, serwer
+    # z obrazu `web` (ustawienia config.settings.a11y – bez Redisa, MinIO, ClamAV) i kontener
+    # Playwrighta scenariusza E2E. Różnica jest jedna: kod pochodzi z obrazu zbudowanego z tego
+    # commita, a nie z katalogu hosta (A11Y_MOUNT_BACKEND=0) – `.mo` są w obrazie skompilowane.
+    #
+    # Job przewraca się na **nowym** naruszeniu critical/serious (spoza e2e/a11y/baseline.json)
+    # i na każdym niezaliczonym teście klawiatury. Raport (JSON/Markdown + zrzuty) jest artefaktem.
+    name: dostępność (axe + klawiatura)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Jawnie i najwęziej (SEC-02, OPERACJE § 47): job tylko czyta kod i wgrywa artefakt raportu.
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+
+      # Ten sam cel i ten sam cache warstw (gha), co zadanie `image` – drugi build tego samego
+      # Dockerfile'a trafia w cache i trwa tyle, co eksport obrazu do lokalnego demona.
+      - name: Obraz web (runtime) do testów
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
+        with:
+          context: ./backend
+          target: runtime
+          load: true
+          push: false
+          tags: olimpiada-web:a11y
+          cache-from: type=gha
+
+      - name: Testy dostępności
+        env:
+          A11Y_WEB_IMAGE: olimpiada-web:a11y
+          A11Y_MOUNT_BACKEND: "0"
+        run: bash scripts/a11y.sh
+
+      - name: Raport dostępności
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: a11y-report
+          path: e2e/artifacts/a11y/
+          if-no-files-found: ignore
+          retention-days: 14
+
   image:
     name: docker build (+ GHCR dla main i v*)
     runs-on: ubuntu-latest
