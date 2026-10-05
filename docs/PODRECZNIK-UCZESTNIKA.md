@@ -44,8 +44,20 @@ Po rejestracji strona `/register/done/` mówi „sprawdź skrzynkę”. Na podan
 - **listu nie ma?** Zajrzyj do spamu, a potem użyj **„Wyślij link ponownie”** (`/activate/resend/`,
   odnośnik stały na stronie logowania),
 - **literówka w adresie?** Zarejestruj się ponownie po upływie 24 godzin albo napisz do organizatora
-  (`/support/new/`) — on aktywuje konto ręcznie,
+  (`/support/new/`) — on aktywuje konto ręcznie. Formularz łapie większość literówek sam: przy
+  `gmial.com`, `o2.plo` czy `wp.pll` pyta „Czy chodziło Ci o …?” (zaznacz poprawkę albo wyślij formularz
+  jeszcze raz, żeby zostawić adres), a domeny, która nie istnieje, nie przyjmie wcale,
 - konto z logowania przez **Google** jest aktywne od razu (Google potwierdza adres); z Facebooka — nie.
+
+### Baner „Nie możemy dostarczyć poczty na adres …”
+
+Pojawia się po zalogowaniu, gdy serwer Twojej poczty odpowiedział nam, że skrzynka albo domena **nie
+istnieje** (np. konto pocztowe zostało zamknięte). Do czasu poprawki nie wysyłamy Ci powiadomień
+(forum, wiadomości, webinary, komunikaty). Co zrobić:
+
+- **„Zmień adres e-mail”** — wpisz działający adres i potwierdź go linkiem z listu; baner znika,
+- **„Mój adres jest poprawny”** — gdy skrzynka już działa (np. założyłeś ją po rejestracji). Wysyłka
+  wraca; jeśli list znowu nie dotrze, baner wróci.
 
 ### Logowanie, hasło, dane
 

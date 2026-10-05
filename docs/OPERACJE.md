@@ -97,7 +97,9 @@ musi mieć wiersz z poprawną wartością domyślną, a każda flaga z tabeli �
 | Kontrola dymna po wdrożeniu | `DEPLOY_SMOKE` | zmienna `scripts/deploy.sh` | `1` (kontrola + wycofanie) | § 48.1 | — |
 | Domeny nadawcy przekaźnika poczty | `ALLOWED_SENDER_DOMAINS` | `.env` | `SITE_DOMAIN` | § 9.7, § 49 | — |
 | Sieci klientów przekaźnika poczty | `MAIL_CLIENT_NETWORKS` | `.env` | `TRUSTED_PROXY_IPS` | § 49.7 | — |
-| Poczta zwrotna (bounce) | `MAIL_BOUNCE_TARGET` | `.env` | `discard` | § 49.7 | — |
+| Poczta zwrotna (bounce) | `MAIL_BOUNCE_TARGET` | `.env` | `capture` (compose; skrypt bez zmiennej – `discard`) | § 49.7, § 52 | `discard` do wdrożenia MAIL-02 |
+| Odbicia w aplikacji: baner, lista koordynatora, wstrzymanie | `EMAIL_BOUNCE_TRACKING` | `.env` | wł. (compose), wył. (bez compose) | § 52 | — |
+| Blokada domen bez MX/A w formularzach adresu | `EMAIL_DOMAIN_DNS_CHECK` | `.env` | wł. | § 52.1 | — |
 <!-- funkcje-i-flagi: koniec -->
 
 ---
@@ -6642,7 +6644,9 @@ w kolejce. Od MAIL-01 skrypt startowy `deploy/mail/docker-init.d/50-bounces.sh` 
 `noreply@<każda domena z ALLOWED_SENDER_DOMAINS>`, na nadawców monitoringu (`glitchtip@`, `uptime@`,
 OPS-02) i podwójne odbicia na `postmaster@mail.<domena>`:
 
-- `MAIL_BOUNCE_TARGET=discard` (domyślnie) – wyrzucenie. Ślad zostaje: list pierwotny
+- `MAIL_BOUNCE_TARGET=capture` (domyślnie w compose od MAIL-02) – zawiadomienia do skrzynki Maildir,
+  którą czyta worker: lista adresów niedoręczalnych, baner, wstrzymanie wysyłki – **§ 52**.
+- `MAIL_BOUNCE_TARGET=discard` (domyślnie do MAIL-02) – wyrzucenie. Ślad zostaje: list pierwotny
   `status=bounced (…powód…)`, odbicie `postfix/discard … status=sent (olimpiada-bounce)`.
   Lista niedoręczonych: `docker compose logs mail | grep status=bounced`.
 - `MAIL_BOUNCE_TARGET=ops@qaif.org` w `.env` – przekierowanie na skrzynkę operatora (odbicia od
@@ -6752,3 +6756,106 @@ kontrast, a stopka – bez odnośnika do deklaracji.
   wpisany do rejestru `.security/vendor.toml` (§ 47.4: wersja, integrity npm, SHA384; miesięczny
   przegląd `upstream` pokaże nowe wydanie i znane podatności). Job CI `a11y` ma akcje przypięte SHA
   i `permissions: contents: read`.
+
+## 52. Literówki w adresach i odbicia poczty (MAIL-02, `docs/tasks/MAIL-02.md`)
+
+Dwie rzeczy: formularze łapią literówkę w domenie adresu **zanim** konto powstanie, a serwis zapisuje
+odbicia (bounce) listów, które już wyszły – i mówi o nich właścicielowi adresu oraz koordynatorowi.
+Prawdziwe przypadki z logu relaya (5.10.2026): `kcadera@o2.plo` (relay: „Domain not found”) i kilka
+adresów `…@gmail.com` z odpowiedzią Google'a 550 5.1.1 „user not found”.
+
+### 52.1. Formularze: „Czy chodziło Ci o …?” i blokada martwej domeny
+
+Pola adresu w rejestracji uczestnika, komitetu i opiekuna szkolnego, w zmianie adresu (`/account/email/`),
+w koncie edytowanym przez koordynatora, w zaproszeniu opiekuna drużyny (DEL-01) i w uczniu dodawanym
+przez opiekuna drużyny (adres ucznia i rodzica):
+
+- **literówka w domenie** (`gmial.com`, `o2.plo`, `wp.pll`, `firma.con`) – po opuszczeniu pola skrypt
+  podpowiada poprawkę z przyciskiem „Użyj …”; po wysłaniu formularz wraca **raz** z pytaniem i polem
+  wyboru „Użyj adresu …”. Ponowne wysłanie tego samego adresu przechodzi – nietypowy adres da się zawsze
+  zostawić. Lista znanych dostawców i mapa literówek TLD: `apps/email_delivery/typos.py` (kopia w
+  `static/email_delivery/email-check.js`; test pilnuje zgodności),
+- **domena, która na pewno nie przyjmuje poczty** (brak MX i A albo „null MX”) – błąd bez możliwości
+  pozostawienia. Pytanie DNS zadaje `web` (resolwer z `/etc/resolv.conf`, limit 1,5 s, wynik w cache:
+  „tak” 24 h, „nie” 1 h, „nie wiadomo” 5 min). **Każdy błąd DNS przepuszcza adres** (fail-open).
+  Adres rodzica w panelu uczestnika (`/me/guardian/`) ma wyłącznie blokadę (ekran nie rysuje pola ponownie).
+
+Wyłącznik blokady (np. przy kłopotach z DNS serwera): `EMAIL_DOMAIN_DNS_CHECK=false` w `.env` i
+`docker compose up -d web`. Podpowiedzi literówek działają dalej (nie pytają DNS-u).
+
+### 52.2. Skąd serwis wie o niedoręczeniu
+
+- **Odmowa relaya** w chwili wysyłki (domena odbiorcy nie istnieje): relay odpowiada `550 5.1.2 …
+  Domain not found` (od MAIL-02 `POSTFIX_unknown_address_reject_code: "550"` w compose; przy awarii DNS
+  relay zawsze odpowiada 450), worker zapisuje odmowę i **nie** ponawia listu trzy razy jak dotąd
+  (backend `apps.email_delivery.backends.TrackingSMTPBackend`, podstawiany przy `EMAIL_BOUNCE_TRACKING`).
+- **Zawiadomienie o niedoręczeniu (DSN)** po przyjęciu listu przez relay (np. 550 5.1.1 od Gmaila):
+  `MAIL_BOUNCE_TARGET=capture` (domyślne w compose od MAIL-02) kieruje zawiadomienia na `noreply@<domena>`
+  agentem `virtual` Postfiksa do skrzynki Maildir na wolumenie `mail_bounces`
+  (`mail:/var/mail/olimpiada/bounces/`, `worker:/var/mail-bounces/bounces/`, pliki UID/GID 1000).
+  Worker co 5 minut (`apps.email_delivery.tasks.process_bounce_mailbox`, wpis beat `email-bounces`)
+  czyta `new/`, zapisuje odbicia i **kasuje** pliki (zawiadomienie niesie kopię listu – z linkiem
+  aktywacyjnym). Plik, którego nie udało się przetworzyć, leży w `bounces/cur/` 7 dni. Podwójne odbicia
+  i nadawcy monitoringu (`postmaster@`, `glitchtip@`, `uptime@`) – nadal `discard`.
+- Logów relaya aplikacja **nie** czyta (wymagałoby to gniazda Dockera w kontenerze) – `docker compose
+  logs mail | grep -E "status=bounced|NOQUEUE"` zostaje narzędziem operatora.
+
+Twarde odbicie = adres albo domena nie istnieje (5.1.x, 5.2.1, 5.4.4, „user unknown”…). Wszystko inne
+(4.x.x, skrzynka pełna 5.2.2, odmowa z powodu polityki/spamu 5.7.x) – miękkie: liczone, bez skutków.
+Odbicia 5.7.x od dużych odbiorców to sygnał o **naszej** reputacji (SPF/DKIM/DMARC, § 49), nie o adresie.
+
+### 52.3. Co się dzieje z adresem, który twardo odbił
+
+- **Baner** dla zalogowanego właściciela: „Nie możemy dostarczyć poczty na adres …” z odnośnikiem do
+  zmiany adresu i przyciskiem „Mój adres jest poprawny” (wznawia wysyłkę; audyt
+  `email.undeliverable_confirmed`). Konto nieaktywowane (link aktywacyjny nie dotarł) zalogować się
+  nie może – takie konta widzi koordynator.
+- **Panel koordynatora → Raporty → „Adresy niedoręczalne”** (`/coordinator/undeliverable-emails/`,
+  tylko konta tego konkursu): data, kod, powód, liczba odbić miękkich, CSV (audyt
+  `email.undeliverable_exported`) i „Oznacz jako doręczalny” (audyt `email.undeliverable_cleared`).
+  Poprawny adres wpisuje się w „Kontach” – zmiana adresu kasuje wpis sama.
+- **Wstrzymanie listów nieobowiązkowych**: powiadomienia forum, czatu, webinarów, sieci absolwentów
+  i komunikaty grupowe nie wychodzą na taki adres (komunikat liczy go jako obsłużony). Aktywacja, reset
+  hasła, zmiana adresu, zgody, wyniki, rozmowy, płatności i biuro wsparcia – wychodzą zawsze.
+- **Reset**: zmiana adresu konta (każda droga), „Mój adres jest poprawny”, decyzja koordynatora,
+  usunięcie konta.
+
+### 52.4. Wdrożenie (operator)
+
+1. Wdrożenie wydania z MAIL-02 (`scripts/deploy.sh`) – compose zakłada wolumen `mail_bounces`,
+   odtwarza `mail` (nowe zmienne) i `worker` (nowy wolumen). Migracja `email_delivery.0001` idzie
+   w `web` jak każda.
+2. Jeśli `.env` serwera ma `MAIL_BOUNCE_TARGET=discard` albo adres skrzynki – **usuń** ten wiersz
+   (albo wpisz `capture`) i `docker compose up -d mail`. Z adresem skrzynki operator dostaje odbicia
+   pocztą, ale serwis ich nie widzi – obu naraz nie ma.
+3. Sprawdzenie:
+
+   ```sh
+   docker compose logs mail | grep olimpiada-bounces    # „poczta zwrotna -> capture (/var/mail/olimpiada/bounces/, 1000:1000)”
+   docker compose exec mail postconf unknown_address_reject_code virtual_mailbox_base transport_maps
+   docker compose exec worker ls -la /var/mail-bounces/ # bounces/ właściciela 1000 (po pierwszym odbiciu)
+   ```
+
+   Próba na żywo: zmiana adresu konta testowego na nieistniejącą skrzynkę Gmaila
+   (`ktos-kogo-nie-ma-2026@gmail.com` – domena istnieje, więc formularz go przepuści); list
+   potwierdzający odbije, po ≤ 5 minutach adres stoi na liście koordynatora z kodem 5.1.1.
+4. Zaległe odbicia sprzed wdrożenia (log relaya) – wypisanie i ręczny zapis:
+
+   ```sh
+   docker compose logs mail --since 720h | grep -E "status=bounced|NOQUEUE: reject" | grep -oE "to=<[^>]+>" | sort -u
+   docker compose exec web python manage.py shell -c "from apps.email_delivery.bounces import Bounce; from apps.email_delivery.services import record_bounce; record_bounce(Bounce(email='adres@domena', hard=True, status='5.1.1', reason='z logu relaya'))"
+   ```
+
+### 52.5. RODO, retencja, wyłączenie
+
+- Rejestr czynności 1.22: wiersz „Doręczalność poczty” (warunkowy – `EMAIL_BOUNCE_TRACKING`);
+  eksport danych konta: sekcja `doreczalnosc_poczty`.
+- Retencja: stan adresu kasuje zadanie dzienne `email-delivery-purge` po 365 dniach bez zdarzenia;
+  pliki Maildir – po przetworzeniu (nieczytelne po 7 dniach). Wolumen `mail_bounces` jest poza kopiami
+  zapasowymi (§ 1) – pliki żyją kilka minut, a stan adresów jest w bazie.
+- Wyłączenie: `EMAIL_BOUNCE_TRACKING=false` i `MAIL_BOUNCE_TARGET=discard` w `.env`,
+  `docker compose up -d mail web worker beat`; stare wpisy kasuje retencja albo od razu:
+  `docker compose exec web python manage.py shell -c "from apps.email_delivery.models import DeliveryStatus as D; print(D.objects.all().delete())"`.
+- Zawiadomienia trafiają do skrzynki wyłącznie dla adresów `noreply@<domena z ALLOWED_SENDER_DOMAINS>`
+  (albo `MAIL_BOUNCE_ADDRESSES`). Konkurs z nadawcą innym niż `noreply@…` (`Competition.from_email`) –
+  dopisz jego adres do `MAIL_BOUNCE_ADDRESSES`, inaczej jego odbicia nie wrócą do serwisu.

@@ -12,6 +12,28 @@ podsekcją `### <tytuł>` wydania `## v<x.y.z> – <data tagu> – <opis tagu>`.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## [Unreleased] – Literówki w adresach e-mail i odbicia poczty (MAIL-02)
+
+- **„Czy chodziło Ci o …?”** w polach adresu (rejestracja uczestnika, komitetu i opiekuna szkolnego,
+  zmiana adresu, konto w panelu koordynatora, zaproszenie opiekuna drużyny, uczeń i rodzic dodawani
+  przez opiekuna drużyny): literówka w domenie (`gmial.com`, `o2.plo`, `.con`, `.pll` …; ~85 dostawców
+  z Polski i świata, IDN, plus-adresy) – podpowiedź po opuszczeniu pola (skrypt statyczny z nonce, bez
+  inline JS) i jedno pytanie po wysłaniu, z polem „Użyj adresu …”; ponowne wysłanie zostawia adres.
+- **Twarda blokada** domen bez MX i A (oraz „null MX”) – pytanie DNS z `web` (klient z MAIL-01, 1,5 s,
+  cache), każdy błąd DNS przepuszcza adres. Wyłącznik `EMAIL_DOMAIN_DNS_CHECK`.
+- **Odbicia poczty**: odmowy relaya zapisywane w chwili wysyłki (550 – bez trzech ponowień; relay
+  dostaje `unknown_address_reject_code=550`), zawiadomienia o niedoręczeniu (DSN) – `MAIL_BOUNCE_TARGET=capture`
+  (nowa domyślna w compose): agent `virtual` Postfiksa → Maildir na wolumenie `mail_bounces` → worker
+  co 5 min (parser RFC 3464, pliki kasowane po przetworzeniu). Twarde (5.1.x, 5.2.1, 5.4.4) i miękkie
+  (liczone). Nowa aplikacja `apps.email_delivery`, model `DeliveryStatus` (klucz = adres).
+- **Baner** „Nie możemy dostarczyć poczty na adres …” z „Zmień adres” i „Mój adres jest poprawny”;
+  **lista koordynatora** „Adresy niedoręczalne” (Raporty, CSV, „Oznacz jako doręczalny”, audyt);
+  **wstrzymanie listów nieobowiązkowych** (forum, czat, webinary, absolwenci, komunikaty grupowe);
+  reset przy zmianie adresu, potwierdzeniu i usunięciu konta.
+- RODO: rejestr czynności 1.22 (wiersz warunkowy), sekcja eksportu `doreczalnosc_poczty`, retencja
+  365 dni. Tłumaczenia w 10 językach (`apps/email_delivery/locale`). Przełącznik `EMAIL_BOUNCE_TRACKING`
+  (compose: wł.). Bez nowych zależności. Operator: `docs/OPERACJE.md` § 52.
+
 ## v0.47.2 – 2026-10-05 – Dostępność WCAG 2.1 AA, deklaracja dostępności, motyw IQO 1.1.2 (A11Y-01)
 
 - **Suita e2e dostępności** (`e2e/a11y/`, `scripts/a11y.sh`, job CI `a11y`): axe-core 4.13.0

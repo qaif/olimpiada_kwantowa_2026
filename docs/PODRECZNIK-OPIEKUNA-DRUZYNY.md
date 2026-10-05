@@ -46,6 +46,12 @@ afterwards as *active*. The student's country is always your delegation's countr
 You cannot register an address that already has an account on the site – contact the organiser in
 that case.
 
+**Typos in addresses.** If a domain looks mistyped (`gmial.com`, `hotmial.com`, `yahoo.con`, `qq.cm`…)
+the form shows *“Did you mean …?”* – tick *Use …* or submit the form again to keep the address as you
+typed it. An address whose domain does not exist at all (no mail server) is refused. If a student's
+address later bounces (the mailbox does not exist), the student sees a notice after logging in and
+the organiser sees the address on the list of undeliverable addresses – correct it with the student.
+
 ## 4. Limits and deadlines
 
 - **Student limit:** each delegation has a limit set by the organiser (default 6). When it is reached,
