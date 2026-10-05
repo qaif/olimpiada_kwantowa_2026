@@ -22,6 +22,7 @@ from apps.accounts.consents import label as consent_label
 from apps.accounts.delegations import DelegationStatus
 from apps.accounts.names import validate_person_name
 from apps.accounts.services import registration_profile
+from apps.email_delivery.fields import CheckedEmailField, EmailDomainCheckMixin  # MAIL-02
 from apps.tenancy.models import MAX_DELEGATION_SIZE
 from apps.web.forms import (
     PASSWORD_CONFIRM_FIELD,
@@ -39,12 +40,12 @@ LEADER_CONSENT_KINDS = (ConsentKind.TERMS, ConsentKind.PRIVACY)
 # --- koordynator --------------------------------------------------------------------------------
 
 
-class LeaderInviteForm(forms.Form):
+class LeaderInviteForm(EmailDomainCheckMixin, forms.Form):
     """„Zaproś opiekuna”: adres i kraj. Delegację kraju zakłada serwis, gdy jej jeszcze nie ma."""
 
     required_css_class = REQUIRED_CSS_CLASS
 
-    email = forms.EmailField(label="Adres e-mail opiekuna", max_length=254)
+    email = CheckedEmailField(label="Adres e-mail opiekuna", max_length=254)
     country = forms.ChoiceField(label="Kraj", choices=())
 
     def __init__(self, *args, countries=(), **kwargs):
@@ -147,7 +148,7 @@ def _grade_choices(profile) -> list[tuple[str, str]]:
     ]
 
 
-class StudentForm(forms.Form):
+class StudentForm(EmailDomainCheckMixin, forms.Form):
     """Uczeń zgłaszany przez opiekuna drużyny: dane, których uczeń nie musi przepisywać.
 
     Hasła, telefonu i zgód tu nie ma: składa je uczeń sam pod linkiem z listu. Klasa i data
@@ -164,7 +165,7 @@ class StudentForm(forms.Form):
     last_name = forms.CharField(
         label=gettext_lazy("Nazwisko"), max_length=150, validators=[validate_person_name]
     )
-    email = forms.EmailField(
+    email = CheckedEmailField(
         label=gettext_lazy("Adres e-mail ucznia"),
         max_length=254,
         help_text=gettext_lazy(
@@ -173,7 +174,7 @@ class StudentForm(forms.Form):
     )
     school = forms.CharField(label=gettext_lazy("Szkoła"), max_length=255, min_length=3)
     grade = forms.TypedChoiceField(label=gettext_lazy("Klasa"), choices=(), coerce=int, empty_value=None)
-    guardian_email = forms.EmailField(
+    guardian_email = CheckedEmailField(
         label=gettext_lazy("Adres e-mail rodzica lub opiekuna prawnego"),
         max_length=254,
         required=False,

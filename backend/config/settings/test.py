@@ -47,6 +47,9 @@ MAILERS = {"default": {"BACKEND": "django.core.mail.backends.locmem.EmailBackend
 # Testy nadawców konkursów posługują się domenami ``.test`` spoza ``SITE_DOMAIN`` – ograniczenie
 # relaya (``MAIL_ALLOWED_SENDER_DOMAINS``) włączają wyłącznie testy, które go dotyczą.
 MAIL_ALLOWED_SENDER_DOMAINS = None
+# MAIL-02: testy nie pytają prawdziwego DNS-u o domeny adresów z formularzy (sieć testów bywa bez
+# wyjścia na świat – każde pytanie to 1,5 s czekania na limit). Testy blokady włączają go jawnie.
+EMAIL_DOMAIN_DNS_CHECK = False
 # Testy nie dotykają MinIO ani sieci: pliki rozwiązań lądują pod MEDIA_ROOT (tmp_path per test).
 SUBMISSION_STORAGE_BACKEND = "apps.submissions.storage.LocalSubmissionStorage"
 # CAPTCHA w trybie testowym: pakiet przyjmuje odpowiedź „PASSED” niezależnie od wyzwania, więc

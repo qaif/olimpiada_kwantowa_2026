@@ -2784,6 +2784,29 @@ szkolnego – koordynator. Zanim klikniesz, potwierdź tożsamość inną drogą
 pod Twoim nazwiskiem, a właściciel dostaje list i po zalogowaniu hasłem od razu konfiguruje 2FA
 na nowym telefonie.
 
+### Adresy niedoręczalne — `/coordinator/undeliverable-emails/` (MAIL-02)
+
+**Raporty → „Adresy niedoręczalne”**: konta tego konkursu, na których adres poczta nie dochodzi – serwer
+odbiorcy odpowiedział, że skrzynka albo domena nie istnieje (np. `…@gmail.com` z kodem 5.1.1 albo domena
+z literówką, której relay nie znalazł). Kolumny: adres (z oznaczeniem konta nieaktywnego – typowy przypadek:
+link aktywacyjny nie dotarł), osoba, data pierwszego odbicia, kod i powód z serwera odbiorcy, liczba
+odbić chwilowych. **„Pobierz CSV”** – ta sama lista do arkusza (wpis w audycie).
+
+Co robić z wierszem: zadzwonić albo napisać inną drogą, ustalić poprawny adres i wpisać go w **Kontach**
+(edycja konta) – zmiana adresu kasuje wiersz sama; konto nieaktywne można przy okazji aktywować ręcznie.
+**„Oznacz jako doręczalny”** – gdy uczestnik potwierdził, że adres jest dobry (np. właśnie założył
+skrzynkę): wysyłka wraca, a jeśli list znowu odbije, wiersz wróci.
+
+Na adresy z tej listy **nie wychodzą listy nieobowiązkowe** – komunikaty grupowe (licznik komunikatu
+liczy je jako obsłużone), powiadomienia forum, wiadomości, webinarów i sieci absolwentów. Aktywacja,
+reset hasła, zgody, wyniki i rozmowy idą zawsze. Uczestnik sam widzi po zalogowaniu baner „Nie możemy
+dostarczyć poczty na adres …” z przyciskami „Zmień adres e-mail” i „Mój adres jest poprawny”.
+
+**Literówki przy wpisywaniu.** Formularze adresu (rejestracje, zmiana adresu, edycja konta w panelu,
+zaproszenie opiekuna drużyny) pytają „Czy chodziło Ci o …?” przy domenach typu `gmial.com`, `o2.plo`,
+`.con` – zaznaczasz poprawkę albo wysyłasz formularz jeszcze raz, żeby zostawić adres. Domeny, która nie
+istnieje (bez serwera poczty), formularz nie przyjmie. Szczegóły techniczne: `docs/OPERACJE.md` § 52.
+
 ## 11. Kalendarz prowadzenia edycji — ściągawka
 
 | Kiedy | Co zrobić | Gdzie |

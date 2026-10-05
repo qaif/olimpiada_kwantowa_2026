@@ -1,0 +1,47 @@
+# Doręczalność poczty (MAIL-02) – katalog aplikacji apps.email_delivery.
+# Angielski przejrzany ręcznie; pozostałe języki maszynowe (do przeglądu native speakerów, I18N-01 § 8).
+msgid ""
+msgstr ""
+"Project-Id-Version: olimpiada\n"
+"Language: fr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+
+#, python-format
+msgid "Czy chodziło Ci o %s?"
+msgstr "Vouliez-vous dire %s ?"
+
+#, python-format
+msgid "Użyj %s"
+msgstr "Utiliser %s"
+
+#, python-format
+msgid "Sprawdź adres – czy chodziło Ci o %(suggestion)s? Zaznacz poprawkę poniżej albo wyślij formularz jeszcze raz, żeby zostawić adres bez zmian."
+msgstr "Vérifiez l’adresse – vouliez-vous dire %(suggestion)s ? Cochez la correction ci-dessous ou renvoyez le formulaire pour conserver l’adresse telle quelle."
+
+#, python-format
+msgid "Domena %(domain)s nie istnieje albo nie przyjmuje poczty. Sprawdź adres."
+msgstr "Le domaine %(domain)s n’existe pas ou n’accepte pas les e-mails. Vérifiez l’adresse."
+
+#, python-format
+msgid "Domena %(domain)s nie istnieje albo nie przyjmuje poczty. Czy chodziło Ci o %(suggestion)s?"
+msgstr "Le domaine %(domain)s n’existe pas ou n’accepte pas les e-mails. Vouliez-vous dire %(suggestion)s ?"
+
+#, python-format
+msgid "Użyj adresu <strong>%(address)s</strong>"
+msgstr "Utiliser <strong>%(address)s</strong>"
+
+#, python-format
+msgid "Nie możemy dostarczyć poczty na adres %(email)s – serwer odbiorcy odpowiada, że taka skrzynka albo domena nie istnieje. Nie dostaniesz od nas listów, dopóki adres nie zostanie poprawiony."
+msgstr "Nous ne pouvons pas distribuer de courrier à %(email)s : le serveur du destinataire indique que cette boîte ou ce domaine n’existe pas. Vous ne recevrez aucun message de notre part tant que l’adresse n’aura pas été corrigée."
+
+msgid "Zmień adres e-mail"
+msgstr "Modifier l’adresse e-mail"
+
+msgid "Mój adres jest poprawny"
+msgstr "Mon adresse est correcte"
+
+msgid "Dziękujemy. Wznowiliśmy wysyłkę na Twój adres – jeśli list znów nie dotrze, baner wróci."
+msgstr "Merci. Nous avons repris les envois vers votre adresse – si un message échoue de nouveau, cet avis réapparaîtra."

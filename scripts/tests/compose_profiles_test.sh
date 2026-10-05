@@ -351,7 +351,7 @@ check "errors_ingest i errors_front bez wyjścia do internetu, errors_egress z w
 }
 check "TRUSTED_PROXY_IPS bez sieci GlitchTipa; mynetworks relaya wyłącznie z errors_egress" $?
 mail_cfg="$(awk '/^  mail:$/ {on=1; next} on && /^  [^ ]/ {on=0} on' "$WORK/pelny.yml")"
-printf '%s\n' "$mail_cfg" | grep -qF 'POSTFIX_smtpd_sender_restrictions: check_client_access cidr:{ { 172.30.9.0/24 errors_sender_only } }, permit_mynetworks, reject' \
+printf '%s\n' "$mail_cfg" | grep -qF 'POSTFIX_smtpd_sender_restrictions: check_sender_access inline:{ <>=REJECT }, check_client_access cidr:{ { 172.30.9.0/24 errors_sender_only } }, permit_mynetworks, reject' \
   && printf '%s\n' "$mail_cfg" | grep -qE 'POSTFIX_errors_sender_only: check_sender_access inline:\{ glitchtip@[^ ]+=OK \}, reject$'
 check "relay: z podsieci GlitchTipa wyłącznie nadawca glitchtip@<domena>" $?
 # Bez profilu – żadnej usługi, bazy ani wolumenu GlitchTipa/uptime (sieci errors_* istnieją, bo należą do
