@@ -51,6 +51,8 @@ from django.conf import settings
 from django.utils import translation
 from django.utils.http import url_has_allowed_host_and_scheme
 
+from . import request_memo
+
 #: Klucz w sesji dla trybu wysokiego kontrastu gościa. Sesja, a nie ciasteczko: wartość jest
 #: czytana wyłącznie po stronie serwera (dokłada atrybut do ``<html>``), więc nie ma powodu
 #: wysyłać jej przeglądarce w osobnym pliku cookie – polityka cookies obiecuje ich minimum.
@@ -427,6 +429,9 @@ class PreferencesMiddleware:
         request.LANGUAGE_CODE = state["language"]
         request.high_contrast = state["high_contrast"]
         response = None
+        # Pamięć profilu uczestnika na czas tego żądania (PERF-01, ``apps.accounts.request_memo``) –
+        # ta warstwa i tak ustawia stan wątku na czas żądania i sprząta go w ``finally``.
+        memo_token = request_memo.open_scope()
         try:
             response = self.get_response(request)
             # Nagłówek ``Content-Language`` ma mówić o języku, który faktycznie wyszedł – a ten mogła
@@ -442,6 +447,7 @@ class PreferencesMiddleware:
             # powstaje dopiero przy wysyłaniu, już za tą warstwą, i ma powstać w języku żądania.
             if response is None or not getattr(response, "streaming", False):
                 translation.deactivate()
+            request_memo.close_scope(memo_token)
 
 
 def interface(request) -> dict:

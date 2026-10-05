@@ -117,4 +117,4 @@ Liczba odbić zostaje w logu `mail` (`status=bounced` przy liście pierwotnym).
 
 ## 7. Dokumentacja
 
-`docs/OPERACJE.md` § 49 (krok po kroku dla Squarespace), § 9.7 (odnośnik), `docs/CHANGELOG.md`.
+`docs/OPERACJE.md` § 49 (krok po kroku dla Squarespace), OPERACJE § 9.7 (odnośnik), `docs/CHANGELOG.md`.

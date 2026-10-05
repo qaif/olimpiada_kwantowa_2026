@@ -75,7 +75,7 @@ Każdy błąd po drodze (złe hasło, obcięta paczka, `pg_restore`, kontener sp
 | `fernet` | szyfrogram pola `EncryptedTextField` nie odszyfrowuje się kluczami aplikacji | odszyfrowuje się wyłącznie kluczem z `SECRET_KEY_FALLBACKS`; brak wierszy = pominięte |
 | `media_sample` | z losowej próbki (20 + 20) plików prac (`clean`) i mediów CMS brakuje w paczce więcej niż 10 % (min. 1) | – |
 | `files_archive` | brak paczki plików albo nieczytelna | – |
-| `djcms_*` | jak dotąd (§ 22) | – |
+| `djcms_*` | jak dotąd (OPERACJE § 22) | – |
 
 Tabele kluczowe: konta, uczestnicy, konkursy, witryny Wagtaila, etapy, prace, pliki prac, audyt,
 członkowie delegacji. Widełki są zmiennymi środowiskowymi skryptu (§ 43.5 OPERACJE).

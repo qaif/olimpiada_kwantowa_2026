@@ -75,6 +75,13 @@ CONNECT_TIMEOUT_SECONDS = 1.0
 #: a woła ją wyłącznie komenda importu, nie odsłona strony.
 EXPORT_TIMEOUT_SECONDS = 120.0
 
+#: Limit listy konkursów pobieranej przez **komendy** (``fetch_competitions``: ``sync_competitions``,
+#: importer) – na gniazdo i na całość. Limit odsłony (1 s na gniazdo) jest tu zły: ``deploy.sh`` woła
+#: ``sync_competitions`` chwilę po restarcie ``web``, a pierwsze żądanie do świeżych procesów
+#: gunicorna (leniwe importy, zimny bufor, nowa pula połączeń) trwało dłużej niż sekunda – komenda
+#: kończyła się ``timeout`` przy prawie każdym wdrożeniu (OPS-04 § 4). Komenda może poczekać, strona nie.
+COMMAND_TIMEOUT_SECONDS = 30.0
+
 READ_CHUNK_BYTES = 64 * 1024
 
 CACHE_PREFIX = f"djcms:api:v{API_VERSION}:"
@@ -307,15 +314,16 @@ class MainApi:
         """Lista konkursów (``GET competitions``) – ta sama droga co ``get``: bufor, kopia, bezpiecznik."""
         return self._get(None, COMPETITIONS_ENDPOINT, request)
 
-    def fetch_competitions(self) -> dict:
+    def fetch_competitions(self, timeout: float = COMMAND_TIMEOUT_SECONDS) -> dict:
         """Lista konkursów **teraz**, z pominięciem bufora i bezpiecznika – dla komend.
 
         ``sync_competitions`` ma odpowiedzieć stanem aplikacji głównej z tej chwili albo zakończyć
         się błędem (``MainApiError``), a nie po cichu uzgodnić rejestr z kopią sprzed 10 minut.
-        Sukces odświeża bufor (kolejne odsłony dostaną tę samą listę).
+        Sukces odświeża bufor (kolejne odsłony dostaną tę samą listę). Limit czasu – komendy
+        (``COMMAND_TIMEOUT_SECONDS``), nie odsłony strony.
         """
         try:
-            data = self._fetch_json(COMPETITIONS_ENDPOINT, None)
+            data = self._fetch_json(COMPETITIONS_ENDPOINT, None, timeout=timeout)
         except _Failure as failure:
             raise MainApiError(failure.code) from None
         self._store(self._cache_key(None, COMPETITIONS_ENDPOINT), data)
@@ -404,12 +412,15 @@ class MainApi:
             )
         return ApiResult(data=None, stale=False, fetched_at=None, error=error)
 
-    def _fetch_json(self, endpoint: str, competition: str | None) -> dict:
-        total = float(settings.DJCMS_API_TIMEOUT)
+    def _fetch_json(self, endpoint: str, competition: str | None, *, timeout: float | None = None) -> dict:
+        # ``timeout`` podany (komenda) = jeden limit na gniazdo i na całość; brak (odsłona strony) =
+        # ``DJCMS_API_TIMEOUT`` na całość i ``CONNECT_TIMEOUT_SECONDS`` na operację gniazda (§ 2).
+        total = float(settings.DJCMS_API_TIMEOUT) if timeout is None else float(timeout)
+        socket_timeout = min(CONNECT_TIMEOUT_SECONDS, total) if timeout is None else total
         deadline = time.monotonic() + total
         request = self._request(endpoint, competition, "application/json")
         try:
-            with self.opener.open(request, timeout=min(CONNECT_TIMEOUT_SECONDS, total)) as response:
+            with self.opener.open(request, timeout=socket_timeout) as response:
                 if response.status != 200:
                     raise _Failure(f"http-{response.status}")
                 body = _read_limited(response, MAX_RESPONSE_BYTES, deadline)

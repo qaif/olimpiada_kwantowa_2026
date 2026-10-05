@@ -197,6 +197,7 @@ INSTALLED_APPS = [
     "apps.password_change",  # zmiana hasła w panelu konta (AUTH-01b, 4.10.2026), bez modeli
     "apps.mail_domains",  # domeny nadawców poczty: check_mail_dns i ostrzeżenia (MAIL-01, 5.10.2026)
     "apps.monitoring",  # śledzenie błędów (GlitchTip) i dostępność – OPS-02, wyłączone bez SENTRY_DSN
+    "apps.accessibility",  # deklaracja dostępności i napisy stopki (A11Y-01, 5.10.2026), bez modeli
     "apps.web",
     # Logowanie przez dostawców zewnętrznych (Google, Facebook). ``allauth.account`` jest wymagane
     # przez ``allauth.socialaccount`` (model ``EmailAddress``, adaptery) – jego **widoki** nie są
@@ -363,6 +364,8 @@ TEMPLATES = [
                 # szkolnego. Wartość leniwa, z pamięci podręcznej unieważnianej przy zapisie plakatu
                 # (``apps.promo.availability``).
                 "apps.promo.availability.promo_materials",
+                # Odnośnik do deklaracji dostępności w stopce – tylko gdy strona jest opublikowana (A11Y-01).
+                "apps.accessibility.availability.accessibility_statement",
                 # Czy pokazać odnośnik „Materiały z warsztatów” w pasku konta i na pulpicie
                 # uczestnika – przełącznik konkursu i pamięć podręczna unieważniana przy zapisie
                 # materiału (``apps.workshop_materials.availability``); wartość leniwa.
@@ -505,6 +508,9 @@ PAGE_CACHE_ENABLED = env.bool("PAGE_CACHE_ENABLED", default=not DEBUG)
 # dwa niezależne wyłączniki, bo jeden bywa wygodniejszy operacyjnie (zmienna środowiskowa przy
 # incydencie), a drugi programistycznie (test, który włącza cache, ale ze świadomie krótkim TTL).
 PAGE_CACHE_SECONDS = env.int("PAGE_CACHE_SECONDS", default=120)
+# Odstęp odpytywania otwartego wątku Wiadomości (PERF-01, docs/OPERACJE.md § 42.5): najczęstsze
+# żądanie dnia zawodów; na czas etapu operator może go wydłużyć bez wdrożenia (np. 45).
+CHAT_POLL_SECONDS = env.int("CHAT_POLL_SECONDS", default=15)
 
 CELERY_BROKER_URL = env("CELERY_BROKER_URL", default="redis://localhost:6379/1")
 CELERY_RESULT_BACKEND = None

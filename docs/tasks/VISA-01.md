@@ -134,7 +134,7 @@ Gdzie: `apps/delegation_logistics/` – `letter_requests.py` (wnioski, decyzje, 
 `views_letters.py` + wpisy na końcu `urls.py`, szablony `leader_letters.html`, `letter_requests.html`,
 `verify.html`, `email/letter_decision_*.txt`; migracja `0003_visa_letter_workflow`; katalogi `.po`
 aplikacji (41 napisów × 10 języków, maszynowe). Dokumentacja: OPERACJE § 31.8, podręcznik organizatora
-§ 10d, przewodnik opiekuna § 7.
+§ 10d, przewodnik opiekuna § 7a.
 
 Odstępstwa od pierwotnego zamówienia (z powodem):
 1. **Brak osobnej aplikacji, modelu paszportu i flagi `visa_letters`** – decyzja koordynatora prac:

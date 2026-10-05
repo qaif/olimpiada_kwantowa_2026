@@ -125,8 +125,15 @@ IDENTITY_FIELDS = ("email", "username")
 #: pokoju rozmowy LiveKit (odbierz/oddaj głos, usuń, wpuść ponownie).
 #: ``theme_settings`` (THEME-02) – menu i dostosowanie motywu; wyłącznie koordynator, koszt
 #: (unieważnienie cache stron konkursu) przypada na konto.
+#:
+#: ``upload`` (PERF-01, docs/OPERACJE.md § 42.5) – wysyłka rozwiązania z panelu uczestnika, import
+#: listy i zaświadczenie opiekuna: wszystkie za logowaniem. Kubełek IP (30/h) wspólny dla sali, w której
+#: delegacja albo klasa pisze etap za jednym NAT-em, wyczerpywał się po dziesięciu uczniach z trzema
+#: zadaniami – reszta dostawała 429 tuż przed terminem. ``POST /api/submissions/`` (DRF
+#: ``ScopedRateThrottle``) liczył zalogowanych per konto od zawsze; formularz HTML liczy teraz tak samo.
 PER_USER_SCOPES = frozenset(
     {
+        "upload",
         "chat",
         "forum",
         "video",

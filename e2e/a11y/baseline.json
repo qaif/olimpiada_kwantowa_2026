@@ -1,0 +1,4 @@
+{
+  "_opis": "Naruszenia WCAG 2.1 A/AA (critical/serious) przyjęte świadomie – klucz <ekran>|<reguła axe>. Każdy wpis wymaga uzasadnienia (reason). Dopisanie: A11Y_UPDATE_BASELINE=1 scripts/a11y.sh, potem uzasadnienie albo naprawa. docs/OPERACJE.md § 50, docs/tasks/A11Y-01.md § 6.",
+  "accepted": []
+}

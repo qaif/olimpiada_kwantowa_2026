@@ -503,29 +503,6 @@ konkursu (i w Twojej strefie, jeśli jest inna).
 
 ---
 
-## 8b. Przegląd tłumaczeń — `/translations/` (dla tłumaczy-wolontariuszy)
-
-Ten rozdział jest dla osób, którym organizator nadał rolę **tłumacza** (np. kierownik delegacji).
-Napisy serwisu są tłumaczone maszynowo z polskiego; Ty sprawdzasz je w swoim języku.
-
-1. **Lista napisów** — `/translations/` → swój język. Każdy wiersz: tekst źródłowy (polski), wersja
-   angielska (odniesienie), obecne tłumaczenie i stan: *maszynowe*, *przejrzane*, *brak*. Filtr
-   „Pokaż” i wyszukiwanie po dowolnym z tych tekstów.
-2. **Napis** — kliknij, żeby zobaczyć kontekst (gdzie w serwisie występuje, uwagi dla tłumacza) i:
-   - **zaproponować poprawkę** – zmienne w nawiasach (np. `%(name)s`, `{name}`) i znaczniki HTML
-     przepisz dokładnie; zamiast prostych cudzysłowów `"` użyj typograficznych („…”, «…», “…”),
-     prosty apostrof zamieni się na ’ sam,
-   - **poprzeć** cudzą propozycję („Popieram”) – recenzent widzi liczbę głosów,
-   - jako **recenzent**: „Zatwierdź”, „Odrzuć”, „Obecne tłumaczenie jest poprawne” albo „Przywróć
-     tłumaczenie z katalogu”. Zatwierdzona poprawka jest w serwisie po kilku sekundach.
-3. **Zgłoś tłumaczenie** — odnośnik w stopce każdej strony w Twoim języku. Wpisz fragment źle
-   przetłumaczonego tekstu i jak powinien brzmieć; zapisujemy samą ścieżkę strony (bez parametrów
-   adresu). Zgłoszenia czyta recenzent tłumaczeń Twojego języka.
-
-Inni tłumacze nie widzą, kto zaproponował poprawkę ani kto zgłosił błąd.
-
----
-
 ## 8c. Absolwenci i mentoring — `/me/alumni/`
 
 Pojawia się w pasku konta, gdy organizator włączył sieć absolwentów.
@@ -577,6 +554,29 @@ Osoba nadzorująca może napisać do Ciebie albo poprosić o pokazanie pokoju lu
 pojawi się w konsoli; kliknij „Rozumiem”. Nie ma automatycznej analizy obrazu ani śledzenia tego, co
 robisz w przeglądarce. **Nie masz kamery albo nie chcesz jej używać?** Na dole konsoli: „Poproś o inną
 formę nadzoru” – organizator odpowie w tej samej konsoli. Zgodę możesz wycofać przyciskiem w konsoli.
+
+---
+
+## 8e. Przegląd tłumaczeń — `/translations/` (dla tłumaczy-wolontariuszy)
+
+Ten rozdział jest dla osób, którym organizator nadał rolę **tłumacza** (np. kierownik delegacji).
+Napisy serwisu są tłumaczone maszynowo z polskiego; Ty sprawdzasz je w swoim języku.
+
+1. **Lista napisów** — `/translations/` → swój język. Każdy wiersz: tekst źródłowy (polski), wersja
+   angielska (odniesienie), obecne tłumaczenie i stan: *maszynowe*, *przejrzane*, *brak*. Filtr
+   „Pokaż” i wyszukiwanie po dowolnym z tych tekstów.
+2. **Napis** — kliknij, żeby zobaczyć kontekst (gdzie w serwisie występuje, uwagi dla tłumacza) i:
+   - **zaproponować poprawkę** – zmienne w nawiasach (np. `%(name)s`, `{name}`) i znaczniki HTML
+     przepisz dokładnie; zamiast prostych cudzysłowów `"` użyj typograficznych („…”, «…», “…”),
+     prosty apostrof zamieni się na ’ sam,
+   - **poprzeć** cudzą propozycję („Popieram”) – recenzent widzi liczbę głosów,
+   - jako **recenzent**: „Zatwierdź”, „Odrzuć”, „Obecne tłumaczenie jest poprawne” albo „Przywróć
+     tłumaczenie z katalogu”. Zatwierdzona poprawka jest w serwisie po kilku sekundach.
+3. **Zgłoś tłumaczenie** — odnośnik w stopce każdej strony w Twoim języku. Wpisz fragment źle
+   przetłumaczonego tekstu i jak powinien brzmieć; zapisujemy samą ścieżkę strony (bez parametrów
+   adresu). Zgłoszenia czyta recenzent tłumaczeń Twojego języka.
+
+Inni tłumacze nie widzą, kto zaproponował poprawkę ani kto zgłosił błąd.
 
 ---
 

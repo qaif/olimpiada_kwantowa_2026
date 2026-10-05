@@ -8,7 +8,7 @@ teraz **dla wybranego etapu** wybrać dostawcę **LiveKit** – ten sam serwer, 
 Jitsi zostaje domyślne i **niezmienione** (testy Jitsi przechodzą bez zmian). Rozmowa w LiveKit może
 być dodatkowo objęta **nadzorem zdalnym** (PROC-01).
 
-Czego zadanie **nie** robi: nie zmienia pokoi bez terminu ani linków-zaproszeń (`VideoRoom`, § 25.8 –
+Czego zadanie **nie** robi: nie zmienia pokoi bez terminu ani linków-zaproszeń (`VideoRoom`, OPERACJE § 25.8 –
 zostają na Jitsi), nie dodaje nagrywania pokoi rozmów (Jitsi go nie ma – `ENABLE_RECORDING=0`), nie
 włącza nadzoru nikomu (flaga `proctoring` zostaje domyślnie wyłączona).
 

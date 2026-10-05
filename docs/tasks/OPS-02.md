@@ -169,7 +169,7 @@ OPERACJE § 44 „Monitoring błędów i dostępności”, `.env.example`, CHANG
 | M1 | `default_integrations=False`, `auto_enabling_integrations=False`; jawnie: logging, stdlib, excepthook, dedupe, atexit, threading, Django, Celery, Redis. |
 | M2 | Redis: sama nazwa polecenia; IPv4/IPv6 w `scrub_text`; uczciwy opis wiersza rejestru (pseudonimizacja). |
 | M3 | `uptime.py` bez `except A, B:` (stała krotki), test `ast.parse(feature_version=(3, 10))`. |
-| M4 | Limit zdarzeń klucza w GlitchTipie – obowiązkowy krok § 44.2; Caddy 2.8 bez modułu limitu (udokumentowane); dysk – alarm watchdoga. |
+| M4 | Limit zdarzeń klucza w GlitchTipie – obowiązkowy krok OPERACJE § 44.2; Caddy 2.8 bez modułu limitu (udokumentowane); dysk – alarm watchdoga. |
 | M5 | Wiersz rejestru przy `SENTRY_DSN` **albo** działającym loaderze przeglądarki. |
 | L1 | Kontrola liczby kont przed `ERRORS_PROXY=1`; `deploy.sh` ostrzega, gdy kont brak. |
 | L2 | TOTP w GlitchTipie; opcjonalne `ERRORS_UI_ALLOW` (403 dla panelu spoza listy); konto dyżurnego bez hasła w powłoce. |
