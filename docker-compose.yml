@@ -31,6 +31,10 @@ x-app-env: &app-env
   S3_PUBLIC_BUCKET: public-media
   CLAMAV_HOST: clamav
   CLAMAV_PORT: "3310"
+  # Odbicia poczty (MAIL-02, docs/OPERACJE.md § 52): backend zapisujący odmowy relaya, skrzynka Maildir
+  # zawiadomień (wolumen `mail_bounces` w workerze), baner i lista koordynatora. `false` w .env wyłącza.
+  EMAIL_BOUNCE_TRACKING: ${EMAIL_BOUNCE_TRACKING:-true}
+  MAIL_BOUNCE_MAILDIR: /var/mail-bounces/bounces
   # Backend honoruje X-Real-IP tylko z tych adresów (sieci compose poniżej mają stałe podsieci).
   # Celowo BEZ sieci `cache` (Redis) i `clamav_egress` (wyjście ClamAV-a do aktualizacji sygnatur):
   # proxy w nich nie stoi, więc żaden prawdziwy nagłówek X-Real-IP stamtąd nie przychodzi – wpisane
@@ -183,6 +187,10 @@ services:
       # Połączeniem rządzi wtedy DB_CONN_MAX_AGE (jedno na proces potomny, CELERY_CONCURRENCY).
       DB_POOL: "0"
       DB_APPLICATION_NAME: olimpiada-worker
+    # Zawiadomienia o niedoręczeniu zapisane przez relay `mail` (MAIL-02): worker czyta `bounces/new/`
+    # i kasuje przetworzone pliki (UID 1000 = `app` – relay zapisuje je jako ten użytkownik).
+    volumes:
+      - mail_bounces:/var/mail-bounces
     depends_on:
       db:     { condition: service_healthy }
       redis:  { condition: service_healthy }
@@ -492,7 +500,9 @@ services:
       # Poczta zwrotna na noreply@ (i podwójne odbicia na postmaster@): `discard` albo adres
       # skrzynki operatora. Bez tego odbicia krążą („loops back to myself”) – skrypt
       # deploy/mail/docker-init.d/50-bounces.sh, docs/OPERACJE.md § 49.7.
-      MAIL_BOUNCE_TARGET: ${MAIL_BOUNCE_TARGET:-discard}
+      # MAIL-02: domyślnie `capture` – zawiadomienia (DSN) na noreply@ trafiają do Maildira na wolumenie
+      # `mail_bounces`, skąd czyta je worker (lista niedoręczalnych adresów, OPERACJE § 52).
+      MAIL_BOUNCE_TARGET: ${MAIL_BOUNCE_TARGET:-capture}
       MAIL_BOUNCE_ADDRESSES: ${MAIL_BOUNCE_ADDRESSES:-}
       # Nadawcy usług monitoringu (OPS-02: GlitchTip i monitor dostępności) – ich odbicia wracałyby
       # tą samą pętlą. Dopisywani zawsze, obok MAIL_BOUNCE_ADDRESSES / noreply@ domen.
@@ -531,6 +541,11 @@ services:
       POSTFIX_message_size_limit: "41943040"
       # Sieć docker-bridge nie ma IPv6; bez tego Postfix próbuje rekordów AAAA i czeka na timeout.
       POSTFIX_inet_protocols: ipv4
+      # Odmowa adresu z nieistniejącą domeną (`reject_unknown_recipient_domain` obrazu): 550 zamiast
+      # domyślnego 450. Postfix odpowiada 550 wyłącznie na NXDOMAIN – przy awarii DNS **zawsze** 450 –
+      # więc aplikacja może uznać 550 za trwałe i nie ponawiać listu (MAIL-02 § 2.1; sprawdzone na
+      # boky/postfix:v5.1.0-alpine 5.10.2026: „550 5.1.2 <x@o2.plo>: … Domain not found”).
+      POSTFIX_unknown_address_reject_code: "550"
       DKIM_AUTOGENERATE: "true"
       DKIM_SELECTOR: olimpiada
       TZ: Europe/Warsaw
@@ -542,6 +557,8 @@ services:
       # Skrypty startowe obrazu (wykonywane przy każdym starcie, po konfiguracji z env): poczta
       # zwrotna (MAIL-01). Tylko do odczytu – kontener ich nie zmienia.
       - ./deploy/mail/docker-init.d:/docker-init.d:ro
+      # Skrzynka Maildir zawiadomień o niedoręczeniu (MAIL-02, MAIL_BOUNCE_TARGET=capture) – wspólna z workerem.
+      - mail_bounces:/var/mail/olimpiada
     # `internal` – tu sięgają web/worker/beat. `edge` – bo `internal` ma internal:true, a doręczenie
     # wprost do MX-a odbiorcy wymaga wyjścia na świat. Portów nie publikujemy: relay jest widoczny
     # tylko z sieci compose. `errors_egress` – tu sięga GlitchTip (OPS-02) z jednym dozwolonym nadawcą.
@@ -919,6 +936,9 @@ volumes:
   clamav_db:
   mail_dkim:
   mail_spool:
+  # Zawiadomienia o niedoręczeniu (MAIL-02): relay pisze, worker czyta i kasuje. Poza kopiami zapasowymi –
+  # pliki żyją kilka minut, a stan adresów jest w bazie.
+  mail_bounces:
   static_files:
   # Pliki zadań i wyników piaskownicy notatników (QC-01) – wspólne dla `notebook-worker` i `notebook-runner`.
   notebook_spool:
