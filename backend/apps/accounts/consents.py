@@ -365,17 +365,21 @@ def required_kinds(
     *,
     today: date | None = None,
     competition=None,
+    consents: tuple[Consent, ...] | None = None,
 ) -> tuple[str, ...]:
     """Rodzaje zgód wymaganych od uczestnika w tym wieku – w **tym** konkursie.
 
     Reguła „opiekun dla niepełnoletniego” zostaje kodem (``is_minor``), bo musi wiedzieć, o którą
     zgodę chodzi; danymi jest wyłącznie to, **które** zgody konkurs w ogóle zbiera. Argumenty
     przechodzą do ``is_minor`` bez zmiany znaczenia – łącznie z rocznikiem na pierwszej pozycji.
+
+    ``consents`` – zestaw już wczytany przez wołającego (bramka zgód CONS-01 trzyma go w cache'u):
+    reguła zostaje tutaj, a odczyt zestawu nie idzie do bazy drugi raz na to samo żądanie.
     """
     minor = is_minor(birth_date, birth_year, today=today)
     return tuple(
         consent.kind
-        for consent in consent_set(competition)
+        for consent in (consents if consents is not None else consent_set(competition))
         if consent.required or (consent.required_for_minor and minor)
     )
 
