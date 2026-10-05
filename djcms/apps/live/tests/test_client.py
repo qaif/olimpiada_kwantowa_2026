@@ -466,6 +466,28 @@ def test_fetch_competitions_bypasses_cache_and_breaker(main_api):
     assert _api().competitions().data["competitions"] == [{"slug": "a"}]
 
 
+def test_fetch_competitions_uses_command_timeout_not_page_timeout(main_api, settings):
+    """OPS-04 § 4: komenda tuż po restarcie ``web`` nie może dostać limitu odsłony (1 s na gniazdo)."""
+    settings.DJCMS_API_TIMEOUT = 2.0
+    main_api.set("competitions", {"competitions": []}, competition=None)
+    _api().fetch_competitions()
+    assert main_api.timeouts == [client.COMMAND_TIMEOUT_SECONDS]
+    assert client.COMMAND_TIMEOUT_SECONDS >= 10
+    # Odsłona strony – bez zmian: sekunda na operację gniazda.
+    main_api.set("chrome", {"x": 1})
+    _api().get("chrome", competition=SLUG)
+    assert main_api.timeouts[-1] == client.CONNECT_TIMEOUT_SECONDS
+
+
+def test_fetch_competitions_deadline_is_the_command_timeout(main_api, monkeypatch, settings):
+    # Odczyt 3 s po starcie: odsłona (DJCMS_API_TIMEOUT=2) skończyłaby się „timeout”, komenda – nie.
+    settings.DJCMS_API_TIMEOUT = 2.0
+    clock = iter([100.0, 103.0, 103.5, 104.0])
+    monkeypatch.setattr(client.time, "monotonic", lambda: next(clock))
+    main_api.set("competitions", {"competitions": [{"slug": "a"}]}, competition=None)
+    assert _api().fetch_competitions()["competitions"] == [{"slug": "a"}]
+
+
 def test_fetch_competitions_raises_on_failure(main_api):
     main_api.fail("competitions", TimeoutError(), competition=None)
     with pytest.raises(MainApiError) as excinfo:
