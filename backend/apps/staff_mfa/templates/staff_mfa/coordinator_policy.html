@@ -48,10 +48,10 @@
         <p>
           <label for="{{ form.grace_days.id_for_label }}">{{ form.grace_days.label }}</label>
           {{ form.grace_days }}
-          <span class="hint">{{ form.grace_days.help_text }}</span>
+          <span class="hint" id="{{ form.grace_days.auto_id }}_helptext">{{ form.grace_days.help_text }}</span>
           {{ form.grace_days.errors }}
         </p>
-        <p class="checkbox"><label>{{ form.allow_remember }} {{ form.allow_remember.label }}</label></p>
+        <p class="checkbox"><label>{{ form.allow_remember }} {{ form.allow_remember.label }}</label>{% if form.allow_remember.help_text %} <span class="hint" id="{{ form.allow_remember.auto_id }}_helptext">{{ form.allow_remember.help_text }}</span>{% endif %}</p>
       </fieldset>
       {% if may_edit %}
         <button type="submit" class="btn btn--primary">Zapisz politykę</button>

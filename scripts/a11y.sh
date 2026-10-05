@@ -14,6 +14,7 @@
 #   ./scripts/a11y.sh                      # lokalnie: obraz olimpiada/web:dev + kod z hosta
 #   ./scripts/a11y.sh -k iqo               # dodatkowe argumenty idą do pytest
 #   A11Y_WEB_IMAGE=olimpiada-web:ci A11Y_MOUNT_BACKEND=0 ./scripts/a11y.sh   # CI: kod z obrazu
+#   A11Y_EXTRA_PIP="numpy" ./scripts/a11y.sh   # obraz dev starszy od pyproject: doinstaluj pakiety
 #   A11Y_KEEP=1 ./scripts/a11y.sh          # nie sprzątaj (serwer zostaje do oglądania w przeglądarce)
 #   A11Y_SERVE_ONLY=1 ./scripts/a11y.sh    # tylko serwer (zostaje); potem testy bez restartu:
 #   A11Y_REUSE=1 ./scripts/a11y.sh -k home # … na serwerze z poprzedniego kroku
@@ -73,6 +74,7 @@ start_server() {
     -e DJANGO_ALLOWED_HOSTS=web,localhost,127.0.0.1
     -e DJANGO_MEDIA_ROOT=/tmp/a11y-media
     -e A11Y_COMPILE_MESSAGES="${MOUNT_BACKEND}"
+    -e A11Y_EXTRA_PIP="${A11Y_EXTRA_PIP:-}"
     -v "${ROOT}/e2e:/e2e"
     -v "${ROOT}/themes:/themes:ro"
     --entrypoint sh

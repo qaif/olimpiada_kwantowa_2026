@@ -5879,13 +5879,15 @@ dostępności** (`/dokumenty/deklaracja-dostepnosci/`, odnośnik w stopce obu mo
 ### 50.1. Uruchomienie testów lokalnie
 
 ```sh
-./scripts/a11y.sh                       # pełny przebieg (ok. 5 min): serwer + 118 testów, sprzątanie
+./scripts/a11y.sh                       # pełny przebieg (ok. 5 min): serwer + 119 testów, sprzątanie
 ./scripts/a11y.sh -k iqo                # argumenty idą do pytest
 A11Y_SERVE_ONLY=1 ./scripts/a11y.sh     # tylko serwer (zostaje w sieci olimpiada-a11y-net)
 A11Y_REUSE=1 ./scripts/a11y.sh -k home  # testy na serwerze z poprzedniego kroku
 ```
 
 Wymaga Dockera, obrazu `olimpiada/web:dev` (kod montowany z hosta) i obrazu Playwrighta scenariusza E2E.
+Obraz deweloperski starszy od `pyproject.toml` (brak nowej zależności, np. `numpy` z QC-01) –
+`A11Y_EXTRA_PIP="numpy>=2.4,<2.5" ./scripts/a11y.sh` doinstaluje pakiet na czas przebiegu.
 Stosu compose dewelopera **nie dotyka**: własna sieć, własny Postgres w tmpfs, ustawienia
 `config.settings.a11y` (bez Redisa, MinIO, ClamAV i workera; tylko do testów – `DEBUG` na sztywno).
 Raport: `e2e/artifacts/a11y/report.md` (+ `report.json`, zrzuty `FAIL-*.png`); w CI – artefakt

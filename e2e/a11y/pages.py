@@ -64,6 +64,7 @@ SCREENS: tuple[Screen, ...] = (
     Screen("oki-coordinator-quiz", "/coordinator/stages/{main[training]}/quiz/", "coordinator"),
     Screen("oki-coordinator-chat", "/coordinator/chat/", "coordinator"),
     Screen("oki-coordinator-chat-thread", "/coordinator/chat/{main[conversation]}/", "coordinator"),
+    Screen("oki-coordinator-2fa-policy", "/coordinator/security/2fa/", "coordinator"),
     Screen("oki-reviewer", "/review/", "reviewer"),
     Screen("oki-reviewer-detail", "/review/{main[review]}/", "reviewer"),
     # --- IQO, motyw IQO Quantum --------------------------------------------------------------------

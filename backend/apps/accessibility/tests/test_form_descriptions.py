@@ -24,6 +24,7 @@ def edition():
 
     return CurrentEditionFactory()
 
+
 DESCRIBEDBY = re.compile(r'aria-describedby="([^"]+)"')
 
 
