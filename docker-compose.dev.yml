@@ -55,7 +55,7 @@ services:
   e2e:
     # Testy end-to-end (Playwright) uruchamiane w sieci compose: docker compose -f ... --profile e2e run --rm e2e
     profiles: [e2e]
-    image: mcr.microsoft.com/playwright/python:v1.49.1-jammy
+    image: mcr.microsoft.com/playwright/python:v1.63.0-jammy
     working_dir: /e2e
     volumes:
       - ./e2e:/e2e
