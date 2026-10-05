@@ -57,3 +57,9 @@ def notebook_review_panel(context, submission):
         "run": run,
         "error": services.error_text(run.error_code) if run is not None and run.error_code else "",
     }
+
+
+@register.simple_tag
+def notebook_lab_host() -> str:
+    """Osobny host laboratorium (QC-02) albo ``""`` – dla ostrzeżenia na ekranach koordynatora."""
+    return lab.lab_host()

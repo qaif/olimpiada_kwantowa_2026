@@ -1,6 +1,18 @@
-{% load i18n %}{% comment %}
-  Ostrzeżenie przy ustawieniach notatników (QC-01 § 3.5): laboratorium leży w domenie serwisu.
-{% endcomment %}
+{% load i18n notebook_tags %}{% comment %}
+  Ostrzeżenie przy ustawieniach notatników (QC-01 § 3.5): laboratorium leży w domenie serwisu –
+  albo, przy ``NOTEBOOK_LAB_HOST`` (QC-02), na osobnym hoście, z mniejszym ryzykiem resztkowym.
+{% endcomment %}{% notebook_lab_host as lab_host %}
+{% if lab_host %}
+<div class="msg msg-info">
+  <p class="mt-0"><strong>{% blocktranslate trimmed with host=lab_host %}Bezpieczeństwo: laboratorium działa pod osobnym adresem {{ host }}.{% endblocktranslate %}</strong></p>
+  <p>{% blocktranslate trimmed %}
+    Kod z notatnika wykonuje się w przeglądarce, w osobnym originie laboratorium: nie widzi sesji,
+    ciasteczek ani danych zapisanych przez serwis, a serwis odrzuca wysyłane z niego żądania.
+    Laboratorium nadal otwierają wyłącznie konta uczestników bez żadnej roli personelu. Uprzedź
+    uczestników, żeby nie wklejali cudzego kodu. Szczegóły: docs/OPERACJE.md § 40.7.
+  {% endblocktranslate %}</p>
+</div>
+{% else %}
 <div class="msg msg-warning">
   <p class="mt-0"><strong>{% translate "Bezpieczeństwo: laboratorium działa w domenie serwisu." %}</strong></p>
   <p>{% blocktranslate trimmed %}
@@ -13,3 +25,4 @@
     osobna domena laboratorium – docs/OPERACJE.md § 40.6.
   {% endblocktranslate %}</p>
 </div>
+{% endif %}

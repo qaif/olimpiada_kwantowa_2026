@@ -654,3 +654,21 @@ msgstr "دفتر البداية"
 #, python-format
 msgid "Praca – podgląd notatnika (wersja %(version)s)"
 msgstr "العمل – معاينة الدفتر (الإصدار %(version)s)"
+
+#, python-format
+msgid "Bezpieczeństwo: laboratorium działa pod osobnym adresem %(host)s."
+msgstr "الأمان: يعمل المختبر على عنوان منفصل %(host)s."
+
+msgid ""
+"Kod z notatnika wykonuje się w przeglądarce, w osobnym originie "
+"laboratorium: nie widzi sesji, ciasteczek ani danych zapisanych przez "
+"serwis, a serwis odrzuca wysyłane z niego żądania. Laboratorium nadal "
+"otwierają wyłącznie konta uczestników bez żadnej roli personelu. Uprzedź "
+"uczestników, żeby nie wklejali cudzego kodu. Szczegóły: docs/OPERACJE.md § "
+"40.7."
+msgstr ""
+"يُنفَّذ كود الدفتر في المتصفح، في أصل (origin) منفصل خاص بالمختبر: لا يرى "
+"جلسة الموقع ولا ملفات تعريف الارتباط ولا البيانات التي يحفظها الموقع، ويرفض "
+"الموقع الطلبات المرسلة منه. لا يزال المختبر متاحًا فقط لحسابات المشاركين "
+"التي لا تحمل أي دور من أدوار الطاقم. نبّه المشاركين إلى عدم لصق كود الآخرين. "
+"التفاصيل: docs/OPERACJE.md § 40.7."

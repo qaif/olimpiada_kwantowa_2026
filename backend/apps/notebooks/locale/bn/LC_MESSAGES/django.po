@@ -653,3 +653,21 @@ msgstr "স্টার্টার নোটবুক"
 #, python-format
 msgid "Praca – podgląd notatnika (wersja %(version)s)"
 msgstr "জমা – নোটবুক প্রিভিউ (সংস্করণ %(version)s)"
+
+#, python-format
+msgid "Bezpieczeństwo: laboratorium działa pod osobnym adresem %(host)s."
+msgstr "নিরাপত্তা: ল্যাব একটি আলাদা ঠিকানায় %(host)s চলে।"
+
+msgid ""
+"Kod z notatnika wykonuje się w przeglądarce, w osobnym originie "
+"laboratorium: nie widzi sesji, ciasteczek ani danych zapisanych przez "
+"serwis, a serwis odrzuca wysyłane z niego żądania. Laboratorium nadal "
+"otwierają wyłącznie konta uczestników bez żadnej roli personelu. Uprzedź "
+"uczestników, żeby nie wklejali cudzego kodu. Szczegóły: docs/OPERACJE.md § "
+"40.7."
+msgstr ""
+"নোটবুকের কোড ব্রাউজারে, ল্যাবের আলাদা অরিজিনে চলে: এটি সাইটের সেশন, কুকি বা "
+"সাইটের সংরক্ষিত ডেটা দেখতে পায় না, এবং সাইট এখান থেকে পাঠানো অনুরোধ "
+"প্রত্যাখ্যান করে। ল্যাব এখনও শুধু কোনো কর্মী-ভূমিকা ছাড়া অংশগ্রহণকারী "
+"অ্যাকাউন্টের জন্য উপলব্ধ। অংশগ্রহণকারীদের অন্যের কোড পেস্ট না করতে সতর্ক "
+"করুন। বিস্তারিত: docs/OPERACJE.md § 40.7।"

@@ -43,6 +43,29 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
 - Dokumentacja: `docs/tasks/OPS-03.md`, `docs/OPERACJE.md` § 46 (w tym opóźnienia crona i wyłączanie
   po 60 dniach bez commitów), `deploy/monitoring/README.md` § 5 – darmowy pinger jako druga opinia.
 
+## [Unreleased] – Laboratorium notatników na osobnym hoście (QC-02)
+
+- **`NOTEBOOK_LAB_HOST`** (opcjonalne, `.env`): JupyterLite i notatnik startowy wyłącznie pod
+  osobnym hostem (`lab.<SITE_DOMAIN>` albo osobna domena). Caddy (`scripts/render_caddyfile.sh`):
+  blok hosta laboratorium (pliki laboratorium z polityką z QC-01, `/notebook-starter/*` do `web`,
+  reszta 404, `Referrer-Policy: strict-origin`), a bloki serwisu – fragment `notebook_lab_moved`
+  (ścieżka laboratorium → 302 na host laboratorium, `/notebook-starter/*` → 404). Pusta zmienna =
+  konfiguracja proxy bajt w bajt jak dotąd.
+- Django: `NotebookLabHostMiddleware` (ten sam rozdział hostów, przed WhiteNoise), notatnik startowy
+  na hoście laboratorium bez sesji (token z osobną solą, 2 h, bramki na bieżącym stanie konta,
+  nadzór zdalny), strażnik odrzucający na hostach serwisu żądania z `Origin`/`Referer` laboratorium
+  poza nawigacją GET – przed CSRF, także wobec `https://*.<SITE_DOMAIN>`; host w `ALLOWED_HOSTS`,
+  nie w `CSRF_TRUSTED_ORIGINS`; sprawdzenie `notebooks.E002`; etykieta `lab` zarezerwowana.
+- Ciasteczka aplikacji potwierdzone jako host-only (test). Kompromisy subdomena vs osobna domena
+  i kroki operatora: `docs/OPERACJE.md` § 40.7, `docs/tasks/QC-02.md`.
+- **Po przeglądzie (podrzucanie ciasteczek z `lab.<domena>`):** w produkcji z laboratorium ciasteczka
+  `__Host-sessionid`/`__Host-csrftoken` (jednorazowe wylogowanie przy włączeniu; skrypty czytające
+  token obsługują obie nazwy), wygaszanie zdublowanych ciasteczek sesji/CSRF/języka na domenie
+  nadrzędnej (przekierowanie 302/307, potem żądanie bez obu kopii), ten sam strażnik i wygaszanie
+  w djcms (`NOTEBOOK_LAB_HOST` w compose), 403 dla żądań same-site z `Origin: null` albo bez
+  nagłówków pochodzenia, `notebooks.E002` także dla hostów usług (`dj.`, `live.`, `meet.`, `monitor.`,
+  `errors.`, S3, Jitsi) i konkursów. Zalecany wariant: osobna domena rejestrowalna.
+
 ## [Unreleased] – Logowanie dwuskładnikowe dla personelu (SEC-01)
 
 - **Polityka wymogu** (`apps/staff_mfa`): role platformy `TWO_FACTOR_REQUIRED_ROLES` (nowa wartość

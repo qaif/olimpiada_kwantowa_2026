@@ -771,6 +771,8 @@ services:
       SITE_DOMAIN: ${SITE_DOMAIN:-localhost}
       EXTRA_DOMAINS: ${EXTRA_DOMAINS:-}
       PLATFORM_SUBDOMAINS: ${PLATFORM_SUBDOMAINS:-0}
+      # Host laboratorium notatników (QC-02) – djcms odrzuca żądania z niego (apps.pages.labguard).
+      NOTEBOOK_LAB_HOST: ${NOTEBOOK_LAB_HOST:-}
       DJCMS_ALLOWED_HOSTS: dj.${SITE_DOMAIN:-localhost},127.0.0.1,localhost
       DJCMS_CSRF_TRUSTED_ORIGINS: https://dj.${SITE_DOMAIN:-localhost}
       DJCMS_MAIN_API_URL: http://web:8000/internal/djcms/v2/
