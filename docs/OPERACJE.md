@@ -5705,7 +5705,8 @@ uczniów w IndexedDB zostaje (stała nazwa magazynu).
 - Testy zgodności `docker-compose.yml` i `deploy/Caddyfile` w CI (`CI=true`) **nie** dają się pominąć –
   brak pliku to błąd. Testy z prawdziwym Qiskitem (`*_with_real_qiskit`) w CI są pominięte z powodem
   `QISKIT-PARITY` (Qiskit nie jest zależnością); uruchom je w obrazie z `pip install qiskit` przy
-  zmianach `backend/qclab`.
+  zmianach `backend/qclab` (obraz nie ma systemowego pipa od SEC-02 – najpierw
+  `docker compose exec -u root web python -m ensurepip`).
 
 ### 40.6. Personel bez laboratorium; osobny host laboratorium (§ 40.7)
 
@@ -6085,3 +6086,161 @@ Workflow GitHuba to wciąż jedna firma i cichy wyłącznik po 60 dniach. Zaleca
 monitor – np. UptimeRobot (plan darmowy, *Keyword* `"status": "ok"` na `/status.json` obu witryn,
 co 5 min, powiadomienia na adres spoza domeny serwisu). Konto zakłada człowiek; instrukcja krok po
 kroku: `deploy/monitoring/README.md` § 5.
+
+## 47. Skanowanie zależności (SEC-02, `docs/tasks/SEC-02.md`)
+
+Wszystko dzieje się w GitHub Actions – **na serwerze nie ma nic do wdrożenia** (bez migracji, bez
+zmiennych, bez nowych kontenerów). Ten rozdział mówi, co oznacza czerwony job, jak dopisać wyjątek
+i co zrobić z raportem okresowym.
+
+| Gdzie | Kiedy | Co sprawdza | Skutek |
+|---|---|---|---|
+| CI `pip-audit` | każdy PR, `main`, `v*` | zależności Pythona: backend, djcms, narzędzia budowy JupyterLite (OSV) | czerwono przy podatności **z poprawką** |
+| CI `trivy (obraz web/djcms)` | jw., po `image` | pakiety Debiana i Pythona w zbudowanym obrazie | czerwono przy CRITICAL/HIGH **z poprawką**; SARIF → Security |
+| CI `łańcuch dostaw` | jw. | SHA akcji, wyjątki Trivy, vendor JS ↔ zapis wersji/skrótów | czerwono przy złamaniu reguły |
+| `security-scan.yml` | poniedziałek 4:17 UTC | obrazy usług z compose + nasz `olimpiada-web:main` z GHCR | zgłoszenie `security-scan` (raport) |
+| `vendor-upstream.yml` | 1. dzień miesiąca | JS zwendorowany i z CDN vs npm, OSV, SRI | zgłoszenie `vendor-js` (raport) |
+| Dependabot | poniedziałek 6:00 | pip (backend), uv (djcms), docker, docker-compose, akcje | PR-y z etykietą `dependencies` |
+
+### 47.1. Czerwony `pip-audit`
+
+Podsumowanie joba (zakładka *Summary*) wymienia pakiet, identyfikator (GHSA/PYSEC + CVE) i wersję
+z poprawką. Kolejność decyzji:
+
+1. **Podnieś wersję.** Backend: poprawka mieści się zwykle w zakresie z `backend/pyproject.toml` –
+   wtedy wystarczy przebudować obraz (`scripts/deploy.sh` instaluje najnowsze w zakresie), a w PR
+   wystarczy podnieść dolną granicę (`>=6.1.3`), żeby obraz nie mógł wziąć wersji podatnej. Poza
+   zakresem – przesunięcie granicy to zwykła zmiana zależności z pełnym przebiegiem testów. djcms:
+   zmiana pinu w `djcms/pyproject.toml` + `uv lock` (w katalogu `djcms/`).
+2. **Wyjątek** – tylko gdy podatność nas nie dotyczy albo poprawka wymaga większej pracy.
+   Dopisz do `.security/pip-audit-ignore.toml`:
+
+   ```toml
+   [[ignore]]
+   id = "GHSA-xxxx-xxxx-xxxx"          # albo CVE-… z raportu
+   package = "nazwa-pakietu"
+   reason = "Dlaczego nas nie dotyczy / na co czekamy – pełne zdanie, sprawdzalne."
+   expires = 2026-12-31                 # data bez cudzysłowów, najdalej 180 dni od dziś
+   ```
+
+   Po terminie wpis przestaje działać i job znów jest czerwony – wtedy przegląd od nowa (przedłużenie
+   = nowa data **i** aktualny powód). Ostrzeżenie „wyjątki, które niczego nie dotyczą” = usuń wpis.
+
+Podatność **bez** poprawki jest ostrzeżeniem (żółta adnotacja), nie blokadą – wraca w każdym
+przebiegu, dopóki nie wyjdzie poprawka, i wtedy job zrobi się czerwony sam.
+
+Lokalnie (gdy ktoś ma `uv`; **z katalogu `backend/`** – tylko tak uv widzi `[tool.uv]` z override'em
+Django): `cd backend && uv pip compile pyproject.toml --extra dev --python-version 3.14
+--python-platform x86_64-manylinux_2_28 -o /tmp/req.txt && uvx pip-audit -r /tmp/req.txt --no-deps
+--disable-pip --vulnerability-service osv`.
+
+### 47.2. Czerwony `trivy (obraz web)` / `trivy (obraz djcms)`
+
+Log kroku „Trivy – bramka” ma tabelę: pakiet, zainstalowana wersja, wersja z poprawką. Pełny obraz
+(także podatności bez poprawki) – zakładka **Security → Code scanning** (kategoria `trivy-web` /
+`trivy-djcms`) albo artefakt `trivy-<obraz>` przebiegu (SARIF).
+
+- **Pakiet Debiana** (`libssl3t64`, `libc6`…): warstwa runtime obu Dockerfile'ów robi
+  `apt-get upgrade` (łatki z `trixie-security`, których obraz bazowy jeszcze nie ma – pierwszy
+  przypadek: libpcre2, CVE-2026-103111). Warstwa jest w cache'u, dopóki nie zmieni się obraz bazowy;
+  gdy poprawka wyszła później, przebuduj bez cache'u albo poczekaj na nowy digest
+  `python:3.14-slim-trixie` (zwykle dzień–dwa). Brak poprawki w Debianie = wyjątek niżej.
+- **Pakiet Pythona** w `/opt/venv`: jak w § 47.1 – Trivy widzi to, co faktycznie zainstalowano.
+  Systemowego `pip` z obrazu bazowego nie ma (usuwany w Dockerfile'ach): pip 26.2.1 niesie zwendorowane
+  urllib3/msgpack/setuptools ze znanymi podatnościami, a aplikacja go nie używa.
+- **Wyjątek** – `.security/trivyignore.yaml` (format Trivy):
+
+  ```yaml
+  vulnerabilities:
+    - id: CVE-2026-12345
+      purls:
+        - "pkg:deb/debian/libexample@1.2.3-1?distro=debian-13"   # opcjonalnie: zawęź do pakietu
+      statement: "Dlaczego nas nie dotyczy – pełne zdanie."
+      expired_at: 2026-12-31
+  ```
+
+  Job `łańcuch dostaw` odrzuci wpis bez `statement`, bez `expired_at`, przeterminowany albo z terminem
+  dalej niż 180 dni. Trivy sam przestaje honorować wpis po `expired_at`.
+
+Wysłanie SARIF nie blokuje (`continue-on-error`) – gdyby code scanning wyłączono w ustawieniach,
+wynik i tak jest w artefakcie, a bramka działa niezależnie.
+
+### 47.3. Zgłoszenie „Skan obrazów kontenerów” (`security-scan`, co tydzień)
+
+Jedno otwarte zgłoszenie, treść podmieniana co tydzień; komentarz (czyli powiadomienie) tylko wtedy,
+gdy wyniki się zmieniły. Tabela: obraz, plik compose, digest skanowanego tagu, liczba CRITICAL/HIGH
+i ile z nich ma poprawkę; rozwijane listy CVE z poprawką; pełne JSON-y w artefakcie przebiegu (90 dni).
+
+Co zrobić:
+- **„z poprawką” > 0** – sprawdź, czy dostawca wydał nowszy tag (zwykle tak; Dependabot
+  `docker-compose` mógł już otworzyć PR). Podbij tag w pliku compose, przejdź procedurę danej usługi
+  (Postgres – § 19, MinIO – § 24.4 i polityki w `deploy/minio/`, LiveKit – § 36) i wdróż zwykłą
+  ścieżką.
+- **tylko bez poprawki** – nic do zrobienia od ręki; oceń ekspozycję (czy usługa wystaje do
+  internetu – Caddy, LiveKit, Jitsi – czy siedzi w sieci `internal`).
+- **„błąd skanu”** – zwykle limit Docker Hub albo tag usunięty z rejestru; log w artefakcie
+  (`<obraz>.error`).
+- `olimpiada-web:main` z GHCR – podatności w już opublikowanym obrazie: nowe wydanie (przebudowa)
+  zwykle je usuwa.
+
+Ręczne uruchomienie: Actions → „Skan obrazów (tygodniowy)” → *Run workflow*.
+
+### 47.4. Zgłoszenie „JS spoza repozytorium” (`vendor-js`, co miesiąc) i rejestr `.security/vendor.toml`
+
+Rejestr opisuje każdą bibliotekę JS spoza repozytorium: zwendorowane (`livekit-client`, KaTeX), z CDN
+z SRI (htmx, Alpine CSP, Swagger UI, pdf.js) i zewnętrzne bez wersji (gtag.js). Job CI
+`łańcuch dostaw` (`scripts/security/vendor_check.py check`) wywraca się, gdy:
+- plik w katalogu biblioteki nie ma skrótu w `VERSION`/`SHA384`/`SHA256SUMS` (podmieniony albo
+  dorzucony bez aktualizacji zapisu),
+- pojawił się katalog `vendor/<x>` albo `<script src="https://…">` w szablonie, którego nie ma
+  w rejestrze,
+- wersja z CDN jest wpisana w różnych plikach różnie (pdf.js: `review-annotations.js` i `upload-preview.js`).
+
+Zgłoszenie miesięczne mówi: nowsza wersja w npm (albo nowa wersja główna), znane podatności naszej
+wersji (OSV), czy suma paczki npm zgadza się z zapisaną przy wendorowaniu i czy SRI zgadza się
+z plikiem na CDN. **Rozjazd SRI albo sumy** = pilne (przeglądarki odrzucą skrypt / ktoś podmienił
+paczkę) – sprawdź ręcznie przed czymkolwiek innym. Nowsza wersja = decyzja, nie obowiązek:
+
+- livekit-client: `LIVEKIT_CLIENT_VERSION=x.y.z scripts/vendor_livekit_client.sh`, test pokoju (§ 36),
+- KaTeX: procedura w `backend/apps/problem_translations/static/problem_translations/vendor/katex/VERSION`
+  + nowy `SHA256SUMS` (`cd …/katex && sha256sum fonts/*.woff2 > SHA256SUMS`),
+- CDN (htmx, Alpine, Swagger UI, pdf.js): nowa wersja i nowy skrót SRI w szablonie/ustawieniach
+  (`curl -s <url> | openssl dgst -sha384 -binary | base64`).
+
+Nowa biblioteka JS = nowy wpis w `.security/vendor.toml` w tym samym PR.
+
+### 47.5. Akcje GitHuba przypięte SHA
+
+Każde `uses:` w `.github/workflows/` ma postać `właściciel/akcja@<40 znaków SHA> # vX.Y.Z`
+(`scripts/security/policy_check.py`, job `łańcuch dostaw`). Nowa akcja: SHA wydania z
+`gh api repos/<właściciel>/<akcja>/git/matching-refs/tags/vX` (przy tagu adnotowanym – SHA commita,
+na który wskazuje). Wersje podbija Dependabot (ekosystem `github-actions`). Wersje skanerów
+(`TRIVY_VERSION`, `PIP_AUDIT_VERSION` w `ci.yml`, `TRIVY_VERSION` w `security-scan.yml`) podbija się
+ręcznie, kilka dni po wydaniu.
+
+### 47.6. Dependabot
+
+PR-y w poniedziałki: drobne podbicia zebrane w jeden PR na ekosystem, wersje główne osobno, każde
+wydanie „odleżałe” 7 dni. Backend (`pip`, bez blokady) dostaje PR wyłącznie, gdy wydanie wychodzi poza
+zakres w `backend/pyproject.toml` – łatki w zakresie wchodzą same przy budowaniu obrazu. djcms idzie
+ekosystemem `uv` (pyproject + `uv.lock` razem). Python 3.14 → 3.15 oraz wersje główne Postgresa
+i Redisa są ignorowane – to decyzje z własną procedurą. PR Dependabota przechodzi ten sam CI
+co każdy inny (testy + skany); scalanie ręcznie, po przeglądzie.
+
+### 47.7. Jednorazowo w ustawieniach repozytorium (administrator GitHuba)
+
+```sh
+gh label create dependencies   --color 0366d6 --description "Aktualizacje zależności" --force
+gh label create python         --color 3572A5 --force
+gh label create docker         --color 0db7ed --force
+gh label create github-actions --color 000000 --force
+# security-scan i vendor-js zakładają workflowy same.
+```
+
+- *Settings → Code security*: włącz **Dependabot alerts** i **Dependabot security updates**
+  (bez tego Dependabot otwiera wyłącznie PR-y z wersjami, nie z poprawkami bezpieczeństwa),
+  **Code scanning** – przyjmowanie SARIF (repozytorium publiczne: bez dodatkowej licencji).
+- *Settings → Branches → main*: dopisz do wymaganych checków `pip-audit (zależności Pythona)`,
+  `łańcuch dostaw (SHA akcji, vendor JS, wyjątki)`, `trivy (obraz web)`, `trivy (obraz djcms)`.
+- Workflowy okresowe ruszają dopiero po scaleniu do `main` (harmonogram działa tylko na gałęzi
+  domyślnej); pierwszy przebieg najlepiej wywołać ręcznie (*Run workflow*).

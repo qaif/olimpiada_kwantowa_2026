@@ -38,7 +38,12 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 FROM python:3.14-slim-trixie AS runtime
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PATH="/opt/venv/bin:$PATH" \
     DJCMS_SHARED_STATIC_DIR=/opt/shared_static
-RUN groupadd -g 1000 app && useradd -u 1000 -g app -m -s /usr/sbin/nologin app
+# Łatki Debiana z ``trixie-security`` i bez systemowego pipa – powody w backend/Dockerfile (etap runtime,
+# SEC-02). Aplikacja żyje w /opt/venv (uv), pip z obrazu bazowego niczego tu nie instaluje.
+RUN apt-get update && apt-get upgrade -y --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/* \
+    && python -m pip uninstall -y --root-user-action=ignore pip \
+    && groupadd -g 1000 app && useradd -u 1000 -g app -m -s /usr/sbin/nologin app
 WORKDIR /app
 COPY --from=builder /opt/venv /opt/venv
 COPY backend/static/ /opt/shared_static/

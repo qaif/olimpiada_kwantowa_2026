@@ -126,6 +126,25 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
 - **Nadzór zdalny (PROC-01):** strona laboratorium (`web:participant-notebook`) stoi w `GATED_VIEWS`,
   a notatnik startowy z tokenem sprawdza bramkę nadzoru w widoku (403 bez gotowej sesji).
 
+## [Unreleased] – Skanowanie zależności i obrazów w CI (SEC-02)
+
+- **CI `pip-audit`**: zależności Pythona backendu (rozwiązanie jak w obrazie, `uv pip compile`), djcms
+  (`uv.lock`) i narzędzi budowy JupyterLite (QC-01) przez OSV; czerwono tylko przy podatności z wydaną poprawką, wyjątki z terminem
+  i uzasadnieniem w `.security/pip-audit-ignore.toml` (`scripts/security/pip_audit_gate.py`).
+- **CI `trivy (obraz web/djcms)`** po jobie `image`: bramka CRITICAL/HIGH z poprawką, SARIF do code
+  scanning + artefakt, baza Trivy w cache'u, wyjątki z `expired_at` w `.security/trivyignore.yaml`.
+  djcms jest teraz budowany w CI (własny zakres cache'u).
+- **Co tydzień** (`security-scan.yml`): Trivy na obrazach usług z plików compose i na
+  `olimpiada-web:main` z GHCR – raport w jednym zgłoszeniu `security-scan`.
+- **Dependabot** (`.github/dependabot.yml`): pip (backend), uv (djcms), docker, docker-compose,
+  github-actions; co tydzień, grupowane, cooldown 7 dni, etykiety.
+- **Vendor JS**: rejestr `.security/vendor.toml`, `vendor_check.py check` w CI (skrót każdego pliku,
+  nic spoza rejestru; KaTeX dostał `SHA256SUMS` krojów) i comiesięczne porównanie z npm/OSV/SRI
+  (`vendor-upstream.yml`, zgłoszenie `vendor-js`, bez automatycznych aktualizacji).
+- **Akcje GitHuba przypięte pełnym SHA** (także istniejące w `ci.yml`/`deploy.yml`), pilnuje
+  `policy_check.py`; `ci.yml` z domyślnym `permissions: contents: read`. Dokumentacja:
+  `docs/tasks/SEC-02.md`, `docs/OPERACJE.md` § 47.
+
 ## [Unreleased] – Zmiana hasła w panelu konta (AUTH-01b)
 
 - **Ekran „Zmień hasło”** (`/account/password/`) dla każdej roli: aktualne hasło + nowe dwa razy,
