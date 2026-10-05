@@ -1993,8 +1993,10 @@ no-store` (``setdefault`` – widok, który sam ustawił ten nagłówek, wygrywa
 zaprzeczenie w drugą stronę: cache jest po stronie serwera, a nagłówek pilnuje, żeby żaden
 pośredniczący proxy/CDN nie zbuforował po swojej stronie materializowanego nonce'u/tokenu CSRF.
 
-**Klucz** niesie: wersję globalną, wersję witryny konkursu, identyfikator konkursu, język
-interfejsu, ścieżkę i `?page=`. Wersje to liczniki (`INCR`) – unieważnienie nigdy nie wylicza
+**Klucz** niesie: wydanie (`APP_VERSION`, od OPS-04 – § 48), wersję globalną, wersję witryny
+konkursu, identyfikator konkursu, język interfejsu, ścieżkę i `?page=`. Wydanie w kluczu sprawia, że
+po wdrożeniu nikt nie dostanie HTML-a poprzedniej wersji z odnośnikami do plików statycznych, które
+`collectstatic --clear` już skasował – nawet gdy krok wdrożenia `page_cache_clear` się nie powiedzie. Wersje to liczniki (`INCR`) – unieważnienie nigdy nie wylicza
 istniejących wpisów, tylko podbija licznik, więc stare wpisy po prostu przestają być trafiane
 i wygasają same po TTL.
 
@@ -5889,7 +5891,8 @@ danych i wolumeny **nigdy** nie są przy tym ruszane.
 |---|---|---|
 | 2/8 | katalog `deploy-state/` jest omijany przy kasowaniu kodu (jak `.env`) | – |
 | **2a/8** | `scripts/rollback.sh snapshot`: obraz **działającego** `web` (i `djcms`, gdy `DJCMS_ENABLED=1`) dostaje tag `olimpiada/web:previous` (`olimpiada/djcms:previous`), zapis wersji i zastosowanych migracji (`django_migrations`, baza główna i djcms) | `deploy-state/previous.env`, `migrations-before.txt`, `djcms-migrations-before.txt` |
-| 4b–5a | jak dotąd (migracje w entrypoincie `web`, czekanie na healthy, strona prac technicznych) | – |
+| 4b–5a | jak dotąd (migracje i `collectstatic --clear` w entrypoincie `web`, czekanie na healthy, strona prac technicznych) | – |
+| **5b/8** | `manage.py page_cache_clear` – bufor całych stron gościa (§ 13) wszystkich konkursów gaśnie przed kontrolą; niepowodzenie = ostrzeżenie (klucz bufora i tak zawiera `APP_VERSION`) | – |
 | **5b/8** | `scripts/smoke.sh --server /opt/olimpiada --expect-version <wersja>` | `deploy-state/last-smoke.txt` |
 | 5b/8 – przeszła | `rollback.sh record-success` (wersja, commit, obrazy), dalej kroki 6–8 i „dj.” | `deploy-state/deployed.env` |
 | 5b/8 – nie przeszła | `rollback.sh auto` → wycofanie albo decyzja człowieka (§ 48.3), list do `ALERT_EMAILS`, ramka w logu, **kod 1** – kroki 6–8 i „dj.” się nie wykonują | `deploy-state/last-rollback.env`, `rollback-smoke.txt` |

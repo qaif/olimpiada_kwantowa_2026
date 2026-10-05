@@ -32,6 +32,10 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
   z limitu odsłony strony (1 s na gniazdo) tuż po restarcie `web` – teraz `COMMAND_TIMEOUT_SECONDS = 30`
   (`djcms/apps/live/client.py`); odsłony stron bez zmian.
 - `manage.py check_domains --hosts` – same hosty aktywnych konkursów z własnym hostem (dla kontroli dymnej).
+- **Bufor całych stron po wdrożeniu**: gość przez do 120 s po wdrożeniu dostawał z bufora HTML poprzedniej
+  wersji z odnośnikami do plików statycznych skasowanych przez `collectstatic --clear` (strona bez stylów).
+  Teraz klucz bufora zawiera wydanie (`APP_VERSION`, `apps/web/page_cache.py`), a wdrożenie (krok 5b/8)
+  i wycofanie wołają `page_cache_clear` przed kontrolą dymną.
 - Testy: `scripts/tests/smoke_test.sh`, `scripts/tests/rollback_test.sh`, `scripts/tests/deploy_djcms_test.sh`
   (część 11 i zaktualizowane listy poleceń), `djcms/apps/live/tests/test_client.py`,
   `apps/tenancy/tests/test_check_domains.py`. Dokumentacja: `docs/OPERACJE.md` § 48 (i § 4.2),
