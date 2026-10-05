@@ -1716,9 +1716,11 @@ i **na adresata** (bez IP). Koordynator nie aktywuje ręcznie konta z niezaakcep
 **Nadawca a relay.** `ALLOWED_SENDER_DOMAINS` (domyślnie `SITE_DOMAIN`; lista rozdzielona spacją) czyta
 i usługa `mail`, i aplikacja: nadawca konkursu spoza listy jest pomijany – listy idą od
 `DEFAULT_FROM_EMAIL`, a w logu `web`/`worker` pada raz ostrzeżenie „Nadawca konkursu … jest spoza
-ALLOWED_SENDER_DOMAINS”. Dopisanie drugiej domeny (np. `olimpiadakwantowa.pl iqo-official.org`) wymaga
-rekordów SPF/DKIM/DMARC tej domeny (klucz DKIM generuje usługa `mail` przy starcie – rekord TXT
-z `docker compose exec mail cat /etc/opendkim/keys/<domena>.txt`) i odtworzenia `mail` oraz `web`/`worker`.
+ALLOWED_SENDER_DOMAINS”. Druga domena (np. `iqo-official.org`) – **wyłącznie** procedurą § 49
+(MAIL-01): `scripts/mail_add_domain.sh <domena>` na serwerze (klucz DKIM, wpis w `.env`, rekordy DNS
+do wklejenia), rekordy u operatora strefy, `--check`, odtworzenie `web`/`worker`/`beat`, a dopiero na
+końcu `from_email` konkursu. Koordynator widzi ostrzeżenie na pulpicie, dopóki domena nadawcy jest
+spoza relaya albo bez udanego `manage.py check_mail_dns`.
 W wariancie B (zewnętrzny dostawca) wolno ustawić `*` – wtedy aplikacja nie ogranicza nadawców.
 
 Do sprawdzenia na produkcji (jednorazowo i po każdej zmianie nadawcy konkursu):
@@ -1727,7 +1729,7 @@ Do sprawdzenia na produkcji (jednorazowo i po każdej zmianie nadawcy konkursu):
    jednym ostrzeżeniem w logu) wysyła od `DEFAULT_FROM_EMAIL`. Sprawdzenie:
    `docker compose exec web python manage.py shell -c "from apps.tenancy.models import Competition as C; print(list(C.objects.values_list('slug','from_email')))"`
    i `docker compose logs web worker | grep ALLOWED_SENDER_DOMAINS`. Wyjście: pusty `from_email`
-   (nadawca instalacji) albo druga domena w `ALLOWED_SENDER_DOMAINS` razem z SPF/DKIM/DMARC.
+   (nadawca instalacji) albo druga domena w `ALLOWED_SENDER_DOMAINS` razem z SPF/DKIM/DMARC (§ 49).
 2. **Odwrotny DNS i SPF/DKIM** domeny nadawcy – README § 4.2 (bez zmian).
 3. **`https` w linku**: `SECURE_PROXY_SSL_HEADER` (production.py) + `X-Forwarded-Proto` z Caddy –
    każda domena z `EXTRA_DOMAINS` ma blok proxy z tym nagłówkiem (`scripts/render_caddyfile.sh`).
@@ -5794,6 +5796,138 @@ docker compose exec -T web python manage.py theme_install - --activate iqo < /tm
   wzorców w `apps/web/urls.py` oraz sekcji „Hasło” w `web/account/profile.html` (danych do sprzątania
   nie ma – funkcja niczego nie przechowuje poza `accounts.User.password` i audytem). Wymóg hasła przy
   zmianie adresu i zamknięcie dróg Wagtaila/admina zostają – to poprawki bezpieczeństwa, nie część ekranu.
+
+## 49. Poczta z domeny konkursu (MAIL-01, `docs/tasks/MAIL-01.md`)
+
+Listy konkursu mogą wychodzić z **jego** domeny (IQO: `noreply@iqo-official.org`) tym samym relayem
+`mail`. Relay podpisuje DKIM-em każdą domenę z `ALLOWED_SENDER_DOMAINS` (obsługa wielu domen jest
+w obrazie boky/postfix – osobny klucz i osobny wiersz `KeyTable`/`SigningTable` na domenę).
+Kolejność kroków jest **twarda**: nadawcę konkursu zmienia się na samym końcu, po weryfikacji DNS.
+
+**Stan `iqo-official.org` z 5.10.2026** (sprawdzone `check_mail_dns`): DNS w Squarespace, rekord A →
+nasz serwer, **brak MX**, SPF `v=spf1 -all` („z tej domeny nie wychodzi żadna poczta”), DMARC
+`v=DMARC1; p=reject; sp=reject; adkim=s; aspf=s`. Znaczy to, że list od `@iqo-official.org` wysłany
+**dziś** zostałby **odrzucony** przez każdego dużego odbiorcę. DMARC zostaje bez zmian (ścisłe
+dopasowanie `adkim=s`/`aspf=s` przechodzi: podpis `d=iqo-official.org` i koperta
+`noreply@iqo-official.org` są dokładnie w tej domenie) – zmieniamy SPF i dokładamy DKIM.
+
+### 49.1. Krok 1 – serwer: klucz i rekordy (operator, ~1 min)
+
+```sh
+ssh -i ~/.ssh/olimpiada_deploy root@169.58.242.197
+cd /opt/olimpiada
+scripts/mail_add_domain.sh iqo-official.org
+```
+
+Skrypt (idempotentny – można go powtórzyć): dopisuje domenę do `ALLOWED_SENDER_DOMAINS` w `.env`
+(kopia `.env.bak-mail-<czas>`), generuje klucz DKIM **w kontenerze `mail`** (istniejącego nigdy nie
+nadpisuje), odtwarza **tylko** `mail` (kilka sekund; kolejka zostaje na wolumenie) i wypisuje rekordy,
+zapisując je też do `/opt/olimpiada/mail-dns-iqo-official.org.txt`. `web`/`worker`/`beat` nie są
+ruszane – patrz krok 4. `scripts/mail_add_domain.sh --print iqo-official.org` wypisze rekordy
+ponownie bez żadnych zmian.
+
+### 49.2. Krok 2 – Squarespace: trzy decyzje w panelu DNS (właściciel domeny, ~10 min)
+
+Squarespace → **Domains** → `iqo-official.org` → **DNS** (DNS Settings). Wartości kopiuj z
+`mail-dns-iqo-official.org.txt`, **nie** z tej instrukcji (klucz DKIM jest inny na każdym serwerze).
+
+1. **SPF – ZMIEŃ istniejący rekord, nie dodawaj drugiego.** Znajdź TXT o hoście `@` z wartością
+   `v=spf1 -all` i zmień wartość na tę z pliku – dla dzisiejszego stanu:
+   `v=spf1 ip4:169.58.242.197 -all`. Jeśli ten rekord jest częścią presetu Squarespace, którego nie
+   da się edytować, usuń go (ikona kosza przy presecie/rekordzie) i dodaj w **Custom records**:
+   Type `TXT`, Host `@`, Data = wartość z pliku. **Dwa rekordy `v=spf1` naraz unieważniają SPF.**
+2. **DKIM – DODAJ nowy rekord** w Custom records: Type `TXT`, Host `olimpiada._domainkey`,
+   Data = cała linia `v=DKIM1; h=sha256; k=rsa; s=email; p=MIIB…` z pliku (jedna wartość, bez
+   cudzysłowów). Gdyby panel odrzucił długość: na serwerze
+   `docker compose exec mail rm /etc/opendkim/keys/iqo-official.org.private /etc/opendkim/keys/iqo-official.org.txt`
+   i `DKIM_BITS=1024 scripts/mail_add_domain.sh iqo-official.org` (klucz 1024 bitów – ostateczność).
+3. **DMARC – NIE ruszaj.** Domena ma już `_dmarc` (`p=reject`); drugi rekord unieważniłby oba.
+   Opcjonalnie dopisz do istniejącego `; rua=mailto:<skrzynka>`, żeby dostawać raporty – adres
+   w innej domenie (np. `contact@qaif.org`) działa dopiero z rekordem zgody
+   `iqo-official.org._report._dmarc.qaif.org TXT "v=DMARC1"` w strefie qaif.org. Domena **bez**
+   DMARC (inny konkurs) dostaje w pliku `p=none` z planem: po ok. 2 tygodniach czystych raportów
+   zmień na `p=quarantine`.
+4. **MX i wszystkie pozostałe rekordy – bez zmian** (A, CNAME `www`, weryfikacje). Relay tylko wysyła.
+
+Propagacja: zwykle minuty, do kilku godzin (TTL starego rekordu SPF).
+
+### 49.3. Krok 3 – weryfikacja (operator)
+
+```sh
+cd /opt/olimpiada
+scripts/mail_add_domain.sh --check iqo-official.org
+```
+
+Dwa niezależne sprawdzenia: `opendkim-testkey` w kontenerze `mail` (klucz w DNS-ie = klucz prywatny
+relaya; „key not secure” = brak DNSSEC, to normalne) i `manage.py check_mail_dns` w `web` (ocena SPF
+dla `169.58.242.197`, DKIM z porównaniem klucza, DMARC). Kod 0 i „ZWERYFIKOWANA” = dalej. Wynik
+zapisuje się w bazie (`mail_domains.SenderDomain`) – z niego pulpit koordynatora bierze ostrzeżenie.
+Samo sprawdzenie, bez skryptu: `docker compose exec web python manage.py check_mail_dns iqo-official.org`
+(`--nameserver 1.1.1.1` omija pamięć podręczną resolwera Dockera, `--json` – raport maszynowy).
+
+### 49.4. Krok 4 – aplikacja wczytuje nową listę domen (operator, krótka przerwa web)
+
+```sh
+docker compose up -d web worker beat
+```
+
+Albo przy najbliższym wdrożeniu. Bez tego aplikacja nadal uważa `iqo-official.org` za domenę spoza
+relaya (`MAIL_ALLOWED_SENDER_DOMAINS`) i każdy list IQO szedłby od `DEFAULT_FROM_EMAIL`.
+
+### 49.5. Krok 5 – nadawca konkursu (DOPIERO TERAZ)
+
+Panel IQO → **Ustawienia konkursu** (`/coordinator/competition/`, flaga `competition_settings_page`)
+→ „Nadawca listów” = `noreply@iqo-official.org` → Zapisz (audyt `competition.updated`). Bez ekranu
+ustawień (flaga wyłączona) – z serwera, bez wpisu w audycie:
+
+```sh
+docker compose exec web python manage.py shell -c "from apps.tenancy.models import Competition as C; print(C.objects.filter(slug='iqo').update(from_email='noreply@iqo-official.org'))"
+```
+
+Pulpit koordynatora IQO i ekran ustawień pokazują ostrzeżenie „Nadawca listów konkursu”, dopóki domena
+jest spoza relaya albo bez udanego `check_mail_dns`; po krokach 3–4 ostrzeżenie znika.
+
+### 49.6. Krok 6 – próba na żywo
+
+1. „Nie pamiętasz hasła?” na `https://iqo-official.org/password-reset/` na skrzynkę Gmail: w „Pokaż
+   oryginał” – `SPF: PASS`, `DKIM: PASS (iqo-official.org)`, `DMARC: PASS`.
+2. Log relaya: `docker compose logs mail --tail 50 | grep -E "DKIM-Signature|status="` –
+   `DKIM-Signature field added (s=olimpiada, d=iqo-official.org)` i `status=sent`.
+3. Opcjonalnie list na `check-auth@verifier.port25.com` (odpowiedź z wynikami SPF/DKIM/DMARC).
+
+### 49.7. Poczta zwrotna (bounce)
+
+Relay nie doręcza lokalnie, więc zawiadomienie o niedoręczeniu na `noreply@<domena>` szło przez
+rekord A domeny z powrotem do tego samego serwera („mail for … loops back to myself”) i wisiało
+w kolejce. Od MAIL-01 skrypt startowy `deploy/mail/docker-init.d/50-bounces.sh` kieruje odbicia na
+`noreply@<każda domena z ALLOWED_SENDER_DOMAINS>`, na nadawców monitoringu (`glitchtip@`, `uptime@`,
+OPS-02) i podwójne odbicia na `postmaster@mail.<domena>`:
+
+- `MAIL_BOUNCE_TARGET=discard` (domyślnie) – wyrzucenie. Ślad zostaje: list pierwotny
+  `status=bounced (…powód…)`, odbicie `postfix/discard … status=sent (olimpiada-bounce)`.
+  Lista niedoręczonych: `docker compose logs mail | grep status=bounced`.
+- `MAIL_BOUNCE_TARGET=ops@qaif.org` w `.env` – przekierowanie na skrzynkę operatora (odbicia od
+  `MAILER-DAEMON`, bez DKIM – mogą wpaść do spamu tej skrzynki). Inna lista adresów:
+  `MAIL_BOUNCE_ADDRESSES="noreply@a.pl bounces@b.org"`. Zmiana: `docker compose up -d mail`.
+- Sprawdzenie: `docker compose logs mail | grep olimpiada-bounces` (linia przy starcie z celem
+  i adresami), `docker compose exec mail postconf transport_maps virtual_alias_maps`.
+
+Restrykcji OPS-02 (`mynetworks` z `MAIL_CLIENT_NETWORKS`, GlitchTip tylko jako `glitchtip@`) skrypt
+nie dotyka – ustawia wyłącznie `transport_maps` i `virtual_alias_maps`.
+
+### 49.8. Wdrożenia, klucze, wycofanie
+
+- **Wdrożenie nie rusza kluczy** (wolumen `mail_dkim`). Krok 7/8 porównuje klucz każdej domeny
+  z zapisanym (`mail-dns.txt`, `mail-dns-<domena>.txt`) i przy rozjeździe pisze `!!! UWAGA … INNY` –
+  wolumen odtworzony od zera dał nowy klucz: `scripts/mail_add_domain.sh --print <domena>`, nowy
+  rekord DKIM w Squarespace, `--check`. Wolumenu `mail_dkim` nie ma w kopiach zapasowych (§ 1) –
+  pliki `mail-dns-*.txt` są jedynym zapisem opublikowanych wartości.
+- **Wycofanie natychmiastowe:** wyczyść „Nadawca listów” konkursu (listy od `DEFAULT_FROM_EMAIL`).
+  Pełne: usuń domenę z `ALLOWED_SENDER_DOMAINS` w `.env` i `docker compose up -d mail web worker beat`;
+  rekordy w Squarespace mogą zostać (nie szkodzą) albo wróć SPF do `v=spf1 -all` i usuń
+  `olimpiada._domainkey`. Klucz na wolumenie zostaje – ponowne dodanie domeny użyje tego samego.
+- **Kolejny konkurs z własną domeną:** te same kroki 1–6 z jego domeną; inny panel DNS – te same
+  trzy decyzje (SPF zmień/scal, DKIM dodaj, DMARC nie dubluj, MX nie ruszaj).
 
 ## 46. Monitoring z zewnątrz (OPS-03, `docs/tasks/OPS-03.md`)
 

@@ -65,6 +65,7 @@ from apps.grading.services import (
     stage_problem_rules,
     unassign_reviewer,
 )
+from apps.mail_domains.services import sender_warnings
 from apps.results.models import ResultsPublication
 from apps.results.services import compute_stage_results, publish_results
 from apps.student_status.models import enabled as student_status_enabled
@@ -152,6 +153,9 @@ def dashboard_context(competition, extra: dict | None = None) -> dict:
         # szablon rysuje dzisiejszy odnośnik co do znaku. Odczyt bez zapytania – flaga jest polem
         # wiersza konkursu, który jest już w pamięci.
         "zip_scope_choice": student_status_enabled(competition),
+        # Nadawca listów spoza relaya albo bez zweryfikowanego DNS (MAIL-01) – bez zapytań, gdy
+        # konkurs wysyła od nadawcy instalacji.
+        "sender_warnings": sender_warnings(competition),
     }
     context.update(extra or {})
     return context
