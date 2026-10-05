@@ -2,6 +2,7 @@
 
 import datetime as dt
 import hashlib
+import re
 import shutil
 
 import policy_check
@@ -127,7 +128,12 @@ def test_compose_images_resolve_defaults_and_skip_own():
     assert third_party_images.resolve_defaults("${A:-x/${B:-y}}") == "x/y"
     assert third_party_images.resolve_defaults("img:${TAG}") is None
     images = third_party_images.list_images()
-    assert "postgres:18-alpine" in images and "caddy:2.8" in images
+    # Przypięty tag czytamy z compose, a nie wpisujemy na sztywno: podbicie obrazu przez Dependabota
+    # (np. caddy 2.8 → 2.10) nie może wywracać testu, który sprawdza parser, nie konkretną wersję.
+    compose = (third_party_images.ROOT / "docker-compose.yml").read_text(encoding="utf-8")
+    pinned = re.findall(r"(?m)^ {4}image: ((?:caddy|postgres):[^\s$]+)$", compose)
+    assert {ref.split(":")[0] for ref in pinned} == {"caddy", "postgres"}, pinned
+    assert all(ref in images for ref in pinned), (pinned, sorted(images))
     # OPS-02: GlitchTip przypięty digestem – referencja zostaje w całości (Trivy skanuje ten digest).
     assert any(ref.startswith("glitchtip/glitchtip:") and "@sha256:" in ref for ref in images)
     assert not [ref for ref in images if ref.startswith("olimpiada/")]
