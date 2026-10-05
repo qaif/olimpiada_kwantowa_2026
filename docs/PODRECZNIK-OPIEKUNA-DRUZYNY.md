@@ -2,11 +2,10 @@
 
 This guide is for **national team leaders** of an international olympiad run on this platform
 (e.g. the International Quantum Olympiad). It is in English because the competition is. The
-organiser's side is described in `PODRECZNIK-ORGANIZATORA.md` § 10b (problem translations: § 10g),
-the operator's in `OPERACJE.md` § 28 (§ 34).
-
-organiser's side is described in `PODRECZNIK-ORGANIZATORA.md` § 10b (fees: § 10h), the operator's in
-`OPERACJE.md` § 28 (fees: § 35).
+organiser's side is described in `PODRECZNIK-ORGANIZATORA.md` § 10b (time windows: § 10e, problem
+translations: § 10g, fees: § 10h, final logistics: § 10d, medals: § 10k), the operator's in
+`OPERACJE.md` § 28 (time windows: § 32, problem translations: § 34, fees: § 35, final logistics:
+§ 31, medals: § 37).
 
 ## 1. What a team leader does
 
@@ -82,7 +81,7 @@ starts if the hour does not work for your team.
   has ended, the forum and messages are moderated – please remind your students not to discuss the
   problems with anyone in the meantime (also outside the platform).
 
-## 5a. Medals and certificates
+## 5b. Medals and certificates
 
 Medals are awarded from the final ranking: by default gold for the top 8 % of contestants, silver for
 the next 17 % and bronze for the next 25 %; contestants without a medal receive an honourable mention
@@ -95,8 +94,6 @@ Each student downloads their medal certificate and certificate of participation 
 (`/me/certificates/`), in the language they chose for the website (11 languages, including Arabic,
 Chinese, Hindi and Bengali). Ask your students to set their language before the organiser issues the
 certificates – the language is fixed when the document is issued.
-
-## 6. Your data
 
 ## 6. Fees and invoices
 
@@ -121,9 +118,7 @@ forma for them. If the team or the billing details change before you pay, **canc
 issue a new one (the cancelled pro forma keeps its number). Discounts, fee waivers and refunds are
 decided by the organiser – contact them if needed. All team leaders of a country see the same orders.
 
-## 7. Your data
-
-## 6. Translating the problems
+## 6a. Translating the problems
 
 Open **Problem translations** from your team page (`/delegation/translations/`).
 
@@ -163,7 +158,7 @@ also the official version.
 You can download or delete your own account data under *Account*. Deleting your account removes your
 team leader role and your invitations; the students you registered stay in the team.
 
-## 7. Final logistics (on-site final)
+## 7a. Final logistics (on-site final)
 
 When the organiser opens the logistics of the on-site final, your team page shows **Final logistics**.
 For every person in your delegation – students, team leaders and the observers or guests you add there

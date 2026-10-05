@@ -53,7 +53,7 @@ Sprawdzenia dla każdego hosta (`B` = adres bazowy, z prefiksem ścieżki, jeśl
 
 Globalnie: `https://live.<domena>/` < 500 (LiveKit), `/djcms/healthz/` = 200 i `/djcms/preview/`
 < 500 (djcms). Plik statyczny i motyw – ze strony logowania, a nie z głównej: strona główna bywa
-w buforze całych stron (§ 13, 120 s) z odnośnikami do plików sprzed `collectstatic --clear`.
+w buforze całych stron (OPERACJE § 13, 120 s) z odnośnikami do plików sprzed `collectstatic --clear`.
 
 Każde sprawdzenie: do `SMOKE_RETRIES` (3) prób co `SMOKE_RETRY_DELAY` (5 s), limit `SMOKE_TIMEOUT`
 (15 s), czas w wydruku. Błąd TLS (curl 35/60) hosta innego niż `SITE_DOMAIN` = ostrzeżenie

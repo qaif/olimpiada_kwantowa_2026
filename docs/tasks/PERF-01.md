@@ -114,7 +114,7 @@ liczb, żeby nie rozjechały się dwie kopie.
 
 ## 6. Rekomendacja
 
-W `docs/OPERACJE.md` § 42.5 (konfiguracja na dzień zawodów) i § 42.7 (serwer: zostać / większy VPS
+W `docs/OPERACJE.md` § 42.5 (konfiguracja na dzień zawodów) i OPERACJE § 42.7 (serwer: zostać / większy VPS
 / dedykowane vCPU / wydzielenie LiveKit i notatników).
 
 ## 7. Testy
