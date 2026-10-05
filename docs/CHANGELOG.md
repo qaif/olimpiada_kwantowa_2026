@@ -27,6 +27,22 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
   `CHAT_POLL_SECONDS`. Wyniki, ekstrapolacja na VPS (z kradzieżą CPU), konfiguracja na dzień zawodów,
   procedura testu na serwerze i rekomendacja: `docs/OPERACJE.md` § 42, `docs/tasks/PERF-01.md`.
 
+## [Unreleased] – Monitoring z zewnątrz (OPS-03)
+
+- **`.github/workflows/uptime.yml`**: GitHub Actions co 10 minut (+ ręcznie) sprawdza z zewnątrz
+  `olimpiadakwantowa.pl` i `iqo-official.org` (`/` – kod 200 i czas, `/healthz/`, `/status.json` –
+  `status` i `backup_restore_check`), LiveKit (`live.` → `OK`) i ważność certyfikatów TLS (ostrzeżenie
+  < 14 dni, awaria < 7). Wykrywa śmierć całego serwera, której watchdog i Uptime Kuma z tego samego
+  hosta nie zobaczą. Zero kosztów, zero kont, tylko `GITHUB_TOKEN` (`contents: read`, `issues: write`),
+  jedyna akcja (`actions/checkout`) przypięta pełnym SHA.
+- Alarm: **jedno** zgłoszenie z etykietą `awaria` przy awarii potwierdzonej w dwóch próbach (2 min
+  odstępu), komentarz tylko przy zmianie zestawu awarii, automatyczne zamknięcie po powrocie; GitHub
+  wysyła listy obserwującym repozytorium.
+- `scripts/uptime_external.py` – sama biblioteka standardowa, składnia Pythona 3.10; testy bez sieci
+  `scripts/tests/test_uptime_external.py`, nowy job CI `uptime-script`.
+- Dokumentacja: `docs/tasks/OPS-03.md`, `docs/OPERACJE.md` § 46 (w tym opóźnienia crona i wyłączanie
+  po 60 dniach bez commitów), `deploy/monitoring/README.md` § 5 – darmowy pinger jako druga opinia.
+
 ## [Unreleased] – Logowanie dwuskładnikowe dla personelu (SEC-01)
 
 - **Polityka wymogu** (`apps/staff_mfa`): role platformy `TWO_FACTOR_REQUIRED_ROLES` (nowa wartość
@@ -164,6 +180,33 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
   (nagłówek nad planszą, typografia, karty, sekcje, stopka, motywy orbitali/fal), tryb jasny, warianty
   logo i krojów. Wgranie: `docs/OPERACJE.md` § 30.7.
 - Migracja `themes.0003` (dwie nowe tabele).
+
+## [Unreleased] – Monitoring błędów i dostępności (OPS-02)
+
+- **Śledzenie błędów** (nowa aplikacja `apps.monitoring`): klient `sentry-sdk` 2.71.x (integracje Django,
+  Celery, Redis) wysyłający do **własnego** GlitchTipa; wyłączony bez `SENTRY_DSN` (bez importu pakietu,
+  bez zmian w warstwach, CSP i HTML). Filtr danych osobowych przed wysyłką: bez treści żądań, ciasteczek,
+  zapytań, IP, konta i zmiennych lokalnych; e-mail, PESEL, telefon, tokeny i wartości z błędów Postgresa
+  → `[Filtered]`. Tag `competition` (slug), `release` = `APP_VERSION`, próbkowanie konfigurowalne.
+- **GlitchTip 6.2.6** (obraz przypięty skrótem) w profilu compose `monitoring`: `glitchtip` (web + worker
+  w jednym procesie) i `glitchtip-db` (osobny Postgres w izolowanej sieci `errors`), bez Redisa, bez
+  `.env` platformy, limity pamięci i CPU, retencja 30 dni, poczta przez relay, rejestracja wyłączona.
+  Blok Caddy'ego `errors.<domena>` przy `ERRORS_PROXY=1` (`scripts/render_caddyfile.sh`); slug `errors`
+  zarezerwowany.
+- **Monitor dostępności** (`apps/monitoring/uptime.py`, usługa `uptime`): oba serwisy, `/healthz/`,
+  `/status.json`, LiveKit i GlitchTip, certyfikaty TLS (< 14 dni); listy o awarii i powrocie z
+  deduplikacją, rosnącymi przypomnieniami (1 h → 24 h), jednym listem na przebieg i limitem 6/h. Sama
+  biblioteka standardowa – kopia działa z crona na innej maszynie.
+- **Błędy JavaScriptu** (opcjonalnie, `SENTRY_BROWSER=1`): własny loader z `/static/` (bez SDK i CDN),
+  origin `errors.<domena>` w `connect-src` tylko przy włączonej funkcji.
+- Poprawki po przeglądzie (`docs/tasks/OPS-02.md` § 9): tokeny w ścieżkach adresów (wzorzec trasy
+  albo maska), linie `DETAIL:` Postgresa, adresy IP, Redis bez kluczy, zamknięta lista integracji,
+  wyrażenia liniowe; GlitchTip poza `edge` – sieci `errors_front`/`errors_ingest`/`errors_egress`,
+  relay z jednym nadawcą (`MAIL_CLIENT_NETWORKS` oddzielone od `TRUSTED_PROXY_IPS`); opcjonalne
+  `ERRORS_UI_ALLOW`; ostrzeżenie w `deploy.sh`; wyciszenie `uptime` w przerwie planowej.
+- RODO: rejestr czynności 1.21 – wiersz warunkowy „Monitorowanie błędów aplikacji” (podmiot wewnętrzny,
+  bez państwa trzeciego). Dokumentacja: `docs/OPERACJE.md` § 44, `docs/tasks/OPS-02.md`, rekord DNS
+  `errors` w `deploy/dns-olimpiadakwantowa.pl.md`.
 
 ## [Unreleased] – Reset hasła: nadawca konkursu, konta bez hasła i konta nieuruchomione (AUTH-01a)
 
