@@ -136,7 +136,9 @@ def test_unknown_query_string_bypasses_cache(client_for, competition, settings):
     _enable(settings)
     client = client_for(competition)
 
-    response = client.get("/", {"utm_source": "newsletter"})
+    # Parametr, którego warstwa nie zna. Znaczniki kampanii (``utm_*``) od PERF-01 są pomijane –
+    # patrz ``test_page_cache_perf.py``.
+    response = client.get("/", {"q": "newsletter"})
 
     assert response["X-Page-Cache"] == "BYPASS"
 

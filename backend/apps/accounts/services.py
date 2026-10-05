@@ -23,6 +23,7 @@ from apps.core.models import audit
 from apps.tenancy import branding
 from apps.tenancy.context import current_competition
 
+from . import request_memo
 from .activation import absolute_url, queue_mail, send_activation_email
 from .consents import (
     BY_KIND,
@@ -792,10 +793,18 @@ def participant_for(user, competition) -> Participant | None:
     """
     if not user or not getattr(user, "is_authenticated", False):
         return None
+    # W obrębie żądania odpowiedź się nie zmienia, a pyta o nią po kilka miejsc naraz (mixin roli,
+    # widok, procesor kontekstu, czat) – pamięć żądania, zasady w ``apps.accounts.request_memo``.
+    competition_pk = getattr(competition, "pk", None)
+    remembered = request_memo.get(user.pk, competition_pk)
+    if remembered is not None:
+        return remembered
     rows = Participant.objects.filter(user=user)
     if competition is not None:
         rows = rows.filter(competition=competition)
-    return rows.first()
+    participant = rows.first()
+    request_memo.remember(user.pk, competition_pk, participant)
+    return participant
 
 
 def participations_of(user):
