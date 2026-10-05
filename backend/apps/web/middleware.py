@@ -198,6 +198,18 @@ def webinar_connect_sources() -> tuple[str, ...]:
     return csp_origins()
 
 
+def error_tracking_connect_sources() -> tuple[str, ...]:
+    """Origin GlitchTipa (``errors.<domena>``) – **tylko** przy ``SENTRY_BROWSER=1`` (OPS-02 § 5).
+
+    Loader błędów JavaScriptu (``static/monitoring/errors.js``) wysyła zdarzenie ``fetch``-em, więc
+    potrzebuje wyłącznie ``connect-src``; sam skrypt jest nasz (``'self'`` + nonce). Bez włączonej
+    funkcji polityka jest bajt w bajt taka jak przed OPS-02.
+    """
+    from apps.monitoring.browser import connect_sources
+
+    return connect_sources()
+
+
 def build_policy(nonce: str, *, analytics: bool = False, theme_assets: bool = False) -> str:
     """Buduje treść polityki dla jednego żądania (nonce jest jednorazowy).
 
@@ -224,6 +236,7 @@ def build_policy(nonce: str, *, analytics: bool = False, theme_assets: bool = Fa
             *SCRIPT_CDN_SOURCES,
             *(ANALYTICS_CONNECT_SOURCES if analytics else ()),
             *webinar_connect_sources(),
+            *error_tracking_connect_sources(),
         ]
     )
     directives = [

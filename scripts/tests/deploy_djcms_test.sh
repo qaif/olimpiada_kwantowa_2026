@@ -227,7 +227,8 @@ show_on_fail() {  # show_on_fail <kod> <plik> – przy porażce pokaż plik (wci
 # Polecenia dockera pełnego wdrożenia bez dj. (bez WEB_IMAGE, bez --maintenance, bez nowego
 # konkursu, bez seedów treści) – kroki 2–7/8 i porządki, w kolejności, przy działającym proxy,
 # które widzi katalog caddy/. Stan sprzed DJ-01 plus konfiguracja proxy (OPERACJE § 23): walidacja
-# nowego pliku w kroku 4/8, przed budowaniem, i `caddy reload` w kroku 4c/8, po starcie usług.
+# nowego pliku w kroku 4/8, przed budowaniem, i `caddy reload` w kroku 4c/8, po starcie usług; na końcu
+# dwa odczyty profilu `monitoring` (OPS-02 – ostrzeżenie o GlitchTipie bez kont, odświeżenie `uptime`).
 DZISIAJ='compose config
 volume inspect olimpiada_pg_data
 compose ps -q --status running proxy
@@ -248,7 +249,9 @@ compose ps --format table {{.Service}}\t{{.State}}\t{{.Health}}
 compose exec -T mail cat /etc/opendkim/keys/olimpiada.example.txt
 images --filter=reference=olimpiada/web --format {{.CreatedAt}}|{{.Repository}}:{{.Tag}}
 image prune -f
-compose exec -T web python manage.py check_domains --all'
+compose exec -T web python manage.py check_domains --all
+compose --profile monitoring ps -q --status running glitchtip
+compose --profile monitoring ps -q uptime'
 
 # ================================================================================================
 # 1. dj. wyłączone (brak wpisu w .env): polecenia dockera dzisiejsze, .env nietknięty.
@@ -382,7 +385,9 @@ compose exec -T djcms python manage.py setup_djcms_groups
 compose exec -T -e DJCMS_ADMIN_EMAIL -e DJCMS_ADMIN_PASSWORD djcms python manage.py bootstrap_djcms_admin
 compose exec -T djcms python manage.py sync_competitions --help
 compose exec -T djcms python manage.py sync_competitions --import-missing
-compose exec -T djcms python manage.py import_cms_bundle --from-api --if-empty'
+compose exec -T djcms python manage.py import_cms_bundle --from-api --if-empty
+compose --profile monitoring ps -q --status running glitchtip
+compose --profile monitoring ps -q uptime'
 [ "$(cat "$WORK/on.docker")" = "$WLACZONE" ]
 rc=$?
 check "z DJCMS_ENABLE=1: build djcms, baza, kopia, start (proxy uruchomione z bieżącym plikiem), grupy, administrator, rejestr (--import-missing), import – w tej kolejności" $rc

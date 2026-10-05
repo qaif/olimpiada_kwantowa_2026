@@ -71,6 +71,20 @@ networks:
     ipam: !override
       config:
         - subnet: ${E2E_CLAMAV_EGRESS_SUBNET:-172.31.4.0/24}
+  # Sieci GlitchTipa (OPS-02) – web/worker/beat, proxy i mail należą do nich także bez profilu
+  # `monitoring`, więc projekt E2E zakłada je zawsze; to samo przesunięcie z 172.30.x.
+  errors_ingest:
+    ipam: !override
+      config:
+        - subnet: ${E2E_ERRORS_INGEST_SUBNET:-172.31.7.0/24}
+  errors_front:
+    ipam: !override
+      config:
+        - subnet: ${E2E_ERRORS_FRONT_SUBNET:-172.31.8.0/24}
+  errors_egress:
+    ipam: !override
+      config:
+        - subnet: ${E2E_ERRORS_EGRESS_SUBNET:-172.31.9.0/24}
 
 secrets:
   extra_ca:

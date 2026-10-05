@@ -40,8 +40,10 @@ render() {
   # zwraca kod wyjścia generatora. Argumenty 3–5 są **zawsze** przekazywane (choćby puste), bo
   # zmienna nieustawiona każe generatorowi czytać `.env` – a test ma sprawdzać generator, a nie
   # czyjś plik konfiguracyjny.
+  # Argumenty 6–9 (LIVEKIT_PROXY, ERRORS_PROXY, ERRORS_UI_ALLOW, NOTEBOOK_LAB_HOST) – też zawsze, choćby puste.
   EXTRA_DOMAINS="$1" PLATFORM_SUBDOMAINS="${3:-}" DJCMS_ENABLED="${4:-}" DJCMS_PRIMARY="${5:-}" LIVEKIT_PROXY="${6:-}" \
-    NOTEBOOK_LAB_HOST="${7:-}" CADDYFILE_OUT="$2" bash "$RENDER" >"$WORK/stdout" 2>"$WORK/stderr"
+    ERRORS_PROXY="${7:-}" ERRORS_UI_ALLOW="${8:-}" NOTEBOOK_LAB_HOST="${9:-}" \
+    CADDYFILE_OUT="$2" bash "$RENDER" >"$WORK/stdout" 2>"$WORK/stderr"
 }
 
 # 1. Pusta lista domen = dzisiejsza konfiguracja, co do bajtu.
@@ -735,22 +737,64 @@ render "" "$WORK/lk-bad.caddy" "" "" "" "tak"
 [ $? -eq 1 ] && grep -qF 'LIVEKIT_PROXY' "$WORK/stderr"
 check "LIVEKIT_PROXY=tak zatrzymuje generator z komunikatem" $?
 
+# ERRORS_PROXY (zadanie OPS-02): wyłączony = bajt w bajt jak dotąd; włączony = blok `errors.` na końcu
+# (GlitchTip, bez strony prac technicznych, z nagłówkami bezpieczeństwa), przy subdomenach – zwykły
+# certyfikat; razem z LIVEKIT_PROXY oba bloki; wartość spoza listy = błąd.
+render "" "$WORK/err-off.caddy" "" "" "" "" "0"
+cmp -s "$SRC" "$WORK/err-off.caddy"
+check "ERRORS_PROXY=0 daje kopię deploy/Caddyfile bajt w bajt" $?
+render "" "$WORK/err-on.caddy" "" "" "" "" "1"
+awk '/^errors\./,/^}/' "$WORK/err-on.caddy" >"$WORK/err-block.txt"
+grep -qxF 'errors.{$SITE_DOMAIN} {' "$WORK/err-block.txt" && grep -qxF '    reverse_proxy glitchtip:8000 {' "$WORK/err-block.txt" \
+  && head -c "$(wc -c <"$SRC")" "$WORK/err-on.caddy" | cmp -s - "$SRC"
+check "ERRORS_PROXY=1 dokłada blok errors. -> glitchtip:8000 za blokami źródłowymi" $?
+for needle in 'Strict-Transport-Security "max-age=31536000"' 'X-Content-Type-Options "nosniff"' 'X-Frame-Options "DENY"' 'max_size 10MB'; do
+  grep -qF "$needle" "$WORK/err-block.txt"
+  check "blok errors. zawiera „$needle”" $?
+done
+! grep -qE 'import maintenance|key_type' "$WORK/err-block.txt"
+check "blok errors. bez strony prac technicznych i bez przypięcia TLS (subdomeny wyłączone)" $?
+render "" "$WORK/err-sub.caddy" "1" "" "" "1" "1"
+awk '/^errors\./,/^}/' "$WORK/err-sub.caddy" | grep -qF 'key_type p256' && grep -qF 'live.{$SITE_DOMAIN} {' "$WORK/err-sub.caddy"
+check "ERRORS_PROXY=1 przy subdomenach i LiveKit: errors. ze zwykłym certyfikatem, live. obok" $?
+render "" "$WORK/err-bad.caddy" "" "" "" "" "tak"
+[ $? -eq 1 ] && grep -qF 'ERRORS_PROXY' "$WORK/stderr"
+check "ERRORS_PROXY=tak zatrzymuje generator z komunikatem" $?
+! grep -q 'errors_ui' "$WORK/err-on.caddy"
+check "bez ERRORS_UI_ALLOW panel GlitchTipa bez listy adresów" $?
+render "" "$WORK/err-allow.caddy" "" "" "" "" "1" "203.0.113.7 2001:db8::/32"
+awk '/^errors\./,/^}/' "$WORK/err-allow.caddy" >"$WORK/err-allow.txt"
+grep -qxF '        not remote_ip 203.0.113.7 2001:db8::/32' "$WORK/err-allow.txt" \
+  && grep -qxF '        not path_regexp ^/api/[0-9]+/(envelope|store|minidump|security)/?$' "$WORK/err-allow.txt" \
+  && grep -qxF '    respond @errors_ui 403' "$WORK/err-allow.txt"
+check "ERRORS_UI_ALLOW: panel tylko z listy, koperty i /_health/ z każdego adresu" $?
+render "" "$WORK/err-allow-bad.caddy" "" "" "" "" "1" "10.0.0.1 } import x"
+[ $? -eq 1 ] && grep -qF 'ERRORS_UI_ALLOW' "$WORK/stderr"
+check "ERRORS_UI_ALLOW ze składnią Caddy'ego zatrzymuje generator" $?
+if [ "${SKIP_CADDY_VALIDATE:-0}" != "1" ] && command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
+  for f in "$WORK/err-on.caddy" "$WORK/err-sub.caddy" "$WORK/err-allow.caddy"; do
+    caddy_run "$f" validate >"$WORK/validate.out" 2>&1
+    rc=$?
+    check "caddy validate ($CADDY_IMAGE): ${f##*/}" "$rc"
+  done
+fi
+
 # --- NOTEBOOK_LAB_HOST: laboratorium notatników na osobnym hoście (docs/tasks/QC-02.md § 3) ----------
 #
 # Ta sama para gwarancji: pusty = bajt w bajt jak dotąd (przy każdej kombinacji pozostałych zmiennych),
 # niepusty = blok hosta laboratorium na końcu i `notebook_lab_moved` w KAŻDYM bloku aplikacji – a reszta
 # pliku bez zmian (wynik minus wstawki = wynik bez zmiennej).
 LAB=lab.example.org
-render "" "$WORK/lab-off.caddy" "" "" "" "" ""
+render "" "$WORK/lab-off.caddy" "" "" "" "" "" "" ""
 cmp -s "$SRC" "$WORK/lab-off.caddy"
 check "NOTEBOOK_LAB_HOST pusty daje kopię deploy/Caddyfile bajt w bajt" $?
 
 for bad in 'lab.example.org:8443' 'https://lab.example.org' 'lab' 'lab.example.org/x' 'a.pl b.pl' 'lab{x}.pl' '-lab.pl'; do
-  render "" "$WORK/lab-bad.caddy" "" "" "" "" "$bad"
+  render "" "$WORK/lab-bad.caddy" "" "" "" "" "" "" "$bad"
   [ $? -ne 0 ] && grep -qF 'NOTEBOOK_LAB_HOST' "$WORK/stderr"
   check "generator odmawia dla NOTEBOOK_LAB_HOST=„$bad”" $?
 done
-render "konkurs.example lab.example.org" "$WORK/lab-dup.caddy" "" "" "" "" "$LAB"
+render "konkurs.example lab.example.org" "$WORK/lab-dup.caddy" "" "" "" "" "" "" "$LAB"
 [ $? -ne 0 ] && grep -qF 'EXTRA_DOMAINS' "$WORK/stderr"
 check "NOTEBOOK_LAB_HOST obecny też w EXTRA_DOMAINS = odmowa" $?
 
@@ -766,14 +810,14 @@ lab_strip() {  # lab_strip <plik> – wynik bez wstawek NOTEBOOK_LAB_HOST (fragm
 }
 for combo in "|" "olimpiadafizyczna.pl konkurs.example|" "|1" "olimpiadafizyczna.pl www.olimpiadafizyczna.pl konkurs.example|1"; do
   extra="${combo%|*}"; sub="${combo#*|}"
-  render "$extra" "$WORK/lab-ref.caddy" "$sub" "" "" "" ""
-  render "$extra" "$WORK/lab-on.caddy" "$sub" "" "" "" "$LAB"
+  render "$extra" "$WORK/lab-ref.caddy" "$sub" "" "" "" "" "" ""
+  render "$extra" "$WORK/lab-on.caddy" "$sub" "" "" "" "" "" "$LAB"
   rc=$?
   lab_strip "$WORK/lab-on.caddy" | cmp -s - "$WORK/lab-ref.caddy"
   check "NOTEBOOK_LAB_HOST (EXTRA=„$extra”, subdomeny=„$sub”): wynik minus wstawki = wynik bez zmiennej (kod $rc)" $?
 done
 
-render "olimpiadafizyczna.pl www.olimpiadafizyczna.pl konkurs.example" "$WORK/lab-full.caddy" "1" "" "" "" "LAB.Example.org"
+render "olimpiadafizyczna.pl www.olimpiadafizyczna.pl konkurs.example" "$WORK/lab-full.caddy" "1" "" "" "" "" "" "LAB.Example.org"
 check "generator kończy się sukcesem przy NOTEBOOK_LAB_HOST (+ EXTRA_DOMAINS, subdomeny; wielkie litery)" $?
 grep -qF 'laboratorium notatników: lab.example.org' "$WORK/stdout"
 check "podsumowanie generatora podaje host laboratorium (małymi literami)" $?
@@ -807,19 +851,48 @@ done
 check "blok hosta laboratorium bez strony prac technicznych" $?
 [ "$(grep -c 'reverse_proxy web:8000' "$WORK/lab-block.txt")" -eq 1 ]
 check "blok hosta laboratorium: web wyłącznie dla /notebook-starter/*" $?
-render "" "$WORK/lab-nosub.caddy" "" "" "" "" "$LAB"
+render "" "$WORK/lab-nosub.caddy" "" "" "" "" "" "" "$LAB"
 ! block_body "$WORK/lab-nosub.caddy" 'lab.example.org {' | grep -qF 'key_type'
 check "bez subdomen platformy blok laboratorium nie przypina polityki TLS" $?
-render "" "$WORK/lab-dj.caddy" "1" "1" "0" "1" "$LAB"
+render "" "$WORK/lab-dj.caddy" "1" "1" "0" "1" "" "" "$LAB"
 [ $? -eq 0 ] && [ "$(grep -cxF '    import notebook_lab_moved' "$WORK/lab-dj.caddy")" -eq 2 ] \
   && tail -n 40 "$WORK/lab-dj.caddy" | grep -qx 'lab.example.org {'
 check "NOTEBOOK_LAB_HOST razem z DJCMS_ENABLED i LIVEKIT_PROXY: blok laboratorium ostatni, oba bloki aplikacji przeniesione" $?
+
+# Laboratorium razem z GlitchTipem (ERRORS_PROXY, OPS-02) i pozostałymi przełącznikami: przy KAŻDEJ
+# kombinacji (subdomeny × djcms × LiveKit × errors × lista panelu) wynik minus wstawki laboratorium =
+# wynik bez niego, blok laboratorium jest ostatni (za `errors.`), a `errors.` zostaje nietknięty.
+lab_combos=0
+for sub in "" 1; do
+  for dj in "" 1; do
+    for lk in "" 1; do
+      for er in "" 1; do
+        allow=""; [ "$er" = 1 ] && [ "$sub" = 1 ] && allow="203.0.113.7"
+        render "konkurs.example" "$WORK/lc-off.caddy" "$sub" "$dj" "" "$lk" "$er" "$allow" ""
+        rc1=$?
+        render "konkurs.example" "$WORK/lc-on.caddy" "$sub" "$dj" "" "$lk" "$er" "$allow" "$LAB"
+        rc2=$?
+        if [ $rc1 -ne 0 ] || [ $rc2 -ne 0 ] || ! lab_strip "$WORK/lc-on.caddy" | cmp -s - "$WORK/lc-off.caddy" \
+          || [ "$(grep -n '^[^ #}].* {$' "$WORK/lc-on.caddy" | tail -n 1 | cut -d: -f2-)" != "lab.example.org {" ]; then
+          printf 'FAIL kombinacja subdomeny=%s djcms=%s livekit=%s errors=%s\n' "$sub" "$dj" "$lk" "$er"
+          failures=$((failures + 1))
+        fi
+        lab_combos=$((lab_combos + 1))
+        [ "$sub$dj$lk$er" = 1111 ] && cp "$WORK/lc-on.caddy" "$WORK/lab-errors.caddy"
+      done
+    done
+  done
+done
+check "NOTEBOOK_LAB_HOST × ERRORS_PROXY × reszta przełączników ($lab_combos kombinacji): tylko wstawki laboratorium, blok laboratorium ostatni" 0
+awk '/^errors\./,/^}/' "$WORK/lab-errors.caddy" | grep -qxF '    reverse_proxy glitchtip:8000 {' \
+  && ! awk '/^errors\./,/^}/' "$WORK/lab-errors.caddy" | grep -qF 'notebook_lab'
+check "errors. (GlitchTip) przy laboratorium bez fragmentów laboratorium" $?
 
 # Caddy sam (jak § 19): `caddy validate` i kolejność tras po `caddy adapt` – przekierowanie ścieżki
 # laboratorium przed `/static/*` w każdym bloku aplikacji, host laboratorium: nagłówki → pliki →
 # notatnik startowy → 404, zwykły certyfikat (nie on-demand) dla hosta laboratorium.
 if declare -F caddy_run >/dev/null && [ -n "${python_bin:-}" ]; then
-  for f in lab-full lab-dj; do
+  for f in lab-full lab-dj lab-errors; do
     caddy_run "$WORK/$f.caddy" validate >"$WORK/validate.out" 2>&1
     rc=$?
     check "caddy validate ($CADDY_IMAGE): $f.caddy" "$rc"

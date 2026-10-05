@@ -74,6 +74,8 @@ RESERVED_LABELS = frozenset(
         # ``RESERVED_SLUGS`` przez ``reserved_labels()``, ale tu stoi jawnie: nazwa należy do
         # infrastruktury platformy, a nie tylko do urlconfu, i nie może zniknąć razem z listą slugów.
         "djcms",
+        # Śledzenie błędów – GlitchTip pod ``errors.<SITE_DOMAIN>`` (OPS-02, ERRORS_PROXY=1).
+        "errors",
         "ftp",
         "imap",
         "internal",
