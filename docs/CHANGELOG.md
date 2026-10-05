@@ -12,6 +12,16 @@ podsekcją `### <tytuł>` wydania `## v<x.y.z> – <data tagu> – <opis tagu>`.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## [Unreleased] – Fokus w przyklejonym pasku konta (A11Y)
+
+- **Poprawka dostępności:** pozycja menu w przyklejonym pasku konta (`.nav--primary`,
+  `static/js/sticky-bar.js`) nie znika już spod fokusu, gdy menu serwisu wraca na ekran – pasek
+  odkleja się dopiero, gdy fokus z niego wyjdzie. Wcześniej przewinięcie do góry z fokusem w pasku
+  (albo Tab szybszy od obserwatora) gubił fokus na `<body>` (WCAG 2.4.3, 2.4.7).
+- **Test `test_every_tab_stop_has_visible_focus`** mierzy po ustaleniu strony (dwie klatki), opisuje
+  element w tym samym pomiarze i liczy `body` z fokusem dokumentu jako błąd (zawinięcie Taba do
+  przeglądarki – nie). Nowy test `test_sticky_bar_keeps_focused_item_when_menu_returns`.
+
 ## [Unreleased] – Uzupełnienie zgód po zalogowaniu (CONS-01)
 
 - **Bramka zgód uczestnika** (`apps.consent_gate`, `ConsentGateMiddleware` między 2FA a bramką nadzoru):
