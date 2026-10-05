@@ -195,6 +195,7 @@ INSTALLED_APPS = [
     "apps.payments",
     "apps.staff_mfa",  # 2FA personelu: polityka konkursu, okres przejściowy, odzyskiwanie (SEC-01)
     "apps.password_change",  # zmiana hasła w panelu konta (AUTH-01b, 4.10.2026), bez modeli
+    "apps.mail_domains",  # domeny nadawców poczty: check_mail_dns i ostrzeżenia (MAIL-01, 5.10.2026)
     "apps.monitoring",  # śledzenie błędów (GlitchTip) i dostępność – OPS-02, wyłączone bez SENTRY_DSN
     "apps.web",
     # Logowanie przez dostawców zewnętrznych (Google, Facebook). ``allauth.account`` jest wymagane
@@ -230,6 +231,11 @@ MIDDLEWARE = [
     # apps/web/tests/test_public.py); dla samego zliczania kodu odpowiedzi ta różnica jest bez
     # znaczenia. Warstwa niczego nie modyfikuje i nie może rzucić.
     "apps.core.middleware.ServerErrorCounterMiddleware",
+    # Osobny host laboratorium notatników (QC-02 § 3): **przed** WhiteNoise, bo rozstrzyga też o
+    # ``/static/notebook-lab/`` (host serwisu → 302 na host laboratorium). Na hoście laboratorium
+    # kończy każde żądanie poza plikami laboratorium sam – bez sesji, konkursu i CSRF. Bez
+    # ``NOTEBOOK_LAB_HOST`` nie robi nic.
+    "apps.notebooks.middleware.NotebookLabHostMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     # Język z ciasteczka albo z nagłówka ``Accept-Language``. Za sesją (czyta ją) i przed
@@ -1036,6 +1042,14 @@ MAIL_ALLOWED_SENDER_DOMAINS = (
     None if "*" in _sender_domains else [domain.strip().lower() for domain in _sender_domains]
 )
 
+# Sprawdzenie rekordów poczty domen nadawców (MAIL-01, ``manage.py check_mail_dns``). Selektor ten
+# sam, co usługi ``mail`` (compose: ``DKIM_SELECTOR: olimpiada``); IP relaya pusty = rekord A
+# ``mail.<SITE_DOMAIN>``; serwery DNS puste = ``/etc/resolv.conf`` kontenera.
+MAIL_DKIM_SELECTOR = env("DKIM_SELECTOR", default="olimpiada")
+MAIL_PUBLIC_IP = env("MAIL_PUBLIC_IP", default="")
+MAIL_DMARC_RUA = env("DMARC_RUA", default="contact@qaif.org")
+MAIL_DNS_NAMESERVERS = env.list("MAIL_DNS_NAMESERVERS", default=[])
+
 # --- konkursy w subdomenach platformy ----------------------------------------------------------
 # Wyłącznik funkcji „koordynator zakłada konkurs z panelu, a konkurs stoi pod
 # ``<slug>.{SITE_DOMAIN}``”. **Domyślnie wyłączony**, bo jego włączenie jest decyzją operatora
@@ -1593,6 +1607,27 @@ NOTEBOOK_RUNNER_INLINE = env.bool("NOTEBOOK_RUNNER_INLINE", default=False)
 NOTEBOOK_LAB_DIR = env("NOTEBOOK_LAB_DIR", default=str(BASE_DIR / "notebook_lab_dist"))
 if DEBUG and Path(NOTEBOOK_LAB_DIR).is_dir():
     STATICFILES_DIRS = [*STATICFILES_DIRS, ("notebook-lab", NOTEBOOK_LAB_DIR)]
+# Osobny host laboratorium (QC-02, docs/tasks/QC-02.md): ``lab.<SITE_DOMAIN>`` albo osobna domena
+# rejestrowalna. Pusty = laboratorium w originie serwisu jak w QC-01. Ta sama zmienna steruje blokiem
+# Caddy'ego (scripts/render_caddyfile.sh). Host trafia do ``ALLOWED_HOSTS`` (notatnik startowy podaje
+# ``web``), ale **nie** do ``CSRF_TRUSTED_ORIGINS`` – kod z laboratorium nie może być zaufanym originem
+# żądań POST; przy subdomenie i ``PLATFORM_SUBDOMAINS=1`` wzorzec ``https://*.<domena>`` i tak by go
+# objął, dlatego żądania z laboratorium odrzuca też ``NotebookLabRequestGuardMiddleware`` (QC-02 § 4).
+# Poprawność wartości: sprawdzenie ``notebooks.E002`` (apps/notebooks/checks.py).
+NOTEBOOK_LAB_HOST = env("NOTEBOOK_LAB_HOST", default="").strip().lower().rstrip(".")
+if NOTEBOOK_LAB_HOST:
+    ALLOWED_HOSTS = list(dict.fromkeys([*ALLOWED_HOSTS, NOTEBOOK_LAB_HOST.split(":")[0]]))
+
+
+def host_prefixed_cookie_name(name: str, *, lab_host: str, secure: bool) -> str:
+    """``__Host-<nazwa>`` przy osobnym hoście laboratorium i ciasteczku ``Secure`` (QC-02 § 5, M1).
+
+    Prefiks wymaga ``Secure`` (inaczej przeglądarka odrzuci ciasteczko – dev bez TLS zostaje przy
+    zwykłej nazwie i ochronie ``apps.notebooks.cookieguard``), ``Path=/`` i braku ``Domain`` – co
+    Django i tak ustawia (``*_COOKIE_PATH``/``*_COOKIE_DOMAIN`` domyślne). Używa production.py.
+    """
+    return f"__Host-{name}" if lab_host and secure else name
+
 
 # --- pieczęć elektroniczna dyplomów (apps.results.signing) -------------------------------------
 # Bez ścieżki do pliku PKCS#12 podpisywanie jest **wyłączone** i dokumenty wychodzą niepodpisane –

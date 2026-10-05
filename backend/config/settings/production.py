@@ -32,6 +32,7 @@ from .base import (
     DEBUG,
     E2E_MODE,
     MAILERS,
+    NOTEBOOK_LAB_HOST,
     S3_ENDPOINT_URL,
     S3_PRIVATE_ACCESS_KEY,
     S3_PRIVATE_SECRET_KEY,
@@ -44,6 +45,7 @@ from .base import (
     S3_SUBMISSIONS_BUCKET,
     STORAGES,
     env,
+    host_prefixed_cookie_name,
 )
 
 # Bezpiecznik: produkcja nie może wstać z kluczem zapasowym z repozytorium ani bez sekretów storage.
@@ -121,6 +123,17 @@ SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 SESSION_COOKIE_SECURE = env.bool("SESSION_COOKIE_SECURE", default=not DEBUG)
 CSRF_COOKIE_SECURE = env.bool("CSRF_COOKIE_SECURE", default=not DEBUG)
 SESSION_COOKIE_HTTPONLY = True
+# Laboratorium na subdomenie (QC-02 § 5, przegląd M1): kod z ``lab.<domena>`` mógłby podrzucić
+# ``sessionid``/``csrftoken`` z ``Domain=<domena>`` (fiksacja sesji, 403 na każdym formularzu).
+# Ciasteczka z prefiksem ``__Host-`` przeglądarka przyjmuje wyłącznie host-only, ``Secure``
+# i ``Path=/`` – podrzucić się ich nie da. Zmiana nazwy wylogowuje wszystkich **raz** (przy
+# włączeniu ``NOTEBOOK_LAB_HOST``); starej nazwy celowo nie przyjmujemy – ona właśnie da się podrzucić.
+SESSION_COOKIE_NAME = host_prefixed_cookie_name(
+    "sessionid", lab_host=NOTEBOOK_LAB_HOST, secure=SESSION_COOKIE_SECURE
+)
+CSRF_COOKIE_NAME = host_prefixed_cookie_name(
+    "csrftoken", lab_host=NOTEBOOK_LAB_HOST, secure=CSRF_COOKIE_SECURE
+)
 SECURE_CONTENT_TYPE_NOSNIFF = True
 # Zostaje DENY: podgląd strony w /cms/ jest jedynym miejscem, które potrzebuje ramki, a Wagtail
 # nadpisuje nagłówek na SAMEORIGIN sam (``xframe_options_sameorigin_override`` w widoku podglądu).

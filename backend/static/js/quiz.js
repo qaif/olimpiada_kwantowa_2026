@@ -48,9 +48,12 @@
   }
 
   /* Token CSRF z ciasteczka, nie z ukrytego pola: autozapis wysyła JSON-a fetchem i nie ma
-     formularza, z którego miałby ten token przepisać. Nazwa ciasteczka jest domyślna dla Django. */
+     formularza, z którego miałby ten token przepisać. Nazwa domyślna Django albo – przy osobnym
+     hoście laboratorium notatników (QC-02 § 5) – z prefiksem ``__Host-``; ta ma pierwszeństwo. */
   function csrfToken() {
-    var match = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]*)/);
+    var match =
+      document.cookie.match(/(?:^|;\s*)__Host-csrftoken=([^;]*)/) ||
+      document.cookie.match(/(?:^|;\s*)csrftoken=([^;]*)/);
     return match ? decodeURIComponent(match[1]) : "";
   }
 

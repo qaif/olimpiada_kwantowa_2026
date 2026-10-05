@@ -670,3 +670,21 @@ msgstr "notebook awal"
 #, python-format
 msgid "Praca – podgląd notatnika (wersja %(version)s)"
 msgstr "Karya – pratinjau notebook (versi %(version)s)"
+
+#, python-format
+msgid "Bezpieczeństwo: laboratorium działa pod osobnym adresem %(host)s."
+msgstr "Keamanan: lab berjalan di alamat terpisah %(host)s."
+
+msgid ""
+"Kod z notatnika wykonuje się w przeglądarce, w osobnym originie "
+"laboratorium: nie widzi sesji, ciasteczek ani danych zapisanych przez "
+"serwis, a serwis odrzuca wysyłane z niego żądania. Laboratorium nadal "
+"otwierają wyłącznie konta uczestników bez żadnej roli personelu. Uprzedź "
+"uczestników, żeby nie wklejali cudzego kodu. Szczegóły: docs/OPERACJE.md § "
+"40.7."
+msgstr ""
+"Kode notebook dijalankan di peramban, di origin lab yang terpisah: kode "
+"tidak dapat melihat sesi, cookie, atau data yang disimpan situs, dan situs "
+"menolak permintaan yang dikirim dari lab. Lab tetap hanya tersedia untuk "
+"akun peserta tanpa peran staf apa pun. Ingatkan peserta agar tidak "
+"menempelkan kode orang lain. Rincian: docs/OPERACJE.md § 40.7."

@@ -686,3 +686,22 @@ msgstr "caderno inicial"
 #, python-format
 msgid "Praca – podgląd notatnika (wersja %(version)s)"
 msgstr "Trabalho – pré-visualização do notebook (versão %(version)s)"
+
+#, python-format
+msgid "Bezpieczeństwo: laboratorium działa pod osobnym adresem %(host)s."
+msgstr "Segurança: o laboratório funciona num endereço separado %(host)s."
+
+msgid ""
+"Kod z notatnika wykonuje się w przeglądarce, w osobnym originie "
+"laboratorium: nie widzi sesji, ciasteczek ani danych zapisanych przez "
+"serwis, a serwis odrzuca wysyłane z niego żądania. Laboratorium nadal "
+"otwierają wyłącznie konta uczestników bez żadnej roli personelu. Uprzedź "
+"uczestników, żeby nie wklejali cudzego kodu. Szczegóły: docs/OPERACJE.md § "
+"40.7."
+msgstr ""
+"O código do notebook é executado no navegador, na origem separada do "
+"laboratório: não vê a sessão, os cookies nem os dados guardados pelo site, e "
+"o site rejeita os pedidos enviados a partir dele. O laboratório continua "
+"disponível apenas para contas de participantes sem qualquer função de "
+"equipa. Avise os participantes para não colarem código de outras pessoas. "
+"Detalhes: docs/OPERACJE.md § 40.7."

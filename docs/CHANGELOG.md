@@ -27,6 +27,25 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
   `CHAT_POLL_SECONDS`. Wyniki, ekstrapolacja na VPS (z kradzieżą CPU), konfiguracja na dzień zawodów,
   procedura testu na serwerze i rekomendacja: `docs/OPERACJE.md` § 42, `docs/tasks/PERF-01.md`.
 
+## [Unreleased] – Poczta z domeny konkursu (MAIL-01)
+
+- **Druga domena nadawcy w relayu `mail`** (IQO: `iqo-official.org`): `scripts/mail_add_domain.sh <domena>`
+  na serwerze – idempotentnie dopisuje domenę do `ALLOWED_SENDER_DOMAINS`, generuje klucz DKIM w kontenerze
+  `mail` (nigdy nie nadpisuje istniejącego), odtwarza tylko `mail` i wypisuje rekordy do wklejenia
+  (`mail-dns-<domena>.txt`): SPF **scalony** z obecnym (rekord ochronny `v=spf1 -all` → zmiana, nigdy drugi
+  `v=spf1`), DKIM, DMARC bez drugiego rekordu (brak = `p=none` z planem na `quarantine`), MX bez zmian;
+  `--check` (`opendkim-testkey` + `check_mail_dns`), `--print`. Podpis wielu domen robi obraz (bez zmiany wersji).
+- **`manage.py check_mail_dns <domena>`** (nowa aplikacja `apps.mail_domains`, migracja `0001`): SPF
+  oceniany jak u odbiorcy (include/redirect/a/mx, limit 10 zapytań), DKIM z porównaniem klucza relaya,
+  DMARC; klient DNS na bibliotece standardowej (bez nowych zależności). Wynik w `SenderDomain`.
+- **Ostrzeżenie dla koordynatora** na pulpicie i w „Ustawieniach konkursu”, gdy nadawca listów konkursu
+  jest spoza relaya albo jego domena nie przeszła `check_mail_dns` (bez zapytań DNS w żądaniu).
+- **Poczta zwrotna bez pętli** („loops back to myself”): odbicia na `noreply@` domen, nadawców monitoringu
+  i `postmaster@` relaya → `discard` albo skrzynka operatora (`MAIL_BOUNCE_TARGET`,
+  `deploy/mail/docker-init.d/50-bounces.sh`); restrykcje OPS-02 nietknięte.
+- **Wdrożenie (krok 7/8)** ostrzega, gdy klucz DKIM którejś domeny różni się od opublikowanego.
+- Dokumentacja: `docs/tasks/MAIL-01.md`, `docs/OPERACJE.md` § 49 (krok po kroku dla Squarespace), § 9.7.
+
 ## [Unreleased] – Monitoring z zewnątrz (OPS-03)
 
 - **`.github/workflows/uptime.yml`**: GitHub Actions co 10 minut (+ ręcznie) sprawdza z zewnątrz
@@ -42,6 +61,29 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
   `scripts/tests/test_uptime_external.py`, nowy job CI `uptime-script`.
 - Dokumentacja: `docs/tasks/OPS-03.md`, `docs/OPERACJE.md` § 46 (w tym opóźnienia crona i wyłączanie
   po 60 dniach bez commitów), `deploy/monitoring/README.md` § 5 – darmowy pinger jako druga opinia.
+
+## [Unreleased] – Laboratorium notatników na osobnym hoście (QC-02)
+
+- **`NOTEBOOK_LAB_HOST`** (opcjonalne, `.env`): JupyterLite i notatnik startowy wyłącznie pod
+  osobnym hostem (`lab.<SITE_DOMAIN>` albo osobna domena). Caddy (`scripts/render_caddyfile.sh`):
+  blok hosta laboratorium (pliki laboratorium z polityką z QC-01, `/notebook-starter/*` do `web`,
+  reszta 404, `Referrer-Policy: strict-origin`), a bloki serwisu – fragment `notebook_lab_moved`
+  (ścieżka laboratorium → 302 na host laboratorium, `/notebook-starter/*` → 404). Pusta zmienna =
+  konfiguracja proxy bajt w bajt jak dotąd.
+- Django: `NotebookLabHostMiddleware` (ten sam rozdział hostów, przed WhiteNoise), notatnik startowy
+  na hoście laboratorium bez sesji (token z osobną solą, 2 h, bramki na bieżącym stanie konta,
+  nadzór zdalny), strażnik odrzucający na hostach serwisu żądania z `Origin`/`Referer` laboratorium
+  poza nawigacją GET – przed CSRF, także wobec `https://*.<SITE_DOMAIN>`; host w `ALLOWED_HOSTS`,
+  nie w `CSRF_TRUSTED_ORIGINS`; sprawdzenie `notebooks.E002`; etykieta `lab` zarezerwowana.
+- Ciasteczka aplikacji potwierdzone jako host-only (test). Kompromisy subdomena vs osobna domena
+  i kroki operatora: `docs/OPERACJE.md` § 40.7, `docs/tasks/QC-02.md`.
+- **Po przeglądzie (podrzucanie ciasteczek z `lab.<domena>`):** w produkcji z laboratorium ciasteczka
+  `__Host-sessionid`/`__Host-csrftoken` (jednorazowe wylogowanie przy włączeniu; skrypty czytające
+  token obsługują obie nazwy), wygaszanie zdublowanych ciasteczek sesji/CSRF/języka na domenie
+  nadrzędnej (przekierowanie 302/307, potem żądanie bez obu kopii), ten sam strażnik i wygaszanie
+  w djcms (`NOTEBOOK_LAB_HOST` w compose), 403 dla żądań same-site z `Origin: null` albo bez
+  nagłówków pochodzenia, `notebooks.E002` także dla hostów usług (`dj.`, `live.`, `meet.`, `monitor.`,
+  `errors.`, S3, Jitsi) i konkursów. Zalecany wariant: osobna domena rejestrowalna.
 
 ## [Unreleased] – Logowanie dwuskładnikowe dla personelu (SEC-01)
 
