@@ -15,6 +15,91 @@ reszty – oraz **wdrożenia etapu 2** (§ 8), do przejścia po każdym wydaniu 
 Adres produkcyjny: `olimpiadakwantowa.pl` (169.58.242.197), katalog `/opt/olimpiada`,
 wdrożenie `scripts/deploy.sh` z kluczem `~/.ssh/olimpiada_deploy`.
 
+Od § 9 sekcje opisują kolejne wydania i funkcje. **Numerów się nie przenumerowuje** – kod i inne
+dokumenty odsyłają do „OPERACJE § N” – więc nowa sekcja dostaje następny wolny numer i staje na swoim
+miejscu w kolejności. Luka w numeracji (jeśli się pojawi) to numer zajęty przez pracę w toku na innej
+gałęzi.
+Kolejność i odwołania pilnuje test `apps/core/tests/test_docs_section_refs.py`.
+
+## Funkcje i flagi
+
+Spis przełączników: co włącza daną funkcję, jaka jest wartość domyślna i gdzie jest opis operatora.
+**Flaga konkursu** siedzi w `feature_flags` wiersza konkursu (`/admin/ → Konkursy`, § 6.4) i ma
+wartość domyślną w `FEATURE_DEFAULTS` (`backend/apps/tenancy/models.py`); **`.env`** to przełącznik
+instalacji w `/opt/olimpiada/.env` albo zmienna skryptu wdrożenia (zmiana = wdrożenie). Kolumna
+„Produkcja” to stan znany na 5.10.2026 (wydanie v0.47.2) albo zapisany w dokumentacji – „—” znaczy
+„nie opisano”, a nie „wyłączone”. Bieżący stan flag:
+
+```sh
+docker compose exec -T web python manage.py shell -c "from apps.tenancy.models import Competition as C; [print(c.slug, c.feature_flags) for c in C.objects.order_by('pk')]"
+```
+
+Tabelę pilnuje test `apps/core/tests/test_docs_features_table.py`: każda flaga z `FEATURE_DEFAULTS`
+musi mieć wiersz z poprawną wartością domyślną, a każda flaga z tabeli – istnieć w kodzie.
+
+<!-- funkcje-i-flagi: początek (wiersz na przełącznik; test porównuje z FEATURE_DEFAULTS) -->
+| Funkcja | Przełącznik | Rodzaj | Domyślnie | OPERACJE | Produkcja (5.10.2026, v0.47.2) |
+|---|---|---|---|---|---|
+| Logowanie dwuskładnikowe (2FA) | `TWO_FACTOR_ENABLED` | `.env` | wył. | § 5.1a, § 41 | wył. |
+| 2FA: role z wymogiem, okres przejściowy, zapamiętanie urządzenia | `TWO_FACTOR_REQUIRED_ROLES`, `TWO_FACTOR_GRACE_DAYS`, `TWO_FACTOR_REMEMBER_DAYS` | `.env` | superkoordynator, admin / 14 dni / 7 dni | § 41.1 | bez znaczenia (2FA wył.) |
+| Autoryzacja po członkostwach w konkursie | `memberships_enforced` | flaga konkursu | wył. | § 6.1, § 6.4 | nowy konkurs dostaje ją włączoną (§ 6) |
+| Ekran „Ustawienia konkursu” | `competition_settings_page` | flaga konkursu | wył. | § 6.4 | — |
+| Konkursy pod prefiksem ścieżki (gospodarz) | `path_prefix_routing` | flaga konkursu | wył. | § 6.4, § 6.6 | — |
+| Zakładanie konkursów z panelu | `competition_creation` | flaga konkursu | wył. | § 6.5 | — |
+| Konkursy w subdomenach platformy | `PLATFORM_SUBDOMAINS` | `.env` | wył. | § 6.5 | — |
+| Opiekun szkolny | `supervisor_role` | flaga konkursu | wł. | — | — |
+| Reklamacje | `appeals` | flaga konkursu | wł. | — | — |
+| Dyplomy i zaświadczenia | `certificates` | flaga konkursu | wł. | — | — |
+| Zgody z bazy (per konkurs) | `per_competition_consents` | flaga konkursu | wył. | § 8.5 | kwantowa: wył. (§ 8.5, D8) |
+| Teksty dyplomów z szablonów | `document_templates` | flaga konkursu | wył. | § 8.5 | kwantowa: wył. (§ 8.5) |
+| Marka konkursu w listach | `competition_branding_in_mail` | flaga konkursu | wył. | § 8.5 | kwantowa: wył. (§ 8.5) |
+| Uprawnienia `/cms/` per konkurs (stara droga) | `scoped_cms_permissions` | flaga konkursu | wył. | § 6.7, § 8.5 | kwantowa: wył. (§ 8.5) |
+| Własne regiony / kraje | `custom_regions` | flaga konkursu | wył. | § 8.5, § 27 | kwantowa: wył. (§ 8.5) |
+| Typy placówek | `institution_types` | flaga konkursu | wył. | § 8.5 | kwantowa: wył. (§ 8.5) |
+| Własny wykaz placówek | `custom_school_directory` | flaga konkursu | wył. | § 8.5 | kwantowa: wył. (§ 8.5) |
+| Edytor przebiegu zawodów | `process_editor` | flaga konkursu | wył. | § 8.5 | kwantowa: wył. (§ 8.5) |
+| Kategorie uczestników | `categories` | flaga konkursu | wył. | § 8.5 | kwantowa: wył. (§ 8.5) |
+| Wagi zadań i remisy | `weighted_scoring` | flaga konkursu | wył. | § 8.5 | kwantowa: wył. (§ 8.5) |
+| Role recenzenckie | `reviewer_roles` | flaga konkursu | wył. | § 8.5 | kwantowa: wył. (§ 8.5) |
+| Zgłoszenia drużynowe | `team_entries` | flaga konkursu | wył. | § 8.5 | kwantowa: wył. (§ 8.5) |
+| Wielojęzyczność treści CMS | `content_translations` | flaga konkursu | wył. | § 8.5, § 26.4 | kwantowa: wył. (§ 8.5) |
+| Wielojęzyczność drzewa stron Wagtaila | `WAGTAIL_I18N_ENABLED` | `.env` | wył. | § 8.5, § 26.4 | wył. (`docs/tasks/DJ-02.md`) |
+| Pula połączeń z Postgresem | `DB_POOL` | `.env` | wł. (poza Celery) | § 11.2 | — |
+| Cache całych stron publicznych | `PAGE_CACHE_ENABLED` | `.env` | wł. (poza `DEBUG`) | § 13 | — |
+| Forum uczestników | `participant_forum` | flaga konkursu | wył. | § 6.4 | — |
+| Zaświadczenia o statusie ucznia | `student_status_certificate` | flaga konkursu | wył. | § 6.4, § 15 | — |
+| Materiały z warsztatów | `workshop_materials` | flaga konkursu | wył. | § 6.4, § 16 | — |
+| Ocena AI | `ai_grading` | flaga konkursu | wył. | § 6.4, § 17 | — |
+| Wersja porównawcza `dj.` (django CMS) | `DJCMS_ENABLED` | `.env` | wył. | § 22.1 | — |
+| Serwis publiczny na django CMS | `DJCMS_PRIMARY` | `.env` | wył. | § 22.8, § 22.9 | — |
+| Rozmowy wideo Jitsi z przepustką JWT | `JITSI_JWT_APP_SECRET` | `.env` | puste | § 25.2 | — |
+| Delegacje krajowe | `Competition.registration_mode` = `DELEGATIONS` | pole konkursu | `OPEN` | § 28 | — |
+| Statystyki szkół | `school_statistics` | flaga konkursu | wył. | § 29 | — |
+| Motyw serwisu z panelu | `themes` | flaga konkursu | wył. | § 30 | iqo: aktywny motyw IQO Quantum 1.1.2 (motyw działa też bez flagi, § 30) |
+| Logistyka finału / etapu stacjonarnego | `onsite_logistics` | flaga konkursu | wył. | § 8.5, § 31 | kwantowa: wył. (§ 8.5) |
+| Okna czasowe etapu według stref | `stage_time_windows` | flaga konkursu | wył. | § 32 | — |
+| Nakładki tłumaczeń z przeglądu | `TRANSLATION_OVERRIDES_ENABLED` | `.env` | wł. | § 33.4 | — |
+| Płatności i wpisowe | `fees` | flaga konkursu | wył. | § 8.5, § 35 | kwantowa: wył. (§ 8.5) |
+| Operatorzy płatności (Stripe, Przelewy24) | `STRIPE_SECRET_KEY`, `P24_SANDBOX` | `.env` | puste / wył. | § 35.1 | — |
+| Webinary w LiveKit | `webinars` | flaga konkursu | wył. | § 6.4, § 36 | wył. |
+| Serwer LiveKit (webinary, rozmowy, nadzór) | `LIVEKIT_URL` | `.env` | puste | § 36.2 | skonfigurowany, na tym samym hoście |
+| Sygnalizacja LiveKit przez Caddy (wariant „ten sam host”) | `LIVEKIT_PROXY` | `.env` | wył. | § 36.2 | wariant „ten sam host” (§ 36.2) |
+| Medale i ranking krajów | `medals` | flaga konkursu | wył. | § 37 | — |
+| Sieć absolwentów i mentoring | `alumni` | flaga konkursu | wył. | § 38 | — |
+| Nadzór zdalny etapów online | `proctoring` | flaga konkursu | wył. | § 39 | — |
+| Notatniki kwantowe (JupyterLite, piaskownica) | `quantum_notebooks` | flaga konkursu | wył. | § 40 | — |
+| Laboratorium notatników na osobnym hoście | `NOTEBOOK_LAB_HOST` | `.env` | puste (ta sama domena) | § 40.7 | — |
+| Rotacja i limit pamięci workerów `web` | `WEB_MAX_REQUESTS`, `WEB_MEM_LIMIT` | `.env` | 2000 / 2g | § 42.5 | — |
+| Odświeżanie wątku wiadomości | `CHAT_POLL_SECONDS` | `.env` | 15 s | § 42.5 | — |
+| Śledzenie błędów (GlitchTip) | `SENTRY_DSN` | `.env` | puste (wył.) | § 44.2 | nie uruchomione |
+| Blok proxy `errors.<domena>` dla GlitchTipa | `ERRORS_PROXY` | `.env` | wył. | § 44.2 | wył. (GlitchTip nie uruchomiony) |
+| Błędy JavaScriptu do GlitchTipa | `SENTRY_BROWSER` | `.env` | wył. | § 44.6 | wył. |
+| Kontrola dymna po wdrożeniu | `DEPLOY_SMOKE` | zmienna `scripts/deploy.sh` | `1` (kontrola + wycofanie) | § 48.1 | — |
+| Domeny nadawcy przekaźnika poczty | `ALLOWED_SENDER_DOMAINS` | `.env` | `SITE_DOMAIN` | § 9.7, § 49 | — |
+| Sieci klientów przekaźnika poczty | `MAIL_CLIENT_NETWORKS` | `.env` | `TRUSTED_PROXY_IPS` | § 49.7 | — |
+| Poczta zwrotna (bounce) | `MAIL_BOUNCE_TARGET` | `.env` | `discard` | § 49.7 | — |
+<!-- funkcje-i-flagi: koniec -->
+
 ---
 
 ## 1. Kopie zapasowe
@@ -591,6 +676,13 @@ przesunąć, więc nikt nie może zmienić serwisu przypadkiem.
 Workflow woła ten sam `scripts/deploy.sh`, co wdrożenie z laptopa, a na końcu sprawdza
 `/status.json` – wdrożenie, które zostawiło serwis w stanie `degraded`, kończy się czerwonym
 krzyżykiem.
+
+Od OPS-04 sam `scripts/deploy.sh` (z laptopa i z workflow) robi przed budowaniem migawkę obrazów
+działających kontenerów i migracji (krok 2a/8), a po starcie usług kontrolę dymną każdego hosta
+konkursu (krok 5b/8, `scripts/smoke.sh`). Nieudana kontrola = automatyczny powrót `web`/`worker`/
+`beat`/`djcms` do poprzednich obrazów, jeśli wdrożenie nie zastosowało nowych migracji; w przeciwnym
+razie bez wycofania, z listem do `ALERT_EMAILS` i procedurą ręczną – w obu przypadkach kod 1
+(czerwony krzyżyk). Szczegóły i polecenia ręczne (`scripts/rollback.sh`): § 48.
 
 **Sekrety do ustawienia** (*Settings → Secrets and variables → Actions*):
 
@@ -1988,8 +2080,10 @@ no-store` (``setdefault`` – widok, który sam ustawił ten nagłówek, wygrywa
 zaprzeczenie w drugą stronę: cache jest po stronie serwera, a nagłówek pilnuje, żeby żaden
 pośredniczący proxy/CDN nie zbuforował po swojej stronie materializowanego nonce'u/tokenu CSRF.
 
-**Klucz** niesie: wersję globalną, wersję witryny konkursu, identyfikator konkursu, język
-interfejsu, ścieżkę i `?page=`. Wersje to liczniki (`INCR`) – unieważnienie nigdy nie wylicza
+**Klucz** niesie: wydanie (`APP_VERSION`, od OPS-04 – § 48), wersję globalną, wersję witryny
+konkursu, identyfikator konkursu, język interfejsu, ścieżkę i `?page=`. Wydanie w kluczu sprawia, że
+po wdrożeniu nikt nie dostanie HTML-a poprzedniej wersji z odnośnikami do plików statycznych, które
+`collectstatic --clear` już skasował – nawet gdy krok wdrożenia `page_cache_clear` się nie powiedzie. Wersje to liczniki (`INCR`) – unieważnienie nigdy nie wylicza
 istniejących wpisów, tylko podbija licznik, więc stare wpisy po prostu przestają być trafiane
 i wygasają same po TTL.
 
@@ -1998,7 +2092,11 @@ Wagtaila, zapisie `cms.SiteSettings`, komunikacie organizatora (`cms.Announcemen
 tylko jego witryna, bez konkursu: wszystkie witryny naraz), zmianie edycji/etapu/wydarzenia
 (`competitions.Edition`/`Stage`/`EditionEvent`), ogłoszeniu wyników (`results.ResultsPublication`)
 i zapisie/skasowaniu plakatu do pobrania (`promo.PromoMaterial` – lista `/plakaty/` i odnośnik
-w stopce, § 14). Ręczne wyczyszczenie (np. po imporcie z ominięciem sygnałów Django):
+w stopce, § 14), a od PERF-01 także przy wycofaniu publikacji wyników, ogłoszeniu/cofnięciu medali
+(`medals.MedalScheme`) i zapisie konkursu (przełączniki). Każde unieważnienie z sygnału jest
+**podwójne**: od razu i drugi raz po zatwierdzeniu transakcji – gość, który trafi między nimi,
+renderuje jeszcze stare dane i bez drugiego podbicia zostawiłby je pod nowym kluczem (§ 42.5).
+Ręczne wyczyszczenie (np. po imporcie z ominięciem sygnałów Django):
 
 ```bash
 docker compose exec -T web python manage.py page_cache_clear
@@ -3946,6 +4044,108 @@ Nowy konkurs od razu z krajami: `create_competition … --regions countries` (do
 
 Kolejność dla `iqo` po wdrożeniu: § 26.1 (języki) i ta komenda – niezależne od siebie.
 
+## 28. Delegacje krajowe – rejestracja przez opiekunów drużyn (DEL-01, `docs/tasks/DEL-01.md`)
+
+W konkursie w trybie **`DELEGATIONS`** uczniów zgłaszają opiekunowie drużyn narodowych (team leaders)
+zaproszeni przez koordynatora. Samodzielna rejestracja uczestnika jest wtedy zamknięta **na każdej
+drodze**: formularz `/register/`, `POST /api/auth/register/participant/`, Google/Facebook (konto nowe),
+import listy klasowej (opiekun szkolny i koordynator) oraz rejestracja opiekuna szkolnego
+(`/register/supervisor/` → 404). Logowanie istniejących kont działa normalnie.
+
+**Domyślnie każdy konkurs ma tryb `OPEN`** (migracja `tenancy.0013` wpisuje `OPEN` wszystkim
+istniejącym konkursom; `create_competition`, ekran „Nowy konkurs” i kreator `/setup/` zakładają
+`OPEN`, a katalog szablonów nie ma tego pola). Olimpiada Kwantowa nie wymaga niczego.
+
+### 28.1. Przestawienie `iqo` (kolejność)
+
+1. Kraje (§ 27): `docker compose exec web python manage.py regions_countries --competition iqo`.
+2. Bieżąca edycja `iqo` musi istnieć, a jej okno rejestracji (`/coordinator/registration/`) **obowiązuje
+   opiekunów**: dodanie ucznia wymaga `registration_enabled = tak` oraz daty „teraz” między otwarciem
+   a zamknięciem (puste daty = bez ograniczenia). Przy zamkniętym oknie opiekun nie doda ucznia, a pulpit
+   koordynatora pokazuje „przez delegacje krajowe – okno dla opiekunów drużyn zamknięte”.
+   Tryb `DELEGATIONS` da się zapisać dopiero, gdy konkurs ma aktywne kraje (walidacja modelu).
+3. Tryb rejestracji – jedna z dróg:
+   - panel: `/coordinator/competition/` (ekran „Ustawienia konkursu”, flaga `competition_settings_page`)
+     → „Tryb rejestracji uczestników” = „przez delegacje krajowe”, opcjonalnie „Domyślny limit uczniów
+     delegacji” (domyślnie 6); zapis zostawia wpis audytu `competition.registration_mode_changed`,
+   - `/admin/` → Konkursy → `iqo` → te same dwa pola,
+   - powłoka (bez panelu):
+     ```sh
+     docker compose exec web python manage.py shell -c "from apps.tenancy.models import Competition; c = Competition.objects.get(slug='iqo'); c.registration_mode = 'DELEGATIONS'; c.save(update_fields=['registration_mode'])"
+     ```
+4. W menu panelu `iqo` pojawia się „Uczestnicy i konta → Delegacje” (`/coordinator/delegations/`).
+   „Zaproś opiekuna”: adres e-mail + kraj. Delegacja kraju powstaje przy pierwszym zaproszeniu; kolejny
+   opiekun tego kraju dołącza do niej. List idzie w języku domyślnym konkursu (dla `iqo` – angielskim).
+
+Nowy konkurs od razu w tym trybie: `create_competition … --regions countries --registration delegations`
+(delegacje wymagają podziału na kraje; domyślnie `--registration open`).
+
+### 28.2. Zaproszenie, konto opiekuna, uczniowie
+
+- Zaproszenie: ważne 14 dni, jednorazowe, w bazie tylko skrót SHA-256 tokenu; „Wyślij ponownie” wymienia
+  token (stary link przestaje działać); „Cofnij” unieważnia. Adres prowadzący już delegację innego kraju
+  w tej edycji dostaje odmowę.
+- Przyjęcie (`/delegation/accept/<token>/`): adres bez konta zakłada je od razu aktywne (kliknięcie linku
+  potwierdza adres) i składa zgody (regulamin, RODO); adres z kontem musi się zalogować – zaproszenie nie
+  zmienia hasła; zalogowany na inne konto dostaje odmowę.
+- Panel opiekuna `/delegation/`: uczniowie kraju, współopiekunowie, „Dodaj ucznia”. Uczeń dostaje list
+  z linkiem `/zaproszenie/<token>/` (ten sam mechanizm, co import listy klasowej): sam ustawia hasło
+  i składa zgody, kraj jest krajem delegacji. Limit delegacji liczony pod blokadą wiersza.
+- Wypisanie ucznia przez opiekuna (do startu pierwszego etapu): konto **nieuruchomione** jest usuwane;
+  konto **uruchomione** zostaje – opiekun tylko odpina je od delegacji, uczeń dostaje list, a ekran
+  delegacji pokazuje go w sekcji „Wypisani przez opiekuna – czekają na decyzję”. Usunięcie takiego konta
+  należy do koordynatora (karta konta w „Uczestnicy i konta”).
+- Odwołanie opiekuna zostawia jego wiersz ze znacznikiem `removed_at` (dowody zgód zostają); opiekun
+  bez delegacji w bieżącej edycji widzi pod `/delegation/` wyjaśnienie, a nie błąd.
+- Zamknięcie delegacji (ekran delegacji) zamraża listę uczniów. Eksport CSV: przycisk na liście delegacji.
+- Opiekun drużyny **nie** ma dostępu do wiadomości (`apps/chat`) ani do prac i ocen.
+
+### 28.3. Kontrakt adresów
+
+Nowy pierwszy segment adresu aplikacji: `delegation/` (`RESERVED_SLUGS`, `backend/djcms_contract/` –
+zaktualizowane w tym wydaniu). Wdrożenie przez `scripts/deploy.sh` przenosi kontrakt; jeśli Caddyfile
+jest renderowany z `app_routes.env` osobno, trzeba go wyrenderować ponownie.
+
+### 28.4. Wycofanie
+
+Przestawienie trybu z powrotem na `OPEN` otwiera samodzielną rejestrację i ukrywa ekrany delegacji (404);
+dane delegacji, opiekunów i uczniów zostają w bazie. Migracje `accounts.0036`–`0038` i `tenancy.0013` są
+odwracalne (nowe tabele i kolumny nullowalne albo z wartością domyślną).
+
+## 29. Statystyki szkół (STAT-01, flaga `school_statistics`)
+
+Funkcja liczy agregaty z istniejących danych; jedyna tabela to `school_stats_frozenmembership`
+(migracja `school_stats.0001_initial`, odwracalna) – przynależność wpisów do szkół zamrożona przy
+publikacji wyników (`docs/tasks/STAT-01.md` § 10, M3). Wdrożenie nie wymaga kroku ręcznego poza
+zwykłym `migrate`; etapy ogłoszone wcześniej zamrażają się same przy pierwszym wejściu na ekran.
+Flaga jest domyślnie **wyłączona** (adresy `/supervisor/statistics/…`
+i `/coordinator/school-stats/…` dają 404, menu i pulpit opiekuna bez zmian).
+
+**Zapalenie** (`/admin/ → Konkursy → <konkurs> → feature_flags`, § 6.4):
+
+```json
+{"school_statistics": true}
+```
+
+Razem z flagą rejestr czynności konkursu dostaje wiersz „Statystyki szkół i opiekunów szkolnych”
+(wersja 1.12) – zapalenie jest więc decyzją organizatora o nowym celu przetwarzania (opiekun widzi
+przebieg ucznia przez edycje), nie skutkiem wdrożenia. Przed zapaleniem warto zweryfikować opiekunów
+(`SchoolSupervisor.verified` + szkoła z wykazu) – bez tego opiekun widzi swoich uczniów, województwo
+i całość, ale nie agregat szkoły i nie pobierze raportu PDF.
+
+**Pamięć podręczna** (Redis): klucze `school_stats:v2:<oś>:<edycja>:<odcisk publikacji>`; doba dla
+edycji zamkniętej publikacjami albo nie bieżącej, 5 minut dla bieżącej w toku. Ponowna publikacja zmienia
+odcisk, więc nic nie trzeba czyścić ręcznie. W kluczach są wyłącznie agregaty (bez identyfikatorów
+osób).
+
+**Tłumaczenia:** napisy aplikacji mają własny katalog `backend/apps/school_stats/locale/` (maszynowe,
+jak § 26.3). Obraz kompiluje od tego wydania także katalogi aplikacji (`apps/*/locale`), a test
+`apps/core/tests/test_translations.py` sprawdza je tą samą miarą co katalog wspólny.
+
+**IQO:** oś grupowania to dziś szkoła z profilu uczestnika (`apps/school_stats/grouping.py`). Oś
+`delegation` (delegacje krajowe z § 28, region = kraj) jest przygotowanym punktem zaczepienia
+(`axis_for`) – dołożenie jej nie zmienia ekranów ani reguł progu.
+
 ## 30. Motywy wizualne (THEME-01, `docs/tasks/THEME-01.md`)
 
 Wygląd konkursu zmienia się **paczką motywu** (ZIP: `manifest.json`, `theme.css`, `tokens.json`,
@@ -4091,75 +4291,6 @@ obie palety. Cofnięcie: aktywacja 1.0.0 w galerii (wersja zostaje w katalogu).
 Kontekst szablonów paczek dostał w THEME-02 także `sponsor_slider` (same napisy i liczby – IQO 1.1.0
 stawia taśmę sponsorów w stopce), a dostosowanie – promienie `radius-*` z `tokens.json`
 (0–48 px albo 0–3 rem; IQO: `radius-leaf`, kształt przycisków).
-
-
-## 28. Delegacje krajowe – rejestracja przez opiekunów drużyn (DEL-01, `docs/tasks/DEL-01.md`)
-
-W konkursie w trybie **`DELEGATIONS`** uczniów zgłaszają opiekunowie drużyn narodowych (team leaders)
-zaproszeni przez koordynatora. Samodzielna rejestracja uczestnika jest wtedy zamknięta **na każdej
-drodze**: formularz `/register/`, `POST /api/auth/register/participant/`, Google/Facebook (konto nowe),
-import listy klasowej (opiekun szkolny i koordynator) oraz rejestracja opiekuna szkolnego
-(`/register/supervisor/` → 404). Logowanie istniejących kont działa normalnie.
-
-**Domyślnie każdy konkurs ma tryb `OPEN`** (migracja `tenancy.0013` wpisuje `OPEN` wszystkim
-istniejącym konkursom; `create_competition`, ekran „Nowy konkurs” i kreator `/setup/` zakładają
-`OPEN`, a katalog szablonów nie ma tego pola). Olimpiada Kwantowa nie wymaga niczego.
-
-### 28.1. Przestawienie `iqo` (kolejność)
-
-1. Kraje (§ 27): `docker compose exec web python manage.py regions_countries --competition iqo`.
-2. Bieżąca edycja `iqo` musi istnieć, a jej okno rejestracji (`/coordinator/registration/`) **obowiązuje
-   opiekunów**: dodanie ucznia wymaga `registration_enabled = tak` oraz daty „teraz” między otwarciem
-   a zamknięciem (puste daty = bez ograniczenia). Przy zamkniętym oknie opiekun nie doda ucznia, a pulpit
-   koordynatora pokazuje „przez delegacje krajowe – okno dla opiekunów drużyn zamknięte”.
-   Tryb `DELEGATIONS` da się zapisać dopiero, gdy konkurs ma aktywne kraje (walidacja modelu).
-3. Tryb rejestracji – jedna z dróg:
-   - panel: `/coordinator/competition/` (ekran „Ustawienia konkursu”, flaga `competition_settings_page`)
-     → „Tryb rejestracji uczestników” = „przez delegacje krajowe”, opcjonalnie „Domyślny limit uczniów
-     delegacji” (domyślnie 6); zapis zostawia wpis audytu `competition.registration_mode_changed`,
-   - `/admin/` → Konkursy → `iqo` → te same dwa pola,
-   - powłoka (bez panelu):
-     ```sh
-     docker compose exec web python manage.py shell -c "from apps.tenancy.models import Competition; c = Competition.objects.get(slug='iqo'); c.registration_mode = 'DELEGATIONS'; c.save(update_fields=['registration_mode'])"
-     ```
-4. W menu panelu `iqo` pojawia się „Uczestnicy i konta → Delegacje” (`/coordinator/delegations/`).
-   „Zaproś opiekuna”: adres e-mail + kraj. Delegacja kraju powstaje przy pierwszym zaproszeniu; kolejny
-   opiekun tego kraju dołącza do niej. List idzie w języku domyślnym konkursu (dla `iqo` – angielskim).
-
-Nowy konkurs od razu w tym trybie: `create_competition … --regions countries --registration delegations`
-(delegacje wymagają podziału na kraje; domyślnie `--registration open`).
-
-### 28.2. Zaproszenie, konto opiekuna, uczniowie
-
-- Zaproszenie: ważne 14 dni, jednorazowe, w bazie tylko skrót SHA-256 tokenu; „Wyślij ponownie” wymienia
-  token (stary link przestaje działać); „Cofnij” unieważnia. Adres prowadzący już delegację innego kraju
-  w tej edycji dostaje odmowę.
-- Przyjęcie (`/delegation/accept/<token>/`): adres bez konta zakłada je od razu aktywne (kliknięcie linku
-  potwierdza adres) i składa zgody (regulamin, RODO); adres z kontem musi się zalogować – zaproszenie nie
-  zmienia hasła; zalogowany na inne konto dostaje odmowę.
-- Panel opiekuna `/delegation/`: uczniowie kraju, współopiekunowie, „Dodaj ucznia”. Uczeń dostaje list
-  z linkiem `/zaproszenie/<token>/` (ten sam mechanizm, co import listy klasowej): sam ustawia hasło
-  i składa zgody, kraj jest krajem delegacji. Limit delegacji liczony pod blokadą wiersza.
-- Wypisanie ucznia przez opiekuna (do startu pierwszego etapu): konto **nieuruchomione** jest usuwane;
-  konto **uruchomione** zostaje – opiekun tylko odpina je od delegacji, uczeń dostaje list, a ekran
-  delegacji pokazuje go w sekcji „Wypisani przez opiekuna – czekają na decyzję”. Usunięcie takiego konta
-  należy do koordynatora (karta konta w „Uczestnicy i konta”).
-- Odwołanie opiekuna zostawia jego wiersz ze znacznikiem `removed_at` (dowody zgód zostają); opiekun
-  bez delegacji w bieżącej edycji widzi pod `/delegation/` wyjaśnienie, a nie błąd.
-- Zamknięcie delegacji (ekran delegacji) zamraża listę uczniów. Eksport CSV: przycisk na liście delegacji.
-- Opiekun drużyny **nie** ma dostępu do wiadomości (`apps/chat`) ani do prac i ocen.
-
-### 28.3. Kontrakt adresów
-
-Nowy pierwszy segment adresu aplikacji: `delegation/` (`RESERVED_SLUGS`, `backend/djcms_contract/` –
-zaktualizowane w tym wydaniu). Wdrożenie przez `scripts/deploy.sh` przenosi kontrakt; jeśli Caddyfile
-jest renderowany z `app_routes.env` osobno, trzeba go wyrenderować ponownie.
-
-### 28.4. Wycofanie
-
-Przestawienie trybu z powrotem na `OPEN` otwiera samodzielną rejestrację i ukrywa ekrany delegacji (404);
-dane delegacji, opiekunów i uczniów zostają w bazie. Migracje `accounts.0036`–`0038` i `tenancy.0013` są
-odwracalne (nowe tabele i kolumny nullowalne albo z wartością domyślną).
 
 ## 31. Logistyka finału dla delegacji (LOG-01, `docs/tasks/LOG-01.md`)
 
@@ -4316,6 +4447,311 @@ Wycofanie: wyłączenie flagi ukrywa ekrany wniosków i rejestru, ale **nie** st
 istnieją, dopóki konkurs ma wystawione listy). Migracja jest odwracalna schematem (nowa tabela, nowe
 kolumny nullowalne albo z wartością domyślną) – z zastrzeżeniem kodów z punktu 1.
 
+## 32. Okna czasowe etapu według stref (TZ-01, `docs/tasks/TZ-01.md`)
+
+Etap zdalny konkursu z flagą **`stage_time_windows`** może pracować w kilku oknach czasowych (np. trzy
+starty co 8 h, każdy po 5 h) z przydziałem krajów według strefy. Bez flagi (Olimpiada Kwantowa) nic się
+nie zmienia: żadna bramka okien nie pyta bazy, ekranu nie ma (404), menu i panel uczestnika są te same.
+
+### 32.1. Włączenie dla `iqo`
+
+1. Wdrożenie zakłada tabele aplikacji `time_windows` (migracja `time_windows.0001`, same nowe tabele –
+   żadna istniejąca tabela się nie zmienia). Nowych segmentów adresów nie ma (`coordinator/…`,
+   `delegation/…` są już w kontrakcie).
+2. Flaga – `/admin/` → Konkursy → `iqo` → „Feature flags”: dopisz `"stage_time_windows": true`, albo:
+   ```sh
+   docker compose exec web python manage.py shell -c "from apps.tenancy.models import Competition; c = Competition.objects.get(slug='iqo'); c.feature_flags = {**(c.feature_flags or {}), 'stage_time_windows': True}; c.save(update_fields=['feature_flags'])"
+   ```
+3. Koordynator ustawia okna **przed otwarciem etapu**: „Etapy → <etap> → Okna czasowe”
+   (`PODRECZNIK-ORGANIZATORA.md` § 10e). Rama etapu (otwarcie – termin oddania) musi obejmować wszystkie
+   okna razem z dodatkowym czasem uczniów; beat zamyka etap (`LOCKED`) dopiero po ramie.
+
+### 32.2. Czego nie robić
+
+- **Nie wyłączaj flagi, dopóki trwają okna** (od startu pierwszego okna do końca ostatniego z dodatkowym
+  czasem – „moment ujawnienia” na ekranie okien). Bez flagi etap wraca do jednej ramy: treść zadań staje
+  się jawna dla wszystkich od otwarcia ramy, a premoderacja forum/czatu trzyma się samej ramy.
+- Nie zmieniaj okien przez `/admin/` – modele są tam tylko do odczytu, bo reguły „po starcie nie wolno”
+  i audyt są w serwisie.
+
+### 32.3. Co pilnuje serwer
+
+Upload (HTML i `POST /api/submissions/…`), `is_late`, PDF treści (`/api/competitions/problems/<id>/statement/`),
+lista zadań w API bieżącej edycji, strona „Zadania” w CMS (i jej API dla django CMS), archiwum, test
+online (start podejścia, termin podejścia, wynik „po zamknięciu”), premoderacja forum i czatu, publikacja
+wyników (`WINDOWS_NOT_FINISHED`), zmiana ramy etapu (`STAGE_WINDOWS_OUTSIDE`). Strefę czasową ucznia
+aktywuje warstwa `apps.time_windows.middleware.ParticipantTimezoneMiddleware` (tylko konkurs z flagą
+i zalogowany uczestnik bez roli personelu, wyłącznie w widokach panelu uczestnika – panele koordynatora,
+recenzenta, `/admin/` i `/cms/` zostają w czasie polskim; podpis „czas polski” zamienia się wtedy na nazwę
+strefy). Od startu pierwszego okna przydział domyślny krajów jest zapisywany w bazie, więc aktualizacja
+`tzdata` albo mapy stref w trakcie zawodów nie przenosi kraju do innego okna. Migracja `time_windows.0002`
+zmienia wyłącznie zachowanie kluczy obcych (`RESTRICT`).
+
+### 32.4. RODO i tłumaczenia
+
+Nowa czynność w rejestrze „Okna czasowe etapu” (tylko konkursy z flagą), sekcja `okna_czasowe` w eksporcie
+danych konta; anonimizacja usuwa strefę ucznia i powód wyjątku (okno i dodatkowy czas zostają jako
+dokumentacja warunków pracy). Katalogi tłumaczeń aplikacji (`backend/apps/*/locale`) kompilują obraz
+(`backend/Dockerfile`), CI i `backend/conftest.py`.
+
+### 32.5. Wycofanie
+
+Usunięcie planu (ekran okien, przed otwarciem etapu) przywraca etapowi jedną ramę. Migracja
+`time_windows.0001` jest odwracalna (`migrate time_windows zero` usuwa wyłącznie tabele tej aplikacji).
+
+## 33. Przegląd tłumaczeń przez native speakerów (L10N-01, `docs/tasks/L10N-01.md`)
+
+Wolontariusze z rolą **tłumacza** (np. kierownicy delegacji `iqo`) przeglądają napisy interfejsu
+w swoim języku pod `/translations/`, proponują poprawki i głosują; **recenzent tłumaczeń** zatwierdza.
+Zatwierdzona poprawka działa bez wydania (nakładka z bazy na katalogi gettext), a do repozytorium
+trafia komendą `export_translations` jako zwykły PR. Kiedy ją widać: proces, który ją zatwierdził –
+od razu; pozostałe procesy `web`/`worker` – po najwyżej 5 s (`TRANSLATION_OVERRIDES_CHECK_SECONDS`);
+bufor stron dla gości (`apps.web.page_cache`, 120 s) jest czyszczony przy każdej zmianie. Dlaczego
+nie Weblate: spec § 1 (nowy serwer albo zasoby produkcji, klucz z prawem zapisu do repozytorium,
+drugi system kont). Serwis publiczny na django CMS (`djcms`) to osobny proces – nakładka go nie
+obejmuje.
+
+### 33.1. Role
+
+- **Tłumacz** (proponuje, głosuje, zgłasza błąd ze stopki) – nadaje koordynator konkursu z więcej niż
+  jednym językiem interfejsu: „Ustawienia → Tłumacze interfejsu” (`/coordinator/translators/`),
+  wyłącznie osobom związanym z konkursem (członkostwo albo profil uczestnika) i wyłącznie w językach
+  interfejsu tego konkursu.
+- **Nadanie koordynatora należy do konkursu**: widzi je i odbiera każdy koordynator tego konkursu
+  (także po odejściu nadającego), a działa **tylko dopóki** osoba jest z konkursem związana – po
+  wypisaniu, odebraniu roli albo usunięciu profilu rola tłumacza przestaje działać sama (wiersz
+  zostaje na liście koordynatora do usunięcia).
+- **Recenzent tłumaczeń** (zatwierdza, odrzuca, cofa, potwierdza, zamyka zgłoszenia) – nadaje
+  **wyłącznie superkoordynator** (ten sam ekran, pod adresem dowolnego konkursu); jego nadania są
+  platformowe (bez konkursu). Superkoordynator jest recenzentem każdego języka.
+- Każde nadanie, odebranie i każda decyzja – wpis audytu `translation.*` (bez treści zgłoszeń).
+
+### 33.2. Decyzje recenzenta – co trafia do serwisu
+
+- **Poprawka** (zatwierdzona propozycja) – trafia do gettext, ale tylko dopóki `msgstr` w katalogu
+  jest ten sam, co w chwili decyzji. Jeśli wydanie zmieni go w międzyczasie, wygrywa katalog,
+  a napis ma na liście znacznik „do ponownego przeglądu”.
+- **Potwierdzenie** („Obecne tłumaczenie jest poprawne”) – **nigdy** nie trafia do gettext; to sam
+  znacznik „przejrzane”, który eksport zapisuje jako `# l10n-reviewed`.
+
+### 33.3. Z bazy do repozytorium (po serii poprawek)
+
+```sh
+# produkcja – zrzut zatwierdzonych decyzji (sam tekst tłumaczeń, bez danych osób)
+docker compose exec -T web python manage.py export_translations --to-json - > overrides.json
+scp olimpiada:/opt/olimpiada/overrides.json backend/overrides.json   # do checkoutu dewelopera
+
+# checkout dewelopera (DEBUG=1, montowany backend, .git podpięty do kontenera) – zapis do .po, potem PR
+docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm -v "$PWD/.git:/.git:ro" \
+    web python manage.py export_translations --from-json /app/overrides.json --dry-run
+docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm -v "$PWD/.git:/.git:ro" \
+    web python manage.py export_translations --from-json /app/overrides.json
+rm backend/overrides.json
+
+# produkcja, PO wdrożeniu tego PR-a – usunięcie nakładek, które są już w skompilowanych katalogach
+docker compose exec web python manage.py export_translations --prune
+```
+
+- Zapis do `.po` jest **odmawiany** poza checkoutem dewelopera (`DEBUG` i katalog `.git` w `backend`
+  albo nad nim – stąd podpięte `.git` w poleceniu wyżej); w kontenerze produkcyjnym trafiłby do
+  warstwy obrazu i rozjechał z `.mo`. Świadome obejście: `--force`.
+- Eksport zmienia wyłącznie linie `msgstr` poprawek i dopisuje `# l10n-reviewed` (potwierdzenie:
+  sam znacznik). Tekst z JSON-a przechodzi tę samą walidację, co w panelu; poprawka podjęta wobec
+  innego `msgstr` niż dzisiejszy jest wypisana jako **konflikt** i nie nadpisuje nowszego tekstu;
+  wpis, którego nie ma już w katalogach – jako „nieaktualny”.
+- `--prune` usuwa poprawkę tylko wtedy, gdy **skompilowany** katalog (`.mo` – to on trafia do
+  gettext) oddaje już dokładnie jej tekst, a potwierdzenie – gdy wpis ma znacznik. Przed wdrożeniem
+  nie usunie niczego. Nakładki napisów usuniętych z kodu tylko wypisuje; usuwa je `--prune-stale`.
+
+### 33.4. Wyłączenie i awarie
+
+- `TRANSLATION_OVERRIDES_ENABLED=0` w `.env` + restart `web`, `worker`, `beat` – serwis wraca do samych
+  katalogów z repozytorium; decyzje zostają w bazie. Cofnięcie pojedynczej decyzji: „Przywróć
+  tłumaczenie z katalogu” na ekranie napisu (recenzent).
+- W Redisie stoi tylko numer wersji nakładki (bez terminu ważności); każdy proces po zmianie wersji
+  buduje nakładkę z bazy sam (jedno zapytanie). Po restarcie Redisa – nowa wersja i to samo. Błąd
+  nakładki nigdy nie psuje strony – log `apps.translation_review.runtime` i katalog z repozytorium.
+- Limit POST-ów w panelu tłumacza: scope `translations` (120/h na konto).
+
+### 33.5. Wdrożenie tej wersji
+
+`migrate` (`translation_review.0001`–`0002`, tylko nowe tabele i kolumny) – bez kroków ręcznych.
+Obraz kompiluje teraz także katalogi aplikacji (`apps/*/locale`). Zmienił się manifest adresów
+(`/translations/` – `backend/djcms_contract/app_routes.*`), więc konfiguracja proxy z § 23 musi
+zostać przeładowana (robi to `deploy.sh`). Odnośnik „Zgłoś tłumaczenie” stoi w domyślnej stopce
+(`templates/theme/footer.html`); paczka motywu, która nadpisuje slot `footer`, dołącza go tym samym
+fragmentem: `{% include "web/_translation_report_link.html" with css_class="footer__link" %}`. Olimpiada Kwantowa
+(sam polski) nie widzi żadnej zmiany: brak pozycji w menu, brak odnośnika w stopce, brak wiersza
+w rejestrze czynności.
+
+## 34. Tłumaczenia zadań przez delegacje (TR-01, `docs/tasks/TR-01.md`)
+
+Funkcja istnieje wyłącznie w konkursie w trybie **`DELEGATIONS`** (§ 28) – w Olimpiadzie Kwantowej
+nie ma ani ekranów (404), ani pozycji menu, ani odnośnika na karcie zadania. Nowa aplikacja
+`apps.problem_translations` (migracje `problem_translations.0001`–`0002`, same nowe tabele i kolumny – odwracalne).
+
+### 34.1. Wdrożenie
+
+- `scripts/deploy.sh` jak zwykle (migracja + `collectstatic`). KaTeX jest **zwendorowany**
+  (`apps/problem_translations/static/problem_translations/vendor/katex/`, wersja 0.19.0, MIT) – CSP bez
+  zmian (KaTeX nie idzie z CDN-u; htmx i Alpine strony bazowej – jak w całym serwisie – z CDN-ów przypiętych
+  SRI, bez treści zadania w żądaniu). Wersja, skróty i sposób przycięcia CSS: `vendor/katex/VERSION`.
+- Obraz kompiluje teraz także katalogi tłumaczeń aplikacji (`apps/*/locale/*/LC_MESSAGES/django.po`,
+  `backend/Dockerfile`) – bez przebudowy obrazu ekrany opiekuna byłyby po polsku.
+- Nowy scope throttlingu `translation` (1200/h na konto) – bez zmian w `.env`.
+- Wgranie PDF-u tłumaczenia skanuje clamd **synchronicznie**; gdy clamd nie odpowiada, wgranie jest
+  odrzucane (komunikat „spróbuj ponownie”), edytor tekstowy działa dalej. Przed nocą tłumaczeń:
+  `docker compose ps clamav` (healthy).
+
+### 34.2. Przebieg (koordynator)
+
+1. „Etapy → Tłumaczenia zadań” (`/coordinator/translations/`) → etap → **okno tłumaczeń** (otwarcie,
+   zamknięcie ≤ otwarcie etapu) i tryb: *osobne* (każda delegacja tłumaczy sama) albo *wspólne* (jedno
+   tłumaczenie na język). Trybu nie da się zmienić, gdy w etapie są już tłumaczenia.
+2. Wersja oficjalna: tytuł i PDF – jak dotąd na ekranie zadań etapu; **tekst** (Markdown + LaTeX) –
+   „Tekst oficjalny” przy zadaniu. Każda zmiana tekstu, tytułu albo PDF-u podnosi wersję; tłumaczenia
+   oparte na starszej dostają znacznik „nieaktualne”, a opiekunowie – list.
+3. Opiekunowie deklarują języki (`/delegation/translations/`) i w oknie tłumaczą (edytor z autozapisem
+   albo PDF), potem „Wyślij do akceptacji”.
+4. Kolejka „Do przeglądu” → „Zatwierdź” albo „Zwróć do poprawy” (komentarz obowiązkowy). Zatwierdzone
+   jest zablokowane; nieaktualnego nie da się zatwierdzić.
+5. Po otwarciu etapu uczeń ma na karcie zadania „Treść w języku: …” (zatwierdzona wersja) obok wersji
+   oficjalnej.
+6. Finał stacjonarny: ekran etapu → „Eksport do druku” → PDF (serwer) albo „Widok do druku”
+   (przeglądarka → „Zapisz jako PDF”; konieczny dla wzorów i pism CJK/indyjskich/arabskich).
+
+### 34.3. Poufność i dziennik
+
+Źródło przed otwarciem etapu widzi koordynator i opiekun z delegacją w bieżącej edycji – **tylko
+w otwartym oknie**. Odpowiedzi mają `Cache-Control: no-store`. Dziennik (`/coordinator/audit/`,
+akcje `translation.*`): `source_viewed`, `source_downloaded`, `file_downloaded`, `reviewed`,
+`file_reviewed`, `student_viewed`, `student_downloaded`, `exported`, `submitted`, `withdrawn`,
+`reopened`, `approved`, `returned`, `pdf_uploaded`, `languages_declared`, `student_language_set`,
+`window_set`, `source_changed`. Kto pobrał arkusz przed zawodami:
+
+```sh
+docker compose exec web python manage.py shell -c "from apps.core.models import AuditLog; [print(a.at, a.actor_id, a.action, a.target_id, a.diff) for a in AuditLog.objects.filter(action__in=['translation.source_downloaded','translation.file_downloaded','translation.source_viewed']).order_by('at')]"
+```
+
+PDF-y pobrane przez opiekuna mają znak wodny: kod kraju, „CONFIDENTIAL”, data i id konta.
+
+### 34.4. Wycofanie
+
+Wyłączenie trybu delegacji ukrywa wszystkie ekrany (404); dane zostają. Wycofanie kodu: `migrate
+problem_translations zero` (usuwa tabele tłumaczeń – najpierw eksport do druku, jeśli potrzebny).
+
+## 35. Płatności online za udział – Stripe, Przelewy24, przelew, faktury (PAY-01, `docs/tasks/PAY-01.md`)
+
+Opłaty za udział płacone online: przez **delegacje** (IQO, cennik delegacji w EUR) i – w konkursach
+z rejestracją otwartą – przez **uczestników** (należność z ekranu „Wpisowe”, zwykle PLN). Wszystko za
+flagą konkursu **`fees`** (domyślnie wyłączona – Olimpiada Kwantowa nie widzi ani adresu, ani pozycji
+menu). Aplikacja `apps.payments`, migracja `payments.0001` (nowe tabele, odwracalna).
+
+### 35.1. Zmienne środowiskowe (`.env`, usługi `web` i `worker`)
+
+| Zmienna | Wartość | Uwagi |
+|---|---|---|
+| `STRIPE_SECRET_KEY` | `sk_test_…` (test) / `sk_live_…` | Stripe → Developers → API keys → Secret key. Może być *restricted key* z prawem zapisu do Checkout Sessions i Refunds. |
+| `STRIPE_WEBHOOK_SECRET` | `whsec_…` | Signing secret endpointu webhooka; kilka po przecinku (rotacja, kilka endpointów). |
+| `P24_MERCHANT_ID` | liczba | Panel Przelewy24 → Moje dane → Dane API. |
+| `P24_POS_ID` | liczba | Zwykle = merchant ID. |
+| `P24_API_KEY` | napis | „Klucz do raportów” (REST API). |
+| `P24_CRC` | napis | Klucz CRC (podpis SHA-384). |
+| `P24_SANDBOX` | `true`/`false` | `true` = `sandbox.przelewy24.pl` (osobne konto sandbox). |
+
+Pusty klucz = operator wyłączony: przycisk płatności się nie pokazuje, a jego webhook odpowiada **404**.
+Sekrety nie trafiają do bazy ani do audytu. Po zmianie `.env`: `docker compose up -d web worker`
+(restart, nie reload). Ekran `/coordinator/payments/prices/` pokazuje, czy operator jest skonfigurowany
+i czy Stripe jest w **trybie testowym**.
+
+### 35.2. Stripe – konfiguracja panelu (najpierw tryb testowy)
+
+1. Stripe Dashboard → przełącznik **Test mode** → Developers → API keys → skopiuj *Secret key* do
+   `STRIPE_SECRET_KEY`.
+2. Developers → **Webhooks** → *Add endpoint*: URL `https://<domena-konkursu>/payments/webhooks/stripe/`
+   (jeden endpoint na instalację – płatność odnajdujemy po identyfikatorze sesji, nie po domenie; może
+   to być domena dowolnego konkursu z tej instalacji). Zdarzenia: `checkout.session.completed`,
+   `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`,
+   `checkout.session.expired`, `refund.updated`, `refund.failed`. *Signing secret* → `STRIPE_WEBHOOK_SECRET`.
+3. Settings → Payment methods: karty (opcjonalnie inne metody; metody odroczone, np. SEPA, kończą się
+   `async_payment_succeeded` i są obsługiwane). Settings → Branding: nazwa i logo organizatora.
+4. Próba: konkurs z `fees`, cennik, opiekun wystawia pro formę → „Zapłać kartą” → karta testowa
+   `4242 4242 4242 4242` (dowolna przyszła data, dowolny CVC) → po kilku sekundach zamówienie „zapłacone”,
+   faktura `…/FV/<rok>/0001`, list do płacącego. W panelu Stripe → Webhooks → endpoint: odpowiedzi 200.
+   Lokalnie: `stripe listen --forward-to https://<host>/payments/webhooks/stripe/` (CLI poda własny `whsec_`).
+5. Zwrot próbny z ekranu zamówienia koordynatora („Zleć zwrot”) – w Stripe pojawia się Refund.
+6. **Produkcja**: wyłącz Test mode, powtórz kroki 1–2 z kluczami live (endpoint live ma inny `whsec_`),
+   wpisz `sk_live_…`, restart, jedna płatność kontrolna i jej zwrot.
+
+### 35.3. Przelewy24 – konfiguracja panelu (tylko PLN)
+
+1. Konto sandbox (`sandbox.przelewy24.pl`) → Moje dane → Dane API: merchant ID, POS ID, klucz do
+   raportów, klucz CRC → `P24_*`, `P24_SANDBOX=true`.
+2. Adres powiadomień (`urlStatus`) wysyłamy przy rejestracji każdej transakcji:
+   `https://<domena-konkursu>/payments/webhooks/przelewy24/` (zwroty: `…/przelewy24/refund/`). W panelu
+   P24 nie trzeba go wpisywać; jeśli konto ma listę dozwolonych adresów powiadomień – dopisz oba.
+3. Wpłata jest zapisywana dopiero po udanym `PUT /transaction/verify` – nieudany verify daje 503 i P24
+   ponawia powiadomienie. Limit transakcji 15 min: nowa próba tego samego zamówienia jest możliwa po
+   20 min (ochrona przed podwójną zapłatą).
+4. **Stan:** adapter P24 jest zaimplementowany i przetestowany na atrapie HTTP (podpisy z dokumentacji
+   REST v1), **nie** na sandboxie – przed włączeniem na produkcji zrób płatność i zwrot w sandboxie.
+
+### 35.4. Włączenie w konkursie
+
+1. Flaga: `/admin/` → Konkursy → `feature_flags` → `"fees": true` (albo powłoką jak w § 28.1).
+2. `/coordinator/payments/prices/`: **Sprzedawca, rachunek i dokumenty** – NIP/VAT ID, IBAN, SWIFT, bank,
+   prefiks numeracji (domyślnie slug, np. `IQO/FV/2026/0001`), adnotacja VAT, uwagi, termin pro formy,
+   metody płatności. Nazwa, adres i dane rejestrowe sprzedawcy pochodzą z pól organizatora konkursu.
+3. Cennik delegacji edycji (konkurs w trybie delegacji): waluta, „cena wczesna do”, „cena późna od”,
+   siatka cen (delegacja, uczeń, opiekun, obserwator × wczesna/podstawowa/późna).
+4. Konkurs z rejestracją otwartą: cennik i naliczenie należności na ekranie „Wpisowe” (`/coordinator/fees/`)
+   – uczestnik dostaje przycisk „Zapłać online” na kaflu „Wpisowe”.
+5. **Wzór faktury** (pro forma i faktura, PDF) zatwierdza księgowa organizatora przed pierwszym konkursem
+   z opłatami: system numeruje dokumenty ciągle (per konkurs, rodzaj i rok), ale nie liczy VAT, nie
+   prowadzi rejestru VAT/JPK i nie wystawia korekt (decyzja D15 po zmianie z 4.10.2026).
+
+### 35.5. Przelew tradycyjny, dowody wpłat, eksport
+
+- Płacący widzi IBAN i **kod referencyjny** (tytuł przelewu). Koordynator na ekranie zamówienia
+  „Wpływ przelewu”: data wpływu, notatka, opcjonalnie dowód (PDF/JPG/PNG ≤ 10 MB) – plik idzie do bucketu
+  prac (prefiks `payments/`) i do skanu ClamAV (kolejka `scan`); do pobrania dopiero po werdykcie „czysty”,
+  zawsze jako załącznik. Plik zainfekowany jest usuwany, wpłata zostaje. Wpłatę zapisuje się
+  **wyłącznie na zamówienie otwarte** – przelew z kodem zamówienia anulowanego zwraca się płacącemu
+  w banku (poza systemem) albo zalicza po wystawieniu przez opiekuna nowej pro formy.
+- **Zwroty** wskazuje się **pozycjami i ilościami** (np. 1 × uczeń); kwotę liczy system. Zwrócone miejsca
+  przestają być opłacone. Wpłata „do wyjaśnienia” (podwójna, rozbieżna, po anulowaniu) wraca w całości.
+  Brak odpowiedzi operatora przy zwrocie → zwrot zostaje „w toku” i jest ponawiany automatycznie z tym
+  samym kluczem idempotencji (bez ryzyka podwójnego zwrotu); odmowa operatora → „nieudany”.
+- `/coordinator/payments/export.csv?edition=<id>` – jeden wiersz na zamówienie (nabywca, VAT ID, kwota,
+  waluta, stan, metoda, identyfikator transakcji, zwroty, numery pro formy i faktury). Zdarzenie w audycie.
+
+### 35.6. Kontrakt adresów i limity
+
+Nowy pierwszy segment `payments/` (`RESERVED_SLUGS`, `backend/djcms_contract/` – zaktualizowane). Webhooki
+`/payments/webhooks/*` są **bez** sesji i CSRF (podpis), limit `payment_webhooks` (600/min per IP; stub
+z wydania K zostaje przy `payments`, 60/min). Nowe stawki
+`checkout` (20/h per konto: „Wystaw pro formę”, „Zapłać”) i `payments_admin` (120/h, czynności koordynatora).
+Stub `/api/v1/payments/<slug>/` z wydania K zostaje bez zmian.
+
+**Sprzątanie (beat `payments-sweep`, co 15 min, `apps.payments.tasks.sweep_payments`)** – wymaga
+działającego `beat` i `worker`: próba Stripe starsza niż czas życia sesji (60 min + 10) → `GET` sesji
+(wygasła → przerwana, zapłacona a webhook zginął → wpłata rozliczona jak ze zdarzenia); próba bez
+identyfikatora sesji starsza niż 30 s → przerwana; P24 starsza niż 80 min → przerwana; zwrot „w toku”
+bez identyfikatora operatora starszy niż 2 min → zlecony ponownie. Bez flagi `fees` w żadnym konkursie
+zadanie robi dwa puste zapytania.
+
+### 35.7. Diagnoza i wycofanie
+
+- Dziennik doręczeń: `/admin/` → Płatności → „Doręczenia od dostawców” (panel płatności w `/admin/` jest
+  tylko do odczytu – zmiany stanu wyłącznie przez ekrany koordynatora, z audytem).
+  `outcome`: `succeeded`, `mismatch` (kwota/waluta inna niż zamówienie – pulpit „Do wyjaśnienia”),
+  `unknown_payment`, `duplicate` (nie zapisywane – odpowiedź), `ignored`, `mode_mismatch` (zdarzenie live
+  przy kluczu `sk_test_…` albo odwrotnie – pominięte; sprawdź, czy endpoint i klucz są z tego samego trybu).
+- 400 w panelu Stripe = zły `STRIPE_WEBHOOK_SECRET` (albo endpoint test/live pomylony); 404 = brak klucza
+  w `.env` usługi `web`.
+- Wycofanie: wyłączenie flagi `fees` ukrywa ekrany (404); dane zostają. Migracje `payments.0001`–`0002` są
+  odwracalna, ale **dokumenty księgowe** trzeba przed tym wyeksportować (5 lat przechowywania).
+
 ## 36. Webinary w LiveKit (WEB-01, `docs/tasks/WEB-01.md`)
 
 Koordynator planuje webinary w panelu (`Komunikacja → Webinary`); uczestnicy, komisja i (opcjonalnie)
@@ -4449,233 +4885,6 @@ przerywa restart serwera LiveKit – poza godzinami webinarów). Zatrzymanie war
 `docker compose -f docker-compose.yml -f deploy/livekit/docker-compose.livekit.yml --profile livekit stop livekit livekit-egress livekit-redis`
 i `LIVEKIT_PROXY=0` + `scripts/proxy_config.sh update`.
 
-## 29. Statystyki szkół (STAT-01, flaga `school_statistics`)
-
-Funkcja liczy agregaty z istniejących danych; jedyna tabela to `school_stats_frozenmembership`
-(migracja `school_stats.0001_initial`, odwracalna) – przynależność wpisów do szkół zamrożona przy
-publikacji wyników (`docs/tasks/STAT-01.md` § 10, M3). Wdrożenie nie wymaga kroku ręcznego poza
-zwykłym `migrate`; etapy ogłoszone wcześniej zamrażają się same przy pierwszym wejściu na ekran.
-Flaga jest domyślnie **wyłączona** (adresy `/supervisor/statistics/…`
-i `/coordinator/school-stats/…` dają 404, menu i pulpit opiekuna bez zmian).
-
-**Zapalenie** (`/admin/ → Konkursy → <konkurs> → feature_flags`, § 6.4):
-
-```json
-{"school_statistics": true}
-```
-
-Razem z flagą rejestr czynności konkursu dostaje wiersz „Statystyki szkół i opiekunów szkolnych”
-(wersja 1.12) – zapalenie jest więc decyzją organizatora o nowym celu przetwarzania (opiekun widzi
-przebieg ucznia przez edycje), nie skutkiem wdrożenia. Przed zapaleniem warto zweryfikować opiekunów
-(`SchoolSupervisor.verified` + szkoła z wykazu) – bez tego opiekun widzi swoich uczniów, województwo
-i całość, ale nie agregat szkoły i nie pobierze raportu PDF.
-
-**Pamięć podręczna** (Redis): klucze `school_stats:v2:<oś>:<edycja>:<odcisk publikacji>`; doba dla
-edycji zamkniętej publikacjami albo nie bieżącej, 5 minut dla bieżącej w toku. Ponowna publikacja zmienia
-odcisk, więc nic nie trzeba czyścić ręcznie. W kluczach są wyłącznie agregaty (bez identyfikatorów
-osób).
-
-**Tłumaczenia:** napisy aplikacji mają własny katalog `backend/apps/school_stats/locale/` (maszynowe,
-jak § 26.3). Obraz kompiluje od tego wydania także katalogi aplikacji (`apps/*/locale`), a test
-`apps/core/tests/test_translations.py` sprawdza je tą samą miarą co katalog wspólny.
-
-**IQO:** oś grupowania to dziś szkoła z profilu uczestnika (`apps/school_stats/grouping.py`). Oś
-`delegation` (delegacje krajowe z § 28, region = kraj) jest przygotowanym punktem zaczepienia
-(`axis_for`) – dołożenie jej nie zmienia ekranów ani reguł progu.
-
-## 32. Okna czasowe etapu według stref (TZ-01, `docs/tasks/TZ-01.md`)
-
-Etap zdalny konkursu z flagą **`stage_time_windows`** może pracować w kilku oknach czasowych (np. trzy
-starty co 8 h, każdy po 5 h) z przydziałem krajów według strefy. Bez flagi (Olimpiada Kwantowa) nic się
-nie zmienia: żadna bramka okien nie pyta bazy, ekranu nie ma (404), menu i panel uczestnika są te same.
-
-### 32.1. Włączenie dla `iqo`
-
-1. Wdrożenie zakłada tabele aplikacji `time_windows` (migracja `time_windows.0001`, same nowe tabele –
-   żadna istniejąca tabela się nie zmienia). Nowych segmentów adresów nie ma (`coordinator/…`,
-   `delegation/…` są już w kontrakcie).
-2. Flaga – `/admin/` → Konkursy → `iqo` → „Feature flags”: dopisz `"stage_time_windows": true`, albo:
-   ```sh
-   docker compose exec web python manage.py shell -c "from apps.tenancy.models import Competition; c = Competition.objects.get(slug='iqo'); c.feature_flags = {**(c.feature_flags or {}), 'stage_time_windows': True}; c.save(update_fields=['feature_flags'])"
-   ```
-3. Koordynator ustawia okna **przed otwarciem etapu**: „Etapy → <etap> → Okna czasowe”
-   (`PODRECZNIK-ORGANIZATORA.md` § 10e). Rama etapu (otwarcie – termin oddania) musi obejmować wszystkie
-   okna razem z dodatkowym czasem uczniów; beat zamyka etap (`LOCKED`) dopiero po ramie.
-
-### 32.2. Czego nie robić
-
-- **Nie wyłączaj flagi, dopóki trwają okna** (od startu pierwszego okna do końca ostatniego z dodatkowym
-  czasem – „moment ujawnienia” na ekranie okien). Bez flagi etap wraca do jednej ramy: treść zadań staje
-  się jawna dla wszystkich od otwarcia ramy, a premoderacja forum/czatu trzyma się samej ramy.
-- Nie zmieniaj okien przez `/admin/` – modele są tam tylko do odczytu, bo reguły „po starcie nie wolno”
-  i audyt są w serwisie.
-
-### 32.3. Co pilnuje serwer
-
-Upload (HTML i `POST /api/submissions/…`), `is_late`, PDF treści (`/api/competitions/problems/<id>/statement/`),
-lista zadań w API bieżącej edycji, strona „Zadania” w CMS (i jej API dla django CMS), archiwum, test
-online (start podejścia, termin podejścia, wynik „po zamknięciu”), premoderacja forum i czatu, publikacja
-wyników (`WINDOWS_NOT_FINISHED`), zmiana ramy etapu (`STAGE_WINDOWS_OUTSIDE`). Strefę czasową ucznia
-aktywuje warstwa `apps.time_windows.middleware.ParticipantTimezoneMiddleware` (tylko konkurs z flagą
-i zalogowany uczestnik bez roli personelu, wyłącznie w widokach panelu uczestnika – panele koordynatora,
-recenzenta, `/admin/` i `/cms/` zostają w czasie polskim; podpis „czas polski” zamienia się wtedy na nazwę
-strefy). Od startu pierwszego okna przydział domyślny krajów jest zapisywany w bazie, więc aktualizacja
-`tzdata` albo mapy stref w trakcie zawodów nie przenosi kraju do innego okna. Migracja `time_windows.0002`
-zmienia wyłącznie zachowanie kluczy obcych (`RESTRICT`).
-
-### 32.4. RODO i tłumaczenia
-
-Nowa czynność w rejestrze „Okna czasowe etapu” (tylko konkursy z flagą), sekcja `okna_czasowe` w eksporcie
-danych konta; anonimizacja usuwa strefę ucznia i powód wyjątku (okno i dodatkowy czas zostają jako
-dokumentacja warunków pracy). Katalogi tłumaczeń aplikacji (`backend/apps/*/locale`) kompilują obraz
-(`backend/Dockerfile`), CI i `backend/conftest.py`.
-
-### 32.5. Wycofanie
-
-Usunięcie planu (ekran okien, przed otwarciem etapu) przywraca etapowi jedną ramę. Migracja
-`time_windows.0001` jest odwracalna (`migrate time_windows zero` usuwa wyłącznie tabele tej aplikacji).
-
-## 34. Tłumaczenia zadań przez delegacje (TR-01, `docs/tasks/TR-01.md`)
-
-Funkcja istnieje wyłącznie w konkursie w trybie **`DELEGATIONS`** (§ 28) – w Olimpiadzie Kwantowej
-nie ma ani ekranów (404), ani pozycji menu, ani odnośnika na karcie zadania. Nowa aplikacja
-`apps.problem_translations` (migracje `problem_translations.0001`–`0002`, same nowe tabele i kolumny – odwracalne).
-
-### 34.1. Wdrożenie
-
-- `scripts/deploy.sh` jak zwykle (migracja + `collectstatic`). KaTeX jest **zwendorowany**
-  (`apps/problem_translations/static/problem_translations/vendor/katex/`, wersja 0.19.0, MIT) – CSP bez
-  zmian (KaTeX nie idzie z CDN-u; htmx i Alpine strony bazowej – jak w całym serwisie – z CDN-ów przypiętych
-  SRI, bez treści zadania w żądaniu). Wersja, skróty i sposób przycięcia CSS: `vendor/katex/VERSION`.
-- Obraz kompiluje teraz także katalogi tłumaczeń aplikacji (`apps/*/locale/*/LC_MESSAGES/django.po`,
-  `backend/Dockerfile`) – bez przebudowy obrazu ekrany opiekuna byłyby po polsku.
-- Nowy scope throttlingu `translation` (1200/h na konto) – bez zmian w `.env`.
-- Wgranie PDF-u tłumaczenia skanuje clamd **synchronicznie**; gdy clamd nie odpowiada, wgranie jest
-  odrzucane (komunikat „spróbuj ponownie”), edytor tekstowy działa dalej. Przed nocą tłumaczeń:
-  `docker compose ps clamav` (healthy).
-
-### 34.2. Przebieg (koordynator)
-
-1. „Etapy → Tłumaczenia zadań” (`/coordinator/translations/`) → etap → **okno tłumaczeń** (otwarcie,
-   zamknięcie ≤ otwarcie etapu) i tryb: *osobne* (każda delegacja tłumaczy sama) albo *wspólne* (jedno
-   tłumaczenie na język). Trybu nie da się zmienić, gdy w etapie są już tłumaczenia.
-2. Wersja oficjalna: tytuł i PDF – jak dotąd na ekranie zadań etapu; **tekst** (Markdown + LaTeX) –
-   „Tekst oficjalny” przy zadaniu. Każda zmiana tekstu, tytułu albo PDF-u podnosi wersję; tłumaczenia
-   oparte na starszej dostają znacznik „nieaktualne”, a opiekunowie – list.
-3. Opiekunowie deklarują języki (`/delegation/translations/`) i w oknie tłumaczą (edytor z autozapisem
-   albo PDF), potem „Wyślij do akceptacji”.
-4. Kolejka „Do przeglądu” → „Zatwierdź” albo „Zwróć do poprawy” (komentarz obowiązkowy). Zatwierdzone
-   jest zablokowane; nieaktualnego nie da się zatwierdzić.
-5. Po otwarciu etapu uczeń ma na karcie zadania „Treść w języku: …” (zatwierdzona wersja) obok wersji
-   oficjalnej.
-6. Finał stacjonarny: ekran etapu → „Eksport do druku” → PDF (serwer) albo „Widok do druku”
-   (przeglądarka → „Zapisz jako PDF”; konieczny dla wzorów i pism CJK/indyjskich/arabskich).
-
-### 34.3. Poufność i dziennik
-
-Źródło przed otwarciem etapu widzi koordynator i opiekun z delegacją w bieżącej edycji – **tylko
-w otwartym oknie**. Odpowiedzi mają `Cache-Control: no-store`. Dziennik (`/coordinator/audit/`,
-akcje `translation.*`): `source_viewed`, `source_downloaded`, `file_downloaded`, `reviewed`,
-`file_reviewed`, `student_viewed`, `student_downloaded`, `exported`, `submitted`, `withdrawn`,
-`reopened`, `approved`, `returned`, `pdf_uploaded`, `languages_declared`, `student_language_set`,
-`window_set`, `source_changed`. Kto pobrał arkusz przed zawodami:
-
-```sh
-docker compose exec web python manage.py shell -c "from apps.core.models import AuditLog; [print(a.at, a.actor_id, a.action, a.target_id, a.diff) for a in AuditLog.objects.filter(action__in=['translation.source_downloaded','translation.file_downloaded','translation.source_viewed']).order_by('at')]"
-```
-
-PDF-y pobrane przez opiekuna mają znak wodny: kod kraju, „CONFIDENTIAL”, data i id konta.
-
-### 34.4. Wycofanie
-
-Wyłączenie trybu delegacji ukrywa wszystkie ekrany (404); dane zostają. Wycofanie kodu: `migrate
-problem_translations zero` (usuwa tabele tłumaczeń – najpierw eksport do druku, jeśli potrzebny).
-
-## 33. Przegląd tłumaczeń przez native speakerów (L10N-01, `docs/tasks/L10N-01.md`)
-
-Wolontariusze z rolą **tłumacza** (np. kierownicy delegacji `iqo`) przeglądają napisy interfejsu
-w swoim języku pod `/translations/`, proponują poprawki i głosują; **recenzent tłumaczeń** zatwierdza.
-Zatwierdzona poprawka działa bez wydania (nakładka z bazy na katalogi gettext), a do repozytorium
-trafia komendą `export_translations` jako zwykły PR. Kiedy ją widać: proces, który ją zatwierdził –
-od razu; pozostałe procesy `web`/`worker` – po najwyżej 5 s (`TRANSLATION_OVERRIDES_CHECK_SECONDS`);
-bufor stron dla gości (`apps.web.page_cache`, 120 s) jest czyszczony przy każdej zmianie. Dlaczego
-nie Weblate: spec § 1 (nowy serwer albo zasoby produkcji, klucz z prawem zapisu do repozytorium,
-drugi system kont). Serwis publiczny na django CMS (`djcms`) to osobny proces – nakładka go nie
-obejmuje.
-
-### 33.1. Role
-
-- **Tłumacz** (proponuje, głosuje, zgłasza błąd ze stopki) – nadaje koordynator konkursu z więcej niż
-  jednym językiem interfejsu: „Ustawienia → Tłumacze interfejsu” (`/coordinator/translators/`),
-  wyłącznie osobom związanym z konkursem (członkostwo albo profil uczestnika) i wyłącznie w językach
-  interfejsu tego konkursu.
-- **Nadanie koordynatora należy do konkursu**: widzi je i odbiera każdy koordynator tego konkursu
-  (także po odejściu nadającego), a działa **tylko dopóki** osoba jest z konkursem związana – po
-  wypisaniu, odebraniu roli albo usunięciu profilu rola tłumacza przestaje działać sama (wiersz
-  zostaje na liście koordynatora do usunięcia).
-- **Recenzent tłumaczeń** (zatwierdza, odrzuca, cofa, potwierdza, zamyka zgłoszenia) – nadaje
-  **wyłącznie superkoordynator** (ten sam ekran, pod adresem dowolnego konkursu); jego nadania są
-  platformowe (bez konkursu). Superkoordynator jest recenzentem każdego języka.
-- Każde nadanie, odebranie i każda decyzja – wpis audytu `translation.*` (bez treści zgłoszeń).
-
-### 33.2. Decyzje recenzenta – co trafia do serwisu
-
-- **Poprawka** (zatwierdzona propozycja) – trafia do gettext, ale tylko dopóki `msgstr` w katalogu
-  jest ten sam, co w chwili decyzji. Jeśli wydanie zmieni go w międzyczasie, wygrywa katalog,
-  a napis ma na liście znacznik „do ponownego przeglądu”.
-- **Potwierdzenie** („Obecne tłumaczenie jest poprawne”) – **nigdy** nie trafia do gettext; to sam
-  znacznik „przejrzane”, który eksport zapisuje jako `# l10n-reviewed`.
-
-### 33.3. Z bazy do repozytorium (po serii poprawek)
-
-```sh
-# produkcja – zrzut zatwierdzonych decyzji (sam tekst tłumaczeń, bez danych osób)
-docker compose exec -T web python manage.py export_translations --to-json - > overrides.json
-scp olimpiada:/opt/olimpiada/overrides.json backend/overrides.json   # do checkoutu dewelopera
-
-# checkout dewelopera (DEBUG=1, montowany backend, .git podpięty do kontenera) – zapis do .po, potem PR
-docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm -v "$PWD/.git:/.git:ro" \
-    web python manage.py export_translations --from-json /app/overrides.json --dry-run
-docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm -v "$PWD/.git:/.git:ro" \
-    web python manage.py export_translations --from-json /app/overrides.json
-rm backend/overrides.json
-
-# produkcja, PO wdrożeniu tego PR-a – usunięcie nakładek, które są już w skompilowanych katalogach
-docker compose exec web python manage.py export_translations --prune
-```
-
-- Zapis do `.po` jest **odmawiany** poza checkoutem dewelopera (`DEBUG` i katalog `.git` w `backend`
-  albo nad nim – stąd podpięte `.git` w poleceniu wyżej); w kontenerze produkcyjnym trafiłby do
-  warstwy obrazu i rozjechał z `.mo`. Świadome obejście: `--force`.
-- Eksport zmienia wyłącznie linie `msgstr` poprawek i dopisuje `# l10n-reviewed` (potwierdzenie:
-  sam znacznik). Tekst z JSON-a przechodzi tę samą walidację, co w panelu; poprawka podjęta wobec
-  innego `msgstr` niż dzisiejszy jest wypisana jako **konflikt** i nie nadpisuje nowszego tekstu;
-  wpis, którego nie ma już w katalogach – jako „nieaktualny”.
-- `--prune` usuwa poprawkę tylko wtedy, gdy **skompilowany** katalog (`.mo` – to on trafia do
-  gettext) oddaje już dokładnie jej tekst, a potwierdzenie – gdy wpis ma znacznik. Przed wdrożeniem
-  nie usunie niczego. Nakładki napisów usuniętych z kodu tylko wypisuje; usuwa je `--prune-stale`.
-
-### 33.4. Wyłączenie i awarie
-
-- `TRANSLATION_OVERRIDES_ENABLED=0` w `.env` + restart `web`, `worker`, `beat` – serwis wraca do samych
-  katalogów z repozytorium; decyzje zostają w bazie. Cofnięcie pojedynczej decyzji: „Przywróć
-  tłumaczenie z katalogu” na ekranie napisu (recenzent).
-- W Redisie stoi tylko numer wersji nakładki (bez terminu ważności); każdy proces po zmianie wersji
-  buduje nakładkę z bazy sam (jedno zapytanie). Po restarcie Redisa – nowa wersja i to samo. Błąd
-  nakładki nigdy nie psuje strony – log `apps.translation_review.runtime` i katalog z repozytorium.
-- Limit POST-ów w panelu tłumacza: scope `translations` (120/h na konto).
-
-### 33.5. Wdrożenie tej wersji
-
-`migrate` (`translation_review.0001`–`0002`, tylko nowe tabele i kolumny) – bez kroków ręcznych.
-Obraz kompiluje teraz także katalogi aplikacji (`apps/*/locale`). Zmienił się manifest adresów
-(`/translations/` – `backend/djcms_contract/app_routes.*`), więc konfiguracja proxy z § 23 musi
-zostać przeładowana (robi to `deploy.sh`). Odnośnik „Zgłoś tłumaczenie” stoi w domyślnej stopce
-(`templates/theme/footer.html`); paczka motywu, która nadpisuje slot `footer`, dołącza go tym samym
-fragmentem: `{% include "web/_translation_report_link.html" with css_class="footer__link" %}`. Olimpiada Kwantowa
-(sam polski) nie widzi żadnej zmiany: brak pozycji w menu, brak odnośnika w stopce, brak wiersza
-w rejestrze czynności.
-
 ## 37. Medale olimpiady międzynarodowej, dyplomy w języku ucznia i ranking krajów (MED-01, `docs/tasks/MED-01.md`)
 
 Złoto, srebro, brąz i wyróżnienia liczone z rankingu etapu (domyślnie jak IPhO: 8 % / kolejne 17 % /
@@ -4748,118 +4957,6 @@ Wyłączenie flagi ukrywa ekrany i strony publiczne (404) i przywraca polski sk�
 `UCZESTNIK`; dane (`MedalScheme`, `MedalOverride`, `CertificateLanguage`) zostają. Migracje są
 odwracalne.
 
-## 35. Płatności online za udział – Stripe, Przelewy24, przelew, faktury (PAY-01, `docs/tasks/PAY-01.md`)
-
-Opłaty za udział płacone online: przez **delegacje** (IQO, cennik delegacji w EUR) i – w konkursach
-z rejestracją otwartą – przez **uczestników** (należność z ekranu „Wpisowe”, zwykle PLN). Wszystko za
-flagą konkursu **`fees`** (domyślnie wyłączona – Olimpiada Kwantowa nie widzi ani adresu, ani pozycji
-menu). Aplikacja `apps.payments`, migracja `payments.0001` (nowe tabele, odwracalna).
-
-### 35.1. Zmienne środowiskowe (`.env`, usługi `web` i `worker`)
-
-| Zmienna | Wartość | Uwagi |
-|---|---|---|
-| `STRIPE_SECRET_KEY` | `sk_test_…` (test) / `sk_live_…` | Stripe → Developers → API keys → Secret key. Może być *restricted key* z prawem zapisu do Checkout Sessions i Refunds. |
-| `STRIPE_WEBHOOK_SECRET` | `whsec_…` | Signing secret endpointu webhooka; kilka po przecinku (rotacja, kilka endpointów). |
-| `P24_MERCHANT_ID` | liczba | Panel Przelewy24 → Moje dane → Dane API. |
-| `P24_POS_ID` | liczba | Zwykle = merchant ID. |
-| `P24_API_KEY` | napis | „Klucz do raportów” (REST API). |
-| `P24_CRC` | napis | Klucz CRC (podpis SHA-384). |
-| `P24_SANDBOX` | `true`/`false` | `true` = `sandbox.przelewy24.pl` (osobne konto sandbox). |
-
-Pusty klucz = operator wyłączony: przycisk płatności się nie pokazuje, a jego webhook odpowiada **404**.
-Sekrety nie trafiają do bazy ani do audytu. Po zmianie `.env`: `docker compose up -d web worker`
-(restart, nie reload). Ekran `/coordinator/payments/prices/` pokazuje, czy operator jest skonfigurowany
-i czy Stripe jest w **trybie testowym**.
-
-### 35.2. Stripe – konfiguracja panelu (najpierw tryb testowy)
-
-1. Stripe Dashboard → przełącznik **Test mode** → Developers → API keys → skopiuj *Secret key* do
-   `STRIPE_SECRET_KEY`.
-2. Developers → **Webhooks** → *Add endpoint*: URL `https://<domena-konkursu>/payments/webhooks/stripe/`
-   (jeden endpoint na instalację – płatność odnajdujemy po identyfikatorze sesji, nie po domenie; może
-   to być domena dowolnego konkursu z tej instalacji). Zdarzenia: `checkout.session.completed`,
-   `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`,
-   `checkout.session.expired`, `refund.updated`, `refund.failed`. *Signing secret* → `STRIPE_WEBHOOK_SECRET`.
-3. Settings → Payment methods: karty (opcjonalnie inne metody; metody odroczone, np. SEPA, kończą się
-   `async_payment_succeeded` i są obsługiwane). Settings → Branding: nazwa i logo organizatora.
-4. Próba: konkurs z `fees`, cennik, opiekun wystawia pro formę → „Zapłać kartą” → karta testowa
-   `4242 4242 4242 4242` (dowolna przyszła data, dowolny CVC) → po kilku sekundach zamówienie „zapłacone”,
-   faktura `…/FV/<rok>/0001`, list do płacącego. W panelu Stripe → Webhooks → endpoint: odpowiedzi 200.
-   Lokalnie: `stripe listen --forward-to https://<host>/payments/webhooks/stripe/` (CLI poda własny `whsec_`).
-5. Zwrot próbny z ekranu zamówienia koordynatora („Zleć zwrot”) – w Stripe pojawia się Refund.
-6. **Produkcja**: wyłącz Test mode, powtórz kroki 1–2 z kluczami live (endpoint live ma inny `whsec_`),
-   wpisz `sk_live_…`, restart, jedna płatność kontrolna i jej zwrot.
-
-### 35.3. Przelewy24 – konfiguracja panelu (tylko PLN)
-
-1. Konto sandbox (`sandbox.przelewy24.pl`) → Moje dane → Dane API: merchant ID, POS ID, klucz do
-   raportów, klucz CRC → `P24_*`, `P24_SANDBOX=true`.
-2. Adres powiadomień (`urlStatus`) wysyłamy przy rejestracji każdej transakcji:
-   `https://<domena-konkursu>/payments/webhooks/przelewy24/` (zwroty: `…/przelewy24/refund/`). W panelu
-   P24 nie trzeba go wpisywać; jeśli konto ma listę dozwolonych adresów powiadomień – dopisz oba.
-3. Wpłata jest zapisywana dopiero po udanym `PUT /transaction/verify` – nieudany verify daje 503 i P24
-   ponawia powiadomienie. Limit transakcji 15 min: nowa próba tego samego zamówienia jest możliwa po
-   20 min (ochrona przed podwójną zapłatą).
-4. **Stan:** adapter P24 jest zaimplementowany i przetestowany na atrapie HTTP (podpisy z dokumentacji
-   REST v1), **nie** na sandboxie – przed włączeniem na produkcji zrób płatność i zwrot w sandboxie.
-
-### 35.4. Włączenie w konkursie
-
-1. Flaga: `/admin/` → Konkursy → `feature_flags` → `"fees": true` (albo powłoką jak w § 28.1).
-2. `/coordinator/payments/prices/`: **Sprzedawca, rachunek i dokumenty** – NIP/VAT ID, IBAN, SWIFT, bank,
-   prefiks numeracji (domyślnie slug, np. `IQO/FV/2026/0001`), adnotacja VAT, uwagi, termin pro formy,
-   metody płatności. Nazwa, adres i dane rejestrowe sprzedawcy pochodzą z pól organizatora konkursu.
-3. Cennik delegacji edycji (konkurs w trybie delegacji): waluta, „cena wczesna do”, „cena późna od”,
-   siatka cen (delegacja, uczeń, opiekun, obserwator × wczesna/podstawowa/późna).
-4. Konkurs z rejestracją otwartą: cennik i naliczenie należności na ekranie „Wpisowe” (`/coordinator/fees/`)
-   – uczestnik dostaje przycisk „Zapłać online” na kaflu „Wpisowe”.
-5. **Wzór faktury** (pro forma i faktura, PDF) zatwierdza księgowa organizatora przed pierwszym konkursem
-   z opłatami: system numeruje dokumenty ciągle (per konkurs, rodzaj i rok), ale nie liczy VAT, nie
-   prowadzi rejestru VAT/JPK i nie wystawia korekt (decyzja D15 po zmianie z 4.10.2026).
-
-### 35.5. Przelew tradycyjny, dowody wpłat, eksport
-
-- Płacący widzi IBAN i **kod referencyjny** (tytuł przelewu). Koordynator na ekranie zamówienia
-  „Wpływ przelewu”: data wpływu, notatka, opcjonalnie dowód (PDF/JPG/PNG ≤ 10 MB) – plik idzie do bucketu
-  prac (prefiks `payments/`) i do skanu ClamAV (kolejka `scan`); do pobrania dopiero po werdykcie „czysty”,
-  zawsze jako załącznik. Plik zainfekowany jest usuwany, wpłata zostaje. Wpłatę zapisuje się
-  **wyłącznie na zamówienie otwarte** – przelew z kodem zamówienia anulowanego zwraca się płacącemu
-  w banku (poza systemem) albo zalicza po wystawieniu przez opiekuna nowej pro formy.
-- **Zwroty** wskazuje się **pozycjami i ilościami** (np. 1 × uczeń); kwotę liczy system. Zwrócone miejsca
-  przestają być opłacone. Wpłata „do wyjaśnienia” (podwójna, rozbieżna, po anulowaniu) wraca w całości.
-  Brak odpowiedzi operatora przy zwrocie → zwrot zostaje „w toku” i jest ponawiany automatycznie z tym
-  samym kluczem idempotencji (bez ryzyka podwójnego zwrotu); odmowa operatora → „nieudany”.
-- `/coordinator/payments/export.csv?edition=<id>` – jeden wiersz na zamówienie (nabywca, VAT ID, kwota,
-  waluta, stan, metoda, identyfikator transakcji, zwroty, numery pro formy i faktury). Zdarzenie w audycie.
-
-### 35.6. Kontrakt adresów i limity
-
-Nowy pierwszy segment `payments/` (`RESERVED_SLUGS`, `backend/djcms_contract/` – zaktualizowane). Webhooki
-`/payments/webhooks/*` są **bez** sesji i CSRF (podpis), limit `payment_webhooks` (600/min per IP; stub
-z wydania K zostaje przy `payments`, 60/min). Nowe stawki
-`checkout` (20/h per konto: „Wystaw pro formę”, „Zapłać”) i `payments_admin` (120/h, czynności koordynatora).
-Stub `/api/v1/payments/<slug>/` z wydania K zostaje bez zmian.
-
-**Sprzątanie (beat `payments-sweep`, co 15 min, `apps.payments.tasks.sweep_payments`)** – wymaga
-działającego `beat` i `worker`: próba Stripe starsza niż czas życia sesji (60 min + 10) → `GET` sesji
-(wygasła → przerwana, zapłacona a webhook zginął → wpłata rozliczona jak ze zdarzenia); próba bez
-identyfikatora sesji starsza niż 30 s → przerwana; P24 starsza niż 80 min → przerwana; zwrot „w toku”
-bez identyfikatora operatora starszy niż 2 min → zlecony ponownie. Bez flagi `fees` w żadnym konkursie
-zadanie robi dwa puste zapytania.
-
-### 35.7. Diagnoza i wycofanie
-
-- Dziennik doręczeń: `/admin/` → Płatności → „Doręczenia od dostawców” (panel płatności w `/admin/` jest
-  tylko do odczytu – zmiany stanu wyłącznie przez ekrany koordynatora, z audytem).
-  `outcome`: `succeeded`, `mismatch` (kwota/waluta inna niż zamówienie – pulpit „Do wyjaśnienia”),
-  `unknown_payment`, `duplicate` (nie zapisywane – odpowiedź), `ignored`, `mode_mismatch` (zdarzenie live
-  przy kluczu `sk_test_…` albo odwrotnie – pominięte; sprawdź, czy endpoint i klucz są z tego samego trybu).
-- 400 w panelu Stripe = zły `STRIPE_WEBHOOK_SECRET` (albo endpoint test/live pomylony); 404 = brak klucza
-  w `.env` usługi `web`.
-- Wycofanie: wyłączenie flagi `fees` ukrywa ekrany (404); dane zostają. Migracje `payments.0001`–`0002` są
-  odwracalna, ale **dokumenty księgowe** trzeba przed tym wyeksportować (5 lat przechowywania).
-
 ## 38. Sieć absolwentów i mentoring (ALUM-01, `docs/tasks/ALUM-01.md`)
 
 Funkcja jest za flagą konkursu **`alumni`** (domyślnie wyłączona) i nie ma jej w ekranie
@@ -4923,555 +5020,6 @@ włączonym mentoringu z małoletnimi organizator musi mieć dyżur moderacyjny.
 
 **Definitywne wycofanie funkcji:** wyłączenie flagi (skutki wyżej) i – bo zgoda dotyczyła działającej
 sieci – usunięcie profili (`AlumniProfile.objects.filter(participant__competition=c).delete()`).
-
----
-
-## 41. Logowanie dwuskładnikowe personelu (SEC-01, `docs/tasks/SEC-01.md`)
-
-Rozszerza § 5 (protokół TOTP, kody zapasowe, poczekalnia, reset) o **politykę wymogu dla personelu**,
-okres przejściowy, blokadę konta, „zapamiętaj to urządzenie”, listy do właściciela i zawężenie resetu
-cudzego 2FA personelu do superkoordynatora. Kod: `apps/staff_mfa/` + `apps/accounts/twofactor.py`.
-
-### 41.1. Ustawienia (`/opt/olimpiada/.env`, wszystkie bez znaczenia przy `TWO_FACTOR_ENABLED=0`)
-
-```ini
-TWO_FACTOR_ENABLED=1                              # wyłącznik główny (§ 5), domyślnie 0
-TWO_FACTOR_REQUIRED_ROLES=superkoordynator,admin  # role PLATFORMY – wymagane w każdym konkursie
-TWO_FACTOR_GRACE_DAYS=14                          # okres przejściowy (dni)
-TWO_FACTOR_REMEMBER_DAYS=7                        # „zapamiętaj to urządzenie” (0 = bez tej opcji)
-```
-
-Klucze ról: `superkoordynator`, `admin` (`is_staff`/superuser – dostęp do `/admin/`), `coordinator`
-(także oficer logistyki), `team_leader`, `logistics` (przydział w logistyce finału, także obsługa
-rejestracji), `reviewer`, `appeals`, `supervisor`. **`participant` jest odrzucany** – uczestnika
-nie da się objąć wymogiem żadną drogą. Nieznany klucz jest pomijany z ostrzeżeniem w logu.
-
-> **Uwaga przy aktualizacji `.env`:** pusta wartość `TWO_FACTOR_REQUIRED_ROLES=` (stara wartość
-> z `.env.example`) **wyłącza** role platformy. Wpisz `superkoordynator,admin` jawnie.
-
-Po zmianie: `docker compose up -d web worker beat`.
-
-### 41.2. Polityka konkursu – `/coordinator/security/2fa/` („Raporty → Bezpieczeństwo logowania”)
-
-- tryb **automatyczny** (domyślny, także bez zapisanego wiersza): konkurs z funkcją wrażliwą –
-  tryb delegacji, `fees`, `onsite_logistics`, `proctoring` – wymaga 2FA od `coordinator`,
-  `team_leader`, `logistics`; konkurs bez nich nie wymaga niczego ponad role platformy
-  (Olimpiada Kwantowa bez płatności i logistyki: wymóg tylko dla superkoordynatora i `/admin/`),
-- tryb **wybrane role**: dokładnie zaznaczone role konkursu (pusta lista = nic ponad platformę),
-- okres przejściowy konkursu (puste = `TWO_FACTOR_GRACE_DAYS`, 0 = od razu, maks. 90),
-- „pozwól zapamiętać urządzenie” (wyłączone = kod przy każdym logowaniu).
-
-**Zmienia wyłącznie superkoordynator** (koordynator widzi samą politykę; POST = 403)
-albo operator w `/admin/` (`staff_mfa → polityki 2FA konkursów`). Zapis: audyt `2fa.policy_changed`
-(przed → po) i nowa wersja polityki – działające sesje liczą wymóg od następnego żądania.
-Lista personelu (role, 2FA tak/nie, termin okresu przejściowego, odnośnik do konta) – **wyłącznie
-dla superkoordynatora**: „kto nie ma 2FA” to lista najłatwiejszych celów.
-
-### 41.3. Okres przejściowy i wymuszanie
-
-- pierwsze żądanie konta objętego wymogiem bez urządzenia zakłada `TwoFactorGrace` (audyt
-  `2fa.grace_started`); do terminu – baner na każdej stronie serwisu (także w motywie IQO),
-- po terminie – poczekalnia „skonfiguruj” dla **całej** sesji (panel, `/cms/`, `/admin/`, `/api/`,
-  także `/account/…`); wolno tylko `/account/2fa/…`, wylogowanie, preferencje i `/status/`,
-- okres jest **jednorazowy**: wyłączenie 2FA ani reset go nie odnawiają (konto konfiguruje 2FA od razu
-  po zalogowaniu hasłem). Wydłużyć go można wyłącznie zmianą `grace_days` w polityce konkursu,
-- wymóg liczony per konkurs żądania: ten sam koordynator może musieć mieć 2FA na `iqo-official.org`,
-  a nie musieć na olimpiadakwantowa.pl. Urządzenie jest jedno dla konta – kto je ma, podaje kod wszędzie,
-- uczestnik nigdy nie dostaje banera ani poczekalni „skonfiguruj” (2FA włączone dobrowolnie działa jak dotąd),
-- termin dla ról **platformy** (`superkoordynator`, `admin`) liczy się wyłącznie z
-  `TWO_FACTOR_GRACE_DAYS` – polityka konkursu go nie wydłuży; przy rolach z obu źródeł – wcześniejszy,
-- zmiana ról w trakcie sesji: nadanie roli personelu (grupa, `Membership`, przydział logistyki,
-  opiekun delegacji) i zmiana przełączników konkursu podbijają wersję polityki – działające sesje
-  liczą wymóg od następnego żądania. Znacznik „nie musisz” żyje najwyżej 10 min; konto bez żadnej
-  roli personelu (uczestnik) nie czyta przy każdym żądaniu wersji z Redisa, więc rola nadana
-  uczestnikowi zadziała u niego najpóźniej po 10 min,
-- włączenie, wyłączenie i reset 2FA zamykają **inne** sesje konta (reset – wszystkie),
-- po wdrożeniu SEC-01 każda sesja przechodzi bramkę od nowa (klucz sesji `2fa_passed` zamiast
-  `2fa_verified`).
-
-### 41.4. Bezpieczeństwo kodów
-
-- **blokada konta**: 5 złych kodów w 15 min → 15 min blokady (w blokadzie nawet dobry kod jest
-  odrzucany); audyt `2fa.locked`, list do właściciela, API `429 TWO_FACTOR_LOCKED`. Próba jest
-  liczona **przed** sprawdzeniem kodu – równoległa seria nie przekroczy limitu. Licznik w Redisie –
-  awaria Redisa wyłącza blokadę (błąd w logu, logowanie działa; limit `two_factor` 10/min per IP też
-  stoi w Redisie),
-- jednorazowość kodu TOTP (warunkowy `UPDATE`) i kodu zapasowego (`select_for_update`) odporna na
-  równoległe żądania,
-- wyłączenie 2FA i nowy komplet kodów (`/account/2fa/codes/regenerate/`) wymagają hasła **i** kodu,
-- „zapamiętaj to urządzenie”: podpisane ciasteczko `2fa_trust` (`HttpOnly`, `SameSite=Lax`, `Secure`
-  jak sesja), ważne wyłącznie w konkursie, który je wydał (konkurs pod prefiksem ścieżki dzieli
-  ciasteczka z gospodarzem), unieważniane zmianą hasła, wyłączeniem i resetem 2FA oraz przyciskiem
-  „Zapomnij wszystkie urządzenia” na `/account/2fa/` (audyt `2fa.devices_forgotten`); audyt `2fa.remembered`,
-- ekrany 2FA: `Cache-Control: private, no-store`; pełnostronicowy cache ich nie dotyczy.
-
-### 41.5. „Zgubiłem telefon” – reset przez organizatora
-
-`Panel → Konta → (konto) → Logowanie dwuskładnikowe → Zdejmij drugi składnik`:
-
-- konto **personelu** – rola z § 41.1 poza `supervisor` w **dowolnym** konkursie (grupy, `Membership`,
-  przydział logistyki, opiekun delegacji, `is_staff`), także konto **zablokowane**: **wyłącznie
-  superkoordynator**; koordynator widzi zdanie „wyłącznie superkoordynator”, POST = 403,
-- wyjątek, gdy na platformie nie ma żadnego aktywnego superkoordynatora: koordynator może zresetować
-  personel **swojego** konkursu – nigdy konto `admin`/superkoordynatora ani personel innego konkursu.
-  Przy `migrate`/`manage.py check` pojawia się wtedy ostrzeżenie `staff_mfa.W002`,
-- uczestnik i opiekun szkolny: koordynator, jak dotąd,
-- zawsze: potwierdź tożsamość drogą inną niż e-mail z tego konta (§ 5.4); audyt `2fa.reset`; właściciel
-  dostaje list – także na **poprzedni** adres, jeśli adres konta zmieniono w ostatnich 30 dniach;
-  wszystkie sesje właściciela zostają zamknięte. Nadanie roli superkoordynatora: komenda
-  `superkoordynator` (`--help`),
-- **zmiana adresu e-mail** konta z 2FA albo konta personelu (przy `TWO_FACTOR_ENABLED=1`): wyłącznie
-  superkoordynator albo `/admin/`. Koordynator dostaje odmowę – zmiana adresu to pierwszy krok
-  przejęcia (nowy adres → reset hasła),
-- **reset z powłoki** (droga ostatnia, np. konto `admin` bez superkoordynatora):
-
-  ```bash
-  docker compose exec web python manage.py reset_2fa adres@example.org \
-    --note "zgłoszenie tel. 4.10, tożsamość potwierdzona wideo – J. Kowalski"
-  ```
-
-  Audyt `2fa.reset` bez wykonawcy z panelu (`via: cli`, notatka), list do właściciela, zamknięte sesje.
-
-### 41.6. Listy do właściciela konta
-
-Włączenie, wyłączenie, nowe kody zapasowe, użycie kodu zapasowego, reset przez organizatora,
-blokada po złych kodach – kolejka `mail`, w języku konta, bez sekretów i bez linków logowania.
-List o resecie i o wyłączeniu idzie też na poprzednie adresy konta z ostatnich 30 dni
-(`staff_mfa.PreviousEmail`, zapisywane przy zmianie adresu tylko przy `TWO_FACTOR_ENABLED=1`;
-znikają z kontem i przy anonimizacji).
-
-### 41.7. API
-
-- `POST /api/auth/login/`: konto wymagane bez urządzenia – w okresie przejściowym token jak dotąd,
-  po nim `403 TWO_FACTOR_SETUP_REQUIRED`; konto z urządzeniem – pole `code` (§ 5, `docs/API.md`),
-- token konta wymaganego bez urządzenia po terminie → `401`; token sprzed potwierdzenia urządzenia → `401`,
-- klucze integracji (`/api/v1/`, `apps.integrations`) to osobny mechanizm bez sesji – poza SEC-01.
-
-### 41.8. Wdrożenie na produkcji (kolejność)
-
-1. wdrożenie (migracje `staff_mfa.0001`–`0002` – cztery puste tabele, bez przerwy),
-2. `.env`: `TWO_FACTOR_REQUIRED_ROLES=superkoordynator,admin`, `TWO_FACTOR_GRACE_DAYS=14`,
-   `TWO_FACTOR_REMEMBER_DAYS=7`, a dopiero potem `TWO_FACTOR_ENABLED=1`; `docker compose up -d web worker beat`,
-3. komunikat do personelu (koordynatorzy, opiekunowie drużyn IQO, oficerowie logistyki): „w ciągu
-   14 dni włącz 2FA w `Twoje konto → Logowanie dwuskładnikowe`”,
-4. po kilku dniach: `/coordinator/security/2fa/` – kto jeszcze nie ma; w razie potrzeby polityka
-   `custom` z `reviewer`/`appeals`,
-5. wycofanie: `TWO_FACTOR_ENABLED=0` (urządzenia i okresy przejściowe zostają w bazie; § 5.6).
-
-Po kroku 2 sprawdź `docker compose exec web python manage.py check`: `staff_mfa.W001` = puste
-`TWO_FACTOR_REQUIRED_ROLES`, `staff_mfa.W002` = brak aktywnego superkoordynatora.
-
-### 41.9. Znane ograniczenia
-
-- **Redis** niesie licznik blokady, wersję polityki i limit `two_factor`: jego awaria wyłącza blokadę
-  i limit (logowanie działa, błąd w logu), a wyczyszczenie go to jednorazowe przeliczenie bramki
-  w każdej sesji,
-- **zmiana roli** dociera do sesji uczestnika (konta bez roli personelu) najpóźniej po 10 min,
-  do pozostałych – od następnego żądania (wersja polityki); zmiana `is_staff` – najpóźniej po 10 min,
-- **okres przejściowy** liczy się od pierwszego wejścia konta po objęciu wymogiem, a nie od
-  włączenia funkcji – konto, które nie loguje się miesiącami, dostanie pełne 14 dni przy pierwszym
-  logowaniu (także przejmujący z samym hasłem; hasło nadal jest potrzebne),
-- **klucze integracji** (`/api/v1/`, `apps.integrations`) nie podlegają 2FA – to osobny mechanizm
-  bez sesji użytkownika (§ 41.7),
-- **WebAuthn/passkeys** – brak (wymagałyby nowej zależności).
-
----
-
-## 43. Test odtwarzania kopii (OPS-01, `docs/tasks/OPS-01.md`)
-
-### 43.1. Po co
-
-Kopia, której nikt nie odtworzył, jest hipotezą. Co noc `scripts/backup_verify.sh` **udowadnia**,
-że najnowsza kopia daje się odtworzyć do działającej platformy – tą samą drogą, co prawdziwa
-awaria – i podnosi alarm, gdy się nie da albo gdy najnowszej kopii brakuje. Do 4.10.2026 test był
-cotygodniowy i liczył wiersze w pięciu tabelach; zepsutą kopię wykrywał po tygodniu, a obciętej do
-połowy nie wykrywał wcale.
-
-### 43.2. Jak to działa
-
-Cron hosta (`/etc/cron.d/olimpiada-backup`, zakłada go `scripts/deploy.sh`): kopia o **3:15**, test
-o **4:40**, codziennie, oba pod jednym `flock` (`/var/lock/olimpiada-backup.lock`) – test nigdy nie
-czyta paczki, którą kopia jeszcze pisze. Log: `/var/log/olimpiada-backup.log`.
-
-| Krok | Co | Gdzie |
-|---|---|---|
-| 1 | najnowsza `db-*.dump.gpg` i `files-<ten sam stamp>.tar.gpg` z `/opt/olimpiada-backups` | host |
-| 2 | liczności tabel kluczowych w **żywej** bazie (`restore_check live-counts`) | kontener `web` |
-| 3 | tymczasowy Postgres (`POSTGRES_IMAGE`), sieć `--internal`, dane na `tmpfs`, `--memory 3g --cpus 1` | nowy kontener `olimpiada-restore-check-<pid>` |
-| 4 | `gpg \| pg_restore --exit-on-error` **strumieniem** – jawny zrzut nie dotyka dysku | host → tymczasowy Postgres |
-| 5 | `gpg \| tar -tf -` – pełny odczyt paczki plików, sama lista obiektów | host (`nice`, `ionice -c3`) |
-| 5b | wersja porównawcza `dj.` (§ 22), gdy jest jej paczka z tej samej nocy | tymczasowy Postgres |
-| 6 | `restore_check verify` – sprawdzenia aplikacji (§ 43.3) | jednorazowy kontener z **obrazem i środowiskiem działającego `web`**, wyłącznie w sieci tymczasowej, `--read-only`, `--memory 1g` |
-| 7 | `restore_check record` – cache, audyt `backup.restore_check`, list przy porażce; wiersz w `/opt/olimpiada-backups/restore-checks.jsonl` | kontener `web`, host |
-
-**Bezpieczeństwo.** Cel odtworzenia to zawsze nowy kontener na nowej sieci bez wyjścia – nie widzi
-bazy produkcyjnej, Redisa ani MinIO. Podwójna bramka: skrypt odmawia, gdy cel jest kontenerem
-usługi `db`, a komenda `verify` – gdy baza nie ma przedrostka `restorecheck_`, nazywa się jak
-`POSTGRES_DB`, leży na hoście `db` albo brak `RESTORE_CHECK_ISOLATED=1`; sesja bazy jest tylko do
-odczytu. Hasło kopii idzie przez deskryptor (`--passphrase-fd`), hasło bazy tymczasowej jest losowe,
-plik ze środowiskiem `web` (z `SECRET_KEY`) leży w katalogu `700` i znika zaraz po sprawdzeniach.
-Wynik niesie wyłącznie nazwy i liczby – żadnych wartości pól; treść błędów `pg_restore` (może
-cytować wiersz) zostaje w logu crona, do listu idzie tylko kod.
-
-### 43.3. Jak czytać wynik
-
-```bash
-docker compose exec web python manage.py restore_check show          # ostatni wynik ze szczegółami
-docker compose exec web python manage.py record_backup_status --show  # znaczniki + poziom testu
-tail -3 /opt/olimpiada-backups/restore-checks.jsonl                    # historia (JSON na noc)
-grep -A14 '5/6 Sprawdzenia' /var/log/olimpiada-backup.log | tail -15   # ostatni przebieg w logu
-```
-
-Poziom (`/healthz/`, `/status.json` → `backup_restore_check`, pierwsza linia `show`):
-
-| Poziom | Znaczy |
-|---|---|
-| `ok` | ostatni test udany, nie starszy niż 36 h |
-| `failed` | ostatni test **nieudany** – kopia z tej nocy nie daje się odtworzyć albo jest niepełna; alarm co godzinę do pierwszego udanego testu |
-| `stale` | ostatni test udany, ale starszy niż 36 h – test przestał chodzić (cron, `flock`, `web` nie działał) |
-| `unknown` | brak wyniku (świeża instalacja, wyczyszczony Redis) |
-
-Sprawdzenia (`ok` / `warn` – wynik nadal udany / `fail` – wynik nieudany / `skip`):
-
-| Sprawdzenie | `fail`, gdy | `warn`, gdy |
-|---|---|---|
-| `backup_age` | kopia starsza niż 26 h (`RESTORE_CHECK_MAX_BACKUP_AGE_HOURS`) | – |
-| `migrations` | brak `django_migrations`, historia niespójna, brak migracji, które działająca wersja miała już przy zrzucie | migracje wdrożone **po** zrzucie (dokończy je `migrate`), migracje nieznane kodowi (wycofanie wersji) |
-| `row_counts` | tabela kluczowa poza widełkami 90–105 % ± 20 wierszy względem żywej bazy, brak tabeli, 0 kont | – |
-| `models_readable` | któryś model nie czyta odtworzonej bazy (rozjazd schematu z kodem) | – |
-| `sequences` | sekwencja klucza głównego za `max(id)` – pierwszy zapis po odtworzeniu by się wywrócił | – |
-| `superuser` | – | brak aktywnego superużytkownika |
-| `fernet` | szyfrogram pola logistyki nie odszyfrowuje się `SECRET_KEY` ani `SECRET_KEY_FALLBACKS` | odszyfrowuje się wyłącznie kluczem z `SECRET_KEY_FALLBACKS` |
-| `files_archive` | brak `files-<stamp>.tar.gpg` albo paczka nieczytelna | – |
-| `media_sample` | z losowej próbki 20 plików prac (`clean`) + mediów CMS brakuje w paczce > 10 % (min. 1) | brak w granicy tolerancji |
-| `djcms_db`, `djcms_files` | jak w § 1.4 | – |
-
-Przebieg przerwany przed sprawdzeniami melduje **nazwę kroku** zamiast listy: `no-backup`,
-`live-counts`, `app-image`, `app-env`, `postgres`, `guard`, `decrypt`, `pg_restore`, `checks`.
-
-### 43.4. RTO i RPO (pomiar lokalny, 4.10.2026)
-
-`scripts/tests/restore_check_e2e.sh` na stacji roboczej (Docker Desktop, WSL2), obraz
-`olimpiada/web:dev`, `postgres:18-alpine`:
-
-| Baza żywa | Zrzut `-Fc` | `pg_restore` (rozszyfrowanie w strumieniu) | Paczka plików (`tar -t`) | Sprawdzenia aplikacji | Cały test |
-|---|---|---|---|---|---|
-| po migracjach + dane testowe | 1,1 MB | 1,9 s | 0,2 s | 2,6 s | 17 s |
-| 426 MB (+1 mln wierszy audytu) | 10 MB | 8,3 s | 0,2 s | 3,5 s | 26 s |
-
-Około 10 s „całego testu” to start trzech procesów Django i kontenera Postgresa – stała, niezależna
-od rozmiaru. **RTO bazy** (od paczki do działającej bazy) rośnie liniowo z jej rozmiarem: lokalnie
-ok. 20 s na 1 GB odtworzonej bazy; na produkcji (VPS traci część czasu procesora na rzecz sąsiadów)
-licz 2–4 razy więcej. **Pełne RTO awarii serwera** to dodatkowo nowy host,
-`git` + obraz, ściągnięcie paczek z miejsca poza serwerem i odtworzenie kubełków (§ 2) – test go nie
-mierzy. Rzeczywiste liczby z produkcji: `restore_check show` (pole `czasy`) po pierwszym przebiegu –
-wpisz je tutaj.
-
-**RPO** – kopia raz na dobę o 3:15: w najgorszym razie tracimy ok. 24 h zmian (awaria tuż przed
-3:15). Test dowodzi, że ta kopia jest **użyteczna**; zepsutą kopię widać najpóźniej ok. 4:45 tej samej
-nocy (list), a brak kopii – po 26 h (`backup_age`) i po 36 h (watchdog `backup`).
-
-### 43.5. Co zrobić, gdy test się nie udał
-
-1. `docker compose exec web python manage.py restore_check show` – które sprawdzenie albo który krok.
-2. Według przyczyny:
-
-| Wynik | Najczęstsza przyczyna | Reakcja |
-|---|---|---|
-| `no-backup`, `backup_age` | kopia nocna nie powstała (§ 1.2, log `/var/log/olimpiada-backup.log`) | napraw kopię, `scripts/backup.sh`, potem test ręcznie (§ 43.6) |
-| `decrypt` | `BACKUP_PASSPHRASE` w `.env` inne niż to, którym zaszyfrowano kopię | **pilne**: porównaj z menedżerem haseł (§ 1.3); kopie zaszyfrowane nieznanym hasłem są stracone – zrób nową kopię od razu |
-| `pg_restore` | paczka obcięta (pełny dysk przy kopii), zrzut z innej wersji Postgresa | `df -h`, log `pg_restore` w `/var/log/olimpiada-backup.log`, nowa kopia |
-| `migrations` (fail) | zrzut z innej instalacji albo w połowie migracji | sprawdź, czy kopia jest z tej nocy; nowa kopia |
-| `row_counts` | zrzut obcięty **albo** masowe kasowanie w bazie żywej od nocy | porównaj liczby w `show`; jeśli zniknęło z bazy żywej – to incydent danych (§ 7), nie kopii |
-| `models_readable`, `sequences` | rozjazd kopii z wdrożonym kodem / brak `setval` w zrzucie | zgłoś programiście z wynikiem `show`; kopia sprzed wdrożenia odtworzy się po `migrate` |
-| `fernet` | zmieniony `SECRET_KEY` bez wpisania starego do `SECRET_KEY_FALLBACKS` (§ 31) | **pilne przed finałem**: przywróć stary klucz do `SECRET_KEY_FALLBACKS` w `.env`, `docker compose up -d web worker beat` |
-| `files_archive`, `media_sample` | lustro MinIO nie powstało albo jest niepełne (§ 1.2, krok 2) | log kopii, `docker compose ps minio`, nowa kopia |
-| `checks` | kontener sprawdzeń bez wyniku (pamięć, obraz) | log crona; `RESTORE_CHECK_APP_MEMORY=2g` w `.env` |
-| `postgres` | brak pamięci na `tmpfs` (baza > 3 GB) | `RESTORE_CHECK_PG_MEMORY` i `RESTORE_CHECK_TMPFS` w `.env` (np. `6g`), jeśli host ma zapas |
-
-3. Po naprawie – test ręcznie (§ 43.6). Udany wynik gasi alarm (`backup-restore-check`).
-
-Progi (w `.env` serwera, czyta je skrypt i przekazuje do sprawdzeń): `RESTORE_CHECK_MAX_BACKUP_AGE_HOURS`
-(26), `RESTORE_CHECK_MIN_RATIO` (0.90), `RESTORE_CHECK_MAX_RATIO` (1.05), `RESTORE_CHECK_SLACK_ROWS`
-(20), `RESTORE_CHECK_MEDIA_SAMPLE` (20), `RESTORE_CHECK_MEDIA_MAX_MISSING_RATIO` (0.10); limity:
-`RESTORE_CHECK_PG_MEMORY` (3g), `RESTORE_CHECK_TMPFS` (3g), `RESTORE_CHECK_PG_CPUS` (1),
-`RESTORE_CHECK_APP_MEMORY` (1g), `RESTORE_CHECK_CPU_SHARES` (256).
-
-### 43.6. Uruchomienie ręczne i test lokalny
-
-```bash
-# na serwerze (czeka na ewentualnie trwającą kopię; kilka minut)
-cd /opt/olimpiada && flock -w 3600 /var/lock/olimpiada-backup.lock scripts/backup_verify.sh
-# konkretna paczka, np. ściągnięta z miejsca poza serwerem (§ 2.2: restore.sh --fetch)
-scripts/backup_verify.sh /opt/olimpiada-backups/db-20261003T031500Z.dump.gpg
-```
-
-Kod wyjścia 0 = wynik `ok`, 1 = nieudany (meldunek i list poszły). Lokalnie, bez serwera:
-`scripts/tests/restore_check_e2e.sh` (pełny cykl na Dockerze: kopia → test → `ok`; zrzut uszkodzony →
-`failed` + list; kopia sprzed 30 h; brak paczki plików; bramka), `RESTORE_CHECK_E2E_AUDIT_ROWS=1000000`
-dokłada balast do pomiaru RTO. Polecenia skryptu na atrapach: `scripts/tests/backup_offsite_test.sh`
-(przypadki 14 i 16), sprawdzenia aplikacji: `pytest apps/core/tests/test_restore_check.py`.
-
-### 43.7. Kroki operatora na produkcji (po wdrożeniu wersji z OPS-01, za zgodą organizatora)
-
-1. Wdrożenie zwykłą drogą (`scripts/deploy.sh`) – krok 8/8 przepisuje `/etc/cron.d/olimpiada-backup`.
-   Sprawdzenie: `cat /etc/cron.d/olimpiada-backup` (dwie linie z `flock`, test `40 4 * * *`)
-   i `command -v flock` (pakiet `util-linux`, na Ubuntu jest zawsze).
-2. `grep ^ALERT_EMAILS= /opt/olimpiada/.env` – bez adresów list alarmowy nie wyjdzie (§ 3.2).
-3. Rozmiar bazy wobec limitu `tmpfs` (3 GB):
-   `docker compose exec db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "SELECT pg_size_pretty(pg_database_size(current_database()))"'`
-   i `free -h` (test zajmuje w nocy do 3 GB + 1 GB RAM). Baza > 2 GB – podnieś
-   `RESTORE_CHECK_PG_MEMORY`/`RESTORE_CHECK_TMPFS` w `.env`.
-4. Pierwszy test od razu (poza godzinami zgłoszeń):
-   `cd /opt/olimpiada && flock -w 3600 /var/lock/olimpiada-backup.lock scripts/backup_verify.sh`,
-   potem `docker compose exec web python manage.py restore_check show` – poziom `ok`.
-5. Czasy z `show` (pole `czasy`: `db_restore_s`, `total_s`) wpisz do § 43.4 jako RTO produkcji.
-6. `curl -s https://olimpiadakwantowa.pl/status.json | python3 -m json.tool | grep backup_restore_check`
-   – `"ok"`. W monitorze zewnętrznym (§ 3.1) dodaj monitor słowa kluczowego
-   `"backup_restore_check": "ok"` na `/status.json`.
-7. (Opcjonalnie) próba listu alarmowego: `docker compose exec web python manage.py restore_check
-   record --failure proba-alarmu --detail "próba listu"` – list do `ALERT_EMAILS`; alarm gaśnie po
-   kolejnym udanym teście (krok 4).
-8. Następnego ranka: `grep -A14 '5/6 Sprawdzenia' /var/log/olimpiada-backup.log | tail -15` – przebieg
-   z crona o 4:40.
-
-Wycofanie: wdrożenie poprzedniej wersji przywraca cotygodniowy wpis crona; po teście zostają tylko
-wpisy audytu `backup.restore_check`, klucz `backup:restore_check` w Redisie i plik
-`restore-checks.jsonl` (ok. 2 KB na noc, bez danych osobowych).
-
----
-
-## 44. Monitoring błędów i dostępności (OPS-02, `docs/tasks/OPS-02.md`)
-
-Trzy rzeczy, każda **wyłączona domyślnie** – serwer bez nowych wpisów w `.env` działa i odpowiada
-tak jak przed tym wydaniem (HTML, CSP, lista warstw, konfiguracja Caddy'ego):
-
-| Co | Gdzie | Włącza |
-|---|---|---|
-| śledzenie błędów aplikacji (ślad stosu, grupowanie, wydanie, konkurs) | GlitchTip (zgodny z Sentry, otwarte oprogramowanie) na tym serwerze, `errors.<domena>` | `SENTRY_DSN` + profil `monitoring` + `ERRORS_PROXY=1` |
-| sprawdzanie dostępności i certyfikatów z listami | usługa `uptime` (profil `monitoring`) albo kopia skryptu na innej maszynie | `docker compose --profile monitoring up -d uptime` |
-| błędy JavaScriptu z przeglądarek | loader z naszego `/static/` → GlitchTip | `SENTRY_BROWSER=1` |
-
-Jedyna zmiana widoczna bez włączania czegokolwiek: trzy nowe, puste sieci compose'a (`errors_ingest`,
-`errors_front`, `errors_egress` – § 44.2a), do których należą `web`/`worker`/`beat`, `proxy` i `mail`,
-oraz osobna zmienna listy klientów relaya (`MAIL_CLIENT_NETWORKS`, domyślnie dotychczasowa wartość).
-Pierwsze wdrożenie tej wersji odtworzy więc te kontenery (jak przy każdej zmianie sieci).
-
-To jest **trzecia** warstwa obok watchdoga (§ 3.2 – dysk, kopie, kolejka, seria 5xx) i Kumy (§ 3.1):
-watchdog mówi „jest 10 błędów 500 w 15 minut”, GlitchTip – **który** wiersz kodu, w którym konkursie
-i od którego wydania.
-
-### 44.1. Co wychodzi z aplikacji (prywatność)
-
-Klient (`sentry-sdk`, `backend/apps/monitoring/sentry.py`) wysyła zdarzenia **wyłącznie** do własnego
-GlitchTipa, z **zamkniętą** listą integracji (Django, Celery, Redis, logowanie, wywołania HTTP – bez
-samowłączających się, czyli m.in. bez integracji SDK oceny AI, które zapisywałyby treść prac). Filtr
-(`backend/apps/monitoring/scrubbing.py`) działa przed wysyłką, w aplikacji:
-
-- **nigdy**: treść żądań i formularzy, ciasteczka, parametry zapytania, adres IP, nagłówki poza
-  `Host`/`Content-Type`/`Accept…`, identyfikator i dane konta, zmienne lokalne programu (wyłączone
-  globalnie), argumenty zadań Celery, linia poleceń procesu, klucze i wartości Redisa,
-- **ścieżka adresu** = wzorzec trasy Django (`/reset/{uidb64}/{token}/`); gdy trasy nie ma (404) –
-  ścieżka z zamaskowanymi segmentami: wszystko po `reset/`, `zgoda/`, `zaproszenie/`, `activate/`,
-  `unsubscribe/`, `verify/`, `dyplomy/`, `new/` … i każdy segment wyglądający na token. To samo dla
-  adresów w okruszkach (także webhooki i wywołania wychodzące), w komunikatach i w loaderze JS,
-- w każdym napisie: e-mail, PESEL, telefon, adres IPv4/IPv6, `token=`/`key=`/…, `Bearer`, JWT, cała
-  linia `DETAIL:` i `Failing row contains (…)` z błędów Postgresa → `[Filtered]`; napis przycięty
-  do 2 KB, wyrażenia liniowe (spreparowany komunikat nie zatrzyma wysyłki),
-- tag `competition` = sam slug konkursu; `release` = `APP_VERSION`.
-
-To jest **pseudonimizacja, nie anonimizacja**: filtr usuwa to, co rozpoznaje, a komunikat błędu
-w nowym kodzie może wyjątkowo nieść coś, czego nie rozpozna – dlatego retencja jest krótka (30 dni),
-a dostęp do panelu wąski (§ 44.3). Rejestr czynności (1.21) dostaje wiersz „Monitorowanie błędów
-aplikacji” przy niepustym `SENTRY_DSN` **albo** włączonych błędach przeglądarek: podmiot przetwarzający
-wewnętrzny (ten serwer, Contabo, Niemcy), bez przekazania do państwa trzeciego.
-
-### 44.2. GlitchTip – uruchomienie (raz, na serwerze, `cd /opt/olimpiada`)
-
-1. **DNS**: rekord `errors.<domena>` typu A na adres serwera (dla Olimpiady Kwantowej
-   `errors.olimpiadakwantowa.pl A 169.58.242.197`, `deploy/dns-olimpiadakwantowa.pl.md`). Slug `errors`
-   jest zarezerwowany – żaden konkurs go nie zajmie.
-2. **Sekrety** w `.env` (każdy osobno: `openssl rand -hex 32`):
-   ```ini
-   GLITCHTIP_SECRET_KEY=<64 znaki hex>
-   GLITCHTIP_DB_PASSWORD=<64 znaki hex>
-   ```
-   GlitchTip **nie** dostaje `.env` platformy (w compose wyłącznie jawna lista zmiennych).
-3. **Start bez adresu publicznego** – GlitchTip wyłącza samorejestrację dopiero **po** pierwszym koncie,
-   więc najpierw konto, potem Caddy:
-   ```bash
-   docker compose up -d web worker beat proxy mail     # nowe sieci (pierwsze wdrożenie tej wersji robi to samo)
-   docker compose --profile monitoring up -d glitchtip-db glitchtip
-   docker compose --profile monitoring ps glitchtip          # healthy po ~1–2 min (migracje)
-   docker compose --profile monitoring exec glitchtip ./manage.py createsuperuser
-   ```
-4. **Kontrola przed adresem publicznym** – musi wypisać liczbę ≥ 1:
-   ```bash
-   docker compose --profile monitoring exec -T glitchtip ./manage.py shell -c \
-     "from django.contrib.auth import get_user_model as U; print(U().objects.count())"
-   ```
-   Dopiero wtedy w `.env` `ERRORS_PROXY=1` i `bash scripts/proxy_config.sh update` (render + `caddy
-   validate` + `caddy reload`). `scripts/deploy.sh` przy każdym wdrożeniu ostrzega, gdy `ERRORS_PROXY=1`,
-   a GlitchTip nie ma kont albo nie działa. Blok `errors.<domena>` → `glitchtip:8000`: HSTS, `nosniff`,
-   `X-Frame-Options DENY`, limit żądania 10 MB, **bez** strony prac technicznych.
-5. **Zabezpieczenie konta**: w ustawieniach profilu GlitchTipa włącz **logowanie dwuskładnikowe
-   (TOTP)** dla każdego konta. Opcjonalnie panel tylko z biura/VPN: `ERRORS_UI_ALLOW=203.0.113.7 198.51.100.0/24`
-   w `.env` + `bash scripts/proxy_config.sh update` – Caddy odpowiada 403 na wszystko poza
-   przyjmowaniem zdarzeń (`/api/<nr>/envelope|store|minidump|security/`) i `/_health/`, które muszą
-   zostać otwarte dla przeglądarek uczestników i monitora.
-6. **Projekt i limit (obowiązkowo)**: `https://errors.<domena>/` → organizacja (np. „Olimpiada”) →
-   projekt typu **Django** („platforma”). *Settings → Projects → platforma → Client Keys (DSN)* –
-   skopiuj DSN i **ustaw limit zdarzeń klucza** (rate limit, np. 300 zdarzeń / 60 s). Bez limitu pętla
-   błędów albo ktoś z publicznym kluczem przeglądarki (§ 44.6) zapełni bazę GlitchTipa. Caddy w
-   obrazie `caddy:2.8` nie ma modułu limitu żądań (wymagałby własnego obrazu z wtyczką) – limit jest
-   po stronie GlitchTipa, plus limity zasobów kontenerów niżej.
-7. **Aplikacja**: w `.env` **DSN wewnętrzny** (sieć `errors_ingest` – `worker` i `beat` nie mają wyjścia
-   do internetu, więc adres publiczny dla nich nie działa):
-   ```ini
-   SENTRY_DSN=http://<klucz>@glitchtip:8000/<nr projektu>
-   # SENTRY_ENVIRONMENT=production   SENTRY_SAMPLE_RATE=1.0   SENTRY_TRACES_SAMPLE_RATE=0.0
-   ```
-   i `docker compose up -d web worker beat`.
-8. **Sprawdzenie**: `docker compose exec web python -c "import django; django.setup();
-   import sentry_sdk; sentry_sdk.capture_message('OPS-02 test'); sentry_sdk.flush()"` – zdarzenie
-   „OPS-02 test” pojawia się w projekcie w ciągu kilku sekund (to samo z `worker`).
-
-### 44.2a. Sieci i poczta GlitchTipa
-
-GlitchTip **nie** stoi w `edge` ani w `internal` (pierwsza jest w `TRUSTED_PROXY_IPS` aplikacji, druga
-ma bazę platformy). Ma cztery wąskie sieci:
-
-| Sieć | Członkowie | Po co |
-|---|---|---|
-| `errors_front` (internal) | `proxy`, `glitchtip` | Caddy: `errors.<domena>` → `glitchtip:8000` |
-| `errors_ingest` (internal) | `web`, `worker`, `beat`, `glitchtip` | zgłoszenia przez DSN wewnętrzny |
-| `errors_egress` | `glitchtip`, `mail` | wyjście (webhooki, zewnętrzny SMTP) i relay |
-| `errors` (internal) | `glitchtip`, `glitchtip-db` | baza |
-
-Poczta (reguły alarmów, zaproszenia, reset hasła GlitchTipa) idzie przez relay serwisu (`mail:587`),
-ale z podsieci `errors_egress` relay przyjmuje **wyłącznie** nadawcę `glitchtip@<SITE_DOMAIN>` – każdy
-inny dostaje 554 (`smtpd_sender_restrictions` przy usłudze `mail`, sprawdzone na boky/postfix 5.1.0).
-Domena `SITE_DOMAIN` musi zostać w `ALLOWED_SENDER_DOMAINS`. Zamiast relaya: `GLITCHTIP_EMAIL_URL=
-smtp+tls://użytkownik:hasło@smtp.dostawca:587` (wychodzi przez `errors_egress`), a bez poczty w ogóle:
-`GLITCHTIP_EMAIL_URL=consolemail://` (listy w logu kontenera; alarmy GlitchTipa wtedy nie działają).
-
-Zasoby: `glitchtip` 768 MB / 1 CPU (w spoczynku ~170 MB), `glitchtip-db` 512 MB / 1 CPU. Kolejka i cache
-w Postgresie GlitchTipa (`VALKEY_URL` pusty) – Redis platformy nie jest mu ani potrzebny, ani dostępny.
-Retencja 30 dni (`GLITCHTIP_RETENTION_DAYS` – sprawdzone w obrazie 6.2.6: zdarzenia, transakcje, pliki,
-logi i uptime = 30; wydania 365, bez danych osób). Katalog `/code/uploads` (wolumen `glitchtip_uploads`)
-jest zapisywalny dla użytkownika obrazu (uid 5000). **Dysk**: baza GlitchTipa leży na tym samym dysku co
-serwis – watchdog (§ 3.2) alarmuje przy < 10 % wolnego miejsca; przy alarmie sprawdź
-`docker system df -v | grep glitchtip` i w razie potrzeby obniż `GLITCHTIP_RETENTION_DAYS`. Wolumeny
-`glitchtip_pg` i `glitchtip_uploads` **nie** są w kopii zapasowej – zdarzenia błędów nie są danymi do
-odtwarzania.
-
-### 44.3. Reguły alarmów i konta w GlitchTipie
-
-W projekcie: *Settings → Projects → platforma → Project Alerts → Create*:
-
-| Reguła | Ustawienie | Po co |
-|---|---|---|
-| nowy rodzaj błędu | „new issue” (domyślnie), e-mail do zespołu | jeden list na nowy problem, a nie na każde wystąpienie |
-| seria | „more than **20** events in **10** minutes” | awaria w trakcie oddawania prac |
-| powrót błędu | „regression” | wydanie, które coś zepsuło na nowo |
-
-Dyżurni: samorejestracja jest wyłączona, a zaproszenie (*Organization → Members → Invite*) działa
-wyłącznie dla istniejącego konta. Konto **bez hasła** (nic nie zostaje w historii powłoki):
-
-```bash
-docker compose --profile monitoring exec glitchtip ./manage.py shell -c \
-  "from django.contrib.auth import get_user_model as U; U().objects.create_user('dyzurny@qaif.org', None)"
-```
-
-potem zaproszenie do organizacji; osoba ustawia hasło przez „Forgot password” na stronie logowania
-(wymaga działającej poczty, § 44.2a) i od razu włącza TOTP.
-
-### 44.4. Monitor dostępności (`uptime`)
-
-```bash
-docker compose --profile monitoring up -d uptime
-docker compose --profile monitoring logs -f uptime        # „ok / FAIL” każdego celu co minutę
-```
-
-Program: `backend/apps/monitoring/uptime.py` – jeden plik, sama biblioteka standardowa (parsuje się na
-Pythonie 3.10). Cele z tych samych zmiennych, z których Caddy składa konfigurację:
-`https://<SITE_DOMAIN>/` i `/healthz/` (`"status": "ok"`), to samo dla każdej domeny z `EXTRA_DOMAINS`
-(dla nas `iqo-official.org`; bez `www.`), `https://<SITE_DOMAIN>/status.json`, `https://live.<…>/`
-(gdy `LIVEKIT_URL`), `https://errors.<domena>/_health/` (gdy `ERRORS_PROXY=1`), laboratorium
-notebooków `https://<SITE_DOMAIN>/static/notebook-lab/current.json` (gdy `UPTIME_NOTEBOOK_LAB=1`, § QC-01;
-wykonawca `notebook-runner` nie ma sieci – jego stan pokazuje healthcheck compose'a) oraz
-`UPTIME_EXTRA_URLS` (sufiks `|json` = wymagaj `"status": "ok"`). Do tego certyfikat TLS każdego hosta.
-
-| Zdarzenie | List |
-|---|---|
-| 3 porażki pod rząd (≈ 3 min) | „AWARIA” – raz |
-| awaria trwa | przypomnienie po 1 h, 2 h, 4 h, 8 h … najrzadziej raz na 24 h |
-| 2 sukcesy pod rząd po awarii | „POWRÓT” z czasem przerwy – tylko, jeśli poszedł list o awarii |
-| certyfikat < 14 dni albo nieważny | „CERTYFIKAT” od razu, potem raz na dobę; po odnowieniu „CERTYFIKAT OK” |
-
-Wszystko z jednego przebiegu to **jeden** list (śmierć hosta ≠ dziesięć listów), a twardy limit to
-6 listów na godzinę – nadmiar czeka i jedzie w następnym. Odbiorcy: `UPTIME_ALERT_EMAILS`, a gdy pusty –
-`ALERT_EMAILS` (watchdog). **Przerwa planowa** (`scripts/maintenance.sh on` – plik `maintenance/on`,
-montowany tylko do odczytu) nie daje listów o porażkach HTTP; przerwa nieplanowana (strona zastępcza
-przy leżącym `web`, bez pliku `on`) alarmuje normalnie. Stan (trwające awarie, zaległe listy) leży
-w wolumenie `uptime_state` i przeżywa restart. `uptime` stoi w sieci `edge` (wyjście na adresy
-publiczne, relay `mail`) – bez sekretów i bez `.env`.
-
-Usługa chodzi na obrazie aplikacji; `scripts/deploy.sh` odtwarza ją na nowym obrazie przy każdym
-wdrożeniu (jeśli w ogóle działa).
-
-### 44.5. Monitor spoza tego serwera (zalecane – wybór operatora)
-
-`uptime` i Kuma stoją na tej samej maszynie co serwis: śmierć hosta, sieci u dostawcy albo zasilania
-zabiera je razem z nim i **nikt nie dostaje listu**. Dwa warianty, do wyboru:
-
-- **(a) kopia skryptu na innej maszynie** (dowolny Linux z Pythonem ≥ 3.10 i dostępem do SMTP):
-  ```bash
-  scp backend/apps/monitoring/uptime.py inna-maszyna:/opt/uptime/uptime.py
-  # crontab -e na tamtej maszynie:
-  * * * * * SITE_DOMAIN=olimpiadakwantowa.pl EXTRA_DOMAINS=iqo-official.org \
-    UPTIME_ALERT_EMAILS=dyzurny@qaif.org UPTIME_SMTP_HOST=smtp.dostawca.example \
-    UPTIME_SMTP_PORT=587 UPTIME_SMTP_STARTTLS=1 UPTIME_FROM=uptime@qaif.org \
-    UPTIME_STATE_FILE=/opt/uptime/state.json python3 /opt/uptime/uptime.py --once
-  ```
-  (relay serwisu jest stamtąd nieosiągalny – potrzebny serwer SMTP, który przyjmie list z tamtej
-  maszyny bez hasła, np. jej własny relay; nadawca w domenie, która na to pozwala),
-- **(b) darmowa usługa zewnętrzna** (UptimeRobot, Better Stack, HetrixTools – plan bezpłatny co 5 min):
-  monitor słowa kluczowego na `https://olimpiadakwantowa.pl/status.json` i
-  `https://iqo-official.org/healthz/`, szukane `"status": "ok"` (albo `"status":"ok"` – zależnie od
-  formatowania odpowiedzi), powiadomienie e-mail; do tego „SSL expiry” 14 dni. Usługa widzi wyłącznie
-  publiczne adresy i poziomy z § 3.1 (bez liczb i dat), więc nie jest odbiorcą danych osobowych.
-
-### 44.6. Błędy JavaScriptu (opcjonalnie)
-
-`SENTRY_BROWSER=1` i **publiczny** DSN dla przeglądarek w `.env` + `docker compose up -d web`:
-
-```ini
-SENTRY_BROWSER=1
-SENTRY_BROWSER_DSN=https://<klucz>@errors.<domena>/<nr>     # wyłącznie https i nazwa z kropką
-```
-
-Najlepiej **osobny projekt** w GlitchTipie (osobny klucz z własnym limitem – § 44.2 krok 6): klucz
-przeglądarki jest jawny w HTML-u każdej strony. Gdy `SENTRY_BROWSER_DSN` jest pusty, loader bierze
-`SENTRY_DSN` – ale tylko jeśli ten jest publiczny (`https://…`); DSN wewnętrzny (`http://…@glitchtip…`)
-wyłącza loader. Każda strona publiczna dostaje `<script nonce src="/static/monitoring/errors.js">`
-(bez SDK i bez CDN), a CSP – origin `errors.<domena>` w `connect-src` (nic więcej). Loader wysyła
-najwyżej 5 zdarzeń na stronę, bez duplikatów, z adresem strony bez zapytania i z zamaskowanymi
-tokenami w ścieżce, komunikatem po tym samym filtrze co serwer; żadnych ciasteczek, User-Agenta ani
-identyfikatora konta.
-
-### 44.7. Wyłączenie i wycofanie
-
-- błędy aplikacji: `SENTRY_DSN=` i `SENTRY_BROWSER=0` w `.env`, `docker compose up -d web worker beat` –
-  klient nie startuje, CSP i strony wracają do stanu sprzed OPS-02, wiersz rejestru znika,
-- adres: `ERRORS_PROXY=0`, `bash scripts/proxy_config.sh update`,
-- usługi: `docker compose --profile monitoring stop glitchtip glitchtip-db uptime`; dane usuwa dopiero
-  `docker compose --profile monitoring rm -sf glitchtip glitchtip-db` +
-  `docker volume rm <projekt>_glitchtip_pg <projekt>_glitchtip_uploads` (prefiks z `docker volume ls`),
-- aktualizacja GlitchTipa: nowy tag **i** skrót w `docker-compose.yml` (osobny commit), potem
-  `docker compose --profile monitoring pull glitchtip && docker compose --profile monitoring up -d glitchtip`
-  (migracje przy starcie). Przed przeskokiem wersji głównej – notatki wydania na glitchtip.com/blog
-  (GlitchTip 6 łączy web i worker w jednym procesie; następne wersje odrzucają `SERVER_ROLE=worker`).
 
 ## 39. Nadzór zdalny etapów online (PROC-01, `docs/tasks/PROC-01.md`)
 
@@ -5830,6 +5378,742 @@ usuń zmienną i powtórz krok 3 (wynik generatora wraca bajt w bajt do QC-01).
 **Dev:** `NOTEBOOK_LAB_HOST=lab.localhost:8000` przy `runserver --nostatic` na `localhost:8000`
 (przeglądarki rozwiązują `*.localhost` lokalnie; port dopuszcza tylko Django, nie generator proxy).
 
+## 41. Logowanie dwuskładnikowe personelu (SEC-01, `docs/tasks/SEC-01.md`)
+
+Rozszerza § 5 (protokół TOTP, kody zapasowe, poczekalnia, reset) o **politykę wymogu dla personelu**,
+okres przejściowy, blokadę konta, „zapamiętaj to urządzenie”, listy do właściciela i zawężenie resetu
+cudzego 2FA personelu do superkoordynatora. Kod: `apps/staff_mfa/` + `apps/accounts/twofactor.py`.
+
+### 41.1. Ustawienia (`/opt/olimpiada/.env`, wszystkie bez znaczenia przy `TWO_FACTOR_ENABLED=0`)
+
+```ini
+TWO_FACTOR_ENABLED=1                              # wyłącznik główny (§ 5), domyślnie 0
+TWO_FACTOR_REQUIRED_ROLES=superkoordynator,admin  # role PLATFORMY – wymagane w każdym konkursie
+TWO_FACTOR_GRACE_DAYS=14                          # okres przejściowy (dni)
+TWO_FACTOR_REMEMBER_DAYS=7                        # „zapamiętaj to urządzenie” (0 = bez tej opcji)
+```
+
+Klucze ról: `superkoordynator`, `admin` (`is_staff`/superuser – dostęp do `/admin/`), `coordinator`
+(także oficer logistyki), `team_leader`, `logistics` (przydział w logistyce finału, także obsługa
+rejestracji), `reviewer`, `appeals`, `supervisor`. **`participant` jest odrzucany** – uczestnika
+nie da się objąć wymogiem żadną drogą. Nieznany klucz jest pomijany z ostrzeżeniem w logu.
+
+> **Uwaga przy aktualizacji `.env`:** pusta wartość `TWO_FACTOR_REQUIRED_ROLES=` (stara wartość
+> z `.env.example`) **wyłącza** role platformy. Wpisz `superkoordynator,admin` jawnie.
+
+Po zmianie: `docker compose up -d web worker beat`.
+
+### 41.2. Polityka konkursu – `/coordinator/security/2fa/` („Raporty → Bezpieczeństwo logowania”)
+
+- tryb **automatyczny** (domyślny, także bez zapisanego wiersza): konkurs z funkcją wrażliwą –
+  tryb delegacji, `fees`, `onsite_logistics`, `proctoring` – wymaga 2FA od `coordinator`,
+  `team_leader`, `logistics`; konkurs bez nich nie wymaga niczego ponad role platformy
+  (Olimpiada Kwantowa bez płatności i logistyki: wymóg tylko dla superkoordynatora i `/admin/`),
+- tryb **wybrane role**: dokładnie zaznaczone role konkursu (pusta lista = nic ponad platformę),
+- okres przejściowy konkursu (puste = `TWO_FACTOR_GRACE_DAYS`, 0 = od razu, maks. 90),
+- „pozwól zapamiętać urządzenie” (wyłączone = kod przy każdym logowaniu).
+
+**Zmienia wyłącznie superkoordynator** (koordynator widzi samą politykę; POST = 403)
+albo operator w `/admin/` (`staff_mfa → polityki 2FA konkursów`). Zapis: audyt `2fa.policy_changed`
+(przed → po) i nowa wersja polityki – działające sesje liczą wymóg od następnego żądania.
+Lista personelu (role, 2FA tak/nie, termin okresu przejściowego, odnośnik do konta) – **wyłącznie
+dla superkoordynatora**: „kto nie ma 2FA” to lista najłatwiejszych celów.
+
+### 41.3. Okres przejściowy i wymuszanie
+
+- pierwsze żądanie konta objętego wymogiem bez urządzenia zakłada `TwoFactorGrace` (audyt
+  `2fa.grace_started`); do terminu – baner na każdej stronie serwisu (także w motywie IQO),
+- po terminie – poczekalnia „skonfiguruj” dla **całej** sesji (panel, `/cms/`, `/admin/`, `/api/`,
+  także `/account/…`); wolno tylko `/account/2fa/…`, wylogowanie, preferencje i `/status/`,
+- okres jest **jednorazowy**: wyłączenie 2FA ani reset go nie odnawiają (konto konfiguruje 2FA od razu
+  po zalogowaniu hasłem). Wydłużyć go można wyłącznie zmianą `grace_days` w polityce konkursu,
+- wymóg liczony per konkurs żądania: ten sam koordynator może musieć mieć 2FA na `iqo-official.org`,
+  a nie musieć na olimpiadakwantowa.pl. Urządzenie jest jedno dla konta – kto je ma, podaje kod wszędzie,
+- uczestnik nigdy nie dostaje banera ani poczekalni „skonfiguruj” (2FA włączone dobrowolnie działa jak dotąd),
+- termin dla ról **platformy** (`superkoordynator`, `admin`) liczy się wyłącznie z
+  `TWO_FACTOR_GRACE_DAYS` – polityka konkursu go nie wydłuży; przy rolach z obu źródeł – wcześniejszy,
+- zmiana ról w trakcie sesji: nadanie roli personelu (grupa, `Membership`, przydział logistyki,
+  opiekun delegacji) i zmiana przełączników konkursu podbijają wersję polityki – działające sesje
+  liczą wymóg od następnego żądania. Znacznik „nie musisz” żyje najwyżej 10 min; konto bez żadnej
+  roli personelu (uczestnik) nie czyta przy każdym żądaniu wersji z Redisa, więc rola nadana
+  uczestnikowi zadziała u niego najpóźniej po 10 min,
+- włączenie, wyłączenie i reset 2FA zamykają **inne** sesje konta (reset – wszystkie),
+- po wdrożeniu SEC-01 każda sesja przechodzi bramkę od nowa (klucz sesji `2fa_passed` zamiast
+  `2fa_verified`).
+
+### 41.4. Bezpieczeństwo kodów
+
+- **blokada konta**: 5 złych kodów w 15 min → 15 min blokady (w blokadzie nawet dobry kod jest
+  odrzucany); audyt `2fa.locked`, list do właściciela, API `429 TWO_FACTOR_LOCKED`. Próba jest
+  liczona **przed** sprawdzeniem kodu – równoległa seria nie przekroczy limitu. Licznik w Redisie –
+  awaria Redisa wyłącza blokadę (błąd w logu, logowanie działa; limit `two_factor` 10/min per IP też
+  stoi w Redisie),
+- jednorazowość kodu TOTP (warunkowy `UPDATE`) i kodu zapasowego (`select_for_update`) odporna na
+  równoległe żądania,
+- wyłączenie 2FA i nowy komplet kodów (`/account/2fa/codes/regenerate/`) wymagają hasła **i** kodu,
+- „zapamiętaj to urządzenie”: podpisane ciasteczko `2fa_trust` (`HttpOnly`, `SameSite=Lax`, `Secure`
+  jak sesja), ważne wyłącznie w konkursie, który je wydał (konkurs pod prefiksem ścieżki dzieli
+  ciasteczka z gospodarzem), unieważniane zmianą hasła, wyłączeniem i resetem 2FA oraz przyciskiem
+  „Zapomnij wszystkie urządzenia” na `/account/2fa/` (audyt `2fa.devices_forgotten`); audyt `2fa.remembered`,
+- ekrany 2FA: `Cache-Control: private, no-store`; pełnostronicowy cache ich nie dotyczy.
+
+### 41.5. „Zgubiłem telefon” – reset przez organizatora
+
+`Panel → Konta → (konto) → Logowanie dwuskładnikowe → Zdejmij drugi składnik`:
+
+- konto **personelu** – rola z § 41.1 poza `supervisor` w **dowolnym** konkursie (grupy, `Membership`,
+  przydział logistyki, opiekun delegacji, `is_staff`), także konto **zablokowane**: **wyłącznie
+  superkoordynator**; koordynator widzi zdanie „wyłącznie superkoordynator”, POST = 403,
+- wyjątek, gdy na platformie nie ma żadnego aktywnego superkoordynatora: koordynator może zresetować
+  personel **swojego** konkursu – nigdy konto `admin`/superkoordynatora ani personel innego konkursu.
+  Przy `migrate`/`manage.py check` pojawia się wtedy ostrzeżenie `staff_mfa.W002`,
+- uczestnik i opiekun szkolny: koordynator, jak dotąd,
+- zawsze: potwierdź tożsamość drogą inną niż e-mail z tego konta (§ 5.4); audyt `2fa.reset`; właściciel
+  dostaje list – także na **poprzedni** adres, jeśli adres konta zmieniono w ostatnich 30 dniach;
+  wszystkie sesje właściciela zostają zamknięte. Nadanie roli superkoordynatora: komenda
+  `superkoordynator` (`--help`),
+- **zmiana adresu e-mail** konta z 2FA albo konta personelu (przy `TWO_FACTOR_ENABLED=1`): wyłącznie
+  superkoordynator albo `/admin/`. Koordynator dostaje odmowę – zmiana adresu to pierwszy krok
+  przejęcia (nowy adres → reset hasła),
+- **reset z powłoki** (droga ostatnia, np. konto `admin` bez superkoordynatora):
+
+  ```bash
+  docker compose exec web python manage.py reset_2fa adres@example.org \
+    --note "zgłoszenie tel. 4.10, tożsamość potwierdzona wideo – J. Kowalski"
+  ```
+
+  Audyt `2fa.reset` bez wykonawcy z panelu (`via: cli`, notatka), list do właściciela, zamknięte sesje.
+
+### 41.6. Listy do właściciela konta
+
+Włączenie, wyłączenie, nowe kody zapasowe, użycie kodu zapasowego, reset przez organizatora,
+blokada po złych kodach – kolejka `mail`, w języku konta, bez sekretów i bez linków logowania.
+List o resecie i o wyłączeniu idzie też na poprzednie adresy konta z ostatnich 30 dni
+(`staff_mfa.PreviousEmail`, zapisywane przy zmianie adresu tylko przy `TWO_FACTOR_ENABLED=1`;
+znikają z kontem i przy anonimizacji).
+
+### 41.7. API
+
+- `POST /api/auth/login/`: konto wymagane bez urządzenia – w okresie przejściowym token jak dotąd,
+  po nim `403 TWO_FACTOR_SETUP_REQUIRED`; konto z urządzeniem – pole `code` (§ 5, `docs/API.md`),
+- token konta wymaganego bez urządzenia po terminie → `401`; token sprzed potwierdzenia urządzenia → `401`,
+- klucze integracji (`/api/v1/`, `apps.integrations`) to osobny mechanizm bez sesji – poza SEC-01.
+
+### 41.8. Wdrożenie na produkcji (kolejność)
+
+1. wdrożenie (migracje `staff_mfa.0001`–`0002` – cztery puste tabele, bez przerwy),
+2. `.env`: `TWO_FACTOR_REQUIRED_ROLES=superkoordynator,admin`, `TWO_FACTOR_GRACE_DAYS=14`,
+   `TWO_FACTOR_REMEMBER_DAYS=7`, a dopiero potem `TWO_FACTOR_ENABLED=1`; `docker compose up -d web worker beat`,
+3. komunikat do personelu (koordynatorzy, opiekunowie drużyn IQO, oficerowie logistyki): „w ciągu
+   14 dni włącz 2FA w `Twoje konto → Logowanie dwuskładnikowe`”,
+4. po kilku dniach: `/coordinator/security/2fa/` – kto jeszcze nie ma; w razie potrzeby polityka
+   `custom` z `reviewer`/`appeals`,
+5. wycofanie: `TWO_FACTOR_ENABLED=0` (urządzenia i okresy przejściowe zostają w bazie; § 5.6).
+
+Po kroku 2 sprawdź `docker compose exec web python manage.py check`: `staff_mfa.W001` = puste
+`TWO_FACTOR_REQUIRED_ROLES`, `staff_mfa.W002` = brak aktywnego superkoordynatora.
+
+### 41.9. Znane ograniczenia
+
+- **Redis** niesie licznik blokady, wersję polityki i limit `two_factor`: jego awaria wyłącza blokadę
+  i limit (logowanie działa, błąd w logu), a wyczyszczenie go to jednorazowe przeliczenie bramki
+  w każdej sesji,
+- **zmiana roli** dociera do sesji uczestnika (konta bez roli personelu) najpóźniej po 10 min,
+  do pozostałych – od następnego żądania (wersja polityki); zmiana `is_staff` – najpóźniej po 10 min,
+- **okres przejściowy** liczy się od pierwszego wejścia konta po objęciu wymogiem, a nie od
+  włączenia funkcji – konto, które nie loguje się miesiącami, dostanie pełne 14 dni przy pierwszym
+  logowaniu (także przejmujący z samym hasłem; hasło nadal jest potrzebne),
+- **klucze integracji** (`/api/v1/`, `apps.integrations`) nie podlegają 2FA – to osobny mechanizm
+  bez sesji użytkownika (§ 41.7),
+- **WebAuthn/passkeys** – brak (wymagałyby nowej zależności).
+
+---
+
+## 42. Test obciążenia i plan pojemności (PERF-01, `docs/tasks/PERF-01.md`)
+
+### 42.1. Po co i czego to nie robi
+
+Przed etapem międzynarodowym IQO trzeba wiedzieć, ilu uczniów naraz wytrzyma jeden VPS Contabo
+(6 vCPU / 11 GB, 12–37 % ukradzionego czasu CPU – pomiar z 22.09.2026) i co ustawić na dzień zawodów.
+Test biegnie **wyłącznie lokalnie**, na osobnym, jednorazowym stosie compose. Generator odmawia
+każdego hosta spoza listy lokalnej, a domen i adresu produkcji – zawsze. Test na serwerze to osobna
+procedura (§ 42.6), za osobną zgodą właściciela serwisu.
+
+### 42.2. Jak uruchomić
+
+```bash
+# w katalogu repozytorium, na komputerze deweloperskim (Docker Desktop)
+WEB_WORKERS=6 WEB_THREADS=4 LOADTEST_WEB_CPUS=4 scripts/loadtest/run.sh up   # stos olimpiada-loadtest
+scripts/loadtest/run.sh seed --students 3000                                 # dane + runs/loadtest/manifest.json
+scripts/loadtest/run.sh run smoke --profile smoke                            # 30 s, sprawdzenie stosu
+LOADTEST_SHARDS=6 scripts/loadtest/run.sh run t3000 --profile stage-open-3000
+scripts/loadtest/run.sh down                                                 # kasuje stos i jego wolumeny
+```
+
+- wynik: `runs/loadtest/<nazwa>/summary.md` (p50/p95/p99, błędy, req/s, trafienia cache'u – per adres
+  i faza `login`/`burst`/`steady`), `timeline.csv` (kubełki 10 s), `requests.csv` (każde żądanie),
+  `stats.csv` (`docker stats` co 5 s), `pg_top.txt` (`pg_stat_statements`), `web_errors.txt`,
+- **`LOADTEST_SHARDS`** – liczba procesów generatora. Jeden proces Pythona to jeden rdzeń; od ok.
+  90 żądań/s sam staje się wąskim gardłem (serwer bezczynny, generator 100 % rdzenia). Od 1000
+  uczniów: 6 procesów; `stats.csv` pokazuje, czy żaden kontener `loadgen` nie dobija do 100 %,
+- profile: `smoke`, `stage-open-300/1000/3000` (okno logowania, T0 rozłożone na `--burst` s, 300 s
+  stanu ustalonego), `steady-1000`; parametry nadpisuje się flagami (`loadgen.py --help`), np.
+  `--students-per-ip 30` (sala za jednym NAT-em), `--quiz-share`, `--chat-share`, `--upload-mb`,
+- zmienne stosu (przy `up`): `WEB_WORKERS`, `WEB_THREADS`, `WEB_MAX_REQUESTS`, `WEB_KEEPALIVE`,
+  `CHAT_POLL_SECONDS`, `LOADTEST_WEB_CPUS`/`_DB_CPUS`/`_PROXY_CPUS`, `LOADTEST_BACKEND_DIR` (inny
+  katalog `backend`, np. `git archive origin/main backend` – pomiar A/B w jednej sesji),
+- koszt CPU i liczba zapytań gorących adresów bez sieci:
+  `docker compose -f scripts/loadtest/docker-compose.loadtest.yml exec -T web python manage.py shell < scripts/loadtest/profile_endpoints.py`.
+
+Różnice wobec produkcji: HTTP bez TLS, generator na tej samej maszynie, rdzeń komputera
+deweloperskiego (i9-14900K) szybszy od vCPU Contabo – stąd współczynnik w § 42.4.
+
+### 42.3. Wyniki lokalne (5.10.2026)
+
+Stos: `web` 6×4 z limitem 4 CPU, `db` 2 CPU; scenariusz z `docs/tasks/PERF-01.md` § 2 (40 % uczniów
+w teście online z autozapisem co 20 s, 60 % w etapie pisemnym z wysyłką skanów 1–5 MB, połowa z otwartym
+czatem, 3 PDF-y treści po 600 KB w T0, goście 5–8/s, 5 koordynatorów z eksportami CSV).
+
+**Koszt adresów** (`profile_endpoints.py`, mediana, A/B przeplatane w jednej sesji; CPU ms to rdzeń
+i9 – rozrzut między sesjami ±30 %, liczba zapytań jest deterministyczna):
+
+| adres | przed: CPU ms / zapytań | po: CPU ms / zapytań |
+|---|---:|---:|
+| `GET /` gość (trafienie cache'u) | 3 / 3 | 3 / 3 |
+| `GET /?utm_source=…` gość | 21 / 24 | 3 / 2 |
+| `GET /results/<id>/` (3000 wierszy) gość | 157–166 / 10 | 5–7 / 2 |
+| `GET /wyniki/` gość (1,3 MB) | ~160 / 16 | 6 / 2 |
+| `GET /me/` | 37–38 / 38 | 30–32 / 30 |
+| `GET` PDF treści (600 KB) | 12–13 / 6 | 12–13 / 6 |
+| `GET` odpytanie czatu (204) | 11 / 13 | 10–14 / 12 |
+| `POST` autozapis testu (20 odp.) | 26–37 / 95 | 12–23 / 15 |
+| `GET /coordinator/` | 28–30 / 31 | ~30 / 31 |
+| `GET` eksport CSV uczestników (3000) | 170–190 / 12 | bez zmian |
+| `POST /login/` (PBKDF2 1,5 mln) | ~150 (sam skrót) | bez zmian |
+
+**Przebiegi end-to-end** (p50 / p95 w ms; „przed” = `origin/main` z 4.10.2026, „po” = ta gałąź):
+
+| przebieg | faza | req/s | przed p50 / p95 | po p50 / p95 | błędy przed → po |
+|---|---|---:|---:|---:|---:|
+| 1000 uczniów | logowanie (180 s) | 27 | 31 / 227 | 18 / 187 | 0 → 0 |
+| 1000 uczniów | T0 (wszyscy w 60 s) | 76 → 86 | 2730 / 7829 | 29 / 169 | 0 → 0 |
+| 1000 uczniów | stan ustalony | 62–64 | 58 / 1961 | 21 / 70 | 0,05 % → 0,01 % |
+| 3000 uczniów | logowanie (300 s) | 48 | 43 / 343 | 42 / 339 | 0 → 0 |
+| 3000 uczniów | T0 (wszyscy w 60 s) | 116 → 129 | 22 079 / 44 101 | 18 727 / 32 128 | 0,1 % → 0 |
+| 3000 uczniów | stan ustalony | 97 → 101 | 24 123 / 39 122 | 15 992 / 45 780 | 1,2 % → 1,0 % |
+| 3000 uczniów, dzień zawodów¹ | T0 | 136 | – | 16 987 / 25 083 | – → 0 |
+| 3000 uczniów, dzień zawodów¹ | stan ustalony | 100 | – | 8 207 / 17 548 | – → 0,004 % |
+
+¹ Ta gałąź + konfiguracja z § 42.5: `WEB_MAX_REQUESTS=0`, `CHAT_POLL_SECONDS=45`.
+
+Jak to czytać:
+
+- **1000 uczniów na 4 rdzeniach i9 – zdrowo po poprawkach** (p95 < 200 ms także w T0). Przed
+  poprawkami ten sam ruch był tuż za kolanem krzywej: T0 kolejkował żądania do 8–10 s. Uwaga: przebiegi
+  1000 przed/po nie były przeplatane (rozrzut maszyny ±30 %), więc różnica jest częściowo „kolanem”,
+  a nie tylko kodem – przebiegi 3000 są A/B w jednej sesji,
+- **3000 uczniów z czatem co 15 s przekracza 4 rdzenie i9** niezależnie od poprawek (CPU `web` 330–
+  410 %, kolejka w gunicornie) – poprawki dają +11 % przepustowości w T0 i −15 % p50, ale nie
+  zmieniają rzędu wielkości. Popyt stanu ustalonego to ok. 185 żądań/s, z czego **100/s to samo
+  odpytywanie czatu** (co 15 s × 1500 otwartych rozmów),
+- błędy przy 3000 to prawie wyłącznie **rotacja workera** (`--max-requests`): wychodzący worker
+  `gthread` zrywa żądania w toku (`RuntimeError: cannot schedule new futures after interpreter
+  shutdown` w `s3transfer` – 212–267 wystąpień na 10 min) → 500/502 na PDF-ach i **wysyłkach
+  rozwiązań** (do 4,5 % wysyłek). Z `WEB_MAX_REQUESTS=0`: 224 błędy → 1 na 52 tys. żądań,
+- `CHAT_POLL_SECONDS=45` zdejmuje ok. 70 odpytań/s: stan ustalony przy 3000 p50 16 → 8 s, p95 46 → 18 s
+  (nadal przeciążony na 4 rdzeniach i9 – to jest granica sprzętu, nie kodu),
+- koszt stanu ustalonego przy zdrowym obciążeniu (1000 uczniów): **~19 ms CPU rdzenia i9 na żądanie**
+  w `web` + ~5 ms w Postgresie; w nasyceniu efektywność spada (40 ms/żądanie – przełączanie tysięcy
+  połączeń w kolejce gunicorna),
+- logowanie: PBKDF2 ~150 ms CPU i9 na próbę – 3000 logowań to 450 s pracy rdzenia,
+- pamięć `web`: 1,3–1,6 GB RSS przy 6 workerach, stabilna w przebiegach (brak wzrostu bez rotacji),
+- Postgres: najwyżej 27 połączeń (pula działa), 30–120 % CPU; Redis, MinIO, Caddy < 0,5 rdzenia.
+
+### 42.4. Ekstrapolacja na serwer produkcyjny
+
+Założenia (każde z zakresem, bo żadnego nie mierzyliśmy na serwerze – § 42.6 to zmienia):
+
+- `web` dostaje ok. **4 z 6 vCPU** (reszta: Postgres, Caddy z TLS i kompresją, MinIO, worker z ClamAV
+  przy wysyłkach, Redis); Jitsi/LiveKit i sandboksy notatników na tym samym hoście zabierają więcej,
+- vCPU EPYC Contabo jest **1,7–2,5×** wolniejszy od rdzenia i9 w kodzie jednowątkowym (przyjęte 2),
+- kradzież hiperwizora **12–37 %** (pomiar 22.09.2026),
+- docelowe wykorzystanie CPU 70 % (powyżej kolejka gunicorna rośnie nieliniowo – § 42.3).
+
+Efektywnie: `4 × (1 − kradzież) / współczynnik` = **1,0–2,1 (typowo 1,5) rdzenia i9** dla `web`.
+
+| | typowo | zakres |
+|---|---:|---:|
+| przepustowość stanu ustalonego (19 ms/żądanie, 70 %) | ~55 żądań/s | 37–77 |
+| uczniów w stanie ustalonym, czat co 15 s (0,062 żądania/s na ucznia) | **~900** | 600–1250 |
+| uczniów w stanie ustalonym, czat co 45 s (0,040 żądania/s na ucznia) | **~1400** | 900–1900 |
+| T0: ~100 ms CPU i9 na ucznia (panel, 3 PDF-y, start testu/czatu) | 15 uczniów/s | 10–21 |
+| T0 dla 1000 uczniów bez kolejki dłuższej niż ~10 s | rozłożenie na ≥ 70 s | 50–100 s |
+| logowania (PBKDF2, 0,3 s CPU vCPU na próbę) przy 50 % CPU | ~3 logowania/s | 2–5 |
+| 3000 logowań | **≥ 15–25 min przed T0** | |
+
+Dla porównania: na tym samym serwerze 22.09.2026 nasycenie było przy 7 → 8–16 żądaniach/s (v0.30 → v0.31,
+5 równoległych klientów), a p95 rozciąga kradzież CPU niezależnie od kodu.
+
+### 42.5. Konfiguracja na dzień zawodów (bez wdrożenia, `.env` + `docker compose up -d web`)
+
+| Zmienna | Zalecenie | Dlaczego |
+|---|---|---|
+| `WEB_MAX_REQUESTS` | `0` (wyłączona rotacja) na czas etapu; po etapie z powrotem `2000` | każda rotacja pod obciążeniem zrywa żądania w toku (wysyłki!), pamięć w przebiegach stabilna |
+| `WEB_MEM_LIMIT` | `3g` przy `WEB_WORKERS=6` | 6 workerów = 1,4–1,6 GB RSS, limit 2g za blisko |
+| `CHAT_POLL_SECONDS` | `45` na czas etapu | odpytywanie czatu to ponad połowa ruchu stanu ustalonego; wiadomość dochodzi do 45 s później (od razu po powrocie do karty) |
+| `WEB_WORKERS` × `WEB_THREADS` | bez zmian (6×4) na obecnym VPS; na serwerze z dedykowanymi rdzeniami: workery = rdzenie − 2, wątki 4 | więcej workerów niż rdzeni nie dodaje przepustowości, dodaje pamięci |
+| `PAGE_CACHE_SECONDS` | bez zmian (120) | od tej gałęzi w cache'u są też `/results/<id>/`, `/wyniki/` i linki z `utm_*` (parametry śledzące są zdejmowane z żądania przed widokiem, więc nie trafiają do zapisanej strony, np. do pola `next`) |
+
+Organizacyjnie (najtańsze, a najwięcej dające):
+
+- **logowanie 15–30 min przed startem** (komunikat w panelu i mailu: „zaloguj się wcześniej, sesja
+  trwa”), a start etapu dla uczniów rozłożony na **kilka minut** (okna czasowe TZ-01 albo po prostu
+  otwarcie PDF-ów 5 min przed formalnym startem) – T0 w 60 s dla 3000 uczniów to 300 s pracy CPU,
+- sale za jednym NAT-em (delegacje, pracownie): limit wysyłek liczony już per konto (U5), ale limit
+  **nieudanych logowań** `login` (10/min) jest per IP – zebrać z góry adresy sal; przy masowych
+  pomyłkach podnieść na czas etapu `REST_FRAMEWORK` → `login` (zmiana kodu/ustawień, nie `.env`),
+- na czas etapu **nie** uruchamiać na tym hoście webinarów (LiveKit), Jitsi ani sandboksów notatników,
+- dyżur: `/healthz/` i `manage.py db_connections` (§ 11.2), `docker stats`, log `web` pod kątem
+  `PoolTimeout`/`WORKER TIMEOUT`.
+
+### 42.6. Opcjonalny test na staging/serwerze – bezpieczna procedura (WYŁĄCZNIE za osobną zgodą)
+
+Nie wykonywać bez pisemnej zgody właściciela serwisu na **konkretny termin**. Preferowany cel:
+osobny serwer staging o tej samej klasie co produkcja (klon z `scripts/restore.sh`); produkcja
+tylko poza jakimkolwiek etapem, rejestracją i oknem reklamacji.
+
+1. **Termin**: noc lokalna (np. 2:00–4:00 CET), co najmniej 48 h od najbliższego etapu, poza
+   kopią zapasową (3:15) i testem odtwarzania (4:40) – czyli 1:00–3:00 – po komunikacie w serwisie
+   (`/coordinator/announcements/`) z wyprzedzeniem 24 h,
+2. **Przed**: świeża kopia (`scripts/backup.sh`) i jej weryfikacja; osobny konkurs/edycja testowa
+   **na osobnej bazie** – `loadtest_seed` odmówi bazy bez `loadtest` w nazwie, więc na serwerze
+   tylko na stagingu z bazą `olimpiada_loadtest`; na produkcji danych testowych nie zakładamy,
+   test ograniczony do stron publicznych (goście) i zalogowanych kont testowych założonych ręcznie,
+3. **Strona prac technicznych** (§ 20) włączona dla wszystkich poza przepustką operatora
+   (`MAINTENANCE_BYPASS_TOKEN` – generator dokłada nagłówek `X-Maintenance-Bypass`),
+4. **Generator z zewnątrz** (nie z tego samego hosta): `--allow-remote-host <host>` z dokładną
+   nazwą, `--remote-max-students` ≤ 200 w pierwszym przebiegu, potem schodkami ×2 (200 → 400 → 800),
+   każdy schodek ≤ 5 min, przerwa 5 min między schodkami,
+5. **Kryteria przerwania** (generator przerywa sam, operator też): błędy > 2 % w oknie 30 s
+   (`--abort-error-rate 0.02`), p95 > 5 s (`--abort-p95-ms 5000`), `db_connections` = `warn`,
+   pamięć `web` > 85 % limitu, load average > 3× liczba vCPU przez 2 min, jakikolwiek alarm watchdoga,
+6. **Po**: wyłączenie strony prac technicznych, `page_cache_clear`, kontrola `/healthz/` i
+   `/status.json`, na stagingu `run.sh`-owe dane do kosza (baza testowa); raport do
+   `docs/OPERACJE.md` § 42.3 jako kolumna „serwer” – to zastąpi założenia z § 42.4 pomiarem.
+
+### 42.7. Rekomendacja
+
+| Spodziewana liczba uczniów **naraz** w etapie IQO | Rekomendacja |
+|---|---|
+| ≤ 600 | **zostać** na obecnym VPS z konfiguracją z § 42.5 i logowaniem przed T0 |
+| 600–1500 | obecny VPS **tylko** z § 42.5 (czat 45 s, bez rotacji), T0 rozłożone na ≥ 2 min i bez LiveKit/Jitsi/notatników na tym hoście; bezpieczniej: serwer z **dedykowanymi vCPU** |
+| 1500–3000+ | **dedykowane vCPU, nie większy VPS tej samej klasy**: Contabo VDS albo Hetzner CCX43 (16 dedykowanych vCPU, 64 GB) – zysk z braku kradzieży (+25–60 %) i szybszych rdzeni (×1,5–2) mnoży się z liczbą rdzeni; `WEB_WORKERS` 12–14 × 4 wątki, `max_connections` Postgresa 150+ (§ 11.2); LiveKit (webinary, pokoje rozmów, nadzór) i sandboksy notatników **na osobnych hostach** |
+
+Uzasadnienie „dedykowane zamiast większego VPS”: większy VPS tej samej klasy dokłada rdzeni, ale nie
+usuwa kradzieży, która rozciąga p95 niezależnie od kodu (pamięć „Contabo vCPU steal”, § 11);
+dedykowane rdzenie dają przewidywalny czas odpowiedzi w T0, kiedy wszyscy czekają na PDF-y naraz.
+Wydzielenie LiveKit jest konieczne niezależnie od liczby uczniów, jeśli etap ma nadzór wideo
+(PROC-01/STAGE-LK-01): SFU przy setkach strumieni zajmie całe vCPU i łącze tego hosta. Kolejny krok
+pomiarowy: § 42.6 na stagingu klasy docelowej, zanim organizator zamówi serwer.
+
+---
+
+## 43. Test odtwarzania kopii (OPS-01, `docs/tasks/OPS-01.md`)
+
+### 43.1. Po co
+
+Kopia, której nikt nie odtworzył, jest hipotezą. Co noc `scripts/backup_verify.sh` **udowadnia**,
+że najnowsza kopia daje się odtworzyć do działającej platformy – tą samą drogą, co prawdziwa
+awaria – i podnosi alarm, gdy się nie da albo gdy najnowszej kopii brakuje. Do 4.10.2026 test był
+cotygodniowy i liczył wiersze w pięciu tabelach; zepsutą kopię wykrywał po tygodniu, a obciętej do
+połowy nie wykrywał wcale.
+
+### 43.2. Jak to działa
+
+Cron hosta (`/etc/cron.d/olimpiada-backup`, zakłada go `scripts/deploy.sh`): kopia o **3:15**, test
+o **4:40**, codziennie, oba pod jednym `flock` (`/var/lock/olimpiada-backup.lock`) – test nigdy nie
+czyta paczki, którą kopia jeszcze pisze. Log: `/var/log/olimpiada-backup.log`.
+
+| Krok | Co | Gdzie |
+|---|---|---|
+| 1 | najnowsza `db-*.dump.gpg` i `files-<ten sam stamp>.tar.gpg` z `/opt/olimpiada-backups` | host |
+| 2 | liczności tabel kluczowych w **żywej** bazie (`restore_check live-counts`) | kontener `web` |
+| 3 | tymczasowy Postgres (`POSTGRES_IMAGE`), sieć `--internal`, dane na `tmpfs`, `--memory 3g --cpus 1` | nowy kontener `olimpiada-restore-check-<pid>` |
+| 4 | `gpg \| pg_restore --exit-on-error` **strumieniem** – jawny zrzut nie dotyka dysku | host → tymczasowy Postgres |
+| 5 | `gpg \| tar -tf -` – pełny odczyt paczki plików, sama lista obiektów | host (`nice`, `ionice -c3`) |
+| 5b | wersja porównawcza `dj.` (§ 22), gdy jest jej paczka z tej samej nocy | tymczasowy Postgres |
+| 6 | `restore_check verify` – sprawdzenia aplikacji (§ 43.3) | jednorazowy kontener z **obrazem i środowiskiem działającego `web`**, wyłącznie w sieci tymczasowej, `--read-only`, `--memory 1g` |
+| 7 | `restore_check record` – cache, audyt `backup.restore_check`, list przy porażce; wiersz w `/opt/olimpiada-backups/restore-checks.jsonl` | kontener `web`, host |
+
+**Bezpieczeństwo.** Cel odtworzenia to zawsze nowy kontener na nowej sieci bez wyjścia – nie widzi
+bazy produkcyjnej, Redisa ani MinIO. Podwójna bramka: skrypt odmawia, gdy cel jest kontenerem
+usługi `db`, a komenda `verify` – gdy baza nie ma przedrostka `restorecheck_`, nazywa się jak
+`POSTGRES_DB`, leży na hoście `db` albo brak `RESTORE_CHECK_ISOLATED=1`; sesja bazy jest tylko do
+odczytu. Hasło kopii idzie przez deskryptor (`--passphrase-fd`), hasło bazy tymczasowej jest losowe,
+plik ze środowiskiem `web` (z `SECRET_KEY`) leży w katalogu `700` i znika zaraz po sprawdzeniach.
+Wynik niesie wyłącznie nazwy i liczby – żadnych wartości pól; treść błędów `pg_restore` (może
+cytować wiersz) zostaje w logu crona, do listu idzie tylko kod.
+
+### 43.3. Jak czytać wynik
+
+```bash
+docker compose exec web python manage.py restore_check show          # ostatni wynik ze szczegółami
+docker compose exec web python manage.py record_backup_status --show  # znaczniki + poziom testu
+tail -3 /opt/olimpiada-backups/restore-checks.jsonl                    # historia (JSON na noc)
+grep -A14 '5/6 Sprawdzenia' /var/log/olimpiada-backup.log | tail -15   # ostatni przebieg w logu
+```
+
+Poziom (`/healthz/`, `/status.json` → `backup_restore_check`, pierwsza linia `show`):
+
+| Poziom | Znaczy |
+|---|---|
+| `ok` | ostatni test udany, nie starszy niż 36 h |
+| `failed` | ostatni test **nieudany** – kopia z tej nocy nie daje się odtworzyć albo jest niepełna; alarm co godzinę do pierwszego udanego testu |
+| `stale` | ostatni test udany, ale starszy niż 36 h – test przestał chodzić (cron, `flock`, `web` nie działał) |
+| `unknown` | brak wyniku (świeża instalacja, wyczyszczony Redis) |
+
+Sprawdzenia (`ok` / `warn` – wynik nadal udany / `fail` – wynik nieudany / `skip`):
+
+| Sprawdzenie | `fail`, gdy | `warn`, gdy |
+|---|---|---|
+| `backup_age` | kopia starsza niż 26 h (`RESTORE_CHECK_MAX_BACKUP_AGE_HOURS`) | – |
+| `migrations` | brak `django_migrations`, historia niespójna, brak migracji, które działająca wersja miała już przy zrzucie | migracje wdrożone **po** zrzucie (dokończy je `migrate`), migracje nieznane kodowi (wycofanie wersji) |
+| `row_counts` | tabela kluczowa poza widełkami 90–105 % ± 20 wierszy względem żywej bazy, brak tabeli, 0 kont | – |
+| `models_readable` | któryś model nie czyta odtworzonej bazy (rozjazd schematu z kodem) | – |
+| `sequences` | sekwencja klucza głównego za `max(id)` – pierwszy zapis po odtworzeniu by się wywrócił | – |
+| `superuser` | – | brak aktywnego superużytkownika |
+| `fernet` | szyfrogram pola logistyki nie odszyfrowuje się `SECRET_KEY` ani `SECRET_KEY_FALLBACKS` | odszyfrowuje się wyłącznie kluczem z `SECRET_KEY_FALLBACKS` |
+| `files_archive` | brak `files-<stamp>.tar.gpg` albo paczka nieczytelna | – |
+| `media_sample` | z losowej próbki 20 plików prac (`clean`) + mediów CMS brakuje w paczce > 10 % (min. 1) | brak w granicy tolerancji |
+| `djcms_db`, `djcms_files` | jak w § 1.4 | – |
+
+Przebieg przerwany przed sprawdzeniami melduje **nazwę kroku** zamiast listy: `no-backup`,
+`live-counts`, `app-image`, `app-env`, `postgres`, `guard`, `decrypt`, `pg_restore`, `checks`.
+
+### 43.4. RTO i RPO (pomiar lokalny, 4.10.2026)
+
+`scripts/tests/restore_check_e2e.sh` na stacji roboczej (Docker Desktop, WSL2), obraz
+`olimpiada/web:dev`, `postgres:18-alpine`:
+
+| Baza żywa | Zrzut `-Fc` | `pg_restore` (rozszyfrowanie w strumieniu) | Paczka plików (`tar -t`) | Sprawdzenia aplikacji | Cały test |
+|---|---|---|---|---|---|
+| po migracjach + dane testowe | 1,1 MB | 1,9 s | 0,2 s | 2,6 s | 17 s |
+| 426 MB (+1 mln wierszy audytu) | 10 MB | 8,3 s | 0,2 s | 3,5 s | 26 s |
+
+Około 10 s „całego testu” to start trzech procesów Django i kontenera Postgresa – stała, niezależna
+od rozmiaru. **RTO bazy** (od paczki do działającej bazy) rośnie liniowo z jej rozmiarem: lokalnie
+ok. 20 s na 1 GB odtworzonej bazy; na produkcji (VPS traci część czasu procesora na rzecz sąsiadów)
+licz 2–4 razy więcej. **Pełne RTO awarii serwera** to dodatkowo nowy host,
+`git` + obraz, ściągnięcie paczek z miejsca poza serwerem i odtworzenie kubełków (§ 2) – test go nie
+mierzy. Rzeczywiste liczby z produkcji: `restore_check show` (pole `czasy`) po pierwszym przebiegu –
+wpisz je tutaj.
+
+**RPO** – kopia raz na dobę o 3:15: w najgorszym razie tracimy ok. 24 h zmian (awaria tuż przed
+3:15). Test dowodzi, że ta kopia jest **użyteczna**; zepsutą kopię widać najpóźniej ok. 4:45 tej samej
+nocy (list), a brak kopii – po 26 h (`backup_age`) i po 36 h (watchdog `backup`).
+
+### 43.5. Co zrobić, gdy test się nie udał
+
+1. `docker compose exec web python manage.py restore_check show` – które sprawdzenie albo który krok.
+2. Według przyczyny:
+
+| Wynik | Najczęstsza przyczyna | Reakcja |
+|---|---|---|
+| `no-backup`, `backup_age` | kopia nocna nie powstała (§ 1.2, log `/var/log/olimpiada-backup.log`) | napraw kopię, `scripts/backup.sh`, potem test ręcznie (§ 43.6) |
+| `decrypt` | `BACKUP_PASSPHRASE` w `.env` inne niż to, którym zaszyfrowano kopię | **pilne**: porównaj z menedżerem haseł (§ 1.3); kopie zaszyfrowane nieznanym hasłem są stracone – zrób nową kopię od razu |
+| `pg_restore` | paczka obcięta (pełny dysk przy kopii), zrzut z innej wersji Postgresa | `df -h`, log `pg_restore` w `/var/log/olimpiada-backup.log`, nowa kopia |
+| `migrations` (fail) | zrzut z innej instalacji albo w połowie migracji | sprawdź, czy kopia jest z tej nocy; nowa kopia |
+| `row_counts` | zrzut obcięty **albo** masowe kasowanie w bazie żywej od nocy | porównaj liczby w `show`; jeśli zniknęło z bazy żywej – to incydent danych (§ 7), nie kopii |
+| `models_readable`, `sequences` | rozjazd kopii z wdrożonym kodem / brak `setval` w zrzucie | zgłoś programiście z wynikiem `show`; kopia sprzed wdrożenia odtworzy się po `migrate` |
+| `fernet` | zmieniony `SECRET_KEY` bez wpisania starego do `SECRET_KEY_FALLBACKS` (§ 31.2) | **pilne przed finałem**: przywróć stary klucz do `SECRET_KEY_FALLBACKS` w `.env`, `docker compose up -d web worker beat` |
+| `files_archive`, `media_sample` | lustro MinIO nie powstało albo jest niepełne (§ 1.2, krok 2) | log kopii, `docker compose ps minio`, nowa kopia |
+| `checks` | kontener sprawdzeń bez wyniku (pamięć, obraz) | log crona; `RESTORE_CHECK_APP_MEMORY=2g` w `.env` |
+| `postgres` | brak pamięci na `tmpfs` (baza > 3 GB) | `RESTORE_CHECK_PG_MEMORY` i `RESTORE_CHECK_TMPFS` w `.env` (np. `6g`), jeśli host ma zapas |
+
+3. Po naprawie – test ręcznie (§ 43.6). Udany wynik gasi alarm (`backup-restore-check`).
+
+Progi (w `.env` serwera, czyta je skrypt i przekazuje do sprawdzeń): `RESTORE_CHECK_MAX_BACKUP_AGE_HOURS`
+(26), `RESTORE_CHECK_MIN_RATIO` (0.90), `RESTORE_CHECK_MAX_RATIO` (1.05), `RESTORE_CHECK_SLACK_ROWS`
+(20), `RESTORE_CHECK_MEDIA_SAMPLE` (20), `RESTORE_CHECK_MEDIA_MAX_MISSING_RATIO` (0.10); limity:
+`RESTORE_CHECK_PG_MEMORY` (3g), `RESTORE_CHECK_TMPFS` (3g), `RESTORE_CHECK_PG_CPUS` (1),
+`RESTORE_CHECK_APP_MEMORY` (1g), `RESTORE_CHECK_CPU_SHARES` (256).
+
+### 43.6. Uruchomienie ręczne i test lokalny
+
+```bash
+# na serwerze (czeka na ewentualnie trwającą kopię; kilka minut)
+cd /opt/olimpiada && flock -w 3600 /var/lock/olimpiada-backup.lock scripts/backup_verify.sh
+# konkretna paczka, np. ściągnięta z miejsca poza serwerem (§ 2.2: restore.sh --fetch)
+scripts/backup_verify.sh /opt/olimpiada-backups/db-20261003T031500Z.dump.gpg
+```
+
+Kod wyjścia 0 = wynik `ok`, 1 = nieudany (meldunek i list poszły). Lokalnie, bez serwera:
+`scripts/tests/restore_check_e2e.sh` (pełny cykl na Dockerze: kopia → test → `ok`; zrzut uszkodzony →
+`failed` + list; kopia sprzed 30 h; brak paczki plików; bramka), `RESTORE_CHECK_E2E_AUDIT_ROWS=1000000`
+dokłada balast do pomiaru RTO. Polecenia skryptu na atrapach: `scripts/tests/backup_offsite_test.sh`
+(przypadki 14 i 16), sprawdzenia aplikacji: `pytest apps/core/tests/test_restore_check.py`.
+
+### 43.7. Kroki operatora na produkcji (po wdrożeniu wersji z OPS-01, za zgodą organizatora)
+
+1. Wdrożenie zwykłą drogą (`scripts/deploy.sh`) – krok 8/8 przepisuje `/etc/cron.d/olimpiada-backup`.
+   Sprawdzenie: `cat /etc/cron.d/olimpiada-backup` (dwie linie z `flock`, test `40 4 * * *`)
+   i `command -v flock` (pakiet `util-linux`, na Ubuntu jest zawsze).
+2. `grep ^ALERT_EMAILS= /opt/olimpiada/.env` – bez adresów list alarmowy nie wyjdzie (§ 3.2).
+3. Rozmiar bazy wobec limitu `tmpfs` (3 GB):
+   `docker compose exec db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "SELECT pg_size_pretty(pg_database_size(current_database()))"'`
+   i `free -h` (test zajmuje w nocy do 3 GB + 1 GB RAM). Baza > 2 GB – podnieś
+   `RESTORE_CHECK_PG_MEMORY`/`RESTORE_CHECK_TMPFS` w `.env`.
+4. Pierwszy test od razu (poza godzinami zgłoszeń):
+   `cd /opt/olimpiada && flock -w 3600 /var/lock/olimpiada-backup.lock scripts/backup_verify.sh`,
+   potem `docker compose exec web python manage.py restore_check show` – poziom `ok`.
+5. Czasy z `show` (pole `czasy`: `db_restore_s`, `total_s`) wpisz do § 43.4 jako RTO produkcji.
+6. `curl -s https://olimpiadakwantowa.pl/status.json | python3 -m json.tool | grep backup_restore_check`
+   – `"ok"`. W monitorze zewnętrznym (§ 3.1) dodaj monitor słowa kluczowego
+   `"backup_restore_check": "ok"` na `/status.json`.
+7. (Opcjonalnie) próba listu alarmowego: `docker compose exec web python manage.py restore_check
+   record --failure proba-alarmu --detail "próba listu"` – list do `ALERT_EMAILS`; alarm gaśnie po
+   kolejnym udanym teście (krok 4).
+8. Następnego ranka: `grep -A14 '5/6 Sprawdzenia' /var/log/olimpiada-backup.log | tail -15` – przebieg
+   z crona o 4:40.
+
+Wycofanie: wdrożenie poprzedniej wersji przywraca cotygodniowy wpis crona; po teście zostają tylko
+wpisy audytu `backup.restore_check`, klucz `backup:restore_check` w Redisie i plik
+`restore-checks.jsonl` (ok. 2 KB na noc, bez danych osobowych).
+
+---
+
+## 44. Monitoring błędów i dostępności (OPS-02, `docs/tasks/OPS-02.md`)
+
+Trzy rzeczy, każda **wyłączona domyślnie** – serwer bez nowych wpisów w `.env` działa i odpowiada
+tak jak przed tym wydaniem (HTML, CSP, lista warstw, konfiguracja Caddy'ego):
+
+| Co | Gdzie | Włącza |
+|---|---|---|
+| śledzenie błędów aplikacji (ślad stosu, grupowanie, wydanie, konkurs) | GlitchTip (zgodny z Sentry, otwarte oprogramowanie) na tym serwerze, `errors.<domena>` | `SENTRY_DSN` + profil `monitoring` + `ERRORS_PROXY=1` |
+| sprawdzanie dostępności i certyfikatów z listami | usługa `uptime` (profil `monitoring`) albo kopia skryptu na innej maszynie | `docker compose --profile monitoring up -d uptime` |
+| błędy JavaScriptu z przeglądarek | loader z naszego `/static/` → GlitchTip | `SENTRY_BROWSER=1` |
+
+Jedyna zmiana widoczna bez włączania czegokolwiek: trzy nowe, puste sieci compose'a (`errors_ingest`,
+`errors_front`, `errors_egress` – § 44.2a), do których należą `web`/`worker`/`beat`, `proxy` i `mail`,
+oraz osobna zmienna listy klientów relaya (`MAIL_CLIENT_NETWORKS`, domyślnie dotychczasowa wartość).
+Pierwsze wdrożenie tej wersji odtworzy więc te kontenery (jak przy każdej zmianie sieci).
+
+To jest **trzecia** warstwa obok watchdoga (§ 3.2 – dysk, kopie, kolejka, seria 5xx) i Kumy (§ 3.1):
+watchdog mówi „jest 10 błędów 500 w 15 minut”, GlitchTip – **który** wiersz kodu, w którym konkursie
+i od którego wydania.
+
+### 44.1. Co wychodzi z aplikacji (prywatność)
+
+Klient (`sentry-sdk`, `backend/apps/monitoring/sentry.py`) wysyła zdarzenia **wyłącznie** do własnego
+GlitchTipa, z **zamkniętą** listą integracji (Django, Celery, Redis, logowanie, wywołania HTTP – bez
+samowłączających się, czyli m.in. bez integracji SDK oceny AI, które zapisywałyby treść prac). Filtr
+(`backend/apps/monitoring/scrubbing.py`) działa przed wysyłką, w aplikacji:
+
+- **nigdy**: treść żądań i formularzy, ciasteczka, parametry zapytania, adres IP, nagłówki poza
+  `Host`/`Content-Type`/`Accept…`, identyfikator i dane konta, zmienne lokalne programu (wyłączone
+  globalnie), argumenty zadań Celery, linia poleceń procesu, klucze i wartości Redisa,
+- **ścieżka adresu** = wzorzec trasy Django (`/reset/{uidb64}/{token}/`); gdy trasy nie ma (404) –
+  ścieżka z zamaskowanymi segmentami: wszystko po `reset/`, `zgoda/`, `zaproszenie/`, `activate/`,
+  `unsubscribe/`, `verify/`, `dyplomy/`, `new/` … i każdy segment wyglądający na token. To samo dla
+  adresów w okruszkach (także webhooki i wywołania wychodzące), w komunikatach i w loaderze JS,
+- w każdym napisie: e-mail, PESEL, telefon, adres IPv4/IPv6, `token=`/`key=`/…, `Bearer`, JWT, cała
+  linia `DETAIL:` i `Failing row contains (…)` z błędów Postgresa → `[Filtered]`; napis przycięty
+  do 2 KB, wyrażenia liniowe (spreparowany komunikat nie zatrzyma wysyłki),
+- tag `competition` = sam slug konkursu; `release` = `APP_VERSION`.
+
+To jest **pseudonimizacja, nie anonimizacja**: filtr usuwa to, co rozpoznaje, a komunikat błędu
+w nowym kodzie może wyjątkowo nieść coś, czego nie rozpozna – dlatego retencja jest krótka (30 dni),
+a dostęp do panelu wąski (§ 44.3). Rejestr czynności (1.21) dostaje wiersz „Monitorowanie błędów
+aplikacji” przy niepustym `SENTRY_DSN` **albo** włączonych błędach przeglądarek: podmiot przetwarzający
+wewnętrzny (ten serwer, Contabo, Niemcy), bez przekazania do państwa trzeciego.
+
+### 44.2. GlitchTip – uruchomienie (raz, na serwerze, `cd /opt/olimpiada`)
+
+1. **DNS**: rekord `errors.<domena>` typu A na adres serwera (dla Olimpiady Kwantowej
+   `errors.olimpiadakwantowa.pl A 169.58.242.197`, `deploy/dns-olimpiadakwantowa.pl.md`). Slug `errors`
+   jest zarezerwowany – żaden konkurs go nie zajmie.
+2. **Sekrety** w `.env` (każdy osobno: `openssl rand -hex 32`):
+   ```ini
+   GLITCHTIP_SECRET_KEY=<64 znaki hex>
+   GLITCHTIP_DB_PASSWORD=<64 znaki hex>
+   ```
+   GlitchTip **nie** dostaje `.env` platformy (w compose wyłącznie jawna lista zmiennych).
+3. **Start bez adresu publicznego** – GlitchTip wyłącza samorejestrację dopiero **po** pierwszym koncie,
+   więc najpierw konto, potem Caddy:
+   ```bash
+   docker compose up -d web worker beat proxy mail     # nowe sieci (pierwsze wdrożenie tej wersji robi to samo)
+   docker compose --profile monitoring up -d glitchtip-db glitchtip
+   docker compose --profile monitoring ps glitchtip          # healthy po ~1–2 min (migracje)
+   docker compose --profile monitoring exec glitchtip ./manage.py createsuperuser
+   ```
+4. **Kontrola przed adresem publicznym** – musi wypisać liczbę ≥ 1:
+   ```bash
+   docker compose --profile monitoring exec -T glitchtip ./manage.py shell -c \
+     "from django.contrib.auth import get_user_model as U; print(U().objects.count())"
+   ```
+   Dopiero wtedy w `.env` `ERRORS_PROXY=1` i `bash scripts/proxy_config.sh update` (render + `caddy
+   validate` + `caddy reload`). `scripts/deploy.sh` przy każdym wdrożeniu ostrzega, gdy `ERRORS_PROXY=1`,
+   a GlitchTip nie ma kont albo nie działa. Blok `errors.<domena>` → `glitchtip:8000`: HSTS, `nosniff`,
+   `X-Frame-Options DENY`, limit żądania 10 MB, **bez** strony prac technicznych.
+5. **Zabezpieczenie konta**: w ustawieniach profilu GlitchTipa włącz **logowanie dwuskładnikowe
+   (TOTP)** dla każdego konta. Opcjonalnie panel tylko z biura/VPN: `ERRORS_UI_ALLOW=203.0.113.7 198.51.100.0/24`
+   w `.env` + `bash scripts/proxy_config.sh update` – Caddy odpowiada 403 na wszystko poza
+   przyjmowaniem zdarzeń (`/api/<nr>/envelope|store|minidump|security/`) i `/_health/`, które muszą
+   zostać otwarte dla przeglądarek uczestników i monitora.
+6. **Projekt i limit (obowiązkowo)**: `https://errors.<domena>/` → organizacja (np. „Olimpiada”) →
+   projekt typu **Django** („platforma”). *Settings → Projects → platforma → Client Keys (DSN)* –
+   skopiuj DSN i **ustaw limit zdarzeń klucza** (rate limit, np. 300 zdarzeń / 60 s). Bez limitu pętla
+   błędów albo ktoś z publicznym kluczem przeglądarki (§ 44.6) zapełni bazę GlitchTipa. Caddy w
+   obrazie `caddy:2.8` nie ma modułu limitu żądań (wymagałby własnego obrazu z wtyczką) – limit jest
+   po stronie GlitchTipa, plus limity zasobów kontenerów niżej.
+7. **Aplikacja**: w `.env` **DSN wewnętrzny** (sieć `errors_ingest` – `worker` i `beat` nie mają wyjścia
+   do internetu, więc adres publiczny dla nich nie działa):
+   ```ini
+   SENTRY_DSN=http://<klucz>@glitchtip:8000/<nr projektu>
+   # SENTRY_ENVIRONMENT=production   SENTRY_SAMPLE_RATE=1.0   SENTRY_TRACES_SAMPLE_RATE=0.0
+   ```
+   i `docker compose up -d web worker beat`.
+8. **Sprawdzenie**: `docker compose exec web python -c "import django; django.setup();
+   import sentry_sdk; sentry_sdk.capture_message('OPS-02 test'); sentry_sdk.flush()"` – zdarzenie
+   „OPS-02 test” pojawia się w projekcie w ciągu kilku sekund (to samo z `worker`).
+
+### 44.2a. Sieci i poczta GlitchTipa
+
+GlitchTip **nie** stoi w `edge` ani w `internal` (pierwsza jest w `TRUSTED_PROXY_IPS` aplikacji, druga
+ma bazę platformy). Ma cztery wąskie sieci:
+
+| Sieć | Członkowie | Po co |
+|---|---|---|
+| `errors_front` (internal) | `proxy`, `glitchtip` | Caddy: `errors.<domena>` → `glitchtip:8000` |
+| `errors_ingest` (internal) | `web`, `worker`, `beat`, `glitchtip` | zgłoszenia przez DSN wewnętrzny |
+| `errors_egress` | `glitchtip`, `mail` | wyjście (webhooki, zewnętrzny SMTP) i relay |
+| `errors` (internal) | `glitchtip`, `glitchtip-db` | baza |
+
+Poczta (reguły alarmów, zaproszenia, reset hasła GlitchTipa) idzie przez relay serwisu (`mail:587`),
+ale z podsieci `errors_egress` relay przyjmuje **wyłącznie** nadawcę `glitchtip@<SITE_DOMAIN>` – każdy
+inny dostaje 554 (`smtpd_sender_restrictions` przy usłudze `mail`, sprawdzone na boky/postfix 5.1.0).
+Domena `SITE_DOMAIN` musi zostać w `ALLOWED_SENDER_DOMAINS`. Zamiast relaya: `GLITCHTIP_EMAIL_URL=
+smtp+tls://użytkownik:hasło@smtp.dostawca:587` (wychodzi przez `errors_egress`), a bez poczty w ogóle:
+`GLITCHTIP_EMAIL_URL=consolemail://` (listy w logu kontenera; alarmy GlitchTipa wtedy nie działają).
+
+Zasoby: `glitchtip` 768 MB / 1 CPU (w spoczynku ~170 MB), `glitchtip-db` 512 MB / 1 CPU. Kolejka i cache
+w Postgresie GlitchTipa (`VALKEY_URL` pusty) – Redis platformy nie jest mu ani potrzebny, ani dostępny.
+Retencja 30 dni (`GLITCHTIP_RETENTION_DAYS` – sprawdzone w obrazie 6.2.6: zdarzenia, transakcje, pliki,
+logi i uptime = 30; wydania 365, bez danych osób). Katalog `/code/uploads` (wolumen `glitchtip_uploads`)
+jest zapisywalny dla użytkownika obrazu (uid 5000). **Dysk**: baza GlitchTipa leży na tym samym dysku co
+serwis – watchdog (§ 3.2) alarmuje przy < 10 % wolnego miejsca; przy alarmie sprawdź
+`docker system df -v | grep glitchtip` i w razie potrzeby obniż `GLITCHTIP_RETENTION_DAYS`. Wolumeny
+`glitchtip_pg` i `glitchtip_uploads` **nie** są w kopii zapasowej – zdarzenia błędów nie są danymi do
+odtwarzania.
+
+### 44.3. Reguły alarmów i konta w GlitchTipie
+
+W projekcie: *Settings → Projects → platforma → Project Alerts → Create*:
+
+| Reguła | Ustawienie | Po co |
+|---|---|---|
+| nowy rodzaj błędu | „new issue” (domyślnie), e-mail do zespołu | jeden list na nowy problem, a nie na każde wystąpienie |
+| seria | „more than **20** events in **10** minutes” | awaria w trakcie oddawania prac |
+| powrót błędu | „regression” | wydanie, które coś zepsuło na nowo |
+
+Dyżurni: samorejestracja jest wyłączona, a zaproszenie (*Organization → Members → Invite*) działa
+wyłącznie dla istniejącego konta. Konto **bez hasła** (nic nie zostaje w historii powłoki):
+
+```bash
+docker compose --profile monitoring exec glitchtip ./manage.py shell -c \
+  "from django.contrib.auth import get_user_model as U; U().objects.create_user('dyzurny@qaif.org', None)"
+```
+
+potem zaproszenie do organizacji; osoba ustawia hasło przez „Forgot password” na stronie logowania
+(wymaga działającej poczty, § 44.2a) i od razu włącza TOTP.
+
+### 44.4. Monitor dostępności (`uptime`)
+
+```bash
+docker compose --profile monitoring up -d uptime
+docker compose --profile monitoring logs -f uptime        # „ok / FAIL” każdego celu co minutę
+```
+
+Program: `backend/apps/monitoring/uptime.py` – jeden plik, sama biblioteka standardowa (parsuje się na
+Pythonie 3.10). Cele z tych samych zmiennych, z których Caddy składa konfigurację:
+`https://<SITE_DOMAIN>/` i `/healthz/` (`"status": "ok"`), to samo dla każdej domeny z `EXTRA_DOMAINS`
+(dla nas `iqo-official.org`; bez `www.`), `https://<SITE_DOMAIN>/status.json`, `https://live.<…>/`
+(gdy `LIVEKIT_URL`), `https://errors.<domena>/_health/` (gdy `ERRORS_PROXY=1`), laboratorium
+notebooków `https://<SITE_DOMAIN>/static/notebook-lab/current.json` (gdy `UPTIME_NOTEBOOK_LAB=1`, § QC-01;
+wykonawca `notebook-runner` nie ma sieci – jego stan pokazuje healthcheck compose'a) oraz
+`UPTIME_EXTRA_URLS` (sufiks `|json` = wymagaj `"status": "ok"`). Do tego certyfikat TLS każdego hosta.
+
+| Zdarzenie | List |
+|---|---|
+| 3 porażki pod rząd (≈ 3 min) | „AWARIA” – raz |
+| awaria trwa | przypomnienie po 1 h, 2 h, 4 h, 8 h … najrzadziej raz na 24 h |
+| 2 sukcesy pod rząd po awarii | „POWRÓT” z czasem przerwy – tylko, jeśli poszedł list o awarii |
+| certyfikat < 14 dni albo nieważny | „CERTYFIKAT” od razu, potem raz na dobę; po odnowieniu „CERTYFIKAT OK” |
+
+Wszystko z jednego przebiegu to **jeden** list (śmierć hosta ≠ dziesięć listów), a twardy limit to
+6 listów na godzinę – nadmiar czeka i jedzie w następnym. Odbiorcy: `UPTIME_ALERT_EMAILS`, a gdy pusty –
+`ALERT_EMAILS` (watchdog). **Przerwa planowa** (`scripts/maintenance.sh on` – plik `maintenance/on`,
+montowany tylko do odczytu) nie daje listów o porażkach HTTP; przerwa nieplanowana (strona zastępcza
+przy leżącym `web`, bez pliku `on`) alarmuje normalnie. Stan (trwające awarie, zaległe listy) leży
+w wolumenie `uptime_state` i przeżywa restart. `uptime` stoi w sieci `edge` (wyjście na adresy
+publiczne, relay `mail`) – bez sekretów i bez `.env`.
+
+Usługa chodzi na obrazie aplikacji; `scripts/deploy.sh` odtwarza ją na nowym obrazie przy każdym
+wdrożeniu (jeśli w ogóle działa).
+
+### 44.5. Monitor spoza tego serwera (zalecane – wybór operatora)
+
+`uptime` i Kuma stoją na tej samej maszynie co serwis: śmierć hosta, sieci u dostawcy albo zasilania
+zabiera je razem z nim i **nikt nie dostaje listu**. Dwa warianty, do wyboru:
+
+- **(a) kopia skryptu na innej maszynie** (dowolny Linux z Pythonem ≥ 3.10 i dostępem do SMTP):
+  ```bash
+  scp backend/apps/monitoring/uptime.py inna-maszyna:/opt/uptime/uptime.py
+  # crontab -e na tamtej maszynie:
+  * * * * * SITE_DOMAIN=olimpiadakwantowa.pl EXTRA_DOMAINS=iqo-official.org \
+    UPTIME_ALERT_EMAILS=dyzurny@qaif.org UPTIME_SMTP_HOST=smtp.dostawca.example \
+    UPTIME_SMTP_PORT=587 UPTIME_SMTP_STARTTLS=1 UPTIME_FROM=uptime@qaif.org \
+    UPTIME_STATE_FILE=/opt/uptime/state.json python3 /opt/uptime/uptime.py --once
+  ```
+  (relay serwisu jest stamtąd nieosiągalny – potrzebny serwer SMTP, który przyjmie list z tamtej
+  maszyny bez hasła, np. jej własny relay; nadawca w domenie, która na to pozwala),
+- **(b) darmowa usługa zewnętrzna** (UptimeRobot, Better Stack, HetrixTools – plan bezpłatny co 5 min):
+  monitor słowa kluczowego na `https://olimpiadakwantowa.pl/status.json` i
+  `https://iqo-official.org/healthz/`, szukane `"status": "ok"` (albo `"status":"ok"` – zależnie od
+  formatowania odpowiedzi), powiadomienie e-mail; do tego „SSL expiry” 14 dni. Usługa widzi wyłącznie
+  publiczne adresy i poziomy z § 3.1 (bez liczb i dat), więc nie jest odbiorcą danych osobowych.
+
+### 44.6. Błędy JavaScriptu (opcjonalnie)
+
+`SENTRY_BROWSER=1` i **publiczny** DSN dla przeglądarek w `.env` + `docker compose up -d web`:
+
+```ini
+SENTRY_BROWSER=1
+SENTRY_BROWSER_DSN=https://<klucz>@errors.<domena>/<nr>     # wyłącznie https i nazwa z kropką
+```
+
+Najlepiej **osobny projekt** w GlitchTipie (osobny klucz z własnym limitem – § 44.2 krok 6): klucz
+przeglądarki jest jawny w HTML-u każdej strony. Gdy `SENTRY_BROWSER_DSN` jest pusty, loader bierze
+`SENTRY_DSN` – ale tylko jeśli ten jest publiczny (`https://…`); DSN wewnętrzny (`http://…@glitchtip…`)
+wyłącza loader. Każda strona publiczna dostaje `<script nonce src="/static/monitoring/errors.js">`
+(bez SDK i bez CDN), a CSP – origin `errors.<domena>` w `connect-src` (nic więcej). Loader wysyła
+najwyżej 5 zdarzeń na stronę, bez duplikatów, z adresem strony bez zapytania i z zamaskowanymi
+tokenami w ścieżce, komunikatem po tym samym filtrze co serwer; żadnych ciasteczek, User-Agenta ani
+identyfikatora konta.
+
+### 44.7. Wyłączenie i wycofanie
+
+- błędy aplikacji: `SENTRY_DSN=` i `SENTRY_BROWSER=0` w `.env`, `docker compose up -d web worker beat` –
+  klient nie startuje, CSP i strony wracają do stanu sprzed OPS-02, wiersz rejestru znika,
+- adres: `ERRORS_PROXY=0`, `bash scripts/proxy_config.sh update`,
+- usługi: `docker compose --profile monitoring stop glitchtip glitchtip-db uptime`; dane usuwa dopiero
+  `docker compose --profile monitoring rm -sf glitchtip glitchtip-db` +
+  `docker volume rm <projekt>_glitchtip_pg <projekt>_glitchtip_uploads` (prefiks z `docker volume ls`),
+- aktualizacja GlitchTipa: nowy tag **i** skrót w `docker-compose.yml` (osobny commit), potem
+  `docker compose --profile monitoring pull glitchtip && docker compose --profile monitoring up -d glitchtip`
+  (migracje przy starcie). Przed przeskokiem wersji głównej – notatki wydania na glitchtip.com/blog
+  (GlitchTip 6 łączy web i worker w jednym procesie; następne wersje odrzucają `SERVER_ROLE=worker`).
+
 ## 45. Zmiana hasła w panelu konta (AUTH-01b, `docs/tasks/AUTH-01b.md`)
 
 Nowa aplikacja `apps.password_change` – **bez migracji, bez zmiennych środowiskowych, bez flagi**:
@@ -5879,138 +6163,6 @@ docker compose exec -T web python manage.py theme_install - --activate iqo < /tm
   wzorców w `apps/web/urls.py` oraz sekcji „Hasło” w `web/account/profile.html` (danych do sprzątania
   nie ma – funkcja niczego nie przechowuje poza `accounts.User.password` i audytem). Wymóg hasła przy
   zmianie adresu i zamknięcie dróg Wagtaila/admina zostają – to poprawki bezpieczeństwa, nie część ekranu.
-
-## 49. Poczta z domeny konkursu (MAIL-01, `docs/tasks/MAIL-01.md`)
-
-Listy konkursu mogą wychodzić z **jego** domeny (IQO: `noreply@iqo-official.org`) tym samym relayem
-`mail`. Relay podpisuje DKIM-em każdą domenę z `ALLOWED_SENDER_DOMAINS` (obsługa wielu domen jest
-w obrazie boky/postfix – osobny klucz i osobny wiersz `KeyTable`/`SigningTable` na domenę).
-Kolejność kroków jest **twarda**: nadawcę konkursu zmienia się na samym końcu, po weryfikacji DNS.
-
-**Stan `iqo-official.org` z 5.10.2026** (sprawdzone `check_mail_dns`): DNS w Squarespace, rekord A →
-nasz serwer, **brak MX**, SPF `v=spf1 -all` („z tej domeny nie wychodzi żadna poczta”), DMARC
-`v=DMARC1; p=reject; sp=reject; adkim=s; aspf=s`. Znaczy to, że list od `@iqo-official.org` wysłany
-**dziś** zostałby **odrzucony** przez każdego dużego odbiorcę. DMARC zostaje bez zmian (ścisłe
-dopasowanie `adkim=s`/`aspf=s` przechodzi: podpis `d=iqo-official.org` i koperta
-`noreply@iqo-official.org` są dokładnie w tej domenie) – zmieniamy SPF i dokładamy DKIM.
-
-### 49.1. Krok 1 – serwer: klucz i rekordy (operator, ~1 min)
-
-```sh
-ssh -i ~/.ssh/olimpiada_deploy root@169.58.242.197
-cd /opt/olimpiada
-scripts/mail_add_domain.sh iqo-official.org
-```
-
-Skrypt (idempotentny – można go powtórzyć): dopisuje domenę do `ALLOWED_SENDER_DOMAINS` w `.env`
-(kopia `.env.bak-mail-<czas>`), generuje klucz DKIM **w kontenerze `mail`** (istniejącego nigdy nie
-nadpisuje), odtwarza **tylko** `mail` (kilka sekund; kolejka zostaje na wolumenie) i wypisuje rekordy,
-zapisując je też do `/opt/olimpiada/mail-dns-iqo-official.org.txt`. `web`/`worker`/`beat` nie są
-ruszane – patrz krok 4. `scripts/mail_add_domain.sh --print iqo-official.org` wypisze rekordy
-ponownie bez żadnych zmian.
-
-### 49.2. Krok 2 – Squarespace: trzy decyzje w panelu DNS (właściciel domeny, ~10 min)
-
-Squarespace → **Domains** → `iqo-official.org` → **DNS** (DNS Settings). Wartości kopiuj z
-`mail-dns-iqo-official.org.txt`, **nie** z tej instrukcji (klucz DKIM jest inny na każdym serwerze).
-
-1. **SPF – ZMIEŃ istniejący rekord, nie dodawaj drugiego.** Znajdź TXT o hoście `@` z wartością
-   `v=spf1 -all` i zmień wartość na tę z pliku – dla dzisiejszego stanu:
-   `v=spf1 ip4:169.58.242.197 -all`. Jeśli ten rekord jest częścią presetu Squarespace, którego nie
-   da się edytować, usuń go (ikona kosza przy presecie/rekordzie) i dodaj w **Custom records**:
-   Type `TXT`, Host `@`, Data = wartość z pliku. **Dwa rekordy `v=spf1` naraz unieważniają SPF.**
-2. **DKIM – DODAJ nowy rekord** w Custom records: Type `TXT`, Host `olimpiada._domainkey`,
-   Data = cała linia `v=DKIM1; h=sha256; k=rsa; s=email; p=MIIB…` z pliku (jedna wartość, bez
-   cudzysłowów). Gdyby panel odrzucił długość: na serwerze
-   `docker compose exec mail rm /etc/opendkim/keys/iqo-official.org.private /etc/opendkim/keys/iqo-official.org.txt`
-   i `DKIM_BITS=1024 scripts/mail_add_domain.sh iqo-official.org` (klucz 1024 bitów – ostateczność).
-3. **DMARC – NIE ruszaj.** Domena ma już `_dmarc` (`p=reject`); drugi rekord unieważniłby oba.
-   Opcjonalnie dopisz do istniejącego `; rua=mailto:<skrzynka>`, żeby dostawać raporty – adres
-   w innej domenie (np. `contact@qaif.org`) działa dopiero z rekordem zgody
-   `iqo-official.org._report._dmarc.qaif.org TXT "v=DMARC1"` w strefie qaif.org. Domena **bez**
-   DMARC (inny konkurs) dostaje w pliku `p=none` z planem: po ok. 2 tygodniach czystych raportów
-   zmień na `p=quarantine`.
-4. **MX i wszystkie pozostałe rekordy – bez zmian** (A, CNAME `www`, weryfikacje). Relay tylko wysyła.
-
-Propagacja: zwykle minuty, do kilku godzin (TTL starego rekordu SPF).
-
-### 49.3. Krok 3 – weryfikacja (operator)
-
-```sh
-cd /opt/olimpiada
-scripts/mail_add_domain.sh --check iqo-official.org
-```
-
-Dwa niezależne sprawdzenia: `opendkim-testkey` w kontenerze `mail` (klucz w DNS-ie = klucz prywatny
-relaya; „key not secure” = brak DNSSEC, to normalne) i `manage.py check_mail_dns` w `web` (ocena SPF
-dla `169.58.242.197`, DKIM z porównaniem klucza, DMARC). Kod 0 i „ZWERYFIKOWANA” = dalej. Wynik
-zapisuje się w bazie (`mail_domains.SenderDomain`) – z niego pulpit koordynatora bierze ostrzeżenie.
-Samo sprawdzenie, bez skryptu: `docker compose exec web python manage.py check_mail_dns iqo-official.org`
-(`--nameserver 1.1.1.1` omija pamięć podręczną resolwera Dockera, `--json` – raport maszynowy).
-
-### 49.4. Krok 4 – aplikacja wczytuje nową listę domen (operator, krótka przerwa web)
-
-```sh
-docker compose up -d web worker beat
-```
-
-Albo przy najbliższym wdrożeniu. Bez tego aplikacja nadal uważa `iqo-official.org` za domenę spoza
-relaya (`MAIL_ALLOWED_SENDER_DOMAINS`) i każdy list IQO szedłby od `DEFAULT_FROM_EMAIL`.
-
-### 49.5. Krok 5 – nadawca konkursu (DOPIERO TERAZ)
-
-Panel IQO → **Ustawienia konkursu** (`/coordinator/competition/`, flaga `competition_settings_page`)
-→ „Nadawca listów” = `noreply@iqo-official.org` → Zapisz (audyt `competition.updated`). Bez ekranu
-ustawień (flaga wyłączona) – z serwera, bez wpisu w audycie:
-
-```sh
-docker compose exec web python manage.py shell -c "from apps.tenancy.models import Competition as C; print(C.objects.filter(slug='iqo').update(from_email='noreply@iqo-official.org'))"
-```
-
-Pulpit koordynatora IQO i ekran ustawień pokazują ostrzeżenie „Nadawca listów konkursu”, dopóki domena
-jest spoza relaya albo bez udanego `check_mail_dns`; po krokach 3–4 ostrzeżenie znika.
-
-### 49.6. Krok 6 – próba na żywo
-
-1. „Nie pamiętasz hasła?” na `https://iqo-official.org/password-reset/` na skrzynkę Gmail: w „Pokaż
-   oryginał” – `SPF: PASS`, `DKIM: PASS (iqo-official.org)`, `DMARC: PASS`.
-2. Log relaya: `docker compose logs mail --tail 50 | grep -E "DKIM-Signature|status="` –
-   `DKIM-Signature field added (s=olimpiada, d=iqo-official.org)` i `status=sent`.
-3. Opcjonalnie list na `check-auth@verifier.port25.com` (odpowiedź z wynikami SPF/DKIM/DMARC).
-
-### 49.7. Poczta zwrotna (bounce)
-
-Relay nie doręcza lokalnie, więc zawiadomienie o niedoręczeniu na `noreply@<domena>` szło przez
-rekord A domeny z powrotem do tego samego serwera („mail for … loops back to myself”) i wisiało
-w kolejce. Od MAIL-01 skrypt startowy `deploy/mail/docker-init.d/50-bounces.sh` kieruje odbicia na
-`noreply@<każda domena z ALLOWED_SENDER_DOMAINS>`, na nadawców monitoringu (`glitchtip@`, `uptime@`,
-OPS-02) i podwójne odbicia na `postmaster@mail.<domena>`:
-
-- `MAIL_BOUNCE_TARGET=discard` (domyślnie) – wyrzucenie. Ślad zostaje: list pierwotny
-  `status=bounced (…powód…)`, odbicie `postfix/discard … status=sent (olimpiada-bounce)`.
-  Lista niedoręczonych: `docker compose logs mail | grep status=bounced`.
-- `MAIL_BOUNCE_TARGET=ops@qaif.org` w `.env` – przekierowanie na skrzynkę operatora (odbicia od
-  `MAILER-DAEMON`, bez DKIM – mogą wpaść do spamu tej skrzynki). Inna lista adresów:
-  `MAIL_BOUNCE_ADDRESSES="noreply@a.pl bounces@b.org"`. Zmiana: `docker compose up -d mail`.
-- Sprawdzenie: `docker compose logs mail | grep olimpiada-bounces` (linia przy starcie z celem
-  i adresami), `docker compose exec mail postconf transport_maps virtual_alias_maps`.
-
-Restrykcji OPS-02 (`mynetworks` z `MAIL_CLIENT_NETWORKS`, GlitchTip tylko jako `glitchtip@`) skrypt
-nie dotyka – ustawia wyłącznie `transport_maps` i `virtual_alias_maps`.
-
-### 49.8. Wdrożenia, klucze, wycofanie
-
-- **Wdrożenie nie rusza kluczy** (wolumen `mail_dkim`). Krok 7/8 porównuje klucz każdej domeny
-  z zapisanym (`mail-dns.txt`, `mail-dns-<domena>.txt`) i przy rozjeździe pisze `!!! UWAGA … INNY` –
-  wolumen odtworzony od zera dał nowy klucz: `scripts/mail_add_domain.sh --print <domena>`, nowy
-  rekord DKIM w Squarespace, `--check`. Wolumenu `mail_dkim` nie ma w kopiach zapasowych (§ 1) –
-  pliki `mail-dns-*.txt` są jedynym zapisem opublikowanych wartości.
-- **Wycofanie natychmiastowe:** wyczyść „Nadawca listów” konkursu (listy od `DEFAULT_FROM_EMAIL`).
-  Pełne: usuń domenę z `ALLOWED_SENDER_DOMAINS` w `.env` i `docker compose up -d mail web worker beat`;
-  rekordy w Squarespace mogą zostać (nie szkodzą) albo wróć SPF do `v=spf1 -all` i usuń
-  `olimpiada._domainkey`. Klucz na wolumenie zostaje – ponowne dodanie domeny użyje tego samego.
-- **Kolejny konkurs z własną domeną:** te same kroki 1–6 z jego domeną; inny panel DNS – te same
-  trzy decyzje (SPF zmień/scal, DKIM dodaj, DMARC nie dubluj, MX nie ruszaj).
 
 ## 46. Monitoring z zewnątrz (OPS-03, `docs/tasks/OPS-03.md`)
 
@@ -6244,3 +6396,359 @@ gh label create github-actions --color 000000 --force
   `łańcuch dostaw (SHA akcji, vendor JS, wyjątki)`, `trivy (obraz web)`, `trivy (obraz djcms)`.
 - Workflowy okresowe ruszają dopiero po scaleniu do `main` (harmonogram działa tylko na gałęzi
   domyślnej); pierwszy przebieg najlepiej wywołać ręcznie (*Run workflow*).
+
+## 48. Smoke test i wycofanie wdrożenia (OPS-04, `docs/tasks/OPS-04.md`)
+
+Każde wdrożenie (`scripts/deploy.sh`) kończy się **kontrolą dymną** z serwera, a gdy ta nie
+przechodzi – automatycznym powrotem do poprzednich obrazów aplikacji, o ile to bezpieczne. Baza
+danych i wolumeny **nigdy** nie są przy tym ruszane.
+
+### 48.1. Co się dzieje przy wdrożeniu
+
+| Krok | Co | Gdzie zostaje ślad |
+|---|---|---|
+| 2/8 | katalog `deploy-state/` jest omijany przy kasowaniu kodu (jak `.env`) | – |
+| **2a/8** | `scripts/rollback.sh snapshot`: obraz **działającego** `web` (i `djcms`, gdy `DJCMS_ENABLED=1`) dostaje tag `olimpiada/web:previous` (`olimpiada/djcms:previous`), zapis wersji i zastosowanych migracji (`django_migrations`, baza główna i djcms) | `deploy-state/previous.env`, `migrations-before.txt`, `djcms-migrations-before.txt` |
+| 4b–5a | jak dotąd (migracje i `collectstatic --clear` w entrypoincie `web`, czekanie na healthy, strona prac technicznych) | – |
+| **5b/8** | `manage.py page_cache_clear` – bufor całych stron gościa (§ 13) wszystkich konkursów gaśnie przed kontrolą; niepowodzenie = ostrzeżenie (klucz bufora i tak zawiera `APP_VERSION`) | – |
+| **5b/8** | `scripts/smoke.sh --server /opt/olimpiada --expect-version <wersja>` | `deploy-state/last-smoke.txt` |
+| 5b/8 – przeszła | `rollback.sh record-success` (wersja, commit, obrazy), dalej kroki 6–8 i „dj.” | `deploy-state/deployed.env` |
+| 5b/8 – nie przeszła | `rollback.sh auto` → wycofanie albo decyzja człowieka (§ 48.3), list do `ALERT_EMAILS`, ramka w logu, **kod 1** – kroki 6–8 i „dj.” się nie wykonują | `deploy-state/last-rollback.env`, `rollback-smoke.txt` |
+
+**Nowy `web`, który nie wstaje** (najczęstsze złe wydanie): `docker compose up -d` w kroku 4b kończy
+się błędem (proxy zależy od `web: healthy`). Wdrożenie nie urywa się wtedy, tylko pomija kroki 4c–5a
+i przechodzi do 5b/8: kontrola dymna i `rollback.sh auto --reason …` – także przy `DEPLOY_SMOKE=0|warn`
+i nawet gdy kontrola przypadkiem przejdzie (nieudany start jest porażką sam w sobie). Przy
+`--maintenance` strona prac technicznych zostaje włączona (wycofanie jej nie rusza) – wyłącz ją po
+sprawdzeniu serwisu z przepustką.
+
+Wycofanie wraca razem z `web`/`worker`/`beat` także **działające** usługi w profilach na tym samym
+obrazie: `notebook-worker`, `notebook-runner` (profil `notebooks`) i `uptime` (`monitoring`);
+niedziałających nie włącza. Migawka ostrzega (i zapisuje `PREV_SMOKE_VERIFIED=0`), gdy obraz `:previous`
+nie jest tym, który ostatnio przeszedł kontrolę (`deploy-state/deployed.env`) – np. po wdrożeniu
+z `DEPLOY_SMOKE=0`; decyzja `auto` mówi wtedy o tym w uzasadnieniu i w liście. Kontrola dymna śledzi
+przekierowania sama i wyłącznie w obrębie hosta (bez `curl -L`) – przepustka prac technicznych nie
+trafia pod adres z `Location` na innym hoście.
+
+Porządki po wdrożeniu nie kasują tagu `:previous` (nie liczy się do dwóch zostawianych tagów
+`olimpiada/web`). Migawka sprzed wdrożenia przeżywa więc także wdrożenie tej samej wersji, które
+odbiera staremu obrazowi tag wersji (`docker image prune` skasowałby obraz bez tagu).
+
+### 48.2. Co sprawdza kontrola dymna
+
+Wyłącznie żądania `GET` (bez logowania i formularzy), przez proxy **tego** serwera
+(`curl --resolve <host>:<port>:127.0.0.1` – wynik nie zależy od DNS ani od sieci operatora),
+z przepustką strony prac technicznych w konfiguracji curla (`-K -`, nie w argumentach). Hosty:
+`SITE_DOMAIN` i aktywne konkursy z własnym hostem (`manage.py check_domains --hosts`; obraz bez tej
+opcji albo niedziałający `web` – `EXTRA_DOMAINS`). Dla każdego hosta:
+
+- `/` – 200 i nagłówek `Content-Security-Policy`; `SMOKE_PAGES` (domyślnie `/status/ /password-reset/`) – 200,
+- `/healthz/` – 200 i `"status": "ok"`; `/status.json` – 200 i `"status": "ok"` (inna `version` niż
+  wdrażana = **ostrzeżenie**: odpowiedź jest buforowana 30 s),
+- `/login/` – 200, pole `csrfmiddlewaretoken`, ciasteczko `csrftoken`, CSP,
+- plik statyczny z hashem manifestu i arkusze motywu (`/themes/…`, `/_theme/…` – np. IQO) **ze strony
+  logowania** – 200 (strona główna bywa w buforze całych stron, § 13, z odnośnikami do plików sprzed
+  `collectstatic --clear`),
+- `/api/competitions/editions/current/` – 200 albo 404, zawsze JSON,
+- raz: `https://live.<domena>/` < 500 przy `LIVEKIT_PROXY=1`; `/djcms/healthz/` = 200 i
+  `/djcms/preview/` < 500 przy `DJCMS_ENABLED=1`.
+
+Każde sprawdzenie do 3 prób co 5 s (`SMOKE_RETRIES`, `SMOKE_RETRY_DELAY`), limit 15 s na żądanie
+(`SMOKE_TIMEOUT`), czas każdego w wydruku. Błąd TLS hosta innego niż `SITE_DOMAIN` (certyfikat, którego
+jeszcze nie ma) – ostrzeżenie: wycofanie wydania certyfikatu nie naprawi. Ręcznie, w dowolnej chwili:
+
+```sh
+ssh … "cd /opt/olimpiada && bash scripts/smoke.sh --server /opt/olimpiada"   # jak wdrożenie
+scripts/smoke.sh https://olimpiadakwantowa.pl https://<host-iqo>             # z laptopa (przez DNS)
+```
+
+Kod 0 – przeszła (ostrzeżenia dozwolone), 1 – co najmniej jeden błąd, 2 – złe wywołanie.
+
+### 48.3. Decyzja: wycofać automatycznie czy nie
+
+| Stan | Decyzja | Co robi wdrożenie |
+|---|---|---|
+| migawka jest, obraz `:previous` jest, **żadna** migracja (baza główna i djcms) nie przybyła od migawki | `auto` | wycofuje `web`, `worker`, `beat` (+`djcms`) do obrazów `:previous`, ponawia kontrolę z oczekiwaną poprzednią wersją, list „WYCOFANE” – kod skryptu 10 (albo 12, gdy po wycofaniu nadal źle) |
+| przybyła migracja albo stanu migracji nie da się odczytać | `manual` | **nic nie wycofuje**, strona prac technicznych zostaje wyłączona (serwis działa na nowej wersji), list „potrzebna decyzja” z listą migracji i procedurą § 48.5 – kod 11 |
+| brak migawki (pierwsza instalacja) albo obrazu `:previous` | `impossible` | jak wyżej – kod 11 |
+
+Dlaczego tak: stary kod na nowszym schemacie bazy potrafi zgubić albo zepsuć dane (kolumna
+`NOT NULL` bez wartości domyślnej, zmieniona semantyka pola), a cofnięcie migracji to już operacja na
+danych. Automat robi tylko to, co jest odwracalne jednym poleceniem. Migracje czyta z tabeli
+`django_migrations` (`SELECT` w kontenerze `db`) – to te same wiersze, które `showmigrations --plan`
+pokazuje jako `[X]`, ale odczyt nie wymaga działającego `web`, a po nieudanym wdrożeniu `web` zwykle
+nie działa.
+
+Wycofanie zmienia w `.env` wyłącznie `APP_VERSION`, `WEB_IMAGE` i `DJCMS_IMAGE` (kopia całego pliku:
+`deploy-state/env.before-rollback`) i wykonuje `docker compose up -d --no-deps --no-build web worker beat
+[djcms]` – bez `down`, bez `-v`, bez `db`/`redis`/`minio`/`proxy`. Entrypoint `web` poprzedniego obrazu
+robi `migrate` (no-op) i `collectstatic --clear` (pliki statyczne poprzedniej wersji – wolumen
+`static_files` jest pochodną obrazu). Kod w `/opt/olimpiada` i konfiguracja proxy **zostają** w nowej
+wersji – pełny powrót to wdrożenie poprzedniego tagu (`git checkout <tag> && scripts/deploy.sh …`).
+
+### 48.4. Polecenia (na serwerze, `cd /opt/olimpiada`)
+
+```sh
+bash scripts/rollback.sh status                         # ostatnie udane wdrożenie, migawka, ostatnie wycofanie, decyzja
+bash scripts/rollback.sh decide                         # auto (0) / manual (3) / impossible (4) z uzasadnieniem
+bash scripts/rollback.sh run                            # wycofanie ręczne (pyta: wpisz TAK)
+bash scripts/rollback.sh run --yes                      # bez pytania (np. ssh bez terminala)
+bash scripts/rollback.sh run --yes --allow-migrations   # świadomie mimo nowych migracji (§ 48.5)
+```
+
+`run` bierze tę samą blokadę co wdrożenie i przełączniki djcms (`caddy/.lock`). Furtki przy
+wdrożeniu (z laptopa): `DEPLOY_SMOKE=warn scripts/deploy.sh …` – porażka kontroli to tylko
+ostrzeżenie, bez wycofania, wdrożenie idzie dalej; `DEPLOY_SMOKE=0` – bez kontroli (np. gdy kontrola
+myli się z powodu niezwiązanego z wydaniem – i trzeba to potem poprawić w `smoke.sh`).
+
+### 48.5. Procedura ręczna (kontrola nie przeszła, a automat nie wycofał)
+
+1. **Co nie działa:** `cat deploy-state/last-smoke.txt`, `docker compose logs --tail 200 web`.
+2. **Jakie migracje przybyły:** `bash scripts/rollback.sh decide`.
+3. **Migracje wstecznie zgodne** (stary kod ich nie zauważa: nowe tabele, nowe kolumny z wartością
+   domyślną albo `NULL`, nowe indeksy) – `bash scripts/rollback.sh run --allow-migrations`. Przy
+   wdrożeniu poprawionej wersji migracje są już zastosowane (no-op).
+4. **Inaczej:** naprawa do przodu (poprawka i kolejne wdrożenie – zwykle najszybciej) **albo** powrót
+   bazy do kopii sprzed migracji: `bash scripts/maintenance.sh on`, `docker compose stop web worker
+   beat` (strona włączona i aplikacja zatrzymana **przed** odtworzeniem), odtworzenie
+   `pre-deploy-<znacznik>-<wersja>.dump` z `/opt/olimpiada-backups` (§ 2), `bash scripts/rollback.sh run
+   --yes --allow-migrations`, kontrola `bash scripts/smoke.sh --server /opt/olimpiada` (z przepustką),
+   `bash scripts/maintenance.sh off`. Wszystko, co uczestnicy zapisali między wdrożeniem a odtworzeniem,
+   przepada – decyzja organizatora.
+5. Po incydencie – § 7, krok 6.
+
+### 48.6. `sync_competitions` przy wdrożeniu (koniec czerwonych wdrożeń „dj.”)
+
+Krok „dj.” kończył prawie każde wdrożenie błędem `Lista konkursów z API niedostępna: timeout`, choć
+ręczne ponowienie minutę później przechodziło. Przyczyna: komenda pytała API `web` z limitem odsłony
+strony (1 s na operację gniazda, 2 s całość), a pierwsze żądanie do świeżo zrestartowanego `web` trwa
+dłużej. Teraz komendy djcms (`sync_competitions`, importer) mają własny limit 30 s
+(`djcms/apps/live/client.py`, `COMMAND_TIMEOUT_SECONDS`; strony – bez zmian), a wdrożenie ponawia
+`sync_competitions` przy tym jednym błędzie do 4 razy z przerwami 5/10/20 s (`DJCMS_SYNC_RETRY_DELAYS`).
+Inny błąd (np. importu treści) kończy krok od razu, jak dotąd. Obraz djcms sprzed tej zmiany
+(`DJCMS_IMAGE` z rejestru) ma jeszcze stary limit – wtedy pomaga samo ponawianie.
+
+### 48.7. Pierwsze wdrożenie tej wersji
+
+Nic do zrobienia ręcznie. Krok 2a/8 biegnie już skryptem z nowego kodu, a kontener `web` poprzedniej
+wersji działa – migawka powstaje i automatyczne wycofanie obejmuje także to wdrożenie. Ustaw
+`ALERT_EMAILS` w `.env` (§ 3.2), jeśli jeszcze nie jest ustawione – bez niego list o nieudanym wdrożeniu
+nie wyjdzie (log wdrożenia i tak to mówi). Testy: `scripts/tests/smoke_test.sh`,
+`scripts/tests/rollback_test.sh`, `scripts/tests/deploy_djcms_test.sh` (część 11).
+
+## 49. Poczta z domeny konkursu (MAIL-01, `docs/tasks/MAIL-01.md`)
+
+Listy konkursu mogą wychodzić z **jego** domeny (IQO: `noreply@iqo-official.org`) tym samym relayem
+`mail`. Relay podpisuje DKIM-em każdą domenę z `ALLOWED_SENDER_DOMAINS` (obsługa wielu domen jest
+w obrazie boky/postfix – osobny klucz i osobny wiersz `KeyTable`/`SigningTable` na domenę).
+Kolejność kroków jest **twarda**: nadawcę konkursu zmienia się na samym końcu, po weryfikacji DNS.
+
+**Stan `iqo-official.org` z 5.10.2026** (sprawdzone `check_mail_dns`): DNS w Squarespace, rekord A →
+nasz serwer, **brak MX**, SPF `v=spf1 -all` („z tej domeny nie wychodzi żadna poczta”), DMARC
+`v=DMARC1; p=reject; sp=reject; adkim=s; aspf=s`. Znaczy to, że list od `@iqo-official.org` wysłany
+**dziś** zostałby **odrzucony** przez każdego dużego odbiorcę. DMARC zostaje bez zmian (ścisłe
+dopasowanie `adkim=s`/`aspf=s` przechodzi: podpis `d=iqo-official.org` i koperta
+`noreply@iqo-official.org` są dokładnie w tej domenie) – zmieniamy SPF i dokładamy DKIM.
+
+### 49.1. Krok 1 – serwer: klucz i rekordy (operator, ~1 min)
+
+```sh
+ssh -i ~/.ssh/olimpiada_deploy root@169.58.242.197
+cd /opt/olimpiada
+scripts/mail_add_domain.sh iqo-official.org
+```
+
+Skrypt (idempotentny – można go powtórzyć): dopisuje domenę do `ALLOWED_SENDER_DOMAINS` w `.env`
+(kopia `.env.bak-mail-<czas>`), generuje klucz DKIM **w kontenerze `mail`** (istniejącego nigdy nie
+nadpisuje), odtwarza **tylko** `mail` (kilka sekund; kolejka zostaje na wolumenie) i wypisuje rekordy,
+zapisując je też do `/opt/olimpiada/mail-dns-iqo-official.org.txt`. `web`/`worker`/`beat` nie są
+ruszane – patrz krok 4. `scripts/mail_add_domain.sh --print iqo-official.org` wypisze rekordy
+ponownie bez żadnych zmian.
+
+### 49.2. Krok 2 – Squarespace: trzy decyzje w panelu DNS (właściciel domeny, ~10 min)
+
+Squarespace → **Domains** → `iqo-official.org` → **DNS** (DNS Settings). Wartości kopiuj z
+`mail-dns-iqo-official.org.txt`, **nie** z tej instrukcji (klucz DKIM jest inny na każdym serwerze).
+
+1. **SPF – ZMIEŃ istniejący rekord, nie dodawaj drugiego.** Znajdź TXT o hoście `@` z wartością
+   `v=spf1 -all` i zmień wartość na tę z pliku – dla dzisiejszego stanu:
+   `v=spf1 ip4:169.58.242.197 -all`. Jeśli ten rekord jest częścią presetu Squarespace, którego nie
+   da się edytować, usuń go (ikona kosza przy presecie/rekordzie) i dodaj w **Custom records**:
+   Type `TXT`, Host `@`, Data = wartość z pliku. **Dwa rekordy `v=spf1` naraz unieważniają SPF.**
+2. **DKIM – DODAJ nowy rekord** w Custom records: Type `TXT`, Host `olimpiada._domainkey`,
+   Data = cała linia `v=DKIM1; h=sha256; k=rsa; s=email; p=MIIB…` z pliku (jedna wartość, bez
+   cudzysłowów). Gdyby panel odrzucił długość: na serwerze
+   `docker compose exec mail rm /etc/opendkim/keys/iqo-official.org.private /etc/opendkim/keys/iqo-official.org.txt`
+   i `DKIM_BITS=1024 scripts/mail_add_domain.sh iqo-official.org` (klucz 1024 bitów – ostateczność).
+3. **DMARC – NIE ruszaj.** Domena ma już `_dmarc` (`p=reject`); drugi rekord unieważniłby oba.
+   Opcjonalnie dopisz do istniejącego `; rua=mailto:<skrzynka>`, żeby dostawać raporty – adres
+   w innej domenie (np. `contact@qaif.org`) działa dopiero z rekordem zgody
+   `iqo-official.org._report._dmarc.qaif.org TXT "v=DMARC1"` w strefie qaif.org. Domena **bez**
+   DMARC (inny konkurs) dostaje w pliku `p=none` z planem: po ok. 2 tygodniach czystych raportów
+   zmień na `p=quarantine`.
+4. **MX i wszystkie pozostałe rekordy – bez zmian** (A, CNAME `www`, weryfikacje). Relay tylko wysyła.
+
+Propagacja: zwykle minuty, do kilku godzin (TTL starego rekordu SPF).
+
+### 49.3. Krok 3 – weryfikacja (operator)
+
+```sh
+cd /opt/olimpiada
+scripts/mail_add_domain.sh --check iqo-official.org
+```
+
+Dwa niezależne sprawdzenia: `opendkim-testkey` w kontenerze `mail` (klucz w DNS-ie = klucz prywatny
+relaya; „key not secure” = brak DNSSEC, to normalne) i `manage.py check_mail_dns` w `web` (ocena SPF
+dla `169.58.242.197`, DKIM z porównaniem klucza, DMARC). Kod 0 i „ZWERYFIKOWANA” = dalej. Wynik
+zapisuje się w bazie (`mail_domains.SenderDomain`) – z niego pulpit koordynatora bierze ostrzeżenie.
+Samo sprawdzenie, bez skryptu: `docker compose exec web python manage.py check_mail_dns iqo-official.org`
+(`--nameserver 1.1.1.1` omija pamięć podręczną resolwera Dockera, `--json` – raport maszynowy).
+
+### 49.4. Krok 4 – aplikacja wczytuje nową listę domen (operator, krótka przerwa web)
+
+```sh
+docker compose up -d web worker beat
+```
+
+Albo przy najbliższym wdrożeniu. Bez tego aplikacja nadal uważa `iqo-official.org` za domenę spoza
+relaya (`MAIL_ALLOWED_SENDER_DOMAINS`) i każdy list IQO szedłby od `DEFAULT_FROM_EMAIL`.
+
+### 49.5. Krok 5 – nadawca konkursu (DOPIERO TERAZ)
+
+Panel IQO → **Ustawienia konkursu** (`/coordinator/competition/`, flaga `competition_settings_page`)
+→ „Nadawca listów” = `noreply@iqo-official.org` → Zapisz (audyt `competition.updated`). Bez ekranu
+ustawień (flaga wyłączona) – z serwera, bez wpisu w audycie:
+
+```sh
+docker compose exec web python manage.py shell -c "from apps.tenancy.models import Competition as C; print(C.objects.filter(slug='iqo').update(from_email='noreply@iqo-official.org'))"
+```
+
+Pulpit koordynatora IQO i ekran ustawień pokazują ostrzeżenie „Nadawca listów konkursu”, dopóki domena
+jest spoza relaya albo bez udanego `check_mail_dns`; po krokach 3–4 ostrzeżenie znika.
+
+### 49.6. Krok 6 – próba na żywo
+
+1. „Nie pamiętasz hasła?” na `https://iqo-official.org/password-reset/` na skrzynkę Gmail: w „Pokaż
+   oryginał” – `SPF: PASS`, `DKIM: PASS (iqo-official.org)`, `DMARC: PASS`.
+2. Log relaya: `docker compose logs mail --tail 50 | grep -E "DKIM-Signature|status="` –
+   `DKIM-Signature field added (s=olimpiada, d=iqo-official.org)` i `status=sent`.
+3. Opcjonalnie list na `check-auth@verifier.port25.com` (odpowiedź z wynikami SPF/DKIM/DMARC).
+
+### 49.7. Poczta zwrotna (bounce)
+
+Relay nie doręcza lokalnie, więc zawiadomienie o niedoręczeniu na `noreply@<domena>` szło przez
+rekord A domeny z powrotem do tego samego serwera („mail for … loops back to myself”) i wisiało
+w kolejce. Od MAIL-01 skrypt startowy `deploy/mail/docker-init.d/50-bounces.sh` kieruje odbicia na
+`noreply@<każda domena z ALLOWED_SENDER_DOMAINS>`, na nadawców monitoringu (`glitchtip@`, `uptime@`,
+OPS-02) i podwójne odbicia na `postmaster@mail.<domena>`:
+
+- `MAIL_BOUNCE_TARGET=discard` (domyślnie) – wyrzucenie. Ślad zostaje: list pierwotny
+  `status=bounced (…powód…)`, odbicie `postfix/discard … status=sent (olimpiada-bounce)`.
+  Lista niedoręczonych: `docker compose logs mail | grep status=bounced`.
+- `MAIL_BOUNCE_TARGET=ops@qaif.org` w `.env` – przekierowanie na skrzynkę operatora (odbicia od
+  `MAILER-DAEMON`, bez DKIM – mogą wpaść do spamu tej skrzynki). Inna lista adresów:
+  `MAIL_BOUNCE_ADDRESSES="noreply@a.pl bounces@b.org"`. Zmiana: `docker compose up -d mail`.
+- Sprawdzenie: `docker compose logs mail | grep olimpiada-bounces` (linia przy starcie z celem
+  i adresami), `docker compose exec mail postconf transport_maps virtual_alias_maps`.
+
+Restrykcji OPS-02 (`mynetworks` z `MAIL_CLIENT_NETWORKS`, GlitchTip tylko jako `glitchtip@`) skrypt
+nie dotyka – ustawia wyłącznie `transport_maps` i `virtual_alias_maps`.
+
+### 49.8. Wdrożenia, klucze, wycofanie
+
+- **Wdrożenie nie rusza kluczy** (wolumen `mail_dkim`). Krok 7/8 porównuje klucz każdej domeny
+  z zapisanym (`mail-dns.txt`, `mail-dns-<domena>.txt`) i przy rozjeździe pisze `!!! UWAGA … INNY` –
+  wolumen odtworzony od zera dał nowy klucz: `scripts/mail_add_domain.sh --print <domena>`, nowy
+  rekord DKIM w Squarespace, `--check`. Wolumenu `mail_dkim` nie ma w kopiach zapasowych (§ 1) –
+  pliki `mail-dns-*.txt` są jedynym zapisem opublikowanych wartości.
+- **Wycofanie natychmiastowe:** wyczyść „Nadawca listów” konkursu (listy od `DEFAULT_FROM_EMAIL`).
+  Pełne: usuń domenę z `ALLOWED_SENDER_DOMAINS` w `.env` i `docker compose up -d mail web worker beat`;
+  rekordy w Squarespace mogą zostać (nie szkodzą) albo wróć SPF do `v=spf1 -all` i usuń
+  `olimpiada._domainkey`. Klucz na wolumenie zostaje – ponowne dodanie domeny użyje tego samego.
+- **Kolejny konkurs z własną domeną:** te same kroki 1–6 z jego domeną; inny panel DNS – te same
+  trzy decyzje (SPF zmień/scal, DKIM dodaj, DMARC nie dubluj, MX nie ruszaj).
+
+## 50. Dostępność (A11Y-01, `docs/tasks/A11Y-01.md`)
+
+Serwis ma spełniać WCAG 2.1 AA. Pilnuje tego suita **axe-core + klawiatura** (`e2e/a11y/`), która
+biegnie w CI (job `a11y`) i lokalnie jednym poleceniem. Organizator publikuje **deklarację
+dostępności** (`/dokumenty/deklaracja-dostepnosci/`, odnośnik w stopce obu motywów).
+
+### 50.1. Uruchomienie testów lokalnie
+
+```sh
+./scripts/a11y.sh                       # pełny przebieg (ok. 5 min): serwer + 119 testów, sprzątanie
+./scripts/a11y.sh -k iqo                # argumenty idą do pytest
+A11Y_SERVE_ONLY=1 ./scripts/a11y.sh     # tylko serwer (zostaje w sieci olimpiada-a11y-net)
+A11Y_REUSE=1 ./scripts/a11y.sh -k home  # testy na serwerze z poprzedniego kroku
+```
+
+Wymaga Dockera, obrazu `olimpiada/web:dev` (kod montowany z hosta) i obrazu Playwrighta scenariusza E2E.
+Obraz deweloperski starszy od `pyproject.toml` (brak nowej zależności, np. `numpy` z QC-01) –
+`A11Y_EXTRA_PIP="numpy>=2.4,<2.5" ./scripts/a11y.sh` doinstaluje pakiet na czas przebiegu.
+Stosu compose dewelopera **nie dotyka**: własna sieć, własny Postgres w tmpfs, ustawienia
+`config.settings.a11y` (bez Redisa, MinIO, ClamAV i workera; tylko do testów – `DEBUG` na sztywno).
+Raport: `e2e/artifacts/a11y/report.md` (+ `report.json`, zrzuty `FAIL-*.png`); w CI – artefakt
+`a11y-report`. Podgląd naruszeń jednego ekranu dla autora szablonu (serwer z `A11Y_SERVE_ONLY=1`):
+`python a11y/probe.py /sciezka/` w kontenerze Playwrighta (opis w pliku).
+
+### 50.2. Co przewraca CI i co z tym zrobić
+
+- **nowe naruszenie `critical`/`serious`** (axe, reguły WCAG 2.1 A/AA, oraz reguła własna
+  `a11y-idref` – `aria-describedby` do nieistniejącego `id`) na którymkolwiek z ~70 ekranów,
+- każdy niezaliczony test klawiatury, fokusu, RTL, reflow (320 px / 200 %) albo powiązania błędów pól.
+
+Kolejność postępowania: **naprawić** (zwykle szablon albo token koloru); gdy naprawa nie jest możliwa
+w tym wydaniu – dopisać wpis do `e2e/a11y/baseline.json` (`page`, `rule`, `reason`) **z uzasadnieniem**
+i zadaniem w `docs/BACKLOG.md`. `A11Y_UPDATE_BASELINE=1 ./scripts/a11y.sh` dopisuje bieżące naruszenia
+z powodem „TODO…”, ale taki wpis przewraca kolejny przebieg, dopóki ktoś nie wpisze prawdziwego powodu.
+Nowy ekran do audytu = jeden wiersz w `e2e/a11y/pages.py` (dane, jeśli potrzebne – `e2e/a11y/seed.py`).
+
+Aktualizacja silnika: `AXE_CORE_VERSION=4.x.y scripts/vendor_axe_core.sh` (suma paczki sprawdzana
+z rejestrem npm), przebieg, przegląd raportu – nowa wersja axe potrafi dołożyć regułę.
+
+### 50.3. Deklaracja dostępności – wdrożenie (za zgodą organizatora)
+
+1. Po wdrożeniu wydania z A11Y-01 projekt deklaracji dla każdego konkursu (wersja robocza):
+
+   ```sh
+   docker compose exec -T web python manage.py seed_accessibility_statement kwantowa   # polska
+   docker compose exec -T web python manage.py seed_accessibility_statement iqo        # angielska
+   ```
+
+2. Organizator w `/cms/` → Dokumenty → „Deklaracja dostępności” (podgląd): uzupełnia **datę publikacji
+   serwisu**, **osobę kontaktową**, adres siedziby (sekcja „Dostępność architektoniczna”), poprawia
+   listę treści niedostępnych, usuwa ramkę „Projekt – do zatwierdzenia”, zmienia pole „status”
+   i **publikuje**. Odnośnik w stopce pojawia się sam po publikacji (pamięć podręczna unieważniana
+   sygnałem Wagtaila); wycofanie publikacji w `/cms/` chowa go z powrotem.
+3. Aktualizacja raz w roku (wzór deklaracji) i po każdej istotnej zmianie serwisu – data w treści.
+   Ponowne uruchomienie komendy na opublikowanej stronie jest odmawiane (`--force` zapisuje nowy
+   projekt jako wersję roboczą, opublikowanej nie rusza).
+
+### 50.4. Motyw IQO Quantum 1.1.2
+
+Poprawka kontrastu pasków ramy aplikacji (logowanie, panele, weryfikacja listu) i odnośnik deklaracji
+w stopce. `min_app_version` **0.47.0** – wgranie dopiero po wdrożeniu wydania z A11Y-01:
+
+```sh
+python themes/iqo-quantum/build_zip.py   # → themes/iqo-quantum/dist/iqo-quantum-1.1.2.zip (laptop)
+scp -i ~/.ssh/olimpiada_deploy themes/iqo-quantum/dist/iqo-quantum-1.1.2.zip deploy@<serwer>:/tmp/
+docker compose exec -T web python manage.py theme_install - --activate iqo < /tmp/iqo-quantum-1.1.2.zip
+```
+
+Cofnięcie: aktywacja 1.1.1 (§ 30.1). Bez 1.1.2 IQO działa, ale paski ramy aplikacji mają za niski
+kontrast, a stopka – bez odnośnika do deklaracji.
+
+### 50.5. Zmiany w aplikacji, o których warto wiedzieć
+
+- **Nowa aplikacja** `apps.accessibility` (bez modeli, bez migracji, bez adresów) – komenda deklaracji
+  i katalog tłumaczeń odnośnika. Wycofanie: usunięcie wiersza z `INSTALLED_APPS` i odnośników ze stopek.
+- Podpowiedzi pól w szablonach mają `id="<auto_id>_helptext"` (reguła pilnowana testem
+  `apps/accessibility/tests/test_form_descriptions.py`) – nowy szablon z ręcznie rysowanym
+  `{{ field.help_text }}` musi ją powtórzyć.
+- Menu panelu koordynatora dostaje atrybut `open` od 900 px (`static/js/coordinator-nav.js`).
+- Tryb wysokiego kontrastu: `.btn--accent` z czarnym napisem na żółci.
+- Nowych zależności Pythona nie ma; `axe-core` jest wyłącznie w `e2e/vendor/` (poza obrazem) i jest
+  wpisany do rejestru `.security/vendor.toml` (§ 47.4: wersja, integrity npm, SHA384; miesięczny
+  przegląd `upstream` pokaże nowe wydanie i znane podatności). Job CI `a11y` ma akcje przypięte SHA
+  i `permissions: contents: read`.

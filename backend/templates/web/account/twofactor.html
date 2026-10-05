@@ -109,7 +109,7 @@
     <div class="card">
       <h2 class="mt-0">{% translate "Krok 2: przepisz kod z aplikacji" %}</h2>
       <p class="hint">{% translate "Potwierdzenie kodem jest po to, żeby błąd przy skanowaniu wyszedł teraz, a nie przy następnym logowaniu." %}</p>
-      {% if error %}<p class="alert alert--error">{{ error }}</p>{% endif %}
+      {% if error %}<p class="alert alert--error" id="id_code_error" role="alert">{{ error }}</p>{% endif %}
       <form method="post" class="form">
         {% csrf_token %}
         <p>
@@ -117,7 +117,7 @@
           {# ``inputmode`` i ``autocomplete`` – klawiatura numeryczna na telefonie i podpowiedź #}
           {# z menedżera haseł. ``autofocus``, bo to jedyne pole na tej stronie. #}
           <input type="text" id="id_code" name="code" inputmode="numeric" pattern="[0-9]*"
-                 maxlength="{{ digits }}" autocomplete="one-time-code" autofocus required>
+                 maxlength="{{ digits }}" autocomplete="one-time-code" autofocus required{% if error %} aria-invalid="true" aria-describedby="id_code_error"{% endif %}>
         </p>
         <div class="actions">
           <button type="submit" class="btn btn--primary">{% translate "Włącz drugi składnik" %}</button>
