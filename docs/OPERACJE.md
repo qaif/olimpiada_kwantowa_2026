@@ -3528,8 +3528,14 @@ bash scripts/proxy_config.sh apply    # samo przeładowanie (albo odtworzenie ko
 - `caddy validate` idzie w obrazie i środowisku **działającego** kontenera. Gdy obraz proxy
   z `docker compose config` różni się od obrazu działającego kontenera (wydanie podbija `caddy`,
   DEP-02), walidacja idzie w jednorazowym kontenerze **nowego** obrazu
-  (`docker compose run --rm --no-deps -T --entrypoint sh proxy …`; brakujący obraz compose pobierze) –
-  stary Caddy odrzuciłby składnię nowego (`tls force_automate`). Wydanie, które dokłada wyłącznie
+  (`docker run --rm --network none --env-file <zmienne proxy z docker compose config>
+  -v caddy/Caddyfile.next:/etc/caddy/Caddyfile:ro <nowy obraz> caddy validate …`; brakujący obraz
+  `docker run` pobierze) – stary Caddy odrzuciłby składnię nowego (`tls force_automate`). Nie
+  `docker compose run proxy`: proxy ma w sieciach compose'a stałe `ipv4_address`, zajęte przez
+  działające proxy („Address already in use” – przerwane wdrożenie v0.48.5). Komunikat rozróżnia
+  „walidacja nie wystartowała” (kod 125–127 Dockera: obraz, sieć, uruchomienie – błąd Dockera nad
+  komunikatem) od „caddy validate odrzucił nową konfigurację” (błąd Caddy'ego nad komunikatem);
+  w obu przypadkach plik i proxy zostają bez zmian. Wydanie, które dokłada wyłącznie
   zmienną środowiskową proxy, dalej sprawdza plik w starym środowisku; taki kontener i tak jest
   odtwarzany w 4b, a ewentualny błąd pokaże `docker compose logs proxy` i krok 5/8.
 - Nie edytuj `caddy/Caddyfile` ręcznie – kolejne wdrożenie złoży go od nowa z `deploy/Caddyfile`
