@@ -1490,6 +1490,9 @@ i w eksporcie uczestników (§ 9.3).
 **Zmiana wersji dokumentu** (nowy regulamin) wymaga zmiany stałej w kodzie — to świadomie **nie jest**
 ustawienie w panelu: od tego momentu nowe zgody zapisują się pod nową wersją, a stare wpisy dalej mówią
 prawdę o tym, co obowiązywało wtedy. Zamów tę zmianę u administratora razem z wgraniem nowego PDF-a.
+**Od CONS-01 zmiana wersji znaczy też „zgoda do ponowienia”**: uczestnik, który zaakceptował
+poprzednią wersję, przy najbliższym wejściu do panelu zobaczy ekran „Uzupełnij zgody” (§ 7.5). Poprawka
+literówki w treści oświadczenia **bez** zmiany numeru wersji nikogo nie zatrzymuje.
 
 **Wycofanie w portalu** dotyczy dokładnie jednej zgody: publikacji imienia i nazwiska. Pozostałe są
 warunkiem udziału — ich wycofanie znaczy rezygnację z zawodów i jest sprawą do organizatora.
@@ -1641,6 +1644,43 @@ protokoły, listy dla kuratorium) nie niosą ani daty urodzenia, ani rocznika. T
 uczestników edycji ma obie kolumny — to są dane organizatora, nie odbiorcy.
 
 ---
+
+### 7.5 Uczestnicy z brakującymi zgodami — ekran „Uzupełnij zgody” (CONS-01)
+
+Zalogowany uczestnik, któremu brakuje **wymaganej** zgody (regulamin, RODO, a od osoby niepełnoletniej
+także oświadczenie o zgodzie opiekuna) **albo** którego zgoda dotyczy starszej wersji dokumentu, trafia
+przed panelem na ekran **„Uzupełnij zgody”**. Do czasu potwierdzenia nie wyśle rozwiązania, nie rozwiąże
+testu, nie napisze wiadomości i nie wejdzie na forum. Ekrany personelu (koordynator, komisja, nadzór)
+bramka pomija w całości.
+
+Kiedy to się dzieje:
+
+- **zmieniasz wersję dokumentu** na ekranie „Zgody konkursu” (`/coordinator/consents/`, konkursy
+  z flagą `per_competition_consents`, np. IQO) albo administrator zmienia ją w kodzie (Olimpiada
+  Kwantowa) — ekran potwierdzenia zmiany mówi o tym wprost,
+- przestawiasz zgodę dobrowolną na wymaganą,
+- uczestnik poprawia w profilu datę urodzenia na taką, przy której wymagamy zgody opiekuna.
+
+Co widzisz w panelu:
+
+- **pulpit** (`/coordinator/`) — kafelek **„Uczestnicy z brakującymi zgodami”** z liczbą (odświeżaną co
+  minutę); liczone są konta aktywne (zaproszeni uczniowie złożą zgody przy uruchomieniu konta),
+- kliknięcie pobiera **CSV** (`/coordinator/consents/missing.csv`): kod uczestnika, imię, nazwisko,
+  e-mail i lista brakujących zgód z wymaganą wersją — te same dane, które widzisz na liście kont.
+  Każde pobranie trafia do dziennika audytu (`consent_gate.exported`). Plik przydaje się do
+  przypomnienia komunikatem (`/coordinator/messages/`) przed terminem etapu.
+
+**Osoby niepełnoletnie.** Ekran pokazuje oświadczenie o zgodzie opiekuna (jak w rejestracji) oraz stan
+zgody opiekuna online z przyciskiem „Wyślij ponownie”. Brak **potwierdzenia online** nie blokuje panelu,
+uploadu ani testu — tak jak dotąd wymaga go wyłącznie zgoda na nadzór zdalny.
+
+**Dowód.** Każda uzupełniona zgoda to nowy wpis z wersją dokumentu, datą, drogą „panel” i adresem IP;
+w dzienniku audytu (`participant.consents_completed`) zostaje też język interfejsu i skrót SHA-256 treści,
+którą uczestnik widział. Wcześniejsze wpisy zostają nietknięte.
+
+**Nie zgadza się na nową treść?** Ekran prowadzi uczestnika do pobrania danych, usunięcia konta
+i zgłoszenia do organizatora — te drogi działają bez akceptacji. Odpowiedź na takie zgłoszenie jest po
+Twojej stronie (zwykle: rezygnacja z udziału).
 
 ## 8. Dyplomy i zaświadczenia — `/coordinator/stages/<id>/certificates/`
 

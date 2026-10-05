@@ -98,6 +98,7 @@ musi mieć wiersz z poprawną wartością domyślną, a każda flaga z tabeli �
 | Domeny nadawcy przekaźnika poczty | `ALLOWED_SENDER_DOMAINS` | `.env` | `SITE_DOMAIN` | § 9.7, § 49 | — |
 | Sieci klientów przekaźnika poczty | `MAIL_CLIENT_NETWORKS` | `.env` | `TRUSTED_PROXY_IPS` | § 49.7 | — |
 | Poczta zwrotna (bounce) | `MAIL_BOUNCE_TARGET` | `.env` | `discard` | § 49.7 | — |
+| Bramka „Uzupełnij zgody” dla uczestników | `CONSENT_GATE_ENABLED` | `.env` | wł. | § 51 | — (nowe w CONS-01) |
 <!-- funkcje-i-flagi: koniec -->
 
 ---
@@ -6752,3 +6753,76 @@ kontrast, a stopka – bez odnośnika do deklaracji.
   wpisany do rejestru `.security/vendor.toml` (§ 47.4: wersja, integrity npm, SHA384; miesięczny
   przegląd `upstream` pokaże nowe wydanie i znane podatności). Job CI `a11y` ma akcje przypięte SHA
   i `permissions: contents: read`.
+
+## 51. Uzupełnienie zgód po zalogowaniu (CONS-01, `docs/tasks/CONS-01.md`)
+
+Zalogowany **uczestnik**, któremu brakuje wymaganej zgody (regulamin, RODO, od małoletniego także
+oświadczenie o zgodzie opiekuna) **albo** którego zgoda dotyczy innej wersji dokumentu niż bieżąca,
+dostaje przed obszarem uczestnika (`/me/…`, `/forum/`, `/webinars/`, `/warsztaty/`, `/payments/`,
+`/notebook-starter/`, API zgłoszeń/zadań/reklamacji) ekran `/me/consents/complete/`. Personel, anonim,
+`/account/…` (eksport danych, usunięcie konta, hasło, język), wylogowanie, strony publiczne
+i `/zgoda/<token>/` – bez zmian. Nowa aplikacja `apps.consent_gate` (bez modeli i migracji),
+warstwa `ConsentGateMiddleware` między 2FA a bramką nadzoru (PROC-01).
+
+### 51.1. Przed wdrożeniem: ilu uczestników zobaczy ekran
+
+Wersja jest porównywana **dokładnie**, więc każdy, kto zaakceptował regulamin przed zmianą
+`TERMS_VERSION` (Olimpiada Kwantowa – „z 20 września 2026”) albo przed zmianą wersji na ekranie
+„Zgody konkursu” (IQO), zobaczy ekran przy najbliższym wejściu do panelu. Sprawdź skalę **przed**
+wdrożeniem na kopii bazy albo zaraz po nim (komenda tylko czyta, bez danych osobowych):
+
+```sh
+docker compose exec -T web python manage.py consent_gate_report
+# kwantowa: 412 uczestników z brakującymi zgodami
+#   TERMS (wymagana wersja: z 20 września 2026): 409
+#   GUARDIAN (wymagana wersja: 0.1 (projekt) z 10 września 2026): 3
+```
+
+Liczba w setkach przed etapem z terminem → uzgodnij z organizatorem komunikat do uczestników
+(„zaloguj się i potwierdź nowy regulamin”, `/coordinator/messages/`) **przed** wdrożeniem. Listę osób
+koordynator pobiera z pulpitu (kafelek „Uczestnicy z brakującymi zgodami” → CSV).
+
+### 51.2. Wyłącznik (incydent)
+
+Pomyłkowa zmiana wersji dokumentu w trakcie etapu odsyła do ekranu wszystkich naraz. Wyłączenie bez
+wdrożenia:
+
+```sh
+cd /opt/olimpiada
+echo 'CONSENT_GATE_ENABLED=false' >> .env
+docker compose up -d web          # restart web, ~10 s
+```
+
+Potem napraw przyczynę (cofnij wersję na ekranie „Zgody konkursu” – zmiana trafia do audytu jako
+`consent_definition.version_changed`) i przywróć `CONSENT_GATE_ENABLED=true` albo usuń wiersz.
+Wyłączona bramka nie zmienia niczego innego: ekran i CSV działają, kafelek mówi, że bramka jest wyłączona.
+
+### 51.3. Koszt i pamięć podręczna
+
+- Anonim, `is_staff`/superużytkownik i adresy spoza obszaru – zero zapytań.
+- Uczestnik – odczyt Redisa; przy chybieniu **jedno** zapytanie (profil + wpisy zgód), wynik na 5 min
+  (`consent_gate:v1:state:<konkurs>:<konto>`). Zestaw zgód konkursu z flagą `per_competition_consents` –
+  osobny wpis na 5 min (`consent_gate:v1:defs:<konkurs>`). API z tokenem na adresach z bramką – jedno
+  zapytanie o token (jak w bramce nadzoru).
+- Unieważnianie: sygnały zapisu `ConsentRecord`, `Participant` i `ConsentDefinition`. Zapis z pominięciem
+  ORM-u (ręczny SQL, `update()` na definicjach) zadziała najpóźniej po 5 min; od razu:
+  `docker compose exec -T web python manage.py shell -c "from django.core.cache import cache; cache.delete_pattern('consent_gate:v1:*')"`.
+- Awaria Redisa: bramka liczy stan zapytaniem przy każdym żądaniu (jak przy chybieniu) – działa, wolniej.
+- Pulpit koordynatora: +1 zapytanie na zimno (kafelek, pamięć 60 s).
+
+### 51.4. Dowód zgody i RODO
+
+Każda uzupełniona zgoda to `ConsentRecord` (wersja, czas, droga `panel`, adres IP wg `TRUSTED_PROXY_IPS`
+– ta sama reguła co w audycie). Wpis audytu `participant.consents_completed` niesie język interfejsu
+i SHA-256 treści oświadczenia; `consent_gate.exported` – pobranie CSV przez koordynatora. Nowych
+kategorii danych osobowych nie ma (IP przy zgodzie zbierała już zgoda opiekuna online), rejestr
+czynności przetwarzania bez zmian.
+
+Przy okazji poprawione: potwierdzenie zgody opiekuna online zapisuje wersję wzoru **z zestawu konkursu**
+(dotąd ze stałej) – w konkursie z własną wersją wzoru dowód wskazywał wersję, której konkurs nie znał.
+
+### 51.5. Wycofanie
+
+Usunięcie wiersza `apps.consent_gate.middleware.ConsentGateMiddleware` z `MIDDLEWARE` (albo
+`CONSENT_GATE_ENABLED=false`) zatrzymuje bramkę; wpisy zgód zebrane przez ekran zostają poprawnymi
+dowodami. Aplikacja nie ma migracji – wycofanie wydania nie wymaga cofania bazy.
