@@ -52,7 +52,7 @@ dependencies = [
     # piaskownicy wykonuje kod uczniów (``import numpy as np`` jest w każdym notatniku). Linia 2.4
     # **celowo ta sama**, co w Pyodide 314.0.x w przeglądarce (numpy 2.4.6) – test widoczny w
     # przeglądarce i ukryty na serwerze liczą ten sam kod na tej samej wersji biblioteki.
-    "numpy>=2.4,<2.5",
+    "numpy>=2.4,<2.6",
     "whitenoise>=6.7,<7.0",
     # CMS in-process (PROJEKT.md 1.1). 8.0 to pierwsza linia zgodna z Django 6.1 (metadane:
     # ``Django>=5.2``, klasyfikatory 5.2/6.0/6.1); poprzednia 6.3 była linią LTS zgodną
