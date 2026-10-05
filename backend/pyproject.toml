@@ -31,7 +31,14 @@ dependencies = [
     # nie mają ani koła, ani źródeł (``psycopg-binary`` wychodzi wyłącznie jako koła), więc na
     # 3.14 w ogóle się nie instalują.
     "psycopg[binary,pool]>=3.2.10,<3.4",
-    "redis>=5.0,<6.0",
+    # Linia 6.4 (DEP-01, 5.10.2026). Górna granica to nie „następna wersja mniejsza z nawyku”, tylko
+    # deklaracja kombu 5.6 (transport Celery 5.6): ``redis<6.5``. Celery stoi u nas bez ekstry
+    # ``[redis]``, więc resolver tej granicy sam nie dopilnuje – pilnuje jej ta linia i wpis ``ignore``
+    # w .github/dependabot.yml. Redis-py 7/8 dopiero z kombu 5.7. Zmiany 6.0 nas nie dotyczą:
+    # ``ssl_check_hostname`` (Redis bez TLS, sieć ``cache``), domyślne ponowienia klienta (django-redis
+    # i kombu podają własną pulę połączeń, więc obowiązuje ``retry`` puli – bez ponowień, jak w 5.x),
+    # RedisGraph/RedisGears i dialekt wyszukiwania (nieużywane).
+    "redis>=6.4,<6.5",
     # 7.0: pierwsza linia z ``Django>=5.2`` w metadanych; 5.4 nie instaluje się obok Django 6.1.
     "django-redis>=7.0,<7.1",
     "celery>=5.6,<5.7",
