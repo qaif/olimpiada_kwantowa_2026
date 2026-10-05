@@ -22,7 +22,7 @@ from apps.accounts.consents import label as consent_label
 from apps.accounts.delegations import DelegationStatus
 from apps.accounts.names import validate_person_name
 from apps.accounts.services import registration_profile
-from apps.email_delivery.fields import CheckedEmailField  # MAIL-02: literówki i martwe domeny
+from apps.email_delivery.fields import CheckedEmailField, EmailDomainCheckMixin  # MAIL-02
 from apps.tenancy.models import MAX_DELEGATION_SIZE
 from apps.web.forms import (
     PASSWORD_CONFIRM_FIELD,
@@ -40,7 +40,7 @@ LEADER_CONSENT_KINDS = (ConsentKind.TERMS, ConsentKind.PRIVACY)
 # --- koordynator --------------------------------------------------------------------------------
 
 
-class LeaderInviteForm(forms.Form):
+class LeaderInviteForm(EmailDomainCheckMixin, forms.Form):
     """„Zaproś opiekuna”: adres i kraj. Delegację kraju zakłada serwis, gdy jej jeszcze nie ma."""
 
     required_css_class = REQUIRED_CSS_CLASS
@@ -148,7 +148,7 @@ def _grade_choices(profile) -> list[tuple[str, str]]:
     ]
 
 
-class StudentForm(forms.Form):
+class StudentForm(EmailDomainCheckMixin, forms.Form):
     """Uczeń zgłaszany przez opiekuna drużyny: dane, których uczeń nie musi przepisywać.
 
     Hasła, telefonu i zgód tu nie ma: składa je uczeń sam pod linkiem z listu. Klasa i data

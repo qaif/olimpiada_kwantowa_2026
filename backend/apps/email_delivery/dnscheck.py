@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import threading
 from encodings import idna
 
 from django.conf import settings
@@ -44,6 +45,11 @@ DNS_TRIES = 1
 TTL_ACCEPTS = 24 * 3600
 TTL_REJECTS = 3600
 TTL_UNKNOWN = 300
+
+#: Ile pytań DNS naraz w jednym procesie ``web`` (wątki gunicorna). Pytanie zadaje wyłącznie formularz,
+#: który przeszedł całą pozostałą walidację (``fields.EmailDomainCheckMixin``), więc 4 to dużo.
+MAX_CONCURRENT_LOOKUPS = 4
+_LOOKUPS = threading.BoundedSemaphore(MAX_CONCURRENT_LOOKUPS)
 
 #: Domeny zarezerwowane (RFC 2606, RFC 6761) – nie pytamy o nie DNS-u i niczego nie blokujemy.
 #: Używają ich testy, środowiska e2e i przykłady w dokumentacji.
@@ -112,7 +118,16 @@ def domain_accepts_mail(domain: str) -> bool | None:
     cached = cache.get(key)
     if cached in _VALUES:
         return _VALUES[cached]
-    result = lookup(domain)
+    # Najwyżej MAX_CONCURRENT_LOOKUPS pytań naraz w procesie (przegląd PR #98, L3): fala rejestracji
+    # z różnych domen nie może zająć wszystkich wątków gunicorna czekaniem na DNS. Brak miejsca w ciągu
+    # limitu jednego pytania = „nie wiadomo” (fail-open), bez zapisu w cache'u.
+    if not _LOOKUPS.acquire(timeout=DNS_TIMEOUT):
+        logger.warning("Sprawdzenie DNS domeny adresu pominięte – za dużo równoczesnych pytań.")
+        return None
+    try:
+        result = lookup(domain)
+    finally:
+        _LOOKUPS.release()
     ttl = TTL_ACCEPTS if result is True else TTL_REJECTS if result is False else TTL_UNKNOWN
     cache.set(key, _CODES[result], ttl)
     return result

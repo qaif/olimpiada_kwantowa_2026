@@ -13,25 +13,45 @@ from pathlib import Path
 
 import pytest
 
-from apps.email_delivery.bounces import Bounce, classify, clean_reason, parse_dsn, process_maildir
+from apps.email_delivery.bounces import (
+    Bounce,
+    classify,
+    clean_reason,
+    parse_dsn,
+    process_maildir,
+    recipient_related,
+)
 
 DSN_DIR = Path(__file__).with_name("dsn")
+OUR_MTA = "mail.platforma.test"
 
 
-def _dsn(
+def _report(
     *,
     action="failed",
     status="5.1.1",
     diagnostic="smtp; 550 5.1.1 user unknown",
-    return_path="<>",
     recipient="uczen@example.org",
-    report_type="delivery-status",
-) -> bytes:
+    mta=OUR_MTA,
+) -> str:
+    return (
+        "Content-Type: message/delivery-status\n"
+        "\n"
+        f"Reporting-MTA: dns; {mta}\n"
+        "\n"
+        f"Final-Recipient: rfc822; {recipient}\n"
+        f"Action: {action}\n"
+        f"Status: {status}\n"
+        f"Diagnostic-Code: {diagnostic}\n"
+    )
+
+
+def _dsn(*, return_path="<>", report_type="delivery-status", **report) -> bytes:
     return (
         f"Return-Path: {return_path}\n"
-        "From: Mail Delivery System <MAILER-DAEMON@mail.platforma.test>\n"
+        f"From: Mail Delivery System <MAILER-DAEMON@{OUR_MTA}>\n"
         "To: noreply@platforma.test\n"
-        "Subject: Delayed Mail\n"
+        "Subject: Undelivered Mail\n"
         "MIME-Version: 1.0\n"
         f'Content-Type: multipart/report; report-type={report_type}; boundary="B"\n'
         "\n"
@@ -39,22 +59,12 @@ def _dsn(
         "Content-Type: text/plain\n"
         "\n"
         "opis\n"
-        "--B\n"
-        "Content-Type: message/delivery-status\n"
-        "\n"
-        "Reporting-MTA: dns; mail.platforma.test\n"
-        "\n"
-        f"Final-Recipient: rfc822; {recipient}\n"
-        f"Action: {action}\n"
-        f"Status: {status}\n"
-        f"Diagnostic-Code: {diagnostic}\n"
-        "\n"
-        "--B--\n"
+        "--B\n" + _report(**report) + "\n--B--\n"
     ).encode()
 
 
 def test_real_gmail_user_unknown_is_a_hard_bounce():
-    bounces = parse_dsn((DSN_DIR / "postfix_gmail_5.1.1.eml").read_bytes())
+    bounces = parse_dsn((DSN_DIR / "postfix_gmail_5.1.1.eml").read_bytes(), reporting_mta=OUR_MTA)
 
     assert len(bounces) == 1
     bounce = bounces[0]
@@ -66,7 +76,7 @@ def test_real_gmail_user_unknown_is_a_hard_bounce():
 
 
 def test_real_postfix_domain_not_found_is_a_hard_bounce():
-    (bounce,) = parse_dsn((DSN_DIR / "postfix_no_domain_5.4.4.eml").read_bytes())
+    (bounce,) = parse_dsn((DSN_DIR / "postfix_no_domain_5.4.4.eml").read_bytes(), reporting_mta=OUR_MTA)
 
     assert bounce.email == "jan.kowalski@nonexistent-domain-mail02-probe.com"
     assert bounce.hard is True
@@ -74,19 +84,31 @@ def test_real_postfix_domain_not_found_is_a_hard_bounce():
     assert bounce.reason.startswith("Host or domain name not found.")
 
 
-def test_delayed_notice_is_soft():
+def test_delayed_notice_is_not_about_the_address():
     (bounce,) = parse_dsn(_dsn(action="delayed", status="4.4.1", diagnostic="X-Postfix; connect timed out"))
-    assert bounce.hard is False
+    assert bounce.hard is False and bounce.recipient_related is False
 
 
-def test_policy_rejection_is_soft():
+def test_policy_rejection_is_neither_hard_nor_about_the_address():
     (bounce,) = parse_dsn(_dsn(status="5.7.1", diagnostic="smtp; 550 5.7.1 message rejected as spam"))
-    assert bounce.hard is False
+    assert bounce.hard is False and bounce.recipient_related is False
+
+
+def test_microsoft_policy_mailbox_unavailable_is_not_hard():
+    # Przegląd PR #98, L4: 5.0.350 z treścią „mailbox unavailable” to polityka Microsoftu, nie brak skrzynki.
+    (bounce,) = parse_dsn(
+        _dsn(
+            status="5.0.350",
+            diagnostic="smtp; 550 5.0.350 Remote server returned an error -> 550 Requested action not taken: "
+            "mailbox unavailable",
+        )
+    )
+    assert bounce.hard is False and bounce.recipient_related is False
 
 
 def test_mailbox_full_is_soft():
     (bounce,) = parse_dsn(_dsn(status="5.2.2", diagnostic="smtp; 552 5.2.2 mailbox full"))
-    assert bounce.hard is False
+    assert bounce.hard is False and bounce.recipient_related is True
 
 
 def test_message_with_a_real_sender_is_not_a_dsn():
@@ -103,6 +125,38 @@ def test_delivered_action_is_not_a_bounce():
     assert parse_dsn(_dsn(action="delivered", status="2.0.0")) == []
 
 
+def test_report_from_a_foreign_mta_is_ignored():
+    # Przegląd PR #98, M2: zawiadomienie musi pochodzić od naszego relaya.
+    forged = _dsn(mta="mx.atakujacy.example", recipient="ofiara@gmail.com")
+    assert parse_dsn(forged, reporting_mta=OUR_MTA) is None
+    assert parse_dsn(_dsn(), reporting_mta="MAIL.platforma.test.") is not None
+
+
+def test_report_hidden_in_the_attached_original_is_ignored():
+    # Raport schowany w treści listu pierwotnego (message/rfc822) nie jest raportem relaya.
+    nested = (
+        "Return-Path: <>\n"
+        "MIME-Version: 1.0\n"
+        'Content-Type: multipart/report; report-type=delivery-status; boundary="A"\n'
+        "\n"
+        "--A\n"
+        "Content-Type: text/plain\n"
+        "\n"
+        "opis\n"
+        "--A\n"
+        "Content-Type: message/rfc822\n"
+        "\n"
+        "Subject: oryginal\n"
+        "MIME-Version: 1.0\n"
+        'Content-Type: multipart/report; report-type=delivery-status; boundary="B"\n'
+        "\n"
+        "--B\n" + _report(recipient="ofiara@gmail.com") + "\n--B--\n"
+        "\n--A--\n"
+    ).encode()
+
+    assert parse_dsn(nested, reporting_mta=OUR_MTA) == []
+
+
 @pytest.mark.parametrize(
     ("status", "diagnostic", "failed", "hard"),
     [
@@ -114,16 +168,24 @@ def test_delivered_action_is_not_a_bounce():
         ("5.1.8", "553 5.1.8 sender address rejected", True, False),
         ("5.7.1", "550 5.7.1 user unknown (policy)", True, False),
         ("4.1.2", "450 4.1.2 Domain not found", False, False),
-        ("5.5.0", "550 5.5.0 Requested action not taken: mailbox unavailable", True, True),
-        ("5.0.0", "550 5.0.0 something odd", True, False),
-        ("", "550 No such user here", True, True),
-        ("", "450 No such user here", True, False),
-        ("", "554 delivery error", True, False),
+        ("5.5.0", "550 5.5.0 Requested action not taken: mailbox unavailable", True, False),
+        ("5.0.350", "550 5.0.350 mailbox unavailable", True, False),
+        ("5.0.0", "550 5.0.0 user unknown", True, False),
+        ("", "550 No such user here", True, False),
+        ("", "550 5.1.1 user unknown", True, True),
         ("5.1.1", "", False, False),
     ],
 )
-def test_classification(status, diagnostic, failed, hard):
+def test_classification_uses_only_the_status_table(status, diagnostic, failed, hard):
     assert classify(status, diagnostic, failed=failed) is hard
+
+
+@pytest.mark.parametrize(
+    ("status", "related"),
+    [("4.1.2", True), ("5.2.2", True), ("5.1.8", False), ("5.7.1", False), ("4.4.1", False), ("", False)],
+)
+def test_recipient_related(status, related):
+    assert recipient_related(status) is related
 
 
 def test_clean_reason_drops_the_type_and_folds_lines():
@@ -145,16 +207,22 @@ def test_process_maildir_records_and_deletes(tmp_path):
     (root / "new" / "1.gmail").write_bytes((DSN_DIR / "postfix_gmail_5.1.1.eml").read_bytes())
     (root / "new" / "2.domain").write_bytes((DSN_DIR / "postfix_no_domain_5.4.4.eml").read_bytes())
     (root / "new" / "3.plain").write_bytes(b"Return-Path: <noreply@x.test>\nSubject: hej\n\nlist\n")
-    (root / "new" / "4.soft").write_bytes(_dsn(action="delayed", status="4.4.1"))
+    (root / "new" / "4.delayed").write_bytes(_dsn(action="delayed", status="4.4.1"))
+    (root / "new" / "5.full").write_bytes(
+        _dsn(status="4.2.2", action="delayed", recipient="pelna@example.org")
+    )
+    (root / "new" / "6.forged").write_bytes(_dsn(mta="mx.atakujacy.example", recipient="ofiara@gmail.com"))
     recorded: list[Bounce] = []
 
-    stats = process_maildir(root, record=recorded.append)
+    stats = process_maildir(root, record=recorded.append, reporting_mta=OUR_MTA)
 
-    assert stats == {"files": 4, "hard": 2, "soft": 1, "ignored": 1, "errors": 0}
+    assert stats == {"files": 6, "hard": 2, "soft": 1, "other": 1, "ignored": 2, "errors": 0}
     assert {bounce.email for bounce in recorded if bounce.hard} == {
         "nie.istnieje.2026@gmail.com",
         "jan.kowalski@nonexistent-domain-mail02-probe.com",
     }
+    assert [bounce.email for bounce in recorded if not bounce.hard] == ["pelna@example.org"]
+    assert "ofiara@gmail.com" not in {bounce.email for bounce in recorded}
     assert list((root / "new").iterdir()) == []  # zawiadomienie z kopią listu nie zostaje na dysku
 
 

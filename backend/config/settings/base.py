@@ -835,6 +835,9 @@ MAILERS = {"default": {"BACKEND": _email_backend, "OPTIONS": _mailer_options}}
 EMAIL_BOUNCE_TRACKING = env.bool("EMAIL_BOUNCE_TRACKING", default=False)
 #: Katalog Maildir zawiadomień o niedoręczeniu w kontenerze workera (wolumen ``mail_bounces``).
 MAIL_BOUNCE_MAILDIR = env("MAIL_BOUNCE_MAILDIR", default="/var/mail-bounces/bounces")
+#: Nazwa relaya w polu ``Reporting-MTA`` zawiadomienia (= ``myhostname`` usługi ``mail``). Zawiadomienie
+#: z inną nazwą nie jest raportem naszego relaya i jest pomijane. Puste = ``mail.<SITE_DOMAIN>``.
+MAIL_BOUNCE_REPORTING_MTA = env("MAIL_BOUNCE_REPORTING_MTA", default="")
 if EMAIL_BOUNCE_TRACKING and _email_backend == _smtp_backend:
     MAILERS["default"]["BACKEND"] = "apps.email_delivery.backends.TrackingSMTPBackend"
 #: Twarda blokada domen bez MX i A w formularzach adresu (MAIL-02 § 1.2). Wyłącznik na wypadek, gdyby

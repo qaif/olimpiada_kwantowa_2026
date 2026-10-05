@@ -20,12 +20,15 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
   z Polski i świata, IDN, plus-adresy) – podpowiedź po opuszczeniu pola (skrypt statyczny z nonce, bez
   inline JS) i jedno pytanie po wysłaniu, z polem „Użyj adresu …”; ponowne wysłanie zostawia adres.
 - **Twarda blokada** domen bez MX i A (oraz „null MX”) – pytanie DNS z `web` (klient z MAIL-01, 1,5 s,
-  cache), każdy błąd DNS przepuszcza adres. Wyłącznik `EMAIL_DOMAIN_DNS_CHECK`.
-- **Odbicia poczty**: odmowy relaya zapisywane w chwili wysyłki (550 – bez trzech ponowień; relay
-  dostaje `unknown_address_reject_code=550`), zawiadomienia o niedoręczeniu (DSN) – `MAIL_BOUNCE_TARGET=capture`
+  cache, najwyżej 4 naraz), **dopiero po** całej pozostałej walidacji (CAPTCHA, antyspam, hasła); każdy
+  błąd DNS przepuszcza adres. Wyłącznik `EMAIL_DOMAIN_DNS_CHECK`.
+- **Odbicia poczty**: odmowy relaya zapisywane w chwili wysyłki (twarde wg tablicy kodów – bez trzech
+  ponowień; polityka/konfiguracja relaya, np. `554 5.7.1`, dalej jako błąd z ponowieniami, bez zapisu
+  przy adresie), zawiadomienia o niedoręczeniu (DSN) – `MAIL_BOUNCE_TARGET=capture`
   (nowa domyślna w compose): agent `virtual` Postfiksa → Maildir na wolumenie `mail_bounces` → worker
-  co 5 min (parser RFC 3464, pliki kasowane po przetworzeniu). Twarde (5.1.x, 5.2.1, 5.4.4) i miękkie
-  (liczone). Nowa aplikacja `apps.email_delivery`, model `DeliveryStatus` (klucz = adres).
+  co 5 min (parser RFC 3464 – tylko części najwyższego poziomu i `Reporting-MTA` naszego relaya; relay
+  odrzuca pusty nadawcę od klientów SMTP, więc DSN-a nie da się podrzucić z sieci compose; pliki kasowane
+  po przetworzeniu). Klasyfikacja wyłącznie po kodzie rozszerzonym (5.0.350 Microsoftu nie jest twarde). Nowa aplikacja `apps.email_delivery`, model `DeliveryStatus` (klucz = adres).
 - **Baner** „Nie możemy dostarczyć poczty na adres …” z „Zmień adres” i „Mój adres jest poprawny”;
   **lista koordynatora** „Adresy niedoręczalne” (Raporty, CSV, „Oznacz jako doręczalny”, audyt);
   **wstrzymanie listów nieobowiązkowych** (forum, czat, webinary, absolwenci, komunikaty grupowe);

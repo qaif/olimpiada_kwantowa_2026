@@ -6,14 +6,19 @@ import pytest
 from django import forms
 
 from apps.email_delivery import dnscheck
-from apps.email_delivery.fields import ACCEPT_SUFFIX, KEEP_SUFFIX, CheckedEmailField
+from apps.email_delivery.fields import (
+    ACCEPT_SUFFIX,
+    KEEP_SUFFIX,
+    CheckedEmailField,
+    EmailDomainCheckMixin,
+)
 
 
-class SampleForm(forms.Form):
+class SampleForm(EmailDomainCheckMixin, forms.Form):
     email = CheckedEmailField(label="Adres e-mail", max_length=254)
 
 
-class QuietForm(forms.Form):
+class QuietForm(EmailDomainCheckMixin, forms.Form):
     email = CheckedEmailField(label="Adres", suggest_typos=False)
 
 
@@ -87,17 +92,54 @@ def test_dead_domain_is_blocked_even_when_kept(dead_domains):
     assert KEEP_SUFFIX not in str(form["email"])
 
 
-def test_dead_domain_with_a_typo_offers_the_fix(dead_domains):
-    form = SampleForm({"email": "kcadera@o2.plo"})
+def test_dead_domain_with_a_typo_asks_first_then_blocks_with_the_fix(dead_domains):
+    # Najpierw (bez DNS) pytanie o literówkę; zostawiony adres trafia na DNS i dostaje blokadę z poprawką.
+    first = SampleForm({"email": "kcadera@o2.plo"})
+    assert not first.is_valid()
+    assert "czy chodziło Ci o kcadera@o2.pl?" in first.errors["email"][0]
 
-    assert not form.is_valid()
-    assert "Czy chodziło Ci o kcadera@o2.pl?" in form.errors["email"][0]
-    html = str(form["email"])
+    kept = SampleForm({"email": "kcadera@o2.plo", f"email{KEEP_SUFFIX}": "kcadera@o2.plo"})
+    assert not kept.is_valid()
+    assert "Czy chodziło Ci o kcadera@o2.pl?" in kept.errors["email"][0]
+    assert kept.errors["email"][0].startswith("Domena o2.plo")
+    html = str(kept["email"])
     assert 'value="kcadera@o2.pl"' in html
     assert KEEP_SUFFIX not in html  # „zostaw” nie ma sensu – na tę domenę nic nie dotrze
 
     fixed = SampleForm({"email": "kcadera@o2.plo", f"email{ACCEPT_SUFFIX}": "kcadera@o2.pl"})
     assert fixed.is_valid(), fixed.errors
+
+
+class WithOtherField(EmailDomainCheckMixin, forms.Form):
+    email = CheckedEmailField()
+    code = forms.CharField()
+
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get("code") == "bot":
+            raise forms.ValidationError("antyspam")
+        return cleaned
+
+
+def test_dns_is_asked_only_after_all_other_validation_passes(monkeypatch):
+    asked: list[str] = []
+    monkeypatch.setattr("apps.email_delivery.fields.domain_accepts_mail", lambda domain: asked.append(domain))
+
+    assert not WithOtherField({"email": "x@szkola.pl"}).is_valid()  # brak pola – bez DNS
+    assert not WithOtherField({"email": "x@szkola.pl", "code": "bot"}).is_valid()  # clean() – bez DNS
+    assert not WithOtherField({"email": "x@gmial.com", "code": "ok"}).is_valid()  # literówka – bez DNS
+    assert asked == []
+
+    assert WithOtherField({"email": "x@szkola.pl", "code": "ok"}).is_valid()
+    assert asked == ["szkola.pl"]
+
+
+def test_field_without_the_mixin_never_asks_dns(monkeypatch):
+    class Plain(forms.Form):
+        email = CheckedEmailField()
+
+    monkeypatch.setattr("apps.email_delivery.fields.domain_accepts_mail", lambda domain: False)
+    assert Plain({"email": "x@szkola.pl"}).is_valid()
 
 
 def test_unknown_dns_answer_lets_the_address_through(monkeypatch):

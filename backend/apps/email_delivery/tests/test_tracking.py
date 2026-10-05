@@ -101,7 +101,8 @@ def _send(connection, to=("kcadera@o2.plo",)) -> int:
 
 
 def test_permanent_relay_refusal_is_recorded_and_not_retried():
-    # Odpowiedź relaya sprawdzona 5.10.2026 na boky/postfix z ``unknown_address_reject_code=550``.
+    # Kształt odpowiedzi relaya sprawdzony 5.10.2026 na boky/postfix (z ``unknown_address_reject_code=550``;
+    # w compose kod zostaje domyślny – 450 – i ta droga dotyczy innych twardych odmów 5.1.x).
     refusal = {
         "kcadera@o2.plo": (550, b"5.1.2 <kcadera@o2.plo>: Recipient address rejected: Domain not found")
     }
@@ -121,6 +122,35 @@ def test_temporary_relay_refusal_raises_for_retry_and_counts_soft():
 
     row = DeliveryStatus.objects.get(email="kcadera@o2.plo")
     assert row.undeliverable_at is None and row.soft_bounces == 1
+
+
+def test_policy_refusal_is_raised_and_not_blamed_on_the_address():
+    # Przegląd PR #98, M1: ``554 5.7.1`` (np. pusty nadawca, nadawca spoza listy) to problem relaya
+    # albo konfiguracji – wyjątek leci dalej (ponowienia, log, GlitchTip), adres zostaje czysty.
+    refusal = {"jan@gmail.com": (554, b"5.7.1 <noreply@obca.test>: Sender address rejected: Access denied")}
+    with pytest.raises(smtplib.SMTPRecipientsRefused):
+        _send(FakeSMTP(error=smtplib.SMTPRecipientsRefused(refusal)), to=("jan@gmail.com",))
+
+    assert not DeliveryStatus.objects.exists()
+
+
+def test_mixed_refusal_is_raised_but_the_hard_one_is_recorded():
+    refusal = {
+        "zly@gmail.com": (550, b"5.1.1 user unknown"),
+        "jan@gmail.com": (554, b"5.7.1 Access denied"),
+    }
+    with pytest.raises(smtplib.SMTPRecipientsRefused):
+        _send(FakeSMTP(error=smtplib.SMTPRecipientsRefused(refusal)), to=("zly@gmail.com", "jan@gmail.com"))
+
+    assert list(DeliveryStatus.objects.values_list("email", flat=True)) == ["zly@gmail.com"]
+
+
+def test_refusal_without_a_status_code_is_raised():
+    refusal = {"jan@gmail.com": (550, b"Requested action not taken: mailbox unavailable")}
+    with pytest.raises(smtplib.SMTPRecipientsRefused):
+        _send(FakeSMTP(error=smtplib.SMTPRecipientsRefused(refusal)), to=("jan@gmail.com",))
+
+    assert not DeliveryStatus.objects.exists()
 
 
 def test_partial_refusal_is_recorded_and_the_rest_is_sent():
@@ -166,12 +196,30 @@ def test_mailbox_task_records_real_dsns(settings, tmp_path):
     source = Path(__file__).with_name("dsn") / "postfix_gmail_5.1.1.eml"
     (tmp_path / "new" / "1").write_bytes(source.read_bytes())
     settings.MAIL_BOUNCE_MAILDIR = str(tmp_path)
+    settings.MAIL_BOUNCE_REPORTING_MTA = "mail.platforma.test"
 
     stats = process_bounce_mailbox()
 
     assert stats["hard"] == 1
     row = DeliveryStatus.objects.get(email="nie.istnieje.2026@gmail.com")
     assert row.source == Source.DSN and row.status_code == "5.1.1"
+
+
+def test_mailbox_task_ignores_reports_of_another_mta(settings, tmp_path):
+    from pathlib import Path
+
+    from apps.email_delivery.tasks import process_bounce_mailbox
+
+    (tmp_path / "new").mkdir()
+    source = Path(__file__).with_name("dsn") / "postfix_gmail_5.1.1.eml"
+    (tmp_path / "new" / "1").write_bytes(source.read_bytes())
+    settings.MAIL_BOUNCE_MAILDIR = str(tmp_path)
+    settings.MAIL_BOUNCE_REPORTING_MTA = ""
+    settings.SITE_DOMAIN = "olimpiadakwantowa.pl"  # relay: mail.olimpiadakwantowa.pl ≠ mail.platforma.test
+
+    stats = process_bounce_mailbox()
+
+    assert stats["ignored"] == 1 and not DeliveryStatus.objects.exists()
 
 
 def test_mailbox_task_is_idle_without_tracking(settings, tmp_path):

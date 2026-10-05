@@ -27,7 +27,7 @@ from apps.accounts.preferences import (
     save_preferences,
 )
 from apps.core.api import DomainError
-from apps.email_delivery.fields import CheckedEmailField  # MAIL-02: literówki i martwe domeny
+from apps.email_delivery.fields import CheckedEmailField, EmailDomainCheckMixin  # MAIL-02
 from apps.web.mixins import ActionViewMixin, ParticipantRequiredMixin
 from apps.web.throttle import ThrottledFormMixin
 
@@ -37,7 +37,7 @@ def _form_error(message: str) -> DomainError:
     return DomainError(message, "INVALID_INPUT", status.HTTP_400_BAD_REQUEST)
 
 
-class GuardianEmailForm(forms.Form):
+class GuardianEmailForm(EmailDomainCheckMixin, forms.Form):
     """Adres opiekuna. Formularz mieszka przy widoku, bo nie używa go nikt inny.
 
     Samego kształtu pilnuje ``EmailField``; reguły („uczestnik nie może być własnym opiekunem”,

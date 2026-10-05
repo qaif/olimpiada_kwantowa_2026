@@ -6776,8 +6776,9 @@ przez opiekuna drużyny (adres ucznia i rodzica):
   zostawić. Lista znanych dostawców i mapa literówek TLD: `apps/email_delivery/typos.py` (kopia w
   `static/email_delivery/email-check.js`; test pilnuje zgodności),
 - **domena, która na pewno nie przyjmuje poczty** (brak MX i A albo „null MX”) – błąd bez możliwości
-  pozostawienia. Pytanie DNS zadaje `web` (resolwer z `/etc/resolv.conf`, limit 1,5 s, wynik w cache:
-  „tak” 24 h, „nie” 1 h, „nie wiadomo” 5 min). **Każdy błąd DNS przepuszcza adres** (fail-open).
+  pozostawienia. Pytanie DNS zadaje `web` **dopiero po** całej pozostałej walidacji formularza
+  (CAPTCHA, antyspam, hasła), najwyżej 4 naraz w procesie (resolwer z `/etc/resolv.conf`, limit 1,5 s,
+  wynik w cache: „tak” 24 h, „nie” 1 h, „nie wiadomo” 5 min). **Każdy błąd DNS przepuszcza adres**.
   Adres rodzica w panelu uczestnika (`/me/guardian/`) ma wyłącznie blokadę (ekran nie rysuje pola ponownie).
 
 Wyłącznik blokady (np. przy kłopotach z DNS serwera): `EMAIL_DOMAIN_DNS_CHECK=false` w `.env` i
@@ -6785,10 +6786,12 @@ Wyłącznik blokady (np. przy kłopotach z DNS serwera): `EMAIL_DOMAIN_DNS_CHECK
 
 ### 52.2. Skąd serwis wie o niedoręczeniu
 
-- **Odmowa relaya** w chwili wysyłki (domena odbiorcy nie istnieje): relay odpowiada `550 5.1.2 …
-  Domain not found` (od MAIL-02 `POSTFIX_unknown_address_reject_code: "550"` w compose; przy awarii DNS
-  relay zawsze odpowiada 450), worker zapisuje odmowę i **nie** ponawia listu trzy razy jak dotąd
-  (backend `apps.email_delivery.backends.TrackingSMTPBackend`, podstawiany przy `EMAIL_BOUNCE_TRACKING`).
+- **Odmowa relaya** w chwili wysyłki (backend `apps.email_delivery.backends.TrackingSMTPBackend`,
+  podstawiany przy `EMAIL_BOUNCE_TRACKING`): odmowa twarda wg tablicy kodów (np. `5.1.1`) dla **każdego**
+  odbiorcy – zapis i koniec bez trzech ponowień; każda inna (np. `450 4.1.2 … Domain not found` –
+  `unknown_address_reject_code` relaya zostaje domyślny, chwilowy NXDOMAIN nie może zgubić listu
+  aktywacyjnego; `554 5.7.1` – polityka/konfiguracja relaya) leci jak dotąd: ponowienia, log workera,
+  GlitchTip. Polityka i konfiguracja **nie** są zapisywane przy adresie odbiorcy.
 - **Zawiadomienie o niedoręczeniu (DSN)** po przyjęciu listu przez relay (np. 550 5.1.1 od Gmaila):
   `MAIL_BOUNCE_TARGET=capture` (domyślne w compose od MAIL-02) kieruje zawiadomienia na `noreply@<domena>`
   agentem `virtual` Postfiksa do skrzynki Maildir na wolumenie `mail_bounces`
@@ -6797,12 +6800,19 @@ Wyłącznik blokady (np. przy kłopotach z DNS serwera): `EMAIL_DOMAIN_DNS_CHECK
   czyta `new/`, zapisuje odbicia i **kasuje** pliki (zawiadomienie niesie kopię listu – z linkiem
   aktywacyjnym). Plik, którego nie udało się przetworzyć, leży w `bounces/cur/` 7 dni. Podwójne odbicia
   i nadawcy monitoringu (`postmaster@`, `glitchtip@`, `uptime@`) – nadal `discard`.
+- **Podrzucone zawiadomienie** z sieci compose nie przejdzie: relay odrzuca pusty nadawcę koperty
+  (`MAIL FROM:<>`) od każdego klienta SMTP (`check_sender_access inline:{ <>=REJECT }`, 554 5.7.1 –
+  prawdziwe zawiadomienia powstają w samym relayu, z pominięciem smtpd), a worker przyjmuje tylko DSN
+  z `Reporting-MTA` = `MAIL_BOUNCE_REPORTING_MTA` (compose: `mail.<SITE_DOMAIN>`) i czyta wyłącznie
+  części najwyższego poziomu (nie raport schowany w załączonym liście).
 - Logów relaya aplikacja **nie** czyta (wymagałoby to gniazda Dockera w kontenerze) – `docker compose
   logs mail | grep -E "status=bounced|NOQUEUE"` zostaje narzędziem operatora.
 
-Twarde odbicie = adres albo domena nie istnieje (5.1.x, 5.2.1, 5.4.4, „user unknown”…). Wszystko inne
-(4.x.x, skrzynka pełna 5.2.2, odmowa z powodu polityki/spamu 5.7.x) – miękkie: liczone, bez skutków.
-Odbicia 5.7.x od dużych odbiorców to sygnał o **naszej** reputacji (SPF/DKIM/DMARC, § 49), nie o adresie.
+Klasyfikacja wyłącznie po kodzie rozszerzonym (tablica w `apps/email_delivery/bounces.py`): twarde =
+`5.1.1`, `5.1.2`, `5.1.3`, `5.1.6`, `5.1.10`, `5.2.1`, `5.4.4`; miękkie (liczone, bez skutków) = pozostałe
+kody adresu i skrzynki (`4.1.2`, `5.2.2` …); reszta (`5.7.x`, `5.0.350` Microsoftu z treścią „mailbox
+unavailable”, opóźnienia `4.4.x`) – tylko linia w logu workera. Odbicia 5.7.x od dużych odbiorców to
+sygnał o **naszej** reputacji (SPF/DKIM/DMARC, § 49), nie o adresie.
 
 ### 52.3. Co się dzieje z adresem, który twardo odbił
 
@@ -6832,7 +6842,7 @@ Odbicia 5.7.x od dużych odbiorców to sygnał o **naszej** reputacji (SPF/DKIM/
 
    ```sh
    docker compose logs mail | grep olimpiada-bounces    # „poczta zwrotna -> capture (/var/mail/olimpiada/bounces/, 1000:1000)”
-   docker compose exec mail postconf unknown_address_reject_code virtual_mailbox_base transport_maps
+   docker compose exec mail postconf smtpd_sender_restrictions virtual_mailbox_base transport_maps
    docker compose exec worker ls -la /var/mail-bounces/ # bounces/ właściciela 1000 (po pierwszym odbiciu)
    ```
 

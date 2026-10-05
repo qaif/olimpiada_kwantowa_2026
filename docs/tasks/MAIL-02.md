@@ -58,6 +58,10 @@ wspólnych są minimalne: pole formularza w kilku formularzach, `essential=False
   przełącznik `EMAIL_DOMAIN_DNS_CHECK` (domyślnie włączony; `config.settings.test` – wyłączony).
 - Pamięć podręczna (cache Django): „przyjmuje” 24 h, „nie przyjmuje” 1 h, „nie wiadomo” 5 min
   (żeby awaria DNS nie kosztowała 3 s na każde wysłanie formularza).
+- **Kiedy pytamy** (przegląd PR #98, L3): dopiero gdy **cała** pozostała walidacja formularza przeszła
+  (pola, CAPTCHA, pułapka i czas antyspamu, hasła – `fields.EmailDomainCheckMixin._post_clean`).
+  Najwyżej 4 pytania naraz w procesie (`threading.BoundedSemaphore`); brak miejsca = „nie wiadomo”.
+  Limity żądań widoków (`register`, `password_reset` per konto …) bez zmian.
 
 ### 1.3. Pole formularza (`apps.email_delivery.fields.CheckedEmailField`)
 Podklasa `forms.EmailField` z własnym widżetem. Kolejność w `clean`:
@@ -99,10 +103,12 @@ Dwie drogi, obie bez czytania logów:
 (`reject_unknown_recipient_domain` w obrazie). Aplikacja dostaje to synchronicznie w
 `SMTPRecipientsRefused`. Backend `apps.email_delivery.backends.TrackingSMTPBackend` (podklasa
 backendu SMTP Django, podstawiana w `MAILERS` przy `EMAIL_BOUNCE_TRACKING`) zapisuje odmowę;
-odmowa **trwała** (5xx) nie jest już ponawiana trzy razy (zadanie kończy się z wynikiem 0 i
-ostrzeżeniem w logu) – 4xx dalej rzuca wyjątek i ponawia jak dotąd. Relay dostaje
-`POSTFIX_unknown_address_reject_code=550`: Postfix odpowiada wtedy 550 tylko na NXDOMAIN, a przy
-awarii DNS **zawsze** 450 (dokumentacja Postfiksa), więc 550 jest pewnym sygnałem.
+wyjątek jest połykany (bez trzech ponowień, wynik 0 i ostrzeżenie w logu) **tylko** wtedy, gdy
+odmowa każdego odbiorcy jest twarda wg tablicy § 2.2. Każda inna (4xx, `554 5.7.1` – polityka relaya,
+błąd konfiguracji) leci dalej jak dotąd: ponowienia, log workera, GlitchTip – i **nie** jest
+zapisywana jako odbicie adresu (przegląd PR #98, M1). `unknown_address_reject_code` relaya zostaje
+domyślny (450): chwilowy NXDOMAIN nie może trwale zgubić listu obowiązkowego (L5), a domeny bez MX/A
+łapie formularz (§ 1.2). Odmowa `450 4.1.2 … Domain not found` liczy się jako odbicie miękkie.
 
 **(b) Zawiadomienie o niedoręczeniu (DSN) od relaya.** Po przyjęciu listu relay doręcza go do MX-a
 odbiorcy; 550 od Google'a = DSN na `noreply@<domena>`. MAIL-01 kieruje te adresy na `discard`.
@@ -119,15 +125,24 @@ HTTP na każde odbicie. Maildir to natywny agent Postfiksa, jeden wolumen i dwa 
 
 Pliki Maildir zapisuje Postfix jako UID/GID `1000` (użytkownik `app` obrazu aplikacji,
 `MAIL_BOUNCE_UID`/`MAIL_BOUNCE_GID`), więc worker je czyta i kasuje bez dodatkowych uprawnień.
-Do skrzynki trafia wyłącznie poczta wygenerowana przez relay (relay nie przyjmuje poczty z
-internetu); list, który nie jest DSN-em z pustym `Return-Path`, jest pomijany i kasowany.
+Fałszywe zawiadomienia z wnętrza sieci compose (przegląd PR #98, M2) – trzy zabezpieczenia naraz:
+- relay odrzuca pusty nadawcę koperty od **każdego** klienta SMTP
+  (`check_sender_access inline:{ <>=REJECT }` na początku `smtpd_sender_restrictions`; 554 5.7.1).
+  Prawdziwe DSN-y generuje demon `bounce` z pominięciem smtpd – sprawdzone na obrazie relaya
+  5.10.2026: odmowa `MAIL FROM:<>` z sieci, zawiadomienie lokalne dalej w skrzynce,
+- parser przyjmuje tylko DSN z pustym `Return-Path` **i** `Reporting-MTA` = nazwa naszego relaya
+  (`MAIL_BOUNCE_REPORTING_MTA`, domyślnie `mail.<SITE_DOMAIN>`),
+- czyta wyłącznie części najwyższego poziomu – raport schowany w załączonym liście pierwotnym
+  (`message/rfc822`) jest ignorowany.
 
 ### 2.2. Klasyfikacja
-Twarde (adres nie istnieje / domena nie istnieje): status `5.1.x` (poza `5.1.7`/`5.1.8` – nadawca),
-`5.2.1`, `5.4.4` (domena bez MX/A), `5.1.10` (null MX), `5.5.2` przy odmowie relaya (adres
-niepełny); 5xx bez statusu rozszerzonego z diagnozą typu „user unknown”, „does not exist”, „no such
-user”, „domain not found”. Wszystko inne (4.x.x, `Action: delayed`, `5.2.2` skrzynka pełna, `5.7.x`
-polityka/spam, …) – **miękkie**: liczone, nie wstrzymują wysyłki.
+Wyłącznie po kodzie rozszerzonym, z tablicy – bez zgadywania po treści (przegląd PR #98, L4:
+Microsoft odrzuca z powodu polityki kodem `5.0.350` i treścią „mailbox unavailable”):
+- **twarde**: `5.1.1`, `5.1.2`, `5.1.3`, `5.1.6`, `5.1.10` (null MX), `5.2.1`, `5.4.4` (domena bez MX/A),
+- **miękkie** (liczone, bez skutków): pozostałe kody klasy adresu `x.1.x` (poza nadawcą `x.1.7`/`x.1.8`)
+  i skrzynki `x.2.x` – np. `4.1.2`, `5.2.2` (skrzynka pełna),
+- **pozostałe** (polityka/spam `x.7.x`, `5.0.x`, protokół, sieć, opóźnienie `4.4.x`, brak kodu) – nie są
+  przypisywane adresowi; linia w logu workera z domeną i kodem.
 
 ### 2.3. Zapis (`DeliveryStatus`, klucz = adres małymi literami)
 Adres, `undeliverable_at` (pierwsze twarde odbicie), `reason` (diagnoza, ≤ 500 znaków), `status_code`,
@@ -178,7 +193,8 @@ bezpieczeństwa, zgody, wyniki, rozmowy, płatności, biuro wsparcia.
 - `MAIL_BOUNCE_MAILDIR` (env, domyślnie `/var/mail-bounces/bounces`) – katalog Maildir w workerze.
 - `EMAIL_DOMAIN_DNS_CHECK` (env, domyślnie `True`).
 - compose: wolumen `mail_bounces` (mail: `/var/mail/olimpiada`, worker: `/var/mail-bounces`),
-  `MAIL_BOUNCE_TARGET` domyślnie `capture`, `POSTFIX_unknown_address_reject_code: "550"`.
+  `MAIL_BOUNCE_TARGET` domyślnie `capture`, `MAIL_BOUNCE_REPORTING_MTA: mail.${SITE_DOMAIN}`,
+  odmowa pustego nadawcy w `POSTFIX_smtpd_sender_restrictions`; `unknown_address_reject_code` domyślny.
 
 ## 4. Testy
 

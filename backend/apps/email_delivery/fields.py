@@ -1,8 +1,10 @@
 """Pole adresu e-mail z podpowiedzią literówek i twardą blokadą martwych domen (MAIL-02 § 1.3).
 
 Podmiana jednej linii w formularzu: ``forms.EmailField(...)`` → ``CheckedEmailField(...)`` (te same
-argumenty). Szablony się nie zmieniają – wszystko, co pole dokłada (komunikat, pole wyboru „Użyj …”,
-ukryte „zostaw”), rysuje jego widżet w miejscu ``{{ field }}``, więc działa w każdym motywie.
+argumenty) plus domieszka :class:`EmailDomainCheckMixin` w klasie formularza (blokada DNS po całej
+pozostałej walidacji). Szablony się nie zmieniają – wszystko, co pole dokłada (komunikat, pole
+wyboru „Użyj …”, ukryte „zostaw”), rysuje jego widżet w miejscu ``{{ field }}``, więc działa
+w każdym motywie.
 
 Stan między dwoma wysłaniami formularza jedzie w samym formularzu, nie w sesji:
 
@@ -110,21 +112,9 @@ class CheckedEmailField(forms.EmailField):
         value = super().clean(value)
         widget = self.widget
         widget.suggestion, widget.typed, widget.allow_keep = None, "", True
-        if not value:
+        if not value or self._unchanged(value):
             return value
-        if self.unchanged_value and value.lower() == self.unchanged_value.lower():
-            # Adres bez zmian (np. koordynator poprawia tylko nazwisko) – nie pytamy o to, co już jest
-            # w bazie. Stan doręczalności takiego adresu pokazują odbicia (§ 2), nie formularz.
-            return value
-        domain = value.rpartition("@")[2]
         suggestion = suggest(value) if self.suggest_typos else None
-        if domain_accepts_mail(domain) is False:
-            # Twarda blokada: „zostaw” nie przechodzi – na tę domenę żaden list nie dotrze.
-            widget.suggestion, widget.typed, widget.allow_keep = suggestion, value, False
-            code = "no_mail_suggestion" if suggestion else "no_mail"
-            raise ValidationError(
-                self.error_messages[code], code=code, params={"domain": domain, "suggestion": suggestion}
-            )
         if suggestion and value.lower() != widget.kept.lower():
             widget.suggestion, widget.typed = suggestion, value
             raise ValidationError(
@@ -135,3 +125,54 @@ class CheckedEmailField(forms.EmailField):
             # musi pojechać dalej – inaczej to samo pytanie wracałoby przy każdym kolejnym wysłaniu.
             widget.typed = value
         return value
+
+    def _unchanged(self, value: str) -> bool:
+        # Adres bez zmian (np. koordynator poprawia tylko nazwisko) – nie pytamy o to, co już jest
+        # w bazie. Stan doręczalności takiego adresu pokazują odbicia (§ 2), nie formularz.
+        return bool(self.unchanged_value) and value.lower() == self.unchanged_value.lower()
+
+    def check_domain(self, value: str) -> None:
+        """Twarda blokada domeny bez poczty – woła ją :class:`EmailDomainCheckMixin` na końcu walidacji.
+
+        „Zostaw” nie przechodzi: na tę domenę żaden list nie dotrze. Podpowiedź (jeśli jest) zostaje
+        jako pole wyboru „Użyj …”.
+        """
+        if not value or self._unchanged(value):
+            return
+        domain = value.rpartition("@")[2]
+        if domain_accepts_mail(domain) is not False:
+            return
+        suggestion = suggest(value) if self.suggest_typos else None
+        self.widget.suggestion, self.widget.typed, self.widget.allow_keep = suggestion, value, False
+        code = "no_mail_suggestion" if suggestion else "no_mail"
+        raise ValidationError(
+            self.error_messages[code], code=code, params={"domain": domain, "suggestion": suggestion}
+        )
+
+
+class EmailDomainCheckMixin:
+    """Pytanie DNS o domeny pól :class:`CheckedEmailField` – **po** całej pozostałej walidacji.
+
+    Przegląd PR #98 (L3): pytanie DNS kosztuje do 3 s i idzie do resolwera serwera, więc nie może go
+    wywołać każdy, kto wyśle formularz – także bot z błędną CAPTCHĄ, za szybkim wypełnieniem albo
+    niezgodnymi hasłami. ``_post_clean`` biegnie po polach i ``clean()``; przy jakimkolwiek błędzie
+    nie pytamy wcale. Limit żądań widoków (``register``, ``password_reset`` …) zostaje bez zmian,
+    a liczbę równoczesnych pytań w procesie ogranicza semafor w ``dnscheck``.
+
+    Formularz z ``CheckedEmailField`` bez tej domieszki ma tylko podpowiedź literówek – test
+    ``tests/test_forms.py`` pilnuje, że formularze platformy ją mają.
+    """
+
+    def _post_clean(self):
+        super()._post_clean()
+        if self._errors:
+            return
+        for name, field in self.fields.items():
+            value = self.cleaned_data.get(name)
+            if not isinstance(field, CheckedEmailField) or not value:
+                continue
+            try:
+                field.check_domain(value)
+            except ValidationError as exc:
+                self.add_error(name, exc)
+                return

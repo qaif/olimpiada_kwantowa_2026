@@ -35,6 +35,8 @@ x-app-env: &app-env
   # zawiadomień (wolumen `mail_bounces` w workerze), baner i lista koordynatora. `false` w .env wyłącza.
   EMAIL_BOUNCE_TRACKING: ${EMAIL_BOUNCE_TRACKING:-true}
   MAIL_BOUNCE_MAILDIR: /var/mail-bounces/bounces
+  # Pole Reporting-MTA prawdziwego zawiadomienia = hostname relaya (usługa `mail`, niżej).
+  MAIL_BOUNCE_REPORTING_MTA: mail.${SITE_DOMAIN:-localhost}
   # Backend honoruje X-Real-IP tylko z tych adresów (sieci compose poniżej mają stałe podsieci).
   # Celowo BEZ sieci `cache` (Redis) i `clamav_egress` (wyjście ClamAV-a do aktualizacji sygnatur):
   # proxy w nich nie stoi, więc żaden prawdziwy nagłówek X-Real-IP stamtąd nie przychodzi – wpisane
@@ -523,7 +525,12 @@ services:
       # list GlitchTipa odpadnie na sprawdzeniu domeny nadawcy, zanim dojdzie do tej reguły.
       POSTFIX_smtpd_restriction_classes: errors_sender_only
       POSTFIX_errors_sender_only: "check_sender_access inline:{ glitchtip@${SITE_DOMAIN:-localhost}=OK }, reject"
-      POSTFIX_smtpd_sender_restrictions: "check_client_access cidr:{ { 172.30.9.0/24 errors_sender_only } }, permit_mynetworks, reject"
+      # MAIL-02: pusty nadawca koperty (MAIL FROM:<>) od **każdego** klienta SMTP – odmowa 554. Tak
+      # wyglądałoby sfałszowane zawiadomienie o niedoręczeniu wysłane z sieci compose do noreply@ (skrzynka
+      # odbić, § 52). Prawdziwe zawiadomienia generuje sam Postfix (demon bounce → cleanup), z pominięciem
+      # smtpd, więc dalej trafiają do skrzynki – sprawdzone na boky/postfix:v5.1.0-alpine 5.10.2026.
+      # Aplikacja, GlitchTip i monitor dostępności zawsze podają nadawcę, więc odmowa ich nie dotyczy.
+      POSTFIX_smtpd_sender_restrictions: "check_sender_access inline:{ <>=REJECT }, check_client_access cidr:{ { 172.30.9.0/24 errors_sender_only } }, permit_mynetworks, reject"
       # TLS do MX-a odbiorcy oportunistycznie: szyfruj, gdy druga strona ogłosi STARTTLS,
       # ale nie odrzucaj listu, gdy nie ogłosi (`encrypt` zablokowałby część odbiorców).
       POSTFIX_smtp_tls_security_level: may
@@ -541,11 +548,10 @@ services:
       POSTFIX_message_size_limit: "41943040"
       # Sieć docker-bridge nie ma IPv6; bez tego Postfix próbuje rekordów AAAA i czeka na timeout.
       POSTFIX_inet_protocols: ipv4
-      # Odmowa adresu z nieistniejącą domeną (`reject_unknown_recipient_domain` obrazu): 550 zamiast
-      # domyślnego 450. Postfix odpowiada 550 wyłącznie na NXDOMAIN – przy awarii DNS **zawsze** 450 –
-      # więc aplikacja może uznać 550 za trwałe i nie ponawiać listu (MAIL-02 § 2.1; sprawdzone na
-      # boky/postfix:v5.1.0-alpine 5.10.2026: „550 5.1.2 <x@o2.plo>: … Domain not found”).
-      POSTFIX_unknown_address_reject_code: "550"
+      # `unknown_address_reject_code` celowo domyślny (450): odmowa adresu z nieistniejącą domeną
+      # (`reject_unknown_recipient_domain` obrazu) jest chwilowa i list jest ponawiany. Chwilowy NXDOMAIN
+      # (świeżo zarejestrowana domena, kłopot resolwera) nie może trwale zgubić listu aktywacyjnego –
+      # domeny bez MX/A łapie formularz (MAIL-02 § 1.2), a trwałe odbicia – zawiadomienia (§ 2.1).
       DKIM_AUTOGENERATE: "true"
       DKIM_SELECTOR: olimpiada
       TZ: Europe/Warsaw

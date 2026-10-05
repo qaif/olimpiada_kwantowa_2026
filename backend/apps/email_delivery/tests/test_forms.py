@@ -37,6 +37,36 @@ def test_every_address_form_uses_the_checked_field(form_class, field):
     assert isinstance(form_class.base_fields[field], CheckedEmailField)
 
 
+@pytest.mark.parametrize(
+    ("form_class", "field"), _forms(), ids=lambda value: getattr(value, "__name__", value)
+)
+def test_every_address_form_checks_dns_after_other_validation(form_class, field):
+    from apps.email_delivery.fields import EmailDomainCheckMixin
+
+    assert issubclass(form_class, EmailDomainCheckMixin)
+
+
+@pytest.mark.django_db
+def test_registration_with_another_error_never_asks_dns(competition, monkeypatch):
+    # Przegląd PR #98, L3: pytanie DNS dopiero po CAPTCHY, antyspamie i pozostałych polach. CAPTCHA
+    # w trybie testowym przyjmuje każdą odpowiedź, więc błędem „innego pola” są tu pułapka antyspamowa
+    # i niezgodne hasła – oba rozstrzygane tym samym ``full_clean``.
+    CurrentEditionFactory()
+    asked: list[str] = []
+    monkeypatch.setattr("apps.email_delivery.fields.domain_accepts_mail", lambda domain: asked.append(domain))
+
+    first = Client().post(REGISTER_URL, _payload(email="uczen@szkola.pl", website="https://spam.example/"))
+    assert first.status_code == 200
+    assert asked == [], "antyspam"
+    response = Client().post(REGISTER_URL, _payload(email="uczen@szkola.pl", password2="Inne-Haslo-2026"))
+    assert asked == [], "hasła"
+    passed = Client().post(REGISTER_URL, _payload(email="uczen2@szkola.pl"))
+
+    assert response.status_code == 200
+    assert passed.status_code == 302
+    assert asked == ["szkola.pl"]
+
+
 def test_guardian_form_only_blocks_dead_domains():
     from apps.web.views.participant_extras import GuardianEmailForm
 

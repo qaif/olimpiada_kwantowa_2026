@@ -90,6 +90,22 @@ def test_idn_domain_is_queried_in_ascii(dns_on, fake):
     assert resolver.queries == [("MX", ascii_name)]
 
 
+def test_concurrent_lookups_are_capped_and_fail_open(dns_on, fake, monkeypatch):
+    import threading
+
+    resolver = fake(mx={"tlum.pl": [(10, "mx.tlum.pl")]})
+    monkeypatch.setattr(dnscheck, "DNS_TIMEOUT", 0.01)
+    busy = threading.BoundedSemaphore(1)
+    busy.acquire()  # wszystkie miejsca zajęte przez inne wątki
+    monkeypatch.setattr(dnscheck, "_LOOKUPS", busy)
+
+    assert dnscheck.domain_accepts_mail("tlum.pl") is None
+    assert resolver.queries == []
+
+    busy.release()
+    assert dnscheck.domain_accepts_mail("tlum.pl") is True  # „nie wiadomo” nie trafiło do cache'u
+
+
 def test_unencodable_name_fails_open(dns_on, fake):
     resolver = fake()
     assert dnscheck.domain_accepts_mail("a" * 70 + ".pl") is None

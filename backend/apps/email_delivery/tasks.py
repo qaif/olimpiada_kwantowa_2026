@@ -15,6 +15,11 @@ from django.conf import settings
 logger = logging.getLogger(__name__)
 
 
+def reporting_mta() -> str:
+    """Nazwa naszego relaya w ``Reporting-MTA``: ``MAIL_BOUNCE_REPORTING_MTA`` albo ``mail.<SITE_DOMAIN>``."""
+    return getattr(settings, "MAIL_BOUNCE_REPORTING_MTA", "") or f"mail.{settings.SITE_DOMAIN}"
+
+
 @shared_task(name="apps.email_delivery.tasks.process_bounce_mailbox")
 def process_bounce_mailbox() -> dict:
     """Czyta ``MAIL_BOUNCE_MAILDIR/new``: zawiadomienia o niedoręczeniu → ``DeliveryStatus``."""
@@ -25,7 +30,9 @@ def process_bounce_mailbox() -> dict:
     if not tracking_enabled():
         return {}
     stats = process_maildir(
-        settings.MAIL_BOUNCE_MAILDIR, record=lambda bounce: record_bounce(bounce, source=Source.DSN)
+        settings.MAIL_BOUNCE_MAILDIR,
+        record=lambda bounce: record_bounce(bounce, source=Source.DSN),
+        reporting_mta=reporting_mta(),
     )
     if stats.get("files"):
         logger.info("Skrzynka odbić: %s", stats)
