@@ -69,6 +69,7 @@ from apps.competitions.scoring import stage_free_values
 from apps.competitions.services import EDITION_EDITABLE_FIELDS, STAGE_EDITABLE_FIELDS
 from apps.competitions.video import DEFAULT_VIDEO_BASE_URL, VideoProvider
 from apps.core.api import DomainError
+from apps.email_delivery.fields import CheckedEmailField  # MAIL-02: literówki i martwe domeny
 from apps.grading.rubric import criteria_for, format_criteria_lines, parse_criteria_lines
 from apps.grading.snippets import format_snippet_lines, parse_snippet_lines, problem_snippets
 from apps.results.models import Anonymization
@@ -888,7 +889,7 @@ class ParticipantRegisterForm(CaptchaFormMixin, ConsentFieldsMixin, SchoolChoice
     required_css_class = REQUIRED_CSS_CLASS
     field_order = [name for name in PARTICIPANT_FIELD_ORDER]
 
-    email = forms.EmailField(label=gettext_lazy("Adres e-mail"), max_length=254)
+    email = CheckedEmailField(label=gettext_lazy("Adres e-mail"), max_length=254)
     password = password_field()
     password2 = password_field(gettext_lazy("Powtórz hasło"))
     first_name = forms.CharField(
@@ -959,7 +960,7 @@ class CommitteeRegisterForm(CaptchaFormMixin):
         "district",
     ]
 
-    email = forms.EmailField(label=gettext_lazy("Adres e-mail"), max_length=254)
+    email = CheckedEmailField(label=gettext_lazy("Adres e-mail"), max_length=254)
     password = password_field()
     password2 = password_field(gettext_lazy("Powtórz hasło"))
     first_name = forms.CharField(
@@ -1133,7 +1134,7 @@ class EmailChangeForm(forms.Form):
         max_length=200,
         widget=forms.PasswordInput(attrs={"autocomplete": "current-password"}),
     )
-    new_email = forms.EmailField(
+    new_email = CheckedEmailField(
         label=gettext_lazy("Nowy adres e-mail"),
         max_length=254,
         help_text=gettext_lazy(
@@ -1357,7 +1358,7 @@ class CoordinatorAccountForm(forms.Form):
 
     first_name = forms.CharField(label="Imię", max_length=150, required=False)
     last_name = forms.CharField(label="Nazwisko", max_length=150, required=False)
-    email = forms.EmailField(
+    email = CheckedEmailField(
         label="Adres e-mail",
         max_length=254,
         help_text=(

@@ -103,7 +103,7 @@ def send(webinar: Webinar, kind: str) -> int:
         with language_for(user, competition):
             subject = _subject(kind, webinar)
             body = message(kind, webinar)
-        queue_mail(subject, body, user.email, competition=competition)
+        queue_mail(subject, body, user.email, competition=competition, essential=False)
         sent += 1
     logger.info("Webinar %s: %s – %s listów.", webinar.pk, kind, sent)
     return sent

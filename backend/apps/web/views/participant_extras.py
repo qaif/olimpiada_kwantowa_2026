@@ -27,6 +27,7 @@ from apps.accounts.preferences import (
     save_preferences,
 )
 from apps.core.api import DomainError
+from apps.email_delivery.fields import CheckedEmailField  # MAIL-02: literówki i martwe domeny
 from apps.web.mixins import ActionViewMixin, ParticipantRequiredMixin
 from apps.web.throttle import ThrottledFormMixin
 
@@ -43,7 +44,9 @@ class GuardianEmailForm(forms.Form):
     „pełnoletni nie potrzebuje zgody”) są w serwisie, żeby API i panel nie mogły się rozjechać.
     """
 
-    guardian_email = forms.EmailField(
+    guardian_email = CheckedEmailField(
+        # Widok jest akcją POST bez ponownego rysowania pola – sama blokada martwej domeny (MAIL-02).
+        suggest_typos=False,
         label=gettext_lazy("Adres e-mail rodzica lub opiekuna prawnego"),
         error_messages={"required": gettext_lazy("Podaj adres e-mail rodzica lub opiekuna prawnego.")},
     )

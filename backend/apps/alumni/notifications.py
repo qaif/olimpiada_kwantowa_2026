@@ -60,7 +60,7 @@ def _send(user, competition, subject_template, lines_factory, path: str) -> None
         ]
         title = subject(subject_template, competition)
         body = "\n".join(lines)
-    queue_mail(title, body, user.email, competition=competition)
+    queue_mail(title, body, user.email, competition=competition, essential=False)
 
 
 def _name(participant) -> str:
