@@ -254,6 +254,18 @@ def test_postgres_failing_row_and_detail_lines_are_filtered():
     assert "Kowalski" not in scrub_text("Failing row contains (17, Jan, Kowalski).")
 
 
+def test_postgres_failing_row_with_a_multiline_value_is_filtered_to_the_end():
+    """Wartość z enterem (notatka o zdrowiu) nie może wypłynąć po końcu linii ``DETAIL:``."""
+    value = scrub_text(
+        'new row violates check constraint "diet_ck"\n'
+        "DETAIL:  Failing row contains (17, Jan, ul. Lipowa 5, uczulenie na orzechy\nastma, 2011-04-03)."
+    )
+    assert "astma" not in value and "Lipowa" not in value and "2011-04-03" not in value
+    assert value.startswith('new row violates check constraint "diet_ck"')
+    bare = scrub_text("Failing row contains (17, Jan\nKowalski, alergia).")
+    assert "Kowalski" not in bare and "alergia" not in bare
+
+
 def test_redis_breadcrumb_keeps_only_the_command():
     """M2: klucz limitu żądań niesie adres IP – z okruszka Redisa zostaje sama nazwa polecenia."""
     crumb = scrub_breadcrumb(

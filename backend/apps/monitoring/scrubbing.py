@@ -170,10 +170,12 @@ _SECRET_PARAM_RE = re.compile(
 )
 _BEARER_RE = re.compile(r"(?i)(?<![\w\-])(bearer|basic|token)\s{1,3}[A-Za-z0-9._~+/\-]{1,4096}=*")
 #: Błędy Postgresa niosą **wartości z bazy**: ``DETAIL:  Key (email)=(jan@…) already exists.``,
-#: ``DETAIL:  Failing row contains (17, Jan, Kowalski, 2011-04-03, …)``. Cała linia ``DETAIL:`` znika;
-#: ``Key (kolumna)=(…)`` i ``Failing row contains (…)`` także poza nią (inne formaty komunikatu).
-_PG_DETAIL_RE = re.compile(r"(?m)(DETAIL:[ \t]{0,8})[^\n]{1,2048}")
-_PG_FAILING_ROW_RE = re.compile(r"(Failing row contains )\([^\n]{0,2048}")
+#: ``DETAIL:  Failing row contains (17, Jan, Kowalski, 2011-04-03, …)``. Wszystko od ``DETAIL:`` albo
+#: ``Failing row contains (`` do końca tekstu znika – wartość w wierszu bywa wielolinijkowa (notatka
+#: o zdrowiu z enterem), więc koniec linii nie jest końcem danych (przegląd 5.10.2026). Tekst jest
+#: wcześniej ucięty do 2 KB, więc ``.{0,2048}`` nie kosztuje więcej niż sam tekst.
+_PG_DETAIL_RE = re.compile(r"(?s)(DETAIL:[ \t]{0,8}).{1,2048}")
+_PG_FAILING_ROW_RE = re.compile(r"(?s)(Failing row contains )\(.{0,2048}")
 _PG_KEY_RE = re.compile(r"Key \(([^)\n]{0,200})\)=\([^\n]{0,2048}?\)")
 #: JWT (trzy segmenty base64url rozdzielone kropkami) – przepustki Jitsi/LiveKit w komunikatach.
 _JWT_RE = re.compile(
