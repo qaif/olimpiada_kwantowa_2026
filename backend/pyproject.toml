@@ -31,7 +31,7 @@ dependencies = [
     # nie mają ani koła, ani źródeł (``psycopg-binary`` wychodzi wyłącznie jako koła), więc na
     # 3.14 w ogóle się nie instalują.
     "psycopg[binary,pool]>=3.2.10,<3.3",
-    "redis>=5.0,<6.0",
+    "redis>=5.0,<9.0",
     # 7.0: pierwsza linia z ``Django>=5.2`` w metadanych; 5.4 nie instaluje się obok Django 6.1.
     "django-redis>=7.0,<7.1",
     "celery>=5.6,<5.7",
