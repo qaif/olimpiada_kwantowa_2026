@@ -72,6 +72,21 @@ conf_dir_ok() {
 
 proxy_running() { [ -n "$(docker compose ps -q --status running proxy </dev/null 2>/dev/null)" ]; }
 
+# Obraz, który postawi compose (docker-compose.yml + .env), różny od obrazu DZIAŁAJĄCEGO proxy –
+# wdrożenie podbijające Caddy'ego (DEP-02: caddy 2.8 → 2.10). Wtedy `render` waliduje nowy plik
+# w jednorazowym kontenerze NOWEGO obrazu: stary Caddy odrzuca składnię, której nowy wymaga
+# (`tls force_automate` nie istnieje w 2.8, a bez niej 2.10 nie wystawia certyfikatów nazwom pod
+# `*.`), i zatrzymałby wdrożenie, choć kontener i tak zostanie odtworzony w kroku 4b. Każdy błąd
+# odczytu (np. atrapa `docker` w testach) = „bez zmiany” – droga dotychczasowa (`exec`).
+proxy_image_changed() {
+  local want have
+  want="$(docker compose config </dev/null 2>/dev/null | awk '/^[^ ]/ { s = ($0 == "services:"); next }
+    s && /^  [^ ]/ { svc = $1 } s && svc == "proxy:" && /^    image: / { print $2; exit }')" || return 1
+  have="$(docker compose ps --status running --format '{{.Image}}' proxy </dev/null 2>/dev/null | head -n 1 | tr -d '\r')" || return 1
+  [ -n "$want" ] && [ -n "$have" ] && [ "$want" != "$have" ] || return 1
+  PROXY_IMAGE_WANT="$want" PROXY_IMAGE_HAVE="$have"
+}
+
 box_sum() {  # suma pliku, który widzi kontener; pusta, gdy proxy nie działa
   docker compose exec -T proxy sha256sum "$BOX_FILE" </dev/null 2>/dev/null | tr -d '\r' | cut -d' ' -f1 || true
 }
@@ -146,12 +161,20 @@ render() {
     -u CADDYFILE_SRC CADDYFILE_OUT="$NEXT" bash scripts/render_caddyfile.sh
   if [ "$RUNNING" = 1 ]; then
     VALIDATE_OUT="$(mktemp)"
-    docker compose exec -T proxy sh -c 'cat > /tmp/Caddyfile.next && caddy validate --config /tmp/Caddyfile.next --adapter caddyfile' \
-      <"$NEXT" >"$VALIDATE_OUT" 2>&1 || {
+    local validate_sh='cat > /tmp/Caddyfile.next && caddy validate --config /tmp/Caddyfile.next --adapter caddyfile'
+    local where="działającym proxy"
+    if proxy_image_changed; then
+      # Te same montaże i zmienne co usługa, bez portów i bez zależności; brakujący obraz compose pobierze.
+      where="nowym obrazie $PROXY_IMAGE_WANT (działa $PROXY_IMAGE_HAVE)"
+      set -- docker compose run --rm --no-deps -T --entrypoint sh proxy -c "$validate_sh"
+    else
+      set -- docker compose exec -T proxy sh -c "$validate_sh"
+    fi
+    "$@" <"$NEXT" >"$VALIDATE_OUT" 2>&1 || {
       grep -vE '"level":"(info|warn)"' "$VALIDATE_OUT" | tail -n 20 >&2 || true
-      die "caddy validate odrzucił nową konfigurację – $LIVE i działające proxy bez zmian"
+      die "caddy validate odrzucił nową konfigurację ($where) – $LIVE i działające proxy bez zmian"
     }
-    say "nowa konfiguracja przechodzi caddy validate"
+    say "nowa konfiguracja przechodzi caddy validate ($where)"
   else
     say "kontener proxy nie działa – walidacja pominięta (błąd pokaże start proxy)"
   fi

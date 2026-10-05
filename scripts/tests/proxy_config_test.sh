@@ -37,6 +37,11 @@ state="$(cat "$BOX/state")"
 seen() { if [ "$state" = live ]; then cat caddy/Caddyfile; else printf '# stara treść\n'; fi; }
 case "$*" in
   "compose ps -q --status running proxy") [ "$state" = down ] || echo 0123abcd ;;
+  # Obraz z compose'a i obraz działającego proxy (proxy_image_changed): domyślnie te same.
+  "compose config") printf 'name: olimpiada\nservices:\n  proxy:\n    image: %s\n' "${STUB_WANT_IMAGE:-caddy:2.10}" ;;
+  "compose ps --status running --format {{.Image}} proxy") [ "$state" = down ] || echo "${STUB_HAVE_IMAGE:-caddy:2.10}" ;;
+  "compose run --rm --no-deps -T --entrypoint sh proxy -c "*"caddy validate"*)
+    cat >"$BOX/validated"; echo run >"$BOX/validated_by"; exit "${STUB_VALIDATE_RC:-0}" ;;
   "compose exec -T proxy sha256sum /etc/caddy/Caddyfile")
     [ "$state" = down ] && { echo "service \"proxy\" is not running" >&2; exit 1; }
     printf '%s  /etc/caddy/Caddyfile\n' "$(seen | sha256sum | cut -d' ' -f1)" ;;
@@ -121,7 +126,7 @@ show_on_fail $rc "$WORK/r1.out"
 cmp -s "$ROOT/deploy/Caddyfile" "$SRV/caddy/Caddyfile" && cmp -s "$BOX/validated" "$SRV/caddy/Caddyfile" &&
   [ ! -e "$SRV/caddy/Caddyfile.next" ]
 check "render: caddy/Caddyfile = deploy/Caddyfile (puste EXTRA_DOMAINS), ta treść przeszła caddy validate" $?
-[ "$(grep -vxF 'compose exec -T proxy cat /etc/caddy/Caddyfile' "$WORK/r1.docker" | head -n 2)" = "compose ps -q --status running proxy
+[ "$(grep -vxE 'compose exec -T proxy cat /etc/caddy/Caddyfile|compose config|compose ps --status running --format \{\{\.Image\}\} proxy' "$WORK/r1.docker" | head -n 2)" = "compose ps -q --status running proxy
 compose exec -T proxy sh -c cat > /tmp/Caddyfile.next && caddy validate --config /tmp/Caddyfile.next --adapter caddyfile" ] &&
   ! grep -qE 'reload|force-recreate' "$WORK/r1.docker"
 check "render: tylko walidacja w kontenerze – bez reload i bez odtwarzania" $?
@@ -151,6 +156,19 @@ run_pc vbad render STUB_VALIDATE_RC=1
 [ $? -ne 0 ] && cmp -s "$WORK/caddy.before" "$SRV/caddy/Caddyfile" && [ ! -e "$SRV/caddy/Caddyfile.next" ] &&
   grep -qF 'caddy validate odrzucił' "$WORK/vbad.out"
 check "odrzucony caddy validate: kod ≠ 0, zainstalowany plik bez zmian, bez .next" $?
+
+# 6a. Wdrożenie zmienia obraz proxy (DEP-02: caddy 2.8 → 2.10): walidacja w jednorazowym kontenerze
+# NOWEGO obrazu (`compose run`), nie w działającym starym – stary odrzuciłby `tls force_automate`.
+reset_server
+run_pc img render STUB_HAVE_IMAGE=caddy:2.8 STUB_WANT_IMAGE=caddy:2.10
+rc=$?
+[ $rc -eq 0 ] && [ "$(cat "$BOX/validated_by" 2>/dev/null)" = run ] && cmp -s "$BOX/validated" "$SRV/caddy/Caddyfile" \
+  && ! grep -qF 'compose exec -T proxy sh -c' "$WORK/img.docker" && grep -qF 'nowym obrazie caddy:2.10 (działa caddy:2.8)' "$WORK/img.out"
+check "render przy zmianie obrazu proxy: caddy validate w nowym obrazie (compose run), nie w działającym" $?
+show_on_fail $rc "$WORK/img.out"
+run_pc imgbad render STUB_HAVE_IMAGE=caddy:2.8 STUB_VALIDATE_RC=1
+[ $? -ne 0 ] && grep -qF 'caddy validate odrzucił nową konfigurację (nowym obrazie caddy:2.10' "$WORK/imgbad.out"
+check "odrzucenie w nowym obrazie: kod ≠ 0 z nazwą obrazu" $?
 
 # 7. render przy niedziałającym proxy – bez walidacji, plik zainstalowany (start proxy go wczyta).
 reset_server "" down

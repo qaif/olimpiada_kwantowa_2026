@@ -290,6 +290,8 @@ compose exec -T db psql -X -U olimpiada -d olimpiada -Atc SELECT app || '"'.'"' 
 compose config
 volume inspect olimpiada_pg_data
 compose ps -q --status running proxy
+compose config
+compose ps --status running --format {{.Image}} proxy
 compose exec -T proxy sh -c cat > /tmp/Caddyfile.next && caddy validate --config /tmp/Caddyfile.next --adapter caddyfile
 compose build --pull web
 compose pull --ignore-buildable --quiet
