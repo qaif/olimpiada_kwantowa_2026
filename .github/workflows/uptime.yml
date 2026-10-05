@@ -46,7 +46,7 @@ jobs:
       # Jedyna akcja – przypięta pełnym SHA (v4.4.0, `gh api repos/actions/checkout/git/ref/tags/v4.4.0`),
       # bez zapisanego tokenu w `.git/config` i tylko z jednym plikiem: krok niżej nie potrzebuje
       # niczego więcej, a każdy plik mniej to mniej rzeczy, które mogłyby się tu wykonać.
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
           sparse-checkout: scripts/uptime_external.py
