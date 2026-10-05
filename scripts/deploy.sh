@@ -95,6 +95,17 @@
 # (CADDY_CONFIG_DIR=./caddy w .env), który krok 2/8 omija; dawny montaż pojedynczego pliku
 # z deploy/ zostawał po kroku 2/8 przy skasowanej, starej treści. Kontener, który mimo to widzi
 # inną treść (albo nie działa), 4c/8 odtwarza – kilka sekund bez HTTPS.
+#
+# Kontrola dymna i wycofanie (docs/OPERACJE.md § 48, docs/tasks/OPS-04.md) – przy KAŻDYM wdrożeniu.
+# Krok 2a/8 (scripts/rollback.sh snapshot) taguje obraz DZIAŁAJĄCEGO web (i djcms) jako
+# olimpiada/web:previous i zapisuje zastosowane migracje w <REMOTE_DIR>/deploy-state/ (krok 2/8 go
+# omija). Krok 5b/8 (scripts/smoke.sh --server) sprawdza każdy host konkursu przez proxy tego
+# serwera; porażka = scripts/rollback.sh auto: bez nowych migracji – powrót web/worker/beat/djcms do
+# obrazów :previous (baza i wolumeny nietknięte), z nowymi – BEZ wycofania; w obu przypadkach list do
+# ALERT_EMAILS, ramka w logu i kod 1 (kroki 6–8 się nie wykonują). Furtka operatora:
+#   DEPLOY_SMOKE=warn  – porażka kontroli = ostrzeżenie, wdrożenie idzie dalej, bez wycofania;
+#   DEPLOY_SMOKE=0     – bez kontroli (np. awaria certyfikatu niezwiązana z wydaniem).
+# Wycofanie ręczne: ssh <cel> "cd /opt/olimpiada && bash scripts/rollback.sh run".
 set -euo pipefail
 
 MAINTENANCE=0
@@ -121,6 +132,11 @@ case "$SSH_HOST_KEY_CHECKING" in
 esac
 SSH=(ssh -i "$SSH_KEY" -o BatchMode=yes -o StrictHostKeyChecking="$SSH_HOST_KEY_CHECKING" "$TARGET")
 APP_VERSION="${APP_VERSION:-$(git describe --tags --always)}"
+DEPLOY_SMOKE="${DEPLOY_SMOKE:-1}"
+case "$DEPLOY_SMOKE" in
+  1|warn|0) ;;
+  *) echo "deploy: DEPLOY_SMOKE=„$DEPLOY_SMOKE” – dozwolone 1 (domyślnie), warn albo 0" >&2; exit 2 ;;
+esac
 
 log() { printf '\n==> %s\n' "$*"; }
 
@@ -141,8 +157,16 @@ fi
 #       przy proxy bez montażu nie zostawiają strony włączonej – wtedy ramki nie ma);
 #   1 – strona włączona (krok 4/8 zakończony) aż do potwierdzonego wyłączenia w 5a.
 MAINT_MAYBE_ON=0
+# Nowe kontenery aplikacji: 0 – jeszcze nie wystartowały, 1 – wystartowały (4b), a kontrola dymna
+# (5b) jeszcze nie rozstrzygnęła; 2 – rozstrzygnięte (przeszła albo zajął się tym rollback.sh auto).
+NEW_STARTED=0
 maintenance_exit() {
   local rc=$?
+  if [ "$rc" -ne 0 ] && [ "$NEW_STARTED" = "1" ]; then
+    printf '\n!!! Wdrożenie przerwane (kod %s) PO starcie nowych kontenerów, przed kontrolą dymną.\n' "$rc" >&2
+    printf '!!! Kontrola:  ssh %s "cd %s && bash scripts/smoke.sh --server ."\n' "$TARGET" "$REMOTE_DIR" >&2
+    printf '!!! Wycofanie: ssh %s "cd %s && bash scripts/rollback.sh run"   (docs/OPERACJE.md § 48)\n' "$TARGET" "$REMOTE_DIR" >&2
+  fi
   if [ "$rc" -ne 0 ] && [ "$MAINT_MAYBE_ON" = "2" ]; then
     if "${SSH[@]}" "test -f '$REMOTE_DIR/maintenance/on'" 2>/dev/null; then
       MAINT_MAYBE_ON=1
@@ -211,8 +235,18 @@ esac
 # backup_offsite.sh) zostaje z tego samego powodu, co `.env`: nie ma go w repozytorium.
 # `caddy` (konfiguracja proxy, scripts/proxy_config.sh) – jak `maintenance`: montuje go działające
 # proxy, a katalog skasowany i utworzony od nowa widziałoby jako stary (OPERACJE § 23).
-"${SSH[@]}" "mkdir -p '$REMOTE_DIR' && find '$REMOTE_DIR' -mindepth 1 -maxdepth 1 ! -name .env ! -name 'e2e' ! -name maintenance ! -name secrets ! -name caddy -exec rm -rf {} +"
+# `deploy-state` (migawka do wycofania i zapis ostatniego udanego wdrożenia, scripts/rollback.sh) –
+# jak `.env`: stan serwera, nie kod; skasowany razem z kodem odebrałby wycofaniu wszystko, co wie.
+"${SSH[@]}" "mkdir -p '$REMOTE_DIR' && find '$REMOTE_DIR' -mindepth 1 -maxdepth 1 ! -name .env ! -name 'e2e' ! -name maintenance ! -name secrets ! -name caddy ! -name deploy-state -exec rm -rf {} +"
 git archive --format=tar HEAD | "${SSH[@]}" "tar -x -C '$REMOTE_DIR'"
+
+log "2a/8 Migawka do wycofania: obrazy działających kontenerów i zastosowane migracje"
+# Teraz, a nie później: .env ma jeszcze APP_VERSION sprzed wdrożenia (krok 3/8 go zmienia), obraz
+# poprzedniej wersji jeszcze działa (budowanie w 4/8 może mu odebrać tag), a migracje nowej wersji
+# jeszcze nie ruszyły (entrypoint web w 4b). Skrypt jest już z NOWEGO kodu (krok 2/8). Nieudana
+# migawka nie zatrzymuje wdrożenia – wyłącza tylko wycofanie automatyczne w kroku 5b/8.
+"${SSH[@]}" "cd '$REMOTE_DIR' && bash scripts/rollback.sh snapshot </dev/null" \
+  || echo "UWAGA: migawka nieudana – wycofanie automatyczne w tym wdrożeniu niemożliwe (wdrożenie idzie dalej)"
 
 log "3/8 .env (tworzony tylko przy pierwszym wdrożeniu)"
 "${SSH[@]}" env SITE_DOMAIN="${SITE_DOMAIN:-}" ACME_EMAIL="${ACME_EMAIL:-}" S3_PUBLIC_ADDRESS="${S3_PUBLIC_ADDRESS:-}" APP_VERSION="$APP_VERSION" REMOTE_DIR="$REMOTE_DIR" bash -s <<'REMOTE'
@@ -749,6 +783,7 @@ log "4b/8 Start usług (migracje wykonuje entrypoint kontenera web)"
 # Przy DJCMS_ENABLED=1 lista dostaje `djcms` na końcu; bez niego polecenie jest znak w znak dzisiejsze.
 DJCMS_SVC=""
 [ "$DJCMS_ON" = "1" ] && DJCMS_SVC=" djcms"
+NEW_STARTED=1
 "${SSH[@]}" "cd '$REMOTE_DIR' && docker compose up -d --remove-orphans db redis minio minio-init clamav mail web worker beat proxy$DJCMS_SVC"
 
 log "4c/8 Konfiguracja proxy: caddy reload"
@@ -806,6 +841,40 @@ bash scripts/maintenance.sh off
 rm -f maintenance/.deploy-maintenance-on
 REMOTE
   MAINT_MAYBE_ON=0
+fi
+
+if [ "$DEPLOY_SMOKE" = "0" ]; then
+  log "5b/8 Kontrola dymna – POMINIĘTA (DEPLOY_SMOKE=0)"
+  NEW_STARTED=2
+else
+  log "5b/8 Kontrola dymna (scripts/smoke.sh) – po porażce decyzja o wycofaniu (scripts/rollback.sh)"
+  # Na serwerze, przez jego proxy (curl --resolve <host>:443:127.0.0.1): wynik nie zależy od DNS,
+  # od sieci operatora ani od pośredniczącego proxy firmowego, które na laptopie podmienia
+  # certyfikaty – fałszywa porażka oznaczałaby tu wycofanie dobrej wersji. Po kroku 5a, więc przy
+  # --maintenance strona jest już wyłączona; przepustkę i tak dostaje (gdyby wisiała z innego powodu).
+  # Przed seedami (krok 6): wersja, która nie przechodzi kontroli, nie pisze już niczego do bazy.
+  SMOKE_RC=0
+  "${SSH[@]}" "cd '$REMOTE_DIR' && mkdir -p deploy-state && bash scripts/smoke.sh --server '$REMOTE_DIR' --expect-version $(printf '%q' "$APP_VERSION") --report deploy-state/last-smoke.txt </dev/null" || SMOKE_RC=$?
+  if [ "$SMOKE_RC" -ne 0 ] && [ "$DEPLOY_SMOKE" = "warn" ]; then
+    printf '\n!!! Kontrola dymna wersji %s NIE przeszła (kod %s) – DEPLOY_SMOKE=warn: bez wycofania, wdrożenie idzie dalej.\n' "$APP_VERSION" "$SMOKE_RC" >&2
+    printf '!!! Wycofanie ręczne: ssh %s "cd %s && bash scripts/rollback.sh run"\n' "$TARGET" "$REMOTE_DIR" >&2
+  elif [ "$SMOKE_RC" -ne 0 ]; then
+    RB_RC=0
+    "${SSH[@]}" "cd '$REMOTE_DIR' && OLIMPIADA_PROXY_LOCK=held bash scripts/rollback.sh auto --failed-version $(printf '%q' "$APP_VERSION") </dev/null" || RB_RC=$?
+    NEW_STARTED=2
+    case "$RB_RC" in
+      10) printf '\nWdrożenie %s NIEUDANE i WYCOFANE do poprzednich obrazów (kontrola po wycofaniu przeszła).\n' "$APP_VERSION" >&2 ;;
+      12) printf '\nWdrożenie %s NIEUDANE, wycofane – ale serwis NADAL nie przechodzi kontroli. Incydent: docs/OPERACJE.md § 7.\n' "$APP_VERSION" >&2 ;;
+      11) printf '\nWdrożenie %s NIEUDANE i NIE wycofane (migracje albo brak migawki) – decyzja ręczna, docs/OPERACJE.md § 48.5.\n' "$APP_VERSION" >&2 ;;
+      *) printf '\nWdrożenie %s NIEUDANE; scripts/rollback.sh auto zakończył się kodem %s – sprawdź stan: bash scripts/rollback.sh status\n' "$APP_VERSION" "$RB_RC" >&2 ;;
+    esac
+    exit 1
+  fi
+  # Zapis „ta wersja działa” – źródło PREV_GIT_COMMIT dla migawki następnego wdrożenia.
+  GIT_COMMIT="$(git rev-parse HEAD 2>/dev/null || true)"
+  "${SSH[@]}" "cd '$REMOTE_DIR' && bash scripts/rollback.sh record-success --git-commit $(printf '%q' "$GIT_COMMIT") </dev/null" \
+    || echo "UWAGA: nie zapisano deploy-state/deployed.env (wycofanie działa i bez tego)"
+  NEW_STARTED=2
 fi
 
 log "6/8 Seedy treści i konto koordynatora"
@@ -1019,14 +1088,18 @@ log "Porządki: stare obrazy"
 # na miejscu – bez WEB_IMAGE, czyli droga domyślna dla Olimpiady Kwantowej) i bez sprzątania warstwy
 # rosną bez końca: miesiąc cotygodniowych wydań to kilkanaście gigabajtów, których reszta serwisu
 # (kopie bazy w kroku 4a, wolumeny danych) i tak potrzebuje. Zostają **dwa** tagi, nie jeden:
-# bieżący i poprzedni – poprzedni jest gotowym rollbackiem bez ponownego budowania (`docker compose
+# bieżący i poprzedni (wycofanie i tak idzie po tagu :previous – scripts/rollback.sh, OPERACJE § 48)
+# – poprzedni jest gotowym rollbackiem bez ponownego budowania (`docker compose
 # up -d web worker beat` po przestawieniu `APP_VERSION` w .env na tamtą wersję i restarcie), a
 # rollback z jednym zostawionym tagiem, czyli tym samym co bieżący, nie różniłby się niczym od
 # braku rollbacku. Sortowanie po dacie utworzenia obrazu (nie po numerze wersji): `WEB_IMAGE`
 # ustawiane i zdejmowane między wdrożeniami mogłoby dać tagi, które nie sortują się leksykograficznie
 # w kolejności wydań. `|| true`: obraz w użyciu (np. kontener nie zdążył jeszcze zniknąć po `up -d`
 # kroku 4b) nie ma być powodem czerwonego wdrożenia – posprząta się przy następnym przebiegu.
-"${SSH[@]}" "docker images --filter=reference='olimpiada/web' --format '{{.CreatedAt}}|{{.Repository}}:{{.Tag}}' | sort -r | tail -n +3 | cut -d'|' -f2 | xargs -r docker rmi" || true
+# Tag `olimpiada/web:previous` (migawka z kroku 2a/8, scripts/rollback.sh) nie wchodzi do rachunku i nie
+# jest kasowany: to on, a nie tag wersji, trzyma obraz, do którego wraca `rollback.sh run` – także
+# wtedy, gdy wdrożenie tej samej wersji przebudowało jej tag.
+"${SSH[@]}" "docker images --filter=reference='olimpiada/web' --format '{{.CreatedAt}}|{{.Repository}}:{{.Tag}}' | grep -v '|olimpiada/web:previous\$' | sort -r | tail -n +3 | cut -d'|' -f2 | xargs -r docker rmi" || true
 # Dangling (warstwy budowania bez tagu – etap `builder` obrazu wielostopniowego, buildy przerwane
 # w połowie): bezpieczne do skasowania zawsze, bo z definicji nic ich nie referencuje.
 "${SSH[@]}" "docker image prune -f"
@@ -1071,6 +1144,7 @@ if [ "$DJCMS_ON" = "1" ]; then
     printf 'REMOTE_DIR=%q\n' "$REMOTE_DIR"
     printf 'DJCMS_ADMIN_EMAIL=%q\n' "${DJCMS_ADMIN_EMAIL:-}"
     printf 'DJCMS_ADMIN_PASSWORD=%q\n' "${DJCMS_ADMIN_PASSWORD:-}"
+    printf 'DJCMS_SYNC_RETRY_DELAYS=%q\n' "${DJCMS_SYNC_RETRY_DELAYS:-5 10 20}"
     cat <<'REMOTE'
 set -euo pipefail
 export DJCMS_ADMIN_EMAIL DJCMS_ADMIN_PASSWORD
@@ -1100,8 +1174,29 @@ fi
 SYNC_ARGS=""
 SYNC_HELP="$(docker compose exec -T djcms python manage.py sync_competitions --help </dev/null 2>/dev/null || true)"
 case "$SYNC_HELP" in *--import-missing*) SYNC_ARGS="--import-missing" ;; esac
-# shellcheck disable=SC2086 # SYNC_ARGS: zero albo jeden argument bez spacji
-docker compose exec -T djcms python manage.py sync_competitions $SYNC_ARGS </dev/null
+# Ponawianie z przerwami (OPS-04 § 4): komenda pyta API `web`, który chwilę wcześniej wstał po
+# restarcie. Obraz djcms sprzed OPS-04 ma na tę jedną listę limit odsłony strony (1 s na gniazdo)
+# i kończył się „Lista konkursów z API niedostępna: timeout” przy prawie każdym wdrożeniu, choć
+# minutę później przechodził. Ponawiamy WYŁĄCZNIE ten błąd – inny (np. importu `--import-missing`)
+# kończy krok od razu: częściowy import przy drugiej próbie widziałby już strony i milczał.
+case "$DJCMS_SYNC_RETRY_DELAYS" in *[!0-9\ ]*|'') DJCMS_SYNC_RETRY_DELAYS="5 10 20" ;; esac
+sync_attempt=0
+for sync_delay in $DJCMS_SYNC_RETRY_DELAYS last; do
+  sync_attempt=$((sync_attempt + 1))
+  SYNC_RC=0
+  # shellcheck disable=SC2086 # SYNC_ARGS: zero albo jeden argument bez spacji
+  SYNC_OUT="$(docker compose exec -T djcms python manage.py sync_competitions $SYNC_ARGS </dev/null 2>&1)" || SYNC_RC=$?
+  printf '%s\n' "$SYNC_OUT"
+  [ "$SYNC_RC" = 0 ] && break
+  case "$SYNC_OUT" in *"Lista konkursów z API niedostępna"*) ;; *) exit "$SYNC_RC" ;; esac
+  if [ "$sync_delay" = last ]; then
+    echo "BŁĄD: lista konkursów z API niedostępna po $sync_attempt próbach – docker compose logs web djcms;"
+    echo "      ponów ręcznie: docker compose exec -T djcms python manage.py sync_competitions $SYNC_ARGS"
+    exit "$SYNC_RC"
+  fi
+  echo "dj.: lista konkursów z API niedostępna (próba $sync_attempt) – ponawiam za $sync_delay s"
+  sleep "$sync_delay"
+done
 IMPORT="$(sed -n 's/^DJCMS_INITIAL_IMPORT=//p' .env | tail -n 1 | tr -d '\r\042\047')"
 if [ "$IMPORT" = "pending" ]; then
   # Pierwszy import treści Wagtaila – raz, przy pierwszym włączeniu (znacznik z DJ-01h zostaje dla
