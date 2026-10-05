@@ -469,7 +469,8 @@ services:
     # --user=clamav`, clamd) wywołaniem setuid() z roota – bez pliku z bitem setuid i bez capabilities
     # plikowych, czyli bez niczego, co no-new-privileges blokuje. Sprawdzone 1.10.2026 na tym obrazie
     # z tą opcją: `NoNewPrivs: 1`, freshclam i clamd jako nie-root, freshclam połączył się z mirrorem,
-    # `clamdcheck.sh` → „Clamd is up”.
+    # `clamdcheck.sh` → „Clamd is up”. Powtórzone 5.10.2026 na clamav/clamav:1.5 (1.5.4, DEP-02): to samo,
+    # plus ~1,0 GB w spoczynku, `StreamMaxLength` dalej 100 MB, EICAR → Eicar-Test-Signature FOUND.
     security_opt:
       - no-new-privileges:true
     healthcheck:
