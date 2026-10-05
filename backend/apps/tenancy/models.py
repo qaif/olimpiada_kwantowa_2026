@@ -441,9 +441,10 @@ class Competition(models.Model):
 
     # --- poczta --------------------------------------------------------------------------------
     #: Puste pola znaczą „weź ustawienie instalacji” (``DEFAULT_FROM_EMAIL``,
-    #: ``EMAIL_SUBJECT_PREFIX``). Uwaga operacyjna: relay w compose podpisuje DKIM-em jedną
-    #: domenę, więc nadawca w obcej domenie przejdzie, ale trafi do spamu – rekomendowany
-    #: układ to nadawca w domenie platformy i ``Reply-To`` na ``contact_email`` (§ 8, D6).
+    #: ``EMAIL_SUBJECT_PREFIX``). Uwaga operacyjna: relay w compose podpisuje DKIM-em domeny
+    #: z ``ALLOWED_SENDER_DOMAINS``; domenę konkursu dodaje operator (``scripts/mail_add_domain.sh``,
+    #: ``check_mail_dns`` – MAIL-01, ``docs/OPERACJE.md`` § 49). Nadawca spoza tej listy jest
+    #: zastępowany ``DEFAULT_FROM_EMAIL`` (``apps.core.tasks.mail_from``).
     from_email = models.EmailField("nadawca listów", blank=True)
     email_subject_prefix = models.CharField("prefiks tematu", max_length=60, blank=True)
     #: Adresy, na które serwis przekazuje **każde** przyjęte rozwiązanie (prośba organizatora

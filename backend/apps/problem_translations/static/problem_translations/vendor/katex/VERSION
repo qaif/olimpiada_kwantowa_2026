@@ -10,7 +10,8 @@ Pliki:
   katex.min.css  – ZMIENIONY wobec dist/katex.min.css
                    upstream sha256 d4ab5b8ee16989b070cdb0ea24bd6ad48fc8df1b787f280f29d3ae4f959f2c00
                    nasz     sha256 864f909fc1f3da0f140321d0e277ac0a444d8909e072cdbf174bcea93b95c089
-  fonts/*.woff2  – bez zmian wobec dist/fonts/*.woff2 (tylko woff2; woff i ttf pominięte)
+  fonts/*.woff2  – bez zmian wobec dist/fonts/*.woff2 (tylko woff2; woff i ttf pominięte),
+                   skróty sha256 w SHA256SUMS (sprawdza je scripts/security/vendor_check.py)
 
 Dlaczego CSS jest zmieniony: z każdej reguły @font-face usunięto wpisy src z url(...woff) i url(...ttf),
 zostaje wyłącznie woff2 (obsługują go wszystkie wspierane przeglądarki). Produkcyjne

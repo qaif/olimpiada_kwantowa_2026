@@ -678,3 +678,21 @@ msgstr "starter notebook"
 #, python-format
 msgid "Praca – podgląd notatnika (wersja %(version)s)"
 msgstr "Submission – notebook preview (version %(version)s)"
+
+#, python-format
+msgid "Bezpieczeństwo: laboratorium działa pod osobnym adresem %(host)s."
+msgstr "Security: the lab runs on a separate address %(host)s."
+
+msgid ""
+"Kod z notatnika wykonuje się w przeglądarce, w osobnym originie "
+"laboratorium: nie widzi sesji, ciasteczek ani danych zapisanych przez "
+"serwis, a serwis odrzuca wysyłane z niego żądania. Laboratorium nadal "
+"otwierają wyłącznie konta uczestników bez żadnej roli personelu. Uprzedź "
+"uczestników, żeby nie wklejali cudzego kodu. Szczegóły: docs/OPERACJE.md § "
+"40.7."
+msgstr ""
+"Notebook code runs in the browser, in the lab's separate origin: it cannot "
+"see the site's session, cookies or data stored by the site, and the site "
+"rejects requests sent from it. The lab is still available only to "
+"participant accounts without any staff role. Warn participants not to paste "
+"other people's code. Details: docs/OPERACJE.md § 40.7."

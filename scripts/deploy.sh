@@ -972,6 +972,40 @@ IP="${MAIL_PUBLIC_IP:-$(hostname -I | tr ' ' '\n' | grep -E '^[0-9]+\.' | grep -
 DKIM_RAW="$(docker compose exec -T mail cat "/etc/opendkim/keys/${DOMAIN}.txt" </dev/null 2>/dev/null || true)"
 DKIM_VALUE="$(printf '%s' "$DKIM_RAW" | tr -d '\r\n\t' | grep -oE '"[^"]*"' | tr -d '"' | tr -d '\n' || true)"
 
+# MAIL-01: klucze leżą na wolumenie `mail_dkim`, którego wdrożenie nie dotyka – ale wolumen
+# odtworzony od zera (nowa maszyna, `down -v`) dostaje przy starcie `mail` NOWY klucz, a stary rekord
+# w DNS-ie przestaje pasować bez żadnego błędu. Porównanie z poprzednim mail-dns.txt (domena główna)
+# i z mail-dns-<domena>.txt (domeny dodane scripts/mail_add_domain.sh) mówi o tym głośno.
+dkim_p() { tr -d ' \r\n\t' | grep -oE 'p=[A-Za-z0-9+/=]+' | head -n 1 | cut -c3- || true; }
+NEW_P="$(printf '%s' "$DKIM_VALUE" | dkim_p)"
+OLD_P="$( { grep -A1 '^2) DKIM' mail-dns.txt 2>/dev/null || true; } | dkim_p)"
+if [ -n "$OLD_P" ] && [ -n "$NEW_P" ] && [ "$OLD_P" != "$NEW_P" ]; then
+  echo "!!! UWAGA: klucz DKIM domeny ${DOMAIN} jest INNY niż w poprzednim mail-dns.txt (wolumen mail_dkim"
+  echo "!!! odtworzony?). Zaktualizuj rekord ${SELECTOR}._domainkey.${DOMAIN} w DNS-ie – do tego czasu DKIM nie przechodzi."
+fi
+EXTRA_DOMAINS_MAIL=""
+set -f
+for extra in $(sed -n 's/^ALLOWED_SENDER_DOMAINS=//p' .env | tail -n 1 | tr -d '"\047\r' | tr ',' ' '); do
+  [ "$extra" = "$DOMAIN" ] || [ "$extra" = "*" ] && continue
+  EXTRA_DOMAINS_MAIL="$EXTRA_DOMAINS_MAIL $extra"
+  # `|| true`: pipefail + set -e zakończyłyby krok na brakującym pliku albo kluczu – a to jest
+  # właśnie stan, o którym ten fragment ma powiedzieć.
+  KEY_P="$( { docker compose exec -T mail cat "/etc/opendkim/keys/${extra}.txt" </dev/null 2>/dev/null || true; } \
+    | tr -d '\r\n\t' | { grep -oE '"[^"]*"' || true; } | tr -d '"' | dkim_p)"
+  SAVED_P="$( { sed -n 's/^DKIM_P=//p' "mail-dns-${extra}.txt" 2>/dev/null || true; } | tr -d '\r' | head -n 1)"
+  if [ -z "$KEY_P" ]; then
+    echo "!!! UWAGA: brak klucza DKIM domeny ${extra} w usłudze mail – scripts/mail_add_domain.sh ${extra}"
+  elif [ -z "$SAVED_P" ]; then
+    echo "Domena nadawcy ${extra}: brak mail-dns-${extra}.txt – rekordy: scripts/mail_add_domain.sh --print ${extra}"
+  elif [ "$KEY_P" != "$SAVED_P" ]; then
+    echo "!!! UWAGA: klucz DKIM domeny ${extra} jest INNY niż w mail-dns-${extra}.txt (wolumen mail_dkim odtworzony?)."
+    echo "!!! Rekordy od nowa: scripts/mail_add_domain.sh --print ${extra}, potem wklej DKIM i --check (OPERACJE § 49)."
+  else
+    echo "Domena nadawcy ${extra}: klucz DKIM bez zmian (mail-dns-${extra}.txt)."
+  fi
+done
+set +f
+
 {
   echo "# Rekordy DNS dla poczty wychodzącej – ${DOMAIN}"
   echo "# Wygenerowane przez scripts/deploy.sh, $(date -Iseconds). Dodaj je u operatora strefy."
@@ -996,6 +1030,11 @@ DKIM_VALUE="$(printf '%s' "$DKIM_RAW" | tr -d '\r\n\t' | grep -oE '"[^"]*"' | tr
   echo "5) PTR (rDNS) – NIE w strefie domeny: ustawia się w panelu dostawcy serwera"
   echo "   ${IP}  ->  mail.${DOMAIN}"
   echo "   Bez tego Gmail i Outlook odrzucają pocztę niezależnie od SPF i DKIM."
+  if [ -n "$EXTRA_DOMAINS_MAIL" ]; then
+    echo
+    echo "Dodatkowe domeny nadawców (ALLOWED_SENDER_DOMAINS):${EXTRA_DOMAINS_MAIL}"
+    echo "   rekordy każdej: mail-dns-<domena>.txt (scripts/mail_add_domain.sh, docs/OPERACJE.md § 49)"
+  fi
 } > mail-dns.txt
 chmod 600 mail-dns.txt
 cat mail-dns.txt

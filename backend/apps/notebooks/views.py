@@ -314,14 +314,17 @@ class ParticipantLabView(_ParticipantNotebookMixin, View):
                 staff_notice=True,
             )
         starter_url = services.starter_url(task, self.participant, request.user)
+        # Osobny host laboratorium (QC-02): adresy bezwzględne na ten host – także pobranie notatnika
+        # startowego, bo hosty serwisu ``/notebook-starter/`` już nie podają. Bez niego – względne (QC-01).
+        origin = lab.lab_origin(request)
         return TemplateResponse(
             request,
             self.template_name,
             {
                 "task": task,
                 "problem": problem,
-                "lab_url": lab.lab_url(starter_url),
-                "starter_url": starter_url,
+                "lab_url": lab.lab_url(starter_url, origin),
+                "starter_url": f"{origin}{starter_url}",
                 "transfer_mb": lab.transfer_megabytes(),
                 "visible_count": len(task.visible_tests or []),
             },
@@ -338,7 +341,9 @@ class ParticipantStarterView(View):
     """
 
     def get(self, request, token: str, filename: str):
-        if not request.user.is_authenticated or services.request_has_staff_role(request):
+        # Przy osobnym hoście laboratorium (QC-02) notatnik startowy podaje wyłącznie
+        # ``lab_host_starter``; tu dochodzi tylko w razie pominięcia ``NotebookLabHostMiddleware``.
+        if lab.lab_host() or not request.user.is_authenticated or services.request_has_staff_role(request):
             raise Http404
         task = services.task_from_starter_token(token, request.user)
         if task is None or filename != services.starter_filename(task):
@@ -352,6 +357,38 @@ class ParticipantStarterView(View):
             raise PermissionDenied
         attachment = request.GET.get("download") == "1"
         return _notebook_response(services.starter_notebook(task), filename, attachment=attachment)
+
+
+#: Polityka odpowiedzi z notatnikiem startowym na hoście laboratorium: dokument JSON nie ma niczego
+#: wykonywać ani się osadzać, nawet otwarty wprost w karcie.
+LAB_HOST_STARTER_POLICY = "default-src 'none'; frame-ancestors 'none'; sandbox"
+
+
+def lab_host_starter(request, token: str, filename: str) -> HttpResponse:
+    """Notatnik startowy na **osobnym hoście laboratorium** (QC-02 § 6) – bez sesji serwisu.
+
+    Woła go bezpośrednio ``NotebookLabHostMiddleware`` (bez urlconfu i bez warstw sesji, konkursu
+    i CSRF – host laboratorium nie dostaje ciasteczek serwisu). Jedynym poświadczeniem jest
+    podpisany token z krótkim terminem; konto z tokenu przechodzi te same bramki co w QC-01
+    (uczestnik etapu, bez roli personelu, nadzór zdalny) – na stanie z chwili pobrania.
+    """
+    from django.http import HttpResponseNotAllowed, HttpResponseNotFound
+
+    from apps.proctoring.services import gate_decision
+
+    if request.method not in ("GET", "HEAD"):
+        return HttpResponseNotAllowed(["GET", "HEAD"])
+    target = services.lab_host_starter_target(token)
+    if target is None or filename != services.starter_filename(target[0]):
+        return HttpResponseNotFound("Not found.", content_type="text/plain")
+    task, user = target
+    stage = task.problem.stage
+    if gate_decision(user, stage, stage.edition.competition) is not None:
+        return HttpResponse("Forbidden.", status=403, content_type="text/plain")
+    attachment = request.GET.get("download") == "1"
+    response = _notebook_response(services.starter_notebook(task), filename, attachment=attachment)
+    response["Content-Security-Policy"] = LAB_HOST_STARTER_POLICY
+    return response
 
 
 # --- podgląd tylko do odczytu (personel) -----------------------------------------------------------

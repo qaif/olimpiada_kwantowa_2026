@@ -674,3 +674,22 @@ msgstr "стартовый блокнот"
 #, python-format
 msgid "Praca – podgląd notatnika (wersja %(version)s)"
 msgstr "Работа — просмотр блокнота (версия %(version)s)"
+
+#, python-format
+msgid "Bezpieczeństwo: laboratorium działa pod osobnym adresem %(host)s."
+msgstr "Безопасность: лаборатория работает по отдельному адресу %(host)s."
+
+msgid ""
+"Kod z notatnika wykonuje się w przeglądarce, w osobnym originie "
+"laboratorium: nie widzi sesji, ciasteczek ani danych zapisanych przez "
+"serwis, a serwis odrzuca wysyłane z niego żądania. Laboratorium nadal "
+"otwierają wyłącznie konta uczestników bez żadnej roli personelu. Uprzedź "
+"uczestników, żeby nie wklejali cudzego kodu. Szczegóły: docs/OPERACJE.md § "
+"40.7."
+msgstr ""
+"Код из блокнота выполняется в браузере, в отдельном источнике (origin) "
+"лаборатории: он не видит сессию, cookie и данные, сохранённые сайтом, а сайт "
+"отклоняет отправленные из него запросы. Лаборатория по-прежнему доступна "
+"только учётным записям участников без каких-либо ролей персонала. "
+"Предупредите участников, чтобы они не вставляли чужой код. Подробности: "
+"docs/OPERACJE.md § 40.7."

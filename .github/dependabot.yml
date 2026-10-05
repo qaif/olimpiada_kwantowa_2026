@@ -1,0 +1,135 @@
+# Dependabot (SEC-02, docs/OPERACJE.md § 47.6) – propozycje aktualizacji, nie automat.
+#
+# Zasady wspólne dla wszystkich wpisów:
+# - raz w tygodniu (poniedziałek rano), drobne podbicia (minor + patch) w JEDNYM zgłoszeniu na
+#   ekosystem, wersje główne osobno – każda z nich jest decyzją z własnym przebiegiem testów,
+# - `cooldown` 7 dni: wydanie musi „odleżeć”, zanim je zaproponujemy. Przejęte konta wydawnicze
+#   (Trivy, marzec 2026; wcześniej npm i PyPI) zwykle wychodzą na jaw w ciągu kilku dni,
+# - poprawki bezpieczeństwa (Dependabot security updates, włączane w ustawieniach repozytorium)
+#   cooldownu nie mają i też są grupowane,
+# - etykiety: `dependencies` + ekosystem. Etykiety trzeba raz założyć (OPERACJE § 47.6) –
+#   Dependabot nie tworzy własnych etykiet, gdy podano listę.
+version: 2
+
+updates:
+  # Backend: zakresy w pyproject.toml bez pliku blokady (obraz instaluje „najnowsze w zakresie”).
+  # `increase-if-necessary`: łatki i wydania w zakresie wchodzą przy budowaniu obrazu same,
+  # więc zgłoszenie powstaje wyłącznie wtedy, gdy nowe wydanie WYCHODZI poza zakres (np. Django 6.2)
+  # – czyli dokładnie wtedy, gdy granicę ma przesunąć człowiek (komentarze przy pinach w pyproject).
+  - package-ecosystem: pip
+    directory: /backend
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Warsaw
+    versioning-strategy: increase-if-necessary
+    open-pull-requests-limit: 5
+    cooldown:
+      default-days: 7
+    labels: [dependencies, python]
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      backend-python:
+        applies-to: version-updates
+        update-types: [minor, patch]
+      backend-python-security:
+        applies-to: security-updates
+        patterns: ["*"]
+
+  # djcms: dokładna blokada `djcms/uv.lock` (CI i obraz: `uv sync --frozen`), dlatego ekosystem
+  # `uv`, a nie `pip` – tylko on aktualizuje pyproject.toml i uv.lock razem; `pip` zmieniłby sam
+  # pyproject i job `djcms` padłby na `--frozen`.
+  - package-ecosystem: uv
+    directory: /djcms
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Warsaw
+    open-pull-requests-limit: 5
+    cooldown:
+      default-days: 7
+    labels: [dependencies, python]
+    commit-message:
+      prefix: "chore(deps-djcms)"
+    groups:
+      djcms-python:
+        applies-to: version-updates
+        update-types: [minor, patch]
+      djcms-python-security:
+        applies-to: security-updates
+        patterns: ["*"]
+
+  # Obrazy bazowe w Dockerfile'ach (`python:3.14-slim-trixie`). Zmiana wersji Pythona (3.14 → 3.15)
+  # to decyzja dla całego projektu (requires-python, CI, venv), a nie podbicie obrazu – ignorowana.
+  - package-ecosystem: docker
+    directories: [/backend, /djcms]
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Warsaw
+    open-pull-requests-limit: 3
+    cooldown:
+      default-days: 7
+    labels: [dependencies, docker]
+    commit-message:
+      prefix: "chore(docker)"
+    ignore:
+      - dependency-name: python
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+    groups:
+      dockerfile-base:
+        patterns: ["*"]
+
+  # Obrazy usług w plikach compose (Caddy, Postgres, Redis, MinIO, ClamAV, Postfix, LiveKit…).
+  # Wersje główne baz danych wymagają migracji danych (Postgres: OPERACJE § 19) – ignorowane;
+  # takie przejście planuje się osobno. Obrazy z `${VAR:-domyślna}` Dependabot może pominąć –
+  # te obejmuje tygodniowy skan Trivy (.github/workflows/security-scan.yml).
+  - package-ecosystem: docker-compose
+    directories: [/, /deploy/livekit, /deploy/jitsi]
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Warsaw
+    open-pull-requests-limit: 3
+    cooldown:
+      default-days: 7
+    labels: [dependencies, docker]
+    commit-message:
+      prefix: "chore(compose)"
+    ignore:
+      - dependency-name: postgres
+        update-types: ["version-update:semver-major"]
+      - dependency-name: redis
+        update-types: ["version-update:semver-major"]
+    groups:
+      compose-images:
+        update-types: [minor, patch]
+
+  # Akcje GitHuba – przypięte pełnym SHA (scripts/security/policy_check.py tego pilnuje);
+  # Dependabot podbija SHA razem z komentarzem `# vX.Y.Z`.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Warsaw
+    open-pull-requests-limit: 5
+    cooldown:
+      default-days: 7
+    labels: [dependencies, github-actions]
+    commit-message:
+      prefix: "chore(ci)"
+    groups:
+      github-actions:
+        update-types: [minor, patch]
+
+# npm: w repozytorium nie ma package.json – JS z zewnątrz jest zwendorowany albo z CDN z SRI
+# i ma własne, comiesięczne porównanie z upstreamem (.github/workflows/vendor-upstream.yml).
+# e2e/requirements.txt świadomie poza Dependabotem: wersja playwright MUSI odpowiadać obrazowi
+# mcr.microsoft.com/playwright (docker-compose.dev.yml), a to narzędzie dewelopera, nie produkcja.

@@ -1723,9 +1723,11 @@ i **na adresata** (bez IP). Koordynator nie aktywuje ręcznie konta z niezaakcep
 **Nadawca a relay.** `ALLOWED_SENDER_DOMAINS` (domyślnie `SITE_DOMAIN`; lista rozdzielona spacją) czyta
 i usługa `mail`, i aplikacja: nadawca konkursu spoza listy jest pomijany – listy idą od
 `DEFAULT_FROM_EMAIL`, a w logu `web`/`worker` pada raz ostrzeżenie „Nadawca konkursu … jest spoza
-ALLOWED_SENDER_DOMAINS”. Dopisanie drugiej domeny (np. `olimpiadakwantowa.pl iqo-official.org`) wymaga
-rekordów SPF/DKIM/DMARC tej domeny (klucz DKIM generuje usługa `mail` przy starcie – rekord TXT
-z `docker compose exec mail cat /etc/opendkim/keys/<domena>.txt`) i odtworzenia `mail` oraz `web`/`worker`.
+ALLOWED_SENDER_DOMAINS”. Druga domena (np. `iqo-official.org`) – **wyłącznie** procedurą § 49
+(MAIL-01): `scripts/mail_add_domain.sh <domena>` na serwerze (klucz DKIM, wpis w `.env`, rekordy DNS
+do wklejenia), rekordy u operatora strefy, `--check`, odtworzenie `web`/`worker`/`beat`, a dopiero na
+końcu `from_email` konkursu. Koordynator widzi ostrzeżenie na pulpicie, dopóki domena nadawcy jest
+spoza relaya albo bez udanego `manage.py check_mail_dns`.
 W wariancie B (zewnętrzny dostawca) wolno ustawić `*` – wtedy aplikacja nie ogranicza nadawców.
 
 Do sprawdzenia na produkcji (jednorazowo i po każdej zmianie nadawcy konkursu):
@@ -1734,7 +1736,7 @@ Do sprawdzenia na produkcji (jednorazowo i po każdej zmianie nadawcy konkursu):
    jednym ostrzeżeniem w logu) wysyła od `DEFAULT_FROM_EMAIL`. Sprawdzenie:
    `docker compose exec web python manage.py shell -c "from apps.tenancy.models import Competition as C; print(list(C.objects.values_list('slug','from_email')))"`
    i `docker compose logs web worker | grep ALLOWED_SENDER_DOMAINS`. Wyjście: pusty `from_email`
-   (nadawca instalacji) albo druga domena w `ALLOWED_SENDER_DOMAINS` razem z SPF/DKIM/DMARC.
+   (nadawca instalacji) albo druga domena w `ALLOWED_SENDER_DOMAINS` razem z SPF/DKIM/DMARC (§ 49).
 2. **Odwrotny DNS i SPF/DKIM** domeny nadawcy – README § 4.2 (bez zmian).
 3. **`https` w linku**: `SECURE_PROXY_SSL_HEADER` (production.py) + `X-Forwarded-Proto` z Caddy –
    każda domena z `EXTRA_DOMAINS` ma blok proxy z tym nagłówkiem (`scripts/render_caddyfile.sh`).
@@ -5712,11 +5714,12 @@ uczniów w IndexedDB zostaje (stała nazwa magazynu).
 - Testy zgodności `docker-compose.yml` i `deploy/Caddyfile` w CI (`CI=true`) **nie** dają się pominąć –
   brak pliku to błąd. Testy z prawdziwym Qiskitem (`*_with_real_qiskit`) w CI są pominięte z powodem
   `QISKIT-PARITY` (Qiskit nie jest zależnością); uruchom je w obrazie z `pip install qiskit` przy
-  zmianach `backend/qclab`.
+  zmianach `backend/qclab` (obraz nie ma systemowego pipa od SEC-02 – najpierw
+  `docker compose exec -u root web python -m ensurepip`).
 
-### 40.6. Personel bez laboratorium; docelowo osobna domena laboratorium
+### 40.6. Personel bez laboratorium; osobny host laboratorium (§ 40.7)
 
-Laboratorium działa na domenie serwisu, więc kod z notatnika wykonuje się w przeglądarce osoby,
+Bez `NOTEBOOK_LAB_HOST` (§ 40.7) laboratorium działa na domenie serwisu, więc kod z notatnika wykonuje się w przeglądarce osoby,
 która je otworzyła, w originie serwisu. Polityka CSP ścieżki laboratorium (źródła zawężone do
 `/static/notebook-lab/` i `/notebook-starter/`, `form-action 'none'`, COOP/COEP) blokuje z niego API,
 panele i formularze serwisu, ale to nie jest pełna izolacja.
@@ -5742,17 +5745,99 @@ do zrobienia, ale: **nie nadawaj ról personelu kontom, z których ktoś rozwią
 nadaniu roli laboratorium znika z tego konta (osoba testująca zadania potrzebuje osobnego konta
 uczestnika).
 
-**Docelowa naprawa (niewdrożona): osobna domena rejestrowalna**, np. `olimpiada-lab.pl` –
-**nie** `lab.<domena serwisu>`. Subdomena nie wystarcza: `CSRF_TRUSTED_ORIGINS` zawiera
-`https://*.<SITE_DOMAIN>` (subdomeny konkursów, `config/settings/base.py`), więc kod z
-`lab.<domena>` byłby dla Django zaufanym originem żądań POST, a ta sama domena rejestrowalna to ten
-sam „site” dla ciasteczek `SameSite=Lax`. Kroki, gdy zapadnie decyzja: rekord DNS i certyfikat drugiej
-domeny; blok Caddy'ego tej domeny podający **wyłącznie** `/static/notebook-lab/*` z fragmentem
-`(notebook_lab)` (i nic z `web`); notatnik startowy dostępny z tej domeny bez sesji serwisu (token
-w adresie już jest podpisany – wystarczy CORS `Access-Control-Allow-Origin: https://olimpiada-lab.pl`
-na `/notebook-starter/` i `connect-src` laboratorium wskazujący domenę serwisu); adres laboratorium
-w `apps/notebooks/lab.py`; potem zdjęcie bramki ról (`services.has_staff_role`). Szczegóły i
-uzasadnienie: `docs/tasks/QC-01.md` § 3.5.
+**Naprawa: osobny host laboratorium (QC-02, § 40.7).** Zbudowana, włączana jedną zmienną
+`NOTEBOOK_LAB_HOST` – opis wyżej dotyczy instalacji **bez** niej. Z nią magazyny originu serwisu
+(`csrftoken`, `localStorage`, IndexedDB) są poza zasięgiem kodu z notatnika, a serwis odrzuca żądania
+z laboratorium. Subdomena `lab.<domena>` (DNS już jest) zostawia ryzyka „same-site”: kod z notatnika
+może **podrzucić** ciasteczko z `Domain=<domena>` na ~400 dni – podrzucony `csrftoken` to 403 na każdym
+formularzu serwisu (DoS), podrzucony `sessionid` – wylogowanie albo cudza sesja; obrona CSRF opiera
+się na `Origin`. Te skutki łatają warstwy z § 40.7 (prefiks `__Host-`, wygaszanie duplikatów, strażnik
+także w djcms), ale **zalecany jest wariant z osobną domeną rejestrowalną** (np. `olimpiada-lab.pl`),
+przy którym podrzucenie jest niemożliwe. Bramka ról zostaje (zdjęcie – osobna decyzja po odbiorze).
+
+### 40.7. Laboratorium na osobnym hoście (QC-02, `docs/tasks/QC-02.md`)
+
+**Co robi `NOTEBOOK_LAB_HOST=<host>`** (`.env`; czytają ją Django i `scripts/render_caddyfile.sh`):
+
+- Caddy: nowy blok `<host>` na końcu `caddy/Caddyfile` – wyłącznie `/static/notebook-lab/*` (pliki
+  z wolumenu statycznego, nagłówki fragmentu `(notebook_lab)`: CSP zawężona do ścieżki, COOP/COEP/CORP)
+  i `/notebook-starter/*` (do `web`); reszta 404; `Referrer-Policy: strict-origin`; bez strony prac
+  technicznych. Bloki serwisu (domena główna, `EXTRA_DOMAINS`, `*.`) importują `notebook_lab_moved`:
+  ścieżka laboratorium → **302** na `<host>`, `/notebook-starter/*` → 404,
+- Django: host w `ALLOWED_HOSTS`, **nie** w `CSRF_TRUSTED_ORIGINS`; `NotebookLabHostMiddleware` robi
+  ten sam rozdział hostów (druga zapora, jedyna w dev); notatnik startowy na `<host>` bez sesji –
+  podpisany token (osobna sól, ważny 2 h) i bramki uczestnika na bieżącym stanie konta;
+  `NotebookLabRequestGuardMiddleware` odrzuca (403) na hostach serwisu każde żądanie z `Origin`/`Referer`
+  hosta laboratorium poza zwykłą nawigacją GET – także gdy wzorzec `https://*.<domena>` uznałby ten
+  origin za zaufany dla CSRF,
+- strona zadania podaje adresy bezwzględne na `<host>` (laboratorium i „Pobierz notatnik startowy”),
+  ramka ostrzeżenia koordynatora podaje host; etykieta `lab` jest zarezerwowana dla konkursów.
+
+**Ciasteczka:** wszystkie ciasteczka aplikacji są host-only (`sessionid`, `csrftoken`, `django_language`,
+`djcms_*`, `olimpiada_maintenance_bypass` – bez `Domain`), więc `<host>` ich nie dostaje (test
+`apps/notebooks/tests/test_labhost.py::test_platform_cookies_are_host_only`). **Nie ustawiaj**
+`SESSION_COOKIE_DOMAIN`/`CSRF_COOKIE_DOMAIN`. Wyjątek: ciasteczka Google Analytics `_ga*` (po zgodzie)
+leżą na domenie rejestrowalnej i w wariancie `lab.<domena>` widzi je laboratorium (pseudonimowy
+identyfikator, nie sekret).
+
+**Podrzucone ciasteczka (wariant `lab.<domena>`, przegląd QC-02 M1/M2):**
+
+- produkcja z `NOTEBOOK_LAB_HOST` ma ciasteczka **`__Host-sessionid`** i **`__Host-csrftoken`**
+  (`config/settings/production.py`) – tych laboratorium nie podrzuci. **Włączenie wylogowuje
+  wszystkich jeden raz** (stara nazwa nie jest przyjmowana – to ją da się podrzucić); po wyłączeniu
+  – znowu raz. Polityka prywatności (strona CMS z listą ciasteczek) powinna wtedy podawać nowe nazwy,
+- duplikat nazwy sesji/CSRF/języka w nagłówku `Cookie` (podrzucone obok prawdziwego) → jedno
+  przekierowanie z wygaszeniem kopii z `Domain=<domena>`; w logu `web`: „Zdublowane ciasteczka … –
+  wygaszam”. Powtarzający się wpis „mimo wygaszenia” = ktoś podrzuca z niestandardowymi atrybutami –
+  żądanie idzie wtedy bez obu kopii (użytkownik widzi wylogowanie); pomoże wyczyszczenie ciasteczek
+  domeny w przeglądarce,
+- djcms ma ten sam strażnik i wygaszanie (`apps.pages.labguard`, zmienna `NOTEBOOK_LAB_HOST`
+  przekazywana w `docker-compose.yml`) – inaczej wzorzec `https://*.<domena>` w jego CSRF
+  przepuściłby zapis z laboratorium z podrzuconym `djcms_csrftoken`,
+- żądania same-site zmieniające stan z `Origin: null` albo bez `Origin`/`Referer` (kod z notatnika
+  wycina nagłówki) – 403, gdy laboratorium jest same-site z hostem żądania.
+
+**Warianty – kompromisy:**
+
+| | `lab.<SITE_DOMAIN>` | osobna domena (np. `olimpiada-lab.pl`) |
+|---|---|---|
+| DNS / koszt | nic (rekord `*.olimpiadakwantowa.pl` → 169.58.242.197, sprawdzone `nslookup` 5.10.2026) | zakup domeny + rekord A |
+| magazyny serwisu, sesja, `csrftoken` | odcięte | odcięte |
+| ciasteczka `Lax` serwisu na `fetch`/POST z laboratorium | **jadą** (same-site) – bronią CSP laboratorium, strażnik `Origin`, CSRF | nie jadą (cross-site) |
+| podrzucenie ciasteczka na domenę nadrzędną (`sessionid` cudzej sesji) | **możliwe** – zostaje ostrzeżenie uczestników | niemożliwe |
+| IQO (`iqo-official.org`) | cross-site już teraz | cross-site |
+
+Zalecenie: **osobna domena** (wariant B) – kupić i przełączyć, zanim laboratorium zacznie służyć
+w etapie z nagrodami. `lab.olimpiadakwantowa.pl` jest lepsze niż laboratorium w originie serwisu,
+ale zostawia podrzucanie ciasteczek (DoS/fiksacja łatane warstwami wyżej, nie usunięte u źródła).
+
+**Włączenie (produkcja):**
+
+1. (tylko osobna domena) rekord A domeny laboratorium → IP serwera; `nslookup <host>`.
+2. `.env`: `NOTEBOOK_LAB_HOST=lab.olimpiadakwantowa.pl` (sama nazwa, bez `https://` i portu).
+3. `bash scripts/proxy_config.sh update && docker compose up -d web` – albo `scripts/deploy.sh`.
+   Start `web` zatrzymuje `notebooks.E002`, gdy wartość nie jest nazwą hosta albo jest hostem serwisu,
+   usługi platformy (`www.`/`dj.`/`live.`/`meet.`/`monitor.`/`errors.`/`s3.`, S3, Jitsi) lub – przy
+   `migrate` – istniejącego konkursu. Uprzedź użytkowników o jednorazowym wylogowaniu (`__Host-`).
+4. Sprawdzenie (odczyt):
+
+```sh
+curl -sI https://<host>/static/notebook-lab/<build_id>/lab/index.html | grep -iE 'content-security|cross-origin'
+curl -sI https://<domena>/static/notebook-lab/<build_id>/lab/index.html | grep -i '^location'   # https://<host>/…
+curl -sI https://<host>/ | head -1             # 404
+curl -sI https://<domena>/notebook-starter/x/y.ipynb | head -1   # 404
+```
+
+5. Odbiór w przeglądarce (konto uczestnika): laboratorium pod `<host>`, jądro wstaje, notatnik
+   startowy się wczytuje; w konsoli laboratorium `document.cookie` puste, `fetch('https://<domena>/me/',
+   {credentials:'include'})` zablokowany przez CSP.
+
+**Przełączaj przed etapem:** praca uczniów w IndexedDB jest per origin – po zmianie adresu notatniki
+z poprzedniego originu nie są widoczne (pobrane `.ipynb` i oddane prace nie giną). **Wyłączenie:**
+usuń zmienną i powtórz krok 3 (wynik generatora wraca bajt w bajt do QC-01).
+
+**Dev:** `NOTEBOOK_LAB_HOST=lab.localhost:8000` przy `runserver --nostatic` na `localhost:8000`
+(przeglądarki rozwiązują `*.localhost` lokalnie; port dopuszcza tylko Django, nie generator proxy).
 
 ## 45. Zmiana hasła w panelu konta (AUTH-01b, `docs/tasks/AUTH-01b.md`)
 
@@ -5803,6 +5888,138 @@ docker compose exec -T web python manage.py theme_install - --activate iqo < /tm
   wzorców w `apps/web/urls.py` oraz sekcji „Hasło” w `web/account/profile.html` (danych do sprzątania
   nie ma – funkcja niczego nie przechowuje poza `accounts.User.password` i audytem). Wymóg hasła przy
   zmianie adresu i zamknięcie dróg Wagtaila/admina zostają – to poprawki bezpieczeństwa, nie część ekranu.
+
+## 49. Poczta z domeny konkursu (MAIL-01, `docs/tasks/MAIL-01.md`)
+
+Listy konkursu mogą wychodzić z **jego** domeny (IQO: `noreply@iqo-official.org`) tym samym relayem
+`mail`. Relay podpisuje DKIM-em każdą domenę z `ALLOWED_SENDER_DOMAINS` (obsługa wielu domen jest
+w obrazie boky/postfix – osobny klucz i osobny wiersz `KeyTable`/`SigningTable` na domenę).
+Kolejność kroków jest **twarda**: nadawcę konkursu zmienia się na samym końcu, po weryfikacji DNS.
+
+**Stan `iqo-official.org` z 5.10.2026** (sprawdzone `check_mail_dns`): DNS w Squarespace, rekord A →
+nasz serwer, **brak MX**, SPF `v=spf1 -all` („z tej domeny nie wychodzi żadna poczta”), DMARC
+`v=DMARC1; p=reject; sp=reject; adkim=s; aspf=s`. Znaczy to, że list od `@iqo-official.org` wysłany
+**dziś** zostałby **odrzucony** przez każdego dużego odbiorcę. DMARC zostaje bez zmian (ścisłe
+dopasowanie `adkim=s`/`aspf=s` przechodzi: podpis `d=iqo-official.org` i koperta
+`noreply@iqo-official.org` są dokładnie w tej domenie) – zmieniamy SPF i dokładamy DKIM.
+
+### 49.1. Krok 1 – serwer: klucz i rekordy (operator, ~1 min)
+
+```sh
+ssh -i ~/.ssh/olimpiada_deploy root@169.58.242.197
+cd /opt/olimpiada
+scripts/mail_add_domain.sh iqo-official.org
+```
+
+Skrypt (idempotentny – można go powtórzyć): dopisuje domenę do `ALLOWED_SENDER_DOMAINS` w `.env`
+(kopia `.env.bak-mail-<czas>`), generuje klucz DKIM **w kontenerze `mail`** (istniejącego nigdy nie
+nadpisuje), odtwarza **tylko** `mail` (kilka sekund; kolejka zostaje na wolumenie) i wypisuje rekordy,
+zapisując je też do `/opt/olimpiada/mail-dns-iqo-official.org.txt`. `web`/`worker`/`beat` nie są
+ruszane – patrz krok 4. `scripts/mail_add_domain.sh --print iqo-official.org` wypisze rekordy
+ponownie bez żadnych zmian.
+
+### 49.2. Krok 2 – Squarespace: trzy decyzje w panelu DNS (właściciel domeny, ~10 min)
+
+Squarespace → **Domains** → `iqo-official.org` → **DNS** (DNS Settings). Wartości kopiuj z
+`mail-dns-iqo-official.org.txt`, **nie** z tej instrukcji (klucz DKIM jest inny na każdym serwerze).
+
+1. **SPF – ZMIEŃ istniejący rekord, nie dodawaj drugiego.** Znajdź TXT o hoście `@` z wartością
+   `v=spf1 -all` i zmień wartość na tę z pliku – dla dzisiejszego stanu:
+   `v=spf1 ip4:169.58.242.197 -all`. Jeśli ten rekord jest częścią presetu Squarespace, którego nie
+   da się edytować, usuń go (ikona kosza przy presecie/rekordzie) i dodaj w **Custom records**:
+   Type `TXT`, Host `@`, Data = wartość z pliku. **Dwa rekordy `v=spf1` naraz unieważniają SPF.**
+2. **DKIM – DODAJ nowy rekord** w Custom records: Type `TXT`, Host `olimpiada._domainkey`,
+   Data = cała linia `v=DKIM1; h=sha256; k=rsa; s=email; p=MIIB…` z pliku (jedna wartość, bez
+   cudzysłowów). Gdyby panel odrzucił długość: na serwerze
+   `docker compose exec mail rm /etc/opendkim/keys/iqo-official.org.private /etc/opendkim/keys/iqo-official.org.txt`
+   i `DKIM_BITS=1024 scripts/mail_add_domain.sh iqo-official.org` (klucz 1024 bitów – ostateczność).
+3. **DMARC – NIE ruszaj.** Domena ma już `_dmarc` (`p=reject`); drugi rekord unieważniłby oba.
+   Opcjonalnie dopisz do istniejącego `; rua=mailto:<skrzynka>`, żeby dostawać raporty – adres
+   w innej domenie (np. `contact@qaif.org`) działa dopiero z rekordem zgody
+   `iqo-official.org._report._dmarc.qaif.org TXT "v=DMARC1"` w strefie qaif.org. Domena **bez**
+   DMARC (inny konkurs) dostaje w pliku `p=none` z planem: po ok. 2 tygodniach czystych raportów
+   zmień na `p=quarantine`.
+4. **MX i wszystkie pozostałe rekordy – bez zmian** (A, CNAME `www`, weryfikacje). Relay tylko wysyła.
+
+Propagacja: zwykle minuty, do kilku godzin (TTL starego rekordu SPF).
+
+### 49.3. Krok 3 – weryfikacja (operator)
+
+```sh
+cd /opt/olimpiada
+scripts/mail_add_domain.sh --check iqo-official.org
+```
+
+Dwa niezależne sprawdzenia: `opendkim-testkey` w kontenerze `mail` (klucz w DNS-ie = klucz prywatny
+relaya; „key not secure” = brak DNSSEC, to normalne) i `manage.py check_mail_dns` w `web` (ocena SPF
+dla `169.58.242.197`, DKIM z porównaniem klucza, DMARC). Kod 0 i „ZWERYFIKOWANA” = dalej. Wynik
+zapisuje się w bazie (`mail_domains.SenderDomain`) – z niego pulpit koordynatora bierze ostrzeżenie.
+Samo sprawdzenie, bez skryptu: `docker compose exec web python manage.py check_mail_dns iqo-official.org`
+(`--nameserver 1.1.1.1` omija pamięć podręczną resolwera Dockera, `--json` – raport maszynowy).
+
+### 49.4. Krok 4 – aplikacja wczytuje nową listę domen (operator, krótka przerwa web)
+
+```sh
+docker compose up -d web worker beat
+```
+
+Albo przy najbliższym wdrożeniu. Bez tego aplikacja nadal uważa `iqo-official.org` za domenę spoza
+relaya (`MAIL_ALLOWED_SENDER_DOMAINS`) i każdy list IQO szedłby od `DEFAULT_FROM_EMAIL`.
+
+### 49.5. Krok 5 – nadawca konkursu (DOPIERO TERAZ)
+
+Panel IQO → **Ustawienia konkursu** (`/coordinator/competition/`, flaga `competition_settings_page`)
+→ „Nadawca listów” = `noreply@iqo-official.org` → Zapisz (audyt `competition.updated`). Bez ekranu
+ustawień (flaga wyłączona) – z serwera, bez wpisu w audycie:
+
+```sh
+docker compose exec web python manage.py shell -c "from apps.tenancy.models import Competition as C; print(C.objects.filter(slug='iqo').update(from_email='noreply@iqo-official.org'))"
+```
+
+Pulpit koordynatora IQO i ekran ustawień pokazują ostrzeżenie „Nadawca listów konkursu”, dopóki domena
+jest spoza relaya albo bez udanego `check_mail_dns`; po krokach 3–4 ostrzeżenie znika.
+
+### 49.6. Krok 6 – próba na żywo
+
+1. „Nie pamiętasz hasła?” na `https://iqo-official.org/password-reset/` na skrzynkę Gmail: w „Pokaż
+   oryginał” – `SPF: PASS`, `DKIM: PASS (iqo-official.org)`, `DMARC: PASS`.
+2. Log relaya: `docker compose logs mail --tail 50 | grep -E "DKIM-Signature|status="` –
+   `DKIM-Signature field added (s=olimpiada, d=iqo-official.org)` i `status=sent`.
+3. Opcjonalnie list na `check-auth@verifier.port25.com` (odpowiedź z wynikami SPF/DKIM/DMARC).
+
+### 49.7. Poczta zwrotna (bounce)
+
+Relay nie doręcza lokalnie, więc zawiadomienie o niedoręczeniu na `noreply@<domena>` szło przez
+rekord A domeny z powrotem do tego samego serwera („mail for … loops back to myself”) i wisiało
+w kolejce. Od MAIL-01 skrypt startowy `deploy/mail/docker-init.d/50-bounces.sh` kieruje odbicia na
+`noreply@<każda domena z ALLOWED_SENDER_DOMAINS>`, na nadawców monitoringu (`glitchtip@`, `uptime@`,
+OPS-02) i podwójne odbicia na `postmaster@mail.<domena>`:
+
+- `MAIL_BOUNCE_TARGET=discard` (domyślnie) – wyrzucenie. Ślad zostaje: list pierwotny
+  `status=bounced (…powód…)`, odbicie `postfix/discard … status=sent (olimpiada-bounce)`.
+  Lista niedoręczonych: `docker compose logs mail | grep status=bounced`.
+- `MAIL_BOUNCE_TARGET=ops@qaif.org` w `.env` – przekierowanie na skrzynkę operatora (odbicia od
+  `MAILER-DAEMON`, bez DKIM – mogą wpaść do spamu tej skrzynki). Inna lista adresów:
+  `MAIL_BOUNCE_ADDRESSES="noreply@a.pl bounces@b.org"`. Zmiana: `docker compose up -d mail`.
+- Sprawdzenie: `docker compose logs mail | grep olimpiada-bounces` (linia przy starcie z celem
+  i adresami), `docker compose exec mail postconf transport_maps virtual_alias_maps`.
+
+Restrykcji OPS-02 (`mynetworks` z `MAIL_CLIENT_NETWORKS`, GlitchTip tylko jako `glitchtip@`) skrypt
+nie dotyka – ustawia wyłącznie `transport_maps` i `virtual_alias_maps`.
+
+### 49.8. Wdrożenia, klucze, wycofanie
+
+- **Wdrożenie nie rusza kluczy** (wolumen `mail_dkim`). Krok 7/8 porównuje klucz każdej domeny
+  z zapisanym (`mail-dns.txt`, `mail-dns-<domena>.txt`) i przy rozjeździe pisze `!!! UWAGA … INNY` –
+  wolumen odtworzony od zera dał nowy klucz: `scripts/mail_add_domain.sh --print <domena>`, nowy
+  rekord DKIM w Squarespace, `--check`. Wolumenu `mail_dkim` nie ma w kopiach zapasowych (§ 1) –
+  pliki `mail-dns-*.txt` są jedynym zapisem opublikowanych wartości.
+- **Wycofanie natychmiastowe:** wyczyść „Nadawca listów” konkursu (listy od `DEFAULT_FROM_EMAIL`).
+  Pełne: usuń domenę z `ALLOWED_SENDER_DOMAINS` w `.env` i `docker compose up -d mail web worker beat`;
+  rekordy w Squarespace mogą zostać (nie szkodzą) albo wróć SPF do `v=spf1 -all` i usuń
+  `olimpiada._domainkey`. Klucz na wolumenie zostaje – ponowne dodanie domeny użyje tego samego.
+- **Kolejny konkurs z własną domeną:** te same kroki 1–6 z jego domeną; inny panel DNS – te same
+  trzy decyzje (SPF zmień/scal, DKIM dodaj, DMARC nie dubluj, MX nie ruszaj).
 
 ## 46. Monitoring z zewnątrz (OPS-03, `docs/tasks/OPS-03.md`)
 
@@ -6002,3 +6219,161 @@ wersji działa – migawka powstaje i automatyczne wycofanie obejmuje także to 
 `ALERT_EMAILS` w `.env` (§ 3.2), jeśli jeszcze nie jest ustawione – bez niego list o nieudanym wdrożeniu
 nie wyjdzie (log wdrożenia i tak to mówi). Testy: `scripts/tests/smoke_test.sh`,
 `scripts/tests/rollback_test.sh`, `scripts/tests/deploy_djcms_test.sh` (część 11).
+
+## 47. Skanowanie zależności (SEC-02, `docs/tasks/SEC-02.md`)
+
+Wszystko dzieje się w GitHub Actions – **na serwerze nie ma nic do wdrożenia** (bez migracji, bez
+zmiennych, bez nowych kontenerów). Ten rozdział mówi, co oznacza czerwony job, jak dopisać wyjątek
+i co zrobić z raportem okresowym.
+
+| Gdzie | Kiedy | Co sprawdza | Skutek |
+|---|---|---|---|
+| CI `pip-audit` | każdy PR, `main`, `v*` | zależności Pythona: backend, djcms, narzędzia budowy JupyterLite (OSV) | czerwono przy podatności **z poprawką** |
+| CI `trivy (obraz web/djcms)` | jw., po `image` | pakiety Debiana i Pythona w zbudowanym obrazie | czerwono przy CRITICAL/HIGH **z poprawką**; SARIF → Security |
+| CI `łańcuch dostaw` | jw. | SHA akcji, wyjątki Trivy, vendor JS ↔ zapis wersji/skrótów | czerwono przy złamaniu reguły |
+| `security-scan.yml` | poniedziałek 4:17 UTC | obrazy usług z compose + nasz `olimpiada-web:main` z GHCR | zgłoszenie `security-scan` (raport) |
+| `vendor-upstream.yml` | 1. dzień miesiąca | JS zwendorowany i z CDN vs npm, OSV, SRI | zgłoszenie `vendor-js` (raport) |
+| Dependabot | poniedziałek 6:00 | pip (backend), uv (djcms), docker, docker-compose, akcje | PR-y z etykietą `dependencies` |
+
+### 47.1. Czerwony `pip-audit`
+
+Podsumowanie joba (zakładka *Summary*) wymienia pakiet, identyfikator (GHSA/PYSEC + CVE) i wersję
+z poprawką. Kolejność decyzji:
+
+1. **Podnieś wersję.** Backend: poprawka mieści się zwykle w zakresie z `backend/pyproject.toml` –
+   wtedy wystarczy przebudować obraz (`scripts/deploy.sh` instaluje najnowsze w zakresie), a w PR
+   wystarczy podnieść dolną granicę (`>=6.1.3`), żeby obraz nie mógł wziąć wersji podatnej. Poza
+   zakresem – przesunięcie granicy to zwykła zmiana zależności z pełnym przebiegiem testów. djcms:
+   zmiana pinu w `djcms/pyproject.toml` + `uv lock` (w katalogu `djcms/`).
+2. **Wyjątek** – tylko gdy podatność nas nie dotyczy albo poprawka wymaga większej pracy.
+   Dopisz do `.security/pip-audit-ignore.toml`:
+
+   ```toml
+   [[ignore]]
+   id = "GHSA-xxxx-xxxx-xxxx"          # albo CVE-… z raportu
+   package = "nazwa-pakietu"
+   reason = "Dlaczego nas nie dotyczy / na co czekamy – pełne zdanie, sprawdzalne."
+   expires = 2026-12-31                 # data bez cudzysłowów, najdalej 180 dni od dziś
+   ```
+
+   Po terminie wpis przestaje działać i job znów jest czerwony – wtedy przegląd od nowa (przedłużenie
+   = nowa data **i** aktualny powód). Ostrzeżenie „wyjątki, które niczego nie dotyczą” = usuń wpis.
+
+Podatność **bez** poprawki jest ostrzeżeniem (żółta adnotacja), nie blokadą – wraca w każdym
+przebiegu, dopóki nie wyjdzie poprawka, i wtedy job zrobi się czerwony sam.
+
+Lokalnie (gdy ktoś ma `uv`; **z katalogu `backend/`** – tylko tak uv widzi `[tool.uv]` z override'em
+Django): `cd backend && uv pip compile pyproject.toml --extra dev --python-version 3.14
+--python-platform x86_64-manylinux_2_28 -o /tmp/req.txt && uvx pip-audit -r /tmp/req.txt --no-deps
+--disable-pip --vulnerability-service osv`.
+
+### 47.2. Czerwony `trivy (obraz web)` / `trivy (obraz djcms)`
+
+Log kroku „Trivy – bramka” ma tabelę: pakiet, zainstalowana wersja, wersja z poprawką. Pełny obraz
+(także podatności bez poprawki) – zakładka **Security → Code scanning** (kategoria `trivy-web` /
+`trivy-djcms`) albo artefakt `trivy-<obraz>` przebiegu (SARIF).
+
+- **Pakiet Debiana** (`libssl3t64`, `libc6`…): warstwa runtime obu Dockerfile'ów robi
+  `apt-get upgrade` (łatki z `trixie-security`, których obraz bazowy jeszcze nie ma – pierwszy
+  przypadek: libpcre2, CVE-2026-103111). Warstwa jest w cache'u, dopóki nie zmieni się obraz bazowy;
+  gdy poprawka wyszła później, przebuduj bez cache'u albo poczekaj na nowy digest
+  `python:3.14-slim-trixie` (zwykle dzień–dwa). Brak poprawki w Debianie = wyjątek niżej.
+- **Pakiet Pythona** w `/opt/venv`: jak w § 47.1 – Trivy widzi to, co faktycznie zainstalowano.
+  Systemowego `pip` z obrazu bazowego nie ma (usuwany w Dockerfile'ach): pip 26.2.1 niesie zwendorowane
+  urllib3/msgpack/setuptools ze znanymi podatnościami, a aplikacja go nie używa.
+- **Wyjątek** – `.security/trivyignore.yaml` (format Trivy):
+
+  ```yaml
+  vulnerabilities:
+    - id: CVE-2026-12345
+      purls:
+        - "pkg:deb/debian/libexample@1.2.3-1?distro=debian-13"   # opcjonalnie: zawęź do pakietu
+      statement: "Dlaczego nas nie dotyczy – pełne zdanie."
+      expired_at: 2026-12-31
+  ```
+
+  Job `łańcuch dostaw` odrzuci wpis bez `statement`, bez `expired_at`, przeterminowany albo z terminem
+  dalej niż 180 dni. Trivy sam przestaje honorować wpis po `expired_at`.
+
+Wysłanie SARIF nie blokuje (`continue-on-error`) – gdyby code scanning wyłączono w ustawieniach,
+wynik i tak jest w artefakcie, a bramka działa niezależnie.
+
+### 47.3. Zgłoszenie „Skan obrazów kontenerów” (`security-scan`, co tydzień)
+
+Jedno otwarte zgłoszenie, treść podmieniana co tydzień; komentarz (czyli powiadomienie) tylko wtedy,
+gdy wyniki się zmieniły. Tabela: obraz, plik compose, digest skanowanego tagu, liczba CRITICAL/HIGH
+i ile z nich ma poprawkę; rozwijane listy CVE z poprawką; pełne JSON-y w artefakcie przebiegu (90 dni).
+
+Co zrobić:
+- **„z poprawką” > 0** – sprawdź, czy dostawca wydał nowszy tag (zwykle tak; Dependabot
+  `docker-compose` mógł już otworzyć PR). Podbij tag w pliku compose, przejdź procedurę danej usługi
+  (Postgres – § 19, MinIO – § 24.4 i polityki w `deploy/minio/`, LiveKit – § 36) i wdróż zwykłą
+  ścieżką.
+- **tylko bez poprawki** – nic do zrobienia od ręki; oceń ekspozycję (czy usługa wystaje do
+  internetu – Caddy, LiveKit, Jitsi – czy siedzi w sieci `internal`).
+- **„błąd skanu”** – zwykle limit Docker Hub albo tag usunięty z rejestru; log w artefakcie
+  (`<obraz>.error`).
+- `olimpiada-web:main` z GHCR – podatności w już opublikowanym obrazie: nowe wydanie (przebudowa)
+  zwykle je usuwa.
+
+Ręczne uruchomienie: Actions → „Skan obrazów (tygodniowy)” → *Run workflow*.
+
+### 47.4. Zgłoszenie „JS spoza repozytorium” (`vendor-js`, co miesiąc) i rejestr `.security/vendor.toml`
+
+Rejestr opisuje każdą bibliotekę JS spoza repozytorium: zwendorowane (`livekit-client`, KaTeX), z CDN
+z SRI (htmx, Alpine CSP, Swagger UI, pdf.js) i zewnętrzne bez wersji (gtag.js). Job CI
+`łańcuch dostaw` (`scripts/security/vendor_check.py check`) wywraca się, gdy:
+- plik w katalogu biblioteki nie ma skrótu w `VERSION`/`SHA384`/`SHA256SUMS` (podmieniony albo
+  dorzucony bez aktualizacji zapisu),
+- pojawił się katalog `vendor/<x>` albo `<script src="https://…">` w szablonie, którego nie ma
+  w rejestrze,
+- wersja z CDN jest wpisana w różnych plikach różnie (pdf.js: `review-annotations.js` i `upload-preview.js`).
+
+Zgłoszenie miesięczne mówi: nowsza wersja w npm (albo nowa wersja główna), znane podatności naszej
+wersji (OSV), czy suma paczki npm zgadza się z zapisaną przy wendorowaniu i czy SRI zgadza się
+z plikiem na CDN. **Rozjazd SRI albo sumy** = pilne (przeglądarki odrzucą skrypt / ktoś podmienił
+paczkę) – sprawdź ręcznie przed czymkolwiek innym. Nowsza wersja = decyzja, nie obowiązek:
+
+- livekit-client: `LIVEKIT_CLIENT_VERSION=x.y.z scripts/vendor_livekit_client.sh`, test pokoju (§ 36),
+- KaTeX: procedura w `backend/apps/problem_translations/static/problem_translations/vendor/katex/VERSION`
+  + nowy `SHA256SUMS` (`cd …/katex && sha256sum fonts/*.woff2 > SHA256SUMS`),
+- CDN (htmx, Alpine, Swagger UI, pdf.js): nowa wersja i nowy skrót SRI w szablonie/ustawieniach
+  (`curl -s <url> | openssl dgst -sha384 -binary | base64`).
+
+Nowa biblioteka JS = nowy wpis w `.security/vendor.toml` w tym samym PR.
+
+### 47.5. Akcje GitHuba przypięte SHA
+
+Każde `uses:` w `.github/workflows/` ma postać `właściciel/akcja@<40 znaków SHA> # vX.Y.Z`
+(`scripts/security/policy_check.py`, job `łańcuch dostaw`). Nowa akcja: SHA wydania z
+`gh api repos/<właściciel>/<akcja>/git/matching-refs/tags/vX` (przy tagu adnotowanym – SHA commita,
+na który wskazuje). Wersje podbija Dependabot (ekosystem `github-actions`). Wersje skanerów
+(`TRIVY_VERSION`, `PIP_AUDIT_VERSION` w `ci.yml`, `TRIVY_VERSION` w `security-scan.yml`) podbija się
+ręcznie, kilka dni po wydaniu.
+
+### 47.6. Dependabot
+
+PR-y w poniedziałki: drobne podbicia zebrane w jeden PR na ekosystem, wersje główne osobno, każde
+wydanie „odleżałe” 7 dni. Backend (`pip`, bez blokady) dostaje PR wyłącznie, gdy wydanie wychodzi poza
+zakres w `backend/pyproject.toml` – łatki w zakresie wchodzą same przy budowaniu obrazu. djcms idzie
+ekosystemem `uv` (pyproject + `uv.lock` razem). Python 3.14 → 3.15 oraz wersje główne Postgresa
+i Redisa są ignorowane – to decyzje z własną procedurą. PR Dependabota przechodzi ten sam CI
+co każdy inny (testy + skany); scalanie ręcznie, po przeglądzie.
+
+### 47.7. Jednorazowo w ustawieniach repozytorium (administrator GitHuba)
+
+```sh
+gh label create dependencies   --color 0366d6 --description "Aktualizacje zależności" --force
+gh label create python         --color 3572A5 --force
+gh label create docker         --color 0db7ed --force
+gh label create github-actions --color 000000 --force
+# security-scan i vendor-js zakładają workflowy same.
+```
+
+- *Settings → Code security*: włącz **Dependabot alerts** i **Dependabot security updates**
+  (bez tego Dependabot otwiera wyłącznie PR-y z wersjami, nie z poprawkami bezpieczeństwa),
+  **Code scanning** – przyjmowanie SARIF (repozytorium publiczne: bez dodatkowej licencji).
+- *Settings → Branches → main*: dopisz do wymaganych checków `pip-audit (zależności Pythona)`,
+  `łańcuch dostaw (SHA akcji, vendor JS, wyjątki)`, `trivy (obraz web)`, `trivy (obraz djcms)`.
+- Workflowy okresowe ruszają dopiero po scaleniu do `main` (harmonogram działa tylko na gałęzi
+  domyślnej); pierwszy przebieg najlepiej wywołać ręcznie (*Run workflow*).
