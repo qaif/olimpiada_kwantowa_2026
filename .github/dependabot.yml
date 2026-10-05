@@ -30,6 +30,18 @@ updates:
     labels: [dependencies, python]
     commit-message:
       prefix: "chore(deps)"
+    # Granice, których Dependabot nie ma przesuwać (DEP-01, 5.10.2026; OPERACJE § 47.6):
+    ignore:
+      # numpy: linia 2.4 to celowo ta sama, co w Pyodide 314.0.x laboratorium notatników (QC-01) –
+      # test widoczny w przeglądarce i ukryty na serwerze liczą ten sam kod na tej samej wersji.
+      # Wpis znika razem z podbiciem Pyodide w notebook-lab (wtedy obie strony naraz).
+      - dependency-name: numpy
+        versions: [">=2.5"]
+      # redis-py: kombu 5.6 (transport Celery 5.6) deklaruje `redis<6.5`; 7.x/8.x obsługuje dopiero
+      # kombu 5.7 (5.10.2026 wciąż alfa). Celery nie ma u nas ekstry `[redis]`, więc resolver tej
+      # granicy nie pilnuje – pilnuje jej ten wpis. Znika razem z przejściem na Celery/kombu 5.7.
+      - dependency-name: redis
+        versions: [">=6.5"]
     groups:
       backend-python:
         applies-to: version-updates
@@ -106,6 +118,13 @@ updates:
         update-types: ["version-update:semver-major"]
       - dependency-name: redis
         update-types: ["version-update:semver-major"]
+      # Uptime Kuma 2 przenosi dane z SQLite do nowego schematu (migracja przy pierwszym starcie,
+      # bez drogi powrotu) – przejście z kopią wolumenu i planem wycofania, nie podbicie obrazu.
+      - dependency-name: louislam/uptime-kuma
+        update-types: ["version-update:semver-major"]
+      # Obraz Playwrighta niesie przeglądarki dla jednej wersji biblioteki; `playwright==` w
+      # e2e/requirements.txt (poza Dependabotem) musi iść razem z nim – podbija się oba ręcznie.
+      - dependency-name: "*playwright/python"
     groups:
       compose-images:
         update-types: [minor, patch]
