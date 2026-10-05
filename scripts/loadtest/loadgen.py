@@ -33,11 +33,13 @@ import argparse
 import asyncio
 import csv
 import http.cookiejar
+import ipaddress
 import json
 import math
 import os
 import random
 import re
+import socket
 import sys
 import time
 from collections import defaultdict
@@ -52,17 +54,47 @@ import httpx
 LOCAL_HOSTS = {"proxy", "web", "localhost", "127.0.0.1", "::1", "host.docker.internal"}
 LOCAL_SUFFIXES = (".localhost", ".test", ".local")
 #: Produkcja – nigdy, także z ``--allow-remote-host`` (test na produkcji nie jest procedurą § 42.6).
-FORBIDDEN = ("olimpiadakwantowa.pl", "iqo-official.org", "169.58.242.197", "qaif.org")
+FORBIDDEN_DOMAINS = ("olimpiadakwantowa.pl", "iqo-official.org", "qaif.org")
+#: Adresy produkcji. Sprawdzane **po rozwiązaniu nazwy**, więc nie obejdzie ich ani nazwa wskazująca
+#: na serwer (wpis w ``/etc/hosts``, własny DNS), ani zapis liczbowy (``2839081669``, ``0xa93af2c5``,
+#: ``169.58.242.197.``), ani IPv6 odwzorowany z IPv4 (``::ffff:169.58.242.197``). Adres IPv6 serwera
+#: (jeśli zostanie nadany) dopisuje się tutaj.
+FORBIDDEN_ADDRESSES = frozenset({ipaddress.ip_address("169.58.242.197")})
+
+
+def _resolve(host: str) -> set:
+    """Wszystkie adresy, na które wskazuje host (IPv4 i IPv6). Pusty zbiór, gdy nazwa się nie rozwiązuje."""
+    try:
+        infos = socket.getaddrinfo(host, None)
+    except socket.gaierror, UnicodeError:
+        return set()
+    addresses = set()
+    for info in infos:
+        address = ipaddress.ip_address(info[4][0].split("%", 1)[0])
+        mapped = getattr(address, "ipv4_mapped", None)
+        addresses.add(mapped or address)
+    return addresses
 
 
 def check_target(base: str, allow_remote: str) -> bool:
-    """``True`` dla hosta lokalnego, ``False`` dla zatwierdzonego zdalnego; inaczej ``SystemExit``."""
-    host = (urlsplit(base).hostname or "").lower()
-    if any(host == f or host.endswith("." + f) for f in FORBIDDEN):
+    """``True`` dla hosta lokalnego, ``False`` dla zatwierdzonego zdalnego; inaczej ``SystemExit``.
+
+    Dwie bramki: nazwa (domeny produkcji, lista lokalna) **i** adres po rozwiązaniu nazwy – nazwa
+    lokalna wskazująca na serwer produkcyjny też jest odrzucana (przegląd PERF-01, L3).
+    """
+    host = (urlsplit(base).hostname or "").lower().rstrip(".")
+    if not host:
+        raise SystemExit("loadgen: adres bez hosta.")
+    if any(host == f or host.endswith("." + f) for f in FORBIDDEN_DOMAINS):
         raise SystemExit(f"loadgen: {host} to produkcja – generator nigdy tam nie strzela (§ 42.6).")
+    resolved = _resolve(host)
+    if resolved & FORBIDDEN_ADDRESSES:
+        raise SystemExit(f"loadgen: {host} wskazuje na adres produkcji – generator nigdy tam nie strzela.")
     if host in LOCAL_HOSTS or host.endswith(LOCAL_SUFFIXES):
         return True
-    if allow_remote and allow_remote.lower() == host:
+    if allow_remote and allow_remote.lower().rstrip(".") == host:
+        if not resolved:
+            raise SystemExit(f"loadgen: {host} się nie rozwiązuje – nie da się sprawdzić, dokąd prowadzi.")
         return False
     raise SystemExit(
         f"loadgen: host {host!r} nie jest lokalny. Test poza stosem lokalnym wyłącznie za zgodą "

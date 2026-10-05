@@ -1996,7 +1996,11 @@ Wagtaila, zapisie `cms.SiteSettings`, komunikacie organizatora (`cms.Announcemen
 tylko jego witryna, bez konkursu: wszystkie witryny naraz), zmianie edycji/etapu/wydarzenia
 (`competitions.Edition`/`Stage`/`EditionEvent`), ogłoszeniu wyników (`results.ResultsPublication`)
 i zapisie/skasowaniu plakatu do pobrania (`promo.PromoMaterial` – lista `/plakaty/` i odnośnik
-w stopce, § 14). Ręczne wyczyszczenie (np. po imporcie z ominięciem sygnałów Django):
+w stopce, § 14), a od PERF-01 także przy wycofaniu publikacji wyników, ogłoszeniu/cofnięciu medali
+(`medals.MedalScheme`) i zapisie konkursu (przełączniki). Każde unieważnienie z sygnału jest
+**podwójne**: od razu i drugi raz po zatwierdzeniu transakcji – gość, który trafi między nimi,
+renderuje jeszcze stare dane i bez drugiego podbicia zostawiłby je pod nowym kluczem (§ 42.5).
+Ręczne wyczyszczenie (np. po imporcie z ominięciem sygnałów Django):
 
 ```bash
 docker compose exec -T web python manage.py page_cache_clear
@@ -5055,7 +5059,7 @@ Dla porównania: na tym samym serwerze 22.09.2026 nasycenie było przy 7 → 8�
 | `WEB_MEM_LIMIT` | `3g` przy `WEB_WORKERS=6` | 6 workerów = 1,4–1,6 GB RSS, limit 2g za blisko |
 | `CHAT_POLL_SECONDS` | `45` na czas etapu | odpytywanie czatu to ponad połowa ruchu stanu ustalonego; wiadomość dochodzi do 45 s później (od razu po powrocie do karty) |
 | `WEB_WORKERS` × `WEB_THREADS` | bez zmian (6×4) na obecnym VPS; na serwerze z dedykowanymi rdzeniami: workery = rdzenie − 2, wątki 4 | więcej workerów niż rdzeni nie dodaje przepustowości, dodaje pamięci |
-| `PAGE_CACHE_SECONDS` | bez zmian (120) | od tej gałęzi w cache'u są też `/results/<id>/`, `/wyniki/` i linki z `utm_*` |
+| `PAGE_CACHE_SECONDS` | bez zmian (120) | od tej gałęzi w cache'u są też `/results/<id>/`, `/wyniki/` i linki z `utm_*` (parametry śledzące są zdejmowane z żądania przed widokiem, więc nie trafiają do zapisanej strony, np. do pola `next`) |
 
 Organizacyjnie (najtańsze, a najwięcej dające):
 

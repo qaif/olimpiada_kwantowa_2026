@@ -123,7 +123,8 @@ from urllib.parse import unquote_plus
 
 from django.conf import settings
 from django.core.cache import cache
-from django.http import HttpResponse
+from django.db import transaction
+from django.http import HttpResponse, QueryDict
 from django.middleware.csrf import get_token
 
 logger = logging.getLogger(__name__)
@@ -210,6 +211,12 @@ PAGE_CACHE_MAX_BYTES = 4 * 1024 * 1024
 #: chwila wdrożenia (stary i nowy kontener ``web``) i każdy rollback, więc nowy format dostaje własną
 #: przestrzeń kluczy: stary kod nigdy nie trafi we wpis nowego i odwrotnie (wykryte pomiarem A/B).
 ENTRY_FORMAT = "f2"
+
+#: Najwięcej bajtów, jakie wolno rozpakować z jednego wpisu (przegląd PERF-01, L4). Zapisujemy
+#: wyłącznie treść nie dłuższą niż ``PAGE_CACHE_MAX_BYTES`` (plus znaczniki), więc wpis rozpakowujący
+#: się do większej ilości nie pochodzi od tej warstwy – traktujemy go jak chybienie, zamiast
+#: pozwolić „bombie” ``zlib`` zająć pamięć workera.
+DECOMPRESS_MAX_BYTES = 4 * PAGE_CACHE_MAX_BYTES
 
 #: Treść od tej długości zapisujemy skompresowaną. Krótsze strony (typowo 25–40 KB) zostają bez
 #: kompresji: zysk w Redisie byłby mały, a odtworzenie trafienia ma zostać najtańszą drogą.
@@ -331,6 +338,38 @@ def _query_suffix(request) -> str | None:
         return None
     value = kept[0][len("page=") :]
     return f"page={value}" if value.isdigit() else None
+
+
+def _strip_tracking_parameters(request) -> None:
+    """Zdejmuje parametry śledzące z żądania **zanim** zobaczy je widok (przegląd PERF-01, M2).
+
+    Klucz wpisu pomija ``utm_*``/``fbclid``…, więc treść zapisana z pierwszego żądania trafia do
+    wszystkich gości. Szablony wstawiają jednak ``request.get_full_path`` (pole ``next`` przełącznika
+    języka i kontrastu) – bez tego kroku pierwszy gość z ``?utm_source=cokolwiek`` wpisywałby swoją
+    wartość w stronę serwowaną wszystkim na czas życia wpisu (zatrute pole ``next`` i analityka).
+    Przeglądarka gościa zachowuje swój adres z parametrami – skrypt analityki czyta go z paska adresu,
+    a nie z HTML-a – więc zdjęcie ich po stronie serwera niczego mu nie odbiera.
+
+    Wołane wyłącznie dla żądań, które ta warstwa obsługuje (gość, allow-lista, zapytanie złożone
+    tylko z parametrów śledzących i ``?page=``), więc żaden inny widok nie traci parametrów.
+    """
+    query = request.META.get("QUERY_STRING", "")
+    if not query:
+        return
+    kept = [
+        part
+        for part in query.split("&")
+        if part
+        and not (
+            (name := unquote_plus(part.split("=", 1)[0]).strip().lower()) in TRACKING_PARAMS
+            or name.startswith(TRACKING_PREFIXES)
+        )
+    ]
+    cleaned = "&".join(kept)
+    if cleaned == query:
+        return
+    request.META["QUERY_STRING"] = cleaned
+    request.GET = QueryDict(cleaned)
 
 
 def build_key(request) -> str | None:
@@ -542,6 +581,23 @@ def metrics() -> dict:
 # --- Middleware -------------------------------------------------------------------------------------
 
 
+def _stored_body(cached: dict) -> bytes | None:
+    """Treść wpisu (rozpakowana, gdy trzeba) albo ``None`` – wpis uszkodzony albo za duży = chybienie."""
+    body = cached.get("body")
+    if not isinstance(body, bytes):
+        return None
+    if not cached.get("zlib"):
+        return body
+    try:
+        inflater = zlib.decompressobj()
+        stored = inflater.decompress(body, DECOMPRESS_MAX_BYTES)
+    except zlib.error:
+        return None
+    if inflater.unconsumed_tail or not inflater.eof:
+        return None
+    return stored
+
+
 class PageCacheMiddleware:
     """Serwuje i wypełnia cache stron publicznych. Miejsce w łańcuchu – patrz docstring modułu."""
 
@@ -554,6 +610,7 @@ class PageCacheMiddleware:
             response.setdefault("X-Page-Cache", "BYPASS")
             return response
 
+        _strip_tracking_parameters(request)
         key = build_key(request)
         if key is None:  # pragma: no cover - _eligible już odrzuca te same przypadki
             response = self.get_response(request)
@@ -563,9 +620,10 @@ class PageCacheMiddleware:
         cached = _safe_get(key)
         # Wpis bez własnych znaczników (zapisany przed pakietem 5) jest chybieniem, a nie trafieniem:
         # jego stały placeholder mógł stać w treści także z ręki autora strony.
-        if isinstance(cached, dict) and cached.get("marks"):
+        stored = _stored_body(cached) if isinstance(cached, dict) and cached.get("marks") else None
+        if stored is not None:
             _increment_metric("hit")
-            return self._serve_hit(request, cached)
+            return self._serve_hit(request, cached, stored)
 
         _increment_metric("miss")
         response = self.get_response(request)
@@ -574,9 +632,8 @@ class PageCacheMiddleware:
         response.setdefault("Cache-Control", CACHE_CONTROL_VALUE)
         return response
 
-    def _serve_hit(self, request, cached: dict) -> HttpResponse:
+    def _serve_hit(self, request, cached: dict, stored: bytes) -> HttpResponse:
         marks = cached["marks"]
-        stored = zlib.decompress(cached["body"]) if cached.get("zlib") else cached["body"]
         body = _materialize_body(request, stored, marks)
         response = HttpResponse(body, content_type=cached["content_type"])
         if cached.get("content_language"):
@@ -638,9 +695,25 @@ from wagtail.signals import page_published, page_unpublished, post_page_move  # 
 from apps.cms.models import Announcement, SiteSettings  # noqa: E402
 from apps.cms.tenancy import competition_for_page, competition_for_site  # noqa: E402
 from apps.competitions.models import Edition, EditionEvent, Stage  # noqa: E402
+from apps.medals.models import MedalScheme  # noqa: E402
 from apps.promo.models import PromoMaterial  # noqa: E402
 from apps.results.models import ResultsPublication  # noqa: E402
+from apps.tenancy.models import Competition  # noqa: E402
 from apps.workshop_materials.models import WorkshopMaterial  # noqa: E402
+
+
+def invalidate_competition_on_commit(competition_id: int | None) -> None:
+    """Unieważnienie **teraz i jeszcze raz po zatwierdzeniu transakcji** (przegląd PERF-01, M1).
+
+    Sygnał ``post_save`` biegnie w środku transakcji zapisu. Gość, który trafi w okno między
+    podbiciem wersji a ``COMMIT``, renderuje stronę z **jeszcze starych** danych (inna transakcja ich
+    nie widzi) i zapisuje ją pod **nowym** kluczem – na cały czas życia wpisu, np. starą tabelę
+    wyników pod kluczem po publikacji. Drugie podbicie w ``on_commit`` czyni taki wpis martwym.
+    Natychmiastowe zostaje, żeby zapis poza transakcją (komenda, shell) działał od razu; poza
+    transakcją ``on_commit`` wykonuje się od razu, więc podbicie jest podwójne – nieszkodliwie.
+    """
+    invalidate_competition(competition_id)
+    transaction.on_commit(lambda: invalidate_competition(competition_id))
 
 
 def _competition_id_for_page(page) -> int | None:
@@ -652,7 +725,7 @@ def _competition_id_for_page(page) -> int | None:
 @receiver(page_unpublished, dispatch_uid="web.page_cache.invalidate_on_unpublish")
 @receiver(post_page_move, dispatch_uid="web.page_cache.invalidate_on_move")
 def _on_page_changed(sender, instance, **kwargs) -> None:
-    invalidate_competition(_competition_id_for_page(instance))
+    invalidate_competition_on_commit(_competition_id_for_page(instance))
 
 
 @receiver(post_delete, sender=Page, dispatch_uid="web.page_cache.invalidate_on_delete")
@@ -662,34 +735,34 @@ def _on_page_deleted(sender, instance, **kwargs) -> None:
     strony wiersz **obu** tabel (własnej i bazowej ``wagtailcore.Page``) i wysyła ``post_delete``
     dla obu – łapiemy tu wyłącznie ten drugi moment, żeby nie unieważniać dwa razy.
     """
-    invalidate_competition(_competition_id_for_page(instance))
+    invalidate_competition_on_commit(_competition_id_for_page(instance))
 
 
 @receiver(post_save, sender=SiteSettings, dispatch_uid="web.page_cache.invalidate_on_sitesettings")
 def _on_site_settings_saved(sender, instance, **kwargs) -> None:
     competition = competition_for_site(instance.site)
-    invalidate_competition(competition.pk if competition is not None else None)
+    invalidate_competition_on_commit(competition.pk if competition is not None else None)
 
 
 @receiver(post_save, sender=Announcement, dispatch_uid="web.page_cache.invalidate_on_announcement_save")
 @receiver(post_delete, sender=Announcement, dispatch_uid="web.page_cache.invalidate_on_announcement_delete")
 def _on_announcement_changed(sender, instance, **kwargs) -> None:
-    invalidate_competition(instance.competition_id)
+    invalidate_competition_on_commit(instance.competition_id)
 
 
 @receiver(post_save, sender=Edition, dispatch_uid="web.page_cache.invalidate_on_edition_save")
 def _on_edition_saved(sender, instance, **kwargs) -> None:
-    invalidate_competition(instance.competition_id)
+    invalidate_competition_on_commit(instance.competition_id)
 
 
 @receiver(post_save, sender=Stage, dispatch_uid="web.page_cache.invalidate_on_stage_save")
 def _on_stage_saved(sender, instance, **kwargs) -> None:
-    invalidate_competition(instance.edition.competition_id)
+    invalidate_competition_on_commit(instance.edition.competition_id)
 
 
 @receiver(post_save, sender=EditionEvent, dispatch_uid="web.page_cache.invalidate_on_edition_event_save")
 def _on_edition_event_saved(sender, instance, **kwargs) -> None:
-    invalidate_competition(instance.edition.competition_id)
+    invalidate_competition_on_commit(instance.edition.competition_id)
 
 
 @receiver(
@@ -702,7 +775,7 @@ def _on_edition_event_saved(sender, instance, **kwargs) -> None:
 )
 def _on_results_publication_saved(sender, instance, **kwargs) -> None:
     """Publikacja **i jej wycofanie** – od PERF-01 w cache'u leży też sama tabela (``/results/<id>/``)."""
-    invalidate_competition(instance.stage.edition.competition_id)
+    invalidate_competition_on_commit(instance.stage.edition.competition_id)
 
 
 @receiver(post_save, sender=PromoMaterial, dispatch_uid="web.page_cache.invalidate_on_promo_save")
@@ -714,7 +787,7 @@ def _on_promo_material_changed(sender, instance, **kwargs) -> None:
     w pamięci przed opublikowaniem pierwszego plakatu nie miałaby odnośnika w stopce przez cały
     czas życia wpisu, a po zdjęciu ostatniego – prowadziłaby w 404.
     """
-    invalidate_competition(instance.competition_id)
+    invalidate_competition_on_commit(instance.competition_id)
 
 
 @receiver(
@@ -731,4 +804,25 @@ def _on_workshop_material_changed(sender, instance, **kwargs) -> None:
     których ta warstwa nie obsługuje). Unieważniamy całą witrynę konkursu, bo tak robi każdy inny
     odbiornik w tym pliku, a zapis materiału jest rzadki.
     """
-    invalidate_competition(instance.competition_id)
+    invalidate_competition_on_commit(instance.competition_id)
+
+
+@receiver(post_save, sender=MedalScheme, dispatch_uid="web.page_cache.invalidate_on_medal_scheme_save")
+@receiver(post_delete, sender=MedalScheme, dispatch_uid="web.page_cache.invalidate_on_medal_scheme_delete")
+def _on_medal_scheme_changed(sender, instance, **kwargs) -> None:
+    """Ogłoszenie i cofnięcie medali (``freeze``/``unfreeze`` zapisują schemat) – przegląd PERF-01, L1.
+
+    Tabela wyników (``/results/<id>/``) niesie odnośniki do medali, a ``/results/<id>/medals/``
+    i ``/results/<id>/countries/`` leżą pod tym samym prefiksem allow-listy.
+    """
+    invalidate_competition_on_commit(instance.stage.edition.competition_id)
+
+
+@receiver(post_save, sender=Competition, dispatch_uid="web.page_cache.invalidate_on_competition_save")
+def _on_competition_saved(sender, instance, **kwargs) -> None:
+    """Zmiana konkursu – w tym przełączników (``feature_flags``, np. ``medals``) – zmienia strony gościa.
+
+    Przełącznik decyduje, czy tabela wyników pokazuje odnośniki do medali i czy menu ma daną pozycję;
+    bez tego zmiana byłaby widoczna dopiero po wygaśnięciu wpisów (przegląd PERF-01, L1).
+    """
+    invalidate_competition_on_commit(instance.pk)

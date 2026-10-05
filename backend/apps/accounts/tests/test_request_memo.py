@@ -59,8 +59,21 @@ def test_inside_a_request_the_second_call_is_free(competition, scope):
     with CaptureQueriesContext(connection) as captured:
         second = participant_for(participant.user, competition)
 
-    assert second is first
+    assert second == first
     assert _participant_queries(captured) == 0
+
+
+def test_each_call_gets_its_own_copy(competition, scope):
+    """Zmiana „na chwilę” w jednym miejscu żądania nie przechodzi do drugiego (przegląd PERF-01, L2)."""
+    participant = ParticipantFactory(competition=competition, school="LO nr 1")
+
+    first = participant_for(participant.user, competition)
+    first.school = "zmienione w pamięci, bez zapisu"
+    second = participant_for(participant.user, competition)
+
+    assert second is not first
+    assert second.school == "LO nr 1"
+    assert participant_for(participant.user, competition).school == "LO nr 1"
 
 
 def test_memo_is_keyed_by_competition(competition, other_competition, scope):

@@ -92,6 +92,15 @@ a decyzje opierają się na liczbie zapytań (deterministyczna) i przebiegach en
 | U9 | logowanie to PBKDF2 1,5 mln iteracji: ~0,15 s CPU lokalnie, na vCPU Contabo ~0,3–0,5 s | pomiar `make_password` | bez zmiany kodu (bezpieczeństwo) – organizacyjnie: logowanie 15–30 min przed T0 (§ 6) |
 | U10 | limit nieudanych logowań `login` 10/min **per IP** – sala za NAT-em dzieli budżet pomyłek | `apps/web/throttle.py` | bez zmiany (bezpieczeństwo) – procedura § 6: adresy sal z góry, w razie potrzeby podniesienie stawki na czas etapu |
 
+**Po przeglądzie (PR #78):** M1 – unieważnienie cache'u z sygnałów także w `on_commit` (gość
+między podbiciem wersji a `COMMIT` zapisywał starą tabelę pod nowym kluczem); M2 – parametry
+śledzące zdejmowane z `QUERY_STRING`/`request.GET` przed widokiem (inaczej pierwszy gość z `utm_*`
+wpisywał swoją wartość w pole `next` strony serwowanej wszystkim); L1 – cache czyszczony przy zapisie
+`MedalScheme` (ogłoszenie/cofnięcie medali) i konkursu (przełączniki); L2 – pamięć profilu oddaje
+kopie; L3 – generator rozwiązuje nazwę hosta i odrzuca adres produkcji w każdym zapisie
+(`scripts/loadtest/test_loadgen_guard.py`); L4 – rozpakowanie wpisu z limitem (wpis ponad limit
+albo uszkodzony = chybienie).
+
 Odrzucone (zmierzone, nieopłacalne albo za drogie na tę gałąź): sesje w Redisie (`cached_db`,
 −1 zapytanie na żądanie – zmiana bezpieczeństwa sesji), `--keep-alive 0` w gunicornie (przy
 częstych rotacjach dawał **więcej** 502, nie mniej), cache PDF-ów treści w pamięci procesu albo
@@ -118,7 +127,9 @@ W `docs/OPERACJE.md` § 42.5 (konfiguracja na dzień zawodów) i § 42.7 (serwer
 - `apps/web/tests/test_perf01_hot_paths.py` – budżety: odpytanie czatu (≤ 12), odstęp odpytania
   z `CHAT_POLL_SECONDS` (z dolną granicą 5 s), PDF (≤ 8, kawałki 64 KiB), autozapis przez widok (2 = 10 odpowiedzi); `utm_*`, `/results/` w cache'u i po wycofaniu,
   kompresja bajt w bajt, format wpisu w kluczu, limit wysyłek per konto,
-- `apps/competitions/tests/test_loadtest_seed.py` – oba bezpieczniki i kształt danych (idempotencja).
+- `apps/competitions/tests/test_loadtest_seed.py` – oba bezpieczniki i kształt danych (idempotencja),
+- `apps/web/tests/test_perf01_review.py` – M1 (`django_db(transaction=True)`), M2, L1, L4;
+  `scripts/loadtest/test_loadgen_guard.py` (`unittest` w obrazie aplikacji) – L3.
 
 Uruchomione celowane (zmienione aplikacje i ich ekrany): `apps/quiz`, `apps/proctoring`,
 `apps/password_change`, `apps/time_windows`, `apps/alumni`, testy WWW uczestnika/profilu/konta/
