@@ -29,6 +29,39 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
   w danym konkursie (pamięć podręczna unieważniana sygnałami Wagtaila; budżety zapytań +1 na zimno).
   `docs/OPERACJE.md` § 50.
 
+## [Unreleased] – Kontrola dymna po wdrożeniu i szybkie wycofanie (OPS-04)
+
+- **`scripts/smoke.sh`** – kontrola dymna wyłącznie odczytem (GET, bez logowania): dla każdego hosta
+  konkursu strona główna z CSP, kluczowe strony, `/healthz/`, `/status.json` (wersja – ostrzeżenie),
+  logowanie z CSRF (pole + ciasteczko) i CSP, plik statyczny z hashem manifestu i arkusze motywu (IQO)
+  ze strony logowania, API (`editions/current/`), LiveKit `live.` i djcms (`/djcms/healthz/`,
+  `/djcms/preview/`), gdy włączone; czasy, ponowienia, podsumowanie, kod 0/1/2. Tryb `--server`
+  (hosty z `.env` i `check_domains --hosts`, przez proxy serwera `--resolve 127.0.0.1`, przepustka
+  prac technicznych przez `-K -`).
+- **`scripts/rollback.sh`** (na serwerze): `snapshot` (tag `olimpiada/web:previous` / `djcms:previous`
+  z obrazu działającego kontenera, migracje z `django_migrations`), `decide` (auto / manual przy nowych
+  migracjach albo nieznanym stanie / impossible), `run [--yes] [--allow-migrations]` (tylko `web worker
+  beat [djcms]`, `--no-deps --no-build`, w `.env` wyłącznie `APP_VERSION`/`WEB_IMAGE`/`DJCMS_IMAGE`,
+  baza i wolumeny nietknięte), `auto` (wycofanie + ponowna kontrola + list do `ALERT_EMAILS`, albo list
+  z procedurą ręczną), `record-success`, `status`. Stan w `/opt/olimpiada/deploy-state/`.
+- **`scripts/deploy.sh`**: krok 2/8 omija `deploy-state`; nowy krok **2a/8** (migawka) i **5b/8**
+  (kontrola dymna → `record-success` albo `rollback.sh auto` i kod 1, bez kroków 6–8); furtka
+  `DEPLOY_SMOKE=warn|0`; podpowiedź wycofania w pułapce EXIT po starcie nowych kontenerów; porządki
+  nie kasują tagu `:previous`; `sync_competitions` w kroku „dj.” ponawiane (4 próby, 5/10/20 s) przy
+  „Lista konkursów z API niedostępna”.
+- **Przyczyna czerwonych wdrożeń „dj.”**: `MainApi.fetch_competitions()` (komendy djcms) korzystał
+  z limitu odsłony strony (1 s na gniazdo) tuż po restarcie `web` – teraz `COMMAND_TIMEOUT_SECONDS = 30`
+  (`djcms/apps/live/client.py`); odsłony stron bez zmian.
+- `manage.py check_domains --hosts` – same hosty aktywnych konkursów z własnym hostem (dla kontroli dymnej).
+- **Bufor całych stron po wdrożeniu**: gość przez do 120 s po wdrożeniu dostawał z bufora HTML poprzedniej
+  wersji z odnośnikami do plików statycznych skasowanych przez `collectstatic --clear` (strona bez stylów).
+  Teraz klucz bufora zawiera wydanie (`APP_VERSION`, `apps/web/page_cache.py`), a wdrożenie (krok 5b/8)
+  i wycofanie wołają `page_cache_clear` przed kontrolą dymną.
+- Testy: `scripts/tests/smoke_test.sh`, `scripts/tests/rollback_test.sh`, `scripts/tests/deploy_djcms_test.sh`
+  (część 11 i zaktualizowane listy poleceń), `djcms/apps/live/tests/test_client.py`,
+  `apps/tenancy/tests/test_check_domains.py`. Dokumentacja: `docs/OPERACJE.md` § 48 (i § 4.2),
+  `docs/tasks/OPS-04.md`.
+
 ## [Unreleased] – Test obciążenia i plan pojemności przed etapem IQO (PERF-01)
 
 - **Narzędzie**: `scripts/loadtest/` – osobny, lokalny stos compose `olimpiada-loadtest` (sieć bez

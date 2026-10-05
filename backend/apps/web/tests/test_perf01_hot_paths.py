@@ -227,4 +227,5 @@ def test_entry_format_is_part_of_the_key(competition):
 
     key = page_cache.build_key(request)
 
-    assert key.startswith(f"{page_cache.CACHE_PREFIX}:{page_cache.ENTRY_FORMAT}:")
+    # Zaraz po wydaniu (``r=<APP_VERSION>``, OPS-04), które stoi pierwsze po prefiksie.
+    assert key.startswith(f"{page_cache.CACHE_PREFIX}:r={page_cache._release()}:{page_cache.ENTRY_FORMAT}:")

@@ -592,6 +592,13 @@ Workflow woła ten sam `scripts/deploy.sh`, co wdrożenie z laptopa, a na końcu
 `/status.json` – wdrożenie, które zostawiło serwis w stanie `degraded`, kończy się czerwonym
 krzyżykiem.
 
+Od OPS-04 sam `scripts/deploy.sh` (z laptopa i z workflow) robi przed budowaniem migawkę obrazów
+działających kontenerów i migracji (krok 2a/8), a po starcie usług kontrolę dymną każdego hosta
+konkursu (krok 5b/8, `scripts/smoke.sh`). Nieudana kontrola = automatyczny powrót `web`/`worker`/
+`beat`/`djcms` do poprzednich obrazów, jeśli wdrożenie nie zastosowało nowych migracji; w przeciwnym
+razie bez wycofania, z listem do `ALERT_EMAILS` i procedurą ręczną – w obu przypadkach kod 1
+(czerwony krzyżyk). Szczegóły i polecenia ręczne (`scripts/rollback.sh`): § 48.
+
 **Sekrety do ustawienia** (*Settings → Secrets and variables → Actions*):
 
 | Nazwa | Rodzaj | Zawartość |
@@ -1988,8 +1995,10 @@ no-store` (``setdefault`` – widok, który sam ustawił ten nagłówek, wygrywa
 zaprzeczenie w drugą stronę: cache jest po stronie serwera, a nagłówek pilnuje, żeby żaden
 pośredniczący proxy/CDN nie zbuforował po swojej stronie materializowanego nonce'u/tokenu CSRF.
 
-**Klucz** niesie: wersję globalną, wersję witryny konkursu, identyfikator konkursu, język
-interfejsu, ścieżkę i `?page=`. Wersje to liczniki (`INCR`) – unieważnienie nigdy nie wylicza
+**Klucz** niesie: wydanie (`APP_VERSION`, od OPS-04 – § 48), wersję globalną, wersję witryny
+konkursu, identyfikator konkursu, język interfejsu, ścieżkę i `?page=`. Wydanie w kluczu sprawia, że
+po wdrożeniu nikt nie dostanie HTML-a poprzedniej wersji z odnośnikami do plików statycznych, które
+`collectstatic --clear` już skasował – nawet gdy krok wdrożenia `page_cache_clear` się nie powiedzie. Wersje to liczniki (`INCR`) – unieważnienie nigdy nie wylicza
 istniejących wpisów, tylko podbija licznik, więc stare wpisy po prostu przestają być trafiane
 i wygasają same po TTL.
 
@@ -6277,6 +6286,145 @@ Workflow GitHuba to wciąż jedna firma i cichy wyłącznik po 60 dniach. Zaleca
 monitor – np. UptimeRobot (plan darmowy, *Keyword* `"status": "ok"` na `/status.json` obu witryn,
 co 5 min, powiadomienia na adres spoza domeny serwisu). Konto zakłada człowiek; instrukcja krok po
 kroku: `deploy/monitoring/README.md` § 5.
+
+## 48. Smoke test i wycofanie wdrożenia (OPS-04, `docs/tasks/OPS-04.md`)
+
+Każde wdrożenie (`scripts/deploy.sh`) kończy się **kontrolą dymną** z serwera, a gdy ta nie
+przechodzi – automatycznym powrotem do poprzednich obrazów aplikacji, o ile to bezpieczne. Baza
+danych i wolumeny **nigdy** nie są przy tym ruszane.
+
+### 48.1. Co się dzieje przy wdrożeniu
+
+| Krok | Co | Gdzie zostaje ślad |
+|---|---|---|
+| 2/8 | katalog `deploy-state/` jest omijany przy kasowaniu kodu (jak `.env`) | – |
+| **2a/8** | `scripts/rollback.sh snapshot`: obraz **działającego** `web` (i `djcms`, gdy `DJCMS_ENABLED=1`) dostaje tag `olimpiada/web:previous` (`olimpiada/djcms:previous`), zapis wersji i zastosowanych migracji (`django_migrations`, baza główna i djcms) | `deploy-state/previous.env`, `migrations-before.txt`, `djcms-migrations-before.txt` |
+| 4b–5a | jak dotąd (migracje i `collectstatic --clear` w entrypoincie `web`, czekanie na healthy, strona prac technicznych) | – |
+| **5b/8** | `manage.py page_cache_clear` – bufor całych stron gościa (§ 13) wszystkich konkursów gaśnie przed kontrolą; niepowodzenie = ostrzeżenie (klucz bufora i tak zawiera `APP_VERSION`) | – |
+| **5b/8** | `scripts/smoke.sh --server /opt/olimpiada --expect-version <wersja>` | `deploy-state/last-smoke.txt` |
+| 5b/8 – przeszła | `rollback.sh record-success` (wersja, commit, obrazy), dalej kroki 6–8 i „dj.” | `deploy-state/deployed.env` |
+| 5b/8 – nie przeszła | `rollback.sh auto` → wycofanie albo decyzja człowieka (§ 48.3), list do `ALERT_EMAILS`, ramka w logu, **kod 1** – kroki 6–8 i „dj.” się nie wykonują | `deploy-state/last-rollback.env`, `rollback-smoke.txt` |
+
+**Nowy `web`, który nie wstaje** (najczęstsze złe wydanie): `docker compose up -d` w kroku 4b kończy
+się błędem (proxy zależy od `web: healthy`). Wdrożenie nie urywa się wtedy, tylko pomija kroki 4c–5a
+i przechodzi do 5b/8: kontrola dymna i `rollback.sh auto --reason …` – także przy `DEPLOY_SMOKE=0|warn`
+i nawet gdy kontrola przypadkiem przejdzie (nieudany start jest porażką sam w sobie). Przy
+`--maintenance` strona prac technicznych zostaje włączona (wycofanie jej nie rusza) – wyłącz ją po
+sprawdzeniu serwisu z przepustką.
+
+Wycofanie wraca razem z `web`/`worker`/`beat` także **działające** usługi w profilach na tym samym
+obrazie: `notebook-worker`, `notebook-runner` (profil `notebooks`) i `uptime` (`monitoring`);
+niedziałających nie włącza. Migawka ostrzega (i zapisuje `PREV_SMOKE_VERIFIED=0`), gdy obraz `:previous`
+nie jest tym, który ostatnio przeszedł kontrolę (`deploy-state/deployed.env`) – np. po wdrożeniu
+z `DEPLOY_SMOKE=0`; decyzja `auto` mówi wtedy o tym w uzasadnieniu i w liście. Kontrola dymna śledzi
+przekierowania sama i wyłącznie w obrębie hosta (bez `curl -L`) – przepustka prac technicznych nie
+trafia pod adres z `Location` na innym hoście.
+
+Porządki po wdrożeniu nie kasują tagu `:previous` (nie liczy się do dwóch zostawianych tagów
+`olimpiada/web`). Migawka sprzed wdrożenia przeżywa więc także wdrożenie tej samej wersji, które
+odbiera staremu obrazowi tag wersji (`docker image prune` skasowałby obraz bez tagu).
+
+### 48.2. Co sprawdza kontrola dymna
+
+Wyłącznie żądania `GET` (bez logowania i formularzy), przez proxy **tego** serwera
+(`curl --resolve <host>:<port>:127.0.0.1` – wynik nie zależy od DNS ani od sieci operatora),
+z przepustką strony prac technicznych w konfiguracji curla (`-K -`, nie w argumentach). Hosty:
+`SITE_DOMAIN` i aktywne konkursy z własnym hostem (`manage.py check_domains --hosts`; obraz bez tej
+opcji albo niedziałający `web` – `EXTRA_DOMAINS`). Dla każdego hosta:
+
+- `/` – 200 i nagłówek `Content-Security-Policy`; `SMOKE_PAGES` (domyślnie `/status/ /password-reset/`) – 200,
+- `/healthz/` – 200 i `"status": "ok"`; `/status.json` – 200 i `"status": "ok"` (inna `version` niż
+  wdrażana = **ostrzeżenie**: odpowiedź jest buforowana 30 s),
+- `/login/` – 200, pole `csrfmiddlewaretoken`, ciasteczko `csrftoken`, CSP,
+- plik statyczny z hashem manifestu i arkusze motywu (`/themes/…`, `/_theme/…` – np. IQO) **ze strony
+  logowania** – 200 (strona główna bywa w buforze całych stron, § 13, z odnośnikami do plików sprzed
+  `collectstatic --clear`),
+- `/api/competitions/editions/current/` – 200 albo 404, zawsze JSON,
+- raz: `https://live.<domena>/` < 500 przy `LIVEKIT_PROXY=1`; `/djcms/healthz/` = 200 i
+  `/djcms/preview/` < 500 przy `DJCMS_ENABLED=1`.
+
+Każde sprawdzenie do 3 prób co 5 s (`SMOKE_RETRIES`, `SMOKE_RETRY_DELAY`), limit 15 s na żądanie
+(`SMOKE_TIMEOUT`), czas każdego w wydruku. Błąd TLS hosta innego niż `SITE_DOMAIN` (certyfikat, którego
+jeszcze nie ma) – ostrzeżenie: wycofanie wydania certyfikatu nie naprawi. Ręcznie, w dowolnej chwili:
+
+```sh
+ssh … "cd /opt/olimpiada && bash scripts/smoke.sh --server /opt/olimpiada"   # jak wdrożenie
+scripts/smoke.sh https://olimpiadakwantowa.pl https://<host-iqo>             # z laptopa (przez DNS)
+```
+
+Kod 0 – przeszła (ostrzeżenia dozwolone), 1 – co najmniej jeden błąd, 2 – złe wywołanie.
+
+### 48.3. Decyzja: wycofać automatycznie czy nie
+
+| Stan | Decyzja | Co robi wdrożenie |
+|---|---|---|
+| migawka jest, obraz `:previous` jest, **żadna** migracja (baza główna i djcms) nie przybyła od migawki | `auto` | wycofuje `web`, `worker`, `beat` (+`djcms`) do obrazów `:previous`, ponawia kontrolę z oczekiwaną poprzednią wersją, list „WYCOFANE” – kod skryptu 10 (albo 12, gdy po wycofaniu nadal źle) |
+| przybyła migracja albo stanu migracji nie da się odczytać | `manual` | **nic nie wycofuje**, strona prac technicznych zostaje wyłączona (serwis działa na nowej wersji), list „potrzebna decyzja” z listą migracji i procedurą § 48.5 – kod 11 |
+| brak migawki (pierwsza instalacja) albo obrazu `:previous` | `impossible` | jak wyżej – kod 11 |
+
+Dlaczego tak: stary kod na nowszym schemacie bazy potrafi zgubić albo zepsuć dane (kolumna
+`NOT NULL` bez wartości domyślnej, zmieniona semantyka pola), a cofnięcie migracji to już operacja na
+danych. Automat robi tylko to, co jest odwracalne jednym poleceniem. Migracje czyta z tabeli
+`django_migrations` (`SELECT` w kontenerze `db`) – to te same wiersze, które `showmigrations --plan`
+pokazuje jako `[X]`, ale odczyt nie wymaga działającego `web`, a po nieudanym wdrożeniu `web` zwykle
+nie działa.
+
+Wycofanie zmienia w `.env` wyłącznie `APP_VERSION`, `WEB_IMAGE` i `DJCMS_IMAGE` (kopia całego pliku:
+`deploy-state/env.before-rollback`) i wykonuje `docker compose up -d --no-deps --no-build web worker beat
+[djcms]` – bez `down`, bez `-v`, bez `db`/`redis`/`minio`/`proxy`. Entrypoint `web` poprzedniego obrazu
+robi `migrate` (no-op) i `collectstatic --clear` (pliki statyczne poprzedniej wersji – wolumen
+`static_files` jest pochodną obrazu). Kod w `/opt/olimpiada` i konfiguracja proxy **zostają** w nowej
+wersji – pełny powrót to wdrożenie poprzedniego tagu (`git checkout <tag> && scripts/deploy.sh …`).
+
+### 48.4. Polecenia (na serwerze, `cd /opt/olimpiada`)
+
+```sh
+bash scripts/rollback.sh status                         # ostatnie udane wdrożenie, migawka, ostatnie wycofanie, decyzja
+bash scripts/rollback.sh decide                         # auto (0) / manual (3) / impossible (4) z uzasadnieniem
+bash scripts/rollback.sh run                            # wycofanie ręczne (pyta: wpisz TAK)
+bash scripts/rollback.sh run --yes                      # bez pytania (np. ssh bez terminala)
+bash scripts/rollback.sh run --yes --allow-migrations   # świadomie mimo nowych migracji (§ 48.5)
+```
+
+`run` bierze tę samą blokadę co wdrożenie i przełączniki djcms (`caddy/.lock`). Furtki przy
+wdrożeniu (z laptopa): `DEPLOY_SMOKE=warn scripts/deploy.sh …` – porażka kontroli to tylko
+ostrzeżenie, bez wycofania, wdrożenie idzie dalej; `DEPLOY_SMOKE=0` – bez kontroli (np. gdy kontrola
+myli się z powodu niezwiązanego z wydaniem – i trzeba to potem poprawić w `smoke.sh`).
+
+### 48.5. Procedura ręczna (kontrola nie przeszła, a automat nie wycofał)
+
+1. **Co nie działa:** `cat deploy-state/last-smoke.txt`, `docker compose logs --tail 200 web`.
+2. **Jakie migracje przybyły:** `bash scripts/rollback.sh decide`.
+3. **Migracje wstecznie zgodne** (stary kod ich nie zauważa: nowe tabele, nowe kolumny z wartością
+   domyślną albo `NULL`, nowe indeksy) – `bash scripts/rollback.sh run --allow-migrations`. Przy
+   wdrożeniu poprawionej wersji migracje są już zastosowane (no-op).
+4. **Inaczej:** naprawa do przodu (poprawka i kolejne wdrożenie – zwykle najszybciej) **albo** powrót
+   bazy do kopii sprzed migracji: `bash scripts/maintenance.sh on`, `docker compose stop web worker
+   beat` (strona włączona i aplikacja zatrzymana **przed** odtworzeniem), odtworzenie
+   `pre-deploy-<znacznik>-<wersja>.dump` z `/opt/olimpiada-backups` (§ 2), `bash scripts/rollback.sh run
+   --yes --allow-migrations`, kontrola `bash scripts/smoke.sh --server /opt/olimpiada` (z przepustką),
+   `bash scripts/maintenance.sh off`. Wszystko, co uczestnicy zapisali między wdrożeniem a odtworzeniem,
+   przepada – decyzja organizatora.
+5. Po incydencie – § 7, krok 6.
+
+### 48.6. `sync_competitions` przy wdrożeniu (koniec czerwonych wdrożeń „dj.”)
+
+Krok „dj.” kończył prawie każde wdrożenie błędem `Lista konkursów z API niedostępna: timeout`, choć
+ręczne ponowienie minutę później przechodziło. Przyczyna: komenda pytała API `web` z limitem odsłony
+strony (1 s na operację gniazda, 2 s całość), a pierwsze żądanie do świeżo zrestartowanego `web` trwa
+dłużej. Teraz komendy djcms (`sync_competitions`, importer) mają własny limit 30 s
+(`djcms/apps/live/client.py`, `COMMAND_TIMEOUT_SECONDS`; strony – bez zmian), a wdrożenie ponawia
+`sync_competitions` przy tym jednym błędzie do 4 razy z przerwami 5/10/20 s (`DJCMS_SYNC_RETRY_DELAYS`).
+Inny błąd (np. importu treści) kończy krok od razu, jak dotąd. Obraz djcms sprzed tej zmiany
+(`DJCMS_IMAGE` z rejestru) ma jeszcze stary limit – wtedy pomaga samo ponawianie.
+
+### 48.7. Pierwsze wdrożenie tej wersji
+
+Nic do zrobienia ręcznie. Krok 2a/8 biegnie już skryptem z nowego kodu, a kontener `web` poprzedniej
+wersji działa – migawka powstaje i automatyczne wycofanie obejmuje także to wdrożenie. Ustaw
+`ALERT_EMAILS` w `.env` (§ 3.2), jeśli jeszcze nie jest ustawione – bez niego list o nieudanym wdrożeniu
+nie wyjdzie (log wdrożenia i tak to mówi). Testy: `scripts/tests/smoke_test.sh`,
+`scripts/tests/rollback_test.sh`, `scripts/tests/deploy_djcms_test.sh` (część 11).
 
 ## 47. Skanowanie zależności (SEC-02, `docs/tasks/SEC-02.md`)
 

@@ -88,12 +88,14 @@ nie wiadomo, które podmienić – więc taka odpowiedź **w ogóle nie trafia d
   a po kompresji kilkanaście razy mniej – rozpakowanie przy trafieniu kosztuje ułamek milisekundy,
   render tej strony ok. 190 ms CPU (PERF-01).
 
-**Klucz:** ``(format wpisu, wersja globalna, wersja witryny konkursu, konkurs, język interfejsu, ścieżka,
-parametr page)`` – patrz ``build_key``. Wersje to liczniki w Redisie: unieważnienie = ``INCR``,
-nigdy enumeracja istniejących wpisów. Wersja **witryny** obejmuje zdarzenia przypisane do
-konkretnego konkursu (publikacja/wycofanie/przeniesienie/skasowanie strony, zapis ``SiteSettings``,
-komunikat organizatora przypisany do konkursu, zmiana edycji/etapu/wydarzenia/publikacji wyników,
-zapis i skasowanie plakatu do pobrania).
+**Klucz:** ``(wydanie, format wpisu, wersja globalna, wersja witryny konkursu, konkurs, język
+interfejsu, ścieżka, parametr page)`` – patrz ``build_key``. Wydanie (``APP_VERSION``, OPS-04)
+oddziela wpisy kolejnych wdrożeń: HTML poprzedniej wersji odsyła do plików statycznych, których już
+nie ma. Format wpisu (``ENTRY_FORMAT``, PERF-01) oddziela wpisy o innym kształcie (kompresja). Wersje
+to liczniki w Redisie: unieważnienie = ``INCR``, nigdy enumeracja istniejących wpisów. Wersja
+**witryny** obejmuje zdarzenia przypisane do konkretnego konkursu (publikacja/wycofanie/
+przeniesienie/skasowanie strony, zapis ``SiteSettings``, komunikat organizatora przypisany do
+konkursu, zmiana edycji/etapu/wydarzenia/publikacji wyników, zapis i skasowanie plakatu do pobrania).
 Wersja **globalna** obejmuje to, czego nie da się przypisać do jednej witryny (komunikat bez
 konkursu – patrz ``apps.cms.models.Announcement.competition``, pole nullowalne) – bumpuje wtedy
 klucze **wszystkich** witryn naraz, bez ich wyliczania.
@@ -231,6 +233,23 @@ UNCACHEABLE_DIRECTIVES = ("private", "no-store", "no-cache")
 
 def _ttl_seconds() -> int:
     return int(getattr(settings, "PAGE_CACHE_SECONDS", DEFAULT_TTL_SECONDS))
+
+
+def _release() -> str:
+    """Wydanie w kluczu (``APP_VERSION`` z wdrożenia) – OPS-04.
+
+    Strona z bufora odsyła do plików statycznych z hashem manifestu, a ``collectstatic --clear``
+    nowej wersji kasuje pliki poprzedniej. Bez wydania w kluczu gość przez czas życia wpisu po
+    wdrożeniu dostawałby HTML poprzedniej wersji z odnośnikami 404 (bez stylów i skryptów) – także
+    gdy krok wdrożenia czyszczący bufor (``page_cache_clear``) się nie powiedzie. Wycofanie
+    (``scripts/rollback.sh``) też zmienia ``APP_VERSION``, więc wraca do własnej przestrzeni kluczy.
+    Atrybut czytany przy każdym kluczu (nie kopiowany przy imporcie) – testy go podmieniają. Znaki
+    spoza ``[A-Za-z0-9._-]`` (``git describe`` ich nie daje, ale wartość jest z ``.env``) zamienione,
+    żeby człon nie mógł udawać separatora klucza.
+    """
+    from . import context_processors
+
+    return re.sub(r"[^A-Za-z0-9._-]", "_", str(context_processors.APP_VERSION or "dev"))[:64]
 
 
 def feature_enabled() -> bool:
@@ -388,6 +407,7 @@ def build_key(request) -> str | None:
     language = getattr(request, "LANGUAGE_CODE", settings.LANGUAGE_CODE)
     parts = [
         CACHE_PREFIX,
+        f"r={_release()}",
         ENTRY_FORMAT,
         str(global_version),
         str(site_version),
