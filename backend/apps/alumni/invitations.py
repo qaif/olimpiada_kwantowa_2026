@@ -194,7 +194,9 @@ def _mail(profile: AlumniProfile, competition, invitation: AlumniInvitation) -> 
         ]
         title = subject(invitation.title, competition)
         body = "\n".join(lines)
-    queue_mail(title, body, user.email, competition=competition, headers=unsubscribe_headers(url))
+    queue_mail(
+        title, body, user.email, competition=competition, headers=unsubscribe_headers(url), essential=False
+    )
 
 
 @transaction.atomic

@@ -12,6 +12,71 @@ podsekcją `### <tytuł>` wydania `## v<x.y.z> – <data tagu> – <opis tagu>`.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## [Unreleased] – Literówki w adresach e-mail i odbicia poczty (MAIL-02)
+
+- **„Czy chodziło Ci o …?”** w polach adresu (rejestracja uczestnika, komitetu i opiekuna szkolnego,
+  zmiana adresu, konto w panelu koordynatora, zaproszenie opiekuna drużyny, uczeń i rodzic dodawani
+  przez opiekuna drużyny): literówka w domenie (`gmial.com`, `o2.plo`, `.con`, `.pll` …; ~85 dostawców
+  z Polski i świata, IDN, plus-adresy) – podpowiedź po opuszczeniu pola (skrypt statyczny z nonce, bez
+  inline JS) i jedno pytanie po wysłaniu, z polem „Użyj adresu …”; ponowne wysłanie zostawia adres.
+- **Twarda blokada** domen bez MX i A (oraz „null MX”) – pytanie DNS z `web` (klient z MAIL-01, 1,5 s,
+  cache, najwyżej 4 naraz), **dopiero po** całej pozostałej walidacji (CAPTCHA, antyspam, hasła); każdy
+  błąd DNS przepuszcza adres. Wyłącznik `EMAIL_DOMAIN_DNS_CHECK`.
+- **Odbicia poczty**: odmowy relaya zapisywane w chwili wysyłki (twarde wg tablicy kodów – bez trzech
+  ponowień; polityka/konfiguracja relaya, np. `554 5.7.1`, dalej jako błąd z ponowieniami, bez zapisu
+  przy adresie), zawiadomienia o niedoręczeniu (DSN) – `MAIL_BOUNCE_TARGET=capture`
+  (nowa domyślna w compose): agent `virtual` Postfiksa → Maildir na wolumenie `mail_bounces` → worker
+  co 5 min (parser RFC 3464 – tylko części najwyższego poziomu i `Reporting-MTA` naszego relaya; relay
+  odrzuca pusty nadawcę od klientów SMTP, więc DSN-a nie da się podrzucić z sieci compose; pliki kasowane
+  po przetworzeniu). Klasyfikacja wyłącznie po kodzie rozszerzonym (5.0.350 Microsoftu nie jest twarde). Nowa aplikacja `apps.email_delivery`, model `DeliveryStatus` (klucz = adres).
+- **Baner** „Nie możemy dostarczyć poczty na adres …” z „Zmień adres” i „Mój adres jest poprawny”;
+  **lista koordynatora** „Adresy niedoręczalne” (Raporty, CSV, „Oznacz jako doręczalny”, audyt);
+  **wstrzymanie listów nieobowiązkowych** (forum, czat, webinary, absolwenci, komunikaty grupowe);
+  reset przy zmianie adresu, potwierdzeniu i usunięciu konta.
+- RODO: rejestr czynności 1.22 (wiersz warunkowy), sekcja eksportu `doreczalnosc_poczty`, retencja
+  365 dni. Tłumaczenia w 10 językach (`apps/email_delivery/locale`). Przełącznik `EMAIL_BOUNCE_TRACKING`
+  (compose: wł.). Bez nowych zależności. Operator: `docs/OPERACJE.md` § 52.
+
+## [Unreleased] – Fokus w przyklejonym pasku konta (A11Y)
+
+- **Poprawka dostępności:** pozycja menu w przyklejonym pasku konta (`.nav--primary`,
+  `static/js/sticky-bar.js`) nie znika już spod fokusu, gdy menu serwisu wraca na ekran – pasek
+  odkleja się dopiero, gdy fokus z niego wyjdzie. Wcześniej przewinięcie do góry z fokusem w pasku
+  (albo Tab szybszy od obserwatora) gubił fokus na `<body>` (WCAG 2.4.3, 2.4.7).
+- **Test `test_every_tab_stop_has_visible_focus`** mierzy po ustaleniu strony (dwie klatki), opisuje
+  element w tym samym pomiarze i liczy `body` z fokusem dokumentu jako błąd (zawinięcie Taba do
+  przeglądarki – nie). Nowy test `test_sticky_bar_keeps_focused_item_when_menu_returns`.
+
+## [Unreleased] – Uzupełnienie zgód po zalogowaniu (CONS-01)
+
+- **Bramka zgód uczestnika** (`apps.consent_gate`, `ConsentGateMiddleware` między 2FA a bramką nadzoru):
+  brak wymaganej zgody (regulamin, RODO, od małoletniego oświadczenie o zgodzie opiekuna) albo zgoda
+  pod **inną wersją dokumentu niż bieżąca** (stała `TERMS_VERSION` itd. albo `ConsentDefinition.version`)
+  → przed obszarem uczestnika (`/me/…`, forum, webinary, warsztaty, płatności, API zgłoszeń, zadań
+  i reklamacji) ekran **„Uzupełnij zgody”** (`/me/consents/complete/`). Przepuszczane: `/account/…`
+  (eksport danych, usunięcie konta, hasło, język i kontrast), wylogowanie, profil, prośba do opiekuna,
+  autozapis testu, klient nadzoru, strony publiczne, `/zgoda/<token>/`. Personel i anonim – zero
+  zapytań; uczestnik – cache (Redis, 5 min), przy chybieniu jedno zapytanie; unieważnianie sygnałami.
+  HTMX – 403 z `HX-Redirect`, API – 403 `CONSENTS_REQUIRED`. Wyłącznik `CONSENT_GATE_ENABLED`.
+- **Ekran** w motywie konkursu i w 10 językach: wyłącznie brakujące zgody z etykietą jak w rejestracji,
+  zdanie „dokument się zmienił: obowiązuje wersja X, Twoja zgoda dotyczyła Y”, dla małoletnich stan
+  zgody opiekuna online i „Wyślij ponownie” (istniejący przepływ i limit; brak potwierdzenia online jak
+  dotąd nie blokuje panelu), wyjścia RODO. Zapis: `ConsentRecord` (wersja, czas, droga `panel`, IP),
+  projekcje na profilu wyłącznie „w górę”, audyt `participant.consents_completed` z językiem i SHA-256
+  treści.
+- **Koordynator:** kafelek „Uczestnicy z brakującymi zgodami” na pulpicie i CSV
+  `/coordinator/consents/missing.csv` (audyt `consent_gate.exported`); ekran zmiany wersji zgody
+  ostrzega, że wymusi ponowną zgodę. Komenda `consent_gate_report` (liczby bez danych osobowych).
+- **Poprawka:** potwierdzenie zgody opiekuna online zapisuje wersję wzoru z zestawu konkursu, a nie ze
+  stałej. Budżet zapytań pulpitu koordynatora 53 → 54. `docs/OPERACJE.md` § 51.
+- **Po przeglądzie #97:** zmiana wersji w trakcie etapu nie blokuje pracy w toku – arkusz
+  i „Zakończ” testu, upload (WWW i API), reklamacja i notatnik przechodzą przy ponowieniu zgody
+  z banerem / nagłówkiem `X-Consents-Required` (H1); wersja dokumentu jedzie z formularzem i jest
+  sprawdzana pod blokadą (L3); ekran bez braków czyści nieświeży stan cache'a (L4); `next` dla HTMX
+  z `HX-Current-URL` tego samego serwisu (L5). Ten sam wyjątek dla pracy w toku obejmuje też zgodę
+  **nową** (np. przestawioną na wymaganą w trakcie etapu), gdy uczestnik ma wpis w trwającym etapie
+  (jedno zapytanie wyłącznie na tej ścieżce); konto bez takiego wpisu dalej nie oddaje pracy.
+
 ## v0.47.2 – 2026-10-05 – Dostępność WCAG 2.1 AA, deklaracja dostępności, motyw IQO 1.1.2 (A11Y-01)
 
 - **Suita e2e dostępności** (`e2e/a11y/`, `scripts/a11y.sh`, job CI `a11y`): axe-core 4.13.0

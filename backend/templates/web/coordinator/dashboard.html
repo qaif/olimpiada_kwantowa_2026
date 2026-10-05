@@ -1,5 +1,5 @@
 {% extends "web/coordinator/base.html" %}
-{% load web_extras %}
+{% load web_extras consent_gate %}
 {% comment %}
   Pulpit odpowiada na **jedno** pytanie: czym trzeba się teraz zająć. Wszystko, co jest kolejką
   albo formularzem (moderacja, aktywacje, komitet, zaproszenia, podgląd wyników), wyprowadziło się
@@ -46,6 +46,8 @@
     {% endfor %}
   </ul>
 </section>
+{# CONS-01: uczestnicy, których bramka zgód odsyła do ekranu „Uzupełnij zgody”, i ich lista CSV. #}
+{% consent_gap_tile %}
 
 <section class="section">
   <div class="section__head">

@@ -137,7 +137,7 @@ def _send(user, competition, message, *, thread_path: str, settings_path: str) -
         ]
         subject = branding.subject(SUBJECT_TEMPLATE, SUBJECT, competition)
         body = "\n".join(lines)
-    queue_mail(subject, body, user.email, competition=competition)
+    queue_mail(subject, body, user.email, competition=competition, essential=False)
 
 
 def message_delivered(message, now) -> int:

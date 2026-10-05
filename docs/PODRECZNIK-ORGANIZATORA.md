@@ -1490,6 +1490,9 @@ i w eksporcie uczestników (§ 9.3).
 **Zmiana wersji dokumentu** (nowy regulamin) wymaga zmiany stałej w kodzie — to świadomie **nie jest**
 ustawienie w panelu: od tego momentu nowe zgody zapisują się pod nową wersją, a stare wpisy dalej mówią
 prawdę o tym, co obowiązywało wtedy. Zamów tę zmianę u administratora razem z wgraniem nowego PDF-a.
+**Od CONS-01 zmiana wersji znaczy też „zgoda do ponowienia”**: uczestnik, który zaakceptował
+poprzednią wersję, przy najbliższym wejściu do panelu zobaczy ekran „Uzupełnij zgody” (§ 7.5). Poprawka
+literówki w treści oświadczenia **bez** zmiany numeru wersji nikogo nie zatrzymuje.
 
 **Wycofanie w portalu** dotyczy dokładnie jednej zgody: publikacji imienia i nazwiska. Pozostałe są
 warunkiem udziału — ich wycofanie znaczy rezygnację z zawodów i jest sprawą do organizatora.
@@ -1641,6 +1644,46 @@ protokoły, listy dla kuratorium) nie niosą ani daty urodzenia, ani rocznika. T
 uczestników edycji ma obie kolumny — to są dane organizatora, nie odbiorcy.
 
 ---
+
+### 7.5 Uczestnicy z brakującymi zgodami — ekran „Uzupełnij zgody” (CONS-01)
+
+Zalogowany uczestnik, któremu brakuje **wymaganej** zgody (regulamin, RODO, a od osoby niepełnoletniej
+także oświadczenie o zgodzie opiekuna) **albo** którego zgoda dotyczy starszej wersji dokumentu, trafia
+przed panelem na ekran **„Uzupełnij zgody”**. Do czasu potwierdzenia nie wyśle rozwiązania, nie rozwiąże
+testu, nie napisze wiadomości i nie wejdzie na forum. Ekrany personelu (koordynator, komisja, nadzór)
+bramka pomija w całości. **Pracy w toku zmiana zestawu zgód nie przerywa:** uczestnik, który zgodził się na
+poprzednią wersję – albo ma wpis w trwającym etapie, a brakuje mu zgody dołożonej jako wymagana –
+kończy rozpoczęty test, wysyła rozwiązania i reklamacje w otwartym oknie, widząc tylko baner z prośbą
+o potwierdzenie. Mimo to wersje i wymagalność zgód zmieniaj najlepiej poza oknem etapu.
+
+Kiedy to się dzieje:
+
+- **zmieniasz wersję dokumentu** na ekranie „Zgody konkursu” (`/coordinator/consents/`, konkursy
+  z flagą `per_competition_consents`, np. IQO) albo administrator zmienia ją w kodzie (Olimpiada
+  Kwantowa) — ekran potwierdzenia zmiany mówi o tym wprost,
+- przestawiasz zgodę dobrowolną na wymaganą,
+- uczestnik poprawia w profilu datę urodzenia na taką, przy której wymagamy zgody opiekuna.
+
+Co widzisz w panelu:
+
+- **pulpit** (`/coordinator/`) — kafelek **„Uczestnicy z brakującymi zgodami”** z liczbą (odświeżaną co
+  minutę); liczone są konta aktywne (zaproszeni uczniowie złożą zgody przy uruchomieniu konta),
+- kliknięcie pobiera **CSV** (`/coordinator/consents/missing.csv`): kod uczestnika, imię, nazwisko,
+  e-mail i lista brakujących zgód z wymaganą wersją — te same dane, które widzisz na liście kont.
+  Każde pobranie trafia do dziennika audytu (`consent_gate.exported`). Plik przydaje się do
+  przypomnienia komunikatem (`/coordinator/messages/`) przed terminem etapu.
+
+**Osoby niepełnoletnie.** Ekran pokazuje oświadczenie o zgodzie opiekuna (jak w rejestracji) oraz stan
+zgody opiekuna online z przyciskiem „Wyślij ponownie”. Brak **potwierdzenia online** nie blokuje panelu,
+uploadu ani testu — tak jak dotąd wymaga go wyłącznie zgoda na nadzór zdalny.
+
+**Dowód.** Każda uzupełniona zgoda to nowy wpis z wersją dokumentu, datą, drogą „panel” i adresem IP;
+w dzienniku audytu (`participant.consents_completed`) zostaje też język interfejsu i skrót SHA-256 treści,
+którą uczestnik widział. Wcześniejsze wpisy zostają nietknięte.
+
+**Nie zgadza się na nową treść?** Ekran prowadzi uczestnika do pobrania danych, usunięcia konta
+i zgłoszenia do organizatora — te drogi działają bez akceptacji. Odpowiedź na takie zgłoszenie jest po
+Twojej stronie (zwykle: rezygnacja z udziału).
 
 ## 8. Dyplomy i zaświadczenia — `/coordinator/stages/<id>/certificates/`
 
@@ -2740,6 +2783,29 @@ szkolnego – koordynator. Zanim klikniesz, potwierdź tożsamość inną drogą
 (telefon, wideo): prośba z przejętej skrzynki wygląda tak samo jak prawdziwa. Reset zostaje w audycie
 pod Twoim nazwiskiem, a właściciel dostaje list i po zalogowaniu hasłem od razu konfiguruje 2FA
 na nowym telefonie.
+
+### Adresy niedoręczalne — `/coordinator/undeliverable-emails/` (MAIL-02)
+
+**Raporty → „Adresy niedoręczalne”**: konta tego konkursu, na których adres poczta nie dochodzi – serwer
+odbiorcy odpowiedział, że skrzynka albo domena nie istnieje (np. `…@gmail.com` z kodem 5.1.1 albo domena
+z literówką, której relay nie znalazł). Kolumny: adres (z oznaczeniem konta nieaktywnego – typowy przypadek:
+link aktywacyjny nie dotarł), osoba, data pierwszego odbicia, kod i powód z serwera odbiorcy, liczba
+odbić chwilowych. **„Pobierz CSV”** – ta sama lista do arkusza (wpis w audycie).
+
+Co robić z wierszem: zadzwonić albo napisać inną drogą, ustalić poprawny adres i wpisać go w **Kontach**
+(edycja konta) – zmiana adresu kasuje wiersz sama; konto nieaktywne można przy okazji aktywować ręcznie.
+**„Oznacz jako doręczalny”** – gdy uczestnik potwierdził, że adres jest dobry (np. właśnie założył
+skrzynkę): wysyłka wraca, a jeśli list znowu odbije, wiersz wróci.
+
+Na adresy z tej listy **nie wychodzą listy nieobowiązkowe** – komunikaty grupowe (licznik komunikatu
+liczy je jako obsłużone), powiadomienia forum, wiadomości, webinarów i sieci absolwentów. Aktywacja,
+reset hasła, zgody, wyniki i rozmowy idą zawsze. Uczestnik sam widzi po zalogowaniu baner „Nie możemy
+dostarczyć poczty na adres …” z przyciskami „Zmień adres e-mail” i „Mój adres jest poprawny”.
+
+**Literówki przy wpisywaniu.** Formularze adresu (rejestracje, zmiana adresu, edycja konta w panelu,
+zaproszenie opiekuna drużyny) pytają „Czy chodziło Ci o …?” przy domenach typu `gmial.com`, `o2.plo`,
+`.con` – zaznaczasz poprawkę albo wysyłasz formularz jeszcze raz, żeby zostawić adres. Domeny, która nie
+istnieje (bez serwera poczty), formularz nie przyjmie. Szczegóły techniczne: `docs/OPERACJE.md` § 52.
 
 ## 11. Kalendarz prowadzenia edycji — ściągawka
 

@@ -1,4 +1,4 @@
-{% load static i18n web_extras cms_extras wagtailimages_tags theme_tags monitoring_tags staff_mfa %}<!doctype html>
+{% load static i18n web_extras cms_extras wagtailimages_tags theme_tags monitoring_tags staff_mfa email_delivery %}<!doctype html>
 {% comment %}
   ``lang`` idzie z aktywnego języka, a ``data-contrast`` pojawia się **tylko** w trybie wysokiego
   kontrastu (pusty atrybut znaczyłby „tryb domyślny”, a arkusz zaczepia się o samą jego obecność).
@@ -122,6 +122,12 @@
   {% endcomment %}
   <script defer nonce="{{ request.csp_nonce }}" src="{% static 'js/sponsor-slider.js' %}"></script>
   {% comment %}
+    Podpowiedź literówek w adresie e-mail (MAIL-02): „Czy chodziło Ci o …?” po opuszczeniu pola
+    z ``data-email-check`` (widżet ``apps.email_delivery.fields``). Rozstrzyga serwer – bez skryptu
+    to samo pytanie pada po wysłaniu formularza. Na stronie bez takiego pola skrypt nie robi nic.
+  {% endcomment %}
+  <script defer nonce="{{ request.csp_nonce }}" src="{% static 'email_delivery/email-check.js' %}"></script>
+  {% comment %}
     Miejsce na skrypty potrzebne tylko na niektórych stronach – dziś jest tu wyłącznie
     wyszukiwarka szkół w rejestracji (``js/school-picker.js``), która **nie** jest już komponentem
     Alpine'a i niczego spoza serwisu nie potrzebuje.
@@ -164,8 +170,10 @@
 
   Tuż za nim baner okresu przejściowego 2FA (SEC-01, apps/staff_mfa/templatetags/staff_mfa.py) –
   w tej samej linii, bo bez wymogu oddaje pusty napis i strona zostaje bajt w bajt taka jak dotąd.
+  Tak samo baner odbić poczty (MAIL-02, apps/email_delivery/templatetags/email_delivery.py) – tylko
+  dla zalogowanego, którego adres twardo odbił.
 {% endcomment %}
-{% include "cms/_announcements.html" %}{% two_factor_grace_banner %}
+{% include "cms/_announcements.html" %}{% two_factor_grace_banner %}{% email_undeliverable_banner %}
 
 {% if messages %}
   <ul class="messages">

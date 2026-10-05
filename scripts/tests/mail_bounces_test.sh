@@ -71,6 +71,31 @@ grep -qx $'bounces@iqo.test\tdiscard:olimpiada-bounce' "$WORK/olimpiada_bounce_t
   && ! grep -q '^noreply@iqo.test' "$WORK/olimpiada_bounce_transport"
 check "jawna lista adresów (przecinki, małe litery) zastępuje domyślną" $?
 
+# MAIL-02: `capture` – noreply@ do Maildira agentem virtual(8), adresy systemowe dalej na discard.
+out="$(run MAIL_BOUNCE_TARGET=capture MAIL_BOUNCE_MAILDIR_BASE="$WORK/maildir" \
+  MAIL_BOUNCE_EXTRA_ADDRESSES='glitchtip@platforma.test' 2>&1)"; rc=$?
+[ "$rc" -eq 0 ] \
+  && grep -qx $'noreply@platforma.test\tvirtual:' "$WORK/olimpiada_bounce_transport" \
+  && grep -qx $'noreply@iqo.test\tvirtual:' "$WORK/olimpiada_bounce_transport" \
+  && grep -qx $'noreply@iqo.test\tbounces/' "$WORK/olimpiada_bounce_mailbox" \
+  && grep -qx $'glitchtip@platforma.test\tdiscard:olimpiada-bounce' "$WORK/olimpiada_bounce_transport" \
+  && grep -qx $'postmaster@mail.platforma.test\tdiscard:olimpiada-bounce' "$WORK/olimpiada_bounce_transport" \
+  && ! grep -q '^postmaster@' "$WORK/olimpiada_bounce_mailbox" \
+  && [ ! -s "$WORK/olimpiada_bounce_alias" ] && [ -d "$WORK/maildir" ]
+check "capture: noreply@ → virtual: + Maildir bounces/, adresy systemowe → discard" $?
+grep -qx -- "-e virtual_mailbox_base=$WORK/maildir virtual_mailbox_maps=lmdb:$WORK/olimpiada_bounce_mailbox virtual_uid_maps=static:1000 virtual_gid_maps=static:1000 virtual_mailbox_domains= virtual_mailbox_limit=0" "$WORK/postconf.log" \
+  && grep -qx "lmdb:$WORK/olimpiada_bounce_mailbox" "$WORK/postmap.log"
+check "capture: postconf virtual_mailbox_* (UID/GID 1000, limit 0) i postmap tablicy skrzynek" $?
+printf '%s' "$out" | grep -q 'poczta zwrotna -> capture'
+check "capture: linia w logu startu" $?
+
+out="$(run MAIL_BOUNCE_TARGET=capture MAIL_BOUNCE_MAILDIR_BASE="$WORK/maildir" MAIL_BOUNCE_UID=0 2>&1)"; rc=$?
+[ "$rc" -eq 0 ] && printf '%s' "$out" | grep -q 'UID ≥ 100' && grep -q 'virtual_uid_maps=static:1000' "$WORK/postconf.log"
+check "capture: UID < 100 (virtual_minimum_uid) – ostrzeżenie i 1000" $?
+compose_target="$(sed -n 's/^ *MAIL_BOUNCE_TARGET: //p' "$ROOT/docker-compose.yml")"
+[ "$compose_target" = '${MAIL_BOUNCE_TARGET:-capture}' ]
+check "compose: domyślny cel to capture (MAIL-02)" $?
+
 run MAIL_BOUNCE_TARGET=noreply@platforma.test >/dev/null 2>&1
 ! grep -q '^noreply@platforma.test' "$WORK/olimpiada_bounce_alias" && grep -q '^noreply@iqo.test' "$WORK/olimpiada_bounce_alias"
 check "cel będący jednym z adresów – bez aliasu na samego siebie" $?
