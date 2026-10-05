@@ -596,7 +596,7 @@ requires-dist = [
     { name = "djangocms-text", specifier = "==1.0.1" },
     { name = "djangocms-versioning", specifier = "==2.7.1" },
     { name = "easy-thumbnails", specifier = "==2.10.1" },
-    { name = "gunicorn", specifier = ">=23.0,<27.0" },
+    { name = "gunicorn", specifier = ">=26.2,<27" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.11" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.2.10,<3.3" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.3" },

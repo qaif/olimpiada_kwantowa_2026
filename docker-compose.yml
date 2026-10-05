@@ -767,7 +767,7 @@ services:
     command: >
       gunicorn config.wsgi:application --bind 0.0.0.0:8000
       --workers ${DJCMS_WORKERS:-3} --threads ${DJCMS_THREADS:-4}
-      --worker-class gthread --timeout 60 --graceful-timeout 20 --access-logfile -
+      --worker-class gthread --no-control-socket --timeout 60 --graceful-timeout 20 --access-logfile -
     environment:
       DJANGO_SETTINGS_MODULE: config.settings.production
       DJCMS_SECRET_KEY: ${DJCMS_SECRET_KEY:-}
