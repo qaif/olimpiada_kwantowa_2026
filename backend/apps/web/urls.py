@@ -3,6 +3,7 @@
 from django.urls import path
 
 from apps.alumni.urls import urlpatterns as alumni_urlpatterns
+from apps.consent_gate.urls import urlpatterns as consent_gate_urlpatterns  # CONS-01
 from apps.delegation_logistics.urls import urlpatterns as final_logistics_urlpatterns
 from apps.email_delivery.urls import urlpatterns as email_delivery_urlpatterns  # MAIL-02: odbicia
 from apps.medals.urls import urlpatterns as medal_urlpatterns  # MED-01
@@ -1210,4 +1211,6 @@ urlpatterns = [
     *password_change_urlpatterns,
     # --- nadzór zdalny etapów online (zadanie PROC-01, flaga ``proctoring``) ---------------------
     *proctoring_urlpatterns,
+    # --- uzupełnienie zgód po zalogowaniu i eksport braków (CONS-01) -----------------------------
+    *consent_gate_urlpatterns,
 ]

@@ -293,6 +293,27 @@ def test_banner_is_absent_for_others_and_without_tracking(client, competition, s
     assert BANNER not in client.get("/account/profile/").content.decode()
 
 
+def test_consent_gate_does_not_block_the_banner_actions(client, competition, settings):
+    # CONS-01: uczestnik bez kompletu zgód trafia z ``/me/`` na ekran zgód – ale potwierdzenie
+    # i zmiana własnego adresu (``/account/…``) zostają dostępne, a baner widać na ekranie zgód.
+    settings.CONSENT_GATE_ENABLED = True
+    participant = ParticipantFactory(user=UserFactory(email="bez-zgod@example.org"))
+    hard("bez-zgod@example.org")
+    client.force_login(participant.user)
+
+    gated = client.get("/me/")
+    consent_page = client.get(gated["Location"]) if gated.status_code == 302 else gated
+    change = client.get("/account/email/")
+    confirm = client.post(CONFIRM_URL)
+
+    from django.urls import reverse
+
+    assert gated.status_code == 302 and gated["Location"].startswith(reverse("web:consent-complete"))
+    assert BANNER in consent_page.content.decode()
+    assert change.status_code == 200
+    assert confirm.status_code == 302 and not DeliveryStatus.objects.exists()
+
+
 def test_confirm_ignores_foreign_redirects(client, competition):
     client.force_login(UserFactory(email="uczen@example.org"))
     hard("uczen@example.org")

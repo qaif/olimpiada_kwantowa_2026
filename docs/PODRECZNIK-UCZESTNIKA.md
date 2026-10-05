@@ -130,6 +130,29 @@ kartą (na stronie operatora płatności – serwis nie widzi danych karty), Prz
 z kodem referencyjnym w tytule. Po zaksięgowaniu wpłaty dostajesz potwierdzenie e-mailem, a fakturę
 pobierzesz ze strony zamówienia.
 
+### Ekran „Uzupełnij zgody” — `/me/consents/complete/`
+
+Czasem zamiast panelu zobaczysz najpierw ekran **„Uzupełnij zgody”**. Dzieje się tak, gdy brakuje
+którejś **wymaganej** zgody albo gdy organizator **zmienił dokument** (np. regulamin), a Twoja zgoda
+dotyczyła poprzedniej wersji — przy takiej zgodzie ekran pisze, która wersja obowiązuje teraz, a którą
+zaakceptowano wcześniej. Zaznacz oświadczenia (odnośnik w każdym prowadzi do dokumentu) i kliknij
+**„Zapisuję oświadczenia”** — wrócisz tam, dokąd szedłeś.
+
+- Do tego czasu **nie wyślesz rozwiązania, nie rozwiążesz testu, nie napiszesz wiadomości** i nie
+  wejdziesz na forum. **Wyjątek: praca w toku.** Jeśli organizator zmienił dokument albo dołożył
+  wymaganą zgodę w trakcie etapu, w którym już startujesz, rozpoczęty test (także „Zakończ”), wysyłka
+  rozwiązania i reklamacja działają dalej — zobaczysz tylko baner z prośbą o potwierdzenie zgody po
+  skończeniu pracy.
+- Jeśli dokument zmieni się, kiedy ekran zgód jest otwarty, pole wróci puste z prośbą o ponowne
+  przeczytanie — zgoda zawsze dotyczy tej wersji, którą widzisz.
+- **Zawsze działają:** wylogowanie, zmiana hasła, ustawienia konta, **pobranie swoich danych
+  i usunięcie konta**, język i kontrast, edycja profilu, zgłoszenie do organizatora i strony publiczne
+  (także same dokumenty). Jeśli nie zgadzasz się na nową treść — napisz do organizatora albo usuń konto.
+- **Osoba niepełnoletnia** zaznacza też oświadczenie o zgodzie opiekuna (tak jak przy rejestracji),
+  a pod formularzem widzi stan zgody opiekuna online i przycisk **„Wyślij ponownie”** (rozdział 5).
+  Potwierdzenie online od opiekuna nie blokuje panelu — jest potrzebne tylko do nadzoru zdalnego (8d).
+- Zgoda na **publikację nazwiska** jest dobrowolna i nigdy nie zatrzymuje Cię na tym ekranie.
+
 ---
 
 ## 3. Wysyłka rozwiązania

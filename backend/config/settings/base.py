@@ -199,6 +199,7 @@ INSTALLED_APPS = [
     "apps.monitoring",  # śledzenie błędów (GlitchTip) i dostępność – OPS-02, wyłączone bez SENTRY_DSN
     "apps.accessibility",  # deklaracja dostępności i napisy stopki (A11Y-01, 5.10.2026), bez modeli
     "apps.email_delivery",  # literówki w adresach i odbicia poczty (MAIL-02, 5.10.2026)
+    "apps.consent_gate",  # bramka i ekran „Uzupełnij zgody” po zalogowaniu (CONS-01), bez modeli
     "apps.web",
     # Logowanie przez dostawców zewnętrznych (Google, Facebook). ``allauth.account`` jest wymagane
     # przez ``allauth.socialaccount`` (model ``EmailAddress``, adaptery) – jego **widoki** nie są
@@ -289,6 +290,12 @@ MIDDLEWARE = [
     # Bramka treści etapu z nadzorem zdalnym (PROC-01): wyłącznie ``process_view`` i wyłącznie dla
     # zamkniętej listy adresów (PDF zadania, wysyłka, test); bez flagi ``proctoring`` – zero zapytań.
     # **Za** uwierzytelnieniem i komunikatami (przekierowuje do konsoli z komunikatem).
+    # Bramka zgód uczestnika (CONS-01): brak wymaganej zgody albo zgoda pod starą wersją dokumentu
+    # → ekran „Uzupełnij zgody”, zanim uczestnik wejdzie do panelu, uploadu, testu czy czatu.
+    # Wyłącznie ``process_view`` i wyłącznie dla obszaru uczestnika (apps/consent_gate/middleware.py);
+    # anonim i personel – zero zapytań. **Za** 2FA (najpierw tożsamość) i komunikatami, **przed**
+    # bramką nadzoru: konto bez zgód nie dochodzi do pytania o sesję nadzoru.
+    "apps.consent_gate.middleware.ConsentGateMiddleware",
     "apps.proctoring.middleware.ProctoringGateMiddleware",
     # Wymagana przez allauth: ustawia kontekst żądania (``allauth.core.context``), z którego
     # korzystają adaptery i przepływ social login. Nie montuje żadnego adresu i nie zmienia
@@ -509,6 +516,11 @@ PAGE_CACHE_ENABLED = env.bool("PAGE_CACHE_ENABLED", default=not DEBUG)
 # dwa niezależne wyłączniki, bo jeden bywa wygodniejszy operacyjnie (zmienna środowiskowa przy
 # incydencie), a drugi programistycznie (test, który włącza cache, ale ze świadomie krótkim TTL).
 PAGE_CACHE_SECONDS = env.int("PAGE_CACHE_SECONDS", default=120)
+# Bramka „Uzupełnij zgody” (CONS-01, docs/OPERACJE.md § 51). Wyłącznik instalacji na wypadek
+# incydentu (np. pomyłkowa zmiana wersji dokumentu, która odesłałaby do ekranu wszystkich naraz) –
+# zmiana zmiennej i restart ``web``, bez wdrożenia. ``config/settings/test.py`` wyłącza ją jawnie,
+# a testy bramki (apps/consent_gate/tests) włączają ją same – tak jak cache stron.
+CONSENT_GATE_ENABLED = env.bool("CONSENT_GATE_ENABLED", default=True)
 # Odstęp odpytywania otwartego wątku Wiadomości (PERF-01, docs/OPERACJE.md § 42.5): najczęstsze
 # żądanie dnia zawodów; na czas etapu operator może go wydłużyć bez wdrożenia (np. 45).
 CHAT_POLL_SECONDS = env.int("CHAT_POLL_SECONDS", default=15)

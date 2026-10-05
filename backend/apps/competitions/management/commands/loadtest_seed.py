@@ -18,8 +18,9 @@ Szybkość zamiast wierności ścieżce rejestracji: konta powstają ``bulk_crea
 skrótem hasła policzonym raz (PBKDF2 to ok. 0,15–0,5 s na hasło – 3000 kont serwisem rejestracji to
 kwadrans samego liczenia skrótów). Kształt danych jest ten sam, który zostawia serwis: konto aktywne
 z potwierdzonym adresem, grupa i członkostwo roli, profil uczestnika z kodem publicznym konkursu,
-wpis do etapu. Zgód (``ConsentRecord``) seed nie zakłada – panel pokazuje wtedy znacznik
-„brak zgód”, co kosztuje to samo zapytanie, co znacznik „zgody kompletne”.
+wpis do etapu i komplet wymaganych zgód (``ConsentRecord`` w bieżących wersjach) – bez nich bramka
+zgód (CONS-01) odsyłałaby każde żądanie generatora na ekran „Uzupełnij zgody”, a test mierzyłby
+przekierowania zamiast panelu.
 
 Powtórne uruchomienie dokłada brakujące konta (do ``--students``) i niczego nie dubluje.
 """
@@ -40,8 +41,10 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db import connection, transaction
 from django.utils import timezone
 
+from apps.accounts.consents import ConsentSource, consent_set, required_kinds
 from apps.accounts.models import (
     CompetitionRole,
+    ConsentRecord,
     Membership,
     Participant,
     User,
@@ -141,6 +144,7 @@ class Command(BaseCommand):
         coordinators = self._coordinators(options["coordinators"], options["password"])
         participants = self._students(options["students"], password_hash)
         self._entries(participants, (written, quiz_stage, previous))
+        self._consents(participants)
         conversations = self._conversations(participants)
         self._results_publication(previous, participants)
         self._news(options["news"])
@@ -359,6 +363,31 @@ class Command(BaseCommand):
             if code not in taken:
                 taken.add(code)
                 return code
+
+    def _consents(self, participants) -> None:
+        """Wymagane zgody w bieżących wersjach – kształt, który zostawia rejestracja (CONS-01)."""
+        consents = consent_set(self.competition)
+        have = set(
+            ConsentRecord.objects.filter(participant__in=participants).values_list(
+                "participant_id", flat=True
+            )
+        )
+        ConsentRecord.objects.bulk_create(
+            (
+                ConsentRecord(
+                    participant=p,
+                    kind=consent.kind,
+                    document_version=consent.version,
+                    given_at=self.now,
+                    source=ConsentSource.WEB,
+                )
+                for p in participants
+                if p.pk not in have
+                for consent in consents
+                if consent.kind in required_kinds(p.birth_date, p.birth_year, consents=consents)
+            ),
+            batch_size=BATCH,
+        )
 
     def _entries(self, participants, stages) -> None:
         for stage in stages:

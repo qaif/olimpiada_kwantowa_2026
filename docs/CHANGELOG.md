@@ -37,6 +37,36 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
   365 dni. Tłumaczenia w 10 językach (`apps/email_delivery/locale`). Przełącznik `EMAIL_BOUNCE_TRACKING`
   (compose: wł.). Bez nowych zależności. Operator: `docs/OPERACJE.md` § 52.
 
+## [Unreleased] – Uzupełnienie zgód po zalogowaniu (CONS-01)
+
+- **Bramka zgód uczestnika** (`apps.consent_gate`, `ConsentGateMiddleware` między 2FA a bramką nadzoru):
+  brak wymaganej zgody (regulamin, RODO, od małoletniego oświadczenie o zgodzie opiekuna) albo zgoda
+  pod **inną wersją dokumentu niż bieżąca** (stała `TERMS_VERSION` itd. albo `ConsentDefinition.version`)
+  → przed obszarem uczestnika (`/me/…`, forum, webinary, warsztaty, płatności, API zgłoszeń, zadań
+  i reklamacji) ekran **„Uzupełnij zgody”** (`/me/consents/complete/`). Przepuszczane: `/account/…`
+  (eksport danych, usunięcie konta, hasło, język i kontrast), wylogowanie, profil, prośba do opiekuna,
+  autozapis testu, klient nadzoru, strony publiczne, `/zgoda/<token>/`. Personel i anonim – zero
+  zapytań; uczestnik – cache (Redis, 5 min), przy chybieniu jedno zapytanie; unieważnianie sygnałami.
+  HTMX – 403 z `HX-Redirect`, API – 403 `CONSENTS_REQUIRED`. Wyłącznik `CONSENT_GATE_ENABLED`.
+- **Ekran** w motywie konkursu i w 10 językach: wyłącznie brakujące zgody z etykietą jak w rejestracji,
+  zdanie „dokument się zmienił: obowiązuje wersja X, Twoja zgoda dotyczyła Y”, dla małoletnich stan
+  zgody opiekuna online i „Wyślij ponownie” (istniejący przepływ i limit; brak potwierdzenia online jak
+  dotąd nie blokuje panelu), wyjścia RODO. Zapis: `ConsentRecord` (wersja, czas, droga `panel`, IP),
+  projekcje na profilu wyłącznie „w górę”, audyt `participant.consents_completed` z językiem i SHA-256
+  treści.
+- **Koordynator:** kafelek „Uczestnicy z brakującymi zgodami” na pulpicie i CSV
+  `/coordinator/consents/missing.csv` (audyt `consent_gate.exported`); ekran zmiany wersji zgody
+  ostrzega, że wymusi ponowną zgodę. Komenda `consent_gate_report` (liczby bez danych osobowych).
+- **Poprawka:** potwierdzenie zgody opiekuna online zapisuje wersję wzoru z zestawu konkursu, a nie ze
+  stałej. Budżet zapytań pulpitu koordynatora 53 → 54. `docs/OPERACJE.md` § 51.
+- **Po przeglądzie #97:** zmiana wersji w trakcie etapu nie blokuje pracy w toku – arkusz
+  i „Zakończ” testu, upload (WWW i API), reklamacja i notatnik przechodzą przy ponowieniu zgody
+  z banerem / nagłówkiem `X-Consents-Required` (H1); wersja dokumentu jedzie z formularzem i jest
+  sprawdzana pod blokadą (L3); ekran bez braków czyści nieświeży stan cache'a (L4); `next` dla HTMX
+  z `HX-Current-URL` tego samego serwisu (L5). Ten sam wyjątek dla pracy w toku obejmuje też zgodę
+  **nową** (np. przestawioną na wymaganą w trakcie etapu), gdy uczestnik ma wpis w trwającym etapie
+  (jedno zapytanie wyłącznie na tej ścieżce); konto bez takiego wpisu dalej nie oddaje pracy.
+
 ## v0.47.2 – 2026-10-05 – Dostępność WCAG 2.1 AA, deklaracja dostępności, motyw IQO 1.1.2 (A11Y-01)
 
 - **Suita e2e dostępności** (`e2e/a11y/`, `scripts/a11y.sh`, job CI `a11y`): axe-core 4.13.0
