@@ -43,7 +43,7 @@ dependencies = [
     # ukaże się wydanie z ``Django<6.2`` (albo bez górnej granicy) – wtedy ta linia i sekcja
     # ``[tool.uv]`` mają wypaść razem.
     "django-celery-beat>=2.9,<2.10",
-    "gunicorn>=23.0,<24.0",
+    "gunicorn>=23.0,<27.0",
     "uvicorn[standard]>=0.30,<0.36",
     "django-storages[s3]>=1.14,<1.15",
     "boto3>=1.35,<2.0",
