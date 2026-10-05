@@ -43,7 +43,7 @@ Poprawki dostępności po audycie A11Y-01 (`docs/tasks/A11Y-01.md`):
   ekranie ramy. Reguła dotyczy wyłącznie `.topbar` i `.timeline-dock`; nagłówek stron publicznych
   (`.iqo-header`) i `--brand` w treści paneli bez zmian,
 - **stopka**: odnośnik „Deklaracja dostępności” (`/dokumenty/deklaracja-dostepnosci/`, msgid z
-  `apps/accessibility`).
+  `apps/accessibility`) – tylko gdy `accessibility_statement_available` (strona opublikowana).
 
 `min_app_version` **0.47.0** – wydanie z deklaracją dostępności i katalogiem tłumaczeń odnośnika.
 

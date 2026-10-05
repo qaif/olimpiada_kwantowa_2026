@@ -44,8 +44,10 @@
         <p class="footer__links iqo-footer__links">
           <a href="{{ site_root|default:"/" }}dokumenty/rodo/">{% translate "Polityka prywatności (RODO)" %}</a>
           <a href="{{ site_root|default:"/" }}dokumenty/cookies/">{% translate "Polityka plików cookie" %}</a>
-          {# 1.1.2 (A11Y-01): deklaracja dostępności – strona CMS, msgid z apps/accessibility. #}
-          <a href="{{ site_root|default:"/" }}dokumenty/deklaracja-dostepnosci/">{% translate "Deklaracja dostępności" %}</a>
+          {# 1.1.2 (A11Y-01): deklaracja dostępności – tylko opublikowana strona; msgid z apps/accessibility. #}
+          {% if accessibility_statement_available %}
+            <a href="{{ site_root|default:"/" }}dokumenty/deklaracja-dostepnosci/">{% translate "Deklaracja dostępności" %}</a>
+          {% endif %}
           {% include "web/_support_link.html" with css_class="footer__link" %}
           {% if promo_available %}
             <a href="{% url 'web:posters' %}">{% translate "Plakaty do pobrania" %}</a>

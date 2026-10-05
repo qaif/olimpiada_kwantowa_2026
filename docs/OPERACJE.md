@@ -5921,7 +5921,8 @@ z rejestrem npm), przebieg, przegląd raportu – nowa wersja axe potrafi doło�
 2. Organizator w `/cms/` → Dokumenty → „Deklaracja dostępności” (podgląd): uzupełnia **datę publikacji
    serwisu**, **osobę kontaktową**, adres siedziby (sekcja „Dostępność architektoniczna”), poprawia
    listę treści niedostępnych, usuwa ramkę „Projekt – do zatwierdzenia”, zmienia pole „status”
-   i **publikuje**. Do publikacji odnośnik w stopce prowadzi do 404.
+   i **publikuje**. Odnośnik w stopce pojawia się sam po publikacji (pamięć podręczna unieważniana
+   sygnałem Wagtaila); wycofanie publikacji w `/cms/` chowa go z powrotem.
 3. Aktualizacja raz w roku (wzór deklaracji) i po każdej istotnej zmianie serwisu – data w treści.
    Ponowne uruchomienie komendy na opublikowanej stronie jest odmawiane (`--force` zapisuje nowy
    projekt jako wersję roboczą, opublikowanej nie rusza).

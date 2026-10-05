@@ -25,7 +25,9 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
   odnośnik „Deklaracja dostępności” w stopce; `min_app_version` 0.47.0.
 - **Deklaracja dostępności:** nowa aplikacja `apps.accessibility`, komenda
   `seed_accessibility_statement <slug>` – projekt strony `/dokumenty/deklaracja-dostepnosci/` (PL/EN)
-  do zatwierdzenia przez organizatora; odnośnik w stopce obu motywów. `docs/OPERACJE.md` § 50.
+  do zatwierdzenia przez organizatora; odnośnik w stopce obu motywów **dopiero po publikacji** strony
+  w danym konkursie (pamięć podręczna unieważniana sygnałami Wagtaila; budżety zapytań +1 na zimno).
+  `docs/OPERACJE.md` § 50.
 
 ## [Unreleased] – Monitoring z zewnątrz (OPS-03)
 

@@ -28,10 +28,10 @@ from django.utils import timezone
 from wagtail.models import Site
 from wagtail.rich_text import RichText
 
+from apps.accessibility.availability import PAGE_SLUG
 from apps.cms.models import DocumentPage, SiteSettings
 from apps.cms.site_tree import ensure_document_index, home_page, take_document_page
 
-PAGE_SLUG = "deklaracja-dostepnosci"
 TITLES = {"pl": "Deklaracja dostępności", "en": "Accessibility statement"}
 STATUS = {
     "pl": "Projekt – do zatwierdzenia przez organizatora",

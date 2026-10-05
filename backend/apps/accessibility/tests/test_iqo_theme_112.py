@@ -53,11 +53,22 @@ def test_app_frame_bars_use_navy_primary_not_the_blue_fill(package):
     assert "--brand-ink: var(--t-primary-contrast" in rule.split("}")[0]
 
 
-def test_footer_links_to_accessibility_statement(package, competition, client_for, monkeypatch):
+def test_footer_links_to_statement_only_when_published(package, competition, client_for, monkeypatch):
+    from django.core.cache import cache
+    from django.core.management import call_command
+
+    cache.clear()
     monkeypatch.setenv("APP_VERSION", "v0.47.0")
     version, result = services.install_package(package)
     assert result.errors == [], result.errors
     services.activate(competition, version)
-    html = client_for(competition).get("/").content.decode()
-    assert 'data-theme="iqo-quantum"' in html
-    assert 'href="/dokumenty/deklaracja-dostepnosci/"' in html
+    client = client_for(competition)
+    link = 'href="/dokumenty/deklaracja-dostepnosci/"'
+
+    html = client.get("/").content.decode()
+    assert 'data-theme="iqo-quantum"' in html and "iqo-footer" in html
+    assert link not in html  # stopka paczki (safe context): bez opublikowanej strony – bez odnośnika
+
+    call_command("seed_accessibility_statement", competition.slug, publish=True, verbosity=0)
+    assert link in client.get("/").content.decode()
+    cache.clear()

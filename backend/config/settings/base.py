@@ -358,6 +358,8 @@ TEMPLATES = [
                 # szkolnego. Wartość leniwa, z pamięci podręcznej unieważnianej przy zapisie plakatu
                 # (``apps.promo.availability``).
                 "apps.promo.availability.promo_materials",
+                # Odnośnik do deklaracji dostępności w stopce – tylko gdy strona jest opublikowana (A11Y-01).
+                "apps.accessibility.availability.accessibility_statement",
                 # Czy pokazać odnośnik „Materiały z warsztatów” w pasku konta i na pulpicie
                 # uczestnika – przełącznik konkursu i pamięć podręczna unieważniana przy zapisie
                 # materiału (``apps.workshop_materials.availability``); wartość leniwa.

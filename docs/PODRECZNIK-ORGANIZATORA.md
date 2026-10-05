@@ -2732,7 +2732,7 @@ techniczny jako **projekt** po audycie z października 2026 r. Co zrobić:
    adres siedziby (sekcja „Dostępność architektoniczna”). Sprawdź listę „Treści niedostępne” –
    to zobowiązanie wobec czytelnika (np. „opis rysunków na żądanie”), więc ma być prawdziwe.
 3. Usuń ramkę „Projekt – do zatwierdzenia”, zmień pole „status” (np. „Obowiązuje od …”) i **opublikuj**.
-   Do publikacji odnośnik w stopce prowadzi do strony „nie znaleziono”.
+   Odnośnik w stopce pojawi się sam zaraz po publikacji (wcześniej go nie ma).
 4. Raz w roku i po każdej większej zmianie serwisu zaktualizuj datę „ostatniej istotnej aktualizacji”.
    Na żądania zapewnienia dostępności (np. „proszę o opis rysunku w zadaniu 3”) odpowiada się w 7 dni.
 

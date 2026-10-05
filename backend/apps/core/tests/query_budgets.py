@@ -61,7 +61,13 @@ QUERY_BUDGETS: dict[str, int] = {
     # żądanie go już nie płaci, sprawdza ``apps/web/tests/test_posters_public.py``
     # (``test_warm_page_does_not_ask_about_posters``). Ten sam przyrost i ten sam powód przy
     # ``/me/`` i ``/coordinator/`` niżej – stopka jest w ``templates/base.html``.
-    "/": 35,
+    #
+    # +1 od 5.10.2026: odnośnik „Deklaracja dostępności” w stopce (A11Y-01,
+    # ``apps.accessibility.availability``) – tylko gdy strona jest opublikowana w tym konkursie.
+    # Ten sam wzorzec, co plakaty: godzinna pamięć unieważniana sygnałami Wagtaila (publikacja,
+    # wycofanie, przeniesienie, skasowanie), jedno ``EXISTS`` na zimno. Że trafienie w pamięć nie
+    # pyta bazy, sprawdza ``apps/accessibility/tests/test_statement.py``. Ten sam +1 niżej.
+    "/": 36,
     # 47 = 46 + zapytanie nagłówka CSP o identyfikator GA4, liczone od 21.09.2026 zawsze na zimno
     # (``_reset_panel_counters`` w ``test_invariants.py``). To nie jest nowy koszt strony, tylko
     # koniec zależności pomiaru od kolejności testów.
@@ -71,12 +77,14 @@ QUERY_BUDGETS: dict[str, int] = {
     # +1 od 30.09.2026: pozycja „Wiadomości” w pasku konta uczestnika z licznikiem nieprzeczytanych
     # (zadanie CZ-01, ``apps.chat.services.nav_state``) – przełącznik modułu i licznik jako dwa
     # podzapytania **jednego** ``SELECT``-a, liczone wyłącznie dla konta z profilem uczestnika.
-    "/me/": 51,
+    # +1 od 5.10.2026: odnośnik „Deklaracja dostępności” w stopce – patrz komentarz przy ``"/"``.
+    "/me/": 52,
     # 50 + 1 od 23.09.2026: odnośnik „Plakaty do pobrania” w stopce – patrz komentarz przy ``"/"``.
     # +1 od 30.09.2026: odznaka „Wiadomości” w menu panelu (zadanie CZ-01,
     # ``apps.chat.services.coordinator_attention``) – przełącznik i cztery liczby jednym zapytaniem,
     # w tej samej minutowej pamięci liczników, co pozostałe odznaki (próg mierzy stan zimny).
-    "/coordinator/": 52,
+    # +1 od 5.10.2026: odnośnik „Deklaracja dostępności” w stopce – patrz komentarz przy ``"/"``.
+    "/coordinator/": 53,
     # --- karty i listy panelu koordynatora ---------------------------------------------------------
     # Bezpieczniki „rzędu wielkości” obok asercji o niezmienności kosztu względem danych: sama
     # asercja porównuje dwa pomiary ze sobą, sufit łapie regresję, która podniosła oba naraz.

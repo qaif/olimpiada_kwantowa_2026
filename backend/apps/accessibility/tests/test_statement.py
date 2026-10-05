@@ -5,10 +5,22 @@ from __future__ import annotations
 import pytest
 from django.core.management import CommandError, call_command
 
-from apps.accessibility.management.commands.seed_accessibility_statement import PAGE_SLUG
+from apps.accessibility import availability
+from apps.accessibility.availability import PAGE_SLUG
 from apps.cms.models import DocumentPage
 
 pytestmark = pytest.mark.django_db
+
+
+@pytest.fixture(autouse=True)
+def _fresh_cache():
+    """Pamięć „czy deklaracja jest opublikowana” żyje w procesie – wycofanie transakcji jej nie czyści."""
+    from django.core.cache import cache
+
+    cache.clear()
+    yield
+    cache.clear()
+
 
 PATH = f"/dokumenty/{PAGE_SLUG}/"
 
@@ -76,6 +88,56 @@ def test_unknown_competition_is_an_error():
         call_command("seed_accessibility_statement", "nie-ma-takiego", verbosity=0)
 
 
-def test_footer_links_to_statement_on_every_page(competition, client_for):
-    html = client_for(competition).get("/login/").content.decode()
-    assert f'href="/dokumenty/{PAGE_SLUG}/"' in html and "Deklaracja dostępności" in html
+LINK = f'href="/dokumenty/{PAGE_SLUG}/"'
+
+
+def test_footer_hides_link_until_statement_is_published(competition, client_for):
+    client = client_for(competition)
+    assert LINK not in client.get("/login/").content.decode()  # brak strony
+
+    call_command("seed_accessibility_statement", competition.slug, verbosity=0)
+    assert LINK not in client.get("/login/").content.decode()  # projekt (wersja robocza)
+
+    statement().get_latest_revision().publish()  # organizator zatwierdza w /cms/
+    html = client.get("/login/").content.decode()
+    assert LINK in html and "Deklaracja dostępności" in html
+
+    statement().unpublish()
+    assert LINK not in client.get("/login/").content.decode()
+
+
+def test_cache_hit_costs_no_queries(competition, django_assert_num_queries):
+    call_command("seed_accessibility_statement", competition.slug, publish=True, verbosity=0)
+    competition.refresh_from_db()
+    assert availability.statement_published(competition) is True  # wypełnia pamięć
+    with django_assert_num_queries(0):
+        assert availability.statement_published(competition) is True
+
+
+def test_warm_page_does_not_ask_about_the_statement(competition, client_for, monkeypatch):
+    """Drugie żądanie bierze odpowiedź z pamięci: zero zapytań o deklarację, odnośnik jest."""
+    call_command("seed_accessibility_statement", competition.slug, publish=True, verbosity=0)
+    client = client_for(competition)
+    assert LINK in client.get("/login/").content.decode()  # pierwsze żądanie wypełnia pamięć
+
+    def no_database(competition):
+        raise AssertionError("trafienie w pamięć nie może pytać bazy")
+
+    monkeypatch.setattr(availability, "_compute", no_database)
+    assert LINK in client.get("/login/").content.decode()
+
+
+def test_cold_lookup_is_a_single_query(competition, django_assert_num_queries):
+    call_command("seed_accessibility_statement", competition.slug, publish=True, verbosity=0)
+    competition.refresh_from_db()
+    from django.core.cache import cache
+
+    cache.clear()
+    with django_assert_num_queries(1):
+        assert availability.statement_published(competition) is True
+
+
+def test_statement_of_one_competition_is_not_seen_by_another(competition, other_competition):
+    call_command("seed_accessibility_statement", competition.slug, publish=True, verbosity=0)
+    assert availability.statement_published(competition) is True
+    assert availability.statement_published(other_competition) is False

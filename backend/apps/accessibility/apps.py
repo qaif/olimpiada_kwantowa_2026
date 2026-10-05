@@ -10,3 +10,7 @@ class AccessibilityConfig(AppConfig):
     name = "apps.accessibility"
     label = "accessibility"
     verbose_name = "dostępność"
+
+    def ready(self) -> None:
+        # Sygnały Wagtaila unieważniające pamięć „czy deklaracja jest opublikowana” (stopka).
+        from . import availability  # noqa: F401
