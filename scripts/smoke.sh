@@ -219,7 +219,9 @@ c_login() {  # c_login <url> <plik na kopię HTML> – 200, pole CSRF, ciasteczk
   [ "$F_CODE" = 200 ] || { MSG="$F_CODE (oczekiwano 200) $(curl_note)"; return 1; }
   cp "$BODY" "$2"
   grep -q 'csrfmiddlewaretoken' "$BODY" || { MSG="200, ale bez pola csrfmiddlewaretoken"; return 1; }
-  has_cookie csrftoken || { MSG="200, ale bez ciasteczka csrftoken (Set-Cookie)"; return 1; }
+  # Nazwa zależy od konfiguracji: `csrftoken` albo `__Host-csrftoken` (QC-02, NOTEBOOK_LAB_HOST –
+  # ciasteczka z prefiksem __Host-, których host laboratorium nie podrzuci). Obie są poprawne.
+  has_cookie csrftoken || has_cookie __Host-csrftoken \n    || { MSG="200, ale bez ciasteczka csrftoken ani __Host-csrftoken (Set-Cookie)"; return 1; }
   [ -n "$(header_value content-security-policy)" ] || { MSG="200, ale bez nagłówka Content-Security-Policy"; return 1; }
   MSG="200, CSRF (pole + ciasteczko), CSP"
 }
