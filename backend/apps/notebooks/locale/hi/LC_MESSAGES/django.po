@@ -651,3 +651,21 @@ msgstr "स्टार्टर नोटबुक"
 #, python-format
 msgid "Praca – podgląd notatnika (wersja %(version)s)"
 msgstr "प्रस्तुति – नोटबुक पूर्वावलोकन (संस्करण %(version)s)"
+
+#, python-format
+msgid "Bezpieczeństwo: laboratorium działa pod osobnym adresem %(host)s."
+msgstr "सुरक्षा: लैब एक अलग पते %(host)s पर चलती है।"
+
+msgid ""
+"Kod z notatnika wykonuje się w przeglądarce, w osobnym originie "
+"laboratorium: nie widzi sesji, ciasteczek ani danych zapisanych przez "
+"serwis, a serwis odrzuca wysyłane z niego żądania. Laboratorium nadal "
+"otwierają wyłącznie konta uczestników bez żadnej roli personelu. Uprzedź "
+"uczestników, żeby nie wklejali cudzego kodu. Szczegóły: docs/OPERACJE.md § "
+"40.7."
+msgstr ""
+"नोटबुक का कोड ब्राउज़र में, लैब के अलग ओरिजिन में चलता है: वह साइट का सत्र, "
+"कुकीज़ या साइट द्वारा सहेजा गया डेटा नहीं देख सकता, और साइट उससे भेजे गए "
+"अनुरोधों को अस्वीकार करती है। लैब अब भी केवल बिना किसी स्टाफ़ भूमिका वाले "
+"प्रतिभागी खातों के लिए उपलब्ध है। प्रतिभागियों को दूसरों का कोड न चिपकाने के "
+"लिए सावधान करें। विवरण: docs/OPERACJE.md § 40.7."

@@ -30,10 +30,21 @@ RUN --mount=type=cache,target=/root/.cache/notebook-lab \
 # tłumaczeń (``.mo``), a w repozytorium trzymamy źródła (``.po``) – tylko one dają się czytać
 # i recenzować w diffie. Kompilacja jest krokiem budowania obrazu (niżej), więc plik binarny
 # nigdy nie rozjedzie się ze źródłem: nie da się wydać obrazu z nieaktualnym tłumaczeniem.
+#
+# Dwie rzeczy z bramki Trivy (SEC-02, docs/OPERACJE.md § 47.2):
+# - ``apt-get upgrade``: łatki z ``trixie-security`` trafiają do obrazu ``python:*-slim`` z opóźnieniem
+#   (np. libpcre2 10.46-1~deb13u3, CVE-2026-103111) – bez tego obraz dziedziczy podatność, na którą
+#   Debian ma już poprawkę. Warstwa odświeża się przy każdej zmianie obrazu bazowego,
+# - systemowy ``pip`` z obrazu bazowego wypada: aplikacja żyje w /opt/venv (bez pipa, uv), a pip 26.2.1
+#   niesie zwendorowane urllib3 2.7.0 / msgpack 1.1.2 / setuptools 70.3.0 ze znanymi podatnościami
+#   (poprawionego wydania pipa jeszcze nie ma). Gdy pip jest potrzebny doraźnie w kontenerze:
+#   ``docker compose exec -u root web python -m ensurepip``.
 FROM python:3.14-slim-trixie AS runtime
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PATH="/opt/venv/bin:$PATH"
-RUN apt-get update && apt-get install -y --no-install-recommends libpq5 curl procps gettext \
+RUN apt-get update && apt-get upgrade -y --no-install-recommends \
+    && apt-get install -y --no-install-recommends libpq5 curl procps gettext \
     && rm -rf /var/lib/apt/lists/* \
+    && python -m pip uninstall -y --root-user-action=ignore pip \
     && groupadd -g 1000 app && useradd -u 1000 -g app -m -s /usr/sbin/nologin app
 WORKDIR /app
 COPY --from=builder /opt/venv /opt/venv

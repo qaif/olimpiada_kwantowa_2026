@@ -199,6 +199,8 @@ instalujesz**; wystarczy aktualny Chrome, Edge, Firefox albo Safari.
 1. **Otwórz notatnik.** Strona zadania ma instrukcję i odnośnik, który otwiera JupyterLab
    w **nowej karcie**. Pierwsze otwarcie pobiera ok. 15–20 MB (napis przy przycisku podaje
    dokładniej), kolejne korzystają z pamięci przeglądarki. Po wczytaniu notatnik działa bez sieci.
+   Laboratorium może działać pod **osobnym adresem** (np. `lab.olimpiadakwantowa.pl`) – to
+   zamierzone: kod z notatnika nie ma tam dostępu do Twojego konta. Nie musisz się tam logować.
 2. **Pisz i uruchamiaj kod** – Shift+Enter uruchamia komórkę. Pisz jak w Qiskicie:
    `from qiskit import QuantumCircuit`, `from qiskit.quantum_info import Statevector`. To zgodny
    **podzbiór** Qiskita (symulator do 20 kubitów, bez sprzętu IBM, szumu i wykresów matplotlib –

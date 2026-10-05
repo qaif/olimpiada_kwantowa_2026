@@ -696,3 +696,22 @@ msgstr "notebook de départ"
 #, python-format
 msgid "Praca – podgląd notatnika (wersja %(version)s)"
 msgstr "Copie – aperçu du notebook (version %(version)s)"
+
+#, python-format
+msgid "Bezpieczeństwo: laboratorium działa pod osobnym adresem %(host)s."
+msgstr "Sécurité : le laboratoire fonctionne à une adresse distincte %(host)s."
+
+msgid ""
+"Kod z notatnika wykonuje się w przeglądarce, w osobnym originie "
+"laboratorium: nie widzi sesji, ciasteczek ani danych zapisanych przez "
+"serwis, a serwis odrzuca wysyłane z niego żądania. Laboratorium nadal "
+"otwierają wyłącznie konta uczestników bez żadnej roli personelu. Uprzedź "
+"uczestników, żeby nie wklejali cudzego kodu. Szczegóły: docs/OPERACJE.md § "
+"40.7."
+msgstr ""
+"Le code du notebook s'exécute dans le navigateur, dans l'origine distincte "
+"du laboratoire : il ne voit ni la session, ni les cookies, ni les données "
+"enregistrées par le site, et le site rejette les requêtes envoyées depuis "
+"celui-ci. Le laboratoire reste réservé aux comptes de participants sans "
+"aucun rôle de personnel. Prévenez les participants de ne pas coller le code "
+"d'autrui. Détails : docs/OPERACJE.md § 40.7."

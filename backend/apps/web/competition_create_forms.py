@@ -79,6 +79,9 @@ RESERVED_LABELS = frozenset(
         "ftp",
         "imap",
         "internal",
+        # Laboratorium notatników kwantowych na osobnym hoście (``NOTEBOOK_LAB_HOST``, QC-02 § 1) –
+        # domyślnie ``lab.<SITE_DOMAIN>``; blok Caddy'ego hosta laboratorium wygrywa z ``*.``.
+        "lab",
         "mail",
         "media",
         "meet",
