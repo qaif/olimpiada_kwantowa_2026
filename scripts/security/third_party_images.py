@@ -2,7 +2,7 @@
 """Cotygodniowy skan obrazów kontenerów spoza repozytorium (SEC-02, docs/OPERACJE.md § 47.3).
 
 Obrazy budowane z naszego kodu (``web``, ``djcms``) skanuje CI przy każdym PR (job ``image-scan``).
-Tu chodzi o resztę: Caddy, Postgres, Redis, MinIO, ClamAV, Postfix, LiveKit, Jitsi… – to, co
+Tu chodzi o resztę: Caddy, Postgres, Redis, MinIO, ClamAV, Postfix, GlitchTip, LiveKit, Jitsi… – to, co
 stoi na produkcji obok aplikacji i czego nikt z nas nie buduje. Podatność w takim obrazie pojawia
 się **bez żadnej zmiany w repozytorium** (nowe CVE w starym tagu), więc skan musi chodzić z zegara,
 a nie z pushy.

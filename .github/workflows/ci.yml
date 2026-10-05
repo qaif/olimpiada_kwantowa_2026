@@ -247,6 +247,19 @@ jobs:
           python -m pip install --quiet "pytest>=8.3"
           python -m pytest -q -p no:cacheprovider scripts/security/tests
 
+  uptime-script:
+    # Monitoring z zewnątrz (`.github/workflows/uptime.yml`, OPS-03) to skrypt bez zależności – jego
+    # testy też: sama biblioteka standardowa, bez sieci, bez bazy, kilka sekund. Osobny job, bo
+    # `tests` stoi na Django i Postgresie, a ten skrypt nie ma z nimi nic wspólnego. Python z obrazu
+    # runnera – ten sam, którym skrypt chodzi w `uptime.yml`; zgodność składni z 3.10 sprawdza test.
+    name: uptime_external.py (unittest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Testy monitoringu z zewnątrz
+        run: python3 -m unittest discover -s scripts/tests -p "test_uptime_external.py" -v
+
   tests:
     # ~4700 testów w jednym przebiegu trwało 27–32 minuty – dłużej niż `lint`, `migrations`
     # i `image` razem wzięte, i to ich autor czekał najdłużej na czerwony/zielony wynik.

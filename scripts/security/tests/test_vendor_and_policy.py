@@ -128,6 +128,8 @@ def test_compose_images_resolve_defaults_and_skip_own():
     assert third_party_images.resolve_defaults("img:${TAG}") is None
     images = third_party_images.list_images()
     assert "postgres:18-alpine" in images and "caddy:2.8" in images
+    # OPS-02: GlitchTip przypięty digestem – referencja zostaje w całości (Trivy skanuje ten digest).
+    assert any(ref.startswith("glitchtip/glitchtip:") and "@sha256:" in ref for ref in images)
     assert not [ref for ref in images if ref.startswith("olimpiada/")]
 
 

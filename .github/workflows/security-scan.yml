@@ -1,7 +1,8 @@
 # Cotygodniowy skan obrazów kontenerów, których nie budujemy (SEC-02, docs/OPERACJE.md § 47.3).
 #
-# Caddy, Postgres, Redis, MinIO, ClamAV, Postfix, Uptime Kuma, LiveKit, Jitsi… – tagi z plików
-# compose (domyślne wartości `${VAR:-…}`) plus nasz obraz `main` z GHCR (to, co już opublikowane,
+# Caddy, Postgres, Redis, MinIO, ClamAV, Postfix, Uptime Kuma, GlitchTip (z jego Postgresem),
+# LiveKit, Jitsi… – tagi/digesty z plików compose (domyślne wartości `${VAR:-…}`; usługa `uptime`
+# chodzi na naszym obrazie `web`, więc pokrywa ją `image-scan` w CI i `olimpiada-web:main` niżej) plus nasz obraz `main` z GHCR (to, co już opublikowane,
 # starzeje się tak samo: nowe CVE w niezmienionym obrazie). Nowe podatności pojawiają się tu bez
 # żadnej zmiany w repozytorium, więc skan chodzi z zegara.
 #

@@ -51,6 +51,7 @@
 #   PLATFORM_SUBDOMAINS=1 scripts/render_caddyfile.sh
 #   DJCMS_ENABLED=1 scripts/render_caddyfile.sh
 #   DJCMS_ENABLED=1 DJCMS_PRIMARY=1 scripts/render_caddyfile.sh
+#   ERRORS_PROXY=1 scripts/render_caddyfile.sh      # errors.<domena> → GlitchTip (OPS-02)
 #   CADDYFILE_OUT=/tmp/x scripts/render_caddyfile.sh
 #   DJCMS_ROUTES_ENV=/inny/app_routes.env …      # kontrakt tras (domyślnie backend/djcms_contract/)
 #
@@ -141,6 +142,34 @@ case "$(printf '%s' "${LIVEKIT_PROXY:-}" | tr '[:upper:]' '[:lower:]' | tr -d '[
     exit 1
     ;;
 esac
+
+# `ERRORS_PROXY` (zadanie OPS-02, docs/OPERACJE.md § 44) – GlitchTip (śledzenie błędów, profil compose
+# `monitoring`) pod `errors.{$SITE_DOMAIN}` → `glitchtip:8000`. Odczyt i walidacja jak przy LIVEKIT_PROXY.
+# Wyłączony (domyślnie) = wynik bajt w bajt jak dotąd i żadnego wniosku o certyfikat dla `errors.`.
+if [ -z "${ERRORS_PROXY+x}" ] && [ -f "$ROOT/.env" ]; then
+  ERRORS_PROXY="$(sed -n 's/^ERRORS_PROXY=//p' "$ROOT/.env" | tail -n 1 | tr -d '\r\042\047')"
+fi
+case "$(printf '%s' "${ERRORS_PROXY:-}" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')" in
+  1|true|yes|on)   ERRORS_ON=1 ;;
+  ''|0|false|no|off) ERRORS_ON=0 ;;
+  *)
+    echo "render_caddyfile: nie rozumiem ERRORS_PROXY=„${ERRORS_PROXY:-}” (użyj 1/true albo 0/false)" >&2
+    exit 1
+    ;;
+esac
+# `ERRORS_UI_ALLOW` (opcjonalnie, OPS-02 L2) – adresy/podsieci (spacją), z których wolno otworzyć panel
+# GlitchTipa; puste = panel z każdego adresu (za logowaniem GlitchTipa). Wartość trafia do Caddyfile'a
+# jako składnia, więc dopuszczamy wyłącznie znaki adresu IP i maski.
+if [ -z "${ERRORS_UI_ALLOW+x}" ] && [ -f "$ROOT/.env" ]; then
+  ERRORS_UI_ALLOW="$(sed -n 's/^ERRORS_UI_ALLOW=//p' "$ROOT/.env" | tail -n 1 | tr -d '\r\042\047')"
+fi
+ERRORS_UI_ALLOW="$(printf '%s' "${ERRORS_UI_ALLOW:-}" | tr -s '[:space:]' ' ' | sed 's/^ //; s/ $//')"
+for ip in $ERRORS_UI_ALLOW; do
+  if ! [[ $ip =~ ^[0-9A-Fa-f:.]+(/[0-9]{1,3})?$ ]]; then
+    echo "render_caddyfile: „$ip” w ERRORS_UI_ALLOW nie jest adresem IP ani podsiecią" >&2
+    exit 1
+  fi
+done
 
 # Kontrakt tras aplikacji (DJ-02 § 6): dwa wyrażenia generowane z urlconfu `web` przez
 # `manage.py djcms_routes --write` i commitowane. Potrzebny wyłącznie przy DJCMS_ENABLED=1 – bez
@@ -598,6 +627,53 @@ EOF
     '    reverse_proxy livekit:7880' '}' >> "$tmp"
 fi
 
+if [ "$ERRORS_ON" = "1" ]; then
+  # GlitchTip (OPS-02). Bez `import maintenance`: zgłoszenia błędów mają przechodzić także w czasie
+  # przerwy (wtedy są najcenniejsze), a panel GlitchTipa nie zależy od `web`. Limit żądania 10 MB –
+  # koperta zdarzenia z mapą źródeł mieści się z zapasem, a nic większego tu nie przychodzi.
+  # Uwierzytelnienie jest po stronie GlitchTipa (konto administratora, samorejestracja wyłączona).
+  # CORS dla kopert z przeglądarek (SENTRY_BROWSER=1) obsługuje sam GlitchTip.
+  cat >> "$tmp" <<'EOF'
+
+# Wygenerowane przez scripts/render_caddyfile.sh przy ERRORS_PROXY=1 – nie edytuj tego pliku.
+# Śledzenie błędów – GlitchTip (profil `monitoring`, docs/OPERACJE.md § 44). Wymaga rekordu DNS
+# `errors.<domena>`; dopóki go nie ma, blok tylko czeka na certyfikat.
+errors.{$SITE_DOMAIN} {
+EOF
+  if [ "$SUBDOMAINS_ON" = "1" ]; then
+    printf '%s\n' \
+      '    # Zwykły certyfikat (nie on-demand bloku *.) – scripts/render_caddyfile.sh, PLATFORM_SUBDOMAINS=1.' \
+      '    tls {' '        key_type p256' '    }' >> "$tmp"
+  fi
+  if [ -n "$ERRORS_UI_ALLOW" ]; then
+    # Panel GlitchTipa tylko z podanych adresów; przyjmowanie zdarzeń (koperta/store/minidump/raporty
+    # CSP) i sonda `/_health/` – z każdego, bo wysyłają przeglądarki uczestników i monitor dostępności.
+    # `respond` stoi w kolejności dyrektyw Caddy'ego przed `reverse_proxy`, więc odmowa wygrywa.
+    printf '%s\n' \
+      '    # Panel tylko z ERRORS_UI_ALLOW (scripts/render_caddyfile.sh) – przyjmowanie zdarzeń z każdego adresu.' \
+      '    @errors_ui {' \
+      '        not path_regexp ^/api/[0-9]+/(envelope|store|minidump|security)/?$' \
+      '        not path /_health/' \
+      "        not remote_ip $ERRORS_UI_ALLOW" \
+      '    }' \
+      '    respond @errors_ui 403' >> "$tmp"
+  fi
+  printf '%s\n' \
+    '    encode gzip zstd' \
+    '    request_body {' '        max_size 10MB' '    }' \
+    '    reverse_proxy glitchtip:8000 {' \
+    '        header_up X-Forwarded-Proto {scheme}' \
+    '    }' \
+    '    header {' \
+    '        Strict-Transport-Security "max-age=31536000"' \
+    '        X-Content-Type-Options "nosniff"' \
+    '        X-Frame-Options "DENY"' \
+    '        Referrer-Policy "same-origin"' \
+    '        -Server' \
+    '    }' \
+    '}' >> "$tmp"
+fi
+
 mkdir -p "$(dirname "$OUT")"
 cat "$tmp" > "$OUT"
 # Podsumowanie rozszerzane tylko o przełączniki włączone – przy wyłączonych linijka jest ta sama
@@ -606,4 +682,5 @@ extras=""
 [ "$SUBDOMAINS_ON" = "1" ] && extras="$extras, subdomeny platformy: włączone"
 [ "$DJCMS_ON" = "1" ] && extras="$extras, dj. (django CMS): włączone, DJCMS_PRIMARY=$PRIMARY_ON ($DJCMS_MODE)"
 [ "$LIVEKIT_ON" = "1" ] && extras="$extras, live. (LiveKit): włączone"
+[ "$ERRORS_ON" = "1" ] && extras="$extras, errors. (GlitchTip): włączone"
 echo "render_caddyfile: $OUT (domen dodatkowych: $added$extras)"
