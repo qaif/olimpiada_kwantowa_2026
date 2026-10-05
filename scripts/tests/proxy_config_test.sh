@@ -38,10 +38,20 @@ seen() { if [ "$state" = live ]; then cat caddy/Caddyfile; else printf '# stara 
 case "$*" in
   "compose ps -q --status running proxy") [ "$state" = down ] || echo 0123abcd ;;
   # Obraz z compose'a i obraz działającego proxy (proxy_image_changed): domyślnie te same.
-  "compose config") printf 'name: olimpiada\nservices:\n  proxy:\n    image: %s\n' "${STUB_WANT_IMAGE:-caddy:2.10}" ;;
+  # Fragment `docker compose config`: obraz i zmienne proxy (w tym wartość w cudzysłowie YAML-a),
+  # sieci z innym wcięciem – nie mogą trafić do zmiennych.
+  "compose config")
+    printf 'name: olimpiada\nservices:\n  proxy:\n    environment:\n      ACME_EMAIL: ops@olimpiada.example\n'
+    printf '      MAX_UPLOAD_MB: "25"\n      SITE_DOMAIN: olimpiada.example\n    image: %s\n' "${STUB_WANT_IMAGE:-caddy:2.10}"
+    printf '    networks:\n      internal:\n        ipv4_address: 172.30.2.250\n  web:\n    environment:\n      SECRET_KEY: x\n' ;;
   "compose ps --status running --format {{.Image}} proxy") [ "$state" = down ] || echo "${STUB_HAVE_IMAGE:-caddy:2.10}" ;;
-  "compose run --rm --no-deps -T --entrypoint sh proxy -c "*"caddy validate"*)
-    cat >"$BOX/validated"; echo run >"$BOX/validated_by"; exit "${STUB_VALIDATE_RC:-0}" ;;
+  # Walidacja w nowym obrazie: `docker run --network none` z plikiem zamontowanym tylko do odczytu
+  # i zmiennymi z --env-file. STUB_RUN_RC=125 – kontener nie wstał (błąd Dockera, nie konfiguracji).
+  "run --rm --network none --env-file "*" -v "*":/etc/caddy/Caddyfile:ro "*" caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile")
+    [ "${STUB_RUN_RC:-0}" = 0 ] || { echo "docker: Error response from daemon: failed to set up container networking" >&2; exit "$STUB_RUN_RC"; }
+    envf="$6"; mount="$8"; cp "${mount%:/etc/caddy/Caddyfile:ro}" "$BOX/validated"; cp "$envf" "$BOX/validated_env"
+    echo run >"$BOX/validated_by"; echo "$9" >"$BOX/validated_image"
+    [ "${STUB_VALIDATE_RC:-0}" = 0 ] || { echo 'Error: adapting config using caddyfile: zła składnia' >&2; exit "$STUB_VALIDATE_RC"; } ;;
   "compose exec -T proxy sha256sum /etc/caddy/Caddyfile")
     [ "$state" = down ] && { echo "service \"proxy\" is not running" >&2; exit 1; }
     printf '%s  /etc/caddy/Caddyfile\n' "$(seen | sha256sum | cut -d' ' -f1)" ;;
@@ -158,17 +168,33 @@ run_pc vbad render STUB_VALIDATE_RC=1
 check "odrzucony caddy validate: kod ≠ 0, zainstalowany plik bez zmian, bez .next" $?
 
 # 6a. Wdrożenie zmienia obraz proxy (DEP-02: caddy 2.8 → 2.10): walidacja w jednorazowym kontenerze
-# NOWEGO obrazu (`compose run`), nie w działającym starym – stary odrzuciłby `tls force_automate`.
+# NOWEGO obrazu – zwykłe `docker run --network none` (nie `compose run proxy`: stałe ipv4_address proxy
+# są zajęte przez działające proxy, wdrożenie v0.48.5), plik tylko do odczytu, zmienne proxy z compose'a.
 reset_server
 run_pc img render STUB_HAVE_IMAGE=caddy:2.8 STUB_WANT_IMAGE=caddy:2.10
 rc=$?
 [ $rc -eq 0 ] && [ "$(cat "$BOX/validated_by" 2>/dev/null)" = run ] && cmp -s "$BOX/validated" "$SRV/caddy/Caddyfile" \
-  && ! grep -qF 'compose exec -T proxy sh -c' "$WORK/img.docker" && grep -qF 'nowym obrazie caddy:2.10 (działa caddy:2.8)' "$WORK/img.out"
-check "render przy zmianie obrazu proxy: caddy validate w nowym obrazie (compose run), nie w działającym" $?
+  && [ "$(cat "$BOX/validated_image")" = caddy:2.10 ] \
+  && ! grep -qE 'compose exec -T proxy sh -c|compose run' "$WORK/img.docker" && grep -qF 'nowym obrazie caddy:2.10 (działa caddy:2.8)' "$WORK/img.out"
+check "render przy zmianie obrazu proxy: caddy validate w nowym obrazie (docker run --network none), nie w działającym" $?
 show_on_fail $rc "$WORK/img.out"
+[ "$(cat "$BOX/validated_env" 2>/dev/null)" = 'ACME_EMAIL=ops@olimpiada.example
+MAX_UPLOAD_MB=25
+SITE_DOMAIN=olimpiada.example' ]
+check "walidacja w nowym obrazie dostaje zmienne proxy z compose'a (bez cudzysłowów YAML, bez innych usług i sieci)" $?
+[ ! -e "$(sed -n 's/^run --rm --network none --env-file \([^ ]*\) .*/\1/p' "$WORK/img.docker")" ]
+check "plik zmiennych walidacji (z przepustką prac technicznych) usunięty po render" $?
 run_pc imgbad render STUB_HAVE_IMAGE=caddy:2.8 STUB_VALIDATE_RC=1
-[ $? -ne 0 ] && grep -qF 'caddy validate odrzucił nową konfigurację (nowym obrazie caddy:2.10' "$WORK/imgbad.out"
-check "odrzucenie w nowym obrazie: kod ≠ 0 z nazwą obrazu" $?
+[ $? -ne 0 ] && grep -qF 'caddy validate odrzucił nową konfigurację (nowym obrazie caddy:2.10' "$WORK/imgbad.out" \
+  && grep -qF 'zła składnia' "$WORK/imgbad.out" && [ ! -e "$SRV/caddy/Caddyfile.next" ]
+check "odrzucenie w nowym obrazie: kod ≠ 0, błąd Caddy'ego wypisany, z nazwą obrazu" $?
+cp "$SRV/caddy/Caddyfile" "$WORK/caddy.before-run"
+sed -i 's/^EXTRA_DOMAINS=$/EXTRA_DOMAINS=fizyczna.example/' "$SRV/.env"
+run_pc imgnostart render STUB_HAVE_IMAGE=caddy:2.8 STUB_RUN_RC=125
+[ $? -ne 0 ] && grep -qF 'walidacja nie wystartowała (nowym obrazie caddy:2.10 (działa caddy:2.8), kod 125' "$WORK/imgnostart.out" \
+  && grep -qF 'failed to set up container networking' "$WORK/imgnostart.out" \
+  && ! grep -qF 'odrzucił nową konfigurację' "$WORK/imgnostart.out" && cmp -s "$WORK/caddy.before-run" "$SRV/caddy/Caddyfile"
+check "kontener walidacji nie wstał (kod 125): osobny komunikat z błędem Dockera, plik bez zmian" $?
 
 # 7. render przy niedziałającym proxy – bez walidacji, plik zainstalowany (start proxy go wczyta).
 reset_server "" down

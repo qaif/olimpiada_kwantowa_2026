@@ -12,6 +12,15 @@ podsekcją `### <tytuł>` wydania `## v<x.y.z> – <data tagu> – <opis tagu>`.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## [Unreleased] – Walidacja Caddyfile w nowym obrazie bez sieci compose'a (DEP-02a)
+
+- **Poprawka po przerwanym wdrożeniu v0.48.5:** `scripts/proxy_config.sh render` przy zmianie obrazu
+  proxy walidował plik przez `docker compose run proxy`, który nie wstawał – stałe `ipv4_address` proxy
+  zajmuje działające proxy („Address already in use”), a komunikat mówił o złej konfiguracji. Teraz
+  `docker run --rm --network none` z plikiem tylko do odczytu i zmiennymi proxy z `docker compose config`;
+  „walidacja nie wystartowała” (błąd Dockera) jest odróżniona od „caddy validate odrzucił” (błąd
+  Caddy'ego), oba z wypisanym błędem. Produkcja bez zmian – wdrożenie zatrzymało się przed czymkolwiek.
+
 ## [Unreleased] – Obrazy usług: Caddy 2.10, ClamAV 1.5 (DEP-02)
 
 - **Obrazy compose (Dependabot `compose-images`):** `caddy` 2.8 → 2.10, `clamav/clamav` 1.4 → 1.5,
