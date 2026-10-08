@@ -514,3 +514,74 @@ def test_recent_broadcasts_are_scoped_to_one_competition(competition, other_comp
 
     assert recent_broadcasts(competition) == [mine]
     assert recent_broadcasts(None) == []
+
+
+# --- eksport odbiorców do Excela (MSG-EXPORT-01) ----------------------------------------------------
+#
+# Eksport i wysyłka idą jedną drogą (``recipient_users``). Testy pilnują, żeby tak zostało: zbiór
+# adresów w pliku ma być zbiorem adresów wysyłki, dla każdej grupy.
+
+
+def test_export_rows_carry_exactly_the_addresses_of_the_broadcast(competition, other_competition, stage):
+    from apps.accounts.messaging import recipient_rows
+
+    _participant(stage, "Ola@Example.test", first_name="Ola", last_name="Nowak")
+    ParticipantFactory(
+        user=UserFactory(email="bez-wpisu@example.test", first_name="Piotr", last_name="Adamski"),
+        school="LO nr 1",
+    )
+    _veteran("zeszloroczny@example.test", school="LO nr 1")
+    ParticipantFactory(user=UserFactory(email="zablokowany@example.test", is_active=False))
+    ParticipantFactory(user=UserFactory(email="sasiad@example.test"), competition=other_competition)
+    _supervisor("nauczyciel@example.test", competition)
+    _supervisor("nauczyciel-sasiada@example.test", other_competition)
+    ActiveReviewerFactory(user__email="recenzent@example.test")
+
+    base = {"competition": competition, "edition": stage.edition}
+    for group, extra in (
+        (BroadcastGroup.ALL_PARTICIPANTS, {}),
+        (BroadcastGroup.ALL_PARTICIPANTS, ALL_EDITIONS),
+        (BroadcastGroup.ALL_PARTICIPANTS_AND_TEACHERS, {}),
+        (BroadcastGroup.EDITION_PARTICIPANTS, {}),
+        (BroadcastGroup.STAGE_REGISTERED, {"stage": stage}),
+        (BroadcastGroup.SCHOOL_PARTICIPANTS, {"school": "name:LO nr 1", **ALL_EDITIONS}),
+        (BroadcastGroup.SUPERVISORS, {}),
+        (BroadcastGroup.COMMITTEE, {}),
+    ):
+        kwargs = {**base, **extra}
+        addresses = resolve_recipients(group, **kwargs)
+        rows = recipient_rows(group, **kwargs)
+        assert addresses, group
+        assert sorted(email for _, _, email in rows) == addresses, group
+
+
+def test_export_of_participants_and_teachers_has_one_named_row_per_person(competition, other_competition):
+    from apps.accounts.messaging import recipient_rows
+
+    ParticipantFactory(user=UserFactory(email="uczen@example.test", first_name="Ala", last_name="Zielińska"))
+    _supervisor("nauczyciel@example.test", competition, first_name="Ewa", last_name="Bąk")
+    # Ta sama osoba jako uczestnik i nauczyciel – jeden wiersz.
+    both = _supervisor("Oba@Example.test", competition, first_name="Jan", last_name="Mazur")
+    ParticipantFactory(user=both.user, competition=competition)
+    _supervisor("sasiad@example.test", other_competition)
+    ParticipantFactory(user=UserFactory(email="obcy@example.test"), competition=other_competition)
+
+    rows = recipient_rows(
+        BroadcastGroup.ALL_PARTICIPANTS_AND_TEACHERS, competition=competition, **ALL_EDITIONS
+    )
+
+    # Posortowane po nazwisku; adres znormalizowany tak, jak w wysyłce.
+    assert rows == [
+        ("Ewa", "Bąk", "nauczyciel@example.test"),
+        ("Jan", "Mazur", "oba@example.test"),
+        ("Ala", "Zielińska", "uczen@example.test"),
+    ]
+
+
+def test_pasted_address_list_has_no_export_rows():
+    from apps.accounts.messaging import recipient_rows, recipient_users
+
+    assert recipient_rows(BroadcastGroup.CUSTOM) == []
+    assert not recipient_users(BroadcastGroup.CUSTOM).exists()
+    # Wysyłka do wklejonej listy działa jak dotąd – eksport jej po prostu nie obejmuje.
+    assert resolve_recipients(BroadcastGroup.CUSTOM, addresses="a@example.test") == ["a@example.test"]

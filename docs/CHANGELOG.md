@@ -12,6 +12,16 @@ podsekcją `### <tytuł>` wydania `## v<x.y.z> – <data tagu> – <opis tagu>`.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## [Unreleased] – Komunikaty: eksport odbiorców do Excela (MSG-EXPORT-01)
+
+- **„Eksportuj do Excela”** na `/coordinator/messages/` (prośba organizatora z 8.10.2026): plik `.xlsx`
+  z kolumnami Imię, Nazwisko, E-mail dla aktualnie wybranej grupy z jej parametrami – np. do zaproszenia
+  na warsztaty spoza platformy. Odbiorców liczy ta sama ścieżka co wysyłkę (`recipient_users` w
+  `apps/accounts/messaging.py`: zakres konkursu i edycji, tylko konta aktywne z potwierdzonym adresem,
+  jeden wiersz na adres). Tylko koordynator; walidacja tym samym formularzem co podgląd; wklejona lista
+  adresów bez eksportu; audyt `export.generated` (grupa, parametr, liczba wierszy – bez danych);
+  ochrona przed formułami w komórkach. Bez migracji. Specyfikacja: `docs/tasks/MSG-EXPORT-01.md`.
+
 ## [Unreleased] – Walidacja Caddyfile w nowym obrazie bez sieci compose'a (DEP-02a)
 
 - **Poprawka po przerwanym wdrożeniu v0.48.5:** `scripts/proxy_config.sh render` przy zmianie obrazu

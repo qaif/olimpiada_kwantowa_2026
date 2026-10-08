@@ -1,0 +1,31 @@
+# Komunikaty koordynatora: eksport odbiorców do Excela (MSG-EXPORT-01) – katalog aplikacji apps/web.
+# Reszta ekranu /coordinator/messages/ jest jeszcze nietłumaczona (panel polski); tu leżą wyłącznie
+# napisy dodane przez MSG-EXPORT-01, żeby nie ruszać wspólnego backend/locale.
+msgid ""
+msgstr ""
+"Project-Id-Version: olimpiada\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-08 10:00+0200\n"
+"PO-Revision-Date: 2026-10-08 10:00+0200\n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: fr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=3; plural=(n == 0 || n == 1) ? 0 : n != 0 && n % 1000000 == 0 ? 1 : 2;\n"
+
+msgid "Eksportuj do Excela"
+msgstr "Exporter vers Excel"
+
+msgid "„Eksportuj do Excela” pobiera plik .xlsx z imieniem, nazwiskiem i adresem e-mail odbiorców wybranej grupy – np. do zaproszenia wysyłanego spoza platformy. Temat i treść nie są potrzebne; wklejonej listy adresów nie da się eksportować."
+msgstr "« Exporter vers Excel » télécharge un fichier .xlsx avec le prénom, le nom et l’adresse e-mail des destinataires du groupe sélectionné – par exemple pour une invitation envoyée en dehors de la plateforme. L’objet et le texte ne sont pas nécessaires ; une liste d’adresses collée ne peut pas être exportée."
+
+msgid "Wklejonej listy adresów nie da się wyeksportować – to adresy spoza systemu, bez imion i nazwisk. Wybierz grupę uczestników, nauczycieli albo komitetu."
+msgstr "Une liste d’adresses collée ne peut pas être exportée – ce sont des adresses extérieures au système, sans prénoms ni noms. Choisissez un groupe de participants, d’enseignants ou du comité."
+
+msgid "Ta grupa nie ma ani jednego odbiorcy – nie ma czego eksportować."
+msgstr "Ce groupe n’a aucun destinataire – il n’y a rien à exporter."
+
+msgid "Odbiorcy"
+msgstr "Destinataires"

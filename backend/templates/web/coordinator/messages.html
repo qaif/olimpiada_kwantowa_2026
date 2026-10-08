@@ -1,5 +1,5 @@
 {% extends "web/coordinator/base.html" %}
-{% load static web_extras coordinator_extras %}
+{% load i18n static web_extras coordinator_extras %}
 {% comment %}
   Wysyłka komunikatu do grupy odbiorców. Ekran jest dwustopniowy: pierwszy przycisk („Podgląd”)
   pokazuje liczbę odbiorców i treść tak, jak pójdzie w liście, drugi („Wyślij”) wysyła naprawdę.
@@ -62,7 +62,17 @@
           <input type="hidden" name="preview_signature" value="{{ preview.signature }}">
           <button type="submit" name="action" value="send" class="btn btn--primary">Wyślij</button>
         {% endif %}
+        {% comment %}
+          „Eksportuj do Excela” (MSG-EXPORT-01): plik .xlsx z imieniem, nazwiskiem i adresem odbiorców
+          wybranej grupy z jej parametrami – ci sami ludzie, do których poszedłby list. ``formnovalidate``,
+          bo temat i treść nie są do pliku potrzebne, a przeglądarka zatrzymałaby puste pola wymagane.
+          Przy wklejonej liście adresów skrypt przycisk chowa (``data-broadcast-export`` niesie kod tej
+          grupy); bez skryptu serwer odpowie błędem formularza.
+        {% endcomment %}
+        <button type="submit" name="action" value="export" class="btn btn--ghost" formnovalidate
+                data-broadcast-export="{{ no_export_group }}">{% translate "Eksportuj do Excela" %}</button>
       </div>
+      <p class="hint">{% translate "„Eksportuj do Excela” pobiera plik .xlsx z imieniem, nazwiskiem i adresem e-mail odbiorców wybranej grupy – np. do zaproszenia wysyłanego spoza platformy. Temat i treść nie są potrzebne; wklejonej listy adresów nie da się eksportować." %}</p>
     </form>
   </div>
 </section>

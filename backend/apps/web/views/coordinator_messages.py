@@ -28,6 +28,14 @@ wyboru (etapy, regiony, szkoły, klasy, warsztaty tego konkursu), do ``resolve_r
 zapytania o odbiorców) i do ``send_broadcast`` (właściciel wiersza w rejestrze). Wcześniej rejestr
 brał konkurs z odwrotu ``default_competition``, a grupa „członkowie komitetu” nie miała zakresu
 w ogóle – w instalacji z dwiema olimpiadami list do komitetu jednej trafiłby do obu.
+
+**Eksport odbiorców** (MSG-EXPORT-01, prośba organizatora z 8.10.2026): trzeci przycisk tego samego
+formularza, „Eksportuj do Excela”, oddaje plik .xlsx z imieniem, nazwiskiem i adresem odbiorców
+wybranej grupy – np. do zaproszenia wysyłanego spoza platformy. Parametry grupy waliduje ta sama
+forma, co przy podglądzie (bez tematu i treści), a odbiorców liczy ``recipient_rows`` – ta sama
+droga przez ``recipient_users``, co wysyłka, więc plik nie może pokazać kogoś, do kogo list by nie
+poszedł. Wpis audytu (``export.generated``) powstaje przed oddaniem pliku i niesie grupę, jej
+parametr i liczbę wierszy – nigdy dane.
 """
 
 from __future__ import annotations
@@ -39,11 +47,14 @@ from django.shortcuts import redirect
 from django.template.response import TemplateResponse
 from django.urls import reverse
 from django.utils.crypto import constant_time_compare, salted_hmac
+from django.utils.text import slugify
+from django.utils.translation import gettext as _
 from django.views.generic import View
 
 from apps.accounts.messaging import (
     grade_choices,
     recent_broadcasts,
+    recipient_rows,
     resolve_recipients,
     school_choices,
     send_broadcast,
@@ -53,6 +64,8 @@ from apps.accounts.models import BroadcastGroup, Region
 from apps.accounts.services import CUSTOM_REGIONS_FLAG
 from apps.competitions.models import Stage
 from apps.competitions.services import current_edition
+from apps.core.exports import Dataset, xlsx_response
+from apps.core.models import audit
 from apps.web.coordinator_forms import BroadcastForm
 from apps.web.mixins import CoordinatorRequiredMixin
 
@@ -62,6 +75,21 @@ TEMPLATE = "web/coordinator/messages.html"
 #: podglądem – domyślnie zamknięte, bo pomyłka w tę stronę kosztuje jedno kliknięcie więcej,
 #: a w drugą kilka tysięcy listów.
 ACTION_SEND = "send"
+
+#: Wartość pola ``action`` przycisku „Eksportuj do Excela” – plik z odbiorcami zamiast podglądu.
+ACTION_EXPORT = "export"
+
+
+def export_filename(group: str) -> str:
+    """Nazwa pliku eksportu bez daty (datę dokleja ``apps.core.exports``): ``odbiorcy-<grupa>``.
+
+    Z polskiej nazwy grupy, a nie z jej kodu, bo plik ląduje w „Pobranych” obok innych i ma się
+    dać rozpoznać bez otwierania. ``slugify`` zostawia wyłącznie ASCII (nagłówek
+    ``Content-Disposition``), ale „ł” nie ma rozkładu Unicode i bez podmiany by znikało.
+    """
+    label = str(BroadcastGroup(group).label).replace("ł", "l").replace("Ł", "L")
+    return f"odbiorcy-{slugify(label)}"
+
 
 #: Sól podpisu podglądu – osobna przestrzeń HMAC, żeby podpis z tego ekranu nie pasował nigdzie indziej.
 PREVIEW_SALT = "apps.web.views.coordinator_messages.preview"
@@ -98,6 +126,8 @@ class CoordinatorMessagesView(CoordinatorRequiredMixin, View):
         return self._render(request, self._form(request))
 
     def post(self, request):
+        if request.POST.get("action") == ACTION_EXPORT:
+            return self._export(request)
         form = self._form(request, request.POST)
         if not form.is_valid():
             return self._render(request, form)
@@ -142,8 +172,57 @@ class CoordinatorMessagesView(CoordinatorRequiredMixin, View):
         )
         return redirect(reverse("web:coordinator-messages"))
 
+    def _export(self, request):
+        """„Eksportuj do Excela”: plik .xlsx (imię, nazwisko, adres) albo strona z błędami.
+
+        Rolę koordynatora **tego** konkursu sprawdził już ``CoordinatorRequiredMixin``, zanim
+        doszło do ``post`` – eksport nie ma własnej, luźniejszej bramki. Zakres to
+        ``request.competition`` i bieżąca edycja, dokładnie jak przy podglądzie i wysyłce.
+
+        Pusta grupa nie daje pliku z samym nagłówkiem, tylko komunikat: arkusz bez wierszy
+        wygląda jak błąd eksportu, a powód („nikt się jeszcze nie zapisał”) zna tylko ekran.
+        """
+        form = self._form(request, request.POST, for_export=True)
+        if not form.is_valid():
+            return self._render(request, form)
+        group = form.cleaned_data["group"]
+        rows = recipient_rows(
+            group,
+            competition=request.competition,
+            edition=current_edition(request.competition),
+            **form.recipient_kwargs(),
+        )
+        if not rows:
+            django_messages.error(
+                request, _("Ta grupa nie ma ani jednego odbiorcy – nie ma czego eksportować.")
+            )
+            return self._render(request, form)
+        dataset = Dataset(
+            header=[_("Imię"), _("Nazwisko"), _("E-mail")],
+            rows=iter(rows),
+            count=len(rows),
+            title=_("Odbiorcy"),
+            filename=export_filename(group),
+        )
+        # Audyt przed plikiem i bez danych: grupa, jej parametr (etykieta etapu, szkoły…, jak
+        # w ``broadcast.sent``) i liczba wierszy. Obiektem jest konkurs – grupa nie ma wiersza.
+        audit(
+            request.user,
+            "export.generated",
+            request.competition,
+            {
+                "kind": "broadcast_recipients",
+                "format": "xlsx",
+                "group": group,
+                "target": form.target(),
+                "rows": dataset.count,
+            },
+            request=request,
+        )
+        return xlsx_response(dataset)
+
     @staticmethod
-    def _form(request, data=None) -> BroadcastForm:
+    def _form(request, data=None, *, for_export: bool = False) -> BroadcastForm:
         """Formularz z listami wyboru policzonymi **w obrębie konkursu żądania**.
 
         Każda lista jest zamknięta: etap spoza bieżącej edycji, region spoza podziału tego konkursu,
@@ -159,6 +238,7 @@ class CoordinatorMessagesView(CoordinatorRequiredMixin, View):
             schools=school_choices(competition),
             grades=grade_choices(competition),
             workshops=workshop_choices(competition),
+            for_export=for_export,
         )
 
     @staticmethod
@@ -219,5 +299,8 @@ class CoordinatorMessagesView(CoordinatorRequiredMixin, View):
             # i zbiór tych pól dla szablonu (tylko one dostają punkt zaczepienia skryptu).
             "parameter_map": parameter_map,
             "parameter_fields": sorted({field for fields in parameter_map.values() for field in fields}),
+            # Grupa bez eksportu (wklejona lista) – skrypt chowa przy niej „Eksportuj do Excela”;
+            # bez skryptu przycisk zostaje, a serwer odpowiada błędem formularza.
+            "no_export_group": BroadcastGroup.CUSTOM.value,
         }
         return TemplateResponse(request, TEMPLATE, context)
