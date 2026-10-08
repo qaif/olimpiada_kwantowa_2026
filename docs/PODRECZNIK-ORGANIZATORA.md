@@ -1416,6 +1416,31 @@ wysłane wiadomości wchodzą do paczki `/account/export/` (szyfrowane — jako 
 anonimizacja konta zostawia wiadomości w rozmowie drugiej strony z podpisem „Użytkownik usunięty”
 i usuwa profil katalogu, klucz szyfrowania, blokady i ustawienia powiadomień.
 
+#### Ogłoszenia w Wiadomościach — `/coordinator/inbox-announcements/`
+
+Menu **Komunikacja → Ogłoszenia w Wiadomościach** (prośba organizatora z 8.10.2026, np. link do warsztatów
+online). Ogłoszenie widzi **każdy zalogowany uczestnik** konkursu w bloku „Ogłoszenia organizatora” — na
+górze skrzynki `/me/messages/` i na pulpicie `/me/` — **także konta założone po publikacji**: ogłoszenie
+jest czytane w chwili otwarcia strony, a nie rozsyłane do skrzynek. To nie jest wiadomość w rozmowie:
+nie idzie e-mailem i nie da się na nie odpowiedzieć (pytania uczestnicy zadadzą w „Napisz do organizatora”).
+Opiekunowie szkolni i recenzenci Wiadomości nie mają, więc ogłoszeń nie widzą. Pasek nad **wszystkimi**
+stronami serwisu (także dla niezalogowanych) to inna funkcja — rozdział 6.2.
+
+- **Tytuł i treść** — zwykły tekst; wklejony adres (`https://meet.google.com/…`) sam staje się
+  klikalnym odnośnikiem, znaczniki HTML się nie wykonają.
+- **„Zapisz i opublikuj”** pokazuje ogłoszenie od razu; **„Zapisz jako szkic”** — dopiero po „Opublikuj”.
+- **„Wyłącz”** zdejmuje ogłoszenie natychmiast (bez kasowania — można je opublikować ponownie i wróci na
+  górę listy); **„Usuń”** kasuje je na stałe.
+- Opcjonalne **„Widoczne od / do”** — ogłoszenie pojawi się i zniknie samo (stany „zaplanowane”,
+  „wygasło”). Uczestnik widzi naraz najwyżej 10 ogłoszeń, od najnowszego.
+- Ekran działa także przy **wyłączonych Wiadomościach** — wtedy skrzynka uczestnika nie istnieje, ale
+  pulpit `/me/` nadal pokazuje ogłoszenia.
+- Każda zmiana trafia do dziennika zdarzeń (`/coordinator/audit/`, zdarzenia `chat.announcement.*`:
+  `created`, `updated`, `published`, `unpublished`, `deleted`) — z tytułem, bez kopii treści.
+
+Operator może opublikować ogłoszenie także z powłoki (`docs/tasks/CZ-ANN-01.md` § 8):
+`publish_announcement(competition=…, title=…, body=…, actor=None)` z `apps.chat.announcements`.
+
 ### 6.4b Pokoje wideo — `/coordinator/video-rooms/`
 
 Menu **Komunikacja → Pokoje wideo**. Pozycja jest tylko wtedy, gdy olimpiada ma własne Jitsi
