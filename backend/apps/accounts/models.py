@@ -1568,6 +1568,9 @@ class BroadcastGroup(models.TextChoices):
     """
 
     ALL_PARTICIPANTS = "ALL_PARTICIPANTS", "wszyscy uczestnicy konkursu"
+    #: Uczestnicy i nauczyciele jednym listem (prośba organizatora z 8.10.2026 – zaproszenie na
+    #: warsztaty dla uczniów i nauczycieli). Adres, który jest w obu grupach, dostaje list raz.
+    ALL_PARTICIPANTS_AND_TEACHERS = "ALL_PARTICIPANTS_AND_TEACHERS", "wszyscy uczestnicy i nauczyciele"
     EDITION_PARTICIPANTS = "EDITION_PARTICIPANTS", "uczestnicy bieżącej edycji (zapisani do etapu)"
     STAGE_REGISTERED = "STAGE_REGISTERED", "zapisani do etapu"
     STAGE_QUALIFIED = "STAGE_QUALIFIED", "zakwalifikowani do etapu"
@@ -1576,7 +1579,7 @@ class BroadcastGroup(models.TextChoices):
     SCHOOL_PARTICIPANTS = "SCHOOL_PARTICIPANTS", "uczestnicy z wybranej szkoły (placówki)"
     GRADE_PARTICIPANTS = "GRADE_PARTICIPANTS", "uczestnicy z wybranej klasy"
     WORKSHOP_ATTENDEES = "WORKSHOP_ATTENDEES", "uczestnicy obecni na wybranym warsztacie"
-    SUPERVISORS = "SUPERVISORS", "opiekunowie szkolni (nauczyciele)"
+    SUPERVISORS = "SUPERVISORS", "nauczyciele"
     COMMITTEE = "COMMITTEE", "członkowie komitetu"
     COMMITTEE_DISTRICT = "COMMITTEE_DISTRICT", "komitet jednego województwa"
     CUSTOM = "CUSTOM", "wklejona lista adresów"

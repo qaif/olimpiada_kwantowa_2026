@@ -452,6 +452,29 @@ def test_supervisors_group_follows_memberships_when_they_are_enforced(competitio
     assert resolve_recipients(BroadcastGroup.SUPERVISORS, competition=competition) == [member.user.email]
 
 
+def test_participants_and_teachers_group_sends_once_to_both(competition, other_competition):
+    """Prośba organizatora z 8.10.2026: zaproszenie na warsztaty do uczniów i nauczycieli jednym listem."""
+    student = _plain("uczen@example.test", competition=competition)
+    teacher = _supervisor("nauczyciel@example.test", competition)
+    # Ta sama osoba jako uczestnik i nauczyciel – jeden adres na liście.
+    both = _supervisor("oba@example.test", competition)
+    ParticipantFactory(user=both.user, competition=competition)
+    _supervisor("sasiad@example.test", other_competition)
+    ParticipantFactory(user=UserFactory(email="obcy@example.test"), competition=other_competition)
+
+    recipients = resolve_recipients(
+        BroadcastGroup.ALL_PARTICIPANTS_AND_TEACHERS, competition=competition, **ALL_EDITIONS
+    )
+
+    assert sorted(recipients) == sorted([student.user.email, teacher.user.email, "oba@example.test"])
+    assert len(recipients) == len(set(recipients))
+
+
+def test_teachers_group_label():
+    assert BroadcastGroup.SUPERVISORS.label == "nauczyciele"
+    assert BroadcastGroup.ALL_PARTICIPANTS_AND_TEACHERS.label == "wszyscy uczestnicy i nauczyciele"
+
+
 def test_committee_group_never_reaches_another_competition(competition, other_competition):
     mine = ActiveReviewerFactory()
     ActiveReviewerFactory(competition=other_competition)
