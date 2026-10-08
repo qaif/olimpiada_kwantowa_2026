@@ -27,6 +27,7 @@ tylko ``backend/``, jest pomijany; CI uruchamia go z pełnego checkoutu. Bez Dja
 
 from __future__ import annotations
 
+import functools
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -156,13 +157,17 @@ def section_exists(numbers: set[str], number: str) -> bool:
     return number in numbers or any(n.startswith(number + ".") for n in numbers)
 
 
+@functools.cache
+def _doc_name_pattern(names: frozenset[str]) -> re.Pattern[str]:
+    """Wzorzec nazwy dokumentu – składany raz na zbiór nazw, a nie raz na wiersz (ok. 200 nazw)."""
+    stems = "|".join(map(re.escape, sorted(names, key=len, reverse=True)))
+    return re.compile(rf"(?<![\w-])(?:docs/)?(?:tasks/)?({stems})(\.md)?(?![\w-])")
+
+
 def _doc_mentions(line: str, docs: dict[str, set[str]]) -> list[tuple[int, int, str | None]]:
     """Nazwy dokumentów w wierszu: (początek, koniec, dokument albo ``None`` = spoza ``docs/``)."""
     found: list[tuple[int, int, str | None]] = []
-    stems = "|".join(map(re.escape, sorted(docs, key=len, reverse=True)))
-    for m in re.finditer(
-        rf"(?<![\w-])(?:docs/)?(?:tasks/)?({stems})(\.md)?(?![\w-])", line.translate(_ASCII)
-    ):
+    for m in _doc_name_pattern(frozenset(docs)).finditer(line.translate(_ASCII)):
         bare_code = not m.group(2) and TASK_CODE.match(m.group(1))
         # Kod zadania bez „.md” jest nazwą dokumentu tylko tuż przed „§” („THEME-02 § 2.3”); w „(QC-02,
         # § 40.7)” albo „od OPS-04 – § 48” to etykieta zmiany, a § należy do dokumentu wokół.
@@ -184,9 +189,20 @@ def extract_refs(path: Path, docs: dict[str, set[str]], text: str | None = None)
     own = _stem(path.stem) if rel.startswith("docs/") else None
     if text is None:
         text = path.read_text(encoding="utf-8", errors="replace")
+    # Bez „§” nie ma odwołań – tak wygląda zdecydowana większość plików kodu, a szukanie nazw
+    # dokumentów w każdym ich wierszu kosztowało w CI 30–40 s na przebieg.
+    if "§" not in text:
+        return []
     refs: list[Ref] = []
     carry: tuple[str | None] | None = None  # łańcuch, który doszedł do końca poprzedniego wiersza
-    for lineno, line in enumerate(text.splitlines(), 1):
+    lines = text.splitlines()
+    for lineno, line in enumerate(lines, 1):
+        # Nazwy dokumentów w wierszu liczą się tylko dla odwołań tego wiersza i dla łańcucha
+        # przenoszonego do **następnego** – a ten działa wyłącznie wtedy, gdy następny ma „§”.
+        # Wiersz bez „§” przed wierszem bez „§” nie zmienia więc wyniku; pomijamy go w całości.
+        if "§" not in line and (lineno == len(lines) or "§" not in lines[lineno]):
+            carry = None
+            continue
         mentions = _doc_mentions(line, docs)
         # (dokument, koniec, ustępuje) ostatniego ogniwa łańcucha. Łańcuch z poprzedniego wiersza
         # i nazwa, która była dopiskiem poprzedniego odwołania („§ 5.3 DJ-01.md; … § 4.4 … DJ-02.md”),
