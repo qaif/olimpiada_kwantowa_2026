@@ -510,6 +510,7 @@ def test_past_editions_switch_is_offered_only_to_the_groups_it_affects(web_clien
     with_switch = {group for group, fields in mapping.items() if "include_past_editions" in fields}
     assert with_switch == {
         BroadcastGroup.ALL_PARTICIPANTS,
+        BroadcastGroup.ALL_PARTICIPANTS_AND_TEACHERS,
         BroadcastGroup.REGION_PARTICIPANTS,
         BroadcastGroup.SCHOOL_PARTICIPANTS,
         BroadcastGroup.GRADE_PARTICIPANTS,

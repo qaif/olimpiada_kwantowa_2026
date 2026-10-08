@@ -96,6 +96,7 @@ STAGE_GROUPS = frozenset(
 EDITION_SCOPED_GROUPS = frozenset(
     {
         BroadcastGroup.ALL_PARTICIPANTS,
+        BroadcastGroup.ALL_PARTICIPANTS_AND_TEACHERS,
         BroadcastGroup.REGION_PARTICIPANTS,
         BroadcastGroup.SCHOOL_PARTICIPANTS,
         BroadcastGroup.GRADE_PARTICIPANTS,
@@ -136,6 +137,22 @@ def _competition_for(competition, *, edition=None, stage=None):
     if anchor is not None and anchor.pk != competition.pk:
         return None
     return competition
+
+
+def _supervisor_emails(competition) -> list[str]:
+    """Adresy nauczycieli (opiekunów szkolnych) **tego** konkursu.
+
+    Profil opiekuna konkursu i rola ``supervisor`` w nim – ta sama definicja, co
+    w ``apps.accounts.supervisors.supervisor_profile``. Sam profil bez roli (rola odebrana)
+    nie czyni nikogo opiekunem, więc nie czyni też adresatem.
+    """
+    supervisors = SchoolSupervisor.objects.for_competition(competition)
+    return _emails(
+        User.objects.filter(DELIVERABLE, _role_filter(competition, GROUP_SUPERVISOR))
+        .filter(pk__in=supervisors.values("user_id"))
+        .values_list("email", flat=True)
+        .distinct()
+    )
 
 
 def _participant_emails(participants) -> list[str]:
@@ -365,6 +382,10 @@ def resolve_recipients(
 
     if group == BroadcastGroup.ALL_PARTICIPANTS:
         return _participant_emails(participants)
+    if group == BroadcastGroup.ALL_PARTICIPANTS_AND_TEACHERS:
+        # Suma dwóch grup przez ``_emails`` – ta sama normalizacja i usuwanie powtórzeń (nauczyciel,
+        # który jest też uczestnikiem, dostaje list raz).
+        return _emails([*_participant_emails(participants), *_supervisor_emails(competition)])
     if group == BroadcastGroup.EDITION_PARTICIPANTS:
         if edition is None:
             return []
@@ -427,16 +448,7 @@ def resolve_recipients(
         attended = WorkshopAttendance.objects.filter(workshop_key=workshop).values("participant_id")
         return _participant_emails(participants.filter(pk__in=attended))
     if group == BroadcastGroup.SUPERVISORS:
-        # Profil opiekuna **tego** konkursu i rola ``supervisor`` w nim – ta sama definicja, co
-        # w ``apps.accounts.supervisors.supervisor_profile``. Sam profil bez roli (rola odebrana)
-        # nie czyni nikogo opiekunem, więc nie czyni też adresatem.
-        supervisors = SchoolSupervisor.objects.for_competition(competition)
-        return _emails(
-            User.objects.filter(DELIVERABLE, _role_filter(competition, GROUP_SUPERVISOR))
-            .filter(pk__in=supervisors.values("user_id"))
-            .values_list("email", flat=True)
-            .distinct()
-        )
+        return _supervisor_emails(competition)
     if group in (BroadcastGroup.COMMITTEE, BroadcastGroup.COMMITTEE_DISTRICT):
         # Ta sama definicja „aktywnego recenzenta”, co w ``apps.grading.services.reviewer_pool``:
         # status ACTIVE **i** rola ``reviewer``. Komunikat do komitetu nie może trafić do osoby,
