@@ -1129,6 +1129,16 @@ zmienisz grupę, jej parametr, pole „także uczestnicy poprzednich edycji”, 
 **nic nie wyśle** — pokaże podgląd na nowo
 („…zmieniły się od podglądu”) i dopiero kolejne „Wyślij” wysyła.
 
+**„Eksportuj do Excela”** (przycisk obok „Podgląd”) pobiera plik `.xlsx` z kolumnami **Imię, Nazwisko,
+E-mail** — odbiorcy **aktualnie wybranej grupy** z jej ustawieniami (etap, województwo/region, szkoła,
+klasa, warsztat, „także uczestnicy poprzednich edycji”). To dokładnie te osoby, do których poszedłby
+list (bez kont zablokowanych i niepotwierdzonych, jedna osoba — jeden wiersz), np. do zaproszenia na
+warsztaty wysyłanego z własnej poczty. Temat i treść nie są potrzebne, a eksport niczego nie wysyła.
+Brak wymaganego parametru (np. szkoły) pokazuje błąd zamiast pliku; pusta grupa — komunikat. **Wklejonej
+listy adresów** eksportować się nie da (przycisk znika). Każde pobranie zostaje w audycie
+(`export.generated`, rodzaj `broadcast_recipients`: grupa i liczba wierszy, bez danych). Plik zawiera
+dane osobowe — nie przesyłaj go dalej i usuń, gdy przestanie być potrzebny.
+
 Każdy odbiorca dostaje **osobną kopertę**. Wysyłka idzie porcjami, więc awaria jednej porcji nie kasuje
 reszty. Każda wysyłka zostaje w sekcji **„Wysłane komunikaty”** (autor, data, grupa **z wybranym etapem,
 regionem, szkołą, klasą albo warsztatem**, temat, treść, liczba odbiorców, stan) — **rejestr nie trzyma
