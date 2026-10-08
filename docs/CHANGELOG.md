@@ -12,6 +12,25 @@ podsekcją `### <tytuł>` wydania `## v<x.y.z> – <data tagu> – <opis tagu>`.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## [Unreleased] – Szybsze CI: grupy xdist, jedna migracja na shard, czasy z CI (CI-SPEED-01)
+
+- **Testy migracji przewijały bazę raz na test, a nie raz na moduł** (prośba organizatora z 8.10.2026
+  „testy trwają za długo”): `conftest.py` przełączał `-n` na `--dist loadgroup` tylko w procesie
+  sterującym, workery xdist o tym nie wiedziały i nie grupowały testów – moduł migracji rozjeżdżał się
+  po workerach, a każdy jego test płacił 1,5–3 min za przewinięcie. Decyzja idzie teraz do workerów
+  (`pytest_configure_node`), a pytest-split widzi czasy testów migracji także pod identyfikatorem z grupą.
+- **Bazy testowe w CI:** migracje raz na shard (`backend/ci_test_db.py`) i kopie dla workerów
+  (`CREATE DATABASE … TEMPLATE`, `--reuse-db`) zamiast czterech migracji naraz w każdym shardzie.
+- **Podział na shardy:** `backend/.test_durations` przeliczony do proporcji CI (ok. 40 % testów nie
+  miało w nim czasu); każdy shard wystawia artefakt `test-durations-<n>`, a
+  `scripts/refresh_test_durations.py <run-id>` składa z nich nowy plik (docs/TESTY.md § 5).
+- `test_docs_section_refs` 30–40 s → ok. 1 s (pliki i wiersze bez „§” pomijane, ten sam wynik).
+- **Losowy test usunięty u źródła:** długość przepustki Jitsi liczona od `nbf` zamiast od `iat`
+  (`test_video_join.py`, `test_video_rooms.py`) – na granicy sekundy wychodziło 1799 zamiast 1800.
+- **Usunięte duplikaty (3 testy, 8 przypadków):** w `cms/tests/test_djcms_api_v2.py` dwa testy
+  identyczne co do adresu, danych i asercji z testami w `test_djcms_api.py`; w
+  `themes/tests/test_review_fixes.py` test zawarty w `test_install.py::test_delete_unused_version_removes_files`.
+
 ## [Unreleased] – Komunikaty: grupa „uczestnicy bez zaświadczenia o statusie ucznia”
 
 - Nowa grupa odbiorców na `/coordinator/messages/` (prośba organizatora z 8.10.2026): uczestnicy bieżącej

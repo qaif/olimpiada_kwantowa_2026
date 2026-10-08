@@ -1844,6 +1844,11 @@ na ciągłe kawałki zbioru według zmierzonych czasów (`backend/.test_duration
 `--splitting-algorithm duration_based_chunks`). Postgres CI dostaje przed testami
 `max_locks_per_transaction = 256` (jak produkcja i dev) i wyłączony `fsync`.
 
+Od 8.10.2026 (CI-SPEED-01): migracje bazy testowej idą raz na shard, a workery dostają jej kopie
+(`backend/ci_test_db.py`, `--reuse-db`); moduł testów migracji trafia w całości do jednego workera
+(poprawka przekazania `loadgroup` workerom xdist w `backend/conftest.py`); każdy shard wystawia
+artefakt `test-durations-<n>`, z którego `scripts/refresh_test_durations.py` odświeża plik czasów.
+
 Uruchamianie lokalne (szybka pętla, xdist, markery), odświeżanie pliku czasów i zasady dopisywania
 testów: **[`docs/TESTY.md`](TESTY.md)**.
 
