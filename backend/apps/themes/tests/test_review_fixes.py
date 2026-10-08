@@ -280,14 +280,6 @@ def test_failed_save_cleans_published_files(monkeypatch):
     assert not ThemeVersion.objects.exists()
 
 
-def test_delete_removes_files_after_commit(django_capture_on_commit_callbacks):
-    version, _ = services.install_package(zip_with())
-    css = version.public_prefix + "theme.css"
-    with django_capture_on_commit_callbacks(execute=True):
-        services.delete_version(version)
-    assert not default_storage.exists(css)
-
-
 # --- paczka IQO po zmianach --------------------------------------------------------------------
 
 

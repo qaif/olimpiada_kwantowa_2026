@@ -99,18 +99,38 @@ def test_backfill(rewound):
 
 `.github/workflows/ci.yml`: `ruff`, `makemigrations --check` i `msgfmt --check` idą jako osobne,
 równoległe zadania; `pytest` w **pięciu shardach** (`pytest (shard i/5)`, każdy z własnym Postgresem
-i `-n auto`), a wymaganym statusem jest `pytest (wynik zbiorczy)`. Podział na shardy:
+i `-n` = liczba rdzeni runnera), a wymaganym statusem jest `pytest (wynik zbiorczy)`. Podział na shardy:
 `pytest-split --splitting-algorithm duration_based_chunks` według `backend/.test_durations`
 (ciągłe kawałki zbioru – moduł z drogą fiksturą nie rozjeżdża się na kilka shardów).
 
-**Odświeżenie `.test_durations`** – gdy shardy wyraźnie się rozjadą (najdłuższy ≥ 1,5 × najkrótszy):
+**Bazy testowe w shardzie** (od 8.10.2026): krok „Bazy testowe” migruje **raz**
+(`backend/ci_test_db.py`) i klonuje bazę dla każdego workera (`CREATE DATABASE … TEMPLATE`, nazwy
+`test_olimpiada_gw0` …), a `pytest` idzie z `--reuse-db`. Wcześniej każdy worker migrował swoją bazę
+od zera, cztery naraz – 1,5–2,5 min przed pierwszym testem.
+
+**Grupy xdist** (od 8.10.2026): `conftest.py` zamienia `-n` na `--dist loadgroup` i – to była
+brakująca połowa – przekazuje tę decyzję workerom (`pytest_configure_node`). Bez tego worker nie
+doklejał grupy do identyfikatora testu, harmonogram działał jak `load`, a testy jednego modułu
+migracji trafiały do różnych workerów i **każdy test** przewijał bazę od nowa (w CI 1,5–3 min na
+test). Lokalne `pytest -n …` korzysta z tej samej poprawki.
+
+**Odświeżenie `.test_durations`** – gdy shardy wyraźnie się rozjadą (najdłuższy ≥ 1,5 × najkrótszy).
+Każdy shard CI mierzy czasy swoich testów (`-p _durations_plugin`, bez kosztu baz workerów) i wystawia
+je jako artefakt `test-durations-<n>` (14 dni). Z przebiegu, w którym przeszły wszystkie shardy:
 
 ```bash
-docker compose exec -T web python -m pytest -q --create-db -p _durations_plugin
+python scripts/refresh_test_durations.py <run-id>     # gh run list --workflow ci.yml
+git add backend/.test_durations                       # i commit jak każdy inny plik
 ```
 
-Wtyczka (`backend/_durations_plugin.py`) działa też z `-n auto` i nadpisuje plik; commituje się go
-jak każdy inny. Nowy test, którego w pliku nie ma, dostaje czas średni.
+Pomiar z CI, a nie ze stacji deweloperskiej, bo proporcje są inne (testy CMS-u z seedami są na
+runnerze ok. 4× droższe względem reszty niż na 32 rdzeniach). Lokalny pomiar nadal działa
+(`python -m pytest -q --create-db -p _durations_plugin`, także z `-n`), ale nadaje się do podziału
+w CI tylko orientacyjnie. Nowy test, którego w pliku nie ma, dostaje czas średni.
+
+Plik z 8.10.2026 to **kalibracja przejściowa**: czasy z 25.09.2026 przeliczone współczynnikami
+dopasowanymi do czasów shardów dwóch przebiegów CI (CMS × 3,7, moduły migracji × 3,2, reszta × 0,8;
+testy dopisane po 25.09 – średnia swojego modułu). Do zastąpienia pierwszym pomiarem z CI.
 
 **Pliki spoza `backend/` w testach** (notatniki kwantowe, QC-01): zgodność polityki CSP
 z `deploy/Caddyfile` i konfiguracja `docker-compose.yml` są czytane ze ścieżek względem korzenia

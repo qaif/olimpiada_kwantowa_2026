@@ -271,11 +271,12 @@ jobs:
     # Podział jest po **zmierzonym czasie**, nie po liczbie testów: `backend/.test_durations`
     # niesie czas każdego testu, a `--splitting-algorithm duration_based_chunks` tnie zbiór na ciągłe
     # kawałki tak, żeby shardy kończyły mniej więcej razem. W każdym shardzie testy idą dodatkowo
-    # równolegle (`-n auto`, pytest-xdist) – docs/TESTY.md. Podział po liczbie dawał shardy od 2 do 17 minut, bo
+    # równolegle (`-n` = rdzenie runnera, pytest-xdist) – docs/TESTY.md. Podział po liczbie dawał shardy od 2 do 17 minut, bo
     # testy PDF-ów, pieczęci elektronicznej i cofania migracji ważą wielokrotnie więcej niż reszta
     # i stoją obok siebie. Test, którego w pliku nie ma (nowy), dostaje czas średni – plik nie
     # musi więc być aktualny co do testu, wystarczy odświeżyć go, gdy shardy znów się rozjadą:
-    # pełny przebieg z wtyczką zapisującą czasy (opis w `docs/TESTY.md`).
+    # `scripts/refresh_test_durations.sh <run-id>` z artefaktów `test-durations-*` tego joba
+    # (opis w `docs/TESTY.md` § 5).
     name: "pytest (shard ${{ matrix.shard }}/${{ strategy.job-total }})"
     runs-on: ubuntu-latest
     strategy:
@@ -395,19 +396,48 @@ jobs:
           until docker exec "$PG" pg_isready -U olimpiada -d olimpiada; do sleep 1; done
           docker exec "$PG" psql -U olimpiada -d olimpiada -Atc "SHOW max_locks_per_transaction"
 
-      # ``-n auto`` = tyle workerów, ile rdzeni ma runner (4); każdy dostaje własną bazę testową.
-      # ``conftest.py`` zamienia ``-n`` na ``--dist loadgroup``, więc moduł testów migracji idzie
-      # w całości do jednego workera (przewinięcie bazy liczy się raz na moduł).
+      # Migracje **raz** na shard, potem kopia bazy dla każdego workera (``CREATE DATABASE …
+      # TEMPLATE``, ``backend/ci_test_db.py``). Do 8.10.2026 każdy z czterech workerów migrował
+      # własną bazę od zera, wszystkie naraz na czterech rdzeniach: 1,5–2,5 min przed pierwszym
+      # testem w każdym shardzie. Liczba workerów = rdzenie runnera, podana jawnie i tu, i w
+      # ``-n`` niżej – kopie muszą mieć dokładnie te nazwy, których szuka pytest-django
+      # (``test_olimpiada_gw0`` …). Zabraknie którejś – pytest-django założy ją sam, tylko wolniej.
+      - name: Bazy testowe (migracje raz, kopie dla workerów)
+        working-directory: backend
+        run: |
+          set -eu
+          echo "WORKERS=$(nproc)" >> "$GITHUB_ENV"
+          python ci_test_db.py "$(nproc)"
+
+      # ``-n $WORKERS`` = tyle workerów, ile rdzeni ma runner (4); ``--reuse-db`` – bazy z kroku
+      # wyżej (``migrate`` niczego już nie stosuje). ``conftest.py`` zamienia ``-n`` na ``--dist
+      # loadgroup`` i przekazuje to workerom, więc moduł testów migracji idzie w całości do jednego
+      # workera (przewinięcie bazy liczy się raz na moduł, a nie raz na test – docs/TESTY.md § 4).
       #
       # ``duration_based_chunks``, a nie ``least_duration``: shard dostaje **ciągły** kawałek zbioru,
       # więc moduł z drogą fiksturą modułu (przewinięta baza) nie jest rozrzucany po pięciu
       # shardach, z których każdy płaciłby za nią osobno.
+      #
+      # ``-p _durations_plugin``: przy okazji przebieg mierzy czasy swoich testów (bez kosztu baz
+      # workerów) – artefakt ``test-durations-<shard>`` niżej. Z pięciu takich plików
+      # ``scripts/refresh_test_durations.sh`` składa nowe ``backend/.test_durations``, gdy shardy
+      # się rozjadą – pomiar z tej samej maszyny, na której podział ma działać.
       - name: pytest
         working-directory: backend
+        env:
+          TEST_DURATIONS_FILE: ${{ runner.temp }}/test-durations-${{ matrix.shard }}.json
         run: >-
-          python -m pytest -q --create-db --durations=20 -n auto
+          python -m pytest -q --reuse-db --durations=20 -n "$WORKERS" -p _durations_plugin
           --splits ${{ strategy.job-total }} --group ${{ matrix.shard }}
           --splitting-algorithm duration_based_chunks
+
+      - name: Czasy testów (artefakt do odświeżenia .test_durations)
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: test-durations-${{ matrix.shard }}
+          path: ${{ runner.temp }}/test-durations-${{ matrix.shard }}.json
+          if-no-files-found: ignore
+          retention-days: 14
 
   djcms:
     # Wersja porównawcza na django CMS (`djcms/`, docs/tasks/DJ-01.md) – osobny projekt Django

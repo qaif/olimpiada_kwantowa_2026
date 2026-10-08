@@ -20,6 +20,7 @@ from django.utils import timezone
 
 from apps.accounts.tests.factories import CoordinatorFactory, ParticipantFactory, UserFactory
 from apps.competitions.interviews import book_slot, cancel_booking
+from apps.competitions.jitsi_jwt import CLOCK_SKEW_SECONDS
 from apps.competitions.models import InterviewSlot, StageEntryStatus
 from apps.competitions.tests.factories import CurrentEditionFactory, InterviewStageFactory, StageEntryFactory
 from apps.competitions.video import VideoProvider
@@ -129,7 +130,10 @@ def test_precheck_pass_is_for_the_test_room_only(jitsi, stage, participant):
     assert response.status_code == 302
     claims = token_from(response["Location"])
     assert claims["room"] == booking.meeting_url.rsplit("/", 1)[1] + "-test"
-    assert claims["exp"] - claims["iat"] == 30 * 60
+    # Długość przepustki liczymy od ``nbf``, a nie od ``iat``: ``exp`` i ``nbf`` wychodzą z jednego
+    # odczytu zegara w widoku, a ``iat`` z drugiego, chwilę później – na granicy sekundy różnica
+    # wychodziła 1799 zamiast 1800 i test padał losowo (CI, 5.10.2026).
+    assert claims["exp"] - claims["nbf"] == 30 * 60 + CLOCK_SKEW_SECONDS
     assert "moderator" not in claims["context"]["user"]
 
 
