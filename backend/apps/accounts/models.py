@@ -1600,6 +1600,15 @@ class BroadcastStatus(models.TextChoices):
     QUEUED = "QUEUED", "w kolejce"
     SENT = "SENT", "przekazana do wysyłki"
     FAILED = "FAILED", "nieudana"
+    #: Komunikaty z datą przyszłą (MSG-SCHED-01). ``SCHEDULED`` czeka na termin, a w chwili wysyłki
+    #: przechodzi w dotychczasowy tok (``QUEUED`` → ``SENT``). Trzy stany końcowe bez wysyłki są
+    #: rozdzielone celowo: „anulowana” zrobił człowiek, „przeterminowana” – awaria kolejki dłuższa
+    #: niż doba (``apps.accounts.messaging.SCHEDULE_GRACE``), a „bez odbiorców” – grupa, która
+    #: w chwili wysyłki była pusta. Każdy z nich wymaga od koordynatora innej reakcji.
+    SCHEDULED = "SCHEDULED", "zaplanowana"
+    CANCELLED = "CANCELLED", "anulowana"
+    EXPIRED = "EXPIRED", "przeterminowana – nie wysłano"
+    EMPTY = "EMPTY", "bez odbiorców – nic nie wysłano"
 
 
 class MessageBroadcast(models.Model):
@@ -1662,6 +1671,17 @@ class MessageBroadcast(models.Model):
     status = models.CharField(
         "stan", max_length=16, choices=BroadcastStatus.choices, default=BroadcastStatus.QUEUED
     )
+    #: Termin wysyłki zaplanowanej (MSG-SCHED-01) – pusty przy wysyłce natychmiastowej. Indeks, bo
+    #: zadanie beat co minutę pyta o „zaplanowane z terminem do teraz”.
+    scheduled_for = models.DateTimeField("termin wysyłki", null=True, blank=True, db_index=True)
+    #: Argumenty ``resolve_recipients`` dla wysyłki zaplanowanej, w postaci JSON: identyfikatory
+    #: (``stage``, ``region``), wartości (``district``, ``school``, ``grade``, ``workshop``)
+    #: i ``include_past_editions``. Odbiorców liczymy **w chwili wysyłki**, nie planowania, więc
+    #: wiersz musi nieść grupę w postaci, z której da się ją policzyć jeszcze raz. ``target`` się do
+    #: tego nie nadaje: to opis do historii (etykieta z chwili zaplanowania), region trzyma kodem,
+    #: a przełącznik edycji – pod inną nazwą. Adresów tu nie ma nigdy (wklejonej listy nie da się
+    #: zaplanować – ``apps.accounts.messaging.schedule_broadcast``).
+    parameters = models.JSONField("parametry wysyłki", default=dict, blank=True)
 
     #: Własna kolumna konkursu – domyślna ścieżka queryseta.
     objects = CompetitionScopedManager()

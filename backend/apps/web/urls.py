@@ -994,6 +994,12 @@ urlpatterns = [
         coordinator_messages.CoordinatorMessagesView.as_view(),
         name="coordinator-messages",
     ),
+    # Anulowanie zaplanowanego komunikatu (MSG-SCHED-01) – sam POST, wiersz w zakresie konkursu.
+    path(
+        "coordinator/messages/<int:pk>/cancel/",
+        coordinator_messages.CoordinatorBroadcastCancelView.as_view(),
+        name="coordinator-message-cancel",
+    ),
     path(
         "coordinator/audit/",
         coordinator_reports.AuditBrowserView.as_view(),

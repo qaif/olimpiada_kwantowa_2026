@@ -1,6 +1,6 @@
 # Komunikaty koordynatora: eksport odbiorców do Excela (MSG-EXPORT-01) – katalog aplikacji apps/web.
 # Reszta ekranu /coordinator/messages/ jest jeszcze nietłumaczona (panel polski); tu leżą wyłącznie
-# napisy dodane przez MSG-EXPORT-01, żeby nie ruszać wspólnego backend/locale.
+# napisy dodane przez MSG-EXPORT-01 i MSG-SCHED-01, żeby nie ruszać wspólnego backend/locale.
 msgid ""
 msgstr ""
 "Project-Id-Version: olimpiada\n"
@@ -29,3 +29,64 @@ msgstr "इस समूह में एक भी प्राप्तकर�
 
 msgid "Odbiorcy"
 msgstr "प्राप्तकर्ता"
+
+# Komunikaty z datą przyszłą (MSG-SCHED-01).
+
+#, python-format
+msgid "Termin wysyłki musi przypadać co najmniej %(minutes)s minut od teraz."
+msgstr "भेजने का समय अभी से कम से कम %(minutes)s मिनट बाद होना चाहिए।"
+
+#, python-format
+msgid "Termin wysyłki może przypadać najwyżej %(days)s dni od teraz."
+msgstr "भेजने का समय अभी से अधिकतम %(days)s दिन बाद हो सकता है।"
+
+msgid "Wklejonej listy adresów nie da się zaplanować – adresów spoza systemu nie przechowujemy. Wyślij ją od razu."
+msgstr "चिपकाई गई पतों की सूची निर्धारित नहीं की जा सकती – हम सिस्टम के बाहर के पते संग्रहीत नहीं करते। इसे तुरंत भेजें।"
+
+#, python-format
+msgid "Nieznany parametr grupy odbiorców: %(name)s."
+msgstr "प्राप्तकर्ता समूह का अज्ञात पैरामीटर: %(name)s।"
+
+msgid "Komunikat musi należeć do konkursu."
+msgstr "संदेश किसी प्रतियोगिता से संबंधित होना चाहिए।"
+
+msgid "Zaplanować komunikat może wyłącznie koordynator tego konkursu."
+msgstr "केवल इस प्रतियोगिता का समन्वयक ही संदेश निर्धारित कर सकता है।"
+
+#, python-format
+msgid "Ta grupa odbiorców wymaga parametru: %(names)s."
+msgstr "इस प्राप्तकर्ता समूह के लिए एक पैरामीटर आवश्यक है: %(names)s।"
+
+msgid "Wyślij później (data i godzina, czas polski)"
+msgstr "बाद में भेजें (तारीख और समय, पोलैंड का समय)"
+
+msgid "Puste pole – komunikat wychodzi od razu. Odbiorców policzymy ponownie w chwili wysyłki: list dostanie też ktoś, kto zarejestruje się do tego czasu."
+msgstr "खाली छोड़ने पर संदेश तुरंत भेजा जाएगा। भेजते समय प्राप्तकर्ताओं की गिनती फिर से होगी: तब तक पंजीकरण करने वाले को भी संदेश मिलेगा।"
+
+#, python-format
+msgid "Komunikat zaplanowany na %(when)s. Odbiorców policzymy ponownie w chwili wysyłki."
+msgstr "संदेश %(when)s के लिए निर्धारित किया गया। भेजते समय प्राप्तकर्ताओं की गिनती फिर से होगी।"
+
+msgid "Zaplanowany komunikat anulowany – nie zostanie wysłany."
+msgstr "निर्धारित संदेश रद्द किया गया – यह नहीं भेजा जाएगा।"
+
+msgid "Tego komunikatu nie da się już anulować – został wysłany albo anulowany wcześniej."
+msgstr "यह संदेश अब रद्द नहीं किया जा सकता – यह पहले ही भेजा या रद्द किया जा चुका है।"
+
+msgid "Zaplanuj"
+msgstr "निर्धारित करें"
+
+msgid "Termin wysyłki:"
+msgstr "भेजने का समय:"
+
+msgid "Liczba odbiorców jest liczbą na teraz. Lista zostanie policzona ponownie w chwili wysyłki – list dostaną też osoby, które dołączą do grupy do tego czasu."
+msgstr "प्राप्तकर्ताओं की संख्या अभी की है। भेजते समय सूची फिर से गिनी जाएगी – तब तक समूह में जुड़ने वालों को भी संदेश मिलेगा।"
+
+msgid "Zaplanowane"
+msgstr "निर्धारित"
+
+msgid "Komunikat wychodzi w ciągu minuty od terminu. Odbiorców liczymy w chwili wysyłki."
+msgstr "संदेश निर्धारित समय के एक मिनट के भीतर जाता है। प्राप्तकर्ताओं की गिनती भेजते समय होती है।"
+
+msgid "Zaplanował"
+msgstr "निर्धारित करने वाला"

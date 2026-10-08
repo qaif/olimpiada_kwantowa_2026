@@ -1,6 +1,6 @@
 # Komunikaty koordynatora: eksport odbiorców do Excela (MSG-EXPORT-01) – katalog aplikacji apps/web.
 # Reszta ekranu /coordinator/messages/ jest jeszcze nietłumaczona (panel polski); tu leżą wyłącznie
-# napisy dodane przez MSG-EXPORT-01, żeby nie ruszać wspólnego backend/locale.
+# napisy dodane przez MSG-EXPORT-01 i MSG-SCHED-01, żeby nie ruszać wspólnego backend/locale.
 msgid ""
 msgstr ""
 "Project-Id-Version: olimpiada\n"
@@ -29,3 +29,64 @@ msgstr "该群组没有任何收件人——没有可导出的内容。"
 
 msgid "Odbiorcy"
 msgstr "收件人"
+
+# Komunikaty z datą przyszłą (MSG-SCHED-01).
+
+#, python-format
+msgid "Termin wysyłki musi przypadać co najmniej %(minutes)s minut od teraz."
+msgstr "发送时间必须至少在 %(minutes)s 分钟之后。"
+
+#, python-format
+msgid "Termin wysyłki może przypadać najwyżej %(days)s dni od teraz."
+msgstr "发送时间最多可在 %(days)s 天之后。"
+
+msgid "Wklejonej listy adresów nie da się zaplanować – adresów spoza systemu nie przechowujemy. Wyślij ją od razu."
+msgstr "粘贴的地址列表无法定时发送——我们不保存系统外的地址。请立即发送。"
+
+#, python-format
+msgid "Nieznany parametr grupy odbiorców: %(name)s."
+msgstr "未知的收件人组参数：%(name)s。"
+
+msgid "Komunikat musi należeć do konkursu."
+msgstr "消息必须属于某个竞赛。"
+
+msgid "Zaplanować komunikat może wyłącznie koordynator tego konkursu."
+msgstr "只有本竞赛的协调员可以定时发送消息。"
+
+#, python-format
+msgid "Ta grupa odbiorców wymaga parametru: %(names)s."
+msgstr "该收件人组需要一个参数：%(names)s。"
+
+msgid "Wyślij później (data i godzina, czas polski)"
+msgstr "稍后发送（日期和时间，波兰时间）"
+
+msgid "Puste pole – komunikat wychodzi od razu. Odbiorców policzymy ponownie w chwili wysyłki: list dostanie też ktoś, kto zarejestruje się do tego czasu."
+msgstr "留空则立即发送。收件人将在发送时重新统计：在此之前注册的人也会收到邮件。"
+
+#, python-format
+msgid "Komunikat zaplanowany na %(when)s. Odbiorców policzymy ponownie w chwili wysyłki."
+msgstr "消息已定于 %(when)s 发送。收件人将在发送时重新统计。"
+
+msgid "Zaplanowany komunikat anulowany – nie zostanie wysłany."
+msgstr "定时消息已取消——不会发送。"
+
+msgid "Tego komunikatu nie da się już anulować – został wysłany albo anulowany wcześniej."
+msgstr "此消息已无法取消——它已被发送或已被取消。"
+
+msgid "Zaplanuj"
+msgstr "定时发送"
+
+msgid "Termin wysyłki:"
+msgstr "发送时间："
+
+msgid "Liczba odbiorców jest liczbą na teraz. Lista zostanie policzona ponownie w chwili wysyłki – list dostaną też osoby, które dołączą do grupy do tego czasu."
+msgstr "收件人数量为当前数量。名单将在发送时重新统计——在此之前加入该组的人也会收到邮件。"
+
+msgid "Zaplanowane"
+msgstr "已定时"
+
+msgid "Komunikat wychodzi w ciągu minuty od terminu. Odbiorców liczymy w chwili wysyłki."
+msgstr "消息会在预定时间后一分钟内发出。收件人在发送时统计。"
+
+msgid "Zaplanował"
+msgstr "设定人"

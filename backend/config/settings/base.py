@@ -590,6 +590,13 @@ CELERY_BEAT_SCHEDULE = {
         "task": "apps.payments.tasks.sweep_payments",
         "schedule": 900.0,
     },
+    # Komunikaty z datą przyszłą (MSG-SCHED-01, apps/accounts/messaging.py): co minutę wysyła
+    # zaplanowane z terminem do teraz – odbiorców liczy w chwili wysyłki, porcje idą kolejką ``mail``.
+    # Minuta, bo tyle wynosi dokładność terminu, którą obiecuje ekran („sobota, 06:00”).
+    "dispatch-scheduled-broadcasts": {
+        "task": "apps.accounts.messaging.dispatch_scheduled_broadcasts",
+        "schedule": 60.0,
+    },
     # Zamknięcie etapu po deadline: LOCKED na najnowszych wersjach + znacznik Stage.closed_at.
     "close-due-stages": {
         "task": "apps.submissions.tasks.close_due_stages",

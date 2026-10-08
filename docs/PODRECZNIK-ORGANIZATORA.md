@@ -1129,6 +1129,21 @@ zmienisz grupę, jej parametr, pole „także uczestnicy poprzednich edycji”, 
 **nic nie wyśle** — pokaże podgląd na nowo
 („…zmieniły się od podglądu”) i dopiero kolejne „Wyślij” wysyła.
 
+**Wysyłka z datą przyszłą** (prośba organizatora z 8.10.2026). Pole **„Wyślij później”** (data
+i godzina, **czas polski**) zamienia „Wyślij” w **„Zaplanuj”**; puste pole — list wychodzi od razu, jak
+dotąd. Termin: najwcześniej za 5 minut, najpóźniej za 90 dni. **Odbiorców liczymy w chwili wysyłki,
+nie planowania** — przypomnienie zaplanowane w czwartek na sobotę dostanie też ktoś, kto zarejestruje
+się w piątek, a nie dostanie konto zablokowane w międzyczasie. Dlatego podgląd pokazuje liczbę **na
+teraz** z dopiskiem, że lista zostanie policzona ponownie, a grupę pustą dziś da się zaplanować.
+Zaplanowane komunikaty stoją w sekcji **„Zaplanowane”** (termin, grupa, temat, kto zaplanował) z
+przyciskiem **„Anuluj”** — działa do chwili wysyłki; zmiana treści = „Anuluj” i zaplanowanie od nowa.
+List wychodzi w ciągu minuty od terminu. Historia pokazuje kolumnę **„Termin”** i stany: **„bez
+odbiorców — nic nie wysłano”** (grupa w chwili wysyłki była pusta), **„anulowana”** oraz
+**„przeterminowana — nie wysłano”** — gdy serwer nie zdążył wysłać listu w ciągu doby od terminu
+(awaria), nie wysyłamy go już, bo spóźnione przypomnienie szkodzi; wyślij wtedy list ręcznie. **Wklejonej
+listy adresów zaplanować się nie da** (jej adresów nie przechowujemy) — wysyła się ją od razu. Audyt:
+`broadcast.scheduled`, `broadcast.cancelled`, a przy wysyłce `broadcast.sent` z autorem planu.
+
 **„Eksportuj do Excela”** (przycisk obok „Podgląd”) pobiera plik `.xlsx` z kolumnami **Imię, Nazwisko,
 E-mail** — odbiorcy **aktualnie wybranej grupy** z jej ustawieniami (etap, województwo/region, szkoła,
 klasa, warsztat, „także uczestnicy poprzednich edycji”). To dokładnie te osoby, do których poszedłby
