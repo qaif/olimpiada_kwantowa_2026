@@ -12,6 +12,22 @@ podsekcją `### <tytuł>` wydania `## v<x.y.z> – <data tagu> – <opis tagu>`.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## [Unreleased] – Komunikaty z datą przyszłą (MSG-SCHED-01)
+
+- **„Wyślij później”** na `/coordinator/messages/` (prośba organizatora z 8.10.2026): komunikat da się
+  zaplanować na datę i godzinę (czas polski, 5 min – 90 dni naprzód). Rejestr trzyma grupę i jej
+  parametry (nowe pole `parameters`), termin (`scheduled_for`) i stan `SCHEDULED` – **bez adresów**;
+  odbiorców liczy zadanie beat `dispatch-scheduled-broadcasts` (co minutę) **w chwili wysyłki**, tą samą
+  drogą co wysyłka natychmiastowa (bieżąca edycja z chwili wysyłki). Dokładnie raz:
+  `select_for_update(skip_locked=True)` + warunek stanu. Nowe stany: zaplanowana, anulowana,
+  przeterminowana (> 24 h po terminie – nie wysyłamy), bez odbiorców. Sekcja „Zaplanowane” z przyciskiem
+  „Anuluj” (POST, tylko koordynator konkursu, cudzy komunikat → 404), kolumna „Termin” w historii, podgląd
+  z liczbą „na teraz” i dopiskiem o ponownym liczeniu; termin wchodzi do podpisu podglądu. Wklejonej listy
+  adresów nie da się zaplanować. Serwis `schedule_broadcast(...)` do użycia także z `manage.py shell`
+  (OPERACJE § 53). Audyt: `broadcast.scheduled`, `broadcast.cancelled`, `broadcast.sent` (aktor = autor
+  planu), `broadcast.expired`, `broadcast.empty`. Migracja `accounts.0041`. Specyfikacja:
+  `docs/tasks/MSG-SCHED-01.md`.
+
 ## [Unreleased] – Komunikaty: grupa „uczestnicy bez zaświadczenia o statusie ucznia”
 
 - Nowa grupa odbiorców na `/coordinator/messages/` (prośba organizatora z 8.10.2026): uczestnicy bieżącej

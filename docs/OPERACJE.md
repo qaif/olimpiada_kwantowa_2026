@@ -7032,3 +7032,72 @@ sygnał o **naszej** reputacji (SPF/DKIM/DMARC, § 49), nie o adresie.
 - Zawiadomienia trafiają do skrzynki wyłącznie dla adresów `noreply@<domena z ALLOWED_SENDER_DOMAINS>`
   (albo `MAIL_BOUNCE_ADDRESSES`). Konkurs z nadawcą innym niż `noreply@…` (`Competition.from_email`) –
   dopisz jego adres do `MAIL_BOUNCE_ADDRESSES`, inaczej jego odbicia nie wrócą do serwisu.
+
+## 53. Komunikaty z datą przyszłą (MSG-SCHED-01, `docs/tasks/MSG-SCHED-01.md`)
+
+Koordynator planuje komunikat na `/coordinator/messages/` (pole „Wyślij później”). Wiersz
+`accounts.MessageBroadcast` czeka w stanie `SCHEDULED` z terminem (`scheduled_for`) i parametrami
+grupy (`parameters`) – **bez adresów**. Wysyła go zadanie beat:
+
+| Wpis `CELERY_BEAT_SCHEDULE` | Zadanie | Co ile |
+|---|---|---|
+| `dispatch-scheduled-broadcasts` | `apps.accounts.messaging.dispatch_scheduled_broadcasts` | 60 s |
+
+Przebieg bierze do 25 komunikatów z terminem do teraz, każdy w osobnej transakcji
+(`select_for_update(skip_locked=True)` + warunek stanu – list wychodzi raz także przy dwóch
+workerach), liczy odbiorców **w tej chwili** (bieżąca edycja z chwili wysyłki) i kolejkuje porcje na
+kolejkę `mail`, jak wysyłka natychmiastowa. Stany po przebiegu: `QUEUED` → `SENT`, `EMPTY` (grupa
+pusta – nic nie wysłano), `EXPIRED` (termin minął ponad **24 h** temu – worker albo beat leżał; nie
+wysyłamy spóźnionych przypomnień, koordynator wysyła ręcznie). Wyjątek przy jednym komunikacie
+zostawia go `SCHEDULED` (ponowienie za minutę) i trafia do logu workera; błąd trwały kończy się
+po dobie stanem `EXPIRED`.
+
+**Wdrożenie.** Migracja `accounts.0041` (dwie kolumny z wartościami domyślnymi, bez przepisywania
+danych). Beat działa na `DatabaseScheduler`, który wpisy z `CELERY_BEAT_SCHEDULE` przepisuje do bazy
+przy starcie – po wdrożeniu musi wstać nowy `beat` (`scripts/deploy.sh` odtwarza `web worker beat`).
+Sprawdzenie:
+
+```sh
+docker compose logs beat --since 5m | grep dispatch-scheduled-broadcasts   # „Sending due task …” co minutę
+docker compose exec -T web python manage.py shell -c "from django_celery_beat.models import PeriodicTask as P; print(P.objects.filter(name='dispatch-scheduled-broadcasts').values_list('enabled', 'task'))"
+```
+
+**Zaplanowanie z powłoki** (bez klikania; ta sama walidacja co ekran: termin 5 min – 90 dni, aktor musi
+być koordynatorem tego konkursu, wklejonej listy adresów zaplanować się nie da). Godzina bez strefy to
+czas polski:
+
+```sh
+docker compose exec web python manage.py shell
+```
+
+```python
+from datetime import datetime
+from apps.accounts.messaging import schedule_broadcast, resolve_scheduled_recipients
+from apps.accounts.models import User
+from apps.tenancy.models import Competition
+
+c = Competition.objects.get(slug="kwantowa")
+b = schedule_broadcast(
+    group="ALL_PARTICIPANTS",                       # kody grup: apps.accounts.models.BroadcastGroup
+    subject="Przypomnienie: …",
+    body="…",
+    scheduled_for=datetime(2026, 10, 10, 6, 0),     # sobota 10.10.2026, 06:00 czasu polskiego
+    competition=c,
+    actor=User.objects.get(email="koordynator@…"),
+    parameters={"include_past_editions": False},    # grupy etapowe: {"stage": <id>}, szkoła: {"school": "sio:<id>"} …
+)
+print(b.pk, b.scheduled_for, len(resolve_scheduled_recipients(b)))   # liczba odbiorców „gdyby wyszło teraz”
+```
+
+Podgląd i anulowanie – na ekranie (sekcja „Zaplanowane”, przycisk „Anuluj”) albo w powłoce:
+`cancel_scheduled_broadcast(b, actor=<koordynator>)` (`False` = już wysłany lub anulowany). Audyt:
+`broadcast.scheduled`, `broadcast.cancelled`, `broadcast.sent` (aktor = autor planu, z `scheduled_for`),
+`broadcast.expired`, `broadcast.empty`.
+
+**Nadzór.** Zaległe komunikaty (powinny być puste poza minutą przebiegu):
+
+```sh
+docker compose exec -T web python manage.py shell -c "from datetime import timedelta; from django.utils import timezone; from apps.accounts.models import MessageBroadcast as M; print(list(M.objects.filter(status='SCHEDULED', scheduled_for__lt=timezone.now() - timedelta(minutes=5)).values_list('pk', 'scheduled_for')))"
+```
+
+Niepusty wynik = beat albo worker nie działa (§ 3.3, `docker compose logs worker beat --tail 100`).
