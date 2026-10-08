@@ -60,7 +60,11 @@
             na nowo, zamiast wysłać list, którego nikt nie obejrzał.
           {% endcomment %}
           <input type="hidden" name="preview_signature" value="{{ preview.signature }}">
-          <button type="submit" name="action" value="send" class="btn btn--primary">Wyślij</button>
+          {% comment %}
+            Z terminem (MSG-SCHED-01) ten sam przycisk planuje zamiast wysyłać – wartość ``send`` zostaje,
+            o tym, co się stanie, rozstrzyga pole „Wyślij później”, które jest w podpisie podglądu.
+          {% endcomment %}
+          <button type="submit" name="action" value="send" class="btn btn--primary">{% if preview.send_at %}{% translate "Zaplanuj" %}{% else %}Wyślij{% endif %}</button>
         {% endif %}
         {% comment %}
           „Eksportuj do Excela” (MSG-EXPORT-01): plik .xlsx z imieniem, nazwiskiem i adresem odbiorców
@@ -90,13 +94,65 @@
         nazwie z sąsiedniego miasta. Ten sam opis trafi do historii wysyłek.
       {% endcomment %}
       <p><strong>Odbiorcy:</strong> {{ preview.group }}{% if preview.target.label %}: {{ preview.target.label }}{% endif %}</p>
+      {% if preview.send_at %}
+        <p><strong>{% translate "Termin wysyłki:" %}</strong> {{ preview.send_at|local_datetime }} ({% translate "czas polski" %})</p>
+      {% endif %}
       <p><strong>Temat:</strong> {{ form.cleaned_data.subject }}</p>
       <pre class="mail-preview">{{ form.cleaned_data.body }}</pre>
-      {% if not preview.count %}
+      {% if preview.send_at %}
+        {% comment %}
+          Odbiorców liczy beat w chwili wysyłki, nie teraz – liczba w plakietce jest dzisiejsza.
+          Pusta grupa da się zaplanować: do terminu może się zapełnić.
+        {% endcomment %}
+        <p class="hint">{% translate "Liczba odbiorców jest liczbą na teraz. Lista zostanie policzona ponownie w chwili wysyłki – list dostaną też osoby, które dołączą do grupy do tego czasu." %}</p>
+      {% elif not preview.count %}
         <p class="hint">Ta grupa nie ma ani jednego odbiorcy – przycisk „Wyślij” nic nie zrobi.</p>
       {% endif %}
     </div>
   </section>
+{% endif %}
+
+{% comment %}
+  Zaplanowane komunikaty (MSG-SCHED-01). Sekcja stoi tylko wtedy, gdy coś czeka. Liczby odbiorców tu
+  nie ma celowo: policzy ją beat w chwili wysyłki, a liczba „na dziś” sugerowałaby wynik ostateczny.
+  „Anuluj” to osobny formularz POST z CSRF na wiersz – anulowanie zmienia stan, więc nie jest odnośnikiem.
+{% endcomment %}
+{% if scheduled %}
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">{% translate "Zaplanowane" %}</h2>
+    <p class="hint">{% translate "Komunikat wychodzi w ciągu minuty od terminu. Odbiorców liczymy w chwili wysyłki." %}</p>
+  </div>
+  <div class="scroll" role="region" tabindex="0" aria-label="{% translate 'Zaplanowane' %}">
+    <table class="table table--stack">
+      <thead>
+        <tr>
+          <th scope="col">{% translate "Termin" %}</th>
+          <th scope="col">Temat</th>
+          <th scope="col">Grupa</th>
+          <th scope="col">{% translate "Zaplanował" %}</th>
+          <th scope="col"><span class="visually-hidden">{% translate "Anuluj" %}</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in scheduled %}
+          <tr>
+            <td class="nowrap" data-label="{% translate 'Termin' %}">{{ row.scheduled_for|local_datetime }}</td>
+            <th scope="row">{{ row.subject }}</th>
+            <td data-label="Grupa">{{ row.get_group_display }}{% if row.target_label %}: <strong>{{ row.target_label }}</strong>{% endif %}</td>
+            <td data-label="{% translate 'Zaplanował' %}">{{ row.created_by|account_email|default:"—" }}</td>
+            <td>
+              <form method="post" action="{% url 'web:coordinator-message-cancel' row.pk %}" class="inline-form">
+                {% csrf_token %}
+                <button type="submit" class="btn btn--danger btn--small">{% translate "Anuluj" %}</button>
+              </form>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
 {% endif %}
 
 <section class="section">
@@ -110,6 +166,7 @@
       <thead>
         <tr>
           <th scope="col">Kiedy</th>
+          <th scope="col">{% translate "Termin" %}</th>
           <th scope="col">Temat</th>
           <th scope="col">Grupa</th>
           <th scope="col">Odbiorców</th>
@@ -122,6 +179,8 @@
         {% for row in broadcasts %}
           <tr>
             <td class="audit-when nowrap" data-label="Kiedy">{{ row.created_at|local_datetime }}</td>
+            {# Termin wysyłki zaplanowanej (MSG-SCHED-01); „Kiedy” jest wtedy chwilą zaplanowania. #}
+            <td class="nowrap" data-label="{% translate 'Termin' %}">{{ row.scheduled_for|local_datetime|default:"—" }}</td>
             <th scope="row">{{ row.subject }}</th>
             <td data-label="Grupa">{{ row.get_group_display }}{% if row.target_label %}: <strong>{{ row.target_label }}</strong>{% endif %}</td>
             <td class="num" data-label="Odbiorców">{{ row.recipient_count }}</td>
@@ -130,7 +189,7 @@
             <td data-label="Wysłał">{{ row.created_by|account_email|default:"—" }}</td>
           </tr>
         {% empty %}
-          <tr><td colspan="7" class="empty">Nie wysłano jeszcze żadnego komunikatu.</td></tr>
+          <tr><td colspan="8" class="empty">Nie wysłano jeszcze żadnego komunikatu.</td></tr>
         {% endfor %}
       </tbody>
     </table>

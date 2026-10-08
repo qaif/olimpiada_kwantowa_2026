@@ -1,6 +1,6 @@
 # Komunikaty koordynatora: eksport odbiorców do Excela (MSG-EXPORT-01) – katalog aplikacji apps/web.
 # Reszta ekranu /coordinator/messages/ jest jeszcze nietłumaczona (panel polski); tu leżą wyłącznie
-# napisy dodane przez MSG-EXPORT-01, żeby nie ruszać wspólnego backend/locale.
+# napisy dodane przez MSG-EXPORT-01 i MSG-SCHED-01, żeby nie ruszać wspólnego backend/locale.
 msgid ""
 msgstr ""
 "Project-Id-Version: olimpiada\n"
@@ -29,3 +29,64 @@ msgstr "لا يوجد في هذه المجموعة أي مستلم – لا يو
 
 msgid "Odbiorcy"
 msgstr "المستلمون"
+
+# Komunikaty z datą przyszłą (MSG-SCHED-01).
+
+#, python-format
+msgid "Termin wysyłki musi przypadać co najmniej %(minutes)s minut od teraz."
+msgstr "يجب أن يكون وقت الإرسال بعد %(minutes)s دقائق على الأقل من الآن."
+
+#, python-format
+msgid "Termin wysyłki może przypadać najwyżej %(days)s dni od teraz."
+msgstr "يمكن أن يكون وقت الإرسال بعد %(days)s يومًا من الآن على الأكثر."
+
+msgid "Wklejonej listy adresów nie da się zaplanować – adresów spoza systemu nie przechowujemy. Wyślij ją od razu."
+msgstr "لا يمكن جدولة قائمة عناوين ملصقة – فنحن لا نحتفظ بعناوين من خارج النظام. أرسلها فورًا."
+
+#, python-format
+msgid "Nieznany parametr grupy odbiorców: %(name)s."
+msgstr "معامل غير معروف لمجموعة المستلمين: %(name)s."
+
+msgid "Komunikat musi należeć do konkursu."
+msgstr "يجب أن تنتمي الرسالة إلى مسابقة."
+
+msgid "Zaplanować komunikat może wyłącznie koordynator tego konkursu."
+msgstr "لا يمكن جدولة رسالة إلا لمنسق هذه المسابقة."
+
+#, python-format
+msgid "Ta grupa odbiorców wymaga parametru: %(names)s."
+msgstr "تتطلب مجموعة المستلمين هذه معاملًا: %(names)s."
+
+msgid "Wyślij później (data i godzina, czas polski)"
+msgstr "الإرسال لاحقًا (التاريخ والوقت، بتوقيت بولندا)"
+
+msgid "Puste pole – komunikat wychodzi od razu. Odbiorców policzymy ponownie w chwili wysyłki: list dostanie też ktoś, kto zarejestruje się do tego czasu."
+msgstr "اتركه فارغًا لإرسال الرسالة فورًا. يُعاد حساب المستلمين لحظة الإرسال: سيتلقى الرسالة أيضًا من يسجل حتى ذلك الحين."
+
+#, python-format
+msgid "Komunikat zaplanowany na %(when)s. Odbiorców policzymy ponownie w chwili wysyłki."
+msgstr "جُدولت الرسالة في %(when)s. سيُعاد حساب المستلمين لحظة الإرسال."
+
+msgid "Zaplanowany komunikat anulowany – nie zostanie wysłany."
+msgstr "أُلغيت الرسالة المجدولة – لن تُرسل."
+
+msgid "Tego komunikatu nie da się już anulować – został wysłany albo anulowany wcześniej."
+msgstr "لم يعد بالإمكان إلغاء هذه الرسالة – فقد أُرسلت أو أُلغيت من قبل."
+
+msgid "Zaplanuj"
+msgstr "جدولة"
+
+msgid "Termin wysyłki:"
+msgstr "وقت الإرسال:"
+
+msgid "Liczba odbiorców jest liczbą na teraz. Lista zostanie policzona ponownie w chwili wysyłki – list dostaną też osoby, które dołączą do grupy do tego czasu."
+msgstr "عدد المستلمين هو العدد الحالي. ستُحسب القائمة من جديد لحظة الإرسال – وسيتلقى الرسالة أيضًا من ينضم إلى المجموعة حتى ذلك الحين."
+
+msgid "Zaplanowane"
+msgstr "المجدولة"
+
+msgid "Komunikat wychodzi w ciągu minuty od terminu. Odbiorców liczymy w chwili wysyłki."
+msgstr "تُرسل الرسالة خلال دقيقة من موعدها. يُحسب المستلمون لحظة الإرسال."
+
+msgid "Zaplanował"
+msgstr "جدولها"

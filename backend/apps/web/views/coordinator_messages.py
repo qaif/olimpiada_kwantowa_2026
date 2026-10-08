@@ -36,6 +36,13 @@ forma, co przy podglądzie (bez tematu i treści), a odbiorców liczy ``recipien
 droga przez ``recipient_users``, co wysyłka, więc plik nie może pokazać kogoś, do kogo list by nie
 poszedł. Wpis audytu (``export.generated``) powstaje przed oddaniem pliku i niesie grupę, jej
 parametr i liczbę wierszy – nigdy dane.
+
+**Komunikaty z datą przyszłą** (MSG-SCHED-01, prośba organizatora z 8.10.2026): pole „Wyślij później”
+zamienia „Wyślij” w „Zaplanuj”. Ten sam podgląd i ten sam podpis (termin wchodzi do podpisu), ale
+zamiast ``send_broadcast`` widok woła ``schedule_broadcast`` – wiersz w stanie „zaplanowana” bez
+listy adresów, bo odbiorców liczy zadanie beat w chwili wysyłki. Podgląd pokazuje więc liczbę
+**dzisiejszą** z dopiskiem, że to nie jest liczba ostateczna. Zaplanowany komunikat da się anulować
+(``CoordinatorBroadcastCancelView``) do chwili, w której beat go wyśle.
 """
 
 from __future__ import annotations
@@ -43,24 +50,30 @@ from __future__ import annotations
 import json
 
 from django.contrib import messages as django_messages
-from django.shortcuts import redirect
+from django.core.exceptions import ValidationError
+from django.shortcuts import get_object_or_404, redirect
 from django.template.response import TemplateResponse
 from django.urls import reverse
 from django.utils.crypto import constant_time_compare, salted_hmac
+from django.utils.formats import date_format
 from django.utils.text import slugify
+from django.utils.timezone import localtime
 from django.utils.translation import gettext as _
 from django.views.generic import View
 
 from apps.accounts.messaging import (
+    cancel_scheduled_broadcast,
     grade_choices,
     recent_broadcasts,
     recipient_rows,
     resolve_recipients,
+    schedule_broadcast,
+    scheduled_broadcasts,
     school_choices,
     send_broadcast,
     workshop_choices,
 )
-from apps.accounts.models import BroadcastGroup, Region
+from apps.accounts.models import BroadcastGroup, MessageBroadcast, Region
 from apps.accounts.services import CUSTOM_REGIONS_FLAG
 from apps.competitions.models import Stage
 from apps.competitions.services import current_edition
@@ -102,8 +115,12 @@ def preview_signature(user, form: BroadcastForm) -> str:
     wklejonej listy adresów – ``target`` jej celowo nie ma. Obiekty (etap, region) wchodzą
     identyfikatorem. Konto koordynatora jest w podpisie, żeby podgląd jednej osoby nie był
     przepustką dla formularza wysłanego przez drugą.
+
+    Termin wysyłki (MSG-SCHED-01) też jest w podpisie: podgląd „wyślij od razu” nie jest przepustką
+    dla komunikatu zaplanowanego, a podgląd „sobota 6:00” – dla wysyłki natychmiastowej.
     """
     parameters = {key: getattr(value, "pk", value) for key, value in form.recipient_kwargs().items()}
+    send_at = form.cleaned_data.get("send_at")
     payload = json.dumps(
         [
             form.cleaned_data["group"],
@@ -111,6 +128,7 @@ def preview_signature(user, form: BroadcastForm) -> str:
             form.cleaned_data["subject"],
             form.cleaned_data["body"],
             getattr(user, "pk", None),
+            send_at.isoformat() if send_at else None,
         ],
         sort_keys=True,
         ensure_ascii=False,
@@ -146,10 +164,12 @@ class CoordinatorMessagesView(CoordinatorRequiredMixin, View):
         ):
             django_messages.error(
                 request,
-                "Grupa odbiorców, temat albo treść zmieniły się od podglądu – nic nie wysłano. "
+                "Grupa odbiorców, temat, treść albo termin zmieniły się od podglądu – nic nie wysłano. "
                 "Sprawdź podgląd poniżej i wyślij jeszcze raz.",
             )
             return self._render(request, form, preview=recipients)
+        if form.cleaned_data.get("send_at"):
+            return self._schedule(request, form)
         if not recipients:
             # Wysyłka do pustej grupy nie jest błędem użytkownika, tylko informacją: grupa może
             # być pusta, bo nikt się jeszcze nie zapisał. Zapis pustego komunikatu w rejestrze
@@ -169,6 +189,38 @@ class CoordinatorMessagesView(CoordinatorRequiredMixin, View):
         django_messages.success(
             request,
             f"Komunikat przekazany do wysyłki: {broadcast.recipient_count} odbiorców.",
+        )
+        return redirect(reverse("web:coordinator-messages"))
+
+    def _schedule(self, request, form):
+        """„Zaplanuj”: wiersz w stanie „zaplanowana” – bez listy adresów (MSG-SCHED-01).
+
+        Pusta grupa **nie** blokuje zaplanowania, inaczej niż przy wysyłce od razu: do terminu
+        grupa może się zapełnić (rejestracje, wpisy do etapu), a odbiorców i tak liczy beat w chwili
+        wysyłki. Pusta w tej chwili kończy się stanem „bez odbiorców” w historii.
+        """
+        try:
+            broadcast = schedule_broadcast(
+                group=form.cleaned_data["group"],
+                subject=form.cleaned_data["subject"],
+                body=form.cleaned_data["body"],
+                scheduled_for=form.cleaned_data["send_at"],
+                competition=request.competition,
+                actor=request.user,
+                parameters=form.recipient_kwargs(),
+                target=form.target(),
+                request=request,
+            )
+        except ValidationError as error:
+            # Termin, który był dobry w podglądzie, mógł się w międzyczasie zbliżyć poniżej marginesu.
+            # ``messages`` (lista napisów), bo błąd ``full_clean`` modelu bywa słownikiem pól, których
+            # formularz nie ma.
+            form.add_error("send_at", error.messages)
+            return self._render(request, form)
+        django_messages.success(
+            request,
+            _("Komunikat zaplanowany na %(when)s. Odbiorców policzymy ponownie w chwili wysyłki.")
+            % {"when": date_format(localtime(broadcast.scheduled_for), "j E Y, H:i")},
         )
         return redirect(reverse("web:coordinator-messages"))
 
@@ -290,10 +342,15 @@ class CoordinatorMessagesView(CoordinatorRequiredMixin, View):
                 "target": form.target(),
                 # Podpis jedzie w ukrytym polu formularza; „Wyślij” przejdzie wyłącznie z nim.
                 "signature": preview_signature(request.user, form),
+                # Termin (MSG-SCHED-01): podgląd mówi wtedy „zaplanuj”, a liczba odbiorców jest
+                # liczbą dzisiejszą – szablon dopisuje, że w chwili wysyłki policzymy ją ponownie.
+                "send_at": form.cleaned_data.get("send_at"),
             },
             # Rejestr wysyłek **tego** konkursu: historia komunikatów sąsiada nie jest historią
             # tego organizatora (zakres stoi w ``recent_broadcasts``, przed limitem wierszy).
             "broadcasts": recent_broadcasts(request.competition),
+            # Zaplanowane komunikaty tego konkursu – osobna lista z przyciskiem „Anuluj”.
+            "scheduled": scheduled_broadcasts(request.competition),
             "edition": current_edition(request.competition),
             # Mapa „grupa → pole” dla skryptu, który chowa pola nienależące do wybranej grupy,
             # i zbiór tych pól dla szablonu (tylko one dostają punkt zaczepienia skryptu).
@@ -304,3 +361,24 @@ class CoordinatorMessagesView(CoordinatorRequiredMixin, View):
             "no_export_group": BroadcastGroup.CUSTOM.value,
         }
         return TemplateResponse(request, TEMPLATE, context)
+
+
+class CoordinatorBroadcastCancelView(CoordinatorRequiredMixin, View):
+    """``POST /coordinator/messages/<id>/cancel/`` – „Anuluj” przy zaplanowanym komunikacie.
+
+    Wyłącznie ``POST`` (z CSRF): anulowanie zmienia stan, więc nie może dać się wywołać odnośnikiem.
+    Wiersz szukamy w ``for_competition(request.competition)`` – komunikat innego konkursu to 404,
+    nie 403 (``apps.web.mixins``). Komunikat, który beat zdążył już wysłać, nie daje błędu, tylko
+    informację: ``cancel_scheduled_broadcast`` rozstrzyga to warunkowym ``UPDATE``.
+    """
+
+    def post(self, request, pk: int):
+        broadcast = get_object_or_404(MessageBroadcast.objects.for_competition(request.competition), pk=pk)
+        if cancel_scheduled_broadcast(broadcast, actor=request.user, request=request):
+            django_messages.success(request, _("Zaplanowany komunikat anulowany – nie zostanie wysłany."))
+        else:
+            django_messages.error(
+                request,
+                _("Tego komunikatu nie da się już anulować – został wysłany albo anulowany wcześniej."),
+            )
+        return redirect(reverse("web:coordinator-messages"))
