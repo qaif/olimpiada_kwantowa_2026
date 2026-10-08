@@ -1579,6 +1579,10 @@ class BroadcastGroup(models.TextChoices):
     SCHOOL_PARTICIPANTS = "SCHOOL_PARTICIPANTS", "uczestnicy z wybranej szkoły (placówki)"
     GRADE_PARTICIPANTS = "GRADE_PARTICIPANTS", "uczestnicy z wybranej klasy"
     WORKSHOP_ATTENDEES = "WORKSHOP_ATTENDEES", "uczestnicy obecni na wybranym warsztacie"
+    #: Prośba organizatora z 8.10.2026 – przypomnienie o zaświadczeniu o statusie ucznia
+    #: (``apps.student_status``). „Bez zaświadczenia” to brak pliku w bieżącej edycji albo plik
+    #: odrzucony; kto wgrał plik czekający na weryfikację, swoje już zrobił.
+    NO_STUDENT_STATUS = "NO_STUDENT_STATUS", "uczestnicy bez zaświadczenia o statusie ucznia"
     SUPERVISORS = "SUPERVISORS", "nauczyciele"
     COMMITTEE = "COMMITTEE", "członkowie komitetu"
     COMMITTEE_DISTRICT = "COMMITTEE_DISTRICT", "komitet jednego województwa"

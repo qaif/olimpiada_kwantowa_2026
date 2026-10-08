@@ -12,6 +12,13 @@ podsekcją `### <tytuł>` wydania `## v<x.y.z> – <data tagu> – <opis tagu>`.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## [Unreleased] – Komunikaty: grupa „uczestnicy bez zaświadczenia o statusie ucznia”
+
+- Nowa grupa odbiorców na `/coordinator/messages/` (prośba organizatora z 8.10.2026): uczestnicy bieżącej
+  edycji bez zaświadczenia o statusie ucznia – brak pliku albo plik odrzucony (plik czekający na weryfikację
+  i zaakceptowany zwalniają). Ta sama lista osób, co na ekranie zaświadczeń; migracja `accounts.0040`
+  zmienia wyłącznie listę wyboru.
+
 ## [Unreleased] – Komunikaty: eksport odbiorców do Excela (MSG-EXPORT-01)
 
 - **„Eksportuj do Excela”** na `/coordinator/messages/` (prośba organizatora z 8.10.2026): plik `.xlsx`

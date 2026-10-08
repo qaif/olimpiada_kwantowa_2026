@@ -470,6 +470,48 @@ def test_participants_and_teachers_group_sends_once_to_both(competition, other_c
     assert len(recipients) == len(set(recipients))
 
 
+def _certificate(participant, edition, status):
+    """Wiersz zaświadczenia bez pliku w storage – grupa czyta wyłącznie stan bieżącego wiersza."""
+    from apps.student_status.models import StudentStatusCertificate
+
+    return StudentStatusCertificate.objects.create(
+        participant=participant,
+        edition=edition,
+        version=1,
+        is_current=True,
+        status=status,
+        sha256="b" * 64,
+        mime="application/pdf",
+        size_bytes=1,
+    )
+
+
+def test_no_student_status_group_takes_missing_and_rejected(competition, other_competition, stage):
+    """Prośba organizatora z 8.10.2026: przypomnienie do uczniów, którzy nie dostarczyli zaświadczenia."""
+    from apps.competitions.tests.factories import EditionFactory
+    from apps.student_status.models import CertificateStatus
+
+    edition = stage.edition
+    missing = _plain("brak@example.test", competition=competition)
+    rejected = _plain("odrzucone@example.test", competition=competition)
+    _certificate(rejected, edition, CertificateStatus.REJECTED)
+    pending = _plain("czeka@example.test", competition=competition)
+    _certificate(pending, edition, CertificateStatus.PENDING)
+    accepted = _plain("zaakceptowane@example.test", competition=competition)
+    _certificate(accepted, edition, CertificateStatus.ACCEPTED)
+    # Plik zaakceptowany w poprzedniej edycji nie zwalnia z tegorocznego.
+    last_year = _plain("zeszloroczne@example.test", competition=competition)
+    _certificate(last_year, EditionFactory(competition=competition), CertificateStatus.ACCEPTED)
+    ParticipantFactory(user=UserFactory(email="obcy@example.test"), competition=other_competition)
+
+    recipients = resolve_recipients(
+        BroadcastGroup.NO_STUDENT_STATUS, competition=competition, edition=edition
+    )
+
+    assert recipients == sorted([missing.user.email, rejected.user.email, last_year.user.email])
+    assert resolve_recipients(BroadcastGroup.NO_STUDENT_STATUS, competition=competition) == []
+
+
 def test_teachers_group_label():
     assert BroadcastGroup.SUPERVISORS.label == "nauczyciele"
     assert BroadcastGroup.ALL_PARTICIPANTS_AND_TEACHERS.label == "wszyscy uczestnicy i nauczyciele"
