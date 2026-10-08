@@ -538,6 +538,23 @@ def _group_condition(
 
         attended = WorkshopAttendance.objects.filter(workshop_key=workshop).values("participant_id")
         return _participants(participants.filter(pk__in=attended))
+    if group == BroadcastGroup.NO_STUDENT_STATUS:
+        # Ta sama lista osób, co na ekranie zaświadczeń koordynatora (``edition_participants``),
+        # minus ci, których bieżący plik czeka na weryfikację albo jest zaakceptowany – licznik
+        # „brak” + „odrzucone” z tamtego ekranu i liczba odbiorców tutaj mają się zgadzać.
+        if edition is None:
+            return None
+        from apps.student_status.models import CertificateStatus, StudentStatusCertificate
+        from apps.student_status.services import edition_participants
+
+        delivered = StudentStatusCertificate.objects.filter(
+            edition=edition,
+            is_current=True,
+            status__in=(CertificateStatus.PENDING, CertificateStatus.ACCEPTED),
+        ).values("participant_id")
+        return _participants(
+            participants.filter(pk__in=edition_participants(edition).values("pk")).exclude(pk__in=delivered)
+        )
     if group == BroadcastGroup.SUPERVISORS:
         return _supervisors(competition)
     if group in (BroadcastGroup.COMMITTEE, BroadcastGroup.COMMITTEE_DISTRICT):
