@@ -1,7 +1,9 @@
 """Wysyłka komunikatów organizatora do grup odbiorców (panel koordynatora).
 
-Moduł robi trzy rzeczy i nic poza nimi: rozwiązuje grupę odbiorców na listę adresów, zapisuje
-wysyłkę w rejestrze (``MessageBroadcast``) i przekazuje listy do kolejki porcjami.
+Moduł robi trzy rzeczy i nic poza nimi: rozwiązuje grupę odbiorców na listę adresów (albo – dla
+przycisku „Eksportuj do Excela”, MSG-EXPORT-01 – na wiersze imię, nazwisko, adres; obie drogi idą
+przez jedno ``recipient_users``), zapisuje wysyłkę w rejestrze (``MessageBroadcast``) i przekazuje
+listy do kolejki porcjami.
 
 Dlaczego porcjami, a nie jednym zadaniem na całą wysyłkę: lista uczestników edycji to kilka
 tysięcy adresów. Jedno zadanie oznaczałoby jeden proces workera zajęty przez kilkanaście minut,
@@ -139,24 +141,25 @@ def _competition_for(competition, *, edition=None, stage=None):
     return competition
 
 
-def _supervisor_emails(competition) -> list[str]:
-    """Adresy nauczycieli (opiekunów szkolnych) **tego** konkursu.
+def _supervisors(competition) -> Q:
+    """Warunek „konto jest nauczycielem (opiekunem szkolnym) **tego** konkursu”.
 
     Profil opiekuna konkursu i rola ``supervisor`` w nim – ta sama definicja, co
     w ``apps.accounts.supervisors.supervisor_profile``. Sam profil bez roli (rola odebrana)
-    nie czyni nikogo opiekunem, więc nie czyni też adresatem.
+    nie czyni nikogo opiekunem, więc nie czyni też adresatem. Rola (członkostwo albo grupa Django)
+    jest złączeniem wielowartościowym, dlatego stoi w podzapytaniu: zapytanie o konta nie mnoży
+    przez nią wierszy i nie potrzebuje ``DISTINCT``.
     """
     supervisors = SchoolSupervisor.objects.for_competition(competition)
-    return _emails(
-        User.objects.filter(DELIVERABLE, _role_filter(competition, GROUP_SUPERVISOR))
+    return Q(
+        pk__in=User.objects.filter(_role_filter(competition, GROUP_SUPERVISOR))
         .filter(pk__in=supervisors.values("user_id"))
-        .values_list("email", flat=True)
-        .distinct()
+        .values("pk")
     )
 
 
-def _participant_emails(participants) -> list[str]:
-    """Adresy kont stojących za profilami uczestników z zapytania ``participants``.
+def _participants(participants) -> Q:
+    """Warunek „konto stoi za którymś z profili uczestników z zapytania ``participants``”.
 
     Jedna droga dla wszystkich grup uczestników, i to z dwóch powodów:
 
@@ -168,11 +171,7 @@ def _participant_emails(participants) -> list[str]:
       i bez mnożenia wierszy przez wpisy do etapów. Przy kilku tysiącach uczestników to wciąż
       pojedyncze milisekundy, a nie pętla po profilach w Pythonie.
     """
-    return _emails(
-        User.objects.filter(DELIVERABLE, pk__in=participants.values("user_id")).values_list(
-            "email", flat=True
-        )
-    )
+    return Q(pk__in=participants.values("user_id"))
 
 
 def current_edition_participants(participants, edition):
@@ -341,7 +340,78 @@ def resolve_recipients(
     addresses: str = "",
     include_past_editions: bool = False,
 ) -> list[str]:
-    """Adresy odbiorców dla wybranej grupy. Nieznana grupa to pusta lista, nigdy wyjątek widoku.
+    """Adresy odbiorców dla wybranej grupy – lista do wysyłki. Nieznana grupa to pusta lista.
+
+    Kto należy do grupy, rozstrzyga wyłącznie :func:`recipient_users`; tutaj zostaje zamiana kont
+    na adresy (``_emails``: normalizacja, bez powtórzeń, posortowane) i wklejona lista, która kont
+    nie ma.
+    """
+    if group == BroadcastGroup.CUSTOM:
+        return parse_address_list(addresses or "")
+    users = recipient_users(
+        group,
+        competition=competition,
+        edition=edition,
+        stage=stage,
+        district=district,
+        region=region,
+        school=school,
+        grade=grade,
+        workshop=workshop,
+        include_past_editions=include_past_editions,
+    )
+    return _emails(users.values_list("email", flat=True))
+
+
+def recipient_rows(group: str, **parameters) -> list[tuple[str, str, str]]:
+    """Odbiorcy grupy jako trójki ``(imię, nazwisko, adres)`` – do eksportu „Eksportuj do Excela”.
+
+    Argumenty są te same, co w :func:`resolve_recipients` (bez ``addresses``), i ta sama jest
+    droga: :func:`recipient_users`. Adres przechodzi tę samą normalizację, co w wysyłce, a jeden
+    adres daje jeden wiersz – zbiór adresów w pliku jest więc **z definicji** zbiorem adresów,
+    do których poszedłby list. Eksport, który pokazuje kogoś spoza wysyłki (albo kogoś pomija),
+    byłby gorszy niż żaden: organizator wysyła z niego zaproszenia spoza platformy.
+
+    Dwa konta z tym samym adresem w innej wielkości liter dają jeden wiersz – pierwsze według
+    identyfikatora, żeby wynik był powtarzalny. Kolejność: nazwisko, imię, adres (bez wielkości
+    liter), bo plik czyta człowiek, który szuka w nim osoby.
+
+    Wklejona lista adresów nie ma tu wierszy (to adresy spoza systemu, bez imion) – ekran nie
+    pozwala jej eksportować, a funkcja i tak zwraca dla niej pustą listę.
+    """
+    seen: set[str] = set()
+    rows: list[tuple[str, str, str]] = []
+    users = recipient_users(group, **parameters).order_by("pk")
+    for first_name, last_name, email in users.values_list("first_name", "last_name", "email"):
+        address = (email or "").strip().lower()
+        if not address or address in seen:
+            continue
+        seen.add(address)
+        rows.append(((first_name or "").strip(), (last_name or "").strip(), address))
+    return sorted(rows, key=lambda row: (row[1].casefold(), row[0].casefold(), row[2]))
+
+
+def recipient_users(
+    group: str,
+    *,
+    competition=None,
+    edition=None,
+    stage=None,
+    district: str | None = None,
+    region=None,
+    school: str | None = None,
+    grade: int | None = None,
+    workshop: str | None = None,
+    include_past_editions: bool = False,
+):
+    """Konta odbiorców grupy (``QuerySet`` ``User``) – **jedyne** miejsce, w którym grupa staje się
+    zapytaniem. Czytają je wysyłka (:func:`resolve_recipients`) i eksport (:func:`recipient_rows`),
+    więc obie widzą tę samą grupę: ten sam zakres konkursu i edycji i ten sam warunek
+    ``DELIVERABLE``. Każda gałąź daje warunek ``pk__in`` z podzapytaniem, więc wynik nie ma
+    powtórzeń kont (konto z kilkoma wpisami do etapów albo rolami to jeden wiersz).
+
+    Nieznana grupa, wklejona lista (``CUSTOM`` – adresy spoza systemu) i brak kontekstu dają pusty
+    wynik, nigdy wyjątek widoku.
 
     **Zakres konkursu jest warunkiem każdej grupy poza wklejoną listą.** Rozstrzyga go
     :func:`_competition_for`, a każde zapytanie niżej zaczyna się od ``for_competition`` – list do
@@ -367,32 +437,53 @@ def resolve_recipients(
     do składów drużyn jest osobnym pytaniem do organizatora.
 
     Brak wymaganego kontekstu (edycji przy grupie edycyjnej, etapu przy grupie etapowej, szkoły przy
-    grupie szkolnej…) też daje pustą listę. Ekran nie wyśle wtedy niczego i powie o tym wprost – to
+    grupie szkolnej…) też daje pusty wynik. Ekran nie wyśle wtedy niczego i powie o tym wprost – to
     bezpieczniejszy kierunek niż domyślanie się, o który etap chodziło.
     """
-    if group == BroadcastGroup.CUSTOM:
-        return parse_address_list(addresses or "")
+    condition = _group_condition(
+        group,
+        competition=_competition_for(competition, edition=edition, stage=stage),
+        edition=edition,
+        stage=stage,
+        district=district,
+        region=region,
+        school=school,
+        grade=grade,
+        workshop=workshop,
+        include_past_editions=include_past_editions,
+    )
+    if condition is None:
+        return User.objects.none()
+    return User.objects.filter(DELIVERABLE, condition)
 
-    competition = _competition_for(competition, edition=edition, stage=stage)
-    if competition is None:
-        return []
+
+def _group_condition(
+    group, *, competition, edition, stage, district, region, school, grade, workshop, include_past_editions
+) -> Q | None:
+    """Warunek na ``User`` dla grupy w obrębie ``competition`` – albo ``None``, czyli „nikt”.
+
+    Wyłącznie dla :func:`recipient_users`, który dokłada ``DELIVERABLE`` i zakres konkursu
+    (``competition`` przychodzi już rozstrzygnięty przez :func:`_competition_for`).
+    """
+    if competition is None or group == BroadcastGroup.CUSTOM:
+        return None
     participants = Participant.objects.for_competition(competition)
     if group in EDITION_SCOPED_GROUPS and not include_past_editions:
         participants = current_edition_participants(participants, edition)
 
     if group == BroadcastGroup.ALL_PARTICIPANTS:
-        return _participant_emails(participants)
+        return _participants(participants)
     if group == BroadcastGroup.ALL_PARTICIPANTS_AND_TEACHERS:
-        # Suma dwóch grup przez ``_emails`` – ta sama normalizacja i usuwanie powtórzeń (nauczyciel,
-        # który jest też uczestnikiem, dostaje list raz).
-        return _emails([*_participant_emails(participants), *_supervisor_emails(competition)])
+        # Suma dwóch warunków w jednym zapytaniu – nauczyciel, który jest też uczestnikiem, jest
+        # jednym kontem, więc dostaje list raz i ma w eksporcie jeden wiersz.
+        return _participants(participants) | _supervisors(competition)
     if group == BroadcastGroup.EDITION_PARTICIPANTS:
         if edition is None:
-            return []
-        return _participant_emails(participants.filter(stage_entries__stage__edition=edition))
+            return None
+        return _participants(participants.filter(stage_entries__stage__edition=edition))
     if group in STAGE_GROUPS:
         if stage is None:
-            return []
+            return None
         from apps.competitions.models import StageEntry, StageEntryStatus
 
         entries = StageEntry.objects.filter(stage=stage, participant__isnull=False)
@@ -413,42 +504,42 @@ def resolve_recipients(
             entries = entries.filter(
                 status__in=(StageEntryStatus.REGISTERED, StageEntryStatus.QUALIFIED)
             ).exclude(Exists(sent))
-        return _participant_emails(participants.filter(pk__in=entries.values("participant_id")))
+        return _participants(participants.filter(pk__in=entries.values("participant_id")))
     if group == BroadcastGroup.REGION_PARTICIPANTS:
         if region is not None:
             if region.competition_id != competition.pk:
-                return []
+                return None
             # Profil zapisany przed włączeniem flagi ``custom_regions`` ma samo ``district``,
             # a kody regionów startowych są dosłownie wartościami ``district`` (migracja
             # ``accounts.0026``) – bez drugiej połowy warunku region pomijałby uczniów zapisanych
             # przed flagą.
-            return _participant_emails(
+            return _participants(
                 participants.filter(Q(region=region) | Q(region__isnull=True, district=region.code))
             )
         normalized = normalize_voivodeship(district)
         if not normalized:
-            return []
-        return _participant_emails(participants.filter(district=normalized))
+            return None
+        return _participants(participants.filter(district=normalized))
     if group == BroadcastGroup.SCHOOL_PARTICIPANTS:
         condition = parse_school_key(school)
         if condition is None:
-            return []
-        return _participant_emails(participants.filter(condition))
+            return None
+        return _participants(participants.filter(condition))
     if group == BroadcastGroup.GRADE_PARTICIPANTS:
         # ``str(...).isdigit()``, a nie ``int(...)`` w ``try``: klasa spoza liczb to po prostu
         # „nikt”, tak samo jak brak parametru – wyjątek widoku nie jest tu lepszą odpowiedzią.
         if not str(grade if grade is not None else "").isdigit():
-            return []
-        return _participant_emails(participants.filter(grade=int(grade)))
+            return None
+        return _participants(participants.filter(grade=int(grade)))
     if group == BroadcastGroup.WORKSHOP_ATTENDEES:
         if not workshop:
-            return []
+            return None
         from apps.cms.models import WorkshopAttendance
 
         attended = WorkshopAttendance.objects.filter(workshop_key=workshop).values("participant_id")
-        return _participant_emails(participants.filter(pk__in=attended))
+        return _participants(participants.filter(pk__in=attended))
     if group == BroadcastGroup.SUPERVISORS:
-        return _supervisor_emails(competition)
+        return _supervisors(competition)
     if group in (BroadcastGroup.COMMITTEE, BroadcastGroup.COMMITTEE_DISTRICT):
         # Ta sama definicja „aktywnego recenzenta”, co w ``apps.grading.services.reviewer_pool``:
         # status ACTIVE **i** rola ``reviewer``. Komunikat do komitetu nie może trafić do osoby,
@@ -458,15 +549,14 @@ def resolve_recipients(
         if group == BroadcastGroup.COMMITTEE_DISTRICT:
             normalized = normalize_voivodeship(district)
             if not normalized:
-                return []
+                return None
             members = members.filter(district=normalized)
-        return _emails(
-            User.objects.filter(DELIVERABLE, _role_filter(competition, GROUP_REVIEWER))
+        return Q(
+            pk__in=User.objects.filter(_role_filter(competition, GROUP_REVIEWER))
             .filter(pk__in=members.values("user_id"))
-            .values_list("email", flat=True)
-            .distinct()
+            .values("pk")
         )
-    return []
+    return None
 
 
 @shared_task(
