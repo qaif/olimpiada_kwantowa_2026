@@ -82,7 +82,11 @@ QUERY_BUDGETS: dict[str, int] = {
     # 43 od 5.10.2026 (zmierzone po scaleniu A11Y-01 z PERF-01): pamięć uczestnika na żądanie
     # (PERF-01, ``apps.accounts.request_memo``) obniżyła panel do 42 zapytań na zimno (sufit był 51),
     # deklaracja dostępności dokłada 1 (``EXISTS`` na zimno). Sufit = pomiar, bez zapasu.
-    "/me/": 43,
+    # +1 od 8.10.2026: blok „Ogłoszenia organizatora” na pulpicie (CZ-ANN-01,
+    # ``apps.chat.announcements.visible_announcements``) – jedno zapytanie po indeksie
+    # ``(competition, is_published)``, także przy pustej liście. Bez pamięci podręcznej: ogłoszenie
+    # ma zniknąć w chwili „Wyłącz”, a okno czasowe liczy się od zegara, nie od zapisu.
+    "/me/": 44,
     # 50 + 1 od 23.09.2026: odnośnik „Plakaty do pobrania” w stopce – patrz komentarz przy ``"/"``.
     # +1 od 30.09.2026: odznaka „Wiadomości” w menu panelu (zadanie CZ-01,
     # ``apps.chat.services.coordinator_attention``) – przełącznik i cztery liczby jednym zapytaniem,

@@ -53,3 +53,20 @@ def snippet(value, length: int = 80) -> str:
     """Skrót ostatniej wiadomości na liście rozmów: jeden wiersz, bez złamań, z wielokropkiem."""
     text = " ".join((value or "").split())
     return text if len(text) <= length else text[: length - 1].rstrip() + "…"
+
+
+@register.inclusion_tag("web/chat/_announcements.html", takes_context=True)
+def organizer_announcements(context, variant: str = "inbox"):
+    """Blok „Ogłoszenia organizatora” (CZ-ANN-01) – skrzynka Wiadomości i pulpit uczestnika.
+
+    Znacznik, a nie klucz kontekstu z widoku: ten sam blok stoi na dwóch ekranach różnych modułów
+    (``apps.web.views.chat`` i ``apps.web.views.participant``), a reguła widoczności jest jedna
+    (``apps.chat.announcements.visible_announcements``). Oba ekrany wpuszczają wyłącznie uczestnika
+    tego konkursu, więc znacznik nie sprawdza roli drugi raz – konkurs bierze z żądania.
+    Bez ogłoszeń szablon nie wypisuje nic (jedno zapytanie po indeksie).
+    """
+    from apps.chat.announcements import visible_announcements
+
+    request = context.get("request")
+    competition = getattr(request, "competition", None)
+    return {"announcements": visible_announcements(competition), "variant": variant}

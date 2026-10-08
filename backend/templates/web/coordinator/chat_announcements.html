@@ -1,0 +1,99 @@
+{% extends "web/coordinator/base.html" %}
+{% load web_extras chat_extras %}
+{% comment %}
+  Ogłoszenia organizatora w Wiadomościach uczestników (zadanie CZ-ANN-01). Formularz nad listą –
+  wchodzi się tu po to, żeby coś ogłosić; lista jest kontekstem tej decyzji („czy to już nie wisi?”).
+
+  „Opublikuj”, „Wyłącz” i „Usuń” to osobne formularze POST z CSRF. Usunięcie pyta o potwierdzenie
+  (``confirmSubmit`` z ``static/js/app.js`` – bez kodu inline, CSP).
+{% endcomment %}
+{% block title %}Ogłoszenia w Wiadomościach – panel koordynatora{% endblock %}
+{% block panel_title %}Ogłoszenia w Wiadomościach{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Ogłoszenie widzi <strong>każdy zalogowany uczestnik</strong> konkursu – na górze
+    skrzynki Wiadomości i na swoim pulpicie – także konta założone po publikacji. To nie jest
+    wiadomość w rozmowie: nie trafia na e-mail i nie można na nie odpowiedzieć. Pasek nad wszystkimi
+    stronami serwisu (także dla niezalogowanych) ustawisz w
+    <a href="{% url 'web:coordinator-announcements' %}">Ogłoszeniach</a>.</p>
+{% endblock %}
+{% block panel_content %}
+
+<div class="card">
+  <h2 class="mt-0">{% if edited %}Zmiana ogłoszenia „{{ edited.title }}”{% else %}Nowe ogłoszenie{% endif %}</h2>
+  <form method="post" class="form" novalidate
+        action="{% if edited %}{% url 'web:coordinator-inbox-announcement-edit' edited.pk %}{% else %}{% url 'web:coordinator-inbox-announcements' %}{% endif %}">
+    {% csrf_token %}
+    <p class="form__required-note">Pola oznaczone * są obowiązkowe.</p>
+    {{ form.non_field_errors }}
+    {% for field in form %}
+      <p>
+        {{ field.errors }}
+        {{ field.label_tag }}
+        {{ field }}
+        {% if field.help_text %}<span class="helptext" id="{{ field.auto_id }}_helptext">{{ field.help_text }}</span>{% endif %}
+      </p>
+    {% endfor %}
+    <div class="actions">
+      {% if edited %}
+        <button type="submit" class="btn btn--primary">Zapisz zmiany</button>
+        <a class="btn btn--ghost" href="{% url 'web:coordinator-inbox-announcements' %}">Anuluj</a>
+      {% else %}
+        <button type="submit" name="publish" value="1" class="btn btn--primary">Zapisz i opublikuj</button>
+        <button type="submit" name="publish" value="0" class="btn btn--secondary">Zapisz jako szkic</button>
+      {% endif %}
+    </div>
+  </form>
+</div>
+
+<section class="section">
+  <div class="section__head"><h2 class="mt-0">Ogłoszenia ({{ rows|length }})</h2></div>
+  <p class="hint">„Widoczne” znaczy: opublikowane i mieszczące się w swoim oknie. Uczestnik widzi
+    naraz najwyżej {{ visible_limit }} ogłoszeń, od najnowszego. „Wyłącz” zdejmuje ogłoszenie
+    natychmiast, bez kasowania – można je potem opublikować ponownie.</p>
+
+  {% for row in rows %}
+    {% with item=row.announcement %}
+    <article class="card card--quiet">
+      <div class="card__head">
+        <h3 class="card__title">{{ item.title }}</h3>
+        <span class="badge {{ row.state_badge }}">{{ row.state_label }}</span>
+      </div>
+      <p class="card__meta">
+        {% if item.published_from or item.published_until %}
+          Okno: {% if item.published_from %}{{ item.published_from|local_datetime }}{% else %}od publikacji{% endif %}
+          – {% if item.published_until %}{{ item.published_until|local_datetime }}{% else %}do wyłączenia{% endif %} ·
+        {% endif %}
+        {% if item.published_at %}ostatnia publikacja {{ item.published_at|local_datetime }} · {% endif %}
+        utworzone {{ item.created_at|local_datetime }}{% if item.created_by and item.created_by.get_full_name %} przez {{ item.created_by.get_full_name }}{% endif %}
+      </p>
+      <p>{{ item.body|message_body }}</p>
+      <div class="row">
+        {% if item.is_published %}
+          <form method="post" class="inline" action="{% url 'web:coordinator-inbox-announcement-unpublish' item.pk %}">
+            {% csrf_token %}
+            <button type="submit" class="btn btn--small btn--secondary">Wyłącz</button>
+          </form>
+        {% else %}
+          <form method="post" class="inline" action="{% url 'web:coordinator-inbox-announcement-publish' item.pk %}">
+            {% csrf_token %}
+            <button type="submit" class="btn btn--small btn--primary">Opublikuj</button>
+          </form>
+        {% endif %}
+        <a class="btn btn--small btn--ghost" href="{% url 'web:coordinator-inbox-announcement-edit' item.pk %}">Edytuj</a>
+        <form method="post" class="inline" action="{% url 'web:coordinator-inbox-announcement-delete' item.pk %}"
+              x-data="confirmSubmit" x-on:submit="check"
+              data-confirm="Usunąć to ogłoszenie? Do samego zdjęcia go z Wiadomości wystarczy „Wyłącz”.">
+          {% csrf_token %}
+          <button type="submit" class="btn btn--small btn--ghost">Usuń</button>
+        </form>
+      </div>
+    </article>
+    {% endwith %}
+  {% empty %}
+    <div class="empty">
+      <span class="empty__title">Nie ma jeszcze ogłoszeń</span>
+      <p class="empty__text">Dodaj pierwsze formularzem wyżej – np. link do warsztatów online.</p>
+    </div>
+  {% endfor %}
+</section>
+{% endblock %}

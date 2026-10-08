@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% load i18n static web_extras proctoring_tags %}
+{% load organizer_announcements from chat_extras %}
 {% comment %}
   Pulpit uczestnika: nagłówek „Co teraz”, pasek zakładek i **jedna** sekcja.
 
@@ -72,6 +73,9 @@
 </div>
 
 {% include "web/participant/_now.html" %}
+
+{# Ogłoszenia organizatora (CZ-ANN-01) – także przy wyłączonych Wiadomościach, kiedy skrzynka oddaje 404. #}
+{% organizer_announcements "dashboard" %}
 
 {% comment %}
   Kafle wydania K: wpisowe i formularz przyjazdu. Stoją **nad** paskiem zakładek i poza nimi, bo

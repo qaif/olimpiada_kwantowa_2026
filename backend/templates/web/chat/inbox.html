@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% load i18n static %}
+{% load organizer_announcements from chat_extras %}
 {% comment %}
   Wiadomości uczestnika: lista rozmów po lewej, wątek po prawej (jak w komunikatorze LinkedIn).
   Na wąskim ekranie jedna kolumna – ``chat--thread-open`` chowa listę, gdy otwarty jest wątek,
@@ -30,6 +31,9 @@
 </div>
 
 {% include "web/chat/_e2e_config.html" %}
+
+{# Ogłoszenia organizatora (CZ-ANN-01) – nad listą rozmów; w otwartym wątku nie spychają go w dół ekranu. #}
+{% if not thread_open %}{% organizer_announcements "inbox" %}{% endif %}
 
 <div class="chat{% if thread_open %} chat--thread-open{% endif %}">
   <nav class="chat__list" aria-label="{% translate 'Rozmowy' %}">

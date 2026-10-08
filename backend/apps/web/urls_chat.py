@@ -16,6 +16,7 @@ from __future__ import annotations
 from django.urls import path
 
 from .views import chat, coordinator_chat
+from .views import coordinator_chat_announcements as inbox_announcements
 
 urlpatterns = [
     path("me/messages/", chat.ChatInboxView.as_view(), name="chat"),
@@ -52,5 +53,33 @@ urlpatterns = [
         "coordinator/chat/<int:pk>/",
         coordinator_chat.CoordinatorChatThreadView.as_view(),
         name="coordinator-chat-thread",
+    ),
+    # --- ogłoszenia organizatora nad skrzynką (CZ-ANN-01, 8.10.2026) ----------------------------
+    # Osobny przedrostek ``inbox-announcements``: ``coordinator/announcements/`` to baner serwisu
+    # (``cms.Announcement``), a nazwy ``coordinator-chat-…`` zapalałyby w menu pozycję „Wiadomości”.
+    path(
+        "coordinator/inbox-announcements/",
+        inbox_announcements.CoordinatorInboxAnnouncementsView.as_view(),
+        name="coordinator-inbox-announcements",
+    ),
+    path(
+        "coordinator/inbox-announcements/<int:pk>/",
+        inbox_announcements.CoordinatorInboxAnnouncementEditView.as_view(),
+        name="coordinator-inbox-announcement-edit",
+    ),
+    path(
+        "coordinator/inbox-announcements/<int:pk>/publish/",
+        inbox_announcements.CoordinatorInboxAnnouncementPublishView.as_view(),
+        name="coordinator-inbox-announcement-publish",
+    ),
+    path(
+        "coordinator/inbox-announcements/<int:pk>/unpublish/",
+        inbox_announcements.CoordinatorInboxAnnouncementUnpublishView.as_view(),
+        name="coordinator-inbox-announcement-unpublish",
+    ),
+    path(
+        "coordinator/inbox-announcements/<int:pk>/delete/",
+        inbox_announcements.CoordinatorInboxAnnouncementDeleteView.as_view(),
+        name="coordinator-inbox-announcement-delete",
     ),
 ]
