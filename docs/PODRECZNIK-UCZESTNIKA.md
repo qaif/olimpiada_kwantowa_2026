@@ -520,6 +520,11 @@ znamy i nie przypomnimy** — „Utwórz nowy klucz” oznacza, że starych wiad
 odczytasz (druga strona zobaczy informację o zmianie klucza; odciski kluczy porównacie w „Szczegółach
 szyfrowania”). Jeśli zgłosisz wiadomość szyfrowaną, jej odszyfrowana treść trafi do organizatora.
 
+**Ogłoszenia organizatora.** Nad listą rozmów (i na pulpicie `/me/`, pod „Co teraz”) organizator może
+umieścić ogłoszenie dla wszystkich uczestników — np. link do warsztatów online. To nie jest rozmowa:
+nie przychodzi e-mailem i nie odpowiada się na nie; pytanie zadasz w „Napisz do organizatora”.
+Ogłoszenie znika, gdy organizator je wyłączy albo minie jego termin.
+
 ## 8b. Webinary — `/webinars/`
 
 Gdy organizator prowadzi webinary (wykłady, konsultacje, omówienia zadań), w pasku panelu `/me/` jest

@@ -1129,6 +1129,21 @@ zmienisz grupę, jej parametr, pole „także uczestnicy poprzednich edycji”, 
 **nic nie wyśle** — pokaże podgląd na nowo
 („…zmieniły się od podglądu”) i dopiero kolejne „Wyślij” wysyła.
 
+**Wysyłka z datą przyszłą** (prośba organizatora z 8.10.2026). Pole **„Wyślij później”** (data
+i godzina, **czas polski**) zamienia „Wyślij” w **„Zaplanuj”**; puste pole — list wychodzi od razu, jak
+dotąd. Termin: najwcześniej za 5 minut, najpóźniej za 90 dni. **Odbiorców liczymy w chwili wysyłki,
+nie planowania** — przypomnienie zaplanowane w czwartek na sobotę dostanie też ktoś, kto zarejestruje
+się w piątek, a nie dostanie konto zablokowane w międzyczasie. Dlatego podgląd pokazuje liczbę **na
+teraz** z dopiskiem, że lista zostanie policzona ponownie, a grupę pustą dziś da się zaplanować.
+Zaplanowane komunikaty stoją w sekcji **„Zaplanowane”** (termin, grupa, temat, kto zaplanował) z
+przyciskiem **„Anuluj”** — działa do chwili wysyłki; zmiana treści = „Anuluj” i zaplanowanie od nowa.
+List wychodzi w ciągu minuty od terminu. Historia pokazuje kolumnę **„Termin”** i stany: **„bez
+odbiorców — nic nie wysłano”** (grupa w chwili wysyłki była pusta), **„anulowana”** oraz
+**„przeterminowana — nie wysłano”** — gdy serwer nie zdążył wysłać listu w ciągu doby od terminu
+(awaria), nie wysyłamy go już, bo spóźnione przypomnienie szkodzi; wyślij wtedy list ręcznie. **Wklejonej
+listy adresów zaplanować się nie da** (jej adresów nie przechowujemy) — wysyła się ją od razu. Audyt:
+`broadcast.scheduled`, `broadcast.cancelled`, a przy wysyłce `broadcast.sent` z autorem planu.
+
 **„Eksportuj do Excela”** (przycisk obok „Podgląd”) pobiera plik `.xlsx` z kolumnami **Imię, Nazwisko,
 E-mail** — odbiorcy **aktualnie wybranej grupy** z jej ustawieniami (etap, województwo/region, szkoła,
 klasa, warsztat, „także uczestnicy poprzednich edycji”). To dokładnie te osoby, do których poszedłby
@@ -1415,6 +1430,31 @@ znikają, adresy odpowiadają 404); rozmowy zostają w bazie. Pozycja w Twoim me
 wysłane wiadomości wchodzą do paczki `/account/export/` (szyfrowane — jako szyfrogram z adnotacją), a
 anonimizacja konta zostawia wiadomości w rozmowie drugiej strony z podpisem „Użytkownik usunięty”
 i usuwa profil katalogu, klucz szyfrowania, blokady i ustawienia powiadomień.
+
+#### Ogłoszenia w Wiadomościach — `/coordinator/inbox-announcements/`
+
+Menu **Komunikacja → Ogłoszenia w Wiadomościach** (prośba organizatora z 8.10.2026, np. link do warsztatów
+online). Ogłoszenie widzi **każdy zalogowany uczestnik** konkursu w bloku „Ogłoszenia organizatora” — na
+górze skrzynki `/me/messages/` i na pulpicie `/me/` — **także konta założone po publikacji**: ogłoszenie
+jest czytane w chwili otwarcia strony, a nie rozsyłane do skrzynek. To nie jest wiadomość w rozmowie:
+nie idzie e-mailem i nie da się na nie odpowiedzieć (pytania uczestnicy zadadzą w „Napisz do organizatora”).
+Opiekunowie szkolni i recenzenci Wiadomości nie mają, więc ogłoszeń nie widzą. Pasek nad **wszystkimi**
+stronami serwisu (także dla niezalogowanych) to inna funkcja — rozdział 6.2.
+
+- **Tytuł i treść** — zwykły tekst; wklejony adres (`https://meet.google.com/…`) sam staje się
+  klikalnym odnośnikiem, znaczniki HTML się nie wykonają.
+- **„Zapisz i opublikuj”** pokazuje ogłoszenie od razu; **„Zapisz jako szkic”** — dopiero po „Opublikuj”.
+- **„Wyłącz”** zdejmuje ogłoszenie natychmiast (bez kasowania — można je opublikować ponownie i wróci na
+  górę listy); **„Usuń”** kasuje je na stałe.
+- Opcjonalne **„Widoczne od / do”** — ogłoszenie pojawi się i zniknie samo (stany „zaplanowane”,
+  „wygasło”). Uczestnik widzi naraz najwyżej 10 ogłoszeń, od najnowszego.
+- Ekran działa także przy **wyłączonych Wiadomościach** — wtedy skrzynka uczestnika nie istnieje, ale
+  pulpit `/me/` nadal pokazuje ogłoszenia.
+- Każda zmiana trafia do dziennika zdarzeń (`/coordinator/audit/`, zdarzenia `chat.announcement.*`:
+  `created`, `updated`, `published`, `unpublished`, `deleted`) — z tytułem, bez kopii treści.
+
+Operator może opublikować ogłoszenie także z powłoki (`docs/tasks/CZ-ANN-01.md` § 8):
+`publish_announcement(competition=…, title=…, body=…, actor=None)` z `apps.chat.announcements`.
 
 ### 6.4b Pokoje wideo — `/coordinator/video-rooms/`
 

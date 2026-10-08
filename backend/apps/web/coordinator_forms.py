@@ -20,7 +20,12 @@ from __future__ import annotations
 from django import forms
 from django.utils.translation import gettext_lazy
 
-from apps.accounts.messaging import EDITION_SCOPED_GROUPS, STAGE_GROUPS
+from apps.accounts.messaging import (
+    EDITION_SCOPED_GROUPS,
+    STAGE_GROUPS,
+    schedule_custom_rejected,
+    schedule_time_error,
+)
 from apps.accounts.models import BroadcastGroup, ConsentDefinition, Region, RegistrationProfile
 from apps.competitions.models import (
     Category,
@@ -37,7 +42,7 @@ from apps.schools.custom import MIN_NAME_LENGTH, CustomInstitution
 from apps.schools.models import InstitutionType
 from apps.tenancy.documents import DocumentTemplate
 
-from .forms import VOIVODESHIP_CHOICES
+from .forms import VOIVODESHIP_CHOICES, LocalDateTimeField
 from .points_fields import MAX_POINTS_INPUT, THRESHOLD_MAX, PointsField
 
 #: Górny limit długości komunikatu. Sto tysięcy znaków to kilkadziesiąt stron – nie jest to limit
@@ -141,6 +146,17 @@ class BroadcastForm(forms.Form):
         max_length=MAX_BODY_LENGTH,
         widget=forms.Textarea(attrs={"rows": 12}),
     )
+    #: Komunikat z datą przyszłą (MSG-SCHED-01). Puste – wysyłka od razu, jak dotąd. Godzina jest
+    #: czasem polskim (``LocalDateTimeField``: ``make_aware`` w ``TIME_ZONE``), a regułę terminu
+    #: (najbliżej za kilka minut, najdalej za 90 dni) trzyma ``apps.accounts.messaging``.
+    send_at = LocalDateTimeField(
+        label=gettext_lazy("Wyślij później (data i godzina, czas polski)"),
+        required=False,
+        help_text=gettext_lazy(
+            "Puste pole – komunikat wychodzi od razu. Odbiorców policzymy ponownie w chwili wysyłki: "
+            "list dostanie też ktoś, kto zarejestruje się do tego czasu."
+        ),
+    )
 
     def __init__(
         self,
@@ -223,12 +239,26 @@ class BroadcastForm(forms.Form):
                 mapping[value] = fields
         return mapping
 
+    def clean_send_at(self):
+        """Termin wysyłki – ta sama reguła, co w ``schedule_broadcast`` (``schedule_time_error``).
+
+        Eksport termin pomija: plik nie jest wysyłką, a błąd terminu nie może zatrzymać pobrania.
+        """
+        value = self.cleaned_data.get("send_at")
+        if value is None or self.for_export:
+            return None
+        if (error := schedule_time_error(value)) is not None:
+            raise forms.ValidationError(error)
+        return value
+
     def clean(self) -> dict:
         cleaned = super().clean()
         group = cleaned.get("group")
         if self.for_export and group == BroadcastGroup.CUSTOM:
             self.add_error("group", EXPORT_CUSTOM_REJECTED)
             return cleaned
+        if cleaned.get("send_at") and group == BroadcastGroup.CUSTOM:
+            self.add_error("send_at", schedule_custom_rejected())
         field = self.parameter_field(group)
         if field is None or field in self.errors:
             return cleaned

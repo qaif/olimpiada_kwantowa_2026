@@ -695,3 +695,221 @@ def test_export_never_reaches_another_competition(client_for, other_competition)
 
     assert [row[2] for row in _sheet(response)[1:]] == ["w-b@example.test"]
     assert AuditLog.objects.get(action="export.generated").competition == other_competition
+
+
+# --- komunikaty z datą przyszłą (MSG-SCHED-01) ------------------------------------------------------
+
+
+def _local(**delta) -> str:
+    """Wartość pola ``datetime-local`` (czas polski) przesunięta względem teraz."""
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    return (timezone.localtime() + timedelta(**delta)).strftime("%Y-%m-%dT%H:%M")
+
+
+def test_preview_with_a_send_time_offers_scheduling_and_warns_about_the_recount(
+    web_client, coordinator, entry
+):
+    web_client.force_login(coordinator)
+
+    content = _post(web_client, {**BASE, "group": BroadcastGroup.ALL_PARTICIPANTS, "send_at": _local(days=1)})
+    content = content.content.decode()
+
+    assert "1 odbiorców" in content
+    assert "Zaplanuj" in content
+    assert "policzona ponownie w chwili wysyłki" in content
+    assert not MessageBroadcast.objects.exists()
+
+
+def test_scheduling_from_the_screen_sends_nothing_now(web_client, coordinator, entry):
+    web_client.force_login(coordinator)
+    mail.outbox.clear()
+
+    response = _post(
+        web_client,
+        {**BASE, "group": BroadcastGroup.ALL_PARTICIPANTS, "send_at": _local(days=2)},
+        action="send",
+    )
+
+    assert response.status_code == 302
+    assert not mail.outbox
+    broadcast = MessageBroadcast.objects.get()
+    assert broadcast.status == BroadcastStatus.SCHEDULED
+    assert broadcast.created_by == coordinator
+    assert broadcast.parameters == {"include_past_editions": False}
+    assert broadcast.target == {"past_editions": False, "label": "bieżąca edycja"}
+    assert AuditLog.objects.get(action="broadcast.scheduled").actor == coordinator
+    page = web_client.get("/coordinator/messages/").content.decode()
+    assert "Zaplanowane" in page
+    assert f"/coordinator/messages/{broadcast.pk}/cancel/" in page
+
+
+def test_empty_group_can_be_scheduled(web_client, coordinator, elim_stage):
+    """Do terminu grupa może się zapełnić – odbiorców i tak liczy beat w chwili wysyłki."""
+    web_client.force_login(coordinator)
+
+    response = _post(
+        web_client,
+        {**BASE, "group": BroadcastGroup.STAGE_REGISTERED, "stage": elim_stage.pk, "send_at": _local(days=1)},
+        action="send",
+    )
+
+    assert response.status_code == 302
+    assert MessageBroadcast.objects.get().parameters == {"stage": elim_stage.pk}
+
+
+@pytest.mark.parametrize(
+    ("delta", "message"),
+    [
+        ({"hours": -1}, "co najmniej 5 minut"),
+        ({"minutes": 2}, "co najmniej 5 minut"),
+        ({"days": 91}, "90 dni"),
+    ],
+)
+def test_send_time_too_close_or_too_far_is_refused(web_client, coordinator, entry, delta, message):
+    web_client.force_login(coordinator)
+
+    response = _post(
+        web_client,
+        {**BASE, "group": BroadcastGroup.ALL_PARTICIPANTS, "send_at": _local(**delta)},
+        action="send",
+    )
+
+    assert response.status_code == 200
+    assert message in response.content.decode()
+    assert not MessageBroadcast.objects.exists()
+
+
+def test_pasted_list_cannot_be_scheduled_on_the_screen(web_client, coordinator):
+    web_client.force_login(coordinator)
+
+    response = _post(
+        web_client,
+        {**BASE, "group": BroadcastGroup.CUSTOM, "addresses": "a@example.test", "send_at": _local(days=1)},
+        action="send",
+    )
+
+    assert "Wklejonej listy adresów nie da się zaplanować" in response.content.decode()
+    assert not MessageBroadcast.objects.exists()
+
+
+def test_setting_a_send_time_after_the_preview_does_not_schedule(web_client, coordinator, entry):
+    """Podgląd „wyślij od razu” nie jest przepustką dla komunikatu zaplanowanego – ani odwrotnie."""
+    web_client.force_login(coordinator)
+    mail.outbox.clear()
+    data = {**BASE, "group": BroadcastGroup.ALL_PARTICIPANTS}
+    signature = SIGNATURE.search(_post(web_client, data).content.decode()).group(1)
+
+    response = web_client.post(
+        "/coordinator/messages/",
+        {**data, "send_at": _local(days=1), "action": "send", "preview_signature": signature},
+    )
+
+    assert "zmieniły się od podglądu" in response.content.decode()
+    assert not mail.outbox
+    assert not MessageBroadcast.objects.exists()
+
+
+def _waiting(competition, **kwargs):
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    from apps.tenancy.tests.factories import create_scoped
+
+    return create_scoped(
+        MessageBroadcast,
+        competition,
+        group=BroadcastGroup.COMMITTEE,
+        subject=kwargs.pop("subject", "Zaplanowany komunikat"),
+        body=".",
+        status=BroadcastStatus.SCHEDULED,
+        scheduled_for=timezone.now() + timedelta(days=1),
+        **kwargs,
+    )
+
+
+def test_cancel_from_the_screen(web_client, coordinator, competition):
+    broadcast = _waiting(competition, created_by=coordinator)
+    web_client.force_login(coordinator)
+
+    response = web_client.post(f"/coordinator/messages/{broadcast.pk}/cancel/")
+
+    assert response.status_code == 302
+    broadcast.refresh_from_db()
+    assert broadcast.status == BroadcastStatus.CANCELLED
+    assert AuditLog.objects.get(action="broadcast.cancelled").actor == coordinator
+    page = web_client.get("/coordinator/messages/").content.decode()
+    # Anulowany wypada z „Zaplanowanych” i zostaje w historii ze swoim stanem.
+    assert f"/coordinator/messages/{broadcast.pk}/cancel/" not in page
+    assert "anulowana" in page
+
+
+def test_cancel_of_another_competition_is_404(web_client, coordinator, other_competition):
+    broadcast = _waiting(other_competition)
+    web_client.force_login(coordinator)
+
+    response = web_client.post(f"/coordinator/messages/{broadcast.pk}/cancel/")
+
+    assert response.status_code == 404
+    broadcast.refresh_from_db()
+    assert broadcast.status == BroadcastStatus.SCHEDULED
+
+
+def test_cancel_is_forbidden_for_a_reviewer_and_needs_post(web_client, coordinator, reviewer, competition):
+    broadcast = _waiting(competition)
+
+    web_client.force_login(reviewer.user)
+    assert web_client.post(f"/coordinator/messages/{broadcast.pk}/cancel/").status_code == 403
+    web_client.force_login(coordinator)
+    assert web_client.get(f"/coordinator/messages/{broadcast.pk}/cancel/").status_code == 405
+
+    broadcast.refresh_from_db()
+    assert broadcast.status == BroadcastStatus.SCHEDULED
+
+
+def test_cancel_after_sending_only_informs(web_client, coordinator, competition):
+    broadcast = _waiting(competition)
+    MessageBroadcast.objects.filter(pk=broadcast.pk).update(status=BroadcastStatus.SENT)
+    web_client.force_login(coordinator)
+
+    response = web_client.post(f"/coordinator/messages/{broadcast.pk}/cancel/", follow=True)
+
+    assert "nie da się już anulować" in response.content.decode()
+    broadcast.refresh_from_db()
+    assert broadcast.status == BroadcastStatus.SENT
+
+
+def test_scheduled_list_hides_broadcasts_of_another_competition(
+    web_client, coordinator, competition, other_competition
+):
+    _waiting(competition, subject="Nasz plan")
+    _waiting(other_competition, subject="Cudzy plan")
+    web_client.force_login(coordinator)
+
+    content = web_client.get("/coordinator/messages/").content.decode()
+
+    assert "Nasz plan" in content
+    assert "Cudzy plan" not in content
+
+
+def test_history_shows_the_send_time(web_client, coordinator, competition):
+    from datetime import datetime, timedelta
+    from zoneinfo import ZoneInfo
+
+    from django.utils import timezone
+
+    day = (timezone.localtime() - timedelta(days=1)).date()
+    broadcast = _waiting(competition, subject="Wysłany z terminem")
+    MessageBroadcast.objects.filter(pk=broadcast.pk).update(
+        status=BroadcastStatus.SENT,
+        scheduled_for=datetime(day.year, day.month, day.day, 6, 17, tzinfo=ZoneInfo("Europe/Warsaw")),
+    )
+    web_client.force_login(coordinator)
+
+    content = web_client.get("/coordinator/messages/").content.decode()
+
+    assert "Wysłany z terminem" in content
+    assert "06:17" in content

@@ -63,7 +63,9 @@ EXPECTED_MENU_WITHOUT_FLAGS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("Komitet", ("Członkowie", "Zatwierdzenia", "Zaproszenia", "Województwa")),
     # „Wiadomości” – zadanie CZ-01 z 30.09.2026 (polecenie organizatora: pozycja w „Komunikacji”
     # z odznaką). Bez flagi, bo moduł jest domyślnie włączony (kanał „napisz do organizatora”).
-    ("Komunikacja", ("Komunikaty", "Zgłoszenia", "Ogłoszenia", "Wiadomości")),
+    # „Ogłoszenia w Wiadomościach” – zadanie CZ-ANN-01 (prośba organizatora z 8.10.2026: włączanie
+    # i wyłączanie ogłoszenia w Wiadomościach przez koordynatora). Bez flagi, jak „Wiadomości”.
+    ("Komunikacja", ("Komunikaty", "Zgłoszenia", "Ogłoszenia", "Wiadomości", "Ogłoszenia w Wiadomościach")),
     (
         "Raporty",
         (

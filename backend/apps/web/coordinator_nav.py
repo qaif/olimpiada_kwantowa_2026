@@ -785,6 +785,13 @@ def groups(stages: list, competition=None) -> list[Group]:
             match=("coordinator-chat", "coordinator-chat-"),
             badge="chat",
         ),
+        # Ogłoszenia nad skrzynką Wiadomości uczestników (CZ-ANN-01, prośba organizatora z 8.10.2026).
+        # Bez flagi i także przy wyłączonych Wiadomościach – pulpit uczestnika pokazuje je zawsze.
+        Item(
+            "Ogłoszenia w Wiadomościach",
+            ("web:coordinator-inbox-announcements",),
+            match=("coordinator-inbox-announcements", "coordinator-inbox-announcement-"),
+        ),
     )
     if competition is not None and competition.has_feature("participant_forum"):
         # Moderacja forum (prośba organizatora z 21.09.2026). W „Komunikacji”, bo to jest rozmowa

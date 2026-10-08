@@ -31,6 +31,38 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
   identyczne co do adresu, danych i asercji z testami w `test_djcms_api.py`; w
   `themes/tests/test_review_fixes.py` test zawarty w `test_install.py::test_delete_unused_version_removes_files`.
 
+## [Unreleased] – Komunikaty z datą przyszłą (MSG-SCHED-01)
+
+- **„Wyślij później”** na `/coordinator/messages/` (prośba organizatora z 8.10.2026): komunikat da się
+  zaplanować na datę i godzinę (czas polski, 5 min – 90 dni naprzód). Rejestr trzyma grupę i jej
+  parametry (nowe pole `parameters`), termin (`scheduled_for`) i stan `SCHEDULED` – **bez adresów**;
+  odbiorców liczy zadanie beat `dispatch-scheduled-broadcasts` (co minutę) **w chwili wysyłki**, tą samą
+  drogą co wysyłka natychmiastowa (bieżąca edycja z chwili wysyłki). Dokładnie raz:
+  `select_for_update(skip_locked=True)` + warunek stanu. Nowe stany: zaplanowana, anulowana,
+  przeterminowana (> 24 h po terminie – nie wysyłamy), bez odbiorców. Sekcja „Zaplanowane” z przyciskiem
+  „Anuluj” (POST, tylko koordynator konkursu, cudzy komunikat → 404), kolumna „Termin” w historii, podgląd
+  z liczbą „na teraz” i dopiskiem o ponownym liczeniu; termin wchodzi do podpisu podglądu. Wklejonej listy
+  adresów nie da się zaplanować. Serwis `schedule_broadcast(...)` do użycia także z `manage.py shell`
+  (OPERACJE § 53). Audyt: `broadcast.scheduled`, `broadcast.cancelled`, `broadcast.sent` (aktor = autor
+  planu), `broadcast.expired`, `broadcast.empty`. Migracja `accounts.0041`. Specyfikacja:
+  `docs/tasks/MSG-SCHED-01.md`.
+
+## [Unreleased] – Ogłoszenia organizatora w Wiadomościach (CZ-ANN-01)
+
+- **Blok „Ogłoszenia organizatora”** nad listą rozmów w `/me/messages/` i na pulpicie `/me/` (prośba
+  organizatora z 8.10.2026: link do warsztatów „na wszystkich kontach w sekcji wiadomości, także tych, co
+  dopiero się zarejestrują”). Nowy model `chat.OrganizerAnnouncement` (migracja `chat.0003`) – jawny wpis
+  konkursu czytany w chwili wyświetlenia, a nie wiadomość w rozmowie, więc widzi go każdy uczestnik, także
+  zarejestrowany po publikacji, niezależnie od rozmów między uczestnikami; pulpit pokazuje go także przy
+  wyłączonych Wiadomościach. Treść jako zwykły tekst (escape + klikalne adresy, `rel="nofollow noopener
+  noreferrer"`).
+- **Panel koordynatora** `/coordinator/inbox-announcements/` (menu „Komunikacja → Ogłoszenia w
+  Wiadomościach”): dodaj (szkic albo „Zapisz i opublikuj”), edytuj, „Opublikuj / Wyłącz”, usuń, opcjonalne
+  okno „widoczne od/do”; tylko koordynator konkursu, cudze ogłoszenie 404, audyt `chat.announcement.*`.
+- Serwis `apps.chat.announcements.publish_announcement(*, competition, title, body, actor)` do publikacji
+  z `manage.py shell`. Budżet zapytań `/me/` +1 (jedno zapytanie po indeksie). Bez nowych danych osobowych
+  (brak odczytów per konto) – bez wpisu w rejestrze czynności. Specyfikacja: `docs/tasks/CZ-ANN-01.md`.
+
 ## [Unreleased] – Komunikaty: grupa „uczestnicy bez zaświadczenia o statusie ucznia”
 
 - Nowa grupa odbiorców na `/coordinator/messages/` (prośba organizatora z 8.10.2026): uczestnicy bieżącej

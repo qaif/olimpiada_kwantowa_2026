@@ -711,3 +711,102 @@ class ChatNotificationSettings(models.Model):
 
     def __str__(self) -> str:
         return f"{self.user_id}: {'listy' if self.email_on_message else 'bez listów'}"
+
+
+#: Limity ogłoszenia organizatora (CZ-ANN-01). Treść ma ten sam sufit, co wiadomość: ogłoszenie to
+#: kilka zdań i odnośnik, a nie regulamin wklejony nad skrzynką.
+ANNOUNCEMENT_TITLE_LENGTH = 200
+ANNOUNCEMENT_BODY_LENGTH = MAX_BODY_LENGTH
+
+
+class OrganizerAnnouncement(models.Model):
+    """Ogłoszenie organizatora nad skrzynką Wiadomości i na pulpicie uczestnika (zadanie CZ-ANN-01).
+
+    **Nie jest wiadomością w rozmowie** (:class:`Message`) i to jest cała decyzja tego modelu.
+    Rozmowa jest 1:1, bywa szyfrowana end-to-end i powstaje dopiero z pierwszą wiadomością – konto
+    założone jutro nie miałoby wątku, do którego dałoby się „dosłać” ogłoszenie, a kilka tysięcy
+    kopii zapełniłoby wspólną skrzynkę zespołu odpowiedziami „dziękuję”. Ogłoszenie jest więc
+    jednym jawnym wierszem konkursu, czytanym **w chwili wyświetlenia** (reguła widoczności:
+    ``apps.chat.announcements.visible_announcements``) – widzi je każdy uczestnik, także ten, który
+    zarejestruje się po publikacji.
+
+    Nie jest też banerem ``cms.Announcement``: tamten wisi nad każdą stroną serwisu (także dla
+    niezalogowanych) i ma jedną linijkę tekstu, a to jest wiadomość do zalogowanych uczestników,
+    z tytułem i treścią, w miejscu, w którym czytają oni korespondencję od organizatora.
+
+    Stanu „przeczytane” świadomie nie ma: ogłoszenie jest wspólne, a odczyt per konto byłby nową
+    daną osobową bez potrzeby (docs/tasks/CZ-ANN-01.md § 5).
+    """
+
+    competition = models.ForeignKey(
+        "tenancy.Competition",
+        on_delete=models.CASCADE,
+        related_name="chat_announcements",
+        verbose_name="konkurs",
+    )
+    title = models.CharField("tytuł", max_length=ANNOUNCEMENT_TITLE_LENGTH)
+    #: Zwykły tekst – renderuje go filtr ``message_body`` (escape, potem odnośniki), jak wiadomość.
+    body = models.TextField("treść", max_length=ANNOUNCEMENT_BODY_LENGTH)
+    #: Przełącznik koordynatora „Opublikuj / Wyłącz”. Domyślnie szkic: ogłoszenie do wszystkich
+    #: uczestników nie ma się pokazać przez samo zapisanie formularza.
+    is_published = models.BooleanField("opublikowane", default=False)
+    #: Chwila ostatniego „Opublikuj” – podstawa kolejności „od najnowszego”. Ogłoszenie wyłączone
+    #: i opublikowane ponownie wraca na górę, bo dla uczestnika pojawia się wtedy na nowo.
+    published_at = models.DateTimeField("opublikowane o", null=True, blank=True)
+    #: Okno widoczności. Puste końce znaczą „bez ograniczenia”; okno nie zastępuje przełącznika –
+    #: „zdejmij natychmiast” jest osobną potrzebą od „to obowiązuje do piątku”.
+    published_from = models.DateTimeField(
+        "widoczne od", null=True, blank=True, help_text="Puste = od chwili publikacji."
+    )
+    published_until = models.DateTimeField(
+        "widoczne do", null=True, blank=True, help_text="Puste = do wyłączenia."
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name="autor",
+    )
+    created_at = models.DateTimeField("utworzone", default=timezone.now)
+    updated_at = models.DateTimeField("zmienione", default=timezone.now)
+
+    objects = competition_scoped_manager("competition")
+
+    class Meta:
+        verbose_name = "ogłoszenie organizatora"
+        verbose_name_plural = "ogłoszenia organizatora"
+        ordering = ("-created_at", "-id")
+        indexes = [
+            models.Index(fields=["competition", "is_published"], name="chat_announcement_live_idx"),
+        ]
+        constraints = [
+            # Okno o niedodatniej długości nigdy się nie otwiera – ogłoszenie, którego nikt nie zobaczy.
+            models.CheckConstraint(
+                condition=Q(published_from__isnull=True)
+                | Q(published_until__isnull=True)
+                | Q(published_until__gt=F("published_from")),
+                name="chat_announcement_window",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return self.title
+
+    @property
+    def shown_since(self):
+        """Chwila, od której uczestnik widzi ogłoszenie: późniejsza z publikacji i początku okna."""
+        moments = [moment for moment in (self.published_at, self.published_from) if moment is not None]
+        return max(moments) if moments else self.created_at
+
+    def state(self, now=None) -> str:
+        """Stan dla panelu koordynatora: ``live``, ``draft``, ``scheduled`` albo ``expired``."""
+        now = now or timezone.now()
+        if not self.is_published:
+            return "draft"
+        if self.published_from is not None and self.published_from > now:
+            return "scheduled"
+        if self.published_until is not None and self.published_until <= now:
+            return "expired"
+        return "live"
