@@ -1897,6 +1897,7 @@ czytelności” zamieniłoby ślad techniczny w wyciąg z bazy osobowej.
 | Uczestnicy / Opiekunowie szkolni | ta sama lista z filtrem roli | osobny ekran powtarzałby wyszukiwarkę i stronicowanie; uczestnicy mają własne kolumny profilu (§ 10.1) |
 | Edycja konta | `/coordinator/accounts/<id>/` | dane, „Konto aktywne”, dla uczestnika także telefon, województwo, szkoła, klasa, **data urodzenia**; dla członka komitetu status, komisja odwoławcza i województwo |
 | Usunięcie konta | `/coordinator/accounts/<id>/delete/` | strona potwierdzenia mówi, co się stanie |
+| **Zdublowane konta** | `/coordinator/accounts/duplicates/` | ta sama osoba z kilkoma kontami uczestnika; sugestia, usuwanie kopii, CSV (§ 10.2) |
 | **Konta oczekujące na aktywację** | `/coordinator/activations/` | „Aktywuj ręcznie”, „Wyślij link ponownie” |
 | **Karta uczestnika** | `/coordinator/participants/<id>/` | cały przebieg zawodów jednej osoby, wyłącznie do odczytu |
 
@@ -2020,6 +2021,53 @@ ucznia: list z linkiem aktywacyjnym, 4 godziny na kliknięcie, w razie potrzeby 
 logowania. Strona „Konto zostało założone” tłumaczy nauczycielowi, co dalej: panel „Moi uczniowie” będzie
 pusty, dopóki uczniowie sami nie wpiszą jego adresu e-mail w swoim profilu albo nie zgodzą się na jego
 prośbę z importu listy — to oni decydują, kto widzi ich postęp, nie organizator ani nauczyciel.
+
+### 10.2 Zdublowane konta — `/coordinator/accounts/duplicates/`
+
+Menu „Uczestnicy i konta” → **„Zdublowane konta”** (prośba organizatora z 9.10.2026, ACC-DUP-01).
+Ekran zbiera osoby, które mają w **tym** konkursie więcej niż jedno konto uczestnika: to samo imię,
+nazwisko i szkoła, inny adres e-mail. Zwykle to literówka w adresie przy pierwszej rejestracji
+(`gmail.con`) albo list aktywacyjny zatrzymany przez skrzynkę szkolną — uczeń zakłada wtedy drugie
+konto.
+
+**Jak serwis porównuje.** Imię i nazwisko bez względu na wielkość liter, podwójne spacje, kropki
+i cudzysłowy. Szkoła: ta sama pozycja z wykazu szkół, ta sama placówka ze słownika organizatora
+albo — przy szkole wpisanej ręcznie — ten sam tekst po tej samej normalizacji. Szkoła wybrana
+z wykazu i ta sama szkoła wpisana ręcznie **nie** trafią do jednej grupy. Konta usunięte
+(zanonimizowane) i profile z innych konkursów nie są brane pod uwagę.
+
+U góry trzy liczby: osoby z duplikatami, konta w tych grupach, kandydaci do usunięcia. Przy każdym
+koncie: kod, e-mail, data założenia, **ostatnie logowanie** („nigdy”), stan konta, etapy (trening
+osobno), liczba prac, zgody, zaświadczenie o statusie ucznia i **sugestia**:
+
+| Sugestia | Kiedy |
+|---|---|
+| **do zachowania** | jedyne konto w grupie, które się logowało, ma etap zawodów albo prace |
+| **kandydat do usunięcia** | w grupie jest konto używane, a to konto nigdy się nie logowało, nie ma etapu poza treningiem, prac, zaświadczenia ani innych ról (profilu w innym konkursie, roli w komitecie, opiekuna) |
+| **do decyzji** | wszystko inne — np. żadne konto nie było używane albo używane są dwa; powód stoi przy koncie |
+
+**Usuwanie.** Przy kandydacie jest przycisk **„Usuń”** — prowadzi na zwykły ekran potwierdzenia
+usunięcia konta (§ 10), po którym wracasz na listę duplikatów. **„Usuń wszystkich kandydatów…”**
+pokazuje najpierw dokładną listę kont z polem wyboru przy każdym (możesz odznaczyć), a dopiero
+drugie kliknięcie usuwa. W tej chwili serwis sprawdza warunki jeszcze raz i **pomija** konto, które
+w międzyczasie przestało być kandydatem (np. uczeń zalogował się właśnie na nie) — komunikat podaje,
+ile usunięto, a ile pominięto. Każde usunięcie trafia do audytu jako
+`account.deleted_by_coordinator`, tak samo jak z ekranu edycji konta. Konto bez śladu w zawodach
+znika w całości (adres zwalnia się do rejestracji); konto z wpisem do treningu jest anonimizowane.
+
+Jeśli zostawiane konto ma adres z literówką, popraw go po usunięciu kopii w edycji konta — adres
+zmienia się od razu, bez listu potwierdzającego.
+
+**Podobne adresy e-mail (słabszy sygnał).** Pod grupami stoi lista kont, których adresy różnią się
+wyłącznie typową literówką w domenie (`gmail.con`/`gmail.com`, `wp.p`/`wp.pl` …), a imię, nazwisko
+albo szkoła się nie zgadzają. Tu nie ma przycisków usuwania — sprawdź konta w edycji.
+
+**Eksport.** „Pobierz CSV” zapisuje grupy w arkuszu (wiersz na konto, numer grupy, sugestia
+i powód). Pobranie zostaje w audycie (`account.duplicates_exported`, liczba grup i wierszy).
+
+**RODO.** Ekran pokazuje wyłącznie dane, które widzisz już na liście kont i karcie uczestnika —
+zestawione obok siebie. Nie zbiera niczego nowego, więc rejestr czynności przetwarzania się nie
+zmienia.
 
 ---
 

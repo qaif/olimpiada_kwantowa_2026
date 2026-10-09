@@ -21,6 +21,20 @@ podsekcją `### <tytuł>` wydania `## v<x.y.z> – <data tagu> – <opis tagu>`.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## [Unreleased] – Zdublowane konta uczestników w panelu koordynatora (ACC-DUP-01)
+
+- **Nowy ekran `/coordinator/accounts/duplicates/`** (menu „Uczestnicy i konta” → „Zdublowane konta”,
+  prośba organizatora z 9.10.2026 – na produkcji 17 osób z 36 kontami): grupy kont uczestnika tego
+  konkursu o tym samym imieniu, nazwisku (NFKC, bez wielkości liter, spacji, kropek i cudzysłowów)
+  i szkole (wykaz → słownik organizatora → tekst), bez kont zanonimizowanych. Przy koncie: ostatnie
+  logowanie, stan, etapy (trening osobno), prace, zgody, zaświadczenie i sugestia „do zachowania” /
+  „kandydat do usunięcia” / „do decyzji”. Serwis `apps.accounts.duplicates`, stała liczba zapytań.
+- **Usuwanie kopii** wyłącznie przez `delete_account_by_coordinator` (audyt jak dotąd): pojedynczo
+  przez istniejący ekran usuwania konta (`?back=duplicates` wraca na listę), zbiorczo z ekranem
+  potwierdzenia z dokładną listą; warunki kandydata są przeliczane w chwili usuwania, a konto, które
+  zdążyło się zalogować, jest pomijane. Eksport CSV z audytem `account.duplicates_exported`; słabszy
+  sygnał „podobne adresy e-mail” (literówki domen, np. `gmail.con`). PODRĘCZNIK-ORGANIZATORA § 10.2.
+
 ## [Unreleased] – Szybsze CI: grupy xdist, jedna migracja na shard, czasy z CI (CI-SPEED-01)
 
 - **Testy migracji przewijały bazę raz na test, a nie raz na moduł** (prośba organizatora z 8.10.2026
