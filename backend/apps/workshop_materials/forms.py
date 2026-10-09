@@ -148,9 +148,9 @@ class NewMaterialForm(MaterialForm):
         self.fields["file"].help_text = (
             f"Film: MP4 (H.264 + AAC) albo WebM, najwyżej {video_mb} MB. "
             f"Plik, najwyżej {file_mb} MB – {formats.allowed_file_extensions()}. "
-            "Format sprawdzamy po treści pliku, nie po rozszerzeniu. Tekst i kod zapisz w UTF-8; "
-            "uczestnik zobaczy go na stronie (Markdown złożony, kod jako tekst), HTML i SVG – tylko "
-            "do pobrania."
+            "Format sprawdzamy po treści pliku, nie po rozszerzeniu. Kod i Markdown zapisz w UTF-8 "
+            "(CSV, TSV i TXT – także wprost z Excela); uczestnik zobaczy tekst na stronie (Markdown "
+            "złożony, kod jako tekst), HTML i SVG – tylko do pobrania."
         )
 
     def clean(self):

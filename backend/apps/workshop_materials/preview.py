@@ -34,8 +34,10 @@ pokazywany jako zwykły tekst w ``<pre>`` – nadal czytelny, tylko bez składu.
 0,35 s najgorszego przypadku (ok. 7 ns na jednostkę na laptopie deweloperskim); zwykły plik Markdown
 – także megabajtowy – ma koszt rzędu jego długości.
 
-Treść poza próbką sprawdzoną przy wgrywaniu (``formats.HEADER_PROBE_BYTES``) nie musi być poprawnym
-UTF-8 – niepoprawne bajty zamieniamy na „�” (``errors="replace"``), a NUL wycinamy.
+Tekst jest dekodowany w kodowaniu rozpoznanym przy wgrywaniu (``WorkshopMaterial.charset``: UTF-8,
+a dla CSV/TSV/TXT także UTF-16 i Windows-1250). Treść poza sprawdzoną wtedy próbką
+(``formats.HEADER_PROBE_BYTES``) nie musi być poprawna – nieprawidłowe bajty zamieniamy na „�”
+(``errors="replace"``), a NUL wycinamy.
 """
 
 from __future__ import annotations
@@ -135,11 +137,23 @@ def previewable(material: WorkshopMaterial) -> bool:
     return material.kind == MaterialKind.FILE and fmt is not None and bool(fmt.preview)
 
 
-def decode(raw: bytes) -> str:
-    """Bajty pliku → tekst: bez BOM-u, z „�” w miejscu niepoprawnego UTF-8 i bez NUL-i."""
-    if raw.startswith(formats.UTF8_BOM):
+#: Kodowanie zapisane przy wgrywaniu → dekoder Pythona. ``utf-16`` sam czyta BOM i kolejność bajtów.
+_DECODERS = {
+    formats.CHARSET_UTF8: "utf-8",
+    formats.CHARSET_UTF16: "utf-16",
+    formats.CHARSET_WINDOWS_1250: "cp1250",
+}
+
+
+def decode(raw: bytes, charset: str = "") -> str:
+    """Bajty pliku → tekst w kodowaniu rozpoznanym przy wgrywaniu (pusty = UTF-8).
+
+    Bez BOM-u, z „�” w miejscu bajtów nieprawidłowych dla kodowania i bez NUL-i.
+    """
+    codec = _DECODERS.get(charset, "utf-8")
+    if codec == "utf-8" and raw.startswith(formats.UTF8_BOM):
         raw = raw[len(formats.UTF8_BOM) :]
-    return raw.decode("utf-8", errors="replace").replace("\x00", "")
+    return raw.decode(codec, errors="replace").replace("\x00", "")
 
 
 def build_preview(material: WorkshopMaterial, storage: MaterialStorage) -> Preview | None:
@@ -154,7 +168,7 @@ def build_preview(material: WorkshopMaterial, storage: MaterialStorage) -> Previ
     except Exception:  # noqa: BLE001 - awaria magazynu nie może wywrócić strony; zostaje „Pobierz”
         logger.warning("Nie udało się odczytać pliku materiału #%s do podglądu.", material.pk, exc_info=True)
         return Preview(UNAVAILABLE, limit_bytes=limit)
-    text = decode(raw[:limit])
+    text = decode(raw[:limit], material.charset)
     if material.format.preview == formats.PREVIEW_MARKDOWN:
         if markdown_cost(text) <= MARKDOWN_COST_BUDGET:
             return Preview(SHOWN_MARKDOWN, html=render_markdown(text), limit_bytes=limit)

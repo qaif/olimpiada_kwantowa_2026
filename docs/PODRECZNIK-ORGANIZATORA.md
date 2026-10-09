@@ -729,11 +729,13 @@ MP4/WebM.
 który w środku jest starym PPT, zostanie odrzucony (zapisz go ponownie jako PPTX albo zmień rozszerzenie na
 PPT). **Pliki z makrami** (DOCM, XLSM, PPTM…, a także stare DOC/XLS/PPT) są przyjmowane — przechodzą przez
 antywirusa jak każdy plik, a uczestnik widzi przy nich neutralną informację, że program biurowy zapyta
-o włączenie makr. **Tekst i kod** muszą być zapisane w **UTF-8** (z BOM albo bez): plik binarny
-przemianowany na `.py` albo tekst w innym kodowaniu (np. CSV z Excela zapisany jako „CSV (rozdzielany
-przecinkami)” w Windows-1250, plik z Notatnika zapisany jako „Unicode”/UTF-16) zostanie odrzucony
-z podpowiedzią — w Excelu wybierz typ pliku **„CSV UTF-8 (rozdzielany przecinkami)”**, w edytorze kodu
-„Zapisz z kodowaniem → UTF-8”. Uczestnik **pobiera** każdy z tych plików (HTML i SVG również — serwis nigdy
+o włączenie makr. **Kod i Markdown** muszą być zapisane w **UTF-8** (z BOM albo bez): plik binarny
+przemianowany na `.py` albo kod w innym kodowaniu zostanie odrzucony z podpowiedzią („Zapisz
+z kodowaniem → UTF-8” w edytorze). **CSV, TSV i TXT** przyjmujemy także w innych kodowaniach — prosto
+z polskiego Excela („CSV (rozdzielany przecinkami)”, Windows-1250) i z Notatnika („Unicode”, UTF-16);
+serwis rozpozna kodowanie i poda je przy pobraniu i w podglądzie. Najpewniej działa jednak **„CSV UTF-8
+(rozdzielany przecinkami)”** — przy pliku w ISO-8859-2 kilka liter w podglądzie może wyjść niedokładnie
+(pobrany plik jest zawsze bajt w bajt ten sam). Uczestnik **pobiera** każdy z tych plików (HTML i SVG również — serwis nigdy
 nie otwiera ich jako strony ani obrazka), a pliki Markdown, tekstowe i z kodem do **1 MB** widzi też
 **na stronie materiału jako podgląd**: Markdown złożony (nagłówki, listy, tabele, pogrubienie, kod, wzory
 `$…$` i `$$…$$`; bez odnośników, obrazków i wstawek HTML — te zostają widocznym tekstem), kod i zwykły tekst

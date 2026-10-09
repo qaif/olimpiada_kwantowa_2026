@@ -21,7 +21,9 @@ Ta sama reguła obejmuje dwie rodziny dodane w WM-FMT-01 (``docs/tasks/WM-FMT-01
   znaczy tu: próbka jest poprawnym UTF-8 bez bajtów NUL i bez nadmiaru znaków sterujących
   (``looks_like_text``). To odsiewa to, przed czym ta bramka ma chronić: program, obraz albo archiwum
   przemianowane na ``.py`` (w pierwszych 4 KB pliku binarnego prawie zawsze stoi NUL, a losowe bajty
-  nie są poprawnym UTF-8). Wszystkie teksty – także ``html`` i ``svg`` – są serwowane jako
+  nie są poprawnym UTF-8). Dla CSV, TSV i TXT przyjmujemy też UTF-16 z BOM-em i tekst 8-bitowy
+  (Windows-1250 z polskiego Excela – ``detect_text_encoding``); kodowanie trafia do
+  ``WorkshopMaterial.charset``. Wszystkie teksty – także ``html`` i ``svg`` – są serwowane jako
   ``text/plain`` w załączniku (``inline=False``), nigdy jako strona albo obraz.
 
 **Makra** (``docm``, ``xlsm``, ``pptm``…, a także stare ``doc``/``xls``/``ppt``) są przyjmowane –
@@ -107,6 +109,22 @@ GROUP_ORDER = (GROUP_DOCUMENTS, GROUP_TEXT, GROUP_CODE, GROUP_IMAGES, GROUP_ARCH
 #: **zapisany**, a nie zinterpretowany – ``text/plain`` nie jest typem, który przeglądarka wykonuje.
 TEXT_PLAIN = "text/plain; charset=utf-8"
 TEXT_MARKDOWN = "text/markdown; charset=utf-8"
+
+#: Kodowania tekstu zapisywane w ``WorkshopMaterial.charset`` i podawane w ``Content-Type``.
+CHARSET_UTF8 = "utf-8"
+CHARSET_UTF16 = "utf-16"
+CHARSET_WINDOWS_1250 = "windows-1250"
+#: Rozszerzenia, dla których poza UTF-8 przyjmujemy UTF-16 z BOM-em i tekst 8-bitowy – dane
+#: eksportowane z arkusza i notatki (``detect_text_encoding``). Kod i Markdown: tylko UTF-8.
+LEGACY_TEXT_EXTENSIONS = frozenset({"csv", "tsv", "txt"})
+
+
+def with_charset(content_type: str, charset: str) -> str:
+    """``text/plain; charset=utf-8`` → ``text/plain; charset=<charset>`` (pusty = bez zmian)."""
+    if not charset or "; charset=" not in content_type:
+        return content_type
+    return f"{content_type.split('; charset=', 1)[0]}; charset={charset}"
+
 
 #: Rodzaje podglądu na stronie materiału (``apps.workshop_materials.preview``).
 PREVIEW_MARKDOWN = "markdown"
@@ -337,13 +355,28 @@ def _looks_like_json_object(header: bytes) -> bool:
     return _strip_bom(header).lstrip(b" \t\r\n").startswith(b"{")
 
 
+def _few_controls(text: str, *, c1: bool = True) -> bool:
+    """Najwyżej ``TEXT_CONTROL_MAX_RATIO`` znaków sterujących (C0 poza dozwolonymi, DEL i – dla
+    Unicode – C1). W Windows-1250 bajty 0x80–0x9F to litery (Ś, Ź, „…”), więc tam C1 nie liczymy."""
+    if not text:
+        return True
+    controls = sum(
+        1
+        for char in text
+        if (ord(char) < 0x20 and char not in TEXT_ALLOWED_CONTROLS)
+        or ord(char) == 0x7F
+        or (c1 and 0x80 <= ord(char) < 0xA0)
+    )
+    return controls <= len(text) * TEXT_CONTROL_MAX_RATIO
+
+
 def looks_like_text(header: bytes) -> bool:
     """Czy próbka to tekst UTF-8: bez NUL, poprawny UTF-8, mało znaków sterujących.
 
     Próbka jest **początkiem** pliku, więc ostatni znak bywa urwany w pół sekwencji – dekoder
     przyrostowy (``final=False``) zostawia taki ogon w buforze, zamiast zgłaszać błąd. BOM UTF-8
-    (Notatnik Windows, Excel „CSV UTF-8”) jest dozwolony. UTF-16 odpada na NUL-ach, a Windows-1250
-    na niepoprawnym UTF-8 – komunikat w ``verify_file`` mówi, jak zapisać plik ponownie.
+    (Notatnik Windows, Excel „CSV UTF-8”) jest dozwolony. Inne kodowania przyjmujemy wyłącznie dla
+    danych z arkusza i notatek (``LEGACY_TEXT_EXTENSIONS``, ``detect_text_encoding``).
     """
     body = _strip_bom(header)
     if b"\x00" in body:
@@ -352,14 +385,35 @@ def looks_like_text(header: bytes) -> bool:
         text = codecs.getincrementaldecoder("utf-8")().decode(body, final=False)
     except UnicodeDecodeError:
         return False
-    if not text:
-        return True
-    controls = sum(
-        1
-        for char in text
-        if (ord(char) < 0x20 and char not in TEXT_ALLOWED_CONTROLS) or 0x7F <= ord(char) < 0xA0
-    )
-    return controls <= len(text) * TEXT_CONTROL_MAX_RATIO
+    return _few_controls(text)
+
+
+def detect_text_encoding(header: bytes, extension: str) -> str | None:
+    """Kodowanie tekstu (``CHARSET_*``) albo ``None``, gdy próbka nie jest tekstem.
+
+    Kod i Markdown – wyłącznie UTF-8. CSV, TSV i TXT (``LEGACY_TEXT_EXTENSIONS``) dodatkowo – decyzja
+    organizatora z 9.10.2026 „przy wątpliwości przyjmij”: polski Excel zapisuje „CSV (rozdzielany
+    przecinkami)” w Windows-1250, a Notatnik „Unicode” to UTF-16 z BOM-em. Kolejność:
+
+    1. UTF-16 z BOM-em (``FF FE``/``FE FF``) – NUL-e są tu częścią znaków, więc sprawdzamy dopiero
+       odkodowany tekst (poprawne pary zastępcze, mało znaków sterujących),
+    2. UTF-8 (``looks_like_text``),
+    3. tekst 8-bitowy: bez NUL i z najwyżej 5 % bajtów sterujących. Nazywamy go ``windows-1250`` –
+       najczęstszy przypadek w Polsce; ISO-8859-2 różni się kilkoma literami i podgląd pokaże je
+       niedokładnie, ale plik pobierze się bajt w bajt.
+    """
+    legacy = extension in LEGACY_TEXT_EXTENSIONS
+    if legacy and header[:2] in (codecs.BOM_UTF16_LE, codecs.BOM_UTF16_BE):
+        try:
+            text = codecs.getincrementaldecoder("utf-16")().decode(header, final=False)
+        except UnicodeDecodeError:
+            return None
+        return CHARSET_UTF16 if _few_controls(text) else None
+    if looks_like_text(header):
+        return CHARSET_UTF8
+    if legacy and b"\x00" not in header and _few_controls(header.decode("latin-1"), c1=False):
+        return CHARSET_WINDOWS_1250
+    return None
 
 
 def detect_family(header: bytes) -> str | None:
@@ -398,7 +452,7 @@ def detect_family(header: bytes) -> str | None:
     return None
 
 
-def content_matches(family: str, header: bytes) -> bool:
+def content_matches(family: str, header: bytes, extension: str = "") -> bool:
     """Czy treść pasuje do rodziny zapowiedzianej rozszerzeniem.
 
     ``json`` (notatnik) i ``text`` mają własne, słabsze reguły i sprawdzamy je **wprost** – tak
@@ -408,7 +462,7 @@ def content_matches(family: str, header: bytes) -> bool:
     if family == "json":
         return _looks_like_json_object(header)
     if family == "text":
-        return looks_like_text(header)
+        return detect_text_encoding(header, extension) is not None
     return detect_family(header) == family
 
 
@@ -443,8 +497,14 @@ def verify_file(header: bytes, extension: str) -> Format:
     fmt = FILE_FORMATS.get(extension)
     if fmt is None:
         raise FormatError(f"Pliki „.{extension}” nie są przyjmowane. Dozwolone: {allowed_file_extensions()}.")
-    if content_matches(fmt.family, header):
+    if content_matches(fmt.family, header, extension):
         return fmt
+    if fmt.family == "text" and extension in LEGACY_TEXT_EXTENSIONS:
+        raise FormatError(
+            f"Plik ma rozszerzenie „.{extension}”, ale nie jest plikiem tekstowym (zawiera bajty binarne "
+            "albo zbyt wiele znaków sterujących). Wyeksportuj dane ponownie jako tekst, np. w Excelu "
+            "jako „CSV UTF-8 (rozdzielany przecinkami)”."
+        )
     if fmt.family == "text":
         raise FormatError(
             f"Plik ma rozszerzenie „.{extension}”, ale nie jest plikiem tekstowym w kodowaniu UTF-8 "

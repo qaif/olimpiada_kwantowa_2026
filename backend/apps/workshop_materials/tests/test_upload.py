@@ -333,3 +333,34 @@ def test_new_formats_are_files_not_videos(coordinator_client, ready, storage):
     assert response.status_code == 400
     assert "nie są przyjmowane" in response.json()["error"]
     assert storage.uploads == {}
+
+
+@pytest.mark.parametrize(
+    ("content", "charset"),
+    [
+        ("miasto;liczba\nŁódź;3\n".encode("cp1250"), "windows-1250"),
+        ("miasto;liczba\nŁódź;3\n".encode("utf-16"), "utf-16"),
+        ("miasto;liczba\nŁódź;3\n".encode(), "utf-8"),
+    ],
+)
+def test_csv_keeps_the_detected_charset(coordinator_client, ready, storage, monkeypatch, content, charset):
+    monkeypatch.setattr("apps.workshop_materials.tasks.scan_material.delay", lambda pk: None)
+
+    response, pk = upload_and_complete(
+        coordinator_client, storage, content, kind="file", filename="wyniki.csv"
+    )
+
+    assert response.status_code == 200, response.content
+    material = WorkshopMaterial.objects.get(pk=pk)
+    assert material.charset == charset
+    assert material.content_type == f"text/plain; charset={charset}"
+
+
+def test_binary_csv_with_nul_is_rejected(coordinator_client, ready, storage):
+    response, pk = upload_and_complete(
+        coordinator_client, storage, b"a;b\n\x00\x00\x00binarne\x00", kind="file", filename="dane.csv"
+    )
+
+    assert response.status_code == 400
+    assert "nie jest plikiem tekstowym" in response.json()["error"]
+    assert not WorkshopMaterial.objects.filter(pk=pk).exists()

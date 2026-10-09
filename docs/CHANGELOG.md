@@ -29,17 +29,20 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
   XLTX, XLTM, PPTM, PPSX, PPSM, POTX, POTM), ODG, EPUB, RTF oraz Markdown, tekst, dane i kod (MD, TXT,
   CSV, TSV, TEX, BIB, JSON, YAML, TOML, XML, RST, PY, C/C++, Java, JS/TS, Rust, Go, Julia, R, MATLAB,
   OpenQASM, Q#, SH, SQL, HTML, CSS, SVG i in.). Tekst rozpoznawany po treści: UTF-8 (z BOM albo bez),
-  bez NUL, mało znaków sterujących – binarny plik z rozszerzeniem `.py` jest odrzucany.
+  bez NUL, mało znaków sterujących – binarny plik z rozszerzeniem `.py` jest odrzucany. CSV, TSV i TXT
+  także w UTF-16 z BOM-em i 8-bitowo (Windows-1250 z polskiego Excela) – kodowanie w nowym polu
+  `WorkshopMaterial.charset` (migracja `workshop_materials.0002`), w `Content-Type` i w podglądzie.
 - **Makra dopuszczone** (decyzja organizatora): ClamAV skanuje je jak każdy plik, strona materiału
   pokazuje neutralną informację.
-- **Serwowanie tekstu:** zawsze `attachment` z `text/plain; charset=utf-8` (`text/markdown` dla MD) –
+- **Serwowanie tekstu:** zawsze `attachment` z `text/plain; charset=utf-8` (`text/markdown` dla MD,
+  `charset=utf-16`/`windows-1250` dla takich CSV/TSV/TXT) –
   także HTML i SVG, nigdy jako strona ani obraz; `nosniff` i CSP `sandbox` dokłada Caddy magazynu.
 - **Podgląd na stronie materiału** (`apps/workshop_materials/preview.py`) do 1 MB: Markdown składany
   istniejącym konwerterem TR-01 (najpierw `html.escape`, bez odnośników i obrazków; wzory KaTeX-em
   z plików statycznych), kod i tekst w `<pre><code>`; te same bramki co pobranie, liczony jako
   wyświetlenie. Budżet składania Markdownu chroni przed plikiem o koszcie kwadratowym (spada do
   zwykłego tekstu). Podgląd koordynatora pokazuje stronę także dla szkicu.
-- Formularz: `accept=` i podpowiedź z pogrupowaną listą formatów. Bez nowych zależności i bez migracji.
+- Formularz: `accept=` i podpowiedź z pogrupowaną listą formatów. Bez nowych zależności.
   Spec: `docs/tasks/WM-FMT-01.md`, PODRĘCZNIK-ORGANIZATORA § 4.11.
 
 ## [Unreleased] – Szybsze CI: grupy xdist, jedna migracja na shard, czasy z CI (CI-SPEED-01)

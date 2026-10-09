@@ -11,7 +11,9 @@ odrzucić” nowy format – przyjmujemy.
 Zadanie **rozszerza** istniejącą aplikację `apps/workshop_materials` (prośba z 24.09.2026). Nie
 zmienia drogi pliku (przeglądarka → MinIO, sprawdzenie „po fakcie” na pierwszych
 `HEADER_PROBE_BYTES`, potem ClamAV), limitów (plik: 100 MB = limit strumienia ClamAV), dostępu
-(`access.can_view`) ani modelu – pole `file_format` nie ma `choices`, więc **migracji nie ma**.
+(`access.can_view`). Model dostaje jedno pole – `charset` (kodowanie tekstu, migracja
+`workshop_materials.0002`, `AddField`, pusty domyślnie); `file_format` nie ma `choices`, więc nowe
+formaty migracji nie wymagają.
 
 Czego zadanie **nie** robi:
 
@@ -37,8 +39,18 @@ w obrębie rodziny (tak jak dotąd w rodzinie ZIP). Niezgodność rozszerzenia z
 (pierwsze `HEADER_PROBE_BYTES`) po zdjęciu BOM-u UTF-8 jest **poprawnym UTF-8** (znak urwany na
 granicy próbki nie jest błędem), **nie zawiera bajtu NUL** i ma najwyżej 5 % znaków sterujących
 (poza tabulacją, końcami wierszy i wysuwem strony). Plik binarny z rozszerzeniem `.py` (program, obraz,
-archiwum) – odrzucony. Tekst w UTF-16 (zawiera NUL) albo w Windows-1250 (niepoprawny UTF-8) –
-odrzucony z podpowiedzią, jak zapisać go w UTF-8 (Excel: „CSV UTF-8”).
+archiwum) – odrzucony. Kod i Markdown w innym kodowaniu – odrzucony z podpowiedzią, jak zapisać go
+w UTF-8.
+
+**CSV, TSV i TXT – także inne kodowania** (decyzja organizatora z 9.10.2026, „przy wątpliwości
+przyjmij”): polski Excel zapisuje „CSV (rozdzielany przecinkami)” w Windows-1250, a Notatnik
+„Unicode” to UTF-16 z BOM-em. Dla tych trzech rozszerzeń `formats.detect_text_encoding` przyjmuje
+kolejno: UTF-16 z BOM-em (LE/BE; NUL-e są tu częścią znaków, sprawdzany jest odkodowany tekst),
+UTF-8, a w końcu tekst 8-bitowy – bez NUL i z najwyżej 5 % bajtów sterujących (bajty 0x80–0x9F to
+w Windows-1250 litery, więc się nie liczą). Kodowanie zapisujemy w `WorkshopMaterial.charset`
+(`utf-8`, `utf-16`, `windows-1250` – 8-bitowy tekst nazywamy Windows-1250 jako najczęstszy w Polsce;
+ISO-8859-2 różni się kilkoma literami i w podglądzie mogą wyjść niedokładnie). Plik binarny z NUL-ami
+(bez BOM-u UTF-16) – odrzucony.
 
 **Makra.** Pliki z makrami (`docm`, `xlsm`, `pptm`, szablony `*m`, `xlsb` i stare formaty binarne
 `doc`/`xls`/`ppt`) są **przyjmowane** (decyzja organizatora). ClamAV skanuje je jak każdy plik;
@@ -53,7 +65,8 @@ Bez zmian: każdy nowy format to **plik** (`MaterialKind.FILE`) – limit `forma
 ## 3. Serwowanie
 
 - Wszystkie formaty tekstowe dostają `Content-Type: text/plain; charset=utf-8` (Markdown:
-  `text/markdown; charset=utf-8`) i **zawsze** `Content-Disposition: attachment` – także `html`
+  `text/markdown; charset=utf-8`; CSV/TSV/TXT – `charset` rozpoznany przy wgrywaniu: `utf-16` albo
+  `windows-1250`) i **zawsze** `Content-Disposition: attachment` – także `html`
   i `svg`, które nigdy nie są serwowane jako strona ani obraz (XSS). Oba nagłówki wchodzą do podpisu
   adresu (`ResponseContentType`/`ResponseContentDisposition` – jak dotąd dla PDF), więc widz ich nie
   podmieni.
@@ -96,7 +109,8 @@ i dane, kod, obrazy, archiwa). Komunikaty po polsku – panel koordynatora nie m
 
 - CFB `doc`/`xls`/`ppt`, `rtf`, OOXML z makrami i szablony, `epub`/`odg` (rodzina ZIP),
 - tekst UTF-8 z BOM i bez, znak urwany na granicy próbki, binarny plik z rozszerzeniem `.py`,
-  UTF-16 i Windows-1250 odrzucone, niezgodność rozszerzenia z rodziną (CFB jako `.docx`, ZIP jako
+  kod/Markdown w UTF-16 i Windows-1250 odrzucone, CSV w Windows-1250 („Łódź”) i UTF-16 z BOM-em
+  przyjęte z właściwym `charset` (pobranie i podgląd), binarny CSV z NUL-ami odrzucony, niezgodność rozszerzenia z rodziną (CFB jako `.docx`, ZIP jako
   `.doc`, PDF jako `.md`),
 - dotychczasowe formaty bez zmian (regresja: `ipynb` zaczynający się od `{\rtf…` itp.),
 - `html`/`svg`/`py` serwowane jako `attachment` z `text/plain; charset=utf-8`,

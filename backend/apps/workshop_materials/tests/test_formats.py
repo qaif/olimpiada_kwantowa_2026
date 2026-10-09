@@ -6,6 +6,8 @@ Przedmiotem jest odrzucenie tego, co **wygląda** poprawnie po nazwie: MOV i MKV
 
 from __future__ import annotations
 
+import codecs
+
 import pytest
 
 from apps.workshop_materials import formats
@@ -239,3 +241,65 @@ def test_allowed_list_is_grouped_and_complete():
     assert listed.startswith("dokumenty, prezentacje i arkusze: pdf, docx")
     for extension in formats.FILE_FORMATS:
         assert f" {extension}" in listed
+
+
+# --- CSV/TSV/TXT także w UTF-16 z BOM-em i w kodowaniu 8-bitowym ("przy wątpliwości przyjmij") -----
+
+CSV_ROWS = "miasto;liczba\nŁódź;3\nŚwiętochłowice;1\n"
+
+
+@pytest.mark.parametrize("extension", ["csv", "tsv", "txt"])
+def test_excel_csv_in_windows_1250_is_accepted(extension):
+    header = CSV_ROWS.encode("cp1250")
+
+    assert formats.verify_file(header, extension).key == extension
+    assert formats.detect_text_encoding(header, extension) == formats.CHARSET_WINDOWS_1250
+
+
+@pytest.mark.parametrize("codec", ["utf-16-le", "utf-16-be"])
+def test_utf16_with_a_bom_is_accepted_for_spreadsheet_data(codec):
+    bom = codecs.BOM_UTF16_LE if codec == "utf-16-le" else codecs.BOM_UTF16_BE
+    header = bom + CSV_ROWS.encode(codec)
+
+    assert formats.verify_file(header, "csv").key == "csv"
+    assert formats.detect_text_encoding(header, "csv") == formats.CHARSET_UTF16
+
+
+def test_utf8_stays_utf8_for_spreadsheet_data():
+    assert formats.detect_text_encoding(CSV_ROWS.encode(), "csv") == formats.CHARSET_UTF8
+    assert formats.detect_text_encoding(b"\xef\xbb\xbf" + CSV_ROWS.encode(), "csv") == formats.CHARSET_UTF8
+
+
+@pytest.mark.parametrize(
+    "content",
+    [
+        b"a;b\n1;2\n\x00\x00\x00\x00binarne",  # NUL bez BOM-u UTF-16
+        ELF_BYTES,
+        ZIP_BYTES,
+        b"a;b\n" + b"\x01\x02\x03\x04\x05\x06\x07\x08" * 8,  # znaki sterujące
+    ],
+)
+def test_binary_csv_is_refused(content):
+    with pytest.raises(formats.FormatError, match="nie jest plikiem tekstowym"):
+        formats.verify_file(content, "csv")
+
+
+@pytest.mark.parametrize("extension", ["py", "md", "json", "html"])
+def test_code_and_markdown_stay_utf8_only(extension):
+    for header in (CSV_ROWS.encode("cp1250"), codecs.BOM_UTF16_LE + CSV_ROWS.encode("utf-16-le")):
+        with pytest.raises(formats.FormatError, match="UTF-8"):
+            formats.verify_file(header, extension)
+
+
+@pytest.mark.parametrize(
+    ("charset", "expected"),
+    [
+        ("", "text/plain; charset=utf-8"),
+        ("utf-8", "text/plain; charset=utf-8"),
+        ("utf-16", "text/plain; charset=utf-16"),
+        ("windows-1250", "text/plain; charset=windows-1250"),
+    ],
+)
+def test_content_type_carries_the_detected_charset(charset, expected):
+    assert formats.with_charset(formats.FILE_FORMATS["csv"].content_type, charset) == expected
+    assert formats.with_charset("application/pdf", charset) == "application/pdf"

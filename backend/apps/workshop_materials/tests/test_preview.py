@@ -285,3 +285,42 @@ def test_coordinator_preview_of_a_pdf_still_redirects(coordinator_client, ready)
 
     assert response.status_code == 302
     assert "response-content-type=application/pdf" in response["Location"]
+
+
+# --- kodowanie CSV/TSV/TXT ----------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("charset", "raw"),
+    [
+        ("windows-1250", "miasto;liczba\nŁódź;3\n".encode("cp1250")),
+        ("utf-16", "miasto;liczba\nŁódź;3\n".encode("utf-16")),  # z BOM-em
+        ("", "﻿miasto;liczba\nŁódź;3\n".encode()),
+    ],
+)
+def test_preview_decodes_the_charset_detected_at_upload(charset, raw):
+    item = material("csv", raw, charset=charset)
+
+    result = preview_module.build_preview(item, FakeMaterialStorage())
+
+    assert result.text == "miasto;liczba\nŁódź;3\n"
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("charset", ["windows-1250", "utf-16"])
+def test_legacy_csv_download_names_its_charset(participant_client, ready, charset):
+    item = make_material(
+        ready,
+        kind="file",
+        file_format="csv",
+        content="Łódź;3\n".encode("cp1250" if charset == "windows-1250" else "utf-16"),
+        title="Wyniki",
+        charset=charset,
+    )
+
+    location = participant_client.get(open_url(item))["Location"]
+    content = participant_client.get(detail(item)).content.decode()
+
+    assert f"response-content-type=text/plain%3B%20charset%3D{charset}" in location
+    assert "response-content-disposition=attachment" in location
+    assert "Łódź;3" in content
