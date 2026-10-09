@@ -9,10 +9,25 @@ i dopiero wtedy materiał dostaje status inny niż „wgrywanie”.
 
 Rozszerzenie z nazwy pliku ma tu jednak **drugą** rolę, której przy plakacie nie miało: kontener
 ZIP jest wspólny dla prezentacji (``pptx``), dokumentu (``docx``), arkusza (``xlsx``), formatów
-OpenDocument i zwykłego archiwum. Po samych bajtach nie odróżnimy ich bez rozpakowania – a treść
-decyduje wyłącznie o tym, **czy to w ogóle jest ZIP**. Rozszerzenie wybiera, pod jaką nazwą
+OpenDocument, EPUB-a i zwykłego archiwum. Po samych bajtach nie odróżnimy ich bez rozpakowania –
+a treść decyduje wyłącznie o tym, **czy to w ogóle jest ZIP**. Rozszerzenie wybiera, pod jaką nazwą
 i z jakim ``Content-Type`` plik trafi do pobierającego; jeżeli nie zgadza się z rodziną rozpoznaną
 po bajtach („prezentacja.pptx”, która jest PDF-em), plik jest odrzucany, a nie przemianowywany.
+Ta sama reguła obejmuje dwie rodziny dodane w WM-FMT-01 (``docs/tasks/WM-FMT-01.md``):
+
+- ``cfb`` – kontener OLE (Compound File Binary) starego Office'a: ``doc``, ``xls``, ``ppt`` i ich
+  szablony mają wspólną sygnaturę, a różnią się dopiero strumieniami w środku,
+- ``text`` – Markdown, dane tekstowe i kod. Tekst **nie ma** sygnatury, więc „rozpoznanie po treści”
+  znaczy tu: próbka jest poprawnym UTF-8 bez bajtów NUL i bez nadmiaru znaków sterujących
+  (``looks_like_text``). To odsiewa to, przed czym ta bramka ma chronić: program, obraz albo archiwum
+  przemianowane na ``.py`` (w pierwszych 4 KB pliku binarnego prawie zawsze stoi NUL, a losowe bajty
+  nie są poprawnym UTF-8). Wszystkie teksty – także ``html`` i ``svg`` – są serwowane jako
+  ``text/plain`` w załączniku (``inline=False``), nigdy jako strona albo obraz.
+
+**Makra** (``docm``, ``xlsm``, ``pptm``…, a także stare ``doc``/``xls``/``ppt``) są przyjmowane –
+decyzja organizatora z 9.10.2026 („nie zawężaj listy, co najwyżej ją rozszerz”). Plik i tak idzie
+przez ClamAV, a program biurowy nie uruchamia makr bez zgody; strona materiału mówi o tym neutralnie
+(``Format.macros``).
 
 Filmy są osobną listą z dwóch powodów:
 
@@ -26,6 +41,7 @@ Filmy są osobną listą z dwóch powodów:
 
 from __future__ import annotations
 
+import codecs
 from dataclasses import dataclass
 
 from django.conf import settings
@@ -36,13 +52,27 @@ MEGABYTE = 1024 * 1024
 
 #: Ile bajtów czytamy z początku obiektu. Nagłówek EBML pliku WebM podaje ``DocType`` zwykle
 #: w pierwszych kilkudziesięciu bajtach, a marka MP4 stoi na bajtach 8–12; cztery kilobajty to
-#: zapas na nietypowe nagłówki, a nadal jedno małe żądanie ``Range`` do magazynu.
+#: zapas na nietypowe nagłówki, a nadal jedno małe żądanie ``Range`` do magazynu. Dla tekstu to
+#: próbka, na której sprawdzamy UTF-8 – kilkadziesiąt wierszy kodu.
 HEADER_PROBE_BYTES = 4096
 
 #: Sygnatury kontenerów (pierwsze bajty pliku).
 ZIP_MAGIC = b"PK\x03\x04"
 PNG_MAGIC = b"\x89PNG\r\n\x1a\n"
 EBML_MAGIC = b"\x1a\x45\xdf\xa3"
+#: Compound File Binary (OLE2) – ``doc``/``xls``/``ppt`` sprzed Office 2007.
+CFB_MAGIC = b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1"
+RTF_MAGIC = b"{\\rtf"
+UTF8_BOM = b"\xef\xbb\xbf"
+
+#: Najwyższy odsetek znaków sterujących w próbce tekstu. Kod i Markdown nie mają ich wcale (poza
+#: tabulacją i końcami wierszy, których nie liczymy); 5 % zostawia miejsce na log z sekwencjami
+#: kolorów terminala (ESC). Bajty losowe (plik binarny, który przypadkiem jest poprawnym UTF-8 bez
+#: NUL) mają ich ok. 11 % – a to i tak przypadek skrajny, bo zwykle odpadają już na UTF-8.
+TEXT_CONTROL_MAX_RATIO = 0.05
+#: Znaki sterujące, które w tekście są normalne: tabulacja, nowy wiersz, tabulacja pionowa, wysuw
+#: strony (stary kod C/Fortranu dzieli nim strony), powrót karetki.
+TEXT_ALLOWED_CONTROLS = frozenset("\t\n\v\f\r")
 
 #: Marki MP4 (bajty 8–12, pole ``major_brand`` pudełka ``ftyp``), które przeglądarki odtwarzają.
 #: ``qt  `` (QuickTime) celowo **nie** stoi na liście – patrz docstring modułu.
@@ -64,6 +94,24 @@ MP4_BRANDS = frozenset(
     }
 )
 
+#: Grupy formatów w podpowiedzi formularza i w komunikatach odrzucenia – sama lista ~70 rozszerzeń
+#: w kolejności alfabetycznej byłaby nieczytelna.
+GROUP_DOCUMENTS = "dokumenty, prezentacje i arkusze"
+GROUP_TEXT = "tekst i dane"
+GROUP_CODE = "kod"
+GROUP_IMAGES = "obrazy"
+GROUP_ARCHIVES = "archiwa"
+GROUP_ORDER = (GROUP_DOCUMENTS, GROUP_TEXT, GROUP_CODE, GROUP_IMAGES, GROUP_ARCHIVES)
+
+#: Typy MIME tekstu. Jeden dla całego kodu (także ``html``/``svg``/``js``), bo plik ma zostać
+#: **zapisany**, a nie zinterpretowany – ``text/plain`` nie jest typem, który przeglądarka wykonuje.
+TEXT_PLAIN = "text/plain; charset=utf-8"
+TEXT_MARKDOWN = "text/markdown; charset=utf-8"
+
+#: Rodzaje podglądu na stronie materiału (``apps.workshop_materials.preview``).
+PREVIEW_MARKDOWN = "markdown"
+PREVIEW_TEXT = "text"
+
 
 @dataclass(frozen=True)
 class Format:
@@ -77,6 +125,12 @@ class Format:
     #: originie niż aplikacja (MinIO pod osobnym portem/hostem), więc otwarcie nie daje treści
     #: dostępu do ciasteczek serwisu – a PDF slajdów otwarty w karcie to wygoda, nie ryzyko.
     inline: bool = False
+    #: Grupa w podpowiedzi formularza (``GROUP_*``); filmy jej nie mają.
+    group: str = ""
+    #: Podgląd na stronie materiału: ``PREVIEW_MARKDOWN``, ``PREVIEW_TEXT`` albo brak.
+    preview: str = ""
+    #: Format, który **może** nieść makra – strona materiału mówi o tym neutralnie (bez blokady).
+    macros: bool = False
 
 
 #: Filmy – odtwarzane w ``<video>``. Klucz = rozszerzenie pliku u pobierającego.
@@ -85,35 +139,163 @@ VIDEO_FORMATS: dict[str, Format] = {
     "webm": Format("webm", "webm", "video/webm", "WebM", inline=True),
 }
 
+_OOXML = "application/vnd.openxmlformats-officedocument"
+
+
+def _office(key: str, family: str, content_type: str, label: str, *, macros: bool = False) -> Format:
+    return Format(key, family, content_type, label, group=GROUP_DOCUMENTS, macros=macros)
+
+
+def _text(
+    key: str, label: str, group: str, *, content_type: str = TEXT_PLAIN, preview=PREVIEW_TEXT
+) -> Format:
+    return Format(key, "text", content_type, label, group=group, preview=preview)
+
+
+_DOCUMENTS = [
+    Format("pdf", "pdf", "application/pdf", "PDF", inline=True, group=GROUP_DOCUMENTS),
+    # Office 2007+ (ZIP).
+    _office("docx", "zip", f"{_OOXML}.wordprocessingml.document", "Word (DOCX)"),
+    _office("dotx", "zip", f"{_OOXML}.wordprocessingml.template", "Szablon Worda (DOTX)"),
+    _office(
+        "docm",
+        "zip",
+        "application/vnd.ms-word.document.macroEnabled.12",
+        "Word z makrami (DOCM)",
+        macros=True,
+    ),
+    _office(
+        "dotm",
+        "zip",
+        "application/vnd.ms-word.template.macroEnabled.12",
+        "Szablon Worda z makrami (DOTM)",
+        macros=True,
+    ),
+    _office("xlsx", "zip", f"{_OOXML}.spreadsheetml.sheet", "Excel (XLSX)"),
+    _office("xltx", "zip", f"{_OOXML}.spreadsheetml.template", "Szablon Excela (XLTX)"),
+    _office(
+        "xlsm", "zip", "application/vnd.ms-excel.sheet.macroEnabled.12", "Excel z makrami (XLSM)", macros=True
+    ),
+    _office(
+        "xltm",
+        "zip",
+        "application/vnd.ms-excel.template.macroEnabled.12",
+        "Szablon Excela z makrami (XLTM)",
+        macros=True,
+    ),
+    _office(
+        "xlsb",
+        "zip",
+        "application/vnd.ms-excel.sheet.binary.macroEnabled.12",
+        "Excel binarny (XLSB)",
+        macros=True,
+    ),
+    _office("pptx", "zip", f"{_OOXML}.presentationml.presentation", "PowerPoint (PPTX)"),
+    _office("ppsx", "zip", f"{_OOXML}.presentationml.slideshow", "Pokaz PowerPointa (PPSX)"),
+    _office("potx", "zip", f"{_OOXML}.presentationml.template", "Szablon PowerPointa (POTX)"),
+    _office(
+        "pptm",
+        "zip",
+        "application/vnd.ms-powerpoint.presentation.macroEnabled.12",
+        "PowerPoint z makrami (PPTM)",
+        macros=True,
+    ),
+    _office(
+        "ppsm",
+        "zip",
+        "application/vnd.ms-powerpoint.slideshow.macroEnabled.12",
+        "Pokaz PowerPointa z makrami (PPSM)",
+        macros=True,
+    ),
+    _office(
+        "potm",
+        "zip",
+        "application/vnd.ms-powerpoint.template.macroEnabled.12",
+        "Szablon PowerPointa z makrami (POTM)",
+        macros=True,
+    ),
+    # Office 97–2003 (CFB). Ten format też może nieść makra VBA – stąd ``macros``.
+    _office("doc", "cfb", "application/msword", "Word 97–2003 (DOC)", macros=True),
+    _office("dot", "cfb", "application/msword", "Szablon Worda 97–2003 (DOT)", macros=True),
+    _office("xls", "cfb", "application/vnd.ms-excel", "Excel 97–2003 (XLS)", macros=True),
+    _office("xlt", "cfb", "application/vnd.ms-excel", "Szablon Excela 97–2003 (XLT)", macros=True),
+    _office("ppt", "cfb", "application/vnd.ms-powerpoint", "PowerPoint 97–2003 (PPT)", macros=True),
+    _office("pps", "cfb", "application/vnd.ms-powerpoint", "Pokaz PowerPointa 97–2003 (PPS)", macros=True),
+    _office("pot", "cfb", "application/vnd.ms-powerpoint", "Szablon PowerPointa 97–2003 (POT)", macros=True),
+    # OpenDocument (ZIP).
+    _office("odt", "zip", "application/vnd.oasis.opendocument.text", "Dokument (ODT)"),
+    _office("ods", "zip", "application/vnd.oasis.opendocument.spreadsheet", "Arkusz (ODS)"),
+    _office("odp", "zip", "application/vnd.oasis.opendocument.presentation", "Prezentacja (ODP)"),
+    _office("odg", "zip", "application/vnd.oasis.opendocument.graphics", "Rysunek (ODG)"),
+    _office("rtf", "rtf", "application/rtf", "Dokument RTF"),
+    _office("epub", "zip", "application/epub+zip", "E-book (EPUB)"),
+]
+
+_TEXT = [
+    _text("md", "Markdown (MD)", GROUP_TEXT, content_type=TEXT_MARKDOWN, preview=PREVIEW_MARKDOWN),
+    _text("txt", "Tekst (TXT)", GROUP_TEXT),
+    _text("csv", "Dane CSV", GROUP_TEXT),
+    _text("tsv", "Dane TSV", GROUP_TEXT),
+    _text("tex", "LaTeX (TEX)", GROUP_TEXT),
+    _text("bib", "BibTeX (BIB)", GROUP_TEXT),
+    _text("json", "JSON", GROUP_TEXT),
+    _text("yaml", "YAML", GROUP_TEXT),
+    _text("yml", "YAML", GROUP_TEXT),
+    _text("toml", "TOML", GROUP_TEXT),
+    _text("xml", "XML", GROUP_TEXT),
+    _text("rst", "reStructuredText (RST)", GROUP_TEXT),
+]
+
+#: Kod. ``html``, ``css`` i ``svg`` są tu **kodem do pobrania** – nigdy stroną ani obrazem
+#: (``text/plain`` + ``attachment``, patrz docstring modułu). Notatnik ``ipynb`` – osobna rodzina, niżej.
+_CODE = [
+    _text("py", "Python (PY)", GROUP_CODE),
+    _text("c", "C", GROUP_CODE),
+    _text("h", "Nagłówek C (H)", GROUP_CODE),
+    _text("cpp", "C++ (CPP)", GROUP_CODE),
+    _text("hpp", "Nagłówek C++ (HPP)", GROUP_CODE),
+    _text("cc", "C++ (CC)", GROUP_CODE),
+    _text("cs", "C#", GROUP_CODE),
+    _text("java", "Java", GROUP_CODE),
+    _text("kt", "Kotlin", GROUP_CODE),
+    _text("scala", "Scala", GROUP_CODE),
+    _text("js", "JavaScript (JS)", GROUP_CODE),
+    _text("ts", "TypeScript (TS)", GROUP_CODE),
+    _text("rs", "Rust", GROUP_CODE),
+    _text("go", "Go", GROUP_CODE),
+    _text("jl", "Julia", GROUP_CODE),
+    _text("r", "R", GROUP_CODE),
+    _text("m", "MATLAB/Octave (M)", GROUP_CODE),
+    _text("f90", "Fortran (F90)", GROUP_CODE),
+    _text("hs", "Haskell", GROUP_CODE),
+    _text("rb", "Ruby", GROUP_CODE),
+    _text("php", "PHP", GROUP_CODE),
+    _text("lua", "Lua", GROUP_CODE),
+    _text("swift", "Swift", GROUP_CODE),
+    _text("qasm", "OpenQASM", GROUP_CODE),
+    _text("qs", "Q#", GROUP_CODE),
+    _text("sh", "Skrypt powłoki (SH)", GROUP_CODE),
+    _text("sql", "SQL", GROUP_CODE),
+    _text("html", "HTML jako kod", GROUP_CODE),
+    _text("css", "CSS jako kod", GROUP_CODE),
+    _text("svg", "SVG jako kod", GROUP_CODE),
+]
+
 #: Pliki – pobierane albo otwierane w przeglądarce. ``family`` mówi, co musi stać w bajtach.
 FILE_FORMATS: dict[str, Format] = {
-    "pdf": Format("pdf", "pdf", "application/pdf", "PDF", inline=True),
-    "pptx": Format(
-        "pptx",
-        "zip",
-        "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-        "PowerPoint (PPTX)",
+    **{fmt.key: fmt for fmt in _DOCUMENTS},
+    **{fmt.key: fmt for fmt in _TEXT},
+    **{fmt.key: fmt for fmt in _CODE},
+    "ipynb": Format(
+        "ipynb", "json", "application/x-ipynb+json", "Notatnik Jupyter (IPYNB)", group=GROUP_CODE
     ),
-    "docx": Format(
-        "docx",
-        "zip",
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        "Word (DOCX)",
-    ),
-    "xlsx": Format(
-        "xlsx", "zip", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "Excel (XLSX)"
-    ),
-    "odp": Format("odp", "zip", "application/vnd.oasis.opendocument.presentation", "Prezentacja (ODP)"),
-    "odt": Format("odt", "zip", "application/vnd.oasis.opendocument.text", "Dokument (ODT)"),
-    "ods": Format("ods", "zip", "application/vnd.oasis.opendocument.spreadsheet", "Arkusz (ODS)"),
-    "zip": Format("zip", "zip", "application/zip", "Archiwum ZIP"),
-    "ipynb": Format("ipynb", "json", "application/x-ipynb+json", "Notatnik Jupyter (IPYNB)"),
-    "png": Format("png", "png", "image/png", "Obraz PNG", inline=True),
-    "jpg": Format("jpg", "jpg", "image/jpeg", "Obraz JPG", inline=True),
+    "png": Format("png", "png", "image/png", "Obraz PNG", inline=True, group=GROUP_IMAGES),
+    "jpg": Format("jpg", "jpg", "image/jpeg", "Obraz JPG", inline=True, group=GROUP_IMAGES),
+    "zip": Format("zip", "zip", "application/zip", "Archiwum ZIP", group=GROUP_ARCHIVES),
 }
 
-#: ``.jpeg`` i ``.jpg`` to ten sam format – nazwa u pobierającego ma jedną postać.
-EXTENSION_ALIASES = {"jpeg": "jpg"}
+#: Różne nazwy tego samego formatu – nazwa u pobierającego ma jedną postać.
+EXTENSION_ALIASES = {"jpeg": "jpg", "markdown": "md", "htm": "html"}
 
 ALL_FORMATS: dict[str, Format] = {**VIDEO_FORMATS, **FILE_FORMATS}
 
@@ -146,17 +328,47 @@ def normalise_extension(filename: str) -> str:
     return EXTENSION_ALIASES.get(ext, ext)
 
 
+def _strip_bom(header: bytes) -> bytes:
+    return header[len(UTF8_BOM) :] if header.startswith(UTF8_BOM) else header
+
+
 def _looks_like_json_object(header: bytes) -> bool:
     """Notatnik Jupyter to obiekt JSON: po (opcjonalnym) BOM i białych znakach stoi ``{``."""
-    body = header[3:] if header.startswith(b"\xef\xbb\xbf") else header
-    return body.lstrip(b" \t\r\n").startswith(b"{")
+    return _strip_bom(header).lstrip(b" \t\r\n").startswith(b"{")
+
+
+def looks_like_text(header: bytes) -> bool:
+    """Czy próbka to tekst UTF-8: bez NUL, poprawny UTF-8, mało znaków sterujących.
+
+    Próbka jest **początkiem** pliku, więc ostatni znak bywa urwany w pół sekwencji – dekoder
+    przyrostowy (``final=False``) zostawia taki ogon w buforze, zamiast zgłaszać błąd. BOM UTF-8
+    (Notatnik Windows, Excel „CSV UTF-8”) jest dozwolony. UTF-16 odpada na NUL-ach, a Windows-1250
+    na niepoprawnym UTF-8 – komunikat w ``verify_file`` mówi, jak zapisać plik ponownie.
+    """
+    body = _strip_bom(header)
+    if b"\x00" in body:
+        return False
+    try:
+        text = codecs.getincrementaldecoder("utf-8")().decode(body, final=False)
+    except UnicodeDecodeError:
+        return False
+    if not text:
+        return True
+    controls = sum(
+        1
+        for char in text
+        if (ord(char) < 0x20 and char not in TEXT_ALLOWED_CONTROLS) or 0x7F <= ord(char) < 0xA0
+    )
+    return controls <= len(text) * TEXT_CONTROL_MAX_RATIO
 
 
 def detect_family(header: bytes) -> str | None:
-    """Rodzina pliku rozpoznana po bajtach: ``mp4``/``webm``/``pdf``/``zip``/``png``/``jpg``/``json``.
+    """Rodzina pliku po **sygnaturze**: ``mp4``/``webm``/``pdf``/``zip``/``cfb``/``png``/``jpg``/``rtf``/…
 
     Kolejne sprawdzenia są rozłączne (sygnatury nie nachodzą na siebie), więc kolejność ma
-    znaczenie wyłącznie dla ``json`` – ten jest najsłabszy i sprawdzany na końcu.
+    znaczenie wyłącznie dla ``rtf`` i ``json`` – oba zaczynają się od ``{``, a ``json`` jest
+    najsłabszy i sprawdzany na końcu. Rodziny ``text`` tu nie ma: tekst nie ma sygnatury i jest
+    sprawdzany wyłącznie wtedy, gdy rozszerzenie go zapowiada (``content_matches``).
     Dla kontenerów, które **rozpoznajemy, ale odrzucamy** (QuickTime, Matroska), oddajemy osobne
     nazwy – komunikat dla koordynatora ma powiedzieć, co zrobić z plikiem, a nie tylko „nie”.
     """
@@ -173,13 +385,31 @@ def detect_family(header: bytes) -> str | None:
         return "pdf"
     if header.startswith(ZIP_MAGIC):
         return "zip"
+    if header.startswith(CFB_MAGIC):
+        return "cfb"
     if header.startswith(PNG_MAGIC):
         return "png"
     if header.startswith(JPEG_MAGIC):
         return "jpg"
+    if header.startswith(RTF_MAGIC):
+        return "rtf"
     if _looks_like_json_object(header):
         return "json"
     return None
+
+
+def content_matches(family: str, header: bytes) -> bool:
+    """Czy treść pasuje do rodziny zapowiedzianej rozszerzeniem.
+
+    ``json`` (notatnik) i ``text`` mają własne, słabsze reguły i sprawdzamy je **wprost** – tak
+    notatnik zaczynający się przypadkiem od ``{\\rtf`` przechodzi dokładnie jak przed WM-FMT-01,
+    a nowe rodziny niczego, co dotąd było przyjmowane, nie zawężają.
+    """
+    if family == "json":
+        return _looks_like_json_object(header)
+    if family == "text":
+        return looks_like_text(header)
+    return detect_family(header) == family
 
 
 class FormatError(ValueError):
@@ -213,17 +443,35 @@ def verify_file(header: bytes, extension: str) -> Format:
     fmt = FILE_FORMATS.get(extension)
     if fmt is None:
         raise FormatError(f"Pliki „.{extension}” nie są przyjmowane. Dozwolone: {allowed_file_extensions()}.")
-    family = detect_family(header)
-    if family != fmt.family:
+    if content_matches(fmt.family, header):
+        return fmt
+    if fmt.family == "text":
         raise FormatError(
-            f"Plik ma rozszerzenie „.{extension}”, ale jego treść nie jest plikiem {fmt.label}. "
-            "Rozpoznajemy format po zawartości – zapisz plik ponownie we właściwym formacie."
+            f"Plik ma rozszerzenie „.{extension}”, ale nie jest plikiem tekstowym w kodowaniu UTF-8 "
+            "(zawiera bajty binarne albo znaki w innym kodowaniu, np. Windows-1250 lub UTF-16). "
+            "Zapisz go ponownie jako tekst UTF-8 – w edytorze kodu „Zapisz z kodowaniem → UTF-8”, "
+            "w Excelu typ pliku „CSV UTF-8 (rozdzielany przecinkami)”."
         )
-    return fmt
+    raise FormatError(
+        f"Plik ma rozszerzenie „.{extension}”, ale jego treść nie jest plikiem {fmt.label}. "
+        "Rozpoznajemy format po zawartości – zapisz plik ponownie we właściwym formacie."
+    )
 
 
 def allowed_file_extensions() -> str:
-    return ", ".join(sorted(FILE_FORMATS))
+    """Rozszerzenia plików pogrupowane: „dokumenty…: pdf, docx, …; tekst i dane: md, …; …”."""
+    groups: dict[str, list[str]] = {group: [] for group in GROUP_ORDER}
+    for key, fmt in FILE_FORMATS.items():
+        groups.setdefault(fmt.group, []).append(key)
+    return "; ".join(f"{group}: {', '.join(keys)}" for group, keys in groups.items() if keys)
+
+
+def file_accept() -> str:
+    """Wartość ``accept`` okna wyboru pliku: każde rozszerzenie z listy i każdy alias."""
+    extensions = list(FILE_FORMATS) + [
+        alias for alias, key in EXTENSION_ALIASES.items() if key in FILE_FORMATS
+    ]
+    return ",".join(f".{ext}" for ext in extensions)
 
 
 def allowed_video_extensions() -> str:

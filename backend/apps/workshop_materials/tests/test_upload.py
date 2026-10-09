@@ -19,7 +19,20 @@ from apps.workshop_materials import services
 from apps.workshop_materials.models import MaterialStatus, WorkshopMaterial
 from apps.workshop_materials.storage import PART_SIZE
 
-from .helpers import HTML_BYTES, MOV_HEADER, MP4_HEADER, PDF_BYTES, enable, key_of, workshops_page_for
+from .helpers import (
+    CFB_BYTES,
+    ELF_BYTES,
+    HTML_BYTES,
+    MOV_HEADER,
+    MP4_HEADER,
+    PDF_BYTES,
+    PY_BYTES,
+    RTF_BYTES,
+    ZIP_BYTES,
+    enable,
+    key_of,
+    workshops_page_for,
+)
 
 pytestmark = pytest.mark.django_db
 
@@ -264,3 +277,59 @@ def test_part_count_rounds_up():
     assert services.part_count(1) == 1
     assert services.part_count(PART_SIZE) == 1
     assert services.part_count(PART_SIZE + 1) == 2
+
+
+# --- WM-FMT-01: Office, tekst i kod przez całą drogę wgrywania --------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("content", "filename", "key", "content_type"),
+    [
+        (CFB_BYTES, "wyklad.ppt", "ppt", "application/vnd.ms-powerpoint"),
+        (ZIP_BYTES, "arkusz.XLSM", "xlsm", "application/vnd.ms-excel.sheet.macroEnabled.12"),
+        (RTF_BYTES, "notatka.rtf", "rtf", "application/rtf"),
+        (PY_BYTES, "bramki.py", "py", "text/plain; charset=utf-8"),
+        (b"# Notatki\n", "notatki.markdown", "md", "text/markdown; charset=utf-8"),
+    ],
+)
+def test_new_file_formats_go_to_the_scanner(
+    coordinator_client, ready, storage, monkeypatch, content, filename, key, content_type
+):
+    monkeypatch.setattr("apps.workshop_materials.tasks.scan_material.delay", lambda pk: None)
+
+    response, pk = upload_and_complete(coordinator_client, storage, content, kind="file", filename=filename)
+
+    assert response.status_code == 200, response.content
+    material = WorkshopMaterial.objects.get(pk=pk)
+    assert material.status == MaterialStatus.SCANNING
+    assert material.file_format == key
+    assert material.object_key.endswith(f".{key}")
+    assert material.content_type == content_type
+
+
+def test_binary_file_named_like_code_is_rejected_and_cleaned_up(coordinator_client, ready, storage):
+    response, pk = upload_and_complete(
+        coordinator_client, storage, ELF_BYTES, kind="file", filename="exploit.py"
+    )
+
+    assert response.status_code == 400
+    assert "UTF-8" in response.json()["error"]
+    assert not WorkshopMaterial.objects.filter(pk=pk).exists()
+    assert storage.objects == {}
+
+
+def test_old_office_container_renamed_to_ooxml_is_rejected(coordinator_client, ready, storage):
+    response, _ = upload_and_complete(
+        coordinator_client, storage, CFB_BYTES, kind="file", filename="slajdy.pptx"
+    )
+
+    assert response.status_code == 400
+    assert "treść nie jest" in response.json()["error"]
+
+
+def test_new_formats_are_files_not_videos(coordinator_client, ready, storage):
+    response = start(coordinator_client, kind="video", filename="notatki.md", content=b"# x")
+
+    assert response.status_code == 400
+    assert "nie są przyjmowane" in response.json()["error"]
+    assert storage.uploads == {}
