@@ -59,14 +59,19 @@
 
     <form method="post" class="form">
       {% csrf_token %}
+      {% if back %}<input type="hidden" name="back" value="{{ back }}">{% endif %}
       <div class="actions">
         {% if not protected and not is_self %}
           <button type="submit" class="btn btn--danger">
             {% if keeps_pseudonymous_row %}Usuń dane osobowe tego konta{% else %}Usuń konto na zawsze{% endif %}
           </button>
         {% endif %}
-        <a class="btn btn--secondary"
-           href="{% url 'web:coordinator-account-edit' account.pk %}">Wróć do konta</a>
+        {% if back_url %}
+          <a class="btn btn--secondary" href="{{ back_url }}">Wróć do listy zdublowanych kont</a>
+        {% else %}
+          <a class="btn btn--secondary"
+             href="{% url 'web:coordinator-account-edit' account.pk %}">Wróć do konta</a>
+        {% endif %}
       </div>
     </form>
   </div>
