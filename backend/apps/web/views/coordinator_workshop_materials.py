@@ -45,8 +45,11 @@ from apps.workshop_materials import services, stats
 from apps.workshop_materials.access import feature_enabled
 from apps.workshop_materials.forms import MaterialForm, NewMaterialForm, UploadStartForm
 from apps.workshop_materials.models import MaterialKind, MaterialStatus, WorkshopMaterial
+from apps.workshop_materials.preview import build_preview, previewable
 from apps.workshop_materials.storage import PART_SIZE, VIDEO_URL_TTL_SECONDS, get_material_storage
 from apps.workshop_materials.viewing import signed_url
+
+from .workshop_materials import DETAIL_TEMPLATE, detail_context
 
 LIST_TEMPLATE = "web/coordinator/workshop_materials.html"
 FORM_TEMPLATE = "web/coordinator/workshop_material_form.html"
@@ -391,7 +394,8 @@ class CoordinatorMaterialPreviewView(_MaterialsMixin, View):
 
     Koordynator musi móc sprawdzić, co wgrał, zanim materiał pójdzie do widzów. Plik przed werdyktem
     skanera (albo odrzucony) nie ma podglądu – nawet dla koordynatora nie otwieramy pliku, o którym
-    nie wiadomo, czy jest czysty.
+    nie wiadomo, czy jest czysty. Markdown, tekst i kod (WM-FMT-01) dostają stronę materiału
+    z podglądem; reszta – przekierowanie na podpisany adres, jak dotąd.
     """
 
     def get(self, request, pk: int):
@@ -400,8 +404,19 @@ class CoordinatorMaterialPreviewView(_MaterialsMixin, View):
             return HttpResponseRedirect(material.url)
         if not material.is_ready or not material.object_key:
             raise Http404("Ten materiał nie jest jeszcze gotowy.")
-        response = HttpResponseRedirect(
-            signed_url(material, get_material_storage(), ttl=VIDEO_URL_TTL_SECONDS)
-        )
+        storage = get_material_storage()
+        if previewable(material):
+            # Markdown, tekst i kod: ta sama strona, którą zobaczy widz (z podglądem), także dla
+            # szkicu – koordynator sprawdza skład przed publikacją. Przycisk „Pobierz” prowadzi
+            # wprost na podpis, bo ``workshop-material-open`` szkicu nie wyda.
+            context = detail_context(
+                request,
+                material,
+                preview=build_preview(material, storage),
+                download_url=signed_url(material, storage, ttl=VIDEO_URL_TTL_SECONDS),
+            )
+            response = TemplateResponse(request, DETAIL_TEMPLATE, context)
+        else:
+            response = HttpResponseRedirect(signed_url(material, storage, ttl=VIDEO_URL_TTL_SECONDS))
         add_never_cache_headers(response)
         return response

@@ -10,9 +10,17 @@
 
   Menu kontekstowego nie blokujemy: strict CSP nie dopuszcza skryptu inline, a osobny skrypt tylko
   po to dawałby złudzenie ochrony, której nie ma.
+
+  Podgląd pliku (WM-FMT-01, ``apps.workshop_materials.preview``): Markdown przychodzi jako HTML
+  złożony konwerterem, który najpierw ucieka cały tekst (``preview.html`` – jedyne miejsce bez
+  autoescape, bo to już jest bezpieczny ``SafeString``); kod i tekst – jako napis do ``<pre><code>``
+  z autoescape. Formuły ``$…$`` rysuje KaTeX z plików statycznych TR-01 (skrypty ``defer`` z nonce,
+  tylko gdy jest podgląd Markdownu). ``download_url`` podaje widok – u widza przez
+  ``workshop-material-open``, u koordynatora wprost na podpis.
 {% endcomment %}
 {% block title %}{% blocktranslate trimmed with title=material.title %}{{ title }} – Materiały z warsztatów{% endblocktranslate %}{% endblock %}
-{% block head %}<link rel="stylesheet" href="{% static 'css/workshop-materials.css' %}">{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/workshop-materials.css' %}">{% if preview.kind == "markdown" %}
+<link rel="stylesheet" href="{% static 'problem_translations/vendor/katex/katex.min.css' %}">{% endif %}{% endblock %}
 {% block description %}{% blocktranslate trimmed with topic=workshop.topic %}Materiał z warsztatu „{{ topic }}”.{% endblocktranslate %}{% endblock %}
 {% block content %}
 <div class="page-head">
@@ -41,10 +49,39 @@
 {% endif %}
 
 {% if material.kind == kinds.FILE %}
-  <p><a class="btn btn--primary" href="{% url 'web:workshop-material-open' material.pk %}">{% if material.format.inline %}{% translate "Otwórz" %}{% else %}{% translate "Pobierz" %}{% endif %} ({{ material.format_label }}, {{ material.size_bytes|filesizeformat }})</a></p>
+  <p><a class="btn btn--primary" href="{{ download_url }}">{% if material.format.inline %}{% translate "Otwórz" %}{% else %}{% translate "Pobierz" %}{% endif %} ({{ material.format_label }}, {{ material.size_bytes|filesizeformat }})</a></p>
+  {% if material.format.macros %}
+    <p class="hint">{% blocktranslate trimmed %}
+      Ten format może zawierać makra. Program biurowy zapyta, czy je włączyć – włącz je tylko wtedy,
+      gdy wiesz, do czego służą w tym pliku.
+    {% endblocktranslate %}</p>
+  {% endif %}
+  {% if preview %}
+    <section class="section" aria-labelledby="podglad-pliku">
+      <h2 id="podglad-pliku">{% translate "Podgląd pliku" %}</h2>
+      {% if preview.kind == "markdown" %}
+        <div class="prose workshop-preview workshop-preview--markdown">{{ preview.html }}</div>
+      {% elif preview.kind == "text" %}
+        {% if preview.plain_fallback %}<p class="hint">{% translate "Plik jest pokazany jako zwykły tekst – jest zbyt złożony, żeby złożyć go jako Markdown." %}</p>{% endif %}
+        <pre class="workshop-preview workshop-preview--code"><code>{{ preview.text }}</code></pre>
+      {% elif preview.kind == "too_large" %}
+        <p class="hint">{% blocktranslate trimmed with limit=preview.limit_bytes|filesizeformat %}
+          Plik jest za duży na podgląd na stronie (podgląd do {{ limit }}) – pobierz go.
+        {% endblocktranslate %}</p>
+      {% else %}
+        <p class="hint">{% translate "Podgląd jest chwilowo niedostępny – pobierz plik." %}</p>
+      {% endif %}
+    </section>
+  {% endif %}
 {% elif material.kind == kinds.LINK %}
   <p><a class="btn btn--primary" href="{% url 'web:workshop-material-open' material.pk %}" rel="noopener noreferrer">{% translate "Przejdź do materiału" %}</a></p>
 {% endif %}
 
 <p><a href="{% url 'web:workshop-materials' %}">← {% translate "Wszystkie materiały z warsztatów" %}</a></p>
+{% endblock %}
+{% block scripts %}{{ block.super }}
+  {% if preview.kind == "markdown" %}
+    <script defer nonce="{{ request.csp_nonce }}" src="{% static 'problem_translations/vendor/katex/katex.min.js' %}"></script>
+    <script defer nonce="{{ request.csp_nonce }}" src="{% static 'problem_translations/js/math.js' %}"></script>
+  {% endif %}
 {% endblock %}

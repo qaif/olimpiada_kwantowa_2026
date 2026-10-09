@@ -4,7 +4,8 @@
   „Materiały z warsztatów” dla zalogowanych. Warsztaty w kolejności harmonogramu, pod każdym jego
   materiały. Na tej stronie **nie ma** żadnego adresu pliku: film otwiera się na stronie materiału
   (tam powstaje podpisany adres), plik i odnośnik idą przez ``workshop-material-open``, który liczy
-  wyświetlenie i dopiero wtedy przekierowuje.
+  wyświetlenie i dopiero wtedy przekierowuje. Plik z podglądem (Markdown, tekst, kod – WM-FMT-01)
+  ma dwa przyciski: „Zobacz” (strona materiału z podglądem) i „Pobierz”.
 {% endcomment %}
 {% block title %}{% translate "Materiały z warsztatów" %}{% endblock %}
 {% block description %}{% translate "Nagrania i materiały z warsztatów olimpiady – dla zalogowanych uczestników i opiekunów." %}{% endblock %}
@@ -34,6 +35,9 @@
             <p>
               {% if material.kind == kinds.VIDEO %}
                 <a class="btn btn--primary" href="{% url 'web:workshop-material' material.pk %}">{% translate "Obejrzyj" %}<span class="visually-hidden">: {{ material.title }}</span></a>
+              {% elif material.kind == kinds.FILE and material.format.preview %}
+                <a class="btn btn--primary" href="{% url 'web:workshop-material' material.pk %}">{% translate "Zobacz" %}<span class="visually-hidden">: {{ material.title }}</span></a>
+                <a class="btn btn--secondary" href="{% url 'web:workshop-material-open' material.pk %}">{% translate "Pobierz" %}<span class="visually-hidden">: {{ material.title }}</span></a>
               {% elif material.kind == kinds.FILE %}
                 <a class="btn btn--primary" href="{% url 'web:workshop-material-open' material.pk %}">{% if material.format.inline %}{% translate "Otwórz" %}{% else %}{% translate "Pobierz" %}{% endif %}<span class="visually-hidden">: {{ material.title }}</span></a>
               {% else %}

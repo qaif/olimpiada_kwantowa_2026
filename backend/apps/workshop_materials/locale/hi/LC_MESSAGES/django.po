@@ -1,0 +1,39 @@
+# Materiały z warsztatów: podgląd pliku i makra (WM-FMT-01) – hi.
+msgid ""
+msgstr ""
+"Project-Id-Version: Olimpiada Kwantowa\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-09 23:30+0200\n"
+"PO-Revision-Date: 2026-10-09 23:30+0200\n"
+"Last-Translator: Olimpiada Kwantowa\n"
+"Language-Team: Hindi\n"
+"Language: hi\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: templates/web/workshop_materials/detail.html
+msgid "Ten format może zawierać makra. Program biurowy zapyta, czy je włączyć – włącz je tylko wtedy, gdy wiesz, do czego służą w tym pliku."
+msgstr "इस फ़ॉर्मैट में मैक्रो हो सकते हैं। ऑफ़िस प्रोग्राम पूछेगा कि उन्हें चालू करना है या नहीं – उन्हें तभी चालू करें जब आपको पता हो कि इस फ़ाइल में वे क्या करते हैं।"
+
+#: templates/web/workshop_materials/detail.html
+msgid "Podgląd pliku"
+msgstr "फ़ाइल का पूर्वावलोकन"
+
+#: templates/web/workshop_materials/detail.html
+msgid "Plik jest pokazany jako zwykły tekst – jest zbyt złożony, żeby złożyć go jako Markdown."
+msgstr "फ़ाइल सादे पाठ के रूप में दिखाई गई है – यह Markdown के रूप में दिखाने के लिए बहुत जटिल है।"
+
+#: templates/web/workshop_materials/detail.html
+#, python-format
+msgid "Plik jest za duży na podgląd na stronie (podgląd do %(limit)s) – pobierz go."
+msgstr "फ़ाइल पेज पर पूर्वावलोकन के लिए बहुत बड़ी है (पूर्वावलोकन %(limit)s तक) – इसे डाउनलोड करें।"
+
+#: templates/web/workshop_materials/detail.html
+msgid "Podgląd jest chwilowo niedostępny – pobierz plik."
+msgstr "पूर्वावलोकन अभी उपलब्ध नहीं है – फ़ाइल डाउनलोड करें।"
+
+#: templates/web/workshop_materials/list.html
+msgid "Zobacz"
+msgstr "देखें"
