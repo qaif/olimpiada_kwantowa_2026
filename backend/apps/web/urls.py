@@ -53,6 +53,7 @@ from .views import (
     coordinator_announcements,
     coordinator_certificates,
     coordinator_competition,
+    coordinator_duplicates,
     coordinator_events,
     coordinator_forum,
     coordinator_forwarding,
@@ -785,6 +786,23 @@ urlpatterns = [
         "coordinator/accounts/import/",
         supervisor.CoordinatorStudentImportView.as_view(),
         name="coordinator-accounts-import",
+    ),
+    # Zdublowane konta uczestników (ACC-DUP-01). Nazwy ``coordinator-duplicates…``, a nie
+    # ``coordinator-account-…``: przedrostek ``coordinator-account-`` zapala w menu „Wszystkie konta”.
+    path(
+        "coordinator/accounts/duplicates/",
+        coordinator_duplicates.CoordinatorDuplicatesView.as_view(),
+        name="coordinator-duplicates",
+    ),
+    path(
+        "coordinator/accounts/duplicates/delete/",
+        coordinator_duplicates.CoordinatorDuplicatesDeleteView.as_view(),
+        name="coordinator-duplicates-delete",
+    ),
+    path(
+        "coordinator/accounts/duplicates/export.csv",
+        coordinator_duplicates.CoordinatorDuplicatesExportView.as_view(),
+        name="coordinator-duplicates-export",
     ),
     path(
         "coordinator/accounts/<int:pk>/",

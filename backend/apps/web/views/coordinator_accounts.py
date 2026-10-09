@@ -935,6 +935,15 @@ class CoordinatorAccountDeleteView(CoordinatorRequiredMixin, View):
     właśnie wypisał z ogłoszonej tabeli.
     """
 
+    #: Ekran, na który wraca się po usunięciu – zamknięta lista wartości parametru ``back``, a nie
+    #: adres w parametrze (to byłoby otwarte przekierowanie). ``duplicates`` – lista zdublowanych
+    #: kont (ACC-DUP-01), z której przycisk „Usuń” prowadzi właśnie tutaj.
+    BACK_URLS = {"duplicates": "web:coordinator-duplicates"}
+
+    def _back(self, request) -> str:
+        value = request.POST.get("back") if request.method == "POST" else request.GET.get("back")
+        return value if value in self.BACK_URLS else ""
+
     def get(self, request, pk: int):
         return self._render(request, _account(request.competition, pk))
 
@@ -956,7 +965,8 @@ class CoordinatorAccountDeleteView(CoordinatorRequiredMixin, View):
             messages.success(
                 request, f"Konto {email} zostało usunięte w całości. Adres zwolnił się do rejestracji."
             )
-        return redirect(reverse("web:coordinator-accounts"))
+        back = self._back(request)
+        return redirect(reverse(self.BACK_URLS[back] if back else "web:coordinator-accounts"))
 
     def _render(self, request, user: User, *, status: int = 200):
         footprint = competition_footprint(user)
@@ -975,5 +985,7 @@ class CoordinatorAccountDeleteView(CoordinatorRequiredMixin, View):
             "has_participant_footprint": any(footprint[key] for key in ("entries", "submissions", "reviews")),
             "has_supervisor_footprint": bool(footprint.get("school_participations")),
             "participant": participant,
+            "back": (back := self._back(request)),
+            "back_url": reverse(self.BACK_URLS[back]) if back else "",
         }
         return TemplateResponse(request, DELETE_TEMPLATE, context, status=status)
