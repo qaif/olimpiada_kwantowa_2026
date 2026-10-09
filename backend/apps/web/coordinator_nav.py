@@ -972,6 +972,12 @@ def groups(stages: list, competition=None) -> list[Group]:
                     ("web:coordinator-duplicates",),
                     match=("coordinator-duplicates", "coordinator-duplicates-"),
                 ),
+                # ACC-DUP-02: konta uczestników, na które nikt się nie logował (od N dni albo nigdy).
+                Item(
+                    "Nieaktywne konta",
+                    ("web:coordinator-inactive",),
+                    match=("coordinator-inactive", "coordinator-inactive-"),
+                ),
                 Item("Opiekunowie szkolni", ("web:coordinator-accounts",), query="role=supervisor"),
                 Item(
                     "Aktywacje",

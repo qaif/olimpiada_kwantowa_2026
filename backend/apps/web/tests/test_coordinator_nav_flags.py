@@ -58,9 +58,18 @@ EXPECTED_MENU_WITHOUT_FLAGS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("Ocenianie", ("Moderacja", "Zgłoszone problemy")),
     # „Zdublowane konta” – zadanie ACC-DUP-01 (prośba organizatora z 9.10.2026: wyszukiwanie
     # zdublowanych kont w panelu koordynatora). Bez flagi, jak lista kont, którą rozszerza.
+    # „Nieaktywne konta” – zadanie ACC-DUP-02 (prośba organizatora z 10.10.2026: sekcja kont, na które
+    # nikt się nie logował). Bez flagi, z tego samego powodu.
     (
         "Uczestnicy i konta",
-        ("Uczestnicy", "Wszystkie konta", "Zdublowane konta", "Opiekunowie szkolni", "Aktywacje"),
+        (
+            "Uczestnicy",
+            "Wszystkie konta",
+            "Zdublowane konta",
+            "Nieaktywne konta",
+            "Opiekunowie szkolni",
+            "Aktywacje",
+        ),
     ),
     ("Komitet", ("Członkowie", "Zatwierdzenia", "Zaproszenia", "Województwa")),
     # „Wiadomości” – zadanie CZ-01 z 30.09.2026 (polecenie organizatora: pozycja w „Komunikacji”
