@@ -29,8 +29,8 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
   koordynatora.
 - Wspólny mechanizm `apps.accounts.account_cleanup` (fakty o koncie, pętla usuwania z warunkiem na
   zablokowanym wierszu, znacznik logowania); `delete_candidates` z ACC-DUP-01 korzysta z niego bez zmiany
-  zachowania. Każde usunięcie przez `delete_account_by_coordinator`. PODRĘCZNIK-ORGANIZATORA § 10.2,
-  § 10.3, spec `docs/tasks/ACC-DUP-02.md`.
+  zachowania. Każde usunięcie przez `delete_account_by_coordinator`. Spec `docs/tasks/ACC-DUP-02.md`,
+  PODRĘCZNIK-ORGANIZATORA § 10.2 i PODRĘCZNIK-ORGANIZATORA § 10.3.
 
 ## [Unreleased] – Poczta przychodząca: postmaster@, abuse@ i zdalne odbicia (MAIL-03)
 
