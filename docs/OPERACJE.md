@@ -6754,6 +6754,30 @@ nie dotyka – ustawia wyłącznie `transport_maps` i `virtual_alias_maps`.
 - **Kolejny konkurs z własną domeną:** te same kroki 1–6 z jego domeną; inny panel DNS – te same
   trzy decyzje (SPF zmień/scal, DKIM dodaj, DMARC nie dubluj, MX nie ruszaj).
 
+### 49.9. Poczta przychodząca: postmaster@, abuse@, zdalne odbicia (MAIL-03)
+
+Do 9.10.2026 relay był wyłącznie wychodzący: port 25 nie był publikowany, więc MX domeny
+(`mail.<domena>`) nie przyjmował niczego. Microsoft (SNDS, JMRP, odblokowanie IP po błędzie
+`S3150`) potwierdza adres listem na **postmaster@** albo **abuse@** domeny z rekordu PTR, a zdalne
+serwery odsyłają odbicia na `noreply@` – żaden z tych listów nie miał dokąd dojść.
+
+- **Włączenie** (`.env`): `MAIL_INBOUND_FORWARD=<skrzynka operatora>` i `MAIL_INBOUND_BIND=0.0.0.0`,
+  potem `docker compose up -d mail`. Bez `MAIL_INBOUND_BIND` port 25 słucha tylko na `127.0.0.1` hosta.
+- **Kto jest przyjmowany** (`deploy/mail/docker-init.d/60-inbound.sh`): wyłącznie postmaster@ i abuse@
+  każdej domeny z `ALLOWED_SENDER_DOMAINS` (`MAIL_INBOUND_LOCALPARTS`), przekierowane aliasem na
+  `MAIL_INBOUND_FORWARD`, oraz adresy skrzynki odbić z § 49.7 (`noreply@` w trybie `capture` – trafiają
+  do Maildira workera, § 52). Każdy inny adresat: `550 … User unknown in relay recipient table` jeszcze
+  w rozmowie SMTP, nic nie wchodzi do kolejki.
+- **Bez relaya:** usługa `smtp` (port 25) ma własne `mynetworks=127.0.0.0/8` i
+  `smtpd_relay_restrictions=reject_unauth_destination` – globalne `permit` obrazu zostaje wyłącznie na
+  587 (sieć compose). Gdy nadpisanie się nie uda, skrypt wyłącza usługę portu 25
+  (`master_service_disable=smtp/inet`) – wysyłka przez 587 działa dalej.
+- **Sprawdzenie z zewnątrz:** `swaks --to postmaster@<domena> --server mail.<domena>` dochodzi do
+  skrzynki operatora; `--to ktokolwiek@<domena>` i `--to ktos@gmail.com` dostają 550/554. Log:
+  `docker compose logs mail | grep -E "relay=|reject"`.
+- **Wyłączenie:** `MAIL_INBOUND_FORWARD=` (pusty) albo `MAIL_INBOUND_BIND` usunięty i
+  `docker compose up -d mail`.
+
 ## 50. Dostępność (A11Y-01, `docs/tasks/A11Y-01.md`)
 
 Serwis ma spełniać WCAG 2.1 AA. Pilnuje tego suita **axe-core + klawiatura** (`e2e/a11y/`), która

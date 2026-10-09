@@ -512,6 +512,11 @@ services:
       # Nadawcy usług monitoringu (OPS-02: GlitchTip i monitor dostępności) – ich odbicia wracałyby
       # tą samą pętlą. Dopisywani zawsze, obok MAIL_BOUNCE_ADDRESSES / noreply@ domen.
       MAIL_BOUNCE_EXTRA_ADDRESSES: glitchtip@${SITE_DOMAIN:-localhost} uptime@${SITE_DOMAIN:-localhost}
+      # MAIL-03: poczta przychodząca na porcie 25 – wyłącznie postmaster@ i abuse@ domen nadawcy
+      # (przekierowane na ten adres) oraz zdalne odbicia na noreply@ (skrzynka MAIL-02). Pusty = wyłączona.
+      # Potrzebna m.in. do potwierdzenia IP w Microsoft SNDS/JMRP (OPERACJE § 49.9,
+      # deploy/mail/docker-init.d/60-inbound.sh).
+      MAIL_INBOUND_FORWARD: ${MAIL_INBOUND_FORWARD:-}
       POSTFIX_myhostname: mail.${SITE_DOMAIN:-localhost}
       # Klienci SMTP: wyłącznie podsieci compose (edge + internal). Bez SASL – poza tymi
       # podsieciami port 587 nie jest osiągalny (brak `ports:`), więc hasło niczego by nie dodało.
@@ -569,9 +574,14 @@ services:
       # Skrzynka Maildir zawiadomień o niedoręczeniu (MAIL-02, MAIL_BOUNCE_TARGET=capture) – wspólna z workerem.
       - mail_bounces:/var/mail/olimpiada
     # `internal` – tu sięgają web/worker/beat. `edge` – bo `internal` ma internal:true, a doręczenie
-    # wprost do MX-a odbiorcy wymaga wyjścia na świat. Portów nie publikujemy: relay jest widoczny
-    # tylko z sieci compose. `errors_egress` – tu sięga GlitchTip (OPS-02) z jednym dozwolonym nadawcą.
+    # wprost do MX-a odbiorcy wymaga wyjścia na świat. `errors_egress` – tu sięga GlitchTip (OPS-02)
+    # z jednym dozwolonym nadawcą. Wysyłka aplikacji idzie przez 587, który **nie** jest publikowany.
     networks: [edge, internal, errors_egress]
+    # MAIL-03: port 25 (poczta przychodząca, MX domeny). Domyślnie tylko na pętli zwrotnej hosta –
+    # na świat dopiero z MAIL_INBOUND_BIND=0.0.0.0 w .env. Usługa `smtp` w kontenerze jest zawsze
+    # zaostrzona przez 60-inbound.sh (bez relaya, tylko adresaci z relay_recipient_maps).
+    ports:
+      - "${MAIL_INBOUND_BIND:-127.0.0.1}:25:25"
     security_opt:
       - no-new-privileges:true
     cap_drop: [ALL]

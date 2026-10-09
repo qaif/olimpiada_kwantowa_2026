@@ -6,7 +6,16 @@ Jedna sekcja na wydanie (od v0.34.0), najnowsze na górze; starsze wydania – p
 `scripts/deploy.sh`, więc numer widoczny w stopce serwisu i na `/status/` odpowiada dokładnie jednej
 sekcji albo jednemu wierszowi tabeli.
 
-Nowa zmiana trafia na górę jako `## [Unreleased] – <tytuł>`; przy tagowaniu blok staje się
+Nowa zmiana trafia na górę jako `## [Unreleased] – Poczta przychodząca: postmaster@, abuse@ i zdalne odbicia (MAIL-03)
+
+- Relay `mail` przyjmuje pocztę na porcie 25 (prośba organizatora z 9.10.2026 – potwierdzenie IP
+  w Microsoft SNDS/JMRP po blokadzie `S3150`): wyłącznie postmaster@ i abuse@ domen nadawcy,
+  przekierowane na `MAIL_INBOUND_FORWARD`, oraz zdalne odbicia na `noreply@` (skrzynka MAIL-02).
+  Usługa portu 25 bez relaya (`reject_unauth_destination`, własne `mynetworks`), port domyślnie tylko
+  na `127.0.0.1` (`MAIL_INBOUND_BIND`). Skrypt `deploy/mail/docker-init.d/60-inbound.sh`, test
+  `scripts/tests/mail_inbound_test.sh` (w CI razem z `mail_bounces_test.sh`), OPERACJE § 49.9.
+
+## [Unreleased] – <tytuł>`; przy tagowaniu blok staje się
 podsekcją `### <tytuł>` wydania `## v<x.y.z> – <data tagu> – <opis tagu>`.
 
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
