@@ -6,7 +6,13 @@ Jedna sekcja na wydanie (od v0.34.0), najnowsze na górze; starsze wydania – p
 `scripts/deploy.sh`, więc numer widoczny w stopce serwisu i na `/status/` odpowiada dokładnie jednej
 sekcji albo jednemu wierszowi tabeli.
 
-Nowa zmiana trafia na górę jako `## [Unreleased] – Poczta przychodząca: postmaster@, abuse@ i zdalne odbicia (MAIL-03)
+Nowa zmiana trafia na górę jako `## [Unreleased] – <tytuł>`; przy tagowaniu blok staje się
+podsekcją `### <tytuł>` wydania `## v<x.y.z> – <data tagu> – <opis tagu>`.
+
+Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
+[`BACKLOG.md`](BACKLOG.md).
+
+## [Unreleased] – Poczta przychodząca: postmaster@, abuse@ i zdalne odbicia (MAIL-03)
 
 - Relay `mail` przyjmuje pocztę na porcie 25 (prośba organizatora z 9.10.2026 – potwierdzenie IP
   w Microsoft SNDS/JMRP po blokadzie `S3150`): wyłącznie postmaster@ i abuse@ domen nadawcy,
@@ -15,11 +21,19 @@ Nowa zmiana trafia na górę jako `## [Unreleased] – Poczta przychodząca: pos
   na `127.0.0.1` (`MAIL_INBOUND_BIND`). Skrypt `deploy/mail/docker-init.d/60-inbound.sh`, test
   `scripts/tests/mail_inbound_test.sh` (w CI razem z `mail_bounces_test.sh`), OPERACJE § 49.9.
 
-## [Unreleased] – <tytuł>`; przy tagowaniu blok staje się
-podsekcją `### <tytuł>` wydania `## v<x.y.z> – <data tagu> – <opis tagu>`.
+## [Unreleased] – Zdublowane konta uczestników w panelu koordynatora (ACC-DUP-01)
 
-Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
-[`BACKLOG.md`](BACKLOG.md).
+- **Nowy ekran `/coordinator/accounts/duplicates/`** (menu „Uczestnicy i konta” → „Zdublowane konta”,
+  prośba organizatora z 9.10.2026 – na produkcji 17 osób z 36 kontami): grupy kont uczestnika tego
+  konkursu o tym samym imieniu, nazwisku (NFKC, bez wielkości liter, spacji, kropek i cudzysłowów)
+  i szkole (wykaz → słownik organizatora → tekst), bez kont zanonimizowanych. Przy koncie: ostatnie
+  logowanie, stan, etapy (trening osobno), prace, zgody, zaświadczenie i sugestia „do zachowania” /
+  „kandydat do usunięcia” / „do decyzji”. Serwis `apps.accounts.duplicates`, stała liczba zapytań.
+- **Usuwanie kopii** wyłącznie przez `delete_account_by_coordinator` (audyt jak dotąd): pojedynczo
+  przez istniejący ekran usuwania konta (`?back=duplicates` wraca na listę), zbiorczo z ekranem
+  potwierdzenia z dokładną listą; warunki kandydata są przeliczane w chwili usuwania, a konto, które
+  zdążyło się zalogować, jest pomijane. Eksport CSV z audytem `account.duplicates_exported`; słabszy
+  sygnał „podobne adresy e-mail” (literówki domen, np. `gmail.con`). PODRĘCZNIK-ORGANIZATORA § 10.2.
 
 ## [Unreleased] – Materiały z warsztatów: pełny Office, Markdown, tekst i kod (WM-FMT-01)
 

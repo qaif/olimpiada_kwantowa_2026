@@ -966,6 +966,12 @@ def groups(stages: list, competition=None) -> list[Group]:
                     ("web:coordinator-accounts",),
                     match=("coordinator-accounts", "coordinator-account-"),
                 ),
+                # ACC-DUP-01: ta sama osoba z kilkoma kontami uczestnika (literówka w adresie).
+                Item(
+                    "Zdublowane konta",
+                    ("web:coordinator-duplicates",),
+                    match=("coordinator-duplicates", "coordinator-duplicates-"),
+                ),
                 Item("Opiekunowie szkolni", ("web:coordinator-accounts",), query="role=supervisor"),
                 Item(
                     "Aktywacje",
