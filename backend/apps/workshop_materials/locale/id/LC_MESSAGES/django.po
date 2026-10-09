@@ -1,0 +1,39 @@
+# Materiały z warsztatów: podgląd pliku i makra (WM-FMT-01) – id.
+msgid ""
+msgstr ""
+"Project-Id-Version: Olimpiada Kwantowa\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-09 23:30+0200\n"
+"PO-Revision-Date: 2026-10-09 23:30+0200\n"
+"Last-Translator: Olimpiada Kwantowa\n"
+"Language-Team: Indonesian\n"
+"Language: id\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+#: templates/web/workshop_materials/detail.html
+msgid "Ten format może zawierać makra. Program biurowy zapyta, czy je włączyć – włącz je tylko wtedy, gdy wiesz, do czego służą w tym pliku."
+msgstr "Format ini dapat berisi makro. Program perkantoran akan menanyakan apakah makro diaktifkan – aktifkan hanya jika Anda tahu fungsinya dalam berkas ini."
+
+#: templates/web/workshop_materials/detail.html
+msgid "Podgląd pliku"
+msgstr "Pratinjau berkas"
+
+#: templates/web/workshop_materials/detail.html
+msgid "Plik jest pokazany jako zwykły tekst – jest zbyt złożony, żeby złożyć go jako Markdown."
+msgstr "Berkas ditampilkan sebagai teks biasa – terlalu rumit untuk ditampilkan sebagai Markdown."
+
+#: templates/web/workshop_materials/detail.html
+#, python-format
+msgid "Plik jest za duży na podgląd na stronie (podgląd do %(limit)s) – pobierz go."
+msgstr "Berkas terlalu besar untuk dipratinjau di halaman (pratinjau hingga %(limit)s) – unduh berkasnya."
+
+#: templates/web/workshop_materials/detail.html
+msgid "Podgląd jest chwilowo niedostępny – pobierz plik."
+msgstr "Pratinjau sementara tidak tersedia – unduh berkasnya."
+
+#: templates/web/workshop_materials/list.html
+msgid "Zobacz"
+msgstr "Lihat"

@@ -35,6 +35,30 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
   zdążyło się zalogować, jest pomijane. Eksport CSV z audytem `account.duplicates_exported`; słabszy
   sygnał „podobne adresy e-mail” (literówki domen, np. `gmail.con`). PODRĘCZNIK-ORGANIZATORA § 10.2.
 
+## [Unreleased] – Materiały z warsztatów: pełny Office, Markdown, tekst i kod (WM-FMT-01)
+
+- **Nowe formaty plików** (prośba organizatora z 9.10.2026; zasada „nie zawężaj listy, co najwyżej ją
+  rozszerz” – wszystko, co było przyjmowane, przechodzi bez zmian): stary Office DOC/XLS/PPT (+ DOT/XLT/
+  POT/PPS, rodzina `cfb` po sygnaturze OLE), OOXML z makrami i szablony (DOCM, DOTX, DOTM, XLSM, XLSB,
+  XLTX, XLTM, PPTM, PPSX, PPSM, POTX, POTM), ODG, EPUB, RTF oraz Markdown, tekst, dane i kod (MD, TXT,
+  CSV, TSV, TEX, BIB, JSON, YAML, TOML, XML, RST, PY, C/C++, Java, JS/TS, Rust, Go, Julia, R, MATLAB,
+  OpenQASM, Q#, SH, SQL, HTML, CSS, SVG i in.). Tekst rozpoznawany po treści: UTF-8 (z BOM albo bez),
+  bez NUL, mało znaków sterujących – binarny plik z rozszerzeniem `.py` jest odrzucany. CSV, TSV i TXT
+  także w UTF-16 z BOM-em i 8-bitowo (Windows-1250 z polskiego Excela) – kodowanie w nowym polu
+  `WorkshopMaterial.charset` (migracja `workshop_materials.0002`), w `Content-Type` i w podglądzie.
+- **Makra dopuszczone** (decyzja organizatora): ClamAV skanuje je jak każdy plik, strona materiału
+  pokazuje neutralną informację.
+- **Serwowanie tekstu:** zawsze `attachment` z `text/plain; charset=utf-8` (`text/markdown` dla MD,
+  `charset=utf-16`/`windows-1250` dla takich CSV/TSV/TXT) –
+  także HTML i SVG, nigdy jako strona ani obraz; `nosniff` i CSP `sandbox` dokłada Caddy magazynu.
+- **Podgląd na stronie materiału** (`apps/workshop_materials/preview.py`) do 1 MB: Markdown składany
+  istniejącym konwerterem TR-01 (najpierw `html.escape`, bez odnośników i obrazków; wzory KaTeX-em
+  z plików statycznych), kod i tekst w `<pre><code>`; te same bramki co pobranie, liczony jako
+  wyświetlenie. Budżet składania Markdownu chroni przed plikiem o koszcie kwadratowym (spada do
+  zwykłego tekstu). Podgląd koordynatora pokazuje stronę także dla szkicu.
+- Formularz: `accept=` i podpowiedź z pogrupowaną listą formatów. Bez nowych zależności.
+  Spec: `docs/tasks/WM-FMT-01.md`, PODRĘCZNIK-ORGANIZATORA § 4.11.
+
 ## [Unreleased] – Szybsze CI: grupy xdist, jedna migracja na shard, czasy z CI (CI-SPEED-01)
 
 - **Testy migracji przewijały bazę raz na test, a nie raz na moduł** (prośba organizatora z 8.10.2026

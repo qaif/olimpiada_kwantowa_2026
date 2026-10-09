@@ -1,0 +1,40 @@
+# Materiały z warsztatów: podgląd pliku i makra (WM-FMT-01) – fr.
+msgid ""
+msgstr ""
+"Project-Id-Version: Olimpiada Kwantowa\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-09 23:30+0200\n"
+"PO-Revision-Date: 2026-10-09 23:30+0200\n"
+"Last-Translator: Olimpiada Kwantowa\n"
+"Language-Team: French\n"
+"Language: fr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=3; plural=(n == 0 || n == 1) ? 0 : n != 0 && n % "
+"1000000 == 0 ? 1 : 2;\n"
+
+#: templates/web/workshop_materials/detail.html
+msgid "Ten format może zawierać makra. Program biurowy zapyta, czy je włączyć – włącz je tylko wtedy, gdy wiesz, do czego służą w tym pliku."
+msgstr "Ce format peut contenir des macros. Votre logiciel de bureautique vous demandera s’il faut les activer – activez-les uniquement si vous savez à quoi elles servent dans ce fichier."
+
+#: templates/web/workshop_materials/detail.html
+msgid "Podgląd pliku"
+msgstr "Aperçu du fichier"
+
+#: templates/web/workshop_materials/detail.html
+msgid "Plik jest pokazany jako zwykły tekst – jest zbyt złożony, żeby złożyć go jako Markdown."
+msgstr "Le fichier est affiché en texte brut – il est trop complexe pour être mis en forme en Markdown."
+
+#: templates/web/workshop_materials/detail.html
+#, python-format
+msgid "Plik jest za duży na podgląd na stronie (podgląd do %(limit)s) – pobierz go."
+msgstr "Le fichier est trop volumineux pour un aperçu sur la page (aperçu jusqu’à %(limit)s) – téléchargez-le."
+
+#: templates/web/workshop_materials/detail.html
+msgid "Podgląd jest chwilowo niedostępny – pobierz plik."
+msgstr "L’aperçu est temporairement indisponible – téléchargez le fichier."
+
+#: templates/web/workshop_materials/list.html
+msgid "Zobacz"
+msgstr "Voir"

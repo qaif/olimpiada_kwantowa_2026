@@ -10,7 +10,9 @@ i nie zostanie przez nie przykryta po cichu – zawsze wygrywa aplikacja.
   odtwarzacza albo do pobrania, a podpis powstaje dopiero tam,
 - ``/warsztaty/materialy/<id>/`` – strona materiału. Dla filmu: ``<video>`` z adresem podpisanym
   na dwie godziny (``apps.workshop_materials.viewing``) i ``controlsList="nodownload"``; dla pliku
-  i odnośnika – opis i przycisk,
+  i odnośnika – opis i przycisk, a dla Markdownu, tekstu i kodu także **podgląd** złożony po stronie
+  serwera (``apps.workshop_materials.preview``, WM-FMT-01) – za tymi samymi bramkami, co pobranie,
+  i liczony jako wyświetlenie,
 - ``/warsztaty/materialy/<id>/pobierz/`` – plik: przekierowanie na adres podpisany na pięć minut;
   odnośnik: przekierowanie pod adres podany przez koordynatora. Tu liczy się wyświetlenie.
 
@@ -33,6 +35,7 @@ from django.core.exceptions import PermissionDenied
 from django.http import Http404, HttpResponseRedirect
 from django.shortcuts import get_object_or_404, redirect
 from django.template.response import TemplateResponse
+from django.urls import reverse
 from django.utils.cache import add_never_cache_headers
 from django.views.generic import View
 
@@ -41,6 +44,7 @@ from apps.accounts.services import has_role
 from apps.workshop_materials import services
 from apps.workshop_materials.access import can_view, feature_enabled
 from apps.workshop_materials.models import MaterialKind
+from apps.workshop_materials.preview import build_preview
 from apps.workshop_materials.stats import record_view
 from apps.workshop_materials.storage import get_material_storage
 from apps.workshop_materials.viewing import signed_url
@@ -96,13 +100,41 @@ class WorkshopMaterialDetailView(MaterialsAccessMixin, View):
     def get(self, request, pk: int):
         material = self._material(pk)
         video_url = ""
+        preview = None
         if material.kind == MaterialKind.VIDEO:
             video_url = signed_url(material, get_material_storage())
             self._count(material)
-        group = services.grouped(request.competition, [material], include_empty=False)
-        workshop = (group[0] or group[1])[0]
-        context = {"material": material, "workshop": workshop, "video_url": video_url, "kinds": MaterialKind}
+        elif material.kind == MaterialKind.FILE:
+            preview = build_preview(material, get_material_storage())
+            if preview is not None and preview.shown:
+                self._count(material)
+        context = detail_context(
+            request,
+            material,
+            video_url=video_url,
+            preview=preview,
+            download_url=reverse("web:workshop-material-open", args=[material.pk]),
+        )
         return TemplateResponse(request, DETAIL_TEMPLATE, context)
+
+
+def detail_context(request, material, *, video_url: str = "", preview=None, download_url: str = "") -> dict:
+    """Kontekst strony materiału – wspólny dla widza i podglądu koordynatora.
+
+    ``download_url`` jest parametrem, bo u widza prowadzi przez ``workshop-material-open`` (licznik
+    i bramki), a u koordynatora – wprost na krótko podpisany adres (materiał bywa szkicem, którego
+    ``workshop-material-open`` nie wyda).
+    """
+    group = services.grouped(request.competition, [material], include_empty=False)
+    workshop = (group[0] or group[1])[0]
+    return {
+        "material": material,
+        "workshop": workshop,
+        "video_url": video_url,
+        "preview": preview,
+        "download_url": download_url,
+        "kinds": MaterialKind,
+    }
 
 
 class WorkshopMaterialOpenView(MaterialsAccessMixin, View):
