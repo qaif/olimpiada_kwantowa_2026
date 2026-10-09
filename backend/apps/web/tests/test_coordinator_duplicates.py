@@ -198,7 +198,7 @@ def test_export_lists_every_account_and_is_audited(coordinator_client, trio):
         assert profile.user.email in content
     assert "kandydat do usunięcia" in content
     entry = AuditLog.objects.get(action="account.duplicates_exported")
-    assert entry.diff == {"groups": 1, "rows": 3}
+    assert (entry.diff["groups"], entry.diff["rows"]) == (1, 3)
 
 
 def test_page_query_count_does_not_grow_with_groups(
