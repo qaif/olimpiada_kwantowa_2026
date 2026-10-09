@@ -804,6 +804,12 @@ urlpatterns = [
         coordinator_duplicates.CoordinatorDuplicatesExportView.as_view(),
         name="coordinator-duplicates-export",
     ),
+    # ACC-DUP-02: „Usuń” w wierszu duplikatów.
+    path(
+        "coordinator/accounts/duplicates/<int:pk>/delete/",
+        coordinator_duplicates.CoordinatorDuplicateDeleteOneView.as_view(),
+        name="coordinator-duplicates-delete-one",
+    ),
     path(
         "coordinator/accounts/<int:pk>/",
         coordinator_accounts.CoordinatorAccountEditView.as_view(),

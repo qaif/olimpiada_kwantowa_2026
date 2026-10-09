@@ -1,12 +1,13 @@
 {% extends "web/coordinator/base.html" %}
-{% load web_extras %}
+{% load static web_extras %}
 {% comment %}
   Zdublowane konta uczestników (ACC-DUP-01). Grupy i sugestię liczy ``apps.accounts.duplicates``;
-  ten szablon niczego nie rozstrzyga. Pojedyncze „Usuń” prowadzi na **istniejący** ekran
-  potwierdzenia usunięcia konta (z ``?back=duplicates``), zbiorcze – na ekran z dokładną listą.
-  Zero skryptu (CSP): zbiorcze usunięcie to zwykły formularz z ukrytymi polami.
+  ten szablon niczego nie rozstrzyga. Pojedyncze „Usuń” (ACC-DUP-02) rozwija się w wierszu
+  (``_account_delete_inline.html``: ``<details>`` + formularz POST, potwierdzenie niesie przycisk
+  „Tak, usuń konto …”), zbiorcze – prowadzi na ekran z dokładną listą. Zero skryptu (CSP).
 {% endcomment %}
 {% block title %}Zdublowane konta – panel koordynatora{% endblock %}
+{% block panel_head %}<link rel="stylesheet" href="{% static 'css/coordinator-accounts-cleanup.css' %}">{% endblock %}
 {% block panel_eyebrow %}<a href="{% url 'web:coordinator-accounts' %}">Konta</a>{% endblock %}
 {% block panel_title %}Zdublowane konta{% endblock %}
 {% block panel_lead %}
@@ -27,7 +28,9 @@
     <p class="hint"><strong>Do zachowania</strong> – jedyne konto w grupie, które się logowało, ma etap
       zawodów albo prace. <strong>Kandydat do usunięcia</strong> – konto w grupie z kontem używanym, które
       nigdy się nie logowało, nie ma etapu poza treningiem, prac, zaświadczenia ani innych ról.
-      <strong>Do decyzji</strong> – wszystko inne (powód stoi przy koncie).</p>
+      <strong>Do decyzji</strong> – wszystko inne (powód stoi przy koncie). „Usuń” jest przy każdym
+      koncie, które da się usunąć – przy koncie używanym albo z innymi rolami rozwinięte potwierdzenie
+      mówi, co usunięcie zabierze.</p>
     <div class="actions">
       {% if candidates %}
         <form method="post" action="{% url 'web:coordinator-duplicates-delete' %}">
@@ -44,7 +47,7 @@
 </section>
 
 {% for group in report.groups %}
-<section class="section">
+<section class="section" id="grupa-{{ group.number }}">
   <div class="section__head">
     <h2 class="mt-0">{{ group.number }}. {{ group.full_name }}</h2>
     <p class="hint">{{ group.school }} · kont: {{ group.accounts|length }}</p>
@@ -91,10 +94,10 @@
               {% else %}<span class="badge badge--neutral">{{ account.suggestion_label }}</span>{% endif %}
               {% if account.reason %}<br><span class="hint">{{ account.reason }}</span>{% endif %}
             </td>
-            <td class="nowrap">
-              {% if account.suggestion == "candidate" %}
-                <a class="btn btn--danger btn--small"
-                   href="{% url 'web:coordinator-account-delete' account.user.pk %}?back={{ back }}">Usuń</a>
+            <td class="row-actions">
+              {% if account.deletable %}
+                {% url 'web:coordinator-duplicates-delete-one' account.user.pk as delete_url %}
+                {% include "web/coordinator/_account_delete_inline.html" with action=delete_url group_number=group.number hidden=None %}
               {% endif %}
               <a class="btn btn--secondary btn--small"
                  href="{% url 'web:coordinator-account-edit' account.user.pk %}">Edytuj</a>

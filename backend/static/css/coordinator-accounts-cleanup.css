@@ -1,0 +1,71 @@
+/* =================================================================================================
+   Sprzątanie kont uczestników (ACC-DUP-02): „Usuń” w wierszu i tabela „Nieaktywne konta”.
+
+   Osobny arkusz, ładowany blokiem ``panel_head`` wyłącznie na ekranach „Zdublowane konta”
+   i „Nieaktywne konta” – te reguły nie mają po co jechać z ``app.css`` na każdą stronę serwisu.
+
+   „Usuń” w wierszu to ``<details>``: ``summary`` wygląda jak mały czerwony przycisk, a po rozwinięciu
+   pod nim stoi formularz z ostrzeżeniami i przyciskiem „Tak, usuń konto …”. Zero skryptu (CSP).
+   Tokeny (kolory, odstępy) pochodzą z ``app.css``, więc ciemny wariant działa bez dodatkowych reguł.
+   ============================================================================================== */
+
+.row-actions {
+  white-space: nowrap;
+  vertical-align: top;
+}
+
+.row-delete {
+  display: inline-block;
+  vertical-align: top;
+}
+
+.row-delete > summary {
+  list-style: none;
+  cursor: pointer;
+}
+
+.row-delete > summary::-webkit-details-marker {
+  display: none;
+}
+
+.row-delete > summary::marker {
+  content: "";
+}
+
+.row-delete[open] > summary {
+  outline: 2px solid var(--danger);
+  outline-offset: 1px;
+}
+
+.row-delete__form {
+  margin-top: var(--sp-2);
+  padding: var(--sp-3);
+  max-width: 22rem;
+  border-inline-start: 4px solid var(--warn);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  background: var(--warn-soft);
+  white-space: normal;
+}
+
+.row-delete__warnings {
+  margin: 0 0 var(--sp-2);
+  padding-inline-start: var(--sp-4);
+}
+
+/* Filtry „Nieaktywnych kont” w jednym rzędzie na szerokim ekranie, jeden pod drugim na wąskim. */
+.cleanup-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3) var(--sp-6);
+  align-items: flex-end;
+}
+
+.cleanup-filters fieldset {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.cleanup-filters input[type="number"] {
+  width: 7rem;
+}

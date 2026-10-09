@@ -937,7 +937,8 @@ class CoordinatorAccountDeleteView(CoordinatorRequiredMixin, View):
 
     #: Ekran, na który wraca się po usunięciu – zamknięta lista wartości parametru ``back``, a nie
     #: adres w parametrze (to byłoby otwarte przekierowanie). ``duplicates`` – lista zdublowanych
-    #: kont (ACC-DUP-01), z której przycisk „Usuń” prowadzi właśnie tutaj.
+    #: kont (ACC-DUP-01). Od ACC-DUP-02 lista usuwa w wierszu, bez tego ekranu; wartość zostaje dla
+    #: zapisanych odnośników i zakładek.
     BACK_URLS = {"duplicates": "web:coordinator-duplicates"}
 
     def _back(self, request) -> str:
