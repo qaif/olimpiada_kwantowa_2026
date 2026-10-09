@@ -1,0 +1,40 @@
+# Materiały z warsztatów: podgląd pliku i makra (WM-FMT-01) – es.
+msgid ""
+msgstr ""
+"Project-Id-Version: Olimpiada Kwantowa\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-09 23:30+0200\n"
+"PO-Revision-Date: 2026-10-09 23:30+0200\n"
+"Last-Translator: Olimpiada Kwantowa\n"
+"Language-Team: Spanish\n"
+"Language: es\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=3; plural=n == 1 ? 0 : n != 0 && n % 1000000 == 0 ? "
+"1 : 2;\n"
+
+#: templates/web/workshop_materials/detail.html
+msgid "Ten format może zawierać makra. Program biurowy zapyta, czy je włączyć – włącz je tylko wtedy, gdy wiesz, do czego służą w tym pliku."
+msgstr "Este formato puede contener macros. El programa de ofimática preguntará si quieres activarlas: actívalas solo si sabes para qué sirven en este archivo."
+
+#: templates/web/workshop_materials/detail.html
+msgid "Podgląd pliku"
+msgstr "Vista previa del archivo"
+
+#: templates/web/workshop_materials/detail.html
+msgid "Plik jest pokazany jako zwykły tekst – jest zbyt złożony, żeby złożyć go jako Markdown."
+msgstr "El archivo se muestra como texto sin formato: es demasiado complejo para mostrarlo como Markdown."
+
+#: templates/web/workshop_materials/detail.html
+#, python-format
+msgid "Plik jest za duży na podgląd na stronie (podgląd do %(limit)s) – pobierz go."
+msgstr "El archivo es demasiado grande para la vista previa en la página (vista previa hasta %(limit)s): descárgalo."
+
+#: templates/web/workshop_materials/detail.html
+msgid "Podgląd jest chwilowo niedostępny – pobierz plik."
+msgstr "La vista previa no está disponible temporalmente: descarga el archivo."
+
+#: templates/web/workshop_materials/list.html
+msgid "Zobacz"
+msgstr "Ver"

@@ -694,7 +694,7 @@ pola „termin (data)” nie ma tu miejsca — uzupełnij datę w `/cms/`.
 | Warsztat | wiersz harmonogramu |
 | Rodzaj | **film**, **plik** albo **odnośnik** |
 | Tytuł, opis | nagłówek karty i kilka zdań pod nim (np. „od 12. minuty zadanie 3”). Z tytułu powstaje nazwa pobranego pliku |
-| Plik | **film:** MP4 (H.264 + AAC) albo WebM, najwyżej **4 GB**. **Plik:** PDF, PPTX, DOCX, XLSX, ODP, ODT, ODS, ZIP, IPYNB, PNG, JPG — najwyżej **100 MB** |
+| Plik | **film:** MP4 (H.264 + AAC) albo WebM, najwyżej **4 GB**. **Plik** (najwyżej **100 MB**): PDF; Office — DOCX, XLSX, PPTX, PPSX, szablony DOTX/XLTX/POTX, pliki z makrami DOCM/XLSM/PPTM (i DOTM/XLTM/POTM/PPSM, XLSB), stare DOC/XLS/PPT (i DOT/XLT/POT/PPS); OpenDocument ODT, ODS, ODP, ODG; RTF, EPUB; **Markdown i tekst** — MD, TXT, CSV, TSV, TEX, BIB, JSON, YAML/YML, TOML, XML, RST; **kod** — PY, IPYNB, C, H, CPP, HPP, CC, CS, JAVA, KT, SCALA, JS, TS, RS, GO, JL, R, M (MATLAB/Octave), F90, HS, RB, PHP, LUA, SWIFT, QASM (OpenQASM), QS (Q#), SH, SQL, HTML, CSS, SVG; obrazy PNG, JPG; archiwum ZIP. Pełną listę pokazuje podpowiedź pod polem |
 | Adres odnośnika | tylko dla rodzaju „odnośnik”, np. nagranie niepubliczne w serwisie wideo; musi zaczynać się od `https://` |
 | Opublikowany | bez zaznaczenia materiał jest **szkicem** — widzisz go tylko tutaj |
 
@@ -723,6 +723,25 @@ Plik z wykrytym zagrożeniem jest **kasowany** i zostaje na liście jako „odrz
 Jeśli plik długo stoi w „sprawdzaniu”, użyj „Sprawdź ponownie”. **Filmy nie idą przez antywirusa**: są
 za duże dla skanera, a skaner nie ma w nich czego szukać — bramką jest sprawdzenie, że to naprawdę film
 MP4/WebM.
+
+**Office, Markdown, tekst i kod** (od 10.2026). Format też sprawdzamy po treści: stary Word/Excel/PowerPoint
+(DOC/XLS/PPT) musi być naprawdę plikiem starego Office'a, a DOCX/XLSM/EPUB… — kontenerem ZIP; „slajdy.pptx”,
+który w środku jest starym PPT, zostanie odrzucony (zapisz go ponownie jako PPTX albo zmień rozszerzenie na
+PPT). **Pliki z makrami** (DOCM, XLSM, PPTM…, a także stare DOC/XLS/PPT) są przyjmowane — przechodzą przez
+antywirusa jak każdy plik, a uczestnik widzi przy nich neutralną informację, że program biurowy zapyta
+o włączenie makr. **Kod i Markdown** muszą być zapisane w **UTF-8** (z BOM albo bez): plik binarny
+przemianowany na `.py` albo kod w innym kodowaniu zostanie odrzucony z podpowiedzią („Zapisz
+z kodowaniem → UTF-8” w edytorze). **CSV, TSV i TXT** przyjmujemy także w innych kodowaniach — prosto
+z polskiego Excela („CSV (rozdzielany przecinkami)”, Windows-1250) i z Notatnika („Unicode”, UTF-16);
+serwis rozpozna kodowanie i poda je przy pobraniu i w podglądzie. Najpewniej działa jednak **„CSV UTF-8
+(rozdzielany przecinkami)”** — przy pliku w ISO-8859-2 kilka liter w podglądzie może wyjść niedokładnie
+(pobrany plik jest zawsze bajt w bajt ten sam). Uczestnik **pobiera** każdy z tych plików (HTML i SVG również — serwis nigdy
+nie otwiera ich jako strony ani obrazka), a pliki Markdown, tekstowe i z kodem do **1 MB** widzi też
+**na stronie materiału jako podgląd**: Markdown złożony (nagłówki, listy, tabele, pogrubienie, kod, wzory
+`$…$` i `$$…$$`; bez odnośników, obrazków i wstawek HTML — te zostają widocznym tekstem), kod i zwykły tekst
+— jako tekst o stałej szerokości, bez kolorowania składni. Na liście materiałów taki plik ma przyciski
+„Zobacz” i „Pobierz”. Podgląd koordynatora („Podgląd” na liście) pokazuje tę samą stronę także dla szkicu.
+Większy plik ma tylko „Pobierz”.
 
 Na liście w każdym wierszu: strzałki **↑ ↓** (kolejność w obrębie warsztatu), **Podgląd** (otwiera
 materiał także jako szkic; nie liczy się do statystyk), **Zmień** (tytuł, opis, warsztat, publikacja —

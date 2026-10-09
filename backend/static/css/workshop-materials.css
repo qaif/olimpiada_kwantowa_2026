@@ -16,3 +16,45 @@
   border-radius: var(--radius-sm);
   background: var(--surface-inset);
 }
+
+/* -------------------------------------------------------------------------------------------------
+   Podgląd pliku tekstowego (WM-FMT-01): kod i tekst w ``<pre>`` z przewijaniem w obu osiach (długi
+   wiersz kodu nie rozpycha strony na telefonie), Markdown jako zwykła proza z tabelami w ramce.
+   Wysokość ograniczona, żeby przycisk „Wszystkie materiały” nie uciekał pod megabajt tekstu.
+   ------------------------------------------------------------------------------------------------ */
+
+.workshop-preview--code {
+  max-height: 70vh;
+  overflow: auto;
+  margin: 0;
+  padding: var(--sp-3);
+  border-radius: var(--radius-sm);
+  background: var(--surface-inset);
+  font-family: var(--t-font-mono, ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace);
+  font-size: 0.875rem;
+  line-height: 1.5;
+  white-space: pre;
+  tab-size: 4;
+}
+
+.workshop-preview--markdown {
+  max-height: 80vh;
+  overflow: auto;
+}
+
+.workshop-preview--markdown pre {
+  overflow: auto;
+  padding: var(--sp-3);
+  border-radius: var(--radius-sm);
+  background: var(--surface-inset);
+}
+
+.workshop-preview--markdown table {
+  border-collapse: collapse;
+}
+
+.workshop-preview--markdown th,
+.workshop-preview--markdown td {
+  padding: 0.25rem 0.5rem;
+  border: 1px solid currentColor;
+}

@@ -1,0 +1,40 @@
+# Materiały z warsztatów: podgląd pliku i makra (WM-FMT-01) – ar.
+msgid ""
+msgstr ""
+"Project-Id-Version: Olimpiada Kwantowa\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-09 23:30+0200\n"
+"PO-Revision-Date: 2026-10-09 23:30+0200\n"
+"Last-Translator: Olimpiada Kwantowa\n"
+"Language-Team: Arabic\n"
+"Language: ar\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=6; plural=n==0 ? 0 : n==1 ? 1 : n==2 ? 2 : n%100>=3 "
+"&& n%100<=10 ? 3 : n%100>=11 && n%100<=99 ? 4 : 5;\n"
+
+#: templates/web/workshop_materials/detail.html
+msgid "Ten format może zawierać makra. Program biurowy zapyta, czy je włączyć – włącz je tylko wtedy, gdy wiesz, do czego służą w tym pliku."
+msgstr "قد يحتوي هذا التنسيق على وحدات ماكرو. سيسألك برنامج المكتب عمّا إذا كنت تريد تفعيلها – فعّلها فقط إذا كنت تعرف وظيفتها في هذا الملف."
+
+#: templates/web/workshop_materials/detail.html
+msgid "Podgląd pliku"
+msgstr "معاينة الملف"
+
+#: templates/web/workshop_materials/detail.html
+msgid "Plik jest pokazany jako zwykły tekst – jest zbyt złożony, żeby złożyć go jako Markdown."
+msgstr "يُعرض الملف كنص عادي – فهو معقّد جدًا لعرضه بتنسيق Markdown."
+
+#: templates/web/workshop_materials/detail.html
+#, python-format
+msgid "Plik jest za duży na podgląd na stronie (podgląd do %(limit)s) – pobierz go."
+msgstr "الملف كبير جدًا لمعاينته على الصفحة (المعاينة حتى %(limit)s) – قم بتنزيله."
+
+#: templates/web/workshop_materials/detail.html
+msgid "Podgląd jest chwilowo niedostępny – pobierz plik."
+msgstr "المعاينة غير متاحة مؤقتًا – قم بتنزيل الملف."
+
+#: templates/web/workshop_materials/list.html
+msgid "Zobacz"
+msgstr "عرض"
