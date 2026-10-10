@@ -57,6 +57,7 @@ from .views import (
     coordinator_events,
     coordinator_forum,
     coordinator_forwarding,
+    coordinator_inactive,
     coordinator_integrations,
     coordinator_issues,
     coordinator_members,
@@ -803,6 +804,33 @@ urlpatterns = [
         "coordinator/accounts/duplicates/export.csv",
         coordinator_duplicates.CoordinatorDuplicatesExportView.as_view(),
         name="coordinator-duplicates-export",
+    ),
+    # ACC-DUP-02: „Usuń” w wierszu duplikatów i ekran „Nieaktywne konta” (przedrostek
+    # ``coordinator-inactive`` z tego samego powodu, co ``coordinator-duplicates`` wyżej).
+    path(
+        "coordinator/accounts/duplicates/<int:pk>/delete/",
+        coordinator_duplicates.CoordinatorDuplicateDeleteOneView.as_view(),
+        name="coordinator-duplicates-delete-one",
+    ),
+    path(
+        "coordinator/accounts/inactive/",
+        coordinator_inactive.CoordinatorInactiveView.as_view(),
+        name="coordinator-inactive",
+    ),
+    path(
+        "coordinator/accounts/inactive/delete/",
+        coordinator_inactive.CoordinatorInactiveDeleteView.as_view(),
+        name="coordinator-inactive-delete",
+    ),
+    path(
+        "coordinator/accounts/inactive/<int:pk>/delete/",
+        coordinator_inactive.CoordinatorInactiveDeleteOneView.as_view(),
+        name="coordinator-inactive-delete-one",
+    ),
+    path(
+        "coordinator/accounts/inactive/export.csv",
+        coordinator_inactive.CoordinatorInactiveExportView.as_view(),
+        name="coordinator-inactive-export",
     ),
     path(
         "coordinator/accounts/<int:pk>/",

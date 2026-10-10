@@ -24,21 +24,32 @@ from __future__ import annotations
 import re
 import unicodedata
 from collections import defaultdict
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
-from django.db import transaction
-from django.db.models import Count, Exists, OuterRef
-
-from apps.core.api import DomainError
-
-from .models import (
-    COORDINATOR_GROUPS,
-    CommitteeMember,
-    Membership,
-    Participant,
-    SchoolSupervisor,
-    User,
+from .account_cleanup import (
+    MAX_BULK_IDS,
+    AccountFacts,
+    BulkResult,
+    collect_facts,
+    delete_accounts,
+    login_stamp,
 )
+from .models import Participant, User
+
+__all__ = [
+    "CANDIDATE",
+    "DECIDE",
+    "KEEP",
+    "MAX_BULK_IDS",
+    "BulkResult",
+    "DuplicateAccount",
+    "delete_candidates",
+    "delete_duplicate_account",
+    "duplicate_user_ids",
+    "find_duplicate_groups",
+    "normalize_email",
+    "normalize_text",
+]
 
 KEEP = "keep"
 CANDIDATE = "candidate"
@@ -49,10 +60,6 @@ SUGGESTION_LABELS = {
     CANDIDATE: "kandydat do usunięcia",
     DECIDE: "do decyzji",
 }
-
-#: Górna granica jednego zbiorczego usunięcia. Na produkcji kandydatów było 19; limit chroni przed
-#: żądaniem z kilkoma tysiącami identyfikatorów, które trzymałoby proces przez minuty.
-MAX_BULK_IDS = 500
 
 #: Znaki, które w imieniu, nazwisku i nazwie szkoły nie niosą tożsamości: kropki („Jan K.”, „im.”),
 #: cudzysłowy i apostrofy w każdej typograficznej odmianie („LO „Batory”” vs „LO "Batory"”).
@@ -141,31 +148,11 @@ def normalize_email(email: str | None) -> str:
 
 
 @dataclass
-class DuplicateAccount:
-    """Jedno konto w grupie – wszystko, czego ekran potrzebuje, bez dalszych zapytań."""
+class DuplicateAccount(AccountFacts):
+    """Jedno konto w grupie – fakty (``AccountFacts``) plus sugestia i jej uzasadnienie."""
 
-    participant: Participant
-    training_stages: list[str] = field(default_factory=list)
-    competition_stages: list[str] = field(default_factory=list)
-    works: int = 0
-    certificate: str = ""
-    other_roles: bool = False
-    protected: bool = False
     suggestion: str = DECIDE
     reason: str = ""
-
-    @property
-    def user(self) -> User:
-        return self.participant.user
-
-    @property
-    def logged_in(self) -> bool:
-        return self.user.last_login is not None
-
-    @property
-    def used(self) -> bool:
-        """„Używane” = ktoś z niego korzystał: logowanie, etap zawodów albo praca (§ 3.1 spec)."""
-        return self.logged_in or bool(self.competition_stages) or self.works > 0
 
     @property
     def suggestion_label(self) -> str:
@@ -268,90 +255,9 @@ def _suggest(accounts: list[DuplicateAccount]) -> None:
             account.suggestion, account.reason = DECIDE, ", ".join(blockers)
 
 
-def _flags_query(competition) -> dict:
-    """Znaczniki „konto koordynatora” i „inne role” jako ``Exists`` – jedno zapytanie na wszystkie konta.
-
-    „Inne role” to wszystko, co usunięcie konta (platformowego) zabrałoby poza tym profilem:
-    profil uczestnika albo członkostwo w innym konkursie, profil komitetu, profil opiekuna szkolnego,
-    opiekun drużyny narodowej. Takie konto nigdy nie jest kandydatem. Każdy znacznik osobną
-    adnotacją, a sumę liczy Python – ``Exists | Exists`` w ``annotate`` zależy od wersji Django.
-    """
-    from .delegations import DelegationLeader
-
-    user = OuterRef("user_id")
-    return {
-        "dup_coordinator": Exists(
-            User.groups.through.objects.filter(user_id=user, group__name__in=COORDINATOR_GROUPS)
-        ),
-        "dup_elsewhere": Exists(Participant.objects.filter(user=user).exclude(competition=competition)),
-        "dup_member_elsewhere": Exists(Membership.objects.filter(user=user).exclude(competition=competition)),
-        "dup_committee": Exists(CommitteeMember.objects.filter(user=user)),
-        "dup_supervisor": Exists(SchoolSupervisor.objects.filter(user=user)),
-        "dup_team_leader": Exists(DelegationLeader.objects.filter(user=user)),
-    }
-
-
-def _other_roles(profile) -> bool:
-    return any(
-        getattr(profile, name)
-        for name in (
-            "dup_elsewhere",
-            "dup_member_elsewhere",
-            "dup_committee",
-            "dup_supervisor",
-            "dup_team_leader",
-        )
-    )
-
-
 def _details(competition, participant_ids: list[int]) -> dict[int, DuplicateAccount]:
-    """Konta z danymi szczegółowymi – cztery zapytania zbiorcze, niezależnie od liczby profili."""
-    from apps.competitions.models import StageEntry, StageKind
-    from apps.student_status.models import CertificateStatus, StudentStatusCertificate
-    from apps.submissions.models import Submission
-
-    profiles = (
-        Participant.objects.filter(pk__in=participant_ids)
-        .select_related("user")
-        .annotate(**_flags_query(competition))
-        .order_by("user__date_joined", "pk")
-    )
-    accounts = {
-        profile.pk: DuplicateAccount(
-            participant=profile,
-            other_roles=_other_roles(profile),
-            protected=profile.user.is_superuser or profile.dup_coordinator,
-        )
-        for profile in profiles
-    }
-    entries = (
-        StageEntry.objects.filter(participant_id__in=participant_ids)
-        .values_list("participant_id", "stage__kind", "stage__name")
-        .order_by("stage__opens_at", "pk")
-    )
-    for participant_id, kind, name in entries:
-        label = name or StageKind(kind).label
-        account = accounts[participant_id]
-        (account.training_stages if kind == StageKind.TRAINING else account.competition_stages).append(label)
-    # „Praca” = zadanie, do którego cokolwiek oddano (jak kolumna „Prace” listy uczestników), ale
-    # ze **wszystkich** edycji: pytanie brzmi „czy to konto zostawiło cokolwiek w zawodach”.
-    works = (
-        Submission.objects.filter(entry__participant_id__in=participant_ids)
-        .values("entry__participant_id")
-        .annotate(total=Count("problem", distinct=True))
-    )
-    for row in works:
-        accounts[row["entry__participant_id"]].works = row["total"]
-    certificates = (
-        StudentStatusCertificate.objects.filter(participant_id__in=participant_ids, is_current=True)
-        .values_list("participant_id", "status")
-        .order_by("participant_id", "-pk")
-    )
-    for participant_id, status in certificates:
-        account = accounts[participant_id]
-        if not account.certificate:
-            account.certificate = CertificateStatus(status).label
-    return accounts
+    """Konta z danymi szczegółowymi – wspólne ``collect_facts`` (4 zapytania zbiorcze)."""
+    return collect_facts(competition, participant_ids, factory=DuplicateAccount)
 
 
 def find_duplicate_groups(competition, *, with_email_suspects: bool = True) -> DuplicateReport:
@@ -428,17 +334,16 @@ def find_duplicate_groups(competition, *, with_email_suspects: bool = True) -> D
 # --- usuwanie ------------------------------------------------------------------------------------
 
 
-@dataclass
-class BulkResult:
-    deleted: list[str] = field(default_factory=list)
-    anonymised: list[str] = field(default_factory=list)
-    skipped: list[str] = field(default_factory=list)
-
-
 def candidate_user_ids(competition) -> set[int]:
     """Identyfikatory kont, które **w tej chwili** są kandydatami do usunięcia."""
     report = find_duplicate_groups(competition, with_email_suspects=False)
     return {account.user.pk for account in report.candidates}
+
+
+def duplicate_user_ids(competition) -> set[int]:
+    """Identyfikatory kont, które **w tej chwili** należą do jakiejkolwiek grupy duplikatów."""
+    report = find_duplicate_groups(competition, with_email_suspects=False)
+    return {account.user.pk for group in report.groups for account in group.accounts}
 
 
 def delete_candidates(competition, user_ids, *, actor: User, request=None) -> BulkResult:
@@ -446,29 +351,37 @@ def delete_candidates(competition, user_ids, *, actor: User, request=None) -> Bu
 
     Warunki przeliczamy **teraz**, a nie wierzymy liście z formularza: między wyświetleniem ekranu
     a kliknięciem uczeń mógł się zalogować na „kopię” (bo to ją właśnie aktywował), a drugi
-    koordynator mógł usunąć jedyne używane konto osoby – wtedy kopia przestaje być kopią. Każde konto
-    osobno: wiersz konta pod ``select_for_update`` i jeszcze raz ``last_login`` – logowanie
-    w trakcie pętli też ma wygrać z usunięciem. Samo usunięcie idzie przez
-    ``delete_account_by_coordinator`` (audyt ``account.deleted_by_coordinator``, ochrona
-    koordynatora i własnego konta, anonimizacja przy śladzie w zawodach).
+    koordynator mógł usunąć jedyne używane konto osoby – wtedy kopia przestaje być kopią. Pętla,
+    blokada wiersza i samo usunięcie – wspólne ``account_cleanup.delete_accounts``; tutaj zostaje
+    wyłącznie warunek: nadal kandydat i (na zablokowanym wierszu) nadal bez logowania.
     """
-    from .profile import delete_account_by_coordinator
-
     eligible = candidate_user_ids(competition)
-    result = BulkResult()
-    for user_id in user_ids:
-        with transaction.atomic():
-            user = User.objects.select_for_update().filter(pk=user_id).first()
-            if user is None:
-                continue
-            label = user.email
-            if user_id not in eligible or user.last_login is not None:
-                result.skipped.append(label)
-                continue
-            try:
-                outcome = delete_account_by_coordinator(user, actor=actor, request=request)
-            except DomainError:
-                result.skipped.append(label)
-                continue
-        (result.anonymised if outcome == "anonymised" else result.deleted).append(label)
-    return result
+    return delete_accounts(
+        user_ids,
+        eligible=lambda user: user.pk in eligible and user.last_login is None,
+        actor=actor,
+        request=request,
+    )
+
+
+def delete_duplicate_account(
+    competition, user_id: int, *, seen_login: str, actor: User, request=None
+) -> BulkResult:
+    """Usunięcie jednego konta z wiersza ekranu duplikatów (ACC-DUP-02 § 2).
+
+    Dozwolone przy **każdym** koncie, którego nie odrzuci ``delete_account_by_coordinator`` – także
+    przy koncie używanym; o tym, co zabiera, mówi ekran przed kliknięciem. Dwa warunki w chwili
+    usuwania:
+
+    - konto nadal należy do grupy duplikatów – inaczej drugie „Usuń” na nieodświeżonej stronie
+      zabrałoby osobie ostatnie konto, gdy kopię usunął w międzyczasie ktoś inny,
+    - znacznik logowania jest ten, który koordynator widział (``seen_login``) – ktoś, kto zalogował
+      się po wyświetleniu ekranu, zmienił fakt, na którym opierała się decyzja.
+    """
+    in_groups = duplicate_user_ids(competition)
+    return delete_accounts(
+        [user_id],
+        eligible=lambda user: user.pk in in_groups and login_stamp(user) == seen_login,
+        actor=actor,
+        request=request,
+    )

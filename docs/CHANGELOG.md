@@ -12,6 +12,26 @@ podsekcją `### <tytuł>` wydania `## v<x.y.z> – <data tagu> – <opis tagu>`.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## [Unreleased] – Usuwanie w wierszu i nieaktywne konta uczestników (ACC-DUP-02)
+
+- **„Usuń” w wierszu na ekranie „Zdublowane konta”** (prośba organizatora z 10.10.2026): przy każdym
+  koncie, które serwis pozwala usunąć, rozwijane potwierdzenie (`<details>`, bez JS) z ostrzeżeniami
+  (konto używane, jedyne używane w grupie, inne role, anonimizacja) i przyciskiem „Tak, usuń konto
+  <kod>”, który jako jedyny niesie potwierdzenie. Serwer w chwili usuwania sprawdza, że konto nadal
+  jest w grupie i że nikt się na nie nie zalogował od wyświetlenia strony; powrót do kotwicy grupy.
+- **Nowy ekran `/coordinator/accounts/inactive/`** (menu „Uczestnicy i konta” → „Nieaktywne konta”):
+  konta uczestników tego konkursu bez logowania – „nigdy” albo „od N dni” (1–3650, granica domknięta),
+  konto założone co najmniej N dni temu (domyślnie 7), filtr potwierdzenia adresu; liczniki, strony po
+  100, kolumny etapów, prac, zaświadczenia, opiekuna szkolnego i innych ról. Usuwanie w wierszu
+  i zbiorcze (zaznaczanie bez JS, ekran potwierdzenia z dokładną listą, filtr sprawdzany ponownie pod
+  `select_for_update`, konta z innymi rolami pomijane), eksport CSV z audytem
+  `account.inactive_exported`. Ekran nie zastępuje polityki retencji – usuwa wyłącznie decyzją
+  koordynatora.
+- Wspólny mechanizm `apps.accounts.account_cleanup` (fakty o koncie, pętla usuwania z warunkiem na
+  zablokowanym wierszu, znacznik logowania); `delete_candidates` z ACC-DUP-01 korzysta z niego bez zmiany
+  zachowania. Każde usunięcie przez `delete_account_by_coordinator`. Spec `docs/tasks/ACC-DUP-02.md`,
+  PODRĘCZNIK-ORGANIZATORA § 10.2 i PODRĘCZNIK-ORGANIZATORA § 10.3.
+
 ## [Unreleased] – Poczta przychodząca: postmaster@, abuse@ i zdalne odbicia (MAIL-03)
 
 - Relay `mail` przyjmuje pocztę na porcie 25 (prośba organizatora z 9.10.2026 – potwierdzenie IP

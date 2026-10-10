@@ -1916,7 +1916,8 @@ czytelności” zamieniłoby ślad techniczny w wyciąg z bazy osobowej.
 | Uczestnicy / Opiekunowie szkolni | ta sama lista z filtrem roli | osobny ekran powtarzałby wyszukiwarkę i stronicowanie; uczestnicy mają własne kolumny profilu (§ 10.1) |
 | Edycja konta | `/coordinator/accounts/<id>/` | dane, „Konto aktywne”, dla uczestnika także telefon, województwo, szkoła, klasa, **data urodzenia**; dla członka komitetu status, komisja odwoławcza i województwo |
 | Usunięcie konta | `/coordinator/accounts/<id>/delete/` | strona potwierdzenia mówi, co się stanie |
-| **Zdublowane konta** | `/coordinator/accounts/duplicates/` | ta sama osoba z kilkoma kontami uczestnika; sugestia, usuwanie kopii, CSV (§ 10.2) |
+| **Zdublowane konta** | `/coordinator/accounts/duplicates/` | ta sama osoba z kilkoma kontami uczestnika; sugestia, usuwanie w wierszu i zbiorcze, CSV (§ 10.2) |
+| **Nieaktywne konta** | `/coordinator/accounts/inactive/` | konta uczestników, na które nikt się nie logował (nigdy albo od N dni); usuwanie w wierszu i zbiorcze, CSV (§ 10.3) |
 | **Konta oczekujące na aktywację** | `/coordinator/activations/` | „Aktywuj ręcznie”, „Wyślij link ponownie” |
 | **Karta uczestnika** | `/coordinator/participants/<id>/` | cały przebieg zawodów jednej osoby, wyłącznie do odczytu |
 
@@ -2065,8 +2066,16 @@ osobno), liczba prac, zgody, zaświadczenie o statusie ucznia i **sugestia**:
 | **kandydat do usunięcia** | w grupie jest konto używane, a to konto nigdy się nie logowało, nie ma etapu poza treningiem, prac, zaświadczenia ani innych ról (profilu w innym konkursie, roli w komitecie, opiekuna) |
 | **do decyzji** | wszystko inne — np. żadne konto nie było używane albo używane są dwa; powód stoi przy koncie |
 
-**Usuwanie.** Przy kandydacie jest przycisk **„Usuń”** — prowadzi na zwykły ekran potwierdzenia
-usunięcia konta (§ 10), po którym wracasz na listę duplikatów. **„Usuń wszystkich kandydatów…”**
+**Usuwanie pojedynczego konta — od razu na liście** (ACC-DUP-02, prośba organizatora
+z 10.10.2026). Przycisk **„Usuń”** stoi przy **każdym** koncie, które da się usunąć (nie ma go przy
+kontach koordynatorów i przy Twoim własnym) — także przy „do zachowania” i „do decyzji”. Kliknięcie
+rozwija w wierszu krótkie potwierdzenie: co usunięcie zabierze (np. „Konto logowało się”, „Ma oddane
+prace”, „To jedyne używane konto tej osoby w grupie”, „Ma inne role…”) i czy konto zniknie w całości,
+czy zostanie zanonimizowane. Dopiero przycisk **„Tak, usuń konto <kod>”** usuwa; strona wraca do tej
+samej grupy z komunikatem. Serwis sprawdza w tej chwili jeszcze raz, że konto nadal jest w grupie
+duplikatów (nie usuniesz osobie ostatniego konta, jeśli kopię usunął przed chwilą ktoś inny) i że nikt
+się na nie nie zalogował od wyświetlenia strony — inaczej konto zostaje, a komunikat prosi o ponowne
+sprawdzenie. **„Usuń wszystkich kandydatów…”**
 pokazuje najpierw dokładną listę kont z polem wyboru przy każdym (możesz odznaczyć), a dopiero
 drugie kliknięcie usuwa. W tej chwili serwis sprawdza warunki jeszcze raz i **pomija** konto, które
 w międzyczasie przestało być kandydatem (np. uczeń zalogował się właśnie na nie) — komunikat podaje,
@@ -2087,6 +2096,56 @@ i powód). Pobranie zostaje w audycie (`account.duplicates_exported`, liczba gru
 **RODO.** Ekran pokazuje wyłącznie dane, które widzisz już na liście kont i karcie uczestnika —
 zestawione obok siebie. Nie zbiera niczego nowego, więc rejestr czynności przetwarzania się nie
 zmienia.
+
+### 10.3 Nieaktywne konta — `/coordinator/accounts/inactive/`
+
+Menu „Uczestnicy i konta” → **„Nieaktywne konta”** (prośba organizatora z 10.10.2026, ACC-DUP-02).
+Lista kont uczestników **tego** konkursu, na które nikt się nie logował. Konta koordynatorów
+i konta usunięte (zanonimizowane) nie są pokazywane.
+
+**Filtry** (formularz nad tabelą, „Pokaż”; „Domyślne” wraca do ustawień wyjściowych):
+
+| Filtr | Znaczenie | Domyślnie |
+|---|---|---|
+| Ostatnie logowanie: **nigdy** | konto, na które nikt się nigdy nie zalogował | tak |
+| Ostatnie logowanie: **nie logowało się od N dni** | ostatnie logowanie co najmniej N dni temu **albo nigdy**; N od 1 do 3650 (podpowiedzi 7, 14, 30, 60, 90, 180, 365) | — |
+| **Konto założone co najmniej N dni temu** | chroni świeże konta, którym list aktywacyjny albo zaproszenie z importu dopiero idzie; 0 — bez tego warunku | 7 |
+| **Adres e-mail** | wszystkie / z potwierdzonym adresem / bez potwierdzonego adresu | wszystkie |
+
+U góry cztery liczby: ile kont spełnia filtr, ile z nich nigdy się nie logowało, ile nie ma
+potwierdzonego adresu i ile ma **ślad w zawodach** (etap poza treningiem albo prace). Przy każdym
+koncie: kod, imię i nazwisko, e-mail (z odznaką „z importu”), szkoła, data założenia, ostatnie
+logowanie, stan konta, etapy (trening osobno), prace, zaświadczenie, czy uczeń wskazał opiekuna
+szkolnego oraz odznaki „ślad w zawodach” i „inne role” (komitet, opiekun szkolny, opiekun drużyny,
+profil w innym konkursie). Lista ma strony po 100 kont.
+
+**Usuwanie pojedyncze** — „Usuń” w wierszu, tak samo jak w § 10.2: rozwija potwierdzenie
+z ostrzeżeniami, usuwa dopiero „Tak, usuń konto <kod>”, a strona wraca z tymi samymi filtrami.
+Serwis sprawdza w chwili usuwania, że konto **nadal** spełnia filtr i że nikt się na nie nie zalogował
+od wyświetlenia listy.
+
+**Usuwanie zbiorcze** — zaznacz konta polami w pierwszej kolumnie (**„Zaznacz wszystkie na tej
+stronie”** zaznacza całą stronę), potem **„Usuń zaznaczone…”**. Najpierw pojawia się ekran z dokładną
+listą (każde konto z polem wyboru, możesz odznaczyć) i listą kont, które zostaną pominięte, z powodem.
+Drugie kliknięcie usuwa. Serwis sprawdza filtr jeszcze raz przy każdym koncie — konto, na które ktoś
+w międzyczasie się zalogował, jest pomijane; komunikat podaje, ile usunięto, ile zanonimizowano
+i ile pominięto. Konta z **innymi rolami** usuwa się wyłącznie pojedynczo (konto jest wspólne
+dla całej platformy — usunięcie zabrałoby też rolę w komitecie albo profil w innej olimpiadzie);
+w usunięciu zbiorczym są zawsze pomijane.
+
+Każde usunięcie trafia do audytu jako `account.deleted_by_coordinator`. Konto bez śladu w zawodach
+znika w całości (adres zwalnia się do rejestracji); konto z wpisem do etapu (także treningu) albo
+z pracami jest anonimizowane — pseudonimowy ślad udziału w wynikach zostaje.
+
+**Eksport.** „Pobierz CSV” zapisuje **wszystkie** konta spełniające filtr (nie tylko bieżącą stronę).
+Pobranie zostaje w audycie (`account.inactive_exported`, liczba wierszy i wartości filtra).
+
+**RODO.** Usunięcie nieaktywnego konta to **Twoja decyzja**, podejmowana ręcznie — ten ekran nie
+zastępuje polityki retencji danych (okresy przechowywania określa dokumentacja RODO organizatora)
+i niczego nie usuwa sam. Ekran pokazuje wyłącznie dane, które widzisz już na liście kont i karcie
+uczestnika. Konta nieaktywowane (bez potwierdzonego adresu, nie z importu) nadal usuwa automatycznie
+kosiarka po upływie doby na aktywację — tu zobaczysz głównie konta z importu i konta potwierdzone,
+na które nikt nie wrócił.
 
 ---
 

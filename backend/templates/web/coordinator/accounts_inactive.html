@@ -1,0 +1,190 @@
+{% extends "web/coordinator/base.html" %}
+{% load static web_extras %}
+{% comment %}
+  Nieaktywne konta uczestników (ACC-DUP-02). Filtr, liczniki i warunki usuwania liczy
+  ``apps.accounts.inactive``; ten szablon niczego nie rozstrzyga.
+
+  Zero skryptu (CSP):
+  - filtr to formularz GET (cały stan w adresie, odnośniki stron go niosą),
+  - „Usuń” w wierszu – ``_account_delete_inline.html`` (``<details>`` + POST, potwierdzenie niesie
+    przycisk „Tak, usuń konto …”),
+  - pola wyboru w wierszach należą do formularza zbiorczego pod tabelą przez atrybut ``form=`` –
+    formularzy nie wolno zagnieżdżać, a w komórce stoi już formularz „Usuń”,
+  - „Zaznacz wszystkie na stronie” to odnośnik ``&zaznacz=1``, który wyświetla tę samą stronę
+    z zaznaczonymi polami.
+{% endcomment %}
+{% block title %}Nieaktywne konta – panel koordynatora{% endblock %}
+{% block panel_head %}<link rel="stylesheet" href="{% static 'css/coordinator-accounts-cleanup.css' %}">{% endblock %}
+{% block panel_eyebrow %}<a href="{% url 'web:coordinator-accounts' %}">Konta</a>{% endblock %}
+{% block panel_title %}Nieaktywne konta{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Konta uczestników tego konkursu, na które nikt się nie logował – nigdy albo od
+    wybranej liczby dni. Ekran tylko pokazuje; każde usunięcie potwierdzasz. Usunięcie konta
+    nieaktywnego to Twoja decyzja – nie zastępuje polityki retencji danych.</p>
+{% endblock %}
+{% block panel_content %}
+
+<section class="section">
+  <div class="card">
+    <form method="get" class="form">
+      <div class="cleanup-filters">
+        <fieldset>
+          <legend>Ostatnie logowanie</legend>
+          <p>
+            <label><input type="radio" name="login" value="never"{% if form.login != "days" %} checked{% endif %}> nigdy</label><br>
+            <label><input type="radio" name="login" value="days"{% if form.login == "days" %} checked{% endif %}> nie logowało się od</label>
+            <input type="number" name="days" id="inactive-days" min="1" max="{{ max_days }}" value="{{ form.days }}" list="inactive-day-presets" aria-label="Liczba dni bez logowania">
+            dni (albo nigdy)
+            <datalist id="inactive-day-presets">{% for days in day_presets %}<option value="{{ days }}"></option>{% endfor %}</datalist>
+          </p>
+        </fieldset>
+        <p>
+          <label for="inactive-joined">Konto założone co najmniej (dni temu)</label>
+          <input type="number" name="joined" id="inactive-joined" min="0" max="{{ max_days }}" value="{{ form.joined }}" list="inactive-joined-presets">
+          <datalist id="inactive-joined-presets">{% for days in joined_presets %}<option value="{{ days }}"></option>{% endfor %}</datalist>
+        </p>
+        <p>
+          <label for="inactive-activation">Adres e-mail</label>
+          <select name="activation" id="inactive-activation">
+            {% for value, label in activation_choices %}
+              <option value="{{ value }}"{% if form.activation == value %} selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </p>
+      </div>
+      <p class="hint">Podpowiedzi liczby dni: {{ day_presets|join:", " }} (pole przyjmuje każdą liczbę od 1 do
+        {{ max_days }}). „Konto założone co najmniej …” chroni świeże konta, którym list aktywacyjny albo
+        zaproszenie z importu dopiero idzie; 0 – bez tego warunku.</p>
+      <div class="actions">
+        <button type="submit" class="btn btn--secondary">Pokaż</button>
+        <a class="btn btn--ghost" href="{% url 'web:coordinator-inactive' %}">Domyślne</a>
+      </div>
+    </form>
+  </div>
+</section>
+
+{% if errors %}
+<section class="section">
+  <div class="notice notice--warning" role="alert">
+    <p><strong>Popraw filtr:</strong></p>
+    <ul>{% for error in errors %}<li>{{ error }}</li>{% endfor %}</ul>
+  </div>
+</section>
+{% else %}
+
+<ul class="kpi">
+  <li class="kpi__item"><span class="kpi__value">{{ counts.total }}</span><span class="kpi__label">kont spełnia filtr</span></li>
+  <li class="kpi__item"><span class="kpi__value">{{ counts.never }}</span><span class="kpi__label">w tym nigdy się nie logowało</span></li>
+  <li class="kpi__item"><span class="kpi__value">{{ counts.unverified }}</span><span class="kpi__label">bez potwierdzonego adresu</span></li>
+  <li class="kpi__item"><span class="kpi__value">{{ counts.with_trace }}</span><span class="kpi__label">ze śladem w zawodach (etap lub prace)</span></li>
+</ul>
+
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">Konta: {{ flt.describe }}</h2>
+    <p class="hint">
+      {% if rows %}
+        {% if select_all %}
+          <a href="?{{ filter_query }}&amp;page={{ page_obj.number }}">Odznacz wszystkie</a>
+        {% else %}
+          <a href="?{{ filter_query }}&amp;page={{ page_obj.number }}&amp;zaznacz=1">Zaznacz wszystkie na tej stronie</a>
+        {% endif %}
+        ·
+        <a href="{% url 'web:coordinator-inactive-export' %}?{{ filter_query }}">Pobierz CSV (wszystkie {{ counts.total }})</a>
+      {% endif %}
+    </p>
+  </div>
+
+  {% if rows %}
+  <div class="scroll" role="region" tabindex="0" aria-label="Nieaktywne konta">
+    <table class="table table--compact" aria-label="Nieaktywne konta">
+      <thead>
+        <tr>
+          <th scope="col"><span class="visually-hidden">Zaznacz</span></th>
+          <th scope="col">Kod</th>
+          <th scope="col">Imię i nazwisko</th>
+          <th scope="col">E-mail</th>
+          <th scope="col">Szkoła</th>
+          <th scope="col">Założone</th>
+          <th scope="col">Ostatnie logowanie</th>
+          <th scope="col">Stan</th>
+          <th scope="col">Etapy</th>
+          <th scope="col" class="num">Prace</th>
+          <th scope="col">Zaświadczenie</th>
+          <th scope="col">Opiekun szkolny</th>
+          <th scope="col"><span class="visually-hidden">Operacje</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for account in rows %}
+          <tr>
+            <td>
+              {% if account.deletable and not account.bulk_blocker %}
+                <input type="checkbox" name="account" value="{{ account.user.pk }}" form="inactive-bulk"
+                       id="inactive-{{ account.user.pk }}"{% if select_all %} checked{% endif %}
+                       aria-label="Zaznacz {{ account.participant.public_code }}">
+              {% else %}
+                <span class="hint" title="{{ account.bulk_blocker }}">—</span>
+              {% endif %}
+            </td>
+            <th scope="row">{{ account.participant.public_code }}</th>
+            <td>{{ account.user.get_full_name|default:"—" }}</td>
+            <td>{{ account.user.email }}{% if account.participant.invited_at %} <span class="badge badge--info">z importu</span>{% endif %}</td>
+            <td>{{ account.participant.school|default:"—" }}</td>
+            <td class="nowrap">{{ account.user.date_joined|local_datetime }}</td>
+            <td class="nowrap">{% if account.user.last_login %}{{ account.user.last_login|local_datetime }}{% else %}nigdy{% endif %}</td>
+            <td>{{ account.status_label }}</td>
+            <td>
+              {% if account.competition_stages %}{{ account.competition_stages|join:", " }}{% endif %}
+              {% if account.training_stages %}{% if account.competition_stages %}<br>{% endif %}<span class="hint">trening: {{ account.training_stages|join:", " }}</span>{% endif %}
+              {% if not account.competition_stages and not account.training_stages %}—{% endif %}
+            </td>
+            <td class="num">{{ account.works }}</td>
+            <td>{{ account.certificate|default:"—" }}</td>
+            <td>{% if account.participant.supervisor_email %}wskazany{% else %}—{% endif %}</td>
+            <td class="row-actions">
+              {% if account.has_trace %}<span class="badge badge--warn">ślad w zawodach</span><br>{% endif %}
+              {% if account.other_roles %}<span class="badge badge--warn">inne role: {{ account.other_role_labels|join:", " }}</span><br>{% endif %}
+              {% if account.deletable %}
+                {% url 'web:coordinator-inactive-delete-one' account.user.pk as delete_url %}
+                {% include "web/coordinator/_account_delete_inline.html" with action=delete_url hidden=hidden group_number=None %}
+              {% endif %}
+              <a class="btn btn--secondary btn--small"
+                 href="{% url 'web:coordinator-account-edit' account.user.pk %}">Edytuj</a>
+              <a class="btn btn--secondary btn--small"
+                 href="{% url 'web:coordinator-participant' account.participant.pk %}">Karta</a>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <form method="post" action="{% url 'web:coordinator-inactive-delete' %}" id="inactive-bulk" class="form">
+    {% csrf_token %}
+    {% for name, value in hidden %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endfor %}
+    <p class="hint">Zaznaczone konta trafią najpierw na ekran potwierdzenia z dokładną listą. Konta
+      z innymi rolami (komitet, opiekun, inny konkurs) usuwa się wyłącznie pojedynczo – w usunięciu
+      zbiorczym są pomijane.</p>
+    <div class="actions">
+      <button type="submit" class="btn btn--danger">Usuń zaznaczone…</button>
+    </div>
+  </form>
+
+  {% if page_obj.has_other_pages %}
+    <p class="hint">
+      {% if page_obj.has_previous %}
+        <a class="btn btn--secondary btn--small" href="?{{ filter_query }}&amp;page={{ page_obj.previous_page_number }}">Poprzednia</a>
+      {% endif %}
+      Strona {{ page_obj.number }} z {{ paginator.num_pages }} (po {{ page_obj.paginator.per_page }} kont)
+      {% if page_obj.has_next %}
+        <a class="btn btn--secondary btn--small" href="?{{ filter_query }}&amp;page={{ page_obj.next_page_number }}">Następna</a>
+      {% endif %}
+    </p>
+  {% endif %}
+  {% else %}
+  <div class="card"><p class="empty">Żadne konto uczestnika nie spełnia tego filtra.</p></div>
+  {% endif %}
+</section>
+{% endif %}
+{% endblock %}
