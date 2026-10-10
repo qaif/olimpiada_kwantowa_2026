@@ -21,6 +21,7 @@ from __future__ import annotations
 
 from django import forms
 from django.conf import settings
+from django.db.models import Q
 
 from apps.cms.blocks import PARTNER_LEVELS
 from apps.cms.models import SPONSOR_SLIDER_MAX_SECONDS, SPONSOR_SLIDER_MIN_SECONDS
@@ -99,7 +100,8 @@ FLAG_LABELS: dict[str, tuple[str, str]] = {
         "koordynatorem, rozstrzyga członkostwo <strong>w tym konkursie</strong>. Wyłączony – "
         "rozstrzyga globalna grupa konta, czyli rola nadana w <em>dowolnym</em> konkursie działa "
         "we wszystkich; panele tego konkursu otwierają się wtedy także przed osobami spoza niego. "
-        "Wyłączenie jest przewidziane wyłącznie na czas migracji danych.",
+        "Z tego ekranu przełącznik można wyłącznie <strong>włączyć</strong>; wyłącza go operator "
+        "platformy w <code>/admin/</code>, i to tylko w instalacji z jednym aktywnym konkursem.",
     ),
     "competition_settings_page": (
         "Ekran „Ustawienia konkursu”",
@@ -129,6 +131,57 @@ FLAG_LABELS: dict[str, tuple[str, str]] = {
 #: jednym polem modelu (``JSONField``), a na ekranie ma być sześć pól wyboru – bez prefiksu
 #: nazwa flagi mogłaby kiedyś zderzyć się z nazwą kolumny.
 FLAG_PREFIX = "flag_"
+
+#: Przełączniki, które z tego ekranu wolno wyłącznie **włączyć** (audyt W4, 10.10.2026). Wyłączenie
+#: ``memberships_enforced`` przestawia rozstrzyganie ról na globalne grupy Django – od tej chwili
+#: koordynator, recenzent i komisja *każdego* konkursu instalacji mają te role także w tym, a przy
+#: następnym wdrożeniu ``migrate`` zatrzymuje się na ``tenancy.E001`` dla wszystkich konkursów naraz.
+#: To jest decyzja operatora platformy (``/admin/``, gdzie ``Competition.clean`` odmawia jej obok
+#: innego aktywnego konkursu), a nie organizatora jednego z nich.
+ENABLE_ONLY_FLAGS: frozenset[str] = frozenset({"memberships_enforced"})
+
+
+def competition_images(queryset, competition):
+    """Obrazy, które koordynator **tego** konkursu może wskazać na ekranie ustawień.
+
+    Bez zawężenia lista wyboru pokazywała całą bibliotekę instalacji (``Image.objects.all()``),
+    więc koordynator konkursu A widział tytuły obrazów z kolekcji konkursu B i mógł je przypiąć
+    jako własny logotyp. Kolekcję konkursu wyznacza ta sama reguła, co wgrywanie pliku
+    (``apps.cms.permissions.upload_collection``):
+
+    - konkurs z zawężonymi uprawnieniami ``/cms/`` (``scoped_cms_permissions``) – wyłącznie jego
+      kolekcja razem z podkolekcjami; tam trafia każdy plik wgrany pod jego adresem,
+    - konkurs bez zawężenia (Konkurs #1, stan sprzed etapu 2) – cała biblioteka **poza**
+      kolekcjami innych konkursów. Jego pliki leżą w korzeniu i w kolekcjach założonych ręcznie
+      przez redaktorów, więc lista „tylko korzeń” zabrałaby mu obrazy, które wybierał do dziś.
+
+    Obrazy **już przypięte** zostają na liście niezależnie od kolekcji: inaczej pierwszy zapis
+    formularza (choćby zmiana koloru) kończyłby się błędem „wybierz poprawną wartość” przy polu,
+    którego nikt nie ruszał. Zdjąć taki obraz wolno, wybrać nowy spoza kolekcji – nie.
+
+    Kolekcję szukamy bez zakładania (``ensure_collection`` pisałby do bazy przy zwykłym GET).
+    """
+    from wagtail.models import Collection
+
+    from apps.cms.permissions import collection_name, scoped_cms_permissions
+
+    root = Collection.get_first_root_node()
+    if root is None or competition is None or not competition.pk:
+        return queryset
+    children = root.get_children()
+    pinned = [pk for pk in (getattr(competition, f"{name}_id", None) for name in IMAGE_FIELDS) if pk]
+    if scoped_cms_permissions(competition):
+        own = children.filter(name=collection_name(competition)).order_by("path").first()
+        allowed = Q(collection__path__startswith=own.path) if own is not None else Q(pk__in=[])
+        return queryset.filter(allowed | Q(pk__in=pinned))
+    foreign_names = Competition.objects.exclude(pk=competition.pk).values_list("name", flat=True)
+    foreign_paths = list(children.filter(name__in=foreign_names).values_list("path", flat=True))
+    if not foreign_paths:
+        return queryset
+    foreign = Q()
+    for path in foreign_paths:
+        foreign |= Q(collection__path__startswith=path)
+    return queryset.filter(~foreign | Q(pk__in=pinned))
 
 
 class CompetitionSettingsForm(forms.ModelForm):
@@ -225,20 +278,28 @@ class CompetitionSettingsForm(forms.ModelForm):
         flags = (self.instance.feature_flags or {}) if self.instance is not None else {}
         for name in EDITABLE_FLAGS:
             label, help_text = FLAG_LABELS[name]
+            # Wartość początkowa z **modelu**, nie z literału: pusty ``feature_flags`` znaczy
+            # „wszystko jak dotąd”, a co znaczy „jak dotąd”, wie ``FEATURE_DEFAULTS``.
+            current = bool(flags.get(name, FEATURE_DEFAULTS[name]))
+            # Włączony przełącznik „tylko do włączenia” jest polem nieaktywnym: Django bierze wtedy
+            # wartość z ``initial`` i **ignoruje** POST, więc wysłanie formularza bez tego pola
+            # (albo spreparowane) niczego nie wyłączy. Wyłączony zostaje zwykłym polem – to jest
+            # jedyna droga, którą organizator sam domyka migrację członkostw.
+            locked = name in ENABLE_ONLY_FLAGS and current
             self.fields[f"{FLAG_PREFIX}{name}"] = forms.BooleanField(
                 label=label,
                 help_text=help_text,
                 required=False,
-                # Wartość początkowa z **modelu**, nie z literału: pusty ``feature_flags`` znaczy
-                # „wszystko jak dotąd”, a co znaczy „jak dotąd”, wie ``FEATURE_DEFAULTS``.
-                initial=bool(flags.get(name, FEATURE_DEFAULTS[name])),
+                initial=current,
+                disabled=locked,
             )
         # Biblioteka obrazów jako zwykła lista wyboru, a nie okno wyboru Wagtaila: panel działa
         # **bez JavaScriptu** i pod ścisłą polityką CSP (``apps.web.middleware``), a okno wyboru
         # jest komponentem panelu redakcyjnego razem z jego skryptami. Wgranie pliku zostaje
         # tam, gdzie było – w ``/cms/`` → „Obrazy”; tutaj się go tylko wskazuje.
         for name in IMAGE_FIELDS:
-            self.fields[name].queryset = self.fields[name].queryset.order_by("-created_at", "-id")
+            images = competition_images(self.fields[name].queryset, self.instance)
+            self.fields[name].queryset = images.order_by("-created_at", "-id")
             self.fields[name].empty_label = "bez grafiki"
         # Prefiks tematu listów **nie jest przycinany**. Domyślne ``strip=True`` Django zjadałoby
         # spację na końcu, a to jest jedyny znak rozdzielający prefiks od tematu: Konkurs #1 ma
@@ -280,9 +341,16 @@ class CompetitionSettingsForm(forms.ModelForm):
         Przełączniki spoza ekranu (``path_prefix_routing``) przepisujemy bez zmian – należą do
         operatora i ten formularz nie ma prawa ich skasować przy okazji.
         """
-        current = dict(self.instance.feature_flags or {})
+        before = self.instance.feature_flags or {}
+        current = dict(before)
         for name in EDITABLE_FLAGS:
-            current[name] = bool(self.cleaned_data.get(f"{FLAG_PREFIX}{name}"))
+            value = bool(self.cleaned_data.get(f"{FLAG_PREFIX}{name}"))
+            if name in ENABLE_ONLY_FLAGS and bool(before.get(name, FEATURE_DEFAULTS[name])):
+                # Druga linia obrony obok ``disabled`` w ``__init__``: ten zapis omija
+                # ``Competition.clean`` (widok wpisuje flagi po walidacji formularza), więc reguła
+                # „z panelu tylko włączanie” musi stać także tutaj, a nie wyłącznie w polu.
+                value = True
+            current[name] = value
         return current
 
     def clean_interface_languages(self) -> list[str]:

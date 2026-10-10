@@ -34,7 +34,6 @@ from __future__ import annotations
 
 import json
 import logging
-import tempfile
 import zipfile
 from dataclasses import dataclass
 from typing import BinaryIO
@@ -43,6 +42,7 @@ from django.core.cache import cache
 from django.utils import timezone
 
 from apps.core.models import audit
+from apps.core.packages import ensure_package_fits, package_tempfile
 
 from .models import User
 
@@ -176,26 +176,48 @@ def _consents_section(participant, supervisor) -> list[dict]:
     return rows
 
 
-def _team_leader_section(user: User) -> list[dict]:
-    """Delegacje, które to konto prowadzi jako opiekun drużyny (DEL-01) – bez listy uczniów."""
+def _team_leader_section(user: User, competition=None) -> list[dict]:
+    """Delegacje, które to konto prowadzi jako opiekun drużyny (DEL-01) – bez listy uczniów.
+
+    Przy eksporcie z panelu koordynatora (``competition``) – wyłącznie delegacje tego konkursu;
+    wiersz sekcji niesie konkurs jako ``slug`` (``delegation_services.export_section``).
+    """
     from .delegation_services import export_section
 
-    return export_section(user)
+    rows = export_section(user)
+    if competition is None:
+        return rows
+    return [row for row in rows if row.get("konkurs") == competition.slug]
 
 
-def _team_leader_consents(user: User) -> list[dict]:
+def _team_leader_consents(user: User, competition=None) -> list[dict]:
     """Zgody złożone w roli opiekuna drużyny – trzeci właściciel ``ConsentRecord``."""
     from .models import ConsentRecord
 
-    return _consent_rows(ConsentRecord.objects.filter(team_leader__user=user), "opiekun_druzyny")
+    records = ConsentRecord.objects.filter(team_leader__user=user)
+    if competition is not None:
+        records = records.filter(team_leader__delegation__competition=competition)
+    return _consent_rows(records, "opiekun_druzyny")
 
 
-def _files_section(submission) -> list[dict]:
+def _profile_here(profile, competition):
+    """Profil roli (komitet, opiekun szkolny) – przy eksporcie koordynatora tylko z jego konkursu."""
+    if profile is None or competition is None:
+        return profile
+    return profile if profile.competition_id == competition.pk else None
+
+
+def _files_section(submission, in_bundle: set[int]) -> list[dict]:
     """Metryka plików pracy: skrót SHA-256, rozmiar, typ i wynik skanu antywirusowego.
 
     ``sha256`` jest tu z konkretnego powodu: to jedyny dowód, że plik w paczce jest tym samym
     plikiem, który system przyjął w chwili oddania pracy. Bez niego eksport byłby kopią bez
     tożsamości.
+
+    ``nazwa_w_paczce`` stoi wyłącznie przy plikach, które paczka naprawdę zawiera (``in_bundle``
+    – identyfikatory z ``_submission_files``: najnowsza czysta wersja każdego zadania, S15). Przy
+    starszej wersji albo pliku z kwarantanny jest ``None``: nazwa wskazywałaby plik, którego
+    w archiwum nie ma, a czytelnik paczki szukałby go i uznał ją za uszkodzoną.
     """
     return [
         {
@@ -205,7 +227,7 @@ def _files_section(submission) -> list[dict]:
             "rozmiar_bajtow": item.size_bytes,
             "skan_antywirusowy": item.av_status,
             "wgrany": _moment(item.created_at),
-            "nazwa_w_paczce": _zip_name(submission, item),
+            "nazwa_w_paczce": _zip_name(submission, item) if item.pk in in_bundle else None,
         }
         for item in submission.files.order_by("created_at", "id")
     ]
@@ -242,6 +264,9 @@ def _entries_section(participant) -> list[dict]:
         .select_related("stage", "stage__edition")
         .order_by("stage__opens_at", "stage_id")
     )
+    # Jedna definicja „co jest w paczce” dla metryki i dla archiwum – ta sama funkcja wybiera pliki
+    # w ``build_export_zip``.
+    in_bundle = {item.pk for _submission, item in _submission_files(participant)}
     rows = []
     for entry in entries:
         submissions = (
@@ -256,7 +281,12 @@ def _entries_section(participant) -> list[dict]:
                 "etap": entry.stage.display_name,
                 "status": entry.status,
                 "zapisany": _moment(entry.created_at),
-                "kwalifikacja_reczna": entry.manual_qualification,
+                # Ręczna decyzja o kwalifikacji dopiero po ogłoszeniu wyników etapu (audyt
+                # 10.10.2026): wcześniej jest roboczą decyzją komitetu, której uczestnik nie widzi
+                # w panelu – a eksport nie może być drugą, luźniejszą drogą do tej samej informacji.
+                "kwalifikacja_reczna": (
+                    entry.manual_qualification if entry.stage.results_published_at is not None else None
+                ),
                 "prace": [
                     {
                         "zadanie_numer": submission.problem.number,
@@ -265,7 +295,7 @@ def _entries_section(participant) -> list[dict]:
                         "oddana": _moment(submission.submitted_at),
                         "po_deadline_w_tolerancji": submission.is_late,
                         "status": submission.status,
-                        "pliki": _files_section(submission),
+                        "pliki": _files_section(submission, in_bundle),
                     }
                     for submission in submissions
                 ],
@@ -350,8 +380,8 @@ def _preferences_section(user: User) -> dict:
     }
 
 
-def _participant(user: User):
-    """Profil uczestnika **w konkursie tego żądania** albo ``None``.
+def _participant(user: User, competition=None):
+    """Profil uczestnika **w konkursie tego żądania** (albo wskazanym wprost) albo ``None``.
 
     Eksport jest odpowiedzią administratora danych na pytanie „co o mnie wiecie”, a
     administratorem jest organizator **jednego** konkursu (``docs/UNIWERSALNY-ETAP-1.md`` § 3.3).
@@ -364,36 +394,44 @@ def _participant(user: User):
 
     from .services import participant_for
 
-    return participant_for(user, current_competition())
+    return participant_for(user, competition if competition is not None else current_competition())
 
 
-def export_payload(user: User) -> dict:
+def export_payload(user: User, competition=None) -> dict:
     """Treść ``dane.json`` dla tego konta. Czysta funkcja – niczego nie zapisuje.
 
     Rozbita na sekcje po **rolach i obiektach**, a nie po tabelach: uczestnik pyta „co o mnie
     wiecie”, a nie „co macie w tabeli ``accounts_participant``”. Sekcja, której konto nie ma
     (profil komitetu przy uczestniku), jest ``null`` – a nie znika – żeby kształt pliku był ten
     sam dla każdego konta i dał się odczytać maszynowo bez zgadywania.
+
+    ``competition`` – eksport **z panelu koordynatora** (audyt 10.10.2026, S8). Właściciel konta
+    pyta „co o mnie wiecie” i dostaje wpisy na forum oraz wiadomości ze wszystkich konkursów, ale
+    koordynator konkursu A jest administratorem danych **jednego** konkursu: paczka wydana jego
+    kliknięciem nie może wynieść treści wiadomości wysłanych do organizatora B ani profilu komitetu
+    sąsiedniej olimpiady. Każda sekcja z danymi przypiętymi do konkursu jest wtedy zawężona do niego.
     """
-    participant = _participant(user)
-    supervisor = getattr(user, "school_supervisor", None)
+    participant = _participant(user, competition)
+    supervisor = _profile_here(getattr(user, "school_supervisor", None), competition)
     return {
         "wersja_formatu": EXPORT_FORMAT_VERSION,
         "wygenerowano": _moment(timezone.now()),
         "konto": _account_section(user),
         "profil_uczestnika": _participant_section(participant),
-        "profil_komitetu": _committee_section(getattr(user, "committee_member", None)),
+        "profil_komitetu": _committee_section(
+            _profile_here(getattr(user, "committee_member", None), competition)
+        ),
         "profil_opiekuna_szkolnego": _supervisor_section(supervisor),
-        "delegacje_opiekun_druzyny": _team_leader_section(user),
-        "zgody": _consents_section(participant, supervisor) + _team_leader_consents(user),
+        "delegacje_opiekun_druzyny": _team_leader_section(user, competition),
+        "zgody": _consents_section(participant, supervisor) + _team_leader_consents(user, competition),
         "zgoda_opiekuna": _guardian_section(participant),
         "zgloszenia_do_etapow": _entries_section(participant),
         "wyniki_ogloszone": _results_section(participant),
-        "wpisy_na_forum": _forum_section(user),
-        "powiadomienia_z_forum": _forum_notifications_section(user),
-        "wiadomosci_wyslane": _chat_messages_section(user),
-        "zgloszenia_wiadomosci": _chat_reports_section(user),
-        "ustawienia_wiadomosci": _chat_settings_section(user),
+        "wpisy_na_forum": _forum_section(user, competition),
+        "powiadomienia_z_forum": _forum_notifications_section(user, competition),
+        "wiadomosci_wyslane": _chat_messages_section(user, competition),
+        "zgloszenia_wiadomosci": _chat_reports_section(user, competition),
+        "ustawienia_wiadomosci": _chat_settings_section(user, competition),
         "zaswiadczenia_statusu_ucznia": _student_status_section(participant),
         "oceny_ai": _ai_section(participant),
         "ustawienia_interfejsu": _preferences_section(user),
@@ -455,7 +493,7 @@ def _ai_section(participant) -> list[dict]:
     return export_section(participant)
 
 
-def _forum_section(user: User) -> list[dict]:
+def _forum_section(user: User, competition=None) -> list[dict]:
     """Wypowiedzi tej osoby na forum – **wyłącznie jej własne**, razem ze stanem moderacji.
 
     Art. 15 RODO pyta o dane **tej** osoby, a nie o rozmowę, w której brała udział. Dlatego jest tu
@@ -472,14 +510,14 @@ def _forum_section(user: User) -> list[dict]:
     Wpisy z **każdego** konkursu, a nie tylko z bieżącego: paczkę pobiera konto, a nie uczestnik
     jednego konkursu, i pytanie brzmi „co o mnie wiecie”, a nie „co wiecie o mnie tutaj”. Konto
     bez ani jednego wpisu dostaje pustą listę – kształt pliku ma być ten sam dla każdego konta.
+    Wyjątkiem jest paczka wydawana przez koordynatora (``competition``) – patrz ``export_payload``.
     """
     from apps.forum.models import ForumPost
 
-    posts = (
-        ForumPost.objects.filter(author=user)
-        .select_related("thread", "thread__category", "competition")
-        .order_by("created_at", "id")
-    )
+    posts = ForumPost.objects.filter(author=user)
+    if competition is not None:
+        posts = posts.filter(competition=competition)
+    posts = posts.select_related("thread", "thread__category", "competition").order_by("created_at", "id")
     return [
         {
             "konkurs": post.competition.name,
@@ -495,7 +533,7 @@ def _forum_section(user: User) -> list[dict]:
     ]
 
 
-def _chat_messages_section(user: User) -> list[dict]:
+def _chat_messages_section(user: User, competition=None) -> list[dict]:
     """Wiadomości wysłane przez tę osobę (zadanie CZ-01) – **wyłącznie jej własne**, ze stanem moderacji.
 
     Ta sama granica, co przy forum: art. 15 pyta o dane tej osoby, a nie o rozmowę – więc nie ma tu
@@ -507,11 +545,10 @@ def _chat_messages_section(user: User) -> list[dict]:
     """
     from apps.chat.models import Message
 
-    rows = (
-        Message.objects.filter(sender=user)
-        .select_related("conversation", "conversation__competition")
-        .order_by("created_at", "id")
-    )
+    rows = Message.objects.filter(sender=user)
+    if competition is not None:
+        rows = rows.filter(conversation__competition=competition)
+    rows = rows.select_related("conversation", "conversation__competition").order_by("created_at", "id")
     section = []
     for message in rows:
         entry = {
@@ -534,7 +571,7 @@ def _chat_messages_section(user: User) -> list[dict]:
     return section
 
 
-def _chat_reports_section(user: User) -> list[dict]:
+def _chat_reports_section(user: User, competition=None) -> list[dict]:
     """Zgłoszenia wiadomości wysłane przez tę osobę: powód, data i stan – bez treści wiadomości.
 
     Powód jest zdaniem tej osoby, więc wchodzi. Treść zgłoszonej wiadomości – także kopia jawna
@@ -543,11 +580,10 @@ def _chat_reports_section(user: User) -> list[dict]:
     """
     from apps.chat.models import MessageReport
 
-    rows = (
-        MessageReport.objects.filter(reporter=user)
-        .select_related("message__conversation__competition")
-        .order_by("created_at", "id")
-    )
+    rows = MessageReport.objects.filter(reporter=user)
+    if competition is not None:
+        rows = rows.filter(message__conversation__competition=competition)
+    rows = rows.select_related("message__conversation__competition").order_by("created_at", "id")
     return [
         {
             "konkurs": report.message.conversation.competition.name,
@@ -560,7 +596,7 @@ def _chat_reports_section(user: User) -> list[dict]:
     ]
 
 
-def _chat_settings_section(user: User) -> dict:
+def _chat_settings_section(user: User, competition=None) -> dict:
     """Ustawienia Wiadomości: list o nowej wiadomości (konto) i – per konkurs – katalog i klucz.
 
     Blokady innych uczestników nie wchodzą: lista osób, z którymi ktoś nie chce rozmawiać, jest
@@ -573,7 +609,10 @@ def _chat_settings_section(user: User) -> dict:
     profiles = {row.participant_id: row for row in ChatProfile.objects.filter(participant__user=user)}
     keys = {row.participant_id: row for row in ChatKey.objects.filter(participant__user=user)}
     konkursy = []
-    for participant in user.participations.select_related("competition").order_by("competition_id"):
+    participations = user.participations.all()
+    if competition is not None:
+        participations = participations.filter(competition=competition)
+    for participant in participations.select_related("competition").order_by("competition_id"):
         profile = profiles.get(participant.pk)
         key = keys.get(participant.pk)
         konkursy.append(
@@ -593,7 +632,7 @@ def _chat_settings_section(user: User) -> dict:
     }
 
 
-def _forum_notifications_section(user: User) -> dict:
+def _forum_notifications_section(user: User, competition=None) -> dict:
     """Powiadomienia e-mail z forum: ustawienia konta, obserwowane wątki i decyzje czekające na list.
 
     To są kategorie danych, które rejestr czynności (wersja 1.9, wiersz forum) dopisał razem
@@ -609,16 +648,15 @@ def _forum_notifications_section(user: User) -> dict:
     from apps.forum.notifications import preferences_for
 
     preferences = preferences_for(user)
-    subscriptions = (
-        ForumSubscription.objects.filter(user=user)
-        .select_related("thread", "thread__category", "competition")
-        .order_by("created_at", "id")
+    subscriptions = ForumSubscription.objects.filter(user=user)
+    notices = ForumDecisionNotice.objects.filter(user=user)
+    if competition is not None:
+        subscriptions = subscriptions.filter(competition=competition)
+        notices = notices.filter(competition=competition)
+    subscriptions = subscriptions.select_related("thread", "thread__category", "competition").order_by(
+        "created_at", "id"
     )
-    notices = (
-        ForumDecisionNotice.objects.filter(user=user)
-        .select_related("competition")
-        .order_by("created_at", "id")
-    )
+    notices = notices.select_related("competition").order_by("created_at", "id")
 
     def readable_title(thread) -> str | None:
         if thread.status == ModerationStatus.PUBLISHED or thread.author_id == user.pk:
@@ -677,33 +715,43 @@ def _copy_file(source: BinaryIO, target: BinaryIO) -> None:
 
 
 def _submission_files(participant):
-    """Pliki rozwiązań tego uczestnika: pary ``(praca, plik)``, od najstarszej wersji.
+    """Pliki rozwiązań tego uczestnika: pary ``(praca, plik)`` – **najnowsza** wersja każdego zadania.
 
-    Bierzemy **wszystkie** wersje, a nie tylko ostatnią: uczestnik oddał każdą z nich i każda
-    jest jego danymi. Pliki odrzucone przez antywirusa też zostają w metryce (``dane.json``),
-    ale nie wchodzą do archiwum – ich treść jest w kwarantannie i nie ma powodu wypuszczać jej
+    Do audytu 10.10.2026 (S15) paczka brała wszystkie wersje. Uczestnik mógł wtedy wgrać kilkanaście
+    wersji po 20 MB i jednym kliknięciem „eksportu” kazać serwerowi zbudować paczkę większą niż
+    katalog roboczy – a pełny dysk tymczasowy wywracał w tym czasie cudze uploady. Metryka
+    **każdej** wersji (nazwa, SHA-256, rozmiar, wynik skanu) zostaje w ``dane.json``, więc
+    paczka nadal mówi, co i kiedy system przyjął; treść starszych wersji jest do wydania na
+    wniosek, przez organizatora.
+
+    „Najnowsza” znaczy: najnowsza wersja **z czystym plikiem**. Pliki odrzucone przez antywirusa
+    nie wchodzą do archiwum – ich treść jest w kwarantannie i nie ma powodu wypuszczać jej
     z powrotem do przeglądarki.
     """
     if participant is None:
         return []
     from apps.submissions.models import Submission
 
-    pairs = []
+    latest: dict[int, tuple] = {}
     submissions = (
         Submission.objects.filter(entry__participant=participant)
         .select_related("problem")
         .prefetch_related("files")
         .order_by("problem__number", "version")
     )
+    # Porządek rosnący po wersji: późniejszy wpis zadania nadpisuje wcześniejszy.
     for submission in submissions:
         for item in submission.files.all():
             if item.is_clean:
-                pairs.append((submission, item))
-    return pairs
+                latest[submission.problem_id] = (submission, item)
+    return list(latest.values())
 
 
-def build_export_zip(user: User) -> ExportArchive:
+def build_export_zip(user: User, competition=None) -> ExportArchive:
     """Buduje paczkę ZIP z ``dane.json`` i plikami rozwiązań uczestnika.
+
+    ``competition`` – paczka wydawana z panelu koordynatora, zawężona do jego konkursu (S8,
+    patrz ``export_payload``). Pliki rozwiązań i zaświadczeń są z profilu **tego** konkursu.
 
     Archiwum powstaje w pliku tymczasowym, a nie w pamięci: rozwiązania finalisty to kilkadziesiąt
     megabajtów, a ``FileResponse`` i tak zamknie strumień po wysłaniu – nie zostaje nic do
@@ -715,10 +763,20 @@ def build_export_zip(user: User) -> ExportArchive:
     """
     from apps.submissions.storage import get_submission_storage
 
-    participant = _participant(user)
-    payload = export_payload(user)
+    participant = _participant(user, competition)
+    payload = export_payload(user, competition)
     storage = get_submission_storage()
-    stream = tempfile.TemporaryFile()
+    # Wybór plików i suma ich rozmiarów **przed** budową (audyt 10.10.2026, S15): paczka ponad
+    # ``PACKAGE_MAX_BYTES`` jest odrzucana z powodem, a nie urywana w połowie na pełnym dysku.
+    # Plik tymczasowy w osobnym katalogu paczek (``PACKAGE_TMP_DIR``), nie w ``/tmp`` uploadów.
+    submission_files = _submission_files(participant)
+    status_rows = _student_status_rows(participant)
+    ensure_package_fits(
+        sum(item.size_bytes or 0 for _submission, item in submission_files)
+        + sum(row.size_bytes or 0 for row in status_rows),
+        hint="Napisz do organizatora – przygotuje paczkę ręcznie.",
+    )
+    stream = package_tempfile()
     count = 0
     try:
         with zipfile.ZipFile(stream, "w", compression=zipfile.ZIP_DEFLATED) as archive:
@@ -727,7 +785,7 @@ def build_export_zip(user: User) -> ExportArchive:
                 json.dumps(payload, ensure_ascii=False, indent=2).encode("utf-8"),
             )
             used: set[str] = set()
-            for submission, submission_file in _submission_files(participant):
+            for submission, submission_file in submission_files:
                 name = _zip_name(submission, submission_file)
                 if name in used:  # pragma: no cover - trójka (zadanie, wersja, nazwa) jest unikalna
                     continue
@@ -739,7 +797,7 @@ def build_export_zip(user: User) -> ExportArchive:
                 finally:
                     source.close()
                 count += 1
-            count += _add_student_status_files(archive, participant, used)
+            count += _add_student_status_files(archive, status_rows, used)
     except BaseException:
         stream.close()
         raise
@@ -747,24 +805,32 @@ def build_export_zip(user: User) -> ExportArchive:
     return ExportArchive(stream=stream, files=count)
 
 
-def _add_student_status_files(archive, participant, used: set[str]) -> int:
+def _student_status_rows(participant) -> list:
+    """Zaświadczenia o statusie ucznia do paczki – wyłącznie te, które przeszły skan."""
+    if participant is None:
+        return []
+    from apps.student_status.models import StudentStatusCertificate
+
+    return [
+        row
+        for row in StudentStatusCertificate.objects.filter(participant=participant).order_by(
+            "edition_id", "version"
+        )
+        if row.is_clean
+    ]
+
+
+def _add_student_status_files(archive, rows, used: set[str]) -> int:
     """Skany zaświadczeń o statusie ucznia – wyłącznie te, które jeszcze są i przeszły skan.
 
     Nazwa w paczce powstaje z edycji i wersji (``pliki/zaswiadczenie-status-ucznia-e<id>-v<n>.<ext>``),
     a nie z nazwy od uczestnika – tej serwis nie zapisuje. Brak obiektu w storage nie wywraca eksportu:
     metryka i tak jest w ``dane.json``, a paczka bez jednego pliku jest lepsza niż brak paczki.
     """
-    if participant is None:
-        return 0
-    from apps.student_status.models import StudentStatusCertificate
     from apps.student_status.services import open_scan
 
     added = 0
-    for row in StudentStatusCertificate.objects.filter(participant=participant).order_by(
-        "edition_id", "version"
-    ):
-        if not row.is_clean:
-            continue
+    for row in rows:
         name = f"{FILES_PREFIX}zaswiadczenie-status-ucznia-e{row.edition_id}-v{row.version}.{row.extension}"
         if name in used:  # pragma: no cover - para (edycja, wersja) jest unikalna
             continue

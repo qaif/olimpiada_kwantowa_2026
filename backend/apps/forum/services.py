@@ -400,6 +400,15 @@ def reply(*, user, competition, thread: ForumThread, body: str, request=None) ->
     ensure_can_write(user, competition)
     if thread.is_locked:
         raise DomainError(_("Ten wątek jest zamknięty."), "FORUM_THREAD_LOCKED", http.HTTP_400_BAD_REQUEST)
+    if not thread.category.is_open:
+        # Zamknięty dział jest „do czytania, nie do pisania” (``ForumCategory``) – także dla
+        # odpowiedzi w istniejących wątkach, a nie tylko dla nowych tematów (audyt 10.10.2026).
+        # Inaczej zamknięcie działu po etapie nie zamykało rozmowy, tylko zakładanie tematów.
+        raise DomainError(
+            _("Ten dział jest zamknięty – nie można w nim pisać."),
+            "FORUM_CATEGORY_CLOSED",
+            http.HTTP_400_BAD_REQUEST,
+        )
     if not thread.is_published:
         # Do wątku czekającego na moderację nie dopisuje nikt, także jego autor: moderator ma
         # ocenić temat, a nie rozmowę, która zdążyła pod nim urosnąć.
@@ -459,6 +468,17 @@ def edit_post(*, post: ForumPost, user, body: str, request=None) -> ForumPost:
             http.HTTP_400_BAD_REQUEST,
         )
     ensure_can_write(user, post.competition)
+    # Zamknięty wątek i zamknięty dział zamykają też poprawki (audyt 10.10.2026): okno kwadransa
+    # nie może być furtką do dopisania treści pod wątkiem, który moderator właśnie zamknął.
+    thread = post.thread
+    if thread.is_locked:
+        raise DomainError(_("Ten wątek jest zamknięty."), "FORUM_THREAD_LOCKED", http.HTTP_400_BAD_REQUEST)
+    if not thread.category.is_open:
+        raise DomainError(
+            _("Ten dział jest zamknięty – nie można w nim pisać."),
+            "FORUM_CATEGORY_CLOSED",
+            http.HTTP_400_BAD_REQUEST,
+        )
     post.body = _clean(body, limit=MAX_POST_LENGTH, field="BODY", label=_("Treść"))
     post.edited_at = timezone.now()
     fields = ["body", "edited_at"]
@@ -507,6 +527,15 @@ def report_post(*, post: ForumPost, user, reason: str, request=None) -> ForumRep
             http.HTTP_403_FORBIDDEN,
         )
     clean_reason = _clean(reason, limit=MAX_REASON_LENGTH, field="REASON", label=_("Powód zgłoszenia"))
+    # Jedno zgłoszenie na parę wpis–zgłaszający (audyt 10.10.2026): powtórne kliknięcie „Zgłoś”
+    # zaśmiecało kolejkę moderatora kopiami tej samej sprawy. Sprawdzenie w serwisie pod blokadą
+    # wiersza wpisu, a nie ograniczenie w bazie: ``reporter`` bywa ``NULL`` (konto usunięte), więc
+    # ograniczenie musiałoby być warunkowe, a jedyną drogą zapisu i tak jest ta funkcja. Powtórka
+    # oddaje istniejące zgłoszenie bez błędu – dla zgłaszającego sprawa jest zgłoszona i tyle.
+    list(ForumPost.objects.select_for_update().filter(pk=post.pk).values_list("pk", flat=True))
+    existing = ForumReport.objects.filter(post=post, reporter=user).order_by("id").first()
+    if existing is not None:
+        return existing
     return ForumReport.objects.create(
         competition=post.competition, post=post, reporter=user, reason=clean_reason
     )

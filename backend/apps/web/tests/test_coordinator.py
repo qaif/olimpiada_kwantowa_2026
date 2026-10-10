@@ -61,6 +61,30 @@ def test_publish_named_list_of_advancing_participants(web_client, coordinator, e
     assert all(row["qualified"] for row in publication.rows)
 
 
+def test_withdrawn_publication_is_not_linked_as_announced(web_client, coordinator, elim_stage, entry):
+    """Wycofanie ogłoszenia czyści znacznik na etapie, a rekord publikacji zostaje jako ślad.
+
+    Publiczna tabela odpowiada wtedy 404 (``ResultsPublication.objects.live()``), więc ani pulpit,
+    ani ekran wyników etapu nie mogą dalej prowadzić do „ogłoszonej tabeli wyników”.
+    """
+    close_stage_timeline(elim_stage)
+    web_client.force_login(coordinator)
+    web_client.post(f"/coordinator/stages/{elim_stage.pk}/results/publish/", {"anonymization": "CODE"})
+    # Po samym napisie odnośnika, a nie po ``href``: pasek osi czasu w nagłówku też linkuje do
+    # tabeli, a jego bufor (pięć minut) zdejmuje dopiero serwis wydarzeń, nie zapis etapu.
+    link = "Ogłoszona tabela wyników</a>"
+    assert link in web_client.get("/coordinator/").content.decode()
+
+    elim_stage.results_published_at = None
+    elim_stage.save(update_fields=["results_published_at"])
+
+    assert link not in web_client.get("/coordinator/").content.decode()
+    screen = web_client.get(f"/coordinator/stages/{elim_stage.pk}/results/").content.decode()
+    assert link not in screen
+    assert "ogłoszenie wycofane" in screen
+    assert web_client.get(f"/results/{elim_stage.pk}/").status_code == 404
+
+
 def test_close_stage_locks_submissions(web_client, coordinator, elim_stage, entry, problems):
     SubmissionFactory(entry=entry, problem=problems[0], status=SubmissionStatus.SUBMITTED)
     web_client.force_login(coordinator)

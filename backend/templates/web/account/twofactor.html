@@ -42,8 +42,24 @@
     <div class="card card--quiet">
       <h2 class="mt-0">{% translate "Wyłączenie" %}</h2>
       <p class="hint">{% translate "Po wyłączeniu konto będzie chronione samym hasłem. Dotychczasowe kody zapasowe przestaną działać." %}</p>
-      <form method="post" action="{% url 'web:twofactor-disable' %}" class="inline">
+      {% comment %}
+        Hasło (konto bez hasła: obecny adres) jest wymagane przez widok – audyt 10.10.2026, S11.
+        Ta sama reguła, co przy zmianie adresu i usunięciu konta.
+      {% endcomment %}
+      <form method="post" action="{% url 'web:twofactor-disable' %}" class="form">
         {% csrf_token %}
+        {% if user.has_usable_password %}
+          <p>
+            <label for="id_disable_password">{% translate "Aktualne hasło" %}</label>
+            <input type="password" name="password" id="id_disable_password" autocomplete="current-password" maxlength="200" required>
+          </p>
+        {% else %}
+          <p>
+            <label for="id_disable_email">{% translate "Obecny adres e-mail konta" %}</label>
+            <input type="text" name="current_email" id="id_disable_email" maxlength="254" required>
+            <span class="helptext">{% translate "Twoje konto nie ma hasła – przepisz obecny adres, żeby potwierdzić wyłączenie." %}</span>
+          </p>
+        {% endif %}
         <button type="submit" class="btn btn--danger">{% translate "Wyłącz drugi składnik" %}</button>
       </form>
     </div>

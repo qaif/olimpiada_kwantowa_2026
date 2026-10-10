@@ -242,6 +242,8 @@ compose up -d --remove-orphans db redis minio minio-init clamav mail web worker 
 compose exec -T proxy sha256sum /etc/caddy/Caddyfile
 compose exec -T proxy caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile
 compose ps --format {{.Service}}={{.Health}}
+compose exec -T web python manage.py migrate_documents_to_private --dry-run
+compose exec -T web python manage.py migrate_documents_to_private
 compose exec -T web python manage.py seed_edition_kwantowa
 compose exec -T web python manage.py seed_schools
 compose ps --format table {{.Service}}\t{{.State}}\t{{.Health}}
@@ -295,7 +297,7 @@ mask() {  # znaczniki czasu, rozmiary plików i wiersz z ls -lh zmieniają się 
 no_proxy_cfg() {  # no_proxy_cfg docker|ssh|env|out  (stdin → stdout)
   case "$1" in
     docker) grep -vE '^compose (ps -q --status running proxy|exec -T proxy (sh -c .*caddy validate|sha256sum /etc/caddy/Caddyfile|cat /etc/caddy/Caddyfile|caddy reload |wget )|up -d --force-recreate --no-deps proxy)' ;;
-    ssh) grep -vF 'bash scripts/proxy_config.sh apply' | grep -vF "/caddy/.lock'" | sed 's/ ! -name caddy -exec/ -exec/; s/ OLIMPIADA_PROXY_LOCK=held / /' ;;
+    ssh) grep -vF 'bash scripts/proxy_config.sh apply' | grep -vF "/caddy/.lock'" | sed 's/ ! -name caddy -exec/ -exec/; s/ ! -name caddy ! -name jitsi -exec/ -exec/; s/ OLIMPIADA_PROXY_LOCK=held / /' ;;
     env) grep -vE '^(CADDYFILE_PATH=|CADDY_CONFIG_DIR=|# Konfiguracja proxy|# i EXTRA_DOMAINS przez scripts/render_caddyfile|# przez scripts/proxy_config\.sh)' ;;
     out) grep -vE '^(proxy: |==> 4c/8 |blokada zmian serwisu |UWAGA: brak flock na serwerze|$)' | sed -E 's/^render_caddyfile: [^ ]+ /render_caddyfile: OUT /' ;;
   esac
@@ -370,6 +372,8 @@ compose up -d --remove-orphans db redis minio minio-init clamav mail web worker 
 compose exec -T proxy sha256sum /etc/caddy/Caddyfile
 compose exec -T proxy caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile
 compose ps --format {{.Service}}={{.Health}}
+compose exec -T web python manage.py migrate_documents_to_private --dry-run
+compose exec -T web python manage.py migrate_documents_to_private
 compose exec -T web python manage.py seed_edition_kwantowa
 compose exec -T web python manage.py seed_schools
 compose ps --format table {{.Service}}\t{{.State}}\t{{.Health}}

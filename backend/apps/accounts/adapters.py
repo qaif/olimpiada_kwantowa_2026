@@ -54,6 +54,7 @@ REFUSAL_TEMPLATE = "socialaccount/refused.html"
 REASON_INACTIVE = "inactive"
 REASON_EMAIL_TAKEN = "email_taken"
 REASON_NO_EMAIL = "no_email"
+REASON_INVITATION = "invitation"
 
 
 def provider_label(sociallogin) -> str:
@@ -111,6 +112,20 @@ def refuse(request, reason: str, sociallogin) -> ImmediateHttpResponse:
         status=HTTPStatus.UNAUTHORIZED,
     )
     return ImmediateHttpResponse(response)
+
+
+def _invited_without_consents(user) -> bool:
+    """Czy konto ma profil z zaproszenia, za który nikt nie złożył zgody RODO (S6).
+
+    Zaproszony uczeń składa zgody przy przyjęciu zaproszenia (``bulk_registration.accept_invitation``),
+    a przed tym ``Participant.gdpr_consent_at`` jest puste – to jedyna droga, na której profil
+    powstaje przed zgodami. Profil zaproszony **z** zgodą jest zwykłym, uruchomionym kontem.
+    """
+    from .models import Participant
+
+    return Participant.objects.filter(
+        user=user, invited_at__isnull=False, gdpr_consent_at__isnull=True
+    ).exists()
 
 
 class AccountAdapter(DefaultAccountAdapter):
@@ -178,6 +193,12 @@ class SocialAccountAdapter(DefaultSocialAccountAdapter):
         user = sociallogin.user
         if not user.is_active:
             raise refuse(request, REASON_INACTIVE, sociallogin)
+        if _invited_without_consents(user):
+            # Konto z zaproszenia, które ktoś uruchomił **z pominięciem** jego przyjęcia (przed
+            # audytem 10.10.2026 robił to link aktywacyjny – S6): jest aktywne, ale bez hasła ucznia
+            # i bez zgody RODO. Auto-connect Google'a wpuściłby je do panelu jako uczestnika, który
+            # niczego nie oświadczył. Odsyłamy do zaproszenia – tam są hasło i zgody.
+            raise refuse(request, REASON_INVITATION, sociallogin)
         matched_by_email = getattr(sociallogin, "_did_authenticate_by_email", None)
         if not matched_by_email:
             return

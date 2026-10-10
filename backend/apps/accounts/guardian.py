@@ -77,6 +77,22 @@ STATUS_PENDING = "pending"
 STATUS_CONFIRMED = "confirmed"
 
 
+def mailbox_key(email: str | None) -> str:
+    """Postać porównawcza **skrzynki**: małe litery i część lokalna bez aliasu ``+tag``.
+
+    Większość dostawców (Gmail, Outlook, Fastmail, Proton) doręcza „jan+cokolwiek@domena” do
+    skrzynki „jan@domena”, więc dla reguły „opiekun to ktoś inny niż uczeń” to jest ten sam adres.
+    Kropek w Gmailu świadomie nie usuwamy: to reguła jednego dostawcy, a u innych „jan.kowalski”
+    i „jankowalski” to dwie różne osoby – fałszywa odmowa byłaby gorsza od przepuszczonego triku.
+    Adres **zapisujemy** dalej w postaci podanej przez ucznia; ta funkcja służy tylko porównaniu.
+    """
+    value = (email or "").strip().lower()
+    local, at, domain = value.rpartition("@")
+    if not at:
+        return value
+    return f"{local.split('+', 1)[0]}@{domain}"
+
+
 def _invalid_token() -> DomainError:
     """Jeden komunikat na każdy powód odrzucenia – bez wskazywania, który to był."""
     return DomainError(INVALID_TOKEN_MESSAGE, "GUARDIAN_TOKEN_INVALID", status.HTTP_400_BAD_REQUEST)
@@ -253,13 +269,23 @@ def request_consent(participant: Participant, email: str, *, actor=None, request
             "GUARDIAN_NOT_REQUIRED",
             status.HTTP_409_CONFLICT,
         )
-    if normalized == (participant.user.email or "").strip().lower():
+    if mailbox_key(normalized) == mailbox_key(participant.user.email):
         # Uczestnik nie może być własnym opiekunem. Bez tej reguły cała ścieżka sprowadzałaby się
         # do kliknięcia we własny link – czyli do tego samego oświadczenia o cudzej woli, od
-        # którego ta zmiana odchodzi.
+        # którego ta zmiana odchodzi. Porównanie po **skrzynce** (``mailbox_key``), a nie po
+        # napisie: „jan+mama@…” trafia do tej samej skrzynki, co „jan@…” (audyt 10.10.2026).
         raise DomainError(
             _("Adres opiekuna musi być inny niż Twój własny adres konta."),
             "GUARDIAN_EMAIL_IS_OWN",
+            status.HTTP_400_BAD_REQUEST,
+        )
+    if participant.supervisor_email and mailbox_key(normalized) == mailbox_key(participant.supervisor_email):
+        # Opiekun **szkolny** nie jest opiekunem **prawnym** – nauczyciel nie zgadza się za rodzica.
+        # Uczeń, któremu zależy na szybkim „potwierdzeniu”, wpisywał adres nauczyciela, a ten
+        # klikał link przekonany, że potwierdza udział ucznia w zawodach.
+        raise DomainError(
+            _("Podaj adres rodzica lub opiekuna prawnego – nie adres opiekuna szkolnego."),
+            "GUARDIAN_EMAIL_IS_SUPERVISOR",
             status.HTTP_400_BAD_REQUEST,
         )
     participant.guardian_email = normalized

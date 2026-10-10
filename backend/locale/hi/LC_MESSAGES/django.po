@@ -9188,3 +9188,70 @@ msgstr "विद्यालयों/शिक्षकों के लिए
 #: apps/cms/context_processors.py
 msgid "Rejestracja nauczyciela"
 msgstr "शिक्षक पंजीकरण"
+
+# --- Audyt bezpieczeństwa 10.10.2026: nowe komunikaty ---
+#: apps/accounts/activation.py:492
+msgid ""
+"To konto zostało zablokowane przez organizatora. Skontaktuj się z "
+"organizatorem."
+msgstr "इस खाते को आयोजक ने अवरुद्ध कर दिया है। कृपया आयोजक से संपर्क करें।"
+
+#: apps/accounts/activation.py:597
+msgid ""
+"To konto uruchamia się linkiem z listu z zaproszeniem. Poproś o ponowne "
+"wysłanie linku – przyjdzie zaproszenie."
+msgstr "यह खाता आमंत्रण ईमेल में दिए गए लिंक से सक्रिय होता है। लिंक दोबारा भेजने का अनुरोध करें – आपको आमंत्रण मिलेगा।"
+
+#: apps/accounts/delegation_services.py:1091
+#, python-format
+msgid "Zaproszenie wysłano niedawno. Kolejne można wysłać za %(minutes)s min."
+msgstr "आमंत्रण हाल ही में भेजा गया था। अगला %(minutes)s मिनट बाद भेजा जा सकता है।"
+
+#: apps/accounts/guardian.py:287
+msgid ""
+"Podaj adres rodzica lub opiekuna prawnego – nie adres opiekuna szkolnego."
+msgstr "माता-पिता या कानूनी अभिभावक का पता दर्ज करें – स्कूल पर्यवेक्षक का पता नहीं।"
+
+#: apps/accounts/profile.py:139
+msgid ""
+"Kraj ucznia delegacji wynika z delegacji – zmienia go opiekun drużyny albo "
+"organizator."
+msgstr "प्रतिनिधिमंडल के छात्र का देश प्रतिनिधिमंडल से तय होता है – इसे टीम लीडर या आयोजक बदलते हैं।"
+
+#: apps/forum/services.py:408 apps/forum/services.py:478
+msgid "Ten dział jest zamknięty – nie można w nim pisać."
+msgstr "यह अनुभाग बंद है – इसमें लिखा नहीं जा सकता।"
+
+#: apps/quiz/services.py:439
+msgid "Wyniki tego etapu są już ogłoszone – testu nie można rozpocząć."
+msgstr "इस चरण के परिणाम पहले ही घोषित हो चुके हैं – टेस्ट शुरू नहीं किया जा सकता।"
+
+#: apps/web/forms.py:1153 templates/web/account/twofactor.html:59
+msgid "Obecny adres e-mail konta"
+msgstr "खाते का वर्तमान ईमेल पता"
+
+#: apps/web/forms.py:1156
+msgid ""
+"Twoje konto nie ma hasła – przepisz obecny adres, żeby potwierdzić zmianę."
+msgstr "आपके खाते का कोई पासवर्ड नहीं है – बदलाव की पुष्टि के लिए वर्तमान पता दोबारा लिखें।"
+
+#: templates/socialaccount/refused.html:31
+msgid "Najpierw przyjmij zaproszenie"
+msgstr "पहले आमंत्रण स्वीकार करें"
+
+#: templates/socialaccount/refused.html:32
+msgid ""
+"To konto powstało z zaproszenia. Zanim zalogujesz się w jakikolwiek sposób, "
+"otwórz link z listu z zaproszeniem, ustaw hasło i złóż wymagane zgody."
+msgstr "यह खाता आमंत्रण से बनाया गया है। किसी भी तरह से लॉग इन करने से पहले आमंत्रण ईमेल का लिंक खोलें, पासवर्ड सेट करें और आवश्यक सहमतियाँ दें।"
+
+#: templates/web/account/twofactor.html:61
+msgid ""
+"Twoje konto nie ma hasła – przepisz obecny adres, żeby potwierdzić "
+"wyłączenie."
+msgstr "आपके खाते का कोई पासवर्ड नहीं है – बंद करने की पुष्टि के लिए वर्तमान पता दोबारा लिखें।"
+
+#: templates/web/reviewer/detail.html:129
+msgid ""
+"Ta praca nie jest już Ci przydzielona – plik rozwiązania nie jest dostępny."
+msgstr "यह हल अब आपको असाइन नहीं है – हल की फ़ाइल उपलब्ध नहीं है।"

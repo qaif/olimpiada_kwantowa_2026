@@ -9477,3 +9477,70 @@ msgstr "Untuk sekolah/guru"
 #: apps/cms/context_processors.py
 msgid "Rejestracja nauczyciela"
 msgstr "Pendaftaran guru"
+
+# --- Audyt bezpieczeństwa 10.10.2026: nowe komunikaty ---
+#: apps/accounts/activation.py:492
+msgid ""
+"To konto zostało zablokowane przez organizatora. Skontaktuj się z "
+"organizatorem."
+msgstr "Akun ini telah diblokir oleh penyelenggara. Silakan hubungi penyelenggara."
+
+#: apps/accounts/activation.py:597
+msgid ""
+"To konto uruchamia się linkiem z listu z zaproszeniem. Poproś o ponowne "
+"wysłanie linku – przyjdzie zaproszenie."
+msgstr "Akun ini diaktifkan melalui tautan di email undangan. Minta tautan dikirim ulang – Anda akan menerima undangan."
+
+#: apps/accounts/delegation_services.py:1091
+#, python-format
+msgid "Zaproszenie wysłano niedawno. Kolejne można wysłać za %(minutes)s min."
+msgstr "Undangan baru saja dikirim. Undangan berikutnya dapat dikirim dalam %(minutes)s menit."
+
+#: apps/accounts/guardian.py:287
+msgid ""
+"Podaj adres rodzica lub opiekuna prawnego – nie adres opiekuna szkolnego."
+msgstr "Masukkan alamat orang tua atau wali sah – bukan alamat pembimbing sekolah."
+
+#: apps/accounts/profile.py:139
+msgid ""
+"Kraj ucznia delegacji wynika z delegacji – zmienia go opiekun drużyny albo "
+"organizator."
+msgstr "Negara siswa delegasi mengikuti delegasinya – yang dapat mengubahnya adalah ketua tim atau penyelenggara."
+
+#: apps/forum/services.py:408 apps/forum/services.py:478
+msgid "Ten dział jest zamknięty – nie można w nim pisać."
+msgstr "Bagian ini ditutup – Anda tidak dapat menulis di dalamnya."
+
+#: apps/quiz/services.py:439
+msgid "Wyniki tego etapu są już ogłoszone – testu nie można rozpocząć."
+msgstr "Hasil tahap ini sudah diumumkan – tes tidak dapat dimulai."
+
+#: apps/web/forms.py:1153 templates/web/account/twofactor.html:59
+msgid "Obecny adres e-mail konta"
+msgstr "Alamat email akun saat ini"
+
+#: apps/web/forms.py:1156
+msgid ""
+"Twoje konto nie ma hasła – przepisz obecny adres, żeby potwierdzić zmianę."
+msgstr "Akun Anda tidak memiliki kata sandi – ketik ulang alamat saat ini untuk mengonfirmasi perubahan."
+
+#: templates/socialaccount/refused.html:31
+msgid "Najpierw przyjmij zaproszenie"
+msgstr "Terima undangan terlebih dahulu"
+
+#: templates/socialaccount/refused.html:32
+msgid ""
+"To konto powstało z zaproszenia. Zanim zalogujesz się w jakikolwiek sposób, "
+"otwórz link z listu z zaproszeniem, ustaw hasło i złóż wymagane zgody."
+msgstr "Akun ini dibuat dari undangan. Sebelum masuk dengan cara apa pun, buka tautan di email undangan, atur kata sandi, dan berikan persetujuan yang diperlukan."
+
+#: templates/web/account/twofactor.html:61
+msgid ""
+"Twoje konto nie ma hasła – przepisz obecny adres, żeby potwierdzić "
+"wyłączenie."
+msgstr "Akun Anda tidak memiliki kata sandi – ketik ulang alamat saat ini untuk mengonfirmasi penonaktifan."
+
+#: templates/web/reviewer/detail.html:129
+msgid ""
+"Ta praca nie jest już Ci przydzielona – plik rozwiązania nie jest dostępny."
+msgstr "Jawaban ini tidak lagi ditugaskan kepada Anda – file jawaban tidak tersedia."

@@ -129,7 +129,10 @@ def test_reviewer_queue_no_longer_offers_the_old_version(entry, problem, graded)
 
     upload_new_version(entry, problem)
 
-    queue = list(reviews_for_reviewer(reviewer))
+    # Kolejka do pracy już tej recenzji nie oddaje (audyt S1), ale lista z zakładką „Anulowane”
+    # prosi o odebrane jawnie – i tam recenzent widzi powód.
+    assert list(reviews_for_reviewer(reviewer)) == []
+    queue = list(reviews_for_reviewer(reviewer, include_cancelled=True))
     assert [item.status for item in queue] == [ReviewStatus.CANCELLED]
     assert queue[0].cancel_reason == ReviewCancelReason.SUPERSEDED
 

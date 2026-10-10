@@ -2,6 +2,7 @@
 
 import pytest
 from django.urls import reverse
+from django.utils import timezone
 
 from apps.competitions.models import EditionEvent, StageEntryStatus
 from apps.competitions.tests.factories import EditionFactory, StageFactory
@@ -46,6 +47,8 @@ def publish(stage, rows=None) -> ResultsPublication:
             "district": "mazowieckie",
         }
     ]
+    # Znacznik na etapie razem z rekordem: dopiero oba naraz są ogłoszeniem „w mocy” (audyt S2).
+    type(stage).objects.filter(pk=stage.pk).update(results_published_at=timezone.now())
     return ResultsPublication.objects.create(stage=stage, anonymization=Anonymization.CODE, snapshot=snapshot)
 
 
@@ -189,6 +192,15 @@ def test_published_results_come_from_snapshot(authed, stage):
     # Województwo wychodzi pod angielską nazwą pola, bo cała odpowiedź jest angielska.
     assert row["voivodeship"] == "mazowieckie"
     assert "district" not in row
+
+
+def test_withdrawn_results_are_404_for_the_partner(authed, stage):
+    """Audyt 10.10.2026, S2: rekord publikacji zostaje po wycofaniu, ale tabela już nie istnieje."""
+    publish(stage)
+    type(stage).objects.filter(pk=stage.pk).update(results_published_at=None)
+    client, _ = authed(scopes=[SCOPE_READ_RESULTS], pii_allowed=False)
+
+    assert client.get(results_url(stage)).status_code == 404
 
 
 def test_results_are_paginated(authed, stage):

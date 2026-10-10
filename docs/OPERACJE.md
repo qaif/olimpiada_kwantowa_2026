@@ -929,6 +929,9 @@ brak w `CSRF_TRUSTED_ORIGINS` = odmowa na każdym formularzu. Wpisuje się ją *
 EXTRA_DOMAINS=olimpiadafizyczna.pl www.olimpiadafizyczna.pl
 ```
 
+(Bez cudzysłowu albo w cudzysłowie – obie formy działają w compose, w generatorze proxy i w skryptach
+kopii, które od 10.10.2026 czytają `.env` jako tekst przez `scripts/lib/env.sh` zamiast `. ./.env`.)
+
 Django dokłada stąd hosty do `DJANGO_ALLOWED_HOSTS` i origins `https://…` do
 `DJANGO_CSRF_TRUSTED_ORIGINS` samo (`config/settings/base.py`) — wpisanie ich wprost niczego nie
 psuje, wartości ręczne zostają na początku list. Potem:
@@ -3408,12 +3411,18 @@ Wiersze checklisty: `docs/SECURITY_CHECKLIST.md` 2.4, 2.9, 5.8–5.10, 9.2, 9.5�
 
 ### 24.1. Sieci compose'a
 
-| Sieć | Podsieć | `internal` | Członkowie | W `TRUSTED_PROXY_IPS` i `mynetworks` |
-|------|---------|------------|------------|--------------------------------------|
-| `edge` | 172.30.1.0/24 | nie | proxy, web, mail, monitor (+ `jitsi-web` z osobnego projektu) | tak |
-| `internal` | 172.30.2.0/24 | tak | proxy, web, worker, beat, db, minio, minio-init, clamav, mail, monitor, djcms | tak |
-| `cache` | 172.30.3.0/24 | tak | **redis**, web, worker, beat | **nie** |
-| `clamav_egress` | 172.30.4.0/24 | nie | **clamav** | **nie** |
+Stan od 10.10.2026 (audyt bezpieczeństwa, S20 – § 31): `TRUSTED_PROXY_IPS` to już nie podsieci,
+tylko dwa stałe adresy `proxy`, a `mynetworks` Postfiksa – wyłącznie sieć `mail`.
+
+| Sieć | Podsieć | `internal` | Członkowie | Zaufanie |
+|------|---------|------------|------------|----------|
+| `edge` | 172.30.1.0/24 | nie | proxy (**172.30.1.250**), web, monitor | `TRUSTED_PROXY_IPS`: tylko 172.30.1.250/32 |
+| `internal` | 172.30.2.0/24 | tak | proxy (**172.30.2.250**), web, worker, beat, db, minio, minio-init, clamav, monitor, djcms | `TRUSTED_PROXY_IPS` (web i djcms): tylko 172.30.2.250/32 |
+| `cache` | 172.30.3.0/24 | tak | **redis**, web, worker, beat | – |
+| `clamav_egress` | 172.30.4.0/24 | nie | **clamav** | – |
+| `mail` | 172.30.5.0/24 (`MAIL_SUBNET`) | tak | **mail**, web, worker, beat | `mynetworks` Postfiksa (cała podsieć) |
+| `mail_egress` | 172.30.6.0/24 | nie | **mail** | – |
+| `meet` | 172.30.7.0/24 | tak | proxy (+ `jitsi-web` z osobnego projektu, sieć `<projekt>_meet`) | – |
 
 - Redis wyszedł z `internal`: był tam osiągalny dla każdej usługi (minio, clamav, poczta, djcms,
   monitor), a jest i cache'em z serializacją `pickle` (zapis = wykonanie kodu przy odczycie), i brokerem
@@ -3424,7 +3433,7 @@ Wiersze checklisty: `docs/SECURITY_CHECKLIST.md` 2.4, 2.9, 5.8–5.10, 9.2, 9.5�
 - Projekty testowe obok deweloperskiego przesuwają podsieci: `docker-compose.e2e-djcms.yml`
   (172.31.1–4.0/24, zmienne `E2E_*_SUBNET`) i `scripts/tests/maintenance_pg18_rehearsal.sh`
   (172.30.81–84.0/24, `REHEARSAL_SUBNET_*`). Docker nie założy dwóch sieci na tej samej podsieci.
-- Pilnuje tego `scripts/tests/compose_profiles_test.sh` (przypadki 12–17).
+- Pilnuje tego `scripts/tests/compose_profiles_test.sh` (przypadki 10a–10c, 12–17).
 
 ### 24.2. Redis z hasłem
 
@@ -4010,3 +4019,127 @@ jest renderowany z `app_routes.env` osobno, trzeba go wyrenderować ponownie.
 Przestawienie trybu z powrotem na `OPEN` otwiera samodzielną rejestrację i ukrywa ekrany delegacji (404);
 dane delegacji, opiekunów i uczniów zostają w bazie. Migracje `accounts.0036`–`0038` i `tenancy.0013` są
 odwracalne (nowe tabele i kolumny nullowalne albo z wartością domyślną).
+
+## 31. Utwardzenie infrastruktury po audycie bezpieczeństwa (10.10.2026)
+
+Pełne opisy znalezisk: `docs/AUDYT-BEZPIECZENSTWA-2026-10-10.md` (W6, S16, S17, S19, S20, S21 i pozycje
+niskie z „Infrastruktura i operacje”). Tu – co się zmieniło w działaniu i co robi operator.
+
+### 31.1. Środowisko aplikacji: jawna lista zamiast całego `.env` (W6)
+
+`web`, `worker` i `beat` nie mają już `env_file: .env`. Dostają wyłącznie zmienne z kotwicy
+`x-app-env` w `docker-compose.yml` – to, co aplikacja czyta (`env(…)`/`os.environ` w `backend/config`
+i `backend/apps`, plus `backend/entrypoint.sh`). Wpis bez wartości (`NAZWA:`) bierze wartość z `.env`,
+a gdy jej tam nie ma, zmiennej w kontenerze nie ma wcale – dokładnie jak dawniej z `env_file`.
+
+Do kontenerów aplikacji **nie** trafiają: `BACKUP_*`, `REMOTE_*`, `MINIO_ROOT_*`, `POSTGRES_PASSWORD`
+(hasło jest w `DATABASE_URL`), `REDIS_PASSWORD` (jest w `REDIS_URL`), `DJCMS_SECRET_KEY`,
+`DJCMS_DB_PASSWORD`, `MAINTENANCE_BYPASS_TOKEN`. Produkcja wymaga więc kont serwisowych
+`S3_PUBLIC_*` i `S3_PRIVATE_*` (tworzy je `minio-init`, `scripts/deploy.sh` wpisuje je do `.env` od
+T-09) – bez nich `web` nie wstaje (`config/settings/production.py`). Sprawdzenie przed wdrożeniem:
+`grep -cE '^S3_(PUBLIC|PRIVATE)_(ACCESS|SECRET)_KEY=.' /opt/olimpiada/.env` musi dać 4.
+
+**Nowa zmienna w kodzie = nowa linijka w `x-app-env`.** Pilnuje tego `scripts/tests/compose_env_test.sh`
+(zmienna czytana, a nieprzekazana; sekret spoza aplikacji na liście; martwy wpis).
+
+### 31.2. Sieci i zaufane proxy (S20)
+
+- `proxy` ma stałe adresy: `172.30.1.250` w `edge` (`PROXY_EDGE_IP`) i `172.30.2.250` w `internal`
+  (`DJCMS_PROXY_IP` – nazwa sprzed tej zmiany, dawniej przypinana tylko nakładką djcms).
+- `TRUSTED_PROXY_IPS` domyślnie = te dwa adresy `/32`. `scripts/deploy.sh` (krok 4/8) usuwa z `.env`
+  dawną wartość domyślną `172.30.1.0/24,172.30.2.0/24`; wartość wpisaną ręcznie zostawia.
+- Postfix (`mail`) stoi wyłącznie w sieciach `mail` (z web, worker, beat; `MAIL_SUBNET`, domyślnie
+  172.30.5.0/24) i `mail_egress` (wyjście do MX-ów). `mynetworks` = `127.0.0.0/8` + `MAIL_SUBNET`.
+- `jitsi-web` (projekt `olimpiada-jitsi`) dołącza do sieci `<projekt>_meet` (tylko z proxy) zamiast
+  `<projekt>_edge`. Po wdrożeniu portalu **uruchom ponownie `scripts/deploy_jitsi.sh`** – wpisze
+  `PROXY_MEET_NETWORK` do `jitsi/.env` i odtworzy kontenery. Do tego czasu Jitsi działa dalej przez
+  `edge` (proxy jest w obu sieciach). Krok 2/8 wdrożenia nie kasuje już katalogu `jitsi/`.
+
+### 31.3. Proxy (Caddy 2.10) – S16, S18, S20
+
+- Obraz `caddy:2.10@sha256:…` (zamiast `caddy:2.8`), `read_only`, `cap_drop: [ALL]` +
+  `NET_BIND_SERVICE`, `no-new-privileges`, `/tmp` na tmpfs (walidacja w `proxy_config.sh`).
+- **Caddy ≥ 2.10 nie wystawia certyfikatu nazwie objętej blokiem `*.<domena>`** (zakłada certyfikat
+  wieloznaczny, a nasz `*.` jest on-demand). Przy `PLATFORM_SUBDOMAINS=1` generator dopisuje więc
+  w blokach nazw stałych `tls force_automate { key_type p256 }` – bez tego `www.`, `dj.`, `meet.`,
+  `monitor.` i `s3.` straciłyby certyfikat. Sprawdza to `scripts/tests/djcms_routing_test.sh`.
+- Limity odczytu żądania: `read_header 15s`, `read_body 600s` (cała treść; 25 MB w 600 s = ok.
+  0,33 Mbit/s). WebSocketów (Jitsi, Kuma) nie przerywają – sprawdzone na 2.10.
+- `request_buffers {$MAX_UPLOAD_MB}MiB` przy każdym `reverse_proxy` do web i djcms: treść żądania
+  w całości w pamięci Caddy'ego, zanim zajmie wątek gunicorna (slow-POST nie blokuje już 16 wątków).
+  **Koszt: pamięć proxy** – do ok. 26 MB na każdy trwający upload. 50 równoczesnych uploadów na
+  granicy limitu = ok. 1,3 GB RAM w kontenerze `proxy` (bez `mem_limit` – świadomie: zabity proxy to
+  awaria całego serwisu). Obserwuj `docker stats` w dniu terminu; przy podnoszeniu `MAX_UPLOAD_MB`
+  przelicz.
+- Do djcms idą wyłącznie ciasteczka `djcms_*` (`header_up Cookie`, przykład w
+  `scripts/render_caddyfile.sh`). Wiadomości jednorazowe Django (`messages`) djcms powinien trzymać
+  w sesji (`MESSAGE_STORAGE`) – inaczej po zapisaniu w panelu djcms komunikat „zapisano” się nie pokaże.
+- `ADMIN_ALLOWED_IPS` (opcjonalna, w `.env`): `/admin/`, `/cms/` (także `/<prefiks>/…`) i
+  `/djcms/admin/` tylko z podanych adresów/sieci, reszta 403. Pusta = bez ograniczeń.
+  Po zmianie: `bash scripts/proxy_config.sh update`.
+- Blok `meet.`: `X-Frame-Options: SAMEORIGIN`, `frame-ancestors 'self'` (pokoju z kamerą nie da się
+  wstawić w cudzą stronę).
+
+### 31.4. Ciasteczka `__Host-` (S19)
+
+Produkcja (`SESSION_COOKIE_SECURE`/`CSRF_COOKIE_SECURE` = 1) używa nazw `__Host-sessionid`
+i `__Host-csrftoken`. **Wdrożenie wylogowuje wszystkich** (stare `sessionid` nie jest czytane) –
+zaplanuj je poza godzinami testu/terminu i uprzedź komisję. Otwarte formularze sprzed wdrożenia
+dostaną raz błąd CSRF (odświeżenie strony pomaga). Dev po http (`*_COOKIE_SECURE=0`) – bez zmian.
+
+### 31.5. Kopie zapasowe (S17, W6)
+
+- `backup.sh`, `backup_verify.sh` i `restore.sh` czytają `.env` jako tekst (`scripts/lib/env.sh`),
+  nie `. ./.env`. Wartości ze spacją – z cudzysłowem albo bez; `$(…)` w wartości nic nie uruchamia.
+- Hasło roota MinIO idzie do `mc` przez `--env-file` (600), nie w argumentach `docker run`.
+- **Klucz do magazynu poza serwerem bez prawa kasowania (zalecane, jeszcze NIE włączone).** Dziś
+  `backup.sh` sam kasuje stare kopie (`rclone delete --min-age`, krok 4/5) i plik próbny
+  `--offsite-test`, więc klucz musi mieć `DeleteObject`. Kto przejmie serwer, przejmie ten klucz –
+  i może skasować kopie poza serwerem. Docelowo:
+  1. u dostawcy reguła cyklu życia (lifecycle) zamiast `rclone delete`: prefiks `daily/` – usuwanie
+     po 30 dniach, `monthly/` – po 365 (Backblaze B2: „Lifecycle Settings” kubełka,
+     `daysFromUploadingToHiding` + `daysFromHidingToDeleting`; S3/MinIO/Wasabi: `Expiration` per
+     prefiks); najlepiej z Object Lock (tryb compliance, 30 dni) – wtedy kopii nie skasuje nawet
+     właściciel klucza;
+  2. klucz aplikacyjny tylko `listBuckets`, `listFiles`, `readFiles`, `writeFiles` (B2) albo
+     `s3:PutObject`, `s3:GetObject`, `s3:ListBucket` (S3) – bez `deleteFiles`/`s3:DeleteObject`;
+  3. w skryptach: przełącznik pomijający retencję i kasowanie pliku próbnego (np.
+     `BACKUP_REMOTE_RETENTION=provider`) – **do zrobienia w kodzie**; z kluczem bez kasowania przed tą
+     zmianą każda noc kończy się `--failed` na kroku 4/5, a `--offsite-test` błędem.
+
+### 31.6. Wdrożenie (`scripts/deploy.sh`)
+
+- Krok 6/8: `manage.py migrate_documents_to_private --dry-run`, potem bez `--dry-run` – przenosi
+  dokumenty Wagtaila do prywatnego magazynu po migracji `cms.0032` (bez tego `/documents/…` nie
+  działa). Idempotentne; plan przeniesienia jest w logu wdrożenia.
+- `COORDINATOR_EMAIL`/`COORDINATOR_PASSWORD` idą na serwer przez stdin, nie w argumentach ssh.
+- Access log gunicorna maskuje tokeny w adresach (`config/gunicorn_logging.py`): `/activate/***/`,
+  `/reset/***/***/`, `?token=***` itd.
+
+### 31.7. Zależności (S21)
+
+- `backend/uv.lock` (commitowany) – obraz instaluje `uv sync --frozen --no-dev`. Zmiana zależności:
+  edycja `backend/pyproject.toml`, potem `uv lock` w `backend/` (aktualizacja jednego pakietu:
+  `uv lock --upgrade-package django`). CI sprawdza `uv lock --check`.
+- Obraz `runtime` bez narzędzi deweloperskich; dev (`docker-compose.dev.yml`) buduje etap `dev`.
+  Po tej zmianie lokalnie: `docker compose -f docker-compose.yml -f docker-compose.dev.yml build web`.
+- Obrazy bazowe (`python:3.14-slim-trixie`, `ghcr.io/astral-sh/uv:0.11.23`) przypięte skrótem –
+  łatki systemu bazowego to świadoma zmiana skrótu (`docker buildx imagetools inspect …`).
+- CI: zadanie `audit` (pip-audit na `uv.lock` backendu i djcms) – informacyjne, nie blokuje.
+- `uvicorn[standard]` usunięty (serwis jest WSGI).
+
+### 31.8. `scripts/pull_prod_data.sh`
+
+Zrzut bez danych `authtoken_token` i `django_session` (plus `TRUNCATE` lokalnie po imporcie); bucket
+`submissions` (prace uczestników) tylko z `--with-submissions`. Nagłówek skryptu – ostrzeżenie RODO.
+
+### 31.9. Kroki operatora przy pierwszym wdrożeniu tej wersji
+
+1. Sprawdź 4 klucze `S3_P…` w `.env` (§ 31.1). Jeśli `TRUSTED_PROXY_IPS` w `.env` ma wartość inną niż
+   dawna domyślna – zdecyduj, czy jest potrzebna (zwykle: usuń linijkę).
+2. Wdrożenie w oknie bez użytkowników (wylogowanie wszystkich – § 31.4). Proxy, web, worker, beat
+   i mail zostaną odtworzone (nowe sieci, nowe środowisko).
+3. Po wdrożeniu: `scripts/deploy_jitsi.sh` (sieć `meet`, § 31.2), jeśli Jitsi jest używane.
+4. Sprawdź pocztę (reset hasła na koncie testowym – Postfix w nowej sieci) i certyfikaty:
+   `https://www.<domena>/`, `https://meet.<domena>/` (przy `PLATFORM_SUBDOMAINS=1` – § 31.3).
+5. Opcjonalnie: `ADMIN_ALLOWED_IPS` (§ 31.3) i klucz kopii bez kasowania (§ 31.5, po zmianie skryptu).

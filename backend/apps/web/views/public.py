@@ -426,8 +426,10 @@ class PublicResultsView(TemplateView):
         # Zawężenie jest **tutaj**, a nie w serwisie, bo serwis woła też panel uczestnika, gdzie
         # etap przychodzi już z jego wpisu. Bez niego ten adres byłby najtańszą drogą do cudzych
         # wyników: nie wymaga logowania, a identyfikatory etapów są kolejne.
+        # ``live()``: wycofane ogłoszenie to 404, tak samo jak etap bez publikacji (audyt S2).
         publication = (
-            ResultsPublication.objects.for_competition(self.request.competition)
+            ResultsPublication.objects.live()
+            .for_competition(self.request.competition)
             .select_related("stage", "stage__edition")
             .filter(stage_id=stage_id)
             .first()

@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Iterator
+from html import escape
 from io import BytesIO
 
 from django.utils import timezone
@@ -257,8 +258,12 @@ def render_stage_protocol(stage) -> bytes:
 
     story = [
         Paragraph("Protokół z przebiegu etapu – Olimpiada Kwantowa", title_style),
+        # ``Paragraph`` czyta tekst jak mini-HTML: nazwa etapu czy etykieta edycji z ``<`` albo ``&``
+        # wywracała pobranie pięćsetką, a ``<img src="/ścieżka">`` kazała otworzyć plik z dysku
+        # serwera (audyt 10.10.2026). Escape'ujemy wartości, nie znaczniki składu (``<br/>``).
         Paragraph(
-            f"Edycja: {stage.edition.year_label}<br/>Etap: {stage.display_name}<br/>"
+            f"Edycja: {escape(stage.edition.year_label, quote=False)}<br/>"
+            f"Etap: {escape(stage.display_name, quote=False)}<br/>"
             f"Liczba uczestników: {len(rows)}<br/>Zakwalifikowanych: {len(qualified)}<br/>"
             f"Protokół sporządzono: {timezone.localtime().strftime('%Y-%m-%d %H:%M')}",
             meta_style,
@@ -503,9 +508,12 @@ def render_logistics_list(stage, kind: str, *, include_deleted: bool = True) -> 
     )
 
     story = [
-        Paragraph(title, title_style),
+        # Tytuł bywa z szablonu konkursu (``DocumentTemplate``), a wartości – od koordynatora; oba są
+        # tekstem, nie znacznikami ReportLaba (patrz protokół etapu wyżej).
+        Paragraph(escape(title, quote=False), title_style),
         Paragraph(
-            f"Edycja: {stage.edition.year_label}<br/>Etap: {stage.display_name}<br/>"
+            f"Edycja: {escape(stage.edition.year_label, quote=False)}<br/>"
+            f"Etap: {escape(stage.display_name, quote=False)}<br/>"
             f"Liczba osób na liście: {len(rows)}<br/>"
             f"Listę sporządzono: {timezone.localtime().strftime('%Y-%m-%d %H:%M')}",
             meta_style,
@@ -539,7 +547,7 @@ def edition_export(edition) -> dict:
     stages = list(edition.stages.order_by("opens_at", "id").prefetch_related("problems"))
     publications = {
         publication.stage_id: publication
-        for publication in ResultsPublication.objects.filter(stage__edition=edition)
+        for publication in ResultsPublication.objects.live().filter(stage__edition=edition)
     }
     entries_by_stage: dict[int, list[dict]] = {stage.pk: [] for stage in stages}
     for row in _entry_rows([stage.pk for stage in stages]):

@@ -51,8 +51,17 @@ if SECRET_KEY == "insecure-dev-key-change-me" or len(SECRET_KEY) < 50:  # noqa: 
     raise ImproperlyConfigured(
         "DJANGO_SECRET_KEY musi być ustawiony (min. 50 znaków) w środowisku produkcyjnym."
     )
-if not S3_ACCESS_KEY or not S3_SECRET_KEY:
-    raise ImproperlyConfigured("MINIO_ROOT_USER/MINIO_ROOT_PASSWORD (lub konta serwisowe S3_*) są wymagane.")
+# Wymagane są poświadczenia OBU bucketów: konta serwisowe ``S3_PUBLIC_*`` i ``S3_PRIVATE_*`` albo – na
+# instalacji sprzed ich rozdzielenia – ``MINIO_ROOT_*`` (``_bucket_credentials`` w base.py schodzi na
+# nie sam). Od 10.10.2026 (audyt bezpieczeństwa, W6) compose NIE przekazuje ``MINIO_ROOT_*`` do
+# web/worker/beat, więc dawny warunek „jest konto root” zatrzymywałby każdą poprawnie rozdzieloną
+# instalację – sprawdzamy to, czego storage naprawdę użyje.
+if not (S3_PUBLIC_ACCESS_KEY and S3_PUBLIC_SECRET_KEY and S3_PRIVATE_ACCESS_KEY and S3_PRIVATE_SECRET_KEY):
+    raise ImproperlyConfigured(
+        "Brak poświadczeń storage: ustaw konta serwisowe S3_PUBLIC_ACCESS_KEY/S3_PUBLIC_SECRET_KEY "
+        "i S3_PRIVATE_ACCESS_KEY/S3_PRIVATE_SECRET_KEY (tworzy je minio-init) albo – na instalacji "
+        "sprzed ich rozdzielenia – MINIO_ROOT_USER/MINIO_ROOT_PASSWORD."
+    )
 
 # Sekrety z .env.example (audyt z 1.10.2026) – ta sama zasada co DJANGO_SECRET_KEY wyżej, więc też
 # bezwarunkowo: instalacja postawiona z przykładowego pliku bez podmiany haseł ma hasło bazy i klucze
@@ -121,6 +130,24 @@ SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 SESSION_COOKIE_SECURE = env.bool("SESSION_COOKIE_SECURE", default=not DEBUG)
 CSRF_COOKIE_SECURE = env.bool("CSRF_COOKIE_SECURE", default=not DEBUG)
 SESSION_COOKIE_HTTPONLY = True
+# Prefiks ``__Host-`` (audyt bezpieczeństwa 10.10.2026, S19): przeglądarka przyjmuje takie ciasteczko
+# WYŁĄCZNIE z ``Secure``, ``Path=/`` i bez ``Domain`` – czyli kod na sąsiedniej subdomenie (Jitsi
+# pod ``meet.``, Uptime Kuma pod ``monitor.``, konkurs pod ``<slug>.``) nie podrzuci nam ani sesji
+# (zalogowanie ofiary na konto napastnika), ani tokenu CSRF z ``Domain=.<domena>``: ciasteczka
+# bez prefiksu o tej nazwie aplikacja po prostu nie czyta. Warunki są spełnione: ``Path`` domyślne
+# (``/``), ``SESSION_COOKIE_DOMAIN``/``CSRF_COOKIE_DOMAIN`` nieustawione (base.py), ``Secure`` – tutaj.
+# Tylko przy ``Secure``: dev po http (``SESSION_COOKIE_SECURE=0`` w .env) z prefiksem nie dostałby
+# ciasteczka wcale. Zmiana nazwy = jednorazowe wylogowanie wszystkich przy wdrożeniu (stare
+# ``sessionid`` nie jest już czytane) i nowy token CSRF przy pierwszym wejściu. JavaScript, który
+# czyta token z ciasteczka (static/js/quiz.js, review-worklog.js), zna obie nazwy.
+if SESSION_COOKIE_SECURE:
+    SESSION_COOKIE_NAME = "__Host-sessionid"
+if CSRF_COOKIE_SECURE:
+    CSRF_COOKIE_NAME = "__Host-csrftoken"
+# Ciasteczko języka (``django_language``, przełącznik języka gościa) tak jak w djcms: tylko po TLS
+# i bez dostępu ze skryptu – żaden kod strony go nie czyta (preferencja wraca z serwera).
+LANGUAGE_COOKIE_SECURE = SESSION_COOKIE_SECURE
+LANGUAGE_COOKIE_HTTPONLY = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 # Zostaje DENY: podgląd strony w /cms/ jest jedynym miejscem, które potrzebuje ramki, a Wagtail
 # nadpisuje nagłówek na SAMEORIGIN sam (``xframe_options_sameorigin_override`` w widoku podglądu).

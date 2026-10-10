@@ -44,7 +44,10 @@ dependencies = [
     # ``[tool.uv]`` mają wypaść razem.
     "django-celery-beat>=2.9,<2.10",
     "gunicorn>=23.0,<24.0",
-    "uvicorn[standard]>=0.30,<0.36",
+    # Bez ``uvicorn`` (do 10.10.2026 stał tu ``uvicorn[standard]``): serwis chodzi wyłącznie na WSGI
+    # (gunicorn gthread – komentarz przy ``web`` w docker-compose.yml), a nic w kodzie go nie
+    # importuje. Nieużywany serwer ASGI z ``uvloop``/``httptools``/``websockets`` w obrazie
+    # produkcyjnym to wyłącznie dodatkowy kod do łatania (audyt bezpieczeństwa 10.10.2026, S21).
     "django-storages[s3]>=1.14,<1.15",
     "boto3>=1.35,<2.0",
     "nbformat>=5.10,<6.0",

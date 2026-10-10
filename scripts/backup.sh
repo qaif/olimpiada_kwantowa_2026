@@ -77,12 +77,12 @@ log() { printf '==> %s\n' "$*"; }
 die() { printf 'BŁĄD: %s\n' "$*" >&2; exit 1; }
 
 [ -f .env ] || die "brak pliku .env w $REPO_DIR"
-# `set -a` zamiast czytania pliku linia po linii: .env jest w formacie klucz=wartość bez cudzysłowów
-# (tworzy go scripts/deploy.sh), a docker compose czyta go tak samo.
-set -a
-# shellcheck disable=SC1091
-. ./.env
-set +a
+# .env czytany jako tekst (scripts/lib/env.sh), a nie wykonywany `. ./.env` (do 10.10.2026): wartość
+# ze spacją bez cudzysłowu – a tak wpisuje ją .env.example – kończyła kopię kodem 127, a `$(…)`
+# w wartości było poleceniem uruchamianym przez roota z crona (audyt bezpieczeństwa, S17).
+# shellcheck source=lib/env.sh
+. "${SCRIPT_DIR}/lib/env.sh"
+env_load .env
 
 # shellcheck source=lib/backup_offsite.sh
 . "${SCRIPT_DIR}/lib/backup_offsite.sh"
@@ -245,9 +245,14 @@ NETWORK="$(compose_network)"
 
 log "2/5 Lustro kubełków MinIO (sieć ${NETWORK})"
 mkdir -p "${WORK_DIR}/buckets"
-docker run --rm --network "$NETWORK" \
+# Adres z hasłem roota MinIO przez plik `--env-file` (600, w katalogu roboczym 700 sprzątanym przez
+# `trap`), a nie `-e MC_HOST_src=http://root:hasło@…` w argumentach: argumenty `docker run` widzi
+# `ps` każdego konta na serwerze przez cały czas lustra (audyt 10.10.2026). W `docker inspect`
+# kontenera zmienna i tak jest – ale tam widzi ją wyłącznie root, a kontener żyje minuty.
+( umask 077 && printf 'MC_HOST_src=http://%s:%s@minio:9000\n' "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" \
+    > "${WORK_DIR}/mc.env" )
+docker run --rm --network "$NETWORK" --env-file "${WORK_DIR}/mc.env" \
     -v "${WORK_DIR}/buckets:/backup" \
-    -e MC_HOST_src="http://${MINIO_ROOT_USER}:${MINIO_ROOT_PASSWORD}@minio:9000" \
     -e MC_QUIET=1 -e MC_NO_COLOR=1 \
     --entrypoint sh "$MC_IMAGE" -c '
         set -e

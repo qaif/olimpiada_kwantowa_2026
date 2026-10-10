@@ -27,7 +27,7 @@ from datetime import timedelta
 from decimal import Decimal
 
 from django.db import transaction
-from django.db.models import Prefetch
+from django.db.models import Prefetch, Q
 from django.utils import timezone
 from django.utils.translation import gettext as _
 from rest_framework import status as http
@@ -125,6 +125,23 @@ def _lock_attempt(attempt: QuizAttempt) -> None:
         if not field.is_relation and not field.primary_key
     ]
     attempt.refresh_from_db(fields=own_fields, from_queryset=QuizAttempt.objects.select_for_update())
+    _refresh_stage_state(attempt.quiz)
+
+
+def _refresh_stage_state(quiz: Quiz) -> None:
+    """Odświeża znaczniki etapu, od których zależy „czy test jeszcze trwa” (audyt 10.10.2026, S3).
+
+    ``closed_at`` (ręczne „Zamknij etap”), ``results_published_at`` i ``deadline_at`` czytamy z bazy
+    w chwili decyzji, a nie z obiektu, który widok wczytał na początku żądania: autozapis, który
+    przeczytał etap sekundę przed zamknięciem, nie może po nim dopisać odpowiedzi. Wiersza etapu
+    celowo **nie blokujemy** – autozapis kilkuset uczestników co 20 s szeregowałby się wtedy na
+    jednym wierszu. Wystarcza świeży odczyt w transakcji z blokadą podejścia: zamknięcie etapu
+    domyka podejścia pod tą samą blokadą (``finalise_overdue``), więc po nim żadna decyzja
+    „wolno zapisać” już nie zapadnie.
+    """
+    if Quiz.stage.is_cached(quiz):
+        quiz.stage.refresh_from_db(fields=["closed_at", "results_published_at", "deadline_at"])
+    # Gdy etapu nie ma w pamięci, pierwszy odczyt ``quiz.stage`` i tak wczyta go z bazy.
 
 
 # --- edytor testu -----------------------------------------------------------------------------
@@ -399,6 +416,9 @@ def start_attempt(*, quiz: Quiz, entry: StageEntry, now=None, request=None) -> Q
     # Dyskwalifikacja przed wszystkim innym, także przed powrotem do trwającego podejścia: żadna
     # z dalszych odpowiedzi („test zamknięty”, „limit podejść”) nie jest dla tej osoby prawdziwa.
     _assert_entry_not_disqualified(entry.pk)
+    # Stan etapu z bazy, nie z obiektu wczytanego przez widok: „Zamknij etap” kliknięte w trakcie
+    # żądania ma działać od razu (audyt S3).
+    _refresh_stage_state(quiz)
     questions = _questions_with_options(quiz)
     if not questions:
         raise _conflict(_("Ten test nie ma jeszcze pytań."), "QUIZ_EMPTY")
@@ -411,11 +431,18 @@ def start_attempt(*, quiz: Quiz, entry: StageEntry, now=None, request=None) -> Q
             return open_attempt
         expire_attempt(open_attempt, now=now)
 
+    if _results_were_published(quiz):
+        # Tabela etapu jest (albo była) ogłoszona – klucz odpowiedzi przestał być tajemnicą, a nowe
+        # podejście dopisałoby się do wyników po fakcie (audyt S3). Rekord publikacji, a nie sam
+        # znacznik na etapie: wycofanie ogłoszenia nie cofa tego, co już przeczytano.
+        raise _conflict(
+            _("Wyniki tego etapu są już ogłoszone – testu nie można rozpocząć."), "QUIZ_RESULTS_PUBLISHED"
+        )
     if not quiz.is_open(now):
         opens, closes = quiz.window
         raise _conflict(
             _("Test jest zamknięty.")
-            if now >= closes
+            if now >= closes or quiz.stage_finished
             else _("Test otwiera się %(when)s.") % {"when": f"{timezone.localtime(opens):%Y-%m-%d %H:%M}"},
             "QUIZ_CLOSED",
         )
@@ -441,6 +468,13 @@ def start_attempt(*, quiz: Quiz, entry: StageEntry, now=None, request=None) -> Q
     )
     logger.info("quiz.attempt_started quiz=%s entry=%s attempt=%s", quiz.pk, entry.pk, attempt.pk)
     return attempt
+
+
+def _results_were_published(quiz: Quiz) -> bool:
+    """Czy etap testu ma rekord ogłoszenia wyników. Import lokalny – ``apps.results`` woła quiz."""
+    from apps.results.models import ResultsPublication
+
+    return ResultsPublication.objects.filter(stage_id=quiz.stage_id).exists()
 
 
 def _client_ip(request) -> str | None:
@@ -619,7 +653,12 @@ def expire_attempt(attempt: QuizAttempt, *, now=None) -> QuizAttempt:
     if not attempt.is_open:
         return attempt
     attempt.status = AttemptStatus.EXPIRED
-    attempt.submitted_at = min(now, attempt.deadline_at)
+    # Koniec pisania to najwcześniejszy z: terminu podejścia, ręcznego zamknięcia etapu (S3)
+    # i chwili obecnej – podejście przerwane „Zamknij etap” skończyło się wtedy, a nie w terminie.
+    ends = [now, attempt.deadline_at]
+    if attempt.quiz.stage.closed_at is not None:
+        ends.append(attempt.quiz.stage.closed_at)
+    attempt.submitted_at = max(min(ends), attempt.started_at)
     attempt.save(update_fields=["status", "submitted_at"])
     grade_attempt(attempt)
     logger.info("quiz.attempt_expired attempt=%s", attempt.pk)
@@ -648,7 +687,20 @@ def finalise_overdue(
         queryset = queryset.filter(quiz__stage=stage)
     if entry is not None:
         queryset = queryset.filter(entry=entry)
-    overdue = list(queryset.filter(deadline_at__lt=now - timedelta(seconds=SUBMIT_GRACE_SECONDS)))
+    # Po terminie podejścia **albo** w etapie zamkniętym ręcznie (audyt S3): „Zamknij etap” kończy
+    # trwające podejścia od razu, a nie dopiero, gdy minie ich własny licznik. Przeliczenie wyników
+    # i ekran koordynatora wołają to przejście przed odczytem punktów, więc podejście przerwane
+    # zamknięciem wchodzi do ``stage_scores`` z tym, co zdążyło się zapisać.
+    # Ta sama tolerancja sieciowa, co w ``QuizAttempt.accepts_answers_at`` – liczona od
+    # wcześniejszego z: terminu podejścia i zamknięcia etapu.
+    cutoff = now - timedelta(seconds=SUBMIT_GRACE_SECONDS)
+    overdue = list(
+        queryset.filter(
+            Q(deadline_at__lt=cutoff)
+            | Q(quiz__stage__closed_at__lt=cutoff)
+            | Q(quiz__stage__results_published_at__isnull=False)
+        ).select_related("quiz__stage")
+    )
     closed = 0
     for attempt in overdue:
         # Każde podejście osobno: ``expire_attempt`` jest atomowe, więc błąd cofa tylko jego

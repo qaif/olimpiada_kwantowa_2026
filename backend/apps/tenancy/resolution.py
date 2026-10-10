@@ -278,6 +278,48 @@ def platform_subdomain_miss(request, competition) -> bool:
     return competition is None
 
 
+def dormant_host_miss(request, competition) -> bool:
+    """Czy host żądania należy do konkursu, który **nie** odpowiada – nieaktywnego albo z aliasem bez treści.
+
+    Audyt S13 (10.10.2026). Witryna wyłączonego konkursu (albo alias językowy konkursu bez
+    ``content_translations``) rozstrzyga się do ``Resolution(None)``, a ``request.competition=None``
+    znaczyło dotąd „zachowanie sprzed wielokonkursowości”: role z globalnych grup Django i listy kont
+    **wszystkich** konkursów. Koordynator konkursu B zalogowany pod domeną wyłączonego konkursu A
+    działał więc na kontach całej instalacji. :func:`platform_subdomain_miss` zamykał to wyłącznie dla
+    subdomen platformy; ta reguła obejmuje **każdą** domenę – także ``EXTRA_DOMAINS`` i domeny
+    organizatorów – bo o tym, że host jest „czyjś”, mówi baza (witryna konkursu albo alias), a nie
+    kształt nazwy.
+
+    Warunki, od najtańszego:
+
+    1. konkurs nie został rozstrzygnięty (inaczej: **zero** instrukcji poza porównaniem z ``None``,
+       więc zwykłe żądanie Konkursu #1 nie płaci za tę regułę ani jednym zapytaniem),
+    2. adres nie jest wewnętrzny (``/internal/`` celowo nie ma konkursu – patrz warstwa),
+    3. witryna została dopasowana **po nazwie hosta**, a nie zastępczo jako witryna domyślna.
+       Zastępcza witryna domyślna to ścieżka dewelopera i healthchecka (``localhost``,
+       ``127.0.0.1``, ``web``) – tam host nie należy do nikogo i 404 byłby diagnozą fałszywą,
+    4. pod tą witryną stoi konkurs (dowolny – aktywny by się rozstrzygnął) albo alias konkursu.
+       Witryna bez żadnego konkursu (np. założona w ``/cms/`` na zapas) zostaje jak dotąd.
+
+    Czwarty warunek kosztuje jedno zapytanie, ale wyłącznie w gałęzi ``None`` pod hostem
+    z własną witryną – czyli właśnie tam, gdzie odpowiedzią ma być 404.
+    """
+    if competition is not None or request.path_info.startswith(INTERNAL_URL_PREFIX):
+        return False
+    host = request_host(request)
+    if not host:
+        return False
+    try:
+        site = getattr(request, "competition_host_site", None) or Site.find_for_request(request)
+        if site is None or _normalise_host(site.hostname) != host:
+            return False
+        return Competition.objects.filter(Q(site=site) | Q(site_aliases__site=site)).exists()
+    except DatabaseError, DisallowedHost:  # pragma: no cover - baza bez witryn
+        # Jak w ``platform_subdomain_miss``: awaria bazy nie jest powodem do 404. Panele i tak
+        # zamyka bramka ról (``apps.web.mixins.RoleRequiredMixin``) – bez konkursu nie wpuszcza.
+        return False
+
+
 def request_host(request) -> str:
     """Host żądania bez portu, małymi literami. Pusty napis = „nie da się go odczytać”."""
     try:

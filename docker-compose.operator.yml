@@ -48,3 +48,12 @@ services:
       clamav:
         condition: service_healthy
         required: false
+    environment:
+      # Bez ClamAV-a skan mediów redakcyjnych (dokumenty i obrazy w /cms/) odmawiałby każdego pliku –
+      # domyślnie wyłączony. Przy `--profile full` (ClamAV jest) wpisz do .env CMS_MEDIA_AV_SCAN=1.
+      CMS_MEDIA_AV_SCAN: ${CMS_MEDIA_AV_SCAN:-0}
+
+  # `web` przyjmuje uploady redaktorów (skan w żądaniu), więc ten sam przełącznik co `worker`.
+  web:
+    environment:
+      CMS_MEDIA_AV_SCAN: ${CMS_MEDIA_AV_SCAN:-0}

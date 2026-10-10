@@ -441,9 +441,16 @@ def reset_by_coordinator(user, *, actor, request=None) -> bool:
     Kod zapasowy jest drogą pierwszą, a ta – drugą. Dlatego reset zostawia konto **bez** drugiego
     składnika (a nie z nowym sekretem): człowiek, który stracił telefon, ma po tym wejść hasłem
     i skonfigurować 2FA od nowa na nowym urządzeniu.
+
+    Odmowy (audyt 10.10.2026, S7 i W3) są w serwisie, a nie tylko w widoku: konto własne, konto
+    chronione (koordynator, superkoordynator, operator) i konto z rolą w innym konkursie. Zdjęcie
+    drugiego składnika z konta operatora razem z wyciekiem jego hasła jest przejęciem tego konta –
+    a drugi składnik istnieje właśnie po to, żeby sam wyciek hasła nie wystarczał.
     """
+    from apps.accounts.profile import assert_coordinator_may_secure
     from apps.core.models import audit
 
+    assert_coordinator_may_secure(user, actor=actor)
     device = device_for(user)
     if device is None:
         return False

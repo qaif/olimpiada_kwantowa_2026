@@ -41,8 +41,20 @@ class ReviewerOnlyView(APIView):
         return Response({"ok": True})
 
 
+def _bound_competition():
+    """Konkurs, który w żądaniu ustawiłby ``CompetitionMiddleware`` – tu: z kontekstu testu.
+
+    Klasy uprawnień bez konkursu odmawiają zawsze (audyt 10.10.2026, S13), więc żądanie zbudowane
+    z pominięciem warstwy musi dostać konkurs jawnie – inaczej każdy test byłby testem tej odmowy.
+    """
+    from apps.tenancy.context import current_competition
+
+    return current_competition()
+
+
 def _call(view_class, user):
     request = APIRequestFactory().get("/test/")
+    request.competition = _bound_competition()
     force_authenticate(request, user=user)
     return view_class.as_view()(request)
 
@@ -147,6 +159,7 @@ def test_klasy_uprawnien_rozrozniaja_role():
     def allows(permission, user) -> bool:
         request = factory.get("/test/")
         request.user = user
+        request.competition = _bound_competition()
         return permission().has_permission(request, None)
 
     assert [allows(IsParticipant, u) for u in (participant, reviewer, appeals, coordinator)] == [
@@ -180,6 +193,8 @@ def test_superuser_nie_jest_automatycznie_koordynatorem():
     """Brak cichej eskalacji: superuser bez grupy `coordinator` nie przechodzi IsCoordinator."""
     request = APIRequestFactory().get("/test/")
     request.user = UserFactory(is_staff=True, is_superuser=True)
+    # Z konkursem – inaczej odmowa wynikałaby z braku konkursu (S13), a nie z braku eskalacji.
+    request.competition = _bound_competition()
     assert IsCoordinator().has_permission(request, None) is False
 
 

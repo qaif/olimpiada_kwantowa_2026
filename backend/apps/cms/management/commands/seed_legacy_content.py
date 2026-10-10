@@ -103,7 +103,7 @@ przed I edycją), ``zadania``
   narzędzia w finale, okres poufności) – patrz README, „Decyzje do podjęcia przez właściciela”.
 
 - **polityka plików cookie** (``/dokumenty/cookies/``) jest nasza, ale – inaczej niż dwa dokumenty
-  powyżej – **obowiązuje**: opisuje stan faktyczny serwisu (``sessionid``, ``csrftoken``,
+  powyżej – **obowiązuje**: opisuje stan faktyczny serwisu (``__Host-sessionid``, ``__Host-csrftoken``,
   ``wagtail_sidebar_collapsed``, klucze ``cookie-consent``/``cookie-consent-at``/
   ``cookie-notice-ack`` paska zgody oraz ``_ga``/``_ga_…`` zapisywane dopiero po zgodzie),
   więc nie ma czego zatwierdzać, jest co utrzymywać w zgodzie z kodem. Zmiana zestawu

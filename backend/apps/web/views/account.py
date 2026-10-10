@@ -23,7 +23,8 @@ from __future__ import annotations
 from django.contrib import messages
 from django.contrib.auth import logout
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.http import FileResponse
+from django.core.cache import cache
+from django.http import FileResponse, HttpResponse
 from django.shortcuts import redirect
 from django.urls import reverse, reverse_lazy
 from django.utils.translation import gettext_lazy
@@ -43,6 +44,7 @@ from apps.accounts.profile import (
     request_email_change,
     update_own_names,
     update_participant_profile,
+    verify_account_credentials,
     verify_self_deletion_credentials,
 )
 from apps.accounts.services import participant_for
@@ -148,12 +150,19 @@ class ParticipantProfileView(ParticipantRequiredMixin, ServiceFormMixin, FormVie
     def get_initial(self) -> dict:
         return participant_profile_initial(self.participant)
 
+    def get_form_kwargs(self) -> dict:
+        # Profil idzie do formularza, bo od niego zależy zestaw pól: uczeń delegacji nie ma pola
+        # kraju (S9 – kraj wynika z delegacji, ``district_follows_delegation``).
+        kwargs = super().get_form_kwargs()
+        kwargs["participant"] = self.participant
+        return kwargs
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["participant"] = self.participant
         # Formularz zmiany adresu stoi na tej samej stronie, ale wysyła się pod własny adres:
         # to osobna operacja z osobnym potwierdzeniem, a nie kolejne pole tych danych.
-        context.setdefault("email_form", EmailChangeForm())
+        context.setdefault("email_form", EmailChangeForm(user=self.request.user))
         context["two_factor_enabled"] = two_factor_section_visible()
         context.update(forum_notification_context(self.request))
         context.update(chat_preferences_context(self.request))
@@ -188,7 +197,7 @@ class AccountProfileView(LoginRequiredMixin, ServiceFormMixin, FormView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["committee"] = getattr(self.request.user, "committee_member", None)
-        context.setdefault("email_form", EmailChangeForm())
+        context.setdefault("email_form", EmailChangeForm(user=self.request.user))
         context["two_factor_enabled"] = two_factor_section_visible()
         context.update(forum_notification_context(self.request))
         context.update(chat_preferences_context(self.request))
@@ -203,7 +212,13 @@ class EmailChangeView(LoginRequiredMixin, ThrottledFormMixin, ServiceFormMixin, 
 
     Limit ze scope'em ``password_reset``: formularz wysyła list na adres podany przez użytkownika,
     więc bez ograniczenia byłby wysyłaczem wiadomości na cudze skrzynki – tak samo jak reset hasła,
-    tylko za logowaniem (co samo nie jest ograniczeniem, bo konto zakłada się w minutę).
+    tylko za logowaniem (co samo nie jest ograniczeniem, bo konto zakłada się w minutę). Ten sam
+    limit ogranicza zgadywanie bieżącego hasła, którego formularz wymaga.
+
+    Bieżące hasło (konto bez hasła: przepisanie obecnego adresu) od audytu 10.10.2026 (S11):
+    przejęta sesja przenosiła konto na adres napastnika – potwierdzenie przychodziło na **jego**
+    skrzynkę, a stamtąd „Nie pamiętasz hasła?” domykało przejęcie. Reguła jest ta sama, co przy
+    usuwaniu konta (``verify_account_credentials``).
     """
 
     template_name = "web/account/email_change.html"
@@ -217,6 +232,11 @@ class EmailChangeView(LoginRequiredMixin, ThrottledFormMixin, ServiceFormMixin, 
     def get_success_url(self) -> str:
         return profile_url(self.request)
 
+    def get_form_kwargs(self) -> dict:
+        kwargs = super().get_form_kwargs()
+        kwargs["user"] = self.request.user
+        return kwargs
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         # Odnośnik „Wróć do edycji danych” liczy widok, a nie szablon: ``user.participant``
@@ -226,6 +246,11 @@ class EmailChangeView(LoginRequiredMixin, ThrottledFormMixin, ServiceFormMixin, 
         return context
 
     def call_service(self, form):
+        verify_account_credentials(
+            self.request.user,
+            password=form.cleaned_data.get("password") or "",
+            email=form.cleaned_data.get("current_email") or "",
+        )
         request_email_change(
             self.request.user, new_email=form.cleaned_data["new_email"], request=self.request
         )
@@ -260,7 +285,7 @@ class EmailChangeConfirmView(TemplateView):
         return context
 
 
-def send_export(request, user, *, actor=None) -> FileResponse:
+def send_export(request, user, *, actor=None, competition=None) -> HttpResponse:
     """Buduje paczkę danych konta, zostawia wpis audytowy i oddaje ją jako plik do pobrania.
 
     Wspólna dla obu wejść (właściciel konta i koordynator), bo to jedna czynność: różni je
@@ -270,10 +295,43 @@ def send_export(request, user, *, actor=None) -> FileResponse:
 
     ``as_attachment``: paczka ma się **zapisać**, a nie otworzyć w karcie. ``FileResponse`` zamyka
     strumień po wysłaniu, więc plik tymczasowy znika także wtedy, gdy klient zerwie połączenie.
+
+    ``competition`` podaje wyłącznie wejście koordynatora (audyt 10.10.2026, S8): organizator
+    jednego konkursu wydaje dane przetwarzane **w tym** konkursie, a nie wpisy i wiadomości
+    z sąsiedniej olimpiady. Właściciel konta dostaje komplet – pyta o siebie, a nie o konkurs.
+
+    Paczka ponad ``PACKAGE_MAX_BYTES`` (audyt 10.10.2026, S15) kończy się komunikatem i powrotem na
+    stronę, z której przyszło żądanie – nie stroną błędu i nie paczką urwaną w połowie.
     """
-    archive = build_export_zip(user)
+    from apps.core.packages import PackageTooLarge
+
+    try:
+        archive = build_export_zip(user, competition=competition)
+    except PackageTooLarge as exc:
+        messages.error(request, str(exc.detail))
+        return redirect(_safe_referer(request) or reverse("web:account-profile"))
     audit_export(user, archive, actor=actor or user, request=request)
     return FileResponse(archive.stream, as_attachment=True, filename=export_filename(user))
+
+
+def _safe_referer(request) -> str:
+    """Adres strony, z której przyszło żądanie – wyłącznie z tego samego serwisu."""
+    from django.utils.http import url_has_allowed_host_and_scheme
+
+    referer = request.META.get("HTTP_REFERER", "")
+    if referer and url_has_allowed_host_and_scheme(
+        referer, allowed_hosts={request.get_host()}, require_https=request.is_secure()
+    ):
+        return referer
+    return ""
+
+
+#: Blokada „eksport tego konta właśnie się buduje”. Dłuższa niż najdłuższa rozsądna budowa paczki
+#: (limit ``PACKAGE_MAX_BYTES``), żeby nie wygasła w trakcie; zdejmowana zaraz po budowie.
+EXPORT_LOCK_SECONDS = 300
+EXPORT_LOCK_PREFIX = "account-export-lock"
+#: ``Retry-After`` dla drugiego żądania w trakcie budowy – paczka zwykle jest gotowa po kilku sekundach.
+EXPORT_LOCK_RETRY_SECONDS = 30
 
 
 class AccountExportView(LoginRequiredMixin, ThrottledFormMixin, View):
@@ -294,10 +352,21 @@ class AccountExportView(LoginRequiredMixin, ThrottledFormMixin, View):
         wait = export_wait_seconds(request.user)
         if wait:
             return self.throttled_response(request, wait)
-        response = send_export(request, request.user)
-        # Znacznik dopiero po zbudowaniu paczki: wyjątek w środku nie może zablokować kolejnej
-        # próby na dziesięć minut.
-        mark_exported(request.user)
+        # Blokada **przed** budową (audyt 10.10.2026, S15). Licznik odstępu zapala się dopiero po
+        # zbudowaniu paczki, więc samo sprawdzenie wyżej nie jest atomowe: kilka równoległych
+        # żądań (karty, skrypt) przechodziło je naraz i każde budowało własną paczkę w katalogu
+        # tymczasowym. ``cache.add`` jest atomowe – drugie żądanie dostaje 429 i czeka.
+        lock = f"{EXPORT_LOCK_PREFIX}:{request.user.pk}"
+        if not cache.add(lock, 1, EXPORT_LOCK_SECONDS):
+            return self.throttled_response(request, EXPORT_LOCK_RETRY_SECONDS)
+        try:
+            response = send_export(request, request.user)
+        finally:
+            cache.delete(lock)
+        # Znacznik dopiero po zbudowaniu paczki: wyjątek w środku (albo odmowa za dużej paczki)
+        # nie może zablokować kolejnej próby na dziesięć minut.
+        if isinstance(response, FileResponse):
+            mark_exported(request.user)
         return response
 
 

@@ -18,7 +18,7 @@
 # - `proxy`: zamiast 80/443/9000 na wszystkich interfejsach wyłącznie 127.0.0.1:443 (kontrola dymna
 #   djcms_switch.sh woła `curl --resolve <host>:443:127.0.0.1` z hosta – tak jak na serwerze);
 # - podsieci sieci compose'a przesunięte (172.30.x → 172.31.x): projekt dev ma na stałe
-#   172.30.1.0/24–172.30.4.0/24 (edge, internal, cache, clamav_egress), a Docker nie założy drugiej
+#   172.30.1.0/24–172.30.7.0/24 (edge, internal, cache, clamav_egress, mail, mail_egress, meet), a Docker nie założy drugiej
 #   sieci na tej samej podsieci.
 #   Adres `proxy` w `internal` (DJCMS_PROXY_IP – jedyne źródło X-Djcms-Mode, któremu ufa djcms)
 #   i TRUSTED_PROXY_IPS aplikacji głównej ustawia .env E2E na nowe podsieci;
@@ -29,6 +29,19 @@ services:
   proxy:
     ports: !override
       - "127.0.0.1:443:443"
+    # Stałe adresy proxy (od 10.10.2026 w pliku podstawowym) – w przesuniętych podsieciach. .env E2E
+    # ustawia te same zmienne (scripts/tests/djcms_primary_e2e.sh), wartości domyślne niżej są tylko
+    # po to, żeby `docker compose config` tej nakładki bez .env E2E dawał spójny wynik.
+    networks:
+      edge:
+        ipv4_address: ${PROXY_EDGE_IP:-172.31.1.250}
+      internal:
+        ipv4_address: ${DJCMS_PROXY_IP:-172.31.2.250}
+      meet:
+
+  mail:
+    environment:
+      POSTFIX_mynetworks: 127.0.0.0/8,${MAIL_SUBNET:-172.31.5.0/24}
 
   web:
     build:
@@ -71,6 +84,19 @@ networks:
     ipam: !override
       config:
         - subnet: ${E2E_CLAMAV_EGRESS_SUBNET:-172.31.4.0/24}
+  # Sieci z 10.10.2026 (relay poczty, jego wyjście, proxy ⇄ Jitsi) – to samo przesunięcie.
+  mail:
+    ipam: !override
+      config:
+        - subnet: ${MAIL_SUBNET:-172.31.5.0/24}
+  mail_egress:
+    ipam: !override
+      config:
+        - subnet: ${E2E_MAIL_EGRESS_SUBNET:-172.31.6.0/24}
+  meet:
+    ipam: !override
+      config:
+        - subnet: ${E2E_MEET_SUBNET:-172.31.7.0/24}
 
 secrets:
   extra_ca:

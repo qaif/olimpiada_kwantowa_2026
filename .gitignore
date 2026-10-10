@@ -34,9 +34,12 @@ deploy/Caddyfile.generated
 # szukac - i nie da sie go zostawic nieaktualnego wzgledem zrodla.
 *.mo
 # Wersja porównawcza django CMS (djcms/, docs/tasks/DJ-01.md). ``uv.lock`` djcms JEST commitowany
-# (obraz instaluje zależności ``uv sync --frozen``), mimo globalnego ``uv.lock`` wyżej – backend
-# instaluje z zakresów w pyproject, djcms z dokładnej blokady.
+# (obraz instaluje zależności ``uv sync --frozen``), mimo globalnego ``uv.lock`` wyżej.
 !djcms/uv.lock
+# Backend też z dokładnej blokady (audyt bezpieczeństwa 10.10.2026, S21): ``backend/Dockerfile``
+# instaluje ``uv sync --frozen`` z ``backend/uv.lock`` – bez niej każdy build brał najnowsze wydania
+# w zakresach pyproject, więc skompromitowane wydanie z PyPI wchodziło na produkcję samo.
+!backend/uv.lock
 djcms/.venv/
 djcms/staticfiles/
 djcms/media/

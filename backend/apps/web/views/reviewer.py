@@ -63,13 +63,21 @@ from apps.web.points_fields import score_form_error
 
 
 class ReviewerScopedMixin(ReviewerRequiredMixin):
-    """Wspólny queryset panelu: wyłącznie własne przydziały zalogowanego recenzenta."""
+    """Wspólny queryset panelu: wyłącznie własne przydziały zalogowanego recenzenta.
+
+    ``include_cancelled`` jest domyślnie wyłączone (audyt 10.10.2026, S1): zapis szkicu, wysłanie
+    i poprawka oceny, paczka ZIP – nic z tego nie dotyczy pracy odebranej. Recenzje anulowane
+    widzą wyłącznie dwa ekrany, które mają je pokazywać: lista (zakładka „Anulowane”) i strona
+    recenzji z komunikatem o odebraniu – ta druga bez pliku i bez cudzych ocen.
+    """
+
+    include_cancelled = False
 
     def get_queryset(self):
         # Kolejność z § 3.5: najpierw konkurs (własność), potem recenzent (rola). Serwis robi
         # jedno i drugie w tej kolejności, więc ta sama osoba recenzująca w dwóch olimpiadach
         # widzi tu wyłącznie przydziały spod domeny, na której właśnie jest.
-        return reviews_for_reviewer(self.reviewer, self.competition)
+        return reviews_for_reviewer(self.reviewer, self.competition, include_cancelled=self.include_cancelled)
 
     def get_review(self, pk: int):
         return get_object_or_404(self.get_queryset(), pk=pk)
@@ -144,6 +152,8 @@ class ReviewListView(ReviewerScopedMixin, TemplateView):
     """
 
     template_name = "web/reviewer/list.html"
+    #: Zakładka „Anulowane” jest częścią listy – odebrana praca nie może zniknąć bez śladu.
+    include_cancelled = True
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -317,11 +327,19 @@ class ReviewDetailView(ReviewerScopedMixin, TemplateView):
     """
 
     template_name = "web/reviewer/detail.html"
+    #: Strona odebranej recenzji istnieje (komunikat „koordynator odebrał Ci tę pracę” zamiast
+    #: 404, które wyglądałoby na awarię), ale bez niczego, do czego przydział dawał dostęp.
+    include_cancelled = True
 
     def get_context_data(self, pk: int, **kwargs):
         context = super().get_context_data(**kwargs)
         review = self.get_review(pk)
-        submission_file = review.submission.latest_file
+        withdrawn = review.status == ReviewStatus.CANCELLED
+        # Recenzja odebrana nie ma pliku, porównania, materiału rozjemczego, listingu kodu ani
+        # sugestii AI (audyt 10.10.2026, S1). Sam plik i tak odmówiłby pobrania
+        # (``Submission.objects.for_user``), ale ekran nie może podsuwać odnośnika, który
+        # kończy się 404 – ani renderować podglądu kodu z pliku, do którego dostępu już nie ma.
+        submission_file = None if withdrawn else review.submission.latest_file
         editable = review.status in (ReviewStatus.ASSIGNED, ReviewStatus.DRAFT)
         block_reason = None if editable else revision_block_reason(review)
         context.update(
@@ -343,8 +361,10 @@ class ReviewDetailView(ReviewerScopedMixin, TemplateView):
                 # Zdjęcie rozwiązania (JPEG) ma ten sam ekran, co PDF: inny jest wyłącznie sposób
                 # narysowania strony. Warstwa adnotacji zostaje – obrazek jest jedną stroną.
                 "preview_kind": _preview_kind(submission_file),
-                "download_url": reverse(
-                    "submissions:submission-download", kwargs={"pk": review.submission_id}
+                "download_url": (
+                    None
+                    if withdrawn
+                    else reverse("submissions:submission-download", kwargs={"pk": review.submission_id})
                 ),
                 "annotations_url": reverse("grading:review-detail", kwargs={"pk": review.pk}),
                 "editable": editable,
@@ -357,20 +377,20 @@ class ReviewDetailView(ReviewerScopedMixin, TemplateView):
                 # formularzu: formularza tam w ogóle nie ma. Powód bierze się z ``cancel_reason``,
                 # bo „anulowana” znaczy co innego dla pracy odebranej przez koordynatora, a co
                 # innego dla pracy, której uczestnik wysłał nową wersję.
-                "withdrawn": review.status == ReviewStatus.CANCELLED,
-                "cancel_message": (
-                    cancel_message(review) if review.status == ReviewStatus.CANCELLED else None
-                ),
+                "withdrawn": withdrawn,
+                "cancel_message": cancel_message(review) if withdrawn else None,
                 "revision_hint": GRADE_CHANGE_BLOCK_MESSAGES.get(block_reason) if block_reason else None,
                 # Panel sporu istnieje tylko w rundzie rozjemczej. Ten sam serwis obsługuje
                 # ``GET /api/grading/reviews/{id}/dispute/`` – jedna reguła, dwie prezentacje.
-                "dispute_rows": dispute_context(review) if review.round == ROUND_TIEBREAK else None,
+                "dispute_rows": (
+                    dispute_context(review) if review.round == ROUND_TIEBREAK and not withdrawn else None
+                ),
                 # Rubryka zadania. Pusta lista znaczy „zadanie bez kryteriów” i wtedy ekran pokazuje
                 # zwykły wybór oceny ze skali – dokładnie jak dotąd.
                 "rubric_rows": rubric_rows(review),
                 # Porównanie ocen jest ``None``, dopóki oceny nie są odsłonięte (patrz
                 # ``grading.comparison``) – szablon nie ma wtedy czego pokazać i sekcja nie istnieje.
-                "comparison": comparison_context(review),
+                "comparison": None if withdrawn else comparison_context(review),
                 # Seria prac tego samego zadania: „5 z 18” oraz sąsiedzi do przeskoczenia.
                 "queue": queue_position(review),
                 # Wzorcówka i uwagi dla recenzentów – materiał komitetu, nigdy dla uczestnika.
@@ -404,8 +424,12 @@ class ReviewDetailView(ReviewerScopedMixin, TemplateView):
                 # przydziałów recenzenta (``get_review``), więc cudzej pracy tu nie zobaczy.
                 # Przycisk „wstaw punkty AI” tylko wypełnia formularz i tylko wtedy, gdy ten jest
                 # do zapisania – ocena wystawiona na stałe nie ma czego wypełniać.
-                "ai": ai_reviewer_context(
-                    review, self.competition, editable=editable or block_reason is None
+                "ai": (
+                    None
+                    if withdrawn
+                    else ai_reviewer_context(
+                        review, self.competition, editable=editable or block_reason is None
+                    )
                 ),
             }
         )

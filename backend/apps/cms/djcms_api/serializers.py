@@ -276,7 +276,7 @@ def published_stage_ids(stages) -> set[int]:
     ids = [stage.pk for stage in stages if stage is not None]
     if not ids:
         return set()
-    return set(ResultsPublication.objects.filter(stage_id__in=ids).values_list("stage_id", flat=True))
+    return set(ResultsPublication.objects.live().filter(stage_id__in=ids).values_list("stage_id", flat=True))
 
 
 def stage_dto(stage, published: set[int] | frozenset[int] = frozenset()) -> dict | None:

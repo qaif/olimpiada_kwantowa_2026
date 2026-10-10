@@ -9,7 +9,7 @@
 #   SITE_DOMAIN            np. olimpiadakwantowa.pl
 #   ACME_EMAIL             e-mail do Let's Encrypt
 #   COORDINATOR_EMAIL      pierwsze konto koordynatora (superuser + grupa coordinator)
-#   COORDINATOR_PASSWORD   hasło tego konta (przekazane przez SSH env, nie zapisywane w repo)
+#   COORDINATOR_PASSWORD   hasło tego konta (do serwera przez stdin ssh, nie argument; nie zapisywane w repo)
 # Opcjonalne: S3_PUBLIC_ADDRESS (domyślnie <domena>:9000; po dodaniu rekordu DNS: s3.<domena>),
 #             MAKE_EDITION_CURRENT=1 (edycja „I edycja 2026/2027” jako bieżąca), APP_VERSION,
 #             DMARC_RUA (adres raportów DMARC, domyślnie contact@qaif.org),
@@ -211,7 +211,10 @@ esac
 # backup_offsite.sh) zostaje z tego samego powodu, co `.env`: nie ma go w repozytorium.
 # `caddy` (konfiguracja proxy, scripts/proxy_config.sh) – jak `maintenance`: montuje go działające
 # proxy, a katalog skasowany i utworzony od nowa widziałoby jako stary (OPERACJE § 23).
-"${SSH[@]}" "mkdir -p '$REMOTE_DIR' && find '$REMOTE_DIR' -mindepth 1 -maxdepth 1 ! -name .env ! -name 'e2e' ! -name maintenance ! -name secrets ! -name caddy -exec rm -rf {} +"
+# `jitsi` (projekt Jitsi Meet, scripts/deploy_jitsi.sh) – tam leży jitsi/.env z JWT_APP_SECRET
+# i hasłami JICOFO/JVB, którego nie ma w repozytorium: skasowany przy zwykłym wdrożeniu zostawiał
+# działające kontenery Jitsi bez pliku, z którego da się nimi zarządzać (audyt 10.10.2026).
+"${SSH[@]}" "mkdir -p '$REMOTE_DIR' && find '$REMOTE_DIR' -mindepth 1 -maxdepth 1 ! -name .env ! -name 'e2e' ! -name maintenance ! -name secrets ! -name caddy ! -name jitsi -exec rm -rf {} +"
 git archive --format=tar HEAD | "${SSH[@]}" "tar -x -C '$REMOTE_DIR'"
 
 log "3/8 .env (tworzony tylko przy pierwszym wdrożeniu)"
@@ -258,7 +261,8 @@ S3_PUBLIC_SECRET_KEY=$(gen 32)
 S3_PRIVATE_ACCESS_KEY=app-private
 S3_PRIVATE_SECRET_KEY=$(gen 32)
 
-TRUSTED_PROXY_IPS=172.30.1.0/24,172.30.2.0/24
+# Zaufane proxy (X-Real-IP): bez wpisu – stałe adresy kontenera proxy z docker-compose.yml
+# (172.30.1.250/32, 172.30.2.250/32). Wpis tylko, gdy przed Caddym stoi jeszcze jedno proxy.
 
 # Poczta wychodząca: własny Postfix z usługi \`mail\` (send-only relay + DKIM), bez zewnętrznego
 # dostawcy. Port 587 nie jest publikowany – relay widzi tylko sieć compose. Aby użyć dostawcy
@@ -349,6 +353,16 @@ esac
 unset REDIS_PW
 [ "$REDIS_PW_OK" = 1 ] \
   || { echo "BŁĄD: REDIS_PASSWORD w .env – wyłącznie [A-Za-z0-9], co najmniej 16 znaków (trafia do REDIS_URL bez kodowania)"; exit 1; }
+# Zaufane proxy (audyt bezpieczeństwa 10.10.2026, S20): .env z pierwszego wdrożenia ma dawną
+# wartość domyślną – całe podsieci `edge` i `internal`, czyli „zaufanym proxy” był każdy kontener
+# w nich (djcms, monitor, minio, clamav, poczta). Usuwamy WYŁĄCZNIE linijkę z dokładnie tą wartością:
+# bez niej docker-compose.yml daje dwa stałe adresy proxy (/32). Wartość wpisaną ręcznie (inne
+# proxy przed Caddym) zostawiamy. Krok 4b odtwarza wtedy web, worker i beat z nową listą.
+if grep -qxE 'TRUSTED_PROXY_IPS=172\.30\.1\.0/24,172\.30\.2\.0/24' .env; then
+  sed -i '/^TRUSTED_PROXY_IPS=172\.30\.1\.0\/24,172\.30\.2\.0\/24$/d' .env
+  chmod 600 .env
+  echo "TRUSTED_PROXY_IPS: dawne podsieci usunięte z .env – web ufa wyłącznie stałym adresom proxy"
+fi
 # Treść strony do katalogu stanu (<REMOTE_DIR>/maintenance/page), który krok 2/8 omija: działające
 # proxy widzi nową wersję strony bez restartu (scripts/maintenance.sh, funkcja sync_page).
 bash scripts/maintenance.sh sync
@@ -815,11 +829,27 @@ log "6/8 Seedy treści i konto koordynatora"
 # kolejne wdrożenia ich nie uruchamiają – chyba że jawnie: RUN_CONTENT_SEEDS=1.
 # ``seed_edition_kwantowa`` bez ``--sync-dates`` tworzy wyłącznie brakujące etapy i nie rusza
 # istniejących terminów, dlatego zostaje w każdym wdrożeniu.
-"${SSH[@]}" env COORDINATOR_EMAIL="${COORDINATOR_EMAIL:-}" COORDINATOR_PASSWORD="${COORDINATOR_PASSWORD:-}" MAKE_EDITION_CURRENT="${MAKE_EDITION_CURRENT:-0}" SYNC_STAGE_DATES="${SYNC_STAGE_DATES:-0}" RUN_CONTENT_SEEDS="${RUN_CONTENT_SEEDS:-auto}" REMOTE_DIR="$REMOTE_DIR" bash -s <<'REMOTE'
+#
+# Dane konta koordynatora przez STANDARDOWE WEJŚCIE (pierwsze linijki skryptu), jak DJCMS_ADMIN_*
+# w kroku dj. niżej – do 10.10.2026 szły w argumentach `env` po ssh, czyli hasło było widać w `ps`
+# każdego konta na serwerze przez cały krok, a powłoka zdalna interpretowała je (znak `$`, spacja
+# albo apostrof w haśle psuły polecenie). `printf %q` cytuje wartość dla powłoki zdalnej, a do
+# `docker compose exec` idą jako `-e NAZWA` bez wartości (compose bierze ją ze środowiska).
+{
+  printf 'COORDINATOR_EMAIL=%q\n' "${COORDINATOR_EMAIL:-}"
+  printf 'COORDINATOR_PASSWORD=%q\n' "${COORDINATOR_PASSWORD:-}"
+  cat <<'REMOTE'
 set -euo pipefail
+export COORDINATOR_EMAIL COORDINATOR_PASSWORD
 cd "$REMOTE_DIR"
 # </dev/null: exec nie może czytać stdin, bo to strumień tego skryptu (inaczej połknąłby dalsze polecenia).
 dc() { docker compose exec -T web "$@" </dev/null; }
+# Dokumenty Wagtaila w prywatnym magazynie (migracja cms.0032 przepina pole na nowy storage; pliki
+# przenosi to polecenie). Po `migrate` (entrypoint web, krok 4b) i przed seedami. Idempotentne:
+# drugi przebieg nie ma czego przenosić. Najpierw plan w logu wdrożenia, potem właściwe przeniesienie
+# – bez niego /documents/… odpowiada błędem po wdrożeniu. docs/OPERACJE.md (wdrożenie).
+dc python manage.py migrate_documents_to_private --dry-run
+dc python manage.py migrate_documents_to_private
 # ``auto``: tylko przy pierwszym wdrożeniu (znacznik zostawia krok 3/7 przy tworzeniu .env).
 if [ "$RUN_CONTENT_SEEDS" = "1" ] || { [ "$RUN_CONTENT_SEEDS" = "auto" ] && [ -f .first-deploy ]; }; then
   dc python manage.py seed_cms
@@ -839,11 +869,12 @@ dc python manage.py seed_edition_kwantowa $EDITION_ARGS
 # szkoły spoza wykazu tylko wygasza). Bez tego wyszukiwarka w rejestracji nie ma czego pokazać.
 dc python manage.py seed_schools
 if [ -n "$COORDINATOR_EMAIL" ] && [ -n "$COORDINATOR_PASSWORD" ]; then
-  docker compose exec -T -e COORDINATOR_EMAIL="$COORDINATOR_EMAIL" -e COORDINATOR_PASSWORD="$COORDINATOR_PASSWORD" web \
+  docker compose exec -T -e COORDINATOR_EMAIL -e COORDINATOR_PASSWORD web \
     python manage.py bootstrap_coordinator </dev/null
 fi
 docker compose ps --format 'table {{.Service}}\t{{.State}}\t{{.Health}}'
 REMOTE
+} | "${SSH[@]}" env MAKE_EDITION_CURRENT="${MAKE_EDITION_CURRENT:-0}" SYNC_STAGE_DATES="${SYNC_STAGE_DATES:-0}" RUN_CONTENT_SEEDS="${RUN_CONTENT_SEEDS:-auto}" REMOTE_DIR="$REMOTE_DIR" bash -s
 
 log "6a/8 Nowy konkurs (tylko przy NEW_COMPETITION_SLUG)"
 # Krok opcjonalny i domyślnie pusty. Bez NEW_COMPETITION_SLUG nie wykonuje ani jednego polecenia

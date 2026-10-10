@@ -8,6 +8,36 @@ dokładnie jednemu wierszowi tej tabeli.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## [Unreleased] – Audyt bezpieczeństwa 10.10.2026 (6 wysokich, 21 średnich, 22 niskie)
+
+Pełny raport: [`AUDYT-BEZPIECZENSTWA-2026-10-10.md`](AUDYT-BEZPIECZENSTWA-2026-10-10.md); pozycje
+i testy: [`SECURITY_CHECKLIST.md`](SECURITY_CHECKLIST.md) § 14.
+
+- **Wysokie:** `/status/` bez buforowania HTML zalogowanego; dokumenty Wagtaila w prywatnym storage
+  (`cms.Document`, migracje `cms.0031–0034`, `manage.py migrate_documents_to_private` w `deploy.sh`);
+  konta z rolą w innym konkursie poza zasięgiem koordynatora (`ACCOUNT_SHARED`); `memberships_enforced`
+  z panelu tylko do włączenia; `/cms/account/` bez zmiany adresu i hasła; kontenery aplikacji bez
+  pełnego `.env` (jawna lista zmiennych, test `compose_env_test.sh`).
+- **Średnie:** odebrany przydział recenzenta bez dostępu do pliku i cudzych ocen; wycofane ogłoszenie
+  wyników niewidoczne nigdzie (`ResultsPublication.objects.live()`); test online respektuje „Zamknij
+  etap”; neutralny stan pracy dla recenzenta rundy 1 i blokada poprawek w moderacji; `User.blocked_at`
+  (migracja `accounts.0039`) – zablokowane konto nie odblokuje się linkiem; konto z zaproszenia tylko
+  przez przyjęcie zaproszenia; reset 2FA/hasła i eksport RODO koordynatora z bramkami i zawężeniem do
+  konkursu; uczeń delegacji bez zmiany kraju; inicjały ze szkołą tylko za zgodą; hasło przy zmianie
+  adresu i wyłączaniu 2FA; karencja i limit ponownych zaproszeń; host bez aktywnego konkursu → 404;
+  strażnik bomby ZIP w XLSX; paczki ZIP na dysku z limitem (`PACKAGE_TMP_DIR`); `request_buffers`
+  i timeouty w Caddy; `.env` czytany jako tekst w skryptach kopii; ciasteczka `__Host-`; do djcms tylko
+  ciasteczka `djcms_*`, proxy z adresami /32, osobne sieci `mail` i `meet`; `uv.lock` + `--no-dev`
+  + `pip-audit` w CI; djcms starter bez blokowania wątków.
+- **Niskie:** m.in. skan ClamAV mediów `/cms/`, escape w PDF-ach ReportLaba, ilustracje testu przez widok,
+  maskowanie tokenów w access logu, Caddy 2.10 utwardzony, `ADMIN_ALLOWED_IPS`, sekrety poza argv,
+  `pull_prod_data.sh` bez tokenów, forum/reklamacje/ocena – bramki stanów.
+- **Panel koordynatora:** „Usuń konto” na ekranie kont oczekujących na aktywację (strona potwierdzenia,
+  tylko konta oczekujące tego konkursu, audyt `via: activations`).
+- **Wdrożenie (operator):** `.env` musi mieć komplet `S3_PUBLIC_*`/`S3_PRIVATE_*`; zmiana nazw ciasteczek
+  wylogowuje wszystkich; po wdrożeniu `scripts/deploy_jitsi.sh` (sieć `meet`), test resetu hasła (sieć
+  `mail`) i certyfikatów `www.`/`meet.`; szczegóły `OPERACJE.md` § 31.
+
 ## [Unreleased] – Motywy wizualne wgrywane paczkami (THEME-01)
 
 - **Tokeny motywu:** arkusze (`static/css/*.css`) czytają kolory, kroje, promienie i odstępy przez

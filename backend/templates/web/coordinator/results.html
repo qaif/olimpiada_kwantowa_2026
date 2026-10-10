@@ -25,7 +25,14 @@
       <dd>{{ stage.appeal_window_opens_at|local_datetime }} – {{ stage.appeal_window_closes_at|local_datetime }}</dd>
       <dt>Publikacja</dt>
       <dd>
-        {% if publication %}
+        {% comment %}
+          Rekord publikacji zostaje po wycofaniu ogłoszenia (wyczyszczone
+          ``stage.results_published_at``) jako ślad – ekran nie może go wtedy dalej nazywać
+          „ogłoszoną” ani linkować do publicznej tabeli, która odpowiada już 404.
+        {% endcomment %}
+        {% if publication and not stage.results_published_at %}
+          ogłoszenie wycofane (ostatnia publikacja {{ publication.published_at|local_datetime }}; {{ publication.get_anonymization_display }})
+        {% elif publication %}
           ogłoszona {{ publication.published_at|local_datetime }} ({{ publication.rows|length }} wierszy{% if publication.qualified_only %}, tylko awansujący{% endif %}; {{ publication.get_anonymization_display }})
         {% else %}
           wyniki nie są jeszcze ogłoszone
@@ -44,7 +51,7 @@
         <button type="submit" class="btn btn--primary">Opublikuj wyniki</button>
       </form>
     </div>
-    {% if publication %}
+    {% if publication and stage.results_published_at %}
       <p class="card__foot"><a href="{% url 'web:results' stage.pk %}">Ogłoszona tabela wyników</a></p>
     {% endif %}
   </div>

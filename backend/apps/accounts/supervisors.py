@@ -414,7 +414,7 @@ def student_rows(supervisor: SchoolSupervisor, edition) -> list[dict]:
     )
     publications = {
         publication.stage_id: publication
-        for publication in ResultsPublication.objects.filter(stage__edition=edition)
+        for publication in ResultsPublication.objects.live().filter(stage__edition=edition)
     }
     submissions = (
         Submission.objects.filter(entry__in=entries)

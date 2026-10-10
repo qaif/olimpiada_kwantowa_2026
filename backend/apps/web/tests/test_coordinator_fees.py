@@ -382,3 +382,46 @@ def test_document_filename_carries_no_surname(coordinator_client, competition, f
     disposition = response["Content-Disposition"]
     assert participant.user.last_name not in disposition
     assert participant.public_code in disposition
+
+
+@pytest.mark.parametrize(
+    "title",
+    [
+        # ``<`` i ``&`` w tytule szablonu wywracały pobranie rachunku pięćsetką (audyt 10.10.2026).
+        "Rachunek <wpisowe> & opłata",
+        # Tekst szablonu pisze koordynator – obraz z dysku serwera nie może wejść do rachunku.
+        'Rachunek <img src="/etc/hostname" width="10" height="10"/>',
+    ],
+)
+def test_template_text_is_not_markup_in_the_fee_document(
+    coordinator_client, competition, fee, monkeypatch, title
+):
+    from reportlab.platypus import Paragraph
+
+    enable(competition, DOCUMENTS_FLAG)
+    set_current_template(
+        competition,
+        DocumentKind.INVOICE,
+        version="1.0",
+        title=title,
+        statement="Do zapłaty {amount} {currency} – <b>bez</b> odsetek.",
+    )
+    paragraphs: list[str] = []
+    original_init = Paragraph.__init__
+
+    def spy(self, text, *args, **kwargs):
+        paragraphs.append(text)
+        original_init(self, text, *args, **kwargs)
+
+    monkeypatch.setattr(Paragraph, "__init__", spy)
+
+    response = coordinator_client.get(f"{REGISTER_URL}{fee.pk}/document/")
+
+    assert response.status_code == 200
+    assert response.content.startswith(b"%PDF")
+    composed = " ".join(paragraphs)
+    assert "<img" not in composed
+    assert "<b>" not in composed
+    assert "&lt;" in composed
+    # Wartości zescapowane przy podstawieniu nie dostają drugiej warstwy encji.
+    assert "&amp;lt;" not in composed

@@ -2,6 +2,28 @@
     # API administracyjne wyłącznie z wnętrza kontenera (healthcheck woła 127.0.0.1:2019).
     admin localhost:2019
     email {$ACME_EMAIL}
+    # Limity czasu odczytu żądania (audyt bezpieczeństwa 10.10.2026, S16 – „slow-POST”). Bez nich
+    # Go nie ogranicza czasu odczytu wcale: klient wysyłający nagłówki albo treść po bajcie co kilka
+    # sekund trzymał połączenie bez końca. Razem z `request_buffers` przy każdym `reverse_proxy`
+    # do aplikacji (niżej i w scripts/render_caddyfile.sh) – to tamto zdejmuje problem z gunicorna
+    # (16 wątków), ten limit ogranicza już tylko to, co trzyma sam Caddy.
+    # - `read_header 15s` – nagłówki przychodzą w jednym pakiecie; 15 s to zapas na fatalne łącze.
+    # - `read_body 600s` – CAŁE żądanie (nagłówki + treść), liczone od jego początku. Upload na
+    #   granicy MAX_UPLOAD_MB=25 (25 000 000 B treści) w 600 s wymaga ok. 0,33 Mbit/s wysyłania;
+    #   300 s z audytu – 0,67 Mbit/s, a tyle potrafi nie mieć telefon na słabym LTE w ostatniej
+    #   godzinie przed terminem. Podnosząc MAX_UPLOAD_MB, sprawdź ten rachunek. Część pliku wideo z warsztatów (16 MB na
+    #   blok S3) mieści się z zapasem. Przekroczenie kończy żądanie bez dotarcia do aplikacji
+    #   (Caddy 2.10 odpowiada wtedy pustym 200 i zamyka połączenie – sprawdzone 10.10.2026).
+    # Limity nie dotyczą WebSocketów po zestawieniu (XMPP Jitsi pod meet., socket.io monitora):
+    # Caddy zdejmuje terminy z przejętego połączenia HTTP/1.1, a WebSocketów po HTTP/2 nie ogłasza
+    # (brak SETTINGS_ENABLE_CONNECT_PROTOCOL) – sprawdzone 10.10.2026 na caddy:2.10: połączenie
+    # trwało dłużej niż `read_body` bez zerwania. Odpowiedzi (pobieranie plików) nie dotyczą wcale.
+    servers {
+        timeouts {
+            read_header 15s
+            read_body 600s
+        }
+    }
 }
 
 # Strona „Prace techniczne” (docs/OPERACJE.md § 20) – fragment wstawiany (`import maintenance`) do
@@ -125,6 +147,14 @@ www.{$SITE_DOMAIN} {
     }
     handle {
         reverse_proxy web:8000 {
+            # Cała treść żądania w pamięci Caddy'ego, ZANIM pójdzie do gunicorna (audyt 10.10.2026,
+            # S16): 16 wątków web nie czeka już na wolnego klienta, tylko dostaje gotowe żądanie.
+            # `MiB` przy `MB` w `max_size` wyżej celowo – ta sama zmienna, a bufor zawsze WIĘKSZY
+            # od największej dopuszczalnej treści (25 MiB = 26 214 400 B > 25 MB = 25 000 000 B).
+            # Bufor równy limitowi zapełnia się przy treści na granicy i Caddy przechodzi wtedy na
+            # strumień do gunicorna – klient wstrzymany na ostatnim bajcie znowu trzymałby wątek.
+            # Koszt: pamięć proxy rośnie o treść każdego trwającego uploadu (patrz docs/OPERACJE.md).
+            request_buffers {$MAX_UPLOAD_MB}MiB
             header_up X-Forwarded-Proto {scheme}
             # Adres klienta dla audytu; backend ufa temu nagłówkowi tylko, gdy REMOTE_ADDR jest adresem proxy.
             header_up X-Real-IP {remote_host}
@@ -200,8 +230,16 @@ www.{$SITE_DOMAIN} {
 }
 
 # Własne Jitsi Meet (rozmowy kwalifikacyjne): osobny projekt compose (deploy/jitsi, scripts/deploy_jitsi.sh);
-# kontener `jitsi-web` dołącza do sieci `edge` pod tą nazwą. WebSocket (XMPP) przechodzi przez reverse_proxy
-# bez dodatkowej konfiguracji. Dopóki nie ma rekordu DNS `meet.<domena>`, ten blok tylko czeka na certyfikat.
+# kontener `jitsi-web` dołącza pod tą nazwą do sieci `meet` (od 10.10.2026; wcześniej `edge`), w której
+# stoi tylko proxy. WebSocket (XMPP) przechodzi przez reverse_proxy bez dodatkowej konfiguracji. Dopóki
+# nie ma rekordu DNS `meet.<domena>`, ten blok tylko czeka na certyfikat.
+#
+# Ramki (audyt 10.10.2026): platforma NIE osadza pokoi w `<iframe>` (link otwiera pokój w karcie –
+# apps/competitions/video.py, CSP `frame-src` aplikacji Jitsi nie zna), więc strona z kamerą
+# i mikrofonem nie ma po co dawać się wstawić w cudzą stronę (clickjacking zgody na urządzenia).
+# `'self'`/SAMEORIGIN, a nie `'none'`: obcy origin jest zablokowany tak samo, a Jitsi zostaje przy
+# swoich ewentualnych ramkach z własnego hosta. Bez `defer`, jak w bloku monitor. – drugi nagłówek
+# CSP od Jitsi (gdyby kiedyś go wysłało) przeglądarka egzekwuje razem z tym, nie zamiast.
 #
 # Przepustki platformy (v0.39.0, docs/OPERACJE.md § 25): portal przekierowuje do pokoju z tokenem JWT we
 # fragmencie adresu (`#jwt="…"`), który nie jedzie do serwera. `Referrer-Policy: no-referrer` zamyka drugą
@@ -217,6 +255,8 @@ meet.{$SITE_DOMAIN} {
         Strict-Transport-Security "max-age=31536000"
         X-Content-Type-Options "nosniff"
         Referrer-Policy "no-referrer"
+        X-Frame-Options "SAMEORIGIN"
+        Content-Security-Policy "frame-ancestors 'self'"
     }
 }
 

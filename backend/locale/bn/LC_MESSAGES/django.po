@@ -9222,3 +9222,70 @@ msgstr "স্কুল/শিক্ষকদের জন্য"
 #: apps/cms/context_processors.py
 msgid "Rejestracja nauczyciela"
 msgstr "শিক্ষক নিবন্ধন"
+
+# --- Audyt bezpieczeństwa 10.10.2026: nowe komunikaty ---
+#: apps/accounts/activation.py:492
+msgid ""
+"To konto zostało zablokowane przez organizatora. Skontaktuj się z "
+"organizatorem."
+msgstr "আয়োজক এই অ্যাকাউন্টটি অবরুদ্ধ করেছেন। অনুগ্রহ করে আয়োজকের সঙ্গে যোগাযোগ করুন।"
+
+#: apps/accounts/activation.py:597
+msgid ""
+"To konto uruchamia się linkiem z listu z zaproszeniem. Poproś o ponowne "
+"wysłanie linku – przyjdzie zaproszenie."
+msgstr "এই অ্যাকাউন্টটি আমন্ত্রণ ইমেলের লিংক দিয়ে চালু হয়। লিংকটি আবার পাঠানোর অনুরোধ করুন – আপনি আমন্ত্রণটি পাবেন।"
+
+#: apps/accounts/delegation_services.py:1091
+#, python-format
+msgid "Zaproszenie wysłano niedawno. Kolejne można wysłać za %(minutes)s min."
+msgstr "আমন্ত্রণটি সম্প্রতি পাঠানো হয়েছে। পরেরটি %(minutes)s মিনিট পরে পাঠানো যাবে।"
+
+#: apps/accounts/guardian.py:287
+msgid ""
+"Podaj adres rodzica lub opiekuna prawnego – nie adres opiekuna szkolnego."
+msgstr "অভিভাবক বা আইনি অভিভাবকের ঠিকানা দিন – স্কুল তত্ত্বাবধায়কের ঠিকানা নয়।"
+
+#: apps/accounts/profile.py:139
+msgid ""
+"Kraj ucznia delegacji wynika z delegacji – zmienia go opiekun drużyny albo "
+"organizator."
+msgstr "প্রতিনিধিদলের শিক্ষার্থীর দেশ প্রতিনিধিদল থেকেই নির্ধারিত হয় – এটি দলনেতা বা আয়োজক পরিবর্তন করেন।"
+
+#: apps/forum/services.py:408 apps/forum/services.py:478
+msgid "Ten dział jest zamknięty – nie można w nim pisać."
+msgstr "এই বিভাগটি বন্ধ – এখানে লেখা যাবে না।"
+
+#: apps/quiz/services.py:439
+msgid "Wyniki tego etapu są już ogłoszone – testu nie można rozpocząć."
+msgstr "এই পর্বের ফলাফল ইতিমধ্যে ঘোষিত হয়েছে – পরীক্ষাটি শুরু করা যাবে না।"
+
+#: apps/web/forms.py:1153 templates/web/account/twofactor.html:59
+msgid "Obecny adres e-mail konta"
+msgstr "অ্যাকাউন্টের বর্তমান ইমেল ঠিকানা"
+
+#: apps/web/forms.py:1156
+msgid ""
+"Twoje konto nie ma hasła – przepisz obecny adres, żeby potwierdzić zmianę."
+msgstr "আপনার অ্যাকাউন্টের কোনো পাসওয়ার্ড নেই – পরিবর্তন নিশ্চিত করতে বর্তমান ঠিকানাটি আবার লিখুন।"
+
+#: templates/socialaccount/refused.html:31
+msgid "Najpierw przyjmij zaproszenie"
+msgstr "আগে আমন্ত্রণটি গ্রহণ করুন"
+
+#: templates/socialaccount/refused.html:32
+msgid ""
+"To konto powstało z zaproszenia. Zanim zalogujesz się w jakikolwiek sposób, "
+"otwórz link z listu z zaproszeniem, ustaw hasło i złóż wymagane zgody."
+msgstr "এই অ্যাকাউন্টটি আমন্ত্রণ থেকে তৈরি হয়েছে। যেকোনো উপায়ে লগ ইন করার আগে আমন্ত্রণ ইমেলের লিংকটি খুলুন, পাসওয়ার্ড সেট করুন এবং প্রয়োজনীয় সম্মতি দিন।"
+
+#: templates/web/account/twofactor.html:61
+msgid ""
+"Twoje konto nie ma hasła – przepisz obecny adres, żeby potwierdzić "
+"wyłączenie."
+msgstr "আপনার অ্যাকাউন্টের কোনো পাসওয়ার্ড নেই – বন্ধ করা নিশ্চিত করতে বর্তমান ঠিকানাটি আবার লিখুন।"
+
+#: templates/web/reviewer/detail.html:129
+msgid ""
+"Ta praca nie jest już Ci przydzielona – plik rozwiązania nie jest dostępny."
+msgstr "এই সমাধানটি আর আপনাকে বরাদ্দ করা নেই – সমাধানের ফাইলটি পাওয়া যাচ্ছে না।"

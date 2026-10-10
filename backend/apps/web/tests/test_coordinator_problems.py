@@ -100,14 +100,14 @@ def test_edit_changes_title_and_formats(web_client, coordinator, elim_stage, pro
 
     response = web_client.post(
         f"/coordinator/problems/{problem.pk}/edit/",
-        payload(number=problem.number, title="Nowy tytuł", allowed_formats=["pdf", "ipynb"], max_file_mb=30),
+        payload(number=problem.number, title="Nowy tytuł", allowed_formats=["pdf", "ipynb"], max_file_mb=22),
     )
 
     problem.refresh_from_db()
     assert response.status_code == 302
     assert problem.title == "Nowy tytuł"
     assert sorted(problem.allowed_formats) == ["ipynb", "pdf"]
-    assert problem.max_file_mb == 30
+    assert problem.max_file_mb == 22
     entry = AuditLog.objects.get(action="problem.updated", target_id=str(problem.pk))
     assert set(entry.diff) == {"title", "allowed_formats", "max_file_mb"}
 

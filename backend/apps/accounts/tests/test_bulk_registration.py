@@ -9,6 +9,7 @@ oświadcza, że zna regulamin. Każdy z tych testów pilnuje jednej strony tej g
 from __future__ import annotations
 
 import io
+from datetime import timedelta
 
 import pytest
 from django.core import signing
@@ -504,6 +505,10 @@ def test_ponowne_wyslanie_zaproszenia_dziala_tylko_dla_konta_ktore_czeka(
 ):
     """Trzy różne stany, trzy różne odpowiedzi – „nic się nie stało” byłoby najgorszą z nich."""
     participant = invited_participant()
+    # Poza godzinną karencją ponowień (S12) – import przed chwilą wysłał pierwszy list.
+    Participant.objects.filter(pk=participant.pk).update(
+        invitation_sent_at=timezone.now() - timedelta(hours=2)
+    )
     mailoutbox.clear()
     with django_capture_on_commit_callbacks(execute=True):
         resend_invitation(participant, actor=participant.user)

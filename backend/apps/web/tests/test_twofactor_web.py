@@ -17,6 +17,7 @@ import pytest
 
 from apps.accounts import twofactor
 from apps.accounts.models import GROUP_COORDINATOR
+from apps.accounts.tests.factories import DEFAULT_PASSWORD
 from apps.core.models import AuditLog
 
 pytestmark = pytest.mark.django_db
@@ -256,7 +257,7 @@ def test_the_owner_can_switch_the_second_factor_off(web_client, participant):
     web_client.force_login(participant.user)
     web_client.post(VERIFY_URL, {"code": codes[0]})
 
-    response = web_client.post(DISABLE_URL)
+    response = web_client.post(DISABLE_URL, {"password": DEFAULT_PASSWORD})
 
     assert response.status_code == 302
     assert twofactor.device_for(participant.user) is None

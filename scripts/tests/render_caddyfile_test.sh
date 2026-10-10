@@ -40,7 +40,9 @@ render() {
   # zwraca kod wyjścia generatora. Argumenty 3–5 są **zawsze** przekazywane (choćby puste), bo
   # zmienna nieustawiona każe generatorowi czytać `.env` – a test ma sprawdzać generator, a nie
   # czyjś plik konfiguracyjny.
-  EXTRA_DOMAINS="$1" PLATFORM_SUBDOMAINS="${3:-}" DJCMS_ENABLED="${4:-}" DJCMS_PRIMARY="${5:-}" CADDYFILE_OUT="$2"     bash "$RENDER" >"$WORK/stdout" 2>"$WORK/stderr"
+  # ADMIN_ALLOWED_IPS – szósty argument, z tego samego powodu zawsze przekazywany (pusto = bez ograniczeń).
+  EXTRA_DOMAINS="$1" PLATFORM_SUBDOMAINS="${3:-}" DJCMS_ENABLED="${4:-}" DJCMS_PRIMARY="${5:-}" \
+    ADMIN_ALLOWED_IPS="${6:-}" CADDYFILE_OUT="$2" bash "$RENDER" >"$WORK/stdout" 2>"$WORK/stderr"
 }
 
 # 1. Pusta lista domen = dzisiejsza konfiguracja, co do bajtu.
@@ -533,10 +535,73 @@ awk '$0 == "    handle @s3_minio_api {" { d = NR } $0 == "        reverse_proxy 
 check "blok S3: odmowa /minio/* przed reverse_proxy, proxy wyłącznie w handle" $?
 # Ten sam blok (z tymi samymi regułami) w każdym wariancie generatora – przełączniki go nie ruszają.
 for f in "$WORK/sub-extra.caddy" "$WORK/dj-both.caddy" "$WORK/pr-on.caddy"; do
-  block_body "$f" '{$S3_PUBLIC_ADDRESS} {' | grep -vE '^    # Zwykły certyfikat |^    tls \{$|^        key_type p256$|^    \}$' \
+  block_body "$f" '{$S3_PUBLIC_ADDRESS} {' | grep -vE '^    # Zwykły certyfikat |^    tls (force_automate )?\{$|^        key_type p256$|^    \}$' \
     | cmp -s - <(grep -vE '^    \}$' "$WORK/s3-block.txt")
   check "blok S3 w ${f##*/} = blok z deploy/Caddyfile (poza przypięciem TLS)" $?
 done
+
+# 28. Slow-POST (audyt bezpieczeństwa 10.10.2026, S16): globalne limity odczytu żądania w źródle
+#     i `request_buffers` w KAŻDYM `reverse_proxy` do web i djcms (i w żadnym innym – S3, meet.,
+#     monitor. zostają strumieniem), z tej samej zmiennej co `max_size`, w MiB (bufor > limit treści).
+awk '$0 == "    servers {" { s = 1 } s && $0 == "            read_header 15s" { h = 1 } s && $0 == "            read_body 600s" { b = 1 }
+     END { exit !(h && b) }' "$SRC"
+check "deploy/Caddyfile: servers { timeouts { read_header 15s; read_body 600s } } w opcjach globalnych" $?
+proxy_blocks() {  # proxy_blocks <plik> – „upstream|liczba linii request_buffers|liczba filtrów Cookie” dla każdego reverse_proxy
+  awk '
+    /^ *reverse_proxy [a-z0-9-]+:[0-9]+ \{$/ { up = $2; rb = 0; ck = 0; inb = 1; next }
+    inb && /^ *request_buffers \{\$MAX_UPLOAD_MB\}MiB$/ { rb++ }
+    inb && index($0, "header_up Cookie \"(?:(djcms_[^;]*)|[^;]*)(?:; *|$)\" \"$1;\"") { ck++ }
+    inb && /^ *\}$/ { print up "|" rb "|" ck; inb = 0 }
+    /^ *reverse_proxy [a-z0-9-]+:[0-9]+$/ { print $2 "|0|0" }
+  ' "$1"
+}
+render "$DJ_EXTRA" "$WORK/buf-all.caddy" "1" "1" "0"
+for f in "$SRC" "$WORK/buf-all.caddy" "$WORK/pr-on.caddy"; do
+  bad="$(proxy_blocks "$f" | awk -F'|' '
+    ($1 == "web:8000" && ($2 != 1 || $3 != 0)) || ($1 == "djcms:8000" && ($2 != 1 || $3 != 1)) ||
+    ($1 != "web:8000" && $1 != "djcms:8000" && ($2 != 0 || $3 != 0)) { print }' | sort -u | tr '\n' ' ')"
+  n="$(proxy_blocks "$f" | grep -cE '^(web|djcms):8000\|1\|')"
+  [ -z "$bad" ] && [ "$n" -ge 1 ]
+  check "${f##*/}: request_buffers w każdym z $n reverse_proxy do web/djcms, filtr Cookie tylko przy djcms${bad:+ – źle: $bad}" $?
+done
+[ "$(proxy_blocks "$WORK/buf-all.caddy" | grep -c '^djcms:8000|1|1$')" -eq 8 ]
+check "filtr Cookie w obu reverse_proxy djcms w każdym z 4 bloków aplikacji (8)" $?
+
+# 29. Blok meet. (Jitsi): bez osadzania w cudzych ramkach (pokój z kamerą i mikrofonem).
+block_body "$SRC" 'meet.{$SITE_DOMAIN} {' >"$WORK/meet-block.txt"
+grep -qxF '        X-Frame-Options "SAMEORIGIN"' "$WORK/meet-block.txt" &&
+  grep -qxF "        Content-Security-Policy \"frame-ancestors 'self'\"" "$WORK/meet-block.txt"
+check "blok meet.: X-Frame-Options SAMEORIGIN i CSP frame-ancestors 'self'" $?
+
+# 30. ADMIN_ALLOWED_IPS (S18): pusta = bajt w bajt to samo (przypadek 1 podaje ją pustą); ustawiona –
+#     odmowa /admin/ i /cms/ (także pod prefiksem) w każdym bloku aplikacji, zaraz po `import
+#     maintenance`, a poza tym plik bez zmian; śmieci zatrzymują generator.
+render "$DJ_EXTRA" "$WORK/adm-off.caddy" "1" "1" "0" ""
+render "$DJ_EXTRA" "$WORK/adm.caddy" "1" "1" "0" "203.0.113.7, 198.51.100.0/24 2001:db8::/32"
+check "generator kończy się sukcesem przy ADMIN_ALLOWED_IPS (IPv4, CIDR, IPv6, przecinki i spacje)" $?
+grep -q 'panele /admin/ i /cms/ tylko z: 203.0.113.7 198.51.100.0/24 2001:db8::/32' "$WORK/stdout"
+check "podsumowanie generatora wymienia listę adresów paneli" $?
+[ "$(grep -cxF '    @admin_denied {' "$WORK/adm.caddy")" -eq 4 ] &&
+  [ "$(grep -cxF '        not remote_ip 203.0.113.7 198.51.100.0/24 2001:db8::/32' "$WORK/adm.caddy")" -eq 4 ] &&
+  [ "$(grep -cxF '        path_regexp ^/(?:[^/]+/)?(?:admin|cms)(?:/.*)?$' "$WORK/adm.caddy")" -eq 4 ]
+check "odmowa paneli w 4 blokach aplikacji (główna, 2 × EXTRA_DOMAINS, *.) z listą adresów" $?
+awk 'prev == "    import maintenance" && $0 ~ /^    # Panele administracyjne wyłącznie z ADMIN_ALLOWED_IPS/ { n++ } { prev = $0 } END { exit n != 4 }' "$WORK/adm.caddy"
+check "odmowa paneli zaraz po import maintenance w każdym z tych bloków" $?
+for head in 'www.{$SITE_DOMAIN} {' 'meet.{$SITE_DOMAIN} {' 'monitor.{$SITE_DOMAIN} {' '{$S3_PUBLIC_ADDRESS} {' 'dj.{$SITE_DOMAIN} {'; do
+  ! block_body "$WORK/adm.caddy" "$head" | grep -q 'admin_denied'
+  check "blok „$head” bez odmowy paneli" $?
+done
+awk '/^    # Panele administracyjne wyłącznie z ADMIN_ALLOWED_IPS/ { skip = 8 } skip > 0 { skip--; next } { print }' "$WORK/adm.caddy" \
+  | cmp -s - "$WORK/adm-off.caddy"
+check "wynik z ADMIN_ALLOWED_IPS minus odmowy paneli = wynik bez niej, co do bajtu" $?
+cp "$WORK/adm.caddy" "$WORK/adm-before.caddy"
+for bad in '1.2.3.4 {' 'abc' '1.2.3.4;respond' '*' 'localhost' '10.0.0.0/8}'; do
+  render "" "$WORK/adm.caddy" "" "" "" "$bad"
+  rc=$?
+  [ $rc -ne 0 ] && cmp -s "$WORK/adm.caddy" "$WORK/adm-before.caddy"
+  check "generator odmawia dla ADMIN_ALLOWED_IPS=„$bad” (poprzedni plik nietknięty)" $?
+done
+cp "$WORK/adm-before.caddy" "$WORK/adm.caddy"
 
 # 19. Caddy sam: `caddy validate` i kolejność tras po `caddy adapt` (obraz z docker-compose.yml).
 # Pomijane bez Dockera albo przy SKIP_CADDY_VALIDATE=1 – reszta testu nie potrzebuje sieci.
@@ -549,7 +614,7 @@ if [ "${SKIP_CADDY_VALIDATE:-0}" != "1" ] && command -v docker >/dev/null 2>&1 &
       -e MAX_UPLOAD_MB=25 -e MAINTENANCE_BYPASS_TOKEN=abcdefghijklmnopqrstuvwxyz0123456789ABCD \
       "$CADDY_IMAGE" sh -c "cat > /tmp/Caddyfile && caddy $* --config /tmp/Caddyfile --adapter caddyfile" <"$file"
   }
-  for f in "$SRC" "$WORK/sub-extra.caddy" "$WORK/dj-on.caddy" "$WORK/dj-extra.caddy" "$WORK/dj-both.caddy" "$WORK/pr-on.caddy"; do
+  for f in "$SRC" "$WORK/sub-extra.caddy" "$WORK/dj-on.caddy" "$WORK/dj-extra.caddy" "$WORK/dj-both.caddy" "$WORK/pr-on.caddy" "$WORK/adm.caddy"; do
     caddy_run "$f" validate >"$WORK/validate.out" 2>&1
     rc=$?   # osobno: podstawienie $(…) w opisie nadpisałoby kod wyniku
     check "caddy validate ($CADDY_IMAGE): ${f##*/}" "$rc"

@@ -9418,3 +9418,70 @@ msgstr "For schools/teachers"
 #: apps/cms/context_processors.py
 msgid "Rejestracja nauczyciela"
 msgstr "Teacher registration"
+
+# --- Audyt bezpieczeństwa 10.10.2026: nowe komunikaty ---
+#: apps/accounts/activation.py:492
+msgid ""
+"To konto zostało zablokowane przez organizatora. Skontaktuj się z "
+"organizatorem."
+msgstr "This account has been blocked by the organiser. Please contact the organiser."
+
+#: apps/accounts/activation.py:597
+msgid ""
+"To konto uruchamia się linkiem z listu z zaproszeniem. Poproś o ponowne "
+"wysłanie linku – przyjdzie zaproszenie."
+msgstr "This account is activated with the link in the invitation e-mail. Ask for the link to be sent again – you will receive the invitation."
+
+#: apps/accounts/delegation_services.py:1091
+#, python-format
+msgid "Zaproszenie wysłano niedawno. Kolejne można wysłać za %(minutes)s min."
+msgstr "The invitation was sent recently. Another one can be sent in %(minutes)s min."
+
+#: apps/accounts/guardian.py:287
+msgid ""
+"Podaj adres rodzica lub opiekuna prawnego – nie adres opiekuna szkolnego."
+msgstr "Enter the e-mail address of a parent or legal guardian – not that of the school supervisor."
+
+#: apps/accounts/profile.py:139
+msgid ""
+"Kraj ucznia delegacji wynika z delegacji – zmienia go opiekun drużyny albo "
+"organizator."
+msgstr "The country of a delegation student follows from the delegation – it is changed by the team leader or the organiser."
+
+#: apps/forum/services.py:408 apps/forum/services.py:478
+msgid "Ten dział jest zamknięty – nie można w nim pisać."
+msgstr "This section is closed – you cannot post in it."
+
+#: apps/quiz/services.py:439
+msgid "Wyniki tego etapu są już ogłoszone – testu nie można rozpocząć."
+msgstr "The results of this stage have already been announced – the test cannot be started."
+
+#: apps/web/forms.py:1153 templates/web/account/twofactor.html:59
+msgid "Obecny adres e-mail konta"
+msgstr "Current account e-mail address"
+
+#: apps/web/forms.py:1156
+msgid ""
+"Twoje konto nie ma hasła – przepisz obecny adres, żeby potwierdzić zmianę."
+msgstr "Your account has no password – retype the current address to confirm the change."
+
+#: templates/socialaccount/refused.html:31
+msgid "Najpierw przyjmij zaproszenie"
+msgstr "Accept the invitation first"
+
+#: templates/socialaccount/refused.html:32
+msgid ""
+"To konto powstało z zaproszenia. Zanim zalogujesz się w jakikolwiek sposób, "
+"otwórz link z listu z zaproszeniem, ustaw hasło i złóż wymagane zgody."
+msgstr "This account was created from an invitation. Before you sign in in any way, open the link in the invitation e-mail, set a password and give the required consents."
+
+#: templates/web/account/twofactor.html:61
+msgid ""
+"Twoje konto nie ma hasła – przepisz obecny adres, żeby potwierdzić "
+"wyłączenie."
+msgstr "Your account has no password – retype the current address to confirm turning it off."
+
+#: templates/web/reviewer/detail.html:129
+msgid ""
+"Ta praca nie jest już Ci przydzielona – plik rozwiązania nie jest dostępny."
+msgstr "This solution is no longer assigned to you – the solution file is not available."

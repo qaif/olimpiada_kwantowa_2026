@@ -315,6 +315,15 @@ def editable_site_ids(user) -> set[int] | None:
     return ids
 
 
+def is_platform_editor(user) -> bool:
+    """Konto platformy: superużytkownik albo uprawnienie bez listy witryn (grupa ``redakcja:platforma``).
+
+    To samo, co znaczy ``platform: true`` w tokenie SSO (``apply_grants`` daje wtedy ``PLATFORM_GROUP``).
+    Konto anonimowe albo brak konta – ``False``.
+    """
+    return bool(user is not None and user.is_authenticated and editable_site_ids(user) is None)
+
+
 # --- witryna obiektu panelu --------------------------------------------------------------------------
 
 

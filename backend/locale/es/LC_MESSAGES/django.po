@@ -9565,3 +9565,70 @@ msgstr "Para escuelas/docentes"
 #: apps/cms/context_processors.py
 msgid "Rejestracja nauczyciela"
 msgstr "Registro de docentes"
+
+# --- Audyt bezpieczeństwa 10.10.2026: nowe komunikaty ---
+#: apps/accounts/activation.py:492
+msgid ""
+"To konto zostało zablokowane przez organizatora. Skontaktuj się z "
+"organizatorem."
+msgstr "El organizador ha bloqueado esta cuenta. Ponte en contacto con el organizador."
+
+#: apps/accounts/activation.py:597
+msgid ""
+"To konto uruchamia się linkiem z listu z zaproszeniem. Poproś o ponowne "
+"wysłanie linku – przyjdzie zaproszenie."
+msgstr "Esta cuenta se activa con el enlace del correo de invitación. Solicita que se envíe de nuevo el enlace: recibirás la invitación."
+
+#: apps/accounts/delegation_services.py:1091
+#, python-format
+msgid "Zaproszenie wysłano niedawno. Kolejne można wysłać za %(minutes)s min."
+msgstr "La invitación se envió hace poco. Podrás enviar otra dentro de %(minutes)s min."
+
+#: apps/accounts/guardian.py:287
+msgid ""
+"Podaj adres rodzica lub opiekuna prawnego – nie adres opiekuna szkolnego."
+msgstr "Indica la dirección de tu madre, padre o tutor legal, no la del tutor escolar."
+
+#: apps/accounts/profile.py:139
+msgid ""
+"Kraj ucznia delegacji wynika z delegacji – zmienia go opiekun drużyny albo "
+"organizator."
+msgstr "El país de un estudiante de una delegación viene dado por la delegación: lo cambia el jefe del equipo o el organizador."
+
+#: apps/forum/services.py:408 apps/forum/services.py:478
+msgid "Ten dział jest zamknięty – nie można w nim pisać."
+msgstr "Esta sección está cerrada: no se puede publicar en ella."
+
+#: apps/quiz/services.py:439
+msgid "Wyniki tego etapu są już ogłoszone – testu nie można rozpocząć."
+msgstr "Los resultados de esta fase ya se han publicado: no se puede iniciar la prueba."
+
+#: apps/web/forms.py:1153 templates/web/account/twofactor.html:59
+msgid "Obecny adres e-mail konta"
+msgstr "Dirección de correo electrónico actual de la cuenta"
+
+#: apps/web/forms.py:1156
+msgid ""
+"Twoje konto nie ma hasła – przepisz obecny adres, żeby potwierdzić zmianę."
+msgstr "Tu cuenta no tiene contraseña: escribe la dirección actual para confirmar el cambio."
+
+#: templates/socialaccount/refused.html:31
+msgid "Najpierw przyjmij zaproszenie"
+msgstr "Primero acepta la invitación"
+
+#: templates/socialaccount/refused.html:32
+msgid ""
+"To konto powstało z zaproszenia. Zanim zalogujesz się w jakikolwiek sposób, "
+"otwórz link z listu z zaproszeniem, ustaw hasło i złóż wymagane zgody."
+msgstr "Esta cuenta se creó a partir de una invitación. Antes de iniciar sesión de cualquier forma, abre el enlace del correo de invitación, establece una contraseña y otorga los consentimientos requeridos."
+
+#: templates/web/account/twofactor.html:61
+msgid ""
+"Twoje konto nie ma hasła – przepisz obecny adres, żeby potwierdzić "
+"wyłączenie."
+msgstr "Tu cuenta no tiene contraseña: escribe la dirección actual para confirmar la desactivación."
+
+#: templates/web/reviewer/detail.html:129
+msgid ""
+"Ta praca nie jest już Ci przydzielona – plik rozwiązania nie jest dostępny."
+msgstr "Este trabajo ya no está asignado a ti: el archivo de la solución no está disponible."

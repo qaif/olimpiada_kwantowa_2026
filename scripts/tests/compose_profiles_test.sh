@@ -81,9 +81,9 @@ check "nakładka operatorska z --profile full = zestaw dzisiejszy, co do usługi
 docker compose --env-file "$ENV_FILE" -f "$BASE" config >"$WORK/base.yml" 2>/dev/null
 docker compose --env-file "$ENV_FILE" -f "$BASE" -f "$OPERATOR" --profile full config >"$WORK/full.yml" 2>/dev/null
 diff "$WORK/base.yml" "$WORK/full.yml" | grep -E '^[<>]' \
-  | grep -vE '^[<>][[:space:]]+(profiles:|- full|required: (true|false))$' >"$WORK/inne.txt"
+  | grep -vE '^[<>][[:space:]]+(profiles:|- full|required: (true|false)|CMS_MEDIA_AV_SCAN: (null|"0"))$' >"$WORK/inne.txt"
 [ ! -s "$WORK/inne.txt" ]
-check "nakładka operatorska nie zmienia żadnej innej linijki konfiguracji" $?
+check "nakładka operatorska nie zmienia żadnej innej linijki konfiguracji (poza CMS_MEDIA_AV_SCAN=0 bez ClamAV-a)" $?
 [ -s "$WORK/inne.txt" ] && sed 's/^/     /' "$WORK/inne.txt"
 
 # 5. Bez WEB_IMAGE obraz jest ten, co dotąd: olimpiada/web:$APP_VERSION dla web, worker i beat.
@@ -134,16 +134,16 @@ grep -qE '^      (POSTGRES_|MINIO_|S3_|DJANGO_SECRET|REDIS|CELERY)' "$WORK/djcms
 check "djcms: bez env_file, read_only, cap_drop [ALL], tylko sieć internal, bez sekretów backendu [${problemy:-ok}]" $?
 
 # 10. Nakładka docker-compose.djcms.yml (DJ-01h, DJ-02h): dokłada do konfiguracji WYŁĄCZNIE montaż
-#     wolumenu `djcms_media` do `proxy` (tylko do odczytu) – pliki redaktorów pod /djcms/media/ – i stały
-#     adres `proxy` w sieci `internal` (jedyne proxy, któremu ufa djcms). Bez niej (dj. wyłączone)
-#     `proxy` jest ten sam co przed DJ-01; przypadek 1 i ten niżej razem to kontrakt.
+#     wolumenu `djcms_media` do `proxy` (tylko do odczytu) – pliki redaktorów pod /djcms/media/. Stały
+#     adres `proxy` w sieci `internal` (jedyne proxy, któremu ufa djcms) od 10.10.2026 przypina plik
+#     podstawowy (audyt S20 – tym samym adresem ufa mu też web), więc nakładka już go nie dokłada.
 DJ_OVERLAY="$ROOT/docker-compose.djcms.yml"
 docker compose --env-file "$ENV_FILE" -f "$BASE" --profile djcms config >"$WORK/dj-bez.yml" 2>/dev/null
 docker compose --env-file "$ENV_FILE" -f "$BASE" -f "$DJ_OVERLAY" --profile djcms config >"$WORK/dj-z.yml" 2>"$WORK/stderr"
 diff "$WORK/dj-bez.yml" "$WORK/dj-z.yml" | grep -E '^[<>]' >"$WORK/dj-diff.txt"
-[ "$(sed 's/^\([<>]\) */\1/' "$WORK/dj-diff.txt" | tr '\n' '|')" = "<internal: null|>internal:|>ipv4_address: 172.30.2.250|>- type: volume|>source: djcms_media|>target: /srv/djcms-media|>read_only: true|>volume: {}|" ]
+[ "$(sed 's/^\([<>]\) */\1/' "$WORK/dj-diff.txt" | tr '\n' '|')" = ">- type: volume|>source: djcms_media|>target: /srv/djcms-media|>read_only: true|>volume: {}|" ]
 rc=$?
-check "nakładka djcms dokłada tylko montaż djcms_media:/srv/djcms-media:ro i adres proxy w sieci internal" $rc
+check "nakładka djcms dokłada tylko montaż djcms_media:/srv/djcms-media:ro" $rc
 [ $rc -eq 0 ] || sed 's/^/     /' "$WORK/dj-diff.txt"
 awk '/^  proxy:$/ {on=1; next} on && /^  [^ ]/ {on=0} on' "$WORK/dj-z.yml" | grep -q 'target: /srv/djcms-media'
 check "montaż djcms_media trafia do usługi proxy" $?
@@ -152,10 +152,10 @@ got="$(uslugi -f "$BASE" -f "$DJ_OVERLAY")"
 check "sama nakładka (bez profilu) nie dokłada usług [$got]" $?
 
 # 10a. Zaufane proxy djcms (DJ-02 D10): djcms ufa `X-Real-IP` i `X-Djcms-Mode` WYŁĄCZNIE od adresu
-#      `proxy` przypiętego przez nakładkę – nie od podsieci compose'a, w której stoją też web, worker,
+#      `proxy` przypiętego w sieci `internal` – nie od podsieci compose'a, w której stoją też web, worker,
 #      minio, clamav i poczta. `TRUSTED_PROXY_IPS` djcms = ten jeden adres, równy `ipv4_address`
 #      proxy w sieci `internal` i leżący w jej podsieci – także przy innej wartości DJCMS_PROXY_IP
-#      (ta sama zmienna w obu plikach). Aplikacja główna (`web`) ufa jak dotąd.
+#      (ta sama zmienna w obu miejscach). Od 10.10.2026 przypięcie jest w pliku podstawowym.
 dj_trust() {  # dj_trust <plik config> – "TRUSTED_PROXY_IPS djcms|ipv4 proxy w internal|podsieć internal"
   local cfg="$1" trusted proxy_ip subnet
   trusted="$(awk '/^  djcms:$/ {on=1; next} on && /^  [^ ]/ {on=0} on' "$cfg" | sed -n 's/^      TRUSTED_PROXY_IPS: //p' | tr -d '"')"
@@ -171,10 +171,49 @@ DJCMS_PROXY_IP=172.30.2.240 docker compose --env-file "$ENV_FILE" -f "$BASE" -f 
 got="$(dj_trust "$WORK/dj-ip.yml")"
 [ "$got" = "172.30.2.240|172.30.2.240|172.30.2.0/24" ]
 check "DJCMS_PROXY_IP zmienia przypięcie i zaufanie razem [$got]" $?
-! awk '/^  proxy:$/ {on=1; next} on && /^  [^ ]/ {on=0} on' "$WORK/dj-bez.yml" | grep -q 'ipv4_address'
-check "bez nakładki proxy nie ma stałego adresu (konfiguracja sprzed DJ-01)" $?
-awk '/^  web:$/ {on=1; next} on && /^  [^ ]/ {on=0} on' "$WORK/dj-z.yml" | grep -qF 'TRUSTED_PROXY_IPS: 172.30.1.0/24,172.30.2.0/24'
-check "aplikacja główna (web) ufa proxy jak dotąd (podsieci z .env)" $?
+got="$(dj_trust "$WORK/dj-bez.yml")"
+[ "$got" = "172.30.2.250|172.30.2.250|172.30.2.0/24" ]
+check "bez nakładki djcms proxy ma ten sam stały adres w internal (od 10.10.2026 plik podstawowy) [$got]" $?
+
+# 10b. Zaufane proxy aplikacji głównej (audyt 10.10.2026, S20): web/worker/beat ufają X-Real-IP
+#      WYŁĄCZNIE od dwóch stałych adresów `proxy` (edge + internal, /32), a nie od całych podsieci,
+#      w których stoją też djcms, monitor, minio, clamav, poczta i `jitsi-web`. Adresy z tych samych
+#      zmiennych co przypięcie – zmiana w .env przesuwa jedno i drugie.
+web_trust() {  # web_trust <plik config> – "TRUSTED_PROXY_IPS web|ipv4 proxy w edge|ipv4 proxy w internal"
+  local cfg="$1" trusted edge internal
+  trusted="$(awk '/^  web:$/ {on=1; next} on && /^  [^ ]/ {on=0} on' "$cfg" | sed -n 's/^      TRUSTED_PROXY_IPS: //p' | tr -d '"')"
+  edge="$(awk '/^  proxy:$/ {on=1; next} on && /^  [^ ]/ {on=0} on' "$cfg" \
+    | awk '/^      edge:$/ {on=1; next} on && /^        ipv4_address: / {print $2; exit} /^      [^ ]/ {on=0}')"
+  internal="$(awk '/^  proxy:$/ {on=1; next} on && /^  [^ ]/ {on=0} on' "$cfg" \
+    | awk '/^      internal:$/ {on=1; next} on && /^        ipv4_address: / {print $2; exit} /^      [^ ]/ {on=0}')"
+  printf '%s|%s|%s' "$trusted" "$edge" "$internal"
+}
+got="$(web_trust "$WORK/dj-bez.yml")"
+[ "$got" = "172.30.1.250/32,172.30.2.250/32|172.30.1.250|172.30.2.250" ]
+check "web ufa wyłącznie dwóm stałym adresom proxy (/32), nie podsieciom [$got]" $?
+PROXY_EDGE_IP=172.30.1.240 DJCMS_PROXY_IP=172.30.2.240 docker compose --env-file "$ENV_FILE" -f "$BASE" config >"$WORK/web-ip.yml" 2>/dev/null
+got="$(web_trust "$WORK/web-ip.yml")"
+[ "$got" = "172.30.1.240/32,172.30.2.240/32|172.30.1.240|172.30.2.240" ]
+check "PROXY_EDGE_IP i DJCMS_PROXY_IP przesuwają przypięcie i zaufanie web razem [$got]" $?
+for svc in worker beat; do
+  awk -v h="  $svc:" '$0 == h {on=1; next} on && /^  [^ ]/ {on=0} on' "$WORK/dj-bez.yml" \
+    | grep -qxF '      TRUSTED_PROXY_IPS: 172.30.1.250/32,172.30.2.250/32'
+  check "$svc: ta sama lista zaufanych proxy co web" $?
+done
+
+# 10c. Proxy (Caddy) utwardzone jak usługi aplikacji: obraz przypięty skrótem, read_only, bez
+#      uprawnień poza wiązaniem portów < 1024, no-new-privileges, /tmp na tmpfs (walidacja
+#      konfiguracji w scripts/proxy_config.sh pisze tam plik).
+awk '/^  proxy:$/ {on=1; next} on && /^  [^ ]/ {on=0} on' "$WORK/dj-bez.yml" >"$WORK/proxy.yml"
+problemy=""
+grep -qE '^    image: caddy:2\.10@sha256:[0-9a-f]{64}$' "$WORK/proxy.yml" || problemy="$problemy image;"
+grep -qx '    read_only: true' "$WORK/proxy.yml" || problemy="$problemy read_only;"
+[ "$(awk '/^    cap_drop:$/ {on=1; next} on && /^    [^ ]/ {on=0} on' "$WORK/proxy.yml" | tr -d ' ')" = "-ALL" ] || problemy="$problemy cap_drop;"
+[ "$(awk '/^    cap_add:$/ {on=1; next} on && /^    [^ ]/ {on=0} on' "$WORK/proxy.yml" | tr -d ' ')" = "-NET_BIND_SERVICE" ] || problemy="$problemy cap_add;"
+grep -qx '      - no-new-privileges:true' "$WORK/proxy.yml" || problemy="$problemy no-new-privileges;"
+grep -q 'target: /tmp' "$WORK/proxy.yml" || grep -qE '^      - /tmp' "$WORK/proxy.yml" || problemy="$problemy tmpfs;"
+[ -z "$problemy" ]
+check "proxy: caddy:2.10@sha256, read_only, cap_drop ALL + NET_BIND_SERVICE, no-new-privileges, tmpfs /tmp [${problemy:-ok}]" $?
 
 # 11. Włączenie przez .env – dokładnie te linijki, które dopisuje scripts/deploy.sh przy
 #     DJCMS_ENABLED=1 (wycięte z deploy.sh, nie przepisane): docker compose czyta COMPOSE_FILE
@@ -240,12 +279,45 @@ awk '/^  web:$/ {on=1; next} on && /^  [^ ]/ {on=0} on' "$WORK/pelny.yml" | sed 
 awk '/^  mail:$/ {on=1; next} on && /^  [^ ]/ {on=0} on' "$WORK/pelny.yml" | sed -n 's/^      POSTFIX_mynetworks: //p' >>"$WORK/trusted.txt"
 [ "$(wc -l <"$WORK/trusted.txt")" -eq 2 ] && ! grep -qE '172\.30\.(3|4)\.' "$WORK/trusted.txt"
 check "TRUSTED_PROXY_IPS (web) i mynetworks (mail) bez 172.30.3.0/24 i 172.30.4.0/24" $?
-# Podsieci czterech sieci – rozłączne (każda inna /24 z 172.30.x).
+
+# 14a. Relay poczty (audyt 10.10.2026, S20): Postfix wyłącznie w sieciach `mail` (web, worker, beat)
+#      i `mail_egress` (sam), `mynetworks` = pętla + podsieć `mail` i nic więcej – djcms, monitor,
+#      minio, clamav i `jitsi-web` nie mogą wysłać listu z podpisem DKIM domeny.
+got="$(grep ':mail$' "$WORK/sieci.txt" | cut -d: -f1 | tr '\n' ' ' | sed 's/ $//')"
+[ "$got" = "beat mail web worker" ]
+check "sieć mail: wyłącznie beat, mail, web, worker [$got]" $?
+got="$(grep '^mail:' "$WORK/sieci.txt" | cut -d: -f2 | tr '\n' ' ' | sed 's/ $//')"
+[ "$got" = "mail mail_egress" ]
+check "usługa mail wyłącznie w sieciach mail i mail_egress (nie w edge, nie w internal) [$got]" $?
+got="$(grep ':mail_egress$' "$WORK/sieci.txt" | cut -d: -f1 | tr '\n' ' ' | sed 's/ $//')"
+[ "$got" = "mail" ]
+check "sieć mail_egress: wyłącznie mail [$got]" $?
+siec "$WORK/pelny.yml" mail >"$WORK/mail-net.yml"
+grep -qx '    internal: true' "$WORK/mail-net.yml" && grep -qx '        - subnet: 172.30.5.0/24' "$WORK/mail-net.yml"
+check "sieć mail: internal: true, podsieć 172.30.5.0/24" $?
+[ "$(sed -n 2p "$WORK/trusted.txt")" = "127.0.0.0/8,172.30.5.0/24" ]
+check "mynetworks Postfiksa = 127.0.0.0/8 + podsieć sieci mail [$(sed -n 2p "$WORK/trusted.txt")]" $?
+MAIL_SUBNET=172.30.55.0/24 docker compose --env-file "$ENV_FILE" -f "$BASE" config >"$WORK/mail-sub.yml" 2>/dev/null
+siec "$WORK/mail-sub.yml" mail | grep -qx '        - subnet: 172.30.55.0/24' &&
+  awk '/^  mail:$/ {on=1; next} on && /^  [^ ]/ {on=0} on' "$WORK/mail-sub.yml" | grep -qx '      POSTFIX_mynetworks: 127.0.0.0/8,172.30.55.0/24'
+check "MAIL_SUBNET przesuwa podsieć sieci mail i mynetworks razem" $?
+
+# 14b. Jitsi (osobny projekt) widzi wyłącznie proxy: sieć `meet` ma jednego członka z tego pliku.
+got="$(grep ':meet$' "$WORK/sieci.txt" | cut -d: -f1 | tr '\n' ' ' | sed 's/ $//')"
+[ "$got" = "proxy" ]
+check "sieć meet: z usług tego pliku wyłącznie proxy [$got]" $?
+grep -A3 'name: ${PROXY_MEET_NETWORK:-olimpiada_meet}' "$ROOT/deploy/jitsi/docker-compose.jitsi.yml" | grep -q 'external: true' ||
+  grep -B3 'name: ${PROXY_MEET_NETWORK:-olimpiada_meet}' "$ROOT/deploy/jitsi/docker-compose.jitsi.yml" | grep -q 'external: true'
+check "deploy/jitsi: jitsi-web dołącza do zewnętrznej sieci <projekt>_meet" $?
+! grep -qE '^  edge:' "$ROOT/deploy/jitsi/docker-compose.jitsi.yml"
+check "deploy/jitsi: bez sieci edge portalu" $?
+
+# Podsieci siedmiu sieci – rozłączne (każda inna /24 z 172.30.x).
 for f in "$WORK/pelny.yml"; do
   awk '/^networks:/ {n=1} n && /subnet: / {print $NF}' "$f" | sort >"$WORK/podsieci.txt"
 done
-[ "$(sort -u "$WORK/podsieci.txt" | wc -l)" -eq 4 ] && [ "$(wc -l <"$WORK/podsieci.txt")" -eq 4 ]
-check "cztery sieci, cztery różne podsieci [$(tr '\n' ' ' <"$WORK/podsieci.txt")]" $?
+[ "$(sort -u "$WORK/podsieci.txt" | wc -l)" -eq 7 ] && [ "$(wc -l <"$WORK/podsieci.txt")" -eq 7 ]
+check "siedem sieci, siedem różnych podsieci [$(tr '\n' ' ' <"$WORK/podsieci.txt")]" $?
 
 # 15. Hasło Redisa: bez REDIS_PASSWORD (serwer sprzed zmiany, .env.example) adresy są dotychczasowe
 #     i Redis bez `requirepass`; z hasłem – `:hasło@` w obu adresach, `requirepass` i healthcheck
@@ -297,9 +369,14 @@ check "plik podstawowy: publicznie wyłącznie proxy, mailpit na 127.0.0.1 [$got
 E2E_REPO_DIR="$ROOT" docker compose --env-file "$ENV_FILE" -f "$BASE" -f "$DJ_OVERLAY" -f "$ROOT/docker-compose.e2e-djcms.yml" \
   --profile djcms config >"$WORK/e2e.yml" 2>/dev/null
 awk '/^networks:/ {n=1} n && /subnet: / {print $NF}' "$WORK/e2e.yml" | sort >"$WORK/e2e-podsieci.txt"
-[ "$(wc -l <"$WORK/e2e-podsieci.txt")" -eq 4 ] && ! grep -q '^172\.30\.' "$WORK/e2e-podsieci.txt" &&
+[ "$(wc -l <"$WORK/e2e-podsieci.txt")" -eq 7 ] && ! grep -q '^172\.30\.' "$WORK/e2e-podsieci.txt" &&
   [ -z "$(comm -12 "$WORK/podsieci.txt" "$WORK/e2e-podsieci.txt")" ]
-check "nakładka E2E: cztery sieci, żadna na podsieci projektu dev [$(tr '\n' ' ' <"$WORK/e2e-podsieci.txt")]" $?
+check "nakładka E2E: siedem sieci, żadna na podsieci projektu dev [$(tr '\n' ' ' <"$WORK/e2e-podsieci.txt")]" $?
+# …a stałe adresy proxy i mynetworks Postfiksa – w przesuniętych podsieciach (inaczej Docker nie
+# przydzieli adresu spoza podsieci, a relay odrzuci pocztę z web).
+got="$(web_trust "$WORK/e2e.yml" | cut -d'|' -f2-3)|$(awk '/^  mail:$/ {on=1; next} on && /^  [^ ]/ {on=0} on' "$WORK/e2e.yml" | sed -n 's/^      POSTFIX_mynetworks: //p')"
+[ "$got" = "172.31.1.250|172.31.2.250|127.0.0.0/8,172.31.5.0/24" ]
+check "nakładka E2E: proxy na 172.31.1.250 / 172.31.2.250, mynetworks na 172.31.5.0/24 [$got]" $?
 
 if [ "$failures" -ne 0 ]; then
   printf '\n%d test(ów) nie przeszło.\n' "$failures"

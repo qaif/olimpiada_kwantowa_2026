@@ -148,7 +148,7 @@ def test_problems_page_hides_statements_before_opens_at(web_client, open_stage):
 def test_archive_edition_page_renders_documents_and_results_link(
     web_client, archive_index, edition, open_stage
 ):
-    from wagtail.documents.models import Document
+    from apps.cms.documents import Document
 
     page = ArchiveEditionPage(title="Edycja archiwalna", slug="edycja-archiwalna", edition=edition)
     archive_index.add_child(instance=page)
@@ -251,7 +251,7 @@ def test_archive_edition_documents_are_fetched_in_one_query(
     web_client, archive_index, edition, django_assert_num_queries
 ):
     """Przegląd Critica T-09, finding 6: ``select_related`` na dokumentach archiwum."""
-    from wagtail.documents.models import Document
+    from apps.cms.documents import Document
 
     page = ArchiveEditionPage(title="Edycja z materiałami", slug="z-materialami", edition=edition)
     archive_index.add_child(instance=page)

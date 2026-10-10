@@ -269,6 +269,15 @@ def decide_appeal(
         )
     if AppealDecision.objects.filter(appeal=appeal).exists():
         raise _conflict("Reklamacja została już rozstrzygnięta.", "APPEAL_ALREADY_DECIDED")
+    # Rozstrzyga się wyłącznie pracę, która **jest** w reklamacji (audyt 10.10.2026, niskie).
+    # Stan sprawdzany pod blokadą pracy (``_locked_submission`` wyżej): praca, którą w międzyczasie
+    # cofnięto do oceniania albo zamknięto inną drogą, nie może dostać decyzji komisji „na ślepo” –
+    # decyzja przestawia ją na ``FINAL`` i nadpisuje ocenę, czyli przekreślałaby tamten krok.
+    if locked.status != SubmissionStatus.APPEALED:
+        raise _conflict(
+            "Ta praca nie jest w stanie reklamacji – decyzji komisji nie można teraz wydać.",
+            "SUBMISSION_NOT_APPEALED",
+        )
 
     grade = FinalGrade.objects.filter(submission=locked).first()
     current_score = grade.score if grade is not None else None

@@ -30,7 +30,6 @@ skonfigurowanego klucza to działanie puste – i taki jest stan domyślny.
 from __future__ import annotations
 
 import logging
-import tempfile
 import zipfile
 from dataclasses import dataclass
 from functools import lru_cache
@@ -49,6 +48,7 @@ from apps.competitions.models import Edition, StageEntry
 from apps.competitions.scoping import scope_to_competition
 from apps.core.api import DomainError
 from apps.core.models import audit
+from apps.core.packages import package_tempfile
 from apps.tenancy.documents import current_version, render_document
 
 from .certificate_layout import PAGE_HEIGHT, PAGE_WIDTH, block, is_visible
@@ -1092,9 +1092,12 @@ def build_certificates_zip(certificates: list[Certificate]) -> CertificateArchiv
     przerobienie działającego kodu ścieżki krytycznej po to, żeby oszczędzić dwadzieścia linii.
 
     Archiwum powstaje mimo to w pliku tymczasowym, a nie w pamięci: przy całym finale to nadal
-    kilkaset dokumentów, a ``FileResponse`` i tak zamknie strumień po wysłaniu.
+    kilkaset dokumentów, a ``FileResponse`` i tak zamknie strumień po wysłaniu. Katalog roboczy
+    jest osobny od ``/tmp`` uploadów (``PACKAGE_TMP_DIR``, audyt 10.10.2026, S15). Limitu sumy
+    rozmiarów (``ensure_package_fits``) tu nie ma: dokumenty powstają w locie, nie mają zapisanego
+    rozmiaru, a całość to pojedyncze megabajty.
     """
-    stream = tempfile.TemporaryFile()
+    stream = package_tempfile()
     try:
         with zipfile.ZipFile(stream, "w", compression=zipfile.ZIP_DEFLATED) as archive:
             for certificate in certificates:

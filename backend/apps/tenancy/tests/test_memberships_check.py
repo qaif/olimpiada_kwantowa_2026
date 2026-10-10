@@ -223,3 +223,88 @@ def test_check_command_with_the_database_reports_the_error(competition, other_co
 
     with pytest.raises(SystemCheckError, match="tenancy.E001"):
         call_command("check", "--database", "default")
+
+
+# --- Competition.clean: ta sama reguła po stronie zapisu (audyt W4, 10.10.2026) ----------------
+#
+# Kontrola wyżej łapie stan dopiero przy ``migrate`` – czyli wtedy, gdy zatrzymuje kontener ``web``
+# wszystkim konkursom. ``Competition.clean`` odmawia **przejścia** w ten stan w chwili zapisu
+# (``/admin/``, komendy z ``full_clean``), a stan zastany przepuszcza, żeby dało się go naprawić.
+
+
+def _flags(competition, *, enforced: bool) -> None:
+    competition.feature_flags = {**(competition.feature_flags or {}), "memberships_enforced": enforced}
+    competition.save(update_fields=["feature_flags"])
+
+
+def test_clean_refuses_turning_the_flag_off_next_to_another_active_competition(
+    competition, other_competition
+):
+    from django.core.exceptions import ValidationError
+
+    _flags(competition, enforced=True)
+    _flags(other_competition, enforced=True)
+    competition.feature_flags = {**competition.feature_flags, "memberships_enforced": False}
+
+    with pytest.raises(ValidationError) as caught:
+        competition.full_clean()
+
+    assert "feature_flags" in caught.value.message_dict
+    assert "memberships_enforced" in caught.value.message_dict["feature_flags"][0]
+
+
+def test_clean_allows_turning_the_flag_off_in_a_single_competition(competition):
+    """Dzisiejsza produkcja: role z grup są rolami w jedynym konkursie – nie ma obok kogo przeciekać."""
+    _flags(competition, enforced=True)
+    competition.feature_flags = {**competition.feature_flags, "memberships_enforced": False}
+
+    competition.full_clean()
+
+
+def test_clean_allows_turning_the_flag_off_next_to_an_inactive_competition(competition, other_competition):
+    _flags(competition, enforced=True)
+    other_competition.is_active = False
+    other_competition.save(update_fields=["is_active"])
+    competition.feature_flags = {**competition.feature_flags, "memberships_enforced": False}
+
+    competition.full_clean()
+
+
+def test_clean_refuses_activating_a_competition_next_to_an_unscoped_one(competition, other_competition):
+    """Druga strona tej samej reguły: włączany konkurs przeciekałby do tamtego, nie odwrotnie."""
+    from django.core.exceptions import ValidationError
+
+    _flags(competition, enforced=False)
+    _flags(other_competition, enforced=True)
+    other_competition.is_active = False
+    other_competition.save(update_fields=["is_active"])
+    other_competition.is_active = True
+
+    with pytest.raises(ValidationError) as caught:
+        other_competition.full_clean()
+
+    assert "is_active" in caught.value.message_dict
+    assert competition.slug in caught.value.message_dict["is_active"][0]
+
+
+def test_clean_refuses_reactivating_an_unscoped_competition_next_to_another(competition, other_competition):
+    from django.core.exceptions import ValidationError
+
+    _flags(competition, enforced=True)
+    _flags(other_competition, enforced=False)
+    other_competition.is_active = False
+    other_competition.save(update_fields=["is_active"])
+    other_competition.is_active = True
+
+    with pytest.raises(ValidationError) as caught:
+        other_competition.full_clean()
+
+    assert "feature_flags" in caught.value.message_dict
+
+
+def test_clean_lets_an_inherited_unscoped_state_be_saved(competition, other_competition):
+    """Stan zastany (dwa aktywne, flagi wyłączone) zgłasza ``tenancy.E001`` – ale zapis innej zmiany
+    w ``/admin/`` musi przejść, inaczej operator nie mógłby nawet poprawić nazwy konkursu."""
+    competition.short_name = "Inna nazwa"
+
+    competition.full_clean()

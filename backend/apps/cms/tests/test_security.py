@@ -141,11 +141,12 @@ def test_restricted_document_is_hidden_from_anonymous_and_served_to_a_member(web
     """Ograniczenie widoczności kolekcji działa tylko dlatego, że plik idzie przez widok.
 
     Przy ``redirect`` (domyślne dla zdalnego storage) Wagtail oddałby 302 na adres bucketu.
-    UWAGA: obiekt w ``public-media`` i tak jest anonimowo czytelny pod bezpośrednim URL-em –
-    to ograniczenie chowa dokument, ale go nie utajnia (PROJEKT.md 1.4).
+    Od audytu 10.10.2026 (W2) plik leży w prywatnym storage, więc widok jest jedyną drogą do
+    treści – patrz ``test_private_documents.py``.
     """
-    from wagtail.documents.models import Document
     from wagtail.models import Collection, CollectionViewRestriction
+
+    from apps.cms.documents import Document
 
     root = Collection.get_first_root_node()
     collection = root.add_child(name="Materiały wewnętrzne")
@@ -173,8 +174,9 @@ def test_restricted_document_is_hidden_from_anonymous_and_served_to_a_member(web
 
 def test_public_document_is_served_with_a_cache_header(web_client):
     """Plik z kolekcji bez ograniczeń buforuje się na godzinę – patrz apps/cms/views.py."""
-    from wagtail.documents.models import Document
     from wagtail.models import Collection
+
+    from apps.cms.documents import Document
 
     document = Document.objects.create(
         title="Regulamin do druku",

@@ -66,6 +66,21 @@ DEFAULT_REVIEW_DEADLINE_DAYS = 14
 MAX_FILE_MB_LIMIT = 100
 
 
+def max_file_mb_limit() -> int:
+    """Najwyższy limit pliku, jaki koordynator może ustawić **w tej instalacji**.
+
+    Dwie granice naraz: ``MAX_FILE_MB_LIMIT`` (clamd) i limit treści żądania w Caddy
+    (``settings.MAX_UPLOAD_MB``, audyt 10.10.2026). Bez tej drugiej zadanie z limitem 100 MB
+    obiecywało uczestnikowi więcej, niż przepuszcza proxy – plik 30 MB dostawał wtedy 413
+    od Caddy'ego zamiast komunikatu formularza. Jeden megabajt zapasu, bo limit proxy dotyczy
+    całego żądania multipart (nagłówki części, token CSRF, pozostałe pola), a nie samego pliku.
+    """
+    from django.conf import settings
+
+    proxy_mb = int(getattr(settings, "MAX_UPLOAD_MB", MAX_FILE_MB_LIMIT + 1))
+    return max(1, min(MAX_FILE_MB_LIMIT, proxy_mb - 1))
+
+
 def default_scoring_values() -> list[dict]:
     """Kopia domyślnej skali – ``default`` JSONField musi być wywoływalny i zwracać nowy obiekt."""
     return [dict(item) for item in DEFAULT_SCORING_VALUES]
@@ -1121,10 +1136,9 @@ class Problem(models.Model):
             )
         if len(set(formats)) != len(formats):
             raise ValidationError({"allowed_formats": "Formaty nie mogą się powtarzać."})
-        if self.max_file_mb is not None and not (1 <= self.max_file_mb <= MAX_FILE_MB_LIMIT):
-            raise ValidationError(
-                {"max_file_mb": f"Limit rozmiaru musi mieścić się w 1–{MAX_FILE_MB_LIMIT} MB."}
-            )
+        limit = max_file_mb_limit()
+        if self.max_file_mb is not None and not (1 <= self.max_file_mb <= limit):
+            raise ValidationError({"max_file_mb": f"Limit rozmiaru musi mieścić się w 1–{limit} MB."})
         if not self.weight_denominator:
             raise ValidationError({"weight_denominator": "Mianownik wagi musi być dodatni."})
         # Skala i jej maksimum są jedną informacją zapisaną w dwóch polach – tak samo jak w etapie.

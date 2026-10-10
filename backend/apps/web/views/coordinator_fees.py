@@ -36,7 +36,7 @@ go wpisał; ekran nie liczy z niego ani grosza.
 
 from __future__ import annotations
 
-from html import escape
+from html import escape, unescape
 from io import BytesIO
 
 from django import forms
@@ -252,6 +252,20 @@ def render_fee_document(competition, kind, *, version=None, fallback=None, **con
     return render_document(competition, kind, version=version, fallback=fallback, **safe)
 
 
+def _plain(text: str) -> str:
+    """Tekst szablonu rachunku jako **tekst**, nie znaczniki ReportLaba (audyt 10.10.2026, niskie).
+
+    ``render_fee_document`` escape'uje wartości podstawień, ale nie tekst szablonu: tytuł, treść
+    i stopkę pisze koordynator w panelu, a ``Paragraph`` czyta je jak mini-HTML. ``<`` albo ``&``
+    w tytule wywracały pobranie rachunku pięćsetką (także uczestnikowi), a ``<img src="/ścieżka">``
+    kazał ReportLabowi otworzyć plik z dysku kontenera – koordynator jednego konkursu nie ma
+    czytać plików serwera przez rachunek. Najpierw ``unescape`` (żeby wartości zescapowane przy
+    podstawieniu nie dostały drugiej warstwy encji), potem escape całości. Żaden szablon
+    domyślny nie używa znaczników formatowania, więc wygląd rachunku się nie zmienia.
+    """
+    return escape(unescape(text or ""), quote=False)
+
+
 def fee_document_pdf(rendered, fee: ParticipantFee) -> bytes:
     """Rachunek jako PDF – ta sama ścieżka ReportLab, którą składa się dyplom i protokół etapu.
 
@@ -301,17 +315,18 @@ def fee_document_pdf(rendered, fee: ParticipantFee) -> bytes:
         rightMargin=18 * mm,
         topMargin=18 * mm,
         bottomMargin=18 * mm,
-        title=rendered.title or "Rachunek",
-        author=rendered.author or "",
+        # Metadane PDF to zwykły tekst – bez encji, które ``render_fee_document`` dołożyło wartościom.
+        title=unescape(rendered.title or "") or "Rachunek",
+        author=unescape(rendered.author or ""),
     )
-    story = [Paragraph(rendered.title, title_style)]
+    story = [Paragraph(_plain(rendered.title), title_style)]
     if rendered.statement:
-        story += [Paragraph(rendered.statement, body_style), Spacer(1, 6 * mm)]
+        story += [Paragraph(_plain(rendered.statement), body_style), Spacer(1, 6 * mm)]
     story.append(table)
     if rendered.signature_line:
-        story += [Spacer(1, 14 * mm), Paragraph(rendered.signature_line, body_style)]
+        story += [Spacer(1, 14 * mm), Paragraph(_plain(rendered.signature_line), body_style)]
     if rendered.footer_note:
-        story += [Spacer(1, 8 * mm), Paragraph(rendered.footer_note, note_style)]
+        story += [Spacer(1, 8 * mm), Paragraph(_plain(rendered.footer_note), note_style)]
     document.build(story)
     return buffer.getvalue()
 

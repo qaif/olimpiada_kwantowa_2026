@@ -48,6 +48,12 @@
     return "";
   }
 
+  /* Produkcja: `__Host-csrftoken` (config/settings/production.py, prefiks nie do podrzucenia z sąsiedniej
+     subdomeny), dev po http: `csrftoken`. Najpierw nazwa z prefiksem. */
+  function csrfToken() {
+    return readCookie("__Host-csrftoken") || readCookie("csrftoken");
+  }
+
   function markActivity() {
     lastActivity = Date.now();
   }
@@ -65,7 +71,7 @@
     fetch(url, {
       method: "POST",
       credentials: "same-origin",
-      headers: { "X-CSRFToken": readCookie("csrftoken"), Accept: "application/json" },
+      headers: { "X-CSRFToken": csrfToken(), Accept: "application/json" },
       body: "",
     })
       .then(function (response) {
@@ -86,7 +92,7 @@
   function flush() {
     if (idle()) return;
     var payload = new FormData();
-    payload.append("csrfmiddlewaretoken", readCookie("csrftoken"));
+    payload.append("csrfmiddlewaretoken", csrfToken());
     if (navigator.sendBeacon) {
       navigator.sendBeacon(url, payload);
     }

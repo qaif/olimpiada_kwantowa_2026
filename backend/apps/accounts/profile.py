@@ -87,7 +87,13 @@ def anonymised_email_domain(competition=None) -> str:
 
 
 def _is_coordinator(user: User) -> bool:
-    return user.is_superuser or user.groups.filter(name__in=COORDINATOR_GROUPS).exists()
+    """Konto operatora: koordynator, superużytkownik albo konto z dostępem do ``/admin/``.
+
+    ``is_staff`` jest tu od audytu 10.10.2026: konto z dostępem do panelu Django bez grupy
+    koordynatora i bez członkostwa było „niczyje” – widoczne dla każdego koordynatora i otwarte na
+    zmianę adresu, reset hasła i usunięcie, czyli na przejęcie konta, które otwiera ``/admin/``.
+    """
+    return user.is_superuser or user.is_staff or user.groups.filter(name__in=COORDINATOR_GROUPS).exists()
 
 
 # --- edycja własnych danych ---------------------------------------------------------------------
@@ -100,6 +106,43 @@ def _changed(diff: dict, field: str, before, after) -> None:
     diff[field] = True if field in PERSONAL_FIELDS else {"from": before, "to": after}
 
 
+def district_follows_delegation(participant) -> bool:
+    """Czy kraj (``district``) tego profilu wynika z delegacji, a nie z deklaracji ucznia (S9).
+
+    Uczeń zgłoszony przez opiekuna drużyny narodowej (DEL-01) dostaje ``district`` z kraju
+    delegacji (``delegation_services``), a od tego pola zależą kraj w wynikach, liczniki regionów
+    i reguła konfliktu interesów na etapie krajowym. Gdyby uczeń mógł je sam przestawić, delegacja
+    DE miałaby w tabeli ucznia „z Francji”, a recenzent z Francji wypadłby z jego prac. Uczeń
+    **wypisany** z delegacji (``former_delegation``) czeka na decyzję koordynatora – też nie
+    wybiera sobie kraju sam.
+    """
+    return bool(
+        participant is not None
+        and (
+            getattr(participant, "delegation_id", None) or getattr(participant, "former_delegation_id", None)
+        )
+    )
+
+
+def _without_delegation_district(participant, fields: dict) -> dict:
+    """Zdejmuje ``district`` z samoobsługowej zmiany profilu ucznia delegacji (S9).
+
+    Wartość **równa** obecnej znika po cichu – klient API, który odsyła cały profil, nie ma dostać
+    błędu za to, że niczego nie zmienia. Wartość inna jest odmową, a nie ciszą: „zapisano” przy
+    niezmienionym kraju byłoby kłamstwem ekranu.
+    """
+    if "district" not in fields or not district_follows_delegation(participant):
+        return fields
+    requested = (fields.get("district") or "").strip()
+    if requested and requested != participant.district:
+        raise DomainError(
+            _("Kraj ucznia delegacji wynika z delegacji – zmienia go opiekun drużyny albo organizator."),
+            "DISTRICT_FROM_DELEGATION",
+            status.HTTP_400_BAD_REQUEST,
+        )
+    return {name: value for name, value in fields.items() if name != "district"}
+
+
 def _participant_values(fields: dict, competition=None) -> dict:
     """Sprawdza pola profilu uczestnika i zwraca wartości gotowe do zapisu.
 
@@ -110,6 +153,7 @@ def _participant_values(fields: dict, competition=None) -> dict:
 
     Zakres zmian wyznacza **obecność klucza** w ``fields``, a nie jego wartość: wołający (formularz
     uczestnika, ``PATCH /api/auth/me/``, ekran koordynatora) przekazuje to, co faktycznie przysłał.
+    Kraj ucznia delegacji zdejmuje z samoobsługi wcześniej ``_without_delegation_district``.
     """
     # Importy lokalne: ``services`` importuje ``activation``, a nie ``profile`` – ale reguły
     # walidacji mieszkają w ``services`` i drugi raz ich tu nie piszemy.
@@ -217,6 +261,7 @@ def update_participant_profile(
     # „zgoda opiekuna dla małoletniego”. Pytanie „od kiedy ten uczestnik ma dokładny wiek i kto go
     # wpisał” pada przy sporze o zgodę i nie może odpowiadać na nie sam napis „zmieniono dane”.
     completing_birth_date = participant.birth_date is None
+    fields = _without_delegation_district(participant, fields)
     diff = _save_participant_values(participant, _participant_values(fields, participant.competition))
     audit(actor, "participant.profile_updated", participant, diff, request=request)
     if completing_birth_date and participant.birth_date is not None:
@@ -306,6 +351,19 @@ def confirm_email_change(token: str, *, request=None) -> User:
     user.email_verified_at = timezone.now()
     user.save(update_fields=["email", "email_verified_at"])
     _forget_allauth_addresses(user, old_email)
+    # Zmiana loginu kończy **inne** sesje i token API (audyt 10.10.2026, S11). Scenariusz, przed
+    # którym to chroni: ktoś z przejętą sesją przenosi konto na swój adres. Właściciel odzyska je
+    # resetem hasła na stary adres dopiero po interwencji organizatora – a do tego czasu sesja
+    # napastnika i wyniesiony token działałyby dalej. Bieżąca sesja (link kliknięty w tej samej
+    # przeglądarce) zostaje: to ona właśnie dowiodła dostępu do nowej skrzynki.
+    #
+    # Jawne kasowanie, a nie e-mail w ``User.get_session_auth_hash``: zmiana skrótu unieważniłaby
+    # przy wdrożeniu sesje **wszystkich** kont naraz (skrót liczony od nowa nie zgadza się z żadnym
+    # zapisanym), a kasowanie dotyczy wyłącznie konta, które właśnie zmieniło adres.
+    from rest_framework.authtoken.models import Token
+
+    Token.objects.filter(user=user).delete()
+    _delete_sessions(user, keep=_own_session_key(request, user))
     audit(user, "account.email_changed", user, {"email": True}, request=request)
     # Stary adres dowiaduje się o przeniesieniu konta – to jedyny sygnał, jaki zostaje właścicielowi
     # skrzynki, jeśli o zmianę nie prosił.
@@ -373,13 +431,25 @@ def competition_footprint(user: User) -> dict:
     }
 
 
-def _delete_sessions(user: User) -> int:
+def _own_session_key(request, user: User) -> str | None:
+    """Klucz sesji żądania, o ile należy do tego konta – sesja, której ``_delete_sessions`` nie rusza."""
+    session = getattr(request, "session", None)
+    if session is None or getattr(session, "session_key", None) is None:
+        return None
+    if str(session.get("_auth_user_id", "")) != str(user.pk):
+        return None
+    return session.session_key
+
+
+def _delete_sessions(user: User, *, keep: str | None = None) -> int:
     """Kasuje sesje użytkownika. Bez tego ciasteczko z cudzej przeglądarki dalej otwierałoby panel.
 
     Sesje trzymamy w bazie (domyślny backend Django), a klucz użytkownika jest w **zaszyfrowanej**
     treści sesji – nie ma go w kolumnie, po której dałoby się filtrować. Dlatego przeglądamy
     sesje niewygasłe i dekodujemy je; tabela sesji jest mała (wygasłe czyści ``clearsessions``),
-    a operacja zdarza się raz na usunięcie konta.
+    a operacja zdarza się raz na usunięcie konta albo zmianę adresu.
+
+    ``keep`` – klucz sesji, która ma przeżyć (zmiana adresu potwierdzona w tej samej przeglądarce).
     """
     from django.contrib.sessions.models import Session
 
@@ -387,7 +457,7 @@ def _delete_sessions(user: User) -> int:
     stale = [
         session.session_key
         for session in Session.objects.filter(expire_date__gte=timezone.now()).iterator()
-        if session.get_decoded().get("_auth_user_id") == identifier
+        if session.session_key != keep and session.get_decoded().get("_auth_user_id") == identifier
     ]
     if not stale:
         return 0
@@ -654,8 +724,12 @@ def delete_own_account(user: User, *, request=None) -> str:
 
 
 @sensitive_variables()
-def verify_self_deletion_credentials(user: User, *, password: str = "", email: str = "") -> None:
-    """Potwierdzenie tożsamości przed usunięciem konta.
+def verify_account_credentials(user: User, *, password: str = "", email: str = "") -> None:
+    """Potwierdzenie tożsamości przed czynnością, która odbiera kontu ochronę.
+
+    Woła je usunięcie konta, wniosek o zmianę adresu e-mail i wyłączenie drugiego składnika
+    (audyt 10.10.2026, S11): każda z tych czynności z porzuconej albo przejętej sesji kończy się
+    utratą konta – zmiana adresu przenosi login i reset hasła na skrzynkę napastnika.
 
     Konto hasłowe podaje hasło. Konto **bez** użytecznego hasła (zakładane przez Google/Facebooka)
     nie ma czego podać, a wpuszczenie go bez potwierdzenia znaczyłoby, że każda niezamknięta sesja
@@ -673,6 +747,10 @@ def verify_self_deletion_credentials(user: User, *, password: str = "", email: s
             "EMAIL_MISMATCH",
             status.HTTP_400_BAD_REQUEST,
         )
+
+
+#: Dawna nazwa – zostaje dla wołających sprzed uogólnienia (usunięcie konta).
+verify_self_deletion_credentials = verify_account_credentials
 
 
 # --- konto cudze: edycja i usunięcie przez koordynatora -----------------------------------------
@@ -699,6 +777,34 @@ COORDINATOR_PROTECTED_MESSAGE = (
 def _assert_not_coordinator(user: User) -> None:
     if _is_coordinator(user):
         raise DomainError(COORDINATOR_PROTECTED_MESSAGE, "COORDINATOR_PROTECTED", status.HTTP_400_BAD_REQUEST)
+
+
+def assert_coordinator_may_secure(user: User, *, actor: User | None, competition=None) -> None:
+    """Bramka czynności bezpieczeństwa koordynatora na cudzym koncie (audyt 10.10.2026, S7 i W3).
+
+    Reset hasła, zdjęcie drugiego składnika i eksport danych nie zmieniają profilu, tylko **otwierają
+    konto** albo wydają jego dane – więc obowiązują je te same odmowy, co zmianę adresu i usunięcie:
+
+    - konto własne (``SELF_ACTION``) – własne hasło i własny drugi składnik zmienia się na swoim
+      profilu, a nie ekranem zarządzania cudzymi kontami,
+    - konto chronione (``COORDINATOR_PROTECTED``) – drugi koordynator, superkoordynator, operator
+      z ``/admin/``: zdjęcie mu 2FA razem z wyciekiem hasła byłoby przejęciem konta operatora,
+    - konto z rolą w innym konkursie (``ACCOUNT_SHARED``, ``apps.accounts.shared_accounts``).
+
+    ``competition`` domyślnie z kontekstu żądania – stąd bierze go reszta serwisów tego modułu.
+    """
+    from apps.tenancy.context import current_competition
+
+    from .shared_accounts import assert_not_shared
+
+    if actor is not None and user.pk == actor.pk:
+        raise DomainError(
+            "Własnego konta nie zmienia się z tego ekranu – służy do tego własny profil.",
+            "SELF_ACTION",
+            status.HTTP_400_BAD_REQUEST,
+        )
+    _assert_not_coordinator(user)
+    assert_not_shared(user, competition if competition is not None else current_competition(), actor=actor)
 
 
 def _account_values(fields: dict) -> dict:
@@ -809,7 +915,8 @@ def update_account_by_coordinator(
     zwykle właśnie rozmawia z uczestnikiem przez telefon, bo do skrzynki z literówką nic nie
     dochodzi. Wpisy ``allauth`` ze starym adresem znikają tak samo, jak przy potwierdzeniu
     (``_forget_allauth_addresses``), inaczej konto dałoby się dalej połączyć z Google po adresie,
-    który za chwilę może należeć do kogoś innego.
+    który za chwilę może należeć do kogoś innego. Konto z rolą w innym konkursie adresu ani blokady
+    stąd nie zmienia wcale (``ACCOUNT_SHARED``, audyt 10.10.2026, W3) – patrz komentarz w treści.
 
     ``email_verified_at`` zostaje nietknięte: potwierdzeniem adresu był kiedyś list, a wyzerowanie
     pola wstawiłoby konto pod kosiarkę nieaktywowanych rejestracji – czyli poprawka literówki
@@ -823,6 +930,7 @@ def update_account_by_coordinator(
     from apps.tenancy.context import current_competition
 
     from .services import committee_profile_in, participant_for
+    from .shared_accounts import assert_not_shared
 
     _assert_not_coordinator(user)
     # Najpierw **cała** walidacja – trzech obiektów naraz, więc bez tego rozdziału zły numer
@@ -830,6 +938,15 @@ def update_account_by_coordinator(
     values = _account_values(account)
     if "email" in account:
         values["email"] = _assert_email_free(account["email"], exclude_pk=user.pk)
+    # Adres i blokada działają na **całym** koncie, a nie na profilu tego konkursu (audyt
+    # 10.10.2026, W3): nowy adres koordynatora B na koncie recenzenta A to reset hasła na skrzynkę
+    # koordynatora B i wejście do anonimowych prac A. Konto z rolą u sąsiada zmienia tu więc tylko
+    # imię, nazwisko i profil tego konkursu. Porównanie bez wielkości liter – jak więz unikalności
+    # adresu – żeby zapis formularza z niezmienionym adresem nie był odmową.
+    changes_email = "email" in values and values["email"] != (user.email or "").lower()
+    changes_active = "is_active" in values and values["is_active"] != user.is_active
+    if changes_email or changes_active:
+        assert_not_shared(user, current_competition(), actor=actor)
     # Profil z konkursu, którego panel koordynator ma przed sobą: koordynator olimpiady A nie
     # poprawia szkoły uczestnikowi w olimpiadzie B, nawet jeżeli to jedno konto (§ 3.3).
     profile = participant_for(user, current_competition())
@@ -856,6 +973,10 @@ def update_account_by_coordinator(
 
     diff: dict = {}
     previous_email = user.email
+    if not changes_email:
+        # Ten sam adres w innym zapisie (wielkość liter) nie jest zmianą adresu – bez tego zapis
+        # formularza „przepisywałby” login i sprzątał wpisy allauth konta, którego nikt nie ruszał.
+        values.pop("email", None)
     updates = [name for name in ("first_name", "last_name", "email", "is_active") if name in values]
     for name in updates:
         _changed(diff, name, getattr(user, name), values[name])
@@ -885,7 +1006,7 @@ def update_account_by_coordinator(
 
 
 @transaction.atomic
-def delete_account_by_coordinator(user: User, *, actor: User, request=None) -> str:
+def delete_account_by_coordinator(user: User, *, actor: User, request=None, via: str | None = None) -> str:
     """Usuwa cudze konto z panelu koordynatora. Zwraca ``"anonymised"`` albo ``"deleted"``.
 
     Skutek jest dokładnie ten sam, co przy żądaniu właściciela (``delete_own_account``), bo pyta
@@ -893,13 +1014,16 @@ def delete_account_by_coordinator(user: User, *, actor: User, request=None) -> s
     więc zdarzenie ma własną akcję w audycie – „kto skasował to konto” jest przy cudzej decyzji
     pytaniem pierwszym, a nie ciekawostką.
 
-    Dwie odmowy. Własnego konta koordynator tą drogą nie skasuje: ekran zarządzania kontami nie ma
+    Trzy odmowy. Własnego konta koordynator tą drogą nie skasuje: ekran zarządzania kontami nie ma
     być wyjściem awaryjnym dla samego organizatora, a operacja bez potwierdzenia tożsamości
     (którego ten ekran nie ma – ma je ``/account/delete/``) byłaby jednym kliknięciem od utraty
     dostępu do zawodów. Cudzego konta koordynatora również nie – patrz ``COORDINATOR_PROTECTED``.
+    Konta z rolą w innym konkursie też nie – patrz ``apps.accounts.shared_accounts``.
 
     ``diff`` nie zawiera ani jednej danej osobowej: sam skutek i to, czy konto miało ślad
     w zawodach. Wpis zostaje w bazie na stałe, także po skasowaniu wiersza użytkownika.
+    ``via`` – ekran, z którego przyszła decyzja (``"activations"``: kolejka kont oczekujących),
+    żeby przy sprawie „moje konto zniknęło” było widać, czy skasowano je z karty konta, czy z kolejki.
     """
     if actor is not None and user.pk == actor.pk:
         raise DomainError(
@@ -907,15 +1031,19 @@ def delete_account_by_coordinator(user: User, *, actor: User, request=None) -> s
             "SELF_DELETE",
             status.HTTP_400_BAD_REQUEST,
         )
+    from apps.tenancy.context import current_competition
+
+    from .shared_accounts import assert_not_shared
+
     _assert_not_coordinator(user)
+    # Usunięcie konta z rolą w innym konkursie anonimizowałoby jego profile **we wszystkich**
+    # konkursach – decyzja jednego organizatora o danych, które przetwarza też drugi (W3).
+    assert_not_shared(user, current_competition(), actor=actor)
     had_footprint = any(competition_footprint(user).values())
     result = "anonymised" if had_footprint else "deleted"
     # Audyt **przed** operacją: po ``delete()`` nie ma z czego wziąć ``target_id`` skasowanego konta.
-    audit(
-        actor,
-        "account.deleted_by_coordinator",
-        user,
-        {"result": result, "had_footprint": had_footprint},
-        request=request,
-    )
+    diff = {"result": result, "had_footprint": had_footprint}
+    if via:
+        diff["via"] = via
+    audit(actor, "account.deleted_by_coordinator", user, diff, request=request)
     return _erase_account(user, actor=actor, request=request)

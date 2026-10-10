@@ -214,9 +214,13 @@ def test_committee_registration_refuses_a_voivodeship_before_spending_the_code(c
 def test_import_invitation_accept_saves_a_country(countries):
     from apps.accounts.bulk_registration import accept_invitation
 
-    participant = ParticipantFactory(district="", birth_year=1990)
-    participant.user.is_active = False
-    participant.user.save(update_fields=["is_active"])
+    # Konto od razu nieaktywne i bez potwierdzonego adresu – tak wygląda konto z importu przed
+    # przyjęciem zaproszenia. Nie ``is_active=False`` + ``save()`` na koncie z fabryki: ``User.save()``
+    # czyta przejście aktywne → nieaktywne jako blokadę i stawia ``blocked_at``, a zablokowanemu
+    # kontu ``accept_invitation`` słusznie odmawia.
+    participant = ParticipantFactory(
+        district="", birth_year=1990, user__is_active=False, user__email_verified_at=None
+    )
 
     accept_invitation(
         participant,

@@ -210,6 +210,11 @@ class MeView(GenericAPIView):
         Pola profilu uczestnika (telefon, szkoła, klasa, rocznik, województwo) przyjmujemy wyłącznie
         od konta, które ten profil ma. Konto komitetu zmienia tą drogą imię i nazwisko; województwo
         zostaje u koordynatora, bo to na nim opiera się reguła konfliktu interesów.
+
+        Uczeń delegacji (DEL-01) nie zmienia tą drogą kraju (``district``, audyt 10.10.2026, S9):
+        kraj wynika z delegacji, więc inna wartość to 400 ``DISTRICT_FROM_DELEGATION``, a wartość
+        równa obecnej jest pomijana. Reguła mieszka w serwisie (``update_participant_profile``),
+        żeby formularz ``/me/profile/`` i ten endpoint nie mogły się w niej rozjechać.
         """
         serializer = MeUpdateSerializer(data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)

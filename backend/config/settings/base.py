@@ -1,6 +1,7 @@
 """Ustawienia wspólne. Wszystko konfigurowalne przychodzi ze zmiennych środowiskowych."""
 
 import logging
+import tempfile
 from pathlib import Path
 
 import environ
@@ -1017,6 +1018,15 @@ WAGTAILADMIN_BASE_URL = env("WAGTAILADMIN_BASE_URL", default=f"https://{SITE_DOM
 # panelu (``/cms/password_reset/``) działa dla **każdego** konta i żadnej z tych rzeczy nie ma –
 # wyłączony odpowiada 404. Logowanie panelu: ``apps.web.views.public.panel_login_redirect``.
 WAGTAIL_PASSWORD_RESET_ENABLED = False
+# Adres e-mail i hasło konta zmienia się wyłącznie w serwisie (``/account/email/``, „Nie pamiętasz
+# hasła?”), a nie na ``/cms/account/`` (audyt 10.10.2026, W5). Formularze Wagtaila zapisują nowy adres
+# **od razu** – bez potwierdzenia na nowej skrzynce, bez listu na starą, bez audytu i bez sprzątania
+# ``allauth.EmailAddress`` – a zmiana hasła nie ma limitu prób na stare hasło i zostawia token API.
+# Przejęta sesja redaktora albo koordynatora (porzucony komputer, skrypt w ``/cms/``) kończyłaby się
+# trwałym przejęciem konta jednym zapisem formularza. Wyłączone pola znikają z ``/cms/account/``,
+# a POST z nimi niczego nie zmienia.
+WAGTAIL_EMAIL_MANAGEMENT_ENABLED = False
+WAGTAIL_PASSWORD_MANAGEMENT_ENABLED = False
 # Whitelist rozszerzeń dokumentów: bez niej redaktor mógłby wrzucić do publicznego bucketu plik
 # wykonywalny albo HTML (XSS z tej samej domeny, gdyby kiedyś serwować go bez pośrednictwa widoku).
 WAGTAILDOCS_EXTENSIONS = ["pdf", "doc", "docx", "odt", "ods", "odp", "xls", "xlsx", "csv", "txt", "zip"]
@@ -1025,10 +1035,24 @@ WAGTAILDOCS_EXTENSIONS = ["pdf", "doc", "docx", "odt", "ods", "odp", "xls", "xls
 # oddawany 302 na publiczny adres MinIO, więc ograniczenie widoczności kolekcji („tylko zalogowani”)
 # byłoby sprawdzane, ale sam link do bucketu zostawałby w historii przeglądarki i w logach proxy.
 # ``serve_view`` streamuje plik z aplikacji, więc kontrola dostępu i treść idą tą samą drogą.
-# UWAGA (PROJEKT.md 1.4): obiekt nadal leży w anonimowo czytelnym buckecie ``public-media`` –
-# ograniczenie kolekcji utrudnia znalezienie pliku, ale nie czyni go tajnym. Materiały, które
-# naprawdę nie mogą wyciec, idą do ``private_media``, nie do dokumentów Wagtaila.
+# Od audytu 10.10.2026 (W2) plik dokumentu leży w **prywatnym** storage (``cms.Document`` niżej),
+# więc ``serve_view`` jest jedyną drogą do treści, a nie tylko wygodniejszą.
 WAGTAILDOCS_SERVE_METHOD = "serve_view"
+# Własny model dokumentu (``apps/cms/documents.py``): plik w prywatnym storage (produkcyjnie bucket
+# ``submissions`` pod prefiksem ``documents/``) pod kluczem ``<uuid4>/<nazwa>``. Domyślny model
+# Wagtaila kładł go w anonimowo czytelnym ``public-media`` pod oryginalną nazwą – ograniczenie
+# widoczności kolekcji nie chroniło wtedy niczego. Wiersze przenosi migracja ``cms.0031``–``0034``,
+# pliki – ``manage.py migrate_documents_to_private``.
+WAGTAILDOCS_DOCUMENT_MODEL = "cms.Document"
+# Formularze wgrywania dokumentów i obrazów w ``/cms/`` ze skanem ClamAV (``apps/cms/media_scan.py``).
+# Media redakcyjne były jedynymi plikami w serwisie, których nie sprawdzał antywirus.
+WAGTAILDOCS_DOCUMENT_FORM_BASE = "apps.cms.media_scan.ScannedDocumentForm"
+WAGTAILIMAGES_IMAGE_FORM_BASE = "apps.cms.media_scan.ScannedImageForm"
+# Wyłącznik skanu mediów redakcyjnych – dla instalacji bez usługi ``clamav``
+# (``docker-compose.operator.yml``). Przy włączonym skanie i niedostępnym clamd plik przechodzi
+# z ostrzeżeniem w logu (tak samo jak praca uczestnika czeka wtedy na skan, a nie jest odrzucana);
+# plik z wykrytym zagrożeniem jest odrzucany zawsze.
+CMS_MEDIA_AV_SCAN = env.bool("CMS_MEDIA_AV_SCAN", default=True)
 # Podgląd i wyszukiwarka: prosty backend bazodanowy – bez dodatkowej usługi w compose.
 WAGTAILSEARCH_BACKENDS = {"default": {"BACKEND": "wagtail.search.backends.database"}}
 WAGTAIL_APPEND_SLASH = True
@@ -1224,6 +1248,12 @@ REST_FRAMEWORK = {
         # przez opiekuna, więc limit chroni cudze skrzynki; sześćdziesiąt na godzinę mieści z zapasem
         # drużynę (kilka osób) i zaproszenia dla kilkudziesięciu krajów w jednym posiedzeniu.
         "delegation": "60/hour",
+        # „Wyślij zaproszenie ponownie” w panelu opiekuna szkolnego (audyt 10.10.2026, S12). Każde
+        # kliknięcie to list na adres z arkusza wgranego przez opiekuna, a rejestracja opiekunów bywa
+        # otwarta – bez limitu konto opiekuna byłoby wysyłaczem poczty z domeny organizatora.
+        # Liczone per konto (widok podaje ``user_throttle_keys``); niezależnie od tego serwis trzyma
+        # godzinną karencję na ucznia. Dwadzieścia na godzinę mieści przypomnienie całej klasie.
+        "supervisor_resend": "20/hour",
         # Bramka linku-zaproszenia (``/zaproszenie/wideo/<klucz>/``, POST „Dołącz”) – bez konta,
         # więc liczona po adresie IP, jak każdy publiczny formularz. Wysoko, bo za jednym NAT-em
         # bywa cała sala gości wchodzących na to samo zebranie naraz; nisko na tyle, żeby
@@ -1361,6 +1391,20 @@ CERT_SIGN_LOCATION = env("CERT_SIGN_LOCATION", default="")
 DATA_UPLOAD_MAX_MEMORY_SIZE = 2 * 1024 * 1024  # pliki idą strumieniem na dysk tymczasowy powyżej 2 MB
 FILE_UPLOAD_MAX_MEMORY_SIZE = 2 * 1024 * 1024
 FILE_UPLOAD_TEMP_DIR = "/tmp"  # noqa: S108 - tmpfs w kontenerze
+# Katalog roboczy paczek ZIP (eksport danych konta, paczki prac etapu i recenzenta, dyplomy) –
+# **osobny** od ``FILE_UPLOAD_TEMP_DIR`` (audyt 10.10.2026, S15). W kontenerze ``/tmp`` to tmpfs
+# 256 MB wspólny z wgrywaniem plików powyżej 2 MB: jedna duża paczka (choćby eksport uczestnika
+# z kilkunastoma wersjami po 20 MB) zapełniała go i każdy cudzy upload kończył się wtedy 500 –
+# tuż przed terminem. Produkcyjnie wskazuje na wolumen dyskowy (``PACKAGE_TMP_DIR`` w compose);
+# domyślnie katalog tymczasowy systemu, jak dotąd.
+PACKAGE_TMP_DIR = env("PACKAGE_TMP_DIR", default=tempfile.gettempdir())
+# Górna granica sumy rozmiarów plików jednej paczki, sprawdzana **przed** budową z ``size_bytes``
+# (``apps.core.packages``). Powyżej – odmowa z komunikatem zamiast zapełnienia dysku w połowie.
+PACKAGE_MAX_BYTES = env.int("PACKAGE_MAX_BYTES", default=200 * 1024 * 1024)
+# Limit treści żądania w Caddy (``deploy/Caddyfile``: ``max_size {$MAX_UPLOAD_MB}MB``) widziany
+# także przez aplikację: pole „maks. rozmiar pliku” zadania nie może obiecać uczestnikowi więcej,
+# niż przepuści proxy – inaczej zamiast komunikatu formularza dostaje 413 od Caddy'ego.
+MAX_UPLOAD_MB = env.int("MAX_UPLOAD_MB", default=25)
 
 LOGGING = {
     "version": 1,

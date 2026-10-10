@@ -27,6 +27,13 @@
         dostawcę zewnętrznego.{% endblocktranslate %}</p>
       <p>{% blocktranslate trimmed with email=settings.cms.SiteSettings.contact_email %}Jeśli uważasz, że to pomyłka, napisz do organizatora:
         {{ email }}.{% endblocktranslate %}</p>
+    {% elif reason == "invitation" %}
+      <h1>{% translate "Najpierw przyjmij zaproszenie" %}</h1>
+      <p>{% blocktranslate trimmed %}To konto powstało z zaproszenia. Zanim zalogujesz się w jakikolwiek sposób, otwórz link
+        z listu z zaproszeniem, ustaw hasło i złóż wymagane zgody.{% endblocktranslate %}</p>
+      <p class="actions">
+        <a class="btn btn--primary" href="{% url 'web:activate-resend' %}">{% translate "Wyślij zaproszenie ponownie" %}</a>
+      </p>
     {% elif reason == "no_email" %}
       <h1>{% translate "Brak adresu e-mail" %}</h1>
       <p>{% blocktranslate trimmed with provider=provider_name|default:_("Dostawca") %}{{ provider }} nie przekazał adresu e-mail, a jest on u nas

@@ -8,8 +8,10 @@ Przedmiotem jest to, czego nie widać po kodzie widoku:
   wchodzą, więc nie da się ich podstawić w POST (§ 8, D7),
 - zapis zostawia ślad ``competition.updated`` z **nazwami** zmienionych pól, a zapis bez zmiany
   nie zostawia śladu w ogóle,
-- przełącznik ``memberships_enforced`` da się przestawić z panelu, ale ekran mówi wprost, co to
-  zmienia – i to zdanie jest tu asercją, a nie ozdobą.
+- przełącznik ``memberships_enforced`` da się z panelu wyłącznie **włączyć** (audyt W4): wyłączenie
+  obok drugiego aktywnego konkursu dawałoby role z globalnych grup i awarię wdrożenia na
+  ``tenancy.E001``; ekran mówi wprost, co przełącznik zmienia – i to zdanie jest tu asercją,
+- listy obrazów nie pokazują kolekcji innych konkursów.
 """
 
 from __future__ import annotations
@@ -229,18 +231,58 @@ def test_the_page_warns_what_memberships_enforced_does(coordinator_client):
     assert "zmienia, kto ma dostęp do paneli" in content
 
 
-def test_flipping_memberships_enforced_is_allowed_and_audited(coordinator_client, competition):
-    competition.feature_flags = {**competition.feature_flags, "memberships_enforced": True}
+def test_enabling_memberships_enforced_is_allowed_and_audited(
+    coordinator_client, competition, other_competition
+):
+    """Włączenie jest drogą organizatora do domknięcia migracji członkostw – także przy dwóch konkursach."""
+    competition.feature_flags = {**competition.feature_flags, "memberships_enforced": False}
     competition.save(update_fields=["feature_flags"])
+    assert other_competition.is_active
     payload = form_payload(competition)
-    payload.pop(f"{FLAG_PREFIX}memberships_enforced")
+    payload[f"{FLAG_PREFIX}memberships_enforced"] = "on"
 
     coordinator_client.post(URL, payload)
 
     competition.refresh_from_db()
-    assert competition.has_feature("memberships_enforced") is False
+    assert competition.has_feature("memberships_enforced") is True
     entry = AuditLog.objects.filter(action="competition.updated").latest("at")
     assert entry.diff == {"fields": [f"{FLAG_PREFIX}memberships_enforced"]}
+
+
+def test_disabling_memberships_enforced_from_the_panel_is_ignored(
+    coordinator_client, competition, other_competition
+):
+    """Audyt W4: POST bez pola (albo z pustym) nie wyłącza flagi i nie zostawia wpisu o zmianie.
+
+    Dwa aktywne konkursy to dokładnie stan, w którym wyłączenie otwierałoby panele tego konkursu
+    koordynatorom wszystkich pozostałych, a następne ``migrate`` zatrzymywałoby się na
+    ``tenancy.E001``.
+    """
+    competition.feature_flags = {**competition.feature_flags, "memberships_enforced": True}
+    competition.save(update_fields=["feature_flags"])
+    assert other_competition.is_active
+    payload = form_payload(competition)
+    payload.pop(f"{FLAG_PREFIX}memberships_enforced")
+
+    coordinator_client.post(URL, payload)
+    coordinator_client.post(URL, {**payload, f"{FLAG_PREFIX}memberships_enforced": ""})
+
+    competition.refresh_from_db()
+    assert competition.has_feature("memberships_enforced") is True
+    assert not AuditLog.objects.filter(action="competition.updated").exists()
+
+
+def test_an_enabled_memberships_switch_is_shown_locked_with_the_operator_note(
+    coordinator_client, competition
+):
+    competition.feature_flags = {**competition.feature_flags, "memberships_enforced": True}
+    competition.save(update_fields=["feature_flags"])
+
+    response = coordinator_client.get(URL)
+
+    field = response.context["form"].fields[f"{FLAG_PREFIX}memberships_enforced"]
+    assert field.disabled is True
+    assert "/admin/" in response.content.decode()
 
 
 def test_saving_writes_every_flag_explicitly(coordinator_client, competition):
@@ -298,3 +340,80 @@ def test_the_screen_always_edits_the_competition_of_the_request(client_for, comp
     other_competition.refresh_from_db()
     assert competition.short_name == "Tylko A"
     assert other_competition.short_name != "Tylko A"
+
+
+# --- obrazy z biblioteki --------------------------------------------------------------------------
+
+
+def _image_in(collection, title: str):
+    from wagtail.images import get_image_model
+    from wagtail.images.tests.utils import get_test_image_file
+
+    return get_image_model().objects.create(title=title, file=get_test_image_file(), collection=collection)
+
+
+def test_image_lists_hide_the_collections_of_other_competitions(
+    coordinator_client, competition, other_competition
+):
+    """Konkurs bez zawężenia ``/cms/`` (Konkurs #1) widzi bibliotekę poza kolekcjami innych konkursów."""
+    from wagtail.models import Collection
+
+    from apps.cms.permissions import ensure_collection
+
+    own = _image_in(Collection.get_first_root_node(), "Znak w korzeniu")
+    foreign = _image_in(ensure_collection(other_competition), "Znak sąsiada")
+
+    response = coordinator_client.get(URL)
+    choices = set(response.context["form"].fields["logo"].queryset.values_list("pk", flat=True))
+    assert own.pk in choices
+    assert foreign.pk not in choices
+
+    invalid = coordinator_client.post(URL, form_payload(competition, logo=foreign.pk))
+    assert invalid.status_code == 400
+    competition.refresh_from_db()
+    assert competition.logo_id is None
+
+    coordinator_client.post(URL, form_payload(competition, logo=own.pk))
+    competition.refresh_from_db()
+    assert competition.logo_id == own.pk
+
+
+def test_a_scoped_competition_sees_only_its_own_collection(
+    coordinator_client, competition, other_competition
+):
+    """Konkurs z zawężonym ``/cms/``: tylko jego kolekcja (tam trafia każdy plik wgrany pod jego adresem)."""
+    from wagtail.models import Collection
+
+    from apps.cms.permissions import ensure_collection
+
+    competition.feature_flags = {**competition.feature_flags, "scoped_cms_permissions": True}
+    competition.save(update_fields=["feature_flags"])
+    mine = _image_in(ensure_collection(competition), "Nasz znak")
+    root = _image_in(Collection.get_first_root_node(), "Znak w korzeniu")
+    foreign = _image_in(ensure_collection(other_competition), "Znak sąsiada")
+
+    choices = set(
+        coordinator_client.get(URL).context["form"].fields["favicon"].queryset.values_list("pk", flat=True)
+    )
+
+    assert mine.pk in choices
+    assert root.pk not in choices
+    assert foreign.pk not in choices
+
+
+def test_an_already_pinned_foreign_image_does_not_block_saving(
+    coordinator_client, competition, other_competition
+):
+    """Obraz przypięty przed tą regułą zostaje na liście – zapis innego pola nie kończy się błędem."""
+    from apps.cms.permissions import ensure_collection
+
+    foreign = _image_in(ensure_collection(other_competition), "Znak sąsiada")
+    type(competition).objects.filter(pk=competition.pk).update(logo=foreign)
+    competition.refresh_from_db()
+
+    response = coordinator_client.post(URL, form_payload(competition, short_name="Krótko"))
+
+    assert response.status_code == 302
+    competition.refresh_from_db()
+    assert competition.short_name == "Krótko"
+    assert competition.logo_id == foreign.pk

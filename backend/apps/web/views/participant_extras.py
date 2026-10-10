@@ -118,5 +118,8 @@ class PreferencesView(View):
             max_age=LANGUAGE_COOKIE_MAX_AGE,
             samesite="Lax",
             secure=request.is_secure(),
+            # Te same flagi, które Django daje temu ciasteczku w ``set_language`` – z ustawień,
+            # żeby produkcja (``LANGUAGE_COOKIE_HTTPONLY = True``) i dev nie miały dwóch wersji.
+            httponly=settings.LANGUAGE_COOKIE_HTTPONLY,
         )
         return response

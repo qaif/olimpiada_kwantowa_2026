@@ -45,7 +45,7 @@ jobs:
           enable-cache: true
           # Klucz cache'u po pliku zależności: przebieg, który niczego nie zmienił w zależnościach,
           # nie ma powodu ich ponownie pobierać.
-          cache-dependency-glob: backend/pyproject.toml
+          cache-dependency-glob: backend/uv.lock
 
       - uses: actions/setup-python@v5
         with:
@@ -53,10 +53,22 @@ jobs:
 
       - name: Instalacja narzędzi
         working-directory: backend
-        run: uv pip install --system -r pyproject.toml --extra dev
+        # Dokładnie wersje z `backend/uv.lock` (jak obraz – backend/Dockerfile, `uv sync --frozen`),
+        # a nie najnowsze w zakresach pyproject: testy na innych wersjach niż produkcja niczego o niej
+        # nie dowodzą. Skróty z blokady sprawdza `uv pip install`.
+        run: |
+          uv export --frozen --extra dev --no-emit-project -o "$RUNNER_TEMP/requirements.txt"
+          uv pip install --system -r "$RUNNER_TEMP/requirements.txt"
 
       # Dwa wywołania, a nie jedno: `check` szuka błędów, `format --check` pilnuje zapisu.
       # Rozdzielone, bo ich naprawa jest inna – pierwsze poprawia człowiek, drugie `ruff format`.
+      # Blokada zgodna z pyproject.toml (audyt bezpieczeństwa 10.10.2026, S21): obraz instaluje
+      # `uv sync --frozen`, czyli zmiana zależności w pyproject bez `uv lock` niczego by w nim nie
+      # zmieniła – po cichu. Tutaj taka zmiana jest czerwona.
+      - name: uv lock --check (backend/uv.lock aktualny)
+        working-directory: backend
+        run: uv lock --check
+
       - name: ruff check
         working-directory: backend
         run: ruff check apps ../e2e config
@@ -74,7 +86,7 @@ jobs:
       - uses: astral-sh/setup-uv@v3
         with:
           enable-cache: true
-          cache-dependency-glob: backend/pyproject.toml
+          cache-dependency-glob: backend/uv.lock
 
       - uses: actions/setup-python@v5
         with:
@@ -82,7 +94,12 @@ jobs:
 
       - name: Instalacja zależności
         working-directory: backend
-        run: uv pip install --system -r pyproject.toml --extra dev
+        # Dokładnie wersje z `backend/uv.lock` (jak obraz – backend/Dockerfile, `uv sync --frozen`),
+        # a nie najnowsze w zakresach pyproject: testy na innych wersjach niż produkcja niczego o niej
+        # nie dowodzą. Skróty z blokady sprawdza `uv pip install`.
+        run: |
+          uv export --frozen --extra dev --no-emit-project -o "$RUNNER_TEMP/requirements.txt"
+          uv pip install --system -r "$RUNNER_TEMP/requirements.txt"
 
       # Osobne zadanie, choć technicznie mogłoby wisieć przy testach. Powód: brakująca migracja
       # jest awarią **wdrożenia**, a nie testów – produkcja wstaje wtedy z bazą niezgodną z kodem
@@ -105,7 +122,7 @@ jobs:
       - uses: astral-sh/setup-uv@v3
         with:
           enable-cache: true
-          cache-dependency-glob: backend/pyproject.toml
+          cache-dependency-glob: backend/uv.lock
 
       - uses: actions/setup-python@v5
         with:
@@ -113,7 +130,12 @@ jobs:
 
       - name: Instalacja zależności
         working-directory: backend
-        run: uv pip install --system -r pyproject.toml --extra dev
+        # Dokładnie wersje z `backend/uv.lock` (jak obraz – backend/Dockerfile, `uv sync --frozen`),
+        # a nie najnowsze w zakresach pyproject: testy na innych wersjach niż produkcja niczego o niej
+        # nie dowodzą. Skróty z blokady sprawdza `uv pip install`.
+        run: |
+          uv export --frozen --extra dev --no-emit-project -o "$RUNNER_TEMP/requirements.txt"
+          uv pip install --system -r "$RUNNER_TEMP/requirements.txt"
 
       # Pliki `backend/djcms_contract/app_routes.{json,env}` mówią Caddy'emu i djcms, które adresy
       # należą do aplikacji (docs/tasks/DJ-02.md § 6). Nowy ekran bez `djcms_routes --write` to
@@ -239,7 +261,7 @@ jobs:
       - uses: astral-sh/setup-uv@v3
         with:
           enable-cache: true
-          cache-dependency-glob: backend/pyproject.toml
+          cache-dependency-glob: backend/uv.lock
 
       - uses: actions/setup-python@v5
         with:
@@ -247,7 +269,12 @@ jobs:
 
       - name: Instalacja zależności
         working-directory: backend
-        run: uv pip install --system -r pyproject.toml --extra dev
+        # Dokładnie wersje z `backend/uv.lock` (jak obraz – backend/Dockerfile, `uv sync --frozen`),
+        # a nie najnowsze w zakresach pyproject: testy na innych wersjach niż produkcja niczego o niej
+        # nie dowodzą. Skróty z blokady sprawdza `uv pip install`.
+        run: |
+          uv export --frozen --extra dev --no-emit-project -o "$RUNNER_TEMP/requirements.txt"
+          uv pip install --system -r "$RUNNER_TEMP/requirements.txt"
 
       # `backend/Dockerfile` kompiluje katalogi tłumaczeń przy budowaniu obrazu (`gettext` jest
       # w warstwie runtime); tutaj testy odpalają się bez obrazu, a `.mo` kompiluje `conftest.py`
@@ -360,6 +387,32 @@ jobs:
 
       - name: pytest
         run: .venv/bin/python -m pytest -q --create-db
+
+  audit:
+    # Znane podatności (baza PyPA/OSV) w zależnościach z plików blokady obu projektów – audyt
+    # bezpieczeństwa 10.10.2026, S21. INFORMACYJNIE: `continue-on-error` – nowe CVE w zależności
+    # przechodniej nie może zablokować pilnej poprawki, a decyzja „aktualizujemy teraz” należy do
+    # człowieka (wynik w logu joba). Zależności produkcyjne (`--no-dev`): to one są w obrazie.
+    name: pip-audit (podatności w uv.lock, informacyjnie)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v3
+
+      - name: pip-audit – backend (backend/uv.lock)
+        working-directory: backend
+        run: |
+          uv export --frozen --no-dev --no-emit-project -o "$RUNNER_TEMP/backend.txt"
+          uvx --from 'pip-audit==2.9.0' pip-audit --disable-pip --require-hashes             -r "$RUNNER_TEMP/backend.txt" --progress-spinner off
+
+      - name: pip-audit – djcms (djcms/uv.lock)
+        if: always()
+        working-directory: djcms
+        run: |
+          uv export --frozen --no-dev --no-emit-project -o "$RUNNER_TEMP/djcms.txt"
+          uvx --from 'pip-audit==2.9.0' pip-audit --disable-pip --require-hashes             -r "$RUNNER_TEMP/djcms.txt" --progress-spinner off
 
   pytest-ok:
     # Jeden wymagany check zamiast pięciu (nazwy shardów zmieniają się z liczbą shardów w matrixie,

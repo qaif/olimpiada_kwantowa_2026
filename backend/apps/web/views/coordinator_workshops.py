@@ -198,7 +198,15 @@ class WorkshopAttendanceView(CoordinatorRequiredMixin, View):
         controls = ListControls(request, ())
         workshops = _workshops(request.competition)
         participants = _participants(request.competition, edition, query, controls)
-        page_number = max(1, int(request.GET.get("page") or 1))
+        # ``?page=x`` z ręcznie poprawionego adresu to pierwsza strona, a nie 500 (audyt
+        # 10.10.2026, niskie). Numer za ostatnią stroną przycinamy do ostatniej – pusta tabela
+        # z licznikiem „strona 40 z 3” wyglądałaby na zgubione dane.
+        try:
+            page_number = int(request.GET.get("page") or 1)
+        except ValueError:
+            page_number = 1
+        page_count = max(1, -(-len(participants) // PAGE_SIZE))
+        page_number = min(max(1, page_number), page_count)
         start = (page_number - 1) * PAGE_SIZE
         visible = participants[start : start + PAGE_SIZE]
         marked = {
@@ -214,7 +222,7 @@ class WorkshopAttendanceView(CoordinatorRequiredMixin, View):
             "controls": controls,
             "import_form": form,
             "page_number": page_number,
-            "page_count": max(1, -(-len(participants) // PAGE_SIZE)),
+            "page_count": page_count,
             "total": len(participants),
             # Odnośnik do materiałów z warsztatów – wyłącznie gdy ekran istnieje (flaga konkursu).
             "materials_enabled": feature_enabled(request.competition),

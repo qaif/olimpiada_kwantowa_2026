@@ -167,3 +167,26 @@ def test_other_participants_never_see_someone_elses_suggestion(world):
     StageEntryFactory(participant=stranger, stage=world["stage"])
 
     assert services.participant_ai_feedback(stranger, world["stage"]) == []
+
+
+def test_withdrawn_results_close_the_suggestion_the_feedback_and_the_export_again(world):
+    """Audyt 10.10.2026, S2: wycofane ogłoszenie (wyczyszczony znacznik etapu) nie jest ogłoszeniem.
+
+    Rekord ``ResultsPublication`` zostaje jako ślad, więc pytanie „czy jest publikacja” dawało
+    uczestnikowi sugestię AI i informację zwrotną także po wycofaniu – również w eksporcie RODO.
+    """
+    from apps.competitions.models import Stage
+
+    services.set_stage_visibility(world["stage"], True, actor=world["coordinator"])
+    Stage.objects.filter(pk=world["stage"].pk).update(results_published_at=None)
+    world["stage"].refresh_from_db()
+    client = Client()
+    client.force_login(world["participant"].user)
+
+    assert services.participant_ai_feedback(world["participant"], world["stage"]) == []
+    assert client.get(f"/me/stages/{world['stage'].pk}/feedback/").status_code == 404
+    assert client.get(f"/results/{world['stage'].pk}/").status_code == 404
+    assert client.get(f"/api/public/results/{world['stage'].pk}/").status_code == 404
+    data = export(client)
+    assert data["oceny_ai"][0]["tresc"] is None
+    assert SENTINEL_SUMMARY not in json.dumps(data, ensure_ascii=False)

@@ -177,6 +177,24 @@ def test_stages_carry_raw_and_formatted_dates_and_results_links(competition):
     assert payload["current_stage"]["id"] == stage.pk
 
 
+def test_a_withdrawn_publication_gives_no_results_link(competition):
+    """Wycofane ogłoszenie: rekord zostaje, znacznik etapu zdjęty, publiczna tabela – 404.
+
+    ``results_url`` z ``published_stage_ids`` musi to widzieć (``live()``), inaczej strona
+    w django CMS linkowałaby do tabeli, której już nie ma.
+    """
+    edition = CurrentEditionFactory(competition=competition)
+    stage = StageFactory(edition=edition)
+    publish(stage, [])
+    stage.results_published_at = None
+    stage.save(update_fields=["results_published_at"])
+
+    row = get_json("stages")["rows"][0]
+
+    assert row["stage"]["results_url"] is None
+    assert row["has_results"] is False
+
+
 def test_event_range_is_announced_as_one_phrase(competition):
     edition = CurrentEditionFactory(competition=competition)
     StageFactory(edition=edition, event_starts_on=date(2027, 6, 4), event_ends_on=date(2027, 6, 7))

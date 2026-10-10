@@ -34,10 +34,12 @@ class StatisticsView(TemplateView):
         # z **zanonimizowanych snapshotów publikacji**, czyli z danych już jawnych, a klucz per
         # konkurs znaczyłby N przeliczeń tego samego zestawu wierszy. Zawężamy więc wynik –
         # jedno zapytanie po identyfikatorach etapów tego konkursu, bez względu na rozmiar tabeli.
+        # ``live()`` także tutaj, a nie tylko w ``build_statistics``: wpis w pamięci podręcznej
+        # bywa sprzed wycofania ogłoszenia, a ten filtr jest liczony przy każdym wejściu (audyt S2).
         published = set(
-            ResultsPublication.objects.for_competition(self.request.competition).values_list(
-                "stage_id", flat=True
-            )
+            ResultsPublication.objects.live()
+            .for_competition(self.request.competition)
+            .values_list("stage_id", flat=True)
         )
         context["stages"] = [row for row in statistics() if row["stage_id"] in published]
         return context

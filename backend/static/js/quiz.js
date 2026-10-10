@@ -48,10 +48,17 @@
   }
 
   /* Token CSRF z ciasteczka, nie z ukrytego pola: autozapis wysyła JSON-a fetchem i nie ma
-     formularza, z którego miałby ten token przepisać. Nazwa ciasteczka jest domyślna dla Django. */
+     formularza, z którego miałby ten token przepisać. Produkcja nazywa ciasteczko `__Host-csrftoken`
+     (config/settings/production.py – prefiks, którego nie podrzuci sąsiednia subdomena), dev po
+     http – domyślnie `csrftoken`. Najpierw nazwa z prefiksem: na produkcji ciasteczko bez prefiksu
+     mogłaby ustawić właśnie cudza subdomena. */
   function csrfToken() {
-    var match = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]*)/);
-    return match ? decodeURIComponent(match[1]) : "";
+    var names = ["__Host-csrftoken", "csrftoken"];
+    for (var i = 0; i < names.length; i += 1) {
+      var match = document.cookie.match(new RegExp("(?:^|;\\s*)" + names[i] + "=([^;]*)"));
+      if (match) return decodeURIComponent(match[1]);
+    }
+    return "";
   }
 
   /* „m:ss”, a nie same sekundy: przy dwudziestu minutach „1187 s” jest liczbą, którą trzeba

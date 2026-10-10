@@ -31,6 +31,12 @@ SUBNET_INTERNAL="${REHEARSAL_SUBNET_INTERNAL:-172.30.82.0/24}"
 # Sieć Redisa i wyjście ClamAV-a (od 1.10.2026) – też własne, bo dev ma 172.30.3.0/24 i 172.30.4.0/24.
 SUBNET_CACHE="${REHEARSAL_SUBNET_CACHE:-172.30.83.0/24}"
 SUBNET_CLAMAV_EGRESS="${REHEARSAL_SUBNET_CLAMAV_EGRESS:-172.30.84.0/24}"
+# Sieci z 10.10.2026 (relay poczty, jego wyjście, proxy ⇄ Jitsi) i stałe adresy proxy w edge/internal.
+SUBNET_MAIL="${REHEARSAL_SUBNET_MAIL:-172.30.85.0/24}"
+SUBNET_MAIL_EGRESS="${REHEARSAL_SUBNET_MAIL_EGRESS:-172.30.86.0/24}"
+SUBNET_MEET="${REHEARSAL_SUBNET_MEET:-172.30.87.0/24}"
+PROXY_EDGE="${SUBNET_EDGE%.0/24}.250"
+PROXY_INTERNAL="${SUBNET_INTERNAL%.0/24}.250"
 WEB_IMAGE="${REHEARSAL_WEB_IMAGE:-olimpiada/web:maint-rehearsal}"
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/maint-pg18-rehearsal.XXXXXX")"
 APP="$WORK/app"
@@ -89,6 +95,18 @@ networks:
     ipam:
       config: !override
         - subnet: ${SUBNET_CLAMAV_EGRESS}
+  mail:
+    ipam:
+      config: !override
+        - subnet: ${SUBNET_MAIL}
+  mail_egress:
+    ipam:
+      config: !override
+        - subnet: ${SUBNET_MAIL_EGRESS}
+  meet:
+    ipam:
+      config: !override
+        - subnet: ${SUBNET_MEET}
 EOF
 TOKEN="$(rnd 40)"
 cat > "$APP/.env" <<EOF
@@ -117,7 +135,10 @@ S3_PUBLIC_ACCESS_KEY=wagtail-media
 S3_PUBLIC_SECRET_KEY=$(rnd 32)
 S3_PRIVATE_ACCESS_KEY=app-private
 S3_PRIVATE_SECRET_KEY=$(rnd 32)
-TRUSTED_PROXY_IPS=${SUBNET_EDGE},${SUBNET_INTERNAL}
+TRUSTED_PROXY_IPS=${PROXY_EDGE}/32,${PROXY_INTERNAL}/32
+PROXY_EDGE_IP=${PROXY_EDGE}
+DJCMS_PROXY_IP=${PROXY_INTERNAL}
+MAIL_SUBNET=${SUBNET_MAIL}
 EMAIL_URL=smtp://mail:587
 DEFAULT_FROM_EMAIL=noreply@localhost
 MAINTENANCE_BYPASS_TOKEN=$TOKEN

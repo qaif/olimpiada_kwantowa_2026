@@ -188,7 +188,12 @@ def test_coordinator_resolution_cancels_the_pending_third_review(stage):
 
 
 def test_cancelled_third_reviewer_cannot_write_anything(client, stage):
-    """Anulowany przydział nie przyjmuje ani szkicu, ani oceny – 409, nie cichy zapis."""
+    """Anulowany przydział nie przyjmuje ani szkicu, ani oceny – nie ma cichego zapisu.
+
+    Od audytu 10.10.2026 (S1) odpowiedzią jest 404, a nie 409: recenzja odebrana wypada z widoków
+    pojedynczej recenzji, więc żądanie nie dochodzi nawet do serwisu. Serwis nadal odmówiłby sam
+    (``_assert_review_open`` → ``REVIEW_CANCELLED``) – to sprawdza test niżej, na poziomie serwisu.
+    """
     submission = moderated(stage)
     third = assign_third_reviewer(submission, ActiveReviewerFactory())
     resolve_moderation(submission, CoordinatorFactory(), 5, None, "Posiedzenie komisji")
@@ -197,11 +202,13 @@ def test_cancelled_third_reviewer_cannot_write_anything(client, stage):
     draft = client.patch(f"{REVIEWS_URL}{third.pk}/", {"score": 2}, format="json")
     submitted = client.post(f"{REVIEWS_URL}{third.pk}/submit/", {"score": 2}, format="json")
 
-    assert draft.status_code == 409
-    assert draft.data["code"] == "REVIEW_CANCELLED"
-    assert submitted.status_code == 409
-    assert submitted.data["code"] == "REVIEW_CANCELLED"
+    assert draft.status_code == 404
+    assert submitted.status_code == 404
     assert FinalGrade.objects.get(submission=submission).method == GradeMethod.MODERATION
+    third.refresh_from_db()
+    with pytest.raises(DomainError) as exc:
+        submit_review(third, 2)
+    assert exc.value.machine_code == "REVIEW_CANCELLED"
 
 
 def test_draft_is_rejected_when_submission_left_review(stage):

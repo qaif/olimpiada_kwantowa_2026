@@ -51,7 +51,7 @@ def test_unsafe_targets_are_rejected(site, target):
 
 @pytest.mark.django_db
 def test_clean_normalises_and_rejects_self_redirect(site):
-    item = Redirect(site=site, old_path="/stary/", new_path="https://nowy.example/")
+    item = Redirect(site=site, old_path="/stary/", new_path="https://nowy.olimpiada.example/")
     item.full_clean()
     assert item.old_path == "/stary"
     with pytest.raises(ValidationError):

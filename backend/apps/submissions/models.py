@@ -97,7 +97,7 @@ class SubmissionQuerySet(CompetitionScopedQuerySet):
         from apps.accounts.services import active_reviewer_profile, has_role, participant_for
         from apps.appeals.models import CONFLICTING_ROUNDS
         from apps.appeals.services import appeals_committee_profile
-        from apps.grading.models import Review
+        from apps.grading.models import Review, ReviewStatus
 
         competition = resolve_competition(competition)
         scoped = scope_to_competition(self, competition)
@@ -111,7 +111,19 @@ class SubmissionQuerySet(CompetitionScopedQuerySet):
             conditions.append(Q(entry__participant=participant))
         reviewer = active_reviewer_profile(user, competition)
         if reviewer is not None:
-            conditions.append(Q(reviews__reviewer=reviewer))
+            # Wyłącznie przydziały **żywe**: recenzja anulowana (praca odebrana przez koordynatora,
+            # np. przy konflikcie interesów, albo unieważniona nową wersją rozwiązania) nie daje już
+            # dostępu do pliku. Ta sama reguła stoi w ``build_reviewer_zip`` i ``can_read_notes``
+            # (audyt 10.10.2026, S1) – widoczność pliku nie może być luźniejsza niż paczka ZIP.
+            # Podzapytanie po kluczu głównym, a nie warunek na złączeniu ``reviews``: z tego samego
+            # powodu, co przy komisji odwoławczej niżej – negacja/filtr na wspólnym złączeniu
+            # koreluje się z *wierszem recenzji*, a nie ze zgłoszeniem.
+            live_reviews = (
+                Review.objects.filter(reviewer=reviewer)
+                .exclude(status=ReviewStatus.CANCELLED)
+                .values("submission_id")
+            )
+            conditions.append(Q(pk__in=live_reviews))
         appeals_member = appeals_committee_profile(user, competition)
         if appeals_member is not None:
             # Konflikt interesów wyklucza się podzapytaniem po kluczu głównym, a nie negacją na
@@ -136,8 +148,10 @@ class SubmissionQuerySet(CompetitionScopedQuerySet):
         for extra in conditions[1:]:
             query |= extra
         queryset = scoped.filter(query)
-        # JOIN po recenzjach i reklamacjach potrafi zwielokrotnić wiersze (dwie recenzje tego samego
-        # zgłoszenia w rundach 1 i 2), więc tylko ta gałąź wymaga odsiania duplikatów.
+        # JOIN po reklamacjach potrafi zwielokrotnić wiersze (kilka reklamacji jednego zgłoszenia),
+        # więc ta gałąź wymaga odsiania duplikatów. Gałąź recenzenta idzie podzapytaniem i JOIN-a
+        # nie robi, ale ``distinct`` zostaje i dla niej – kształt odpowiedzi (queryset z DISTINCT)
+        # nie powinien zależeć od tego, którą drogą liczy się warunek.
         if reviewer is not None or appeals_member is not None:
             return queryset.distinct()
         return queryset

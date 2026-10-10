@@ -117,6 +117,12 @@
         {% else %}
           {% translate "Zaznacz prostokąt na zdjęciu, aby dodać adnotację; treść podasz w okienku." %}
         {% endif %}</p>
+    {% elif withdrawn %}
+      {% comment %}
+        Praca odebrana: przydział, który dawał dostęp do pliku, już nie istnieje (audyt 10.10.2026,
+        S1). Zdanie mówi to wprost, zamiast udawać, że plik „nie jest jeszcze dostępny”.
+      {% endcomment %}
+      <p class="msg msg-warning closed">{% translate "Ta praca nie jest już Ci przydzielona – plik rozwiązania nie jest dostępny." %}</p>
     {% else %}
       <p class="msg msg-warning closed">{% translate "Plik nie jest jeszcze dostępny (trwa skan antywirusowy albo praca nie ma pliku)." %}</p>
     {% endif %}
@@ -350,9 +356,9 @@
         </details>
       {% endif %}
 
-      {% include "web/reviewer/_issue.html" %}
-
       {% if not withdrawn %}
+        {# Zgłoszenie problemu i szablony dotyczą pracy, którą się ocenia – odebranej już nie. #}
+        {% include "web/reviewer/_issue.html" %}
         {% include "web/reviewer/_snippet_manage.html" %}
       {% endif %}
 

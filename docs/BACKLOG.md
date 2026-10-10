@@ -105,6 +105,22 @@ Status: `todo` / `in_progress` / `done` / `escalated`.
 | Audyt, pakiet 5 | low: webhooki – DNS rebinding. Nazwa odbiorcy jest rozwiązywana i sprawdzana przed żądaniem, ale `requests` rozwiązuje ją drugi raz (`apps/integrations/targets.py`, docstring); serwer DNS z zerowym TTL może za drugim razem podać adres wewnętrzny | przypięcie adresu w adapterze `requests` (SNI i weryfikacja certyfikatu po nazwie) albo reguła wyjścia na poziomie sieci kontenera `worker` |
 | Audyt, pakiet 5 | low: kreator `/setup/` (`apps/tenancy/setup.py::throttle_wait`/`throttle_consume`) ma własną kopię dawnego, nieatomowego licznika (`cache.get` → `cache.set`); pakiet 5 nie mógł zmienić `apps/tenancy/*` | przejście na `apps.web.throttle.acquire` (scope `setup` w `DEFAULT_THROTTLE_RATES` albo jawna stawka przekazana do `acquire`) |
 
+## Dług z audytu bezpieczeństwa 10.10.2026 (pozycje ⚠ z `SECURITY_CHECKLIST.md` § 14)
+
+| Pozycja | Klasa | Co zrobić |
+|---|---|---|
+| S18 – 2FA dla koordynatorów i superusera, koordynator bez `is_superuser`, panele za listą IP | med | Decyzja organizatora: `TWO_FACTOR_ENABLED=1`, `TWO_FACTOR_REQUIRED_ROLES=coordinator,super_coordinator`, `ADMIN_ALLOWED_IPS` w `.env`; w kodzie `is_required_for` o `is_superuser`; `bootstrap_coordinator` bez `is_superuser` (wymaga przeglądu, co koordynator robi w `/admin/`). |
+| N26 – klucz kopii poza serwerem bez `DeleteObject` | med | Przełącznik w `scripts/lib/backup_offsite.sh` (retencja regułą lifecycle/Object Lock po stronie magazynu zamiast `rclone delete`); opis w `OPERACJE.md` § 31.5. |
+| S19 – wildcard `https://*.<domena>` w `CSRF_TRUSTED_ORIGINS` przy `PLATFORM_SUBDOMAINS` | low | Podklasa `CsrfViewMiddleware` sprawdzająca `Origin` na liście hostów aktywnych konkursów. |
+| N23 – `/api/schema/`, `/api/docs/` publiczne | low | `SERVE_PERMISSIONS` + `SERVE_AUTHENTICATION` z klasą klucza integracji; aktualizacja `API.md` i testów `test_docs.py`, `cms/tests/test_access.py`. |
+| N24 – `/captcha/refresh/` bez limitu | low | Throttle na wpisie w `config/urls.py` albo limit w Caddy. |
+| N25 – `|safe` przy `help_text` flag konkursu | low | `mark_safe` przy `FLAG_LABELS` w `competition_forms.py`, zdjąć `|safe` z szablonu. |
+| N27 – link anulowania zmiany adresu w liście na stary adres | low | Token (salt, pk + stary adres), widok anulowania, list już przy wniosku o zmianę. |
+| S11 – zmiana e-maila przez koordynatora (konta niewspółdzielone) bez potwierdzenia | low | List „Twój adres zmieniono” na stary adres; ewentualnie potwierdzenie dla kont z dawno zweryfikowanym adresem. |
+| djcms – `page_count` w `competition_dto` kontraktu v2 | low | Pozwoli odrzucić zbyt duże drzewo startowe przed pobraniem paczki; docelowo import tylko przy wdrożeniu. |
+| Jitsi/djcms – `jitsi-web` i `djcms` jako root bez `cap_drop` | low | Utwardzenie kontenerów cudzego kodu jak `proxy` (read_only, cap_drop). |
+| MinIO `RELEASE.2025-04-22` – brak dalszych wydań społecznościowych | med | Decyzja o następcy (SeaweedFS/Garage/RustFS) albo płatny MinIO. |
+
 ## T-10 – co powstało
 
 | Artefakt | Ścieżka |

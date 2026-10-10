@@ -225,6 +225,14 @@ def test_archive_links_only_for_published_stages(competition):
     assert archive_result_links(None) == []
 
 
+def test_archive_links_skip_a_withdrawn_publication(competition):
+    """Rekord publikacji zostaje po wycofaniu, ale publiczna tabela odpowiada 404 – link też znika."""
+    edition = EditionFactory(competition=competition)
+    publish(StageFactory(edition=edition, opens_at=NOW - timedelta(days=40)), withdrawn=True)
+
+    assert archive_result_links(edition.pk) == []
+
+
 def test_archive_links_of_a_foreign_edition_are_empty_when_the_competition_is_given(
     competition, other_competition
 ):

@@ -672,6 +672,15 @@ def register_for_stage(participant: Participant, stage: Stage, *, now=None) -> S
     kończy się ``STAGE_NOT_OPEN_FOR_REGISTRATION``.
     """
     now = now or timezone.now()
+    if participant is not None and participant.gdpr_consent_at is None:
+        # Bramka zgód (audyt 10.10.2026, S6): profil bez zgody RODO istnieje tylko z zaproszenia
+        # (import listy, delegacja) przed jego przyjęciem. Konto uruchomione z pominięciem
+        # przyjęcia – dawniej linkiem aktywacyjnym – nie może się mimo to zapisać do etapu.
+        raise DomainError(
+            "Zanim zapiszesz się do etapu, przyjmij zaproszenie i złóż wymagane zgody.",
+            "CONSENTS_MISSING",
+            status.HTTP_403_FORBIDDEN,
+        )
     if stage.kind not in SELF_REGISTRATION_KINDS:
         raise DomainError(
             "Do tego etapu wpisy tworzy kwalifikacja, nie rejestracja.",

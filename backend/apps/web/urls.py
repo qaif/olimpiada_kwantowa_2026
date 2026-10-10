@@ -246,6 +246,13 @@ urlpatterns = [
     # widoku byłyby trzema rozgałęzieniami w środku obsługi zawodów.
     path("me/test/<int:attempt_id>/zapis/", quiz.QuizAutosaveView.as_view(), name="quiz-autosave"),
     path("me/test/<int:attempt_id>/wynik/", quiz.QuizResultView.as_view(), name="quiz-result"),
+    # Ilustracja pytania – przez aplikację, nie podpisanym adresem storage (audyt 10.10.2026):
+    # tylko w trakcie własnego otwartego podejścia i tylko dla pytania z wylosowanego zestawu.
+    path(
+        "me/test/<int:attempt_id>/ilustracja/<int:question_id>/",
+        quiz.QuizQuestionImageView.as_view(),
+        name="quiz-question-image",
+    ),
     # Zgoda na publikację nazwiska – jedyna zgoda, którą uczestnik zmienia sam w panelu.
     path(
         "me/consents/publish-name/",
@@ -551,6 +558,11 @@ urlpatterns = [
         name="coordinator-stage-quiz-preview",
     ),
     path(
+        "coordinator/stages/<int:stage_id>/quiz/preview/image/<int:question_id>/",
+        quiz.QuizPreviewImageView.as_view(),
+        name="coordinator-stage-quiz-preview-image",
+    ),
+    path(
         "coordinator/stages/<int:stage_id>/quiz/results/",
         quiz.QuizResultsView.as_view(),
         name="coordinator-stage-quiz-results",
@@ -779,6 +791,13 @@ urlpatterns = [
         "coordinator/accounts/<int:pk>/resend-activation/",
         coordinator.ResendActivationView.as_view(),
         name="coordinator-account-resend",
+    ),
+    # Usunięcie konta oczekującego wprost z kolejki aktywacji – ekran potwierdzenia i powrót na
+    # kolejkę (apps/web/views/coordinator_accounts.py, ``CoordinatorActivationDeleteView``).
+    path(
+        "coordinator/activations/<int:pk>/delete/",
+        coordinator_accounts.CoordinatorActivationDeleteView.as_view(),
+        name="coordinator-activation-delete",
     ),
     # „Zgubiłem telefon z aplikacją” – jedyna droga powrotu dla członka komisji, który nie ma już
     # ani urządzenia, ani kodów zapasowych. POST, bo zdjęcie komuś zabezpieczenia jest decyzją

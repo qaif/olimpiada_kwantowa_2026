@@ -256,7 +256,8 @@ def test_initials_school_falls_back_to_the_code_below_the_k_anonymity_threshold(
     # Razem z „alone” w XIV LO są dwie osoby – o jedną za mało, żeby inicjały cokolwiek ukryły.
     fill_school(stage, SCHOOL, count=MIN_SCHOOL_GROUP - 2)
     for _ in range(MIN_SCHOOL_GROUP):
-        graded_entry(stage, [5], school=CROWDED_SCHOOL)
+        # Komplet zgód – próg grupy jest tu jedynym powodem, dla którego „alone” zostaje pod kodem.
+        graded_entry(stage, [5], school=CROWDED_SCHOOL, publish_full_name=True, guardian_consent=True)
 
     publication = publish(stage, Anonymization.INITIALS_SCHOOL)
 
@@ -264,6 +265,51 @@ def test_initials_school_falls_back_to_the_code_below_the_k_anonymity_threshold(
     assert displays[6] == alone.participant.public_code
     assert displays[5] == f"J.K., {CROWDED_SCHOOL}"
     assert SCHOOL not in json.dumps(publication.snapshot, ensure_ascii=False)
+
+
+# --- S10 (audyt 10.10.2026): inicjały ze szkołą tylko za zgodą --------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("publish_full_name", "guardian_consent"),
+    [(False, True), (True, False), (False, False)],
+    ids=["bez-zgody-uczestnika", "malolatni-bez-zgody-opiekuna", "bez-zadnej-zgody"],
+)
+def test_initials_school_without_consents_falls_back_to_the_code(publish_full_name, guardian_consent):
+    """„Z.N., XIV LO” obok punktów wskazuje osobę w jej szkole – bez zgód zostaje kod.
+
+    Decyzja polityczna do potwierdzenia przez organizatora/IOD (raport z audytu): do tej zmiany
+    inicjały ze szkołą szły do tabeli bez żadnej zgody, jedyną bramką był próg grupy.
+    """
+    stage = make_stage(problems=1)
+    entry = graded_entry(
+        stage,
+        [6],
+        participant=consenting_participant(
+            publish_full_name=publish_full_name, guardian_consent=guardian_consent
+        ),
+    )
+    fill_school(stage, SCHOOL)
+
+    publication = publish(stage, Anonymization.INITIALS_SCHOOL)
+
+    displays = {row["total"]: row["display"] for row in publication.snapshot}
+    assert displays[6] == entry.participant.public_code
+    assert "Z.N." not in json.dumps(publication.snapshot, ensure_ascii=False)
+
+
+def test_initials_school_for_an_adult_needs_only_the_own_consent():
+    stage = make_stage(problems=1)
+    graded_entry(
+        stage,
+        [6],
+        participant=consenting_participant(publish_full_name=True, guardian_consent=False, birth_year=1990),
+    )
+    fill_school(stage, SCHOOL)
+
+    publication = publish(stage, Anonymization.INITIALS_SCHOOL)
+
+    assert {row["total"]: row["display"] for row in publication.snapshot}[6] == f"Z.N., {SCHOOL}"
 
 
 def test_district_is_published_only_next_to_pseudonyms():

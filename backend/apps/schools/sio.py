@@ -22,6 +22,10 @@ from apps.core.text import fold
 #: Domyślny arkusz w skoroszycie z dane.gov.pl.
 DEFAULT_SHEET = "Arkusz1"
 
+#: Najwięcej, ile wykaz SIO może mieć po rozpakowaniu (``apps.core.xlsx.check_xlsx_bomb``).
+#: Gigabajt to kilkukrotny zapas ponad dzisiejszy plik, a wciąż mniej, niż położy proces.
+SIO_MAX_UNCOMPRESSED = 1024 * 1024 * 1024
+
 #: „Typ podmiotu” z wykazu → wartość ``apps.schools.models.SchoolKind``. Klucze są jedynym
 #: filtrem typów: podmiot spoza tej mapy do słownika nie trafia.
 SECONDARY_KINDS: dict[str, str] = {
@@ -163,7 +167,16 @@ def read_schools(
     """
     from openpyxl import load_workbook
 
+    from apps.core.xlsx import XlsxBombError, check_xlsx_bomb
+
     kinds_for(institution_type)  # nieznany rodzaj ma się wywrócić przed otwarciem 18 MB pliku
+    # Ten sam strażnik, co przy imporcie uczniów (audyt 10.10.2026, S14), z hojniejszym limitem:
+    # wykaz ministerstwa to kilkadziesiąt tysięcy wierszy i kilkaset megabajtów XML-a, a plik
+    # pobiera operator. Limit chroni przed podmienionym albo uszkodzonym plikiem, nie przed nim.
+    try:
+        check_xlsx_bomb(path, max_uncompressed=SIO_MAX_UNCOMPRESSED)
+    except XlsxBombError as exc:
+        raise SioFormatError(str(exc)) from exc
     workbook = load_workbook(path, read_only=True, data_only=True)
     try:
         if sheet not in workbook.sheetnames:

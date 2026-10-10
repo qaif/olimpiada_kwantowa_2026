@@ -25,7 +25,7 @@ from __future__ import annotations
 
 import json
 
-from django.http import Http404, JsonResponse
+from django.http import FileResponse, Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.template.response import TemplateResponse
 from django.urls import reverse
@@ -108,16 +108,16 @@ class QuizSettingsView(_QuizPanelMixin, View):
         stage = _stage(request.competition, stage_id)
         quiz = quiz_services.quiz_for_stage(stage)
         form = (
-            QuizSettingsForm(instance=quiz)
+            QuizSettingsForm(instance=quiz, stage=stage)
             if quiz
-            else QuizSettingsForm(initial={"title": stage.display_name})
+            else QuizSettingsForm(initial={"title": stage.display_name}, stage=stage)
         )
         return self._render(request, stage, quiz, form)
 
     def post(self, request, stage_id: int):
         stage = _stage(request.competition, stage_id)
         quiz = quiz_services.quiz_for_stage(stage)
-        form = QuizSettingsForm(request.POST, instance=quiz)
+        form = QuizSettingsForm(request.POST, instance=quiz, stage=stage)
         if not form.is_valid():
             return self._render(request, stage, quiz, form)
         try:
@@ -399,6 +399,42 @@ class QuizPreviewView(CoordinatorRequiredMixin, View):
         )
 
 
+def _image_response(question: QuizQuestion):
+    """Ilustracja pytania prosto ze storage – ``FileResponse`` + ``no-store`` (audyt 10.10.2026).
+
+    Dlaczego widok, a nie ``question.image.url``: ilustracja leży w prywatnym storage, a jego adres
+    w produkcji to podpisany URL na wewnętrzny ``http://minio:9000`` – przeglądarka uczestnika go
+    nie otworzy. Naiwna poprawka (podpisany adres publiczny) dałaby link ważny godzinę, który da się
+    rozesłać w trakcie testu, a obrazek pytania z puli przestałby być tajny dla tych, którzy
+    podchodzą później. Widok wpuszcza tylko osobę, która ma prawo widzieć pytanie **teraz**,
+    a ``no-store`` nie pozwala zostawić obrazka w pamięci współdzielonej przeglądarki ani proxy.
+    Wzór: ``apps.competitions.api.ProblemStatementView``.
+    """
+    from apps.core.storage import content_type_for, is_inline_type
+
+    if not question.image:
+        raise Http404("Pytanie nie ma ilustracji.")
+    content_type = content_type_for(question.image.name)
+    try:
+        stream = question.image.open("rb")
+    except FileNotFoundError as exc:
+        raise Http404("Brak pliku ilustracji.") from exc
+    response = FileResponse(stream, content_type=content_type, as_attachment=not is_inline_type(content_type))
+    response["Cache-Control"] = "no-store, private"
+    response["X-Content-Type-Options"] = "nosniff"
+    return response
+
+
+class QuizPreviewImageView(CoordinatorRequiredMixin, View):
+    """Ilustracja pytania w podglądzie koordynatora – tylko pytanie testu etapu **tego** konkursu."""
+
+    def get(self, request, stage_id: int, question_id: int):
+        stage = _stage(request.competition, stage_id)
+        quiz = _quiz_or_404(stage)
+        question = get_object_or_404(QuizQuestion, pk=question_id, quiz=quiz)
+        return _image_response(question)
+
+
 # --- uczestnik ------------------------------------------------------------------------------------
 
 
@@ -630,6 +666,25 @@ class QuizAutosaveView(_ParticipantQuizMixin, View):
                 "seconds_left": max(0, int((attempt.deadline_at - timezone.now()).total_seconds())),
             }
         )
+
+
+class QuizQuestionImageView(_ParticipantQuizMixin, View):
+    """Ilustracja pytania dla uczestnika – wyłącznie w trakcie **jego** otwartego podejścia.
+
+    Trzy warunki, każdy z innego powodu: podejście musi być własne (``own_attempt`` – cudze jest
+    nie do odróżnienia od nieistniejącego), otwarte i przed terminem (po zakończeniu obrazek nie
+    jest już potrzebny, a jego udostępnianie dalej odsłaniałoby pulę pytań), a pytanie musi być
+    w wylosowanym zestawie tego podejścia (identyfikator pytania z puli, którego uczestnik nie
+    wylosował, nie może być furtką do jego ilustracji).
+    """
+
+    def get(self, request, attempt_id: int, question_id: int):
+        attempt = self.own_attempt(attempt_id)
+        if not attempt.is_open or not attempt.accepts_answers_at(timezone.now()):
+            raise Http404("Podejście jest zakończone.")
+        if question_id not in attempt.drawn_question_ids:
+            raise Http404("Tego pytania nie ma w zestawie podejścia.")
+        return _image_response(get_object_or_404(QuizQuestion, pk=question_id, quiz_id=attempt.quiz_id))
 
 
 class QuizResultView(_ParticipantQuizMixin, View):

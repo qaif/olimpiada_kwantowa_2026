@@ -46,7 +46,7 @@ ZOZ_DECISIONS_HEADING = "Do rozstrzygnięcia przez organizatora"
 STAGE_DATES_THAT_MUST_NOT_APPEAR = ("7 listopada 2026", "16 stycznia 2027", "1 września 2026")
 
 #: Nazwy, które polityka cookie musi wymienić – dokładnie te, które serwis ustawia.
-COOKIE_NAMES = ("sessionid", "csrftoken", "wagtail_sidebar_collapsed")
+COOKIE_NAMES = ("__Host-sessionid", "__Host-csrftoken", "wagtail_sidebar_collapsed")
 #: Klucze pamięci lokalnej ustawiane przez pasek cookie. Muszą być dosłownie te, które ustawia
 #: ``static/js/consent.js`` – polityka wymieniająca klucz, którego nie ma w kodzie, jest gorsza
 #: niż brak polityki.

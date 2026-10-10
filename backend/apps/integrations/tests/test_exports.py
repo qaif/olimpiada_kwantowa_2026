@@ -3,6 +3,7 @@
 import json
 
 import pytest
+from django.utils import timezone
 
 from apps.accounts.tests.factories import ParticipantFactory
 from apps.competitions.models import StageEntryStatus
@@ -96,12 +97,19 @@ def test_protocol_is_a_pdf_with_signature_block(scored_stage):
     assert len(pdf) > 2000
 
 
-def test_edition_export_has_structure_without_personal_data(scored_stage, edition):
-    ResultsPublication.objects.create(
-        stage=scored_stage,
+def _publish(stage, *, withdrawn: bool = False) -> ResultsPublication:
+    """Ogłoszenie tabeli; ``withdrawn`` = znacznik na etapie zdjęty, rekord został jako ślad."""
+    stage.results_published_at = None if withdrawn else timezone.now()
+    stage.save(update_fields=["results_published_at"])
+    return ResultsPublication.objects.create(
+        stage=stage,
         anonymization=Anonymization.CODE,
         snapshot=[{"rank": 1, "display": "OLM-0001", "points": {"1": 6}, "total": 6, "qualified": True}],
     )
+
+
+def test_edition_export_has_structure_without_personal_data(scored_stage, edition):
+    _publish(scored_stage)
 
     payload = edition_export(edition)
     text = json.dumps(payload, ensure_ascii=False)
@@ -117,6 +125,15 @@ def test_edition_export_has_structure_without_personal_data(scored_stage, editio
     assert "Gdański" not in text
     expected = {"public_code", "voivodeship", "grade", "status", "total_points"}
     assert all(set(entry) == expected for entry in stage_export["entries"])
+
+
+def test_edition_export_skips_a_withdrawn_publication(scored_stage, edition):
+    """Wycofana tabela nie jest już ogłoszona – zrzut nie może jej dalej rozsyłać jako wyników."""
+    _publish(scored_stage, withdrawn=True)
+
+    stage_export = next(item for item in edition_export(edition)["stages"] if item["id"] == scored_stage.pk)
+
+    assert stage_export["results"] is None
 
 
 def test_edition_export_handles_stage_without_results(stage, edition):

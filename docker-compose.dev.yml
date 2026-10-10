@@ -17,6 +17,12 @@ services:
       - "127.0.0.1:80:80"
       - "127.0.0.1:443:443"
   web:
+    # Etap `dev` obrazu (backend/Dockerfile): runtime + ekstra `dev` (pytest, ruff…). Od 10.10.2026
+    # obraz produkcyjny (`runtime`) nie ma narzędzi deweloperskich, a testy chodzą w tym kontenerze.
+    # Ten sam obraz dla worker i beat – jeden build, trzy usługi (jak w pliku podstawowym).
+    build:
+      target: dev
+      secrets: [extra_ca]
     read_only: false
     volumes:
       - ./backend:/app
@@ -31,10 +37,16 @@ services:
     ports:
       - "127.0.0.1:8000:8000"
   worker:
+    build:
+      target: dev
+      secrets: [extra_ca]
     read_only: false
     volumes:
       - ./backend:/app
   beat:
+    build:
+      target: dev
+      secrets: [extra_ca]
     read_only: false
     volumes:
       - ./backend:/app
@@ -77,8 +89,10 @@ services:
     #   bash scripts/djcms_db.sh --allow-createdb
     #   docker compose -f docker-compose.yml -f docker-compose.dev.yml --profile djcms up -d --build djcms
     build:
-      # Opcjonalny certyfikat CA dla TLS w czasie budowania (antywirus przechwytujący HTTPS) –
-      # patrz `secrets:` na końcu pliku i komentarz w djcms/Dockerfile.
+      # Etap `dev` (runtime + ekstra `dev`) – jak web wyżej. Opcjonalny certyfikat CA dla TLS
+      # w czasie budowania (antywirus przechwytujący HTTPS) – patrz `secrets:` na końcu pliku
+      # i komentarz w djcms/Dockerfile.
+      target: dev
       secrets: [extra_ca]
     read_only: false
     command: python manage.py runserver 0.0.0.0:8000
@@ -99,7 +113,7 @@ services:
     # Jak minio: publikacja portu wymaga sieci nie-`internal`.
     networks: [internal, edge]
 
-# Sekret BuildKit `extra_ca` dla obrazu djcms. `EXTRA_CA_FILE` w `.env` wskazuje plik PEM z dodatkowym
+# Sekret BuildKit `extra_ca` dla obrazów djcms i web (etap `dev`). `EXTRA_CA_FILE` w `.env` wskazuje plik PEM z dodatkowym
 # CA (np. Norton, który podpisuje przechwycony HTTPS i psuje `uv sync` błędem `UnknownIssuer`).
 # Nieustawiona = pusty plik z repozytorium, czyli zwykły magazyn CA obrazu. Certyfikat nie trafia
 # do obrazu ani do repozytorium – istnieje wyłącznie w czasie jednego kroku budowania.

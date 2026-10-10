@@ -142,6 +142,27 @@ def test_po_publikacji_panel_pokazuje_ta_sama_liczbe_co_tabela(
     assert format_points(entry.total_points) in body
 
 
+def test_po_wycofaniu_ogloszenia_panel_znow_chowa_sume(web_client, logged_supervisor, elim_stage, problems):
+    """Wycofane ogłoszenie (zdjęty znacznik na etapie, rekord publikacji zostaje) nie jest już publiczne.
+
+    Panel ma wtedy wrócić do stanu sprzed publikacji – inaczej opiekun widziałby sumę, której
+    publiczna tabela już nie pokazuje.
+    """
+    mine = student()
+    entry = StageEntryFactory(stage=elim_stage, participant=mine)
+    close_stage_timeline(elim_stage)
+    publish_results(elim_stage, None, Anonymization.CODE)
+    entry.total_points = 42
+    entry.save(update_fields=["total_points"])
+    elim_stage.results_published_at = None
+    elim_stage.save(update_fields=["results_published_at"])
+
+    body = web_client.get(reverse("web:supervisor")).content.decode()
+
+    assert "Wyniki ogłoszone" not in body
+    assert "Suma punktów" not in body
+
+
 def test_potwierdzenie_udzialu_szkoly_przelacza_sie(web_client, logged_supervisor, edition):
     """Jedno kliknięcie ustawia oświadczenie, drugie je wycofuje – oba zostawiają ślad w audycie."""
     url = reverse("web:supervisor-participation")

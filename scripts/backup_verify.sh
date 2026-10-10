@@ -22,6 +22,7 @@
 set -euo pipefail
 
 REPO_DIR="${REPO_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$REPO_DIR"
 
 BACKUP_DIR="${BACKUP_DIR:-/opt/olimpiada-backups}"
@@ -47,10 +48,10 @@ log() { printf '==> %s\n' "$*"; }
 die() { printf 'BŁĄD: %s\n' "$*" >&2; exit 1; }
 
 [ -f .env ] || die "brak pliku .env w $REPO_DIR"
-set -a
-# shellcheck disable=SC1091
-. ./.env
-set +a
+# .env jako tekst (scripts/lib/env.sh), nie `. ./.env` – uzasadnienie w scripts/backup.sh (S17).
+# shellcheck source=lib/env.sh
+. "${SCRIPT_DIR}/lib/env.sh"
+env_load .env
 : "${BACKUP_PASSPHRASE:?BACKUP_PASSPHRASE musi być w .env}"
 PG_IMAGE="${PG_IMAGE_OVERRIDE:-${POSTGRES_IMAGE:-postgres:18-alpine}}"
 

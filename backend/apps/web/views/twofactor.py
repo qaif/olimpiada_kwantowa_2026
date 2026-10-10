@@ -206,21 +206,36 @@ class TwoFactorVerifyView(TwoFactorFeatureMixin, ThrottledFormMixin, LoginRequir
         return TemplateResponse(request, VERIFY_TEMPLATE, context, status=status)
 
 
-class TwoFactorDisableView(TwoFactorFeatureMixin, LoginRequiredMixin, ActionViewMixin, View):
+class TwoFactorDisableView(
+    TwoFactorFeatureMixin, LoginRequiredMixin, ThrottledFormMixin, ActionViewMixin, View
+):
     """``/account/2fa/disable/`` – wyłączenie drugiego składnika na własnym koncie (POST).
 
-    Bez ekranu potwierdzenia i bez pytania o hasło, i to wymaga uzasadnienia: żeby tu w ogóle
-    dojść, sesja musiała już przejść **cały** drugi składnik (warstwa wymuszająca nie przepuszcza
-    nikogo innego), czyli ten, kto klika, ma w ręce telefon albo kartkę z kodami. Dokładanie tu
-    hasła chroniłoby przed scenariuszem „porzucona, w pełni zweryfikowana sesja” – a przed nim
-    broni wylogowanie i termin ważności sesji, a nie kolejne pole.
+    Bez osobnego ekranu potwierdzenia, ale **z bieżącym hasłem** (konto bez hasła: przepisanie
+    obecnego adresu) – tak samo jak przy zmianie adresu i usunięciu konta
+    (``accounts.profile.verify_account_credentials``). Do audytu 10.10.2026 (S11) wystarczała tu
+    sama sesja z przebytym drugim składnikiem, czyli porzucona albo przejęta sesja zdejmowała
+    ochronę jednym POST-em, a razem ze zmianą adresu kończyła się przejęciem konta. Wylogowanie
+    i termin ważności sesji przed tym nie chronią – chronią przed nim drzwi, a nie otwarty pokój.
+
+    Limit ze scope'em ``password_reset`` (jak ``EmailChangeView``) ogranicza zgadywanie hasła z tej
+    samej sesji.
 
     Konto z roli objętej ``TWO_FACTOR_REQUIRED_ROLES`` wyłączy drugi składnik i natychmiast
     zostanie odesłane z powrotem na ekran konfiguracji przez warstwę wymuszającą. To jest
     zachowanie prawidłowe: taka jest właśnie treść tego ustawienia.
     """
 
+    throttle_scope = "password_reset"
+
     def perform(self, request, *args, **kwargs) -> str:
+        from apps.accounts.profile import verify_account_credentials
+
+        verify_account_credentials(
+            request.user,
+            password=request.POST.get("password", ""),
+            email=request.POST.get("current_email", ""),
+        )
         if not twofactor.disable(request.user, actor=request.user, request=request):
             raise DomainError(_("Na tym koncie nie ma włączonego drugiego składnika."))
         return _("Drugi składnik logowania został wyłączony.")

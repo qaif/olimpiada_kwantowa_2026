@@ -13,6 +13,7 @@ from decimal import Decimal
 import pytest
 from django.core.management import CommandError, call_command
 from django.test import Client
+from django.utils import timezone
 
 from apps.accounts.models import CompetitionRole
 from apps.accounts.processing_register import activities_for, ai_grading_activity
@@ -642,7 +643,9 @@ def test_participant_sees_only_the_newest_suggestion(compared, competition):
 
     stage = compared.entry.stage
     AiStageVisibility.objects.create(stage=stage, show_to_participants=True)
+    # Ogłoszenie „w mocy” to rekord publikacji **i** znacznik na etapie (audyt S2, ``live()``).
     ResultsPublication.objects.create(stage=stage, published_by=CoordinatorFactory())
+    type(stage).objects.filter(pk=stage.pk).update(results_published_at=timezone.now())
 
     items = services.participant_ai_feedback(compared.entry.participant, stage)
 

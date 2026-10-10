@@ -59,6 +59,16 @@
       <a href="{% url 'web:account-profile' %}">/account/profile/</a>.</p>
   </div>
 {% else %}
+  {% if shared %}
+    {% comment %}
+      Konto z rolą w innym konkursie (audyt 10.10.2026, W3): adres e-mail, blokada, reset hasła,
+      drugi składnik, eksport i usunięcie działają na całym koncie, a nie na profilu tego
+      konkursu – serwis odmawia (``ACCOUNT_SHARED``), więc przycisków nie ma.
+    {% endcomment %}
+    <p class="notice">To konto ma role także w innym konkursie. Tutaj poprawisz imię, nazwisko
+      i dane profilu w tym konkursie; adres e-mail, blokadę, hasło, drugi składnik logowania,
+      eksport danych i usunięcie konta zmienia administrator serwisu.</p>
+  {% endif %}
   <form method="post" class="form form--wide" novalidate>
     {% csrf_token %}
 
@@ -149,7 +159,9 @@
     <div class="actions">
       <button type="submit" class="btn btn--primary">Zapisz dane</button>
       <a class="btn btn--ghost" href="{% url 'web:coordinator-accounts' %}">Anuluj</a>
-      <a class="btn btn--danger" href="{% url 'web:coordinator-account-delete' account.pk %}">Usuń konto</a>
+      {% if not shared %}
+        <a class="btn btn--danger" href="{% url 'web:coordinator-account-delete' account.pk %}">Usuń konto</a>
+      {% endif %}
     </div>
   </form>
 {% endif %}
@@ -157,11 +169,12 @@
 {% comment %}
   Eksport danych konta (art. 20 RODO) stoi **poza** formularzem edycji i tak musi zostać:
   formularzy nie da się zagnieżdżać, a to jest inna czynność – wydanie kopii danych, a nie ich
-  zmiana. Jest dostępny także dla konta chronionego: prawo do przenoszenia danych ma każdy,
-  niezależnie od tego, czy jego dane wolno z tego ekranu edytować.
+  zmiana. Nie ma go przy koncie chronionym, współdzielonym z innym konkursem ani własnym (audyt
+  10.10.2026, S8/W3): prawo do przenoszenia danych ma każdy, ale paczkę z danymi operatora albo
+  konta z rolą u sąsiada wydaje administrator, a własne dane pobiera się z własnego profilu.
 
-  Paczka jest dokładnie tą samą, którą uczestnik pobiera sam spod ``/account/export/`` –
-  koordynator nie dostaje ani jednego pola więcej. W aktach zostaje jego nazwisko przy akcji
+  Paczka ma ten sam kształt, co ta spod ``/account/export/``, ale sekcje przypięte do konkursu są
+  zawężone do tego konkursu – koordynator nie dostaje ani jednego pola więcej. W aktach zostaje jego nazwisko przy akcji
   ``account.exported_by_coordinator``.
 {% endcomment %}
 {% comment %}
@@ -173,7 +186,7 @@
   łącznie z wariantem „to konto nie ma drugiego składnika”. Zdanie o funkcji, której nie da się
   włączyć, jest gorsze od milczenia: każe koordynatorowi szukać przycisku, którego nie ma.
 {% endcomment %}
-{% if two_factor_enabled %}
+{% if two_factor_enabled and not protected and not shared and account.pk != request.user.pk %}
 <section class="section">
   <div class="card card--quiet">
     <h2 class="mt-0">Logowanie dwuskładnikowe</h2>
@@ -202,7 +215,7 @@
   albo bez hasła platformy – widok i tak odmówi, ale przycisk, który zawsze odmawia, jest gorszy
   od jego braku (decyzja z 22.09.2026, ta sama zasada, co przy sekcji wyżej).
 {% endcomment %}
-{% if account.pk != request.user.pk and account.email_verified_at and account.is_active and account.has_usable_password %}
+{% if not protected and not shared and account.pk != request.user.pk and account.email_verified_at and account.is_active and account.has_usable_password %}
 <section class="section">
   <div class="card card--quiet">
     <h2 class="mt-0">Hasło</h2>
@@ -217,6 +230,7 @@
 </section>
 {% endif %}
 
+{% if not protected and not shared and account.pk != request.user.pk %}
 <section class="section">
   <div class="card card--quiet">
     <h2 class="mt-0">Eksport danych (art. 20 RODO)</h2>
@@ -229,4 +243,5 @@
     </form>
   </div>
 </section>
+{% endif %}
 {% endblock %}

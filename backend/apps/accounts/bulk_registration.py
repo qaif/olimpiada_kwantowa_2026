@@ -56,7 +56,7 @@ import io
 import logging
 import unicodedata
 from dataclasses import dataclass, field
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 from django.core import signing
 from django.core.exceptions import ValidationError as DjangoValidationError
@@ -111,6 +111,11 @@ INVITE_SALT = "apps.accounts.student-invite"
 #: raz w tygodniu, a konto na nikogo nie czeka i niczego nie blokuje.
 INVITE_MAX_AGE = 14 * 24 * 3600
 INVITE_DAYS = INVITE_MAX_AGE // (24 * 3600)
+
+#: Najkrótszy odstęp między dwoma listami z zaproszeniem do tego samego ucznia (S12). Godzina:
+#: list, który nie doszedł, nie dojdzie też minutę później, a nauczyciel, który chce przypomnieć
+#: o zaproszeniu, robi to raz na dzień, nie raz na minutę.
+INVITE_RESEND_COOLDOWN = timedelta(hours=1)
 
 #: Sól podpisu koszyka wierszy niesionego między podglądem a zatwierdzeniem (patrz ``pack_rows``).
 PREVIEW_SALT = "apps.accounts.student-import-preview"
@@ -460,9 +465,26 @@ def _csv_table(data: bytes) -> list[list[str]]:
 
 
 def _xlsx_table(data: bytes) -> list[list[str]]:
-    """Wiersze pierwszego arkusza XLSX. ``data_only`` – formuły czytamy jako ich wynik."""
+    """Wiersze pierwszego arkusza XLSX. ``data_only`` – formuły czytamy jako ich wynik.
+
+    Dwa bezpieczniki przed openpyxl (audyt 10.10.2026, S14): katalog archiwum sprawdza
+    ``apps.core.xlsx.check_xlsx_bomb`` (limit 2 MB w ``read_table`` liczy bajty **skompresowane**,
+    a openpyxl rozpakowuje ``sharedStrings.xml`` w całości), a czytanie wierszy kończy się po
+    ``MAX_ROWS`` niepustych wierszach danych **plus jeden** – tyle wystarcza, żeby ``parse_table``
+    odmówił pliku za długiego, a reszty arkusza nie ma po co trzymać w pamięci.
+    """
     from openpyxl import load_workbook
 
+    from apps.core.xlsx import XlsxBombError, check_xlsx_bomb
+
+    try:
+        check_xlsx_bomb(data)
+    except XlsxBombError as exc:
+        raise DomainError(
+            "Plik XLSX jest za duży po rozpakowaniu albo uszkodzony. Zapisz go ponownie albo wgraj CSV.",
+            "IMPORT_XLSX_TOO_LARGE",
+            status.HTTP_400_BAD_REQUEST,
+        ) from exc
     try:
         workbook = load_workbook(filename=io.BytesIO(data), read_only=True, data_only=True)
     except Exception as exc:  # noqa: BLE001 - openpyxl podnosi kilkanaście różnych klas
@@ -474,8 +496,25 @@ def _xlsx_table(data: bytes) -> list[list[str]]:
     try:
         sheet = workbook[workbook.sheetnames[0]]
         table = []
+        # Nagłówek + ``MAX_ROWS`` + jeden ponad limit. Liczymy wiersze **niepuste**, tak jak
+        # ``parse_table``. Puste wiersze między danymi zostają w tabeli (od ich pozycji zależy numer
+        # wiersza pokazywany nauczycielowi), ale jako jeden wspólny pusty wiersz, a puste na końcu
+        # arkusza nie trafiają do niej wcale – arkusz potrafi „mieć” milion pustych wierszy.
+        limit = MAX_ROWS + 2
+        filled = 0
+        empty: list[str] = []
+        pending_empty = 0
         for row in sheet.iter_rows(values_only=True):
-            table.append(["" if cell is None else str(cell).strip() for cell in row])
+            cells = ["" if cell is None else str(cell).strip() for cell in row]
+            if not any(cells):
+                pending_empty += 1
+                continue
+            table.extend([empty] * pending_empty)
+            pending_empty = 0
+            table.append(cells)
+            filled += 1
+            if filled >= limit:
+                break
         return table
     finally:
         workbook.close()
@@ -1392,7 +1431,9 @@ def read_invite_token(token: str) -> Participant:
     user = participant.user
     if user.email != (payload.get("email") or "").strip().lower():
         raise _invalid_invite()
-    if user.email_verified_at is not None or user.is_active:
+    if user.email_verified_at is not None or user.is_active or user.blocked_at is not None:
+        # Konto zablokowane przez organizatora (S5) ma te same pola, co czekające na przyjęcie
+        # zaproszenia – bez ``blocked_at`` stary link z listu by je odblokował.
         raise _invalid_invite()
     return participant
 
@@ -1426,16 +1467,31 @@ def send_invitation(participant: Participant, *, request=None) -> None:
     participant.invitation_sent_at = timezone.now()
 
 
-def resend_invitation(participant: Participant, *, actor=None, request=None) -> Participant:
+@transaction.atomic
+def resend_invitation(
+    participant: Participant, *, actor=None, request=None, enforce_cooldown: bool = True
+) -> Participant:
     """Wysyła zaproszenie ponownie. Odmowa dla konta, które zaproszenia nie ma albo już działa.
 
     Odmowa jest jawna, a nie cicha: nauczyciel klika „wyślij ponownie” właśnie dlatego, że nie
     wie, co się dzieje, i „nic się nie stało” byłoby najgorszą z możliwych odpowiedzi.
+
+    **Karencja** ``INVITE_RESEND_COOLDOWN`` od ostatniego listu (audyt 10.10.2026, S12): przy
+    otwartej rejestracji opiekunów import dowolnych adresów i nieograniczone „wyślij ponownie”
+    robiły z panelu opiekuna wysyłacza listów z domeny organizatora na cudze skrzynki. Wyłącza ją
+    (``enforce_cooldown=False``) wyłącznie panel koordynatora – rola nadawana ręcznie, a koordynator
+    ponawia list zwykle w trakcie rozmowy z uczniem.
     """
     if participant.invited_at is None:
         raise DomainError(
             "To konto nie powstało z importu – nie ma zaproszenia do wysłania.",
             "INVITE_NOT_IMPORTED",
+            status.HTTP_409_CONFLICT,
+        )
+    if participant.user.blocked_at is not None:
+        raise DomainError(
+            "To konto zostało zablokowane przez organizatora – zaproszenia nie wysyłamy.",
+            "INVITE_BLOCKED",
             status.HTTP_409_CONFLICT,
         )
     if participant.user.email_verified_at is not None or participant.user.is_active:
@@ -1444,7 +1500,30 @@ def resend_invitation(participant: Participant, *, actor=None, request=None) -> 
             "INVITE_ALREADY_ACCEPTED",
             status.HTTP_409_CONFLICT,
         )
-    send_invitation(participant, request=request)
+    # Karencja pod blokadą wiersza profilu: dwa równoległe kliknięcia „wyślij ponownie” nie mogą
+    # obu przejść sprawdzenia i wysłać dwóch listów.
+    sent_at = (
+        Participant.objects.select_for_update()
+        .filter(pk=participant.pk)
+        .values_list("invitation_sent_at", flat=True)
+        .first()
+    )
+    now = timezone.now()
+    if enforce_cooldown and sent_at is not None and now - sent_at < INVITE_RESEND_COOLDOWN:
+        minutes = int((sent_at + INVITE_RESEND_COOLDOWN - now).total_seconds() // 60) + 1
+        raise DomainError(
+            f"Zaproszenie wysłano niedawno. Kolejne można wysłać za {minutes} min.",
+            "INVITE_COOLDOWN",
+            status.HTTP_429_TOO_MANY_REQUESTS,
+        )
+    if participant.delegation_id is not None:
+        # Uczeń zgłoszony przez opiekuna drużyny dostaje **swój** list (kraj delegacji, a nie szkoła
+        # nauczyciela) – ten sam, co przy zgłoszeniu; token i ekran przyjęcia są wspólne.
+        from .delegation_services import send_student_invitation
+
+        send_student_invitation(participant, request=request)
+    else:
+        send_invitation(participant, request=request)
     audit(actor, "participant.invitation_resent", participant, {}, request=request)
     return participant
 
@@ -1501,7 +1580,14 @@ def accept_invitation(
     from .consents import ConsentSource, given_from_fields
     from .services import _validate_password_or_raise, record_consents, resolve_district
 
-    user = participant.user
+    # Blokada wiersza konta i powtórne sprawdzenie stanu **pod nią**: token nie ma stanu w bazie,
+    # więc dwa równoległe POST-y z tym samym linkiem przechodziły ``read_invite_token`` oba naraz
+    # i drugi nadpisywał hasło i zgody pierwszego. Drugi czeka teraz na commit pierwszego i widzi
+    # konto już aktywne – dostaje tę samą odmowę, co przy ponownym otwarciu zużytego linku.
+    user = User.objects.select_for_update().get(pk=participant.user_id)
+    if user.email_verified_at is not None or user.is_active or user.blocked_at is not None:
+        raise _invalid_invite()
+    participant.user = user
     # ``given`` przychodzi z formularza, czyli z nazwami **pól** (``terms_consent`` …), a serwis
     # zgód mówi **rodzajami** (``TERMS`` …). Mapuje je jedna funkcja, ta sama, co w rejestracji –
     # dzięki niej nazwa pola i rodzaj zgody nie mają jak się rozjechać.

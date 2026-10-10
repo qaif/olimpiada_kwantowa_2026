@@ -23,6 +23,9 @@
     {% elif is_self %}
       <p class="notice">To Twoje własne konto. Z tego ekranu go nie usuniesz – służy do tego
         „Usuń konto” we własnym profilu, z potwierdzeniem tożsamości.</p>
+    {% elif shared %}
+      <p class="notice">To konto ma role także w innym konkursie – usunięcie zabrałoby dane, które
+        przetwarza też inny organizator. Konto usuwa administrator serwisu.</p>
     {% else %}
       {% if keeps_pseudonymous_row %}
         <h2 class="mt-0">Co się stanie z danymi tego konta</h2>
@@ -60,13 +63,16 @@
     <form method="post" class="form">
       {% csrf_token %}
       <div class="actions">
-        {% if not protected and not is_self %}
+        {% if not protected and not is_self and not shared %}
           <button type="submit" class="btn btn--danger">
             {% if keeps_pseudonymous_row %}Usuń dane osobowe tego konta{% else %}Usuń konto na zawsze{% endif %}
           </button>
         {% endif %}
-        <a class="btn btn--secondary"
-           href="{% url 'web:coordinator-account-edit' account.pk %}">Wróć do konta</a>
+        {% comment %}
+          „Wróć” prowadzi tam, skąd koordynator przyszedł: na kartę konta albo – przy usuwaniu
+          z ekranu aktywacji – z powrotem na kolejkę (``cancel_url`` liczy widok).
+        {% endcomment %}
+        <a class="btn btn--secondary" href="{{ cancel_url }}">Wróć</a>
       </div>
     </form>
   </div>

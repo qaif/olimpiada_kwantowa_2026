@@ -50,6 +50,9 @@ from .blocks import (
     PartnersStreamBlock,
     StepsStreamBlock,
 )
+
+# Model dokumentu Wagtaila (``WAGTAILDOCS_DOCUMENT_MODEL``) stoi w osobnym module; import tutaj go rejestruje.
+from .documents import Document  # noqa: F401
 from .live_data import archive_result_links, competition_state, problems_state, results_state
 from .tenancy import competition_for_page, resolve_competition
 from .workshops import WORKSHOP_KEY_LENGTH, WORKSHOPS_SLUG, upcoming_workshops
@@ -1185,7 +1188,8 @@ class PageAttachment(Orderable):
     """
 
     document = models.ForeignKey(
-        "wagtaildocs.Document",
+        # Własny model dokumentu z plikiem w prywatnym storage (apps/cms/documents.py, audyt W2).
+        "cms.Document",
         on_delete=models.PROTECT,
         related_name="+",
         verbose_name="plik",
@@ -1306,7 +1310,8 @@ class ArchiveDocument(Orderable):
     kind = models.CharField("rodzaj", max_length=16, choices=Kind.choices, default=Kind.PROBLEMS)
     title = models.CharField("etykieta", max_length=200)
     document = models.ForeignKey(
-        "wagtaildocs.Document",
+        # Własny model dokumentu z plikiem w prywatnym storage (apps/cms/documents.py, audyt W2).
+        "cms.Document",
         on_delete=models.CASCADE,
         related_name="+",
         verbose_name="plik",

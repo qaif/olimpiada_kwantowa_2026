@@ -51,6 +51,12 @@
                 {% csrf_token %}
                 <button type="submit" class="btn btn--secondary btn--small">Wyślij link ponownie</button>
               </form>
+              {% comment %}
+                Odnośnik do strony potwierdzenia, a nie formularz z ``confirm()``: CSP panelu nie
+                przepuszcza skryptów w atrybutach, a usunięcia nie da się cofnąć. Po usunięciu
+                (albo „Wróć”) koordynator wraca na tę kolejkę.
+              {% endcomment %}
+              <a class="btn btn--danger btn--small" href="{% url 'web:coordinator-activation-delete' row.user.pk %}">Usuń konto</a>
             </td>
           </tr>
         {% empty %}

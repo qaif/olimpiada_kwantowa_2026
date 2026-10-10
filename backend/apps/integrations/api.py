@@ -288,7 +288,11 @@ class StageResultsView(ApiKeyViewMixin, GenericAPIView):
     @extend_schema(responses={200: V1ResultsPageSerializer})
     def get(self, request, stage_id: int):
         stage = self.stage_in_scope(stage_id)
-        publication = ResultsPublication.objects.select_related("stage").filter(stage_id=stage.pk).first()
+        # ``live()``: ogłoszenie wycofane (wyczyszczony ``Stage.results_published_at``) jest dla
+        # partnera tak samo nieistniejące, jak dla publicznej strony wyników (audyt 10.10.2026, S2).
+        publication = (
+            ResultsPublication.objects.live().select_related("stage").filter(stage_id=stage.pk).first()
+        )
         if publication is None:
             raise _not_found("Wyniki tego etapu nie zostały ogłoszone.")
         rows = [self._row(item) for item in publication.snapshot or []]
@@ -370,7 +374,9 @@ class StatsListView(ApiKeyViewMixin, ListAPIView):
         # N przeliczeń tego samego zestawu wierszy. Zawężamy więc **wynik**, jednym zapytaniem
         # po identyfikatorach etapów tego konkursu.
         published = set(
-            ResultsPublication.objects.for_competition(self.competition).values_list("stage_id", flat=True)
+            ResultsPublication.objects.live()
+            .for_competition(self.competition)
+            .values_list("stage_id", flat=True)
         )
         rows = [row for row in statistics() if row.get("stage_id") in published]
         edition_id = self.api_key.edition_id

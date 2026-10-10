@@ -592,6 +592,8 @@ class Competition(models.Model):
 
         errors.update(self._language_errors())
         errors.update(self._registration_mode_errors())
+        errors.update(self._clean_memberships_enforced())
+        errors.update(self._clean_from_email())
 
         if self.routing_mode == RoutingMode.PATH and not self.path_prefix:
             errors["path_prefix"] = "Tryb prefiksu ścieżki wymaga podania prefiksu."
@@ -618,6 +620,114 @@ class Competition(models.Model):
 
         if errors:
             raise ValidationError(errors)
+
+    def allowed_sender_domains(self) -> set[str]:
+        """Domeny, z których ten konkurs może wysyłać listy (``from_email``).
+
+        Domena nadawcy instalacji (``DEFAULT_FROM_EMAIL``), domena platformy (``SITE_DOMAIN``)
+        i domena **własna** tego konkursu (``primary_domain``, także bez ``www.``). Bez poddomen
+        platformy: ``fizyczna.<platforma>`` jest domeną **innego** konkursu, a nie wariantem tej.
+        """
+        from django.conf import settings
+
+        domains = {
+            settings.DEFAULT_FROM_EMAIL.rpartition("@")[2],
+            getattr(settings, "SITE_DOMAIN", ""),
+            self.primary_domain or "",
+        }
+        if self.primary_domain and self.primary_domain.startswith("www."):
+            domains.add(self.primary_domain.removeprefix("www."))
+        return {domain.strip().lower() for domain in domains if domain and domain.strip()}
+
+    def _clean_from_email(self) -> dict[str, str]:
+        """Nadawca listów tylko z domeny platformy albo własnej domeny konkursu (audyt 10.10.2026).
+
+        Wspólny przekaźnik poczty wyśle list z **dowolnym** adresem w polu ``From``, więc koordynator
+        mógłby wpisać tu ``noreply@`` platformy z poddomeny innego konkursu albo adres instytucji,
+        która z tym konkursem nie ma nic wspólnego – i listy aktywacyjne, resety hasła i powiadomienia
+        szłyby w świat pod cudzym nazwiskiem. Reguła dotyczy **zmiany**: wiersz zastany (np. nadawca
+        z migracji ``tenancy.0002``) daje się zapisać przy innej poprawce, jak w
+        ``_clean_memberships_enforced``.
+        """
+        sender = (self.from_email or "").strip().lower()
+        if not sender:
+            return {}
+        if self.pk:
+            previous = Competition.objects.filter(pk=self.pk).values_list("from_email", flat=True).first()
+            if (previous or "").strip().lower() == sender:
+                return {}
+        if sender.rpartition("@")[2] in self.allowed_sender_domains():
+            return {}
+        return {
+            "from_email": (
+                "Nadawca listów musi być w domenie platformy albo w domenie własnej tego konkursu: "
+                + ", ".join(sorted(self.allowed_sender_domains()))
+                + "."
+            )
+        }
+
+    def _clean_memberships_enforced(self) -> dict[str, str]:
+        """Odmowa przejścia w stan „role z globalnych grup” obok innego aktywnego konkursu (audyt W4).
+
+        To jest ta sama reguła, co ``apps.tenancy.provisioning._refuse_next_to_unscoped_roles``
+        i kontrola ``tenancy.E001`` (``apps.tenancy.checks``), tylko po stronie **zapisu** konkursu:
+        przy wyłączonym ``memberships_enforced`` o roli rozstrzyga globalna grupa Django, więc
+        koordynator, recenzent i komisja *dowolnego* konkursu mają tę rolę także tutaj. Bez tej
+        odmowy stan łapała dopiero ``tenancy.E001`` przy następnym ``migrate`` – czyli wdrożenie,
+        które zatrzymuje kontener ``web`` wszystkim konkursom naraz.
+
+        Odmawiamy **przejścia**, a nie stanu. Instalacja, która już w nim jest (zastany wiersz
+        sprzed tej reguły), musi dać się zapisać w ``/admin/`` przy innej zmianie – inaczej
+        operator nie mógłby jej nawet naprawić; ten stan zgłasza ``tenancy.E001``. Przejścia są dwa:
+
+        - wyłączenie flagi (albo nowy/ponownie włączony konkurs z wyłączoną flagą), gdy aktywny
+          jest jeszcze inny konkurs,
+        - włączenie (albo założenie) konkursu, gdy obok stoi aktywny konkurs z wyłączoną flagą –
+          wtedy przeciekałby tamten, a nie ten.
+
+        Jeden konkurs w instalacji (dzisiejsza produkcja, kreator ``/setup/``) przechodzi bez
+        pytań: role z grup są wtedy rolami w jedynym konkursie. Klucz błędu to pole modelu, które
+        tę zmianę niesie – w ``/admin/`` obie stoją na formularzu; ekran „Ustawienia konkursu” nie
+        dotyka żadnej z nich przed walidacją (wyłączenia flagi z panelu i tak nie przyjmuje).
+        """
+        if not self.is_active:
+            return {}
+        from .checks import MEMBERSHIPS_FLAG
+
+        previous = Competition.objects.filter(pk=self.pk).first() if self.pk else None
+        was_active = previous is not None and previous.is_active
+        others = Competition.objects.filter(is_active=True)
+        if self.pk:
+            others = others.exclude(pk=self.pk)
+
+        if not self.has_feature(MEMBERSHIPS_FLAG):
+            if was_active and not previous.has_feature(MEMBERSHIPS_FLAG):
+                return {}  # stan zastany – zgłasza go tenancy.E001, a nie każdy zapis
+            if others.exists():
+                return {
+                    "feature_flags": (
+                        "Nie można wyłączyć memberships_enforced, gdy w instalacji jest inny aktywny "
+                        "konkurs: role liczyłyby się z globalnych grup kont, więc koordynatorzy, "
+                        "recenzenci i komisja odwoławcza pozostałych konkursów mieliby je także tutaj "
+                        "(kontrola tenancy.E001, docs/OPERACJE.md § 6.1)."
+                    )
+                }
+            return {}
+        if was_active:
+            return {}
+        unscoped = [
+            other.slug for other in others.order_by("slug") if not other.has_feature(MEMBERSHIPS_FLAG)
+        ]
+        if unscoped:
+            return {
+                "is_active": (
+                    f"Nie można włączyć tego konkursu: konkurs {', '.join(unscoped)} ma wyłączony "
+                    "przełącznik memberships_enforced, więc jego role obowiązywałyby także tutaj. "
+                    "Najpierw „manage.py check_memberships --fix” i włączenie flagi tamtemu "
+                    "konkursowi (docs/OPERACJE.md § 6.1)."
+                )
+            }
+        return {}
 
     def _registration_mode_errors(self) -> dict[str, str]:
         """Tryb delegacji wymaga podziału na kraje z co najmniej jednym aktywnym krajem (DEL-01).

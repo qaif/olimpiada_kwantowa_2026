@@ -13,8 +13,16 @@ querysetu (``for_competition``), a nie stąd. 403 mówi „jesteś, ale nie tobi
 tutaj”; istnienie cudzego etapu nie jest niczyją informacją (``docs/UNIWERSALNY-ETAP-1.md`` § 3.6).
 
 Rolę rozstrzyga ``apps.accounts.services.has_role`` – ta sama funkcja, co w DRF. Konkurs bierzemy
-z żądania (``request.competition``, ustawia je ``apps.tenancy.middleware``); żądanie bez konkursu
-schodzi w ``has_role`` do grup Django, czyli do zachowania sprzed wielokonkursowości.
+z żądania (``request.competition``, ustawia je ``apps.tenancy.middleware``).
+
+**Żądanie bez konkursu dostaje 404** (audyt S13, 10.10.2026). Wcześniej schodziło w ``has_role`` do
+grup Django, czyli do zachowania sprzed wielokonkursowości – a w instalacji z kilkoma konkursami
+„grupa” znaczy „rola w dowolnym z nich”: koordynator B pod domeną wyłączonego konkursu A dostawał
+panel działający na kontach całej instalacji. Instalacja z jednym konkursem tego nie odczuwa:
+jej jedyny aktywny konkurs rozstrzyga się z każdego hosta przez witrynę domyślną
+(``apps.tenancy.resolution``), więc ``request.competition`` nie jest tam ``None``. ``None`` zostaje
+dla adresów wewnętrznych, awarii bazy, bazy bez witryn (przed kreatorem ``/setup/``) i witryn bez
+konkursu – i w żadnym z tych przypadków panel roli nie ma czego pokazać.
 """
 
 from __future__ import annotations
@@ -22,6 +30,7 @@ from __future__ import annotations
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied
+from django.http import Http404
 from django.shortcuts import redirect
 
 from apps.accounts.models import CompetitionRole
@@ -44,6 +53,12 @@ class RoleRequiredMixin(LoginRequiredMixin):
         return getattr(self.request, "competition", None)
 
     def dispatch(self, request, *args, **kwargs):
+        if self.competition is None:
+            # 404 przed logowaniem i przed rolą: pod adresem bez konkursu panelu **nie ma**, a nie
+            # „jest, ale nie dla ciebie” – i nie odsyłamy na ``/login/``, bo logowanie tutaj też
+            # do niczego nie prowadzi. Bez tej bramki ``has_role(user, None, …)`` odpowiada globalną
+            # grupą Django, czyli rolą z **dowolnego** konkursu instalacji (patrz docstring modułu).
+            raise Http404("Pod tym adresem nie działa żaden konkurs.")
         if request.user.is_authenticated and not self.has_role(request.user):
             raise PermissionDenied(self.role_denied_message)
         return super().dispatch(request, *args, **kwargs)

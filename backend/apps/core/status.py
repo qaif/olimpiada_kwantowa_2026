@@ -18,8 +18,12 @@ i jedyną informacją, jaką oddaje o infrastrukturze, jest binarne „działa /
 Każde sprawdzenie jest **tanie i nieblokujące**: ``SELECT 1``, zapis i odczyt z cache'u, jedno
 żądanie HEAD do magazynu i odczyt znacznika czasu zostawionego przez workera
 (``apps.core.tasks.heartbeat``). Żadne z nich nie pyta kolejki synchronicznie – strona statusu nie
-może wisieć dokładnie wtedy, gdy jest potrzebna. Całość jedzie przez ``cache_page`` w widoku,
-więc nawet nalot na tę stronę nie zamienia jej w narzędzie do dobijania własnej bazy.
+może wisieć dokładnie wtedy, gdy jest potrzebna. Wynik ``snapshot()`` trzyma przez 30 s bufor
+danych w widoku (``apps.web.views.status.cached_snapshot``), więc nawet nalot na tę stronę nie
+zamienia jej w narzędzie do dobijania własnej bazy. Buforujemy **dane**, a nie wyrenderowaną
+odpowiedź HTML: ``cache_page`` na ``/status/`` podawał anonimowym stronę z nagłówkiem ostatniego
+zalogowanego (audyt 10.10.2026, W1). Wariant ``/status.json`` zostaje przy ``cache_page``, bo jego ciało
+nie zależy od użytkownika ani sesji.
 """
 
 from __future__ import annotations

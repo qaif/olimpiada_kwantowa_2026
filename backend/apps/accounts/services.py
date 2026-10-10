@@ -678,9 +678,13 @@ def memberships_enforced(competition) -> bool:
     grupy; po backfillu flaga ``memberships_enforced`` przechodzi na ``True`` i zostaje w kodzie
     jeden sezon, na wypadek gdyby trzeba było wrócić bez wdrożenia.
 
-    Brak konkursu znaczy „nie ma czego egzekwować”: reguła schodzi wtedy do grup, czyli do
-    zachowania sprzed tej zmiany. To jest świadome i jest warunkiem § 0 – żądanie pod hostem,
-    którego nikt nie przypisał do konkursu, ma odpowiadać dokładnie tak, jak odpowiadało wczoraj.
+    Brak konkursu daje ``False`` – reguła schodzi wtedy do grup – ale **żądanie** bez konkursu do tej
+    reguły już nie dochodzi (audyt 10.10.2026, S13): panele HTML zamyka 404 w
+    ``apps.web.mixins.RoleRequiredMixin``, a API – klasy uprawnień ``apps.accounts.permissions``
+    i ``apps.tenancy.permissions``, które bez konkursu odmawiają, zanim zapytają o rolę. Dawniej
+    host nieaktywnego konkursu dawał tu role z globalnych grup, czyli koordynatora, recenzenta
+    i komisję dowolnego konkursu z dostępem do danych wszystkich. Odwrót do grup zostaje dla
+    wywołań **spoza żądania** (komendy, zadania, testy jednostkowe reguły).
     """
     return competition is not None and competition.has_feature("memberships_enforced")
 
@@ -699,6 +703,11 @@ def has_role(user, competition, role: str) -> bool:
 
     Konto nieaktywne (zablokowane albo z niepotwierdzonym adresem) nie ma żadnej roli, niezależnie
     od tego, co stoi w bazie – blokada konta ma zamykać dostęp od razu, bez sprzątania członkostw.
+
+    ``competition=None`` odpowiada z globalnych grup (``memberships_enforced``), ale żądania bez
+    konkursu tu nie trafiają: bramki HTML (``RoleRequiredMixin`` → 404) i API (klasy uprawnień →
+    403) odmawiają wcześniej (audyt 10.10.2026, S13). Nowa bramka oparta na tej funkcji ma robić
+    to samo – sprawdzić konkurs, zanim zapyta o rolę.
     """
     if not user or not user.is_authenticated or not user.is_active:
         return False

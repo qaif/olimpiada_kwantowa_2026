@@ -253,6 +253,43 @@ def test_sso_account_without_session_deadline_is_logged_out(client, sso_post, dj
     assert not logged_in(client)
 
 
+def test_password_session_gets_a_hard_deadline(client, superuser, settings):
+    settings.DJCMS_PASSWORD_SESSION_SECONDS = 900
+    response = client.post(
+        "/djcms/admin/login/", {"username": "admin@example.com", "password": "haslo-admina-123456"}
+    )
+    assert response.status_code == 302 and logged_in(client)
+
+    assert client.get(TREE).status_code == 200
+    session = client.session
+    assert session.get_expiry_age() == 900
+    deadline = session[sso.PASSWORD_SESSION_KEY]
+    assert time.time() < deadline <= time.time() + 900
+    # Kolejne żądanie nie przesuwa terminu – liczy się od logowania, nie od ruchu.
+    client.get(TREE)
+    assert client.session[sso.PASSWORD_SESSION_KEY] == deadline
+
+
+def test_expired_password_session_is_logged_out(client, superuser):
+    client.force_login(superuser)
+    assert client.get(TREE).status_code == 200
+    session = client.session
+    session[sso.PASSWORD_SESSION_KEY] = int(time.time()) - 1
+    session.save()
+
+    response = client.get(TREE)
+
+    assert response.status_code == 302
+    assert "/djcms/admin/login/" in response["Location"]
+    assert not logged_in(client)
+
+
+def test_sso_session_does_not_get_the_password_deadline(client, sso_editor):
+    sso_editor()
+    client.get(TREE)
+    assert sso.PASSWORD_SESSION_KEY not in client.session
+
+
 # --- hasło tylko dla superużytkownika -------------------------------------------------------------
 
 

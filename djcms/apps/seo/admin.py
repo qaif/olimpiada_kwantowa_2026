@@ -4,7 +4,8 @@ Zakres = ``GlobalPagePermission`` redaktora (własne i grup): lista witryn upraw
 bez witryn znaczy „wszystkie” (grupa platformy, D5). Superużytkownik – wszystko. Wpis spoza zakresu
 nie istnieje dla redaktora (lista, edycja, usuwanie – 404), a pole witryny pokazuje tylko jego
 witryny. Wpis zapisany w panelu ma źródło ``manual`` – także wpis z importu albo automatu po edycji
-(redakcja przejęła go i ``--replace`` ani automat już go nie ruszą).
+(redakcja przejęła go i ``--replace`` ani automat już go nie ruszą). Cel bezwzględny – tylko na host
+platformy, chyba że zapisuje konto platformy (``apps.seo.targets``).
 """
 
 from __future__ import annotations
@@ -55,6 +56,20 @@ class RedirectAdmin(admin.ModelAdmin):
             queryset = Site.objects.order_by("domain")
             kwargs["queryset"] = queryset if ids is None else queryset.filter(pk__in=ids)
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+    def get_form(self, request, obj=None, change=False, **kwargs):
+        """Formularz, w którym ``Redirect.clean`` wie, czy cel może wyjść poza hosty platformy."""
+        from apps.sites.permissions import is_platform_editor
+
+        base = super().get_form(request, obj, change=change, **kwargs)
+        platform = is_platform_editor(request.user)
+
+        class RedirectForm(base):
+            def __init__(self, *args, **form_kwargs):
+                super().__init__(*args, **form_kwargs)
+                self.instance.allow_foreign_host = platform
+
+        return RedirectForm
 
     def save_model(self, request, obj, form, change):
         obj.source = RedirectSource.MANUAL

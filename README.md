@@ -159,7 +159,8 @@ Co trzeba ustawić **zanim** to zadziała:
    Ta sama wartość wchodzi do `img-src`/`media-src`/`connect-src` polityki CSP – bez niej produkcja
    blokuje każdy obraz redakcyjny i podgląd PDF u recenzenta.
 3. **`TRUSTED_PROXY_IPS`.** Adresy (lub sieci CIDR) proxy, którym backend wierzy w nagłówku
-   `X-Real-IP`. Domyślnie podsieci compose (`172.30.1.0/24,172.30.2.0/24`). Pusta wartość znaczy
+   `X-Real-IP`. Domyślnie (bez linijki w `.env`) dwa stałe adresy kontenera `proxy`
+   (`172.30.1.250/32,172.30.2.250/32` – do 10.10.2026 całe podsieci compose). Pusta wartość znaczy
    „ufaj tylko `REMOTE_ADDR`” – wtedy w audycie zostaje adres Caddy'ego, nie klienta. Nigdy nie
    wpisuj tu `0.0.0.0/0`: nagłówek od nieznanego nadawcy to dane od klienta, a nie fakt.
 4. **`DJANGO_ALLOWED_HOSTS` i `DJANGO_CSRF_TRUSTED_ORIGINS`** – z prawdziwą domeną
@@ -320,6 +321,11 @@ DJANGO_ALLOWED_HOSTS=olimpiadakwantowa.pl,www.olimpiadakwantowa.pl,web,127.0.0.1
 DJANGO_CSRF_TRUSTED_ORIGINS=https://olimpiadakwantowa.pl,https://www.olimpiadakwantowa.pl
 ```
 
+Wartość ze spacjami można wpisać tak jak wyżej albo w cudzysłowie (`EXTRA_DOMAINS="a.pl www.a.pl"`)
+– docker compose, generator konfiguracji proxy i skrypty kopii (`scripts/lib/env.sh`) czytają obie
+formy tak samo. `.env` nie jest wykonywany jako skrypt powłoki (od 10.10.2026), więc spacja bez
+cudzysłowu nie psuje już nocnej kopii.
+
 `DJANGO_ALLOWED_HOSTS` i `DJANGO_CSRF_TRUSTED_ORIGINS` **nie muszą** wymieniać nowej domeny:
 Django dokłada do obu list wszystko, co stoi w `EXTRA_DOMAINS` (`config/settings/base.py`).
 Wpisanie ich wprost niczego nie psuje – wartości podane ręcznie zostają na początku list.
@@ -410,7 +416,7 @@ i `environment` w compose; w obrazie nie ma żadnego sekretu.
 | `S3_PRIVATE_ACCESS_KEY` / `S3_PRIVATE_SECRET_KEY` | `app-private` / – | konto serwisowe bucketu `submissions` (prace i treści zadań) |
 | `S3_PUBLIC_ENDPOINT_URL` | `https://s3.<SITE_DOMAIN>` | adres MinIO widziany z przeglądarki |
 | `S3_PRESIGNED_TTL_SECONDS` | `600` | ważność linku do pliku rozwiązania |
-| `TRUSTED_PROXY_IPS` | podsieci compose | komu wolno podać `X-Real-IP` |
+| `TRUSTED_PROXY_IPS` | stałe adresy `proxy` (/32) | komu wolno podać `X-Real-IP` |
 | `EMAIL_URL` | `consolemail://` (dev `.env`: `smtp://mailpit:1025`; produkcja z `deploy.sh`: `smtp://mail:587`) | poczta wychodząca – patrz 4.1 |
 | `DEFAULT_FROM_EMAIL` | `noreply@localhost` (dev `.env`: `olimpiada@localhost`) | nadawca listów (także `SERVER_EMAIL`); domena musi mieć SPF/DKIM – patrz 4.2 |
 | `EMAIL_TIMEOUT` | `10` | limit sekund na połączenie SMTP (wysyłka idzie w workerze Celery, kolejka `mail`) |

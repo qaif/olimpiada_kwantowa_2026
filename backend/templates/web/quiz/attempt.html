@@ -65,11 +65,12 @@
       <p class="quiz-question__text">{{ question.text|linebreaksbr }}</p>
       {% if question.image %}
         {% comment %}
-          Ilustracja leży na prywatnym storage, więc adres jest podpisany i krótkotrwały.
+          Ilustracja leży na prywatnym storage i idzie przez widok aplikacji (``QuizQuestionImageView``):
+          tylko w trakcie tego podejścia, bez podpisanego adresu, który dałoby się rozesłać.
           ``alt`` jest pusty, bo treść pytania stoi tuż nad obrazkiem – powtórzony opis czytnik
           ekranu przeczytałby dwa razy, a opisu samej ilustracji system nie zna.
         {% endcomment %}
-        <p><img class="quiz-question__image" src="{{ question.image.url }}" alt="" loading="lazy"></p>
+        <p><img class="quiz-question__image" src="{% url 'web:quiz-question-image' attempt.pk question.id %}" alt="" loading="lazy"></p>
       {% endif %}
 
       {% if question.is_choice %}

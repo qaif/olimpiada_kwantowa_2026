@@ -465,7 +465,7 @@ docker_calls() { mask "$DOCKER_LOG" | sed -e "s|$CASE|CASE|g" -e "s/ *$//" | gre
 EXPECTED_OFF='compose exec -T db pg_dump -U olimpiada -d olimpiada -Fc
 compose ps -q minio
 inspect -f {{range $name, $_ := .NetworkSettings.Networks}}{{$name}}{{"\n"}}{{end}} cid123
-run --rm --network proj_internal -v CASE/backups/.work-X/buckets:/backup -e MC_HOST_src=http://minio:minio-secret@minio:9000 -e MC_QUIET=1 -e MC_NO_COLOR=1 --entrypoint sh minio/mc:RELEASE.2025-04-16T18-13-26Z -c
+run --rm --network proj_internal --env-file CASE/backups/.work-X/mc.env -v CASE/backups/.work-X/buckets:/backup -e MC_QUIET=1 -e MC_NO_COLOR=1 --entrypoint sh minio/mc:RELEASE.2025-04-16T18-13-26Z -c
 compose exec -T web python manage.py record_backup_status --ok'
 for variant in "" "DJCMS_ENABLED=0" "DJCMS_ENABLED=off"; do
   setup_case "dj-off-${variant#DJCMS_ENABLED=}" ${variant:+"$variant"}
@@ -715,6 +715,40 @@ printf 'smieci' >"$CASE/backups/djcms-db-20260102T030000Z.dump.gpg"
 djrestore --dry-run --djcms-dump djcms-db-20260102T030000Z.dump.gpg; rc=$?
 [ $rc -ne 0 ] && grep -q 'brak nagłówka PGDMP' "$CASE/out.txt"
 check "restore.sh --djcms-dump: paczka bez nagłówka PGDMP odrzucona (także w trybie próbnym)" $?
+
+# --- 20. .env czytany jako tekst, nie wykonywany (audyt bezpieczeństwa 10.10.2026, S17) -----------
+# Dokładnie te linijki, które każe wpisać .env.example / README: wartość ze spacjami bez cudzysłowu,
+# w cudzysłowie, lista domen po spacji – plus `$(…)` i odwrócony apostrof, które dawny `. ./.env`
+# WYKONYWAŁ (jako root z crona). Kopia ma przejść, a pliku-dowodu wykonania ma nie być.
+setup_case env-text \
+  "CERT_SIGN_REASON=Dokument wystawiony przez Olimpiadę Kwantową" \
+  'CERT_SIGN_LOCATION="Warszawa, ul. Przykładowa 1"' \
+  "EXTRA_DOMAINS=olimpiadafizyczna.pl www.olimpiadafizyczna.pl" \
+  "PRZYKLAD=\$(touch $CASE/pwned-dollar)" \
+  "PRZYKLAD2=\`touch $CASE/pwned-tick\`" \
+  "REMOTE_DAILY_KEEP_DAYS=30 # komentarz w linii" \
+  "BACKUP_REMOTE_URL=https://s3.example.test" "BACKUP_ACCESS_KEY=AK" "BACKUP_SECRET_KEY='S K z apostrofem'" "BACKUP_BUCKET=kubel"
+run_backup; rc=$?
+[ $rc -eq 0 ] && ls "$CASE/backups"/db-*.dump.gpg >/dev/null 2>&1 && ! grep -q 'command not found' "$CASE/out.txt"
+check ".env z wartościami ze spacjami (z cudzysłowem i bez): kopia przechodzi, kod 0" $?
+[ ! -e "$CASE/pwned-dollar" ] && [ ! -e "$CASE/pwned-tick" ]
+check ".env NIE jest wykonywany: \$(…) i odwrócony apostrof w wartości nic nie uruchamiają" $?
+rclone_calls | grep -qF 'RCLONE_CONFIG_OFFSITE_SECRET_ACCESS_KEY=S K z apostrofem' \
+  && rclone_calls | grep -q 'delete offsite:kubel/daily/ --min-age 30d'
+check ".env: wartość w apostrofach bez apostrofów, komentarz w linii odcięty (retencja 30d)" $?
+! grep -q 'minio-secret' "$DOCKER_LOG"
+check "hasło roota MinIO nie trafia do argumentów docker run (plik --env-file)" $?
+[ ! -e "$(ls -d "$CASE/backups"/.work-* 2>/dev/null | head -1)/mc.env" ]
+check "plik --env-file z hasłem MinIO sprzątnięty razem z katalogiem roboczym" $?
+REPO_DIR="$CASE/repo" BACKUP_DIR="$CASE/backups" PATH="$BIN:$PATH" \
+  bash "$ROOT/scripts/restore.sh" --list >"$CASE/out.txt" 2>&1; rc=$?
+[ $rc -eq 0 ] && [ ! -e "$CASE/pwned-dollar" ]
+check "restore.sh --list na tym samym .env: kod 0, nic nie wykonane" $?
+cp "$CASE/backups"/db-*.dump.gpg "$CASE/backups/db-20260101T030000Z.dump.gpg" 2>/dev/null
+printf 'PGDMP-atrapa' >"$CASE/backups/db-20260101T030000Z.dump.gpg"
+verify "$CASE/backups/db-20260101T030000Z.dump.gpg"; rc=$?
+! grep -q 'command not found' "$CASE/out.txt" && [ ! -e "$CASE/pwned-dollar" ] && ! grep -q 'brak pliku .env\|BACKUP_PASSPHRASE musi' "$CASE/out.txt"
+check "backup_verify.sh na tym samym .env: .env wczytany bez błędu powłoki (kod $rc)" $?
 
 echo
 if [ "$failures" -eq 0 ]; then

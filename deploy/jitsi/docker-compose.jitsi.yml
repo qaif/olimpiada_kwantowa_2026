@@ -2,8 +2,11 @@
 #
 # Osobny projekt compose (`-p olimpiada-jitsi`), żeby główny `docker compose up` portalu nie
 # restartował rozmów i odwrotnie. TLS kończy Caddy portalu (blok `meet.{$SITE_DOMAIN}` w
-# deploy/Caddyfile): kontener `jitsi-web` wchodzi do zewnętrznej sieci `edge` portalu pod nazwą
-# `jitsi-web`, a sam serwuje zwykły HTTP. Media (JVB) idą bezpośrednio po UDP 10000 – to jedyny
+# deploy/Caddyfile): kontener `jitsi-web` wchodzi do zewnętrznej sieci `meet` portalu pod nazwą
+# `jitsi-web`, a sam serwuje zwykły HTTP. Sieć `meet` (docker-compose.yml portalu, internal) dzieli
+# WYŁĄCZNIE z kontenerem `proxy` – do 10.10.2026 była to `edge`, czyli sąsiedztwo web, monitora
+# i poczty oraz adres z podsieci, której ufały TRUSTED_PROXY_IPS i `mynetworks` (audyt
+# bezpieczeństwa, S20). Wyjście do internetu `jitsi-web` ma przez własną sieć `meet.jitsi`. Media (JVB) idą bezpośrednio po UDP 10000 – to jedyny
 # port publikowany na hoście; wymaga reguły `ufw allow 10000/udp` (robi ją scripts/deploy_jitsi.sh).
 #
 # Wejście WYŁĄCZNIE z przepustką platformy (v0.39.0, „wariant A”, docs/OPERACJE.md § 25):
@@ -72,7 +75,7 @@ services:
       - JICOFO_AUTH_USER=focus
     networks:
       meet.jitsi:
-      edge:
+      proxy_meet:
         aliases:
           - jitsi-web
     depends_on: [prosody]
@@ -184,6 +187,7 @@ volumes:
 networks:
   meet.jitsi:
     driver: bridge
-  edge:
+  # `<projekt portalu>_meet` – nazwę wpisuje do jitsi/.env scripts/deploy_jitsi.sh.
+  proxy_meet:
     external: true
-    name: ${EDGE_NETWORK:-olimpiada_edge}
+    name: ${PROXY_MEET_NETWORK:-olimpiada_meet}

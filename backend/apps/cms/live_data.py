@@ -134,17 +134,14 @@ def results_state(competition) -> ResultsState:
     - **pełne tabele tylko dla bieżącej edycji.** Archiwalne edycje zostają odnośnikiem: snapshot
       finału to tysiące wierszy.
 
-    Filtr po ``results_published_at`` zostaje: znacznik na etapie jest tym, co koordynator zdejmuje,
+    ``live()`` zostaje: znacznik ``results_published_at`` na etapie jest tym, co koordynator zdejmuje,
     żeby wycofać ogłoszenie, a sam rekord publikacji ma zostać jako ślad. Zawężenie do konkursu jest
     **drugim** filtrem i musi być – bez niego tabela wyników jednej olimpiady wyliczałaby etapy
     drugiej. Drogę do konkursu zna manager modelu, a regułę odwrotów – ``scope_to_competition``.
     """
     edition = current_edition(competition)
     publications = (
-        scope_to_competition(
-            ResultsPublication.objects.filter(stage__results_published_at__isnull=False),
-            competition,
-        )
+        scope_to_competition(ResultsPublication.objects.live(), competition)
         .select_related("stage", "stage__edition", "stage__scoring_scale")
         # Zadania etapów jednym zapytaniem na całą stronę – czyta je ``problem_maxima_by_number``
         # (nagłówki „Zad. 3 (max 12,5)”, wydanie 0.35.0). Bez tego każda tabela dokładałaby dwa
@@ -202,5 +199,7 @@ def archive_result_links(edition_id: int | None, competition=None) -> list[dict]
     stages = list(
         Stage.objects.filter(edition_id=edition_id).select_related("edition").order_by("opens_at", "id")
     )
-    published = set(ResultsPublication.objects.filter(stage__in=stages).values_list("stage_id", flat=True))
+    published = set(
+        ResultsPublication.objects.live().filter(stage__in=stages).values_list("stage_id", flat=True)
+    )
     return [{"stage": stage} for stage in stages if stage.pk in published]

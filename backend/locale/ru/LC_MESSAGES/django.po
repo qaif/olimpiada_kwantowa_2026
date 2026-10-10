@@ -9391,3 +9391,70 @@ msgstr "Для школ/учителей"
 #: apps/cms/context_processors.py
 msgid "Rejestracja nauczyciela"
 msgstr "Регистрация учителя"
+
+# --- Audyt bezpieczeństwa 10.10.2026: nowe komunikaty ---
+#: apps/accounts/activation.py:492
+msgid ""
+"To konto zostało zablokowane przez organizatora. Skontaktuj się z "
+"organizatorem."
+msgstr "Этот аккаунт заблокирован организатором. Свяжитесь с организатором."
+
+#: apps/accounts/activation.py:597
+msgid ""
+"To konto uruchamia się linkiem z listu z zaproszeniem. Poproś o ponowne "
+"wysłanie linku – przyjdzie zaproszenie."
+msgstr "Этот аккаунт активируется по ссылке из письма с приглашением. Попросите отправить ссылку повторно – придёт приглашение."
+
+#: apps/accounts/delegation_services.py:1091
+#, python-format
+msgid "Zaproszenie wysłano niedawno. Kolejne można wysłać za %(minutes)s min."
+msgstr "Приглашение отправлено недавно. Следующее можно отправить через %(minutes)s мин."
+
+#: apps/accounts/guardian.py:287
+msgid ""
+"Podaj adres rodzica lub opiekuna prawnego – nie adres opiekuna szkolnego."
+msgstr "Укажите адрес родителя или законного представителя – не адрес школьного руководителя."
+
+#: apps/accounts/profile.py:139
+msgid ""
+"Kraj ucznia delegacji wynika z delegacji – zmienia go opiekun drużyny albo "
+"organizator."
+msgstr "Страна ученика делегации определяется делегацией – её меняет руководитель команды или организатор."
+
+#: apps/forum/services.py:408 apps/forum/services.py:478
+msgid "Ten dział jest zamknięty – nie można w nim pisać."
+msgstr "Этот раздел закрыт – писать в нём нельзя."
+
+#: apps/quiz/services.py:439
+msgid "Wyniki tego etapu są już ogłoszone – testu nie można rozpocząć."
+msgstr "Результаты этого этапа уже объявлены – начать тест нельзя."
+
+#: apps/web/forms.py:1153 templates/web/account/twofactor.html:59
+msgid "Obecny adres e-mail konta"
+msgstr "Текущий адрес электронной почты аккаунта"
+
+#: apps/web/forms.py:1156
+msgid ""
+"Twoje konto nie ma hasła – przepisz obecny adres, żeby potwierdzić zmianę."
+msgstr "У вашего аккаунта нет пароля – введите текущий адрес, чтобы подтвердить изменение."
+
+#: templates/socialaccount/refused.html:31
+msgid "Najpierw przyjmij zaproszenie"
+msgstr "Сначала примите приглашение"
+
+#: templates/socialaccount/refused.html:32
+msgid ""
+"To konto powstało z zaproszenia. Zanim zalogujesz się w jakikolwiek sposób, "
+"otwórz link z listu z zaproszeniem, ustaw hasło i złóż wymagane zgody."
+msgstr "Этот аккаунт создан по приглашению. Прежде чем входить любым способом, откройте ссылку из письма с приглашением, задайте пароль и дайте необходимые согласия."
+
+#: templates/web/account/twofactor.html:61
+msgid ""
+"Twoje konto nie ma hasła – przepisz obecny adres, żeby potwierdzić "
+"wyłączenie."
+msgstr "У вашего аккаунта нет пароля – введите текущий адрес, чтобы подтвердить отключение."
+
+#: templates/web/reviewer/detail.html:129
+msgid ""
+"Ta praca nie jest już Ci przydzielona – plik rozwiązania nie jest dostępny."
+msgstr "Эта работа больше не назначена вам – файл решения недоступен."

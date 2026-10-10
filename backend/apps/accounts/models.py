@@ -423,6 +423,14 @@ class User(AbstractBaseUser, PermissionsMixin):
     # inne znaczenie – konto zablokowane przez organizatora, które adres ma potwierdzony dawno.
     # Domyślnie nullowalne, a nie ``default=now``: pole opisuje zdarzenie, a nie stan początkowy.
     email_verified_at = models.DateTimeField("adres e-mail potwierdzony", null=True, blank=True)
+    #: Kiedy organizator **zablokował** konto (audyt 10.10.2026, S5). Do tej zmiany blokada była
+    #: wyłącznie ``is_active=False`` – stanem nieodróżnialnym od „czeka na aktywację”, gdy adres nie
+    #: był potwierdzony (konta sprzed ``accounts.0010``, konta z ``/admin/`` i ``createsuperuser``).
+    #: Skutek: zablokowany uczestnik prosił o link aktywacyjny i jednym kliknięciem sam się
+    #: odblokowywał. Pole ustawia ``User.save`` przy przejściu ``is_active`` True → False (panel
+    #: koordynatora, admin, anonimizacja) i czyści przy odblokowaniu; aktywacja linkiem, ponowna
+    #: wysyłka, zaproszenie i ręczna aktywacja odmawiają, dopóki jest wypełnione.
+    blocked_at = models.DateTimeField("zablokowane", null=True, blank=True)
 
     USERNAME_FIELD = "email"
     EMAIL_FIELD = "email"
@@ -441,9 +449,62 @@ class User(AbstractBaseUser, PermissionsMixin):
     def __str__(self) -> str:
         return self.email
 
+    @classmethod
+    def from_db(cls, db, field_names, values, *args, **kwargs):
+        """Zapamiętuje ``is_active`` z bazy – punkt odniesienia dla ``blocked_at`` w :meth:`save`.
+
+        ``*args/**kwargs`` przekazujemy dalej bez zaglądania: Django 6.1 dokłada ``fetch_mode``
+        i ostrzega o metodach, które go nie przyjmują.
+        """
+        instance = super().from_db(db, field_names, values, *args, **kwargs)
+        instance._loaded_is_active = instance.__dict__.get("is_active")
+        return instance
+
+    def refresh_from_db(self, *args, **kwargs):
+        super().refresh_from_db(*args, **kwargs)
+        if "is_active" in self.__dict__:
+            self._loaded_is_active = self.is_active
+
+    def _sync_blocked_at(self, update_fields):
+        """Przejście ``is_active`` wyznacza ``blocked_at``. Zwraca ``update_fields`` po uzupełnieniu.
+
+        Dlaczego w ``save()``, a nie sygnałem ``pre_save``: blokada z panelu koordynatora
+        (``apps.accounts.profile.update_account_by_coordinator``) i anonimizacja zapisują punktowo
+        (``update_fields=["is_active", …]``). Sygnał nie może dopisać kolumny do ``update_fields``
+        (dostaje ``frozenset``), więc ustawione w nim ``blocked_at`` po cichu nie trafiłoby do bazy
+        – a dopisanie go tutaj jest jedną linijką. Admin Django zapisuje pełnym ``save()`` i trafia
+        w tę samą regułę bez żadnej zmiany w ``admin.py``.
+
+        Punktem odniesienia jest wartość **wczytana z bazy** (``from_db``/``refresh_from_db``), a nie
+        dodatkowe zapytanie przy każdym zapisie – ``update_last_login`` przy każdym logowaniu też
+        przechodzi przez ``save()``. Konto nowe (``_state.adding``) niczego nie przechodzi: powstaje
+        nieaktywne, bo czeka na aktywację, a nie dlatego, że ktoś je zablokował.
+        """
+        loaded = getattr(self, "_loaded_is_active", None)
+        if self._state.adding or loaded is None or "is_active" not in self.__dict__:
+            return update_fields
+        if update_fields is not None and "is_active" not in update_fields:
+            return update_fields
+        changed = False
+        if loaded and not self.is_active and self.blocked_at is None:
+            self.blocked_at = timezone.now()
+            changed = True
+        elif not loaded and self.is_active and self.blocked_at is not None:
+            self.blocked_at = None
+            changed = True
+        if changed and update_fields is not None:
+            update_fields = {*update_fields, "blocked_at"}
+        return update_fields
+
     def save(self, *args, **kwargs):
         self.email = self.email.strip().lower()
+        if "update_fields" in kwargs:
+            kwargs["update_fields"] = self._sync_blocked_at(kwargs["update_fields"])
+        else:
+            self._sync_blocked_at(None)
         super().save(*args, **kwargs)
+        if "is_active" in self.__dict__:
+            self._loaded_is_active = self.is_active
 
     def get_full_name(self) -> str:
         return f"{self.first_name} {self.last_name}".strip()

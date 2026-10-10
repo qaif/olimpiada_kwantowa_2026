@@ -23,7 +23,6 @@ from . import forwarding
 from .models import AvStatus, Submission, SubmissionFile, SubmissionStatus
 from .notifications import notify_submission_infected, notify_submission_received
 from .packaging import ZipPackage, build_zip
-from .preview import store_page_count
 from .storage import build_object_key, get_submission_storage
 from .validators import validate_upload
 
@@ -555,11 +554,39 @@ def close_stage_now(stage: Stage, *, actor=None, request=None) -> int:
     audit(actor, "stage.closed", locked_stage, {"locked": locked, "manual": True}, request=request)
     logger.info("Etap %s zamknięty ręcznie, zablokowanych rozwiązań: %s", locked_stage.pk, locked)
     stage.closed_at = locked_stage.closed_at
+    _finalise_quiz_attempts_after_closure(locked_stage)
     # Zdarzenie dla systemów zewnętrznych (``apps.integrations``): doręczenia idą po commicie.
     from apps.integrations.events import stage_closed as emit_stage_closed
 
     emit_stage_closed(locked_stage, locked=locked, manual=True)
     return locked
+
+
+def _finalise_quiz_attempts_after_closure(stage: Stage) -> None:
+    """Domknięcie podejść testu online po ręcznym „Zamknij etap” (audyt 10.10.2026, S3).
+
+    Dwa kroki, bo zamknięcie zostawia trwającym podejściom **tolerancję sieciową**
+    (``SUBMIT_GRACE_SECONDS``, liczoną od ``closed_at`` – ``QuizAttempt.accepts_answers_at``):
+    odpowiedź wysłana tuż przed kliknięciem koordynatora nie może przepaść przez opóźnienie łącza.
+    ``finalise_overdue`` z bieżącym zegarem domyka więc od razu tylko podejścia już przeterminowane
+    (porzucone po własnym terminie), a trwające – zadanie wywołane po upływie tolerancji. Bez tego
+    drugiego kroku podejście przerwane zamknięciem zostawało „w trakcie” aż do najbliższego
+    przeliczenia wyników albo wejścia na ekran koordynatora; dopisać do niego już się nie dało
+    (``accepts_answers_at``), ale panel i eksporty pokazywały je jako trwające.
+
+    Zadanie startuje po commicie: przed nim worker nie zobaczyłby ``closed_at``. Importy lokalne –
+    ``apps.quiz`` i zadania Celery tego modułu same importują serwisy zgłoszeń.
+    """
+    from apps.quiz.models import SUBMIT_GRACE_SECONDS
+    from apps.quiz.services import finalise_overdue
+
+    from .tasks import finalise_closed_stage_quiz
+
+    finalise_overdue(stage=stage)
+    stage_id = stage.pk
+    transaction.on_commit(
+        lambda: finalise_closed_stage_quiz.apply_async(args=[stage_id], countdown=SUBMIT_GRACE_SECONDS + 5)
+    )
 
 
 def due_stages(now=None, competition=None):
@@ -673,7 +700,16 @@ def apply_scan_verdict(submission_file: SubmissionFile, verdict: str, signature:
         # Metryki podglądu (liczba stron PDF-a) liczymy **poza** transakcją i wyłącznie dla pliku
         # uznanego za czysty: to pierwsza chwila, w której wolno przeczytać jego treść, a odczyt
         # idzie do S3 i nie ma po co trzymać na niego otwartej transakcji bazodanowej.
-        store_page_count(locked)
+        #
+        # Osobnym zadaniem z limitem 30 s (``tasks.store_preview_metrics``), a nie w miejscu: pypdf
+        # na spreparowanym PDF-ie potrafił zająć worker skanów i poczty na pół godziny (audyt
+        # 10.10.2026). Błąd kolejkowania nie wywraca skanu – liczba stron jest tylko podglądem.
+        try:
+            from .tasks import store_preview_metrics
+
+            store_preview_metrics.delay(locked.pk)
+        except Exception:  # noqa: BLE001 - podgląd nie może wywrócić skanu
+            logger.exception("Nie udało się zakolejkować metryk podglądu pliku %s.", locked.pk)
         # Przekazanie pracy na skrzynkę organizatora (``Competition.submission_forward_emails``).
         # **Ta sama chwila**, co odczyt treści wyżej, i z tego samego powodu: czysty skan jest
         # jedynym momentem, w którym wolno wypuścić zawartość pliku dalej.

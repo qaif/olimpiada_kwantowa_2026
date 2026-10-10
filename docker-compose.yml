@@ -31,14 +31,149 @@ x-app-env: &app-env
   S3_PUBLIC_BUCKET: public-media
   CLAMAV_HOST: clamav
   CLAMAV_PORT: "3310"
-  # Backend honoruje X-Real-IP tylko z tych adresów (sieci compose poniżej mają stałe podsieci).
-  # Celowo BEZ sieci `cache` (Redis) i `clamav_egress` (wyjście ClamAV-a do aktualizacji sygnatur):
-  # proxy w nich nie stoi, więc żaden prawdziwy nagłówek X-Real-IP stamtąd nie przychodzi – wpisane
-  # tutaj (i do `mynetworks` Postfiksa, który bierze tę samą listę) tylko poszerzałyby zaufanie.
-  TRUSTED_PROXY_IPS: ${TRUSTED_PROXY_IPS:-172.30.1.0/24,172.30.2.0/24}
+  # Backend honoruje X-Real-IP WYŁĄCZNIE od kontenera `proxy` (Caddy): jego dwa stałe adresy
+  # (`ipv4_address` przy usłudze `proxy` niżej) – w `edge` i w `internal`, bo nazwa `web` rozwiązuje
+  # się Caddy'emu na adres z dowolnej z dwóch wspólnych sieci. Do 10.10.2026 stały tu całe podsieci
+  # 172.30.1.0/24 i 172.30.2.0/24, czyli „zaufanym proxy” był też djcms, monitor, minio, clamav,
+  # poczta i `jitsi-web` z osobnego projektu – każdy z nich mógł podać dowolny X-Real-IP (obejście
+  # limitów prób, fałszywy adres w audycie; audyt bezpieczeństwa 10.10.2026, S20). Ta sama wartość
+  # ze zmiennych co przypięcie, więc zmiana adresu proxy w .env przesuwa obie rzeczy naraz
+  # (scripts/tests/compose_profiles_test.sh). Ustawione TRUSTED_PROXY_IPS w .env wygrywa – serwer,
+  # którego .env ma jeszcze dawne podsieci, scripts/deploy.sh przestawia sam (krok 4/8).
+  TRUSTED_PROXY_IPS: ${TRUSTED_PROXY_IPS:-${PROXY_EDGE_IP:-172.30.1.250}/32,${DJCMS_PROXY_IP:-172.30.2.250}/32}
   # Nazwa usługi w `pg_stat_activity.application_name` – `worker` i `beat` nadpisują ją niżej.
   # Po niej `manage.py db_connections` i list alarmowy mówią, **który** kontener trzyma połączenia.
   DB_APPLICATION_NAME: olimpiada-web
+  # --- Reszta środowiska aplikacji: JAWNA lista zamiast `env_file: .env` (audyt 10.10.2026, W6) ---
+  # Do 10.10.2026 web, worker i beat dostawały CAŁY .env (`env_file`), czyli także sekrety, których
+  # aplikacja nie czyta: hasło szyfrowania kopii i klucze magazynu kopii (BACKUP_*), konto root
+  # MinIO, hasło bazy i klucz djcms, przepustkę strony prac technicznych. Proces `web` parsuje
+  # PDF-y, arkusze, obrazy i notatniki od użytkowników – jedno RCE albo odczyt /proc/self/environ
+  # dawało wtedy komplet do „ransomware z usunięciem kopii”. Teraz kontener widzi wyłącznie to, co
+  # aplikacja czyta (`env(…)`/`os.environ` w backend/config i backend/apps, plus entrypoint).
+  #
+  # Wpis BEZ wartości (`NAZWA:`) = wartość z .env (albo ze środowiska polecenia compose), a gdy jej
+  # tam nie ma – zmiennej w kontenerze NIE ma wcale. To jest dokładnie zachowanie `env_file`: pusta
+  # linijka w .env daje pusty napis, brak linijki – wartość domyślną z config/settings. Wpis
+  # z `${NAZWA:-}` dawałby pusty napis zamiast braku, a `env.int("X", default=…)` na pustym napisie
+  # kończy się wyjątkiem przy starcie.
+  #
+  # Nowa zmienna czytana przez aplikację = nowa linijka tutaj. Pilnuje tego
+  # scripts/tests/compose_env_test.sh (zmienna czytana w kodzie, a nieprzekazana, albo przekazany
+  # sekret spoza aplikacji = czerwony test). Celowo NIE ma tu: MINIO_ROOT_USER/MINIO_ROOT_PASSWORD
+  # (aplikacja używa kont serwisowych S3_PUBLIC_*/S3_PRIVATE_*; root zostaje dla minio, minio-init
+  # i skryptów kopii na hoście), POSTGRES_PASSWORD (hasło jest już w DATABASE_URL wyżej),
+  # COORDINATOR_EMAIL/COORDINATOR_PASSWORD (podaje je wyłącznie `docker compose exec -e` przy
+  # zakładaniu konta), BACKUP_*, DJCMS_SECRET_KEY, DJCMS_DB_PASSWORD, MAINTENANCE_BYPASS_TOKEN.
+  # Django i adresy
+  DJANGO_SECRET_KEY:
+  DJANGO_DEBUG:
+  DJANGO_ALLOWED_HOSTS:
+  DJANGO_CSRF_TRUSTED_ORIGINS:
+  DJANGO_LOG_LEVEL:
+  DJANGO_MEDIA_ROOT:
+  SITE_DOMAIN:
+  EXTRA_DOMAINS:
+  PLATFORM_SUBDOMAINS:
+  APP_VERSION:
+  E2E_MODE:
+  SESSION_COOKIE_SECURE:
+  CSRF_COOKIE_SECURE:
+  ERROR_PAGE_CONTACT_EMAIL:
+  WAGTAIL_SITE_NAME:
+  WAGTAILADMIN_BASE_URL:
+  WAGTAIL_I18N_ENABLED:
+  PAGE_CACHE_ENABLED:
+  PAGE_CACHE_SECONDS:
+  # Entrypoint (backend/entrypoint.sh) – `worker` i `beat` ustawiają oba na "0" niżej.
+  RUN_MIGRATIONS:
+  RUN_COLLECTSTATIC:
+  # Kreator pierwszego uruchomienia (/setup/, apps/tenancy/setup.py)
+  SETUP_TOKEN:
+  SETUP_TOKEN_FILE:
+  SETUP_THROTTLE_RATE:
+  # Baza – pula i progi alarmu (adres bazy wyżej)
+  DB_POOL:
+  DB_POOL_MAX_SIZE:
+  DB_POOL_MIN_SIZE:
+  DB_POOL_TIMEOUT:
+  DB_CONN_MAX_AGE:
+  DB_CONNECTIONS_WARN_PERCENT:
+  DB_CONNECTIONS_CRITICAL_PERCENT:
+  WEB_THREADS:
+  # Celery
+  CELERY_TASK_SOFT_TIME_LIMIT:
+  CELERY_TASK_TIME_LIMIT:
+  # Magazyn plików: konta serwisowe z dostępem do jednego bucketu (tworzy je `minio-init`)
+  S3_PUBLIC_ACCESS_KEY:
+  S3_PUBLIC_SECRET_KEY:
+  S3_PRIVATE_ACCESS_KEY:
+  S3_PRIVATE_SECRET_KEY:
+  S3_PRESIGNED_TTL_SECONDS:
+  S3_REGION:
+  SUBMISSION_STORAGE_BACKEND:
+  CLAMAV_STREAM_MAX_BYTES:
+  # Skan antywirusowy mediów redakcyjnych (dokumenty i obrazy Wagtaila); docker-compose.operator.yml
+  # (bez ClamAV-a) wyłącza go domyślnie.
+  CMS_MEDIA_AV_SCAN:
+  WORKSHOP_VIDEO_MAX_MB:
+  WORKSHOP_FILE_MAX_MB:
+  # Limit uploadu – ta sama zmienna co `request_body` w Caddym (usługa `proxy`): aplikacja odmawia
+  # z komunikatem, zanim proxy utnie żądanie kodem 413.
+  MAX_UPLOAD_MB:
+  # Paczki do pobrania (eksport RODO, ZIP prac dla recenzenta) składane na dysku, a nie w /tmp
+  # (tmpfs 256 MB w pamięci, wspólny z uploadami) – wolumen `package_tmp` przy `web` i `worker`;
+  # katalog należy do użytkownika `app` (backend/Dockerfile). `beat` paczek nie składa.
+  PACKAGE_TMP_DIR: /var/tmp/packages
+  PACKAGE_MAX_BYTES:
+  # Poczta i alarmy
+  EMAIL_URL:
+  EMAIL_TIMEOUT:
+  DEFAULT_FROM_EMAIL:
+  SUBMISSION_FORWARD_MAX_ATTACHMENT_MB:
+  ALERT_EMAILS:
+  # Logowanie: Google/Facebook, 2FA
+  GOOGLE_OAUTH_CLIENT_ID:
+  GOOGLE_OAUTH_CLIENT_SECRET:
+  FACEBOOK_APP_ID:
+  FACEBOOK_APP_SECRET:
+  TWO_FACTOR_ENABLED:
+  TWO_FACTOR_REQUIRED_ROLES:
+  # Pieczęć elektroniczna dokumentów
+  CERT_SIGN_P12_PATH:
+  CERT_SIGN_P12_PASSWORD:
+  CERT_SIGN_TSA_URL:
+  CERT_SIGN_REASON:
+  CERT_SIGN_LOCATION:
+  # Forum
+  FORUM_DAILY_DIGEST_HOUR_UTC:
+  FORUM_MODERATION_DIGEST_DELAY_MINUTES:
+  FORUM_MODERATION_DIGEST_INTERVAL_HOURS:
+  FORUM_THREAD_NOTIFY_INTERVAL_HOURS:
+  # Ocena AI
+  AI_GRADING_MAX_BATCH:
+  AI_GRADING_MAX_CONCURRENCY:
+  AI_GRADING_MAX_TOKENS:
+  AI_GRADING_REQUEST_TIMEOUT:
+  AI_GRADING_SDK_MAX_RETRIES:
+  AI_GRADING_STALE_MINUTES:
+  # Przepustki do własnego Jitsi
+  JITSI_JWT_APP_ID:
+  JITSI_JWT_APP_SECRET:
+  JITSI_JWT_AUDIENCE:
+  JITSI_JWT_SUBJECT:
+  JITSI_JWT_HOST:
+  JITSI_JWT_LEAD_MINUTES:
+  JITSI_JWT_GRACE_MINUTES:
+  JITSI_JWT_PRECHECK_MINUTES:
+  JITSI_JWT_SESSION_MINUTES:
+  JITSI_JWT_GATEWAY_MINUTES:
+  JITSI_JWT_ROOM_MAX_DAYS:
+  JITSI_JWT_COMMITTEE_ROOM_MAX_DAYS:
+  # Serwis na django CMS: token wewnętrznego API i klucz SSO (te same wpisy dostaje usługa `djcms`)
+  DJCMS_INTERNAL_TOKEN:
+  DJCMS_SSO_KEY:
+  DJCMS_MAIN_PUBLIC_URL:
 
 x-app-base: &app-base
   build:
@@ -50,11 +185,11 @@ x-app-base: &app-base
   # źródło obrazu dla `web`, `worker` i `beat` naraz: to jeden obraz z trzema poleceniami, więc
   # trzy różne tagi znaczyłyby trzy różne wersje kodu w jednym wdrożeniu.
   image: ${WEB_IMAGE:-olimpiada/web:${APP_VERSION:-dev}}
-  env_file: .env
+  # Bez `env_file: .env` (do 10.10.2026 był tu) – pełna lista zmiennych w `x-app-env` wyżej.
   environment: *app-env
   # `cache` – osobna sieć Redisa (patrz `networks:` na końcu pliku): web, worker i beat to jedyni
-  # jego klienci, więc tylko oni do niej należą.
-  networks: [internal, cache]
+  # jego klienci, więc tylko oni do niej należą. `mail` – tak samo dla relaya poczty (usługa `mail`).
+  networks: [internal, cache, mail]
   restart: unless-stopped
   logging: *default-logging
   read_only: true
@@ -70,9 +205,29 @@ x-app-base: &app-base
 
 services:
   proxy:
-    image: caddy:2.8
+    # 2.10, przypięte skrótem (audyt 10.10.2026): 2.8 było zbudowane Go 1.22, bez poprawek
+    # biblioteki standardowej z 2025 (net/http, crypto/tls), a sam tag pływa. Skrót = indeks
+    # wieloarchitekturowy `caddy:2.10` z 10.10.2026 (`docker buildx imagetools inspect caddy:2.10`,
+    # Caddy v2.10.2). Aktualizacja = nowy skrót z tego samego polecenia (i ten sam obraz
+    # w scripts/tests/*caddy*/djcms_routing_test.sh, które sprawdzają konfigurację na żywym Caddym).
+    image: caddy:2.10@sha256:c3d7ee5d2b11f9dc54f947f68a734c84e9c9666c92c88a7f30b9cba5da182adb
     restart: unless-stopped
     logging: *default-logging
+    # Utwardzenie jak przy usługach aplikacji: Caddy jest jedynym kontenerem z portem na świat, więc
+    # błąd w nim (parser HTTP/2, QUIC, TLS) ma dostać jak najmniej. `cap_drop: [ALL]` + jedno
+    # uprawnienie, którego potrzebuje: wiązanie portów < 1024 (80, 443). `read_only`: Caddy pisze
+    # wyłącznie do /data (certyfikaty, klucze ACME – wolumen `caddy_data`) i /config (autozapis
+    # konfiguracji – `caddy_config`); /tmp na tmpfs, bo scripts/proxy_config.sh i djcms_switch.sh
+    # walidują tam nową konfigurację (`cat > /tmp/Caddyfile.next && caddy validate`). Wszystkie
+    # pozostałe montaże są tylko do odczytu. Sprawdzone 10.10.2026 na caddy:2.10 z tym zestawem:
+    # start, wystawienie certyfikatu (lokalne CA), `caddy validate` w /tmp, `caddy reload`.
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+    cap_add: [NET_BIND_SERVICE]
     ports:
       - "80:80"
       - "443:443"
@@ -103,7 +258,21 @@ services:
       # Przepustka operatora przez stronę prac technicznych (nagłówek X-Maintenance-Bypass albo
       # ciasteczko z /__maintenance/bypass?token=…). Pusta albo krótsza niż 32 znaki = nikt.
       MAINTENANCE_BYPASS_TOKEN: ${MAINTENANCE_BYPASS_TOKEN:-}
-    networks: [edge, internal]   # internal: trasa s3.<domena> -> minio
+    # internal: trasa s3.<domena> -> minio (i web, djcms). `meet`: wyłącznie proxy i `jitsi-web`
+    # z osobnego projektu Jitsi (deploy/jitsi) – patrz `networks:` na końcu pliku.
+    #
+    # Stałe adresy w `edge` i `internal` (audyt 10.10.2026, S20): od nich – i tylko od nich – web
+    # przyjmuje X-Real-IP (TRUSTED_PROXY_IPS w `x-app-env`), a djcms także X-Djcms-Mode. Adresy
+    # z końca puli (Docker przydziela dynamiczne od początku). `DJCMS_PROXY_IP` – nazwa zmiennej
+    # sprzed tej zmiany (DJ-02 przypinał adres tylko przy włączonym djcms, nakładką
+    # docker-compose.djcms.yml); zostaje, żeby .env serwera z tą linijką działał bez edycji.
+    # Zmiana któregoś adresu (kolizja w podsieci) – tylko w .env, TRUSTED_PROXY_IPS idzie za nią.
+    networks:
+      edge:
+        ipv4_address: ${PROXY_EDGE_IP:-172.30.1.250}
+      internal:
+        ipv4_address: ${DJCMS_PROXY_IP:-172.30.2.250}
+      meet:
     depends_on:
       web: { condition: service_healthy }
     healthcheck:
@@ -125,12 +294,17 @@ services:
     # `--workers` razy `--threads` (4×4 = 16 równoległych żądań). Połączenia z bazą bierze z puli
     # psycopg (jedna na proces, domyślnie `DB_POOL_MAX_SIZE` = `WEB_THREADS`) – patrz `DATABASES`
     # w `backend/config/settings/base.py`.
+    # `--logger-class` (audyt 10.10.2026): access log bez tokenów z adresów jednorazowych (aktywacja,
+    # reset hasła, zaproszenia, zgody, przepustka wideo…) – w ścieżce, w zapytaniu i w Refererze.
+    # Log trafia do `docker logs` (250 MB na usługę) i do każdego zgłoszenia z wklejonym fragmentem,
+    # a token z niego jest gotowym linkiem do cudzego konta. Lista prefiksów:
+    # backend/config/gunicorn_logging.py.
     command: >
       gunicorn config.wsgi:application
       --bind 0.0.0.0:8000 --workers ${WEB_WORKERS:-4} --threads ${WEB_THREADS:-4}
       --worker-class gthread
       --timeout 120 --graceful-timeout 30 --max-requests 2000 --max-requests-jitter 200
-      --access-logfile -
+      --access-logfile - --logger-class config.gunicorn_logging.TokenMaskingLogger
     # `mem_limit`/`mem_reservation`, nie `deploy.resources`: to drugie czyta wyłącznie Swarm,
     # a ten compose stoi na jednej maszynie bez Swarma – limit w `deploy:` byłby dokumentacją,
     # która nigdy niczego nie ogranicza. 2g na 4 workery × 4 wątki (po ~250 MB RSS na worker plus
@@ -143,7 +317,8 @@ services:
     mem_limit: 2g
     volumes:
       - static_files:/app/staticfiles
-    networks: [edge, internal, cache]
+      - package_tmp:/var/tmp/packages
+    networks: [edge, internal, cache, mail]
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/healthz/', timeout=3).status==200 else 1)"]
       interval: 15s
@@ -162,6 +337,8 @@ services:
     # szesnastu wątków web, a skan antywirusowy trzyma plik w pamięci tylko na czas przesłania do
     # ClamAV, nie cały czas życia procesu).
     mem_limit: 768m
+    volumes:
+      - package_tmp:/var/tmp/packages
     environment:      # migracje i collectstatic wykonuje tylko web
       <<: *app-env
       RUN_MIGRATIONS: "0"
@@ -397,9 +574,13 @@ services:
       # dla kogoś, kto trafi do sieci compose).
       ALLOWED_SENDER_DOMAINS: ${SITE_DOMAIN:-localhost}
       POSTFIX_myhostname: mail.${SITE_DOMAIN:-localhost}
-      # Klienci SMTP: wyłącznie podsieci compose (edge + internal). Bez SASL – poza tymi
-      # podsieciami port 587 nie jest osiągalny (brak `ports:`), więc hasło niczego by nie dodało.
-      POSTFIX_mynetworks: 127.0.0.0/8,${TRUSTED_PROXY_IPS:-172.30.1.0/24,172.30.2.0/24}
+      # Klienci SMTP: wyłącznie sieć `mail` (web, worker, beat – nikt więcej w niej nie stoi). Bez
+      # SASL – poza tą siecią port 587 nie jest osiągalny (brak `ports:`, Postfix nie stoi już
+      # w `edge` ani w `internal`), więc hasło niczego by nie dodało. Do 10.10.2026 brała tu tę samą
+      # listę co TRUSTED_PROXY_IPS (podsieci `edge` i `internal`), czyli przekaźnikiem z prawdziwym
+      # podpisem DKIM domeny mógł się posłużyć także djcms, monitor, minio, clamav i `jitsi-web`
+      # (audyt bezpieczeństwa 10.10.2026, S20). Podsieć = ta z sekcji `networks:` (`MAIL_SUBNET`).
+      POSTFIX_mynetworks: 127.0.0.0/8,${MAIL_SUBNET:-172.30.5.0/24}
       # TLS do MX-a odbiorcy oportunistycznie: szyfruj, gdy druga strona ogłosi STARTTLS,
       # ale nie odrzucaj listu, gdy nie ogłosi (`encrypt` zablokowałby część odbiorców).
       POSTFIX_smtp_tls_security_level: may
@@ -425,10 +606,12 @@ services:
       # aktualizować rekord TXT w DNS-ie.
       - mail_dkim:/etc/opendkim/keys
       - mail_spool:/var/spool/postfix
-    # `internal` – tu sięgają web/worker/beat. `edge` – bo `internal` ma internal:true, a doręczenie
-    # wprost do MX-a odbiorcy wymaga wyjścia na świat. Portów nie publikujemy: relay jest widoczny
-    # tylko z sieci compose.
-    networks: [edge, internal]
+    # `mail` – tu sięgają web/worker/beat (i wyłącznie oni). `mail_egress` – wyjście na świat do MX-ów
+    # odbiorców (sama `mail` ma internal:true); w `mail_egress` nie stoi nic innego, tak jak ClamAV
+    # w `clamav_egress`. Do 10.10.2026 Postfix stał w `edge` i `internal`. Celowo nie w `edge`: web
+    # też tam stoi, a nazwa `mail` rozwiązywałaby się wtedy raz na adres z `edge`, raz z `mail` –
+    # połączenie z adresu `edge` relay by odrzucił (`mynetworks`). Portów nie publikujemy.
+    networks: [mail, mail_egress]
     security_opt:
       - no-new-privileges:true
     cap_drop: [ALL]
@@ -514,9 +697,9 @@ services:
       DJCMS_MAIN_MEDIA_ORIGIN: ${S3_PUBLIC_ENDPOINT_URL:-https://s3.${SITE_DOMAIN:-localhost}}
       # Zaufane proxy = WYŁĄCZNIE kontener `proxy` (Caddy): od niego djcms przyjmuje `X-Real-IP`
       # (blokada prób logowania) i `X-Djcms-Mode` (tryb preview/primary, DJ-02 D10 – od tego zależy
-      # noindex). Nie całe podsieci compose'a (jak `TRUSTED_PROXY_IPS` aplikacji głównej): w sieci
+      # noindex). Nie całe podsieci compose'a (jak do 10.10.2026 `TRUSTED_PROXY_IPS` aplikacji głównej): w sieci
       # `internal` stoją też web, worker, minio, clamav, mail… i każdy z nich mógłby udawać Caddy'ego.
-      # Adres `proxy` w sieci `internal` przypina nakładka docker-compose.djcms.yml – ta sama
+      # Adres `proxy` w sieci `internal` przypina usługa `proxy` wyżej (od 10.10.2026 zawsze) – ta sama
       # zmienna, ta sama wartość domyślna (scripts/tests/compose_profiles_test.sh pilnuje zgodności).
       TRUSTED_PROXY_IPS: ${DJCMS_PROXY_IP:-172.30.2.250}
     volumes:
@@ -589,6 +772,33 @@ networks:
     ipam:
       config:
         - subnet: 172.30.4.0/24
+  # Relay poczty (usługa `mail`) i wyłącznie jego klienci: web, worker, beat (audyt 10.10.2026, S20).
+  # Bez wyjścia do internetu. Ta podsieć – i tylko ona – jest `mynetworks` Postfiksa, więc zmienna
+  # MAIL_SUBNET (w .env zwykle nieustawiona) przesuwa obie rzeczy naraz. Nie należy do TRUSTED_PROXY_IPS.
+  mail:
+    driver: bridge
+    internal: true
+    ipam:
+      config:
+        - subnet: ${MAIL_SUBNET:-172.30.5.0/24}
+  # Wyjście do internetu dla Postfiksa (doręczenie wprost do MX-ów odbiorców). Jedyny członek: `mail`.
+  mail_egress:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.30.6.0/24
+  # Proxy ⇄ `jitsi-web` (osobny projekt compose, deploy/jitsi/docker-compose.jitsi.yml dołącza do niej
+  # jako sieci zewnętrznej `<projekt>_meet`). Do 10.10.2026 `jitsi-web` (cudzy kod, root, bez
+  # `cap_drop`) stał w `edge` – obok web, monitora i poczty, z adresem z podsieci, której ufały
+  # TRUSTED_PROXY_IPS i `mynetworks`. Tu widzi wyłącznie Caddy'ego. Bez wyjścia do internetu:
+  # `jitsi-web` ma je przez własną sieć `meet.jitsi`. Sieć powstaje razem z `proxy`, więc istnieje,
+  # zanim scripts/deploy_jitsi.sh postawi Jitsi.
+  meet:
+    driver: bridge
+    internal: true
+    ipam:
+      config:
+        - subnet: 172.30.7.0/24
 
 volumes:
   # PostgreSQL 18 – dane bazy (patrz komentarz przy usłudze `db`).
@@ -604,6 +814,8 @@ volumes:
   mail_dkim:
   mail_spool:
   static_files:
+  # Katalog roboczy paczek do pobrania (PACKAGE_TMP_DIR w `x-app-env`) – web i worker.
+  package_tmp:
   caddy_data:
   caddy_config:
   # Baza Uptime Kuma (monitory, historia, konta). Wolumen nazwany, bo historia dostępności jest

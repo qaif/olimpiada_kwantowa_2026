@@ -214,6 +214,10 @@ LOGIN_URL = "admin:login"
 # wylogowanie z aplikacji głównej wygasza ją od razu (``apps.cms.djcms_sso.DjcmsLogoutMiddleware`` w web).
 DJCMS_SSO_KEY = env("DJCMS_SSO_KEY", default="")
 DJCMS_SSO_SESSION_SECONDS = env.int("DJCMS_SSO_SESSION_SECONDS", default=2 * 60 * 60)
+# Sesja logowania **hasłem** (techniczny superużytkownik, ``apps.pages.auth``) – ten sam twardy termin
+# od logowania co sesja z SSO (``apps.sites.middleware.EditorAccessMiddleware``). Bez niego konto
+# z pełnymi uprawnieniami zostawało zalogowane przez ``SESSION_COOKIE_AGE`` (2 tygodnie) – audyt 2026-10-10.
+DJCMS_PASSWORD_SESSION_SECONDS = env.int("DJCMS_PASSWORD_SESSION_SECONDS", default=2 * 60 * 60)
 
 # Ciasteczka: **inne nazwy** niż w aplikacji głównej i bez ``*_COOKIE_DOMAIN`` (host-only).
 # Gdyby domena główna kiedyś ustawiła ciasteczko na ``.olimpiadakwantowa.pl``, trafiałoby ono
@@ -221,6 +225,10 @@ DJCMS_SSO_SESSION_SECONDS = env.int("DJCMS_SSO_SESSION_SECONDS", default=2 * 60 
 SESSION_COOKIE_NAME = "djcms_sessionid"
 CSRF_COOKIE_NAME = "djcms_csrftoken"
 SESSION_COOKIE_HTTPONLY = True
+# Komunikaty flash w sesji, nie w ciasteczku ``messages``: Caddy przepuszcza do djcms wyłącznie
+# ciasteczka ``djcms_*`` (audyt 10.10.2026, S20 – sesja aplikacji głównej nie ma tu docierać),
+# więc domyślny ``FallbackStorage`` traciłby komunikat przy pierwszym przekierowaniu.
+MESSAGE_STORAGE = "django.contrib.messages.storage.session.SessionStorage"
 # Skrypty django CMS, filera i versioningu biorą token z formularza (``csrfmiddlewaretoken``) albo
 # z ``CMS.config.csrf``, a ciasteczko czytają tylko awaryjnie – i to pod domyślną nazwą
 # ``csrftoken``, której tu i tak nie ma. ``HttpOnly`` niczego im więc nie odbiera.
@@ -441,6 +449,9 @@ DJCMS_FALLBACK_SITE_NAME = env("DJCMS_FALLBACK_SITE_NAME", default="Olimpiada Kw
 # konkursów i uzgadnia rejestr (``apps.sites.registry.refresh_if_due``). ``0`` = bez odświeżania
 # leniwego (testy; rejestr uzgadnia wtedy wyłącznie ``manage.py sync_competitions``).
 DJCMS_SITES_REFRESH_SECONDS = env.int("DJCMS_SITES_REFRESH_SECONDS", default=60)
+# Drzewo startowe nowego konkursu w żądaniu (``apps.importer.starter``, audyt S22): po nieudanej próbie
+# kolejna najwcześniej po tylu sekundach – znacznik w bazie (``CompetitionSite.starter_failed_at``).
+DJCMS_STARTER_RETRY_SECONDS = env.int("DJCMS_STARTER_RETRY_SECONDS", default=10 * 60)
 
 # --- Trasy aplikacji głównej i adresy zarezerwowane (S5, S6) -----------------------------------
 # ``app_routes.json`` z ``backend/djcms_contract`` (obraz: ``/opt/djcms_contract``). Brak pliku to

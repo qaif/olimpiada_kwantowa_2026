@@ -1466,9 +1466,23 @@ def _may_show_full_name(row: dict, anonymization: str = Anonymization.FULL) -> b
     - **zgoda uczestnika** (``publish_full_name``),
     - **zgoda opiekuna** dla niepełnoletniego – małoletni nie udziela jej sam skutecznie.
     """
-    if anonymization not in NAMED_ANONYMIZATIONS or not row.get("publish_full_name"):
+    if anonymization not in NAMED_ANONYMIZATIONS:
         return False
     if anonymization == Anonymization.FULL and not row.get("qualified"):
+        return False
+    return _has_publication_consent(row)
+
+
+def _has_publication_consent(row: dict) -> bool:
+    """Zgody na publikację danych identyfikujących: uczestnika i – dla małoletniego – opiekuna.
+
+    Jedna definicja dla trybów imiennych i dla ``INITIALS_SCHOOL`` (audyt 10.10.2026, S10).
+    „J.K., XIV LO” obok punktów identyfikuje osobę w jej szkole tak samo skutecznie jak pełne
+    nazwisko – próg ``MIN_SCHOOL_GROUP`` chroni przed wskazaniem palcem w grupie jednoosobowej,
+    ale nie zastępuje zgody. **Decyzja do potwierdzenia przez organizatora/IOD**: do tej zmiany
+    inicjały ze szkołą szły do tabeli bez żadnej zgody.
+    """
+    if not row.get("publish_full_name"):
         return False
     return bool(row.get("guardian_consent") or row.get("is_adult"))
 
@@ -1478,9 +1492,10 @@ def _display_name(row: dict, anonymization: str, school_sizes: dict[str, int]) -
 
     Reguła domyślnie zamknięta: każdy tryb, który nie ma kompletu danych albo zgód, spada do
     pseudonimu. Tryby imienne przepuszczają tylko wiersze z ``_may_show_full_name`` (a same tryby
-    są niedopuszczalne w treningu – patrz ``publish_results``). ``INITIALS_SCHOOL`` wymaga do tego
-    grupy co najmniej ``MIN_SCHOOL_GROUP`` uczestników z tej szkoły w tym etapie: „J.K., XIV LO”
-    przy jednym uczestniku z XIV LO to nie anonimizacja, tylko wskazanie palcem.
+    są niedopuszczalne w treningu – patrz ``publish_results``). ``INITIALS_SCHOOL`` wymaga tych
+    samych zgód (``_has_publication_consent``, audyt S10) i do tego grupy co najmniej
+    ``MIN_SCHOOL_GROUP`` uczestników z tej szkoły w tym etapie: „J.K., XIV LO” przy jednym
+    uczestniku z XIV LO to nie anonimizacja, tylko wskazanie palcem.
 
     **Wpis drużynowy** (§ 1.2.3) podpisuje się nazwą drużyny – w tabeli konkursu drużynowego stoi
     skład, a nie osoba, i to jego nazwę zna regulamin. Reguły zgód nie stosujemy do niego wcale,
@@ -1498,6 +1513,9 @@ def _display_name(row: dict, anonymization: str, school_sizes: dict[str, int]) -
         full = " ".join(part for part in (row["first_name"], row["last_name"]) if part).strip()
         return full or code
     if anonymization == Anonymization.INITIALS_SCHOOL:
+        # Bez zgód (uczestnika, a małoletniego także opiekuna) – kod, jak w trybach imiennych.
+        if not _has_publication_consent(row):
+            return code
         initials = _initials(row["first_name"], row["last_name"])
         school = (row.get("school") or "").strip()
         if not initials or not school:
@@ -1650,8 +1668,11 @@ def publish_results(
 
 
 def published_results(stage_id: int) -> ResultsPublication | None:
-    """Publikacja etapu albo ``None``. Publiczny widok nie dotyka poza tym żadnej innej tabeli."""
-    return ResultsPublication.objects.filter(stage_id=stage_id).select_related("stage").first()
+    """Publikacja etapu w mocy albo ``None`` – wycofana też jest ``None`` (audyt S2).
+
+    Publiczny widok nie dotyka poza tym żadnej innej tabeli.
+    """
+    return ResultsPublication.objects.live().filter(stage_id=stage_id).select_related("stage").first()
 
 
 def _feedback_for(submission: Submission | None) -> list[dict]:
@@ -1705,9 +1726,9 @@ def results_for_participant(user, competition=None) -> list[dict]:
     stage_ids = [entry.stage_id for entry in entries]
     published_totals: dict[int, dict] = {
         publication.stage_id: publication.entry_totals or {}
-        for publication in ResultsPublication.objects.filter(stage_id__in=stage_ids).only(
-            "stage_id", "entry_totals"
-        )
+        for publication in ResultsPublication.objects.live()
+        .filter(stage_id__in=stage_ids)
+        .only("stage_id", "entry_totals")
     }
     problems: dict[int, list] = {stage_id: [] for stage_id in stage_ids}
     for problem in Problem.objects.filter(stage_id__in=stage_ids).order_by("number", "id"):

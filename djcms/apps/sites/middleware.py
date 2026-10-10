@@ -158,10 +158,12 @@ class EditorAccessMiddleware:
 
     Stoi za ``AuthenticationMiddleware``. Dwie rzeczy:
 
-    1. **termin sesji SSO** (``apps.sites.sso.session_expired``): po nim konto jest wylogowane,
+    1. **termin sesji** (``apps.sites.sso.session_expired``): po nim konto jest wylogowane,
        zanim żądanie dojdzie do widoku – panel odsyła na stronę logowania, a ta do ``/cms/``.
        Konto z SSO (``web:<id>``) bez znacznika terminu też jest wylogowane: takiej sesji nie
-       założył ``sso_login``,
+       założył ``sso_login``. Sesja logowania hasłem dostaje swój termin przy pierwszym żądaniu
+       (``sso.ensure_password_deadline``, ``DJCMS_PASSWORD_SESSION_SECONDS``) – wcześniej żyła
+       ``SESSION_COOKIE_AGE``,
     2. **panel pod cudzą witryną** – personel bez ``is_superuser`` pod ``/djcms/admin/``:
        witryna żądania (host/prefiks) i witryna z parametru ``site`` (``cms.utils.admin
        .get_site_from_request`` – przełącznik witryn drzewa stron) muszą należeć do jego zasięgu
@@ -187,6 +189,9 @@ class EditorAccessMiddleware:
         if sso.session_expired(request) or (from_sso and sso.SESSION_KEY not in request.session):
             logout(request)
             return self.get_response(request)
+        if not from_sso:
+            # Logowanie hasłem: ten sam twardy termin od logowania co sesja z SSO (``set_expiry``).
+            sso.ensure_password_deadline(request)
         if self._scoped(request) and not self._site_allowed(request):
             return _foreign_site()
         return self.get_response(request)

@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import io
 import urllib.error
+from datetime import timedelta
 
 import pytest
 from django.core.cache import cache
@@ -79,6 +80,8 @@ def test_too_large_tree_is_503_and_left_for_deploy(client, main_api, nowy):
     assert response.status_code == 503 and response["Retry-After"]
     assert "najbliższym wdrożeniu" in response.content.decode()
     assert _pages(nowy) == 0
+    nowy.refresh_from_db()
+    assert nowy.starter_failed_at is not None
     # Porażka zamyka próby na chwilę – bez ponownego pobierania paczki w każdym żądaniu.
     assert client.get("/", HTTP_HOST="nowy.olimpiada.example").status_code == 503
     assert main_api.calls("export", competition="nowy") == 1
@@ -87,12 +90,98 @@ def test_too_large_tree_is_503_and_left_for_deploy(client, main_api, nowy):
 def test_dead_api_is_503_with_backoff(client, main_api, nowy):
     main_api.fail("export", urllib.error.URLError(ConnectionRefusedError()), competition="nowy")
     assert client.get("/", HTTP_HOST="nowy.olimpiada.example").status_code == 503
+    second = client.get("/", HTTP_HOST="nowy.olimpiada.example")
+    assert second.status_code == 503
+    assert 0 < int(second["Retry-After"]) <= starter.retry_seconds() + 1
+    assert main_api.calls("export", competition="nowy") == 1
+    # Znacznik porażki jest w bazie, nie w buforze procesu: inny worker (pusty bufor) też go widzi.
+    cache.clear()
     assert client.get("/", HTTP_HOST="nowy.olimpiada.example").status_code == 503
     assert main_api.calls("export", competition="nowy") == 1
-    cache.delete(starter.FAILURE_KEY.format(slug="nowy"))
+    _fail_long_ago(nowy)
     _export(main_api)
     assert client.get("/", HTTP_HOST="nowy.olimpiada.example").status_code in (200, 404)
     assert _pages(nowy) == 4
+    nowy.refresh_from_db()
+    assert nowy.starter_failed_at is None  # udany import czyści znacznik
+
+
+def _fail_long_ago(competition):
+    from apps.sites.models import CompetitionSite
+
+    past = timezone.now() - timedelta(seconds=starter.retry_seconds() + 1)
+    CompetitionSite.objects.filter(pk=competition.pk).update(starter_failed_at=past)
+
+
+def test_failure_marker_is_checked_again_after_the_lock(main_api, nowy):
+    """Wątek z nieaktualnym obiektem konkursu (porażkę zapisał inny proces) nie pobiera paczki."""
+    from apps.sites.models import CompetitionSite
+
+    _export(main_api)
+    CompetitionSite.objects.filter(pk=nowy.pk).update(starter_failed_at=timezone.now())
+    assert nowy.starter_failed_at is None  # obiekt z rozstrzygnięcia żądania – sprzed porażki
+    response = starter.ensure_content_for_request(nowy)
+    assert response is not None and response.status_code == 503
+    assert main_api.calls("export", competition="nowy") == 0
+    assert _pages(nowy) == 0
+
+
+def test_lock_held_elsewhere_is_503_at_once(main_api, nowy):
+    """Blokada w innym połączeniu (inny proces importuje) – 503 bez czekania i bez pobierania paczki."""
+    from django.db import connection, connections
+
+    if connection.vendor != "postgresql":
+        pytest.skip("blokady doradcze tylko w Postgresie")
+    _export(main_api)
+    other = connections.create_connection("default")
+    try:
+        with other.cursor() as cursor:
+            cursor.execute("SELECT pg_advisory_lock(hashtext(%s))", [starter.LOCK_KEY.format(slug="nowy")])
+        response = starter.ensure_content_for_request(nowy)
+        assert response.status_code == 503
+        assert response["Retry-After"] == str(starter.BUSY_RETRY_SECONDS)
+        assert main_api.calls("export", competition="nowy") == 0
+        nowy.refresh_from_db()
+        assert nowy.starter_failed_at is None  # zajęta blokada to nie porażka importu
+        with pytest.raises(starter.StarterBusy):
+            starter.ensure_site(nowy)
+    finally:
+        other.close()
+    assert starter.ensure_content_for_request(nowy) is None
+    assert _pages(nowy) == 4
+
+
+def test_full_process_semaphore_is_503_without_download(main_api, nowy, monkeypatch):
+    import threading
+
+    slots = threading.BoundedSemaphore(1)
+    slots.acquire()  # import innego konkursu w tym procesie
+    monkeypatch.setattr(starter, "_import_slots", slots)
+    _export(main_api)
+    response = starter.ensure_content_for_request(nowy)
+    assert response.status_code == 503
+    assert main_api.calls("export", competition="nowy") == 0
+
+
+def test_import_transaction_has_a_lock_timeout(main_api, nowy, superuser, monkeypatch):
+    from django.db import connection
+
+    if connection.vendor != "postgresql":
+        pytest.skip("lock_timeout tylko w Postgresie")
+    seen = []
+    original = starter.services.run_import
+
+    def spy(*args, **kwargs):
+        with connection.cursor() as cursor:
+            cursor.execute("SHOW lock_timeout")
+            seen.append(cursor.fetchone()[0])
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(starter.services, "run_import", spy)
+    _export(main_api)
+    assert starter.ensure_site(nowy) is not None
+    # ``SET LOCAL`` żyje do końca transakcji – w teście to transakcja testu, w żądaniu ``ensure_site``.
+    assert seen == [starter.REQUEST_LOCK_TIMEOUT]
 
 
 def test_ensure_site_does_nothing_when_pages_exist(main_api, nowy, superuser):

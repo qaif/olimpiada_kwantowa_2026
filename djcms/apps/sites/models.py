@@ -50,6 +50,10 @@ class CompetitionSite(models.Model):
     synced_at = models.DateTimeField(null=True, blank=True)
     #: Ostatni import treści (``--replace``/``--if-empty``/drzewo startowe) – DJ-02e.
     content_imported_at = models.DateTimeField(null=True, blank=True)
+    #: Ostatnia nieudana próba importu drzewa startowego (``apps.importer.starter``, audyt S22) –
+    #: w bazie, a nie w buforze procesu: wspólna dla workerów gunicorna i trwała po restarcie, więc
+    #: kolejne odsłony pustej witryny dostają 503 bez ponownego pobierania paczki. Czyści ją udany import.
+    starter_failed_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         verbose_name = "witryna konkursu"

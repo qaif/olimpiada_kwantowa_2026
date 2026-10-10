@@ -134,7 +134,9 @@ def stage_rows(edition: Edition | None = None, now=None, *, competition=None) ->
         return []
     now = now or timezone.now()
     stages = list(edition.stages.exclude(kind=StageKind.TRAINING).order_by("opens_at", "id"))
-    published = set(ResultsPublication.objects.filter(stage__in=stages).values_list("stage_id", flat=True))
+    published = set(
+        ResultsPublication.objects.live().filter(stage__in=stages).values_list("stage_id", flat=True)
+    )
     rows = []
     for stage in stages:
         has_results = stage.pk in published
@@ -254,7 +256,9 @@ def _stage_items(edition: Edition, today: date) -> list[dict]:
     byłby obietnicą bez pokrycia.
     """
     stages = list(edition.stages.exclude(kind=StageKind.TRAINING).order_by("opens_at", "id"))
-    published = set(ResultsPublication.objects.filter(stage__in=stages).values_list("stage_id", flat=True))
+    published = set(
+        ResultsPublication.objects.live().filter(stage__in=stages).values_list("stage_id", flat=True)
+    )
     items = []
     for stage in stages:
         event_range = stage.event_range
