@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% comment %}
+  Panel tłumacza (L10N-01): języki, które ta osoba może przeglądać, z licznikami pracy. Rola jest
+  platformowa – ten sam ekran pod adresem każdego konkursu.
+{% endcomment %}
+{% block title %}{% translate "Tłumaczenia interfejsu" %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow">{% translate "Tłumaczenia" %}</span>
+  <h1>{% translate "Tłumaczenia interfejsu" %}</h1>
+  <p class="lead">{% translate "Sprawdź tłumaczenia napisów serwisu w swoim języku i zaproponuj poprawki. Tekst źródłowy jest po polsku; obok widzisz wersję angielską." %}</p>
+</div>
+<section class="section">
+  {% for item in languages %}
+    <article class="card card--quiet">
+      <div class="card__head">
+        <h2 class="card__title" lang="{{ item.code }}">{{ item.label }}</h2>
+        <div class="row">
+          {% if item.can_review %}<span class="badge badge--accent">{% translate "recenzent" %}</span>{% endif %}
+          <span class="badge badge--neutral">{% translate "Oczekujące propozycje" %}: {{ item.pending }}</span>
+        </div>
+      </div>
+      <p class="actions">
+        <a class="btn btn--primary" href="{% url 'web:translation-list' item.code %}">{% translate "Przeglądaj napisy" %}</a>
+        <a class="btn btn--ghost" href="{% url 'web:translation-list' item.code %}?status=pending">{% translate "Oczekujące propozycje" %}</a>
+        {% if item.can_review %}
+          <a class="btn btn--ghost" href="{% url 'web:translation-reports' item.code %}">{% translate "Zgłoszenia" %}: {{ item.reports }}</a>
+        {% endif %}
+      </p>
+    </article>
+  {% endfor %}
+</section>
+{% endblock %}

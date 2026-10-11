@@ -16,6 +16,7 @@ from rest_framework.throttling import AnonRateThrottle
 
 from apps.accounts.permissions import IsCoordinator, IsParticipant
 from apps.core.api import DomainError
+from apps.time_windows.access import statements_visible
 
 from .models import Problem, Stage
 from .scoping import competition_of, scope_to_competition
@@ -85,6 +86,10 @@ class MyEntriesView(GenericAPIView):
         return Response(self.get_serializer(self.get_queryset(), many=True).data)
 
 
+#: Rozmiar kawałka strumienia treści zadania – patrz ``ProblemStatementView.get``.
+STATEMENT_BLOCK_SIZE = 64 * 1024
+
+
 class ProblemStatementView(GenericAPIView):
     """Treść zadania (PDF) – serwowana przez aplikację, nie przez publiczny URL storage.
 
@@ -107,7 +112,12 @@ class ProblemStatementView(GenericAPIView):
             scope_to_competition(Problem.objects.select_related("stage"), competition_of(request)),
             pk=pk,
         )
-        visible = problem.stage.has_opened() or IsCoordinator().has_permission(request, self)
+        # ``statements_visible`` to ``has_opened`` z oknami czasowymi (TZ-01): w etapie z oknami
+        # uczeń dostaje PDF od startu **swojego** okna, a reszta świata – po końcu ostatniego.
+        # Bez flagi konkursu odpowiedź jest dokładnie ``has_opened()``, bez zapytania.
+        visible = statements_visible(
+            problem.stage, user=request.user, competition=competition_of(request)
+        ) or IsCoordinator().has_permission(request, self)
         if not visible or not problem.statement_pdf:
             raise Http404
         # Wersja językowa wybiera się sama: ``statement_file`` oddaje plik angielski, gdy jest
@@ -115,9 +125,14 @@ class ProblemStatementView(GenericAPIView):
         # widoczności zostaje przy wersji polskiej – bez niej etap nie ma treści w żadnym języku,
         # więc to ona rozstrzyga, czy zadanie w ogóle istnieje dla świata.
         statement = problem.statement_file
-        return FileResponse(
+        response = FileResponse(
             statement.open("rb"),
             content_type="application/pdf",
             as_attachment=False,
             filename=f"zadanie-{problem.number}.pdf",
         )
+        # Kawałki po 64 KiB zamiast domyślnych 4 KiB (PERF-01): w chwili otwarcia etapu każdy uczeń
+        # pobiera naraz wszystkie treści, a plik z S3 nie ma deskryptora dla ``sendfile`` – gunicorn
+        # pisze go do gniazda kawałek po kawałku. 600 KB to 150 zapisów zamiast dziesięciu.
+        response.block_size = STATEMENT_BLOCK_SIZE
+        return response

@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% load i18n static %}
+{% comment %}
+  Zadanie w języku ucznia (TR-01 § 2) – zatwierdzona wersja tłumaczenia; wersja oficjalna zostaje
+  zawsze pod tym samym odnośnikiem, co na karcie zadania. Strona istnieje dopiero po otwarciu etapu.
+{% endcomment %}
+{% block title %}{% blocktranslate trimmed with number=problem.number %}Zadanie {{ number }}{% endblocktranslate %}{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'problem_translations/vendor/katex/katex.min.css' %}">
+<link rel="stylesheet" href="{% static 'problem_translations/css/translations.css' %}">{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow"><a href="{% url 'web:me' %}?tab=zadania">{% translate "Moje zadania" %}</a></span>
+  <h1 lang="{{ language }}"{% if rtl %} dir="rtl"{% endif %}>{{ problem.number }}. {{ revision.title|default:problem.display_title }}</h1>
+  <p class="lead">{% blocktranslate trimmed with language=language_label %}Tłumaczenie: {{ language }}.{% endblocktranslate %}
+    {% if problem.statement_pdf %}<a href="{% url 'competitions:problem-statement' problem.pk %}">{% translate "Wersja oficjalna (PDF)" %}</a>{% endif %}</p>
+  {% if stale %}
+    <p class="notice" role="note">{% translate "Wersja oficjalna została zmieniona po zatwierdzeniu tego tłumaczenia – sprawdź wersję oficjalną (PDF)." %}</p>
+  {% endif %}
+  {% if fallback_from %}
+    <p class="notice" role="note">{% blocktranslate trimmed with wanted=fallback_from shown=language_label %}Tłumaczenie na język {{ wanted }} nie jest dostępne – pokazujemy język {{ shown }}, drugi język Twojej drużyny.{% endblocktranslate %}</p>
+  {% endif %}
+</div>
+<section class="section">
+  {% if revision.kind == "PDF" %}
+    <p><a class="btn btn--primary" href="{% url 'web:student-translation-file' problem.pk %}">{% translate "Treść zadania (PDF)" %}</a></p>
+  {% else %}
+    <div class="tr-doc" lang="{{ language }}"{% if rtl %} dir="rtl"{% endif %}>{{ html }}</div>
+  {% endif %}
+</section>
+{% endblock %}
+{% block scripts %}
+  <script defer nonce="{{ request.csp_nonce }}" src="{% static 'problem_translations/vendor/katex/katex.min.js' %}"></script>
+  <script defer nonce="{{ request.csp_nonce }}" src="{% static 'problem_translations/js/math.js' %}"></script>
+{% endblock %}

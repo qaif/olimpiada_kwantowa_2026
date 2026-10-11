@@ -1,0 +1,5 @@
+# Koła dla indeksu piplite w JupyterLite (pobierane przy budowie, nie w przeglądarce). Jądro Pyodide
+# instaluje przy starcie `comm`, którego nie ma w pyodide-lock.json – bez tego koła w indeksie,
+# przy wyłączonym PyPI (disablePyPIFallback), jądro by nie wstało.
+comm==0.2.3 \
+    --hash=sha256:c615d91d75f7f04f095b30d1c1711babd43bdc6419c1be9886a85f2f4e489417

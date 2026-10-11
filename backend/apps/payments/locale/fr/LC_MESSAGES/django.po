@@ -1,0 +1,366 @@
+# Płatności online (PAY-01) – katalog aplikacji apps.payments.
+# Tłumaczenia maszynowe do przeglądu przez native speakerów (jak I18N-01 § 8).
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: olimpiada\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-04 19:20+0200\n"
+"PO-Revision-Date: 2026-10-04 20:00+0200\n"
+"Last-Translator: Claude (machine translation)\n"
+"Language-Team: olimpiada\n"
+"Language: fr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=3; plural=(n == 0 || n == 1) ? 0 : n != 0 && n % "
+"1000000 == 0 ? 1 : 2;\n"
+
+msgid "Faktura"
+msgstr "Facture"
+
+msgid "Faktura pro forma"
+msgstr "Facture pro forma"
+
+msgid "Data sprzedaży"
+msgstr "Date de vente"
+
+msgid "Zapłacono"
+msgstr "Payé"
+
+msgid "Kod referencyjny"
+msgstr "Code de référence"
+
+msgid "NIP / VAT ID"
+msgstr "N° de TVA / identifiant fiscal"
+
+msgid "Sprzedawca"
+msgstr "Vendeur"
+
+msgid "Nabywca"
+msgstr "Acheteur"
+
+msgid "Pozycja"
+msgstr "Article"
+
+msgid "Ilość"
+msgstr "Quantité"
+
+msgid "Cena"
+msgstr "Prix"
+
+msgid "Razem do zapłaty"
+msgstr "Total à payer"
+
+msgid "Bank"
+msgstr "Banque"
+
+msgid "Tytuł przelewu"
+msgstr "Libellé du virement"
+
+msgid "Dane do przelewu"
+msgstr "Coordonnées bancaires"
+
+msgid "Faktura pro forma nie jest dokumentem księgowym. Fakturę wystawimy po zaksięgowaniu wpłaty."
+msgstr "La facture pro forma n'est pas un document comptable. Nous émettrons la facture dès réception du paiement."
+
+msgid "Nazwa instytucji albo imię i nazwisko"
+msgstr "Nom de l'institution ou nom complet"
+
+msgid "Adres"
+msgstr "Adresse"
+
+msgid "Opcjonalnie – jeśli instytucja ma numer podatkowy, który ma znaleźć się na fakturze."
+msgstr "Facultatif – si l'institution dispose d'un numéro fiscal à faire figurer sur la facture."
+
+msgid "E-mail do rozliczeń"
+msgstr "E-mail de facturation"
+
+msgid "Liczba obserwatorów"
+msgstr "Nombre d'observateurs"
+
+msgid "Osoby towarzyszące drużynie bez roli opiekuna – płatne według cennika."
+msgstr "Personnes accompagnant l'équipe sans être chefs d'équipe – facturées selon la grille tarifaire."
+
+msgid "Opłata za delegację"
+msgstr "Frais de délégation"
+
+msgid "Uczeń"
+msgstr "Élève"
+
+msgid "Opiekun drużyny"
+msgstr "Chef d'équipe"
+
+msgid "Obserwator"
+msgstr "Observateur"
+
+msgid "Opłata za udział"
+msgstr "Frais de participation"
+
+msgid "Zniżka"
+msgstr "Remise"
+
+msgid "cena wczesna"
+msgstr "tarif anticipé"
+
+msgid "cena podstawowa"
+msgstr "tarif normal"
+
+msgid "cena późna"
+msgstr "tarif tardif"
+
+msgid "Instytucja"
+msgstr "Institution"
+
+msgid "Osoba prywatna"
+msgstr "Particulier"
+
+msgid "Zwolnienie z opłat"
+msgstr "Exonération des frais"
+
+msgid "czeka na wpłatę"
+msgstr "en attente de paiement"
+
+msgid "zapłacone"
+msgstr "payé"
+
+msgid "anulowane"
+msgstr "annulé"
+
+msgid "zwrócone"
+msgstr "remboursé"
+
+msgid "Karta płatnicza (Stripe)"
+msgstr "Carte de paiement (Stripe)"
+
+msgid "Przelew bankowy"
+msgstr "Virement bancaire"
+
+msgid "w toku"
+msgstr "en cours"
+
+msgid "przyjęta"
+msgstr "reçu"
+
+msgid "nieudana"
+msgstr "échoué"
+
+msgid "przerwana"
+msgstr "interrompu"
+
+msgid "do wyjaśnienia"
+msgstr "à vérifier"
+
+msgid "wykonany"
+msgstr "effectué"
+
+msgid "nieudany"
+msgstr "échoué"
+
+msgid "Najpierw uzupełnij dane do faktury."
+msgstr "Veuillez d'abord renseigner les données de facturation."
+
+msgid "Organizator nie opublikował jeszcze cennika."
+msgstr "L'organisateur n'a pas encore publié la grille tarifaire."
+
+msgid "Delegacja jest zwolniona z opłat."
+msgstr "La délégation est exonérée des frais."
+
+msgid "Nie ma nic nowego do zapłaty."
+msgstr "Il n'y a rien de nouveau à payer."
+
+msgid "Ta opłata jest już rozliczona."
+msgstr "Ces frais sont déjà réglés."
+
+msgid "Nie ma nic do zapłaty."
+msgstr "Il n'y a rien à payer."
+
+msgid "Płatność tego zamówienia jest właśnie przetwarzana. Spróbuj ponownie za kilka minut."
+msgstr "Un paiement de cette commande est en cours de traitement. Réessayez dans quelques minutes."
+
+#, python-format
+msgid "Płatność Przelewy24 tego zamówienia jest w toku. Spróbuj ponownie za %(minutes)s minut."
+msgstr "Un paiement Przelewy24 de cette commande est en cours. Réessayez dans %(minutes)s minutes."
+
+msgid "Anulować można wyłącznie zamówienie czekające na wpłatę."
+msgstr "Seule une commande en attente de paiement peut être annulée."
+
+msgid "To zamówienie nie czeka na wpłatę."
+msgstr "Cette commande n'est pas en attente de paiement."
+
+msgid "Ta metoda płatności nie jest dostępna."
+msgstr "Ce moyen de paiement n'est pas disponible."
+
+msgid "Dostawca płatności jest chwilowo niedostępny. Spróbuj ponownie za chwilę."
+msgstr "Le prestataire de paiement est momentanément indisponible. Réessayez dans un instant."
+
+msgid "Opłaty"
+msgstr "Frais"
+
+msgid "Drużyna jest zwolniona z opłat."
+msgstr "L'équipe est exonérée des frais."
+
+msgid "Opłaty są rozliczone."
+msgstr "Tous les frais sont réglés."
+
+#, python-format
+msgid "Do zapłaty: %(amount)s %(currency)s."
+msgstr "Montant dû : %(amount)s %(currency)s."
+
+msgid "Opłaty i faktury"
+msgstr "Frais et factures"
+
+msgid "Zapłać online"
+msgstr "Payer en ligne"
+
+msgid "Dane do faktury"
+msgstr "Données de facturation"
+
+msgid "Opłaty drużyny"
+msgstr "Frais de l'équipe"
+
+msgid "Nabywcą może być instytucja (np. ministerstwo, szkoła, fundacja) albo osoba prywatna. Zmiana danych dotyczy kolejnych dokumentów – wystawione wcześniej zostają bez zmian."
+msgstr "L'acheteur peut être une institution (ministère, école, fondation…) ou un particulier. Les modifications s'appliquent aux documents suivants – ceux déjà émis restent inchangés."
+
+#, python-format
+msgid "Opłaty: %(country)s"
+msgstr "Frais : %(country)s"
+
+msgid "Opłatę za drużynę wnosi się na podstawie faktury pro forma: wystaw ją, a potem zapłać kartą albo przelewem. Po zaksięgowaniu wpłaty wystawimy fakturę i wyślemy potwierdzenie e-mailem."
+msgstr "Les frais de l'équipe se règlent sur facture pro forma : émettez-la, puis payez par carte ou par virement. Dès réception du paiement, nous émettrons la facture et enverrons une confirmation par e-mail."
+
+msgid "Zestawienie"
+msgstr "Récapitulatif"
+
+msgid "Waluta"
+msgstr "Devise"
+
+msgid "Zwrócono"
+msgstr "Remboursé"
+
+msgid "Czeka na wpłatę"
+msgstr "En attente de paiement"
+
+msgid "Do wystawienia"
+msgstr "À facturer"
+
+msgid "Pozycje kolejnej faktury pro forma"
+msgstr "Lignes de la prochaine facture pro forma"
+
+msgid "Wystaw fakturę pro forma"
+msgstr "Émettre la facture pro forma"
+
+msgid "Przed wystawieniem faktury pro forma uzupełnij dane do faktury."
+msgstr "Renseignez les données de facturation avant d'émettre la facture pro forma."
+
+msgid "Nie podano jeszcze danych do faktury."
+msgstr "Aucune donnée de facturation pour l'instant."
+
+msgid "Zmień dane do faktury"
+msgstr "Modifier les données de facturation"
+
+msgid "Zamówienia"
+msgstr "Commandes"
+
+msgid "Zamówienia drużyny"
+msgstr "Commandes de l'équipe"
+
+msgid "Wystawiono"
+msgstr "Émis le"
+
+msgid "Dokumenty"
+msgstr "Documents"
+
+msgid "Nie wystawiono jeszcze żadnego zamówienia."
+msgstr "Aucune commande n'a encore été émise."
+
+#, python-format
+msgid "Dziękujemy – otrzymaliśmy wpłatę za udział w konkursie %(competition)s."
+msgstr "Merci – nous avons bien reçu votre paiement pour la participation à %(competition)s."
+
+msgid "Fakturę i historię płatności znajdziesz po zalogowaniu:"
+msgstr "Vous trouverez la facture et l'historique des paiements après connexion :"
+
+#, python-format
+msgid "Potwierdzenie wpłaty %(reference)s – %(competition)s"
+msgstr "Confirmation de paiement %(reference)s – %(competition)s"
+
+#, python-format
+msgid "Organizator konkursu %(competition)s zwrócił część albo całość Twojej wpłaty."
+msgstr "L'organisateur de %(competition)s vous a remboursé tout ou partie de votre paiement."
+
+msgid "Kwota zwrotu"
+msgstr "Montant remboursé"
+
+msgid "Pieniądze wracają tą samą drogą, którą zostały wpłacone; zaksięgowanie po stronie banku może potrwać kilka dni roboczych. Szczegóły:"
+msgstr "L'argent est restitué par le même moyen que le paiement ; l'inscription sur votre compte peut prendre quelques jours ouvrés. Détails :"
+
+#, python-format
+msgid "Zwrot wpłaty %(reference)s – %(competition)s"
+msgstr "Remboursement %(reference)s – %(competition)s"
+
+#, python-format
+msgid "Zamówienie %(reference)s"
+msgstr "Commande %(reference)s"
+
+#, python-format
+msgid "termin płatności: %(due)s"
+msgstr "échéance : %(due)s"
+
+msgid "Pozycje zamówienia"
+msgstr "Lignes de la commande"
+
+msgid "Zapłać"
+msgstr "Payer"
+
+msgid "Zapłać kartą"
+msgstr "Payer par carte"
+
+msgid "Zapłać przez Przelewy24"
+msgstr "Payer avec Przelewy24"
+
+msgid "Płatność odbywa się na stronie operatora płatności. Nie przechowujemy danych karty."
+msgstr "Le paiement s'effectue sur la page du prestataire de paiement. Nous ne conservons pas les données de carte."
+
+msgid "Wpisz kod referencyjny w tytule przelewu – po nim organizator odnajdzie wpłatę. Przelew zaksięgujemy w ciągu kilku dni roboczych; koszty banku ponosi płacący."
+msgstr "Indiquez le code de référence dans le libellé du virement – l'organisateur s'en sert pour identifier votre paiement. Nous enregistrerons le virement sous quelques jours ouvrés ; les frais bancaires sont à la charge du payeur."
+
+msgid "Płatności online nie są jeszcze dostępne. Skontaktuj się z organizatorem."
+msgstr "Les paiements en ligne ne sont pas encore disponibles. Contactez l'organisateur."
+
+msgid "Anuluj zamówienie"
+msgstr "Annuler la commande"
+
+msgid "Anuluj zamówienie, jeśli zmienił się skład drużyny albo dane do faktury – potem wystaw nowe."
+msgstr "Annulez la commande si la composition de l'équipe ou les données de facturation ont changé – puis émettez-en une nouvelle."
+
+msgid "Brak dokumentów."
+msgstr "Aucun document."
+
+msgid "Historia płatności"
+msgstr "Historique des paiements"
+
+msgid "zwrócono"
+msgstr "remboursé"
+
+#, python-format
+msgid "Do zapłaty: %(amount)s %(currency)s. Podaj dane do faktury – wystawimy fakturę pro forma, a po zaksięgowaniu wpłaty fakturę."
+msgstr "Montant dû : %(amount)s %(currency)s. Indiquez vos données de facturation – nous émettrons une facture pro forma, puis la facture après réception du paiement."
+
+msgid "Dalej"
+msgstr "Continuer"
+
+msgid "Dane do faktury zostały zapisane."
+msgstr "Données de facturation enregistrées."
+
+msgid "Wystawiliśmy fakturę pro forma. Wybierz sposób zapłaty."
+msgstr "La facture pro forma a été émise. Choisissez le mode de paiement."
+
+msgid "Dziękujemy. Czekamy na potwierdzenie wpłaty od operatora płatności – odśwież stronę za chwilę."
+msgstr "Merci. Nous attendons la confirmation du prestataire de paiement – actualisez la page dans un instant."
+
+msgid "Płatność została przerwana. Możesz spróbować ponownie."
+msgstr "Le paiement a été interrompu. Vous pouvez réessayer."
+
+msgid "Zamówienie zostało anulowane."
+msgstr "La commande a été annulée."

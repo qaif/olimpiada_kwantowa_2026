@@ -1,0 +1,41 @@
+# Materiały z warsztatów: podgląd pliku i makra (WM-FMT-01) – ru.
+msgid ""
+msgstr ""
+"Project-Id-Version: Olimpiada Kwantowa\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-09 23:30+0200\n"
+"PO-Revision-Date: 2026-10-09 23:30+0200\n"
+"Last-Translator: Olimpiada Kwantowa\n"
+"Language-Team: Russian\n"
+"Language: ru\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=4; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && "
+"n%10<=4 && (n%100<12 || n%100>14) ? 1 : n%10==0 || (n%10>=5 && n%10<=9) || "
+"(n%100>=11 && n%100<=14)? 2 : 3);\n"
+
+#: templates/web/workshop_materials/detail.html
+msgid "Ten format może zawierać makra. Program biurowy zapyta, czy je włączyć – włącz je tylko wtedy, gdy wiesz, do czego służą w tym pliku."
+msgstr "Этот формат может содержать макросы. Офисная программа спросит, включать ли их, – включайте, только если знаете, для чего они в этом файле."
+
+#: templates/web/workshop_materials/detail.html
+msgid "Podgląd pliku"
+msgstr "Предпросмотр файла"
+
+#: templates/web/workshop_materials/detail.html
+msgid "Plik jest pokazany jako zwykły tekst – jest zbyt złożony, żeby złożyć go jako Markdown."
+msgstr "Файл показан как обычный текст – он слишком сложен для отображения в формате Markdown."
+
+#: templates/web/workshop_materials/detail.html
+#, python-format
+msgid "Plik jest za duży na podgląd na stronie (podgląd do %(limit)s) – pobierz go."
+msgstr "Файл слишком большой для предпросмотра на странице (предпросмотр до %(limit)s) – скачайте его."
+
+#: templates/web/workshop_materials/detail.html
+msgid "Podgląd jest chwilowo niedostępny – pobierz plik."
+msgstr "Предпросмотр временно недоступен – скачайте файл."
+
+#: templates/web/workshop_materials/list.html
+msgid "Zobacz"
+msgstr "Открыть"

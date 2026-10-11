@@ -32,6 +32,7 @@ from django import forms
 from apps.accounts.consents import ConsentKind, consent_set, organizer_name
 from apps.accounts.consents import label as consent_label
 from apps.accounts.names import validate_person_name
+from apps.email_delivery.fields import CheckedEmailField, EmailDomainCheckMixin  # MAIL-02
 from apps.web.captcha import CaptchaFormMixin
 from apps.web.forms import (
     PASSWORD_CONFIRM_FIELD,
@@ -48,7 +49,7 @@ from apps.web.forms import (
 SUPERVISOR_CONSENT_KINDS = (ConsentKind.TERMS, ConsentKind.PRIVACY)
 
 
-class SupervisorRegisterForm(CaptchaFormMixin):
+class SupervisorRegisterForm(EmailDomainCheckMixin, CaptchaFormMixin):
     """Rejestracja opiekuna szkolnego: konto, szkoła, telefon kontaktowy i zgody.
 
     Telefon jest opcjonalny, w odróżnieniu od profilu uczestnika: organizator dzwoni do opiekuna
@@ -66,7 +67,7 @@ class SupervisorRegisterForm(CaptchaFormMixin):
         "phone",
     ]
 
-    email = forms.EmailField(
+    email = CheckedEmailField(
         label="Adres e-mail",
         max_length=254,
         help_text=(

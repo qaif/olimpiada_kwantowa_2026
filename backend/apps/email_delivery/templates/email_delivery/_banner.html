@@ -1,0 +1,9 @@
+{% load i18n %}{% comment %}
+  Baner odbić (MAIL-02 § 2.5). Klasy ``messages``/``msg-warning`` – te same, co baner 2FA i komunikaty
+  sesyjne, więc wygląda poprawnie w każdym motywie bez własnego CSS i bez JavaScriptu (CSP).
+  ``role="status"`` na opakowaniu, nie na ``<ul>`` (axe ``listitem``, A11Y-01). Przycisk to formularz
+  POST z tokenem CSRF – potwierdzenie zmienia stan, więc nie może być odnośnikiem.
+{% endcomment %}<div role="status"><ul class="messages"><li class="msg msg-warning">{% blocktranslate trimmed with email=email %}
+  Nie możemy dostarczyć poczty na adres {{ email }} – serwer odbiorcy odpowiada, że taka skrzynka albo domena nie istnieje. Nie dostaniesz od nas listów, dopóki adres nie zostanie poprawiony.
+{% endblocktranslate %} <a href="{% url 'web:email-change' %}">{% translate "Zmień adres e-mail" %}</a>
+  <form method="post" action="{% url 'web:email-undeliverable-confirm' %}" class="inline-form">{% csrf_token %}<input type="hidden" name="next" value="{{ next }}"><button type="submit" class="btn btn--small btn--secondary">{% translate "Mój adres jest poprawny" %}</button></form></li></ul></div>

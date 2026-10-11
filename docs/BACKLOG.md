@@ -110,7 +110,7 @@ Status: `todo` / `in_progress` / `done` / `escalated`.
 | Pozycja | Klasa | Co zrobić |
 |---|---|---|
 | S18 – 2FA dla koordynatorów i superusera, koordynator bez `is_superuser`, panele za listą IP | med | Decyzja organizatora: `TWO_FACTOR_ENABLED=1`, `TWO_FACTOR_REQUIRED_ROLES=coordinator,super_coordinator`, `ADMIN_ALLOWED_IPS` w `.env`; w kodzie `is_required_for` o `is_superuser`; `bootstrap_coordinator` bez `is_superuser` (wymaga przeglądu, co koordynator robi w `/admin/`). |
-| N26 – klucz kopii poza serwerem bez `DeleteObject` | med | Przełącznik w `scripts/lib/backup_offsite.sh` (retencja regułą lifecycle/Object Lock po stronie magazynu zamiast `rclone delete`); opis w `OPERACJE.md` § 31.5. |
+| N26 – klucz kopii poza serwerem bez `DeleteObject` | med | Przełącznik w `scripts/lib/backup_offsite.sh` (retencja regułą lifecycle/Object Lock po stronie magazynu zamiast `rclone delete`); opis w `OPERACJE.md` § 54.5. |
 | S19 – wildcard `https://*.<domena>` w `CSRF_TRUSTED_ORIGINS` przy `PLATFORM_SUBDOMAINS` | low | Podklasa `CsrfViewMiddleware` sprawdzająca `Origin` na liście hostów aktywnych konkursów. |
 | N23 – `/api/schema/`, `/api/docs/` publiczne | low | `SERVE_PERMISSIONS` + `SERVE_AUTHENTICATION` z klasą klucza integracji; aktualizacja `API.md` i testów `test_docs.py`, `cms/tests/test_access.py`. |
 | N24 – `/captcha/refresh/` bez limitu | low | Throttle na wpisie w `config/urls.py` albo limit w Caddy. |

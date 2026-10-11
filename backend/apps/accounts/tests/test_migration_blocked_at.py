@@ -1,4 +1,4 @@
-"""Migracja danych ``accounts.0039``: konta nieaktywne, które kiedyś się logowały, są zablokowane.
+"""Migracja danych ``accounts.0042``: konta nieaktywne, które kiedyś się logowały, są zablokowane.
 
 Konto czekające na aktywację nie mogło się nigdy zalogować, więc ``is_active=False`` przy
 ``last_login`` wypełnionym i bez potwierdzonego adresu znaczy blokadę sprzed ``accounts.0010``
@@ -13,8 +13,8 @@ from apps.core.tests.migration_helpers import MIGRATION_TESTS, migrate_to, rewou
 
 pytestmark = MIGRATION_TESTS
 
-BEFORE = ("accounts", "0038_delegations_review")
-AFTER = ("accounts", "0039_user_blocked_at")
+BEFORE = ("accounts", "0041_broadcast_scheduled")
+AFTER = ("accounts", "0042_user_blocked_at")
 
 
 @pytest.fixture(scope="module")

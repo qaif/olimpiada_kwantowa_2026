@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% load i18n static %}
+{% comment %}
+  Katalog absolwentów dla zalogowanych uczestników tego konkursu. Karty niosą wyłącznie to, co
+  absolwent sam wpisał, i osiągnięcia z ogłoszonych wyników (``alumni/_card.html``).
+{% endcomment %}
+{% block title %}{% translate "Katalog absolwentów" %}{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/alumni.css' %}">{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow"><a href="{% url 'web:alumni' %}">{% translate "Absolwenci" %}</a></span>
+  <h1>{% translate "Katalog absolwentów" %}</h1>
+  <p class="lead">{% translate "Absolwenci, którzy zgodzili się pokazać swój profil zalogowanym uczestnikom." %}</p>
+</div>
+
+<form method="get" class="form" role="search">
+  <label for="alumni-q">{% translate "Szukaj (imię, uczelnia, kierunek)" %}</label>
+  <input type="search" id="alumni-q" name="q" value="{{ query }}" maxlength="60">
+  <label for="alumni-interest">{% translate "Zainteresowanie" %}</label>
+  <select id="alumni-interest" name="interest">
+    <option value="">—</option>
+    {% for value, label in interests %}<option value="{{ value }}"{% if value == interest %} selected{% endif %}>{{ label }}</option>{% endfor %}
+  </select>
+  {% if mentoring_enabled %}
+    <label><input type="checkbox" name="mentors" value="1"{% if mentors_only %} checked{% endif %}> {% translate "Tylko mentorzy z wolnym miejscem" %}</label>
+  {% endif %}
+  <button type="submit" class="btn btn--small btn--secondary">{% translate "Szukaj" %}</button>
+</form>
+
+{% if cards %}
+  <div class="alumni-grid">
+    {% for card in cards %}{% include "alumni/_card.html" with public=False %}{% endfor %}
+  </div>
+  {% if page_obj.has_other_pages %}
+    <nav class="row" aria-label="{% translate 'Strony katalogu' %}">
+      {% if page_obj.has_previous %}<a class="btn btn--small btn--ghost" href="?page={{ page_obj.previous_page_number }}&amp;q={{ query|urlencode }}&amp;interest={{ interest }}{% if mentors_only %}&amp;mentors=1{% endif %}">{% translate "Poprzednia" %}</a>{% endif %}
+      {% if page_obj.has_next %}<a class="btn btn--small btn--ghost" href="?page={{ page_obj.next_page_number }}&amp;q={{ query|urlencode }}&amp;interest={{ interest }}{% if mentors_only %}&amp;mentors=1{% endif %}">{% translate "Następna" %}</a>{% endif %}
+    </nav>
+  {% endif %}
+{% else %}
+  <div class="empty"><span class="empty__title">{% translate "Nikogo tu jeszcze nie ma" %}</span></div>
+{% endif %}
+{% endblock %}

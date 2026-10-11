@@ -1,4 +1,4 @@
-{% load static i18n web_extras cms_extras wagtailimages_tags theme_tags %}<!doctype html>
+{% load static i18n web_extras cms_extras wagtailimages_tags theme_tags monitoring_tags staff_mfa email_delivery %}<!doctype html>
 {% comment %}
   ``lang`` idzie z aktywnego języka, a ``data-contrast`` pojawia się **tylko** w trybie wysokiego
   kontrastu (pusty atrybut znaczyłby „tryb domyślny”, a arkusz zaczepia się o samą jego obecność).
@@ -6,7 +6,7 @@
   arabski interfejs (I18N-01 § 4) odwraca cały układ jednym atrybutem, a arkusze trzymają się
   właściwości logicznych, więc żadna reguła nie musi pytać, w jakim języku jest strona.
 {% endcomment %}
-<html lang="{{ interface_language|default:'pl' }}" dir="{{ interface_direction|default:'ltr' }}"{% if interface_contrast %} data-contrast="{{ interface_contrast }}"{% endif %}{% if settings.cms.SiteSettings.ga_measurement_id %} data-ga-id="{{ settings.cms.SiteSettings.ga_measurement_id }}"{% endif %}{% theme_html_attrs %}>
+<html lang="{{ interface_language|default:'pl' }}" dir="{{ interface_direction|default:'ltr' }}"{% if interface_contrast %} data-contrast="{{ interface_contrast }}"{% endif %}{% if settings.cms.SiteSettings.ga_measurement_id and not no_analytics %} data-ga-id="{{ settings.cms.SiteSettings.ga_measurement_id }}"{% endif %}{% theme_html_attrs %}>
 <head>
   {% comment %}
     Tag Google (gtag.js) – dokładnie tam, gdzie każe go wkleić instrukcja Google Analytics:
@@ -18,13 +18,15 @@
     Oba znaczniki istnieją tylko z identyfikatorem wpisanym w /cms/ → Ustawienia → Dane serwisu
     → Analityka; identyfikator jedzie w ``data-ga-id`` na ``<html>``, bo skrypt czyta go zanim
     parser dojdzie do jakiegokolwiek ``<meta>``.
+    Widok może tag wyłączyć zmienną kontekstu ``no_analytics`` (strony weryfikacji dokumentów po
+    kodzie: ``/dyplomy/<kod>/``, ``/visa/verify/…`` – kod z papieru nie trafia do statystyk).
   {% endcomment %}
-  {% if settings.cms.SiteSettings.ga_measurement_id %}
+  {% if settings.cms.SiteSettings.ga_measurement_id and not no_analytics %}
     <!-- Google tag (gtag.js) -->
     <script async nonce="{{ request.csp_nonce }}" src="https://www.googletagmanager.com/gtag/js?id={{ settings.cms.SiteSettings.ga_measurement_id }}"></script>
     <script nonce="{{ request.csp_nonce }}" src="{% static 'js/analytics.js' %}"></script>
   {% endif %}
-  <meta charset="utf-8">
+  <meta charset="utf-8">{% error_tracking_loader %}
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}{{ settings.cms.SiteSettings.site_name }}{% endblock %}</title>
   {% comment %}
@@ -65,7 +67,7 @@
     Ten sam identyfikator jeszcze raz, jako ``<meta>``: czyta go pasek zgody (static/js/consent.js)
     i to jego obecność zamienia pasek informacyjny w pytanie o zgodę.
   {% endcomment %}
-  {% if settings.cms.SiteSettings.ga_measurement_id %}
+  {% if settings.cms.SiteSettings.ga_measurement_id and not no_analytics %}
     <meta name="ga-measurement-id" content="{{ settings.cms.SiteSettings.ga_measurement_id }}">
   {% endif %}
   {% comment %}
@@ -120,6 +122,12 @@
   {% endcomment %}
   <script defer nonce="{{ request.csp_nonce }}" src="{% static 'js/sponsor-slider.js' %}"></script>
   {% comment %}
+    Podpowiedź literówek w adresie e-mail (MAIL-02): „Czy chodziło Ci o …?” po opuszczeniu pola
+    z ``data-email-check`` (widżet ``apps.email_delivery.fields``). Rozstrzyga serwer – bez skryptu
+    to samo pytanie pada po wysłaniu formularza. Na stronie bez takiego pola skrypt nie robi nic.
+  {% endcomment %}
+  <script defer nonce="{{ request.csp_nonce }}" src="{% static 'email_delivery/email-check.js' %}"></script>
+  {% comment %}
     Miejsce na skrypty potrzebne tylko na niektórych stronach – dziś jest tu wyłącznie
     wyszukiwarka szkół w rejestracji (``js/school-picker.js``), która **nie** jest już komponentem
     Alpine'a i niczego spoza serwisu nie potrzebuje.
@@ -159,8 +167,13 @@
   Lista przychodzi z procesora kontekstu ``apps.cms.announcements.announcements`` (zapytanie
   z pamięcią podręczną na minutę, panel redakcyjny wyłączony). Pusta lista = fragment nie rysuje
   ani jednego znacznika.
+
+  Tuż za nim baner okresu przejściowego 2FA (SEC-01, apps/staff_mfa/templatetags/staff_mfa.py) –
+  w tej samej linii, bo bez wymogu oddaje pusty napis i strona zostaje bajt w bajt taka jak dotąd.
+  Tak samo baner odbić poczty (MAIL-02, apps/email_delivery/templatetags/email_delivery.py) – tylko
+  dla zalogowanego, którego adres twardo odbił.
 {% endcomment %}
-{% include "cms/_announcements.html" %}
+{% include "cms/_announcements.html" %}{% two_factor_grace_banner %}{% email_undeliverable_banner %}
 
 {% if messages %}
   <ul class="messages">
@@ -204,7 +217,7 @@
 {% with ga_id=settings.cms.SiteSettings.ga_measurement_id %}
 <div class="cookie-notice" data-cookie-notice role="region" aria-label="{% translate 'Informacja o plikach cookie' %}">
   <div class="cookie-notice__inner">
-    {% if ga_id %}
+    {% if ga_id and not no_analytics %}
       <p class="cookie-notice__text">{% blocktranslate trimmed %}Używamy plików cookie niezbędnych do działania serwisu oraz –
         za Twoją zgodą – Google Analytics do statystyk odwiedzin.{% endblocktranslate %}
         <a class="cookie-notice__link" href="{{ site_root|default:"/" }}dokumenty/cookies/">{% translate "Polityka plików cookie" %}</a></p>

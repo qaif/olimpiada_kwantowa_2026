@@ -44,7 +44,7 @@
   {{ form.non_field_errors }}
   <p>
     {{ form.enabled }} {{ form.enabled.label_tag }}
-    <span class="helptext">{{ form.enabled.help_text }}</span>
+    <span class="helptext" id="{{ form.enabled.auto_id }}_helptext">{{ form.enabled.help_text }}</span>
   </p>
   <fieldset>
     <legend>{{ form.peer_mode.label }}</legend>
@@ -71,11 +71,11 @@
   <p>
     {{ form.daily_new_conversations.errors }}
     {{ form.daily_new_conversations.label_tag }} {{ form.daily_new_conversations }}
-    <span class="helptext">{{ form.daily_new_conversations.help_text }}</span>
+    <span class="helptext" id="{{ form.daily_new_conversations.auto_id }}_helptext">{{ form.daily_new_conversations.help_text }}</span>
   </p>
   <p>
     {{ form.e2e_enabled }} {{ form.e2e_enabled.label_tag }}
-    <span class="helptext">{{ form.e2e_enabled.help_text }}</span>
+    <span class="helptext" id="{{ form.e2e_enabled.auto_id }}_helptext">{{ form.e2e_enabled.help_text }}</span>
   </p>
   <p class="actions">
     <button type="submit" class="btn btn--primary">Zapisz ustawienia</button>

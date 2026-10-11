@@ -40,6 +40,9 @@
       return;
     }
     var fields = form.querySelectorAll("[data-broadcast-param]");
+    /* „Eksportuj do Excela” (MSG-EXPORT-01): atrybut niesie kod grupy, której nie da się eksportować
+       (wklejona lista adresów) – tak jak mapa pól, wartość podaje serwer, a nie skrypt. */
+    var exportButton = form.querySelector("[data-broadcast-export]");
 
     /* Mapa to ``{grupa: [pola]}`` – grupa „wszyscy uczestnicy” ma samo pole edycji, grupa szkolna
        szkołę i pole edycji, grupa etapowa sam etap. */
@@ -47,6 +50,9 @@
       var wanted = map[select.value] || [];
       for (var index = 0; index < fields.length; index += 1) {
         fields[index].hidden = wanted.indexOf(fields[index].getAttribute("data-broadcast-param")) === -1;
+      }
+      if (exportButton) {
+        exportButton.hidden = select.value === exportButton.getAttribute("data-broadcast-export");
       }
     }
 

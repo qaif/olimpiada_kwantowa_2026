@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% comment %}
+  Zmiana hasła (AUTH-01b). Układ ``auth`` – jak zmiana adresu e-mail i reset hasła – bo to ten sam
+  rodzaj ekranu: jedna czynność na koncie, jedna karta, jedno wyjście z powrotem do ustawień.
+
+  Dwa warianty, rozstrzygane przez ``has_password`` z widoku:
+  - konto z hasłem – formularz: aktualne, nowe, powtórzone,
+  - konto bez hasła (logowanie Google/Facebook) – wyjaśnienie i przycisk wysyłający link na adres
+    konta. Formularza „ustaw hasło” bez dowodu dostępu do skrzynki tu nie ma i mieć nie może
+    (docs/tasks/AUTH-01b.md § 5).
+{% endcomment %}
+{% block title %}{% translate "Zmiana hasła" %}{% endblock %}
+{% block content %}
+<div class="auth">
+  <div class="card">
+    <h1>{% translate "Zmiana hasła" %}</h1>
+    {% if has_password %}
+      <p class="auth__intro">{% blocktranslate trimmed %}
+        Podaj aktualne hasło i dwa razy nowe. Po zmianie pozostaniesz zalogowany na tym urządzeniu,
+        a wszystkie inne urządzenia i aplikacje zostaną wylogowane. Na adres konta wyślemy
+        potwierdzenie.
+      {% endblocktranslate %}</p>
+      <form method="post" class="form">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit" class="btn btn--primary btn--block">{% translate "Zmień hasło" %}</button>
+      </form>
+      <p class="auth__alt">{% blocktranslate trimmed %}Nie pamiętasz aktualnego hasła?{% endblocktranslate %}
+        <a href="{% url 'web:password-reset' %}">{% translate "Ustaw nowe przez link e-mail" %}</a>.</p>
+    {% elif not can_send_link %}
+      {% comment %}
+        Konto bez hasła z adresem niepotwierdzonym (``reset_eligible`` fałsz – np. Facebook): link na
+        taki adres mógłby trafić do cudzej skrzynki, więc przycisku nie ma (decyzja z przeglądu #70).
+      {% endcomment %}
+      <p class="auth__intro">{% blocktranslate trimmed with address=request.user.email %}
+        To konto nie ma hasła – logujesz się przez zewnętrznego dostawcę (np. Google, Facebook) i tak
+        zostaje. Adres <strong>{{ address }}</strong> nie jest potwierdzony, więc nie wyślemy na niego
+        linku do ustawienia hasła. Hasło da się ustawić dopiero po potwierdzeniu adresu przez
+        dostawcę logowania; jeśli Twój dostawca adresu nie potwierdza, napisz do organizatora.
+      {% endblocktranslate %}</p>
+    {% else %}
+      <p class="auth__intro">{% blocktranslate trimmed with address=request.user.email %}
+        To konto nie ma hasła – logujesz się przez zewnętrznego dostawcę (np. Google). Jeśli chcesz
+        logować się także hasłem, wyślemy link do jego ustawienia na adres konta
+        (<strong>{{ address }}</strong>). Dopiero kliknięcie w link potwierdza, że skrzynka należy do Ciebie.
+      {% endblocktranslate %}</p>
+      <form method="post" action="{% url 'web:password-set-link' %}" class="form">
+        {% csrf_token %}
+        <button type="submit" class="btn btn--primary btn--block">{% translate "Wyślij mi link do ustawienia hasła" %}</button>
+      </form>
+    {% endif %}
+    <p class="auth__alt"><a href="{{ profile_url }}">{% translate "Wróć do ustawień konta" %}</a>.</p>
+  </div>
+</div>
+{% endblock %}

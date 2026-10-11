@@ -1,0 +1,127 @@
+# Arabic - tlumaczenie ekranow okien czasowych (docs/tasks/TZ-01.md).
+# Zrodlem (msgid) jest polski. UWAGA: tlumaczenie MASZYNOWE - do przegladu native speakera.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Olimpiada Kwantowa - time_windows\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-04 20:00+0200\n"
+"PO-Revision-Date: 2026-10-04 20:00+0200\n"
+"Last-Translator: Olimpiada Kwantowa\n"
+"Language-Team: Arabic\n"
+"Language: ar\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=6; plural=(n==0 ? 0 : n==1 ? 1 : n==2 ? 2 : n%100>=3 && n%100<=10 ? 3 : n%100>=11 ? 4 : 5);\n"
+
+#, python-format
+msgid "Twoje okno czasowe: %(label)s"
+msgstr "نافذتك الزمنية: %(label)s"
+
+#, python-format
+msgid "Twoje okno czasowe %(label)s: %(stage)s"
+msgstr "نافذتك الزمنية %(label)s: %(stage)s"
+
+msgid "Start"
+msgstr "البداية"
+
+msgid "Koniec"
+msgstr "النهاية"
+
+msgid "Strefa czasowa"
+msgstr "المنطقة الزمنية"
+
+msgid "Dodatkowy czas"
+msgstr "وقت إضافي"
+
+#, python-format
+msgid "%(minutes)s min"
+msgstr "%(minutes)s دقيقة"
+
+msgid "Zadania zobaczysz dopiero na starcie swojego okna. Do końca ostatniego okna wszystkich krajów nie rozmawiaj o zadaniach – forum i wiadomości są wtedy moderowane."
+msgstr "سترى المسائل فقط عند بدء نافذتك. لا تناقش المسائل حتى تنتهي النافذة الأخيرة لجميع الدول – يخضع المنتدى والرسائل للإشراف خلال تلك الفترة."
+
+msgid "Okna czasowe drużyny"
+msgstr "النوافذ الزمنية للفريق"
+
+msgid "Panel opiekuna drużyny"
+msgstr "لوحة قائد الفريق"
+
+#, python-format
+msgid "Okna czasowe: %(country)s"
+msgstr "النوافذ الزمنية: %(country)s"
+
+#, python-format
+msgid "Strefa czasowa kraju: %(zone)s. Każdy uczeń zaczyna etap na starcie okna przydzielonego przez organizatora i widzi godziny w swojej strefie."
+msgstr "المنطقة الزمنية للدولة: %(zone)s. يبدأ كل طالب المرحلة عند بدء النافذة التي يحددها المنظِّم ويرى الأوقات بمنطقته الزمنية."
+
+#, python-format
+msgid "Czas pracy: %(duration)s."
+msgstr "وقت العمل: %(duration)s."
+
+msgid "Okna uczniów w etapie"
+msgstr "نوافذ الطلاب في المرحلة"
+
+msgid "Uczeń"
+msgstr "الطالب"
+
+msgid "Okno"
+msgstr "النافذة"
+
+msgid "Start (strefa ucznia)"
+msgstr "البداية (منطقة الطالب الزمنية)"
+
+msgid "Koniec (strefa ucznia)"
+msgstr "النهاية (منطقة الطالب الزمنية)"
+
+msgid "Nie zgłoszono jeszcze żadnego ucznia."
+msgstr "لم يُسجَّل أي طالب بعد."
+
+msgid "Żaden etap tej edycji nie ma jeszcze okien czasowych."
+msgstr "لا توجد نوافذ زمنية بعد لأي مرحلة من هذه الدورة."
+
+msgid "Strefy czasowe uczniów"
+msgstr "المناطق الزمنية للطلاب"
+
+msgid "Strefa zmienia tylko to, jak uczeń widzi godziny w swoim panelu. Nie zmienia jego okna."
+msgstr "تغيّر المنطقة الزمنية فقط طريقة عرض الأوقات في لوحة الطالب، ولا تغيّر نافذته."
+
+msgid "jak kraj drużyny"
+msgstr "مثل دولة الفريق"
+
+msgid "Zapisz"
+msgstr "حفظ"
+
+msgid "Okna czasowe i strefy uczniów"
+msgstr "النوافذ الزمنية والمناطق الزمنية للطلاب"
+
+msgid "Wybierz strefę czasową z listy."
+msgstr "اختر منطقة زمنية من القائمة."
+
+msgid "Strefa czasowa ucznia została zapisana."
+msgstr "تم حفظ المنطقة الزمنية للطالب."
+
+#, python-format
+msgid "Wysłano (%(zone)s)"
+msgstr "أُرسل (%(zone)s)"
+
+#, python-format
+msgid "Złożona (%(zone)s)"
+msgstr "قُدِّمت (%(zone)s)"
+
+#, python-format
+msgid "Data (%(zone)s)"
+msgstr "التاريخ (%(zone)s)"
+
+#, python-format
+msgid "Terminy edycji. Wszystkie godziny: %(zone)s."
+msgstr "مواعيد الدورة. جميع الأوقات: %(zone)s."
+
+#, python-format
+msgid "Wszystkie godziny: %(zone)s."
+msgstr "جميع الأوقات: %(zone)s."
+
+#, python-format
+msgid "Pokój otwiera się %(opens)s (%(zone)s). Wchodzi się wyłącznie tym przyciskiem – adresu pokoju nie da się podać przez telefon ani przesłać dalej."
+msgstr "تُفتح الغرفة في %(opens)s (%(zone)s). يتم الدخول بهذا الزر فقط – لا يمكن إعطاء عنوان الغرفة عبر الهاتف أو إعادة توجيهه."

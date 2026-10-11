@@ -1,0 +1,47 @@
+# Doręczalność poczty (MAIL-02) – katalog aplikacji apps.email_delivery.
+# Angielski przejrzany ręcznie; pozostałe języki maszynowe (do przeglądu native speakerów, I18N-01 § 8).
+msgid ""
+msgstr ""
+"Project-Id-Version: olimpiada\n"
+"Language: pt\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#, python-format
+msgid "Czy chodziło Ci o %s?"
+msgstr "Você quis dizer %s?"
+
+#, python-format
+msgid "Użyj %s"
+msgstr "Usar %s"
+
+#, python-format
+msgid "Sprawdź adres – czy chodziło Ci o %(suggestion)s? Zaznacz poprawkę poniżej albo wyślij formularz jeszcze raz, żeby zostawić adres bez zmian."
+msgstr "Verifique o endereço – você quis dizer %(suggestion)s? Marque a correção abaixo ou envie o formulário novamente para manter o endereço como está."
+
+#, python-format
+msgid "Domena %(domain)s nie istnieje albo nie przyjmuje poczty. Sprawdź adres."
+msgstr "O domínio %(domain)s não existe ou não aceita e-mails. Verifique o endereço."
+
+#, python-format
+msgid "Domena %(domain)s nie istnieje albo nie przyjmuje poczty. Czy chodziło Ci o %(suggestion)s?"
+msgstr "O domínio %(domain)s não existe ou não aceita e-mails. Você quis dizer %(suggestion)s?"
+
+#, python-format
+msgid "Użyj adresu <strong>%(address)s</strong>"
+msgstr "Usar <strong>%(address)s</strong>"
+
+#, python-format
+msgid "Nie możemy dostarczyć poczty na adres %(email)s – serwer odbiorcy odpowiada, że taka skrzynka albo domena nie istnieje. Nie dostaniesz od nas listów, dopóki adres nie zostanie poprawiony."
+msgstr "Não conseguimos entregar e-mails em %(email)s – o servidor do destinatário informa que esta caixa de correio ou domínio não existe. Você não receberá mensagens nossas até que o endereço seja corrigido."
+
+msgid "Zmień adres e-mail"
+msgstr "Alterar endereço de e-mail"
+
+msgid "Mój adres jest poprawny"
+msgstr "Meu endereço está correto"
+
+msgid "Dziękujemy. Wznowiliśmy wysyłkę na Twój adres – jeśli list znów nie dotrze, baner wróci."
+msgstr "Obrigado. Retomamos o envio para o seu endereço – se uma mensagem falhar novamente, este aviso voltará."

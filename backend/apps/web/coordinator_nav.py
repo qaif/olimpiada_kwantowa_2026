@@ -303,6 +303,22 @@ def stage_items(stages: list, competition=None) -> tuple[Item, ...]:
                     ("coordinator-stage-attendance",),
                 ),
             )
+        if (
+            competition is not None
+            and competition.has_feature("stage_time_windows")
+            and not stage.is_interview
+            and not stage.is_training
+        ):
+            # Okna czasowe etapu według stref (TZ-01). Dziecko etapu, bo plan okien jest jeden na
+            # etap; rozmowa i trening okien nie mają (ekran oddaje dla nich 404).
+            children += (
+                Item(
+                    "Okna czasowe",
+                    ("web:coordinator-stage-windows",),
+                    (stage.pk,),
+                    ("coordinator-stage-windows", "coordinator-stage-windows-"),
+                ),
+            )
         items.append(
             Item(
                 stage.display_name,
@@ -385,12 +401,47 @@ def groups(stages: list, competition=None) -> list[Group]:
                 match=("coordinator-ai-grading", "coordinator-ai-"),
             ),
         )
+    if competition is not None and competition.has_feature("quantum_notebooks"):
+        # Notatniki kwantowe (QC-01): testy i wyniki sprawdzania automatycznego – w „Ocenianiu”, obok
+        # oceny AI, bo to też podpowiedź punktów dla komisji. Przedrostek łapie ustawienia zadania,
+        # wyniki i szczegół przebiegu.
+        quality += (
+            Item(
+                "Notatniki kwantowe",
+                ("web:coordinator-notebooks",),
+                match=("coordinator-notebooks", "coordinator-notebook-"),
+            ),
+        )
     reports: tuple[Item, ...] = (
         Item(
             "Eksport danych", ("web:coordinator-export",), match=("coordinator-export", "coordinator-export-")
         ),
         Item("Audyt", ("web:coordinator-audit",), match=("coordinator-audit",)),
     )
+    from apps.accounts.twofactor import is_enabled as two_factor_enabled
+
+    if two_factor_enabled():
+        # SEC-01: polityka 2FA konkursu i stan personelu. Za wyłącznikiem instalacji, a nie flagą
+        # konkursu – przy ``TWO_FACTOR_ENABLED=0`` menu jest bajt w bajt dzisiejsze.
+        reports += (
+            Item(
+                "Bezpieczeństwo logowania",
+                ("web:coordinator-two-factor",),
+                match=("coordinator-two-factor",),
+            ),
+        )
+    from apps.email_delivery.services import tracking_enabled as bounce_tracking_enabled
+
+    if bounce_tracking_enabled():
+        # MAIL-02: konta z adresem, który twardo odbił. Za przełącznikiem instalacji, jak SEC-01 –
+        # przy ``EMAIL_BOUNCE_TRACKING=0`` menu jest bajt w bajt dzisiejsze.
+        reports += (
+            Item(
+                "Adresy niedoręczalne",
+                ("web:coordinator-undeliverable-emails",),
+                match=("coordinator-undeliverable-emails", "coordinator-undeliverable-email-clear"),
+            ),
+        )
     settings_items: tuple[Item, ...] = ()
     if competition is not None and competition.has_feature("competition_settings_page"):
         # Pierwsza pozycja sekcji, bo opisuje **konkurs**, a reszta sekcji – jego rocznik.
@@ -410,7 +461,12 @@ def groups(stages: list, competition=None) -> list[Group]:
         # **konkursu**, nie rocznika. Za flagą z tego samego powodu: konkurs z domyślnymi flagami
         # ma menu bajt w bajt takie jak dotąd. Katalog motywów platformy (superkoordynator) nie ma
         # tu pozycji – prowadzi do niego odnośnik z tego ekranu, widoczny wyłącznie operatorowi.
-        settings_items += (Item("Motyw serwisu", ("web:coordinator-theme",), match=("coordinator-theme",)),)
+        # ``coordinator-theme-`` – podstrony menu serwisu i dostosowania motywu (THEME-02).
+        settings_items += (
+            Item(
+                "Motyw serwisu", ("web:coordinator-theme",), match=("coordinator-theme", "coordinator-theme-")
+            ),
+        )
     if competition is not None and competition.has_feature("competition_creation"):
         # Zakładanie kolejnego konkursu w subdomenie platformy. **Zaraz pod** „Ustawieniami
         # konkursu”, bo obie pozycje dotyczą konkursu jako całości, a nie jego rocznika — i bo
@@ -556,6 +612,12 @@ def groups(stages: list, competition=None) -> list[Group]:
                 match=("coordinator-venues", "coordinator-venues-", "coordinator-venue"),
             ),
         )
+    if competition is not None and len(competition.ui_languages) > 1:
+        # Tłumacze interfejsu (zadanie L10N-01) – wyłącznie w konkursie z więcej niż jednym
+        # językiem interfejsu, tak samo jak bramka ekranu; Konkurs #1 (sam polski) ma menu bez zmian.
+        settings_items += (
+            Item("Tłumacze interfejsu", ("web:coordinator-translators",), match=("coordinator-translators",)),
+        )
     if stage is not None:
         reports += (
             Item(
@@ -611,6 +673,17 @@ def groups(stages: list, competition=None) -> list[Group]:
             match=("coordinator-certificate-templates", "coordinator-certificate-template-"),
         ),
     )
+    if competition is not None and competition.has_feature("medals"):
+        # Medale olimpiady międzynarodowej (MED-01) – w „Raportach” obok dyplomów, bo to z nich
+        # wychodzą dyplomy medalowe. Bramka ta sama, co w widoku (flaga ``medals``): Olimpiada
+        # Kwantowa ma menu co do bajtu takie, jak przed tą zmianą.
+        reports += (
+            Item(
+                "Medale",
+                ("web:coordinator-medals",),
+                match=("coordinator-medals", "coordinator-medal", "coordinator-medal-"),
+            ),
+        )
     if competition is not None and competition.has_feature("document_templates"):
         # Teksty dokumentów (etap 2 § 2.2, T13) – **zaraz za** „Dyplomami: szablony”, bo obie
         # pozycje dotyczą tego samego papieru i różnią się tym, czego dotyczą: tamta wyglądem
@@ -640,6 +713,12 @@ def groups(stages: list, competition=None) -> list[Group]:
                 ("web:coordinator-fees",),
                 match=("coordinator-fees", "coordinator-fees-", "coordinator-fee-"),
             ),
+            # Płatności online (PAY-01): zamówienia, faktury, Stripe/Przelewy24, zwroty – ta sama flaga.
+            Item(
+                "Płatności",
+                ("web:coordinator-payments",),
+                match=("coordinator-payments", "coordinator-payments-"),
+            ),
         )
     reports += (
         Item(
@@ -657,6 +736,16 @@ def groups(stages: list, competition=None) -> list[Group]:
                 "Materiały z warsztatów",
                 ("web:coordinator-workshop-materials",),
                 match=("coordinator-workshop-materials", "coordinator-workshop-material-"),
+            ),
+        )
+    if competition is not None and competition.has_feature("school_statistics"):
+        # Statystyki szkół (STAT-01) – raport, więc w „Raportach”, przed zaświadczeniami opiekunów.
+        # Bramka ta sama, co w widoku: przy wyłączonej fladze ekran oddaje 404.
+        reports += (
+            Item(
+                "Statystyki szkół",
+                ("web:coordinator-school-stats",),
+                match=("coordinator-school-stats", "coordinator-school-stats-"),
             ),
         )
     reports += (
@@ -697,6 +786,13 @@ def groups(stages: list, competition=None) -> list[Group]:
             match=("coordinator-chat", "coordinator-chat-"),
             badge="chat",
         ),
+        # Ogłoszenia nad skrzynką Wiadomości uczestników (CZ-ANN-01, prośba organizatora z 8.10.2026).
+        # Bez flagi i także przy wyłączonych Wiadomościach – pulpit uczestnika pokazuje je zawsze.
+        Item(
+            "Ogłoszenia w Wiadomościach",
+            ("web:coordinator-inbox-announcements",),
+            match=("coordinator-inbox-announcements", "coordinator-inbox-announcement-"),
+        ),
     )
     if competition is not None and competition.has_feature("participant_forum"):
         # Moderacja forum (prośba organizatora z 21.09.2026). W „Komunikacji”, bo to jest rozmowa
@@ -727,6 +823,18 @@ def groups(stages: list, competition=None) -> list[Group]:
                 match=("coordinator-video-rooms", "coordinator-video-room-", "coordinator-video-issuer"),
             ),
         )
+    if competition is not None and competition.has_feature("webinars"):
+        # Webinary w LiveKit (zadanie WEB-01). Bramką jest **flaga konkursu**, a nie konfiguracja
+        # serwera LiveKit: koordynator konkursu z flagą ma zobaczyć ekran także wtedy, gdy operator
+        # jeszcze nie wpisał ``LIVEKIT_URL`` – ekran mówi wtedy wprost, czego brakuje, zamiast
+        # funkcji, która po cichu nie istnieje. Bez flagi menu jest co do bajtu takie, jak dotąd.
+        communication += (
+            Item(
+                "Webinary",
+                ("web:coordinator-webinars",),
+                match=("coordinator-webinars", "coordinator-webinar", "coordinator-webinar-"),
+            ),
+        )
     people_items: tuple[Item, ...] = ()
     if competition is not None and competition.uses_delegations:
         # Delegacje krajowe (DEL-01) – **na początku** dołożonych pozycji sekcji, bo w konkursie
@@ -745,6 +853,16 @@ def groups(stages: list, competition=None) -> list[Group]:
                 ),
             ),
         )
+        if competition.has_feature("onsite_logistics"):
+            # Logistyka finału dla delegacji (LOG-01) – zaraz pod „Delegacjami”, bo dotyczy tych
+            # samych krajów. Bramka ta sama, co w widoku (``delegation_logistics.models.enabled``).
+            people_items += (
+                Item(
+                    "Logistyka finału",
+                    ("web:coordinator-onsite",),
+                    match=("coordinator-onsite", "coordinator-onsite-", "onsite-checkin", "onsite-checkin-"),
+                ),
+            )
     if competition is not None and competition.has_feature("team_entries"):
         # Drużyny (§ 1.2.3, T34) – **na końcu** sekcji „Uczestnicy i konta”, bo cztery pozycje
         # przed nią są dzisiejszym menu i mają zostać w tej kolejności co do bajtu (§ 2.1 p. 1).
@@ -767,6 +885,18 @@ def groups(stages: list, competition=None) -> list[Group]:
                 "Status ucznia",
                 ("web:coordinator-student-status",),
                 match=("coordinator-student-status", "coordinator-student-status-"),
+            ),
+        )
+    if competition is not None and competition.has_feature("alumni"):
+        # Sieć absolwentów (ALUM-01) – w „Uczestnikach i kontach”, bo to są ludzie (byli uczestnicy)
+        # i nadzór nad relacjami mentorskimi, na końcu sekcji z tego samego powodu, co pozycje
+        # wyżej. Bez odznaki (§ 2.2): zgłoszenie problemu z mentoringiem idzie do koordynatorów
+        # listem od razu, więc ekran nie jest kolejką, o której trzeba pamiętać.
+        people_items += (
+            Item(
+                "Absolwenci",
+                ("web:coordinator-alumni",),
+                match=("coordinator-alumni", "coordinator-alumni-"),
             ),
         )
     stage_group: tuple[Item, ...] = stage_items(stages, competition)
@@ -796,6 +926,31 @@ def groups(stages: list, competition=None) -> list[Group]:
                     ),
                 ),
             )
+    if competition is not None and competition.uses_delegations:
+        # Tłumaczenia zadań przez delegacje (TR-01) – na końcu sekcji „Etapy”, bo okno tłumaczeń
+        # jest terminem etapu. Ta sama bramka, co w widoku: poza trybem delegacji ekran oddaje 404.
+        stage_group += (
+            Item(
+                "Tłumaczenia zadań",
+                ("web:coordinator-translations",),
+                match=(
+                    "coordinator-translations",
+                    "coordinator-translations-",
+                    "coordinator-translation",
+                    "coordinator-translation-",
+                ),
+            ),
+        )
+    if competition is not None and competition.has_feature("proctoring"):
+        # Nadzór zdalny etapów online (zadanie PROC-01) – na końcu sekcji „Etapy”, bo ustawia się go
+        # per etap. Bramką jest flaga konkursu (jak przy webinarach); bez niej menu bez zmian.
+        stage_group += (
+            Item(
+                "Nadzór zdalny",
+                ("web:coordinator-proctoring",),
+                match=("coordinator-proctoring", "coordinator-proctoring-", "proctoring-"),
+            ),
+        )
     return [
         Group("Pulpit", (Item("Co wymaga uwagi", ("web:coordinator",), match=("coordinator",)),)),
         Group("Etapy", stage_group),
@@ -811,6 +966,12 @@ def groups(stages: list, competition=None) -> list[Group]:
                     "Wszystkie konta",
                     ("web:coordinator-accounts",),
                     match=("coordinator-accounts", "coordinator-account-"),
+                ),
+                # ACC-DUP-01: ta sama osoba z kilkoma kontami uczestnika (literówka w adresie).
+                Item(
+                    "Zdublowane konta",
+                    ("web:coordinator-duplicates",),
+                    match=("coordinator-duplicates", "coordinator-duplicates-"),
                 ),
                 Item("Opiekunowie szkolni", ("web:coordinator-accounts",), query="role=supervisor"),
                 Item(

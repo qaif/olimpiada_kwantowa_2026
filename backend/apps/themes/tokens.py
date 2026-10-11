@@ -289,11 +289,20 @@ class TokenSet:
     dark: dict[str, str] = field(default_factory=dict)
     other: dict[str, str] = field(default_factory=dict)
     dark_other: dict[str, str] = field(default_factory=dict)
+    #: Pary kontrastu zadeklarowane przez motyw (grupa ``contrast``): ``[pierwszy plan, tło, próg]``;
+    #: element pary to nazwa tokenu albo kolor ``#hex`` (THEME-02, przegląd M2).
+    contrast: list[list] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
 
     def as_json(self) -> dict:
-        return {"light": self.light, "dark": self.dark, "other": self.other, "dark_other": self.dark_other}
+        return {
+            "light": self.light,
+            "dark": self.dark,
+            "other": self.other,
+            "dark_other": self.dark_other,
+            "contrast": self.contrast,
+        }
 
     @classmethod
     def from_json(cls, data: dict) -> TokenSet:
@@ -302,6 +311,7 @@ class TokenSet:
             dark=dict(data.get("dark") or {}),
             other=dict(data.get("other") or {}),
             dark_other=dict(data.get("dark_other") or {}),
+            contrast=[list(pair) for pair in data.get("contrast") or []],
         )
 
 
@@ -329,6 +339,35 @@ def _apply_aliases(values: dict[str, str]) -> None:
             values[canonical] = values[alias]
 
 
+MAX_CONTRAST_PAIRS = 40
+
+
+def _contrast_pairs(entries, errors: list[str]) -> list[list]:
+    """Grupa ``contrast``: ``[["on-x", "x"], ["#ffffff", "primary-fill", 4.5], …]`` (próg 1–21)."""
+    if not isinstance(entries, list) or len(entries) > MAX_CONTRAST_PAIRS:
+        errors.append(
+            f"tokens.json: „contrast” – lista do {MAX_CONTRAST_PAIRS} par [pierwszy plan, tło, próg?]."
+        )
+        return []
+    pairs = []
+    for pair in entries:
+        if not isinstance(pair, list) or len(pair) not in (2, 3):
+            errors.append(
+                f"tokens.json: para kontrastu {pair!r} – oczekiwane [pierwszy plan, tło] albo z progiem."
+            )
+            continue
+        fg, bg = pair[0], pair[1]
+        threshold = pair[2] if len(pair) == 3 else MIN_CONTRAST
+        if not all(isinstance(x, str) and (TOKEN_NAME.match(x) or HEX.match(x)) for x in (fg, bg)):
+            errors.append(f"tokens.json: para kontrastu {pair!r} – nazwa tokenu albo kolor #hex.")
+            continue
+        if isinstance(threshold, bool) or not isinstance(threshold, (int, float)) or not 1 <= threshold <= 21:
+            errors.append(f"tokens.json: próg pary kontrastu {pair!r} – liczba od 1 do 21.")
+            continue
+        pairs.append([fg, bg, float(threshold)])
+    return pairs
+
+
 def parse_tokens(raw: bytes) -> TokenSet:
     """Czyta i waliduje ``tokens.json``. Błąd = token odrzucony (i wpis w ``errors``)."""
     result = TokenSet()
@@ -345,6 +384,9 @@ def parse_tokens(raw: bytes) -> TokenSet:
         return result
     for group, entries in data.items():
         if group in ("schema", "$schema", "comment", "_comment"):
+            continue
+        if group == "contrast":
+            result.contrast = _contrast_pairs(entries, result.errors)
             continue
         if group not in COLOR_GROUPS + VALUE_GROUPS:
             result.warnings.append(f"tokens.json: nieznana grupa „{group}” – pominięta.")

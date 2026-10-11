@@ -694,7 +694,7 @@ Opis pochodzi z ich zamówienia, **nie z działającego kodu** — zanim się na
 faktycznie trafiło do repozytorium, i uzupełnij ten rozdział o prawdziwe polecenia i adresy.
 
 **Skrypt kopii zapasowej `scripts/backup.sh`** – już działa (cron o 3:15, wysyłka poza serwer na S3
-albo Dysk Google, cotygodniowy test odtwarzania); opis: `OPERACJE.md` § 1 i § 6.4 wyżej. Zasada
+albo Dysk Google, conocny test odtwarzania – `OPERACJE.md` § 43); opis: `OPERACJE.md` § 1 i § 6.4 wyżej. Zasada
 zostaje: kopia niesprawdzona próbnym odtworzeniem nie jest kopią.
 
 **Monitoring `deploy/monitoring` (w przygotowaniu).** Ma dołożyć do compose gotowy zestaw zbierający
@@ -703,11 +703,10 @@ usług i wolne miejsce na wolumenach) oraz podpiąć się pod istniejące `/heal
 Dopóki go nie ma, zewnętrzny monitor konfiguruje się adresem `/status.json` i czyta pole `status`;
 kod odpowiedzi jest tam **zawsze 200**, więc alert trzeba oprzeć na treści, a nie na kodzie HTTP.
 
-**Uwierzytelnianie dwuskładnikowe `apps/accounts/twofactor.py` (w przygotowaniu).** Ma dołożyć drugi
-składnik (TOTP) dla kont funkcyjnych — koordynatora i komitetu — czyli dla tych, które widzą dane
-osobowe uczestników i mogą zmieniać oceny. Do czasu jego wprowadzenia jedynym zabezpieczeniem tych kont
-jest hasło i skrzynka pocztowa, więc warto wymusić na nich długie, unikatowe hasła i trzymać liczbę kont
-koordynatora przy minimum.
+**Uwierzytelnianie dwuskładnikowe `apps/accounts/twofactor.py` + `apps/staff_mfa`.** Drugi składnik
+(TOTP) za wyłącznikiem `TWO_FACTOR_ENABLED`; od SEC-01 wymagany od personelu (superkoordynator,
+`/admin/`, personel konkursów z danymi wrażliwymi) z okresem przejściowym, blokadą po złych kodach
+i resetem konta personelu wyłącznie przez superkoordynatora – `docs/OPERACJE.md` § 5 i § 41.
 
 **Integracje `apps/integrations` (w przygotowaniu).** Aplikacja na wymianę danych z systemami zewnętrznymi
 organizatora. Z punktu widzenia utrzymania oznacza to nowe sekrety w `.env`, prawdopodobnie nowe hosty

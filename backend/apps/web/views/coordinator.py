@@ -66,6 +66,7 @@ from apps.grading.services import (
     stage_problem_rules,
     unassign_reviewer,
 )
+from apps.mail_domains.services import sender_warnings
 from apps.results.models import ResultsPublication
 from apps.results.services import compute_stage_results, publish_results
 from apps.student_status.models import enabled as student_status_enabled
@@ -154,6 +155,9 @@ def dashboard_context(competition, extra: dict | None = None) -> dict:
         # szablon rysuje dzisiejszy odnośnik co do znaku. Odczyt bez zapytania – flaga jest polem
         # wiersza konkursu, który jest już w pamięci.
         "zip_scope_choice": student_status_enabled(competition),
+        # Nadawca listów spoza relaya albo bez zweryfikowanego DNS (MAIL-01) – bez zapytań, gdy
+        # konkurs wysyła od nadawcy instalacji.
+        "sender_warnings": sender_warnings(competition),
     }
     context.update(extra or {})
     return context
@@ -1060,11 +1064,13 @@ class ActivateAccountView(CoordinatorActionView):
             )
         if pending_invitation(user) is not None:
             # Konto z zaproszenia (import, delegacja) nie ma hasła ani zgód – ręczna aktywacja
-            # wpuszczałaby uczestnika bez regulaminu, RODO i zgody opiekuna (S6). Uruchamia je uczeń.
+            # wpuszczałaby uczestnika bez regulaminu, RODO i zgody opiekuna (S6, AUTH-01a H1).
+            # Uruchamia je uczeń na ekranie zaproszenia. Kod ``INVITATION_PENDING`` – ten sam, co
+            # przy zaznaczeniu „aktywne” w edycji konta (``profile.update_account_by_coordinator``).
             raise DomainError(
-                "To konto powstało z zaproszenia – uruchamia je uczeń, ustawiając hasło i składając "
-                "zgody. Wyślij zaproszenie ponownie.",
-                "INVITATION_REQUIRED",
+                "To konto powstało z zaproszenia – uczeń uruchamia je sam linkiem z listu (zgody, hasło). "
+                "Zamiast aktywacji wyślij zaproszenie ponownie.",
+                "INVITATION_PENDING",
             )
         mark_activated(user, actor=request.user, action="account.activated_by_coordinator", request=request)
         return "Konto zostało aktywowane ręcznie."
@@ -1088,8 +1094,9 @@ class ResendActivationView(CoordinatorActionView):
                 "To konto jest zablokowane – link aktywacyjny by je odblokował, więc nie wysyłamy go.",
                 "ACCOUNT_BLOCKED",
             )
-        # Konto z zaproszenia dostaje **zaproszenie**, a nie link aktywacyjny (S6) – bez karencji,
-        # bo koordynator ponawia list zwykle w trakcie rozmowy z uczniem.
+        # Konto z zaproszenia dostaje **zaproszenie**, a nie link aktywacyjny (S6, AUTH-01a) – bez
+        # karencji, bo koordynator ponawia list zwykle w trakcie rozmowy z uczniem; komunikat mówi,
+        # co naprawdę wyszło.
         sent = resend_for_user(user, request=request, actor=request.user, enforce_cooldown=False)
         if sent is None:
             raise DomainError(

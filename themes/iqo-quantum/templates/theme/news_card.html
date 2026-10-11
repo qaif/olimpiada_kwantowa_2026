@@ -1,0 +1,12 @@
+{% load i18n wagtailcore_tags %}{% comment %}
+  IQO Quantum 1.1.0 – slot ``theme/news_card.html`` (karta na liście aktualności, zmienna ``item``).
+
+  Cała karta jest celem kliknięcia: odnośnik w tytule rozciąga się na kartę (``::after`` w arkuszu),
+  więc „Czytaj dalej” jest już tylko podpisem (``aria-hidden``) – czytnik ekranu nie słyszy dwóch
+  odnośników pod ten sam adres. U góry pas prążków interferencyjnych (``::before`` w arkuszu, maska z ``assets/motifs``).
+{% endcomment %}<article class="card news-card iqo-news">
+  <p class="iqo-news__meta"><time class="news-card__date" datetime="{{ item.date|date:'Y-m-d' }}">{{ item.date }}</time></p>
+  <h2 class="iqo-news__title"><a class="iqo-news__link" href="{% pageurl item %}">{{ item.title }}</a></h2>
+  {% if item.lead %}<p class="iqo-news__lead">{{ item.lead }}</p>{% endif %}
+  <p class="card__foot iqo-news__more" aria-hidden="true"><span>{% translate "Czytaj dalej" %}</span><span class="iqo-icon iqo-icon--arrow"></span></p>
+</article>

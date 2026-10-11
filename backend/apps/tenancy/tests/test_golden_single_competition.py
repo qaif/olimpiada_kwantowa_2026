@@ -130,6 +130,9 @@ def test_status_json_keeps_its_contract(anon, golden):
         # Czy ostatnia kopia wyjechała poza serwer (S3 / Dysk Google) – wartość logiczna, bez dat
         # (apps/core/status.py, ``as_json``).
         "backup_offsite",
+        # Poziom conocnego testu odtwarzania kopii (``ok|failed|stale|unknown``, OPS-01) – bez dat
+        # (apps/core/restore_check.py, ``level``).
+        "backup_restore_check",
     }
     assert payload["edition"] == golden.edition.year_label
     # Konkurs #1 jest skonfigurowany, więc kreatora nie ma – to ta sama odpowiedź, co 404 na
@@ -308,6 +311,7 @@ EXPECTED_STATUS_KEYS = (
     "setup_pending",
     "db_connections",
     "backup_offsite",
+    "backup_restore_check",
 )
 
 

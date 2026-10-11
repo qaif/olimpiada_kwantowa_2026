@@ -1,0 +1,20 @@
+# Russian – ogłoszenia organizatora w Wiadomościach (docs/tasks/CZ-ANN-01.md), katalog aplikacji apps/chat.
+# Źródłem (msgid) jest polski. Tłumaczenie MASZYNOWE – do przeglądu native speakera.
+# Pozostałe napisy Wiadomości (CZ-01) leżą we wspólnym backend/locale.
+msgid ""
+msgstr ""
+"Project-Id-Version: Olimpiada Kwantowa - chat\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-08 12:00+0200\n"
+"PO-Revision-Date: 2026-10-08 12:00+0200\n"
+"Last-Translator: Olimpiada Kwantowa\n"
+"Language-Team: Russian\n"
+"Language: ru\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
+
+#: templates/web/chat/_announcements.html
+msgid "Ogłoszenia organizatora"
+msgstr "Объявления организатора"

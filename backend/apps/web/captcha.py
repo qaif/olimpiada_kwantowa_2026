@@ -218,6 +218,28 @@ class CaptchaFormMixin(forms.Form):
                 "invalid": gettext("Wynik działania jest niepoprawny. Spróbuj z nowym obrazkiem.")
             },
         )
+        # Podpowiedź (z adresem dla osób, które obrazka nie odczytają) opisuje pole wpisu od
+        # początku, nie dopiero po błędzie – ``full_clean`` dokłada do niej identyfikator błędu.
+        captcha_id = self[CAPTCHA_FIELD_NAME].auto_id
+        if captcha_id:
+            self.fields[CAPTCHA_FIELD_NAME].widget.attrs["aria-describedby"] = f"{captcha_id}_helptext"
+
+    def full_clean(self):
+        """Po walidacji łączy pole CAPTCHA z podpowiedzią i błędem (``aria-describedby``).
+
+        Django dokleja ``aria-describedby``/``aria-invalid`` sam, ale tylko polom z jednym
+        widżetem – CAPTCHA to ``MultiWidget`` (klucz ukryty + pole tekstowe), więc pole wpisu
+        zostawało bez opisu: czytnik ekranu ogłaszał „nieprawidłowe” bez powodu i bez
+        instrukcji, że obrazek ma alternatywę (adres organizatora). Audyt A11Y-01.
+        """
+        super().full_clean()
+        auto_id = self[CAPTCHA_FIELD_NAME].auto_id
+        if not auto_id:
+            return
+        ids = [f"{auto_id}_helptext"]
+        if CAPTCHA_FIELD_NAME in self.errors:
+            ids.append(f"{auto_id}_error")
+        self.fields[CAPTCHA_FIELD_NAME].widget.attrs["aria-describedby"] = " ".join(ids)
 
     @property
     def antispam_field_names(self) -> tuple[str, ...]:

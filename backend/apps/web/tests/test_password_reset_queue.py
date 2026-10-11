@@ -79,8 +79,12 @@ def test_the_request_enqueues_the_task_with_the_rendered_message(
     assert subject == "Reset hasła – Olimpiada Kwantowa"
     assert RESET_LINK.search(body), body
     assert recipients == [participant.user.email]
-    # ``None`` = nadawca instalacji (``DEFAULT_FROM_EMAIL``) – dokładnie to, co podawał widok Django.
-    assert from_email is None
+    # Nadawca konkursu żądania (AUTH-01a) – dla Konkursu #1 ``Competition.from_email`` z migracji,
+    # a przy pustym polu ``None``, czyli nadawca instalacji (``DEFAULT_FROM_EMAIL``).
+    from apps.core.tasks import mail_from
+    from apps.tenancy.models import Competition
+
+    assert from_email == mail_from(Competition.objects.get(site__is_default_site=True))
     html = kwargs["html_message"]
     assert isinstance(html, str) and "<" in html
     # Argumenty jadą przez JSON brokera – wyłącznie zwykłe napisy, bez ``SafeString`` i obiektów.

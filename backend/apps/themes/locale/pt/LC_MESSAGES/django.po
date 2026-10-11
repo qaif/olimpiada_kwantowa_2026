@@ -1,0 +1,14 @@
+# Tłumaczenia aplikacji ``apps.themes`` – napisy stron publicznych z szablonów paczek motywów
+# (THEME-02: „Menu” w nagłówku IQO Quantum 1.1.0). Napisy panelu koordynatora – tylko w katalogu en.
+msgid ""
+msgstr ""
+"Project-Id-Version: olimpiada\n"
+"Language: pt\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#. Przycisk rozwijający menu serwisu na wąskim ekranie (szablony paczek motywów).
+msgid "Menu"
+msgstr "Menu"

@@ -57,12 +57,48 @@ MINIO_ROOT_PASSWORD      jw.
 POSTGRES_PASSWORD        hasło jest już w DATABASE_URL (x-app-env)
 COORDINATOR_EMAIL        podaje wyłącznie docker compose exec -e (scripts/deploy.sh, krok 6/8)
 COORDINATOR_PASSWORD     jw.
+RESTORE_CHECK_ISOLATED   test odtwarzania kopii (OPS-01): scripts/backup_verify.sh dokłada go do środowiska kontenera sprawdzeń
+RESTORE_CHECK_MAX_BACKUP_AGE_HOURS   jw. – progi z .env serwera przekazuje backup_verify.sh
+RESTORE_CHECK_MIN_RATIO  jw.
+RESTORE_CHECK_MAX_RATIO  jw.
+RESTORE_CHECK_SLACK_ROWS jw.
+RESTORE_CHECK_MEDIA_SAMPLE   jw.
+RESTORE_CHECK_MEDIA_MAX_MISSING_RATIO   jw.
+ERRORS_PROXY             czyta wyłącznie apps/monitoring/uptime.py – usługa uptime ma własną, jawną listę
+UPTIME_URLS              jw. (UPTIME_* – środowisko usługi uptime, bez sekretów aplikacji)
+UPTIME_EXTRA_URLS        jw.
+UPTIME_NOTEBOOK_LAB      jw.
+UPTIME_ALERT_EMAILS      jw.
+UPTIME_FROM              jw.
+UPTIME_SMTP_HOST         jw.
+UPTIME_SMTP_PORT         jw.
+UPTIME_SMTP_STARTTLS     jw.
+UPTIME_STATE_FILE        jw.
+UPTIME_MAINTENANCE_FILE  jw.
+UPTIME_TLS_WARN_DAYS     jw.
+UPTIME_INTERVAL_SECONDS  jw.
+UPTIME_TIMEOUT_SECONDS   jw.
+UPTIME_FAIL_THRESHOLD    jw.
+UPTIME_RECOVER_THRESHOLD jw.
+UPTIME_REMIND_FIRST_SECONDS  jw.
+UPTIME_REMIND_MAX_SECONDS    jw.
+UPTIME_MAX_MAILS_PER_HOUR    jw.
+NOTEBOOK_RUNNER_HEARTBEAT    piaskownica notatników (apps/notebooks/runner/daemon.py) – usługa notebook-runner bez sekretów
+NOTEBOOK_RUNNER_WALL_SECONDS jw.
+NOTEBOOK_RUNNER_CPU_SECONDS  jw.
+NOTEBOOK_RUNNER_MEMORY_MB    jw.
+NOTEBOOK_RUNNER_NPROC    jw.
+NOTEBOOK_RUNNER_SLOTS    jw.
+NOTEBOOK_RUNNER_UID_BASE jw.
 "
 # Odczyty dynamiczne (nazwa składana w kodzie) – rozwinięte ręcznie. Nowy dynamiczny odczyt = FAIL,
 # żeby ktoś spojrzał, jakie nazwy z niego wychodzą.
 DYNAMIC='config/settings/base.py f"{prefix}_ACCESS_KEY"|S3_PUBLIC_ACCESS_KEY S3_PRIVATE_ACCESS_KEY
 config/settings/base.py f"{prefix}_SECRET_KEY"|S3_PUBLIC_SECRET_KEY S3_PRIVATE_SECRET_KEY
-apps/tenancy/setup.py name|'
+apps/tenancy/setup.py name|
+apps/core/restore_check.py name|RESTORE_CHECK_MAX_BACKUP_AGE_HOURS RESTORE_CHECK_MIN_RATIO RESTORE_CHECK_MAX_RATIO RESTORE_CHECK_SLACK_ROWS RESTORE_CHECK_MEDIA_SAMPLE RESTORE_CHECK_MEDIA_MAX_MISSING_RATIO
+apps/monitoring/uptime.py name|UPTIME_SMTP_PORT UPTIME_INTERVAL_SECONDS UPTIME_TIMEOUT_SECONDS UPTIME_FAIL_THRESHOLD UPTIME_RECOVER_THRESHOLD UPTIME_REMIND_FIRST_SECONDS UPTIME_REMIND_MAX_SECONDS UPTIME_TLS_WARN_DAYS UPTIME_MAX_MAILS_PER_HOUR
+apps/notebooks/runner/daemon.py name|NOTEBOOK_RUNNER_WALL_SECONDS NOTEBOOK_RUNNER_CPU_SECONDS NOTEBOOK_RUNNER_MEMORY_MB NOTEBOOK_RUNNER_NPROC NOTEBOOK_RUNNER_SLOTS NOTEBOOK_RUNNER_UID_BASE'
 # Sekrety spoza aplikacji: nie mogą trafić do jej kontenerów pod żadną nazwą z tej listy.
 FORBIDDEN_RE='^(BACKUP_[A-Z0-9_]*|REMOTE_[A-Z0-9_]*|MINIO_ROOT_[A-Z_]*|POSTGRES_PASSWORD|REDIS_PASSWORD|DJCMS_SECRET_KEY|DJCMS_DB_PASSWORD|MAINTENANCE_BYPASS_TOKEN|EXTRA_CA_FILE)$'
 

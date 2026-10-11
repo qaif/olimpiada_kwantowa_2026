@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% load i18n static %}
+{% comment %}
+  Pokój webinaru na platformie (zadanie WEB-01, ``WebinarRoomView`` / ``WebinarGuestRoomView``).
+
+  Strona **nie niesie** tokenu: ``static/js/webinar-room.js`` pobiera go POST-em (``data-token-url``,
+  CSRF) i łączy się SDK ``livekit-client`` z ``static/vendor/`` (bez CDN). Napisy dla JS jadą w
+  ``json_script`` (``<script type="application/json">`` – dane, nie kod, więc CSP bez zmian); kod
+  wyłącznie w plikach statycznych, ``<script nonce>`` tylko je ładuje. Układ na właściwościach
+  logicznych CSS (RTL) i zmiennych motywu. Bez JS – zdanie, że pokój wymaga JavaScriptu.
+{% endcomment %}
+{% block title %}{{ webinar.title }} – {% translate "Webinar" %}{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/webinar-room.css' %}">{% endblock %}
+{% block content %}
+<div class="wr" id="webinar-room"
+     data-token-url="{{ token_url }}"
+     data-control-url="{{ control_url }}"
+     data-role="{{ role }}"
+     data-can-record="{% if can_record %}1{% else %}0{% endif %}">
+  {% csrf_token %}
+  <header class="wr__head">
+    <div>
+      <span class="eyebrow">{% translate "Webinar" %}</span>
+      <h1 class="wr__title">{{ webinar.title }}</h1>
+    </div>
+    <p class="wr__status" data-status role="status" aria-live="polite">{% translate "Łączenie…" %}</p>
+    <span class="badge badge--danger wr__rec" data-recording-badge hidden>{% translate "Trwa nagrywanie" %}</span>
+    <button type="button" class="btn btn--primary btn--small" data-start-audio hidden>{% translate "Włącz dźwięk" %}</button>
+    <a class="btn btn--secondary btn--small" href="{{ back_url }}" data-leave>{% translate "Wyjdź" %}</a>
+  </header>
+
+  {% if webinar.record %}
+    <p class="alert alert--info wr__notice">{% translate "Ten webinar może być nagrywany. Gdy nagrywanie trwa, u góry pokoju widać czerwony znacznik „Trwa nagrywanie”; nagranie może zawierać Twój głos, obraz i wiadomości czatu, jeśli je włączysz lub wyślesz." %}</p>
+  {% endif %}
+  <noscript><p class="alert alert--warning">{% translate "Pokój webinaru wymaga włączonego JavaScriptu." %}</p></noscript>
+  {% if not sdk_url %}
+    <p class="alert alert--warning" role="alert">{% translate "Pokój jest chwilowo niedostępny – brakuje komponentu wideo na serwerze. Daj znać organizatorowi." %}</p>
+  {% endif %}
+
+  <div class="wr__body">
+    <main class="wr__stage" data-stage data-layout="grid" aria-label="{% translate 'Obraz uczestników' %}"></main>
+    <aside class="wr__side">
+      <section aria-labelledby="wr-people">
+        <h2 class="wr__side-title" id="wr-people">{% translate "Uczestnicy" %} <span data-count></span></h2>
+        <ul class="wr__people" data-people></ul>
+      </section>
+      <section aria-labelledby="wr-chat">
+        <h2 class="wr__side-title" id="wr-chat">{% translate "Czat" %}</h2>
+        <ol class="wr__chat" data-chat aria-live="polite"></ol>
+        <form class="wr__chat-form" data-chat-form>
+          <label class="visually-hidden" for="wr-chat-input">{% translate "Wiadomość" %}</label>
+          <input id="wr-chat-input" type="text" maxlength="500" autocomplete="off" data-chat-input disabled>
+          <button type="submit" class="btn btn--secondary btn--small" disabled data-chat-send>{% translate "Wyślij" %}</button>
+        </form>
+      </section>
+    </aside>
+  </div>
+
+  <nav class="wr__controls" aria-label="{% translate 'Sterowanie' %}">
+    <button type="button" class="btn btn--secondary" data-action="mic" disabled aria-pressed="false">{% translate "Mikrofon" %}</button>
+    <button type="button" class="btn btn--secondary" data-action="cam" disabled aria-pressed="false">{% translate "Kamera" %}</button>
+    <button type="button" class="btn btn--secondary" data-action="screen" disabled aria-pressed="false">{% translate "Udostępnij ekran" %}</button>
+    <button type="button" class="btn btn--secondary" data-action="hand" disabled aria-pressed="false">{% translate "Podnieś rękę" %}</button>
+    <button type="button" class="btn btn--secondary" data-action="layout" disabled aria-pressed="false">{% translate "Widok prelegenta" %}</button>
+    {% if can_record %}
+      <button type="button" class="btn btn--secondary" data-action="record" disabled aria-pressed="false">{% translate "Nagrywaj" %}</button>
+    {% endif %}
+  </nav>
+</div>
+{{ strings|json_script:"webinar-room-strings" }}
+{% if sdk_url %}
+  <script nonce="{{ request.csp_nonce }}" src="{{ sdk_url }}" defer></script>
+  <script nonce="{{ request.csp_nonce }}" src="{% static 'js/webinar-room.js' %}" defer></script>
+{% endif %}
+{% endblock %}

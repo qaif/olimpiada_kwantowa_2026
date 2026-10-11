@@ -1,0 +1,19 @@
+{% extends "web/coordinator/base.html" %}
+{% comment %}Edycja webinaru (``CoordinatorWebinarEditView``).{% endcomment %}
+{% block title %}Edycja: {{ webinar.title }} – panel koordynatora{% endblock %}
+{% block panel_eyebrow %}<a href="{% url 'web:coordinator-webinars' %}">Webinary</a>{% endblock %}
+{% block panel_title %}Edycja webinaru{% endblock %}
+{% block panel_content %}
+<div class="card">
+  <form method="post" class="form" novalidate>
+    {% csrf_token %}
+    {{ form.as_p }}
+    <p class="hint">Zmiana terminu po wysłanym przypomnieniu wyśle je jeszcze raz przed nowym terminem
+      (jeśli przypomnienie jest włączone). Wyłączenie linku dla gości unieważnia go od razu.</p>
+    <div class="actions">
+      <button type="submit" class="btn btn--primary">Zapisz zmiany</button>
+      <a class="btn btn--secondary" href="{% url 'web:coordinator-webinar' webinar.pk %}">Anuluj</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

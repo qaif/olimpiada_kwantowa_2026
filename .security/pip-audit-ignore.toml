@@ -1,0 +1,21 @@
+# Zaakceptowane podatności zależności Pythona (SEC-02, docs/OPERACJE.md § 47.1).
+#
+# Czyta to `scripts/security/pip_audit_gate.py` w jobie CI `pip-audit` – dla obu zbiorów
+# (backend i djcms). Wpis wyłącza blokadę dla JEDNEJ podatności w JEDNYM pakiecie, do daty.
+#
+# Zasady (pilnuje ich skrypt – złamanie którejś = czerwony job, a nie ciche zignorowanie):
+#   - `id`      – identyfikator z raportu pip-audit (PYSEC-…, GHSA-…) albo jego alias (CVE-…),
+#   - `package` – nazwa pakietu z PyPI,
+#   - `reason`  – DLACZEGO nas to nie dotyczy albo dlaczego aktualizacja musi poczekać
+#                 (co najmniej jedno pełne zdanie; „fałszywy alarm” to nie uzasadnienie),
+#   - `expires` – data TOML bez cudzysłowów, najdalej 180 dni od dziś. Po terminie wpis przestaje
+#                 działać i job robi się czerwony: ryzyko trzeba przejrzeć ponownie.
+# Wpis, który niczego już nie dotyczy (pakiet podniesiony), job zgłasza ostrzeżeniem – usuń go.
+#
+# Wzór:
+#
+# [[ignore]]
+# id = "GHSA-xxxx-xxxx-xxxx"
+# package = "example-package"
+# reason = "Podatna jest wyłącznie funkcja X, której nie importujemy (grep w backend/ – brak użyć); poprawka wymaga Django 6.2."
+# expires = 2026-12-31

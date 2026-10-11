@@ -1,3 +1,5 @@
 # Zrzuty ekranu, HTML i logi konsoli z przebiegów E2E – artefakty diagnostyczne, nie źródła.
 artifacts/
 .pytest_cache/
+# Dane przebiegu testów dostępności (e2e/a11y/seed.py → state/fixture.json) – kody i tokeny jednej bazy.
+a11y/state/

@@ -1,0 +1,121 @@
+# Logowanie dwuskładnikowe personelu (SEC-01) – katalog aplikacji apps.staff_mfa.
+# Angielski przejrzany ręcznie; pozostałe języki maszynowe (do przeglądu native speakerów, I18N-01 § 8).
+msgid ""
+msgstr ""
+"Project-Id-Version: olimpiada\n"
+"Language: zh_Hans\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+msgid "Włączono logowanie dwuskładnikowe"
+msgstr "已启用双重验证"
+
+msgid "Na Twoim koncie włączono logowanie dwuskładnikowe (kod z aplikacji w telefonie)."
+msgstr "您的账户已启用双重验证（手机应用中的验证码）。"
+
+msgid "Wyłączono logowanie dwuskładnikowe"
+msgstr "已停用双重验证"
+
+msgid "Na Twoim koncie wyłączono logowanie dwuskładnikowe. Konto chroni teraz samo hasło."
+msgstr "您的账户已停用双重验证。现在账户仅受密码保护。"
+
+msgid "Nowe kody zapasowe"
+msgstr "新的备用码"
+
+msgid "Wygenerowano nowy komplet kodów zapasowych do logowania dwuskładnikowego. Poprzednie kody przestały działać."
+msgstr "已为双重验证生成一组新的备用码。之前的备用码已失效。"
+
+msgid "Użyto kodu zapasowego"
+msgstr "已使用备用码"
+
+msgid "Do zalogowania na Twoje konto użyto jednego z kodów zapasowych."
+msgstr "有人使用了您的一个备用码登录您的账户。"
+
+msgid "Organizator zdjął logowanie dwuskładnikowe"
+msgstr "组织者已移除双重验证"
+
+msgid "Organizator zdjął logowanie dwuskładnikowe z Twojego konta (np. po zgłoszeniu zgubionego telefonu). Po zalogowaniu hasłem skonfiguruj je od nowa na nowym urządzeniu."
+msgstr "组织者已移除您账户的双重验证（例如在报告手机丢失之后）。使用密码登录后，请在新设备上重新设置。"
+
+msgid "Wstrzymano logowanie po błędnych kodach"
+msgstr "因验证码错误已暂停登录"
+
+#, python-format
+msgid "Na Twoje konto kilka razy z rzędu wpisano błędny kod logowania dwuskładnikowego. Logowanie kodem jest wstrzymane na %(minutes)s min."
+msgstr "您的账户连续多次输入了错误的双重验证码。验证码登录已暂停 %(minutes)s 分钟。"
+
+#, python-format
+msgid "Zostało kodów zapasowych: %(left)s."
+msgstr "剩余备用码：%(left)s。"
+
+#, python-format
+msgid "Konto: %(email)s"
+msgstr "账户：%(email)s"
+
+#, python-format
+msgid "Kiedy: %(when)s"
+msgstr "时间：%(when)s"
+
+msgid "Jeśli ta wiadomość Cię zaskoczyła, natychmiast zmień hasło i skontaktuj się z organizatorem – ktoś może znać Twoje hasło."
+msgstr "如果此消息让您感到意外，请立即更改密码并联系组织者——可能有人知道您的密码。"
+
+#, python-format
+msgid "%(what)s – %(competition)s"
+msgstr "%(what)s – %(competition)s"
+
+msgid "Hasło się nie zgadza."
+msgstr "密码不正确。"
+
+#, python-format
+msgid "Zbyt wiele błędnych kodów. Spróbuj ponownie za %(minutes)s min."
+msgstr "错误的验证码次数过多。请在 %(minutes)s 分钟后重试。"
+
+msgid "Kod nie pasuje."
+msgstr "验证码不匹配。"
+
+#, python-format
+msgid "Zbyt wiele błędnych kodów z rzędu. Logowanie kodem jest wstrzymane na %(minutes)s min – wysłaliśmy też list na adres konta."
+msgstr "连续输入错误验证码次数过多。验证码登录已暂停 %(minutes)s 分钟——我们也已向账户邮箱发送了邮件。"
+
+#, python-format
+msgid "Twoja rola w tym serwisie wymaga logowania dwuskładnikowego. Włącz je do %(deadline)s – potem bez niego nie wejdziesz do panelu."
+msgstr "您在本网站的角色要求启用双重验证。请在 %(deadline)s 之前启用——之后没有双重验证将无法进入面板。"
+
+msgid "Twoja rola w tym serwisie wymaga logowania dwuskładnikowego. Włącz je teraz, żeby wrócić do panelu."
+msgstr "您在本网站的角色要求启用双重验证。请立即启用以返回面板。"
+
+msgid "Nowy komplet unieważnia wszystkie dotychczasowe kody. Potrzebne będą hasło i bieżący kod."
+msgstr "新的一组备用码会使所有现有备用码失效。需要输入密码和当前验证码。"
+
+msgid "Wygeneruj nowe kody zapasowe"
+msgstr "生成新的备用码"
+
+msgid "Twoja rola wymaga logowania dwuskładnikowego – po wyłączeniu trzeba będzie od razu skonfigurować je ponownie."
+msgstr "您的角色要求启用双重验证——停用后必须立即重新设置。"
+
+msgid "Kod z aplikacji albo kod zapasowy"
+msgstr "应用验证码或备用码"
+
+#, python-format
+msgid "Nie pytaj o kod na tym urządzeniu do %(until)s"
+msgstr "在此设备上 %(until)s 之前不再要求验证码"
+
+msgid "Zaznacz wyłącznie na własnym komputerze – nie na wspólnym w szkole ani w biurze."
+msgstr "仅在您自己的电脑上勾选——不要在学校或办公室的公用电脑上勾选。"
+
+msgid "Włącz teraz"
+msgstr "立即启用"
+
+msgid "Zapamiętane urządzenia"
+msgstr "已记住的设备"
+
+msgid "Przeglądarki, w których zaznaczono „nie pytaj o kod”, przestaną być zapamiętane – także te, do których nie masz już dostępu."
+msgstr "勾选过“不再要求验证码”的浏览器将不再被记住——包括您已无法访问的浏览器。"
+
+msgid "Zapomnij wszystkie urządzenia"
+msgstr "忘记所有设备"
+
+msgid "Zapomnieliśmy wszystkie zapamiętane urządzenia – przy następnym logowaniu podasz kod."
+msgstr "已忘记所有记住的设备——下次登录时需要输入验证码。"

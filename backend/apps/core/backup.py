@@ -14,9 +14,9 @@ Dwa znaczniki, nie jeden, bo to dwa różne fakty i mylenie ich jest klasyczną 
 
 - ``backup:last_ok_at`` – kopia **powstała** (pg_dump + lustro kubełków + wysyłka). Mówi, że
   proces działa,
-- ``backup:last_verified_at`` – kopię **odtworzono** do tymczasowego Postgresa i policzono w niej
-  wiersze (``scripts/backup_verify.sh``). Mówi, że kopia jest coś warta. Kopia, której nikt nigdy
-  nie odtworzył, jest hipotezą, a nie kopią.
+- ``backup:last_verified_at`` – kopię **odtworzono** do tymczasowego Postgresa i przeszła
+  sprawdzenia aplikacji (``scripts/backup_verify.sh``, ``apps.core.restore_check``). Mówi, że
+  kopia jest coś warta. Kopia, której nikt nigdy nie odtworzył, jest hipotezą, a nie kopią.
 
 Trzeci znacznik, ``backup:last_offsite_at``, jest doprecyzowaniem pierwszego: kopia powstała
 **i wyjechała poza serwer** (S3 albo Dysk Google), a suma kontrolna po tamtej stronie się zgadza.
@@ -57,9 +57,11 @@ STATE_TTL_SECONDS = 120 * 24 * 3600
 #: wykryta po 36 godzinach kosztuje jeden dzień prac uczestników, wykryta po trzech dniach – trzy.
 MAX_BACKUP_AGE_HOURS = 36
 
-#: Po ilu dniach brak testu odtwarzania jest awarią. Test jest cotygodniowy; dziesięć dni zostawia
-#: zapas na jeden przestawiony termin i nie zamienia alarmu w cotygodniowy szum.
-MAX_VERIFY_AGE_DAYS = 10
+#: Po ilu godzinach brak **udanego** testu odtwarzania jest awarią. Test jest conocny (OPS-01,
+#: ``scripts/backup_verify.sh`` o 4:40, do 4.10.2026 – cotygodniowy z progiem 10 dni), więc próg jest
+#: ten sam co dla samej kopii: jedna przespana noc. Zepsutą kopię chcemy znać po jednej nocy,
+#: a nie po siedmiu – każda z nich to dzień prac uczestników bez kopii, o której wiadomo, że działa.
+MAX_VERIFY_AGE_HOURS = 36
 
 
 @dataclass(frozen=True)
@@ -79,7 +81,7 @@ class BackupState:
     @property
     def verify_fresh(self) -> bool:
         """Czy ostatni **udany test odtwarzania** mieści się w progu. Brak meldunku = nie."""
-        return _within(self.last_verified, timedelta(days=MAX_VERIFY_AGE_DAYS))
+        return _within(self.last_verified, timedelta(hours=MAX_VERIFY_AGE_HOURS))
 
     @property
     def offsite_fresh(self) -> bool:

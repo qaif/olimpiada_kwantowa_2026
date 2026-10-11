@@ -26,7 +26,7 @@
   {% if items %}
     <div class="scroll">
       <table class="table">
-        <caption>{% translate "Terminy edycji. Wszystkie godziny: czas polski." %}</caption>
+        <caption>{% active_time_zone as zone %}{% if zone %}{% blocktranslate %}Terminy edycji. Wszystkie godziny: {{ zone }}.{% endblocktranslate %}{% else %}{% translate "Terminy edycji. Wszystkie godziny: czas polski." %}{% endif %}</caption>
         <thead>
           <tr>
             <th scope="col">{% translate "Termin" %}</th>

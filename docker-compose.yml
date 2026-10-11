@@ -31,6 +31,12 @@ x-app-env: &app-env
   S3_PUBLIC_BUCKET: public-media
   CLAMAV_HOST: clamav
   CLAMAV_PORT: "3310"
+  # Odbicia poczty (MAIL-02, docs/OPERACJE.md § 52): backend zapisujący odmowy relaya, skrzynka Maildir
+  # zawiadomień (wolumen `mail_bounces` w workerze), baner i lista koordynatora. `false` w .env wyłącza.
+  EMAIL_BOUNCE_TRACKING: ${EMAIL_BOUNCE_TRACKING:-true}
+  MAIL_BOUNCE_MAILDIR: /var/mail-bounces/bounces
+  # Pole Reporting-MTA prawdziwego zawiadomienia = hostname relaya (usługa `mail`, niżej).
+  MAIL_BOUNCE_REPORTING_MTA: mail.${SITE_DOMAIN:-localhost}
   # Backend honoruje X-Real-IP WYŁĄCZNIE od kontenera `proxy` (Caddy): jego dwa stałe adresy
   # (`ipv4_address` przy usłudze `proxy` niżej) – w `edge` i w `internal`, bo nazwa `web` rozwiązuje
   # się Caddy'emu na adres z dowolnej z dwóch wspólnych sieci. Do 10.10.2026 stały tu całe podsieci
@@ -40,6 +46,8 @@ x-app-env: &app-env
   # ze zmiennych co przypięcie, więc zmiana adresu proxy w .env przesuwa obie rzeczy naraz
   # (scripts/tests/compose_profiles_test.sh). Ustawione TRUSTED_PROXY_IPS w .env wygrywa – serwer,
   # którego .env ma jeszcze dawne podsieci, scripts/deploy.sh przestawia sam (krok 4/8).
+  # Celowo BEZ sieci `cache`, `clamav_egress`, `mail` i sieci GlitchTipa/LiveKitu: proxy w nich nie
+  # stoi, więc żaden prawdziwy nagłówek X-Real-IP stamtąd nie przychodzi.
   TRUSTED_PROXY_IPS: ${TRUSTED_PROXY_IPS:-${PROXY_EDGE_IP:-172.30.1.250}/32,${DJCMS_PROXY_IP:-172.30.2.250}/32}
   # Nazwa usługi w `pg_stat_activity.application_name` – `worker` i `beat` nadpisują ją niżej.
   # Po niej `manage.py db_connections` i list alarmowy mówią, **który** kontener trzyma połączenia.
@@ -139,6 +147,8 @@ x-app-env: &app-env
   FACEBOOK_APP_SECRET:
   TWO_FACTOR_ENABLED:
   TWO_FACTOR_REQUIRED_ROLES:
+  TWO_FACTOR_GRACE_DAYS:
+  TWO_FACTOR_REMEMBER_DAYS:
   # Pieczęć elektroniczna dokumentów
   CERT_SIGN_P12_PATH:
   CERT_SIGN_P12_PASSWORD:
@@ -170,6 +180,58 @@ x-app-env: &app-env
   JITSI_JWT_GATEWAY_MINUTES:
   JITSI_JWT_ROOM_MAX_DAYS:
   JITSI_JWT_COMMITTEE_ROOM_MAX_DAYS:
+  # Poczta z domeny konkursu i kontrola adresów (MAIL-01, MAIL-02): domeny nadawcy (ta sama zmienna
+  # co przy usłudze `mail`), selektor DKIM i adres serwera do podpowiedzi DNS, sprawdzanie MX/A
+  ALLOWED_SENDER_DOMAINS:
+  DKIM_SELECTOR:
+  DMARC_RUA:
+  MAIL_PUBLIC_IP:
+  MAIL_DNS_NAMESERVERS:
+  EMAIL_DOMAIN_DNS_CHECK:
+  # Wiadomości, bramka zgód po zalogowaniu (CONS-01), tłumaczenia interfejsu (L10N-01)
+  CHAT_POLL_SECONDS:
+  CONSENT_GATE_ENABLED:
+  TRANSLATION_OVERRIDES_ENABLED:
+  # Śledzenie błędów (OPS-02): DSN serwera i przeglądarki, próbkowanie
+  SENTRY_DSN:
+  SENTRY_ENVIRONMENT:
+  SENTRY_SAMPLE_RATE:
+  SENTRY_TRACES_SAMPLE_RATE:
+  SENTRY_BROWSER:
+  SENTRY_BROWSER_DSN:
+  # Webinary i rozmowy w LiveKit (WEB-01, STAGE-LK-01)
+  LIVEKIT_URL:
+  LIVEKIT_API_URL:
+  LIVEKIT_API_KEY:
+  LIVEKIT_API_SECRET:
+  LIVEKIT_RECORDINGS_BUCKET:
+  LIVEKIT_TIMEOUT_SECONDS:
+  LIVEKIT_TOKEN_TTL_SECONDS:
+  WEBINAR_JOIN_GRACE_MINUTES:
+  WEBINAR_JOIN_LEAD_MINUTES:
+  WEBINAR_REMINDER_MINUTES:
+  WEBINAR_RETENTION_DAYS:
+  # Nadzór zdalny etapów online (PROC-01)
+  PROCTORING_GRACE_MINUTES:
+  PROCTORING_LATE_START_MINUTES:
+  PROCTORING_LEAD_MINUTES:
+  PROCTORING_MAX_RETENTION_DAYS:
+  PROCTORING_RETENTION_DAYS:
+  PROCTORING_UNPROCTORED_AFTER_FAILURES:
+  PROCTORING_WINDOW_ADAPTER:
+  # Płatności online (PAY-01): Stripe i Przelewy24
+  STRIPE_SECRET_KEY:
+  STRIPE_WEBHOOK_SECRET:
+  P24_MERCHANT_ID:
+  P24_POS_ID:
+  P24_API_KEY:
+  P24_CRC:
+  P24_SANDBOX:
+  # Notatniki kwantowe (QC-01, QC-02): laboratorium, spool piaskownicy (`notebook-worker`), tryb inline (dev)
+  NOTEBOOK_LAB_DIR:
+  NOTEBOOK_LAB_HOST:
+  NOTEBOOK_SPOOL_DIR:
+  NOTEBOOK_RUNNER_INLINE:
   # Serwis na django CMS: token wewnętrznego API i klucz SSO (te same wpisy dostaje usługa `djcms`)
   DJCMS_INTERNAL_TOKEN:
   DJCMS_SSO_KEY:
@@ -189,7 +251,9 @@ x-app-base: &app-base
   environment: *app-env
   # `cache` – osobna sieć Redisa (patrz `networks:` na końcu pliku): web, worker i beat to jedyni
   # jego klienci, więc tylko oni do niej należą. `mail` – tak samo dla relaya poczty (usługa `mail`).
-  networks: [internal, cache, mail]
+  # `errors_ingest` – droga zgłoszeń błędów do GlitchTipa (OPS-02, DSN wewnętrzny
+  # http://<klucz>@glitchtip:8000/<nr>); bez profilu `monitoring` pusta.
+  networks: [internal, cache, mail, errors_ingest]
   restart: unless-stopped
   logging: *default-logging
   read_only: true
@@ -260,6 +324,10 @@ services:
       MAINTENANCE_BYPASS_TOKEN: ${MAINTENANCE_BYPASS_TOKEN:-}
     # internal: trasa s3.<domena> -> minio (i web, djcms). `meet`: wyłącznie proxy i `jitsi-web`
     # z osobnego projektu Jitsi (deploy/jitsi) – patrz `networks:` na końcu pliku.
+    # livekit_signal: trasa live.<domena> -> livekit:7880 (webinary WEB-01, nakładka deploy/livekit/) –
+    # sieć jest tu, a nie w nakładce, bo zwykłe wdrożenie (`docker compose up` bez nakładki) odtwarzałoby
+    # proxy bez niej i odcinało sygnalizację. Bez nakładki stoi w niej sam Caddy. errors_front: trasa
+    # errors.<domena> -> glitchtip:8000 (OPS-02) – ten sam powód, bez profilu `monitoring` pusta.
     #
     # Stałe adresy w `edge` i `internal` (audyt 10.10.2026, S20): od nich – i tylko od nich – web
     # przyjmuje X-Real-IP (TRUSTED_PROXY_IPS w `x-app-env`), a djcms także X-Djcms-Mode. Adresy
@@ -273,6 +341,8 @@ services:
       internal:
         ipv4_address: ${DJCMS_PROXY_IP:-172.30.2.250}
       meet:
+      livekit_signal:
+      errors_front:
     depends_on:
       web: { condition: service_healthy }
     healthcheck:
@@ -293,7 +363,9 @@ services:
     # `gthread` daje worker **wielowątkowy** bez zmiany w kodzie widoków: concurrency procesu to
     # `--workers` razy `--threads` (4×4 = 16 równoległych żądań). Połączenia z bazą bierze z puli
     # psycopg (jedna na proces, domyślnie `DB_POOL_MAX_SIZE` = `WEB_THREADS`) – patrz `DATABASES`
-    # w `backend/config/settings/base.py`.
+    # w `backend/config/settings/base.py`. `--no-control-socket` (gunicorn ≥ 25.1): bez niej gunicorn
+    # próbuje założyć gniazdo sterujące w `~/.gunicorn/` i na systemie plików tylko do odczytu
+    # (`read_only: true` w `x-app-base`) loguje ERROR przy każdym starcie – patrz backend/pyproject.toml.
     # `--logger-class` (audyt 10.10.2026): access log bez tokenów z adresów jednorazowych (aktywacja,
     # reset hasła, zaproszenia, zgody, przepustka wideo…) – w ścieżce, w zapytaniu i w Refererze.
     # Log trafia do `docker logs` (250 MB na usługę) i do każdego zgłoszenia z wklejonym fragmentem,
@@ -302,8 +374,9 @@ services:
     command: >
       gunicorn config.wsgi:application
       --bind 0.0.0.0:8000 --workers ${WEB_WORKERS:-4} --threads ${WEB_THREADS:-4}
-      --worker-class gthread
-      --timeout 120 --graceful-timeout 30 --max-requests 2000 --max-requests-jitter 200
+      --worker-class gthread --no-control-socket
+      --timeout 120 --graceful-timeout 30
+      --max-requests ${WEB_MAX_REQUESTS:-2000} --max-requests-jitter ${WEB_MAX_REQUESTS_JITTER:-200}
       --access-logfile - --logger-class config.gunicorn_logging.TokenMaskingLogger
     # `mem_limit`/`mem_reservation`, nie `deploy.resources`: to drugie czyta wyłącznie Swarm,
     # a ten compose stoi na jednej maszynie bez Swarma – limit w `deploy:` byłby dokumentacją,
@@ -314,11 +387,16 @@ services:
     # przeciekowi pamięci w widoku zjeść całej maszyny i zabrać RAM-u Postgresowi. Bez limitu CPU
     # celowo: pojedynczy proces zajmujący więcej rdzeni pod chwilowym szczytem ruchu nie jest
     # awarią, a dławienie CPU tylko wydłużyłoby czas odpowiedzi każdemu żądaniu naraz.
-    mem_limit: 2g
+    # `WEB_MEM_LIMIT` i `WEB_MAX_REQUESTS` (PERF-01, docs/OPERACJE.md § 42.5): test obciążenia zmierzył
+    # ~230–260 MB RSS na worker, czyli 1,4–1,6 GB przy produkcyjnych 6 workerach – za blisko 2g, gdy
+    # rotacja `--max-requests` trzyma chwilę stary i nowy proces naraz. Każda rotacja pod obciążeniem
+    # to też kilka 502 (połączenia czekające w kolejce wychodzącego workera). Domyślne wartości bez
+    # zmian; zalecenie na dzień zawodów przy 6 workerach: WEB_MEM_LIMIT=3g, WEB_MAX_REQUESTS=0 (bez rotacji).
+    mem_limit: ${WEB_MEM_LIMIT:-2g}
     volumes:
       - static_files:/app/staticfiles
       - package_tmp:/var/tmp/packages
-    networks: [edge, internal, cache, mail]
+    networks: [edge, internal, cache, mail, errors_ingest]
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/healthz/', timeout=3).status==200 else 1)"]
       interval: 15s
@@ -337,8 +415,6 @@ services:
     # szesnastu wątków web, a skan antywirusowy trzyma plik w pamięci tylko na czas przesłania do
     # ClamAV, nie cały czas życia procesu).
     mem_limit: 768m
-    volumes:
-      - package_tmp:/var/tmp/packages
     environment:      # migracje i collectstatic wykonuje tylko web
       <<: *app-env
       RUN_MIGRATIONS: "0"
@@ -348,11 +424,93 @@ services:
       # Połączeniem rządzi wtedy DB_CONN_MAX_AGE (jedno na proces potomny, CELERY_CONCURRENCY).
       DB_POOL: "0"
       DB_APPLICATION_NAME: olimpiada-worker
+    volumes:
+      # Paczki ZIP (PACKAGE_TMP_DIR, audyt S15) – jak przy `web`.
+      - package_tmp:/var/tmp/packages
+      # Zawiadomienia o niedoręczeniu zapisane przez relay `mail` (MAIL-02): worker czyta `bounces/new/`
+      # i kasuje przetworzone pliki (UID 1000 = `app` – relay zapisuje je jako ten użytkownik).
+      - mail_bounces:/var/mail-bounces
     depends_on:
       db:     { condition: service_healthy }
       redis:  { condition: service_healthy }
       minio:  { condition: service_healthy }
       clamav: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A config inspect ping -d celery@$$HOSTNAME --timeout 5"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # Piaskownica notatników kwantowych (QC-01, docs/tasks/QC-01.md § 6): wykonuje kod uczniów
+  # z oddanych plików .ipynb. Profil `notebooks` – instalacja bez sprawdzania automatycznego nie ma
+  # tego kontenera wcale (`COMPOSE_PROFILES=notebooks` w .env serwera, docs/OPERACJE.md).
+  # Izolacja jest tu najważniejszą warstwą i każda linijka ma powód:
+  # - `network_mode: none` – kod ucznia nie dosięga ani Redisa (broker Celery), ani bazy, ani internetu,
+  # - bez `env_file` i bez *app-env – w środowisku nie ma ani jednego sekretu,
+  # - `read_only` + tmpfs `/tmp` z `noexec` – nie da się zapisać i załadować własnego kodu natywnego,
+  # - `cap_drop: ALL` + SETUID/SETGID/KILL: nadzorca (root) uruchamia każde zadanie jako losowy,
+  #   nieużywany UID z puli `NOTEBOOK_RUNNER_UID_BASE` + 50 000 (bez grup), po zadaniu zabija
+  #   wszystkie procesy tego UID i kasuje jego pliki w /tmp – nic więcej nie potrafi,
+  # - `no-new-privileges`, `pids_limit`, `mem_limit`, `cpus` – fork-bomba i pętla nie zjedzą serwera,
+  # - jedyny wspólny zasób z resztą systemu to wolumen `notebook_spool` (pliki zadań i wyników);
+  #   nadzorca wchodzi do niego przez grupę workera (`group_add`), dzieci – wcale (2770).
+  notebook-runner:
+    image: ${WEB_IMAGE:-olimpiada/web:${APP_VERSION:-dev}}
+    profiles: [notebooks]
+    entrypoint: ["python", "-m", "apps.notebooks.runner.daemon"]
+    user: "0:0"
+    group_add: ["1000"]
+    network_mode: none
+    read_only: true
+    tmpfs:
+      - /tmp:size=512m,noexec,nosuid,nodev,mode=1777
+    cap_drop: [ALL]
+    cap_add: [SETUID, SETGID, KILL]
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 128
+    mem_limit: 1536m
+    cpus: 2
+    environment:
+      NOTEBOOK_SPOOL_DIR: /spool
+      NOTEBOOK_RUNNER_SLOTS: ${NOTEBOOK_RUNNER_SLOTS:-2}
+      NOTEBOOK_RUNNER_UID_BASE: "60000"
+      NOTEBOOK_RUNNER_MEMORY_MB: ${NOTEBOOK_RUNNER_MEMORY_MB:-768}
+      PYTHONDONTWRITEBYTECODE: "1"
+    volumes:
+      - notebook_spool:/spool
+    restart: unless-stopped
+    logging: *default-logging
+    # Pętla nadzorcy dotyka znacznika co pół sekundy; zawieszona pętla = kontener „unhealthy”.
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os,sys,time; sys.exit(0 if time.time() - os.path.getmtime('/tmp/notebook-runner.heartbeat') < 60 else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  # Worker Celery wyłącznie kolejki `notebooks` (QC-01): wysyła zadania do piaskownicy przez spool
+  # i ocenia wyniki testami (symulacja obwodu ucznia w budżecie `qclab.grader.MAX_RUN_WORK`, krótkie
+  # limity czasu zadań). Osobny, żeby ocena notatników nie zajmowała procesów skanu i poczty
+  # głównego `worker`. Jeden proces – zadania odbioru ponawiają się co 2 s i nie trzymają procesu.
+  notebook-worker:
+    <<: *app-base
+    profiles: [notebooks]
+    command: celery -A config worker -l info --concurrency 1 -Q notebooks --max-tasks-per-child 200
+    mem_limit: 768m
+    environment:
+      <<: *app-env
+      RUN_MIGRATIONS: "0"
+      RUN_COLLECTSTATIC: "0"
+      DB_POOL: "0"
+      DB_APPLICATION_NAME: olimpiada-notebook-worker
+    volumes:
+      - notebook_spool:/spool
+    depends_on:
+      db:     { condition: service_healthy }
+      redis:  { condition: service_healthy }
+      minio:  { condition: service_healthy }
     healthcheck:
       test: ["CMD-SHELL", "celery -A config inspect ping -d celery@$$HOSTNAME --timeout 5"]
       interval: 30s
@@ -519,7 +677,7 @@ services:
     restart: "no"
 
   clamav:
-    image: clamav/clamav:1.4
+    image: clamav/clamav:1.5
     restart: unless-stopped
     logging: *default-logging
     # Baza sygnatur (`freshclam`) trzyma się w pamięci procesu skanującego, nie tylko na dysku –
@@ -546,7 +704,8 @@ services:
     # --user=clamav`, clamd) wywołaniem setuid() z roota – bez pliku z bitem setuid i bez capabilities
     # plikowych, czyli bez niczego, co no-new-privileges blokuje. Sprawdzone 1.10.2026 na tym obrazie
     # z tą opcją: `NoNewPrivs: 1`, freshclam i clamd jako nie-root, freshclam połączył się z mirrorem,
-    # `clamdcheck.sh` → „Clamd is up”.
+    # `clamdcheck.sh` → „Clamd is up”. Powtórzone 5.10.2026 na clamav/clamav:1.5 (1.5.4, DEP-02): to samo,
+    # plus ~1,0 GB w spoczynku, `StreamMaxLength` dalej 100 MB, EICAR → Eicar-Test-Signature FOUND.
     security_opt:
       - no-new-privileges:true
     healthcheck:
@@ -571,16 +730,53 @@ services:
     hostname: mail.${SITE_DOMAIN:-localhost}
     environment:
       # Postfix przyjmie kopertę tylko dla nadawcy z tej domeny (nie jest open relayem nawet
-      # dla kogoś, kto trafi do sieci compose).
-      ALLOWED_SENDER_DOMAINS: ${SITE_DOMAIN:-localhost}
+      # dla kogoś, kto trafi do sieci compose). Ta sama zmienna ogranicza nadawców konkursów
+      # w aplikacji (``MAIL_ALLOWED_SENDER_DOMAINS``, AUTH-01a): druga domena nadawcy = dopisana
+      # tutaj spacją (np. "olimpiadakwantowa.pl iqo-official.org") razem z jej SPF/DKIM.
+      # Każda domena z listy dostaje własny klucz DKIM i własny wiersz KeyTable/SigningTable
+      # (obsługa wielu domen jest w obrazie). Dodawanie domeny: scripts/mail_add_domain.sh
+      # (MAIL-01, docs/OPERACJE.md § 49) – generuje klucz na serwerze i wypisuje rekordy DNS.
+      ALLOWED_SENDER_DOMAINS: ${ALLOWED_SENDER_DOMAINS:-${SITE_DOMAIN:-localhost}}
+      # Poczta zwrotna na noreply@ (i podwójne odbicia na postmaster@): `discard` albo adres
+      # skrzynki operatora. Bez tego odbicia krążą („loops back to myself”) – skrypt
+      # deploy/mail/docker-init.d/50-bounces.sh, docs/OPERACJE.md § 49.7.
+      # MAIL-02: domyślnie `capture` – zawiadomienia (DSN) na noreply@ trafiają do Maildira na wolumenie
+      # `mail_bounces`, skąd czyta je worker (lista niedoręczalnych adresów, OPERACJE § 52).
+      MAIL_BOUNCE_TARGET: ${MAIL_BOUNCE_TARGET:-capture}
+      MAIL_BOUNCE_ADDRESSES: ${MAIL_BOUNCE_ADDRESSES:-}
+      # Nadawcy usług monitoringu (OPS-02: GlitchTip i monitor dostępności) – ich odbicia wracałyby
+      # tą samą pętlą. Dopisywani zawsze, obok MAIL_BOUNCE_ADDRESSES / noreply@ domen.
+      MAIL_BOUNCE_EXTRA_ADDRESSES: glitchtip@${SITE_DOMAIN:-localhost} uptime@${SITE_DOMAIN:-localhost}
+      # MAIL-03: poczta przychodząca na porcie 25 – wyłącznie postmaster@ i abuse@ domen nadawcy
+      # (przekierowane na ten adres) oraz zdalne odbicia na noreply@ (skrzynka MAIL-02). Pusty = wyłączona.
+      # Potrzebna m.in. do potwierdzenia IP w Microsoft SNDS/JMRP (OPERACJE § 49.9,
+      # deploy/mail/docker-init.d/60-inbound.sh).
+      MAIL_INBOUND_FORWARD: ${MAIL_INBOUND_FORWARD:-}
       POSTFIX_myhostname: mail.${SITE_DOMAIN:-localhost}
-      # Klienci SMTP: wyłącznie sieć `mail` (web, worker, beat – nikt więcej w niej nie stoi). Bez
-      # SASL – poza tą siecią port 587 nie jest osiągalny (brak `ports:`, Postfix nie stoi już
-      # w `edge` ani w `internal`), więc hasło niczego by nie dodało. Do 10.10.2026 brała tu tę samą
-      # listę co TRUSTED_PROXY_IPS (podsieci `edge` i `internal`), czyli przekaźnikiem z prawdziwym
-      # podpisem DKIM domeny mógł się posłużyć także djcms, monitor, minio, clamav i `jitsi-web`
-      # (audyt bezpieczeństwa 10.10.2026, S20). Podsieć = ta z sekcji `networks:` (`MAIL_SUBNET`).
-      POSTFIX_mynetworks: 127.0.0.0/8,${MAIL_SUBNET:-172.30.5.0/24}
+      # Klienci SMTP: sieć `mail` (web, worker, beat, `uptime` z profilu `monitoring` – nikt więcej
+      # w niej nie stoi) i podsieć `errors_egress` (GlitchTip) z jednym dozwolonym nadawcą. Bez SASL –
+      # poza tymi sieciami port 587 nie jest osiągalny (brak publikacji 587, Postfix nie stoi w `edge`
+      # ani w `internal`), więc hasło niczego by nie dodało. Do 10.10.2026 brała tu podsieci `edge`
+      # i `internal` (TRUSTED_PROXY_IPS, potem MAIL_CLIENT_NETWORKS z OPS-02), czyli przekaźnikiem
+      # z prawdziwym podpisem DKIM domeny mógł się posłużyć także djcms, monitor, minio, clamav
+      # i `jitsi-web` (audyt bezpieczeństwa 10.10.2026, S20). Podsieć = ta z sekcji `networks:`
+      # (`MAIL_SUBNET`); MAIL_CLIENT_NETWORKS z OPS-02 wypada – lista klientów jest siecią, a nie zmienną.
+      POSTFIX_mynetworks: 127.0.0.0/8,${MAIL_SUBNET:-172.30.10.0/24},172.30.9.0/24
+      # GlitchTip (podsieć errors_egress) wysyła WYŁĄCZNIE jako glitchtip@<domena>: każdy inny nadawca
+      # z tej podsieci dostaje 554 „Client host rejected”, zanim relay przyjmie list. Pozostali klienci
+      # – jak dotąd (permit_mynetworks). Tabele inline (`cidr:{…}`, `inline:{…}`) – Postfix 3.10
+      # w obrazie; sprawdzone na boky/postfix:v5.1.0-alpine 5.10.2026 (glitchtip@ przechodzi, inny
+      # nadawca z tej podsieci – 554, podsieć zaufana bez zmian). To jest zawężenie **wewnątrz**
+      # ALLOWED_SENDER_DOMAINS (AUTH-01a): domena SITE_DOMAIN musi zostać na tamtej liście, inaczej
+      # list GlitchTipa odpadnie na sprawdzeniu domeny nadawcy, zanim dojdzie do tej reguły.
+      POSTFIX_smtpd_restriction_classes: errors_sender_only
+      POSTFIX_errors_sender_only: "check_sender_access inline:{ glitchtip@${SITE_DOMAIN:-localhost}=OK }, reject"
+      # MAIL-02: pusty nadawca koperty (MAIL FROM:<>) od **każdego** klienta SMTP – odmowa 554. Tak
+      # wyglądałoby sfałszowane zawiadomienie o niedoręczeniu wysłane z sieci compose do noreply@ (skrzynka
+      # odbić, § 52). Prawdziwe zawiadomienia generuje sam Postfix (demon bounce → cleanup), z pominięciem
+      # smtpd, więc dalej trafiają do skrzynki – sprawdzone na boky/postfix:v5.1.0-alpine 5.10.2026.
+      # Aplikacja, GlitchTip i monitor dostępności zawsze podają nadawcę, więc odmowa ich nie dotyczy.
+      POSTFIX_smtpd_sender_restrictions: "check_sender_access inline:{ <>=REJECT }, check_client_access cidr:{ { 172.30.9.0/24 errors_sender_only } }, permit_mynetworks, reject"
       # TLS do MX-a odbiorcy oportunistycznie: szyfruj, gdy druga strona ogłosi STARTTLS,
       # ale nie odrzucaj listu, gdy nie ogłosi (`encrypt` zablokowałby część odbiorców).
       POSTFIX_smtp_tls_security_level: may
@@ -598,6 +794,10 @@ services:
       POSTFIX_message_size_limit: "41943040"
       # Sieć docker-bridge nie ma IPv6; bez tego Postfix próbuje rekordów AAAA i czeka na timeout.
       POSTFIX_inet_protocols: ipv4
+      # `unknown_address_reject_code` celowo domyślny (450): odmowa adresu z nieistniejącą domeną
+      # (`reject_unknown_recipient_domain` obrazu) jest chwilowa i list jest ponawiany. Chwilowy NXDOMAIN
+      # (świeżo zarejestrowana domena, kłopot resolwera) nie może trwale zgubić listu aktywacyjnego –
+      # domeny bez MX/A łapie formularz (MAIL-02 § 1.2), a trwałe odbicia – zawiadomienia (§ 2.1).
       DKIM_AUTOGENERATE: "true"
       DKIM_SELECTOR: olimpiada
       TZ: Europe/Warsaw
@@ -606,12 +806,23 @@ services:
       # aktualizować rekord TXT w DNS-ie.
       - mail_dkim:/etc/opendkim/keys
       - mail_spool:/var/spool/postfix
-    # `mail` – tu sięgają web/worker/beat (i wyłącznie oni). `mail_egress` – wyjście na świat do MX-ów
-    # odbiorców (sama `mail` ma internal:true); w `mail_egress` nie stoi nic innego, tak jak ClamAV
-    # w `clamav_egress`. Do 10.10.2026 Postfix stał w `edge` i `internal`. Celowo nie w `edge`: web
+      # Skrypty startowe obrazu (wykonywane przy każdym starcie, po konfiguracji z env): poczta
+      # zwrotna (MAIL-01). Tylko do odczytu – kontener ich nie zmienia.
+      - ./deploy/mail/docker-init.d:/docker-init.d:ro
+      # Skrzynka Maildir zawiadomień o niedoręczeniu (MAIL-02, MAIL_BOUNCE_TARGET=capture) – wspólna z workerem.
+      - mail_bounces:/var/mail/olimpiada
+    # `mail` – tu sięgają web/worker/beat i `uptime` (i wyłącznie oni). `mail_egress` – wyjście na świat
+    # do MX-ów odbiorców (sama `mail` ma internal:true) i port 25 niżej; w `mail_egress` nie stoi nic
+    # innego, tak jak ClamAV w `clamav_egress`. `errors_egress` – tu sięga GlitchTip (OPS-02) z jednym
+    # dozwolonym nadawcą. Do 10.10.2026 Postfix stał w `edge` i `internal`. Celowo nie w `edge`: web
     # też tam stoi, a nazwa `mail` rozwiązywałaby się wtedy raz na adres z `edge`, raz z `mail` –
-    # połączenie z adresu `edge` relay by odrzucił (`mynetworks`). Portów nie publikujemy.
-    networks: [mail, mail_egress]
+    # połączenie z adresu `edge` relay by odrzucił (`mynetworks`). Port 587 nie jest publikowany.
+    networks: [mail, mail_egress, errors_egress]
+    # MAIL-03: port 25 (poczta przychodząca, MX domeny). Domyślnie tylko na pętli zwrotnej hosta –
+    # na świat dopiero z MAIL_INBOUND_BIND=0.0.0.0 w .env. Usługa `smtp` w kontenerze jest zawsze
+    # zaostrzona przez 60-inbound.sh (bez relaya, tylko adresaci z relay_recipient_maps).
+    ports:
+      - "${MAIL_INBOUND_BIND:-127.0.0.1}:25:25"
     security_opt:
       - no-new-privileges:true
     cap_drop: [ALL]
@@ -640,7 +851,7 @@ services:
     # monitor odpytujący /status.json spoza tego serwera. Docelowo ta usługa powinna stać u innego
     # dostawcy; compose jest tu po to, żeby dało się zacząć od czegokolwiek w piętnaście minut.
     profiles: [monitoring]
-    image: louislam/uptime-kuma:1.23.16
+    image: louislam/uptime-kuma:1.23.17
     restart: unless-stopped
     logging: *default-logging
     volumes:
@@ -652,6 +863,164 @@ services:
     networks: [internal, edge]
     security_opt:
       - no-new-privileges:true
+
+  glitchtip:
+    # Śledzenie błędów (OPS-02, docs/OPERACJE.md § 44): GlitchTip – otwarte oprogramowanie zgodne
+    # z protokołem Sentry, na tym serwerze, pod errors.<SITE_DOMAIN> (blok Caddy'ego przy
+    # ERRORS_PROXY=1, scripts/render_caddyfile.sh). Profil `monitoring` – nie wstaje przy zwykłym
+    # `up` ani przy wdrożeniu; włącza się świadomie: `docker compose --profile monitoring up -d
+    # glitchtip glitchtip-db`.
+    #
+    # Jeden proces, a nie para web + worker: GlitchTip 6 łączy obie role (`SERVER_ROLE=all_in_one`,
+    # serwer granian z wbudowaną kolejką zadań) i wycofuje podział – gałąź główna projektu odrzuca
+    # już `SERVER_ROLE=worker`. Kolejka i cache w Postgresie (`VALKEY_URL` pusty), więc Redis
+    # platformy (broker Celery, sieć `cache`) nie jest tu ani potrzebny, ani dostępny.
+    #
+    # Obraz przypięty tagiem i skrótem (indeks wieloarchitekturowy 6.2.6 z Docker Huba, 8.08.2026).
+    # Aktualizacja = nowy tag + skrót tutaj, w osobnym commicie; migracje bazy GlitchTip robi sam
+    # przy starcie.
+    #
+    # Rozdział sekretów: **bez** `env_file: .env` – GlitchTip nie widzi sekretów platformy. Zmienne
+    # bez `${…:?}` (interpolacja obejmuje cały plik niezależnie od profilu); brak sekretu wykryje
+    # GlitchTip przy starcie.
+    profiles: [monitoring]
+    image: glitchtip/glitchtip:6.2.6@sha256:a3d8eb1b36c1e1603d55ab32711ea3dd8115874742a781a57391a62a16e0dff6
+    restart: unless-stopped
+    logging: *default-logging
+    environment:
+      SERVER_ROLE: all_in_one
+      SECRET_KEY: ${GLITCHTIP_SECRET_KEY:-}
+      DATABASE_URL: postgres://glitchtip:${GLITCHTIP_DB_PASSWORD:-}@glitchtip-db:5432/glitchtip
+      VALKEY_URL: ""
+      GLITCHTIP_DOMAIN: https://errors.${SITE_DOMAIN:-localhost}
+      # `glitchtip` – DSN wewnętrzny z `web`/`worker`/`beat` przez sieć errors_ingest
+      # (http://<klucz>@glitchtip:8000/<projekt>); 127.0.0.1 – healthcheck niżej.
+      ALLOWED_HOSTS: errors.${SITE_DOMAIN:-localhost},glitchtip,127.0.0.1
+      CSRF_TRUSTED_ORIGINS: https://errors.${SITE_DOMAIN:-localhost}
+      # Relay serwisu (usługa `mail`) przez sieć errors_egress: z tej podsieci relay przyjmuje
+      # WYŁĄCZNIE nadawcę glitchtip@<SITE_DOMAIN> (smtpd_sender_restrictions przy usłudze `mail`).
+      # Inny serwer SMTP: GLITCHTIP_EMAIL_URL (wychodzi przez errors_egress).
+      EMAIL_URL: ${GLITCHTIP_EMAIL_URL:-smtp://mail:587}
+      DEFAULT_FROM_EMAIL: glitchtip@${SITE_DOMAIN:-localhost}
+      # Konta wyłącznie od administratora (`manage.py createsuperuser`, OPERACJE § 44.2) – bez
+      # samorejestracji i bez zakładania organizacji przez kogokolwiek poza nim.
+      ENABLE_USER_REGISTRATION: "False"
+      ENABLE_ORGANIZATION_CREATION: "False"
+      ENABLE_ADMIN: "False"
+      ENABLE_OPENAPI: "False"
+      GLITCHTIP_ENABLE_MCP: "False"
+      GLITCHTIP_ENABLE_DUCKDB: "False"
+      # Logi i sprawdzanie dostępności GlitchTipa wyłączone: logi zostają w `docker compose logs`,
+      # a dostępność sprawdza usługa `uptime` niżej (deduplikacja, TLS, listy przez relay).
+      GLITCHTIP_ENABLE_LOGS: "False"
+      GLITCHTIP_ENABLE_UPTIME: "False"
+      # Retencja 30 dni – zdarzenia, transakcje, pliki (mapy źródeł). Ta sama liczba stoi w rejestrze
+      # czynności przetwarzania (apps/monitoring/register.py, RETENTION_DAYS; test pilnuje zgodności).
+      GLITCHTIP_RETENTION_DAYS: "30"
+    volumes:
+      - glitchtip_uploads:/code/uploads
+    # Celowo **nie** w `edge`: ta sieć jest w TRUSTED_PROXY_IPS aplikacji (zaufany X-Real-IP)
+    # i była w `mynetworks` relaya. Zamiast niej cztery wąskie sieci:
+    # - errors_front  – wyłącznie proxy i GlitchTip (Caddy: errors.<domena> -> glitchtip:8000),
+    # - errors_ingest – web, worker, beat i GlitchTip (zgłoszenia przez DSN wewnętrzny),
+    # - errors_egress – wyjście do internetu (webhooki, zewnętrzny SMTP) i relay `mail` z jednym
+    #   dozwolonym nadawcą,
+    # - errors        – własna baza, nic więcej.
+    # Żadna z nich nie jest w TRUSTED_PROXY_IPS (scripts/tests/compose_profiles_test.sh, przypadek 18).
+    networks: [errors_front, errors_ingest, errors_egress, errors]
+    # Limity, żeby zalew zdarzeń nie zabrał pamięci ani procesora Postgresowi i `web`. CPU tu jest
+    # ograniczone (w `web` celowo nie): GlitchTip jest narzędziem pomocniczym, a nie serwisem.
+    mem_limit: 768m
+    cpus: 1.0
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+    depends_on:
+      glitchtip-db: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/_health/', timeout=5).status==200 else 1)"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+
+  glitchtip-db:
+    # Baza GlitchTipa – **osobny** kontener i osobny wolumen, a nie baza na serwerze `db`: awaria albo
+    # zalew zdarzeń nie dotyka bazy olimpiady, a kopia zapasowa platformy (scripts/backup.sh) nie
+    # wozi śladów stosu. Ten sam obraz co `db` (bez nowego obrazu w instalacji). Wyłącznie sieć
+    # `errors` (internal: true) – sięga do niej tylko `glitchtip`.
+    profiles: [monitoring]
+    image: postgres:18-alpine
+    restart: unless-stopped
+    logging: *default-logging
+    environment:
+      POSTGRES_DB: glitchtip
+      POSTGRES_USER: glitchtip
+      POSTGRES_PASSWORD: ${GLITCHTIP_DB_PASSWORD:-}
+    volumes:
+      - glitchtip_pg:/var/lib/postgresql
+    networks: [errors]
+    mem_limit: 512m
+    cpus: 1.0
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U glitchtip -d glitchtip"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  uptime:
+    # Sprawdzanie dostępności „z zewnątrz” (OPS-02 § 4, docs/OPERACJE.md § 44.4): oba serwisy,
+    # /healthz/, /status.json, LiveKit i errors.<domena>, gdy włączone, certyfikaty TLS (< 14 dni).
+    # Listy przez relay `mail` z deduplikacją i rosnącą przerwą między przypomnieniami.
+    #
+    # Program to jeden plik z samą biblioteką standardową (backend/apps/monitoring/uptime.py) – tu na
+    # obrazie aplikacji, bo jest już na serwerze; `entrypoint` omija entrypoint.sh (bez bazy, bez
+    # migracji). Puka w adresy **publiczne** przez DNS i Caddy'ego. Śmierci tej maszyny nie zauważy –
+    # dlatego § 44.5 zaleca tę samą kopię (albo darmową usługę zewnętrzną) na innym serwerze.
+    #
+    # Bez `env_file` i bez sekretów: wyłącznie nazwy domen, odbiorcy i progi.
+    profiles: [monitoring]
+    image: ${WEB_IMAGE:-olimpiada/web:${APP_VERSION:-dev}}
+    entrypoint: ["python", "-m", "apps.monitoring.uptime"]
+    command: ["--loop"]
+    restart: unless-stopped
+    logging: *default-logging
+    environment:
+      SITE_DOMAIN: ${SITE_DOMAIN:-localhost}
+      EXTRA_DOMAINS: ${EXTRA_DOMAINS:-}
+      LIVEKIT_URL: ${LIVEKIT_URL:-}
+      ERRORS_PROXY: ${ERRORS_PROXY:-0}
+      UPTIME_URLS: ${UPTIME_URLS:-}
+      UPTIME_EXTRA_URLS: ${UPTIME_EXTRA_URLS:-}
+      # 1 = sprawdzaj też laboratorium notebooków (QC-01, /static/notebook-lab/current.json).
+      UPTIME_NOTEBOOK_LAB: ${UPTIME_NOTEBOOK_LAB:-0}
+      UPTIME_ALERT_EMAILS: ${UPTIME_ALERT_EMAILS:-${ALERT_EMAILS:-}}
+      UPTIME_FROM: uptime@${SITE_DOMAIN:-localhost}
+      UPTIME_SMTP_HOST: ${UPTIME_SMTP_HOST:-mail}
+      UPTIME_SMTP_PORT: ${UPTIME_SMTP_PORT:-587}
+      UPTIME_TLS_WARN_DAYS: ${UPTIME_TLS_WARN_DAYS:-14}
+      # Katalog domowy użytkownika `app` z obrazu – wolumen nazwany przejmuje przy pierwszym montażu
+      # jego właściciela, więc proces bez roota może tam pisać stan (awarie przeżywają restart).
+      UPTIME_STATE_FILE: /home/app/uptime-state.json
+      # Przerwa planowa (scripts/maintenance.sh on): porażki HTTP nie dają listu. Nieplanowana
+      # (pliku `on` nie ma) – alarmuje jak dotąd.
+      UPTIME_MAINTENANCE_FILE: /maintenance/on
+    volumes:
+      - uptime_state:/home/app
+      - ${MAINTENANCE_DIR:-./maintenance}:/maintenance:ro
+    # `edge`: wyjście do internetu (adresy publiczne). `mail`: relay poczty – od audytu 10.10.2026 (S20)
+    # Postfix nie stoi w `edge`, a jego klienci są w osobnej sieci. Żadnej usługi danych.
+    networks: [edge, mail]
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m
+    mem_limit: 128m
+    cpus: 0.25
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
 
   djcms:
     # Wersja porównawcza serwisu na django CMS pod dj.<SITE_DOMAIN> (docs/tasks/DJ-01.md).
@@ -676,7 +1045,7 @@ services:
     command: >
       gunicorn config.wsgi:application --bind 0.0.0.0:8000
       --workers ${DJCMS_WORKERS:-3} --threads ${DJCMS_THREADS:-4}
-      --worker-class gthread --timeout 60 --graceful-timeout 20 --access-logfile -
+      --worker-class gthread --no-control-socket --timeout 60 --graceful-timeout 20 --access-logfile -
     environment:
       DJANGO_SETTINGS_MODULE: config.settings.production
       DJCMS_SECRET_KEY: ${DJCMS_SECRET_KEY:-}
@@ -686,6 +1055,8 @@ services:
       SITE_DOMAIN: ${SITE_DOMAIN:-localhost}
       EXTRA_DOMAINS: ${EXTRA_DOMAINS:-}
       PLATFORM_SUBDOMAINS: ${PLATFORM_SUBDOMAINS:-0}
+      # Host laboratorium notatników (QC-02) – djcms odrzuca żądania z niego (apps.pages.labguard).
+      NOTEBOOK_LAB_HOST: ${NOTEBOOK_LAB_HOST:-}
       DJCMS_ALLOWED_HOSTS: dj.${SITE_DOMAIN:-localhost},127.0.0.1,localhost
       DJCMS_CSRF_TRUSTED_ORIGINS: https://dj.${SITE_DOMAIN:-localhost}
       DJCMS_MAIN_API_URL: http://web:8000/internal/djcms/v2/
@@ -732,7 +1103,7 @@ services:
 
   mailpit:
     profiles: [dev]
-    image: axllent/mailpit:v1.24
+    image: axllent/mailpit:v1.30
     logging: *default-logging
     # Wyłącznie na pętli zwrotnej hosta: podgląd poczty deweloperskiej (z linkami aktywacji i resetu
     # hasła) nie ma być widoczny z sieci, w której stoi laptop – tak jak porty z docker-compose.dev.yml.
@@ -772,21 +1143,24 @@ networks:
     ipam:
       config:
         - subnet: 172.30.4.0/24
-  # Relay poczty (usługa `mail`) i wyłącznie jego klienci: web, worker, beat (audyt 10.10.2026, S20).
-  # Bez wyjścia do internetu. Ta podsieć – i tylko ona – jest `mynetworks` Postfiksa, więc zmienna
-  # MAIL_SUBNET (w .env zwykle nieustawiona) przesuwa obie rzeczy naraz. Nie należy do TRUSTED_PROXY_IPS.
+  # Relay poczty (usługa `mail`) i wyłącznie jego klienci: web, worker, beat, `uptime` (audyt 10.10.2026,
+  # S20). Bez wyjścia do internetu. Ta podsieć – i tylko ona, obok `errors_egress` z jednym nadawcą – jest
+  # `mynetworks` Postfiksa, więc zmienna MAIL_SUBNET (w .env zwykle nieustawiona) przesuwa obie rzeczy
+  # naraz. Nie należy do TRUSTED_PROXY_IPS. Podsieci 10–12 (a nie 5–7 jak na gałęzi audytu): 5–9 zajęły
+  # LiveKit i GlitchTip (WEB-01, OPS-02).
   mail:
     driver: bridge
     internal: true
     ipam:
       config:
-        - subnet: ${MAIL_SUBNET:-172.30.5.0/24}
-  # Wyjście do internetu dla Postfiksa (doręczenie wprost do MX-ów odbiorców). Jedyny członek: `mail`.
+        - subnet: ${MAIL_SUBNET:-172.30.10.0/24}
+  # Wyjście do internetu dla Postfiksa (doręczenie wprost do MX-ów odbiorców, port 25 MAIL-03).
+  # Jedyny członek: `mail`.
   mail_egress:
     driver: bridge
     ipam:
       config:
-        - subnet: 172.30.6.0/24
+        - subnet: 172.30.11.0/24
   # Proxy ⇄ `jitsi-web` (osobny projekt compose, deploy/jitsi/docker-compose.jitsi.yml dołącza do niej
   # jako sieci zewnętrznej `<projekt>_meet`). Do 10.10.2026 `jitsi-web` (cudzy kod, root, bez
   # `cap_drop`) stał w `edge` – obok web, monitora i poczty, z adresem z podsieci, której ufały
@@ -798,7 +1172,47 @@ networks:
     internal: true
     ipam:
       config:
+        - subnet: 172.30.12.0/24
+  # Sygnalizacja LiveKit (webinary, WEB-01): Caddy ↔ `livekit`, plus wyjście do internetu dla
+  # serwera LiveKit i egressu (STUN, webhooki do portalu, zapis nagrań przez publiczny adres S3).
+  # **Nie** w TRUSTED_PROXY_IPS ani w `mynetworks` Postfiksa – LiveKit nie jest zaufanym proxy ani
+  # klientem relaya, a `edge` i `internal` (zaufane) zostają bez niego. Bez nakładki – sam Caddy.
+  livekit_signal:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.30.5.0/24
+  # GlitchTip i jego baza (OPS-02, profil `monitoring`). Bez wyjścia do internetu (`glitchtip` wychodzi
+  # przez `errors_egress`); nie w TRUSTED_PROXY_IPS ani w `mynetworks` Postfiksa. Compose zakłada ją
+  # dopiero wtedy, gdy wstaje usługa z profilu – bez niego instalacja jej nie ma.
+  errors:
+    driver: bridge
+    internal: true
+    ipam:
+      config:
+        - subnet: 172.30.6.0/24
+  # OPS-02: zgłoszenia błędów z web/worker/beat do GlitchTipa. Bez wyjścia do internetu; nie
+  # w TRUSTED_PROXY_IPS ani w `mynetworks`. Bez profilu `monitoring` są w niej tylko web/worker/beat.
+  errors_ingest:
+    driver: bridge
+    internal: true
+    ipam:
+      config:
         - subnet: 172.30.7.0/24
+  # OPS-02: Caddy -> GlitchTip (errors.<domena>). Tylko te dwie usługi; Caddy wychodzi na świat przez edge.
+  errors_front:
+    driver: bridge
+    internal: true
+    ipam:
+      config:
+        - subnet: 172.30.8.0/24
+  # OPS-02: wyjście GlitchTipa do internetu i do relaya `mail` (jak clamav_egress dla ClamAV-a). Podsieć
+  # jest w `mynetworks` relaya, ale z jednym dozwolonym nadawcą (glitchtip@<domena>); nie w TRUSTED_PROXY_IPS.
+  errors_egress:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.30.9.0/24
 
 volumes:
   # PostgreSQL 18 – dane bazy (patrz komentarz przy usłudze `db`).
@@ -813,9 +1227,14 @@ volumes:
   clamav_db:
   mail_dkim:
   mail_spool:
+  # Zawiadomienia o niedoręczeniu (MAIL-02): relay pisze, worker czyta i kasuje. Poza kopiami zapasowymi –
+  # pliki żyją kilka minut, a stan adresów jest w bazie.
+  mail_bounces:
   static_files:
   # Katalog roboczy paczek do pobrania (PACKAGE_TMP_DIR w `x-app-env`) – web i worker.
   package_tmp:
+  # Pliki zadań i wyników piaskownicy notatników (QC-01) – wspólne dla `notebook-worker` i `notebook-runner`.
+  notebook_spool:
   caddy_data:
   caddy_config:
   # Baza Uptime Kuma (monitory, historia, konta). Wolumen nazwany, bo historia dostępności jest
@@ -824,3 +1243,9 @@ volumes:
   # Pliki wgrane przez redaktorów djcms (filer). Compose zakłada wolumen dopiero wtedy, gdy montuje
   # go uruchamiana usługa – bez profilu `djcms` nie powstaje.
   djcms_media:
+  # GlitchTip (OPS-02): baza zdarzeń (retencja 30 dni) i pliki (mapy źródeł). Bez profilu `monitoring`
+  # nie powstają. Celowo poza scripts/backup.sh – zdarzenia błędów nie są danymi do odtwarzania.
+  glitchtip_pg:
+  glitchtip_uploads:
+  # Stan monitora dostępności (trwające awarie, zaległe listy) – żeby restart nie gubił awarii.
+  uptime_state:

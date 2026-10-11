@@ -136,7 +136,9 @@ def test_unknown_query_string_bypasses_cache(client_for, competition, settings):
     _enable(settings)
     client = client_for(competition)
 
-    response = client.get("/", {"utm_source": "newsletter"})
+    # Parametr, którego warstwa nie zna. Znaczniki kampanii (``utm_*``) od PERF-01 są pomijane –
+    # patrz ``test_page_cache_perf.py``.
+    response = client.get("/", {"q": "newsletter"})
 
     assert response["X-Page-Cache"] == "BYPASS"
 
@@ -150,6 +152,54 @@ def test_page_query_parameter_is_cached(client_for, competition, settings):
 
     assert first["X-Page-Cache"] == "MISS"
     assert second["X-Page-Cache"] == "HIT"
+
+
+def test_new_release_never_serves_the_previous_releases_html(client_for, competition, settings, monkeypatch):
+    """OPS-04: wydanie (``APP_VERSION``) w kluczu – HTML poprzedniej wersji odsyła do plików
+    statycznych skasowanych przez ``collectstatic --clear``; nowa wersja go nie widzi, nawet gdy
+    krok wdrożenia czyszczący bufor się nie powiódł."""
+    from apps.web import context_processors
+
+    _enable(settings)
+    client = client_for(competition)
+    monkeypatch.setattr(context_processors, "APP_VERSION", "v1.0.0")
+    assert client.get("/")["X-Page-Cache"] == "MISS"
+    assert client.get("/")["X-Page-Cache"] == "HIT"
+
+    monkeypatch.setattr(context_processors, "APP_VERSION", "v1.0.1")
+    assert client.get("/")["X-Page-Cache"] == "MISS"
+    assert client.get("/")["X-Page-Cache"] == "HIT"
+
+    # Wycofanie do v1.0.0 wraca do własnej przestrzeni kluczy (wpis jeszcze żyje – i jest jego).
+    monkeypatch.setattr(context_processors, "APP_VERSION", "v1.0.0")
+    assert client.get("/")["X-Page-Cache"] == "HIT"
+
+
+def test_release_in_key_is_sanitized(monkeypatch):
+    from apps.web import context_processors
+
+    request = RequestFactory().get("/")
+    monkeypatch.setattr(context_processors, "APP_VERSION", "v1:2 x/y")
+    key = page_cache.build_key(request)
+    assert key.startswith(f"{page_cache.CACHE_PREFIX}:r=v1_2_x_y:")
+    monkeypatch.setattr(context_processors, "APP_VERSION", "v1.2.3-4-gabc")
+    assert page_cache.build_key(request) != key
+
+
+def test_page_cache_clear_command_invalidates_every_site(client_for, competition, settings):
+    """``manage.py page_cache_clear`` – woła je wdrożenie (krok 5b/8, OPS-04) tuż po starcie nowej wersji."""
+    from io import StringIO
+
+    from django.core.management import call_command
+
+    _enable(settings)
+    client = client_for(competition)
+    client.get("/")
+    assert client.get("/")["X-Page-Cache"] == "HIT"
+
+    call_command("page_cache_clear", stdout=StringIO())
+
+    assert client.get("/")["X-Page-Cache"] == "MISS"
 
 
 def test_disabled_by_setting_always_bypasses(client_for, competition, settings):

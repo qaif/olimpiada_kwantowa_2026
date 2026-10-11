@@ -1,0 +1,45 @@
+{% extends "web/coordinator/base.html" %}
+{% load i18n %}
+{% comment %}
+  Zaproszenia dla absolwentów. „Policz odbiorców” niczego nie wysyła – liczba przed wysyłką jest po
+  to, żeby zaproszenie do jury nie poszło przez pomyłkę do całej sieci. W historii zostaje liczba
+  odbiorców, nie ich lista.
+{% endcomment %}
+{% block title %}{% translate "Zaproszenia – panel koordynatora" %}{% endblock %}
+{% block panel_eyebrow %}<a href="{% url 'web:coordinator-alumni' %}">{% translate "Absolwenci" %}</a>{% endblock %}
+{% block panel_title %}{% translate "Zaproszenia dla absolwentów" %}{% endblock %}
+{% block panel_lead %}
+  <p class="lead">{% blocktranslate trimmed %}List do absolwentów, którzy nie wyłączyli zaproszeń – w ich języku, z odnośnikiem
+    wypisu. Do webinaru wklej adres wydarzenia.{% endblocktranslate %}</p>
+{% endblock %}
+{% block panel_actions %}{% include "alumni/coordinator/_tabs.html" %}{% endblock %}
+{% block panel_content %}
+<section class="section">
+  <form method="post" class="form">
+    {% csrf_token %}
+    {{ form.as_div }}
+    {% if preview is not None %}
+      <p class="notice">{% blocktranslate trimmed with count=preview %}Odbiorców z tymi filtrami: {{ count }}.{% endblocktranslate %}</p>
+    {% endif %}
+    <p class="actions">
+      <button type="submit" name="action" value="preview" class="btn btn--secondary">{% translate "Policz odbiorców" %}</button>
+      <button type="submit" name="action" value="send" class="btn btn--primary">{% translate "Wyślij zaproszenie" %}</button>
+    </p>
+  </form>
+</section>
+<section class="section">
+  <h2>{% translate "Wysłane" %}</h2>
+  <div class="scroll">
+    <table class="table">
+      <thead><tr><th>{% translate "Data" %}</th><th>{% translate "Rodzaj" %}</th><th>{% translate "Tytuł" %}</th><th>{% translate "Odbiorcy" %}</th></tr></thead>
+      <tbody>
+        {% for item in history %}
+          <tr><td>{{ item.created_at|date:"d.m.Y H:i" }}</td><td>{{ item.get_kind_display }}</td><td>{{ item.title }}</td><td>{{ item.recipients }}</td></tr>
+        {% empty %}
+          <tr><td colspan="4" class="empty">{% translate "Nie wysłano jeszcze żadnego zaproszenia." %}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

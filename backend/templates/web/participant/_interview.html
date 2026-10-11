@@ -52,10 +52,13 @@
             {% else %}
               <a class="btn btn--primary btn--small" href="{% url 'web:interview-join' stage.pk %}"
                  target="_blank" rel="noopener noreferrer nofollow">{% translate "Dołącz do rozmowy" %}</a>
-              <span class="hint">{% blocktranslate trimmed with opens=interview_video.opens_at|local_datetime %}
+              <span class="hint">{% active_time_zone as zone %}{% if zone %}{% blocktranslate trimmed with opens=interview_video.opens_at|local_datetime %}
+                Pokój otwiera się {{ opens }} ({{ zone }}). Wchodzi się wyłącznie tym przyciskiem –
+                adresu pokoju nie da się podać przez telefon ani przesłać dalej.
+              {% endblocktranslate %}{% else %}{% blocktranslate trimmed with opens=interview_video.opens_at|local_datetime %}
                 Pokój otwiera się {{ opens }} (czas polski). Wchodzi się wyłącznie tym przyciskiem –
                 adresu pokoju nie da się podać przez telefon ani przesłać dalej.
-              {% endblocktranslate %}</span>
+              {% endblocktranslate %}{% endif %}</span>
             {% endif %}
           </dd>
           {% if not interview_video.is_over %}
@@ -165,7 +168,7 @@
             {% if interview_booking %}{% translate "Zmień na wybrany termin" %}
             {% else %}{% translate "Zapisz się na wybrany termin" %}{% endif %}</button>
         </div>
-        <p class="hint">{% translate "Wszystkie godziny: czas polski." %}</p>
+        <p class="hint">{% active_time_zone as zone %}{% if zone %}{% blocktranslate %}Wszystkie godziny: {{ zone }}.{% endblocktranslate %}{% else %}{% translate "Wszystkie godziny: czas polski." %}{% endif %}</p>
       </form>
     {% else %}
       <p class="empty"><span class="empty__title">{% translate "Brak terminów" %}</span>

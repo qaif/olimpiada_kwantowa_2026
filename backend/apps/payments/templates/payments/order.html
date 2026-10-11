@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% load i18n static %}
+{% comment %}
+  Strona zamówienia płacącego (PAY-01): pozycje, sposób zapłaty, dane do przelewu, dokumenty.
+  „Zapłać kartą” / „Przelewy24” to formularze POST – serwer zakłada sesję u dostawcy i przekierowuje
+  na jego stronę; dane karty nie przechodzą przez nasz serwer. Stan „zapłacone” ustawia wyłącznie
+  potwierdzenie od dostawcy (webhook) albo organizator przy przelewie.
+{% endcomment %}
+{% block title %}{% blocktranslate trimmed with reference=order.reference %}Zamówienie {{ reference }}{% endblocktranslate %}{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/coordinator-tools.css' %}">{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow"><a href="{{ back }}">{% translate "Wróć" %}</a></span>
+  <h1>{% blocktranslate trimmed with reference=order.reference %}Zamówienie {{ reference }}{% endblocktranslate %}</h1>
+  <p class="lead">{{ order.get_status_display }} · {{ order.total }} {{ order.currency }}{% if order.due_on and order.status == "OPEN" %} · {% blocktranslate trimmed with due=order.due_on|date:"Y-m-d" %}termin płatności: {{ due }}{% endblocktranslate %}{% endif %}</p>
+</div>
+
+<section class="section">
+  <div class="scroll">
+    <table class="table">
+      <caption class="visually-hidden">{% translate "Pozycje zamówienia" %}</caption>
+      <thead><tr>
+        <th scope="col">{% translate "Pozycja" %}</th>
+        <th scope="col">{% translate "Ilość" %}</th>
+        <th scope="col">{% translate "Cena" %}</th>
+        <th scope="col">{% translate "Kwota" %}</th>
+      </tr></thead>
+      <tbody>
+        {% for line in lines %}
+          <tr><th scope="row">{{ line.description }}</th><td>{{ line.quantity }}</td><td>{{ line.unit_price }} {{ order.currency }}</td><td>{{ line.amount }} {{ order.currency }}</td></tr>
+        {% endfor %}
+        <tr><th scope="row">{% translate "Razem" %}</th><td></td><td></td><td><strong>{{ order.total }} {{ order.currency }}</strong></td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+{% if order.status == "OPEN" %}
+<section class="section">
+  <div class="section__head"><h2 class="mt-0">{% translate "Zapłać" %}</h2></div>
+  {% if methods %}
+    <div class="actions">
+      {% for method in methods %}
+        <form method="post" action="{% url 'web:payment-order-pay' order.pk method %}" class="inline">
+          {% csrf_token %}
+          <button type="submit" class="btn btn--primary">
+            {% if method == "stripe" %}{% translate "Zapłać kartą" %}{% else %}{% translate "Zapłać przez Przelewy24" %}{% endif %}
+          </button>
+        </form>
+      {% endfor %}
+    </div>
+    <p class="hint">{% translate "Płatność odbywa się na stronie operatora płatności. Nie przechowujemy danych karty." %}</p>
+  {% endif %}
+  {% if bank_transfer %}
+    <h3>{% translate "Przelew bankowy" %}</h3>
+    <dl class="meta-list">
+      <dt>{% translate "Odbiorca" %}</dt><dd>{{ competition.organizer_name }}{% if competition.organizer_address %}, {{ competition.organizer_address }}{% endif %}</dd>
+      <dt>IBAN</dt><dd><span class="code-chip">{{ settings.bank_account }}</span></dd>
+      {% if settings.bank_swift %}<dt>SWIFT/BIC</dt><dd>{{ settings.bank_swift }}</dd>{% endif %}
+      {% if settings.bank_name %}<dt>{% translate "Bank" %}</dt><dd>{{ settings.bank_name }}</dd>{% endif %}
+      <dt>{% translate "Kwota" %}</dt><dd>{{ order.total }} {{ order.currency }}</dd>
+      <dt>{% translate "Tytuł przelewu" %}</dt><dd><span class="code-chip">{{ order.reference }}</span></dd>
+    </dl>
+    <p class="hint">{% translate "Wpisz kod referencyjny w tytule przelewu – po nim organizator odnajdzie wpłatę. Przelew zaksięgujemy w ciągu kilku dni roboczych; koszty banku ponosi płacący." %}</p>
+  {% endif %}
+  {% if not methods and not bank_transfer %}
+    <p class="notice">{% translate "Płatności online nie są jeszcze dostępne. Skontaktuj się z organizatorem." %}</p>
+  {% endif %}
+  <form method="post" action="{% url 'web:payment-order-cancel' order.pk %}" class="actions">
+    {% csrf_token %}
+    <button type="submit" class="btn btn--ghost btn--small">{% translate "Anuluj zamówienie" %}</button>
+  </form>
+  <p class="hint">{% translate "Anuluj zamówienie, jeśli zmienił się skład drużyny albo dane do faktury – potem wystaw nowe." %}</p>
+</section>
+{% endif %}
+
+<section class="section">
+  <div class="section__head"><h2 class="mt-0">{% translate "Dokumenty" %}</h2></div>
+  <ul>
+    {% for document in documents %}
+      <li><a href="{% url 'web:payment-document' document.pk %}">{{ document.get_kind_display }} {{ document.number }}</a> ({{ document.issued_at|date:"Y-m-d" }})</li>
+    {% empty %}
+      <li>{% translate "Brak dokumentów." %}</li>
+    {% endfor %}
+  </ul>
+</section>
+
+{% if payments %}
+<section class="section">
+  <div class="section__head"><h2 class="mt-0">{% translate "Historia płatności" %}</h2></div>
+  <ul>
+    {% for payment in payments %}
+      <li>{{ payment.created_at|date:"Y-m-d H:i" }} · {{ payment.get_provider_display }} · {{ payment.get_status_display }}{% if payment.refunded_amount %} · {% translate "zwrócono" %} {{ payment.refunded_amount }} {{ payment.currency }}{% endif %}</li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+{% endblock %}

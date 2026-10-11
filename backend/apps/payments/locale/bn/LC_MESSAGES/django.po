@@ -1,0 +1,365 @@
+# Płatności online (PAY-01) – katalog aplikacji apps.payments.
+# Tłumaczenia maszynowe do przeglądu przez native speakerów (jak I18N-01 § 8).
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: olimpiada\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-04 19:20+0200\n"
+"PO-Revision-Date: 2026-10-04 20:00+0200\n"
+"Last-Translator: Claude (machine translation)\n"
+"Language-Team: olimpiada\n"
+"Language: bn\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Faktura"
+msgstr "চালান"
+
+msgid "Faktura pro forma"
+msgstr "প্রোফর্মা চালান"
+
+msgid "Data sprzedaży"
+msgstr "বিক্রয়ের তারিখ"
+
+msgid "Zapłacono"
+msgstr "পরিশোধিত"
+
+msgid "Kod referencyjny"
+msgstr "রেফারেন্স কোড"
+
+msgid "NIP / VAT ID"
+msgstr "কর / VAT আইডি"
+
+msgid "Sprzedawca"
+msgstr "বিক্রেতা"
+
+msgid "Nabywca"
+msgstr "ক্রেতা"
+
+msgid "Pozycja"
+msgstr "আইটেম"
+
+msgid "Ilość"
+msgstr "পরিমাণ"
+
+msgid "Cena"
+msgstr "মূল্য"
+
+msgid "Razem do zapłaty"
+msgstr "মোট প্রদেয়"
+
+msgid "Bank"
+msgstr "ব্যাংক"
+
+msgid "Tytuł przelewu"
+msgstr "ট্রান্সফারের রেফারেন্স"
+
+msgid "Dane do przelewu"
+msgstr "ব্যাংক ট্রান্সফারের তথ্য"
+
+msgid "Faktura pro forma nie jest dokumentem księgowym. Fakturę wystawimy po zaksięgowaniu wpłaty."
+msgstr "প্রোফর্মা চালান কোনো হিসাবরক্ষণ নথি নয়। অর্থ প্রাপ্তির পর আমরা চালান ইস্যু করব।"
+
+msgid "Nazwa instytucji albo imię i nazwisko"
+msgstr "প্রতিষ্ঠানের নাম বা পুরো নাম"
+
+msgid "Adres"
+msgstr "ঠিকানা"
+
+msgid "Opcjonalnie – jeśli instytucja ma numer podatkowy, który ma znaleźć się na fakturze."
+msgstr "ঐচ্ছিক – প্রতিষ্ঠানের কর নম্বর থাকলে যা চালানে থাকা উচিত।"
+
+msgid "E-mail do rozliczeń"
+msgstr "বিলিং ইমেইল"
+
+msgid "Liczba obserwatorów"
+msgstr "পর্যবেক্ষকের সংখ্যা"
+
+msgid "Osoby towarzyszące drużynie bez roli opiekuna – płatne według cennika."
+msgstr "দলের সাথে থাকা ব্যক্তি যারা দলনেতা নন – মূল্য তালিকা অনুযায়ী ফি।"
+
+msgid "Opłata za delegację"
+msgstr "প্রতিনিধিদল ফি"
+
+msgid "Uczeń"
+msgstr "শিক্ষার্থী"
+
+msgid "Opiekun drużyny"
+msgstr "দলনেতা"
+
+msgid "Obserwator"
+msgstr "পর্যবেক্ষক"
+
+msgid "Opłata za udział"
+msgstr "অংশগ্রহণ ফি"
+
+msgid "Zniżka"
+msgstr "ছাড়"
+
+msgid "cena wczesna"
+msgstr "আগাম মূল্য"
+
+msgid "cena podstawowa"
+msgstr "সাধারণ মূল্য"
+
+msgid "cena późna"
+msgstr "বিলম্ব মূল্য"
+
+msgid "Instytucja"
+msgstr "প্রতিষ্ঠান"
+
+msgid "Osoba prywatna"
+msgstr "ব্যক্তিগত"
+
+msgid "Zwolnienie z opłat"
+msgstr "ফি মওকুফ"
+
+msgid "czeka na wpłatę"
+msgstr "অর্থপ্রদানের অপেক্ষায়"
+
+msgid "zapłacone"
+msgstr "পরিশোধিত"
+
+msgid "anulowane"
+msgstr "বাতিল"
+
+msgid "zwrócone"
+msgstr "ফেরত দেওয়া হয়েছে"
+
+msgid "Karta płatnicza (Stripe)"
+msgstr "পেমেন্ট কার্ড (Stripe)"
+
+msgid "Przelew bankowy"
+msgstr "ব্যাংক ট্রান্সফার"
+
+msgid "w toku"
+msgstr "চলমান"
+
+msgid "przyjęta"
+msgstr "গৃহীত"
+
+msgid "nieudana"
+msgstr "ব্যর্থ"
+
+msgid "przerwana"
+msgstr "বাধাপ্রাপ্ত"
+
+msgid "do wyjaśnienia"
+msgstr "পর্যালোচনাধীন"
+
+msgid "wykonany"
+msgstr "সম্পন্ন"
+
+msgid "nieudany"
+msgstr "ব্যর্থ"
+
+msgid "Najpierw uzupełnij dane do faktury."
+msgstr "অনুগ্রহ করে প্রথমে বিলিংয়ের তথ্য পূরণ করুন।"
+
+msgid "Organizator nie opublikował jeszcze cennika."
+msgstr "আয়োজক এখনও মূল্য তালিকা প্রকাশ করেননি।"
+
+msgid "Delegacja jest zwolniona z opłat."
+msgstr "প্রতিনিধিদল ফি থেকে অব্যাহতিপ্রাপ্ত।"
+
+msgid "Nie ma nic nowego do zapłaty."
+msgstr "নতুন করে পরিশোধের কিছু নেই।"
+
+msgid "Ta opłata jest już rozliczona."
+msgstr "এই ফি ইতিমধ্যে নিষ্পত্তি হয়েছে।"
+
+msgid "Nie ma nic do zapłaty."
+msgstr "পরিশোধের কিছু নেই।"
+
+msgid "Płatność tego zamówienia jest właśnie przetwarzana. Spróbuj ponownie za kilka minut."
+msgstr "এই অর্ডারের অর্থপ্রদান এখন প্রক্রিয়াধীন। কয়েক মিনিট পরে আবার চেষ্টা করুন।"
+
+#, python-format
+msgid "Płatność Przelewy24 tego zamówienia jest w toku. Spróbuj ponownie za %(minutes)s minut."
+msgstr "এই অর্ডারের Przelewy24 অর্থপ্রদান চলছে। %(minutes)s মিনিট পরে আবার চেষ্টা করুন।"
+
+msgid "Anulować można wyłącznie zamówienie czekające na wpłatę."
+msgstr "শুধু অর্থপ্রদানের অপেক্ষায় থাকা অর্ডার বাতিল করা যায়।"
+
+msgid "To zamówienie nie czeka na wpłatę."
+msgstr "এই অর্ডারটি অর্থপ্রদানের অপেক্ষায় নেই।"
+
+msgid "Ta metoda płatności nie jest dostępna."
+msgstr "এই অর্থপ্রদান পদ্ধতি উপলব্ধ নয়।"
+
+msgid "Dostawca płatności jest chwilowo niedostępny. Spróbuj ponownie za chwilę."
+msgstr "পেমেন্ট প্রদানকারী সাময়িকভাবে অনুপলব্ধ। একটু পরে আবার চেষ্টা করুন।"
+
+msgid "Opłaty"
+msgstr "ফি"
+
+msgid "Drużyna jest zwolniona z opłat."
+msgstr "দলটি ফি থেকে অব্যাহতিপ্রাপ্ত।"
+
+msgid "Opłaty są rozliczone."
+msgstr "সব ফি নিষ্পত্তি হয়েছে।"
+
+#, python-format
+msgid "Do zapłaty: %(amount)s %(currency)s."
+msgstr "প্রদেয়: %(amount)s %(currency)s।"
+
+msgid "Opłaty i faktury"
+msgstr "ফি ও চালান"
+
+msgid "Zapłać online"
+msgstr "অনলাইনে পরিশোধ করুন"
+
+msgid "Dane do faktury"
+msgstr "বিলিংয়ের তথ্য"
+
+msgid "Opłaty drużyny"
+msgstr "দলের ফি"
+
+msgid "Nabywcą może być instytucja (np. ministerstwo, szkoła, fundacja) albo osoba prywatna. Zmiana danych dotyczy kolejnych dokumentów – wystawione wcześniej zostają bez zmian."
+msgstr "ক্রেতা কোনো প্রতিষ্ঠান (যেমন মন্ত্রণালয়, বিদ্যালয়, ফাউন্ডেশন) বা ব্যক্তি হতে পারেন। পরিবর্তন পরবর্তী নথিতে প্রযোজ্য – আগে ইস্যু করা নথি অপরিবর্তিত থাকে।"
+
+#, python-format
+msgid "Opłaty: %(country)s"
+msgstr "ফি: %(country)s"
+
+msgid "Opłatę za drużynę wnosi się na podstawie faktury pro forma: wystaw ją, a potem zapłać kartą albo przelewem. Po zaksięgowaniu wpłaty wystawimy fakturę i wyślemy potwierdzenie e-mailem."
+msgstr "দলের ফি প্রোফর্মা চালানের ভিত্তিতে পরিশোধ করা হয়: চালানটি ইস্যু করুন, তারপর কার্ড বা ব্যাংক ট্রান্সফারে পরিশোধ করুন। অর্থ পাওয়ার পর আমরা চালান ইস্যু করে ইমেইলে নিশ্চিতকরণ পাঠাব।"
+
+msgid "Zestawienie"
+msgstr "সারসংক্ষেপ"
+
+msgid "Waluta"
+msgstr "মুদ্রা"
+
+msgid "Zwrócono"
+msgstr "ফেরত দেওয়া হয়েছে"
+
+msgid "Czeka na wpłatę"
+msgstr "অর্থপ্রদানের অপেক্ষায়"
+
+msgid "Do wystawienia"
+msgstr "চালান ইস্যু বাকি"
+
+msgid "Pozycje kolejnej faktury pro forma"
+msgstr "পরবর্তী প্রোফর্মা চালানের আইটেম"
+
+msgid "Wystaw fakturę pro forma"
+msgstr "প্রোফর্মা চালান ইস্যু করুন"
+
+msgid "Przed wystawieniem faktury pro forma uzupełnij dane do faktury."
+msgstr "প্রোফর্মা চালান ইস্যুর আগে বিলিংয়ের তথ্য পূরণ করুন।"
+
+msgid "Nie podano jeszcze danych do faktury."
+msgstr "এখনও বিলিংয়ের তথ্য দেওয়া হয়নি।"
+
+msgid "Zmień dane do faktury"
+msgstr "বিলিংয়ের তথ্য পরিবর্তন করুন"
+
+msgid "Zamówienia"
+msgstr "অর্ডার"
+
+msgid "Zamówienia drużyny"
+msgstr "দলের অর্ডার"
+
+msgid "Wystawiono"
+msgstr "ইস্যুর তারিখ"
+
+msgid "Dokumenty"
+msgstr "নথি"
+
+msgid "Nie wystawiono jeszcze żadnego zamówienia."
+msgstr "এখনও কোনো অর্ডার ইস্যু করা হয়নি।"
+
+#, python-format
+msgid "Dziękujemy – otrzymaliśmy wpłatę za udział w konkursie %(competition)s."
+msgstr "ধন্যবাদ – %(competition)s-এ অংশগ্রহণের জন্য আপনার অর্থ আমরা পেয়েছি।"
+
+msgid "Fakturę i historię płatności znajdziesz po zalogowaniu:"
+msgstr "লগ ইন করার পর চালান ও অর্থপ্রদানের ইতিহাস পাবেন:"
+
+#, python-format
+msgid "Potwierdzenie wpłaty %(reference)s – %(competition)s"
+msgstr "অর্থপ্রদান নিশ্চিতকরণ %(reference)s – %(competition)s"
+
+#, python-format
+msgid "Organizator konkursu %(competition)s zwrócił część albo całość Twojej wpłaty."
+msgstr "%(competition)s-এর আয়োজক আপনার অর্থের কিছু অংশ বা পুরোটা ফেরত দিয়েছেন।"
+
+msgid "Kwota zwrotu"
+msgstr "ফেরতের পরিমাণ"
+
+msgid "Pieniądze wracają tą samą drogą, którą zostały wpłacone; zaksięgowanie po stronie banku może potrwać kilka dni roboczych. Szczegóły:"
+msgstr "যে পথে অর্থ পরিশোধ করা হয়েছিল সেই পথেই ফেরত যাবে; ব্যাংকে জমা হতে কয়েক কর্মদিবস লাগতে পারে। বিস্তারিত:"
+
+#, python-format
+msgid "Zwrot wpłaty %(reference)s – %(competition)s"
+msgstr "অর্থ ফেরত %(reference)s – %(competition)s"
+
+#, python-format
+msgid "Zamówienie %(reference)s"
+msgstr "অর্ডার %(reference)s"
+
+#, python-format
+msgid "termin płatności: %(due)s"
+msgstr "পরিশোধের শেষ তারিখ: %(due)s"
+
+msgid "Pozycje zamówienia"
+msgstr "অর্ডারের আইটেম"
+
+msgid "Zapłać"
+msgstr "পরিশোধ করুন"
+
+msgid "Zapłać kartą"
+msgstr "কার্ডে পরিশোধ করুন"
+
+msgid "Zapłać przez Przelewy24"
+msgstr "Przelewy24 দিয়ে পরিশোধ করুন"
+
+msgid "Płatność odbywa się na stronie operatora płatności. Nie przechowujemy danych karty."
+msgstr "অর্থপ্রদান পেমেন্ট প্রদানকারীর পাতায় হয়। আমরা কার্ডের তথ্য সংরক্ষণ করি না।"
+
+msgid "Wpisz kod referencyjny w tytule przelewu – po nim organizator odnajdzie wpłatę. Przelew zaksięgujemy w ciągu kilku dni roboczych; koszty banku ponosi płacący."
+msgstr "ট্রান্সফারের রেফারেন্সে রেফারেন্স কোড লিখুন – এর মাধ্যমে আয়োজক আপনার অর্থ শনাক্ত করবেন। কয়েক কর্মদিবসের মধ্যে আমরা ট্রান্সফার নথিভুক্ত করব; ব্যাংক চার্জ পরিশোধকারী বহন করবেন।"
+
+msgid "Płatności online nie są jeszcze dostępne. Skontaktuj się z organizatorem."
+msgstr "অনলাইন পেমেন্ট এখনও উপলব্ধ নয়। আয়োজকের সাথে যোগাযোগ করুন।"
+
+msgid "Anuluj zamówienie"
+msgstr "অর্ডার বাতিল করুন"
+
+msgid "Anuluj zamówienie, jeśli zmienił się skład drużyny albo dane do faktury – potem wystaw nowe."
+msgstr "দলের গঠন বা বিলিংয়ের তথ্য বদলে গেলে অর্ডার বাতিল করুন – তারপর নতুন ইস্যু করুন।"
+
+msgid "Brak dokumentów."
+msgstr "কোনো নথি নেই।"
+
+msgid "Historia płatności"
+msgstr "অর্থপ্রদানের ইতিহাস"
+
+msgid "zwrócono"
+msgstr "ফেরত দেওয়া হয়েছে"
+
+#, python-format
+msgid "Do zapłaty: %(amount)s %(currency)s. Podaj dane do faktury – wystawimy fakturę pro forma, a po zaksięgowaniu wpłaty fakturę."
+msgstr "প্রদেয়: %(amount)s %(currency)s। বিলিংয়ের তথ্য দিন – আমরা প্রোফর্মা চালান ইস্যু করব এবং অর্থ পাওয়ার পর চালান।"
+
+msgid "Dalej"
+msgstr "এগিয়ে যান"
+
+msgid "Dane do faktury zostały zapisane."
+msgstr "বিলিংয়ের তথ্য সংরক্ষিত হয়েছে।"
+
+msgid "Wystawiliśmy fakturę pro forma. Wybierz sposób zapłaty."
+msgstr "প্রোফর্মা চালান ইস্যু হয়েছে। পরিশোধের পদ্ধতি বেছে নিন।"
+
+msgid "Dziękujemy. Czekamy na potwierdzenie wpłaty od operatora płatności – odśwież stronę za chwilę."
+msgstr "ধন্যবাদ। আমরা পেমেন্ট প্রদানকারীর নিশ্চিতকরণের অপেক্ষায় আছি – একটু পরে পাতাটি রিফ্রেশ করুন।"
+
+msgid "Płatność została przerwana. Możesz spróbować ponownie."
+msgstr "অর্থপ্রদান বাধাপ্রাপ্ত হয়েছে। আবার চেষ্টা করতে পারেন।"
+
+msgid "Zamówienie zostało anulowane."
+msgstr "অর্ডার বাতিল করা হয়েছে।"

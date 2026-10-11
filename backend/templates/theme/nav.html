@@ -1,0 +1,59 @@
+{% load static i18n web_extras cms_extras wagtailimages_tags %}{% comment %}
+  Slot motywu ``nav`` (THEME-02 § 4) – menu serwisu (część informacyjna, Wagtail) w drugim pasku
+  nagłówka. Treść domyślna (motyw ``classic``) przeniesiona co do bajtu ze slotu ``header``;
+  motyw może przerysować samo menu plikiem ``templates/theme/nav.html`` i zostawić resztę
+  nagłówka aplikacji. Pozycje przychodzą z ``apps/cms/context_processors.cms_menu`` po nałożeniu
+  nadpisań koordynatora (``apps/themes/menu.py``): kolejność, ukrycie, etykiety, własne odnośniki
+  (``new_tab`` = nowa karta) i grupy rozwijane. Plik celowo nie kończy się znakiem nowego wiersza –
+  wynik slotu wstawiany jest w środek wiersza ``header.html``.
+{% endcomment %}<nav class="nav nav--cms" aria-label="{% translate 'Serwis' %}">
+      {% for item in cms_menu %}
+        {% if item.children %}
+          {% comment %}
+            Rozwijana pozycja („Dokumenty”) to ``<details>``, a nie przycisk ze skryptem: otwiera
+            się kliknięciem i klawiszem (Enter/spacja na ``<summary>``), działa przy wyłączonym
+            JavaScripcie i nie potrzebuje ani atrybutów ARIA, ani obsługi fokusu – przeglądarka
+            robi jedno i drugie sama. Od 900 px arkusz otwiera ją dodatkowo najechaniem
+            (``:hover``/``:focus-within``), więc na desktopie kliknięcie nie jest konieczne.
+            Pozycji „Wszystkie dokumenty” na liście już nie ma (uwaga organizatora z 21.09.2026):
+            lista rozwijana wymienia każdy dokument z nazwy, więc odnośnik do samego spisu był
+            jedenastą drogą do tych samych dziesięciu stron. Adres ``/dokumenty/`` działa dalej.
+          {% endcomment %}
+          <details class="nav-menu">
+            <summary class="nav__link nav-menu__summary{% if item.active %} nav-menu__summary--active{% endif %}">{{ item.title }}</summary>
+            <ul class="nav-menu__list">
+              {% for child in item.children %}
+                <li><a class="nav-menu__link" href="{{ child.url }}"{% if child.new_tab %} target="_blank" rel="noopener noreferrer"{% endif %}
+                       {% if child.active %}aria-current="page"{% endif %}>{{ child.title }}</a></li>
+              {% endfor %}
+            </ul>
+          </details>
+        {% elif item.home %}
+          {% comment %}
+            Strona główna jako domek, bez napisu (uwaga organizatora z 21.09.2026). Nazwa zostaje
+            w ``visually-hidden`` i w ``title``: ikona bez nazwy jest dla czytnika ekranu pustym
+            odnośnikiem, a dla myszy – zagadką. Rysunek jest ``aria-hidden`` i bierze kolor
+            z tekstu (``currentColor``), więc podświetlenie aktywnej pozycji działa jak u reszty.
+          {% endcomment %}
+          <a class="nav__link nav__link--home" href="{{ item.url }}" title="{{ item.title }}"
+             {% if item.url == request.path %}aria-current="page"{% endif %}>
+            <svg class="nav__home-icon" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"
+                 focusable="false" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h5v-6h4v6h5V9.5"/>
+            </svg>
+            <span class="visually-hidden">{{ item.title }}</span>
+          </a>
+        {% else %}
+          <a class="nav__link" href="{{ item.url }}"{% if item.new_tab %} target="_blank" rel="noopener noreferrer"{% endif %}
+             {% if item.url == request.path %}aria-current="page"{% endif %}>{{ item.title }}</a>
+        {% endif %}
+      {% endfor %}
+      {% comment %}
+        Pasek rotujących logotypów sponsorów – po prawej stronie pozycji „FAQ” (uwaga
+        organizatora z 21.09.2026). Stoi **po** pętli, wewnątrz tego samego ``<nav>``, żeby
+        znalazł się dokładnie tam bez własnego ``aria-label`` konkurującego z menu. Fragment
+        sam się chowa, kiedy slider jest wyłączony albo nie ma żadnego logotypu do pokazania.
+      {% endcomment %}
+      {% include "cms/_sponsor_slider.html" %}
+    </nav>

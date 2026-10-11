@@ -181,6 +181,35 @@ def form_action_sources() -> str:
     return " ".join(["'self'", *provider_form_action_sources()])
 
 
+def webinar_connect_sources() -> tuple[str, ...]:
+    """Serwer LiveKit (zadanie WEB-01) – **tylko** przy skonfigurowanym ``LIVEKIT_URL``/kluczu/sekrecie.
+
+    Jedyna zmiana polityki, której wymaga pokój webinaru na platformie, i to wyłącznie w
+    ``connect-src``: SDK ``livekit-client`` otwiera sygnalizację WebSocketem (``wss://host``), a przy
+    błędzie połączenia sprawdza serwer zwykłym ``fetch`` na ``https://host/rtc/validate``. Obraz
+    i dźwięk idą WebRTC (``RTCPeerConnection``), którego CSP nie obejmuje; ścieżki podpina się do
+    ``<video>`` przez ``srcObject`` (strumień, nie adres), więc ``media-src`` zostaje bez zmian, a
+    worker SDK jest potrzebny wyłącznie do szyfrowania E2EE, którego nie używamy – ``worker-src``
+    też bez zmian. ``frame-src`` bez zmian: pokój to nasza strona, nie ramka. Instalacja bez
+    LiveKit ma politykę bajt w bajt taką, jak przed tą funkcją.
+    """
+    from apps.webinars.livekit import csp_origins
+
+    return csp_origins()
+
+
+def error_tracking_connect_sources() -> tuple[str, ...]:
+    """Origin GlitchTipa (``errors.<domena>``) – **tylko** przy ``SENTRY_BROWSER=1`` (OPS-02 § 5).
+
+    Loader błędów JavaScriptu (``static/monitoring/errors.js``) wysyła zdarzenie ``fetch``-em, więc
+    potrzebuje wyłącznie ``connect-src``; sam skrypt jest nasz (``'self'`` + nonce). Bez włączonej
+    funkcji polityka jest bajt w bajt taka jak przed OPS-02.
+    """
+    from apps.monitoring.browser import connect_sources
+
+    return connect_sources()
+
+
 def build_policy(nonce: str, *, analytics: bool = False, theme_assets: bool = False) -> str:
     """Buduje treść polityki dla jednego żądania (nonce jest jednorazowy).
 
@@ -202,7 +231,13 @@ def build_policy(nonce: str, *, analytics: bool = False, theme_assets: bool = Fa
     # obrazkiem, ale żaden plik audio ani wideo nie przychodzi z Google'a.
     img_sources = _with_storage(["'self'", "data:", "blob:", *(ANALYTICS_IMG_SOURCES if analytics else ())])
     connect_sources = _with_storage(
-        ["'self'", *SCRIPT_CDN_SOURCES, *(ANALYTICS_CONNECT_SOURCES if analytics else ())]
+        [
+            "'self'",
+            *SCRIPT_CDN_SOURCES,
+            *(ANALYTICS_CONNECT_SOURCES if analytics else ()),
+            *webinar_connect_sources(),
+            *error_tracking_connect_sources(),
+        ]
     )
     directives = [
         "default-src 'self'",
@@ -227,6 +262,53 @@ def build_policy(nonce: str, *, analytics: bool = False, theme_assets: bool = Fa
         "worker-src 'self' blob:",
     ]
     return "; ".join(directives)
+
+
+#: Laboratorium notatników (JupyterLite, QC-01 § 3.2 i § 3.5) – polityka **wyłącznie** dla ścieżki
+#: ``STATIC_URL + "notebook-lab/"``. W produkcji ten sam napis wysyła Caddy (fragment
+#: ``(notebook_lab)`` w ``deploy/Caddyfile``, z ``{scheme}://{hostport}`` w miejscu originu), bo
+#: pliki statyczne podaje on, a nie Django; zgodność pilnuje ``apps/notebooks/tests/test_labbuild.py``.
+#:
+#: Laboratorium leży w originie serwisu, a uczeń wykonuje w nim dowolny kod (też JavaScript – wyjście
+#: ``application/javascript``). Dlatego każde źródło jest zawężone do **ścieżki** laboratorium (CSP
+#: porównuje też ścieżkę źródła): dokument nie pobierze ani nie wywoła niczego z API ani z paneli
+#: serwisu (``connect-src`` – wyłącznie pliki laboratorium i notatnik startowy pod
+#: ``/notebook-starter/``), nie osadzi strony serwisu w ramce (``frame-src``), nie wyśle formularza
+#: (``form-action 'none'``) i sam nie da się osadzić (``frame-ancestors 'none'`` – laboratorium otwiera
+#: się w osobnej karcie, bez ``opener``). Wyjątki wobec polityki serwisu: ``'wasm-unsafe-eval'``
+#: (WebAssembly Pyodide), ``'unsafe-eval'`` (Ajv w JupyterLab kompiluje schematy przez ``new Function``),
+#: ``blob:`` w ``worker-src`` (jądro Pythona w Web Workerze). Granice tej ochrony – § 3.5 specyfikacji.
+NOTEBOOK_LAB_SEGMENT = "notebook-lab/"
+#: Ścieżka notatnika startowego – bez prefiksu konkursu, żeby polityka laboratorium (napis stały
+#: w Caddym) mogła ją wymienić; konkurs i uczestnika niesie podpisany token (``apps.notebooks``).
+NOTEBOOK_STARTER_PATH = "/notebook-starter/"
+NOTEBOOK_LAB_POLICY_TEMPLATE = (
+    "default-src {lab}; script-src {lab} 'unsafe-eval' 'wasm-unsafe-eval'; "
+    "style-src {lab} 'unsafe-inline'; img-src {lab} data: blob:; font-src {lab} data:; "
+    "connect-src {lab} {starter}; worker-src {lab} blob:; frame-src {lab} blob:; "
+    "object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+)
+#: Izolacja okien: z COEP ``require-corp`` wartość COOP laboratorium różni się od COOP stron serwisu
+#: (Django: ``same-origin``), więc okno otwarte z laboratorium (``window.open('/me/')``) trafia do
+#: innej grupy kontekstów – kod ucznia nie dostaje do niego dostępu. Wszystkie zasoby laboratorium są
+#: z tego samego originu, więc ``require-corp`` niczego nie blokuje (sprawdzone w przeglądarce).
+NOTEBOOK_LAB_HEADERS = {
+    "Cross-Origin-Opener-Policy": "same-origin",
+    "Cross-Origin-Embedder-Policy": "require-corp",
+    "Cross-Origin-Resource-Policy": "same-origin",
+}
+
+
+def build_notebook_lab_policy(origin: str) -> str:
+    """Polityka laboratorium dla originu (``https://host``; w Caddym ``{scheme}://{hostport}``)."""
+    return NOTEBOOK_LAB_POLICY_TEMPLATE.format(
+        lab=f"{origin}{settings.STATIC_URL}{NOTEBOOK_LAB_SEGMENT}",
+        starter=f"{origin}{NOTEBOOK_STARTER_PATH}",
+    )
+
+
+def is_notebook_lab_path(path: str) -> bool:
+    return path.startswith(f"{settings.STATIC_URL}{NOTEBOOK_LAB_SEGMENT}")
 
 
 def build_admin_policy() -> str:
@@ -319,7 +401,11 @@ class ContentSecurityPolicyMiddleware:
         request.csp_nonce = nonce
         response = self.get_response(request)
         if self.header not in response:
-            if is_admin_request(request):
+            if is_notebook_lab_path(request.path):
+                response[self.header] = build_notebook_lab_policy(f"{request.scheme}://{request.get_host()}")
+                for name, value in NOTEBOOK_LAB_HEADERS.items():
+                    response[name] = value
+            elif is_admin_request(request):
                 response[self.header] = build_admin_policy()
             else:
                 # Pytanie jest o **witrynę tego żądania**, a nie o instalację: konkurs, który

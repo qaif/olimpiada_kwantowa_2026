@@ -15,6 +15,7 @@
           <span class="{{ entry.status|badge_class }}">{{ entry.get_status_display }}</span>
         {% endif %}
       </div>
+      {% if time_window %}{% include "time_windows/_participant_window.html" with window=time_window %}{% endif %}
 
       {% comment %}
         Etap stacjonarny ma dwa terminy i uczestnik potrzebuje obu: dni, na które przyjeżdża,

@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% load web_extras %}
 {% load static %}
+{% load school_stats_tags %}
 {% comment %}
   Panel opiekuna szkolnego: uczniowie, którzy wskazali ten adres e-mail, i stan ich prac.
 
@@ -33,6 +34,7 @@
   <div class="actions">
     <a class="btn btn--primary" href="{% url 'web:supervisor-import' %}">Zaproś uczniów z listy</a>
     <a class="btn btn--secondary" href="{% url 'web:supervisor-students' %}">Konta uczniów</a>
+    {% school_stats_link %}
     {% if promo_available %}
       <a class="btn btn--secondary" href="{% url 'web:posters' %}">Plakaty do powieszenia w szkole</a>
     {% endif %}

@@ -1,0 +1,6 @@
+{% load i18n %}{% include "django/forms/widgets/input.html" %}{% if widget.suggestion %}
+<span class="email-suggestion" id="{{ widget.attrs.id }}_suggestion" data-email-suggestion>
+  <input type="checkbox" name="{{ widget.accept_name }}" value="{{ widget.suggestion }}" id="{{ widget.attrs.id }}_accept" data-email-accept>
+  <label for="{{ widget.attrs.id }}_accept">{% blocktranslate trimmed with address=widget.suggestion %}Użyj adresu <strong>{{ address }}</strong>{% endblocktranslate %}</label>
+</span>{% endif %}{% if widget.typed and widget.allow_keep %}
+<input type="hidden" name="{{ widget.keep_name }}" value="{{ widget.typed }}">{% endif %}

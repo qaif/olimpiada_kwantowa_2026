@@ -142,6 +142,9 @@ INSTALLED_APPS = [
     # (podpis ``display_author`` i regułę etapu wymuszającego premoderację), a forum nie wie o niej
     # nic; **przed** ``apps.web``, który ją wyświetla.
     "apps.chat",
+    # Sieć absolwentów i mentoring (ALUM-01, 04.10.2026), za flagą ``alumni``. **Po** ``apps.chat``,
+    # bo rozmowy mentorskie są rozmowami czatu i rejestrują w nim swoją politykę – czat nie wie o niej nic.
+    "apps.alumni",
     # Plakaty do pobrania i statystyka ich pobrań (prośba organizatora z 23.09.2026). Osobna
     # aplikacja, a nie model w ``apps.cms``: plakat nie jest stroną ani snippetem Wagtaila, ma własny
     # plik w storage prywatnym, własne zdarzenia (pobrania) i własne reguły prywatności liczenia
@@ -164,10 +167,40 @@ INSTALLED_APPS = [
     # i własną drogę danych poza serwer; **po** ``apps.grading`` i ``apps.results``, bo czyta
     # skalę, rubrykę i publikację wyników, a żadna z nich nie czyta jej.
     "apps.ai_grading",
+    # Logistyka finału dla delegacji krajowych (LOG-01): paszporty, przyloty, pokoje, identyfikatory.
+    "apps.delegation_logistics",
+    # Webinary w LiveKit (zadanie WEB-01, flaga ``webinars``). Osobna aplikacja, a nie dostawca
+    # w pokojach Jitsi (``apps.competitions.video_rooms``): webinar ma termin, odbiorców, własny pokój
+    # na platformie, listę obecności z webhooków i nagrania. **Po** ``apps.competitions`` i ``apps.accounts``,
+    # bo czyta etapy, drużyny i role; **przed** ``apps.web``, który ją wyświetla.
+    "apps.webinars",
+    # Okna czasowe etapu według stref czasowych krajów (TZ-01, 4.10.2026, flaga ``stage_time_windows``).
+    "apps.time_windows",
+    "apps.problem_translations",  # tłumaczenia zadań przez delegacje krajowe (TR-01, 4.10.2026)
+    # Notatniki kwantowe w przeglądarce (JupyterLite) i zadania sprawdzane automatycznie (QC-01).
+    "apps.notebooks",
+    # Nadzór zdalny etapów online (zadanie PROC-01, flaga ``proctoring``) – na kliencie LiveKit webinarów.
+    "apps.proctoring",
     # Warstwa integracyjna: klucze API dla systemów zewnętrznych, webhooki i eksporty na zewnątrz.
     # **Po** aplikacjach domeny, bo czyta je wszystkie (edycje, wyniki, zgłoszenia), a żadna z nich
     # nie czyta jej – zależność idzie w jedną stronę i kolejność w tej liście ma to pokazywać.
     "apps.integrations",
+    # Statystyki szkół i opiekunów szkolnych (STAT-01, flaga ``school_statistics``) – bez modeli, sam odczyt.
+    "apps.school_stats",
+    # Przegląd tłumaczeń interfejsu przez rodzimych użytkowników języka (zadanie L10N-01). Przed
+    # ``apps.web``, który montuje jej adresy; w ``ready()`` wkłada nakładkę poprawek do gettext.
+    "apps.translation_review",
+    # Medale olimpiady międzynarodowej, dyplomy w języku ucznia i ranking krajów (MED-01, flaga ``medals``).
+    "apps.medals",
+    # Płatności online za udział (PAY-01): cennik delegacji, zamówienia, Stripe/Przelewy24, faktury.
+    "apps.payments",
+    "apps.staff_mfa",  # 2FA personelu: polityka konkursu, okres przejściowy, odzyskiwanie (SEC-01)
+    "apps.password_change",  # zmiana hasła w panelu konta (AUTH-01b, 4.10.2026), bez modeli
+    "apps.mail_domains",  # domeny nadawców poczty: check_mail_dns i ostrzeżenia (MAIL-01, 5.10.2026)
+    "apps.monitoring",  # śledzenie błędów (GlitchTip) i dostępność – OPS-02, wyłączone bez SENTRY_DSN
+    "apps.accessibility",  # deklaracja dostępności i napisy stopki (A11Y-01, 5.10.2026), bez modeli
+    "apps.email_delivery",  # literówki w adresach i odbicia poczty (MAIL-02, 5.10.2026)
+    "apps.consent_gate",  # bramka i ekran „Uzupełnij zgody” po zalogowaniu (CONS-01), bez modeli
     "apps.web",
     # Logowanie przez dostawców zewnętrznych (Google, Facebook). ``allauth.account`` jest wymagane
     # przez ``allauth.socialaccount`` (model ``EmailAddress``, adaptery) – jego **widoki** nie są
@@ -202,6 +235,11 @@ MIDDLEWARE = [
     # apps/web/tests/test_public.py); dla samego zliczania kodu odpowiedzi ta różnica jest bez
     # znaczenia. Warstwa niczego nie modyfikuje i nie może rzucić.
     "apps.core.middleware.ServerErrorCounterMiddleware",
+    # Osobny host laboratorium notatników (QC-02 § 3): **przed** WhiteNoise, bo rozstrzyga też o
+    # ``/static/notebook-lab/`` (host serwisu → 302 na host laboratorium). Na hoście laboratorium
+    # kończy każde żądanie poza plikami laboratorium sam – bez sesji, konkursu i CSRF. Bez
+    # ``NOTEBOOK_LAB_HOST`` nie robi nic.
+    "apps.notebooks.middleware.NotebookLabHostMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     # Język z ciasteczka albo z nagłówka ``Accept-Language``. Za sesją (czyta ją) i przed
@@ -209,6 +247,10 @@ MIDDLEWARE = [
     # dokładnie tak, jak każe dokumentacja Django.
     "django.middleware.locale.LocaleMiddleware",
     "django.middleware.common.CommonMiddleware",
+    # Notatniki kwantowe (QC-01 § 3.5): 403 dla żądań zmieniających stan i dla API wysłanych
+    # z dokumentu laboratorium (po ``Referer``). Druga linia za polityką CSP laboratorium; tanie –
+    # bez ``Referer`` z laboratorium nie robi nic.
+    "apps.notebooks.middleware.NotebookLabRequestGuardMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     # Wylogowanie zamyka też sesję w django CMS na tym samym hoście (ciasteczko ``djcms_sessionid``,
@@ -231,6 +273,9 @@ MIDDLEWARE = [
     # Sesja po samym haśle jest tu w poczekalni: przechodzą wyłącznie adresy z listy
     # w ``apps.accounts.twofactor`` (ekran weryfikacji, wylogowanie, strona statusu).
     "apps.accounts.twofactor.TwoFactorMiddleware",
+    # Strefa czasowa ucznia na czas żądania (okna czasowe, TZ-01). Za konkursem i uwierzytelnieniem,
+    # bo pyta o profil uczestnika **w tym konkursie**; bez flagi ``stage_time_windows`` nie robi nic.
+    "apps.time_windows.middleware.ParticipantTimezoneMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     # Zasięg redaktora w ``/cms/``: dwa adresy Wagtaila, których nie zawężają haki (wybór strony
@@ -243,6 +288,16 @@ MIDDLEWARE = [
     # zasięgu redaktora i z tego samego powodu za uwierzytelnieniem; poza adresami z listy
     # (apps/cms/middleware.py) nie wykonuje żadnego zapytania.
     "apps.cms.middleware.CmsFreezeMiddleware",
+    # Bramka treści etapu z nadzorem zdalnym (PROC-01): wyłącznie ``process_view`` i wyłącznie dla
+    # zamkniętej listy adresów (PDF zadania, wysyłka, test); bez flagi ``proctoring`` – zero zapytań.
+    # **Za** uwierzytelnieniem i komunikatami (przekierowuje do konsoli z komunikatem).
+    # Bramka zgód uczestnika (CONS-01): brak wymaganej zgody albo zgoda pod starą wersją dokumentu
+    # → ekran „Uzupełnij zgody”, zanim uczestnik wejdzie do panelu, uploadu, testu czy czatu.
+    # Wyłącznie ``process_view`` i wyłącznie dla obszaru uczestnika (apps/consent_gate/middleware.py);
+    # anonim i personel – zero zapytań. **Za** 2FA (najpierw tożsamość) i komunikatami, **przed**
+    # bramką nadzoru: konto bez zgód nie dochodzi do pytania o sesję nadzoru.
+    "apps.consent_gate.middleware.ConsentGateMiddleware",
+    "apps.proctoring.middleware.ProctoringGateMiddleware",
     # Wymagana przez allauth: ustawia kontekst żądania (``allauth.core.context``), z którego
     # korzystają adaptery i przepływ social login. Nie montuje żadnego adresu i nie zmienia
     # obsługi 404 – przekierowanie „/accounts/ → logowanie” włącza się dopiero, gdy istnieje
@@ -318,6 +373,8 @@ TEMPLATES = [
                 # szkolnego. Wartość leniwa, z pamięci podręcznej unieważnianej przy zapisie plakatu
                 # (``apps.promo.availability``).
                 "apps.promo.availability.promo_materials",
+                # Odnośnik do deklaracji dostępności w stopce – tylko gdy strona jest opublikowana (A11Y-01).
+                "apps.accessibility.availability.accessibility_statement",
                 # Czy pokazać odnośnik „Materiały z warsztatów” w pasku konta i na pulpicie
                 # uczestnika – przełącznik konkursu i pamięć podręczna unieważniana przy zapisie
                 # materiału (``apps.workshop_materials.availability``); wartość leniwa.
@@ -460,6 +517,14 @@ PAGE_CACHE_ENABLED = env.bool("PAGE_CACHE_ENABLED", default=not DEBUG)
 # dwa niezależne wyłączniki, bo jeden bywa wygodniejszy operacyjnie (zmienna środowiskowa przy
 # incydencie), a drugi programistycznie (test, który włącza cache, ale ze świadomie krótkim TTL).
 PAGE_CACHE_SECONDS = env.int("PAGE_CACHE_SECONDS", default=120)
+# Bramka „Uzupełnij zgody” (CONS-01, docs/OPERACJE.md § 51). Wyłącznik instalacji na wypadek
+# incydentu (np. pomyłkowa zmiana wersji dokumentu, która odesłałaby do ekranu wszystkich naraz) –
+# zmiana zmiennej i restart ``web``, bez wdrożenia. ``config/settings/test.py`` wyłącza ją jawnie,
+# a testy bramki (apps/consent_gate/tests) włączają ją same – tak jak cache stron.
+CONSENT_GATE_ENABLED = env.bool("CONSENT_GATE_ENABLED", default=True)
+# Odstęp odpytywania otwartego wątku Wiadomości (PERF-01, docs/OPERACJE.md § 42.5): najczęstsze
+# żądanie dnia zawodów; na czas etapu operator może go wydłużyć bez wdrożenia (np. 45).
+CHAT_POLL_SECONDS = env.int("CHAT_POLL_SECONDS", default=15)
 
 CELERY_BROKER_URL = env("CELERY_BROKER_URL", default="redis://localhost:6379/1")
 CELERY_RESULT_BACKEND = None
@@ -492,10 +557,47 @@ CELERY_TASK_ROUTES = {
     "apps.workshop_materials.tasks.scan_material": {"queue": "scan"},
     # Skan pracy testowej oceny AI (``apps.ai_grading.sandbox``) – ta sama praca, ta sama kolejka.
     "apps.ai_grading.tasks.scan_ai_test_work": {"queue": "scan"},
+    # Notatniki kwantowe (QC-01): wysyłka do piaskownicy i ocena testów na **osobnej** kolejce z osobnym
+    # workerem (``notebook-worker``, profil compose ``notebooks``) i krótkimi limitami czasu – ocena
+    # liczy symulację obwodu ucznia, więc nie może zajmować procesów skanu antywirusowego i poczty.
+    "apps.notebooks.tasks.run_notebook": {"queue": "notebooks"},
+    "apps.notebooks.tasks.collect_notebook_run": {"queue": "notebooks"},
+    # Skan zdjęcia do identyfikatora finału (LOG-01) – ta sama praca, ta sama kolejka.
+    "apps.delegation_logistics.tasks.scan_badge_photo": {"queue": "scan"},
+    # Skan dowodu wpłaty przelewem (PAY-01) – ta sama praca, ta sama kolejka.
+    "apps.payments.tasks.scan_payment_proof": {"queue": "scan"},
 }
 CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
 CELERY_TIMEZONE = "UTC"
 CELERY_BEAT_SCHEDULE = {
+    # Odbicia poczty (MAIL-02): skrzynka Maildir relaya co 5 minut, retencja stanów adresów raz na dobę.
+    # Oba zadania bez ``EMAIL_BOUNCE_TRACKING`` kończą się od razu – wpis może stać zawsze.
+    "email-bounces": {
+        "task": "apps.email_delivery.tasks.process_bounce_mailbox",
+        "schedule": 300.0,
+    },
+    "email-delivery-purge": {
+        "task": "apps.email_delivery.tasks.purge_delivery_statuses",
+        "schedule": crontab(minute=20, hour=3),
+    },
+    # Notatniki kwantowe (QC-01): przebiegi oceny dla nowych czystych plików .ipynb i domknięcie
+    # zgubionych. Bez zmian w ``apps.submissions`` – beat zauważa nowy plik sam, najpóźniej po minucie.
+    "notebooks-pump": {
+        "task": "apps.notebooks.tasks.pump_notebook_runs",
+        "schedule": 60.0,
+    },
+    # Płatności (PAY-01): porzucone sesje Stripe/P24 i zwroty o nieznanym wyniku (OPERACJE § 35).
+    "payments-sweep": {
+        "task": "apps.payments.tasks.sweep_payments",
+        "schedule": 900.0,
+    },
+    # Komunikaty z datą przyszłą (MSG-SCHED-01, apps/accounts/messaging.py): co minutę wysyła
+    # zaplanowane z terminem do teraz – odbiorców liczy w chwili wysyłki, porcje idą kolejką ``mail``.
+    # Minuta, bo tyle wynosi dokładność terminu, którą obiecuje ekran („sobota, 06:00”).
+    "dispatch-scheduled-broadcasts": {
+        "task": "apps.accounts.messaging.dispatch_scheduled_broadcasts",
+        "schedule": 60.0,
+    },
     # Zamknięcie etapu po deadline: LOCKED na najnowszych wersjach + znacznik Stage.closed_at.
     "close-due-stages": {
         "task": "apps.submissions.tasks.close_due_stages",
@@ -552,6 +654,11 @@ CELERY_BEAT_SCHEDULE = {
         "task": "apps.student_status.tasks.purge_expired_scans",
         "schedule": 86400.0,
     },
+    # Retencja logistyki finału (LOG-01): dane członków delegacji po ``ends_on + retencja`` finału.
+    "delegation-logistics-purge-expired": {
+        "task": "apps.delegation_logistics.tasks.purge_expired",
+        "schedule": 86400.0,
+    },
     # Materiały z warsztatów (apps/workshop_materials/tasks.py): porzucone wgrywania (wiersz
     # „wgrywanie” starszy niż doba – części w MinIO, obiekt i wiersz) oraz pseudonimy widzów po
     # okresie retencji. Co godzinę, bo porzucone wgrywanie filmu to bywają gigabajty na dysku.
@@ -606,6 +713,21 @@ CELERY_BEAT_SCHEDULE = {
         "task": "apps.forum.tasks.send_daily_forum_digest",
         "schedule": crontab(minute=0, hour=env.int("FORUM_DAILY_DIGEST_HOUR_UTC", default=5)),
     },
+    # Przypomnienia o webinarach (apps/webinars/tasks.py) – ``WEBINAR_REMINDER_MINUTES`` przed
+    # startem, raz na webinar (``Webinar.reminder_sent_at``). Co pięć minut, bo przypomnienie ma
+    # przyjść „około godzinę przed”, a nie „gdzieś w ciągu doby”. Konkurs bez flagi albo instalacja
+    # bez serwera LiveKit kosztuje zero zapytań o webinary (``services.available``). Przy okazji
+    # sprząta identyfikatory przetworzonych webhooków starsze niż tydzień.
+    "webinars-reminders": {
+        "task": "apps.webinars.tasks.remind_webinars",
+        "schedule": 300.0,
+    },
+    # Retencja nadzoru zdalnego (PROC-01 § 8): nagrania, zdjęcia dokumentu, dziennik i wiadomości
+    # ``PROCTORING_RETENTION_DAYS`` po publikacji wyników i oknie reklamacji. Raz dziennie, w nocy.
+    "proctoring-purge": {
+        "task": "apps.proctoring.tasks.purge_expired",
+        "schedule": crontab(minute=40, hour=3),
+    },
 }
 
 # --- powiadomienia z forum (``apps.forum.notifications``) ---------------------------------------
@@ -657,7 +779,22 @@ TWO_FACTOR_ENABLED = env.bool("TWO_FACTOR_ENABLED", default=False)
 # aplikację uwierzytelniającą. Kolejność jest odwrotna – najpierw komitet włącza 2FA dobrowolnie
 # (ekran ``/account/2fa/``), a dopiero potem organizator domyka furtkę tą zmienną.
 # Sensowna wartość produkcyjna: ``TWO_FACTOR_REQUIRED_ROLES=coordinator,reviewer,appeals``.
-TWO_FACTOR_REQUIRED_ROLES = env.list("TWO_FACTOR_REQUIRED_ROLES", default=[])
+#
+# SEC-01 (04.10.2026): to jest **polityka platformy** – role wymagane w każdym konkursie, obok
+# polityki konkursu (``apps.staff_mfa``, domyślnie personel konkursów z danymi wrażliwymi). Klucze:
+# ``superkoordynator``, ``admin`` (``is_staff``/superuser), ``coordinator``, ``team_leader``,
+# ``logistics``, ``reviewer``, ``appeals``, ``supervisor``; ``participant`` jest odrzucany.
+# Domyślnie ``superkoordynator,admin`` – te role widzą wszystkie konkursy naraz. Obawa sprzed SEC-01
+# („zamknie koordynatorowi panel w dniu wdrożenia”) znika razem z okresem przejściowym niżej.
+TWO_FACTOR_REQUIRED_ROLES = env.list("TWO_FACTOR_REQUIRED_ROLES", default=["superkoordynator", "admin"])
+
+# Okres przejściowy (dni) od pierwszego żądania konta, od którego 2FA stało się wymagane: baner
+# na każdej stronie, potem poczekalnia „skonfiguruj”. Polityka konkursu może go skrócić/wydłużyć.
+TWO_FACTOR_GRACE_DAYS = env.int("TWO_FACTOR_GRACE_DAYS", default=14)
+
+# „Zapamiętaj to urządzenie” na drugim kroku logowania (dni; 0 = pola nie ma). Podpisane ciasteczko
+# ``2fa_trust`` (apps/staff_mfa/trust.py) – unieważnia je zmiana hasła, wyłączenie i reset 2FA.
+TWO_FACTOR_REMEMBER_DAYS = env.int("TWO_FACTOR_REMEMBER_DAYS", default=7)
 
 # --- Poczta wychodząca -----------------------------------------------------------------------
 # Konfiguracja poczty jest **słownikiem** ``MAILERS`` (Django 6.1), a nie ustawieniami ``EMAIL_*``:
@@ -710,6 +847,22 @@ else:
 #: organizatora) to dopisanie klucza tutaj i ``using="alias"`` w miejscu wysyłki – patrz
 #: docs/OPERACJE.md § 9.5.
 MAILERS = {"default": {"BACKEND": _email_backend, "OPTIONS": _mailer_options}}
+
+# Odbicia poczty (MAIL-02, docs/tasks/MAIL-02.md § 3, OPERACJE § 52). Przełącznik instalacji: backend
+# zapisujący odmowy relaya (podklasa backendu SMTP – opcje bez zmian), zadanie czytające skrzynkę
+# Maildir relaya, pozycja menu koordynatora i wiersz rejestru czynności. compose ustawia ``true``;
+# domyślnie wyłączony, więc dev z mailpitem i testy są bajt w bajt jak dotąd.
+EMAIL_BOUNCE_TRACKING = env.bool("EMAIL_BOUNCE_TRACKING", default=False)
+#: Katalog Maildir zawiadomień o niedoręczeniu w kontenerze workera (wolumen ``mail_bounces``).
+MAIL_BOUNCE_MAILDIR = env("MAIL_BOUNCE_MAILDIR", default="/var/mail-bounces/bounces")
+#: Nazwa relaya w polu ``Reporting-MTA`` zawiadomienia (= ``myhostname`` usługi ``mail``). Zawiadomienie
+#: z inną nazwą nie jest raportem naszego relaya i jest pomijane. Puste = ``mail.<SITE_DOMAIN>``.
+MAIL_BOUNCE_REPORTING_MTA = env("MAIL_BOUNCE_REPORTING_MTA", default="")
+if EMAIL_BOUNCE_TRACKING and _email_backend == _smtp_backend:
+    MAILERS["default"]["BACKEND"] = "apps.email_delivery.backends.TrackingSMTPBackend"
+#: Twarda blokada domen bez MX i A w formularzach adresu (MAIL-02 § 1.2). Wyłącznik na wypadek, gdyby
+#: DNS serwera działał tak źle, że limit 1,5 s na pytanie byłby odczuwalny przy każdej rejestracji.
+EMAIL_DOMAIN_DNS_CHECK = env.bool("EMAIL_DOMAIN_DNS_CHECK", default=True)
 
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="noreply@localhost")
 # Nadawca wiadomości systemowych (``mail_admins``, raporty 500). Ten sam adres: MTA odbiorcy i tak
@@ -778,6 +931,11 @@ WAGTAIL_I18N_ENABLED = env.bool("WAGTAIL_I18N_ENABLED", default=False)
 # Konkurs ``iqo`` świadomie **nie** ma drzew treści w dziesięciu językach (I18N-01 § 10) – lista
 # mówi, co jest możliwe, a nie co jest założone.
 WAGTAIL_CONTENT_LANGUAGES = LANGUAGES
+# Nakładka zatwierdzonych poprawek tłumaczy na katalogi gettext (L10N-01 § 6). Wyłączenie wraca do
+# samych katalogów z repozytorium bez wydania – zatwierdzone poprawki zostają w bazie. Proces
+# sprawdza wersję nakładki w cache'u najwyżej co tyle sekund.
+TRANSLATION_OVERRIDES_ENABLED = env.bool("TRANSLATION_OVERRIDES_ENABLED", default=True)
+TRANSLATION_OVERRIDES_CHECK_SECONDS = 5
 USE_TZ = True  # wszystkie DateTimeField w UTC; deadline'y porównywane przez timezone.now()
 
 STATIC_URL = "/static/"
@@ -896,7 +1054,7 @@ AI_GRADING_MAX_BATCH = env.int("AI_GRADING_MAX_BATCH", default=500)
 
 CLAMAV_HOST = env("CLAMAV_HOST", default="clamav")
 CLAMAV_PORT = env.int("CLAMAV_PORT", default=3310)
-# ``StreamMaxLength`` clamd (obraz clamav 1.4 → 100 MB). Powyżej tej wartości clamd zrywa połączenie
+# ``StreamMaxLength`` clamd (obrazy clamav 1.4 i 1.5 → 100 MB). Powyżej tej wartości clamd zrywa połączenie
 # w trakcie INSTREAM, co wyglądałoby jak awaria usługi i uruchamiało bezsensowne retry.
 CLAMAV_STREAM_MAX_BYTES = env.int("CLAMAV_STREAM_MAX_BYTES", default=100 * 1024 * 1024)
 
@@ -921,6 +1079,26 @@ ERROR_PAGE_CONTACT_EMAIL = env("ERROR_PAGE_CONTACT_EMAIL", default="contact@qaif
 # Domena publiczna serwisu. Migracja ``apps.cms.0002`` ustawia z niej ``wagtailcore.Site``;
 # późniejsze zmiany domeny robi redaktor w ``/cms/`` (Ustawienia → Witryny), nie deploy.
 SITE_DOMAIN = env("SITE_DOMAIN", default="localhost")
+
+# Domeny nadawców, które przyjmie relay pocztowy (AUTH-01a, M3). Usługa ``mail`` (wariant A)
+# odrzuca kopertę spoza ``ALLOWED_SENDER_DOMAINS`` – ta sama zmienna, ten sam domyślny
+# ``SITE_DOMAIN`` (docker-compose.yml). ``apps.core.tasks.mail_from`` przy nadawcy konkursu spoza
+# tej listy wraca do ``DEFAULT_FROM_EMAIL``: list od nadawcy instalacji dochodzi, list od nadawcy
+# odrzuconego przez relay ginie po cichu w logu workera. Rozdzielone spacją albo przecinkiem
+# (Postfix bierze listę ze spacjami). ``*`` = bez ograniczenia (wariant B: zewnętrzny dostawca,
+# który sam pilnuje nadawców) – w ustawieniach to ``None``.
+_sender_domains = env("ALLOWED_SENDER_DOMAINS", default=SITE_DOMAIN).replace(",", " ").split()
+MAIL_ALLOWED_SENDER_DOMAINS = (
+    None if "*" in _sender_domains else [domain.strip().lower() for domain in _sender_domains]
+)
+
+# Sprawdzenie rekordów poczty domen nadawców (MAIL-01, ``manage.py check_mail_dns``). Selektor ten
+# sam, co usługi ``mail`` (compose: ``DKIM_SELECTOR: olimpiada``); IP relaya pusty = rekord A
+# ``mail.<SITE_DOMAIN>``; serwery DNS puste = ``/etc/resolv.conf`` kontenera.
+MAIL_DKIM_SELECTOR = env("DKIM_SELECTOR", default="olimpiada")
+MAIL_PUBLIC_IP = env("MAIL_PUBLIC_IP", default="")
+MAIL_DMARC_RUA = env("DMARC_RUA", default="contact@qaif.org")
+MAIL_DNS_NAMESERVERS = env.list("MAIL_DNS_NAMESERVERS", default=[])
 
 # --- konkursy w subdomenach platformy ----------------------------------------------------------
 # Wyłącznik funkcji „koordynator zakłada konkurs z panelu, a konkurs stoi pod
@@ -1012,21 +1190,68 @@ JITSI_JWT_GATEWAY_MINUTES = env.int("JITSI_JWT_GATEWAY_MINUTES", default=10)
 JITSI_JWT_ROOM_MAX_DAYS = env.int("JITSI_JWT_ROOM_MAX_DAYS", default=60)
 JITSI_JWT_COMMITTEE_ROOM_MAX_DAYS = env.int("JITSI_JWT_COMMITTEE_ROOM_MAX_DAYS", default=30)
 
+# --- webinary w LiveKit (zadanie WEB-01, ``apps.webinars``) --------------------------------------
+# LiveKit (Apache 2.0) stoi na **własnym** serwerze – osobnej maszynie (zalecane przy dużych
+# wydarzeniach) albo w profilu compose ``livekit`` na tym hoście (małe spotkania); docs/OPERACJE.md
+# § 36. ``LIVEKIT_URL`` – adres sygnalizacji dla przeglądarki (``wss://live.<domena>``),
+# ``LIVEKIT_API_KEY``/``LIVEKIT_API_SECRET`` – para kluczy z ``livekit.yaml`` (``keys:``). Pusty
+# którykolwiek = funkcja wyłączona: koordynator konkursu z flagą ``webinars`` widzi „serwer LiveKit
+# nie jest skonfigurowany”, odbiorcy – nic, a polityka CSP nie zmienia się ani o znak.
+# ``LIVEKIT_API_URL`` – opcjonalny adres API dla poleceń serwerowych z sieci compose
+# (``http://livekit:7880``); pusty = ``https`` z ``LIVEKIT_URL``. Token wejścia żyje
+# ``TOKEN_TTL`` sekund (LiveKit utrzymuje połączenie sam). Okno wejścia odbiorcy: ``LEAD`` minut przed
+# początkiem do ``GRACE`` minut po planowanym końcu. Nagrania zapisuje egress do bucketu
+# ``LIVEKIT_RECORDINGS_BUCKET`` (pusty = prywatny bucket prac ``S3_SUBMISSIONS_BUCKET``, prefiks
+# ``webinars/``).
+LIVEKIT_URL = env("LIVEKIT_URL", default="")
+LIVEKIT_API_URL = env("LIVEKIT_API_URL", default="")
+LIVEKIT_API_KEY = env("LIVEKIT_API_KEY", default="")
+LIVEKIT_API_SECRET = env("LIVEKIT_API_SECRET", default="")
+LIVEKIT_TOKEN_TTL_SECONDS = env.int("LIVEKIT_TOKEN_TTL_SECONDS", default=600)
+LIVEKIT_TIMEOUT_SECONDS = env.float("LIVEKIT_TIMEOUT_SECONDS", default=8.0)
+LIVEKIT_RECORDINGS_BUCKET = env("LIVEKIT_RECORDINGS_BUCKET", default="")
+WEBINAR_JOIN_LEAD_MINUTES = env.int("WEBINAR_JOIN_LEAD_MINUTES", default=15)
+WEBINAR_JOIN_GRACE_MINUTES = env.int("WEBINAR_JOIN_GRACE_MINUTES", default=30)
+WEBINAR_REMINDER_MINUTES = env.int("WEBINAR_REMINDER_MINUTES", default=60)
+# Retencja (dni od końca webinaru): po tym czasie znikają nagrania i lista obecności
+# (``apps.webinars.services.purge_expired``, zadanie beat ``webinars-reminders``). Rok – jedna
+# edycja konkursu z zapasem na reklamacje i zaświadczenia; 0 = bez automatycznego kasowania.
+WEBINAR_RETENTION_DAYS = env.int("WEBINAR_RETENTION_DAYS", default=365)
+
+# --- nadzór zdalny etapów online (zadanie PROC-01, ``apps.proctoring``) -------------------------------
+# Ten sam serwer LiveKit, co webinary. ``LEAD`` – ile minut przed otwarciem okna ucznia wolno włączyć
+# nadzór (sprawdzenie sprzętu na spokojnie), ``GRACE`` – ile po zamknięciu działa pokój nadzorujących.
+# Retencja nośników (nagrania, dziennik, wiadomości): ``RETENTION_DAYS`` po publikacji wyników i końcu
+# okna reklamacji; ``MAX_RETENTION_DAYS`` po końcu etapu, gdy wyniki nigdy nie wyszły; zdjęcia
+# dokumentu – zaraz po etapie. ``WINDOW_ADAPTER`` – własna funkcja okna ucznia; pusty = okna TZ-01
+# (``apps.time_windows``), gdy aplikacja jest zainstalowana, inaczej okno globalne etapu.
+# ``UNPROCTORED_AFTER_FAILURES`` – ile zgłoszonych nieudanych połączeń (przy działającym serwerze)
+# otwiera „kontynuuj bez nadzoru” w etapie z ``allow``; ``LATE_START_MINUTES`` – próg znacznika
+# „późny start” w siatce, raporcie i CSV.
+PROCTORING_LEAD_MINUTES = env.int("PROCTORING_LEAD_MINUTES", default=30)
+PROCTORING_GRACE_MINUTES = env.int("PROCTORING_GRACE_MINUTES", default=30)
+PROCTORING_RETENTION_DAYS = env.int("PROCTORING_RETENTION_DAYS", default=30)
+PROCTORING_MAX_RETENTION_DAYS = env.int("PROCTORING_MAX_RETENTION_DAYS", default=180)
+PROCTORING_WINDOW_ADAPTER = env("PROCTORING_WINDOW_ADAPTER", default="")
+PROCTORING_UNPROCTORED_AFTER_FAILURES = env.int("PROCTORING_UNPROCTORED_AFTER_FAILURES", default=3)
+PROCTORING_LATE_START_MINUTES = env.int("PROCTORING_LATE_START_MINUTES", default=15)
+
 WAGTAIL_SITE_NAME = env("WAGTAIL_SITE_NAME", default="Olimpiada Kwantowa")
 WAGTAILADMIN_BASE_URL = env("WAGTAILADMIN_BASE_URL", default=f"https://{SITE_DOMAIN}")
 # Reset hasła ma jedną drogę: ``/password-reset/`` (limit prób, wysyłka w tle, audyt). Własny reset
 # panelu (``/cms/password_reset/``) działa dla **każdego** konta i żadnej z tych rzeczy nie ma –
 # wyłączony odpowiada 404. Logowanie panelu: ``apps.web.views.public.panel_login_redirect``.
 WAGTAIL_PASSWORD_RESET_ENABLED = False
-# Adres e-mail i hasło konta zmienia się wyłącznie w serwisie (``/account/email/``, „Nie pamiętasz
-# hasła?”), a nie na ``/cms/account/`` (audyt 10.10.2026, W5). Formularze Wagtaila zapisują nowy adres
-# **od razu** – bez potwierdzenia na nowej skrzynce, bez listu na starą, bez audytu i bez sprzątania
-# ``allauth.EmailAddress`` – a zmiana hasła nie ma limitu prób na stare hasło i zostawia token API.
-# Przejęta sesja redaktora albo koordynatora (porzucony komputer, skrypt w ``/cms/``) kończyłaby się
-# trwałym przejęciem konta jednym zapisem formularza. Wyłączone pola znikają z ``/cms/account/``,
-# a POST z nimi niczego nie zmienia.
-WAGTAIL_EMAIL_MANAGEMENT_ENABLED = False
+# Hasło i adres e-mail konta zmienia się wyłącznie w ustawieniach konta serwisu (AUTH-01b, przegląd
+# H1; audyt 10.10.2026, W5): ``/account/password/`` i ``/account/email/`` żądają aktualnego hasła,
+# liczą pomyłki, mają limit, audyt i list do właściciela. Formularze Wagtaila w ``/cms/account/``
+# zapisują nowy adres **od razu** – bez potwierdzenia na nowej skrzynce, bez listu na starą, bez
+# audytu i bez sprzątania ``allauth.EmailAddress`` – a zmiana hasła nie ma limitu prób na stare hasło
+# i zostawia token API. Przejęta sesja redaktora albo koordynatora (porzucony komputer, skrypt
+# w ``/cms/``) kończyłaby się trwałym przejęciem konta jednym zapisem formularza. Wyłączone panele
+# znikają z ``/cms/account/``, a POST z tymi polami niczego nie zmienia.
 WAGTAIL_PASSWORD_MANAGEMENT_ENABLED = False
+WAGTAIL_EMAIL_MANAGEMENT_ENABLED = False
 # Whitelist rozszerzeń dokumentów: bez niej redaktor mógłby wrzucić do publicznego bucketu plik
 # wykonywalny albo HTML (XSS z tej samej domeny, gdyby kiedyś serwować go bez pośrednictwa widoku).
 WAGTAILDOCS_EXTENSIONS = ["pdf", "doc", "docx", "odt", "ods", "odp", "xls", "xlsx", "csv", "txt", "zip"]
@@ -1217,6 +1442,13 @@ REST_FRAMEWORK = {
         # za mało, żeby zasypać cudzą skrzynkę albo kolejkę premoderacji. Listy o wiadomościach
         # i tak są zbijane (``apps.chat.notifications``), więc limit chroni rozmowę, nie pocztę.
         "chat": "60/hour",
+        # Panel notatników kwantowych (QC-01): zapis ustawień zadania, „sprawdź wzorzec”, „przelicz
+        # wszystko”. Każde z dwóch ostatnich uruchamia kod w piaskownicy – limit chroni jej kolejkę.
+        "notebooks": "60/hour",
+        # Sieć absolwentów (``apps.alumni``): dołączenie, profil, prośby o mentoring, zgłoszenia,
+        # zaproszenia koordynatora. Każda prośba i zgłoszenie wysyła list, więc limit chroni cudze
+        # skrzynki; trzydzieści na godzinę to więcej, niż wykona człowiek klikający w panelu.
+        "alumni": "30/hour",
         # Podpowiedzi szkół w formularzu rejestracji. Limit jest wysoki, bo jedno wypełnienie
         # formularza to kilkanaście żądań (jedno na przerwę w pisaniu), a dane są jawnym
         # rejestrem publicznym – chronimy tu koszt zapytania, nie treść.
@@ -1225,6 +1457,14 @@ REST_FRAMEWORK = {
         # trzydzieści sekund – bez limitu da się je przeszukać w kilka godzin z jednego adresu,
         # mając samo hasło. Stawka jest niska, bo człowiek przepisuje kod raz, najwyżej dwa razy.
         "two_factor": "10/min",
+        # Zmiana hasła w panelu konta (``/account/password/``, AUTH-01b). Liczona **per konto**
+        # (``apps.password_change.views.PerAccountThrottleMixin``): ekran jest za logowaniem, a limit
+        # ma powstrzymać zgadywanie aktualnego hasła z cudzej, otwartej sesji. Dziesięć prób na
+        # godzinę to więcej, niż potrzebuje człowiek mylący się przy przepisywaniu nowego hasła.
+        "password_change": "10/hour",
+        # „Mój adres jest poprawny” na banerze odbić (MAIL-02 § 2.4). Każde kliknięcie przywraca
+        # wysyłkę na adres, który odbił – limit nie pozwala zamienić przycisku w pętlę odbić.
+        "email_confirm": "10/hour",
         # Webhook płatności (``/api/v1/payments/<dostawca>/``, § 1.5.1). Limit liczy się per adres
         # nadawcy, bo żądanie przychodzi bez konta i bez klucza – jedynym poświadczeniem jest
         # podpis, a podpis sprawdza się **po** przyjęciu żądania. Sześćdziesiąt na minutę mieści
@@ -1254,11 +1494,51 @@ REST_FRAMEWORK = {
         # Liczone per konto (widok podaje ``user_throttle_keys``); niezależnie od tego serwis trzyma
         # godzinną karencję na ucznia. Dwadzieścia na godzinę mieści przypomnienie całej klasie.
         "supervisor_resend": "20/hour",
+        # Logistyka finału (LOG-01): formularze opiekuna i oficera (osoba po osobie) oraz odhaczanie
+        # obsługi przy wejściu (setki skanów na godzinę z jednego telefonu). Liczone per konto.
+        "onsite_logistics": "600/hour",
+        "onsite_checkin": "3000/hour",
+        # Publiczna weryfikacja listu zapraszającego (VISA-01, ``/visa/verify/<kod>/``) – bez konta,
+        # więc per adres IP. Sześćdziesiąt na godzinę mieści okienko konsulatu sprawdzające całą
+        # kolejkę wnioskodawców za jednym adresem; kod ma 59 bitów, więc zgadywanie i tak nie ma sensu,
+        # a limit ucina przeglądanie strony skryptem.
+        "visa_verify": "60/hour",
+        # Tłumaczenia zadań (TR-01): autozapis szkicu co ~3 s pisania, czynności opiekuna i komisji.
+        # Per konto (``PER_USER_SCOPES``) – sala tłumaczeń za jednym NAT-em nie dzieli budżetu.
+        "translation": "1200/hour",
+        # Ekran medali (MED-01): przeliczenie podglądu, ogłoszenie, dokumenty i eksporty – kosztowne POST-y.
+        "medals": "120/hour",
         # Bramka linku-zaproszenia (``/zaproszenie/wideo/<klucz>/``, POST „Dołącz”) – bez konta,
         # więc liczona po adresie IP, jak każdy publiczny formularz. Wysoko, bo za jednym NAT-em
         # bywa cała sala gości wchodzących na to samo zebranie naraz; nisko na tyle, żeby
         # przeszukiwanie kluczy (192 bity) i tak nie miało sensu, a pętla „Dołącz” – kosztu.
         "video_gateway": "120/hour",
+        # Webinary (``apps.web.views.webinars``): token wejścia do pokoju LiveKit i czynności
+        # prowadzącego (rozpocznij, zakończ, daj głos, nagrywanie) – wejście wystawia poświadczenie,
+        # a czynność to polecenie dla serwera LiveKit. Per konto (``PER_USER_SCOPES``), ta sama
+        # stawka i ten sam powód, co ``video``: przeglądarka zrywająca połączenie wraca kilka razy,
+        # skrypt z cudzej sesji – nie.
+        "webinar_join": "60/hour",
+        # Polecenia prowadzącego z pokoju i z panelu webinaru (daj/odbierz głos, usuń, nagrywanie,
+        # transmisja). Osobny, wyższy limit niż wejścia: w czasie pytań prowadzący klika „Daj głos”
+        # dziesiątki razy na godzinę i wspólny kubełek z tokenami odcinał go w połowie sesji Q&A.
+        # Per konto – limit chroni serwer LiveKit przed skryptem z cudzej sesji, nie prowadzącego.
+        "webinar_control": "600/hour",
+        # Link dla gości (``/zaproszenie/webinar/<klucz>/``, POST „Dołącz” i token) – bez konta, po IP, jak
+        # bramka pokoi Jitsi: cała sala za jednym NAT-em wchodzi naraz.
+        "webinar_guest": "120/hour",
+        # Nadzór zdalny (PROC-01), per konto: token (wejście ucznia albo nadzorującego – kilka
+        # ponownych połączeń na etap), czynności nadzorującego (wiadomości, incydenty, obecność przy
+        # 24 uczniach na stronie) i kroki konsoli ucznia (sprawdzenie, puls co minutę przez kilka godzin).
+        "proctoring_token": "60/hour",
+        # Koordynator nadzoru: przełączanie grup (w IQO ~100 delegacji) i ponowne łączenia przez kilka
+        # godzin etapu – osobny, wyższy kubełek, żeby nie dzielić limitu z komisją i opiekunami.
+        "proctoring_coordinator_token": "1200/hour",
+        "proctoring_action": "600/hour",
+        "proctoring_client": "600/hour",
+        # Polecenia moderatora pokoju rozmowy LiveKit (STAGE-LK-01): odbierz/oddaj głos, usuń, wpuść
+        # ponownie – osobno od wejść (``video``), odpowiedź 429 w JSON-ie dla skryptu pokoju.
+        "interview_control": "600/hour",
         # Zakładanie konkursu z panelu koordynatora (``/coordinator/competitions/new/``). Stawka
         # jest **dzienna i niska**, bo taka jest ta czynność: konkurs zakłada się raz na sezon,
         # a każde założenie to nowa witryna, nowe drzewo stron, nowa edycja i wniosek o certyfikat
@@ -1271,6 +1551,21 @@ REST_FRAMEWORK = {
         # to więcej, niż wyklika nauczyciel pobierający wszystkie plakaty po kolei – także cała
         # pracownia za jednym adresem szkoły – a mniej, niż potrzeba do nabijania licznika.
         "poster_download": "30/min",
+        # Przegląd tłumaczeń (L10N-01): propozycje, głosy, decyzje i zgłoszenia ze stopki. Per
+        # konto (widoki za logowaniem): tłumacz klika szybko, ale nie sto razy na godzinę.
+        "translations": "120/hour",
+        # Płatności (PAY-01), per konto: „Wystaw pro formę” i „Zapłać” (każde kliknięcie to sesja
+        # u operatora płatności) oraz czynności koordynatora (wpływ przelewu, zwrot przez API).
+        "checkout": "20/hour",
+        "payments_admin": "120/hour",
+        # Webhooki operatorów płatności (Stripe, P24) – per IP, wyżej niż stub ``payments``: Stripe
+        # doręcza z kilku adresów naraz, a po awarii ponawia zaległe zdarzenia całą serią. Tożsamością
+        # jest podpis; limit chroni wyłącznie koszt weryfikacji.
+        "payment_webhooks": "600/min",
+        # Menu serwisu i dostosowanie motywu (THEME-02, ``/coordinator/competition/theme/…``). Per konto
+        # (``apps.web.throttle.PER_USER_SCOPES``). Każdy zapis unieważnia cache stron konkursu, a podgląd
+        # kolorów to też POST – sto dwadzieścia na godzinę mieści długie dopasowywanie palety.
+        "theme_settings": "120/hour",
     },
     "EXCEPTION_HANDLER": "apps.core.api.exception_handler",
 }
@@ -1374,6 +1669,32 @@ SPECTACULAR_SETTINGS = {
     },
 }
 
+# --- notatniki kwantowe (apps.notebooks, QC-01) --------------------------------------------------
+# Katalog wymiany zadań z kontenerem piaskownicy ``notebook-runner`` (wolumen ``notebook_spool``
+# zamontowany w workerze i w piaskownicy). Bez kontenera – brak katalogu i przebiegi kończą się
+# błędem „środowisko sprawdzania niedostępne”, a nie wiszą.
+NOTEBOOK_SPOOL_DIR = env("NOTEBOOK_SPOOL_DIR", default="/spool")
+# Wykonanie w podprocesie workera zamiast w kontenerze (dev, testy). W produkcji zakazane –
+# brak izolacji sieci i sekretów (sprawdzenie ``notebooks.E001`` w ``apps/notebooks/checks.py``).
+NOTEBOOK_RUNNER_INLINE = env.bool("NOTEBOOK_RUNNER_INLINE", default=False)
+# Zbudowane JupyterLite (etap ``notebook-lab`` w backend/Dockerfile): ``<katalog>/<BUILD_ID>/…``
+# i ``<katalog>/current.json``. Proces web kopiuje go do ``STATIC_ROOT/notebook-lab`` (entrypoint.sh),
+# skąd w produkcji podaje go Caddy; w dev (DEBUG) – WhiteNoise przez findery, z tego katalogu.
+NOTEBOOK_LAB_DIR = env("NOTEBOOK_LAB_DIR", default=str(BASE_DIR / "notebook_lab_dist"))
+if DEBUG and Path(NOTEBOOK_LAB_DIR).is_dir():
+    STATICFILES_DIRS = [*STATICFILES_DIRS, ("notebook-lab", NOTEBOOK_LAB_DIR)]
+# Osobny host laboratorium (QC-02, docs/tasks/QC-02.md): ``lab.<SITE_DOMAIN>`` albo osobna domena
+# rejestrowalna. Pusty = laboratorium w originie serwisu jak w QC-01. Ta sama zmienna steruje blokiem
+# Caddy'ego (scripts/render_caddyfile.sh). Host trafia do ``ALLOWED_HOSTS`` (notatnik startowy podaje
+# ``web``), ale **nie** do ``CSRF_TRUSTED_ORIGINS`` – kod z laboratorium nie może być zaufanym originem
+# żądań POST; przy subdomenie i ``PLATFORM_SUBDOMAINS=1`` wzorzec ``https://*.<domena>`` i tak by go
+# objął, dlatego żądania z laboratorium odrzuca też ``NotebookLabRequestGuardMiddleware`` (QC-02 § 4).
+# Poprawność wartości: sprawdzenie ``notebooks.E002`` (apps/notebooks/checks.py).
+NOTEBOOK_LAB_HOST = env("NOTEBOOK_LAB_HOST", default="").strip().lower().rstrip(".")
+if NOTEBOOK_LAB_HOST:
+    ALLOWED_HOSTS = list(dict.fromkeys([*ALLOWED_HOSTS, NOTEBOOK_LAB_HOST.split(":")[0]]))
+
+
 # --- pieczęć elektroniczna dyplomów (apps.results.signing) -------------------------------------
 # Bez ścieżki do pliku PKCS#12 podpisywanie jest **wyłączone** i dokumenty wychodzą niepodpisane –
 # tak samo, jak przed wprowadzeniem tej funkcji. To jest stan domyślny, bo klucz pieczęci jest
@@ -1387,6 +1708,38 @@ CERT_SIGN_P12_PASSWORD = env("CERT_SIGN_P12_PASSWORD", default="")
 CERT_SIGN_TSA_URL = env("CERT_SIGN_TSA_URL", default="")
 CERT_SIGN_REASON = env("CERT_SIGN_REASON", default="Dokument wystawiony przez Olimpiadę Kwantową")
 CERT_SIGN_LOCATION = env("CERT_SIGN_LOCATION", default="")
+
+# --- operatorzy płatności (PAY-01, docs/OPERACJE.md § 35) ---------------------------------------
+# Sekrety wyłącznie ze środowiska – nigdy z bazy i nigdy od klienta. Pusty klucz = operator wyłączony
+# (przycisk płatności nie pojawia się, webhook odpowiada 404). Klucze testowe Stripe: ``sk_test_…``.
+STRIPE_SECRET_KEY = env("STRIPE_SECRET_KEY", default="")
+# ``whsec_…``; kilka po przecinku – rotacja albo kilka adresów webhooka w panelu Stripe.
+STRIPE_WEBHOOK_SECRET = env("STRIPE_WEBHOOK_SECRET", default="")
+# ``or 0``: pusty wpis w ``.env`` (``P24_MERCHANT_ID=``) to napis pusty, a ``int("")`` nie przejdzie.
+P24_MERCHANT_ID = int(env("P24_MERCHANT_ID", default="") or 0)
+P24_POS_ID = int(env("P24_POS_ID", default="") or 0)
+P24_API_KEY = env("P24_API_KEY", default="")
+P24_CRC = env("P24_CRC", default="")
+P24_SANDBOX = env.bool("P24_SANDBOX", default=False)
+
+# --- śledzenie błędów: GlitchTip, protokół Sentry (OPS-02, docs/OPERACJE.md § 44) ---------------
+# Pusty ``SENTRY_DSN`` (domyślnie) = funkcja wyłączona i **zero zmian**: ``sentry_sdk`` nie jest
+# importowany, lista warstw jest dawna, CSP i HTML stron – co do bajtu te same. Klienta uruchamia
+# ``apps.monitoring.apps.MonitoringConfig.ready()``; filtr danych osobowych: apps/monitoring/scrubbing.py.
+SENTRY_DSN = env("SENTRY_DSN", default="")
+SENTRY_ENVIRONMENT = env("SENTRY_ENVIRONMENT", default="production")
+SENTRY_SAMPLE_RATE = env.float("SENTRY_SAMPLE_RATE", default=1.0)
+# Transakcje (APM) domyślnie wyłączone: każda to kolejne zapytania SQL i adresy do filtrowania.
+SENTRY_TRACES_SAMPLE_RATE = env.float("SENTRY_TRACES_SAMPLE_RATE", default=0.0)
+# Błędy JavaScriptu (OPS-02 § 5) – osobny przełącznik; DSN przeglądarki domyślnie ten sam co serwera.
+SENTRY_BROWSER = env.bool("SENTRY_BROWSER", default=False)
+SENTRY_BROWSER_DSN = env("SENTRY_BROWSER_DSN", default="")
+if SENTRY_DSN:
+    # Tag ``competition`` (slug) – zaraz za warstwą, która ustawia ``request.competition``.
+    MIDDLEWARE.insert(
+        MIDDLEWARE.index("apps.tenancy.middleware.CompetitionMiddleware") + 1,
+        "apps.monitoring.middleware.ErrorTrackingTagMiddleware",
+    )
 
 DATA_UPLOAD_MAX_MEMORY_SIZE = 2 * 1024 * 1024  # pliki idą strumieniem na dysk tymczasowy powyżej 2 MB
 FILE_UPLOAD_MAX_MEMORY_SIZE = 2 * 1024 * 1024

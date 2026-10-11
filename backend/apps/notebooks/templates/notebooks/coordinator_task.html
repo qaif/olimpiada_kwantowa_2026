@@ -1,0 +1,110 @@
+{% extends "web/coordinator/base.html" %}
+{% load i18n static %}
+{% comment %}
+  Ustawienia notatnika jednego zadania: tryb, język treści, limity, widoczność wyników, notatnik
+  startowy i wzorcowy, testy widoczne i ukryte (JSON z walidacją po stronie serwera – QC-01 § 4.2).
+  Bez skryptów (CSP): przykład formatu i lista rodzajów testów stoją na stronie do skopiowania.
+{% endcomment %}
+{% block title %}{% translate "Notatnik zadania" %} – {% translate "panel koordynatora" %}{% endblock %}
+{% block panel_head %}<link rel="stylesheet" href="{% static 'notebooks/notebook-lab.css' %}">{% endblock %}
+{% block panel_eyebrow %}<a href="{% url 'web:coordinator-notebooks' %}">{% translate "Notatniki kwantowe" %}</a>{% endblock %}
+{% block panel_title %}{% blocktranslate trimmed with number=problem.number title=problem.display_title %}Notatnik: zadanie {{ number }}. {{ title }}{% endblocktranslate %}{% endblock %}
+{% block panel_lead %}
+  <p class="lead">{% blocktranslate trimmed %}
+    Uczestnik otwiera notatnik przy zadaniu w przeglądarce i oddaje plik .ipynb zwykłą wysyłką.
+    Testy ukryte liczy wyłącznie serwer – nie trafiają ani do przeglądarki, ani do piaskownicy,
+    w której wykonuje się kod uczestnika.
+  {% endblocktranslate %}</p>
+{% endblock %}
+{% block panel_actions %}
+  {% if task %}
+    <a class="btn btn--secondary btn--small" href="{% url 'web:coordinator-notebook-starter' problem.pk %}">{% translate "Pobierz notatnik jak uczestnik" %}</a>
+    <a class="btn btn--secondary btn--small" href="{% url 'web:coordinator-notebook-view' problem.pk 'starter' %}">{% translate "Podgląd notatnika (tylko do odczytu)" %}</a>
+    {% if task.reference_notebook %}<a class="btn btn--ghost btn--small" href="{% url 'web:coordinator-notebook-view' problem.pk 'reference' %}">{% translate "Notatnik wzorcowy – podgląd" %}</a>{% endif %}
+    {% if task.is_autograded %}<a class="btn btn--secondary btn--small" href="{% url 'web:coordinator-notebook-results' problem.pk %}">{% translate "Wyniki prac" %}</a>{% endif %}
+  {% endif %}
+{% endblock %}
+{% block panel_content %}
+{% include "notebooks/_security_warning.html" %}
+{% if not ipynb_allowed %}
+  <p class="msg msg-warning">{% translate "To zadanie nie przyjmuje plików .ipynb. Dopisz ten format w ustawieniach zadania, zanim włączysz sprawdzanie automatyczne." %}</p>
+{% endif %}
+
+<section class="section">
+  <form method="post" enctype="multipart/form-data" class="form form--wide">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="save">
+    {{ form.non_field_errors }}
+    {{ form.as_p }}
+    <p class="actions"><button type="submit" class="btn btn--primary">{% translate "Zapisz" %}</button></p>
+  </form>
+</section>
+
+<section class="section">
+  <details class="card card--quiet">
+    <summary><strong>{% translate "Format testów" %}</strong></summary>
+    <p class="hint">{% blocktranslate trimmed %}
+      Lista obiektów JSON. „target” to nazwa zmiennej z notatnika albo {"call": "funkcja", "args": [...]}.
+      Liczby można pisać wyrażeniami: "1/sqrt(2)", "exp(i*pi/4)", "-0.5j". Test zaliczony daje pełne
+      punkty, niezaliczony – zero.
+    {% endblocktranslate %}</p>
+    <p class="hint">{% translate "Rodzaje (check):" %} {{ checks|join:", " }}</p>
+    <pre class="notebook-pre">{{ tests_example }}</pre>
+    <p class="hint">{% translate "Szczegóły i wszystkie warunki: podręcznik organizatora, rozdział o notatnikach kwantowych." %}</p>
+  </details>
+</section>
+
+{% if task %}
+<section class="section" id="wzorzec">
+  <div class="card">
+    <h2 class="mt-0">{% translate "Sprawdzenie testów na rozwiązaniu wzorcowym" %}</h2>
+    {% if task.reference_notebook %}
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="reference">
+        <button type="submit" class="btn btn--secondary btn--small">{% translate "Sprawdź testy na wzorcu" %}</button>
+      </form>
+    {% else %}
+      <p class="hint">{% translate "Wgraj notatnik wzorcowy w formularzu powyżej, żeby sprawdzić, czy testy przechodzą." %}</p>
+    {% endif %}
+    {% if reference %}
+      <p>{% translate "Ostatnie sprawdzenie:" %} <span class="badge badge--neutral">{{ reference.get_status_display }}</span>
+        {% if reference.status == "DONE" %}{{ reference.score|floatformat:"-2" }} / {{ reference.max_score|floatformat:"-2" }}{% endif %}</p>
+      {% if reference_error %}<p class="msg msg-warning">{{ reference_error }}</p>{% endif %}
+      {% if reference.status == "DONE" %}
+        <div class="scroll">
+          <table class="table">
+            <thead><tr><th>{% translate "Test" %}</th><th>{% translate "Rodzaj" %}</th><th>{% translate "Punkty" %}</th><th>{% translate "Komunikat" %}</th></tr></thead>
+            <tbody>
+              {% for item in reference.visible_results %}
+                <tr><td>{% if item.passed %}✔{% else %}✘{% endif %} {{ item.name }}</td><td>{% translate "widoczny" %}</td>
+                  <td class="num">{{ item.points|floatformat:"-2" }} / {{ item.max_points|floatformat:"-2" }}</td><td>{{ item.message }}</td></tr>
+              {% endfor %}
+              {% for item in reference.results %}
+                <tr><td>{% if item.passed %}✔{% else %}✘{% endif %} {{ item.name }}</td><td>{% translate "ukryty" %}</td>
+                  <td class="num">{{ item.points|floatformat:"-2" }} / {{ item.max_points|floatformat:"-2" }}</td><td>{{ item.message }}</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% if reference.cell_errors %}
+          <p class="hint">{% translate "Błędy komórek wzorca:" %}</p>
+          <ul class="hint">{% for item in reference.cell_errors %}<li>{{ item.cell }}: {{ item.error }}</li>{% endfor %}</ul>
+        {% endif %}
+      {% elif reference.status == "PENDING" or reference.status == "RUNNING" %}
+        <p class="hint">{% translate "Sprawdzanie trwa zwykle kilka sekund – odśwież stronę." %}</p>
+      {% endif %}
+    {% endif %}
+  </div>
+</section>
+
+<section class="section">
+  <form method="post" class="card card--quiet">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="delete">
+    <p class="hint mt-0">{% translate "Wyłączenie notatnika usuwa jego ustawienia, testy i wyniki sprawdzania. Oddane pliki prac zostają." %}</p>
+    <button type="submit" class="btn btn--danger btn--small">{% translate "Wyłącz notatnik w tym zadaniu" %}</button>
+  </form>
+</section>
+{% endif %}
+{% endblock %}

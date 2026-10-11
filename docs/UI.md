@@ -417,6 +417,9 @@ Ikona jest w `::before` – bez obrazków.
 7. **`[hidden]`** działa naprawdę (`display: none !important`) – używaj go zamiast klasy `.is-hidden`.
 8. **Pole dotyku** ≥ 32 px (`.btn--small` ma 2 rem + odstęp `.actions`; `.chip` 2.25 rem).
 9. **Tabele**: `scope` na nagłówkach, `<caption>` albo `aria-label` na `<table>`.
+9a. **Podpowiedź pola rysowana ręcznie ma `id`:** `<span class="helptext" id="{{ field.auto_id }}_helptext">`.
+    Django dokleja polu `aria-describedby="<id>_helptext"` samo – bez `id` odwołanie wisi i czytnik
+    ekranu podpowiedzi nie przeczyta (A11Y-01 § 4.3; pilnuje test i reguła `a11y-idref` suity).
 10. **`aria-live`** na wszystkim, co zmienia się po HTMX-owym swapie bez przeładowania strony
     (licznik zaznaczenia, status zapisu wersji roboczej).
 
@@ -462,25 +465,20 @@ jako **tekst** na własnym `-soft`. Te tokeny są kreską i obrysem; tekstem jes
 - nic w arkuszu nie ma stałej szerokości w pikselach większej niż 360 px; długie słowa
   (kody, adresy, nazwy plików) łamie `overflow-wrap: anywhere` w komórkach tabel i na kartach.
 
-Sprawdzenie: `e2e/check_mobile.py` (360 / 768 / 1280 px, brak przewijania w poziomie) oraz
-`e2e/check_a11y.py` (alt, etykiety, jeden `h1`, skip link, kolejność fokusu). Oba chodzą po
-adresach publicznych (`/`, `/login/`, `/register/`, `/zadania/`, `/statystyki/`) i wymagają sieci
-compose (obraz `e2e` z Playwrightem):
+Sprawdzenie: **suita dostępności `e2e/a11y/`** (A11Y-01, `docs/OPERACJE.md` § 50) – axe-core
+(WCAG 2.1 A/AA) na ~70 ekranach obu konkursów i obu motywów oraz kontrole klawiatury, widocznego
+fokusu, menu bez JS, wysokiego kontrastu, RTL i reflow (320 px, 200 %). Biegnie w CI (job `a11y`)
+i lokalnie:
 
 ```
-docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm -T \
-    -e E2E_BASE_URL=http://web:8000 e2e python /e2e/check_mobile.py
+./scripts/a11y.sh
 ```
 
-**Dlaczego nie axe-core.** Wstrzyknięcie `axe.min.js` z CDN-a wymagałoby skryptu inline albo obcego
-`script-src` – czyli rozluźnienia CSP na czas testu, więc sprawdzania strony w konfiguracji, która
-nigdy nie trafi do ludzi. Zamiast tego `check_a11y.py` sprawdza ręcznie pięć rzeczy, które psują
-się najczęściej. To nie jest audyt; to jest siatka na regresje.
-
-**Stan:** oba skrypty są napisane, ale **nie zostały uruchomione** – w tym środowisku nie ma
-dostępu do sieci, którego potrzebuje obraz `e2e` (firmowe proxy). Pierwszy przebieg w czystym
-środowisku jest jednocześnie ich pierwszym sprawdzeniem; komunikaty są napisane tak, żeby po
-takim przebiegu było widać, czy usterka jest w stronie, czy w skrypcie.
+axe jest w repozytorium (`e2e/vendor/axe-core`, poza obrazem) i wchodzi do strony przez protokół
+DevTools (`page.evaluate`), więc **CSP strony zostaje bez zmian** – dawny powód „dlaczego nie axe”
+(rozluźnienie polityki na czas testu) już nie obowiązuje. Starsze skrypty `e2e/check_mobile.py`
+(360 / 768 / 1280 px) i `e2e/check_a11y.py` (alt, etykiety, jeden `h1`, skip link, kolejność
+fokusu) zostają jako szybkie kontrole bez danych audytu.
 
 ---
 

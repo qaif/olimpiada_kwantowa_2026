@@ -1,0 +1,286 @@
+# Russian – katalog aplikacji ``apps.school_stats`` (zadanie STAT-01).
+# Zrodlem (msgid) jest polski. UWAGA: tlumaczenie MASZYNOWE (model jezykowy) – patrz
+# docs/OPERACJE.md (przeglad przez native speakera przed szeroka komunikacja).
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Olimpiada Kwantowa\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-04 19:40+0200\n"
+"PO-Revision-Date: 2026-10-04 19:40+0200\n"
+"Last-Translator: Olimpiada Kwantowa\n"
+"Language-Team: Russian\n"
+"Language: ru\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
+
+#, python-format
+msgid "mniej niż %(k)s uczestników – dane ukryte"
+msgstr "менее %(k)s участников – данные скрыты"
+
+msgid "Raport szkoły"
+msgstr "Отчёт школы"
+
+#, python-format
+msgid "Edycja: %(edition)s · stan na %(date)s"
+msgstr "Выпуск: %(edition)s · по состоянию на %(date)s"
+
+msgid "Grupa"
+msgstr "Группа"
+
+msgid "Uczestnicy"
+msgstr "Участники"
+
+msgid "Oddane prace"
+msgstr "Сданные работы"
+
+msgid "W terminie"
+msgstr "В срок"
+
+msgid "Zakwalifikowani"
+msgstr "Прошедшие отбор"
+
+msgid "Średnia pkt"
+msgstr "Средний балл"
+
+msgid "wyniki ogłoszone"
+msgstr "результаты объявлены"
+
+msgid "wyniki jeszcze nieogłoszone"
+msgstr "результаты ещё не объявлены"
+
+msgid "Udział szkoły w kolejnych edycjach"
+msgstr "Участие школы в разных выпусках"
+
+msgid "Edycja"
+msgstr "Выпуск"
+
+msgid "Uczestnicy ze szkoły"
+msgstr "Участники из школы"
+
+#, python-format
+msgid "mniej niż %(k)s"
+msgstr "менее %(k)s"
+
+#, python-format
+msgid "Raport zawiera wyłącznie dane zbiorcze. Grupy mniejsze niż %(k)s osób są ukryte, żeby z liczb nie dało się odczytać wyniku konkretnego ucznia. Punkty i kwalifikacja pochodzą z oficjalnie ogłoszonych wyników etapu; etap bez ogłoszonych wyników ma tylko liczbę uczestników i oddanych prac."
+msgstr "Отчёт содержит только агрегированные данные. Группы менее чем из %(k)s человек скрыты, чтобы по цифрам нельзя было восстановить результат конкретного ученика. Баллы и прохождение отбора взяты из официально объявленных результатов этапа; для этапа без объявленных результатов показано только число участников и сданных работ."
+
+msgid "Moi uczniowie"
+msgstr "Мои ученики"
+
+msgid "Szkoła"
+msgstr "Школа"
+
+msgid "Wszyscy uczestnicy"
+msgstr "Все участники"
+
+msgid "RSPO"
+msgstr "RSPO"
+
+msgid "Miejscowość"
+msgstr "Населённый пункт"
+
+msgid "Województwo"
+msgstr "Воеводство"
+
+msgid "Uczestnicy w poprzedniej edycji"
+msgstr "Участники в предыдущем выпуске"
+
+msgid "Zmiana"
+msgstr "Изменение"
+
+msgid "wpisy"
+msgstr "записи"
+
+msgid "średnia"
+msgstr "среднее"
+
+msgid "zakwalifikowani"
+msgstr "прошли отбор"
+
+msgid "Statystyki szkół"
+msgstr "Статистика школ"
+
+msgid "Te same wartości stoją w tabeli pod wykresem."
+msgstr "Те же значения приведены в таблице под графиком."
+
+#, python-format
+msgid "grupa ukryta – mniej niż %(k)s osób"
+msgstr "группа скрыта – менее %(k)s человек"
+
+msgid "panel koordynatora"
+msgstr "панель координатора"
+
+msgid "Udział szkół w edycji, porównanie z poprzednią edycją i – po ogłoszeniu wyników – średnie oraz liczba zakwalifikowanych."
+msgstr "Участие школ в выпуске, сравнение с предыдущим выпуском и – после объявления результатов – средние баллы и число прошедших отбор."
+
+#, python-format
+msgid "Średnie i liczby zakwalifikowanych grup mniejszych niż %(k)s wpisów są ukryte – także w eksporcie CSV i w raportach PDF."
+msgstr "Средние баллы и число прошедших отбор для групп менее чем из %(k)s записей скрыты – в том числе в экспорте CSV и в отчётах PDF."
+
+msgid "Eksport CSV"
+msgstr "Экспорт CSV"
+
+msgid "Ten konkurs nie ma jeszcze żadnej edycji."
+msgstr "У этого конкурса пока нет ни одного выпуска."
+
+msgid "Kolejność"
+msgstr "Порядок"
+
+msgid "Pokaż"
+msgstr "Показать"
+
+msgid "Szkoły z uczestnikami"
+msgstr "Школы с участниками"
+
+#, python-format
+msgid "Szkoły w edycji %(edition)s"
+msgstr "Школы в выпуске %(edition)s"
+
+msgid "Szkoły bez uczestników w tej edycji"
+msgstr "Школы без участников в этом выпуске"
+
+msgid "Ranking szkół"
+msgstr "Рейтинг школ"
+
+msgid "awans"
+msgstr "прошёл отбор"
+
+msgid "Raport"
+msgstr "Отчёт"
+
+msgid "spoza wykazu"
+msgstr "вне реестра"
+
+msgid "grupa pod progiem"
+msgstr "группа ниже порога"
+
+msgid "W tej edycji nikt jeszcze nie jest zapisany do etapu."
+msgstr "В этом выпуске пока никто не записан на этап."
+
+msgid "Województwa"
+msgstr "Воеводства"
+
+msgid "Szkoły"
+msgstr "Школы"
+
+msgid "brak województwa"
+msgstr "без воеводства"
+
+msgid "Brak danych."
+msgstr "Нет данных."
+
+msgid "Szkoły do odzyskania"
+msgstr "Школы, которые стоит вернуть"
+
+#, python-format
+msgid "Szkoły, które miały uczestników w edycji %(edition)s, a w tej edycji nie mają nikogo – adresaci akcji promocyjnej."
+msgstr "Школы, у которых были участники в выпуске %(edition)s, а в этом нет никого, – адресаты рекламной кампании."
+
+msgid "Każda szkoła z poprzedniej edycji ma uczestników także w tej."
+msgstr "У каждой школы из предыдущего выпуска есть участники и в этом."
+
+msgid "Statystyki uczniów i szkoły"
+msgstr "Статистика учеников и школы"
+
+msgid "Panel opiekuna szkolnego"
+msgstr "Панель школьного куратора"
+
+msgid "Udział Twoich uczniów w kolejnych etapach i edycjach. Punkty i kwalifikacja pojawiają się dopiero po oficjalnym ogłoszeniu wyników etapu."
+msgstr "Участие ваших учеников в этапах и выпусках. Баллы и прохождение отбора появляются только после официального объявления результатов этапа."
+
+#, python-format
+msgid "Dane szkoły, województwa i całej olimpiady są zbiorcze. Grupy, z których dałoby się odczytać wynik konkretnej osoby (mniej niż %(k)s uczestników poza Twoimi uczniami), są ukryte."
+msgstr "Данные школы, воеводства и всей олимпиады агрегированы. Группы, по которым можно было бы восстановить результат конкретного человека (менее %(k)s участников помимо ваших учеников), скрыты."
+
+msgid "Wróć do listy uczniów"
+msgstr "Вернуться к списку учеников"
+
+msgid "Raport szkoły (PDF)"
+msgstr "Отчёт школы (PDF)"
+
+msgid "Porównanie z całą szkołą i raport dla dyrektora są dostępne, gdy Twoja szkoła jest wybrana z wykazu szkół i zweryfikowana przez organizatora. Do tego czasu widzisz swoich uczniów, województwo i całą olimpiadę."
+msgstr "Сравнение со всей школой и отчёт для директора доступны, когда ваша школа выбрана из реестра школ и подтверждена организатором. До тех пор вы видите своих учеников, воеводство и всю олимпиаду."
+
+msgid "Olimpiada nie ma jeszcze żadnej edycji."
+msgstr "У олимпиады пока нет ни одного выпуска."
+
+#, python-format
+msgid "Uczniowie w edycji %(edition)s"
+msgstr "Ученики в выпуске %(edition)s"
+
+msgid "Nikt jeszcze nie wskazał Twojego adresu jako adresu opiekuna."
+msgstr "Пока никто не указал ваш адрес как адрес куратора."
+
+msgid "Ta edycja nie ma jeszcze etapów."
+msgstr "В этом выпуске пока нет этапов."
+
+msgid "Uczeń"
+msgstr "Ученик"
+
+msgid "nie startuje"
+msgstr "не участвует"
+
+msgid "zapisany"
+msgstr "записан"
+
+msgid "oddane w terminie"
+msgstr "сдано в срок"
+
+msgid "oddane po terminie"
+msgstr "сдано после срока"
+
+msgid "brak pracy"
+msgstr "работа не сдана"
+
+msgid "brak na liście awansujących"
+msgstr "нет в списке прошедших отбор"
+
+msgid "pkt"
+msgstr "б."
+
+msgid "wyniki nieogłoszone"
+msgstr "результаты не объявлены"
+
+msgid "Porównanie po ogłoszeniu wyników"
+msgstr "Сравнение после объявления результатов"
+
+msgid "ogłoszono tylko listę awansujących"
+msgstr "объявлен только список прошедших отбор"
+
+msgid "W tej edycji żaden etap nie ma jeszcze ogłoszonych wyników."
+msgstr "В этом выпуске ни у одного этапа ещё нет объявленных результатов."
+
+msgid "Postęp w kolejnych edycjach"
+msgstr "Динамика по выпускам"
+
+msgid "Średnia punktów w pierwszym etapie edycji z ogłoszoną pełną tabelą wyników."
+msgstr "Средний балл на первом этапе выпуска с полностью объявленной таблицей результатов."
+
+msgid "Średnia punktów w kolejnych edycjach"
+msgstr "Средний балл по выпускам"
+
+msgid "Moich uczniów"
+msgstr "Моих учеников"
+
+#, python-format
+msgid "„—” oznacza brak ogłoszonych wyników albo grupę ukrytą, bo liczy mniej niż %(k)s osób."
+msgstr "«—» означает, что результаты не объявлены или группа скрыта, так как в ней менее %(k)s человек."
+
+msgid "Brak danych z poprzednich edycji."
+msgstr "Нет данных за предыдущие выпуски."
+
+msgid "Region"
+msgstr "Регион"
+
+msgid "liczba uczestników"
+msgstr "число участников"
+
+msgid "wyniki"
+msgstr "результаты"
+
+msgid "nazwa"
+msgstr "название"

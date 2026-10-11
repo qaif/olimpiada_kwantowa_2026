@@ -1,0 +1,106 @@
+# Zmiana hasła w panelu konta (AUTH-01b) – katalog aplikacji apps/password_change.
+msgid ""
+msgstr ""
+"Project-Id-Version: olimpiada\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-04 22:00+0200\n"
+"PO-Revision-Date: 2026-10-04 22:00+0200\n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: bn\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Hasło do konta zostało zmienione – Olimpiada Kwantowa"
+msgstr "অ্যাকাউন্টের পাসওয়ার্ড পরিবর্তিত হয়েছে – কোয়ান্টাম অলিম্পিয়াড"
+
+#, python-format
+msgid "Hasło do konta zostało zmienione – %(competition)s"
+msgstr "অ্যাকাউন্টের পাসওয়ার্ড পরিবর্তিত হয়েছে – %(competition)s"
+
+#, python-format
+msgid "Hasło do Twojego konta w serwisie %(competition_genitive)s zostało zmienione (%(when)s)."
+msgstr "%(competition_genitive)s-এ আপনার অ্যাকাউন্টের পাসওয়ার্ড পরিবর্তন করা হয়েছে (%(when)s)।"
+
+msgid "Pozostałe urządzenia, na których było otwarte to konto, zostały wylogowane. Na urządzeniu, na którym zmieniono hasło, sesja trwa dalej."
+msgstr "যে সব ডিভাইসে এই অ্যাকাউন্ট খোলা ছিল, সেগুলো থেকে লগ আউট করা হয়েছে। যে ডিভাইসে পাসওয়ার্ড পরিবর্তন করা হয়েছে, সেখানে সেশন চালু থাকবে।"
+
+msgid "Jeśli to nie Ty zmieniłeś hasło, natychmiast ustaw nowe przez formularz „Nie pamiętasz hasła?” i skontaktuj się z organizatorem:"
+msgstr "আপনি পাসওয়ার্ড পরিবর্তন না করে থাকলে, এখনই „পাসওয়ার্ড ভুলে গেছেন?” ফর্ম দিয়ে নতুন পাসওয়ার্ড সেট করুন এবং আয়োজকের সঙ্গে যোগাযোগ করুন:"
+
+msgid "To konto nie ma jeszcze hasła – ustaw je linkiem wysłanym na adres konta."
+msgstr "এই অ্যাকাউন্টের এখনও কোনো পাসওয়ার্ড নেই – অ্যাকাউন্টের ইমেইল ঠিকানায় পাঠানো লিংক দিয়ে সেট করুন।"
+
+msgid "Nowe hasło musi się różnić od aktualnego."
+msgstr "নতুন পাসওয়ার্ড বর্তমান পাসওয়ার্ড থেকে আলাদা হতে হবে।"
+
+msgid "Aktualne hasło jest nieprawidłowe."
+msgstr "বর্তমান পাসওয়ার্ড ভুল।"
+
+msgid "To konto ma już hasło – zmień je formularzem zmiany hasła."
+msgstr "এই অ্যাকাউন্টের ইতিমধ্যে পাসওয়ার্ড আছে – পাসওয়ার্ড পরিবর্তনের ফর্ম দিয়ে এটি বদলান।"
+
+msgid "Na to konto nie można teraz wysłać linku – skontaktuj się z organizatorem."
+msgstr "এই অ্যাকাউন্টে এখন লিংক পাঠানো যাচ্ছে না – অনুগ্রহ করে আয়োজকের সঙ্গে যোগাযোগ করুন।"
+
+msgid "Co najmniej 10 znaków; nie może być popularnym hasłem, ciągiem samych cyfr ani przypominać Twojego imienia, nazwiska lub adresu e-mail."
+msgstr "অন্তত ১০টি অক্ষর; এটি সাধারণ পাসওয়ার্ড, শুধু সংখ্যা বা আপনার নাম, পদবি অথবা ইমেইল ঠিকানার মতো হতে পারবে না।"
+
+msgid "Powtórz nowe hasło"
+msgstr "নতুন পাসওয়ার্ড আবার লিখুন"
+
+msgid "Hasło zostało zmienione. Pozostałe urządzenia zostały wylogowane, a na adres konta wysłaliśmy potwierdzenie."
+msgstr "পাসওয়ার্ড পরিবর্তন করা হয়েছে। অন্য সব ডিভাইস থেকে লগ আউট করা হয়েছে এবং অ্যাকাউন্টের ইমেইল ঠিকানায় নিশ্চিতকরণ পাঠানো হয়েছে।"
+
+msgid "Wysłaliśmy link do ustawienia hasła na adres konta. Link jest ważny 24 godziny."
+msgstr "পাসওয়ার্ড সেট করার লিংক আমরা অ্যাকাউন্টের ইমেইল ঠিকানায় পাঠিয়েছি। লিংকটি ২৪ ঘণ্টা বৈধ।"
+
+msgid "Zmiana hasła"
+msgstr "পাসওয়ার্ড পরিবর্তন"
+
+msgid "Podaj aktualne hasło i dwa razy nowe. Po zmianie pozostaniesz zalogowany na tym urządzeniu, a wszystkie inne urządzenia i aplikacje zostaną wylogowane. Na adres konta wyślemy potwierdzenie."
+msgstr "বর্তমান পাসওয়ার্ড এবং নতুন পাসওয়ার্ড দুবার লিখুন। পরিবর্তনের পর আপনি এই ডিভাইসে লগ ইন থাকবেন, আর অন্য সব ডিভাইস ও অ্যাপ থেকে লগ আউট করা হবে। আমরা অ্যাকাউন্টের ইমেইল ঠিকানায় নিশ্চিতকরণ পাঠাব।"
+
+msgid "Zmień hasło"
+msgstr "পাসওয়ার্ড পরিবর্তন করুন"
+
+msgid "Nie pamiętasz aktualnego hasła?"
+msgstr "বর্তমান পাসওয়ার্ড মনে নেই?"
+
+msgid "Ustaw nowe przez link e-mail"
+msgstr "ইমেইল লিংকের মাধ্যমে নতুন পাসওয়ার্ড সেট করুন"
+
+#, python-format
+msgid "To konto nie ma hasła – logujesz się przez zewnętrznego dostawcę (np. Google). Jeśli chcesz logować się także hasłem, wyślemy link do jego ustawienia na adres konta (<strong>%(address)s</strong>). Dopiero kliknięcie w link potwierdza, że skrzynka należy do Ciebie."
+msgstr "এই অ্যাকাউন্টের কোনো পাসওয়ার্ড নেই – আপনি বাহ্যিক প্রদানকারীর (যেমন Google) মাধ্যমে লগ ইন করেন। পাসওয়ার্ড দিয়েও লগ ইন করতে চাইলে, আমরা পাসওয়ার্ড সেট করার লিংক অ্যাকাউন্টের ইমেইল ঠিকানায় (<strong>%(address)s</strong>) পাঠাব। কেবল লিংকে ক্লিক করলেই নিশ্চিত হয় যে মেইলবক্সটি আপনার।"
+
+msgid "Wyślij mi link do ustawienia hasła"
+msgstr "আমাকে পাসওয়ার্ড সেট করার লিংক পাঠান"
+
+msgid "Wróć do ustawień konta"
+msgstr "অ্যাকাউন্ট সেটিংসে ফিরে যান"
+
+msgid "Zmiana hasła wymaga podania aktualnego. Po zmianie pozostałe urządzenia zostaną wylogowane, a na adres konta przyjdzie potwierdzenie."
+msgstr "পাসওয়ার্ড পরিবর্তনের জন্য বর্তমান পাসওয়ার্ড প্রয়োজন। পরিবর্তনের পর অন্য সব ডিভাইস থেকে লগ আউট করা হবে এবং অ্যাকাউন্টের ইমেইল ঠিকানায় নিশ্চিতকরণ আসবে।"
+
+#, python-format
+msgid "Ustawienia konta: %(address)s"
+msgstr "অ্যাকাউন্ট সেটিংস: %(address)s"
+
+msgid "Zbyt wiele błędnych haseł z rzędu – ze względów bezpieczeństwa wylogowaliśmy Cię. Zaloguj się ponownie."
+msgstr "পরপর অনেকবার ভুল পাসওয়ার্ড – আপনার নিরাপত্তার জন্য আমরা আপনাকে লগ আউট করেছি। অনুগ্রহ করে আবার লগ ইন করুন।"
+
+msgid "Zbyt wiele prób na tym koncie. Odczekaj chwilę i spróbuj ponownie."
+msgstr "এই অ্যাকাউন্টে অনেক বেশি চেষ্টা হয়েছে। একটু অপেক্ষা করে আবার চেষ্টা করুন।"
+
+msgid "Otwarta na innym urządzeniu sesja edytora django CMS nie jest kończona od razu – wygasa sama po kilku godzinach. Jeśli podejrzewasz przejęcie konta, poproś organizatora o jej zamknięcie."
+msgstr "অন্য ডিভাইসে খোলা django CMS সম্পাদকের সেশন সঙ্গে সঙ্গে শেষ হয় না – কয়েক ঘণ্টা পরে নিজে থেকেই মেয়াদ শেষ হয়। অ্যাকাউন্ট বেহাত হয়েছে বলে সন্দেহ হলে আয়োজককে সেটি বন্ধ করতে বলুন।"
+
+msgid "Zmiana adresu wymaga potwierdzenia hasłem. To konto nie ma jeszcze hasła – ustaw je najpierw w sekcji „Hasło” niżej."
+msgstr "ঠিকানা পরিবর্তনের জন্য পাসওয়ার্ড দিয়ে নিশ্চিত করতে হয়। এই অ্যাকাউন্টের এখনও কোনো পাসওয়ার্ড নেই – আগে নিচের „পাসওয়ার্ড” অংশে সেট করুন।"
+
+#, python-format
+msgid "To konto nie ma hasła – logujesz się przez zewnętrznego dostawcę (np. Google, Facebook) i tak zostaje. Adres <strong>%(address)s</strong> nie jest potwierdzony, więc nie wyślemy na niego linku do ustawienia hasła. Hasło da się ustawić dopiero po potwierdzeniu adresu przez dostawcę logowania; jeśli Twój dostawca adresu nie potwierdza, napisz do organizatora."
+msgstr "এই অ্যাকাউন্টের কোনো পাসওয়ার্ড নেই – আপনি বাহ্যিক প্রদানকারীর (যেমন Google, Facebook) মাধ্যমে লগ ইন করেন এবং তা-ই থাকবে। ঠিকানা <strong>%(address)s</strong> যাচাই করা হয়নি, তাই আমরা সেখানে পাসওয়ার্ড সেট করার লিংক পাঠাব না। লগ ইন প্রদানকারী ঠিকানাটি যাচাই করার পরেই পাসওয়ার্ড সেট করা যাবে; আপনার প্রদানকারী ঠিকানা যাচাই না করলে আয়োজককে লিখুন।"

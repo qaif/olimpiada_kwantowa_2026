@@ -54,7 +54,15 @@ class ThemeRuntime:
     assets_url: str
     meta_color: str
     palette: dict[str, str] = field(default_factory=dict)
+    #: Palety i pozostałe tokeny z ``tokens.json`` (``light``/``dark``/``other``/``dark_other``) –
+    #: źródło dla dostosowania kolorów i schematu (THEME-02 § 2, ``apps.themes.customize``).
+    tokens: dict = field(default_factory=dict)
+    #: Warianty logo i pary krojów z manifestu (THEME-02 § 2.1); pierwszy wpis = domyślny.
+    logos: tuple[dict, ...] = ()
+    fonts: tuple[dict, ...] = ()
 
+
+TOKEN_GROUPS = ("light", "dark", "other", "dark_other")
 
 _RUNTIMES: dict[int, ThemeRuntime | None] = {}
 _LOCK = threading.Lock()
@@ -97,6 +105,12 @@ def runtime_for(version_id: int | None) -> ThemeRuntime | None:
             assets_url=base[: -len("__base__")],
             meta_color=palette.get("primary", ""),
             palette=palette,
+            tokens={
+                **{key: dict((version.tokens or {}).get(key) or {}) for key in TOKEN_GROUPS},
+                "contrast": [list(pair) for pair in (version.tokens or {}).get("contrast") or []],
+            },
+            logos=tuple(dict(entry) for entry in manifest.get("logos") or ()),
+            fonts=tuple(dict(entry) for entry in manifest.get("fonts") or ()),
         )
     # Pamiętamy **wyłącznie** trafienia. Brak (wersja nieistniejąca, odrzucona) nie trafia do pamięci:
     # identyfikator przychodzi także z adresu (``/_theme/overrides.css?v=…``), więc pamiętanie
@@ -122,6 +136,46 @@ class ActiveTheme:
     layouts: dict[str, str]
     brand_accent: str = ""
     preview: bool = False
+    #: Oczyszczone opcje dostosowania (THEME-02 § 2): ``scheme``, ``logo``, ``font``, ``colors``.
+    options: dict = field(default_factory=dict)
+    competition_id: int | None = None
+
+    @property
+    def scheme(self) -> str:
+        """Schemat kolorów **efektywny** (wybór koordynatora albo ``color_scheme`` manifestu)."""
+        return self.options.get("scheme") or self.runtime.color_scheme
+
+    @property
+    def logo(self) -> dict | None:
+        """Wybrany wariant logo z manifestu: ``{"id", "label", "light", "dark"}`` z pełnymi adresami."""
+        logos = {entry["id"]: entry for entry in self.runtime.logos}
+        entry = logos.get(self.options.get("logo") or "") or (
+            self.runtime.logos[0] if self.runtime.logos else None
+        )
+        if entry is None:
+            return None
+        base = self.runtime.assets_url
+        return {
+            "id": entry["id"],
+            "label": entry.get("label", ""),
+            "light": base + entry["light"] if entry.get("light") else "",
+            "dark": base + entry["dark"] if entry.get("dark") else "",
+        }
+
+    @property
+    def custom_css_token(self) -> str:
+        """Podpisany zestaw opcji dla ``/_theme/custom.css`` – pusty, gdy opcje niczego nie zmieniają."""
+        from . import customize
+
+        if self.competition_id is None or not customize.needs_css(self.runtime, self.options):
+            return ""
+        return customize.sign(self.competition_id, self.runtime, self.options)
+
+    @property
+    def meta_color(self) -> str:
+        from . import customize
+
+        return customize.meta_color(self.runtime, self.options) if self.options else self.runtime.meta_color
 
     @property
     def context(self) -> dict:
@@ -132,21 +186,48 @@ class ActiveTheme:
             "name": rt.name,
             "version": rt.version,
             "assets": rt.assets_url,
-            "color_scheme": rt.color_scheme,
+            "color_scheme": self.scheme,
             "layouts": dict(self.layouts),
             "preview": self.preview,
+            "logo": self.logo,
         }
 
 
+#: Opcje dostosowania (THEME-02) – zapisywane przy wersji i w ``Competition.theme_options``.
+CUSTOM_KEYS = ("scheme", "logo", "font", "colors", "radius")
+
+
 def clean_options(runtime: ThemeRuntime, options: dict | None) -> dict:
-    """Opcje konkursu przycięte do tego, co wersja deklaruje (``layouts`` + ``brand_accent``)."""
+    """Opcje konkursu przycięte do tego, co wersja deklaruje.
+
+    ``layouts`` i ``brand_accent`` (THEME-01) zawsze; ``scheme``/``logo``/``font``/``colors``
+    (THEME-02) – tylko gdy wybór odbiega od wartości domyślnej wersji, żeby konkurs bez dostosowania
+    miał w ``theme_options`` dokładnie to, co przed THEME-02.
+    """
+    from . import customize
+
     options = options or {}
     chosen = options.get("layouts") or {}
     layouts = {}
     for key, allowed in runtime.layouts.items():
         value = chosen.get(key) if isinstance(chosen, dict) else None
         layouts[key] = value if value in allowed else allowed[0]
-    return {"layouts": layouts, "brand_accent": bool(options.get("brand_accent"))}
+    cleaned: dict = {"layouts": layouts, "brand_accent": bool(options.get("brand_accent"))}
+    scheme = options.get("scheme")
+    if scheme in customize.schemes_for(runtime) and scheme != runtime.color_scheme:
+        cleaned["scheme"] = scheme
+    for key, entries in (("logo", runtime.logos), ("font", runtime.fonts)):
+        ids = customize.option_ids(entries)
+        value = options.get(key)
+        if value in ids and value != ids[0]:
+            cleaned[key] = value
+    colors = customize.clean_colors(runtime, options.get("colors"))
+    if colors:
+        cleaned["colors"] = colors
+    radius = customize.clean_radii(runtime, options.get("radius"))
+    if radius:
+        cleaned["radius"] = radius
+    return cleaned
 
 
 def _build(runtime: ThemeRuntime, options: dict | None, competition, *, preview: bool) -> ActiveTheme:
@@ -154,7 +235,14 @@ def _build(runtime: ThemeRuntime, options: dict | None, competition, *, preview:
     accent = ""
     if cleaned["brand_accent"] and competition is not None:
         accent = competition.accent_colour or ""
-    return ActiveTheme(runtime=runtime, layouts=cleaned["layouts"], brand_accent=accent, preview=preview)
+    return ActiveTheme(
+        runtime=runtime,
+        layouts=cleaned["layouts"],
+        brand_accent=accent,
+        preview=preview,
+        options={key: cleaned[key] for key in CUSTOM_KEYS if key in cleaned},
+        competition_id=getattr(competition, "pk", None),
+    )
 
 
 def make_preview_token(competition, version_id: int | None, options: dict | None) -> str:
@@ -198,7 +286,13 @@ PUBLIC_VIEWS = frozenset(
 #: Ekrany zarządzania motywem renderują się **zawsze** bez motywu (ani arkusza, ani tokenów):
 #: zepsuty albo złośliwy motyw nie może ukryć przycisku, którym się go wyłącza.
 THEME_FREE_VIEWS = frozenset(
-    {"web:coordinator-theme", "web:coordinator-platform-themes", "web:coordinator-platform-theme"}
+    {
+        "web:coordinator-theme",
+        "web:coordinator-theme-menu",
+        "web:coordinator-theme-customize",
+        "web:coordinator-platform-themes",
+        "web:coordinator-platform-theme",
+    }
 )
 
 #: ``?theme=off`` – awaryjne wyłączenie motywu na jedno żądanie, wyłącznie dla superkoordynatora.

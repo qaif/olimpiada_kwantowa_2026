@@ -95,6 +95,7 @@
   {% include "web/chat/_messages.html" %}
 
   <div class="chat-compose">
+    {% if policy_notice %}<p class="notice">{{ policy_notice }}</p>{% endif %}
     {% if refusal %}
       <p class="notice">{{ refusal }}{% if needs_key %} <a href="{% url 'web:chat-key' %}">{% translate "Skonfiguruj szyfrowanie" %}</a>{% endif %}</p>
     {% elif start_encrypted %}

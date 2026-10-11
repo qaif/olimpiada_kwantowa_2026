@@ -1,0 +1,286 @@
+# Hindi – katalog aplikacji ``apps.school_stats`` (zadanie STAT-01).
+# Zrodlem (msgid) jest polski. UWAGA: tlumaczenie MASZYNOWE (model jezykowy) – patrz
+# docs/OPERACJE.md (przeglad przez native speakera przed szeroka komunikacja).
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Olimpiada Kwantowa\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-04 19:40+0200\n"
+"PO-Revision-Date: 2026-10-04 19:40+0200\n"
+"Last-Translator: Olimpiada Kwantowa\n"
+"Language-Team: Hindi\n"
+"Language: hi\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#, python-format
+msgid "mniej niż %(k)s uczestników – dane ukryte"
+msgstr "%(k)s से कम प्रतिभागी – डेटा छिपा हुआ"
+
+msgid "Raport szkoły"
+msgstr "स्कूल रिपोर्ट"
+
+#, python-format
+msgid "Edycja: %(edition)s · stan na %(date)s"
+msgstr "संस्करण: %(edition)s · %(date)s तक"
+
+msgid "Grupa"
+msgstr "समूह"
+
+msgid "Uczestnicy"
+msgstr "प्रतिभागी"
+
+msgid "Oddane prace"
+msgstr "जमा किए गए समाधान"
+
+msgid "W terminie"
+msgstr "समय पर"
+
+msgid "Zakwalifikowani"
+msgstr "योग्य"
+
+msgid "Średnia pkt"
+msgstr "औसत अंक"
+
+msgid "wyniki ogłoszone"
+msgstr "परिणाम घोषित"
+
+msgid "wyniki jeszcze nieogłoszone"
+msgstr "परिणाम अभी घोषित नहीं"
+
+msgid "Udział szkoły w kolejnych edycjach"
+msgstr "विभिन्न संस्करणों में स्कूल की भागीदारी"
+
+msgid "Edycja"
+msgstr "संस्करण"
+
+msgid "Uczestnicy ze szkoły"
+msgstr "स्कूल के प्रतिभागी"
+
+#, python-format
+msgid "mniej niż %(k)s"
+msgstr "%(k)s से कम"
+
+#, python-format
+msgid "Raport zawiera wyłącznie dane zbiorcze. Grupy mniejsze niż %(k)s osób są ukryte, żeby z liczb nie dało się odczytać wyniku konkretnego ucznia. Punkty i kwalifikacja pochodzą z oficjalnie ogłoszonych wyników etapu; etap bez ogłoszonych wyników ma tylko liczbę uczestników i oddanych prac."
+msgstr "इस रिपोर्ट में केवल समेकित डेटा है। %(k)s से कम लोगों के समूह छिपाए गए हैं ताकि आँकड़ों से किसी विद्यार्थी का परिणाम न निकाला जा सके। अंक और योग्यता आधिकारिक रूप से घोषित चरण परिणामों से हैं; जिस चरण के परिणाम घोषित नहीं हुए, उसमें केवल प्रतिभागियों और जमा समाधानों की संख्या है।"
+
+msgid "Moi uczniowie"
+msgstr "मेरे विद्यार्थी"
+
+msgid "Szkoła"
+msgstr "स्कूल"
+
+msgid "Wszyscy uczestnicy"
+msgstr "सभी प्रतिभागी"
+
+msgid "RSPO"
+msgstr "RSPO"
+
+msgid "Miejscowość"
+msgstr "नगर"
+
+msgid "Województwo"
+msgstr "प्रांत"
+
+msgid "Uczestnicy w poprzedniej edycji"
+msgstr "पिछले संस्करण में प्रतिभागी"
+
+msgid "Zmiana"
+msgstr "परिवर्तन"
+
+msgid "wpisy"
+msgstr "प्रविष्टियाँ"
+
+msgid "średnia"
+msgstr "औसत"
+
+msgid "zakwalifikowani"
+msgstr "योग्य"
+
+msgid "Statystyki szkół"
+msgstr "स्कूल आँकड़े"
+
+msgid "Te same wartości stoją w tabeli pod wykresem."
+msgstr "यही मान चार्ट के नीचे तालिका में दिए गए हैं।"
+
+#, python-format
+msgid "grupa ukryta – mniej niż %(k)s osób"
+msgstr "समूह छिपा – %(k)s से कम लोग"
+
+msgid "panel koordynatora"
+msgstr "समन्वयक पैनल"
+
+msgid "Udział szkół w edycji, porównanie z poprzednią edycją i – po ogłoszeniu wyników – średnie oraz liczba zakwalifikowanych."
+msgstr "संस्करण में स्कूलों की भागीदारी, पिछले संस्करण से तुलना और – परिणाम घोषित होने के बाद – औसत तथा योग्य विद्यार्थियों की संख्या।"
+
+#, python-format
+msgid "Średnie i liczby zakwalifikowanych grup mniejszych niż %(k)s wpisów są ukryte – także w eksporcie CSV i w raportach PDF."
+msgstr "%(k)s से कम प्रविष्टियों वाले समूहों के औसत और योग्य संख्या छिपाए गए हैं – CSV निर्यात और PDF रिपोर्ट में भी।"
+
+msgid "Eksport CSV"
+msgstr "CSV निर्यात"
+
+msgid "Ten konkurs nie ma jeszcze żadnej edycji."
+msgstr "इस प्रतियोगिता का अभी कोई संस्करण नहीं है।"
+
+msgid "Kolejność"
+msgstr "क्रम"
+
+msgid "Pokaż"
+msgstr "दिखाएँ"
+
+msgid "Szkoły z uczestnikami"
+msgstr "प्रतिभागियों वाले स्कूल"
+
+#, python-format
+msgid "Szkoły w edycji %(edition)s"
+msgstr "संस्करण %(edition)s में स्कूल"
+
+msgid "Szkoły bez uczestników w tej edycji"
+msgstr "इस संस्करण में बिना प्रतिभागियों वाले स्कूल"
+
+msgid "Ranking szkół"
+msgstr "स्कूल रैंकिंग"
+
+msgid "awans"
+msgstr "योग्य"
+
+msgid "Raport"
+msgstr "रिपोर्ट"
+
+msgid "spoza wykazu"
+msgstr "सूची से बाहर"
+
+msgid "grupa pod progiem"
+msgstr "समूह सीमा से नीचे"
+
+msgid "W tej edycji nikt jeszcze nie jest zapisany do etapu."
+msgstr "इस संस्करण में अभी कोई भी किसी चरण के लिए पंजीकृत नहीं है।"
+
+msgid "Województwa"
+msgstr "प्रांत"
+
+msgid "Szkoły"
+msgstr "स्कूल"
+
+msgid "brak województwa"
+msgstr "कोई प्रांत नहीं"
+
+msgid "Brak danych."
+msgstr "कोई डेटा नहीं।"
+
+msgid "Szkoły do odzyskania"
+msgstr "फिर से जोड़ने योग्य स्कूल"
+
+#, python-format
+msgid "Szkoły, które miały uczestników w edycji %(edition)s, a w tej edycji nie mają nikogo – adresaci akcji promocyjnej."
+msgstr "वे स्कूल जिनके संस्करण %(edition)s में प्रतिभागी थे, पर इस संस्करण में कोई नहीं है – प्रचार अभियान के लक्ष्य।"
+
+msgid "Każda szkoła z poprzedniej edycji ma uczestników także w tej."
+msgstr "पिछले संस्करण के हर स्कूल के इस संस्करण में भी प्रतिभागी हैं।"
+
+msgid "Statystyki uczniów i szkoły"
+msgstr "विद्यार्थी और स्कूल आँकड़े"
+
+msgid "Panel opiekuna szkolnego"
+msgstr "स्कूल पर्यवेक्षक पैनल"
+
+msgid "Udział Twoich uczniów w kolejnych etapach i edycjach. Punkty i kwalifikacja pojawiają się dopiero po oficjalnym ogłoszeniu wyników etapu."
+msgstr "विभिन्न चरणों और संस्करणों में आपके विद्यार्थियों की भागीदारी। अंक और योग्यता चरण के परिणाम आधिकारिक रूप से घोषित होने के बाद ही दिखते हैं।"
+
+#, python-format
+msgid "Dane szkoły, województwa i całej olimpiady są zbiorcze. Grupy, z których dałoby się odczytać wynik konkretnej osoby (mniej niż %(k)s uczestników poza Twoimi uczniami), są ukryte."
+msgstr "स्कूल, प्रांत और पूरे ओलंपियाड के आँकड़े समेकित हैं। जिन समूहों से किसी व्यक्ति का परिणाम निकाला जा सकता है (आपके विद्यार्थियों के अलावा %(k)s से कम प्रतिभागी), वे छिपाए गए हैं।"
+
+msgid "Wróć do listy uczniów"
+msgstr "विद्यार्थी सूची पर लौटें"
+
+msgid "Raport szkoły (PDF)"
+msgstr "स्कूल रिपोर्ट (PDF)"
+
+msgid "Porównanie z całą szkołą i raport dla dyrektora są dostępne, gdy Twoja szkoła jest wybrana z wykazu szkół i zweryfikowana przez organizatora. Do tego czasu widzisz swoich uczniów, województwo i całą olimpiadę."
+msgstr "पूरे स्कूल से तुलना और प्रधानाचार्य के लिए रिपोर्ट तब उपलब्ध होती है जब आपका स्कूल स्कूल सूची से चुना गया हो और आयोजक ने सत्यापित किया हो। तब तक आप अपने विद्यार्थी, प्रांत और पूरा ओलंपियाड देखते हैं।"
+
+msgid "Olimpiada nie ma jeszcze żadnej edycji."
+msgstr "ओलंपियाड का अभी कोई संस्करण नहीं है।"
+
+#, python-format
+msgid "Uczniowie w edycji %(edition)s"
+msgstr "संस्करण %(edition)s में विद्यार्थी"
+
+msgid "Nikt jeszcze nie wskazał Twojego adresu jako adresu opiekuna."
+msgstr "अभी तक किसी ने आपका पता पर्यवेक्षक के पते के रूप में नहीं दिया है।"
+
+msgid "Ta edycja nie ma jeszcze etapów."
+msgstr "इस संस्करण में अभी कोई चरण नहीं है।"
+
+msgid "Uczeń"
+msgstr "विद्यार्थी"
+
+msgid "nie startuje"
+msgstr "भाग नहीं ले रहा"
+
+msgid "zapisany"
+msgstr "पंजीकृत"
+
+msgid "oddane w terminie"
+msgstr "समय पर जमा"
+
+msgid "oddane po terminie"
+msgstr "देर से जमा"
+
+msgid "brak pracy"
+msgstr "कोई समाधान नहीं"
+
+msgid "brak na liście awansujących"
+msgstr "योग्य सूची में नहीं"
+
+msgid "pkt"
+msgstr "अंक"
+
+msgid "wyniki nieogłoszone"
+msgstr "परिणाम घोषित नहीं"
+
+msgid "Porównanie po ogłoszeniu wyników"
+msgstr "परिणाम घोषित होने के बाद तुलना"
+
+msgid "ogłoszono tylko listę awansujących"
+msgstr "केवल योग्य सूची घोषित की गई"
+
+msgid "W tej edycji żaden etap nie ma jeszcze ogłoszonych wyników."
+msgstr "इस संस्करण में अभी किसी चरण के परिणाम घोषित नहीं हुए हैं।"
+
+msgid "Postęp w kolejnych edycjach"
+msgstr "संस्करणों में प्रगति"
+
+msgid "Średnia punktów w pierwszym etapie edycji z ogłoszoną pełną tabelą wyników."
+msgstr "संस्करण के उस पहले चरण के औसत अंक जिसकी पूरी परिणाम तालिका घोषित हुई।"
+
+msgid "Średnia punktów w kolejnych edycjach"
+msgstr "संस्करणों में औसत अंक"
+
+msgid "Moich uczniów"
+msgstr "मेरे विद्यार्थी"
+
+#, python-format
+msgid "„—” oznacza brak ogłoszonych wyników albo grupę ukrytą, bo liczy mniej niż %(k)s osób."
+msgstr "“—” का अर्थ है घोषित परिणाम नहीं या समूह छिपा है क्योंकि उसमें %(k)s से कम लोग हैं।"
+
+msgid "Brak danych z poprzednich edycji."
+msgstr "पिछले संस्करणों का कोई डेटा नहीं।"
+
+msgid "Region"
+msgstr "क्षेत्र"
+
+msgid "liczba uczestników"
+msgstr "प्रतिभागियों की संख्या"
+
+msgid "wyniki"
+msgstr "परिणाम"
+
+msgid "nazwa"
+msgstr "नाम"

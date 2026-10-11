@@ -6,12 +6,27 @@ domyślne autoescapowanie.
 """
 
 from django import template
+from django.conf import settings
+from django.utils import timezone
 from django.utils.formats import date_format
 from django.utils.translation import gettext, gettext_lazy, pgettext
 
 from apps.core.points import format_points, input_value
 
 register = template.Library()
+
+
+@register.simple_tag(takes_context=True)
+def translation_report_url(context) -> str:
+    """Adres „Zgłoś tłumaczenie” (L10N-01) dla tego żądania albo pusty napis – sam tekst, bez HTML-a.
+
+    W ``web_extras``, bo tylko ta biblioteka (a nie ``translation_review``) jest dozwolona w szablonach
+    paczek motywów (``apps.themes.slots``); odnośnik rysuje fragment ``web/_translation_report_link.html``.
+    """
+    from apps.translation_review.templatetags.translation_review import report_url
+
+    return report_url(context.get("request"))
+
 
 #: Mapa kodu stanu → „ton” wizualny odznaki. Wyłącznie prezentacja: nazwy stanów pochodzą
 #: z ``TextChoices`` modeli (SubmissionStatus, AvStatus, ReviewStatus, StageEntryStatus,
@@ -102,7 +117,24 @@ def local_time(value, fmt: str = LOCAL_DATETIME_FORMAT) -> str:
     """
     if value in (None, ""):
         return ""
+    # Strefa ucznia aktywna w panelu (okna czasowe, TZ-01: ``ParticipantTimezoneMiddleware``) –
+    # godzina jest wtedy w **jego** strefie i podpis „czas polski” byłby nieprawdą. Bez aktywnej
+    # strefy (każdy konkurs bez flagi) napis zostaje co do znaku ten sam.
+    active = timezone.get_current_timezone_name()
+    if active != settings.TIME_ZONE:
+        return f"{date_format(value, fmt)} ({active.replace('_', ' ')})"
     return f"{date_format(value, fmt)} ({LOCAL_TIME_LABEL})"
+
+
+@register.simple_tag
+def active_time_zone() -> str:
+    """Nazwa strefy ucznia, gdy panel renderuje się w niej (okna czasowe, TZ-01) – inaczej pusty tekst.
+
+    Szablony panelu uczestnika wybierają tym podpis kolumny: pusty znaczy „czas polski” w dotychczasowym
+    brzmieniu (ten sam napis i ten sam katalog), niepusty – nazwę strefy, w której są godziny.
+    """
+    active = timezone.get_current_timezone_name()
+    return "" if active == settings.TIME_ZONE else active.replace("_", " ")
 
 
 @register.filter(expects_localtime=True, is_safe=False)
@@ -171,9 +203,10 @@ def platform_room(meeting_url) -> bool:
     """Czy do tego pokoju wchodzi się przepustką platformy (v0.39.0), a nie zwykłym linkiem.
 
     Gdy tak, ekran **nie** pokazuje adresu pokoju jako odnośnika – prowadzi do widoku wejścia
-    (``apps.web.views.video``). Reguła mieszka w ``apps.competitions.jitsi_jwt.is_platform_room``.
+    (``apps.web.views.video``). Reguła mieszka w ``apps.competitions.room_access.is_platform_room``
+    (Jitsi z przepustkami albo pokój LiveKit etapu, STAGE-LK-01).
     """
-    from apps.competitions.jitsi_jwt import is_platform_room
+    from apps.competitions.room_access import is_platform_room
 
     return is_platform_room(str(meeting_url or ""))
 

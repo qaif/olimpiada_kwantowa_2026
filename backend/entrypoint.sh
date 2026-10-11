@@ -22,6 +22,14 @@ if [ "${RUN_MIGRATIONS:-1}" = "1" ]; then
 fi
 if [ "${RUN_COLLECTSTATIC:-1}" = "1" ]; then
     python manage.py collectstatic --noinput --clear >/dev/null
+    # Notatniki kwantowe (QC-01): JupyterLite zbudowane w obrazie (etap `notebook-lab`) obok plików
+    # statycznych – podaje je Caddy spod /static/notebook-lab/<BUILD_ID>/ z własną polityką CSP.
+    # Kopia, a nie collectstatic: manifest WhiteNoise przepisywałby adresy w CSS JupyterLab i dublował
+    # ~40 MB plików wersjami z odciskiem, których nikt nie użyje. `--clear` wyżej czyści starą wersję.
+    if [ -f /app/notebook_lab_dist/current.json ]; then
+        mkdir -p /app/staticfiles/notebook-lab
+        cp -R /app/notebook_lab_dist/. /app/staticfiles/notebook-lab/
+    fi
 fi
 
 exec "$@"

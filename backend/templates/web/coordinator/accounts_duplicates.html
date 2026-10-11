@@ -1,0 +1,149 @@
+{% extends "web/coordinator/base.html" %}
+{% load web_extras %}
+{% comment %}
+  Zdublowane konta uczestników (ACC-DUP-01). Grupy i sugestię liczy ``apps.accounts.duplicates``;
+  ten szablon niczego nie rozstrzyga. Pojedyncze „Usuń” prowadzi na **istniejący** ekran
+  potwierdzenia usunięcia konta (z ``?back=duplicates``), zbiorcze – na ekran z dokładną listą.
+  Zero skryptu (CSP): zbiorcze usunięcie to zwykły formularz z ukrytymi polami.
+{% endcomment %}
+{% block title %}Zdublowane konta – panel koordynatora{% endblock %}
+{% block panel_eyebrow %}<a href="{% url 'web:coordinator-accounts' %}">Konta</a>{% endblock %}
+{% block panel_title %}Zdublowane konta{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Ta sama osoba z kilkoma kontami uczestnika w tym konkursie: to samo imię, nazwisko
+    i szkoła, inny adres e-mail – zwykle po literówce w adresie albo po liście aktywacyjnym, który nie
+    dotarł. Ekran tylko podpowiada; każde usunięcie potwierdzasz osobno.</p>
+{% endblock %}
+{% block panel_content %}
+
+<ul class="kpi">
+  <li class="kpi__item"><span class="kpi__value">{{ report.people }}</span><span class="kpi__label">osób z duplikatami</span></li>
+  <li class="kpi__item"><span class="kpi__value">{{ report.accounts }}</span><span class="kpi__label">kont w tych grupach</span></li>
+  <li class="kpi__item"><span class="kpi__value">{{ candidates|length }}</span><span class="kpi__label">kandydatów do usunięcia</span></li>
+</ul>
+
+<section class="section">
+  <div class="card">
+    <p class="hint"><strong>Do zachowania</strong> – jedyne konto w grupie, które się logowało, ma etap
+      zawodów albo prace. <strong>Kandydat do usunięcia</strong> – konto w grupie z kontem używanym, które
+      nigdy się nie logowało, nie ma etapu poza treningiem, prac, zaświadczenia ani innych ról.
+      <strong>Do decyzji</strong> – wszystko inne (powód stoi przy koncie).</p>
+    <div class="actions">
+      {% if candidates %}
+        <form method="post" action="{% url 'web:coordinator-duplicates-delete' %}">
+          {% csrf_token %}
+          {% for account in candidates %}<input type="hidden" name="account" value="{{ account.user.pk }}">{% endfor %}
+          <button type="submit" class="btn btn--danger">Usuń wszystkich kandydatów ({{ candidates|length }})…</button>
+        </form>
+      {% endif %}
+      {% if report.groups %}
+        <a class="btn btn--secondary" href="{% url 'web:coordinator-duplicates-export' %}">Pobierz CSV</a>
+      {% endif %}
+    </div>
+  </div>
+</section>
+
+{% for group in report.groups %}
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">{{ group.number }}. {{ group.full_name }}</h2>
+    <p class="hint">{{ group.school }} · kont: {{ group.accounts|length }}</p>
+  </div>
+  <div class="scroll" role="region" tabindex="0" aria-label="Konta: {{ group.full_name }}">
+    <table class="table table--compact" aria-label="Konta: {{ group.full_name }}">
+      <thead>
+        <tr>
+          <th scope="col">Kod</th>
+          <th scope="col">E-mail</th>
+          <th scope="col">Założone</th>
+          <th scope="col">Ostatnie logowanie</th>
+          <th scope="col">Stan</th>
+          <th scope="col">Etapy</th>
+          <th scope="col" class="num">Prace</th>
+          <th scope="col">Zgody i zaświadczenie</th>
+          <th scope="col">Sugestia</th>
+          <th scope="col"><span class="visually-hidden">Operacje</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for account in group.accounts %}
+          <tr>
+            <th scope="row">{{ account.participant.public_code }}</th>
+            <td>{{ account.user.email }}{% if account.participant.invited_at %} <span class="badge badge--info">z importu</span>{% endif %}</td>
+            <td class="nowrap">{{ account.user.date_joined|local_datetime }}</td>
+            <td class="nowrap">{% if account.user.last_login %}{{ account.user.last_login|local_datetime }}{% else %}nigdy{% endif %}</td>
+            <td>{{ account.status_label }}</td>
+            <td>
+              {% if account.competition_stages %}{{ account.competition_stages|join:", " }}{% endif %}
+              {% if account.training_stages %}{% if account.competition_stages %}<br>{% endif %}<span class="hint">trening: {{ account.training_stages|join:", " }}</span>{% endif %}
+              {% if not account.competition_stages and not account.training_stages %}—{% endif %}
+            </td>
+            <td class="num">{{ account.works }}</td>
+            <td>
+              RODO: {% if account.participant.gdpr_consent_at %}tak{% else %}nie{% endif %}
+              · opiekun: {% if account.participant.guardian_consent %}tak{% else %}—{% endif %}
+              {% if account.certificate %}<br>zaświadczenie: {{ account.certificate }}{% endif %}
+              {% if account.other_roles %}<br><span class="badge badge--warn">inne role</span>{% endif %}
+            </td>
+            <td>
+              {% if account.suggestion == "keep" %}<span class="badge badge--ok">{{ account.suggestion_label }}</span>
+              {% elif account.suggestion == "candidate" %}<span class="badge badge--danger">{{ account.suggestion_label }}</span>
+              {% else %}<span class="badge badge--neutral">{{ account.suggestion_label }}</span>{% endif %}
+              {% if account.reason %}<br><span class="hint">{{ account.reason }}</span>{% endif %}
+            </td>
+            <td class="nowrap">
+              {% if account.suggestion == "candidate" %}
+                <a class="btn btn--danger btn--small"
+                   href="{% url 'web:coordinator-account-delete' account.user.pk %}?back={{ back }}">Usuń</a>
+              {% endif %}
+              <a class="btn btn--secondary btn--small"
+                 href="{% url 'web:coordinator-account-edit' account.user.pk %}">Edytuj</a>
+              <a class="btn btn--secondary btn--small"
+                 href="{% url 'web:coordinator-participant' account.participant.pk %}">Karta</a>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% empty %}
+<section class="section">
+  <div class="card"><p class="empty">Nie ma zdublowanych kont uczestników w tym konkursie.</p></div>
+</section>
+{% endfor %}
+
+{% if report.email_suspects %}
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">Podobne adresy e-mail (słabszy sygnał)</h2>
+    <p class="hint">Adresy różnią się wyłącznie typową literówką w domenie (np. gmail.con zamiast
+      gmail.com), a imię, nazwisko albo szkoła się nie zgadzają. Sprawdź w edycji konta, zanim
+      cokolwiek usuniesz.</p>
+  </div>
+  <div class="scroll" role="region" tabindex="0" aria-label="Podobne adresy e-mail">
+    <table class="table table--compact" aria-label="Podobne adresy e-mail">
+      <thead>
+        <tr>
+          <th scope="col">Adres po poprawce</th>
+          <th scope="col">Konta</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for suspect in report.email_suspects %}
+          <tr>
+            <th scope="row">{{ suspect.normalized }}</th>
+            <td>
+              {% for participant in suspect.participants %}
+                <a href="{% url 'web:coordinator-account-edit' participant.user.pk %}">{{ participant.user.email }}</a>
+                ({{ participant.user.get_full_name|default:"—" }}, {{ participant.school }}, {{ participant.public_code }}){% if not forloop.last %}<br>{% endif %}
+              {% endfor %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endif %}
+{% endblock %}

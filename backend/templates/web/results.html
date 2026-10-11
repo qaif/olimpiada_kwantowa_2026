@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load i18n web_extras %}
+{% load i18n web_extras medals %}
 {% block title %}{% translate "Wyniki etapu" %}{% endblock %}
 {% block content %}
 <div class="page-head">
@@ -13,7 +13,7 @@
     <p class="hint">{% if stage.kind == "FINAL" %}{% translate "Lista laureatów – tabela nie obejmuje pozostałych uczestników." %}{% else %}{% translate "Lista osób zakwalifikowanych do następnego etapu – tabela nie obejmuje pozostałych uczestników." %}{% endif %}</p>
   {% endif %}
   <p class="hint">{% blocktranslate trimmed %}Tabela pochodzi z zamrożonego snapshotu z chwili publikacji – nie jest przeliczana
-    w locie, więc późniejsze decyzje komisji nie zmieniają jej po cichu.{% endblocktranslate %}</p>
+    w locie, więc późniejsze decyzje komisji nie zmieniają jej po cichu.{% endblocktranslate %}</p>{% medal_links stage %}
   {% comment %}
     Wiersze tabeli są anonimowe i takie zostają – uczestnik nie odnajdzie w niej siebie po nazwie.
     Odnośnik prowadzi go tam, gdzie jego wynik jest podpisany: na własną stronę z punktami,

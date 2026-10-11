@@ -1,7 +1,9 @@
 """Wysyłka komunikatów organizatora do grup odbiorców (panel koordynatora).
 
-Moduł robi trzy rzeczy i nic poza nimi: rozwiązuje grupę odbiorców na listę adresów, zapisuje
-wysyłkę w rejestrze (``MessageBroadcast``) i przekazuje listy do kolejki porcjami.
+Moduł robi trzy rzeczy i nic poza nimi: rozwiązuje grupę odbiorców na listę adresów (albo – dla
+przycisku „Eksportuj do Excela”, MSG-EXPORT-01 – na wiersze imię, nazwisko, adres; obie drogi idą
+przez jedno ``recipient_users``), zapisuje wysyłkę w rejestrze (``MessageBroadcast``) i przekazuje
+listy do kolejki porcjami.
 
 Dlaczego porcjami, a nie jednym zadaniem na całą wysyłkę: lista uczestników edycji to kilka
 tysięcy adresów. Jedno zadanie oznaczałoby jeden proces workera zajęty przez kilkanaście minut,
@@ -23,10 +25,15 @@ bezcelowa, a w najgorszym listem do osoby, która o olimpiadzie nigdy nie słysz
 from __future__ import annotations
 
 import logging
+from datetime import timedelta
 
 from celery import shared_task
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
 from django.db.models import Count, Exists, F, OuterRef, Q
+from django.db.models.functions import Coalesce
+from django.utils import timezone
+from django.utils.translation import gettext
 
 from apps.core.models import audit
 
@@ -37,8 +44,10 @@ from .models import (
     BroadcastStatus,
     CommitteeMember,
     CommitteeStatus,
+    CompetitionRole,
     MessageBroadcast,
     Participant,
+    Region,
     SchoolSupervisor,
     User,
     normalize_voivodeship,
@@ -96,6 +105,7 @@ STAGE_GROUPS = frozenset(
 EDITION_SCOPED_GROUPS = frozenset(
     {
         BroadcastGroup.ALL_PARTICIPANTS,
+        BroadcastGroup.ALL_PARTICIPANTS_AND_TEACHERS,
         BroadcastGroup.REGION_PARTICIPANTS,
         BroadcastGroup.SCHOOL_PARTICIPANTS,
         BroadcastGroup.GRADE_PARTICIPANTS,
@@ -138,8 +148,25 @@ def _competition_for(competition, *, edition=None, stage=None):
     return competition
 
 
-def _participant_emails(participants) -> list[str]:
-    """Adresy kont stojących za profilami uczestników z zapytania ``participants``.
+def _supervisors(competition) -> Q:
+    """Warunek „konto jest nauczycielem (opiekunem szkolnym) **tego** konkursu”.
+
+    Profil opiekuna konkursu i rola ``supervisor`` w nim – ta sama definicja, co
+    w ``apps.accounts.supervisors.supervisor_profile``. Sam profil bez roli (rola odebrana)
+    nie czyni nikogo opiekunem, więc nie czyni też adresatem. Rola (członkostwo albo grupa Django)
+    jest złączeniem wielowartościowym, dlatego stoi w podzapytaniu: zapytanie o konta nie mnoży
+    przez nią wierszy i nie potrzebuje ``DISTINCT``.
+    """
+    supervisors = SchoolSupervisor.objects.for_competition(competition)
+    return Q(
+        pk__in=User.objects.filter(_role_filter(competition, GROUP_SUPERVISOR))
+        .filter(pk__in=supervisors.values("user_id"))
+        .values("pk")
+    )
+
+
+def _participants(participants) -> Q:
+    """Warunek „konto stoi za którymś z profili uczestników z zapytania ``participants``”.
 
     Jedna droga dla wszystkich grup uczestników, i to z dwóch powodów:
 
@@ -151,11 +178,7 @@ def _participant_emails(participants) -> list[str]:
       i bez mnożenia wierszy przez wpisy do etapów. Przy kilku tysiącach uczestników to wciąż
       pojedyncze milisekundy, a nie pętla po profilach w Pythonie.
     """
-    return _emails(
-        User.objects.filter(DELIVERABLE, pk__in=participants.values("user_id")).values_list(
-            "email", flat=True
-        )
-    )
+    return Q(pk__in=participants.values("user_id"))
 
 
 def current_edition_participants(participants, edition):
@@ -324,7 +347,78 @@ def resolve_recipients(
     addresses: str = "",
     include_past_editions: bool = False,
 ) -> list[str]:
-    """Adresy odbiorców dla wybranej grupy. Nieznana grupa to pusta lista, nigdy wyjątek widoku.
+    """Adresy odbiorców dla wybranej grupy – lista do wysyłki. Nieznana grupa to pusta lista.
+
+    Kto należy do grupy, rozstrzyga wyłącznie :func:`recipient_users`; tutaj zostaje zamiana kont
+    na adresy (``_emails``: normalizacja, bez powtórzeń, posortowane) i wklejona lista, która kont
+    nie ma.
+    """
+    if group == BroadcastGroup.CUSTOM:
+        return parse_address_list(addresses or "")
+    users = recipient_users(
+        group,
+        competition=competition,
+        edition=edition,
+        stage=stage,
+        district=district,
+        region=region,
+        school=school,
+        grade=grade,
+        workshop=workshop,
+        include_past_editions=include_past_editions,
+    )
+    return _emails(users.values_list("email", flat=True))
+
+
+def recipient_rows(group: str, **parameters) -> list[tuple[str, str, str]]:
+    """Odbiorcy grupy jako trójki ``(imię, nazwisko, adres)`` – do eksportu „Eksportuj do Excela”.
+
+    Argumenty są te same, co w :func:`resolve_recipients` (bez ``addresses``), i ta sama jest
+    droga: :func:`recipient_users`. Adres przechodzi tę samą normalizację, co w wysyłce, a jeden
+    adres daje jeden wiersz – zbiór adresów w pliku jest więc **z definicji** zbiorem adresów,
+    do których poszedłby list. Eksport, który pokazuje kogoś spoza wysyłki (albo kogoś pomija),
+    byłby gorszy niż żaden: organizator wysyła z niego zaproszenia spoza platformy.
+
+    Dwa konta z tym samym adresem w innej wielkości liter dają jeden wiersz – pierwsze według
+    identyfikatora, żeby wynik był powtarzalny. Kolejność: nazwisko, imię, adres (bez wielkości
+    liter), bo plik czyta człowiek, który szuka w nim osoby.
+
+    Wklejona lista adresów nie ma tu wierszy (to adresy spoza systemu, bez imion) – ekran nie
+    pozwala jej eksportować, a funkcja i tak zwraca dla niej pustą listę.
+    """
+    seen: set[str] = set()
+    rows: list[tuple[str, str, str]] = []
+    users = recipient_users(group, **parameters).order_by("pk")
+    for first_name, last_name, email in users.values_list("first_name", "last_name", "email"):
+        address = (email or "").strip().lower()
+        if not address or address in seen:
+            continue
+        seen.add(address)
+        rows.append(((first_name or "").strip(), (last_name or "").strip(), address))
+    return sorted(rows, key=lambda row: (row[1].casefold(), row[0].casefold(), row[2]))
+
+
+def recipient_users(
+    group: str,
+    *,
+    competition=None,
+    edition=None,
+    stage=None,
+    district: str | None = None,
+    region=None,
+    school: str | None = None,
+    grade: int | None = None,
+    workshop: str | None = None,
+    include_past_editions: bool = False,
+):
+    """Konta odbiorców grupy (``QuerySet`` ``User``) – **jedyne** miejsce, w którym grupa staje się
+    zapytaniem. Czytają je wysyłka (:func:`resolve_recipients`) i eksport (:func:`recipient_rows`),
+    więc obie widzą tę samą grupę: ten sam zakres konkursu i edycji i ten sam warunek
+    ``DELIVERABLE``. Każda gałąź daje warunek ``pk__in`` z podzapytaniem, więc wynik nie ma
+    powtórzeń kont (konto z kilkoma wpisami do etapów albo rolami to jeden wiersz).
+
+    Nieznana grupa, wklejona lista (``CUSTOM`` – adresy spoza systemu) i brak kontekstu dają pusty
+    wynik, nigdy wyjątek widoku.
 
     **Zakres konkursu jest warunkiem każdej grupy poza wklejoną listą.** Rozstrzyga go
     :func:`_competition_for`, a każde zapytanie niżej zaczyna się od ``for_competition`` – list do
@@ -350,28 +444,53 @@ def resolve_recipients(
     do składów drużyn jest osobnym pytaniem do organizatora.
 
     Brak wymaganego kontekstu (edycji przy grupie edycyjnej, etapu przy grupie etapowej, szkoły przy
-    grupie szkolnej…) też daje pustą listę. Ekran nie wyśle wtedy niczego i powie o tym wprost – to
+    grupie szkolnej…) też daje pusty wynik. Ekran nie wyśle wtedy niczego i powie o tym wprost – to
     bezpieczniejszy kierunek niż domyślanie się, o który etap chodziło.
     """
-    if group == BroadcastGroup.CUSTOM:
-        return parse_address_list(addresses or "")
+    condition = _group_condition(
+        group,
+        competition=_competition_for(competition, edition=edition, stage=stage),
+        edition=edition,
+        stage=stage,
+        district=district,
+        region=region,
+        school=school,
+        grade=grade,
+        workshop=workshop,
+        include_past_editions=include_past_editions,
+    )
+    if condition is None:
+        return User.objects.none()
+    return User.objects.filter(DELIVERABLE, condition)
 
-    competition = _competition_for(competition, edition=edition, stage=stage)
-    if competition is None:
-        return []
+
+def _group_condition(
+    group, *, competition, edition, stage, district, region, school, grade, workshop, include_past_editions
+) -> Q | None:
+    """Warunek na ``User`` dla grupy w obrębie ``competition`` – albo ``None``, czyli „nikt”.
+
+    Wyłącznie dla :func:`recipient_users`, który dokłada ``DELIVERABLE`` i zakres konkursu
+    (``competition`` przychodzi już rozstrzygnięty przez :func:`_competition_for`).
+    """
+    if competition is None or group == BroadcastGroup.CUSTOM:
+        return None
     participants = Participant.objects.for_competition(competition)
     if group in EDITION_SCOPED_GROUPS and not include_past_editions:
         participants = current_edition_participants(participants, edition)
 
     if group == BroadcastGroup.ALL_PARTICIPANTS:
-        return _participant_emails(participants)
+        return _participants(participants)
+    if group == BroadcastGroup.ALL_PARTICIPANTS_AND_TEACHERS:
+        # Suma dwóch warunków w jednym zapytaniu – nauczyciel, który jest też uczestnikiem, jest
+        # jednym kontem, więc dostaje list raz i ma w eksporcie jeden wiersz.
+        return _participants(participants) | _supervisors(competition)
     if group == BroadcastGroup.EDITION_PARTICIPANTS:
         if edition is None:
-            return []
-        return _participant_emails(participants.filter(stage_entries__stage__edition=edition))
+            return None
+        return _participants(participants.filter(stage_entries__stage__edition=edition))
     if group in STAGE_GROUPS:
         if stage is None:
-            return []
+            return None
         from apps.competitions.models import StageEntry, StageEntryStatus
 
         entries = StageEntry.objects.filter(stage=stage, participant__isnull=False)
@@ -392,51 +511,59 @@ def resolve_recipients(
             entries = entries.filter(
                 status__in=(StageEntryStatus.REGISTERED, StageEntryStatus.QUALIFIED)
             ).exclude(Exists(sent))
-        return _participant_emails(participants.filter(pk__in=entries.values("participant_id")))
+        return _participants(participants.filter(pk__in=entries.values("participant_id")))
     if group == BroadcastGroup.REGION_PARTICIPANTS:
         if region is not None:
             if region.competition_id != competition.pk:
-                return []
+                return None
             # Profil zapisany przed włączeniem flagi ``custom_regions`` ma samo ``district``,
             # a kody regionów startowych są dosłownie wartościami ``district`` (migracja
             # ``accounts.0026``) – bez drugiej połowy warunku region pomijałby uczniów zapisanych
             # przed flagą.
-            return _participant_emails(
+            return _participants(
                 participants.filter(Q(region=region) | Q(region__isnull=True, district=region.code))
             )
         normalized = normalize_voivodeship(district)
         if not normalized:
-            return []
-        return _participant_emails(participants.filter(district=normalized))
+            return None
+        return _participants(participants.filter(district=normalized))
     if group == BroadcastGroup.SCHOOL_PARTICIPANTS:
         condition = parse_school_key(school)
         if condition is None:
-            return []
-        return _participant_emails(participants.filter(condition))
+            return None
+        return _participants(participants.filter(condition))
     if group == BroadcastGroup.GRADE_PARTICIPANTS:
         # ``str(...).isdigit()``, a nie ``int(...)`` w ``try``: klasa spoza liczb to po prostu
         # „nikt”, tak samo jak brak parametru – wyjątek widoku nie jest tu lepszą odpowiedzią.
         if not str(grade if grade is not None else "").isdigit():
-            return []
-        return _participant_emails(participants.filter(grade=int(grade)))
+            return None
+        return _participants(participants.filter(grade=int(grade)))
     if group == BroadcastGroup.WORKSHOP_ATTENDEES:
         if not workshop:
-            return []
+            return None
         from apps.cms.models import WorkshopAttendance
 
         attended = WorkshopAttendance.objects.filter(workshop_key=workshop).values("participant_id")
-        return _participant_emails(participants.filter(pk__in=attended))
-    if group == BroadcastGroup.SUPERVISORS:
-        # Profil opiekuna **tego** konkursu i rola ``supervisor`` w nim – ta sama definicja, co
-        # w ``apps.accounts.supervisors.supervisor_profile``. Sam profil bez roli (rola odebrana)
-        # nie czyni nikogo opiekunem, więc nie czyni też adresatem.
-        supervisors = SchoolSupervisor.objects.for_competition(competition)
-        return _emails(
-            User.objects.filter(DELIVERABLE, _role_filter(competition, GROUP_SUPERVISOR))
-            .filter(pk__in=supervisors.values("user_id"))
-            .values_list("email", flat=True)
-            .distinct()
+        return _participants(participants.filter(pk__in=attended))
+    if group == BroadcastGroup.NO_STUDENT_STATUS:
+        # Ta sama lista osób, co na ekranie zaświadczeń koordynatora (``edition_participants``),
+        # minus ci, których bieżący plik czeka na weryfikację albo jest zaakceptowany – licznik
+        # „brak” + „odrzucone” z tamtego ekranu i liczba odbiorców tutaj mają się zgadzać.
+        if edition is None:
+            return None
+        from apps.student_status.models import CertificateStatus, StudentStatusCertificate
+        from apps.student_status.services import edition_participants
+
+        delivered = StudentStatusCertificate.objects.filter(
+            edition=edition,
+            is_current=True,
+            status__in=(CertificateStatus.PENDING, CertificateStatus.ACCEPTED),
+        ).values("participant_id")
+        return _participants(
+            participants.filter(pk__in=edition_participants(edition).values("pk")).exclude(pk__in=delivered)
         )
+    if group == BroadcastGroup.SUPERVISORS:
+        return _supervisors(competition)
     if group in (BroadcastGroup.COMMITTEE, BroadcastGroup.COMMITTEE_DISTRICT):
         # Ta sama definicja „aktywnego recenzenta”, co w ``apps.grading.services.reviewer_pool``:
         # status ACTIVE **i** rola ``reviewer``. Komunikat do komitetu nie może trafić do osoby,
@@ -446,15 +573,14 @@ def resolve_recipients(
         if group == BroadcastGroup.COMMITTEE_DISTRICT:
             normalized = normalize_voivodeship(district)
             if not normalized:
-                return []
+                return None
             members = members.filter(district=normalized)
-        return _emails(
-            User.objects.filter(DELIVERABLE, _role_filter(competition, GROUP_REVIEWER))
+        return Q(
+            pk__in=User.objects.filter(_role_filter(competition, GROUP_REVIEWER))
             .filter(pk__in=members.values("user_id"))
-            .values_list("email", flat=True)
-            .distinct()
+            .values("pk")
         )
-    return []
+    return None
 
 
 @shared_task(
@@ -496,11 +622,23 @@ def send_broadcast_chunk(self, broadcast_id: int, recipients: list[str]) -> int:
 
     # Nadawcę czytamy raz na porcję: jest własnością konkursu, a nie pojedynczej koperty.
     from_email = mail_from(broadcast.competition)
+    # MAIL-02 § 2.7: adres, który twardo odbił, nie dostaje komunikatu – list i tak by nie dotarł,
+    # a każde kolejne odbicie psuje reputację relaya. Pominięty adres liczy się jako obsłużony
+    # (``sent_count``), inaczej komunikat nigdy nie przeszedłby w stan „wysłany”.
+    from apps.email_delivery.services import suppressed_among
+
+    suppressed = suppressed_among(recipients)
     queued = 0
     for recipient in recipients:
+        if recipient.strip().lower() in suppressed:
+            continue
         send_mail_task.delay(broadcast.subject, broadcast.body, [recipient], from_email)
         queued += 1
-    MessageBroadcast.objects.filter(pk=broadcast_id).update(sent_count=F("sent_count") + queued)
+    if suppressed:
+        logger.info(
+            "Komunikat %s: pominięto %s adresów niedoręczalnych.", broadcast_id, len(recipients) - queued
+        )
+    MessageBroadcast.objects.filter(pk=broadcast_id).update(sent_count=F("sent_count") + len(recipients))
     broadcast.refresh_from_db(fields=["sent_count", "recipient_count"])
     if broadcast.sent_count >= broadcast.recipient_count:
         MessageBroadcast.objects.filter(pk=broadcast_id).update(status=BroadcastStatus.SENT)
@@ -551,41 +689,402 @@ def send_broadcast(
     # przez Celery przy starcie workera – zależność w drugą stronę zamknęłaby cykl.
     from .services import default_competition
 
-    target = dict(target or {})
     broadcast = MessageBroadcast.objects.create(
         # Rejestr wysyłek należy do organizatora, który je zrobił; grupy odbiorców są zakresowane
         # jego konkursem, więc wiersz bez konkursu nie dałby się odczytać.
         competition=competition or default_competition(),
         created_by=actor if getattr(actor, "is_authenticated", False) else None,
         group=group,
-        target=target,
+        target=dict(target or {}),
         subject=subject,
         body=body,
         recipient_count=len(recipients),
         status=BroadcastStatus.QUEUED,
     )
+    _queue_broadcast(broadcast, recipients, actor=actor, request=request)
+    return broadcast
+
+
+def _queue_broadcast(
+    broadcast, recipients: list[str], *, actor, request=None, extra: dict | None = None
+) -> None:
+    """Porcje do kolejki po commicie i wpis ``broadcast.sent`` – wspólny ogon obu dróg wysyłki.
+
+    Wysyłka natychmiastowa (:func:`send_broadcast`) i zaplanowana (:func:`dispatch_due_broadcasts`)
+    różnią się tym, **kiedy** i **skąd** biorą odbiorców; od chwili, w której lista adresów jest
+    znana, idą tą samą drogą – te same porcje, ten sam audyt. ``extra`` dokłada do audytu termin
+    wysyłki zaplanowanej.
+    """
     chunks = _chunks(recipients)
+    broadcast_id = broadcast.pk
 
     def _enqueue() -> None:
         for chunk in chunks:
-            send_broadcast_chunk.delay(broadcast.pk, chunk)
+            send_broadcast_chunk.delay(broadcast_id, chunk)
 
     transaction.on_commit(_enqueue)
     audit(
         actor,
         "broadcast.sent",
         broadcast,
-        {"group": group, "target": target, "recipients": len(recipients), "chunks": len(chunks)},
+        {
+            "group": broadcast.group,
+            "target": broadcast.target,
+            "recipients": len(recipients),
+            "chunks": len(chunks),
+            **(extra or {}),
+        },
         request=request,
     )
     logger.info(
         "Komunikat %s do grupy %s: %s odbiorców w %s porcjach.",
         broadcast.pk,
-        group,
+        broadcast.group,
         len(recipients),
         len(chunks),
     )
+
+
+# --- komunikaty z datą przyszłą (MSG-SCHED-01) ------------------------------------------------------
+#
+# Zaplanowany komunikat to wiersz rejestru w stanie ``SCHEDULED`` z terminem (``scheduled_for``)
+# i parametrami grupy (``parameters``) – **bez listy adresów**. Odbiorców liczymy w chwili wysyłki,
+# a nie planowania: przypomnienie zaplanowane w czwartek na sobotę ma dostać także ktoś, kto
+# zarejestrował się w piątek, a nie dostać ktoś, kogo konto w międzyczasie zablokowano.
+
+#: Najkrótszy dopuszczalny odstęp terminu od teraz. Pięć minut to margines na drogę od podglądu
+#: do kliknięcia „Zaplanuj” i na to, żeby zaplanowany list dało się jeszcze anulować – komunikat
+#: „za minutę” wysyła się od razu.
+SCHEDULE_MIN_LEAD = timedelta(minutes=5)
+
+#: Najdalszy dopuszczalny termin. Dziewięćdziesiąt dni to jeszcze ta sama faza edycji; list
+#: zaplanowany na za pół roku najpewniej trafiłby do grupy, której autor już nie pamięta.
+SCHEDULE_MAX_AHEAD = timedelta(days=90)
+
+#: Ile po terminie wolno jeszcze wysłać komunikat, którego beat nie wysłał na czas (worker albo
+#: beat leżał). Doba: przypomnienie „jutro o 9:00 etap” wysłane dzień po terminie szkodzi bardziej
+#: niż brak listu, a koordynator widzi stan „przeterminowana” w historii i może wysłać list ręcznie.
+#: Ta sama granica kończy ponawianie przy błędzie trwałym (patrz :func:`dispatch_due_broadcasts`).
+SCHEDULE_GRACE = timedelta(hours=24)
+
+#: Ile zaplanowanych komunikatów obsługuje jeden przebieg beatu (co minutę). Reszta czeka minutę –
+#: przebieg ma być krótki, a kilkadziesiąt komunikatów z jednym terminem to i tak sytuacja wyjątkowa.
+DISPATCH_BATCH = 25
+
+#: Klucze ``MessageBroadcast.parameters`` – argumenty :func:`resolve_recipients` poza ``addresses``.
+SCHEDULE_PARAMETERS = ("stage", "district", "region", "school", "grade", "workshop", "include_past_editions")
+
+#: Parametr, bez którego grupy nie da się policzyć (krotka: wystarczy jeden z wymienionych). Formularz
+#: ekranu sprawdza to samo (``BroadcastForm.clean``); tutaj chodzi o wołających spoza ekranu
+#: (``manage.py shell``), którym zapomniany etap dałby po cichu komunikat „bez odbiorców”.
+_REQUIRED_PARAMETER = {
+    **dict.fromkeys(STAGE_GROUPS, ("stage",)),
+    BroadcastGroup.REGION_PARTICIPANTS: ("region", "district"),
+    BroadcastGroup.SCHOOL_PARTICIPANTS: ("school",),
+    BroadcastGroup.GRADE_PARTICIPANTS: ("grade",),
+    BroadcastGroup.WORKSHOP_ATTENDEES: ("workshop",),
+    BroadcastGroup.COMMITTEE_DISTRICT: ("district",),
+}
+
+
+def schedule_time_error(scheduled_for, *, now=None) -> str | None:
+    """Powód odrzucenia terminu wysyłki albo ``None`` – jedna reguła dla formularza i serwisu."""
+    now = now or timezone.now()
+    if scheduled_for < now + SCHEDULE_MIN_LEAD:
+        return gettext("Termin wysyłki musi przypadać co najmniej %(minutes)s minut od teraz.") % {
+            "minutes": int(SCHEDULE_MIN_LEAD.total_seconds() // 60)
+        }
+    if scheduled_for > now + SCHEDULE_MAX_AHEAD:
+        return gettext("Termin wysyłki może przypadać najwyżej %(days)s dni od teraz.") % {
+            "days": SCHEDULE_MAX_AHEAD.days
+        }
+    return None
+
+
+def schedule_custom_rejected() -> str:
+    """Błąd planowania wklejonej listy adresów – formularz i serwis mówią to samo."""
+    return gettext(
+        "Wklejonej listy adresów nie da się zaplanować – adresów spoza systemu nie przechowujemy. "
+        "Wyślij ją od razu."
+    )
+
+
+def _stored_parameters(parameters: dict | None) -> dict:
+    """Parametry grupy w postaci JSON: obiekty (etap, region) identyfikatorem, puste pola pominięte."""
+    stored: dict = {}
+    for key, value in (parameters or {}).items():
+        if key not in SCHEDULE_PARAMETERS:
+            raise ValidationError(gettext("Nieznany parametr grupy odbiorców: %(name)s.") % {"name": key})
+        if key == "include_past_editions":
+            stored[key] = bool(value)
+        elif value in (None, ""):
+            continue
+        elif key in ("stage", "region", "grade"):
+            stored[key] = int(getattr(value, "pk", value))
+        else:
+            stored[key] = str(value)
+    return stored
+
+
+def _default_target(group: str, stored: dict) -> dict:
+    """Opis do historii, gdy wołający (``manage.py shell``) go nie podał: identyfikatory bez etykiet.
+
+    Ekran podaje pełny opis z formularza (``BroadcastForm.target``); tu zostaje minimum, które mówi,
+    czy list objął jedną edycję, czy kilka – tym samym brzmieniem, co na ekranie.
+    """
+    target = {key: value for key, value in stored.items() if key != "include_past_editions"}
+    if group in EDITION_SCOPED_GROUPS:
+        past = bool(stored.get("include_past_editions"))
+        target.update(past_editions=past, label="także poprzednie edycje" if past else "bieżąca edycja")
+    return target
+
+
+def scheduled_recipient_kwargs(broadcast: MessageBroadcast) -> dict:
+    """``parameters`` z rejestru z powrotem jako argumenty :func:`resolve_recipients`.
+
+    Etap i region szukamy **w konkursie komunikatu**: skasowany w międzyczasie (albo – gdyby ktoś
+    wpisał ręcznie – cudzy) daje ``None``, a to w ``resolve_recipients`` znaczy pustą grupę, a nie
+    list do kogokolwiek.
+    """
+    from apps.competitions.models import Stage
+
+    parameters = broadcast.parameters or {}
+    kwargs: dict = {}
+    for key in SCHEDULE_PARAMETERS:
+        if key not in parameters:
+            continue
+        value = parameters[key]
+        if key == "stage":
+            value = (
+                Stage.objects.filter(pk=value, edition__competition_id=broadcast.competition_id)
+                .select_related("edition")
+                .first()
+            )
+        elif key == "region":
+            value = Region.objects.for_competition(broadcast.competition).filter(pk=value).first()
+        kwargs[key] = value
+    return kwargs
+
+
+def resolve_scheduled_recipients(broadcast: MessageBroadcast) -> list[str]:
+    """Adresy odbiorców zaplanowanego komunikatu **teraz** – ta sama droga, co wysyłka natychmiastowa.
+
+    Bieżącą edycję liczymy w chwili wywołania: komunikat zaplanowany przed przełączeniem edycji
+    pójdzie do uczestników tej, która jest bieżąca w chwili wysyłki. Funkcja przydaje się też
+    w ``manage.py shell`` – „ilu odbiorców miałby ten komunikat, gdyby wyszedł teraz”.
+    """
+    from apps.competitions.services import current_edition
+
+    return resolve_recipients(
+        broadcast.group,
+        competition=broadcast.competition,
+        edition=current_edition(broadcast.competition),
+        **scheduled_recipient_kwargs(broadcast),
+    )
+
+
+def _audit_in(competition, actor, action: str, broadcast, diff: dict, request=None) -> None:
+    """Audyt w kontekście konkursu komunikatu – także poza żądaniem (beat, ``manage.py shell``)."""
+    from apps.tenancy.context import competition_context
+
+    with competition_context(competition):
+        audit(actor, action, broadcast, diff, request=request)
+
+
+@transaction.atomic
+def schedule_broadcast(
+    *,
+    group: str,
+    subject: str,
+    body: str,
+    scheduled_for,
+    competition,
+    actor,
+    parameters: dict | None = None,
+    target: dict | None = None,
+    request=None,
+) -> MessageBroadcast:
+    """Planuje komunikat na ``scheduled_for`` – jedyna droga zaplanowania (ekran i ``manage.py shell``).
+
+    ``scheduled_for`` bez strefy jest **czasem polskim** (``TIME_ZONE``): w powłoce wystarczy
+    ``datetime(2026, 10, 10, 6, 0)``. ``parameters`` to argumenty :func:`resolve_recipients` poza
+    ``addresses`` (``stage``, ``region`` – obiekt albo identyfikator; ``district``, ``school``,
+    ``grade``, ``workshop``, ``include_past_editions``). ``target`` – opis do historii; ekran podaje
+    ``BroadcastForm.target()``, a bez niego powstaje minimalny (:func:`_default_target`).
+
+    Odrzuca (``ValidationError``): termin za blisko albo za daleko (:func:`schedule_time_error`),
+    wklejoną listę adresów (jej adresów nie przechowujemy – wysyła się ją od razu), grupę bez
+    wymaganego parametru. ``actor`` musi być koordynatorem **tego** konkursu – rola sprawdzana
+    w serwisie, a nie tylko w widoku, bo do serwisu prowadzi też powłoka.
+
+    Liczba odbiorców w chwili planowania trafia **wyłącznie** do audytu (``recipients_now``):
+    ``recipient_count`` dostaje liczbę z chwili wysyłki, bo to ona mówi, ile listów poszło.
+    """
+    from .services import has_role
+
+    if competition is None:
+        raise ValidationError(gettext("Komunikat musi należeć do konkursu."))
+    if not has_role(actor, competition, CompetitionRole.COORDINATOR):
+        raise ValidationError(gettext("Zaplanować komunikat może wyłącznie koordynator tego konkursu."))
+    if group == BroadcastGroup.CUSTOM:
+        raise ValidationError(schedule_custom_rejected())
+    if timezone.is_naive(scheduled_for):
+        scheduled_for = timezone.make_aware(scheduled_for, timezone.get_default_timezone())
+    if (error := schedule_time_error(scheduled_for)) is not None:
+        raise ValidationError(error)
+    stored = _stored_parameters(parameters)
+    if group in EDITION_SCOPED_GROUPS:
+        stored.setdefault("include_past_editions", False)
+    required = _REQUIRED_PARAMETER.get(group)
+    if required and not any(key in stored for key in required):
+        raise ValidationError(
+            gettext("Ta grupa odbiorców wymaga parametru: %(names)s.") % {"names": " / ".join(required)}
+        )
+    broadcast = MessageBroadcast(
+        competition=competition,
+        created_by=actor,
+        group=group,
+        target=dict(target) if target is not None else _default_target(group, stored),
+        parameters=stored,
+        subject=subject,
+        body=body,
+        recipient_count=0,
+        status=BroadcastStatus.SCHEDULED,
+        scheduled_for=scheduled_for,
+    )
+    # Kształt wiersza (grupa z listy, długość tematu, niepusta treść) sprawdza model – ta sama
+    # walidacja dla ekranu i powłoki, bez przepisywania reguł formularza.
+    broadcast.full_clean()
+    broadcast.save()
+    _audit_in(
+        competition,
+        actor,
+        "broadcast.scheduled",
+        broadcast,
+        {
+            "group": group,
+            "target": broadcast.target,
+            "scheduled_for": scheduled_for.isoformat(),
+            "recipients_now": len(resolve_scheduled_recipients(broadcast)),
+        },
+        request=request,
+    )
+    logger.info("Komunikat %s do grupy %s zaplanowany na %s.", broadcast.pk, group, scheduled_for.isoformat())
     return broadcast
+
+
+@transaction.atomic
+def cancel_scheduled_broadcast(broadcast: MessageBroadcast, *, actor, request=None) -> bool:
+    """Anuluje zaplanowany komunikat. ``False``, gdy już nie czeka (wysłany, anulowany, przeterminowany).
+
+    Warunkowy ``UPDATE … WHERE status = SCHEDULED`` zamiast odczytu i zapisu: równoległy przebieg
+    beatu trzyma wiersz w ``select_for_update``, więc ``UPDATE`` czeka na jego koniec i po nim
+    widzi już stan ``QUEUED`` – anulowanie przegrywa z wysyłką czysto, bez listu „anulowanego”,
+    który mimo to wyszedł. Zakres konkursu sprawdza wołający (widok szuka wiersza w
+    ``for_competition(request.competition)``); rolę – także serwis.
+    """
+    from .services import has_role
+
+    if not has_role(actor, broadcast.competition, CompetitionRole.COORDINATOR):
+        raise PermissionDenied
+    updated = MessageBroadcast.objects.filter(pk=broadcast.pk, status=BroadcastStatus.SCHEDULED).update(
+        status=BroadcastStatus.CANCELLED
+    )
+    if not updated:
+        return False
+    broadcast.status = BroadcastStatus.CANCELLED
+    _audit_in(
+        broadcast.competition,
+        actor,
+        "broadcast.cancelled",
+        broadcast,
+        {
+            "group": broadcast.group,
+            "target": broadcast.target,
+            "scheduled_for": broadcast.scheduled_for.isoformat() if broadcast.scheduled_for else None,
+        },
+        request=request,
+    )
+    return True
+
+
+@shared_task
+def dispatch_scheduled_broadcasts() -> int:
+    """Wywołanie z ``beat`` co minutę (``CELERY_BEAT_SCHEDULE``, wpis ``dispatch-scheduled-broadcasts``)."""
+    return dispatch_due_broadcasts()
+
+
+def dispatch_due_broadcasts(*, now=None) -> int:
+    """Wysyła zaplanowane komunikaty, których termin minął. Zwraca liczbę obsłużonych wierszy.
+
+    **Dokładnie raz.** Każdy komunikat jest obsługiwany w osobnej transakcji, w której wiersz jest
+    zablokowany (``select_for_update(skip_locked=True)``) i ponownie sprawdzony pod kątem stanu
+    ``SCHEDULED``. Drugi worker z tym samym przebiegiem pominie wiersz zablokowany, a ponowienie po
+    commicie zobaczy już stan ``QUEUED`` – listy wychodzą raz. Porcje idą do kolejki ``on_commit``,
+    więc przebieg przerwany przed commitem nie zostawia ani wysłanych listów, ani zmienionego stanu.
+
+    **Błędy.** Wyjątek przy jednym komunikacie nie zatrzymuje pozostałych: transakcja tego jednego
+    się wycofuje, wiersz zostaje ``SCHEDULED`` i wraca w następnym przebiegu (awaria chwilowa – baza,
+    restart – naprawia się sama). Błąd trwały nie kręci się w nieskończoność: po ``SCHEDULE_GRACE``
+    wiersz dostaje ``EXPIRED``, zanim ktokolwiek spróbuje policzyć odbiorców.
+    """
+    now = now or timezone.now()
+    due = list(
+        MessageBroadcast.objects.filter(status=BroadcastStatus.SCHEDULED, scheduled_for__lte=now)
+        .order_by("scheduled_for", "pk")
+        .values_list("pk", flat=True)[:DISPATCH_BATCH]
+    )
+    handled = 0
+    for broadcast_id in due:
+        try:
+            handled += _dispatch_one(broadcast_id, now=now)
+        except Exception:
+            logger.exception(
+                "Komunikat zaplanowany %s: wysyłka nieudana – ponowienie w następnym przebiegu.", broadcast_id
+            )
+    return handled
+
+
+@transaction.atomic
+def _dispatch_one(broadcast_id: int, *, now) -> bool:
+    """Jeden zaplanowany komunikat: przeterminowany, pusty albo do kolejki. ``False`` – nie nasz."""
+    from apps.tenancy.context import competition_context
+
+    # Bez ``select_related``: ``FOR UPDATE`` nie obejmuje strony ``NULL`` złączenia zewnętrznego
+    # (autor ``SET_NULL``), a konkurs i autora i tak czytamy po jednym razie.
+    broadcast = (
+        MessageBroadcast.objects.select_for_update(skip_locked=True)
+        .filter(pk=broadcast_id, status=BroadcastStatus.SCHEDULED)
+        .first()
+    )
+    if broadcast is None:
+        return False
+    when = {"scheduled_for": broadcast.scheduled_for.isoformat()}
+    with competition_context(broadcast.competition):
+        if now - broadcast.scheduled_for > SCHEDULE_GRACE:
+            broadcast.status = BroadcastStatus.EXPIRED
+            broadcast.save(update_fields=["status"])
+            audit(None, "broadcast.expired", broadcast, {"group": broadcast.group, **when})
+            logger.warning("Komunikat %s: termin %s minął ponad dobę temu – nie wysłano.", broadcast.pk, when)
+            return True
+        recipients = resolve_scheduled_recipients(broadcast)
+        if not recipients:
+            broadcast.status = BroadcastStatus.EMPTY
+            broadcast.save(update_fields=["status"])
+            audit(
+                None,
+                "broadcast.empty",
+                broadcast,
+                {"group": broadcast.group, "target": broadcast.target, **when},
+            )
+            logger.info("Komunikat %s: grupa w chwili wysyłki jest pusta – nic nie wysłano.", broadcast.pk)
+            return True
+        broadcast.recipient_count = len(recipients)
+        broadcast.status = BroadcastStatus.QUEUED
+        broadcast.save(update_fields=["recipient_count", "status"])
+        # Aktorem wysyłki jest autor planu: to on zdecydował o liście, beat tylko dotrzymał terminu.
+        _queue_broadcast(broadcast, recipients, actor=broadcast.created_by, extra=when)
+    return True
 
 
 #: Ile komunikatów pokazujemy na ekranie. Rejestr jest narzędziem do pytania „co ostatnio poszło
@@ -602,8 +1101,21 @@ def recent_broadcasts(competition, limit: int = BROADCAST_HISTORY_LIMIT) -> list
     do zapytania **przed** limitem – inaczej limit obcinałby wiersze obu konkursów razem.
     ``competition=None`` nie widzi niczego (``for_competition``).
     """
+    # Zaplanowane czekają na osobnej liście (:func:`scheduled_broadcasts`); wysłany komunikat
+    # zaplanowany stoi w historii pod swoim terminem, a nie pod dniem, w którym go zaplanowano.
     return list(
         MessageBroadcast.objects.for_competition(competition)
+        .exclude(status=BroadcastStatus.SCHEDULED)
         .select_related("created_by")
-        .order_by("-created_at", "-id")[:limit]
+        .order_by(Coalesce("scheduled_for", "created_at").desc(), "-id")[:limit]
+    )
+
+
+def scheduled_broadcasts(competition) -> list[MessageBroadcast]:
+    """Komunikaty **tego** konkursu czekające na termin – od najbliższego (MSG-SCHED-01)."""
+    return list(
+        MessageBroadcast.objects.for_competition(competition)
+        .filter(status=BroadcastStatus.SCHEDULED)
+        .select_related("created_by")
+        .order_by("scheduled_for", "id")
     )

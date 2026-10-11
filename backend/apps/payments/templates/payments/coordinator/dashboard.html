@@ -1,0 +1,122 @@
+{% extends "web/coordinator/base.html" %}
+{% load static %}
+{% comment %}
+  Płatności (PAY-01): kto zapłacił, zaległości, sumy per waluta, sprawy do wyjaśnienia. Sumy są
+  osobno dla każdej waluty – sumowanie EUR z PLN dawałoby liczbę bez znaczenia (D15).
+{% endcomment %}
+{% block title %}Płatności – panel koordynatora{% endblock %}
+{% block panel_head %}<link rel="stylesheet" href="{% static 'css/coordinator-tools.css' %}">{% endblock %}
+{% block panel_title %}Płatności{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Opłaty za udział płacone online (karta – Stripe, Przelewy24) albo przelewem. Stan
+    „zapłacone” ustawia potwierdzenie od operatora płatności albo koordynator przy przelewie; faktura
+    z numerem powstaje automatycznie po wpłacie.</p>
+{% endblock %}
+{% block panel_actions %}
+  <a class="btn btn--secondary" href="{% url 'web:coordinator-payments-prices' %}{% if edition %}?edition={{ edition.pk }}{% endif %}">Cennik i ustawienia</a>
+  {% if edition %}<a class="btn btn--secondary" href="{% url 'web:coordinator-payments-export' %}?edition={{ edition.pk }}">Eksport CSV dla księgowości</a>{% endif %}
+{% endblock %}
+{% block panel_content %}
+{% if editions|length > 1 %}
+  <form method="get" class="form form--inline">
+    <label for="edition">Edycja</label>
+    <select name="edition" id="edition">
+      {% for item in editions %}<option value="{{ item.pk }}"{% if item.pk == edition.pk %} selected{% endif %}>{{ item.year_label }}</option>{% endfor %}
+    </select>
+    <button type="submit" class="btn btn--secondary btn--small">Pokaż</button>
+  </form>
+{% endif %}
+
+{% if not edition %}
+  <p class="notice">Konkurs nie ma bieżącej edycji.</p>
+{% else %}
+<section class="section">
+  <div class="section__head"><h2 class="mt-0">Sumy – {{ edition.year_label }}</h2></div>
+  <div class="scroll">
+    <table class="table">
+      <caption class="visually-hidden">Sumy per waluta</caption>
+      <thead><tr><th scope="col">Waluta</th><th scope="col">Wystawiono</th><th scope="col">Zapłacono</th><th scope="col">Zwrócono</th><th scope="col">Czeka na wpłatę</th><th scope="col">Jeszcze niewystawione</th></tr></thead>
+      <tbody>
+        {% for currency, bucket in totals.items %}
+          <tr><th scope="row">{{ currency }}</th><td>{{ bucket.issued }}</td><td>{{ bucket.paid }}</td><td>{{ bucket.refunded }}</td><td>{{ bucket.open }}</td><td>{{ bucket.not_issued }}</td></tr>
+        {% empty %}
+          <tr><td colspan="6" class="empty">Brak zamówień w tej edycji.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+{% if attention_payments or attention_refunds %}
+<section class="section">
+  <div class="section__head"><h2 class="mt-0">Do wyjaśnienia</h2></div>
+  <ul>
+    {% for payment in attention_payments %}
+      <li><a href="{% url 'web:coordinator-payments-order' payment.order_id %}">{{ payment.order.reference }}</a> – {{ payment.get_provider_display }}, {{ payment.amount }} {{ payment.currency }}: {{ payment.detail }}</li>
+    {% endfor %}
+    {% for refund in attention_refunds %}
+      <li><a href="{% url 'web:coordinator-payments-order' refund.payment.order_id %}">{{ refund.payment.order.reference }}</a> – zwrot {{ refund.amount }} {{ refund.payment.currency }}: {{ refund.get_status_display }}{% if refund.detail %} ({{ refund.detail }}){% endif %}</li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+{% if competition.uses_delegations %}
+<section class="section">
+  <div class="section__head"><h2 class="mt-0">Delegacje</h2></div>
+  <div class="scroll">
+    <table class="table">
+      <caption class="visually-hidden">Opłaty delegacji</caption>
+      <thead><tr><th scope="col">Kraj</th><th scope="col">Uczniowie / opiekunowie / obserwatorzy</th><th scope="col">Zapłacono</th><th scope="col">Czeka na wpłatę</th><th scope="col">Niewystawione</th><th scope="col">Stan</th></tr></thead>
+      <tbody>
+        {% for row in rows %}
+          {% with st=row.statement %}
+          <tr>
+            <th scope="row"><a href="{% url 'web:coordinator-payments-delegation' row.delegation.pk %}">{{ row.delegation.country.name }}</a></th>
+            <td>{{ st.composition.STUDENT|default:0 }} / {{ st.composition.LEADER|default:0 }} / {{ st.composition.OBSERVER|default:0 }}</td>
+            <td>{{ st.paid_total }} {{ st.currency }}</td>
+            <td>{{ st.open_total }} {{ st.currency }}</td>
+            <td>{{ st.new_total }} {{ st.currency }}</td>
+            <td>
+              {% if st.state == "settled" %}<span class="badge badge--ok">rozliczona</span>
+              {% elif st.state == "waived" %}<span class="badge badge--ok">zwolniona</span>
+              {% elif st.state == "open" %}<span class="badge badge--warn">czeka na wpłatę</span>
+              {% elif st.state == "due" %}<span class="badge badge--warn">do wystawienia</span>
+              {% else %}<span class="badge">brak cennika</span>{% endif %}
+            </td>
+          </tr>
+          {% endwith %}
+        {% empty %}
+          <tr><td colspan="6" class="empty">Brak delegacji w tej edycji.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endif %}
+
+<section class="section">
+  <div class="section__head"><h2 class="mt-0">Zamówienia</h2></div>
+  <div class="scroll">
+    <table class="table">
+      <caption class="visually-hidden">Zamówienia edycji</caption>
+      <thead><tr><th scope="col">Kod</th><th scope="col">Płacący</th><th scope="col">Nabywca</th><th scope="col">Kwota</th><th scope="col">Stan</th><th scope="col">Wystawiono</th></tr></thead>
+      <tbody>
+        {% for order in orders %}
+          <tr>
+            <th scope="row"><a href="{% url 'web:coordinator-payments-order' order.pk %}">{{ order.reference }}</a></th>
+            <td>{% if order.delegation_id %}{{ order.delegation.country.name }}{% else %}{{ order.participant_fee.participant.public_code }}{% endif %}</td>
+            <td>{{ order.buyer_name }}</td>
+            <td>{{ order.total }} {{ order.currency }}{% if order.refunded_amount %} (zwrot {{ order.refunded_amount }}){% endif %}</td>
+            <td>{{ order.get_status_display }}</td>
+            <td>{{ order.created_at|date:"Y-m-d" }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="6" class="empty">Brak zamówień.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endif %}
+{% endblock %}

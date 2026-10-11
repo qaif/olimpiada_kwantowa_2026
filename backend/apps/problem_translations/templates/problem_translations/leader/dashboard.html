@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+{% load i18n static web_extras %}
+{% comment %}
+  Tłumaczenia zadań – panel opiekuna drużyny (TR-01 § 2).
+
+  Lista zadań pojawia się wyłącznie przy etapie z **otwartym** oknem tłumaczeń i dopiero po
+  deklaracji języka: poza oknem treści zadań nie ma tu ani w jednym miejscu (decyduje
+  ``services.problem_for_leader``, a ten szablon tylko nie prowadzi do odmowy).
+{% endcomment %}
+{% block title %}{% translate "Tłumaczenia zadań" %}{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/coordinator-tools.css' %}">
+<link rel="stylesheet" href="{% static 'problem_translations/css/translations.css' %}">{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow"><a href="{% url 'web:delegation' %}">{% blocktranslate trimmed with country=delegation.country.name %}Drużyna: {{ country }}{% endblocktranslate %}</a></span>
+  <h1>{% translate "Tłumaczenia zadań" %}</h1>
+  <p class="lead">{% translate "Zadania są tajne do startu zawodów. Wersję oficjalną widzisz tylko w oknie tłumaczeń ustalonym przez organizatora – każde otwarcie i pobranie jest zapisywane, a pobrane pliki PDF mają znak wodny Twojej delegacji." %}</p>
+</div>
+
+<section class="section">
+  <div class="card">
+    <h2 class="mt-0">{% translate "Języki delegacji" %}</h2>
+    <p class="hint">{% translate "Jeden albo dwa języki. Pierwszy jest domyślnym językiem uczniów – dla pojedynczego ucznia możesz go zmienić niżej." %}</p>
+    <form method="post" action="{% url 'web:delegation-translations-languages' %}" class="form" novalidate>
+      {% csrf_token %}
+      {{ form.as_p }}
+      <div class="actions"><button type="submit" class="btn btn--primary">{% translate "Zapisz języki" %}</button></div>
+    </form>
+  </div>
+</section>
+
+{% for row in stages %}
+  <section class="section">
+    <div class="section__head">
+      <h2 class="mt-0">{{ row.stage.display_name }}</h2>
+      {% if not row.window %}
+        <p class="hint">{% translate "Organizator nie ustalił jeszcze okna tłumaczeń tego etapu." %}</p>
+      {% else %}
+        <p class="hint">{% blocktranslate trimmed with opens=row.window.opens_at|local_datetime closes=row.window.effective_closes_at|local_datetime %}
+          Okno tłumaczeń: {{ opens }} – {{ closes }}.
+        {% endblocktranslate %}
+        {% if row.state == "open" %}<span class="badge badge--ok">{% translate "otwarte" context "okno tłumaczeń" %}</span>
+        {% elif row.state == "upcoming" %}<span class="badge badge--neutral">{% translate "jeszcze nie otwarte" %}</span>
+        {% else %}<span class="badge badge--neutral">{% translate "zamknięte" context "okno tłumaczeń" %}</span>{% endif %}
+        {% if row.window.sharing_mode == "SHARED" %}<br>{% translate "Delegacje tego samego języka tworzą jedno wspólne tłumaczenie." %}{% endif %}
+        </p>
+      {% endif %}
+    </div>
+    {% if row.state == "open" and not codes %}
+      <p class="notice">{% translate "Zadeklaruj język delegacji, żeby zobaczyć zadania." %}</p>
+    {% endif %}
+    {% if row.problems %}
+      <div class="scroll">
+        <table class="table">
+          <caption class="visually-hidden">{% translate "Zadania etapu i stan tłumaczeń" %}</caption>
+          <thead>
+            <tr>
+              <th scope="col">{% translate "Zadanie" %}</th>
+              {% for code in codes %}<th scope="col">{{ code }}</th>{% endfor %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in row.problems %}
+              <tr>
+                <th scope="row">{{ item.problem.number }}. {{ item.problem.title }}</th>
+                {% for cell in item.cells %}
+                  <td>
+                    {% include "problem_translations/leader/_status.html" with t=cell.t %}
+                    <a class="btn btn--secondary btn--small" href="{% url 'web:delegation-translation' item.problem.pk cell.code %}">{% translate "Otwórz" %}</a>
+                  </td>
+                {% endfor %}
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% endif %}
+  </section>
+{% empty %}
+  <section class="section"><p class="empty">{% translate "Bieżąca edycja nie ma jeszcze etapów." %}</p></section>
+{% endfor %}
+
+<section class="section" id="students">
+  <div class="section__head">
+    <h2 class="mt-0">{% translate "Język uczniów" %}</h2>
+    <p class="hint">{% translate "Po starcie zawodów uczeń widzi zadanie w przypisanym języku (zatwierdzone tłumaczenie) oraz zawsze w wersji oficjalnej." %}</p>
+  </div>
+  {% if not codes %}
+    <p class="notice">{% translate "Najpierw zadeklaruj języki delegacji." %}</p>
+  {% else %}
+    <div class="scroll">
+      <table class="table">
+        <caption class="visually-hidden">{% translate "Język uczniów" %}</caption>
+        <thead><tr><th scope="col">{% translate "Uczeń" %}</th><th scope="col">{% translate "Język" %}</th></tr></thead>
+        <tbody>
+          {% for row in students %}
+            <tr>
+              <th scope="row">{{ row.participant.user.get_full_name|default:row.participant.user.email }}</th>
+              <td>
+                <form method="post" action="{% url 'web:delegation-translations-student-language' row.participant.pk %}" class="inline">
+                  {% csrf_token %}
+                  <label class="visually-hidden" for="lang-{{ row.participant.pk }}">{% translate "Język" %}</label>
+                  <select name="language" id="lang-{{ row.participant.pk }}">
+                    <option value="">{% blocktranslate trimmed with language=language_options.0.1 %}domyślny ({{ language }}){% endblocktranslate %}</option>
+                    {% for code, label in language_options %}
+                      <option value="{{ code }}"{% if row.override == code %} selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                  </select>
+                  <button type="submit" class="btn btn--secondary btn--small">{% translate "Zapisz" %}</button>
+                </form>
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="2" class="empty">{% translate "Nie zgłoszono jeszcze żadnego ucznia." %}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}
+</section>
+{% endblock %}

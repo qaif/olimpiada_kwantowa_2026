@@ -1,0 +1,10 @@
+{% comment %}
+  Ostrzeżenie o nadawcy listów konkursu (MAIL-01 § 4.2). Lista zdań przychodzi z
+  ``apps.mail_domains.services.sender_warnings`` – szablon niczego nie liczy. Pusta lista = nic.
+{% endcomment %}
+{% if sender_warnings %}
+  <div class="alert alert--warning" role="status">
+    <p><strong>Nadawca listów konkursu</strong></p>
+    {% for warning in sender_warnings %}<p>{{ warning }}</p>{% endfor %}
+  </div>
+{% endif %}

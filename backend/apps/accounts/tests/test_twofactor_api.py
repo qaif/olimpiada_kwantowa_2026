@@ -112,7 +112,9 @@ def test_logging_in_with_a_code_replaces_the_previous_token():
 
 
 def test_a_role_that_must_have_a_second_factor_gets_no_token_without_one(settings):
+    """Po okresie przejściowym (SEC-01 § 6) – tu zerowym, żeby test mówił o samym wymogu."""
     settings.TWO_FACTOR_REQUIRED_ROLES = [GROUP_COORDINATOR]
+    settings.TWO_FACTOR_GRACE_DAYS = 0
     coordinator = CoordinatorFactory()
     assert Group.objects.filter(name=GROUP_COORDINATOR, user=coordinator).exists()
     stale = Token.objects.create(user=coordinator)

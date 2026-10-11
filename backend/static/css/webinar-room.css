@@ -1,0 +1,154 @@
+/*
+ * Pokój webinaru (zadanie WEB-01). Kolory ze zmiennych motywu (``--surface``, ``--ink``, ``--line``,
+ * ``--brand`` …), więc pokój dziedziczy wygląd konkursu i tryb wysokiego kontrastu. Wyłącznie
+ * właściwości logiczne (``inline``/``block``, ``inset-inline-*``) – układ odwraca się sam przy
+ * ``dir="rtl"`` (arabski).
+ */
+.wr {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.wr__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.wr__title {
+  margin-block: 0;
+}
+
+.wr__status {
+  margin: 0;
+  color: var(--muted);
+}
+
+.wr__body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(14rem, 20rem);
+  gap: 1rem;
+}
+
+@media (max-width: 52rem) {
+  .wr__body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.wr__stage {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+  gap: 0.5rem;
+  min-block-size: 18rem;
+  padding: 0.5rem;
+  background: var(--surface-inset);
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+}
+
+.wr__stage[data-layout="speaker"] {
+  grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+}
+
+.wr__tile {
+  position: relative;
+  margin: 0;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  background: var(--ink);
+  border: 2px solid transparent;
+  border-radius: 0.375rem;
+}
+
+.wr__tile video {
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: contain;
+}
+
+.wr__tile--speaking {
+  border-color: var(--accent);
+}
+
+.wr__tile--main {
+  grid-column: 1 / -1;
+  order: -1;
+}
+
+.wr__tile-name {
+  position: absolute;
+  inset-block-end: 0.25rem;
+  inset-inline-start: 0.25rem;
+  padding: 0.125rem 0.375rem;
+  font-size: 0.875rem;
+  color: var(--brand-ink);
+  background: color-mix(in srgb, var(--brand) 80%, transparent);
+  border-radius: 0.25rem;
+}
+
+.wr__side {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.wr__side-title {
+  margin-block: 0 0.5rem;
+  font-size: 1rem;
+}
+
+.wr__people,
+.wr__chat {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-block-size: 16rem;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: 0.375rem;
+  background: var(--surface);
+}
+
+.wr__person,
+.wr__chat li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.5rem;
+  border-block-end: 1px solid var(--line);
+  overflow-wrap: anywhere;
+}
+
+.wr__person-actions {
+  display: inline-flex;
+  gap: 0.25rem;
+  margin-inline-start: auto;
+}
+
+.wr__chat-form {
+  display: flex;
+  gap: 0.375rem;
+  margin-block-start: 0.375rem;
+}
+
+.wr__chat-form input {
+  flex: 1;
+  min-inline-size: 0;
+}
+
+.wr__controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
+}
+
+.wr__controls [aria-pressed="true"] {
+  background: var(--brand);
+  color: var(--brand-ink);
+}

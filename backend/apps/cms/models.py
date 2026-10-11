@@ -78,6 +78,8 @@ RESERVED_SLUGS = frozenset(
         "accounts",
         "activate",
         "admin",
+        # Publiczna ściana absolwentów i wypis z zaproszeń (ALUM-01, ``apps/alumni/urls.py``).
+        "alumni",
         "api",
         "appeals",
         "captcha",
@@ -94,6 +96,9 @@ RESERVED_SLUGS = frozenset(
         "forum",
         "healthz",
         "i18n",
+        # Webhook serwera LiveKit (``/integrations/livekit/webhook/``, zadanie WEB-01) – adres dla
+        # maszyny; strona CMS o tym slugu byłaby martwa.
+        "integrations",
         # Gałąź adresów wewnętrznych platformy (``/internal/tls-allowed`` – pytanie Caddy'ego
         # o certyfikat konkursu w subdomenie). Woła ją infrastruktura, nie człowiek, więc strona
         # CMS o tym slugu byłaby martwa **i** przykryłaby adres, od którego zależy TLS.
@@ -105,10 +110,16 @@ RESERVED_SLUGS = frozenset(
         # Wzorzec istnieje tylko przy ``DEBUG`` (``static(MEDIA_URL)``), ale slug zostaje zajęty
         # zawsze: strona, która działa na produkcji, a znika na laptopie, to gorszy błąd niż brak.
         "media",
+        # Notatnik startowy dla laboratorium JupyterLite (``/notebook-starter/<token>/<plik>``, QC-01).
+        "notebook-starter",
         # Zgoda ucznia na opiekuna szkolnego z importu (``/opiekun/zgoda/<token>/``).
         "opiekun",
         "password-reset",
+        # Płatności online: strona zamówienia, dokumenty i webhooki operatorów płatności (PAY-01).
+        "payments",
         "plakaty",
+        # Siatka nadzoru zdalnego (``/proctoring/<etap>/``, zadanie PROC-01) – nadzorujący.
+        "proctoring",
         "register",
         "rejestracja",
         "reset",
@@ -123,6 +134,12 @@ RESERVED_SLUGS = frozenset(
         "statystyki",
         "supervisor",
         "support",
+        # Publiczna weryfikacja listu zapraszającego do wizy (VISA-01, ``/visa/verify/<kod>/``).
+        "visa",
+        # Webinary LiveKit (zadanie WEB-01): strona odbiorców i pokój ``/webinars/<id>/room/``.
+        "webinars",
+        # Przegląd tłumaczeń interfejsu (``/translations/…``, zadanie L10N-01).
+        "translations",
         "zaproszenie",
         "zgoda",
     }

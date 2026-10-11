@@ -1,0 +1,33 @@
+{% load tz %}{% comment %}
+  Tabela webinarów na liście koordynatora. Zmienne: ``webinars``, ``zone`` (strefa konkursu).
+{% endcomment %}
+<div class="scroll">
+  <table class="table">
+    <thead>
+      <tr>
+        <th scope="col">Początek</th>
+        <th scope="col">Tytuł</th>
+        <th scope="col">Odbiorcy</th>
+        <th scope="col">Stan</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for webinar in webinars %}
+        <tr>
+          <td>{% timezone zone %}{{ webinar.starts_at|date:"d.m.Y, H:i" }}{% endtimezone %}
+            <span class="hint">{{ webinar.duration_minutes }} min</span></td>
+          <th scope="row"><a href="{% url 'web:coordinator-webinar' webinar.pk %}">{{ webinar.title }}</a></th>
+          <td>{{ webinar.get_audience_display }}{% if webinar.stage %}: {{ webinar.stage }}{% endif %}{% if webinar.include_committee %} + komisja{% endif %}</td>
+          <td>
+            {% if webinar.cancelled_at %}<span class="badge badge--danger">odwołany</span>
+            {% elif webinar.ended_at %}<span class="badge">zakończony</span>
+            {% elif webinar.started_at %}<span class="badge badge--ok">rozpoczęty</span>
+            {% else %}<span class="badge badge--info">zaplanowany</span>{% endif %}
+            {% if webinar.record %}<span class="hint">nagrywanie</span>{% endif %}
+            {% if webinar.public_link %}<span class="hint">link dla gości</span>{% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

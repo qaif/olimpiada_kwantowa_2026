@@ -37,6 +37,11 @@
 
   var lastActivity = Date.now();
 
+  /* Prefiks ``__Host-`` przy osobnym hoście laboratorium notatników (QC-02 § 5) – ma pierwszeństwo. */
+  function csrfToken() {
+    return readCookie("__Host-csrftoken") || readCookie("csrftoken");
+  }
+
   function readCookie(name) {
     var parts = (document.cookie || "").split(";");
     for (var index = 0; index < parts.length; index += 1) {

@@ -1,0 +1,211 @@
+"""Uruchomienie jednego zadania w procesie dziecka – wspólne dla demona piaskownicy i testów.
+
+Rodzic (ten moduł) pilnuje rzeczy, których dziecko samo sobie nie zagwarantuje: czasu ściennego
+(``killpg`` całej grupy procesów), objętości wyjścia (czyta najwyżej ``MAX_STDOUT_BYTES``, resztę
+wylewa) i tożsamości (``user``/``group`` + pusta lista grup dodatkowych – wymaga uprawnień
+SETUID/SETGID, które ma wyłącznie nadzorca w kontenerze ``notebook-runner``). Bez Django.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import re
+import signal
+import subprocess
+import sys
+import threading
+import time
+from dataclasses import asdict, dataclass
+from itertools import accumulate
+
+from .child import RESULT_MARKER
+
+CHILD = os.path.join(os.path.dirname(os.path.abspath(__file__)), "child.py")
+MAX_STDOUT_BYTES = 6 * 1024 * 1024
+MAX_STDERR_BYTES = 16 * 1024
+#: Najgłębsze dopuszczalne zagnieżdżenie JSON-a wyniku dziecka. Prawdziwy wynik (``child.py`` +
+#: artefakty ``qclab.grader``: obwody z ``MAX_NESTING`` poziomami definicji, macierze par liczb)
+#: mieści się w ~25 poziomach; zapas jest duży, a granica nie zależy od stosu maszyny.
+MAX_RESULT_DEPTH = 100
+#: Napis JSON (z sekwencjami ucieczki) – nawiasy w środku napisów nie są zagnieżdżeniem.
+_JSON_STRING = re.compile(r'"[^"\\]*(?:\\.[^"\\]*)*"', re.DOTALL)
+_NOT_BRACKET = re.compile(r"[^\[\]{}]+")
+
+#: Twarde sufity – zadanie od workera może prosić o mniej, nigdy o więcej.
+CEILING = {"wall": 120, "cpu": 120, "memory_mb": 2048, "file_mb": 64, "output_chars": 200_000}
+#: Limity, o które zadanie w ogóle może prosić. ``nofile`` i ``nproc`` ustawia wyłącznie nadzorca.
+REQUESTABLE = frozenset({"wall", "cpu", "memory_mb", "file_mb", "output_chars"})
+
+
+@dataclass
+class Limits:
+    wall: int = 30
+    cpu: int = 20
+    memory_mb: int = 768
+    file_mb: int = 8
+    nofile: int = 64
+    nproc: int | None = None
+    output_chars: int = 64_000
+
+    def clamp(self, requested: dict | None) -> Limits:
+        """``min(skonfigurowane w nadzorcy, prośba zadania, sufit)`` – prośba nigdy nie podnosi limitu.
+
+        Limity nadzorcy (``NOTEBOOK_RUNNER_*``) są górną granicą operatora; zadanie od workera może
+        je wyłącznie obniżyć (krótszy limit czasu zadania). Wartość niepoprawna jest pomijana.
+        """
+        values = asdict(self)
+        for key, value in (requested or {}).items():
+            if key not in REQUESTABLE or not isinstance(value, int) or isinstance(value, bool) or value <= 0:
+                continue
+            values[key] = min(value, values[key], CEILING[key])
+        return Limits(**values)
+
+
+def _drain(stream, cap: int, sink: list[bytes]) -> None:
+    """Czyta strumień do końca, zachowując najwyżej ``cap`` bajtów (reszta jest wylewana)."""
+    kept = 0
+    try:
+        while True:
+            chunk = stream.read(65536)
+            if not chunk:
+                break
+            if kept < cap:
+                piece = chunk[: cap - kept]
+                sink.append(piece)
+                kept += len(piece)
+    except OSError, ValueError:
+        pass
+
+
+def _child_env() -> dict[str, str]:
+    return {
+        "PATH": "/usr/local/bin:/usr/bin:/bin",
+        "LANG": "C.UTF-8",
+        # ``/tmp`` dziecka to tmpfs kontenera (noexec); katalog roboczy zakłada dziecko z trybem 0700.
+        "HOME": "/tmp",  # noqa: S108
+        "TMPDIR": "/tmp",  # noqa: S108
+        # Jeden wątek BLAS-a: wątki natywne liczą się do limitu procesów i pamięci, a zadania są małe.
+        "OPENBLAS_NUM_THREADS": "1",
+        "OMP_NUM_THREADS": "1",
+        "MKL_NUM_THREADS": "1",
+    }
+
+
+def _json_depth(text: str) -> int:
+    """Największe zagnieżdżenie nawiasów ``[``/``{`` poza napisami – liniowo, bez rekurencji.
+
+    Dla niepoprawnego JSON-a wynik bywa przybliżony, ale taki tekst i tak odrzuci ``json.loads``.
+    """
+    brackets = _NOT_BRACKET.sub("", _JSON_STRING.sub("", text))
+    return max(accumulate(1 if char in "[{" else -1 for char in brackets), default=0)
+
+
+def parse_child_output(stdout: str) -> dict | None:
+    """Wynik po ostatnim znaczniku albo ``None``. Nigdy nie rzuca.
+
+    Wyjście pisze proces z kodem ucznia, więc parser bierze wszystko: zagnieżdżenie na sto tysięcy
+    poziomów, liczby, których nie da się przeczytać, śmieci. Każdy taki przypadek to „brak wyniku”
+    (status ``crashed``), a nie wyjątek w nadzorcy.
+
+    Głębokość sprawdzamy jawnie (``MAX_RESULT_DEPTH``) przed ``json.loads``: od Pythona 3.14 to, czy
+    ``json.loads`` rzuci ``RecursionError``, zależy od rozmiaru stosu C (``ulimit -s``), więc na
+    maszynie z dużym stosem sto tysięcy poziomów by się wczytało, a wybuchło dopiero dalej
+    (``json.dumps`` wyniku w nadzorcy, odczyt u workera).
+    """
+    position = stdout.rfind(RESULT_MARKER)
+    if position < 0:
+        return None
+    try:
+        lines = stdout[position + len(RESULT_MARKER) :].strip().splitlines()
+        if not lines or _json_depth(lines[0]) > MAX_RESULT_DEPTH:
+            return None
+        result = json.loads(lines[0])
+    except Exception:  # noqa: BLE001 - patrz docstring: dowolny błąd parsowania to brak wyniku
+        return None
+    return result if isinstance(result, dict) else None
+
+
+def execute_job(
+    job: dict,
+    *,
+    limits: Limits | None = None,
+    user: int | None = None,
+    group: int | None = None,
+    python: str | None = None,
+) -> dict:
+    """Wykonuje zadanie i zwraca wynik (słownik JSON). Nigdy nie rzuca z powodu kodu ucznia."""
+    limits = (limits or Limits()).clamp(job.get("limits"))
+    payload = json.dumps(
+        {
+            "cells": job.get("cells") or [],
+            "targets": job.get("targets") or [],
+            "limits": asdict(limits),
+        }
+    ).encode()
+    started = time.monotonic()
+    kwargs: dict = {}
+    if user is not None:
+        kwargs.update(user=user, group=group if group is not None else user, extra_groups=[])
+    try:
+        process = subprocess.Popen(  # noqa: S603 - stała ścieżka interpretera i skryptu, bez powłoki
+            [python or sys.executable, "-I", CHILD],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            env=_child_env(),
+            cwd="/" if os.name == "posix" else None,
+            close_fds=True,
+            start_new_session=True,
+            **kwargs,
+        )
+    except OSError as exc:
+        return {"status": "error", "error": f"cannot start sandbox process: {exc}", "duration": 0.0}
+    out: list[bytes] = []
+    err: list[bytes] = []
+    readers = [
+        threading.Thread(target=_drain, args=(process.stdout, MAX_STDOUT_BYTES, out), daemon=True),
+        threading.Thread(target=_drain, args=(process.stderr, MAX_STDERR_BYTES, err), daemon=True),
+    ]
+    for reader in readers:
+        reader.start()
+    try:
+        process.stdin.write(payload)
+        process.stdin.close()
+    except BrokenPipeError, OSError:
+        pass
+    timed_out = False
+    try:
+        process.wait(timeout=limits.wall)
+    except subprocess.TimeoutExpired:
+        timed_out = True
+    finally:
+        # Cała grupa procesów – gdyby kod ucznia jednak coś uruchomił, nie przeżyje zadania.
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+        except ProcessLookupError, PermissionError, OSError:
+            pass
+        process.wait()
+    for reader in readers:
+        reader.join(timeout=5)
+    for stream in (process.stdout, process.stderr):
+        try:
+            stream.close()
+        except OSError:
+            pass
+    duration = round(time.monotonic() - started, 3)
+    stdout = b"".join(out).decode("utf-8", errors="replace")
+    stderr = b"".join(err).decode("utf-8", errors="replace")[-4000:]
+    result = None if timed_out else parse_child_output(stdout)
+    if result is not None:
+        result["status"] = "ok"
+        result["duration"] = duration
+        return result
+    returncode = process.returncode
+    if timed_out or returncode in (-signal.SIGXCPU, -signal.SIGKILL):
+        status = "timeout"
+    elif "MemoryError" in stderr:
+        status = "memory"
+    else:
+        status = "crashed"
+    return {"status": status, "returncode": returncode, "stderr": stderr, "duration": duration}

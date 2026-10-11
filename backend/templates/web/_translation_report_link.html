@@ -1,0 +1,8 @@
+{% load i18n web_extras %}{% comment %}
+  „Zgłoś tłumaczenie” (L10N-01 § 8) – wyłącznie zalogowany tłumacz, na stronie w języku innym niż
+  polski, w konkursie z kilkoma językami interfejsu. Strona Konkursu #1 nie płaci za to ani jednym
+  zapytaniem (warunki w ``apps.translation_review.templatetags``). Fragment, a nie tag w stopce, żeby
+  paczka motywu nadpisująca slot ``footer`` mogła go dołączyć (``web/_`` jest na liście dozwolonych).
+
+  ``css_class`` – klasa odnośnika (stopka podaje ``footer__link``).
+{% endcomment %}{% translation_report_url as report_url %}{% if report_url %}<a class="{{ css_class|default:'' }}" href="{{ report_url }}">{% translate "Zgłoś tłumaczenie" %}</a>{% endif %}

@@ -1,0 +1,365 @@
+# Płatności online (PAY-01) – katalog aplikacji apps.payments.
+# Tłumaczenia maszynowe do przeglądu przez native speakerów (jak I18N-01 § 8).
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: olimpiada\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-04 19:20+0200\n"
+"PO-Revision-Date: 2026-10-04 20:00+0200\n"
+"Last-Translator: Claude (machine translation)\n"
+"Language-Team: olimpiada\n"
+"Language: id\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+msgid "Faktura"
+msgstr "Faktur"
+
+msgid "Faktura pro forma"
+msgstr "Faktur proforma"
+
+msgid "Data sprzedaży"
+msgstr "Tanggal penjualan"
+
+msgid "Zapłacono"
+msgstr "Dibayar"
+
+msgid "Kod referencyjny"
+msgstr "Kode referensi"
+
+msgid "NIP / VAT ID"
+msgstr "NPWP / ID PPN"
+
+msgid "Sprzedawca"
+msgstr "Penjual"
+
+msgid "Nabywca"
+msgstr "Pembeli"
+
+msgid "Pozycja"
+msgstr "Item"
+
+msgid "Ilość"
+msgstr "Jumlah"
+
+msgid "Cena"
+msgstr "Harga"
+
+msgid "Razem do zapłaty"
+msgstr "Total yang harus dibayar"
+
+msgid "Bank"
+msgstr "Bank"
+
+msgid "Tytuł przelewu"
+msgstr "Berita transfer"
+
+msgid "Dane do przelewu"
+msgstr "Detail transfer bank"
+
+msgid "Faktura pro forma nie jest dokumentem księgowym. Fakturę wystawimy po zaksięgowaniu wpłaty."
+msgstr "Faktur proforma bukan dokumen akuntansi. Kami akan menerbitkan faktur setelah pembayaran diterima."
+
+msgid "Nazwa instytucji albo imię i nazwisko"
+msgstr "Nama lembaga atau nama lengkap"
+
+msgid "Adres"
+msgstr "Alamat"
+
+msgid "Opcjonalnie – jeśli instytucja ma numer podatkowy, który ma znaleźć się na fakturze."
+msgstr "Opsional – jika lembaga memiliki nomor pajak yang harus dicantumkan pada faktur."
+
+msgid "E-mail do rozliczeń"
+msgstr "Email penagihan"
+
+msgid "Liczba obserwatorów"
+msgstr "Jumlah pengamat"
+
+msgid "Osoby towarzyszące drużynie bez roli opiekuna – płatne według cennika."
+msgstr "Orang yang mendampingi tim tanpa peran ketua tim – dikenai biaya sesuai daftar harga."
+
+msgid "Opłata za delegację"
+msgstr "Biaya delegasi"
+
+msgid "Uczeń"
+msgstr "Siswa"
+
+msgid "Opiekun drużyny"
+msgstr "Ketua tim"
+
+msgid "Obserwator"
+msgstr "Pengamat"
+
+msgid "Opłata za udział"
+msgstr "Biaya partisipasi"
+
+msgid "Zniżka"
+msgstr "Diskon"
+
+msgid "cena wczesna"
+msgstr "harga awal"
+
+msgid "cena podstawowa"
+msgstr "harga normal"
+
+msgid "cena późna"
+msgstr "harga akhir"
+
+msgid "Instytucja"
+msgstr "Lembaga"
+
+msgid "Osoba prywatna"
+msgstr "Perorangan"
+
+msgid "Zwolnienie z opłat"
+msgstr "Pembebasan biaya"
+
+msgid "czeka na wpłatę"
+msgstr "menunggu pembayaran"
+
+msgid "zapłacone"
+msgstr "dibayar"
+
+msgid "anulowane"
+msgstr "dibatalkan"
+
+msgid "zwrócone"
+msgstr "dikembalikan"
+
+msgid "Karta płatnicza (Stripe)"
+msgstr "Kartu pembayaran (Stripe)"
+
+msgid "Przelew bankowy"
+msgstr "Transfer bank"
+
+msgid "w toku"
+msgstr "sedang diproses"
+
+msgid "przyjęta"
+msgstr "diterima"
+
+msgid "nieudana"
+msgstr "gagal"
+
+msgid "przerwana"
+msgstr "dihentikan"
+
+msgid "do wyjaśnienia"
+msgstr "perlu diperiksa"
+
+msgid "wykonany"
+msgstr "selesai"
+
+msgid "nieudany"
+msgstr "gagal"
+
+msgid "Najpierw uzupełnij dane do faktury."
+msgstr "Silakan isi data penagihan terlebih dahulu."
+
+msgid "Organizator nie opublikował jeszcze cennika."
+msgstr "Penyelenggara belum menerbitkan daftar harga."
+
+msgid "Delegacja jest zwolniona z opłat."
+msgstr "Delegasi dibebaskan dari biaya."
+
+msgid "Nie ma nic nowego do zapłaty."
+msgstr "Tidak ada tagihan baru."
+
+msgid "Ta opłata jest już rozliczona."
+msgstr "Biaya ini sudah diselesaikan."
+
+msgid "Nie ma nic do zapłaty."
+msgstr "Tidak ada yang harus dibayar."
+
+msgid "Płatność tego zamówienia jest właśnie przetwarzana. Spróbuj ponownie za kilka minut."
+msgstr "Pembayaran pesanan ini sedang diproses. Silakan coba lagi dalam beberapa menit."
+
+#, python-format
+msgid "Płatność Przelewy24 tego zamówienia jest w toku. Spróbuj ponownie za %(minutes)s minut."
+msgstr "Pembayaran Przelewy24 untuk pesanan ini sedang berlangsung. Silakan coba lagi dalam %(minutes)s menit."
+
+msgid "Anulować można wyłącznie zamówienie czekające na wpłatę."
+msgstr "Hanya pesanan yang menunggu pembayaran yang dapat dibatalkan."
+
+msgid "To zamówienie nie czeka na wpłatę."
+msgstr "Pesanan ini tidak sedang menunggu pembayaran."
+
+msgid "Ta metoda płatności nie jest dostępna."
+msgstr "Metode pembayaran ini tidak tersedia."
+
+msgid "Dostawca płatności jest chwilowo niedostępny. Spróbuj ponownie za chwilę."
+msgstr "Penyedia pembayaran sedang tidak tersedia. Silakan coba lagi sebentar lagi."
+
+msgid "Opłaty"
+msgstr "Biaya"
+
+msgid "Drużyna jest zwolniona z opłat."
+msgstr "Tim dibebaskan dari biaya."
+
+msgid "Opłaty są rozliczone."
+msgstr "Semua biaya telah diselesaikan."
+
+#, python-format
+msgid "Do zapłaty: %(amount)s %(currency)s."
+msgstr "Jumlah terutang: %(amount)s %(currency)s."
+
+msgid "Opłaty i faktury"
+msgstr "Biaya dan faktur"
+
+msgid "Zapłać online"
+msgstr "Bayar online"
+
+msgid "Dane do faktury"
+msgstr "Data penagihan"
+
+msgid "Opłaty drużyny"
+msgstr "Biaya tim"
+
+msgid "Nabywcą może być instytucja (np. ministerstwo, szkoła, fundacja) albo osoba prywatna. Zmiana danych dotyczy kolejnych dokumentów – wystawione wcześniej zostają bez zmian."
+msgstr "Pembeli dapat berupa lembaga (mis. kementerian, sekolah, yayasan) atau perorangan. Perubahan berlaku untuk dokumen berikutnya – dokumen yang sudah diterbitkan tidak berubah."
+
+#, python-format
+msgid "Opłaty: %(country)s"
+msgstr "Biaya: %(country)s"
+
+msgid "Opłatę za drużynę wnosi się na podstawie faktury pro forma: wystaw ją, a potem zapłać kartą albo przelewem. Po zaksięgowaniu wpłaty wystawimy fakturę i wyślemy potwierdzenie e-mailem."
+msgstr "Biaya tim dibayar berdasarkan faktur proforma: terbitkan faktur tersebut, lalu bayar dengan kartu atau transfer bank. Setelah pembayaran diterima, kami akan menerbitkan faktur dan mengirim konfirmasi melalui email."
+
+msgid "Zestawienie"
+msgstr "Ringkasan"
+
+msgid "Waluta"
+msgstr "Mata uang"
+
+msgid "Zwrócono"
+msgstr "Dikembalikan"
+
+msgid "Czeka na wpłatę"
+msgstr "Menunggu pembayaran"
+
+msgid "Do wystawienia"
+msgstr "Belum ditagihkan"
+
+msgid "Pozycje kolejnej faktury pro forma"
+msgstr "Item faktur proforma berikutnya"
+
+msgid "Wystaw fakturę pro forma"
+msgstr "Terbitkan faktur proforma"
+
+msgid "Przed wystawieniem faktury pro forma uzupełnij dane do faktury."
+msgstr "Isi data penagihan sebelum menerbitkan faktur proforma."
+
+msgid "Nie podano jeszcze danych do faktury."
+msgstr "Data penagihan belum diisi."
+
+msgid "Zmień dane do faktury"
+msgstr "Ubah data penagihan"
+
+msgid "Zamówienia"
+msgstr "Pesanan"
+
+msgid "Zamówienia drużyny"
+msgstr "Pesanan tim"
+
+msgid "Wystawiono"
+msgstr "Diterbitkan"
+
+msgid "Dokumenty"
+msgstr "Dokumen"
+
+msgid "Nie wystawiono jeszcze żadnego zamówienia."
+msgstr "Belum ada pesanan yang diterbitkan."
+
+#, python-format
+msgid "Dziękujemy – otrzymaliśmy wpłatę za udział w konkursie %(competition)s."
+msgstr "Terima kasih – kami telah menerima pembayaran Anda untuk keikutsertaan dalam %(competition)s."
+
+msgid "Fakturę i historię płatności znajdziesz po zalogowaniu:"
+msgstr "Faktur dan riwayat pembayaran tersedia setelah Anda masuk:"
+
+#, python-format
+msgid "Potwierdzenie wpłaty %(reference)s – %(competition)s"
+msgstr "Konfirmasi pembayaran %(reference)s – %(competition)s"
+
+#, python-format
+msgid "Organizator konkursu %(competition)s zwrócił część albo całość Twojej wpłaty."
+msgstr "Penyelenggara %(competition)s telah mengembalikan sebagian atau seluruh pembayaran Anda."
+
+msgid "Kwota zwrotu"
+msgstr "Jumlah pengembalian"
+
+msgid "Pieniądze wracają tą samą drogą, którą zostały wpłacone; zaksięgowanie po stronie banku może potrwać kilka dni roboczych. Szczegóły:"
+msgstr "Dana dikembalikan melalui cara yang sama dengan pembayaran; pembukuan oleh bank dapat memakan waktu beberapa hari kerja. Detail:"
+
+#, python-format
+msgid "Zwrot wpłaty %(reference)s – %(competition)s"
+msgstr "Pengembalian dana %(reference)s – %(competition)s"
+
+#, python-format
+msgid "Zamówienie %(reference)s"
+msgstr "Pesanan %(reference)s"
+
+#, python-format
+msgid "termin płatności: %(due)s"
+msgstr "jatuh tempo: %(due)s"
+
+msgid "Pozycje zamówienia"
+msgstr "Item pesanan"
+
+msgid "Zapłać"
+msgstr "Bayar"
+
+msgid "Zapłać kartą"
+msgstr "Bayar dengan kartu"
+
+msgid "Zapłać przez Przelewy24"
+msgstr "Bayar dengan Przelewy24"
+
+msgid "Płatność odbywa się na stronie operatora płatności. Nie przechowujemy danych karty."
+msgstr "Pembayaran dilakukan di halaman penyedia pembayaran. Kami tidak menyimpan data kartu."
+
+msgid "Wpisz kod referencyjny w tytule przelewu – po nim organizator odnajdzie wpłatę. Przelew zaksięgujemy w ciągu kilku dni roboczych; koszty banku ponosi płacący."
+msgstr "Cantumkan kode referensi pada berita transfer – penyelenggara akan mencocokkan pembayaran Anda dengan kode tersebut. Kami akan membukukan transfer dalam beberapa hari kerja; biaya bank ditanggung pembayar."
+
+msgid "Płatności online nie są jeszcze dostępne. Skontaktuj się z organizatorem."
+msgstr "Pembayaran online belum tersedia. Silakan hubungi penyelenggara."
+
+msgid "Anuluj zamówienie"
+msgstr "Batalkan pesanan"
+
+msgid "Anuluj zamówienie, jeśli zmienił się skład drużyny albo dane do faktury – potem wystaw nowe."
+msgstr "Batalkan pesanan jika susunan tim atau data penagihan berubah – lalu terbitkan pesanan baru."
+
+msgid "Brak dokumentów."
+msgstr "Tidak ada dokumen."
+
+msgid "Historia płatności"
+msgstr "Riwayat pembayaran"
+
+msgid "zwrócono"
+msgstr "dikembalikan"
+
+#, python-format
+msgid "Do zapłaty: %(amount)s %(currency)s. Podaj dane do faktury – wystawimy fakturę pro forma, a po zaksięgowaniu wpłaty fakturę."
+msgstr "Jumlah terutang: %(amount)s %(currency)s. Isi data penagihan – kami akan menerbitkan faktur proforma, lalu faktur setelah pembayaran diterima."
+
+msgid "Dalej"
+msgstr "Lanjut"
+
+msgid "Dane do faktury zostały zapisane."
+msgstr "Data penagihan disimpan."
+
+msgid "Wystawiliśmy fakturę pro forma. Wybierz sposób zapłaty."
+msgstr "Faktur proforma telah diterbitkan. Pilih cara pembayaran."
+
+msgid "Dziękujemy. Czekamy na potwierdzenie wpłaty od operatora płatności – odśwież stronę za chwilę."
+msgstr "Terima kasih. Kami menunggu konfirmasi dari penyedia pembayaran – muat ulang halaman sebentar lagi."
+
+msgid "Płatność została przerwana. Możesz spróbować ponownie."
+msgstr "Pembayaran terhenti. Anda dapat mencoba lagi."
+
+msgid "Zamówienie zostało anulowane."
+msgstr "Pesanan telah dibatalkan."

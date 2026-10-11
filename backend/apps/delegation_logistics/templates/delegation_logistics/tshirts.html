@@ -1,0 +1,21 @@
+{% extends "web/coordinator/base.html" %}
+{% comment %}Koszulki: rozmiar × rola – zamówienie u drukarza (oficer logistyki).{% endcomment %}
+{% block title %}Logistyka finału – koszulki{% endblock %}
+{% block panel_title %}Koszulki{% endblock %}
+{% block panel_lead %}<p class="lead">Liczba koszulek według rozmiaru i roli. Razem: {{ summary.total }}, bez rozmiaru: {{ summary.unknown_total }}.</p>{% endblock %}
+{% block panel_actions %}<a class="btn btn--secondary" href="{% url 'web:coordinator-onsite-export' 'tshirts' %}">Eksport CSV</a>{% endblock %}
+{% block panel_content %}
+{% include "delegation_logistics/_tabs.html" %}
+<table class="table">
+  <caption class="visually-hidden">Koszulki</caption>
+  <thead>
+    <tr><th scope="col">Rozmiar</th>{% for kind in summary.kinds %}<th scope="col">{{ kind }}</th>{% endfor %}<th scope="col">Razem</th></tr>
+  </thead>
+  <tbody>
+    {% for row in summary.rows %}
+      <tr><th scope="row">{{ row.size }}</th>{% for count in row.by_kind %}<td class="num">{{ count }}</td>{% endfor %}<td class="num"><strong>{{ row.total }}</strong></td></tr>
+    {% endfor %}
+    <tr><th scope="row">bez rozmiaru</th>{% for count in summary.unknown %}<td class="num">{{ count }}</td>{% endfor %}<td class="num">{{ summary.unknown_total }}</td></tr>
+  </tbody>
+</table>
+{% endblock %}

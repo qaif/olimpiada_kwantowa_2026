@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% load i18n static web_extras %}
+{% comment %}
+  Nieoficjalny ranking krajów (MED-01 § 3), jak na IMO: wyłącznie agregaty z zamrożonej tabeli
+  (``MedalScheme.country_table``) – bez nazwisk, kodów i wyników indywidualnych. Miejsce po sumie
+  punktów; „po medalach” to ta sama tabela ułożona olimpijsko (złoto, srebro, brąz).
+{% endcomment %}
+{% block title %}{% translate "Ranking krajów" %} – {{ stage.display_name }}{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'medals/medals.css' %}">{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow">{% translate "Ranking krajów" %}</span>
+  <h1>{{ stage.display_name }} ({{ stage.edition.year_label }})</h1>
+  <p class="lead">{% blocktranslate trimmed %}Ranking nieoficjalny: olimpiada jest zawodami indywidualnymi. Tabela pokazuje
+    wyłącznie sumy dla kraju – bez wyników poszczególnych uczestników.{% endblocktranslate %}</p>
+  <p class="hint">{% blocktranslate trimmed with minimum=min_group %}Suma i średnia punktów są podane tylko dla krajów
+    z co najmniej {{ minimum }} wynikami – przy mniejszej drużynie byłyby wynikiem konkretnej osoby.{% endblocktranslate %}</p>
+  <p class="actions">
+    <a class="btn btn--secondary btn--small" href="{% url 'web:results-medals' stage.pk %}">{% translate "Medale" %}</a>
+    {% if by_medals %}
+      <a class="btn btn--secondary btn--small" href="{% url 'web:results-countries' stage.pk %}">{% translate "Kolejność według sumy punktów" %}</a>
+    {% else %}
+      <a class="btn btn--secondary btn--small" href="{% url 'web:results-countries' stage.pk %}?sort=medals">{% translate "Kolejność według medali" %}</a>
+    {% endif %}
+  </p>
+</div>
+
+<div class="scroll" role="region" tabindex="0" aria-label="{% translate 'Ranking krajów' %}">
+<table class="table table--rank">
+  <thead>
+    <tr>
+      <th scope="col">{% translate "Miejsce" %}</th>
+      <th scope="col">{% translate "Kraj" %}</th>
+      <th scope="col">{% translate "Uczestnicy" %}</th>
+      <th scope="col"><span class="badge medal medal--gold">{% translate "Złoto" %}</span></th>
+      <th scope="col"><span class="badge medal medal--silver">{% translate "Srebro" %}</span></th>
+      <th scope="col"><span class="badge medal medal--bronze">{% translate "Brąz" %}</span></th>
+      <th scope="col"><span class="badge medal medal--hm">{% translate "Wyróżnienia" %}</span></th>
+      <th scope="col">{% translate "Suma punktów" %}</th>
+      <th scope="col">{% translate "Średnia" %}</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in rows %}
+      <tr>
+        <td class="num">{{ row.rank|default_if_none:"—" }}</td>
+        <th scope="row">{{ row.name|default:"—" }}</th>
+        <td class="num">{{ row.contestants }}</td>
+        <td class="num">{{ row.GOLD }}</td>
+        <td class="num">{{ row.SILVER }}</td>
+        <td class="num">{{ row.BRONZE }}</td>
+        <td class="num">{{ row.HM }}</td>
+        <td class="num total">{% if row.total is None %}—{% else %}{{ row.total|points }}{% endif %}</td>
+        <td class="num">{% if row.average is None %}—{% else %}{{ row.average|points }}{% endif %}</td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="9" class="empty">{% translate "Tabela jest pusta." %}</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

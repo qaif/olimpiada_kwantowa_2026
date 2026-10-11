@@ -1,0 +1,39 @@
+# Materiały z warsztatów: podgląd pliku i makra (WM-FMT-01) – zh_Hans.
+msgid ""
+msgstr ""
+"Project-Id-Version: Olimpiada Kwantowa\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-09 23:30+0200\n"
+"PO-Revision-Date: 2026-10-09 23:30+0200\n"
+"Last-Translator: Olimpiada Kwantowa\n"
+"Language-Team: Simplified Chinese\n"
+"Language: zh_Hans\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+#: templates/web/workshop_materials/detail.html
+msgid "Ten format może zawierać makra. Program biurowy zapyta, czy je włączyć – włącz je tylko wtedy, gdy wiesz, do czego służą w tym pliku."
+msgstr "此格式可能包含宏。办公软件会询问是否启用宏——只有在您清楚它们在此文件中的用途时才启用。"
+
+#: templates/web/workshop_materials/detail.html
+msgid "Podgląd pliku"
+msgstr "文件预览"
+
+#: templates/web/workshop_materials/detail.html
+msgid "Plik jest pokazany jako zwykły tekst – jest zbyt złożony, żeby złożyć go jako Markdown."
+msgstr "该文件以纯文本显示——内容过于复杂，无法以 Markdown 格式呈现。"
+
+#: templates/web/workshop_materials/detail.html
+#, python-format
+msgid "Plik jest za duży na podgląd na stronie (podgląd do %(limit)s) – pobierz go."
+msgstr "文件太大，无法在页面上预览（预览上限为 %(limit)s）——请下载。"
+
+#: templates/web/workshop_materials/detail.html
+msgid "Podgląd jest chwilowo niedostępny – pobierz plik."
+msgstr "预览暂时不可用——请下载文件。"
+
+#: templates/web/workshop_materials/list.html
+msgid "Zobacz"
+msgstr "查看"

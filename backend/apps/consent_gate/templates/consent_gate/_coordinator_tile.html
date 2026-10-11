@@ -1,0 +1,17 @@
+{% load i18n %}{% comment %}
+  Pulpit koordynatora: ilu uczestników bramka zgód odsyła teraz do ekranu „Uzupełnij zgody”
+  i plik z ich listą. Liczba z minutową pamięcią (apps/consent_gate/report.py).
+{% endcomment %}{% if show %}
+<section class="section" id="brakujace-zgody">
+  <div class="section__head"><h2 class="mt-0">{% translate "Zgody uczestników" %}</h2></div>
+  <ul class="attention">
+    <li class="attention__item{% if count %} attention__item--due{% endif %}">
+      <a class="attention__link" href="{% url 'web:coordinator-consent-gaps' %}">
+        <span class="attention__value">{{ count }}</span>
+        <span class="attention__label">{% translate "Uczestnicy z brakującymi zgodami" %}</span>
+        <span class="attention__hint">{% if gate_enabled %}{% translate "Brak wymaganej zgody albo zgoda pod starszą wersją dokumentu – przy wejściu do panelu zobaczą ekran „Uzupełnij zgody”. Pobierz listę (CSV)." %}{% else %}{% translate "Bramka zgód jest wyłączona na tej instalacji (CONSENT_GATE_ENABLED). Pobierz listę (CSV)." %}{% endif %}</span>
+      </a>
+    </li>
+  </ul>
+</section>
+{% endif %}

@@ -510,8 +510,406 @@ def test_past_editions_switch_is_offered_only_to_the_groups_it_affects(web_clien
     with_switch = {group for group, fields in mapping.items() if "include_past_editions" in fields}
     assert with_switch == {
         BroadcastGroup.ALL_PARTICIPANTS,
+        BroadcastGroup.ALL_PARTICIPANTS_AND_TEACHERS,
         BroadcastGroup.REGION_PARTICIPANTS,
         BroadcastGroup.SCHOOL_PARTICIPANTS,
         BroadcastGroup.GRADE_PARTICIPANTS,
     }
     assert 'data-broadcast-param="include_past_editions"' in content
+
+
+# --- „Eksportuj do Excela” (MSG-EXPORT-01) ---------------------------------------------------------
+
+XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+
+def _export(client, data):
+    """Kliknięcie „Eksportuj do Excela”: ten sam formularz, ``action=export``, bez tematu i treści."""
+    return client.post("/coordinator/messages/", {**data, "action": "export"})
+
+
+def _sheet(response) -> list[tuple]:
+    """Wiersze pierwszego arkusza pobranego pliku (z nagłówkiem)."""
+    from io import BytesIO
+
+    from openpyxl import load_workbook
+
+    workbook = load_workbook(BytesIO(response.content), read_only=True)
+    return [tuple(row) for row in workbook.worksheets[0].iter_rows(values_only=True)]
+
+
+def _teacher(email: str, competition, **user_kwargs):
+    from apps.accounts.models import GROUP_SUPERVISOR, SchoolSupervisor
+
+    user = UserFactory(email=email, groups=[GROUP_SUPERVISOR], **user_kwargs)
+    return SchoolSupervisor.objects.create(user=user, school="XIV LO", competition=competition)
+
+
+def test_messages_page_offers_the_export_button(web_client, coordinator):
+    web_client.force_login(coordinator)
+
+    content = web_client.get("/coordinator/messages/").content.decode()
+
+    assert "Eksportuj do Excela" in content
+    # Temat i treść nie są do pliku potrzebne – przeglądarka nie może zatrzymać przycisku na nich.
+    assert re.search(r'value="export"[^>]*formnovalidate', content)
+    assert f'data-broadcast-export="{BroadcastGroup.CUSTOM}"' in content
+
+
+def test_export_of_participants_and_teachers_downloads_one_named_row_per_person(
+    web_client, coordinator, competition, other_competition
+):
+    from apps.accounts.messaging import resolve_recipients
+    from apps.competitions.services import current_edition
+
+    ParticipantFactory(user=UserFactory(email="uczen@example.test", first_name="Ala", last_name="Zielińska"))
+    _teacher("nauczyciel@example.test", competition, first_name="Ewa", last_name="Bąk")
+    # Ta sama osoba jako uczestnik i nauczyciel – jeden wiersz.
+    both = _teacher("oba@example.test", competition, first_name="Jan", last_name="Mazur")
+    ParticipantFactory(user=both.user)
+    ParticipantFactory(user=UserFactory(email="sasiad@example.test"), competition=other_competition)
+    _teacher("nauczyciel-sasiada@example.test", other_competition)
+    web_client.force_login(coordinator)
+    mail.outbox.clear()
+    data = {"group": BroadcastGroup.ALL_PARTICIPANTS_AND_TEACHERS, "include_past_editions": "on"}
+
+    response = _export(web_client, data)
+
+    assert response.status_code == 200
+    assert response["Content-Type"] == XLSX
+    assert 'filename="odbiorcy-wszyscy-uczestnicy-i-nauczyciele-' in response["Content-Disposition"]
+    rows = _sheet(response)
+    assert rows == [
+        ("Imię", "Nazwisko", "E-mail"),
+        ("Ewa", "Bąk", "nauczyciel@example.test"),
+        ("Jan", "Mazur", "oba@example.test"),
+        ("Ala", "Zielińska", "uczen@example.test"),
+    ]
+    # Te same adresy, do których poszedłby list – i nic nie wysłano.
+    assert sorted(row[2] for row in rows[1:]) == resolve_recipients(
+        BroadcastGroup.ALL_PARTICIPANTS_AND_TEACHERS,
+        competition=competition,
+        edition=current_edition(competition),
+        include_past_editions=True,
+    )
+    assert not mail.outbox
+    assert not MessageBroadcast.objects.exists()
+
+
+def test_export_respects_the_group_parameter(web_client, coordinator, elim_stage, entry):
+    from apps.competitions.models import StageKind
+    from apps.competitions.tests.factories import StageFactory
+
+    other_stage = StageFactory(edition=elim_stage.edition, kind=StageKind.DISTRICT)
+    other = ParticipantFactory(user=UserFactory(email="inny-etap@example.test"))
+    StageEntryFactory(participant=other, stage=other_stage)
+    web_client.force_login(coordinator)
+
+    response = _export(web_client, {"group": BroadcastGroup.STAGE_REGISTERED, "stage": elim_stage.pk})
+
+    assert [row[2] for row in _sheet(response)[1:]] == [entry.participant.user.email]
+
+
+def test_export_neutralises_formulas_in_names(web_client, coordinator):
+    ParticipantFactory(user=UserFactory(email="formula@example.test", first_name='=HYPERLINK("http://x")'))
+    web_client.force_login(coordinator)
+
+    rows = _sheet(
+        _export(web_client, {"group": BroadcastGroup.ALL_PARTICIPANTS, "include_past_editions": "on"})
+    )
+
+    assert rows[1][0] == '\'=HYPERLINK("http://x")'
+
+
+def test_export_is_audited_without_personal_data(web_client, coordinator, competition, elim_stage, entry):
+    web_client.force_login(coordinator)
+
+    _export(web_client, {"group": BroadcastGroup.STAGE_REGISTERED, "stage": elim_stage.pk})
+
+    log = AuditLog.objects.get(action="export.generated")
+    assert log.diff["kind"] == "broadcast_recipients"
+    assert log.diff["format"] == "xlsx"
+    assert log.diff["group"] == BroadcastGroup.STAGE_REGISTERED
+    assert log.diff["target"]["stage"] == elim_stage.pk
+    assert log.diff["rows"] == 1
+    assert log.target_type == "tenancy.competition"
+    assert log.target_id == str(competition.pk)
+    assert entry.participant.user.email not in str(log.diff)
+
+
+def test_export_without_the_group_parameter_shows_the_form_errors(web_client, coordinator):
+    web_client.force_login(coordinator)
+
+    response = _export(web_client, {"group": BroadcastGroup.SCHOOL_PARTICIPANTS})
+
+    assert response.status_code == 200
+    assert response["Content-Type"].startswith("text/html")
+    assert "Wybierz szkołę." in response.content.decode()
+    assert not AuditLog.objects.filter(action="export.generated").exists()
+
+
+def test_export_of_a_pasted_list_is_refused(web_client, coordinator):
+    web_client.force_login(coordinator)
+
+    response = _export(web_client, {"group": BroadcastGroup.CUSTOM, "addresses": "ktos@example.test"})
+
+    assert response.status_code == 200
+    assert response["Content-Type"].startswith("text/html")
+    assert "Wklejonej listy adresów nie da się wyeksportować" in response.content.decode()
+    assert not AuditLog.objects.filter(action="export.generated").exists()
+
+
+def test_export_of_an_empty_group_gives_a_message_not_a_file(web_client, coordinator, elim_stage):
+    web_client.force_login(coordinator)
+
+    response = _export(web_client, {"group": BroadcastGroup.STAGE_REGISTERED, "stage": elim_stage.pk})
+
+    assert response["Content-Type"].startswith("text/html")
+    assert "nie ma czego eksportować" in response.content.decode()
+    assert not AuditLog.objects.filter(action="export.generated").exists()
+
+
+def test_export_is_forbidden_for_a_reviewer(web_client, reviewer, entry):
+    web_client.force_login(reviewer.user)
+
+    response = _export(web_client, {"group": BroadcastGroup.ALL_PARTICIPANTS})
+
+    assert response.status_code == 403
+    assert not AuditLog.objects.filter(action="export.generated").exists()
+
+
+def test_export_never_reaches_another_competition(client_for, other_competition):
+    """Koordynator konkursu B eksportuje z domeny B – w pliku są wyłącznie ludzie B."""
+    from apps.accounts.models import GROUP_COORDINATOR
+    from apps.accounts.tests.factories import CoordinatorFactory
+    from apps.tenancy.tests.factories import grant_membership
+
+    coordinator = CoordinatorFactory()
+    grant_membership(coordinator, other_competition, GROUP_COORDINATOR)
+    ParticipantFactory(user=UserFactory(email="tutejszy@example.test"))
+    ParticipantFactory(user=UserFactory(email="w-b@example.test"), competition=other_competition)
+    client = client_for(other_competition)
+    client.force_login(coordinator)
+
+    response = _export(client, {"group": BroadcastGroup.ALL_PARTICIPANTS, "include_past_editions": "on"})
+
+    assert [row[2] for row in _sheet(response)[1:]] == ["w-b@example.test"]
+    assert AuditLog.objects.get(action="export.generated").competition == other_competition
+
+
+# --- komunikaty z datą przyszłą (MSG-SCHED-01) ------------------------------------------------------
+
+
+def _local(**delta) -> str:
+    """Wartość pola ``datetime-local`` (czas polski) przesunięta względem teraz."""
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    return (timezone.localtime() + timedelta(**delta)).strftime("%Y-%m-%dT%H:%M")
+
+
+def test_preview_with_a_send_time_offers_scheduling_and_warns_about_the_recount(
+    web_client, coordinator, entry
+):
+    web_client.force_login(coordinator)
+
+    content = _post(web_client, {**BASE, "group": BroadcastGroup.ALL_PARTICIPANTS, "send_at": _local(days=1)})
+    content = content.content.decode()
+
+    assert "1 odbiorców" in content
+    assert "Zaplanuj" in content
+    assert "policzona ponownie w chwili wysyłki" in content
+    assert not MessageBroadcast.objects.exists()
+
+
+def test_scheduling_from_the_screen_sends_nothing_now(web_client, coordinator, entry):
+    web_client.force_login(coordinator)
+    mail.outbox.clear()
+
+    response = _post(
+        web_client,
+        {**BASE, "group": BroadcastGroup.ALL_PARTICIPANTS, "send_at": _local(days=2)},
+        action="send",
+    )
+
+    assert response.status_code == 302
+    assert not mail.outbox
+    broadcast = MessageBroadcast.objects.get()
+    assert broadcast.status == BroadcastStatus.SCHEDULED
+    assert broadcast.created_by == coordinator
+    assert broadcast.parameters == {"include_past_editions": False}
+    assert broadcast.target == {"past_editions": False, "label": "bieżąca edycja"}
+    assert AuditLog.objects.get(action="broadcast.scheduled").actor == coordinator
+    page = web_client.get("/coordinator/messages/").content.decode()
+    assert "Zaplanowane" in page
+    assert f"/coordinator/messages/{broadcast.pk}/cancel/" in page
+
+
+def test_empty_group_can_be_scheduled(web_client, coordinator, elim_stage):
+    """Do terminu grupa może się zapełnić – odbiorców i tak liczy beat w chwili wysyłki."""
+    web_client.force_login(coordinator)
+
+    response = _post(
+        web_client,
+        {**BASE, "group": BroadcastGroup.STAGE_REGISTERED, "stage": elim_stage.pk, "send_at": _local(days=1)},
+        action="send",
+    )
+
+    assert response.status_code == 302
+    assert MessageBroadcast.objects.get().parameters == {"stage": elim_stage.pk}
+
+
+@pytest.mark.parametrize(
+    ("delta", "message"),
+    [
+        ({"hours": -1}, "co najmniej 5 minut"),
+        ({"minutes": 2}, "co najmniej 5 minut"),
+        ({"days": 91}, "90 dni"),
+    ],
+)
+def test_send_time_too_close_or_too_far_is_refused(web_client, coordinator, entry, delta, message):
+    web_client.force_login(coordinator)
+
+    response = _post(
+        web_client,
+        {**BASE, "group": BroadcastGroup.ALL_PARTICIPANTS, "send_at": _local(**delta)},
+        action="send",
+    )
+
+    assert response.status_code == 200
+    assert message in response.content.decode()
+    assert not MessageBroadcast.objects.exists()
+
+
+def test_pasted_list_cannot_be_scheduled_on_the_screen(web_client, coordinator):
+    web_client.force_login(coordinator)
+
+    response = _post(
+        web_client,
+        {**BASE, "group": BroadcastGroup.CUSTOM, "addresses": "a@example.test", "send_at": _local(days=1)},
+        action="send",
+    )
+
+    assert "Wklejonej listy adresów nie da się zaplanować" in response.content.decode()
+    assert not MessageBroadcast.objects.exists()
+
+
+def test_setting_a_send_time_after_the_preview_does_not_schedule(web_client, coordinator, entry):
+    """Podgląd „wyślij od razu” nie jest przepustką dla komunikatu zaplanowanego – ani odwrotnie."""
+    web_client.force_login(coordinator)
+    mail.outbox.clear()
+    data = {**BASE, "group": BroadcastGroup.ALL_PARTICIPANTS}
+    signature = SIGNATURE.search(_post(web_client, data).content.decode()).group(1)
+
+    response = web_client.post(
+        "/coordinator/messages/",
+        {**data, "send_at": _local(days=1), "action": "send", "preview_signature": signature},
+    )
+
+    assert "zmieniły się od podglądu" in response.content.decode()
+    assert not mail.outbox
+    assert not MessageBroadcast.objects.exists()
+
+
+def _waiting(competition, **kwargs):
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    from apps.tenancy.tests.factories import create_scoped
+
+    return create_scoped(
+        MessageBroadcast,
+        competition,
+        group=BroadcastGroup.COMMITTEE,
+        subject=kwargs.pop("subject", "Zaplanowany komunikat"),
+        body=".",
+        status=BroadcastStatus.SCHEDULED,
+        scheduled_for=timezone.now() + timedelta(days=1),
+        **kwargs,
+    )
+
+
+def test_cancel_from_the_screen(web_client, coordinator, competition):
+    broadcast = _waiting(competition, created_by=coordinator)
+    web_client.force_login(coordinator)
+
+    response = web_client.post(f"/coordinator/messages/{broadcast.pk}/cancel/")
+
+    assert response.status_code == 302
+    broadcast.refresh_from_db()
+    assert broadcast.status == BroadcastStatus.CANCELLED
+    assert AuditLog.objects.get(action="broadcast.cancelled").actor == coordinator
+    page = web_client.get("/coordinator/messages/").content.decode()
+    # Anulowany wypada z „Zaplanowanych” i zostaje w historii ze swoim stanem.
+    assert f"/coordinator/messages/{broadcast.pk}/cancel/" not in page
+    assert "anulowana" in page
+
+
+def test_cancel_of_another_competition_is_404(web_client, coordinator, other_competition):
+    broadcast = _waiting(other_competition)
+    web_client.force_login(coordinator)
+
+    response = web_client.post(f"/coordinator/messages/{broadcast.pk}/cancel/")
+
+    assert response.status_code == 404
+    broadcast.refresh_from_db()
+    assert broadcast.status == BroadcastStatus.SCHEDULED
+
+
+def test_cancel_is_forbidden_for_a_reviewer_and_needs_post(web_client, coordinator, reviewer, competition):
+    broadcast = _waiting(competition)
+
+    web_client.force_login(reviewer.user)
+    assert web_client.post(f"/coordinator/messages/{broadcast.pk}/cancel/").status_code == 403
+    web_client.force_login(coordinator)
+    assert web_client.get(f"/coordinator/messages/{broadcast.pk}/cancel/").status_code == 405
+
+    broadcast.refresh_from_db()
+    assert broadcast.status == BroadcastStatus.SCHEDULED
+
+
+def test_cancel_after_sending_only_informs(web_client, coordinator, competition):
+    broadcast = _waiting(competition)
+    MessageBroadcast.objects.filter(pk=broadcast.pk).update(status=BroadcastStatus.SENT)
+    web_client.force_login(coordinator)
+
+    response = web_client.post(f"/coordinator/messages/{broadcast.pk}/cancel/", follow=True)
+
+    assert "nie da się już anulować" in response.content.decode()
+    broadcast.refresh_from_db()
+    assert broadcast.status == BroadcastStatus.SENT
+
+
+def test_scheduled_list_hides_broadcasts_of_another_competition(
+    web_client, coordinator, competition, other_competition
+):
+    _waiting(competition, subject="Nasz plan")
+    _waiting(other_competition, subject="Cudzy plan")
+    web_client.force_login(coordinator)
+
+    content = web_client.get("/coordinator/messages/").content.decode()
+
+    assert "Nasz plan" in content
+    assert "Cudzy plan" not in content
+
+
+def test_history_shows_the_send_time(web_client, coordinator, competition):
+    from datetime import datetime, timedelta
+    from zoneinfo import ZoneInfo
+
+    from django.utils import timezone
+
+    day = (timezone.localtime() - timedelta(days=1)).date()
+    broadcast = _waiting(competition, subject="Wysłany z terminem")
+    MessageBroadcast.objects.filter(pk=broadcast.pk).update(
+        status=BroadcastStatus.SENT,
+        scheduled_for=datetime(day.year, day.month, day.day, 6, 17, tzinfo=ZoneInfo("Europe/Warsaw")),
+    )
+    web_client.force_login(coordinator)
+
+    content = web_client.get("/coordinator/messages/").content.decode()
+
+    assert "Wysłany z terminem" in content
+    assert "06:17" in content

@@ -304,13 +304,16 @@ def _complete(material: WorkshopMaterial) -> str:
         return str(exc)
 
     material.file_format = fmt.key
+    # Kodowanie tekstu (UTF-8, a dla CSV/TSV/TXT także UTF-16 i Windows-1250) – do nagłówka
+    # ``Content-Type`` pobrania i do dekodera podglądu (WM-FMT-01).
+    material.charset = (formats.detect_text_encoding(header, fmt.key) or "") if fmt.family == "text" else ""
     material.upload_id = ""
     if material.kind == MaterialKind.VIDEO:
         material.status = MaterialStatus.READY
         material.ready_at = timezone.now()
     else:
         material.status = MaterialStatus.SCANNING
-    material.save(update_fields=["file_format", "upload_id", "status", "ready_at", "updated_at"])
+    material.save(update_fields=["file_format", "charset", "upload_id", "status", "ready_at", "updated_at"])
     return ""
 
 

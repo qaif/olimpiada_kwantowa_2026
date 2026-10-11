@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% load i18n static %}
+{% comment %}
+  Notatnik tylko do odczytu (``apps.notebooks.render``): źródła i wyjścia jako tekst, obrazy PNG/JPEG
+  jako ``data:``, wyjścia HTML/JS pominięte. Nic się nie wykonuje – to jest droga personelu do
+  notatników zamiast laboratorium (QC-01 § 3.5). Bez skryptów.
+{% endcomment %}
+{% block title %}{{ title }}{% endblock %}
+{% block head %}{{ block.super }}
+  <link rel="stylesheet" href="{% static 'notebooks/notebook-lab.css' %}">
+{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>{{ title }}</h1>
+  {% if problem %}<p class="lead">{% blocktranslate trimmed with number=problem.number title=problem.display_title %}Zadanie {{ number }}: {{ title }}{% endblocktranslate %}</p>{% endif %}
+  <p class="hint">{% translate "Podgląd tylko do odczytu: kod nie jest wykonywany, wyjścia HTML i JavaScript są pominięte." %}</p>
+  {% if staff_notice %}
+    <p class="msg msg-warning">{% translate "Twoje konto ma rolę personelu, więc laboratorium (wykonywanie kodu w przeglądarce) jest dla niego wyłączone. Do rozwiązywania zadań używaj osobnego konta uczestnika." %}</p>
+  {% endif %}
+</div>
+<section class="section notebook-view">
+  {% for cell in cells %}
+    <article class="card card--quiet notebook-view__cell">
+      {% if cell.type == "code" %}
+        <p class="hint mt-0">{% if cell.count is not None %}In [{{ cell.count }}]{% else %}In [ ]{% endif %}</p>
+        <pre class="notebook-pre"><code>{{ cell.source }}</code></pre>
+        {% for output in cell.outputs %}
+          {% if output.kind == "text" %}
+            <pre class="notebook-pre{% if output.stream %} notebook-view__stderr{% endif %}">{{ output.text }}</pre>
+          {% elif output.kind == "error" %}
+            <pre class="notebook-pre notebook-view__stderr">{{ output.text }}</pre>
+          {% elif output.kind == "image" %}
+            <img class="notebook-view__image" src="{{ output.src }}" alt="{% translate 'Wykres z notatnika' %}">
+          {% else %}
+            <p class="hint">{% blocktranslate trimmed with mime=output.mime %}Pominięto wyjście typu {{ mime }}.{% endblocktranslate %}</p>
+          {% endif %}
+        {% endfor %}
+      {% else %}
+        <pre class="notebook-pre notebook-view__text">{{ cell.source }}</pre>
+      {% endif %}
+    </article>
+  {% empty %}
+    <p class="empty">{% translate "Notatnik nie ma komórek." %}</p>
+  {% endfor %}
+</section>
+{% endblock %}

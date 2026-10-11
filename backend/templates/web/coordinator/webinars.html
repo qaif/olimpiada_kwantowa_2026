@@ -1,0 +1,59 @@
+{% extends "web/coordinator/base.html" %}
+{% load tz %}
+{% comment %}
+  Webinary w LiveKit (zadanie WEB-01, ``apps.web.views.webinars.CoordinatorWebinarsView``).
+
+  Ekran istnieje przy fladze ``webinars``. Bez serwera LiveKit (``LIVEKIT_URL``, klucz, sekret) mówi
+  o tym wprost i nie pokazuje formularza – odbiorcy i tak niczego by nie zobaczyli. Godziny
+  w strefie konkursu (``zone``).
+{% endcomment %}
+{% block title %}Webinary – panel koordynatora{% endblock %}
+{% block panel_title %}Webinary{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Webinary na platformie (własny serwer LiveKit): wykłady, konsultacje, omówienia zadań.
+    Odbiorcy widzą je na stronie <code>/webinars/</code> i wchodzą do pokoju przyciskiem „Dołącz” – od
+    kilkunastu minut przed początkiem, gdy prowadzący już rozpoczął webinar. Widzowie nie nadają obrazu
+    ani dźwięku, dopóki prowadzący nie da im głosu. Godziny: strefa {{ zone.key }}.</p>
+{% endblock %}
+{% block panel_content %}
+
+{% if not configured %}
+  <div class="alert alert--warning" role="status">
+    <p><strong>Serwer LiveKit nie jest skonfigurowany.</strong> Webinary działają na własnym serwerze
+      LiveKit. Poproś operatora platformy o jego uruchomienie i wpisanie adresu oraz kluczy API
+      (<code>LIVEKIT_URL</code>, <code>LIVEKIT_API_KEY</code>, <code>LIVEKIT_API_SECRET</code>). Do tego
+      czasu odbiorcy nie widzą webinarów.</p>
+  </div>
+{% endif %}
+
+<section class="section" aria-labelledby="webinars-upcoming">
+  <div class="section__head"><h2 class="mt-0" id="webinars-upcoming">Nadchodzące i trwające</h2></div>
+  {% if upcoming %}
+    {% include "web/coordinator/_webinar_table.html" with webinars=upcoming %}
+  {% else %}
+    <p class="empty">Nie ma zaplanowanych webinarów.</p>
+  {% endif %}
+</section>
+
+{% if form %}
+  <section class="section" aria-labelledby="webinar-new">
+    <div class="section__head"><h2 class="mt-0" id="webinar-new">Nowy webinar</h2></div>
+    <div class="card">
+      <form method="post" class="form" novalidate>
+        {% csrf_token %}
+        {{ form.as_p }}
+        <div class="actions">
+          <button type="submit" class="btn btn--primary">Zapisz webinar</button>
+        </div>
+      </form>
+    </div>
+  </section>
+{% endif %}
+
+{% if history %}
+  <section class="section" aria-labelledby="webinars-history">
+    <div class="section__head"><h2 class="mt-0" id="webinars-history">Minione i odwołane</h2></div>
+    {% include "web/coordinator/_webinar_table.html" with webinars=history %}
+  </section>
+{% endif %}
+{% endblock %}

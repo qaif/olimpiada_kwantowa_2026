@@ -2,7 +2,7 @@ from django.core.cache import cache
 from django.db import connection
 from django.http import JsonResponse
 
-from apps.core import dbconnections
+from apps.core import dbconnections, restore_check
 
 
 def healthz(request):
@@ -16,6 +16,9 @@ def healthz(request):
     kontenera, który o nie pyta – restart ``web`` z tego powodu zamieniłby ostrzeżenie w przerwę.
     Odczyt jest buforowany na 30 s we wspólnym cache'u, więc healthcheck co 15 s i dowolnie częste
     pukanie z zewnątrz dają najwyżej jedno zapytanie do ``pg_stat_activity`` na pół minuty.
+
+    ``backup_restore_check`` – poziom wyniku conocnego testu odtwarzania (``apps.core.restore_check``),
+    jeden odczyt z cache'u, na tej samej zasadzie: poziom, nie daty, i bez wpływu na kod odpowiedzi.
     """
     db_ok = redis_ok = False
     try:
@@ -36,6 +39,10 @@ def healthz(request):
             "db": db_ok,
             "redis": redis_ok,
             "db_connections": dbconnections.level() if db_ok else dbconnections.LEVEL_UNKNOWN,
+            # Wynik ostatniego testu odtwarzania kopii (OPS-01): ``ok|failed|stale|unknown``. Jak
+            # wyżej – wyłącznie poziom i bez wpływu na kod odpowiedzi: zepsuta kopia nie jest chorobą
+            # kontenera ``web``, a 503 z tego powodu kazałoby orkiestratorowi go restartować.
+            "backup_restore_check": restore_check.level() if redis_ok else restore_check.LEVEL_UNKNOWN,
         },
         status=200 if ok else 503,
     )

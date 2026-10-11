@@ -90,6 +90,10 @@ PASSTHROUGH = (
     "site_edition_label",
     "cms_menu",
     "cms_menu_primary",
+    # Taśma sponsorów (THEME-02): słownik ``{"seconds", "entries": [{name, url, src, width, height}]}``
+    # z procesora ``apps.cms.sponsor_slider`` – same napisy i liczby, żeby motyw mógł postawić
+    # ``{% include "cms/_sponsor_slider.html" %}`` we własnym miejscu tylko wtedy, gdy są wpisy.
+    "sponsor_slider",
     # strona główna (``HomePage.get_context``) – slot ``home_hero``
     "page",
     "hero_slides_visible",
@@ -291,6 +295,8 @@ def curated_context(full: dict, request) -> dict:
         for key in ("is_open", "reason", "opens_at", "closes_at", "message")
     }
     values["promo_available"] = bool(full.get("promo_available"))
+    # Deklaracja dostępności (A11Y-01): stopka paczki pokazuje odnośnik tylko do opublikowanej strony.
+    values["accessibility_statement_available"] = bool(full.get("accessibility_statement_available"))
     values["user"] = user_data
     values["request"] = {"path": getattr(request, "path", ""), "user": user_data}
     values["settings"] = {"cms": {"SiteSettings": _site_settings(full)}}

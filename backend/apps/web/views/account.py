@@ -23,6 +23,7 @@ from __future__ import annotations
 from django.contrib import messages
 from django.contrib.auth import logout
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.views import redirect_to_login
 from django.core.cache import cache
 from django.http import FileResponse, HttpResponse
 from django.shortcuts import redirect
@@ -44,9 +45,9 @@ from apps.accounts.profile import (
     request_email_change,
     update_own_names,
     update_participant_profile,
-    verify_account_credentials,
     verify_self_deletion_credentials,
 )
+from apps.accounts.reauth import CODE_LOCKED
 from apps.accounts.services import participant_for
 from apps.core.api import DomainError
 from apps.web.forms import (
@@ -57,7 +58,7 @@ from apps.web.forms import (
     participant_profile_initial,
 )
 from apps.web.mixins import ParticipantRequiredMixin
-from apps.web.throttle import ThrottledFormMixin
+from apps.web.throttle import PerAccountThrottleMixin, ThrottledFormMixin
 
 
 def own_participant(request):
@@ -79,6 +80,16 @@ def profile_url(request) -> str:
     kto w tym konkursie startuje.
     """
     return reverse("web:profile" if own_participant(request) is not None else "web:account-profile")
+
+
+def relogin_after_lock(request, message: str):
+    """Odpowiedź po zakończeniu sesji za serię złych haseł (``apps.accounts.reauth``, przegląd L3).
+
+    Sesja jest już wylogowana – odsyłamy do logowania (tam stoją limit prób i drugi składnik)
+    z ``next`` na ekran, z którego człowiek przyszedł. Komunikat ląduje w nowej, pustej sesji.
+    """
+    messages.error(request, message)
+    return redirect_to_login(request.get_full_path())
 
 
 class ServiceFormMixin:
@@ -162,7 +173,7 @@ class ParticipantProfileView(ParticipantRequiredMixin, ServiceFormMixin, FormVie
         context["participant"] = self.participant
         # Formularz zmiany adresu stoi na tej samej stronie, ale wysyła się pod własny adres:
         # to osobna operacja z osobnym potwierdzeniem, a nie kolejne pole tych danych.
-        context.setdefault("email_form", EmailChangeForm(user=self.request.user))
+        context.setdefault("email_form", EmailChangeForm())
         context["two_factor_enabled"] = two_factor_section_visible()
         context.update(forum_notification_context(self.request))
         context.update(chat_preferences_context(self.request))
@@ -197,7 +208,7 @@ class AccountProfileView(LoginRequiredMixin, ServiceFormMixin, FormView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["committee"] = getattr(self.request.user, "committee_member", None)
-        context.setdefault("email_form", EmailChangeForm(user=self.request.user))
+        context.setdefault("email_form", EmailChangeForm())
         context["two_factor_enabled"] = two_factor_section_visible()
         context.update(forum_notification_context(self.request))
         context.update(chat_preferences_context(self.request))
@@ -207,18 +218,19 @@ class AccountProfileView(LoginRequiredMixin, ServiceFormMixin, FormView):
         update_own_names(self.request.user, **form.cleaned_data, request=self.request)
 
 
-class EmailChangeView(LoginRequiredMixin, ThrottledFormMixin, ServiceFormMixin, FormView):
+class EmailChangeView(LoginRequiredMixin, PerAccountThrottleMixin, ServiceFormMixin, FormView):
     """``/account/email/`` – wniosek o zmianę adresu e-mail konta.
 
     Limit ze scope'em ``password_reset``: formularz wysyła list na adres podany przez użytkownika,
     więc bez ograniczenia byłby wysyłaczem wiadomości na cudze skrzynki – tak samo jak reset hasła,
-    tylko za logowaniem (co samo nie jest ograniczeniem, bo konto zakłada się w minutę). Ten sam
-    limit ogranicza zgadywanie bieżącego hasła, którego formularz wymaga.
+    tylko za logowaniem. Od AUTH-01b (przegląd H1) liczony **per konto**, jak ekran zmiany hasła:
+    formularz żąda też aktualnego hasła, więc limit ogranicza zarazem zgadywanie go z cudzej sesji.
+    Seria złych haseł kończy sesję (``apps.accounts.reauth``) – licznik jest wspólny z ekranem
+    zmiany hasła.
 
-    Bieżące hasło (konto bez hasła: przepisanie obecnego adresu) od audytu 10.10.2026 (S11):
-    przejęta sesja przenosiła konto na adres napastnika – potwierdzenie przychodziło na **jego**
-    skrzynkę, a stamtąd „Nie pamiętasz hasła?” domykało przejęcie. Reguła jest ta sama, co przy
-    usuwaniu konta (``verify_account_credentials``).
+    Audyt 10.10.2026 (S11) żądał tego samego (hasło przed wnioskiem) – reguła AUTH-01b jest
+    mocniejsza: konto bez hasła nie przepisuje adresu, tylko ustawia hasło linkiem na obecny adres.
+    Potwierdzenie nowego adresu kasuje token API i pozostałe sesje (``profile.confirm_email_change``).
     """
 
     template_name = "web/account/email_change.html"
@@ -232,11 +244,6 @@ class EmailChangeView(LoginRequiredMixin, ThrottledFormMixin, ServiceFormMixin, 
     def get_success_url(self) -> str:
         return profile_url(self.request)
 
-    def get_form_kwargs(self) -> dict:
-        kwargs = super().get_form_kwargs()
-        kwargs["user"] = self.request.user
-        return kwargs
-
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         # Odnośnik „Wróć do edycji danych” liczy widok, a nie szablon: ``user.participant``
@@ -245,14 +252,24 @@ class EmailChangeView(LoginRequiredMixin, ThrottledFormMixin, ServiceFormMixin, 
         context["profile_url"] = profile_url(self.request)
         return context
 
+    def form_valid(self, form):
+        try:
+            self.call_service(form)
+        except DomainError as exc:
+            if exc.machine_code == CODE_LOCKED:
+                return relogin_after_lock(self.request, str(exc.detail))
+            field = "current_password" if exc.machine_code == "PASSWORD_INCORRECT" else None
+            form.add_error(field, str(exc.detail))
+            return self.form_invalid(form)
+        messages.success(self.request, self.success_message)
+        return redirect(self.get_success_url())
+
     def call_service(self, form):
-        verify_account_credentials(
-            self.request.user,
-            password=form.cleaned_data.get("password") or "",
-            email=form.cleaned_data.get("current_email") or "",
-        )
         request_email_change(
-            self.request.user, new_email=form.cleaned_data["new_email"], request=self.request
+            self.request.user,
+            new_email=form.cleaned_data["new_email"],
+            current_password=form.cleaned_data.get("current_password") or "",
+            request=self.request,
         )
 
 

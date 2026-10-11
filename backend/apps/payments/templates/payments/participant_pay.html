@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% comment %}
+  Opłata uczestnika online (PAY-01): dane nabywcy → zamówienie z fakturą pro forma → wybór metody.
+  Kwota jest kwotą należności naliczonej przez organizatora – formularz jej nie zbiera.
+{% endcomment %}
+{% block title %}{% translate "Zapłać online" %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow"><a href="{% url 'web:me' %}">{% translate "Mój panel" %}</a></span>
+  <h1>{% translate "Zapłać online" %}</h1>
+  <p class="lead">{% blocktranslate trimmed with amount=fee.amount currency=fee.currency %}
+    Do zapłaty: {{ amount }} {{ currency }}. Podaj dane do faktury – wystawimy fakturę pro forma, a po zaksięgowaniu wpłaty fakturę.
+  {% endblocktranslate %}</p>
+</div>
+<form method="post" class="form" novalidate>
+  {% csrf_token %}
+  {{ form.as_p }}
+  <div class="actions">
+    <button type="submit" class="btn btn--primary">{% translate "Dalej" %}</button>
+    <a class="btn btn--ghost" href="{% url 'web:me' %}">{% translate "Anuluj" %}</a>
+  </div>
+</form>
+{% endblock %}

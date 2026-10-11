@@ -32,6 +32,7 @@ from django.views.generic import View
 from apps.accounts.anonymised import is_anonymised
 from apps.accounts.guardian import STATUS_MISSING, STATUS_PENDING, guardian_status
 from apps.accounts.models import COORDINATOR_GROUPS, GROUP_SUPER_COORDINATOR, Participant, User, Voivodeship
+from apps.accounts.password_reset import reset_eligible
 from apps.accounts.profile import (
     assert_coordinator_may_secure,
     competition_footprint,
@@ -394,6 +395,21 @@ def is_super_coordinator_account(user: User) -> bool:
     return user.groups.filter(name=GROUP_SUPER_COORDINATOR).exists()
 
 
+def may_secure(user: User, request) -> bool:
+    """Czy pokazać przyciski resetu hasła i 2FA oraz eksportu – ``assert_coordinator_may_secure`` bez odmowy.
+
+    Ta sama zasada, co przy ``is_protected``/``is_shared``: przycisk, którego serwis nie przepuści,
+    nie stoi na stronie. Osobno od ``protected``, bo superkoordynator (i superużytkownik) zdejmuje
+    zgubiony drugi składnik i wysyła reset hasła także koordynatorowi (SEC-01), choć danych jego konta
+    z tego ekranu nadal nie zmienia (audyt 10.10.2026, S7/W3).
+    """
+    try:
+        assert_coordinator_may_secure(user, actor=request.user, competition=request.competition)
+    except DomainError:
+        return False
+    return True
+
+
 def is_shared(user: User, request) -> bool:
     """Czy konto ma role także w innym konkursie, a wykonawca nie ma nad nim władzy (W3).
 
@@ -430,6 +446,13 @@ def two_factor_device(user: User):
     from apps.accounts.twofactor import confirmed_device
 
     return confirmed_device(user)
+
+
+def two_factor_may_reset(request, user: User) -> bool:
+    """Czy zalogowany koordynator może zdjąć drugi składnik z tego konta (SEC-01 § 4)."""
+    from apps.staff_mfa.policy import may_reset
+
+    return may_reset(request.user, user, request.competition)
 
 
 def profile_here(user: User, relation: str, competition):
@@ -764,6 +787,9 @@ class CoordinatorAccountEditView(CoordinatorRequiredMixin, View):
             # Konto z rolą w innym konkursie (W3): bez przycisków resetu hasła, 2FA, eksportu
             # i usunięcia – serwis i tak ich nie przepuści (``ACCOUNT_SHARED``).
             "shared": is_shared(user, request),
+            # Reset hasła i 2FA, eksport: konto własne, chronione albo współdzielone – bez przycisków
+            # (``may_secure``; superkoordynator ponad ``protected``).
+            "may_secure": may_secure(user, request),
             # Stan zgody opiekuna – do odczytu. Reguła jest jedna dla panelu uczestnika
             # i dla tego ekranu (``apps.accounts.guardian.guardian_status``).
             "guardian": (
@@ -776,10 +802,16 @@ class CoordinatorAccountEditView(CoordinatorRequiredMixin, View):
             # zdjąć zgubiony (``CoordinatorTwoFactorResetView``). Przy wyłączonym
             # ``TWO_FACTOR_ENABLED`` cała sekcja znika z ekranu – patrz ``two_factor_feature``.
             "two_factor_enabled": two_factor_feature(),
-            "two_factor": two_factor_device(user),
+            "two_factor": (device := two_factor_device(user)),
+            # SEC-01: konto personelu resetuje wyłącznie superkoordynator – bez uprawnienia nie ma
+            # przycisku, tylko zdanie, do kogo się zwrócić (serwis i tak odmówi).
+            "two_factor_may_reset": device is not None and two_factor_may_reset(request, user),
             "account_form": forms.get("account"),
             "participant_form": forms.get("participant"),
             "committee_form": forms.get("committee"),
+            # Ta sama reguła, co w „Nie pamiętasz hasła?” (AUTH-01a, L4): przycisk resetu widzi
+            # także konto Google/Facebooka z potwierdzonym adresem.
+            "password_reset_allowed": reset_eligible(user),
         }
         return TemplateResponse(request, EDIT_TEMPLATE, context, status=status)
 
@@ -891,8 +923,10 @@ class CoordinatorPasswordResetView(CoordinatorRequiredMixin, View):
       aktywacji),
     - **konto zablokowane** (``is_active=False``) – blokada ma znaczyć „nie loguje się wcale”,
       a nie „loguje się nowym hasłem”,
-    - **konto bez hasła platformy** (``has_usable_password()`` fałsz, logowanie wyłącznie przez
-      zewnętrznego dostawcę) – nie ma czego resetować,
+    - **konto, któremu samoobsługa też nie wysłałaby linku** (``password_reset.reset_eligible``):
+      konto bez hasła platformy bez adresu potwierdzonego przez dostawcę albo konto z zaproszenia
+      bez kompletu zgód. Konto Google/Facebooka z potwierdzonym adresem link **dostaje** – tak
+      samo jak w „Nie pamiętasz hasła?” (AUTH-01a, L4) – i ustawia nim pierwsze hasło,
     - **konto własne koordynatora** – do tego służy „Nie pamiętasz hasła?” na stronie logowania,
       a nie ekran zarządzania cudzymi kontami,
     - **konto chronione** (koordynator, superkoordynator, operator – audyt 10.10.2026, S7) i **konto
@@ -936,11 +970,12 @@ class CoordinatorPasswordResetView(CoordinatorRequiredMixin, View):
                 "(pole „Konto aktywne” w danych konta).",
             )
             return redirect(edit_url)
-        if not user.has_usable_password():
+        if not reset_eligible(user):
             messages.error(
                 request,
-                f"Konto {user.email} nie ma hasła platformy (logowanie przez zewnętrznego "
-                "dostawcę) – nie ma czego resetować.",
+                f"Konto {user.email} nie ma hasła platformy i link nie zostanie wysłany: adres nie "
+                "jest potwierdzony przez dostawcę logowania albo konto z zaproszenia nie ma kompletu "
+                "zgód. Uczeń z zaproszeniem uruchamia konto linkiem z zaproszenia.",
             )
             return redirect(edit_url)
 
@@ -953,7 +988,7 @@ class CoordinatorPasswordResetView(CoordinatorRequiredMixin, View):
             return redirect(edit_url)
 
         # Te same nazwy szablonów i ten sam kontekst, co w ``PasswordResetView`` – patrz docstring
-        # klasy. ``from_email`` pusty sięga po domyślnego nadawcę ustawień, tak jak tam.
+        # klasy. ``from_email`` pusty = nadawca konkursu (``QueuedPasswordResetForm.send_mail``), tak jak tam.
         form.save(
             use_https=request.is_secure(),
             token_generator=default_token_generator,
@@ -988,12 +1023,25 @@ class CoordinatorAccountDeleteView(CoordinatorRequiredMixin, View):
     success_url_name = "web:coordinator-accounts"
     #: Droga w audycie (``via`` w ``account.deleted_by_coordinator``); ``None`` = karta konta.
     audit_via: str | None = None
+    #: Ekran, na który wraca się po usunięciu – zamknięta lista wartości parametru ``back``, a nie
+    #: adres w parametrze (to byłoby otwarte przekierowanie). ``duplicates`` – lista zdublowanych
+    #: kont (ACC-DUP-01), z której przycisk „Usuń” prowadzi właśnie tutaj. Ma pierwszeństwo przed
+    #: ``success_url_name``/``cancel_url`` – wskazuje, skąd koordynator naprawdę przyszedł.
+    BACK_URLS = {"duplicates": "web:coordinator-duplicates"}
+    BACK_LABELS = {"duplicates": "Wróć do listy zdublowanych kont"}
+
+    def _back(self, request) -> str:
+        value = request.POST.get("back") if request.method == "POST" else request.GET.get("back")
+        return value if value in self.BACK_URLS else ""
 
     def get_account(self, request, pk: int) -> User:
         return _account(request.competition, pk)
 
     def cancel_url(self, user: User) -> str:
         return reverse("web:coordinator-account-edit", args=[user.pk])
+
+    def cancel_label(self) -> str:
+        return "Wróć do konta"
 
     def get(self, request, pk: int):
         return self._render(request, self.get_account(request, pk))
@@ -1018,7 +1066,8 @@ class CoordinatorAccountDeleteView(CoordinatorRequiredMixin, View):
             messages.success(
                 request, f"Konto {email} zostało usunięte w całości. Adres zwolnił się do rejestracji."
             )
-        return redirect(reverse(self.success_url_name))
+        back = self._back(request)
+        return redirect(reverse(self.BACK_URLS[back] if back else self.success_url_name))
 
     def _render(self, request, user: User, *, status: int = 200):
         footprint = competition_footprint(user)
@@ -1039,7 +1088,9 @@ class CoordinatorAccountDeleteView(CoordinatorRequiredMixin, View):
             "has_participant_footprint": any(footprint[key] for key in ("entries", "submissions", "reviews")),
             "has_supervisor_footprint": bool(footprint.get("school_participations")),
             "participant": participant,
-            "cancel_url": self.cancel_url(user),
+            "back": (back := self._back(request)),
+            "cancel_url": reverse(self.BACK_URLS[back]) if back else self.cancel_url(user),
+            "cancel_label": self.BACK_LABELS[back] if back else self.cancel_label(),
         }
         return TemplateResponse(request, DELETE_TEMPLATE, context, status=status)
 
@@ -1081,3 +1132,6 @@ class CoordinatorActivationDeleteView(CoordinatorAccountDeleteView):
 
     def cancel_url(self, user: User) -> str:
         return reverse("web:coordinator-activations")
+
+    def cancel_label(self) -> str:
+        return "Wróć do kolejki aktywacji"

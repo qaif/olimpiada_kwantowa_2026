@@ -1,0 +1,75 @@
+Return-Path: <>
+X-Original-To: noreply@platforma.test
+Delivered-To: noreply@platforma.test
+Received: by mail.platforma.test (Postfix)
+	id BDC0E1A1C2E; Mon, 05 Oct 2026 07:27:46 +0000 (UTC)
+Date: Mon, 05 Oct 2026 07:27:46 +0000 (UTC)
+From: Mail Delivery System <MAILER-DAEMON@mail.platforma.test>
+Subject: Undelivered Mail Returned to Sender
+To: noreply@platforma.test
+Auto-Submitted: auto-replied
+MIME-Version: 1.0
+Content-Type: multipart/report; report-type=delivery-status;
+	boundary="B36CE1A1C29.1791185266/mail.platforma.test"
+Content-Transfer-Encoding: 8bit
+Message-Id: <20261005072746.BDC0E1A1C2E@mail.platforma.test>
+
+This is a MIME-encapsulated message.
+
+--B36CE1A1C29.1791185266/mail.platforma.test
+Content-Description: Notification
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
+
+This is the mail system at host mail.platforma.test.
+
+I'm sorry to have to inform you that your message could not
+be delivered to one or more recipients. It's attached below.
+
+For further assistance, please send mail to postmaster.
+
+If you do so, please include this problem report. You can
+delete your own text from the attached returned message.
+
+                   The mail system
+
+<jan.kowalski@nonexistent-domain-mail02-probe.com>: Host or domain name not
+    found. Name service error for name=nonexistent-domain-mail02-probe.com
+    type=A: Host not found
+
+--B36CE1A1C29.1791185266/mail.platforma.test
+Content-Description: Delivery report
+Content-Type: message/delivery-status
+
+Reporting-MTA: dns; mail.platforma.test
+X-Postfix-Queue-ID: B36CE1A1C29
+X-Postfix-Sender: rfc822; noreply@platforma.test
+Arrival-Date: Mon, 05 Oct 2026 07:27:46 +0000 (UTC)
+
+Final-Recipient: rfc822; jan.kowalski@nonexistent-domain-mail02-probe.com
+Original-Recipient: rfc822;jan.kowalski@nonexistent-domain-mail02-probe.com
+Action: failed
+Status: 5.4.4
+Diagnostic-Code: X-Postfix; Host or domain name not found. Name service error
+    for name=nonexistent-domain-mail02-probe.com type=A: Host not found
+
+--B36CE1A1C29.1791185266/mail.platforma.test
+Content-Description: Undelivered Message
+Content-Type: message/rfc822
+Content-Transfer-Encoding: 8bit
+
+Return-Path: <noreply@platforma.test>
+Received: by mail.platforma.test (Postfix, from userid 0)
+	id B36CE1A1C29; Mon, 05 Oct 2026 07:27:46 +0000 (UTC)
+From: Olimpiada <noreply@platforma.test>
+To: jan.kowalski@nonexistent-domain-mail02-probe.com
+Subject: Aktywuj konto
+Message-ID: <probe-1@platforma.test>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
+MIME-Version: 1.0
+Date: Mon, 05 Oct 2026 07:27:46 +0000 (UTC)
+
+Link aktywacyjny: https://platforma.test/activate/SECRET/
+
+--B36CE1A1C29.1791185266/mail.platforma.test--

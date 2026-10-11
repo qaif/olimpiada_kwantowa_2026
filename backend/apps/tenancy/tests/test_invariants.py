@@ -145,6 +145,19 @@ EXPECTED_SUBJECTS = {
     "delegation_leader_invitation": "Zaproszenie dla opiekuna drużyny narodowej – Olimpiada Kwantowa",
     "delegation_student_invitation": "Zgłoszenie do drużyny narodowej – Olimpiada Kwantowa",
     "delegation_student_unlinked": "Wypisanie z drużyny narodowej – Olimpiada Kwantowa",
+    # Logistyka finału (LOG-01, ``apps.delegation_logistics.reports``): przypomnienie o brakach do
+    # opiekunów drużyn. Tak jak listy delegacji – Olimpiada Kwantowa go nie wysyła.
+    "final_logistics_reminder": "Brakujące dane do logistyki finału – Olimpiada Kwantowa",
+    # Listy zapraszające do wizy (VISA-01, ``apps.delegation_logistics.letter_requests``): decyzja
+    # oficera logistyki o wnioskach opiekuna drużyny. Olimpiada Kwantowa go nie wysyła.
+    "final_letter_decision": "Decyzja w sprawie listów zapraszających – Olimpiada Kwantowa",
+    # Płatności online (PAY-01, ``apps.payments.notifications``): potwierdzenie wpłaty i zwrotu.
+    # ``<kod>`` to kod zamówienia – dane listu, nie brzmienie.
+    "payment_receipt": "Potwierdzenie wpłaty <kod> – Olimpiada Kwantowa",
+    "payment_refund": "Zwrot wpłaty <kod> – Olimpiada Kwantowa",
+    # Zmiana hasła w panelu konta (AUTH-01b, ``apps.password_change.notifications``): list
+    # bezpieczeństwa do właściciela konta – bez hasła, z linkiem do „Nie pamiętasz hasła?”.
+    "password_changed": "Hasło do konta zostało zmienione – Olimpiada Kwantowa",
 }
 
 #: Znaczniki podstawień w tematach składanych w serwisie. Porównujemy **wzorzec**, a nie wynik:
@@ -212,12 +225,36 @@ EXPECTED_FORUM_SUBJECTS = {
     "forum_daily": f"{EXPECTED_SUBJECT_PREFIX}Forum: podsumowanie dnia",
 }
 
+#: Webinary (zadanie WEB-01, ``apps.webinars.notifications``): zaproszenie i przypomnienie.
+#: Tytuł webinaru jest daną listu (jak temat wątku forum), więc w brzmieniu stoi znacznik.
+EXPECTED_WEBINAR_SUBJECTS = {
+    "webinar_invite": f"Zaproszenie na webinar: {TITLE_MARK} – Olimpiada Kwantowa",
+    "webinar_reminder": f"Przypomnienie o webinarze: {TITLE_MARK} – Olimpiada Kwantowa",
+}
+
+#: Pięć tematów listów sieci absolwentów (ALUM-01, ``apps.alumni.notifications``) – z prefiksem
+#: konkursu, z tego samego powodu co forum: listy są nowe, a „[Olimpiada Kwantowa] Absolwenci:”
+#: pozwala odfiltrować całą rodzinę naraz. Wysyłkę sprawdza ``apps/alumni/tests/test_mentoring.py``.
+EXPECTED_ALUMNI_SUBJECTS = {
+    "alumni_requested": f"{EXPECTED_SUBJECT_PREFIX}Absolwenci: prośba o mentoring",
+    "alumni_accepted": f"{EXPECTED_SUBJECT_PREFIX}Absolwenci: mentor przyjął Twoją prośbę",
+    "alumni_declined": f"{EXPECTED_SUBJECT_PREFIX}Absolwenci: odpowiedź na prośbę o mentoring",
+    "alumni_ended": f"{EXPECTED_SUBJECT_PREFIX}Absolwenci: relacja mentorska zakończona",
+    "alumni_flag": f"{EXPECTED_SUBJECT_PREFIX}Absolwenci: zgłoszono problem z relacją mentorską",
+}
+
 #: Komplet tematów wychodzących z instalacji. **Liczby tu nie ma i ma jej nie być**: do 25.09.2026
 #: test porównywał długości tych słowników z literałami (11/7/7/25), więc każdy nowy list wymagał
 #: poprawienia liczby w miejscu, które z tym listem nie miało nic wspólnego – a przy tym niczego nie
 #: pilnował, bo liczył wiersze tabeli, a nie tematy w kodzie (trzy tematy przeszły obok niego).
 #: Kompletności pilnuje dziś ``test_every_subject_in_the_code_is_frozen`` niżej.
-ALL_EXPECTED_SUBJECTS = {**EXPECTED_SUBJECTS, **EXPECTED_SERVICE_SUBJECTS, **EXPECTED_FORUM_SUBJECTS}
+ALL_EXPECTED_SUBJECTS = {
+    **EXPECTED_SUBJECTS,
+    **EXPECTED_SERVICE_SUBJECTS,
+    **EXPECTED_FORUM_SUBJECTS,
+    **EXPECTED_WEBINAR_SUBJECTS,
+    **EXPECTED_ALUMNI_SUBJECTS,
+}
 
 #: Każda stała tematu listu w kodzie (nazwa z ``SUBJECT``) → klucz zamrożonego brzmienia wyżej.
 #: Wariant z marką konkursu (``*_TEMPLATE`` z ``%(competition)s``) wskazuje ten sam klucz co stała
@@ -237,6 +274,8 @@ SUBJECT_CONSTANTS = {
     "apps.accounts.delegation_services.LEADER_INVITE_SUBJECT_TEMPLATE": "delegation_leader_invitation",
     "apps.accounts.delegation_services.STUDENT_INVITE_SUBJECT_TEMPLATE": "delegation_student_invitation",
     "apps.accounts.delegation_services.UNLINKED_SUBJECT_TEMPLATE": "delegation_student_unlinked",
+    "apps.delegation_logistics.reports.REMINDER_SUBJECT_TEMPLATE": "final_logistics_reminder",
+    "apps.delegation_logistics.letter_requests.LETTER_DECISION_SUBJECT_TEMPLATE": "final_letter_decision",
     "apps.accounts.guardian.GUARDIAN_SUBJECT": "guardian",
     "apps.accounts.guardian.GUARDIAN_SUBJECT_TEMPLATE": "guardian",
     "apps.accounts.guardian.GUARDIAN_CONFIRMED_SUBJECT": "guardian_confirmed",
@@ -245,7 +284,16 @@ SUBJECT_CONSTANTS = {
     "apps.accounts.supervisor_consent.SUPERVISOR_CONSENT_SUBJECT": "supervisor_consent",
     "apps.accounts.supervisor_consent.SUPERVISOR_CONSENT_SUBJECT_TEMPLATE": "supervisor_consent",
     "apps.accounts.services.INVITATION_SUBJECT_TEMPLATE": "invitation",
+    "apps.alumni.notifications.SUBJECT_REQUESTED": "alumni_requested",
+    "apps.alumni.notifications.SUBJECT_ACCEPTED": "alumni_accepted",
+    "apps.alumni.notifications.SUBJECT_DECLINED": "alumni_declined",
+    "apps.alumni.notifications.SUBJECT_ENDED": "alumni_ended",
+    "apps.alumni.notifications.SUBJECT_FLAG": "alumni_flag",
     "apps.chat.notifications.SUBJECT": "chat_message",
+    "apps.password_change.notifications.PASSWORD_CHANGED_SUBJECT": "password_changed",
+    "apps.password_change.notifications.PASSWORD_CHANGED_SUBJECT_TEMPLATE": "password_changed",
+    "apps.payments.notifications.RECEIPT_SUBJECT": "payment_receipt",
+    "apps.payments.notifications.REFUND_SUBJECT": "payment_refund",
     "apps.chat.notifications.SUBJECT_TEMPLATE": "chat_message",
     "apps.forum.notifications.SUBJECT_MODERATION": "forum_moderation",
     "apps.forum.notifications.SUBJECT_REPLY": "forum_reply",
@@ -277,6 +325,10 @@ SUBJECT_CONSTANTS = {
     "apps.support.services.TICKET_OPENED_SUBJECT_TEMPLATE": "support_opened",
     "apps.support.services.TICKET_ANSWERED_SUBJECT": "support_answered",
     "apps.support.services.TICKET_ANSWERED_SUBJECT_TEMPLATE": "support_answered",
+    "apps.webinars.notifications.INVITE_SUBJECT": "webinar_invite",
+    "apps.webinars.notifications.INVITE_SUBJECT_TEMPLATE": "webinar_invite",
+    "apps.webinars.notifications.REMINDER_SUBJECT": "webinar_reminder",
+    "apps.webinars.notifications.REMINDER_SUBJECT_TEMPLATE": "webinar_reminder",
 }
 
 #: Stałe z ``SUBJECT`` w nazwie, które **nie są** tematem wychodzącego listu – każda z powodem.

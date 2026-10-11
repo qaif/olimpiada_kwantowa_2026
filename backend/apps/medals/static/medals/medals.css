@@ -1,0 +1,91 @@
+/* =================================================================================================
+   Medale (MED-01) – odznaki złota, srebra, brązu i wyróżnienia.
+
+   Jedyna rzecz, której system odznak (``.badge`` w app.css) nie ma: kolory **kruszców**. Ok/warn/info
+   znaczą stan („gotowe”, „uwaga”), a medal stanem nie jest – złota odznaka w kolorze ostrzeżenia
+   czytałaby się jak błąd. Kolory są tokenami tego pliku, z wariantem ciemnym i wysokiego kontrastu;
+   tekst zawsze z kontrastem ≥ 4,5:1 do tła odznaki, a nazwa nagrody stoi słowem, nie samym kolorem.
+   ============================================================================================== */
+
+:root {
+  --medal-gold-soft: #fbefc4;
+  --medal-gold-ink: #5c4300;
+  --medal-gold: #c9a227;
+  --medal-silver-soft: #eceff3;
+  --medal-silver-ink: #39424e;
+  --medal-silver: #9aa4b1;
+  --medal-bronze-soft: #f6dfcc;
+  --medal-bronze-ink: #5e3412;
+  --medal-bronze: #b0703a;
+  --medal-hm-soft: #e3eefb;
+  --medal-hm-ink: #173f6d;
+  --medal-hm: #5b8fd0;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --medal-gold-soft: #3d3210;
+    --medal-gold-ink: #f6dc85;
+    --medal-silver-soft: #2c323b;
+    --medal-silver-ink: #dde3ea;
+    --medal-bronze-soft: #3b2616;
+    --medal-bronze-ink: #f0c29b;
+    --medal-hm-soft: #18293f;
+    --medal-hm-ink: #b9d3f3;
+  }
+}
+
+:root[data-theme="dark"] {
+  --medal-gold-soft: #3d3210;
+  --medal-gold-ink: #f6dc85;
+  --medal-silver-soft: #2c323b;
+  --medal-silver-ink: #dde3ea;
+  --medal-bronze-soft: #3b2616;
+  --medal-bronze-ink: #f0c29b;
+  --medal-hm-soft: #18293f;
+  --medal-hm-ink: #b9d3f3;
+}
+
+.medal--gold {
+  background: var(--medal-gold-soft);
+  color: var(--medal-gold-ink);
+  border-color: var(--medal-gold);
+}
+
+.medal--silver {
+  background: var(--medal-silver-soft);
+  color: var(--medal-silver-ink);
+  border-color: var(--medal-silver);
+}
+
+.medal--bronze {
+  background: var(--medal-bronze-soft);
+  color: var(--medal-bronze-ink);
+  border-color: var(--medal-bronze);
+}
+
+.medal--hm {
+  background: var(--medal-hm-soft);
+  color: var(--medal-hm-ink);
+  border-color: var(--medal-hm);
+}
+
+/* Wysoki kontrast: odznaka bez tła, z grubą ramką – kolor kruszcu zostaje tylko na ramce. */
+:root[data-contrast="high"] .medal {
+  background: transparent;
+  color: var(--ink);
+  border-width: 2px;
+}
+
+/* Filtr kraju na stronie medali: etykieta, lista i przycisk w jednym wierszu, łamane na telefonie. */
+.medal-filter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--sp-2, 0.5rem);
+  margin: 0 0 var(--sp-3, 1rem);
+}
+
+.medal-filter label {
+  display: block;
+}

@@ -69,6 +69,10 @@ from apps.competitions.scoring import stage_free_values
 from apps.competitions.services import EDITION_EDITABLE_FIELDS, STAGE_EDITABLE_FIELDS
 from apps.competitions.video import DEFAULT_VIDEO_BASE_URL, VideoProvider
 from apps.core.api import DomainError
+from apps.email_delivery.fields import (  # MAIL-02: literówki i martwe domeny
+    CheckedEmailField,
+    EmailDomainCheckMixin,
+)
 from apps.grading.rubric import criteria_for, format_criteria_lines, parse_criteria_lines
 from apps.grading.snippets import format_snippet_lines, parse_snippet_lines, problem_snippets
 from apps.results.models import Anonymization
@@ -877,7 +881,7 @@ PARTICIPANT_FIELD_ORDER = (
 )
 
 
-class ParticipantRegisterForm(CaptchaFormMixin, ConsentFieldsMixin, SchoolChoiceMixin):
+class ParticipantRegisterForm(EmailDomainCheckMixin, CaptchaFormMixin, ConsentFieldsMixin, SchoolChoiceMixin):
     """Rejestracja otwarta uczestnika – dane wchodzą prosto do ``register_participant``.
 
     ``CaptchaFormMixin`` stoi pierwszy: dokłada CAPTCHĘ i pułapki antyspamowe na koniec formularza
@@ -888,7 +892,7 @@ class ParticipantRegisterForm(CaptchaFormMixin, ConsentFieldsMixin, SchoolChoice
     required_css_class = REQUIRED_CSS_CLASS
     field_order = [name for name in PARTICIPANT_FIELD_ORDER]
 
-    email = forms.EmailField(label=gettext_lazy("Adres e-mail"), max_length=254)
+    email = CheckedEmailField(label=gettext_lazy("Adres e-mail"), max_length=254)
     password = password_field()
     password2 = password_field(gettext_lazy("Powtórz hasło"))
     first_name = forms.CharField(
@@ -941,7 +945,7 @@ class SocialParticipantSignupForm(ConsentFieldsMixin, SchoolChoiceMixin):
     clean_birth_date = _clean_birth_date_method
 
 
-class CommitteeRegisterForm(CaptchaFormMixin):
+class CommitteeRegisterForm(EmailDomainCheckMixin, CaptchaFormMixin):
     """Rejestracja członka komitetu na kod zaproszenia.
 
     CAPTCHA jest tu także po to, żeby kodu zaproszenia nie dało się zgadywać maszynowo – limit
@@ -959,7 +963,7 @@ class CommitteeRegisterForm(CaptchaFormMixin):
         "district",
     ]
 
-    email = forms.EmailField(label=gettext_lazy("Adres e-mail"), max_length=254)
+    email = CheckedEmailField(label=gettext_lazy("Adres e-mail"), max_length=254)
     password = password_field()
     password2 = password_field(gettext_lazy("Powtórz hasło"))
     first_name = forms.CharField(
@@ -1125,17 +1129,23 @@ class AccountNamesForm(forms.Form):
     )
 
 
-class EmailChangeForm(forms.Form):
+class EmailChangeForm(EmailDomainCheckMixin, forms.Form):
     """Wniosek o zmianę adresu e-mail konta. Adres zmienia się dopiero po kliknięciu w potwierdzenie.
 
-    Potwierdzenie tożsamości (audyt 10.10.2026, S11) jest takie samo jak przy usuwaniu konta: konto
-    hasłowe podaje **bieżące hasło**, konto bez hasła (Google/Facebook) – przepisuje obecny adres.
-    Formularz dostaje konto (``user``) i zostawia wyłącznie to pole, które tego konta dotyczy;
-    rozstrzyga i tak serwis (``accounts.profile.verify_account_credentials``), więc formularz bez
-    konta (``user=None``) zostawia oba pola nieobowiązkowe, a serwis odmówi pustemu.
+    ``current_password`` (AUTH-01b, przegląd H1): adres jest loginem i drogą resetu hasła, więc jego
+    przeniesienie z przejętej sesji byłoby przejęciem konta. Pole nie jest wymagane **w formularzu**
+    – o tym, że hasło jest potrzebne (i że konto bez hasła musi je najpierw ustawić), rozstrzyga
+    serwis (``apps.accounts.reauth``), jak przy usunięciu konta.
     """
 
-    new_email = forms.EmailField(
+    current_password = forms.CharField(
+        label=gettext_lazy("Aktualne hasło"),
+        required=False,
+        strip=False,
+        max_length=200,
+        widget=forms.PasswordInput(attrs={"autocomplete": "current-password"}),
+    )
+    new_email = CheckedEmailField(
         label=gettext_lazy("Nowy adres e-mail"),
         max_length=254,
         help_text=gettext_lazy(
@@ -1143,29 +1153,6 @@ class EmailChangeForm(forms.Form):
             "dotychczasowym adresem."
         ),
     )
-    password = forms.CharField(
-        label=gettext_lazy("Aktualne hasło"),
-        required=False,
-        widget=forms.PasswordInput(attrs={"autocomplete": "current-password"}),
-        max_length=200,
-    )
-    current_email = forms.CharField(
-        label=gettext_lazy("Obecny adres e-mail konta"),
-        required=False,
-        max_length=254,
-        help_text=gettext_lazy("Twoje konto nie ma hasła – przepisz obecny adres, żeby potwierdzić zmianę."),
-    )
-
-    def __init__(self, *args, user=None, **kwargs):
-        super().__init__(*args, **kwargs)
-        if user is None:
-            return
-        if user.has_usable_password():
-            self.fields.pop("current_email")
-            self.fields["password"].required = True
-        else:
-            self.fields.pop("password")
-            self.fields["current_email"].required = True
 
 
 class ActivationResendForm(forms.Form):
@@ -1365,7 +1352,7 @@ class VerifyDistrictForm(forms.Form):
 # nie zderzają, a widok przekazuje do serwisu trzy osobne słowniki.
 
 
-class CoordinatorAccountForm(forms.Form):
+class CoordinatorAccountForm(EmailDomainCheckMixin, forms.Form):
     """Dane samego konta zmieniane przez koordynatora: nazwisko, adres e-mail, blokada logowania.
 
     Imię i nazwisko są **nieobowiązkowe**, choć rejestracja ich wymaga: konta zakładane komendą
@@ -1382,7 +1369,7 @@ class CoordinatorAccountForm(forms.Form):
 
     first_name = forms.CharField(label="Imię", max_length=150, required=False)
     last_name = forms.CharField(label="Nazwisko", max_length=150, required=False)
-    email = forms.EmailField(
+    email = CheckedEmailField(
         label="Adres e-mail",
         max_length=254,
         help_text=(
@@ -1751,11 +1738,46 @@ def _relax_video_fields(form: forms.ModelForm) -> None:
     for name in ("video_provider", "video_base_url"):
         if name in form.fields:
             form.fields[name].required = False
+    _livekit_choice_only_when_available(form)
+
+
+def _livekit_choice_only_when_available(form: forms.ModelForm) -> None:
+    """Opcja „LiveKit” (STAGE-LK-01) tylko przy skonfigurowanym serwerze LiveKit – albo gdy etap już
+    ją ma. Instalacja bez LiveKit widzi listę dostawców co do opcji taką, jak przed tą zmianą."""
+    from apps.webinars import livekit
+
+    field = form.fields.get("video_provider")
+    if field is None or livekit.configured():
+        return
+    current = getattr(getattr(form, "instance", None), "video_provider", "")
+    if current == VideoProvider.LIVEKIT:
+        return
+    field.choices = [choice for choice in field.choices if choice[0] != VideoProvider.LIVEKIT]
 
 
 def _clean_video_provider(form: forms.ModelForm) -> str:
     """Puste pole dostawcy znaczy „bez wideo”, a nie pustą wartość w kolumnie z zamkniętą listą."""
-    return form.cleaned_data.get("video_provider") or VideoProvider.NONE
+    value = form.cleaned_data.get("video_provider") or VideoProvider.NONE
+    instance = getattr(form, "instance", None)
+    current = getattr(instance, "video_provider", "") if getattr(instance, "pk", None) else ""
+    if value == VideoProvider.LIVEKIT and current != VideoProvider.LIVEKIT:
+        from apps.webinars import livekit
+
+        if not livekit.configured():
+            raise forms.ValidationError(
+                "Serwer LiveKit nie jest skonfigurowany – wybierz Jitsi albo poproś operatora platformy."
+            )
+    if current == VideoProvider.LIVEKIT and value != VideoProvider.LIVEKIT:
+        # Nadzór zdalny rozmowy działa wyłącznie w LiveKit (PROC-01, STAGE-LK-01 – przegląd M-2): zmiana
+        # dostawcy po cichu zostawiłaby etap „nadzorowany” bez nadzoru. Najpierw świadome wyłączenie.
+        from apps.proctoring.models import ProctoringConfig
+
+        if ProctoringConfig.objects.filter(stage=instance, enabled=True).exists():
+            raise forms.ValidationError(
+                "Ten etap ma włączony nadzór zdalny, który działa wyłącznie w LiveKit. Najpierw wyłącz "
+                "nadzór (Etapy → Nadzór zdalny), potem zmień dostawcę wideo."
+            )
+    return value
 
 
 def _clean_video_base_url(form: forms.ModelForm) -> str:

@@ -44,8 +44,20 @@ Po rejestracji strona `/register/done/` mówi „sprawdź skrzynkę”. Na podan
 - **listu nie ma?** Zajrzyj do spamu, a potem użyj **„Wyślij link ponownie”** (`/activate/resend/`,
   odnośnik stały na stronie logowania),
 - **literówka w adresie?** Zarejestruj się ponownie po upływie 24 godzin albo napisz do organizatora
-  (`/support/new/`) — on aktywuje konto ręcznie,
+  (`/support/new/`) — on aktywuje konto ręcznie. Formularz łapie większość literówek sam: przy
+  `gmial.com`, `o2.plo` czy `wp.pll` pyta „Czy chodziło Ci o …?” (zaznacz poprawkę albo wyślij formularz
+  jeszcze raz, żeby zostawić adres), a domeny, która nie istnieje, nie przyjmie wcale,
 - konto z logowania przez **Google** jest aktywne od razu (Google potwierdza adres); z Facebooka — nie.
+
+### Baner „Nie możemy dostarczyć poczty na adres …”
+
+Pojawia się po zalogowaniu, gdy serwer Twojej poczty odpowiedział nam, że skrzynka albo domena **nie
+istnieje** (np. konto pocztowe zostało zamknięte). Do czasu poprawki nie wysyłamy Ci powiadomień
+(forum, wiadomości, webinary, komunikaty). Co zrobić:
+
+- **„Zmień adres e-mail”** — wpisz działający adres i potwierdź go linkiem z listu; baner znika,
+- **„Mój adres jest poprawny”** — gdy skrzynka już działa (np. założyłeś ją po rejestracji). Wysyłka
+  wraca; jeśli list znowu nie dotrze, baner wróci.
 
 ### Logowanie, hasło, dane
 
@@ -53,12 +65,21 @@ Po rejestracji strona `/register/done/` mówi „sprawdź skrzynkę”. Na podan
 |---|---|
 | Logowanie | `/login/` |
 | Nie pamiętasz hasła | `/password-reset/` — link z listu jest jednorazowy i ważny 24 h |
+| **Zmiana hasła** (znasz aktualne) | `/account/password/` — kliknij swój adres e-mail w pasku konta → sekcja „Hasło” → „Zmień hasło” |
 | Twoje dane (imię, nazwisko, telefon, województwo, szkoła, klasa, data urodzenia) | `/me/profile/` — przycisk „Edytuj dane” w panelu |
 | **Adres e-mail opiekuna szkolnego** (pole opcjonalne) | `/me/profile/` — dopiero po jego wpisaniu nauczyciel widzi Twój postęp; da się je wyczyścić. Jeśli nauczyciel nie ma jeszcze konta, a organizator włączył tę rejestrację, założy je sam pod `/register/supervisor/` |
-| Zmiana adresu e-mail | `/account/profile/` → `/account/email/` — potwierdzenie idzie na **dotychczasowy** adres |
+| Zmiana adresu e-mail | `/account/profile/` → `/account/email/` — wymaga **aktualnego hasła**; link potwierdzający idzie na **nowy** adres, a dotychczasowy dostaje powiadomienie |
 | Język interfejsu i tryb wysokiego kontrastu | dwie ikony w pasku konta, na każdej stronie |
 | **Pobranie wszystkich swoich danych** (art. 20 RODO) | `/account/export/` — paczka ZIP z `dane.json` i wgranymi plikami, jedna na 10 minut |
 | Usunięcie konta | `/account/delete/` — patrz niżej |
+
+**Zmiana hasła.** Podajesz aktualne hasło i dwa razy nowe (co najmniej 10 znaków, nie popularne, nie
+same cyfry, niepodobne do imienia, nazwiska ani adresu). Na tym urządzeniu zostajesz zalogowany,
+a **wszystkie inne urządzenia i aplikacje są wylogowane**. Na adres konta przychodzi list „Hasło do
+konta zostało zmienione” — jeśli to nie Ty zmieniałeś hasło, od razu ustaw nowe przez „Nie pamiętasz
+hasła?” i napisz do organizatora. Kto loguje się przez Google/Facebooka i nie ma hasła, zobaczy tam
+przycisk **„Wyślij mi link do ustawienia hasła”** — hasło ustawia się dopiero pod linkiem z listu
+(bez hasła nie zmienisz też adresu e-mail). Pięć błędnych haseł z rzędu wylogowuje — zaloguj się ponownie.
 
 **Prośba nauczyciela o dopisanie jako opiekun szkolny** (od v0.38.7). Nauczyciel albo organizator,
 który wgrywa listę uczniów, nie może już sam wpisać się w Twój profil. Jeśli na liście jest adres
@@ -102,12 +123,48 @@ rozdział 8a), **Kalendarz**, **Archiwum**, **Dyplomy**, **Profil**.
 wpisu nie ma ani zadań, ani wysyłki. Do etapów po eliminacjach zapisuje się **wyłącznie osoba
 zakwalifikowana** w poprzednim.
 
+**Wpisowe** (tylko w konkursie, który pobiera opłatę; Olimpiada Kwantowa jest bezpłatna). Kafel
+„Wpisowe” pokazuje kwotę, stan i termin. Przycisk **„Zapłać online”** prowadzi do danych do faktury
+(Twoje imię i nazwisko albo np. szkoła jako nabywca), potem do faktury pro forma i wyboru zapłaty:
+kartą (na stronie operatora płatności – serwis nie widzi danych karty), Przelewy24 albo przelewem
+z kodem referencyjnym w tytule. Po zaksięgowaniu wpłaty dostajesz potwierdzenie e-mailem, a fakturę
+pobierzesz ze strony zamówienia.
+
+### Ekran „Uzupełnij zgody” — `/me/consents/complete/`
+
+Czasem zamiast panelu zobaczysz najpierw ekran **„Uzupełnij zgody”**. Dzieje się tak, gdy brakuje
+którejś **wymaganej** zgody albo gdy organizator **zmienił dokument** (np. regulamin), a Twoja zgoda
+dotyczyła poprzedniej wersji — przy takiej zgodzie ekran pisze, która wersja obowiązuje teraz, a którą
+zaakceptowano wcześniej. Zaznacz oświadczenia (odnośnik w każdym prowadzi do dokumentu) i kliknij
+**„Zapisuję oświadczenia”** — wrócisz tam, dokąd szedłeś.
+
+- Do tego czasu **nie wyślesz rozwiązania, nie rozwiążesz testu, nie napiszesz wiadomości** i nie
+  wejdziesz na forum. **Wyjątek: praca w toku.** Jeśli organizator zmienił dokument albo dołożył
+  wymaganą zgodę w trakcie etapu, w którym już startujesz, rozpoczęty test (także „Zakończ”), wysyłka
+  rozwiązania i reklamacja działają dalej — zobaczysz tylko baner z prośbą o potwierdzenie zgody po
+  skończeniu pracy.
+- Jeśli dokument zmieni się, kiedy ekran zgód jest otwarty, pole wróci puste z prośbą o ponowne
+  przeczytanie — zgoda zawsze dotyczy tej wersji, którą widzisz.
+- **Zawsze działają:** wylogowanie, zmiana hasła, ustawienia konta, **pobranie swoich danych
+  i usunięcie konta**, język i kontrast, edycja profilu, zgłoszenie do organizatora i strony publiczne
+  (także same dokumenty). Jeśli nie zgadzasz się na nową treść — napisz do organizatora albo usuń konto.
+- **Osoba niepełnoletnia** zaznacza też oświadczenie o zgodzie opiekuna (tak jak przy rejestracji),
+  a pod formularzem widzi stan zgody opiekuna online i przycisk **„Wyślij ponownie”** (rozdział 5).
+  Potwierdzenie online od opiekuna nie blokuje panelu — jest potrzebne tylko do nadzoru zdalnego (8d).
+- Zgoda na **publikację nazwiska** jest dobrowolna i nigdy nie zatrzymuje Cię na tym ekranie.
+
 ---
 
 ## 3. Wysyłka rozwiązania
 
 Każde zadanie ma własną kartę: **„Zadanie N: <tytuł>”**, odznakę stanu, termin, dozwolone formaty, limit
 rozmiaru pliku i przycisk **„Treść zadania (PDF)”**.
+
+**Olimpiada międzynarodowa (drużyny krajowe).** Gdy komisja zatwierdziła tłumaczenie zadania na język,
+który przypisał Ci opiekun drużyny, na karcie jest też przycisk **„Treść w języku: …”** (np. „Deutsch”).
+Pojawia się dopiero po starcie etapu; wersja oficjalna („Treść zadania (PDF)”) jest zawsze obok. Gdy w Twoim
+języku nie ma zatwierdzonego tłumaczenia, dostajesz drugi język drużyny (z informacją na stronie), a gdy
+wersja oficjalna zmieniła się po zatwierdzeniu tłumaczenia – ostrzeżenie, żeby sprawdzić wersję oficjalną.
 
 ### Jak wysłać
 
@@ -153,7 +210,59 @@ Listy, które dostajesz: potwierdzenie przyjęcia pliku, informacja o pliku odrz
 ogłoszenie wyników i rozstrzygnięcie reklamacji. **W listach nie ma punktów** — skrzynka pocztowa nie
 jest kanałem zabezpieczonym; wynik jest w serwisie.
 
+### Okna czasowe (olimpiada międzynarodowa)
+
+W etapie zdalnym olimpiady międzynarodowej organizator może rozłożyć etap na kilka **okien czasowych**
+(np. trzy starty w ciągu doby) z tym samym czasem pracy dla wszystkich. Twój kraj ma przydzielone jedno
+okno; na zakładce „Zadania” stoi karta **„Twoje okno czasowe”** ze startem i końcem w Twojej strefie
+czasowej (ustawia ją opiekun drużyny; domyślnie strefa Twojego kraju) i ewentualnym dodatkowym czasem.
+
+- Zadania (karty, PDF) i test online otwierają się **dopiero na starcie Twojego okna**; nagłówek
+  „Co teraz” odlicza do Twojego startu, a potem do Twojego terminu. Po terminie wysyłka jest zamknięta.
+- Do końca **ostatniego** okna wszystkich krajów nie rozmawiaj o zadaniach – także poza serwisem. Forum
+  i wiadomości są wtedy w premoderacji, a wyniki pojawią się dopiero po zakończeniu wszystkich okien.
+- Godziny w całym panelu (także w kalendarzu) są w Twojej strefie – obok godziny stoi nazwa strefy.
+
 ---
+
+### 3a. Notatnik w przeglądarce (zadania z obliczeń kwantowych)
+
+Przy niektórych zadaniach karta ma blok **„Notatnik w przeglądarce”** i przycisk **„Otwórz notatnik”**.
+Otwiera się notatnik Jupytera (JupyterLite) – Python działa w Twojej przeglądarce, **niczego nie
+instalujesz**; wystarczy aktualny Chrome, Edge, Firefox albo Safari.
+
+1. **Otwórz notatnik.** Strona zadania ma instrukcję i odnośnik, który otwiera JupyterLab
+   w **nowej karcie**. Pierwsze otwarcie pobiera ok. 15–20 MB (napis przy przycisku podaje
+   dokładniej), kolejne korzystają z pamięci przeglądarki. Po wczytaniu notatnik działa bez sieci.
+   Laboratorium może działać pod **osobnym adresem** (np. `lab.olimpiadakwantowa.pl`) – to
+   zamierzone: kod z notatnika nie ma tam dostępu do Twojego konta. Nie musisz się tam logować.
+2. **Pisz i uruchamiaj kod** – Shift+Enter uruchamia komórkę. Pisz jak w Qiskicie:
+   `from qiskit import QuantumCircuit`, `from qiskit.quantum_info import Statevector`. To zgodny
+   **podzbiór** Qiskita (symulator do 20 kubitów, bez sprzętu IBM, szumu i wykresów matplotlib –
+   wykresy są tekstowe); ten sam kod uruchomisz też w prawdziwym Qiskicie na swoim komputerze.
+3. **Testy przykładowe** – ostatnia komórka sprawdza rozwiązanie na przykładach i wypisuje
+   ✔/✘ z punktami. To tylko podpowiedź: ocenę liczą **testy ukryte** na serwerze (i ostatecznie komisja).
+4. **Oddaj pracę:** w JupyterLab *File → Download*, potem wyślij pobrany plik `.ipynb` zwykłym
+   formularzem w karcie zadania (§ 3). Liczy się ostatnia wysłana wersja.
+
+Dobrze wiedzieć:
+
+- praca zapisuje się **w tej przeglądarce**, nie na serwerze – na wspólnym komputerze (pracownia
+  szkolna) pobierz plik przed wyjściem; po wyczyszczeniu danych przeglądarki notatnik wraca do
+  startowego,
+- przy ponownym otwarciu JupyterLab pyta, czy nadpisać plik – **„Cancel”** zostawia Twoją pracę,
+  „Overwrite” przywraca notatnik startowy,
+- jeśli zamiast uruchomionego Pythona pojawi się okno „Select Kernel” z samym „No Kernel” (zdarza
+  się, gdy notatnik wczytywał się w karcie w tle), zamknij je i wybierz *Kernel → Change Kernel… →
+  Python (Pyodide)* albo odśwież kartę,
+- serwer wykonuje komórki po kolei, a błąd w jednej nie przerywa kolejnych; magie (`%pip`, `!ls`) są
+  pomijane, sieci i plików spoza notatnika nie ma,
+- wynik testów ukrytych widzisz w karcie zadania tylko wtedy, gdy organizator tak ustawił (zwykle
+  po zamknięciu etapu albo wcale – punkty i tak wystawia komisja),
+- **nie wklejaj do notatnika kodu od innych osób** („wklej, a zobaczysz rozwiązanie”) – wykonuje się
+  w Twojej przeglądarce, na Twoim koncie,
+- konto, które ma w serwisie jakąkolwiek rolę organizatora, recenzenta czy opiekuna, zamiast
+  notatnika widzi tylko jego podgląd – do rozwiązywania zadań potrzebne jest zwykłe konto uczestnika.
 
 ## 4. Rozmowa kwalifikacyjna (gdy etap ma taką formę)
 
@@ -182,6 +291,12 @@ przepustkę na Twój pokój. Sam adres pokoju nie zadziała — nie da się go p
 przesłać dalej. Listy (potwierdzenie i przypomnienie) prowadzą do tych przycisków w panelu. W pokoju
 widać Cię jako imię i inicjał nazwiska. Gdy połączenie się zerwie po dłuższej przerwie, wróć do panelu
 i kliknij „Dołącz do rozmowy” jeszcze raz.
+
+**Rozmowa w pokoju na platformie (LiveKit).** Organizator może prowadzić rozmowy w pokoju na stronie
+olimpiady zamiast na Jitsi – przyciski i zasady są te same („Dołącz do rozmowy”, „Sprawdź kamerę
+i mikrofon”), tylko pokój otwiera się na naszej stronie. Jeśli rozmowa jest **nadzorowana zdalnie**,
+w panelu zobaczysz kartę „Nadzór zdalny”: przed rozmową wyraź zgodę i sprawdź sprzęt w konsoli nadzoru
+(§ 8d), inaczej pokój rozmowy się nie otworzy.
 
 ---
 
@@ -271,6 +386,11 @@ tak samo w panelu i w API aplikacji).
 
 Dokument pobiera się w PDF-ie; strona weryfikacyjna **nie pokazuje imienia i nazwiska**, dopóki nie
 wyraziłeś zgody na publikację pełnych danych.
+
+**Olimpiada międzynarodowa (medale).** W konkursie z medalami (`iqo`) w „Dyplomach” znajdziesz dyplom
+medalowy (złoty, srebrny, brązowy medal albo wyróżnienie) i zaświadczenie o udziale **w języku, który
+wybrałeś w ustawieniach konta** — język jest zapisywany w chwili wystawienia dokumentu. Medale i ranking
+krajów są pod odnośnikami „Medale” i „Ranking krajów” na stronie wyników etapu.
 
 ### Materiały z warsztatów — `/warsztaty/materialy/`
 
@@ -399,6 +519,104 @@ tym hasłem; „Zablokuj wiadomości” i wylogowanie usuwają odblokowany klucz
 znamy i nie przypomnimy** — „Utwórz nowy klucz” oznacza, że starych wiadomości szyfrowanych już nie
 odczytasz (druga strona zobaczy informację o zmianie klucza; odciski kluczy porównacie w „Szczegółach
 szyfrowania”). Jeśli zgłosisz wiadomość szyfrowaną, jej odszyfrowana treść trafi do organizatora.
+
+**Ogłoszenia organizatora.** Nad listą rozmów (i na pulpicie `/me/`, pod „Co teraz”) organizator może
+umieścić ogłoszenie dla wszystkich uczestników — np. link do warsztatów online. To nie jest rozmowa:
+nie przychodzi e-mailem i nie odpowiada się na nie; pytanie zadasz w „Napisz do organizatora”.
+Ogłoszenie znika, gdy organizator je wyłączy albo minie jego termin.
+
+## 8b. Webinary — `/webinars/`
+
+Gdy organizator prowadzi webinary (wykłady, konsultacje, omówienia zadań), w pasku panelu `/me/` jest
+pozycja **„Webinary”**. Na tej stronie widzisz webinary przeznaczone dla Ciebie – z datą w strefie
+konkursu (i w Twojej strefie, jeśli jest inna).
+
+- **„Dołącz”** działa od ok. 15 minut przed początkiem, gdy prowadzący rozpocznie webinar. Pokój otwiera
+  się w nowej karcie, na stronie olimpiady – nic nie instalujesz. Najlepiej Chrome, Edge albo Firefox.
+- Wchodzisz jako **widz**: widzisz i słyszysz prowadzących, piszesz na czacie. Chcesz zadać pytanie
+  głosem? **„Podnieś rękę”** – gdy prowadzący da Ci głos, włączysz mikrofon (i kamerę).
+- W pokoju widać Twoje **imię i pierwszą literę nazwiska**. Webinar może być nagrywany – jeśli trwa
+  nagrywanie, pokój o tym informuje.
+- **Nagrania** opublikowane przez organizatora są na tej samej stronie („Odtwórz nagranie”).
+- **Listy**: zaproszenie i przypomnienie o webinarze – możesz je wyłączyć na dole strony
+  („Wyłącz listy o webinarach”).
+
+---
+
+## 8c. Absolwenci i mentoring — `/me/alumni/`
+
+Pojawia się w pasku konta, gdy organizator włączył sieć absolwentów.
+
+- **Dołączenie** jest dobrowolne i wymaga osobnej zgody. Mogą dołączyć osoby **pełnoletnie** z
+  osiągnięciem w zakończonej edycji (próg ustala organizator). Osiągnięcia biorą się z ogłoszonych
+  wyników – nie wpisuje się ich samemu.
+- **Profil:** wszystkie pola są opcjonalne. Inni zalogowani uczestnicy widzą „Imię N.” (pełne imię
+  i nazwisko tylko, jeśli to zaznaczysz i masz w konkursie zgodę na publikację nazwiska), uczelnię,
+  kierunek, miasto, kraj, opis, zainteresowania i odnośniki LinkedIn/GitHub. Nigdy adres e-mail,
+  szkołę ani kod uczestnika. Na publicznej ścianie `/alumni/` jesteś tylko wtedy, gdy to zaznaczysz
+  – i widać tam wyłącznie podpis, osiągnięcia, uczelnię i kierunek.
+- **Wycofanie zgody** usuwa profil od razu; relacje, w których jesteś mentorem, się kończą. Działa także
+  wtedy, gdy organizator wyłączył sieć absolwentów (`/me/alumni/` pokazuje wtedy tylko ten przycisk).
+- **Zmiana treści zgody:** gdy organizator zmieni treść zgody, profil jest niewidoczny, dopóki nie
+  potwierdzisz nowej treści na `/me/alumni/`.
+- **Mentoring:** uczestnik bieżącej edycji wybiera w katalogu `/me/alumni/directory/` mentora z
+  wolnym miejscem i wysyła prośbę z krótką notatką (bez danych kontaktowych – przeczyta ją mentor
+  i organizator; jeśli jesteś niepełnoletni, mentor przeczyta ją dopiero po akceptacji organizatora).
+  Jeśli jesteś niepełnoletni, opis mentora zobaczysz dopiero po akceptacji organizatora. Prośby są
+  ograniczone (najwyżej 5 dziennie i 2 tygodniowo do tej samej osoby). Po akceptacji rozmowa otwiera się w **Wiadomościach**. Jeśli jesteś
+  niepełnoletni, organizator czyta wiadomości tej rozmowy – zależnie od zasad konkursu przed
+  doręczeniem albo po nim. Każda strona może zakończyć relację albo **zgłosić problem**
+  organizatorowi (zgłoszenie trafia do niego od razu); pojedynczą wiadomość zgłaszasz w Wiadomościach.
+- **Zaproszenia** od organizatora (warsztaty, webinary, jury) przychodzą e-mailem; wyłączysz je w
+  profilu albo odnośnikiem wypisu w każdym liście.
+
+---
+
+## 8d. Nadzór zdalny etapu online — `/me/proctoring/<etap>/`
+
+Niektóre etapy online organizator może prowadzić **z nadzorem zdalnym**. Wtedy na stronie etapu widzisz
+kartę „Nadzór zdalny”, a treść zadań (PDF), wysyłka rozwiązań i start testu otwierają się dopiero po
+włączeniu nadzoru w **konsoli nadzoru**:
+
+1. **Informacja i zgoda** – przeczytaj, kto widzi obraz z Twojej kamery, czy jest nagrywany i jak długo
+   przechowujemy dane, i zaznacz zgodę. Jeśli masz mniej niż 18 lat, najpierw Twój rodzic lub opiekun
+   prawny musi potwierdzić online zgodę na Twój udział (zakładka „Zgody” → „Poproś opiekuna o zgodę”).
+2. **Sprawdzenie sprzętu** – kamera (i mikrofon albo udostępnienie ekranu, jeśli etap tego wymaga).
+   Najlepiej aktualny Chrome, Edge, Firefox albo Safari.
+3. **Zdjęcie dokumentu** – tylko jeśli etap tego wymaga: legitymacja szkolna przed kamerą (zasłoń PESEL
+   i adres).
+4. **„Włącz nadzór”** – kamera nadaje mały obraz (bez dźwięku, chyba że etap go wymaga). Gdy serwer
+   potwierdzi nadawanie, kliknij „Przejdź do etapu” – etap otworzy się w **nowej karcie**. **Kartę konsoli
+   zostaw otwartą do końca etapu.** Jeśli połączenie się zerwie, zobaczysz czerwony komunikat w konsoli
+   i pasek na stronie etapu; konsola łączy się ponownie sama.
+
+Osoba nadzorująca może napisać do Ciebie albo poprosić o pokazanie pokoju lub dokumentu – wiadomość
+pojawi się w konsoli; kliknij „Rozumiem”. Nie ma automatycznej analizy obrazu ani śledzenia tego, co
+robisz w przeglądarce. **Nie masz kamery albo nie chcesz jej używać?** Na dole konsoli: „Poproś o inną
+formę nadzoru” – organizator odpowie w tej samej konsoli. Zgodę możesz wycofać przyciskiem w konsoli.
+
+---
+
+## 8e. Przegląd tłumaczeń — `/translations/` (dla tłumaczy-wolontariuszy)
+
+Ten rozdział jest dla osób, którym organizator nadał rolę **tłumacza** (np. kierownik delegacji).
+Napisy serwisu są tłumaczone maszynowo z polskiego; Ty sprawdzasz je w swoim języku.
+
+1. **Lista napisów** — `/translations/` → swój język. Każdy wiersz: tekst źródłowy (polski), wersja
+   angielska (odniesienie), obecne tłumaczenie i stan: *maszynowe*, *przejrzane*, *brak*. Filtr
+   „Pokaż” i wyszukiwanie po dowolnym z tych tekstów.
+2. **Napis** — kliknij, żeby zobaczyć kontekst (gdzie w serwisie występuje, uwagi dla tłumacza) i:
+   - **zaproponować poprawkę** – zmienne w nawiasach (np. `%(name)s`, `{name}`) i znaczniki HTML
+     przepisz dokładnie; zamiast prostych cudzysłowów `"` użyj typograficznych („…”, «…», “…”),
+     prosty apostrof zamieni się na ’ sam,
+   - **poprzeć** cudzą propozycję („Popieram”) – recenzent widzi liczbę głosów,
+   - jako **recenzent**: „Zatwierdź”, „Odrzuć”, „Obecne tłumaczenie jest poprawne” albo „Przywróć
+     tłumaczenie z katalogu”. Zatwierdzona poprawka jest w serwisie po kilku sekundach.
+3. **Zgłoś tłumaczenie** — odnośnik w stopce każdej strony w Twoim języku. Wpisz fragment źle
+   przetłumaczonego tekstu i jak powinien brzmieć; zapisujemy samą ścieżkę strony (bez parametrów
+   adresu). Zgłoszenia czyta recenzent tłumaczeń Twojego języka.
+
+Inni tłumacze nie widzą, kto zaproponował poprawkę ani kto zgłosił błąd.
 
 ---
 

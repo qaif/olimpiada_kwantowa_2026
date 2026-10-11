@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+{% load i18n static tz %}
+{% comment %}
+  Konsola nadzoru ucznia (zadanie PROC-01, ``ProctoringConsoleView``). Kroki liczy serwer
+  (``services.step``): informacja i zgoda → sprawdzenie sprzętu → zdjęcie dokumentu → start → nadzór.
+  Sprawdzenie, zdjęcie i nadawanie robi ``static/js/proctoring-console.js`` na SDK ``livekit-client``
+  z ``static/vendor/`` (bez CDN); token pobiera POST-em – w HTML-u nie ma poświadczeń. Napisy dla JS
+  w ``json_script`` (dane, nie kod). Bez JS: zgoda i prośba o alternatywę działają (zwykłe formularze),
+  a zdanie mówi, że nadzór wymaga JavaScriptu.
+{% endcomment %}
+{% block title %}{% translate "Konsola nadzoru" %} – {{ stage.display_name }}{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/proctoring.css' %}">{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow">{% translate "Nadzór zdalny" %}</span>
+  <h1>{{ stage.display_name }}</h1>
+  <p class="lead">
+    {% translate "Etap:" %}
+    <time datetime="{{ opens_at|utc|date:'c' }}">{{ opens_at|date:"d.m.Y, H:i" }}</time> –
+    <time datetime="{{ closes_at|utc|date:'c' }}">{{ closes_at|date:"d.m.Y, H:i" }}</time>.
+    {% translate "Nadzór możesz włączyć od:" %} <time datetime="{{ start_from|utc|date:'c' }}">{{ start_from|date:"d.m.Y, H:i" }}</time>.
+  </p>
+</div>
+
+<div class="pc" id="proctoring-console"
+     data-step="{{ step }}"
+     data-token-url="{% url 'web:proctoring-student-token' stage.pk %}"
+     data-action-url="{% url 'web:proctoring-student-action' stage.pk 'ACTION' %}"
+     data-messages-url="{% url 'web:proctoring-student-messages' stage.pk %}"
+     data-stage-id="{{ stage.pk }}"
+     data-screen="{% if config.require_screen_share %}1{% else %}0{% endif %}"
+     data-microphone="{% if config.require_microphone %}1{% else %}0{% endif %}"
+     data-allow-unproctored="{% if allow_unproctored %}1{% else %}0{% endif %}">
+  {% csrf_token %}
+  <noscript><p class="alert alert--warning">{% translate "Nadzór zdalny wymaga włączonego JavaScriptu." %}</p></noscript>
+  {% if not sdk_url %}
+    <p class="alert alert--warning" role="alert">{% translate "Nadzór jest chwilowo niedostępny – brakuje komponentu wideo na serwerze. Daj znać organizatorowi." %}</p>
+  {% endif %}
+
+  {% if session.alternative_approved %}
+    <section class="card pc__done" aria-labelledby="pc-alt">
+      <h2 class="mt-0" id="pc-alt">{% translate "Organizator zatwierdził inną formę nadzoru" %}</h2>
+      {% if session.alternative_decision %}<p>{{ session.alternative_decision }}</p>{% endif %}
+      <p><a class="btn btn--primary" href="{{ stage_url }}" target="_blank" rel="noopener">{% translate "Przejdź do etapu" %}</a></p>
+    </section>
+  {% endif %}
+
+  {# --- 1. informacja i zgoda --------------------------------------------------------------- #}
+  <section class="card" aria-labelledby="pc-info">
+    <h2 class="mt-0" id="pc-info">{% translate "1. Informacja o nadzorze i zgoda" %}</h2>
+    <ul class="pc__facts">
+      <li>{% translate "W czasie etapu obraz z Twojej kamery (mała rozdzielczość) widzą na żywo osoby nadzorujące wskazane przez organizatora: koordynatorzy i członkowie komisji, a w olimpiadzie międzynarodowej także opiekun Twojej drużyny narodowej – wyłącznie uczniów swojej drużyny." %}</li>
+      {% if config.require_screen_share %}<li>{% translate "Etap wymaga udostępnienia całego ekranu – osoby nadzorujące mogą go zobaczyć." %}</li>{% endif %}
+      {% if config.require_microphone %}<li>{% translate "Etap wymaga włączonego mikrofonu – osoby nadzorujące mogą Cię słyszeć." %}</li>{% endif %}
+      {% if id_photo_enabled %}<li>{% translate "Przed startem zrobisz kamerą zdjęcie dokumentu tożsamości (legitymacji szkolnej). Zasłoń numer PESEL i adres – wystarczy imię, nazwisko i zdjęcie." %}</li>{% endif %}
+      {% if config.record %}
+        <li class="pc__record"><strong>{% translate "Obraz z kamery jest nagrywany." %}</strong>
+          {% blocktranslate trimmed with days=retention_days %}Nagranie widzą wyłącznie koordynator i komisja odwoławcza (każde odtworzenie jest zapisywane). Usuwamy je {{ days }} dni po ogłoszeniu wyników i zamknięciu okna reklamacji, chyba że trwa wyjaśnianie Twojej sprawy.{% endblocktranslate %}</li>
+      {% else %}
+        <li>{% translate "Obraz nie jest nagrywany – osoby nadzorujące widzą go tylko na żywo." %}</li>
+      {% endif %}
+      <li>{% translate "Nie stosujemy automatycznej analizy obrazu ani śledzenia tego, co robisz w przeglądarce. Decyzje podejmują ludzie." %}</li>
+      <li>{% blocktranslate trimmed with days=retention_days %}Zapisujemy czasy połączeń, wiadomości od osób nadzorujących i ich notatki o incydentach. Dziennik połączeń i wiadomości usuwamy {{ days }} dni po ogłoszeniu wyników; notatki o incydentach zostają w dokumentacji zawodów (odwołania).{% endblocktranslate %}</li>
+      <li>{% translate "Zgodę możesz wycofać w każdej chwili. Jeśli nie możesz albo nie chcesz używać kamery, poproś organizatora o inną formę nadzoru (na dole strony)." %}</li>
+    </ul>
+    {% if config.instructions %}<p class="pc__instructions">{{ config.instructions|linebreaksbr }}</p>{% endif %}
+    <p class="hint">{% translate "Szczegóły przetwarzania danych: polityka prywatności organizatora (sekcja „Nadzór zdalny”)." %}</p>
+
+    {% if consent %}
+      <p class="pc__ok">✓ {% blocktranslate trimmed with when=consent.given_at|date:"d.m.Y, H:i" version=consent.version %}Zgoda wyrażona {{ when }} (wersja {{ version }}).{% endblocktranslate %}</p>
+      <form method="post" action="{% url 'web:proctoring-consent' stage.pk %}">
+        {% csrf_token %}<input type="hidden" name="withdraw" value="1">
+        <button type="submit" class="btn btn--secondary btn--small">{% translate "Wycofaj zgodę" %}</button>
+      </form>
+    {% elif guardian_missing %}
+      <div class="alert alert--warning" role="status">
+        <p>{% translate "Jesteś osobą niepełnoletnią: zanim wyrazisz zgodę, Twój rodzic lub opiekun prawny musi potwierdzić online swoją zgodę na Twój udział." %}</p>
+        <p><a class="btn btn--secondary btn--small" href="{% url 'web:me' %}?tab=zgody">{% translate "Poproś opiekuna o zgodę" %}</a></p>
+      </div>
+    {% else %}
+      <form method="post" action="{% url 'web:proctoring-consent' stage.pk %}" class="form">
+        {% csrf_token %}
+        <p><label><input type="checkbox" name="consent" value="1" required> {{ consent_statement }}</label></p>
+        {% if guardian_required %}
+          <p><label><input type="checkbox" name="guardian_statement" value="1" required> {{ guardian_statement }}</label></p>
+          <p class="hint">{% translate "Zgoda Twojego opiekuna prawnego została potwierdzona online." %}</p>
+        {% endif %}
+        <p class="hint">{% blocktranslate trimmed with version=consent_version %}Wersja informacji: {{ version }}.{% endblocktranslate %}</p>
+        <button type="submit" class="btn btn--primary">{% translate "Wyrażam zgodę" %}</button>
+      </form>
+    {% endif %}
+  </section>
+
+  {# --- 2. sprawdzenie sprzętu ------------------------------------------------------------- #}
+  <section class="card" aria-labelledby="pc-check" {% if step == "consent" %}hidden{% endif %} data-section="check">
+    <h2 class="mt-0" id="pc-check">{% translate "2. Sprawdzenie sprzętu" %}</h2>
+    <div class="pc__preview"><video data-preview muted playsinline aria-label="{% translate 'Podgląd kamery' %}"></video></div>
+    <ul class="pc__checks">
+      <li>{% translate "Przeglądarka" %}: <span data-check="webrtc">–</span></li>
+      <li>{% translate "Kamera" %}: <span data-check="camera">–</span></li>
+      <li>{% translate "Mikrofon" %}: <span data-check="microphone">–</span></li>
+      <li>{% translate "Udostępnianie ekranu" %}: <span data-check="screen">–</span></li>
+    </ul>
+    <button type="button" class="btn btn--primary" data-run-check>{% translate "Sprawdź sprzęt" %}</button>
+    {% if session.check_passed_at %}<p class="pc__ok">✓ {% translate "Sprzęt sprawdzony." %}</p>{% endif %}
+  </section>
+
+  {# --- 3. zdjęcie dokumentu ------------------------------------------------------------- #}
+  {% if id_photo_enabled %}
+    <section class="card" aria-labelledby="pc-photo" {% if step == "consent" or step == "check" %}hidden{% endif %} data-section="photo">
+      <h2 class="mt-0" id="pc-photo">{% translate "3. Zdjęcie dokumentu" %}{% if not id_photo_required %} ({% translate "opcjonalne" %}){% endif %}</h2>
+      <p>{% translate "Pokaż do kamery legitymację szkolną albo inny dokument ze zdjęciem i kliknij „Zrób zdjęcie”." %}</p>
+      <canvas data-photo-canvas width="640" height="480" hidden></canvas>
+      <button type="button" class="btn btn--secondary" data-take-photo>{% translate "Zrób zdjęcie" %}</button>
+      {% if session.id_photo_key %}<p class="pc__ok">✓ {% translate "Zdjęcie zapisane." %}</p>{% endif %}
+    </section>
+  {% endif %}
+
+  {# --- 4. start i nadzór ---------------------------------------------------------------- #}
+  {% if stage.is_interview %}
+    <section class="card" aria-labelledby="pc-interview" {% if step != "interview" %}hidden{% endif %}>
+      <h2 class="mt-0" id="pc-interview">{% translate "Rozmowa" %}</h2>
+      <p>{% translate "Nadzór obejmuje Twoją rozmowę w pokoju na platformie – osobnego nadawania nie trzeba włączać. Wejdź na rozmowę z panelu przyciskiem „Dołącz do rozmowy”." %}</p>
+      {% if config.record %}<p class="pc__record-badge">● {% translate "Nagrywanie kamery włączone" %}</p>{% endif %}
+      <p><a class="btn btn--primary" href="{% url 'web:me' %}#rozmowa">{% translate "Przejdź do rozmowy" %}</a></p>
+    </section>
+  {% else %}
+  <section class="card" aria-labelledby="pc-start" {% if step == "consent" or step == "check" or step == "photo" %}hidden{% endif %} data-section="start">
+    <h2 class="mt-0" id="pc-start">{% if id_photo_enabled %}{% translate "4. Start nadzoru" %}{% else %}{% translate "3. Start nadzoru" %}{% endif %}</h2>
+    <p class="pc__status" data-status role="status" aria-live="polite">
+      {% if ready %}{% translate "Etap jest dla Ciebie otwarty." %}{% endif %}
+    </p>
+    <p class="pc__alert" data-alert role="alert" hidden></p>
+    {% if config.record %}<p class="pc__record-badge">● {% translate "Nagrywanie kamery włączone" %}</p>{% endif %}
+    <div class="actions">
+      <button type="button" class="btn btn--primary" data-start {% if not configured %}disabled{% endif %}>{% translate "Włącz nadzór" %}</button>
+      {% if config.require_screen_share %}<button type="button" class="btn btn--secondary" data-share-screen hidden>{% translate "Udostępnij ekran" %}</button>{% endif %}
+      {% if allow_unproctored %}<button type="button" class="btn btn--secondary" data-unproctored {% if configured %}hidden{% endif %}>{% translate "Kontynuuj bez nadzoru" %}</button>{% endif %}
+      <a class="btn btn--primary" href="{{ stage_url }}" target="_blank" rel="noopener" data-go-stage {% if not ready %}hidden{% endif %}>{% translate "Przejdź do etapu (nowa karta)" %}</a>
+    </div>
+    <p class="hint">{% translate "Zostaw tę kartę otwartą do końca etapu – zamknięcie jej przerywa nadzór. Etap otworzy się w nowej karcie." %}</p>
+    {% if not configured and not allow_unproctored %}
+      <p class="alert alert--warning">{% translate "Serwer nadzoru jest niedostępny. Skontaktuj się z organizatorem." %}</p>
+    {% endif %}
+    <div class="pc__preview pc__preview--live"><video data-live muted playsinline aria-label="{% translate 'Twój obraz w nadzorze' %}"></video></div>
+    <ol class="pc__messages" data-messages aria-live="assertive"></ol>
+  </section>
+  {% endif %}
+
+  {# --- alternatywa ---------------------------------------------------------------------- #}
+  {% if not session.alternative_approved %}
+    <section class="card" aria-labelledby="pc-alternative">
+      <h2 class="mt-0" id="pc-alternative">{% translate "Nie mogę użyć kamery" %}</h2>
+      {% if alternative_requested %}
+        <p>{% translate "Twoja prośba czeka na decyzję organizatora. Odpowiedź pojawi się na tej stronie." %}</p>
+      {% else %}
+        {% if alternative_rejected %}
+          <p class="alert alert--warning">{% translate "Organizator nie zatwierdził innej formy nadzoru." %}{% if session.alternative_decision %} {{ session.alternative_decision }}{% endif %}</p>
+        {% endif %}
+        <form method="post" action="{% url 'web:proctoring-alternative' stage.pk %}" class="form">
+          {% csrf_token %}
+          {{ alternative_form.as_p }}
+          <button type="submit" class="btn btn--secondary">{% translate "Poproś o inną formę nadzoru" %}</button>
+        </form>
+      {% endif %}
+    </section>
+  {% endif %}
+</div>
+{{ strings|json_script:"proctoring-console-strings" }}
+{% if sdk_url %}<script nonce="{{ request.csp_nonce }}" src="{{ sdk_url }}" defer></script>{% endif %}
+<script nonce="{{ request.csp_nonce }}" src="{% static 'js/proctoring-console.js' %}" defer></script>
+{% endblock %}

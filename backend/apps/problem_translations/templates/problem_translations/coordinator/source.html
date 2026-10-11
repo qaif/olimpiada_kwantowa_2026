@@ -1,0 +1,44 @@
+{% extends "web/coordinator/base.html" %}
+{% load static web_extras %}
+{% comment %}
+  Wersja oficjalna zadania jako tekst (TR-01 § 1). Zmiana tekstu, tytułu albo PDF-u podnosi numer
+  wersji, a tłumaczenia oparte na starszej wersji dostają znacznik „nieaktualne” (z listem do opiekunów).
+{% endcomment %}
+{% block title %}Wersja oficjalna zadania {{ problem.number }} – panel koordynatora{% endblock %}
+{% block panel_head %}<link rel="stylesheet" href="{% static 'problem_translations/vendor/katex/katex.min.css' %}">
+<link rel="stylesheet" href="{% static 'problem_translations/css/translations.css' %}">{% endblock %}
+{% block panel_eyebrow %}<a href="{% url 'web:coordinator-translations-stage' problem.stage.pk %}">Tłumaczenia: {{ problem.stage.display_name }}</a>{% endblock %}
+{% block panel_title %}Zadanie {{ problem.number }}: wersja oficjalna (v{{ source.version }}){% endblock %}
+{% block panel_lead %}
+  <p class="lead">Tytuł i PDF wersji oficjalnej zmieniasz na ekranie zadań etapu – tu jest jej tekst
+    (Markdown, wzory w <code>$…$</code>), który tłumacze widzą obok edytora i mogą skopiować. Każda zmiana
+    tworzy nową wersję; tłumaczenia starszych wersji zostaną oznaczone jako nieaktualne.</p>
+{% endblock %}
+{% block panel_content %}
+<div class="tr-split">
+  <section class="tr-pane">
+    <form method="post" class="form" novalidate>
+      {% csrf_token %}
+      {{ form.as_p }}
+      <div class="actions"><button type="submit" class="btn btn--primary">Zapisz nową wersję</button></div>
+    </form>
+  </section>
+  <section class="tr-pane">
+    <h2 class="mt-0">Podgląd</h2>
+    <p><strong>{{ problem.title }}</strong></p>
+    <div class="tr-doc" lang="en">{{ source_html }}</div>
+  </section>
+</div>
+<section class="section">
+  <h2>Wersje</h2>
+  <ul class="tr-history">
+    {% for rev in revisions %}
+      <li>v{{ rev.version }} – {{ rev.created_at|local_datetime }}{% if rev.created_by %} ({{ rev.created_by.get_full_name|default:rev.created_by.email }}){% endif %}</li>
+    {% endfor %}
+  </ul>
+</section>
+{% endblock %}
+{% block scripts %}{{ block.super }}
+  <script defer nonce="{{ request.csp_nonce }}" src="{% static 'problem_translations/vendor/katex/katex.min.js' %}"></script>
+  <script defer nonce="{{ request.csp_nonce }}" src="{% static 'problem_translations/js/math.js' %}"></script>
+{% endblock %}

@@ -23,6 +23,7 @@ import zipfile
 
 import pytest
 from django.core import mail
+from django.core.exceptions import PermissionDenied
 
 from apps.accounts import twofactor
 from apps.accounts.models import CompetitionRole, SchoolSupervisor, User
@@ -167,7 +168,9 @@ def test_coordinator_b_cannot_reset_the_2fa_of_a_shared_account(settings, coordi
 
     response = coordinator_b.post(f"/coordinator/accounts/{shared_teacher.pk}/2fa-reset/")
 
-    assert response.status_code == 302
+    # Odmowa: konto z rolą personelu w konkursie A zatrzymuje już bramka SEC-01 (``may_reset``, 403);
+    # konto bez takiej roli – ``ACCOUNT_SHARED`` (komunikat i powrót na kartę konta, 302).
+    assert response.status_code in (302, 403)
     assert twofactor.confirmed_device(shared_teacher) is not None
     assert not AuditLog.objects.filter(action="2fa.reset").exists()
 
@@ -243,9 +246,15 @@ def test_the_own_2fa_cannot_be_reset_from_the_accounts_screen(settings, coordina
 
 
 def test_the_service_refuses_a_2fa_reset_of_a_protected_account(competition, coordinator_a_user):
+    # Operator ``is_staff`` to personel platformy – odmawia już bramka SEC-01 (``staff_mfa.policy``).
     staff = UserFactory(is_staff=True)
-    with pytest.raises(DomainError) as refused:
+    with pytest.raises(PermissionDenied):
         twofactor.reset_by_coordinator(staff, actor=coordinator_a_user)
+    # Drugi koordynator tego konkursu przechodzi SEC-01 (instalacja bez superkoordynatora), ale nie S7.
+    colleague = CoordinatorFactory()
+    grant_membership(colleague, competition, CompetitionRole.COORDINATOR)
+    with pytest.raises(DomainError) as refused:
+        twofactor.reset_by_coordinator(colleague, actor=coordinator_a_user)
 
     assert refused.value.machine_code == "COORDINATOR_PROTECTED"
 

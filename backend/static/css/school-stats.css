@@ -1,0 +1,114 @@
+/* =================================================================================================
+   Statystyki szkół (STAT-01) – panel opiekuna i koordynatora.
+
+   Wykres jest SVG-iem rysowanym po stronie serwera (``templates/web/school_stats/_chart.html``):
+   kolory serii stoją tutaj, a nie w atrybutach ``stroke``, bo tylko arkusz zna tokeny motywu –
+   ciemny wariant i wysoki kontrast działają bez jednej dodatkowej reguły. Styli w dokumencie nie ma
+   (polityka bezpieczeństwa serwisu), skryptów też nie.
+   ============================================================================================== */
+
+.ss-filter {
+  align-items: center;
+  margin-bottom: var(--sp-4);
+}
+
+.ss-note {
+  border-inline-start: 4px solid var(--info);
+}
+
+.ss-table th[scope="row"] .code-chip {
+  margin-inline-start: var(--sp-1);
+}
+
+.ss-table td {
+  vertical-align: top;
+}
+
+.ss-cell__result {
+  margin-top: var(--sp-1);
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- wykres -------------------------------------------------------------------------------- */
+
+.ss-chart {
+  margin: 0;
+}
+
+.ss-chart__svg {
+  display: block;
+  width: 100%;
+  max-width: 44rem;
+  height: auto;
+}
+
+.ss-chart__grid {
+  stroke: var(--line);
+  stroke-width: 1;
+}
+
+.ss-chart__tick,
+.ss-chart__label {
+  fill: var(--ink-soft);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.ss-chart__line {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.ss-chart__dot {
+  fill: currentColor;
+  stroke: var(--surface);
+  stroke-width: 1.5;
+}
+
+/* Cztery serie, cztery tokeny o różnej jasności – rozróżnialne także w odcieniach szarości.
+   Linia „moi uczniowie” jest dodatkowo grubsza: to o nią pyta opiekun. */
+.ss-chart__series--mine { color: var(--brand); }
+.ss-chart__series--mine .ss-chart__line { stroke-width: 3.5; }
+.ss-chart__series--school { color: var(--accent); }
+.ss-chart__series--region { color: var(--ok); }
+.ss-chart__series--all { color: var(--ink-soft); }
+.ss-chart__series--all .ss-chart__line { stroke-dasharray: 6 4; }
+
+.ss-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2) var(--sp-4);
+  margin: var(--sp-2) 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.9rem;
+}
+
+.ss-legend__item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+}
+
+.ss-legend__item.ss-chart__series--mine,
+.ss-legend__item.ss-chart__series--school,
+.ss-legend__item.ss-chart__series--region,
+.ss-legend__item.ss-chart__series--all {
+  color: var(--ink);
+}
+
+.ss-legend__swatch {
+  display: inline-block;
+  width: 1.4rem;
+  height: 0.3rem;
+  border-radius: var(--radius-sm);
+  background: var(--ink-soft);
+}
+
+.ss-chart__series--mine .ss-legend__swatch { background: var(--brand); }
+.ss-chart__series--school .ss-legend__swatch { background: var(--accent); }
+.ss-chart__series--region .ss-legend__swatch { background: var(--ok); }
+.ss-chart__series--all .ss-legend__swatch { background: var(--ink-soft); }

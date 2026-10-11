@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% load i18n static %}
+{% comment %}
+  Publiczna ściana absolwentów – bez logowania. Wyłącznie profile oznaczone przez absolwenta jako
+  publiczne i wyłącznie minimalny zestaw pól (``public=True`` w ``alumni/_card.html``).
+{% endcomment %}
+{% block title %}{% translate "Nasi absolwenci" %}{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/alumni.css' %}">{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>{% translate "Nasi absolwenci" %}</h1>
+  <p class="lead">{% translate "Laureaci i finaliści poprzednich edycji – i to, co robią dziś." %}</p>
+</div>
+{% if cards %}
+  <div class="alumni-grid">
+    {% for card in cards %}{% include "alumni/_card.html" with public=True %}{% endfor %}
+  </div>
+  {% if page_obj.has_other_pages %}
+    <nav class="row" aria-label="{% translate 'Strony' %}">
+      {% if page_obj.has_previous %}<a class="btn btn--small btn--ghost" href="?page={{ page_obj.previous_page_number }}">{% translate "Poprzednia" %}</a>{% endif %}
+      {% if page_obj.has_next %}<a class="btn btn--small btn--ghost" href="?page={{ page_obj.next_page_number }}">{% translate "Następna" %}</a>{% endif %}
+    </nav>
+  {% endif %}
+{% else %}
+  <div class="empty"><span class="empty__title">{% translate "Nikogo tu jeszcze nie ma" %}</span></div>
+{% endif %}
+{% endblock %}

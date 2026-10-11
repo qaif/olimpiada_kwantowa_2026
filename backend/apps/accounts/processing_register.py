@@ -86,8 +86,44 @@ from apps.competitions.models import DEFAULT_RETENTION_MONTHS
 #: uczniom swojego kraju. Nowa czynność (warunkowa – wyłącznie konkursy z trybem rejestracji
 #: ``DELEGATIONS``) z nowym kręgiem osób (opiekunowie drużyn) i nowym odbiorcą danych uczniów
 #: (współopiekunowie tego samego kraju widzą listę drużyny).
-REGISTER_VERSION = "1.11"
-REGISTER_DATE = date(2026, 10, 4)
+#: 1.12 (04.10.2026, zadanie STAT-01) – statystyki szkół (flaga ``school_statistics``, wiersz warunkowy):
+#: opiekun szkolny widzi przebieg i ogłoszone wyniki swoich uczniów przez kolejne edycje, na tle
+#: agregatów szkoły i województwa. Nowych danych nie ma, ale jest nowy cel (informacja zwrotna dla
+#: szkoły) i nowy odbiorca (dyrektor – raport zbiorczy), więc zmiana jest materialna.
+#: 1.13 (04.10.2026, zadanie TR-01) – tłumaczenia zadań przez delegacje: czynność „Delegacje krajowe”
+#: dostaje nowe kategorie danych (język zadań przypisany uczniowi, autorstwo i daty wysłanych wersji
+#: tłumaczeń, dziennik wglądu w tajne zadania) i nowy środek (okno tłumaczeń, znak wodny, audyt).
+#: 1.14 (04.10.2026, zadanie L10N-01) – Przegląd tłumaczeń interfejsu: wiersz warunkowy (konkurs
+#: z więcej niż jednym językiem interfejsu) – rola tłumacza, propozycje poprawek, głosy i zgłoszenia.
+#: 1.15 (04.10.2026, zadanie MED-01) – medale olimpiady międzynarodowej (flaga ``medals``, wiersz
+#: warunkowy): ogłoszona nagroda, ręczne zmiany z uzasadnieniem, publiczna lista medalistów i ranking krajów.
+#: 1.16 (04.10.2026, zadanie PAY-01) – płatności online za udział: zamówienia, faktury, operatorzy
+#: płatności (Stripe, Przelewy24) jako nowi odbiorcy i dokumentacja księgowa z własnym okresem
+#: przechowywania. Czynność warunkowa – wyłącznie konkursy z flagą ``fees`` (``apps.payments.rodo``).
+#: 1.17 (04.10.2026, zadanie LOG-01) – logistyka finału dla delegacji: dane paszportowe do wiz,
+#: przyloty, zakwaterowanie, dane o zdrowiu (za wyraźną zgodą), zdjęcia do identyfikatorów i kontakty
+#: alarmowe – nowe kategorie danych, nowe osoby (goście delegacji, kontakty alarmowe) i własny, krótki
+#: termin usunięcia. Czynność warunkowa, a jej treść mieszka w ``apps.delegation_logistics.register``.
+#: 1.18 (04.10.2026, zadanie VISA-01) – listy zapraszające do wizy dostają publiczną stronę weryfikacji
+#: po kodzie z listu: imię i nazwisko oraz obywatelstwo osób trafiają do **nowego odbiorcy** – każdego,
+#: kto zna kod (konsulat). Do tego wnioski opiekunów o listy (stan, powód odrzucenia) i unieważnienie
+#: listu. Treść w wierszu logistyki finału (``apps.delegation_logistics.register``).
+#: 1.19 (04.10.2026, zadanie ALUM-01) – sieć absolwentów (``apps.alumni``, flaga ``alumni``): nowa
+#: czynność **na podstawie zgody** (art. 6 ust. 1 lit. a), z nowym kręgiem odbiorców (zalogowani
+#: uczestnicy, opcjonalnie publiczna ściana) i nowym celem (mentoring, zaproszenia, statystyki).
+#: Warunkowa jak forum – wiersz wchodzi do rejestru wyłącznie konkursom z włączoną flagą.
+#: 1.20 (04.10.2026, zadanie PROC-01 + STAGE-LK-01) – nadzór zdalny etapów online (flaga ``proctoring``,
+#: wiersz warunkowy): obraz z kamery na żywo, nagrania wyłącznie przy włączonym nagrywaniu etapu,
+#: zdjęcie dokumentu, incydenty; także rozmowy etapu w pokoju LiveKit połączone z nadzorem – wiersz
+#: „rozmowy” wymienia serwer LiveKit wśród odbiorców i jego środki, wiersz nadzoru – zakres rozmowy.
+#: 1.21 (04.10.2026, zadanie OPS-02) – monitorowanie błędów aplikacji (``apps.monitoring.register``): wiersz
+#: warunkowy (niepusty ``SENTRY_DSN``) – nowy cel pomocniczy i nowy, **wewnętrzny** podmiot przetwarzający
+#: (własna instancja GlitchTip na serwerze organizatora, bez przekazania do państwa trzeciego).
+#: 1.22 (05.10.2026, zadanie MAIL-02) – doręczalność poczty (``apps.email_delivery.register``): wiersz
+#: warunkowy (``EMAIL_BOUNCE_TRACKING``) – nowa kategoria danych (odbicia listów: kod i treść odpowiedzi
+#: serwera odbiorcy) z własnym terminem usunięcia i nowym kręgiem odbiorców (lista koordynatora).
+REGISTER_VERSION = "1.22"
+REGISTER_DATE = date(2026, 10, 5)
 
 #: Zdanie o okresie przechowywania danych uczestnika. Liczba pochodzi z tego samego miejsca, co
 #: domyślna wartość ``Edition.data_retention_months`` – gdyby organizator zmienił ją dla rocznika,
@@ -348,8 +384,15 @@ ACTIVITIES: tuple[ProcessingActivity, ...] = (
         categories=[
             "wybrany termin rozmowy i adres pokoju spotkania",
             "wizerunek i głos w czasie rozmowy (transmisja, bez nagrywania)",
+            "w pokoju LiveKit (gdy etap go używa): pseudonim konta (HMAC, bez e-maila i identyfikatora) "
+            "i decyzje moderatora w terminie (usunięcie z pokoju, odebranie głosu)",
         ],
-        recipients=[HOSTING_RECIPIENT, JITSI_RECIPIENT],
+        recipients=[
+            HOSTING_RECIPIENT,
+            JITSI_RECIPIENT,
+            "serwer LiveKit operatora platformy – wyłącznie gdy koordynator wybrał dla etapu pokój LiveKit "
+            "(przekazywanie obrazu i dźwięku w czasie rzeczywistym, bez nagrywania)",
+        ],
         retention=(
             "zapis na termin – do końca okresu retencji edycji; sama rozmowa nie jest nagrywana, "
             "więc nie powstaje żaden plik do przechowywania"
@@ -357,6 +400,11 @@ ACTIVITIES: tuple[ProcessingActivity, ...] = (
         measures=[
             "własna instancja Jitsi Meet organizatora – transmisja nie wychodzi do dostawcy obcego",
             "adres pokoju budowany z identyfikatora terminu, nie z danych uczestnika",
+            "LiveKit: pokój zakładany przez platformę dopiero po sprawdzeniu uprawnień, token ważny "
+            "wyłącznie w oknie terminu, bez uprawnień administratora w przeglądarce; polecenia moderatora "
+            "przez platformę z audytem, a osoba usunięta nie dostaje nowego tokenu na ten termin",
+            "LiveKit: osobny pokój próby sprzętu dla każdego zapisu; rozmowa nie jest nagrywana – wyjątek "
+            "to etap z nadzorem zdalnym i nagrywaniem, opisany w czynności „Nadzór zdalny etapów online”",
         ],
     ),
     _activity(
@@ -669,6 +717,73 @@ CHAT_ACTIVITY = _activity(
 )
 
 
+#: Czynność **warunkowa**: sieć absolwentów (ALUM-01, flaga ``alumni``). Jedyna w rejestrze oparta
+#: na **zgodzie** – udział w sieci po zawodach nie jest potrzebny do przeprowadzenia zawodów, więc
+#: nie ma innej podstawy. Stąd okres przechowywania „do wycofania zgody”, a nie termin edycji, i stąd
+#: wstrzymanie automatu retencji konta na czas ważnej zgody (``apps.accounts.retention``).
+ALUMNI_ACTIVITY = _activity(
+    key="absolwenci",
+    name="Sieć absolwentów i mentoring",
+    purpose=(
+        "Utrzymanie dobrowolnej sieci byłych uczestników: profil widoczny dla zalogowanych uczestników "
+        "konkursu (opcjonalnie na publicznej ścianie), mentoring obecnych uczestników przez Wiadomości, "
+        "zaproszenia na warsztaty, webinary i do jury oraz zagregowane statystyki „gdzie są teraz”."
+    ),
+    legal_basis=(
+        "art. 6 ust. 1 lit. a RODO (zgoda absolwenta wyrażona osobnym polem wyboru, niezależna od zgód "
+        "konkursowych, wycofywana jednym przyciskiem); dołączają wyłącznie osoby pełnoletnie"
+    ),
+    subjects="absolwenci konkursu (byli uczestnicy, pełnoletni) oraz uczestnicy proszący o mentoring",
+    categories=[
+        "imię i inicjał nazwiska; pełne imię i nazwisko tylko na wyraźny wybór i przy zgodzie na "
+        "publikację nazwiska",
+        "osiągnięcia wyliczane z ogłoszonych wyników i wystawionych dyplomów (edycja, poziom)",
+        "dane wpisane przez absolwenta (wszystkie opcjonalne): uczelnia, kierunek, miasto, kraj, opis, "
+        "zainteresowania, odnośniki LinkedIn i GitHub, gotowość do mentoringu, tematy i liczba miejsc",
+        "dowód zgody (chwila udzielenia i wycofania, wersja treści)",
+        "relacje mentorskie: strony, temat, notatka prośby, stan, daty, zgłoszenia problemów",
+        "liczba odbiorców wysłanych zaproszeń (bez listy osób) i wybór „nie chcę zaproszeń”",
+    ],
+    recipients=[
+        HOSTING_RECIPIENT,
+        MAIL_RECIPIENT + " – zaproszenia i listy o mentoringu, bez treści notatek i zgłoszeń",
+        "zalogowani uczestnicy konkursu (katalog absolwentów); publicznie – tylko profile oznaczone przez "
+        "absolwenta jako publiczne, w minimalnym zakresie (podpis, osiągnięcia, uczelnia, kierunek)",
+        "koordynatorzy konkursu (lista absolwentów, nadzór relacji mentorskich, zgłoszenia, statystyki "
+        "z progiem k-anonimowości 5)",
+        "druga strona relacji mentorskiej (podpis „Imię N.” i notatka prośby)",
+    ],
+    retention=(
+        "profil absolwenta – do wycofania zgody albo usunięcia konta (znika od razu); po wyłączeniu sieci "
+        "przez organizatora profil przestaje być pokazywany i używany, a automat retencji konta znów "
+        "działa – dane profilu zostają do wycofania zgody (możliwe także przy wyłączonej sieci), "
+        "usunięcia przez organizatora albo anonimizacji konta. Na czas ważnej zgody retencja konta "
+        "uczestnika jest ograniczona do minimalizacji (telefon, szkoła, region, klasa, dane opiekunów "
+        "i dzień urodzenia są usuwane; imię, nazwisko, adres e-mail i wyniki zostają). Dowód zgody "
+        "(wersja, język, skrót treści) – do anonimizacji konta. Dokumentacja bezpieczeństwa mentoringu "
+        "(strony relacji, daty, kanał, zakończenie i jego powód, notatka organizatora, zgłoszenia "
+        "problemów, wpisy dziennika zdarzeń) zostaje do anonimizacji kont stron relacji – wtedy znika "
+        "notatka prośby, treść zgłoszeń autora i zapisana data urodzenia mentee"
+    ),
+    measures=[
+        "funkcja domyślnie **wyłączona** (flaga konkursu); profil powstaje wyłącznie po wyraźnej zgodzie",
+        "osiągnięcia liczone na żywo wyłącznie z ogłoszonych wyników – cofnięta publikacja znika z profilu",
+        "katalog i ściana nigdy nie pokazują adresu e-mail, kodu publicznego, szkoły ani daty urodzenia",
+        "odnośniki tylko https i tylko LinkedIn/GitHub, renderowane z rel=nofollow",
+        "rozmowy mentorskie w Wiadomościach: przy mentee niepełnoletnim organizator czyta wiadomości – "
+        "przed doręczeniem (zasada „ta sama grupa wiekowa” albo wyłączone rozmowy uczestników) albo po "
+        "doręczeniu (zasada „bez ograniczeń”); rozmowy mentorskie nie są szyfrowane",
+        "statystyki jednowymiarowe z progiem k-anonimowości 5 (bez komórek komplementarnych); "
+        "zaproszenia z wypisem jednym kliknięciem",
+        "ochrona małoletnich: notatka prośby małoletniego i opis mentora widoczne dla małoletnich dopiero "
+        "po akceptacji organizatora, automatyczne zgłoszenia przy wzorcach danych kontaktowych, przy "
+        "zmianie daty urodzenia w trakcie relacji i przy rozmowie szyfrowanej pod wymuszoną moderacją",
+        "każda decyzja koordynatora (ukrycie profilu, zakończenie relacji, wysłanie zaproszenia) zostawia "
+        "wpis w dzienniku zdarzeń bez treści profilu i notatek",
+    ],
+)
+
+
 #: Czynność **warunkowa**: zaświadczenia o statusie ucznia (prośba organizatora z 24.09.2026,
 #: flaga ``student_status_certificate``). Obok :data:`ACTIVITIES` z tego samego powodu, co forum:
 #: rejestr opisuje przetwarzanie, które **naprawdę zachodzi**, a konkurs bez flagi nie zbiera ani
@@ -772,6 +887,114 @@ WORKSHOP_MATERIALS_ACTIVITY = _activity(
         "wyprowadzonym z sekretu aplikacji, którego nie ma w bazie ani w jej kopii",
         "materiał wchodzi do skrótu, więc z tabeli nie da się złożyć historii oglądania jednej osoby",
         "wyświetlenia koordynatora nie są zapisywane",
+    ],
+)
+
+
+#: Czynność **warunkowa**: webinary w LiveKit (zadanie WEB-01, przełącznik ``webinars``). Wchodzi
+#: do rejestru wyłącznie konkursom z włączonym przełącznikiem – ten sam powód, co forum. Serwer
+#: LiveKit jest **własny** (instalacja operatora platformy albo maszyna organizatora), nagrania leżą
+#: w prywatnym buckecie platformy – nie ma tu zewnętrznego dostawcy wideo.
+WEBINARS_ACTIVITY = _activity(
+    key="webinary",
+    name="Webinary online (LiveKit)",
+    purpose=(
+        "Prowadzenie spotkań online organizatora z uczestnikami i komisją (wykłady, konsultacje, "
+        "omówienia zadań), lista obecności, zaproszenia i przypomnienia oraz – gdy prowadzący włączy "
+        "nagrywanie – udostępnienie nagrań odbiorcom webinaru."
+    ),
+    legal_basis=(
+        "art. 6 ust. 1 lit. f RODO (prawnie uzasadniony interes administratora – prowadzenie zajęć "
+        "towarzyszących konkursowi); listy – z możliwością wyłączenia jednym przełącznikiem"
+    ),
+    subjects="uczestnicy, członkowie komisji i goście z linku, którzy wchodzą na webinar",
+    categories=[
+        "nazwa wyświetlana w pokoju (imię i inicjał nazwiska; gość – nazwa wpisana przez siebie)",
+        "pseudonim konta (HMAC – bez identyfikatora i adresu e-mail konta)",
+        "czas wejścia i wyjścia z pokoju (lista obecności)",
+        "obraz, głos i wiadomości czatu – wyłącznie gdy osoba je włączy; w nagraniu – gdy prowadzący nagrywa",
+        "adres e-mail – do zaproszenia i przypomnienia (bez tokenu wejścia)",
+    ],
+    recipients=[
+        HOSTING_RECIPIENT,
+        "serwer LiveKit operatora platformy (przekazywanie obrazu i dźwięku w czasie rzeczywistym)",
+        "koordynatorzy i prowadzący webinaru – lista obecnych i nagrania",
+        "YouTube (Google) – wyłącznie gdy koordynator włączy transmisję na żywo",
+    ],
+    retention=(
+        "obraz i dźwięk – nie są przechowywane poza nagraniem; nagrania i lista obecności – "
+        "kasowane automatycznie po WEBINAR_RETENTION_DAYS dniach od końca webinaru (domyślnie 365; "
+        "wcześniej – na żądanie koordynatora albo przy usunięciu konta); wpisy audytu wejść – jak "
+        "pozostały audyt"
+    ),
+    measures=[
+        "funkcja domyślnie wyłączona i wymaga własnego serwera LiveKit",
+        "token wejścia powstaje przy każdym wejściu po sprawdzeniu uprawnień, żyje kilka minut "
+        "i nie trafia do listów ani do stron",
+        "widz nie nadaje obrazu ani dźwięku, dopóki prowadzący nie da mu głosu",
+        "nagranie widzą odbiorcy webinaru dopiero po opublikowaniu, przez adres ważny dwie godziny",
+        "przed wejściem do pokoju webinaru z nagrywaniem – informacja o nagrywaniu; w trakcie "
+        "nagrania – stały znacznik „Trwa nagrywanie”",
+        "link dla gości domyślnie wyłączony",
+    ],
+)
+
+
+#: Czynność **warunkowa**: nadzór zdalny etapów online (zadanie PROC-01, przełącznik ``proctoring``).
+#: Przetwarzanie **wysokiego ryzyka** – obraz osób w większości niepełnoletnich, w ich domach – więc
+#: wiersz nazywa wprost minimalizację (bez analizy automatycznej, niska rozdzielczość, nagrywanie
+#: domyślnie wyłączone) i odsyła do oceny skutków (DPIA), którą organizator robi przed włączeniem.
+PROCTORING_ACTIVITY = _activity(
+    key="nadzor-zdalny",
+    name="Nadzór zdalny etapów online (LiveKit)",
+    purpose=(
+        "Zapewnienie samodzielności pracy w etapach rozgrywanych online: podgląd na żywo obrazu z kamery "
+        "uczestnika (i – gdy etap tego wymaga – ekranu lub dźwięku) przez osoby nadzorujące, wiadomości "
+        "nadzorujących, notatki o incydentach do rozpatrzenia przez komisję, obecność oraz – wyłącznie "
+        "gdy koordynator włączy je dla etapu – nagrania obrazu z kamery do celów odwoławczych."
+    ),
+    legal_basis=(
+        "art. 6 ust. 1 lit. a RODO (wyraźna zgoda uczestnika, wersjonowana; u osoby niepełnoletniej – "
+        "przy potwierdzonej online zgodzie rodzica lub opiekuna prawnego); osoba bez zgody albo bez "
+        "kamery może poprosić o inną formę nadzoru (decyzja koordynatora)"
+    ),
+    subjects="uczestnicy etapów online z włączonym nadzorem (w większości osoby niepełnoletnie)",
+    categories=[
+        "wizerunek (obraz z kamery na żywo; nagranie – tylko przy włączonym nagrywaniu)",
+        "obraz ekranu i głos – wyłącznie gdy etap tego wymaga",
+        "zdjęcie dokumentu tożsamości – wyłącznie gdy etap tego wymaga",
+        "pseudonim w pokoju (HMAC, osobny na etap), czasy połączeń i zerwań strumienia",
+        "wynik sprawdzenia sprzętu (wartości logiczne i rodzina przeglądarki – bez odcisku urządzenia)",
+        "wiadomości nadzorujących, notatki o incydentach, obecność, prośby o alternatywę (powód z listy)",
+        "wersja i czas zgody, adres IP przy zgodzie",
+        "rozmowa etapu w LiveKit z nadzorem (STAGE-LK-01): pseudonim konta (wspólny dla platformy, "
+        "nie osobny na etap), obraz i głos kamery w jakości rozmowy (nie 320×240), w pokoju wspólnym "
+        "z innymi uczestnikami terminu, gdy termin ma więcej niż jedno miejsce; token ważny w oknie "
+        "terminu; nagranie – wyłącznie ucznia z ważną zgodą i przy włączonym nagrywaniu",
+    ],
+    recipients=[
+        HOSTING_RECIPIENT,
+        "serwer LiveKit operatora platformy (przekazywanie obrazu w czasie rzeczywistym, "
+        "nagrania przez Egress)",
+        "nadzorujący wskazani przez koordynatora: koordynatorzy, członkowie komisji, w olimpiadzie "
+        "międzynarodowej opiekun drużyny – wyłącznie uczniów swojej delegacji",
+        "komisja odwoławcza – raport incydentów i nagrania (każde odtworzenie w audycie)",
+    ],
+    retention=(
+        "obraz na żywo – nie jest przechowywany; zdjęcia dokumentu – usuwane po etapie; nagrania, "
+        "dziennik połączeń, wiadomości i uwagi do próśb o inną formę nadzoru – usuwane automatycznie "
+        "30 dni po ogłoszeniu wyników i zamknięciu okna reklamacji "
+        "(najpóźniej 180 dni po etapie; komisja może wstrzymać usunięcie do wyjaśnienia sprawy); "
+        "incydenty, obecność i zgody – jak dokumentacja zawodów (retencja edycji)"
+    ),
+    measures=[
+        "funkcja domyślnie wyłączona, włączana osobno dla każdego etapu; nagrywanie domyślnie wyłączone",
+        "brak automatycznej analizy obrazu i śledzenia przeglądarki – decyzje podejmują ludzie",
+        "kamera 320×240, 10 kl./s; uczeń nie odbiera obrazu innych uczniów (uprawnienia tokenu)",
+        "opiekun drużyny dostaje token wyłącznie do pokoju swojej delegacji",
+        "tokeny krótkotrwałe, wystawiane po sprawdzeniu roli przy każdym wejściu",
+        "nagrania i zdjęcia w prywatnym buckecie, adres ważny 15 minut, audyt każdego odtworzenia",
+        "ocena skutków dla ochrony danych (DPIA) przed pierwszym użyciem – nota w podręczniku organizatora",
     ],
 )
 
@@ -897,6 +1120,8 @@ DELEGATIONS_ACTIVITY = _activity(
         "i cofnięcia",
         "uczeń: imię i nazwisko, adres e-mail, data urodzenia, szkoła, klasa, kraj, opcjonalnie "
         "adres e-mail rodzica, informacja, który opiekun zgłosił ucznia",
+        "tłumaczenia zadań (TR-01): język zadań przypisany uczniowi przez opiekuna, autorstwo i daty "
+        "wysłanych wersji tłumaczeń, dziennik wglądu opiekunów i uczniów w treść zadań",
     ],
     recipients=[
         HOSTING_RECIPIENT,
@@ -916,6 +1141,123 @@ DELEGATIONS_ACTIVITY = _activity(
         "konto ucznia powstaje nieaktywne i bez hasła – hasło i zgody składa uczeń sam",
         "limit uczniów delegacji egzekwowany pod blokadą wiersza, okno rejestracji edycji, "
         "limit żądań per konto",
+        "tłumaczenia zadań: treść widoczna dla opiekuna wyłącznie w oknie tłumaczeń, pliki PDF ze znakiem "
+        "wodnym delegacji, wpis w dzienniku przy każdym wglądzie i pobraniu",
+    ],
+)
+
+
+#: Czynność **warunkowa**: okna czasowe etapu według stref (TZ-01). Wchodzi do rejestru wyłącznie
+#: konkursom z flagą ``stage_time_windows``. Nowe dane to strefa czasowa ucznia i wyjątek od okna
+#: (inne okno, dodatkowy czas, powód) – powód bywa śladem dostosowania, więc środki mówią wprost,
+#: że nie wpisuje się do niego danych o zdrowiu.
+TIME_WINDOWS_ACTIVITY = _activity(
+    key="okna-czasowe",
+    name="Okna czasowe etapu – przydział uczniów do okien i strefy czasowe",
+    purpose=(
+        "Przeprowadzenie etapu zdalnego w kilku oknach czasowych dopasowanych do stref krajów: "
+        "przydział ucznia do okna, dodatkowy czas pracy i wyświetlanie godzin w strefie ucznia."
+    ),
+    legal_basis=(
+        "art. 6 ust. 1 lit. b RODO (przeprowadzenie zawodów na zasadach Regulaminu); dodatkowy czas "
+        "– art. 6 ust. 1 lit. c/b RODO w zakresie dostosowania warunków udziału"
+    ),
+    subjects="uczestnicy etapu z oknami czasowymi",
+    categories=[
+        "okno ucznia (przydział kraju albo wyjątek), strefa czasowa ucznia, dodatkowy czas w minutach "
+        "i krótki powód wyjątku, kto i kiedy go ustawił",
+    ],
+    recipients=[
+        HOSTING_RECIPIENT,
+        "opiekun drużyny kraju ucznia – widzi okno i strefę uczniów swojej delegacji",
+    ],
+    retention=PARTICIPANT_RETENTION + " Wyjątki i strefy znikają razem z profilem uczestnika.",
+    measures=[
+        "funkcja działa wyłącznie w konkursie z włączonymi oknami czasowymi",
+        "powód wyjątku bez danych o zdrowiu (np. „dostosowanie wg decyzji komisji”) – dokumentacja "
+        "dostosowania zostaje poza platformą",
+        "zmiany przydziału możliwe tylko przed startem okien, każda w dzienniku zdarzeń",
+    ],
+)
+
+
+#: Czynność **warunkowa**: przegląd tłumaczeń interfejsu przez wolontariuszy (zadanie L10N-01).
+#: Tylko w konkursie z więcej niż jednym językiem interfejsu – w jednojęzycznym nikt nie dostaje roli
+#: tłumacza z panelu koordynatora, więc rejestr nie opisuje przetwarzania, którego tam nie ma.
+TRANSLATION_REVIEW_ACTIVITY = _activity(
+    key="tlumaczenia",
+    name="Przegląd tłumaczeń interfejsu serwisu",
+    purpose=(
+        "Poprawianie tłumaczeń napisów interfejsu serwisu przez wolontariuszy znających dany język "
+        "(np. kierowników delegacji): propozycje poprawek, głosy, decyzje recenzenta i zgłoszenia błędów."
+    ),
+    legal_basis=(
+        "art. 6 ust. 1 lit. f RODO (prawnie uzasadniony interes administratora – zrozumiały interfejs "
+        "dla uczestników z różnych krajów); udział jest dobrowolny i wymaga nadania roli"
+    ),
+    subjects="osoby, którym koordynator albo superkoordynator nadał rolę tłumacza lub recenzenta tłumaczeń",
+    categories=[
+        "powiązanie konta z językiem i poziomem roli (tłumacz, recenzent), kto i kiedy ją nadał",
+        "autorstwo propozycji tłumaczeń i oddanych głosów (sam tekst tłumaczenia nie jest daną osobową)",
+        "zgłoszenia ze stopki: ścieżka strony (bez parametrów adresu), napis widziany na stronie, uwaga",
+    ],
+    recipients=[
+        HOSTING_RECIPIENT,
+        "recenzenci tłumaczeń tego samego języka – treść zgłoszeń i propozycji, **bez** tożsamości autora",
+        "koordynator konkursu i superkoordynator – lista osób z rolą tłumacza (adres e-mail konta)",
+    ],
+    retention=(
+        "rola do odebrania albo usunięcia konta; zgłoszenia i głosy usuwane z kontem; propozycje "
+        "zostają bez autora, bo są tekstem interfejsu, a nie daną o osobie"
+    ),
+    measures=[
+        "tłumacze nie widzą, kto zaproponował cudzą poprawkę ani kto zgłosił błąd",
+        "każda decyzja (nadanie roli, zatwierdzenie, cofnięcie) zostawia wpis w dzienniku zdarzeń "
+        "bez treści zgłoszeń",
+    ],
+)
+
+
+#: Czynność **warunkowa**: medale olimpiady międzynarodowej i ranking krajów (MED-01). Wchodzi do
+#: rejestru wyłącznie konkursom z flagą ``medals`` – Olimpiada Kwantowa nagradza tytułem laureata
+#: w ramach czynności „wyniki”.
+MEDALS_ACTIVITY = _activity(
+    key="medale",
+    name="Medale, dyplomy medalowe i ranking krajów",
+    purpose=(
+        "Przyznanie złotego, srebrnego, brązowego medalu albo wyróżnienia z ostatecznego rankingu "
+        "etapu, wystawienie dyplomu w języku ucznia, ogłoszenie medali i nieoficjalnego rankingu krajów "
+        "oraz lista nagrodzonych na galę."
+    ),
+    legal_basis=(
+        "art. 6 ust. 1 lit. b RODO (wykonanie umowy – nagrody z Regulaminu) oraz art. 6 ust. 1 lit. a "
+        "RODO dla publikacji imienia i nazwiska przy medalu – wyłącznie za odrębną zgodą"
+    ),
+    subjects="uczestnicy etapu, z którego rankingu liczone są nagrody",
+    categories=[
+        "nagroda wyliczona i ostateczna, miejsce i suma punktów, kraj (delegacja albo region)",
+        "ręczna zmiana nagrody: uzasadnienie komitetu, autor i data",
+        "język dokumentu zapamiętany przy wystawieniu dyplomu",
+        "lista na galę (eksport koordynatora): imię i nazwisko, kraj, szkoła, nagroda",
+    ],
+    recipients=[
+        HOSTING_RECIPIENT,
+        "publiczność serwisu – medal przy kodzie albo przy nazwisku (za zgodą); kraj przy wierszu "
+        "wyłącznie w trybie „kod uczestnika” albo przy nazwisku opublikowanym za zgodą w trybie imiennym",
+        "ranking krajów – wyłącznie liczby zagregowane per kraj, bez danych pojedynczych osób; suma "
+        "i średnia punktów tylko dla kraju z co najmniej 3 wynikami (przy publikacji „tylko awansujący” – "
+        "wyłącznie z wyników nagrodzonych)",
+    ],
+    retention=(
+        "ogłoszone medale są zamrożonym dokumentem zawodów, jak tabela wyników, i zostają bezterminowo "
+        "w postaci pseudonimowej; ręczna zmiana nagrody znika razem z wpisem do etapu"
+    ),
+    measures=[
+        "funkcja działa wyłącznie w konkursie z włączoną flagą ``medals``",
+        "podpisy wierszy publicznej tabeli liczy ta sama funkcja, co tabela wyników (te same zgody)",
+        "nazwiska na liście na galę czytane w chwili eksportu – nie leżą w zamrożonej tabeli",
+        "każdy eksport z nazwiskami i każda ręczna zmiana jest wpisem w dzienniku zdarzeń (bez treści "
+        "uzasadnienia)",
     ],
 )
 
@@ -952,8 +1294,48 @@ def activities_for(competition=None) -> tuple[ProcessingActivity, ...]:
         activities = (*activities, WORKSHOP_MATERIALS_ACTIVITY)
     if competition is not None and competition.has_feature(AI_GRADING_FLAG):
         activities = (*activities, ai_grading_activity(competition))
+    if competition is not None and competition.has_feature("webinars"):
+        activities = (*activities, WEBINARS_ACTIVITY)
     if competition is not None and competition.uses_delegations:
         activities = (*activities, DELEGATIONS_ACTIVITY)
+    from apps.school_stats.services import enabled as school_stats_enabled
+
+    if school_stats_enabled(competition):
+        from apps.school_stats.register import SCHOOL_STATISTICS_ACTIVITY
+
+        activities = (*activities, SCHOOL_STATISTICS_ACTIVITY)
+    if competition is not None and competition.has_feature("stage_time_windows"):
+        activities = (*activities, TIME_WINDOWS_ACTIVITY)
+    if competition is not None and len(competition.ui_languages) > 1:
+        activities = (*activities, TRANSLATION_REVIEW_ACTIVITY)
+    if competition is not None and competition.has_feature("medals"):
+        activities = (*activities, MEDALS_ACTIVITY)
+    if competition is not None and competition.has_feature("fees"):
+        from apps.payments.rodo import PAYMENTS_ACTIVITY
+
+        activities = (*activities, PAYMENTS_ACTIVITY)
+    # Logistyka finału dla delegacji (LOG-01) – wiersz warunkowy z własnej aplikacji.
+    from apps.delegation_logistics.register import activity as final_logistics_activity
+
+    final_logistics = final_logistics_activity(competition)
+    if final_logistics is not None:
+        activities = (*activities, final_logistics)
+    if competition is not None and competition.has_feature("alumni"):
+        activities = (*activities, ALUMNI_ACTIVITY)
+    if competition is not None and competition.has_feature("proctoring"):
+        activities = (*activities, PROCTORING_ACTIVITY)
+    # Monitorowanie błędów (OPS-02) – wiersz warunkowy instalacji (niepusty ``SENTRY_DSN``).
+    from apps.monitoring.register import activity as error_tracking_activity
+
+    error_tracking = error_tracking_activity()
+    if error_tracking is not None:
+        activities = (*activities, error_tracking)
+    # Doręczalność poczty (MAIL-02) – wiersz warunkowy instalacji (``EMAIL_BOUNCE_TRACKING``).
+    from apps.email_delivery.register import activity as email_delivery_activity
+
+    email_delivery = email_delivery_activity()
+    if email_delivery is not None:
+        activities = (*activities, email_delivery)
     return activities
 
 

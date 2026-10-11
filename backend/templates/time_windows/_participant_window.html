@@ -1,0 +1,19 @@
+{% load i18n time_windows %}{% comment %}
+  Karta „Twoje okno” (TZ-01) na zakładce „Zadania” – wyłącznie w etapie z oknami czasowymi.
+
+  Godziny są w strefie ucznia: ``ParticipantTimezoneMiddleware`` aktywuje ją na czas żądania, więc
+  ``in_zone`` bez argumentu pisze czas lokalny ucznia, a ``zone_label`` – nazwę tej strefy. Odliczania
+  tu nie ma: nagłówek „Co teraz” liczy już do startu albo końca **tego** okna.
+{% endcomment %}
+<div class="notice" data-time-window="{{ window.window.label }}">
+  <p class="mt-0"><strong>{% blocktranslate trimmed with label=window.window.label %}Twoje okno czasowe: {{ label }}{% endblocktranslate %}</strong></p>
+  <dl class="meta-list">
+    <div><dt>{% translate "Start" %}</dt><dd>{{ window.opens_at|in_zone }}</dd></div>
+    <div><dt>{% translate "Koniec" %}</dt><dd>{{ window.deadline_at|in_zone }}</dd></div>
+    <div><dt>{% translate "Strefa czasowa" %}</dt><dd>{% zone_label window.opens_at %}</dd></div>
+    {% if window.extra_minutes %}
+      <div><dt>{% translate "Dodatkowy czas" %}</dt><dd>{% blocktranslate trimmed with minutes=window.extra_minutes %}{{ minutes }} min{% endblocktranslate %}</dd></div>
+    {% endif %}
+  </dl>
+  <p class="hint">{% translate "Zadania zobaczysz dopiero na starcie swojego okna. Do końca ostatniego okna wszystkich krajów nie rozmawiaj o zadaniach – forum i wiadomości są wtedy moderowane." %}</p>
+</div>

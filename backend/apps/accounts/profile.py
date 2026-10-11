@@ -308,17 +308,28 @@ def _assert_email_free(email: str, *, exclude_pk: int | None = None) -> str:
     return normalized
 
 
-def request_email_change(user: User, *, new_email: str, request=None) -> str:
+@sensitive_variables("current_password")
+def request_email_change(user: User, *, new_email: str, current_password: str, request=None) -> str:
     """Wysyła na **nowy** adres link potwierdzający. Do kliknięcia obowiązuje adres dotychczasowy.
 
     Kolejność jest tu całą treścią zabezpieczenia: gdyby adres zmieniał się od razu po wpisaniu,
     literówka zamykałaby drogę powrotu (login i reset hasła idą przez adres), a przejęta sesja
     pozwalałaby przenieść konto na adres napastnika jednym POST-em. Potwierdzenie na nowym adresie
     dowodzi, że skrzynka istnieje i należy do osoby, która o zmianę poprosiła.
+
+    Samo potwierdzenie nie wystarcza (przegląd H1 AUTH-01b): skrzynką „nowego adresu” jest skrzynka
+    tego, kto wpisał adres – czyli w przejętej sesji napastnika. Dlatego najpierw **aktualne hasło**
+    (``apps.accounts.reauth``: pomyłki w audycie ``account.email_change_failed``, seria pomyłek
+    kończy sesję). Konto bez hasła (Google/Facebook) ustawia je najpierw linkiem na obecny adres.
     """
+    from .reauth import confirm_current_password
+
     normalized = _assert_email_free(new_email, exclude_pk=user.pk)
     if normalized == user.email:
         raise DomainError(_("To już jest adres tego konta."), "EMAIL_UNCHANGED", status.HTTP_400_BAD_REQUEST)
+    confirm_current_password(
+        user, current_password, failed_action="account.email_change_failed", request=request
+    )
     send_email_change_confirmation(user, normalized, request=request)
     audit(user, "account.email_change_requested", user, {"confirmation_sent": True}, request=request)
     return normalized
@@ -364,6 +375,7 @@ def confirm_email_change(token: str, *, request=None) -> User:
 
     Token.objects.filter(user=user).delete()
     _delete_sessions(user, keep=_own_session_key(request, user))
+    _remember_previous_email(user, old_email)
     audit(user, "account.email_changed", user, {"email": True}, request=request)
     # Stary adres dowiaduje się o przeniesieniu konta – to jedyny sygnał, jaki zostaje właścicielowi
     # skrzynki, jeśli o zmianę nie prosił.
@@ -470,9 +482,19 @@ def _drop_credentials(user: User) -> None:
     from allauth.socialaccount.models import SocialAccount
     from rest_framework.authtoken.models import Token
 
+    from apps.staff_mfa.models import PreviousEmail, TrustRevocation, TwoFactorGrace
+
+    from .twofactor import TwoFactorDevice
+
     Token.objects.filter(user=user).delete()
     SocialAccount.objects.filter(user=user).delete()
     EmailAddress.objects.filter(user=user).delete()
+    # Drugi składnik to też poświadczenie (zaszyfrowany sekret, skróty kodów zapasowych) – a okres
+    # przejściowy 2FA (SEC-01) to metadane konta, które po anonimizacji nie mają już czego dotyczyć.
+    TwoFactorDevice.objects.filter(user=user).delete()
+    TwoFactorGrace.objects.filter(user=user).delete()
+    PreviousEmail.objects.filter(user=user).delete()
+    TrustRevocation.objects.filter(user=user).delete()
     _delete_sessions(user)
 
 
@@ -553,6 +575,10 @@ def anonymise_account(user: User, *, actor: User | None = None, request=None) ->
     from .delegation_services import erase_for_user as erase_delegation_roles
 
     erase_delegation_roles(user)
+    # Płatności (PAY-01): profil nabywcy uczestnika znika; zamówienia i faktury zostają (księgowość).
+    from apps.payments.services import erase_for_user as erase_billing_profiles
+
+    erase_billing_profiles(user)
 
     # Konkurs z kontekstu, odwrotem miękkim: anonimizację wnosi albo właściciel konta (żądanie
     # pod domeną konkursu), albo kosiarka retencji, która chodzi po konkursach z ``each_competition``
@@ -625,6 +651,18 @@ def anonymise_account(user: User, *, actor: User | None = None, request=None) ->
 
     erase_for_participants(participants)
 
+    # Okna czasowe (TZ-01): strefa ucznia znika, wyjątek w oknie zostaje bez powodu – powód bywa
+    # śladem dostosowania, a okno i dodatkowy czas są dokumentacją warunków pracy.
+    from apps.time_windows.privacy import erase_for_participants as erase_time_window_data
+
+    erase_time_window_data(participants)
+    # Nadzór zdalny (PROC-01): nagrania kamer, zdjęcia dokumentu, dziennik połączeń i wiadomości
+    # znikają, zgody na nadzór dostają ``withdrawn_at``. Incydenty i obecność zostają przy
+    # pseudonimowym profilu – jak prace i oceny, są dokumentacją zawodów.
+    from apps.proctoring.services import erase_for_participants as erase_proctoring
+
+    erase_proctoring(participants)
+
     # Pseudonimy widza materiałów z warsztatów (``apps.workshop_materials``) – licznik wyświetleń
     # materiału zostaje, liczba unikalnych widzów spada o to konto.
     from apps.workshop_materials.stats import erase_for_user as erase_workshop_views
@@ -644,6 +682,24 @@ def anonymise_account(user: User, *, actor: User | None = None, request=None) ->
     from apps.chat.services import erase_for_user as erase_chat_state
 
     erase_chat_state(user)
+
+    # Sieć absolwentów (ALUM-01): profil absolwenta znika, relacje mentorskie się kończą, a notatki
+    # prośby i treść własnych zgłoszeń są czyszczone. Historia relacji (kto, kiedy) zostaje do
+    # nadzoru koordynatora – bez podpisu, bo konta już nie ma.
+    from apps.alumni.services import erase_for_user as erase_alumni
+
+    erase_alumni(user)
+
+    # Webinary (WEB-01): lista obecności tej osoby, ustawienie listów i współprowadzenie znikają –
+    # obecność jest daną o osobie, a nie dokumentacją zawodów.
+    from apps.webinars.services import erase_for_user as erase_webinar_state
+
+    erase_webinar_state(user)
+    # Przegląd tłumaczeń (L10N-01): rola tłumacza, głosy i zgłoszenia znikają; propozycje (sam tekst
+    # tłumaczenia, część interfejsu albo praca dla recenzenta) zostają bez autora.
+    from apps.translation_review.services import erase_for_user as erase_translation_review
+
+    erase_translation_review(user)
 
     _drop_credentials(user)
     audit(actor or user, "account.anonymised", user, {"user_id": user.pk}, request=request)
@@ -693,6 +749,10 @@ def _erase_account(user: User, *, actor: User | None = None, request=None) -> st
     from .delegation_services import erase_for_user as erase_delegation_roles
 
     erase_delegation_roles(user)
+    # Płatności (PAY-01): profil nabywcy uczestnika znika; zamówienia i faktury zostają (księgowość).
+    from apps.payments.services import erase_for_user as erase_billing_profiles
+
+    erase_billing_profiles(user)
     _drop_credentials(user)
     # Audyt **przed** skasowaniem wiersza: po ``delete()`` nie ma z czego wziąć ``target_type``,
     # a ``actor`` będący samym kasowanym kontem i tak zgaśnie na ``SET_NULL``. W ``diff`` jest
@@ -788,14 +848,18 @@ def assert_coordinator_may_secure(user: User, *, actor: User | None, competition
     - konto własne (``SELF_ACTION``) – własne hasło i własny drugi składnik zmienia się na swoim
       profilu, a nie ekranem zarządzania cudzymi kontami,
     - konto chronione (``COORDINATOR_PROTECTED``) – drugi koordynator, superkoordynator, operator
-      z ``/admin/``: zdjęcie mu 2FA razem z wyciekiem hasła byłoby przejęciem konta operatora,
+      z ``/admin/``: zdjęcie mu 2FA razem z wyciekiem hasła byłoby przejęciem konta operatora.
+      Wyjątek: wykonawca ponad granicą konkursu (``shared_accounts.may_manage_shared`` –
+      superużytkownik, superkoordynator), bo to on jest drogą powrotu koordynatora, który zgubił
+      telefon (SEC-01, ``docs/OPERACJE.md`` § 41); konto superużytkownika zostaje jednak
+      chronione przed superkoordynatorem,
     - konto z rolą w innym konkursie (``ACCOUNT_SHARED``, ``apps.accounts.shared_accounts``).
 
     ``competition`` domyślnie z kontekstu żądania – stąd bierze go reszta serwisów tego modułu.
     """
     from apps.tenancy.context import current_competition
 
-    from .shared_accounts import assert_not_shared
+    from .shared_accounts import assert_not_shared, may_manage_shared
 
     if actor is not None and user.pk == actor.pk:
         raise DomainError(
@@ -803,8 +867,51 @@ def assert_coordinator_may_secure(user: User, *, actor: User | None, competition
             "SELF_ACTION",
             status.HTTP_400_BAD_REQUEST,
         )
-    _assert_not_coordinator(user)
+    above = may_manage_shared(actor) and (actor.is_superuser or not user.is_superuser)
+    if not above:
+        _assert_not_coordinator(user)
     assert_not_shared(user, competition if competition is not None else current_competition(), actor=actor)
+
+
+TWO_FACTOR_EMAIL_PROTECTED_MESSAGE = (
+    "To konto personelu albo konto z logowaniem dwuskładnikowym – jego adres e-mail zmienia wyłącznie "
+    "superkoordynator (albo operator w /admin/)."
+)
+
+
+def _assert_may_change_protected_email(user: User, actor: User) -> None:
+    """Adres konta z potwierdzonym 2FA zmienia z panelu wyłącznie superkoordynator (przegląd SEC-01, H1).
+
+    Zmiana adresu przez koordynatora to pierwszy krok przejęcia: nowy adres → reset hasła na ten
+    adres → (po resecie 2FA albo z porzuconą sesją) cudze konto. Konto, które samo zadbało o drugi
+    składnik, nie może stracić skrzynki decyzją dowolnego z kilkunastu koordynatorów. Działa wyłącznie
+    przy włączonej funkcji (``TWO_FACTOR_ENABLED``) – wyłączona nie zmienia panelu ani o przycisk.
+
+    Obejmuje też konto **personelu bez** urządzenia (także zablokowane – ślad z całej platformy):
+    na instalacji bez superkoordynatora koordynator może zdjąć 2FA personelowi swojego konkursu
+    (wyjątek z ``staff_mfa.policy.may_reset``), więc sama reguła „ma urządzenie” zostawiałaby
+    łańcuch reset 2FA → zmiana adresu → reset hasła otwarty.
+    """
+    from apps.accounts import twofactor
+    from apps.accounts.super_coordinator import is_super_coordinator
+    from apps.staff_mfa.policy import is_staff_anywhere
+
+    if not twofactor.is_enabled() or is_super_coordinator(actor):
+        return
+    if twofactor.confirmed_device(user) is not None or is_staff_anywhere(user):
+        raise DomainError(
+            TWO_FACTOR_EMAIL_PROTECTED_MESSAGE, "TWO_FACTOR_EMAIL_PROTECTED", status.HTTP_400_BAD_REQUEST
+        )
+
+
+def _remember_previous_email(user: User, old_email: str) -> None:
+    """Poprzedni adres – drugi odbiorca listu o resecie 2FA (``apps.staff_mfa``), tylko przy włączonym 2FA."""
+    from apps.accounts import twofactor
+
+    if twofactor.is_enabled():
+        from apps.staff_mfa.security import remember_previous_email
+
+        remember_previous_email(user, old_email)
 
 
 def _account_values(fields: dict) -> dict:
@@ -947,6 +1054,9 @@ def update_account_by_coordinator(
     changes_active = "is_active" in values and values["is_active"] != user.is_active
     if changes_email or changes_active:
         assert_not_shared(user, current_competition(), actor=actor)
+    if changes_email:
+        # Konto z 2FA albo konto personelu – adres zmienia wyłącznie superkoordynator (SEC-01, H1).
+        _assert_may_change_protected_email(user, actor)
     # Profil z konkursu, którego panel koordynator ma przed sobą: koordynator olimpiady A nie
     # poprawia szkoły uczestnikowi w olimpiadzie B, nawet jeżeli to jedno konto (§ 3.3).
     profile = participant_for(user, current_competition())
@@ -971,6 +1081,19 @@ def update_account_by_coordinator(
             status.HTTP_400_BAD_REQUEST,
         )
 
+    if values.get("is_active") and not user.is_active:
+        from .activation import pending_invitation
+
+        if pending_invitation(user) is not None:
+            # AUTH-01a (H1): odblokowanie konta z niezaakceptowanym zaproszeniem dałoby aktywne konto
+            # bez zgód i bez hasła – uczeń uruchamia je sam linkiem z zaproszenia.
+            raise DomainError(
+                "To konto czeka na przyjęcie zaproszenia – uczeń uruchamia je sam linkiem z listu "
+                "(zgody, hasło). Wyślij zaproszenie ponownie zamiast zaznaczać „Konto aktywne”.",
+                "INVITATION_PENDING",
+                status.HTTP_400_BAD_REQUEST,
+            )
+
     diff: dict = {}
     previous_email = user.email
     if not changes_email:
@@ -994,6 +1117,7 @@ def update_account_by_coordinator(
         Token.objects.filter(user=user).delete()
     if user.email != previous_email:
         _forget_allauth_addresses(user, previous_email)
+        _remember_previous_email(user, previous_email)
         # Wprost, bo to inna droga niż ``account.email_changed``: adres nie został potwierdzony
         # kliknięciem w link, tylko zmieniony decyzją organizatora.
         diff["email_changed_without_confirmation"] = True

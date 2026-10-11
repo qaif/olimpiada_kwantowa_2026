@@ -2,6 +2,22 @@
 
 from django.urls import path
 
+from apps.alumni.urls import urlpatterns as alumni_urlpatterns
+from apps.consent_gate.urls import urlpatterns as consent_gate_urlpatterns  # CONS-01
+from apps.delegation_logistics.urls import urlpatterns as final_logistics_urlpatterns
+from apps.email_delivery.urls import urlpatterns as email_delivery_urlpatterns  # MAIL-02: odbicia
+from apps.medals.urls import urlpatterns as medal_urlpatterns  # MED-01
+
+# Notatniki kwantowe (QC-01) – wzorce w module aplikacji, rozwinięte na końcu listy.
+from apps.notebooks.urls import urlpatterns as notebook_urlpatterns
+from apps.password_change.urls import urlpatterns as password_change_urlpatterns  # AUTH-01b
+from apps.payments.urls import urlpatterns as payment_urlpatterns
+from apps.problem_translations.urls import urlpatterns as translation_urlpatterns
+
+# Statystyki szkół (STAT-01) – widoki mieszkają w nowej aplikacji, montaż jak u pozostałych wydań.
+from apps.school_stats.urls import urlpatterns as school_stats_urlpatterns
+from apps.staff_mfa.urls import urlpatterns as staff_mfa_urlpatterns  # SEC-01: 2FA personelu
+
 # Wzorce ekranów wydań E–K stoją w osobnych modułach, bo powstały równolegle (T11, T13, T20, T23,
 # T27, T34, T42), a ten plik ma w etapie 2 **jednego** właściciela na wydanie
 # (``docs/UNIWERSALNY-ETAP-2.md`` § 4.1). Montaż jest rozwinięciem tych list na **końcu**
@@ -9,6 +25,9 @@ from django.urls import path
 # przestawiamy. Bramki flagi tu nie ma — o tym, czy ekran istnieje w tym konkursie, rozstrzyga
 # widok (§ 2.1), bo mapa adresów zależna od konkursu znaczyłaby ``reverse()`` dający raz adres,
 # a raz ``NoReverseMatch``.
+from apps.time_windows.urls import urlpatterns as time_windows_urlpatterns
+from apps.translation_review.urls import urlpatterns as translation_review_urlpatterns
+
 from .urls_ai_grading import urlpatterns as ai_grading_urlpatterns
 from .urls_chat import urlpatterns as chat_urlpatterns
 from .urls_competitions import urlpatterns as competition_urlpatterns
@@ -18,10 +37,12 @@ from .urls_documents import urlpatterns as document_urlpatterns
 from .urls_fees import urlpatterns as fee_urlpatterns
 from .urls_institutions import urlpatterns as institution_urlpatterns
 from .urls_pipeline import urlpatterns as pipeline_urlpatterns
+from .urls_proctoring import urlpatterns as proctoring_urlpatterns
 from .urls_regions import urlpatterns as region_urlpatterns
 from .urls_scoring import urlpatterns as scoring_urlpatterns
 from .urls_student_status import urlpatterns as student_status_urlpatterns
 from .urls_video import urlpatterns as video_urlpatterns
+from .urls_webinars import urlpatterns as webinar_urlpatterns
 from .urls_workshop_materials import urlpatterns as workshop_material_urlpatterns
 from .views import (
     account,
@@ -32,6 +53,7 @@ from .views import (
     coordinator_announcements,
     coordinator_certificates,
     coordinator_competition,
+    coordinator_duplicates,
     coordinator_events,
     coordinator_forum,
     coordinator_forwarding,
@@ -49,6 +71,7 @@ from .views import (
     coordinator_sponsor_slider,
     coordinator_stages,
     coordinator_support,
+    coordinator_theme_settings,
     coordinator_themes,
     coordinator_workshops,
     forum,
@@ -80,6 +103,8 @@ urlpatterns = [
     # z własnej domeny (``'self'`` w CSP) zamiast stylu inline. Ścieżki ``apps.web`` są dopasowywane
     # przed drzewem stron Wagtaila, a ``_theme/`` nie jest slugiem żadnej strony serwisu.
     path("_theme/overrides.css", coordinator_themes.theme_overrides_css, name="theme-overrides"),
+    # Dostosowanie motywu koordynatora (THEME-02 § 2.3): kolory, schemat, kroje – podpisany zestaw opcji.
+    path("_theme/custom.css", coordinator_theme_settings.theme_custom_css, name="theme-custom"),
     # Drugi krok logowania (TOTP). Adres stoi przy logowaniu, a nie przy koncie, bo to jest
     # **ciąg dalszy logowania**: sesja, która tu trafia, nie może jeszcze nic innego (patrz
     # ``apps.accounts.twofactor.TwoFactorMiddleware``).
@@ -412,6 +437,17 @@ urlpatterns = [
         "coordinator/competition/theme/",
         coordinator_themes.CompetitionThemeView.as_view(),
         name="coordinator-theme",
+    ),
+    # THEME-02: menu serwisu i dostosowanie wersji motywu (kolory, schemat, logo, kroje) bez paczki.
+    path(
+        "coordinator/competition/theme/menu/",
+        coordinator_theme_settings.CompetitionMenuView.as_view(),
+        name="coordinator-theme-menu",
+    ),
+    path(
+        "coordinator/competition/theme/customize/",
+        coordinator_theme_settings.CompetitionThemeCustomizeView.as_view(),
+        name="coordinator-theme-customize",
     ),
     # Katalog motywów **platformy** – wyłącznie superkoordynator (wgrywanie paczek, raporty, wersje).
     path(
@@ -763,6 +799,23 @@ urlpatterns = [
         supervisor.CoordinatorStudentImportView.as_view(),
         name="coordinator-accounts-import",
     ),
+    # Zdublowane konta uczestników (ACC-DUP-01). Nazwy ``coordinator-duplicates…``, a nie
+    # ``coordinator-account-…``: przedrostek ``coordinator-account-`` zapala w menu „Wszystkie konta”.
+    path(
+        "coordinator/accounts/duplicates/",
+        coordinator_duplicates.CoordinatorDuplicatesView.as_view(),
+        name="coordinator-duplicates",
+    ),
+    path(
+        "coordinator/accounts/duplicates/delete/",
+        coordinator_duplicates.CoordinatorDuplicatesDeleteView.as_view(),
+        name="coordinator-duplicates-delete",
+    ),
+    path(
+        "coordinator/accounts/duplicates/export.csv",
+        coordinator_duplicates.CoordinatorDuplicatesExportView.as_view(),
+        name="coordinator-duplicates-export",
+    ),
     path(
         "coordinator/accounts/<int:pk>/",
         coordinator_accounts.CoordinatorAccountEditView.as_view(),
@@ -978,6 +1031,12 @@ urlpatterns = [
         coordinator_messages.CoordinatorMessagesView.as_view(),
         name="coordinator-messages",
     ),
+    # Anulowanie zaplanowanego komunikatu (MSG-SCHED-01) – sam POST, wiersz w zakresie konkursu.
+    path(
+        "coordinator/messages/<int:pk>/cancel/",
+        coordinator_messages.CoordinatorBroadcastCancelView.as_view(),
+        name="coordinator-message-cancel",
+    ),
     path(
         "coordinator/audit/",
         coordinator_reports.AuditBrowserView.as_view(),
@@ -1165,6 +1224,36 @@ urlpatterns = [
     *chat_urlpatterns,
     # --- wejście do pokoi wideo przez platformę, pokoje bez terminu (v0.39.0) -------------------
     *video_urlpatterns,
+    # --- webinary w LiveKit (zadanie WEB-01, flaga ``webinars``) --------------------------------
+    *webinar_urlpatterns,
     # --- delegacje krajowe: opiekun drużyny i ekran koordynatora (DEL-01, 4.10.2026) ------------
     *delegation_urlpatterns,
+    # --- logistyka finału dla delegacji: opiekun, oficer logistyki, obsługa (LOG-01, 4.10.2026) ---
+    *final_logistics_urlpatterns,
+    # --- statystyki szkół i opiekunów (STAT-01, flaga ``school_statistics``) ----------------------
+    *school_stats_urlpatterns,
+    # --- logowanie dwuskładnikowe personelu: nowe kody, polityka konkursu (SEC-01) -------------
+    *staff_mfa_urlpatterns,
+    # --- odbicia poczty: potwierdzenie adresu, lista koordynatora (MAIL-02, 5.10.2026) -----------
+    *email_delivery_urlpatterns,
+    # --- okna czasowe etapu według stref (TZ-01, 4.10.2026; widoki w ``apps.time_windows``) -------
+    *time_windows_urlpatterns,
+    # --- tłumaczenia zadań przez delegacje (TR-01, 4.10.2026) -----------------------------------
+    *translation_urlpatterns,
+    # --- przegląd tłumaczeń interfejsu (zadanie L10N-01) -----------------------------------------
+    *translation_review_urlpatterns,
+    # --- medale olimpiady międzynarodowej i ranking krajów (MED-01, flaga ``medals``) -----------
+    *medal_urlpatterns,
+    # --- płatności online za udział: Stripe, Przelewy24, przelew, faktury (PAY-01, 4.10.2026) ---
+    *payment_urlpatterns,
+    # --- notatniki kwantowe w przeglądarce i ocena automatyczna (zadanie QC-01, flaga) ------------
+    *notebook_urlpatterns,
+    # --- sieć absolwentów i mentoring (ALUM-01, za flagą ``alumni``) ---------------------------------
+    *alumni_urlpatterns,
+    # --- zmiana hasła w panelu konta (AUTH-01b, 4.10.2026) ------------------------------------------
+    *password_change_urlpatterns,
+    # --- nadzór zdalny etapów online (zadanie PROC-01, flaga ``proctoring``) ---------------------
+    *proctoring_urlpatterns,
+    # --- uzupełnienie zgód po zalogowaniu i eksport braków (CONS-01) -----------------------------
+    *consent_gate_urlpatterns,
 ]

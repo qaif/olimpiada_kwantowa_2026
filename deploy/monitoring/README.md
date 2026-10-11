@@ -35,9 +35,10 @@ cena wariantu „wszystko na jednym serwerze”, i trzeba ją znać. Dwie rzeczy
 - **watchdog aplikacyjny** (`apps/core/alerts.py`, list co najwyżej raz na godzinę na `ALERT_EMAILS`)
   – widzi to, czego nie widać z zewnątrz: wolne miejsce na dysku, nieudane zadania w tle, serię
   odpowiedzi 500, brak kopii zapasowej,
-- **jeden monitor spoza tej maszyny**. Dowolna darmowa usługa (UptimeRobot, Better Stack, druga
-  instancja Kumy u innego dostawcy) odpytująca `https://<domena>/status.json` co 5 minut i szukająca
-  w treści `"status": "ok"`. To jest jedyne sprawdzenie, które przeżyje śmierć serwera.
+- **monitoring spoza tej maszyny**: od OPS-03 workflow `.github/workflows/uptime.yml` (GitHub
+  Actions co 10 minut, alarm = zgłoszenie `awaria` w repozytorium, `docs/OPERACJE.md` § 46) i –
+  zalecany jako druga opinia – darmowy pinger z § 5 niżej. To są jedyne sprawdzenia, które
+  przeżyją śmierć serwera.
 
 ---
 
@@ -147,3 +148,28 @@ Token bota jest sekretem: kto go ma, może pisać w imieniu bota. Nie trafia do 
 Kolejność jest zawsze ta sama i jest opisana w `docs/OPERACJE.md` w sekcji „Lista kontrolna
 incydentu”. W skrócie: najpierw `https://<domena>/status/` (co widzi uczestnik), potem
 `docker compose ps` (co widzi host), potem logi tej jednej usługi, która nie jest `healthy`.
+
+---
+
+## 5. Monitor spoza serwera: darmowy pinger jako druga opinia (UptimeRobot)
+
+Pierwszy monitor spoza serwera już jest: `.github/workflows/uptime.yml` (`docs/OPERACJE.md` § 46).
+Ma dwie słabości, których nie usunie żadna jego konfiguracja: cron GitHuba bywa spóźniony o
+kilkadziesiąt minut, a po 60 dniach bez commitów GitHub wyłącza go **po cichu**. Drugi, niezależny
+pinger kosztuje 5 minut pracy i zero złotych. Konto zakłada **człowiek** na adres dyżurny – nie
+agent i nie skrypt.
+
+UptimeRobot, plan darmowy (interwał 5 min, powiadomienia e-mail):
+
+1. *Add New Monitor* → typ **Keyword**, URL `https://olimpiadakwantowa.pl/status.json`,
+   słowo `"status": "ok"` (ze spacją – tak zapisuje Django), *Alert when keyword not exists*,
+   interwał 5 min,
+2. to samo dla `https://iqo-official.org/status.json`,
+3. typ **HTTP(s)** dla `https://live.olimpiadakwantowa.pl/` (LiveKit odpowiada `200` i `OK`) – w
+   okresie webinarów; poza nim *Pause*,
+4. *Alert Contacts*: adres dyżurny **spoza** domeny serwisu (poczta, która nie zależy od naszego
+   serwera) – z tego samego powodu, co dwa kanały w § 3.
+
+Plan darmowy nie pilnuje ważności certyfikatu ani `backup_restore_check` – to robi workflow GitHuba.
+Pinger odpowiada na jedno pytanie: „czy serwer w ogóle odpowiada”. W repozytorium nie zostawia
+śladu ani sekretu; gdy przestanie być potrzebny, wystarczy *Pause*.

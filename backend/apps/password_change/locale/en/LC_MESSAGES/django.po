@@ -1,0 +1,106 @@
+# Zmiana hasła w panelu konta (AUTH-01b) – katalog aplikacji apps/password_change.
+msgid ""
+msgstr ""
+"Project-Id-Version: olimpiada\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-04 22:00+0200\n"
+"PO-Revision-Date: 2026-10-04 22:00+0200\n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: en\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Hasło do konta zostało zmienione – Olimpiada Kwantowa"
+msgstr "Account password changed – Quantum Olympiad"
+
+#, python-format
+msgid "Hasło do konta zostało zmienione – %(competition)s"
+msgstr "Account password changed – %(competition)s"
+
+#, python-format
+msgid "Hasło do Twojego konta w serwisie %(competition_genitive)s zostało zmienione (%(when)s)."
+msgstr "The password of your account on the %(competition_genitive)s website was changed (%(when)s)."
+
+msgid "Pozostałe urządzenia, na których było otwarte to konto, zostały wylogowane. Na urządzeniu, na którym zmieniono hasło, sesja trwa dalej."
+msgstr "All other devices on which this account was open have been signed out. On the device where the password was changed, the session continues."
+
+msgid "Jeśli to nie Ty zmieniłeś hasło, natychmiast ustaw nowe przez formularz „Nie pamiętasz hasła?” i skontaktuj się z organizatorem:"
+msgstr "If you did not change your password, set a new one straight away using the “Forgotten your password?” form and contact the organiser:"
+
+msgid "To konto nie ma jeszcze hasła – ustaw je linkiem wysłanym na adres konta."
+msgstr "This account does not have a password yet – set one using the link sent to the account’s e-mail address."
+
+msgid "Nowe hasło musi się różnić od aktualnego."
+msgstr "The new password must be different from the current one."
+
+msgid "Aktualne hasło jest nieprawidłowe."
+msgstr "The current password is incorrect."
+
+msgid "To konto ma już hasło – zmień je formularzem zmiany hasła."
+msgstr "This account already has a password – change it with the password change form."
+
+msgid "Na to konto nie można teraz wysłać linku – skontaktuj się z organizatorem."
+msgstr "A link cannot be sent to this account right now – please contact the organiser."
+
+msgid "Co najmniej 10 znaków; nie może być popularnym hasłem, ciągiem samych cyfr ani przypominać Twojego imienia, nazwiska lub adresu e-mail."
+msgstr "At least 10 characters; it must not be a common password, consist only of digits or resemble your first name, last name or e-mail address."
+
+msgid "Powtórz nowe hasło"
+msgstr "Repeat the new password"
+
+msgid "Hasło zostało zmienione. Pozostałe urządzenia zostały wylogowane, a na adres konta wysłaliśmy potwierdzenie."
+msgstr "Your password has been changed. All other devices have been signed out and a confirmation has been sent to the account’s e-mail address."
+
+msgid "Wysłaliśmy link do ustawienia hasła na adres konta. Link jest ważny 24 godziny."
+msgstr "We have sent a link for setting a password to the account’s e-mail address. The link is valid for 24 hours."
+
+msgid "Zmiana hasła"
+msgstr "Change password"
+
+msgid "Podaj aktualne hasło i dwa razy nowe. Po zmianie pozostaniesz zalogowany na tym urządzeniu, a wszystkie inne urządzenia i aplikacje zostaną wylogowane. Na adres konta wyślemy potwierdzenie."
+msgstr "Enter your current password and the new one twice. After the change you will stay signed in on this device, and all other devices and apps will be signed out. We will send a confirmation to the account’s e-mail address."
+
+msgid "Zmień hasło"
+msgstr "Change password"
+
+msgid "Nie pamiętasz aktualnego hasła?"
+msgstr "Don’t remember your current password?"
+
+msgid "Ustaw nowe przez link e-mail"
+msgstr "Set a new one via an e-mail link"
+
+#, python-format
+msgid "To konto nie ma hasła – logujesz się przez zewnętrznego dostawcę (np. Google). Jeśli chcesz logować się także hasłem, wyślemy link do jego ustawienia na adres konta (<strong>%(address)s</strong>). Dopiero kliknięcie w link potwierdza, że skrzynka należy do Ciebie."
+msgstr "This account has no password – you sign in through an external provider (e.g. Google). If you would also like to sign in with a password, we will send a link for setting one to the account’s e-mail address (<strong>%(address)s</strong>). Only clicking the link confirms that the mailbox belongs to you."
+
+msgid "Wyślij mi link do ustawienia hasła"
+msgstr "Send me a link to set a password"
+
+msgid "Wróć do ustawień konta"
+msgstr "Back to account settings"
+
+msgid "Zmiana hasła wymaga podania aktualnego. Po zmianie pozostałe urządzenia zostaną wylogowane, a na adres konta przyjdzie potwierdzenie."
+msgstr "Changing your password requires your current one. After the change all other devices will be signed out and a confirmation will be sent to the account’s e-mail address."
+
+#, python-format
+msgid "Ustawienia konta: %(address)s"
+msgstr "Account settings: %(address)s"
+
+msgid "Zbyt wiele błędnych haseł z rzędu – ze względów bezpieczeństwa wylogowaliśmy Cię. Zaloguj się ponownie."
+msgstr "Too many wrong passwords in a row – for your security we have signed you out. Please sign in again."
+
+msgid "Zbyt wiele prób na tym koncie. Odczekaj chwilę i spróbuj ponownie."
+msgstr "Too many attempts on this account. Please wait a moment and try again."
+
+msgid "Otwarta na innym urządzeniu sesja edytora django CMS nie jest kończona od razu – wygasa sama po kilku godzinach. Jeśli podejrzewasz przejęcie konta, poproś organizatora o jej zamknięcie."
+msgstr "An open django CMS editor session on another device is not ended immediately – it expires on its own after a few hours. If you suspect your account has been taken over, ask the organiser to close it."
+
+msgid "Zmiana adresu wymaga potwierdzenia hasłem. To konto nie ma jeszcze hasła – ustaw je najpierw w sekcji „Hasło” niżej."
+msgstr "Changing the address requires confirmation with your password. This account does not have a password yet – set one first in the “Password” section below."
+
+#, python-format
+msgid "To konto nie ma hasła – logujesz się przez zewnętrznego dostawcę (np. Google, Facebook) i tak zostaje. Adres <strong>%(address)s</strong> nie jest potwierdzony, więc nie wyślemy na niego linku do ustawienia hasła. Hasło da się ustawić dopiero po potwierdzeniu adresu przez dostawcę logowania; jeśli Twój dostawca adresu nie potwierdza, napisz do organizatora."
+msgstr "This account has no password – you sign in through an external provider (e.g. Google, Facebook), and that stays as it is. The address <strong>%(address)s</strong> is not verified, so we will not send a password-setting link to it. A password can only be set once the address has been verified by your sign-in provider; if your provider does not verify addresses, write to the organiser."

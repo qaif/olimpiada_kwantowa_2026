@@ -1,0 +1,9 @@
+{
+  "@jupyterlab/apputils-extension:notification": {
+    "fetchNews": "false",
+    "checkForUpdates": false
+  },
+  "@jupyterlab/notebook-extension:tracker": {
+    "autoStartDefaultKernel": true
+  }
+}

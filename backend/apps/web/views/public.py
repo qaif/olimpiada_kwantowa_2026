@@ -34,10 +34,12 @@ from apps.accounts.activation import (
     ACTIVATION_HOURS,
     RESEND_MESSAGE,
     activate_with_token,
+    mark_activated,
+    pending_invitation,
     resend_activation,
 )
 from apps.accounts.consents import ConsentSource
-from apps.accounts.password_reset import QueuedPasswordResetForm
+from apps.accounts.password_reset import QueuedPasswordResetForm, invited_without_consents, send_start_link
 from apps.accounts.services import register_committee, register_participant
 from apps.cms.models import SiteSettings
 from apps.competitions.scoring import problem_maxima_by_number, stage_maximum_total
@@ -51,7 +53,7 @@ from apps.web.forms import (
     EmailAuthenticationForm,
     ParticipantRegisterForm,
 )
-from apps.web.throttle import ThrottledFormMixin, reset_for_identity
+from apps.web.throttle import ThrottledFormMixin, recipient_throttle_keys, reset_for_identity
 
 
 def default_panel_url(request) -> str:
@@ -158,8 +160,10 @@ class PasswordResetView(ThrottledFormMixin, DjangoPasswordResetView):
 
     **Bez enumeracji kont.** Odpowiedź jest identyczna dla adresu istniejącego i nieistniejącego –
     zawsze 302 na ``/password-reset/sent/``. ``PasswordResetForm`` Django szuka konta samo i przy
-    braku dopasowania po prostu nic nie wysyła (dotyczy to też kont ``is_active=False`` oraz kont
-    z nieużywalnym hashem hasła – to domyślne zachowanie ``get_users`` i go nie zmieniamy).
+    braku dopasowania po prostu nic nie wysyła. Od AUTH-01a link dostają też aktywne konta bez
+    hasła platformy z adresem potwierdzonym u nas lub u dostawcy, konto przed aktywacją (zapis
+    hasła je aktywuje), a zaproszony uczeń – ponowione zaproszenie; reguła w
+    ``apps.accounts.password_reset``.
 
     Limit (scope ``password_reset``) konsumuje **każdy** POST, także udany: inaczej ten formularz
     byłby wysyłaczem listów na dowolny cudzy adres, ograniczonym wyłącznie cierpliwością nadawcy.
@@ -178,6 +182,10 @@ class PasswordResetView(ThrottledFormMixin, DjangoPasswordResetView):
     html_email_template_name = "registration/password_reset_email_body.html"
     success_url = reverse_lazy("web:password-reset-sent")
     throttle_scope = "password_reset"
+
+    def get_throttle_keys(self, request) -> list[str]:
+        # Trzeci kubełek: adresat listu, bez IP (AUTH-01a, L3) – patrz ``recipient_throttle_keys``.
+        return [*super().get_throttle_keys(request), *recipient_throttle_keys(self.throttle_scope, request)]
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
@@ -199,7 +207,11 @@ class PasswordResetView(ThrottledFormMixin, DjangoPasswordResetView):
             **(self.extra_email_context or {}),
             "site_name": service_name(self.request),
         }
-        return super().form_valid(form)
+        response = super().form_valid(form)
+        # Zaproszony uczeń przed przyjęciem zaproszenia dostaje zaproszenie zamiast ciszy –
+        # odpowiedź zostaje ta sama (AUTH-01a, ``apps.accounts.password_reset``).
+        send_start_link(form.cleaned_data["email"], request=self.request)
+        return response
 
 
 class PasswordResetSentView(DjangoPasswordResetDoneView):
@@ -224,12 +236,31 @@ class PasswordResetConfirmView(DjangoPasswordResetConfirmView):
     success_url = reverse_lazy("web:password-reset-complete")
     post_reset_login = False
 
+    def get_user(self, uidb64):
+        user = super().get_user(uidb64)
+        # Konto z niezaakceptowanym zaproszeniem nie ustawia hasła tą drogą – ekran zaproszenia
+        # zbiera zgody (AUTH-01a, H1). Link do takiego konta nie powstaje, to jest bezpiecznik.
+        # Tak samo konto z zaproszenia ręcznie aktywowane bez zgód (stan sprzed poprawki H1).
+        if user is not None and (
+            pending_invitation(user) is not None
+            or (not user.has_usable_password() and invited_without_consents(user))
+        ):
+            return None
+        return user
+
     def form_valid(self, form):
         # Import lokalny: zmiana dotyczy wyłącznie tej klasy (pakiet 5 po audycie).
         from rest_framework.authtoken.models import Token
 
         response = super().form_valid(form)
         user = form.user
+        if user.email_verified_at is None and not user.is_active:
+            # Konto z rejestracji przed aktywacją (AUTH-01a, M1): link z listu dowiódł dostępu do
+            # skrzynki, a hasło z rejestracji zostało właśnie zastąpione hasłem właściciela
+            # skrzynki – dopiero teraz wolno konto uruchomić.
+            user = mark_activated(
+                user, actor=user, action="account.activated_by_password_reset", request=self.request
+            )
         # Token API nie ma w sobie skrótu hasła, więc – inaczej niż sesje, które Django unieważnia
         # przez ``get_session_auth_hash`` – przeżyłby reset. Reset jest zwykle odpowiedzią na
         # „ktoś zna moje hasło”, a wtedy wykradziony token byłby furtką, której zmiana hasła nie
@@ -398,6 +429,10 @@ class ActivationResendView(ThrottledFormMixin, FormView):
     form_class = ActivationResendForm
     success_url = reverse_lazy("web:login")
     throttle_scope = "password_reset"
+
+    def get_throttle_keys(self, request) -> list[str]:
+        # Ten sam kubełek adresata, co przy resecie hasła (wspólny scope) – AUTH-01a, L3.
+        return [*super().get_throttle_keys(request), *recipient_throttle_keys(self.throttle_scope, request)]
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

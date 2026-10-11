@@ -1,0 +1,88 @@
+{% extends "web/coordinator/base.html" %}
+{% load web_extras %}
+{% comment %}
+  Tłumaczenia jednego etapu (TR-01): okno, wersje oficjalne zadań, macierz zadań × warianty
+  (język albo język i delegacja) i eksport do druku.
+{% endcomment %}
+{% block title %}Tłumaczenia: {{ stage.display_name }} – panel koordynatora{% endblock %}
+{% block panel_eyebrow %}<a href="{% url 'web:coordinator-translations' %}">Tłumaczenia zadań</a>{% endblock %}
+{% block panel_title %}Tłumaczenia: {{ stage.display_name }}{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Otwarcie etapu: {{ stage.opens_at|local_datetime }}.
+    {% if window %}Okno tłumaczeń: {{ window.opens_at|local_datetime }} – {{ window.effective_closes_at|local_datetime }}
+      ({% if state == "open" %}otwarte{% elif state == "upcoming" %}przed otwarciem{% else %}zamknięte{% endif %}).{% endif %}</p>
+{% endblock %}
+{% block panel_content %}
+<section class="section">
+  <div class="card">
+    <h2 class="mt-0">Okno tłumaczeń</h2>
+    <form method="post" class="form" novalidate>
+      {% csrf_token %}
+      {{ form.as_p }}
+      {% if has_translations %}<p class="hint">W etapie są już tłumaczenia – trybu współdzielenia nie można zmienić.</p>{% endif %}
+      <p class="hint">Tryb „wspólne”: wszystkie delegacje, które zadeklarowały ten sam język, pracują na jednym
+        tłumaczeniu i ich uczniowie dostają ten sam tekst. Tryb „osobne”: każda delegacja ma własne.</p>
+      <div class="actions"><button type="submit" class="btn btn--primary">Zapisz okno</button></div>
+    </form>
+  </div>
+</section>
+
+<section class="section">
+  <h2 class="mt-0">Zadania i tłumaczenia</h2>
+  {% if not headers %}<p class="hint">Żadna delegacja nie zadeklarowała jeszcze języka.</p>{% endif %}
+  <div class="scroll">
+    <table class="table">
+      <caption class="visually-hidden">Stan tłumaczeń zadań etapu</caption>
+      <thead>
+        <tr>
+          <th scope="col">Zadanie</th>
+          <th scope="col">Wersja oficjalna</th>
+          {% for h in headers %}<th scope="col">{{ h.label }}{% if h.delegation %}<br><span class="hint">{{ h.delegation.country.name }}</span>{% endif %}</th>{% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+          <tr>
+            <th scope="row">{{ row.problem.number }}. {{ row.problem.title }}</th>
+            <td>v{{ row.source.version|default:"1" }}
+              <a class="btn btn--secondary btn--small" href="{% url 'web:coordinator-translations-source' row.problem.pk %}">Tekst oficjalny</a></td>
+            {% for cell in row.cells %}
+              <td>{% include "problem_translations/coordinator/_status.html" with t=cell %}
+                {% if cell %}<a href="{% url 'web:coordinator-translation' cell.pk %}">otwórz</a>{% endif %}</td>
+            {% endfor %}
+          </tr>
+        {% empty %}
+          <tr><td colspan="2" class="empty">Etap nie ma zadań.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="section">
+  <h2 class="mt-0">Eksport do druku (finał stacjonarny)</h2>
+  <p class="hint">PDF składa serwer: przetłumaczone pliki PDF wchodzą stronami, tekst – krojem DejaVu (łacinka,
+    cyrylica, greka), a wzory jako źródło LaTeX. Dla tekstu ze wzorami albo w piśmie spoza tych krojów
+    (chiński, hindi, bengalski, arabski) użyj „Widoku do druku” i w przeglądarce wybierz „Zapisz jako PDF”.</p>
+  <div class="scroll">
+    <table class="table">
+      <caption class="visually-hidden">Warianty językowe</caption>
+      <thead><tr><th scope="col">Wariant</th><th scope="col">Zatwierdzone</th><th scope="col"></th></tr></thead>
+      <tbody>
+        {% for v in variants %}
+          <tr>
+            <th scope="row">{{ v.label }}</th>
+            <td>{{ v.approved }} / {{ v.total }}</td>
+            <td>
+              <a class="btn btn--secondary btn--small" href="{% url 'web:coordinator-translations-print' stage.pk v.language %}{% if v.delegation %}?delegation={{ v.delegation.pk }}{% endif %}">Widok do druku</a>
+              {% if v.approved %}<a class="btn btn--secondary btn--small" href="{% url 'web:coordinator-translations-pdf' stage.pk v.language %}{% if v.delegation %}?delegation={{ v.delegation.pk }}{% endif %}">PDF</a>{% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="3" class="empty">Nie ma jeszcze tłumaczeń.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

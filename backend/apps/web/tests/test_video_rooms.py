@@ -30,6 +30,7 @@ from apps.accounts.tests.factories import (
     ParticipantFactory,
     UserFactory,
 )
+from apps.competitions.jitsi_jwt import CLOCK_SKEW_SECONDS
 from apps.competitions.video_rooms import RoomCreator, VideoRoom
 from apps.core.models import AuditLog
 
@@ -286,7 +287,10 @@ def test_guest_link_gives_a_short_participant_pass(room):
     claims = claims_from(response["Location"])
     assert response["Location"].startswith(f"https://{HOST}/{room.room_name}#jwt=")
     assert claims["room"] == room.room_name
-    assert claims["exp"] - claims["iat"] == 10 * 60
+    # Długość przepustki liczymy od ``nbf``, a nie od ``iat``: ``exp`` i ``nbf`` wychodzą z jednego
+    # odczytu zegara w widoku, a ``iat`` z drugiego, chwilę później – na granicy sekundy różnica
+    # wychodziła 1799 zamiast 1800 i test padał losowo (CI, 5.10.2026).
+    assert claims["exp"] - claims["nbf"] == 10 * 60 + CLOCK_SKEW_SECONDS
     assert claims["context"]["user"] == {"name": "Jan Gość"}
     entry = AuditLog.objects.get(action="video.room_joined")
     assert entry.diff["role"] == "guest_link" and entry.diff["moderator"] is False
@@ -431,7 +435,7 @@ def test_shared_room_is_listed_and_joinable_from_the_reviewer_panel(jitsi):
     claims = claims_from(response["Location"])
     assert claims["room"] == room.room_name
     assert claims["context"]["user"]["moderator"] is True
-    assert claims["exp"] - claims["iat"] == 180 * 60
+    assert claims["exp"] - claims["nbf"] == 180 * 60 + CLOCK_SKEW_SECONDS  # jw. – nie od ``iat``
 
 
 def test_shared_room_without_moderator_flag_gives_participant(jitsi):

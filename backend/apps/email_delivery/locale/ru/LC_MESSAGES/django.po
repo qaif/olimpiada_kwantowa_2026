@@ -1,0 +1,47 @@
+# Doręczalność poczty (MAIL-02) – katalog aplikacji apps.email_delivery.
+# Angielski przejrzany ręcznie; pozostałe języki maszynowe (do przeglądu native speakerów, I18N-01 § 8).
+msgid ""
+msgstr ""
+"Project-Id-Version: olimpiada\n"
+"Language: ru\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
+
+#, python-format
+msgid "Czy chodziło Ci o %s?"
+msgstr "Возможно, вы имели в виду %s?"
+
+#, python-format
+msgid "Użyj %s"
+msgstr "Использовать %s"
+
+#, python-format
+msgid "Sprawdź adres – czy chodziło Ci o %(suggestion)s? Zaznacz poprawkę poniżej albo wyślij formularz jeszcze raz, żeby zostawić adres bez zmian."
+msgstr "Проверьте адрес — возможно, вы имели в виду %(suggestion)s? Отметьте исправление ниже или отправьте форму ещё раз, чтобы оставить адрес без изменений."
+
+#, python-format
+msgid "Domena %(domain)s nie istnieje albo nie przyjmuje poczty. Sprawdź adres."
+msgstr "Домен %(domain)s не существует или не принимает почту. Проверьте адрес."
+
+#, python-format
+msgid "Domena %(domain)s nie istnieje albo nie przyjmuje poczty. Czy chodziło Ci o %(suggestion)s?"
+msgstr "Домен %(domain)s не существует или не принимает почту. Возможно, вы имели в виду %(suggestion)s?"
+
+#, python-format
+msgid "Użyj adresu <strong>%(address)s</strong>"
+msgstr "Использовать <strong>%(address)s</strong>"
+
+#, python-format
+msgid "Nie możemy dostarczyć poczty na adres %(email)s – serwer odbiorcy odpowiada, że taka skrzynka albo domena nie istnieje. Nie dostaniesz od nas listów, dopóki adres nie zostanie poprawiony."
+msgstr "Мы не можем доставить почту на адрес %(email)s — сервер получателя сообщает, что такого почтового ящика или домена не существует. Вы не будете получать от нас писем, пока адрес не будет исправлен."
+
+msgid "Zmień adres e-mail"
+msgstr "Изменить адрес электронной почты"
+
+msgid "Mój adres jest poprawny"
+msgstr "Мой адрес правильный"
+
+msgid "Dziękujemy. Wznowiliśmy wysyłkę na Twój adres – jeśli list znów nie dotrze, baner wróci."
+msgstr "Спасибо. Мы возобновили отправку на ваш адрес — если письмо снова не дойдёт, это уведомление появится снова."

@@ -1,9 +1,13 @@
 # Historia zmian
 
-Jedna linia na wydanie — treść pochodzi z opisu commitu oznaczonego tagiem (`git log --tags`).
-Numeracja jest `v<major>.<minor>.<patch>`, a tag wydania jest zarazem wartością `APP_VERSION`
-wpisywaną przez `scripts/deploy.sh`, więc numer widoczny w stopce serwisu i na `/status/` odpowiada
-dokładnie jednemu wierszowi tej tabeli.
+Jedna sekcja na wydanie (od v0.34.0), najnowsze na górze; starsze wydania – po jednej linii w tabeli
+„Wydania” na końcu (treść z opisu commitu oznaczonego tagiem, `git log --tags`). Numeracja jest
+`v<major>.<minor>.<patch>`, a tag wydania jest zarazem wartością `APP_VERSION` wpisywaną przez
+`scripts/deploy.sh`, więc numer widoczny w stopce serwisu i na `/status/` odpowiada dokładnie jednej
+sekcji albo jednemu wierszowi tabeli.
+
+Nowa zmiana trafia na górę jako `## [Unreleased] – <tytuł>`; przy tagowaniu blok staje się
+podsekcją `### <tytuł>` wydania `## v<x.y.z> – <data tagu> – <opis tagu>`.
 
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
@@ -21,7 +25,7 @@ i testy: [`SECURITY_CHECKLIST.md`](SECURITY_CHECKLIST.md) § 14.
 - **Średnie:** odebrany przydział recenzenta bez dostępu do pliku i cudzych ocen; wycofane ogłoszenie
   wyników niewidoczne nigdzie (`ResultsPublication.objects.live()`); test online respektuje „Zamknij
   etap”; neutralny stan pracy dla recenzenta rundy 1 i blokada poprawek w moderacji; `User.blocked_at`
-  (migracja `accounts.0039`) – zablokowane konto nie odblokuje się linkiem; konto z zaproszenia tylko
+  (migracja `accounts.0042`) – zablokowane konto nie odblokuje się linkiem; konto z zaproszenia tylko
   przez przyjęcie zaproszenia; reset 2FA/hasła i eksport RODO koordynatora z bramkami i zawężeniem do
   konkursu; uczeń delegacji bez zmiany kraju; inicjały ze szkołą tylko za zgodą; hasło przy zmianie
   adresu i wyłączaniu 2FA; karencja i limit ponownych zaproszeń; host bez aktywnego konkursu → 404;
@@ -36,28 +40,900 @@ i testy: [`SECURITY_CHECKLIST.md`](SECURITY_CHECKLIST.md) § 14.
   tylko konta oczekujące tego konkursu, audyt `via: activations`).
 - **Wdrożenie (operator):** `.env` musi mieć komplet `S3_PUBLIC_*`/`S3_PRIVATE_*`; zmiana nazw ciasteczek
   wylogowuje wszystkich; po wdrożeniu `scripts/deploy_jitsi.sh` (sieć `meet`), test resetu hasła (sieć
-  `mail`) i certyfikatów `www.`/`meet.`; szczegóły `OPERACJE.md` § 31.
+  `mail`) i certyfikatów `www.`/`meet.`; szczegóły `OPERACJE.md` § 54.
 
-## [Unreleased] – Motywy wizualne wgrywane paczkami (THEME-01)
+## [Unreleased] – Poczta przychodząca: postmaster@, abuse@ i zdalne odbicia (MAIL-03)
 
-- **Tokeny motywu:** arkusze (`static/css/*.css`) czytają kolory, kroje, promienie i odstępy przez
-  zmienne `--t-*`; wartości domyślne to wbudowany motyw „Klasyczny” (wygląd co do wartości wyliczonej
-  sprzed zmiany, Olimpiada Kwantowa co do bajtu HTML i zapytań). Tryb wysokiego kontrastu wygrywa
-  z każdym motywem.
-- **Paczki ZIP** (`manifest.json`, `theme.css`, `tokens.json`, `assets/`, sloty `templates/theme/*.html`):
-  walidacja przy wgraniu (ZIP-slip, bomba ZIP, typy plików, CSS parserem `tinycss2` bez `@import`
-  i zewnętrznych `url()`, SVG oczyszczane, lint szablonów i kompilacja ograniczonym silnikiem, tokeny
-  z ostrzeżeniami kontrastu, ClamAV), wersje niezmienne pod `themes/<slug>/<wersja>-<sha8>/`.
-- **Sloty:** `header`, `brand`, `footer`, `page_wrapper`, `home_hero`, `news_card`, `page_header`;
-  `base.html` zostaje właścicielem `<head>` (nonce CSP, skrypty, skip-link). CSP: origin bucketu
-  w `style-src`/`font-src` wyłącznie na stronach z motywem.
-- **Panele:** katalog motywów superkoordynatora (`/coordinator/platform/themes/`) i „Motyw serwisu”
-  koordynatora (`/coordinator/competition/theme/`, flaga `themes`) z podglądem tylko dla koordynatora,
-  wariantami układów, akcentem marki i aktywacją (audyt). Komenda `manage.py theme_install <zip|->
-  [--activate <slug>]` (`docs/OPERACJE.md` § 28).
-- **Wymaga przebudowy obrazu** (nowa zależność `tinycss2`).
+- Relay `mail` przyjmuje pocztę na porcie 25 (prośba organizatora z 9.10.2026 – potwierdzenie IP
+  w Microsoft SNDS/JMRP po blokadzie `S3150`): wyłącznie postmaster@ i abuse@ domen nadawcy,
+  przekierowane na `MAIL_INBOUND_FORWARD`, oraz zdalne odbicia na `noreply@` (skrzynka MAIL-02).
+  Usługa portu 25 bez relaya (`reject_unauth_destination`, własne `mynetworks`), port domyślnie tylko
+  na `127.0.0.1` (`MAIL_INBOUND_BIND`). Skrypt `deploy/mail/docker-init.d/60-inbound.sh`, test
+  `scripts/tests/mail_inbound_test.sh` (w CI razem z `mail_bounces_test.sh`), OPERACJE § 49.9.
 
-## [Unreleased] – Delegacje krajowe: rejestracja przez opiekunów drużyn narodowych (DEL-01)
+## [Unreleased] – Zdublowane konta uczestników w panelu koordynatora (ACC-DUP-01)
+
+- **Nowy ekran `/coordinator/accounts/duplicates/`** (menu „Uczestnicy i konta” → „Zdublowane konta”,
+  prośba organizatora z 9.10.2026 – na produkcji 17 osób z 36 kontami): grupy kont uczestnika tego
+  konkursu o tym samym imieniu, nazwisku (NFKC, bez wielkości liter, spacji, kropek i cudzysłowów)
+  i szkole (wykaz → słownik organizatora → tekst), bez kont zanonimizowanych. Przy koncie: ostatnie
+  logowanie, stan, etapy (trening osobno), prace, zgody, zaświadczenie i sugestia „do zachowania” /
+  „kandydat do usunięcia” / „do decyzji”. Serwis `apps.accounts.duplicates`, stała liczba zapytań.
+- **Usuwanie kopii** wyłącznie przez `delete_account_by_coordinator` (audyt jak dotąd): pojedynczo
+  przez istniejący ekran usuwania konta (`?back=duplicates` wraca na listę), zbiorczo z ekranem
+  potwierdzenia z dokładną listą; warunki kandydata są przeliczane w chwili usuwania, a konto, które
+  zdążyło się zalogować, jest pomijane. Eksport CSV z audytem `account.duplicates_exported`; słabszy
+  sygnał „podobne adresy e-mail” (literówki domen, np. `gmail.con`). PODRĘCZNIK-ORGANIZATORA § 10.2.
+
+## [Unreleased] – Materiały z warsztatów: pełny Office, Markdown, tekst i kod (WM-FMT-01)
+
+- **Nowe formaty plików** (prośba organizatora z 9.10.2026; zasada „nie zawężaj listy, co najwyżej ją
+  rozszerz” – wszystko, co było przyjmowane, przechodzi bez zmian): stary Office DOC/XLS/PPT (+ DOT/XLT/
+  POT/PPS, rodzina `cfb` po sygnaturze OLE), OOXML z makrami i szablony (DOCM, DOTX, DOTM, XLSM, XLSB,
+  XLTX, XLTM, PPTM, PPSX, PPSM, POTX, POTM), ODG, EPUB, RTF oraz Markdown, tekst, dane i kod (MD, TXT,
+  CSV, TSV, TEX, BIB, JSON, YAML, TOML, XML, RST, PY, C/C++, Java, JS/TS, Rust, Go, Julia, R, MATLAB,
+  OpenQASM, Q#, SH, SQL, HTML, CSS, SVG i in.). Tekst rozpoznawany po treści: UTF-8 (z BOM albo bez),
+  bez NUL, mało znaków sterujących – binarny plik z rozszerzeniem `.py` jest odrzucany. CSV, TSV i TXT
+  także w UTF-16 z BOM-em i 8-bitowo (Windows-1250 z polskiego Excela) – kodowanie w nowym polu
+  `WorkshopMaterial.charset` (migracja `workshop_materials.0002`), w `Content-Type` i w podglądzie.
+- **Makra dopuszczone** (decyzja organizatora): ClamAV skanuje je jak każdy plik, strona materiału
+  pokazuje neutralną informację.
+- **Serwowanie tekstu:** zawsze `attachment` z `text/plain; charset=utf-8` (`text/markdown` dla MD,
+  `charset=utf-16`/`windows-1250` dla takich CSV/TSV/TXT) –
+  także HTML i SVG, nigdy jako strona ani obraz; `nosniff` i CSP `sandbox` dokłada Caddy magazynu.
+- **Podgląd na stronie materiału** (`apps/workshop_materials/preview.py`) do 1 MB: Markdown składany
+  istniejącym konwerterem TR-01 (najpierw `html.escape`, bez odnośników i obrazków; wzory KaTeX-em
+  z plików statycznych), kod i tekst w `<pre><code>`; te same bramki co pobranie, liczony jako
+  wyświetlenie. Budżet składania Markdownu chroni przed plikiem o koszcie kwadratowym (spada do
+  zwykłego tekstu). Podgląd koordynatora pokazuje stronę także dla szkicu.
+- Formularz: `accept=` i podpowiedź z pogrupowaną listą formatów. Bez nowych zależności.
+  Spec: `docs/tasks/WM-FMT-01.md`, PODRĘCZNIK-ORGANIZATORA § 4.11.
+
+## [Unreleased] – Szybsze CI: grupy xdist, jedna migracja na shard, czasy z CI (CI-SPEED-01)
+
+- **Testy migracji przewijały bazę raz na test, a nie raz na moduł** (prośba organizatora z 8.10.2026
+  „testy trwają za długo”): `conftest.py` przełączał `-n` na `--dist loadgroup` tylko w procesie
+  sterującym, workery xdist o tym nie wiedziały i nie grupowały testów – moduł migracji rozjeżdżał się
+  po workerach, a każdy jego test płacił 1,5–3 min za przewinięcie. Decyzja idzie teraz do workerów
+  (`pytest_configure_node`), a pytest-split widzi czasy testów migracji także pod identyfikatorem z grupą.
+- **Bazy testowe w CI:** migracje raz na shard (`backend/ci_test_db.py`) i kopie dla workerów
+  (`CREATE DATABASE … TEMPLATE`, `--reuse-db`) zamiast czterech migracji naraz w każdym shardzie.
+- **Podział na shardy:** `backend/.test_durations` przeliczony do proporcji CI (ok. 40 % testów nie
+  miało w nim czasu); każdy shard wystawia artefakt `test-durations-<n>`, a
+  `scripts/refresh_test_durations.py <run-id>` składa z nich nowy plik (docs/TESTY.md § 5).
+- `test_docs_section_refs` 30–40 s → ok. 1 s (pliki i wiersze bez „§” pomijane, ten sam wynik).
+- **Losowy test usunięty u źródła:** długość przepustki Jitsi liczona od `nbf` zamiast od `iat`
+  (`test_video_join.py`, `test_video_rooms.py`) – na granicy sekundy wychodziło 1799 zamiast 1800.
+- **Usunięte duplikaty (3 testy, 8 przypadków):** w `cms/tests/test_djcms_api_v2.py` dwa testy
+  identyczne co do adresu, danych i asercji z testami w `test_djcms_api.py`; w
+  `themes/tests/test_review_fixes.py` test zawarty w `test_install.py::test_delete_unused_version_removes_files`.
+
+## [Unreleased] – Komunikaty z datą przyszłą (MSG-SCHED-01)
+
+- **„Wyślij później”** na `/coordinator/messages/` (prośba organizatora z 8.10.2026): komunikat da się
+  zaplanować na datę i godzinę (czas polski, 5 min – 90 dni naprzód). Rejestr trzyma grupę i jej
+  parametry (nowe pole `parameters`), termin (`scheduled_for`) i stan `SCHEDULED` – **bez adresów**;
+  odbiorców liczy zadanie beat `dispatch-scheduled-broadcasts` (co minutę) **w chwili wysyłki**, tą samą
+  drogą co wysyłka natychmiastowa (bieżąca edycja z chwili wysyłki). Dokładnie raz:
+  `select_for_update(skip_locked=True)` + warunek stanu. Nowe stany: zaplanowana, anulowana,
+  przeterminowana (> 24 h po terminie – nie wysyłamy), bez odbiorców. Sekcja „Zaplanowane” z przyciskiem
+  „Anuluj” (POST, tylko koordynator konkursu, cudzy komunikat → 404), kolumna „Termin” w historii, podgląd
+  z liczbą „na teraz” i dopiskiem o ponownym liczeniu; termin wchodzi do podpisu podglądu. Wklejonej listy
+  adresów nie da się zaplanować. Serwis `schedule_broadcast(...)` do użycia także z `manage.py shell`
+  (OPERACJE § 53). Audyt: `broadcast.scheduled`, `broadcast.cancelled`, `broadcast.sent` (aktor = autor
+  planu), `broadcast.expired`, `broadcast.empty`. Migracja `accounts.0041`. Specyfikacja:
+  `docs/tasks/MSG-SCHED-01.md`.
+
+## [Unreleased] – Ogłoszenia organizatora w Wiadomościach (CZ-ANN-01)
+
+- **Blok „Ogłoszenia organizatora”** nad listą rozmów w `/me/messages/` i na pulpicie `/me/` (prośba
+  organizatora z 8.10.2026: link do warsztatów „na wszystkich kontach w sekcji wiadomości, także tych, co
+  dopiero się zarejestrują”). Nowy model `chat.OrganizerAnnouncement` (migracja `chat.0003`) – jawny wpis
+  konkursu czytany w chwili wyświetlenia, a nie wiadomość w rozmowie, więc widzi go każdy uczestnik, także
+  zarejestrowany po publikacji, niezależnie od rozmów między uczestnikami; pulpit pokazuje go także przy
+  wyłączonych Wiadomościach. Treść jako zwykły tekst (escape + klikalne adresy, `rel="nofollow noopener
+  noreferrer"`).
+- **Panel koordynatora** `/coordinator/inbox-announcements/` (menu „Komunikacja → Ogłoszenia w
+  Wiadomościach”): dodaj (szkic albo „Zapisz i opublikuj”), edytuj, „Opublikuj / Wyłącz”, usuń, opcjonalne
+  okno „widoczne od/do”; tylko koordynator konkursu, cudze ogłoszenie 404, audyt `chat.announcement.*`.
+- Serwis `apps.chat.announcements.publish_announcement(*, competition, title, body, actor)` do publikacji
+  z `manage.py shell`. Budżet zapytań `/me/` +1 (jedno zapytanie po indeksie). Bez nowych danych osobowych
+  (brak odczytów per konto) – bez wpisu w rejestrze czynności. Specyfikacja: `docs/tasks/CZ-ANN-01.md`.
+
+## [Unreleased] – Komunikaty: grupa „uczestnicy bez zaświadczenia o statusie ucznia”
+
+- Nowa grupa odbiorców na `/coordinator/messages/` (prośba organizatora z 8.10.2026): uczestnicy bieżącej
+  edycji bez zaświadczenia o statusie ucznia – brak pliku albo plik odrzucony (plik czekający na weryfikację
+  i zaakceptowany zwalniają). Ta sama lista osób, co na ekranie zaświadczeń; migracja `accounts.0040`
+  zmienia wyłącznie listę wyboru.
+
+## [Unreleased] – Komunikaty: eksport odbiorców do Excela (MSG-EXPORT-01)
+
+- **„Eksportuj do Excela”** na `/coordinator/messages/` (prośba organizatora z 8.10.2026): plik `.xlsx`
+  z kolumnami Imię, Nazwisko, E-mail dla aktualnie wybranej grupy z jej parametrami – np. do zaproszenia
+  na warsztaty spoza platformy. Odbiorców liczy ta sama ścieżka co wysyłkę (`recipient_users` w
+  `apps/accounts/messaging.py`: zakres konkursu i edycji, tylko konta aktywne z potwierdzonym adresem,
+  jeden wiersz na adres). Tylko koordynator; walidacja tym samym formularzem co podgląd; wklejona lista
+  adresów bez eksportu; audyt `export.generated` (grupa, parametr, liczba wierszy – bez danych);
+  ochrona przed formułami w komórkach. Bez migracji. Specyfikacja: `docs/tasks/MSG-EXPORT-01.md`.
+
+## [Unreleased] – Walidacja Caddyfile w nowym obrazie bez sieci compose'a (DEP-02a)
+
+- **Poprawka po przerwanym wdrożeniu v0.48.5:** `scripts/proxy_config.sh render` przy zmianie obrazu
+  proxy walidował plik przez `docker compose run proxy`, który nie wstawał – stałe `ipv4_address` proxy
+  zajmuje działające proxy („Address already in use”), a komunikat mówił o złej konfiguracji. Teraz
+  `docker run --rm --network none` z plikiem tylko do odczytu i zmiennymi proxy z `docker compose config`;
+  „walidacja nie wystartowała” (błąd Dockera) jest odróżniona od „caddy validate odrzucił” (błąd
+  Caddy'ego), oba z wypisanym błędem. Produkcja bez zmian – wdrożenie zatrzymało się przed czymkolwiek.
+
+## [Unreleased] – Obrazy usług: Caddy 2.10, ClamAV 1.5 (DEP-02)
+
+- **Obrazy compose (Dependabot `compose-images`):** `caddy` 2.8 → 2.10, `clamav/clamav` 1.4 → 1.5,
+  `louislam/uptime-kuma` 1.23.16 → 1.23.17 (łatka bezpieczeństwa), `axllent/mailpit` v1.24 → v1.30 (dev);
+  loadtest na tych samych wersjach Caddy'ego i ClamAV.
+- **Caddy 2.10 a certyfikaty:** 2.10 pomija certyfikaty nazw pokrytych przez blok `*.<domena>` – przy
+  `PLATFORM_SUBDOMAINS=1` `www.`, `meet.`, `monitor.`, `dj.`, `live.`, `lab.`, `errors.` zostałyby bez
+  certyfikatu. Generator dopisuje im `tls force_automate` (wymaga 2.10; powrót do 2.8 = cofnięcie
+  całego PR-u). Wieloznacznego certyfikatu (DNS-01) Caddy nie próbuje – on-demand dalej per host.
+- **`scripts/proxy_config.sh render`:** przy zmianie obrazu proxy walidacja w jednorazowym kontenerze
+  nowego obrazu zamiast w działającym starym (inaczej krok 4/8 odrzuciłby składnię 2.10).
+- Test `scripts/security/tests` czyta przypięty tag z compose zamiast `caddy:2.8` na sztywno.
+  Lista kontrolna po wdrożeniu: `docs/OPERACJE.md` § 47.8.
+
+## [Unreleased] – Aktualizacje zależności z Dependabota (DEP-01)
+
+- **Wchodzą z następnym wdrożeniem (obraz web i djcms):** gunicorn 23 → 26.2 (backend i djcms) z flagą
+  `--no-control-socket` w poleceniach (docker-compose.yml, oba Dockerfile'e, loadtest) – od 25.1 gunicorn
+  zakłada gniazdo sterujące w `~/.gunicorn/`, co w kontenerze `read_only` dawało ERROR przy każdym
+  starcie; psycopg 3.2 → 3.3 (backend i djcms); redis-py 5.x → 6.4 (granica kombu 5.6: `<6.5`);
+  uvicorn do 0.54 (zainstalowany, nieużywany – serwis chodzi pod WSGI/gthread).
+- **CI:** actions/setup-python 7, actions/cache 6, docker/build-push-action 7, docker/setup-buildx-action 4,
+  docker/login-action 4 (wszystkie przypięte SHA, Node 24).
+- **Nie weszły:** numpy 2.5 (linia Pyodide w notebook-lab), Uptime Kuma 2 (migracja danych), grupa obrazów
+  compose (Playwright musi iść z `e2e/requirements.txt`; Caddy 2.10 i ClamAV 1.5 czekają na decyzję
+  operatora). Reguły `ignore` w `.github/dependabot.yml`, `docs/OPERACJE.md` § 47.6.
+
+## [Unreleased] – Literówki w adresach e-mail i odbicia poczty (MAIL-02)
+
+- **„Czy chodziło Ci o …?”** w polach adresu (rejestracja uczestnika, komitetu i opiekuna szkolnego,
+  zmiana adresu, konto w panelu koordynatora, zaproszenie opiekuna drużyny, uczeń i rodzic dodawani
+  przez opiekuna drużyny): literówka w domenie (`gmial.com`, `o2.plo`, `.con`, `.pll` …; ~85 dostawców
+  z Polski i świata, IDN, plus-adresy) – podpowiedź po opuszczeniu pola (skrypt statyczny z nonce, bez
+  inline JS) i jedno pytanie po wysłaniu, z polem „Użyj adresu …”; ponowne wysłanie zostawia adres.
+- **Twarda blokada** domen bez MX i A (oraz „null MX”) – pytanie DNS z `web` (klient z MAIL-01, 1,5 s,
+  cache, najwyżej 4 naraz), **dopiero po** całej pozostałej walidacji (CAPTCHA, antyspam, hasła); każdy
+  błąd DNS przepuszcza adres. Wyłącznik `EMAIL_DOMAIN_DNS_CHECK`.
+- **Odbicia poczty**: odmowy relaya zapisywane w chwili wysyłki (twarde wg tablicy kodów – bez trzech
+  ponowień; polityka/konfiguracja relaya, np. `554 5.7.1`, dalej jako błąd z ponowieniami, bez zapisu
+  przy adresie), zawiadomienia o niedoręczeniu (DSN) – `MAIL_BOUNCE_TARGET=capture`
+  (nowa domyślna w compose): agent `virtual` Postfiksa → Maildir na wolumenie `mail_bounces` → worker
+  co 5 min (parser RFC 3464 – tylko części najwyższego poziomu i `Reporting-MTA` naszego relaya; relay
+  odrzuca pusty nadawcę od klientów SMTP, więc DSN-a nie da się podrzucić z sieci compose; pliki kasowane
+  po przetworzeniu). Klasyfikacja wyłącznie po kodzie rozszerzonym (5.0.350 Microsoftu nie jest twarde). Nowa aplikacja `apps.email_delivery`, model `DeliveryStatus` (klucz = adres).
+- **Baner** „Nie możemy dostarczyć poczty na adres …” z „Zmień adres” i „Mój adres jest poprawny”;
+  **lista koordynatora** „Adresy niedoręczalne” (Raporty, CSV, „Oznacz jako doręczalny”, audyt);
+  **wstrzymanie listów nieobowiązkowych** (forum, czat, webinary, absolwenci, komunikaty grupowe);
+  reset przy zmianie adresu, potwierdzeniu i usunięciu konta.
+- RODO: rejestr czynności 1.22 (wiersz warunkowy), sekcja eksportu `doreczalnosc_poczty`, retencja
+  365 dni. Tłumaczenia w 10 językach (`apps/email_delivery/locale`). Przełącznik `EMAIL_BOUNCE_TRACKING`
+  (compose: wł.). Bez nowych zależności. Operator: `docs/OPERACJE.md` § 52.
+
+## [Unreleased] – Fokus w przyklejonym pasku konta (A11Y)
+
+- **Poprawka dostępności:** pozycja menu w przyklejonym pasku konta (`.nav--primary`,
+  `static/js/sticky-bar.js`) nie znika już spod fokusu, gdy menu serwisu wraca na ekran – pasek
+  odkleja się dopiero, gdy fokus z niego wyjdzie. Wcześniej przewinięcie do góry z fokusem w pasku
+  (albo Tab szybszy od obserwatora) gubił fokus na `<body>` (WCAG 2.4.3, 2.4.7).
+- **Test `test_every_tab_stop_has_visible_focus`** mierzy po ustaleniu strony (dwie klatki), opisuje
+  element w tym samym pomiarze i liczy `body` z fokusem dokumentu jako błąd (zawinięcie Taba do
+  przeglądarki – nie). Nowy test `test_sticky_bar_keeps_focused_item_when_menu_returns`.
+
+## [Unreleased] – Uzupełnienie zgód po zalogowaniu (CONS-01)
+
+- **Bramka zgód uczestnika** (`apps.consent_gate`, `ConsentGateMiddleware` między 2FA a bramką nadzoru):
+  brak wymaganej zgody (regulamin, RODO, od małoletniego oświadczenie o zgodzie opiekuna) albo zgoda
+  pod **inną wersją dokumentu niż bieżąca** (stała `TERMS_VERSION` itd. albo `ConsentDefinition.version`)
+  → przed obszarem uczestnika (`/me/…`, forum, webinary, warsztaty, płatności, API zgłoszeń, zadań
+  i reklamacji) ekran **„Uzupełnij zgody”** (`/me/consents/complete/`). Przepuszczane: `/account/…`
+  (eksport danych, usunięcie konta, hasło, język i kontrast), wylogowanie, profil, prośba do opiekuna,
+  autozapis testu, klient nadzoru, strony publiczne, `/zgoda/<token>/`. Personel i anonim – zero
+  zapytań; uczestnik – cache (Redis, 5 min), przy chybieniu jedno zapytanie; unieważnianie sygnałami.
+  HTMX – 403 z `HX-Redirect`, API – 403 `CONSENTS_REQUIRED`. Wyłącznik `CONSENT_GATE_ENABLED`.
+- **Ekran** w motywie konkursu i w 10 językach: wyłącznie brakujące zgody z etykietą jak w rejestracji,
+  zdanie „dokument się zmienił: obowiązuje wersja X, Twoja zgoda dotyczyła Y”, dla małoletnich stan
+  zgody opiekuna online i „Wyślij ponownie” (istniejący przepływ i limit; brak potwierdzenia online jak
+  dotąd nie blokuje panelu), wyjścia RODO. Zapis: `ConsentRecord` (wersja, czas, droga `panel`, IP),
+  projekcje na profilu wyłącznie „w górę”, audyt `participant.consents_completed` z językiem i SHA-256
+  treści.
+- **Koordynator:** kafelek „Uczestnicy z brakującymi zgodami” na pulpicie i CSV
+  `/coordinator/consents/missing.csv` (audyt `consent_gate.exported`); ekran zmiany wersji zgody
+  ostrzega, że wymusi ponowną zgodę. Komenda `consent_gate_report` (liczby bez danych osobowych).
+- **Poprawka:** potwierdzenie zgody opiekuna online zapisuje wersję wzoru z zestawu konkursu, a nie ze
+  stałej. Budżet zapytań pulpitu koordynatora 53 → 54. `docs/OPERACJE.md` § 51.
+- **Po przeglądzie #97:** zmiana wersji w trakcie etapu nie blokuje pracy w toku – arkusz
+  i „Zakończ” testu, upload (WWW i API), reklamacja i notatnik przechodzą przy ponowieniu zgody
+  z banerem / nagłówkiem `X-Consents-Required` (H1); wersja dokumentu jedzie z formularzem i jest
+  sprawdzana pod blokadą (L3); ekran bez braków czyści nieświeży stan cache'a (L4); `next` dla HTMX
+  z `HX-Current-URL` tego samego serwisu (L5). Ten sam wyjątek dla pracy w toku obejmuje też zgodę
+  **nową** (np. przestawioną na wymaganą w trakcie etapu), gdy uczestnik ma wpis w trwającym etapie
+  (jedno zapytanie wyłącznie na tej ścieżce); konto bez takiego wpisu dalej nie oddaje pracy.
+
+## v0.47.2 – 2026-10-05 – Dostępność WCAG 2.1 AA, deklaracja dostępności, motyw IQO 1.1.2 (A11Y-01)
+
+- **Suita e2e dostępności** (`e2e/a11y/`, `scripts/a11y.sh`, job CI `a11y`): axe-core 4.13.0
+  (MPL-2.0, w `e2e/vendor/` – poza obrazem, suma z rejestru npm) na ~70 ekranach obu konkursów
+  i obu motywów (publiczne, rejestracja z błędami, logowanie, 2FA, reset/zmiana hasła, panel
+  uczestnika, upload, test, czat, panel koordynatora i ciężkie tabele, recenzent, opiekun drużyny,
+  weryfikacja listu wizowego, arabski RTL, wysoki kontrast) + kontrole klawiatury, widocznego
+  fokusu, menu bez JS, reflow 320 px / 200 % i powiązania błędów z polami. CSP strony bez zmian
+  (axe przez protokół DevTools). Nowe naruszenie critical/serious spoza `baseline.json` przewraca CI.
+- **Poprawki:** 25 podpowiedzi pól bez `id` (wiszące `aria-describedby` – czytnik nie czytał
+  podpowiedzi, m.in. w rejestracji); CAPTCHA powiązana z podpowiedzią i błędem; błąd kodu 2FA
+  powiązany z polem; wysoki kontrast – `.btn--accent` czarny na żółci (było 1,3:1); menu panelu
+  koordynatora otwarte atrybutem `open` od 900 px.
+- **Motyw IQO Quantum 1.1.2:** paski ramy aplikacji na granacie (kontrast napisów 2,3–4,3:1 → AA),
+  odnośnik „Deklaracja dostępności” w stopce; `min_app_version` 0.47.0.
+- **Deklaracja dostępności:** nowa aplikacja `apps.accessibility`, komenda
+  `seed_accessibility_statement <slug>` – projekt strony `/dokumenty/deklaracja-dostepnosci/` (PL/EN)
+  do zatwierdzenia przez organizatora; odnośnik w stopce obu motywów **dopiero po publikacji** strony
+  w danym konkursie (pamięć podręczna unieważniana sygnałami Wagtaila; budżety zapytań +1 na zimno).
+  `docs/OPERACJE.md` § 50.
+
+## v0.47.1 – 2026-10-05 – Kontrola dymna po wdrożeniu i szybkie wycofanie (OPS-04)
+
+Tagu `v0.47.0` nie ma – numer pominięty przy wydaniu.
+
+- **`scripts/smoke.sh`** – kontrola dymna wyłącznie odczytem (GET, bez logowania): dla każdego hosta
+  konkursu strona główna z CSP, kluczowe strony, `/healthz/`, `/status.json` (wersja – ostrzeżenie),
+  logowanie z CSRF (pole + ciasteczko) i CSP, plik statyczny z hashem manifestu i arkusze motywu (IQO)
+  ze strony logowania, API (`editions/current/`), LiveKit `live.` i djcms (`/djcms/healthz/`,
+  `/djcms/preview/`), gdy włączone; czasy, ponowienia, podsumowanie, kod 0/1/2. Tryb `--server`
+  (hosty z `.env` i `check_domains --hosts`, przez proxy serwera `--resolve 127.0.0.1`, przepustka
+  prac technicznych przez `-K -`).
+- **`scripts/rollback.sh`** (na serwerze): `snapshot` (tag `olimpiada/web:previous` / `djcms:previous`
+  z obrazu działającego kontenera, migracje z `django_migrations`), `decide` (auto / manual przy nowych
+  migracjach albo nieznanym stanie / impossible), `run [--yes] [--allow-migrations]` (tylko `web worker
+  beat [djcms]`, `--no-deps --no-build`, w `.env` wyłącznie `APP_VERSION`/`WEB_IMAGE`/`DJCMS_IMAGE`,
+  baza i wolumeny nietknięte), `auto` (wycofanie + ponowna kontrola + list do `ALERT_EMAILS`, albo list
+  z procedurą ręczną), `record-success`, `status`. Stan w `/opt/olimpiada/deploy-state/`.
+- **`scripts/deploy.sh`**: krok 2/8 omija `deploy-state`; nowy krok **2a/8** (migawka) i **5b/8**
+  (kontrola dymna → `record-success` albo `rollback.sh auto` i kod 1, bez kroków 6–8); furtka
+  `DEPLOY_SMOKE=warn|0`; podpowiedź wycofania w pułapce EXIT po starcie nowych kontenerów; porządki
+  nie kasują tagu `:previous`; `sync_competitions` w kroku „dj.” ponawiane (4 próby, 5/10/20 s) przy
+  „Lista konkursów z API niedostępna”.
+- **Przyczyna czerwonych wdrożeń „dj.”**: `MainApi.fetch_competitions()` (komendy djcms) korzystał
+  z limitu odsłony strony (1 s na gniazdo) tuż po restarcie `web` – teraz `COMMAND_TIMEOUT_SECONDS = 30`
+  (`djcms/apps/live/client.py`); odsłony stron bez zmian.
+- `manage.py check_domains --hosts` – same hosty aktywnych konkursów z własnym hostem (dla kontroli dymnej).
+- **Bufor całych stron po wdrożeniu**: gość przez do 120 s po wdrożeniu dostawał z bufora HTML poprzedniej
+  wersji z odnośnikami do plików statycznych skasowanych przez `collectstatic --clear` (strona bez stylów).
+  Teraz klucz bufora zawiera wydanie (`APP_VERSION`, `apps/web/page_cache.py`), a wdrożenie (krok 5b/8)
+  i wycofanie wołają `page_cache_clear` przed kontrolą dymną.
+- Testy: `scripts/tests/smoke_test.sh`, `scripts/tests/rollback_test.sh`, `scripts/tests/deploy_djcms_test.sh`
+  (część 11 i zaktualizowane listy poleceń), `djcms/apps/live/tests/test_client.py`,
+  `apps/tenancy/tests/test_check_domains.py`. Dokumentacja: `docs/OPERACJE.md` § 48 (i § 4.2),
+  `docs/tasks/OPS-04.md`.
+
+## v0.46.5 – 2026-10-05 – Test obciążenia i poprawki gorących ścieżek (PERF-01)
+
+- **Narzędzie**: `scripts/loadtest/` – osobny, lokalny stos compose `olimpiada-loadtest` (sieć bez
+  wyjścia na świat) i generator scenariusza dnia zawodów w Pythonie (asyncio + `httpx` z obrazu):
+  logowanie przed T0, wejście wszystkich w T0 z PDF-ami treści, czat, autozapis testu, wysyłki skanów,
+  koordynatorzy z eksportem CSV, goście; p50/p95/p99, błędy, req/s per adres i faza, raport
+  CSV/Markdown, wiele procesów generatora, bezpiecznik hosta (produkcja odrzucana zawsze) i kryteria
+  przerwania. `manage.py loadtest_seed` – odmawia bez `DEBUG`/`--i-know-this-is-not-prod` **i** bez
+  `loadtest` w nazwie bazy.
+- **Poprawki gorących ścieżek**: profil uczestnika pamiętany na czas żądania (`/me/` 38 → 30 zapytań,
+  był czytany 9×), autozapis testu hurtem (95 → 15 zapytań), cache stron obejmuje linki z `utm_*`,
+  `/results/<id>/` i strony > 512 KiB (kompresja `zlib`, format wpisu w kluczu – ~160 ms → ~6 ms CPU
+  dla tabeli 3000 wierszy), limit wysyłek per konto zamiast per IP (sala za NAT-em), PDF treści
+  kawałkami 64 KiB.
+- **Nowe zmienne `.env`** (domyślnie bez zmian zachowania): `WEB_MAX_REQUESTS`/`_JITTER`
+  (rotacja workera pod obciążeniem zrywała żądania w toku – 500/502 na wysyłkach), `WEB_MEM_LIMIT`,
+  `CHAT_POLL_SECONDS`. Wyniki, ekstrapolacja na VPS (z kradzieżą CPU), konfiguracja na dzień zawodów,
+  procedura testu na serwerze i rekomendacja: `docs/OPERACJE.md` § 42, `docs/tasks/PERF-01.md`.
+
+## v0.46.4 – 2026-10-05 – Laboratorium na osobnym hoście (QC-02), skanowanie zależności (SEC-02)
+
+### Laboratorium notatników na osobnym hoście (QC-02)
+
+- **`NOTEBOOK_LAB_HOST`** (opcjonalne, `.env`): JupyterLite i notatnik startowy wyłącznie pod
+  osobnym hostem (`lab.<SITE_DOMAIN>` albo osobna domena). Caddy (`scripts/render_caddyfile.sh`):
+  blok hosta laboratorium (pliki laboratorium z polityką z QC-01, `/notebook-starter/*` do `web`,
+  reszta 404, `Referrer-Policy: strict-origin`), a bloki serwisu – fragment `notebook_lab_moved`
+  (ścieżka laboratorium → 302 na host laboratorium, `/notebook-starter/*` → 404). Pusta zmienna =
+  konfiguracja proxy bajt w bajt jak dotąd.
+- Django: `NotebookLabHostMiddleware` (ten sam rozdział hostów, przed WhiteNoise), notatnik startowy
+  na hoście laboratorium bez sesji (token z osobną solą, 2 h, bramki na bieżącym stanie konta,
+  nadzór zdalny), strażnik odrzucający na hostach serwisu żądania z `Origin`/`Referer` laboratorium
+  poza nawigacją GET – przed CSRF, także wobec `https://*.<SITE_DOMAIN>`; host w `ALLOWED_HOSTS`,
+  nie w `CSRF_TRUSTED_ORIGINS`; sprawdzenie `notebooks.E002`; etykieta `lab` zarezerwowana.
+- Ciasteczka aplikacji potwierdzone jako host-only (test). Kompromisy subdomena vs osobna domena
+  i kroki operatora: `docs/OPERACJE.md` § 40.7, `docs/tasks/QC-02.md`.
+- **Po przeglądzie (podrzucanie ciasteczek z `lab.<domena>`):** w produkcji z laboratorium ciasteczka
+  `__Host-sessionid`/`__Host-csrftoken` (jednorazowe wylogowanie przy włączeniu; skrypty czytające
+  token obsługują obie nazwy), wygaszanie zdublowanych ciasteczek sesji/CSRF/języka na domenie
+  nadrzędnej (przekierowanie 302/307, potem żądanie bez obu kopii), ten sam strażnik i wygaszanie
+  w djcms (`NOTEBOOK_LAB_HOST` w compose), 403 dla żądań same-site z `Origin: null` albo bez
+  nagłówków pochodzenia, `notebooks.E002` także dla hostów usług (`dj.`, `live.`, `meet.`, `monitor.`,
+  `errors.`, S3, Jitsi) i konkursów. Zalecany wariant: osobna domena rejestrowalna.
+
+### Skanowanie zależności i obrazów w CI (SEC-02)
+
+- **CI `pip-audit`**: zależności Pythona backendu (rozwiązanie jak w obrazie, `uv pip compile`), djcms
+  (`uv.lock`) i narzędzi budowy JupyterLite (QC-01) przez OSV; czerwono tylko przy podatności z wydaną poprawką, wyjątki z terminem
+  i uzasadnieniem w `.security/pip-audit-ignore.toml` (`scripts/security/pip_audit_gate.py`).
+- **CI `trivy (obraz web/djcms)`** po jobie `image`: bramka CRITICAL/HIGH z poprawką, SARIF do code
+  scanning + artefakt, baza Trivy w cache'u, wyjątki z `expired_at` w `.security/trivyignore.yaml`.
+  djcms jest teraz budowany w CI (własny zakres cache'u).
+- **Co tydzień** (`security-scan.yml`): Trivy na obrazach usług z plików compose i na
+  `olimpiada-web:main` z GHCR – raport w jednym zgłoszeniu `security-scan`.
+- **Dependabot** (`.github/dependabot.yml`): pip (backend), uv (djcms), docker, docker-compose,
+  github-actions; co tydzień, grupowane, cooldown 7 dni, etykiety.
+- **Vendor JS**: rejestr `.security/vendor.toml`, `vendor_check.py check` w CI (skrót każdego pliku,
+  nic spoza rejestru; KaTeX dostał `SHA256SUMS` krojów) i comiesięczne porównanie z npm/OSV/SRI
+  (`vendor-upstream.yml`, zgłoszenie `vendor-js`, bez automatycznych aktualizacji).
+- **Akcje GitHuba przypięte pełnym SHA** (także istniejące w `ci.yml`/`deploy.yml`), pilnuje
+  `policy_check.py`; `ci.yml` z domyślnym `permissions: contents: read`. Dokumentacja:
+  `docs/tasks/SEC-02.md`, `docs/OPERACJE.md` § 47.
+
+## v0.46.3 – 2026-10-05 – Poczta z domeny konkursu i koniec pętli zwrotów (MAIL-01)
+
+- **Druga domena nadawcy w relayu `mail`** (IQO: `iqo-official.org`): `scripts/mail_add_domain.sh <domena>`
+  na serwerze – idempotentnie dopisuje domenę do `ALLOWED_SENDER_DOMAINS`, generuje klucz DKIM w kontenerze
+  `mail` (nigdy nie nadpisuje istniejącego), odtwarza tylko `mail` i wypisuje rekordy do wklejenia
+  (`mail-dns-<domena>.txt`): SPF **scalony** z obecnym (rekord ochronny `v=spf1 -all` → zmiana, nigdy drugi
+  `v=spf1`), DKIM, DMARC bez drugiego rekordu (brak = `p=none` z planem na `quarantine`), MX bez zmian;
+  `--check` (`opendkim-testkey` + `check_mail_dns`), `--print`. Podpis wielu domen robi obraz (bez zmiany wersji).
+- **`manage.py check_mail_dns <domena>`** (nowa aplikacja `apps.mail_domains`, migracja `0001`): SPF
+  oceniany jak u odbiorcy (include/redirect/a/mx, limit 10 zapytań), DKIM z porównaniem klucza relaya,
+  DMARC; klient DNS na bibliotece standardowej (bez nowych zależności). Wynik w `SenderDomain`.
+- **Ostrzeżenie dla koordynatora** na pulpicie i w „Ustawieniach konkursu”, gdy nadawca listów konkursu
+  jest spoza relaya albo jego domena nie przeszła `check_mail_dns` (bez zapytań DNS w żądaniu).
+- **Poczta zwrotna bez pętli** („loops back to myself”): odbicia na `noreply@` domen, nadawców monitoringu
+  i `postmaster@` relaya → `discard` albo skrzynka operatora (`MAIL_BOUNCE_TARGET`,
+  `deploy/mail/docker-init.d/50-bounces.sh`); restrykcje OPS-02 nietknięte.
+- **Wdrożenie (krok 7/8)** ostrzega, gdy klucz DKIM którejś domeny różni się od opublikowanego.
+- Dokumentacja: `docs/tasks/MAIL-01.md`, `docs/OPERACJE.md` § 49 (krok po kroku dla Squarespace), § 9.7.
+
+## v0.46.2 – 2026-10-05 – Monitoring błędów (OPS-02) i monitoring z zewnątrz (OPS-03)
+
+### Monitoring błędów i dostępności (OPS-02)
+
+- **Śledzenie błędów** (nowa aplikacja `apps.monitoring`): klient `sentry-sdk` 2.71.x (integracje Django,
+  Celery, Redis) wysyłający do **własnego** GlitchTipa; wyłączony bez `SENTRY_DSN` (bez importu pakietu,
+  bez zmian w warstwach, CSP i HTML). Filtr danych osobowych przed wysyłką: bez treści żądań, ciasteczek,
+  zapytań, IP, konta i zmiennych lokalnych; e-mail, PESEL, telefon, tokeny i wartości z błędów Postgresa
+  → `[Filtered]`. Tag `competition` (slug), `release` = `APP_VERSION`, próbkowanie konfigurowalne.
+- **GlitchTip 6.2.6** (obraz przypięty skrótem) w profilu compose `monitoring`: `glitchtip` (web + worker
+  w jednym procesie) i `glitchtip-db` (osobny Postgres w izolowanej sieci `errors`), bez Redisa, bez
+  `.env` platformy, limity pamięci i CPU, retencja 30 dni, poczta przez relay, rejestracja wyłączona.
+  Blok Caddy'ego `errors.<domena>` przy `ERRORS_PROXY=1` (`scripts/render_caddyfile.sh`); slug `errors`
+  zarezerwowany.
+- **Monitor dostępności** (`apps/monitoring/uptime.py`, usługa `uptime`): oba serwisy, `/healthz/`,
+  `/status.json`, LiveKit i GlitchTip, certyfikaty TLS (< 14 dni); listy o awarii i powrocie z
+  deduplikacją, rosnącymi przypomnieniami (1 h → 24 h), jednym listem na przebieg i limitem 6/h. Sama
+  biblioteka standardowa – kopia działa z crona na innej maszynie.
+- **Błędy JavaScriptu** (opcjonalnie, `SENTRY_BROWSER=1`): własny loader z `/static/` (bez SDK i CDN),
+  origin `errors.<domena>` w `connect-src` tylko przy włączonej funkcji.
+- Poprawki po przeglądzie (`docs/tasks/OPS-02.md` § 9): tokeny w ścieżkach adresów (wzorzec trasy
+  albo maska), linie `DETAIL:` Postgresa, adresy IP, Redis bez kluczy, zamknięta lista integracji,
+  wyrażenia liniowe; GlitchTip poza `edge` – sieci `errors_front`/`errors_ingest`/`errors_egress`,
+  relay z jednym nadawcą (`MAIL_CLIENT_NETWORKS` oddzielone od `TRUSTED_PROXY_IPS`); opcjonalne
+  `ERRORS_UI_ALLOW`; ostrzeżenie w `deploy.sh`; wyciszenie `uptime` w przerwie planowej.
+- RODO: rejestr czynności 1.21 – wiersz warunkowy „Monitorowanie błędów aplikacji” (podmiot wewnętrzny,
+  bez państwa trzeciego). Dokumentacja: `docs/OPERACJE.md` § 44, `docs/tasks/OPS-02.md`, rekord DNS
+  `errors` w `deploy/dns-olimpiadakwantowa.pl.md`.
+
+### Monitoring z zewnątrz (OPS-03)
+
+- **`.github/workflows/uptime.yml`**: GitHub Actions co 10 minut (+ ręcznie) sprawdza z zewnątrz
+  `olimpiadakwantowa.pl` i `iqo-official.org` (`/` – kod 200 i czas, `/healthz/`, `/status.json` –
+  `status` i `backup_restore_check`), LiveKit (`live.` → `OK`) i ważność certyfikatów TLS (ostrzeżenie
+  < 14 dni, awaria < 7). Wykrywa śmierć całego serwera, której watchdog i Uptime Kuma z tego samego
+  hosta nie zobaczą. Zero kosztów, zero kont, tylko `GITHUB_TOKEN` (`contents: read`, `issues: write`),
+  jedyna akcja (`actions/checkout`) przypięta pełnym SHA.
+- Alarm: **jedno** zgłoszenie z etykietą `awaria` przy awarii potwierdzonej w dwóch próbach (2 min
+  odstępu), komentarz tylko przy zmianie zestawu awarii, automatyczne zamknięcie po powrocie; GitHub
+  wysyła listy obserwującym repozytorium.
+- `scripts/uptime_external.py` – sama biblioteka standardowa, składnia Pythona 3.10; testy bez sieci
+  `scripts/tests/test_uptime_external.py`, nowy job CI `uptime-script`.
+- Dokumentacja: `docs/tasks/OPS-03.md`, `docs/OPERACJE.md` § 46 (w tym opóźnienia crona i wyłączanie
+  po 60 dniach bez commitów), `deploy/monitoring/README.md` § 5 – darmowy pinger jako druga opinia.
+
+## v0.46.1 – 2026-10-05 – 2FA personelu (SEC-01), notatniki kwantowe (QC-01)
+
+### Logowanie dwuskładnikowe dla personelu (SEC-01)
+
+- **Polityka wymogu** (`apps/staff_mfa`): role platformy `TWO_FACTOR_REQUIRED_ROLES` (nowa wartość
+  domyślna `superkoordynator,admin`) i polityka konkursu – tryb automatyczny (konkurs z delegacjami,
+  `fees`, `onsite_logistics` albo `proctoring` wymaga 2FA od koordynatorów, opiekunów drużyn
+  i przydziałów logistyki) albo wybrane role. Uczestnika nie da się objąć wymogiem.
+- **Okres przejściowy** (`TWO_FACTOR_GRACE_DAYS`, domyślnie 14 dni, jednorazowy) z banerem na każdej
+  stronie (także w motywie IQO), potem poczekalnia konfiguracji dla całej sesji, API i tokenów.
+- **Ekran `/coordinator/security/2fa/`**: polityka (zmienia wyłącznie superkoordynator, audyt
+  `2fa.policy_changed`) i lista personelu ze stanem 2FA i terminem.
+- **Odzyskiwanie i kody**: nowy komplet kodów zapasowych (`/account/2fa/codes/regenerate/`) i wyłączenie
+  2FA z hasłem **i** kodem; reset 2FA konta personelu wyłącznie przez superkoordynatora (wyjątek:
+  instalacja bez superkoordynatora); blokada konta po 5 złych kodach na 15 min (`429 TWO_FACTOR_LOCKED`);
+  jednorazowość kodu TOTP i kodu zapasowego odporna na równoległe żądania.
+- **„Zapamiętaj to urządzenie”** (`TWO_FACTOR_REMEMBER_DAYS`, domyślnie 7; podpisane ciasteczko
+  unieważniane zmianą hasła, wyłączeniem i resetem; polityka konkursu może je wyłączyć).
+- **Listy do właściciela konta** (włączenie, wyłączenie, nowe kody, użycie kodu zapasowego, reset,
+  blokada) i audyt `2fa.locked`, `2fa.remembered`, `2fa.codes_regenerated`, `2fa.grace_started`.
+- Ekrany 2FA z `Cache-Control: private, no-store`; tłumaczenia w `apps/staff_mfa/locale` (10 języków).
+- Poprawki po przeglądzie: personel do resetu liczony w całej platformie i także gdy konto jest
+  zablokowane; zmiana adresu konta z 2FA albo konta personelu – tylko superkoordynator; list o resecie
+  także na poprzedni adres (30 dni); wąski wyjątek bez superkoordynatora i komenda `reset_2fa`;
+  ostrzeżenia `staff_mfa.W001`/`W002`; termin ról platformy tylko z `TWO_FACTOR_GRACE_DAYS`; znacznik
+  zwolnienia z TTL 10 min i wersją podbijaną przy zmianie ról; zamykanie innych sesji przy włączeniu,
+  wyłączeniu i resecie; „Zapomnij wszystkie urządzenia”; ciasteczko zaufania związane z konkursem;
+  licznik prób przed sprawdzeniem kodu; lista personelu tylko dla superkoordynatora (bez N+1).
+- `TWO_FACTOR_ENABLED=0` (domyślnie) – zachowanie bez zmian. Migracje `staff_mfa.0001`–`0002`
+  (cztery puste tabele). Operator: `docs/OPERACJE.md` § 41.
+
+### Notatniki kwantowe w przeglądarce (QC-01)
+
+- **Notatnik przy zadaniu:** JupyterLite 0.8.5 z jądrem Pyodide 314.0.7 hostowany u nas
+  (`/static/notebook-lab/<BUILD_ID>/`, bez CDN w czasie działania, wersje i skróty przypięte, etap
+  `notebook-lab` obrazu, licencja każdego koła w manifeście). Strona `/me/notebooks/<zadanie>/`
+  otwiera laboratorium w nowej karcie; notatnik startowy z testami widocznymi (podpisany adres
+  `/notebook-starter/…`) otwiera się sam (`fromURL`). Oddanie – zwykła wysyłka `.ipynb`.
+- **qclab:** własny symulator z API podzbioru Qiskita (`from qiskit import QuantumCircuit` działa
+  w przeglądarce i na serwerze; Qiskit 2.x nie ma kół dla Pyodide). Zgodność z Qiskitem 2.5.2
+  sprawdzana testami parzystości (poza CI – Qiskit nie jest zależnością).
+- **Sprawdzanie automatyczne:** testy widoczne (w przeglądarce) i ukryte (wyłącznie serwer) w JSON-ie
+  (`statevector`, `probabilities`, `counts`, `unitary`, `value`, `circuit`), punkty za test, wyniki
+  z CSV, „Przelicz wszystko”, sprawdzenie na notatniku wzorcowym, panel w ekranie recenzenta.
+  Podpowiedź dla komisji, nie ocena. Ocena w budżecie symulacji (obwód ponad budżet – błąd zamiast
+  minut CPU), odporna na NaN/±inf; tolerancja zliczeń ucznia skalowana liczbą strzałów.
+- **Piaskownica:** kontener `notebook-runner` (profil compose `notebooks`, `network_mode: none`, bez
+  sekretów, losowy UID na zadanie ze sprzątaniem procesów i plików, `setrlimit`, hak audytowy jako
+  obrona w głąb, healthcheck), wymiana przez wolumen `notebook_spool` z nowym workerem
+  `notebook-worker` (kolejka Celery `notebooks`, krótkie limity czasu).
+- **Bezpieczeństwo:** osobna polityka CSP ścieżki laboratorium ze źródłami zawężonymi do ścieżki
+  (Caddy `(notebook_lab)` i middleware w dev), COOP/COEP, strażnik żądań z laboratorium; reszta
+  serwisu bez zmian. Laboratorium wyłącznie dla kont bez roli personelu – personel ogląda notatniki
+  w podglądzie tylko do odczytu (bez wykonywania, bez HTML/JS z wyjść); recenzent bez komunikatów
+  testów ukrytych.
+- Flaga konkursu `quantum_notebooks` (domyślnie wyłączona), nowa zależność `numpy>=2.4,<2.5`,
+  katalog tłumaczeń `apps/notebooks/locale` (10 języków). Wdrożenie: `docs/OPERACJE.md` § 40
+  (`COMPOSE_PROFILES=notebooks` podnosi `notebook-runner` i `notebook-worker`); podręczniki:
+  organizatora § 10n, recenzenta § 3b, uczestnika § 3a.
+- **Nadzór zdalny (PROC-01):** strona laboratorium (`web:participant-notebook`) stoi w `GATED_VIEWS`,
+  a notatnik startowy z tokenem sprawdza bramkę nadzoru w widoku (403 bez gotowej sesji).
+
+## v0.46.0 – 2026-10-05 – Zmiana hasła (AUTH-01b), test odtwarzania kopii (OPS-01)
+
+Tag wskazuje **ten sam commit** co `v0.45.1` (`7e7f022`, scalenie PR #70) – zmiany opisuje sekcja
+v0.45.1 niżej. Opis tagu wymienia też notatniki kwantowe (QC-01) – ten kod wszedł do `main` później
+(PR #68) i wydany został w v0.46.1.
+
+## v0.45.1 – 2026-10-05 – Zmiana hasła w panelu, test odtwarzania kopii (AUTH-01b, OPS-01)
+
+### Zmiana hasła w panelu konta (AUTH-01b)
+
+- **Ekran „Zmień hasło”** (`/account/password/`) dla każdej roli: aktualne hasło + nowe dwa razy,
+  walidatory `AUTH_PASSWORD_VALIDATORS`, nowe ≠ aktualne. Nowa aplikacja `apps.password_change`
+  (bez migracji); reguły w serwisie, `never_cache`, CSRF, limit `password_change` 10/h na konto.
+- Po zmianie: bieżąca sesja zostaje (także znacznik 2FA), **pozostałe urządzenia wylogowane**, tokeny
+  API skasowane, audyt `password.changed` (nieudane próby `password.change_failed`), list
+  bezpieczeństwa „Hasło do konta zostało zmienione” w języku i pod hostem konkursu (z prefiksem
+  ścieżki), z linkiem do „Nie pamiętasz hasła?”, bez hasła.
+- **Konto bez hasła** (Google/Facebook): zamiast formularza przycisk „Wyślij mi link do ustawienia
+  hasła” – zwykły list resetu na własny adres konta (publiczny formularz resetu takich kont nie obsługuje),
+  audyt `password.set_link_sent`. Bez ustawiania hasła w samej sesji.
+- **Pasek konta:** adres e-mail jest odnośnikiem do ustawień konta (`web/_account_who.html`, także dla
+  nagłówka motywu); ekran edycji danych ma sekcję „Hasło”. Motyw `iqo-quantum` 1.1.1 dołącza ten fragment.
+- Poprawki po przeglądzie (PR #70): **zmiana adresu e-mail wymaga aktualnego hasła** (konto bez hasła
+  ustawia je najpierw); w `/cms/account/` nie ma już paneli hasła i e-maila
+  (`WAGTAIL_PASSWORD_MANAGEMENT_ENABLED`/`WAGTAIL_EMAIL_MANAGEMENT_ENABLED = False`), a
+  `/admin/password_change/` przekierowuje na `/account/password/`; 5 kolejnych złych haseł w sesji kończy
+  sesję (`apps.accounts.reauth`, wspólne dla obu ekranów); podniesienie skrótu hasła nie wylogowuje;
+  list odporny na awarię brokera, z godziną w strefie ucznia/konkursu (`Asia/Tokyo, UTC+09:00`);
+  uczciwe zdanie o sesjach edytora django CMS; limit zmiany adresu per konto, komunikat „na tym koncie”;
+  IQO 1.1.1 wymaga aplikacji 0.45.0 (fikstura paczki w testach).
+- Tłumaczenia w 10 katalogach `apps/password_change/locale`. Dokumentacja: `docs/tasks/AUTH-01b.md`,
+  `docs/OPERACJE.md` § 45, podręcznik uczestnika (§ 1) i podręcznik organizatora (§ 9.3).
+
+### Conocny, automatyczny test odtwarzania kopii zapasowej (OPS-01)
+
+- **`scripts/backup_verify.sh` codziennie o 4:40** (dotąd w niedzielę), z kopią z 3:15 pod jednym
+  `flock` (wpis crona zakłada `scripts/deploy.sh`). Tymczasowy Postgres na nowej sieci `--internal`
+  z limitami pamięci i CPU, dane na `tmpfs`; zrzut rozszyfrowany **strumieniem** do `pg_restore`
+  (jawny zrzut nie dotyka dysku); paczka plików czytana w całości (`gpg | tar -tf`); `nice`/`ionice`
+  dla procesów hosta.
+- **Sprawdzenia aplikacji** (`apps/core/restore_check.py`, `manage.py restore_check verify`) w
+  jednorazowym kontenerze z obrazem i środowiskiem działającego `web`, podłączonym wyłącznie do bazy
+  tymczasowej: wiek kopii (26 h), migracje względem wdrożonej wersji, liczności tabel kluczowych w
+  widełkach względem bazy żywej, czytelność każdego modelu, sekwencje kluczy, superużytkownik,
+  odszyfrowanie pól Fernet (logistyka) bieżącym kluczem, próbka plików prac i mediów CMS w paczce,
+  `dj.` jak dotąd. Pomiar czasów (`db_restore_s`, `files_list_s`, `checks_s`, `total_s`).
+- **Wynik i alarmy**: `restore_check record` (cache, audyt `backup.restore_check`, natychmiastowy list
+  do `ALERT_EMAILS` przy porażce), watchdog: alarm `backup-restore-check` do pierwszego udanego testu,
+  próg „brak udanego testu” 36 h (dotąd 10 dni, `MAX_VERIFY_AGE_HOURS`); historia na hoście
+  `/opt/olimpiada-backups/restore-checks.jsonl`; `restore_check show`.
+- **`/healthz/` i `/status.json`**: nowy klucz `backup_restore_check` (`ok|failed|stale|unknown`, na
+  końcu kontraktu, bez dat; nie zmienia kodu odpowiedzi ani `status`).
+- Bezpieczeństwo: podwójna bramka izolacji (skrypt + komenda: przedrostek `restorecheck_`, host różny
+  od `db`, `RESTORE_CHECK_ISOLATED=1`), sesja tylko do odczytu, hasło kopii przez deskryptor, wynik bez
+  wartości pól; każdy błąd przebiegu = meldunek nieudany z nazwą kroku.
+- Testy: `apps/core/tests/test_restore_check.py`, `scripts/tests/backup_offsite_test.sh` (przypadki 14,
+  16), nowy `scripts/tests/restore_check_e2e.sh` (pełny cykl na lokalnym Dockerze, pomiar RTO).
+- Dokumentacja: `docs/OPERACJE.md` § 43 (oraz § 1.4, § 3.2), `docs/tasks/OPS-01.md`.
+
+## v0.45.0 – 2026-10-05 – Nadzór zdalny i rozmowy w LiveKit (PROC-01, STAGE-LK-01), poprawki resetu hasła (AUTH-01a)
+
+### Nadzór zdalny etapów online (PROC-01)
+
+- **Nadzór zdalny** (`apps.proctoring`, flaga konkursu `proctoring`, domyślnie wyłączona; włączany per
+  etap online): konsola ucznia `/me/proctoring/<etap>/` – wersjonowana informacja i zgoda (niepełnoletni:
+  wymagana potwierdzona online zgoda opiekuna), sprawdzenie sprzętu, opcjonalne zdjęcie dokumentu,
+  kamera 320×240/10 kl./s (+ ekran/mikrofon, gdy etap wymaga) do pokoju LiveKit; start otwiera etap
+  dopiero, gdy serwer LiveKit potwierdzi nadawanie. Zerwanie strumienia: komunikat, pasek na stronie
+  etapu, dziennik. „Nie mogę użyć kamery” → alternatywa zatwierdzana przez koordynatora.
+- **Bramka treści etapu** (`ProctoringGateMiddleware`): PDF zadania, wysyłka (WWW i API), start
+  i strona testu (oraz tłumaczenia TR-01) w oknie etapu – wyłącznie uczeń z gotową sesją i personel;
+  niezalogowany i osoba bez zgłoszenia – odmowa; token API przed sesją; druga linia obrony
+  w `create_submission` i `start_attempt`; autozapis testu nigdy. LiveKit niedostępny: `block`
+  (domyślnie) albo `allow` – tylko przy awarii serwera albo po N nieudanych połączeniach, z powodem
+  w siatce, raporcie i CSV; odmowa kamery = prośba o alternatywę.
+- Zgoda wiąże się z ustawieniami etapu (zmiana = nowa zgoda); niepełnoletni – zgoda opiekuna
+  sprawdzana przy każdym wejściu i oświadczenie o nadzorze. Wycofanie zgody, anonimizacja, odpięcie
+  nadzorującego i odwołanie opiekuna (DEL-01) wypraszają z pokoju; okna TZ-01 brane automatycznie.
+- **Nadzorujący** `/proctoring/<etap>/`: siatka 12/16/24 kafli, subskrypcja tylko widocznej strony,
+  wiadomości (serwer → `SendData` + odpytanie), „pokaż pokój/dokument”, incydenty, obecność.
+  Pokoje per delegacja / przydział: opiekun drużyny dostaje token wyłącznie do pokoju swojej delegacji.
+- **Komisja**: raport ucznia, eksport incydentów CSV, nagrania (domyślnie wyłączone; Track Egress bez
+  transkodowania) z audytem; retencja nośników 30 dni po wynikach i oknie reklamacji (beat), wstrzymanie.
+- RODO: wiersz rejestru czynności, sekcja `nadzor_zdalny` w eksporcie konta, anonimizacja kasuje
+  nośniki, nota DPIA w podręczniku organizatora. Katalogi tłumaczeń aplikacji (`apps/*/locale/`)
+  kompilowane w `Dockerfile` i sprawdzane testami. Opis: `docs/tasks/PROC-01.md`, `docs/OPERACJE.md` § 39.
+
+### Rozmowy etapu w LiveKit jako alternatywa dla Jitsi (STAGE-LK-01)
+
+- Dostawca wideo etapu **„LiveKit (pokój na platformie)”** (`VideoProvider.LIVEKIT`, migracja
+  `competitions.0034`; opcja widoczna tylko przy skonfigurowanym LiveKit). Jitsi domyślne i bez zmian.
+- **Jedna reguła uprawnień** dla obu dostawców: `apps.competitions.room_access` (przeniesiona z widoków
+  Jitsi bez zmiany zachowania) – uczestnik, koordynator i komisja wchodzą tymi samymi widokami, w tych
+  samych oknach, z tymi samymi rolami (moderator Jitsi = rola `presenter`, polecenia przez platformę –
+  bez `roomAdmin` w przeglądarce; pokoje zakładane `CreateRoom` przed tokenem; decyzje moderatora
+  przeżywają ponowne wejście; osobny pokój próby na zapis; nagranie rozmowy z nadzorem tylko ze zgodą); test parytetu uruchamia
+  tę samą macierz ról na obu dostawcach.
+- Pokój na platformie (interfejs webinarów), token POST-em, polecenia moderatora przez platformę
+  (odbierz/oddaj głos, usuń; audyt `interview.room_control`). Bez drugiej integracji LiveKit.
+- Opcjonalnie z **nadzorem zdalnym** (PROC-01): zgoda i sprzęt przed rozmową, dziennik połączeń,
+  nagranie kamery przy `record`. Rejestr czynności 1.20. Opis: `docs/tasks/STAGE-LK-01.md`,
+  `docs/OPERACJE.md` § 25.9 i § 39.5.
+
+### Reset hasła: nadawca konkursu, konta bez hasła i konta nieuruchomione (AUTH-01a)
+
+- **Nadawca listu resetu** to nadawca konkursu żądania (`Competition.from_email`), jak przy aktywacji
+  i zaproszeniach – do tej pory zawsze `DEFAULT_FROM_EMAIL` (IQO dostawało list od nadawcy OK).
+- **Konto bez hasła platformy** (Google/Facebook, hasło wyczyszczone przez allauth) dostaje link
+  resetu i ustawia nim hasło – Django po cichu pomijało takie konta, wbrew obietnicy z ekranów.
+- **Konto nieuruchomione** (zaproszony uczeń z importu lub delegacji, rejestracja bez aktywacji)
+  dostaje z „Nie pamiętasz hasła?” zaproszenie albo link aktywacyjny zamiast ciszy; odpowiedź strony
+  bez zmian (brak enumeracji). Reset nie aktywuje konta.
+- **Zaproszony uczeń nie uruchomi konta linkiem aktywacyjnym** (z pominięciem zgód): „Wyślij link
+  ponownie” wysyła mu zaproszenie, a `activate_with_token` odmawia takiego konta.
+- Testy całej drogi pod domeną IQO, domeną OK i prefiksem ścieżki (host linku, język, nadawca, token
+  wygasły, pamięć stron, CSRF, motyw IQO); `docs/tasks/AUTH-01a.md`, `docs/OPERACJE.md` § 9.7
+  (kontrola nadawcy w relayu na produkcji).
+- Poprawki po przeglądzie: koordynator nie aktywuje ręcznie konta z niezaakceptowanym zaproszeniem
+  (przycisk i „Konto aktywne”); konto przed aktywacją dostaje link resetu, którego zapis zastępuje hasło
+  z rejestracji i aktywuje konto; konto bez hasła – tylko z adresem potwierdzonym (allauth `verified`)
+  i nie z zaproszenia bez zgód; nadawca konkursu spoza `ALLOWED_SENDER_DOMAINS` (nowa zmienna, wspólna
+  z relayem, domyślnie `SITE_DOMAIN`) → `DEFAULT_FROM_EMAIL`; limit resetu także per adresat; zaproszenie
+  z formularzy publicznych najwyżej raz na 10 min, z audytem i z linkiem do konkursu ucznia; reset
+  koordynatora według tej samej reguły, co samoobsługa.
+
+## v0.44.1 – 2026-10-04 – LiveKit: jeden port UDP z multipleksacją
+
+- **Zmienione:** wariant „LiveKit na tym hoście” (OPERACJE § 36) – media przez jeden port UDP 7882
+  z multipleksacją (`rtc.udp_port`) zamiast zakresu 50000–50100; TCP 7881 bez zmian. Jedna reguła
+  zapory i jeden docker-proxy zamiast 101. Istniejący `livekit/livekit.yaml` na serwerze trzeba
+  dopasować (`udp_port: 7882`, bez `port_range_*`).
+
+## v0.44.0 – 2026-10-04 – Logistyka finału, listy wizowe, absolwenci, menu i kolory motywu, IQO Quantum 1.1.0
+
+### Logistyka finału dla delegacji (LOG-01)
+
+- **Nowa aplikacja `apps.delegation_logistics`** za flagą `onsite_logistics` w trybie `DELEGATIONS`:
+  formularz opiekuna drużyny dla każdej osoby delegacji (dokument podróży, przyjazd/wyjazd,
+  zakwaterowanie, wyżywienie i zdrowie za decyzją D21 i wyraźną zgodą, koszulka, kontakt alarmowy,
+  zdjęcie ze skanem ClamAV), goście/obserwatorzy delegacji, terminy per sekcja z blokadą i audytem
+  zmian (nazwy pól, bez wartości).
+- **Oficer logistyki i obsługa rejestracji** – przydziały ponad rolę koordynatora; dane osób widzi
+  wyłącznie oficer. Ekrany: przegląd kompletności, osoby, tablica przylotów/odlotów, lista pokoi
+  (zasady: niepełnoletni nigdy z dorosłym, płeć pokoju, pojemność), wyżywienie, koszulki, eksporty CSV,
+  przypomnienia e-mail w języku opiekuna.
+- **Listy zapraszające do wizy** – PDF z rejestrem numerów `PREFIKS/ROK/NNNN`, zaszyfrowana migawka
+  danych, nowy rodzaj szablonu dokumentu `VISA_INVITATION` (`tenancy.0015`), podpisy i pieczęć jak dyplomy.
+- **Identyfikatory** PDF (A6, zdjęcie, kraj, rola, QR z losowym tokenem bez danych osobowych) i ekran
+  odhaczania na telefonie (punkty kontroli, wyszukiwarka, skaner w przeglądarce z `BarcodeDetector`).
+- **RODO:** szyfrowanie pól wrażliwych (Fernet z obsługą `SECRET_KEY_FALLBACKS`), retencja dobowa po
+  końcu finału, sekcja w eksporcie danych konta, usuwanie przy usunięciu konta, warunkowa czynność
+  w rejestrze (wersja 1.17).
+- **i18n:** katalogi tłumaczeń w aplikacji (`apps/<nazwa>/locale`) – kompilowane przez `Dockerfile`,
+  CI i `conftest.py`, sprawdzane przez `test_translations.py`; 125 nowych napisów w 10 językach
+  (maszynowe, do przeglądu).
+- **Poprawki po przeglądzie:** reguły pokoi sprawdzane po zmianie danych osoby (zdjęcie przydziału)
+  i daty finału (oznaczenie naruszeń, kolumna CSV), niepełnoletni z płcią „inna” w pokoju
+  jednoosobowym; dane paszportowe i o zdrowiu tylko przy znanym końcu finału, po retencji żadnych
+  zapisów; dieta szyfrowana (`delegation_logistics.0002`); zdjęcia przekodowane bez EXIF, limit pikseli,
+  identyfikatory per kraj; usunięcie członka czyści migawki listów; obsługę rejestracji nadaje oficer;
+  przypomnienia tylko oficer; zapisy `update_fields`; numeracja listów pod blokadą (konkurs, rok);
+  eksport danych konta z obecnością i listami.
+- Dokumentacja: `docs/OPERACJE.md` § 31, `docs/PODRECZNIK-ORGANIZATORA.md` § 10d,
+  `docs/PODRECZNIK-OPIEKUNA-DRUZYNY.md` § 7a, `docs/tasks/LOG-01.md`.
+
+### Listy zapraszające do wizy: wnioski, weryfikacja, unieważnienie (VISA-01)
+
+- **Wnioski opiekuna drużyny** o list imienny (`/delegation/logistics/letters/`) dla osób z kompletnym
+  dokumentem podróży, z wyborem języka; wycofanie oczekującego wniosku. Jeden oczekujący wniosek na osobę.
+- **Decyzje oficera logistyki** (`/coordinator/logistics/letter-requests/`): filtry kraj/stan,
+  zatwierdzenie (= list imienny, poprzedni ważny list osoby unieważniony) i odrzucenie z powodem –
+  pojedynczo i hurtowo; CSV bez danych paszportowych; e-mail do opiekunów w ich języku (zbiorczy).
+- **Kod weryfikacyjny i QR** na każdym liście, **publiczna strona** `/visa/verify/<kod>/` (dane minimalne,
+  bez numeru paszportu, limit `visa_verify` 60/h na IP, `no-store`, `noindex`), nowy segment `visa`
+  w `RESERVED_SLUGS` i kontrakcie djcms.
+- **Unieważnienie listu** z powodem (audyt, strona weryfikacji „unieważniony”, PDF nie do pobrania).
+- **Język listu**: en, pl, es, fr, pt, ru, id (teksty w `letter_texts.py`); migawka wydarzenia w rejestrze.
+- RODO: wnioski w eksporcie danych konta i w retencji/usuwaniu razem z osobą; rejestr czynności 1.18
+  (nowy odbiorca – osoba znająca kod listu). Migracja `delegation_logistics.0003`.
+- Poprawki po przeglądzie: list imienny zastępuje wcześniejszy tylko przy zmianie numeru paszportu,
+  nazwiska albo obywatelstwa (ostrzeżenie u opiekuna, „unieważni list …” u oficera, ta sama reguła
+  przy wystawieniu z karty osoby; list delegacji z nieaktualnymi danymi oznaczony w rejestrze);
+  wypisanie osoby z delegacji unieważnia jej listy imienne; dane usunięte przed wydarzeniem = list
+  nieważny na stronie weryfikacji; strona weryfikacji za bramką „konkurs ma listy” (niezależnie od
+  flagi), adres weryfikacji zapamiętany na liście (`verification_base_url`) i komenda
+  `visa_letter_redirects`; bez Google Analytics na `/visa/verify/` i `/dyplomy/<kod>/`; limit także dla
+  HEAD, oficer bez limitu; daty w formacie języka listu, zdania pl/ru niezależne od przypadka nazwy
+  organizatora, przy szablonie z bazy list tylko po angielsku.
+- Dokumentacja: `docs/OPERACJE.md` § 31.8, `docs/PODRECZNIK-ORGANIZATORA.md` § 10d,
+  `docs/PODRECZNIK-OPIEKUNA-DRUZYNY.md` § 7a, `docs/tasks/VISA-01.md`.
+
+### Sieć absolwentów i mentoring (ALUM-01)
+
+- **Absolwenci (`apps.alumni`, flaga `alumni`, domyślnie wyłączona):** byli uczestnicy z
+  osiągnięciem w zakończonej edycji (próg ustawia koordynator: laureat / finalista / awans /
+  każdy uczestnik) dołączają do sieci **za osobną zgodą** (wersjonowany dowód zgody, wycofanie
+  jednym przyciskiem usuwa profil). Tylko osoby pełnoletnie. Osiągnięcia liczone na żywo
+  wyłącznie z ogłoszonych wyników i wystawionych dyplomów; rejestr źródeł na medale.
+- **Profil:** podpis „Imię N.” (pełne nazwisko tylko z wyborem i zgodą na publikację nazwiska),
+  uczelnia, kierunek, miasto, kraj, bio, zainteresowania z listy zamkniętej, LinkedIn/GitHub
+  (tylko https, tylko te serwisy, `rel=nofollow`), gotowość do mentoringu z tematami i liczbą miejsc.
+  Katalog dla zalogowanych `/me/alumni/directory/`, publiczna ściana `/alumni/` (tylko profile
+  oznaczone jako publiczne, minimalne pola).
+- **Mentoring przez Wiadomości:** prośba → akceptacja → zwykła rozmowa P2P czatu. Nowy punkt
+  rozszerzenia czatu (`PeerPolicy`, `register_peer_policy`, `ensure_peer_conversation`): mentee
+  małoletni przy zasadzie „ta sama grupa wiekowa” albo wyłączonych rozmowach uczestników – każda
+  wiadomość czeka na akceptację organizatora (kanał nadzorowany); przy „bez ograniczeń” – co
+  najmniej postmoderacja. Zakończenie relacji zamyka rozmowę do odczytu. Nadzór koordynatora
+  `/coordinator/alumni/mentoring/` (zakończenie z notatką, zgłoszenia problemów – list do
+  koordynatorów od razu).
+- **Zaproszenia** `/coordinator/alumni/invitations/` (warsztaty, webinary, jury; filtry: edycja,
+  poziom, zainteresowania, mentorzy) w języku odbiorcy, z wypisem jednym kliknięciem (RFC 8058).
+  **Statystyki** „gdzie są teraz” z progiem k-anonimowości 5.
+- **RODO:** czynność `ALUMNI_ACTIVITY` w rejestrze (wersja 1.19, tylko przy fladze), sekcja
+  `absolwenci` w eksporcie danych konta, czyszczenie przy anonimizacji, wstrzymanie automatu
+  retencji na czas ważnej zgody (`BLOCKED_ALUMNI`). Nowy zakres limitu `alumni` (30/h, per konto).
+- **Po przeglądzie krytyka:** notatka prośby małoletniego i opis mentora dla małoletnich dopiero po
+  akceptacji koordynatora, automatyczne zgłoszenia (wzorce danych kontaktowych, zmiana daty urodzenia
+  w trakcie relacji, rozmowa szyfrowana pod wymuszoną moderacją); data urodzenia mentee zapisana przy
+  akceptacji i potwierdzona pełnoletność mentora; pierwsze 5 wiadomości nowej pary dorosły–małoletni
+  w premoderacji także przy „bez ograniczeń”; ukrycie profilu kończy relacje mentora; minimalizacja
+  zamiast pełnej anonimizacji przy wstrzymanej retencji; wycofanie zgody przy wyłączonej fladze;
+  dowód zgody z językiem i skrótem treści i odnowienie zgody po zmianie wersji; polityki rozmowy
+  łączone po najostrzejszej; statystyki bez komórek komplementarnych; limity próśb.
+- **Medale (MED-01) jako osiągnięcia absolwentów:** ogłoszony medal albo wyróżnienie widać na profilu
+  („2025/2026: złoty medal”) i liczy się do progu dołączenia (medal = laureat).
+
+### Zarządzanie motywem z panelu i IQO Quantum 1.1.0 (THEME-02)
+
+- **Menu serwisu** (`/coordinator/competition/theme/menu/`): kolejność, ukrycie, nazwy per język
+  interfejsu, własne odnośniki (tylko `http(s)` i ścieżki serwisu; strona serwisu wyłącznie z drzewa
+  tego konkursu), grupy rozwijane jednego poziomu; nakładane na menu z drzewa stron bez zapytania dla
+  konkursu bez nadpisań (Olimpiada Kwantowa co do bajtu).
+- **Kolory i opcje motywu** (`/coordinator/competition/theme/customize/`): schemat jasny/ciemny/systemowy,
+  wariant logo i para krojów (nowe pola manifestu `logos`, `fonts`), kolory tokenów z `tokens.json`
+  z kontrolą kontrastu WCAG AA blokującą zapis, podgląd, „Przywróć domyślne”; dostosowanie pamiętane
+  per wersja motywu; arkusz `/_theme/custom.css` z podpisanego zestawu opcji (CSP bez zmian).
+- Audyt (`theme.menu_saved`, `theme.menu_reset`, `theme.customized`, `theme.customization_reset`),
+  limit POST `theme_settings` (120/h na konto), unieważnienie cache gościa po zapisie.
+- **Slot `nav`** (menu serwisu) – motyw może przerysować samo menu; kontekst szablonów paczek
+  dostał `sponsor_slider` (taśma sponsorów we własnym miejscu motywu); dostosowanie obejmuje też
+  promienie `radius-*` z `tokens.json`.
+- **IQO Quantum 1.1.0** (`themes/iqo-quantum/`): nowy wygląd odchodzący od Olimpiady Kwantowej
+  (nagłówek nad planszą, typografia, karty, sekcje, stopka, motywy orbitali/fal), tryb jasny, warianty
+  logo i krojów. Wgranie: `docs/OPERACJE.md` § 30.7.
+- Migracja `themes.0003` (dwie nowe tabele).
+
+## v0.43.0 – 2026-10-04 – Medale (MED-01) i płatności online (PAY-01)
+
+### Medale olimpiady międzynarodowej, dyplomy w języku ucznia i ranking krajów (MED-01)
+
+- **Medale z rankingu** (`apps.medals`, flaga konkursu `medals`, domyślnie wyłączona): schemat per etap
+  (domyślnie IPhO 8/17/25 %, polityka remisu, wyróżnienie za ≥ X % najlepszego wyniku albo pełne
+  zadanie), podgląd z `compute_stage_results`, ręczne zmiany z uzasadnieniem (audyt bez treści),
+  ogłoszenie zamrażające nagrody po publikacji wyników (bramka zgodności sum), odmrożenie z uzasadnieniem.
+  Ekran `/coordinator/medals/` (menu „Raporty → Medale”).
+- **Dyplomy w języku ucznia:** rodzaje `MEDAL_GOLD`/`MEDAL_SILVER`/`MEDAL_BRONZE`/`HON_MENTION`
+  (`results.0008`, `tenancy.0015`), zaświadczenie o udziale w konkursie z medalami; skład wielopismowy
+  (`apps/medals/typesetting.py`: kierunek RTL, kroje Noto Arabic/Devanagari/Bengali i Droid Sans Fallback
+  w repozytorium, kształtowanie HarfBuzz) wpięty w `render_pdf` (`register_composer`); język zamrażany
+  przy wystawieniu; odwrót na angielski, gdy pisma nie da się złożyć. Nowa zależność: `uharfbuzz`.
+- **Publiczne strony** `/results/<etap>/medals/` (filtr kraju, zgody jak w tabeli wyników) i
+  `/results/<etap>/countries/` (nieoficjalny ranking krajów, tylko agregaty); eksport CSV i lista na galę
+  (PDF) dla koordynatora, w audycie.
+- Olimpiada Kwantowa bez zmian: formularz „Wystaw” bez rodzajów medalowych, brak menu i odnośników.
+- **RODO:** czynność „Medale, dyplomy medalowe i ranking krajów” (warunkowa), sekcja `medale` w eksporcie
+  danych konta. **i18n:** 37 napisów w katalogu aplikacji `apps/medals/locale` (10 języków, maszynowe);
+  `Dockerfile` i `test_translations` obejmują katalogi aplikacji.
+- Po przeglądzie: kraj przy wierszu tylko w `CODE` i przy nazwisku za zgodą; cyfry arabsko-indyjskie
+  w kolejności LTR; ranking krajów z sumą/średnią tylko od 3 wyników; bramka ogłoszenia porównuje też
+  wpisy i stany; dyplom niezgodny z nagrodą nieaktualny (weryfikacja, „Moje dyplomy”); język przypinany
+  przy wystawieniu, brak kształtowania przy pobraniu – błąd zamiast cichego angielskiego; `uharfbuzz`
+  przypięty do 0.56.
+- Dokumentacja: `docs/OPERACJE.md` § 37, `docs/PODRECZNIK-ORGANIZATORA.md` § 10k, przewodnik opiekuna
+  drużyny § 5b, podręcznik uczestnika § 7.
+
+### Płatności online za udział: Stripe, Przelewy24, przelew, faktury (PAY-01)
+
+- **Nowa aplikacja `apps.payments`** za flagą `fees` (Olimpiada Kwantowa bez zmian): cennik delegacji per
+  edycja (delegacja, uczeń, opiekun, obserwator; ceny „early”/„late”; waluta), zamówienia liczone na
+  serwerze z pokryciem składu (dopisany uczeń = nowe zamówienie tylko na przyrost), zniżki i zwolnienia
+  delegacji z uzasadnieniem i audytem.
+- **Faktura pro forma i faktura** (PDF, ReportLab jak dyplomy) z numeracją ciągłą per konkurs/rodzaj/rok
+  (`IQO/FV/2026/0001`), migawka danych sprzedawcy (pola organizatora + `PaymentSettings`) i nabywcy
+  (instytucja albo osoba, VAT ID opcjonalnie). D15 zmieniona: numeracja tak, rejestr VAT/korekty – nie.
+- **Operatorzy płatności** za wspólnym interfejsem: Stripe Checkout + webhook z weryfikacją podpisu
+  (bez SDK), Przelewy24 (rejestracja, powiadomienie SHA-384, `verify`, zwrot), przelew z kodem
+  referencyjnym i zapisem koordynatora (dowód wpłaty skanowany ClamAV). Idempotentne webhooki
+  (`ProviderEvent`), porównanie kwoty i waluty, „do wyjaśnienia” przy rozbieżności i podwójnej wpłacie.
+- **Zwroty** przez API operatora (albo zapis zwrotu przelewu), częściowe i pełne; pełny zwrot uczestnika
+  trafia do rejestru wpisowego (`record_refund`). Potwierdzenia wpłaty i zwrotu e-mailem w języku płacącego.
+- **Ekrany:** opiekun `/delegation/payments/`, strona zamówienia `/payments/orders/<id>/`, uczestnik
+  „Zapłać online” na kaflu „Wpisowe” (`/me/fees/pay/`), koordynator `/coordinator/payments/` (sumy per
+  waluta, delegacje, zamówienia, eksport CSV dla księgowości, cennik i ustawienia).
+- **Bezpieczeństwo:** kwota nigdy z formularza, podpis webhooka obowiązkowy (brak sekretu = 404), sekrety
+  wyłącznie ze środowiska (`STRIPE_*`, `P24_*`), limity `checkout`/`payments_admin`, przekierowanie tylko na
+  hosty operatora, panel `/admin/` płatności tylko do odczytu.
+- **Po przeglądzie:** dostęp tylko czynnego opiekuna, zwroty pozycjami (zastępca płaci), warunkowy zapis
+  sesji Checkout i `GET` sesji po nieudanym `expire`, sprzątanie beatem `payments-sweep` (porzucone sesje,
+  zgubione webhooki, ponawianie zwrotów tym samym kluczem), przelew zapisywany pod blokadą i tylko na
+  zamówienie otwarte, wpłata na anulowane → „do wyjaśnienia”, `livemode`, limit `payment_webhooks`.
+- **RODO:** czynność „Płatności” w rejestrze (wersja 1.16, warunkowa), sekcja w eksporcie danych konta
+  (z profilami delegacji edytowanymi przez konto); anonimizacja kasuje profil nabywcy uczestnika.
+- **i18n:** katalog aplikacji `apps/payments/locale` (113 napisów, 10 języków, maszynowe); `Dockerfile`,
+  `conftest.py` i `test_translations.py` obejmują katalogi aplikacji.
+- Dokumentacja: `docs/OPERACJE.md` § 35, `docs/PODRECZNIK-ORGANIZATORA.md` § 10h,
+  `docs/PODRECZNIK-OPIEKUNA-DRUZYNY.md` § 6, `docs/PODRECZNIK-UCZESTNIKA.md` § 2.
+
+## v0.42.0 – 2026-10-04 – Webinary LiveKit, statystyki szkół, okna czasowe, tłumaczenia zadań, przegląd tłumaczeń
+
+### Webinary w LiveKit (WEB-01)
+
+- **Webinary** (`apps.webinars`, flaga konkursu `webinars`, domyślnie wyłączona): koordynator planuje
+  webinar (termin, odbiorcy: konkurs / edycja / etap / komisja / kapitanowie, współprowadzący,
+  nagrywanie, link dla gości), odbiorcy wchodzą do **pokoju na platformie** (`/webinars/<id>/room/`:
+  siatka i widok prelegenta, ekran, mikrofon/kamera, lista uczestników, ręka, czat; motyw konkursu,
+  11 języków, RTL). Widz bez nadawania – „Daj głos” przez `UpdateParticipant`.
+- **LiveKit** (własny serwer, Apache 2.0): tokeny HS256 na 10 min z serwera (bez sekretu w HTML/JS),
+  webhook `/integrations/livekit/webhook/` z obowiązkowym podpisem i ochroną przed powtórką (stan
+  pokoju, **lista obecności**, koniec nagrania), nagrania przez Egress do prywatnego bucketu (MP4,
+  publikacja, adres podpisany na 2 h), transmisja RTMP na YouTube (klucz niezapisywany).
+- **Infrastruktura:** `deploy/livekit/` (nakładka compose z profilem `livekit`, przykłady `livekit.yaml`
+  i `egress.yaml`, polityka MinIO egress), `LIVEKIT_PROXY` w `render_caddyfile.sh` (blok `live.`),
+  `scripts/vendor_livekit_client.sh` (SDK z npm ze sprawdzeniem sumy, bez CDN). CSP: origin LiveKit
+  w `connect-src` tylko przy konfiguracji. Nowe segmenty `webinars`, `integrations` w kontrakcie tras.
+- Listy: zaproszenie (raz) i przypomnienie (beat co 5 min), z wyłączeniem; rejestr czynności
+  „Webinary online (LiveKit)” przy fladze. Opis: `docs/tasks/WEB-01.md`, `docs/OPERACJE.md` § 36.
+
+### Statystyki szkół i opiekunów szkolnych (STAT-01)
+
+- **Flaga `school_statistics`** (domyślnie wyłączona), nowa aplikacja `apps.school_stats` bez modeli.
+  Opiekun szkolny (`/supervisor/statistics/`): jego uczniowie
+  w edycjach i etapach (zapis, oddanie, termin; punkty i awans **wyłącznie** z ogłoszonych publikacji,
+  lista „tylko awansujący” bez punktów osób spoza listy), porównanie ze szkołą (tylko szkoła z wykazu
+  zweryfikowana przez organizatora), województwem i całością z progiem k-anonimowości 5 i regułą
+  dopełnienia, wykres SVG postępu przez edycje (bez JS), raport PDF szkoły dla dyrektora (same
+  agregaty). Koordynator (`/coordinator/school-stats/`, menu „Raporty”): ranking szkół z porównaniem
+  rok do roku, województwa, „szkoły do odzyskania”, eksport CSV, raport PDF dowolnej szkoły. Agregaty
+  edycji w pamięci podręcznej z odciskiem publikacji (2 zapytania na edycję). Rejestr czynności 1.12
+  (wiersz warunkowy). Katalogi tłumaczeń aplikacji (`apps/<nazwa>/locale`) kompilowane w obrazie
+  i sprawdzane testem (`docs/tasks/STAT-01.md`, `docs/OPERACJE.md` § 29).
+- **Poprawki po przeglądzie:** reguła zagnieżdżenia (szkoła ⊂ województwo ⊂ całość; województwo minus
+  pokazane szkoły), dopełnienie wobec uczniów wszystkich opiekunów szkoły w CSV/PDF, średnia od 5
+  wyników, przynależność wpisów zamrażana przy publikacji (`FrozenMembership`, migracja
+  `school_stats.0001`), konta zanonimizowane poza szkołami, profil opiekuna z innego konkursu nie działa
+  w tym konkursie (`supervisor_profile`), CSV szkół do odzyskania, CI sprawdza katalogi `apps/*/locale`.
+
+### Okna czasowe etapu według stref czasowych (TZ-01)
+
+- **Tryb okien** etapu zdalnego (nowa aplikacja `apps.time_windows`, flaga konkursu `stage_time_windows`,
+  domyślnie wyłączona): N okien o stałym czasie pracy, przydział krajów domyślnie ze strefy stolicy
+  (poprawka strefy kraju, przydział ręczny), wyjątki uczniów (inne okno, dodatkowy czas z powodem).
+  Zmiany tylko przed startem okien, każda w audycie.
+- **Egzekwowanie po stronie serwera:** upload (HTML i API) i `is_late` z okna ucznia; treść zadań uczniowi
+  od startu jego okna, publicznie (strona „Zadania”, API, archiwum) po końcu ostatniego; test online
+  w oknie ucznia; premoderacja forum i czatu przez cały czas okien; publikacja wyników po ujawnieniu;
+  rama etapu nie może wyciąć okien.
+- **Panel ucznia:** karta „Twoje okno”, odliczanie do własnego startu i terminu, godziny w strefie ucznia
+  (strefę ustawia opiekun drużyny – nie zmienia okna), własne okno w kalendarzu osobistym.
+- **Ekrany:** „Okna czasowe” pod etapem w panelu koordynatora (oś czasu z liczbami na żywo, kraje,
+  wyjątki, kto w którym oknie) i „Okna czasowe drużyny” u opiekuna. RODO: czynność w rejestrze, eksport,
+  anonimizacja. Katalogi tłumaczeń aplikacji (`apps/*/locale`) kompilowane w obrazie, CI i testach.
+- Dokumentacja: `docs/OPERACJE.md` § 32, `docs/PODRECZNIK-ORGANIZATORA.md` § 10e,
+  `docs/PODRECZNIK-UCZESTNIKA.md` § 3, `docs/PODRECZNIK-OPIEKUNA-DRUZYNY.md` § 5a.
+
+### Tłumaczenia zadań przez delegacje krajowe („noc tłumaczeń”, TR-01)
+
+- **Nowa aplikacja `apps.problem_translations`** (tylko konkursy w trybie `DELEGATIONS`): okno tłumaczeń
+  etapu (zamyka się najpóźniej z otwarciem etapu), tryb osobny/wspólny dla delegacji jednego języka,
+  wersja oficjalna jako tekst Markdown + LaTeX z numerem wersji, 1–2 języki delegacji i język ucznia
+  (domyślny + nadpisanie przez opiekuna).
+- **Opiekun** (`/delegation/translations/`): edytor obok wersji oficjalnej z autozapisem (HTMX) i
+  podglądem wzorów (KaTeX zwendorowany; htmx i Alpine strony bazowej nadal z CDN-ów z SRI), alternatywnie PDF (skan antywirusowy), wysłanie do
+  akceptacji, cofnięcie, aktualizacja po zmianie wersji oficjalnej z różnicami źródła.
+- **Komisja** (`/coordinator/translations/`): kolejka, przegląd z różnicami wersji, zatwierdzenie
+  (blokada) i zwrot z komentarzem; zmiana wersji oficjalnej (także PDF-u z ekranu zadań) oznacza
+  tłumaczenia jako nieaktualne i wysyła listy; eksport do druku per język (PDF i widok do druku).
+- **Uczeń:** po otwarciu etapu „Treść w języku: …” na karcie zadania obok wersji oficjalnej.
+- **Poufność:** źródło tylko w oknie i tylko dla opiekunów z delegacją w bieżącej edycji, `no-store`,
+  audyt każdego wglądu i pobrania, znak wodny kraju na PDF-ach opiekunów.
+- **Wspólne:** obraz kompiluje katalogi tłumaczeń aplikacji (`apps/*/locale`), test katalogów obejmuje
+  je; scope throttlingu `translation`; rejestr czynności 1.13; sekcja `tlumaczenia_zadan` w eksporcie
+  danych konta. Dokumentacja: `docs/tasks/TR-01.md`, `OPERACJE.md` § 34,
+  `PODRECZNIK-ORGANIZATORA.md` § 10g, `PODRECZNIK-OPIEKUNA-DRUZYNY.md` § 6a, `PODRECZNIK-UCZESTNIKA.md` § 3.
+
+### Przegląd tłumaczeń przez native speakerów (L10N-01)
+
+- **Panel tłumacza** `/translations/` (nowa aplikacja `apps.translation_review`): napisy jednego języka
+  z katalogu projektu i katalogów aplikacji – tekst polski, angielski jako odniesienie, obecne
+  tłumaczenie, kontekst z `.po` (miejsca w kodzie, uwagi, `msgctxt`, formy mnogie); filtry
+  „bez tłumaczenia / maszynowe / przejrzane / z propozycją”, wyszukiwanie, propozycje z głosami
+  (anonimowe wobec innych tłumaczy), decyzje recenzenta (zatwierdź, odrzuć, potwierdź, cofnij).
+- **Role:** tłumacz (nadaje koordynator konkursu z >1 językiem interfejsu, tylko osobom z konkursu –
+  `/coordinator/translators/`) i recenzent tłumaczeń (wyłącznie superkoordynator). Superkoordynator
+  jest recenzentem każdego języka.
+- **Nakładka w czasie działania:** zatwierdzone tłumaczenie wchodzi do gettext jako pierwszy katalog
+  (`trans_real.translation` owinięte w `ready()`); w cache'u sam numer wersji per język, każdy proces
+  przebudowuje nakładkę z bazy po zmianie wersji (≤ 5 s), bufor stron gości czyszczony przy zmianie;
+  `TRANSLATION_OVERRIDES_ENABLED` wyłącza bez wydania. Potwierdzenia („obecne jest dobre”) nigdy nie
+  trafiają do gettext, a poprawka podjęta wobec starszego `msgstr` ustępuje nowemu tekstowi z wydania
+  (znacznik „do ponownego przeglądu”; migracja `translation_review.0002`).
+- **Zasięg nadania:** rola nadana przez koordynatora należy do jego konkursu (widzą ją i odbierają
+  wszyscy koordynatorzy konkursu) i działa tylko, dopóki osoba jest z konkursem związana; koordynator
+  nadaje tylko w językach interfejsu swojego konkursu.
+- **Bezpieczeństwo poprawek:** tłumaczenie to zwykły tekst – te same placeholdery, **dokładnie** te same
+  znaczniki HTML co w `msgid`, żadnego nowego `<`/`>` ani prostego cudzysłowu (napisy bywają
+  w atrybutach, a `{% translate %}` nie escapuje), bez znaków sterujących i bidi override; ponowna
+  walidacja przy zatwierdzeniu i przy imporcie z JSON-a.
+- **`manage.py export_translations`:** nakładki → `msgstr` w `.po` (diff wyłącznie poprawionych wpisów +
+  `# l10n-reviewed`; potwierdzenie – sam znacznik; konflikt, gdy katalog zmienił się od decyzji),
+  `--to-json`/`--from-json` (produkcja bez gita), zapis do `.po` tylko w checkoucie (`DEBUG` + `.git`,
+  inaczej `--force`), `--prune` dopiero gdy tekst jest w skompilowanym `.mo`, `--prune-stale`,
+  `--dry-run` (`docs/OPERACJE.md` § 33).
+- **„Zgłoś tłumaczenie” w stopce** dla zalogowanego tłumacza (konkurs wielojęzyczny, strona nie po
+  polsku): ścieżka strony bez parametrów + fraza + uwaga; lista zgłoszeń dla recenzenta.
+- **Audyt** `translation.*`, throttling `translations` (120/h na konto), rejestr czynności **1.11**
+  (wiersz warunkowy „Przegląd tłumaczeń interfejsu”), sekcja `tlumaczenia` w eksporcie danych konta,
+  anonimizacja usuwa rolę, głosy i zgłoszenia. Obraz i testy kompilują teraz także katalogi aplikacji
+  (`apps/*/locale`). Ocena wariantu Weblate: `docs/tasks/L10N-01.md` § 1.
+
+## v0.41.1 – 2026-10-04 – Motyw na stronach z cache'u gościa (CSP)
+
+- **Poprawka:** strona podana z cache'u stron gościa nie przechodziła przez `{% theme_head %}`, więc
+  CSP nie wpuszczał arkuszy motywu z bucketu (`style-src`/`font-src`) – od drugiego wejścia gościa
+  IQO wyglądało jak motyw klasyczny. Wpis cache'u pamięta teraz, że strona dołączyła motyw.
+- Katalogi tłumaczeń aplikacji (`apps/*/locale/`) kompilują `Dockerfile`, CI i `conftest`;
+  `test_translations.py` sprawdza je tymi samymi regułami co katalog główny.
+
+## v0.41.0 – 2026-10-04 – Delegacje krajowe, motywy wizualne (classic + IQO Quantum)
+
+### Delegacje krajowe: rejestracja przez opiekunów drużyn narodowych (DEL-01)
 
 - **Tryb rejestracji konkursu** `Competition.registration_mode`: `OPEN` (domyślnie – każdy istniejący
   i nowy konkurs) albo `DELEGATIONS` (olimpiada międzynarodowa). W `DELEGATIONS` samodzielna rejestracja
@@ -75,7 +951,44 @@ i testy: [`SECURITY_CHECKLIST.md`](SECURITY_CHECKLIST.md) § 14.
 - Dokumentacja: `docs/OPERACJE.md` § 28, `docs/PODRECZNIK-ORGANIZATORA.md` § 10b,
   `docs/PODRECZNIK-OPIEKUNA-DRUZYNY.md`.
 
-## [Unreleased] – Wielojęzyczność per konkurs (I18N-01) i kraje zamiast województw (REG-01)
+### Motywy wizualne wgrywane paczkami (THEME-01)
+
+- **Tokeny motywu:** arkusze (`static/css/*.css`) czytają kolory, kroje, promienie i odstępy przez
+  zmienne `--t-*`; wartości domyślne to wbudowany motyw „Klasyczny” (wygląd co do wartości wyliczonej
+  sprzed zmiany, Olimpiada Kwantowa co do bajtu HTML i zapytań). Tryb wysokiego kontrastu wygrywa
+  z każdym motywem.
+- **Paczki ZIP** (`manifest.json`, `theme.css`, `tokens.json`, `assets/`, sloty `templates/theme/*.html`):
+  walidacja przy wgraniu (ZIP-slip, bomba ZIP, typy plików, CSS parserem `tinycss2` bez `@import`
+  i zewnętrznych `url()`, SVG oczyszczane, lint szablonów i kompilacja ograniczonym silnikiem, tokeny
+  z ostrzeżeniami kontrastu, ClamAV), wersje niezmienne pod `themes/<slug>/<wersja>-<sha8>/`.
+- **Sloty:** `header`, `brand`, `footer`, `page_wrapper`, `home_hero`, `news_card`, `page_header`;
+  `base.html` zostaje właścicielem `<head>` (nonce CSP, skrypty, skip-link). CSP: origin bucketu
+  w `style-src`/`font-src` wyłącznie na stronach z motywem.
+- **Panele:** katalog motywów superkoordynatora (`/coordinator/platform/themes/`) i „Motyw serwisu”
+  koordynatora (`/coordinator/competition/theme/`, flaga `themes`) z podglądem tylko dla koordynatora,
+  wariantami układów, akcentem marki i aktywacją (audyt). Komenda `manage.py theme_install <zip|->
+  [--activate <slug>]` (`docs/OPERACJE.md` § 30.1).
+- **Wymaga przebudowy obrazu** (nowa zależność `tinycss2`).
+
+## v0.40.3 – 2026-10-04 – Menu w języku interfejsu, og:image z pełnego adresu
+
+- **Poprawka:** standardowe tytuły stron menu (zakładane z szablonu konkursu) idą przez gettext do
+  języka żądania – menu IQO nie zostaje po polsku; tytuły zmienione przez redakcję bez zmian.
+- **Poprawka:** `og:image` z rendycji w S3 nie dostaje drugi raz schematu i hosta serwisu.
+
+## v0.40.2 – 2026-10-04 – Logo, favikona i obraz udostępniania per konkurs
+
+- **Nowe:** pola `Competition.site_logo` i `social_image` (migracja `tenancy.0012`, obok istniejącej
+  `favicon`) w „Ustawieniach konkursu”; puste = pliki statyczne jak dotąd (Konkurs #1 bez zmian).
+  Komenda `competition_brand_images` wgrywa komplet do kolekcji konkursu (ZIP ze stdin).
+
+## v0.40.1 – 2026-10-04 – seed_edition_kwantowa tylko w konkursie kwantowa
+
+- **Poprawka:** po założeniu IQO z szablonu „kwantowa” `seed_edition_kwantowa` trafiał na dwie edycje
+  o tej samej nazwie i zatrzymywał krok 6/8 wdrożenia; `--make-current` zdejmował znacznik bieżącej
+  edycji we wszystkich konkursach. Teraz działa wyłącznie w konkursie `kwantowa`.
+
+## v0.40.0 – 2026-10-04 – Wielojęzyczność per konkurs (I18N-01) i kraje zamiast województw (REG-01)
 
 - **Języki interfejsu per konkurs:** `Competition.interface_languages` obok `default_language`
   zastępuje przełącznik `SiteSettings.english_interface_enabled` (migracja `tenancy.0011`
@@ -272,7 +1185,15 @@ Django) się nie zmienia.
 - **Poprawka:** `pypdf` 6.x; globalny limit czasu zadań Celery (`CELERY_TASK_SOFT_TIME_LIMIT` 30 min,
   `CELERY_TASK_TIME_LIMIT` 35 min).
 
+## v0.38.1 – 2026-10-01 – Status ucznia: liczniki wszystkich uczestników
+
+- **Poprawka:** lista „Status ucznia” w edycji bieżącej obejmuje wszystkich uczestników konkursu
+  (bez kont po anonimizacji), a nie tylko zapisanych do etapu – na produkcji liczyła 92 osoby z 297.
+
 ## v0.38.0 – 2026-10-01 – Wiadomości (czat)
+
+### Wiadomości (czat)
+
 
 - **Nowe:** Wiadomości 1:1 na platformie (`apps/chat`, zadanie CZ-01) – lista rozmów i wątek jak
   w komunikatorze LinkedIn, odświeżanie wątku co 15 s i wysyłka bez przeładowania (htmx, bez skryptu
@@ -311,7 +1232,7 @@ Django) się nie zmienia.
   anonimizacja zostawia wiadomości („Użytkownik usunięty”) i usuwa profil katalogu, klucz, blokady
   i ustawienia.
 
-## [Unreleased] – konfiguracja proxy przy każdym wdrożeniu (`caddy reload`)
+### Konfiguracja proxy przy każdym wdrożeniu (`caddy reload`)
 
 - **Poprawka:** zmiany `deploy/Caddyfile` (nagłówki, trasy, domeny) nie docierały na produkcję –
   krok 2/8 kasował `deploy/`, a proxy trzymało montaż pojedynczego pliku ze starym i-węzłem, którego
@@ -345,7 +1266,7 @@ Django) się nie zmienia.
   `--rollback` zawsze woła `djcms_switch.sh off`; wdrożenie przy `DJCMS_PRIMARY=1` porównuje kontrakt
   tras hosta z obrazem web. `OPERACJE.md` § 22.8–22.10, § 23.
 
-## [Unreleased] – serwis publiczny na django CMS dla wszystkich konkursów (DJ-02)
+### Serwis publiczny na django CMS dla wszystkich konkursów (DJ-02)
 
 djcms z DJ-01 staje się **pełnym zamiennikiem publicznej części Wagtaila dla każdego konkursu**
 platformy (domena główna, subdomeny, `EXTRA_DOMAINS`, konkursy pod prefiksem ścieżki), na ich
@@ -439,7 +1360,7 @@ organizatora (`scripts/djcms_cutover.sh`, `OPERACJE.md` § 22.9). Specyfikacja:
 | jedna grupa „Redaktorzy”, konta redaktorów zakłada administrator | grupy per konkurs, redaktorzy wyłącznie przez SSO z `/cms/` |
 | tabela warsztatów redakcyjna (import) | na żywo z API (także partnerzy) |
 
-## [Unreleased] – wersja porównawcza na django CMS (`dj.<domena>`, DJ-01)
+### Wersja porównawcza na django CMS (`dj.<domena>`, DJ-01)
 
 Równoległa, publiczna, **nieindeksowana** wersja części informacyjnej serwisu pod
 `dj.olimpiadakwantowa.pl`, redagowana w django CMS – do porównania z Wagtailem (`/cms/`) przed
@@ -485,7 +1406,7 @@ dotąd. Włączenie na produkcji wymaga zgody organizatora (`OPERACJE.md` § 22.
   `backup_offsite_test.sh` (przypadki 12–15; z `BACKUP_BASELINE_REF=<rewizja>` porównanie
   przebiegu bez `dj.` ze skryptami sprzed zmiany).
 
-## [Unreleased] – kopie zapasowe na Dysku Google
+## v0.37.2 – 2026-09-25 – Kopie zapasowe na Dysku Google
 
 Prośba organizatora z 25.09.2026: nocna kopia (`scripts/backup.sh`) może wyjeżdżać poza serwer na
 **Dysk Google konta Fundacji** (Workspace `qaif.org`) – obok dotychczasowego kubełka S3. Dziś
@@ -1242,7 +2163,7 @@ człowiek; sugestia jest niewiążąca.
 - Dokumentacja: `PODRECZNIK-ORGANIZATORA.md` § 4.12 (z listą warunków prawnych przed włączeniem),
   `PODRECZNIK-RECENZENTA.md` § 3a, `PODRECZNIK-UCZESTNIKA.md` § 6, `OPERACJE.md` § 6.4 i § 17.
 
-## Niewydane (po `v0.31.1`)
+## Wydania (do v0.37.0 – skrót)
 
 | Wersja | Data | Zmiana |
 |---|---|---|
@@ -1253,16 +2174,6 @@ człowiek; sugestia jest niewiążąca.
 | **v0.33.0** | 2026-09-23 | **plakaty zgrupowane w karty** (prośba organizatora z 23.09.2026: „jedna karta na format, kilka przycisków” zamiast osobnej karty na każdy plik „A3 (JPG)”, „A3 (PDF)”, „A3 (PDF ze spadem 3 mm)”…): `PromoMaterial` dostaje dwa pola (migracja `promo.0002_group_variant_label`) – **`group`** („Karta (grupa plików)”, np. „A3 · 297×420 mm”: pliki jednego konkursu z identyczną, niepustą grupą stają na `/plakaty/` na **jednej karcie** – nagłówek to grupa, podgląd to pierwszy podgląd w grupie, opis pierwszy niepusty, pod spodem przycisk na każdy plik w kolejności koordynatora; karta stoi tam, gdzie jej pierwszy plik) i **`variant_label`** („Napis na przycisku”, np. „PDF ze spadem 3 mm”; puste = sam format JPG/PNG/PDF). Przycisk „Pobierz JPG · 1,7 MB” prowadzi do **własnego** adresu pobrania pliku, więc liczenie pobrań, limit, pseudonim IP i statystyki zostają per plik; nazwa dostępna przycisku niesie grupę („Pobierz A3 · 297×420 mm – PDF ze spadem 3 mm”). Plik bez grupy wygląda jak dotąd. Karty składa Python z tej samej jednej listy (`apps.promo.cards.build_cards`) – liczba zapytań `/plakaty/` bez zmian (test). Ekran koordynatora: oba pola w formularzu (z podpowiedzią `<datalist>` grup tego konkursu), linia „Karta: … · przycisk „…”” pod tytułem w tabeli, dwie nowe kolumny w eksporcie CSV („karta (grupa)”, „przycisk”); podręcznik organizatora § 4.10 |
 | **v0.32.0** | 2026-09-23 | **plakaty do pobrania** (prośba organizatora z 23.09.2026): nowa aplikacja `apps.promo` (modele `PromoMaterial` i `PromoDownload`, migracja promo.0001), strona publiczna **`/plakaty/`** (siatka kart: podgląd, tytuł, opis, format i rozmiar, „Pobierz”; 404, gdy konkurs nie ma opublikowanych plakatów; na allow-liście pamięci stron, unieważnianej przy każdym zapisie plakatu) i pobranie `/plakaty/<id>/pobierz/` (plik z prywatnego storage jako załącznik przez aplikację, `Cache-Control: no-store`, nigdy w pamięci stron); plik PDF/JPG/PNG do 50 MB rozpoznawany **po treści** (sygnatury `%PDF-`, `FF D8 FF`, PNG), miniatura JPG/PNG robiona automatycznie (Pillow), dla PDF-a opcjonalny własny podgląd albo ikona; odnośnik „Plakaty do pobrania” w stopce każdej strony i przycisk w panelu opiekuna szkolnego – tylko gdy jest opublikowany plakat (flaga w Redisie, unieważniana przy zapisie; budżety zapytań `/`, `/me/`, `/coordinator/` +1 na zimno, na ciepło zero). Ekran koordynatora **`/coordinator/posters/`** (Ustawienia → Plakaty do pobrania): dodanie, edycja, publikacja, kolejność, usunięcie (plakat z pobraniami trafia do archiwum ze statystykami), eksport CSV, audyt `promo.*`; statystyki **podwójne** – pobrania i **unikalne adresy IP** w oknach 7 dni / 30 dni / od początku (unikalność w całym oknie i w sumie między plakatami), kafelki, wykres dzienny obu szeregów (CSS, bez JS), eksport z tymi samymi kolumnami. Nie liczymy robotów, podglądów linków, `HEAD` ani koordynatora; podwójne kliknięcie (ten sam plakat i adres w 10 s) to jedno pobranie, a pobieranie ma limit 30/min na adres IP (scope `poster_download`, 429 bez zapisu pobrania); `HEAD` na plik brakujący w storage daje 404 jak `GET`. Adresu IP nie zapisujemy: zostaje **pseudonim** HMAC-SHA256 z kluczem z `SECRET_KEY`, zerowany po 12 miesiącach nowym zadaniem beat `promo-clear-expired-ip-hashes`; rejestr czynności przetwarzania 1.6 – nowa czynność „Statystyka pobrań materiałów promocyjnych” (art. 6 ust. 1 lit. f) |
 | **v0.31.2** | 2026-09-22 | strona rejestracji opiekuna szkolnego (`/register/supervisor/`) bez zaszytego w szablonie wstępu nad formularzem (organizator, 22.09.2026: „usuń tylko ten tekst nad formularzem”; „czy to intro mogę edytować z poziomu CMS”) – w jego miejsce pole `SiteSettings.supervisor_registration_intro` (`/cms/` → Ustawienia → Dane serwisu, sekcja „Rejestracja”; migracja cms.0027): domyślnie puste, czyli akapitu nie ma, a wpisany tekst (pogrubienie, kursywa, odnośnik) pojawia się nad formularzem bez wdrożenia; wyjaśnienie, skąd bierze się lista uczniów, zostaje w pustym stanie pulpitu opiekuna |
-
-Nie zlecone: edytor przebiegu przenoszący „przypisz kategorie” do warstwy serwisów (drzewo CMS
-konkursu pod prefiksem ścieżki, uwaga T43 – zrobione w v0.36.0). Forum w wersji pierwszej świadomie **nie miało**
-powiadomień e-mail (doszły w v0.36.0, zbiorcze) i nadal nie ma wiadomości prywatnych, załączników, polubień ani
-rankingów — uzasadnienie każdej z tych decyzji stoi w `PODRECZNIK-ORGANIZATORA.md` § 6.4.
-
-## Wydania
-
-| Wersja | Data | Zmiana |
-|---|---|---|
 | **v0.31.1** | 2026-09-22 | osobna pozycja głównego menu „Dla nauczycieli” (prośba organizatora z 22.09.2026): odnośnik do `/register/supervisor/` stoi teraz jako ostatnia pozycja menu, za drzewem CMS (albo za listą zapasową), a nie tylko na `/register/` i na `/login/` jak dotąd; widoczna wyłącznie niezalogowanemu czytelnikowi i wyłącznie na witrynie, która ma dziś włączony przełącznik `SiteSettings.supervisor_registration_enabled` (`apps/cms/context_processors.py::_supervisor_menu_item`) – ten sam warunek, co reszta odnośników do tej roli. Budżet zapytań strony głównej (`apps/tenancy/tests/test_invariants.py::QUERY_BUDGET["/"]`) rośnie o jedno zapytanie: menu, w przeciwieństwie do leniwego procesora `supervisor_registration`, musi znać wynik przełącznika od razu, żeby wiedzieć, czy w ogóle dołożyć pozycję (nadal trzydziestosekundowa pamięć podręczna na proces, nie zapytanie na żądanie)
 | **v0.31.0** | 2026-09-22 | wydajność: test obciążeniowy z 22.09.2026 pokazał, że pod ASGI (gunicorn + `UvicornWorker`) w 100% synchroniczna aplikacja serializowała widoki na jeden wątek na proces – 3 workery dawały maks. 3 równoległe żądania, ok. **7 req/s** w nasyceniu przy p95 **2,3 s** (5 użytkowników), 300–600% CPU z samego przełączania wątków. Usługa `web` przechodzi na **WSGI + worker `gthread`** (`config.wsgi`, `--workers`/`--threads`, domyślnie 4×4 – concurrency procesu to teraz iloczyn, nie sama liczba workerów; ta sama zmiana w `backend/Dockerfile`, żeby `docker run` bez compose zgadzał się z compose); żaden widok, zadanie ani middleware nie wymagał ASGI (bez `async def`, bez `channels`, bez websocketów). Wątek roboczy `gthread` żyje w puli workera zamiast ginąć po żądaniu, więc trwałe połączenia z bazą znów mają sens: `DB_CONN_MAX_AGE` wraca z 0 na **60 s** i dochodzi `CONN_HEALTH_CHECKS` (budżet: 4×4 web + 2 worker + 1 beat ≈ 19–20 z 100 możliwych połączeń Postgresa – `WEB_THREADS` dochodzi do `.env.example` i do szablonu `.env` w `scripts/deploy.sh`, istniejące `.env` na produkcji zostaje nietknięte, `WEB_WORKERS=3` × domyślne `WEB_THREADS=4` daje 12 równoległych żądań bez żadnej ręcznej zmiany). Pliki statyczne (`{% static %}`, WhiteNoise `CompressedManifestStaticFilesStorage`, nazwy z odciskiem treści) dostają w Caddy'm `Cache-Control: public, max-age=31536000, immutable` na `/static/*`. Nowe zadanie Celery `apps.core.tasks.captcha_clean` (godzinowe) sprząta wygasłe wiersze `captcha.CaptchaStore`, których `django-simple-captcha` samo nigdy nie kasuje. Higiena kontenerów: log każdej usługi w compose ograniczony do 50 MB × 5 plików (`json-file`, wspólna kotwica YAML), limity pamięci (`mem_limit`, bo `deploy.resources` nie działa poza Swarmem) – `web` 2g (cztery workery plus stary i nowy naraz przy rotacji `--max-requests`), `clamav` 3g (przy przeładowaniu sygnatur ClamAV trzyma przez chwilę dwie bazy), `worker` 768m; bez limitów CPU (dławienie rdzeni tylko wydłużyłoby czas odpowiedzi pod szczytem ruchu). `scripts/deploy.sh` dostaje po kroku 8/8 nowy, ostatni krok „Porządki: stare obrazy”: po wdrożeniu zostają tylko bieżący i poprzedni tag `olimpiada/web` (rollback bez ponownego budowania) plus `docker image prune -f` dla warstw bez tagu. Opis pełnego budżetu współbieżności i połączeń oraz kroków rollbacku: `docs/OPERACJE.md` § 11 **Wyszukiwarka szkół:** wyszukiwarka szkół (`GET /api/schools/`, `GET /api/schools/cities/`) po indeksach GIN + `pg_trgm` zamiast pełnego przejścia po tabeli: statystyki produkcji (22.09.2026, okno 15 dni) pokazały 864 sekwencyjne skany `schools_school` (7,0 mln przeczytanych wierszy) wobec 247 tys. skanów indeksowych, bo `search_text__contains`/`city_search__contains` (koniunkcja tokenów, dzielnica po separatorze) to dopasowanie **w środku** napisu, którego zwykły B-tree nie obsłuży – stąd 130–185 ms na zapytanie. Migracja `schools.0006_pg_trgm_search_indexes` włącza rozszerzenie `pg_trgm` (`TrigramExtension`, bez uprawnień superużytkownika – zaufane od PostgreSQL 13) i zakłada `schools_search_trgm_idx`/`schools_city_trgm_idx` (`GinIndex`, `gin_trgm_ops`); prefiks (`city_search__startswith`) zostaje przy istniejącym indeksie `varchar_pattern_ops`. Przy okazji zdjęte trzy indeksy z zerem skanów na produkcji w tym samym oknie: `schools_city_kind_idx` (porządek listy liczy wyrażenie `Case` w Pythonie, nie kolumnę `kind` – indeks nigdy nie mógł posłużyć sortowaniu) oraz para spod `db_index=True` na `search_text` (`schools_school_search_text_…` i jej bliźniak `_like`), zastąpiona przez indeks trigramowy. Wyniki, kolejność i ranking wyszukiwarki bez zmian – zmienił się wyłącznie plan zapytania (dowód: `apps/schools/tests/test_search_indexes.py`, porównanie wierszy między planem z indeksem a wymuszonym `Seq Scan`); zmierzone lokalnie na pełnym wykazie (8118 wierszy): `search_text__contains='lice'` 5,1 ms/547 buforów → 3,9 ms/220 buforów **Cache stron publicznych:** cache całych stron publicznych dla anonimowych GET-ów (profilowanie produkcji z 22.09.2026: 250–500 ms CPU na odsłonę, głównie renderowanie szablonu, przy identycznej treści dla każdego anonimowego gościa danej witryny) – nowa warstwa `apps.web.page_cache.PageCacheMiddleware`, ostatnia przed widokiem, wyłącznie dla adresów z allow-listy (`/`, `/harmonogram/`, `/warsztaty/`, `/dokumenty/…`, `/faq/`, `/partnerzy/`, `/kontakt/`, `/aktualnosci/…`, `/wyniki/`, `/archiwum/…`, `/statystyki/`); nonce CSP i token CSRF (ten drugi w `hx-headers` na **każdej** stronie, patrz `templates/base.html`) trzymane w cache'u jako placeholder i podmieniane na świeże przy każdym trafieniu, więc żaden skrypt nie traci nonce'u, a HTMX nie dostaje nieważnego tokenu; klucz niesie wersję (globalną i witryny konkursu – `INCR`, bez wyliczania wpisów), język interfejsu, ścieżkę i `?page=`; TTL 120 s (`PAGE_CACHE_SECONDS`, `0` wyłącza), włącznik `PAGE_CACHE_ENABLED` (domyślnie włączony poza `DEBUG`, wyłączony w testach); nigdy nie cache'uje zalogowanych, żądań spoza `GET`/`HEAD`, odpowiedzi z `Set-Cookie`, sesji zmienionej w trakcie obsługi (przełącznik kontrastu gościa), komunikatu organizatora **wyświetlonego** w tym żądaniu (sprawdzenie niezależne od `session.modified`, bo `MessageMiddleware` zapisuje skonsumowaną kolejkę do sesji dopiero w swojej fazie odpowiedzi, czyli już po tej warstwie) ani odpowiedzi większej niż 512 KiB; `Cache-Control: private, no-store` na każdej odpowiedzi HIT/MISS z tej warstwy, żeby ewentualny przyszły CDN przed Caddym nigdy nie zbuforował materializowanego nonce'u/tokenu; awaria Redisa degraduje do normalnego renderowania zamiast pięćsetki (`IGNORE_EXCEPTIONS` w `CACHES["default"]` plus własne opakowanie wywołań cache'a w warstwie); unieważnianie przy publikacji/wycofaniu/przeniesieniu/skasowaniu strony, zapisie `SiteSettings`, komunikacie organizatora, zmianie edycji/etapu/wydarzenia i ogłoszeniu wyników; `manage.py page_cache_clear` do ręcznego gaszenia; nagłówek `X-Page-Cache: HIT/MISS/BYPASS` wyłącznie do weryfikacji **Koordynator:** koordynator resetuje hasło cudzego konta z karty `/coordinator/accounts/<id>/` — przycisk „Wyślij link do zmiany hasła” (`CoordinatorPasswordResetView`) wysyła dokładnie ten sam list, co samoobsługowy formularz „Nie pamiętasz hasła?” (`PasswordResetForm.save()` z tymi samymi szablonami i kontekstem listu), a koordynator nie widzi ani hasła, ani treści linku; odmowa bez wysyłki i bez wpisu audytowego dla konta jeszcze nieaktywowanego, zablokowanego, bez hasła platformy (logowanie przez zewnętrznego dostawcę) i dla konta własnego koordynatora (od tego jest „Nie pamiętasz hasła?” na stronie logowania); throttle `password_reset` (dla anonima z formularza publicznego) tego żądania nie dotyczy — koordynator jest już zalogowany; wpis audytowy `password.reset_sent` bez adresu i bez tokenu |
 | **v0.30.1** | 2026-09-22 | rejestracja opiekuna szkolnego (prośba organizatora z 22.09.2026: rola istniała od wydania z 19.09, ale bez żadnego odnośnika) staje się **widoczna**, gdy przełącznik `supervisor_registration_enabled` jest włączony **na tej witrynie**: pole „Jesteś nauczycielem?” na `/register/` i na `/login/`, odnośnik powrotny „Jesteś uczniem?” na `/register/supervisor/` (bez zapytania na stronach, które go nie pokazują – leniwa wartość w `apps.web.context_processors.supervisor_registration`, per witryna jak `apps.cms.analytics`); formularz rejestracji zbiera odtąd też **zgody** (regulamin, RODO – te same dokumenty i wersje, co u uczestnika), zapisywane jako `ConsentRecord` (kolumna `supervisor`, migracja `accounts.0032`, ograniczenie „dokładnie jeden właściciel wpisu”); ten sam dowód wchodzi do eksportu danych konta (art. 20 RODO) i do anonimizacji (art. 17) – szkoła, telefon i zgody opiekuna znikają, a potwierdzenia udziału szkoły w edycji (`SchoolParticipation`) liczą się teraz do „śladu w zawodach”, więc samoobsługowe usunięcie takiego konta anonimizuje, a nie kasuje wiersza; strona „Konto zostało założone” tłumaczy nauczycielowi, co dalej (aktywacja, uczniowie wpisują jego adres w profilu, panel „Moi uczniowie”); lista `/coordinator/accounts/` pokazuje przy roli „opiekun szkolny” też nazwę szkoły, a `/admin/` dostał ekran opiekunów z podglądem dowodów zgód. Automat retencji (`/coordinator/retention/`) świadomie **nie** obejmuje jeszcze opiekunów (dług udokumentowany w `apps/accounts/retention.py` i w podręczniku organizatora § 9.1). Rejestr czynności przetwarzania w wersji **1.5**. Wdrożenie: okres rozruchu healthchecku `web` wydłużony z 40 s do 180 s (migracje i collectstatic przed startem gunicorna przekraczały go po większych wydaniach i `deploy.sh` przerywał się na „web unhealthy”) |
@@ -1329,6 +2240,11 @@ rankingów — uzasadnienie każdej z tych decyzji stoi w `PODRECZNIK-ORGANIZATO
 | **v0.2.0** | 2026-09-06 | import treści starego serwisu: ustawienia marki, typ strony treści, strony informacyjne, polityki jako dokumenty, aktualności, sekcja kroków na stronie głównej, `seed_edition_kwantowa` |
 | **v0.1.1** | 2026-09-06 | system projektowy: tokeny kolorów z wariantem ciemnym, samodzielnie serwowane kroje pisma, komponenty (karty, odznaki, tabele, linia czasu, odliczanie, segmenty punktów, strefa upuszczania), przebudowa szablonów wszystkich paneli |
 | **v0.1.0** | 2026-09-05 | zamknięcie pierwszej fazy: API administracyjne Caddy'ego wyłącznie lokalnie, bezpiecznik produkcyjny dla klucza i poświadczeń S3, bezpieczne domyślne ciasteczka |
+
+Nie zlecone: edytor przebiegu przenoszący „przypisz kategorie” do warstwy serwisów (drzewo CMS
+konkursu pod prefiksem ścieżki, uwaga T43 – zrobione w v0.36.0). Forum w wersji pierwszej świadomie **nie miało**
+powiadomień e-mail (doszły w v0.36.0, zbiorcze) i nadal nie ma wiadomości prywatnych, załączników, polubień ani
+rankingów — uzasadnienie każdej z tych decyzji stoi w `PODRECZNIK-ORGANIZATORA.md` § 6.4.
 
 ## Tagi zadań
 

@@ -1,12 +1,9 @@
 """Kontrola podstaw dostępności na stronach publicznych.
 
-**Dlaczego nie axe-core.** Standardowy sposób (wstrzyknięcie ``axe.min.js`` z CDN-a i wywołanie
-``axe.run()``) jest tu niewykonalny z dwóch powodów naraz: polityka bezpieczeństwa treści serwisu
-nie dopuszcza skryptu inline ani obcego ``script-src`` (patrz ``config/settings/base.py``), a sieć
-compose i tak nie ma wyjścia na CDN zza firmowego proxy. Zamiast obchodzić własną CSP w teście –
-czyli sprawdzać stronę w konfiguracji, która nigdy nie trafi do ludzi – sprawdzamy pięć rzeczy
-ręcznie. Nie zastępują one audytu, ale łapią regresje, które zdarzają się najczęściej przy
-dopisywaniu szablonów:
+**Uzupełnienie suity axe (A11Y-01).** Pełny audyt WCAG 2.1 A/AA robi ``e2e/a11y/`` (axe-core
+z ``e2e/vendor/axe-core``, wstrzykiwany przez protokół DevTools – bez rozluźniania CSP strony;
+``scripts/a11y.sh``, job CI ``a11y``). Ten skrypt zostaje jako szybka kontrola bez danych
+audytu – pięć rzeczy, które psują się najczęściej przy dopisywaniu szablonów:
 
   1. **``alt`` na każdym ``<img>``** – także pusty (``alt=""``) przy obrazku dekoracyjnym; brak
      atrybutu to nie to samo, co pusty i czytnik ekranu przeczyta wtedy nazwę pliku,

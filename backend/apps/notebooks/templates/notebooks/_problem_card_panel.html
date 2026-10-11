@@ -1,0 +1,39 @@
+{% load i18n %}{% if show %}{% comment %}
+  Wstawka do karty zadania uczestnika (tag ``notebook_card_panel``). Ramka JupyterLite **nie**
+  ładuje się tutaj: lista zadań nie ma pobierać kilkunastu megabajtów – przycisk prowadzi na osobną
+  stronę laboratorium. Wynik testów ukrytych tylko wtedy, gdy pozwala na to ``results_visibility``
+  (serwis zwraca ``run`` albo ``None``).
+{% endcomment %}
+<div class="notebook-panel card card--quiet">
+  <p class="mt-0"><strong>{% translate "Notatnik w przeglądarce" %}</strong>
+    {% if task.is_autograded %}<span class="badge badge--info">{% translate "sprawdzanie automatyczne" %}</span>{% endif %}</p>
+  {% if opened and staff %}
+    <p class="actions">
+      <a class="btn btn--secondary btn--small" href="{% url 'web:participant-notebook' problem.pk %}">{% translate "Podgląd notatnika (tylko do odczytu)" %}</a>
+    </p>
+    <p class="hint">{% translate "Twoje konto ma rolę personelu, więc laboratorium (wykonywanie kodu w przeglądarce) jest dla niego wyłączone. Do rozwiązywania zadań używaj osobnego konta uczestnika." %}</p>
+  {% elif opened %}
+    <p class="actions">
+      <a class="btn btn--primary btn--small" href="{% url 'web:participant-notebook' problem.pk %}">{% translate "Otwórz notatnik" %}</a>
+    </p>
+    <p class="hint">{% if transfer_mb %}{% blocktranslate trimmed with size=transfer_mb %}
+      Bez instalowania czegokolwiek. Pierwsze otwarcie pobiera ok. {{ size }} MB, kolejne korzystają z pamięci przeglądarki.
+    {% endblocktranslate %}{% else %}{% translate "Bez instalowania czegokolwiek – Python działa w przeglądarce." %}{% endif %}
+      {% translate "Gotowy notatnik pobierz z JupyterLab (File → Download) i wyślij formularzem poniżej." %}</p>
+  {% else %}
+    <p class="hint">{% translate "Notatnik będzie dostępny po otwarciu etapu." %}</p>
+  {% endif %}
+  {% if run %}
+    <div class="notebook-panel__results">
+      <p class="mt-0"><strong>{% translate "Testy automatyczne ostatniej wersji" %}</strong>:
+        {% blocktranslate trimmed with score=run.score|floatformat:"-2" total=run.max_score|floatformat:"-2" %}{{ score }} z {{ total }} pkt{% endblocktranslate %}</p>
+      <ul class="hint">
+        {% for item in run.results %}
+          <li>{% if item.passed %}✔{% else %}✘{% endif %} {{ item.name }} – {{ item.points|floatformat:"-2" }}/{{ item.max_points|floatformat:"-2" }}</li>
+        {% endfor %}
+      </ul>
+      <p class="hint">{% translate "Punkty z testów są podpowiedzią dla komisji – ocenę wystawia komisja." %}</p>
+    </div>
+  {% endif %}
+</div>
+{% endif %}

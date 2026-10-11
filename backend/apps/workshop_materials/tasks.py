@@ -15,9 +15,10 @@
   nie staje się materiałem. Adres podpisany dla widza wymusza przy tym ``Content-Type: video/*``,
   więc nawet plik z doklejoną treścią nie zostanie przez przeglądarkę potraktowany jak strona.
 
-Pliki (PDF, prezentacje, notatniki, archiwa) są dokładnie tym, czym rozchodzi się złośliwa treść,
-i mieszczą się w limicie skanera (``formats.file_max_bytes``) – więc idą przez ClamAV tak samo jak
-rozwiązania uczestników: kolejka ``scan``, ponowienia przy niedostępnym skanerze z rosnącym odstępem.
+Pliki (PDF, dokumenty Office – także z makrami, tekst i kod, notatniki, archiwa) są dokładnie tym,
+czym rozchodzi się złośliwa treść, i mieszczą się w limicie skanera (``formats.file_max_bytes``) – więc
+idą przez ClamAV tak samo jak rozwiązania uczestników: kolejka ``scan``, ponowienia przy niedostępnym
+skanerze z rosnącym odstępem.
 """
 
 from __future__ import annotations

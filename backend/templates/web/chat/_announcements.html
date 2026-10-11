@@ -1,0 +1,25 @@
+{% load i18n chat_extras web_extras %}
+{% comment %}
+  „Ogłoszenia organizatora” (zadanie CZ-ANN-01) – nad listą rozmów w ``/me/messages/`` i pod
+  nagłówkiem „Co teraz” na pulpicie ``/me/``. Renderuje go znacznik ``organizer_announcements``
+  (``apps/chat/templatetags/chat_extras.py``); bez widocznych ogłoszeń nie wypisuje nic.
+
+  Tytuł idzie przez autoescape, treść – przez ``message_body`` (escape, potem odnośniki
+  z ``rel="nofollow noopener noreferrer"``): koordynator pisze zwykły tekst, a wklejony adres
+  spotkania staje się klikalny bez dopuszczania HTML-a do strony osoby niepełnoletniej.
+  Autora nie pokazujemy – mówi „Organizator”, jak podpis kanału organizatora.
+{% endcomment %}
+{% if announcements %}
+<section class="section" id="ogloszenia-organizatora" aria-labelledby="ogloszenia-organizatora-{{ variant }}">
+  <div class="section__head">
+    <h2 id="ogloszenia-organizatora-{{ variant }}">{% translate "Ogłoszenia organizatora" %}</h2>
+  </div>
+  {% for item in announcements %}
+    <article class="card card--accent">
+      <h3 class="card__title">{{ item.title }}</h3>
+      <p class="card__meta">{% translate "Organizator" %} · <time datetime="{{ item.shown_since|date:'c' }}">{{ item.shown_since|local_datetime }}</time></p>
+      <p>{{ item.body|message_body }}</p>
+    </article>
+  {% endfor %}
+</section>
+{% endif %}

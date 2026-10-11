@@ -30,7 +30,7 @@ def pytest_configure(config):
 
 
 def _compile_translations(config) -> None:
-    """Kompiluje ``locale/*/LC_MESSAGES/django.po`` do ``.mo``, gdy ``.mo`` brakuje albo jest starszy.
+    """Kompiluje katalogi ``django.po`` (główny i aplikacji) do ``.mo`` – brakujące albo starsze.
 
     Obraz robi to przy budowaniu, a CI i lokalny przebieg – ten conftest (CI tylko instaluje
     ``msgfmt``). Bez tego kontener z zamontowanym kodem nie miałby ``.mo`` nigdzie, a brak ``.mo``
@@ -44,9 +44,14 @@ def _compile_translations(config) -> None:
     """
     if hasattr(config, "workerinput"):  # worker xdist: kompilował już proces sterujący
         return
+    # Katalog główny i katalogi aplikacji (``apps/<nazwa>/locale``) – Django scala oba rodzaje.
+    catalogs = [
+        *BACKEND_DIR.glob("locale/*/LC_MESSAGES/*.po"),
+        *BACKEND_DIR.glob("apps/*/locale/*/LC_MESSAGES/*.po"),
+    ]
     stale = [
         po
-        for po in sorted(BACKEND_DIR.glob("locale/*/LC_MESSAGES/*.po"))
+        for po in sorted(catalogs)
         if not po.with_suffix(".mo").exists() or po.with_suffix(".mo").stat().st_mtime < po.stat().st_mtime
     ]
     if not stale:
@@ -89,6 +94,43 @@ def _group_scoped_tests_under_xdist(config) -> None:
     """
     if getattr(config.option, "dist", "no") == "load":
         config.option.dist = "loadgroup"
+    # Worker xdist ustala, czy dokleja grupę do identyfikatorów testów, **zanim** wczyta ten plik:
+    # ``xdist.remote.setup_config`` czyta ``dist`` z argumentów wywołania, a tam przy samym ``-n``
+    # jest ``no``. Zamiana wyżej działała więc tylko w procesie sterującym – harmonogram był
+    # ``loadgroup``, ale bez grup, czyli w praktyce ``load``: testy jednego modułu migracji szły do
+    # różnych workerów i każdy przewijał bazę od nowa (w CI 1,5–3 min na **test** zamiast na moduł,
+    # do 8.10.2026 największa część czasu shardów). Decyzję przekazuje workerowi proces sterujący
+    # (``pytest_configure_node`` niżej), a tutaj worker ją przyjmuje.
+    workerinput = getattr(config, "workerinput", None)
+    if workerinput is not None and workerinput.get("olimpiada_loadgroup"):
+        config.option.loadgroup = True
+
+
+@pytest.hookimpl(optionalhook=True)
+def pytest_configure_node(node):
+    """Proces sterujący xdist: przekazuje workerowi, że harmonogram to ``loadgroup`` (patrz wyżej).
+
+    ``optionalhook`` – bez pytest-xdist (obraz bez ekstry ``dev``) haka po prostu nie ma.
+    """
+    node.workerinput["olimpiada_loadgroup"] = node.config.getvalue("dist") == "loadgroup"
+
+
+def _alias_split_durations(config, items) -> None:
+    """Czasy z ``.test_durations`` także pod identyfikatorem z grupą xdist (``…::test@moduł``).
+
+    Worker dokleja grupę do identyfikatora testu migracji (``xdist.remote``) **przed**
+    pytest-split (``trylast``), więc bez aliasu podział shardów nie znalazłby czasu żadnego testu
+    migracji i liczył je po średniej – a pierwszy test modułu niesie przewinięcie bazy, najdroższą
+    pozycję w całym pliku. Plik zostaje z identyfikatorami bez grupy (``_durations_plugin.py``
+    ją obcina), żeby był ten sam z xdist i bez.
+    """
+    split = config.pluginmanager.get_plugin("pytestsplitplugin")
+    if split is None or not getattr(config.option, "loadgroup", False):
+        return
+    durations = split.cached_durations
+    for item in items:
+        if item.get_closest_marker("migrations") is not None and item.nodeid in durations:
+            durations.setdefault(f"{item.nodeid}@{item.module.__name__}", durations[item.nodeid])
 
 
 @pytest.hookimpl(tryfirst=True)
@@ -116,6 +158,7 @@ def pytest_collection_modifyitems(config, items):
         if is_migration:
             item.add_marker(pytest.mark.xdist_group(name=item.module.__name__))
     items[:] = _migration_tests_last_in_their_module(items)
+    _alias_split_durations(config, items)
 
 
 def _migration_tests_last_in_their_module(items):

@@ -6,8 +6,8 @@ Wejście: pliki logo „hybryda D” (logo.svg, logo-white.svg, mark.svg, favico
 Wyjście (statyczne SVG – bez skryptów, bez ``on*``, bez zewnętrznych ``href``):
 
 - ``assets/logo/*`` – kopie logo + wersje pochodne (biały znak, poziomy „lockup” do nagłówka),
-- ``assets/hero/wave-field.svg`` – tło hero: pierścień medalu przecięty paczką falową
-  na tle prążków interferencyjnych dwóch źródeł.
+- (do 1.0.0 także ``assets/hero/wave-field.svg``; od 1.1.0 rysunki planszy generuje
+  ``tools/make_motifs.py`` – funkcja ``hero_field`` została jako wzór).
 """
 from __future__ import annotations
 
@@ -194,7 +194,6 @@ def main(src_dir: pathlib.Path) -> None:
         "logo/favicon.svg": favicon,
         "logo/lockup-white.svg": lockup(logo_white, WHITE, BLUE_ON_DARK, WHITE, BLUE_ON_DARK),
         "logo/lockup.svg": lockup(logo_white, NAVY, BLUE, NAVY, BLUE),
-        "hero/wave-field.svg": hero_field(),
     }
     for rel, text in out.items():
         assert_clean(text, rel)

@@ -159,6 +159,20 @@ szkoły, serwer wymaże je z odpowiedzi, zanim ją zobaczysz.
 
 ---
 
+### 3b. Prace z notatnikiem `.ipynb` (notatniki kwantowe)
+
+Przy zadaniach z notatnikiem ekran oceny ma panel **„Testy automatyczne (notatnik)”**: nazwy testów
+i punkty z testów ukrytych tej wersji pracy. To **podpowiedź** – ocenę wystawiasz według skali
+zadania. Szczegółowych komunikatów testów (np. o ile różni się wynik) nie widzisz – zna je
+koordynator.
+
+> **⚠ Notatnik ucznia oglądaj wyłącznie przyciskiem „Podgląd notatnika (tylko do odczytu)”.**
+> W podglądzie nic się nie wykonuje, a wyjścia HTML/JavaScript są pominięte. **Nie otwieraj pracy
+> w JupyterLab ani w żadnym narzędziu, które wykonuje kod** (także pobranego pliku `.ipynb`
+> w lokalnym Jupyterze na komputerze, na którym jesteś zalogowany do serwisu) – kod ucznia
+> wykonałby się z Twoimi uprawnieniami. Konto recenzenta i tak nie otworzy laboratorium serwisu;
+> jeśli chcesz sam rozwiązywać zadania, potrzebujesz osobnego konta uczestnika.
+
 ## 4. Skala i rubryka
 
 **Bez rubryki** wybierasz jedną wartość ze **skali etapu** (albo z własnej skali zadania) — każda ma

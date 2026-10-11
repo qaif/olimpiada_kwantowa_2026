@@ -9,7 +9,8 @@ Dwie reguły, obie wyłącznie przy włączonej funkcji (``TWO_FACTOR_ENABLED``)
 
 - konto, od którego organizator **wymaga** drugiego składnika (``TWO_FACTOR_REQUIRED_ROLES``),
   a które go jeszcze nie skonfigurowało, nie uwierzytelnia się tokenem wcale – konfiguracja jest
-  w przeglądarce, tak samo jak dla sesji,
+  w przeglądarce, tak samo jak dla sesji. Od SEC-01 wymóg liczy ``apps.staff_mfa.policy`` (role
+  platformy i polityka konkursu) i działa dopiero **po** okresie przejściowym,
 - konto z potwierdzonym urządzeniem uwierzytelnia się wyłącznie tokenem wydanym **po** potwierdzeniu
   urządzenia. Taki token powstaje tylko w ``POST /api/auth/login/`` z poprawnym kodem (widok wydaje
   wtedy nowy token), a włączenie drugiego składnika kasuje tokeny wydane wcześniej
@@ -40,7 +41,9 @@ class TwoFactorTokenAuthentication(TokenAuthentication):
             return user, token
         device = twofactor.confirmed_device(user)
         if device is None:
-            if twofactor.is_required_for(user):
+            # Konkurs z kontekstu żądania (``CompetitionMiddleware``); po okresie przejściowym
+            # (SEC-01 § 6) – w jego trakcie token działa, tak jak przeglądarka działa z banerem.
+            if twofactor.setup_overdue(user):
                 raise AuthenticationFailed(TWO_FACTOR_TOKEN_MESSAGE)
             return user, token
         if token.created < device.confirmed_at:

@@ -1,5 +1,5 @@
 {% extends "web/coordinator/base.html" %}
-{% comment %}
+{% load i18n %}{% comment %}
   Motyw serwisu konkursu (THEME-01 § 6): galeria wersji motywów z katalogu platformy, warianty
   układów z manifestu, akcent marki i dwa przyciski na każdej karcie – „Podgląd” (strona główna
   w motywie, widoczna tylko dla zalogowanego koordynatora tego konkursu) i „Aktywuj” (od razu dla
@@ -15,6 +15,8 @@
     wcześniejszej wersji.</p>
 {% endblock %}
 {% block panel_actions %}
+  <a class="btn btn--secondary" href="{% url 'web:coordinator-theme-menu' %}">{% translate "Menu serwisu" %}</a>
+  {% if not classic_active %}<a class="btn btn--secondary" href="{% url 'web:coordinator-theme-customize' %}">{% translate "Kolory i opcje motywu" %}</a>{% endif %}
   {% if is_super %}<a class="btn btn--ghost" href="{% url 'web:coordinator-platform-themes' %}">Katalog motywów platformy</a>{% endif %}
 {% endblock %}
 {% block panel_content %}
@@ -65,6 +67,7 @@
         <div class="actions">
           <button type="submit" name="action" value="preview" class="btn btn--secondary">Podgląd</button>
           <button type="submit" name="action" value="activate" class="btn btn--primary">{% if card.active %}Zapisz opcje{% else %}Aktywuj{% endif %}</button>
+          <a class="btn btn--ghost" href="{% url 'web:coordinator-theme-customize' %}?version={{ version.pk }}">{% translate "Kolory i opcje" %}</a>
         </div>
       </form>
     </li>

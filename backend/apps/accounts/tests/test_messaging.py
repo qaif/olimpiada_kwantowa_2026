@@ -452,6 +452,71 @@ def test_supervisors_group_follows_memberships_when_they_are_enforced(competitio
     assert resolve_recipients(BroadcastGroup.SUPERVISORS, competition=competition) == [member.user.email]
 
 
+def test_participants_and_teachers_group_sends_once_to_both(competition, other_competition):
+    """Prośba organizatora z 8.10.2026: zaproszenie na warsztaty do uczniów i nauczycieli jednym listem."""
+    student = _plain("uczen@example.test", competition=competition)
+    teacher = _supervisor("nauczyciel@example.test", competition)
+    # Ta sama osoba jako uczestnik i nauczyciel – jeden adres na liście.
+    both = _supervisor("oba@example.test", competition)
+    ParticipantFactory(user=both.user, competition=competition)
+    _supervisor("sasiad@example.test", other_competition)
+    ParticipantFactory(user=UserFactory(email="obcy@example.test"), competition=other_competition)
+
+    recipients = resolve_recipients(
+        BroadcastGroup.ALL_PARTICIPANTS_AND_TEACHERS, competition=competition, **ALL_EDITIONS
+    )
+
+    assert sorted(recipients) == sorted([student.user.email, teacher.user.email, "oba@example.test"])
+    assert len(recipients) == len(set(recipients))
+
+
+def _certificate(participant, edition, status):
+    """Wiersz zaświadczenia bez pliku w storage – grupa czyta wyłącznie stan bieżącego wiersza."""
+    from apps.student_status.models import StudentStatusCertificate
+
+    return StudentStatusCertificate.objects.create(
+        participant=participant,
+        edition=edition,
+        version=1,
+        is_current=True,
+        status=status,
+        sha256="b" * 64,
+        mime="application/pdf",
+        size_bytes=1,
+    )
+
+
+def test_no_student_status_group_takes_missing_and_rejected(competition, other_competition, stage):
+    """Prośba organizatora z 8.10.2026: przypomnienie do uczniów, którzy nie dostarczyli zaświadczenia."""
+    from apps.competitions.tests.factories import EditionFactory
+    from apps.student_status.models import CertificateStatus
+
+    edition = stage.edition
+    missing = _plain("brak@example.test", competition=competition)
+    rejected = _plain("odrzucone@example.test", competition=competition)
+    _certificate(rejected, edition, CertificateStatus.REJECTED)
+    pending = _plain("czeka@example.test", competition=competition)
+    _certificate(pending, edition, CertificateStatus.PENDING)
+    accepted = _plain("zaakceptowane@example.test", competition=competition)
+    _certificate(accepted, edition, CertificateStatus.ACCEPTED)
+    # Plik zaakceptowany w poprzedniej edycji nie zwalnia z tegorocznego.
+    last_year = _plain("zeszloroczne@example.test", competition=competition)
+    _certificate(last_year, EditionFactory(competition=competition), CertificateStatus.ACCEPTED)
+    ParticipantFactory(user=UserFactory(email="obcy@example.test"), competition=other_competition)
+
+    recipients = resolve_recipients(
+        BroadcastGroup.NO_STUDENT_STATUS, competition=competition, edition=edition
+    )
+
+    assert recipients == sorted([missing.user.email, rejected.user.email, last_year.user.email])
+    assert resolve_recipients(BroadcastGroup.NO_STUDENT_STATUS, competition=competition) == []
+
+
+def test_teachers_group_label():
+    assert BroadcastGroup.SUPERVISORS.label == "nauczyciele"
+    assert BroadcastGroup.ALL_PARTICIPANTS_AND_TEACHERS.label == "wszyscy uczestnicy i nauczyciele"
+
+
 def test_committee_group_never_reaches_another_competition(competition, other_competition):
     mine = ActiveReviewerFactory()
     ActiveReviewerFactory(competition=other_competition)
@@ -491,3 +556,401 @@ def test_recent_broadcasts_are_scoped_to_one_competition(competition, other_comp
 
     assert recent_broadcasts(competition) == [mine]
     assert recent_broadcasts(None) == []
+
+
+# --- eksport odbiorców do Excela (MSG-EXPORT-01) ----------------------------------------------------
+#
+# Eksport i wysyłka idą jedną drogą (``recipient_users``). Testy pilnują, żeby tak zostało: zbiór
+# adresów w pliku ma być zbiorem adresów wysyłki, dla każdej grupy.
+
+
+def test_export_rows_carry_exactly_the_addresses_of_the_broadcast(competition, other_competition, stage):
+    from apps.accounts.messaging import recipient_rows
+
+    _participant(stage, "Ola@Example.test", first_name="Ola", last_name="Nowak")
+    ParticipantFactory(
+        user=UserFactory(email="bez-wpisu@example.test", first_name="Piotr", last_name="Adamski"),
+        school="LO nr 1",
+    )
+    _veteran("zeszloroczny@example.test", school="LO nr 1")
+    ParticipantFactory(user=UserFactory(email="zablokowany@example.test", is_active=False))
+    ParticipantFactory(user=UserFactory(email="sasiad@example.test"), competition=other_competition)
+    _supervisor("nauczyciel@example.test", competition)
+    _supervisor("nauczyciel-sasiada@example.test", other_competition)
+    ActiveReviewerFactory(user__email="recenzent@example.test")
+
+    base = {"competition": competition, "edition": stage.edition}
+    for group, extra in (
+        (BroadcastGroup.ALL_PARTICIPANTS, {}),
+        (BroadcastGroup.ALL_PARTICIPANTS, ALL_EDITIONS),
+        (BroadcastGroup.ALL_PARTICIPANTS_AND_TEACHERS, {}),
+        (BroadcastGroup.EDITION_PARTICIPANTS, {}),
+        (BroadcastGroup.STAGE_REGISTERED, {"stage": stage}),
+        (BroadcastGroup.SCHOOL_PARTICIPANTS, {"school": "name:LO nr 1", **ALL_EDITIONS}),
+        (BroadcastGroup.SUPERVISORS, {}),
+        (BroadcastGroup.COMMITTEE, {}),
+    ):
+        kwargs = {**base, **extra}
+        addresses = resolve_recipients(group, **kwargs)
+        rows = recipient_rows(group, **kwargs)
+        assert addresses, group
+        assert sorted(email for _, _, email in rows) == addresses, group
+
+
+def test_export_of_participants_and_teachers_has_one_named_row_per_person(competition, other_competition):
+    from apps.accounts.messaging import recipient_rows
+
+    ParticipantFactory(user=UserFactory(email="uczen@example.test", first_name="Ala", last_name="Zielińska"))
+    _supervisor("nauczyciel@example.test", competition, first_name="Ewa", last_name="Bąk")
+    # Ta sama osoba jako uczestnik i nauczyciel – jeden wiersz.
+    both = _supervisor("Oba@Example.test", competition, first_name="Jan", last_name="Mazur")
+    ParticipantFactory(user=both.user, competition=competition)
+    _supervisor("sasiad@example.test", other_competition)
+    ParticipantFactory(user=UserFactory(email="obcy@example.test"), competition=other_competition)
+
+    rows = recipient_rows(
+        BroadcastGroup.ALL_PARTICIPANTS_AND_TEACHERS, competition=competition, **ALL_EDITIONS
+    )
+
+    # Posortowane po nazwisku; adres znormalizowany tak, jak w wysyłce.
+    assert rows == [
+        ("Ewa", "Bąk", "nauczyciel@example.test"),
+        ("Jan", "Mazur", "oba@example.test"),
+        ("Ala", "Zielińska", "uczen@example.test"),
+    ]
+
+
+def test_pasted_address_list_has_no_export_rows():
+    from apps.accounts.messaging import recipient_rows, recipient_users
+
+    assert recipient_rows(BroadcastGroup.CUSTOM) == []
+    assert not recipient_users(BroadcastGroup.CUSTOM).exists()
+    # Wysyłka do wklejonej listy działa jak dotąd – eksport jej po prostu nie obejmuje.
+    assert resolve_recipients(BroadcastGroup.CUSTOM, addresses="a@example.test") == ["a@example.test"]
+
+
+# --- komunikaty z datą przyszłą (MSG-SCHED-01) ------------------------------------------------------
+#
+# Odbiorców liczymy w chwili wysyłki, a wysyłka ma wyjść dokładnie raz. Zadanie beat jest tu wołane
+# wprost (``dispatch_due_broadcasts(now=…)``): „teraz” podajemy jawnie, zamiast przestawiać zegar.
+
+
+def _schedule(coordinator, *, competition=None, hours: float = 2, **kwargs):
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    from apps.accounts.messaging import schedule_broadcast
+
+    defaults = {
+        "group": BroadcastGroup.ALL_PARTICIPANTS,
+        "subject": "Przypomnienie",
+        "body": "Jutro etap.",
+        "parameters": {"include_past_editions": False},
+    }
+    return schedule_broadcast(
+        **{**defaults, **kwargs},
+        scheduled_for=timezone.now() + timedelta(hours=hours),
+        competition=competition,
+        actor=coordinator,
+    )
+
+
+def _dispatch(broadcast, *, late_by=None):
+    """Przebieg beatu „chwilę po terminie” komunikatu – z wykonaniem porcji (zadania eager)."""
+    from datetime import timedelta
+
+    from apps.accounts.messaging import dispatch_due_broadcasts
+
+    return dispatch_due_broadcasts(now=broadcast.scheduled_for + (late_by or timedelta(minutes=1)))
+
+
+def test_scheduling_records_a_waiting_broadcast_without_addresses(competition, stage):
+    _participant(stage, "uczen@example.test")
+    coordinator = CoordinatorFactory()
+    mail.outbox.clear()
+
+    broadcast = _schedule(coordinator, competition=competition)
+
+    broadcast.refresh_from_db()
+    assert broadcast.status == BroadcastStatus.SCHEDULED
+    assert broadcast.recipient_count == 0
+    assert broadcast.parameters == {"include_past_editions": False}
+    assert broadcast.target == {"past_editions": False, "label": "bieżąca edycja"}
+    assert broadcast.created_by == coordinator
+    assert not mail.outbox
+    log = AuditLog.objects.get(action="broadcast.scheduled")
+    assert log.actor == coordinator
+    assert log.diff["recipients_now"] == 1
+    assert log.competition == competition
+    assert "uczen@example.test" not in str(log.diff)
+
+
+@pytest.mark.parametrize("hours", [-1, 0.05, 24 * 91])
+def test_scheduling_rejects_a_time_too_close_or_too_far(competition, hours):
+    from django.core.exceptions import ValidationError
+
+    with pytest.raises(ValidationError):
+        _schedule(CoordinatorFactory(), competition=competition, hours=hours)
+
+    assert not MessageBroadcast.objects.exists()
+
+
+def test_naive_time_is_polish_time(competition):
+    from datetime import datetime, timedelta
+    from zoneinfo import ZoneInfo
+
+    from django.utils import timezone
+
+    from apps.accounts.messaging import schedule_broadcast
+
+    day = (timezone.localtime() + timedelta(days=2)).date()
+    broadcast = schedule_broadcast(
+        group=BroadcastGroup.COMMITTEE,
+        subject="Temat",
+        body="Treść",
+        scheduled_for=datetime(day.year, day.month, day.day, 6, 0),
+        competition=competition,
+        actor=CoordinatorFactory(),
+    )
+
+    expected = datetime(day.year, day.month, day.day, 6, 0, tzinfo=ZoneInfo("Europe/Warsaw"))
+    assert MessageBroadcast.objects.get(pk=broadcast.pk).scheduled_for == expected
+
+
+def test_pasted_list_and_missing_parameter_cannot_be_scheduled(competition):
+    from django.core.exceptions import ValidationError
+
+    coordinator = CoordinatorFactory()
+    with pytest.raises(ValidationError, match="Wklejonej listy"):
+        _schedule(coordinator, competition=competition, group=BroadcastGroup.CUSTOM, parameters={})
+    with pytest.raises(ValidationError, match="wymaga parametru"):
+        _schedule(coordinator, competition=competition, group=BroadcastGroup.STAGE_REGISTERED, parameters={})
+
+    assert not MessageBroadcast.objects.exists()
+
+
+def test_only_a_coordinator_can_schedule(competition):
+    from django.core.exceptions import ValidationError
+
+    for actor in (None, ParticipantFactory().user, ActiveReviewerFactory().user):
+        with pytest.raises(ValidationError, match="koordynator"):
+            _schedule(actor, competition=competition)
+
+    assert not MessageBroadcast.objects.exists()
+
+
+def test_scheduled_broadcast_goes_out_exactly_once(competition, stage, django_capture_on_commit_callbacks):
+    _participant(stage, "a@example.test")
+    _participant(stage, "b@example.test")
+    coordinator = CoordinatorFactory()
+    broadcast = _schedule(coordinator, competition=competition)
+    mail.outbox.clear()
+
+    # Dwa przebiegi w jednej transakcji (drugi worker) i trzeci po commicie (ponowienie beatu).
+    with django_capture_on_commit_callbacks(execute=True):
+        assert _dispatch(broadcast) == 1
+        assert _dispatch(broadcast) == 0
+    with django_capture_on_commit_callbacks(execute=True):
+        assert _dispatch(broadcast) == 0
+
+    broadcast.refresh_from_db()
+    assert sorted(message.to[0] for message in mail.outbox) == ["a@example.test", "b@example.test"]
+    assert broadcast.status == BroadcastStatus.SENT
+    assert broadcast.recipient_count == 2
+    log = AuditLog.objects.get(action="broadcast.sent")
+    # Aktorem wysyłki jest autor planu, a konkursem – właściciel komunikatu (poza żądaniem).
+    assert log.actor == coordinator
+    assert log.competition == competition
+    assert log.diff["scheduled_for"] == broadcast.scheduled_for.isoformat()
+
+
+def test_recipients_are_counted_at_sending_time(competition, stage, django_capture_on_commit_callbacks):
+    _participant(stage, "wczesny@example.test")
+    blocked = _participant(stage, "zablokowany-pozniej@example.test")
+    broadcast = _schedule(CoordinatorFactory(), competition=competition)
+    # Po zaplanowaniu: ktoś się rejestruje, a komuś blokujemy konto.
+    _plain("spozniony@example.test")
+    blocked.user.is_active = False
+    blocked.user.save(update_fields=["is_active"])
+    mail.outbox.clear()
+
+    with django_capture_on_commit_callbacks(execute=True):
+        _dispatch(broadcast)
+
+    assert sorted(message.to[0] for message in mail.outbox) == [
+        "spozniony@example.test",
+        "wczesny@example.test",
+    ]
+
+
+def test_task_does_nothing_before_the_time(competition, stage):
+    from apps.accounts.messaging import dispatch_scheduled_broadcasts
+
+    _participant(stage, "uczen@example.test")
+    broadcast = _schedule(CoordinatorFactory(), competition=competition)
+    mail.outbox.clear()
+
+    assert dispatch_scheduled_broadcasts() == 0
+
+    broadcast.refresh_from_db()
+    assert broadcast.status == BroadcastStatus.SCHEDULED
+    assert not mail.outbox
+
+
+def test_cancelled_broadcast_is_never_sent(competition, stage, django_capture_on_commit_callbacks):
+    from apps.accounts.messaging import cancel_scheduled_broadcast
+
+    _participant(stage, "uczen@example.test")
+    coordinator = CoordinatorFactory()
+    broadcast = _schedule(coordinator, competition=competition)
+    mail.outbox.clear()
+
+    assert cancel_scheduled_broadcast(broadcast, actor=coordinator) is True
+    assert cancel_scheduled_broadcast(broadcast, actor=coordinator) is False
+    with django_capture_on_commit_callbacks(execute=True):
+        assert _dispatch(broadcast) == 0
+
+    broadcast.refresh_from_db()
+    assert broadcast.status == BroadcastStatus.CANCELLED
+    assert not mail.outbox
+    log = AuditLog.objects.get(action="broadcast.cancelled")
+    assert log.actor == coordinator
+    assert log.diff["scheduled_for"] == broadcast.scheduled_for.isoformat()
+
+
+def test_cancelling_after_sending_changes_nothing(competition, stage, django_capture_on_commit_callbacks):
+    from apps.accounts.messaging import cancel_scheduled_broadcast
+
+    _participant(stage, "uczen@example.test")
+    coordinator = CoordinatorFactory()
+    broadcast = _schedule(coordinator, competition=competition)
+    with django_capture_on_commit_callbacks(execute=True):
+        _dispatch(broadcast)
+
+    assert cancel_scheduled_broadcast(broadcast, actor=coordinator) is False
+
+    broadcast.refresh_from_db()
+    assert broadcast.status == BroadcastStatus.SENT
+    assert not AuditLog.objects.filter(action="broadcast.cancelled").exists()
+
+
+def test_cancelling_needs_a_coordinator(competition):
+    from django.core.exceptions import PermissionDenied
+
+    from apps.accounts.messaging import cancel_scheduled_broadcast
+
+    broadcast = _schedule(CoordinatorFactory(), competition=competition)
+
+    with pytest.raises(PermissionDenied):
+        cancel_scheduled_broadcast(broadcast, actor=ParticipantFactory().user)
+
+    broadcast.refresh_from_db()
+    assert broadcast.status == BroadcastStatus.SCHEDULED
+
+
+def test_late_dispatch_within_a_day_still_goes_out(competition, stage, django_capture_on_commit_callbacks):
+    from datetime import timedelta
+
+    _participant(stage, "uczen@example.test")
+    broadcast = _schedule(CoordinatorFactory(), competition=competition)
+    mail.outbox.clear()
+
+    with django_capture_on_commit_callbacks(execute=True):
+        _dispatch(broadcast, late_by=timedelta(hours=23))
+
+    assert [message.to for message in mail.outbox] == [["uczen@example.test"]]
+
+
+def test_dispatch_more_than_a_day_late_expires_without_sending(
+    competition, stage, django_capture_on_commit_callbacks
+):
+    from datetime import timedelta
+
+    _participant(stage, "uczen@example.test")
+    broadcast = _schedule(CoordinatorFactory(), competition=competition)
+    mail.outbox.clear()
+
+    with django_capture_on_commit_callbacks(execute=True):
+        assert _dispatch(broadcast, late_by=timedelta(hours=25)) == 1
+
+    broadcast.refresh_from_db()
+    assert broadcast.status == BroadcastStatus.EXPIRED
+    assert not mail.outbox
+    assert AuditLog.objects.filter(action="broadcast.expired").exists()
+
+
+def test_group_empty_at_sending_time_is_marked_without_error(
+    competition, stage, django_capture_on_commit_callbacks
+):
+    broadcast = _schedule(
+        CoordinatorFactory(),
+        competition=competition,
+        group=BroadcastGroup.STAGE_REGISTERED,
+        parameters={"stage": stage},
+    )
+    mail.outbox.clear()
+
+    with django_capture_on_commit_callbacks(execute=True):
+        assert _dispatch(broadcast) == 1
+
+    broadcast.refresh_from_db()
+    assert broadcast.status == BroadcastStatus.EMPTY
+    assert broadcast.parameters == {"stage": stage.pk}
+    assert not mail.outbox
+    assert AuditLog.objects.filter(action="broadcast.empty").exists()
+
+
+def test_stage_parameter_is_resolved_again_at_sending_time(
+    competition, stage, django_capture_on_commit_callbacks
+):
+    broadcast = _schedule(
+        CoordinatorFactory(),
+        competition=competition,
+        group=BroadcastGroup.STAGE_REGISTERED,
+        parameters={"stage": stage.pk},
+    )
+    _participant(stage, "zapisany-pozniej@example.test")
+    mail.outbox.clear()
+
+    with django_capture_on_commit_callbacks(execute=True):
+        _dispatch(broadcast)
+
+    assert [message.to for message in mail.outbox] == [["zapisany-pozniej@example.test"]]
+
+
+def test_scheduled_broadcast_stays_in_its_competition(
+    competition, other_competition, django_capture_on_commit_callbacks
+):
+    from apps.accounts.models import GROUP_COORDINATOR
+    from apps.tenancy.tests.factories import grant_membership
+
+    coordinator = CoordinatorFactory()
+    grant_membership(coordinator, other_competition, GROUP_COORDINATOR)
+    _plain("tutaj@example.test")
+    ParticipantFactory(user=UserFactory(email="w-b@example.test"), competition=other_competition)
+    broadcast = _schedule(coordinator, competition=other_competition, parameters=ALL_EDITIONS)
+    mail.outbox.clear()
+
+    with django_capture_on_commit_callbacks(execute=True):
+        _dispatch(broadcast)
+
+    assert [message.to for message in mail.outbox] == [["w-b@example.test"]]
+    assert AuditLog.objects.get(action="broadcast.sent").competition == other_competition
+
+
+def test_scheduled_broadcasts_are_listed_apart_from_the_history(competition, other_competition):
+    from apps.accounts.messaging import recent_broadcasts, scheduled_broadcasts
+
+    waiting = _schedule(CoordinatorFactory(), competition=competition)
+
+    assert scheduled_broadcasts(competition) == [waiting]
+    assert scheduled_broadcasts(other_competition) == []
+    assert recent_broadcasts(competition) == []
+
+
+def test_beat_runs_the_dispatch_every_minute(settings):
+    entry = settings.CELERY_BEAT_SCHEDULE["dispatch-scheduled-broadcasts"]
+
+    assert entry["task"] == "apps.accounts.messaging.dispatch_scheduled_broadcasts"
+    assert entry["schedule"] == 60.0

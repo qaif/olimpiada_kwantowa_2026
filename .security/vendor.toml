@@ -1,0 +1,89 @@
+# Rejestr JavaScriptu spoza repozytorium (SEC-02, docs/OPERACJE.md § 47.4).
+#
+# Czyta to `scripts/security/vendor_check.py`:
+#   - `check`    (CI, job `supply-chain`, każdy PR) – offline: wersja da się odczytać z zapisu,
+#                każdy zwendorowany plik ma swój skrót w plikach VERSION/SHA*, a strony
+#                odwołujące się do CDN mówią o jednej, tej samej wersji;
+#   - `upstream` (raz w miesiącu, .github/workflows/vendor-upstream.yml) – sieć: najnowsze wydanie
+#                w rejestrze npm, znane podatności naszej wersji (OSV), suma paczki npm zapisana
+#                przy wendorowaniu i SRI plików z CDN. Wynik idzie do jednego zgłoszenia (issue),
+#                NICZEGO nie aktualizuje – aktualizacja to świadoma zmiana z testem (OPERACJE § 36, TR-01).
+#
+# Nowa biblioteka JS (zwendorowana albo z CDN) = nowy wpis tutaj; `check` odmówi katalogu
+# `vendor/`, którego nie ma w tym pliku.
+
+# --- pliki w repozytorium ------------------------------------------------------------------
+# `version_pattern` – wyrażenie z grupą `version` na treści `version_file`,
+# `integrity_pattern` – (opcjonalnie) suma paczki npm zapisana przy wendorowaniu (grupa `integrity`),
+# `hash_files` – pliki, w których MUSI wystąpić skrót każdego pliku katalogu (sha256 hex albo
+#                `sha384-<base64>`); plik w formacie `sha256sum` jest dodatkowo sprawdzany wiersz po wierszu.
+
+[[vendored]]
+name = "livekit-client"
+npm = "livekit-client"
+dir = "backend/static/vendor/livekit-client"
+version_file = "VERSION"
+version_pattern = '(?m)^livekit-client (?P<version>\S+)$'
+integrity_pattern = '(?m)^npm integrity (?P<integrity>sha512-\S+)$'
+hash_files = ["SHA384"]
+# Aktualizacja: scripts/vendor_livekit_client.sh (pobiera paczkę, sprawdza sumę, zapisuje VERSION/SHA384).
+
+[[vendored]]
+name = "katex"
+npm = "katex"
+dir = "backend/apps/problem_translations/static/problem_translations/vendor/katex"
+version_file = "VERSION"
+version_pattern = 'pakiet katex@(?P<version>[0-9][0-9A-Za-z.+-]*)'
+integrity_pattern = 'npm integrity tarballa: (?P<integrity>sha512-\S+)'
+hash_files = ["VERSION", "SHA256SUMS"]
+
+[[vendored]]
+name = "axe-core (wyłącznie testy dostępności e2e, poza obrazem)"
+npm = "axe-core"
+dir = "e2e/vendor/axe-core"
+version_file = "VERSION"
+version_pattern = '(?m)^axe-core (?P<version>\S+)$'
+integrity_pattern = '(?m)^npm integrity (?P<integrity>sha512-\S+)$'
+hash_files = ["SHA384"]
+# Licencja MPL-2.0 (plik LICENSE w katalogu). Aktualizacja: scripts/vendor_axe_core.sh (pobiera paczkę,
+# sprawdza sumę z rejestrem npm, zapisuje VERSION/SHA384), potem scripts/a11y.sh – A11Y-01, OPERACJE § 50.
+
+# --- skrypty z CDN (SRI w szablonie) -------------------------------------------------------
+# `files` – wszystkie miejsca, w których wersja jest wpisana; mają mówić o tej samej,
+# `sri = true` – w `upstream` pobierz każdy `src="https://…"` z `integrity="sha384-…"` z tych plików
+#                i porównaj skrót (podmiana pliku na CDN = rozjazd).
+
+[[cdn]]
+name = "htmx"
+npm = "htmx.org"
+files = ["backend/templates/base.html"]
+version_pattern = 'ajax/libs/htmx/(?P<version>[0-9][0-9A-Za-z.+-]*)/htmx'
+sri = true
+
+[[cdn]]
+name = "alpinejs (build CSP)"
+npm = "@alpinejs/csp"
+files = ["backend/templates/base.html"]
+version_pattern = '@alpinejs/csp@(?P<version>[0-9][0-9A-Za-z.+-]*)/'
+sri = true
+
+[[cdn]]
+name = "swagger-ui (/api/docs/)"
+npm = "swagger-ui-dist"
+files = ["backend/config/settings/base.py"]
+version_pattern = 'SWAGGER_UI_VERSION = "(?P<version>[0-9][0-9A-Za-z.+-]*)"'
+
+[[cdn]]
+name = "pdf.js (podgląd i adnotacje PDF)"
+npm = "pdfjs-dist"
+files = ["backend/static/js/review-annotations.js", "backend/static/js/upload-preview.js"]
+version_pattern = 'PDFJS_VERSION = "(?P<version>[0-9][0-9A-Za-z.+-]*)"'
+
+# --- skrypty zewnętrzne bez wersji (świadomie bez SRI) ---------------------------------------
+# Usługa, a nie biblioteka: treść zmienia dostawca, więc ani wersji, ani SRI nie da się przypiąć.
+# Wpis jest tu po to, żeby `check` nie przepuścił po cichu NASTĘPNEGO takiego skryptu.
+
+[[external]]
+name = "Google Analytics (gtag.js)"
+url_pattern = '^https://www\.googletagmanager\.com/gtag/js\?id='
+reason = "Ładowany wyłącznie, gdy w ustawieniach strony jest identyfikator GA (szablony base.html aplikacji i djcms); usługa zmienia treść sama, więc SRI nie ma sensu."

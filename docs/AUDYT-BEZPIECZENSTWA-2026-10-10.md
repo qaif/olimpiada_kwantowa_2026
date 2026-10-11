@@ -48,7 +48,7 @@ kilka spraw infrastrukturalnych (cały `.env` w kontenerach aplikacji, slow-POST
 - **Naprawa:** własny model dokumentu (`WAGTAILDOCS_DOCUMENT_MODEL`) z `storage=private_media`
   (serwowanie i tak idzie przez `serve_view` → `apps/cms/views.py`). Minimum: `upload_to` z prefiksem
   `uuid4` (nieodgadywalny klucz) i przenoszenie obiektu do prywatnego storage w chwili nałożenia
-  ograniczenia na kolekcję. Dopisać pozycję do checklisty § 2/§ 9.
+  ograniczenia na kolekcję. Dopisać pozycję do `SECURITY_CHECKLIST.md` § 2/§ 9.
 
 ### W3. Koordynator przejmuje konto, które ma rolę także w innym konkursie ✔
 - **Gdzie:** `backend/apps/web/views/coordinator_accounts.py:285` (`users_for_competition` – ukrywa

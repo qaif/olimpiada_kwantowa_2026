@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% load i18n static %}
+{% comment %}
+  ``/me/alumni/`` – trzy stany: nie można dołączyć (powód), można dołączyć (treść zgody i pole
+  wyboru), należy do sieci (profil, wycofanie zgody). Pod spodem – relacje mentorskie w obu rolach.
+  Notatkę prośby widzi tu wyłącznie mentor (do niego jest skierowana) i jej autor.
+{% endcomment %}
+{% block title %}{% translate "Absolwenci" %}{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/alumni.css' %}">{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>{% translate "Sieć absolwentów" %}</h1>
+  <p class="lead">{% blocktranslate trimmed %}Byli uczestnicy, którzy pokazują, co robią dziś, pomagają obecnym uczestnikom jako
+    mentorzy i dostają zaproszenia na warsztaty, webinary i do jury.{% endblocktranslate %}</p>
+  <p><a class="btn btn--small btn--secondary" href="{% url 'web:alumni-directory' %}">{% translate "Katalog absolwentów" %}</a>
+    {% if settings.public_wall %}<a class="btn btn--small btn--ghost" href="{% url 'web:alumni-wall' %}">{% translate "Publiczna ściana" %}</a>{% endif %}</p>
+</div>
+
+{% if profile and needs_reconsent %}
+  <section class="section">
+    <h2>{% translate "Zmieniła się treść zgody" %}</h2>
+    <p>{% translate "Twój profil jest niewidoczny, dopóki nie potwierdzisz nowej treści zgody. Możesz też wycofać zgodę niżej." %}</p>
+    <form method="post" action="{% url 'web:alumni-renew' %}" class="form">
+      {% csrf_token %}
+      <p class="notice">{{ consent_text }}</p>
+      {{ join_form.as_div }}
+      <p class="actions"><button type="submit" class="btn btn--primary">{% translate "Potwierdzam" %}</button></p>
+    </form>
+  </section>
+{% endif %}
+{% if profile %}
+  <section class="section">
+    <h2>{% translate "Twój profil" %}</h2>
+    {% if profile.is_hidden %}<p class="notice notice--warning">{% translate "Organizator ukrył Twój profil – nie widać go w katalogu ani na ścianie. Napisz do organizatora, jeśli to pomyłka." %}</p>{% endif %}
+    <p class="hint">{% translate "Tak widzą Cię inni zalogowani uczestnicy:" %}</p>
+    {% include "alumni/_card.html" with card=card public=False can_request=False %}
+    <form method="post" action="{% url 'web:alumni-profile' %}" class="form">
+      {% csrf_token %}
+      {{ profile_form.as_div }}
+      <p class="actions"><button type="submit" class="btn btn--primary">{% translate "Zapisz profil" %}</button></p>
+    </form>
+  </section>
+  <section class="section">
+    <h2>{% translate "Wycofanie zgody" %}</h2>
+    <p class="hint">{% blocktranslate trimmed %}Po wycofaniu zgody Twój profil absolwenta zniknie od razu, a relacje, w których jesteś
+      mentorem, zakończą się. Twoje wyniki i dyplomy zostają – to dokumentacja zawodów.{% endblocktranslate %}</p>
+    <form method="post" action="{% url 'web:alumni-withdraw' %}">
+      {% csrf_token %}
+      <button type="submit" class="btn btn--danger btn--small">{% translate "Wycofaj zgodę i usuń profil" %}</button>
+    </form>
+  </section>
+{% elif eligibility.eligible %}
+  <section class="section">
+    <h2>{% translate "Dołącz do sieci absolwentów" %}</h2>
+    {% if achievements %}
+      <p>{% translate "Twoje osiągnięcia z ogłoszonych wyników:" %}</p>
+      <ul>{% for item in achievements %}<li>{{ item.edition_label }}: {{ item.title }}</li>{% endfor %}</ul>
+    {% endif %}
+    <form method="post" action="{% url 'web:alumni-join' %}" class="form">
+      {% csrf_token %}
+      <p class="notice">{{ consent_text }}</p>
+      {{ join_form.as_div }}
+      <p class="actions"><button type="submit" class="btn btn--primary">{% translate "Dołączam" %}</button></p>
+    </form>
+  </section>
+{% else %}
+  <section class="section">
+    <p class="notice">{{ eligibility.message }}</p>
+  </section>
+{% endif %}
+
+<section class="section">
+  <h2>{% translate "Mentoring" %}</h2>
+  {% if not mentoring_enabled %}
+    <p class="hint">{% translate "Organizator nie włączył jeszcze mentoringu." %}</p>
+  {% endif %}
+  {% if relations %}
+    <div class="scroll">
+      <table class="table">
+        <thead><tr><th>{% translate "Rola" %}</th><th>{% translate "Druga osoba" %}</th><th>{% translate "Temat" %}</th><th>{% translate "Stan" %}</th><th></th></tr></thead>
+        <tbody>
+          {% for item in relations %}
+            <tr>
+              <td>{% if item.as_mentor %}{% translate "jesteś mentorem" %}{% else %}{% translate "Twój mentor" %}{% endif %}</td>
+              <td>{{ item.other }}</td>
+              <td>{{ item.row.get_topic_display|default:"—" }}{% if item.note %}<br><span class="hint">{{ item.note|linebreaksbr }}</span>{% elif item.note_pending %}<br><span class="hint">{% translate "Notatka prośby czeka na akceptację organizatora." %}</span>{% endif %}</td>
+              <td>{{ item.row.get_status_display }}
+                {% if item.channel == "SUPERVISED" %}<br><span class="hint">{% translate "każdą wiadomość akceptuje organizator" %}</span>{% endif %}</td>
+              <td class="actions">
+                {% if item.row.status == statuses.REQUESTED and item.as_mentor %}
+                  <form method="post" action="{% url 'web:alumni-mentoring-action' item.row.pk 'accept' %}" class="inline">{% csrf_token %}<button class="btn btn--small btn--primary">{% translate "Przyjmij" %}</button></form>
+                  <form method="post" action="{% url 'web:alumni-mentoring-action' item.row.pk 'decline' %}" class="inline">{% csrf_token %}<button class="btn btn--small btn--ghost">{% translate "Odrzuć" %}</button></form>
+                {% elif item.row.status == statuses.REQUESTED %}
+                  <form method="post" action="{% url 'web:alumni-mentoring-action' item.row.pk 'cancel' %}" class="inline">{% csrf_token %}<button class="btn btn--small btn--ghost">{% translate "Wycofaj prośbę" %}</button></form>
+                {% elif item.row.status == statuses.ACCEPTED %}
+                  {% if item.row.conversation_id %}<a class="btn btn--small btn--secondary" href="{% url 'web:chat-thread' item.row.conversation_id %}">{% translate "Rozmowa" %}</a>{% endif %}
+                  <form method="post" action="{% url 'web:alumni-mentoring-action' item.row.pk 'end' %}" class="inline">{% csrf_token %}<button class="btn btn--small btn--ghost">{% translate "Zakończ" %}</button></form>
+                {% endif %}
+                {% if item.row.status != statuses.CANCELLED and item.row.status != statuses.DECLINED %}
+                  <a class="btn btn--small btn--ghost" href="{% url 'web:alumni-flag' item.row.pk %}">{% translate "Zgłoś problem" %}</a>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% elif mentoring_enabled %}
+    <p class="hint">{% blocktranslate trimmed %}Nie masz jeszcze żadnej relacji mentorskiej. Mentora wybierzesz w katalogu absolwentów –
+      przy osobach, które pomagają, stoi przycisk „Poproś o mentoring”.{% endblocktranslate %}</p>
+  {% endif %}
+  <p class="hint">{% blocktranslate trimmed %}Rozmowa mentorska toczy się w Wiadomościach. Jeśli uczestnik jest niepełnoletni, organizator
+    czyta wiadomości – zależnie od zasad konkursu przed doręczeniem albo po nim.{% endblocktranslate %}</p>
+</section>
+{% endblock %}

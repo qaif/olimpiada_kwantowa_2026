@@ -1,0 +1,587 @@
+# Przegląd tłumaczeń interfejsu (apps.translation_review, zadanie L10N-01) – Chinese (Simplified).
+# Napisy tej aplikacji; Django scala ten katalog z katalogiem projektu (backend/locale).
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Olimpiada Kwantowa\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-04 19:12+0200\n"
+"PO-Revision-Date: 2026-10-04 19:30+0200\n"
+"Last-Translator: Olimpiada Kwantowa\n"
+"Language-Team: Chinese (Simplified)\n"
+"Language: zh_Hans\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+#: forms.py:19
+msgid "Pokaż"
+msgstr "显示"
+
+#: forms.py:22
+msgid "wszystkie napisy"
+msgstr "全部文本"
+
+#: forms.py:23
+msgid "bez tłumaczenia"
+msgstr "未翻译"
+
+#: forms.py:24
+msgid "tłumaczenie maszynowe (nieprzejrzane)"
+msgstr "机器翻译（未审核）"
+
+#: forms.py:25 templates/translation_review/detail.html:33
+#: templates/translation_review/detail.html:35
+#: templates/translation_review/list.html:50
+msgid "przejrzane"
+msgstr "已审核"
+
+#: forms.py:26
+msgid "z oczekującą propozycją"
+msgstr "有待审建议"
+
+#: forms.py:29
+msgid "Szukaj"
+msgstr "搜索"
+
+#: forms.py:34 templates/translation_review/detail.html:112
+msgid "Twoja propozycja"
+msgstr "您的建议"
+
+#: forms.py:38
+msgid "Zatwierdź od razu (recenzent)"
+msgstr "立即批准（审核人）"
+
+#: forms.py:42 forms.py:63
+#: templates/translation_review/coordinator_translators.html:32
+#: templates/translation_review/coordinator_translators.html:41
+msgid "Język"
+msgstr "语言"
+
+#: forms.py:45 templates/translation_review/reports.html:21
+msgid "Napis na stronie"
+msgstr "页面上的文本"
+
+#: forms.py:48
+msgid "Skopiuj fragment źle przetłumaczonego tekstu – po nim znajdziemy napis."
+msgstr "复制一段翻译有误的文本——我们将据此找到对应文本。"
+
+#: forms.py:51
+msgid "Co jest nie tak / jak powinno brzmieć"
+msgstr "问题所在 / 应如何表述"
+
+#: forms.py:62
+msgid "Adres e-mail konta"
+msgstr "账户电子邮箱"
+
+#: forms.py:64 templates/translation_review/coordinator_translators.html:33
+#: templates/translation_review/coordinator_translators.html:42
+msgid "Poziom"
+msgstr "级别"
+
+#: forms.py:69
+msgid "tłumacz – proponuje i głosuje"
+msgstr "译者——提出建议并投票"
+
+#: forms.py:71
+msgid "recenzent – także zatwierdza poprawki"
+msgstr "审核人——还可批准修改"
+
+#: services.py:146 views.py:56
+msgid "Nie masz uprawnień do tłumaczeń tego języka."
+msgstr "您没有翻译此语言的权限。"
+
+#: services.py:201
+msgid "Nie możesz nadawać ról tłumaczy."
+msgstr "您不能授予译者角色。"
+
+#: services.py:203
+msgid "Nieznany język."
+msgstr "未知语言。"
+
+#: services.py:205
+msgid "Nieznany poziom uprawnień."
+msgstr "未知权限级别。"
+
+#: services.py:208
+msgid "Rolę recenzenta tłumaczeń nadaje wyłącznie superkoordynator."
+msgstr "只有超级协调员可以授予翻译审核人角色。"
+
+#: services.py:210
+msgid "Ten język nie jest językiem interfejsu tego konkursu."
+msgstr "该语言不是本竞赛的界面语言。"
+
+#: services.py:215
+msgid "Nie znaleziono aktywnego konta z tym adresem w tym konkursie."
+msgstr "在本竞赛中未找到使用该地址的有效账户。"
+
+#: services.py:244
+msgid "Nie możesz odbierać ról tłumaczy."
+msgstr "您不能撤销译者角色。"
+
+#: services.py:249
+msgid "Tę osobę może zmienić wyłącznie superkoordynator."
+msgstr "只有超级协调员可以更改此人的角色。"
+
+#: services.py:434
+msgid "Ta propozycja jest identyczna z obecnym tłumaczeniem."
+msgstr "此建议与当前译文相同。"
+
+#: services.py:465
+msgid "Na rozstrzygniętą propozycję nie można już głosować."
+msgstr "已有结论的建议无法再投票。"
+
+#: services.py:467
+msgid "Nie można głosować na własną propozycję."
+msgstr "不能为自己的建议投票。"
+
+#: services.py:500 services.py:537
+msgid "Ta propozycja została już rozstrzygnięta."
+msgstr "此建议已有结论。"
+
+#: services.py:554
+msgid "Ten napis nie ma jeszcze tłumaczenia – zaproponuj je."
+msgstr "此文本尚无译文——请提出建议。"
+
+#: services.py:557
+msgid "To tłumaczenie jest już przejrzane."
+msgstr "此译文已审核。"
+
+#: services.py:614
+msgid "Opisz, co jest nie tak z tłumaczeniem."
+msgstr "请描述译文的问题。"
+
+#: services.py:616
+msgid "Zgłoszenie jest za długie."
+msgstr "报告过长。"
+
+#: templates/translation_review/coordinator_translators.html:8
+#: templates/translation_review/coordinator_translators.html:27
+msgid "Tłumacze"
+msgstr "译者"
+
+#: templates/translation_review/coordinator_translators.html:8
+msgid "panel koordynatora"
+msgstr "协调员面板"
+
+#: templates/translation_review/coordinator_translators.html:9
+msgid "Tłumacze interfejsu"
+msgstr "界面译者"
+
+#: templates/translation_review/coordinator_translators.html:11
+msgid ""
+"Osoby, które mogą przeglądać i poprawiać tłumaczenia napisów serwisu, np. "
+"kierownicy delegacji. Zatwierdzona poprawka działa w całym serwisie."
+msgstr "可以审核并修正网站文本译文的人员，例如代表团领队。已批准的修改在整个网站生效。"
+
+#: templates/translation_review/coordinator_translators.html:16
+msgid "Nadaj rolę"
+msgstr "授予角色"
+
+#: templates/translation_review/coordinator_translators.html:21
+msgid ""
+"Rolę recenzenta tłumaczeń nadaje superkoordynator. Konto musi należeć do "
+"tego konkursu."
+msgstr "翻译审核人角色由超级协调员授予。该账户必须属于本竞赛。"
+
+#: templates/translation_review/coordinator_translators.html:22
+msgid "Nadaj"
+msgstr "授予"
+
+#: templates/translation_review/coordinator_translators.html:31
+#: templates/translation_review/coordinator_translators.html:40
+msgid "Konto"
+msgstr "账户"
+
+#: templates/translation_review/coordinator_translators.html:34
+msgid "Czynności"
+msgstr "操作"
+
+#: templates/translation_review/coordinator_translators.html:42
+#: templates/translation_review/home.html:20
+msgid "recenzent"
+msgstr "审核人"
+
+#: templates/translation_review/coordinator_translators.html:42
+msgid "tłumacz"
+msgstr "译者"
+
+#: templates/translation_review/coordinator_translators.html:48
+msgid "Odbierz"
+msgstr "撤销"
+
+#: templates/translation_review/coordinator_translators.html:54
+msgid "Nikt nie ma jeszcze roli tłumacza."
+msgstr "目前还没有人拥有译者角色。"
+
+#: templates/translation_review/detail.html:10
+msgid "Napis"
+msgstr "文本"
+
+#: templates/translation_review/detail.html:14
+msgid "Napis do przejrzenia"
+msgstr "待审核文本"
+
+#: templates/translation_review/detail.html:20
+#: templates/translation_review/list.html:33
+#: templates/translation_review/list.html:42
+msgid "Tekst źródłowy (polski)"
+msgstr "源文本（波兰语）"
+
+#: templates/translation_review/detail.html:26
+#: templates/translation_review/list.html:35
+#: templates/translation_review/list.html:47
+msgid "Obecne tłumaczenie"
+msgstr "当前译文"
+
+#: templates/translation_review/detail.html:29
+msgid "katalog zmienił się od decyzji – przejrzyj ponownie"
+msgstr "决定之后目录已更改——请重新审核"
+
+#: templates/translation_review/detail.html:31
+msgid "zatwierdzone w serwisie, czeka na przeniesienie do repozytorium"
+msgstr "已在网站上批准，等待移入代码库"
+
+#: templates/translation_review/detail.html:37
+#: templates/translation_review/list.html:51
+msgid "maszynowe"
+msgstr "机器翻译"
+
+#: templates/translation_review/detail.html:41
+msgid "Decyzja recenzenta (nieaktualna)"
+msgstr "审核人的决定（已过时）"
+
+#: templates/translation_review/detail.html:45
+msgid "Tłumaczenie w katalogu"
+msgstr "目录中的译文"
+
+#: templates/translation_review/detail.html:49
+msgid "Forma mnoga"
+msgstr "复数形式"
+
+#: templates/translation_review/detail.html:53
+msgid "Kontekst"
+msgstr "上下文"
+
+#: templates/translation_review/detail.html:57
+msgid "Uwagi dla tłumacza"
+msgstr "译者说明"
+
+#: templates/translation_review/detail.html:60
+msgid "Gdzie występuje"
+msgstr "出现位置"
+
+#: templates/translation_review/detail.html:63
+msgid ""
+"Zmienne w nawiasach i znaczniki HTML muszą zostać dokładnie takie, jak w "
+"tekście źródłowym. Zamiast cudzysłowów prostych używaj typograficznych."
+msgstr "括号中的变量和 HTML 标签必须与源文本完全一致。请使用印刷体引号，而不是直引号。"
+
+#: templates/translation_review/detail.html:69
+msgid "Przywróć tłumaczenie z katalogu"
+msgstr "恢复目录中的译文"
+
+#: templates/translation_review/detail.html:75
+msgid "Obecne tłumaczenie jest poprawne"
+msgstr "当前译文正确"
+
+#: templates/translation_review/detail.html:85
+msgid "Zaproponuj poprawkę"
+msgstr "提出修改建议"
+
+#: templates/translation_review/detail.html:97
+msgid "Wyślij propozycję"
+msgstr "提交建议"
+
+#: templates/translation_review/detail.html:104
+msgid "Propozycje"
+msgstr "建议"
+
+#: templates/translation_review/detail.html:110
+msgid "czeka na recenzenta"
+msgstr "等待审核"
+
+#: templates/translation_review/detail.html:110
+msgid "zatwierdzona"
+msgstr "已批准"
+
+#: templates/translation_review/detail.html:110
+msgid "odrzucona"
+msgstr "已拒绝"
+
+#: templates/translation_review/detail.html:110
+msgid "zastąpiona"
+msgstr "已被取代"
+
+#: templates/translation_review/detail.html:111
+msgid "głosy"
+msgstr "票数"
+
+#: templates/translation_review/detail.html:112
+msgid "inny tłumacz"
+msgstr "其他译者"
+
+#: templates/translation_review/detail.html:122
+msgid "Cofnij głos"
+msgstr "撤回投票"
+
+#: templates/translation_review/detail.html:122
+msgid "Popieram"
+msgstr "我支持"
+
+#: templates/translation_review/detail.html:129
+msgid "Zatwierdź"
+msgstr "批准"
+
+#: templates/translation_review/detail.html:134
+msgid "Odrzuć"
+msgstr "拒绝"
+
+#: templates/translation_review/detail.html:141
+msgid "Nikt jeszcze nie zaproponował poprawki tego napisu."
+msgstr "尚无人对此文本提出修改建议。"
+
+#: templates/translation_review/home.html:7
+#: templates/translation_review/home.html:11
+msgid "Tłumaczenia interfejsu"
+msgstr "界面翻译"
+
+#: templates/translation_review/home.html:10
+#: templates/translation_review/list.html:12
+#: templates/translation_review/report.html:10
+msgid "Tłumaczenia"
+msgstr "翻译"
+
+#: templates/translation_review/home.html:12
+msgid ""
+"Sprawdź tłumaczenia napisów serwisu w swoim języku i zaproponuj poprawki. "
+"Tekst źródłowy jest po polsku; obok widzisz wersję angielską."
+msgstr "检查网站文本在您语言中的译文并提出修改建议。源文本为波兰语，旁边显示英文版本。"
+
+#: templates/translation_review/home.html:21
+#: templates/translation_review/home.html:26
+msgid "Oczekujące propozycje"
+msgstr "待审建议"
+
+#: templates/translation_review/home.html:25
+msgid "Przeglądaj napisy"
+msgstr "浏览文本"
+
+#: templates/translation_review/home.html:28
+#: templates/translation_review/reports.html:9
+msgid "Zgłoszenia"
+msgstr "报告"
+
+#: templates/translation_review/list.html:9
+#: templates/translation_review/list.html:29
+msgid "Napisy"
+msgstr "文本"
+
+#: templates/translation_review/list.html:14
+msgid ""
+"Kliknij napis, żeby zobaczyć kontekst, zaproponować poprawkę albo zagłosować "
+"na cudzą."
+msgstr "点击文本可查看上下文、提出修改或为他人的建议投票。"
+
+#: templates/translation_review/list.html:21
+msgid "Filtruj"
+msgstr "筛选"
+
+#: templates/translation_review/list.html:22
+msgid "Wyczyść"
+msgstr "清除"
+
+#: templates/translation_review/list.html:25
+msgid "Znalezione napisy"
+msgstr "找到的文本"
+
+#: templates/translation_review/list.html:36
+#: templates/translation_review/list.html:48
+msgid "Stan"
+msgstr "状态"
+
+#: templates/translation_review/list.html:44
+msgid "forma"
+msgstr "形式"
+
+#: templates/translation_review/list.html:49
+msgid "do ponownego przeglądu"
+msgstr "需重新审核"
+
+#: templates/translation_review/list.html:52
+msgid "brak"
+msgstr "缺失"
+
+#: templates/translation_review/list.html:53
+msgid "propozycje"
+msgstr "建议"
+
+#: templates/translation_review/list.html:57
+msgid "Brak napisów spełniających filtr."
+msgstr "没有符合筛选条件的文本。"
+
+#: templates/translation_review/list.html:65
+msgid "Poprzednia"
+msgstr "上一页"
+
+#: templates/translation_review/list.html:67
+#, python-format
+msgid "Strona %(number)s z %(pages)s"
+msgstr "第 %(number)s 页，共 %(pages)s 页"
+
+#: templates/translation_review/list.html:69
+msgid "Następna"
+msgstr "下一页"
+
+#: templates/translation_review/report.html:7
+#: templates/translation_review/report.html:11
+#: templatetags/translation_review.py:37
+msgid "Zgłoś tłumaczenie"
+msgstr "报告翻译问题"
+
+#: templates/translation_review/report.html:12
+msgid ""
+"Napisz, który napis jest źle przetłumaczony i jak powinien brzmieć. "
+"Recenzent tłumaczeń Twojego języka poprawi go dla wszystkich."
+msgstr "请说明哪段文本翻译有误以及应如何表述。您语言的翻译审核人会为所有人修正它。"
+
+#: templates/translation_review/report.html:16
+#: templates/translation_review/reports.html:19
+msgid "Strona"
+msgstr "页面"
+
+#: templates/translation_review/report.html:30
+msgid "Wyślij zgłoszenie"
+msgstr "提交报告"
+
+#: templates/translation_review/reports.html:13
+msgid "Zgłoszenia tłumaczeń"
+msgstr "翻译问题报告"
+
+#: templates/translation_review/reports.html:22
+msgid "szukaj na liście"
+msgstr "在列表中搜索"
+
+#: templates/translation_review/reports.html:24
+msgid "Uwaga"
+msgstr "备注"
+
+#: templates/translation_review/reports.html:29
+msgid "Zamknij zgłoszenie"
+msgstr "关闭报告"
+
+#: templates/translation_review/reports.html:33
+msgid "Nie ma otwartych zgłoszeń."
+msgstr "没有未处理的报告。"
+
+#: validation.py:110
+msgid "Tłumaczenie nie może być puste."
+msgstr "译文不能为空。"
+
+#: validation.py:121
+#, python-format
+msgid "Tłumaczenie jest za długie (najwyżej %(limit)d znaków)."
+msgstr "译文过长（最多 %(limit)d 个字符）。"
+
+#: validation.py:125
+msgid "Tłumaczenie zawiera niedozwolony znak sterujący kierunkiem tekstu."
+msgstr "译文包含不允许的文字方向控制字符。"
+
+#: validation.py:129
+msgid "nowa linia"
+msgstr "换行符"
+
+#: validation.py:129
+msgid "tabulator"
+msgstr "制表符"
+
+#: validation.py:130
+#, python-format
+msgid "Niedozwolony znak sterujący: %(char)s."
+msgstr "不允许的控制字符：%(char)s。"
+
+#: validation.py:134 validation.py:150 validation.py:156
+msgid "(brak)"
+msgstr "（无）"
+
+#: validation.py:136
+#, python-format
+msgid ""
+"Znaczniki HTML muszą być dokładnie takie, jak w tekście źródłowym: %(tags)s"
+msgstr "HTML 标签必须与源文本完全一致：%(tags)s"
+
+#: validation.py:141
+msgid ""
+"Znak „<” poza znacznikiem z tekstu źródłowego może stać tylko przed spacją "
+"albo cyfrą."
+msgstr "在源文本标签之外，字符“<”只能出现在空格或数字之前。"
+
+#: validation.py:145
+#, python-format
+msgid ""
+"Użyj cudzysłowów typograficznych (np. “…”, «…», „…”) zamiast znaku %(char)s."
+msgstr "请使用印刷体引号（如 “…”、«…»、„…”）代替字符 %(char)s。"
+
+#: validation.py:152 validation.py:158
+#, python-format
+msgid ""
+"Tłumaczenie musi zawierać te same zmienne, co tekst źródłowy: "
+"%(placeholders)s"
+msgstr "译文必须包含与源文本相同的变量：%(placeholders)s"
+
+#: validation.py:166
+msgid ""
+"Ten napis ma kilka zmiennych bez nazw – jego tłumaczenie można poprawić "
+"tylko w repozytorium; zgłoś je ze stopki."
+msgstr "此文本包含多个未命名变量——其译文只能在代码库中修改；请通过页脚报告。"
+
+#: validation.py:173
+msgid ""
+"Znaki procentu i nawiasów klamrowych mają w tym napisie znaczenie techniczne "
+"– zapisz je dokładnie tak, jak w tekście źródłowym."
+msgstr "百分号和花括号在此文本中具有技术含义——请严格按源文本书写。"
+
+#: views.py:78 views.py:225
+msgid "Twoje konto nie ma roli tłumacza."
+msgstr "您的账户没有译者角色。"
+
+#: views.py:159
+msgid "Propozycja została zapisana."
+msgstr "建议已保存。"
+
+#: views.py:171
+msgid "Tłumaczenie zatwierdzone – działa w serwisie w ciągu kilku sekund."
+msgstr "译文已批准——几秒钟内将在网站上生效。"
+
+#: views.py:175
+msgid "Propozycja została odrzucona."
+msgstr "建议已被拒绝。"
+
+#: views.py:178
+msgid "Tłumaczenie oznaczone jako przejrzane."
+msgstr "译文已标记为已审核。"
+
+#: views.py:181
+msgid "Przywrócono tłumaczenie z katalogu."
+msgstr "已恢复目录中的译文。"
+
+#: views.py:204
+msgid "Zgłoszenia przegląda recenzent tłumaczeń."
+msgstr "报告由翻译审核人处理。"
+
+#: views.py:215
+msgid "Zgłoszenie zamknięte."
+msgstr "报告已关闭。"
+
+#: views.py:257
+msgid "Dziękujemy – recenzent tłumaczeń zobaczy zgłoszenie."
+msgstr "谢谢——翻译审核人将看到您的报告。"
+
+#: views.py:313
+msgid "Rola tłumacza została odebrana."
+msgstr "译者角色已撤销。"
+
+#: views.py:330
+msgid "Rola tłumacza została nadana."
+msgstr "已授予译者角色。"

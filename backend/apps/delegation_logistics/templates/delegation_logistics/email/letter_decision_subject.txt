@@ -1,0 +1,1 @@
+{% load i18n %}{% autoescape off %}{% blocktranslate trimmed with competition=brand.competition|default:_("Olimpiada Kwantowa") %}Decyzja w sprawie listów zapraszających – {{ competition }}{% endblocktranslate %}{% endautoescape %}

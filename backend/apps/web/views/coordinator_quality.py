@@ -40,7 +40,7 @@ from apps.results.certificates import (
     render_pdf,
 )
 from apps.results.manual import set_manual_qualification
-from apps.results.models import Certificate, CertificateKind
+from apps.results.models import MANUAL_KIND_CHOICES, Certificate, CertificateKind
 from apps.results.services import compute_stage_results
 from apps.submissions.models import SIMILARITY_STORE_THRESHOLD, SubmissionSimilarity
 from apps.submissions.similarity import (
@@ -340,7 +340,7 @@ class StageCertificatesView(CoordinatorRequiredMixin, TemplateView):
                     {"supervisor": supervisor, "certificate": supervisor_certificates.get(supervisor.pk)}
                     for supervisor in supervisors
                 ],
-                "kinds": CertificateKind.choices,
+                "kinds": MANUAL_KIND_CHOICES,
             }
         )
         return context

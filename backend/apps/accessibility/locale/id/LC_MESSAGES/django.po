@@ -1,0 +1,17 @@
+# Dostępność (A11Y-01) – katalog aplikacji apps/accessibility (odnośnik w stopce obu motywów).
+msgid ""
+msgstr ""
+"Project-Id-Version: olimpiada\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-05 10:00+0200\n"
+"PO-Revision-Date: 2026-10-05 10:00+0200\n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: id\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+msgid "Deklaracja dostępności"
+msgstr "Pernyataan aksesibilitas"

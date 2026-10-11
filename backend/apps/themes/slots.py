@@ -32,6 +32,9 @@ from django.utils.translation import gettext_noop
 SLOTS: dict[str, str] = {
     "header": "oba paski nagłówka: pasek konta (logo, język, konto) i menu serwisu",
     "brand": "logotyp i nazwa serwisu w pasku konta (wewnątrz domyślnego nagłówka)",
+    # THEME-02 § 4: samo menu serwisu – motyw może przerysować nawigację (także z nadpisaniami
+    # koordynatora) bez przepisywania całego nagłówka.
+    "nav": "menu serwisu (pozycje z drzewa stron i nadpisania koordynatora; wewnątrz nagłówka)",
     "home_hero": "plansza powitalna strony głównej (slider)",
     "page_header": "nagłówek strony CMS (tytuł strony treści)",
     "news_card": "karta aktualności na liście aktualności",

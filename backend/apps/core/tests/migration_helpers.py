@@ -182,6 +182,37 @@ def applied_state_model(app_label: str, model_name: str):
     return executor.loader.project_state(leaves).apps.get_model(app_label, model_name)
 
 
+_live_user_counter = iter(range(1, 10**9))
+
+
+def live_user(*, email: str | None = None, groups=(), **fields):
+    """Konto w przewiniętej bazie: wiersz modelem zastosowanych migracji, obiekt – prawdziwą klasą.
+
+    Tabela ``accounts_user`` długo wyglądała na każdym stanie tak samo jak dziś, więc testy migracji
+    zakładały konta prawdziwą klasą (``UserFactory``, ``User.objects.create``). Od ``User.blocked_at``
+    (``accounts.0042``, audyt 10.10.2026, S5) przewinięcie ``accounts`` zdejmuje tę kolumnę, a prawdziwa
+    klasa wymienia ją w każdym ``INSERT`` i ``SELECT``. Dlatego: wstawienie modelem z
+    :func:`applied_state_model`, a zwrot – prawdziwym ``User`` z odroczonymi kolumnami, których tabela
+    jeszcze nie ma (``defer``). Taki obiekt działa w filtrach i relacjach prawdziwych modeli
+    (``Membership.objects.filter(user=…)``, ``user.groups.add``), a jego ``save()`` zapisuje wyłącznie
+    wczytane kolumny.
+    """
+    from django.contrib.auth.models import Group
+
+    from apps.accounts.models import User
+
+    historical = applied_state_model("accounts", "User")
+    row = historical.objects.create(
+        email=email or f"migracja-{next(_live_user_counter)}@example.test", password="!", **fields
+    )
+    present = {field.attname for field in historical._meta.concrete_fields}
+    missing = [field.attname for field in User._meta.concrete_fields if field.attname not in present]
+    user = User.objects.defer(*missing).get(pk=row.pk)
+    for name in groups:
+        user.groups.add(Group.objects.get_or_create(name=name)[0])
+    return user
+
+
 def ensure_competition(apps):
     """Konkurs #1 w stanie ``apps`` – zakłada go, gdy poprzedni test transakcyjny wyczyścił bazę.
 

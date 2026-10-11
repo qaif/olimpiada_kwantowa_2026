@@ -13,7 +13,14 @@ def test_healthz_returns_ok_with_db_and_cache(client, monkeypatch):
     monkeypatch.setattr(dbconnections, "_fetch", lambda: [(100, 3, "olimpiada-web", "idle", 5)])
     resp = client.get("/healthz/")
     assert resp.status_code == 200
-    assert resp.json() == {"status": "ok", "db": True, "redis": True, "db_connections": "ok"}
+    # ``backup_restore_check`` – poziom testu odtwarzania kopii (OPS-01); bez meldunku: ``unknown``.
+    assert resp.json() == {
+        "status": "ok",
+        "db": True,
+        "redis": True,
+        "db_connections": "ok",
+        "backup_restore_check": "unknown",
+    }
 
 
 def test_healthz_does_not_require_auth(client, db):

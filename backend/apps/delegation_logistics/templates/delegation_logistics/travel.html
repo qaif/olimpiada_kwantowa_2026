@@ -1,0 +1,62 @@
+{% extends "web/coordinator/base.html" %}
+{% comment %}
+  Tablica przyjazdów / wyjazdów (oficer logistyki). Jedna pozycja = jeden odbiór: ten sam dzień,
+  godzina, miejsce, środek i numer lotu/pociągu (``reports.travel_board``).
+{% endcomment %}
+{% block title %}Logistyka finału – {% if direction == "departure" %}wyjazdy{% else %}przyjazdy{% endif %}{% endblock %}
+{% block panel_title %}{% if direction == "departure" %}Wyjazdy{% else %}Przyjazdy{% endif %}{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Osoby zgrupowane po dniu, godzinie, lotnisku lub dworcu i numerze lotu – do planowania
+    odbiorów i odwozów.</p>
+{% endblock %}
+{% block panel_actions %}
+  {% if direction == "departure" %}
+    <a class="btn btn--secondary" href="{% url 'web:coordinator-onsite-travel' %}">Przyjazdy</a>
+  {% else %}
+    <a class="btn btn--secondary" href="{% url 'web:coordinator-onsite-travel' %}?direction=departure">Wyjazdy</a>
+  {% endif %}
+  <a class="btn btn--secondary" href="{% url 'web:coordinator-onsite-export' 'travel' %}">Eksport CSV</a>
+{% endblock %}
+{% block panel_content %}
+{% include "delegation_logistics/_tabs.html" %}
+
+{% for day in board.days %}
+  <section class="section">
+    <div class="section__head"><h2 class="mt-0">{{ day.day|date:"l, j.m.Y" }} – {{ day.count }} os.</h2></div>
+    <div class="scroll">
+      <table class="table">
+        <caption class="visually-hidden">{{ day.day|date:"j.m.Y" }}</caption>
+        <thead>
+          <tr>
+            <th scope="col">Godzina</th>
+            <th scope="col">Miejsce</th>
+            <th scope="col">Środek / numer</th>
+            <th scope="col">Kraje</th>
+            <th scope="col">Osoby</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for slot in day.slots %}
+            <tr>
+              <th scope="row">{{ slot.time|time:"H:i"|default:"—" }}</th>
+              <td>{{ slot.place|default:"—" }}</td>
+              <td>{{ slot.mode }} {{ slot.number }}</td>
+              <td>{{ slot.countries|join:", " }}</td>
+              <td>{{ slot.people|length }}: {% for person in slot.people %}<a href="{% url 'web:coordinator-onsite-member' person.pk %}">{{ person.full_name }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+{% empty %}
+  <p class="empty">Nikt nie podał jeszcze daty.</p>
+{% endfor %}
+
+{% if board.undated %}
+  <section class="section">
+    <div class="section__head"><h2 class="mt-0">Bez daty ({{ board.undated|length }})</h2></div>
+    <p>{% for person in board.undated %}<a href="{% url 'web:coordinator-onsite-member' person.pk %}">{{ person.full_name }}</a> ({{ person.delegation.country.name }}){% if not forloop.last %}, {% endif %}{% endfor %}</p>
+  </section>
+{% endif %}
+{% endblock %}

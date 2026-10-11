@@ -15,11 +15,25 @@ drogą, którą cudza treść trafia do strony osoby niepełnoletniej.
 """
 
 from django import template
+from django.conf import settings
 from django.template.defaultfilters import linebreaksbr
 from django.utils.html import urlize
 from django.utils.safestring import mark_safe
 
 register = template.Library()
+
+
+@register.simple_tag
+def chat_poll_seconds() -> int:
+    """Co ile sekund otwarty wątek odpytuje serwer (``CHAT_POLL_SECONDS``, PERF-01).
+
+    Odpytanie bez zmian to najczęstsze żądanie dnia zawodów: co 15 s u każdego ucznia z otwartą
+    rozmową – przy 3000 uczniach ok. 100 żądań/s, więcej niż wszystkie pozostałe adresy razem.
+    Operator wydłuża odstęp na czas etapu bez wdrożenia (``docs/OPERACJE.md`` § 42.5); wiadomość
+    przychodzi wtedy z opóźnieniem do tylu sekund, a po powrocie do karty – od razu (``chat-visible``).
+    """
+    return max(5, int(getattr(settings, "CHAT_POLL_SECONDS", 15)))
+
 
 #: Atrybut dokładany przez ``urlize(nofollow=True)`` – podmieniany na pełny zestaw niżej.
 DJANGO_NOFOLLOW = 'rel="nofollow"'
@@ -39,3 +53,20 @@ def snippet(value, length: int = 80) -> str:
     """Skrót ostatniej wiadomości na liście rozmów: jeden wiersz, bez złamań, z wielokropkiem."""
     text = " ".join((value or "").split())
     return text if len(text) <= length else text[: length - 1].rstrip() + "…"
+
+
+@register.inclusion_tag("web/chat/_announcements.html", takes_context=True)
+def organizer_announcements(context, variant: str = "inbox"):
+    """Blok „Ogłoszenia organizatora” (CZ-ANN-01) – skrzynka Wiadomości i pulpit uczestnika.
+
+    Znacznik, a nie klucz kontekstu z widoku: ten sam blok stoi na dwóch ekranach różnych modułów
+    (``apps.web.views.chat`` i ``apps.web.views.participant``), a reguła widoczności jest jedna
+    (``apps.chat.announcements.visible_announcements``). Oba ekrany wpuszczają wyłącznie uczestnika
+    tego konkursu, więc znacznik nie sprawdza roli drugi raz – konkurs bierze z żądania.
+    Bez ogłoszeń szablon nie wypisuje nic (jedno zapytanie po indeksie).
+    """
+    from apps.chat.announcements import visible_announcements
+
+    request = context.get("request")
+    competition = getattr(request, "competition", None)
+    return {"announcements": visible_announcements(competition), "variant": variant}

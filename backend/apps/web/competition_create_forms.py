@@ -74,9 +74,14 @@ RESERVED_LABELS = frozenset(
         # ``RESERVED_SLUGS`` przez ``reserved_labels()``, ale tu stoi jawnie: nazwa należy do
         # infrastruktury platformy, a nie tylko do urlconfu, i nie może zniknąć razem z listą slugów.
         "djcms",
+        # Śledzenie błędów – GlitchTip pod ``errors.<SITE_DOMAIN>`` (OPS-02, ERRORS_PROXY=1).
+        "errors",
         "ftp",
         "imap",
         "internal",
+        # Laboratorium notatników kwantowych na osobnym hoście (``NOTEBOOK_LAB_HOST``, QC-02 § 1) –
+        # domyślnie ``lab.<SITE_DOMAIN>``; blok Caddy'ego hosta laboratorium wygrywa z ``*.``.
+        "lab",
         "mail",
         "media",
         "meet",

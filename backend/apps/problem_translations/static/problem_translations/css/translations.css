@@ -1,0 +1,92 @@
+/* Tłumaczenia zadań (TR-01): edytor „obok siebie”, treść zadania, różnice i wydruk. */
+
+.tr-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 1.5rem;
+  align-items: start;
+}
+
+@media (max-width: 960px) {
+  .tr-split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.tr-pane {
+  min-width: 0;
+}
+
+.tr-textarea {
+  width: 100%;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.tr-doc {
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.tr-doc table.tr-table {
+  border-collapse: collapse;
+  margin: 0.75rem 0;
+}
+
+.tr-doc table.tr-table th,
+.tr-doc table.tr-table td {
+  border: 1px solid currentColor;
+  padding: 0.25rem 0.5rem;
+}
+
+.tr-math--display {
+  display: block;
+  margin: 0.75rem 0;
+  overflow-x: auto;
+  text-align: center;
+}
+
+.tr-source,
+.tr-diff {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 0.85rem;
+  max-height: 32rem;
+  overflow: auto;
+}
+
+.tr-diff__insert {
+  background: rgba(46, 160, 67, 0.18);
+}
+
+.tr-diff__delete {
+  background: rgba(218, 54, 51, 0.18);
+  text-decoration: line-through;
+}
+
+.tr-diff__skip {
+  opacity: 0.6;
+}
+
+.tr-history {
+  padding-left: 1.2rem;
+}
+
+.tr-print-page + .tr-print-page {
+  margin-top: 3rem;
+}
+
+@media print {
+  .tr-print-hide {
+    display: none !important;
+  }
+
+  .tr-print-page {
+    break-after: page;
+  }
+
+  .tr-print-page + .tr-print-page {
+    margin-top: 0;
+  }
+}

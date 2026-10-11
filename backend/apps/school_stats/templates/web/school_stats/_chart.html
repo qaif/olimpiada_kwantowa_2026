@@ -1,0 +1,41 @@
+{% load i18n l10n web_extras %}
+{% comment %}
+  Wykres liniowy STAT-01 – współrzędne liczy ``apps.school_stats.charts.line_chart``, tu jest tylko
+  rysowanie. ``localize off`` nie jest ozdobą: w polskiej lokalizacji Django wypisałby współrzędną
+  „16,0” zamiast „16.0”, a SVG z przecinkiem w ``x`` rysuje pustkę. Podpisy wartości idą filtrem
+  ``points`` (jawny format), więc wyłączenie lokalizacji ich nie dotyczy.
+
+  Kolory serii stoją w arkuszu (``ss-chart__series--<klucz>``), nie w atrybutach – ciemny motyw
+  i wysoki kontrast działają bez osobnych reguł. Te same liczby stoją w tabeli pod wykresem.
+{% endcomment %}
+<figure class="ss-chart">
+  {% localize off %}
+  <svg class="ss-chart__svg" viewBox="0 0 {{ chart.width }} {{ chart.height }}" role="img"
+       aria-labelledby="{{ chart_id }}-title {{ chart_id }}-desc" focusable="false">
+    <title id="{{ chart_id }}-title">{{ chart_title }}</title>
+    <desc id="{{ chart_id }}-desc">{% translate "Te same wartości stoją w tabeli pod wykresem." %}</desc>
+    {% for tick in chart.y_ticks %}
+      <line class="ss-chart__grid" x1="{{ chart.plot.left }}" x2="{{ chart.plot.right }}" y1="{{ tick.y }}" y2="{{ tick.y }}"></line>
+      <text class="ss-chart__tick" x="{{ chart.plot.left|add:-6 }}" y="{{ tick.y }}" text-anchor="end" dominant-baseline="middle">{{ tick.value|points }}</text>
+    {% endfor %}
+    {% for label in chart.x_labels %}
+      <text class="ss-chart__label" x="{{ label.x }}" y="{{ label.y }}" text-anchor="middle">{{ label.label }}</text>
+    {% endfor %}
+    {% for series in chart.series %}
+      <g class="ss-chart__series ss-chart__series--{{ series.key }}">
+        {% for line in series.polylines %}<polyline class="ss-chart__line" points="{{ line }}"></polyline>{% endfor %}
+        {% for point in series.points %}
+          <circle class="ss-chart__dot" cx="{{ point.x }}" cy="{{ point.y }}" r="4"><title>{{ series.label }}, {{ point.label }}: {{ point.value|points }}</title></circle>
+        {% endfor %}
+      </g>
+    {% endfor %}
+  </svg>
+  {% endlocalize %}
+  <figcaption>
+    <ul class="ss-legend">
+      {% for series in chart.series %}
+        <li class="ss-legend__item ss-chart__series--{{ series.key }}"><span class="ss-legend__swatch" aria-hidden="true"></span>{{ series.label }}</li>
+      {% endfor %}
+    </ul>
+  </figcaption>
+</figure>

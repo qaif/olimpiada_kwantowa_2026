@@ -56,7 +56,17 @@ def fee_card_context(competition, participant, edition) -> dict:
         # klucz do wiersza rejestru, po którym organizator odnajdzie wpłatę.
         "fee_reference": fee.reference,
         "fee_document_ready": bool(fee.document_version),
+        # Płatność online (PAY-01): przycisk tylko wtedy, gdy jest czym zapłacić w walucie należności.
+        "fee_pay_online": not fee.is_settled
+        and fee.amount > 0
+        and bool(_payment_methods(competition, fee.currency)),
     }
+
+
+def _payment_methods(competition, currency: str) -> list[str]:
+    from apps.payments.services import methods_for
+
+    return methods_for(competition, currency)
 
 
 class FeeDocumentView(ParticipantRequiredMixin, View):

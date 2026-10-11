@@ -1,0 +1,828 @@
+# Arabic - Nadzór zdalny (PROC-01) – tłumaczenie maszynowe, do przejrzenia przez native speakera.
+# Zrodlem (msgid) jest polski.
+#
+# UWAGA: tlumaczenie MASZYNOWE (model jezykowy). Przed szeroka komunikacja
+# do uczestnikow powinien je przejrzec native speaker - patrz docs/OPERACJE.md.
+#
+# Plik .mo powstaje z tego zrodla: django-admin compilemessages (obraz ma gettext).
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Olimpiada Kwantowa\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-04 19:52+0200\n"
+"PO-Revision-Date: 2026-10-04 20:00+0200\n"
+"Last-Translator: Olimpiada Kwantowa\n"
+"Language-Team: Arabic\n"
+"Language: ar\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=6; plural=(n==0 ? 0 : n==1 ? 1 : n==2 ? 2 : n%100>=3 "
+"&& n%100<=10 ? 3 : n%100>=11 ? 4 : 5);\n"
+
+msgid "Powód"
+msgstr "السبب"
+
+msgid "Nie mam kamery"
+msgstr "ليست لدي كاميرا"
+
+msgid "Kamera nie działa"
+msgstr "الكاميرا لا تعمل"
+
+msgid "Moja przeglądarka nie obsługuje nadzoru"
+msgstr "متصفحي لا يدعم المراقبة"
+
+msgid "Potrzeby dostępności"
+msgstr "احتياجات إمكانية الوصول"
+
+msgid "Inny powód"
+msgstr "سبب آخر"
+
+msgid "Krótka uwaga (opcjonalnie)"
+msgstr "ملاحظة قصيرة (اختيارية)"
+
+msgid ""
+"Nie wpisuj informacji o zdrowiu – organizator skontaktuje się z Tobą, jeśli "
+"będzie trzeba."
+msgstr "لا تكتب معلومات عن حالتك الصحية – سيتواصل معك المنظِّم إذا لزم الأمر."
+
+msgid ""
+"Ten etap jest nadzorowany zdalnie. Najpierw włącz nadzór w konsoli nadzoru."
+msgstr ""
+"تخضع هذه المرحلة للمراقبة عن بُعد. فعِّل المراقبة أولًا في وحدة تحكم "
+"المراقبة."
+
+msgid ""
+"Zapoznałem/-am się z informacją o nadzorze zdalnym tego etapu i wyrażam "
+"zgodę na przekazywanie obrazu z mojej kamery (oraz – jeśli etap tego wymaga "
+"– mojego ekranu i dźwięku) osobom nadzorującym na zasadach opisanych powyżej."
+msgstr ""
+"اطّلعتُ على المعلومات المتعلقة بالمراقبة عن بُعد في هذه المرحلة، وأوافق على "
+"نقل صورة كاميرتي (وكذلك شاشتي والصوت – إذا تطلّبت المرحلة ذلك) إلى "
+"المراقبين وفق الشروط الموضحة أعلاه."
+
+msgid "Serwer nadzoru nie odpowiada. Spróbuj za chwilę."
+msgstr "خادم المراقبة لا يستجيب. حاول مرة أخرى بعد قليل."
+
+#, python-format
+msgid "uczniowie: %(name)s"
+msgstr "الطلاب: %(name)s"
+
+msgid "uczniowie bez przydziału"
+msgstr "طلاب غير مُسنَدين"
+
+msgid ""
+"Najpierw potrzebna jest zgoda Twojego rodzica lub opiekuna prawnego, "
+"potwierdzona online. Poproś o nią w panelu, w zakładce „Zgody”."
+msgstr ""
+"يلزم أولًا الحصول على موافقة أحد والديك أو وليّ أمرك القانوني، مؤكَّدة عبر "
+"الإنترنت. اطلبها من لوحة التحكم، في تبويب «الموافقات»."
+
+msgid "Ten etap nie zbiera zdjęcia dokumentu."
+msgstr "لا تتطلب هذه المرحلة صورة وثيقة الهوية."
+
+msgid "Zdjęcie nie zostało zapisane. Spróbuj jeszcze raz."
+msgstr "لم تُحفظ الصورة. حاول مرة أخرى."
+
+msgid "Najpierw wyraź zgodę na nadzór."
+msgstr "وافق على المراقبة أولًا."
+
+msgid "Najpierw sprawdź sprzęt."
+msgstr "تحقّق من أجهزتك أولًا."
+
+msgid "Najpierw zrób zdjęcie dokumentu."
+msgstr "التقط صورة الوثيقة أولًا."
+
+#, python-format
+msgid "Nadzór będzie można włączyć od %(when)s."
+msgstr "سيكون بالإمكان تفعيل المراقبة اعتبارًا من %(when)s."
+
+msgid "Czas tego etapu minął."
+msgstr "انتهى وقت هذه المرحلة."
+
+msgid ""
+"Serwer nadzoru jeszcze nie widzi Twojej kamery. Poczekaj chwilę i spróbuj "
+"ponownie."
+msgstr "لا يرى خادم المراقبة كاميرتك بعد. انتظر قليلًا ثم حاول مرة أخرى."
+
+msgid "Ten etap wymaga działającego nadzoru. Skontaktuj się z organizatorem."
+msgstr "تتطلب هذه المرحلة مراقبة تعمل. تواصل مع المنظِّم."
+
+msgid "Wybierz powód z listy."
+msgstr "اختر السبب من القائمة."
+
+msgid "Pokój nadzoru jest teraz zamknięty."
+msgstr "غرفة المراقبة مغلقة الآن."
+
+msgid "Wpisz treść wiadomości."
+msgstr "اكتب نص الرسالة."
+
+msgid "Wybierz kategorię i wagę incydentu."
+msgstr "اختر فئة الحادثة ودرجة خطورتها."
+
+msgid "Nadzór zdalny"
+msgstr "المراقبة عن بُعد"
+
+msgid ""
+"Ten etap jest nadzorowany zdalnie. Konsola nadzoru musi być otwarta w "
+"osobnej karcie do końca etapu."
+msgstr ""
+"تخضع هذه المرحلة للمراقبة عن بُعد. يجب أن تبقى وحدة تحكم المراقبة مفتوحة في "
+"تبويب منفصل حتى نهاية المرحلة."
+
+msgid ""
+"Ten etap jest nadzorowany zdalnie. Zanim zobaczysz zadania, wyraź zgodę, "
+"sprawdź sprzęt i włącz nadzór w konsoli."
+msgstr ""
+"تخضع هذه المرحلة للمراقبة عن بُعد. قبل أن ترى المسائل، وافق على المراقبة "
+"وتحقّق من أجهزتك وفعِّل المراقبة في وحدة التحكم."
+
+msgid "Nadzór działa."
+msgstr "المراقبة تعمل."
+
+msgid ""
+"Nadzór nie działa – wróć do karty konsoli nadzoru albo otwórz ją ponownie."
+msgstr "المراقبة لا تعمل – عُد إلى تبويب وحدة تحكم المراقبة أو افتحه من جديد."
+
+msgid "Stan nadzoru: sprawdź kartę konsoli nadzoru."
+msgstr "حالة المراقبة: تحقّق من تبويب وحدة تحكم المراقبة."
+
+msgid "Konsola nadzoru"
+msgstr "وحدة تحكم المراقبة"
+
+msgid "Etap:"
+msgstr "المرحلة:"
+
+msgid "Nadzór możesz włączyć od:"
+msgstr "يمكنك تفعيل المراقبة اعتبارًا من:"
+
+msgid "Nadzór zdalny wymaga włączonego JavaScriptu."
+msgstr "تتطلب المراقبة عن بُعد تفعيل JavaScript."
+
+msgid ""
+"Nadzór jest chwilowo niedostępny – brakuje komponentu wideo na serwerze. Daj "
+"znać organizatorowi."
+msgstr ""
+"المراقبة غير متاحة مؤقتًا – مكوّن الفيديو مفقود على الخادم. أبلغ المنظِّم."
+
+msgid "Organizator zatwierdził inną formę nadzoru"
+msgstr "وافق المنظِّم على شكل آخر من المراقبة"
+
+msgid "Przejdź do etapu"
+msgstr "الانتقال إلى المرحلة"
+
+msgid "1. Informacja o nadzorze i zgoda"
+msgstr "1. معلومات عن المراقبة والموافقة"
+
+msgid ""
+"W czasie etapu obraz z Twojej kamery (mała rozdzielczość) widzą na żywo "
+"osoby nadzorujące wskazane przez organizatora: koordynatorzy i członkowie "
+"komisji, a w olimpiadzie międzynarodowej także opiekun Twojej drużyny "
+"narodowej – wyłącznie uczniów swojej drużyny."
+msgstr ""
+"أثناء المرحلة، يشاهد صورةَ كاميرتك (بدقة منخفضة) مباشرةً المراقبون الذين "
+"يحددهم المنظِّم: المنسّقون وأعضاء اللجنة، وفي الأولمبياد الدولي أيضًا قائد "
+"فريقك الوطني – ويقتصر ذلك على طلاب فريقه فقط."
+
+msgid ""
+"Etap wymaga udostępnienia całego ekranu – osoby nadzorujące mogą go zobaczyć."
+msgstr "تتطلب المرحلة مشاركة الشاشة بالكامل – يمكن للمراقبين رؤيتها."
+
+msgid "Etap wymaga włączonego mikrofonu – osoby nadzorujące mogą Cię słyszeć."
+msgstr "تتطلب المرحلة تشغيل الميكروفون – يمكن للمراقبين سماعك."
+
+msgid ""
+"Przed startem zrobisz kamerą zdjęcie dokumentu tożsamości (legitymacji "
+"szkolnej). Zasłoń numer PESEL i adres – wystarczy imię, nazwisko i zdjęcie."
+msgstr ""
+"قبل البدء ستلتقط بالكاميرا صورة لوثيقة هويتك (بطاقة الطالب المدرسية). غطِّ "
+"رقم PESEL والعنوان – يكفي الاسم واللقب والصورة."
+
+msgid "Obraz z kamery jest nagrywany."
+msgstr "يتم تسجيل صورة الكاميرا."
+
+#, python-format
+msgid ""
+"Nagranie widzą wyłącznie koordynator i komisja odwoławcza (każde odtworzenie "
+"jest zapisywane). Usuwamy je %(days)s dni po ogłoszeniu wyników i zamknięciu "
+"okna reklamacji, chyba że trwa wyjaśnianie Twojej sprawy."
+msgstr ""
+"لا يطّلع على التسجيل إلا المنسّق ولجنة الطعون (ويُسجَّل كل تشغيل له). نحذفه "
+"بعد %(days)s يومًا من إعلان النتائج وإغلاق فترة تقديم الطعون، ما لم تكن "
+"قضيتك قيد البحث."
+
+msgid "Obraz nie jest nagrywany – osoby nadzorujące widzą go tylko na żywo."
+msgstr "لا يتم تسجيل الصورة – يشاهدها المراقبون مباشرةً فقط."
+
+msgid ""
+"Nie stosujemy automatycznej analizy obrazu ani śledzenia tego, co robisz w "
+"przeglądarce. Decyzje podejmują ludzie."
+msgstr ""
+"لا نستخدم التحليل الآلي للصورة ولا نتتبّع ما تفعله في المتصفح. القرارات "
+"يتخذها بشر."
+
+#, python-format
+msgid ""
+"Zapisujemy czasy połączeń, wiadomości od osób nadzorujących i ich notatki o "
+"incydentach. Dziennik połączeń i wiadomości usuwamy %(days)s dni po "
+"ogłoszeniu wyników; notatki o incydentach zostają w dokumentacji zawodów "
+"(odwołania)."
+msgstr ""
+"نحفظ أوقات الاتصال ورسائل المراقبين وملاحظاتهم عن الحوادث. نحذف سجل "
+"الاتصالات والرسائل بعد %(days)s يومًا من إعلان النتائج؛ أما ملاحظات الحوادث "
+"فتبقى ضمن وثائق المسابقة (لأغراض الطعون)."
+
+msgid ""
+"Zgodę możesz wycofać w każdej chwili. Jeśli nie możesz albo nie chcesz "
+"używać kamery, poproś organizatora o inną formę nadzoru (na dole strony)."
+msgstr ""
+"يمكنك سحب موافقتك في أي وقت. إذا لم تتمكن من استخدام الكاميرا أو لم ترغب في "
+"ذلك، فاطلب من المنظِّم شكلًا آخر من المراقبة (أسفل الصفحة)."
+
+msgid ""
+"Szczegóły przetwarzania danych: polityka prywatności organizatora (sekcja "
+"„Nadzór zdalny”)."
+msgstr ""
+"تفاصيل معالجة البيانات: سياسة الخصوصية لدى المنظِّم (قسم «المراقبة عن "
+"بُعد»)."
+
+#, python-format
+msgid "Zgoda wyrażona %(when)s (wersja %(version)s)."
+msgstr "أُعطيت الموافقة في %(when)s (الإصدار %(version)s)."
+
+msgid "Wycofaj zgodę"
+msgstr "سحب الموافقة"
+
+msgid ""
+"Jesteś osobą niepełnoletnią: zanim wyrazisz zgodę, Twój rodzic lub opiekun "
+"prawny musi potwierdzić online swoją zgodę na Twój udział."
+msgstr ""
+"أنت قاصر: قبل أن تعطي موافقتك، يجب أن يؤكد أحد والديك أو وليّ أمرك القانوني "
+"عبر الإنترنت موافقته على مشاركتك."
+
+msgid "Poproś opiekuna o zgodę"
+msgstr "اطلب موافقة وليّ الأمر"
+
+msgid "Zgoda Twojego opiekuna prawnego została potwierdzona online."
+msgstr "تم تأكيد موافقة وليّ أمرك القانوني عبر الإنترنت."
+
+#, python-format
+msgid "Wersja informacji: %(version)s."
+msgstr "إصدار المعلومات: %(version)s."
+
+msgid "Wyrażam zgodę"
+msgstr "أوافق"
+
+msgid "2. Sprawdzenie sprzętu"
+msgstr "2. التحقق من الأجهزة"
+
+msgid "Podgląd kamery"
+msgstr "معاينة الكاميرا"
+
+msgid "Przeglądarka"
+msgstr "المتصفح"
+
+msgid "Kamera"
+msgstr "الكاميرا"
+
+msgid "Mikrofon"
+msgstr "الميكروفون"
+
+msgid "Udostępnianie ekranu"
+msgstr "مشاركة الشاشة"
+
+msgid "Sprawdź sprzęt"
+msgstr "تحقّق من الأجهزة"
+
+msgid "Sprzęt sprawdzony."
+msgstr "تم التحقق من الأجهزة."
+
+msgid "3. Zdjęcie dokumentu"
+msgstr "3. صورة الوثيقة"
+
+msgid "opcjonalne"
+msgstr "اختياري"
+
+msgid ""
+"Pokaż do kamery legitymację szkolną albo inny dokument ze zdjęciem i kliknij "
+"„Zrób zdjęcie”."
+msgstr ""
+"اعرض أمام الكاميرا بطاقة الطالب المدرسية أو وثيقة أخرى تحمل صورتك، ثم انقر "
+"«التقاط صورة»."
+
+msgid "Zrób zdjęcie"
+msgstr "التقاط صورة"
+
+msgid "Zdjęcie zapisane."
+msgstr "تم حفظ الصورة."
+
+msgid "4. Start nadzoru"
+msgstr "4. بدء المراقبة"
+
+msgid "3. Start nadzoru"
+msgstr "3. بدء المراقبة"
+
+msgid "Etap jest dla Ciebie otwarty."
+msgstr "المرحلة مفتوحة لك."
+
+msgid "Nagrywanie kamery włączone"
+msgstr "تسجيل الكاميرا مفعَّل"
+
+msgid "Włącz nadzór"
+msgstr "تفعيل المراقبة"
+
+msgid "Udostępnij ekran"
+msgstr "شارك الشاشة"
+
+msgid "Kontynuuj bez nadzoru"
+msgstr "المتابعة دون مراقبة"
+
+msgid "Przejdź do etapu (nowa karta)"
+msgstr "الانتقال إلى المرحلة (تبويب جديد)"
+
+msgid ""
+"Zostaw tę kartę otwartą do końca etapu – zamknięcie jej przerywa nadzór. "
+"Etap otworzy się w nowej karcie."
+msgstr ""
+"اترك هذا التبويب مفتوحًا حتى نهاية المرحلة – فإغلاقه يوقف المراقبة. ستُفتح "
+"المرحلة في تبويب جديد."
+
+msgid "Serwer nadzoru jest niedostępny. Skontaktuj się z organizatorem."
+msgstr "خادم المراقبة غير متاح. تواصل مع المنظِّم."
+
+msgid "Twój obraz w nadzorze"
+msgstr "صورتك كما يراها المراقبون"
+
+msgid "Nie mogę użyć kamery"
+msgstr "لا أستطيع استخدام الكاميرا"
+
+msgid ""
+"Twoja prośba czeka na decyzję organizatora. Odpowiedź pojawi się na tej "
+"stronie."
+msgstr "طلبك بانتظار قرار المنظِّم. سيظهر الرد في هذه الصفحة."
+
+msgid "Organizator nie zatwierdził innej formy nadzoru."
+msgstr "لم يوافق المنظِّم على شكل آخر من المراقبة."
+
+msgid "Poproś o inną formę nadzoru"
+msgstr "اطلب شكلًا آخر من المراقبة"
+
+msgid "Nadzór"
+msgstr "المراقبة"
+
+msgid "Łączenie…"
+msgstr "جارٍ الاتصال…"
+
+msgid "Eksport incydentów (CSV)"
+msgstr "تصدير الحوادث (CSV)"
+
+msgid "Siatka nadzoru wymaga włączonego JavaScriptu."
+msgstr "تتطلب شبكة المراقبة تفعيل JavaScript."
+
+msgid ""
+"Obraz jest chwilowo niedostępny – brakuje komponentu wideo na serwerze. "
+"Lista uczniów i czynności działają."
+msgstr ""
+"الصورة غير متاحة مؤقتًا – مكوّن الفيديو مفقود على الخادم. قائمة الطلاب "
+"والإجراءات تعمل."
+
+msgid ""
+"Serwer nadzoru nie jest skonfigurowany. Lista uczniów i czynności działają."
+msgstr "خادم المراقبة غير مُهيّأ. قائمة الطلاب والإجراءات تعمل."
+
+msgid "Widok"
+msgstr "العرض"
+
+msgid "Grupa"
+msgstr "المجموعة"
+
+msgid "Kafli na stronie"
+msgstr "عدد المربعات في الصفحة"
+
+msgid "Poprzednia"
+msgstr "السابقة"
+
+msgid "Następna"
+msgstr "التالية"
+
+msgid "Włącz dźwięk"
+msgstr "تشغيل الصوت"
+
+msgid "Incydent"
+msgstr "حادثة"
+
+msgid "Kategoria"
+msgstr "الفئة"
+
+msgid "Waga"
+msgstr "درجة الخطورة"
+
+msgid "Notatka"
+msgstr "ملاحظة"
+
+msgid "Czas incydentu zapisze się jako chwila otwarcia tego okna."
+msgstr "سيُسجَّل وقت الحادثة على أنه لحظة فتح هذه النافذة."
+
+msgid "Zapisz incydent"
+msgstr "حفظ الحادثة"
+
+msgid "Anuluj"
+msgstr "إلغاء"
+
+msgid "Etapy do nadzoru"
+msgstr "المراحل الخاضعة للمراقبة"
+
+msgid "Otwórz siatkę nadzoru"
+msgstr "فتح شبكة المراقبة"
+
+msgid "Nie masz etapów do nadzoru."
+msgstr "ليست لديك مراحل للمراقبة."
+
+msgid "Raport nadzoru"
+msgstr "تقرير المراقبة"
+
+msgid "Zgoda"
+msgstr "الموافقة"
+
+msgid "wycofana"
+msgstr "مسحوبة"
+
+msgid "zgoda opiekuna potwierdzona online"
+msgstr "موافقة وليّ الأمر مؤكَّدة عبر الإنترنت"
+
+msgid "brak"
+msgstr "لا يوجد"
+
+msgid "Sprawdzenie sprzętu"
+msgstr "التحقق من الأجهزة"
+
+msgid "Nadzór rozpoczęty"
+msgstr "بدأت المراقبة"
+
+msgid "Bez nadzoru od"
+msgstr "دون مراقبة منذ"
+
+msgid "Obecność"
+msgstr "الحضور"
+
+msgid "Inna forma nadzoru"
+msgstr "شكل آخر من المراقبة"
+
+msgid "Zdjęcie dokumentu"
+msgstr "صورة الوثيقة"
+
+msgid "otwórz (15 min)"
+msgstr "فتح (15 دقيقة)"
+
+msgid "Wstrzymanie usunięcia"
+msgstr "تعليق الحذف"
+
+msgid "Nośniki usunięte"
+msgstr "تم حذف ملفات الوسائط"
+
+msgid "Incydenty"
+msgstr "الحوادث"
+
+msgid "Czas"
+msgstr "الوقت"
+
+msgid "Zgłosił"
+msgstr "المُبلِّغ"
+
+msgid "Brak incydentów."
+msgstr "لا توجد حوادث."
+
+msgid "Wiadomości do ucznia"
+msgstr "الرسائل إلى الطالب"
+
+msgid "potwierdzona"
+msgstr "مؤكَّدة"
+
+msgid "Brak wiadomości."
+msgstr "لا توجد رسائل."
+
+msgid "Nagrania"
+msgstr "التسجيلات"
+
+msgid "odtwórz (15 min)"
+msgstr "تشغيل (15 دقيقة)"
+
+msgid "Brak nagrań."
+msgstr "لا توجد تسجيلات."
+
+msgid "Dziennik"
+msgstr "السجل"
+
+msgid "Dziennik jest pusty albo został już usunięty (retencja)."
+msgstr "السجل فارغ أو حُذف بالفعل (انتهت مدة الاحتفاظ)."
+
+msgid "Za dużo żądań. Spróbuj za chwilę."
+msgstr "طلبات كثيرة جدًا. حاول مرة أخرى بعد قليل."
+
+msgid "Sprawdzanie…"
+msgstr "جارٍ التحقق…"
+
+msgid "działa"
+msgstr "يعمل"
+
+msgid "nie działa"
+msgstr "لا يعمل"
+
+msgid "niewymagane"
+msgstr "غير مطلوب"
+
+msgid ""
+"Ta przeglądarka nie obsługuje nadzoru wideo. Użyj aktualnej przeglądarki "
+"Chrome, Edge, Firefox albo Safari."
+msgstr ""
+"هذا المتصفح لا يدعم المراقبة بالفيديو. استخدم إصدارًا حديثًا من Chrome أو "
+"Edge أو Firefox أو Safari."
+
+msgid ""
+"Brak dostępu do kamery. Zezwól na kamerę w ustawieniach przeglądarki i "
+"spróbuj ponownie."
+msgstr ""
+"لا يوجد وصول إلى الكاميرا. اسمح باستخدام الكاميرا في إعدادات المتصفح ثم "
+"حاول مرة أخرى."
+
+msgid "Łączenie z serwerem nadzoru…"
+msgstr "جارٍ الاتصال بخادم المراقبة…"
+
+msgid "Nadzór działa. Zostaw tę kartę otwartą do końca etapu."
+msgstr "المراقبة تعمل. اترك هذا التبويب مفتوحًا حتى نهاية المرحلة."
+
+msgid ""
+"Połączenie nadzoru zostało przerwane. Nie zamykaj tej karty – trwa ponowne "
+"łączenie."
+msgstr "انقطع اتصال المراقبة. لا تغلق هذا التبويب – تجري إعادة الاتصال."
+
+msgid "Połączenie nadzoru przywrócone."
+msgstr "تمت استعادة اتصال المراقبة."
+
+msgid "Nie udało się połączyć z serwerem nadzoru."
+msgstr "تعذّر الاتصال بخادم المراقبة."
+
+msgid "Udostępnianie ekranu zostało zatrzymane. Udostępnij ekran ponownie."
+msgstr "توقفت مشاركة الشاشة. شارك الشاشة مرة أخرى."
+
+msgid "Wiadomość od osoby nadzorującej"
+msgstr "رسالة من المراقِب"
+
+msgid "Osoba nadzorująca prosi: pokaż kamerą pokój dookoła siebie."
+msgstr "يطلب المراقِب: اعرض بالكاميرا الغرفة من حولك."
+
+msgid "Osoba nadzorująca prosi: pokaż do kamery dokument tożsamości."
+msgstr "يطلب المراقِب: اعرض وثيقة هويتك أمام الكاميرا."
+
+msgid "Rozumiem"
+msgstr "فهمت"
+
+msgid "Coś poszło nie tak. Spróbuj ponownie."
+msgstr "حدث خطأ ما. حاول مرة أخرى."
+
+msgid "Spróbuj ponownie"
+msgstr "حاول مرة أخرى"
+
+msgid "Zgoda na nadzór wycofana."
+msgstr "تم سحب الموافقة على المراقبة."
+
+msgid "Zaznacz pole zgody, żeby przejść dalej."
+msgstr "حدِّد خانة الموافقة للمتابعة."
+
+msgid "Prośba wysłana. Organizator odpowie w tej konsoli."
+msgstr "تم إرسال الطلب. سيرد المنظِّم في وحدة التحكم هذه."
+
+msgid "Połączono z pokojem nadzoru."
+msgstr "تم الاتصال بغرفة المراقبة."
+
+msgid "Rozłączono z pokojem nadzoru. Odśwież stronę."
+msgstr "انقطع الاتصال بغرفة المراقبة. حدِّث الصفحة."
+
+msgid "Nie udało się połączyć z pokojem nadzoru."
+msgstr "تعذّر الاتصال بغرفة المراقبة."
+
+#, python-format
+msgid "Strona %(page)s z %(pages)s"
+msgstr "الصفحة %(page)s من %(pages)s"
+
+msgid "Brak uczniów w tej grupie."
+msgstr "لا يوجد طلاب في هذه المجموعة."
+
+msgid "nadaje"
+msgstr "يبث"
+
+msgid "czeka na start"
+msgstr "بانتظار البدء"
+
+msgid "strumień przerwany"
+msgstr "انقطع البث"
+
+msgid "brak sygnału"
+msgstr "لا توجد إشارة"
+
+msgid "bez nadzoru"
+msgstr "دون مراقبة"
+
+msgid "alternatywa"
+msgstr "بديل"
+
+msgid "brak zgody"
+msgstr "لا توجد موافقة"
+
+msgid "Wiadomość"
+msgstr "رسالة"
+
+msgid "Treść wiadomości do ucznia:"
+msgstr "نص الرسالة إلى الطالب:"
+
+msgid "Pokaż pokój"
+msgstr "عرض الغرفة"
+
+msgid "Pokaż dokument"
+msgstr "عرض الوثيقة"
+
+msgid "Obecny"
+msgstr "حاضر"
+
+msgid "Nieobecny"
+msgstr "غائب"
+
+msgid "Ekran"
+msgstr "الشاشة"
+
+msgid "Ukryj ekran"
+msgstr "إخفاء الشاشة"
+
+#, python-format
+msgid "incydenty: %(count)s"
+msgstr "الحوادث: %(count)s"
+
+msgid "Wysłano."
+msgstr "تم الإرسال."
+
+msgid "Zapisano."
+msgstr "تم الحفظ."
+
+msgid "Dźwięk"
+msgstr "الصوت"
+
+msgid "Raport"
+msgstr "التقرير"
+
+msgid "uczeń poza kadrem"
+msgstr "الطالب خارج الإطار"
+
+msgid "inna osoba w kadrze"
+msgstr "شخص آخر في الإطار"
+
+msgid "inne urządzenie"
+msgstr "جهاز آخر"
+
+msgid "rozmowa lub komunikacja"
+msgstr "محادثة أو تواصل"
+
+msgid "niedozwolone materiały"
+msgstr "مواد غير مسموح بها"
+
+msgid "ekran"
+msgstr "الشاشة"
+
+msgid "problem techniczny"
+msgstr "مشكلة تقنية"
+
+msgid "inne"
+msgstr "أخرى"
+
+msgid "informacja"
+msgstr "معلومة"
+
+msgid "ostrzeżenie"
+msgstr "تحذير"
+
+msgid "poważny"
+msgstr "خطير"
+
+msgid "Treść tego etapu jest w trakcie zawodów dostępna wyłącznie dla jego uczestników."
+msgstr "خلال المسابقة، يقتصر الاطلاع على محتوى هذه المرحلة على المشاركين فيها."
+
+msgid "Mój rodzic lub opiekun prawny zna tę informację o nadzorze zdalnym i zgadza się na niego."
+msgstr "وليّ أمري على علم بهذه المعلومات عن المراقبة عن بُعد ويوافق عليها."
+
+msgid "Zaznacz też oświadczenie o wiedzy i zgodzie rodzica lub opiekuna prawnego."
+msgstr "حدّد أيضًا الإقرار بعلم وليّ أمرك وموافقته."
+
+msgid "Serwer nadzoru działa – spróbuj połączyć się jeszcze raz. Jeśli nie możesz użyć kamery, poproś o inną formę nadzoru."
+msgstr "خادم المراقبة يعمل – حاول الاتصال مرة أخرى. إذا لم تتمكن من استخدام الكاميرا، فاطلب شكلًا آخر من المراقبة."
+
+msgid "serwer nadzoru nieskonfigurowany"
+msgstr "خادم المراقبة غير مُهيّأ"
+
+msgid "serwer nadzoru niedostępny"
+msgstr "خادم المراقبة غير متاح"
+
+msgid "nieudane połączenia ucznia – serwer działał"
+msgstr "فشلت محاولات اتصال الطالب – كان الخادم يعمل"
+
+msgid "Praca bez nadzoru – awaria serwera nadzoru została odnotowana."
+msgstr "العمل دون مراقبة – تم تسجيل عطل خادم المراقبة."
+
+msgid "Ustawienia etapu w chwili zgody"
+msgstr "إعدادات المرحلة وقت الموافقة"
+
+#, python-format
+msgid "późny start: %(minutes)s min"
+msgstr "بدء متأخر: %(minutes)s دقيقة"
+
+msgid "Kamera nie działa albo nie masz do niej dostępu. Jeśli nie możesz jej użyć, poproś o inną formę nadzoru (na dole strony)."
+msgstr "الكاميرا لا تعمل أو لا تملك صلاحية الوصول إليها. إذا لم تتمكن من استخدامها، فاطلب شكلًا آخر من المراقبة (أسفل الصفحة)."
+
+msgid "Tej osoby nie ma teraz w pokoju."
+msgstr "هذا الشخص غير موجود في الغرفة الآن."
+
+msgid "Twoja rozmowa jest nadzorowana zdalnie. Zgoda i sprzęt są gotowe – wejdź na rozmowę przyciskiem „Dołącz do rozmowy”."
+msgstr "مقابلتك خاضعة للمراقبة عن بُعد. الموافقة والأجهزة جاهزة – ادخل عبر زر «الانضمام إلى المقابلة»."
+
+msgid "Rozmowa"
+msgstr "المقابلة"
+
+msgid "Nadzór obejmuje Twoją rozmowę w pokoju na platformie – osobnego nadawania nie trzeba włączać. Wejdź na rozmowę z panelu przyciskiem „Dołącz do rozmowy”."
+msgstr "تشمل المراقبة مقابلتك في غرفة المنصة – لا حاجة إلى تشغيل بث منفصل. ادخل إلى المقابلة من لوحتك عبر زر «الانضمام إلى المقابلة»."
+
+msgid "Wyjdź"
+msgstr "غادر"
+
+msgid "Obraz uczestników"
+msgstr "فيديو المشاركين"
+
+msgid "Uczestnicy"
+msgstr "المشاركون"
+
+msgid "Czat"
+msgstr "الدردشة"
+
+msgid "Wyślij"
+msgstr "إرسال"
+
+msgid "Sterowanie"
+msgstr "عناصر التحكم"
+
+msgid "Podnieś rękę"
+msgstr "ارفع يدك"
+
+msgid "Widok prelegenta"
+msgstr "عرض المتحدث"
+
+#, python-format
+msgid "Pokój rozmowy otworzy się %(when)s (czas polski) – wróć wtedy do panelu."
+msgstr "ستُفتح غرفة المقابلة %(when)s (بتوقيت بولندا) – عُد إلى اللوحة حينها."
+
+msgid "Czas tej rozmowy minął – pokój jest już zamknięty."
+msgstr "انقضى وقت هذه المقابلة – الغرفة مغلقة الآن."
+
+#, python-format
+msgid "Próba sprzętu – %(stage)s"
+msgstr "اختبار الأجهزة – %(stage)s"
+
+#, python-format
+msgid "Rozmowa – %(stage)s"
+msgstr "المقابلة – %(stage)s"
+
+msgid "Serwer wideo nie odpowiada. Spróbuj za chwilę."
+msgstr "خادم الفيديو لا يستجيب. حاول مرة أخرى بعد قليل."
+
+msgid "Ta rozmowa jest nadzorowana zdalnie. Najpierw wyraź zgodę i sprawdź sprzęt w konsoli nadzoru."
+msgstr "هذه المقابلة خاضعة للمراقبة عن بُعد. امنح موافقتك أولًا وتحقق من أجهزتك في وحدة تحكم المراقبة."
+
+msgid "Twoja rozmowa jest nadzorowana zdalnie. Przed wejściem na rozmowę wyraź zgodę i sprawdź sprzęt w konsoli nadzoru."
+msgstr "مقابلتك خاضعة للمراقبة عن بُعد. قبل الدخول امنح موافقتك وتحقق من أجهزتك في وحدة تحكم المراقبة."
+
+msgid "Przejdź do rozmowy"
+msgstr "الانتقال إلى المقابلة"
+
+msgid "Rozmowa kwalifikacyjna"
+msgstr "مقابلة التأهيل"
+
+msgid "Pokój rozmowy wymaga włączonego JavaScriptu."
+msgstr "تتطلب غرفة المقابلة تفعيل JavaScript."
+
+msgid "Pokój jest chwilowo niedostępny – brakuje komponentu wideo na serwerze. Daj znać organizatorowi."
+msgstr "الغرفة غير متاحة مؤقتًا – مكوّن الفيديو مفقود على الخادم. أبلغ المنظّم."
+
+msgid "Decyzje moderatora w tym terminie"
+msgstr "قرارات المشرف في هذا الموعد"
+
+msgid "usunięty z pokoju"
+msgstr "أُزيل من الغرفة"
+
+msgid "bez głosu"
+msgstr "دون صوت"
+
+msgid "Oddaj głos"
+msgstr "منح الكلمة"
+
+msgid "Wpuść ponownie"
+msgstr "السماح بالدخول مجددًا"
+
+msgid "Moderator usunął Cię z tej rozmowy. Skontaktuj się z organizatorem."
+msgstr "أزالك المشرف من هذه المقابلة. تواصل مع الجهة المنظِّمة."

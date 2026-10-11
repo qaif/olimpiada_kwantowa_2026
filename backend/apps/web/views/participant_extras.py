@@ -27,6 +27,7 @@ from apps.accounts.preferences import (
     save_preferences,
 )
 from apps.core.api import DomainError
+from apps.email_delivery.fields import CheckedEmailField, EmailDomainCheckMixin  # MAIL-02
 from apps.web.mixins import ActionViewMixin, ParticipantRequiredMixin
 from apps.web.throttle import ThrottledFormMixin
 
@@ -36,14 +37,16 @@ def _form_error(message: str) -> DomainError:
     return DomainError(message, "INVALID_INPUT", status.HTTP_400_BAD_REQUEST)
 
 
-class GuardianEmailForm(forms.Form):
+class GuardianEmailForm(EmailDomainCheckMixin, forms.Form):
     """Adres opiekuna. Formularz mieszka przy widoku, bo nie używa go nikt inny.
 
     Samego kształtu pilnuje ``EmailField``; reguły („uczestnik nie może być własnym opiekunem”,
     „pełnoletni nie potrzebuje zgody”) są w serwisie, żeby API i panel nie mogły się rozjechać.
     """
 
-    guardian_email = forms.EmailField(
+    guardian_email = CheckedEmailField(
+        # Widok jest akcją POST bez ponownego rysowania pola – sama blokada martwej domeny (MAIL-02).
+        suggest_typos=False,
         label=gettext_lazy("Adres e-mail rodzica lub opiekuna prawnego"),
         error_messages={"required": gettext_lazy("Podaj adres e-mail rodzica lub opiekuna prawnego.")},
     )

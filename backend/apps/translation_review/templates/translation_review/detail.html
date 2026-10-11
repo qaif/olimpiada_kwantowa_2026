@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% comment %}
+  Jeden napis: źródło, angielski, obecne tłumaczenie, kontekst z katalogu (miejsca w kodzie,
+  komentarze dla tłumacza, kontekst ``msgctxt``), propozycje z głosami i decyzje recenzenta.
+  Wszystko escapowane – tłumaczenie bywa w interfejsie HTML-em zaufanym (``{% templatetag openblock %} translate {% templatetag closeblock %}``
+  nie escapuje), ale tutaj zawsze pokazujemy je jako tekst, łącznie ze znacznikami.
+  Autor propozycji jest anonimowy („Twoja” / „inny tłumacz”) – tłumacze nie widzą swoich kont.
+{% endcomment %}
+{% block title %}{% translate "Napis" %} – {{ language_label }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow"><a href="{% url 'web:translation-list' language %}">{{ language_label }}</a></span>
+  <h1>{% translate "Napis do przejrzenia" %}</h1>
+</div>
+
+<section class="section">
+  <div class="card">
+    <dl class="meta-list">
+      <dt>{% translate "Tekst źródłowy (polski)" %}</dt>
+      <dd lang="pl" dir="ltr"><div class="quote">{{ item.row.source }}</div></dd>
+      {% if show_pivot %}
+        <dt>English</dt>
+        <dd lang="en" dir="ltr"><div class="quote">{{ item.pivot|default:"—" }}</div></dd>
+      {% endif %}
+      <dt>{% translate "Obecne tłumaczenie" %}</dt>
+      <dd lang="{{ language }}" dir="{{ text_dir }}"><div class="quote">{{ item.current|default:"—" }}</div>
+        {% if item.stale %}
+          <span class="badge badge--danger">{% translate "katalog zmienił się od decyzji – przejrzyj ponownie" %}</span>
+        {% elif item.override is not None %}
+          <span class="badge badge--ok">{% translate "zatwierdzone w serwisie, czeka na przeniesienie do repozytorium" %}</span>
+        {% elif item.state %}
+          <span class="badge badge--ok">{% translate "przejrzane" %}</span>
+        {% elif item.row.reviewed %}
+          <span class="badge badge--ok">{% translate "przejrzane" %}</span>
+        {% elif item.row.translation %}
+          <span class="badge badge--warn">{% translate "maszynowe" %}</span>
+        {% endif %}
+      </dd>
+      {% if item.stale %}
+        <dt>{% translate "Decyzja recenzenta (nieaktualna)" %}</dt>
+        <dd lang="{{ language }}" dir="{{ text_dir }}"><div class="quote">{{ item.state.text }}</div></dd>
+      {% endif %}
+      {% if item.override is not None and item.override != item.row.translation %}
+        <dt>{% translate "Tłumaczenie w katalogu" %}</dt>
+        <dd lang="{{ language }}" dir="{{ text_dir }}"><div class="quote">{{ item.row.translation|default:"—" }}</div></dd>
+      {% endif %}
+      {% if item.row.msgid_plural %}
+        <dt>{% translate "Forma mnoga" %}</dt>
+        <dd dir="ltr">{{ item.row.plural_index }} – <span lang="pl">{{ item.row.msgid }}</span> / <span lang="pl">{{ item.row.msgid_plural }}</span></dd>
+      {% endif %}
+      {% if item.row.msgctxt %}
+        <dt>{% translate "Kontekst" %}</dt>
+        <dd>{{ item.row.msgctxt }}</dd>
+      {% endif %}
+      {% if item.row.comments %}
+        <dt>{% translate "Uwagi dla tłumacza" %}</dt>
+        <dd>{% for comment in item.row.comments %}{{ comment }}<br>{% endfor %}</dd>
+      {% endif %}
+      <dt>{% translate "Gdzie występuje" %}</dt>
+      <dd><code>{{ item.row.locations|join:", "|default:"—" }}</code></dd>
+    </dl>
+    <p class="hint">{% translate "Zmienne w nawiasach i znaczniki HTML muszą zostać dokładnie takie, jak w tekście źródłowym. Zamiast cudzysłowów prostych używaj typograficznych." %}</p>
+    {% if can_review %}
+      <div class="actions">
+        {% if item.state %}
+          <form method="post" class="inline">{% csrf_token %}
+            <input type="hidden" name="action" value="revert">
+            <button type="submit" class="btn btn--small btn--ghost">{% translate "Przywróć tłumaczenie z katalogu" %}</button>
+          </form>
+        {% endif %}
+        {% if item.row.translation and not item.override and not item.state or item.stale and item.row.translation %}
+          <form method="post" class="inline">{% csrf_token %}
+            <input type="hidden" name="action" value="confirm">
+            <button type="submit" class="btn btn--small btn--secondary">{% translate "Obecne tłumaczenie jest poprawne" %}</button>
+          </form>
+        {% endif %}
+      </div>
+    {% endif %}
+  </div>
+</section>
+
+<section class="section">
+  <div class="card">
+    <h2 class="mt-0">{% translate "Zaproponuj poprawkę" %}</h2>
+    <form method="post" class="form">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="suggest">
+      {{ form.non_field_errors }}
+      <p>
+        {{ form.text.errors }}
+        {{ form.text.label_tag }}
+        {{ form.text }}
+      </p>
+      {% if can_review %}<p>{{ form.approve }} {{ form.approve.label_tag }}</p>{% endif %}
+      <div class="actions">
+        <button type="submit" class="btn btn--primary">{% translate "Wyślij propozycję" %}</button>
+      </div>
+    </form>
+  </div>
+</section>
+
+<section class="section">
+  <div class="section__head"><h2>{% translate "Propozycje" %}</h2></div>
+  {% for suggestion in suggestions %}
+    <article class="card card--quiet">
+      <div class="card__head">
+        <div class="quote" lang="{{ language }}" dir="{{ text_dir }}">{{ suggestion.text }}</div>
+        <div class="row">
+          <span class="badge badge--neutral">{% if suggestion.status == "pending" %}{% translate "czeka na recenzenta" %}{% elif suggestion.status == "approved" %}{% translate "zatwierdzona" %}{% elif suggestion.status == "rejected" %}{% translate "odrzucona" %}{% else %}{% translate "zastąpiona" %}{% endif %}</span>
+          <span class="badge badge--info">{% translate "głosy" %}: {{ suggestion.vote_count }}</span>
+          <span class="hint">{% if suggestion.author_id == user.pk %}{% translate "Twoja propozycja" %}{% else %}{% translate "inny tłumacz" %}{% endif %}</span>
+        </div>
+      </div>
+      {% if suggestion.status == "pending" %}
+        <div class="actions">
+          {% if suggestion.author_id != user.pk %}
+            <form method="post" class="inline">{% csrf_token %}
+              <input type="hidden" name="action" value="vote">
+              <input type="hidden" name="support" value="{% if suggestion.pk in voted %}0{% else %}1{% endif %}">
+              <input type="hidden" name="suggestion" value="{{ suggestion.pk }}">
+              <button type="submit" class="btn btn--small btn--secondary">{% if suggestion.pk in voted %}{% translate "Cofnij głos" %}{% else %}{% translate "Popieram" %}{% endif %}</button>
+            </form>
+          {% endif %}
+          {% if can_review %}
+            <form method="post" class="inline">{% csrf_token %}
+              <input type="hidden" name="action" value="approve">
+              <input type="hidden" name="suggestion" value="{{ suggestion.pk }}">
+              <button type="submit" class="btn btn--small btn--primary">{% translate "Zatwierdź" %}</button>
+            </form>
+            <form method="post" class="inline">{% csrf_token %}
+              <input type="hidden" name="action" value="reject">
+              <input type="hidden" name="suggestion" value="{{ suggestion.pk }}">
+              <button type="submit" class="btn btn--small btn--ghost">{% translate "Odrzuć" %}</button>
+            </form>
+          {% endif %}
+        </div>
+      {% endif %}
+    </article>
+  {% empty %}
+    <p class="hint">{% translate "Nikt jeszcze nie zaproponował poprawki tego napisu." %}</p>
+  {% endfor %}
+</section>
+{% endblock %}

@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% comment %}
+  Dane nabywcy na fakturę i liczba obserwatorów drużyny (PAY-01). Wystawione już faktury pro forma
+  zachowują dane z chwili wystawienia – zmiana dotyczy kolejnych dokumentów.
+{% endcomment %}
+{% block title %}{% translate "Dane do faktury" %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow"><a href="{% url 'web:delegation-payments' %}">{% translate "Opłaty drużyny" %}</a></span>
+  <h1>{% translate "Dane do faktury" %}</h1>
+  <p class="lead">{% translate "Nabywcą może być instytucja (np. ministerstwo, szkoła, fundacja) albo osoba prywatna. Zmiana danych dotyczy kolejnych dokumentów – wystawione wcześniej zostają bez zmian." %}</p>
+</div>
+<form method="post" class="form" novalidate>
+  {% csrf_token %}
+  {{ form.as_p }}
+  <div class="actions">
+    <button type="submit" class="btn btn--primary">{% translate "Zapisz" %}</button>
+    <a class="btn btn--ghost" href="{% url 'web:delegation-payments' %}">{% translate "Anuluj" %}</a>
+  </div>
+</form>
+{% endblock %}

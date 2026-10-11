@@ -30,8 +30,15 @@ dependencies = [
     # 3.2.10: pierwsze wydanie z kołami ``psycopg-binary`` dla CPythona 3.14 (``cp314``); starsze
     # nie mają ani koła, ani źródeł (``psycopg-binary`` wychodzi wyłącznie jako koła), więc na
     # 3.14 w ogóle się nie instalują.
-    "psycopg[binary,pool]>=3.2.10,<3.3",
-    "redis>=5.0,<6.0",
+    "psycopg[binary,pool]>=3.2.10,<3.4",
+    # Linia 6.4 (DEP-01, 5.10.2026). Górna granica to nie „następna wersja mniejsza z nawyku”, tylko
+    # deklaracja kombu 5.6 (transport Celery 5.6): ``redis<6.5``. Celery stoi u nas bez ekstry
+    # ``[redis]``, więc resolver tej granicy sam nie dopilnuje – pilnuje jej ta linia i wpis ``ignore``
+    # w .github/dependabot.yml. Redis-py 7/8 dopiero z kombu 5.7. Zmiany 6.0 nas nie dotyczą:
+    # ``ssl_check_hostname`` (Redis bez TLS, sieć ``cache``), domyślne ponowienia klienta (django-redis
+    # i kombu podają własną pulę połączeń, więc obowiązuje ``retry`` puli – bez ponowień, jak w 5.x),
+    # RedisGraph/RedisGears i dialekt wyszukiwania (nieużywane).
+    "redis>=6.4,<6.5",
     # 7.0: pierwsza linia z ``Django>=5.2`` w metadanych; 5.4 nie instaluje się obok Django 6.1.
     "django-redis>=7.0,<7.1",
     "celery>=5.6,<5.7",
@@ -43,7 +50,12 @@ dependencies = [
     # ukaże się wydanie z ``Django<6.2`` (albo bez górnej granicy) – wtedy ta linia i sekcja
     # ``[tool.uv]`` mają wypaść razem.
     "django-celery-beat>=2.9,<2.10",
-    "gunicorn>=23.0,<24.0",
+    # 26.2 (DEP-01, 5.10.2026). Dolna granica nie jest „co działa”, tylko „co rozumie nasze
+    # polecenie”: od 25.1 gunicorn domyślnie otwiera gniazdo sterujące w ``~/.gunicorn/`` – w kontenerze
+    # z ``read_only: true`` kończy się to błędem w logu przy każdym starcie – więc polecenie w
+    # docker-compose.yml i Dockerfile wyłącza je flagą ``--no-control-socket``, której 23.x nie zna
+    # (gunicorn z taką flagą nie wystartowałby). Granica i flaga muszą się zmieniać razem.
+    "gunicorn>=26.2,<27",
     # Bez ``uvicorn`` (do 10.10.2026 stał tu ``uvicorn[standard]``): serwis chodzi wyłącznie na WSGI
     # (gunicorn gthread – komentarz przy ``web`` w docker-compose.yml), a nic w kodzie go nie
     # importuje. Nieużywany serwer ASGI z ``uvloop``/``httptools``/``websockets`` w obrazie
@@ -51,6 +63,11 @@ dependencies = [
     "django-storages[s3]>=1.14,<1.15",
     "boto3>=1.35,<2.0",
     "nbformat>=5.10,<6.0",
+    # Symulator notatników kwantowych ``qclab`` (QC-01): worker ocenia nim testy ukryte, a kontener
+    # piaskownicy wykonuje kod uczniów (``import numpy as np`` jest w każdym notatniku). Linia 2.4
+    # **celowo ta sama**, co w Pyodide 314.0.x w przeglądarce (numpy 2.4.6) – test widoczny w
+    # przeglądarce i ukryty na serwerze liczą ten sam kod na tej samej wersji biblioteki.
+    "numpy>=2.4,<2.5",
     "whitenoise>=6.7,<7.0",
     # CMS in-process (PROJEKT.md 1.1). 8.0 to pierwsza linia zgodna z Django 6.1 (metadane:
     # ``Django>=5.2``, klasyfikatory 5.2/6.0/6.1); poprzednia 6.3 była linią LTS zgodną
@@ -114,6 +131,16 @@ dependencies = [
     # (``CERT_SIGN_P12_PATH``): bez niego moduł oddaje plik bez zmian, a import biblioteki
     # w ogóle nie następuje – jest leniwy, wewnątrz funkcji podpisującej.
     "pyhanko>=0.21,<1",
+    # Kształtowanie pisma na dyplomach w języku ucznia (MED-01, ``apps.medals.typesetting``):
+    # łączenie liter arabskich i ligatury dewanagari/bengalskie. ReportLab używa go sam
+    # (``reportlab.pdfbase.ttfonts.shapeStr``), gdy pakiet jest zainstalowany. Koło abi3 – bez
+    # kompilacji. Bez niego te trzy pisma są niedostępne i dokument wychodzi po angielsku (jawny
+    # odwrót przy wystawieniu, błąd przy pobraniu – ``docs/OPERACJE.md`` § 37.2), a Olimpiada
+    # Kwantowa go nie dotyka. Wąski przedział, bo ``apps.medals.typesetting`` opiera się na
+    # wewnętrznych elementach ReportLaba (``ttfonts.uharfbuzz``, ``shapeStr``, ``ShapedStr.__shapeData__``),
+    # a te współpracują z konkretnym API ``uharfbuzz``; sprawdzone na 0.56.2. Kontrakt pilnuje
+    # ``apps/medals/tests/test_typesetting.py::test_reportlab_shaping_internals_are_still_there``.
+    "uharfbuzz>=0.56,<0.57",
     # Ocena AI (``apps.ai_grading``) – oficjalne SDK Anthropic. W zwykłych zależnościach, bo sugestie
     # liczy worker produkcyjny; funkcja jest jednak domyślnie wyłączona (flaga ``ai_grading``),
     # a import biblioteki jest leniwy – wewnątrz ``apps.ai_grading.client`` – więc konkurs bez
@@ -131,6 +158,16 @@ dependencies = [
     # automatycznego wołania funkcji.
     "openai>=3.19,<4",
     "google-genai>=2.25,<3",
+    # Śledzenie błędów (OPS-02, docs/OPERACJE.md § 44) – klient protokołu Sentry, wysyłający zdarzenia
+    # do **własnego** GlitchTipa (profil compose ``monitoring``); zależność zatwierdzona przez
+    # użytkownika 4.10.2026. W zwykłych zależnościach, bo zdarzenia wysyła produkcja; import leniwy
+    # (``apps.monitoring.sentry``) – bez ``SENTRY_DSN`` pakiet nie jest nawet ładowany. Wąski
+    # przedział (jedna linia mniejsza, sprawdzona na 2.71.0 z 4.10.2026): filtr danych osobowych
+    # (``apps.monitoring.scrubbing``) opiera się na kształcie zdarzenia i opcjach ``init``
+    # (``include_local_variables``, ``max_request_body_size``, ``before_send_transaction``), więc
+    # przeskok wersji ma być świadomy i z przebiegiem ``apps/monitoring/tests``. Linia 3.x (dziś
+    # alfa) zmienia API zakresów – osobne zadanie.
+    "sentry-sdk>=2.71,<2.72",
 ]
 
 [project.optional-dependencies]

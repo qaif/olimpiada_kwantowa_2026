@@ -105,3 +105,19 @@ def test_reports_drift_between_competition_and_site(settings):
     output = run()
 
     assert "przeniesiona.invalid" in output
+
+
+def test_hosts_lists_active_competitions_with_own_host_only():
+    """``--hosts`` (kontrola dymna po wdrożeniu, OPS-04): same nazwy aktywnych konkursów z własnym hostem."""
+    make_competition(HOST_B, "fizyczna")
+    make_competition("uspiony.example", "uspiony", is_active=False)
+    make_competition("prefiks.example", "druga", routing_mode=RoutingMode.PATH, path_prefix="druga")
+
+    lines = run(hosts=True).splitlines()
+
+    assert HOST_B in lines
+    assert "uspiony.example" not in lines
+    assert "prefiks.example" not in lines
+    # Wyłącznie nazwy hostów – skrypt nie parsuje zdań ani podsumowania.
+    assert all(line and " " not in line for line in lines)
+    assert len(lines) == len(set(lines))

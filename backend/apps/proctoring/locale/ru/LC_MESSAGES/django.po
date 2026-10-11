@@ -1,0 +1,850 @@
+# Russian - Nadzór zdalny (PROC-01) – tłumaczenie maszynowe, do przejrzenia przez native speakera.
+# Zrodlem (msgid) jest polski.
+#
+# UWAGA: tlumaczenie MASZYNOWE (model jezykowy). Przed szeroka komunikacja
+# do uczestnikow powinien je przejrzec native speaker - patrz docs/OPERACJE.md.
+#
+# Plik .mo powstaje z tego zrodla: django-admin compilemessages (obraz ma gettext).
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Olimpiada Kwantowa\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-04 19:52+0200\n"
+"PO-Revision-Date: 2026-10-04 20:00+0200\n"
+"Last-Translator: Olimpiada Kwantowa\n"
+"Language-Team: Russian\n"
+"Language: ru\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && "
+"n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
+
+msgid "Powód"
+msgstr "Причина"
+
+msgid "Nie mam kamery"
+msgstr "У меня нет камеры"
+
+msgid "Kamera nie działa"
+msgstr "Камера не работает"
+
+msgid "Moja przeglądarka nie obsługuje nadzoru"
+msgstr "Мой браузер не поддерживает наблюдение"
+
+msgid "Potrzeby dostępności"
+msgstr "Потребности, связанные с доступностью"
+
+msgid "Inny powód"
+msgstr "Другая причина"
+
+msgid "Krótka uwaga (opcjonalnie)"
+msgstr "Краткий комментарий (необязательно)"
+
+msgid ""
+"Nie wpisuj informacji o zdrowiu – organizator skontaktuje się z Tobą, jeśli "
+"będzie trzeba."
+msgstr ""
+"Не указывайте сведения о здоровье – при необходимости организатор свяжется "
+"с вами."
+
+msgid ""
+"Ten etap jest nadzorowany zdalnie. Najpierw włącz nadzór w konsoli nadzoru."
+msgstr ""
+"Этот этап проходит под дистанционным наблюдением. Сначала включите "
+"наблюдение в консоли наблюдения."
+
+msgid ""
+"Zapoznałem/-am się z informacją o nadzorze zdalnym tego etapu i wyrażam "
+"zgodę na przekazywanie obrazu z mojej kamery (oraz – jeśli etap tego wymaga "
+"– mojego ekranu i dźwięku) osobom nadzorującym na zasadach opisanych powyżej."
+msgstr ""
+"Я ознакомился(-ась) с информацией о дистанционном наблюдении на этом этапе "
+"и даю согласие на передачу изображения с моей камеры (а также – если этап "
+"этого требует – моего экрана и звука) наблюдателям на условиях, описанных "
+"выше."
+
+msgid "Serwer nadzoru nie odpowiada. Spróbuj za chwilę."
+msgstr "Сервер наблюдения не отвечает. Попробуйте через минуту."
+
+#, python-format
+msgid "uczniowie: %(name)s"
+msgstr "ученики: %(name)s"
+
+msgid "uczniowie bez przydziału"
+msgstr "ученики без назначения"
+
+msgid ""
+"Najpierw potrzebna jest zgoda Twojego rodzica lub opiekuna prawnego, "
+"potwierdzona online. Poproś o nią w panelu, w zakładce „Zgody”."
+msgstr ""
+"Сначала необходимо согласие вашего родителя или законного представителя, "
+"подтверждённое онлайн. Запросите его в панели, на вкладке «Согласия»."
+
+msgid "Ten etap nie zbiera zdjęcia dokumentu."
+msgstr "На этом этапе фото документа не требуется."
+
+msgid "Zdjęcie nie zostało zapisane. Spróbuj jeszcze raz."
+msgstr "Фото не сохранено. Попробуйте ещё раз."
+
+msgid "Najpierw wyraź zgodę na nadzór."
+msgstr "Сначала дайте согласие на наблюдение."
+
+msgid "Najpierw sprawdź sprzęt."
+msgstr "Сначала проверьте оборудование."
+
+msgid "Najpierw zrób zdjęcie dokumentu."
+msgstr "Сначала сфотографируйте документ."
+
+#, python-format
+msgid "Nadzór będzie można włączyć od %(when)s."
+msgstr "Наблюдение можно будет включить с %(when)s."
+
+msgid "Czas tego etapu minął."
+msgstr "Время этого этапа истекло."
+
+msgid ""
+"Serwer nadzoru jeszcze nie widzi Twojej kamery. Poczekaj chwilę i spróbuj "
+"ponownie."
+msgstr ""
+"Сервер наблюдения пока не видит вашу камеру. Подождите немного и попробуйте "
+"снова."
+
+msgid "Ten etap wymaga działającego nadzoru. Skontaktuj się z organizatorem."
+msgstr ""
+"Для этого этапа требуется работающее наблюдение. Свяжитесь с организатором."
+
+msgid "Wybierz powód z listy."
+msgstr "Выберите причину из списка."
+
+msgid "Pokój nadzoru jest teraz zamknięty."
+msgstr "Комната наблюдения сейчас закрыта."
+
+msgid "Wpisz treść wiadomości."
+msgstr "Введите текст сообщения."
+
+msgid "Wybierz kategorię i wagę incydentu."
+msgstr "Выберите категорию и серьёзность инцидента."
+
+msgid "Nadzór zdalny"
+msgstr "Дистанционное наблюдение"
+
+msgid ""
+"Ten etap jest nadzorowany zdalnie. Konsola nadzoru musi być otwarta w "
+"osobnej karcie do końca etapu."
+msgstr ""
+"Этот этап проходит под дистанционным наблюдением. Консоль наблюдения должна "
+"быть открыта в отдельной вкладке до конца этапа."
+
+msgid ""
+"Ten etap jest nadzorowany zdalnie. Zanim zobaczysz zadania, wyraź zgodę, "
+"sprawdź sprzęt i włącz nadzór w konsoli."
+msgstr ""
+"Этот этап проходит под дистанционным наблюдением. Прежде чем увидеть "
+"задания, дайте согласие, проверьте оборудование и включите наблюдение в "
+"консоли."
+
+msgid "Nadzór działa."
+msgstr "Наблюдение работает."
+
+msgid ""
+"Nadzór nie działa – wróć do karty konsoli nadzoru albo otwórz ją ponownie."
+msgstr ""
+"Наблюдение не работает – вернитесь на вкладку консоли наблюдения или "
+"откройте её заново."
+
+msgid "Stan nadzoru: sprawdź kartę konsoli nadzoru."
+msgstr "Состояние наблюдения: проверьте вкладку консоли наблюдения."
+
+msgid "Konsola nadzoru"
+msgstr "Консоль наблюдения"
+
+msgid "Etap:"
+msgstr "Этап:"
+
+msgid "Nadzór możesz włączyć od:"
+msgstr "Включить наблюдение можно с:"
+
+msgid "Nadzór zdalny wymaga włączonego JavaScriptu."
+msgstr "Для дистанционного наблюдения необходимо включить JavaScript."
+
+msgid ""
+"Nadzór jest chwilowo niedostępny – brakuje komponentu wideo na serwerze. Daj "
+"znać organizatorowi."
+msgstr ""
+"Наблюдение временно недоступно – на сервере отсутствует видеокомпонент. "
+"Сообщите организатору."
+
+msgid "Organizator zatwierdził inną formę nadzoru"
+msgstr "Организатор одобрил другую форму наблюдения"
+
+msgid "Przejdź do etapu"
+msgstr "Перейти к этапу"
+
+msgid "1. Informacja o nadzorze i zgoda"
+msgstr "1. Информация о наблюдении и согласие"
+
+msgid ""
+"W czasie etapu obraz z Twojej kamery (mała rozdzielczość) widzą na żywo "
+"osoby nadzorujące wskazane przez organizatora: koordynatorzy i członkowie "
+"komisji, a w olimpiadzie międzynarodowej także opiekun Twojej drużyny "
+"narodowej – wyłącznie uczniów swojej drużyny."
+msgstr ""
+"Во время этапа изображение с вашей камеры (в низком разрешении) в реальном "
+"времени видят наблюдатели, назначенные организатором: координаторы и члены "
+"комиссии, а в международной олимпиаде также руководитель вашей национальной "
+"команды – только учеников своей команды."
+
+msgid ""
+"Etap wymaga udostępnienia całego ekranu – osoby nadzorujące mogą go zobaczyć."
+msgstr "Этап требует демонстрации всего экрана – наблюдатели могут его видеть."
+
+msgid "Etap wymaga włączonego mikrofonu – osoby nadzorujące mogą Cię słyszeć."
+msgstr "Этап требует включённого микрофона – наблюдатели могут вас слышать."
+
+msgid ""
+"Przed startem zrobisz kamerą zdjęcie dokumentu tożsamości (legitymacji "
+"szkolnej). Zasłoń numer PESEL i adres – wystarczy imię, nazwisko i zdjęcie."
+msgstr ""
+"Перед началом вы сфотографируете камерой документ, удостоверяющий личность "
+"(ученический билет). Закройте номер PESEL и адрес – достаточно имени, "
+"фамилии и фотографии."
+
+msgid "Obraz z kamery jest nagrywany."
+msgstr "Изображение с камеры записывается."
+
+#, python-format
+msgid ""
+"Nagranie widzą wyłącznie koordynator i komisja odwoławcza (każde odtworzenie "
+"jest zapisywane). Usuwamy je %(days)s dni po ogłoszeniu wyników i zamknięciu "
+"okna reklamacji, chyba że trwa wyjaśnianie Twojej sprawy."
+msgstr ""
+"Запись могут просматривать только координатор и апелляционная комиссия "
+"(каждый просмотр регистрируется). Мы удаляем её через %(days)s дн. после "
+"объявления результатов и закрытия срока подачи апелляций, если только не "
+"идёт рассмотрение вашего дела."
+
+msgid "Obraz nie jest nagrywany – osoby nadzorujące widzą go tylko na żywo."
+msgstr ""
+"Изображение не записывается – наблюдатели видят его только в реальном "
+"времени."
+
+msgid ""
+"Nie stosujemy automatycznej analizy obrazu ani śledzenia tego, co robisz w "
+"przeglądarce. Decyzje podejmują ludzie."
+msgstr ""
+"Мы не применяем автоматический анализ изображения и не отслеживаем ваши "
+"действия в браузере. Решения принимают люди."
+
+#, python-format
+msgid ""
+"Zapisujemy czasy połączeń, wiadomości od osób nadzorujących i ich notatki o "
+"incydentach. Dziennik połączeń i wiadomości usuwamy %(days)s dni po "
+"ogłoszeniu wyników; notatki o incydentach zostają w dokumentacji zawodów "
+"(odwołania)."
+msgstr ""
+"Мы сохраняем время подключений, сообщения от наблюдателей и их заметки об "
+"инцидентах. Журнал подключений и сообщений мы удаляем через %(days)s дн. "
+"после объявления результатов; заметки об инцидентах остаются в документации "
+"соревнования (для апелляций)."
+
+msgid ""
+"Zgodę możesz wycofać w każdej chwili. Jeśli nie możesz albo nie chcesz "
+"używać kamery, poproś organizatora o inną formę nadzoru (na dole strony)."
+msgstr ""
+"Вы можете отозвать согласие в любой момент. Если вы не можете или не хотите "
+"пользоваться камерой, попросите организатора о другой форме наблюдения "
+"(внизу страницы)."
+
+msgid ""
+"Szczegóły przetwarzania danych: polityka prywatności organizatora (sekcja "
+"„Nadzór zdalny”)."
+msgstr ""
+"Подробности обработки данных: политика конфиденциальности организатора "
+"(раздел «Дистанционное наблюдение»)."
+
+#, python-format
+msgid "Zgoda wyrażona %(when)s (wersja %(version)s)."
+msgstr "Согласие дано %(when)s (версия %(version)s)."
+
+msgid "Wycofaj zgodę"
+msgstr "Отозвать согласие"
+
+msgid ""
+"Jesteś osobą niepełnoletnią: zanim wyrazisz zgodę, Twój rodzic lub opiekun "
+"prawny musi potwierdzić online swoją zgodę na Twój udział."
+msgstr ""
+"Вы несовершеннолетний(-яя): прежде чем вы дадите согласие, ваш родитель или "
+"законный представитель должен подтвердить онлайн своё согласие на ваше "
+"участие."
+
+msgid "Poproś opiekuna o zgodę"
+msgstr "Запросить согласие законного представителя"
+
+msgid "Zgoda Twojego opiekuna prawnego została potwierdzona online."
+msgstr "Согласие вашего законного представителя подтверждено онлайн."
+
+#, python-format
+msgid "Wersja informacji: %(version)s."
+msgstr "Версия информации: %(version)s."
+
+msgid "Wyrażam zgodę"
+msgstr "Я даю согласие"
+
+msgid "2. Sprawdzenie sprzętu"
+msgstr "2. Проверка оборудования"
+
+msgid "Podgląd kamery"
+msgstr "Предпросмотр камеры"
+
+msgid "Przeglądarka"
+msgstr "Браузер"
+
+msgid "Kamera"
+msgstr "Камера"
+
+msgid "Mikrofon"
+msgstr "Микрофон"
+
+msgid "Udostępnianie ekranu"
+msgstr "Демонстрация экрана"
+
+msgid "Sprawdź sprzęt"
+msgstr "Проверить оборудование"
+
+msgid "Sprzęt sprawdzony."
+msgstr "Оборудование проверено."
+
+msgid "3. Zdjęcie dokumentu"
+msgstr "3. Фото документа"
+
+msgid "opcjonalne"
+msgstr "необязательно"
+
+msgid ""
+"Pokaż do kamery legitymację szkolną albo inny dokument ze zdjęciem i kliknij "
+"„Zrób zdjęcie”."
+msgstr ""
+"Покажите в камеру ученический билет или другой документ с фотографией и "
+"нажмите «Сделать фото»."
+
+msgid "Zrób zdjęcie"
+msgstr "Сделать фото"
+
+msgid "Zdjęcie zapisane."
+msgstr "Фото сохранено."
+
+msgid "4. Start nadzoru"
+msgstr "4. Запуск наблюдения"
+
+msgid "3. Start nadzoru"
+msgstr "3. Запуск наблюдения"
+
+msgid "Etap jest dla Ciebie otwarty."
+msgstr "Этап для вас открыт."
+
+msgid "Nagrywanie kamery włączone"
+msgstr "Запись камеры включена"
+
+msgid "Włącz nadzór"
+msgstr "Включить наблюдение"
+
+msgid "Udostępnij ekran"
+msgstr "Начать демонстрацию экрана"
+
+msgid "Kontynuuj bez nadzoru"
+msgstr "Продолжить без наблюдения"
+
+msgid "Przejdź do etapu (nowa karta)"
+msgstr "Перейти к этапу (новая вкладка)"
+
+msgid ""
+"Zostaw tę kartę otwartą do końca etapu – zamknięcie jej przerywa nadzór. "
+"Etap otworzy się w nowej karcie."
+msgstr ""
+"Оставьте эту вкладку открытой до конца этапа – её закрытие прерывает "
+"наблюдение. Этап откроется в новой вкладке."
+
+msgid "Serwer nadzoru jest niedostępny. Skontaktuj się z organizatorem."
+msgstr "Сервер наблюдения недоступен. Свяжитесь с организатором."
+
+msgid "Twój obraz w nadzorze"
+msgstr "Ваше изображение для наблюдателей"
+
+msgid "Nie mogę użyć kamery"
+msgstr "Я не могу использовать камеру"
+
+msgid ""
+"Twoja prośba czeka na decyzję organizatora. Odpowiedź pojawi się na tej "
+"stronie."
+msgstr ""
+"Ваш запрос ожидает решения организатора. Ответ появится на этой странице."
+
+msgid "Organizator nie zatwierdził innej formy nadzoru."
+msgstr "Организатор не одобрил другую форму наблюдения."
+
+msgid "Poproś o inną formę nadzoru"
+msgstr "Попросить другую форму наблюдения"
+
+msgid "Nadzór"
+msgstr "Наблюдение"
+
+msgid "Łączenie…"
+msgstr "Подключение…"
+
+msgid "Eksport incydentów (CSV)"
+msgstr "Экспорт инцидентов (CSV)"
+
+msgid "Siatka nadzoru wymaga włączonego JavaScriptu."
+msgstr "Для сетки наблюдения необходимо включить JavaScript."
+
+msgid ""
+"Obraz jest chwilowo niedostępny – brakuje komponentu wideo na serwerze. "
+"Lista uczniów i czynności działają."
+msgstr ""
+"Изображение временно недоступно – на сервере отсутствует видеокомпонент. "
+"Список учеников и действия работают."
+
+msgid ""
+"Serwer nadzoru nie jest skonfigurowany. Lista uczniów i czynności działają."
+msgstr "Сервер наблюдения не настроен. Список учеников и действия работают."
+
+msgid "Widok"
+msgstr "Вид"
+
+msgid "Grupa"
+msgstr "Группа"
+
+msgid "Kafli na stronie"
+msgstr "Плиток на странице"
+
+msgid "Poprzednia"
+msgstr "Предыдущая"
+
+msgid "Następna"
+msgstr "Следующая"
+
+msgid "Włącz dźwięk"
+msgstr "Включить звук"
+
+msgid "Incydent"
+msgstr "Инцидент"
+
+msgid "Kategoria"
+msgstr "Категория"
+
+msgid "Waga"
+msgstr "Серьёзность"
+
+msgid "Notatka"
+msgstr "Заметка"
+
+msgid "Czas incydentu zapisze się jako chwila otwarcia tego okna."
+msgstr "Временем инцидента будет записан момент открытия этого окна."
+
+msgid "Zapisz incydent"
+msgstr "Сохранить инцидент"
+
+msgid "Anuluj"
+msgstr "Отмена"
+
+msgid "Etapy do nadzoru"
+msgstr "Этапы для наблюдения"
+
+msgid "Otwórz siatkę nadzoru"
+msgstr "Открыть сетку наблюдения"
+
+msgid "Nie masz etapów do nadzoru."
+msgstr "У вас нет этапов для наблюдения."
+
+msgid "Raport nadzoru"
+msgstr "Отчёт о наблюдении"
+
+msgid "Zgoda"
+msgstr "Согласие"
+
+msgid "wycofana"
+msgstr "отозвано"
+
+msgid "zgoda opiekuna potwierdzona online"
+msgstr "согласие законного представителя подтверждено онлайн"
+
+msgid "brak"
+msgstr "нет"
+
+msgid "Sprawdzenie sprzętu"
+msgstr "Проверка оборудования"
+
+msgid "Nadzór rozpoczęty"
+msgstr "Наблюдение начато"
+
+msgid "Bez nadzoru od"
+msgstr "Без наблюдения с"
+
+msgid "Obecność"
+msgstr "Присутствие"
+
+msgid "Inna forma nadzoru"
+msgstr "Другая форма наблюдения"
+
+msgid "Zdjęcie dokumentu"
+msgstr "Фото документа"
+
+msgid "otwórz (15 min)"
+msgstr "открыть (15 мин)"
+
+msgid "Wstrzymanie usunięcia"
+msgstr "Приостановка удаления"
+
+msgid "Nośniki usunięte"
+msgstr "Медиафайлы удалены"
+
+msgid "Incydenty"
+msgstr "Инциденты"
+
+msgid "Czas"
+msgstr "Время"
+
+msgid "Zgłosił"
+msgstr "Сообщил"
+
+msgid "Brak incydentów."
+msgstr "Инцидентов нет."
+
+msgid "Wiadomości do ucznia"
+msgstr "Сообщения ученику"
+
+msgid "potwierdzona"
+msgstr "подтверждено"
+
+msgid "Brak wiadomości."
+msgstr "Сообщений нет."
+
+msgid "Nagrania"
+msgstr "Записи"
+
+msgid "odtwórz (15 min)"
+msgstr "воспроизвести (15 мин)"
+
+msgid "Brak nagrań."
+msgstr "Записей нет."
+
+msgid "Dziennik"
+msgstr "Журнал"
+
+msgid "Dziennik jest pusty albo został już usunięty (retencja)."
+msgstr "Журнал пуст или уже удалён (истёк срок хранения)."
+
+msgid "Za dużo żądań. Spróbuj za chwilę."
+msgstr "Слишком много запросов. Попробуйте через минуту."
+
+msgid "Sprawdzanie…"
+msgstr "Проверка…"
+
+msgid "działa"
+msgstr "работает"
+
+msgid "nie działa"
+msgstr "не работает"
+
+msgid "niewymagane"
+msgstr "не требуется"
+
+msgid ""
+"Ta przeglądarka nie obsługuje nadzoru wideo. Użyj aktualnej przeglądarki "
+"Chrome, Edge, Firefox albo Safari."
+msgstr ""
+"Этот браузер не поддерживает видеонаблюдение. Используйте актуальную версию "
+"Chrome, Edge, Firefox или Safari."
+
+msgid ""
+"Brak dostępu do kamery. Zezwól na kamerę w ustawieniach przeglądarki i "
+"spróbuj ponownie."
+msgstr ""
+"Нет доступа к камере. Разрешите доступ к камере в настройках браузера и "
+"попробуйте снова."
+
+msgid "Łączenie z serwerem nadzoru…"
+msgstr "Подключение к серверу наблюдения…"
+
+msgid "Nadzór działa. Zostaw tę kartę otwartą do końca etapu."
+msgstr "Наблюдение работает. Оставьте эту вкладку открытой до конца этапа."
+
+msgid ""
+"Połączenie nadzoru zostało przerwane. Nie zamykaj tej karty – trwa ponowne "
+"łączenie."
+msgstr ""
+"Соединение наблюдения прервано. Не закрывайте эту вкладку – идёт повторное "
+"подключение."
+
+msgid "Połączenie nadzoru przywrócone."
+msgstr "Соединение наблюдения восстановлено."
+
+msgid "Nie udało się połączyć z serwerem nadzoru."
+msgstr "Не удалось подключиться к серверу наблюдения."
+
+msgid "Udostępnianie ekranu zostało zatrzymane. Udostępnij ekran ponownie."
+msgstr "Демонстрация экрана остановлена. Начните демонстрацию экрана снова."
+
+msgid "Wiadomość od osoby nadzorującej"
+msgstr "Сообщение от наблюдателя"
+
+msgid "Osoba nadzorująca prosi: pokaż kamerą pokój dookoła siebie."
+msgstr "Наблюдатель просит: покажите камерой комнату вокруг себя."
+
+msgid "Osoba nadzorująca prosi: pokaż do kamery dokument tożsamości."
+msgstr ""
+"Наблюдатель просит: покажите в камеру документ, удостоверяющий личность."
+
+msgid "Rozumiem"
+msgstr "Понятно"
+
+msgid "Coś poszło nie tak. Spróbuj ponownie."
+msgstr "Что-то пошло не так. Попробуйте снова."
+
+msgid "Spróbuj ponownie"
+msgstr "Повторить"
+
+msgid "Zgoda na nadzór wycofana."
+msgstr "Согласие на наблюдение отозвано."
+
+msgid "Zaznacz pole zgody, żeby przejść dalej."
+msgstr "Отметьте поле согласия, чтобы продолжить."
+
+msgid "Prośba wysłana. Organizator odpowie w tej konsoli."
+msgstr "Запрос отправлен. Организатор ответит в этой консоли."
+
+msgid "Połączono z pokojem nadzoru."
+msgstr "Подключено к комнате наблюдения."
+
+msgid "Rozłączono z pokojem nadzoru. Odśwież stronę."
+msgstr "Отключено от комнаты наблюдения. Обновите страницу."
+
+msgid "Nie udało się połączyć z pokojem nadzoru."
+msgstr "Не удалось подключиться к комнате наблюдения."
+
+#, python-format
+msgid "Strona %(page)s z %(pages)s"
+msgstr "Страница %(page)s из %(pages)s"
+
+msgid "Brak uczniów w tej grupie."
+msgstr "В этой группе нет учеников."
+
+msgid "nadaje"
+msgstr "транслирует"
+
+msgid "czeka na start"
+msgstr "ожидает начала"
+
+msgid "strumień przerwany"
+msgstr "поток прерван"
+
+msgid "brak sygnału"
+msgstr "нет сигнала"
+
+msgid "bez nadzoru"
+msgstr "без наблюдения"
+
+msgid "alternatywa"
+msgstr "альтернатива"
+
+msgid "brak zgody"
+msgstr "нет согласия"
+
+msgid "Wiadomość"
+msgstr "Сообщение"
+
+msgid "Treść wiadomości do ucznia:"
+msgstr "Текст сообщения ученику:"
+
+msgid "Pokaż pokój"
+msgstr "Показать комнату"
+
+msgid "Pokaż dokument"
+msgstr "Показать документ"
+
+msgid "Obecny"
+msgstr "Присутствует"
+
+msgid "Nieobecny"
+msgstr "Отсутствует"
+
+msgid "Ekran"
+msgstr "Экран"
+
+msgid "Ukryj ekran"
+msgstr "Скрыть экран"
+
+#, python-format
+msgid "incydenty: %(count)s"
+msgstr "инциденты: %(count)s"
+
+msgid "Wysłano."
+msgstr "Отправлено."
+
+msgid "Zapisano."
+msgstr "Сохранено."
+
+msgid "Dźwięk"
+msgstr "Звук"
+
+msgid "Raport"
+msgstr "Отчёт"
+
+msgid "uczeń poza kadrem"
+msgstr "ученик вне кадра"
+
+msgid "inna osoba w kadrze"
+msgstr "другой человек в кадре"
+
+msgid "inne urządzenie"
+msgstr "другое устройство"
+
+msgid "rozmowa lub komunikacja"
+msgstr "разговор или общение"
+
+msgid "niedozwolone materiały"
+msgstr "запрещённые материалы"
+
+msgid "ekran"
+msgstr "экран"
+
+msgid "problem techniczny"
+msgstr "техническая проблема"
+
+msgid "inne"
+msgstr "другое"
+
+msgid "informacja"
+msgstr "информация"
+
+msgid "ostrzeżenie"
+msgstr "предупреждение"
+
+msgid "poważny"
+msgstr "серьёзный"
+
+msgid "Treść tego etapu jest w trakcie zawodów dostępna wyłącznie dla jego uczestników."
+msgstr "Во время соревнования материалы этого этапа доступны только его участникам."
+
+msgid "Mój rodzic lub opiekun prawny zna tę informację o nadzorze zdalnym i zgadza się na niego."
+msgstr "Мой родитель или законный представитель ознакомлен с этой информацией о дистанционном наблюдении и согласен с ним."
+
+msgid "Zaznacz też oświadczenie o wiedzy i zgodzie rodzica lub opiekuna prawnego."
+msgstr "Отметьте также заявление об осведомлённости и согласии родителя или законного представителя."
+
+msgid "Serwer nadzoru działa – spróbuj połączyć się jeszcze raz. Jeśli nie możesz użyć kamery, poproś o inną formę nadzoru."
+msgstr "Сервер наблюдения работает – попробуйте подключиться ещё раз. Если вы не можете использовать камеру, запросите другую форму наблюдения."
+
+msgid "serwer nadzoru nieskonfigurowany"
+msgstr "сервер наблюдения не настроен"
+
+msgid "serwer nadzoru niedostępny"
+msgstr "сервер наблюдения недоступен"
+
+msgid "nieudane połączenia ucznia – serwer działał"
+msgstr "неудачные подключения ученика – сервер работал"
+
+msgid "Praca bez nadzoru – awaria serwera nadzoru została odnotowana."
+msgstr "Работа без наблюдения – сбой сервера наблюдения зафиксирован."
+
+msgid "Ustawienia etapu w chwili zgody"
+msgstr "Настройки этапа на момент согласия"
+
+#, python-format
+msgid "późny start: %(minutes)s min"
+msgstr "поздний старт: %(minutes)s мин"
+
+msgid "Kamera nie działa albo nie masz do niej dostępu. Jeśli nie możesz jej użyć, poproś o inną formę nadzoru (na dole strony)."
+msgstr "Камера не работает или у вас нет к ней доступа. Если вы не можете её использовать, запросите другую форму наблюдения (внизу страницы)."
+
+msgid "Tej osoby nie ma teraz w pokoju."
+msgstr "Этого человека сейчас нет в комнате."
+
+msgid "Twoja rozmowa jest nadzorowana zdalnie. Zgoda i sprzęt są gotowe – wejdź na rozmowę przyciskiem „Dołącz do rozmowy”."
+msgstr "Ваше собеседование проходит под дистанционным наблюдением. Согласие и оборудование готовы – войдите кнопкой «Присоединиться к собеседованию»."
+
+msgid "Rozmowa"
+msgstr "Собеседование"
+
+msgid "Nadzór obejmuje Twoją rozmowę w pokoju na platformie – osobnego nadawania nie trzeba włączać. Wejdź na rozmowę z panelu przyciskiem „Dołącz do rozmowy”."
+msgstr "Наблюдение охватывает ваше собеседование в комнате платформы – отдельную трансляцию включать не нужно. Войдите на собеседование из панели кнопкой «Присоединиться к собеседованию»."
+
+msgid "Wyjdź"
+msgstr "Выйти"
+
+msgid "Obraz uczestników"
+msgstr "Видео участников"
+
+msgid "Uczestnicy"
+msgstr "Участники"
+
+msgid "Czat"
+msgstr "Чат"
+
+msgid "Wyślij"
+msgstr "Отправить"
+
+msgid "Sterowanie"
+msgstr "Управление"
+
+msgid "Podnieś rękę"
+msgstr "Поднять руку"
+
+msgid "Widok prelegenta"
+msgstr "Вид докладчика"
+
+#, python-format
+msgid "Pokój rozmowy otworzy się %(when)s (czas polski) – wróć wtedy do panelu."
+msgstr "Комната собеседования откроется %(when)s (по польскому времени) – тогда вернитесь в панель."
+
+msgid "Czas tej rozmowy minął – pokój jest już zamknięty."
+msgstr "Время этого собеседования прошло – комната уже закрыта."
+
+#, python-format
+msgid "Próba sprzętu – %(stage)s"
+msgstr "Проверка оборудования – %(stage)s"
+
+#, python-format
+msgid "Rozmowa – %(stage)s"
+msgstr "Собеседование – %(stage)s"
+
+msgid "Serwer wideo nie odpowiada. Spróbuj za chwilę."
+msgstr "Видеосервер не отвечает. Попробуйте чуть позже."
+
+msgid "Ta rozmowa jest nadzorowana zdalnie. Najpierw wyraź zgodę i sprawdź sprzęt w konsoli nadzoru."
+msgstr "Это собеседование проходит под дистанционным наблюдением. Сначала дайте согласие и проверьте оборудование в консоли наблюдения."
+
+msgid "Twoja rozmowa jest nadzorowana zdalnie. Przed wejściem na rozmowę wyraź zgodę i sprawdź sprzęt w konsoli nadzoru."
+msgstr "Ваше собеседование проходит под дистанционным наблюдением. Перед входом дайте согласие и проверьте оборудование в консоли наблюдения."
+
+msgid "Przejdź do rozmowy"
+msgstr "Перейти к собеседованию"
+
+msgid "Rozmowa kwalifikacyjna"
+msgstr "Квалификационное собеседование"
+
+msgid "Pokój rozmowy wymaga włączonego JavaScriptu."
+msgstr "Для комнаты собеседования нужен включённый JavaScript."
+
+msgid "Pokój jest chwilowo niedostępny – brakuje komponentu wideo na serwerze. Daj znać organizatorowi."
+msgstr "Комната временно недоступна – на сервере нет видеокомпонента. Сообщите организатору."
+
+msgid "Decyzje moderatora w tym terminie"
+msgstr "Решения модератора в этом слоте"
+
+msgid "usunięty z pokoju"
+msgstr "удалён из комнаты"
+
+msgid "bez głosu"
+msgstr "без голоса"
+
+msgid "Oddaj głos"
+msgstr "Дать слово"
+
+msgid "Wpuść ponownie"
+msgstr "Впустить снова"
+
+msgid "Moderator usunął Cię z tej rozmowy. Skontaktuj się z organizatorem."
+msgstr "Модератор удалил вас из этого собеседования. Свяжитесь с организатором."

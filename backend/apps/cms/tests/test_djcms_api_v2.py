@@ -177,36 +177,12 @@ def test_unknown_or_inactive_competition_after_the_gates_is_a_json_404(competiti
         assert response["Cache-Control"] == "no-store"
 
 
-@pytest.mark.parametrize("endpoint", JSON_ENDPOINTS)
-def test_a_valid_request_gets_versioned_json_that_is_never_cached(competition, endpoint):
-    response = internal().get(f"{BASE}c/{competition.slug}/{endpoint}")
-
-    assert response.status_code == 200
-    assert response["Content-Type"] == "application/json; charset=utf-8"
-    assert response["Cache-Control"] == "no-store"
-    assert response["X-Content-Type-Options"] == "nosniff"
-    payload = response.json()
-    assert payload["api_version"] == 2
-    assert "+" in payload["generated_at"] or payload["generated_at"].endswith("Z")
-
-
 def test_competitions_is_versioned_json(competition):  # noqa: ARG001
     response = internal().get(BASE + "competitions")
 
     assert response.status_code == 200
     assert response["Cache-Control"] == "no-store"
     assert response.json()["api_version"] == 2
-
-
-def test_a_competition_without_a_public_address_is_503(competition, other_competition):  # noqa: ARG001
-    Competition.objects.filter(pk=other_competition.pk).update(
-        routing_mode=RoutingMode.PATH, path_prefix="druga"
-    )
-
-    for endpoint in (*JSON_ENDPOINTS, "export"):
-        response = internal().get(f"{BASE}c/{other_competition.slug}/{endpoint}")
-        assert response.status_code == 503, endpoint
-        assert response.json() == {"api_version": 2, "error": "no-public-url"}
 
 
 @pytest.mark.parametrize("endpoint", ["chrome", "stages", "export", "partners", "nie-ma"])

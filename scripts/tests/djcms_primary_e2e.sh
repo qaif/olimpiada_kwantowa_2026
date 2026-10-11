@@ -180,7 +180,7 @@ DEFAULT_FROM_EMAIL=olimpiada@$DOMAIN
 TRUSTED_PROXY_IPS=172.31.1.250/32,172.31.2.250/32
 PROXY_EDGE_IP=172.31.1.250
 DJCMS_PROXY_IP=172.31.2.250
-MAIL_SUBNET=172.31.5.0/24
+MAIL_SUBNET=172.31.10.0/24
 DJCMS_SECRET_KEY=$(rand 32)
 DJCMS_DB_PASSWORD=$(rand 16)
 DJCMS_INTERNAL_TOKEN=$(rand 24)
@@ -292,7 +292,7 @@ USER root
 RUN find /app -mindepth 1 -maxdepth 1 ! -name staticfiles -exec rm -rf {} +
 COPY --chown=app:app . /app
 RUN chmod +x /app/entrypoint.sh && mkdir -p /app/staticfiles && chown app:app /app/staticfiles \\
- && for po in /app/locale/*/LC_MESSAGES/django.po; do [ -e "\$po" ] || continue; msgfmt -o "\${po%.po}.mo" "\$po"; done
+ && for po in /app/locale/*/LC_MESSAGES/django.po /app/apps/*/locale/*/LC_MESSAGES/django.po; do [ -e "\$po" ] || continue; msgfmt -o "\${po%.po}.mo" "\$po"; done
 USER app
 EOF
     docker build -t olimpiada/web:e2e-djcms -f "$(host_path "$WORK/web-context/Dockerfile.e2e")" \

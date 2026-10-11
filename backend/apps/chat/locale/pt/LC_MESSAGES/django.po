@@ -1,0 +1,20 @@
+# Portuguese – ogłoszenia organizatora w Wiadomościach (docs/tasks/CZ-ANN-01.md), katalog aplikacji apps/chat.
+# Źródłem (msgid) jest polski. Tłumaczenie MASZYNOWE – do przeglądu native speakera.
+# Pozostałe napisy Wiadomości (CZ-01) leżą we wspólnym backend/locale.
+msgid ""
+msgstr ""
+"Project-Id-Version: Olimpiada Kwantowa - chat\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-08 12:00+0200\n"
+"PO-Revision-Date: 2026-10-08 12:00+0200\n"
+"Last-Translator: Olimpiada Kwantowa\n"
+"Language-Team: Portuguese\n"
+"Language: pt\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: templates/web/chat/_announcements.html
+msgid "Ogłoszenia organizatora"
+msgstr "Avisos do organizador"

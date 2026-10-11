@@ -46,7 +46,7 @@ from django.utils.translation import gettext_lazy as _
 from apps.cms.workshops import WORKSHOP_KEY_LENGTH
 from apps.competitions.scoping import competition_scoped_manager
 
-from .formats import ALL_FORMATS
+from .formats import ALL_FORMATS, with_charset
 
 #: Przełącznik konkursu, za którym stoi cała funkcja (``apps.tenancy.models.FEATURE_DEFAULTS``).
 #: Stała, a nie napis powtórzony w każdym widoku – ta sama zasada, co ``apps.forum.models.FORUM_FLAG``.
@@ -107,6 +107,10 @@ class WorkshopMaterial(models.Model):
     #: Format rozpoznany **po treści** w kroku „zakończ wgrywanie” (``apps.workshop_materials.formats``);
     #: przed nim – deklaracja z rozszerzenia, do nadania ``Content-Type`` obiektowi.
     file_format = models.CharField("format", max_length=10, blank=True)
+    #: Kodowanie pliku tekstowego rozpoznane w kroku „zakończ wgrywanie” (``formats.CHARSET_*``,
+    #: WM-FMT-01): idzie do ``Content-Type`` pobrania i do dekodera podglądu. Pusty = nie tekst
+    #: albo materiał sprzed WM-FMT-01 (wtedy UTF-8 z ``Format.content_type``).
+    charset = models.CharField("kodowanie", max_length=20, blank=True)
     size_bytes = models.PositiveBigIntegerField("rozmiar (B)", default=0)
     status = models.CharField(
         "stan", max_length=12, choices=MaterialStatus.choices, default=MaterialStatus.UPLOADING
@@ -175,7 +179,9 @@ class WorkshopMaterial(models.Model):
     @property
     def content_type(self) -> str:
         fmt = self.format
-        return fmt.content_type if fmt is not None else "application/octet-stream"
+        if fmt is None:
+            return "application/octet-stream"
+        return with_charset(fmt.content_type, self.charset)
 
     @property
     def download_name(self) -> str:

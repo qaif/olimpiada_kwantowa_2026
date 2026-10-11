@@ -66,6 +66,10 @@ CSRF_TRUSTED_ORIGINS = list(
         ]
     )
 )
+# Host laboratorium notatników aplikacji głównej (QC-02, ta sama zmienna ``.env``). Nie dokładamy go
+# nigdzie – przy subdomenach platformy wzorzec ``https://*.<SITE_DOMAIN>`` wyżej i tak go obejmuje,
+# dlatego żądania z niego odrzuca ``apps.pages.labguard.LabGuardMiddleware`` przed CSRF.
+NOTEBOOK_LAB_HOST = env("NOTEBOOK_LAB_HOST", default="").strip().lower().rstrip(".")
 # Adresy z ``X-Real-IP`` honorujemy wyłącznie od tych proxy (Caddy) – ta sama reguła co w backendzie
 # (``apps.core.models.client_ip``); używa jej blokada prób logowania (``apps.pages.auth``).
 TRUSTED_PROXY_IPS = env.list("TRUSTED_PROXY_IPS", default=[])
@@ -118,6 +122,9 @@ MIDDLEWARE = [
     # ``X-Djcms-Degraded: 1`` na stronie złożonej bez świeżych danych z API (§ 8.3) – nagłówek
     # czyta dopiero po wyrenderowaniu szablonu, więc wystarczy, że stoi na zewnątrz widoku.
     "apps.live.middleware.DegradedHeaderMiddleware",
+    # Laboratorium notatników na osobnym hoście (QC-02, przegląd M2): 403 dla żądań z laboratorium
+    # i wygaszenie podrzuconych ciasteczek – przed sesją i CSRF. Bez ``NOTEBOOK_LAB_HOST`` nic nie robi.
+    "apps.pages.labguard.LabGuardMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     # Wymagane przez ``cms check`` (lista w ``cms/utils/check.py`` 5.1.3), mimo jednego języka.

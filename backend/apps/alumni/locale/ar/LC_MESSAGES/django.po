@@ -1,0 +1,900 @@
+# Sieć absolwentów (ALUM-01) – katalog aplikacji apps/alumni.
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-04 20:58+0200\n"
+"PO-Revision-Date: 2026-10-04 20:00+0200\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: ar\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=6; plural=n==0 ? 0 : n==1 ? 1 : n==2 ? 2 : n%100>=3 && n%100<=10 ? 3 : n%100>=11 && n%100<=99 ? 4 : 5;\n"
+
+msgid "Wyrażam zgodę opisaną wyżej."
+msgstr "أوافق على الموافقة الموضحة أعلاه."
+
+msgid "Pokazuj moje pełne imię i nazwisko"
+msgstr "إظهار اسمي الكامل"
+
+msgid "Działa tylko wtedy, gdy masz w konkursie zgodę na publikację imienia i nazwiska."
+msgstr "يعمل فقط إذا كنت قد وافقت على نشر اسمك الكامل في هذه المسابقة."
+
+msgid "Uczelnia albo miejsce pracy"
+msgstr "الجامعة أو مكان العمل"
+
+msgid "Kierunek albo stanowisko"
+msgstr "التخصص الدراسي أو المنصب"
+
+msgid "Miasto"
+msgstr "المدينة"
+
+msgid "Kraj"
+msgstr "البلد"
+
+msgid "Kilka słów o sobie"
+msgstr "بضع كلمات عنك"
+
+msgid "Zainteresowania"
+msgstr "الاهتمامات"
+
+msgid "Chcę być mentorem"
+msgstr "أريد أن أكون مرشدًا"
+
+msgid "W czym mogę pomóc"
+msgstr "ما الذي يمكنني المساعدة فيه"
+
+msgid "Ilu uczestników naraz"
+msgstr "عدد المشاركين في الوقت نفسه"
+
+msgid "Pokazuj mój profil w katalogu dla zalogowanych uczestników"
+msgstr "إظهار ملفي الشخصي في الدليل للمشاركين المسجّلين الدخول"
+
+msgid "Pokazuj mój profil na publicznej ścianie absolwentów"
+msgstr "إظهار ملفي الشخصي على جدار الخريجين العام"
+
+msgid "Na ścianie widać tylko podpis, osiągnięcia, uczelnię i kierunek."
+msgstr "لا يعرض الجدار إلا اسمك وإنجازاتك وجامعتك وتخصصك الدراسي."
+
+msgid "Chcę dostawać zaproszenia od organizatora (warsztaty, webinary, jury)"
+msgstr "أريد تلقي دعوات من المنظِّم (ورش عمل، ندوات عبر الإنترنت، لجنة التحكيم)"
+
+msgid "Temat"
+msgstr "الموضوع"
+
+msgid "Krótko: w czym potrzebujesz pomocy?"
+msgstr "باختصار: في ماذا تحتاج إلى المساعدة؟"
+
+msgid "Notatkę przeczyta mentor i organizator. Nie wpisuj tu danych kontaktowych."
+msgstr "سيقرأ الملاحظة المرشد والمنظِّم. لا تُدخل هنا بيانات الاتصال."
+
+msgid "Co się stało?"
+msgstr "ماذا حدث؟"
+
+msgid "Notatka (powód zakończenia)"
+msgstr "ملاحظة (سبب الإنهاء)"
+
+msgid "Kto może dołączyć"
+msgstr "من يمكنه الانضمام"
+
+msgid "Mentoring włączony"
+msgstr "الإرشاد مُفعَّل"
+
+msgid "Publiczna ściana absolwentów"
+msgstr "جدار الخريجين العام"
+
+msgid "Rodzaj"
+msgstr "النوع"
+
+msgid "Tytuł (temat listu)"
+msgstr "العنوان (موضوع البريد الإلكتروني)"
+
+msgid "Treść"
+msgstr "المحتوى"
+
+msgid "Adres wydarzenia (https://…)"
+msgstr "عنوان الفعالية (https://…)"
+
+msgid "Edycje"
+msgstr "الدورات"
+
+msgid "Najniższe osiągnięcie"
+msgstr "الحد الأدنى للإنجاز"
+
+msgid "dowolne"
+msgstr "أي إنجاز"
+
+msgid "Zainteresowania (dowolne z)"
+msgstr "الاهتمامات (أيٌّ منها)"
+
+msgid "Tylko mentorzy"
+msgstr "المرشدون فقط"
+
+msgid "Wybierz rodzaj zaproszenia."
+msgstr "اختر نوع الدعوة."
+
+msgid "Tytuł jest wymagany (do 150 znaków)."
+msgstr "العنوان مطلوب (حتى 150 حرفًا)."
+
+#, python-format
+msgid "Treść jest wymagana (do %(limit)s znaków)."
+msgstr "المحتوى مطلوب (حتى %(limit)s حرف)."
+
+msgid "Dzień dobry,"
+msgstr "مرحبًا،"
+
+#, python-format
+msgid "organizator konkursu %(competition)s zaprasza absolwentów: %(kind)s."
+msgstr "يدعو منظِّم %(competition)s الخريجين إلى: %(kind)s."
+
+#, python-format
+msgid "Szczegóły i zapisy: %(url)s"
+msgstr "التفاصيل والتسجيل: %(url)s"
+
+msgid "Dostajesz ten list, bo należysz do sieci absolwentów i nie wyłączyłeś zaproszeń."
+msgstr "تتلقى هذه الرسالة لأنك عضو في شبكة الخريجين ولم توقف الدعوات."
+
+#, python-format
+msgid "Wypisz się z zaproszeń: %(link)s"
+msgstr "إلغاء الاشتراك في الدعوات: %(link)s"
+
+msgid "Żaden absolwent nie spełnia tych filtrów."
+msgstr "لا يوجد خريجون يطابقون عوامل التصفية هذه."
+
+msgid "Rozmowa mentorska. Każdą wiadomość czyta i akceptuje organizator, zanim trafi do drugiej osoby."
+msgstr "محادثة إرشاد. يقرأ المنظِّم كل رسالة ويوافق عليها قبل أن تصل إلى الطرف الآخر."
+
+msgid "Rozmowa mentorska – obowiązują zasady Wiadomości tego konkursu."
+msgstr "محادثة إرشاد – تنطبق قواعد الرسائل الخاصة بهذه المسابقة."
+
+msgid "Rozmowa mentorska. Organizator przegląda wiadomości tej rozmowy (moderacja następcza)."
+msgstr "محادثة إرشاد. يراجع المنظِّم رسائل هذه المحادثة (إشراف لاحق)."
+
+msgid "Mentoring zakończył się – ta rozmowa jest teraz tylko do odczytu."
+msgstr "انتهى الإرشاد – أصبحت هذه المحادثة للقراءة فقط."
+
+msgid "Organizator wstrzymał mentoring – ta rozmowa jest teraz tylko do odczytu."
+msgstr "أوقف المنظِّم الإرشاد مؤقتًا – أصبحت هذه المحادثة للقراءة فقط."
+
+msgid "Nowa rozmowa mentorska. Pierwsze wiadomości czyta i akceptuje organizator, zanim trafią do drugiej osoby."
+msgstr "محادثة إرشاد جديدة. يقرأ المنظِّم الرسائل الأولى ويوافق عليها قبل أن تصل إلى الطرف الآخر."
+
+msgid "Mentoring jest w tym konkursie wyłączony."
+msgstr "الإرشاد معطَّل في هذه المسابقة."
+
+msgid "Mentoring wymaga modułu Wiadomości, który organizator wyłączył."
+msgstr "يتطلب الإرشاد وحدة الرسائل التي أوقفها المنظِّم."
+
+msgid "Ta osoba nie przyjmuje teraz próśb o mentoring."
+msgstr "هذا الشخص لا يقبل طلبات الإرشاد حاليًا."
+
+#, python-format
+msgid "%(label)s nie może być puste."
+msgstr "لا يمكن أن يكون %(label)s فارغًا."
+
+#, python-format
+msgid "%(label)s jest za długie (limit %(limit)s znaków)."
+msgstr "%(label)s طويل جدًا (الحد: %(limit)s حرف)."
+
+msgid "Nie możesz poprosić o mentoring samego siebie."
+msgstr "لا يمكنك طلب الإرشاد من نفسك."
+
+msgid "O mentora proszą uczestnicy bieżącej edycji."
+msgstr "يمكن لمشاركي الدورة الحالية طلب مرشد."
+
+msgid "Wybierz temat z listy."
+msgstr "اختر موضوعًا من القائمة."
+
+msgid "Notatka"
+msgstr "ملاحظة"
+
+msgid "Masz już otwartą prośbę albo relację z tą osobą."
+msgstr "لديك بالفعل طلب مفتوح أو علاقة إرشاد مع هذا الشخص."
+
+#, python-format
+msgid "Możesz mieć naraz najwyżej %(limit)s otwarte prośby i relacje mentorskie."
+msgstr "يمكن أن يكون لديك في الوقت نفسه %(limit)s من طلبات وعلاقات الإرشاد المفتوحة كحد أقصى."
+
+msgid "Ta osoba nie ma teraz wolnego miejsca na mentoring."
+msgstr "ليس لدى هذا الشخص مكان شاغر للإرشاد حاليًا."
+
+msgid "Wysłano już dziś dużo próśb o mentoring – spróbuj jutro."
+msgstr "لقد أرسلت اليوم بالفعل طلبات إرشاد كثيرة – حاول غدًا."
+
+msgid "Do tej osoby wysłano już w tym tygodniu prośbę – spróbuj za kilka dni."
+msgstr "لقد أرسلت بالفعل طلبًا إلى هذا الشخص هذا الأسبوع – حاول بعد بضعة أيام."
+
+msgid "Nie ma takiej relacji mentorskiej."
+msgstr "علاقة الإرشاد هذه غير موجودة."
+
+msgid "Macie już rozmowę szyfrowaną, a ta relacja wymaga moderacji organizatora. Organizator dostał zgłoszenie i skontaktuje się z Wami."
+msgstr "لديكما بالفعل محادثة مشفّرة، وهذه العلاقة تتطلب إشراف المنظِّم. تلقّى المنظِّم بلاغًا وسيتواصل معكما."
+
+msgid "Na tę prośbę już odpowiedziano."
+msgstr "تم الرد على هذا الطلب بالفعل."
+
+msgid "Najpierw dołącz do sieci absolwentów."
+msgstr "انضم إلى شبكة الخريجين أولًا."
+
+msgid "Twój profil nie przyjmuje teraz nowych relacji mentorskich."
+msgstr "ملفك الشخصي لا يقبل حاليًا علاقات إرشاد جديدة."
+
+msgid "Ta osoba nie jest już uczestnikiem konkursu."
+msgstr "لم يعد هذا الشخص مشاركًا في المسابقة."
+
+msgid "Masz już komplet mentee. Zwiększ liczbę miejsc w profilu albo zakończ inną relację."
+msgstr "لديك بالفعل العدد الكامل من المتدرّبين. زِد عدد الأماكن في ملفك الشخصي أو أنهِ علاقة أخرى."
+
+msgid "Tę prośbę można już tylko zakończyć."
+msgstr "لم يعد بالإمكان سوى إنهاء هذا الطلب."
+
+msgid "Ta relacja jest już zakończona."
+msgstr "انتهت هذه العلاقة بالفعل."
+
+msgid "Powód"
+msgstr "السبب"
+
+msgid "Nie ma takiej notatki do akceptacji."
+msgstr "لا توجد ملاحظة كهذه بانتظار الموافقة."
+
+msgid "Nie ma takiego zgłoszenia."
+msgstr "هذا البلاغ غير موجود."
+
+msgid "uczestnik"
+msgstr "مشارك"
+
+msgid "awans do kolejnego etapu"
+msgstr "التأهل إلى المرحلة التالية"
+
+msgid "finalista"
+msgstr "متأهل إلى النهائيات"
+
+msgid "laureat"
+msgstr "فائز"
+
+msgid "obliczenia kwantowe"
+msgstr "الحوسبة الكمّية"
+
+msgid "fizyka kwantowa"
+msgstr "الفيزياء الكمّية"
+
+msgid "fizyka"
+msgstr "الفيزياء"
+
+msgid "informatyka"
+msgstr "علوم الحاسوب"
+
+msgid "matematyka"
+msgstr "الرياضيات"
+
+msgid "inżynieria"
+msgstr "الهندسة"
+
+msgid "chemia"
+msgstr "الكيمياء"
+
+msgid "badania naukowe"
+msgstr "البحث العلمي"
+
+msgid "praca w przemyśle"
+msgstr "الصناعة"
+
+msgid "edukacja i popularyzacja"
+msgstr "التعليم ونشر المعرفة العلمية"
+
+msgid "zgoda udzielona"
+msgstr "تم منح الموافقة"
+
+msgid "zgoda wycofana"
+msgstr "تم سحب الموافقة"
+
+msgid "prośba czeka na mentora"
+msgstr "الطلب بانتظار المرشد"
+
+msgid "trwa"
+msgstr "نشطة"
+
+msgid "odrzucona przez mentora"
+msgstr "رفضها المرشد"
+
+msgid "wycofana przez uczestnika"
+msgstr "سحبها المشارك"
+
+msgid "zakończona"
+msgstr "منتهية"
+
+msgid "zakończył mentor"
+msgstr "أنهاها المرشد"
+
+msgid "zakończył uczestnik"
+msgstr "أنهاها المشارك"
+
+msgid "zakończył organizator"
+msgstr "أنهاها المنظِّم"
+
+msgid "mentor wycofał zgodę"
+msgstr "سحب المرشد موافقته"
+
+msgid "konto usunięte"
+msgstr "تم حذف الحساب"
+
+msgid "profil mentora ukryty przez organizatora"
+msgstr "ملف المرشد أخفاه المنظِّم"
+
+msgid "bez akceptacji"
+msgstr "دون موافقة"
+
+msgid "czeka na organizatora"
+msgstr "بانتظار المنظِّم"
+
+msgid "zaakceptowana"
+msgstr "تمت الموافقة"
+
+msgid "odrzucona przez organizatora"
+msgstr "رفضها المنظِّم"
+
+msgid "rozmowa według zasad Wiadomości"
+msgstr "محادثة وفق قواعد الرسائل"
+
+msgid "każdą wiadomość akceptuje organizator"
+msgstr "يوافق المنظِّم على كل رسالة"
+
+msgid "warsztaty"
+msgstr "ورشة عمل"
+
+msgid "webinar"
+msgstr "ندوة عبر الإنترنت"
+
+msgid "jury"
+msgstr "لجنة التحكيم"
+
+msgid "inne"
+msgstr "أخرى"
+
+msgid "Absolwenci: prośba o mentoring"
+msgstr "الخريجون: طلب إرشاد"
+
+msgid "Absolwenci: mentor przyjął Twoją prośbę"
+msgstr "الخريجون: قبل مرشد طلبك"
+
+msgid "Absolwenci: odpowiedź na prośbę o mentoring"
+msgstr "الخريجون: رد على طلب الإرشاد الخاص بك"
+
+msgid "Absolwenci: relacja mentorska zakończona"
+msgstr "الخريجون: انتهت علاقة إرشاد"
+
+msgid "Absolwenci: zgłoszono problem z relacją mentorską"
+msgstr "الخريجون: تم الإبلاغ عن مشكلة في علاقة إرشاد"
+
+#, python-format
+msgid "%(name)s prosi Cię o mentoring w sieci absolwentów."
+msgstr "يطلب منك %(name)s الإرشاد في شبكة الخريجين."
+
+msgid "Notatkę prośby przeczytasz i odpowiesz na nią po zalogowaniu:"
+msgstr "يمكنك قراءة ملاحظة الطلب والرد عليها بعد تسجيل الدخول:"
+
+#, python-format
+msgid "%(name)s zgadza się zostać Twoim mentorem."
+msgstr "وافق %(name)s على أن يكون مرشدك."
+
+msgid "Rozmowa czeka w Wiadomościach:"
+msgstr "المحادثة بانتظارك في الرسائل:"
+
+#, python-format
+msgid "%(name)s nie może teraz przyjąć Twojej prośby o mentoring."
+msgstr "لا يستطيع %(name)s قبول طلب الإرشاد الخاص بك حاليًا."
+
+msgid "Możesz poprosić inną osobę z katalogu absolwentów:"
+msgstr "يمكنك أن تطلب من شخص آخر من دليل الخريجين:"
+
+msgid "Relacja mentorska w sieci absolwentów została zakończona."
+msgstr "انتهت علاقة إرشاد في شبكة الخريجين."
+
+msgid "Rozmowa zostaje w Wiadomościach do odczytu. Szczegóły:"
+msgstr "تبقى المحادثة في الرسائل للقراءة فقط. التفاصيل:"
+
+msgid "Jedna ze stron relacji mentorskiej zgłosiła problem. Powód przeczytasz w panelu:"
+msgstr "أبلغ أحد طرفي علاقة إرشاد عن مشكلة. يمكنك قراءة السبب في اللوحة:"
+
+msgid "Do sieci absolwentów dołączają uczestnicy tego konkursu."
+msgstr "شبكة الخريجين مفتوحة لمشاركي هذه المسابقة."
+
+msgid "Do sieci absolwentów dołączają osoby pełnoletnie. Wróć tu po swoich 18. urodzinach – Twoje osiągnięcia poczekają."
+msgstr "شبكة الخريجين مفتوحة للبالغين. عُد بعد بلوغك الثامنة عشرة – ستنتظرك إنجازاتك."
+
+#, python-format
+msgid "Do sieci absolwentów dołączają osoby z osiągnięciem w zakończonej edycji na poziomie co najmniej: %(level)s."
+msgstr "شبكة الخريجين مفتوحة لمن لديهم إنجاز في دورة مكتملة بمستوى لا يقل عن: %(level)s."
+
+msgid "Chcę należeć do sieci absolwentów tego konkursu. Zgadzam się, żeby organizator przetwarzał moje imię i inicjał nazwiska (pełne imię i nazwisko – tylko jeśli tak wybiorę i mam zgodę na publikację nazwiska), moje osiągnięcia z ogłoszonych wyników oraz dane, które sam wpiszę do profilu, w celu: pokazania profilu zalogowanym uczestnikom konkursu (a na publicznej ścianie – tylko jeśli to zaznaczę), kontaktu mentorskiego przez Wiadomości, wysyłania mi zaproszeń na warsztaty, webinary i do jury (mogę się wypisać w każdym liście) oraz zagregowanych statystyk „gdzie są teraz”, w których nikt nie jest rozpoznawalny. Zgodę mogę wycofać w każdej chwili – profil zniknie od razu."
+msgstr "أريد الانتماء إلى شبكة خريجي هذه المسابقة. أوافق على أن يعالج المنظِّم اسمي الأول والحرف الأول من اسم عائلتي (واسمي الكامل فقط إذا اخترت ذلك ووافقت على نشر اسمي)، وإنجازاتي من النتائج المنشورة، والبيانات التي أُدخلها بنفسي في ملفي الشخصي، وذلك من أجل: عرض ملفي الشخصي على مشاركي المسابقة المسجّلين الدخول (وعلى الجدار العام فقط إذا حدّدت هذا الخيار)، وإتاحة التواصل الإرشادي عبر الرسائل، وإرسال دعوات إليّ لورش العمل والندوات عبر الإنترنت والمشاركة في لجان التحكيم (يمكنني إلغاء الاشتراك من أي رسالة)، وإعداد إحصاءات مجمّعة بعنوان «أين هم الآن» لا يمكن من خلالها التعرّف على أي شخص. يمكنني سحب موافقتي في أي وقت – وسيختفي ملفي الشخصي فورًا."
+
+msgid "Ta część serwisu jest dostępna dla uczestników tego konkursu."
+msgstr "هذا الجزء من الموقع متاح لمشاركي هذه المسابقة."
+
+msgid "Ta część serwisu jest dostępna dla koordynatora."
+msgstr "هذا الجزء من الموقع متاح للمنسّق."
+
+msgid "Zaznacz zgodę, żeby dołączyć do sieci absolwentów."
+msgstr "حدّد مربع الموافقة للانضمام إلى شبكة الخريجين."
+
+msgid "nie podano"
+msgstr "غير محدد"
+
+msgid "Uczelnia"
+msgstr "الجامعة"
+
+msgid "Kierunek"
+msgstr "التخصص الدراسي"
+
+msgid "Zainteresowania (osoba może mieć kilka)"
+msgstr "الاهتمامات (قد يكون للشخص الواحد عدة اهتمامات)"
+
+msgid "Najwyższe osiągnięcie"
+msgstr "أعلى إنجاز"
+
+msgid "Opis tej osoby czeka na akceptację organizatora."
+msgstr "وصف هذا الشخص بانتظار موافقة المنظِّم."
+
+msgid "Zainteresowania:"
+msgstr "الاهتمامات:"
+
+msgid "Mentor"
+msgstr "مرشد"
+
+#, python-format
+msgid "wolne miejsca: %(slots)s"
+msgstr "الأماكن الشاغرة: %(slots)s"
+
+msgid "brak wolnych miejsc"
+msgstr "لا توجد أماكن شاغرة"
+
+msgid "Poproś o mentoring"
+msgstr "اطلب الإرشاد"
+
+msgid "Absolwenci"
+msgstr "الخريجون"
+
+msgid "Mentoring"
+msgstr "الإرشاد"
+
+msgid "Zaproszenia"
+msgstr "الدعوات"
+
+msgid "Gdzie są teraz"
+msgstr "أين هم الآن"
+
+msgid "Absolwenci – panel koordynatora"
+msgstr "الخريجون – لوحة المنسّق"
+
+msgid "Sieć byłych uczestników, którzy wyrazili na to zgodę: profile, mentoring, zaproszenia i zagregowane statystyki."
+msgstr "شبكة المشاركين السابقين الذين وافقوا على ذلك: الملفات الشخصية والإرشاد والدعوات والإحصاءات المجمّعة."
+
+msgid "dane osobowe"
+msgstr "البيانات الشخصية"
+
+msgid "Podstawą jest zgoda absolwenta – wycofanie usuwa profil od razu. Osiągnięcia liczą się wyłącznie z ogłoszonych wyników i wystawionych dyplomów."
+msgstr "الأساس القانوني هو موافقة الخريج – وسحبها يحذف الملف الشخصي فورًا. تُستمد الإنجازات فقط من النتائج المنشورة والشهادات الصادرة."
+
+msgid "Ustawienia"
+msgstr "الإعدادات"
+
+msgid "Mentoring wymaga włączonych Wiadomości – bez nich mentorzy nie mogą przyjmować próśb."
+msgstr "يتطلب الإرشاد تفعيل الرسائل – فبدونها لا يستطيع المرشدون قبول الطلبات."
+
+msgid "„Kto może dołączyć” to najniższe osiągnięcie w zakończonej edycji. Dołączają wyłącznie osoby pełnoletnie. Mentoring małoletnich toczy się zawsze z udziałem organizatora: przy zasadzie „ta sama grupa wiekowa” każdą wiadomość akceptujesz przed doręczeniem, a przy „bez ograniczeń” przeglądasz je po doręczeniu (kolejka moderacji Wiadomości)."
+msgstr "«من يمكنه الانضمام» هو الحد الأدنى للإنجاز في دورة مكتملة. لا يمكن الانضمام إلا للبالغين. يشارك المنظِّم دائمًا في إرشاد القاصرين: وفق قاعدة «الفئة العمرية نفسها» توافق على كل رسالة قبل تسليمها، ووفق قاعدة «بلا قيود» تراجع الرسائل بعد تسليمها (قائمة انتظار الإشراف في الرسائل)."
+
+msgid "Zapisz ustawienia"
+msgstr "حفظ الإعدادات"
+
+msgid "Opisy mentorów do akceptacji"
+msgstr "أوصاف المرشدين بانتظار الموافقة"
+
+msgid "Małoletni uczestnicy nie widzą opisu ani odnośników mentora, dopóki ich nie zaakceptujesz. Każda zmiana treści wymaga ponownej akceptacji."
+msgstr "لا يرى المشاركون القاصرون وصف المرشد ولا روابطه حتى توافق عليها. كل تغيير في المحتوى يتطلب موافقة جديدة."
+
+msgid "Osoba"
+msgstr "الشخص"
+
+msgid "możliwe dane kontaktowe:"
+msgstr "بيانات اتصال محتملة:"
+
+msgid "Akceptuj"
+msgstr "وافق"
+
+msgid "Profile absolwentów"
+msgstr "ملفات الخريجين الشخصية"
+
+#, python-format
+msgid "Mogłoby jeszcze dołączyć (spełnia kryteria, nie dołączyło): %(count)s."
+msgstr "يمكنهم الانضمام (يستوفون المعايير ولم ينضموا بعد): %(count)s."
+
+msgid "Szukaj"
+msgstr "بحث"
+
+msgid "Osiągnięcia"
+msgstr "الإنجازات"
+
+msgid "Widoczność"
+msgstr "الظهور"
+
+msgid "ukryty"
+msgstr "مخفي"
+
+msgid "katalog"
+msgstr "الدليل"
+
+msgid "ściana"
+msgstr "الجدار"
+
+msgid "Pokaż"
+msgstr "إظهار"
+
+msgid "Ukryj"
+msgstr "إخفاء"
+
+msgid "Nikt jeszcze nie dołączył do sieci absolwentów."
+msgstr "لم ينضم أحد إلى شبكة الخريجين بعد."
+
+msgid "Poprzednia"
+msgstr "السابق"
+
+msgid "Następna"
+msgstr "التالي"
+
+msgid "Zaproszenia – panel koordynatora"
+msgstr "الدعوات – لوحة المنسّق"
+
+msgid "Zaproszenia dla absolwentów"
+msgstr "دعوات للخريجين"
+
+msgid "List do absolwentów, którzy nie wyłączyli zaproszeń – w ich języku, z odnośnikiem wypisu. Do webinaru wklej adres wydarzenia."
+msgstr "بريد إلكتروني إلى الخريجين الذين لم يوقفوا الدعوات – بلغتهم، مع رابط لإلغاء الاشتراك. للندوة عبر الإنترنت، الصق عنوان الفعالية."
+
+#, python-format
+msgid "Odbiorców z tymi filtrami: %(count)s."
+msgstr "عدد المستلمين وفق عوامل التصفية هذه: %(count)s."
+
+msgid "Policz odbiorców"
+msgstr "احسب المستلمين"
+
+msgid "Wyślij zaproszenie"
+msgstr "إرسال الدعوة"
+
+msgid "Wysłane"
+msgstr "أُرسلت"
+
+msgid "Data"
+msgstr "التاريخ"
+
+msgid "Tytuł"
+msgstr "العنوان"
+
+msgid "Odbiorcy"
+msgstr "المستلمون"
+
+msgid "Nie wysłano jeszcze żadnego zaproszenia."
+msgstr "لم تُرسل أي دعوة بعد."
+
+msgid "Mentoring – panel koordynatora"
+msgstr "الإرشاد – لوحة المنسّق"
+
+msgid "Prośby i relacje mentor–uczestnik. Wiadomości rozmów mentorskich czytasz w kolejce moderacji Wiadomości."
+msgstr "طلبات وعلاقات المرشد والمشارك. تقرأ رسائل محادثات الإرشاد في قائمة انتظار الإشراف في الرسائل."
+
+msgid "Kolejka moderacji"
+msgstr "قائمة انتظار الإشراف"
+
+msgid "Mentoring jest wyłączony – istniejące rozmowy mentorskie są tylko do odczytu."
+msgstr "الإرشاد معطَّل – محادثات الإرشاد الحالية للقراءة فقط."
+
+msgid "Notatki próśb małoletnich do akceptacji"
+msgstr "ملاحظات طلبات القاصرين بانتظار الموافقة"
+
+msgid "Mentor przeczyta notatkę dopiero po Twojej akceptacji; do tego czasu widzi sam temat."
+msgstr "لن يقرأ المرشد الملاحظة إلا بعد موافقتك؛ وحتى ذلك الحين لا يرى سوى الموضوع."
+
+msgid "Relacja"
+msgstr "العلاقة"
+
+msgid "Odrzuć"
+msgstr "رفض"
+
+msgid "Zgłoszenia problemów"
+msgstr "المشكلات المُبلَّغ عنها"
+
+msgid "Zgłoszone"
+msgstr "تاريخ البلاغ"
+
+msgid "automatyczne"
+msgstr "تلقائي"
+
+msgid "Zamknij zgłoszenie"
+msgstr "إغلاق البلاغ"
+
+msgid "Relacje"
+msgstr "العلاقات"
+
+msgid "wszystkie"
+msgstr "الكل"
+
+msgid "Uczestnik"
+msgstr "المشارك"
+
+msgid "Stan"
+msgstr "الحالة"
+
+msgid "Kanał"
+msgstr "القناة"
+
+msgid "Zgłoszenia"
+msgstr "البلاغات"
+
+msgid "małoletni"
+msgstr "قاصر"
+
+msgid "notatka prośby"
+msgstr "ملاحظة الطلب"
+
+msgid "Powód zakończenia"
+msgstr "سبب الإنهاء"
+
+msgid "Zakończ relację"
+msgstr "إنهاء العلاقة"
+
+msgid "Brak relacji mentorskich."
+msgstr "لا توجد علاقات إرشاد."
+
+msgid "Zgłoszenia: problemy z relacją / zgłoszone wiadomości w rozmowie (otwarte)."
+msgstr "البلاغات: مشكلات العلاقة / الرسائل المُبلَّغ عنها في المحادثة (المفتوحة)."
+
+msgid "Gdzie są teraz – panel koordynatora"
+msgstr "أين هم الآن – لوحة المنسّق"
+
+#, python-format
+msgid "Zagregowane dane z profili absolwentów. Grupy mniejsze niż %(k)s osób nie są pokazywane osobno – nikogo nie da się z tych tabel rozpoznać."
+msgstr "بيانات مجمّعة من ملفات الخريجين الشخصية. لا تُعرض المجموعات التي تقل عن %(k)s أشخاص بشكل منفصل – لا يمكن التعرّف على أي شخص من هذه الجداول."
+
+#, python-format
+msgid "Absolwentów w sieci: %(total)s."
+msgstr "الخريجون في الشبكة: %(total)s."
+
+#, python-format
+msgid "Mentorów: %(mentors)s."
+msgstr "المرشدون: %(mentors)s."
+
+#, python-format
+msgid "Mentorów: mniej niż %(k)s."
+msgstr "المرشدون: أقل من %(k)s."
+
+#, python-format
+msgid "Sieć ma mniej niż %(k)s osób – rozkładów nie pokazujemy, bo każda liczba mówiłaby o konkretnych ludziach."
+msgstr "تضم الشبكة أقل من %(k)s أشخاص – لا نعرض التوزيعات لأن كل رقم سيصف أشخاصًا بعينهم."
+
+msgid "Katalog absolwentów"
+msgstr "دليل الخريجين"
+
+msgid "Absolwenci, którzy zgodzili się pokazać swój profil zalogowanym uczestnikom."
+msgstr "الخريجون الذين وافقوا على إظهار ملفاتهم الشخصية للمشاركين المسجّلين الدخول."
+
+msgid "Szukaj (imię, uczelnia, kierunek)"
+msgstr "بحث (الاسم الأول، الجامعة، التخصص الدراسي)"
+
+msgid "Zainteresowanie"
+msgstr "الاهتمام"
+
+msgid "Tylko mentorzy z wolnym miejscem"
+msgstr "المرشدون الذين لديهم مكان شاغر فقط"
+
+msgid "Strony katalogu"
+msgstr "صفحات الدليل"
+
+msgid "Nikogo tu jeszcze nie ma"
+msgstr "لا يوجد أحد هنا بعد"
+
+msgid "Sieć absolwentów"
+msgstr "شبكة الخريجين"
+
+msgid "Organizator wyłączył sieć absolwentów. Twój profil nie jest nikomu pokazywany, nie dostajesz zaproszeń, a rozmowy mentorskie są tylko do odczytu. Dane profilu zostają do czasu wycofania zgody albo usunięcia ich przez organizatora."
+msgstr "أوقف المنظِّم شبكة الخريجين. لا يُعرض ملفك الشخصي على أحد، ولا تصلك دعوات، ومحادثات الإرشاد للقراءة فقط. تبقى بيانات ملفك حتى تسحب موافقتك أو يحذفها المنظِّم."
+
+msgid "Wycofaj zgodę i usuń profil"
+msgstr "سحب الموافقة وحذف الملف الشخصي"
+
+msgid "Zgłoś problem z mentoringiem"
+msgstr "الإبلاغ عن مشكلة في الإرشاد"
+
+msgid "Zgłoszenie trafi od razu do organizatora. Jeśli problem dotyczy konkretnej wiadomości, zgłoś ją także w Wiadomościach przyciskiem „Zgłoś”."
+msgstr "يصل البلاغ مباشرة إلى المنظِّم. إذا كانت المشكلة تتعلق برسالة معيّنة، فأبلغ عنها أيضًا في الرسائل باستخدام زر «إبلاغ»."
+
+msgid "Wyślij zgłoszenie"
+msgstr "إرسال البلاغ"
+
+msgid "Byli uczestnicy, którzy pokazują, co robią dziś, pomagają obecnym uczestnikom jako mentorzy i dostają zaproszenia na warsztaty, webinary i do jury."
+msgstr "مشاركون سابقون يعرضون ما يفعلونه اليوم، ويساعدون المشاركين الحاليين بصفتهم مرشدين، ويتلقون دعوات لورش العمل والندوات عبر الإنترنت والمشاركة في لجان التحكيم."
+
+msgid "Publiczna ściana"
+msgstr "الجدار العام"
+
+msgid "Zmieniła się treść zgody"
+msgstr "تغيّر نص الموافقة"
+
+msgid "Twój profil jest niewidoczny, dopóki nie potwierdzisz nowej treści zgody. Możesz też wycofać zgodę niżej."
+msgstr "ملفك الشخصي مخفي حتى تؤكد نص الموافقة الجديد. يمكنك أيضًا سحب موافقتك أدناه."
+
+msgid "Potwierdzam"
+msgstr "أؤكد"
+
+msgid "Twój profil"
+msgstr "ملفك الشخصي"
+
+msgid "Organizator ukrył Twój profil – nie widać go w katalogu ani na ścianie. Napisz do organizatora, jeśli to pomyłka."
+msgstr "أخفى المنظِّم ملفك الشخصي – فهو غير ظاهر في الدليل ولا على الجدار. راسل المنظِّم إذا كان ذلك خطأً."
+
+msgid "Tak widzą Cię inni zalogowani uczestnicy:"
+msgstr "هكذا يراك المشاركون الآخرون المسجّلون الدخول:"
+
+msgid "Zapisz profil"
+msgstr "حفظ الملف الشخصي"
+
+msgid "Wycofanie zgody"
+msgstr "سحب الموافقة"
+
+msgid "Po wycofaniu zgody Twój profil absolwenta zniknie od razu, a relacje, w których jesteś mentorem, zakończą się. Twoje wyniki i dyplomy zostają – to dokumentacja zawodów."
+msgstr "بعد سحب موافقتك، سيختفي ملفك الشخصي في شبكة الخريجين فورًا وستنتهي العلاقات التي تكون فيها مرشدًا. تبقى نتائجك وشهاداتك – فهي جزء من سجلات المسابقة."
+
+msgid "Dołącz do sieci absolwentów"
+msgstr "انضم إلى شبكة الخريجين"
+
+msgid "Twoje osiągnięcia z ogłoszonych wyników:"
+msgstr "إنجازاتك من النتائج المنشورة:"
+
+msgid "Dołączam"
+msgstr "انضمام"
+
+msgid "Organizator nie włączył jeszcze mentoringu."
+msgstr "لم يفعّل المنظِّم الإرشاد بعد."
+
+msgid "Rola"
+msgstr "الدور"
+
+msgid "Druga osoba"
+msgstr "الطرف الآخر"
+
+msgid "jesteś mentorem"
+msgstr "أنت المرشد"
+
+msgid "Twój mentor"
+msgstr "مرشدك"
+
+msgid "Notatka prośby czeka na akceptację organizatora."
+msgstr "ملاحظة الطلب بانتظار موافقة المنظِّم."
+
+msgid "Przyjmij"
+msgstr "قبول"
+
+msgid "Wycofaj prośbę"
+msgstr "سحب الطلب"
+
+msgid "Rozmowa"
+msgstr "المحادثة"
+
+msgid "Zakończ"
+msgstr "إنهاء"
+
+msgid "Zgłoś problem"
+msgstr "الإبلاغ عن مشكلة"
+
+msgid "Nie masz jeszcze żadnej relacji mentorskiej. Mentora wybierzesz w katalogu absolwentów – przy osobach, które pomagają, stoi przycisk „Poproś o mentoring”."
+msgstr "ليست لديك أي علاقة إرشاد بعد. يمكنك اختيار مرشد من دليل الخريجين – لدى من يقدّمون المساعدة زر «اطلب الإرشاد»."
+
+msgid "Rozmowa mentorska toczy się w Wiadomościach. Jeśli uczestnik jest niepełnoletni, organizator czyta wiadomości – zależnie od zasad konkursu przed doręczeniem albo po nim."
+msgstr "تجري محادثة الإرشاد في الرسائل. إذا كان المشارك قاصرًا، يقرأ المنظِّم الرسائل – قبل تسليمها أو بعده، حسب قواعد المسابقة."
+
+msgid "Prośba o mentoring"
+msgstr "طلب إرشاد"
+
+msgid "Jeśli mentor przyjmie prośbę, rozmowa otworzy się w Wiadomościach. Organizator widzi relacje mentorskie i – zależnie od zasad konkursu – czyta wiadomości."
+msgstr "إذا قبل المرشد الطلب، ستُفتح محادثة في الرسائل. يرى المنظِّم علاقات الإرشاد، ويقرأ الرسائل حسب قواعد المسابقة."
+
+msgid "Wyślij prośbę"
+msgstr "إرسال الطلب"
+
+msgid "Wypis z zaproszeń"
+msgstr "إلغاء الاشتراك في الدعوات"
+
+msgid "Wypis z zaproszeń dla absolwentów"
+msgstr "إلغاء الاشتراك في دعوات الخريجين"
+
+msgid "Ten odnośnik jest nieprawidłowy. Zaproszenia wyłączysz też w swoim profilu absolwenta."
+msgstr "هذا الرابط غير صالح. يمكنك أيضًا إيقاف الدعوات في ملفك الشخصي في شبكة الخريجين."
+
+msgid "Gotowe – nie będziesz już dostawać zaproszeń. Włączysz je z powrotem w profilu absolwenta."
+msgstr "تم – لن تتلقى دعوات بعد الآن. يمكنك إعادة تفعيلها في ملفك الشخصي في شبكة الخريجين."
+
+msgid "Kliknij, żeby nie dostawać więcej zaproszeń od organizatora (warsztaty, webinary, jury)."
+msgstr "انقر للتوقف عن تلقي الدعوات من المنظِّم (ورش عمل، ندوات عبر الإنترنت، لجنة التحكيم)."
+
+msgid "Wypisz mnie"
+msgstr "ألغِ اشتراكي"
+
+msgid "Nasi absolwenci"
+msgstr "خريجونا"
+
+msgid "Laureaci i finaliści poprzednich edycji – i to, co robią dziś."
+msgstr "الفائزون والمتأهلون إلى النهائيات في الدورات السابقة – وما يفعلونه اليوم."
+
+msgid "Strony"
+msgstr "الصفحات"
+
+#, python-format
+msgid "Podaj adres profilu %(service)s zaczynający się od https://."
+msgstr "أدخل عنوان الملف الشخصي على %(service)s الذي يبدأ بـ https://."
+
+#, python-format
+msgid "To nie wygląda na adres profilu %(service)s."
+msgstr "لا يبدو هذا عنوان ملف شخصي على %(service)s."
+
+msgid "Adres wydarzenia musi zaczynać się od https://."
+msgstr "يجب أن يبدأ عنوان الفعالية بـ https://."
+
+msgid "Witaj w sieci absolwentów! Uzupełnij profil – każde pole jest opcjonalne."
+msgstr "مرحبًا بك في شبكة الخريجين! املأ ملفك الشخصي – جميع الحقول اختيارية."
+
+msgid "Profil zapisany."
+msgstr "تم حفظ الملف الشخصي."
+
+msgid "Zgoda wycofana – Twój profil absolwenta został usunięty."
+msgstr "تم سحب الموافقة – حُذف ملفك الشخصي في شبكة الخريجين."
+
+msgid "Dziękujemy – Twój profil znów jest widoczny."
+msgstr "شكرًا – أصبح ملفك الشخصي مرئيًا مجددًا."
+
+msgid "Prośba wysłana. Dostaniesz e-mail, gdy mentor odpowie."
+msgstr "تم إرسال الطلب. ستتلقى رسالة بريد إلكتروني عندما يرد المرشد."
+
+msgid "Prośba przyjęta – rozmowa czeka w Wiadomościach."
+msgstr "تم قبول الطلب – المحادثة بانتظارك في الرسائل."
+
+msgid "Prośba odrzucona."
+msgstr "تم رفض الطلب."
+
+msgid "Prośba wycofana."
+msgstr "تم سحب الطلب."
+
+msgid "Relacja mentorska zakończona."
+msgstr "انتهت علاقة الإرشاد."
+
+msgid "Zgłoszenie wysłane do organizatora."
+msgstr "تم إرسال البلاغ إلى المنظِّم."
+
+msgid "Ustawienia zapisane."
+msgstr "تم حفظ الإعدادات."
+
+msgid "Profil ukryty."
+msgstr "تم إخفاء الملف الشخصي."
+
+msgid "Profil znów jest widoczny."
+msgstr "أصبح الملف الشخصي ظاهرًا مرة أخرى."
+
+msgid "Opis zaakceptowany – małoletni uczestnicy go zobaczą."
+msgstr "تمت الموافقة على الوصف – سيراه المشاركون القاصرون."
+
+msgid "Decyzja zapisana."
+msgstr "تم حفظ القرار."
+
+msgid "Podaj powód zakończenia relacji."
+msgstr "اذكر سبب إنهاء العلاقة."
+
+msgid "Relacja zakończona. Obie strony dostały list."
+msgstr "انتهت العلاقة. تلقى الطرفان رسالة بريد إلكتروني."
+
+msgid "Zgłoszenie zamknięte."
+msgstr "تم إغلاق البلاغ."
+
+#, python-format
+msgid "Zaproszenie wysłane. Liczba odbiorców: %(count)s."
+msgstr "تم إرسال الدعوة. عدد المستلمين: %(count)s."

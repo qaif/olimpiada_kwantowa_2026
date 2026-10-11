@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% load i18n static %}
+{% comment %}
+  Siatka nadzorującego (zadanie PROC-01, ``ProctorGridView``). Lista uczniów przychodzi z serwera
+  (``roster`` – już zawężona do zakresu tej osoby), obraz – z pokoju LiveKit **jednej** grupy
+  (token z ``proctoring-token``). ``static/js/proctoring-grid.js`` łączy się z ``autoSubscribe=false``
+  i subskrybuje wyłącznie kafle widocznej strony; ekran ucznia – dopiero po „Ekran”.
+  Czynności (wiadomość, prośby, obecność, incydent) idą POST-em przez platformę – zapis, dziennik, audyt.
+{% endcomment %}
+{% block title %}{% translate "Nadzór" %} – {{ stage.display_name }}{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/proctoring.css' %}">{% endblock %}
+{% block content %}
+<div class="pg" id="proctoring-grid"
+     data-roster-url="{% url 'web:proctoring-roster' stage.pk %}"
+     data-token-url="{% url 'web:proctoring-token' stage.pk %}"
+     data-action-url="{% url 'web:proctoring-action' stage.pk 0 %}"
+     data-report-url="{% if can_review %}{% url 'web:proctoring-report' stage.pk 0 %}{% endif %}"
+     data-microphone="{% if microphone %}1{% else %}0{% endif %}">
+  {% csrf_token %}
+  <header class="pg__head">
+    <div>
+      <span class="eyebrow">{% translate "Nadzór zdalny" %}</span>
+      <h1 class="mt-0">{{ stage.display_name }}</h1>
+    </div>
+    <p class="pg__status" data-status role="status" aria-live="polite">{% translate "Łączenie…" %}</p>
+    {% if can_review %}<a class="btn btn--secondary btn--small" href="{% url 'web:proctoring-export' stage.pk %}">{% translate "Eksport incydentów (CSV)" %}</a>{% endif %}
+  </header>
+  <noscript><p class="alert alert--warning">{% translate "Siatka nadzoru wymaga włączonego JavaScriptu." %}</p></noscript>
+  {% if not sdk_url %}
+    <p class="alert alert--warning" role="alert">{% translate "Obraz jest chwilowo niedostępny – brakuje komponentu wideo na serwerze. Lista uczniów i czynności działają." %}</p>
+  {% elif not configured %}
+    <p class="alert alert--warning" role="alert">{% translate "Serwer nadzoru nie jest skonfigurowany. Lista uczniów i czynności działają." %}</p>
+  {% endif %}
+
+  <nav class="pg__toolbar" aria-label="{% translate 'Widok' %}">
+    <label>{% translate "Grupa" %}
+      <select data-group>
+        {% for group in groups %}<option value="{{ group.key }}">{{ group.label }}</option>{% endfor %}
+      </select>
+    </label>
+    <label>{% translate "Kafli na stronie" %}
+      <select data-size>{% for size in page_sizes %}<option value="{{ size }}">{{ size }}</option>{% endfor %}</select>
+    </label>
+    <button type="button" class="btn btn--secondary btn--small" data-prev>{% translate "Poprzednia" %}</button>
+    <span data-page-label></span>
+    <button type="button" class="btn btn--secondary btn--small" data-next>{% translate "Następna" %}</button>
+    <button type="button" class="btn btn--secondary btn--small" data-start-audio hidden>{% translate "Włącz dźwięk" %}</button>
+  </nav>
+
+  <div class="pg__grid" data-tiles aria-live="off"></div>
+
+  <dialog class="pg__dialog" data-incident-dialog aria-labelledby="pg-incident-title">
+    <form method="dialog" data-incident-form>
+      <h2 class="mt-0" id="pg-incident-title">{% translate "Incydent" %} <span data-incident-who></span></h2>
+      <p><label>{% translate "Kategoria" %}
+        <select name="category" required>{% for value, label in categories %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select>
+      </label></p>
+      <p><label>{% translate "Waga" %}
+        <select name="severity" required>{% for value, label in severities %}<option value="{{ value }}"{% if value == "warning" %} selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+      </label></p>
+      <p><label>{% translate "Notatka" %}<textarea name="note" rows="4" maxlength="2000"></textarea></label></p>
+      <p class="hint">{% translate "Czas incydentu zapisze się jako chwila otwarcia tego okna." %}</p>
+      <div class="actions">
+        <button type="submit" value="save" class="btn btn--primary">{% translate "Zapisz incydent" %}</button>
+        <button type="submit" value="cancel" class="btn btn--secondary" formnovalidate>{% translate "Anuluj" %}</button>
+      </div>
+    </form>
+  </dialog>
+</div>
+{{ strings|json_script:"proctoring-grid-strings" }}
+{% if sdk_url %}<script nonce="{{ request.csp_nonce }}" src="{{ sdk_url }}" defer></script>{% endif %}
+<script nonce="{{ request.csp_nonce }}" src="{% static 'js/proctoring-grid.js' %}" defer></script>
+{% endblock %}

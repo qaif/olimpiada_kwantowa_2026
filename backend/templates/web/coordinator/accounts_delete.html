@@ -62,6 +62,7 @@
 
     <form method="post" class="form">
       {% csrf_token %}
+      {% if back %}<input type="hidden" name="back" value="{{ back }}">{% endif %}
       <div class="actions">
         {% if not protected and not is_self and not shared %}
           <button type="submit" class="btn btn--danger">
@@ -69,10 +70,11 @@
           </button>
         {% endif %}
         {% comment %}
-          „Wróć” prowadzi tam, skąd koordynator przyszedł: na kartę konta albo – przy usuwaniu
-          z ekranu aktywacji – z powrotem na kolejkę (``cancel_url`` liczy widok).
+          „Wróć” prowadzi tam, skąd koordynator przyszedł: na kartę konta, na listę zdublowanych kont
+          (``back``) albo – przy usuwaniu z ekranu aktywacji – z powrotem na kolejkę (adres i napis
+          liczy widok: ``cancel_url``, ``cancel_label``).
         {% endcomment %}
-        <a class="btn btn--secondary" href="{{ cancel_url }}">Wróć</a>
+        <a class="btn btn--secondary" href="{{ cancel_url }}">{{ cancel_label }}</a>
       </div>
     </form>
   </div>

@@ -15,5 +15,5 @@
   {{ form.captcha.errors }}
   {{ form.captcha.label_tag }}
   {{ form.captcha }}
-  <span class="helptext">{{ form.captcha.help_text }}</span>
+  <span class="helptext" id="{{ form.captcha.auto_id }}_helptext">{{ form.captcha.help_text }}</span>
 </p>

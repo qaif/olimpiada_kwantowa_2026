@@ -1,0 +1,3 @@
+{% load i18n %}{% autoescape off %}{% comment %}
+  ``<kod>`` w odwrocie – patrz ``receipt_subject.txt``.
+{% endcomment %}{% blocktranslate trimmed with competition=brand.competition|default:_("Olimpiada Kwantowa") reference=order.reference|default:"<kod>" %}Zwrot wpłaty {{ reference }} – {{ competition }}{% endblocktranslate %}{% endautoescape %}

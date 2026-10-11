@@ -7,7 +7,7 @@ Protokół (clamd, tryb ``z``-terminowany):
 4. serwer odpowiada jedną linią zakończoną ``\\0``: ``stream: OK`` albo
    ``stream: <sygnatura> FOUND`` albo ``... ERROR``.
 
-``StreamMaxLength`` clamd (w obrazie clamav 1.4 to 100 MB, ustawienie ``CLAMAV_STREAM_MAX_BYTES``)
+``StreamMaxLength`` clamd (w obrazach clamav 1.4 i 1.5 to 100 MB, ustawienie ``CLAMAV_STREAM_MAX_BYTES``)
 ogranicza *cały* strumień, nie pojedynczą porcję. Po przekroczeniu clamd zamyka gniazdo w trakcie
 wysyłki – klient widzi wtedy „Broken pipe”, czyli objaw nieodróżnialny od awarii usługi. Dlatego
 limit sprawdzamy sami, przed wysłaniem, i zgłaszamy go jako błąd trwały (``ClamAVStreamTooLarge``),
@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 CHUNK_SIZE = 64 * 1024
 DEFAULT_TIMEOUT = 60
-#: Musi odpowiadać ``StreamMaxLength`` w konfiguracji clamd (obraz clamav 1.4 → 100 MB).
+#: Musi odpowiadać ``StreamMaxLength`` w konfiguracji clamd (obrazy clamav 1.4 i 1.5 → 100 MB).
 DEFAULT_STREAM_MAX_BYTES = 100 * 1024 * 1024
 
 VERDICT_CLEAN = "CLEAN"

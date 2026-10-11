@@ -30,6 +30,14 @@ MKV_HEADER = b"\x1a\x45\xdf\xa3\xa3\x42\x86\x81\x01\x42\x82\x88matroska" + b"\x0
 PDF_BYTES = b"%PDF-1.4\n1 0 obj << /Type /Catalog >> endobj\ntrailer << /Root 1 0 R >>\n%%EOF\n"
 ZIP_BYTES = b"PK\x03\x04" + b"\x00" * 60
 HTML_BYTES = b"<!doctype html><script>alert(1)</script>"
+#: Kontener OLE (Compound File Binary) – tak zaczyna się każdy ``doc``/``xls``/``ppt`` sprzed 2007.
+CFB_BYTES = b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1" + b"\x00" * 16 + b"\x3e\x00\x03\x00\xfe\xff" + b"\x00" * 40
+RTF_BYTES = rb"{\rtf1\ansi\deff0 {\fonttbl {\f0 Times;}} Kubit\par }"
+PY_BYTES = (
+    "# Bramka Hadamarda\nimport numpy as np\n\nH = np.array([[1, 1], [1, -1]]) / np.sqrt(2)  # ½\n".encode()
+)
+#: Plik wykonywalny ELF – binarny, z NUL-ami już w nagłówku.
+ELF_BYTES = b"\x7fELF\x02\x01\x01\x00" + b"\x00" * 8 + b"\x02\x00\x3e\x00" + bytes(range(256))
 
 
 class FakeMaterialStorage(MaterialStorage):
@@ -177,11 +185,12 @@ def make_material(
     status: str = MaterialStatus.READY,
     index: int = 0,
     title: str = "Nagranie zajęć",
+    file_format: str | None = None,
     **kwargs,
 ) -> WorkshopMaterial:
     """Materiał zapisany wprost (bez wgrywania) – do testów list, odtwarzacza i pobrania."""
     topic, when, _ = ROWS[index]
-    fmt = {"video": "mp4", "file": "pdf", "link": ""}[kind]
+    fmt = file_format or {"video": "mp4", "file": "pdf", "link": ""}[kind]
     if content is None:
         content = {"video": MP4_HEADER, "file": PDF_BYTES, "link": b""}[kind]
     material = WorkshopMaterial.objects.create(

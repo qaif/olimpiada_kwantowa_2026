@@ -72,6 +72,45 @@ conf_dir_ok() {
 
 proxy_running() { [ -n "$(docker compose ps -q --status running proxy </dev/null 2>/dev/null)" ]; }
 
+# Obraz, który postawi compose (docker-compose.yml + .env), różny od obrazu DZIAŁAJĄCEGO proxy –
+# wdrożenie podbijające Caddy'ego (DEP-02: caddy 2.8 → 2.10). Wtedy `render` waliduje nowy plik
+# w jednorazowym kontenerze NOWEGO obrazu: stary Caddy odrzuca składnię, której nowy wymaga
+# (`tls force_automate` nie istnieje w 2.8, a bez niej 2.10 nie wystawia certyfikatów nazwom pod
+# `*.`), i zatrzymałby wdrożenie, choć kontener i tak zostanie odtworzony w kroku 4b. Każdy błąd
+# odczytu (np. atrapa `docker` w testach) = „bez zmiany” – droga dotychczasowa (`exec`).
+#
+# Jednorazowy kontener to zwykłe `docker run --network none`, NIE `docker compose run proxy`:
+# usługa proxy ma w sieciach compose'a stałe `ipv4_address` (np. DJCMS_PROXY_IP), zajęte przez
+# działające proxy – `compose run` kończył się „Address already in use” (wdrożenie v0.48.5,
+# 5.10.2026). `caddy validate` nie potrzebuje sieci, portów ani wolumenów – wyłącznie pliku
+# i zmiennych, do których odwołuje się Caddyfile (`{$SITE_DOMAIN}` itd.; `proxy_env` niżej).
+proxy_image_changed() {
+  local want have
+  want="$(docker compose config </dev/null 2>/dev/null | awk '/^[^ ]/ { s = ($0 == "services:"); next }
+    s && /^  [^ ]/ { svc = $1 } s && svc == "proxy:" && /^    image: / { print $2; exit }')" || return 1
+  have="$(docker compose ps --status running --format '{{.Image}}' proxy </dev/null 2>/dev/null | head -n 1 | tr -d '\r')" || return 1
+  [ -n "$want" ] && [ -n "$have" ] && [ "$want" != "$have" ] || return 1
+  PROXY_IMAGE_WANT="$want" PROXY_IMAGE_HAVE="$have"
+}
+
+proxy_env() {
+  # Zmienne środowiskowe usługi proxy dokładnie tak, jak compose je poda (`.env` + wartości domyślne
+  # z docker-compose.yml), jako KLUCZ=wartość dla `docker run --env-file`. Bez nich `{$SITE_DOMAIN}`
+  # itp. byłyby puste i walidacja sprawdzałaby inną konfigurację niż ta, którą proxy załaduje.
+  # `docker compose config` wypisuje mapę `environment:` (wartość w cudzysłowie, gdy YAML tego wymaga).
+  docker compose config </dev/null 2>/dev/null | awk '
+    /^[^ ]/ { s = ($0 == "services:"); next }
+    s && /^  [^ ]/ { svc = $1; env = 0; next }
+    s && svc == "proxy:" && /^    [^ ]/ { env = ($0 == "    environment:"); next }
+    s && svc == "proxy:" && env && /^      [^ ]/ {
+      line = substr($0, 7); i = index(line, ": ")
+      if (i == 0) { k = line; sub(/:$/, "", k); v = "" } else { k = substr(line, 1, i - 1); v = substr(line, i + 2) }
+      if (v ~ /^".*"$/) { v = substr(v, 2, length(v) - 2); gsub(/\\"/, "\"", v); gsub(/\\\\/, "\\", v) }
+      else if (v ~ /^\047.*\047$/) { v = substr(v, 2, length(v) - 2); gsub(/\047\047/, "\047", v) }
+      print k "=" v
+    }'
+}
+
 box_sum() {  # suma pliku, który widzi kontener; pusta, gdy proxy nie działa
   docker compose exec -T proxy sha256sum "$BOX_FILE" </dev/null 2>/dev/null | tr -d '\r' | cut -d' ' -f1 || true
 }
@@ -130,7 +169,7 @@ render() {
   conf_dir_ok || die "CADDY_CONFIG_DIR w .env to „$(env_value CADDY_CONFIG_DIR)”, a nie ./caddy – proxy nie widziałoby tego pliku (wdrożenie dopisuje tę linijkę samo)"
   lock
   BOX_NOW="$(mktemp)"
-  trap 'rm -f "$NEXT" "$BOX_NOW" "${VALIDATE_OUT:-}"' EXIT
+  trap 'rm -f "$NEXT" "$BOX_NOW" "${VALIDATE_OUT:-}" "${VALIDATE_ENV:-}"' EXIT
   RUNNING=0
   proxy_running && RUNNING=1
   # Treść, którą widzi działające proxy – potrzebna do kopii przy pierwszym renderze i do kontroli
@@ -142,16 +181,35 @@ render() {
   seed_live
   # Generator czyta WYŁĄCZNIE .env – zmienna z powłoki operatora nie może po cichu wygrać z plikiem
   # (ta sama zasada co w scripts/djcms_switch.sh). Zła wartość w .env = kod ≠ 0 generatora.
-  env -u EXTRA_DOMAINS -u PLATFORM_SUBDOMAINS -u DJCMS_ENABLED -u DJCMS_PRIMARY -u DJCMS_ROUTES_ENV \
+  env -u EXTRA_DOMAINS -u PLATFORM_SUBDOMAINS -u DJCMS_ENABLED -u DJCMS_PRIMARY -u DJCMS_ROUTES_ENV -u NOTEBOOK_LAB_HOST \
     -u CADDYFILE_SRC CADDYFILE_OUT="$NEXT" bash scripts/render_caddyfile.sh
   if [ "$RUNNING" = 1 ]; then
     VALIDATE_OUT="$(mktemp)"
-    docker compose exec -T proxy sh -c 'cat > /tmp/Caddyfile.next && caddy validate --config /tmp/Caddyfile.next --adapter caddyfile' \
-      <"$NEXT" >"$VALIDATE_OUT" 2>&1 || {
+    local where="działającym proxy" rc=0
+    if proxy_image_changed; then
+      # Plik tylko do odczytu w tym samym miejscu co w proxy, zmienne z compose'a (plik 600 – jest
+      # w nich przepustka prac technicznych), bez sieci; brakujący obraz `docker run` pobierze.
+      where="nowym obrazie $PROXY_IMAGE_WANT (działa $PROXY_IMAGE_HAVE)"
+      VALIDATE_ENV="$(mktemp)"
+      chmod 600 "$VALIDATE_ENV"
+      proxy_env >"$VALIDATE_ENV" || true
+      docker run --rm --network none --env-file "$VALIDATE_ENV" -v "$(pwd -P)/$NEXT:$BOX_FILE:ro" \
+        "$PROXY_IMAGE_WANT" caddy validate --config "$BOX_FILE" --adapter caddyfile \
+        </dev/null >"$VALIDATE_OUT" 2>&1 || rc=$?
+    else
+      docker compose exec -T proxy sh -c 'cat > /tmp/Caddyfile.next && caddy validate --config /tmp/Caddyfile.next --adapter caddyfile' \
+        <"$NEXT" >"$VALIDATE_OUT" 2>&1 || rc=$?
+    fi
+    if [ "$rc" != 0 ]; then
+      # 125–127 = Docker nie uruchomił polecenia (kontener nie wstał, obraz nie do pobrania, brak
+      # `caddy`/`sh`) – to NIE jest ocena konfiguracji. Inny kod = odpowiedź samego `caddy validate`.
       grep -vE '"level":"(info|warn)"' "$VALIDATE_OUT" | tail -n 20 >&2 || true
-      die "caddy validate odrzucił nową konfigurację – $LIVE i działające proxy bez zmian"
-    }
-    say "nowa konfiguracja przechodzi caddy validate"
+      case "$rc" in
+        125|126|127) die "walidacja nie wystartowała ($where, kod $rc – błąd Dockera wyżej, nie konfiguracji) – $LIVE i działające proxy bez zmian" ;;
+        *) die "caddy validate odrzucił nową konfigurację ($where, kod $rc – błąd Caddy'ego wyżej) – $LIVE i działające proxy bez zmian" ;;
+      esac
+    fi
+    say "nowa konfiguracja przechodzi caddy validate ($where)"
   else
     say "kontener proxy nie działa – walidacja pominięta (błąd pokaże start proxy)"
   fi
@@ -231,7 +289,7 @@ status() {
   fi
   local tmp seen
   tmp="$(mktemp)"
-  if env -u EXTRA_DOMAINS -u PLATFORM_SUBDOMAINS -u DJCMS_ENABLED -u DJCMS_PRIMARY -u DJCMS_ROUTES_ENV \
+  if env -u EXTRA_DOMAINS -u PLATFORM_SUBDOMAINS -u DJCMS_ENABLED -u DJCMS_PRIMARY -u DJCMS_ROUTES_ENV -u NOTEBOOK_LAB_HOST \
       -u CADDYFILE_SRC CADDYFILE_OUT="$tmp" bash scripts/render_caddyfile.sh >/dev/null 2>&1 && cmp -s "$tmp" "$LIVE"; then
     echo "$LIVE: zgodny z deploy/Caddyfile i .env"
   else

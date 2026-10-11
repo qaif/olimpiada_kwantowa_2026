@@ -1,0 +1,95 @@
+{% extends "web/coordinator/base.html" %}
+{% comment %}
+  Polityka 2FA konkursu i stan personelu (SEC-01 § 2, § 8). Ekran koordynatora – po polsku
+  (I18N-01 § 0). Koordynator widzi, superkoordynator zmienia: formularz bez prawa zapisu nie
+  rysuje przycisku, a widok i tak odpowiada 403 na POST od kogoś innego.
+{% endcomment %}
+{% block title %}Bezpieczeństwo logowania – panel koordynatora{% endblock %}
+{% block panel_title %}Bezpieczeństwo logowania{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Kto z personelu tego konkursu musi mieć logowanie dwuskładnikowe i kto już je ma.</p>
+{% endblock %}
+{% block panel_content %}
+
+<section class="section">
+  <div class="card">
+    <h2 class="mt-0">Obowiązuje teraz</h2>
+    <dl class="datalist">
+      <dt>Role platformy (wszystkie konkursy)</dt>
+      <dd>{% for role in platform_roles %}{{ role }}{% if not forloop.last %}, {% endif %}{% empty %}—{% endfor %}</dd>
+      <dt>Role tego konkursu</dt>
+      <dd>{% for role in competition_roles %}{{ role }}{% if not forloop.last %}, {% endif %}{% empty %}—{% endfor %}</dd>
+      <dt>Funkcje z danymi wrażliwymi</dt>
+      <dd>{% for name in sensitive %}{{ name }}{% if not forloop.last %}, {% endif %}{% empty %}brak{% endfor %}</dd>
+      <dt>Okres przejściowy</dt>
+      <dd>{{ grace_days }} dni od pierwszego wejścia po objęciu wymogiem</dd>
+      <dt>„Zapamiętaj to urządzenie”</dt>
+      <dd>{% if remember_days %}{{ remember_days }} dni{% else %}wyłączone{% endif %}</dd>
+    </dl>
+    <p class="hint">Role platformy ustawia operator (<code>TWO_FACTOR_REQUIRED_ROLES</code>, docs/OPERACJE.md § 41).
+      Uczestników wymóg nie obejmuje nigdy.</p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="card">
+    <h2 class="mt-0">Polityka konkursu</h2>
+    {% if not may_edit %}
+      <p class="hint">Politykę zmienia wyłącznie superkoordynator – koordynator mógłby nią poluzować wymóg wobec samego siebie.</p>
+    {% endif %}
+    <form method="post" class="form">
+      {% csrf_token %}
+      {{ form.non_field_errors }}
+      <fieldset {% if not may_edit %}disabled{% endif %}>
+        <p><strong>{{ form.mode.label }}</strong></p>
+        {{ form.mode }}
+        <p><strong>{{ form.roles.label }}</strong></p>
+        {{ form.roles }}
+        <p>
+          <label for="{{ form.grace_days.id_for_label }}">{{ form.grace_days.label }}</label>
+          {{ form.grace_days }}
+          <span class="hint" id="{{ form.grace_days.auto_id }}_helptext">{{ form.grace_days.help_text }}</span>
+          {{ form.grace_days.errors }}
+        </p>
+        <p class="checkbox"><label>{{ form.allow_remember }} {{ form.allow_remember.label }}</label>{% if form.allow_remember.help_text %} <span class="hint" id="{{ form.allow_remember.auto_id }}_helptext">{{ form.allow_remember.help_text }}</span>{% endif %}</p>
+      </fieldset>
+      {% if may_edit %}
+        <button type="submit" class="btn btn--primary">Zapisz politykę</button>
+      {% endif %}
+    </form>
+  </div>
+</section>
+
+{% comment %}
+  Lista personelu ze stanem 2FA tylko dla superkoordynatora (przegląd SEC-01, L6): „kto jeszcze nie
+  ma drugiego składnika” to lista najłatwiejszych celów, a koordynator nie ma czego z nią zrobić.
+{% endcomment %}
+{% if rows is not None %}
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">Personel</h2>
+    <p class="hint">Kont: {{ rows|length }}</p>
+  </div>
+  <div class="card">
+    <table class="table">
+      <thead><tr><th>Konto</th><th>Role</th><th>Wymagane</th><th>2FA</th><th>Termin</th><th></th></tr></thead>
+      <tbody>
+      {% for row in rows %}
+        <tr>
+          <td>{{ row.user.get_full_name|default:row.user.email }}<br><span class="hint">{{ row.user.email }}</span></td>
+          <td>{{ row.roles|join:", " }}</td>
+          <td>{% if row.required %}tak{% else %}nie{% endif %}</td>
+          <td>{% if row.device %}włączone {{ row.device.confirmed_at|date:"j E Y" }}{% else %}<strong>brak</strong>{% endif %}</td>
+          <td>{% if row.required and not row.device %}{% if row.deadline %}{{ row.deadline|date:"j E Y" }}{% else %}przy pierwszym wejściu{% endif %}{% else %}—{% endif %}</td>
+          <td><a href="{% url 'web:coordinator-account-edit' row.user.pk %}">konto</a></td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="6">Brak kont personelu.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    <p class="hint">Zgubiony telefon: na ekranie konta → „Zdejmij drugi składnik”. Konto personelu – wyłącznie superkoordynator, po potwierdzeniu tożsamości inną drogą niż e-mail.</p>
+  </div>
+</section>
+{% endif %}
+{% endblock %}

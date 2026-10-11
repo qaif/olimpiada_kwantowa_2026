@@ -22,6 +22,16 @@ from apps.tenancy.context import competition_context
 from apps.themes import services
 from apps.themes.package import MAX_PACKAGE_BYTES
 
+#: Opcje przenoszone z wersji dotychczasowej przy ``--activate`` (przegląd THEME-02, M3): układy,
+#: akcent marki, schemat, logo i kroje – ``clean_options`` zostawi tylko te, które nowa wersja
+#: deklaruje. **Bez** kolorów i promieni: tokeny nowej wersji mogą znaczyć co innego, a dostosowanie
+#: zapisane dla niej samej (``ThemeCustomization``) i tak wraca przy aktywacji.
+CARRIED_KEYS = ("layouts", "brand_accent", "scheme", "logo", "font")
+
+
+def carried_options(options: dict | None) -> dict:
+    return {key: value for key, value in (options or {}).items() if key in CARRIED_KEYS}
+
 
 class Command(BaseCommand):
     help = (
@@ -63,5 +73,7 @@ class Command(BaseCommand):
         )
         if competition is not None:
             with competition_context(competition):
-                services.activate(competition, version, competition.theme_options)
+                services.activate(competition, version, carried_options(competition.theme_options))
             self.stdout.write(self.style.SUCCESS(f"Aktywowano w konkursie {competition.slug}."))
+            for warning in getattr(competition, "theme_activation_warnings", None) or []:
+                self.stdout.write(f"  kolory dostosowania pominięte (kontrast): {warning}")

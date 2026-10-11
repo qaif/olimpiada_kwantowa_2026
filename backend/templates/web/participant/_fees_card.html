@@ -22,6 +22,11 @@
       <dt>{% translate "Oznaczenie do przelewu" %}</dt>
       <dd><span class="code-chip">{{ fee_reference }}</span></dd>
     </dl>
+    {% if fee_pay_online %}
+      <p class="actions">
+        <a class="btn btn--primary btn--small" href="{% url 'web:participant-fee-pay' %}">{% translate "Zapłać online" %}</a>
+      </p>
+    {% endif %}
     {% if fee_document_ready %}
       <p class="actions">
         <a class="btn btn--secondary btn--small"

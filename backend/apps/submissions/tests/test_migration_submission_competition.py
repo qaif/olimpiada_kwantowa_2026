@@ -18,7 +18,12 @@ from django.apps import apps as django_apps
 from django.db import connection
 
 from apps.competitions.tests.factories import StageFactory
-from apps.core.tests.migration_helpers import MIGRATION_TESTS, migrate_to, rewound_database
+from apps.core.tests.migration_helpers import (
+    MIGRATION_TESTS,
+    applied_state_model,
+    migrate_to,
+    rewound_database,
+)
 from apps.submissions.models import Submission
 
 from .factories import SubmissionFactory
@@ -99,11 +104,14 @@ def test_the_backfill_is_reversible(before_backfill):
 
 
 def test_the_backfill_on_an_empty_database_does_nothing(before_backfill):  # noqa: ARG001
-    """Świeża instalacja: brak prac i brak konkursu to nie jest błąd, tylko pusta baza."""
-    from apps.tenancy.models import Competition
+    """Świeża instalacja: brak prac i brak konkursu to nie jest błąd, tylko pusta baza.
 
-    Submission.objects.all().delete()
-    Competition.objects.all().delete()
+    Kasowanie modelami w kształcie przewiniętej bazy, nie żywymi: kaskada żywego ``Competition``
+    sięga do tabel aplikacji, których migracje zależą od późniejszych ``submissions`` (np.
+    ``notebooks.0001`` od ``0008``) – w bazie cofniętej do ``0005`` tych tabel nie ma.
+    """
+    applied_state_model("submissions", "Submission").objects.all().delete()
+    applied_state_model("tenancy", "Competition").objects.all().delete()
 
     migrate_to(AFTER)
 

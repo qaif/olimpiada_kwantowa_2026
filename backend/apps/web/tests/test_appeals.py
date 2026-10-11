@@ -71,6 +71,10 @@ def test_committee_sees_queue_without_personal_data(
 
 def test_committee_decision_changes_final_grade(web_client, participant, graded_submission, appeals_member):
     appeal = Appeal.objects.create(submission=graded_submission, filed_by=participant, argument=ARGUMENT)
+    # Tak, jak zostawia ją złożenie reklamacji (``file_appeal``): od audytu 10.10.2026 (N5) komisja
+    # rozstrzyga wyłącznie pracę w stanie APPEALED.
+    graded_submission.status = SubmissionStatus.APPEALED
+    graded_submission.save(update_fields=["status"])
     web_client.force_login(appeals_member.user)
 
     response = web_client.post(

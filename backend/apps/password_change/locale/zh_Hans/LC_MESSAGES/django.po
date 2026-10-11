@@ -1,0 +1,106 @@
+# Zmiana hasła w panelu konta (AUTH-01b) – katalog aplikacji apps/password_change.
+msgid ""
+msgstr ""
+"Project-Id-Version: olimpiada\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-04 22:00+0200\n"
+"PO-Revision-Date: 2026-10-04 22:00+0200\n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: zh_Hans\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+msgid "Hasło do konta zostało zmienione – Olimpiada Kwantowa"
+msgstr "账户密码已更改 – 量子奥林匹克"
+
+#, python-format
+msgid "Hasło do konta zostało zmienione – %(competition)s"
+msgstr "账户密码已更改 – %(competition)s"
+
+#, python-format
+msgid "Hasło do Twojego konta w serwisie %(competition_genitive)s zostało zmienione (%(when)s)."
+msgstr "您在%(competition_genitive)s的账户密码已更改（%(when)s）。"
+
+msgid "Pozostałe urządzenia, na których było otwarte to konto, zostały wylogowane. Na urządzeniu, na którym zmieniono hasło, sesja trwa dalej."
+msgstr "曾登录此账户的其他所有设备均已退出。在更改密码的设备上，会话将继续保持。"
+
+msgid "Jeśli to nie Ty zmieniłeś hasło, natychmiast ustaw nowe przez formularz „Nie pamiętasz hasła?” i skontaktuj się z organizatorem:"
+msgstr "如果不是您本人更改的密码，请立即通过“忘记密码？”表单设置新密码，并联系组织者："
+
+msgid "To konto nie ma jeszcze hasła – ustaw je linkiem wysłanym na adres konta."
+msgstr "此账户尚未设置密码——请使用发送到账户电子邮箱的链接进行设置。"
+
+msgid "Nowe hasło musi się różnić od aktualnego."
+msgstr "新密码必须与当前密码不同。"
+
+msgid "Aktualne hasło jest nieprawidłowe."
+msgstr "当前密码不正确。"
+
+msgid "To konto ma już hasło – zmień je formularzem zmiany hasła."
+msgstr "此账户已有密码——请使用修改密码表单进行更改。"
+
+msgid "Na to konto nie można teraz wysłać linku – skontaktuj się z organizatorem."
+msgstr "目前无法向此账户发送链接——请联系组织者。"
+
+msgid "Co najmniej 10 znaków; nie może być popularnym hasłem, ciągiem samych cyfr ani przypominać Twojego imienia, nazwiska lub adresu e-mail."
+msgstr "至少 10 个字符；不能是常见密码、不能全为数字，也不能与您的姓名或电子邮箱地址相似。"
+
+msgid "Powtórz nowe hasło"
+msgstr "再次输入新密码"
+
+msgid "Hasło zostało zmienione. Pozostałe urządzenia zostały wylogowane, a na adres konta wysłaliśmy potwierdzenie."
+msgstr "密码已更改。其他所有设备均已退出，确认邮件已发送至账户电子邮箱。"
+
+msgid "Wysłaliśmy link do ustawienia hasła na adres konta. Link jest ważny 24 godziny."
+msgstr "我们已将设置密码的链接发送至账户电子邮箱。链接有效期为 24 小时。"
+
+msgid "Zmiana hasła"
+msgstr "修改密码"
+
+msgid "Podaj aktualne hasło i dwa razy nowe. Po zmianie pozostaniesz zalogowany na tym urządzeniu, a wszystkie inne urządzenia i aplikacje zostaną wylogowane. Na adres konta wyślemy potwierdzenie."
+msgstr "请输入当前密码，并输入两次新密码。更改后，您将在此设备上保持登录，其他所有设备和应用将被退出。我们会向账户电子邮箱发送确认邮件。"
+
+msgid "Zmień hasło"
+msgstr "修改密码"
+
+msgid "Nie pamiętasz aktualnego hasła?"
+msgstr "不记得当前密码？"
+
+msgid "Ustaw nowe przez link e-mail"
+msgstr "通过电子邮件链接设置新密码"
+
+#, python-format
+msgid "To konto nie ma hasła – logujesz się przez zewnętrznego dostawcę (np. Google). Jeśli chcesz logować się także hasłem, wyślemy link do jego ustawienia na adres konta (<strong>%(address)s</strong>). Dopiero kliknięcie w link potwierdza, że skrzynka należy do Ciebie."
+msgstr "此账户没有密码——您通过外部服务（例如 Google）登录。如果您也想使用密码登录，我们会将设置密码的链接发送至账户电子邮箱（<strong>%(address)s</strong>）。只有点击该链接才能确认邮箱属于您。"
+
+msgid "Wyślij mi link do ustawienia hasła"
+msgstr "向我发送设置密码的链接"
+
+msgid "Wróć do ustawień konta"
+msgstr "返回账户设置"
+
+msgid "Zmiana hasła wymaga podania aktualnego. Po zmianie pozostałe urządzenia zostaną wylogowane, a na adres konta przyjdzie potwierdzenie."
+msgstr "修改密码需要输入当前密码。更改后，其他所有设备将被退出，确认邮件将发送至账户电子邮箱。"
+
+#, python-format
+msgid "Ustawienia konta: %(address)s"
+msgstr "账户设置：%(address)s"
+
+msgid "Zbyt wiele błędnych haseł z rzędu – ze względów bezpieczeństwa wylogowaliśmy Cię. Zaloguj się ponownie."
+msgstr "连续输入错误密码次数过多——为保障安全，我们已将您退出登录。请重新登录。"
+
+msgid "Zbyt wiele prób na tym koncie. Odczekaj chwilę i spróbuj ponownie."
+msgstr "此账户尝试次数过多。请稍候再试。"
+
+msgid "Otwarta na innym urządzeniu sesja edytora django CMS nie jest kończona od razu – wygasa sama po kilku godzinach. Jeśli podejrzewasz przejęcie konta, poproś organizatora o jej zamknięcie."
+msgstr "其他设备上已打开的 django CMS 编辑器会话不会立即结束——它会在几个小时后自动过期。如果您怀疑账户被盗用，请联系组织者将其关闭。"
+
+msgid "Zmiana adresu wymaga potwierdzenia hasłem. To konto nie ma jeszcze hasła – ustaw je najpierw w sekcji „Hasło” niżej."
+msgstr "更改邮箱地址需要用密码确认。此账户尚未设置密码——请先在下方“密码”部分设置密码。"
+
+#, python-format
+msgid "To konto nie ma hasła – logujesz się przez zewnętrznego dostawcę (np. Google, Facebook) i tak zostaje. Adres <strong>%(address)s</strong> nie jest potwierdzony, więc nie wyślemy na niego linku do ustawienia hasła. Hasło da się ustawić dopiero po potwierdzeniu adresu przez dostawcę logowania; jeśli Twój dostawca adresu nie potwierdza, napisz do organizatora."
+msgstr "此账户没有密码——您通过外部服务（例如 Google、Facebook）登录，这一点保持不变。地址 <strong>%(address)s</strong> 未经验证，因此我们不会向其发送设置密码的链接。只有在登录服务验证该地址后才能设置密码；如果您的登录服务不验证地址，请联系组织者。"

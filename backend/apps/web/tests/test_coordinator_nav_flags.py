@@ -56,14 +56,18 @@ EXPECTED_MENU_WITHOUT_FLAGS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("Pulpit", ("Co wymaga uwagi",)),
     ("Etapy", ()),
     ("Ocenianie", ("Moderacja", "Zgłoszone problemy")),
+    # „Zdublowane konta” – zadanie ACC-DUP-01 (prośba organizatora z 9.10.2026: wyszukiwanie
+    # zdublowanych kont w panelu koordynatora). Bez flagi, jak lista kont, którą rozszerza.
     (
         "Uczestnicy i konta",
-        ("Uczestnicy", "Wszystkie konta", "Opiekunowie szkolni", "Aktywacje"),
+        ("Uczestnicy", "Wszystkie konta", "Zdublowane konta", "Opiekunowie szkolni", "Aktywacje"),
     ),
     ("Komitet", ("Członkowie", "Zatwierdzenia", "Zaproszenia", "Województwa")),
     # „Wiadomości” – zadanie CZ-01 z 30.09.2026 (polecenie organizatora: pozycja w „Komunikacji”
     # z odznaką). Bez flagi, bo moduł jest domyślnie włączony (kanał „napisz do organizatora”).
-    ("Komunikacja", ("Komunikaty", "Zgłoszenia", "Ogłoszenia", "Wiadomości")),
+    # „Ogłoszenia w Wiadomościach” – zadanie CZ-ANN-01 (prośba organizatora z 8.10.2026: włączanie
+    # i wyłączanie ogłoszenia w Wiadomościach przez koordynatora). Bez flagi, jak „Wiadomości”.
+    ("Komunikacja", ("Komunikaty", "Zgłoszenia", "Ogłoszenia", "Wiadomości", "Ogłoszenia w Wiadomościach")),
     (
         "Raporty",
         (
@@ -140,7 +144,7 @@ FLAG_ITEMS: dict[str, tuple[frozenset[str], frozenset[str]]] = {
     "weighted_scoring": (frozenset(), frozenset({"Rozstrzyganie remisów"})),
     "reviewer_roles": (frozenset(), frozenset({"Role recenzenckie"})),
     # --- wydanie K -----------------------------------------------------------------------------
-    "fees": (frozenset({"Wpisowe"}), frozenset({"Wpisowe"})),
+    "fees": (frozenset({"Wpisowe", "Płatności"}), frozenset({"Wpisowe", "Płatności"})),
     "onsite_logistics": (
         frozenset({"Miejsca zawodów"}),
         frozenset({"Miejsca zawodów", "Przyjazdy i potrzeby", "Obecność"}),
@@ -156,8 +160,22 @@ FLAG_ITEMS: dict[str, tuple[frozenset[str], frozenset[str]]] = {
     "workshop_materials": (frozenset({"Materiały z warsztatów"}), frozenset({"Materiały z warsztatów"})),
     # --- ocena AI (prośba organizatora z 24.09.2026) ---------------------------------------------
     "ai_grading": (frozenset({"Ocena AI"}), frozenset({"Ocena AI"})),
+    # --- medale olimpiady międzynarodowej (MED-01, 4.10.2026) --------------------------------------
+    "medals": (frozenset({"Medale"}), frozenset({"Medale"})),
+    # --- webinary LiveKit (zadanie WEB-01) – pozycja za samą flagą, także bez serwera LiveKit ------
+    "webinars": (frozenset({"Webinary"}), frozenset({"Webinary"})),
+    # --- statystyki szkół (STAT-01, 04.10.2026) ----------------------------------------------------
+    "school_statistics": (frozenset({"Statystyki szkół"}), frozenset({"Statystyki szkół"})),
+    # --- okna czasowe etapu (TZ-01, 4.10.2026) – ekran jest pod etapem, więc bez etapów nic --------
+    "stage_time_windows": (frozenset(), frozenset({"Okna czasowe"})),
     # --- motywy wizualne (THEME-01) ------------------------------------------------------------
     "themes": (frozenset({"Motyw serwisu"}), frozenset({"Motyw serwisu"})),
+    # --- notatniki kwantowe (QC-01) ----------------------------------------------------------------
+    "quantum_notebooks": (frozenset({"Notatniki kwantowe"}), frozenset({"Notatniki kwantowe"})),
+    # --- sieć absolwentów (ALUM-01, 04.10.2026) ---------------------------------------------------
+    "alumni": (frozenset({"Absolwenci"}), frozenset({"Absolwenci"})),
+    # --- nadzór zdalny etapów online (zadanie PROC-01) – w sekcji „Etapy” ---------------------------
+    "proctoring": (frozenset({"Nadzór zdalny"}), frozenset({"Nadzór zdalny"})),
 }
 
 #: Piętnaście flag **etapu 2** – zdanie z ``docs/UNIWERSALNY-ETAP-2.md`` § 0.6 („piętnaście flag to

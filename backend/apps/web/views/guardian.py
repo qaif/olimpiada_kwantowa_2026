@@ -79,8 +79,8 @@ class GuardianConsentView(View):
             # i nazwa szkoły w zupełności wystarczają do rozpoznania własnego dziecka.
             "first_name": participant.user.first_name,
             "school": participant.school,
-            "consent_text": consent_text(),
-            "consent_version": consent_version(),
+            "consent_text": consent_text(participant.competition),
+            "consent_version": consent_version(participant.competition),
             "valid_days": GUARDIAN_DAYS,
             "form": form,
         }

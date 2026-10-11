@@ -56,7 +56,12 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 FROM ${PYTHON_IMAGE} AS runtime
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PATH="/opt/venv/bin:$PATH" \
     DJCMS_SHARED_STATIC_DIR=/opt/shared_static
-RUN groupadd -g 1000 app && useradd -u 1000 -g app -m -s /usr/sbin/nologin app
+# Łatki Debiana z ``trixie-security`` i bez systemowego pipa – powody w backend/Dockerfile (etap runtime,
+# SEC-02). Aplikacja żyje w /opt/venv (uv), pip z obrazu bazowego niczego tu nie instaluje.
+RUN apt-get update && apt-get upgrade -y --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/* \
+    && python -m pip uninstall -y --root-user-action=ignore pip \
+    && groupadd -g 1000 app && useradd -u 1000 -g app -m -s /usr/sbin/nologin app
 WORKDIR /app
 COPY --from=builder /opt/venv /opt/venv
 COPY backend/static/ /opt/shared_static/
@@ -77,7 +82,7 @@ EXPOSE 8000
 ENTRYPOINT ["/app/entrypoint.sh"]
 # To samo polecenie co ``command:`` usługi ``djcms`` w docker-compose.yml – ``docker run`` obrazu
 # bez compose'a (debugowanie) ma uruchamiać dokładnie ten sam model współbieżności.
-CMD ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "2", "--threads", "2", "--worker-class", "gthread", "--timeout", "60", "--graceful-timeout", "20", "--access-logfile", "-"]
+CMD ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "2", "--threads", "2", "--worker-class", "gthread", "--no-control-socket", "--timeout", "60", "--graceful-timeout", "20", "--access-logfile", "-"]
 
 # Etap `dev` (docker-compose.dev.yml, `target: dev`): `runtime` plus narzędzia z ekstry `dev`.
 FROM runtime AS dev

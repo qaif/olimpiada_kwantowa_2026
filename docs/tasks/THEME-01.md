@@ -191,7 +191,7 @@ Zbudowane: `backend/apps/themes/` (modele, walidator, generator tokenów, runtim
 znaczniki, komenda `theme_install`), sloty w `base.html` i szablonach CMS, panele
 (`apps/web/views/coordinator_themes.py`), rozszerzenie CSP, `Cache-Control: immutable` dla plików
 motywu w S3, motyw wbudowany `themes/classic/`, dokumentacja (`OPERACJE.md` § 30,
-`PODRECZNIK-ORGANIZATORA.md` § 10b, CHANGELOG).
+`PODRECZNIK-ORGANIZATORA.md` § 10j, CHANGELOG).
 
 Odstępstwa od § 0–§ 8 (z powodami):
 

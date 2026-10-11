@@ -1,0 +1,54 @@
+/* Laboratorium notatników (QC-01): ramka JupyterLite na stronie zadania i drobiazgi panelu.
+   Osobny arkusz aplikacji, a nie dopisek do app.css – ten sam powód co osobna aplikacja: plik
+   zmienia tylko to zadanie, a app.css edytuje równolegle kilka innych. */
+
+.notebook-lab__frame {
+  display: block;
+  inline-size: 100%;
+  /* Wysokość względem okna, nie stała: JupyterLab potrzebuje całego ekranu, a strona nad ramką
+     to tylko nagłówek i trzy kroki instrukcji. Minimum dla niskich ekranów laptopów. */
+  block-size: calc(100vh - 8rem);
+  min-block-size: 32rem;
+  border: 1px solid var(--color-border, #d0d7de);
+  border-radius: 0.5rem;
+  background: #fff;
+}
+
+.notebook-lab__steps {
+  margin-block: 0.5rem 1rem;
+}
+
+.notebook-panel__results {
+  margin-block-start: 0.5rem;
+}
+
+.code-input {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.85rem;
+  inline-size: 100%;
+}
+
+.notebook-pre {
+  max-block-size: 24rem;
+  overflow: auto;
+  white-space: pre-wrap;
+  font-size: 0.85rem;
+}
+
+/* Podgląd tylko do odczytu (apps.notebooks.render). */
+.notebook-view__cell {
+  margin-block-end: 0.75rem;
+}
+
+.notebook-view__stderr {
+  background: #fff5f5;
+}
+
+.notebook-view__text {
+  background: transparent;
+}
+
+.notebook-view__image {
+  max-inline-size: 100%;
+  block-size: auto;
+}

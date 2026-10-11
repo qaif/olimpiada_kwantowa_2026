@@ -1,0 +1,21 @@
+/* Sieć absolwentów (ALUM-01): siatka kart w katalogu i na ścianie. Kolory i odstępy z tokenów serwisu. */
+.alumni-grid {
+  display: grid;
+  gap: var(--space-4, 1rem);
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 18rem), 1fr));
+  margin-block: var(--space-4, 1rem);
+}
+
+.alumni-card__achievements {
+  list-style: none;
+  margin: 0 0 var(--space-2, 0.5rem);
+  padding: 0;
+}
+
+.alumni-card__achievements li + li {
+  margin-top: 0.25rem;
+}
+
+.alumni-card p {
+  overflow-wrap: anywhere;
+}

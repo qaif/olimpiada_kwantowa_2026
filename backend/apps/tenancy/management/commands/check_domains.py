@@ -50,8 +50,30 @@ class Command(BaseCommand):
             action="store_true",
             help="Pokaż także konkursy skonfigurowane poprawnie (domyślnie widać same rozjazdy).",
         )
+        parser.add_argument(
+            "--hosts",
+            action="store_true",
+            help="Wypisz wyłącznie hosty aktywnych konkursów z własnym hostem, po jednym w wierszu.",
+        )
 
     def handle(self, *args, **options):
+        if options["hosts"]:
+            # Lista dla kontroli dymnej po wdrożeniu (scripts/smoke.sh --server, OPS-04): same nazwy,
+            # bez ocen i bez kolorów, więc skrypt nie parsuje zdań. Konkurs nieaktywny odpada – jego
+            # host nie musi już niczego serwować, a porażka kontroli oznacza wycofanie wdrożenia.
+            # Konkurs pod prefiksem ścieżki nie ma własnego hosta (sprawdza go domena platformy).
+            hosts = []
+            for competition in (
+                Competition.objects.select_related("site").filter(is_active=True).order_by("slug")
+            ):
+                if competition.routing_mode == RoutingMode.PATH:
+                    continue
+                host = competition.primary_domain or competition.site.hostname
+                if host and host not in hosts:
+                    hosts.append(host)
+            for host in hosts:
+                self.stdout.write(host)
+            return
         allowed_hosts = list(settings.ALLOWED_HOSTS)
         csrf_origins = set(settings.CSRF_TRUSTED_ORIGINS)
         # ``SITE_DOMAIN`` jest obsługiwany przez własny blok Caddy'ego (``{$SITE_DOMAIN}``), więc

@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% load i18n static web_extras medals %}
+{% comment %}
+  Ogłoszone medale etapu (MED-01) – wyłącznie z zamrożonej tabeli schematu (``MedalScheme.public_rows``),
+  nigdy z bazy wyników. Podpis wiersza jest ten sam, co w ogłoszonej tabeli wyników (te same zgody);
+  kraj stoi przy wierszu tylko tam, gdzie tabela wyników i tak go pokazuje albo przy nazwisku
+  opublikowanym za zgodą. Filtr kraju to zwykły formularz GET – bez skryptu.
+{% endcomment %}
+{% block title %}{% translate "Medale" %} – {{ stage.display_name }}{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'medals/medals.css' %}">{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow">{% translate "Medale" %}</span>
+  <h1>{{ stage.display_name }} ({{ stage.edition.year_label }})</h1>
+  <p class="lead">{% blocktranslate trimmed with announced=scheme.frozen_at|local_time %}Ogłoszone {{ announced }}. Złoto, srebro i brąz przyznaje się z rankingu etapu;
+    ten sam wynik zawsze daje tę samą nagrodę.{% endblocktranslate %}</p>
+  <p class="actions">
+    <a class="btn btn--secondary btn--small" href="{% url 'web:results' stage.pk %}">{% translate "Pełna tabela wyników" %}</a>
+    <a class="btn btn--secondary btn--small" href="{% url 'web:results-countries' stage.pk %}">{% translate "Ranking krajów" %}</a>
+  </p>
+</div>
+
+{% if countries %}
+  <form method="get" class="medal-filter">
+    <p>
+      <label for="medal-country">{% translate "Kraj" %}</label>
+      <select name="country" id="medal-country">
+        <option value="">{% translate "Wszystkie kraje" %}</option>
+        {% for code, name in countries %}<option value="{{ code }}"{% if code == selected %} selected{% endif %}>{{ name }}</option>{% endfor %}
+      </select>
+    </p>
+    <p><button type="submit" class="btn btn--secondary btn--small">{% translate "Pokaż" %}</button></p>
+  </form>
+{% endif %}
+
+{% if summary %}
+  <p class="hint">{% blocktranslate trimmed with name=summary.name gold=summary.GOLD silver=summary.SILVER bronze=summary.BRONZE hm=summary.HM contestants=summary.contestants %}{{ name }} – uczestnicy: {{ contestants }}, złoto: {{ gold }}, srebro: {{ silver }}, brąz: {{ bronze }}, wyróżnienia: {{ hm }}.{% endblocktranslate %}
+    {% translate "Lista obejmuje wyłącznie osoby, których kraj wolno pokazać przy wyniku." %}</p>
+{% endif %}
+
+<div class="scroll" role="region" tabindex="0" aria-label="{% translate 'Tabela medali' %}">
+<table class="table table--rank">
+  <thead>
+    <tr>
+      <th scope="col">{% translate "Miejsce" %}</th>
+      <th scope="col">{% translate "Uczestnik" %}</th>
+      <th scope="col">{% translate "Kraj" %}</th>
+      <th scope="col">{% translate "Razem" %}</th>
+      <th scope="col">{% translate "Nagroda" %}</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in rows %}
+      <tr>
+        <td class="num">{{ row.rank }}</td>
+        <td>{{ row.display }}</td>
+        <td>{{ row.country }}</td>
+        <td class="num total">{{ row.total|points }}</td>
+        <td>
+          {% if row.award != "NONE" %}<span class="{{ row.award|award_class }}">{{ row.award|award_label }}</span>{% endif %}
+          {% if row.manual %}<span class="badge badge--neutral">{% translate "decyzja komitetu" %}</span>{% endif %}
+        </td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="5" class="empty">{% translate "Tabela jest pusta." %}</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

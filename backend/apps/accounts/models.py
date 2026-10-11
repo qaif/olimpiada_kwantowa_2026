@@ -1629,6 +1629,9 @@ class BroadcastGroup(models.TextChoices):
     """
 
     ALL_PARTICIPANTS = "ALL_PARTICIPANTS", "wszyscy uczestnicy konkursu"
+    #: Uczestnicy i nauczyciele jednym listem (prośba organizatora z 8.10.2026 – zaproszenie na
+    #: warsztaty dla uczniów i nauczycieli). Adres, który jest w obu grupach, dostaje list raz.
+    ALL_PARTICIPANTS_AND_TEACHERS = "ALL_PARTICIPANTS_AND_TEACHERS", "wszyscy uczestnicy i nauczyciele"
     EDITION_PARTICIPANTS = "EDITION_PARTICIPANTS", "uczestnicy bieżącej edycji (zapisani do etapu)"
     STAGE_REGISTERED = "STAGE_REGISTERED", "zapisani do etapu"
     STAGE_QUALIFIED = "STAGE_QUALIFIED", "zakwalifikowani do etapu"
@@ -1637,7 +1640,11 @@ class BroadcastGroup(models.TextChoices):
     SCHOOL_PARTICIPANTS = "SCHOOL_PARTICIPANTS", "uczestnicy z wybranej szkoły (placówki)"
     GRADE_PARTICIPANTS = "GRADE_PARTICIPANTS", "uczestnicy z wybranej klasy"
     WORKSHOP_ATTENDEES = "WORKSHOP_ATTENDEES", "uczestnicy obecni na wybranym warsztacie"
-    SUPERVISORS = "SUPERVISORS", "opiekunowie szkolni (nauczyciele)"
+    #: Prośba organizatora z 8.10.2026 – przypomnienie o zaświadczeniu o statusie ucznia
+    #: (``apps.student_status``). „Bez zaświadczenia” to brak pliku w bieżącej edycji albo plik
+    #: odrzucony; kto wgrał plik czekający na weryfikację, swoje już zrobił.
+    NO_STUDENT_STATUS = "NO_STUDENT_STATUS", "uczestnicy bez zaświadczenia o statusie ucznia"
+    SUPERVISORS = "SUPERVISORS", "nauczyciele"
     COMMITTEE = "COMMITTEE", "członkowie komitetu"
     COMMITTEE_DISTRICT = "COMMITTEE_DISTRICT", "komitet jednego województwa"
     CUSTOM = "CUSTOM", "wklejona lista adresów"
@@ -1654,6 +1661,15 @@ class BroadcastStatus(models.TextChoices):
     QUEUED = "QUEUED", "w kolejce"
     SENT = "SENT", "przekazana do wysyłki"
     FAILED = "FAILED", "nieudana"
+    #: Komunikaty z datą przyszłą (MSG-SCHED-01). ``SCHEDULED`` czeka na termin, a w chwili wysyłki
+    #: przechodzi w dotychczasowy tok (``QUEUED`` → ``SENT``). Trzy stany końcowe bez wysyłki są
+    #: rozdzielone celowo: „anulowana” zrobił człowiek, „przeterminowana” – awaria kolejki dłuższa
+    #: niż doba (``apps.accounts.messaging.SCHEDULE_GRACE``), a „bez odbiorców” – grupa, która
+    #: w chwili wysyłki była pusta. Każdy z nich wymaga od koordynatora innej reakcji.
+    SCHEDULED = "SCHEDULED", "zaplanowana"
+    CANCELLED = "CANCELLED", "anulowana"
+    EXPIRED = "EXPIRED", "przeterminowana – nie wysłano"
+    EMPTY = "EMPTY", "bez odbiorców – nic nie wysłano"
 
 
 class MessageBroadcast(models.Model):
@@ -1716,6 +1732,17 @@ class MessageBroadcast(models.Model):
     status = models.CharField(
         "stan", max_length=16, choices=BroadcastStatus.choices, default=BroadcastStatus.QUEUED
     )
+    #: Termin wysyłki zaplanowanej (MSG-SCHED-01) – pusty przy wysyłce natychmiastowej. Indeks, bo
+    #: zadanie beat co minutę pyta o „zaplanowane z terminem do teraz”.
+    scheduled_for = models.DateTimeField("termin wysyłki", null=True, blank=True, db_index=True)
+    #: Argumenty ``resolve_recipients`` dla wysyłki zaplanowanej, w postaci JSON: identyfikatory
+    #: (``stage``, ``region``), wartości (``district``, ``school``, ``grade``, ``workshop``)
+    #: i ``include_past_editions``. Odbiorców liczymy **w chwili wysyłki**, nie planowania, więc
+    #: wiersz musi nieść grupę w postaci, z której da się ją policzyć jeszcze raz. ``target`` się do
+    #: tego nie nadaje: to opis do historii (etykieta z chwili zaplanowania), region trzyma kodem,
+    #: a przełącznik edycji – pod inną nazwą. Adresów tu nie ma nigdy (wklejonej listy nie da się
+    #: zaplanować – ``apps.accounts.messaging.schedule_broadcast``).
+    parameters = models.JSONField("parametry wysyłki", default=dict, blank=True)
 
     #: Własna kolumna konkursu – domyślna ścieżka queryseta.
     objects = CompetitionScopedManager()

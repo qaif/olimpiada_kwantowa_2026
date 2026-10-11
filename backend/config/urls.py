@@ -10,6 +10,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import include, path
+from django.views.generic import RedirectView
 from drf_spectacular.views import SpectacularAPIView
 from wagtail import urls as wagtail_urls
 from wagtail.admin import urls as wagtailadmin_urls
@@ -30,6 +31,11 @@ urlpatterns = [
     # logowania nie są osiągalne.
     path("admin/login/", panel_login_redirect),
     path("cms/login/", panel_login_redirect),
+    # Zmiana hasła panelu admina (``PasswordChangeView`` Django) – bez limitu, audytu, licznika pomyłek
+    # i listu do właściciela – odsyła na jedyny ekran zmiany hasła (AUTH-01b, przegląd H1). Każda
+    # metoda kończy się przekierowaniem, więc ten adres nie przyjmuje żadnego hasła.
+    path("admin/password_change/", RedirectView.as_view(pattern_name="web:password-change")),
+    path("admin/password_change/done/", RedirectView.as_view(pattern_name="web:password-change")),
     path("admin/", admin.site.urls),
     path("healthz/", include("apps.core.urls")),
     path("api/auth/", include("apps.accounts.urls")),

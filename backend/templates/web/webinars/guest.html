@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% load i18n tz %}
+{% comment %}
+  Link dla gości bez konta (zadanie WEB-01, ``apps.web.views.webinars.WebinarGuestView``).
+
+  GET niczego nie otwiera – pokazuje tytuł, termin i pole nazwy. POST „Dołącz” (CSRF) zapisuje
+  nazwę i pseudonim gościa w sesji i prowadzi do pokoju gościa; token powstaje dopiero tam. Gość
+  jest widzem: nie nadaje obrazu ani dźwięku, dopóki prowadzący nie da mu głosu.
+{% endcomment %}
+{% block title %}{% translate "Zaproszenie na webinar" %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow">{% translate "Webinar" %}</span>
+  <h1>{{ webinar.title }}</h1>
+  <p class="lead">{% timezone zone %}{{ webinar.starts_at|date:"d.m.Y, H:i" }}{% endtimezone %} ({{ zone.key }})</p>
+</div>
+
+<div class="card">
+  {% if state == "closed" %}
+    <p>{% translate "Ten webinar już się zakończył." %}</p>
+  {% else %}
+    <form method="post" class="form" novalidate>
+      {% csrf_token %}
+      {% if error %}<p class="form__error" role="alert">{{ error }}</p>{% endif %}
+      <p>
+        <label for="guest-name">{% translate "Imię i nazwisko (albo nazwa) widoczne w spotkaniu" %}</label>
+        <input id="guest-name" type="text" name="name" maxlength="{{ name_max_length }}"
+               value="{{ name|default:account_name }}" autocomplete="name"
+               {% if not account_name %}required{% endif %}>
+      </p>
+      <p class="hint">{% translate "Wejście działa od kilkunastu minut przed początkiem, gdy prowadzący rozpocznie webinar. Wchodzisz jako widz – głos daje prowadzący." %}</p>
+      <div class="actions">
+        <button type="submit" class="btn btn--primary">{% translate "Dołącz" %}</button>
+      </div>
+    </form>
+  {% endif %}
+</div>
+{% endblock %}

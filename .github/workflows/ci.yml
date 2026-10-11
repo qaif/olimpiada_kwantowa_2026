@@ -28,26 +28,37 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# Domyślnie token przebiegu tylko czyta repozytorium (SEC-02). Joby, które potrzebują więcej
+# (`image` – GHCR, `image-scan` – code scanning), dopisują to u siebie, jawnie i wąsko.
+permissions:
+  contents: read
+
 env:
   # Ta sama wersja, co w obrazie (backend/Dockerfile, `requires-python = ">=3.14"`). Testy
   # przechodzące na innej wersji niż produkcja niczego o produkcji nie dowodzą.
   PYTHON_VERSION: "3.14"
+  # Skanery (SEC-02, docs/OPERACJE.md § 47). Wersje przypięte, bo narzędzie bezpieczeństwa też jest
+  # zależnością: Trivy w marcu 2026 r. wydał złośliwe 0.69.4 po przejęciu konta wydawniczego –
+  # „najnowsza” to dokładnie ta wersja, której nie chcemy brać w dniu wydania. Podbicie = zmiana
+  # tutaj (i w .github/workflows/security-scan.yml), po kilku dniach od wydania.
+  TRIVY_VERSION: v0.74.0
+  PIP_AUDIT_VERSION: "2.10.1"
 
 jobs:
   lint:
     name: ruff (styl i importy)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: astral-sh/setup-uv@v3
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
           enable-cache: true
           # Klucz cache'u po pliku zależności: przebieg, który niczego nie zmienił w zależnościach,
           # nie ma powodu ich ponownie pobierać.
           cache-dependency-glob: backend/uv.lock
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
@@ -71,24 +82,24 @@ jobs:
 
       - name: ruff check
         working-directory: backend
-        run: ruff check apps ../e2e config
+        run: ruff check apps ../e2e ../scripts/security config
 
       - name: ruff format --check
         working-directory: backend
-        run: ruff format --check apps config
+        run: ruff format --check apps config ../scripts/security
 
   migrations:
     name: makemigrations --check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: astral-sh/setup-uv@v3
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
           enable-cache: true
           cache-dependency-glob: backend/uv.lock
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
@@ -117,14 +128,14 @@ jobs:
     name: djcms_routes --check (kontrakt tras)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: astral-sh/setup-uv@v3
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
           enable-cache: true
           cache-dependency-glob: backend/uv.lock
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
@@ -151,7 +162,7 @@ jobs:
     name: msgfmt (tłumaczenia)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # `msgfmt` nie jest częścią obrazu `ubuntu-latest` – w `backend/Dockerfile` przychodzi razem
       # z pakietem `gettext` (warstwa runtime), tutaj trzeba go doinstalować jawnie. Bez tego kroku
@@ -167,11 +178,123 @@ jobs:
         working-directory: backend
         run: |
           set -eu
-          for po in locale/*/LC_MESSAGES/django.po; do
+          for po in locale/*/LC_MESSAGES/django.po apps/*/locale/*/LC_MESSAGES/django.po; do
             [ -e "$po" ] || continue
             echo "== $po"
             msgfmt --check --output-file=/dev/null "$po"
           done
+
+  pip-audit:
+    # Znane podatności zależności Pythona (SEC-02, docs/OPERACJE.md § 47.1) – dwa zbiory:
+    # - backend: `backend/` nie ma pliku blokady (obraz instaluje z zakresów w pyproject), więc
+    #   „zbiór zależności” to wynik **tego samego rozwiązania**, które zrobi budowanie obrazu
+    #   w tej chwili (`uv pip compile`, Python i platforma obrazu, z ekstrą dev – obraz ją instaluje),
+    # - djcms: dokładnie `djcms/uv.lock` (`uv export --frozen`),
+    # - notebook-lab: narzędzia budowy JupyterLite (`backend/apps/notebooks/labbuild/requirements.txt`,
+    #   przypięte ze skrótami; QC-01) – nie trafiają do runtime, ale to one składają statykę laboratorium.
+    # Czerwono tylko przy podatności z wydaną poprawką; bez poprawki – ostrzeżenie w podsumowaniu.
+    # Wyjątki z terminem i uzasadnieniem: `.security/pip-audit-ignore.toml`.
+    # Zainstalowane pakiety obrazu (to, co faktycznie wdrażamy) sprawdza dodatkowo Trivy w `image-scan`.
+    name: pip-audit (zależności Pythona)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: |
+            backend/pyproject.toml
+            djcms/uv.lock
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      # `cd backend` przed `uv pip compile` jest konieczne: `[tool.uv] override-dependencies`
+      # (django-celery-beat a Django 6.1) uv czyta z pyproject katalogu roboczego, a nie z pliku
+      # podanego argumentem – z korzenia repozytorium rozwiązanie kończy się „unsatisfiable”.
+      - name: Zbiory zależności (backend – rozwiązanie jak w obrazie, djcms – uv.lock)
+        run: |
+          set -eu
+          (cd backend && uv pip compile pyproject.toml --extra dev \
+            --python-version "$PYTHON_VERSION" --python-platform x86_64-manylinux_2_28 \
+            --no-header --no-annotate -o "$RUNNER_TEMP/backend.txt")
+          (cd djcms && uv export --frozen --extra dev --no-emit-project --no-hashes \
+            --no-header --no-annotate -o "$RUNNER_TEMP/djcms.txt")
+          cp backend/apps/notebooks/labbuild/requirements.txt "$RUNNER_TEMP/notebook-lab.txt"
+          wc -l "$RUNNER_TEMP"/*.txt
+
+      # `--no-deps --disable-pip`: zbiór jest już rozwiązany co do wersji, pip-audit ma go tylko
+      # sprawdzić, a nie rozwiązywać drugi raz (inną metodą i z innym wynikiem). Baza OSV: obejmuje
+      # PyPA advisory database i GHSA. Kod wyjścia pip-audit pomijamy – decyduje bramka niżej, a brak
+      # raportu (awaria narzędzia albo sieci) bramka traktuje jak błąd, nie jak „zero podatności”.
+      - name: pip-audit
+        run: |
+          for set in backend djcms notebook-lab; do
+            uvx --from "pip-audit==$PIP_AUDIT_VERSION" pip-audit -r "$RUNNER_TEMP/$set.txt" \
+              --no-deps --disable-pip --vulnerability-service osv --progress-spinner off \
+              --format json --output "$RUNNER_TEMP/$set-audit.json" || true
+          done
+
+      - name: Bramka (poprawka dostępna = czerwono, wyjątki z terminem)
+        run: |
+          rc=0
+          for set in backend djcms notebook-lab; do
+            python scripts/security/pip_audit_gate.py --label "$set" "$RUNNER_TEMP/$set-audit.json" || rc=1
+          done
+          exit "$rc"
+
+  supply-chain:
+    # Reguły łańcucha dostaw bez sieci, kilka sekund (SEC-02, docs/OPERACJE.md § 47.4–47.5):
+    # akcje GitHuba przypięte pełnym SHA, wyjątki Trivy z terminem i uzasadnieniem, zgodność
+    # zwendorowanego JS z zapisanymi wersjami i skrótami, testy samych skryptów.
+    name: łańcuch dostaw (SHA akcji, vendor JS, wyjątki)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Akcje przypięte SHA, wyjątki Trivy z terminem
+        run: python scripts/security/policy_check.py
+
+      - name: Vendor JS – wersje i skróty zgodne z plikami
+        run: python scripts/security/vendor_check.py check
+
+      - name: Testy skryptów bezpieczeństwa
+        run: |
+          python -m pip install --quiet "pytest>=8.3"
+          python -m pytest -q -p no:cacheprovider scripts/security/tests
+
+  uptime-script:
+    # Monitoring z zewnątrz (`.github/workflows/uptime.yml`, OPS-03) to skrypt bez zależności – jego
+    # testy też: sama biblioteka standardowa, bez sieci, bez bazy, kilka sekund. Osobny job, bo
+    # `tests` stoi na Django i Postgresie, a ten skrypt nie ma z nimi nic wspólnego. Python z obrazu
+    # runnera – ten sam, którym skrypt chodzi w `uptime.yml`; zgodność składni z 3.10 sprawdza test.
+    name: uptime_external.py (unittest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Testy monitoringu z zewnątrz
+        run: python3 -m unittest discover -s scripts/tests -p "test_uptime_external.py" -v
+
+  mail-scripts:
+    # Skrypty startowe relaya `mail` (deploy/mail/docker-init.d/, MAIL-01/02/03) na atrapach
+    # postconf/postmap – bez Dockera, sekundy. MAIL-03 otwiera port 25 na świat, więc reguła „bez
+    # relaya” ma być sprawdzana przy każdym PR, a nie tylko ręcznie.
+    name: skrypty relaya poczty (bash)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: 50-bounces.sh i 60-inbound.sh
+        run: |
+          bash scripts/tests/mail_bounces_test.sh
+          bash scripts/tests/mail_inbound_test.sh
 
   tests:
     # ~4700 testów w jednym przebiegu trwało 27–32 minuty – dłużej niż `lint`, `migrations`
@@ -184,11 +307,12 @@ jobs:
     # Podział jest po **zmierzonym czasie**, nie po liczbie testów: `backend/.test_durations`
     # niesie czas każdego testu, a `--splitting-algorithm duration_based_chunks` tnie zbiór na ciągłe
     # kawałki tak, żeby shardy kończyły mniej więcej razem. W każdym shardzie testy idą dodatkowo
-    # równolegle (`-n auto`, pytest-xdist) – docs/TESTY.md. Podział po liczbie dawał shardy od 2 do 17 minut, bo
+    # równolegle (`-n` = rdzenie runnera, pytest-xdist) – docs/TESTY.md. Podział po liczbie dawał shardy od 2 do 17 minut, bo
     # testy PDF-ów, pieczęci elektronicznej i cofania migracji ważą wielokrotnie więcej niż reszta
     # i stoją obok siebie. Test, którego w pliku nie ma (nowy), dostaje czas średni – plik nie
     # musi więc być aktualny co do testu, wystarczy odświeżyć go, gdy shardy znów się rozjadą:
-    # pełny przebieg z wtyczką zapisującą czasy (opis w `docs/TESTY.md`).
+    # `scripts/refresh_test_durations.sh <run-id>` z artefaktów `test-durations-*` tego joba
+    # (opis w `docs/TESTY.md` § 5).
     name: "pytest (shard ${{ matrix.shard }}/${{ strategy.job-total }})"
     runs-on: ubuntu-latest
     strategy:
@@ -256,14 +380,14 @@ jobs:
       S3_PRIVATE_SECRET_KEY: ci-private-secret-key-testowy
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: astral-sh/setup-uv@v3
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
           enable-cache: true
           cache-dependency-glob: backend/uv.lock
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
@@ -313,19 +437,48 @@ jobs:
           until docker exec "$PG" pg_isready -U olimpiada -d olimpiada; do sleep 1; done
           docker exec "$PG" psql -U olimpiada -d olimpiada -Atc "SHOW max_locks_per_transaction"
 
-      # ``-n auto`` = tyle workerów, ile rdzeni ma runner (4); każdy dostaje własną bazę testową.
-      # ``conftest.py`` zamienia ``-n`` na ``--dist loadgroup``, więc moduł testów migracji idzie
-      # w całości do jednego workera (przewinięcie bazy liczy się raz na moduł).
+      # Migracje **raz** na shard, potem kopia bazy dla każdego workera (``CREATE DATABASE …
+      # TEMPLATE``, ``backend/ci_test_db.py``). Do 8.10.2026 każdy z czterech workerów migrował
+      # własną bazę od zera, wszystkie naraz na czterech rdzeniach: 1,5–2,5 min przed pierwszym
+      # testem w każdym shardzie. Liczba workerów = rdzenie runnera, podana jawnie i tu, i w
+      # ``-n`` niżej – kopie muszą mieć dokładnie te nazwy, których szuka pytest-django
+      # (``test_olimpiada_gw0`` …). Zabraknie którejś – pytest-django założy ją sam, tylko wolniej.
+      - name: Bazy testowe (migracje raz, kopie dla workerów)
+        working-directory: backend
+        run: |
+          set -eu
+          echo "WORKERS=$(nproc)" >> "$GITHUB_ENV"
+          python ci_test_db.py "$(nproc)"
+
+      # ``-n $WORKERS`` = tyle workerów, ile rdzeni ma runner (4); ``--reuse-db`` – bazy z kroku
+      # wyżej (``migrate`` niczego już nie stosuje). ``conftest.py`` zamienia ``-n`` na ``--dist
+      # loadgroup`` i przekazuje to workerom, więc moduł testów migracji idzie w całości do jednego
+      # workera (przewinięcie bazy liczy się raz na moduł, a nie raz na test – docs/TESTY.md § 4).
       #
       # ``duration_based_chunks``, a nie ``least_duration``: shard dostaje **ciągły** kawałek zbioru,
       # więc moduł z drogą fiksturą modułu (przewinięta baza) nie jest rozrzucany po pięciu
       # shardach, z których każdy płaciłby za nią osobno.
+      #
+      # ``-p _durations_plugin``: przy okazji przebieg mierzy czasy swoich testów (bez kosztu baz
+      # workerów) – artefakt ``test-durations-<shard>`` niżej. Z pięciu takich plików
+      # ``scripts/refresh_test_durations.sh`` składa nowe ``backend/.test_durations``, gdy shardy
+      # się rozjadą – pomiar z tej samej maszyny, na której podział ma działać.
       - name: pytest
         working-directory: backend
+        env:
+          TEST_DURATIONS_FILE: ${{ runner.temp }}/test-durations-${{ matrix.shard }}.json
         run: >-
-          python -m pytest -q --create-db --durations=20 -n auto
+          python -m pytest -q --reuse-db --durations=20 -n "$WORKERS" -p _durations_plugin
           --splits ${{ strategy.job-total }} --group ${{ matrix.shard }}
           --splitting-algorithm duration_based_chunks
+
+      - name: Czasy testów (artefakt do odświeżenia .test_durations)
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: test-durations-${{ matrix.shard }}
+          path: ${{ runner.temp }}/test-durations-${{ matrix.shard }}.json
+          if-no-files-found: ignore
+          retention-days: 14
 
   djcms:
     # Wersja porównawcza na django CMS (`djcms/`, docs/tasks/DJ-01.md) – osobny projekt Django
@@ -357,14 +510,14 @@ jobs:
       run:
         working-directory: djcms
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: astral-sh/setup-uv@v3
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
           enable-cache: true
           cache-dependency-glob: djcms/uv.lock
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
@@ -432,6 +585,54 @@ jobs:
             exit 1
           fi
 
+  a11y:
+    # Testy dostępności (A11Y-01, docs/OPERACJE.md § 50): axe-core (WCAG 2.1 A/AA) na ~70 ekranach
+    # obu konkursów i obu motywów + klawiatura, fokus, menu bez JS, wysoki kontrast, RTL, reflow.
+    # Ten sam skrypt, co lokalnie (scripts/a11y.sh): własna sieć Dockera, Postgres w tmpfs, serwer
+    # z obrazu `web` (ustawienia config.settings.a11y – bez Redisa, MinIO, ClamAV) i kontener
+    # Playwrighta scenariusza E2E. Różnica jest jedna: kod pochodzi z obrazu zbudowanego z tego
+    # commita, a nie z katalogu hosta (A11Y_MOUNT_BACKEND=0) – `.mo` są w obrazie skompilowane.
+    #
+    # Job przewraca się na **nowym** naruszeniu critical/serious (spoza e2e/a11y/baseline.json)
+    # i na każdym niezaliczonym teście klawiatury. Raport (JSON/Markdown + zrzuty) jest artefaktem.
+    name: dostępność (axe + klawiatura)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Jawnie i najwęziej (SEC-02, OPERACJE § 47): job tylko czyta kod i wgrywa artefakt raportu.
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      # Ten sam cel i ten sam cache warstw (gha), co zadanie `image` – drugi build tego samego
+      # Dockerfile'a trafia w cache i trwa tyle, co eksport obrazu do lokalnego demona.
+      - name: Obraz web (runtime) do testów
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: ./backend
+          target: runtime
+          load: true
+          push: false
+          tags: olimpiada-web:a11y
+          cache-from: type=gha
+
+      - name: Testy dostępności
+        env:
+          A11Y_WEB_IMAGE: olimpiada-web:a11y
+          A11Y_MOUNT_BACKEND: "0"
+        run: bash scripts/a11y.sh
+
+      - name: Raport dostępności
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: a11y-report
+          path: e2e/artifacts/a11y/
+          if-no-files-found: ignore
+          retention-days: 14
+
   image:
     name: docker build (+ GHCR dla main i v*)
     runs-on: ubuntu-latest
@@ -442,9 +643,9 @@ jobs:
       contents: read
       packages: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
       # Kto publikuje, a kto tylko buduje – jedno miejsce, z którego biorą się i tagi, i decyzja.
       # Wartości z kontekstu `github` wchodzą tu przez zmienne środowiskowe, a nie przez `${{ }}`
@@ -484,7 +685,7 @@ jobs:
 
       - name: Logowanie do GHCR
         if: steps.obraz.outputs.push == 'true'
-        uses: docker/login-action@v3
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -501,7 +702,7 @@ jobs:
       # Nie publikujemy osobnych obrazów `worker` i `beat` – to ten sam obraz z innym poleceniem
       # (docker-compose.yml, `x-app-base`). Obrazów nie podpisujemy (cosign to osobna pozycja).
       - name: Budowanie obrazu produkcyjnego
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: ./backend
           target: runtime
@@ -517,3 +718,105 @@ jobs:
           # Cache warstw w cache'u Actions – bez niego każdy przebieg instaluje zależności od zera.
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  image-scan:
+    # Trivy na zbudowanych obrazach (SEC-02, docs/OPERACJE.md § 47.2): pakiety systemowe Debiana
+    # z obrazu bazowego i pakiety Pythona faktycznie zainstalowane w /opt/venv.
+    #
+    # Po `image`, bo obraz `web` budujemy tu drugi raz **z cache'u warstw**, który `image` właśnie
+    # zapisał (`type=gha`, ten sam Dockerfile i kontekst) – warstwy przychodzą z cache'u, więc to
+    # kilkadziesiąt sekund, a nie przenoszenie obrazu między jobami w artefakcie. djcms CI dotąd
+    # nie budował; ma własny zakres cache'u (`scope=djcms`), żeby nie wypierać warstw `web`.
+    #
+    # Dwa przebiegi Trivy na jednej bazie (cache bazy wg daty – wbudowany w trivy-action):
+    # 1. bramka: CRITICAL/HIGH **z wydaną poprawką** → czerwono. Bez `ignore-unfixed` CI stałby
+    #    czerwony za CVE Debiana, na które nie ma jeszcze łatki, i przestałby cokolwiek znaczyć,
+    # 2. raport SARIF (CRITICAL/HIGH, także bez poprawki) → zakładka Security / Code scanning
+    #    (repozytorium publiczne – bez dodatkowej licencji) i artefakt przebiegu jako zapas.
+    # Wyjątki z terminem: `.security/trivyignore.yaml` (natywny format Trivy, `expired_at`).
+    name: "trivy (obraz ${{ matrix.name }})"
+    runs-on: ubuntu-latest
+    needs: [image]
+    # `security-events: write` wyłącznie do wysłania SARIF; `actions: read` wymaga upload-sarif
+    # przy repozytoriach prywatnych – zostaje na wypadek zmiany widoczności.
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: web
+            context: ./backend
+            file: ./backend/Dockerfile
+            cache-from: type=gha
+            cache-to: ""
+          - name: djcms
+            # Kontekst = korzeń repozytorium (djcms/Dockerfile kopiuje backend/static).
+            context: .
+            file: ./djcms/Dockerfile
+            cache-from: type=gha,scope=djcms
+            cache-to: type=gha,scope=djcms,mode=max
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Obraz do skanu (z cache'u warstw)
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.file }}
+          target: runtime
+          push: false
+          load: true
+          tags: olimpiada-scan/${{ matrix.name }}:ci
+          cache-from: ${{ matrix.cache-from }}
+          cache-to: ${{ matrix.cache-to }}
+
+      - name: Trivy – bramka (CRITICAL/HIGH z poprawką)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: olimpiada-scan/${{ matrix.name }}:ci
+          version: ${{ env.TRIVY_VERSION }}
+          scanners: vuln
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "1"
+          format: table
+          trivyignores: .security/trivyignore.yaml
+
+      - name: Trivy – raport SARIF
+        if: always()
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: olimpiada-scan/${{ matrix.name }}:ci
+          version: ${{ env.TRIVY_VERSION }}
+          scanners: vuln
+          severity: CRITICAL,HIGH
+          limit-severities-for-sarif: true
+          exit-code: "0"
+          format: sarif
+          output: trivy-${{ matrix.name }}.sarif
+          trivyignores: .security/trivyignore.yaml
+
+      # PR z forka dostaje token tylko do odczytu – wysyłka SARIF i tak by się nie udała, więc jej
+      # nie próbujemy (wynik jest w artefakcie). `continue-on-error`: wyłączone code scanning
+      # w ustawieniach repozytorium nie może zasłaniać wyniku bramki.
+      - name: SARIF → code scanning
+        if: always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+        continue-on-error: true
+        uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
+        with:
+          sarif_file: trivy-${{ matrix.name }}.sarif
+          category: trivy-${{ matrix.name }}
+
+      - name: SARIF jako artefakt
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: trivy-${{ matrix.name }}
+          path: trivy-${{ matrix.name }}.sarif
+          retention-days: 30
+          if-no-files-found: ignore

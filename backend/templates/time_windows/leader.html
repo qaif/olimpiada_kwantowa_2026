@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% load i18n static time_windows %}
+{% comment %}
+  „Okna czasowe drużyny” opiekuna (TZ-01): okno każdego ucznia w każdym etapie z oknami, w strefie
+  ucznia, i zmiana strefy ucznia. Strefa ucznia zmienia **wyłącznie** sposób wyświetlania godzin –
+  okno przydziela organizator (``apps.time_windows.models.ParticipantTimezone``).
+{% endcomment %}
+{% block title %}{% translate "Okna czasowe drużyny" %}{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/coordinator-tools.css' %}">{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow"><a href="{% url 'web:delegation' %}">{% translate "Panel opiekuna drużyny" %}</a></span>
+  <h1>{% blocktranslate trimmed with country=delegation.country.name %}Okna czasowe: {{ country }}{% endblocktranslate %}</h1>
+  <p class="lead">{% blocktranslate trimmed with zone=country_timezone|default:"—" %}
+    Strefa czasowa kraju: {{ zone }}. Każdy uczeń zaczyna etap na starcie okna przydzielonego przez organizatora i widzi godziny w swojej strefie.
+  {% endblocktranslate %}</p>
+</div>
+
+{% for item in stages %}
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">{{ item.stage.display_name }}</h2>
+    <p class="hint">{% blocktranslate trimmed with duration=item.view.plan.duration_minutes|minutes_as_hours %}Czas pracy: {{ duration }}.{% endblocktranslate %}</p>
+  </div>
+  <div class="scroll">
+    <table class="table">
+      <caption class="visually-hidden">{% translate "Okna uczniów w etapie" %}</caption>
+      <thead>
+        <tr>
+          <th scope="col">{% translate "Uczeń" %}</th>
+          <th scope="col">{% translate "Okno" %}</th>
+          <th scope="col">{% translate "Start (strefa ucznia)" %}</th>
+          <th scope="col">{% translate "Koniec (strefa ucznia)" %}</th>
+          <th scope="col">{% translate "Dodatkowy czas" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in item.rows %}
+          <tr>
+            <th scope="row">{{ row.participant.user.get_full_name }}</th>
+            {% if row.effective %}
+              <td>{{ row.effective.window.label }}</td>
+              <td>{{ row.effective.opens_at|in_zone:row.timezone }}</td>
+              <td>{{ row.effective.deadline_at|in_zone:row.timezone }}</td>
+              <td>{% if row.effective.extra_minutes %}{% blocktranslate trimmed with minutes=row.effective.extra_minutes %}{{ minutes }} min{% endblocktranslate %}{% else %}—{% endif %}</td>
+            {% else %}
+              <td colspan="4">—</td>
+            {% endif %}
+          </tr>
+        {% empty %}
+          <tr><td colspan="5" class="empty">{% translate "Nie zgłoszono jeszcze żadnego ucznia." %}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% empty %}
+<p class="notice">{% translate "Żaden etap tej edycji nie ma jeszcze okien czasowych." %}</p>
+{% endfor %}
+
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">{% translate "Strefy czasowe uczniów" %}</h2>
+    <p class="hint">{% translate "Strefa zmienia tylko to, jak uczeń widzi godziny w swoim panelu. Nie zmienia jego okna." %}</p>
+  </div>
+  <div class="scroll">
+    <table class="table">
+      <caption class="visually-hidden">{% translate "Strefy czasowe uczniów" %}</caption>
+      <thead>
+        <tr>
+          <th scope="col">{% translate "Uczeń" %}</th>
+          <th scope="col">{% translate "Strefa czasowa" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for student in students %}
+          <tr>
+            <th scope="row">{{ student.participant.user.get_full_name }}</th>
+            <td>
+              <form method="post" action="{% url 'web:delegation-time-windows-timezone' student.participant.pk %}" class="inline">
+                {% csrf_token %}
+                <label class="visually-hidden" for="tz-{{ student.participant.pk }}">{% translate "Strefa czasowa" %}</label>
+                <select id="tz-{{ student.participant.pk }}" name="timezone">
+                  <option value="">{% translate "jak kraj drużyny" %}</option>
+                  {% for value, label in timezone_choices %}
+                    <option value="{{ value }}"{% if student.timezone == value %} selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                </select>
+                <button type="submit" class="btn btn--secondary btn--small">{% translate "Zapisz" %}</button>
+              </form>
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="2" class="empty">{% translate "Nie zgłoszono jeszcze żadnego ucznia." %}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

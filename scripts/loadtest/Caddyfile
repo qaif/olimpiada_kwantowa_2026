@@ -1,0 +1,33 @@
+# Caddy stosu testu obciążenia (scripts/loadtest/docker-compose.loadtest.yml) – wyłącznie lokalnie.
+#
+# Ten sam kształt co blok domeny w deploy/Caddyfile (kompresja, limit ciała żądania, /static/ z dysku
+# z `immutable`, reszta do gunicorna), z dwiema świadomymi różnicami:
+#
+# - HTTP na :80 zamiast TLS – stos nie ma domeny ani certyfikatu. Koszt TLS (uzgodnienie przy nowym
+#   połączeniu, szyfrowanie) na produkcji zostaje poza pomiarem; § 42.4 dolicza go w ekstrapolacji,
+# - adres klienta: generator podaje wirtualny adres ucznia w `X-Loadtest-Client-IP`, a Caddy przepisuje
+#   go do `X-Real-IP` (na produkcji: `{remote_host}`). Bez tego cały ruch szedłby z jednego adresu
+#   i limity per IP (logowanie, upload) mierzyłyby generator, a nie zachowanie serwisu wobec tysięcy
+#   uczniów. Backend ufa nagłówkowi wyłącznie od tego proxy (TRUSTED_PROXY_IPS = podsieć stosu).
+{
+    admin off
+    auto_https off
+}
+
+:80 {
+    encode gzip zstd
+    request_body {
+        max_size {$MAX_UPLOAD_MB}MB
+    }
+    handle_path /static/* {
+        header Cache-Control "public, max-age=31536000, immutable"
+        root * /srv/static
+        file_server
+    }
+    handle {
+        reverse_proxy web:8000 {
+            header_up X-Forwarded-Proto http
+            header_up X-Real-IP {http.request.header.X-Loadtest-Client-IP}
+        }
+    }
+}

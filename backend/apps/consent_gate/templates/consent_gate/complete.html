@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% comment %}
+  „Uzupełnij zgody” (CONS-01). Ekran, na który bramka (apps/consent_gate/middleware.py) odsyła
+  uczestnika z brakującą wymaganą zgodą albo zgodą złożoną pod starszą wersją dokumentu.
+
+  Układ jak przy przyjęciu zaproszenia: nagłówek z jednym zdaniem „dlaczego to widzę”, jedna karta
+  z oświadczeniami (ta sama etykieta co w rejestracji – ``consents.label``) i wyjścia dla kogoś, kto
+  się nie zgadza. Te wyjścia nie są ozdobą: eksport danych i usunięcie konta muszą być osiągalne bez
+  akceptowania nowego regulaminu, a bramka je przepuszcza (``/account/…`` jest poza jej obszarem).
+
+  Zgoda opiekuna online (małoletni) – sam stan i „wyślij ponownie”, fragment z panelu uczestnika:
+  dziś nie blokuje niczego poza zgodą na nadzór zdalny i tak zostaje (CONS-01 § 4).
+{% endcomment %}
+{% block title %}{% translate "Uzupełnij zgody" %}{% endblock %}
+{% block timeline_strip %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow">{% translate "Zgody" %}</span>
+  <h1>{% translate "Uzupełnij zgody" %}</h1>
+  <p class="lead">{% blocktranslate trimmed %}
+    Zanim przejdziesz do panelu uczestnika, potrzebujemy Twoich oświadczeń poniżej. Bez nich nie
+    możesz wysyłać rozwiązań, rozwiązywać testów ani korzystać z wiadomości.
+  {% endblocktranslate %}</p>
+  {% if any_changed %}
+    <p class="notice">{% blocktranslate trimmed %}
+      Organizator zmienił co najmniej jeden dokument. Zgoda złożona pod poprzednią wersją nie obejmuje
+      nowej treści – przeczytaj dokument i potwierdź go ponownie.
+    {% endblocktranslate %}</p>
+  {% endif %}
+</div>
+
+<section class="section">
+  <div class="card">
+    <form method="post" class="form" action="{% url 'web:consent-complete' %}">
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{{ next }}">
+      {{ form.non_field_errors }}
+      {# Wersja dokumentu, którą uczestnik widzi – zmiana przed wysłaniem każe zaznaczyć pole ponownie. #}
+      {% for hidden in form.hidden_fields %}{{ hidden }}{% endfor %}
+      <fieldset class="consents">
+        <legend>{% translate "Oświadczenia" %}</legend>
+        {% for row in rows %}
+          <p>
+            {{ row.field.errors }}
+            {{ row.field.label_tag }}
+            {{ row.field }}
+            {% if row.field.help_text %}
+              <span class="helptext" id="{{ row.field.auto_id }}_helptext">{{ row.field.help_text }}</span>
+            {% endif %}
+            {% if row.previous %}
+              <span class="hint">{% blocktranslate trimmed with version=row.consent.version previous=row.previous|join:", " %}
+                Dokument się zmienił: obowiązuje wersja {{ version }}, a Twoja zgoda dotyczyła wersji {{ previous }}.
+              {% endblocktranslate %}</span>
+            {% else %}
+              <span class="hint">{% blocktranslate trimmed with version=row.consent.version %}
+                Wersja dokumentu: {{ version }}.
+              {% endblocktranslate %}</span>
+            {% endif %}
+          </p>
+        {% endfor %}
+      </fieldset>
+      <div class="actions">
+        <button type="submit" class="btn btn--primary">{% translate "Zapisuję oświadczenia" %}</button>
+      </div>
+    </form>
+  </div>
+</section>
+
+{% if guardian and guardian.state != "not_required" %}
+<section class="section">
+  {% include "web/participant/_guardian_consent.html" with guardian=guardian %}
+</section>
+{% endif %}
+
+<section class="section">
+  <div class="card card--quiet">
+    <h2 class="mt-0">{% translate "Nie zgadzasz się?" %}</h2>
+    <p>{% blocktranslate trimmed %}
+      Bez wymaganych zgód nie możesz brać udziału w zawodach, ale Twoje prawa do danych zostają:
+      możesz je pobrać, usunąć konto albo napisać do organizatora.
+    {% endblocktranslate %}</p>
+    <ul>
+      <li><a href="{% url 'web:account-export' %}">{% translate "Pobierz swoje dane" %}</a></li>
+      <li><a href="{% url 'web:account-delete' %}">{% translate "Usuń konto" %}</a></li>
+      <li><a href="{% url 'web:support-new' %}">{% translate "Napisz do organizatora" %}</a></li>
+    </ul>
+    <form method="post" action="{% url 'web:logout' %}" class="inline">
+      {% csrf_token %}
+      <button type="submit" class="btn btn--secondary">{% translate "Wyloguj się" %}</button>
+    </form>
+  </div>
+</section>
+{% endblock %}

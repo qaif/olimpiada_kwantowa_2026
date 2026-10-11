@@ -24,6 +24,8 @@ zadawane nad tym wpisem brzmi „kto i kiedy to ruszył”, nie „jaki był pop
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 from django.contrib import messages
 from django.http import Http404
 from django.shortcuts import redirect
@@ -32,6 +34,7 @@ from django.urls import reverse
 from django.views.generic import View
 
 from apps.core.models import audit
+from apps.mail_domains.services import sender_warnings
 from apps.web.competition_forms import CompetitionSettingsForm
 from apps.web.mixins import CoordinatorRequiredMixin
 
@@ -123,5 +126,11 @@ class CompetitionSettingsView(CoordinatorRequiredMixin, View):
                 ("Tryb adresowania", competition.get_routing_mode_display()),
                 ("Prefiks ścieżki", competition.path_prefix or "—"),
             ],
+            # Stan zapisany, nie wpisany: po błędzie walidacji ``ModelForm`` zdążył już wpisać nowe
+            # wartości do instancji, a ostrzeżenie ma dotyczyć nadawcy, od którego listy wychodzą
+            # dziś – ten pamięta ``form.initial`` (MAIL-01 § 4.2).
+            "sender_warnings": sender_warnings(
+                SimpleNamespace(from_email=form.initial.get("from_email", competition.from_email))
+            ),
         }
         return TemplateResponse(request, TEMPLATE, context, status=status)

@@ -1,0 +1,19 @@
+{% load i18n %}{% autoescape off %}{% comment %}
+  Potwierdzenie wpłaty (PAY-01, ``apps.payments.notifications.send_receipt``). Język płacącego.
+  Bez danych karty (nie mamy ich) i bez załącznika – faktura leży w panelu za logowaniem.
+{% endcomment %}{% blocktranslate trimmed with competition=brand.competition %}
+Dziękujemy – otrzymaliśmy wpłatę za udział w konkursie {{ competition }}.
+{% endblocktranslate %}
+
+{% translate "Kod referencyjny" %}: {{ order.reference }}
+{% translate "Kwota" %}: {{ order.total }} {{ order.currency }}
+{% translate "Nabywca" %}: {{ order.buyer_name }}
+{% if invoice %}{% translate "Faktura" %}: {{ invoice.number }}
+{% endif %}
+{% translate "Fakturę i historię płatności znajdziesz po zalogowaniu:" %}
+{{ link }}
+
+--
+{{ brand.competition }}
+{% translate "Wiadomość wysłana automatycznie; prosimy na nią nie odpowiadać." %}
+{% endautoescape %}

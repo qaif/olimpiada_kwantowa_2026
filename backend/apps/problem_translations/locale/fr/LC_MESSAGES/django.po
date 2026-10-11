@@ -1,0 +1,594 @@
+# Tłumaczenia zadań (TR-01) – francuski.
+msgid ""
+msgstr ""
+"Project-Id-Version: Olimpiada Kwantowa\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-04 20:19+0200\n"
+"PO-Revision-Date: 2026-10-04 19:30+0200\n"
+"Last-Translator: Olimpiada Kwantowa\n"
+"Language-Team: French\n"
+"Language: fr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=3; plural=(n == 0 || n == 1) ? 0 : n != 0 && n % "
+"1000000 == 0 ? 1 : 2;\n"
+
+#: forms.py:19
+msgid "Język 1 (domyślny dla uczniów)"
+msgstr "Langue 1 (par défaut pour les élèves)"
+
+#: forms.py:20
+msgid "Język 2 (opcjonalnie)"
+msgstr "Langue 2 (facultative)"
+
+#: forms.py:33 forms.py:44
+msgid "Tytuł zadania"
+msgstr "Titre du problème"
+
+#: forms.py:35
+msgid "Treść (Markdown, wzory w $…$)"
+msgstr "Texte (Markdown, formules entre $…$)"
+
+#: forms.py:43
+msgid "Przetłumaczony PDF"
+msgstr "PDF traduit"
+
+#: services.py:380
+msgid "Wybierz jeden albo dwa języki."
+msgstr "Choisissez une ou deux langues."
+
+#: services.py:384
+msgid "Nieznany język."
+msgstr "Langue inconnue."
+
+#: services.py:397
+msgid "Nie można usunąć języka, w którym delegacja wysłała już tłumaczenie."
+msgstr ""
+"Impossible de supprimer une langue dans laquelle la délégation a déjà envoyé "
+"une traduction."
+
+#: services.py:444
+msgid "Ten język nie jest językiem delegacji."
+msgstr "Cette langue n’est pas une langue de la délégation."
+
+#: services.py:462 templates/problem_translations/leader/editor.html:145
+msgid "Tłumaczenie jest zatwierdzone i zablokowane."
+msgstr "La traduction est approuvée et verrouillée."
+
+#: services.py:464
+msgid ""
+"Tłumaczenie czeka na decyzję komisji – cofnij wysłanie, żeby je poprawić."
+msgstr ""
+"La traduction est en attente de la décision de la commission – retirez "
+"l’envoi pour la corriger."
+
+#: services.py:500
+msgid ""
+"Tłumaczenie zmieniło się w międzyczasie (inny opiekun albo inna karta). "
+"Skopiuj swój tekst i odśwież stronę."
+msgstr "La traduction a été modifiée entre-temps (un autre chef d’équipe ou un autre onglet). Copiez votre texte et rechargez la page."
+
+#: services.py:531 views_leader.py:386
+msgid "Tekst jest za długi."
+msgstr "Le texte est trop long."
+
+#: services.py:538
+msgid "Bieżące tłumaczenie to plik PDF – najpierw wybierz „Przejdź na tekst”."
+msgstr "La traduction actuelle est un fichier PDF : choisissez d’abord « Passer au texte »."
+
+#: services.py:572
+msgid ""
+"Nie udało się sprawdzić pliku programem antywirusowym. Spróbuj ponownie za "
+"chwilę."
+msgstr ""
+"Impossible de vérifier le fichier avec l’antivirus. Réessayez dans un "
+"instant."
+
+#: services.py:578
+msgid "Plik został odrzucony przez program antywirusowy."
+msgstr "Le fichier a été rejeté par l’antivirus."
+
+#: services.py:598
+msgid "Nie można odczytać pliku PDF (uszkodzony albo zaszyfrowany)."
+msgstr "Impossible de lire le fichier PDF (endommagé ou chiffré)."
+
+#: services.py:603
+msgid "Plik ma za dużo stron."
+msgstr "Le fichier comporte trop de pages."
+
+#: services.py:651
+msgid "Tłumaczenie jest puste."
+msgstr "La traduction est vide."
+
+#: services.py:656
+#, python-format
+msgid ""
+"Wersja oficjalna zmieniła się, odkąd otworzono edytor (teraz wersja "
+"%(version)s). Sprawdź zmiany poniżej i wyślij ponownie."
+msgstr "La version officielle a changé depuis l’ouverture de l’éditeur (version %(version)s désormais). Vérifiez les modifications ci-dessous et renvoyez."
+
+#: services.py:695
+msgid "Tylko wysłane tłumaczenie można cofnąć."
+msgstr "Seule une traduction envoyée peut être retirée."
+
+#: services.py:715
+msgid ""
+"Zatwierdzone tłumaczenie można otworzyć ponownie tylko po zmianie wersji "
+"oficjalnej."
+msgstr ""
+"Une traduction approuvée ne peut être rouverte qu’après une modification de "
+"la version officielle."
+
+#: templates/problem_translations/leader/_autosave.html:6
+#: templates/problem_translations/leader/editor.html:124
+#, python-format
+msgid "Szkic zapisany: %(at)s"
+msgstr "Brouillon enregistré : %(at)s"
+
+#: templates/problem_translations/leader/_autosave.html:9
+#: templates/problem_translations/leader/editor.html:126
+msgid "Podgląd"
+msgstr "Aperçu"
+
+#: templates/problem_translations/leader/_status.html:1
+msgid "nie rozpoczęte"
+msgstr "non commencée"
+
+#: templates/problem_translations/leader/_status.html:1
+msgid "szkic"
+msgstr "brouillon"
+
+#: templates/problem_translations/leader/_status.html:1
+msgid "czeka na akceptację"
+msgstr "en attente de validation"
+
+#: templates/problem_translations/leader/_status.html:1
+msgid "zwrócone do poprawy"
+msgstr "renvoyée pour correction"
+
+#: templates/problem_translations/leader/_status.html:1
+msgid "zatwierdzone"
+msgstr "approuvée"
+
+#: templates/problem_translations/leader/_status.html:1
+msgid "nieaktualne"
+msgstr "obsolète"
+
+#: templates/problem_translations/leader/dashboard.html:10
+#: templates/problem_translations/leader/dashboard.html:16
+#: templates/problem_translations/leader/editor.html:27
+msgid "Tłumaczenia zadań"
+msgstr "Traductions des problèmes"
+
+#: templates/problem_translations/leader/dashboard.html:15
+#, python-format
+msgid "Drużyna: %(country)s"
+msgstr "Équipe : %(country)s"
+
+#: templates/problem_translations/leader/dashboard.html:17
+msgid ""
+"Zadania są tajne do startu zawodów. Wersję oficjalną widzisz tylko w oknie "
+"tłumaczeń ustalonym przez organizatora – każde otwarcie i pobranie jest "
+"zapisywane, a pobrane pliki PDF mają znak wodny Twojej delegacji."
+msgstr ""
+"Les problèmes sont confidentiels jusqu’au début de la compétition. Vous ne "
+"voyez la version officielle que pendant la période de traduction fixée par "
+"l’organisateur – chaque ouverture et chaque téléchargement sont enregistrés, "
+"et les fichiers PDF téléchargés portent le filigrane de votre délégation."
+
+#: templates/problem_translations/leader/dashboard.html:22
+msgid "Języki delegacji"
+msgstr "Langues de la délégation"
+
+#: templates/problem_translations/leader/dashboard.html:23
+msgid ""
+"Jeden albo dwa języki. Pierwszy jest domyślnym językiem uczniów – dla "
+"pojedynczego ucznia możesz go zmienić niżej."
+msgstr ""
+"Une ou deux langues. La première est la langue par défaut des élèves – vous "
+"pouvez la modifier pour un élève donné ci-dessous."
+
+#: templates/problem_translations/leader/dashboard.html:27
+msgid "Zapisz języki"
+msgstr "Enregistrer les langues"
+
+#: templates/problem_translations/leader/dashboard.html:37
+msgid "Organizator nie ustalił jeszcze okna tłumaczeń tego etapu."
+msgstr ""
+"L’organisateur n’a pas encore fixé la période de traduction de cette étape."
+
+#: templates/problem_translations/leader/dashboard.html:39
+#, python-format
+msgid "Okno tłumaczeń: %(opens)s – %(closes)s."
+msgstr "Période de traduction : %(opens)s – %(closes)s."
+
+#: templates/problem_translations/leader/dashboard.html:42
+msgctxt "okno tłumaczeń"
+msgid "otwarte"
+msgstr "ouverte"
+
+#: templates/problem_translations/leader/dashboard.html:43
+msgid "jeszcze nie otwarte"
+msgstr "pas encore ouverte"
+
+#: templates/problem_translations/leader/dashboard.html:44
+msgctxt "okno tłumaczeń"
+msgid "zamknięte"
+msgstr "fermée"
+
+#: templates/problem_translations/leader/dashboard.html:45
+msgid "Delegacje tego samego języka tworzą jedno wspólne tłumaczenie."
+msgstr ""
+"Les délégations d’une même langue rédigent une traduction commune unique."
+
+#: templates/problem_translations/leader/dashboard.html:50
+msgid "Zadeklaruj język delegacji, żeby zobaczyć zadania."
+msgstr "Déclarez la langue de la délégation pour voir les problèmes."
+
+#: templates/problem_translations/leader/dashboard.html:55
+msgid "Zadania etapu i stan tłumaczeń"
+msgstr "Problèmes de l’étape et état des traductions"
+
+#: templates/problem_translations/leader/dashboard.html:58
+msgid "Zadanie"
+msgstr "Problème"
+
+#: templates/problem_translations/leader/dashboard.html:69
+msgid "Otwórz"
+msgstr "Ouvrir"
+
+#: templates/problem_translations/leader/dashboard.html:80
+msgid "Bieżąca edycja nie ma jeszcze etapów."
+msgstr "L’édition en cours n’a pas encore d’étapes."
+
+#: templates/problem_translations/leader/dashboard.html:85
+#: templates/problem_translations/leader/dashboard.html:93
+msgid "Język uczniów"
+msgstr "Langue des élèves"
+
+#: templates/problem_translations/leader/dashboard.html:86
+msgid ""
+"Po starcie zawodów uczeń widzi zadanie w przypisanym języku (zatwierdzone "
+"tłumaczenie) oraz zawsze w wersji oficjalnej."
+msgstr ""
+"Après le début de la compétition, l’élève voit le problème dans la langue "
+"qui lui est attribuée (traduction approuvée) et toujours dans la version "
+"officielle."
+
+#: templates/problem_translations/leader/dashboard.html:89
+msgid "Najpierw zadeklaruj języki delegacji."
+msgstr "Déclarez d’abord les langues de la délégation."
+
+#: templates/problem_translations/leader/dashboard.html:94
+msgid "Uczeń"
+msgstr "Élève"
+
+#: templates/problem_translations/leader/dashboard.html:94
+#: templates/problem_translations/leader/dashboard.html:102
+msgid "Język"
+msgstr "Langue"
+
+#: templates/problem_translations/leader/dashboard.html:104
+#, python-format
+msgid "domyślny (%(language)s)"
+msgstr "par défaut (%(language)s)"
+
+#: templates/problem_translations/leader/dashboard.html:109
+msgid "Zapisz"
+msgstr "Enregistrer"
+
+#: templates/problem_translations/leader/dashboard.html:114
+msgid "Nie zgłoszono jeszcze żadnego ucznia."
+msgstr "Aucun élève n’a encore été inscrit."
+
+#: templates/problem_translations/leader/editor.html:22
+#: templates/problem_translations/leader/editor.html:28
+#, python-format
+msgid "Zadanie %(number)s – %(language)s"
+msgstr "Problème %(number)s – %(language)s"
+
+#: templates/problem_translations/leader/editor.html:31
+msgid "tłumaczenie wspólne delegacji tego języka"
+msgstr "traduction commune des délégations de cette langue"
+
+#: templates/problem_translations/leader/editor.html:32
+#, python-format
+msgid "Okno zamyka się %(closes)s."
+msgstr "La période se termine le %(closes)s."
+
+#: templates/problem_translations/leader/editor.html:35
+msgid "Uwagi komisji:"
+msgstr "Remarques de la commission :"
+
+#: templates/problem_translations/leader/editor.html:39
+#, python-format
+msgid ""
+"Wersja oficjalna zmieniła się (teraz wersja %(version)s). Zaktualizuj "
+"tłumaczenie i wyślij je ponownie."
+msgstr ""
+"La version officielle a changé (désormais version %(version)s). Mettez à "
+"jour la traduction et renvoyez-la."
+
+#: templates/problem_translations/leader/editor.html:43
+msgid "Zaktualizuj tłumaczenie"
+msgstr "Mettre à jour la traduction"
+
+#: templates/problem_translations/leader/editor.html:48
+msgid "Co się zmieniło w wersji oficjalnej"
+msgstr "Ce qui a changé dans la version officielle"
+
+#: templates/problem_translations/leader/editor.html:58
+#, python-format
+msgid "Wersja oficjalna (v%(version)s)"
+msgstr "Version officielle (v%(version)s)"
+
+#: templates/problem_translations/leader/editor.html:61
+msgid "PDF wersji oficjalnej – angielski, jak u uczniów (ze znakiem wodnym)"
+msgstr "PDF de la version officielle – en anglais, comme pour les élèves (avec filigrane)"
+
+#: templates/problem_translations/leader/editor.html:61
+msgid "PDF wersji oficjalnej (ze znakiem wodnym)"
+msgstr "PDF de la version officielle (avec filigrane)"
+
+#: templates/problem_translations/leader/editor.html:66
+msgid "Tekst źródłowy (Markdown) do skopiowania"
+msgstr "Texte source (Markdown) à copier"
+
+#: templates/problem_translations/leader/editor.html:70
+msgid "Organizator udostępnił wersję oficjalną tylko jako PDF."
+msgstr "L’organisateur a fourni la version officielle uniquement en PDF."
+
+#: templates/problem_translations/leader/editor.html:75
+msgid "Tłumaczenie"
+msgstr "Traduction"
+
+#: templates/problem_translations/leader/editor.html:82
+msgid "Bieżące tłumaczenie to plik PDF."
+msgstr "La traduction actuelle est un fichier PDF."
+
+#: templates/problem_translations/leader/editor.html:83
+msgid "Podgląd (ze znakiem wodnym)"
+msgstr "Aperçu (avec filigrane)"
+
+#: templates/problem_translations/leader/editor.html:89
+msgid "Wyślij PDF do akceptacji"
+msgstr "Envoyer le PDF pour validation"
+
+#: templates/problem_translations/leader/editor.html:93
+msgid "Przejdź na tekst"
+msgstr "Passer au texte"
+
+#: templates/problem_translations/leader/editor.html:97
+msgid "Wgraj nowy PDF"
+msgstr "Téléverser un nouveau PDF"
+
+#: templates/problem_translations/leader/editor.html:101
+#: templates/problem_translations/leader/editor.html:134
+msgid "Wgraj PDF"
+msgstr "Téléverser le PDF"
+
+#: templates/problem_translations/leader/editor.html:116
+msgid ""
+"Markdown: # nagłówek, **pogrubienie**, *kursywa*, listy „- ”, tabele z „|”. "
+"Wzory LaTeX: $E=mc^2$ w tekście, $$…$$ w osobnym wierszu. Szkic zapisuje się "
+"sam po chwili przerwy w pisaniu."
+msgstr ""
+"Markdown : # titre, **gras**, *italique*, listes « - », tableaux avec « | ». "
+"Formules LaTeX : $E=mc^2$ dans le texte, $$…$$ sur une ligne à part. Le "
+"brouillon s’enregistre automatiquement après une courte pause dans la saisie."
+
+#: templates/problem_translations/leader/editor.html:118
+msgid "Zapisz szkic"
+msgstr "Enregistrer le brouillon"
+
+#: templates/problem_translations/leader/editor.html:119
+msgid "Wyślij do akceptacji"
+msgstr "Envoyer pour validation"
+
+#: templates/problem_translations/leader/editor.html:123
+msgid ""
+"Autozapis nie powiódł się – zmiany nie są zapisane. Skopiuj swój tekst i "
+"odśwież stronę."
+msgstr "L’enregistrement automatique a échoué : vos modifications ne sont pas enregistrées. Copiez votre texte et rechargez la page."
+
+#: templates/problem_translations/leader/editor.html:130
+msgid "Zamiast tekstu: wgraj przetłumaczony PDF"
+msgstr "À la place du texte : téléversez un PDF traduit"
+
+#: templates/problem_translations/leader/editor.html:139
+msgid ""
+"Tłumaczenie czeka na decyzję komisji. Możesz cofnąć wysłanie, żeby "
+"wprowadzić poprawki."
+msgstr ""
+"La traduction est en attente de la décision de la commission. Vous pouvez "
+"retirer l’envoi pour apporter des corrections."
+
+#: templates/problem_translations/leader/editor.html:142
+msgid "Cofnij wysłanie"
+msgstr "Retirer l’envoi"
+
+#: templates/problem_translations/leader/editor.html:148
+msgid "Podgląd PDF (ze znakiem wodnym)"
+msgstr "Aperçu du PDF (avec filigrane)"
+
+#: templates/problem_translations/leader/editor.html:156
+msgid "Historia wersji"
+msgstr "Historique des versions"
+
+#: templates/problem_translations/leader/editor.html:159
+#, python-format
+msgid "wersja %(number)s, wysłana %(at)s"
+msgstr "version %(number)s, envoyée le %(at)s"
+
+#: templates/problem_translations/leader/editor.html:160
+msgid "zatwierdzona"
+msgstr "approuvée"
+
+#: templates/problem_translations/leader/editor.html:161
+msgid "zwrócona"
+msgstr "renvoyée"
+
+#: templates/problem_translations/leader/editor.html:162
+msgid "wycofana"
+msgstr "retirée"
+
+#: templates/problem_translations/mail/approved_body.txt:3
+#, python-format
+msgid ""
+"Komisja zatwierdziła tłumaczenie zadania %(number)s na język: %(language)s. "
+"Po starcie zawodów uczniowie Twojej drużyny zobaczą tę wersję."
+msgstr ""
+"La commission a approuvé la traduction du problème %(number)s dans la "
+"langue : %(language)s. Après le début de la compétition, les élèves de votre "
+"équipe verront cette version."
+
+#: templates/problem_translations/mail/approved_body.txt:10
+#: templates/problem_translations/mail/outdated_body.txt:11
+#: templates/problem_translations/mail/returned_body.txt:13
+msgid "Olimpiada Kwantowa"
+msgstr "Olympiade quantique"
+
+#: templates/problem_translations/mail/approved_body.txt:11
+#: templates/problem_translations/mail/outdated_body.txt:12
+#: templates/problem_translations/mail/returned_body.txt:14
+msgid "Wiadomość wysłana automatycznie; prosimy na nią nie odpowiadać."
+msgstr "Ce message a été envoyé automatiquement ; merci de ne pas y répondre."
+
+#: templates/problem_translations/mail/approved_subject.txt:1
+#, python-format
+msgid "Tłumaczenie zadania %(number)s (%(language)s) zatwierdzone"
+msgstr "Traduction du problème %(number)s (%(language)s) approuvée"
+
+#: templates/problem_translations/mail/outdated_body.txt:4
+#, python-format
+msgid ""
+"Organizator zmienił wersję oficjalną zadania %(number)s (teraz wersja "
+"%(version)s). Tłumaczenia na języki: %(languages)s są oznaczone jako "
+"nieaktualne – zaktualizuj je i wyślij ponownie do akceptacji."
+msgstr ""
+"L’organisateur a modifié la version officielle du problème %(number)s "
+"(désormais version %(version)s). Les traductions dans les langues : "
+"%(languages)s sont marquées comme obsolètes – mettez-les à jour et renvoyez-"
+"les pour validation."
+
+#: templates/problem_translations/mail/outdated_subject.txt:1
+#, python-format
+msgid "Zmiana wersji oficjalnej zadania %(number)s – zaktualizuj tłumaczenie"
+msgstr ""
+"Modification de la version officielle du problème %(number)s – mettez à jour "
+"la traduction"
+
+#: templates/problem_translations/mail/returned_body.txt:4
+#, python-format
+msgid ""
+"Komisja zwróciła do poprawy tłumaczenie zadania %(number)s na język: "
+"%(language)s."
+msgstr ""
+"La commission a renvoyé pour correction la traduction du problème %(number)s "
+"dans la langue : %(language)s."
+
+#: templates/problem_translations/mail/returned_body.txt:8
+msgid ""
+"Uwagi komisji i edytor tłumaczenia znajdziesz w panelu opiekuna drużyny:"
+msgstr ""
+"Vous trouverez les remarques de la commission et l’éditeur de traduction "
+"dans l’espace chef d’équipe :"
+
+#: templates/problem_translations/mail/returned_subject.txt:1
+#, python-format
+msgid "Tłumaczenie zadania %(number)s (%(language)s) zwrócone do poprawy"
+msgstr ""
+"Traduction du problème %(number)s (%(language)s) renvoyée pour correction"
+
+#: templates/problem_translations/student/problem.html:7
+#, python-format
+msgid "Zadanie %(number)s"
+msgstr "Problème %(number)s"
+
+#: templates/problem_translations/student/problem.html:12
+msgid "Moje zadania"
+msgstr "Mes problèmes"
+
+#: templates/problem_translations/student/problem.html:14
+#, python-format
+msgid "Tłumaczenie: %(language)s."
+msgstr "Traduction : %(language)s."
+
+#: templates/problem_translations/student/problem.html:15
+msgid "Wersja oficjalna (PDF)"
+msgstr "Version officielle (PDF)"
+
+#: templates/problem_translations/student/problem.html:17
+msgid ""
+"Wersja oficjalna została zmieniona po zatwierdzeniu tego tłumaczenia – "
+"sprawdź wersję oficjalną (PDF)."
+msgstr "La version officielle a été modifiée après l’approbation de cette traduction : consultez la version officielle (PDF)."
+
+#: templates/problem_translations/student/problem.html:20
+#, python-format
+msgid ""
+"Tłumaczenie na język %(wanted)s nie jest dostępne – pokazujemy język "
+"%(shown)s, drugi język Twojej drużyny."
+msgstr "La traduction en %(wanted)s n’est pas disponible : affichage en %(shown)s, l’autre langue de votre équipe."
+
+#: templates/problem_translations/student/problem.html:25
+msgid "Treść zadania (PDF)"
+msgstr "Énoncé du problème (PDF)"
+
+#: templatetags/problem_translations.py:40
+#, python-format
+msgid "Treść w języku: %(language)s"
+msgstr "Texte en %(language)s"
+
+#: views_leader.py:136
+msgid "Języki delegacji zostały zapisane."
+msgstr "Les langues de la délégation ont été enregistrées."
+
+#: views_leader.py:151
+msgid "Język ucznia został zapisany."
+msgstr "La langue de l’élève a été enregistrée."
+
+#: views_leader.py:271
+msgid "Szkic zapisany."
+msgstr "Brouillon enregistré."
+
+#: views_leader.py:278
+msgid ""
+"Wersja oficjalna zmieniła się, odkąd otworzono edytor – sprawdź zmiany przed "
+"wysłaniem."
+msgstr "La version officielle a changé depuis l’ouverture de l’éditeur : vérifiez les modifications avant l’envoi."
+
+#: views_leader.py:298
+msgid ""
+"Okno tłumaczeń jest zamknięte – zmiany nie zostały zapisane. Skopiuj swój "
+"tekst."
+msgstr "La fenêtre de traduction est fermée : vos modifications n’ont pas été enregistrées. Copiez votre texte."
+
+#: views_leader.py:356
+msgid "Wybierz plik PDF."
+msgstr "Choisissez un fichier PDF."
+
+#: views_leader.py:371
+msgid "Plik PDF został zapisany jako tłumaczenie."
+msgstr "Le fichier PDF a été enregistré comme traduction."
+
+#: views_leader.py:381
+msgid "Tłumaczenie wysłane do akceptacji."
+msgstr "Traduction envoyée pour validation."
+
+#: views_leader.py:408
+msgid "Wysłanie cofnięte – tłumaczenie jest znowu szkicem."
+msgstr "Envoi retiré – la traduction est de nouveau un brouillon."
+
+#: views_leader.py:415
+msgid ""
+"Tłumaczenie otwarte do aktualizacji. Uczniowie widzą dotąd zatwierdzoną "
+"wersję."
+msgstr ""
+"La traduction est ouverte pour mise à jour. En attendant, les élèves voient "
+"la version approuvée jusqu’ici."
+
+#: views_leader.py:424
+msgid "Tłumaczenie jest znowu tekstem – możesz pisać w edytorze."
+msgstr "La traduction est de nouveau un texte : vous pouvez écrire dans l’éditeur."

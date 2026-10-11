@@ -1,0 +1,47 @@
+# Doręczalność poczty (MAIL-02) – katalog aplikacji apps.email_delivery.
+# Angielski przejrzany ręcznie; pozostałe języki maszynowe (do przeglądu native speakerów, I18N-01 § 8).
+msgid ""
+msgstr ""
+"Project-Id-Version: olimpiada\n"
+"Language: bn\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#, python-format
+msgid "Czy chodziło Ci o %s?"
+msgstr "আপনি কি %s বোঝাতে চেয়েছিলেন?"
+
+#, python-format
+msgid "Użyj %s"
+msgstr "%s ব্যবহার করুন"
+
+#, python-format
+msgid "Sprawdź adres – czy chodziło Ci o %(suggestion)s? Zaznacz poprawkę poniżej albo wyślij formularz jeszcze raz, żeby zostawić adres bez zmian."
+msgstr "ঠিকানাটি যাচাই করুন – আপনি কি %(suggestion)s বোঝাতে চেয়েছিলেন? নিচের সংশোধনটি বেছে নিন অথবা ঠিকানা অপরিবর্তিত রাখতে ফর্মটি আবার পাঠান।"
+
+#, python-format
+msgid "Domena %(domain)s nie istnieje albo nie przyjmuje poczty. Sprawdź adres."
+msgstr "%(domain)s ডোমেইনটির অস্তিত্ব নেই অথবা এটি ইমেইল গ্রহণ করে না। অনুগ্রহ করে ঠিকানাটি যাচাই করুন।"
+
+#, python-format
+msgid "Domena %(domain)s nie istnieje albo nie przyjmuje poczty. Czy chodziło Ci o %(suggestion)s?"
+msgstr "%(domain)s ডোমেইনটির অস্তিত্ব নেই অথবা এটি ইমেইল গ্রহণ করে না। আপনি কি %(suggestion)s বোঝাতে চেয়েছিলেন?"
+
+#, python-format
+msgid "Użyj adresu <strong>%(address)s</strong>"
+msgstr "<strong>%(address)s</strong> ব্যবহার করুন"
+
+#, python-format
+msgid "Nie możemy dostarczyć poczty na adres %(email)s – serwer odbiorcy odpowiada, że taka skrzynka albo domena nie istnieje. Nie dostaniesz od nas listów, dopóki adres nie zostanie poprawiony."
+msgstr "আমরা %(email)s ঠিকানায় ইমেইল পৌঁছাতে পারছি না – প্রাপকের সার্ভার জানাচ্ছে যে এই মেইলবক্স বা ডোমেইনের অস্তিত্ব নেই। ঠিকানা সংশোধন না হওয়া পর্যন্ত আপনি আমাদের কোনো বার্তা পাবেন না।"
+
+msgid "Zmień adres e-mail"
+msgstr "ইমেইল ঠিকানা পরিবর্তন করুন"
+
+msgid "Mój adres jest poprawny"
+msgstr "আমার ঠিকানা সঠিক"
+
+msgid "Dziękujemy. Wznowiliśmy wysyłkę na Twój adres – jeśli list znów nie dotrze, baner wróci."
+msgstr "ধন্যবাদ। আমরা আপনার ঠিকানায় পাঠানো আবার শুরু করেছি – কোনো বার্তা আবার না পৌঁছালে এই বিজ্ঞপ্তি ফিরে আসবে।"

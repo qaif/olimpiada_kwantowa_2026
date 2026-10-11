@@ -140,6 +140,12 @@ SESSION_COOKIE_HTTPONLY = True
 # ciasteczka wcale. Zmiana nazwy = jednorazowe wylogowanie wszystkich przy wdrożeniu (stare
 # ``sessionid`` nie jest już czytane) i nowy token CSRF przy pierwszym wejściu. JavaScript, który
 # czyta token z ciasteczka (static/js/quiz.js, review-worklog.js), zna obie nazwy.
+#
+# Ta sama reguła zamyka podrzucanie ciasteczek z laboratorium notatników na subdomenie (QC-02 § 5,
+# przegląd M1: ``lab.<domena>`` z ``Domain=<domena>``) – na main prefiks włączało dopiero
+# ``NOTEBOOK_LAB_HOST``; po audycie obowiązuje zawsze przy ``Secure``, więc włączenie laboratorium
+# niczego już nie zmienia i nikogo nie wylogowuje. Dev bez TLS zostaje przy zwykłej nazwie i ochronie
+# ``apps.notebooks.cookieguard``.
 if SESSION_COOKIE_SECURE:
     SESSION_COOKIE_NAME = "__Host-sessionid"
 if CSRF_COOKIE_SECURE:

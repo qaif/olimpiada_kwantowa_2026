@@ -1,0 +1,10 @@
+{% load i18n %}{% comment %}
+  IQO Quantum 1.1.0 – slot ``theme/page_header.html`` (nagłówek strony treści CMS, zmienna ``page``).
+
+  Pas na całą szerokość okna (arkusz: cień rozciągnięty o ``100vmax`` i przycięty w pionie –
+  działa także z wnętrza siatki ``doc-layout``) z prążkami interferencyjnymi po stronie końcowej.
+  Nad tytułem etykieta w kroju mono z nazwą serwisu w notacji ket (|…⟩ rysuje arkusz).
+{% endcomment %}<div class="page-head iqo-page-head">
+  <p class="iqo-page-head__kicker">{{ settings.cms.SiteSettings.site_name }}</p>
+  <h1 class="iqo-page-head__title">{{ page.title }}</h1>
+</div>

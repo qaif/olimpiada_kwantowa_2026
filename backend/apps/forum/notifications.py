@@ -383,7 +383,14 @@ def _signed(lines: list[str], competition) -> str:
 def _send(user, competition, subject: str, body: str, unsubscribe: str) -> None:
     from apps.accounts.activation import queue_mail
 
-    queue_mail(subject, body, user.email, competition=competition, headers=unsubscribe_headers(unsubscribe))
+    queue_mail(
+        subject,
+        body,
+        user.email,
+        competition=competition,
+        headers=unsubscribe_headers(unsubscribe),
+        essential=False,
+    )
 
 
 # --- 1. list o kolejce moderacji --------------------------------------------------------------------

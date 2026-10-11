@@ -22,4 +22,17 @@ class AccountsConfig(AppConfig):
         z opóźnieniem do ``_REGISTRATION_CACHE_TTL_SECONDS`` w procesach, które modułu jeszcze
         nie dotknęły, zamiast od razu.
         """
-        from . import messaging, supervisors  # noqa: F401  (import dla efektu ubocznego)
+        from django.db.models.signals import post_delete, post_save
+
+        from . import messaging, request_memo, supervisors  # noqa: F401  (import dla efektu ubocznego)
+        from .models import Participant
+
+        # Pamięć profilu uczestnika na czas żądania (``apps.accounts.request_memo``) gubi wszystko
+        # przy zapisie albo skasowaniu profilu – inaczej żądanie, które zmienia profil, czytałoby
+        # dalej stan sprzed zmiany.
+        post_save.connect(
+            request_memo.forget_all, sender=Participant, dispatch_uid="accounts.participant_memo.save"
+        )
+        post_delete.connect(
+            request_memo.forget_all, sender=Participant, dispatch_uid="accounts.participant_memo.delete"
+        )

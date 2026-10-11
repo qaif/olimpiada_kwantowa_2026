@@ -1,0 +1,106 @@
+# Zmiana hasła w panelu konta (AUTH-01b) – katalog aplikacji apps/password_change.
+msgid ""
+msgstr ""
+"Project-Id-Version: olimpiada\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-04 22:00+0200\n"
+"PO-Revision-Date: 2026-10-04 22:00+0200\n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: hi\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Hasło do konta zostało zmienione – Olimpiada Kwantowa"
+msgstr "खाते का पासवर्ड बदल दिया गया – क्वांटम ओलंपियाड"
+
+#, python-format
+msgid "Hasło do konta zostało zmienione – %(competition)s"
+msgstr "खाते का पासवर्ड बदल दिया गया – %(competition)s"
+
+#, python-format
+msgid "Hasło do Twojego konta w serwisie %(competition_genitive)s zostało zmienione (%(when)s)."
+msgstr "%(competition_genitive)s में आपके खाते का पासवर्ड बदल दिया गया (%(when)s)।"
+
+msgid "Pozostałe urządzenia, na których było otwarte to konto, zostały wylogowane. Na urządzeniu, na którym zmieniono hasło, sesja trwa dalej."
+msgstr "जिन अन्य सभी उपकरणों पर यह खाता खुला था, उनसे लॉग आउट कर दिया गया है। जिस उपकरण पर पासवर्ड बदला गया, वहाँ सत्र जारी रहेगा।"
+
+msgid "Jeśli to nie Ty zmieniłeś hasło, natychmiast ustaw nowe przez formularz „Nie pamiętasz hasła?” i skontaktuj się z organizatorem:"
+msgstr "यदि पासवर्ड आपने नहीं बदला है, तो तुरंत „पासवर्ड भूल गए?” फ़ॉर्म से नया पासवर्ड सेट करें और आयोजक से संपर्क करें:"
+
+msgid "To konto nie ma jeszcze hasła – ustaw je linkiem wysłanym na adres konta."
+msgstr "इस खाते का अभी कोई पासवर्ड नहीं है – खाते के ईमेल पते पर भेजे गए लिंक से इसे सेट करें।"
+
+msgid "Nowe hasło musi się różnić od aktualnego."
+msgstr "नया पासवर्ड वर्तमान पासवर्ड से अलग होना चाहिए।"
+
+msgid "Aktualne hasło jest nieprawidłowe."
+msgstr "वर्तमान पासवर्ड गलत है।"
+
+msgid "To konto ma już hasło – zmień je formularzem zmiany hasła."
+msgstr "इस खाते का पासवर्ड पहले से है – इसे पासवर्ड बदलने वाले फ़ॉर्म से बदलें।"
+
+msgid "Na to konto nie można teraz wysłać linku – skontaktuj się z organizatorem."
+msgstr "इस खाते पर अभी लिंक नहीं भेजा जा सकता – कृपया आयोजक से संपर्क करें।"
+
+msgid "Co najmniej 10 znaków; nie może być popularnym hasłem, ciągiem samych cyfr ani przypominać Twojego imienia, nazwiska lub adresu e-mail."
+msgstr "कम से कम 10 अक्षर; यह सामान्य पासवर्ड, केवल अंकों की श्रृंखला या आपके नाम, उपनाम अथवा ईमेल पते से मिलता-जुलता नहीं होना चाहिए।"
+
+msgid "Powtórz nowe hasło"
+msgstr "नया पासवर्ड दोबारा लिखें"
+
+msgid "Hasło zostało zmienione. Pozostałe urządzenia zostały wylogowane, a na adres konta wysłaliśmy potwierdzenie."
+msgstr "पासवर्ड बदल दिया गया है। अन्य सभी उपकरणों से लॉग आउट कर दिया गया है और खाते के ईमेल पते पर पुष्टि भेज दी गई है।"
+
+msgid "Wysłaliśmy link do ustawienia hasła na adres konta. Link jest ważny 24 godziny."
+msgstr "हमने पासवर्ड सेट करने का लिंक खाते के ईमेल पते पर भेज दिया है। लिंक 24 घंटे तक मान्य है।"
+
+msgid "Zmiana hasła"
+msgstr "पासवर्ड बदलना"
+
+msgid "Podaj aktualne hasło i dwa razy nowe. Po zmianie pozostaniesz zalogowany na tym urządzeniu, a wszystkie inne urządzenia i aplikacje zostaną wylogowane. Na adres konta wyślemy potwierdzenie."
+msgstr "वर्तमान पासवर्ड और नया पासवर्ड दो बार दर्ज करें। बदलाव के बाद आप इस उपकरण पर लॉग इन रहेंगे, और अन्य सभी उपकरणों व ऐप्स से लॉग आउट कर दिया जाएगा। हम खाते के ईमेल पते पर पुष्टि भेजेंगे।"
+
+msgid "Zmień hasło"
+msgstr "पासवर्ड बदलें"
+
+msgid "Nie pamiętasz aktualnego hasła?"
+msgstr "वर्तमान पासवर्ड याद नहीं?"
+
+msgid "Ustaw nowe przez link e-mail"
+msgstr "ईमेल लिंक से नया पासवर्ड सेट करें"
+
+#, python-format
+msgid "To konto nie ma hasła – logujesz się przez zewnętrznego dostawcę (np. Google). Jeśli chcesz logować się także hasłem, wyślemy link do jego ustawienia na adres konta (<strong>%(address)s</strong>). Dopiero kliknięcie w link potwierdza, że skrzynka należy do Ciebie."
+msgstr "इस खाते का कोई पासवर्ड नहीं है – आप किसी बाहरी प्रदाता (जैसे Google) से लॉग इन करते हैं। यदि आप पासवर्ड से भी लॉग इन करना चाहते हैं, तो हम उसे सेट करने का लिंक खाते के ईमेल पते (<strong>%(address)s</strong>) पर भेजेंगे। केवल लिंक पर क्लिक करने से ही पुष्टि होती है कि मेलबॉक्स आपका है।"
+
+msgid "Wyślij mi link do ustawienia hasła"
+msgstr "मुझे पासवर्ड सेट करने का लिंक भेजें"
+
+msgid "Wróć do ustawień konta"
+msgstr "खाता सेटिंग्स पर वापस जाएँ"
+
+msgid "Zmiana hasła wymaga podania aktualnego. Po zmianie pozostałe urządzenia zostaną wylogowane, a na adres konta przyjdzie potwierdzenie."
+msgstr "पासवर्ड बदलने के लिए वर्तमान पासवर्ड आवश्यक है। बदलाव के बाद अन्य सभी उपकरणों से लॉग आउट कर दिया जाएगा और खाते के ईमेल पते पर पुष्टि भेजी जाएगी।"
+
+#, python-format
+msgid "Ustawienia konta: %(address)s"
+msgstr "खाता सेटिंग्स: %(address)s"
+
+msgid "Zbyt wiele błędnych haseł z rzędu – ze względów bezpieczeństwa wylogowaliśmy Cię. Zaloguj się ponownie."
+msgstr "लगातार बहुत अधिक गलत पासवर्ड – आपकी सुरक्षा के लिए हमने आपको लॉग आउट कर दिया है। कृपया फिर से लॉग इन करें।"
+
+msgid "Zbyt wiele prób na tym koncie. Odczekaj chwilę i spróbuj ponownie."
+msgstr "इस खाते पर बहुत अधिक प्रयास। कृपया थोड़ी देर रुककर फिर से प्रयास करें।"
+
+msgid "Otwarta na innym urządzeniu sesja edytora django CMS nie jest kończona od razu – wygasa sama po kilku godzinach. Jeśli podejrzewasz przejęcie konta, poproś organizatora o jej zamknięcie."
+msgstr "किसी अन्य उपकरण पर खुला django CMS संपादक सत्र तुरंत समाप्त नहीं होता – वह कुछ घंटों बाद अपने आप समाप्त हो जाता है। यदि आपको खाते के दुरुपयोग का संदेह है, तो आयोजक से उसे बंद करने के लिए कहें।"
+
+msgid "Zmiana adresu wymaga potwierdzenia hasłem. To konto nie ma jeszcze hasła – ustaw je najpierw w sekcji „Hasło” niżej."
+msgstr "पता बदलने के लिए पासवर्ड से पुष्टि आवश्यक है। इस खाते का अभी कोई पासवर्ड नहीं है – पहले नीचे „पासवर्ड” अनुभाग में इसे सेट करें।"
+
+#, python-format
+msgid "To konto nie ma hasła – logujesz się przez zewnętrznego dostawcę (np. Google, Facebook) i tak zostaje. Adres <strong>%(address)s</strong> nie jest potwierdzony, więc nie wyślemy na niego linku do ustawienia hasła. Hasło da się ustawić dopiero po potwierdzeniu adresu przez dostawcę logowania; jeśli Twój dostawca adresu nie potwierdza, napisz do organizatora."
+msgstr "इस खाते का कोई पासवर्ड नहीं है – आप बाहरी प्रदाता (जैसे Google, Facebook) से लॉग इन करते हैं और ऐसा ही रहेगा। पता <strong>%(address)s</strong> सत्यापित नहीं है, इसलिए हम उस पर पासवर्ड सेट करने का लिंक नहीं भेजेंगे। पासवर्ड तभी सेट किया जा सकता है जब लॉग इन प्रदाता पते को सत्यापित कर दे; यदि आपका प्रदाता पते सत्यापित नहीं करता, तो आयोजक को लिखें।"

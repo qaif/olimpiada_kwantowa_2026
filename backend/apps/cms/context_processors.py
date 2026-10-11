@@ -119,10 +119,19 @@ FALLBACK_MENU = (
 )
 
 
-def _menu_item(slug: str, title: str, url: str, request, kids: list[dict] | None = None) -> dict:
-    """Jedna pozycja menu w kształcie, którego oczekuje ``templates/base.html``."""
+def _menu_item(
+    slug: str, title: str, url: str, request, kids: list[dict] | None = None, *, key: str = ""
+) -> dict:
+    """Jedna pozycja menu w kształcie, którego oczekuje ``templates/base.html``.
+
+    ``key`` – stały klucz pozycji dla nadpisań koordynatora (THEME-02 § 1.1, ``apps/themes/menu.py``):
+    ``p<id strony>`` dla stron, ``home``, ``teachers``, ``f:<ścieżka>`` dla listy zapasowej. Identyfikator
+    strony, a nie slug – redakcja może zmienić slug, a ukrycie czy zmiana nazwy pozycji ma przetrwać.
+    Szablony klucza nie wypisują.
+    """
     kids = kids or []
     return {
+        "key": key or slug,
         "slug": slug,
         "title": _label(MENU_TITLES.get(slug, title)),
         "url": url,
@@ -193,7 +202,7 @@ def _supervisor_menu_item(request) -> dict | None:
         kids.append(_child("Plakaty do pobrania", reverse("web:posters"), request))
     if not kids:
         return None
-    return _menu_item("nauczyciele", "Dla szkół/nauczycieli", kids[0]["url"], request, kids)
+    return _menu_item("nauczyciele", "Dla szkół/nauczycieli", kids[0]["url"], request, kids, key="teachers")
 
 
 def _child(title: str, url: str, request) -> dict:
@@ -235,7 +244,7 @@ def _expandable_children(pages: list, request) -> tuple[dict[int, list[dict]], l
             continue
         url = child.get_url(request=request)
         if child.slug in PROMOTED_DOCUMENT_SLUGS:
-            promoted.append(_menu_item(child.slug, child.title, url, request))
+            promoted.append(_menu_item(child.slug, child.title, url, request, key=f"p{child.pk}"))
         else:
             found[parent.pk].append({"title": child.title, "url": url, "active": request.path == url})
     return found, promoted
@@ -261,7 +270,14 @@ def cms_menu(request) -> dict:
         pages = list(Page.objects.live().in_menu().child_of(site.root_page).order_by("path"))
         children, promoted = _expandable_children(pages, request)
         items = [
-            _menu_item(page.slug, page.title, page.get_url(request=request), request, children.get(page.pk))
+            _menu_item(
+                page.slug,
+                page.title,
+                page.get_url(request=request),
+                request,
+                children.get(page.pk),
+                key=f"p{page.pk}",
+            )
             for page in pages
             if page.slug not in HIDDEN_MENU_SLUGS
         ]
@@ -277,7 +293,7 @@ def cms_menu(request) -> dict:
             # zapytanie o ścieżki witryn – na każdej stronie serwisu (wyłapał to budżet zapytań
             # panelu uczestnika).
             home = get_script_prefix()
-            items.insert(0, {**_menu_item("", HOME_ITEM_TITLE, home, request), "home": True})
+            items.insert(0, {**_menu_item("", HOME_ITEM_TITLE, home, request, key="home"), "home": True})
     except DatabaseError, Site.DoesNotExist, AttributeError:  # pragma: no cover - baza bez drzewa
         # Witryny nie znamy, więc nie wiemy też, czy to ta domyślna – a lista zapasowa opisuje
         # wyłącznie jej drzewo. Puste menu jest tu jedyną odpowiedzią, która nie może być cudza.
@@ -287,6 +303,7 @@ def cms_menu(request) -> dict:
         [
             {
                 **item,
+                "key": "f:" + item["url"].strip("/"),
                 "title": _label(item["title"]),
                 "slug": item["url"].strip("/"),
                 "children": [],
@@ -308,6 +325,12 @@ def cms_menu(request) -> dict:
         supervisor_item = _supervisor_menu_item(request)
         if supervisor_item is not None:
             menu = [*menu, supervisor_item]
+    # Nadpisania koordynatora (THEME-02 § 1: kolejność, ukrycie, etykiety, własne odnośniki, grupy) –
+    # **przed** wyliczeniem pozycji przyklejonego paska, żeby ukryta pozycja znikła z obu miejsc.
+    # Konkurs bez nadpisań: funkcja oddaje listę bez zmian i bez zapytania (``theme_options``).
+    from apps.themes.menu import apply_overrides
+
+    menu = apply_overrides(menu, request)
     # Osobna lista dla przyklejonego paska zamiast filtrowania w szablonie: pasek i menu serwisu
     # czytają to samo źródło, a pasek pokazuje swoje pozycje dopiero po przyklejeniu (skrypt
     # static/js/sticky-bar.js) – dolne menu zostaje w pełnym składzie.

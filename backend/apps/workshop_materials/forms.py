@@ -31,7 +31,7 @@ REQUIRED_CSS_CLASS = "required"
 
 #: Podpowiedź dla okna wyboru pliku – **nie** walidacja (tę robi serwer po bajtach).
 VIDEO_ACCEPT = "video/mp4,video/webm,.mp4,.webm"
-FILE_ACCEPT = ",".join(f".{ext}" for ext in sorted(formats.FILE_FORMATS)) + ",.jpeg"
+FILE_ACCEPT = formats.file_accept()
 
 
 def workshop_choices(rows: list[dict], *, current: WorkshopMaterial | None = None) -> list[tuple[str, str]]:
@@ -147,8 +147,10 @@ class NewMaterialForm(MaterialForm):
         file_mb = formats.file_max_bytes() // formats.MEGABYTE
         self.fields["file"].help_text = (
             f"Film: MP4 (H.264 + AAC) albo WebM, najwyżej {video_mb} MB. "
-            f"Plik: {formats.allowed_file_extensions()}, najwyżej {file_mb} MB. "
-            "Format sprawdzamy po treści pliku, nie po rozszerzeniu."
+            f"Plik, najwyżej {file_mb} MB – {formats.allowed_file_extensions()}. "
+            "Format sprawdzamy po treści pliku, nie po rozszerzeniu. Kod i Markdown zapisz w UTF-8 "
+            "(CSV, TSV i TXT – także wprost z Excela); uczestnik zobaczy tekst na stronie (Markdown "
+            "złożony, kod jako tekst), HTML i SVG – tylko do pobrania."
         )
 
     def clean(self):

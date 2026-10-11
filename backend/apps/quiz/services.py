@@ -399,6 +399,22 @@ def attempts_left(quiz: Quiz, entry: StageEntry) -> int:
     return max(0, quiz.attempts_allowed - attempts_used(quiz, entry))
 
 
+def start_terms(quiz: Quiz, entry: StageEntry):
+    """Okno startu i dodatkowe minuty właściciela wpisu – z oknem czasowym ucznia (TZ-01)."""
+    from apps.time_windows.access import quiz_terms
+
+    if entry.participant_id is None:
+        opens, closes = quiz.window
+        return (opens, closes, 0)
+    return quiz_terms(quiz, entry.participant)
+
+
+def start_window(quiz: Quiz, entry: StageEntry):
+    """Okno startu podejścia dla właściciela wpisu (strona startowa testu)."""
+    opens, closes, _extra = start_terms(quiz, entry)
+    return (opens, closes)
+
+
 @transaction.atomic
 def start_attempt(*, quiz: Quiz, entry: StageEntry, now=None, request=None) -> QuizAttempt:
     """Rozpoczęcie podejścia: losowanie zestawu, wyliczenie terminu, zapis.
@@ -419,6 +435,11 @@ def start_attempt(*, quiz: Quiz, entry: StageEntry, now=None, request=None) -> Q
     # Stan etapu z bazy, nie z obiektu wczytanego przez widok: „Zamknij etap” kliknięte w trakcie
     # żądania ma działać od razu (audyt S3).
     _refresh_stage_state(quiz)
+    # Nadzór zdalny (PROC-01): start testu w etapie z nadzorem – tylko z gotową sesją (druga linia
+    # obrony za bramką adresów). Bez flagi ``proctoring`` – zero zapytań.
+    from apps.proctoring.services import assert_stage_access
+
+    assert_stage_access(lambda: quiz.stage, entry, now=now)
     questions = _questions_with_options(quiz)
     if not questions:
         raise _conflict(_("Ten test nie ma jeszcze pytań."), "QUIZ_EMPTY")
@@ -438,8 +459,12 @@ def start_attempt(*, quiz: Quiz, entry: StageEntry, now=None, request=None) -> Q
         raise _conflict(
             _("Wyniki tego etapu są już ogłoszone – testu nie można rozpocząć."), "QUIZ_RESULTS_PUBLISHED"
         )
-    if not quiz.is_open(now):
-        opens, closes = quiz.window
+    # Okno startu: w etapie z oknami czasowymi (TZ-01) – okno **tego ucznia**, a własne terminy
+    # testu są pomijane; w każdym innym etapie dokładnie ``quiz.window``, bez zapytania.
+    opens, closes, extra_minutes = start_terms(quiz, entry)
+    # „Zamknij etap” i ogłoszone wyniki zamykają test także w etapie z oknami czasowymi: okno
+    # ucznia pomija terminy testu, ale nie stan etapu (audyt S3, ``Quiz.stage_finished``).
+    if quiz.stage_finished or not opens <= now < closes:
         raise _conflict(
             _("Test jest zamknięty.")
             if now >= closes or quiz.stage_finished
@@ -454,9 +479,9 @@ def start_attempt(*, quiz: Quiz, entry: StageEntry, now=None, request=None) -> Q
 
     # Termin podejścia to wcześniejszy z dwóch: czas trwania testu i koniec okna. Bez drugiego
     # członu podejście rozpoczęte pięć minut przed zamknięciem trwałoby pełną godzinę – i dawałoby
-    # przewagę osobie, która zaczęła najpóźniej.
-    _opens, closes = quiz.window
-    deadline = min(now + timedelta(minutes=quiz.duration_minutes), closes)
+    # przewagę osobie, która zaczęła najpóźniej. Dodatkowy czas ucznia z okien czasowych (TZ-01)
+    # wydłuża samo podejście, a ``closes`` jest już jego własnym, wydłużonym końcem okna.
+    deadline = min(now + timedelta(minutes=quiz.duration_minutes + extra_minutes), closes)
     attempt = QuizAttempt.objects.create(
         quiz=quiz,
         entry=entry,
@@ -564,9 +589,22 @@ def save_answers(*, attempt: QuizAttempt, answers: dict, now=None) -> int:
 
 
 def _write_answers(attempt: QuizAttempt, answers: dict) -> int:
-    """Zapis odpowiedzi podejścia – wołany wyłącznie z ``save_answers``, pod blokadą wiersza."""
+    """Zapis odpowiedzi podejścia – wołany wyłącznie z ``save_answers``, pod blokadą wiersza.
+
+    **Hurtem i tylko to, co się zmieniło** (PERF-01, docs/OPERACJE.md § 42.5). Autozapis wysyła co
+    20 s komplet dotychczasowych odpowiedzi, a do testu obciążenia każda z nich szła osobnym
+    ``update_or_create`` – ``SELECT … FOR UPDATE``, ``UPDATE`` i para savepointów **na pytanie**,
+    czyli pod koniec 20-pytaniowego testu ok. 80 instrukcji na jedno odświeżenie u każdego ucznia.
+    Teraz: jeden odczyt istniejących odpowiedzi, jedno ``INSERT`` nowych i jedno ``UPDATE`` zmienionych.
+
+    Odpowiedź, której treść się nie zmieniła i która nie ma werdyktu, zostaje nietknięta – dla oceny
+    to ten sam stan, co nadpisanie identyczną treścią (werdykt i tak był pusty). Odpowiedź z werdyktem
+    (przeliczenie w trakcie) jest zapisywana zawsze, żeby nadpisanie zerowało werdykt jak dotąd.
+    Współbieżność bez zmian: całość biegnie pod blokadą wiersza podejścia (``_lock_attempt``), więc
+    dwa autozapisy tego samego podejścia nie wstawią tej samej odpowiedzi dwa razy.
+    """
     questions = {question.pk: question for question in attempt_questions(attempt)}
-    saved = 0
+    cleaned_by_question: dict[int, dict] = {}
     for raw_id, payload in (answers or {}).items():
         try:
             question_id = int(raw_id)
@@ -578,16 +616,32 @@ def _write_answers(attempt: QuizAttempt, answers: dict) -> int:
             # a nie odrzucana z błędem: wylosowany zestaw jest po stronie serwera i nie ma
             # powodu informować nadawcy, czy takie pytanie w ogóle istnieje.
             continue
-        cleaned = _clean_payload(question, payload)
-        QuizAnswer.objects.update_or_create(
-            attempt=attempt,
-            question=question,
-            # Nadpisanie zeruje werdykt: odpowiedź zmieniona po ocenie (zdarza się przy
-            # przeliczaniu w trakcie) nie może zostawić po sobie punktów za poprzednią treść.
-            defaults={"payload": cleaned, "is_correct": None, "points_awarded": None},
-        )
-        saved += 1
-    return saved
+        cleaned_by_question[question_id] = _clean_payload(question, payload)
+    if not cleaned_by_question:
+        return 0
+    existing = {
+        answer.question_id: answer
+        for answer in QuizAnswer.objects.filter(attempt=attempt, question_id__in=cleaned_by_question)
+    }
+    now = timezone.now()
+    to_create, to_update = [], []
+    for question_id, cleaned in cleaned_by_question.items():
+        current = existing.get(question_id)
+        if current is None:
+            to_create.append(QuizAnswer(attempt=attempt, question_id=question_id, payload=cleaned))
+            continue
+        if current.payload == cleaned and current.is_correct is None and current.points_awarded is None:
+            continue
+        # Nadpisanie zeruje werdykt: odpowiedź zmieniona po ocenie (zdarza się przy
+        # przeliczaniu w trakcie) nie może zostawić po sobie punktów za poprzednią treść.
+        current.payload, current.is_correct, current.points_awarded = cleaned, None, None
+        current.updated_at = now
+        to_update.append(current)
+    if to_create:
+        QuizAnswer.objects.bulk_create(to_create)
+    if to_update:
+        QuizAnswer.objects.bulk_update(to_update, ["payload", "is_correct", "points_awarded", "updated_at"])
+    return len(cleaned_by_question)
 
 
 def _clean_payload(question: QuizQuestion, payload) -> dict:
@@ -1011,9 +1065,17 @@ def may_show_result(quiz: Quiz, attempt: QuizAttempt, now=None) -> bool:
     if quiz.show_results_after == ShowResultsAfter.IMMEDIATELY:
         return True
     if quiz.show_results_after == ShowResultsAfter.AFTER_CLOSE:
-        _opens, closes = quiz.window
-        return (now or timezone.now()) >= closes
+        # Etap z oknami czasowymi (TZ-01): „po zamknięciu” znaczy po końcu **ostatniego** okna –
+        # wynik ucznia z okna A nie może być widoczny, zanim okno C się skończy.
+        return (now or timezone.now()) >= results_visible_at(quiz)
     return False
+
+
+def results_visible_at(quiz: Quiz):
+    """Chwila „po zamknięciu testu” – z oknami czasowymi: po końcu ostatniego okna (TZ-01)."""
+    from apps.time_windows.access import quiz_results_at
+
+    return quiz_results_at(quiz)
 
 
 __all__ = [
@@ -1040,5 +1102,8 @@ __all__ = [
     "save_quiz_settings",
     "stage_scores",
     "start_attempt",
+    "start_terms",
+    "start_window",
+    "results_visible_at",
     "submit_attempt",
 ]

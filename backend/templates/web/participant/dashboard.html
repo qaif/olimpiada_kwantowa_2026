@@ -1,5 +1,6 @@
 {% extends "base.html" %}
-{% load i18n static web_extras %}
+{% load i18n static web_extras proctoring_tags %}
+{% load organizer_announcements from chat_extras %}
 {% comment %}
   Pulpit uczestnika: nagłówek „Co teraz”, pasek zakładek i **jedna** sekcja.
 
@@ -73,6 +74,9 @@
 
 {% include "web/participant/_now.html" %}
 
+{# Ogłoszenia organizatora (CZ-ANN-01) – także przy wyłączonych Wiadomościach, kiedy skrzynka oddaje 404. #}
+{% organizer_announcements "dashboard" %}
+
 {% comment %}
   Kafle wydania K: wpisowe i formularz przyjazdu. Stoją **nad** paskiem zakładek i poza nimi, bo
   dotyczą udziału w edycji jako całości, a nie jednej z sekcji – tak samo jak nagłówek „Co teraz”.
@@ -121,6 +125,9 @@
     <p class="hint">{% translate "Skład drużyny układa organizator. Zmianę zgłoś opiekunowi albo organizatorowi." %}</p>
   </section>
 {% endif %}
+
+{# Nadzór zdalny etapu (PROC-01) – pusto bez flagi ``proctoring`` i bez zapytań. #}
+{% proctoring_card stage %}
 
 {% include "web/participant/_tabs.html" %}
 

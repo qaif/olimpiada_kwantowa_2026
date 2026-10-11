@@ -1,9 +1,11 @@
 """``manage.py record_backup_status`` – meldunek skryptu kopii zapasowych do aplikacji.
 
 Woła ją ``scripts/backup.sh`` (``--ok``, z ``--offsite``, gdy kopia wyjechała też poza serwer,
-albo ``--failed``, gdy wysyłka poza serwer się nie udała) i ``scripts/backup_verify.sh`` (``--verified``
-albo ``--failed``). Jest to jedyna droga, którą wynik pracy crona hosta trafia do
-``/status.json`` i do watchdoga alertów – uzasadnienie tego podziału stoi w ``apps.core.backup``.
+albo ``--failed``, gdy wysyłka poza serwer się nie udała). Wynik testu odtwarzania melduje od OPS-01
+osobna komenda, ``manage.py restore_check record`` – przesuwa ten sam znacznik ``verified``, ale niesie
+też pełny wynik sprawdzeń (``apps.core.restore_check``); ``--verified`` zostaje dla ręcznego meldunku.
+To są jedyne drogi, którymi wynik pracy crona hosta trafia do ``/status.json`` i do watchdoga
+alertów – uzasadnienie tego podziału stoi w ``apps.core.backup``.
 
 Dlaczego komenda zarządzająca, a nie zapis wprost do Redisa z poziomu skryptu: adres Redisa,
 numer bazy i format znacznika są szczegółem aplikacji, a nie skryptu powłoki. Skrypt, który pisze
@@ -16,7 +18,8 @@ from __future__ import annotations
 from django.core.management.base import BaseCommand, CommandError
 from django.utils import timezone
 
-from apps.core.backup import MAX_BACKUP_AGE_HOURS, MAX_VERIFY_AGE_DAYS, record, state
+from apps.core import restore_check
+from apps.core.backup import MAX_BACKUP_AGE_HOURS, MAX_VERIFY_AGE_HOURS, record, state
 
 
 class Command(BaseCommand):
@@ -81,7 +84,7 @@ class Command(BaseCommand):
                 "ostatni test odtwarzania",
                 current.last_verified,
                 current.verify_fresh,
-                f"{MAX_VERIFY_AGE_DAYS} dni",
+                f"{MAX_VERIFY_AGE_HOURS} h",
             ),
             (
                 "ostatnia kopia poza serw.",
@@ -95,5 +98,11 @@ class Command(BaseCommand):
             verdict = "ok" if fresh else f"POZA PROGIEM ({window})"
             style = self.style.SUCCESS if fresh else self.style.ERROR
             self.stdout.write(style(f"{label:26} {when:20} {verdict}"))
+        # Wynik ostatniego testu odtwarzania (OPS-01) – jedna linia; szczegóły: ``restore_check show``.
+        check_level = restore_check.level()
+        style = self.style.SUCCESS if check_level == restore_check.LEVEL_OK else self.style.ERROR
+        self.stdout.write(
+            style(f"{'wynik testu odtwarzania':26} {check_level:20} manage.py restore_check show")
+        )
         if current.note:
             self.stdout.write(f"{'notatka':26} {current.note}")

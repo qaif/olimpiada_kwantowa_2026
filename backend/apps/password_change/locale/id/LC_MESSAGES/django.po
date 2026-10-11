@@ -1,0 +1,106 @@
+# Zmiana hasła w panelu konta (AUTH-01b) – katalog aplikacji apps/password_change.
+msgid ""
+msgstr ""
+"Project-Id-Version: olimpiada\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-04 22:00+0200\n"
+"PO-Revision-Date: 2026-10-04 22:00+0200\n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: id\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+msgid "Hasło do konta zostało zmienione – Olimpiada Kwantowa"
+msgstr "Kata sandi akun telah diubah – Olimpiade Kuantum"
+
+#, python-format
+msgid "Hasło do konta zostało zmienione – %(competition)s"
+msgstr "Kata sandi akun telah diubah – %(competition)s"
+
+#, python-format
+msgid "Hasło do Twojego konta w serwisie %(competition_genitive)s zostało zmienione (%(when)s)."
+msgstr "Kata sandi akun Anda di situs %(competition_genitive)s telah diubah (%(when)s)."
+
+msgid "Pozostałe urządzenia, na których było otwarte to konto, zostały wylogowane. Na urządzeniu, na którym zmieniono hasło, sesja trwa dalej."
+msgstr "Semua perangkat lain tempat akun ini terbuka telah dikeluarkan. Di perangkat tempat kata sandi diubah, sesi tetap berlanjut."
+
+msgid "Jeśli to nie Ty zmieniłeś hasło, natychmiast ustaw nowe przez formularz „Nie pamiętasz hasła?” i skontaktuj się z organizatorem:"
+msgstr "Jika bukan Anda yang mengubah kata sandi, segera atur kata sandi baru melalui formulir „Lupa kata sandi?” dan hubungi penyelenggara:"
+
+msgid "To konto nie ma jeszcze hasła – ustaw je linkiem wysłanym na adres konta."
+msgstr "Akun ini belum memiliki kata sandi – atur melalui tautan yang dikirim ke alamat e-mail akun."
+
+msgid "Nowe hasło musi się różnić od aktualnego."
+msgstr "Kata sandi baru harus berbeda dari kata sandi saat ini."
+
+msgid "Aktualne hasło jest nieprawidłowe."
+msgstr "Kata sandi saat ini salah."
+
+msgid "To konto ma już hasło – zmień je formularzem zmiany hasła."
+msgstr "Akun ini sudah memiliki kata sandi – ubah melalui formulir perubahan kata sandi."
+
+msgid "Na to konto nie można teraz wysłać linku – skontaktuj się z organizatorem."
+msgstr "Tautan tidak dapat dikirim ke akun ini sekarang – silakan hubungi penyelenggara."
+
+msgid "Co najmniej 10 znaków; nie może być popularnym hasłem, ciągiem samych cyfr ani przypominać Twojego imienia, nazwiska lub adresu e-mail."
+msgstr "Minimal 10 karakter; tidak boleh berupa kata sandi umum, hanya angka, atau mirip dengan nama depan, nama belakang, atau alamat e-mail Anda."
+
+msgid "Powtórz nowe hasło"
+msgstr "Ulangi kata sandi baru"
+
+msgid "Hasło zostało zmienione. Pozostałe urządzenia zostały wylogowane, a na adres konta wysłaliśmy potwierdzenie."
+msgstr "Kata sandi telah diubah. Perangkat lain telah dikeluarkan dan konfirmasi telah dikirim ke alamat e-mail akun."
+
+msgid "Wysłaliśmy link do ustawienia hasła na adres konta. Link jest ważny 24 godziny."
+msgstr "Kami telah mengirim tautan untuk mengatur kata sandi ke alamat e-mail akun. Tautan berlaku selama 24 jam."
+
+msgid "Zmiana hasła"
+msgstr "Ubah kata sandi"
+
+msgid "Podaj aktualne hasło i dwa razy nowe. Po zmianie pozostaniesz zalogowany na tym urządzeniu, a wszystkie inne urządzenia i aplikacje zostaną wylogowane. Na adres konta wyślemy potwierdzenie."
+msgstr "Masukkan kata sandi saat ini dan kata sandi baru dua kali. Setelah diubah, Anda tetap masuk di perangkat ini, sedangkan semua perangkat dan aplikasi lain akan dikeluarkan. Kami akan mengirim konfirmasi ke alamat e-mail akun."
+
+msgid "Zmień hasło"
+msgstr "Ubah kata sandi"
+
+msgid "Nie pamiętasz aktualnego hasła?"
+msgstr "Tidak ingat kata sandi saat ini?"
+
+msgid "Ustaw nowe przez link e-mail"
+msgstr "Atur yang baru melalui tautan e-mail"
+
+#, python-format
+msgid "To konto nie ma hasła – logujesz się przez zewnętrznego dostawcę (np. Google). Jeśli chcesz logować się także hasłem, wyślemy link do jego ustawienia na adres konta (<strong>%(address)s</strong>). Dopiero kliknięcie w link potwierdza, że skrzynka należy do Ciebie."
+msgstr "Akun ini tidak memiliki kata sandi – Anda masuk melalui penyedia eksternal (mis. Google). Jika Anda juga ingin masuk dengan kata sandi, kami akan mengirim tautan untuk mengaturnya ke alamat e-mail akun (<strong>%(address)s</strong>). Hanya dengan mengklik tautan tersebut dipastikan bahwa kotak surat itu milik Anda."
+
+msgid "Wyślij mi link do ustawienia hasła"
+msgstr "Kirimi saya tautan untuk mengatur kata sandi"
+
+msgid "Wróć do ustawień konta"
+msgstr "Kembali ke pengaturan akun"
+
+msgid "Zmiana hasła wymaga podania aktualnego. Po zmianie pozostałe urządzenia zostaną wylogowane, a na adres konta przyjdzie potwierdzenie."
+msgstr "Mengubah kata sandi memerlukan kata sandi saat ini. Setelah diubah, perangkat lain akan dikeluarkan dan konfirmasi akan dikirim ke alamat e-mail akun."
+
+#, python-format
+msgid "Ustawienia konta: %(address)s"
+msgstr "Pengaturan akun: %(address)s"
+
+msgid "Zbyt wiele błędnych haseł z rzędu – ze względów bezpieczeństwa wylogowaliśmy Cię. Zaloguj się ponownie."
+msgstr "Terlalu banyak kata sandi salah berturut-turut – demi keamanan, kami telah mengeluarkan Anda. Silakan masuk kembali."
+
+msgid "Zbyt wiele prób na tym koncie. Odczekaj chwilę i spróbuj ponownie."
+msgstr "Terlalu banyak percobaan pada akun ini. Tunggu sebentar lalu coba lagi."
+
+msgid "Otwarta na innym urządzeniu sesja edytora django CMS nie jest kończona od razu – wygasa sama po kilku godzinach. Jeśli podejrzewasz przejęcie konta, poproś organizatora o jej zamknięcie."
+msgstr "Sesi editor django CMS yang terbuka di perangkat lain tidak langsung diakhiri – sesi itu berakhir sendiri setelah beberapa jam. Jika Anda mencurigai akun Anda diambil alih, minta penyelenggara untuk menutupnya."
+
+msgid "Zmiana adresu wymaga potwierdzenia hasłem. To konto nie ma jeszcze hasła – ustaw je najpierw w sekcji „Hasło” niżej."
+msgstr "Perubahan alamat harus dikonfirmasi dengan kata sandi. Akun ini belum memiliki kata sandi – atur terlebih dahulu di bagian „Kata sandi” di bawah."
+
+#, python-format
+msgid "To konto nie ma hasła – logujesz się przez zewnętrznego dostawcę (np. Google, Facebook) i tak zostaje. Adres <strong>%(address)s</strong> nie jest potwierdzony, więc nie wyślemy na niego linku do ustawienia hasła. Hasło da się ustawić dopiero po potwierdzeniu adresu przez dostawcę logowania; jeśli Twój dostawca adresu nie potwierdza, napisz do organizatora."
+msgstr "Akun ini tidak memiliki kata sandi – Anda masuk melalui penyedia eksternal (mis. Google, Facebook) dan hal itu tetap berlaku. Alamat <strong>%(address)s</strong> belum terverifikasi, jadi kami tidak akan mengirim tautan untuk mengatur kata sandi ke alamat tersebut. Kata sandi baru dapat diatur setelah alamat diverifikasi oleh penyedia login Anda; jika penyedia Anda tidak memverifikasi alamat, tulislah kepada penyelenggara."
