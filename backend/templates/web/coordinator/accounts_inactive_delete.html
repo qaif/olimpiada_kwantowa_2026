@@ -1,0 +1,86 @@
+{% extends "web/coordinator/base.html" %}
+{% load web_extras %}
+{% comment %}
+  Potwierdzenie zbiorczego usunięcia nieaktywnych kont (ACC-DUP-02 § 3.4). Lista jest **dokładna**:
+  konta ze stanem przeliczonym w chwili wyświetlenia i pole wyboru przy każdym (domyślnie zaznaczone,
+  bez skryptu). Po kliknięciu serwer sprawdza filtr jeszcze raz przy każdym koncie pod blokadą
+  wiersza i pomija konto, które przestało go spełniać – ta strona obiecuje „najwyżej tyle”.
+  Filtr jedzie w ukrytych polach, bo to on jest warunkiem usunięcia.
+{% endcomment %}
+{% block title %}Usunięcie nieaktywnych kont – panel koordynatora{% endblock %}
+{% block panel_eyebrow %}<a href="{{ back_url }}">Nieaktywne konta</a>{% endblock %}
+{% block panel_title %}Usunięcie nieaktywnych kont{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Operacji nie da się odwrócić. Filtr: <strong>{{ flt.describe }}</strong>. Usuwane są
+    wyłącznie konta, które w chwili kliknięcia nadal go spełniają – konto, na które ktoś się
+    w międzyczasie zalogował, zostanie pominięte.</p>
+{% endblock %}
+{% block panel_content %}
+
+<section class="section">
+  <div class="card">
+    {% if eligible %}
+      <form method="post" class="form">
+        {% csrf_token %}
+        <input type="hidden" name="confirm" value="1">
+        {% for name, value in hidden %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endfor %}
+        <div class="scroll" role="region" tabindex="0" aria-label="Konta do usunięcia">
+          <table class="table table--compact" aria-label="Konta do usunięcia">
+            <thead>
+              <tr>
+                <th scope="col">Usunąć</th>
+                <th scope="col">Kod</th>
+                <th scope="col">Imię i nazwisko</th>
+                <th scope="col">E-mail</th>
+                <th scope="col">Założone</th>
+                <th scope="col">Ostatnie logowanie</th>
+                <th scope="col">Stan</th>
+                <th scope="col">Skutek</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for account in eligible %}
+                <tr>
+                  <td><input type="checkbox" name="account" value="{{ account.user.pk }}" id="account-{{ account.user.pk }}" checked></td>
+                  <th scope="row"><label for="account-{{ account.user.pk }}">{{ account.participant.public_code }}</label></th>
+                  <td>{{ account.user.get_full_name|default:"—" }}</td>
+                  <td>{{ account.user.email }}</td>
+                  <td class="nowrap">{{ account.user.date_joined|local_datetime }}</td>
+                  <td class="nowrap">{% if account.user.last_login %}{{ account.user.last_login|local_datetime }}{% else %}nigdy{% endif %}</td>
+                  <td>{{ account.status_label }}</td>
+                  <td>{% if account.will_be_anonymised %}<span class="badge badge--warn">anonimizacja</span>{% if account.has_trace %} (ślad w zawodach){% endif %}{% else %}usunięcie w całości{% endif %}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <p class="hint">Konto bez śladu w zawodach znika w całości (adres zwalnia się do rejestracji).
+          Konto z wpisem do etapu albo pracami zostaje zanonimizowane: dane osobowe znikają, pseudonimowy
+          ślad udziału zostaje. Każde usunięcie trafia do audytu.</p>
+        <div class="actions">
+          <button type="submit" class="btn btn--danger">Usuń zaznaczone konta</button>
+          <a class="btn btn--secondary" href="{{ back_url }}">Wróć</a>
+        </div>
+      </form>
+    {% else %}
+      <p class="notice">Żadne z wybranych kont nie może już zostać usunięte zbiorczo.</p>
+      <div class="actions">
+        <a class="btn btn--secondary" href="{{ back_url }}">Wróć</a>
+      </div>
+    {% endif %}
+  </div>
+</section>
+
+{% if skipped %}
+<section class="section">
+  <div class="section__head"><h2 class="mt-0">Zostaną pominięte</h2></div>
+  <div class="card">
+    <ul>
+      {% for account, reason in skipped %}
+        <li>{{ account.user.email }} ({{ account.participant.public_code }}) – {{ reason }}</li>
+      {% endfor %}
+    </ul>
+  </div>
+</section>
+{% endif %}
+{% endblock %}

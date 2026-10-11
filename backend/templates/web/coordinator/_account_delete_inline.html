@@ -1,0 +1,28 @@
+{% comment %}
+  „Usuń” w wierszu tabeli (ACC-DUP-02 § 2) – wspólne dla „Zdublowanych kont” i „Nieaktywnych kont”.
+
+  Potwierdzenie bez skryptu (CSP): ``<details>`` rozwija w komórce formularz z ostrzeżeniami
+  i przyciskiem „Tak, usuń konto <kod>”. Wartość potwierdzenia (``confirm=<id konta>``) niesie
+  **wyłącznie** ten przycisk, więc POST bez jego kliknięcia serwer odrzuca. ``seen_login`` to znacznik
+  ostatniego logowania, który koordynator właśnie widzi – serwer porównuje go ze stanem konta pod
+  blokadą wiersza i pomija konto, na które ktoś zalogował się po wyświetleniu ekranu.
+
+  Kontekst: ``account`` (``AccountFacts`` po ``prepare_row_delete``), ``action`` (adres POST),
+  ``hidden`` (pary nazwa–wartość: filtry listy i strona), ``group_number`` (kotwica grupy duplikatów).
+{% endcomment %}
+<details class="row-delete">
+  <summary class="btn btn--danger btn--small">Usuń</summary>
+  <form method="post" action="{{ action }}" class="row-delete__form">
+    {% csrf_token %}
+    <input type="hidden" name="seen_login" value="{{ account.login_stamp }}">
+    {% for name, value in hidden %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endfor %}
+    {% if group_number %}<input type="hidden" name="group" value="{{ group_number }}">{% endif %}
+    {% if account.delete_warnings %}
+      <ul class="row-delete__warnings">
+        {% for warning in account.delete_warnings %}<li>{{ warning }}</li>{% endfor %}
+      </ul>
+    {% endif %}
+    <p class="hint">{{ account.delete_effect }} Operacji nie da się odwrócić.</p>
+    <button type="submit" name="confirm" value="{{ account.user.pk }}" class="btn btn--danger btn--small">Tak, usuń konto {{ account.participant.public_code }}</button>
+  </form>
+</details>

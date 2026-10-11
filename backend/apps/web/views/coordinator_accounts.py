@@ -1025,8 +1025,9 @@ class CoordinatorAccountDeleteView(CoordinatorRequiredMixin, View):
     audit_via: str | None = None
     #: Ekran, na który wraca się po usunięciu – zamknięta lista wartości parametru ``back``, a nie
     #: adres w parametrze (to byłoby otwarte przekierowanie). ``duplicates`` – lista zdublowanych
-    #: kont (ACC-DUP-01), z której przycisk „Usuń” prowadzi właśnie tutaj. Ma pierwszeństwo przed
-    #: ``success_url_name``/``cancel_url`` – wskazuje, skąd koordynator naprawdę przyszedł.
+    #: kont (ACC-DUP-01). Od ACC-DUP-02 lista usuwa w wierszu, bez tego ekranu; wartość zostaje dla
+    #: zapisanych odnośników i zakładek. Ma pierwszeństwo przed ``success_url_name``/``cancel_url`` –
+    #: wskazuje, skąd koordynator naprawdę przyszedł.
     BACK_URLS = {"duplicates": "web:coordinator-duplicates"}
     BACK_LABELS = {"duplicates": "Wróć do listy zdublowanych kont"}
 
