@@ -76,16 +76,18 @@ def erase_for_user(user) -> int:
     return delete_members(_members_of_user(user))
 
 
-def export_section(user) -> list[dict]:
+def export_section(user, competition=None) -> list[dict]:
     """Sekcja eksportu danych konta (art. 15 i 20 RODO): dane pobytu **tej** osoby, odszyfrowane.
 
     Osoba ma prawo zobaczyć, co o niej wpisał opiekun drużyny – łącznie z numerem paszportu i danymi
-    o zdrowiu. Plik dostaje wyłącznie ona sama (eksport jest z jej konta).
+    o zdrowiu. Plik dostaje ona sama (eksport z jej konta) albo koordynator konkursu, który odpowiada
+    na jej wniosek – wtedy (``competition``) wyłącznie pobyt w tym konkursie (audyt 10.10.2026, S8).
     """
     rows = []
-    for member in _members_of_user(user).select_related(
-        "delegation__country", "delegation__competition", "room"
-    ):
+    members = _members_of_user(user)
+    if competition is not None:
+        members = members.filter(delegation__competition=competition)
+    for member in members.select_related("delegation__country", "delegation__competition", "room"):
         rows.append(
             {
                 "konkurs": member.delegation.competition.slug,

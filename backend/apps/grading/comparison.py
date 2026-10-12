@@ -102,7 +102,14 @@ def comparison_context(review) -> dict | None:
 
     Komentarz pokazujemy **dla uczestnika**, a nie wewnętrzny: to jest ta część oceny, którą druga
     strona i tak zobaczy po ogłoszeniu wyników, a wątek notatek jest miejscem na resztę rozmowy.
+
+    Recenzja anulowana nie dostaje porównania nigdy (audyt 10.10.2026, S1): recenzent, któremu
+    odebrano pracę (np. przy konflikcie interesów), nie ma podstawy, żeby czytać cudze punkty,
+    komentarze i wątek notatek. To ta sama reguła, co w ``can_read_notes`` – bez niej porównanie
+    byłoby drugą, luźniejszą drogą do tego samego wątku.
     """
+    if review.status == ReviewStatus.CANCELLED:
+        return None
     submission = review.submission
     reviews = round_one_reviews(submission)
     if not is_revealed(submission, reviews):

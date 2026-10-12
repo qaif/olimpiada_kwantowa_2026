@@ -233,6 +233,12 @@ class Quiz(models.Model):
         # wcześniej) i odwrotnie – ale odwrócona para nie jest oknem, tylko pomyłką w formularzu.
         if self.opens_at and self.closes_at and self.opens_at >= self.closes_at:
             raise ValidationError({"closes_at": "Zamknięcie testu musi być późniejsze niż otwarcie."})
+        # Test jest wycinkiem etapu, nie jego przedłużeniem (audyt 10.10.2026, S3). Zamknięcie po
+        # terminie etapu dawało podejścia, które trwały, gdy etap był już zamknięty, a wyniki
+        # liczone – i wchodziły do ``stage_scores``. ``stage_id`` zamiast ``stage``: formularz
+        # nowego testu waliduje instancję, której etap dopina dopiero serwis.
+        if self.closes_at and self.stage_id and self.closes_at > self.stage.deadline_at:
+            raise ValidationError({"closes_at": "Zamknięcie testu nie może być późniejsze niż termin etapu."})
 
     @property
     def window(self) -> tuple[datetime, datetime]:
@@ -242,12 +248,34 @@ class Quiz(models.Model):
         serwis startu podejścia i strona startowa pytają **tutaj**, bo inaczej każde z nich
         miałoby własne ``or stage.opens_at`` i wystarczyłoby, żeby jedno z nich zostało pominięte
         przy zmianie, aby przycisk „Rozpocznij” pokazywał się poza oknem testu.
+
+        Koniec okna jest **najwcześniejszym** z trzech (audyt 10.10.2026, S3): zamknięcia testu,
+        terminu etapu i ręcznego zamknięcia etapu (``Stage.closed_at``, „Zamknij etap” np. po
+        wycieku pytań). Termin etapu ogranicza okno także dla testów zapisanych przed walidacją
+        w ``clean`` – reguła ma działać na danych, które już są w bazie, a nie tylko na nowych.
         """
-        return (self.opens_at or self.stage.opens_at, self.closes_at or self.stage.deadline_at)
+        stage = self.stage
+        closes = min(self.closes_at or stage.deadline_at, stage.deadline_at)
+        if stage.closed_at is not None:
+            closes = min(closes, stage.closed_at)
+        return (self.opens_at or stage.opens_at, closes)
+
+    @property
+    def stage_finished(self) -> bool:
+        """Czy etap jest już zamknięty ręcznie albo ma ogłoszone wyniki – wtedy testu nie ma.
+
+        Oba znaczniki są ``None`` przez całe zawody, więc pytanie nie kosztuje nic poza odczytem
+        pól etapu. Wołający, który decyduje o zapisie, odświeża je wcześniej pod blokadą
+        (``apps.quiz.services._refresh_stage_state``) – stan wczytany przed transakcją bywa stary.
+        """
+        stage = self.stage
+        return stage.closed_at is not None or stage.results_published_at is not None
 
     def is_open(self, now=None) -> bool:
         """Czy w tej chwili wolno **rozpocząć** podejście (to nie to samo, co „trwa podejście”)."""
         now = now or timezone.now()
+        if self.stage_finished:
+            return False
         opens, closes = self.window
         return opens <= now < closes
 
@@ -463,7 +491,18 @@ class QuizAttempt(models.Model):
         „Zakończ” był łagodniejszy od autozapisu, opłacałoby się nie zapisywać nic aż do końca.
         """
         now = now or timezone.now()
-        return self.is_open and now <= self.deadline_at + timedelta(seconds=SUBMIT_GRACE_SECONDS)
+        if not self.is_open:
+            return False
+        stage = self.quiz.stage
+        if stage.results_published_at is not None:
+            return False
+        # Koniec pisania to wcześniejszy z dwóch: termin podejścia i zamknięcie etapu (audyt S3) –
+        # „Zamknij etap” kliknięte w trakcie podejścia kończy je wtedy, a nie po jego liczniku.
+        # Tolerancja sieciowa liczy się od tego końca, a nie od zamknięcia z zegara: zamknięcie
+        # przez beat (``closed_at`` ≥ termin etapu ≥ termin podejścia) niczego tu nie zmienia,
+        # więc odpowiedź wysłana o czasie nie przepada dlatego, że beat zdążył przed nią.
+        ends_at = self.deadline_at if stage.closed_at is None else min(self.deadline_at, stage.closed_at)
+        return now <= ends_at + timedelta(seconds=SUBMIT_GRACE_SECONDS)
 
     @property
     def drawn_question_ids(self) -> list[int]:

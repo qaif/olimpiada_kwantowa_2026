@@ -13,12 +13,22 @@ from django.urls import reverse
 from rest_framework import serializers
 
 from apps.core.points_api import PointsField
+from apps.submissions.models import SubmissionStatus
 
-from .models import FinalGrade, ProblemReviewerRule, Review
+from .models import ROUND_BLIND, FinalGrade, ProblemReviewerRule, Review, ReviewStatus
 
 #: Techniczne granice punktów na wejściu API – te same, co dawne ``IntegerField(max_value=1000)``.
 #: Dolna jest symetryczna z tego samego powodu, co w formularzu szkicu: kształt, a nie skala.
 SCORE_LIMIT = 1000
+
+#: Stany pracy, które recenzent rundy 1 po wystawieniu oceny widzi jako neutralne
+#: :data:`NEUTRAL_SUBMITTED_STATUS` (audyt 10.10.2026, S4). Dokładnie ta para, bo tylko ona
+#: rozróżnia „zgodziłem się z drugą oceną” od „rozjechałem się” – ``APPEALED`` i ``FINAL`` przychodzą
+#: dopiero po ogłoszeniu wyników i niczego o zgodności nie mówią.
+ROUND_ONE_MASKED_STATUSES = (SubmissionStatus.MODERATION, SubmissionStatus.GRADED_PROVISIONAL)
+
+#: Neutralny stan pracy w odpowiedzi dla recenzenta rundy 1: „Twoja ocena jest wystawiona”.
+NEUTRAL_SUBMITTED_STATUS = "REVIEW_SUBMITTED"
 
 
 class ReviewSerializer(serializers.ModelSerializer):
@@ -33,7 +43,7 @@ class ReviewSerializer(serializers.ModelSerializer):
     problem_id = serializers.IntegerField(source="submission.problem_id", read_only=True)
     problem_number = serializers.IntegerField(source="submission.problem.number", read_only=True)
     problem_title = serializers.CharField(source="submission.problem.title", read_only=True)
-    submission_status = serializers.CharField(source="submission.status", read_only=True)
+    submission_status = serializers.SerializerMethodField()
     # Liczba JSON (``5`` albo ``4.25``), a nie tekst ``"5.00"`` domyślnego pola dziesiętnego –
     # kontrakt w ``apps.core.points_api`` i ``docs/API.md`` (wydanie 0.35.0).
     score = PointsField(read_only=True, allow_null=True)
@@ -79,11 +89,40 @@ class ReviewSerializer(serializers.ModelSerializer):
         )
         read_only_fields = fields
 
-    def get_download_url(self, obj: Review) -> str:
+    def get_submission_status(self, obj: Review) -> str:
+        """Stan pracy – dla recenzenta rundy 1 po wystawieniu oceny **neutralny** (audyt S4).
+
+        ``MODERATION`` kontra ``GRADED_PROVISIONAL`` mówi recenzentowi rundy 1 wprost, czy zgodził
+        się z drugą oceną. Razem z poprawką oceny dawało to wyrocznię: kilka prób ``revise`` na
+        skali 0/2/5/6 i recenzent „trafiał” w konsensus, anulując rozjemcę. Recenzent dostaje
+        więc ``REVIEW_SUBMITTED`` – to, co zrobił on sam, a nie to, co z tego wyszło. Pełny stan
+        widzi koordynator: jego odpowiedzi idą z kontekstem ``reveal_submission_status=True``.
+        """
+        status = obj.submission.status
+        if self.context.get("reveal_submission_status"):
+            return status
+        if (
+            obj.round == ROUND_BLIND
+            and obj.status == ReviewStatus.SUBMITTED
+            and status in ROUND_ONE_MASKED_STATUSES
+        ):
+            return NEUTRAL_SUBMITTED_STATUS
+        return status
+
+    def get_download_url(self, obj: Review) -> str | None:
+        """Adres pliku – ``None`` dla recenzji odebranej, bo przydział, który go dawał, wygasł (S1)."""
+        if obj.status == ReviewStatus.CANCELLED:
+            return None
         return reverse("submissions:submission-download", kwargs={"pk": obj.submission_id})
 
     def get_file_available(self, obj: Review) -> bool:
-        """Czy plik jest już do pobrania: recenzent dostaje wyłącznie plik po czystym skanie."""
+        """Czy plik jest już do pobrania: recenzent dostaje wyłącznie plik po czystym skanie.
+
+        Recenzja anulowana nie ma pliku w ogóle – ``Submission.objects.for_user`` i tak odmówi
+        pobrania, a odpowiedź nie może obiecywać czegoś, czego pobranie nie da (audyt S1).
+        """
+        if obj.status == ReviewStatus.CANCELLED:
+            return False
         submission_file = obj.submission.latest_file
         return submission_file is not None and submission_file.is_clean
 

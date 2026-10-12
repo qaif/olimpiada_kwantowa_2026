@@ -271,6 +271,37 @@ def start_session(request, user) -> None:
 
 
 def session_expired(request) -> bool:
-    """Czy sesja pochodzi z SSO i minął jej termin (sesja logowania hasłem nie ma znacznika)."""
-    until = request.session.get(SESSION_KEY)
-    return isinstance(until, int) and until <= time.time()
+    """Czy minął termin sesji – z SSO (``SESSION_KEY``) albo z logowania hasłem (``PASSWORD_SESSION_KEY``)."""
+    for key in (SESSION_KEY, PASSWORD_SESSION_KEY):
+        until = request.session.get(key)
+        if isinstance(until, int) and until <= time.time():
+            return True
+    return False
+
+
+# --- sesja logowania hasłem ----------------------------------------------------------------------
+
+#: Klucz sesji z terminem ważności logowania **hasłem** (techniczny superużytkownik, ``apps.pages.auth``).
+PASSWORD_SESSION_KEY = "dj_password_until"
+
+
+def password_session_seconds() -> int:
+    """Najdłuższy czas sesji logowania hasłem (``DJCMS_PASSWORD_SESSION_SECONDS``), liczony od logowania.
+
+    Hasłem loguje się wyłącznie konto z pełnymi uprawnieniami – bez terminu zostawałoby zalogowane
+    przez ``SESSION_COOKIE_AGE`` (2 tygodnie), także na cudzym komputerze (audyt 2026-10-10).
+    """
+    return int(getattr(settings, "DJCMS_PASSWORD_SESSION_SECONDS", 2 * 60 * 60))
+
+
+def ensure_password_deadline(request) -> None:
+    """Termin sesji logowania hasłem – przy pierwszym żądaniu po logowaniu (idempotentnie).
+
+    Znacznik zakłada ``EditorAccessMiddleware``, a nie formularz logowania: obejmuje to każdą drogę
+    logowania hasłem (panel, ``cms_login`` paska narzędzi) i sesje sprzed wdrożenia tej reguły.
+    """
+    if PASSWORD_SESSION_KEY in request.session or SESSION_KEY in request.session:
+        return
+    seconds = password_session_seconds()
+    request.session[PASSWORD_SESSION_KEY] = int(time.time()) + seconds
+    request.session.set_expiry(seconds)

@@ -612,9 +612,20 @@ def check_credentials(user, password: str, code: str, *, request=None) -> None:
     sprawdza ``check_password`` (bez ``authenticate``: konto jest już zalogowane, a backendy
     zewnętrzne nie mają tu nic do powiedzenia). Zły kod liczy się do blokady konta tak samo, jak
     przy logowaniu – inaczej ten formularz byłby wyrocznią do zgadywania kodów.
+
+    Konto **bez** używalnego hasła (Google/Facebook) nie ma czym się potwierdzić – jak przy zmianie
+    adresu (``apps.accounts.reauth``, ``PASSWORD_NOT_SET``) ustawia najpierw hasło linkiem na własny
+    adres. Audyt 10.10.2026 (S11) dopuszczał tu przepisanie adresu; reguła AUTH-01b jest mocniejsza
+    i jedna dla wszystkich ekranów, które zdejmują kontu ochronę.
     """
     from apps.core.api import DomainError
 
+    if not user.has_usable_password():
+        raise DomainError(
+            _("To konto nie ma jeszcze hasła – ustaw je linkiem wysłanym na adres konta."),
+            "PASSWORD_NOT_SET",
+            400,
+        )
     if not password or not user.check_password(password):
         raise DomainError(_("Hasło się nie zgadza."), "TWO_FACTOR_BAD_PASSWORD", 400)
     if is_locked(user):
@@ -655,11 +666,21 @@ def reset_by_coordinator(user, *, actor, request=None) -> bool:
     składnika (a nie z nowym sekretem): człowiek, który stracił telefon, ma po tym wejść hasłem
     i skonfigurować 2FA od nowa na nowym urządzeniu.
 
-    SEC-01: konto **personelu** resetuje wyłącznie superkoordynator (``staff_mfa.policy.may_reset``)
-    – sprawdzane tutaj, w serwisie, a nie tylko w widoku. Właściciel dostaje list.
+    Dwie bramki, obie w serwisie, a nie tylko w widoku (kolejność jak niżej):
+
+    - SEC-01: konto **personelu** (recenzent, komitet…) resetuje wyłącznie superkoordynator
+      (``staff_mfa.policy.may_reset``) – ``PermissionDenied``,
+    - audyt 10.10.2026 (S7 i W3): konto własne, konto chronione (koordynator, superużytkownik,
+      operator ``is_staff``) i konto z rolą w innym konkursie – ``DomainError``. Zdjęcie drugiego
+      składnika z konta operatora razem z wyciekiem jego hasła jest przejęciem tego konta, a drugi
+      składnik istnieje właśnie po to, żeby sam wyciek hasła nie wystarczał. Konto chronione
+      odblokowuje superkoordynator (albo ``manage.py reset_2fa`` na serwerze).
+
+    Właściciel dostaje list.
     """
     from django.core.exceptions import PermissionDenied
 
+    from apps.accounts.profile import assert_coordinator_may_secure
     from apps.staff_mfa.policy import may_reset
 
     competition = _competition_or_context(
@@ -669,6 +690,7 @@ def reset_by_coordinator(user, *, actor, request=None) -> bool:
         raise PermissionDenied(
             "Drugi składnik konta personelu zdejmuje wyłącznie superkoordynator (docs/OPERACJE.md § 41)."
         )
+    assert_coordinator_may_secure(user, actor=actor, competition=competition)
     return _reset(user, actor=actor, request=request, diff={"email": bool(user.email)})
 
 

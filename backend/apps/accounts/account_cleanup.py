@@ -170,7 +170,8 @@ def collect_facts(competition, participant_ids, *, factory=AccountFacts) -> dict
         profile.pk: factory(
             participant=profile,
             other_role_labels=_role_labels(profile),
-            protected=profile.user.is_superuser or profile.cleanup_coordinator,
+            # ``is_staff`` jak w ``profile._is_coordinator`` (audyt 10.10.2026, N2) – serwis i tak odmówi.
+            protected=profile.user.is_superuser or profile.user.is_staff or profile.cleanup_coordinator,
         )
         for profile in profiles
     }

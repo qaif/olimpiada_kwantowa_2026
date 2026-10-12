@@ -64,7 +64,7 @@ from apps.web.forms import REQUIRED_CSS_CLASS, SchoolChoiceMixin
 from apps.web.mixins import ActionViewMixin, CoordinatorRequiredMixin
 from apps.web.supervisor_forms import SupervisorRegisterForm
 from apps.web.supervisor_mixins import SupervisorRequiredMixin
-from apps.web.throttle import ThrottledFormMixin
+from apps.web.throttle import ThrottledFormMixin, user_throttle_keys
 
 from .public import ServiceFormView, remember_registration
 
@@ -424,6 +424,25 @@ class SupervisorImportView(SupervisorRequiredMixin, ThrottledFormMixin, BaseStud
         supervisor = self.supervisor
         return supervisor.school or "", supervisor.school_ref
 
+    def _resolve_school(self, cleaned: dict):
+        """Szkoła z **rejestru** w imporcie nauczyciela – wyłącznie jego własna (audyt 10.10.2026).
+
+        ``school_id`` przychodzi z formularza (i z ukrytego pola zatwierdzenia), więc bez tej reguły
+        nauczyciel mógł przypisać listę dowolnej szkole z rejestru – razem z jej województwem, czyli
+        z okręgiem, w którym uczniowie startują i według którego działa reguła konfliktu interesów.
+        Nazwa wpisana ręcznie zostaje dozwolona: nie wiąże z rejestrem ani z województwem (o nie
+        dopyta uczeń przy przyjęciu zaproszenia). Koordynator tej reguły nie ma – nie ma „swojej”
+        szkoły i rozdziela uczniów między placówki.
+        """
+        name, ref = super()._resolve_school(cleaned)
+        own = self.supervisor.school_ref_id
+        if ref is not None and ref.pk != own:
+            raise DomainError(
+                "Możesz importować uczniów wyłącznie do szkoły podanej w Twoim profilu opiekuna.",
+                "IMPORT_SCHOOL_NOT_OWN",
+            )
+        return name, ref
+
     def success_url(self) -> str:
         return reverse("web:supervisor-students")
 
@@ -497,13 +516,29 @@ class SupervisorStudentsView(SupervisorRequiredMixin, TemplateView):
         return context
 
 
-class ResendInvitationView(ActionViewMixin, SupervisorRequiredMixin, View):
+class ResendInvitationView(ActionViewMixin, SupervisorRequiredMixin, ThrottledFormMixin, View):
     """POST ``/supervisor/students/<pk>/resend/`` – ponowne wysłanie linku z zaproszeniem.
 
     Uczeń musi być **na liście tego opiekuna**, i to jest cała reguła dostępu: filtr po
     znormalizowanym adresie z konta opiekuna, a nie po szkole ani po tym, kto wgrał plik.
     Nauczyciel, któremu uczeń cofnął wskazanie, traci razem z podglądem także ten przycisk.
+
+    Dwa bezpieczniki wysyłki (audyt 10.10.2026, S12) – przy otwartej rejestracji opiekunów import
+    dowolnych adresów i nieograniczone ponowienia robiły z tego przycisku wysyłacza listów z domeny
+    organizatora na cudze skrzynki:
+
+    - **limit żądań** ``supervisor_resend`` liczony **per konto** opiekuna (nie per adres IP:
+      nauczyciele jednej szkoły za wspólnym NAT-em nie mają dzielić budżetu, a jedno konto
+      zmieniające sieć nie ma dostawać nowego). Mixin stoi za bramką roli, więc anonimowy POST
+      dostaje przekierowanie na logowanie i limitu nie zużywa,
+    - **karencja** godziny na ucznia (``bulk_registration.INVITE_RESEND_COOLDOWN``) – w serwisie,
+      bo dotyczy adresata, a nie nadawcy.
     """
+
+    throttle_scope = "supervisor_resend"
+
+    def get_throttle_keys(self, request) -> list[str]:
+        return user_throttle_keys(self.throttle_scope, request)
 
     def get_success_url(self, *args, **kwargs) -> str:
         return reverse("web:supervisor-students")

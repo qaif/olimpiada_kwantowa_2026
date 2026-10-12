@@ -9,8 +9,9 @@ Zasady modułu:
 
 - **czytamy dopiero po czystym skanie**. Plik świeżo wgrany jest danymi od nieznanego nadawcy;
   parsowanie go tą samą biblioteką, którą potem pokaże się recenzentowi, byłoby wykonaniem
-  roboty za napastnika. ``store_page_count`` woła ``apps.submissions.services.apply_scan_verdict``
-  i tylko dla werdyktu ``CLEAN``,
+  roboty za napastnika. ``store_page_count`` woła zadanie ``apps.submissions.tasks.store_preview_metrics``
+  (kolejkowane z ``apply_scan_verdict``) i tylko dla werdyktu ``CLEAN`` – osobnym zadaniem z limitem
+  30 s, bo spreparowany PDF potrafi zająć pypdf na długie minuty (audyt 10.10.2026),
 - **liczba stron PDF-a jest kolumną w bazie** (``SubmissionFile.page_count``). To jedyna metryka,
   której policzenie wymaga przeczytania całego dokumentu (tablica stron leży na jego końcu),
   a czytają ją panel uczestnika i ekrany komitetu – liczenie jej przy każdym renderowaniu byłoby
@@ -197,7 +198,7 @@ def preview_for(submission_file: SubmissionFile | None) -> dict | None:
 def store_page_count(submission_file: SubmissionFile) -> SubmissionFile:
     """Zapisuje liczbę stron PDF-a po czystym skanie. Dla pozostałych formatów nie robi nic.
 
-    Wołane z ``apply_scan_verdict``, czyli z workera – tam wolno przeczytać cały plik ze storage,
+    Wołane z zadania ``store_preview_metrics``, czyli z workera – tam wolno przeczytać cały plik ze storage,
     bo nikt nie czeka na odpowiedź HTTP. Przy okazji zapisujemy komplet metryk do pamięci
     podręcznej, więc pierwsze wejście do panelu po skanie nie pobiera pliku po raz drugi.
     """

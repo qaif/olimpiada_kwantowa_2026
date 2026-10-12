@@ -1532,7 +1532,8 @@ def participant_ai_feedback(participant, stage) -> list[dict]:
         return []
     if not AiStageVisibility.objects.filter(stage=stage, show_to_participants=True).exists():
         return []
-    if not ResultsPublication.objects.filter(stage=stage).exists():
+    # ``live()``: wycofane ogłoszenie wyników nie jest ogłoszeniem (audyt S2).
+    if not ResultsPublication.objects.live().filter(stage=stage).exists():
         return []
     entry = StageEntry.objects.filter(participant=participant, stage=stage).first()
     if entry is None:
@@ -1595,8 +1596,9 @@ def export_section(participant) -> list[dict]:
         )
     )
     stage_ids = {row.submission.entry.stage_id for row in rows}
+    # Ta sama definicja ogłoszenia, co w ``participant_ai_feedback`` – ``live()`` (audyt S2).
     visible = visible_stage_ids(stage_ids) & set(
-        ResultsPublication.objects.filter(stage_id__in=stage_ids).values_list("stage_id", flat=True)
+        ResultsPublication.objects.live().filter(stage_id__in=stage_ids).values_list("stage_id", flat=True)
     )
     items = []
     for row in rows:

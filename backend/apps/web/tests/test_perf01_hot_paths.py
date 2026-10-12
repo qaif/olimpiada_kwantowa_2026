@@ -20,6 +20,7 @@ from django.db import connection
 from django.http import HttpResponse
 from django.test import RequestFactory
 from django.test.utils import CaptureQueriesContext
+from django.utils import timezone
 
 from apps.chat import services as chat
 from apps.chat.tests.helpers import participant_of
@@ -158,6 +159,10 @@ def test_query_suffix_ignores_only_tracking_parameters():
 
 def test_results_table_is_cached_and_dropped_when_withdrawn(client_for, competition, elim_stage, settings):
     _enable(settings)
+    # Ogłoszenie = rekord publikacji **i** znacznik na etapie (``ResultsPublication.objects.live()``,
+    # audyt 10.10.2026, S2) – sam rekord to tabela wycofana, której publiczna strona nie pokazuje.
+    elim_stage.results_published_at = timezone.now()
+    elim_stage.save(update_fields=["results_published_at"])
     publication = ResultsPublicationFactory(
         stage=elim_stage,
         snapshot=[

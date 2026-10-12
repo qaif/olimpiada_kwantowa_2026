@@ -8,7 +8,8 @@ zna witryn konkursów pod prefiksem ścieżki (ustalenia § 5.1).
   ``Redirect.normalise_path`` Wagtaila: bez ukośnika końcowego, parametry i zapytanie posortowane
   (``/regulamin``, ``/stary?a=1&b=2``). Ten sam kształt, w którym eksportuje je paczka v2.
 - ``new_path`` – ścieżka względem korzenia witryny (``/dokumenty/regulamin/`` – pod prefiksem
-  warstwa dokłada prefiks) albo adres bezwzględny ``http(s)://`` (świadomy wybór redaktora).
+  warstwa dokłada prefiks) albo adres bezwzględny ``http(s)://`` – na host platformy, a na inny
+  host wyłącznie z konta platformy (``apps.seo.targets``, audyt 2026-10-10).
 - ``source`` – ``import`` (paczka Wagtaila; ``--replace`` kasuje tylko te), ``auto`` (zmiana adresu
   opublikowanej strony – ``apps.seo.auto``), ``manual`` (redakcja w panelu). Wpis redakcji wygrywa
   z importem i z automatem.
@@ -64,6 +65,10 @@ def is_safe_target(value: str) -> bool:
 
 
 class Redirect(models.Model):
+    #: Czy ``clean`` przepuszcza adres bezwzględny na host spoza platformy – ustawia panel
+    #: (``RedirectAdmin.get_form``) dla konta platformy. Nie jest polem: decyduje ustawiający, nie wpis.
+    allow_foreign_host = False
+
     site = models.ForeignKey("sites.Site", on_delete=models.CASCADE, related_name="dj_redirects")
     old_path = models.CharField("stary adres", max_length=MAX_OLD_PATH, db_index=True)
     new_path = models.CharField("nowy adres", max_length=MAX_NEW_PATH)
@@ -93,5 +98,9 @@ class Redirect(models.Model):
             raise ValidationError(
                 {"new_path": "Podaj ścieżkę w witrynie (zaczynającą się od /) albo adres http(s)://."}
             )
+        from .targets import MESSAGE, is_platform_target
+
+        if not self.allow_foreign_host and not is_platform_target(self.new_path):
+            raise ValidationError({"new_path": MESSAGE})
         if normalise_path(self.new_path) == self.old_path and self.new_path.startswith("/"):
             raise ValidationError({"new_path": "Przekierowanie nie może prowadzić pod ten sam adres."})

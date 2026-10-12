@@ -18,3 +18,8 @@ class BlocksConfig(AppConfig):
         # Uprawnienia folderów filera są włączone (DJ-02 D5), a pliki – wyłącznie publiczne: bez
         # przełącznika „prywatny” w panelu (``files.hide_private_toggle``).
         files.hide_private_toggle()
+
+        # Tekst redakcji bez ``style`` – nakładka ``position:fixed`` w originie logowania (audyt 2026-10-10).
+        from .sanitizer import tighten_text_sanitizer
+
+        tighten_text_sanitizer()

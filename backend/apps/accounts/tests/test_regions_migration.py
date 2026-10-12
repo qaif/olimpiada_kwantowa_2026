@@ -33,7 +33,7 @@ from django.db.migrations.executor import MigrationExecutor
 from wagtail.models import Locale, Page, Site
 
 from apps.accounts.models import CommitteeMember, Region, Voivodeship
-from apps.core.tests.migration_helpers import MIGRATION_TESTS, migrate_to, rewound_database
+from apps.core.tests.migration_helpers import MIGRATION_TESTS, live_user, migrate_to, rewound_database
 from apps.tenancy.models import Competition
 
 pytestmark = MIGRATION_TESTS
@@ -92,9 +92,10 @@ def make_competition(slug: str) -> Competition:
 
 def make_participant(competition, district: str):
     """Uczestnik wpisany wprost, bez fabryki: fabryka zakłada świat, którego ten test nie zamawia."""
-    from apps.accounts.models import User, generate_public_code
+    from apps.accounts.models import generate_public_code
 
-    user = User.objects.create(email=f"{district or 'brak'}-{competition.slug}@example.test")
+    # Konto przez ``live_user``: ``accounts_user`` na stanie ``0025`` nie ma jeszcze ``blocked_at`` (0042).
+    user = live_user(email=f"{district or 'brak'}-{competition.slug}@example.test")
     return participants_at(BEFORE).objects.create(
         # Klucze obce podajemy identyfikatorem: model historyczny jest **inną klasą** niż model na
         # żywo, więc przypisanie mu żywego ``User`` albo ``Competition`` skończyłoby się
@@ -122,9 +123,7 @@ def members_at(target):
 
 
 def make_member(competition, district: str | None) -> CommitteeMember:
-    from apps.accounts.models import User
-
-    user = User.objects.create(email=f"komitet-{district or 'brak'}-{competition.slug}@example.test")
+    user = live_user(email=f"komitet-{district or 'brak'}-{competition.slug}@example.test")
     # Klucze obce przez ``*_id``: model historyczny przyjmuje wyłącznie swoje, historyczne klasy.
     return members_at(BEFORE).objects.create(
         user_id=user.pk, competition_id=competition.pk, district=district

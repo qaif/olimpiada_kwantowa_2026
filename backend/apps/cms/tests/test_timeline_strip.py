@@ -173,9 +173,28 @@ def test_results_link_appears_only_after_publication(edition, coordinator):
 
     assert timeline_events(edition, TODAY)[0]["url"] == ""
 
+    # Ogłoszenie w mocy to rekord publikacji **i** znacznik na etapie (``live()``) – tak, jak
+    # ustawia je ``publish_results``.
     ResultsPublication.objects.create(stage=elim, published_by=coordinator)
+    elim.results_published_at = timezone.now()
+    elim.save(update_fields=["results_published_at"])
 
     assert timeline_events(edition, TODAY)[0]["url"] == f"/results/{elim.pk}/"
+
+
+def test_results_link_disappears_after_the_announcement_is_withdrawn(edition, coordinator):
+    """Wycofane ogłoszenie zostawia rekord publikacji, ale publiczna tabela odpowiada już 404.
+
+    Odnośnik na pasku prowadziłby więc donikąd – ``live()``, a nie samo istnienie rekordu.
+    """
+    from apps.results.models import ResultsPublication
+
+    elim = stage(edition, StageKind.ELIM, (2026, 10, 20), (2026, 11, 30))
+    ResultsPublication.objects.create(stage=elim, published_by=coordinator)
+    elim.results_published_at = None
+    elim.save(update_fields=["results_published_at"])
+
+    assert timeline_events(edition, TODAY)[0]["url"] == ""
 
 
 # --- warsztaty ------------------------------------------------------------------------------------

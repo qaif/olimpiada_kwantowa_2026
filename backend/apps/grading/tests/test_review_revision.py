@@ -18,6 +18,7 @@ from apps.grading.services import (
     resolve_moderation,
     revise_review,
     revision_block_reason,
+    set_review_score,
     submit_review,
     unassign_reviewer,
     withdrawal_block_reason,
@@ -26,6 +27,7 @@ from apps.results.models import ResultsPublication
 from apps.submissions.models import SubmissionStatus
 
 from .conftest import locked_submission
+from .factories import ReviewFactory
 
 pytestmark = pytest.mark.django_db
 
@@ -71,35 +73,67 @@ def test_revision_replaces_the_consensus_grade_with_moderation(stage):
     assert withdrawn.diff["reason"] == "REVIEW_REVISED"
 
 
-def test_consensus_grade_is_recreated_when_scores_agree_again(stage):
-    """Powrót do zgodności odtwarza ocenę uzgodnioną – z nową wartością, nie ze starą."""
+def test_revision_in_moderation_is_refused_but_the_coordinator_can_still_restore_consensus(stage):
+    """Audyt S4: po rozjeździe recenzent rundy 1 nie „zgaduje” drugiej oceny kolejnymi poprawkami.
+
+    Do audytu ten test utrwalał odwrotną regułę (poprawka 2 → 5 w moderacji odtwarzała konsensus).
+    Razem z widocznym stanem pracy dawało to wyrocznię: kilka prób na skali 0/2/5/6 i rozjazd
+    znikał, a z nim trzeci recenzent. Zmienić ocenę w moderacji może już tylko koordynator.
+    """
     submission, one, _ = reviewed_pair(stage, first=5, second=5)
     revise_review(one, 2)
+    submission.refresh_from_db()
+    assert submission.status == SubmissionStatus.MODERATION
 
-    revise_review(one, 5)
+    with pytest.raises(DomainError) as exc:
+        revise_review(one, 5)
+
+    assert exc.value.machine_code == "IN_MODERATION"
+    one.refresh_from_db()
+    assert one.score == 2
+    assert revision_block_reason(one) == "IN_MODERATION"
+
+    set_review_score(one, 5, actor=CoordinatorFactory(), rationale="Uzgodnione na posiedzeniu.")
 
     submission.refresh_from_db()
     grade = grade_of(submission)
-    assert grade is not None
     assert (grade.score, grade.method) == (5, GradeMethod.CONSENSUS)
     assert submission.status == SubmissionStatus.GRADED_PROVISIONAL
 
 
-def test_revision_that_ends_the_disagreement_cancels_the_pending_tiebreak(stage):
-    """Rozjemca nie ma już czego rozstrzygać – jego przydział znika z powodem „poprawiona ocena”."""
+def test_revision_is_refused_while_a_tiebreak_is_assigned(stage):
+    """Audyt S4: przydział rozjemcy to rozjazd w procedurze – poprawka nie może go „zjeść”.
+
+    Do audytu poprawka do zgodnej oceny anulowała przydział rozjemczy (``REVIEW_REVISED``).
+    """
     submission, one, _ = reviewed_pair(stage, first=5, second=2)
     assert submission.status == SubmissionStatus.MODERATION
     third = assign_third_reviewer(submission, ActiveReviewerFactory(), actor=CoordinatorFactory())
 
-    revise_review(one, 2)
+    with pytest.raises(DomainError) as exc:
+        revise_review(one, 2)
 
-    submission.refresh_from_db()
+    assert exc.value.machine_code == "IN_MODERATION"
     third.refresh_from_db()
-    assert third.status == ReviewStatus.CANCELLED
-    assert grade_of(submission).method == GradeMethod.CONSENSUS
-    assert submission.status == SubmissionStatus.GRADED_PROVISIONAL
-    cancelled = AuditLog.objects.filter(action="review.cancelled").latest("id")
-    assert cancelled.diff["reason"] == "REVIEW_REVISED"
+    submission.refresh_from_db()
+    assert third.status == ReviewStatus.ASSIGNED
+    assert submission.status == SubmissionStatus.MODERATION
+    assert grade_of(submission) is None
+
+
+def test_live_tiebreak_blocks_revision_even_outside_moderation(stage):
+    """Bramka patrzy też na przydział rundy 2, a nie tylko na stan pracy (dane sprzed zmiany)."""
+    submission, one, _ = reviewed_pair(stage, first=5, second=5)
+    ReviewFactory(submission=submission, round=ROUND_TIEBREAK, status=ReviewStatus.ASSIGNED)
+
+    assert revision_block_reason(one) == "IN_MODERATION"
+
+
+def test_revision_after_consensus_is_still_allowed(stage):
+    """Zgodność bez procedury rozjazdowej: autor może poprawić ocenę (prośba organizatora)."""
+    submission, one, _ = reviewed_pair(stage, first=5, second=5)
+
+    assert revision_block_reason(one) is None
 
 
 def test_tiebreak_revision_updates_the_third_review_grade_in_place(stage):
@@ -343,15 +377,19 @@ def test_api_revision_is_404_for_another_reviewer(client, stage):
     assert one.score == 5
 
 
-def test_api_revision_of_a_withdrawn_review_is_409(client, stage):
+def test_api_revision_of_a_withdrawn_review_is_404(client, stage):
+    """Audyt S1: odebrana recenzja znika z widoków pojedynczej recenzji – 404 zamiast dawnego 409.
+
+    Serwis nadal odmówiłby kodem ``REVIEW_CANCELLED`` (``test_revision_refuses_a_withdrawn_review``),
+    ale do niego żądanie już nie dochodzi: przydział odebrany nie daje dostępu do niczego.
+    """
     _, one, _ = reviewed_pair(stage)
     unassign_reviewer(one, actor=CoordinatorFactory())
     client.force_authenticate(one.reviewer.user)
 
     response = client.post(f"/api/grading/reviews/{one.pk}/revise/", {"score": 2}, format="json")
 
-    assert response.status_code == 409
-    assert response.data["code"] == "REVIEW_CANCELLED"
+    assert response.status_code == 404
 
 
 def test_api_coordinator_withdraws_a_submitted_review(client, stage):

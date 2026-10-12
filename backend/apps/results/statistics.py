@@ -239,7 +239,8 @@ def build_statistics() -> list[dict]:
     czołówkę zamiast etapu. Pełnych liczb takiego etapu nie ogłaszamy.
     """
     publications = (
-        ResultsPublication.objects.filter(qualified_only=False)
+        ResultsPublication.objects.live()
+        .filter(qualified_only=False)
         .select_related("stage", "stage__edition")
         .order_by("-published_at", "-id")
     )
@@ -257,10 +258,14 @@ def statistics() -> list[dict]:
 
 
 def invalidate() -> None:
-    """Zrzuca podręczny wynik. Dla komend i testów – publikacja i tak przeterminuje go w 10 minut."""
+    """Zrzuca podręczny wynik.
+
+    Woła go odbiornik zapisu etapu i publikacji (``apps.results.signals``): wycofanie ogłoszenia
+    ma zniknąć ze statystyk od razu, a nie po dziesięciu minutach życia wpisu (audyt S2).
+    """
     cache.delete(CACHE_KEY)
 
 
 def published_stages() -> list[Stage]:
-    """Etapy z ogłoszonymi wynikami – do odnośników „pełna tabela” obok statystyki."""
-    return [publication.stage for publication in ResultsPublication.objects.select_related("stage")]
+    """Etapy z ogłoszonymi (niewycofanymi) wynikami – do odnośników „pełna tabela” obok statystyki."""
+    return [publication.stage for publication in ResultsPublication.objects.live().select_related("stage")]

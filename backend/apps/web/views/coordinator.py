@@ -26,9 +26,10 @@ from django.views.generic import TemplateView, View
 
 from apps.accounts.activation import (
     ACTIVATION_MAX_AGE,
+    RESENT_INVITATION,
     mark_activated,
     pending_invitation,
-    resend_activation,
+    resend_for_user,
 )
 from apps.accounts.models import (
     CommitteeMember,
@@ -93,7 +94,7 @@ from apps.web.mixins import ActionViewMixin, CoordinatorRequiredMixin
 from apps.web.points_fields import score_form_error
 from apps.web.scoping import reviewer_pool_for
 from apps.web.templatetags.web_extras import LOCAL_TIME_LABEL, local_time
-from apps.web.views.coordinator_accounts import users_for_competition
+from apps.web.views.coordinator_accounts import pending_activation_accounts, users_for_competition
 
 DASHBOARD_URL = reverse_lazy("web:coordinator")
 
@@ -124,6 +125,7 @@ def dashboard_context(competition, extra: dict | None = None) -> dict:
     stages = list(stage_qs.order_by("opens_at", "id")) if edition else []
     published = set(
         ResultsPublication.objects.for_competition(competition)
+        .live()
         .filter(stage__in=stages)
         .values_list("stage_id", flat=True)
     )
@@ -199,19 +201,17 @@ def pending_activation_rows(competition, now=None) -> list[dict]:
     Role czytamy z grup jednym zapytaniem (``prefetch_related``): lista bywa długa, a rola jest tu
     jedyną podpowiedzią, czy chodzi o uczestnika, czy o zaproszonego recenzenta.
 
-    Zakres jest ten sam, co na liście kont (``users_for_competition``): konto cudzego konkursu
-    tu nie wchodzi, bo ręczna aktywacja cudzego konta nie jest czynnością tego koordynatora.
-    Jedna definicja „czyje to konto” dla obu ekranów – dwie rozjechałyby się przy pierwszej zmianie.
+    Zakres i warunek „konto oczekuje” bierzemy z ``pending_activation_accounts`` – tej samej
+    definicji, którą sprawdza usuwanie konta z kolejki (``CoordinatorActivationDeleteView``). Konto
+    cudzego konkursu tu nie wchodzi, bo ręczna aktywacja cudzego konta nie jest czynnością tego
+    koordynatora, a konto zablokowane bez potwierdzonego adresu nie jest rejestracją w toku (S5).
+    Dwie kopie warunku rozjechałyby się przy pierwszej zmianie – lista pokazywałaby konto, którego
+    przycisk „Usuń” nie znajduje, albo odwrotnie.
     """
     now = now or timezone.now()
     deadline_offset = timedelta(seconds=ACTIVATION_MAX_AGE)
     rows = []
-    users = (
-        users_for_competition(competition)
-        .filter(is_active=False, email_verified_at__isnull=True)
-        .prefetch_related("groups")
-        .order_by("date_joined", "id")
-    )
+    users = pending_activation_accounts(competition).prefetch_related("groups").order_by("date_joined", "id")
     for user in users:
         purge_at = user.date_joined + deadline_offset
         rows.append(
@@ -1058,9 +1058,15 @@ class ActivateAccountView(CoordinatorActionView):
         user = get_object_or_404(users_for_competition(request.competition), pk=pk)
         if user.email_verified_at is not None:
             raise DomainError("To konto jest już aktywne.", "ALREADY_ACTIVE")
+        if user.blocked_at is not None:
+            raise DomainError(
+                "To konto jest zablokowane – odblokuj je w edycji konta, a nie aktywacją.", "ACCOUNT_BLOCKED"
+            )
         if pending_invitation(user) is not None:
-            # AUTH-01a (H1): konto z zaproszenia uruchamia uczeń na ekranie zaproszenia – tam składa
-            # zgody (także opiekuna) i ustawia hasło. Ręczna aktywacja dałaby aktywne konto bez zgód.
+            # Konto z zaproszenia (import, delegacja) nie ma hasła ani zgód – ręczna aktywacja
+            # wpuszczałaby uczestnika bez regulaminu, RODO i zgody opiekuna (S6, AUTH-01a H1).
+            # Uruchamia je uczeń na ekranie zaproszenia. Kod ``INVITATION_PENDING`` – ten sam, co
+            # przy zaznaczeniu „aktywne” w edycji konta (``profile.update_account_by_coordinator``).
             raise DomainError(
                 "To konto powstało z zaproszenia – uczeń uruchamia je sam linkiem z listu (zgody, hasło). "
                 "Zamiast aktywacji wyślij zaproszenie ponownie.",
@@ -1083,15 +1089,21 @@ class ResendActivationView(CoordinatorActionView):
         # organizatora wobec jego własnego uczestnika. Zawężenie jest to samo, co na liście kont
         # (``users_for_competition``), żeby dwa ekrany nie miały dwóch definicji „czyje to konto”.
         user = get_object_or_404(users_for_competition(request.competition), pk=pk)
-        # Konto z zaproszenia dostaje zaproszenie, a nie link aktywacyjny (AUTH-01a) – komunikat
-        # ma mówić, co naprawdę wyszło.
-        invited = pending_invitation(user) is not None
-        if not resend_activation(user.email, request=request, actor=request.user):
+        if user.blocked_at is not None:
+            raise DomainError(
+                "To konto jest zablokowane – link aktywacyjny by je odblokował, więc nie wysyłamy go.",
+                "ACCOUNT_BLOCKED",
+            )
+        # Konto z zaproszenia dostaje **zaproszenie**, a nie link aktywacyjny (S6, AUTH-01a) – bez
+        # karencji, bo koordynator ponawia list zwykle w trakcie rozmowy z uczniem; komunikat mówi,
+        # co naprawdę wyszło.
+        sent = resend_for_user(user, request=request, actor=request.user, enforce_cooldown=False)
+        if sent is None:
             raise DomainError(
                 "Tego konta nie da się aktywować linkiem – adres jest już potwierdzony.",
                 "NOTHING_TO_SEND",
             )
-        if invited:
+        if sent == RESENT_INVITATION:
             return "Zaproszenie zostało wysłane ponownie."
         return "Link aktywacyjny został wysłany ponownie."
 

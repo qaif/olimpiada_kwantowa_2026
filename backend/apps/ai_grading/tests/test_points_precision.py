@@ -55,7 +55,9 @@ def test_eksport_danych_pisze_punkty_liczba_json(competition, stage, problem, pr
     submission = make_submission(problem)
     done(competition, submission, proposed=proposed, maximum=maximum)
     AiStageVisibility.objects.create(stage=stage, show_to_participants=True)
+    # Ogłoszenie „w mocy” to rekord publikacji **i** znacznik na etapie (audyt S2, ``live()``).
     ResultsPublication.objects.create(stage=stage)
+    type(stage).objects.filter(pk=stage.pk).update(results_published_at=timezone.now())
 
     [item] = services.export_section(submission.entry.participant)
 

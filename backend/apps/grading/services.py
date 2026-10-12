@@ -1334,6 +1334,8 @@ GRADE_CHANGE_BLOCK_MESSAGES = {
     "RESULTS_PUBLISHED": "Wyniki tego etapu są już ogłoszone – oceny nie da się zmienić.",
     "SUBMISSION_CLOSED": "Ta praca jest zamknięta – oceny nie da się już zmienić.",
     "GRADE_DECIDED": "Ocenę tej pracy rozstrzygnął już koordynator albo trzeci recenzent.",
+    "IN_MODERATION": "Oceny tej pracy się rozjechały i sprawa jest w moderacji – zmienić ocenę może już "
+    "tylko koordynator.",
 }
 
 
@@ -1364,6 +1366,13 @@ def revision_block_reason(review: Review) -> str | None:
     oceny końcowej, a cicha zmiana w tle podważałaby cudze rozstrzygnięcie. Inaczej w rundzie 2:
     tam ocena końcowa *jest* tą recenzją, więc poprawiać ją wolno dokładnie tak długo, jak długo
     w aktach stoi ocena wystawiona przez tego recenzenta (``THIRD_REVIEW``).
+
+    **Rozjazd w moderacji zamyka poprawkę rundy 1** (audyt 10.10.2026, S4). Gdy praca jest
+    w ``MODERATION`` albo ma żywy przydział rundy 2, recenzent rundy 1 już wie, że się rozjechał –
+    a poprawka bez tej bramki pozwalała mu w kilku próbach „trafić” w ocenę drugiego recenzenta,
+    co znosiło rozjazd i anulowało rozjemcę. Od tej chwili rozjazd rozstrzyga procedura
+    (rozjemca albo koordynator: ``resolve_moderation``, ``set_review_score``), a nie ponowne
+    zgadywanie. Koordynator ma swoje narzędzia i ta bramka go nie dotyczy.
     """
     if review.status == ReviewStatus.CANCELLED:
         return "REVIEW_CANCELLED"
@@ -1379,7 +1388,18 @@ def revision_block_reason(review: Review) -> str | None:
         return None
     if grade is not None and grade.method != GradeMethod.CONSENSUS:
         return "GRADE_DECIDED"
+    if review.submission.status == SubmissionStatus.MODERATION or _has_live_tiebreak(review.submission_id):
+        return "IN_MODERATION"
     return None
+
+
+def _has_live_tiebreak(submission_id: int) -> bool:
+    """Czy praca ma nieanulowany przydział rundy 2 – znak, że rozjazd jest już w procedurze."""
+    return (
+        Review.objects.filter(submission_id=submission_id, round=ROUND_TIEBREAK)
+        .exclude(status=ReviewStatus.CANCELLED)
+        .exists()
+    )
 
 
 def withdrawal_block_reason(review: Review) -> str | None:
@@ -1523,7 +1543,9 @@ def revise_review(
             # Rozjazd zniknął wraz z poprawką, więc wiszący przydział rozjemczy traci przedmiot
             # jeszcze **przed** utworzeniem oceny uzgodnionej. Inaczej anulowałby go
             # ``_create_final_grade`` z powodem „rozstrzygnięta moderacja”, a rozjemca ma w aktach
-            # zobaczyć prawdziwą przyczynę: recenzent poprawił swoją ocenę.
+            # zobaczyć prawdziwą przyczynę: recenzent poprawił swoją ocenę. Od audytu S4 poprawka
+            # przy żywym przydziale rundy 2 jest odrzucana w ``revision_block_reason``, więc ta
+            # gałąź zostaje jako bezpiecznik dla danych sprzed zmiany, a nie zwykła droga.
             _cancel_pending_tiebreak(
                 submission, reason="REVIEW_REVISED", actor=review.reviewer.user, request=request
             )
@@ -1603,9 +1625,26 @@ def set_review_score(review: Review, score, *, actor=None, request=None, rationa
     i kolejka moderacji zgadzały się z nowym stanem ocen. Praca, która ma już ocenę uzgodnioną,
     jest z tego wyłączona: zmiana oceny końcowej po fakcie to osobna, świadoma czynność
     (``override_final_grade``) – wymaga uzasadnienia i ma własny tryb w tabeli wyników.
+
+    Dwie bramki mimo „braku bramki stanu” (audyt 10.10.2026, niskie):
+
+    - **recenzja anulowana** – wpisanie jej punktów przestawiało ją na ``SUBMITTED``, czyli
+      wskrzeszało przydział odebrany (np. za konflikt interesów) i wciągało go z powrotem do
+      konsensusu. Ocenę odebranej pracy zmienia się oceną końcową, nie cudzą recenzją,
+    - **ogłoszone wyniki** – ta sama reguła, co przy poprawce recenzenta: tabela jest dokumentem
+      z chwili publikacji. Korekta po ogłoszeniu idzie przez ``override_final_grade``, który
+      zgłasza ``results_stale`` i każe przeliczyć tabelę jawnie.
     """
     submission = _locked_submission(review.submission_id)
     review = Review.objects.select_related("reviewer", "reviewer__user").get(pk=review.pk)
+    if review.status == ReviewStatus.CANCELLED:
+        raise _conflict(
+            "Ta recenzja została odebrana – jej punktów nie można już wpisać. "
+            "Ocenę pracy zmienisz korektą oceny końcowej.",
+            "REVIEW_CANCELLED",
+        )
+    if _results_published(submission.entry.stage):
+        raise _conflict(GRADE_CHANGE_BLOCK_MESSAGES["RESULTS_PUBLISHED"], "RESULTS_PUBLISHED")
     score = _assert_score_in_scale(submission.entry.stage, score, submission.problem)
 
     previous = review.score
@@ -1688,8 +1727,11 @@ def override_final_grade(submission: Submission, score, *, rationale: str, actor
 
     cancelled = _cancel_pending_reviews(locked, reason="COORDINATOR_OVERRIDE", actor=actor, request=request)
     # Praca już finalna zostaje finalna: cofnięcie jej do oceny wstępnej otwierałoby z powrotem
-    # okno reklamacji dla sprawy, którą etap ma dawno za sobą.
-    if locked.status != SubmissionStatus.FINAL:
+    # okno reklamacji dla sprawy, którą etap ma dawno za sobą. Praca w reklamacji zostaje
+    # w reklamacji (audyt 10.10.2026, niskie): przestawienie jej na ``GRADED_PROVISIONAL``
+    # zamykało sprawę bez decyzji komisji odwoławczej, a ``decide_appeal`` rozstrzygał potem
+    # reklamację pracy, która formalnie już jej nie miała.
+    if locked.status not in (SubmissionStatus.FINAL, SubmissionStatus.APPEALED):
         locked.status = SubmissionStatus.GRADED_PROVISIONAL
         locked.save(update_fields=["status"])
 
@@ -1910,17 +1952,30 @@ def resolve_moderation(
 # --- zapytania dla API ------------------------------------------------------------------------
 
 
-def reviews_for_reviewer(member: CommitteeMember | None, competition=None):
+def reviews_for_reviewer(
+    member: CommitteeMember | None, competition=None, *, include_cancelled: bool = False
+):
     """Przydziały recenzenta. Filtr jest w queryseckie, nie w widoku (PROJEKT.md 2.3).
 
     Zakres konkursu idzie **przed** przydziałem (§ 3.5): recenzent w komitetach dwóch olimpiad ma
     pod domeną A widzieć wyłącznie kolejkę A. Samo ``for_reviewer`` tego nie załatwia – profil
     komitetu jest dziś jeden na konto, więc bez zawężenia obie kolejki zlałyby się w jedną.
+
+    **Recenzje anulowane domyślnie wypadają** (audyt 10.10.2026, S1). Odebranie pracy
+    (``unassign_reviewer``, np. przy konflikcie interesów) ma odebrać dostęp – do pliku, do
+    porównania z cudzymi ocenami, do materiału rozjemczego i do narzędzi przy pracy. Dopóki ten
+    queryset oddawał także ``CANCELLED``, każdy widok zbudowany na ``get_object_or_404(...)``
+    wpuszczał recenzenta, któremu pracę zabrano. Odwrót jest więc domyślnie zamknięty, a dwa
+    ekrany, które **mają** pokazywać odebrane prace (lista z zakładką „Anulowane” i strona recenzji
+    z komunikatem o odebraniu, bez pliku), proszą o nie jawnie ``include_cancelled=True``.
     """
     from apps.competitions.scoping import scope_to_competition
 
+    queryset = Review.objects.for_reviewer(member)
+    if not include_cancelled:
+        queryset = queryset.exclude(status=ReviewStatus.CANCELLED)
     return (
-        scope_to_competition(Review.objects.for_reviewer(member), competition)
+        scope_to_competition(queryset, competition)
         .select_related(
             "submission",
             "submission__entry",
@@ -2220,6 +2275,15 @@ def dispute_context(review: Review) -> list[dict]:
         raise DomainError(
             "Materiał rozjemczy jest dostępny wyłącznie dla recenzji rundy 2.",
             "NOT_A_TIEBREAK_REVIEW",
+            http.HTTP_404_NOT_FOUND,
+        )
+    if review.status == ReviewStatus.CANCELLED:
+        # Rozjemca odsunięty od sprawy (odebrana praca, rozjazd rozstrzygnięty inaczej) nie ma już
+        # podstawy, żeby czytać cudze oceny i argumentację (audyt 10.10.2026, S1). 404, a nie 403 –
+        # tak samo jak dla rundy 1: odpowiedź nie potwierdza, że materiał istnieje.
+        raise DomainError(
+            "Materiał rozjemczy nie jest dostępny dla odebranej recenzji.",
+            "REVIEW_CANCELLED",
             http.HTTP_404_NOT_FOUND,
         )
     rows = Review.objects.filter(

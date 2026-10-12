@@ -6,7 +6,7 @@
 #   scripts/tests/djcms_routing_test.sh
 # Wołany też na końcu scripts/tests/render_caddyfile_test.sh (gdy Docker jest dostępny).
 #
-# Jak: jeden kontener `caddy:2.8` (obraz usługi `proxy` z docker-compose.yml), w nim
+# Jak: jeden kontener z Caddym (obraz usługi `proxy` z docker-compose.yml, dziś caddy:2.10), w nim
 # - Caddy z wygenerowanym plikiem (DJCMS_ENABLED=1, PLATFORM_SUBDOMAINS=1, EXTRA_DOMAINS
 #   „fizyczna.test www.fizyczna.test”, SITE_DOMAIN=olimpiada.test) + opcje globalne `local_certs`
 #   i `skip_install_trust` (certyfikaty z własnego CA Caddy'ego, bez sieci) – to jedyna zmiana
@@ -102,6 +102,11 @@ for H in L F E; do
     "$H-internal-api|$u/internal/djcms/v2/competitions|djcms_view=dj|-|404|404"
     "$H-prefix-page|$u/druga/zadania/|-|-|web+V|djcms:primary+V"
     "$H-prefix-page-dj|$u/druga/|djcms_view=dj|-|djcms:preview+V|djcms:primary+V"
+    # Filtr ciasteczek do djcms (audyt 10.10.2026, S20): sesja i CSRF web nie dochodzą do djcms –
+    # treść nagłówka `Cookie` po stronie upstreamu sprawdza pętla po `cookie=[…]` niżej.
+    "$H-sess-public|$u/zadania/|__Host-sessionid=S1; __Host-csrftoken=C1; djcms_sessionid=D1; djcms_view=dj; sessionid=S0|-|djcms:preview+V|djcms:primary+V"
+    "$H-sess-own|$u/djcms/admin/|__Host-sessionid=S1; djcms_csrftoken=DC; csrftoken=C0; xdjcms_x=X0|-|djcms:preview|djcms:primary"
+    "$H-sess-app|$u/login/|__Host-sessionid=S1; djcms_view=dj|-|web|web"
   )
 done
 # Konkurs pod prefiksem ścieżki – wyłącznie na domenie głównej (DJ-02 D3): `/<prefiks>/<adres
@@ -168,7 +173,7 @@ stub() {  # stub <nazwa> <adres>
 	handle {
 		# Upstream z własnym `Vary` (jak Django) – `Vary: Cookie` od proxy ma zostać dopisane, nie zastąpione.
 		header Vary Accept-Language
-		respond "upstream=$1 mode=[{http.request.header.X-Djcms-Mode}] uri={uri}" 200
+		respond "upstream=$1 mode=[{http.request.header.X-Djcms-Mode}] uri={uri} cookie=[{http.request.header.Cookie}]" 200
 	}
 }
 EOF
@@ -281,6 +286,22 @@ for p in 0 1; do
     rc=$?
     check "PRIMARY=$p $id: ${url#https://} [${cookie}] [X-Djcms-Mode: ${xmode}] → $exp${why:+ – $why}" $rc
     [ $rc -eq 0 ] || bad=1
+  done
+  # Co z nagłówka `Cookie` doszło do upstreamu (atrapa odsyła go jako `cookie=[…]`): djcms –
+  # wyłącznie `djcms_*` (bez sesji i CSRF web, bez nazw z `djcms_` w środku), web – komplet.
+  for H in L F E; do
+    for spec in "sess-public|D1 dj|S1 C1 S0" "sess-own|DC|S1 C0 X0" "sess-app|S1 dj|-"; do
+      IFS='|' read -r rid want deny <<<"$spec"
+      got="$(section "$WORK/p$p.out" "$H-$rid" | grep -m1 -o 'cookie=\[[^]]*\]' || true)"
+      ok=0
+      [ -n "$got" ] || ok=1
+      for v in $want; do case "$got" in *"=$v;"*|*"=$v]"*) ;; *) ok=1 ;; esac; done
+      if [ "$deny" != "-" ]; then
+        for v in $deny; do case "$got" in *"=$v"*) ok=1 ;; esac; done
+      fi
+      check "PRIMARY=$p $H-$rid: do upstreamu doszło $got (są: $want; nie ma: $deny)" $ok
+      [ $ok -eq 0 ] || bad=1
+    done
   done
   if [ "$bad" = 1 ]; then
     printf '     --- ostrzeżenia i błędy Caddy'"'"'ego (PRIMARY=%s):\n' "$p"

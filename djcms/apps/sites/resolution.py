@@ -23,6 +23,7 @@ nie zna – a wtedy właściwą odpowiedzią jest odświeżenie rejestru, nie tr
 from __future__ import annotations
 
 from dataclasses import dataclass
+from urllib.parse import urlsplit
 
 from django.db.models import Exists, OuterRef, Q
 
@@ -30,6 +31,31 @@ from .models import CompetitionHost, CompetitionSite, RoutingMode
 
 #: Hosty, pod którymi bez własnego wpisu odpowiada konkurs domyślny (reguła 2).
 LOCAL_HOSTS = frozenset({"localhost", "127.0.0.1", "djcms"})
+
+
+def is_platform_host(host: str) -> bool:
+    """Czy host należy do platformy – cel przekierowania, który wolno ustawić redaktorowi konkursu.
+
+    Platforma to ``ALLOWED_HOSTS`` djcms (bez ``*``; z tych samych zmiennych co aplikacja główna:
+    ``SITE_DOMAIN``, ``EXTRA_DOMAINS``, subdomeny platformy) oraz hosty i adresy publiczne
+    **aktywnych** konkursów z rejestru. Konkurs wygaszony się nie liczy: jego domena mogła wygasnąć
+    i trafić do kogoś innego.
+    """
+    from django.conf import settings
+    from django.http.request import validate_host
+
+    host = normalise_host(host)
+    if not host:
+        return False
+    if validate_host(host, [pattern for pattern in settings.ALLOWED_HOSTS if pattern != "*"]):
+        return True
+    if CompetitionHost.objects.filter(host=host, competition__is_active=True).exists():
+        return True
+    origins = CompetitionSite.objects.filter(is_active=True).exclude(public_origin="")
+    return any(
+        normalise_host(urlsplit(origin).netloc) == host
+        for origin in origins.values_list("public_origin", flat=True)
+    )
 
 
 @dataclass(frozen=True)

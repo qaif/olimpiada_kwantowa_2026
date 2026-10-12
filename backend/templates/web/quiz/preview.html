@@ -46,7 +46,7 @@
     </div>
     <p class="quiz-question__text">{{ question.text|linebreaksbr }}</p>
     {% if question.image %}
-      <p><img class="quiz-question__image" src="{{ question.image.url }}" alt="" loading="lazy"></p>
+      <p><img class="quiz-question__image" src="{% url 'web:coordinator-stage-quiz-preview-image' stage.pk question.id %}" alt="" loading="lazy"></p>
     {% endif %}
     {% if question.is_choice %}
       <fieldset class="quiz-options" disabled>

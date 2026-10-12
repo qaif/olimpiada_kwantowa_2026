@@ -39,8 +39,12 @@ class UserAdmin(DjangoUserAdmin):
             _("Permissions"),
             {"fields": ("is_active", "is_staff", "is_superuser", "groups", "user_permissions")},
         ),
-        (_("Important dates"), {"fields": ("last_login", "date_joined")}),
+        (_("Important dates"), {"fields": ("last_login", "date_joined", "email_verified_at", "blocked_at")}),
     )
+    # Tylko do odczytu: ``blocked_at`` wyznacza ``User.save`` z przejścia ``is_active`` (audyt
+    # 10.10.2026, S5) – odznaczenie „aktywne” blokuje, zaznaczenie odblokowuje. Ręczna edycja daty
+    # rozjechałaby ją z ``is_active``; potwierdzenie adresu ustawia wyłącznie aktywacja.
+    readonly_fields = ("email_verified_at", "blocked_at")
     add_fieldsets = ((None, {"classes": ("wide",), "fields": ("email", "password1", "password2")}),)
     actions = ("grant_super_coordinator", "revoke_super_coordinator")
 

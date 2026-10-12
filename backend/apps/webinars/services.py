@@ -1264,13 +1264,16 @@ def erase_for_user(user) -> int:
     return removed
 
 
-def export_for_user(user) -> dict:
-    """Sekcja eksportu danych konta: obecność na webinarach i ustawienie listów."""
-    rows = (
-        WebinarAttendee.objects.filter(user=user)
-        .select_related("webinar__competition")
-        .order_by("first_token_at")
-    )
+def export_for_user(user, competition=None) -> dict:
+    """Sekcja eksportu danych konta: obecność na webinarach i ustawienie listów.
+
+    ``competition`` – eksport z panelu koordynatora: wyłącznie webinary tego konkursu (audyt
+    10.10.2026, S8; ``apps.accounts.data_export.export_payload``).
+    """
+    rows = WebinarAttendee.objects.filter(user=user)
+    if competition is not None:
+        rows = rows.filter(webinar__competition=competition)
+    rows = rows.select_related("webinar__competition").order_by("first_token_at")
     return {
         "listy_o_webinarach": notifications_enabled(user),
         "obecnosc": [

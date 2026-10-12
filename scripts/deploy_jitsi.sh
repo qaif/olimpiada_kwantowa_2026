@@ -75,7 +75,6 @@ APP_ID=${APP_ID:-olimpiada}
 cd jitsi
 if [ ! -f .env ]; then
   PUBLIC_IP=$(curl -s --max-time 5 https://api.ipify.org || hostname -I | awk '{print $1}')
-  EDGE=$(docker network ls --format '{{.Name}}' | grep -E '_edge$' | head -1)
   cat > .env <<EOF
 PUBLIC_URL=https://meet.$SITE_DOMAIN
 JVB_ADVERTISE_IPS=$PUBLIC_IP
@@ -84,7 +83,6 @@ TZ=Europe/Warsaw
 XMPP_DOMAIN=meet.jitsi
 JICOFO_AUTH_PASSWORD=$(gen 32)
 JVB_AUTH_PASSWORD=$(gen 32)
-EDGE_NETWORK=${EDGE:-olimpiada_edge}
 EOF
   chmod 600 .env
   echo "utworzono jitsi/.env (PUBLIC_URL=https://meet.$SITE_DOMAIN, JVB_ADVERTISE_IPS=$PUBLIC_IP)"
@@ -125,6 +123,13 @@ add_kv ENABLE_AUTO_OWNER 0
 case "$(envv JITSI_IMAGE_VERSION .env)" in
   ''|stable) set_kv JITSI_IMAGE_VERSION stable-11031; echo "jitsi/.env: JITSI_IMAGE_VERSION=stable-11031" ;;
 esac
+# Sieć proxy ⇄ jitsi-web (audyt bezpieczeństwa 10.10.2026, S20): `jitsi-web` stoi w sieci `<projekt>_meet`
+# portalu (tylko z proxy), a nie w `<projekt>_edge` (obok web, monitora i poczty). Sieć zakłada compose
+# portalu razem z `proxy` – brak = portal sprzed tej zmiany, najpierw scripts/deploy.sh. Dawny wpis
+# EDGE_NETWORK w jitsi/.env jest martwy (deploy/jitsi/docker-compose.jitsi.yml go nie czyta).
+MEET=$(docker network ls --format '{{.Name}}' | grep -E '_meet$' | head -1 || true)
+[ -n "$MEET" ] || { echo "BŁĄD: brak sieci *_meet portalu – najpierw wdróż portal (scripts/deploy.sh), potem Jitsi"; exit 1; }
+set_kv PROXY_MEET_NETWORK "$MEET"
 
 if command -v ufw >/dev/null 2>&1; then
   ufw allow 10000/udp >/dev/null && echo "ufw: 10000/udp otwarty"

@@ -189,7 +189,9 @@ def test_public_rows_carry_the_district_only_next_to_pseudonyms(client):
     """7 (przegląd). Odpowiedź publiczna nie ma pola ``district`` poza trybem CODE."""
     stage = make_stage(problems=1)
     for _ in range(3):
-        graded_entry(stage, [6], school="I LO Gdańsk")
+        # Zgody uczestnika i opiekuna – od audytu S10 inicjały ze szkołą wymagają tych samych zgód
+        # co nazwisko; bez nich wiersz zostałby pod kodem.
+        graded_entry(stage, [6], school="I LO Gdańsk", publish_full_name=True, guardian_consent=True)
     publish_results(stage, None, Anonymization.CODE)
     with_code = client.get(public_url(stage)).data["rows"][0]
     publish_results(stage, None, Anonymization.INITIALS_SCHOOL)

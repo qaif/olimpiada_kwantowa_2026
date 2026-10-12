@@ -235,7 +235,10 @@ def participant_feedback(participant, stage: Stage) -> StageFeedback | None:
     """
     if participant is None:
         return None
-    publication = ResultsPublication.objects.filter(stage=stage).first()
+    # ``live()``: informacja zwrotna wisi na **ogłoszonej** tabeli, a ogłoszenie wycofane nie jest
+    # ogłoszeniem (audyt S2). Z tej funkcji korzysta też eksport danych RODO, więc jedna bramka
+    # zamyka obie drogi.
+    publication = ResultsPublication.objects.live().filter(stage=stage).first()
     if publication is None:
         return None
     entry = (

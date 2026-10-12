@@ -138,6 +138,43 @@ def forward_submission_file(self, file_id: int) -> str:
     return forward_file(file_id)
 
 
+#: Twardy limit czasu liczenia metryk podglądu (liczba stron PDF-a). pypdf to czysty Python, więc
+#: ``SoftTimeLimitExceeded`` przerywa go w miejscu; twardy limit (``time_limit``) jest kilka sekund
+#: później, na wypadek pętli, której sygnał nie dosięgnie.
+PREVIEW_SOFT_TIME_LIMIT_SECONDS = 30
+PREVIEW_TIME_LIMIT_SECONDS = 40
+
+
+@shared_task(
+    soft_time_limit=PREVIEW_SOFT_TIME_LIMIT_SECONDS, time_limit=PREVIEW_TIME_LIMIT_SECONDS, ignore_result=True
+)
+def store_preview_metrics(file_id: int) -> None:
+    """Liczba stron PDF-a i metryki podglądu po czystym skanie – **osobnym** zadaniem z limitem 30 s.
+
+    Do audytu 10.10.2026 liczyło się to w środku ``scan_submission_file``, czyli w workerze, który
+    obsługuje też kolejki ``scan`` i ``mail``, pod ogólnym limitem 30 minut. Spreparowany PDF
+    (zapętlone odwołania, gigantyczna tablica stron) zajmował wtedy proces na pół godziny – skany
+    kolejnych prac i poczta stały. Tutaj zadanie dostaje 30 s, a przekroczenie kończy się brakiem
+    liczby stron (podgląd i tak nie jest warunkiem niczego – ``apps.submissions.preview``).
+
+    Plik czytamy na nowo i tylko w stanie ``CLEAN``: zadanie jedzie przez brokera, a w międzyczasie
+    plik mógł zostać ponownie przeskanowany albo usunięty.
+    """
+    from celery.exceptions import SoftTimeLimitExceeded
+
+    from .preview import store_page_count
+
+    submission_file = SubmissionFile.objects.filter(pk=file_id, av_status=AvStatus.CLEAN).first()
+    if submission_file is None:
+        return
+    try:
+        store_page_count(submission_file)
+    except SoftTimeLimitExceeded:
+        logger.warning(
+            "Metryki podglądu pliku %s przerwane po %s s.", file_id, PREVIEW_SOFT_TIME_LIMIT_SECONDS
+        )
+
+
 @shared_task
 def close_due_stages() -> list[int]:
     """Beat co 60 s: etapy po ``deadline_at + grace_seconds`` dostają LOCKED i znacznik ``closed_at``.
@@ -153,6 +190,30 @@ def close_due_stages() -> list[int]:
     for competition in each_competition():
         closed.extend(close_due_stages_service(now=now, competition=competition))
     return closed
+
+
+@shared_task(ignore_result=True)
+def finalise_closed_stage_quiz(stage_id: int) -> int:
+    """Domyka trwające podejścia testu online etapu zamkniętego ręcznie – po tolerancji sieciowej.
+
+    Kolejkuje je ``close_stage_now`` z opóźnieniem ``SUBMIT_GRACE_SECONDS`` (+ zapas): do tej
+    chwili odpowiedź wysłana przed zamknięciem jeszcze się liczy (``accepts_answers_at``).
+    ``now`` nie wcześniej niż koniec tolerancji, bo ``finalise_overdue`` domyka podejścia etapu
+    zamkniętego dopiero za nią – a worker w trybie ``ALWAYS_EAGER`` (testy) albo po przestawieniu
+    zegara mógłby uruchomić zadanie wcześniej i nie domknąć niczego. Idempotentne: podejście już
+    zakończone ``finalise_overdue`` pomija.
+    """
+    from datetime import timedelta
+
+    from apps.competitions.models import Stage
+    from apps.quiz.models import SUBMIT_GRACE_SECONDS
+    from apps.quiz.services import finalise_overdue
+
+    stage = Stage.objects.filter(pk=stage_id).first()
+    if stage is None or stage.closed_at is None:
+        return 0
+    after_grace = stage.closed_at + timedelta(seconds=SUBMIT_GRACE_SECONDS + 1)
+    return finalise_overdue(stage=stage, now=max(timezone.now(), after_grace))
 
 
 @shared_task

@@ -424,20 +424,18 @@ def test_no_wipe_without_duplicates_or_with_separate_domain(settings, main_host)
         assert cookieguard.shared_parent_domains(host, "lab.olimpiadakwantowa.pl") == ["olimpiadakwantowa.pl"]
 
 
-def test_production_cookie_names_get_host_prefix_only_with_lab_host_and_tls():
-    from config.settings.base import host_prefixed_cookie_name
-
-    assert host_prefixed_cookie_name("sessionid", lab_host=LAB, secure=True) == "__Host-sessionid"
-    assert host_prefixed_cookie_name("csrftoken", lab_host=LAB, secure=True) == "__Host-csrftoken"
-    assert host_prefixed_cookie_name("sessionid", lab_host="", secure=True) == "sessionid"
-    # ``__Host-`` bez ``Secure`` przeglądarka odrzuca – dev bez TLS zostaje przy zwykłej nazwie.
-    assert host_prefixed_cookie_name("sessionid", lab_host=LAB, secure=False) == "sessionid"
+def test_production_cookie_names_get_host_prefix_with_tls_regardless_of_the_lab_host():
+    """Po audycie 10.10.2026 (S19) prefiks ``__Host-`` obowiązuje przy każdym ``Secure`` – także bez
+    ``NOTEBOOK_LAB_HOST`` (QC-02 § 5 dostawał go dopiero z laboratorium). Wartości z działających
+    ustawień sprawdza ``config/tests/test_production_settings.py::test_host_prefixed_cookies_when_secure``;
+    tu – że production.py nie uzależnia nazwy od hosta laboratorium."""
     source = (Path(django_settings.BASE_DIR) / "config" / "settings" / "production.py").read_text(
         encoding="utf-8"
     )
     compact = "".join(source.split())
-    assert 'SESSION_COOKIE_NAME=host_prefixed_cookie_name("sessionid",lab_host=NOTEBOOK_LAB_HOST' in compact
-    assert 'CSRF_COOKIE_NAME=host_prefixed_cookie_name("csrftoken",lab_host=NOTEBOOK_LAB_HOST' in compact
+    assert 'ifSESSION_COOKIE_SECURE:SESSION_COOKIE_NAME="__Host-sessionid"' in compact
+    assert 'ifCSRF_COOKIE_SECURE:CSRF_COOKIE_NAME="__Host-csrftoken"' in compact
+    assert "lab_host=NOTEBOOK_LAB_HOST" not in compact
 
 
 def test_host_prefixed_cookie_names_work_end_to_end(settings, main_host, participant):

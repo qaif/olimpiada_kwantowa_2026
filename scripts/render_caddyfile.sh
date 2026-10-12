@@ -51,6 +51,8 @@
 # działająca produkcja – dostaje dokładnie tę konfigurację, którą ma, a nie „taką samą”. Wyłączony
 # `DJCMS_ENABLED` nie zmienia też ani bajtu wyniku przy **dowolnych** wartościach dwóch pozostałych
 # zmiennych (ten sam test: wynik z włączonym minus wstawki djcms = wynik z wyłączonym).
+# Pusty `ADMIN_ALLOWED_IPS` (domyślnie) też nie zmienia ani bajtu – odmowa paneli dochodzi wyłącznie
+# przy niepustej liście.
 #
 # Użycie:
 #   scripts/render_caddyfile.sh                  # EXTRA_DOMAINS ze środowiska albo z ./.env
@@ -62,6 +64,7 @@
 #   NOTEBOOK_LAB_HOST=lab.olimpiadakwantowa.pl scripts/render_caddyfile.sh
 #   CADDYFILE_OUT=/tmp/x scripts/render_caddyfile.sh
 #   DJCMS_ROUTES_ENV=/inny/app_routes.env …      # kontrakt tras (domyślnie backend/djcms_contract/)
+#   ADMIN_ALLOWED_IPS="203.0.113.7 198.51.100.0/24" scripts/render_caddyfile.sh   # /admin/, /cms/ tylko stąd
 #
 # Plik wynikowy jest zapisywany **w miejscu** (`cat > "$OUT"`, ten sam i-węzeł). Proxy montuje dziś
 # katalog `caddy/` i widzi także plik zastąpiony nowym, ale kontener sprzed tej zmiany (montaż
@@ -134,6 +137,47 @@ if [ "$PRIMARY_ON" = "1" ] && [ "$DJCMS_ON" != "1" ]; then
   echo "render_caddyfile: DJCMS_PRIMARY=1 wymaga DJCMS_ENABLED=1 (strony publiczne do djcms, którego nie ma)" >&2
   exit 1
 fi
+
+# `ADMIN_ALLOWED_IPS` (audyt bezpieczeństwa 10.10.2026, S18) – opcjonalna lista adresów/sieci CIDR
+# (spacje albo przecinki), z których wolno otworzyć panele administracyjne: `/admin/` (Django),
+# `/cms/` (Wagtail) – także pod prefiksem konkursu na domenie głównej (`/<prefiks>/admin/`: warstwa
+# konkursu zdejmuje prefiks, zanim urlconf zobaczy adres) i `/djcms/admin/` (panel django CMS).
+# Z każdego innego adresu 403 od Caddy'ego, zanim żądanie dotrze do aplikacji – czyli i do
+# formularza logowania tych paneli. Pusta (domyślnie) = bez ograniczeń i wynik generatora co do
+# bajtu taki jak bez tej zmiennej. `remote_ip` = adres, z którego przyszło połączenie TCP: Caddy
+# stoi na brzegu (bez CDN-u przed nim), więc to jest adres klienta. Ten sam odczyt co wyżej:
+# środowisko wygrywa z `.env`. Wartość ląduje w konfiguracji jako składnia, więc każdy element
+# musi wyglądać jak adres IPv4/IPv6 z opcjonalną maską – inaczej odmowa (kod 1).
+if [ -z "${ADMIN_ALLOWED_IPS+x}" ] && [ -f "$ROOT/.env" ]; then
+  ADMIN_ALLOWED_IPS="$(sed -n 's/^ADMIN_ALLOWED_IPS=//p' "$ROOT/.env" | tail -n 1 | tr -d '\r\042\047')"
+fi
+ADMIN_IPS=""
+IP_RE='^[0-9A-Fa-f:.]+(/[0-9]{1,3})?$'
+# `read -a`, a nie `for ip in $(…)`: bez rozwijania `*` z wartości w nazwy plików.
+IFS=', ' read -r -a ADMIN_IP_LIST <<<"${ADMIN_ALLOWED_IPS:-}"
+for ip in ${ADMIN_IP_LIST[@]+"${ADMIN_IP_LIST[@]}"}; do
+  if ! [[ $ip =~ $IP_RE ]] || ! [[ $ip =~ [0-9] ]] || ! [[ $ip =~ [.:] ]]; then
+    echo "render_caddyfile: „$ip” w ADMIN_ALLOWED_IPS nie wygląda na adres IP ani sieć CIDR" >&2
+    exit 1
+  fi
+  ADMIN_IPS="${ADMIN_IPS:+$ADMIN_IPS }$ip"
+done
+
+admin_guard() {
+  # Odmowa paneli administracyjnych spoza ADMIN_ALLOWED_IPS – w każdym bloku aplikacji, zaraz po
+  # `import maintenance` (przerwa techniczna zasłania wszystko, także panele). Nazwany matcher +
+  # `handle`, a nie samo `respond`: w kolejności dyrektyw Caddy'ego `respond` idzie po `handle`
+  # (komentarz przy internal_guard).
+  printf '%s\n' \
+    '    # Panele administracyjne wyłącznie z ADMIN_ALLOWED_IPS (scripts/render_caddyfile.sh) – nie edytuj tego pliku.' \
+    '    @admin_denied {' \
+    '        path_regexp ^/(?:[^/]+/)?(?:admin|cms)(?:/.*)?$' \
+    "        not remote_ip $ADMIN_IPS" \
+    '    }' \
+    '    handle @admin_denied {' \
+    '        respond 403' \
+    '    }'
+}
 
 # `LIVEKIT_PROXY` (zadanie WEB-01, docs/OPERACJE.md § 36.2) – sygnalizacja LiveKit na tym samym
 # hoście (wariant (b)): blok `live.{$SITE_DOMAIN}` → `livekit:7880`. Ten sam odczyt i ta sama walidacja,
@@ -305,6 +349,27 @@ djcms_section() {
   # - Ciasteczko `djcms_view` przez `{http.request.cookie.…}` (parser ciasteczek Go), a nie
   #   wyrażeniem na surowym nagłówku `Cookie`: wartość w cudzysłowie i kilka nagłówków `Cookie`
   #   działają tak samo, jak odczyta je djcms. Ciasteczko nie jest granicą bezpieczeństwa.
+  # - Do djcms idą WYŁĄCZNIE ciasteczka `djcms_*` (audyt bezpieczeństwa 10.10.2026, S20): djcms
+  #   stoi na tym samym hoście i ścieżce `/` co aplikacja główna, więc przeglądarka wysyła mu także
+  #   sesję i token CSRF web (`__Host-sessionid`, `__Host-csrftoken`, dawniej `sessionid`,
+  #   `csrftoken`) każdego zalogowanego – także superadministratora – przy każdej odsłonie strony
+  #   publicznej. RCE w djcms (Pillow/easy-thumbnails na obrazach redaktorów) zbierałoby je wtedy
+  #   hurtem. djcms ma własne ciasteczka z prefiksem: `djcms_sessionid`, `djcms_csrftoken`,
+  #   `djcms_language`, `djcms_view` (djcms/config/settings/base.py, djcms/apps/pages/preview.py).
+  #   `header_up Cookie <wyrażenie> <zamiana>` = zamiana wyrażeniem regularnym (RE2) w wartości
+  #   nagłówka; HTTP/2 i HTTP/3 i tak sklejają kilka nagłówków `Cookie` w jeden. Każda para
+  #   `nazwa=wartość` (z separatorem `; `) zamienia się w `$1;`: dla `djcms_…` – w siebie, dla
+  #   każdej innej – w samo `;` (pierwsza alternatywa wygrywa, więc `djcms_` musi być na POCZĄTKU
+  #   nazwy; `xdjcms_a` wypada). Przykład (sprawdzony na caddy:2.10, 10.10.2026):
+  #     wejście:  `__Host-sessionid=s; csrftoken=c; djcms_sessionid=x; djcms_view=dj`
+  #     wyjście:  `;;djcms_sessionid=x;djcms_view=dj;`
+  #     wejście:  `sessionid=abc`  →  wyjście: `;`
+  #   Puste fragmenty między średnikami parser ciasteczek Django pomija, więc djcms widzi dokładnie
+  #   `{djcms_sessionid: x, djcms_view: dj}`. Ubocznie wypada też `messages` (wiadomości jednorazowe
+  #   Django): djcms i tak nie umiał odczytać tych z web (inny SECRET_KEY) – a kasował je – a swoje
+  #   powinien trzymać w sesji (MESSAGE_STORAGE, poza tym plikiem).
+  # - `request_buffers` przy każdym `reverse_proxy` (S16) – uzasadnienie przy `{$SITE_DOMAIN}`
+  #   w deploy/Caddyfile: treść żądania w całości u Caddy'ego, zanim zajmie wątek gunicorna.
   local app_re="$1" own_re="$2" public desc
   if [ "$PRIMARY_ON" = "1" ]; then
     public='    @djcms_public expression `{http.request.cookie.djcms_view} != "wagtail"`'
@@ -332,14 +397,18 @@ djcms_section() {
     "    @djcms_own path_regexp $own_re" \
     '    handle @djcms_own {' \
     '        reverse_proxy djcms:8000 {' \
+    '            request_buffers {$MAX_UPLOAD_MB}MiB' \
     '            header_up X-Forwarded-Proto {scheme}' \
     '            header_up X-Real-IP {remote_host}' \
     "            header_up X-Djcms-Mode $DJCMS_MODE" \
+    '            # Wyłącznie ciasteczka djcms_* (sesja web nie wychodzi poza web) – scripts/render_caddyfile.sh.' \
+    '            header_up Cookie "(?:(djcms_[^;]*)|[^;]*)(?:; *|$)" "$1;"' \
     '        }' \
     '    }' \
     "    @djcms_app path_regexp $app_re" \
     '    handle @djcms_app {' \
     '        reverse_proxy web:8000 {' \
+    '            request_buffers {$MAX_UPLOAD_MB}MiB' \
     '            header_up X-Forwarded-Proto {scheme}' \
     '            header_up X-Real-IP {remote_host}' \
     '        }' \
@@ -347,9 +416,12 @@ djcms_section() {
     "$public" \
     '    handle @djcms_public {' \
     '        reverse_proxy djcms:8000 {' \
+    '            request_buffers {$MAX_UPLOAD_MB}MiB' \
     '            header_up X-Forwarded-Proto {scheme}' \
     '            header_up X-Real-IP {remote_host}' \
     "            header_up X-Djcms-Mode $DJCMS_MODE" \
+    '            # Wyłącznie ciasteczka djcms_* (sesja web nie wychodzi poza web) – scripts/render_caddyfile.sh.' \
+    '            header_up Cookie "(?:(djcms_[^;]*)|[^;]*)(?:; *|$)" "$1;"' \
     '        }' \
     '    }' \
     '    # <<< django CMS'
@@ -364,7 +436,7 @@ if [ "$DJCMS_ON" = "1" ]; then
 fi
 
 tmp="$(mktemp "${TMPDIR:-/tmp}/caddyfile.XXXXXX")"
-trap 'rm -f "$tmp" "$tmp.sub" "$tmp.sec"' EXIT
+trap 'rm -f "$tmp" "$tmp.sub" "$tmp.sec" "$tmp.adm"' EXIT
 cat "$SRC" > "$tmp"
 
 if [ "$GUARD_ON" = "1" ]; then
@@ -415,6 +487,8 @@ if [ "$GUARD_ON" = "1" ]; then
   # opcji `www.`, `meet.`, `monitor.`, `dj.`, `live.`, `errors.`, `lab.` nie miałyby certyfikatu
   # wcale (ich polityka nie jest on-demand) – sprawdzone na żywym caddy:2.10 w djcms_routing_test.sh.
   # Domena główna i `<domena>:9000` nie są pod `*.`, opcja jest tam bez skutku, ale nieszkodliwa.
+  # Caddy 2.8 przeczytałby to słowo jako adres e-mail ACME – dlatego obraz `proxy` jest przypięty do 2.10
+  # (docker-compose.yml, skrót `@sha256:`; audyt 10.10.2026).
   WHY1="$why1" WHY2="$why2" WHY3="$why3" awk -v want_opts="$SUBDOMAINS_ON" '
     function tls_pin() {
       print "    # Zwykły certyfikat (nie on-demand bloku *.) – scripts/render_caddyfile.sh, PLATFORM_SUBDOMAINS=1."
@@ -494,6 +568,28 @@ if [ "$DJCMS_ON" = "1" ]; then
   cat "$tmp.sub" > "$tmp"
 fi
 
+if [ -n "$ADMIN_IPS" ]; then
+  # Odmowa paneli w bloku domeny głównej: zaraz po jego `import maintenance` (jedynym w pliku
+  # źródłowym – sprawdza to render_caddyfile_test.sh). Brak kotwicy zatrzymuje generator: konfiguracja
+  # „z ograniczeniem” bez ograniczenia w bloku, który go najbardziej potrzebuje, byłaby gorsza niż błąd.
+  admin_guard > "$tmp.adm"
+  awk -v adm="$tmp.adm" '
+    BEGIN { done = 0 }
+    {
+      print
+      if (!done && $0 == "    import maintenance") {
+        while ((getline line < adm) > 0) print line
+        done = 1
+      }
+    }
+    END { if (!done) exit 3 }
+  ' "$tmp" > "$tmp.sub" || {
+    echo "render_caddyfile: nie znalazłem kotwicy dla ADMIN_ALLOWED_IPS (\`    import maintenance\` w bloku {\$SITE_DOMAIN}) w $SRC – popraw generator razem z plikiem źródłowym" >&2
+    exit 1
+  }
+  cat "$tmp.sub" > "$tmp"
+fi
+
 extra_force_automate() {
   # Bloki z EXTRA_DOMAINS przy PLATFORM_SUBDOMAINS=1: `force_automate` z tego samego powodu co
   # w `tls_pin` wyżej (Caddy 2.10 pomija nazwy pokryte przez `*.{$SITE_DOMAIN}`). Generator nie zna
@@ -539,8 +635,9 @@ EOF
     # Odmowa `/internal/*` tylko przy włączonym przełączniku (PLATFORM_SUBDOMAINS albo
     # DJCMS_ENABLED): przy wyłączonych ten plik ma być kopią `deploy/Caddyfile` co do bajtu.
     if [ "$GUARD_ON" = "1" ]; then internal_guard >> "$tmp"; fi
+    echo "    import maintenance" >> "$tmp"
+    if [ -n "$ADMIN_IPS" ]; then admin_guard >> "$tmp"; fi
     cat >> "$tmp" <<EOF
-    import maintenance
     import notebook_lab
     encode gzip zstd
     request_body {
@@ -556,6 +653,7 @@ EOF
     cat >> "$tmp" <<EOF
     handle {
         reverse_proxy web:8000 {
+            request_buffers {\$MAX_UPLOAD_MB}MiB
             header_up X-Forwarded-Proto {scheme}
             header_up X-Real-IP {remote_host}
         }
@@ -592,8 +690,9 @@ if [ "$SUBDOMAINS_ON" = "1" ]; then
     }
 EOF
   internal_guard >> "$tmp"
+  echo "    import maintenance" >> "$tmp"
+  if [ -n "$ADMIN_IPS" ]; then admin_guard >> "$tmp"; fi
   cat >> "$tmp" <<'EOF'
-    import maintenance
     import notebook_lab
     encode gzip zstd
     request_body {
@@ -608,6 +707,7 @@ EOF
   cat >> "$tmp" <<'EOF'
     handle {
         reverse_proxy web:8000 {
+            request_buffers {$MAX_UPLOAD_MB}MiB
             header_up X-Forwarded-Proto {scheme}
             # Adres klienta dla audytu; backend ufa temu nagłówkowi tylko, gdy REMOTE_ADDR jest adresem proxy.
             header_up X-Real-IP {remote_host}
@@ -798,7 +898,9 @@ if [ -n "$LAB_HOST" ]; then
         file_server
     }
     handle /notebook-starter/* {
+        # Treść żądania w całości u Caddy'ego, zanim zajmie wątek gunicorna (audyt S16) – jak w blokach aplikacji.
         reverse_proxy web:8000 {
+            request_buffers 1MiB
             header_up X-Forwarded-Proto {scheme}
             header_up X-Real-IP {remote_host}
         }
@@ -827,6 +929,7 @@ cat "$tmp" > "$OUT"
 extras=""
 [ "$SUBDOMAINS_ON" = "1" ] && extras="$extras, subdomeny platformy: włączone"
 [ "$DJCMS_ON" = "1" ] && extras="$extras, dj. (django CMS): włączone, DJCMS_PRIMARY=$PRIMARY_ON ($DJCMS_MODE)"
+[ -n "$ADMIN_IPS" ] && extras="$extras, panele /admin/ i /cms/ tylko z: $ADMIN_IPS"
 [ "$LIVEKIT_ON" = "1" ] && extras="$extras, live. (LiveKit): włączone"
 [ "$ERRORS_ON" = "1" ] && extras="$extras, errors. (GlitchTip): włączone"
 [ -n "$LAB_HOST" ] && extras="$extras, laboratorium notatników: $LAB_HOST"

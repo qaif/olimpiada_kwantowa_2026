@@ -25,6 +25,7 @@ from apps.accounts.models import SchoolSupervisor
 from apps.competitions.models import Edition, Stage, StageEntry
 from apps.competitions.scoping import competition_scoped_manager
 from apps.competitions.storage import private_media_storage
+from apps.tenancy.managers import CompetitionScopedQuerySet
 
 from .certificate_layout import default_certificate_layout
 
@@ -58,6 +59,27 @@ class Anonymization(models.TextChoices):
 
 #: Tryby, w których do snapshotu może trafić imię i nazwisko.
 NAMED_ANONYMIZATIONS = frozenset({Anonymization.FULL, Anonymization.FULL_ALL})
+
+
+class ResultsPublicationQuerySet(CompetitionScopedQuerySet):
+    """Publikacje wyników z jedną definicją „ogłoszenie jest **w mocy**” (audyt 10.10.2026, S2)."""
+
+    competition_path = "stage__edition__competition"
+
+    def live(self):
+        """Wyłącznie publikacje niewycofane: etap ma ustawione ``results_published_at``.
+
+        Wycofanie ogłoszenia to wyczyszczenie znacznika na etapie (``Stage.results_published_at``),
+        a rekord publikacji **zostaje** jako ślad tego, co ogłoszono – i właśnie dlatego samo
+        istnienie rekordu nie jest odpowiedzią na pytanie „czy tabelę wolno pokazać”. Dopóki
+        publiczna tabela, statystyki, informacja zwrotna uczestnika i sugestie AI pytały
+        o ``ResultsPublication.objects.filter(stage=…)``, tabela wycofana np. z powodu złego trybu
+        anonimizacji dalej była dostępna anonimowo po ``stage_id``. Każda ścieżka, która coś
+        **pokazuje** na podstawie publikacji, pyta odtąd tutaj; bramki, które czegoś **zabraniają**
+        (poprawka oceny, notatki recenzentów), zostają przy istnieniu rekordu – raz ogłoszona
+        tabela jest faktem, którego wycofanie nie powinno otwierać cichych zmian ocen.
+        """
+        return self.filter(stage__results_published_at__isnull=False)
 
 
 class ResultsPublication(models.Model):
@@ -94,7 +116,7 @@ class ResultsPublication(models.Model):
     #: Przez etap. Tabela wyników jest publiczna, ale publiczna **w swoim konkursie**: adres
     #: ``/results/<id>/`` nie wymaga logowania, więc bez zakresu byłby najtańszą drogą do cudzych
     #: wyników – wystarczyłoby przejechać identyfikatory etapów.
-    objects = competition_scoped_manager("stage__edition__competition")
+    objects = models.Manager.from_queryset(ResultsPublicationQuerySet)()
 
     class Meta:
         verbose_name = "publikacja wyników"

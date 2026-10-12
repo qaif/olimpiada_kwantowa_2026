@@ -1,19 +1,61 @@
 # syntax=docker/dockerfile:1.7
-# Etap 1: instalacja zależności z uv (szybka, powtarzalna; warstwa cache'owana po pyproject)
-FROM python:3.14-slim-trixie AS builder
-COPY --from=ghcr.io/astral-sh/uv:0.4 /uv /bin/uv
-ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
-WORKDIR /app
-COPY pyproject.toml ./
-RUN --mount=type=cache,target=/root/.cache/uv \
-    uv venv /opt/venv && uv pip install --python /opt/venv/bin/python -r pyproject.toml --extra dev
+# Obrazy bazowe przypięte skrótem (`@sha256:`), a nie samym tagiem (audyt bezpieczeństwa 10.10.2026,
+# S21): tag `3.14-slim-trixie` jest pływający – ten sam plik budowany w dwóch różnych dniach dawał
+# dwa różne systemy bazowe, a podmieniony w rejestrze obraz wszedłby na produkcję przy najbliższym
+# buildzie bez śladu w repozytorium. Skrót = indeks wieloarchitekturowy z 10.10.2026 (`docker buildx
+# imagetools inspect python:3.14-slim-trixie`); obraz uv (`COPY --from`) – tak samo. Aktualizacja (łatki
+# Debiana/CPythona) jest więc **świadomą** zmianą tych linijek i tych w djcms/Dockerfile – nowy skrót
+# z tego samego polecenia.
+ARG PYTHON_IMAGE=python:3.14-slim-trixie@sha256:a2b82f3c48559aa0a8446d9af49826b6e2b2016f4cd2afabfe6013ec53729170
 
-# Etap 1b: JupyterLite dla notatników kwantowych (QC-01, docs/tasks/QC-01.md § 3.1). Osobny etap, bo
+# Etap 1: zależności z pliku blokady (`backend/uv.lock`, `uv lock` po każdej zmianie pyproject.toml).
+# Do 10.10.2026 było tu `uv pip install -r pyproject.toml --extra dev`: bez blokady każdy build brał
+# najnowsze wydania w zakresach (także zależności przechodnie, bez żadnych granic), a obraz
+# produkcyjny niósł pytest, factory-boy, ruff i resztę narzędzi deweloperskich. Teraz:
+# - `--frozen` – dokładnie wersje i skróty z `uv.lock`; pyproject bez nowej blokady nie zmienia
+#   niczego (zgodność blokady z pyproject sprawdza CI: `uv lock --check`, zadanie `lint`),
+# - `--no-dev --no-install-project` – bez ekstry `dev` (i ewentualnej grupy `dev`) i bez samego
+#   projektu (to nie jest pakiet, kod wchodzi niżej zwykłym `COPY`).
+# Wersja uv ta sama, którą powstała blokada (0.11.23, jak w djcms/Dockerfile) – 0.4, która stała tu
+# wcześniej, nie zna obecnego formatu `uv.lock`. Sekret `extra_ca` (opcjonalny) – dodatkowe CA dla
+# TLS do PyPI na maszynie z antywirusem przechwytującym HTTPS; opis w djcms/Dockerfile, na
+# produkcji go nie ma.
+FROM ${PYTHON_IMAGE} AS builder
+COPY --from=ghcr.io/astral-sh/uv:0.11.23@sha256:d0a0a753ab981624b49c97abc98821c1c09f4ca69d1ef5cee69c501be3d88479 /uv /bin/uv
+ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy UV_PROJECT_ENVIRONMENT=/opt/venv UV_PYTHON_DOWNLOADS=never
+WORKDIR /src
+COPY pyproject.toml uv.lock ./
+RUN --mount=type=cache,target=/root/.cache/uv \
+    --mount=type=secret,id=extra_ca,required=false \
+    set -eu; \
+    if [ -s /run/secrets/extra_ca ]; then \
+        cat /etc/ssl/certs/ca-certificates.crt /run/secrets/extra_ca > /tmp/ca.pem; \
+        export SSL_CERT_FILE=/tmp/ca.pem; \
+    fi; \
+    uv sync --frozen --no-dev --no-install-project; \
+    rm -f /tmp/ca.pem
+
+# Etap 1b: to samo środowisko z ekstrą `dev` (pytest, factory-boy, ruff…) – WYŁĄCZNIE dla etapu
+# `dev` niżej (docker-compose.dev.yml: testy uruchamia się w kontenerze `web`). Obraz `runtime`
+# z tego etapu nie bierze niczego.
+FROM builder AS builder-dev
+RUN --mount=type=cache,target=/root/.cache/uv \
+    --mount=type=secret,id=extra_ca,required=false \
+    set -eu; \
+    if [ -s /run/secrets/extra_ca ]; then \
+        cat /etc/ssl/certs/ca-certificates.crt /run/secrets/extra_ca > /tmp/ca.pem; \
+        export SSL_CERT_FILE=/tmp/ca.pem; \
+    fi; \
+    uv sync --frozen --no-install-project --extra dev; \
+    rm -f /tmp/ca.pem
+
+# Etap 1c: JupyterLite dla notatników kwantowych (QC-01, docs/tasks/QC-01.md § 3.1). Osobny etap, bo
 # narzędzia budowy (jupyterlite-core, doit…) i pobrane archiwa Pyodide nie mają czego szukać w obrazie
 # runtime – przechodzi wyłącznie gotowy katalog statyczny. Wszystko z przypiętym skrótem: narzędzia
 # `--require-hashes`, rdzeń Pyodide i koła pakietów – SHA-256 z pyodide.json i z pyodide-lock.json.
 # Cache BuildKit trzyma pobrane archiwa między budowami (zmiana kodu qclab nie pobiera Pyodide od nowa).
-FROM python:3.14-slim-trixie AS notebook-lab
+# Obraz bazowy ten sam, przypięty skrótem (S21) – pip jest tu jeszcze na miejscu (wypada dopiero w runtime).
+FROM ${PYTHON_IMAGE} AS notebook-lab
 WORKDIR /build
 COPY apps/notebooks/labbuild/requirements.txt apps/notebooks/labbuild/requirements.txt
 RUN --mount=type=cache,target=/root/.cache/pip \
@@ -39,7 +81,7 @@ RUN --mount=type=cache,target=/root/.cache/notebook-lab \
 #   niesie zwendorowane urllib3 2.7.0 / msgpack 1.1.2 / setuptools 70.3.0 ze znanymi podatnościami
 #   (poprawionego wydania pipa jeszcze nie ma). Gdy pip jest potrzebny doraźnie w kontenerze:
 #   ``docker compose exec -u root web python -m ensurepip``.
-FROM python:3.14-slim-trixie AS runtime
+FROM ${PYTHON_IMAGE} AS runtime
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PATH="/opt/venv/bin:$PATH"
 RUN apt-get update && apt-get upgrade -y --no-install-recommends \
     && apt-get install -y --no-install-recommends libpq5 curl procps gettext \
@@ -49,9 +91,13 @@ RUN apt-get update && apt-get upgrade -y --no-install-recommends \
 WORKDIR /app
 COPY --from=builder /opt/venv /opt/venv
 COPY --chown=app:app . .
+# `/var/tmp/packages` – punkt montowania wolumenu `package_tmp` (PACKAGE_TMP_DIR, docker-compose.yml).
+# Musi istnieć w obrazie i należeć do `app`: nazwany wolumen przy pierwszym montażu przejmuje
+# właściciela katalogu z obrazu, a bez niego byłby rootowy i aplikacja nie zapisałaby paczki.
 # Zbudowane JupyterLite (etap ``notebook-lab``); entrypoint procesu web kopiuje je do STATIC_ROOT.
 COPY --from=notebook-lab --chown=app:app /opt/notebook-lab /app/notebook_lab_dist
-RUN mkdir -p /app/staticfiles && chown app:app /app/staticfiles && chmod +x /app/entrypoint.sh
+RUN mkdir -p /app/staticfiles /var/tmp/packages \
+    && chown app:app /app/staticfiles /var/tmp/packages && chmod +x /app/entrypoint.sh
 # Katalog wymiany z piaskownicą notatników (QC-01, wolumen `notebook_spool`). Pusty wolumen nazwany
 # przejmuje właściciela i tryb z obrazu: worker (app) pisze, nadzorca piaskownicy wchodzi przez grupę
 # (`group_add`), a dzieci piaskownicy (inne UID, bez grup) – nie mają wstępu (2770, setgid).
@@ -75,3 +121,14 @@ ENTRYPOINT ["/app/entrypoint.sh"]
 # i compose rozjeżdżałyby się cichaczem co do modelu współbieżności. `--no-control-socket`: patrz
 # komentarz przy gunicornie w pyproject.toml.
 CMD ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "4", "--threads", "4", "--worker-class", "gthread", "--no-control-socket"]
+
+# Etap `dev` – obraz środowiska deweloperskiego (docker-compose.dev.yml, `target: dev`): `runtime`
+# plus narzędzia z ekstry `dev`, bo `docker compose exec web pytest …` biegnie w tym kontenerze.
+# Środowisko z `builder-dev` jest nadzbiorem produkcyjnego, więc kopia na to samo miejsce tylko
+# dokłada pakiety. Produkcja, CI (`target: runtime`) i nakładka E2E budują `runtime`.
+FROM runtime AS dev
+COPY --from=builder-dev /opt/venv /opt/venv
+
+# Ostatni etap = cel domyślny `docker build` bez `--target`. Celowo znowu `runtime`, a nie `dev`:
+# ktoś, kto zbuduje obraz „gołym” poleceniem, ma dostać obraz produkcyjny, a nie ten z pytestem.
+FROM runtime AS default

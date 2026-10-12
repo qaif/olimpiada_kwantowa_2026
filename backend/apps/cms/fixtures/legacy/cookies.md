@@ -12,8 +12,8 @@ Administratorem danych jest Fundacja Quantum AI z siedzibą w Warszawie, ul. San
 
 | Nazwa | Do czego służy |
 |---|---|
-| sessionid | Utrzymuje sesję zalogowanego użytkownika – bez niego każde kliknięcie w panelu wymagałoby ponownego logowania. Zapisywany po zalogowaniu, a także wtedy, gdy serwis musi przekazać komunikat między stronami (na przykład o błędnym haśle). Czas życia: 14 dni. Oznaczony HttpOnly (skrypty strony go nie odczytają), Secure (wysyłany wyłącznie po HTTPS) i SameSite=Lax. |
-| csrftoken | Chroni formularze przed sfałszowaniem żądania z obcej strony (CSRF). Bez niego nie da się wysłać żadnego formularza: rejestracji, logowania, zgłoszenia rozwiązania ani reklamacji. Czas życia: około rok. Oznaczony Secure i SameSite=Lax; nie jest oznaczony HttpOnly (domyślne ustawienie Django). |
+| __Host-sessionid | Utrzymuje sesję zalogowanego użytkownika – bez niego każde kliknięcie w panelu wymagałoby ponownego logowania. Zapisywany po zalogowaniu, a także wtedy, gdy serwis musi przekazać komunikat między stronami (na przykład o błędnym haśle). Czas życia: 14 dni. Oznaczony HttpOnly (skrypty strony go nie odczytają), Secure (wysyłany wyłącznie po HTTPS) i SameSite=Lax. |
+| __Host-csrftoken | Chroni formularze przed sfałszowaniem żądania z obcej strony (CSRF). Bez niego nie da się wysłać żadnego formularza: rejestracji, logowania, zgłoszenia rozwiązania ani reklamacji. Czas życia: około rok. Oznaczony Secure i SameSite=Lax; nie jest oznaczony HttpOnly (domyślne ustawienie Django). |
 | wagtail_sidebar_collapsed | Wyłącznie w panelu redakcyjnym /cms/: pamięta, czy redaktor zwinął boczne menu. Ustawiany dopiero po zalogowaniu do panelu, więc zwykły odwiedzający nigdy go nie otrzymuje. |
 
 Wszystkie trzy są plikami **własnymi** (domeny Olimpiady) i nie są przekazywane nikomu poza organizatorem. Do ich zapisania nie jest potrzebna zgoda – są niezbędne do świadczenia usługi, o którą prosisz.
@@ -61,7 +61,7 @@ Serwis nie osadza dziś materiałów z serwisów zewnętrznych. Redakcja ma tech
 
 ## Jak zablokować pliki cookie
 
-Pliki analityczne najprościej odrzucić na samym pasku („Tylko niezbędne”) albo wycofać zgodę odnośnikiem „Ustawienia cookies” w stopce. Wszystkie pliki cookie można ponadto zablokować albo usunąć w ustawieniach przeglądarki. Trzeba jednak liczyć się ze skutkami: bez pliku sessionid **nie da się zalogować** ani korzystać z panelu uczestnika, recenzenta i komitetu, a bez csrftoken **żaden formularz nie zostanie przyjęty**. Części informacyjnej serwisu – opisów, harmonogramu, dokumentów i opublikowanych wyników – można czytać z całkowicie zablokowanymi plikami cookie.
+Pliki analityczne najprościej odrzucić na samym pasku („Tylko niezbędne”) albo wycofać zgodę odnośnikiem „Ustawienia cookies” w stopce. Wszystkie pliki cookie można ponadto zablokować albo usunąć w ustawieniach przeglądarki. Trzeba jednak liczyć się ze skutkami: bez pliku __Host-sessionid **nie da się zalogować** ani korzystać z panelu uczestnika, recenzenta i komitetu, a bez __Host-csrftoken **żaden formularz nie zostanie przyjęty**. Części informacyjnej serwisu – opisów, harmonogramu, dokumentów i opublikowanych wyników – można czytać z całkowicie zablokowanymi plikami cookie.
 
 ## Podstawa prawna
 

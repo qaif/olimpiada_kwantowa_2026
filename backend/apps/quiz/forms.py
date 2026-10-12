@@ -97,8 +97,13 @@ class QuizSettingsForm(forms.ModelForm):
             "instructions": forms.Textarea(attrs={"rows": 5}),
         }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, stage=None, **kwargs):
         super().__init__(*args, **kwargs)
+        # Etap dopinamy do instancji **nowego** testu, żeby ``Quiz.clean`` mógł porównać
+        # zamknięcie testu z terminem etapu (audyt S3) już w formularzu – błąd ma stanąć pod
+        # polem, a nie wyjść z serwisu jako ``ValidationError`` bez formularza dookoła.
+        if stage is not None and self.instance.stage_id is None:
+            self.instance.stage = stage
         self.fields["duration_minutes"].initial = DEFAULT_DURATION_MINUTES
         self.fields["show_results_after"].initial = ShowResultsAfter.AFTER_CLOSE
         self.fields["negative_floor"].initial = NegativeFloor.QUESTION

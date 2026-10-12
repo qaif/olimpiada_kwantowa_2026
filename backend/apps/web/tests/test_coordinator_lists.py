@@ -533,6 +533,20 @@ def test_the_account_edit_page_of_a_deleted_account_has_a_neutral_heading(logged
 
 
 @pytest.mark.usefixtures("workshops_page")
+@pytest.mark.parametrize("page", ["x", "1e3", "²", "-4", "999999"])
+def test_workshop_attendance_survives_a_malformed_page_number(logged, elim_stage, page):
+    """Audyt 10.10.2026 (niskie): ``?page=x`` dawało 500 z ``int()`` – ma być zwykła strona."""
+    kept = person("Obecna")
+    StageEntryFactory(participant=kept, stage=elim_stage)
+
+    response = logged.get("/coordinator/workshops/attendance/", {"page": page})
+
+    assert response.status_code == 200
+    # Jedna strona wyników: zły albo za duży numer prowadzi na stronę istniejącą, a nie pustą.
+    assert kept.public_code in response.content.decode()
+
+
+@pytest.mark.usefixtures("workshops_page")
 def test_workshop_attendance_hides_deleted_participants_with_a_toggle(logged, elim_stage):
     kept = person("Obecna")
     StageEntryFactory(participant=kept, stage=elim_stage)

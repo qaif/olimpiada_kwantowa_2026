@@ -490,8 +490,57 @@ def send_email_changed_notice(old_email: str, new_email: str, *, competition=Non
 
 
 def is_pending_activation(user: User) -> bool:
-    """Konto założone, ale jeszcze niepotwierdzone adresem e-mail."""
-    return user.email_verified_at is None and not user.is_active
+    """Konto założone, ale jeszcze niepotwierdzone adresem e-mail – i **niezablokowane**.
+
+    ``blocked_at`` jest tu warunkiem, a nie ozdobą (audyt 10.10.2026, S5): konto zablokowane bez
+    potwierdzonego adresu ma te same ``is_active``/``email_verified_at``, co świeża rejestracja,
+    i bez tego warunku trafiało na listę „do aktywacji” razem z przyciskiem, który je odblokowywał.
+    """
+    return user.email_verified_at is None and not user.is_active and user.blocked_at is None
+
+
+def _blocked() -> DomainError:
+    """Odmowa dla konta zablokowanego przez organizatora – jedna treść dla wszystkich dróg."""
+    return DomainError(
+        _("To konto zostało zablokowane przez organizatora. Skontaktuj się z organizatorem."),
+        "ACCOUNT_BLOCKED",
+        status.HTTP_403_FORBIDDEN,
+    )
+
+
+def pending_invitation(user: User):
+    """Profil z **nieprzyjętym zaproszeniem** (import listy, delegacja) – ``Participant`` albo ``None``.
+
+    Takie konto powstaje bez hasła i nieaktywne (``bulk_registration._create_invited_user``,
+    ``delegation_services.add_student``), nie złożyło zgód i uruchamia się wyłącznie przez przyjęcie
+    zaproszenia (``bulk_registration.accept_invitation``), które zbiera hasło, regulamin, RODO
+    i zgodę opiekuna. Link aktywacyjny takiego konta ustawiał ``is_active`` bez żadnej zgody, a potem
+    logowanie Google'em wpuszczało do panelu (audyt 10.10.2026, S6; AUTH-01a, H1). Stąd ta funkcja:
+    rozpoznaje konto, któremu zamiast linku aktywacyjnego (i linku resetu hasła) należy się
+    zaproszenie. Rozpoznajemy je po ``Participant.invited_at`` – tej samej kolumnie, po której
+    ``bulk_registration.read_invite_token`` szuka ucznia do ekranu zaproszenia.
+
+    Konto aktywne, z potwierdzonym adresem albo z własnym hasłem (rejestracja, którą potem objął
+    import nauczyciela – zgody złożyło przy rejestracji) zaproszenia już nie potrzebuje.
+
+    Profil konkursu z kontekstu ma pierwszeństwo – list z zaproszeniem ma nieść markę i link tego
+    konkursu, pod którego adresem ktoś poprosił o ponowną wysyłkę.
+    """
+    if user.is_active or user.email_verified_at is not None or user.has_usable_password():
+        return None
+    from apps.tenancy.context import current_competition
+
+    from .models import Participant
+
+    rows = Participant.objects.select_related("user", "competition", "delegation__country").filter(
+        user=user, invited_at__isnull=False
+    )
+    competition = current_competition()
+    if competition is not None:
+        own = rows.filter(competition=competition).first()
+        if own is not None:
+            return own
+    return rows.order_by("-invited_at", "-pk").first()
 
 
 @transaction.atomic
@@ -502,8 +551,13 @@ def mark_activated(user: User, *, actor=None, action: str = "account.activated",
     wyłącznie nazwa akcji w audycie i wykonawca. Gdyby każda z nich ustawiała pola sama, jedna
     prędzej czy później zapomniałaby o ``email_verified_at`` i konto byłoby aktywne, a mimo to
     wciąż „oczekujące na aktywację” na liście koordynatora.
+
+    Konto zablokowane (``blocked_at``) jest odmową **pod blokadą wiersza**: aktywacja nie jest
+    drogą odblokowania – odblokowuje organizator w edycji konta, świadomie i z wpisem audytowym.
     """
     locked = User.objects.select_for_update().get(pk=user.pk)
+    if locked.blocked_at is not None:
+        raise _blocked()
     if locked.email_verified_at is not None:
         # Drugie kliknięcie w ten sam link nie jest błędem – konto już jest aktywne.
         return locked
@@ -552,40 +606,31 @@ def activate_with_token(token: str, *, request=None) -> User:
             "ALREADY_ACTIVE",
             status.HTTP_400_BAD_REQUEST,
         )
+    if user.blocked_at is not None:
+        raise _blocked()
     if pending_invitation(user) is not None:
         # Konto z zaproszenia (import listy klasowej, zgłoszenie przez opiekuna drużyny) startuje
         # wyłącznie ekranem zaproszenia: tam uczeń składa zgody i ustawia hasło. Aktywacja zwykłym
         # linkiem dałaby aktywne konto bez zgód – a od AUTH-01a reset hasła działa także dla kont
-        # bez hasła, więc byłaby to pełna droga do panelu z pominięciem zgód. Link sprzed poprawki
-        # (wydany przez ``resend_activation``) kończy się tu tym samym komunikatem, co każdy zły.
-        raise _invalid_token()
+        # bez hasła, więc byłaby to pełna droga do panelu z pominięciem zgód (S6). Link wystawiony,
+        # zanim konto stało się zaproszeniem (albo stary list z ``resend_activation``), kończy się
+        # tu jawną odmową z podpowiedzią – właściciel tokenu i tak wie, czyje to konto.
+        raise DomainError(
+            _(
+                "To konto uruchamia się linkiem z listu z zaproszeniem. Poproś o ponowne wysłanie "
+                "linku – przyjdzie zaproszenie."
+            ),
+            "INVITATION_REQUIRED",
+            status.HTTP_400_BAD_REQUEST,
+        )
     return mark_activated(user, actor=user, request=request)
-
-
-def pending_invitation(user: User):
-    """Zaproszenie ucznia, którego konto jeszcze go nie przyjęło – ``Participant`` albo ``None``.
-
-    Takie konto powstaje bez hasła i nieaktywne (``bulk_registration._create_invited_user``,
-    ``delegation_services.add_student``) i jedyną drogą do jego uruchomienia jest link z listu
-    zaproszenia. Rozpoznajemy je po ``Participant.invited_at`` – tej samej kolumnie, po której
-    ``bulk_registration.read_invite_token`` szuka ucznia do ekranu zaproszenia.
-    """
-    if user.is_active or user.email_verified_at is not None:
-        return None
-    from .models import Participant
-
-    return (
-        Participant.objects.select_related("user", "delegation__country")
-        .filter(user=user, invited_at__isnull=False)
-        .order_by("-invited_at", "-pk")
-        .first()
-    )
 
 
 #: Najkrótszy odstęp między dwoma listami zaproszenia wysłanymi z formularzy **publicznych**
 #: („Nie pamiętasz hasła?”, „Wyślij link ponownie”). Każdy taki list odnawia token zaproszenia,
 #: więc bez odstępu anonim mógłby co chwilę zasypywać skrzynkę ucznia i przedłużać ważność linku.
-#: Koordynator i opiekun drużyny (``actor`` podany) tego odstępu nie mają – działają świadomie.
+#: Panel opiekuna ma własną, dłuższą karencję (``bulk_registration.INVITE_RESEND_COOLDOWN``,
+#: audyt 10.10.2026, S12), a koordynator nie ma żadnej – działa świadomie.
 INVITATION_RESEND_COOLDOWN = timedelta(minutes=10)
 
 
@@ -620,6 +665,8 @@ def send_pending_invitation(participant, *, request=None, actor=None) -> bool:
     - link i nadawca pochodzą z **konkursu ucznia**: żądanie z hosta innego konkursu nie wyznacza
       adresu (ekran zaproszenia zbiera zgody konkursu ucznia, a nie konkursu, z którego ktoś pyta),
     - wpis audytowy ``participant.invitation_resent`` – ten sam, co przy ponowieniu z panelu.
+
+    Konta zablokowanego ta funkcja nie sprawdza – robi to :func:`resend_for_user` przed nią.
     """
     if actor is None and participant.invitation_sent_at is not None:
         if timezone.now() - participant.invitation_sent_at < INVITATION_RESEND_COOLDOWN:
@@ -646,24 +693,56 @@ def send_pending_invitation(participant, *, request=None, actor=None) -> bool:
     return True
 
 
+#: Co poszło w odpowiedzi na prośbę o ponowną wysyłkę – dla wołających, które mówią prawdę
+#: o stanie konta (panel koordynatora). Publiczny formularz pokazuje zawsze ``RESEND_MESSAGE``.
+RESENT_ACTIVATION = "activation"
+RESENT_INVITATION = "invitation"
+
+
+def resend_for_user(user: User, *, request=None, actor=None, enforce_cooldown: bool = True) -> str | None:
+    """Ponowna wysyłka dla konta: link aktywacyjny, **zaproszenie** albo nic (``None``).
+
+    - konto zablokowane – nic (S5): list aktywacyjny był drogą samodzielnego odblokowania,
+    - konto z potwierdzonym adresem – nic, nie ma czego potwierdzać,
+    - konto zaproszone (:func:`pending_invitation`) – zaproszenie (S6, AUTH-01a):
+      - formularz publiczny (bez ``actor``) – :func:`send_pending_invitation`: list z konkursu
+        ucznia, odstęp :data:`INVITATION_RESEND_COOLDOWN`; odstęp to ``None``, nie wyjątek,
+      - panel (``actor`` podany) – ``bulk_registration.resend_invitation``: blokada wiersza
+        i karencja ``INVITE_RESEND_COOLDOWN``, którą wyłącza (``enforce_cooldown=False``) wyłącznie
+        panel koordynatora; ``DomainError`` z karencji przechodzi do wołającego.
+    """
+    if user.blocked_at is not None or user.email_verified_at is not None:
+        return None
+    participant = pending_invitation(user)
+    if participant is not None:
+        if actor is None:
+            return RESENT_INVITATION if send_pending_invitation(participant, request=request) else None
+        from .bulk_registration import resend_invitation
+
+        resend_invitation(participant, actor=actor, request=request, enforce_cooldown=enforce_cooldown)
+        return RESENT_INVITATION
+    send_activation_email(user, request=request)
+    return RESENT_ACTIVATION
+
+
 def resend_activation(email: str, *, request=None, actor=None) -> bool:
     """Wysyła link ponownie, jeśli jest po co. Zwraca, czy list poszedł – **nie do pokazania**.
 
     Wołający pokazuje zawsze ``RESEND_MESSAGE``: odpowiedź zależna od istnienia konta zamieniłaby
     formularz w wyszukiwarkę adresów zarejestrowanych w serwisie. Wartość zwracana jest dla testów
-    i dla logu, nie dla przeglądarki.
+    i dla logu, nie dla przeglądarki. Odmowa karencji zaproszenia jest tu więc też tylko ``False``.
 
     Konto z niezaakceptowanym zaproszeniem dostaje **zaproszenie**, a nie link aktywacyjny – powód
-    przy :func:`activate_with_token` (AUTH-01a).
+    przy :func:`activate_with_token` (AUTH-01a); zablokowane – nic (S5). Szczegóły
+    w :func:`resend_for_user`.
     """
     normalized = (email or "").strip().lower()
     if not normalized:
         return False
     user = User.objects.filter(email=normalized).first()
-    if user is None or user.email_verified_at is not None:
+    if user is None:
         return False
-    invited = pending_invitation(user)
-    if invited is not None:
-        return send_pending_invitation(invited, request=request, actor=actor)
-    send_activation_email(user, request=request)
-    return True
+    try:
+        return resend_for_user(user, request=request, actor=actor) is not None
+    except DomainError:
+        return False

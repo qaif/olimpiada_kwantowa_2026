@@ -15,6 +15,7 @@ from decimal import Decimal
 import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client
+from django.utils import timezone
 
 from apps.accounts.models import CompetitionRole
 from apps.accounts.tests.factories import ActiveReviewerFactory, CoordinatorFactory, ParticipantFactory
@@ -285,7 +286,9 @@ def test_participant_and_export_never_see_a_test_assessment(world):
     participant = world["submission"].entry.participant
     stage = world["submission"].entry.stage
     AiStageVisibility.objects.create(stage=stage, show_to_participants=True)
+    # Ogłoszenie „w mocy” to rekord publikacji **i** znacznik na etapie (audyt S2, ``live()``).
     ResultsPublication.objects.create(stage=stage)
+    type(stage).objects.filter(pk=stage.pk).update(results_published_at=timezone.now())
 
     dumped = json.dumps(
         [services.participant_ai_feedback(participant, stage), services.export_section(participant)],

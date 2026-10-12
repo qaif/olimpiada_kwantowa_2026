@@ -32,10 +32,11 @@ STATUS_URL = "/status/"
 JSON_URL = "/status.json"
 
 
-#: Uwaga o buforze: widok jest opakowany w ``cache_page`` na 30 sekund i korzysta z tego samego
-#: backendu, co puls workera. Izolację między testami daje autouse'owa fixture ``_clear_cache``
-#: z ``backend/conftest.py`` – dlatego każdy test tutaj wykonuje **jedno** żądanie na wariant
-#: strony i nie polega na tym, że drugie ominie bufor.
+#: Uwaga o buforze: wariant HTML buforuje na 30 sekund **dane** (``snapshot``), a JSON całą
+#: odpowiedź (``cache_page``); oba korzystają z tego samego backendu, co puls workera. Izolację
+#: między testami daje autouse'owa fixture ``_clear_cache`` z ``backend/conftest.py`` – dlatego
+#: każdy test tutaj wykonuje **jedno** żądanie na wariant strony i nie polega na tym, że drugie
+#: ominie bufor (wyjątkiem są testy W1 niżej, które właśnie bufor sprawdzają).
 
 
 def beat() -> None:
@@ -72,6 +73,66 @@ def test_the_page_never_names_hosts_or_library_versions(web_client):
     assert "postgres" not in body.lower()
     assert "redis" not in body.lower()
     assert "minio" not in body.lower()
+
+
+# --- bufor nie przenosi stron między użytkownikami (audyt 10.10.2026, W1) -------------------
+
+
+def test_the_page_rendered_for_a_logged_in_user_never_reaches_an_anonymous_one(web_client):
+    """Anonim po zalogowanym nie może dostać jego strony: e-maila, ról, flasha ani tokenu CSRF.
+
+    Dawny ``cache_page`` na widoku liczył klucz bez ``Vary: Cookie`` i oddawał anonimowi HTML
+    wyrenderowany dla ostatniego zalogowanego. Dwa żądania w tym samym oknie 30 s to dokładnie
+    scenariusz ataku.
+    """
+    from django.test import Client
+
+    from apps.accounts.tests.factories import UserFactory
+
+    beat()
+    user = UserFactory(email="zalogowana.osoba@example.com")
+    logged_in = Client()
+    logged_in.force_login(user)
+    first = logged_in.get(STATUS_URL)
+    assert first.status_code == 200
+    assert user.email in first.content.decode()
+
+    anonymous = web_client.get(STATUS_URL)
+
+    assert anonymous.status_code == 200
+    assert user.email not in anonymous.content.decode()
+
+
+def test_the_html_page_is_not_cacheable_by_shared_caches(web_client):
+    """``Cache-Control`` strony HTML nie może być publiczny z ``max-age`` – zapisałoby ją proxy."""
+    beat()
+
+    response = web_client.get(STATUS_URL)
+
+    header = response.headers.get("Cache-Control", "")
+    assert "public" not in header
+    assert "max-age=30" not in header
+    assert "no-store" in header or "private" in header
+
+
+def test_the_html_page_reuses_the_snapshot_from_the_cache(web_client, monkeypatch):
+    """Bufor danych nadal chroni bazę: drugie żądanie w oknie 30 s nie liczy snapshotu od nowa."""
+    from apps.web.views import status as status_view
+
+    calls = []
+    real = status_view.snapshot
+
+    def counting_snapshot(*args, **kwargs):
+        calls.append(1)
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(status_view, "snapshot", counting_snapshot)
+    beat()
+
+    web_client.get(STATUS_URL)
+    web_client.get(STATUS_URL)
+
+    assert len(calls) == 1
 
 
 # --- stan usług ------------------------------------------------------------------------------

@@ -373,6 +373,12 @@ def test_status_reflects_the_clock_and_the_publication(edition, open_stage):
     assert rows[upcoming.pk]["status"] == "upcoming"
 
     ResultsPublication.objects.create(stage=open_stage, anonymization=Anonymization.CODE, snapshot=[])
+    # Sam rekord to jeszcze nie ogłoszenie w mocy: ``live()`` patrzy też na znacznik etapu, który
+    # wycofanie ogłoszenia czyści (rekord zostaje jako ślad).
+    assert stage_rows(edition)[0]["status"] == "open"
+
+    open_stage.results_published_at = timezone.now()
+    open_stage.save(update_fields=["results_published_at"])
     assert stage_rows(edition)[0]["status"] == "published"
 
 

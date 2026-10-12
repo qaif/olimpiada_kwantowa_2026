@@ -27,7 +27,7 @@ from datetime import datetime, time, timedelta
 from decimal import Decimal, InvalidOperation
 
 from django.db import IntegrityError, transaction
-from django.db.models import F
+from django.db.models import F, Q
 from django.http import Http404
 from django.urls import reverse
 from django.utils import timezone, translation
@@ -1591,8 +1591,21 @@ def document_for(competition, pk: int, *, user, coordinator: bool) -> BillingDoc
 # --- RODO -----------------------------------------------------------------------------------------
 
 
-def export_section(user) -> list[dict]:
-    """Zamówienia wystawione przez to konto i jego dane nabywcy – do eksportu danych konta."""
+def export_section(user, competition=None) -> list[dict]:
+    """Zamówienia wystawione przez to konto i jego dane nabywcy – do eksportu danych konta.
+
+    ``competition`` – eksport z panelu koordynatora: wyłącznie zamówienia i dane nabywcy tego
+    konkursu (audyt 10.10.2026, S8; ``apps.accounts.data_export.export_payload``).
+    """
+    orders = Order.objects.filter(created_by=user)
+    profiles = BillingProfile.objects.filter(participant__user=user) | BillingProfile.objects.filter(
+        delegation__isnull=False, updated_by=user
+    )
+    if competition is not None:
+        orders = orders.filter(competition=competition)
+        profiles = profiles.filter(
+            Q(participant__competition=competition) | Q(delegation__competition=competition)
+        )
     rows = [
         {
             "rodzaj": "zamówienie",
@@ -1607,11 +1620,8 @@ def export_section(user) -> list[dict]:
             "vat_id": order.buyer_vat_id,
             "email": order.buyer_email,
         }
-        for order in Order.objects.filter(created_by=user).select_related("competition")
+        for order in orders.select_related("competition")
     ]
-    profiles = BillingProfile.objects.filter(participant__user=user) | BillingProfile.objects.filter(
-        delegation__isnull=False, updated_by=user
-    )
     for profile in profiles.distinct():
         rows.append(
             {

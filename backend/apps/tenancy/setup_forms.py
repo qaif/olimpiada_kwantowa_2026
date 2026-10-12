@@ -56,7 +56,23 @@ class OperatorForm(CaptchaFormMixin):
     )
 
     def clean_email(self) -> str:
-        return (self.cleaned_data["email"] or "").strip().lower()
+        """Adres musi być **wolny** (audyt 10.10.2026).
+
+        ``bootstrap_coordinator`` bez ``--reset-password`` nadaje istniejącemu kontu superużytkownika
+        z **niezmienionym** hasłem, a kreator od razu je loguje. Kto zna token kreatora i adres
+        cudzego konta, dostawałby więc pełne uprawnienia w instalacji, a właściciel konta – superusera,
+        o którym nie wie. Kreator zakłada nowe konto i tylko nowe; awans istniejącego konta jest
+        czynnością administratora z dostępem do serwera.
+        """
+        from apps.accounts.models import User
+
+        email = (self.cleaned_data["email"] or "").strip().lower()
+        if User.objects.filter(email__iexact=email).exists():
+            raise ValidationError(
+                "Konto z tym adresem już istnieje. Kreator zakłada nowe konto operatora – podaj inny "
+                "adres albo nadaj rolę istniejącemu kontu na serwerze (manage.py bootstrap_coordinator)."
+            )
+        return email
 
     def clean(self):
         """Zgodność obu haseł i reguły siły hasła — w tej kolejności.

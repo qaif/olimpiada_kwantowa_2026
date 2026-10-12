@@ -623,7 +623,7 @@
         },
         {
           "rank": 5,
-          "display": "U.T., Liceum testowe nr 1",
+          "display": "OLM-0002",
           "points": {
             "1": 6,
             "2": 5,
@@ -635,7 +635,7 @@
         },
         {
           "rank": 5,
-          "display": "U.T., Liceum testowe nr 1",
+          "display": "OLM-0003",
           "points": {
             "1": 5,
             "2": 6,
@@ -1327,7 +1327,7 @@
         },
         {
           "rank": 1,
-          "display": "U.T., Liceum testowe nr 1",
+          "display": "OLM-0002",
           "points": {},
           "total": 0,
           "qualified": true,
@@ -1335,7 +1335,7 @@
         },
         {
           "rank": 1,
-          "display": "U.T., Liceum testowe nr 1",
+          "display": "OLM-0003",
           "points": {},
           "total": 0,
           "qualified": false,

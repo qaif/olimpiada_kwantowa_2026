@@ -26,10 +26,8 @@ from wagtail.models import Locale, Page, Site
 
 from apps.accounts.consents import DEFAULT_CONSENTS
 from apps.accounts.models import ConsentDefinition
-from apps.core.tests.migration_helpers import MIGRATION_TESTS, migrate_to, rewound_database
+from apps.core.tests.migration_helpers import MIGRATION_TESTS, live_user, migrate_to, rewound_database
 from apps.tenancy.models import Competition
-
-from .factories import UserFactory
 
 pytestmark = MIGRATION_TESTS
 
@@ -78,7 +76,8 @@ def make_participant(historical, competition):
     """Uczestnik wpisany wprost, modelem historycznym – bez kolumn dołożonych po ``0023``."""
     from apps.accounts.models import Voivodeship, generate_public_code
 
-    user = UserFactory()
+    # Konto przez ``live_user``: ``accounts_user`` na stanie ``0023`` nie ma jeszcze ``blocked_at`` (0042).
+    user = live_user()
     return historical.get_model("accounts", "Participant").objects.create(
         user_id=user.pk,
         competition_id=competition.pk,

@@ -421,6 +421,15 @@ def accept(certificate: StudentStatusCertificate, *, actor, request=None) -> Stu
     jednym przyciskiem, a nie prośbą do uczestnika o ponowne wgranie tego samego pliku.
     """
     locked = _decidable(certificate)
+    if actor is not None and locked.participant.user_id == getattr(actor, "pk", None):
+        # Koordynator bywa też uczestnikiem (konto testowe, student-organizator). Akceptacja
+        # własnego zaświadczenia byłaby poświadczeniem statusu przez samego zainteresowanego –
+        # decyzję podejmuje wtedy drugi koordynator (audyt 10.10.2026, pozycja niska).
+        raise DomainError(
+            "Nie można zaakceptować własnego zaświadczenia – poproś o to innego koordynatora.",
+            "STUDENT_STATUS_OWN_CERTIFICATE",
+            http.HTTP_403_FORBIDDEN,
+        )
     if locked.status == CertificateStatus.ACCEPTED:
         return locked
     if not locked.is_clean:

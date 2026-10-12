@@ -6,7 +6,8 @@ class SeoConfig(AppConfig):
 
     Etykieta ``dj_seo`` – importer (``apps.importer.services.redirect_model``) szuka modelu
     ``dj_seo.Redirect`` po niej. ``ready`` podpina automatyczne przekierowania przy zmianie adresu
-    opublikowanej strony (``apps.seo.auto``).
+    opublikowanej strony (``apps.seo.auto``) i regułę celów przekierowania w formularzu strony
+    django CMS (``apps.seo.targets``).
     """
 
     name = "apps.seo"
@@ -14,6 +15,7 @@ class SeoConfig(AppConfig):
     verbose_name = "Przekierowania (djcms)"
 
     def ready(self) -> None:
-        from . import auto
+        from . import auto, targets
 
         auto.install()
+        targets.install_page_redirect_validation()

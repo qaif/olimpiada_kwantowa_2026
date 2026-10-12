@@ -15,7 +15,9 @@ na stanie ``0019`` prawdziwe klasy opisywały bazę tak samo jak historyczne. Et
 (``accounts.0023``), których na stanie ``0019`` **nie ma** – a prawdziwa klasa wymienia je w każdym
 ``SELECT``, ``INSERT`` i w zbieraniu obiektów przy kasowaniu. Granica jest więc dokładnie tam, gdzie
 przebiega różnica schematów, i nigdzie indziej: ``User``, ``Group`` i ``Membership`` zostają
-prawdziwe, bo ich tabele na stanie ``0019`` wyglądają tak samo jak dziś.
+prawdziwe, bo ich tabele na stanie ``0019`` wyglądają tak samo jak dziś – z jednym wyjątkiem od
+``accounts.0042`` (``User.blocked_at``): konto zakłada więc :func:`live_user`, które wstawia wiersz
+modelem zastosowanych migracji i oddaje prawdziwy ``User`` bez tej kolumny.
 """
 
 import importlib
@@ -33,9 +35,7 @@ from apps.accounts.models import (
     Voivodeship,
     generate_public_code,
 )
-from apps.core.tests.migration_helpers import applied_state_model, migrate_to, rewound_database
-
-from .factories import UserFactory
+from apps.core.tests.migration_helpers import applied_state_model, live_user, migrate_to, rewound_database
 
 BEFORE = ("accounts", "0019_memberships_and_competition_fks")
 AFTER = ("accounts", "0020_backfill_competition_and_memberships")
@@ -51,7 +51,7 @@ def participants(historical):
 
 def make_participant(historical, competition):
     """Uczestnik wpisany wprost, modelem historycznym. ``competition=None`` – wiersz bez właściciela."""
-    user = UserFactory()
+    user = live_user()
     participant = participants(historical).create(
         user_id=user.pk,
         competition_id=competition.pk if competition is not None else None,
@@ -83,7 +83,7 @@ def test_the_backfill_assigns_the_existing_data_to_competition_one(before_backfi
     """Profile bez właściciela dostają Konkurs #1, a grupy zamieniają się w członkostwa."""
     competition, historical = before_backfill
     participant = make_participant(historical, None)
-    coordinator = UserFactory(groups=[GROUP_COORDINATOR])
+    coordinator = live_user(groups=[GROUP_COORDINATOR])
     participant.account.groups.add(Group.objects.get_or_create(name=GROUP_PARTICIPANT)[0])
     assert Membership.objects.count() == 0
 
@@ -117,7 +117,7 @@ def test_the_backfill_does_not_touch_rows_that_already_have_an_owner(before_back
 def test_running_the_backfill_twice_changes_nothing(before_backfill):
     """Idempotencja: powtórzone ``migrate`` na tej samej bazie nie dokłada drugiego członkostwa."""
     competition, _ = before_backfill
-    UserFactory(groups=[GROUP_COORDINATOR])
+    live_user(groups=[GROUP_COORDINATOR])
 
     migrate_to(AFTER)
     first = Membership.objects.count()
@@ -134,7 +134,7 @@ def test_the_backfill_is_reversible(before_backfill):
     """Cofnięcie wraca do stanu, w którym rolę niosą wyłącznie grupy – a nie do noopa."""
     competition, historical = before_backfill
     participant = make_participant(historical, None)
-    UserFactory(groups=[GROUP_COORDINATOR])
+    live_user(groups=[GROUP_COORDINATOR])
 
     migrate_to(AFTER)
     assert Membership.objects.exists()
@@ -166,7 +166,7 @@ def test_the_backfill_on_an_empty_database_does_nothing(before_backfill):
     _, historical = before_backfill
     participants(historical).all().delete()
     applied_state_model("tenancy", "Competition").objects.all().delete()
-    UserFactory(groups=[GROUP_COORDINATOR])
+    live_user(groups=[GROUP_COORDINATOR])
 
     migrate_to(AFTER)
 

@@ -1074,7 +1074,7 @@ class ParticipantProfileForm(SchoolChoiceMixin):
         ),
     )
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, participant=None, **kwargs):
         """Zdejmuje pole opiekuna, gdy organizator w ogóle nie oferuje tej roli.
 
         Przełącznik ``cms.SiteSettings.supervisor_registration_enabled`` jest domyślnie wyłączony
@@ -1085,12 +1085,19 @@ class ParticipantProfileForm(SchoolChoiceMixin):
         atrybutem dalej przyjmuje POST, więc ukrycie byłoby pozorne. Adres już zapisany w profilu
         zostaje w bazie nietknięty – decyzja ucznia sprzed wyłączenia przełącznika nie jest
         czymś, co formularz danych ma prawo cofnąć bez jego wiedzy.
+
+        Zdejmuje też pole kraju u ucznia delegacji (audyt 10.10.2026, S9): kraj wynika z delegacji,
+        która go zgłosiła (``accounts.profile.district_follows_delegation``), i ten sam serwis
+        odrzuci jego zmianę. Pole na ekranie, którego zapis zawsze odmawia, byłoby gorsze od braku.
         """
         super().__init__(*args, **kwargs)
+        from apps.accounts.profile import district_follows_delegation
         from apps.accounts.supervisors import registration_enabled
 
         if not registration_enabled():
             self.fields.pop("supervisor_email", None)
+        if district_follows_delegation(participant):
+            self.fields.pop("district", None)
 
     def clean(self):
         """Bez pola nie ma klucza – a serwis profilu zmienia wyłącznie to, co dostał.
@@ -1100,8 +1107,9 @@ class ParticipantProfileForm(SchoolChoiceMixin):
         adres, który uczeń kiedyś świadomie wpisał.
         """
         cleaned = super().clean()
-        if "supervisor_email" not in self.fields:
-            cleaned.pop("supervisor_email", None)
+        for name in ("supervisor_email", "district"):
+            if name not in self.fields:
+                cleaned.pop(name, None)
         return cleaned
 
 
@@ -1373,6 +1381,22 @@ class CoordinatorAccountForm(EmailDomainCheckMixin, forms.Form):
         required=False,
         help_text="Odznaczenie blokuje logowanie. Dane i prace zostają – to nie jest usunięcie konta.",
     )
+
+    def __init__(self, *args, shared: bool = False, **kwargs):
+        """Konto z rolą w innym konkursie: adres i blokada tylko do odczytu (audyt 10.10.2026, W3).
+
+        ``disabled``, a nie ukrycie w szablonie: pole wyłączone bierze wartość z ``initial``
+        niezależnie od POST-a, więc ręcznie dopisany ``account-email`` niczego nie zmieni. Odmowę
+        i tak wydaje serwis (``ACCOUNT_SHARED``) – formularz mówi o niej, zanim ktoś kliknie.
+        """
+        super().__init__(*args, **kwargs)
+        if shared:
+            for name in ("email", "is_active"):
+                self.fields[name].disabled = True
+                self.fields[name].help_text = (
+                    "To konto ma role także w innym konkursie – adres e-mail i blokadę zmienia "
+                    "administrator serwisu."
+                )
 
 
 class CoordinatorParticipantForm(SchoolChoiceMixin):

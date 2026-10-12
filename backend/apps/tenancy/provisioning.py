@@ -537,8 +537,18 @@ def _refuse_next_to_unscoped_roles() -> None:
     ``check_memberships`` odcina osoby bez członkostwa, a o tym decyduje operator.
 
     Pierwszy konkurs instalacji (kreator ``/setup/``, pusta baza) przechodzi bez pytań – nie ma
-    obok kogo przeciekać. Konkurs nieaktywny się nie liczy: pod jego adresem nikt nie dostaje
-    paneli; jego ponowne włączenie z wyłączoną flagą zgłasza kontrola systemowa ``tenancy.E001``.
+    obok kogo przeciekać. Konkurs nieaktywny się nie liczy, bo jego role nie otwierają niczego
+    w innych konkursach: pod jego **własnym** hostem warstwa ``CompetitionMiddleware`` odpowiada
+    404 (``apps.tenancy.resolution.dormant_host_miss``, audyt S13), a mixiny ról panelu
+    (``apps.web.mixins.RoleRequiredMixin``) dają 404 każdemu żądaniu bez rozstrzygniętego
+    konkursu. Do 10.10.2026 to zdanie twierdziło „pod jego adresem nikt nie dostaje paneli”
+    i było nieprawdą: ``request.competition=None`` schodził w ``has_role`` do globalnych grup.
+    Uwaga na granicę tej gwarancji: klasy DRF z ``apps.accounts.permissions`` (``IsCoordinator``
+    i pokrewne) przy ``None`` nadal pytają grupy Django; pod hostem wyłączonego konkursu zamyka je
+    404 warstwy, ale nie pod witryną bez żadnego konkursu.
+
+    Ponowne włączenie konkursu z wyłączoną flagą obok innego aktywnego odrzuca
+    ``Competition.clean`` (``/admin/``), a drogi obok modelu łapie kontrola ``tenancy.E001``.
     """
     unscoped = [
         competition

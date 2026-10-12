@@ -32,6 +32,7 @@ ROUTE_ARGS = {
     "submissions:submission-create": [1, 1],
     "web:quiz-start": [1],
     "web:quiz-attempt": [1],
+    "web:quiz-question-image": [1, 1],
     # TR-01 (``apps.problem_translations``) – adresy pojawią się po scaleniu; do tego czasu pomijane.
     "web:student-translation": [1],
     "web:student-translation-file": [1],

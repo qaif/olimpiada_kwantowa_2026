@@ -24,7 +24,8 @@ from django.contrib import messages
 from django.contrib.auth import logout
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import redirect_to_login
-from django.http import FileResponse
+from django.core.cache import cache
+from django.http import FileResponse, HttpResponse
 from django.shortcuts import redirect
 from django.urls import reverse, reverse_lazy
 from django.utils.translation import gettext_lazy
@@ -160,6 +161,13 @@ class ParticipantProfileView(ParticipantRequiredMixin, ServiceFormMixin, FormVie
     def get_initial(self) -> dict:
         return participant_profile_initial(self.participant)
 
+    def get_form_kwargs(self) -> dict:
+        # Profil idzie do formularza, bo od niego zależy zestaw pól: uczeń delegacji nie ma pola
+        # kraju (S9 – kraj wynika z delegacji, ``district_follows_delegation``).
+        kwargs = super().get_form_kwargs()
+        kwargs["participant"] = self.participant
+        return kwargs
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["participant"] = self.participant
@@ -219,6 +227,10 @@ class EmailChangeView(LoginRequiredMixin, PerAccountThrottleMixin, ServiceFormMi
     formularz żąda też aktualnego hasła, więc limit ogranicza zarazem zgadywanie go z cudzej sesji.
     Seria złych haseł kończy sesję (``apps.accounts.reauth``) – licznik jest wspólny z ekranem
     zmiany hasła.
+
+    Audyt 10.10.2026 (S11) żądał tego samego (hasło przed wnioskiem) – reguła AUTH-01b jest
+    mocniejsza: konto bez hasła nie przepisuje adresu, tylko ustawia hasło linkiem na obecny adres.
+    Potwierdzenie nowego adresu kasuje token API i pozostałe sesje (``profile.confirm_email_change``).
     """
 
     template_name = "web/account/email_change.html"
@@ -290,7 +302,7 @@ class EmailChangeConfirmView(TemplateView):
         return context
 
 
-def send_export(request, user, *, actor=None) -> FileResponse:
+def send_export(request, user, *, actor=None, competition=None) -> HttpResponse:
     """Buduje paczkę danych konta, zostawia wpis audytowy i oddaje ją jako plik do pobrania.
 
     Wspólna dla obu wejść (właściciel konta i koordynator), bo to jedna czynność: różni je
@@ -300,10 +312,43 @@ def send_export(request, user, *, actor=None) -> FileResponse:
 
     ``as_attachment``: paczka ma się **zapisać**, a nie otworzyć w karcie. ``FileResponse`` zamyka
     strumień po wysłaniu, więc plik tymczasowy znika także wtedy, gdy klient zerwie połączenie.
+
+    ``competition`` podaje wyłącznie wejście koordynatora (audyt 10.10.2026, S8): organizator
+    jednego konkursu wydaje dane przetwarzane **w tym** konkursie, a nie wpisy i wiadomości
+    z sąsiedniej olimpiady. Właściciel konta dostaje komplet – pyta o siebie, a nie o konkurs.
+
+    Paczka ponad ``PACKAGE_MAX_BYTES`` (audyt 10.10.2026, S15) kończy się komunikatem i powrotem na
+    stronę, z której przyszło żądanie – nie stroną błędu i nie paczką urwaną w połowie.
     """
-    archive = build_export_zip(user)
+    from apps.core.packages import PackageTooLarge
+
+    try:
+        archive = build_export_zip(user, competition=competition)
+    except PackageTooLarge as exc:
+        messages.error(request, str(exc.detail))
+        return redirect(_safe_referer(request) or reverse("web:account-profile"))
     audit_export(user, archive, actor=actor or user, request=request)
     return FileResponse(archive.stream, as_attachment=True, filename=export_filename(user))
+
+
+def _safe_referer(request) -> str:
+    """Adres strony, z której przyszło żądanie – wyłącznie z tego samego serwisu."""
+    from django.utils.http import url_has_allowed_host_and_scheme
+
+    referer = request.META.get("HTTP_REFERER", "")
+    if referer and url_has_allowed_host_and_scheme(
+        referer, allowed_hosts={request.get_host()}, require_https=request.is_secure()
+    ):
+        return referer
+    return ""
+
+
+#: Blokada „eksport tego konta właśnie się buduje”. Dłuższa niż najdłuższa rozsądna budowa paczki
+#: (limit ``PACKAGE_MAX_BYTES``), żeby nie wygasła w trakcie; zdejmowana zaraz po budowie.
+EXPORT_LOCK_SECONDS = 300
+EXPORT_LOCK_PREFIX = "account-export-lock"
+#: ``Retry-After`` dla drugiego żądania w trakcie budowy – paczka zwykle jest gotowa po kilku sekundach.
+EXPORT_LOCK_RETRY_SECONDS = 30
 
 
 class AccountExportView(LoginRequiredMixin, ThrottledFormMixin, View):
@@ -324,10 +369,21 @@ class AccountExportView(LoginRequiredMixin, ThrottledFormMixin, View):
         wait = export_wait_seconds(request.user)
         if wait:
             return self.throttled_response(request, wait)
-        response = send_export(request, request.user)
-        # Znacznik dopiero po zbudowaniu paczki: wyjątek w środku nie może zablokować kolejnej
-        # próby na dziesięć minut.
-        mark_exported(request.user)
+        # Blokada **przed** budową (audyt 10.10.2026, S15). Licznik odstępu zapala się dopiero po
+        # zbudowaniu paczki, więc samo sprawdzenie wyżej nie jest atomowe: kilka równoległych
+        # żądań (karty, skrypt) przechodziło je naraz i każde budowało własną paczkę w katalogu
+        # tymczasowym. ``cache.add`` jest atomowe – drugie żądanie dostaje 429 i czeka.
+        lock = f"{EXPORT_LOCK_PREFIX}:{request.user.pk}"
+        if not cache.add(lock, 1, EXPORT_LOCK_SECONDS):
+            return self.throttled_response(request, EXPORT_LOCK_RETRY_SECONDS)
+        try:
+            response = send_export(request, request.user)
+        finally:
+            cache.delete(lock)
+        # Znacznik dopiero po zbudowaniu paczki: wyjątek w środku (albo odmowa za dużej paczki)
+        # nie może zablokować kolejnej próby na dziesięć minut.
+        if isinstance(response, FileResponse):
+            mark_exported(request.user)
         return response
 
 

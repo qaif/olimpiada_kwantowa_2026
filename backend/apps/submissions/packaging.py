@@ -14,11 +14,12 @@ procesor bez pożytku.
 
 from __future__ import annotations
 
-import tempfile
 import zipfile
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from typing import BinaryIO
+
+from apps.core.packages import ensure_package_fits, package_tempfile
 
 from .models import Submission, SubmissionFile
 from .storage import get_submission_storage
@@ -142,17 +143,29 @@ def build_zip(
     po którym odnajduje pracę w swojej kolejce.
     """
     storage = get_submission_storage()
+    # Najpierw wybór plików i suma ich rozmiarów (``size_bytes`` z chwili wgrania – bez czytania
+    # storage), dopiero potem archiwum. Paczka ponad ``PACKAGE_MAX_BYTES`` jest odrzucana z powodem
+    # (``PackageTooLarge`` to ``DomainError``), zamiast zapełnić dysk w połowie budowy
+    # (audyt 10.10.2026, S15 – ``apps.core.packages``).
+    selected: list[tuple[Submission, SubmissionFile]] = []
+    for submission in submissions:
+        submission_file = submission.latest_file
+        if submission_file is None or not submission_file.is_clean:
+            continue
+        selected.append((submission, submission_file))
+    ensure_package_fits(
+        sum(item.size_bytes or 0 for _submission, item in selected),
+        hint="Pobierz prace w mniejszych częściach (np. osobno dla każdego zadania) albo pojedynczo.",
+    )
     # ``TemporaryFile`` kasuje się przy zamknięciu, a ``FileResponse`` zamyka strumień po wysłaniu –
-    # nie zostaje nic do sprzątania nawet wtedy, gdy klient zerwie połączenie w połowie.
-    stream = tempfile.TemporaryFile()
+    # nie zostaje nic do sprzątania nawet wtedy, gdy klient zerwie połączenie w połowie. Katalog
+    # roboczy paczek jest osobny od ``/tmp`` uploadów (``PACKAGE_TMP_DIR``).
+    stream = package_tempfile()
     entries: list[tuple[Submission, str]] = []
     used: set[str] = set()
     try:
         with zipfile.ZipFile(stream, "w", compression=zipfile.ZIP_STORED) as archive:
-            for submission in submissions:
-                submission_file = submission.latest_file
-                if submission_file is None or not submission_file.is_clean:
-                    continue
+            for submission, submission_file in selected:
                 name = _unique_name(names(submission, submission_file), used)
                 source = storage.open(submission_file.object_key)
                 try:

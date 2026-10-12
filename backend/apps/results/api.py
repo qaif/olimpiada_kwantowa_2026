@@ -44,8 +44,10 @@ class PublicStageResultsView(GenericAPIView):
     def get_queryset(self):
         # Tabela jest publiczna, ale publiczna **w swoim konkursie**: bez zawężenia adres bez
         # logowania byłby najtańszą drogą do cudzych wyników – wystarczy przejechać identyfikatory.
+        # ``live()`` – ogłoszenie wycofane (wyczyszczone ``Stage.results_published_at``) jest dla
+        # publiczności nieistniejące, choć rekord zostaje jako ślad (audyt 10.10.2026, S2).
         return scope_to_competition(
-            ResultsPublication.objects.select_related("stage"), competition_of(self.request)
+            ResultsPublication.objects.live().select_related("stage"), competition_of(self.request)
         )
 
     @extend_schema(responses={200: PublicResultsSerializer})

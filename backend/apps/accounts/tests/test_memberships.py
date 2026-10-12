@@ -218,11 +218,46 @@ def test_a_coordinator_of_one_competition_is_not_a_coordinator_of_the_other(comp
 
 @pytest.mark.django_db
 def test_a_request_without_a_competition_is_closed_for_the_scoped_permission(competition):
-    """``IsCompetitionCoordinator`` wymaga konkursu **zawsze** – także przy wyłączonej fladze."""
+    """Każda klasa uprawnień ról wymaga konkursu **zawsze** – także przy wyłączonej fladze.
+
+    Dawniej klasy z ``apps.accounts.permissions`` schodziły bez konkursu do globalnych grup Django
+    (audyt 10.10.2026, S13): koordynator, recenzent i komisja dowolnego konkursu przechodzili je
+    pod hostem nieaktywnego konkursu. Kontrola dodatnia (to samo konto z konkursem) stoi obok,
+    żeby 403 nie znaczyło „konto i tak nie ma roli”.
+    """
+    from apps.accounts.permissions import IsActiveReviewer, IsAppealsCommittee
+
+    from .factories import ActiveReviewerFactory
+
+    class ReviewerOnlyView(APIView):
+        permission_classes = [IsActiveReviewer]
+
+        def get(self, request):
+            return Response({"ok": True})
+
+    class AppealsOnlyView(APIView):
+        permission_classes = [IsAppealsCommittee]
+
+        def get(self, request):
+            return Response({"ok": True})
+
     user = CoordinatorFactory()
+    participant = ParticipantFactory(competition=competition)
+    reviewer = ActiveReviewerFactory(competition=competition)
+    appeals = ActiveReviewerFactory(
+        competition=competition, is_appeals_committee=True, user__groups=[CompetitionRole.APPEALS]
+    )
 
     assert call(ScopedCoordinatorOnlyView, user, None).status_code == 403
+    assert call(CoordinatorOnlyView, user, None).status_code == 403
+    assert call(ParticipantOnlyView, participant.user, None).status_code == 403
+    assert call(ReviewerOnlyView, reviewer.user, None).status_code == 403
+    assert call(AppealsOnlyView, appeals.user, None).status_code == 403
+
     assert call(CoordinatorOnlyView, user, competition).status_code == 200
+    assert call(ParticipantOnlyView, participant.user, competition).status_code == 200
+    assert call(ReviewerOnlyView, reviewer.user, competition).status_code == 200
+    assert call(AppealsOnlyView, appeals.user, competition).status_code == 200
 
 
 @pytest.mark.django_db

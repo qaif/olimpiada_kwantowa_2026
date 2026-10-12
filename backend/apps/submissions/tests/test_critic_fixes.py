@@ -358,7 +358,10 @@ def test_problem_max_file_mb_over_the_limit_is_invalid():
 
 
 @pytest.mark.django_db
-def test_problem_max_file_mb_at_the_limit_is_valid():
+def test_problem_max_file_mb_at_the_limit_is_valid(settings):
+    # Limit proxy powyżej granicy clamd – inaczej rozstrzygałby ``MAX_UPLOAD_MB`` (audyt 10.10.2026,
+    # ``apps/competitions/tests/test_problem_upload_limit.py``).
+    settings.MAX_UPLOAD_MB = MAX_FILE_MB_LIMIT + 1
     ProblemFactory.build(stage=StageFactory(), max_file_mb=MAX_FILE_MB_LIMIT).clean()
 
 

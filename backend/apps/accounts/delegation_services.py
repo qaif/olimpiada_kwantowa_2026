@@ -1060,14 +1060,39 @@ def send_student_invitation(participant: Participant, *, request=None) -> None:
     participant.invitation_sent_at = now
 
 
+@transaction.atomic
 def resend_student_invitation(
     leader: DelegationLeader, participant: Participant, *, request=None
 ) -> Participant:
-    """Ponowny list do ucznia, który jeszcze nie uruchomił konta."""
+    """Ponowny list do ucznia, który jeszcze nie uruchomił konta.
+
+    **Karencja** ``INVITE_RESEND_COOLDOWN`` od ostatniego listu – ta sama, co przy imporcie
+    nauczyciela (``bulk_registration.resend_invitation``, audyt 10.10.2026, S12). Bez niej
+    „wyślij ponownie” w panelu opiekuna drużyny było nieograniczonym wysyłaczem listów z domeny
+    organizatora na adresy, które opiekun sam wpisał. Sprawdzenie pod blokadą wiersza profilu:
+    dwa równoległe kliknięcia nie mogą obu przejść i wysłać dwóch listów.
+    """
+    from .bulk_registration import INVITE_RESEND_COOLDOWN
+
     if participant.delegation_id != leader.delegation_id:
         raise Http404("Nie ma takiego ucznia w tej delegacji.")
     if is_activated(participant):
         raise DomainError(_("Ten uczeń uruchomił już konto."), "STUDENT_ACTIVE", status.HTTP_409_CONFLICT)
+    sent_at = (
+        Participant.objects.select_for_update()
+        .filter(pk=participant.pk)
+        .values_list("invitation_sent_at", flat=True)
+        .first()
+    )
+    now = timezone.now()
+    if sent_at is not None and now - sent_at < INVITE_RESEND_COOLDOWN:
+        minutes = int((sent_at + INVITE_RESEND_COOLDOWN - now).total_seconds() // 60) + 1
+        raise DomainError(
+            _("Zaproszenie wysłano niedawno. Kolejne można wysłać za %(minutes)s min.")
+            % {"minutes": minutes},
+            "INVITE_COOLDOWN",
+            status.HTTP_429_TOO_MANY_REQUESTS,
+        )
     send_student_invitation(participant, request=request)
     audit(leader.user, "delegation.student_invitation_resent", participant, {}, request=request)
     return participant

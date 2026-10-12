@@ -60,6 +60,11 @@ from .services import (
     unassign_reviewer,
 )
 
+#: Kontekst serializera dla odpowiedzi koordynatora: pełny stan pracy (``MODERATION``,
+#: ``GRADED_PROVISIONAL``), który recenzent rundy 1 widzi jako neutralny ``REVIEW_SUBMITTED``
+#: (``ReviewSerializer.get_submission_status``, audyt S4). Domyślnie maskujemy – odsłania się jawnie.
+COORDINATOR_CONTEXT = {"reveal_submission_status": True}
+
 
 class ReviewerScopedMixin:
     """Wspólny queryset recenzenta: wyłącznie własne przydziały **w konkursie z żądania**.
@@ -70,6 +75,11 @@ class ReviewerScopedMixin:
     """
 
     permission_classes = [IsActiveReviewer]
+    #: Recenzje anulowane (praca odebrana) są poza zasięgiem każdego widoku pojedynczej recenzji:
+    #: podgląd, szkic, wysłanie, poprawka i materiał rozjemczy dają dla nich 404 (audyt 10.10.2026,
+    #: S1). Wyjątkiem jest lista ``GET /api/grading/reviews/``, która niesie ``cancel_reason``
+    #: właśnie po to, żeby odebrana praca nie znikała bez śladu.
+    include_cancelled = False
 
     @property
     def competition(self):
@@ -78,7 +88,9 @@ class ReviewerScopedMixin:
 
     def get_queryset(self):
         return reviews_for_reviewer(
-            active_reviewer_profile(self.request.user, self.competition), self.competition
+            active_reviewer_profile(self.request.user, self.competition),
+            self.competition,
+            include_cancelled=self.include_cancelled,
         )
 
     def get_review(self, pk: int):
@@ -89,6 +101,9 @@ class MyReviewsView(ReviewerScopedMixin, GenericAPIView):
     """Moje przydziały. Uczestnik jest widoczny wyłącznie jako ``participant_public_code``."""
 
     serializer_class = ReviewSerializer
+    #: Lista pokazuje też odebrane prace – ze stanem i powodem, ale bez odnośnika do pliku
+    #: (``ReviewSerializer.get_download_url``).
+    include_cancelled = True
 
     @extend_schema(responses={200: ReviewSerializer(many=True)})
     def get(self, request):
@@ -293,7 +308,9 @@ class SubmissionAssignReviewerView(GenericAPIView):
             pk=serializer.validated_data["reviewer_id"],
         )
         review = assign_reviewer_to_submission(submission, reviewer, actor=request.user, request=request)
-        return Response(ReviewSerializer(review).data, status=http.HTTP_201_CREATED)
+        return Response(
+            ReviewSerializer(review, context=COORDINATOR_CONTEXT).data, status=http.HTTP_201_CREATED
+        )
 
 
 class ReviewUnassignView(GenericAPIView):
@@ -316,7 +333,7 @@ class ReviewUnassignView(GenericAPIView):
             pk=pk,
         )
         review = unassign_reviewer(review, actor=request.user, request=request)
-        return Response(ReviewSerializer(review).data)
+        return Response(ReviewSerializer(review, context=COORDINATOR_CONTEXT).data)
 
 
 class ReviewScoreView(GenericAPIView):
@@ -348,7 +365,7 @@ class ReviewScoreView(GenericAPIView):
             request=request,
             rationale=serializer.validated_data["rationale"],
         )
-        return Response(ReviewSerializer(review).data)
+        return Response(ReviewSerializer(review, context=COORDINATOR_CONTEXT).data)
 
 
 class SubmissionFinalGradeView(GenericAPIView):
@@ -428,7 +445,7 @@ class ModerationAssignThirdView(GenericAPIView):
             pk=serializer.validated_data["reviewer_id"],
         )
         review = assign_third_reviewer(submission, reviewer, actor=request.user, request=request)
-        return Response(ReviewSerializer(review).data)
+        return Response(ReviewSerializer(review, context=COORDINATOR_CONTEXT).data)
 
 
 class ReviewDisputeView(ReviewerScopedMixin, GenericAPIView):

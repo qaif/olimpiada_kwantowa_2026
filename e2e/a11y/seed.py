@@ -178,9 +178,13 @@ with competition_context(main):
             break
     fixture["main"]["review"] = first_review.pk if first_review else None
 
-    # Ogłoszona tabela wyników (publiczna, „ciężka” – 40 wierszy).
+    # Ogłoszona tabela wyników (publiczna, „ciężka” – 40 wierszy). Ogłoszenie to **dwa** zapisy:
+    # znacznik na etapie i rekord publikacji. Sam rekord to stan „ogłoszenie wycofane” – od audytu
+    # z 10.10.2026 (S2) taka tabela nie jest nigdzie pokazywana, więc ``/results/<id>/`` dałby 404.
     from apps.results.models import Anonymization, ResultsPublication
 
+    district.results_published_at = now
+    district.save(update_fields=["results_published_at"])
     ResultsPublication.objects.create(
         stage=district,
         anonymization=Anonymization.CODE,

@@ -9799,3 +9799,55 @@ msgstr "Ativar som"
 #: templates/web/webinars/room.html
 msgid "Ten webinar może być nagrywany. Gdy nagrywanie trwa, u góry pokoju widać czerwony znacznik „Trwa nagrywanie”; nagranie może zawierać Twój głos, obraz i wiadomości czatu, jeśli je włączysz lub wyślesz."
 msgstr "Este webinar pode ser gravado. Durante a gravação, aparece no topo da sala o selo vermelho “Gravação em andamento”; a gravação pode incluir sua voz, imagem e mensagens do chat, se você os ativar ou enviar."
+
+# --- Audyt bezpieczeństwa 10.10.2026: nowe komunikaty ---
+#: apps/accounts/activation.py:492
+msgid ""
+"To konto zostało zablokowane przez organizatora. Skontaktuj się z "
+"organizatorem."
+msgstr "Esta conta foi bloqueada pelo organizador. Entre em contato com o organizador."
+
+#: apps/accounts/activation.py:597
+msgid ""
+"To konto uruchamia się linkiem z listu z zaproszeniem. Poproś o ponowne "
+"wysłanie linku – przyjdzie zaproszenie."
+msgstr "Esta conta é ativada pelo link do e-mail de convite. Peça o reenvio do link – você receberá o convite."
+
+#: apps/accounts/delegation_services.py:1091
+#, python-format
+msgid "Zaproszenie wysłano niedawno. Kolejne można wysłać za %(minutes)s min."
+msgstr "O convite foi enviado há pouco. Outro poderá ser enviado em %(minutes)s min."
+
+#: apps/accounts/guardian.py:287
+msgid ""
+"Podaj adres rodzica lub opiekuna prawnego – nie adres opiekuna szkolnego."
+msgstr "Informe o endereço de pai, mãe ou responsável legal – não o do professor orientador."
+
+#: apps/accounts/profile.py:139
+msgid ""
+"Kraj ucznia delegacji wynika z delegacji – zmienia go opiekun drużyny albo "
+"organizator."
+msgstr "O país de um aluno de delegação decorre da delegação – quem o altera é o líder da equipe ou o organizador."
+
+#: apps/forum/services.py:408 apps/forum/services.py:478
+msgid "Ten dział jest zamknięty – nie można w nim pisać."
+msgstr "Esta seção está fechada – não é possível publicar nela."
+
+#: apps/quiz/services.py:439
+msgid "Wyniki tego etapu są już ogłoszone – testu nie można rozpocząć."
+msgstr "Os resultados desta etapa já foram divulgados – não é possível iniciar o teste."
+
+#: templates/socialaccount/refused.html:31
+msgid "Najpierw przyjmij zaproszenie"
+msgstr "Primeiro aceite o convite"
+
+#: templates/socialaccount/refused.html:32
+msgid ""
+"To konto powstało z zaproszenia. Zanim zalogujesz się w jakikolwiek sposób, "
+"otwórz link z listu z zaproszeniem, ustaw hasło i złóż wymagane zgody."
+msgstr "Esta conta foi criada a partir de um convite. Antes de entrar de qualquer forma, abra o link do e-mail de convite, defina uma senha e dê os consentimentos necessários."
+
+#: templates/web/reviewer/detail.html:129
+msgid ""
+"Ta praca nie jest już Ci przydzielona – plik rozwiązania nie jest dostępny."
+msgstr "Este trabalho não está mais atribuído a você – o arquivo da solução não está disponível."

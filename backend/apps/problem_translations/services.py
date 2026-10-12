@@ -1165,21 +1165,25 @@ def _notify_outdated(problem, version: int, translations: list[Translation]) -> 
 # --- RODO -----------------------------------------------------------------------------------------
 
 
-def export_section(user) -> dict:
+def export_section(user, competition=None) -> dict:
     """Sekcja eksportu danych konta: język przypisany uczniowi i tłumaczenia, które konto wysłało.
 
     Bez treści tłumaczeń – to materiał zawodów, a nie dane o osobie; autorstwo (kiedy i co wysłał)
-    jest daną osobową opiekuna.
+    jest daną osobową opiekuna. ``competition`` – eksport z panelu koordynatora: wyłącznie ten
+    konkurs (audyt 10.10.2026, S8; ``apps.accounts.data_export.export_payload``).
     """
+    languages = StudentLanguage.objects.filter(participant__user=user)
+    revisions = TranslationRevision.objects.filter(submitted_by=user)
+    if competition is not None:
+        languages = languages.filter(participant__competition=competition)
+        revisions = revisions.filter(translation__problem__stage__edition__competition=competition)
     languages_rows = [
         {
             "konkurs": row.participant.competition.slug,
             "jezyk": row.code,
             "ustawiono": timezone.localtime(row.set_at).isoformat(),
         }
-        for row in StudentLanguage.objects.filter(participant__user=user).select_related(
-            "participant__competition"
-        )
+        for row in languages.select_related("participant__competition")
     ]
     submitted = [
         {
@@ -1188,6 +1192,6 @@ def export_section(user) -> dict:
             "wersja": revision.number,
             "wyslano": timezone.localtime(revision.submitted_at).isoformat(),
         }
-        for revision in TranslationRevision.objects.filter(submitted_by=user).select_related("translation")
+        for revision in revisions.select_related("translation")
     ]
     return {"jezyk_ucznia": languages_rows, "wyslane_tlumaczenia": submitted}

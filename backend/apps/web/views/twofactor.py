@@ -269,7 +269,9 @@ class TwoFactorDisableView(TwoFactorFeatureMixin, ThrottledFormMixin, LoginRequi
     uzasadnieniem braku pytania było „sesja i tak przeszła drugi składnik” – ale sesja bywa
     porzucona na komputerze w pokoju komisji, a od „zapamiętaj to urządzenie” bywa też sprzed tygodnia.
     Wyłączenie zabezpieczenia jest dokładnie tym, czego potrzebuje ktoś, kto zastał cudzą sesję.
-    Złe próby liczy limit ``two_factor`` i blokada konta, tak jak przy logowaniu.
+    Złe próby liczy limit ``two_factor`` i blokada konta, tak jak przy logowaniu. Konto **bez**
+    hasła (Google/Facebook) ustawia je najpierw – ta sama reguła, co przy zmianie adresu
+    (AUTH-01b, ``apps.accounts.reauth``); audyt 10.10.2026 (S11) żądał tu co najmniej hasła.
 
     Konto, od którego 2FA jest wymagane, wyłączy drugi składnik i zostanie odesłane na ekran
     konfiguracji przez warstwę wymuszającą (okres przejściowy jest jednorazowy). To jest zachowanie

@@ -481,6 +481,8 @@ def check_fernet() -> dict:
 #: Katalog kubełka w paczce plików (``backup.sh``: ``tar -C buckets .``).
 SUBMISSIONS_BUCKET_DIR = "submissions"
 PUBLIC_BUCKET_DIR = "public-media"
+#: Prefiks plików dokumentów Wagtaila w buckecie prywatnym (``apps.cms.documents.DOCUMENTS_PREFIX``).
+DOCUMENTS_PREFIX = "documents"
 #: Wyłączone z kopii nocnej (``backup.sh``, krok 2) – nie wolno ich szukać w paczce.
 EXCLUDED_PREFIXES = ("workshop-materials/",)
 
@@ -514,9 +516,14 @@ def _sample_media(limit: int) -> list[str]:
         from wagtail.documents import get_document_model
         from wagtail.images import get_image_model
 
-        for model in (get_image_model(), get_document_model()):
+        # Obrazy – bucket publiczny; dokumenty od audytu 10.10.2026 (W2, ``apps.cms.documents``) – bucket
+        # prywatny pod prefiksem ``documents/`` (``file`` trzyma klucz bez prefiksu storage'u).
+        for model, prefix in (
+            (get_image_model(), PUBLIC_BUCKET_DIR),
+            (get_document_model(), f"{SUBMISSIONS_BUCKET_DIR}/{DOCUMENTS_PREFIX}"),
+        ):
             names = model._base_manager.order_by("?").values_list("file", flat=True)[: max(1, limit // 2)]
-            paths.extend(f"{PUBLIC_BUCKET_DIR}/{name}" for name in names if name)
+            paths.extend(f"{prefix}/{name}" for name in names if name)
     except Exception:  # noqa: BLE001 - jak wyżej
         logger.info("Test odtwarzania: próbka mediów CMS nieudana.", exc_info=True)
     return [path for path in paths if not path.split("/", 1)[-1].startswith(EXCLUDED_PREFIXES)]

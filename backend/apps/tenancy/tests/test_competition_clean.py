@@ -55,4 +55,9 @@ def test_prefix_from_the_application_reserved_list_keeps_its_own_message(competi
 
 
 def test_free_prefix_passes(competition):
-    _competition_with_prefix("fizyczna").clean()
+    candidate = _competition_with_prefix("fizyczna")
+    # Nieaktywny, bo aktywny konkurs z domyślnym ``memberships_enforced=False`` obok aktywnego
+    # Konkursu #1 odrzuca osobna reguła (``_clean_memberships_enforced``, audyt W4) – a ten test
+    # dotyczy wyłącznie prefiksu.
+    candidate.is_active = False
+    candidate.clean()

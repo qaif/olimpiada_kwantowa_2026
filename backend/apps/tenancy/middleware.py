@@ -25,6 +25,7 @@ from django.urls import get_script_prefix, set_script_prefix
 from apps.tenancy.context import reset_current_competition, set_current_competition
 from apps.tenancy.resolution import (
     INTERNAL_URL_PREFIX,
+    dormant_host_miss,
     platform_subdomain_miss,
     resolve_for_request,
 )
@@ -50,7 +51,7 @@ class CompetitionMiddleware:
         request.competition = competition
         token = set_current_competition(competition)
         try:
-            if platform_subdomain_miss(request, competition):
+            if platform_subdomain_miss(request, competition) or dormant_host_miss(request, competition):
                 # Subdomena platformy bez konkursu: 404 **zanim** cokolwiek się wyrenderuje, a nie
                 # strona domyślnej witryny. Powód stoi w ``apps/tenancy/resolution.py`` przy
                 # ``platform_subdomain_miss``; tutaj liczy się miejsce: odpowiedź składamy w tej
@@ -60,6 +61,11 @@ class CompetitionMiddleware:
                 # Odpowiedź jest **pusta** i taka ma zostać: szablon 404 niesie markę konkursu,
                 # a tu właśnie nie ma konkursu, którego markę wolno pokazać. Przy wyłączonym
                 # przełączniku ta gałąź nie wykonuje ani jednej instrukcji poza sprawdzeniem flagi.
+                #
+                # Druga reguła (``dormant_host_miss``, audyt S13) dokłada to samo dla **każdej**
+                # domeny, nie tylko subdomen platformy: host, którego witryna należy do konkursu
+                # nieaktywnego (albo jest aliasem konkursu bez tłumaczeń treści), nie może oddać
+                # żądania z ``request.competition=None`` – to znaczyłoby role z globalnych grup.
                 return HttpResponseNotFound()
             return self.get_response(request)
         finally:

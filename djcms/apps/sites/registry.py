@@ -278,7 +278,9 @@ def _apply(entry: CompetitionEntry, current: CompetitionSite | None, now, report
     else:
         for name, value in values.items():
             setattr(current, name, value)
-        current.save()
+        # Tylko pola z API: znaczniki importu (``content_imported_at``, ``starter_failed_at``) pisze
+        # równolegle ``apps.importer.starter`` – pełny ``save()`` nadpisałby je wartością sprzed chwili.
+        current.save(update_fields=list(values))
         report.updated.append(entry.slug)
 
     # Hosty: dokładnie te z API. Host, który przeszedł od innego konkursu, zmienia właściciela

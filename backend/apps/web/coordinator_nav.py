@@ -149,8 +149,9 @@ def attention_counters(stage_ids: list[int] | None = None, competition=None) -> 
             "moderation": Submission.objects.for_competition(competition)
             .filter(status=SubmissionStatus.MODERATION, entry__stage_id__in=stage_ids)
             .count(),
+            # Ta sama definicja, co kolejka ``pending_activation_rows`` – bez kont zablokowanych (S5).
             "activations": users_for_competition(competition)
-            .filter(is_active=False, email_verified_at__isnull=True)
+            .filter(is_active=False, email_verified_at__isnull=True, blocked_at__isnull=True)
             .count(),
             # Bez kont usuniętych na żądanie – tak samo jak kolejka na ekranie „Komitet”
             # (``CoordinatorCommitteeView``); inaczej plakietka obiecywałaby wniosek, którego

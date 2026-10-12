@@ -9,10 +9,13 @@ Klasy są **cienkimi opakowaniami** i mają takie zostać: cała reguła („gru
 roli z profilem. Dzięki temu widoki DRF nie zmieniają deklaracji ``permission_classes`` ani przy
 przełączeniu flagi ``memberships_enforced``, ani przy żadnej późniejszej zmianie reguły.
 
-Konkurs bierzemy z żądania, które ustawia ``apps.tenancy.middleware``. Żądanie bez konkursu (host
-spoza listy, wywołanie testowe bez warstwy) daje ``None`` – a ``has_role`` schodzi wtedy do grup,
-czyli do zachowania sprzed wielokonkursowości. To jest warunek § 0 dokumentu: nic z tej zmiany nie
-ma prawa zmienić ani jednej odpowiedzi Konkursu #1 przed świadomym przełączeniem flagi.
+Konkurs bierzemy z żądania, które ustawia ``apps.tenancy.middleware``. Żądanie **bez konkursu**
+(host nieaktywnego konkursu, alias bez tłumaczenia, wywołanie bez warstwy) nie przechodzi żadnej
+z tych klas – tak samo jak ``apps.tenancy.permissions.IsCompetitionCoordinator`` (audyt 10.10.2026,
+S13). Dawniej ``has_role`` schodził wtedy do globalnych grup Django, więc koordynator, recenzent
+i komisja **dowolnego** konkursu mieli swoją rolę pod domeną, która żadnego konkursu nie wskazuje –
+razem z dostępem do danych wszystkich konkursów. Panele HTML zamyka w tym samym przypadku 404
+w ``apps.web.mixins.RoleRequiredMixin``; tutaj odpowiedzią jest zwykłe 403 uprawnienia DRF.
 """
 
 from rest_framework.permissions import BasePermission
@@ -33,10 +36,14 @@ def _competition(request):
 
 
 def _has_role(request, role: str) -> bool:
+    """Rola w konkursie żądania; bez konkursu – nigdy (docstring modułu, S13)."""
+    competition = _competition(request)
+    if competition is None:
+        return False
     # Import lokalny: ``services`` importuje pośrednio ten moduł przez warstwę API.
     from .services import has_role
 
-    return has_role(request.user, _competition(request), role)
+    return has_role(request.user, competition, role)
 
 
 def _active_committee_member(user, competition):
@@ -84,10 +91,14 @@ class IsActiveReviewer(BasePermission):
     message = "Wymagany aktywny recenzent."
 
     def has_permission(self, request, view) -> bool:
+        competition = _competition(request)
+        if competition is None:
+            # Bez konkursu nie ma „recenzenta tutaj” – patrz docstring modułu (S13).
+            return False
         # Import lokalny: ``services`` importuje ``permissions`` pośrednio przez warstwę API.
         from .services import active_reviewer_profile
 
-        return active_reviewer_profile(request.user, _competition(request)) is not None
+        return active_reviewer_profile(request.user, competition) is not None
 
 
 class IsAppealsCommittee(BasePermission):

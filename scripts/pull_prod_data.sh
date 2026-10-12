@@ -4,16 +4,31 @@
 # w tej samej wersji co na serwerze (deploy robi `git archive HEAD`), inaczej migracje przy starcie `web`
 # mogą się nie zgadzać.
 #
+# !!! RODO / DANE OSOBOWE MAŁOLETNICH !!!
+# Ten skrypt kopiuje na laptopa DANE OSOBOWE uczestników (w większości niepełnoletnich): imiona,
+# nazwiska, adresy e-mail, szkoły, zgody opiekunów, wyniki, a z `--with-submissions` także ich PRACE.
+# Laptop z DEBUG=1, kontami demo i bez szyfrowania dysku to inne środowisko niż serwer. Uruchamiaj
+# wyłącznie, gdy jest do tego podstawa (zgłoszony błąd, którego nie da się odtworzyć na danych
+# testowych), na zaszyfrowanym dysku, i usuń dane po zakończeniu pracy (`docker compose down -v`
+# na projekcie deweloperskim). Kopia jest przetwarzaniem danych – administrator (organizator) musi
+# o niej wiedzieć. Audyt bezpieczeństwa 10.10.2026: tokeny API i sesje NIE opuszczają serwera
+# (`--exclude-table-data` w zrzucie), a prace uczestników – tylko na wyraźne żądanie.
+#
 # Użycie (Git Bash, z katalogu repo):
 #   scripts/pull_prod_data.sh root@169.58.242.197
+#   scripts/pull_prod_data.sh --with-submissions root@169.58.242.197   # także bucket `submissions`
 #   SSH_KEY=~/.ssh/olimpiada_deploy KEEP_DUMP=1 scripts/pull_prod_data.sh root@olimpiadakwantowa.pl
 #
 # Co robi:
-#   1. pg_dump w kontenerze `db` na serwerze -> plik tymczasowy lokalnie
-#   2. mc mirror bucketów w kontenerze `minio` na serwerze -> tar -> plik tymczasowy lokalnie
-#   3. lokalnie: stop web/worker/beat, DROP + CREATE bazy, pg_restore (bez właścicieli/uprawnień)
+#   1. pg_dump w kontenerze `db` na serwerze (BEZ danych tabel `authtoken_token` i `django_session`
+#      – jawne tokeny API i aktywne sesje produkcji) -> plik tymczasowy lokalnie
+#   2. mc mirror bucketów w kontenerze `minio` na serwerze -> tar -> plik tymczasowy lokalnie;
+#      domyślnie WYŁĄCZNIE `public-media` (media redakcyjne), `submissions` (prace uczestników
+#      i treści zadań) tylko z `--with-submissions`
+#   3. lokalnie: stop web/worker/beat, DROP + CREATE bazy, pg_restore (bez właścicieli/uprawnień),
+#      a po nim jeszcze `TRUNCATE authtoken_token, django_session` (gdyby zrzut powstał inaczej)
 #   4. lokalnie: domyślny Site Wagtaila -> localhost:8000 (adresy stron i podglądy w dev)
-#   5. lokalnie: mc mirror --remove do lokalnych bucketów (dokładna kopia produkcji)
+#   5. lokalnie: mc mirror --remove do lokalnych bucketów (dokładna kopia pobranych bucketów)
 #   6. start web/worker/beat
 # UWAGA: lokalna baza i buckety są ZASTĘPOWANE. Dump zawiera dane osobowe – plik jest kasowany po imporcie
 # (KEEP_DUMP=1 zostawia go w katalogu podanym na końcu). Sesje/logowania wygasną (inny SECRET_KEY) – hasła
@@ -21,19 +36,27 @@
 set -euo pipefail
 export MSYS_NO_PATHCONV=1
 
-TARGET="${1:?użycie: scripts/pull_prod_data.sh user@host}"
+WITH_SUBMISSIONS=0
+if [ "${1:-}" = "--with-submissions" ]; then WITH_SUBMISSIONS=1; shift; fi
+TARGET="${1:?użycie: scripts/pull_prod_data.sh [--with-submissions] user@host}"
 SSH_KEY="${SSH_KEY:-$HOME/.ssh/olimpiada_deploy}"
 REMOTE_DIR="${REMOTE_DIR:-/opt/olimpiada}"
 SSH=(ssh -i "$SSH_KEY" -o BatchMode=yes -o StrictHostKeyChecking=accept-new "$TARGET")
 COMPOSE=(docker compose -f docker-compose.yml -f docker-compose.dev.yml)
-BUCKETS="public-media submissions"
+# Prace uczestników (bucket `submissions`) tylko na wyraźne żądanie: do odtworzenia błędu strony
+# czy CMS-u wystarczają media redakcyjne, a prace to największa i najwrażliwsza część danych.
+BUCKETS="public-media"
+[ "$WITH_SUBMISSIONS" = 1 ] && BUCKETS="public-media submissions"
+printf 'UWAGA: kopiujesz dane osobowe uczestników z produkcji na ten komputer (buckety: %s).\n' "$BUCKETS" >&2
 WORK="$(mktemp -d)"
 trap '[ "${KEEP_DUMP:-0}" = 1 ] && echo "Pliki zostawione w: $WORK" || rm -rf "$WORK"' EXIT
 
 log() { printf '\n==> %s\n' "$*"; }
 
 log "1/6 Dump bazy z produkcji ($TARGET:$REMOTE_DIR)"
-"${SSH[@]}" "cd '$REMOTE_DIR' && docker compose exec -T db sh -c 'pg_dump -Fc -U \"\$POSTGRES_USER\" \"\$POSTGRES_DB\"'" > "$WORK/prod.dump"
+# `--exclude-table-data`: struktura tabel zostaje (migracje się zgadzają), ale jawne tokeny API
+# (`authtoken_token` – klucz w bazie wprost) i sesje produkcji nie wyjeżdżają z serwera wcale.
+"${SSH[@]}" "cd '$REMOTE_DIR' && docker compose exec -T db sh -c 'pg_dump -Fc --exclude-table-data=authtoken_token --exclude-table-data=django_session -U \"\$POSTGRES_USER\" \"\$POSTGRES_DB\"'" > "$WORK/prod.dump"
 ls -la "$WORK/prod.dump"
 
 log "2/6 Obiekty MinIO z produkcji ($BUCKETS)"
@@ -62,6 +85,9 @@ log "3/6 Lokalnie: zatrzymanie aplikacji i przywrócenie bazy"
 # pg_restore zwraca kod 1 także przy nieszkodliwych ostrzeżeniach (np. COMMENT ON EXTENSION) – pokazujemy je i idziemy dalej.
 "${COMPOSE[@]}" exec -T db sh -c 'pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --no-owner --no-privileges' < "$WORK/prod.dump" \
   || echo "pg_restore zakończył się ostrzeżeniami (patrz wyżej)"
+# Druga zapora po `--exclude-table-data` w kroku 1 (zrzut zrobiony ręcznie albo starszą wersją
+# skryptu): żadnego działającego tokenu API ani sesji z produkcji w bazie deweloperskiej.
+"${COMPOSE[@]}" exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -v ON_ERROR_STOP=1 -c "TRUNCATE authtoken_token, django_session;"'
 
 log "4/6 Lokalnie: domyślny Site Wagtaila -> localhost:8000"
 # Trzy osobne wywołania psql, a nie jedno wieloinstrukcyjne: psql wysyła cały ciąg -c jako JEDNĄ

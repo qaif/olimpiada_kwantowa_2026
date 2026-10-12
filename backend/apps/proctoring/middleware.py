@@ -33,6 +33,9 @@ GATED_VIEWS = {
     "submissions:submission-create": "stage",
     "web:quiz-start": "stage",
     "web:quiz-attempt": "attempt",
+    # Ilustracja pytania testu (audyt 10.10.2026, N13 – plik przez widok, nie z bucketu): ta sama treść
+    # co strona podejścia, więc ta sama bramka.
+    "web:quiz-question-image": "attempt",
     "web:student-translation": "problem",
     "web:student-translation-file": "problem",
     # Strona laboratorium notatnika przy zadaniu (QC-01) – ``pk`` to zadanie. Sam notatnik startowy

@@ -206,14 +206,16 @@ SUPER_COORDINATOR_MODEL_PERMISSIONS = (
     ("cms", "announcement", "delete_announcement"),
     ("cms", "sitesettings", "change_sitesettings"),
     ("wagtailimages", "image", "choose_image"),
-    ("wagtaildocs", "document", "choose_document"),
+    # ``cms``, nie ``wagtaildocs``: własny model dokumentu (``WAGTAILDOCS_DOCUMENT_MODEL``, audyt W2).
+    ("cms", "document", "choose_document"),
 )
 
 #: Wybór obrazu i dokumentu Wagtail sprawdza **na kolekcji** (``choose`` w
 #: ``CollectionOwnershipPermissionPolicy``), więc same uprawnienia modelowe nie wystarczą.
 SUPER_COORDINATOR_COLLECTION_PERMISSIONS = (
     ("wagtailimages", "image", "choose_image"),
-    ("wagtaildocs", "document", "choose_document"),
+    # ``cms``, nie ``wagtaildocs``: własny model dokumentu (``WAGTAILDOCS_DOCUMENT_MODEL``, audyt W2).
+    ("cms", "document", "choose_document"),
 )
 
 

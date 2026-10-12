@@ -143,14 +143,16 @@ def scope(competition):
     """Profile, którymi ten ekran w ogóle się zajmuje – niezależnie od filtra.
 
     Uczestnicy **tego** konkursu, bez kont zanonimizowanych (to już nie są osoby, którymi się
-    administruje) i bez kont chronionych: koordynatora i superużytkownika ``delete_account_by_coordinator``
-    i tak nie usunie, a na liście „do sprzątnięcia” byłyby wyłącznie szumem.
+    administruje) i bez kont chronionych: koordynatora, superużytkownika i ``is_staff``
+    ``delete_account_by_coordinator`` i tak nie usunie, a na liście „do sprzątnięcia” byłyby wyłącznie szumem.
     """
     coordinators = User.groups.through.objects.filter(group__name__in=COORDINATOR_GROUPS).values("user_id")
     return (
         Participant.objects.filter(competition=competition)
         .exclude_anonymised()
         .exclude(user__is_superuser=True)
+        # Operator ``is_staff`` też jest kontem chronionym (audyt 10.10.2026, N2).
+        .exclude(user__is_staff=True)
         .exclude(user_id__in=coordinators)
     )
 

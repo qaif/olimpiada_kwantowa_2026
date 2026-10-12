@@ -17,13 +17,12 @@
 # wątki na cały serwis), a WhiteNoise indeksuje katalog przy starcie procesu – plik wgrany po starcie
 # nie istniałby do restartu. Caddy podaje pliki sam, z nagłówkami z reguły 12 (CSP `sandbox`, nosniff).
 #
-# DJ-02: nakładka dokłada też **stały adres** `proxy` w sieci `internal` – djcms ufa nagłówkom
-# `X-Real-IP` i `X-Djcms-Mode` (tryb preview/primary, od którego zależy noindex) wyłącznie od tego
-# adresu (`TRUSTED_PROXY_IPS` usługi djcms w docker-compose.yml, ta sama zmienna DJCMS_PROXY_IP).
-# Bez przypięcia djcms musiałby ufać całej podsieci, czyli także web, workerowi, minio, clamav,
-# poczcie… Przypięcie tutaj, a nie w pliku podstawowym – z tego samego powodu co montaż wyżej:
-# bez dj. konfiguracja `proxy` ma zostać ta, co przed DJ-01. Adres z końca puli (Docker przydziela
-# dynamiczne od początku), zmiana tylko razem z DJCMS_PROXY_IP w .env.
+# DJ-02 dokładał tu też **stały adres** `proxy` w sieci `internal` (DJCMS_PROXY_IP), od którego
+# – i tylko od którego – djcms przyjmuje `X-Real-IP` i `X-Djcms-Mode`. Od 10.10.2026 (audyt
+# bezpieczeństwa, S20) adres przypina plik podstawowy, zawsze: na tym samym adresie opiera się
+# też zaufanie aplikacji głównej (TRUSTED_PROXY_IPS), więc nie może zależeć od tego, czy dj. jest
+# włączone. Ta sama zmienna i ta sama wartość domyślna (172.30.2.250) – djcms widzi dokładnie to,
+# co widział.
 services:
   proxy:
     volumes:
@@ -31,7 +30,3 @@ services:
       # djcms. Każdy blok aplikacji w caddy/Caddyfile (scripts/render_caddyfile.sh)
       # podaje je pod /djcms/media/* (DJ-02 D2), z CSP `sandbox` poza PDF-em.
       - djcms_media:/srv/djcms-media:ro
-    networks:
-      edge:
-      internal:
-        ipv4_address: ${DJCMS_PROXY_IP:-172.30.2.250}

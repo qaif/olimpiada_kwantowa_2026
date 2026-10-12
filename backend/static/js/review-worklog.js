@@ -53,6 +53,12 @@
     return "";
   }
 
+  /* Produkcja: `__Host-csrftoken` (config/settings/production.py, prefiks nie do podrzucenia z sąsiedniej
+     subdomeny), dev po http: `csrftoken`. Najpierw nazwa z prefiksem. */
+  function csrfToken() {
+    return readCookie("__Host-csrftoken") || readCookie("csrftoken");
+  }
+
   function markActivity() {
     lastActivity = Date.now();
   }

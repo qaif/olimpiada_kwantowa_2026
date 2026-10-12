@@ -76,10 +76,10 @@ while [ $# -gt 0 ]; do
 done
 
 [ -f .env ] || die "brak pliku .env w $REPO_DIR"
-set -a
-# shellcheck disable=SC1091
-. ./.env
-set +a
+# .env jako tekst (scripts/lib/env.sh), nie `. ./.env` – uzasadnienie w scripts/backup.sh (S17).
+# shellcheck source=lib/env.sh
+. "${SCRIPT_DIR}/lib/env.sh"
+env_load .env
 
 : "${POSTGRES_USER:?POSTGRES_USER musi być w .env}"
 : "${BACKUP_PASSPHRASE:?BACKUP_PASSPHRASE musi być w .env – bez hasła paczek nie da się otworzyć}"
@@ -373,9 +373,12 @@ else
         printf '    [próba] mc mirror -> dst/%s (kubełek prywatny, %s plików)\n' \
             "$TARGET_BUCKET" "$(find "${WORK_DIR}/buckets/submissions" -type f 2>/dev/null | wc -l)"
     else
-        docker run --rm --network "$NETWORK" \
+        # Hasło przez `--env-file` (600, w katalogu roboczym sprzątanym przez `trap`), nie w argumencie
+        # `-e` – argumenty `docker run` widzi `ps` każdego konta (audyt 10.10.2026; jak scripts/backup.sh).
+        ( umask 077 && printf 'MC_HOST_dst=http://%s:%s@minio:9000\n' "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" \
+            > "${WORK_DIR}/mc.env" )
+        docker run --rm --network "$NETWORK" --env-file "${WORK_DIR}/mc.env" \
             -v "${WORK_DIR}/buckets:/backup:ro" \
-            -e MC_HOST_dst="http://${MINIO_ROOT_USER}:${MINIO_ROOT_PASSWORD}@minio:9000" \
             -e MC_QUIET=on -e MC_NO_COLOR=on \
             --entrypoint sh "$MC_IMAGE" -c "
                 set -e

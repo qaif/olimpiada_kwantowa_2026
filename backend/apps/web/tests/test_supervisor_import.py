@@ -7,6 +7,8 @@ nie zapisuje i czy uczeń jest w stanie uruchomić konto samym linkiem z listu.
 
 from __future__ import annotations
 
+from datetime import timedelta
+
 import pytest
 from django.contrib.auth.models import Group
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -249,6 +251,8 @@ def test_opiekun_wysyla_zaproszenie_ponownie_tylko_swojemu_uczniowi(
 ):
     """Uprawnienie pochodzi z adresu w profilu ucznia – nie ze szkoły i nie z tego, kto wgrał plik."""
     mine = invited(logged_supervisor)
+    # Poza godzinną karencją ponowień (audyt 10.10.2026, S12) – import przed chwilą wysłał list.
+    Participant.objects.filter(pk=mine.pk).update(invitation_sent_at=timezone.now() - timedelta(hours=2))
     stranger = ParticipantFactory(
         user=UserFactory(email="obcy@example.test"), supervisor_email="inny@szkola.test"
     )

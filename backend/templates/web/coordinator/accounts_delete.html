@@ -23,6 +23,9 @@
     {% elif is_self %}
       <p class="notice">To Twoje własne konto. Z tego ekranu go nie usuniesz – służy do tego
         „Usuń konto” we własnym profilu, z potwierdzeniem tożsamości.</p>
+    {% elif shared %}
+      <p class="notice">To konto ma role także w innym konkursie – usunięcie zabrałoby dane, które
+        przetwarza też inny organizator. Konto usuwa administrator serwisu.</p>
     {% else %}
       {% if keeps_pseudonymous_row %}
         <h2 class="mt-0">Co się stanie z danymi tego konta</h2>
@@ -61,17 +64,17 @@
       {% csrf_token %}
       {% if back %}<input type="hidden" name="back" value="{{ back }}">{% endif %}
       <div class="actions">
-        {% if not protected and not is_self %}
+        {% if not protected and not is_self and not shared %}
           <button type="submit" class="btn btn--danger">
             {% if keeps_pseudonymous_row %}Usuń dane osobowe tego konta{% else %}Usuń konto na zawsze{% endif %}
           </button>
         {% endif %}
-        {% if back_url %}
-          <a class="btn btn--secondary" href="{{ back_url }}">Wróć do listy zdublowanych kont</a>
-        {% else %}
-          <a class="btn btn--secondary"
-             href="{% url 'web:coordinator-account-edit' account.pk %}">Wróć do konta</a>
-        {% endif %}
+        {% comment %}
+          „Wróć” prowadzi tam, skąd koordynator przyszedł: na kartę konta, na listę zdublowanych kont
+          (``back``) albo – przy usuwaniu z ekranu aktywacji – z powrotem na kolejkę (adres i napis
+          liczy widok: ``cancel_url``, ``cancel_label``).
+        {% endcomment %}
+        <a class="btn btn--secondary" href="{{ cancel_url }}">{{ cancel_label }}</a>
       </div>
     </form>
   </div>

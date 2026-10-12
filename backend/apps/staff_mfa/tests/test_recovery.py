@@ -6,7 +6,12 @@ import pytest
 from django.core import mail
 
 from apps.accounts import twofactor
-from apps.accounts.tests.factories import CoordinatorFactory, ParticipantFactory, UserFactory
+from apps.accounts.tests.factories import (
+    ActiveReviewerFactory,
+    CoordinatorFactory,
+    ParticipantFactory,
+    UserFactory,
+)
 from apps.core.models import AuditLog
 from apps.staff_mfa import trust
 from apps.staff_mfa.models import TwoFactorPolicy
@@ -311,14 +316,23 @@ def test_the_super_coordinator_resets_a_staff_account_with_audit_and_mail(
 
 
 def test_without_any_super_coordinator_a_coordinator_may_reset_staff(client, competition):
-    """Instalacja bez superkoordynatora nie może zostać bez drogi powrotu (jak „pierwszy oficer”)."""
+    """Instalacja bez superkoordynatora nie może zostać bez drogi powrotu (jak „pierwszy oficer”).
+
+    Po scaleniu z audytem 10.10.2026 (S7) wyjątek obejmuje personel **niechroniony** (recenzent,
+    komisja): konto drugiego koordynatora zdejmuje superkoordynator albo ``manage.py reset_2fa``
+    (``reset_by_operator``) – koordynator dostaje ``COORDINATOR_PROTECTED``.
+    """
+    reviewer = ActiveReviewerFactory(competition=competition, user__email="recenzent@example.test").user
+    enable_for(reviewer)
     colleague = CoordinatorFactory(email="kolega@example.test")
     enable_for(colleague)
     actor = CoordinatorFactory(email="koordynator@example.test")
     _verified_client(client, actor)
 
+    assert client.post(_reset_url(reviewer)).status_code == 302
+    assert twofactor.device_for(reviewer) is None
     assert client.post(_reset_url(colleague)).status_code == 302
-    assert twofactor.device_for(colleague) is None
+    assert twofactor.confirmed_device(colleague) is not None
 
 
 def test_after_a_reset_a_required_account_configures_at_once(client, competition):

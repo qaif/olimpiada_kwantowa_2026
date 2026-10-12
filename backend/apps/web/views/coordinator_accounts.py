@@ -34,6 +34,7 @@ from apps.accounts.guardian import STATUS_MISSING, STATUS_PENDING, guardian_stat
 from apps.accounts.models import COORDINATOR_GROUPS, GROUP_SUPER_COORDINATOR, Participant, User, Voivodeship
 from apps.accounts.password_reset import reset_eligible
 from apps.accounts.profile import (
+    assert_coordinator_may_secure,
     competition_footprint,
     delete_account_by_coordinator,
     update_account_by_coordinator,
@@ -68,9 +69,13 @@ def participant_ids(competition):
     daje ``LEFT JOIN``, a ten powiela wiersz konta startującego w dwóch olimpiadach. Lista jest
     stronicowana, więc powielony wiersz to nie tylko podwójne nazwisko na ekranie, ale i błędna
     liczba stron.
+
+    Żądanie bez konkursu nie widzi **nikogo** (audyt 10.10.2026, S13): dawniej dostawało profile
+    wszystkich konkursów, czyli koordynator zalogowany pod domeną nieaktywnego konkursu działał na
+    uczestnikach każdego organizatora. Domyślnie zamknięte, jak ``for_competition(None)``.
     """
     if competition is None:
-        return Participant.objects.values("user_id")
+        return Participant.objects.none().values("user_id")
     return Participant.objects.filter(competition=competition).values("user_id")
 
 
@@ -260,6 +265,9 @@ def _annotate_for_sort(users, controls: ListControls, competition):
     elif controls.sort == "stan":
         users = users.annotate(
             sort_stan=Case(
+                # Blokada organizatora (``blocked_at``) przed brakiem potwierdzenia – ta sama
+                # kolejność rozstrzygania, co w ``account_status``.
+                When(blocked_at__isnull=False, is_active=False, then=Value(1)),
                 When(email_verified_at__isnull=True, then=Value(2)),
                 When(is_active=False, then=Value(1)),
                 default=Value(0),
@@ -331,11 +339,14 @@ def users_for_competition(competition):
     """
     from apps.accounts.models import CommitteeMember, Membership, SchoolSupervisor
 
+    if competition is None:
+        # Żądanie bez konkursu nie widzi żadnego konta (audyt 10.10.2026, S13). Dawniej „nikt nie
+        # był cudzy”, więc pod domeną nieaktywnego konkursu koordynator innego konkursu zmieniał
+        # adresy i hasła kont wszystkich organizatorów. Wszystkie ekrany tego modułu idą przez
+        # ``_account``, więc pusty zbiór daje im 404.
+        return User.objects.none()
     mine = Membership.objects.for_competition(competition).values("user_id")
     claimed_by_anyone = Membership.objects.values("user_id")
-    if competition is None:
-        # Żądanie bez konkursu: jak przed wielokonkursowością – nikt nie jest „cudzy”.
-        return User.objects.filter(Q(pk__in=participant_ids(None)) | ~Q(pk__in=claimed_by_anyone))
     here = Q(pk__in=mine)
     elsewhere = Q()
     for model in (Participant, CommitteeMember, SchoolSupervisor):
@@ -357,8 +368,11 @@ def is_protected(user: User) -> bool:
     dla całej strony): ``groups.filter(...).exists()`` omija bufor prefetchu i na liście dawało dwa
     zapytania na **każdy** wiersz (rola i odznaka „chronione”). Bez prefetchu – jedno zapytanie,
     jak dotąd; ekran edycji ogląda jedno konto.
+
+    ``is_staff`` od audytu 10.10.2026: konto z dostępem do ``/admin/`` bez grupy koordynatora było
+    „niczyje” i do przejęcia z panelu każdego koordynatora (``accounts.profile._is_coordinator``).
     """
-    if user.is_superuser:
+    if user.is_superuser or user.is_staff:
         return True
     prefetched = getattr(user, "_prefetched_objects_cache", {}).get("groups")
     if prefetched is not None:
@@ -379,6 +393,32 @@ def is_super_coordinator_account(user: User) -> bool:
     if prefetched is not None:
         return any(group.name == GROUP_SUPER_COORDINATOR for group in prefetched)
     return user.groups.filter(name=GROUP_SUPER_COORDINATOR).exists()
+
+
+def may_secure(user: User, request) -> bool:
+    """Czy pokazać przyciski resetu hasła i 2FA oraz eksportu – ``assert_coordinator_may_secure`` bez odmowy.
+
+    Ta sama zasada, co przy ``is_protected``/``is_shared``: przycisk, którego serwis nie przepuści,
+    nie stoi na stronie. Osobno od ``protected``, bo superkoordynator (i superużytkownik) zdejmuje
+    zgubiony drugi składnik i wysyła reset hasła także koordynatorowi (SEC-01), choć danych jego konta
+    z tego ekranu nadal nie zmienia (audyt 10.10.2026, S7/W3).
+    """
+    try:
+        assert_coordinator_may_secure(user, actor=request.user, competition=request.competition)
+    except DomainError:
+        return False
+    return True
+
+
+def is_shared(user: User, request) -> bool:
+    """Czy konto ma role także w innym konkursie, a wykonawca nie ma nad nim władzy (W3).
+
+    Tak samo jak ``is_protected`` – **do ekranu**, żeby nie stawiać przycisków, których serwis nie
+    przepuści (``ACCOUNT_SHARED``). Rozstrzyga ``apps.accounts.shared_accounts``.
+    """
+    from apps.accounts.shared_accounts import is_shared_for
+
+    return is_shared_for(user, request.competition, actor=request.user)
 
 
 def two_factor_feature() -> bool:
@@ -485,7 +525,14 @@ def account_status(user: User) -> str:
     link i zniknie samo (``apps.accounts.tasks``). ``is_active=False`` przy potwierdzonym adresie
     znaczy co innego: organizator **zablokował** logowanie. Sklejenie obu w „nieaktywne” kazałoby
     zgadywać, czy wysłać link aktywacyjny, czy odblokować konto.
+
+    ``blocked_at`` rozstrzyga **pierwszy**: konto zablokowane przed potwierdzeniem adresu ma te same
+    dwa pola, co świeża rejestracja (adres niepotwierdzony, ``is_active=False``), a etykieta
+    „nieaktywowane” podpowiadałaby koordynatorowi aktywację konta, które organizator właśnie
+    odciął. Znacznik stawia ``User.save`` przy przejściu ``is_active`` z ``True`` na ``False``.
     """
+    if user.blocked_at is not None and not user.is_active:
+        return STATUS_BLOCKED
     if user.email_verified_at is None:
         return STATUS_PENDING_ACTIVATION
     if not user.is_active:
@@ -697,9 +744,11 @@ class CoordinatorAccountEditView(CoordinatorRequiredMixin, View):
         if is_protected(user):
             return {}
         forms = {
+            # Konto z rolą u sąsiada: adres i blokada tylko do odczytu (W3) – patrz formularz.
             "account": CoordinatorAccountForm(
                 data,
                 prefix="account",
+                shared=is_shared(user, self.request),
                 initial={
                     "first_name": user.first_name,
                     "last_name": user.last_name,
@@ -735,6 +784,12 @@ class CoordinatorAccountEditView(CoordinatorRequiredMixin, View):
             "role": account_role(user, request.competition, participant),
             "status_label": account_status(user),
             "protected": is_protected(user),
+            # Konto z rolą w innym konkursie (W3): bez przycisków resetu hasła, 2FA, eksportu
+            # i usunięcia – serwis i tak ich nie przepuści (``ACCOUNT_SHARED``).
+            "shared": is_shared(user, request),
+            # Reset hasła i 2FA, eksport: konto własne, chronione albo współdzielone – bez przycisków
+            # (``may_secure``; superkoordynator ponad ``protected``).
+            "may_secure": may_secure(user, request),
             # Stan zgody opiekuna – do odczytu. Reguła jest jedna dla panelu uczestnika
             # i dla tego ekranu (``apps.accounts.guardian.guardian_status``).
             "guardian": (
@@ -769,9 +824,15 @@ class CoordinatorAccountExportView(CoordinatorRequiredMixin, View):
     sprawy). Bez tego wejścia organizator odpowiadałby na wniosek z art. 20 zrzutem z bazy robionym
     ręcznie – czyli czymś, czego zakresu nikt nie sprawdza.
 
-    Paczkę buduje ta sama funkcja, co przy własnym eksporcie (``account.send_export``), więc
-    zakres danych jest identyczny: ani szerszy, bo koordynator prosi, ani węższy. Różnica jest
-    jedna i jest w audycie – ``account.exported_by_coordinator`` zamiast ``account.exported``.
+    Paczkę buduje ta sama funkcja, co przy własnym eksporcie (``account.send_export``), z jedną
+    różnicą w zakresie (audyt 10.10.2026, S8): sekcje przypięte do konkursu (forum, wiadomości,
+    profile ról, delegacje) są zawężone do konkursu **tego** koordynatora – organizator jednego
+    konkursu nie wydaje treści wiadomości wysłanych do organizatora sąsiedniej olimpiady. W audycie
+    zostaje ``account.exported_by_coordinator`` zamiast ``account.exported``.
+
+    Odmowy jak przy resecie hasła (``assert_coordinator_may_secure``): konto chronione (paczka
+    z danymi operatora nie jest sprawą koordynatora konkursu), konto z rolą w innym konkursie
+    i konto własne – własne dane pobiera się z własnego profilu.
 
     POST, a nie GET: wydanie cudzych danych jest decyzją organizatora, a nie odczytem strony.
     Limitu częstotliwości tu nie ma i to jest świadome – ogranicza go człowiek, który musi
@@ -782,7 +843,12 @@ class CoordinatorAccountExportView(CoordinatorRequiredMixin, View):
         from apps.web.views.account import send_export
 
         user = _account(request.competition, pk)
-        return send_export(request, user, actor=request.user)
+        try:
+            assert_coordinator_may_secure(user, actor=request.user, competition=request.competition)
+        except DomainError as exc:
+            messages.error(request, str(exc.detail))
+            return redirect(reverse("web:coordinator-account-edit", args=[user.pk]))
+        return send_export(request, user, actor=request.user, competition=request.competition)
 
 
 class CoordinatorTwoFactorResetView(CoordinatorRequiredMixin, View):
@@ -812,7 +878,14 @@ class CoordinatorTwoFactorResetView(CoordinatorRequiredMixin, View):
             raise Http404("Logowanie dwuskładnikowe jest wyłączone na tej instalacji.")
 
         user = _account(request.competition, pk)
-        if reset_by_coordinator(user, actor=request.user, request=request):
+        # Odmowy (konto własne, chronione, współdzielone – S7, W3) wydaje serwis; widok zamienia je
+        # na komunikat na karcie konta.
+        try:
+            removed = reset_by_coordinator(user, actor=request.user, request=request)
+        except DomainError as exc:
+            messages.error(request, str(exc.detail))
+            return redirect(reverse("web:coordinator-account-edit", args=[user.pk]))
+        if removed:
             messages.success(
                 request,
                 f"Drugi składnik logowania konta {user.email} został zdjęty. "
@@ -843,7 +916,7 @@ class CoordinatorPasswordResetView(CoordinatorRequiredMixin, View):
     anonima zgadującego cudze adresy, a to żądanie idzie od zalogowanego koordynatora o koncie,
     które już ma otwarte przed sobą – to samo rozróżnienie, co przy eksporcie RODO wyżej.
 
-    Cztery odmowy, każda bez wysyłki i bez wpisu w audycie:
+    Odmowy, każda bez wysyłki i bez wpisu w audycie:
 
     - **konto jeszcze nie aktywowane** – link do zmiany hasła nie miałby dokąd trafić, dopóki
       adres nie jest potwierdzony; na to jest osobny przycisk („Wyślij link ponownie” na ekranie
@@ -855,7 +928,10 @@ class CoordinatorPasswordResetView(CoordinatorRequiredMixin, View):
       bez kompletu zgód. Konto Google/Facebooka z potwierdzonym adresem link **dostaje** – tak
       samo jak w „Nie pamiętasz hasła?” (AUTH-01a, L4) – i ustawia nim pierwsze hasło,
     - **konto własne koordynatora** – do tego służy „Nie pamiętasz hasła?” na stronie logowania,
-      a nie ekran zarządzania cudzymi kontami.
+      a nie ekran zarządzania cudzymi kontami,
+    - **konto chronione** (koordynator, superkoordynator, operator – audyt 10.10.2026, S7) i **konto
+      z rolą w innym konkursie** (W3): list resetu na takie konto otwiera konto operatora albo
+      konto, o którym ten koordynator nie decyduje sam (``assert_coordinator_may_secure``).
     """
 
     def post(self, request, pk: int):
@@ -874,6 +950,11 @@ class CoordinatorPasswordResetView(CoordinatorRequiredMixin, View):
                 "Własnego hasła nie resetuje się z tego ekranu – od tego jest „Nie pamiętasz "
                 "hasła?” na stronie logowania.",
             )
+            return redirect(edit_url)
+        try:
+            assert_coordinator_may_secure(user, actor=request.user, competition=request.competition)
+        except DomainError as exc:
+            messages.error(request, str(exc.detail))
             return redirect(edit_url)
         if user.email_verified_at is None:
             messages.error(
@@ -933,29 +1014,49 @@ class CoordinatorAccountDeleteView(CoordinatorRequiredMixin, View):
     zostaje), a konto bez takiego śladu znika w całości. Ukrycie tej różnicy za jednym przyciskiem
     „usuń” znaczyłoby, że koordynator dowiaduje się o niej po fakcie – od uczestnika, którego
     właśnie wypisał z ogłoszonej tabeli.
+
+    Trzy punkty zaczepienia dla wariantu z ekranu aktywacji (``coordinator_pages``): skąd bierze
+    się konto (``get_account``), dokąd wraca „Anuluj” i sukces, oraz znacznik drogi w audycie.
     """
 
+    #: Dokąd wraca koordynator po usunięciu.
+    success_url_name = "web:coordinator-accounts"
+    #: Droga w audycie (``via`` w ``account.deleted_by_coordinator``); ``None`` = karta konta.
+    audit_via: str | None = None
     #: Ekran, na który wraca się po usunięciu – zamknięta lista wartości parametru ``back``, a nie
     #: adres w parametrze (to byłoby otwarte przekierowanie). ``duplicates`` – lista zdublowanych
     #: kont (ACC-DUP-01). Od ACC-DUP-02 lista usuwa w wierszu, bez tego ekranu; wartość zostaje dla
-    #: zapisanych odnośników i zakładek.
+    #: zapisanych odnośników i zakładek. Ma pierwszeństwo przed ``success_url_name``/``cancel_url`` –
+    #: wskazuje, skąd koordynator naprawdę przyszedł.
     BACK_URLS = {"duplicates": "web:coordinator-duplicates"}
+    BACK_LABELS = {"duplicates": "Wróć do listy zdublowanych kont"}
 
     def _back(self, request) -> str:
         value = request.POST.get("back") if request.method == "POST" else request.GET.get("back")
         return value if value in self.BACK_URLS else ""
 
+    def get_account(self, request, pk: int) -> User:
+        return _account(request.competition, pk)
+
+    def cancel_url(self, user: User) -> str:
+        return reverse("web:coordinator-account-edit", args=[user.pk])
+
+    def cancel_label(self) -> str:
+        return "Wróć do konta"
+
     def get(self, request, pk: int):
-        return self._render(request, _account(request.competition, pk))
+        return self._render(request, self.get_account(request, pk))
 
     def post(self, request, pk: int):
-        user = _account(request.competition, pk)
+        user = self.get_account(request, pk)
         email = user.email
         try:
-            result = delete_account_by_coordinator(user, actor=request.user, request=request)
+            result = delete_account_by_coordinator(
+                user, actor=request.user, request=request, via=self.audit_via
+            )
         except DomainError as exc:
             messages.error(request, str(exc.detail))
-            return self._render(request, _account(request.competition, pk), status=exc.status_code)
+            return self._render(request, self.get_account(request, pk), status=exc.status_code)
         if result == "anonymised":
             messages.success(
                 request,
@@ -967,7 +1068,7 @@ class CoordinatorAccountDeleteView(CoordinatorRequiredMixin, View):
                 request, f"Konto {email} zostało usunięte w całości. Adres zwolnił się do rejestracji."
             )
         back = self._back(request)
-        return redirect(reverse(self.BACK_URLS[back] if back else "web:coordinator-accounts"))
+        return redirect(reverse(self.BACK_URLS[back] if back else self.success_url_name))
 
     def _render(self, request, user: User, *, status: int = 200):
         footprint = competition_footprint(user)
@@ -976,6 +1077,8 @@ class CoordinatorAccountDeleteView(CoordinatorRequiredMixin, View):
             "account": user,
             "role": account_role(user, request.competition, participant),
             "protected": is_protected(user),
+            # Konto z rolą w innym konkursie (W3) – bez przycisku; serwis i tak odmówi.
+            "shared": is_shared(user, request),
             "is_self": user.pk == request.user.pk,
             "footprint": footprint,
             # ``True`` = zostanie anonimizacja, ``False`` = skasowanie wiersza. Nazwa mówi
@@ -987,6 +1090,49 @@ class CoordinatorAccountDeleteView(CoordinatorRequiredMixin, View):
             "has_supervisor_footprint": bool(footprint.get("school_participations")),
             "participant": participant,
             "back": (back := self._back(request)),
-            "back_url": reverse(self.BACK_URLS[back]) if back else "",
+            "cancel_url": reverse(self.BACK_URLS[back]) if back else self.cancel_url(user),
+            "cancel_label": self.BACK_LABELS[back] if back else self.cancel_label(),
         }
         return TemplateResponse(request, DELETE_TEMPLATE, context, status=status)
+
+
+def pending_activation_accounts(competition):
+    """Konta **tego** konkursu czekające na aktywację – ten sam warunek, co kolejka aktywacji.
+
+    Jedyna definicja „konto oczekuje na aktywację” w panelu: czyta ją kolejka aktywacji
+    (``apps.web.views.coordinator.pending_activation_rows``) i usuwanie konta z tej kolejki. Zakres
+    jest ten sam, co na liście kont (``users_for_competition``), a warunek: adres niepotwierdzony,
+    logowanie wyłączone, konto **niezablokowane** decyzją organizatora (``blocked_at``) – zablokowane
+    konto bez potwierdzonego adresu nie jest rejestracją w toku i nie ma go na tej liście.
+    """
+    return users_for_competition(competition).filter(
+        is_active=False, email_verified_at__isnull=True, blocked_at__isnull=True
+    )
+
+
+class CoordinatorActivationDeleteView(CoordinatorAccountDeleteView):
+    """``/coordinator/activations/<pk>/delete/`` – usunięcie konta prosto z kolejki aktywacji.
+
+    Po co, skoro konto nieaktywowane i tak zniknie po kilku godzinach (``apps.accounts.tasks``):
+    organizator dostaje telefon „zapisałem się z literówką w adresie, nie mogę założyć konta od
+    nowa” – a do przebiegu kosiarki adres jest zajęty. Usunięcie zwalnia go od razu.
+
+    Ten sam ekran potwierdzenia i ta sama operacja, co z karty konta (``delete_account_by_coordinator``
+    z odmowami dla konta chronionego, własnego i współdzielonego), z trzema różnicami: konto musi
+    **czekać na aktywację** w tym konkursie (``pending_activation_accounts``; każde inne to 404 –
+    ten adres nie jest drugim wejściem do usuwania dowolnych kont), „Wróć” i sukces prowadzą na
+    kolejkę, a wpis w audycie niesie ``via: "activations"``. Potwierdzenie jest osobną stroną, a nie
+    oknem ``confirm()`` – CSP panelu nie dopuszcza skryptów w atrybutach.
+    """
+
+    success_url_name = "web:coordinator-activations"
+    audit_via = "activations"
+
+    def get_account(self, request, pk: int) -> User:
+        return get_object_or_404(pending_activation_accounts(request.competition), pk=pk)
+
+    def cancel_url(self, user: User) -> str:
+        return reverse("web:coordinator-activations")
+
+    def cancel_label(self) -> str:
+        return "Wróć do kolejki aktywacji"

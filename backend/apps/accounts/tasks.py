@@ -52,11 +52,16 @@ def unactivated_accounts(now=None):
     zabrałoby przy okazji dowiązanie do opiekuna i kazałoby powtórzyć cały import. Uzasadnienie
     kosiarki – „konto-widmo blokuje adres właścicielowi” – tu zresztą nie zachodzi: adres nie
     należy do kogoś, kto właśnie próbuje się zarejestrować, tylko do ucznia, którego zaprosiliśmy.
+
+    Poza zasięgiem zostają też konta **zablokowane** (``blocked_at``, audyt 10.10.2026, S5): blokada
+    jest decyzją organizatora o koncie, które działało, a nie porzuconą rejestracją. Skasowanie
+    zwolniłoby adres zablokowanemu uczestnikowi do założenia konta od nowa.
     """
     now = now or timezone.now()
     return User.objects.filter(
         is_active=False,
         email_verified_at__isnull=True,
+        blocked_at__isnull=True,
         date_joined__lt=now - timedelta(seconds=ACTIVATION_MAX_AGE),
     ).exclude(participations__invited_at__isnull=False)
 
