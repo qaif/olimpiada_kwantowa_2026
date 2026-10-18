@@ -201,6 +201,7 @@ INSTALLED_APPS = [
     "apps.accessibility",  # deklaracja dostępności i napisy stopki (A11Y-01, 5.10.2026), bez modeli
     "apps.email_delivery",  # literówki w adresach i odbicia poczty (MAIL-02, 5.10.2026)
     "apps.consent_gate",  # bramka i ekran „Uzupełnij zgody” po zalogowaniu (CONS-01), bez modeli
+    "apps.calendar_feed",  # publiczny kalendarz ICS: warsztaty i terminy (CAL-01, 18.10.2026), bez modeli
     "apps.web",
     # Logowanie przez dostawców zewnętrznych (Google, Facebook). ``allauth.account`` jest wymagane
     # przez ``allauth.socialaccount`` (model ``EmailAddress``, adaptery) – jego **widoki** nie są

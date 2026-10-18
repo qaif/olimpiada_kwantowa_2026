@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load i18n wagtailcore_tags workshop_materials theme_tags %}
+{% load i18n wagtailcore_tags workshop_materials theme_tags calendar_feed %}
 {% block title %}{{ page.title }} – {{ settings.cms.SiteSettings.site_name }}{% endblock %}
 {% block description %}{{ page.search_description|default:page.title }} – {{ settings.cms.SiteSettings.site_name }}.{% endblock %}
 {% block content %}
@@ -22,6 +22,8 @@
       nie oddaje niczego (``apps.workshop_materials.templatetags``).
     {% endcomment %}
     {% if page.slug == "warsztaty" %}{% workshop_materials_teaser %}{% endif %}
+    {# Subskrypcja kalendarza z warsztatami i terminami (CAL-01) – ten sam warunek na slug. #}
+    {% if page.slug == "warsztaty" %}{% calendar_subscribe %}{% endif %}
   </div>
 
   {% if page.chapters %}

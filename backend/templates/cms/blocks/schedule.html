@@ -1,4 +1,4 @@
-{% load i18n %}{% comment %}
+{% load i18n calendar_feed %}{% comment %}
   Harmonogram redakcyjny jako tabela danych. Trzy decyzje o tym znaczniku:
 
   - ``<th scope="col">`` w nagłówku i ``<th scope="row">`` w pierwszej komórce wiersza: czytnik
@@ -10,6 +10,10 @@
     dostaje poziomy pasek przewijania, a wraz z nią nagłówek i stopka.
 
   Wszystkie wartości są tekstem i przechodzą przez autoescapowanie Django – żadnego ``|safe``.
+
+  Na stronie „Warsztaty” wiersz z datą maszynową dostaje odnośnik „Dodaj do Google Calendar” (CAL-01)
+  – szablon jednego wydarzenia z tymi samymi godzinami, co kanał ``/kalendarz.ics``. Blok jest wspólny
+  z innymi harmonogramami (zjazdy), więc warunek na slug strony, jak przy karcie materiałów.
 {% endcomment %}
 <div class="table-scroll">
   <table class="table schedule">
@@ -26,7 +30,7 @@
       {% for row in value.rows %}
         <tr>
           <th scope="row" class="schedule__topic">{{ row.topic }}</th>
-          <td class="schedule__date">{{ row.date }}</td>
+          <td class="schedule__date">{{ row.date }}{% if page.slug == "warsztaty" and row.date_value %}{% workshop_google_url row as gcal_url %}{% if gcal_url %}<br><small><a href="{{ gcal_url }}" rel="noopener">{% translate "Dodaj do Google Calendar" %}<span class="visually-hidden">: {{ row.topic }}</span></a></small>{% endif %}{% endif %}</td>
           {% if value.has_time %}<td class="schedule__time">{{ row.time }}</td>{% endif %}
           {% if value.has_lecturer %}<td class="schedule__lecturer">{{ row.lecturer }}</td>{% endif %}
         </tr>

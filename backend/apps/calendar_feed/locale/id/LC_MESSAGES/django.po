@@ -1,0 +1,76 @@
+# Publiczny kalendarz ICS (CAL-01) – id.
+msgid ""
+msgstr ""
+"Project-Id-Version: Olimpiada Kwantowa\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-18 12:00+0200\n"
+"PO-Revision-Date: 2026-10-18 12:00+0200\n"
+"Last-Translator: Olimpiada Kwantowa\n"
+"Language-Team: Indonesian\n"
+"Language: id\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+#: apps/calendar_feed/feed.py
+#, python-format
+msgid "Prowadzący: %(lecturer)s"
+msgstr "Pemateri: %(lecturer)s"
+
+#: apps/calendar_feed/feed.py
+msgid "Warsztaty online. Link do spotkania podajemy zalogowanym uczestnikom w Wiadomościach."
+msgstr "Lokakarya daring. Tautan pertemuan dibagikan kepada peserta yang sudah masuk melalui Pesan."
+
+#: apps/calendar_feed/feed.py
+#, python-format
+msgid "Szczegóły: %(url)s"
+msgstr "Detail: %(url)s"
+
+#: apps/calendar_feed/feed.py
+#, python-format
+msgid "%(stage)s: otwarcie"
+msgstr "%(stage)s: dibuka"
+
+#: apps/calendar_feed/feed.py
+#, python-format
+msgid "%(stage)s: termin oddania prac"
+msgstr "%(stage)s: batas pengumpulan"
+
+#: apps/calendar_feed/feed.py
+#, python-format
+msgid "%(stage)s: zamknięcie etapu"
+msgstr "%(stage)s: tahap ditutup"
+
+#: apps/calendar_feed/feed.py
+msgid "Rejestracja uczestników: start"
+msgstr "Pendaftaran peserta: dibuka"
+
+#: apps/calendar_feed/feed.py
+msgid "Rejestracja uczestników: koniec"
+msgstr "Pendaftaran peserta: ditutup"
+
+#: templates/calendar_feed/_subscribe.html
+msgid "Kalendarz warsztatów i terminów"
+msgstr "Kalender lokakarya dan jadwal"
+
+#: templates/calendar_feed/_subscribe.html
+msgid "Dodaj warsztaty i terminy olimpiady do swojego kalendarza – wpisy same się zaktualizują, gdy zmieni się harmonogram."
+msgstr "Tambahkan lokakarya dan jadwal olimpiade ke kalender Anda – entri akan diperbarui otomatis jika jadwal berubah."
+
+#: templates/calendar_feed/_subscribe.html
+#: templates/cms/blocks/schedule.html
+msgid "Dodaj do Google Calendar"
+msgstr "Tambahkan ke Google Calendar"
+
+#: templates/calendar_feed/_subscribe.html
+msgid "Dodaj do Outlook / Apple"
+msgstr "Tambahkan ke Outlook / Apple"
+
+#: templates/calendar_feed/_subscribe.html
+msgid "Pobierz .ics"
+msgstr "Unduh .ics"
+
+#: templates/calendar_feed/_subscribe.html
+msgid "Link do spotkania podajemy zalogowanym uczestnikom w Wiadomościach – w kalendarzu publicznym go nie ma."
+msgstr "Tautan pertemuan dibagikan kepada peserta yang sudah masuk melalui Pesan – tautan itu tidak ada di kalender publik."

@@ -1,0 +1,76 @@
+# Publiczny kalendarz ICS (CAL-01) – pt.
+msgid ""
+msgstr ""
+"Project-Id-Version: Olimpiada Kwantowa\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-18 12:00+0200\n"
+"PO-Revision-Date: 2026-10-18 12:00+0200\n"
+"Last-Translator: Olimpiada Kwantowa\n"
+"Language-Team: Portuguese\n"
+"Language: pt\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: apps/calendar_feed/feed.py
+#, python-format
+msgid "Prowadzący: %(lecturer)s"
+msgstr "Formador: %(lecturer)s"
+
+#: apps/calendar_feed/feed.py
+msgid "Warsztaty online. Link do spotkania podajemy zalogowanym uczestnikom w Wiadomościach."
+msgstr "Oficina online. O link da reunião é partilhado com os participantes com sessão iniciada em Mensagens."
+
+#: apps/calendar_feed/feed.py
+#, python-format
+msgid "Szczegóły: %(url)s"
+msgstr "Detalhes: %(url)s"
+
+#: apps/calendar_feed/feed.py
+#, python-format
+msgid "%(stage)s: otwarcie"
+msgstr "%(stage)s: abertura"
+
+#: apps/calendar_feed/feed.py
+#, python-format
+msgid "%(stage)s: termin oddania prac"
+msgstr "%(stage)s: prazo de entrega"
+
+#: apps/calendar_feed/feed.py
+#, python-format
+msgid "%(stage)s: zamknięcie etapu"
+msgstr "%(stage)s: encerramento da fase"
+
+#: apps/calendar_feed/feed.py
+msgid "Rejestracja uczestników: start"
+msgstr "Inscrição de participantes: início"
+
+#: apps/calendar_feed/feed.py
+msgid "Rejestracja uczestników: koniec"
+msgstr "Inscrição de participantes: fim"
+
+#: templates/calendar_feed/_subscribe.html
+msgid "Kalendarz warsztatów i terminów"
+msgstr "Calendário de oficinas e datas"
+
+#: templates/calendar_feed/_subscribe.html
+msgid "Dodaj warsztaty i terminy olimpiady do swojego kalendarza – wpisy same się zaktualizują, gdy zmieni się harmonogram."
+msgstr "Adicione as oficinas e as datas da olimpíada ao seu calendário – as entradas atualizam-se sozinhas quando o programa muda."
+
+#: templates/calendar_feed/_subscribe.html
+#: templates/cms/blocks/schedule.html
+msgid "Dodaj do Google Calendar"
+msgstr "Adicionar ao Google Calendar"
+
+#: templates/calendar_feed/_subscribe.html
+msgid "Dodaj do Outlook / Apple"
+msgstr "Adicionar ao Outlook / Apple"
+
+#: templates/calendar_feed/_subscribe.html
+msgid "Pobierz .ics"
+msgstr "Descarregar .ics"
+
+#: templates/calendar_feed/_subscribe.html
+msgid "Link do spotkania podajemy zalogowanym uczestnikom w Wiadomościach – w kalendarzu publicznym go nie ma."
+msgstr "O link da reunião é partilhado com os participantes com sessão iniciada em Mensagens – não consta do calendário público."

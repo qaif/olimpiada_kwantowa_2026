@@ -3,6 +3,7 @@
 from django.urls import path
 
 from apps.alumni.urls import urlpatterns as alumni_urlpatterns
+from apps.calendar_feed.urls import urlpatterns as calendar_feed_urlpatterns  # CAL-01
 from apps.consent_gate.urls import urlpatterns as consent_gate_urlpatterns  # CONS-01
 from apps.delegation_logistics.urls import urlpatterns as final_logistics_urlpatterns
 from apps.email_delivery.urls import urlpatterns as email_delivery_urlpatterns  # MAIL-02: odbicia
@@ -311,6 +312,8 @@ urlpatterns = [
         participant_tools.ParticipantCalendarIcsView.as_view(),
         name="participant-calendar-ics",
     ),
+    # Publiczny ``/kalendarz.ics`` konkursu (CAL-01) – bez logowania, do subskrypcji w Google/Outlook/Apple.
+    *calendar_feed_urlpatterns,
     path("me/archive/", participant_tools.ParticipantArchiveView.as_view(), name="participant-archive"),
     # Własne dyplomy i zaświadczenia. Lista i pobranie, nic więcej – dokumenty wystawia komitet.
     path(
