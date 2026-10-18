@@ -111,6 +111,22 @@ Prośba organizatora z 18.10.2026 (pkt 9). Specyfikacja: [`tasks/CAL-01.md`](tas
   jednych zajęć. Nowa aplikacja `apps.calendar_feed` (bez modeli i migracji), napisy w 10 językach.
 - Prywatny kanał uczestnika z linkiem Meet – świadomie poza zakresem, projekt w CAL-01 § 4.
 
+## [Unreleased] – Automatyczne przypomnienia o warsztatach i terminach etapów (MSG-AUTO-01)
+
+Prośba organizatora z 18.10.2026 (pkt 7 i 10). Spec: [`tasks/MSG-AUTO-01.md`](tasks/MSG-AUTO-01.md).
+
+- **Komunikacja → Automatyczne przypomnienia** (`/coordinator/messages/rules/`): reguły „przypomnienie
+  o warsztatach” (z harmonogramu strony „Warsztaty”: `{temat}`, `{prowadzacy}`, `{data}`, `{godziny}`,
+  `{link}`; N dni przed o godzinie albo N godzin przed początkiem) i „przed terminem etapu” (`{etap}`,
+  `{termin}`, `{dni}`, `{link}`; lista dni, np. 30, 7, 1). Grupy jak w komunikatach (bez wklejonej
+  listy), walidacja pól szablonu przy zapisie, podgląd 3 najbliższych wysyłek, włącz/wyłącz/usuń.
+- Nowe zadanie beat `generate-message-rule-broadcasts` (co 5 min) tworzy z reguł zwykłe komunikaty
+  planowane do 7 dni naprzód – widoczne w „Zaplanowane”, z „Anuluj”; jeden na wystąpienie i regułę
+  (anulowany nie wraca), warsztat odwołany/bez daty pomijany, nieaktualne komunikaty wycofywane.
+  Czas polski (Europe/Warsaw) także w dniu zmiany czasu.
+- Nowa aplikacja `apps.message_rules`, migracja `message_rules.0001`; audyt `message_rule.*`,
+  wygenerowane – `broadcast.scheduled` z autorem reguły. OPERACJE § 53.1, PODRĘCZNIK-ORGANIZATORA § 6.1.
+
 ## [Unreleased] – Audyt bezpieczeństwa 10.10.2026 (6 wysokich, 21 średnich, 22 niskie)
 
 Pełny raport: [`AUDYT-BEZPIECZENSTWA-2026-10-10.md`](AUDYT-BEZPIECZENSTWA-2026-10-10.md); pozycje

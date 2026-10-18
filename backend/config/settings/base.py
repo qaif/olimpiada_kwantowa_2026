@@ -150,6 +150,7 @@ INSTALLED_APPS = [
     # plik w storage prywatnym, własne zdarzenia (pobrania) i własne reguły prywatności liczenia
     # (``apps.promo.tracking``). Z domeną zawodów łączy ją wyłącznie konkurs.
     "apps.promo",
+    "apps.message_rules",  # automatyczne przypomnienia: reguły → komunikaty planowane (MSG-AUTO-01)
     # Zaświadczenie o statusie ucznia (prośba organizatora z 24.09.2026): skan podstemplowanego
     # wzoru i decyzja koordynatora, za flagą ``student_status_certificate``. Osobna aplikacja, a nie
     # model w ``apps.accounts``: ma własny plik w storage prywatnym, własny skan antywirusowy,
@@ -599,6 +600,12 @@ CELERY_BEAT_SCHEDULE = {
     "dispatch-scheduled-broadcasts": {
         "task": "apps.accounts.messaging.dispatch_scheduled_broadcasts",
         "schedule": 60.0,
+    },
+    # Automatyczne przypomnienia (MSG-AUTO-01, apps/message_rules): reguły → komunikaty planowane
+    # do 7 dni naprzód, idempotentnie (jeden na wystąpienie i regułę). Wysyła je wpis wyżej.
+    "generate-message-rule-broadcasts": {
+        "task": "apps.message_rules.tasks.generate_rule_broadcasts",
+        "schedule": 300.0,
     },
     # Zamknięcie etapu po deadline: LOCKED na najnowszych wersjach + znacznik Stage.closed_at.
     "close-due-stages": {

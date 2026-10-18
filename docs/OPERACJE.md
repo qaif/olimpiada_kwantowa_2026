@@ -7217,6 +7217,59 @@ docker compose exec -T web python manage.py shell -c "from datetime import timed
 
 Niepusty wynik = beat albo worker nie działa (§ 3.3, `docker compose logs worker beat --tail 100`).
 
+### 53.1 Automatyczne przypomnienia (MSG-AUTO-01, `docs/tasks/MSG-AUTO-01.md`)
+
+Reguły (`message_rules.MessageRule`, ekran `/coordinator/messages/rules/`) zamieniają harmonogram
+warsztatów (strona „Warsztaty” konkursu) i terminy etapów (`Stage.deadline_at`) w zwykłe komunikaty
+planowane (`MessageBroadcast` w stanie `SCHEDULED`) – wysyła je dalej wpis `dispatch-scheduled-broadcasts`
+z § 53. Generowanie:
+
+| Wpis `CELERY_BEAT_SCHEDULE` | Zadanie | Co ile |
+|---|---|---|
+| `generate-message-rule-broadcasts` | `apps.message_rules.tasks.generate_rule_broadcasts` | 300 s |
+
+Przebieg bierze reguły włączone (i wyłączone, które mają jeszcze czekające komunikaty), każdą w osobnej
+transakcji z `select_for_update(skip_locked=True)` na wierszu reguły. Wystąpienia z terminem wysyłki od
+**teraz + 5 min do teraz + 7 dni** stają się komunikatami przez `schedule_broadcast` (aktor = autor
+reguły; audyt `broadcast.scheduled`). Idempotencja: tabela `message_rules.MessageRuleOccurrence`,
+unikalne `(rule, key)` – wiersz zostaje także po ręcznym „Anuluj”, więc anulowany komunikat nie wraca.
+Czekający komunikat, którego wystąpienie zniknęło (warsztat odwołany, bez daty, reguła wyłączona) albo
+zmieniło treść/termin, jest wycofywany (`CANCELLED`, audyt `broadcast.cancelled` z `reason`) i –
+jeśli trzeba – generowany na nowo. Błąd jednej reguły (np. autor bez roli koordynatora) trafia do
+`MessageRule.last_error` i logu workera, reszta reguł biegnie dalej.
+
+**Wdrożenie.** Nowa aplikacja `apps.message_rules`, migracja `message_rules.0001` (dwie nowe tabele,
+bez zmian w istniejących). Po wdrożeniu musi wstać nowy `beat` (`scripts/deploy.sh` odtwarza
+`web worker beat`). Nowych zmiennych środowiska ani DNS nie ma. Sprawdzenie:
+
+```sh
+docker compose logs beat --since 15m | grep generate-message-rule-broadcasts   # „Sending due task …” co 5 min
+docker compose exec -T web python manage.py shell -c "from apps.message_rules.models import MessageRule as R; print(list(R.objects.values_list('pk', 'name', 'enabled', 'last_run_at', 'last_error')))"
+```
+
+**Reguła z powłoki** (ta sama walidacja co ekran; reguła produkcyjna z PODRĘCZNIK-ORGANIZATORA § 6.1):
+
+```python
+import datetime as dt
+from apps.accounts.models import User
+from apps.message_rules import services
+from apps.tenancy.models import Competition
+
+c = Competition.objects.get(slug="kwantowa")
+rule, result = services.create_rule(
+    competition=c, actor=User.objects.get(email="koordynator@…"), kind="WORKSHOP",
+    name="Warsztaty — sobota 6:00", enabled=True, group="ALL_PARTICIPANTS_AND_TEACHERS",
+    parameters={"include_past_editions": False}, target={"past_editions": False, "label": "bieżąca edycja"},
+    subject_template="Dziś warsztat: {temat}",
+    body_template="Dziś ({data}, {godziny}) warsztat „{temat}”, prowadzi {prowadzacy}. Link: {link}",
+    link="https://meet.google.com/izu-qrvp-kuw", timing="DAY_AT", days_before=[0], send_time=dt.time(6, 0),
+)
+print(rule.pk, result)          # SyncResult(created=…, withdrawn=…, error=…)
+print(services.upcoming(rule))  # 3 najbliższe wysyłki z tekstem i stanem
+```
+
+Ręczny przebieg (np. po awarii beatu): `docker compose exec -T web python manage.py shell -c "from apps.message_rules.services import generate_all; print(generate_all())"`.
+
 ## 54. Utwardzenie infrastruktury po audycie bezpieczeństwa (10.10.2026)
 
 Pełne opisy znalezisk: `docs/AUDYT-BEZPIECZENSTWA-2026-10-10.md` (W6, S16, S17, S19, S20, S21 i pozycje

@@ -8,6 +8,7 @@ from apps.consent_gate.urls import urlpatterns as consent_gate_urlpatterns  # CO
 from apps.delegation_logistics.urls import urlpatterns as final_logistics_urlpatterns
 from apps.email_delivery.urls import urlpatterns as email_delivery_urlpatterns  # MAIL-02: odbicia
 from apps.medals.urls import urlpatterns as medal_urlpatterns  # MED-01
+from apps.message_rules.urls import urlpatterns as message_rule_urlpatterns  # MSG-AUTO-01
 
 # Notatniki kwantowe (QC-01) – wzorce w module aplikacji, rozwinięte na końcu listy.
 from apps.notebooks.urls import urlpatterns as notebook_urlpatterns
@@ -1295,4 +1296,6 @@ urlpatterns = [
     *proctoring_urlpatterns,
     # --- uzupełnienie zgód po zalogowaniu i eksport braków (CONS-01) -----------------------------
     *consent_gate_urlpatterns,
+    # --- automatyczne przypomnienia: reguły → komunikaty planowane (MSG-AUTO-01) ----------------
+    *message_rule_urlpatterns,
 ]

@@ -1180,6 +1180,7 @@ decyzja człowieka, a nie wynik obliczenia.
 | Narzędzie | Adres | Do czego |
 |---|---|---|
 | **Komunikaty** (listy do grupy) | `/coordinator/messages/` | jednorazowa wiadomość e-mail do wybranej grupy |
+| **Automatyczne przypomnienia** | `/coordinator/messages/rules/` | reguły: przypomnienia o warsztatach z harmonogramu i przed terminem etapu, zamieniane w komunikaty planowane (§ 6.1) |
 | **Ogłoszenia** (pasek w serwisie) | `/coordinator/announcements/` | zdanie widoczne na **każdej** stronie, także dla niezalogowanych |
 | **Zgłoszenia** (support desk) | `/coordinator/support/` | kolejka spraw od ludzi, z wątkiem i odpowiedzią |
 | **Forum uczestników** | `/coordinator/forum/` | rozmowa uczestników między sobą, moderowana przez Ciebie |
@@ -1267,6 +1268,65 @@ adresów**. Ten sam opis grupy trafia do audytu (`broadcast.sent`). Stan „prze
 **Załączników nie ma.** Plik (regulamin, instrukcja) wstaw do biblioteki dokumentów w `/cms/`
 i wklej do treści komunikatu odnośnik — jeden plik na serwerze zamiast kilku tysięcy kopii
 w skrzynkach i bez ryzyka, że duży załącznik zatrzyma list w filtrze antyspamowym.
+
+#### Automatyczne przypomnienia — reguły (`/coordinator/messages/rules/`)
+
+Menu **Komunikacja → Automatyczne przypomnienia** (prośba organizatora z 18.10.2026). Zamiast co tydzień
+planować ten sam list ręcznie, zapisujesz **regułę**, a serwer sam zamienia ją w zwykłe komunikaty
+z datą przyszłą — **do 7 dni przed wysyłką**. Od tej chwili każdy taki komunikat stoi w sekcji
+**„Zaplanowane”** na ekranie **Komunikaty** i możesz go tam **anulować** jak każdy inny; anulowane
+przypomnienie **nie wraca**. Odbiorców liczymy w chwili wysyłki, a grupy są te same co w komunikatach
+(bez wklejonej listy adresów).
+
+Dwa rodzaje reguł („Dodaj: …”):
+
+| Rodzaj | Skąd wydarzenia | Pola szablonu | Moment wysyłki |
+|---|---|---|---|
+| **przypomnienie o warsztatach** | tabela harmonogramu na stronie **„Warsztaty”** (`/warsztaty/`): temat, prowadzący, termin, godziny | `{temat}`, `{prowadzacy}` (albo `{prowadzący}`), `{data}`, `{godziny}`, `{link}` | **N dni przed** o wybranej godzinie (0 = w dniu warsztatu) albo **N godzin przed początkiem** (początek = pierwsza godzina z kolumny „godziny”) |
+| **przypomnienie przed terminem etapu** | „deadline oddania” wybranego etapu | `{etap}`, `{termin}` (np. „28 lutego 2027, 23:59”), `{dni}` („1 dzień”, „7 dni”), `{link}` | lista dni przed terminem, np. **30, 7, 1**, o wybranej godzinie |
+
+- **Czas polski.** „O 06:00” znaczy 06:00 czasu polskiego także w dniu zmiany czasu; „2 godziny przed”
+  to dwie rzeczywiste godziny.
+- **Szablon.** Pole spoza listy (np. literówka `{prowadzacz}`) albo `{link}` przy pustym polu **„Link”**
+  to błąd przy zapisie — nic się nie zapisze. `{temat}` to temat bez dopisku „(prowadzący: …)”, a pusty
+  prowadzący lub godziny brzmią „do potwierdzenia”.
+- **Pomijane wiersze.** Warsztat **bez daty** w harmonogramie albo **odwołany** (dopisek „odwołane” /
+  „odwołany” w temacie, terminie lub godzinach) nie dostaje przypomnienia; jeśli było już zaplanowane —
+  zostaje **wycofane**. Tak samo zmiana tematu, terminu, treści reguły czy grupy: czekający komunikat
+  jest wycofywany i powstaje nowa wersja (zmiana na mniej niż 5 minut przed wysyłką zostawia starą).
+- **„Podgląd”** pokazuje — bez zapisu — **3 najbliższe wysyłki** z wypełnionym tekstem i ich stanem
+  („zaplanowany”, „anulowany”, „zostanie zaplanowany …”) oraz listę pominiętych wierszy.
+- **„Wyłącz”** wycofuje czekające komunikaty reguły, „Włącz” odtwarza je; **„Usuń”** usuwa regułę
+  i wycofuje czekające (wysłane zostają w historii). Komunikat z reguły ma w historii dopisek
+  „przypomnienie automatyczne” z nazwą reguły, a autorem (w audycie `broadcast.scheduled`) jest autor reguły — konto,
+  które straci rolę koordynatora, przestaje generować przypomnienia (błąd widać w kolumnie „Stan”).
+- Przypomnienie o terminie etapu najlepiej wysyłać do grupy **„zapisani do etapu, bez wysłanej pracy”**
+  — kto zdąży wysłać pracę, listu nie dostanie.
+
+**Przykład — co sobotę o 06:00 przypomnienie o warsztacie** (reguła produkcyjna):
+
+1. **Dodaj: przypomnienie o warsztatach**, nazwa „Warsztaty — sobota 6:00”.
+2. Grupa **„wszyscy uczestnicy i nauczyciele”** (bez „także uczestnicy poprzednich edycji”).
+3. Moment wysyłki **„N dni przed, o wybranej godzinie”**, **Ile dni przed: 0**, **Godzina: 06:00**.
+4. **Link:** `https://meet.google.com/izu-qrvp-kuw`.
+5. Temat: `Dziś warsztat: {temat}`; treść, np.:
+
+   ```text
+   Dzień dobry,
+
+   dziś ({data}) w godzinach {godziny} zapraszamy na warsztat „{temat}”. Prowadzi {prowadzacy}.
+   Link do spotkania: {link}
+
+   Do zobaczenia!
+   ```
+
+6. **„Podgląd”** → sprawdź trzy najbliższe soboty → **„Zapisz”**. Komunikat na najbliższą sobotę z warsztatem
+   pojawi się w „Komunikaty → Zaplanowane” od razu (jeśli jest w ciągu 7 dni), kolejne — tydzień przed
+   każdym warsztatem. Sobota bez warsztatu w harmonogramie nie dostaje listu.
+
+Audyt: `message_rule.created`, `message_rule.updated`, `message_rule.enabled`, `message_rule.disabled`,
+`message_rule.deleted`, a wycofane przez regułę komunikaty — `broadcast.cancelled` z powodem (`reason`).
+Szczegóły dla operatora: OPERACJE § 53.1.
 
 ### 6.1a Slider na stronie głównej — plakaty i aktualności
 

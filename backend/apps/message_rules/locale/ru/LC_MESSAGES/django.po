@@ -1,0 +1,293 @@
+# Russian - tlumaczenie automatycznych przypomnien (docs/tasks/MSG-AUTO-01.md).
+# Zrodlem (msgid) jest polski. UWAGA: tlumaczenie MASZYNOWE - do przegladu native speakera.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Olimpiada Kwantowa - message_rules\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-18 12:00+0200\n"
+"PO-Revision-Date: 2026-10-18 12:00+0200\n"
+"Last-Translator: Olimpiada Kwantowa\n"
+"Language-Team: Russian\n"
+"Language: ru\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
+
+msgid "Temat (szablon)"
+msgstr "Тема (шаблон)"
+
+msgid "Treść (szablon)"
+msgstr "Текст (шаблон)"
+
+msgid "Nazwa reguły"
+msgstr "Название правила"
+
+msgid "Reguła włączona"
+msgstr "Правило включено"
+
+msgid "Moment wysyłki"
+msgstr "Момент отправки"
+
+msgid "Ile dni przed"
+msgstr "За сколько дней"
+
+msgid "0 = w dniu warsztatu. Kilka liczb rozdziel przecinkami, np. 30, 7, 1."
+msgstr "0 = в день мастер-класса. Несколько чисел разделяйте запятыми, напр. 30, 7, 1."
+
+msgid "Godzina wysyłki (czas polski)"
+msgstr "Время отправки (польское время)"
+
+msgid "Ile godzin przed początkiem warsztatu"
+msgstr "За сколько часов до начала мастер-класса"
+
+msgid "Tylko przy „N godzin przed początkiem”; początek to pierwsza godzina z kolumny „godziny”."
+msgstr "Только при «за N часов до начала»; начало — первое время в столбце «часы»."
+
+msgid "Link (pole {link})"
+msgstr "Ссылка (поле {link})"
+
+msgid "Np. stały link spotkania Google Meet albo adres strony etapu."
+msgstr "Напр. постоянная ссылка Google Meet или адрес страницы этапа."
+
+#, python-format
+msgid "Pola do wstawienia: %(names)s."
+msgstr "Поля для вставки: %(names)s."
+
+msgid "Etap (termin zgłaszania)"
+msgstr "Этап (срок сдачи)"
+
+msgid "Dni przed terminem etapu, rozdzielone przecinkami; 0 = w dniu terminu."
+msgstr "Дни до срока этапа через запятую; 0 = в день срока."
+
+msgid "Podaj liczbę godzin przed początkiem warsztatu."
+msgstr "Укажите число часов до начала мастер-класса."
+
+msgid "Wpisz liczby dni rozdzielone przecinkami, np. 30, 7, 1."
+msgstr "Введите числа дней через запятую, напр. 30, 7, 1."
+
+#, python-format
+msgid "Najwyżej %(days)s dni przed."
+msgstr "Не более чем за %(days)s дней."
+
+msgid "Szablon używa pola {link}, a pole „Link” jest puste."
+msgstr "Шаблон использует поле {link}, но поле «Ссылка» пустое."
+
+#, python-format
+msgid "Nieznane pola szablonu: %(unknown)s. Dozwolone: %(allowed)s."
+msgstr "Неизвестные поля шаблона: %(unknown)s. Допустимые: %(allowed)s."
+
+msgid "Reguła nie ma etapu – etap usunięto albo nie wybrano go."
+msgstr "У правила нет этапа — этап удалён или не выбран."
+
+#, python-format
+msgid "Etap „%(stage)s” nie ma terminu do przypomnienia."
+msgstr "У этапа «%(stage)s» нет срока, о котором нужно напомнить."
+
+#, python-format
+msgid "„%(topic)s” – bez daty w harmonogramie"
+msgstr "«%(topic)s» — нет даты в расписании"
+
+#, python-format
+msgid "„%(topic)s” – odwołany"
+msgstr "«%(topic)s» — отменён"
+
+#, python-format
+msgid "„%(topic)s” – brak godziny początku"
+msgstr "«%(topic)s» — нет времени начала"
+
+msgid "zostanie zaplanowany w ciągu kilku minut"
+msgstr "будет запланировано в течение нескольких минут"
+
+#, python-format
+msgid "przypomnienie automatyczne „%(name)s”"
+msgstr "автоматическое напоминание «%(name)s»"
+
+msgid "reguła wyłączona – nie zostanie zaplanowany"
+msgstr "правило выключено — не будет запланировано"
+
+msgid "za blisko terminu – nie zostanie wysłany"
+msgstr "слишком близко к сроку — не будет отправлено"
+
+msgid "Reguły przypomnień zmienia wyłącznie koordynator tego konkursu."
+msgstr "Правила напоминаний может менять только координатор этого конкурса."
+
+msgid "Ta grupa odbiorców nie nadaje się do przypomnień automatycznych."
+msgstr "Эта группа получателей не подходит для автоматических напоминаний."
+
+msgid "obsłużone"
+msgstr "обработано"
+
+msgid "zaplanowany – widać go w „Komunikaty → Zaplanowane”"
+msgstr "запланировано — видно в «Сообщения → Запланированные»"
+
+msgid "anulowany – nie zostanie wygenerowany ponownie"
+msgstr "отменено — не будет создано повторно"
+
+#, python-format
+msgid "zostanie zaplanowany %(when)s"
+msgstr "будет запланировано %(when)s"
+
+msgid "Wybierz etap tego konkursu."
+msgstr "Выберите этап этого конкурса."
+
+msgid "„N godzin przed” działa wyłącznie dla warsztatów i wymaga liczby godzin."
+msgstr "«За N часов» работает только для мастер-классов и требует числа часов."
+
+msgid "Podaj przynajmniej jedną liczbę dni przed wydarzeniem."
+msgstr "Укажите хотя бы одно число дней до события."
+
+msgid "Generowanie nie powiodło się – ponowimy za kilka minut."
+msgstr "Создание не удалось — повторим через несколько минут."
+
+#, python-format
+msgid "Nieznane pole reguły: %(name)s."
+msgstr "Неизвестное поле правила: %(name)s."
+
+#, python-format
+msgid "Zaplanowano komunikatów: %(created)s, wycofano nieaktualnych: %(withdrawn)s. Zobacz „Komunikaty → Zaplanowane”."
+msgstr "Запланировано сообщений: %(created)s, устаревших отозвано: %(withdrawn)s. См. «Сообщения → Запланированные»."
+
+#, python-format
+msgid "Nie udało się zaplanować przypomnienia: %(error)s"
+msgstr "Не удалось запланировать напоминание: %(error)s"
+
+msgid "Nie ma takiej reguły."
+msgstr "Такого правила нет."
+
+msgid "Nieznany rodzaj reguły."
+msgstr "Неизвестный тип правила."
+
+#, python-format
+msgid "Reguła „%(name)s” zapisana."
+msgstr "Правило «%(name)s» сохранено."
+
+msgid "Nic się nie zmieniło."
+msgstr "Ничего не изменилось."
+
+#, python-format
+msgid "Reguła „%(name)s” usunięta; wycofane komunikaty: %(count)s."
+msgstr "Правило «%(name)s» удалено; отозвано сообщений: %(count)s."
+
+#, python-format
+msgid "Zmiany w regule „%(name)s” zapisane."
+msgstr "Изменения правила «%(name)s» сохранены."
+
+#, python-format
+msgid "Reguła „%(name)s” włączona."
+msgstr "Правило «%(name)s» включено."
+
+#, python-format
+msgid "Reguła „%(name)s” wyłączona – jej czekające komunikaty zostały wycofane."
+msgstr "Правило «%(name)s» выключено — его ожидающие сообщения отозваны."
+
+msgid "Nowa reguła"
+msgstr "Новое правило"
+
+msgid "Automatyczne przypomnienia"
+msgstr "Автоматические напоминания"
+
+msgid "Wróć do listy reguł"
+msgstr "Вернуться к списку правил"
+
+msgid "Warsztaty pochodzą z tabeli harmonogramu na stronie „Warsztaty” (/warsztaty/). Wiersz bez daty albo z dopiskiem „odwołane” jest pomijany, a komunikat już zaplanowany dla takiego wiersza – wycofywany."
+msgstr "Мастер-классы берутся из таблицы расписания на странице «Мастер-классы» (/warsztaty/). Строка без даты или с пометкой «отменено» пропускается, а уже запланированное для неё сообщение отзывается."
+
+msgid "Termin to „deadline oddania” wybranego etapu (czas polski). Grupa „zapisani do etapu, bez wysłanej pracy” jest liczona w chwili wysyłki – kto zdąży wysłać pracę, listu nie dostanie."
+msgstr "Срок — это «срок сдачи» выбранного этапа (польское время). Группа «записаны на этап, без отправленной работы» определяется в момент отправки — кто успеет отправить работу, письма не получит."
+
+msgid "Podgląd"
+msgstr "Предпросмотр"
+
+msgid "Zapisz"
+msgstr "Сохранить"
+
+msgid "Najbliższe wysyłki"
+msgstr "Ближайшие отправки"
+
+msgid "Komunikat powstaje do 7 dni przed wysyłką i od tej chwili stoi w „Komunikaty → Zaplanowane”, gdzie można go anulować. Odbiorców policzymy w chwili wysyłki."
+msgstr "Сообщение создаётся не ранее чем за 7 дней до отправки и с этого момента видно в «Сообщения → Запланированные», где его можно отменить. Получатели определяются в момент отправки."
+
+msgid "Temat:"
+msgstr "Тема:"
+
+msgid "Brak nadchodzących wysyłek"
+msgstr "Нет предстоящих отправок"
+
+msgid "Reguła nie ma teraz żadnego wydarzenia w przyszłości."
+msgstr "Сейчас у правила нет будущих событий."
+
+msgid "Pominięte:"
+msgstr "Пропущено:"
+
+msgid "Automatyczne przypomnienia – panel koordynatora"
+msgstr "Автоматические напоминания — панель координатора"
+
+msgid "Reguła zamienia harmonogram warsztatów albo termin etapu w komunikaty planowane – do tygodnia przed wysyłką. Każdy taki komunikat zobaczysz i anulujesz w"
+msgstr "Правило превращает расписание мастер-классов или срок этапа в запланированные сообщения — не ранее чем за неделю до отправки. Каждое такое сообщение можно увидеть и отменить в разделе"
+
+msgid "Komunikaty → Zaplanowane"
+msgstr "Сообщения → Запланированные"
+
+msgid "Dodaj: przypomnienie o warsztatach"
+msgstr "Добавить: напоминание о мастер-классах"
+
+msgid "Dodaj: przypomnienie przed terminem etapu"
+msgstr "Добавить: напоминание перед сроком этапа"
+
+msgid "Reguły"
+msgstr "Правила"
+
+msgid "Nazwa"
+msgstr "Название"
+
+msgid "Rodzaj"
+msgstr "Тип"
+
+msgid "Grupa"
+msgstr "Группа"
+
+msgid "Kiedy"
+msgstr "Когда"
+
+msgid "Stan"
+msgstr "Статус"
+
+msgid "Akcje"
+msgstr "Действия"
+
+msgid "włączona"
+msgstr "включено"
+
+msgid "wyłączona"
+msgstr "выключено"
+
+msgid "Ostatni błąd:"
+msgstr "Последняя ошибка:"
+
+msgid "Edytuj i podgląd"
+msgstr "Изменить и просмотреть"
+
+msgid "Wyłącz"
+msgstr "Выключить"
+
+msgid "Włącz"
+msgstr "Включить"
+
+msgid "Usuń"
+msgstr "Удалить"
+
+msgid "Nie ma jeszcze żadnej reguły."
+msgstr "Правил пока нет."
+
+msgid "Usunąć tę regułę? Jej czekające komunikaty zostaną wycofane; wysłane zostają w historii."
+msgstr "Удалить это правило? Ожидающие сообщения будут отозваны; отправленные останутся в истории."
+
+#, python-format
+msgid "%(hours)s godz. przed początkiem"
+msgstr "за %(hours)s ч до начала"
+
+#, python-format
+msgid "dni przed: %(days)s, o %(time)s"
+msgstr "за дней: %(days)s, в %(time)s"
