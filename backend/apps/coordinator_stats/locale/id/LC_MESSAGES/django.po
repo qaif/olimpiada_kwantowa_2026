@@ -1,0 +1,323 @@
+# Indonesian – katalog aplikacji ``apps.coordinator_stats`` (zadanie STATS-02).
+# Zrodlem (msgid) jest polski. UWAGA: tlumaczenie MASZYNOWE (model jezykowy) – patrz
+# docs/OPERACJE.md (przeglad przez native speakera przed szeroka komunikacja).
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Olimpiada Kwantowa\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-18 21:00+0200\n"
+"PO-Revision-Date: 2026-10-18 21:00+0200\n"
+"Last-Translator: Olimpiada Kwantowa\n"
+"Language-Team: Indonesian\n"
+"Language: id\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+msgid "Grupa"
+msgstr "Kelompok"
+
+msgid "Rejestracje"
+msgstr "Pendaftaran"
+
+msgid "Logowanie"
+msgstr "Login"
+
+msgid "Aktywacja"
+msgstr "Aktivasi"
+
+msgid "Brak grup powyżej progu."
+msgstr "Tidak ada kelompok di atas ambang batas."
+
+msgid "Raport wysyłki"
+msgstr "Laporan pengiriman"
+
+msgid "Raport wysyłki komunikatu"
+msgstr "Laporan pengiriman pesan"
+
+msgid "Wysłany"
+msgstr "Dikirim"
+
+msgid "Stan"
+msgstr "Status"
+
+msgid "Wysłał"
+msgstr "Dikirim oleh"
+
+msgid "Wróć do komunikatów"
+msgstr "Kembali ke pesan"
+
+msgid "Brak danych o wysyłce tego komunikatu – raporty powstają dla komunikatów wysłanych od 18.10.2026."
+msgstr "Tidak ada data pengiriman untuk pesan ini – laporan dibuat untuk pesan yang dikirim sejak 18.10.2026."
+
+msgid "Odbiorców"
+msgstr "Penerima"
+
+msgid "Obsłużono"
+msgstr "Diproses"
+
+msgid "To nie jest problem adresów odbiorców, tylko reputacji serwera poczty – zgłoś to operatorowi platformy (wniosek o zdjęcie blokady w Microsoft)."
+msgstr "Ini bukan masalah alamat penerima, melainkan reputasi server surel – laporkan ke operator platform (permintaan pencabutan blokir di Microsoft)."
+
+msgid "Zakolejkowano"
+msgstr "Diantrekan"
+
+msgid "Pominięto (adres niedoręczalny)"
+msgstr "Dilewati (alamat tidak terkirim)"
+
+msgid "Odbite po wysyłce"
+msgstr "Terpental setelah dikirim"
+
+msgid "Grupy domen"
+msgstr "Kelompok domain"
+
+msgid "Domena"
+msgstr "Domain"
+
+msgid "Pominięto"
+msgstr "Dilewati"
+
+msgid "Adres nie istnieje"
+msgstr "Alamat tidak ada"
+
+msgid "Polityka serwera"
+msgstr "Kebijakan server"
+
+msgid "w tym S3150"
+msgstr "termasuk S3150"
+
+msgid "Tymczasowe i inne"
+msgstr "Sementara dan lainnya"
+
+msgid "Wysłane / odbite"
+msgstr "Terkirim / terpental"
+
+msgid "Razem"
+msgstr "Total"
+
+msgid "Górny słupek – listy zakolejkowane, dolny – odbite; oba w tej samej skali. Odbicia przychodzą przez kilka dni po wysyłce (serwery ponawiają doręczenie), więc liczby mogą jeszcze rosnąć."
+msgstr "Batang atas – surat dalam antrean, bawah – terpental; keduanya dengan skala yang sama. Pentalan datang selama beberapa hari setelah pengiriman (server mencoba mengirim ulang), jadi angkanya masih bisa bertambah."
+
+msgid "Odbite adresy"
+msgstr "Alamat terpental"
+
+msgid "Adres"
+msgstr "Alamat"
+
+msgid "Rodzaj"
+msgstr "Jenis"
+
+msgid "Kod"
+msgstr "Kode"
+
+msgid "Powód (odpowiedź serwera odbiorcy)"
+msgstr "Alasan (respons server penerima)"
+
+msgid "Kiedy"
+msgstr "Kapan"
+
+msgid "Żaden list tego komunikatu nie wrócił."
+msgstr "Tidak ada surat dari pesan ini yang terpental."
+
+#, python-format
+msgid "Listy odrzucone przez Microsoft z powodu blokady adresu IP serwera (S3150): %(n)s."
+msgstr "Surat yang ditolak Microsoft karena alamat IP server diblokir (S3150): %(n)s."
+
+#, python-format
+msgid "Pokazano pierwsze %(n)s adresów – pełne liczby są w tabeli powyżej."
+msgstr "Menampilkan %(n)s alamat pertama – angka lengkap ada di tabel di atas."
+
+msgid "Lejek uczestnika"
+msgstr "Corong peserta"
+
+msgid "panel koordynatora"
+msgstr "panel koordinator"
+
+msgid "Ilu uczestników przechodzi kolejne kroki – od rejestracji, przez aktywację konta i zapis do etapu, do pierwszej pracy, zaświadczenia i warsztatów."
+msgstr "Berapa banyak peserta yang melewati setiap langkah – dari pendaftaran, aktivasi akun dan pendaftaran tahap hingga karya pertama, surat keterangan, dan lokakarya."
+
+msgid "Liczby dotyczą uczestników wybranej edycji: zapisanych do jej etapu albo zarejestrowanych w czasie jej trwania. Konta usunięte nie są liczone."
+msgstr "Angka ini mencakup peserta edisi yang dipilih: terdaftar di salah satu tahapnya atau mendaftar selama edisi berlangsung. Akun yang dihapus tidak dihitung."
+
+msgid "Eksport CSV"
+msgstr "Ekspor CSV"
+
+msgid "Ten konkurs nie ma jeszcze żadnej edycji."
+msgstr "Kompetisi ini belum memiliki edisi."
+
+msgid "Filtry lejka"
+msgstr "Filter corong"
+
+msgid "Edycja"
+msgstr "Edisi"
+
+msgid "Pokaż"
+msgstr "Tampilkan"
+
+msgid "Wyczyść filtry"
+msgstr "Hapus filter"
+
+msgid "Kroki lejka"
+msgstr "Langkah corong"
+
+msgid "Krok"
+msgstr "Langkah"
+
+msgid "Uczestnicy"
+msgstr "Peserta"
+
+msgid "względem poprzedniego kroku"
+msgstr "terhadap langkah sebelumnya"
+
+msgid "względem rejestracji"
+msgstr "terhadap pendaftaran"
+
+msgid "brak takiego etapu w tej edycji"
+msgstr "tidak ada tahap seperti itu di edisi ini"
+
+msgid "Lejek ścisły: krok liczy osoby, które przeszły także wszystkie poprzednie kroki. Wiersze „w tym” rozbijają zapis do etapu i liczą się względem kroku zgód."
+msgstr "Corong ketat: setiap langkah menghitung orang yang juga telah melewati semua langkah sebelumnya. Baris “termasuk” merinci pendaftaran tahap dan dihitung terhadap langkah persetujuan."
+
+msgid "Kroki niezależne: każdy krok liczy wszystkich, którzy spełniają jego warunek – także bez poprzednich kroków (np. obecni na warsztacie bez zaakceptowanego zaświadczenia)."
+msgstr "Langkah independen: setiap langkah menghitung semua yang memenuhi syaratnya – juga tanpa langkah sebelumnya (mis. hadir di lokakarya tanpa surat keterangan yang diterima)."
+
+msgid "Zgoda opiekuna jest wymagana od niepełnoletnich według tej samej reguły wieku, co przy rejestracji."
+msgstr "Persetujuan wali diperlukan dari peserta di bawah umur menurut aturan usia yang sama seperti saat pendaftaran."
+
+msgid "Gdzie odpadają – najniższa aktywacja kont"
+msgstr "Di mana mereka berhenti – aktivasi akun terendah"
+
+msgid "Województwa"
+msgstr "Provinsi"
+
+msgid "Województwa – najniższa aktywacja"
+msgstr "Provinsi – aktivasi terendah"
+
+msgid "Szkoły"
+msgstr "Sekolah"
+
+msgid "Szkoły – najniższa aktywacja"
+msgstr "Sekolah – aktivasi terendah"
+
+#, python-format
+msgid "Województwa i szkoły z co najmniej %(k)s rejestracjami, od najniższego odsetka aktywowanych kont."
+msgstr "Provinsi dan sekolah dengan sedikitnya %(k)s pendaftaran, dari persentase akun aktif terendah."
+
+msgid "Pominięte"
+msgstr "Dilewati"
+
+msgid "Odbite"
+msgstr "Terpental"
+
+msgid "Raport"
+msgstr "Laporan"
+
+msgid "odrzucone przez Microsoft (S3150)"
+msgstr "ditolak Microsoft (S3150)"
+
+msgid "Gmail"
+msgstr "Gmail"
+
+msgid "WP / O2 / Onet / Interia"
+msgstr "WP / O2 / Onet / Interia"
+
+msgid "Microsoft (Outlook, Hotmail, Live)"
+msgstr "Microsoft (Outlook, Hotmail, Live)"
+
+msgid "szkolne (edu)"
+msgstr "sekolah (edu)"
+
+msgid "inne"
+msgstr "lainnya"
+
+msgid "wszystkie"
+msgstr "semua"
+
+msgid "Województwo / region"
+msgstr "Provinsi / wilayah"
+
+msgid "Szkoła"
+msgstr "Sekolah"
+
+msgid "Domena adresu e-mail"
+msgstr "Domain alamat surel"
+
+msgid "Rejestracja od"
+msgstr "Pendaftaran dari"
+
+msgid "Rejestracja do"
+msgstr "Pendaftaran sampai"
+
+msgid "Sposób liczenia"
+msgstr "Cara penghitungan"
+
+msgid "Początek okresu rejestracji jest późniejszy niż jego koniec."
+msgstr "Awal periode pendaftaran lebih lambat dari akhirnya."
+
+msgid "lejek ścisły – krok wymaga wszystkich poprzednich"
+msgstr "corong ketat – setiap langkah memerlukan semua langkah sebelumnya"
+
+msgid "kroki niezależne"
+msgstr "langkah independen"
+
+msgid "Rejestracja (profil uczestnika)"
+msgstr "Pendaftaran (profil peserta)"
+
+msgid "Aktywacja konta (potwierdzony adres e-mail)"
+msgstr "Aktivasi akun (alamat surel dikonfirmasi)"
+
+msgid "Pierwsze logowanie"
+msgstr "Login pertama"
+
+msgid "Zgody (w tym zgoda opiekuna niepełnoletniego)"
+msgstr "Persetujuan (termasuk persetujuan wali peserta di bawah umur)"
+
+msgid "Zapis do etapu edycji"
+msgstr "Pendaftaran ke tahap edisi"
+
+msgid "w tym etap treningowy"
+msgstr "termasuk tahap latihan"
+
+msgid "w tym Etap I"
+msgstr "termasuk Tahap I"
+
+msgid "Pierwsza wysłana praca"
+msgstr "Karya pertama yang dikirim"
+
+msgid "Zaświadczenie o statusie ucznia zaakceptowane"
+msgstr "Surat keterangan status siswa diterima"
+
+msgid "Obecność na co najmniej jednym warsztacie"
+msgstr "Kehadiran di setidaknya satu lokakarya"
+
+msgid "brak szkoły"
+msgstr "tanpa sekolah"
+
+msgid "nazwa wpisana ręcznie"
+msgstr "nama diketik manual"
+
+msgid "brak województwa"
+msgstr "tanpa provinsi"
+
+msgid "Filtry"
+msgstr "Filter"
+
+msgid "Lejek"
+msgstr "Corong"
+
+msgid "Sekcja"
+msgstr "Bagian"
+
+msgid "Pozycja"
+msgstr "Butir"
+
+msgid "Liczba"
+msgstr "Jumlah"
+
+msgid "Odsetek względem poprzedniego kroku (%)"
+msgstr "Persentase terhadap langkah sebelumnya (%)"
+
+msgid "Odsetek względem rejestracji (%)"
+msgstr "Persentase terhadap pendaftaran (%)"

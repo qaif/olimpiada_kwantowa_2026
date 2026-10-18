@@ -122,8 +122,11 @@ from apps.competitions.models import DEFAULT_RETENTION_MONTHS
 #: 1.22 (05.10.2026, zadanie MAIL-02) – doręczalność poczty (``apps.email_delivery.register``): wiersz
 #: warunkowy (``EMAIL_BOUNCE_TRACKING``) – nowa kategoria danych (odbicia listów: kod i treść odpowiedzi
 #: serwera odbiorcy) z własnym terminem usunięcia i nowym kręgiem odbiorców (lista koordynatora).
-REGISTER_VERSION = "1.22"
-REGISTER_DATE = date(2026, 10, 5)
+#: 1.23 (18.10.2026, zadanie STATS-02) – w wierszu doręczalności poczty odbicia przypisane komunikatom
+#: grupowym (także odrzucenia z powodu polityki serwera odbiorcy, których MAIL-02 nie zapisywał) i lista
+#: odbitych adresów w raporcie wysyłki komunikatu dla koordynatora; ta sama podstawa i retencja.
+REGISTER_VERSION = "1.23"
+REGISTER_DATE = date(2026, 10, 18)
 
 #: Zdanie o okresie przechowywania danych uczestnika. Liczba pochodzi z tego samego miejsca, co
 #: domyślna wartość ``Edition.data_retention_months`` – gdyby organizator zmienił ją dla rocznika,

@@ -171,8 +171,12 @@
           <th scope="col">Grupa</th>
           <th scope="col">Odbiorców</th>
           <th scope="col">W kolejce</th>
+          {# Raport wysyłki (STATS-02): pominięte – twarde odbicie przed wysyłką, odbite – po wysyłce. #}
+          <th scope="col">{% translate "Pominięte" %}</th>
+          <th scope="col">{% translate "Odbite" %}</th>
           <th scope="col">Stan</th>
           <th scope="col">Wysłał</th>
+          <th scope="col"><span class="visually-hidden">{% translate "Raport" %}</span></th>
         </tr>
       </thead>
       <tbody>
@@ -184,12 +188,15 @@
             <th scope="row">{{ row.subject }}</th>
             <td data-label="Grupa">{{ row.get_group_display }}{% if row.target_label %}: <strong>{{ row.target_label }}</strong>{% endif %}</td>
             <td class="num" data-label="Odbiorców">{{ row.recipient_count }}</td>
-            <td class="num" data-label="W kolejce">{{ row.sent_count }}</td>
+            <td class="num" data-label="W kolejce">{% if row.delivery %}{{ row.delivery.queued }}{% else %}{{ row.sent_count }}{% endif %}</td>
+            <td class="num" data-label="{% translate 'Pominięte' %}">{% if row.delivery %}{{ row.delivery.suppressed }}{% else %}—{% endif %}</td>
+            <td class="num" data-label="{% translate 'Odbite' %}">{% if row.delivery %}{{ row.delivery.bounced }}{% if row.delivery.s3150 %} <span class="badge badge--danger" title="{% translate 'odrzucone przez Microsoft (S3150)' %}">S3150: {{ row.delivery.s3150 }}</span>{% endif %}{% else %}—{% endif %}</td>
             <td data-label="Stan">{{ row.get_status_display }}</td>
             <td data-label="Wysłał">{{ row.created_by|account_email|default:"—" }}</td>
+            <td data-label="{% translate 'Raport' %}"><a href="{% url 'web:coordinator-messages-report' row.pk %}">{% translate "Raport" %}</a></td>
           </tr>
         {% empty %}
-          <tr><td colspan="8" class="empty">Nie wysłano jeszcze żadnego komunikatu.</td></tr>
+          <tr><td colspan="11" class="empty">Nie wysłano jeszcze żadnego komunikatu.</td></tr>
         {% endfor %}
       </tbody>
     </table>

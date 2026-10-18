@@ -84,6 +84,8 @@ EXPECTED_MENU_WITHOUT_FLAGS: tuple[tuple[str, tuple[str, ...]], ...] = (
             "Audyt",
             "Dyplomy: szablony",
             "Obecność na warsztatach",
+            # Lejek uczestnika – zadanie STATS-02 (lista organizatora z 18.10.2026), bez flagi.
+            "Lejek uczestnika",
             "Zaświadczenia opiekunów",
             "Retencja danych",
             "Rejestr czynności",
@@ -315,6 +317,7 @@ def test_document_templates_flag_adds_exactly_one_item_in_reports(competition):
         # § 2.2: zaraz obok „Dyplomów: szablonów” – obie pozycje dotyczą tego samego papieru.
         "Szablony dokumentów",
         "Obecność na warsztatach",
+        "Lejek uczestnika",
         "Zaświadczenia opiekunów",
         "Retencja danych",
         "Rejestr czynności",

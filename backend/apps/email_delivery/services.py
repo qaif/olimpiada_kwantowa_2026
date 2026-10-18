@@ -182,7 +182,22 @@ def undeliverable_accounts(competition, *, limit: int = 2000) -> list[dict]:
 
 
 def export_section(user) -> dict:
-    """Sekcja ``doreczalnosc_poczty`` w eksporcie danych konta (art. 15/20 RODO)."""
+    """Sekcja ``doreczalnosc_poczty`` w eksporcie danych konta (art. 15/20 RODO).
+
+    ``odbicia_komunikatow`` – odbicia listów komunikatów grupowych przypisane temu adresowi
+    (``apps.coordinator_stats``, STATS-02 § 4); klucz pojawia się wyłącznie, gdy jakieś są.
+    """
+    section = _status_section(user)
+    if tracking_enabled():
+        from apps.coordinator_stats.broadcasts import export_rows
+
+        rows = export_rows(normalize(getattr(user, "email", "")))
+        if rows:
+            section["odbicia_komunikatow"] = rows
+    return section
+
+
+def _status_section(user) -> dict:
     row = DeliveryStatus.objects.filter(email=normalize(getattr(user, "email", ""))).first()
     if row is None:
         return {"adres_niedoreczalny": False}

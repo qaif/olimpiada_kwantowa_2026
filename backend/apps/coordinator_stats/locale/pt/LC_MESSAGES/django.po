@@ -1,0 +1,323 @@
+# Portuguese – katalog aplikacji ``apps.coordinator_stats`` (zadanie STATS-02).
+# Zrodlem (msgid) jest polski. UWAGA: tlumaczenie MASZYNOWE (model jezykowy) – patrz
+# docs/OPERACJE.md (przeglad przez native speakera przed szeroka komunikacja).
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Olimpiada Kwantowa\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-18 21:00+0200\n"
+"PO-Revision-Date: 2026-10-18 21:00+0200\n"
+"Last-Translator: Olimpiada Kwantowa\n"
+"Language-Team: Portuguese\n"
+"Language: pt\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Grupa"
+msgstr "Grupo"
+
+msgid "Rejestracje"
+msgstr "Inscrições"
+
+msgid "Logowanie"
+msgstr "Login"
+
+msgid "Aktywacja"
+msgstr "Ativação"
+
+msgid "Brak grup powyżej progu."
+msgstr "Nenhum grupo acima do limite."
+
+msgid "Raport wysyłki"
+msgstr "Relatório de envio"
+
+msgid "Raport wysyłki komunikatu"
+msgstr "Relatório de envio da mensagem"
+
+msgid "Wysłany"
+msgstr "Enviado"
+
+msgid "Stan"
+msgstr "Estado"
+
+msgid "Wysłał"
+msgstr "Enviado por"
+
+msgid "Wróć do komunikatów"
+msgstr "Voltar às mensagens"
+
+msgid "Brak danych o wysyłce tego komunikatu – raporty powstają dla komunikatów wysłanych od 18.10.2026."
+msgstr "Sem dados de envio desta mensagem – os relatórios existem para mensagens enviadas a partir de 18.10.2026."
+
+msgid "Odbiorców"
+msgstr "Destinatários"
+
+msgid "Obsłużono"
+msgstr "Processados"
+
+msgid "To nie jest problem adresów odbiorców, tylko reputacji serwera poczty – zgłoś to operatorowi platformy (wniosek o zdjęcie blokady w Microsoft)."
+msgstr "Não é um problema dos endereços dos destinatários, mas da reputação do servidor de correio – comunique ao operador da plataforma (pedido de desbloqueio à Microsoft)."
+
+msgid "Zakolejkowano"
+msgstr "Em fila"
+
+msgid "Pominięto (adres niedoręczalny)"
+msgstr "Ignorados (endereço não entregável)"
+
+msgid "Odbite po wysyłce"
+msgstr "Devolvidos após o envio"
+
+msgid "Grupy domen"
+msgstr "Grupos de domínios"
+
+msgid "Domena"
+msgstr "Domínio"
+
+msgid "Pominięto"
+msgstr "Ignorados"
+
+msgid "Adres nie istnieje"
+msgstr "O endereço não existe"
+
+msgid "Polityka serwera"
+msgstr "Política do servidor"
+
+msgid "w tym S3150"
+msgstr "dos quais S3150"
+
+msgid "Tymczasowe i inne"
+msgstr "Temporários e outros"
+
+msgid "Wysłane / odbite"
+msgstr "Enviados / devolvidos"
+
+msgid "Razem"
+msgstr "Total"
+
+msgid "Górny słupek – listy zakolejkowane, dolny – odbite; oba w tej samej skali. Odbicia przychodzą przez kilka dni po wysyłce (serwery ponawiają doręczenie), więc liczby mogą jeszcze rosnąć."
+msgstr "Barra superior – cartas em fila, inferior – devolvidas; ambas na mesma escala. As devoluções chegam durante vários dias após o envio (os servidores tentam entregar de novo), por isso os números ainda podem crescer."
+
+msgid "Odbite adresy"
+msgstr "Endereços devolvidos"
+
+msgid "Adres"
+msgstr "Endereço"
+
+msgid "Rodzaj"
+msgstr "Tipo"
+
+msgid "Kod"
+msgstr "Código"
+
+msgid "Powód (odpowiedź serwera odbiorcy)"
+msgstr "Motivo (resposta do servidor do destinatário)"
+
+msgid "Kiedy"
+msgstr "Quando"
+
+msgid "Żaden list tego komunikatu nie wrócił."
+msgstr "Nenhuma carta desta mensagem foi devolvida."
+
+#, python-format
+msgid "Listy odrzucone przez Microsoft z powodu blokady adresu IP serwera (S3150): %(n)s."
+msgstr "Cartas rejeitadas pela Microsoft devido ao bloqueio do endereço IP do servidor (S3150): %(n)s."
+
+#, python-format
+msgid "Pokazano pierwsze %(n)s adresów – pełne liczby są w tabeli powyżej."
+msgstr "A mostrar os primeiros %(n)s endereços – os números completos estão na tabela acima."
+
+msgid "Lejek uczestnika"
+msgstr "Funil de participantes"
+
+msgid "panel koordynatora"
+msgstr "painel do coordenador"
+
+msgid "Ilu uczestników przechodzi kolejne kroki – od rejestracji, przez aktywację konta i zapis do etapu, do pierwszej pracy, zaświadczenia i warsztatów."
+msgstr "Quantos participantes passam cada etapa – do registo, ativação da conta e inscrição na fase até ao primeiro trabalho, ao certificado e às oficinas."
+
+msgid "Liczby dotyczą uczestników wybranej edycji: zapisanych do jej etapu albo zarejestrowanych w czasie jej trwania. Konta usunięte nie są liczone."
+msgstr "Os números referem-se aos participantes da edição selecionada: inscritos numa das suas fases ou registados durante ela. As contas eliminadas não são contadas."
+
+msgid "Eksport CSV"
+msgstr "Exportar CSV"
+
+msgid "Ten konkurs nie ma jeszcze żadnej edycji."
+msgstr "Este concurso ainda não tem nenhuma edição."
+
+msgid "Filtry lejka"
+msgstr "Filtros do funil"
+
+msgid "Edycja"
+msgstr "Edição"
+
+msgid "Pokaż"
+msgstr "Mostrar"
+
+msgid "Wyczyść filtry"
+msgstr "Limpar filtros"
+
+msgid "Kroki lejka"
+msgstr "Etapas do funil"
+
+msgid "Krok"
+msgstr "Etapa"
+
+msgid "Uczestnicy"
+msgstr "Participantes"
+
+msgid "względem poprzedniego kroku"
+msgstr "em relação à etapa anterior"
+
+msgid "względem rejestracji"
+msgstr "em relação aos registos"
+
+msgid "brak takiego etapu w tej edycji"
+msgstr "não existe essa fase nesta edição"
+
+msgid "Lejek ścisły: krok liczy osoby, które przeszły także wszystkie poprzednie kroki. Wiersze „w tym” rozbijają zapis do etapu i liczą się względem kroku zgód."
+msgstr "Funil estrito: cada etapa conta as pessoas que também passaram todas as anteriores. As linhas «dos quais» desdobram a inscrição na fase e são calculadas em relação à etapa dos consentimentos."
+
+msgid "Kroki niezależne: każdy krok liczy wszystkich, którzy spełniają jego warunek – także bez poprzednich kroków (np. obecni na warsztacie bez zaakceptowanego zaświadczenia)."
+msgstr "Etapas independentes: cada etapa conta todos os que cumprem a sua condição – também sem as etapas anteriores (p. ex. presentes numa oficina sem certificado aceite)."
+
+msgid "Zgoda opiekuna jest wymagana od niepełnoletnich według tej samej reguły wieku, co przy rejestracji."
+msgstr "O consentimento do responsável é exigido aos menores segundo a mesma regra de idade do registo."
+
+msgid "Gdzie odpadają – najniższa aktywacja kont"
+msgstr "Onde desistem – menor ativação de contas"
+
+msgid "Województwa"
+msgstr "Voivodias"
+
+msgid "Województwa – najniższa aktywacja"
+msgstr "Voivodias – menor ativação"
+
+msgid "Szkoły"
+msgstr "Escolas"
+
+msgid "Szkoły – najniższa aktywacja"
+msgstr "Escolas – menor ativação"
+
+#, python-format
+msgid "Województwa i szkoły z co najmniej %(k)s rejestracjami, od najniższego odsetka aktywowanych kont."
+msgstr "Voivodias e escolas com pelo menos %(k)s registos, da menor percentagem de contas ativadas."
+
+msgid "Pominięte"
+msgstr "Ignorados"
+
+msgid "Odbite"
+msgstr "Devolvidos"
+
+msgid "Raport"
+msgstr "Relatório"
+
+msgid "odrzucone przez Microsoft (S3150)"
+msgstr "rejeitados pela Microsoft (S3150)"
+
+msgid "Gmail"
+msgstr "Gmail"
+
+msgid "WP / O2 / Onet / Interia"
+msgstr "WP / O2 / Onet / Interia"
+
+msgid "Microsoft (Outlook, Hotmail, Live)"
+msgstr "Microsoft (Outlook, Hotmail, Live)"
+
+msgid "szkolne (edu)"
+msgstr "escolares (edu)"
+
+msgid "inne"
+msgstr "outros"
+
+msgid "wszystkie"
+msgstr "todos"
+
+msgid "Województwo / region"
+msgstr "Voivodia / região"
+
+msgid "Szkoła"
+msgstr "Escola"
+
+msgid "Domena adresu e-mail"
+msgstr "Domínio do endereço de e-mail"
+
+msgid "Rejestracja od"
+msgstr "Registo desde"
+
+msgid "Rejestracja do"
+msgstr "Registo até"
+
+msgid "Sposób liczenia"
+msgstr "Forma de cálculo"
+
+msgid "Początek okresu rejestracji jest późniejszy niż jego koniec."
+msgstr "O início do período de registo é posterior ao seu fim."
+
+msgid "lejek ścisły – krok wymaga wszystkich poprzednich"
+msgstr "funil estrito – cada etapa exige todas as anteriores"
+
+msgid "kroki niezależne"
+msgstr "etapas independentes"
+
+msgid "Rejestracja (profil uczestnika)"
+msgstr "Registo (perfil de participante)"
+
+msgid "Aktywacja konta (potwierdzony adres e-mail)"
+msgstr "Ativação da conta (e-mail confirmado)"
+
+msgid "Pierwsze logowanie"
+msgstr "Primeiro login"
+
+msgid "Zgody (w tym zgoda opiekuna niepełnoletniego)"
+msgstr "Consentimentos (incluindo o do responsável de um menor)"
+
+msgid "Zapis do etapu edycji"
+msgstr "Inscrição numa fase da edição"
+
+msgid "w tym etap treningowy"
+msgstr "dos quais a fase de treino"
+
+msgid "w tym Etap I"
+msgstr "dos quais a Fase I"
+
+msgid "Pierwsza wysłana praca"
+msgstr "Primeiro trabalho enviado"
+
+msgid "Zaświadczenie o statusie ucznia zaakceptowane"
+msgstr "Certificado de estudante aceite"
+
+msgid "Obecność na co najmniej jednym warsztacie"
+msgstr "Presença em pelo menos uma oficina"
+
+msgid "brak szkoły"
+msgstr "sem escola"
+
+msgid "nazwa wpisana ręcznie"
+msgstr "nome escrito manualmente"
+
+msgid "brak województwa"
+msgstr "sem voivodia"
+
+msgid "Filtry"
+msgstr "Filtros"
+
+msgid "Lejek"
+msgstr "Funil"
+
+msgid "Sekcja"
+msgstr "Secção"
+
+msgid "Pozycja"
+msgstr "Item"
+
+msgid "Liczba"
+msgstr "Número"
+
+msgid "Odsetek względem poprzedniego kroku (%)"
+msgstr "Percentagem em relação à etapa anterior (%)"
+
+msgid "Odsetek względem rejestracji (%)"
+msgstr "Percentagem em relação aos registos (%)"

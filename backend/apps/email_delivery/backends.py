@@ -71,6 +71,21 @@ def record_refusals(bounces: list[Bounce]) -> None:
             logger.exception("Nie udało się zapisać odmowy relaya.")
 
 
+def report_refusals(bounces: list[Bounce], email_message) -> None:
+    """Sygnał ``bounces_reported`` z nagłówkami wysyłanego listu (STATS-02 § 2.3) – każda odmowa."""
+    if not bounces:
+        return
+    from .models import Source
+    from .signals import bounces_reported
+
+    bounces_reported.send_robust(
+        sender=TrackingSMTPBackend,
+        bounces=bounces,
+        headers=dict(getattr(email_message, "extra_headers", None) or {}),
+        source=Source.SMTP,
+    )
+
+
 class TrackingSMTPBackend(EmailBackend):
     def _send(self, email_message):
         connection = self.connection
@@ -84,6 +99,7 @@ class TrackingSMTPBackend(EmailBackend):
             except smtplib.SMTPRecipientsRefused as exc:
                 bounces = refusal_bounces(exc.recipients)
                 record_refusals(bounces)
+                report_refusals(bounces, email_message)
                 if bounces and all(bounce.hard for bounce in bounces):
                     refused_all = True
                     logger.warning(
@@ -93,7 +109,9 @@ class TrackingSMTPBackend(EmailBackend):
                     return dict(exc.recipients)
                 raise
             if refused:
-                record_refusals(refusal_bounces(refused))
+                bounces = refusal_bounces(refused)
+                record_refusals(bounces)
+                report_refusals(bounces, email_message)
                 logger.warning("Relay odrzucił %s odbiorców listu, pozostałym wysłano.", len(refused))
             return refused
 

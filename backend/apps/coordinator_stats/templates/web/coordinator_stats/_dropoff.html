@@ -1,0 +1,27 @@
+{% load i18n %}
+{% if items %}
+  <div class="scroll" role="region" tabindex="0" aria-label="{{ title }}">
+    <table class="table stat-table">
+      <thead>
+        <tr>
+          <th scope="col">{% translate "Grupa" %}</th>
+          <th scope="col" class="num">{% translate "Rejestracje" %}</th>
+          <th scope="col" class="num">{% translate "Logowanie" %}</th>
+          <th scope="col">{% translate "Aktywacja" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in items %}
+          <tr>
+            <th scope="row">{{ item.label }}</th>
+            <td class="num">{{ item.registered }}</td>
+            <td class="num">{% if item.login is None %}—{% else %}{{ item.login }}%{% endif %}</td>
+            <td><span class="stat-bar" aria-hidden="true"><span class="stat-bar__fill stat-bar__fill--{{ item.width }}"></span></span><span class="stat-bar__value">{{ item.activated }} ({{ item.activation }}%)</span></td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% else %}
+  <div class="card"><p class="empty">{% translate "Brak grup powyżej progu." %}</p></div>
+{% endif %}

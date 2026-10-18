@@ -1,0 +1,133 @@
+{% extends "web/coordinator/base.html" %}
+{% load static i18n web_extras coordinator_extras %}
+{% comment %}
+  Raport wysyłki jednego komunikatu (STATS-02 § 2.5): liczby ogółem, grupy domen (tabela i słupki
+  CSS – wysłane vs odbite, bez adresów) i na końcu lista odbitych adresów, którą widzi wyłącznie
+  koordynator tego konkursu (ten sam krąg, co lista „Adresy niedoręczalne”).
+{% endcomment %}
+{% block title %}{% translate "Raport wysyłki" %} – {{ broadcast.subject }}{% endblock %}
+{% block panel_head %}
+  <link rel="stylesheet" href="{% static 'css/statistics.css' %}">
+  <link rel="stylesheet" href="{% static 'coordinator_stats/coordinator-stats.css' %}">
+{% endblock %}
+{% block panel_title %}{% translate "Raport wysyłki komunikatu" %}{% endblock %}
+{% block panel_lead %}
+  <p class="lead"><strong>{{ broadcast.subject }}</strong> – {{ broadcast.get_group_display }}{% if broadcast.target_label %}: {{ broadcast.target_label }}{% endif %}</p>
+  <p class="hint">{% translate "Wysłany" %}: {{ broadcast.scheduled_for|default:broadcast.created_at|local_datetime }} · {% translate "Stan" %}: {{ broadcast.get_status_display }} · {% translate "Wysłał" %}: {{ broadcast.created_by|account_email|default:"—" }}</p>
+{% endblock %}
+{% block panel_actions %}
+  <a class="btn btn--secondary" href="{% url 'web:coordinator-messages' %}">{% translate "Wróć do komunikatów" %}</a>
+{% endblock %}
+{% block panel_content %}
+
+{% if not report.has_data %}
+  <div class="card"><p class="empty">{% translate "Brak danych o wysyłce tego komunikatu – raporty powstają dla komunikatów wysłanych od 18.10.2026." %}</p></div>
+  <dl class="stat-facts">
+    <div><dt>{% translate "Odbiorców" %}</dt><dd>{{ broadcast.recipient_count }}</dd></div>
+    <div><dt>{% translate "Obsłużono" %}</dt><dd>{{ broadcast.sent_count }}</dd></div>
+  </dl>
+{% else %}
+
+{% if report.totals.s3150 %}
+  <div class="alert alert--warning" role="status">
+    <p><strong>{% blocktranslate trimmed with n=report.totals.s3150 %}
+      Listy odrzucone przez Microsoft z powodu blokady adresu IP serwera (S3150): {{ n }}.
+    {% endblocktranslate %}</strong></p>
+    <p class="hint">{% translate "To nie jest problem adresów odbiorców, tylko reputacji serwera poczty – zgłoś to operatorowi platformy (wniosek o zdjęcie blokady w Microsoft)." %}</p>
+  </div>
+{% endif %}
+
+<dl class="stat-facts">
+  <div><dt>{% translate "Odbiorców" %}</dt><dd>{{ broadcast.recipient_count }}</dd></div>
+  <div><dt>{% translate "Zakolejkowano" %}</dt><dd>{{ report.totals.queued }}</dd></div>
+  <div><dt>{% translate "Pominięto (adres niedoręczalny)" %}</dt><dd>{{ report.totals.suppressed }}</dd></div>
+  <div><dt>{% translate "Odbite po wysyłce" %}</dt><dd>{{ report.totals.bounced }}{% if report.totals.bounce_share is not None %} <span class="hint">({{ report.totals.bounce_share }}%)</span>{% endif %}</dd></div>
+</dl>
+
+<section class="section">
+  <h2>{% translate "Grupy domen" %}</h2>
+  <div class="scroll" role="region" tabindex="0" aria-label="{% translate 'Grupy domen' %}">
+    <table class="table stat-table cs-domains">
+      <thead>
+        <tr>
+          <th scope="col">{% translate "Domena" %}</th>
+          <th scope="col" class="num">{% translate "Zakolejkowano" %}</th>
+          <th scope="col" class="num">{% translate "Pominięto" %}</th>
+          <th scope="col" class="num">{% translate "Adres nie istnieje" %}</th>
+          <th scope="col" class="num">{% translate "Polityka serwera" %}</th>
+          <th scope="col" class="num">{% translate "w tym S3150" %}</th>
+          <th scope="col" class="num">{% translate "Tymczasowe i inne" %}</th>
+          <th scope="col">{% translate "Wysłane / odbite" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in report.rows %}
+          <tr{% if row.microsoft and row.s3150 %} class="cs-domains__alert"{% endif %}>
+            <th scope="row">{{ row.label }}</th>
+            <td class="num">{{ row.queued }}</td>
+            <td class="num">{{ row.suppressed }}</td>
+            <td class="num">{{ row.hard }}</td>
+            <td class="num">{{ row.policy }}</td>
+            <td class="num">{% if row.microsoft %}<strong>{{ row.s3150 }}</strong>{% else %}{{ row.s3150 }}{% endif %}</td>
+            <td class="num">{{ row.soft }}</td>
+            <td>
+              <span class="cs-pair" aria-hidden="true">
+                <span class="stat-bar"><span class="stat-bar__fill stat-bar__fill--{{ row.queued_width }}"></span></span>
+                <span class="stat-bar"><span class="stat-bar__fill cs-bounced stat-bar__fill--{{ row.bounced_width }}"></span></span>
+              </span>
+              <span class="stat-bar__value">{{ row.bounced }}{% if row.bounce_share is not None %} ({{ row.bounce_share }}%){% endif %}</span>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr>
+          <th scope="row">{% translate "Razem" %}</th>
+          <td class="num">{{ report.totals.queued }}</td>
+          <td class="num">{{ report.totals.suppressed }}</td>
+          <td class="num">{{ report.totals.hard }}</td>
+          <td class="num">{{ report.totals.policy }}</td>
+          <td class="num">{{ report.totals.s3150 }}</td>
+          <td class="num">{{ report.totals.soft }}</td>
+          <td><span class="stat-bar__value">{{ report.totals.bounced }}</span></td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+  <p class="hint">{% translate "Górny słupek – listy zakolejkowane, dolny – odbite; oba w tej samej skali. Odbicia przychodzą przez kilka dni po wysyłce (serwery ponawiają doręczenie), więc liczby mogą jeszcze rosnąć." %}</p>
+</section>
+
+<section class="section">
+  <h2>{% translate "Odbite adresy" %}</h2>
+  {% if report.bounces %}
+    {% if report.bounce_list_limited %}<p class="hint">{% blocktranslate trimmed with n=report.bounce_list_limit %}Pokazano pierwsze {{ n }} adresów – pełne liczby są w tabeli powyżej.{% endblocktranslate %}</p>{% endif %}
+    <div class="scroll" role="region" tabindex="0" aria-label="{% translate 'Odbite adresy' %}">
+      <table class="table table--stack">
+        <thead>
+          <tr>
+            <th scope="col">{% translate "Adres" %}</th>
+            <th scope="col">{% translate "Rodzaj" %}</th>
+            <th scope="col">{% translate "Kod" %}</th>
+            <th scope="col">{% translate "Powód (odpowiedź serwera odbiorcy)" %}</th>
+            <th scope="col">{% translate "Kiedy" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for bounce in report.bounces %}
+            <tr>
+              <th scope="row" data-label="{% translate 'Adres' %}">{{ bounce.email }}</th>
+              <td data-label="{% translate 'Rodzaj' %}">{{ bounce.get_kind_display }}{% if bounce.microsoft_s3150 %} <span class="badge badge--danger">S3150</span>{% endif %}</td>
+              <td data-label="{% translate 'Kod' %}">{{ bounce.status_code|default:"—" }}</td>
+              <td data-label="{% translate 'Powód (odpowiedź serwera odbiorcy)' %}" class="cs-reason">{{ bounce.reason|default:"—" }}</td>
+              <td class="nowrap" data-label="{% translate 'Kiedy' %}">{{ bounce.updated_at|local_datetime }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="card"><p class="empty">{% translate "Żaden list tego komunikatu nie wrócił." %}</p></div>
+  {% endif %}
+</section>
+{% endif %}
+{% endblock %}
