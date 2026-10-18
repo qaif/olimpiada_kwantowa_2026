@@ -132,7 +132,10 @@ Chwila „nowe konto uczestnika” = **pierwsza zgoda RODO na profilu**: profil 
 (rejestracja formularzem i przez Google) albo przejście `gdpr_consent_at` z pustego na ustawione
 (przyjęcie zaproszenia z importu, zgłoszenie z delegacji). Profil z importu bez zgód nie może się
 zapisać (`CONSENTS_MISSING`), więc zapis czeka na przyjęcie zaproszenia. Ponowna zgoda na nową
-wersję dokumentu (`apps.consent_gate`) **nie** zapisuje (to nie jest nowe konto).
+wersję dokumentu (`apps.consent_gate`) **nie** zapisuje (to nie jest nowe konto); uzupełnienie
+brakującej zgody RODO na starym profilu bez niej – zapisuje (to pierwsza zgoda, profil dopiero teraz
+może startować). Zapytanie o poprzednią wartość idzie wyłącznie przy zapisie z
+`update_fields ∋ gdpr_consent_at`, więc zwykła edycja profilu nie kosztuje nic więcej.
 
 Sygnały `pre_save`/`post_save` na `Participant` (bez zmian w serwisach kont) →
 `transaction.on_commit(..., robust=True)` → dla każdego etapu `TRAINING` bieżącej edycji konkursu
@@ -147,17 +150,24 @@ przełącznik (POST `/coordinator/stages/<id>/training/auto/`) i przycisk (POST
 retencji). Zapisuje profile **tego konkursu** z kontem aktywnym, zgodą RODO, bez anonimizacji
 i bez wpisu w etapie, każdy przez `register_for_stage`. Raport w komunikacie: zapisano N, już
 zapisanych M, pominięto K (bez zgód / nieaktywne konta); audyt `stage.bulk_registered`
-z liczbami. Etap innego konkursu – 404; etap inny niż treningowy albo zamknięty – 409 z komunikatem.
-Przełącznik: audyt `stage.auto_registration_changed`.
+z liczbami. Etap innego konkursu – 404, rola inna niż koordynator – 403; etap inny niż treningowy
+albo zamknięty – odmowa serwisu (`STAGE_NOT_TRAINING` / `REGISTRATION_CLOSED`) wraca jako komunikat
+błędu na ekranie etapu (`ActionViewMixin`, jak pozostałe akcje panelu). Przełącznik: audyt
+`stage.auto_registration_changed`. Akcja jest synchroniczna (bez Celery), bo raport ma wrócić
+w odpowiedzi; przy kilku tysiącach profili to kilka sekund (2–3 zapytania na zapisywany profil),
+a przerwana – zostawia zapisanych, powtórzona dokańcza resztę.
 
 ## 4. Testy
-- `apps/email_delivery/tests/test_typos.py`, `test_fields.py`, `typo_cases.json`, `js_tests/email-check.test.js`,
-- `apps/accounts/tests/test_import_status.py` (statusy, poprawki adresów, licznik `on_list`),
+- literówki: `apps/email_delivery/tests/test_typos.py`, `test_fields.py`, `test_js.py`,
+  `test_translations.py`, `typo_cases.json`, `js_tests/email-check.test.js`,
+  `apps/accounts/tests/test_import_email_fix.py`, `apps/web/tests/test_supervisor_import_email_fix.py`,
+- wynik importu: `apps/accounts/tests/test_import_status.py` (statusy, licznik `on_list`),
   `apps/web/tests/test_supervisor_import_status.py` (podgląd i komunikat obu importów),
-- `apps/competitions/tests/test_auto_registration.py` (sygnał, idempotencja, błąd nie blokuje,
-  akcja zbiorcza, uprawnienia i izolacja).
+- trening: `apps/competitions/tests/test_auto_registration.py` (sygnał, rejestracja, import →
+  przyjęcie zaproszenia, ponowna zgoda, idempotencja, błąd nie blokuje, więz, akcja zbiorcza),
+  `apps/web/tests/test_coordinator_training.py` (ekran, przełącznik, raport, 403/404).
 
 ## 5. Dokumentacja
-PODRĘCZNIK-ORGANIZATORA (etap treningowy, import), PODRĘCZNIK-OPIEKUNA? – nie dotyczy (to opiekun
-drużyny IQO); opis importu nauczyciela jest w PODRĘCZNIK-ORGANIZATORA, rejestracja – PODRĘCZNIK-UCZESTNIKA,
-CHANGELOG.
+PODRĘCZNIK-ORGANIZATORA (§ 2.2 – zapis do treningu, § 10 – import, literówki), PODRĘCZNIK-UCZESTNIKA
+(rejestracja, zapis do etapu), OPERACJE § 52.1, CHANGELOG. PODRĘCZNIK-OPIEKUNA-DRUZYNY nie dotyczy
+(opiekun drużyny IQO nie korzysta z importu nauczyciela ani z treningu Olimpiady Kwantowej).

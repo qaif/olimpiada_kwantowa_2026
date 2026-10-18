@@ -99,6 +99,21 @@ Trzy blokady, których formularz nie obejdzie:
 Próg kwalifikacji etapu ustawia się regułą na ekranie symulacji (§ 5.2) albo — dla wartości startowej —
 w panelu administracyjnym (odnośnik „Próg kwalifikacji (admin)” na karcie etapu).
 
+**Zapis do treningu (REG-UX-01)** — tylko na ekranie etapu **treningowego**, blok pod formularzem terminów:
+
+- **„Włącz automatyczny zapis nowych kont”** — każde nowe konto uczestnika zapisuje się do treningu samo
+  w chwili pierwszej zgody RODO: po rejestracji (formularzem albo przez Google), po przyjęciu zaproszenia
+  z importu nauczyciela, po zgłoszeniu z delegacji. Konto z importu, które zaproszenia jeszcze nie
+  przyjęło, czeka (bez zgód nie da się zapisać). Domyślnie **wyłączone**; nowa edycja ma nowy etap
+  treningowy, więc przełącznik trzeba włączyć na nim ponownie. Błąd zapisu nigdy nie blokuje rejestracji
+  (trafia do logu `web`). Zmiana zostawia w audycie `stage.auto_registration_changed`,
+- **„Zapisz wszystkich obecnych uczestników”** (z potwierdzeniem) — jednorazowo zapisuje profile tego
+  konkursu z aktywnym kontem i zgodą RODO, które jeszcze nie są w treningu. Komunikat podaje: zapisano N,
+  już zapisanych M, pominięto K (bez zgody albo z kontem nieaktywnym); audyt `stage.bulk_registered`.
+  Akcję można powtórzyć — już zapisanych pomija,
+- oba działają tylko w **otwartym** etapie bieżącej edycji (ta sama reguła, co przycisk uczestnika
+  „Zgłoś się do treningu”).
+
 ### 2.3 Skala punktacji — `/coordinator/stages/<id>/scale/`
 
 Ekran **„Skala punktacji: <etap>”** (menu: Ustawienia → Skala punktacji). Wartości wpisuje się w jednym

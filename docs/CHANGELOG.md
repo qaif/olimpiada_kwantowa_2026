@@ -29,6 +29,12 @@ Specyfikacja: [`tasks/REG-UX-01.md`](tasks/REG-UX-01.md).
   konkursu). Komunikat po imporcie: „Wysłano zaproszeń: N, uczniów już było na liście: M, pominięto: K”
   (pominięte liczone razem z błędami z podglądu); `import_students` i audyt `accounts.students_imported`
   z licznikiem `on_list`. Naprawiony dwuwierszowy komentarz szablonu widoczny w nagłówku tabeli podglądu.
+- **Automatyczny zapis nowych kont do etapu treningowego**: `Stage.auto_register_new_participants`
+  (migracja `competitions.0035`, więz – tylko `TRAINING`, domyślnie wyłączone). Nowe konto (pierwsza zgoda
+  RODO: rejestracja, przyjęcie zaproszenia z importu, zgłoszenie delegacji) zapisuje się przez
+  `register_for_stage` po zatwierdzeniu transakcji; błąd nie blokuje rejestracji. Na ekranie etapu
+  treningowego przełącznik i „Zapisz wszystkich obecnych uczestników” (potwierdzenie, raport, audyt
+  `stage.bulk_registered` / `stage.auto_registration_changed`).
 
 ## [Unreleased] – Codzienne odświeżanie łatek systemowych w obrazach (APT_REFRESH)
 

@@ -121,7 +121,9 @@ Obok nich, w tym samym pasku, osobne ekrany: **Wiadomości** (z liczbą nieprzec
 rozdział 8a), **Kalendarz**, **Archiwum**, **Dyplomy**, **Profil**.
 
 **Zapis do etapu.** Przycisk **„Zgłoś się do tego etapu”** (w treningu: „Zgłoś się do treningu”). Bez
-wpisu nie ma ani zadań, ani wysyłki. Do etapów po eliminacjach zapisuje się **wyłącznie osoba
+wpisu nie ma ani zadań, ani wysyłki. Jeśli organizator włączył **automatyczny zapis do treningu**, nowe
+konto jest w nim od razu – po rejestracji albo po przyjęciu zaproszenia od nauczyciela – i przycisku
+„Zgłoś się do treningu” już nie zobaczysz. Do etapów po eliminacjach zapisuje się **wyłącznie osoba
 zakwalifikowana** w poprzednim.
 
 **Wpisowe** (tylko w konkursie, który pobiera opłatę; Olimpiada Kwantowa jest bezpłatna). Kafel
