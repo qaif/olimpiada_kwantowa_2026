@@ -763,6 +763,12 @@ def groups(stages: list, competition=None) -> list[Group]:
     )
     communication: tuple[Item, ...] = (
         Item("Komunikaty", ("web:coordinator-messages",), match=("coordinator-messages",)),
+        # Automatyczne przypomnienia (MSG-AUTO-01) – reguły, z których powstają komunikaty planowane.
+        Item(
+            "Automatyczne przypomnienia",
+            ("web:coordinator-message-rules",),
+            match=("coordinator-message-rules", "coordinator-message-rule-"),
+        ),
         # Ekrany budowane równolegle: kolejka zgłoszeń od ludzi i ogłoszenia serwisu.
         # Nazwa adresu jest tu **przewidywana**, więc każda pozycja ma kilku kandydatów
         # i znika z menu, dopóki żaden z nich nie istnieje w urlconfie.
