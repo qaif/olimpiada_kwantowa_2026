@@ -169,7 +169,8 @@ def test_manifest_sees_every_first_segment_of_the_urlconf(manifest):
     assert PREVIOUSLY_MISSING <= segments
     assert {"admin", "api", "cms", "coordinator", "documents", "login", "me", "internal"} <= segments
     assert manifest.nested_paths == ("warsztaty/materialy",)
-    assert manifest.root_regexes == (r"[^/]+\.html", r"status\.json")
+    # ``kalendarz.ics`` – publiczny kalendarz konkursu (CAL-01).
+    assert manifest.root_regexes == (r"[^/]+\.html", r"kalendarz\.ics", r"status\.json")
     assert list(manifest.first_segments) == sorted(manifest.first_segments)
 
 
@@ -235,6 +236,8 @@ def test_paths_without_trailing_slash_and_file_like_paths(regexes):
     assert app_re.match("/status.json")
     assert app_re.match("/google0123.html")
     assert not app_re.match("/status.jsonx")
+    assert app_re.match("/kalendarz.ics")  # publiczny kalendarz konkursu (CAL-01)
+    assert app_re_prefixed.match("/druga/kalendarz.ics")
     assert not app_re.match("/loginx/")
     assert app_re_prefixed.match("/druga/status.json")
     assert not app_re_prefixed.match("/druga/")

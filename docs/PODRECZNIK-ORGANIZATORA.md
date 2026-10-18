@@ -778,6 +778,32 @@ nagranie to gigabajty). Zachowaj oryginały u siebie — po awarii serwera trzeb
 Każda zmiana zostawia wpis w audycie (`workshop_material.created`, `.upload_started`, `.uploaded`,
 `.upload_rejected`, `.updated`, `.attached`, `.published`, `.unpublished`, `.reordered`, `.deleted`)
 z numerem materiału, rodzajem, formatem i rozmiarem — bez tytułu, opisu i nazwy pliku.
+### 4.11a Kalendarz publiczny (ICS) — `/kalendarz.ics` (CAL-01)
+
+Prośba organizatora z 18.10.2026. Każdy konkurs ma publiczny kalendarz pod `/kalendarz.ics` (bez
+logowania, bez przełącznika): **warsztaty** z tabeli „harmonogram” na stronie `/warsztaty/` (temat,
+prowadzący, godziny) oraz **terminy bieżącej edycji** – otwarcie i termin oddania prac każdego etapu
+(etap stacjonarny: dni wydarzenia z miejscem), początek i koniec rejestracji (gdy włączona) i wydarzenia
+linii czasu (§ 2.6). Etap treningowy i wydarzenia bez „na linii czasu” do kalendarza nie trafiają.
+Przyciski „Dodaj do Google Calendar”, „Dodaj do Outlook / Apple” i „Pobierz .ics” stoją na stronie
+`/warsztaty/` i w kalendarzu uczestnika (`/me/calendar/`); przy każdym warsztacie z datą jest odnośnik
+dodający tylko te zajęcia.
+
+**Co wpisać w harmonogramie, żeby warsztat miał godziny.** W wierszu tabeli: **„termin (data)”**
+(bez niej warsztatu w kalendarzu nie ma) i **„godziny”** w postaci `11:00–14:00` (albo `11.00-14.00`).
+Sama godzina początku (`11:00`) daje zajęcia 90-minutowe; „do potwierdzenia” albo puste pole –
+wpis całodniowy. Godziny są w strefie czasowej konkursu (domyślnie Europe/Warsaw, czyli czas polski),
+a zmiana czasu w październiku i marcu niczego nie przesuwa.
+
+- **Linku do spotkania nie wpisuj do harmonogramu ani do wydarzeń linii czasu.** Kalendarz jest
+  publiczny i bywa synchronizowany do cudzych usług; link Meet podawaj w **Ogłoszeniach w Wiadomościach**
+  (§ 6.4a). Adresy Meet, Zoom, Teams i Jitsi kalendarz i tak wycina.
+- **Poprawka godzin albo prowadzącego** aktualizuje wpis u subskrybentów. **Zmiana tematu albo daty**
+  to dla kalendarza nowe zajęcia: stary wpis znika, pojawia się nowy (ta sama reguła, co przy obecności
+  i materiałach, § 4.11).
+- Zmiana trafia do kalendarza od razu po publikacji strony albo zapisie etapu; serwer kalendarza
+  (Google, Apple) pobiera go co kilka godzin, więc u uczestnika zmiana bywa widoczna nawet po dobie.
+
 ### 4.12 Ocena AI — `/coordinator/ai-grading/`
 
 Prośby organizatora z 24.09.2026. Model językowy wybranego dostawcy — **Anthropic** (Claude),

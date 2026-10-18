@@ -1,0 +1,18 @@
+{% load i18n %}{% comment %}
+  Karta „Dodaj do kalendarza” (CAL-01, ``{% calendar_subscribe %}``) – na ``/warsztaty/`` i w kalendarzu
+  uczestnika. Trzy drogi, bo trzy rodziny klientów rozumieją różne adresy: Google subskrybuje przez swój
+  formularz (``cid=webcal://…``), Outlook i Apple otwierają ``webcal://`` wprost, a plik ``.ics`` jest dla
+  wszystkich pozostałych i do jednorazowego importu. Bez linku do spotkania – kanał jest publiczny.
+{% endcomment %}
+{% if show %}
+  <aside class="card" aria-labelledby="kalendarz-publiczny">
+    <h2 class="card__title" id="kalendarz-publiczny">{% translate "Kalendarz warsztatów i terminów" %}</h2>
+    <p>{% translate "Dodaj warsztaty i terminy olimpiady do swojego kalendarza – wpisy same się zaktualizują, gdy zmieni się harmonogram." %}</p>
+    <p class="actions">
+      <a class="btn btn--primary btn--small" href="{{ google_url }}" rel="noopener">{% translate "Dodaj do Google Calendar" %}</a>
+      <a class="btn btn--secondary btn--small" href="{{ webcal_url }}">{% translate "Dodaj do Outlook / Apple" %}</a>
+      <a class="btn btn--secondary btn--small" href="{{ feed_url }}" download>{% translate "Pobierz .ics" %}</a>
+    </p>
+    <p class="hint">{% translate "Link do spotkania podajemy zalogowanym uczestnikom w Wiadomościach – w kalendarzu publicznym go nie ma." %}</p>
+  </aside>
+{% endif %}

@@ -92,6 +92,25 @@ Specyfikacja: [`tasks/WS-CERT-02.md`](tasks/WS-CERT-02.md); opis dla organizator
 - Audyt `workshop_certificates.policy_updated`, `.recalculate_requested`, `.auto_issued` – liczby, bez
   danych osobowych. Nowy temat listu zamrożony w `apps/tenancy/tests/test_invariants.py`.
 
+## [Unreleased] – Publiczny kalendarz ICS z warsztatami i terminami (CAL-01)
+
+Prośba organizatora z 18.10.2026 (pkt 9). Specyfikacja: [`tasks/CAL-01.md`](tasks/CAL-01.md).
+
+- **`GET /kalendarz.ics`** – publiczny kalendarz konkursu z żądania (bez logowania, do subskrypcji):
+  warsztaty z tabeli `/warsztaty/` (godziny z pola „godziny”, prowadzący, odnośnik do strony), otwarcie
+  i termin oddania prac etapów bieżącej edycji, dni etapu stacjonarnego, okno rejestracji i wydarzenia
+  linii czasu. RFC 5545 pisany ręcznie (bez nowej zależności): czas lokalny z `TZID` i `VTIMEZONE`
+  z bazy IANA (zmiana czasu bez przesunięć), stabilne `UID` (klucz warsztatu, klucze główne),
+  `LAST-MODIFIED`/`SEQUENCE` z publikacji strony, zawijanie 75 oktetów i cytowanie wspólne
+  z `apps.cms.calendar`. **Bez linku Meet** – adresy pokoi wideo są dodatkowo wycinane.
+- `text/calendar; charset=utf-8`, `Cache-Control: public, max-age=900`, `ETag`/`304`; wpis w Redisie
+  na licznikach wersji pamięci stron – publikacja strony, zapis edycji, etapu i wydarzenia unieważniają
+  kanał bez nowych sygnałów. Kanał nie jest na allow-liście `page_cache` (ta obsługuje tylko HTML).
+- Przyciski „Dodaj do Google Calendar”, „Dodaj do Outlook / Apple” (`webcal://`), „Pobierz .ics” na
+  `/warsztaty/` i w `/me/calendar/`; przy każdym warsztacie z datą – odnośnik do Google Calendar dla tych
+  jednych zajęć. Nowa aplikacja `apps.calendar_feed` (bez modeli i migracji), napisy w 10 językach.
+- Prywatny kanał uczestnika z linkiem Meet – świadomie poza zakresem, projekt w CAL-01 § 4.
+
 ## [Unreleased] – Audyt bezpieczeństwa 10.10.2026 (6 wysokich, 21 średnich, 22 niskie)
 
 Pełny raport: [`AUDYT-BEZPIECZENSTWA-2026-10-10.md`](AUDYT-BEZPIECZENSTWA-2026-10-10.md); pozycje

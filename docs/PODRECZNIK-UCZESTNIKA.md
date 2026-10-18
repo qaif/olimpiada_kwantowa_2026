@@ -379,10 +379,30 @@ tak samo w panelu i w API aplikacji).
 | Ekran | Adres | Co w nim jest |
 |---|---|---|
 | **Kalendarz** | `/me/calendar/` | wszystkie terminy: etapy, wydarzenia organizatora, okno rejestracji, warsztaty oraz **Twój termin rozmowy** |
-| Kalendarz do subskrypcji | `/me/calendar.ics` | plik dla Google Calendar / Outlooka; wpisy aktualizują się, a nie dublują |
+| Plik Twojego kalendarza | `/me/calendar.ics` | plik do pobrania i importu (wymaga zalogowania, więc **nie** da się go zasubskrybować w Google) |
+| **Kalendarz publiczny** | `/kalendarz.ics` | warsztaty (z godzinami i prowadzącym) i terminy edycji – do **subskrypcji** w Google / Outlooku / Apple, bez logowania |
 | **Archiwum** | `/me/archive/` | zadania **zakończonych** edycji z treścią PDF, arkusz treningowy, harmonogram warsztatów |
 | **Dyplomy** | `/me/certificates/` | Twoje dyplomy i zaświadczenia do pobrania |
 | Weryfikacja dokumentu | `/dyplomy/<kod>/` | strona **bez logowania** potwierdzająca rodzaj, edycję, numer i datę |
+
+### Jak dodać kalendarz warsztatów i terminów do telefonu albo Google Calendar
+
+Na stronie **Warsztaty** (`/warsztaty/`) i w swoim **Kalendarzu** (`/me/calendar/`) jest ramka
+„Kalendarz warsztatów i terminów” z trzema przyciskami:
+
+- **„Dodaj do Google Calendar”** – otwiera Google Calendar z pytaniem o dodanie kalendarza; potwierdź,
+- **„Dodaj do Outlook / Apple”** – otwiera adres `webcal://…`, który Outlook, Kalendarz na iPhonie
+  i na Macu dodają jako subskrypcję,
+- **„Pobierz .ics”** – jednorazowy plik do importu (np. Thunderbird); taki import **nie** aktualizuje
+  się sam.
+
+Subskrypcja aktualizuje się sama: gdy organizator zmieni godziny warsztatu albo termin etapu, wpis
+w Twoim kalendarzu zmieni się (Google odświeża subskrypcje co kilka godzin, czasem raz na dobę). Przy
+każdym warsztacie w tabeli jest też odnośnik **„Dodaj do Google Calendar”** – dodaje tylko te jedne
+zajęcia (bez późniejszych aktualizacji). **Linku do spotkania (Meet) w kalendarzu nie ma** – podajemy
+go zalogowanym uczestnikom w „Ogłoszeniach organizatora” (Wiadomości i pulpit `/me/`). Twojego terminu
+rozmowy kwalifikacyjnej w kalendarzu publicznym też nie ma – jest w `/me/calendar/` i w pliku
+`/me/calendar.ics`.
 
 Dokument pobiera się w PDF-ie; strona weryfikacyjna **nie pokazuje imienia i nazwiska**, dopóki nie
 wyraziłeś zgody na publikację pełnych danych.

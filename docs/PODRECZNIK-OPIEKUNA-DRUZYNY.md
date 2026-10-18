@@ -159,6 +159,16 @@ Open **Problem translations** from your team page (`/delegation/translations/`).
 After the competition starts, each student sees the problem in their assigned language and always
 also the official version.
 
+## 6b. Adding the competition calendar
+
+The competition publishes a public calendar at `/kalendarz.ics` (no sign-in needed): workshops with
+their hours and instructor, stage openings and submission deadlines, the days of the on-site final and
+the organiser's events, in the competition's time zone. The **Workshops** page (`/warsztaty/`) and the
+students' **Calendar** (`/me/calendar/`) have three buttons: **Add to Google Calendar**, **Add to Outlook /
+Apple** (a `webcal://` subscription) and **Download .ics** (a one-off import that does not update). A
+subscription updates by itself when the organiser changes a date. Meeting links (Meet) are **not** in
+the calendar – signed-in participants get them in the organiser's announcements.
+
 ## 7. Your data
 
 You can download or delete your own account data under *Account*. Deleting your account removes your
