@@ -122,8 +122,13 @@ from apps.competitions.models import DEFAULT_RETENTION_MONTHS
 #: 1.22 (05.10.2026, zadanie MAIL-02) – doręczalność poczty (``apps.email_delivery.register``): wiersz
 #: warunkowy (``EMAIL_BOUNCE_TRACKING``) – nowa kategoria danych (odbicia listów: kod i treść odpowiedzi
 #: serwera odbiorcy) z własnym terminem usunięcia i nowym kręgiem odbiorców (lista koordynatora).
-REGISTER_VERSION = "1.22"
-REGISTER_DATE = date(2026, 10, 5)
+#: 1.23 (18.10.2026, zadanie WS-ATT-02) – obecność na warsztatach online dostaje miejsce w rejestrze:
+#: była podstawą zaświadczeń z warsztatów, ale nie była tu opisana, a od tej zmiany serwis czyta
+#: **raport obecności Google Meet** organizatora (imię, nazwisko, adres e-mail, czas na spotkaniu –
+#: także osób spoza konkursu: gości, prowadzących, nauczycieli). Nowe źródło i nowe kategorie danych
+#: w wierszu „wyniki”, choć przetwarzanie raportu jest przejściowe (nic z niego nie trafia do bazy).
+REGISTER_VERSION = "1.23"
+REGISTER_DATE = date(2026, 10, 18)
 
 #: Zdanie o okresie przechowywania danych uczestnika. Liczba pochodzi z tego samego miejsca, co
 #: domyślna wartość ``Edition.data_retention_months`` – gdyby organizator zmienił ją dla rocznika,
@@ -344,6 +349,11 @@ ACTIVITIES: tuple[ProcessingActivity, ...] = (
             "kod publiczny uczestnika, punktacja, informacja o kwalifikacji",
             "imię i nazwisko – wyłącznie w finale i wyłącznie przy aktywnej zgodzie na publikację",
             "numer i kod weryfikacyjny wystawionego dokumentu",
+            # WS-ATT-02: obecność jest podstawą zaświadczenia z warsztatów, a raport Meet – jej źródłem.
+            "obecność na warsztatach online (uczestnik, warsztat, kto i kiedy odhaczył) – podstawa "
+            "zaświadczenia z warsztatów",
+            "raport obecności Google Meet organizatora (imię, nazwisko, adres e-mail i czas na spotkaniu "
+            "osób z raportu, także spoza konkursu) – odczytywany przejściowo przy imporcie obecności",
         ],
         recipients=[HOSTING_RECIPIENT, "publiczność serwisu (tabela wyników jest jawna)"],
         retention=(
@@ -353,6 +363,9 @@ ACTIVITIES: tuple[ProcessingActivity, ...] = (
         measures=[
             "tabela wyników pochodzi wyłącznie z zamrożonego snapshotu, nie z bieżących danych",
             "strona weryfikacji dokumentu nie podaje nazwiska bez aktywnej zgody na publikację",
+            "raport obecności Google Meet jest czytany wyłącznie w pamięci w czasie podglądu importu: nie "
+            "trafia do bazy, logów ani kopii zapasowych; zapisywany jest tylko wynik dopasowania "
+            "(uczestnik – warsztat), a dziennik zdarzeń dostaje same liczby",
         ],
     ),
     _activity(
