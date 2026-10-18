@@ -158,6 +158,9 @@ EXPECTED_SUBJECTS = {
     # Zmiana hasła w panelu konta (AUTH-01b, ``apps.password_change.notifications``): list
     # bezpieczeństwa do właściciela konta – bez hasła, z linkiem do „Nie pamiętasz hasła?”.
     "password_changed": "Hasło do konta zostało zmienione – Olimpiada Kwantowa",
+    # Zaświadczenie z warsztatów wystawione przez regułę obecności (WS-CERT-02,
+    # ``apps.workshop_certificates.notifications``) – list nieobowiązkowy, przełącznik koordynatora.
+    "workshop_certificate_ready": "Zaświadczenie z warsztatów jest gotowe – Olimpiada Kwantowa",
 }
 
 #: Znaczniki podstawień w tematach składanych w serwisie. Porównujemy **wzorzec**, a nie wynik:
@@ -329,6 +332,8 @@ SUBJECT_CONSTANTS = {
     "apps.webinars.notifications.INVITE_SUBJECT_TEMPLATE": "webinar_invite",
     "apps.webinars.notifications.REMINDER_SUBJECT": "webinar_reminder",
     "apps.webinars.notifications.REMINDER_SUBJECT_TEMPLATE": "webinar_reminder",
+    "apps.workshop_certificates.notifications.READY_SUBJECT": "workshop_certificate_ready",
+    "apps.workshop_certificates.notifications.READY_SUBJECT_TEMPLATE": "workshop_certificate_ready",
 }
 
 #: Stałe z ``SUBJECT`` w nazwie, które **nie są** tematem wychodzącego listu – każda z powodem.

@@ -1,0 +1,32 @@
+# Zaświadczenia z warsztatów wystawiane automatycznie (WS-CERT-02) – id.
+msgid ""
+msgstr ""
+"Project-Id-Version: Olimpiada Kwantowa\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-09 23:30+0200\n"
+"PO-Revision-Date: 2026-10-09 23:30+0200\n"
+"Last-Translator: Olimpiada Kwantowa\n"
+"Language-Team: Indonesian\n"
+"Language: id\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+#: apps/workshop_certificates/notifications.py
+msgid "Zaświadczenie z warsztatów jest gotowe – Olimpiada Kwantowa"
+msgstr "Sertifikat lokakarya Anda sudah siap – Olimpiade Kuantum"
+
+#: apps/workshop_certificates/notifications.py
+#, python-format
+msgid "Zaświadczenie z warsztatów jest gotowe – %(competition)s"
+msgstr "Sertifikat lokakarya Anda sudah siap – %(competition)s"
+
+#: apps/workshop_certificates/notifications.py
+#, python-format
+msgid "Wystawiliśmy Ci zaświadczenie o udziale w warsztatach (edycja %(edition)s). Dokument w PDF-ie pobierzesz po zalogowaniu, w zakładce „Dyplomy”:"
+msgstr "Kami telah menerbitkan sertifikat keikutsertaan Anda dalam lokakarya (edisi %(edition)s). Anda dapat mengunduh PDF-nya setelah masuk, di tab “Piagam”:"
+
+#: apps/workshop_certificates/notifications.py
+msgid "Na zaświadczeniu są wymienione tematy i terminy zajęć, na których byłeś(-aś)."
+msgstr "Sertifikat mencantumkan topik dan tanggal sesi yang Anda ikuti."
