@@ -46,8 +46,12 @@ def schedule_block(rows=ROWS) -> tuple:
 
 
 def workshops_page_for(competition, rows=ROWS) -> ContentPage:
-    """Strona „Warsztaty” **tego** konkursu z jednym blokiem ``schedule``."""
-    home = home_page(competition.site)
+    """Strona „Warsztaty” **tego** konkursu z jednym blokiem ``schedule``.
+
+    Konkurs drugi (fikstura ``other_competition``) ma za korzeń witryny gołą ``Page`` bez strony
+    głównej – wtedy strona staje wprost pod korzeniem, czyli nadal w poddrzewie **tej** witryny.
+    """
+    home = home_page(competition.site) or competition.site.root_page
     page = ContentPage(title="Warsztaty", slug=WORKSHOPS_SLUG, live=True, body=[schedule_block(rows)])
     home.add_child(instance=page)
     page.save_revision().publish()
