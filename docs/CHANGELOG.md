@@ -12,6 +12,13 @@ podsekcją `### <tytuł>` wydania `## v<x.y.z> – <data tagu> – <opis tagu>`.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## [Unreleased] – Codzienne odświeżanie łatek systemowych w obrazach (APT_REFRESH)
+
+- Warstwa `apt-get upgrade` w `backend/Dockerfile` i `djcms/Dockerfile` była w cache'u warstw (gha w CI, lokalny
+  na serwerze) i odświeżała się tylko przy zmianie obrazu bazowego – 18.10.2026 bramka Trivy zatrzymała wszystkie
+  PR-y na curl CVE-2026-8286/8927/92392, choć Debian miał już 8.14.1-2+deb13u7. Nowy argument `APT_REFRESH` (data)
+  podawany przez CI (`date -u +%F`), `docker-compose.yml` i `scripts/deploy.sh` – nowa warstwa raz dziennie.
+
 ## [Unreleased] – Audyt bezpieczeństwa 10.10.2026 (6 wysokich, 21 średnich, 22 niskie)
 
 Pełny raport: [`AUDYT-BEZPIECZENSTWA-2026-10-10.md`](AUDYT-BEZPIECZENSTWA-2026-10-10.md); pozycje

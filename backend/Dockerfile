@@ -83,7 +83,12 @@ RUN --mount=type=cache,target=/root/.cache/notebook-lab \
 #   ``docker compose exec -u root web python -m ensurepip``.
 FROM ${PYTHON_IMAGE} AS runtime
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PATH="/opt/venv/bin:$PATH"
-RUN apt-get update && apt-get upgrade -y --no-install-recommends \
+# ``APT_REFRESH`` (data, np. 2026-10-18 – CI i scripts/deploy.sh podają dzisiejszą): warstwa
+# ``apt-get upgrade`` jest w cache'u (gha w CI, lokalny na serwerze) i bez tego argumentu odświeżała się
+# wyłącznie przy zmianie obrazu bazowego – 18.10.2026 Trivy zatrzymał CI na curl CVE-2026-8286/8927/92392,
+# choć Debian miał już deb13u7. Nowa data = nowa warstwa raz dziennie; w ciągu dnia cache działa dalej.
+ARG APT_REFRESH=
+RUN echo "apt refresh: ${APT_REFRESH:-brak}" && apt-get update && apt-get upgrade -y --no-install-recommends \
     && apt-get install -y --no-install-recommends libpq5 curl procps gettext \
     && rm -rf /var/lib/apt/lists/* \
     && python -m pip uninstall -y --root-user-action=ignore pip \

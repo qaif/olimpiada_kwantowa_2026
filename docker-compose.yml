@@ -242,6 +242,9 @@ x-app-base: &app-base
     context: ./backend
     dockerfile: Dockerfile
     target: runtime
+    # Świeże łatki Debiana raz dziennie (Dockerfile: ``APT_REFRESH``) – scripts/deploy.sh podaje datę.
+    args:
+      APT_REFRESH: ${APT_REFRESH:-}
   # Bez `WEB_IMAGE` wartość jest dokładnie ta, co była – obraz budowany na miejscu i tagowany
   # wersją wdrożenia. Ustawione `WEB_IMAGE` (np. ghcr.io/qaif/olimpiada-web:v0.24.0) podmienia
   # źródło obrazu dla `web`, `worker` i `beat` naraz: to jeden obraz z trzema poleceniami, więc
@@ -1041,6 +1044,9 @@ services:
       context: .
       dockerfile: djcms/Dockerfile
       target: runtime
+      # Świeże łatki Debiana raz dziennie (Dockerfile: ``APT_REFRESH``) – scripts/deploy.sh podaje datę.
+      args:
+        APT_REFRESH: ${APT_REFRESH:-}
     image: ${DJCMS_IMAGE:-olimpiada/djcms:${APP_VERSION:-dev}}
     command: >
       gunicorn config.wsgi:application --bind 0.0.0.0:8000
