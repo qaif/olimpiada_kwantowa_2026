@@ -387,6 +387,14 @@ tak samo w panelu i w API aplikacji).
 Dokument pobiera się w PDF-ie; strona weryfikacyjna **nie pokazuje imienia i nazwiska**, dopóki nie
 wyraziłeś zgody na publikację pełnych danych.
 
+**Zaświadczenie z warsztatów.** Jeśli organizator włączył automatyczne zaświadczenia, dostaniesz je
+sam, gdy będziesz na wymaganej liczbie warsztatów (organizator podaje ją w ogłoszeniu warsztatów).
+Dokument pojawia się w **„Dyplomach”** (`/me/certificates/`) kilka chwil po tym, jak organizator zapisze
+obecność z kolejnych zajęć; jeśli organizator włączył powiadomienia, przyjdzie też list „Zaświadczenie
+z warsztatów jest gotowe”. Na zaświadczeniu są tematy i terminy zajęć, na których byłeś. Zaświadczenie
+dostaje uczestnik zapisany do etapu bieżącej edycji. Gdy dokumentu nie ma, choć byłeś na zajęciach,
+napisz do organizatora — obecność wpisuje on, nie Ty.
+
 **Olimpiada międzynarodowa (medale).** W konkursie z medalami (`iqo`) w „Dyplomach” znajdziesz dyplom
 medalowy (złoty, srebrny, brązowy medal albo wyróżnienie) i zaświadczenie o udziale **w języku, który
 wybrałeś w ustawieniach konta** — język jest zapisywany w chwili wystawienia dokumentu. Medale i ranking

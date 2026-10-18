@@ -162,6 +162,7 @@ INSTALLED_APPS = [
     # i własne reguły dostępu. Z CMS-em łączy ją wyłącznie **odczyt** harmonogramu warsztatów
     # (``apps.cms.workshops``) – dlatego stoi po nim, a przed ``apps.web``, który ją wyświetla.
     "apps.workshop_materials",
+    "apps.workshop_certificates",  # zaświadczenia z warsztatów wystawiane z obecności (WS-CERT-02)
     # Ocena AI – sugestia punktów dla komitetu liczona przez Claude'a (prośba organizatora
     # z 24.09.2026). Osobna aplikacja, bo ma własną zależność zewnętrzną (SDK ``anthropic``)
     # i własną drogę danych poza serwer; **po** ``apps.grading`` i ``apps.results``, bo czyta

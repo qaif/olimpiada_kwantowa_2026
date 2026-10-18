@@ -1,0 +1,32 @@
+# Zaświadczenia z warsztatów wystawiane automatycznie (WS-CERT-02) – pt.
+msgid ""
+msgstr ""
+"Project-Id-Version: Olimpiada Kwantowa\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-09 23:30+0200\n"
+"PO-Revision-Date: 2026-10-09 23:30+0200\n"
+"Last-Translator: Olimpiada Kwantowa\n"
+"Language-Team: Portuguese\n"
+"Language: pt\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: apps/workshop_certificates/notifications.py
+msgid "Zaświadczenie z warsztatów jest gotowe – Olimpiada Kwantowa"
+msgstr "Seu certificado das oficinas está pronto – Olimpíada Quântica"
+
+#: apps/workshop_certificates/notifications.py
+#, python-format
+msgid "Zaświadczenie z warsztatów jest gotowe – %(competition)s"
+msgstr "Seu certificado das oficinas está pronto – %(competition)s"
+
+#: apps/workshop_certificates/notifications.py
+#, python-format
+msgid "Wystawiliśmy Ci zaświadczenie o udziale w warsztatach (edycja %(edition)s). Dokument w PDF-ie pobierzesz po zalogowaniu, w zakładce „Dyplomy”:"
+msgstr "Emitimos seu certificado de participação nas oficinas (edição %(edition)s). Você pode baixar o PDF depois de entrar, na aba “Diplomas”:"
+
+#: apps/workshop_certificates/notifications.py
+msgid "Na zaświadczeniu są wymienione tematy i terminy zajęć, na których byłeś(-aś)."
+msgstr "O certificado indica os temas e as datas das sessões de que você participou."

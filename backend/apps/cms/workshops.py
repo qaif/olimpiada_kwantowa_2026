@@ -18,8 +18,16 @@ from __future__ import annotations
 
 from datetime import date
 
+from django.dispatch import Signal
 from django.utils import timezone
 from django.utils.text import slugify
+
+#: Zapisano obecności (``participant_ids=[…]``) – wysyła ``WorkshopAttendanceQuerySet.bulk_create``.
+#: Sygnał, a nie wywołanie: CMS nie wie, kto reaguje na obecność (zaświadczenia automatyczne,
+#: WS-CERT-02), a ``bulk_create`` – którym zapisują kratki, import CSV i import z platformy wideo –
+#: nie wysyła ``post_save``. Odbiorca dostaje identyfikatory, nie wiersze, i nie powinien pytać bazy
+#: w żądaniu: import trzystu osób to jeden sygnał, a nie trzysta.
+attendance_recorded = Signal()
 
 #: Slug strony z harmonogramem warsztatów. Zapowiedź na stronie głównej szuka jej po slugu, bo
 #: tytuł jest redakcyjny (może brzmieć „Warsztaty online”), a adres wisi w komunikatach.
