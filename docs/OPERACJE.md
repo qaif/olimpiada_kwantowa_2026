@@ -4845,7 +4845,10 @@ Bez konfiguracji i bez flagi `webinars` (§ 6.4) nic się nie zmienia – także
 
    (alias `local` w kontenerze `minio`: `mc alias set local http://localhost:9000 <root> <hasło>`).
 6. Konfiguracja LiveKit: `mkdir -p livekit && cp deploy/livekit/livekit.yaml.example livekit/livekit.yaml &&
-   cp deploy/livekit/egress.yaml.example livekit/egress.yaml && chmod 600 livekit/*.yaml`, podmienić
+   cp deploy/livekit/egress.yaml.example livekit/egress.yaml && chmod 600 livekit/*.yaml &&
+   chown 1001:0 livekit/egress.yaml && chmod 640 livekit/egress.yaml` (egress działa jako użytkownik `egress`,
+   uid 1001 – z samym `chmod 600` i właścicielem root kończy się `open /etc/egress.yaml: permission denied`,
+   sprawdzone 18.10.2026), podmienić
    `<…>` (klucz i sekret jak w `.env`, `SITE_DOMAIN`, konto egress z kroku 5, `endpoint` = publiczny
    adres S3). `livekit.yaml` ma `room.auto_create: false`: pokój zakłada wyłącznie platforma przed
    wystawieniem tokenu, więc token sprzed „Zakończ” nie otworzy pokoju na nowo. Obok położyć profil
