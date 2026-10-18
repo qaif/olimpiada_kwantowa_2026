@@ -20,3 +20,41 @@ msgstr "更正"
 
 msgid "Tak, adres jest poprawny"
 msgstr "是的，地址正确"
+
+# Podgląd importu: status wiersza (REG-UX-01 § 2.1).
+msgid "zaproszenie zostanie wysłane"
+msgstr "将发送邀请"
+
+msgid "ma już konto i jest na Twojej liście"
+msgstr "已有账户，且已在您的名单中"
+
+msgid "zobacz listę uczniów"
+msgstr "查看学生名单"
+
+msgid "ma już konto, ale nie ma go na Twojej liście"
+msgstr "已有账户，但不在您的名单中"
+
+msgid "błąd"
+msgstr "错误"
+
+#, python-format
+msgid "błąd: %(problem)s"
+msgstr "错误：%(problem)s"
+
+# Podgląd importu: podsumowanie nad tabelą (REG-UX-01 § 2.2).
+#, python-format
+msgid "Nowe zaproszenia: %(created)s · już na liście: %(on_list)s · inne istniejące konta: %(other)s · pominięte (błędy): %(skipped)s."
+msgstr "新邀请：%(created)s · 已在名单中：%(on_list)s · 其他已有账户：%(other)s · 已跳过（错误）：%(skipped)s。"
+
+# bulk_registration.EXISTING_NOT_ON_LIST_NOTE – zajęty adres spoza listy nauczyciela.
+msgid "Jeśli to uczeń tego konkursu (wskazał innego opiekuna albo nikogo), dostanie prośbę o zgodę na dopisanie Cię jako opiekuna i pojawi się na Twojej liście po jego zgodzie. Jeśli startuje w innym konkursie albo to konto innej osoby, import go nie zmieni."
+msgstr "如果这是本竞赛的学生（指定了其他指导教师或未指定），他将收到同意添加您为指导教师的请求，并在同意后出现在您的名单中。如果他参加的是其他竞赛，或该账户属于其他人，导入不会对其做任何更改。"
+
+# Komunikat po imporcie nauczyciela (REG-UX-01 § 2.2).
+#, python-format
+msgid "Import zakończony. Wysłano zaproszeń: %(created)s, uczniów już było na Twojej liście: %(on_list)s, pominięto: %(skipped)s."
+msgstr "导入完成。已发送邀请：%(created)s，已在您名单中的学生：%(on_list)s，已跳过：%(skipped)s。"
+
+#, python-format
+msgid "Adresów z kontem spoza Twojej listy: %(other)s – jeśli to uczniowie tego konkursu, dostają prośbę o zgodę na dopisanie Cię jako opiekuna i pojawią się na liście po jej przyjęciu."
+msgstr "名单之外已有账户的地址：%(other)s——如果他们是本竞赛的学生，将收到同意添加您为指导教师的请求，接受后会出现在名单中。"

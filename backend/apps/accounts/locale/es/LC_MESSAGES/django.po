@@ -20,3 +20,41 @@ msgstr "Corregir"
 
 msgid "Tak, adres jest poprawny"
 msgstr "Sí, la dirección es correcta"
+
+# Podgląd importu: status wiersza (REG-UX-01 § 2.1).
+msgid "zaproszenie zostanie wysłane"
+msgstr "se enviará una invitación"
+
+msgid "ma już konto i jest na Twojej liście"
+msgstr "ya tiene una cuenta y está en tu lista"
+
+msgid "zobacz listę uczniów"
+msgstr "ver la lista de estudiantes"
+
+msgid "ma już konto, ale nie ma go na Twojej liście"
+msgstr "ya tiene una cuenta, pero no está en tu lista"
+
+msgid "błąd"
+msgstr "error"
+
+#, python-format
+msgid "błąd: %(problem)s"
+msgstr "error: %(problem)s"
+
+# Podgląd importu: podsumowanie nad tabelą (REG-UX-01 § 2.2).
+#, python-format
+msgid "Nowe zaproszenia: %(created)s · już na liście: %(on_list)s · inne istniejące konta: %(other)s · pominięte (błędy): %(skipped)s."
+msgstr "Invitaciones nuevas: %(created)s · ya en la lista: %(on_list)s · otras cuentas existentes: %(other)s · omitidas (errores): %(skipped)s."
+
+# bulk_registration.EXISTING_NOT_ON_LIST_NOTE – zajęty adres spoza listy nauczyciela.
+msgid "Jeśli to uczeń tego konkursu (wskazał innego opiekuna albo nikogo), dostanie prośbę o zgodę na dopisanie Cię jako opiekuna i pojawi się na Twojej liście po jego zgodzie. Jeśli startuje w innym konkursie albo to konto innej osoby, import go nie zmieni."
+msgstr "Si es un estudiante de este concurso (que indicó a otro profesor o a nadie), recibirá una solicitud de consentimiento para añadirte como su profesor y aparecerá en tu lista cuando la acepte. Si participa en otro concurso o la cuenta es de otra persona, la importación no la cambiará."
+
+# Komunikat po imporcie nauczyciela (REG-UX-01 § 2.2).
+#, python-format
+msgid "Import zakończony. Wysłano zaproszeń: %(created)s, uczniów już było na Twojej liście: %(on_list)s, pominięto: %(skipped)s."
+msgstr "Importación terminada. Invitaciones enviadas: %(created)s, estudiantes que ya estaban en tu lista: %(on_list)s, omitidas: %(skipped)s."
+
+#, python-format
+msgid "Adresów z kontem spoza Twojej listy: %(other)s – jeśli to uczniowie tego konkursu, dostają prośbę o zgodę na dopisanie Cię jako opiekuna i pojawią się na liście po jej przyjęciu."
+msgstr "Direcciones con cuenta fuera de tu lista: %(other)s: si son estudiantes de este concurso, reciben una solicitud de consentimiento para añadirte como su profesor y aparecerán en la lista cuando la acepten."

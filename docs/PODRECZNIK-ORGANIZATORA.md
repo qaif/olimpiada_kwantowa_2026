@@ -2126,10 +2126,19 @@ i dopiero jego zgoda zapisuje adres. Zasada obowiązuje **także Twój import**:
 przypisuje nauczyciela od razu wyłącznie nowym kontom, a pusta komórka u istniejącego ucznia
 **nie czyści** już opiekuna, którego wpisał sam. Szczegóły dla Ciebie:
 
-- **podgląd mówi o każdym zajętym adresie jednym zdaniem** („adres ma już konto – jeśli to uczeń
-  tego konkursu, dostanie prośbę o zgodę”) — bez odróżniania ucznia od recenzenta czy koordynatora,
-  a komunikat po zapisie podaje trzy liczby: zaproszeni, adresy z istniejącym kontem, pominięci.
-  Ile próśb naprawdę wyszło, mówi wpis audytu `accounts.students_imported` (`consent_requested`),
+- **status każdego wiersza w podglądzie (REG-UX-01).** Nauczyciel widzi: „zaproszenie zostanie
+  wysłane”, „ma już konto i jest na Twojej liście” (z odnośnikiem do listy uczniów), „ma już konto,
+  ale nie ma go na Twojej liście” (jedno zdanie o **każdym** innym zajętym adresie — bez odróżniania
+  ucznia z innym opiekunem od konta w innym konkursie czy konta recenzenta; ta różnica byłaby
+  wyszukiwarką ról) i „błąd: …”. Ty w swoim imporcie widzisz pełny podział: „jest na liście tego
+  opiekuna” (odnośnik do konta), „wskazał innego opiekuna” / „nie wskazał opiekuna” (oba — prośba
+  o zgodę), „ma konto w tym konkursie – bez zmian” (wiersz bez opiekuna) i „nie jest uczestnikiem
+  tego konkursu” (konto w innym konkursie albo bez profilu ucznia),
+- **komunikat po zapisie**: „Wysłano zaproszeń: N, uczniów już było na liście: M, pominięto: K”
+  (pominięte = błędy z podglądu + wiersze odrzucone przy zapisie) i — gdy są — liczba adresów z kontem
+  spoza listy nauczyciela. Liczby wysłanych próśb nauczyciel nie widzi (mówi ją wpis audytu
+  `accounts.students_imported`: `consent_requested`, a od REG-UX-01 także `on_list`); Ty widzisz ją
+  w swoim komunikacie,
 - **jedna prośba na parę (uczeń, nauczyciel) na dobę**; import nauczyciela ma limit żądań
   (scope `upload`, każdy podgląd i każde zatwierdzenie),
 - **ślad w audycie** karty uczestnika: `participant.supervisor_consent_requested` (kto wgrał plik),

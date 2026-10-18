@@ -96,8 +96,8 @@ widzi koordynator, który i tak ma wgląd w konta swojego konkursu; „konto w i
 i „konto bez profilu ucznia” są u niego jednym statusem (izolacja konkursów).
 
 Zapytanie „na Twojej liście” dotyczy wyłącznie profili z adresem opiekuna = adres zalogowanego
-nauczyciela; idzie zawsze (także gdy w pliku nie ma zajętych adresów nie ma czego pytać – wtedy
-pusta lista), więc czas odpowiedzi nie mówi nic więcej niż treść.
+nauczyciela (to samo, co pokazuje `/supervisor/students/`), więc ani treść, ani czas odpowiedzi
+nie mówią nic o profilach, których nauczyciel nie widzi.
 
 ### 2.2. Podsumowanie
 - podgląd: „Nowe zaproszenia: N · już na liście: M · inne istniejące konta: L · pominięte: K”,
@@ -108,11 +108,15 @@ pusta lista), więc czas odpowiedzi nie mówi nic więcej niż treść.
   `skipped`, wyłącznie do komunikatu) + wiersze pominięte przy zatwierdzeniu,
 - `import_students` zwraca dodatkowo `on_list` (wchodzi też do audytu `accounts.students_imported`).
 
-### 2.3. Błąd znaleziony przy okazji
-Brak błędu reguł. Przyczyna zgłoszenia: wiersz ucznia już przypisanego do nauczyciela był liczony
+### 2.3. Błędy znalezione przy okazji
+- reguł importu – brak. Przyczyna zgłoszenia: wiersz ucznia już przypisanego do nauczyciela był liczony
 jako „adres z istniejącym kontem (uczniowie tego konkursu dostali prośbę o zgodę)”, choć żadna
 prośba nie szła (`request_consent` zwraca `False` dla tego samego opiekuna) – komunikat sugerował,
-że uczeń „czeka”, a lista była już kompletna.
+że uczeń „czeka”, a lista była już kompletna,
+- szablon podglądu: dwuwierszowy komentarz `{# … #}` (Django zna tylko jednowierszowy) trafiał na
+  ekran nauczyciela jako tekst w nagłówku tabeli – poprawiony na `{% comment %}`. Ten sam błąd jest
+  w kilku szablonach koordynatora (`assignments.html`, `participant_detail.html`, `problems.html`,
+  `members.html`, `member_detail.html`, `dashboard.html`) i w `invite/accept.html` – poza zakresem.
 
 ## 3. Automatyczny zapis do etapu treningowego
 

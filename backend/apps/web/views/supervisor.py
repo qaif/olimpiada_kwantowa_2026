@@ -30,6 +30,7 @@ from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404, redirect
 from django.template.response import TemplateResponse
 from django.urls import reverse, reverse_lazy
+from django.utils.translation import gettext as _
 from django.views.generic import TemplateView, View
 
 from apps.accounts.bulk_registration import (
@@ -270,6 +271,10 @@ class StudentImportConfirmForm(forms.Form):
     rows = forms.CharField(widget=forms.HiddenInput)
     school = forms.CharField(required=False, max_length=255, widget=forms.HiddenInput)
     school_id = forms.IntegerField(required=False, min_value=1, widget=forms.HiddenInput)
+    #: Ile wierszy podgląd pominął z błędem (REG-UX-01 § 2.2). Takie wiersze nie jadą w koszyku, więc
+    #: zatwierdzenie nie umie ich policzyć samo. Liczba wyłącznie do komunikatu – niczego nie steruje,
+    #: więc jej podmiana zmieniłaby tylko zdanie, które nauczyciel czyta o własnym pliku.
+    skipped = forms.IntegerField(required=False, min_value=0, max_value=MAX_ROWS, widget=forms.HiddenInput)
 
 
 class BaseStudentImportView(View):
@@ -363,16 +368,32 @@ class BaseStudentImportView(View):
         except DomainError as exc:
             messages.error(request, str(exc.detail))
             return redirect(request.path)
-        # Trzy liczby i **żadnej** czwartej: ile próśb o zgodę naprawdę wyszło, wie audyt
-        # (``accounts.students_imported``), a nie ekran – plik z jednym adresem zamieniałby tę liczbę
-        # w odpowiedź „to jest / nie jest uczeń tego konkursu”, którą podgląd przestał dawać.
-        messages.success(
-            request,
-            "Import zakończony: zaproszono {created}, adresów z istniejącym kontem {existing} "
-            "(uczniowie tego konkursu dostali prośbę o zgodę na dopisanie opiekuna), "
-            "pominięto {skipped}.".format(**summary),
-        )
+        summary = {**summary, "skipped": summary["skipped"] + (form.cleaned_data.get("skipped") or 0)}
+        messages.success(request, self.summary_message(summary))
         return redirect(self.success_url())
+
+    def summary_message(self, summary: dict) -> str:
+        """Komunikat po imporcie nauczyciela (REG-UX-01 § 2.2): zaproszenia, „już na liście”, pominięte.
+
+        Bez liczby wysłanych próśb o zgodę: ile ich naprawdę wyszło, wie audyt
+        (``accounts.students_imported``), a nie ekran – plik z jednym adresem zamieniałby tę liczbę
+        w odpowiedź „to jest / nie jest uczeń tego konkursu”, którą podgląd przestał dawać.
+        „Już na liście” jest bezpieczne: to uczniowie, którzy sami wskazali adres tego nauczyciela.
+        """
+        text = (
+            _(
+                "Import zakończony. Wysłano zaproszeń: %(created)s, uczniów już było na Twojej liście: "
+                "%(on_list)s, pominięto: %(skipped)s."
+            )
+            % summary
+        )
+        other = summary["existing"] - summary["on_list"]
+        if other:
+            text += " " + _(
+                "Adresów z kontem spoza Twojej listy: %(other)s – jeśli to uczniowie tego konkursu, dostają "
+                "prośbę o zgodę na dopisanie Cię jako opiekuna i pojawią się na liście po jej przyjęciu."
+            ) % {"other": other}
+        return text
 
     # --- pomocnicze -----------------------------------------------------------------------
 
@@ -496,6 +517,19 @@ class CoordinatorStudentImportView(CoordinatorRequiredMixin, BaseStudentImportVi
 
     def success_url(self) -> str:
         return reverse("web:coordinator-accounts")
+
+    def summary_message(self, summary: dict) -> str:
+        """Komunikat po imporcie koordynatora – pełny podział, także liczba wysłanych próśb o zgodę.
+
+        Koordynator ma wgląd w konta swojego konkursu, więc liczba próśb nie jest dla niego wyrocznią.
+        Panel organizatora jest po polsku (bez tłumaczeń), jak reszta /coordinator/.
+        """
+        rest = summary["existing"] - summary["on_list"] - summary["consent_requested"]
+        return (
+            "Import zakończony. Wysłano zaproszeń: {created}, uczniów już było na liście wskazanego "
+            "opiekuna: {on_list}, próśb o zgodę na opiekuna: {consent_requested}, pozostałych kont "
+            "bez zmian: {rest}, pominięto: {skipped}.".format(rest=rest, **summary)
+        )
 
 
 # --- lista uczniów opiekuna z widocznym stanem zaproszenia ------------------------------------

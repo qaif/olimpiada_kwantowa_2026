@@ -20,3 +20,41 @@ msgstr "Perbaiki"
 
 msgid "Tak, adres jest poprawny"
 msgstr "Ya, alamatnya benar"
+
+# Podgląd importu: status wiersza (REG-UX-01 § 2.1).
+msgid "zaproszenie zostanie wysłane"
+msgstr "undangan akan dikirim"
+
+msgid "ma już konto i jest na Twojej liście"
+msgstr "sudah punya akun dan ada di daftar Anda"
+
+msgid "zobacz listę uczniów"
+msgstr "lihat daftar siswa"
+
+msgid "ma już konto, ale nie ma go na Twojej liście"
+msgstr "sudah punya akun, tetapi tidak ada di daftar Anda"
+
+msgid "błąd"
+msgstr "galat"
+
+#, python-format
+msgid "błąd: %(problem)s"
+msgstr "galat: %(problem)s"
+
+# Podgląd importu: podsumowanie nad tabelą (REG-UX-01 § 2.2).
+#, python-format
+msgid "Nowe zaproszenia: %(created)s · już na liście: %(on_list)s · inne istniejące konta: %(other)s · pominięte (błędy): %(skipped)s."
+msgstr "Undangan baru: %(created)s · sudah di daftar: %(on_list)s · akun lain yang sudah ada: %(other)s · dilewati (galat): %(skipped)s."
+
+# bulk_registration.EXISTING_NOT_ON_LIST_NOTE – zajęty adres spoza listy nauczyciela.
+msgid "Jeśli to uczeń tego konkursu (wskazał innego opiekuna albo nikogo), dostanie prośbę o zgodę na dopisanie Cię jako opiekuna i pojawi się na Twojej liście po jego zgodzie. Jeśli startuje w innym konkursie albo to konto innej osoby, import go nie zmieni."
+msgstr "Jika ini siswa kompetisi ini (yang menyebut guru lain atau tidak menyebut siapa pun), ia akan menerima permintaan persetujuan untuk menambahkan Anda sebagai gurunya dan akan muncul di daftar Anda setelah menyetujuinya. Jika ia mengikuti kompetisi lain atau akun itu milik orang lain, impor tidak akan mengubahnya."
+
+# Komunikat po imporcie nauczyciela (REG-UX-01 § 2.2).
+#, python-format
+msgid "Import zakończony. Wysłano zaproszeń: %(created)s, uczniów już było na Twojej liście: %(on_list)s, pominięto: %(skipped)s."
+msgstr "Impor selesai. Undangan terkirim: %(created)s, siswa yang sudah ada di daftar Anda: %(on_list)s, dilewati: %(skipped)s."
+
+#, python-format
+msgid "Adresów z kontem spoza Twojej listy: %(other)s – jeśli to uczniowie tego konkursu, dostają prośbę o zgodę na dopisanie Cię jako opiekuna i pojawią się na liście po jej przyjęciu."
+msgstr "Alamat dengan akun di luar daftar Anda: %(other)s – jika mereka siswa kompetisi ini, mereka menerima permintaan persetujuan untuk menambahkan Anda sebagai guru dan akan muncul di daftar setelah menerimanya."

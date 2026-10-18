@@ -20,3 +20,41 @@ msgstr "Corriger"
 
 msgid "Tak, adres jest poprawny"
 msgstr "Oui, l’adresse est correcte"
+
+# Podgląd importu: status wiersza (REG-UX-01 § 2.1).
+msgid "zaproszenie zostanie wysłane"
+msgstr "une invitation sera envoyée"
+
+msgid "ma już konto i jest na Twojej liście"
+msgstr "a déjà un compte et figure sur votre liste"
+
+msgid "zobacz listę uczniów"
+msgstr "voir la liste des élèves"
+
+msgid "ma już konto, ale nie ma go na Twojej liście"
+msgstr "a déjà un compte, mais ne figure pas sur votre liste"
+
+msgid "błąd"
+msgstr "erreur"
+
+#, python-format
+msgid "błąd: %(problem)s"
+msgstr "erreur : %(problem)s"
+
+# Podgląd importu: podsumowanie nad tabelą (REG-UX-01 § 2.2).
+#, python-format
+msgid "Nowe zaproszenia: %(created)s · już na liście: %(on_list)s · inne istniejące konta: %(other)s · pominięte (błędy): %(skipped)s."
+msgstr "Nouvelles invitations : %(created)s · déjà sur la liste : %(on_list)s · autres comptes existants : %(other)s · ignorées (erreurs) : %(skipped)s."
+
+# bulk_registration.EXISTING_NOT_ON_LIST_NOTE – zajęty adres spoza listy nauczyciela.
+msgid "Jeśli to uczeń tego konkursu (wskazał innego opiekuna albo nikogo), dostanie prośbę o zgodę na dopisanie Cię jako opiekuna i pojawi się na Twojej liście po jego zgodzie. Jeśli startuje w innym konkursie albo to konto innej osoby, import go nie zmieni."
+msgstr "S’il s’agit d’un élève de ce concours (qui a indiqué un autre enseignant ou personne), il recevra une demande de consentement pour vous ajouter comme enseignant et apparaîtra sur votre liste après son accord. S’il participe à un autre concours ou si le compte appartient à quelqu’un d’autre, l’import ne le modifiera pas."
+
+# Komunikat po imporcie nauczyciela (REG-UX-01 § 2.2).
+#, python-format
+msgid "Import zakończony. Wysłano zaproszeń: %(created)s, uczniów już było na Twojej liście: %(on_list)s, pominięto: %(skipped)s."
+msgstr "Import terminé. Invitations envoyées : %(created)s, élèves déjà sur votre liste : %(on_list)s, ignorées : %(skipped)s."
+
+#, python-format
+msgid "Adresów z kontem spoza Twojej listy: %(other)s – jeśli to uczniowie tego konkursu, dostają prośbę o zgodę na dopisanie Cię jako opiekuna i pojawią się na liście po jej przyjęciu."
+msgstr "Adresses avec un compte hors de votre liste : %(other)s – s’il s’agit d’élèves de ce concours, ils reçoivent une demande de consentement pour vous ajouter comme enseignant et apparaîtront sur la liste après l’avoir acceptée."
