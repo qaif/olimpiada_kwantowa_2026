@@ -1,0 +1,16 @@
+{% load web_extras %}
+{% comment %}
+  Jedno konto na podglądzie scalenia (ACC-MERGE-01). Kontekst: ``account`` (``AccountFacts``), ``status``.
+{% endcomment %}
+<dl class="merge-facts">
+  <dt>Kod</dt><dd>{{ account.participant.public_code }}</dd>
+  <dt>E-mail</dt><dd>{{ account.user.email }}</dd>
+  <dt>Stan</dt><dd>{{ status }}</dd>
+  <dt>Założone</dt><dd>{{ account.user.date_joined|local_datetime }}</dd>
+  <dt>Ostatnie logowanie</dt><dd>{% if account.user.last_login %}{{ account.user.last_login|local_datetime }}{% else %}nigdy{% endif %}</dd>
+  <dt>Etapy</dt><dd>{% if account.competition_stages %}{{ account.competition_stages|join:", " }}{% endif %}{% if account.training_stages %}{% if account.competition_stages %}; {% endif %}trening: {{ account.training_stages|join:", " }}{% endif %}{% if not account.competition_stages and not account.training_stages %}—{% endif %}</dd>
+  <dt>Prace</dt><dd>{{ account.works }}</dd>
+  <dt>Zgody</dt><dd>RODO: {% if account.participant.gdpr_consent_at %}tak{% else %}nie{% endif %} · opiekun: {% if account.participant.guardian_consent %}tak{% else %}—{% endif %}</dd>
+  <dt>Zaświadczenie</dt><dd>{{ account.certificate|default:"—" }}</dd>
+  {% if account.other_roles %}<dt>Inne role</dt><dd>{{ account.other_role_labels|join:", " }}</dd>{% endif %}
+</dl>

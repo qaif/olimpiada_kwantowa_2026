@@ -30,7 +30,9 @@
       nigdy się nie logowało, nie ma etapu poza treningiem, prac, zaświadczenia ani innych ról.
       <strong>Do decyzji</strong> – wszystko inne (powód stoi przy koncie). „Usuń” jest przy każdym
       koncie, które da się usunąć – przy koncie używanym albo z innymi rolami rozwinięte potwierdzenie
-      mówi, co usunięcie zabierze.</p>
+      mówi, co usunięcie zabierze. Gdy oba konta mają aktywność, <strong>„Scal…”</strong> przy grupie
+      przenosi etapy, prace, zgody, zaświadczenia i resztę historii kopii na wybrane konto, a potem
+      usuwa kopię – najpierw pokazuje podgląd.</p>
     <div class="actions">
       {% if candidates %}
         <form method="post" action="{% url 'web:coordinator-duplicates-delete' %}">
@@ -51,6 +53,24 @@
   <div class="section__head">
     <h2 class="mt-0">{{ group.number }}. {{ group.full_name }}</h2>
     <p class="hint">{{ group.school }} · kont: {{ group.accounts|length }}</p>
+    {% if group.merge_options %}
+      {# ACC-MERGE-01: „Scal…” prowadzi na podgląd (GET, bez zapisu); scala dopiero przycisk tam. #}
+      <form method="get" action="{% url 'web:coordinator-duplicates-merge' %}" class="merge-pick">
+        <label for="merge-target-{{ group.number }}">Scal w</label>
+        <select name="target" id="merge-target-{{ group.number }}">
+          {% for account in group.merge_options %}
+            <option value="{{ account.user.pk }}"{% if account.user.pk == group.merge_target %} selected{% endif %}>{{ account.participant.public_code }} ({{ account.user.email }})</option>
+          {% endfor %}
+        </select>
+        <label for="merge-source-{{ group.number }}">konto</label>
+        <select name="source" id="merge-source-{{ group.number }}">
+          {% for account in group.merge_options %}
+            <option value="{{ account.user.pk }}"{% if account.user.pk == group.merge_source %} selected{% endif %}>{{ account.participant.public_code }} ({{ account.user.email }})</option>
+          {% endfor %}
+        </select>
+        <button type="submit" class="btn btn--secondary btn--small">Scal…</button>
+      </form>
+    {% endif %}
   </div>
   <div class="scroll" role="region" tabindex="0" aria-label="Konta: {{ group.full_name }}">
     <table class="table table--compact" aria-label="Konta: {{ group.full_name }}">

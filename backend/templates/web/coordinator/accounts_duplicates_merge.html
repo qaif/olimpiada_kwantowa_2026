@@ -1,0 +1,109 @@
+{% extends "web/coordinator/base.html" %}
+{% load static web_extras %}
+{% comment %}
+  Podgląd scalenia zdublowanych kont (ACC-MERGE-01). Plan liczy ``apps.accounts.merge.plan_merge`` –
+  ten szablon niczego nie rozstrzyga. Przycisk „Tak, scal konto …” niesie wartość potwierdzenia
+  (``confirm=<id kopii>``), a serwer liczy plan jeszcze raz na zablokowanych wierszach. Zero skryptu (CSP).
+{% endcomment %}
+{% block title %}Scalanie kont – panel koordynatora{% endblock %}
+{% block panel_head %}<link rel="stylesheet" href="{% static 'css/coordinator-accounts-cleanup.css' %}">{% endblock %}
+{% block panel_eyebrow %}<a href="{% url 'web:coordinator-duplicates' %}#grupa-{{ group_number }}">Zdublowane konta</a>{% endblock %}
+{% block panel_title %}Scalanie kont {{ drop.participant.public_code }} → {{ keep.participant.public_code }}{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Aktywność kopii przechodzi na konto docelowe, a kopia zostaje usunięta. Operacji nie da
+    się odwrócić. Dane osobowe (imię, nazwisko, szkoła, kod publiczny) zostają z konta docelowego.</p>
+{% endblock %}
+{% block panel_content %}
+
+<section class="section">
+  <div class="merge-sides">
+    <div class="card">
+      <h2 class="mt-0">Konto docelowe – zostaje</h2>
+      {% include "web/coordinator/_merge_account.html" with account=keep status=keep_status %}
+    </div>
+    <div class="card">
+      <h2 class="mt-0">Kopia – zostanie usunięta</h2>
+      {% include "web/coordinator/_merge_account.html" with account=drop status=drop_status %}
+    </div>
+  </div>
+  <p class="actions"><a class="btn btn--secondary btn--small" href="{{ swap_url }}">Zamień kierunek (scal odwrotnie)</a></p>
+</section>
+
+{% if plan.refusals or plan.conflicts %}
+<section class="section">
+  <div class="card notice notice--warning" role="alert">
+    <h2 class="mt-0">Scalenie niemożliwe</h2>
+    <ul>
+      {% for text in plan.refusals %}<li>{{ text }}</li>{% endfor %}
+      {% for text in plan.conflicts %}<li>{{ text }}</li>{% endfor %}
+    </ul>
+    <p class="hint">Rozwiąż powyższe albo zostaw oba konta. Kopię bez potrzebnych danych możesz też po prostu
+      usunąć na liście zdublowanych kont.</p>
+  </div>
+</section>
+{% endif %}
+
+<section class="section">
+  <div class="card">
+    <h2 class="mt-0">Co przejdzie na konto docelowe</h2>
+    {% if plan.moved %}
+      <div class="scroll" role="region" tabindex="0" aria-label="Przepinane dane">
+        <table class="table table--compact" aria-label="Przepinane dane">
+          <thead><tr><th scope="col">Dane</th><th scope="col" class="num">Liczba</th><th scope="col">Reguła</th></tr></thead>
+          <tbody>
+            {% for line in plan.moved %}
+              <tr><th scope="row">{{ line.label }}{% if line.detail %}<br><span class="hint">{{ line.detail }}</span>{% endif %}</th><td class="num">{{ line.count }}</td><td>{{ line.effect }}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="empty">Kopia nie ma nic do przeniesienia – wystarczy ją usunąć.</p>
+    {% endif %}
+    {% if plan.profile_fields %}
+      <p>Profil docelowy uzupełniony z kopii: {{ plan.profile_labels|join:", " }}.</p>
+    {% endif %}
+    {% for note in plan.notes %}<p class="hint">{{ note }}</p>{% endfor %}
+  </div>
+</section>
+
+{% if plan.discarded %}
+<section class="section">
+  <div class="card">
+    <h2 class="mt-0">Co nie przejdzie</h2>
+    <ul>
+      {% for line in plan.discarded %}<li>{{ line.label }}: {{ line.count }} – {{ line.effect }}</li>{% endfor %}
+    </ul>
+    <p class="hint">Hasło, logowanie przez Google/Facebook i drugi składnik kopii nie przechodzą – osoba loguje
+      się na konto docelowe jego danymi (w razie potrzeby resetem hasła). Dziennik zdarzeń zostaje bez zmian.</p>
+  </div>
+</section>
+{% endif %}
+
+{% if not plan.refusals and not plan.conflicts %}
+<section class="section">
+  <div class="card">
+    <form method="post" action="{% url 'web:coordinator-duplicates-merge' %}" class="form">
+      {% csrf_token %}
+      <input type="hidden" name="target" value="{{ keep.user.pk }}">
+      <input type="hidden" name="source" value="{{ drop.user.pk }}">
+      <h2 class="mt-0">Adres e-mail</h2>
+      <p>Zostaje adres konta docelowego: <strong>{{ keep.user.email }}</strong>{% if not keep.user.email_verified_at %} (niepotwierdzony){% endif %}.</p>
+      {% if plan.can_take_email %}
+        <p>
+          <input type="checkbox" name="take_email" value="1" id="take-email">
+          <label for="take-email">Weź adres z kopii: <strong>{{ drop.user.email }}</strong>{% if drop.user.email_verified_at %} (potwierdzony){% endif %}</label>
+        </p>
+        <p class="hint">Konto docelowe nie potwierdziło swojego adresu (np. literówka). Adres kopii zostanie najpierw
+          zwolniony, a potem przypisany kontu docelowemu{% if drop.user.email_verified_at %} razem z potwierdzeniem
+          – konto stanie się aktywne{% endif %}.</p>
+      {% endif %}
+      <div class="actions">
+        <button type="submit" name="confirm" value="{{ drop.user.pk }}" class="btn btn--danger">Tak, scal konto {{ drop.participant.public_code }} w {{ keep.participant.public_code }}</button>
+        <a class="btn btn--secondary" href="{% url 'web:coordinator-duplicates' %}#grupa-{{ group_number }}">Wróć</a>
+      </div>
+    </form>
+  </div>
+</section>
+{% endif %}
+{% endblock %}

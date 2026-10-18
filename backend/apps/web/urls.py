@@ -57,6 +57,7 @@ from .views import (
     coordinator_certificates,
     coordinator_competition,
     coordinator_duplicates,
+    coordinator_duplicates_merge,
     coordinator_events,
     coordinator_forum,
     coordinator_forwarding,
@@ -821,6 +822,12 @@ urlpatterns = [
         "coordinator/accounts/duplicates/export.csv",
         coordinator_duplicates.CoordinatorDuplicatesExportView.as_view(),
         name="coordinator-duplicates-export",
+    ),
+    # ACC-MERGE-01: scalanie zdublowanych kont – podgląd (GET) i „Scal” (POST) pod jednym adresem.
+    path(
+        "coordinator/accounts/duplicates/merge/",
+        coordinator_duplicates_merge.CoordinatorDuplicatesMergeView.as_view(),
+        name="coordinator-duplicates-merge",
     ),
     # ACC-DUP-02: „Usuń” w wierszu duplikatów i ekran „Nieaktywne konta” (przedrostek
     # ``coordinator-inactive`` z tego samego powodu, co ``coordinator-duplicates`` wyżej).
