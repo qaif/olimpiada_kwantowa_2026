@@ -18,8 +18,8 @@ msgid "Użyj %s"
 msgstr "Использовать %s"
 
 #, python-format
-msgid "Sprawdź adres – czy chodziło Ci o %(suggestion)s? Zaznacz poprawkę poniżej albo wyślij formularz jeszcze raz, żeby zostawić adres bez zmian."
-msgstr "Проверьте адрес — возможно, вы имели в виду %(suggestion)s? Отметьте исправление ниже или отправьте форму ещё раз, чтобы оставить адрес без изменений."
+msgid "Sprawdź adres – czy chodziło Ci o %(suggestion)s? Wybierz „Popraw” albo potwierdź, że adres jest poprawny."
+msgstr "Проверьте адрес — возможно, вы имели в виду %(suggestion)s? Выберите «Исправить» или подтвердите, что адрес верный."
 
 #, python-format
 msgid "Domena %(domain)s nie istnieje albo nie przyjmuje poczty. Sprawdź adres."
@@ -30,8 +30,17 @@ msgid "Domena %(domain)s nie istnieje albo nie przyjmuje poczty. Czy chodziło C
 msgstr "Домен %(domain)s не существует или не принимает почту. Возможно, вы имели в виду %(suggestion)s?"
 
 #, python-format
-msgid "Użyj adresu <strong>%(address)s</strong>"
-msgstr "Использовать <strong>%(address)s</strong>"
+msgid "Popraw na %(address)s"
+msgstr "Исправить на %(address)s"
+
+#, python-format
+msgid "Tak, adres %(address)s jest poprawny"
+msgstr "Да, адрес %(address)s верный"
+
+# REG-UX-01 § 1.1: adres bez kropki w domenie (jan@gmailcom).
+#, python-format
+msgid "Adres e-mail jest niepełny – czy chodziło Ci o %(suggestion)s?"
+msgstr "Адрес электронной почты неполный — возможно, вы имели в виду %(suggestion)s?"
 
 #, python-format
 msgid "Nie możemy dostarczyć poczty na adres %(email)s – serwer odbiorcy odpowiada, że taka skrzynka albo domena nie istnieje. Nie dostaniesz od nas listów, dopóki adres nie zostanie poprawiony."

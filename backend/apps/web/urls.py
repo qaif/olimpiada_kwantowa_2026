@@ -44,6 +44,7 @@ from .urls_proctoring import urlpatterns as proctoring_urlpatterns
 from .urls_regions import urlpatterns as region_urlpatterns
 from .urls_scoring import urlpatterns as scoring_urlpatterns
 from .urls_student_status import urlpatterns as student_status_urlpatterns
+from .urls_training import urlpatterns as training_urlpatterns  # REG-UX-01
 from .urls_video import urlpatterns as video_urlpatterns
 from .urls_webinars import urlpatterns as webinar_urlpatterns
 from .urls_workshop_certificates import urlpatterns as workshop_certificate_urlpatterns
@@ -552,6 +553,8 @@ urlpatterns = [
         coordinator_stages.StageEditView.as_view(),
         name="coordinator-stage-edit",
     ),
+    # Zapis do treningu z ekranu etapu: przełącznik i „zapisz wszystkich” (REG-UX-01 § 3.3).
+    *training_urlpatterns,
     path(
         "coordinator/stages/<int:stage_id>/scale/",
         coordinator_stages.StageScaleView.as_view(),

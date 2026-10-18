@@ -99,6 +99,21 @@ Trzy blokady, których formularz nie obejdzie:
 Próg kwalifikacji etapu ustawia się regułą na ekranie symulacji (§ 5.2) albo — dla wartości startowej —
 w panelu administracyjnym (odnośnik „Próg kwalifikacji (admin)” na karcie etapu).
 
+**Zapis do treningu (REG-UX-01)** — tylko na ekranie etapu **treningowego**, blok pod formularzem terminów:
+
+- **„Włącz automatyczny zapis nowych kont”** — każde nowe konto uczestnika zapisuje się do treningu samo
+  w chwili pierwszej zgody RODO: po rejestracji (formularzem albo przez Google), po przyjęciu zaproszenia
+  z importu nauczyciela, po zgłoszeniu z delegacji. Konto z importu, które zaproszenia jeszcze nie
+  przyjęło, czeka (bez zgód nie da się zapisać). Domyślnie **wyłączone**; nowa edycja ma nowy etap
+  treningowy, więc przełącznik trzeba włączyć na nim ponownie. Błąd zapisu nigdy nie blokuje rejestracji
+  (trafia do logu `web`). Zmiana zostawia w audycie `stage.auto_registration_changed`,
+- **„Zapisz wszystkich obecnych uczestników”** (z potwierdzeniem) — jednorazowo zapisuje profile tego
+  konkursu z aktywnym kontem i zgodą RODO, które jeszcze nie są w treningu. Komunikat podaje: zapisano N,
+  już zapisanych M, pominięto K (bez zgody albo z kontem nieaktywnym); audyt `stage.bulk_registered`.
+  Akcję można powtórzyć — już zapisanych pomija,
+- oba działają tylko w **otwartym** etapie bieżącej edycji (ta sama reguła, co przycisk uczestnika
+  „Zgłoś się do treningu”).
+
 ### 2.3 Skala punktacji — `/coordinator/stages/<id>/scale/`
 
 Ekran **„Skala punktacji: <etap>”** (menu: Ustawienia → Skala punktacji). Wartości wpisuje się w jednym
@@ -2198,10 +2213,19 @@ i dopiero jego zgoda zapisuje adres. Zasada obowiązuje **także Twój import**:
 przypisuje nauczyciela od razu wyłącznie nowym kontom, a pusta komórka u istniejącego ucznia
 **nie czyści** już opiekuna, którego wpisał sam. Szczegóły dla Ciebie:
 
-- **podgląd mówi o każdym zajętym adresie jednym zdaniem** („adres ma już konto – jeśli to uczeń
-  tego konkursu, dostanie prośbę o zgodę”) — bez odróżniania ucznia od recenzenta czy koordynatora,
-  a komunikat po zapisie podaje trzy liczby: zaproszeni, adresy z istniejącym kontem, pominięci.
-  Ile próśb naprawdę wyszło, mówi wpis audytu `accounts.students_imported` (`consent_requested`),
+- **status każdego wiersza w podglądzie (REG-UX-01).** Nauczyciel widzi: „zaproszenie zostanie
+  wysłane”, „ma już konto i jest na Twojej liście” (z odnośnikiem do listy uczniów), „ma już konto,
+  ale nie ma go na Twojej liście” (jedno zdanie o **każdym** innym zajętym adresie — bez odróżniania
+  ucznia z innym opiekunem od konta w innym konkursie czy konta recenzenta; ta różnica byłaby
+  wyszukiwarką ról) i „błąd: …”. Ty w swoim imporcie widzisz pełny podział: „jest na liście tego
+  opiekuna” (odnośnik do konta), „wskazał innego opiekuna” / „nie wskazał opiekuna” (oba — prośba
+  o zgodę), „ma konto w tym konkursie – bez zmian” (wiersz bez opiekuna) i „nie jest uczestnikiem
+  tego konkursu” (konto w innym konkursie albo bez profilu ucznia),
+- **komunikat po zapisie**: „Wysłano zaproszeń: N, uczniów już było na liście: M, pominięto: K”
+  (pominięte = błędy z podglądu + wiersze odrzucone przy zapisie) i — gdy są — liczba adresów z kontem
+  spoza listy nauczyciela. Liczby wysłanych próśb nauczyciel nie widzi (mówi ją wpis audytu
+  `accounts.students_imported`: `consent_requested`, a od REG-UX-01 także `on_list`); Ty widzisz ją
+  w swoim komunikacie,
 - **jedna prośba na parę (uczeń, nauczyciel) na dobę**; import nauczyciela ma limit żądań
   (scope `upload`, każdy podgląd i każde zatwierdzenie),
 - **ślad w audycie** karty uczestnika: `participant.supervisor_consent_requested` (kto wgrał plik),
@@ -3237,8 +3261,11 @@ dostarczyć poczty na adres …” z przyciskami „Zmień adres e-mail” i „
 
 **Literówki przy wpisywaniu.** Formularze adresu (rejestracje, zmiana adresu, edycja konta w panelu,
 zaproszenie opiekuna drużyny) pytają „Czy chodziło Ci o …?” przy domenach typu `gmial.com`, `o2.plo`,
-`.con` – zaznaczasz poprawkę albo wysyłasz formularz jeszcze raz, żeby zostawić adres. Domeny, która nie
-istnieje (bez serwera poczty), formularz nie przyjmie. Szczegóły techniczne: `docs/OPERACJE.md` § 52.
+`.con`, `.pl.pl`, `gmail.pl` czy `jan@gmailcom` – przyciski **„Popraw na …”** i **„Tak, adres … jest
+poprawny”** (REG-UX-01). Domen szkół i instytucji nie blokuje; domeny, która nie istnieje (bez serwera
+poczty), formularz nie przyjmie. **Import uczniów** pokazuje tę samą podpowiedź w podglądzie: przy wierszu
+z literówką wybierasz „Popraw” (zaznaczone domyślnie) albo „Tak, adres jest poprawny”, a zatwierdzenie
+zakłada konto na wybrany adres. Szczegóły techniczne: `docs/OPERACJE.md` § 52.
 
 ## 11. Kalendarz prowadzenia edycji — ściągawka
 

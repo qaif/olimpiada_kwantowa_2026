@@ -2,17 +2,20 @@
 
 Podmiana jednej linii w formularzu: ``forms.EmailField(...)`` → ``CheckedEmailField(...)`` (te same
 argumenty) plus domieszka :class:`EmailDomainCheckMixin` w klasie formularza (blokada DNS po całej
-pozostałej walidacji). Szablony się nie zmieniają – wszystko, co pole dokłada (komunikat, pole
-wyboru „Użyj …”, ukryte „zostaw”), rysuje jego widżet w miejscu ``{{ field }}``, więc działa
-w każdym motywie.
+pozostałej walidacji). Szablony się nie zmieniają – wszystko, co pole dokłada (komunikat, przyciski
+„Popraw” i „Tak, adres jest poprawny”, ukryte „zostaw”), rysuje jego widżet w miejscu ``{{ field }}``,
+więc działa w każdym motywie.
 
 Stan między dwoma wysłaniami formularza jedzie w samym formularzu, nie w sesji:
 
 - ``<pole>__keep`` (ukryte) – adres, którego dotyczyła podpowiedź. Ponowne wysłanie **tego samego**
   adresu przechodzi; inny adres to nowe sprawdzenie,
-- ``<pole>__accept`` (pole wyboru) – zaznaczone podmienia wartość na podpowiedź. Pole wyboru,
-  a nie przycisk wysyłki: przycisk stałby w DOM przed przyciskiem formularza, więc Enter w dowolnym
-  polu (domyślny przycisk = pierwszy w kolejności) po cichu przyjmowałby poprawkę.
+- ``<pole>__accept`` (przycisk „Popraw”, REG-UX-01 § 1.2) – podmienia wartość na podpowiedź, ale
+  **wyłącznie** wtedy, gdy podpowiedź dla adresu, który właśnie przyszedł w polu, jest tą samą
+  podpowiedzią. Do MAIL-02 było tu pole wyboru, bo przycisk stoi w DOM przed przyciskiem formularza
+  i Enter (domyślny przycisk = pierwszy w kolejności) przyjmowałby poprawkę po cichu. Teraz pierwszy
+  w DOM jest „Tak, adres jest poprawny” (Enter = zostaw, jak dotąd), a warunek „ta sama podpowiedź”
+  pilnuje, że ręcznie poprawiony adres nie zostanie nadpisany starą poprawką.
 
 Widżet i pole są kopiowane per instancja formularza (``Form.__init__`` robi ``deepcopy`` pól),
 więc stan podpowiedzi zapisany na widżecie nie przecieka między żądaniami.
@@ -22,6 +25,7 @@ from __future__ import annotations
 
 from django import forms
 from django.core.exceptions import ValidationError
+from django.core.validators import validate_email
 from django.utils.translation import gettext_lazy as _
 
 from .dnscheck import domain_accepts_mail
@@ -50,10 +54,13 @@ class EmailCheckInput(forms.EmailInput):
 
     def value_from_datadict(self, data, files, name):
         self.kept = (data.get(name + KEEP_SUFFIX) or "").strip()
+        typed = super().value_from_datadict(data, files, name)
         accepted = (data.get(name + ACCEPT_SUFFIX) or "").strip()
-        if accepted:
+        # „Popraw” należy do adresu, dla którego powstał. Inny adres w polu (poprawiony ręcznie, a
+        # potem Enter) albo wartość spoza podpowiedzi – przycisk jest ignorowany, liczy się pole.
+        if accepted and isinstance(typed, str) and suggest(typed) == accepted:
             return accepted
-        return super().value_from_datadict(data, files, name)
+        return typed
 
     def value_omitted_from_data(self, data, files, name):
         return super().value_omitted_from_data(data, files, name) and name + ACCEPT_SUFFIX not in data
@@ -84,13 +91,14 @@ class CheckedEmailField(forms.EmailField):
     widget = EmailCheckInput
     default_error_messages = {
         "email_typo": _(
-            "Sprawdź adres – czy chodziło Ci o %(suggestion)s? Zaznacz poprawkę poniżej albo wyślij "
-            "formularz jeszcze raz, żeby zostawić adres bez zmian."
+            "Sprawdź adres – czy chodziło Ci o %(suggestion)s? Wybierz „Popraw” albo potwierdź, "
+            "że adres jest poprawny."
         ),
         "no_mail": _("Domena %(domain)s nie istnieje albo nie przyjmuje poczty. Sprawdź adres."),
         "no_mail_suggestion": _(
             "Domena %(domain)s nie istnieje albo nie przyjmuje poczty. Czy chodziło Ci o %(suggestion)s?"
         ),
+        "email_incomplete": _("Adres e-mail jest niepełny – czy chodziło Ci o %(suggestion)s?"),
     }
 
     def __init__(self, *, suggest_typos: bool = True, **kwargs):
@@ -109,9 +117,14 @@ class CheckedEmailField(forms.EmailField):
         return super().get_bound_field(form, field_name)
 
     def clean(self, value):
-        value = super().clean(value)
         widget = self.widget
         widget.suggestion, widget.typed, widget.allow_keep = None, "", True
+        raw = value
+        try:
+            value = super().clean(value)
+        except ValidationError:
+            self._suggest_for_invalid(raw)
+            raise
         if not value or self._unchanged(value):
             return value
         suggestion = suggest(value) if self.suggest_typos else None
@@ -126,6 +139,29 @@ class CheckedEmailField(forms.EmailField):
             widget.typed = value
         return value
 
+    def _suggest_for_invalid(self, raw) -> None:
+        """Adres odrzucony przez składnię, ale z oczywistą poprawką (``jan@gmailcom``, ``jan@wp``).
+
+        Przeglądarka przepuszcza ``jan@gmail`` (``type="email"`` nie wymaga kropki w domenie), więc to
+        serwer mówi „czy chodziło Ci o …?” – z przyciskiem „Popraw” i bez „zostaw”: takiego adresu nie
+        da się zostawić. Podpowiedź musi sama przejść walidację, inaczej przycisk prowadziłby w kółko.
+        """
+        if not self.suggest_typos or not isinstance(raw, str) or not raw.strip():
+            return
+        suggestion = suggest(raw.strip())
+        if not suggestion:
+            return
+        try:
+            validate_email(suggestion)
+        except ValidationError:
+            return
+        self.widget.suggestion, self.widget.typed, self.widget.allow_keep = suggestion, raw.strip(), False
+        raise ValidationError(
+            self.error_messages["email_incomplete"],
+            code="email_incomplete",
+            params={"suggestion": suggestion},
+        )
+
     def _unchanged(self, value: str) -> bool:
         # Adres bez zmian (np. koordynator poprawia tylko nazwisko) – nie pytamy o to, co już jest
         # w bazie. Stan doręczalności takiego adresu pokazują odbicia (§ 2), nie formularz.
@@ -135,7 +171,7 @@ class CheckedEmailField(forms.EmailField):
         """Twarda blokada domeny bez poczty – woła ją :class:`EmailDomainCheckMixin` na końcu walidacji.
 
         „Zostaw” nie przechodzi: na tę domenę żaden list nie dotrze. Podpowiedź (jeśli jest) zostaje
-        jako pole wyboru „Użyj …”.
+        jako przycisk „Popraw na …”.
         """
         if not value or self._unchanged(value):
             return

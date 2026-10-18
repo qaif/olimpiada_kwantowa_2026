@@ -1,6 +1,12 @@
-{% load i18n %}{% include "django/forms/widgets/input.html" %}{% if widget.suggestion %}
-<span class="email-suggestion" id="{{ widget.attrs.id }}_suggestion" data-email-suggestion>
-  <input type="checkbox" name="{{ widget.accept_name }}" value="{{ widget.suggestion }}" id="{{ widget.attrs.id }}_accept" data-email-accept>
-  <label for="{{ widget.attrs.id }}_accept">{% blocktranslate trimmed with address=widget.suggestion %}Użyj adresu <strong>{{ address }}</strong>{% endblocktranslate %}</label>
+{% load i18n %}{% include "django/forms/widgets/input.html" %}{% if widget.suggestion %}{% comment %}
+  REG-UX-01 § 1.2: dwa przyciski wysyłki zamiast pola wyboru. „Tak, adres jest poprawny” stoi
+  w DOM **pierwszy**, bo pierwszy przycisk wysyłki jest domyślnym przyciskiem formularza – Enter
+  w dowolnym polu zostawia adres (jak dotąd ponowne wysłanie), a nie przyjmuje poprawki po cichu.
+  „Popraw” serwer przyjmuje tylko dla adresu, którego ta podpowiedź dotyczy (``value_from_datadict``).
+  Z JS (``email-check.js``) oba działają na miejscu, bez wysyłki.
+{% endcomment %}
+<span class="email-suggestion" id="{{ widget.attrs.id }}_suggestion" data-email-suggestion>{% if widget.allow_keep %}
+  <button type="submit" class="btn btn--small btn--secondary" id="{{ widget.attrs.id }}_keep" data-email-keep>{% blocktranslate trimmed with address=widget.typed %}Tak, adres {{ address }} jest poprawny{% endblocktranslate %}</button>{% endif %}
+  <button type="submit" class="btn btn--small btn--primary" name="{{ widget.accept_name }}" value="{{ widget.suggestion }}" id="{{ widget.attrs.id }}_accept" data-email-accept>{% blocktranslate trimmed with address=widget.suggestion %}Popraw na {{ address }}{% endblocktranslate %}</button>
 </span>{% endif %}{% if widget.typed and widget.allow_keep %}
 <input type="hidden" name="{{ widget.keep_name }}" value="{{ widget.typed }}">{% endif %}

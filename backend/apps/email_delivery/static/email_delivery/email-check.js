@@ -11,15 +11,16 @@
  *
  * Umowa z widżetem (templates/email_delivery/widgets/email_check.html): pole ma data-email-check,
  * data-email-hint ("Czy chodziło Ci o %s?") i data-email-use ("Użyj %s") – zdania przetłumaczone
- * po stronie serwera. Pole wyboru data-email-accept (podpowiedź serwera) podmienia wartość pola
- * od razu, bez wysyłki. Bez CSP 'unsafe-inline': plik ładowany z nonce w templates/base.html.
+ * po stronie serwera. Przyciski podpowiedzi serwera (<id>_accept „Popraw”, <id>_keep „Tak, adres
+ * jest poprawny”) działają od razu, bez wysyłki. Bez CSP 'unsafe-inline': plik ładowany z nonce
+ * w templates/base.html.
  */
 (function () {
   "use strict";
 
   var KNOWN_DOMAINS = [
     "gmail.com", "wp.pl", "o2.pl", "onet.pl", "interia.pl", "op.pl", "outlook.com", "hotmail.com",
-    "yahoo.com", "icloud.com", "gazeta.pl", "tlen.pl", "poczta.fm", "vp.pl", "onet.eu", "go2.pl",
+    "yahoo.com", "icloud.com", "gazeta.pl", "tlen.pl", "poczta.fm", "vp.pl", "int.pl", "onet.eu", "go2.pl",
     "interia.eu", "interia.com", "poczta.onet.pl", "spoko.pl", "autograf.pl", "buziaczek.pl",
     "live.com", "msn.com", "outlook.de", "outlook.fr", "outlook.es", "outlook.it", "hotmail.co.uk",
     "hotmail.fr", "hotmail.de", "hotmail.it", "hotmail.es", "live.fr", "googlemail.com", "me.com",
@@ -38,6 +39,13 @@
     "copm": "com", "comn": "com", "vom": "com", "xom": "com", "cim": "com", "cm": "com", "om": "com",
     "nte": "net", "ner": "net", "nett": "net",
     "ogr": "org", "orgg": "org", "rog": "org"
+  };
+
+  var BRAND_DOMAINS = {
+    "gmail": "gmail.com", "googlemail": "googlemail.com", "icloud": "icloud.com",
+    "outlook": "outlook.com", "hotmail": "hotmail.com", "yahoo": "yahoo.com",
+    "wp": "wp.pl", "o2": "o2.pl", "onet": "onet.pl", "interia": "interia.pl", "op": "op.pl",
+    "tlen": "tlen.pl", "gazeta": "gazeta.pl", "vp": "vp.pl", "int": "int.pl"
   };
 
   var SHORT_DOMAIN_LENGTH = 6;
@@ -65,9 +73,7 @@
     return table[rows - 1][cols - 1];
   }
 
-  function suggestDomain(domain) {
-    domain = String(domain || "").trim().replace(/\.+$/, "").toLowerCase();
-    if (!domain || domain.indexOf(".") === -1 || KNOWN_DOMAINS.indexOf(domain) !== -1) { return null; }
+  function nearestKnown(domain) {
     var limit = domain.length <= SHORT_DOMAIN_LENGTH ? 1 : 2;
     var best = null;
     var bestDistance = limit + 1;
@@ -77,11 +83,49 @@
       var current = distance(domain, known);
       if (current < bestDistance) { best = known; bestDistance = current; }
     }
-    if (best !== null) { return best; }
+    return { domain: best, distance: bestDistance };
+  }
+
+  function has(map, key) { return Object.prototype.hasOwnProperty.call(map, key); }
+
+  // Wzorce REG-UX-01 (kopia typos._known_pattern): podwojony TLD, znana domena z doklejoną
+  // etykietą, marka z cudzym TLD.
+  function knownPattern(domain) {
+    var labels = domain.split(".");
+    var n = labels.length;
+    if (n >= 3 && labels[n - 1] === labels[n - 2]) {
+      var shorter = labels.slice(0, n - 1).join(".");
+      return suggestDomain(shorter) || shorter;
+    }
+    if (n >= 3 && KNOWN_DOMAINS.indexOf(labels.slice(0, n - 1).join(".")) !== -1) {
+      return labels.slice(0, n - 1).join(".");
+    }
+    if (n === 2 && has(BRAND_DOMAINS, labels[0])) { return BRAND_DOMAINS[labels[0]]; }
+    return null;
+  }
+
+  // Domena bez kropki (kopia typos._dotless_domain): sama marka albo znana domena bez kropek.
+  function dotlessDomain(domain) {
+    if (has(BRAND_DOMAINS, domain)) { return BRAND_DOMAINS[domain]; }
+    for (var k = 0; k < KNOWN_DOMAINS.length; k++) {
+      if (KNOWN_DOMAINS[k].replace(/\./g, "") === domain) { return KNOWN_DOMAINS[k]; }
+    }
+    return null;
+  }
+
+  function suggestDomain(domain) {
+    domain = String(domain || "").trim().replace(/\.+$/, "").toLowerCase();
+    if (!domain || KNOWN_DOMAINS.indexOf(domain) !== -1) { return null; }
+    if (domain.indexOf(".") === -1) { return dotlessDomain(domain); }
+    var nearest = nearestKnown(domain);
+    if (nearest.domain !== null && nearest.distance <= 1) { return nearest.domain; }
+    var pattern = knownPattern(domain);
+    if (pattern !== null) { return pattern; }
+    if (nearest.domain !== null) { return nearest.domain; }
     var dot = domain.lastIndexOf(".");
     var head = domain.slice(0, dot);
-    var fixed = Object.prototype.hasOwnProperty.call(TLD_TYPOS, domain.slice(dot + 1))
-      ? TLD_TYPOS[domain.slice(dot + 1)] : null;
+    var tld = domain.slice(dot + 1);
+    var fixed = has(TLD_TYPOS, tld) ? TLD_TYPOS[tld] : null;
     return fixed && head ? head + "." + fixed : null;
   }
 
@@ -125,20 +169,43 @@
   function bind(input) {
     if (!input.id) { return; }
     input.addEventListener("blur", function () {
-      // Podpowiedź serwera (pole wyboru) już stoi przy polu – druga, z przeglądarki, by ją dublowała.
+      // Podpowiedź serwera (przyciski) już stoi przy polu – druga, z przeglądarki, by ją dublowała.
       if (document.getElementById(input.id + "_suggestion")) { return; }
+      if (input.getAttribute("data-email-kept") === input.value) { hideHint(input); return; }
       var suggestion = suggest(input.value);
       if (suggestion && suggestion !== input.value) { showHint(input, suggestion); } else { hideHint(input); }
     });
+    bindServerButtons(input);
+  }
+
+  // Przyciski podpowiedzi serwera (REG-UX-01 § 1.2): bez JS wysyłają formularz, z JS działają
+  // na miejscu – „Popraw” podmienia wartość, „Tak, adres jest poprawny” chowa podpowiedź (ukryte
+  // pole „zostaw” stoi poza blokiem i jedzie z formularzem). type="button" zdejmuje je z roli
+  // domyślnego przycisku formularza, więc Enter wysyła formularz jak zwykle.
+  function bindServerButtons(input) {
+    var block = document.getElementById(input.id + "_suggestion");
     var accept = document.getElementById(input.id + "_accept");
+    var keep = document.getElementById(input.id + "_keep");
+    function close() {
+      if (block && block.parentNode) { block.parentNode.removeChild(block); }
+      input.focus();
+    }
     if (accept) {
-      var typed = input.value;
-      accept.addEventListener("change", function () { input.value = accept.checked ? accept.value : typed; });
+      accept.type = "button";
+      accept.addEventListener("click", function () { input.value = accept.value; close(); });
+    }
+    if (keep) {
+      keep.type = "button";
+      keep.addEventListener("click", function () {
+        // Świadomie zostawiony adres nie dostaje już podpowiedzi przeglądarki przy kolejnym blur.
+        input.setAttribute("data-email-kept", input.value);
+        close();
+      });
     }
   }
 
   var api = { suggest: suggest, suggestDomain: suggestDomain, distance: distance,
-    KNOWN_DOMAINS: KNOWN_DOMAINS, TLD_TYPOS: TLD_TYPOS };
+    KNOWN_DOMAINS: KNOWN_DOMAINS, TLD_TYPOS: TLD_TYPOS, BRAND_DOMAINS: BRAND_DOMAINS };
   if (typeof window !== "undefined") { window.OlimpiadaEmailCheck = api; }
 
   if (typeof document !== "undefined" && document.querySelectorAll) {

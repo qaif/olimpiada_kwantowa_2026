@@ -1,0 +1,34 @@
+{% comment %}
+  Blok „Zapis do treningu” na ekranie etapu treningowego (REG-UX-01 § 3.3,
+  ``apps.web.views.coordinator_training``). Dwie akcje POST, każda swoim formularzem – bez JS
+  poza potwierdzeniem ``confirmSubmit`` (Alpine, bez kodu inline), tak jak „Wykonaj teraz” w retencji.
+{% endcomment %}
+<div class="card">
+  <h2 class="mt-0">Zapis do treningu</h2>
+  <p class="hint">Zapisanych do etapu: <strong>{{ training.entries }}</strong> z {{ training.participants }}
+    profili uczestników konkursu. Zapis działa tylko w otwartym etapie bieżącej edycji i tylko dla kont
+    ze zgodą RODO – profil z importu dołącza po przyjęciu zaproszenia.</p>
+
+  <form method="post" class="form" action="{% url 'web:coordinator-stage-training-auto' stage.pk %}">
+    {% csrf_token %}
+    {% if training.auto %}
+      <p><span class="badge badge--ok">włączony</span> Każde nowe konto uczestnika (rejestracja, przyjęcie
+        zaproszenia z importu, zgłoszenie delegacji) zapisuje się do tego etapu samo.</p>
+      <button type="submit" class="btn btn--secondary">Wyłącz automatyczny zapis</button>
+    {% else %}
+      <p><span class="badge badge--info">wyłączony</span> Nowe konta zapisują się do treningu same,
+        przyciskiem w panelu uczestnika.</p>
+      <input type="hidden" name="enabled" value="1">
+      <button type="submit" class="btn btn--secondary">Włącz automatyczny zapis nowych kont</button>
+    {% endif %}
+  </form>
+
+  <form method="post" class="form" action="{% url 'web:coordinator-stage-training-register-all' stage.pk %}"
+        x-data="confirmSubmit" x-on:submit="check"
+        data-confirm="Zapisać do etapu {{ stage.display_name }} wszystkich obecnych uczestników ze zgodą RODO i aktywnym kontem?">
+    {% csrf_token %}
+    <p class="hint">Jednorazowo: wszyscy obecni uczestnicy z aktywnym kontem i zgodą RODO, którzy jeszcze nie
+      są zapisani. Już zapisanych akcja pomija, więc można ją powtórzyć.</p>
+    <button type="submit" class="btn btn--primary">Zapisz wszystkich obecnych uczestników</button>
+  </form>
+</div>

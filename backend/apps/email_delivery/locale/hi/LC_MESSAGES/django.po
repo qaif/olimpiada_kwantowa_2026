@@ -18,8 +18,8 @@ msgid "Użyj %s"
 msgstr "%s का उपयोग करें"
 
 #, python-format
-msgid "Sprawdź adres – czy chodziło Ci o %(suggestion)s? Zaznacz poprawkę poniżej albo wyślij formularz jeszcze raz, żeby zostawić adres bez zmian."
-msgstr "पता जाँचें – क्या आपका मतलब %(suggestion)s था? नीचे सुधार चुनें या पता वैसा ही रखने के लिए फ़ॉर्म दोबारा भेजें।"
+msgid "Sprawdź adres – czy chodziło Ci o %(suggestion)s? Wybierz „Popraw” albo potwierdź, że adres jest poprawny."
+msgstr "पता जाँचें – क्या आपका मतलब %(suggestion)s था? “सुधारें” चुनें या पुष्टि करें कि पता सही है।"
 
 #, python-format
 msgid "Domena %(domain)s nie istnieje albo nie przyjmuje poczty. Sprawdź adres."
@@ -30,8 +30,17 @@ msgid "Domena %(domain)s nie istnieje albo nie przyjmuje poczty. Czy chodziło C
 msgstr "डोमेन %(domain)s मौजूद नहीं है या ईमेल स्वीकार नहीं करता। क्या आपका मतलब %(suggestion)s था?"
 
 #, python-format
-msgid "Użyj adresu <strong>%(address)s</strong>"
-msgstr "<strong>%(address)s</strong> का उपयोग करें"
+msgid "Popraw na %(address)s"
+msgstr "%(address)s में सुधारें"
+
+#, python-format
+msgid "Tak, adres %(address)s jest poprawny"
+msgstr "हाँ, %(address)s सही है"
+
+# REG-UX-01 § 1.1: adres bez kropki w domenie (jan@gmailcom).
+#, python-format
+msgid "Adres e-mail jest niepełny – czy chodziło Ci o %(suggestion)s?"
+msgstr "ईमेल पता अधूरा है – क्या आपका मतलब %(suggestion)s था?"
 
 #, python-format
 msgid "Nie możemy dostarczyć poczty na adres %(email)s – serwer odbiorcy odpowiada, że taka skrzynka albo domena nie istnieje. Nie dostaniesz od nas listów, dopóki adres nie zostanie poprawiony."

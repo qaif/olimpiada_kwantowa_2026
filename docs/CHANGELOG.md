@@ -12,6 +12,30 @@ podsekcją `### <tytuł>` wydania `## v<x.y.z> – <data tagu> – <opis tagu>`.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## [Unreleased] – Rejestracja i import: literówki, wynik importu, zapis do treningu (REG-UX-01)
+
+Specyfikacja: [`tasks/REG-UX-01.md`](tasks/REG-UX-01.md).
+
+- **Literówki w adresie e-mail** (rozbudowa MAIL-02): nowe wzorce z produkcji – podwojony TLD (`.pl.pl`),
+  znana domena z doklejoną etykietą (`gmail.com.pl`), marka z cudzym TLD (`gmail.pl`, `wp.com`), adres bez
+  kropki w domenie (`jan@gmailcom` – podpowiedź w błędzie składni), `int.pl` na liście dostawców. Zamiast
+  pola wyboru dwa przyciski bez inline JS: „Popraw na …” i „Tak, adres … jest poprawny” (rejestracje,
+  zmiana adresu, konto w panelu). Podgląd importu uczniów pyta o literówkę w wierszu („Popraw” /
+  „Tak, adres jest poprawny”), zatwierdzenie zakłada konto na wybrany adres. Domen szkół nie blokuje.
+- **Czytelny wynik importu uczniów**: status każdego wiersza w podglądzie – „zaproszenie zostanie
+  wysłane”, „ma już konto i jest na Twojej liście” (odnośnik), „ma już konto, ale nie ma go na Twojej
+  liście” (jedno zdanie o każdym innym zajętym adresie – bez wyroczni ról z v0.38.7), „błąd: …”; import
+  koordynatora z pełnym podziałem (inny opiekun / brak opiekuna / bez zmian / nie jest uczestnikiem tego
+  konkursu). Komunikat po imporcie: „Wysłano zaproszeń: N, uczniów już było na liście: M, pominięto: K”
+  (pominięte liczone razem z błędami z podglądu); `import_students` i audyt `accounts.students_imported`
+  z licznikiem `on_list`. Naprawiony dwuwierszowy komentarz szablonu widoczny w nagłówku tabeli podglądu.
+- **Automatyczny zapis nowych kont do etapu treningowego**: `Stage.auto_register_new_participants`
+  (migracja `competitions.0035`, więz – tylko `TRAINING`, domyślnie wyłączone). Nowe konto (pierwsza zgoda
+  RODO: rejestracja, przyjęcie zaproszenia z importu, zgłoszenie delegacji) zapisuje się przez
+  `register_for_stage` po zatwierdzeniu transakcji; błąd nie blokuje rejestracji. Na ekranie etapu
+  treningowego przełącznik i „Zapisz wszystkich obecnych uczestników” (potwierdzenie, raport, audyt
+  `stage.bulk_registered` / `stage.auto_registration_changed`).
+
 ## [Unreleased] – Codzienne odświeżanie łatek systemowych w obrazach (APT_REFRESH)
 
 - Warstwa `apt-get upgrade` w `backend/Dockerfile` i `djcms/Dockerfile` była w cache'u warstw (gha w CI, lokalny
