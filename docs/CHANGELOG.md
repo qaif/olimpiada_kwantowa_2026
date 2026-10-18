@@ -12,6 +12,17 @@ podsekcją `### <tytuł>` wydania `## v<x.y.z> – <data tagu> – <opis tagu>`.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## [Unreleased] – Rejestracja i import: literówki, wynik importu, zapis do treningu (REG-UX-01)
+
+Specyfikacja: [`tasks/REG-UX-01.md`](tasks/REG-UX-01.md).
+
+- **Literówki w adresie e-mail** (rozbudowa MAIL-02): nowe wzorce z produkcji – podwojony TLD (`.pl.pl`),
+  znana domena z doklejoną etykietą (`gmail.com.pl`), marka z cudzym TLD (`gmail.pl`, `wp.com`), adres bez
+  kropki w domenie (`jan@gmailcom` – podpowiedź w błędzie składni), `int.pl` na liście dostawców. Zamiast
+  pola wyboru dwa przyciski bez inline JS: „Popraw na …” i „Tak, adres … jest poprawny” (rejestracje,
+  zmiana adresu, konto w panelu). Podgląd importu uczniów pyta o literówkę w wierszu („Popraw” /
+  „Tak, adres jest poprawny”), zatwierdzenie zakłada konto na wybrany adres. Domen szkół nie blokuje.
+
 ## [Unreleased] – Codzienne odświeżanie łatek systemowych w obrazach (APT_REFRESH)
 
 - Warstwa `apt-get upgrade` w `backend/Dockerfile` i `djcms/Dockerfile` była w cache'u warstw (gha w CI, lokalny

@@ -3107,8 +3107,11 @@ dostarczyć poczty na adres …” z przyciskami „Zmień adres e-mail” i „
 
 **Literówki przy wpisywaniu.** Formularze adresu (rejestracje, zmiana adresu, edycja konta w panelu,
 zaproszenie opiekuna drużyny) pytają „Czy chodziło Ci o …?” przy domenach typu `gmial.com`, `o2.plo`,
-`.con` – zaznaczasz poprawkę albo wysyłasz formularz jeszcze raz, żeby zostawić adres. Domeny, która nie
-istnieje (bez serwera poczty), formularz nie przyjmie. Szczegóły techniczne: `docs/OPERACJE.md` § 52.
+`.con`, `.pl.pl`, `gmail.pl` czy `jan@gmailcom` – przyciski **„Popraw na …”** i **„Tak, adres … jest
+poprawny”** (REG-UX-01). Domen szkół i instytucji nie blokuje; domeny, która nie istnieje (bez serwera
+poczty), formularz nie przyjmie. **Import uczniów** pokazuje tę samą podpowiedź w podglądzie: przy wierszu
+z literówką wybierasz „Popraw” (zaznaczone domyślnie) albo „Tak, adres jest poprawny”, a zatwierdzenie
+zakłada konto na wybrany adres. Szczegóły techniczne: `docs/OPERACJE.md` § 52.
 
 ## 11. Kalendarz prowadzenia edycji — ściągawka
 

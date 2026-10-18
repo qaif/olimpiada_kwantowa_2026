@@ -7048,11 +7048,14 @@ Pola adresu w rejestracji uczestnika, komitetu i opiekuna szkolnego, w zmianie a
 w koncie edytowanym przez koordynatora, w zaproszeniu opiekuna drużyny (DEL-01) i w uczniu dodawanym
 przez opiekuna drużyny (adres ucznia i rodzica):
 
-- **literówka w domenie** (`gmial.com`, `o2.plo`, `wp.pll`, `firma.con`) – po opuszczeniu pola skrypt
-  podpowiada poprawkę z przyciskiem „Użyj …”; po wysłaniu formularz wraca **raz** z pytaniem i polem
-  wyboru „Użyj adresu …”. Ponowne wysłanie tego samego adresu przechodzi – nietypowy adres da się zawsze
-  zostawić. Lista znanych dostawców i mapa literówek TLD: `apps/email_delivery/typos.py` (kopia w
-  `static/email_delivery/email-check.js`; test pilnuje zgodności),
+- **literówka w domenie** (`gmial.com`, `o2.plo`, `wp.pll`, `firma.con`; od REG-UX-01 także `.pl.pl`,
+  `gmail.com.pl`, `gmail.pl`, `wp.com` i adres bez kropki w domenie `jan@gmailcom`) – po opuszczeniu pola
+  skrypt podpowiada poprawkę z przyciskiem „Użyj …”; po wysłaniu formularz wraca **raz** z pytaniem
+  i przyciskami „Tak, adres … jest poprawny” (pierwszy w DOM – Enter zostawia adres) i „Popraw na …”
+  (serwer przyjmuje go tylko dla adresu, którego podpowiedź dotyczy). Ponowne wysłanie tego samego adresu
+  przechodzi – nietypowy adres da się zawsze zostawić. Listy znanych dostawców, marek i literówek TLD:
+  `apps/email_delivery/typos.py` (kopia w `static/email_delivery/email-check.js`; test pilnuje zgodności).
+  Import uczniów: ta sama podpowiedź w podglądzie, bez pytań DNS (`bulk_registration.apply_email_fixes`),
 - **domena, która na pewno nie przyjmuje poczty** (brak MX i A albo „null MX”) – błąd bez możliwości
   pozostawienia. Pytanie DNS zadaje `web` **dopiero po** całej pozostałej walidacji formularza
   (CAPTCHA, antyspam, hasła), najwyżej 4 naraz w procesie (resolwer z `/etc/resolv.conf`, limit 1,5 s,

@@ -335,6 +335,9 @@ class ImportRow:
     region: object | None = None
     category: object | None = None
     institution: dict | None = None
+    #: Podpowiedź literówki w adresie ucznia (REG-UX-01 § 1.3, ``apps.email_delivery.typos``) – tylko
+    #: do podglądu. Nie jedzie w koszyku: zatwierdzenie liczy ją od nowa (:func:`apply_email_fixes`).
+    email_suggestion: str = ""
 
     @property
     def full_name(self) -> str:
@@ -685,9 +688,58 @@ def _clean_email(text: str, row: ImportRow) -> str:
     try:
         EmailValidator()(email)
     except DjangoValidationError:
-        row.errors.append("adres e-mail jest nieprawidłowy")
+        # Oczywista poprawka (``jan@gmailcom``, ``ola@wp.p``) trafia do opisu błędu: wiersz i tak jest
+        # pominięty, ale nauczyciel od razu wie, co poprawić w arkuszu (REG-UX-01 § 1.1).
+        fixed = _email_fix(email)
+        row.errors.append(
+            f"adres e-mail jest nieprawidłowy – czy chodziło o {fixed}?"
+            if fixed
+            else "adres e-mail jest nieprawidłowy"
+        )
         return ""
     return email
+
+
+def _email_fix(email: str) -> str:
+    """Poprawiony adres z podpowiedzi literówek (``apps.email_delivery``) albo pusty napis."""
+    from apps.email_delivery.typos import suggest
+
+    fixed = (suggest(email) or "").strip().lower()
+    if not fixed or fixed == email:
+        return ""
+    try:
+        EmailValidator()(fixed)
+    except DjangoValidationError:
+        return ""
+    return fixed
+
+
+def suggest_email_fixes(rows: list[ImportRow]) -> None:
+    """Podpowiedź „Czy chodziło o …?” dla adresów uczniów w podglądzie (REG-UX-01 § 1.3).
+
+    Bez pytań DNS: podgląd pięciuset wierszy nie może czekać po 3 s na domenę. Wiersze pominięte
+    nie dostają podpowiedzi – i tak nie jadą w koszyku, a ich błąd mówi już, co poprawić.
+    """
+    for row in rows:
+        row.email_suggestion = _email_fix(row.email) if row.action != ACTION_SKIP and row.email else ""
+
+
+def apply_email_fixes(rows: list[ImportRow], numbers: set[int]) -> int:
+    """Podmienia adres w wierszach, dla których nauczyciel wybrał „Popraw”. Zwraca liczbę podmian.
+
+    Poprawka jest liczona **od nowa** z adresu w podpisanym koszyku – z formularza przychodzi wyłącznie
+    numer wiersza, więc nie da się nią wstawić dowolnego adresu. Rozstrzygnięcie wiersza (konto nowe,
+    zajęte, adres powtórzony) liczy potem ``validate_rows`` z poprawionym adresem.
+    """
+    fixed = 0
+    for row in rows:
+        if row.number not in numbers:
+            continue
+        suggestion = _email_fix(row.email)
+        if suggestion:
+            row.email = suggestion
+            fixed += 1
+    return fixed
 
 
 def parse_table(
@@ -1113,6 +1165,7 @@ def preview_upload(
         default_supervisor_email=default_supervisor_email,
     )
     validate_rows(rows, competition=competition)
+    suggest_email_fixes(rows)
     importable = [row for row in rows if row.action != ACTION_SKIP]
     return ImportPreview(rows=rows, token=pack_rows(importable))
 

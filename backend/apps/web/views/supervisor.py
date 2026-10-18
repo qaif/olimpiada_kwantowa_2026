@@ -35,6 +35,7 @@ from django.views.generic import TemplateView, View
 from apps.accounts.bulk_registration import (
     MAX_ROWS,
     STATE_INVITED,
+    apply_email_fixes,
     columns_for,
     extra_columns,
     header_line,
@@ -240,6 +241,24 @@ class StudentImportForm(SchoolChoiceMixin):
         return cleaned
 
 
+#: Przedrostek pól radiowych „Popraw” / „Tak, adres jest poprawny” w podglądzie (REG-UX-01 § 1.3).
+#: Pole ``email_fix_<numer wiersza>`` z wartością ``fix`` = podmień adres na podpowiedź.
+EMAIL_FIX_PREFIX = "email_fix_"
+
+
+def email_fix_numbers(data) -> set[int]:
+    """Numery wierszy, dla których nauczyciel wybrał „Popraw”. Sam adres liczy serwis od nowa."""
+    numbers: set[int] = set()
+    for key, value in data.items():
+        if not key.startswith(EMAIL_FIX_PREFIX) or value != "fix":
+            continue
+        try:
+            numbers.add(int(key.removeprefix(EMAIL_FIX_PREFIX)))
+        except ValueError:
+            continue
+    return numbers
+
+
 class StudentImportConfirmForm(forms.Form):
     """Zatwierdzenie podglądu: koszyk wierszy i szkoła, oba przeniesione z poprzedniego ekranu.
 
@@ -330,6 +349,7 @@ class BaseStudentImportView(View):
             return redirect(request.path)
         try:
             rows = unpack_rows(form.cleaned_data["rows"])
+            apply_email_fixes(rows, email_fix_numbers(request.POST))
             school_name, school_ref = self._resolve_school(form.cleaned_data)
             summary = import_students(
                 rows,

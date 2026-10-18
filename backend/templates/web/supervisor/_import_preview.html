@@ -81,6 +81,7 @@
               {% endif %}
               {% for problem in row.errors %}<span class="hint">{{ problem }}</span>{% endfor %}
               {% for note in row.notes %}<span class="hint">{{ note }}</span>{% endfor %}
+              {% if row.email_suggestion %}{% include "web/supervisor/_import_email_fix.html" %}{% endif %}
             </td>
           </tr>
         {% endfor %}
@@ -92,7 +93,7 @@
 <section class="section">
   <div class="card">
     {% if preview.has_importable %}
-      <form method="post" class="form" action="{{ post_url }}">
+      <form method="post" class="form" action="{{ post_url }}" id="import-confirm">
         {% csrf_token %}
         {% comment %}
           Koszyk wierszy jest podpisany (``bulk_registration.pack_rows``), więc między tym ekranem

@@ -45,8 +45,9 @@ Po rejestracji strona `/register/done/` mówi „sprawdź skrzynkę”. Na podan
   odnośnik stały na stronie logowania),
 - **literówka w adresie?** Zarejestruj się ponownie po upływie 24 godzin albo napisz do organizatora
   (`/support/new/`) — on aktywuje konto ręcznie. Formularz łapie większość literówek sam: przy
-  `gmial.com`, `o2.plo` czy `wp.pll` pyta „Czy chodziło Ci o …?” (zaznacz poprawkę albo wyślij formularz
-  jeszcze raz, żeby zostawić adres), a domeny, która nie istnieje, nie przyjmie wcale,
+  `gmial.com`, `gmail.con`, `o2.plo`, `wp.pll`, `.pl.pl` czy `jan@gmailcom` pyta „Czy chodziło Ci o …?”
+  z dwoma przyciskami — **„Popraw na …”** albo **„Tak, adres … jest poprawny”** (nietypowy, ale prawdziwy
+  adres zawsze da się zostawić). Domeny, która nie istnieje, formularz nie przyjmie wcale,
 - konto z logowania przez **Google** jest aktywne od razu (Google potwierdza adres); z Facebooka — nie.
 
 ### Baner „Nie możemy dostarczyć poczty na adres …”
