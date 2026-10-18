@@ -1508,6 +1508,10 @@ REST_FRAMEWORK = {
         "translation": "1200/hour",
         # Ekran medali (MED-01): przeliczenie podglądu, ogłoszenie, dokumenty i eksporty – kosztowne POST-y.
         "medals": "120/hour",
+        # Import obecności z linku do arkusza Google (WS-ATT-02 § 2.6): każde żądanie to pobranie
+        # z serwerów Google na zlecenie koordynatora. Per konto (widok podaje ``user_throttle_keys``);
+        # dwadzieścia na godzinę mieści kilka poprawek udostępnienia po każdych zajęciach.
+        "meet_link": "20/hour",
         # Bramka linku-zaproszenia (``/zaproszenie/wideo/<klucz>/``, POST „Dołącz”) – bez konta,
         # więc liczona po adresie IP, jak każdy publiczny formularz. Wysoko, bo za jednym NAT-em
         # bywa cała sala gości wchodzących na to samo zebranie naraz; nisko na tyle, żeby

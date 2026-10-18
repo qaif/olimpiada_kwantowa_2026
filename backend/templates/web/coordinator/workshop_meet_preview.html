@@ -1,0 +1,180 @@
+{% extends "web/coordinator/base.html" %}
+{% load coordinator_extras %}
+{% comment %}
+  Import raportu Google Meet – krok 2: podgląd dopasowania i zatwierdzenie (WS-ATT-02 § 3.4).
+
+  Nazwiska i adresy z raportu są **wyłącznie** na tej stronie – formularz zatwierdzenia niesie
+  podpisany token z identyfikatorami uczestników (``preview.token``), a nie dane z raportu. Kratki,
+  listy wyboru i pola kodu działają bez JavaScriptu (CSP).
+{% endcomment %}
+{% block title %}Podgląd importu z Google Meet – panel koordynatora{% endblock %}
+{% block panel_eyebrow %}<a href="{% url 'web:coordinator-workshop-attendance' %}">Obecność na warsztatach</a>{% endblock %}
+{% block panel_title %}Podgląd importu: {{ preview.workshop.topic }}{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Nic jeszcze nie zostało zapisane. Sprawdź dopasowanie i kliknij „Zapisz obecności”
+    na dole strony. Podgląd jest ważny 30 minut.</p>
+{% endblock %}
+{% block panel_content %}
+
+<section class="section">
+  <div class="card">
+    <dl class="meta-list">
+      <dt>Warsztat</dt>
+      <dd>{{ preview.workshop.date_value|date:"j E Y" }} – {{ preview.workshop.topic }}
+        {% if preview.workshop_from_date %}<span class="hint">(rozpoznany po dacie z raportu)</span>{% endif %}</dd>
+      <dt>Źródło</dt>
+      <dd>{% if preview.source == "link" %}link do arkusza Google{% else %}plik{% endif %}</dd>
+      <dt>Data w raporcie</dt>
+      <dd>{% if preview.meeting_date %}{{ preview.meeting_date|date:"j E Y" }}{% else %}brak{% endif %}</dd>
+      <dt>Osób w raporcie</dt>
+      <dd>{{ preview.people }} (wierszy: {{ preview.report_rows }})</dd>
+      <dt>Próg obecności</dt>
+      <dd>{{ preview.threshold_minutes }} min; najdłuższy czas w raporcie: {{ preview.longest }}</dd>
+    </dl>
+    {% if preview.date_mismatch %}
+      <p class="notice notice--warning">Data spotkania z raportu ({{ preview.meeting_date|date:"j E Y" }}) jest
+        inna niż data wybranego warsztatu. Upewnij się, że to właściwy raport, albo
+        <a href="{% url 'web:coordinator-workshop-attendance-meet' %}">wybierz inny warsztat</a>.</p>
+    {% endif %}
+  </div>
+</section>
+
+<form method="post" action="{% url 'web:coordinator-workshop-attendance-meet' %}">
+  {% csrf_token %}
+  <input type="hidden" name="token" value="{{ preview.token }}">
+
+  <section class="section">
+    <h2>Dopasowani – zostaną oznaczeni jako obecni ({{ preview.matched|length }})</h2>
+    {% if preview.matched %}
+      <div class="scroll">
+        <table class="table">
+          <caption class="visually-hidden">Osoby z raportu dopasowane do uczestników</caption>
+          <thead><tr><th scope="col">Zapisz</th><th scope="col">Uczestnik</th><th scope="col">Kod</th><th scope="col">W raporcie</th><th scope="col">Czas</th><th scope="col">Dopasowanie</th></tr></thead>
+          <tbody>
+            {% for row in preview.matched %}
+              <tr>
+                <td><input type="checkbox" name="attend" value="{{ row.participant.pk }}" checked
+                           aria-label="Oznacz obecność: {{ row.participant.public_code }}"></td>
+                <td>{{ row.participant.user|person:row.participant.public_code }}</td>
+                <td><span class="code-chip">{{ row.participant.public_code }}</span></td>
+                <td>{{ row.label }}{% if row.email %}<br><span class="hint">{{ row.email }}</span>{% endif %}</td>
+                <td>{{ row.duration }}</td>
+                <td>{% if row.via == "email" %}e-mail{% else %}imię i nazwisko{% endif %}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="hint">Nikogo.</p>
+    {% endif %}
+  </section>
+
+  {% if preview.ambiguous %}
+  <section class="section">
+    <h2>Niejednoznaczni – wybierz z listy ({{ preview.ambiguous|length }})</h2>
+    <p class="hint">Raport pasuje do kilku uczestników. Wybierz właściwego albo zostaw „nie zapisuj”.</p>
+    <div class="scroll">
+      <table class="table">
+        <caption class="visually-hidden">Osoby pasujące do kilku uczestników</caption>
+        <thead><tr><th scope="col">W raporcie</th><th scope="col">Czas</th><th scope="col">Uczestnik</th></tr></thead>
+        <tbody>
+          {% for row in preview.ambiguous %}
+            <tr>
+              <td>{{ row.label }}{% if row.email %}<br><span class="hint">{{ row.email }}</span>{% endif %}</td>
+              <td>{{ row.duration }}</td>
+              <td>
+                <label class="visually-hidden" for="choice_{{ row.index }}">Uczestnik dla: {{ row.label }}</label>
+                <select name="choice_{{ row.index }}" id="choice_{{ row.index }}">
+                  <option value="">— nie zapisuj —</option>
+                  {% for candidate in row.candidates %}
+                    <option value="{{ candidate.pk }}">{{ candidate.user|person:candidate.public_code }} ({{ candidate.public_code }})</option>
+                  {% endfor %}
+                </select>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  {% endif %}
+
+  {% if preview.unknown %}
+  <section class="section">
+    <h2>Nieznalezieni ({{ preview.unknown|length }})</h2>
+    <p class="hint">Nikt z uczestników tej edycji nie ma takiego adresu ani imienia i nazwiska (gość,
+      prowadzący, inne konto Google). Jeśli wiesz, kto to, wpisz kod uczestnika z panelu.</p>
+    <div class="scroll">
+      <table class="table">
+        <caption class="visually-hidden">Osoby z raportu bez dopasowania</caption>
+        <thead><tr><th scope="col">W raporcie</th><th scope="col">Czas</th><th scope="col">Kod uczestnika</th></tr></thead>
+        <tbody>
+          {% for row in preview.unknown %}
+            <tr>
+              <td>{{ row.label }}{% if row.email %}<br><span class="hint">{{ row.email }}</span>{% endif %}</td>
+              <td>{{ row.duration }}</td>
+              <td>
+                <label class="visually-hidden" for="code_{{ row.index }}">Kod uczestnika dla: {{ row.label }}</label>
+                <input type="text" name="code_{{ row.index }}" id="code_{{ row.index }}" maxlength="32"
+                       autocomplete="off" spellcheck="false" size="12">
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  {% endif %}
+
+  {% if preview.below %}
+  <section class="section">
+    <h2>Poniżej progu {{ preview.threshold_minutes }} min ({{ preview.below|length }})</h2>
+    <p class="hint">Nie zostaną oznaczeni. Dopasowanego uczestnika możesz oznaczyć mimo to.</p>
+    <div class="scroll">
+      <table class="table">
+        <caption class="visually-hidden">Osoby poniżej progu obecności</caption>
+        <thead><tr><th scope="col">Oznacz mimo to</th><th scope="col">W raporcie</th><th scope="col">Czas</th><th scope="col">Uczestnik</th></tr></thead>
+        <tbody>
+          {% for row in preview.below %}
+            <tr>
+              <td>{% if row.participant %}<input type="checkbox" name="below" value="{{ row.participant.pk }}"
+                     aria-label="Oznacz mimo to: {{ row.participant.public_code }}">{% endif %}</td>
+              <td>{{ row.label }}{% if row.email %}<br><span class="hint">{{ row.email }}</span>{% endif %}</td>
+              <td>{{ row.duration }}{% if row.unreadable_time %} <span class="hint">(czas nieczytelny)</span>{% endif %}</td>
+              <td>{% if row.participant %}{{ row.participant.user|person:row.participant.public_code }}
+                    <span class="code-chip">{{ row.participant.public_code }}</span>
+                  {% elif row.candidates %}kilku kandydatów{% else %}nie znaleziono{% endif %}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  {% endif %}
+
+  {% if preview.already %}
+  <section class="section">
+    <h2>Już oznaczeni na tym warsztacie ({{ preview.already|length }})</h2>
+    <ul class="hint">
+      {% for row in preview.already %}<li>{{ row.participant.user|person:row.participant.public_code }} ({{ row.participant.public_code }}) – {{ row.duration }}</li>{% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+
+  {% if preview.teachers %}
+  <section class="section">
+    <h2>Nauczyciele – pominięci ({{ preview.teachers|length }})</h2>
+    <p class="hint">Adres opiekuna szkolnego tego konkursu. Obecność na warsztatach dotyczy uczestników.</p>
+    <ul class="hint">
+      {% for row in preview.teachers %}<li>{{ row.label }} – {{ row.duration }}</li>{% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+
+  <div class="actions">
+    <button type="submit" class="btn btn--primary">Zapisz obecności</button>
+    <a class="btn btn--ghost" href="{% url 'web:coordinator-workshop-attendance-meet' %}">Anuluj i wczytaj inny raport</a>
+  </div>
+</form>
+{% endblock %}

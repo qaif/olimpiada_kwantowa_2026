@@ -238,3 +238,36 @@ def save_attendance(
             ignore_conflicts=True,
         )
     return {"added": len(added), "removed": len(stale)}
+
+
+def add_attendance(participant_ids, key: str, *, actor=None) -> int:
+    """Dokłada obecność na **jednych** warsztatach i zwraca liczbę nowych wierszy. Niczego nie kasuje.
+
+    Odpowiednik ``save_attendance`` dla importu (raport Google Meet, WS-ATT-02 § 3.5): import mówi
+    „ci byli”, a nie „tylko ci byli” – osoba odhaczona wcześniej ręcznie (weszła z telefonu kolegi,
+    raport jej nie ma) ma swoją obecność zachować. Liczbę dodanych liczymy przed zapisem, bo
+    ``bulk_create(ignore_conflicts=True)`` nie mówi, które wiersze pominął.
+    """
+    from .models import WorkshopAttendance
+
+    wanted = {int(pk) for pk in participant_ids}
+    if not wanted or not key:
+        return 0
+    existing = set(
+        WorkshopAttendance.objects.filter(participant_id__in=wanted, workshop_key=key).values_list(
+            "participant_id", flat=True
+        )
+    )
+    fresh = sorted(wanted - existing)
+    WorkshopAttendance.objects.bulk_create(
+        [
+            WorkshopAttendance(
+                participant_id=participant_id,
+                workshop_key=key,
+                created_by=actor if getattr(actor, "is_authenticated", False) else None,
+            )
+            for participant_id in fresh
+        ],
+        ignore_conflicts=True,
+    )
+    return len(fresh)
