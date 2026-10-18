@@ -724,7 +724,11 @@ def groups(stages: list, competition=None) -> list[Group]:
         Item(
             "Obecność na warsztatach",
             ("web:coordinator-workshop-attendance",),
-            match=("coordinator-workshop-attendance", "coordinator-workshop-certificates"),
+            match=(
+                "coordinator-workshop-attendance",
+                "coordinator-workshop-attendance-meet",
+                "coordinator-workshop-certificates",
+            ),
         ),
     )
     if competition is not None and competition.has_feature("workshop_materials"):

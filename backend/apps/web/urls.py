@@ -1050,6 +1050,11 @@ urlpatterns = [
         name="coordinator-workshop-attendance",
     ),
     path(
+        "coordinator/workshops/attendance/meet/",
+        coordinator_workshops.WorkshopMeetImportView.as_view(),
+        name="coordinator-workshop-attendance-meet",
+    ),
+    path(
         "coordinator/workshops/certificates/",
         coordinator_workshops.IssueWorkshopCertificatesView.as_view(),
         name="coordinator-workshop-certificates",

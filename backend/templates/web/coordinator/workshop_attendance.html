@@ -132,6 +132,16 @@
 {% endif %}
 
 <section class="section">
+  <div class="card">
+    <h2 class="mt-0">Import z Google Meet</h2>
+    <p>Raport obecności, który Google Meet wysyła organizatorowi po spotkaniu (plik CSV/XLSX albo link
+      do arkusza). Osoby dopasujemy do uczestników po adresie e-mail i nazwisku, a przed zapisem
+      zobaczysz podgląd. Import dokłada obecności, nigdy ich nie kasuje.</p>
+    <a class="btn btn--secondary" href="{% url 'web:coordinator-workshop-attendance-meet' %}">Importuj raport z Google Meet</a>
+  </div>
+</section>
+
+<section class="section">
   <div class="card card--quiet">
     <h2 class="mt-0">Import z pliku CSV</h2>
     <p class="hint">Dwie kolumny: <code>kod,warsztat</code> — kod uczestnika z panelu i klucz

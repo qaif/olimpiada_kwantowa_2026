@@ -15,6 +15,10 @@ Trzy decyzje o kształcie ekranu:
   kasowałoby obecności z pierwszej,
 - stronicowanie po stu uczestnikach, bo tabela ma tyle kolumn, ile warsztatów – trzysta wierszy
   razy szesnaście kratek to strona, której przeglądarka na telefonie nie unosi.
+
+Import raportu obecności Google Meet (WS-ATT-02) ma własny ekran (``WorkshopMeetImportView``):
+dopasowanie osób z raportu do uczestników wymaga podglądu z decyzjami koordynatora, a ten nie mieści
+się pod tabelą kratek.
 """
 
 from __future__ import annotations
@@ -29,17 +33,25 @@ from django.urls import reverse
 from django.views.generic import View
 
 from apps.accounts.models import Participant
+from apps.cms.meet_import import SOURCE_FILE, SOURCE_LINK, build_preview, commit_preview, suggest_workshop
+from apps.cms.meet_report import MeetReportError, read_link, read_upload
 from apps.cms.models import WorkshopAttendance
 from apps.cms.workshops import save_attendance, workshop_rows, workshops_page
 from apps.competitions.services import current_edition
 from apps.core.models import audit
 from apps.results.certificates import build_certificates_zip, issue_workshop_certificates
-from apps.web.certificate_forms import WorkshopAttendanceImportForm
+from apps.web.certificate_forms import MeetAttendanceImportForm, WorkshopAttendanceImportForm
 from apps.web.list_controls import DELETED_PARAM, ListControls
 from apps.web.mixins import CoordinatorRequiredMixin
+from apps.web.throttle import acquire, user_throttle_keys
 from apps.workshop_materials.access import feature_enabled
 
 TEMPLATE = "web/coordinator/workshop_attendance.html"
+MEET_TEMPLATE = "web/coordinator/workshop_meet_import.html"
+MEET_PREVIEW_TEMPLATE = "web/coordinator/workshop_meet_preview.html"
+
+#: Limit pobrań arkusza z linku (WS-ATT-02 § 2.6): scope z ``DEFAULT_THROTTLE_RATES``, liczony per konto.
+MEET_LINK_THROTTLE_SCOPE = "meet_link"
 
 #: Ilu uczestników na stronie. Sto wierszy to granica, przy której tabela z kilkunastoma kolumnami
 #: kratek jeszcze się renderuje płynnie i jeszcze da się ją przejść wzrokiem.
@@ -238,6 +250,115 @@ class WorkshopAttendanceView(CoordinatorRequiredMixin, View):
             ],
         }
         return TemplateResponse(request, TEMPLATE, context, status=status)
+
+
+class WorkshopMeetImportView(CoordinatorRequiredMixin, View):
+    """``/coordinator/workshops/attendance/meet/`` – import raportu obecności Google Meet (WS-ATT-02).
+
+    Dwa POST-y na jednym adresie, jak import uczniów: pierwszy (plik albo link) daje **podgląd**
+    i niczego nie zapisuje, drugi (z podpisanym tokenem) zapisuje i wraca do tabeli obecności
+    (POST/redirect/GET – odświeżenie nie importuje drugi raz). Osobny ekran, a nie trzecia akcja
+    ``WorkshopAttendanceView``, bo podgląd jest pełną stroną z kilkoma tabelami i własnym
+    formularzem – w tabeli kratek byłby czwartą sekcją pod stu wierszami uczestników.
+
+    Limit żądań liczy **wyłącznie pobranie z linku** (``MEET_LINK_THROTTLE_SCOPE``): to jedyna
+    czynność, w której serwer łączy się z kimś na zlecenie użytkownika. Wgranie pliku i zatwierdzenie
+    są pracą koordynatora na własnych danych, jak pozostałe importy panelu.
+    """
+
+    def get(self, request):
+        return self._render_form(request, self._form(request))
+
+    def post(self, request):
+        if request.POST.get("token"):
+            return self._commit(request)
+        return self._preview(request)
+
+    def _form(self, request, data=None, files=None):
+        return MeetAttendanceImportForm(data, files, workshops=_workshops(request.competition))
+
+    def _preview(self, request):
+        form = self._form(request, request.POST, request.FILES)
+        edition = current_edition(request.competition)
+        if not form.is_valid():
+            return self._render_form(request, form, status=400)
+        if edition is None:
+            form.add_error(None, "Nie ustawiono bieżącej edycji – nie ma dla kogo importować obecności.")
+            return self._render_form(request, form, status=400)
+        upload = form.cleaned_data.get("file")
+        try:
+            if upload:
+                source = SOURCE_FILE
+                report = read_upload(upload)
+            else:
+                source = SOURCE_LINK
+                wait = self._throttle_link(request)
+                if wait is not None:
+                    minutes = max(1, int(wait // 60) + 1)
+                    form.add_error(
+                        "link",
+                        f"Zbyt wiele pobrań z linku w ostatniej godzinie. Spróbuj za {minutes} min "
+                        "albo pobierz raport jako CSV i wgraj plik.",
+                    )
+                    return self._render_form(request, form, status=429)
+                report = read_link(form.cleaned_data["link"])
+        except MeetReportError as exc:
+            form.add_error("file" if upload else "link", exc.message)
+            return self._render_form(request, form, status=400)
+        workshop = form.selected_workshop
+        from_date = False
+        if workshop is None:
+            workshop = suggest_workshop(form.workshops, report.meeting_date)
+            from_date = workshop is not None
+        if workshop is None:
+            form.add_error(
+                "workshop",
+                "Wybierz warsztat z listy – w raporcie nie ma daty pasującej do dokładnie jednego "
+                "warsztatu z harmonogramu.",
+            )
+            return self._render_form(request, form, status=400)
+        preview = build_preview(
+            report,
+            competition=request.competition,
+            edition=edition,
+            workshop=workshop,
+            threshold_minutes=form.cleaned_data["threshold"],
+            source=source,
+            user=request.user,
+            workshop_from_date=from_date,
+        )
+        return TemplateResponse(request, MEET_PREVIEW_TEMPLATE, {"edition": edition, "preview": preview})
+
+    def _throttle_link(self, request) -> float | None:
+        """Zajmuje miejsce w kubełku pobrań konta; zwraca czas oczekiwania albo ``None``."""
+        wait, _ = acquire(MEET_LINK_THROTTLE_SCOPE, user_throttle_keys(MEET_LINK_THROTTLE_SCOPE, request))
+        return wait
+
+    def _commit(self, request):
+        try:
+            result = commit_preview(
+                request.POST,
+                competition=request.competition,
+                edition=current_edition(request.competition),
+                workshops=_workshops(request.competition),
+                user=request.user,
+                request=request,
+            )
+        except MeetReportError as exc:
+            messages.error(request, exc.message)
+            return redirect(reverse("web:coordinator-workshop-attendance-meet"))
+        text = (
+            f"Import z Google Meet ({result['workshop']['topic']}): dodano {result['added']} obecności"
+            f" (wybrano {result['selected']}, w tym ręcznie {result['manual']})."
+        )
+        if result["bad_codes"]:
+            text += " Nie znaleziono kodów: " + ", ".join(result["bad_codes"][:20]) + "."
+        messages.success(request, text)
+        return redirect(reverse("web:coordinator-workshop-attendance"))
+
+    def _render_form(self, request, form, *, status: int = 200):
+        context = {"edition": current_edition(request.competition), "form": form, "workshops": form.workshops}
+        return TemplateResponse(request, MEET_TEMPLATE, context, status=status)
 
 
 class IssueWorkshopCertificatesView(CoordinatorRequiredMixin, View):
