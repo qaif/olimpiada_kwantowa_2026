@@ -592,7 +592,8 @@ else
   if grep -qE '^WEB_IMAGE=' .env; then
     sed -i '/^WEB_IMAGE=/d' .env
   fi
-  docker compose build --pull web
+  # APT_REFRESH: świeże łatki Debiana raz dziennie (Dockerfile – cache warstwy apt-get upgrade).
+  APT_REFRESH="$(date -u +%F)" docker compose build --pull web
 fi
 if [ "$DJCMS_ON" = "1" ]; then
   # Obraz djcms – to samo rozgałęzienie co dla `web` wyżej: rejestr (DJCMS_IMAGE, zapamiętany
@@ -615,7 +616,7 @@ if [ "$DJCMS_ON" = "1" ]; then
     if grep -qE '^DJCMS_IMAGE=' .env; then
       sed -i '/^DJCMS_IMAGE=/d' .env
     fi
-    docker compose --profile djcms build --pull djcms
+    APT_REFRESH="$(date -u +%F)" docker compose --profile djcms build --pull djcms
   fi
 fi
 # Obrazy cudze (caddy, postgres, redis, minio, mc, clamav, postfix – wszystko bez `build:`; zestaw

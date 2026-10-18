@@ -724,7 +724,18 @@ def groups(stages: list, competition=None) -> list[Group]:
         Item(
             "Obecność na warsztatach",
             ("web:coordinator-workshop-attendance",),
-            match=("coordinator-workshop-attendance", "coordinator-workshop-certificates"),
+            match=(
+                "coordinator-workshop-attendance",
+                "coordinator-workshop-attendance-meet",
+                "coordinator-workshop-certificates",
+            ),
+        ),
+        # Reguła automatycznych zaświadczeń z obecności (WS-CERT-02) – zaraz pod obecnością, z której
+        # liczy próg. Bez flagi: ekran jest ustawieniem, a reguła bez zapisu jest wyłączona.
+        Item(
+            "Zaświadczenia z warsztatów",
+            ("web:coordinator-workshop-auto-certificates",),
+            match=("coordinator-workshop-auto-certificates",),
         ),
     )
     if competition is not None and competition.has_feature("workshop_materials"):

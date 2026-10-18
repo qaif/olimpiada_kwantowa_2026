@@ -1625,6 +1625,26 @@ class Announcement(models.Model):
         return self.ends_at is None or self.ends_at > now
 
 
+class WorkshopAttendanceQuerySet(models.QuerySet):
+    """``bulk_create`` z sygnałem ``attendance_recorded`` – jedno miejsce dla każdej drogi zapisu.
+
+    Obecności zapisują hurtem trzy drogi (kratki, import CSV, import z platformy wideo) i żadna nie
+    wysyła ``post_save``, bo ``bulk_create`` go nie wysyła. Sygnał tutaj, a nie w każdej z nich,
+    bo nowa droga importu nie może „zapomnieć” o regule zaświadczeń (WS-CERT-02). Wysyłany także
+    przy ``ignore_conflicts`` – część wierszy mogła już istnieć, a odbiorca i tak tylko przelicza.
+    """
+
+    def bulk_create(self, objs, *args, **kwargs):
+        objs = list(objs)
+        created = super().bulk_create(objs, *args, **kwargs)
+        participant_ids = sorted({obj.participant_id for obj in objs if obj.participant_id})
+        if participant_ids:
+            from .workshops import attendance_recorded
+
+            attendance_recorded.send(sender=self.model, participant_ids=participant_ids, using=self.db)
+        return created
+
+
 class WorkshopAttendance(models.Model):
     """Obecność jednego uczestnika na jednych warsztatach – podstawa zaświadczenia z warsztatów.
 
@@ -1660,6 +1680,8 @@ class WorkshopAttendance(models.Model):
         related_name="workshop_attendance_marked",
         verbose_name="odhaczył",
     )
+
+    objects = WorkshopAttendanceQuerySet.as_manager()
 
     class Meta:
         verbose_name = "obecność na warsztatach"

@@ -18,8 +18,16 @@ from __future__ import annotations
 
 from datetime import date
 
+from django.dispatch import Signal
 from django.utils import timezone
 from django.utils.text import slugify
+
+#: Zapisano obecności (``participant_ids=[…]``) – wysyła ``WorkshopAttendanceQuerySet.bulk_create``.
+#: Sygnał, a nie wywołanie: CMS nie wie, kto reaguje na obecność (zaświadczenia automatyczne,
+#: WS-CERT-02), a ``bulk_create`` – którym zapisują kratki, import CSV i import z platformy wideo –
+#: nie wysyła ``post_save``. Odbiorca dostaje identyfikatory, nie wiersze, i nie powinien pytać bazy
+#: w żądaniu: import trzystu osób to jeden sygnał, a nie trzysta.
+attendance_recorded = Signal()
 
 #: Slug strony z harmonogramem warsztatów. Zapowiedź na stronie głównej szuka jej po slugu, bo
 #: tytuł jest redakcyjny (może brzmieć „Warsztaty online”), a adres wisi w komunikatach.
@@ -238,3 +246,36 @@ def save_attendance(
             ignore_conflicts=True,
         )
     return {"added": len(added), "removed": len(stale)}
+
+
+def add_attendance(participant_ids, key: str, *, actor=None) -> int:
+    """Dokłada obecność na **jednych** warsztatach i zwraca liczbę nowych wierszy. Niczego nie kasuje.
+
+    Odpowiednik ``save_attendance`` dla importu (raport Google Meet, WS-ATT-02 § 3.5): import mówi
+    „ci byli”, a nie „tylko ci byli” – osoba odhaczona wcześniej ręcznie (weszła z telefonu kolegi,
+    raport jej nie ma) ma swoją obecność zachować. Liczbę dodanych liczymy przed zapisem, bo
+    ``bulk_create(ignore_conflicts=True)`` nie mówi, które wiersze pominął.
+    """
+    from .models import WorkshopAttendance
+
+    wanted = {int(pk) for pk in participant_ids}
+    if not wanted or not key:
+        return 0
+    existing = set(
+        WorkshopAttendance.objects.filter(participant_id__in=wanted, workshop_key=key).values_list(
+            "participant_id", flat=True
+        )
+    )
+    fresh = sorted(wanted - existing)
+    WorkshopAttendance.objects.bulk_create(
+        [
+            WorkshopAttendance(
+                participant_id=participant_id,
+                workshop_key=key,
+                created_by=actor if getattr(actor, "is_authenticated", False) else None,
+            )
+            for participant_id in fresh
+        ],
+        ignore_conflicts=True,
+    )
+    return len(fresh)

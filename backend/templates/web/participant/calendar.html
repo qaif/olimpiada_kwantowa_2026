@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load i18n web_extras %}
+{% load i18n web_extras calendar_feed %}
 {% block title %}{% translate "Kalendarz uczestnika" %}{% endblock %}
 {% block content %}
 <div class="page-head">
@@ -21,6 +21,13 @@
        download>{% translate "Pobierz kalendarz (.ics)" %}</a>
   </p>
 </div>
+
+{% comment %}
+  Plik wyżej wymaga zalogowania, więc kalendarza w Google czy na telefonie nie da się nim
+  zasubskrybować – serwer kalendarza nie ma sesji uczestnika. Subskrypcję daje kanał publiczny
+  (CAL-01): te same warsztaty i terminy edycji, bez prywatnego terminu rozmowy.
+{% endcomment %}
+{% calendar_subscribe %}
 
 <section class="section">
   {% if items %}

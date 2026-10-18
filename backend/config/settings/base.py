@@ -162,6 +162,7 @@ INSTALLED_APPS = [
     # i własne reguły dostępu. Z CMS-em łączy ją wyłącznie **odczyt** harmonogramu warsztatów
     # (``apps.cms.workshops``) – dlatego stoi po nim, a przed ``apps.web``, który ją wyświetla.
     "apps.workshop_materials",
+    "apps.workshop_certificates",  # zaświadczenia z warsztatów wystawiane z obecności (WS-CERT-02)
     # Ocena AI – sugestia punktów dla komitetu liczona przez Claude'a (prośba organizatora
     # z 24.09.2026). Osobna aplikacja, bo ma własną zależność zewnętrzną (SDK ``anthropic``)
     # i własną drogę danych poza serwer; **po** ``apps.grading`` i ``apps.results``, bo czyta
@@ -201,6 +202,7 @@ INSTALLED_APPS = [
     "apps.accessibility",  # deklaracja dostępności i napisy stopki (A11Y-01, 5.10.2026), bez modeli
     "apps.email_delivery",  # literówki w adresach i odbicia poczty (MAIL-02, 5.10.2026)
     "apps.consent_gate",  # bramka i ekran „Uzupełnij zgody” po zalogowaniu (CONS-01), bez modeli
+    "apps.calendar_feed",  # publiczny kalendarz ICS: warsztaty i terminy (CAL-01, 18.10.2026), bez modeli
     "apps.web",
     # Logowanie przez dostawców zewnętrznych (Google, Facebook). ``allauth.account`` jest wymagane
     # przez ``allauth.socialaccount`` (model ``EmailAddress``, adaptery) – jego **widoki** nie są
@@ -1066,6 +1068,10 @@ CLAMAV_STREAM_MAX_BYTES = env.int("CLAMAV_STREAM_MAX_BYTES", default=100 * 1024 
 WORKSHOP_VIDEO_MAX_MB = env.int("WORKSHOP_VIDEO_MAX_MB", default=4096)
 WORKSHOP_FILE_MAX_MB = env.int("WORKSHOP_FILE_MAX_MB", default=100)
 
+# Markdown od użytkowników (tłumaczenia zadań, podgląd materiałów – ``apps.problem_translations.markup``,
+# TR-01b): górna granica szacowanej pracy konwertera; tekst ponad nią jest pokazywany uciekany, bez składu.
+MARKDOWN_COST_BUDGET = 50_000_000
+
 # --- Strona błędu serwera (templates/500.html) -------------------------------------------------
 # Adres kontaktowy pokazywany na stronie 500. Ustawienie, a nie pole konkursu: ta strona renderuje
 # się **bez bazy** (i to jest jej sens), więc nie ma jak zapytać, czyj konkurs stał pod tym
@@ -1508,6 +1514,10 @@ REST_FRAMEWORK = {
         "translation": "1200/hour",
         # Ekran medali (MED-01): przeliczenie podglądu, ogłoszenie, dokumenty i eksporty – kosztowne POST-y.
         "medals": "120/hour",
+        # Import obecności z linku do arkusza Google (WS-ATT-02 § 2.6): każde żądanie to pobranie
+        # z serwerów Google na zlecenie koordynatora. Per konto (widok podaje ``user_throttle_keys``);
+        # dwadzieścia na godzinę mieści kilka poprawek udostępnienia po każdych zajęciach.
+        "meet_link": "20/hour",
         # Bramka linku-zaproszenia (``/zaproszenie/wideo/<klucz>/``, POST „Dołącz”) – bez konta,
         # więc liczona po adresie IP, jak każdy publiczny formularz. Wysoko, bo za jednym NAT-em
         # bywa cała sala gości wchodzących na to samo zebranie naraz; nisko na tyle, żeby

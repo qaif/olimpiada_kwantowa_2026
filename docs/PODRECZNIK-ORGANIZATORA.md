@@ -778,6 +778,32 @@ nagranie to gigabajty). Zachowaj oryginały u siebie — po awarii serwera trzeb
 Każda zmiana zostawia wpis w audycie (`workshop_material.created`, `.upload_started`, `.uploaded`,
 `.upload_rejected`, `.updated`, `.attached`, `.published`, `.unpublished`, `.reordered`, `.deleted`)
 z numerem materiału, rodzajem, formatem i rozmiarem — bez tytułu, opisu i nazwy pliku.
+### 4.11a Kalendarz publiczny (ICS) — `/kalendarz.ics` (CAL-01)
+
+Prośba organizatora z 18.10.2026. Każdy konkurs ma publiczny kalendarz pod `/kalendarz.ics` (bez
+logowania, bez przełącznika): **warsztaty** z tabeli „harmonogram” na stronie `/warsztaty/` (temat,
+prowadzący, godziny) oraz **terminy bieżącej edycji** – otwarcie i termin oddania prac każdego etapu
+(etap stacjonarny: dni wydarzenia z miejscem), początek i koniec rejestracji (gdy włączona) i wydarzenia
+linii czasu (§ 2.6). Etap treningowy i wydarzenia bez „na linii czasu” do kalendarza nie trafiają.
+Przyciski „Dodaj do Google Calendar”, „Dodaj do Outlook / Apple” i „Pobierz .ics” stoją na stronie
+`/warsztaty/` i w kalendarzu uczestnika (`/me/calendar/`); przy każdym warsztacie z datą jest odnośnik
+dodający tylko te zajęcia.
+
+**Co wpisać w harmonogramie, żeby warsztat miał godziny.** W wierszu tabeli: **„termin (data)”**
+(bez niej warsztatu w kalendarzu nie ma) i **„godziny”** w postaci `11:00–14:00` (albo `11.00-14.00`).
+Sama godzina początku (`11:00`) daje zajęcia 90-minutowe; „do potwierdzenia” albo puste pole –
+wpis całodniowy. Godziny są w strefie czasowej konkursu (domyślnie Europe/Warsaw, czyli czas polski),
+a zmiana czasu w październiku i marcu niczego nie przesuwa.
+
+- **Linku do spotkania nie wpisuj do harmonogramu ani do wydarzeń linii czasu.** Kalendarz jest
+  publiczny i bywa synchronizowany do cudzych usług; link Meet podawaj w **Ogłoszeniach w Wiadomościach**
+  (§ 6.4a). Adresy Meet, Zoom, Teams i Jitsi kalendarz i tak wycina.
+- **Poprawka godzin albo prowadzącego** aktualizuje wpis u subskrybentów. **Zmiana tematu albo daty**
+  to dla kalendarza nowe zajęcia: stary wpis znika, pojawia się nowy (ta sama reguła, co przy obecności
+  i materiałach, § 4.11).
+- Zmiana trafia do kalendarza od razu po publikacji strony albo zapisie etapu; serwer kalendarza
+  (Google, Apple) pobiera go co kilka godzin, więc u uczestnika zmiana bywa widoczna nawet po dobie.
+
 ### 4.12 Ocena AI — `/coordinator/ai-grading/`
 
 Prośby organizatora z 24.09.2026. Model językowy wybranego dostawcy — **Anthropic** (Claude),
@@ -982,6 +1008,65 @@ do samej pracy i ocen komitetu nie są one dokumentacją zawodów. Liczniki kosz
 potwierdzenie i wycofanie umowy powierzenia (kto, kiedy, uwaga, panel czy komenda), zmiana dostawcy,
 modelu, cen i limitu, zmiana widoczności etapu, każde zlecenie (z dostawcą, modelem i liczbą prac)
 oraz wgranie, ocena i usunięcie pracy testowej zostawiają wpis `ai_grading.*`.
+
+### 4.13 Obecność na warsztatach — `/coordinator/workshops/attendance/`
+
+Ekran **„Obecność na warsztatach”** (menu: Raporty). Tabela **uczestnicy × warsztaty**: wiersze to
+uczestnicy z wpisem do etapu bieżącej edycji, kolumny — warsztaty z harmonogramu na stronie
+`/warsztaty/` (wiersze z wypełnionym polem „termin (data)”). Kratki odhacza się ręcznie (przycisk
+„zaznacz kolumnę” zaznacza całe zajęcia), a **„Zapisz obecności tej strony”** zapisuje wyłącznie
+widoczną stronę listy. Na obecności stoją **zaświadczenia z warsztatów** (przycisk „Wystaw zaświadczenia
+z warsztatów (ZIP)” na tym samym ekranie).
+
+Obecność można też **zaimportować** — na dwa sposoby:
+
+- **„Import z pliku CSV”** — dwie kolumny `kod,warsztat` (kod uczestnika z panelu i klucz warsztatu
+  podany pod formularzem); bez zmian,
+- **„Importuj raport z Google Meet”** — raport obecności, który Google Meet wysyła po spotkaniu
+  (opis niżej).
+
+**Import z Google Meet** — `/coordinator/workshops/attendance/meet/`:
+
+1. **Włącz śledzenie obecności przed zajęciami.** W Kalendarzu Google otwórz wydarzenie warsztatu →
+   „Zmień ustawienia rozmowy wideo” → zaznacz **„Śledzenie obecności”** → „Zapisz”. Można to też zrobić
+   w trakcie spotkania: **„Ustawienia gospodarza”** (ikona u dołu ekranu) → „Śledzenie obecności”.
+   Funkcja jest w płatnych wersjach Google Workspace (m.in. Business Plus, Enterprise, Education Plus;
+   w Education Plus raport powstaje sam po każdym spotkaniu z co najmniej dwiema osobami).
+2. **Znajdź raport.** Po spotkaniu **organizator wydarzenia** dostaje e-mail z arkuszem Google
+   „raport obecności” (arkusz leży też w jego Dysku). Osoba, która wychodziła i wracała, ma jeden wiersz
+   z łącznym czasem; pokoje podgrup są w osobnych kartach (import czyta pierwszą).
+3. **Przekaż raport do serwisu** — jedno z dwóch:
+   - **link:** w arkuszu „Udostępnij” → „Ogólny dostęp” → **„Każdy, kto ma link”** → rola
+     „Wyświetlający” i wklej adres z paska przeglądarki (`https://docs.google.com/spreadsheets/d/…`).
+     Serwer pobiera wyłącznie eksport CSV tej karty arkusza — innych adresów nie przyjmuje. Po imporcie
+     możesz cofnąć udostępnienie,
+   - **plik:** w arkuszu „Plik” → „Pobierz” → „Wartości rozdzielone przecinkami (.csv)” albo
+     „Microsoft Excel (.xlsx)” i wgraj plik. Tak zrób, jeśli zasady Twojej organizacji nie pozwalają
+     udostępniać arkuszy na zewnątrz. Działa też CSV zapisany z Excela (Windows-1250, średniki,
+     „Tekst Unicode”).
+4. **Wybierz warsztat** z listy albo zostaw „rozpoznaj po dacie z raportu” (zadziała, gdy w raporcie
+   albo w nazwie pliku jest data i tego dnia jest w harmonogramie dokładnie jeden warsztat).
+5. **Ustaw próg** — minimalny czas na spotkaniu, od którego osoba jest „obecna” (domyślnie **30 min**).
+   Kilka wierszy tej samej osoby (wyjścia i powroty) sumuje się.
+6. **„Pokaż podgląd dopasowania”** — nic jeszcze się nie zapisuje. Osoby z raportu są dopasowane do
+   uczestników tej edycji **po adresie e-mail** (bez wielkości liter; w Gmailu bez kropek i `+dopisku`),
+   a potem **po imieniu i nazwisku**. Podgląd ma sekcje: **dopasowani** (kratka zaznaczona — można
+   odznaczyć), **niejednoznaczni** (kilku uczestników o tym samym nazwisku — wybierz z listy),
+   **nieznalezieni** (goście, prowadzący, inne konto Google — jeśli wiesz, kto to, wpisz kod
+   uczestnika), **poniżej progu** (dopasowanego można oznaczyć „mimo to”), **już oznaczeni**
+   i **nauczyciele — pominięci** (adres opiekuna szkolnego; obecność dotyczy wyłącznie uczestników).
+7. **„Zapisz obecności”** — import **dokłada** obecności i nigdy ich nie kasuje (ręczne odhaczenia
+   zostają). Podgląd jest ważny 30 minut; po tym czasie wczytaj raport jeszcze raz.
+
+**Komunikaty linku.** „Arkusz nie jest udostępniony” — Google pokazał stronę logowania zamiast arkusza:
+ustaw „Każdy, kto ma link” albo wgraj plik. „Zbyt wiele pobrań z linku” — limit to 20 pobrań na godzinę
+na konto; wgranie pliku limitu nie ma.
+
+**Dane osobowe.** Raport (e-maile, nazwiska, czasy) jest czytany tylko na czas podglądu i **nie jest
+nigdzie zapisywany** — do bazy trafia wyłącznie „uczestnik X był na warsztacie Y”, a dziennik zdarzeń
+(`workshop.attendance_imported`) dostaje warsztat, źródło (plik/link) i liczby, bez nazwisk i adresów.
+Czynność opisuje rejestr czynności przetwarzania (§ 9.2, wiersz „Ogłaszanie wyników i wystawianie
+dokumentów”, od wersji 1.23).
 
 ---
 
@@ -1778,6 +1863,45 @@ opiekuna nie pokazuje nazwiska nigdy. Nieznany kod **nie daje 404** — strona w
 „takiego dokumentu nie ma”, bo rozróżnienie kodem HTTP zamieniłoby ten adres w narzędzie do sprawdzania
 kodów maszynowo.
 
+### 8.1 Zaświadczenia z warsztatów automatycznie — `/coordinator/workshops/auto-certificates/`
+
+Menu: **Raporty → Zaświadczenia z warsztatów** (pod „Obecnością na warsztatach”). Ekran dotyczy
+**bieżącej edycji**. Zaświadczenie z warsztatów to ten sam dokument, który wystawia przycisk „Wystaw
+zaświadczenia z warsztatów (ZIP)” na ekranie obecności: jeden na uczestnika i edycję, z listą tematów
+i terminów zajęć, numerem i kodem weryfikacyjnym. Tutaj ustawiasz, żeby serwis wystawiał go **sam**.
+
+| Pole | Co robi |
+|---|---|
+| **Wystawiaj zaświadczenie automatycznie** | włącza regułę; domyślnie wyłączona (każda nowa edycja zaczyna od wyłączonej) |
+| **Próg: co najmniej tyle warsztatów** | liczba **różnych** warsztatów z harmonogramu na stronie `/warsztaty/`, na których uczestnik był; próg 1 = ta sama reguła co ręczny ZIP |
+| **Szablon graficzny** | opcjonalny szablon z „Dyplomy: szablony” (rodzaj „warsztaty” albo „wszystkie”, tego konkursu); puste = zwykłe dopasowanie szablonu; wybrany obowiązuje **wszystkie** zaświadczenia z warsztatów tej edycji, także ręczne |
+| **Wyślij list „Twoje zaświadczenie jest gotowe”** | jeden list na dokument, w języku uczestnika, z odnośnikiem do panelu; domyślnie wyłączony |
+
+**Kiedy dokument powstaje.** Po każdym zapisie obecności — kratki w tabeli, import CSV, import
+z platformy wideo — serwis w tle sprawdza osoby, których obecność się zmieniła, i wystawia zaświadczenie
+tym, które przekroczyły próg. Import 300 osób to jedno zadanie w tle, a nie 300; ekran obecności nie
+zwalnia. Po **zapisie reguły** nic nie dzieje się samo: osoby, które próg już spełniają, dostaną dokument
+po kliknięciu **„Przelicz teraz”** (albo przy najbliższym zapisie ich obecności) — dlatego włączenie listu
+nie wysyła nagle setek wiadomości. „Przelicz teraz” można kliknąć raz na 30 sekund.
+
+**Próg jest liczbą, nie procentem.** Harmonogram rośnie w trakcie edycji; procent sprawiałby, że osoba,
+która spełniała próg w listopadzie, w styczniu przestaje go spełniać. Liczbę da się też wprost ogłosić
+(„zaświadczenie za udział w co najmniej 3 warsztatach”). Liczą się tylko warsztaty, które są **teraz**
+w harmonogramie — te same, które stoją potem na papierze.
+
+**Zdjęcie obecności nie odbiera zaświadczenia.** Dokument z numerem jest w obiegu (wydruk, rekrutacja,
+strona weryfikacji). Lista tematów na PDF-ie liczy się przy pobraniu, więc poprawka obecności poprawia
+treść; sam dokument zostaje. Uczestnik bez wpisu do etapu w edycji i konto usunięte nie dostają
+zaświadczenia (jak przy ZIP-ie). Zaświadczenie wystawione wcześniej ręcznie nie jest dublowane.
+
+**Na ekranie** są też liczby: wystawione automatycznie, wszystkie zaświadczenia z warsztatów w edycji,
+„spełnia próg, czeka na wystawienie” (np. przed pierwszym przeliczeniem) oraz lista **poniżej progu**
+(nazwisko, kod, „był na X z N”; najwyżej 200 wierszy) — informacyjnie, kogo jeszcze brakuje.
+
+**Audyt** (§ 9.4): zmiana reguły (`workshop_certificates.policy_updated` – zmienione pola), kliknięcie
+„Przelicz teraz”, przebieg reguły (`workshop_certificates.auto_issued` – liczby: wystawione, listy, próg,
+wyzwalacz) i każdy dokument osobno (`certificate.issued` – numer, bez nazwiska).
+
 ---
 
 ## 9. Dane, eksporty, RODO
@@ -1847,6 +1971,9 @@ Wersja **1.9** z 25.09.2026 (powiadomienia e-mail z forum) nie dodaje celu przet
 forum dostaje nowego odbiorcę (dostawca poczty wychodzącej – temat wątku i sam fakt udziału w rozmowie,
 nigdy treść wpisu) i nową kategorię danych (obserwowane wątki, ustawienia powiadomień, znaczniki
 wysyłki; wchodzą do eksportu danych konta i znikają przy jego usunięciu).
+Wersja **1.23** z 18.10.2026 (import obecności z Google Meet, § 4.13) dopisuje do wiersza „Ogłaszanie
+wyników i wystawianie dokumentów” obecność na warsztatach (podstawę zaświadczeń z warsztatów) i raport
+obecności Google Meet jako jej źródło — czytany przejściowo, bez zapisu.
 Odbiorcy są wymienieni wprost (hosting, dostawca poczty, analityka wyłącznie po zgodzie). Dane
 administratora (nazwa, adres, KRS, kontakt) dokłada się **z ustawień serwisu w `/cms/`**, więc ich
 poprawka nie wymaga wydania aplikacji. `?format=csv` oddaje ten sam dokument jako plik otwierający się

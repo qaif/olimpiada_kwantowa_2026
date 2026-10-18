@@ -1,0 +1,76 @@
+# Publiczny kalendarz ICS (CAL-01) – bn.
+msgid ""
+msgstr ""
+"Project-Id-Version: Olimpiada Kwantowa\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-18 12:00+0200\n"
+"PO-Revision-Date: 2026-10-18 12:00+0200\n"
+"Last-Translator: Olimpiada Kwantowa\n"
+"Language-Team: Bengali\n"
+"Language: bn\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: apps/calendar_feed/feed.py
+#, python-format
+msgid "Prowadzący: %(lecturer)s"
+msgstr "প্রশিক্ষক: %(lecturer)s"
+
+#: apps/calendar_feed/feed.py
+msgid "Warsztaty online. Link do spotkania podajemy zalogowanym uczestnikom w Wiadomościach."
+msgstr "অনলাইন কর্মশালা। মিটিংয়ের লিংক লগ ইন করা অংশগ্রহণকারীদের বার্তায় জানানো হয়।"
+
+#: apps/calendar_feed/feed.py
+#, python-format
+msgid "Szczegóły: %(url)s"
+msgstr "বিস্তারিত: %(url)s"
+
+#: apps/calendar_feed/feed.py
+#, python-format
+msgid "%(stage)s: otwarcie"
+msgstr "%(stage)s: শুরু"
+
+#: apps/calendar_feed/feed.py
+#, python-format
+msgid "%(stage)s: termin oddania prac"
+msgstr "%(stage)s: জমা দেওয়ার শেষ সময়"
+
+#: apps/calendar_feed/feed.py
+#, python-format
+msgid "%(stage)s: zamknięcie etapu"
+msgstr "%(stage)s: পর্ব শেষ"
+
+#: apps/calendar_feed/feed.py
+msgid "Rejestracja uczestników: start"
+msgstr "অংশগ্রহণকারী নিবন্ধন: শুরু"
+
+#: apps/calendar_feed/feed.py
+msgid "Rejestracja uczestników: koniec"
+msgstr "অংশগ্রহণকারী নিবন্ধন: শেষ"
+
+#: templates/calendar_feed/_subscribe.html
+msgid "Kalendarz warsztatów i terminów"
+msgstr "কর্মশালা ও তারিখের ক্যালেন্ডার"
+
+#: templates/calendar_feed/_subscribe.html
+msgid "Dodaj warsztaty i terminy olimpiady do swojego kalendarza – wpisy same się zaktualizują, gdy zmieni się harmonogram."
+msgstr "অলিম্পিয়াডের কর্মশালা ও তারিখগুলি আপনার ক্যালেন্ডারে যোগ করুন – সময়সূচি বদলালে এন্ট্রিগুলি নিজে থেকেই হালনাগাদ হবে।"
+
+#: templates/calendar_feed/_subscribe.html
+#: templates/cms/blocks/schedule.html
+msgid "Dodaj do Google Calendar"
+msgstr "Google Calendar-এ যোগ করুন"
+
+#: templates/calendar_feed/_subscribe.html
+msgid "Dodaj do Outlook / Apple"
+msgstr "Outlook / Apple-এ যোগ করুন"
+
+#: templates/calendar_feed/_subscribe.html
+msgid "Pobierz .ics"
+msgstr ".ics ডাউনলোড করুন"
+
+#: templates/calendar_feed/_subscribe.html
+msgid "Link do spotkania podajemy zalogowanym uczestnikom w Wiadomościach – w kalendarzu publicznym go nie ma."
+msgstr "মিটিংয়ের লিংক লগ ইন করা অংশগ্রহণকারীদের বার্তায় জানানো হয় – সর্বজনীন ক্যালেন্ডারে এটি নেই।"

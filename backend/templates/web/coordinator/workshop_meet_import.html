@@ -1,0 +1,70 @@
+{% extends "web/coordinator/base.html" %}
+{% comment %}
+  Import raportu obecności Google Meet – krok 1: warsztat, źródło (plik albo link) i próg (WS-ATT-02).
+
+  Instrukcja „skąd wziąć raport” stoi na tej stronie, a nie tylko w podręczniku: koordynator robi to
+  po każdych zajęciach, ale ustawienia udostępnienia w Arkuszach Google pamięta się słabo, a odmowa
+  „arkusz nie jest udostępniony” bez wskazówki, co kliknąć, kończy się ręcznym przepisywaniem kratek.
+  Bez JavaScriptu (CSP) – zwykły formularz.
+{% endcomment %}
+{% block title %}Import z Google Meet – obecność na warsztatach – panel koordynatora{% endblock %}
+{% block panel_eyebrow %}<a href="{% url 'web:coordinator-workshop-attendance' %}">Obecność na warsztatach</a>{% endblock %}
+{% block panel_title %}Import obecności z Google Meet{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Raport obecności, który Google Meet wysyła organizatorowi po spotkaniu, zamieniamy na
+    obecności uczestników tego konkursu. Najpierw zobaczysz podgląd dopasowania – nic nie zapisze się
+    bez Twojego zatwierdzenia, a import tylko <strong>dokłada</strong> obecności, nigdy ich nie kasuje.</p>
+{% endblock %}
+{% block panel_content %}
+
+{% if not edition %}
+  <p class="hint">Nie ustawiono bieżącej edycji — nie ma dla kogo importować obecności.</p>
+{% elif not workshops %}
+  <p class="hint">Harmonogram warsztatów jest pusty. Warsztaty biorą się z bloku „harmonogram” na stronie
+    <a href="/warsztaty/">/warsztaty/</a> (wiersze z wypełnionym polem „termin (data)”).</p>
+{% else %}
+
+<section class="section">
+  <div class="card">
+    <form method="post" class="form form--wide" enctype="multipart/form-data" novalidate>
+      {% csrf_token %}
+      {{ form.non_field_errors }}
+      <p>{{ form.workshop.errors }}{{ form.workshop.label_tag }} {{ form.workshop }}</p>
+      <p>{{ form.file.errors }}{{ form.file.label_tag }} {{ form.file }}
+        <span class="helptext" id="{{ form.file.auto_id }}_helptext">{{ form.file.help_text }}</span></p>
+      <p>{{ form.link.errors }}{{ form.link.label_tag }} {{ form.link }}
+        <span class="helptext" id="{{ form.link.auto_id }}_helptext">{{ form.link.help_text }}</span></p>
+      <p>{{ form.threshold.errors }}{{ form.threshold.label_tag }} {{ form.threshold }}
+        <span class="helptext" id="{{ form.threshold.auto_id }}_helptext">{{ form.threshold.help_text }}</span></p>
+      <div class="actions">
+        <button type="submit" class="btn btn--primary">Pokaż podgląd dopasowania</button>
+        <a class="btn btn--ghost" href="{% url 'web:coordinator-workshop-attendance' %}">Wróć do tabeli obecności</a>
+      </div>
+    </form>
+  </div>
+</section>
+
+<section class="section">
+  <div class="card card--quiet">
+    <h2 class="mt-0">Skąd wziąć raport</h2>
+    <ol>
+      <li>Przed zajęciami włącz <strong>Śledzenie obecności</strong>: w Kalendarzu Google przy wydarzeniu
+        „Zmień ustawienia rozmowy wideo” → „Śledzenie obecności” → „Zapisz”, albo w trakcie spotkania
+        „Ustawienia gospodarza” → „Śledzenie obecności”. Funkcja jest w płatnych wersjach Google
+        Workspace (m.in. Business Plus, Enterprise, Education Plus).</li>
+      <li>Po spotkaniu organizator dostaje e-mail z arkuszem „raport obecności”.</li>
+      <li><strong>Link:</strong> w arkuszu kliknij „Udostępnij” → „Każdy, kto ma link” → „Wyświetlający”
+        i wklej adres z paska przeglądarki. Pierwsza karta to spotkanie główne; inną kartę wskaże numer
+        <code>gid</code> w linku.</li>
+      <li><strong>Albo plik:</strong> „Plik” → „Pobierz” → „Wartości rozdzielone przecinkami (.csv)” albo
+        „Microsoft Excel (.xlsx)” i wgraj go tutaj. Tak zrobisz, jeśli arkusza nie wolno udostępniać.</li>
+    </ol>
+    <p class="hint">Rozpoznajemy nagłówki polskie i angielskie (Imię / First name, Nazwisko / Last name,
+      Adres e-mail / Email, Czas trwania / Duration, Godzina dołączenia / Time joined, Godzina wyjścia /
+      Time exited) w dowolnej kolejności, także z blokiem kodu i daty spotkania nad tabelą. Wiele wierszy
+      tej samej osoby sumujemy. Osoby dopasowujemy po adresie e-mail, a potem po imieniu i nazwisku –
+      wyłącznie wśród uczestników tej edycji. Raport nie jest nigdzie zapisywany.</p>
+  </div>
+</section>
+{% endif %}
+{% endblock %}

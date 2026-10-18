@@ -18,6 +18,7 @@ import pytest
 
 from apps.accounts.models import CompetitionRole
 from apps.accounts.tests.factories import ParticipantFactory
+from apps.problem_translations import markup
 from apps.tenancy.tests.factories import grant_membership
 from apps.workshop_materials import preview as preview_module
 from apps.workshop_materials.models import MaterialKind, MaterialStatus, WorkshopMaterial
@@ -130,7 +131,7 @@ def test_ordinary_markdown_stays_well_under_the_budget():
     chapter = "## Rozdział\n\nTekst **pogrubiony**, *kursywa*, `kod` i $x$.\n\n```python\nprint(1)\n```\n\n"
     text = chapter * 10_000  # ok. 750 KB
 
-    assert preview_module.markdown_cost(text) < preview_module.MARKDOWN_COST_BUDGET // 5
+    assert markup.markdown_cost(text) < markup.cost_budget() // 5
 
 
 # --- widok: dostęp, liczenie i nagłówki pobrania --------------------------------------------------------

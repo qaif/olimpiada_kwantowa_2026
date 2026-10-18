@@ -29,6 +29,14 @@
   overflow-wrap: anywhere;
 }
 
+/* Tekst ponad budżet kosztu składu (``markup.plain_html``, TR-01b) – uciekany, bez znaczników. */
+.tr-doc .tr-plain {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: inherit;
+  margin: 0;
+}
+
 .tr-doc table.tr-table {
   border-collapse: collapse;
   margin: 0.75rem 0;

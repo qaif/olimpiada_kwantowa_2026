@@ -1,0 +1,32 @@
+# Zaświadczenia z warsztatów wystawiane automatycznie (WS-CERT-02) – bn.
+msgid ""
+msgstr ""
+"Project-Id-Version: Olimpiada Kwantowa\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-09 23:30+0200\n"
+"PO-Revision-Date: 2026-10-09 23:30+0200\n"
+"Last-Translator: Olimpiada Kwantowa\n"
+"Language-Team: Bengali\n"
+"Language: bn\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: apps/workshop_certificates/notifications.py
+msgid "Zaświadczenie z warsztatów jest gotowe – Olimpiada Kwantowa"
+msgstr "আপনার কর্মশালার সনদ প্রস্তুত – কোয়ান্টাম অলিম্পিয়াড"
+
+#: apps/workshop_certificates/notifications.py
+#, python-format
+msgid "Zaświadczenie z warsztatów jest gotowe – %(competition)s"
+msgstr "আপনার কর্মশালার সনদ প্রস্তুত – %(competition)s"
+
+#: apps/workshop_certificates/notifications.py
+#, python-format
+msgid "Wystawiliśmy Ci zaświadczenie o udziale w warsztatach (edycja %(edition)s). Dokument w PDF-ie pobierzesz po zalogowaniu, w zakładce „Dyplomy”:"
+msgstr "আমরা আপনাকে কর্মশালায় অংশগ্রহণের সনদ (সংস্করণ %(edition)s) প্রদান করেছি। লগ ইন করার পরে “সনদপত্র” ট্যাবে PDF ডাউনলোড করতে পারবেন:"
+
+#: apps/workshop_certificates/notifications.py
+msgid "Na zaświadczeniu są wymienione tematy i terminy zajęć, na których byłeś(-aś)."
+msgstr "সনদে আপনি যে সেশনগুলোতে উপস্থিত ছিলেন সেগুলোর বিষয় ও তারিখ উল্লেখ আছে।"

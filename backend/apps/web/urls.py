@@ -3,6 +3,7 @@
 from django.urls import path
 
 from apps.alumni.urls import urlpatterns as alumni_urlpatterns
+from apps.calendar_feed.urls import urlpatterns as calendar_feed_urlpatterns  # CAL-01
 from apps.consent_gate.urls import urlpatterns as consent_gate_urlpatterns  # CONS-01
 from apps.delegation_logistics.urls import urlpatterns as final_logistics_urlpatterns
 from apps.email_delivery.urls import urlpatterns as email_delivery_urlpatterns  # MAIL-02: odbicia
@@ -43,6 +44,7 @@ from .urls_scoring import urlpatterns as scoring_urlpatterns
 from .urls_student_status import urlpatterns as student_status_urlpatterns
 from .urls_video import urlpatterns as video_urlpatterns
 from .urls_webinars import urlpatterns as webinar_urlpatterns
+from .urls_workshop_certificates import urlpatterns as workshop_certificate_urlpatterns
 from .urls_workshop_materials import urlpatterns as workshop_material_urlpatterns
 from .views import (
     account,
@@ -311,6 +313,8 @@ urlpatterns = [
         participant_tools.ParticipantCalendarIcsView.as_view(),
         name="participant-calendar-ics",
     ),
+    # Publiczny ``/kalendarz.ics`` konkursu (CAL-01) – bez logowania, do subskrypcji w Google/Outlook/Apple.
+    *calendar_feed_urlpatterns,
     path("me/archive/", participant_tools.ParticipantArchiveView.as_view(), name="participant-archive"),
     # Własne dyplomy i zaświadczenia. Lista i pobranie, nic więcej – dokumenty wystawia komitet.
     path(
@@ -1050,6 +1054,11 @@ urlpatterns = [
         name="coordinator-workshop-attendance",
     ),
     path(
+        "coordinator/workshops/attendance/meet/",
+        coordinator_workshops.WorkshopMeetImportView.as_view(),
+        name="coordinator-workshop-attendance-meet",
+    ),
+    path(
         "coordinator/workshops/certificates/",
         coordinator_workshops.IssueWorkshopCertificatesView.as_view(),
         name="coordinator-workshop-certificates",
@@ -1246,6 +1255,8 @@ urlpatterns = [
     *student_status_urlpatterns,
     # --- materiały z warsztatów (prośba organizatora z 24.09.2026, flaga ``workshop_materials``) --
     *workshop_material_urlpatterns,
+    # --- zaświadczenia z warsztatów wystawiane automatycznie z obecności (WS-CERT-02) ---------------
+    *workshop_certificate_urlpatterns,
     # --- ocena AI (za flagą ``ai_grading``, prośba organizatora z 24.09.2026) --------------------
     *ai_grading_urlpatterns,
     # --- wiadomości 1:1 (zadanie CZ-01, 30.09.2026) ---------------------------------------------

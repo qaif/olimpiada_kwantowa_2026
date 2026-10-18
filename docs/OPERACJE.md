@@ -6789,6 +6789,81 @@ serwery odsyłają odbicia na `noreply@` – żaden z tych listów nie miał dok
 - **Wyłączenie:** `MAIL_INBOUND_FORWARD=` (pusty) albo `MAIL_INBOUND_BIND` usunięty i
   `docker compose up -d mail`.
 
+### 49.10. Listy do domen Microsoftu przez zewnętrzny relay (MAIL-04)
+
+Outlook.com/Hotmail odrzucają pocztę z `169.58.242.197` błędem `S3150` (blokada całego zakresu
+Contabo); Microsoft odmówił odblokowania („Not qualified for mitigation”). Skrypt
+`deploy/mail/docker-init.d/70-relay.sh` kieruje listy do wybranych domen przez serwer SMTP dostawcy –
+**reszta poczty idzie jak dotąd**, wprost do MX-ów. Podpis DKIM nadal robi nasz relay (list wychodzi do
+dostawcy już podpisany), restrykcje nadawców (OPS-02) i skrzynka odbić (§ 52) bez zmian. Specyfikacja:
+`docs/tasks/MAIL-04.md`.
+
+| Zmienna (`.env`) | Znaczenie |
+|---|---|
+| `MAIL_RELAY_HOST` | `[host]:587` dostawcy. Pusty = wyłączone. Zawsze port STARTTLS (587/2525/2587), **nie** 465. |
+| `MAIL_RELAY_DOMAINS` | pusty = `outlook.com hotmail.com live.com msn.com outlook.pl hotmail.pl live.pl passport.com`; własna lista spacjami (np. z dopisaną domeną szkoły w Microsoft 365); `*` = cała poczta (awaryjnie). |
+| `MAIL_RELAY_USER`, `MAIL_RELAY_PASSWORD` | SASL; oba puste = bez SASL (Google z uwierzytelnieniem adresem IP). |
+| `MAIL_RELAY_TLS_LEVEL` | `encrypt` (domyślnie, TLS wymagany) albo `secure` (TLS + certyfikat z nazwą hosta relaya – lepsze, gdy dostawca ma zwykły certyfikat publiczny; sprawdź próbą). |
+
+**Wybór dostawcy – kroki u każdego** (stan dokumentacji dostawców z 18.10.2026; wartości rekordów
+zawsze kopiuj z panelu dostawcy, nie stąd). W każdym przypadku: **jeden** rekord `v=spf1` na domenę
+(scalać, nie dodawać drugiego – § 49.2), DMARC bez zmian, MX domeny bez zmian (zostaje `mail.<domena>`,
+§ 49.9), umowa powierzenia (DPA) z dostawcą przed włączeniem – dostaje adresy i treść listów.
+
+| Dostawca | `MAIL_RELAY_HOST` i logowanie | Domena nadawcy u dostawcy | SPF domeny | Koperta, odbicia, uwagi |
+|---|---|---|---|---|
+| **Google Workspace** (SMTP relay) | `[smtp-relay.gmail.com]:587`. Konsola administratora → Gmail → Routing → **SMTP relay service**: „Only accept mail from the specified IP addresses” = `169.58.242.197`, „Allowed senders” = „Only addresses in my domains”, „Require TLS encryption” zaznaczone. Login i hasło puste (opcja „Require SMTP Authentication” wymaga konta Workspace i hasła, a Google wycofuje logowanie samym hasłem – lepiej IP). | domena musi należeć do konta Workspace (dodana i zweryfikowana w konsoli). Dokumentacja Google mówi o domenie **podstawowej** i jej subdomenach – czy przejdzie domena dodatkowa (np. `iqo-official.org`), sprawdzić próbą przed włączeniem. | **dopisać** `include:_spf.google.com`, np. `v=spf1 ip4:169.58.242.197 include:_spf.google.com -all` – koperta zostaje `noreply@<domena>`, więc SPF jest sprawdzany na adresach Google. To kilka zapytań DNS z limitu 10. | koperta bez zmian: odbicia od Microsoftu wracają na `noreply@` przez nasz MX (§ 49.9). Limity Google: m.in. 100 odbiorców na transakcję, 10 000 odbiorców na dobę na użytkownika (gdy nadawca koperty jest kontem Workspace). |
+| **Brevo** | `[smtp-relay.brevo.com]:587`; login SMTP i **klucz SMTP** (nie klucz API) z ustawień „SMTP & API”, karta SMTP. | Senders, Domains & Dedicated IPs → Domains → dodaj i uwierzytelnij: kod Brevo (TXT), DKIM (dwa CNAME `brevo1._domainkey`/`brevo2._domainkey` albo TXT – jak pokaże panel), DMARC – **nie** dodawać drugiego, gdy domena już ma. | bez zmian na współdzielonym IP – koperta jest w domenie Brevo, DMARC przechodzi przez DKIM Brevo z `d=<domena>`. | odbicia trafiają do Brevo (panel), nie do § 52. **Wyłączyć śledzenie otwarć i kliknięć** – przepisuje treść i łamie nasz podpis DKIM. |
+| **Mailgun EU** | `[smtp.eu.mailgun.org]:587` (domena założona w regionie EU – dane logowania są per region); login i hasło SMTP domeny z Sending → Domain Settings → SMTP Credentials (zwykle `postmaster@<domena>`). | dodać domenę wysyłkową w regionie EU, w DNS rekord DKIM (TXT) z panelu. Rekordów MX Mailguna (`mxa`/`mxb.mailgun.org`) **nie** ustawiać na domenie głównej – służą do odbioru, a MX zostaje nasz. | **dopisać** `include:mailgun.org`. | odbicia do Mailguna (panel, webhooki). Wyłączyć śledzenie (CNAME śledzenia niepotrzebny). |
+| **Amazon SES** | `[email-smtp.<region>.amazonaws.com]:587`, np. region `eu-central-1`; **dane SMTP** z konsoli SES (to nie klucze dostępu AWS; osobne dla każdego regionu). | tożsamość typu domena z Easy DKIM – trzy CNAME `<token>._domainkey.<domena>` z panelu; wniosek o wyjście z trybu sandbox (w sandboxie listy tylko na zweryfikowane adresy). | bez zmian – koperta domyślnie w subdomenie `amazonses.com`. Opcjonalnie własna domena MAIL FROM (subdomena: MX `10 feedback-smtp.<region>.amazonses.com` i TXT `v=spf1 include:amazonses.com ~all`). | odbicia do SES (powiadomienia). SES przepisuje `Message-ID`, a nasz OpenDKIM go podpisuje – nasz podpis nie przejdzie, DMARC przechodzi przez Easy DKIM z `d=<domena>`. |
+
+`iqo-official.org` ma ścisły DMARC (`adkim=s; aspf=s`, § 49): u każdego z czterech dostawców przechodzi
+przez DKIM z `d=iqo-official.org` (nasz albo dostawcy), przez SPF – tylko przy Google.
+
+**Włączenie** (na serwerze, `/opt/olimpiada`):
+
+1. U dostawcy: domeny z `ALLOWED_SENDER_DOMAINS` zweryfikowane, dane logowania (albo IP serwera
+   dopisane), SPF wg tabeli. `docker compose exec web python manage.py check_mail_dns <domena>` – SPF
+   dla naszego IP ma dalej przechodzić (rekord bez przekroczenia limitu 10 zapytań).
+2. `.env`: `MAIL_RELAY_HOST=[smtp-relay.gmail.com]:587` (oraz `MAIL_RELAY_USER` i `MAIL_RELAY_PASSWORD`,
+   jeśli dostawca wymaga SASL), potem `docker compose up -d mail` (tylko relay; kolejka zostaje).
+3. `docker compose logs mail | grep olimpiada-relay` – jedna linia
+   `relay [host]:587 (TLS encrypt, SASL jako … / bez SASL …) dla: outlook.com hotmail.com …`.
+   `OSTRZEŻENIE` = zła wartość, relay **nie** jest włączony (poczta jak przed zmianą). Hasła w logu nie
+   ma nigdy; plik `/etc/postfix/olimpiada_relay_sasl` ma prawa 600.
+4. `docker compose exec mail postconf transport_maps smtp_tls_policy_maps` – w `transport_maps` dwie
+   tablice (odbicia z § 49.7 pierwsze, relay drugi);
+   `docker compose exec mail postmap -q outlook.com lmdb:/etc/postfix/olimpiada_relay_transport`
+   → `smtp:[smtp-relay.gmail.com]:587`.
+
+**Test na adres w outlook.com** (skrzynka testowa operatora):
+
+1. `docker compose exec web python manage.py sendtestemail <adres>@outlook.com` (albo „Nie pamiętasz
+   hasła?” dla konta z tym adresem).
+2. `docker compose logs mail --since 10m | grep -E "outlook.com>|TLS connection established to"` –
+   `relay=<host dostawcy>[…]:587 … status=sent (250 …)` i `TLS connection established to <host dostawcy>`.
+   Przed włączeniem było tu `status=bounced (… S3150 …)`.
+3. W Outlook.com (Odebrane albo Wiadomości-śmieci) → wyświetl źródło wiadomości → `Authentication-Results`:
+   `dkim=pass header.d=<domena>` i `dmarc=pass`.
+4. Kontrola, że reszta idzie wprost: list na Gmaila – w logu `relay=gmail-smtp-in.l.google.com[…]:25`.
+
+Typowe błędy w logu: `SASL authentication failed` – zły login albo hasło (np. klucz API zamiast klucza
+SMTP); `TLS is required, but was not offered` – port bez STARTTLS; odmowa 5xx od dostawcy (nadawca
+niezweryfikowany, IP niedopisane, sandbox SES) – list wraca jako lokalne odbicie i adres trafia do § 52
+jak każdy inny. Listy odłożone (4xx) Postfix ponawia sam; po poprawce `docker compose up -d mail`
+i `docker compose exec mail postqueue -f`.
+
+**Wyłączenie:** `MAIL_RELAY_HOST=` (pusty) w `.env` i `docker compose up -d mail` – w logu
+`[olimpiada-relay] wyłączony`. Nowy kontener nie ma żadnych tablic relaya. Rekordy dostawcy mogą
+zostać, ale po rezygnacji z dostawcy usuń jego `include:` z SPF – autoryzuje cudze serwery.
+
+**Ograniczenia:** domeny szkół w Microsoft 365 (własna domena, MX `*.mail.protection.outlook.com`) nie
+pasują do listy domyślnej – Postfix wybiera transport po adresie, nie po MX; dopisz domenę do
+`MAIL_RELAY_DOMAINS` albo użyj `*`. Przy `*` przekierowana poczta przychodząca (`MAIL_INBOUND_FORWARD`,
+§ 49.9) idzie dalej wprost – ma cudzą kopertę, której relay dostawcy nie przyjmie. Odbicia wygenerowane
+przez dostawcę nie trafiają na listę z § 52 (inny `Reporting-MTA` albo inna koperta) – przy Brevo,
+Mailgunie i SES patrz panel dostawcy.
+
 ## 50. Dostępność (A11Y-01, `docs/tasks/A11Y-01.md`)
 
 Serwis ma spełniać WCAG 2.1 AA. Pilnuje tego suita **axe-core + klawiatura** (`e2e/a11y/`), która

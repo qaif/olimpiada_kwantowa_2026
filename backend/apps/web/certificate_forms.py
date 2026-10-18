@@ -139,3 +139,64 @@ class WorkshopAttendanceImportForm(forms.Form):
             )
         self.rows = rows
         return upload
+
+
+class MeetAttendanceImportForm(forms.Form):
+    """Import raportu obecności Google Meet: warsztat, plik **albo** link, próg (WS-ATT-02 § 3.1).
+
+    Formularz sprawdza wyłącznie kształt wejścia – czy podano dokładnie jedno źródło i czy próg ma
+    sens. Odczyt pliku, walidacja linku i pobranie arkusza są w ``apps.cms.meet_report``, bo ten
+    sam kod czytają testy bez żądania, a pobranie z sieci nie ma się dziać przy ``is_valid()``.
+
+    Warsztat jest opcjonalny: pierwsza pozycja listy to „rozpoznaj po dacie z raportu”. Raport Meet
+    nie zna klucza warsztatu, ale zna datę spotkania – a koordynator importujący po każdych zajęciach
+    ma w harmonogramie zwykle jeden warsztat tego dnia.
+    """
+
+    workshop = forms.ChoiceField(label="Warsztat", required=False)
+    file = forms.FileField(
+        label="Plik raportu (CSV albo XLSX)",
+        required=False,
+        help_text="Arkusz z e-maila od Google Meet pobrany jako CSV albo XLSX.",
+    )
+    link = forms.CharField(
+        label="albo link do arkusza Google",
+        required=False,
+        max_length=2000,
+        widget=forms.URLInput(attrs={"placeholder": "https://docs.google.com/spreadsheets/d/…/edit#gid=0"}),
+        help_text="Arkusz udostępniony: „Każdy, kto ma link – może wyświetlać”.",
+    )
+    threshold = forms.IntegerField(
+        label="Minimalny czas obecności (minuty)",
+        min_value=0,
+        # Dziesięć godzin – ten sam sufit, co ``apps.cms.meet_import.MAX_THRESHOLD_MINUTES``.
+        max_value=600,
+        help_text="Osoby, które były krócej, trafią do sekcji „poniżej progu” – możesz je oznaczyć ręcznie.",
+    )
+
+    def __init__(self, *args, workshops=(), **kwargs):
+        from apps.cms.meet_import import DEFAULT_THRESHOLD_MINUTES
+
+        super().__init__(*args, **kwargs)
+        self.workshops = list(workshops)
+        self.fields["workshop"].choices = [("", "— rozpoznaj po dacie z raportu —")] + [
+            (row["key"], f"{row['date_value']:%d.%m.%Y} – {row['topic']}") for row in self.workshops
+        ]
+        self.fields["threshold"].initial = DEFAULT_THRESHOLD_MINUTES
+
+    def clean(self):
+        cleaned = super().clean()
+        has_file = bool(cleaned.get("file"))
+        has_link = bool((cleaned.get("link") or "").strip())
+        if has_file == has_link:
+            raise forms.ValidationError(
+                "Wgraj plik raportu albo wklej link do arkusza – jedno z dwóch."
+                if not has_file
+                else "Podaj jedno źródło: plik albo link, nie oba naraz."
+            )
+        return cleaned
+
+    @property
+    def selected_workshop(self) -> dict | None:
+        key = self.cleaned_data.get("workshop") or ""
+        return next((row for row in self.workshops if row["key"] == key), None)

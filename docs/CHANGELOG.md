@@ -12,6 +12,105 @@ podsekcją `### <tytuł>` wydania `## v<x.y.z> – <data tagu> – <opis tagu>`.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## [Unreleased] – Codzienne odświeżanie łatek systemowych w obrazach (APT_REFRESH)
+
+- Warstwa `apt-get upgrade` w `backend/Dockerfile` i `djcms/Dockerfile` była w cache'u warstw (gha w CI, lokalny
+  na serwerze) i odświeżała się tylko przy zmianie obrazu bazowego – 18.10.2026 bramka Trivy zatrzymała wszystkie
+  PR-y na curl CVE-2026-8286/8927/92392, choć Debian miał już 8.14.1-2+deb13u7. Nowy argument `APT_REFRESH` (data)
+  podawany przez CI (`date -u +%F`), `docker-compose.yml` i `scripts/deploy.sh` – nowa warstwa raz dziennie.
+
+## [Unreleased] – Import obecności na warsztatach z Google Meet (WS-ATT-02)
+
+Specyfikacja: [`tasks/WS-ATT-02.md`](tasks/WS-ATT-02.md); instrukcja dla organizatora:
+`PODRECZNIK-ORGANIZATORA.md` § 4.13.
+
+- Nowy ekran `/coordinator/workshops/attendance/meet/` (przycisk „Importuj raport z Google Meet” na
+  ekranie obecności): raport obecności Meet jako **plik** (CSV w UTF-8/UTF-16/Windows-1250, XLSX) albo
+  **link** do arkusza udostępnionego „każdy, kto ma link” – serwer pobiera wyłącznie
+  `docs.google.com/spreadsheets/d/<ID>/export?format=csv&gid=<GID>` (przekierowania tylko na
+  `*.googleusercontent.com`, limit 5 MB i 20 s, 20 pobrań na godzinę na konto – scope `meet_link`).
+- Parser nagłówków PL/EN w dowolnej kolejności, z blokiem meta nad tabelą; czasy „1 godz. 5 min”,
+  „1 hr 5 min”, „65 min”, „01:05:00” i komórki czasu XLSX; wiele wierszy osoby sumowane.
+- Dopasowanie do uczestników **tego konkursu i bieżącej edycji**: e-mail (Gmail bez kropek i `+tag`),
+  potem imię i nazwisko; podgląd dwuetapowy (dopasowani, poniżej progu – domyślnie 30 min, niejednoznaczni
+  z wyborem, nieznalezieni z polem kodu, już oznaczeni, nauczyciele pominięci); podpowiedź warsztatu po
+  dacie spotkania. Zapis tylko **dokłada** obecności (`apps.cms.workshops.add_attendance`); stary import
+  CSV `kod,warsztat` bez zmian.
+- RODO: raport nie jest zapisywany (podgląd w podpisanym tokenie z TTL 30 min, same identyfikatory);
+  audyt `workshop.attendance_imported` z liczbami, bez danych osobowych; rejestr czynności **1.23**
+  (obecność na warsztatach i raport Meet w wierszu „wyniki”).
+- Bez migracji i bez nowych zależności (`requests`, `openpyxl` już były).
+
+## [Unreleased] – Markdown tłumaczeń bez kosztu kwadratowego (TR-01b)
+
+Spec: [`tasks/TR-01b.md`](tasks/TR-01b.md).
+
+- **Konwerter liniowy** (`apps/problem_translations/markup.py`): pogrubienie, kursywa, `\(…\)`,
+  `$$…$$`/`\[…\]` i bloki kodu (HTML i PDF) próbują wyrażenia tylko tam, gdzie jest zamknięcie
+  w zasięgu – niedomknięty znacznik nie skanuje już tekstu do końca. Wiersz 200 KB z „`**a `”
+  ×50 000 składa się w ok. 0,05 s zamiast ok. 142 s. Separator tabeli zapisany jednoznacznie (dotąd
+  wiersz spacji pod wierszem z `|` – kwadratowo, poza szacunkiem WM-FMT-01). Wynik dla zwykłych
+  tekstów identyczny (test różnicowy z `re.sub`).
+- **Jedna bramka kosztu dla wszystkich**: `markdown_cost` i budżet przeniesione z podglądu
+  materiałów do `markup.render_within_budget`; ustawienie `MARKDOWN_COST_BUDGET` (5·10⁷). Tłumaczenie
+  ponad budżet – uciekany tekst bez znaczników (`<pre class="tr-plain">`), w PDF-ie same akapity;
+  podgląd materiałów bez zmian zachowania (zwykły tekst z adnotacją).
+
+## [Unreleased] – Poczta do domen Microsoftu przez zewnętrzny relay (MAIL-04)
+
+Outlook.com/Hotmail odrzucają adres IP serwera (`S3150`, blokada zakresu Contabo, bez odblokowania).
+Specyfikacja: [`tasks/MAIL-04.md`](tasks/MAIL-04.md); obsługa: OPERACJE § 49.10.
+
+- Nowy skrypt startowy relaya `deploy/mail/docker-init.d/70-relay.sh`: przy ustawionym
+  `MAIL_RELAY_HOST` listy do `outlook.com hotmail.com live.com msn.com outlook.pl hotmail.pl live.pl
+  passport.com` (albo `MAIL_RELAY_DOMAINS`; `*` = cała poczta) idą przez serwer SMTP dostawcy – Google
+  Workspace, Brevo, Mailgun EU, Amazon SES albo dowolny inny. Reszta poczty wprost do MX-ów, jak dotąd.
+- Tablica transportu dopisana do `transport_maps` z `50-bounces.sh` (adresy capture/discard mają
+  pierwszeństwo), TLS do relaya zawsze wymagany (`smtp_tls_policy_maps`: `encrypt` albo `secure`),
+  SASL z `MAIL_RELAY_USER`/`MAIL_RELAY_PASSWORD` w pliku 600 – hasło nigdy w logu. Brak
+  `MAIL_RELAY_HOST` = konfiguracja bez zmian; zła wartość = ostrzeżenie i bez zmian.
+- Zmienne w `docker-compose.yml` (usługa `mail`) i `.env.example`; tabela dostawców z krokami
+  (SPF, weryfikacja domeny, DKIM, odbicia) i test na adres w outlook.com w OPERACJE § 49.10.
+- Test `scripts/tests/mail_relay_test.sh` (atrapy `postconf`/`postmap`) w jobie CI `mail-scripts`.
+
+## [Unreleased] – Automatyczne zaświadczenia za warsztaty na podstawie obecności (WS-CERT-02)
+
+Specyfikacja: [`tasks/WS-CERT-02.md`](tasks/WS-CERT-02.md); opis dla organizatora: PODRĘCZNIK-ORGANIZATORA § 8.1.
+
+- **Nowa aplikacja `apps.workshop_certificates`** (migracja `workshop_certificates.0001`, dwie puste
+  tabele): reguła na edycję – „wystawiaj automatycznie”, próg **N różnych warsztatów** z harmonogramu,
+  opcjonalny szablon graficzny (rodzaj „warsztaty”/„wszystkie”, tego konkursu), list „Twoje zaświadczenie
+  jest gotowe” (przełącznik, nieobowiązkowy, w języku ucznia). Brak wiersza = wyłączone.
+- **Wyzwalacz:** `cms.WorkshopAttendance.objects.bulk_create` wysyła sygnał `attendance_recorded`
+  (łapie kratki, import CSV i import z platformy wideo bez zmian w tych ekranach); odbiornik zbiera
+  identyfikatory i po commicie zleca **jedno** zadanie Celery na transakcję
+  (`apps.workshop_certificates.tasks.issue_for_participants`, kolejka `default`).
+- Idempotentnie (jeden dokument na osobę i edycję, także po ręcznym „Wystaw (ZIP)”), **bez odbierania**
+  przy zdjęciu obecności; konta usunięte bez nowych dokumentów.
+- **Ekran** `/coordinator/workshops/auto-certificates/` (Raporty → Zaświadczenia z warsztatów): reguła,
+  liczby, „Przelicz teraz” (zadanie `recalculate_edition`, raz na 30 s), lista poniżej progu.
+- Audyt `workshop_certificates.policy_updated`, `.recalculate_requested`, `.auto_issued` – liczby, bez
+  danych osobowych. Nowy temat listu zamrożony w `apps/tenancy/tests/test_invariants.py`.
+
+## [Unreleased] – Publiczny kalendarz ICS z warsztatami i terminami (CAL-01)
+
+Prośba organizatora z 18.10.2026 (pkt 9). Specyfikacja: [`tasks/CAL-01.md`](tasks/CAL-01.md).
+
+- **`GET /kalendarz.ics`** – publiczny kalendarz konkursu z żądania (bez logowania, do subskrypcji):
+  warsztaty z tabeli `/warsztaty/` (godziny z pola „godziny”, prowadzący, odnośnik do strony), otwarcie
+  i termin oddania prac etapów bieżącej edycji, dni etapu stacjonarnego, okno rejestracji i wydarzenia
+  linii czasu. RFC 5545 pisany ręcznie (bez nowej zależności): czas lokalny z `TZID` i `VTIMEZONE`
+  z bazy IANA (zmiana czasu bez przesunięć), stabilne `UID` (klucz warsztatu, klucze główne),
+  `LAST-MODIFIED`/`SEQUENCE` z publikacji strony, zawijanie 75 oktetów i cytowanie wspólne
+  z `apps.cms.calendar`. **Bez linku Meet** – adresy pokoi wideo są dodatkowo wycinane.
+- `text/calendar; charset=utf-8`, `Cache-Control: public, max-age=900`, `ETag`/`304`; wpis w Redisie
+  na licznikach wersji pamięci stron – publikacja strony, zapis edycji, etapu i wydarzenia unieważniają
+  kanał bez nowych sygnałów. Kanał nie jest na allow-liście `page_cache` (ta obsługuje tylko HTML).
+- Przyciski „Dodaj do Google Calendar”, „Dodaj do Outlook / Apple” (`webcal://`), „Pobierz .ics” na
+  `/warsztaty/` i w `/me/calendar/`; przy każdym warsztacie z datą – odnośnik do Google Calendar dla tych
+  jednych zajęć. Nowa aplikacja `apps.calendar_feed` (bez modeli i migracji), napisy w 10 językach.
+- Prywatny kanał uczestnika z linkiem Meet – świadomie poza zakresem, projekt w CAL-01 § 4.
+
 ## [Unreleased] – Audyt bezpieczeństwa 10.10.2026 (6 wysokich, 21 średnich, 22 niskie)
 
 Pełny raport: [`AUDYT-BEZPIECZENSTWA-2026-10-10.md`](AUDYT-BEZPIECZENSTWA-2026-10-10.md); pozycje

@@ -435,7 +435,8 @@ def test_account_export_contains_the_section():
 def test_register_row_is_conditional(settings, competition):
     from apps.accounts.processing_register import REGISTER_VERSION, activities_for
 
-    assert REGISTER_VERSION == "1.22"
+    # Wiersz wszedł w wersji 1.22; późniejsze wersje rejestru go nie zdejmują.
+    assert tuple(int(part) for part in REGISTER_VERSION.split(".")) >= (1, 22)
     assert "doreczalnosc-poczty" in {activity.key for activity in activities_for(competition)}
     settings.EMAIL_BOUNCE_TRACKING = False
     assert "doreczalnosc-poczty" not in {activity.key for activity in activities_for(competition)}
