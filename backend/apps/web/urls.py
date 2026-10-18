@@ -43,6 +43,7 @@ from .urls_scoring import urlpatterns as scoring_urlpatterns
 from .urls_student_status import urlpatterns as student_status_urlpatterns
 from .urls_video import urlpatterns as video_urlpatterns
 from .urls_webinars import urlpatterns as webinar_urlpatterns
+from .urls_workshop_certificates import urlpatterns as workshop_certificate_urlpatterns
 from .urls_workshop_materials import urlpatterns as workshop_material_urlpatterns
 from .views import (
     account,
@@ -1246,6 +1247,8 @@ urlpatterns = [
     *student_status_urlpatterns,
     # --- materiały z warsztatów (prośba organizatora z 24.09.2026, flaga ``workshop_materials``) --
     *workshop_material_urlpatterns,
+    # --- zaświadczenia z warsztatów wystawiane automatycznie z obecności (WS-CERT-02) ---------------
+    *workshop_certificate_urlpatterns,
     # --- ocena AI (za flagą ``ai_grading``, prośba organizatora z 24.09.2026) --------------------
     *ai_grading_urlpatterns,
     # --- wiadomości 1:1 (zadanie CZ-01, 30.09.2026) ---------------------------------------------

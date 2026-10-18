@@ -1,0 +1,124 @@
+{% extends "web/coordinator/base.html" %}
+{% comment %}
+  Reguła automatycznych zaświadczeń z warsztatów (WS-CERT-02).
+
+  Trzy części, w kolejności pytań koordynatora: „jak to jest ustawione” (formularz), „co z tego
+  wyszło” (liczby i „Przelicz teraz”) i „kogo jeszcze brakuje” (lista poniżej progu – wyłącznie
+  informacyjna, bez przycisków: zaświadczenie poniżej progu wystawia się ręcznym „Wystaw (ZIP)”
+  na ekranie obecności, który zna inną regułę).
+{% endcomment %}
+{% block title %}Zaświadczenia z warsztatów – panel koordynatora{% endblock %}
+{% block panel_title %}Zaświadczenia z warsztatów{% if edition %}: {{ edition.year_label }}{% endif %}{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Serwis sam wystawia zaświadczenie z warsztatów każdemu, kto był na co najmniej tylu
+    warsztatach, ile wpiszesz niżej — zaraz po zapisie obecności (kratki, import CSV, import z platformy
+    wideo). Uczestnik znajdzie dokument w swoim panelu w zakładce „Dyplomy”.</p>
+{% endblock %}
+{% block panel_actions %}
+  <a class="btn btn--secondary" href="{% url 'web:coordinator-workshop-attendance' %}">Obecność na warsztatach</a>
+{% endblock %}
+{% block panel_content %}
+
+{% if not edition %}
+  <p class="hint">Nie ustawiono bieżącej edycji — reguła nie ma do czego się odnosić.</p>
+{% else %}
+
+<section class="section">
+  <div class="card">
+    <h2 class="mt-0">Reguła</h2>
+    <form class="form" method="post" action="{% url 'web:coordinator-workshop-auto-certificates' %}">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="save">
+      {{ form.non_field_errors }}
+      <p>
+        {{ form.enabled }} {{ form.enabled.label_tag }}
+        {{ form.enabled.errors }}
+      </p>
+      <p>
+        {{ form.min_workshops.label_tag }}
+        {{ form.min_workshops }}
+        {{ form.min_workshops.errors }}
+        <span class="helptext">Liczą się <strong>różne</strong> warsztaty z harmonogramu na stronie
+          <a href="/warsztaty/">/warsztaty/</a> — w harmonogramie jest ich teraz {{ evaluation.workshops }}.
+          Próg 1 to ta sama reguła, co ręczne „Wystaw (ZIP)”.</span>
+      </p>
+      {% if threshold_unreachable %}
+        <p class="notice notice--warning">Próg ({{ threshold }}) jest wyższy niż liczba warsztatów
+          w harmonogramie ({{ evaluation.workshops }}) — nikt go teraz nie spełni.</p>
+      {% endif %}
+      <p>
+        {{ form.template.label_tag }}
+        {{ form.template }}
+        {{ form.template.errors }}
+        <span class="helptext">Wybrany szablon obowiązuje <strong>wszystkie</strong> zaświadczenia
+          z warsztatów tej edycji, także wystawione ręcznie. Szablony dodasz na ekranie
+          <a href="{% url 'web:coordinator-certificate-templates' %}">Dyplomy: szablony</a>.</span>
+      </p>
+      <p>
+        {{ form.notify_participants }} {{ form.notify_participants.label_tag }}
+        {{ form.notify_participants.errors }}
+        <span class="helptext">Jeden list na dokument, w języku uczestnika, z odnośnikiem do panelu —
+          tylko dla zaświadczeń wystawionych przez regułę.</span>
+      </p>
+      <button type="submit" class="btn btn--primary">Zapisz regułę</button>
+    </form>
+    {% if policy.pk and policy.updated_by %}
+      <p class="hint">Ostatnia zmiana: {{ policy.updated_at|date:"j E Y, H:i" }}.</p>
+    {% endif %}
+  </div>
+</section>
+
+<section class="section">
+  <div class="card">
+    <h2 class="mt-0">Stan</h2>
+    <dl class="meta-list">
+      <dt>Wystawione automatycznie</dt><dd data-auto-issued>{{ auto_issued }}</dd>
+      <dt>Wszystkie zaświadczenia z warsztatów w edycji</dt><dd data-issued-total>{{ issued_total }}</dd>
+      <dt>Spełnia próg, czeka na wystawienie</dt><dd data-due>{{ due_count }}</dd>
+      <dt>Poniżej progu</dt><dd data-below>{{ below_count }}</dd>
+    </dl>
+    <form method="post" action="{% url 'web:coordinator-workshop-auto-certificates' %}">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="recalculate">
+      <button type="submit" class="btn btn--secondary"{% if not policy.enabled %} disabled aria-describedby="recalculate-hint"{% endif %}>Przelicz teraz</button>
+    </form>
+    <p class="hint" id="recalculate-hint">„Przelicz teraz” wystawia zaświadczenia wszystkim, którzy spełniają
+      próg, a jeszcze ich nie mają — np. po włączeniu reguły albo obniżeniu progu.{% if not policy.enabled %}
+      <strong>Reguła jest wyłączona.</strong>{% endif %} Zdjęcie obecności <strong>nie odbiera</strong>
+      wystawionego zaświadczenia.</p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">Poniżej progu</h2>
+    <span class="badge badge--danger">dane osobowe</span>
+  </div>
+  <p class="hint">Uczestnicy z co najmniej jedną obecnością, ale poniżej progu {{ threshold }}, bez
+    zaświadczenia.{% if below_count > below_limit %} Pokazujemy pierwszych {{ below_limit }} z {{ below_count }}.{% endif %}</p>
+  <div class="scroll">
+    <table class="table">
+      <caption class="visually-hidden">Uczestnicy poniżej progu zaświadczenia z warsztatów</caption>
+      <thead>
+        <tr>
+          <th scope="col">Uczestnik</th>
+          <th scope="col">Kod</th>
+          <th scope="col">Warsztaty</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for entry, attended in below %}
+          <tr>
+            <th scope="row">{{ entry.participant.user.get_full_name|default:entry.participant.public_code }}</th>
+            <td>{{ entry.participant.public_code }}</td>
+            <td class="num">{{ attended }} z {{ threshold }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="3" class="empty">Nikt nie jest poniżej progu.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endif %}
+{% endblock %}
