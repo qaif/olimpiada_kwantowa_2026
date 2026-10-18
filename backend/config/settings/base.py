@@ -1066,6 +1066,10 @@ CLAMAV_STREAM_MAX_BYTES = env.int("CLAMAV_STREAM_MAX_BYTES", default=100 * 1024 
 WORKSHOP_VIDEO_MAX_MB = env.int("WORKSHOP_VIDEO_MAX_MB", default=4096)
 WORKSHOP_FILE_MAX_MB = env.int("WORKSHOP_FILE_MAX_MB", default=100)
 
+# Markdown od użytkowników (tłumaczenia zadań, podgląd materiałów – ``apps.problem_translations.markup``,
+# TR-01b): górna granica szacowanej pracy konwertera; tekst ponad nią jest pokazywany uciekany, bez składu.
+MARKDOWN_COST_BUDGET = 50_000_000
+
 # --- Strona błędu serwera (templates/500.html) -------------------------------------------------
 # Adres kontaktowy pokazywany na stronie 500. Ustawienie, a nie pole konkursu: ta strona renderuje
 # się **bez bazy** (i to jest jej sens), więc nie ma jak zapytać, czyj konkurs stał pod tym

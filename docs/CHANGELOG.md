@@ -41,6 +41,21 @@ Specyfikacja: [`tasks/WS-ATT-02.md`](tasks/WS-ATT-02.md); instrukcja dla organiz
   (obecność na warsztatach i raport Meet w wierszu „wyniki”).
 - Bez migracji i bez nowych zależności (`requests`, `openpyxl` już były).
 
+## [Unreleased] – Markdown tłumaczeń bez kosztu kwadratowego (TR-01b)
+
+Spec: [`tasks/TR-01b.md`](tasks/TR-01b.md).
+
+- **Konwerter liniowy** (`apps/problem_translations/markup.py`): pogrubienie, kursywa, `\(…\)`,
+  `$$…$$`/`\[…\]` i bloki kodu (HTML i PDF) próbują wyrażenia tylko tam, gdzie jest zamknięcie
+  w zasięgu – niedomknięty znacznik nie skanuje już tekstu do końca. Wiersz 200 KB z „`**a `”
+  ×50 000 składa się w ok. 0,05 s zamiast ok. 142 s. Separator tabeli zapisany jednoznacznie (dotąd
+  wiersz spacji pod wierszem z `|` – kwadratowo, poza szacunkiem WM-FMT-01). Wynik dla zwykłych
+  tekstów identyczny (test różnicowy z `re.sub`).
+- **Jedna bramka kosztu dla wszystkich**: `markdown_cost` i budżet przeniesione z podglądu
+  materiałów do `markup.render_within_budget`; ustawienie `MARKDOWN_COST_BUDGET` (5·10⁷). Tłumaczenie
+  ponad budżet – uciekany tekst bez znaczników (`<pre class="tr-plain">`), w PDF-ie same akapity;
+  podgląd materiałów bez zmian zachowania (zwykły tekst z adnotacją).
+
 ## [Unreleased] – Audyt bezpieczeństwa 10.10.2026 (6 wysokich, 21 średnich, 22 niskie)
 
 Pełny raport: [`AUDYT-BEZPIECZENSTWA-2026-10-10.md`](AUDYT-BEZPIECZENSTWA-2026-10-10.md); pozycje
