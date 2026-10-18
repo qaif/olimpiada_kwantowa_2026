@@ -12,6 +12,25 @@ podsekcją `### <tytuł>` wydania `## v<x.y.z> – <data tagu> – <opis tagu>`.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## [Unreleased] – Lejek uczestnika i raporty wysyłek komunikatów (STATS-02)
+
+Lista organizatora z 18.10.2026, pkt 11–12. Specyfikacja: [`tasks/STATS-02.md`](tasks/STATS-02.md).
+
+- **Lejek uczestnika** `/coordinator/stats/funnel/` (Raporty, bez flagi): rejestracja → aktywacja →
+  pierwsze logowanie → zgody (z opiekunem niepełnoletniego) → zapis do etapu (trening, Etap I) →
+  pierwsza praca → zaświadczenie o statusie ucznia → warsztat; liczby i odsetki, tryb ścisły
+  i niezależny, filtry (edycja, województwo/region, szkoła, grupa domen e-mail, okres rejestracji),
+  „gdzie odpadają” (najniższa aktywacja, od 5 rejestracji), słupki CSS, eksport CSV agregatów.
+  Stała liczba zapytań (`COUNT … FILTER`, `EXISTS`), pamięć podręczna 5 min.
+- **Raport wysyłki komunikatu** `/coordinator/messages/<id>/report/` i kolumny „Pominięte”/„Odbite”
+  w historii: zakolejkowane, pominięte, odbite po grupach domen (Gmail, WP/O2/Onet/Interia, Microsoft,
+  szkolne, inne), rodzaj odbicia, wyróżnienie Microsoft S3150, lista odbitych adresów dla koordynatora.
+  Odbicie wiąże z komunikatem podpisany nagłówek `X-Olimpiada-Broadcast`; `email_delivery` wysyła
+  sygnał `bounces_reported` (DSN i odmowy relaya, także polityka/spam).
+- Aplikacja `apps.coordinator_stats`, migracja `coordinator_stats.0001`, zadanie beat
+  `broadcast-bounces-purge`; rejestr czynności 1.23 (wiersz „Doręczalność poczty”), sekcja eksportu
+  konta `doreczalnosc_poczty.odbicia_komunikatow`.
+
 ## [Unreleased] – Audyt bezpieczeństwa 10.10.2026 (6 wysokich, 21 średnich, 22 niskie)
 
 Pełny raport: [`AUDYT-BEZPIECZENSTWA-2026-10-10.md`](AUDYT-BEZPIECZENSTWA-2026-10-10.md); pozycje
