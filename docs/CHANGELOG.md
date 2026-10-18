@@ -12,6 +12,13 @@ podsekcją `### <tytuł>` wydania `## v<x.y.z> – <data tagu> – <opis tagu>`.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## [Unreleased] – Wdrożenie nie kasuje konfiguracji LiveKit ani zapisu rekordów DKIM
+
+- `scripts/deploy.sh` czyścił katalog wdrożenia ze wszystkiego poza krótką listą i `livekit/` na niej nie było:
+  każde wdrożenie kasowało `livekit.yaml`/`egress.yaml`, a działający kontener trzymał skasowany plik. 18.10.2026
+  LiveKit zatrzymał się po restarcie `livekit-redis` i nie mógł wstać (`live.` → 503, kontrola dymna v0.50.1).
+  Lista dostała `livekit` i `mail-dns*.txt`; `livekit.yaml` odtworzony na serwerze z szablonu i `.env`.
+
 ## [Unreleased] – Rejestracja i import: literówki, wynik importu, zapis do treningu (REG-UX-01)
 
 Specyfikacja: [`tasks/REG-UX-01.md`](tasks/REG-UX-01.md).
