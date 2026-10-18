@@ -1916,7 +1916,7 @@ czytelności” zamieniłoby ślad techniczny w wyciąg z bazy osobowej.
 | Uczestnicy / Opiekunowie szkolni | ta sama lista z filtrem roli | osobny ekran powtarzałby wyszukiwarkę i stronicowanie; uczestnicy mają własne kolumny profilu (§ 10.1) |
 | Edycja konta | `/coordinator/accounts/<id>/` | dane, „Konto aktywne”, dla uczestnika także telefon, województwo, szkoła, klasa, **data urodzenia**; dla członka komitetu status, komisja odwoławcza i województwo |
 | Usunięcie konta | `/coordinator/accounts/<id>/delete/` | strona potwierdzenia mówi, co się stanie |
-| **Zdublowane konta** | `/coordinator/accounts/duplicates/` | ta sama osoba z kilkoma kontami uczestnika; sugestia, usuwanie w wierszu i zbiorcze, CSV (§ 10.2) |
+| **Zdublowane konta** | `/coordinator/accounts/duplicates/` | ta sama osoba z kilkoma kontami uczestnika; sugestia, usuwanie w wierszu i zbiorcze, scalanie kont, CSV (§ 10.2) |
 | **Nieaktywne konta** | `/coordinator/accounts/inactive/` | konta uczestników, na które nikt się nie logował (nigdy albo od N dni); usuwanie w wierszu i zbiorcze, CSV (§ 10.3) |
 | **Konta oczekujące na aktywację** | `/coordinator/activations/` | „Aktywuj ręcznie”, „Wyślij link ponownie” |
 | **Karta uczestnika** | `/coordinator/participants/<id>/` | cały przebieg zawodów jednej osoby, wyłącznie do odczytu |
@@ -2085,6 +2085,41 @@ znika w całości (adres zwalnia się do rejestracji); konto z wpisem do trening
 
 Jeśli zostawiane konto ma adres z literówką, popraw go po usunięciu kopii w edycji konta — adres
 zmienia się od razu, bez listu potwierdzającego.
+
+**Scalanie kont — gdy oba konta mają aktywność** (ACC-MERGE-01, prośba organizatora z 18.10.2026).
+Usunięcie wystarcza, gdy kopia jest pusta. Jeśli na jednym koncie są zgody i zaświadczenie, a na drugim
+praca z etapu, użyj formularza **„Scal w … konto … → Scal…”** nad tabelą grupy: wybierz konto
+**docelowe** (zostaje; domyślnie „do zachowania”, inaczej ostatnio logowane) i **kopię** (zostanie
+usunięta). „Scal…” otwiera **podgląd** — nic jeszcze się nie zmienia:
+
+- oba konta obok siebie i lista tego, co przejdzie na konto docelowe: wpisy do etapów razem z pracami,
+  ocenami, odwołaniami, testami online, rozmowami i dyplomami; dowody zgód (cała historia), zgoda
+  opiekuna, wersje zaświadczenia o statusie ucznia, obecność na warsztatach, wpisy i wątki na forum,
+  wiadomości, należności, mentoring i reszta historii kopii,
+- co **nie** przejdzie: puste duplikaty (np. pusty wpis kopii do etapu, w którym docelowe już jest, ta
+  sama obecność na warsztatach dwa razy), hasło i logowanie Google/Facebook kopii (osoba loguje się
+  danymi konta docelowego — w razie potrzeby resetem hasła). Dziennik zdarzeń zostaje bez zmian,
+- które pola profilu docelowego uzupełnią się z kopii (np. zgoda opiekuna, telefon) — imię, nazwisko,
+  szkoła i kod publiczny zostają z konta docelowego,
+- **„Zamień kierunek”**, jeśli wolisz zachować drugie konto.
+
+**Konflikty blokują scalenie** i podgląd mówi dokładnie, który: oba konta mają aktywność w **tym samym
+etapie** (np. prace na obu), dwie rozliczone należności z jednego cennika, dwa profile absolwenta, różne
+delegacje, sesja nadzoru w tym samym etapie. Wtedy nie ma przycisku — zostaw oba konta albo usuń kopię.
+Scalenie jest też **odmówione**, gdy któreś konto ma inną rolę (komitet, opiekun, rola albo profil
+w innym konkursie) albo jest kontem koordynatora — o takich kontach decyduje administrator serwisu.
+
+**Adres e-mail.** Zostaje adres konta docelowego. Jeśli docelowe **nie potwierdziło** swojego adresu
+(typowa literówka), podgląd pokazuje pole **„Weź adres z kopii”**: adres kopii jest najpierw zwalniany,
+a potem przypisany kontu docelowemu; jeśli kopia miała adres potwierdzony, konto docelowe staje się
+aktywne. Konto docelowe z potwierdzonym adresem zmienia adres zwykłą edycją konta.
+
+Dopiero przycisk **„Tak, scal konto <kod kopii> w <kod docelowego>”** scala: serwis liczy wszystko jeszcze
+raz (coś mogło się zmienić od otwarcia podglądu), przenosi dane i usuwa kopię — w jednej operacji, więc
+błąd w połowie niczego nie zostawia rozgrzebanego. W audycie: `account.merged` (kody publiczne obu kont
+i liczby przeniesionych wierszy, bez danych osobowych) oraz `account.deleted_by_coordinator` z dopiskiem
+`via=merge`. Ogłoszone już tabele wyników się nie zmieniają (to opublikowany dokument z kodem kopii);
+kolejne przeliczenie pokaże kod konta docelowego.
 
 **Podobne adresy e-mail (słabszy sygnał).** Pod grupami stoi lista kont, których adresy różnią się
 wyłącznie typową literówką w domenie (`gmail.con`/`gmail.com`, `wp.p`/`wp.pl` …), a imię, nazwisko

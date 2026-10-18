@@ -128,8 +128,8 @@ ekranu niezależny od liczby grup, pozycja w menu.
 
 ## 7. Propozycje na później (poza zakresem)
 
-- scalanie kont (przeniesienie wpisów/prac/zgód na konto zachowywane) – dziś koordynator usuwa
-  kopię bez śladu i, jeśli trzeba, poprawia adres e-mail konta zachowywanego,
+- ~~scalanie kont (przeniesienie wpisów/prac/zgód na konto zachowywane)~~ – zrealizowane
+  w `docs/tasks/ACC-MERGE-01.md` (18.10.2026),
 - dopasowanie szkoły „z wykazu” do tej samej szkoły wpisanej ręcznie (po nazwie z wykazu),
 - ostrzeżenie już przy rejestracji („konto o tym imieniu, nazwisku i szkole istnieje – czy to Ty?”)
   – wymaga ostrożności, bo zdradzałoby istnienie cudzego konta.

@@ -12,6 +12,25 @@ podsekcją `### <tytuł>` wydania `## v<x.y.z> – <data tagu> – <opis tagu>`.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## [Unreleased] – Scalanie zdublowanych kont uczestnika (ACC-MERGE-01)
+
+Prośba organizatora z 18.10.2026 (pkt 2): na ekranie „Zdublowane konta” obok usuwania – **scalanie**.
+Specyfikacja i tabela reguł: [`tasks/ACC-MERGE-01.md`](tasks/ACC-MERGE-01.md).
+
+- Serwis `apps.accounts.merge.merge_participants(keep, drop, *, actor, request=None, take_email=False)`:
+  jedna transakcja, blokada obu kont i profili, plan liczony od nowa, przepięcie wszystkich relacji do
+  `Participant` i `User` według reguł (przepnij / bez duplikatów / zostaje nowszy / konflikt blokuje),
+  potem usunięcie kopii przez `delete_account_by_coordinator` (`via=merge`). Audyt `account.merged`
+  (kody, liczby – bez danych osobowych). Dziennik zdarzeń nie jest przepinany.
+- Konflikty blokują z czytelnym komunikatem (aktywność w tym samym etapie, dwie rozliczone należności
+  z jednego cennika, dwa profile absolwenta, różne delegacje, klucze szyfrowania czatu); konta z innymi
+  rolami, chronione i z innych konkursów – odmowa.
+- Ekran: „Scal w … → Scal…” przy grupie, podgląd `GET /coordinator/accounts/duplicates/merge/` (co
+  przejdzie, co odpadnie, który adres zostaje, „weź adres z kopii”, gdy docelowe go nie potwierdziło),
+  „Tak, scal konto …” (POST + CSRF, potwierdzenie w przycisku). Bez skryptu.
+- Bezpiecznik na przyszłość: test `test_every_relation_is_classified` zatrzymuje CI na nowej relacji do
+  `Participant`/`User` bez reguły scalania. Bez migracji.
+
 ## [Unreleased] – Audyt bezpieczeństwa 10.10.2026 (6 wysokich, 21 średnich, 22 niskie)
 
 Pełny raport: [`AUDYT-BEZPIECZENSTWA-2026-10-10.md`](AUDYT-BEZPIECZENSTWA-2026-10-10.md); pozycje
