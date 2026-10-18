@@ -12,6 +12,25 @@ podsekcją `### <tytuł>` wydania `## v<x.y.z> – <data tagu> – <opis tagu>`.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## [Unreleased] – Automatyczne zaświadczenia za warsztaty na podstawie obecności (WS-CERT-02)
+
+Specyfikacja: [`tasks/WS-CERT-02.md`](tasks/WS-CERT-02.md); opis dla organizatora: PODRĘCZNIK-ORGANIZATORA § 8.1.
+
+- **Nowa aplikacja `apps.workshop_certificates`** (migracja `workshop_certificates.0001`, dwie puste
+  tabele): reguła na edycję – „wystawiaj automatycznie”, próg **N różnych warsztatów** z harmonogramu,
+  opcjonalny szablon graficzny (rodzaj „warsztaty”/„wszystkie”, tego konkursu), list „Twoje zaświadczenie
+  jest gotowe” (przełącznik, nieobowiązkowy, w języku ucznia). Brak wiersza = wyłączone.
+- **Wyzwalacz:** `cms.WorkshopAttendance.objects.bulk_create` wysyła sygnał `attendance_recorded`
+  (łapie kratki, import CSV i import z platformy wideo bez zmian w tych ekranach); odbiornik zbiera
+  identyfikatory i po commicie zleca **jedno** zadanie Celery na transakcję
+  (`apps.workshop_certificates.tasks.issue_for_participants`, kolejka `default`).
+- Idempotentnie (jeden dokument na osobę i edycję, także po ręcznym „Wystaw (ZIP)”), **bez odbierania**
+  przy zdjęciu obecności; konta usunięte bez nowych dokumentów.
+- **Ekran** `/coordinator/workshops/auto-certificates/` (Raporty → Zaświadczenia z warsztatów): reguła,
+  liczby, „Przelicz teraz” (zadanie `recalculate_edition`, raz na 30 s), lista poniżej progu.
+- Audyt `workshop_certificates.policy_updated`, `.recalculate_requested`, `.auto_issued` – liczby, bez
+  danych osobowych. Nowy temat listu zamrożony w `apps/tenancy/tests/test_invariants.py`.
+
 ## [Unreleased] – Audyt bezpieczeństwa 10.10.2026 (6 wysokich, 21 średnich, 22 niskie)
 
 Pełny raport: [`AUDYT-BEZPIECZENSTWA-2026-10-10.md`](AUDYT-BEZPIECZENSTWA-2026-10-10.md); pozycje

@@ -1778,6 +1778,45 @@ opiekuna nie pokazuje nazwiska nigdy. Nieznany kod **nie daje 404** — strona w
 „takiego dokumentu nie ma”, bo rozróżnienie kodem HTTP zamieniłoby ten adres w narzędzie do sprawdzania
 kodów maszynowo.
 
+### 8.1 Zaświadczenia z warsztatów automatycznie — `/coordinator/workshops/auto-certificates/`
+
+Menu: **Raporty → Zaświadczenia z warsztatów** (pod „Obecnością na warsztatach”). Ekran dotyczy
+**bieżącej edycji**. Zaświadczenie z warsztatów to ten sam dokument, który wystawia przycisk „Wystaw
+zaświadczenia z warsztatów (ZIP)” na ekranie obecności: jeden na uczestnika i edycję, z listą tematów
+i terminów zajęć, numerem i kodem weryfikacyjnym. Tutaj ustawiasz, żeby serwis wystawiał go **sam**.
+
+| Pole | Co robi |
+|---|---|
+| **Wystawiaj zaświadczenie automatycznie** | włącza regułę; domyślnie wyłączona (każda nowa edycja zaczyna od wyłączonej) |
+| **Próg: co najmniej tyle warsztatów** | liczba **różnych** warsztatów z harmonogramu na stronie `/warsztaty/`, na których uczestnik był; próg 1 = ta sama reguła co ręczny ZIP |
+| **Szablon graficzny** | opcjonalny szablon z „Dyplomy: szablony” (rodzaj „warsztaty” albo „wszystkie”, tego konkursu); puste = zwykłe dopasowanie szablonu; wybrany obowiązuje **wszystkie** zaświadczenia z warsztatów tej edycji, także ręczne |
+| **Wyślij list „Twoje zaświadczenie jest gotowe”** | jeden list na dokument, w języku uczestnika, z odnośnikiem do panelu; domyślnie wyłączony |
+
+**Kiedy dokument powstaje.** Po każdym zapisie obecności — kratki w tabeli, import CSV, import
+z platformy wideo — serwis w tle sprawdza osoby, których obecność się zmieniła, i wystawia zaświadczenie
+tym, które przekroczyły próg. Import 300 osób to jedno zadanie w tle, a nie 300; ekran obecności nie
+zwalnia. Po **zapisie reguły** nic nie dzieje się samo: osoby, które próg już spełniają, dostaną dokument
+po kliknięciu **„Przelicz teraz”** (albo przy najbliższym zapisie ich obecności) — dlatego włączenie listu
+nie wysyła nagle setek wiadomości. „Przelicz teraz” można kliknąć raz na 30 sekund.
+
+**Próg jest liczbą, nie procentem.** Harmonogram rośnie w trakcie edycji; procent sprawiałby, że osoba,
+która spełniała próg w listopadzie, w styczniu przestaje go spełniać. Liczbę da się też wprost ogłosić
+(„zaświadczenie za udział w co najmniej 3 warsztatach”). Liczą się tylko warsztaty, które są **teraz**
+w harmonogramie — te same, które stoją potem na papierze.
+
+**Zdjęcie obecności nie odbiera zaświadczenia.** Dokument z numerem jest w obiegu (wydruk, rekrutacja,
+strona weryfikacji). Lista tematów na PDF-ie liczy się przy pobraniu, więc poprawka obecności poprawia
+treść; sam dokument zostaje. Uczestnik bez wpisu do etapu w edycji i konto usunięte nie dostają
+zaświadczenia (jak przy ZIP-ie). Zaświadczenie wystawione wcześniej ręcznie nie jest dublowane.
+
+**Na ekranie** są też liczby: wystawione automatycznie, wszystkie zaświadczenia z warsztatów w edycji,
+„spełnia próg, czeka na wystawienie” (np. przed pierwszym przeliczeniem) oraz lista **poniżej progu**
+(nazwisko, kod, „był na X z N”; najwyżej 200 wierszy) — informacyjnie, kogo jeszcze brakuje.
+
+**Audyt** (§ 9.4): zmiana reguły (`workshop_certificates.policy_updated` – zmienione pola), kliknięcie
+„Przelicz teraz”, przebieg reguły (`workshop_certificates.auto_issued` – liczby: wystawione, listy, próg,
+wyzwalacz) i każdy dokument osobno (`certificate.issued` – numer, bez nazwiska).
+
 ---
 
 ## 9. Dane, eksporty, RODO
