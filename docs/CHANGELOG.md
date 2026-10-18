@@ -12,6 +12,23 @@ podsekcją `### <tytuł>` wydania `## v<x.y.z> – <data tagu> – <opis tagu>`.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## [Unreleased] – Poczta do domen Microsoftu przez zewnętrzny relay (MAIL-04)
+
+Outlook.com/Hotmail odrzucają adres IP serwera (`S3150`, blokada zakresu Contabo, bez odblokowania).
+Specyfikacja: [`tasks/MAIL-04.md`](tasks/MAIL-04.md); obsługa: OPERACJE § 49.10.
+
+- Nowy skrypt startowy relaya `deploy/mail/docker-init.d/70-relay.sh`: przy ustawionym
+  `MAIL_RELAY_HOST` listy do `outlook.com hotmail.com live.com msn.com outlook.pl hotmail.pl live.pl
+  passport.com` (albo `MAIL_RELAY_DOMAINS`; `*` = cała poczta) idą przez serwer SMTP dostawcy – Google
+  Workspace, Brevo, Mailgun EU, Amazon SES albo dowolny inny. Reszta poczty wprost do MX-ów, jak dotąd.
+- Tablica transportu dopisana do `transport_maps` z `50-bounces.sh` (adresy capture/discard mają
+  pierwszeństwo), TLS do relaya zawsze wymagany (`smtp_tls_policy_maps`: `encrypt` albo `secure`),
+  SASL z `MAIL_RELAY_USER`/`MAIL_RELAY_PASSWORD` w pliku 600 – hasło nigdy w logu. Brak
+  `MAIL_RELAY_HOST` = konfiguracja bez zmian; zła wartość = ostrzeżenie i bez zmian.
+- Zmienne w `docker-compose.yml` (usługa `mail`) i `.env.example`; tabela dostawców z krokami
+  (SPF, weryfikacja domeny, DKIM, odbicia) i test na adres w outlook.com w OPERACJE § 49.10.
+- Test `scripts/tests/mail_relay_test.sh` (atrapy `postconf`/`postmap`) w jobie CI `mail-scripts`.
+
 ## [Unreleased] – Audyt bezpieczeństwa 10.10.2026 (6 wysokich, 21 średnich, 22 niskie)
 
 Pełny raport: [`AUDYT-BEZPIECZENSTWA-2026-10-10.md`](AUDYT-BEZPIECZENSTWA-2026-10-10.md); pozycje
