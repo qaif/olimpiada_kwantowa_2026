@@ -98,6 +98,8 @@ EXPECTED_MENU_WITHOUT_FLAGS: tuple[tuple[str, tuple[str, ...]], ...] = (
             "Obecność na warsztatach",
             # Reguła automatycznych zaświadczeń z obecności (WS-CERT-02) – bez flagi, jak obecność.
             "Zaświadczenia z warsztatów",
+            # Lejek uczestnika – zadanie STATS-02 (lista organizatora z 18.10.2026), bez flagi.
+            "Lejek uczestnika",
             "Zaświadczenia opiekunów",
             "Retencja danych",
             "Rejestr czynności",
@@ -330,6 +332,7 @@ def test_document_templates_flag_adds_exactly_one_item_in_reports(competition):
         "Szablony dokumentów",
         "Obecność na warsztatach",
         "Zaświadczenia z warsztatów",
+        "Lejek uczestnika",
         "Zaświadczenia opiekunów",
         "Retencja danych",
         "Rejestr czynności",

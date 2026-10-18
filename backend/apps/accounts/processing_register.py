@@ -127,7 +127,10 @@ from apps.competitions.models import DEFAULT_RETENTION_MONTHS
 #: **raport obecności Google Meet** organizatora (imię, nazwisko, adres e-mail, czas na spotkaniu –
 #: także osób spoza konkursu: gości, prowadzących, nauczycieli). Nowe źródło i nowe kategorie danych
 #: w wierszu „wyniki”, choć przetwarzanie raportu jest przejściowe (nic z niego nie trafia do bazy).
-REGISTER_VERSION = "1.23"
+#: 1.24 (18.10.2026, zadanie STATS-02) – w wierszu doręczalności poczty odbicia przypisane komunikatom
+#: grupowym (także odrzucenia z powodu polityki serwera odbiorcy, których MAIL-02 nie zapisywał) i lista
+#: odbitych adresów w raporcie wysyłki komunikatu dla koordynatora; ta sama podstawa i retencja.
+REGISTER_VERSION = "1.24"
 REGISTER_DATE = date(2026, 10, 18)
 
 #: Zdanie o okresie przechowywania danych uczestnika. Liczba pochodzi z tego samego miejsca, co

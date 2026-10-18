@@ -1,0 +1,110 @@
+{% extends "web/coordinator/base.html" %}
+{% load static i18n %}
+{% comment %}
+  Lejek uczestnika (STATS-02 § 1): od rejestracji do warsztatów, z filtrami i tabelą „gdzie odpadają”.
+
+  Same agregaty – ani jednej osoby. Słupki to klasy szerokości z zamkniętej listy (``stat-bar``, jak
+  na ``/statystyki/`` i w statystykach szkół), bez JavaScriptu i bez stylu w dokumencie; liczba
+  i procent stoją obok słupka, więc wykres jest ilustracją, a nie jedynym nośnikiem danych.
+{% endcomment %}
+{% block title %}{% translate "Lejek uczestnika" %} – {% translate "panel koordynatora" %}{% endblock %}
+{% block panel_head %}
+  <link rel="stylesheet" href="{% static 'css/statistics.css' %}">
+  <link rel="stylesheet" href="{% static 'coordinator_stats/coordinator-stats.css' %}">
+{% endblock %}
+{% block panel_title %}{% translate "Lejek uczestnika" %}{% endblock %}
+{% block panel_lead %}
+  <p class="lead">{% translate "Ilu uczestników przechodzi kolejne kroki – od rejestracji, przez aktywację konta i zapis do etapu, do pierwszej pracy, zaświadczenia i warsztatów." %}</p>
+  <p class="hint">{% translate "Liczby dotyczą uczestników wybranej edycji: zapisanych do jej etapu albo zarejestrowanych w czasie jej trwania. Konta usunięte nie są liczone." %}</p>
+{% endblock %}
+{% block panel_actions %}
+  {% if edition and result %}
+    <a class="btn btn--secondary" href="{% url 'web:coordinator-stats-funnel-export' %}?{{ export_query }}">{% translate "Eksport CSV" %}</a>
+  {% endif %}
+{% endblock %}
+{% block panel_content %}
+
+{% if not edition %}
+  <div class="card"><p class="empty">{% translate "Ten konkurs nie ma jeszcze żadnej edycji." %}</p></div>
+{% else %}
+
+<form method="get" class="card cs-filter" aria-label="{% translate 'Filtry lejka' %}">
+  {% if form.non_field_errors %}<div class="alert alert--error" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+  <div class="cs-filter__grid">
+    <p>
+      <label for="cs-edition">{% translate "Edycja" %}</label>
+      <select id="cs-edition" name="edition">
+        {% for item in editions %}
+          <option value="{{ item.pk }}"{% if item.pk == edition.pk %} selected{% endif %}>{{ item.year_label }}</option>
+        {% endfor %}
+      </select>
+    </p>
+    {% for field in form %}
+      <p>
+        <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+        {{ field }}
+        {% if field.errors %}<span class="field__error" role="alert">{{ field.errors|join:" " }}</span>{% endif %}
+      </p>
+    {% endfor %}
+  </div>
+  <p class="actions"><button type="submit" class="btn btn--secondary btn--small">{% translate "Pokaż" %}</button>
+    <a class="btn btn--ghost btn--small" href="{% url 'web:coordinator-stats-funnel' %}">{% translate "Wyczyść filtry" %}</a></p>
+</form>
+
+{% if result %}
+<section class="section">
+  <h2>{% translate "Kroki lejka" %}</h2>
+  <div class="scroll" role="region" tabindex="0" aria-label="{% translate 'Kroki lejka' %}">
+    <table class="table stat-table cs-funnel">
+      <thead>
+        <tr>
+          <th scope="col">{% translate "Krok" %}</th>
+          <th scope="col" class="num">{% translate "Uczestnicy" %}</th>
+          <th scope="col" class="num">{% translate "względem poprzedniego kroku" %}</th>
+          <th scope="col">{% translate "względem rejestracji" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for step in result.steps %}
+          <tr{% if step.sub %} class="cs-funnel__sub"{% endif %}>
+            <th scope="row">{{ step.label }}{% if step.key == "enrolled_first" and result.first_stage_name %} <span class="hint">({{ result.first_stage_name }})</span>{% endif %}</th>
+            {% if step.count is None %}
+              <td class="num" colspan="3"><span class="hint">{% translate "brak takiego etapu w tej edycji" %}</span></td>
+            {% else %}
+              <td class="num">{{ step.count }}</td>
+              <td class="num">{% if step.vs_previous is None %}—{% else %}{{ step.vs_previous }}%{% endif %}</td>
+              <td><span class="stat-bar" aria-hidden="true"><span class="stat-bar__fill stat-bar__fill--{{ step.width }}"></span></span><span class="stat-bar__value">{% if step.vs_registered is None %}—{% else %}{{ step.vs_registered }}%{% endif %}</span></td>
+            {% endif %}
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if strict %}
+    <p class="hint">{% translate "Lejek ścisły: krok liczy osoby, które przeszły także wszystkie poprzednie kroki. Wiersze „w tym” rozbijają zapis do etapu i liczą się względem kroku zgód." %}</p>
+  {% else %}
+    <p class="hint">{% translate "Kroki niezależne: każdy krok liczy wszystkich, którzy spełniają jego warunek – także bez poprzednich kroków (np. obecni na warsztacie bez zaakceptowanego zaświadczenia)." %}</p>
+  {% endif %}
+  <p class="hint">{% translate "Zgoda opiekuna jest wymagana od niepełnoletnich według tej samej reguły wieku, co przy rejestracji." %}</p>
+</section>
+
+<section class="section">
+  <h2>{% translate "Gdzie odpadają – najniższa aktywacja kont" %}</h2>
+  <p class="hint">{% blocktranslate trimmed with k=k_anonymity %}
+    Województwa i szkoły z co najmniej {{ k }} rejestracjami, od najniższego odsetka aktywowanych kont.
+  {% endblocktranslate %}</p>
+  <div class="cs-dropoff">
+    <div>
+      <h3>{% translate "Województwa" %}</h3>
+      {% translate "Województwa – najniższa aktywacja" as regions_title %}{% include "web/coordinator_stats/_dropoff.html" with items=result.regions title=regions_title %}
+    </div>
+    <div>
+      <h3>{% translate "Szkoły" %}</h3>
+      {% translate "Szkoły – najniższa aktywacja" as schools_title %}{% include "web/coordinator_stats/_dropoff.html" with items=result.schools title=schools_title %}
+    </div>
+  </div>
+</section>
+{% endif %}
+
+{% endif %}
+{% endblock %}

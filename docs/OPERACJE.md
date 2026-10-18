@@ -7148,6 +7148,18 @@ sygnał o **naszej** reputacji (SPF/DKIM/DMARC, § 49), nie o adresie.
   (albo `MAIL_BOUNCE_ADDRESSES`). Konkurs z nadawcą innym niż `noreply@…` (`Competition.from_email`) –
   dopisz jego adres do `MAIL_BOUNCE_ADDRESSES`, inaczej jego odbicia nie wrócą do serwisu.
 
+### 52.6. Raport wysyłki komunikatu (STATS-02, `docs/tasks/STATS-02.md`)
+
+- Każdy list komunikatu grupowego ma nagłówek `X-Olimpiada-Broadcast: <id>:<podpis>` (podpis
+  `SECRET_KEY` – zmiana klucza unieważnia przypisanie odbić listów wysłanych przed zmianą). Odbicie
+  z DSN relaya (kopia listu albo jego nagłówki) i odmowa relaya w trakcie wysyłki trafiają do raportu
+  komunikatu – **także** odrzucenia z powodu polityki (np. Microsoft `S3150`), których stan adresu
+  (§ 52.3) nie zapisuje. Bez `EMAIL_BOUNCE_TRACKING` raport ma tylko liczby zakolejkowanych i pominiętych.
+- Migracja `coordinator_stats.0001` (dwie tabele, bez danych) idzie w `web` jak każda. Nowe zadanie
+  beat `broadcast-bounces-purge` (03:25 UTC) kasuje adresy odbić starsze niż 365 dni – liczniki zostają.
+- Sprawdzenie po wdrożeniu: komunikat testowy na nieistniejący adres Gmaila; po ≤ 5 minutach
+  `/coordinator/messages/<id>/report/` pokazuje 1 odbicie „adres nie istnieje” w grupie Gmail.
+
 ## 53. Komunikaty z datą przyszłą (MSG-SCHED-01, `docs/tasks/MSG-SCHED-01.md`)
 
 Koordynator planuje komunikat na `/coordinator/messages/` (pole „Wyślij później”). Wiersz

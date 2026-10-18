@@ -28,7 +28,7 @@ import re
 import time
 from dataclasses import dataclass
 from email import policy
-from email.parser import BytesParser
+from email.parser import BytesParser, HeaderParser
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -165,8 +165,37 @@ def parse_dsn(raw: bytes, *, reporting_mta: str | None = None) -> list[Bounce] |
     return bounces
 
 
+def original_headers(raw: bytes):
+    """Nagłówki listu pierwotnego z zawiadomienia albo ``None`` (STATS-02 § 2.2).
+
+    Relay dołącza do DSN wysłany list (``message/rfc822``) albo – przy liście większym niż
+    ``bounce_size_limit`` – same jego nagłówki (``text/rfc822-headers``, RFC 6522). Czytamy wyłącznie
+    części **najwyższego poziomu**, tak jak :func:`parse_dsn`: nagłówki listu schowanego głębiej
+    napisał ktoś inny niż my.
+    """
+    message = BytesParser(policy=policy.compat32).parsebytes(raw)
+    parts = message.get_payload()
+    if not isinstance(parts, list):
+        return None
+    for part in parts:
+        content_type = part.get_content_type()
+        if content_type == "message/rfc822":
+            payload = part.get_payload()
+            if isinstance(payload, list) and payload:
+                return payload[0]
+        elif content_type == "text/rfc822-headers":
+            text = part.get_payload(decode=True) or b""
+            return HeaderParser(policy=policy.compat32).parsestr(text.decode("utf-8", errors="replace"))
+    return None
+
+
 def process_maildir(
-    path: str | Path, *, record, reporting_mta: str | None = None, now: float | None = None
+    path: str | Path,
+    *,
+    record,
+    reporting_mta: str | None = None,
+    now: float | None = None,
+    report=None,
 ) -> dict[str, int]:
     """Jeden przebieg skrzynki: ``new/`` → zapis odbić przez ``record(bounce)`` → skasowanie pliku.
 
@@ -175,6 +204,10 @@ def process_maildir(
     adresu; pozostałe (polityka, system) – linia w logu z domeną i kodem. Plik, przy którym coś się
     wywróciło, przechodzi do ``cur/`` (zostaje do wglądu, nie wraca w następnym przebiegu) i znika po
     :data:`UNREADABLE_RETENTION_DAYS` dniach.
+
+    ``report(bounces, raw)`` (opcjonalne, STATS-02) dostaje **wszystkie** odbicia zawiadomienia –
+    także niedotyczące adresu – razem z jego treścią, zanim plik zniknie. Jego błąd jest logowany
+    i nie zmienia losu pliku: odbicie adresu jest już zapisane, a raport komunikatu to dodatek.
     """
     stats = {"files": 0, "hard": 0, "soft": 0, "other": 0, "ignored": 0, "errors": 0}
     root = Path(path)
@@ -188,7 +221,8 @@ def process_maildir(
         try:
             if item.stat().st_size > MAX_FILE_BYTES:
                 raise ValueError("plik większy niż zawiadomienie relaya")
-            bounces = parse_dsn(item.read_bytes(), reporting_mta=reporting_mta)
+            raw = item.read_bytes()
+            bounces = parse_dsn(raw, reporting_mta=reporting_mta)
             if bounces is None:
                 stats["ignored"] += 1
             else:
@@ -203,6 +237,11 @@ def process_maildir(
                         continue
                     record(bounce)
                     stats["hard" if bounce.hard else "soft"] += 1
+                if report is not None and bounces:
+                    try:
+                        report(bounces, raw)
+                    except Exception:  # noqa: BLE001 - raport jest dodatkiem do zapisu odbicia
+                        logger.exception("Nie udało się zgłosić odbić z pliku %s", item.name)
             item.unlink()
         except Exception:  # noqa: BLE001 - jeden zły plik nie może zatrzymać skrzynki
             stats["errors"] += 1

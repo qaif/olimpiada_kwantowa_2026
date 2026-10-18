@@ -1265,6 +1265,18 @@ regionem, szkołą, klasą albo warsztatem**, temat, treść, liczba odbiorców,
 adresów**. Ten sam opis grupy trafia do audytu (`broadcast.sent`). Stan „przekazana do wysyłki” znaczy,
 że listy trafiły do kolejki; o doręczeniu rozstrzyga serwer odbiorcy.
 
+**Raport wysyłki** (od 18.10.2026, STATS-02). W historii są kolumny **„Pominięte”** (adresy, które
+wcześniej twardo odbiły — list do nich nie wychodzi) i **„Odbite”** (listy, które wróciły po wysyłce),
+a odnośnik **„Raport”** otwiera szczegóły komunikatu: ilu odbiorców, ile listów zakolejkowano, ile
+pominięto i ile odbiło, w podziale na **grupy domen** — Gmail, WP/O2/Onet/Interia, Microsoft
+(Outlook, Hotmail, Live), szkolne (`edu`) i inne — z wykresem „wysłane / odbite”. Odbicia dzielą się
+na: **adres nie istnieje**, **polityka serwera odbiorcy** (reputacja, spam — także blokada Microsoft
+**S3150**, wyróżniona osobną kolumną i ostrzeżeniem nad tabelą) oraz **tymczasowe i inne**. Odrzucenia
+S3150 to sprawa serwera poczty platformy, nie adresów — zgłoś je operatorowi. Na dole raportu jest
+**lista odbitych adresów** z kodem i odpowiedzią serwera (widzi ją tylko koordynator tego konkursu).
+Odbicia dochodzą jeszcze kilka dni po wysyłce, więc liczby mogą rosnąć. Komunikaty sprzed 18.10.2026
+nie mają raportu („brak danych”).
+
 **Załączników nie ma.** Plik (regulamin, instrukcja) wstaw do biblioteki dokumentów w `/cms/`
 i wklej do treści komunikatu odnośnik — jeden plik na serwerze zamiast kilku tysięcy kopii
 w skrzynkach i bez ryzyka, że duży załącznik zatrzyma list w filtrze antyspamowym.
@@ -2495,6 +2507,29 @@ uczniami jest w niej od 1 do 4 osób — inaczej z różnicy dałoby się wylicz
 
 **RODO.** Rejestr czynności dostaje przy włączonej funkcji wiersz „Statystyki szkół i opiekunów
 szkolnych” (§ 9.2). Nowych danych funkcja nie zbiera.
+
+### 10c.1 Lejek uczestnika — `/coordinator/stats/funnel/`
+
+Menu **Raporty → Lejek uczestnika** (bez przełącznika). Ekran pokazuje, ilu uczestników wybranej
+edycji (domyślnie bieżącej) przechodzi kolejne kroki: **rejestracja** (profil) → **aktywacja konta**
+(potwierdzony adres) → **pierwsze logowanie** → **zgody** (RODO, regulamin, a od niepełnoletnich zgoda
+opiekuna — ta sama reguła wieku co przy rejestracji) → **zapis do etapu** (z wierszami „w tym trening”
+i „w tym Etap I”) → **pierwsza wysłana praca** (także zakończony test online) → **zaświadczenie
+o statusie ucznia zaakceptowane** → **obecność na co najmniej jednym warsztacie**. Przy każdym kroku
+liczba, odsetek względem poprzedniego kroku i względem rejestracji oraz słupek.
+
+- **Uczestnik edycji** to ten, kto jest zapisany do jej etapu albo założył konto w czasie jej trwania
+  (ta sama definicja co w komunikatach). Konta usunięte nie są liczone.
+- **Sposób liczenia:** „lejek ścisły” (domyślny — krok liczy osoby, które przeszły też wszystkie
+  poprzednie) albo „kroki niezależne” (każdy warunek osobno, np. obecni na warsztacie bez
+  zaakceptowanego zaświadczenia).
+- **Filtry:** województwo (albo region konkursu), szkoła (lista szkół z uczestnikami, jak w
+  komunikatach), domena adresu e-mail (Gmail, WP/O2/Onet/Interia, Microsoft, szkolne, inne), okres
+  rejestracji (od–do, obie daty włącznie).
+- **„Gdzie odpadają”** — po 10 województw i szkół z **najniższym odsetkiem aktywowanych kont**;
+  tylko grupy z co najmniej 5 rejestracjami (mniejsze dają procenty bez znaczenia).
+- **Eksport CSV** — te same liczby z opisem filtrów, bez żadnych danych osobowych; pobranie jest
+  w audycie (`export.generated`, rodzaj `participant_funnel`). Liczby odświeżają się co 5 minut.
 
 ## 10d. Logistyka finału — `/coordinator/logistics/`
 
