@@ -77,6 +77,7 @@ from apps.accounts.models import BroadcastGroup, MessageBroadcast, Region
 from apps.accounts.services import CUSTOM_REGIONS_FLAG
 from apps.competitions.models import Stage
 from apps.competitions.services import current_edition
+from apps.coordinator_stats.broadcasts import attach_summaries
 from apps.core.exports import Dataset, xlsx_response
 from apps.core.models import audit
 from apps.web.coordinator_forms import BroadcastForm
@@ -348,7 +349,8 @@ class CoordinatorMessagesView(CoordinatorRequiredMixin, View):
             },
             # Rejestr wysyłek **tego** konkursu: historia komunikatów sąsiada nie jest historią
             # tego organizatora (zakres stoi w ``recent_broadcasts``, przed limitem wierszy).
-            "broadcasts": recent_broadcasts(request.competition),
+            # Liczniki raportu wysyłki (STATS-02): zakolejkowane, pominięte, odbite – jedno zapytanie.
+            "broadcasts": attach_summaries(recent_broadcasts(request.competition)),
             # Zaplanowane komunikaty tego konkursu – osobna lista z przyciskiem „Anuluj”.
             "scheduled": scheduled_broadcasts(request.competition),
             "edition": current_edition(request.competition),

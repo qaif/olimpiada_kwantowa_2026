@@ -95,20 +95,59 @@ test("correct address shows nothing and removes an old hint", () => {
   assert.equal(document.getElementById("id_email_hint"), null);
 });
 
-test("server checkbox swaps the value without submitting", () => {
+function loadWithServerButtons(withKeep) {
   const { document } = load([{ id: "id_email", value: "jan@gmial.com" }]);
-  const accept = document.createElement("input");
+  const block = document.createElement("span");
+  block.id = "id_email_suggestion";
+  document.byId.id_email.parentNode.appendChild(block);
+  const accept = document.createElement("button");
   accept.id = "id_email_accept";
+  accept.type = "submit";
   accept.value = "jan@gmail.com";
-  document.byId.id_email_accept = accept;
-  // Ponowne wczytanie, bo skrypt wiąże pole wyboru przy starcie.
+  block.appendChild(accept);
+  let keep = null;
+  if (withKeep) {
+    keep = document.createElement("button");
+    keep.id = "id_email_keep";
+    keep.type = "submit";
+    block.appendChild(keep);
+  }
+  // Ponowne wczytanie, bo skrypt wiąże przyciski serwera przy starcie.
   const window = {};
   vm.runInNewContext(SOURCE, { window, document, Object, Math, String, Array });
+  return { document, accept, keep };
+}
 
-  accept.checked = true;
-  accept.listeners.change();
+test("server buttons stop submitting the form once the script runs", () => {
+  const { accept, keep } = loadWithServerButtons(true);
+  assert.equal(accept.type, "button");
+  assert.equal(keep.type, "button");
+});
+
+test("server fix button swaps the value without submitting", () => {
+  const { document, accept } = loadWithServerButtons(true);
+  accept.listeners.click();
   assert.equal(document.byId.id_email.value, "jan@gmail.com");
-  accept.checked = false;
-  accept.listeners.change();
-  assert.equal(document.byId.id_email.value, "jan@gmial.com");
+  assert.equal(document.getElementById("id_email_suggestion"), null);
+});
+
+test("keeping the address hides the server hint and silences the browser hint", () => {
+  const { document, keep } = loadWithServerButtons(true);
+  const input = document.byId.id_email;
+  keep.listeners.click();
+  assert.equal(input.value, "jan@gmial.com");
+  assert.equal(document.getElementById("id_email_suggestion"), null);
+  input.listeners.blur();
+  assert.equal(document.getElementById("id_email_hint"), null);
+  // Inny adres to nowe pytanie.
+  input.value = "jan@hotmial.com";
+  input.listeners.blur();
+  assert.ok(document.getElementById("id_email_hint"));
+});
+
+test("dead domain has only the fix button", () => {
+  const { document, accept, keep } = loadWithServerButtons(false);
+  assert.equal(keep, null);
+  accept.listeners.click();
+  assert.equal(document.byId.id_email.value, "jan@gmail.com");
 });

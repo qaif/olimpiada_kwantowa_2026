@@ -1,0 +1,323 @@
+# English – katalog aplikacji ``apps.coordinator_stats`` (zadanie STATS-02).
+# Zrodlem (msgid) jest polski. UWAGA: tlumaczenie MASZYNOWE (model jezykowy) – patrz
+# docs/OPERACJE.md (przeglad przez native speakera przed szeroka komunikacja).
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Olimpiada Kwantowa\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-18 21:00+0200\n"
+"PO-Revision-Date: 2026-10-18 21:00+0200\n"
+"Last-Translator: Olimpiada Kwantowa\n"
+"Language-Team: English\n"
+"Language: en\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Grupa"
+msgstr "Group"
+
+msgid "Rejestracje"
+msgstr "Registrations"
+
+msgid "Logowanie"
+msgstr "Login"
+
+msgid "Aktywacja"
+msgstr "Activation"
+
+msgid "Brak grup powyżej progu."
+msgstr "No groups above the threshold."
+
+msgid "Raport wysyłki"
+msgstr "Delivery report"
+
+msgid "Raport wysyłki komunikatu"
+msgstr "Message delivery report"
+
+msgid "Wysłany"
+msgstr "Sent"
+
+msgid "Stan"
+msgstr "Status"
+
+msgid "Wysłał"
+msgstr "Sent by"
+
+msgid "Wróć do komunikatów"
+msgstr "Back to messages"
+
+msgid "Brak danych o wysyłce tego komunikatu – raporty powstają dla komunikatów wysłanych od 18.10.2026."
+msgstr "No delivery data for this message – reports exist for messages sent from 18.10.2026."
+
+msgid "Odbiorców"
+msgstr "Recipients"
+
+msgid "Obsłużono"
+msgstr "Processed"
+
+msgid "To nie jest problem adresów odbiorców, tylko reputacji serwera poczty – zgłoś to operatorowi platformy (wniosek o zdjęcie blokady w Microsoft)."
+msgstr "This is not a problem with the recipients’ addresses but with the mail server’s reputation – report it to the platform operator (delisting request at Microsoft)."
+
+msgid "Zakolejkowano"
+msgstr "Queued"
+
+msgid "Pominięto (adres niedoręczalny)"
+msgstr "Skipped (undeliverable address)"
+
+msgid "Odbite po wysyłce"
+msgstr "Bounced after sending"
+
+msgid "Grupy domen"
+msgstr "Domain groups"
+
+msgid "Domena"
+msgstr "Domain"
+
+msgid "Pominięto"
+msgstr "Skipped"
+
+msgid "Adres nie istnieje"
+msgstr "Address does not exist"
+
+msgid "Polityka serwera"
+msgstr "Server policy"
+
+msgid "w tym S3150"
+msgstr "of which S3150"
+
+msgid "Tymczasowe i inne"
+msgstr "Temporary and other"
+
+msgid "Wysłane / odbite"
+msgstr "Sent / bounced"
+
+msgid "Razem"
+msgstr "Total"
+
+msgid "Górny słupek – listy zakolejkowane, dolny – odbite; oba w tej samej skali. Odbicia przychodzą przez kilka dni po wysyłce (serwery ponawiają doręczenie), więc liczby mogą jeszcze rosnąć."
+msgstr "Upper bar – queued letters, lower bar – bounced; both on the same scale. Bounces arrive for several days after sending (servers retry delivery), so the numbers may still grow."
+
+msgid "Odbite adresy"
+msgstr "Bounced addresses"
+
+msgid "Adres"
+msgstr "Address"
+
+msgid "Rodzaj"
+msgstr "Type"
+
+msgid "Kod"
+msgstr "Code"
+
+msgid "Powód (odpowiedź serwera odbiorcy)"
+msgstr "Reason (recipient server response)"
+
+msgid "Kiedy"
+msgstr "When"
+
+msgid "Żaden list tego komunikatu nie wrócił."
+msgstr "No letter of this message has bounced."
+
+#, python-format
+msgid "Listy odrzucone przez Microsoft z powodu blokady adresu IP serwera (S3150): %(n)s."
+msgstr "Letters rejected by Microsoft because the server’s IP address is blocked (S3150): %(n)s."
+
+#, python-format
+msgid "Pokazano pierwsze %(n)s adresów – pełne liczby są w tabeli powyżej."
+msgstr "Showing the first %(n)s addresses – full numbers are in the table above."
+
+msgid "Lejek uczestnika"
+msgstr "Participant funnel"
+
+msgid "panel koordynatora"
+msgstr "coordinator panel"
+
+msgid "Ilu uczestników przechodzi kolejne kroki – od rejestracji, przez aktywację konta i zapis do etapu, do pierwszej pracy, zaświadczenia i warsztatów."
+msgstr "How many participants go through each step – from registration, account activation and stage enrolment to the first work, the certificate and workshops."
+
+msgid "Liczby dotyczą uczestników wybranej edycji: zapisanych do jej etapu albo zarejestrowanych w czasie jej trwania. Konta usunięte nie są liczone."
+msgstr "The numbers concern participants of the selected edition: enrolled in one of its stages or registered while it ran. Deleted accounts are not counted."
+
+msgid "Eksport CSV"
+msgstr "CSV export"
+
+msgid "Ten konkurs nie ma jeszcze żadnej edycji."
+msgstr "This competition has no edition yet."
+
+msgid "Filtry lejka"
+msgstr "Funnel filters"
+
+msgid "Edycja"
+msgstr "Edition"
+
+msgid "Pokaż"
+msgstr "Show"
+
+msgid "Wyczyść filtry"
+msgstr "Clear filters"
+
+msgid "Kroki lejka"
+msgstr "Funnel steps"
+
+msgid "Krok"
+msgstr "Step"
+
+msgid "Uczestnicy"
+msgstr "Participants"
+
+msgid "względem poprzedniego kroku"
+msgstr "of the previous step"
+
+msgid "względem rejestracji"
+msgstr "of registrations"
+
+msgid "brak takiego etapu w tej edycji"
+msgstr "no such stage in this edition"
+
+msgid "Lejek ścisły: krok liczy osoby, które przeszły także wszystkie poprzednie kroki. Wiersze „w tym” rozbijają zapis do etapu i liczą się względem kroku zgód."
+msgstr "Strict funnel: a step counts people who have also passed all previous steps. The “of which” rows break down stage enrolment and are counted against the consents step."
+
+msgid "Kroki niezależne: każdy krok liczy wszystkich, którzy spełniają jego warunek – także bez poprzednich kroków (np. obecni na warsztacie bez zaakceptowanego zaświadczenia)."
+msgstr "Independent steps: each step counts everyone who meets its condition – also without the previous steps (e.g. present at a workshop without an accepted certificate)."
+
+msgid "Zgoda opiekuna jest wymagana od niepełnoletnich według tej samej reguły wieku, co przy rejestracji."
+msgstr "Guardian consent is required from minors according to the same age rule as at registration."
+
+msgid "Gdzie odpadają – najniższa aktywacja kont"
+msgstr "Where they drop out – lowest account activation"
+
+msgid "Województwa"
+msgstr "Voivodeships"
+
+msgid "Województwa – najniższa aktywacja"
+msgstr "Voivodeships – lowest activation"
+
+msgid "Szkoły"
+msgstr "Schools"
+
+msgid "Szkoły – najniższa aktywacja"
+msgstr "Schools – lowest activation"
+
+#, python-format
+msgid "Województwa i szkoły z co najmniej %(k)s rejestracjami, od najniższego odsetka aktywowanych kont."
+msgstr "Voivodeships and schools with at least %(k)s registrations, from the lowest share of activated accounts."
+
+msgid "Pominięte"
+msgstr "Skipped"
+
+msgid "Odbite"
+msgstr "Bounced"
+
+msgid "Raport"
+msgstr "Report"
+
+msgid "odrzucone przez Microsoft (S3150)"
+msgstr "rejected by Microsoft (S3150)"
+
+msgid "Gmail"
+msgstr "Gmail"
+
+msgid "WP / O2 / Onet / Interia"
+msgstr "WP / O2 / Onet / Interia"
+
+msgid "Microsoft (Outlook, Hotmail, Live)"
+msgstr "Microsoft (Outlook, Hotmail, Live)"
+
+msgid "szkolne (edu)"
+msgstr "school (edu)"
+
+msgid "inne"
+msgstr "other"
+
+msgid "wszystkie"
+msgstr "all"
+
+msgid "Województwo / region"
+msgstr "Voivodeship / region"
+
+msgid "Szkoła"
+msgstr "School"
+
+msgid "Domena adresu e-mail"
+msgstr "E-mail address domain"
+
+msgid "Rejestracja od"
+msgstr "Registered from"
+
+msgid "Rejestracja do"
+msgstr "Registered until"
+
+msgid "Sposób liczenia"
+msgstr "Counting method"
+
+msgid "Początek okresu rejestracji jest późniejszy niż jego koniec."
+msgstr "The start of the registration period is later than its end."
+
+msgid "lejek ścisły – krok wymaga wszystkich poprzednich"
+msgstr "strict funnel – a step requires all previous ones"
+
+msgid "kroki niezależne"
+msgstr "independent steps"
+
+msgid "Rejestracja (profil uczestnika)"
+msgstr "Registration (participant profile)"
+
+msgid "Aktywacja konta (potwierdzony adres e-mail)"
+msgstr "Account activation (confirmed e-mail address)"
+
+msgid "Pierwsze logowanie"
+msgstr "First login"
+
+msgid "Zgody (w tym zgoda opiekuna niepełnoletniego)"
+msgstr "Consents (including a minor’s guardian consent)"
+
+msgid "Zapis do etapu edycji"
+msgstr "Enrolment in a stage of the edition"
+
+msgid "w tym etap treningowy"
+msgstr "of which the training stage"
+
+msgid "w tym Etap I"
+msgstr "of which Stage I"
+
+msgid "Pierwsza wysłana praca"
+msgstr "First work submitted"
+
+msgid "Zaświadczenie o statusie ucznia zaakceptowane"
+msgstr "Student status certificate accepted"
+
+msgid "Obecność na co najmniej jednym warsztacie"
+msgstr "Attendance at at least one workshop"
+
+msgid "brak szkoły"
+msgstr "no school"
+
+msgid "nazwa wpisana ręcznie"
+msgstr "name typed in manually"
+
+msgid "brak województwa"
+msgstr "no voivodeship"
+
+msgid "Filtry"
+msgstr "Filters"
+
+msgid "Lejek"
+msgstr "Funnel"
+
+msgid "Sekcja"
+msgstr "Section"
+
+msgid "Pozycja"
+msgstr "Item"
+
+msgid "Liczba"
+msgstr "Count"
+
+msgid "Odsetek względem poprzedniego kroku (%)"
+msgstr "Share of the previous step (%)"
+
+msgid "Odsetek względem rejestracji (%)"
+msgstr "Share of registrations (%)"

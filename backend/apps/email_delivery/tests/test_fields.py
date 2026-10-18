@@ -1,4 +1,4 @@
-"""Pole ``CheckedEmailField`` (MAIL-02 § 1.3): jedno pytanie o literówkę, „zostaw”, „użyj”, blokada."""
+"""Pole ``CheckedEmailField`` (MAIL-02 § 1.3, REG-UX-01 § 1.2): literówka, „Popraw”, „zostaw”, blokada."""
 
 from __future__ import annotations
 
@@ -41,6 +41,11 @@ def test_typo_stops_the_form_once_with_a_suggestion():
     assert f'name="email{ACCEPT_SUFFIX}" value="jan@gmail.com"' in html
     assert f'name="email{KEEP_SUFFIX}" value="jan@gmial.com"' in html
     assert 'id="id_email_suggestion"' in html
+    # REG-UX-01 § 1.2: „Tak, adres jest poprawny” jest pierwszym przyciskiem wysyłki (Enter = zostaw).
+    assert html.index('id="id_email_keep"') < html.index('id="id_email_accept"')
+    assert "Tak, adres jan@gmial.com jest poprawny" in html
+    assert "Popraw na jan@gmail.com" in html
+    assert 'type="checkbox"' not in html
 
 
 def test_resubmitting_the_same_address_keeps_it():
@@ -190,3 +195,88 @@ def test_widget_carries_translated_hints_for_the_script():
     html = str(SampleForm()["email"])
     assert 'data-email-hint="Czy chodziło Ci o %s?"' in html
     assert 'data-email-use="Użyj %s"' in html
+
+
+# --- REG-UX-01 § 1.2: „Popraw” należy do adresu, dla którego powstał ---------------------------
+
+
+def test_fix_button_is_ignored_when_the_field_was_corrected_by_hand():
+    # Uczeń poprawił adres ręcznie i nacisnął Enter – stara poprawka nie może go nadpisać.
+    form = SampleForm({"email": "ola@wp.pl", f"email{ACCEPT_SUFFIX}": "jan@gmail.com"})
+
+    assert form.is_valid(), form.errors
+    assert form.cleaned_data["email"] == "ola@wp.pl"
+
+
+def test_fix_button_with_a_value_that_is_not_the_suggestion_is_ignored():
+    form = SampleForm({"email": "jan@gmial.com", f"email{ACCEPT_SUFFIX}": "atak@zly.example"})
+
+    assert not form.is_valid()
+    assert "jan@gmail.com" in form.errors["email"][0]
+
+
+def test_dead_domain_offers_only_the_fix(dead_domains):
+    kept = SampleForm({"email": "kcadera@o2.plo", f"email{KEEP_SUFFIX}": "kcadera@o2.plo"})
+
+    assert not kept.is_valid()
+    html = str(kept["email"])
+    assert 'id="id_email_accept"' in html
+    assert 'id="id_email_keep"' not in html
+
+
+@pytest.mark.parametrize(
+    ("typed", "fixed"),
+    [("jan@gmailcom", "jan@gmail.com"), ("jan@gmail", "jan@gmail.com"), ("ola@wppl", "ola@wp.pl")],
+)
+def test_address_without_a_dot_in_the_domain_gets_the_fix_in_the_syntax_error(typed, fixed):
+    form = SampleForm({"email": typed})
+
+    assert not form.is_valid()
+    assert form.errors["email"][0] == f"Adres e-mail jest niepełny – czy chodziło Ci o {fixed}?"
+    html = str(form["email"])
+    assert f'value="{fixed}"' in html
+    assert 'id="id_email_keep"' not in html  # takiego adresu nie da się zostawić
+
+    accepted = SampleForm({"email": typed, f"email{ACCEPT_SUFFIX}": fixed})
+    assert accepted.is_valid(), accepted.errors
+    assert accepted.cleaned_data["email"] == fixed
+
+
+def test_invalid_address_without_an_obvious_fix_keeps_the_plain_error():
+    form = SampleForm({"email": "jan@szkola"})
+
+    assert not form.is_valid()
+    assert "niepełny" not in form.errors["email"][0]
+    assert ACCEPT_SUFFIX not in str(form["email"])
+
+
+def test_quiet_variant_has_no_fix_for_invalid_syntax():
+    form = QuietForm({"email": "jan@gmailcom"})
+
+    assert not form.is_valid()
+    assert "niepełny" not in form.errors["email"][0]
+
+
+@pytest.mark.parametrize(
+    ("address", "fixed"),
+    [
+        ("jan@gmail.con", "jan@gmail.com"),
+        ("jan@gmial.com", "jan@gmail.com"),
+        ("jan@szkola.edu.pl.pl", "jan@szkola.edu.pl"),
+        # Jednoliterowy TLD odrzuca już składnia – poprawka idzie w komunikacie o błędzie składni.
+        ("jan@wp.p", "jan@wp.pl"),
+        ("jan@onet.pll", "jan@onet.pl"),
+    ],
+)
+def test_production_typos_stop_the_form(address, fixed):
+    # Literówki z produkcji (zgłoszenie organizatora 18.10.2026), które dały duplikaty i odbicia.
+    form = SampleForm({"email": address})
+
+    assert not form.is_valid()
+    assert f"czy chodziło Ci o {fixed}?" in form.errors["email"][0]
+    assert SampleForm({"email": address, f"email{ACCEPT_SUFFIX}": fixed}).is_valid()
+
+
+def test_school_domain_is_never_questioned(dead_domains):
+    for address in ("dyrektor@lo1.edu.pl", "jan@sp1.pl", "jan@op.edu.pl", "jan@int.lodz.pl"):
+        assert SampleForm({"email": address}).is_valid(), address

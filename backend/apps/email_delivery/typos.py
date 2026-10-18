@@ -12,7 +12,10 @@ strony dają te same odpowiedzi na wspólnych przypadkach i mają te same listy)
    dłuższych; przy remisie wygrywa wcześniejsza na liście (lista jest w kolejności popularności),
 3. literówka w TLD z **jawnej** mapy (``.con`` → ``.com``). Jawnej, a nie „najbliższy TLD”, bo
    ``.cm``, ``.co`` i ``.om`` to prawdziwe domeny krajowe: na liście jest tylko to, co w praktyce
-   jest pomyłką. Podpowiedź i tak jest wyłącznie pytaniem – adres można zostawić.
+   jest pomyłką. Podpowiedź i tak jest wyłącznie pytaniem – adres można zostawić,
+4. przed mapą TLD – znane wzorce z produkcji (REG-UX-01): podwojony TLD (``.pl.pl``), znana domena
+   z doklejoną etykietą (``gmail.com.pl``), marka z cudzym TLD (``gmail.pl``, ``wp.com``) i domena
+   bez kropki (``jan@gmailcom`` – podpowiedź w komunikacie o błędzie składni).
 
 Część lokalna adresu nie jest ruszana (``Jan.Kowalski+olimp@`` zostaje co do znaku), a domena IDN
 jest porównywana i podpowiadana w postaci Unicode (``xn--…`` dekodowane przed porównaniem).
@@ -41,6 +44,7 @@ KNOWN_DOMAINS: tuple[str, ...] = (
     "tlen.pl",
     "poczta.fm",
     "vp.pl",
+    "int.pl",
     "onet.eu",
     "go2.pl",
     "interia.eu",
@@ -142,6 +146,29 @@ TLD_TYPOS: dict[str, str] = {
     "rog": "org",
 }
 
+#: Marki, których adres ma **jedną** domenę pocztową, i ta domena (REG-UX-01 § 1.1). Służy dwóm
+#: wzorcom spoza odległości edycyjnej: „marka z cudzym TLD” (``gmail.pl`` – trzy zmiany od
+#: ``gmail.com``, ``wp.com`` – trzy od ``wp.pl``) i „domena bez kropki” (``jan@gmail``). Wyłącznie
+#: marki bez drugiej poczty pod inną końcówką: ``outlook``/``hotmail``/``yahoo`` mają krajowe warianty,
+#: ale te są na liście znanych domen i podpowiedzi nie dostają, więc mapa ich nie zasłoni.
+BRAND_DOMAINS: dict[str, str] = {
+    "gmail": "gmail.com",
+    "googlemail": "googlemail.com",
+    "icloud": "icloud.com",
+    "outlook": "outlook.com",
+    "hotmail": "hotmail.com",
+    "yahoo": "yahoo.com",
+    "wp": "wp.pl",
+    "o2": "o2.pl",
+    "onet": "onet.pl",
+    "interia": "interia.pl",
+    "op": "op.pl",
+    "tlen": "tlen.pl",
+    "gazeta": "gazeta.pl",
+    "vp": "vp.pl",
+    "int": "int.pl",
+}
+
 #: Domena do tylu znaków włącznie dostaje podpowiedź wyłącznie przy odległości 1. Krótkie domeny
 #: leżą blisko siebie (``wp.pl``, ``op.pl``, ``vp.pl``, ``o2.pl``) – dwie zmiany w pięciu znakach
 #: to już zupełnie inny adres, a nie literówka.
@@ -183,8 +210,10 @@ def unicode_domain(domain: str) -> str:
 def suggest_domain(domain: str) -> str | None:
     """Poprawiona domena albo ``None``. ``domain`` może być w postaci ASCII (``xn--``) albo Unicode."""
     domain = unicode_domain(domain)
-    if not domain or "." not in domain or domain in KNOWN_DOMAINS:
+    if not domain or domain in KNOWN_DOMAINS:
         return None
+    if "." not in domain:
+        return _dotless_domain(domain)
     limit = 1 if len(domain) <= SHORT_DOMAIN_LENGTH else 2
     best: str | None = None
     best_distance = limit + 1
@@ -195,12 +224,54 @@ def suggest_domain(domain: str) -> str | None:
         current = distance(domain, known)
         if current < best_distance:
             best, best_distance = known, current
+    if best is not None and best_distance <= 1:
+        return best
+    # Przy odległości 2 wzorzec wygrywa: ``outlook.pl`` jest o dwie zmiany od ``outlook.de``,
+    # ale ktoś, kto pisze z Polski, ma na myśli ``outlook.com`` (marka z cudzym TLD).
+    pattern = _known_pattern(domain)
+    if pattern is not None:
+        return pattern
     if best is not None:
         return best
     head, _dot, tld = domain.rpartition(".")
     fixed = TLD_TYPOS.get(tld)
     if fixed and head:
         return f"{head}.{fixed}"
+    return None
+
+
+def _known_pattern(domain: str) -> str | None:
+    """Wzorce z produkcji, których odległość edycyjna nie łapie (REG-UX-01 § 1.1).
+
+    - podwojona ostatnia etykieta (``szkola.edu.pl.pl``, ``wp.pl.pl``) – bez niej, a wynik idzie
+      jeszcze raz przez podpowiedź (``gmial.com.com`` → ``gmail.com``). Dotyczy każdej domeny, także
+      szkolnej, bo ``.pl.pl`` nie bywa prawdziwym adresem – a podpowiedź i tak da się odrzucić,
+    - znana domena z doklejoną etykietą (``gmail.com.pl``),
+    - marka z cudzym TLD (``gmail.pl``, ``wp.com``) – wyłącznie dla dwóch etykiet, żeby
+      ``op.edu.pl`` czy ``int.lodz.pl`` (prawdziwe domeny instytucji) nie dostały podpowiedzi.
+    """
+    labels = domain.split(".")
+    if len(labels) >= 3 and labels[-1] == labels[-2]:
+        shorter = ".".join(labels[:-1])
+        return suggest_domain(shorter) or shorter
+    if len(labels) >= 3 and ".".join(labels[:-1]) in KNOWN_DOMAINS:
+        return ".".join(labels[:-1])
+    if len(labels) == 2 and labels[0] in BRAND_DOMAINS:
+        return BRAND_DOMAINS[labels[0]]
+    return None
+
+
+def _dotless_domain(domain: str) -> str | None:
+    """Domena bez kropki (``gmail``, ``gmailcom``, ``wppl``) – sama marka albo znana domena bez kropek.
+
+    Taki adres odrzuca już składnia, więc podpowiedź trafia do komunikatu o błędzie (``fields``);
+    porównanie jest dokładne, bez odległości – w kilku literach bez kropki odległość 1 to zgadywanie.
+    """
+    if domain in BRAND_DOMAINS:
+        return BRAND_DOMAINS[domain]
+    for known in KNOWN_DOMAINS:
+        if known.replace(".", "") == domain:
+            return known
     return None
 
 

@@ -18,8 +18,8 @@ msgid "Użyj %s"
 msgstr "Gunakan %s"
 
 #, python-format
-msgid "Sprawdź adres – czy chodziło Ci o %(suggestion)s? Zaznacz poprawkę poniżej albo wyślij formularz jeszcze raz, żeby zostawić adres bez zmian."
-msgstr "Periksa alamatnya – apakah maksud Anda %(suggestion)s? Centang koreksi di bawah atau kirim formulir sekali lagi untuk mempertahankan alamat apa adanya."
+msgid "Sprawdź adres – czy chodziło Ci o %(suggestion)s? Wybierz „Popraw” albo potwierdź, że adres jest poprawny."
+msgstr "Periksa alamatnya – apakah maksud Anda %(suggestion)s? Pilih “Perbaiki” atau pastikan bahwa alamatnya benar."
 
 #, python-format
 msgid "Domena %(domain)s nie istnieje albo nie przyjmuje poczty. Sprawdź adres."
@@ -30,8 +30,17 @@ msgid "Domena %(domain)s nie istnieje albo nie przyjmuje poczty. Czy chodziło C
 msgstr "Domain %(domain)s tidak ada atau tidak menerima email. Apakah maksud Anda %(suggestion)s?"
 
 #, python-format
-msgid "Użyj adresu <strong>%(address)s</strong>"
-msgstr "Gunakan <strong>%(address)s</strong>"
+msgid "Popraw na %(address)s"
+msgstr "Perbaiki menjadi %(address)s"
+
+#, python-format
+msgid "Tak, adres %(address)s jest poprawny"
+msgstr "Ya, %(address)s sudah benar"
+
+# REG-UX-01 § 1.1: adres bez kropki w domenie (jan@gmailcom).
+#, python-format
+msgid "Adres e-mail jest niepełny – czy chodziło Ci o %(suggestion)s?"
+msgstr "Alamat email tidak lengkap – apakah maksud Anda %(suggestion)s?"
 
 #, python-format
 msgid "Nie możemy dostarczyć poczty na adres %(email)s – serwer odbiorcy odpowiada, że taka skrzynka albo domena nie istnieje. Nie dostaniesz od nas listów, dopóki adres nie zostanie poprawiony."

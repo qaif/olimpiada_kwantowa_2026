@@ -150,6 +150,7 @@ INSTALLED_APPS = [
     # plik w storage prywatnym, własne zdarzenia (pobrania) i własne reguły prywatności liczenia
     # (``apps.promo.tracking``). Z domeną zawodów łączy ją wyłącznie konkurs.
     "apps.promo",
+    "apps.message_rules",  # automatyczne przypomnienia: reguły → komunikaty planowane (MSG-AUTO-01)
     # Zaświadczenie o statusie ucznia (prośba organizatora z 24.09.2026): skan podstemplowanego
     # wzoru i decyzja koordynatora, za flagą ``student_status_certificate``. Osobna aplikacja, a nie
     # model w ``apps.accounts``: ma własny plik w storage prywatnym, własny skan antywirusowy,
@@ -201,6 +202,7 @@ INSTALLED_APPS = [
     "apps.monitoring",  # śledzenie błędów (GlitchTip) i dostępność – OPS-02, wyłączone bez SENTRY_DSN
     "apps.accessibility",  # deklaracja dostępności i napisy stopki (A11Y-01, 5.10.2026), bez modeli
     "apps.email_delivery",  # literówki w adresach i odbicia poczty (MAIL-02, 5.10.2026)
+    "apps.coordinator_stats",  # lejek uczestnika i raporty wysyłek komunikatów (STATS-02, 18.10.2026)
     "apps.consent_gate",  # bramka i ekran „Uzupełnij zgody” po zalogowaniu (CONS-01), bez modeli
     "apps.calendar_feed",  # publiczny kalendarz ICS: warsztaty i terminy (CAL-01, 18.10.2026), bez modeli
     "apps.web",
@@ -582,6 +584,11 @@ CELERY_BEAT_SCHEDULE = {
         "task": "apps.email_delivery.tasks.purge_delivery_statuses",
         "schedule": crontab(minute=20, hour=3),
     },
+    # Raporty wysyłek komunikatów (STATS-02): retencja adresów odbić przypisanych komunikatom.
+    "broadcast-bounces-purge": {
+        "task": "apps.coordinator_stats.tasks.purge_broadcast_bounces",
+        "schedule": crontab(minute=25, hour=3),
+    },
     # Notatniki kwantowe (QC-01): przebiegi oceny dla nowych czystych plików .ipynb i domknięcie
     # zgubionych. Bez zmian w ``apps.submissions`` – beat zauważa nowy plik sam, najpóźniej po minucie.
     "notebooks-pump": {
@@ -599,6 +606,12 @@ CELERY_BEAT_SCHEDULE = {
     "dispatch-scheduled-broadcasts": {
         "task": "apps.accounts.messaging.dispatch_scheduled_broadcasts",
         "schedule": 60.0,
+    },
+    # Automatyczne przypomnienia (MSG-AUTO-01, apps/message_rules): reguły → komunikaty planowane
+    # do 7 dni naprzód, idempotentnie (jeden na wystąpienie i regułę). Wysyła je wpis wyżej.
+    "generate-message-rule-broadcasts": {
+        "task": "apps.message_rules.tasks.generate_rule_broadcasts",
+        "schedule": 300.0,
     },
     # Zamknięcie etapu po deadline: LOCKED na najnowszych wersjach + znacznik Stage.closed_at.
     "close-due-stages": {

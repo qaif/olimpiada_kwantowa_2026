@@ -1,0 +1,77 @@
+{% extends "web/coordinator/base.html" %}
+{% load i18n static web_extras coordinator_extras %}
+{% comment %}
+  Automatyczne przypomnienia (MSG-AUTO-01). Reguła sama niczego nie wysyła: co kilka minut beat
+  zamienia ją w zwykłe komunikaty planowane, które stoją w „Komunikaty → Zaplanowane” i dają się
+  tam anulować. „Włącz/Wyłącz” i „Usuń” to osobne formularze POST z CSRF; usunięcie pyta
+  o potwierdzenie (``confirmSubmit`` z ``static/js/app.js`` – bez kodu inline, CSP).
+{% endcomment %}
+{% block title %}{% translate "Automatyczne przypomnienia – panel koordynatora" %}{% endblock %}
+{% block panel_head %}<link rel="stylesheet" href="{% static 'css/coordinator-tools.css' %}">{% endblock %}
+{% block panel_title %}{% translate "Automatyczne przypomnienia" %}{% endblock %}
+{% block panel_lead %}
+  <p class="lead">{% translate "Reguła zamienia harmonogram warsztatów albo termin etapu w komunikaty planowane – do tygodnia przed wysyłką. Każdy taki komunikat zobaczysz i anulujesz w" %}
+    <a href="{% url 'web:coordinator-messages' %}">{% translate "Komunikaty → Zaplanowane" %}</a>.</p>
+{% endblock %}
+{% block panel_content %}
+
+<div class="actions">
+  <a class="btn btn--primary" href="{% url 'web:coordinator-message-rule-create' %}?kind=workshop">{% translate "Dodaj: przypomnienie o warsztatach" %}</a>
+  <a class="btn btn--secondary" href="{% url 'web:coordinator-message-rule-create' %}?kind=stage">{% translate "Dodaj: przypomnienie przed terminem etapu" %}</a>
+</div>
+
+<section class="section">
+  <div class="section__head"><h2 class="mt-0">{% translate "Reguły" %} ({{ rules|length }})</h2></div>
+  <div class="scroll" role="region" tabindex="0" aria-label="{% translate 'Reguły' %}">
+    <table class="table table--stack">
+      <thead>
+        <tr>
+          <th scope="col">{% translate "Nazwa" %}</th>
+          <th scope="col">{% translate "Rodzaj" %}</th>
+          <th scope="col">{% translate "Grupa" %}</th>
+          <th scope="col">{% translate "Kiedy" %}</th>
+          <th scope="col">{% translate "Stan" %}</th>
+          <th scope="col"><span class="visually-hidden">{% translate "Akcje" %}</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for rule in rules %}
+          <tr>
+            <th scope="row"><a href="{% url 'web:coordinator-message-rule-edit' rule.pk %}">{{ rule.name }}</a></th>
+            <td data-label="{% translate 'Rodzaj' %}">{{ rule.get_kind_display }}{% if rule.stage %}: {{ rule.stage.display_name }}{% endif %}</td>
+            <td data-label="{% translate 'Grupa' %}">{{ rule.group_label }}{% if rule.target_label %}: <strong>{{ rule.target_label }}</strong>{% endif %}</td>
+            <td data-label="{% translate 'Kiedy' %}">
+              {% if rule.timing == "HOURS_BEFORE" %}
+                {% blocktranslate with hours=rule.hours_before %}{{ hours }} godz. przed początkiem{% endblocktranslate %}
+              {% else %}
+                {% blocktranslate with days=rule.days_before|join:", " time=rule.send_time|time:"H:i" %}dni przed: {{ days }}, o {{ time }}{% endblocktranslate %}
+              {% endif %}
+            </td>
+            <td data-label="{% translate 'Stan' %}">
+              {% if rule.enabled %}<span class="badge badge--ok">{% translate "włączona" %}</span>{% else %}<span class="badge">{% translate "wyłączona" %}</span>{% endif %}
+              {% if rule.last_error %}<p class="hint">{% translate "Ostatni błąd:" %} {{ rule.last_error }}</p>{% endif %}
+            </td>
+            <td>
+              <div class="row">
+                <a class="btn btn--small btn--ghost" href="{% url 'web:coordinator-message-rule-edit' rule.pk %}">{% translate "Edytuj i podgląd" %}</a>
+                <form method="post" class="inline" action="{% url 'web:coordinator-message-rule-toggle' rule.pk %}">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn--small btn--secondary">{% if rule.enabled %}{% translate "Wyłącz" %}{% else %}{% translate "Włącz" %}{% endif %}</button>
+                </form>
+                <form method="post" class="inline" action="{% url 'web:coordinator-message-rule-delete' rule.pk %}"
+                      x-data="confirmSubmit" x-on:submit="check"
+                      data-confirm="{% translate 'Usunąć tę regułę? Jej czekające komunikaty zostaną wycofane; wysłane zostają w historii.' %}">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn--small btn--danger">{% translate "Usuń" %}</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="6" class="empty">{% translate "Nie ma jeszcze żadnej reguły." %}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

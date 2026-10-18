@@ -8,4 +8,8 @@ class CompetitionsConfig(AppConfig):
     def ready(self) -> None:
         # Rejestracja kontroli ``manage.py check`` (``competitions.W001`` – sekret przepustek Jitsi).
         # ``checks.register`` działa przez wykonanie modułu, tak samo jak w ``apps.cms``.
-        from . import checks  # noqa: F401
+        # Sygnały automatycznego zapisu nowych kont do etapu treningowego (REG-UX-01 § 3).
+        from . import (
+            auto_registration,  # noqa: F401
+            checks,  # noqa: F401
+        )

@@ -16,8 +16,17 @@ from __future__ import annotations
 
 from django.contrib.auth import get_user_model
 from django.db.models.signals import post_delete, post_init, post_save, pre_save
+from django.dispatch import Signal
 
 ORIGINAL = "_email_delivery_original"
+
+#: Odbicie listu (STATS-02 § 2.3): ``bounces`` – lista ``bounces.Bounce`` (**każde** odbicie, także
+#: polityki czy spamu, których ``DeliveryStatus`` nie zapisuje), ``headers`` – nagłówki listu
+#: pierwotnego (``email.message.Message`` z DSN albo ``extra_headers`` wysyłanego listu), ``source`` –
+#: ``models.Source``. Ta aplikacja nie wie, kto słucha: raport wysyłki komunikatu
+#: (``apps.coordinator_stats``) czyta z nagłówków numer komunikatu. Wysyłany przez ``send_robust`` –
+#: błąd odbiornika nie może zatrzymać skrzynki ani wysyłki.
+bounces_reported = Signal()
 
 
 def _remember(sender, instance, **kwargs) -> None:

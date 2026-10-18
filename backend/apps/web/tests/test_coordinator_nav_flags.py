@@ -76,7 +76,19 @@ EXPECTED_MENU_WITHOUT_FLAGS: tuple[tuple[str, tuple[str, ...]], ...] = (
     # z odznaką). Bez flagi, bo moduł jest domyślnie włączony (kanał „napisz do organizatora”).
     # „Ogłoszenia w Wiadomościach” – zadanie CZ-ANN-01 (prośba organizatora z 8.10.2026: włączanie
     # i wyłączanie ogłoszenia w Wiadomościach przez koordynatora). Bez flagi, jak „Wiadomości”.
-    ("Komunikacja", ("Komunikaty", "Zgłoszenia", "Ogłoszenia", "Wiadomości", "Ogłoszenia w Wiadomościach")),
+    # „Automatyczne przypomnienia” – zadanie MSG-AUTO-01 (prośba organizatora z 18.10.2026: przypomnienia
+    # o warsztatach i terminach etapów z reguł). Bez flagi, jak „Komunikaty”, do których trafiają.
+    (
+        "Komunikacja",
+        (
+            "Komunikaty",
+            "Automatyczne przypomnienia",
+            "Zgłoszenia",
+            "Ogłoszenia",
+            "Wiadomości",
+            "Ogłoszenia w Wiadomościach",
+        ),
+    ),
     (
         "Raporty",
         (
@@ -86,6 +98,8 @@ EXPECTED_MENU_WITHOUT_FLAGS: tuple[tuple[str, tuple[str, ...]], ...] = (
             "Obecność na warsztatach",
             # Reguła automatycznych zaświadczeń z obecności (WS-CERT-02) – bez flagi, jak obecność.
             "Zaświadczenia z warsztatów",
+            # Lejek uczestnika – zadanie STATS-02 (lista organizatora z 18.10.2026), bez flagi.
+            "Lejek uczestnika",
             "Zaświadczenia opiekunów",
             "Retencja danych",
             "Rejestr czynności",
@@ -318,6 +332,7 @@ def test_document_templates_flag_adds_exactly_one_item_in_reports(competition):
         "Szablony dokumentów",
         "Obecność na warsztatach",
         "Zaświadczenia z warsztatów",
+        "Lejek uczestnika",
         "Zaświadczenia opiekunów",
         "Retencja danych",
         "Rejestr czynności",

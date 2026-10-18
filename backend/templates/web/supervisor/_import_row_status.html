@@ -1,0 +1,41 @@
+{% load i18n %}{% comment %}
+  Status wiersza podglądu importu (REG-UX-01 § 2.1, ``bulk_registration.describe_rows``).
+
+  Nauczyciel dostaje cztery statusy: zaproszenie, „jest na Twojej liście”, „ma konto, ale nie ma go
+  na Twojej liście” (jedno zdanie o każdym innym zajętym adresie – v0.38.7, bez wyroczni ról) i błąd.
+  Pozostałe statusy pojawiają się wyłącznie w imporcie koordynatora (``with_supervisor_column``) –
+  panel organizatora jest po polsku, więc te napisy nie idą przez tłumaczenie.
+{% endcomment %}
+{% if row.status == "invite" %}
+  <span class="badge badge--ok">{% translate "zaproszenie zostanie wysłane" %}</span>
+{% elif row.status == "on_list" %}
+  {% if with_supervisor_column %}
+    <span class="badge badge--ok">ma już konto i jest na liście tego opiekuna</span>
+    {% if row.user_id %}<a class="hint" href="{% url 'web:coordinator-account-edit' row.user_id %}">konto ucznia</a>{% endif %}
+  {% else %}
+    <span class="badge badge--ok">{% translate "ma już konto i jest na Twojej liście" %}</span>
+    <a class="hint" href="{% url 'web:supervisor-students' %}">{% translate "zobacz listę uczniów" %}</a>
+  {% endif %}
+{% elif row.status == "existing" %}
+  <span class="badge badge--info">{% translate "ma już konto, ale nie ma go na Twojej liście" %}</span>
+{% elif row.status == "other_supervisor" %}
+  <span class="badge badge--info">ma już konto, ale wskazał innego opiekuna</span>
+  <span class="hint">dostanie prośbę o zgodę na zmianę opiekuna na adres z pliku</span>
+{% elif row.status == "no_supervisor" %}
+  <span class="badge badge--info">ma już konto, ale nie wskazał opiekuna</span>
+  <span class="hint">dostanie prośbę o zgodę na dopisanie opiekuna z pliku</span>
+{% elif row.status == "unchanged" %}
+  <span class="badge badge--info">ma już konto w tym konkursie – bez zmian</span>
+  <span class="hint">wiersz nie wskazuje opiekuna, więc import niczego w profilu nie zmienia</span>
+{% elif row.status == "not_participant" %}
+  <span class="badge badge--info">ma konto, ale nie jest uczestnikiem tego konkursu</span>
+  <span class="hint">konto w innym konkursie albo bez profilu ucznia – import go nie zmieni</span>
+{% elif row.action == "skip" %}
+  <span class="badge badge--warn">{% translate "błąd" %}</span>
+{% elif row.action == "create" %}
+  <span class="badge badge--ok">{% translate "zaproszenie zostanie wysłane" %}</span>
+{% else %}
+  <span class="badge badge--info">{% translate "adres ma już konto" %}</span>
+{% endif %}
+{% for problem in row.errors %}<span class="hint">{% blocktranslate trimmed %}błąd: {{ problem }}{% endblocktranslate %}</span>{% endfor %}
+{% for note in row.notes %}<span class="hint">{{ note }}</span>{% endfor %}

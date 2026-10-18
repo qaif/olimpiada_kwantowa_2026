@@ -1,0 +1,293 @@
+# Indonesian - tlumaczenie automatycznych przypomnien (docs/tasks/MSG-AUTO-01.md).
+# Zrodlem (msgid) jest polski. UWAGA: tlumaczenie MASZYNOWE - do przegladu native speakera.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Olimpiada Kwantowa - message_rules\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-18 12:00+0200\n"
+"PO-Revision-Date: 2026-10-18 12:00+0200\n"
+"Last-Translator: Olimpiada Kwantowa\n"
+"Language-Team: Indonesian\n"
+"Language: id\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+msgid "Temat (szablon)"
+msgstr "Subjek (templat)"
+
+msgid "Treść (szablon)"
+msgstr "Isi (templat)"
+
+msgid "Nazwa reguły"
+msgstr "Nama aturan"
+
+msgid "Reguła włączona"
+msgstr "Aturan aktif"
+
+msgid "Moment wysyłki"
+msgstr "Waktu pengiriman"
+
+msgid "Ile dni przed"
+msgstr "Berapa hari sebelumnya"
+
+msgid "0 = w dniu warsztatu. Kilka liczb rozdziel przecinkami, np. 30, 7, 1."
+msgstr "0 = pada hari lokakarya. Pisahkan beberapa angka dengan koma, mis. 30, 7, 1."
+
+msgid "Godzina wysyłki (czas polski)"
+msgstr "Jam pengiriman (waktu Polandia)"
+
+msgid "Ile godzin przed początkiem warsztatu"
+msgstr "Berapa jam sebelum lokakarya dimulai"
+
+msgid "Tylko przy „N godzin przed początkiem”; początek to pierwsza godzina z kolumny „godziny”."
+msgstr "Hanya untuk “N jam sebelum mulai”; waktu mulai adalah jam pertama di kolom “jam”."
+
+msgid "Link (pole {link})"
+msgstr "Tautan (kolom {link})"
+
+msgid "Np. stały link spotkania Google Meet albo adres strony etapu."
+msgstr "Mis. tautan Google Meet tetap atau alamat halaman tahap."
+
+#, python-format
+msgid "Pola do wstawienia: %(names)s."
+msgstr "Kolom yang dapat disisipkan: %(names)s."
+
+msgid "Etap (termin zgłaszania)"
+msgstr "Tahap (batas pengumpulan)"
+
+msgid "Dni przed terminem etapu, rozdzielone przecinkami; 0 = w dniu terminu."
+msgstr "Hari sebelum batas tahap, dipisahkan koma; 0 = pada hari batas."
+
+msgid "Podaj liczbę godzin przed początkiem warsztatu."
+msgstr "Masukkan jumlah jam sebelum lokakarya dimulai."
+
+msgid "Wpisz liczby dni rozdzielone przecinkami, np. 30, 7, 1."
+msgstr "Masukkan jumlah hari dipisahkan koma, mis. 30, 7, 1."
+
+#, python-format
+msgid "Najwyżej %(days)s dni przed."
+msgstr "Paling banyak %(days)s hari sebelumnya."
+
+msgid "Szablon używa pola {link}, a pole „Link” jest puste."
+msgstr "Templat memakai kolom {link}, tetapi kolom “Tautan” kosong."
+
+#, python-format
+msgid "Nieznane pola szablonu: %(unknown)s. Dozwolone: %(allowed)s."
+msgstr "Kolom templat tidak dikenal: %(unknown)s. Yang diizinkan: %(allowed)s."
+
+msgid "Reguła nie ma etapu – etap usunięto albo nie wybrano go."
+msgstr "Aturan tidak memiliki tahap – tahap dihapus atau tidak dipilih."
+
+#, python-format
+msgid "Etap „%(stage)s” nie ma terminu do przypomnienia."
+msgstr "Tahap “%(stage)s” tidak memiliki batas waktu untuk diingatkan."
+
+#, python-format
+msgid "„%(topic)s” – bez daty w harmonogramie"
+msgstr "“%(topic)s” – tanpa tanggal di jadwal"
+
+#, python-format
+msgid "„%(topic)s” – odwołany"
+msgstr "“%(topic)s” – dibatalkan"
+
+#, python-format
+msgid "„%(topic)s” – brak godziny początku"
+msgstr "“%(topic)s” – tanpa jam mulai"
+
+msgid "zostanie zaplanowany w ciągu kilku minut"
+msgstr "akan dijadwalkan dalam beberapa menit"
+
+#, python-format
+msgid "przypomnienie automatyczne „%(name)s”"
+msgstr "pengingat otomatis “%(name)s”"
+
+msgid "reguła wyłączona – nie zostanie zaplanowany"
+msgstr "aturan nonaktif – tidak akan dijadwalkan"
+
+msgid "za blisko terminu – nie zostanie wysłany"
+msgstr "terlalu dekat dengan waktunya – tidak akan dikirim"
+
+msgid "Reguły przypomnień zmienia wyłącznie koordynator tego konkursu."
+msgstr "Hanya koordinator kompetisi ini yang dapat mengubah aturan pengingat."
+
+msgid "Ta grupa odbiorców nie nadaje się do przypomnień automatycznych."
+msgstr "Kelompok penerima ini tidak dapat dipakai untuk pengingat otomatis."
+
+msgid "obsłużone"
+msgstr "ditangani"
+
+msgid "zaplanowany – widać go w „Komunikaty → Zaplanowane”"
+msgstr "terjadwal – terlihat di “Pesan → Terjadwal”"
+
+msgid "anulowany – nie zostanie wygenerowany ponownie"
+msgstr "dibatalkan – tidak akan dibuat lagi"
+
+#, python-format
+msgid "zostanie zaplanowany %(when)s"
+msgstr "akan dijadwalkan pada %(when)s"
+
+msgid "Wybierz etap tego konkursu."
+msgstr "Pilih tahap kompetisi ini."
+
+msgid "„N godzin przed” działa wyłącznie dla warsztatów i wymaga liczby godzin."
+msgstr "“N jam sebelumnya” hanya untuk lokakarya dan memerlukan jumlah jam."
+
+msgid "Podaj przynajmniej jedną liczbę dni przed wydarzeniem."
+msgstr "Masukkan setidaknya satu jumlah hari sebelum acara."
+
+msgid "Generowanie nie powiodło się – ponowimy za kilka minut."
+msgstr "Pembuatan gagal – kami akan mencoba lagi dalam beberapa menit."
+
+#, python-format
+msgid "Nieznane pole reguły: %(name)s."
+msgstr "Kolom aturan tidak dikenal: %(name)s."
+
+#, python-format
+msgid "Zaplanowano komunikatów: %(created)s, wycofano nieaktualnych: %(withdrawn)s. Zobacz „Komunikaty → Zaplanowane”."
+msgstr "Pesan terjadwal: %(created)s, yang usang ditarik: %(withdrawn)s. Lihat “Pesan → Terjadwal”."
+
+#, python-format
+msgid "Nie udało się zaplanować przypomnienia: %(error)s"
+msgstr "Pengingat tidak dapat dijadwalkan: %(error)s"
+
+msgid "Nie ma takiej reguły."
+msgstr "Aturan tersebut tidak ada."
+
+msgid "Nieznany rodzaj reguły."
+msgstr "Jenis aturan tidak dikenal."
+
+#, python-format
+msgid "Reguła „%(name)s” zapisana."
+msgstr "Aturan “%(name)s” disimpan."
+
+msgid "Nic się nie zmieniło."
+msgstr "Tidak ada yang berubah."
+
+#, python-format
+msgid "Reguła „%(name)s” usunięta; wycofane komunikaty: %(count)s."
+msgstr "Aturan “%(name)s” dihapus; pesan yang ditarik: %(count)s."
+
+#, python-format
+msgid "Zmiany w regule „%(name)s” zapisane."
+msgstr "Perubahan aturan “%(name)s” disimpan."
+
+#, python-format
+msgid "Reguła „%(name)s” włączona."
+msgstr "Aturan “%(name)s” diaktifkan."
+
+#, python-format
+msgid "Reguła „%(name)s” wyłączona – jej czekające komunikaty zostały wycofane."
+msgstr "Aturan “%(name)s” dinonaktifkan – pesan yang menunggu telah ditarik."
+
+msgid "Nowa reguła"
+msgstr "Aturan baru"
+
+msgid "Automatyczne przypomnienia"
+msgstr "Pengingat otomatis"
+
+msgid "Wróć do listy reguł"
+msgstr "Kembali ke daftar aturan"
+
+msgid "Warsztaty pochodzą z tabeli harmonogramu na stronie „Warsztaty” (/warsztaty/). Wiersz bez daty albo z dopiskiem „odwołane” jest pomijany, a komunikat już zaplanowany dla takiego wiersza – wycofywany."
+msgstr "Lokakarya diambil dari tabel jadwal di halaman “Lokakarya” (/warsztaty/). Baris tanpa tanggal atau bertanda “dibatalkan” dilewati, dan pesan yang sudah dijadwalkan untuk baris itu ditarik."
+
+msgid "Termin to „deadline oddania” wybranego etapu (czas polski). Grupa „zapisani do etapu, bez wysłanej pracy” jest liczona w chwili wysyłki – kto zdąży wysłać pracę, listu nie dostanie."
+msgstr "Batas waktu adalah “batas pengumpulan” tahap yang dipilih (waktu Polandia). Kelompok “terdaftar di tahap, belum mengirim karya” dihitung saat pengiriman – siapa pun yang sempat mengirim tidak akan menerima email."
+
+msgid "Podgląd"
+msgstr "Pratinjau"
+
+msgid "Zapisz"
+msgstr "Simpan"
+
+msgid "Najbliższe wysyłki"
+msgstr "Pengiriman berikutnya"
+
+msgid "Komunikat powstaje do 7 dni przed wysyłką i od tej chwili stoi w „Komunikaty → Zaplanowane”, gdzie można go anulować. Odbiorców policzymy w chwili wysyłki."
+msgstr "Pesan dibuat paling lambat 7 hari sebelum pengiriman dan sejak itu tercantum di “Pesan → Terjadwal”, tempat pesan dapat dibatalkan. Penerima dihitung saat pengiriman."
+
+msgid "Temat:"
+msgstr "Subjek:"
+
+msgid "Brak nadchodzących wysyłek"
+msgstr "Tidak ada pengiriman mendatang"
+
+msgid "Reguła nie ma teraz żadnego wydarzenia w przyszłości."
+msgstr "Saat ini aturan tidak memiliki acara mendatang."
+
+msgid "Pominięte:"
+msgstr "Dilewati:"
+
+msgid "Automatyczne przypomnienia – panel koordynatora"
+msgstr "Pengingat otomatis – panel koordinator"
+
+msgid "Reguła zamienia harmonogram warsztatów albo termin etapu w komunikaty planowane – do tygodnia przed wysyłką. Każdy taki komunikat zobaczysz i anulujesz w"
+msgstr "Aturan mengubah jadwal lokakarya atau batas waktu tahap menjadi pesan terjadwal – hingga seminggu sebelum pengiriman. Setiap pesan seperti itu dapat dilihat dan dibatalkan di"
+
+msgid "Komunikaty → Zaplanowane"
+msgstr "Pesan → Terjadwal"
+
+msgid "Dodaj: przypomnienie o warsztatach"
+msgstr "Tambah: pengingat lokakarya"
+
+msgid "Dodaj: przypomnienie przed terminem etapu"
+msgstr "Tambah: pengingat sebelum batas tahap"
+
+msgid "Reguły"
+msgstr "Aturan"
+
+msgid "Nazwa"
+msgstr "Nama"
+
+msgid "Rodzaj"
+msgstr "Jenis"
+
+msgid "Grupa"
+msgstr "Kelompok"
+
+msgid "Kiedy"
+msgstr "Kapan"
+
+msgid "Stan"
+msgstr "Status"
+
+msgid "Akcje"
+msgstr "Tindakan"
+
+msgid "włączona"
+msgstr "aktif"
+
+msgid "wyłączona"
+msgstr "nonaktif"
+
+msgid "Ostatni błąd:"
+msgstr "Galat terakhir:"
+
+msgid "Edytuj i podgląd"
+msgstr "Ubah dan pratinjau"
+
+msgid "Wyłącz"
+msgstr "Nonaktifkan"
+
+msgid "Włącz"
+msgstr "Aktifkan"
+
+msgid "Usuń"
+msgstr "Hapus"
+
+msgid "Nie ma jeszcze żadnej reguły."
+msgstr "Belum ada aturan."
+
+msgid "Usunąć tę regułę? Jej czekające komunikaty zostaną wycofane; wysłane zostają w historii."
+msgstr "Hapus aturan ini? Pesan yang menunggu akan ditarik; yang sudah terkirim tetap di riwayat."
+
+#, python-format
+msgid "%(hours)s godz. przed początkiem"
+msgstr "%(hours)s jam sebelum mulai"
+
+#, python-format
+msgid "dni przed: %(days)s, o %(time)s"
+msgstr "hari sebelumnya: %(days)s, pukul %(time)s"

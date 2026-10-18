@@ -297,6 +297,29 @@ EXISTING_NOTE = gettext_lazy(
 )
 
 
+#: Status wiersza na ekranie (REG-UX-01 § 2.1) – **opis** rozstrzygnięcia, nie nowa reguła. Liczy go
+#: :func:`describe_rows` wyłącznie do podglądu; zapis rozstrzygają dalej ``validate_rows``
+#: i ``import_students``.
+#: Nauczyciel widzi ``invite`` / ``on_list`` / ``existing`` / ``error``; pełny podział zajętych adresów
+#: (``other_supervisor``, ``no_supervisor``, ``unchanged``, ``not_participant``) – tylko koordynator.
+STATUS_INVITE = "invite"
+STATUS_ON_LIST = "on_list"
+STATUS_EXISTING = "existing"
+STATUS_OTHER_SUPERVISOR = "other_supervisor"
+STATUS_NO_SUPERVISOR = "no_supervisor"
+STATUS_UNCHANGED = "unchanged"
+STATUS_NOT_PARTICIPANT = "not_participant"
+STATUS_ERROR = "error"
+
+#: Zdanie nauczyciela przy zajętym adresie spoza jego listy (REG-UX-01 § 2.1). Mówi, co się stanie
+#: w **każdym** z możliwych przypadków, bo podgląd celowo nie mówi, który z nich zaszedł (v0.38.7).
+EXISTING_NOT_ON_LIST_NOTE = gettext_lazy(
+    "Jeśli to uczeń tego konkursu (wskazał innego opiekuna albo nikogo), dostanie prośbę o zgodę na "
+    "dopisanie Cię jako opiekuna i pojawi się na Twojej liście po jego zgodzie. Jeśli startuje w innym "
+    "konkursie albo to konto innej osoby, import go nie zmieni."
+)
+
+
 @dataclass
 class ImportRow:
     """Jeden wiersz listy po oczyszczeniu, razem z rozstrzygnięciem i powodami.
@@ -335,6 +358,13 @@ class ImportRow:
     region: object | None = None
     category: object | None = None
     institution: dict | None = None
+    #: Podpowiedź literówki w adresie ucznia (REG-UX-01 § 1.3, ``apps.email_delivery.typos``) – tylko
+    #: do podglądu. Nie jedzie w koszyku: zatwierdzenie liczy ją od nowa (:func:`apply_email_fixes`).
+    email_suggestion: str = ""
+    #: Status do pokazania (:func:`describe_rows`) i konto, do którego prowadzi odnośnik z wiersza
+    #: „jest na liście” (u koordynatora – edycja konta). Też wyłącznie podgląd, poza koszykiem.
+    status: str = ""
+    user_id: int | None = None
 
     @property
     def full_name(self) -> str:
@@ -420,6 +450,14 @@ class ImportPreview:
     @property
     def skipped(self) -> int:
         return sum(1 for row in self.rows if row.action == ACTION_SKIP)
+
+    @property
+    def on_list(self) -> int:
+        return sum(1 for row in self.rows if row.status == STATUS_ON_LIST)
+
+    @property
+    def other_existing(self) -> int:
+        return self.existing - self.on_list
 
     @property
     def has_importable(self) -> bool:
@@ -685,9 +723,58 @@ def _clean_email(text: str, row: ImportRow) -> str:
     try:
         EmailValidator()(email)
     except DjangoValidationError:
-        row.errors.append("adres e-mail jest nieprawidłowy")
+        # Oczywista poprawka (``jan@gmailcom``, ``ola@wp.p``) trafia do opisu błędu: wiersz i tak jest
+        # pominięty, ale nauczyciel od razu wie, co poprawić w arkuszu (REG-UX-01 § 1.1).
+        fixed = _email_fix(email)
+        row.errors.append(
+            f"adres e-mail jest nieprawidłowy – czy chodziło o {fixed}?"
+            if fixed
+            else "adres e-mail jest nieprawidłowy"
+        )
         return ""
     return email
+
+
+def _email_fix(email: str) -> str:
+    """Poprawiony adres z podpowiedzi literówek (``apps.email_delivery``) albo pusty napis."""
+    from apps.email_delivery.typos import suggest
+
+    fixed = (suggest(email) or "").strip().lower()
+    if not fixed or fixed == email:
+        return ""
+    try:
+        EmailValidator()(fixed)
+    except DjangoValidationError:
+        return ""
+    return fixed
+
+
+def suggest_email_fixes(rows: list[ImportRow]) -> None:
+    """Podpowiedź „Czy chodziło o …?” dla adresów uczniów w podglądzie (REG-UX-01 § 1.3).
+
+    Bez pytań DNS: podgląd pięciuset wierszy nie może czekać po 3 s na domenę. Wiersze pominięte
+    nie dostają podpowiedzi – i tak nie jadą w koszyku, a ich błąd mówi już, co poprawić.
+    """
+    for row in rows:
+        row.email_suggestion = _email_fix(row.email) if row.action != ACTION_SKIP and row.email else ""
+
+
+def apply_email_fixes(rows: list[ImportRow], numbers: set[int]) -> int:
+    """Podmienia adres w wierszach, dla których nauczyciel wybrał „Popraw”. Zwraca liczbę podmian.
+
+    Poprawka jest liczona **od nowa** z adresu w podpisanym koszyku – z formularza przychodzi wyłącznie
+    numer wiersza, więc nie da się nią wstawić dowolnego adresu. Rozstrzygnięcie wiersza (konto nowe,
+    zajęte, adres powtórzony) liczy potem ``validate_rows`` z poprawionym adresem.
+    """
+    fixed = 0
+    for row in rows:
+        if row.number not in numbers:
+            continue
+        suggestion = _email_fix(row.email)
+        if suggestion:
+            row.email = suggestion
+            fixed += 1
+    return fixed
 
 
 def parse_table(
@@ -1113,8 +1200,89 @@ def preview_upload(
         default_supervisor_email=default_supervisor_email,
     )
     validate_rows(rows, competition=competition)
+    suggest_email_fixes(rows)
+    describe_rows(
+        rows,
+        competition=competition,
+        detailed=with_supervisor,
+        own_supervisor_email=default_supervisor_email,
+    )
     importable = [row for row in rows if row.action != ACTION_SKIP]
     return ImportPreview(rows=rows, token=pack_rows(importable))
+
+
+def describe_rows(
+    rows: list[ImportRow], *, competition, detailed: bool, own_supervisor_email: str = ""
+) -> None:
+    """Status każdego wiersza do podglądu (REG-UX-01 § 2.1) – po ``validate_rows``, bez zmiany reguł.
+
+    Zgłoszenie z produkcji: uczeń z kontem, który **już** wskazał tego nauczyciela, był w podglądzie
+    „adresem z istniejącym kontem” z obietnicą prośby o zgodę – a prośba nie szła (nie ma o co pytać),
+    więc nauczyciel czekał na ucznia, który od dawna był na jego liście.
+
+    Dwa poziomy szczegółu, bo dwie różne osoby mają prawo do różnej wiedzy:
+
+    - **nauczyciel** (``detailed=False``) – wyłącznie „jest na Twojej liście”. Zapytanie dotyczy
+      profili, które same wskazały **jego** adres, czyli tego, co i tak widzi na ``/supervisor/students/``.
+      Pozostałe zajęte adresy zostają jednym zdaniem (``EXISTING_NOTE``): rozdzielanie „uczeń tego
+      konkursu z innym opiekunem” od „konto kogoś innego” byłoby wyrocznią ról, którą v0.38.7 zamknęło,
+    - **koordynator** (``detailed=True``) – pełny podział zajętych adresów **w swoim konkursie**.
+      „Konto w innym konkursie” i „konto bez profilu ucznia” są jednym statusem: istnienia profilu
+      w cudzej olimpiadzie koordynator tej nie musi znać (izolacja konkursów).
+    """
+    from .services import default_competition
+
+    if competition is None:
+        competition = default_competition()
+    taken = [row.email for row in rows if row.action == ACTION_EXISTING]
+    own = normalize_supervisor_email(own_supervisor_email)
+    profiles: dict[str, Participant] = {}
+    if taken and (detailed or own):
+        queryset = Participant.objects.filter(
+            competition=competition, user__email__in=taken
+        ).exclude_anonymised()
+        if not detailed:
+            queryset = queryset.filter(supervisor_email__iexact=own)
+        profiles = {
+            participant.user.email: participant
+            for participant in queryset.select_related("user").only(
+                "pk", "supervisor_email", "user__id", "user__email"
+            )
+        }
+    for row in rows:
+        if row.action == ACTION_SKIP:
+            row.status = STATUS_ERROR
+            continue
+        if row.action == ACTION_CREATE:
+            row.status = STATUS_INVITE
+            continue
+        participant = profiles.get(row.email)
+        row.status = _existing_status(row, participant, detailed=detailed)
+        if participant is not None and detailed:
+            row.user_id = participant.user_id
+        # ``EXISTING_NOTE`` z ``validate_rows`` zastępuje zdanie dopasowane do statusu: przy „jest na
+        # liście” i u koordynatora status mówi wprost, co się stanie (zdanie zastępcze byłoby mylące),
+        # a nauczycielowi pełniejsze ``EXISTING_NOT_ON_LIST_NOTE`` mówi to samo o **każdym** innym
+        # zajętym adresie – uczeń i recenzent dostają nadal identyczny wiersz.
+        notes = [note for note in row.notes if note != str(EXISTING_NOTE)]
+        if row.status == STATUS_EXISTING:
+            notes.append(str(EXISTING_NOT_ON_LIST_NOTE))
+        row.notes = notes
+
+
+def _existing_status(row: ImportRow, participant: Participant | None, *, detailed: bool) -> str:
+    """Status zajętego adresu – te same pytania i ta sama kolejność, co w ``import_students``."""
+    if not detailed:
+        return STATUS_ON_LIST if participant is not None else STATUS_EXISTING
+    if participant is None:
+        return STATUS_NOT_PARTICIPANT
+    requested = normalize_supervisor_email(row.supervisor_email)
+    if not requested:
+        return STATUS_UNCHANGED
+    current = normalize_supervisor_email(participant.supervisor_email)
+    if current == requested:
+        return STATUS_ON_LIST
+    return STATUS_OTHER_SUPERVISOR if current else STATUS_NO_SUPERVISOR
 
 
 # --- zapis ------------------------------------------------------------------------------------
@@ -1261,8 +1429,9 @@ def import_students(
 ) -> dict:
     """Zakłada konta zaproszonych, a uczniom z istniejącym kontem wysyła prośbę o zgodę.
 
-    Zwraca licznik ``{"created", "existing", "consent_requested", "skipped"}``. Ekran pokazuje
-    z niego trzy liczby – bez ``consent_requested`` (uzasadnienie przy wpisie audytowym niżej).
+    Zwraca licznik ``{"created", "existing", "consent_requested", "on_list", "skipped"}``. Ekran
+    nauczyciela pokazuje z niego wszystko poza ``consent_requested`` (uzasadnienie przy wpisie
+    audytowym niżej); ``on_list`` to część ``existing`` – uczniowie, którzy już wskazali tego opiekuna.
 
     ``via`` mówi, kto wgrał plik: ``"supervisor"`` (nauczyciel, adres opiekuna = jego własny) albo
     ``"coordinator"`` (organizator, adres opiekuna z kolumny pliku). Zgody wymagamy **w obu**
@@ -1301,6 +1470,7 @@ def import_students(
     created = 0
     existing = 0
     consent_requested = 0
+    on_list = 0
     categorised: list[tuple[int, object]] = []
     # Profile uczniów **tego** konkursu pod zajętymi adresami – jednym zapytaniem na cały plik, a nie
     # jednym na wiersz. Po wydaniu D jedno konto ma tyle profili, w ilu konkursach startuje, więc
@@ -1350,13 +1520,12 @@ def import_students(
             # (``apps.accounts.supervisor_consent``). Pusty adres w wierszu koordynatora znaczy
             # „bez opiekuna” i **nie** czyści już adresu, który uczeń wpisał sam – do v0.38.5
             # import bez kolumny opiekuna cicho odpinał uczniów od ich nauczycieli.
-            if request_supervisor_consent(
-                participant,
-                row.supervisor_email or default_supervisor_email,
-                via=via,
-                actor=actor,
-                request=request,
-            ):
+            requested = normalize_supervisor_email(row.supervisor_email or default_supervisor_email)
+            if requested and normalize_supervisor_email(participant.supervisor_email) == requested:
+                # Uczeń już wskazał tego opiekuna – prośby nie ma o co wysyłać (``request_consent``
+                # i tak by ją pominął), a nauczyciel ma usłyszeć „jest już na liście” (REG-UX-01 § 2.2).
+                on_list += 1
+            elif request_supervisor_consent(participant, requested, via=via, actor=actor, request=request):
                 consent_requested += 1
             categorised.append((participant.pk, row.category))
     if stage is not None:
@@ -1370,6 +1539,7 @@ def import_students(
         "created": created,
         "existing": existing,
         "consent_requested": consent_requested,
+        "on_list": on_list,
         "skipped": skipped,
     }
     audit(

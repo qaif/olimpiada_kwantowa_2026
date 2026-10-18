@@ -1,0 +1,66 @@
+/* =================================================================================================
+   Lejek uczestnika i raport wysyłki komunikatu (STATS-02).
+
+   Słupki są tymi samymi ``stat-bar`` co na ``/statystyki/`` (``css/statistics.css``) – tu wyłącznie
+   układ filtrów, wcięcie podwierszy lejka i kolor słupka odbić. Kolory z tokenów motywu, więc ciemny
+   wariant i wysoki kontrast działają bez dodatkowych reguł. Bez skryptów i bez stylu w dokumencie.
+   ============================================================================================== */
+
+.cs-filter__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: var(--sp-3);
+}
+
+.cs-filter__grid p {
+  margin: 0;
+}
+
+.cs-filter__grid label {
+  display: block;
+  margin-bottom: var(--sp-1);
+  font-weight: 600;
+}
+
+.cs-filter__grid select,
+.cs-filter__grid input {
+  width: 100%;
+}
+
+/* Podwiersze „w tym trening / Etap I” – wcięte, bo rozbijają krok, a nie są kolejnym krokiem. */
+.cs-funnel__sub th[scope="row"] {
+  padding-inline-start: var(--sp-6);
+  font-weight: 400;
+}
+
+.cs-dropoff {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr));
+  gap: var(--sp-4);
+}
+
+/* Para słupków w raporcie wysyłki: górny – zakolejkowane, dolny – odbite (ta sama skala). */
+.cs-pair {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+  width: min(60%, 22rem);
+  vertical-align: middle;
+}
+
+.cs-pair .stat-bar {
+  width: 100%;
+}
+
+.stat-bar__fill.cs-bounced {
+  background: var(--danger);
+}
+
+.cs-domains__alert th[scope="row"] {
+  border-inline-start: 4px solid var(--danger);
+}
+
+.cs-reason {
+  max-width: 32rem;
+  overflow-wrap: anywhere;
+}

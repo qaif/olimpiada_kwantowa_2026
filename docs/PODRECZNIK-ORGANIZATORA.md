@@ -99,6 +99,21 @@ Trzy blokady, których formularz nie obejdzie:
 Próg kwalifikacji etapu ustawia się regułą na ekranie symulacji (§ 5.2) albo — dla wartości startowej —
 w panelu administracyjnym (odnośnik „Próg kwalifikacji (admin)” na karcie etapu).
 
+**Zapis do treningu (REG-UX-01)** — tylko na ekranie etapu **treningowego**, blok pod formularzem terminów:
+
+- **„Włącz automatyczny zapis nowych kont”** — każde nowe konto uczestnika zapisuje się do treningu samo
+  w chwili pierwszej zgody RODO: po rejestracji (formularzem albo przez Google), po przyjęciu zaproszenia
+  z importu nauczyciela, po zgłoszeniu z delegacji. Konto z importu, które zaproszenia jeszcze nie
+  przyjęło, czeka (bez zgód nie da się zapisać). Domyślnie **wyłączone**; nowa edycja ma nowy etap
+  treningowy, więc przełącznik trzeba włączyć na nim ponownie. Błąd zapisu nigdy nie blokuje rejestracji
+  (trafia do logu `web`). Zmiana zostawia w audycie `stage.auto_registration_changed`,
+- **„Zapisz wszystkich obecnych uczestników”** (z potwierdzeniem) — jednorazowo zapisuje profile tego
+  konkursu z aktywnym kontem i zgodą RODO, które jeszcze nie są w treningu. Komunikat podaje: zapisano N,
+  już zapisanych M, pominięto K (bez zgody albo z kontem nieaktywnym); audyt `stage.bulk_registered`.
+  Akcję można powtórzyć — już zapisanych pomija,
+- oba działają tylko w **otwartym** etapie bieżącej edycji (ta sama reguła, co przycisk uczestnika
+  „Zgłoś się do treningu”).
+
 ### 2.3 Skala punktacji — `/coordinator/stages/<id>/scale/`
 
 Ekran **„Skala punktacji: <etap>”** (menu: Ustawienia → Skala punktacji). Wartości wpisuje się w jednym
@@ -1180,6 +1195,7 @@ decyzja człowieka, a nie wynik obliczenia.
 | Narzędzie | Adres | Do czego |
 |---|---|---|
 | **Komunikaty** (listy do grupy) | `/coordinator/messages/` | jednorazowa wiadomość e-mail do wybranej grupy |
+| **Automatyczne przypomnienia** | `/coordinator/messages/rules/` | reguły: przypomnienia o warsztatach z harmonogramu i przed terminem etapu, zamieniane w komunikaty planowane (§ 6.1) |
 | **Ogłoszenia** (pasek w serwisie) | `/coordinator/announcements/` | zdanie widoczne na **każdej** stronie, także dla niezalogowanych |
 | **Zgłoszenia** (support desk) | `/coordinator/support/` | kolejka spraw od ludzi, z wątkiem i odpowiedzią |
 | **Forum uczestników** | `/coordinator/forum/` | rozmowa uczestników między sobą, moderowana przez Ciebie |
@@ -1264,9 +1280,80 @@ regionem, szkołą, klasą albo warsztatem**, temat, treść, liczba odbiorców,
 adresów**. Ten sam opis grupy trafia do audytu (`broadcast.sent`). Stan „przekazana do wysyłki” znaczy,
 że listy trafiły do kolejki; o doręczeniu rozstrzyga serwer odbiorcy.
 
+**Raport wysyłki** (od 18.10.2026, STATS-02). W historii są kolumny **„Pominięte”** (adresy, które
+wcześniej twardo odbiły — list do nich nie wychodzi) i **„Odbite”** (listy, które wróciły po wysyłce),
+a odnośnik **„Raport”** otwiera szczegóły komunikatu: ilu odbiorców, ile listów zakolejkowano, ile
+pominięto i ile odbiło, w podziale na **grupy domen** — Gmail, WP/O2/Onet/Interia, Microsoft
+(Outlook, Hotmail, Live), szkolne (`edu`) i inne — z wykresem „wysłane / odbite”. Odbicia dzielą się
+na: **adres nie istnieje**, **polityka serwera odbiorcy** (reputacja, spam — także blokada Microsoft
+**S3150**, wyróżniona osobną kolumną i ostrzeżeniem nad tabelą) oraz **tymczasowe i inne**. Odrzucenia
+S3150 to sprawa serwera poczty platformy, nie adresów — zgłoś je operatorowi. Na dole raportu jest
+**lista odbitych adresów** z kodem i odpowiedzią serwera (widzi ją tylko koordynator tego konkursu).
+Odbicia dochodzą jeszcze kilka dni po wysyłce, więc liczby mogą rosnąć. Komunikaty sprzed 18.10.2026
+nie mają raportu („brak danych”).
+
 **Załączników nie ma.** Plik (regulamin, instrukcja) wstaw do biblioteki dokumentów w `/cms/`
 i wklej do treści komunikatu odnośnik — jeden plik na serwerze zamiast kilku tysięcy kopii
 w skrzynkach i bez ryzyka, że duży załącznik zatrzyma list w filtrze antyspamowym.
+
+#### Automatyczne przypomnienia — reguły (`/coordinator/messages/rules/`)
+
+Menu **Komunikacja → Automatyczne przypomnienia** (prośba organizatora z 18.10.2026). Zamiast co tydzień
+planować ten sam list ręcznie, zapisujesz **regułę**, a serwer sam zamienia ją w zwykłe komunikaty
+z datą przyszłą — **do 7 dni przed wysyłką**. Od tej chwili każdy taki komunikat stoi w sekcji
+**„Zaplanowane”** na ekranie **Komunikaty** i możesz go tam **anulować** jak każdy inny; anulowane
+przypomnienie **nie wraca**. Odbiorców liczymy w chwili wysyłki, a grupy są te same co w komunikatach
+(bez wklejonej listy adresów).
+
+Dwa rodzaje reguł („Dodaj: …”):
+
+| Rodzaj | Skąd wydarzenia | Pola szablonu | Moment wysyłki |
+|---|---|---|---|
+| **przypomnienie o warsztatach** | tabela harmonogramu na stronie **„Warsztaty”** (`/warsztaty/`): temat, prowadzący, termin, godziny | `{temat}`, `{prowadzacy}` (albo `{prowadzący}`), `{data}`, `{godziny}`, `{link}` | **N dni przed** o wybranej godzinie (0 = w dniu warsztatu) albo **N godzin przed początkiem** (początek = pierwsza godzina z kolumny „godziny”) |
+| **przypomnienie przed terminem etapu** | „deadline oddania” wybranego etapu | `{etap}`, `{termin}` (np. „28 lutego 2027, 23:59”), `{dni}` („1 dzień”, „7 dni”), `{link}` | lista dni przed terminem, np. **30, 7, 1**, o wybranej godzinie |
+
+- **Czas polski.** „O 06:00” znaczy 06:00 czasu polskiego także w dniu zmiany czasu; „2 godziny przed”
+  to dwie rzeczywiste godziny.
+- **Szablon.** Pole spoza listy (np. literówka `{prowadzacz}`) albo `{link}` przy pustym polu **„Link”**
+  to błąd przy zapisie — nic się nie zapisze. `{temat}` to temat bez dopisku „(prowadzący: …)”, a pusty
+  prowadzący lub godziny brzmią „do potwierdzenia”.
+- **Pomijane wiersze.** Warsztat **bez daty** w harmonogramie albo **odwołany** (dopisek „odwołane” /
+  „odwołany” w temacie, terminie lub godzinach) nie dostaje przypomnienia; jeśli było już zaplanowane —
+  zostaje **wycofane**. Tak samo zmiana tematu, terminu, treści reguły czy grupy: czekający komunikat
+  jest wycofywany i powstaje nowa wersja (zmiana na mniej niż 5 minut przed wysyłką zostawia starą).
+- **„Podgląd”** pokazuje — bez zapisu — **3 najbliższe wysyłki** z wypełnionym tekstem i ich stanem
+  („zaplanowany”, „anulowany”, „zostanie zaplanowany …”) oraz listę pominiętych wierszy.
+- **„Wyłącz”** wycofuje czekające komunikaty reguły, „Włącz” odtwarza je; **„Usuń”** usuwa regułę
+  i wycofuje czekające (wysłane zostają w historii). Komunikat z reguły ma w historii dopisek
+  „przypomnienie automatyczne” z nazwą reguły, a autorem (w audycie `broadcast.scheduled`) jest autor reguły — konto,
+  które straci rolę koordynatora, przestaje generować przypomnienia (błąd widać w kolumnie „Stan”).
+- Przypomnienie o terminie etapu najlepiej wysyłać do grupy **„zapisani do etapu, bez wysłanej pracy”**
+  — kto zdąży wysłać pracę, listu nie dostanie.
+
+**Przykład — co sobotę o 06:00 przypomnienie o warsztacie** (reguła produkcyjna):
+
+1. **Dodaj: przypomnienie o warsztatach**, nazwa „Warsztaty — sobota 6:00”.
+2. Grupa **„wszyscy uczestnicy i nauczyciele”** (bez „także uczestnicy poprzednich edycji”).
+3. Moment wysyłki **„N dni przed, o wybranej godzinie”**, **Ile dni przed: 0**, **Godzina: 06:00**.
+4. **Link:** `https://meet.google.com/izu-qrvp-kuw`.
+5. Temat: `Dziś warsztat: {temat}`; treść, np.:
+
+   ```text
+   Dzień dobry,
+
+   dziś ({data}) w godzinach {godziny} zapraszamy na warsztat „{temat}”. Prowadzi {prowadzacy}.
+   Link do spotkania: {link}
+
+   Do zobaczenia!
+   ```
+
+6. **„Podgląd”** → sprawdź trzy najbliższe soboty → **„Zapisz”**. Komunikat na najbliższą sobotę z warsztatem
+   pojawi się w „Komunikaty → Zaplanowane” od razu (jeśli jest w ciągu 7 dni), kolejne — tydzień przed
+   każdym warsztatem. Sobota bez warsztatu w harmonogramie nie dostaje listu.
+
+Audyt: `message_rule.created`, `message_rule.updated`, `message_rule.enabled`, `message_rule.disabled`,
+`message_rule.deleted`, a wycofane przez regułę komunikaty — `broadcast.cancelled` z powodem (`reason`).
+Szczegóły dla operatora: OPERACJE § 53.1.
 
 ### 6.1a Slider na stronie głównej — plakaty i aktualności
 
@@ -2043,7 +2130,7 @@ czytelności” zamieniłoby ślad techniczny w wyciąg z bazy osobowej.
 | Uczestnicy / Opiekunowie szkolni | ta sama lista z filtrem roli | osobny ekran powtarzałby wyszukiwarkę i stronicowanie; uczestnicy mają własne kolumny profilu (§ 10.1) |
 | Edycja konta | `/coordinator/accounts/<id>/` | dane, „Konto aktywne”, dla uczestnika także telefon, województwo, szkoła, klasa, **data urodzenia**; dla członka komitetu status, komisja odwoławcza i województwo |
 | Usunięcie konta | `/coordinator/accounts/<id>/delete/` | strona potwierdzenia mówi, co się stanie |
-| **Zdublowane konta** | `/coordinator/accounts/duplicates/` | ta sama osoba z kilkoma kontami uczestnika; sugestia, usuwanie w wierszu i zbiorcze, CSV (§ 10.2) |
+| **Zdublowane konta** | `/coordinator/accounts/duplicates/` | ta sama osoba z kilkoma kontami uczestnika; sugestia, usuwanie w wierszu i zbiorcze, scalanie kont, CSV (§ 10.2) |
 | **Nieaktywne konta** | `/coordinator/accounts/inactive/` | konta uczestników, na które nikt się nie logował (nigdy albo od N dni); usuwanie w wierszu i zbiorcze, CSV (§ 10.3) |
 | **Konta oczekujące na aktywację** | `/coordinator/activations/` | „Aktywuj ręcznie”, „Wyślij link ponownie” |
 | **Karta uczestnika** | `/coordinator/participants/<id>/` | cały przebieg zawodów jednej osoby, wyłącznie do odczytu |
@@ -2126,10 +2213,19 @@ i dopiero jego zgoda zapisuje adres. Zasada obowiązuje **także Twój import**:
 przypisuje nauczyciela od razu wyłącznie nowym kontom, a pusta komórka u istniejącego ucznia
 **nie czyści** już opiekuna, którego wpisał sam. Szczegóły dla Ciebie:
 
-- **podgląd mówi o każdym zajętym adresie jednym zdaniem** („adres ma już konto – jeśli to uczeń
-  tego konkursu, dostanie prośbę o zgodę”) — bez odróżniania ucznia od recenzenta czy koordynatora,
-  a komunikat po zapisie podaje trzy liczby: zaproszeni, adresy z istniejącym kontem, pominięci.
-  Ile próśb naprawdę wyszło, mówi wpis audytu `accounts.students_imported` (`consent_requested`),
+- **status każdego wiersza w podglądzie (REG-UX-01).** Nauczyciel widzi: „zaproszenie zostanie
+  wysłane”, „ma już konto i jest na Twojej liście” (z odnośnikiem do listy uczniów), „ma już konto,
+  ale nie ma go na Twojej liście” (jedno zdanie o **każdym** innym zajętym adresie — bez odróżniania
+  ucznia z innym opiekunem od konta w innym konkursie czy konta recenzenta; ta różnica byłaby
+  wyszukiwarką ról) i „błąd: …”. Ty w swoim imporcie widzisz pełny podział: „jest na liście tego
+  opiekuna” (odnośnik do konta), „wskazał innego opiekuna” / „nie wskazał opiekuna” (oba — prośba
+  o zgodę), „ma konto w tym konkursie – bez zmian” (wiersz bez opiekuna) i „nie jest uczestnikiem
+  tego konkursu” (konto w innym konkursie albo bez profilu ucznia),
+- **komunikat po zapisie**: „Wysłano zaproszeń: N, uczniów już było na liście: M, pominięto: K”
+  (pominięte = błędy z podglądu + wiersze odrzucone przy zapisie) i — gdy są — liczba adresów z kontem
+  spoza listy nauczyciela. Liczby wysłanych próśb nauczyciel nie widzi (mówi ją wpis audytu
+  `accounts.students_imported`: `consent_requested`, a od REG-UX-01 także `on_list`); Ty widzisz ją
+  w swoim komunikacie,
 - **jedna prośba na parę (uczeń, nauczyciel) na dobę**; import nauczyciela ma limit żądań
   (scope `upload`, każdy podgląd i każde zatwierdzenie),
 - **ślad w audycie** karty uczestnika: `participant.supervisor_consent_requested` (kto wgrał plik),
@@ -2212,6 +2308,41 @@ znika w całości (adres zwalnia się do rejestracji); konto z wpisem do trening
 
 Jeśli zostawiane konto ma adres z literówką, popraw go po usunięciu kopii w edycji konta — adres
 zmienia się od razu, bez listu potwierdzającego.
+
+**Scalanie kont — gdy oba konta mają aktywność** (ACC-MERGE-01, prośba organizatora z 18.10.2026).
+Usunięcie wystarcza, gdy kopia jest pusta. Jeśli na jednym koncie są zgody i zaświadczenie, a na drugim
+praca z etapu, użyj formularza **„Scal w … konto … → Scal…”** nad tabelą grupy: wybierz konto
+**docelowe** (zostaje; domyślnie „do zachowania”, inaczej ostatnio logowane) i **kopię** (zostanie
+usunięta). „Scal…” otwiera **podgląd** — nic jeszcze się nie zmienia:
+
+- oba konta obok siebie i lista tego, co przejdzie na konto docelowe: wpisy do etapów razem z pracami,
+  ocenami, odwołaniami, testami online, rozmowami i dyplomami; dowody zgód (cała historia), zgoda
+  opiekuna, wersje zaświadczenia o statusie ucznia, obecność na warsztatach, wpisy i wątki na forum,
+  wiadomości, należności, mentoring i reszta historii kopii,
+- co **nie** przejdzie: puste duplikaty (np. pusty wpis kopii do etapu, w którym docelowe już jest, ta
+  sama obecność na warsztatach dwa razy), hasło i logowanie Google/Facebook kopii (osoba loguje się
+  danymi konta docelowego — w razie potrzeby resetem hasła). Dziennik zdarzeń zostaje bez zmian,
+- które pola profilu docelowego uzupełnią się z kopii (np. zgoda opiekuna, telefon) — imię, nazwisko,
+  szkoła i kod publiczny zostają z konta docelowego,
+- **„Zamień kierunek”**, jeśli wolisz zachować drugie konto.
+
+**Konflikty blokują scalenie** i podgląd mówi dokładnie, który: oba konta mają aktywność w **tym samym
+etapie** (np. prace na obu), dwie rozliczone należności z jednego cennika, dwa profile absolwenta, różne
+delegacje, sesja nadzoru w tym samym etapie. Wtedy nie ma przycisku — zostaw oba konta albo usuń kopię.
+Scalenie jest też **odmówione**, gdy któreś konto ma inną rolę (komitet, opiekun, rola albo profil
+w innym konkursie) albo jest kontem koordynatora — o takich kontach decyduje administrator serwisu.
+
+**Adres e-mail.** Zostaje adres konta docelowego. Jeśli docelowe **nie potwierdziło** swojego adresu
+(typowa literówka), podgląd pokazuje pole **„Weź adres z kopii”**: adres kopii jest najpierw zwalniany,
+a potem przypisany kontu docelowemu; jeśli kopia miała adres potwierdzony, konto docelowe staje się
+aktywne. Konto docelowe z potwierdzonym adresem zmienia adres zwykłą edycją konta.
+
+Dopiero przycisk **„Tak, scal konto <kod kopii> w <kod docelowego>”** scala: serwis liczy wszystko jeszcze
+raz (coś mogło się zmienić od otwarcia podglądu), przenosi dane i usuwa kopię — w jednej operacji, więc
+błąd w połowie niczego nie zostawia rozgrzebanego. W audycie: `account.merged` (kody publiczne obu kont
+i liczby przeniesionych wierszy, bez danych osobowych) oraz `account.deleted_by_coordinator` z dopiskiem
+`via=merge`. Ogłoszone już tabele wyników się nie zmieniają (to opublikowany dokument z kodem kopii);
+kolejne przeliczenie pokaże kod konta docelowego.
 
 **Podobne adresy e-mail (słabszy sygnał).** Pod grupami stoi lista kont, których adresy różnią się
 wyłącznie typową literówką w domenie (`gmail.con`/`gmail.com`, `wp.p`/`wp.pl` …), a imię, nazwisko
@@ -2400,6 +2531,29 @@ uczniami jest w niej od 1 do 4 osób — inaczej z różnicy dałoby się wylicz
 
 **RODO.** Rejestr czynności dostaje przy włączonej funkcji wiersz „Statystyki szkół i opiekunów
 szkolnych” (§ 9.2). Nowych danych funkcja nie zbiera.
+
+### 10c.1 Lejek uczestnika — `/coordinator/stats/funnel/`
+
+Menu **Raporty → Lejek uczestnika** (bez przełącznika). Ekran pokazuje, ilu uczestników wybranej
+edycji (domyślnie bieżącej) przechodzi kolejne kroki: **rejestracja** (profil) → **aktywacja konta**
+(potwierdzony adres) → **pierwsze logowanie** → **zgody** (RODO, regulamin, a od niepełnoletnich zgoda
+opiekuna — ta sama reguła wieku co przy rejestracji) → **zapis do etapu** (z wierszami „w tym trening”
+i „w tym Etap I”) → **pierwsza wysłana praca** (także zakończony test online) → **zaświadczenie
+o statusie ucznia zaakceptowane** → **obecność na co najmniej jednym warsztacie**. Przy każdym kroku
+liczba, odsetek względem poprzedniego kroku i względem rejestracji oraz słupek.
+
+- **Uczestnik edycji** to ten, kto jest zapisany do jej etapu albo założył konto w czasie jej trwania
+  (ta sama definicja co w komunikatach). Konta usunięte nie są liczone.
+- **Sposób liczenia:** „lejek ścisły” (domyślny — krok liczy osoby, które przeszły też wszystkie
+  poprzednie) albo „kroki niezależne” (każdy warunek osobno, np. obecni na warsztacie bez
+  zaakceptowanego zaświadczenia).
+- **Filtry:** województwo (albo region konkursu), szkoła (lista szkół z uczestnikami, jak w
+  komunikatach), domena adresu e-mail (Gmail, WP/O2/Onet/Interia, Microsoft, szkolne, inne), okres
+  rejestracji (od–do, obie daty włącznie).
+- **„Gdzie odpadają”** — po 10 województw i szkół z **najniższym odsetkiem aktywowanych kont**;
+  tylko grupy z co najmniej 5 rejestracjami (mniejsze dają procenty bez znaczenia).
+- **Eksport CSV** — te same liczby z opisem filtrów, bez żadnych danych osobowych; pobranie jest
+  w audycie (`export.generated`, rodzaj `participant_funnel`). Liczby odświeżają się co 5 minut.
 
 ## 10d. Logistyka finału — `/coordinator/logistics/`
 
@@ -3107,8 +3261,11 @@ dostarczyć poczty na adres …” z przyciskami „Zmień adres e-mail” i „
 
 **Literówki przy wpisywaniu.** Formularze adresu (rejestracje, zmiana adresu, edycja konta w panelu,
 zaproszenie opiekuna drużyny) pytają „Czy chodziło Ci o …?” przy domenach typu `gmial.com`, `o2.plo`,
-`.con` – zaznaczasz poprawkę albo wysyłasz formularz jeszcze raz, żeby zostawić adres. Domeny, która nie
-istnieje (bez serwera poczty), formularz nie przyjmie. Szczegóły techniczne: `docs/OPERACJE.md` § 52.
+`.con`, `.pl.pl`, `gmail.pl` czy `jan@gmailcom` – przyciski **„Popraw na …”** i **„Tak, adres … jest
+poprawny”** (REG-UX-01). Domen szkół i instytucji nie blokuje; domeny, która nie istnieje (bez serwera
+poczty), formularz nie przyjmie. **Import uczniów** pokazuje tę samą podpowiedź w podglądzie: przy wierszu
+z literówką wybierasz „Popraw” (zaznaczone domyślnie) albo „Tak, adres jest poprawny”, a zatwierdzenie
+zakłada konto na wybrany adres. Szczegóły techniczne: `docs/OPERACJE.md` § 52.
 
 ## 11. Kalendarz prowadzenia edycji — ściągawka
 

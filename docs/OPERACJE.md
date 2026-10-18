@@ -4845,7 +4845,10 @@ Bez konfiguracji i bez flagi `webinars` (§ 6.4) nic się nie zmienia – także
 
    (alias `local` w kontenerze `minio`: `mc alias set local http://localhost:9000 <root> <hasło>`).
 6. Konfiguracja LiveKit: `mkdir -p livekit && cp deploy/livekit/livekit.yaml.example livekit/livekit.yaml &&
-   cp deploy/livekit/egress.yaml.example livekit/egress.yaml && chmod 600 livekit/*.yaml`, podmienić
+   cp deploy/livekit/egress.yaml.example livekit/egress.yaml && chmod 600 livekit/*.yaml &&
+   chown 1001:0 livekit/egress.yaml && chmod 640 livekit/egress.yaml` (egress działa jako użytkownik `egress`,
+   uid 1001 – z samym `chmod 600` i właścicielem root kończy się `open /etc/egress.yaml: permission denied`,
+   sprawdzone 18.10.2026), podmienić
    `<…>` (klucz i sekret jak w `.env`, `SITE_DOMAIN`, konto egress z kroku 5, `endpoint` = publiczny
    adres S3). `livekit.yaml` ma `room.auto_create: false`: pokój zakłada wyłącznie platforma przed
    wystawieniem tokenu, więc token sprzed „Zakończ” nie otworzy pokoju na nowo. Obok położyć profil
@@ -7048,11 +7051,14 @@ Pola adresu w rejestracji uczestnika, komitetu i opiekuna szkolnego, w zmianie a
 w koncie edytowanym przez koordynatora, w zaproszeniu opiekuna drużyny (DEL-01) i w uczniu dodawanym
 przez opiekuna drużyny (adres ucznia i rodzica):
 
-- **literówka w domenie** (`gmial.com`, `o2.plo`, `wp.pll`, `firma.con`) – po opuszczeniu pola skrypt
-  podpowiada poprawkę z przyciskiem „Użyj …”; po wysłaniu formularz wraca **raz** z pytaniem i polem
-  wyboru „Użyj adresu …”. Ponowne wysłanie tego samego adresu przechodzi – nietypowy adres da się zawsze
-  zostawić. Lista znanych dostawców i mapa literówek TLD: `apps/email_delivery/typos.py` (kopia w
-  `static/email_delivery/email-check.js`; test pilnuje zgodności),
+- **literówka w domenie** (`gmial.com`, `o2.plo`, `wp.pll`, `firma.con`; od REG-UX-01 także `.pl.pl`,
+  `gmail.com.pl`, `gmail.pl`, `wp.com` i adres bez kropki w domenie `jan@gmailcom`) – po opuszczeniu pola
+  skrypt podpowiada poprawkę z przyciskiem „Użyj …”; po wysłaniu formularz wraca **raz** z pytaniem
+  i przyciskami „Tak, adres … jest poprawny” (pierwszy w DOM – Enter zostawia adres) i „Popraw na …”
+  (serwer przyjmuje go tylko dla adresu, którego podpowiedź dotyczy). Ponowne wysłanie tego samego adresu
+  przechodzi – nietypowy adres da się zawsze zostawić. Listy znanych dostawców, marek i literówek TLD:
+  `apps/email_delivery/typos.py` (kopia w `static/email_delivery/email-check.js`; test pilnuje zgodności).
+  Import uczniów: ta sama podpowiedź w podglądzie, bez pytań DNS (`bulk_registration.apply_email_fixes`),
 - **domena, która na pewno nie przyjmuje poczty** (brak MX i A albo „null MX”) – błąd bez możliwości
   pozostawienia. Pytanie DNS zadaje `web` **dopiero po** całej pozostałej walidacji formularza
   (CAPTCHA, antyspam, hasła), najwyżej 4 naraz w procesie (resolwer z `/etc/resolv.conf`, limit 1,5 s,
@@ -7148,6 +7154,18 @@ sygnał o **naszej** reputacji (SPF/DKIM/DMARC, § 49), nie o adresie.
   (albo `MAIL_BOUNCE_ADDRESSES`). Konkurs z nadawcą innym niż `noreply@…` (`Competition.from_email`) –
   dopisz jego adres do `MAIL_BOUNCE_ADDRESSES`, inaczej jego odbicia nie wrócą do serwisu.
 
+### 52.6. Raport wysyłki komunikatu (STATS-02, `docs/tasks/STATS-02.md`)
+
+- Każdy list komunikatu grupowego ma nagłówek `X-Olimpiada-Broadcast: <id>:<podpis>` (podpis
+  `SECRET_KEY` – zmiana klucza unieważnia przypisanie odbić listów wysłanych przed zmianą). Odbicie
+  z DSN relaya (kopia listu albo jego nagłówki) i odmowa relaya w trakcie wysyłki trafiają do raportu
+  komunikatu – **także** odrzucenia z powodu polityki (np. Microsoft `S3150`), których stan adresu
+  (§ 52.3) nie zapisuje. Bez `EMAIL_BOUNCE_TRACKING` raport ma tylko liczby zakolejkowanych i pominiętych.
+- Migracja `coordinator_stats.0001` (dwie tabele, bez danych) idzie w `web` jak każda. Nowe zadanie
+  beat `broadcast-bounces-purge` (03:25 UTC) kasuje adresy odbić starsze niż 365 dni – liczniki zostają.
+- Sprawdzenie po wdrożeniu: komunikat testowy na nieistniejący adres Gmaila; po ≤ 5 minutach
+  `/coordinator/messages/<id>/report/` pokazuje 1 odbicie „adres nie istnieje” w grupie Gmail.
+
 ## 53. Komunikaty z datą przyszłą (MSG-SCHED-01, `docs/tasks/MSG-SCHED-01.md`)
 
 Koordynator planuje komunikat na `/coordinator/messages/` (pole „Wyślij później”). Wiersz
@@ -7216,6 +7234,59 @@ docker compose exec -T web python manage.py shell -c "from datetime import timed
 ```
 
 Niepusty wynik = beat albo worker nie działa (§ 3.3, `docker compose logs worker beat --tail 100`).
+
+### 53.1 Automatyczne przypomnienia (MSG-AUTO-01, `docs/tasks/MSG-AUTO-01.md`)
+
+Reguły (`message_rules.MessageRule`, ekran `/coordinator/messages/rules/`) zamieniają harmonogram
+warsztatów (strona „Warsztaty” konkursu) i terminy etapów (`Stage.deadline_at`) w zwykłe komunikaty
+planowane (`MessageBroadcast` w stanie `SCHEDULED`) – wysyła je dalej wpis `dispatch-scheduled-broadcasts`
+z § 53. Generowanie:
+
+| Wpis `CELERY_BEAT_SCHEDULE` | Zadanie | Co ile |
+|---|---|---|
+| `generate-message-rule-broadcasts` | `apps.message_rules.tasks.generate_rule_broadcasts` | 300 s |
+
+Przebieg bierze reguły włączone (i wyłączone, które mają jeszcze czekające komunikaty), każdą w osobnej
+transakcji z `select_for_update(skip_locked=True)` na wierszu reguły. Wystąpienia z terminem wysyłki od
+**teraz + 5 min do teraz + 7 dni** stają się komunikatami przez `schedule_broadcast` (aktor = autor
+reguły; audyt `broadcast.scheduled`). Idempotencja: tabela `message_rules.MessageRuleOccurrence`,
+unikalne `(rule, key)` – wiersz zostaje także po ręcznym „Anuluj”, więc anulowany komunikat nie wraca.
+Czekający komunikat, którego wystąpienie zniknęło (warsztat odwołany, bez daty, reguła wyłączona) albo
+zmieniło treść/termin, jest wycofywany (`CANCELLED`, audyt `broadcast.cancelled` z `reason`) i –
+jeśli trzeba – generowany na nowo. Błąd jednej reguły (np. autor bez roli koordynatora) trafia do
+`MessageRule.last_error` i logu workera, reszta reguł biegnie dalej.
+
+**Wdrożenie.** Nowa aplikacja `apps.message_rules`, migracja `message_rules.0001` (dwie nowe tabele,
+bez zmian w istniejących). Po wdrożeniu musi wstać nowy `beat` (`scripts/deploy.sh` odtwarza
+`web worker beat`). Nowych zmiennych środowiska ani DNS nie ma. Sprawdzenie:
+
+```sh
+docker compose logs beat --since 15m | grep generate-message-rule-broadcasts   # „Sending due task …” co 5 min
+docker compose exec -T web python manage.py shell -c "from apps.message_rules.models import MessageRule as R; print(list(R.objects.values_list('pk', 'name', 'enabled', 'last_run_at', 'last_error')))"
+```
+
+**Reguła z powłoki** (ta sama walidacja co ekran; reguła produkcyjna z PODRĘCZNIK-ORGANIZATORA § 6.1):
+
+```python
+import datetime as dt
+from apps.accounts.models import User
+from apps.message_rules import services
+from apps.tenancy.models import Competition
+
+c = Competition.objects.get(slug="kwantowa")
+rule, result = services.create_rule(
+    competition=c, actor=User.objects.get(email="koordynator@…"), kind="WORKSHOP",
+    name="Warsztaty — sobota 6:00", enabled=True, group="ALL_PARTICIPANTS_AND_TEACHERS",
+    parameters={"include_past_editions": False}, target={"past_editions": False, "label": "bieżąca edycja"},
+    subject_template="Dziś warsztat: {temat}",
+    body_template="Dziś ({data}, {godziny}) warsztat „{temat}”, prowadzi {prowadzacy}. Link: {link}",
+    link="https://meet.google.com/izu-qrvp-kuw", timing="DAY_AT", days_before=[0], send_time=dt.time(6, 0),
+)
+print(rule.pk, result)          # SyncResult(created=…, withdrawn=…, error=…)
+print(services.upcoming(rule))  # 3 najbliższe wysyłki z tekstem i stanem
+```
+
+Ręczny przebieg (np. po awarii beatu): `docker compose exec -T web python manage.py shell -c "from apps.message_rules.services import generate_all; print(generate_all())"`.
 
 ## 54. Utwardzenie infrastruktury po audycie bezpieczeństwa (10.10.2026)
 

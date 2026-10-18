@@ -1,0 +1,293 @@
+# Arabic - tlumaczenie automatycznych przypomnien (docs/tasks/MSG-AUTO-01.md).
+# Zrodlem (msgid) jest polski. UWAGA: tlumaczenie MASZYNOWE - do przegladu native speakera.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Olimpiada Kwantowa - message_rules\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-18 12:00+0200\n"
+"PO-Revision-Date: 2026-10-18 12:00+0200\n"
+"Last-Translator: Olimpiada Kwantowa\n"
+"Language-Team: Arabic\n"
+"Language: ar\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=6; plural=(n==0 ? 0 : n==1 ? 1 : n==2 ? 2 : n%100>=3 && n%100<=10 ? 3 : n%100>=11 ? 4 : 5);\n"
+
+msgid "Temat (szablon)"
+msgstr "الموضوع (قالب)"
+
+msgid "Treść (szablon)"
+msgstr "المحتوى (قالب)"
+
+msgid "Nazwa reguły"
+msgstr "اسم القاعدة"
+
+msgid "Reguła włączona"
+msgstr "القاعدة مفعّلة"
+
+msgid "Moment wysyłki"
+msgstr "توقيت الإرسال"
+
+msgid "Ile dni przed"
+msgstr "كم يومًا قبل"
+
+msgid "0 = w dniu warsztatu. Kilka liczb rozdziel przecinkami, np. 30, 7, 1."
+msgstr "0 = في يوم الورشة. افصل بين عدة أرقام بفواصل، مثل 30, 7, 1."
+
+msgid "Godzina wysyłki (czas polski)"
+msgstr "ساعة الإرسال (توقيت بولندا)"
+
+msgid "Ile godzin przed początkiem warsztatu"
+msgstr "كم ساعة قبل بدء الورشة"
+
+msgid "Tylko przy „N godzin przed początkiem”; początek to pierwsza godzina z kolumny „godziny”."
+msgstr "فقط مع «N ساعة قبل البدء»؛ البدء هو أول وقت في عمود «الساعات»."
+
+msgid "Link (pole {link})"
+msgstr "الرابط (الحقل {link})"
+
+msgid "Np. stały link spotkania Google Meet albo adres strony etapu."
+msgstr "مثل رابط Google Meet ثابت أو عنوان صفحة المرحلة."
+
+#, python-format
+msgid "Pola do wstawienia: %(names)s."
+msgstr "الحقول التي يمكن إدراجها: %(names)s."
+
+msgid "Etap (termin zgłaszania)"
+msgstr "المرحلة (الموعد النهائي للتسليم)"
+
+msgid "Dni przed terminem etapu, rozdzielone przecinkami; 0 = w dniu terminu."
+msgstr "الأيام قبل الموعد النهائي للمرحلة مفصولة بفواصل؛ 0 = في يوم الموعد النهائي."
+
+msgid "Podaj liczbę godzin przed początkiem warsztatu."
+msgstr "أدخل عدد الساعات قبل بدء الورشة."
+
+msgid "Wpisz liczby dni rozdzielone przecinkami, np. 30, 7, 1."
+msgstr "اكتب أعداد الأيام مفصولة بفواصل، مثل 30, 7, 1."
+
+#, python-format
+msgid "Najwyżej %(days)s dni przed."
+msgstr "%(days)s يومًا قبل على الأكثر."
+
+msgid "Szablon używa pola {link}, a pole „Link” jest puste."
+msgstr "يستخدم القالب الحقل {link}، لكن حقل «الرابط» فارغ."
+
+#, python-format
+msgid "Nieznane pola szablonu: %(unknown)s. Dozwolone: %(allowed)s."
+msgstr "حقول قالب غير معروفة: %(unknown)s. المسموح بها: %(allowed)s."
+
+msgid "Reguła nie ma etapu – etap usunięto albo nie wybrano go."
+msgstr "لا توجد مرحلة في القاعدة – حُذفت المرحلة أو لم تُختر."
+
+#, python-format
+msgid "Etap „%(stage)s” nie ma terminu do przypomnienia."
+msgstr "المرحلة «%(stage)s» ليس لها موعد نهائي للتذكير به."
+
+#, python-format
+msgid "„%(topic)s” – bez daty w harmonogramie"
+msgstr "«%(topic)s» – بلا تاريخ في الجدول"
+
+#, python-format
+msgid "„%(topic)s” – odwołany"
+msgstr "«%(topic)s» – ملغاة"
+
+#, python-format
+msgid "„%(topic)s” – brak godziny początku"
+msgstr "«%(topic)s» – بلا وقت بدء"
+
+msgid "zostanie zaplanowany w ciągu kilku minut"
+msgstr "ستُجدول خلال بضع دقائق"
+
+#, python-format
+msgid "przypomnienie automatyczne „%(name)s”"
+msgstr "تذكير تلقائي «%(name)s»"
+
+msgid "reguła wyłączona – nie zostanie zaplanowany"
+msgstr "القاعدة معطّلة – لن تُجدول"
+
+msgid "za blisko terminu – nie zostanie wysłany"
+msgstr "قريب جدًا من الموعد – لن يُرسل"
+
+msgid "Reguły przypomnień zmienia wyłącznie koordynator tego konkursu."
+msgstr "لا يغيّر قواعد التذكير إلا منسّق هذه المسابقة."
+
+msgid "Ta grupa odbiorców nie nadaje się do przypomnień automatycznych."
+msgstr "مجموعة المستلمين هذه لا تصلح للتذكيرات التلقائية."
+
+msgid "obsłużone"
+msgstr "تمت المعالجة"
+
+msgid "zaplanowany – widać go w „Komunikaty → Zaplanowane”"
+msgstr "مجدولة – تظهر في «الرسائل ← المجدولة»"
+
+msgid "anulowany – nie zostanie wygenerowany ponownie"
+msgstr "ملغاة – لن تُنشأ مرة أخرى"
+
+#, python-format
+msgid "zostanie zaplanowany %(when)s"
+msgstr "ستُجدول في %(when)s"
+
+msgid "Wybierz etap tego konkursu."
+msgstr "اختر مرحلة من هذه المسابقة."
+
+msgid "„N godzin przed” działa wyłącznie dla warsztatów i wymaga liczby godzin."
+msgstr "«N ساعة قبل» يعمل للورش فقط ويتطلب عدد الساعات."
+
+msgid "Podaj przynajmniej jedną liczbę dni przed wydarzeniem."
+msgstr "أدخل عددًا واحدًا على الأقل من الأيام قبل الحدث."
+
+msgid "Generowanie nie powiodło się – ponowimy za kilka minut."
+msgstr "فشل الإنشاء – سنعيد المحاولة خلال بضع دقائق."
+
+#, python-format
+msgid "Nieznane pole reguły: %(name)s."
+msgstr "حقل قاعدة غير معروف: %(name)s."
+
+#, python-format
+msgid "Zaplanowano komunikatów: %(created)s, wycofano nieaktualnych: %(withdrawn)s. Zobacz „Komunikaty → Zaplanowane”."
+msgstr "الرسائل المجدولة: %(created)s، والمسحوبة لعدم صلاحيتها: %(withdrawn)s. راجع «الرسائل ← المجدولة»."
+
+#, python-format
+msgid "Nie udało się zaplanować przypomnienia: %(error)s"
+msgstr "تعذّرت جدولة التذكير: %(error)s"
+
+msgid "Nie ma takiej reguły."
+msgstr "لا توجد قاعدة كهذه."
+
+msgid "Nieznany rodzaj reguły."
+msgstr "نوع قاعدة غير معروف."
+
+#, python-format
+msgid "Reguła „%(name)s” zapisana."
+msgstr "حُفظت القاعدة «%(name)s»."
+
+msgid "Nic się nie zmieniło."
+msgstr "لم يتغير شيء."
+
+#, python-format
+msgid "Reguła „%(name)s” usunięta; wycofane komunikaty: %(count)s."
+msgstr "حُذفت القاعدة «%(name)s»؛ الرسائل المسحوبة: %(count)s."
+
+#, python-format
+msgid "Zmiany w regule „%(name)s” zapisane."
+msgstr "حُفظت تغييرات القاعدة «%(name)s»."
+
+#, python-format
+msgid "Reguła „%(name)s” włączona."
+msgstr "فُعّلت القاعدة «%(name)s»."
+
+#, python-format
+msgid "Reguła „%(name)s” wyłączona – jej czekające komunikaty zostały wycofane."
+msgstr "عُطّلت القاعدة «%(name)s» – سُحبت رسائلها المنتظرة."
+
+msgid "Nowa reguła"
+msgstr "قاعدة جديدة"
+
+msgid "Automatyczne przypomnienia"
+msgstr "التذكيرات التلقائية"
+
+msgid "Wróć do listy reguł"
+msgstr "العودة إلى قائمة القواعد"
+
+msgid "Warsztaty pochodzą z tabeli harmonogramu na stronie „Warsztaty” (/warsztaty/). Wiersz bez daty albo z dopiskiem „odwołane” jest pomijany, a komunikat już zaplanowany dla takiego wiersza – wycofywany."
+msgstr "تأتي الورش من جدول المواعيد في صفحة «الورش» (/warsztaty/). يُتخطى الصف الذي لا تاريخ له أو المعلَّم بـ«ملغاة»، وتُسحب الرسالة المجدولة له مسبقًا."
+
+msgid "Termin to „deadline oddania” wybranego etapu (czas polski). Grupa „zapisani do etapu, bez wysłanej pracy” jest liczona w chwili wysyłki – kto zdąży wysłać pracę, listu nie dostanie."
+msgstr "الموعد هو «الموعد النهائي للتسليم» للمرحلة المختارة (توقيت بولندا). تُحسب مجموعة «المسجلون في المرحلة دون عمل مُرسل» لحظة الإرسال – ومن يرسل عمله في الوقت لن يتلقى الرسالة."
+
+msgid "Podgląd"
+msgstr "معاينة"
+
+msgid "Zapisz"
+msgstr "حفظ"
+
+msgid "Najbliższe wysyłki"
+msgstr "الإرسالات القادمة"
+
+msgid "Komunikat powstaje do 7 dni przed wysyłką i od tej chwili stoi w „Komunikaty → Zaplanowane”, gdzie można go anulować. Odbiorców policzymy w chwili wysyłki."
+msgstr "تُنشأ الرسالة قبل الإرسال بسبعة أيام على الأكثر، ومن ذلك الحين تظهر في «الرسائل ← المجدولة» حيث يمكن إلغاؤها. يُحسب المستلمون لحظة الإرسال."
+
+msgid "Temat:"
+msgstr "الموضوع:"
+
+msgid "Brak nadchodzących wysyłek"
+msgstr "لا إرسالات قادمة"
+
+msgid "Reguła nie ma teraz żadnego wydarzenia w przyszłości."
+msgstr "لا يوجد للقاعدة الآن أي حدث مستقبلي."
+
+msgid "Pominięte:"
+msgstr "المتخطاة:"
+
+msgid "Automatyczne przypomnienia – panel koordynatora"
+msgstr "التذكيرات التلقائية – لوحة المنسّق"
+
+msgid "Reguła zamienia harmonogram warsztatów albo termin etapu w komunikaty planowane – do tygodnia przed wysyłką. Każdy taki komunikat zobaczysz i anulujesz w"
+msgstr "تحوّل القاعدة جدول الورش أو الموعد النهائي لمرحلة إلى رسائل مجدولة – حتى أسبوع قبل الإرسال. يمكنك رؤية كل رسالة كهذه وإلغاؤها في"
+
+msgid "Komunikaty → Zaplanowane"
+msgstr "الرسائل ← المجدولة"
+
+msgid "Dodaj: przypomnienie o warsztatach"
+msgstr "إضافة: تذكير بالورش"
+
+msgid "Dodaj: przypomnienie przed terminem etapu"
+msgstr "إضافة: تذكير قبل الموعد النهائي لمرحلة"
+
+msgid "Reguły"
+msgstr "القواعد"
+
+msgid "Nazwa"
+msgstr "الاسم"
+
+msgid "Rodzaj"
+msgstr "النوع"
+
+msgid "Grupa"
+msgstr "المجموعة"
+
+msgid "Kiedy"
+msgstr "متى"
+
+msgid "Stan"
+msgstr "الحالة"
+
+msgid "Akcje"
+msgstr "الإجراءات"
+
+msgid "włączona"
+msgstr "مفعّلة"
+
+msgid "wyłączona"
+msgstr "معطّلة"
+
+msgid "Ostatni błąd:"
+msgstr "آخر خطأ:"
+
+msgid "Edytuj i podgląd"
+msgstr "تعديل ومعاينة"
+
+msgid "Wyłącz"
+msgstr "تعطيل"
+
+msgid "Włącz"
+msgstr "تفعيل"
+
+msgid "Usuń"
+msgstr "حذف"
+
+msgid "Nie ma jeszcze żadnej reguły."
+msgstr "لا توجد قواعد بعد."
+
+msgid "Usunąć tę regułę? Jej czekające komunikaty zostaną wycofane; wysłane zostają w historii."
+msgstr "هل تحذف هذه القاعدة؟ ستُسحب رسائلها المنتظرة، وتبقى المرسلة في السجل."
+
+#, python-format
+msgid "%(hours)s godz. przed początkiem"
+msgstr "قبل البدء بـ %(hours)s ساعة"
+
+#, python-format
+msgid "dni przed: %(days)s, o %(time)s"
+msgstr "الأيام قبل: %(days)s، الساعة %(time)s"

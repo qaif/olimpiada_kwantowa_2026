@@ -19,7 +19,7 @@ from apps.accounts.bulk_registration import (
     ACTION_CREATE,
     ACTION_EXISTING,
     ACTION_SKIP,
-    EXISTING_NOTE,
+    EXISTING_NOT_ON_LIST_NOTE,
     INVITE_SALT,
     MAX_ROWS,
     STATE_ACTIVE,
@@ -201,7 +201,8 @@ def test_zajety_adres_ma_jedna_etykiete_bez_wzgledu_na_to_czyje_to_konto():
         reviewer.notes,
     )
     assert student.action == ACTION_EXISTING
-    assert student.notes == [str(EXISTING_NOTE)]
+    # REG-UX-01 § 2.1: zdanie nauczyciela mówi, co się stanie w każdym przypadku – nadal to samo dla obu.
+    assert student.notes == [str(EXISTING_NOT_ON_LIST_NOTE)]
 
 
 def test_niepelnoletni_bez_adresu_opiekuna_jest_oznaczony_ale_nie_odrzucony():
@@ -276,7 +277,7 @@ def test_zaproszone_konto_jest_nieaktywne_bez_hasla_i_bez_zgod(django_capture_on
     """Sedno przepływu: konto istnieje, ale nie da się na nie wejść i nikt się za nikogo nie zgodził."""
     with django_capture_on_commit_callbacks(execute=True):
         summary = do_import(row("kasia@example.test", grade=3))
-    assert summary == {"created": 1, "existing": 0, "consent_requested": 0, "skipped": 0}
+    assert summary == {"created": 1, "existing": 0, "consent_requested": 0, "on_list": 0, "skipped": 0}
     user = User.objects.get(email="kasia@example.test")
     assert user.is_active is False
     assert user.email_verified_at is None
@@ -327,7 +328,7 @@ def test_istniejace_konto_dostaje_prosbe_o_zgode_a_nie_opiekuna(
     with django_capture_on_commit_callbacks(execute=True):
         summary = do_import(row("ola@example.test"))
     participant.refresh_from_db()
-    assert summary == {"created": 0, "existing": 1, "consent_requested": 1, "skipped": 0}
+    assert summary == {"created": 0, "existing": 1, "consent_requested": 1, "on_list": 0, "skipped": 0}
     assert participant.supervisor_email == ""
     assert participant.gdpr_consent_at == consents_before
     assert participant.invited_at is None
@@ -346,7 +347,7 @@ def test_konto_bez_profilu_uczestnika_nie_dostaje_ani_profilu_ani_listu(
     reviewer = UserFactory(email="recenzent@example.test")
     with django_capture_on_commit_callbacks(execute=True):
         summary = do_import(row("recenzent@example.test"))
-    assert summary == {"created": 0, "existing": 1, "consent_requested": 0, "skipped": 0}
+    assert summary == {"created": 0, "existing": 1, "consent_requested": 0, "on_list": 0, "skipped": 0}
     assert not Participant.objects.filter(user=reviewer).exists()
     assert mailoutbox == []
 

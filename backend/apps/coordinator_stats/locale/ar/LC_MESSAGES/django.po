@@ -1,0 +1,323 @@
+# Arabic – katalog aplikacji ``apps.coordinator_stats`` (zadanie STATS-02).
+# Zrodlem (msgid) jest polski. UWAGA: tlumaczenie MASZYNOWE (model jezykowy) – patrz
+# docs/OPERACJE.md (przeglad przez native speakera przed szeroka komunikacja).
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Olimpiada Kwantowa\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-18 21:00+0200\n"
+"PO-Revision-Date: 2026-10-18 21:00+0200\n"
+"Last-Translator: Olimpiada Kwantowa\n"
+"Language-Team: Arabic\n"
+"Language: ar\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=6; plural=(n==0 ? 0 : n==1 ? 1 : n==2 ? 2 : n%100>=3 && n%100<=10 ? 3 : n%100>=11 ? 4 : 5);\n"
+
+msgid "Grupa"
+msgstr "المجموعة"
+
+msgid "Rejestracje"
+msgstr "التسجيلات"
+
+msgid "Logowanie"
+msgstr "تسجيل الدخول"
+
+msgid "Aktywacja"
+msgstr "التفعيل"
+
+msgid "Brak grup powyżej progu."
+msgstr "لا توجد مجموعات فوق الحد."
+
+msgid "Raport wysyłki"
+msgstr "تقرير الإرسال"
+
+msgid "Raport wysyłki komunikatu"
+msgstr "تقرير إرسال الرسالة"
+
+msgid "Wysłany"
+msgstr "أُرسلت"
+
+msgid "Stan"
+msgstr "الحالة"
+
+msgid "Wysłał"
+msgstr "أرسلها"
+
+msgid "Wróć do komunikatów"
+msgstr "العودة إلى الرسائل"
+
+msgid "Brak danych o wysyłce tego komunikatu – raporty powstają dla komunikatów wysłanych od 18.10.2026."
+msgstr "لا توجد بيانات إرسال لهذه الرسالة – تُنشأ التقارير للرسائل المرسلة منذ 18.10.2026."
+
+msgid "Odbiorców"
+msgstr "المستلمون"
+
+msgid "Obsłużono"
+msgstr "تمت المعالجة"
+
+msgid "To nie jest problem adresów odbiorców, tylko reputacji serwera poczty – zgłoś to operatorowi platformy (wniosek o zdjęcie blokady w Microsoft)."
+msgstr "ليست هذه مشكلة في عناوين المستلمين بل في سمعة خادم البريد – أبلغ مشغل المنصة (طلب رفع الحظر لدى Microsoft)."
+
+msgid "Zakolejkowano"
+msgstr "في قائمة الانتظار"
+
+msgid "Pominięto (adres niedoręczalny)"
+msgstr "تم التخطي (عنوان غير قابل للتسليم)"
+
+msgid "Odbite po wysyłce"
+msgstr "مرتدة بعد الإرسال"
+
+msgid "Grupy domen"
+msgstr "مجموعات النطاقات"
+
+msgid "Domena"
+msgstr "النطاق"
+
+msgid "Pominięto"
+msgstr "تم التخطي"
+
+msgid "Adres nie istnieje"
+msgstr "العنوان غير موجود"
+
+msgid "Polityka serwera"
+msgstr "سياسة الخادم"
+
+msgid "w tym S3150"
+msgstr "منها S3150"
+
+msgid "Tymczasowe i inne"
+msgstr "مؤقتة وأخرى"
+
+msgid "Wysłane / odbite"
+msgstr "مرسلة / مرتدة"
+
+msgid "Razem"
+msgstr "المجموع"
+
+msgid "Górny słupek – listy zakolejkowane, dolny – odbite; oba w tej samej skali. Odbicia przychodzą przez kilka dni po wysyłce (serwery ponawiają doręczenie), więc liczby mogą jeszcze rosnąć."
+msgstr "الشريط العلوي – الرسائل في قائمة الانتظار، والسفلي – المرتدة؛ كلاهما بالمقياس نفسه. تصل الارتدادات لعدة أيام بعد الإرسال (تعيد الخوادم محاولة التسليم)، لذا قد تزداد الأرقام."
+
+msgid "Odbite adresy"
+msgstr "العناوين المرتدة"
+
+msgid "Adres"
+msgstr "العنوان"
+
+msgid "Rodzaj"
+msgstr "النوع"
+
+msgid "Kod"
+msgstr "الرمز"
+
+msgid "Powód (odpowiedź serwera odbiorcy)"
+msgstr "السبب (رد خادم المستلم)"
+
+msgid "Kiedy"
+msgstr "متى"
+
+msgid "Żaden list tego komunikatu nie wrócił."
+msgstr "لم ترتد أي رسالة من هذا الإرسال."
+
+#, python-format
+msgid "Listy odrzucone przez Microsoft z powodu blokady adresu IP serwera (S3150): %(n)s."
+msgstr "رسائل رفضتها Microsoft بسبب حظر عنوان IP للخادم (S3150): %(n)s."
+
+#, python-format
+msgid "Pokazano pierwsze %(n)s adresów – pełne liczby są w tabeli powyżej."
+msgstr "تُعرض أول %(n)s عنوانًا – الأرقام الكاملة في الجدول أعلاه."
+
+msgid "Lejek uczestnika"
+msgstr "مسار المشاركين"
+
+msgid "panel koordynatora"
+msgstr "لوحة المنسق"
+
+msgid "Ilu uczestników przechodzi kolejne kroki – od rejestracji, przez aktywację konta i zapis do etapu, do pierwszej pracy, zaświadczenia i warsztatów."
+msgstr "كم مشاركًا يجتاز كل خطوة – من التسجيل وتفعيل الحساب والتسجيل في المرحلة إلى أول عمل والشهادة وورش العمل."
+
+msgid "Liczby dotyczą uczestników wybranej edycji: zapisanych do jej etapu albo zarejestrowanych w czasie jej trwania. Konta usunięte nie są liczone."
+msgstr "تخص الأرقام مشاركي الدورة المختارة: المسجلين في إحدى مراحلها أو الذين سجّلوا أثناءها. لا تُحتسب الحسابات المحذوفة."
+
+msgid "Eksport CSV"
+msgstr "تصدير CSV"
+
+msgid "Ten konkurs nie ma jeszcze żadnej edycji."
+msgstr "لا توجد لهذه المسابقة أي دورة بعد."
+
+msgid "Filtry lejka"
+msgstr "مرشحات المسار"
+
+msgid "Edycja"
+msgstr "الدورة"
+
+msgid "Pokaż"
+msgstr "عرض"
+
+msgid "Wyczyść filtry"
+msgstr "مسح المرشحات"
+
+msgid "Kroki lejka"
+msgstr "خطوات المسار"
+
+msgid "Krok"
+msgstr "الخطوة"
+
+msgid "Uczestnicy"
+msgstr "المشاركون"
+
+msgid "względem poprzedniego kroku"
+msgstr "مقارنة بالخطوة السابقة"
+
+msgid "względem rejestracji"
+msgstr "مقارنة بالتسجيلات"
+
+msgid "brak takiego etapu w tej edycji"
+msgstr "لا توجد مرحلة كهذه في هذه الدورة"
+
+msgid "Lejek ścisły: krok liczy osoby, które przeszły także wszystkie poprzednie kroki. Wiersze „w tym” rozbijają zapis do etapu i liczą się względem kroku zgód."
+msgstr "مسار صارم: تحسب كل خطوة الأشخاص الذين اجتازوا أيضًا جميع الخطوات السابقة. صفوف «منها» تفصّل التسجيل في المرحلة وتُحسب مقارنة بخطوة الموافقات."
+
+msgid "Kroki niezależne: każdy krok liczy wszystkich, którzy spełniają jego warunek – także bez poprzednich kroków (np. obecni na warsztacie bez zaakceptowanego zaświadczenia)."
+msgstr "خطوات مستقلة: تحسب كل خطوة جميع من يستوفي شرطها – حتى دون الخطوات السابقة (مثل الحضور في ورشة دون شهادة مقبولة)."
+
+msgid "Zgoda opiekuna jest wymagana od niepełnoletnich według tej samej reguły wieku, co przy rejestracji."
+msgstr "تُطلب موافقة ولي الأمر من القاصرين وفق قاعدة العمر نفسها المطبقة عند التسجيل."
+
+msgid "Gdzie odpadają – najniższa aktywacja kont"
+msgstr "أين يتسربون – أدنى تفعيل للحسابات"
+
+msgid "Województwa"
+msgstr "المحافظات"
+
+msgid "Województwa – najniższa aktywacja"
+msgstr "المحافظات – أدنى تفعيل"
+
+msgid "Szkoły"
+msgstr "المدارس"
+
+msgid "Szkoły – najniższa aktywacja"
+msgstr "المدارس – أدنى تفعيل"
+
+#, python-format
+msgid "Województwa i szkoły z co najmniej %(k)s rejestracjami, od najniższego odsetka aktywowanych kont."
+msgstr "المحافظات والمدارس التي لديها %(k)s تسجيلات على الأقل، بدءًا من أدنى نسبة حسابات مفعّلة."
+
+msgid "Pominięte"
+msgstr "تم تخطيها"
+
+msgid "Odbite"
+msgstr "مرتدة"
+
+msgid "Raport"
+msgstr "التقرير"
+
+msgid "odrzucone przez Microsoft (S3150)"
+msgstr "رفضتها Microsoft (S3150)"
+
+msgid "Gmail"
+msgstr "Gmail"
+
+msgid "WP / O2 / Onet / Interia"
+msgstr "WP / O2 / Onet / Interia"
+
+msgid "Microsoft (Outlook, Hotmail, Live)"
+msgstr "Microsoft (Outlook, Hotmail, Live)"
+
+msgid "szkolne (edu)"
+msgstr "مدرسية (edu)"
+
+msgid "inne"
+msgstr "أخرى"
+
+msgid "wszystkie"
+msgstr "الكل"
+
+msgid "Województwo / region"
+msgstr "المحافظة / المنطقة"
+
+msgid "Szkoła"
+msgstr "المدرسة"
+
+msgid "Domena adresu e-mail"
+msgstr "نطاق عنوان البريد الإلكتروني"
+
+msgid "Rejestracja od"
+msgstr "التسجيل من"
+
+msgid "Rejestracja do"
+msgstr "التسجيل حتى"
+
+msgid "Sposób liczenia"
+msgstr "طريقة الحساب"
+
+msgid "Początek okresu rejestracji jest późniejszy niż jego koniec."
+msgstr "بداية فترة التسجيل بعد نهايتها."
+
+msgid "lejek ścisły – krok wymaga wszystkich poprzednich"
+msgstr "مسار صارم – تتطلب الخطوة جميع الخطوات السابقة"
+
+msgid "kroki niezależne"
+msgstr "خطوات مستقلة"
+
+msgid "Rejestracja (profil uczestnika)"
+msgstr "التسجيل (ملف المشارك)"
+
+msgid "Aktywacja konta (potwierdzony adres e-mail)"
+msgstr "تفعيل الحساب (عنوان بريد مؤكد)"
+
+msgid "Pierwsze logowanie"
+msgstr "أول تسجيل دخول"
+
+msgid "Zgody (w tym zgoda opiekuna niepełnoletniego)"
+msgstr "الموافقات (بما فيها موافقة ولي أمر القاصر)"
+
+msgid "Zapis do etapu edycji"
+msgstr "التسجيل في مرحلة من الدورة"
+
+msgid "w tym etap treningowy"
+msgstr "منها مرحلة التدريب"
+
+msgid "w tym Etap I"
+msgstr "منها المرحلة الأولى"
+
+msgid "Pierwsza wysłana praca"
+msgstr "أول عمل مُرسل"
+
+msgid "Zaświadczenie o statusie ucznia zaakceptowane"
+msgstr "قُبلت شهادة صفة الطالب"
+
+msgid "Obecność na co najmniej jednym warsztacie"
+msgstr "حضور ورشة عمل واحدة على الأقل"
+
+msgid "brak szkoły"
+msgstr "بلا مدرسة"
+
+msgid "nazwa wpisana ręcznie"
+msgstr "اسم مُدخل يدويًا"
+
+msgid "brak województwa"
+msgstr "بلا محافظة"
+
+msgid "Filtry"
+msgstr "المرشحات"
+
+msgid "Lejek"
+msgstr "المسار"
+
+msgid "Sekcja"
+msgstr "القسم"
+
+msgid "Pozycja"
+msgstr "البند"
+
+msgid "Liczba"
+msgstr "العدد"
+
+msgid "Odsetek względem poprzedniego kroku (%)"
+msgstr "النسبة مقارنة بالخطوة السابقة (%)"
+
+msgid "Odsetek względem rejestracji (%)"
+msgstr "النسبة مقارنة بالتسجيلات (%)"

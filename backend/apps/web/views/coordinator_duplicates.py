@@ -167,7 +167,13 @@ class CoordinatorDuplicatesView(CoordinatorRequiredMixin, View):
     """``/coordinator/accounts/duplicates/`` – grupy zdublowanych kont z sugestią przy każdym koncie."""
 
     def get(self, request):
+        # ACC-MERGE-01: formularz „Scal…” przy grupie. Import w funkcji – moduł scalania sięga po
+        # pomocniki z tego modułu (``participant_here_or_404``).
+        from apps.web.views.coordinator_duplicates_merge import prepare_group_merge
+
         report = _with_status(find_duplicate_groups(request.competition), actor=request.user)
+        for group in report.groups:
+            prepare_group_merge(group, request.user)
         context = {
             "report": report,
             "candidates": report.candidates,

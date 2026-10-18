@@ -1,0 +1,323 @@
+# French – katalog aplikacji ``apps.coordinator_stats`` (zadanie STATS-02).
+# Zrodlem (msgid) jest polski. UWAGA: tlumaczenie MASZYNOWE (model jezykowy) – patrz
+# docs/OPERACJE.md (przeglad przez native speakera przed szeroka komunikacja).
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Olimpiada Kwantowa\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-18 21:00+0200\n"
+"PO-Revision-Date: 2026-10-18 21:00+0200\n"
+"Last-Translator: Olimpiada Kwantowa\n"
+"Language-Team: French\n"
+"Language: fr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+
+msgid "Grupa"
+msgstr "Groupe"
+
+msgid "Rejestracje"
+msgstr "Inscriptions"
+
+msgid "Logowanie"
+msgstr "Connexion"
+
+msgid "Aktywacja"
+msgstr "Activation"
+
+msgid "Brak grup powyżej progu."
+msgstr "Aucun groupe au-dessus du seuil."
+
+msgid "Raport wysyłki"
+msgstr "Rapport d’envoi"
+
+msgid "Raport wysyłki komunikatu"
+msgstr "Rapport d’envoi du message"
+
+msgid "Wysłany"
+msgstr "Envoyé"
+
+msgid "Stan"
+msgstr "État"
+
+msgid "Wysłał"
+msgstr "Envoyé par"
+
+msgid "Wróć do komunikatów"
+msgstr "Retour aux messages"
+
+msgid "Brak danych o wysyłce tego komunikatu – raporty powstają dla komunikatów wysłanych od 18.10.2026."
+msgstr "Aucune donnée d’envoi pour ce message – les rapports existent pour les messages envoyés depuis le 18.10.2026."
+
+msgid "Odbiorców"
+msgstr "Destinataires"
+
+msgid "Obsłużono"
+msgstr "Traités"
+
+msgid "To nie jest problem adresów odbiorców, tylko reputacji serwera poczty – zgłoś to operatorowi platformy (wniosek o zdjęcie blokady w Microsoft)."
+msgstr "Ce n’est pas un problème d’adresses des destinataires, mais de réputation du serveur de messagerie – signalez-le à l’opérateur de la plateforme (demande de levée du blocage chez Microsoft)."
+
+msgid "Zakolejkowano"
+msgstr "Mis en file"
+
+msgid "Pominięto (adres niedoręczalny)"
+msgstr "Ignorés (adresse non distribuable)"
+
+msgid "Odbite po wysyłce"
+msgstr "Rejetés après l’envoi"
+
+msgid "Grupy domen"
+msgstr "Groupes de domaines"
+
+msgid "Domena"
+msgstr "Domaine"
+
+msgid "Pominięto"
+msgstr "Ignorés"
+
+msgid "Adres nie istnieje"
+msgstr "Adresse inexistante"
+
+msgid "Polityka serwera"
+msgstr "Politique du serveur"
+
+msgid "w tym S3150"
+msgstr "dont S3150"
+
+msgid "Tymczasowe i inne"
+msgstr "Temporaires et autres"
+
+msgid "Wysłane / odbite"
+msgstr "Envoyés / rejetés"
+
+msgid "Razem"
+msgstr "Total"
+
+msgid "Górny słupek – listy zakolejkowane, dolny – odbite; oba w tej samej skali. Odbicia przychodzą przez kilka dni po wysyłce (serwery ponawiają doręczenie), więc liczby mogą jeszcze rosnąć."
+msgstr "Barre du haut – lettres mises en file, barre du bas – rejetées ; les deux à la même échelle. Les rejets arrivent pendant plusieurs jours après l’envoi (les serveurs réessaient la distribution), les chiffres peuvent donc encore augmenter."
+
+msgid "Odbite adresy"
+msgstr "Adresses rejetées"
+
+msgid "Adres"
+msgstr "Adresse"
+
+msgid "Rodzaj"
+msgstr "Type"
+
+msgid "Kod"
+msgstr "Code"
+
+msgid "Powód (odpowiedź serwera odbiorcy)"
+msgstr "Motif (réponse du serveur du destinataire)"
+
+msgid "Kiedy"
+msgstr "Quand"
+
+msgid "Żaden list tego komunikatu nie wrócił."
+msgstr "Aucune lettre de ce message n’a été rejetée."
+
+#, python-format
+msgid "Listy odrzucone przez Microsoft z powodu blokady adresu IP serwera (S3150): %(n)s."
+msgstr "Lettres refusées par Microsoft en raison du blocage de l’adresse IP du serveur (S3150) : %(n)s."
+
+#, python-format
+msgid "Pokazano pierwsze %(n)s adresów – pełne liczby są w tabeli powyżej."
+msgstr "Affichage des %(n)s premières adresses – les chiffres complets sont dans le tableau ci-dessus."
+
+msgid "Lejek uczestnika"
+msgstr "Entonnoir des participants"
+
+msgid "panel koordynatora"
+msgstr "panneau du coordinateur"
+
+msgid "Ilu uczestników przechodzi kolejne kroki – od rejestracji, przez aktywację konta i zapis do etapu, do pierwszej pracy, zaświadczenia i warsztatów."
+msgstr "Combien de participants franchissent chaque étape – de l’inscription, l’activation du compte et l’inscription à une épreuve jusqu’au premier travail, à l’attestation et aux ateliers."
+
+msgid "Liczby dotyczą uczestników wybranej edycji: zapisanych do jej etapu albo zarejestrowanych w czasie jej trwania. Konta usunięte nie są liczone."
+msgstr "Les chiffres concernent les participants de l’édition choisie : inscrits à l’une de ses épreuves ou enregistrés pendant sa durée. Les comptes supprimés ne sont pas comptés."
+
+msgid "Eksport CSV"
+msgstr "Export CSV"
+
+msgid "Ten konkurs nie ma jeszcze żadnej edycji."
+msgstr "Ce concours n’a encore aucune édition."
+
+msgid "Filtry lejka"
+msgstr "Filtres de l’entonnoir"
+
+msgid "Edycja"
+msgstr "Édition"
+
+msgid "Pokaż"
+msgstr "Afficher"
+
+msgid "Wyczyść filtry"
+msgstr "Effacer les filtres"
+
+msgid "Kroki lejka"
+msgstr "Étapes de l’entonnoir"
+
+msgid "Krok"
+msgstr "Étape"
+
+msgid "Uczestnicy"
+msgstr "Participants"
+
+msgid "względem poprzedniego kroku"
+msgstr "par rapport à l’étape précédente"
+
+msgid "względem rejestracji"
+msgstr "par rapport aux inscriptions"
+
+msgid "brak takiego etapu w tej edycji"
+msgstr "pas d’épreuve de ce type dans cette édition"
+
+msgid "Lejek ścisły: krok liczy osoby, które przeszły także wszystkie poprzednie kroki. Wiersze „w tym” rozbijają zapis do etapu i liczą się względem kroku zgód."
+msgstr "Entonnoir strict : une étape compte les personnes qui ont aussi franchi toutes les étapes précédentes. Les lignes « dont » détaillent l’inscription à une épreuve et sont rapportées à l’étape des consentements."
+
+msgid "Kroki niezależne: każdy krok liczy wszystkich, którzy spełniają jego warunek – także bez poprzednich kroków (np. obecni na warsztacie bez zaakceptowanego zaświadczenia)."
+msgstr "Étapes indépendantes : chaque étape compte toutes les personnes qui remplissent sa condition – même sans les étapes précédentes (p. ex. présentes à un atelier sans attestation acceptée)."
+
+msgid "Zgoda opiekuna jest wymagana od niepełnoletnich według tej samej reguły wieku, co przy rejestracji."
+msgstr "Le consentement du représentant légal est exigé des mineurs selon la même règle d’âge qu’à l’inscription."
+
+msgid "Gdzie odpadają – najniższa aktywacja kont"
+msgstr "Où ils décrochent – activation des comptes la plus faible"
+
+msgid "Województwa"
+msgstr "Voïvodies"
+
+msgid "Województwa – najniższa aktywacja"
+msgstr "Voïvodies – activation la plus faible"
+
+msgid "Szkoły"
+msgstr "Écoles"
+
+msgid "Szkoły – najniższa aktywacja"
+msgstr "Écoles – activation la plus faible"
+
+#, python-format
+msgid "Województwa i szkoły z co najmniej %(k)s rejestracjami, od najniższego odsetka aktywowanych kont."
+msgstr "Voïvodies et écoles avec au moins %(k)s inscriptions, de la plus faible part de comptes activés."
+
+msgid "Pominięte"
+msgstr "Ignorés"
+
+msgid "Odbite"
+msgstr "Rejetés"
+
+msgid "Raport"
+msgstr "Rapport"
+
+msgid "odrzucone przez Microsoft (S3150)"
+msgstr "refusés par Microsoft (S3150)"
+
+msgid "Gmail"
+msgstr "Gmail"
+
+msgid "WP / O2 / Onet / Interia"
+msgstr "WP / O2 / Onet / Interia"
+
+msgid "Microsoft (Outlook, Hotmail, Live)"
+msgstr "Microsoft (Outlook, Hotmail, Live)"
+
+msgid "szkolne (edu)"
+msgstr "scolaires (edu)"
+
+msgid "inne"
+msgstr "autres"
+
+msgid "wszystkie"
+msgstr "tous"
+
+msgid "Województwo / region"
+msgstr "Voïvodie / région"
+
+msgid "Szkoła"
+msgstr "École"
+
+msgid "Domena adresu e-mail"
+msgstr "Domaine de l’adresse e-mail"
+
+msgid "Rejestracja od"
+msgstr "Inscription à partir du"
+
+msgid "Rejestracja do"
+msgstr "Inscription jusqu’au"
+
+msgid "Sposób liczenia"
+msgstr "Mode de calcul"
+
+msgid "Początek okresu rejestracji jest późniejszy niż jego koniec."
+msgstr "Le début de la période d’inscription est postérieur à sa fin."
+
+msgid "lejek ścisły – krok wymaga wszystkich poprzednich"
+msgstr "entonnoir strict – une étape exige toutes les précédentes"
+
+msgid "kroki niezależne"
+msgstr "étapes indépendantes"
+
+msgid "Rejestracja (profil uczestnika)"
+msgstr "Inscription (profil de participant)"
+
+msgid "Aktywacja konta (potwierdzony adres e-mail)"
+msgstr "Activation du compte (adresse e-mail confirmée)"
+
+msgid "Pierwsze logowanie"
+msgstr "Première connexion"
+
+msgid "Zgody (w tym zgoda opiekuna niepełnoletniego)"
+msgstr "Consentements (y compris celui du représentant d’un mineur)"
+
+msgid "Zapis do etapu edycji"
+msgstr "Inscription à une épreuve de l’édition"
+
+msgid "w tym etap treningowy"
+msgstr "dont l’épreuve d’entraînement"
+
+msgid "w tym Etap I"
+msgstr "dont l’épreuve I"
+
+msgid "Pierwsza wysłana praca"
+msgstr "Premier travail envoyé"
+
+msgid "Zaświadczenie o statusie ucznia zaakceptowane"
+msgstr "Attestation de scolarité acceptée"
+
+msgid "Obecność na co najmniej jednym warsztacie"
+msgstr "Présence à au moins un atelier"
+
+msgid "brak szkoły"
+msgstr "aucune école"
+
+msgid "nazwa wpisana ręcznie"
+msgstr "nom saisi manuellement"
+
+msgid "brak województwa"
+msgstr "aucune voïvodie"
+
+msgid "Filtry"
+msgstr "Filtres"
+
+msgid "Lejek"
+msgstr "Entonnoir"
+
+msgid "Sekcja"
+msgstr "Section"
+
+msgid "Pozycja"
+msgstr "Élément"
+
+msgid "Liczba"
+msgstr "Nombre"
+
+msgid "Odsetek względem poprzedniego kroku (%)"
+msgstr "Part par rapport à l’étape précédente (%)"
+
+msgid "Odsetek względem rejestracji (%)"
+msgstr "Part par rapport aux inscriptions (%)"

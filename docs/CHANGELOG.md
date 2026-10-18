@@ -12,6 +12,37 @@ podsekcją `### <tytuł>` wydania `## v<x.y.z> – <data tagu> – <opis tagu>`.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## [Unreleased] – Wdrożenie nie kasuje konfiguracji LiveKit ani zapisu rekordów DKIM
+
+- `scripts/deploy.sh` czyścił katalog wdrożenia ze wszystkiego poza krótką listą i `livekit/` na niej nie było:
+  każde wdrożenie kasowało `livekit.yaml`/`egress.yaml`, a działający kontener trzymał skasowany plik. 18.10.2026
+  LiveKit zatrzymał się po restarcie `livekit-redis` i nie mógł wstać (`live.` → 503, kontrola dymna v0.50.1).
+  Lista dostała `livekit` i `mail-dns*.txt`; `livekit.yaml` odtworzony na serwerze z szablonu i `.env`.
+
+## [Unreleased] – Rejestracja i import: literówki, wynik importu, zapis do treningu (REG-UX-01)
+
+Specyfikacja: [`tasks/REG-UX-01.md`](tasks/REG-UX-01.md).
+
+- **Literówki w adresie e-mail** (rozbudowa MAIL-02): nowe wzorce z produkcji – podwojony TLD (`.pl.pl`),
+  znana domena z doklejoną etykietą (`gmail.com.pl`), marka z cudzym TLD (`gmail.pl`, `wp.com`), adres bez
+  kropki w domenie (`jan@gmailcom` – podpowiedź w błędzie składni), `int.pl` na liście dostawców. Zamiast
+  pola wyboru dwa przyciski bez inline JS: „Popraw na …” i „Tak, adres … jest poprawny” (rejestracje,
+  zmiana adresu, konto w panelu). Podgląd importu uczniów pyta o literówkę w wierszu („Popraw” /
+  „Tak, adres jest poprawny”), zatwierdzenie zakłada konto na wybrany adres. Domen szkół nie blokuje.
+- **Czytelny wynik importu uczniów**: status każdego wiersza w podglądzie – „zaproszenie zostanie
+  wysłane”, „ma już konto i jest na Twojej liście” (odnośnik), „ma już konto, ale nie ma go na Twojej
+  liście” (jedno zdanie o każdym innym zajętym adresie – bez wyroczni ról z v0.38.7), „błąd: …”; import
+  koordynatora z pełnym podziałem (inny opiekun / brak opiekuna / bez zmian / nie jest uczestnikiem tego
+  konkursu). Komunikat po imporcie: „Wysłano zaproszeń: N, uczniów już było na liście: M, pominięto: K”
+  (pominięte liczone razem z błędami z podglądu); `import_students` i audyt `accounts.students_imported`
+  z licznikiem `on_list`. Naprawiony dwuwierszowy komentarz szablonu widoczny w nagłówku tabeli podglądu.
+- **Automatyczny zapis nowych kont do etapu treningowego**: `Stage.auto_register_new_participants`
+  (migracja `competitions.0035`, więz – tylko `TRAINING`, domyślnie wyłączone). Nowe konto (pierwsza zgoda
+  RODO: rejestracja, przyjęcie zaproszenia z importu, zgłoszenie delegacji) zapisuje się przez
+  `register_for_stage` po zatwierdzeniu transakcji; błąd nie blokuje rejestracji. Na ekranie etapu
+  treningowego przełącznik i „Zapisz wszystkich obecnych uczestników” (potwierdzenie, raport, audyt
+  `stage.bulk_registered` / `stage.auto_registration_changed`).
+
 ## [Unreleased] – Codzienne odświeżanie łatek systemowych w obrazach (APT_REFRESH)
 
 - Warstwa `apt-get upgrade` w `backend/Dockerfile` i `djcms/Dockerfile` była w cache'u warstw (gha w CI, lokalny
@@ -110,6 +141,60 @@ Prośba organizatora z 18.10.2026 (pkt 9). Specyfikacja: [`tasks/CAL-01.md`](tas
   `/warsztaty/` i w `/me/calendar/`; przy każdym warsztacie z datą – odnośnik do Google Calendar dla tych
   jednych zajęć. Nowa aplikacja `apps.calendar_feed` (bez modeli i migracji), napisy w 10 językach.
 - Prywatny kanał uczestnika z linkiem Meet – świadomie poza zakresem, projekt w CAL-01 § 4.
+
+## [Unreleased] – Automatyczne przypomnienia o warsztatach i terminach etapów (MSG-AUTO-01)
+
+Prośba organizatora z 18.10.2026 (pkt 7 i 10). Spec: [`tasks/MSG-AUTO-01.md`](tasks/MSG-AUTO-01.md).
+
+- **Komunikacja → Automatyczne przypomnienia** (`/coordinator/messages/rules/`): reguły „przypomnienie
+  o warsztatach” (z harmonogramu strony „Warsztaty”: `{temat}`, `{prowadzacy}`, `{data}`, `{godziny}`,
+  `{link}`; N dni przed o godzinie albo N godzin przed początkiem) i „przed terminem etapu” (`{etap}`,
+  `{termin}`, `{dni}`, `{link}`; lista dni, np. 30, 7, 1). Grupy jak w komunikatach (bez wklejonej
+  listy), walidacja pól szablonu przy zapisie, podgląd 3 najbliższych wysyłek, włącz/wyłącz/usuń.
+- Nowe zadanie beat `generate-message-rule-broadcasts` (co 5 min) tworzy z reguł zwykłe komunikaty
+  planowane do 7 dni naprzód – widoczne w „Zaplanowane”, z „Anuluj”; jeden na wystąpienie i regułę
+  (anulowany nie wraca), warsztat odwołany/bez daty pomijany, nieaktualne komunikaty wycofywane.
+  Czas polski (Europe/Warsaw) także w dniu zmiany czasu.
+- Nowa aplikacja `apps.message_rules`, migracja `message_rules.0001`; audyt `message_rule.*`,
+  wygenerowane – `broadcast.scheduled` z autorem reguły. OPERACJE § 53.1, PODRĘCZNIK-ORGANIZATORA § 6.1.
+
+## [Unreleased] – Scalanie zdublowanych kont uczestnika (ACC-MERGE-01)
+
+Prośba organizatora z 18.10.2026 (pkt 2): na ekranie „Zdublowane konta” obok usuwania – **scalanie**.
+Specyfikacja i tabela reguł: [`tasks/ACC-MERGE-01.md`](tasks/ACC-MERGE-01.md).
+
+- Serwis `apps.accounts.merge.merge_participants(keep, drop, *, actor, request=None, take_email=False)`:
+  jedna transakcja, blokada obu kont i profili, plan liczony od nowa, przepięcie wszystkich relacji do
+  `Participant` i `User` według reguł (przepnij / bez duplikatów / zostaje nowszy / konflikt blokuje),
+  potem usunięcie kopii przez `delete_account_by_coordinator` (`via=merge`). Audyt `account.merged`
+  (kody, liczby – bez danych osobowych). Dziennik zdarzeń nie jest przepinany.
+- Konflikty blokują z czytelnym komunikatem (aktywność w tym samym etapie, dwie rozliczone należności
+  z jednego cennika, dwa profile absolwenta, różne delegacje, klucze szyfrowania czatu); konta z innymi
+  rolami, chronione i z innych konkursów – odmowa.
+- Ekran: „Scal w … → Scal…” przy grupie, podgląd `GET /coordinator/accounts/duplicates/merge/` (co
+  przejdzie, co odpadnie, który adres zostaje, „weź adres z kopii”, gdy docelowe go nie potwierdziło),
+  „Tak, scal konto …” (POST + CSRF, potwierdzenie w przycisku). Bez skryptu.
+- Bezpiecznik na przyszłość: test `test_every_relation_is_classified` zatrzymuje CI na nowej relacji do
+  `Participant`/`User` bez reguły scalania. Bez migracji.
+
+## [Unreleased] – Lejek uczestnika i raporty wysyłek komunikatów (STATS-02)
+
+Lista organizatora z 18.10.2026, pkt 11–12. Specyfikacja: [`tasks/STATS-02.md`](tasks/STATS-02.md).
+
+- **Lejek uczestnika** `/coordinator/stats/funnel/` (Raporty, bez flagi): rejestracja → aktywacja →
+  pierwsze logowanie → zgody (z opiekunem niepełnoletniego) → zapis do etapu (trening, Etap I) →
+  pierwsza praca → zaświadczenie o statusie ucznia → warsztat; liczby i odsetki, tryb ścisły
+  i niezależny, filtry (edycja, województwo/region, szkoła, grupa domen e-mail, okres rejestracji),
+  „gdzie odpadają” (najniższa aktywacja, od 5 rejestracji), słupki CSS, eksport CSV agregatów.
+  Stała liczba zapytań (`COUNT … FILTER`, `EXISTS`), pamięć podręczna 5 min.
+- **Raport wysyłki komunikatu** `/coordinator/messages/<id>/report/` i kolumny „Pominięte”/„Odbite”
+  w historii: zakolejkowane, pominięte, odbite po grupach domen (Gmail, WP/O2/Onet/Interia, Microsoft,
+  szkolne, inne), rodzaj odbicia, wyróżnienie Microsoft S3150, lista odbitych adresów dla koordynatora.
+  Odbicie wiąże z komunikatem podpisany nagłówek `X-Olimpiada-Broadcast`; `email_delivery` wysyła
+  sygnał `bounces_reported` (DSN i odmowy relaya, także polityka/spam).
+- Aplikacja `apps.coordinator_stats`, migracja `coordinator_stats.0001`, zadanie beat
+  `broadcast-bounces-purge`; rejestr czynności 1.23 (wiersz „Doręczalność poczty”), sekcja eksportu
+  konta `doreczalnosc_poczty.odbicia_komunikatow`.
 
 ## [Unreleased] – Audyt bezpieczeństwa 10.10.2026 (6 wysokich, 21 średnich, 22 niskie)
 

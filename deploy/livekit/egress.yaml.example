@@ -1,5 +1,6 @@
 # Konfiguracja LiveKit Egress – nagrania webinarów (zadanie WEB-01, docs/OPERACJE.md § 36.4).
-# Skopiuj do /opt/olimpiada/livekit/egress.yaml i podmień <…>. Zawiera sekrety – chmod 600.
+# Skopiuj do /opt/olimpiada/livekit/egress.yaml i podmień <…>. Zawiera sekrety – `chown 1001:0` i `chmod 640`
+# (kontener egress działa jako uid 1001; z root:600 nie przeczyta pliku).
 api_key: <LIVEKIT_API_KEY>
 api_secret: <LIVEKIT_API_SECRET>
 # Sygnalizacja serwera z sieci compose (wariant (b)); w wariancie (a) – adres serwera na tej maszynie.
