@@ -283,18 +283,20 @@ jobs:
         run: python3 -m unittest discover -s scripts/tests -p "test_uptime_external.py" -v
 
   mail-scripts:
-    # Skrypty startowe relaya `mail` (deploy/mail/docker-init.d/, MAIL-01/02/03) na atrapach
+    # Skrypty startowe relaya `mail` (deploy/mail/docker-init.d/, MAIL-01/02/03/04) na atrapach
     # postconf/postmap – bez Dockera, sekundy. MAIL-03 otwiera port 25 na świat, więc reguła „bez
-    # relaya” ma być sprawdzana przy każdym PR, a nie tylko ręcznie.
+    # relaya” ma być sprawdzana przy każdym PR, a nie tylko ręcznie. MAIL-04 trzyma hasło SASL
+    # dostawcy – test pilnuje, że nie trafia do logu i że plik ma prawa 600 (tu, na Linuksie).
     name: skrypty relaya poczty (bash)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: 50-bounces.sh i 60-inbound.sh
+      - name: 50-bounces.sh, 60-inbound.sh i 70-relay.sh
         run: |
           bash scripts/tests/mail_bounces_test.sh
           bash scripts/tests/mail_inbound_test.sh
+          bash scripts/tests/mail_relay_test.sh
 
   tests:
     # ~4700 testów w jednym przebiegu trwało 27–32 minuty – dłużej niż `lint`, `migrations`

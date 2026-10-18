@@ -755,6 +755,17 @@ services:
       # Potrzebna m.in. do potwierdzenia IP w Microsoft SNDS/JMRP (OPERACJE § 49.9,
       # deploy/mail/docker-init.d/60-inbound.sh).
       MAIL_INBOUND_FORWARD: ${MAIL_INBOUND_FORWARD:-}
+      # MAIL-04: listy do domen Microsoftu (Outlook.com odrzuca nasz adres IP błędem S3150) przez
+      # zewnętrzny serwer SMTP dostawcy, np. `[smtp-relay.gmail.com]:587`. Pusty = cała poczta wprost do
+      # MX-ów jak dotąd. MAIL_RELAY_DOMAINS pusty = domeny konsumenckie Microsoftu, `*` = cała poczta.
+      # Login/hasło puste = bez SASL (dostawca uwierzytelnia adres IP serwera). TLS do relaya zawsze
+      # wymagany (`encrypt`; `secure` = także certyfikat). Skrypt deploy/mail/docker-init.d/70-relay.sh,
+      # kroki i rekordy DNS dostawców – OPERACJE § 49.10.
+      MAIL_RELAY_HOST: ${MAIL_RELAY_HOST:-}
+      MAIL_RELAY_DOMAINS: ${MAIL_RELAY_DOMAINS:-}
+      MAIL_RELAY_USER: ${MAIL_RELAY_USER:-}
+      MAIL_RELAY_PASSWORD: ${MAIL_RELAY_PASSWORD:-}
+      MAIL_RELAY_TLS_LEVEL: ${MAIL_RELAY_TLS_LEVEL:-encrypt}
       POSTFIX_myhostname: mail.${SITE_DOMAIN:-localhost}
       # Klienci SMTP: sieć `mail` (web, worker, beat, `uptime` z profilu `monitoring` – nikt więcej
       # w niej nie stoi) i podsieć `errors_egress` (GlitchTip) z jednym dozwolonym nadawcą. Bez SASL –
