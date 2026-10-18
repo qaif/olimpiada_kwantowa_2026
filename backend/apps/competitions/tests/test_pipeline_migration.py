@@ -19,7 +19,6 @@ import importlib
 from datetime import timedelta
 
 import pytest
-from django.apps import apps as django_apps
 from django.db import connection
 from django.utils import timezone
 
@@ -35,13 +34,18 @@ from apps.competitions.models import (
     TransitionMode,
     TransitionRule,
 )
-from apps.core.tests.migration_helpers import migrate_to, rewound_database
+from apps.core.tests.migration_helpers import head_of, migrate_to, rewound_database, rewound_factory
 from apps.results.services import STAGE_ORDER, next_stage_of
 
 from .factories import CurrentEditionFactory, EditionFactory, QualificationRuleFactory, StageFactory
 
 BEFORE = ("competitions", "0023_pipeline_step_transition_rule")
 AFTER = ("competitions", "0024_pipeline_from_stages")
+
+#: Etapy zakładamy w tabeli z ``0023``, która nie zna kolumn dołożonych później (pierwsza:
+#: ``auto_register_new_participants``, ``0035``) – wiersz modelem zastosowanych migracji, obiekt
+#: prawdziwą klasą z odroczonymi brakującymi kolumnami (``migration_helpers.rewound_factory``).
+RewoundStageFactory = rewound_factory(StageFactory)
 
 #: Nazwa modułu zaczyna się od cyfry, więc ``from … import …`` jest tu składniowo niemożliwe.
 pipeline_from_stages = importlib.import_module(f"apps.competitions.migrations.{AFTER[1]}")
@@ -67,19 +71,19 @@ def build_todays_edition(competition, **kwargs) -> dict[str, Stage]:
     """
     edition = kwargs.pop("edition", None) or CurrentEditionFactory(competition=competition)
     now = timezone.now()
-    elim = StageFactory(
+    elim = RewoundStageFactory(
         edition=edition, kind=StageKind.ELIM, name="Etap I – eliminacje", format=StageFormat.SUBMISSIONS
     )
     QualificationRuleFactory(stage=elim, mode=QualificationMode.MIN_POINTS, min_points=40)
-    district = StageFactory(
+    district = RewoundStageFactory(
         edition=edition,
         kind=StageKind.DISTRICT,
         name="Etap II – rozmowy kwalifikacyjne",
         format=StageFormat.INTERVIEW,
     )
     QualificationRuleFactory(stage=district, mode=QualificationMode.TOP_N, min_points=None, top_n=30)
-    final = StageFactory(edition=edition, kind=StageKind.FINAL, name="Etap III – finał")
-    training = StageFactory(
+    final = RewoundStageFactory(edition=edition, kind=StageKind.FINAL, name="Etap III – finał")
+    training = RewoundStageFactory(
         edition=edition,
         kind=StageKind.TRAINING,
         name="Zadania treningowe",
@@ -131,16 +135,17 @@ def test_pipeline_matches_stage_order(before_pipeline):
 
     migrate_to(AFTER)
 
-    on_track = list(
-        PipelineStep.objects.filter(edition=stages["edition"], off_pipeline=False)
-        .select_related("stage")
-        .order_by("position")
-    )
-    assert [step.stage.kind for step in on_track] == list(STAGE_ORDER)
+    track = PipelineStep.objects.filter(edition=stages["edition"], off_pipeline=False).order_by("position")
+    assert list(track.values_list("stage__kind", flat=True)) == list(STAGE_ORDER)
+
+    # ``next_stage_of`` to dzisiejszy serwis: czyta etapy pełnym modelem, więc pytamy go na czole
+    # migracji ``competitions`` – z tymi samymi wierszami, które przeszły przez ``0024`` i dalsze.
+    migrate_to(head_of("competitions"))
+    on_track = list(track.select_related("stage"))
     for step, following in zip(on_track, [*on_track[1:], None], strict=True):
         expected = following.stage if following is not None else None
         assert next_stage_of(step.stage) == expected
-    assert next_stage_of(stages["training"]) is None
+    assert next_stage_of(Stage.objects.get(pk=stages["training"].pk)) is None
 
 
 @pytest.mark.django_db
@@ -194,7 +199,7 @@ def test_the_training_stage_stays_outside_the_pipeline(before_pipeline):
 def test_every_qualification_mode_maps_one_to_one(before_pipeline, mode, fields, expected):
     """Cztery tryby progu, cztery reguły przejścia – co do trybu, podziału i obu liczb."""
     edition = CurrentEditionFactory(competition=before_pipeline)
-    stage = StageFactory(edition=edition, kind=StageKind.ELIM)
+    stage = RewoundStageFactory(edition=edition, kind=StageKind.ELIM)
     QualificationRuleFactory(stage=stage, mode=mode, **fields)
 
     migrate_to(AFTER)
@@ -264,11 +269,13 @@ def test_running_the_migration_twice_changes_nothing(before_pipeline):
     """Idempotencja: powtórzony przebieg nie duplikuje kroków ani nie przestawia reguł."""
     stages = build_todays_edition(before_pipeline)
 
-    migrate_to(AFTER)
+    after = migrate_to(AFTER)
     snapshot = sorted(PipelineStep.objects.values_list("stage_id", "edition_id", "position", "off_pipeline"))
     rules = sorted(TransitionRule.objects.values_list("step_id", "mode", "group_by", "min_points", "top_n"))
 
-    pipeline_from_stages.forwards(django_apps, connection.schema_editor())
+    # Drugi przebieg z modelami stanu ``0024`` – tymi, które dostaje migracja; dzisiejsze klasy
+    # pytałyby o kolumny etapu, których na tym stanie jeszcze nie ma.
+    pipeline_from_stages.forwards(after, connection.schema_editor())
 
     assert PipelineStep.objects.filter(edition=stages["edition"]).count() == 4
     assert (
@@ -287,7 +294,7 @@ def test_archival_editions_get_their_own_pipeline(before_pipeline):
     """Migracja chodzi po **każdej** edycji – rocznik sprzed lat też ma opisany przebieg."""
     build_todays_edition(before_pipeline)
     archival = EditionFactory(competition=before_pipeline)
-    old_elim = StageFactory(edition=archival, kind=StageKind.ELIM)
+    old_elim = RewoundStageFactory(edition=archival, kind=StageKind.ELIM)
 
     migrate_to(AFTER)
 

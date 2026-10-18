@@ -340,6 +340,7 @@ SUBJECT_CONSTANTS = {
 NOT_MAIL_SUBJECTS = {
     "apps.cms.management.commands.build_guardian_consent_pdf.PDF_SUBJECT": "metadane PDF-a (pole Subject)",
     "apps.forum.notifications.SUBJECT_TITLE_LIMIT": "limit długości tytułu wątku wstawianego do tematu",
+    "apps.message_rules.planning.SUBJECT_MAX": "limit długości tematu z szablonu reguły (MSG-AUTO-01)",
 }
 
 #: Wartości podstawień dla Konkursu #1 i znaczniki danych konkretnego listu – te same, co w wierszach
