@@ -69,3 +69,32 @@
 .cleanup-filters input[type="number"] {
   width: 7rem;
 }
+
+/* ACC-MERGE-01: „Scal…” przy grupie duplikatów i podgląd scalenia (dwa konta obok siebie). */
+.merge-pick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  align-items: center;
+}
+
+.merge-sides {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+  gap: var(--sp-4);
+}
+
+.merge-facts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--sp-1) var(--sp-3);
+  margin: 0;
+}
+
+.merge-facts dt {
+  font-weight: 600;
+}
+
+.merge-facts dd {
+  margin: 0;
+}
