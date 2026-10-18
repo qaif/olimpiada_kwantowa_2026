@@ -185,3 +185,8 @@ w harmonogramie.
   automatyczny import po każdym spotkaniu z kalendarza warsztatów; wymaga uprawnień administratora
   Workspace.
 - Przeliczanie progu w podglądzie bez ponownego wgrania (wymagałoby niesienia czasów osób w tokenie).
+
+**Znane ograniczenie.** Formularz zatwierdzenia ma po jednym polu na dopasowaną osobę (kratka) i na
+każdą niejednoznaczną/nieznalezioną; Django przyjmuje domyślnie do 1000 pól (`DATA_UPLOAD_MAX_NUMBER_FIELDS`),
+więc spotkanie z ponad ~990 dopasowanymi osobami trzeba zaimportować w dwóch częściach (np. dwa
+arkusze) albo podnieść ten limit. Warsztaty olimpiady mają dziesiątki–setki osób.
