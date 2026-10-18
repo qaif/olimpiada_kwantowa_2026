@@ -12,6 +12,28 @@ podsekcją `### <tytuł>` wydania `## v<x.y.z> – <data tagu> – <opis tagu>`.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## [Unreleased] – Import obecności na warsztatach z Google Meet (WS-ATT-02)
+
+Specyfikacja: [`tasks/WS-ATT-02.md`](tasks/WS-ATT-02.md); instrukcja dla organizatora:
+`PODRECZNIK-ORGANIZATORA.md` § 4.13.
+
+- Nowy ekran `/coordinator/workshops/attendance/meet/` (przycisk „Importuj raport z Google Meet” na
+  ekranie obecności): raport obecności Meet jako **plik** (CSV w UTF-8/UTF-16/Windows-1250, XLSX) albo
+  **link** do arkusza udostępnionego „każdy, kto ma link” – serwer pobiera wyłącznie
+  `docs.google.com/spreadsheets/d/<ID>/export?format=csv&gid=<GID>` (przekierowania tylko na
+  `*.googleusercontent.com`, limit 5 MB i 20 s, 20 pobrań na godzinę na konto – scope `meet_link`).
+- Parser nagłówków PL/EN w dowolnej kolejności, z blokiem meta nad tabelą; czasy „1 godz. 5 min”,
+  „1 hr 5 min”, „65 min”, „01:05:00” i komórki czasu XLSX; wiele wierszy osoby sumowane.
+- Dopasowanie do uczestników **tego konkursu i bieżącej edycji**: e-mail (Gmail bez kropek i `+tag`),
+  potem imię i nazwisko; podgląd dwuetapowy (dopasowani, poniżej progu – domyślnie 30 min, niejednoznaczni
+  z wyborem, nieznalezieni z polem kodu, już oznaczeni, nauczyciele pominięci); podpowiedź warsztatu po
+  dacie spotkania. Zapis tylko **dokłada** obecności (`apps.cms.workshops.add_attendance`); stary import
+  CSV `kod,warsztat` bez zmian.
+- RODO: raport nie jest zapisywany (podgląd w podpisanym tokenie z TTL 30 min, same identyfikatory);
+  audyt `workshop.attendance_imported` z liczbami, bez danych osobowych; rejestr czynności **1.23**
+  (obecność na warsztatach i raport Meet w wierszu „wyniki”).
+- Bez migracji i bez nowych zależności (`requests`, `openpyxl` już były).
+
 ## [Unreleased] – Audyt bezpieczeństwa 10.10.2026 (6 wysokich, 21 średnich, 22 niskie)
 
 Pełny raport: [`AUDYT-BEZPIECZENSTWA-2026-10-10.md`](AUDYT-BEZPIECZENSTWA-2026-10-10.md); pozycje

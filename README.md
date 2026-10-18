@@ -3262,6 +3262,16 @@ spotkania eksportuje platforma wideo, a przepisywanie trzystu kratek ręcznie po
 to praca, po której tabela zostaje pusta. Kod uczestnika, nie e-mail: adres jest daną osobową,
 która nie ma po co krążyć w plikach po dyskach szkół. Nieznany kod i nieznany klucz są pomijane.
 
+**Import z Google Meet** (`/coordinator/workshops/attendance/meet/`, WS-ATT-02) czyta raport obecności,
+który Meet wysyła organizatorowi po spotkaniu – plik CSV/XLSX albo link do arkusza udostępnionego
+„każdy, kto ma link” (serwer składa sam adres eksportu `docs.google.com/…/export?format=csv&gid=…`
+i przyjmuje przekierowania wyłącznie na `*.googleusercontent.com`). Parser (`apps.cms.meet_report`)
+rozpoznaje nagłówki PL/EN, blok meta nad tabelą i czasy w każdej spotykanej postaci, a wiersze jednej
+osoby sumuje. Dopasowanie (`apps.cms.meet_import`) idzie po e-mailu, potem po imieniu i nazwisku,
+wyłącznie wśród uczestników tej edycji; podgląd dzieli osoby na dopasowane, poniżej progu (domyślnie
+30 min), niejednoznaczne, nieznalezione, już oznaczone i nauczycieli. Do zatwierdzenia jedzie podpisany
+token z samymi identyfikatorami – raport nie trafia do bazy – a zapis tylko dokłada obecności.
+
 **Wystaw zaświadczenia z warsztatów (ZIP)** wystawia dokument każdemu, kto ma co najmniej jedną
 obecność **i** wpis do etapu w tej edycji (dokument musi się do czego przypiąć — warsztat nie jest
 etapem, a `Certificate` zna dwa rodzaje odbiorcy: wpis do etapu albo opiekuna). Progu „połowa zajęć”

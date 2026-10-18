@@ -983,6 +983,65 @@ potwierdzenie i wycofanie umowy powierzenia (kto, kiedy, uwaga, panel czy komend
 modelu, cen i limitu, zmiana widoczności etapu, każde zlecenie (z dostawcą, modelem i liczbą prac)
 oraz wgranie, ocena i usunięcie pracy testowej zostawiają wpis `ai_grading.*`.
 
+### 4.13 Obecność na warsztatach — `/coordinator/workshops/attendance/`
+
+Ekran **„Obecność na warsztatach”** (menu: Raporty). Tabela **uczestnicy × warsztaty**: wiersze to
+uczestnicy z wpisem do etapu bieżącej edycji, kolumny — warsztaty z harmonogramu na stronie
+`/warsztaty/` (wiersze z wypełnionym polem „termin (data)”). Kratki odhacza się ręcznie (przycisk
+„zaznacz kolumnę” zaznacza całe zajęcia), a **„Zapisz obecności tej strony”** zapisuje wyłącznie
+widoczną stronę listy. Na obecności stoją **zaświadczenia z warsztatów** (przycisk „Wystaw zaświadczenia
+z warsztatów (ZIP)” na tym samym ekranie).
+
+Obecność można też **zaimportować** — na dwa sposoby:
+
+- **„Import z pliku CSV”** — dwie kolumny `kod,warsztat` (kod uczestnika z panelu i klucz warsztatu
+  podany pod formularzem); bez zmian,
+- **„Importuj raport z Google Meet”** — raport obecności, który Google Meet wysyła po spotkaniu
+  (opis niżej).
+
+**Import z Google Meet** — `/coordinator/workshops/attendance/meet/`:
+
+1. **Włącz śledzenie obecności przed zajęciami.** W Kalendarzu Google otwórz wydarzenie warsztatu →
+   „Zmień ustawienia rozmowy wideo” → zaznacz **„Śledzenie obecności”** → „Zapisz”. Można to też zrobić
+   w trakcie spotkania: **„Ustawienia gospodarza”** (ikona u dołu ekranu) → „Śledzenie obecności”.
+   Funkcja jest w płatnych wersjach Google Workspace (m.in. Business Plus, Enterprise, Education Plus;
+   w Education Plus raport powstaje sam po każdym spotkaniu z co najmniej dwiema osobami).
+2. **Znajdź raport.** Po spotkaniu **organizator wydarzenia** dostaje e-mail z arkuszem Google
+   „raport obecności” (arkusz leży też w jego Dysku). Osoba, która wychodziła i wracała, ma jeden wiersz
+   z łącznym czasem; pokoje podgrup są w osobnych kartach (import czyta pierwszą).
+3. **Przekaż raport do serwisu** — jedno z dwóch:
+   - **link:** w arkuszu „Udostępnij” → „Ogólny dostęp” → **„Każdy, kto ma link”** → rola
+     „Wyświetlający” i wklej adres z paska przeglądarki (`https://docs.google.com/spreadsheets/d/…`).
+     Serwer pobiera wyłącznie eksport CSV tej karty arkusza — innych adresów nie przyjmuje. Po imporcie
+     możesz cofnąć udostępnienie,
+   - **plik:** w arkuszu „Plik” → „Pobierz” → „Wartości rozdzielone przecinkami (.csv)” albo
+     „Microsoft Excel (.xlsx)” i wgraj plik. Tak zrób, jeśli zasady Twojej organizacji nie pozwalają
+     udostępniać arkuszy na zewnątrz. Działa też CSV zapisany z Excela (Windows-1250, średniki,
+     „Tekst Unicode”).
+4. **Wybierz warsztat** z listy albo zostaw „rozpoznaj po dacie z raportu” (zadziała, gdy w raporcie
+   albo w nazwie pliku jest data i tego dnia jest w harmonogramie dokładnie jeden warsztat).
+5. **Ustaw próg** — minimalny czas na spotkaniu, od którego osoba jest „obecna” (domyślnie **30 min**).
+   Kilka wierszy tej samej osoby (wyjścia i powroty) sumuje się.
+6. **„Pokaż podgląd dopasowania”** — nic jeszcze się nie zapisuje. Osoby z raportu są dopasowane do
+   uczestników tej edycji **po adresie e-mail** (bez wielkości liter; w Gmailu bez kropek i `+dopisku`),
+   a potem **po imieniu i nazwisku**. Podgląd ma sekcje: **dopasowani** (kratka zaznaczona — można
+   odznaczyć), **niejednoznaczni** (kilku uczestników o tym samym nazwisku — wybierz z listy),
+   **nieznalezieni** (goście, prowadzący, inne konto Google — jeśli wiesz, kto to, wpisz kod
+   uczestnika), **poniżej progu** (dopasowanego można oznaczyć „mimo to”), **już oznaczeni**
+   i **nauczyciele — pominięci** (adres opiekuna szkolnego; obecność dotyczy wyłącznie uczestników).
+7. **„Zapisz obecności”** — import **dokłada** obecności i nigdy ich nie kasuje (ręczne odhaczenia
+   zostają). Podgląd jest ważny 30 minut; po tym czasie wczytaj raport jeszcze raz.
+
+**Komunikaty linku.** „Arkusz nie jest udostępniony” — Google pokazał stronę logowania zamiast arkusza:
+ustaw „Każdy, kto ma link” albo wgraj plik. „Zbyt wiele pobrań z linku” — limit to 20 pobrań na godzinę
+na konto; wgranie pliku limitu nie ma.
+
+**Dane osobowe.** Raport (e-maile, nazwiska, czasy) jest czytany tylko na czas podglądu i **nie jest
+nigdzie zapisywany** — do bazy trafia wyłącznie „uczestnik X był na warsztacie Y”, a dziennik zdarzeń
+(`workshop.attendance_imported`) dostaje warsztat, źródło (plik/link) i liczby, bez nazwisk i adresów.
+Czynność opisuje rejestr czynności przetwarzania (§ 9.2, wiersz „Ogłaszanie wyników i wystawianie
+dokumentów”, od wersji 1.23).
+
 ---
 
 ## 5. Wyniki
@@ -1847,6 +1906,9 @@ Wersja **1.9** z 25.09.2026 (powiadomienia e-mail z forum) nie dodaje celu przet
 forum dostaje nowego odbiorcę (dostawca poczty wychodzącej – temat wątku i sam fakt udziału w rozmowie,
 nigdy treść wpisu) i nową kategorię danych (obserwowane wątki, ustawienia powiadomień, znaczniki
 wysyłki; wchodzą do eksportu danych konta i znikają przy jego usunięciu).
+Wersja **1.23** z 18.10.2026 (import obecności z Google Meet, § 4.13) dopisuje do wiersza „Ogłaszanie
+wyników i wystawianie dokumentów” obecność na warsztatach (podstawę zaświadczeń z warsztatów) i raport
+obecności Google Meet jako jej źródło — czytany przejściowo, bez zapisu.
 Odbiorcy są wymienieni wprost (hosting, dostawca poczty, analityka wyłącznie po zgodzie). Dane
 administratora (nazwa, adres, KRS, kontakt) dokłada się **z ustawień serwisu w `/cms/`**, więc ich
 poprawka nie wymaga wydania aplikacji. `?format=csv` oddaje ten sam dokument jako plik otwierający się
