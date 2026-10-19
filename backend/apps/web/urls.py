@@ -28,6 +28,7 @@ from apps.staff_mfa.urls import urlpatterns as staff_mfa_urlpatterns  # SEC-01: 
 # a raz ``NoReverseMatch``.
 from apps.time_windows.urls import urlpatterns as time_windows_urlpatterns
 from apps.translation_review.urls import urlpatterns as translation_review_urlpatterns
+from apps.webtex.urls import urlpatterns as webtex_urlpatterns
 
 from .urls_ai_grading import urlpatterns as ai_grading_urlpatterns
 from .urls_chat import urlpatterns as chat_urlpatterns
@@ -1295,4 +1296,6 @@ urlpatterns = [
     *proctoring_urlpatterns,
     # --- uzupełnienie zgód po zalogowaniu i eksport braków (CONS-01) -----------------------------
     *consent_gate_urlpatterns,
+    # --- edytor LaTeX webTEX przy zadaniu (zadanie TEX-01, flaga ``latex_editor``) ----------------
+    *webtex_urlpatterns,
 ]

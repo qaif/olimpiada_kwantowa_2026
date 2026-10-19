@@ -12,6 +12,29 @@ podsekcją `### <tytuł>` wydania `## v<x.y.z> – <data tagu> – <opis tagu>`.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## [Unreleased] – Edytor LaTeX (webTEX) do pisania rozwiązań (TEX-01) – strona platformy
+
+Specyfikacja: [`tasks/TEX-01.md`](tasks/TEX-01.md); instrukcje: `PODRECZNIK-UCZESTNIKA.md` § 3b,
+`PODRECZNIK-ORGANIZATORA.md` § 10q.
+
+- Nowa aplikacja `apps.webtex` za flagą konkursu `latex_editor` (domyślnie wyłączona; bez flagi albo bez
+  `WEBTEX_SHARED_KEY` adresów nie ma – 404 – a karta zadania jest co do bajtu dzisiejsza).
+- `GET /me/stages/<id>/problems/<n>/latex/` – bramki (uczestnik, wpis na etap, okno, nadzór zdalny,
+  nie-kadra) i 302 na `{WEBTEX_URL}/sso#token=…`: JWT HS256 (TTL 120 s, jednorazowe `jti`) podpisany kluczem
+  `HMAC-SHA256(WEBTEX_SHARED_KEY, "webtex-sso-v1")`, `Cache-Control: no-store`.
+- `POST …/latex/submit/` (limit `upload`, obowiązkowe potwierdzenie) – platforma pobiera świeży PDF
+  z `POST /api/integration/build` (podpis `X-Webtex-Signature`, klucz `webtex-api-v1`) i woła
+  `create_submission` (`rozwiazanie.pdf`); błędy edytora (404/422 z listą błędów LaTeX/503) jako komunikat
+  na karcie zadania, HTMX podmienia kartę jak po uploadzie.
+- Koordynator: przełącznik „Udostępnianie linków w edytorze LaTeX” per etap (`/coordinator/stages/<id>/latex/`,
+  model `webtex.StageLatexSettings`, migracja `webtex.0001_initial`), audyt `webtex.sharing_changed`,
+  zadanie Celery `apps.webtex.tasks.push_stage_sharing` (`POST /api/integration/sharing`, ponawianie z odstępem).
+- Asystent AI (TEX-01 Uzupełnienie A / TEX-02): drugi przełącznik etapu „Asystent AI w edytorze LaTeX”
+  (domyślnie wyłączony, pole `StageLatexSettings.ai_enabled`, migracja `webtex.0002_stage_ai_enabled`), audyt
+  `webtex.ai_changed`, zadanie `apps.webtex.tasks.push_stage_ai` (`POST /api/integration/ai`), claim `ai` w tokenie SSO.
+- Ustawienia `WEBTEX_HOST`, `WEBTEX_URL`, `WEBTEX_INTERNAL_URL`, `WEBTEX_SHARED_KEY`, `WEBTEX_ISSUER`;
+  sprawdzenie `webtex.W001` (klucz krótszy niż 32 znaki albo równy innemu sekretowi).
+
 ## [Unreleased] – Codzienne odświeżanie łatek systemowych w obrazach (APT_REFRESH)
 
 - Warstwa `apt-get upgrade` w `backend/Dockerfile` i `djcms/Dockerfile` była w cache'u warstw (gha w CI, lokalny

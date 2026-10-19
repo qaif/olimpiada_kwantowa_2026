@@ -264,6 +264,37 @@ Dobrze wiedzieć:
 - konto, które ma w serwisie jakąkolwiek rolę organizatora, recenzenta czy opiekuna, zamiast
   notatnika widzi tylko jego podgląd – do rozwiązywania zadań potrzebne jest zwykłe konto uczestnika.
 
+### 3b. Edytor LaTeX w przeglądarce
+
+Gdy organizator włączył edytor, karta zadania ma blok **„Edytor LaTeX”** z przyciskiem **„Napisz
+rozwiązanie w LaTeX”**. Edytor otwiera się w **nowej karcie** (pod osobnym adresem, np.
+`tex.olimpiadakwantowa.pl`) – logujesz się do niego samym kliknięciem, bez hasła. Każde zadanie ma
+własny projekt z gotowym szablonem rozwiązania (polski, `amsmath`, `braket`, `physics`; przykład
+obwodu `quantikz` w komentarzu), a w nagłówku PDF-u stoi Twój **kod uczestnika**, nie nazwisko.
+Podgląd PDF odświeża się przy kompilacji, praca zapisuje się w edytorze na bieżąco (także na innym
+komputerze – po kolejnym otwarciu z karty zadania).
+
+**Oddanie pracy:** wróć na kartę zadania (link „Wróć do olimpiady” w edytorze), zaznacz
+potwierdzenie i kliknij **„Złóż PDF z edytora”**. Platforma sama kompiluje Twój projekt na nowo
+(do dwóch minut) i składa wynik jako kolejną **wersję rozwiązania** – dokładnie tak, jakbyś wysłał
+PDF formularzem z § 3: obowiązuje ten sam termin, skan antywirusowy i potwierdzenie mailem, a do
+oceny idzie ostatnia wersja. Jeśli kompilacja się nie uda, karta pokaże listę błędów LaTeX
+(plik i wiersz) – popraw je w edytorze i złóż ponownie; poprzednia wersja zostaje bez zmian.
+Zawsze możesz też pobrać PDF z edytora i wysłać go zwykłym formularzem.
+
+Dobrze wiedzieć:
+
+- adres edytora otwieraj **z karty zadania** – przycisk za każdym razem wystawia nowe, jednorazowe
+  wejście ważne dwie minuty (zapisany w zakładkach adres nie zaloguje),
+- domyślnie **piszesz sam**: Twój projekt widzisz tylko Ty. W etapach, w których organizator
+  dopuścił współpracę (np. trening), w edytorze działa przycisk „Udostępnij” (link dla innych);
+  gdy organizator to wyłączy, współpracownicy tracą dostęp od razu,
+- **asystent AI** (czat, pomoc przy błędach kompilacji) działa tylko na etapach, na których
+  organizator go dopuścił (zwykle treningowych); na zawodach go nie ma,
+- źródła projektu (ZIP) możesz pobrać z edytora w każdej chwili,
+- konto z rolą organizatora, recenzenta czy opiekuna nie otwiera edytora jako uczestnik – do
+  rozwiązywania zadań potrzebne jest zwykłe konto uczestnika.
+
 ## 4. Rozmowa kwalifikacyjna (gdy etap ma taką formę)
 
 Etap w formie rozmowy nie ma zadań ani wysyłki plików. W karcie etapu w `/me/` wybierasz termin

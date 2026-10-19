@@ -1,0 +1,111 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-18 22:59+0200\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=6; plural=n==0 ? 0 : n==1 ? 1 : n==2 ? 2 : n%100>=3 "
+"&& n%100<=10 ? 3 : n%100>=11 && n%100<=99 ? 4 : 5;\n"
+
+msgid ""
+"Edytor LaTeX nie odpowiada. Spróbuj ponownie za chwilę albo pobierz PDF z "
+"edytora i wyślij go zwykłym formularzem."
+msgstr "محرر LaTeX لا يستجيب. حاول مرة أخرى بعد قليل، أو نزّل ملف PDF من المحرر وأرسله عبر النموذج المعتاد."
+
+#, python-format
+msgid "PDF z edytora jest większy niż limit pliku tego zadania (%(limit)s MB)."
+msgstr "ملف PDF من المحرر أكبر من حد حجم الملف لهذه المسألة (%(limit)s ميغابايت)."
+
+msgid ""
+"W edytorze LaTeX nie ma jeszcze Twojego projektu dla tego zadania. Otwórz "
+"edytor przyciskiem „Napisz rozwiązanie w LaTeX”, napisz rozwiązanie i "
+"spróbuj ponownie."
+msgstr "لا يوجد في محرر LaTeX مشروع لك لهذه المسألة بعد. افتح المحرر بزر «اكتب الحل بلغة LaTeX»، واكتب الحل ثم حاول مرة أخرى."
+
+msgid ""
+"Kompilacja w edytorze nie dała pliku PDF – popraw błędy LaTeX wymienione "
+"niżej i złóż rozwiązanie ponownie. Poprzednia wersja (jeśli była) zostaje "
+"bez zmian."
+msgstr "لم تُنتج الترجمة في المحرر ملف PDF – صحّح أخطاء LaTeX المذكورة أدناه وأرسل الحل مرة أخرى. تبقى النسخة السابقة (إن وُجدت) دون تغيير."
+
+msgid ""
+"Kompilator LaTeX jest chwilowo niedostępny. Spróbuj ponownie za kilka minut "
+"– Twoja praca w edytorze jest zapisana."
+msgstr "مترجم LaTeX غير متاح مؤقتًا. حاول مرة أخرى بعد بضع دقائق – عملك في المحرر محفوظ."
+
+msgid "Potwierdzam, że to rozwiązanie właściwego zadania"
+msgstr "أؤكد أن هذا حل المسألة الصحيحة"
+
+msgid "Zaznacz potwierdzenie, że składasz rozwiązanie właściwego zadania."
+msgstr "ضع علامة على التأكيد بأنك ترسل حل المسألة الصحيحة."
+
+msgid "Nie ma takiego zadania."
+msgstr "لا توجد مسألة كهذه."
+
+msgid ""
+"Twoje konto ma rolę personelu, więc edytor LaTeX jako uczestnik jest dla "
+"niego wyłączony. Do rozwiązywania zadań używaj osobnego konta uczestnika."
+msgstr "لحسابك دور ضمن الطاقم، لذلك محرر LaTeX بصفة مشارك معطّل له. استخدم حساب مشارك منفصلًا لحل المسائل."
+
+msgid "Wpis do etapu jest zdyskwalifikowany."
+msgstr "تم استبعاد التسجيل في المرحلة."
+
+#, python-format
+msgid "Zadanie %(number)s. %(title)s"
+msgstr "المسألة %(number)s. %(title)s"
+
+msgid ""
+"To zadanie nie przyjmuje rozwiązań w PDF – edytor LaTeX nie złoży go za "
+"Ciebie."
+msgstr "هذه المسألة لا تقبل الحلول بصيغة PDF – لا يمكن لمحرر LaTeX إرسالها نيابةً عنك."
+
+msgid "Termin oddania rozwiązań minął."
+msgstr "انتهى موعد تسليم الحلول."
+
+msgid "Edytor LaTeX"
+msgstr "محرر LaTeX"
+
+msgid "Napisz rozwiązanie w LaTeX"
+msgstr "اكتب الحل بلغة LaTeX"
+
+msgid ""
+"Edytor otwiera się w nowej karcie, z gotowym szablonem rozwiązania. Twoja "
+"praca zapisuje się w edytorze na bieżąco."
+msgstr "يُفتح المحرر في علامة تبويب جديدة مع قالب حل جاهز. يُحفظ عملك في المحرر أولًا بأول."
+
+#, python-format
+msgid "wiersz %(line)s"
+msgstr "السطر %(line)s"
+
+#, python-format
+msgid ""
+"Potwierdzam, że to rozwiązanie zadania %(number)s – składam PDF skompilowany "
+"w edytorze."
+msgstr "أؤكد أن هذا حل المسألة %(number)s – أرسل ملف PDF المترجَم في المحرر."
+
+msgid "Złóż PDF z edytora"
+msgstr "أرسل PDF من المحرر"
+
+msgid ""
+"Platforma skompiluje Twój projekt na nowo i złoży wynik jako kolejną wersję "
+"rozwiązania. Kompilacja może potrwać do dwóch minut."
+msgstr "ستعيد المنصة ترجمة مشروعك وترسل النتيجة نسخةً جديدة من الحل. قد تستغرق الترجمة حتى دقيقتين."
+
+msgid "Wróć do zadań"
+msgstr "العودة إلى المسائل"
+
+#, python-format
+msgid "PDF z edytora został złożony jako wersja %(version)s."
+msgstr "أُرسل ملف PDF من المحرر بوصفه النسخة %(version)s."

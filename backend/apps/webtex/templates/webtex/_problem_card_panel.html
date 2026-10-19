@@ -1,0 +1,53 @@
+{% load i18n %}{% if show %}{% comment %}
+  Wstawka do karty zadania uczestnika (tag ``latex_card_panel``, TEX-01). Edytor otwiera się
+  w **nowej karcie** (bez ramki – CSP serwisu bez zmian) przez adres platformy, który sprawdza bramki
+  i dopiero wtedy przekierowuje z jednorazowym tokenem. Złożenie: platforma sama pobiera świeży PDF
+  z edytora i składa go zwykłą ścieżką uploadu – HTMX podmienia całą kartę, jak po uploadzie.
+{% endcomment %}
+<div class="latex-panel card card--quiet">
+  <p class="mt-0"><strong>{% translate "Edytor LaTeX" %}</strong></p>
+  {% if staff %}
+    <p class="hint">{% translate "Twoje konto ma rolę personelu, więc edytor LaTeX jako uczestnik jest dla niego wyłączony. Do rozwiązywania zadań używaj osobnego konta uczestnika." %}</p>
+  {% else %}
+    <p class="actions">
+      <a class="btn btn--secondary btn--small" href="{{ open_url }}" target="_blank" rel="noopener noreferrer">{% translate "Napisz rozwiązanie w LaTeX" %}</a>
+    </p>
+    <p class="hint">{% translate "Edytor otwiera się w nowej karcie, z gotowym szablonem rozwiązania. Twoja praca zapisuje się w edytorze na bieżąco." %}</p>
+    {% if notice %}<p class="msg msg-success" role="status">{{ notice }}</p>{% endif %}
+    {% if error %}
+      <div class="msg msg-error" role="alert">
+        <p class="mt-0">{{ error }}</p>
+        {% if issues %}
+          <ul class="latex-panel__issues">
+            {% for issue in issues %}
+              <li>{% if issue.file %}<code>{{ issue.file }}{% if issue.line %}:{{ issue.line }}{% endif %}</code> – {% elif issue.line %}{% blocktranslate trimmed with line=issue.line %}wiersz {{ line }}{% endblocktranslate %} – {% endif %}{{ issue.message }}</li>
+            {% endfor %}
+          </ul>
+        {% endif %}
+      </div>
+    {% endif %}
+    {% if can_submit %}
+      <form class="latex-panel__submit"
+            method="post"
+            action="{{ submit_url }}"
+            hx-post="{{ submit_url }}"
+            hx-target="#problem-{{ problem.pk }}"
+            hx-swap="outerHTML"
+            hx-disabled-elt="find button">
+        {% csrf_token %}
+        <p class="dropzone__confirm">
+          <input type="checkbox" name="confirmed" value="1" required id="latex-confirm-{{ problem.pk }}">
+          <label for="latex-confirm-{{ problem.pk }}">{% blocktranslate trimmed with number=problem.number %}
+            Potwierdzam, że to rozwiązanie zadania {{ number }} – składam PDF skompilowany w edytorze.
+          {% endblocktranslate %}</label>
+        </p>
+        {% for message in form.confirmed.errors %}
+          <span class="field-error" role="alert">{{ message }}</span>
+        {% endfor %}
+        <button type="submit" class="btn btn--primary btn--small">{% translate "Złóż PDF z edytora" %}</button>
+        <span class="hint">{% translate "Platforma skompiluje Twój projekt na nowo i złoży wynik jako kolejną wersję rozwiązania. Kompilacja może potrwać do dwóch minut." %}</span>
+      </form>
+    {% endif %}
+  {% endif %}
+</div>
+{% endif %}

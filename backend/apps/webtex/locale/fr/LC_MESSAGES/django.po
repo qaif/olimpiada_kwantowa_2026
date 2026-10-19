@@ -1,0 +1,111 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-18 22:59+0200\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=3; plural=(n == 0 || n == 1) ? 0 : n != 0 && n % "
+"1000000 == 0 ? 1 : 2;\n"
+
+msgid ""
+"Edytor LaTeX nie odpowiada. Spróbuj ponownie za chwilę albo pobierz PDF z "
+"edytora i wyślij go zwykłym formularzem."
+msgstr "L’éditeur LaTeX ne répond pas. Réessayez dans un instant ou téléchargez le PDF depuis l’éditeur et envoyez-le avec le formulaire habituel."
+
+#, python-format
+msgid "PDF z edytora jest większy niż limit pliku tego zadania (%(limit)s MB)."
+msgstr "Le PDF de l’éditeur dépasse la taille maximale de fichier de ce problème (%(limit)s Mo)."
+
+msgid ""
+"W edytorze LaTeX nie ma jeszcze Twojego projektu dla tego zadania. Otwórz "
+"edytor przyciskiem „Napisz rozwiązanie w LaTeX”, napisz rozwiązanie i "
+"spróbuj ponownie."
+msgstr "L’éditeur LaTeX n’a pas encore de projet à vous pour ce problème. Ouvrez l’éditeur avec le bouton « Rédiger la solution en LaTeX », rédigez votre solution et réessayez."
+
+msgid ""
+"Kompilacja w edytorze nie dała pliku PDF – popraw błędy LaTeX wymienione "
+"niżej i złóż rozwiązanie ponownie. Poprzednia wersja (jeśli była) zostaje "
+"bez zmian."
+msgstr "La compilation dans l’éditeur n’a pas produit de PDF – corrigez les erreurs LaTeX ci-dessous et soumettez à nouveau. La version précédente (s’il y en a une) reste inchangée."
+
+msgid ""
+"Kompilator LaTeX jest chwilowo niedostępny. Spróbuj ponownie za kilka minut "
+"– Twoja praca w edytorze jest zapisana."
+msgstr "Le compilateur LaTeX est temporairement indisponible. Réessayez dans quelques minutes – votre travail dans l’éditeur est enregistré."
+
+msgid "Potwierdzam, że to rozwiązanie właściwego zadania"
+msgstr "Je confirme qu’il s’agit de la solution du bon problème"
+
+msgid "Zaznacz potwierdzenie, że składasz rozwiązanie właściwego zadania."
+msgstr "Cochez la confirmation que vous soumettez la solution du bon problème."
+
+msgid "Nie ma takiego zadania."
+msgstr "Ce problème n’existe pas."
+
+msgid ""
+"Twoje konto ma rolę personelu, więc edytor LaTeX jako uczestnik jest dla "
+"niego wyłączony. Do rozwiązywania zadań używaj osobnego konta uczestnika."
+msgstr "Votre compte a un rôle d’encadrement : l’éditeur LaTeX en tant que participant est donc désactivé pour lui. Utilisez un compte de participant distinct pour résoudre les problèmes."
+
+msgid "Wpis do etapu jest zdyskwalifikowany."
+msgstr "L’inscription à l’étape est disqualifiée."
+
+#, python-format
+msgid "Zadanie %(number)s. %(title)s"
+msgstr "Problème %(number)s. %(title)s"
+
+msgid ""
+"To zadanie nie przyjmuje rozwiązań w PDF – edytor LaTeX nie złoży go za "
+"Ciebie."
+msgstr "Ce problème n’accepte pas de solutions en PDF – l’éditeur LaTeX ne peut pas la soumettre pour vous."
+
+msgid "Termin oddania rozwiązań minął."
+msgstr "La date limite de remise est dépassée."
+
+msgid "Edytor LaTeX"
+msgstr "Éditeur LaTeX"
+
+msgid "Napisz rozwiązanie w LaTeX"
+msgstr "Rédiger la solution en LaTeX"
+
+msgid ""
+"Edytor otwiera się w nowej karcie, z gotowym szablonem rozwiązania. Twoja "
+"praca zapisuje się w edytorze na bieżąco."
+msgstr "L’éditeur s’ouvre dans un nouvel onglet avec un modèle de solution prêt à l’emploi. Votre travail est enregistré au fur et à mesure."
+
+#, python-format
+msgid "wiersz %(line)s"
+msgstr "ligne %(line)s"
+
+#, python-format
+msgid ""
+"Potwierdzam, że to rozwiązanie zadania %(number)s – składam PDF skompilowany "
+"w edytorze."
+msgstr "Je confirme qu’il s’agit de la solution du problème %(number)s – je soumets le PDF compilé dans l’éditeur."
+
+msgid "Złóż PDF z edytora"
+msgstr "Soumettre le PDF de l’éditeur"
+
+msgid ""
+"Platforma skompiluje Twój projekt na nowo i złoży wynik jako kolejną wersję "
+"rozwiązania. Kompilacja może potrwać do dwóch minut."
+msgstr "La plateforme recompilera votre projet et soumettra le résultat comme nouvelle version de la solution. La compilation peut prendre jusqu’à deux minutes."
+
+msgid "Wróć do zadań"
+msgstr "Retour aux problèmes"
+
+#, python-format
+msgid "PDF z edytora został złożony jako wersja %(version)s."
+msgstr "Le PDF de l’éditeur a été soumis comme version %(version)s."

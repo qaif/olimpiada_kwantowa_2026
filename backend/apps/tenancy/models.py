@@ -324,6 +324,13 @@ FEATURE_DEFAULTS: dict[str, bool] = {
     # bramka treści etapu nie robi zapytań. Domyślnie wyłączona: to przetwarzanie wysokiego ryzyka
     # (obraz niepełnoletnich) i wymaga decyzji organizatora oraz oceny skutków (DPIA).
     "proctoring": False,
+    # --- edytor LaTeX (webTEX) ------------------------------------------------------------------------
+    # Zadanie TEX-01 (``apps.webtex``): uczestnik pisze rozwiązanie w edytorze LaTeX w nowej karcie
+    # (``tex.<domena>``) i składa skompilowany PDF z karty zadania zwykłą ścieżką uploadu. Wyłączona
+    # znaczy, że adresów ``/me/stages/<id>/problems/<n>/latex/…`` i ``/coordinator/stages/<id>/latex/``
+    # **nie ma** (404), a karta zadania jest co do bajtu dzisiejsza. Domyślnie wyłączona, bo wymaga
+    # kroku operatora, którego wdrożenie samo nie zrobi: usługi ``webtex`` i ``WEBTEX_SHARED_KEY``.
+    "latex_editor": False,
 }
 
 

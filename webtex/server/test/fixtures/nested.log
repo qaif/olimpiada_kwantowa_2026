@@ -1,0 +1,46 @@
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=pdflatex 2024.1.1)  18 OCT 2026 12:00
+entering extended mode
+ restricted \write18 enabled.
+ %&-line parsing enabled.
+**main.tex
+(/compile/main.tex
+LaTeX2e <2022-11-01> patch level 1
+L3 programming layer <2023-01-16>
+(/usr/share/texlive/texmf-dist/tex/latex/base/report.cls
+Document Class: report 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size11.clo
+File: size11.clo 2022/07/02 v1.4n Standard LaTeX file (size option)
+)
+\c@part=\count185
+\c@chapter=\count186
+)
+(/usr/share/texlive/texmf-dist/tex/latex/graphics/graphicx.sty
+Package: graphicx 2021/09/16 v1.2d Enhanced LaTeX Graphics (DPC,SPQR)
+(/usr/share/texlive/texmf-dist/tex/latex/graphics/keyval.sty
+Package: keyval 2022/05/29 v1.15 key=value parser (DPC)
+\KV@toks@=\toks16
+))
+No file output.bbl.
+(/compile/output.aux)
+\openout1 = `output.aux'.
+
+(/compile/chapters/introduction.tex
+Chapter 1.
+
+LaTeX Warning: Citation `knuth1984' on page 1 undefined on input line 3.
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 7--8
+
+ []
+
+)
+
+LaTeX Warning: Reference `chap:missing' on page 2 undefined on input line 40.
+
+[1
+
+{/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map}] (/compile/output.aux) )
+Here is how much of TeX's memory you used:
+ 2735 strings out of 476091
+Output written on output.pdf (2 pages, 41234 bytes).

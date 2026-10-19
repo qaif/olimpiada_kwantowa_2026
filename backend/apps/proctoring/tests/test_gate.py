@@ -37,6 +37,8 @@ ROUTE_ARGS = {
     "web:student-translation": [1],
     "web:student-translation-file": [1],
     "web:participant-notebook": [1],
+    "web:problem-latex": [1, 1],
+    "web:problem-latex-submit": [1, 1],
 }
 OPTIONAL_ROUTES = {"web:student-translation", "web:student-translation-file"}
 

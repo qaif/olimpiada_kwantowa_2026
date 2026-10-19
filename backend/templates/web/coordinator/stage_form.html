@@ -1,5 +1,5 @@
 {% extends "web/coordinator/base.html" %}
-{% load web_extras %}
+{% load web_extras webtex_tags %}
 {% block title %}{% if stage %}Terminy etapu {{ stage.display_name }}{% else %}Nowy etap{% endif %} – panel koordynatora{% endblock %}
 {% block panel_title %}{% if stage %}Terminy etapu: {{ stage.display_name }}{% else %}Nowy etap{% if edition %}: {{ edition.year_label }}{% endif %}{% endif %}{% endblock %}
 {% block panel_lead %}
@@ -30,7 +30,7 @@
       <dt>Rozwiązania</dt>
       <dd>{% if has_submissions %}etap ma oddane prace{% else %}brak{% endif %}</dd>
       <dt>Skala punktacji</dt>
-      <dd><a href="{% url 'web:coordinator-stage-scale' stage.pk %}">zmień skalę punktacji etapu</a></dd>
+      <dd><a href="{% url 'web:coordinator-stage-scale' stage.pk %}">zmień skalę punktacji etapu</a></dd>{% latex_stage_settings_link stage %}
       <dt>Wyniki ogłoszone</dt>
       <dd>{{ stage.results_published_at|local_datetime|default:"nie" }}</dd>
     </dl>

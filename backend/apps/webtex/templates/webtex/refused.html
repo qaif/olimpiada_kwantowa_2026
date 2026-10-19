@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% comment %}
+  Odmowa otwarcia edytora LaTeX (konto personelu, wpis zdyskwalifikowany). Strona otwiera się
+  w nowej karcie, więc ma powiedzieć, co się stało, i dać drogę z powrotem do karty zadania.
+{% endcomment %}
+{% block title %}{% translate "Edytor LaTeX" %}{% endblock %}
+{% block content %}
+  <h1>{% translate "Edytor LaTeX" %}</h1>
+  <p class="msg msg-error" role="alert">{{ message }}</p>
+  <p><a class="btn btn--secondary" href="{{ back_url }}">{% translate "Wróć do zadań" %}</a></p>
+{% endblock %}

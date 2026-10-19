@@ -317,16 +317,36 @@ check "deploy/jitsi: jitsi-web dołącza do zewnętrznej sieci <projekt>_meet" $
 ! grep -qE '^  edge:' "$ROOT/deploy/jitsi/docker-compose.jitsi.yml"
 check "deploy/jitsi: bez sieci edge portalu" $?
 
+# 14c. Edytor LaTeX (TEX-01): `webtex` tylko w profilu `latex`, wyłącznie w `tex_front` (z proxy)
+#      i `tex_api` (z web/worker); obie sieci `internal` – kod TeX-a uczniów bez internetu i bez danych.
+docker compose --env-file "$ENV_FILE" -f "$BASE" config --services 2>/dev/null | grep -qx webtex
+rc=$?
+[ "$rc" -ne 0 ]
+check "bez profilu latex nie ma usługi webtex" $?
+docker compose --env-file "$ENV_FILE" -f "$BASE" --profile latex config >"$WORK/latex.yml" 2>/dev/null
+sieci_uslug "$WORK/latex.yml" >"$WORK/latex-sieci.txt"
+got="$(grep '^webtex:' "$WORK/latex-sieci.txt" | cut -d: -f2 | sort | tr '\n' ' ' | sed 's/ $//')"
+[ "$got" = "tex_api tex_front" ]
+check "webtex wyłącznie w sieciach tex_api i tex_front [$got]" $?
+got="$(grep ':tex_front$' "$WORK/latex-sieci.txt" | cut -d: -f1 | sort | tr '\n' ' ' | sed 's/ $//')"
+[ "$got" = "proxy webtex" ]
+check "sieć tex_front: proxy i webtex [$got]" $?
+got="$(grep ':tex_api$' "$WORK/latex-sieci.txt" | cut -d: -f1 | sort | tr '\n' ' ' | sed 's/ $//')"
+[ "$got" = "web webtex worker" ]
+check "sieć tex_api: web, webtex, worker [$got]" $?
+siec "$WORK/latex.yml" tex_front | grep -qx '    internal: true' && siec "$WORK/latex.yml" tex_api | grep -qx '    internal: true'
+check "sieci tex_front i tex_api: internal: true" $?
+
 # Podsieci siedmiu sieci – rozłączne (każda inna /24 z 172.30.x).
 for f in "$WORK/pelny.yml"; do
   awk '/^networks:/ {n=1} n && /subnet: / {print $NF}' "$f" | sort >"$WORK/podsieci.txt"
 done
-# Dwanaście: edge, internal, cache, clamav_egress, livekit_signal, errors, errors_ingest, errors_front,
-# errors_egress, mail, mail_egress, meet. `rc` przed `check` – `$(tr …)` w opisie nadpisałoby `$?`
+# Czternaście: edge, internal, cache, clamav_egress, livekit_signal, errors, errors_ingest, errors_front,
+# errors_egress, mail, mail_egress, meet, tex_front, tex_api (edytor LaTeX, TEX-01). `rc` przed `check` – `$(tr …)` w opisie nadpisałoby `$?`
 # (do scalenia z main 11.10.2026 ta kontrola przechodziła zawsze, przy każdej liczbie sieci).
-[ "$(sort -u "$WORK/podsieci.txt" | wc -l)" -eq 12 ] && [ "$(wc -l <"$WORK/podsieci.txt")" -eq 12 ]
+[ "$(sort -u "$WORK/podsieci.txt" | wc -l)" -eq 14 ] && [ "$(wc -l <"$WORK/podsieci.txt")" -eq 14 ]
 rc=$?
-check "dwanaście sieci, dwanaście różnych podsieci [$(tr '\n' ' ' <"$WORK/podsieci.txt")]" $rc
+check "czternaście sieci, czternaście różnych podsieci [$(tr '\n' ' ' <"$WORK/podsieci.txt")]" $rc
 
 # 15. Hasło Redisa: bez REDIS_PASSWORD (serwer sprzed zmiany, .env.example) adresy są dotychczasowe
 #     i Redis bez `requirepass`; z hasłem – `:hasło@` w obu adresach, `requirepass` i healthcheck
@@ -380,11 +400,11 @@ check "plik podstawowy: publicznie wyłącznie proxy, mail (25) i mailpit na 127
 E2E_REPO_DIR="$ROOT" docker compose --env-file "$ENV_FILE" -f "$BASE" -f "$DJ_OVERLAY" -f "$ROOT/docker-compose.e2e-djcms.yml" \
   --profile djcms config >"$WORK/e2e.yml" 2>/dev/null
 awk '/^networks:/ {n=1} n && /subnet: / {print $NF}' "$WORK/e2e.yml" | sort >"$WORK/e2e-podsieci.txt"
-# Jedenaście: jak wyżej bez `errors` (baza GlitchTipa – profil `monitoring`, którego E2E nie włącza).
-[ "$(wc -l <"$WORK/e2e-podsieci.txt")" -eq 11 ] && ! grep -q '^172\.30\.' "$WORK/e2e-podsieci.txt" &&
+# Trzynaście: jak wyżej bez `errors` (baza GlitchTipa – profil `monitoring`, którego E2E nie włącza).
+[ "$(wc -l <"$WORK/e2e-podsieci.txt")" -eq 13 ] && ! grep -q '^172\.30\.' "$WORK/e2e-podsieci.txt" &&
   [ -z "$(comm -12 "$WORK/podsieci.txt" "$WORK/e2e-podsieci.txt")" ]
 rc=$?
-check "nakładka E2E: jedenaście sieci, żadna na podsieci projektu dev [$(tr '\n' ' ' <"$WORK/e2e-podsieci.txt")]" $rc
+check "nakładka E2E: trzynaście sieci, żadna na podsieci projektu dev [$(tr '\n' ' ' <"$WORK/e2e-podsieci.txt")]" $rc
 # …a stałe adresy proxy i mynetworks Postfiksa – w przesuniętych podsieciach (inaczej Docker nie
 # przydzieli adresu spoza podsieci, a relay odrzuci pocztę z web).
 got="$(web_trust "$WORK/e2e.yml" | cut -d'|' -f2-3)|$(awk '/^  mail:$/ {on=1; next} on && /^  [^ ]/ {on=0} on' "$WORK/e2e.yml" | sed -n 's/^      POSTFIX_mynetworks: //p')"

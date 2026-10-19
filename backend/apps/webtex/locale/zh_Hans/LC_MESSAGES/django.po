@@ -1,0 +1,110 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-18 22:59+0200\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+msgid ""
+"Edytor LaTeX nie odpowiada. Spróbuj ponownie za chwilę albo pobierz PDF z "
+"edytora i wyślij go zwykłym formularzem."
+msgstr "LaTeX 编辑器没有响应。请稍后重试，或从编辑器下载 PDF 并通过常规表单提交。"
+
+#, python-format
+msgid "PDF z edytora jest większy niż limit pliku tego zadania (%(limit)s MB)."
+msgstr "编辑器生成的 PDF 超过了本题的文件大小上限（%(limit)s MB）。"
+
+msgid ""
+"W edytorze LaTeX nie ma jeszcze Twojego projektu dla tego zadania. Otwórz "
+"edytor przyciskiem „Napisz rozwiązanie w LaTeX”, napisz rozwiązanie i "
+"spróbuj ponownie."
+msgstr "LaTeX 编辑器中还没有你这道题的项目。请点击“用 LaTeX 撰写解答”按钮打开编辑器，写好解答后再试。"
+
+msgid ""
+"Kompilacja w edytorze nie dała pliku PDF – popraw błędy LaTeX wymienione "
+"niżej i złóż rozwiązanie ponownie. Poprzednia wersja (jeśli była) zostaje "
+"bez zmian."
+msgstr "编辑器编译未生成 PDF——请修正下面列出的 LaTeX 错误后重新提交。之前的版本（如有）保持不变。"
+
+msgid ""
+"Kompilator LaTeX jest chwilowo niedostępny. Spróbuj ponownie za kilka minut "
+"– Twoja praca w edytorze jest zapisana."
+msgstr "LaTeX 编译器暂时不可用。请几分钟后再试——你在编辑器中的内容已保存。"
+
+msgid "Potwierdzam, że to rozwiązanie właściwego zadania"
+msgstr "我确认这是对应题目的解答"
+
+msgid "Zaznacz potwierdzenie, że składasz rozwiązanie właściwego zadania."
+msgstr "请勾选确认：你提交的是对应题目的解答。"
+
+msgid "Nie ma takiego zadania."
+msgstr "没有这道题。"
+
+msgid ""
+"Twoje konto ma rolę personelu, więc edytor LaTeX jako uczestnik jest dla "
+"niego wyłączony. Do rozwiązywania zadań używaj osobnego konta uczestnika."
+msgstr "你的账号具有工作人员角色，因此不能以参赛者身份使用 LaTeX 编辑器。请使用单独的参赛者账号解题。"
+
+msgid "Wpis do etapu jest zdyskwalifikowany."
+msgstr "该阶段的报名已被取消资格。"
+
+#, python-format
+msgid "Zadanie %(number)s. %(title)s"
+msgstr "第 %(number)s 题. %(title)s"
+
+msgid ""
+"To zadanie nie przyjmuje rozwiązań w PDF – edytor LaTeX nie złoży go za "
+"Ciebie."
+msgstr "本题不接受 PDF 格式的解答——LaTeX 编辑器无法代你提交。"
+
+msgid "Termin oddania rozwiązań minął."
+msgstr "提交截止时间已过。"
+
+msgid "Edytor LaTeX"
+msgstr "LaTeX 编辑器"
+
+msgid "Napisz rozwiązanie w LaTeX"
+msgstr "用 LaTeX 撰写解答"
+
+msgid ""
+"Edytor otwiera się w nowej karcie, z gotowym szablonem rozwiązania. Twoja "
+"praca zapisuje się w edytorze na bieżąco."
+msgstr "编辑器会在新标签页中打开，并附带现成的解答模板。你的内容会在编辑器中随时保存。"
+
+#, python-format
+msgid "wiersz %(line)s"
+msgstr "第 %(line)s 行"
+
+#, python-format
+msgid ""
+"Potwierdzam, że to rozwiązanie zadania %(number)s – składam PDF skompilowany "
+"w edytorze."
+msgstr "我确认这是第 %(number)s 题的解答——我提交的是在编辑器中编译的 PDF。"
+
+msgid "Złóż PDF z edytora"
+msgstr "提交编辑器生成的 PDF"
+
+msgid ""
+"Platforma skompiluje Twój projekt na nowo i złoży wynik jako kolejną wersję "
+"rozwiązania. Kompilacja może potrwać do dwóch minut."
+msgstr "平台会重新编译你的项目，并将结果作为解答的新版本提交。编译最多可能需要两分钟。"
+
+msgid "Wróć do zadań"
+msgstr "返回题目"
+
+#, python-format
+msgid "PDF z edytora został złożony jako wersja %(version)s."
+msgstr "编辑器生成的 PDF 已作为第 %(version)s 版提交。"

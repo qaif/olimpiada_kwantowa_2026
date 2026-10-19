@@ -203,6 +203,10 @@ INSTALLED_APPS = [
     "apps.email_delivery",  # literówki w adresach i odbicia poczty (MAIL-02, 5.10.2026)
     "apps.consent_gate",  # bramka i ekran „Uzupełnij zgody” po zalogowaniu (CONS-01), bez modeli
     "apps.calendar_feed",  # publiczny kalendarz ICS: warsztaty i terminy (CAL-01, 18.10.2026), bez modeli
+    # Edytor LaTeX webTEX przy zadaniu (TEX-01, flaga ``latex_editor``): token SSO, złożenie PDF-u
+    # przez ``create_submission``, przełącznik udostępniania per etap. **Przed** ``apps.web``,
+    # który montuje jej adresy i wstawia jej panel do karty zadania.
+    "apps.webtex",
     "apps.web",
     # Logowanie przez dostawców zewnętrznych (Google, Facebook). ``allauth.account`` jest wymagane
     # przez ``allauth.socialaccount`` (model ``EmailAddress``, adaptery) – jego **widoki** nie są
@@ -1241,6 +1245,21 @@ PROCTORING_MAX_RETENTION_DAYS = env.int("PROCTORING_MAX_RETENTION_DAYS", default
 PROCTORING_WINDOW_ADAPTER = env("PROCTORING_WINDOW_ADAPTER", default="")
 PROCTORING_UNPROCTORED_AFTER_FAILURES = env.int("PROCTORING_UNPROCTORED_AFTER_FAILURES", default=3)
 PROCTORING_LATE_START_MINUTES = env.int("PROCTORING_LATE_START_MINUTES", default=15)
+
+# --- edytor LaTeX webTEX (zadanie TEX-01, ``apps.webtex``) ------------------------------------------
+# webTEX (``webtex/``, Node.js) stoi w compose jako usługa ``webtex`` za Caddy pod ``WEBTEX_HOST``
+# (``tex.<domena>``). ``WEBTEX_URL`` – publiczny adres edytora dla przeglądarki (domyślnie
+# ``https://<WEBTEX_HOST>``), ``WEBTEX_INTERNAL_URL`` – adres w sieci compose, pod którym platforma
+# pobiera PDF do złożenia i ustawia udostępnianie (podpis HMAC, bez wyjścia na zewnątrz).
+# ``WEBTEX_SHARED_KEY`` – wspólny sekret (≥ 32 znaki, różny od innych; ``webtex.W001``), z którego
+# obie strony wyprowadzają klucz tokenu SSO i klucz podpisu API. Pusty (albo krótszy) = edytor
+# wyłączony także w konkursie z flagą ``latex_editor``. ``WEBTEX_ISSUER`` – ``iss`` tokenu i prefiks
+# ``external_id`` kont w webTEX; zmiana po starcie zawodów odcięłaby uczestników od ich projektów.
+WEBTEX_HOST = env("WEBTEX_HOST", default="")
+WEBTEX_URL = env("WEBTEX_URL", default=f"https://{WEBTEX_HOST}" if WEBTEX_HOST else "")
+WEBTEX_INTERNAL_URL = env("WEBTEX_INTERNAL_URL", default="http://webtex:3000")
+WEBTEX_SHARED_KEY = env("WEBTEX_SHARED_KEY", default="")
+WEBTEX_ISSUER = env("WEBTEX_ISSUER", default="olimpiada")
 
 WAGTAIL_SITE_NAME = env("WAGTAIL_SITE_NAME", default="Olimpiada Kwantowa")
 WAGTAILADMIN_BASE_URL = env("WAGTAILADMIN_BASE_URL", default=f"https://{SITE_DOMAIN}")

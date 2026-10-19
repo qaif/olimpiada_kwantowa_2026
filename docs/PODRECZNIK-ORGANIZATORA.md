@@ -3110,6 +3110,35 @@ zaproszenie opiekuna drużyny) pytają „Czy chodziło Ci o …?” przy domena
 `.con` – zaznaczasz poprawkę albo wysyłasz formularz jeszcze raz, żeby zostawić adres. Domeny, która nie
 istnieje (bez serwera poczty), formularz nie przyjmie. Szczegóły techniczne: `docs/OPERACJE.md` § 52.
 
+## 10q. Edytor LaTeX — `/coordinator/stages/<id>/latex/`
+
+**Tylko w konkursie z przełącznikiem `latex_editor`** (włącza operator) i z działającą usługą
+edytora webTEX pod `tex.<domena>`. Uczestnik pisze rozwiązanie w edytorze LaTeX w nowej karcie
+(przycisk „Napisz rozwiązanie w LaTeX” na karcie zadania) i składa skompilowany PDF przyciskiem
+„Złóż PDF z edytora”. Platforma sama pobiera świeży PDF z edytora i przyjmuje go **zwykłą ścieżką
+uploadu**: termin, formaty zadania (musi dopuszczać PDF), limit pliku, skan antywirusowy, wersje,
+anonimizacja i potwierdzenie mailem działają bez zmian, więc dla komisji praca z edytora jest
+zwykłym PDF-em. Bramki (wpis na etap, okno, nadzór zdalny) sprawdza platforma przy otwarciu edytora
+i przy złożeniu; konta kadry nie otwierają edytora jako uczestnik.
+
+**Udostępnianie linków (per etap).** Domyślnie **wyłączone** – każdy uczestnik pracuje sam, jego
+projekt widzi tylko on, a w edytorze nie da się zakładać projektów „na boku”. Na ekranie
+„Terminy etapu” (`/coordinator/stages/<id>/edit/`) wiersz **„Edytor LaTeX”** prowadzi do
+przełącznika **„Udostępnianie linków w edytorze LaTeX”**. Włącz go tylko dla etapów, w których
+współpraca jest dozwolona (trening, etap drużynowy) – uczestnik może wtedy zaprosić innych do
+swojego projektu linkiem. **Wyłączenie natychmiast odcina** współpracowników we wszystkich
+projektach etapu i blokuje dołączanie. Każda zmiana trafia do dziennika zdarzeń
+(`/coordinator/audit/`, akcja `webtex.sharing_changed`); do edytora idzie w tle (z ponawianiem, gdy
+edytor chwilowo nie odpowiada), a każde kolejne otwarcie edytora i tak niesie aktualne ustawienie.
+
+**Asystent AI (per etap).** Na tym samym ekranie drugi przełącznik: **„Asystent AI w edytorze
+LaTeX”** – czat z modelem językowym, poprawianie błędów kompilacji i przeredagowanie zaznaczenia.
+Domyślnie **wyłączony**; na zawodach to pomoc niedozwolona, więc włączaj go wyłącznie na etapach
+treningowych. Wyłączenie działa od razu: edytor odrzuca kolejne prośby do asystenta i chowa jego
+panel także w otwartych oknach. Zmiana trafia do dziennika zdarzeń (akcja `webtex.ai_changed`)
+i do edytora tak samo jak udostępnianie. Dostawcę modelu i klucze ustawia operator po stronie
+edytora – platforma ich nie zna.
+
 ## 11. Kalendarz prowadzenia edycji — ściągawka
 
 | Kiedy | Co zrobić | Gdzie |

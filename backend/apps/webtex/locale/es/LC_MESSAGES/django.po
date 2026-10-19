@@ -1,0 +1,111 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-18 22:59+0200\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=3; plural=n == 1 ? 0 : n != 0 && n % 1000000 == 0 ? "
+"1 : 2;\n"
+
+msgid ""
+"Edytor LaTeX nie odpowiada. Spróbuj ponownie za chwilę albo pobierz PDF z "
+"edytora i wyślij go zwykłym formularzem."
+msgstr "El editor LaTeX no responde. Inténtalo de nuevo en un momento o descarga el PDF del editor y envíalo con el formulario habitual."
+
+#, python-format
+msgid "PDF z edytora jest większy niż limit pliku tego zadania (%(limit)s MB)."
+msgstr "El PDF del editor supera el límite de archivo de este problema (%(limit)s MB)."
+
+msgid ""
+"W edytorze LaTeX nie ma jeszcze Twojego projektu dla tego zadania. Otwórz "
+"edytor przyciskiem „Napisz rozwiązanie w LaTeX”, napisz rozwiązanie i "
+"spróbuj ponownie."
+msgstr "El editor LaTeX todavía no tiene tu proyecto para este problema. Abre el editor con el botón «Escribe tu solución en LaTeX», escribe la solución e inténtalo de nuevo."
+
+msgid ""
+"Kompilacja w edytorze nie dała pliku PDF – popraw błędy LaTeX wymienione "
+"niżej i złóż rozwiązanie ponownie. Poprzednia wersja (jeśli była) zostaje "
+"bez zmian."
+msgstr "La compilación en el editor no generó un PDF: corrige los errores de LaTeX indicados abajo y vuelve a enviar. La versión anterior (si existe) no cambia."
+
+msgid ""
+"Kompilator LaTeX jest chwilowo niedostępny. Spróbuj ponownie za kilka minut "
+"– Twoja praca w edytorze jest zapisana."
+msgstr "El compilador LaTeX no está disponible temporalmente. Inténtalo de nuevo en unos minutos: tu trabajo en el editor está guardado."
+
+msgid "Potwierdzam, że to rozwiązanie właściwego zadania"
+msgstr "Confirmo que es la solución del problema correcto"
+
+msgid "Zaznacz potwierdzenie, że składasz rozwiązanie właściwego zadania."
+msgstr "Marca la confirmación de que envías la solución del problema correcto."
+
+msgid "Nie ma takiego zadania."
+msgstr "No existe ese problema."
+
+msgid ""
+"Twoje konto ma rolę personelu, więc edytor LaTeX jako uczestnik jest dla "
+"niego wyłączony. Do rozwiązywania zadań używaj osobnego konta uczestnika."
+msgstr "Tu cuenta tiene un rol de personal, por lo que el editor LaTeX como participante está desactivado para ella. Para resolver problemas usa una cuenta de participante distinta."
+
+msgid "Wpis do etapu jest zdyskwalifikowany."
+msgstr "La inscripción en la etapa está descalificada."
+
+#, python-format
+msgid "Zadanie %(number)s. %(title)s"
+msgstr "Problema %(number)s. %(title)s"
+
+msgid ""
+"To zadanie nie przyjmuje rozwiązań w PDF – edytor LaTeX nie złoży go za "
+"Ciebie."
+msgstr "Este problema no acepta soluciones en PDF: el editor LaTeX no puede enviarla por ti."
+
+msgid "Termin oddania rozwiązań minął."
+msgstr "El plazo de entrega ha terminado."
+
+msgid "Edytor LaTeX"
+msgstr "Editor LaTeX"
+
+msgid "Napisz rozwiązanie w LaTeX"
+msgstr "Escribe tu solución en LaTeX"
+
+msgid ""
+"Edytor otwiera się w nowej karcie, z gotowym szablonem rozwiązania. Twoja "
+"praca zapisuje się w edytorze na bieżąco."
+msgstr "El editor se abre en una pestaña nueva con una plantilla de solución lista. Tu trabajo se guarda en el editor sobre la marcha."
+
+#, python-format
+msgid "wiersz %(line)s"
+msgstr "línea %(line)s"
+
+#, python-format
+msgid ""
+"Potwierdzam, że to rozwiązanie zadania %(number)s – składam PDF skompilowany "
+"w edytorze."
+msgstr "Confirmo que es la solución del problema %(number)s: envío el PDF compilado en el editor."
+
+msgid "Złóż PDF z edytora"
+msgstr "Enviar el PDF del editor"
+
+msgid ""
+"Platforma skompiluje Twój projekt na nowo i złoży wynik jako kolejną wersję "
+"rozwiązania. Kompilacja może potrwać do dwóch minut."
+msgstr "La plataforma volverá a compilar tu proyecto y enviará el resultado como una nueva versión de la solución. La compilación puede tardar hasta dos minutos."
+
+msgid "Wróć do zadań"
+msgstr "Volver a los problemas"
+
+#, python-format
+msgid "PDF z edytora został złożony jako wersja %(version)s."
+msgstr "El PDF del editor se envió como versión %(version)s."

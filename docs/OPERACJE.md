@@ -101,6 +101,9 @@ musi mieć wiersz z poprawną wartością domyślną, a każda flaga z tabeli �
 | Odbicia w aplikacji: baner, lista koordynatora, wstrzymanie | `EMAIL_BOUNCE_TRACKING` | `.env` | wł. (compose), wył. (bez compose) | § 52 | — |
 | Blokada domen bez MX/A w formularzach adresu | `EMAIL_DOMAIN_DNS_CHECK` | `.env` | wł. | § 52.1 | — |
 | Bramka „Uzupełnij zgody” dla uczestników | `CONSENT_GATE_ENABLED` | `.env` | wł. | § 51 | — (nowe w CONS-01) |
+| Edytor LaTeX webTEX (pisanie i składanie rozwiązań) | `latex_editor` | flaga konkursu | wył. | § 55 | — |
+| Host i klucz edytora LaTeX | `WEBTEX_HOST`, `WEBTEX_SHARED_KEY` | `.env` | puste (wył.) | § 55.1 | — |
+| Udostępnianie linków / asystent AI w edytorze LaTeX | ustawienia etapu (`/coordinator/stages/<id>/latex/`) | pole etapu | wył. / wył. | § 55.3 | — |
 <!-- funkcje-i-flagi: koniec -->
 
 ---
@@ -7343,3 +7346,59 @@ Zrzut bez danych `authtoken_token` i `django_session` (plus `TRUNCATE` lokalnie 
 4. Sprawdź pocztę (reset hasła na koncie testowym – Postfix w nowej sieci) i certyfikaty:
    `https://www.<domena>/`, `https://meet.<domena>/` (przy `PLATFORM_SUBDOMAINS=1` – § 54.3).
 5. Opcjonalnie: `ADMIN_ALLOWED_IPS` (§ 54.3) i klucz kopii bez kasowania (§ 54.5, po zmianie skryptu).
+
+
+## 55. Edytor LaTeX webTEX (TEX-01, TEX-02, `docs/tasks/TEX-01.md`)
+
+Uczestnik pisze rozwiązanie w przeglądarce, w edytorze LaTeX z podglądem PDF (webTEX, katalog
+`webtex/`, usługa compose `webtex`), i składa skompilowany PDF przyciskiem na karcie zadania. Złożenie
+idzie zwykłą ścieżką rozwiązań – deadline, skan antywirusowy, wersje, anonimizacja i potwierdzenie
+mailem działają tak samo jak przy wgraniu pliku. Edytor jest osobną aplikacją na **osobnym hoście**
+(własne konta tworzone z jednorazowych tokenów platformy, własna sesja), otwieraną w nowej karcie.
+
+### 55.1. Włączenie
+
+1. DNS: rekord `tex.<SITE_DOMAIN>` (albo osobna domena) na serwer – rekord `*.<SITE_DOMAIN>` wystarcza.
+2. `.env`: `WEBTEX_HOST=tex.<domena>`, `WEBTEX_URL=https://tex.<domena>`,
+   `WEBTEX_SHARED_KEY=` (≥ 32 znaki, inny niż pozostałe sekrety:
+   `tr -dc 'A-Za-z0-9' </dev/urandom | head -c 48`), `COMPOSE_PROFILES` z `latex`
+   (np. `COMPOSE_PROFILES=latex` albo `notebooks,latex`).
+3. `bash scripts/proxy_config.sh update` (blok hosta edytora w Caddym), potem
+   `docker compose up -d --build webtex web worker`. Pierwsze budowanie pobiera pełny TeX Live
+   (obraz ok. 9 GB po rozpakowaniu; mniejszy: argument budowania `TEXLIVE_IMAGE`, `webtex/README.md`).
+4. `/admin/` → Konkursy → przełączniki: flaga `latex_editor`. Bez niej adresów edytora na platformie
+   nie ma (404), a karta zadania wygląda co do bajtu jak dotąd.
+5. Kontrola: `docker compose logs webtex | grep -i landlock` po pierwszej kompilacji – ma być
+   „local compiles sandboxed with Landlock”.
+
+### 55.2. Bezpieczeństwo kompilacji
+
+TeX kompiluje pliki uczniów, więc kontener edytora jest odcięty: sieci `tex_front` (tylko Caddy)
+i `tex_api` (tylko web/worker), obie bez wyjścia do internetu i bez dostępu do bazy, Redisa i MinIO;
+`read_only`, `cap_drop: ALL`, `no-new-privileges`, limity pamięci i procesów. Każda kompilacja jest
+dodatkowo zamknięta w katalogu swojego projektu przez **Landlock** (TeX Live 2026 nie egzekwuje już
+`openin_any`) – **jądro serwera musi go mieć** (Ubuntu 22.04+, Debian 12+; Docker Desktop/WSL2 też).
+Bez Landlocka tryb integracji odmawia kompilacji (budowa PDF zwraca 503). Ponadto: bez shell-escape,
+latexmk z `-norc` (bez `latexmkrc` z projektu), biber przez strażnika ścieżek, LuaLaTeX wyłączony.
+API serwer–serwer (`/api/integration/build|sharing|ai|health`) jest podpisane HMAC i Caddy blokuje je
+z zewnątrz – platforma woła je siecią `tex_api` (`WEBTEX_INTERNAL_URL=http://webtex:3000`).
+
+### 55.3. Udostępnianie linków i asystent AI
+
+Domyślnie każdy uczestnik pracuje sam: linków udostępniania nie ma. Koordynator może je włączyć
+**dla etapu** (`/coordinator/stages/<id>/latex/`, np. etap treningowy albo drużynowy); wyłączenie
+natychmiast odcina współpracowników. Tamże drugi przełącznik – **asystent AI** w edytorze –
+domyślnie wyłączony, bo na zawodach to pomoc niedozwolona. Obie zmiany trafiają do dziennika zdarzeń
+i są wysyłane do edytora zadaniem Celery (z ponawianiem).
+
+Asystent potrzebuje dostawcy modeli. Lokalny serwer (Ollama, vLLM, LiteLLM) w sieci `tex_api` nie
+wymaga wyjścia do internetu; dostawcy w chmurze (OpenAI, Anthropic, Gemini, Mistral, Cohere, Azure,
+Bedrock…) – tak: nakładka `docker-compose.webtex-ai.yml` (`COMPOSE_FILE=docker-compose.yml:docker-compose.webtex-ai.yml`)
+daje usłudze `webtex` sieć z wyjściem i przekazuje `LLM_ENABLED` oraz klucze dostawców (lista
+zmiennych: `webtex/README.md`). Klucze zostają po stronie serwera edytora, przeglądarka ich nie widzi.
+
+### 55.4. Dane i kopie
+
+Projekty uczniów (szkice) leżą w wolumenie `webtex_data`. **Złożone** rozwiązania są w MinIO i w kopii
+zapasowej jak każde inne; szkice w edytorze do kopii nie trafiają (`scripts/backup.sh` ich nie zbiera).
+Utrata wolumenu = utrata niezłożonych szkiców, nie rozwiązań.

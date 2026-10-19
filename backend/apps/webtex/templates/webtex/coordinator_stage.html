@@ -1,0 +1,32 @@
+{% extends "web/coordinator/base.html" %}
+{% comment %}
+  Przełączniki edytora LaTeX dla jednego etapu: udostępnianie linków (TEX-01 D5) i asystent AI (D8),
+  ``StageLatexSettingsView``. Zapis idzie do dziennika zdarzeń, a zmiana – zadaniem Celery do webTEX.
+{% endcomment %}
+{% block title %}Edytor LaTeX: {{ stage.display_name }} – panel koordynatora{% endblock %}
+{% block panel_title %}Edytor LaTeX: {{ stage.display_name }}{% endblock %}
+{% block panel_lead %}
+  <p class="lead"><a href="{% url 'web:coordinator-stage-edit' stage.pk %}">← terminy etapu</a></p>
+{% endblock %}
+{% block panel_content %}
+{% if not configured %}
+  <p class="alert alert--warning">Edytor LaTeX nie jest skonfigurowany na serwerze (brak <code>WEBTEX_SHARED_KEY</code>
+    albo adresu edytora) – uczestnicy nie widzą go na kartach zadań. Ustawienie poniżej zacznie działać po konfiguracji.</p>
+{% endif %}
+<section class="section" aria-labelledby="latex-settings">
+  <div class="section__head"><h2 class="mt-0" id="latex-settings">Ustawienia etapu</h2></div>
+  <div class="card">
+    <p>Domyślnie każdy uczestnik pracuje w edytorze <strong>sam i bez asystenta AI</strong>: jego projekt
+      widzi tylko on. <strong>Udostępnianie linków</strong> włącz dla etapów, w których współpraca jest
+      dozwolona (trening, etap drużynowy) – uczestnik może wtedy zaprosić innych do swojego projektu
+      linkiem. <strong>Asystent AI</strong> (czat, poprawianie błędów kompilacji) to na zawodach pomoc
+      niedozwolona – włączaj go tylko na etapach treningowych. Wyłączenie każdego z przełączników działa
+      natychmiast we wszystkich projektach etapu, także w otwartych oknach edytora.</p>
+    <form method="post" class="form" novalidate>
+      {% csrf_token %}
+      {{ form.as_p }}
+      <div class="actions"><button type="submit" class="btn btn--primary">Zapisz</button></div>
+    </form>
+  </div>
+</section>
+{% endblock %}

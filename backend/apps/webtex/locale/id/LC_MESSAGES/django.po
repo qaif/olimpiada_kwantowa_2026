@@ -1,0 +1,110 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-18 22:59+0200\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+msgid ""
+"Edytor LaTeX nie odpowiada. Spróbuj ponownie za chwilę albo pobierz PDF z "
+"edytora i wyślij go zwykłym formularzem."
+msgstr "Editor LaTeX tidak merespons. Coba lagi sebentar lagi, atau unduh PDF dari editor dan kirimkan melalui formulir biasa."
+
+#, python-format
+msgid "PDF z edytora jest większy niż limit pliku tego zadania (%(limit)s MB)."
+msgstr "PDF dari editor melebihi batas ukuran berkas soal ini (%(limit)s MB)."
+
+msgid ""
+"W edytorze LaTeX nie ma jeszcze Twojego projektu dla tego zadania. Otwórz "
+"edytor przyciskiem „Napisz rozwiązanie w LaTeX”, napisz rozwiązanie i "
+"spróbuj ponownie."
+msgstr "Editor LaTeX belum memiliki proyek Anda untuk soal ini. Buka editor dengan tombol “Tulis solusi dalam LaTeX”, tulis solusi Anda, lalu coba lagi."
+
+msgid ""
+"Kompilacja w edytorze nie dała pliku PDF – popraw błędy LaTeX wymienione "
+"niżej i złóż rozwiązanie ponownie. Poprzednia wersja (jeśli była) zostaje "
+"bez zmian."
+msgstr "Kompilasi di editor tidak menghasilkan PDF – perbaiki kesalahan LaTeX yang tercantum di bawah dan kirim ulang. Versi sebelumnya (jika ada) tidak berubah."
+
+msgid ""
+"Kompilator LaTeX jest chwilowo niedostępny. Spróbuj ponownie za kilka minut "
+"– Twoja praca w edytorze jest zapisana."
+msgstr "Kompiler LaTeX sementara tidak tersedia. Coba lagi dalam beberapa menit – pekerjaan Anda di editor sudah tersimpan."
+
+msgid "Potwierdzam, że to rozwiązanie właściwego zadania"
+msgstr "Saya menyatakan bahwa ini solusi untuk soal yang benar"
+
+msgid "Zaznacz potwierdzenie, że składasz rozwiązanie właściwego zadania."
+msgstr "Centang pernyataan bahwa Anda mengirim solusi untuk soal yang benar."
+
+msgid "Nie ma takiego zadania."
+msgstr "Soal tersebut tidak ada."
+
+msgid ""
+"Twoje konto ma rolę personelu, więc edytor LaTeX jako uczestnik jest dla "
+"niego wyłączony. Do rozwiązywania zadań używaj osobnego konta uczestnika."
+msgstr "Akun Anda memiliki peran staf, sehingga editor LaTeX sebagai peserta dinonaktifkan untuk akun ini. Gunakan akun peserta terpisah untuk mengerjakan soal."
+
+msgid "Wpis do etapu jest zdyskwalifikowany."
+msgstr "Pendaftaran tahap didiskualifikasi."
+
+#, python-format
+msgid "Zadanie %(number)s. %(title)s"
+msgstr "Soal %(number)s. %(title)s"
+
+msgid ""
+"To zadanie nie przyjmuje rozwiązań w PDF – edytor LaTeX nie złoży go za "
+"Ciebie."
+msgstr "Soal ini tidak menerima solusi dalam PDF – editor LaTeX tidak dapat mengirimkannya untuk Anda."
+
+msgid "Termin oddania rozwiązań minął."
+msgstr "Batas waktu pengumpulan telah lewat."
+
+msgid "Edytor LaTeX"
+msgstr "Editor LaTeX"
+
+msgid "Napisz rozwiązanie w LaTeX"
+msgstr "Tulis solusi dalam LaTeX"
+
+msgid ""
+"Edytor otwiera się w nowej karcie, z gotowym szablonem rozwiązania. Twoja "
+"praca zapisuje się w edytorze na bieżąco."
+msgstr "Editor terbuka di tab baru dengan templat solusi siap pakai. Pekerjaan Anda tersimpan di editor secara otomatis."
+
+#, python-format
+msgid "wiersz %(line)s"
+msgstr "baris %(line)s"
+
+#, python-format
+msgid ""
+"Potwierdzam, że to rozwiązanie zadania %(number)s – składam PDF skompilowany "
+"w edytorze."
+msgstr "Saya menyatakan bahwa ini solusi soal %(number)s – saya mengirim PDF yang dikompilasi di editor."
+
+msgid "Złóż PDF z edytora"
+msgstr "Kirim PDF dari editor"
+
+msgid ""
+"Platforma skompiluje Twój projekt na nowo i złoży wynik jako kolejną wersję "
+"rozwiązania. Kompilacja może potrwać do dwóch minut."
+msgstr "Platform akan mengompilasi ulang proyek Anda dan mengirim hasilnya sebagai versi solusi berikutnya. Kompilasi dapat memakan waktu hingga dua menit."
+
+msgid "Wróć do zadań"
+msgstr "Kembali ke soal"
+
+#, python-format
+msgid "PDF z edytora został złożony jako wersja %(version)s."
+msgstr "PDF dari editor telah dikirim sebagai versi %(version)s."
