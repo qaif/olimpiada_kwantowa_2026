@@ -218,6 +218,19 @@ grep -q 'target: /tmp' "$WORK/proxy.yml" || grep -qE '^      - /tmp' "$WORK/prox
 [ -z "$problemy" ]
 check "proxy: caddy:2.10@sha256, read_only, cap_drop ALL + NET_BIND_SERVICE, no-new-privileges, tmpfs /tmp [${problemy:-ok}]" $?
 
+# 10d. Serwer MinIO: `minio/minio` nie jest do pobrania (19.10.2026), zamiennik Bitnami przypięty
+#      skrótem i uruchamiany jak dawny obraz – sam serwer na /data jako root, bez skryptów Bitnami
+#      (/bitnami/minio/data, uid 1001), inaczej istniejący wolumen minio_data byłby pusty albo nieczytelny.
+awk '/^  minio:$/ {on=1; next} on && /^  [^ ]/ {on=0} on' "$WORK/dj-bez.yml" >"$WORK/minio.yml"
+problemy=""
+grep -qE '^    image: bitnamilegacy/minio:2025\.4\.22@sha256:[0-9a-f]{64}$' "$WORK/minio.yml" || problemy="$problemy image;"
+grep -qx '    user: "0:0"' "$WORK/minio.yml" || problemy="$problemy user;"
+[ "$(awk '/^    entrypoint:$/ {on=1; next} on && /^    [^ ]/ {on=0} on' "$WORK/minio.yml" | tr -d ' ')" = "-minio" ] || problemy="$problemy entrypoint;"
+[ "$(awk '/^    command:$/ {on=1; next} on && /^    [^ ]/ {on=0} on' "$WORK/minio.yml" | tr -d ' ' | head -2 | tr '\n' ' ')" = "-server -/data " ] || problemy="$problemy command;"
+grep -qE '^ +source: minio_data$' "$WORK/minio.yml" && grep -qE '^ +target: /data$' "$WORK/minio.yml" || problemy="$problemy wolumen;"
+[ -z "$problemy" ]
+check "minio: bitnamilegacy/minio:2025.4.22@sha256, root, entrypoint minio, server /data na minio_data [${problemy:-ok}]" $?
+
 # 11. Włączenie przez .env – dokładnie te linijki, które dopisuje scripts/deploy.sh przy
 #     DJCMS_ENABLED=1 (wycięte z deploy.sh, nie przepisane): docker compose czyta COMPOSE_FILE
 #     i COMPOSE_PROFILES z .env sam, więc gołe `docker compose` w katalogu instalacji widzi djcms

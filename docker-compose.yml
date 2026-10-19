@@ -636,13 +636,28 @@ services:
       retries: 5
 
   minio:
-    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    # Obraz: `minio/minio` zniknął z Docker Hub (wdrożenie v0.38.3, 2.10.2026, i v0.51.1, 19.10.2026:
+    # „pull access denied … repository does not exist”). Zamiennik to zamrożone wydanie Bitnami
+    # z serwerem z TEGO SAMEGO commitu co dotąd (RELEASE.2025-04-22T22-12-26Z, commit 0d7408f, Go 1.24.2;
+    # Bitnami buduje ze źródeł, więc `minio --version` mówi „DEVELOPMENT.2025-04-22T22-12-26Z”) –
+    # format danych na wolumenie ten sam, przypięte digestem listy manifestów (amd64 + arm64).
+    # Wolumen `minio_data` działa bez migracji, bo skrypty Bitnami są pominięte: `entrypoint` uruchamia
+    # sam serwer na /data (Bitnami: /bitnami/minio/data i własny setup z MINIO_DEFAULT_BUCKETS itp.),
+    # a `user: "0:0"`, bo dawny obraz biegł jako root i do roota należą pliki na wolumenie (Bitnami
+    # domyślnie: uid 1001). MC_CONFIG_DIR jak w dawnym obrazie – healthcheck `mc ready local` używa `mc`
+    # z tego obrazu (commit b00526b, ten sam co w minio-init), a HOME=/ nie jest miejscem na konfigurację.
+    # Obraz deklaruje też VOLUME /bitnami/minio/data i /certs – Compose zakłada na nie małe puste wolumeny
+    # anonimowe; serwer ich nie używa.
+    image: bitnamilegacy/minio:2025.4.22@sha256:50cec18ac4184af4671a78aedd5554942c8ae105d51a465fa82037949046da01
+    user: "0:0"
     restart: unless-stopped
     logging: *default-logging
+    entrypoint: ["minio"]
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MC_CONFIG_DIR: /tmp/.mc
     volumes:
       - minio_data:/data
     networks: [internal]

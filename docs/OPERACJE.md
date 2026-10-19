@@ -3762,9 +3762,8 @@ generatora) i `scripts/tests/s3_proxy_test.sh` (żywy Caddy z atrapą MinIO: 25 
   których obrazu rejestr odmówił. Powód: `docker compose pull` przerywa całe pobieranie na pierwszej
   odmowie. Tak było przy wdrożeniu v0.38.3 (2.10.2026): `minio/minio` nie jest już do pobrania
   z Docker Hub („repository does not exist”), więc nie odświeżył się żaden obraz. Ostrzeżenie
-  „…(minio)” jest od tej pory **stanem oczekiwanym**, dopóki MinIO nie zostanie zastąpione; serwer
-  działa na obrazie, który ma lokalnie – nie usuwać go (`docker image prune -a`), bo nowa instalacja
-  ani serwer po utracie obrazu go nie pobiorą.
+  „…(minio)” było potem **stanem oczekiwanym** aż do zastąpienia obrazu serwera (następny punkt
+  po `minio/mc`).
 - To samo spotkało `minio/mc` (wdrożenie v0.51.0, 19.10.2026: „pull access denied for minio/mc,
   repository does not exist”; quay.io/minio/mc wymaga logowania, dl.min.io zwraca 410). Klient mc
   – usługa `minio-init`, lustro kubełków w `scripts/backup.sh` (krok 2/5) i `scripts/restore.sh` –
@@ -3780,6 +3779,39 @@ generatora) i `scripts/tests/s3_proxy_test.sh` (żywy Caddy z atrapą MinIO: 25 
   Krok 4/8 wdrożenia pobiera go zresztą sam (usługa `minio-init`), więc wystarczy sprawdzić
   `docker image ls bitnamilegacy/minio-client`; ostrzeżenie kroku 4/8 wymienia odtąd znowu tylko
   `(minio)`, bez `minio-init`.
+- **Serwer MinIO** (usługa `minio`, wolumen `minio_data` z pracami uczestników) do v0.51.1 wskazywał
+  `minio/minio:RELEASE.2025-04-22T22-12-26Z`, którego nie da się pobrać (wdrożenie v0.51.1,
+  19.10.2026: „pull access denied for minio/minio, repository does not exist”) – produkcja działała
+  wyłącznie z obrazu w cache, więc nowy serwer, odtwarzanie po awarii albo `docker image prune -a`
+  nie postawiłyby MinIO. Od następnej wersji: `bitnamilegacy/minio:2025.4.22@sha256:50cec18a…`
+  (pełny digest w `docker-compose.yml`) – zamrożone wydanie Bitnami z serwerem z **tego samego**
+  commitu (0d7408f, Go 1.24.2; Bitnami buduje ze źródeł, stąd `minio --version` →
+  `DEVELOPMENT.2025-04-22T22-12-26Z`). Wolumen zostaje bez migracji: compose pomija skrypty Bitnami
+  (`entrypoint: ["minio"]`, `server /data`, jak dotąd), a `user: "0:0"` odpowiada dawnemu obrazowi,
+  który biegł jako root – pliki na `minio_data` należą do roota (Bitnami domyślnie: uid 1001 i dane
+  w `/bitnami/minio/data`). Zmienne `MINIO_ROOT_*` i healthcheck `mc ready local` bez zmian
+  (`mc` jest w obrazie; `MC_CONFIG_DIR=/tmp/.mc` jak w dawnym). Sprawdzone 19.10.2026 na kopii
+  danych w obie strony (stary obraz → nowy → stary): obiekty, konta serwisowe, polityki kont
+  i polityka anonimowa `public-media` (GET 200, listowanie 403, `submissions` 403) bez zmian.
+  Obraz deklaruje też `VOLUME /bitnami/minio/data` i `/certs` – Compose zakłada na nie dwa puste
+  wolumeny anonimowe (serwer ich nie używa; po `docker compose rm minio` zostają jako wiszące,
+  `docker volume prune` je sprząta). Bitnami nie wydaje już łatek – to most do czasu zastąpienia
+  MinIO.
+  **Krok operatora przy pierwszym wdrożeniu tej wersji:**
+  1. Przed wdrożeniem (bez wpływu na działający serwer): `docker pull
+     bitnamilegacy/minio:2025.4.22@sha256:50cec18ac4184af4671a78aedd5554942c8ae105d51a465fa82037949046da01`
+     – gdyby rejestr odmówił, nie wdrażać (krok 4/8 i tak pobiera obraz, ale wtedy tylko ostrzega,
+     a `up -d` w kroku 4b/8 nie miałby z czego postawić MinIO).
+  2. Wdrożenie najlepiej `--maintenance` albo poza oknem etapu: krok 4b/8 (`up -d`) **odtwarza
+     kontener `minio`** (nowy obraz) – kilka–kilkanaście sekund bez S3 (wgrywanie i pobieranie prac
+     kończą się wtedy błędem). `minio-init` przechodzi potem jak przy każdym wdrożeniu.
+  3. Po wdrożeniu: `docker compose ps minio` → `healthy`; `docker compose exec minio minio --version`
+     → `DEVELOPMENT.2025-04-22T22-12-26Z (commit-id=0d7408fc…)`; `docker compose logs minio-init`
+     kończy się `done`; ostrzeżenie kroku 4/8 nie wymienia już `(minio)`. Kontrola dymna (5b/8) i
+     najbliższa kopia nocna (lustro kubełków) potwierdzają odczyt danych.
+  4. Dawny obraz `minio/minio:RELEASE.2025-04-22T22-12-26Z` nie jest już potrzebny bieżącej wersji
+     (`scripts/rollback.sh` nie dotyka `minio`), ale ponowne wdrożenie tagu ≤ v0.51.1 znowu by go
+     wymagało – zostawić go w cache, dopóki taki powrót wchodzi w grę.
 - Workflow GitHuba (§ 4.2): przypięty klucz hosta (`DEPLOY_SSH_KNOWN_HOSTS`) i
   `SSH_STRICT_HOST_KEY_CHECKING=yes`; `scripts/deploy.sh` przyjmuje wyłącznie `yes` albo `accept-new`.
 
