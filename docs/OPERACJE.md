@@ -119,6 +119,7 @@ musi mieć wiersz z poprawną wartością domyślną, a każda flaga z tabeli �
 | Kubełek `public-media` | MinIO | obrazy i dokumenty z CMS-u |
 | Baza `olimpiada_djcms` (`pg_dump -Fc`) – **tylko przy `DJCMS_ENABLED=1`** | usługa `db` | strony, wtyczki i wersje redakcji wersji porównawczej `dj.` (§ 22) |
 | Wolumen `djcms_media` (`tar` z kontenera `djcms`) – **tylko przy `DJCMS_ENABLED=1`** | usługa `djcms` | obrazy wgrane przez redaktorów `dj.` (filer) |
+| Wolumen `webtex_data`: migawka `webtex.db` (`VACUUM INTO`) + `projects/` – **tylko przy profilu `latex`** | usługa `webtex` | **niezłożone szkice** uczestników w edytorze LaTeX, konta i powiązania edytora z platformą (§ 55) |
 
 Czego **nie** kopiujemy i dlaczego: obrazu aplikacji (odtwarza go `git` + `docker build`),
 certyfikatów TLS (Caddy wystawia je na nowo w kilka sekund), kluczy DKIM (odtworzenie znaczy
@@ -156,6 +157,18 @@ stronie `dj.` (djcms nie działa, zrzut albo `tar` nieudany) **nie zatrzymuje** 
 ta powstaje i wyjeżdża – ale przebieg kończy się kodem 1 i meldunkiem `--failed` z notatką „kopia
 główna … jest, kopia dj. NIE: …”, czyli po 36 h alarmem watchdoga. `DJCMS_ENABLED=1`, a bazy
 jeszcze nie ma (przed pierwszym wdrożeniem z `dj.`) – tylko wpis w logu, bez błędu.
+
+**Edytor LaTeX webTEX (§ 55).** Przy profilu `latex` w `COMPOSE_PROFILES` (z `.env` albo ze
+środowiska – ta sama wartość, której używa compose; także `*`) dochodzi podkrok **2c**: w działającym
+kontenerze `webtex` spójna migawka bazy SQLite (`node:sqlite`, `VACUUM INTO` – odpowiednik
+`sqlite3 .backup`: jedna transakcja odczytu, z zawartością pliku `-wal`, bez zatrzymywania edytora)
+i `tar` z `/data` (migawka jako `webtex.db` + `projects/`) → `webtex-<stamp>.tar.gpg`. Katalogów
+`compiles/` i `outputs/` nie kopiujemy – edytor odtwarza je przy następnej kompilacji. Ten sam
+znacznik, szyfrowanie, wysyłka, `rclone check` i retencja co pozostałe paczki. Bez profilu skrypt nie
+wykonuje **żadnego** polecenia webtex. Kontener `webtex` nie działa, a wolumen `webtex_data` istnieje,
+albo migawka / `tar` się nie udały – kopia główna powstaje i wyjeżdża, ale przebieg kończy się kodem 1
+i `--failed` z notatką „kopia główna … jest, kopia webTEX NIE: …”. Profil jest, a wolumenu jeszcze
+nie ma (przed pierwszym `up` edytora) – wpis w logu, bez błędu. Odtwarzanie: § 55.4.
 
 Miejsce wybiera `BACKUP_REMOTE_TYPE=s3|drive|none`; bez tej zmiennej: `s3`, gdy jest
 `BACKUP_REMOTE_URL`, `drive`, gdy jest token Dysku (`secrets/rclone/rclone.conf` albo
@@ -228,6 +241,9 @@ w `cms_page`; paczka `djcms-files-<stamp>.tar.gpg` musi się rozszyfrować i da�
 w całości (`tar -tf`). Brak paczki plików przy obecnej bazie, zero stron albo nieudany
 `pg_restore` = test nieudany (sprawdzenia `djcms_db` / `djcms_files`, § 43.3). Kopie przedwdrożeniowe
 `djcms-db-pre-*.dump` nie biorą w tym udziału.
+
+Paczki `webtex-<stamp>.tar.gpg` (szkice edytora LaTeX) conocny test **nie sprawdza** – ich
+czytelność sprawdza się ręcznie (§ 55.4, krok 2: rozszyfrowanie i `tar -tvf`).
 
 Po co, skoro `backup.sh` kończy się bez błędu: „`pg_dump` zwrócił 0” nie znaczy „z tej paczki da
 się odtworzyć olimpiadę”. Kopia potrafi być pusta, obcięta albo zaszyfrowana hasłem, którego nikt
@@ -7399,6 +7415,53 @@ zmiennych: `webtex/README.md`). Klucze zostają po stronie serwera edytora, prze
 
 ### 55.4. Dane i kopie
 
-Projekty uczniów (szkice) leżą w wolumenie `webtex_data`. **Złożone** rozwiązania są w MinIO i w kopii
-zapasowej jak każde inne; szkice w edytorze do kopii nie trafiają (`scripts/backup.sh` ich nie zbiera).
-Utrata wolumenu = utrata niezłożonych szkiców, nie rozwiązań.
+Projekty uczniów (szkice) leżą w wolumenie `webtex_data`: baza SQLite `/data/webtex.db` (konta
+edytora, projekty, członkostwa, powiązania z platformą), `/data/projects/<id>/` (stan dokumentów
+i pliki projektu) oraz `/data/compiles/` i `/data/outputs/` (katalogi robocze i PDF-y kompilacji).
+**Złożone** rozwiązania są w MinIO i w kopii zapasowej jak każde inne. **Niezłożone szkice** trafiają
+do kopii nocnej, gdy profil `latex` jest włączony: paczka `webtex-<stamp>.tar.gpg` (§ 1.2, podkrok 2c)
+z migawką bazy i `projects/` – bez `compiles/` i `outputs/`, które edytor odtwarza przy następnej
+kompilacji. Kopia jest z 3:15, więc po odtworzeniu brakuje tego, co uczestnicy napisali od tamtej
+pory. Projekty kopiowane są sekundy po migawce bazy – plik dodany albo usunięty dokładnie w tych
+sekundach może być w `projects/`, a nie w bazie (lub odwrotnie); treść tekstu jest w `projects/`.
+
+**Odtwarzanie** (ręczne – `scripts/restore.sh` tej paczki nie obsługuje poza `--fetch`; zasada jak
+w § 2.1: najpierw kopia bieżącego stanu obok, dopiero potem podmiana). Edytor jest na czas podmiany
+zatrzymany – inaczej serwer z otwartą bazą i dokumentami w pamięci nadpisałby odtworzone pliki.
+
+```bash
+cd /opt/olimpiada
+S=20261019T031500Z                                     # znacznik z: scripts/restore.sh --list
+# 1. paczka – gdy jest tylko poza serwerem (ściąga do /opt/olimpiada-backups/ i sprawdza sumą)
+./scripts/restore.sh --fetch webtex-$S.tar.gpg
+# 2. rozszyfrowanie (hasło = BACKUP_PASSPHRASE) i podgląd: webtex.db, projects/<id>/…
+cd /opt/olimpiada-backups
+gpg --pinentry-mode loopback --decrypt --output webtex-restore-$S.tar webtex-$S.tar.gpg
+chmod 600 webtex-restore-$S.tar
+tar -tvf webtex-restore-$S.tar | head
+cd /opt/olimpiada
+# 3. edytor stop; bieżąca zawartość wolumenu (bez compiles/ i outputs/) do pliku obok kopii
+docker compose stop webtex
+docker compose --profile latex run --rm --no-deps -T --entrypoint sh webtex \
+  -c 'cd /data && tar -cf - --exclude=./compiles --exclude=./outputs .' \
+  > /opt/olimpiada-backups/webtex-przed-$S.tar
+tar -tf /opt/olimpiada-backups/webtex-przed-$S.tar | head   # MUSI się wylistować, zanim pójdziesz dalej
+# 4. podmiana: stara baza RAZEM z -wal i -shm (stary WAL nałożony na odtworzoną bazę ją psuje),
+#    projekty i katalogi kompilacji precz, potem rozpakowanie kopii (jako uid 1000, jak serwer)
+docker compose --profile latex run --rm --no-deps -T --entrypoint sh webtex \
+  -c 'cd /data && rm -rf webtex.db webtex.db-wal webtex.db-shm projects compiles outputs && tar -xf -' \
+  < /opt/olimpiada-backups/webtex-restore-$S.tar
+docker compose up -d webtex
+docker compose logs --tail 20 webtex                    # start bez błędów bazy; /api/health zdrowy
+```
+
+`docker compose run` montuje ten sam wolumen co usługa (nazwy wolumenu nie trzeba znać) i działa
+z obrazu edytora jako uid 1000, więc odtworzone pliki mają właściciela, z którym serwer je zapisuje.
+Po odtworzeniu uczestnik otwiera edytor z karty zadania jak zwykle; projekt ma stan z nocy, a PDF
+powstaje na nowo przy pierwszej kompilacji.
+Plik `webtex-przed-$S.tar` i rozszyfrowany `webtex-restore-$S.tar` trzymaj tydzień, jak bazę
+`…_przed_awaria` (§ 2.3), potem skasuj – są **nieszyfrowane** i zawierają prace uczniów.
+
+Na **nowym** serwerze: wdrożenie z profilem `latex` (§ 55.1), `docker compose up -d webtex` raz
+(powstaje wolumen), potem kroki 1–4. Bez profilu `latex` (edytor wyłączony) paczki nie powstają;
+ostatnią kopią szkiców jest ta z ostatniej nocy przed wyłączeniem (30 dni w `daily/`, 365 w `monthly/`).

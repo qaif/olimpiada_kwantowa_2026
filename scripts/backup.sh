@@ -43,6 +43,11 @@
 # razem z pozostałymi. Bez przełącznika skrypt nie wykonuje żadnego polecenia djcms
 # (scripts/tests/backup_offsite_test.sh, przypadek 12).
 #
+# Edytor LaTeX webTEX (docs/OPERACJE.md § 55): przy profilu `latex` w COMPOSE_PROFILES dochodzi
+# paczka `webtex-<stamp>.tar.gpg` (podkrok 2c) – spójna migawka `/data/webtex.db` i `/data/projects`
+# z wolumenu `webtex_data`, czyli niezłożone szkice uczestników – wysyłana i sprzątana razem
+# z pozostałymi. Bez profilu skrypt nie wykonuje żadnego polecenia webtex (przypadek 12b).
+#
 # Nieudana wysyłka poza serwer to nieudana kopia: kod wyjścia 1 i meldunek `--failed` (watchdog
 # alarmuje brakiem świeżej kopii). Kopia lokalna z tej nocy zostaje – jest jedyną, jaka powstała.
 set -euo pipefail
@@ -310,15 +315,92 @@ if [ -n "$DJCMS_DUMP_FILE" ]; then
     fi
 fi
 
+# --- 2c. Szkice edytora LaTeX webTEX (profil `latex`, wolumen webtex_data) ---------------------
+# Złożone rozwiązania są w MinIO (krok 2) – tu chodzi o to, czego jeszcze nikt nie złożył: projekty
+# uczestników w edytorze (TEX-01). Wolumen `webtex_data` ginie razem z serwerem, a z nim szkice
+# pisane w trakcie etapu. Do paczki idą baza SQLite (`/data/webtex.db`: konta, projekty, powiązania
+# z platformą) i `/data/projects` (pliki, stan współedycji). `/data/compiles` i `/data/outputs` NIE:
+# to katalogi robocze i PDF-y kompilacji, które edytor odtwarza przy następnej kompilacji.
+#
+# Przełącznikiem jest profil `latex` w COMPOSE_PROFILES (po wczytaniu .env – ta sama wartość, której
+# używa compose). Bez niego ani jednego polecenia webtex (scripts/tests/backup_offsite_test.sh,
+# przypadek 12b) – przebieg instalacji bez edytora jest co do polecenia ten sam co przed TEX-01.
+#
+# Spójność bazy: `VACUUM INTO` przez `node:sqlite` (moduł, którego używa sam serwer; w obrazie nie ma
+# programu `sqlite3`) w działającym kontenerze – to samo, co `sqlite3 .backup`: migawka z jednej
+# transakcji odczytu, z zawartością pliku WAL, bez zatrzymywania edytora. Zwykłe `cp webtex.db`
+# w trakcie zapisu dałoby plik bez ostatnich transakcji (zostają w -wal) albo rozdarty w pół strony.
+# Migawka powstaje na wolumenie (/data, nie 512 MB tmpfs /tmp liczony do limitu pamięci kontenera),
+# idzie do tar pod nazwą `webtex.db` i jest kasowana; po przerwanym przebiegu kasuje ją następny.
+# Projekty kopiowane sekundy po migawce bazy: plik dodany albo usunięty dokładnie wtedy może być
+# w projects/, a nie w bazie (lub odwrotnie). O 3:15 to akceptowalne; zatrzymanie edytora – nie.
+#
+# Kontener działa → kopia (wolumen na pewno istnieje, bo jest zamontowany). Nie działa, a wolumen
+# jest → WEBTEX_ERROR i przebieg nieudany, jak przy djcms. Ani kontenera, ani wolumenu (profil
+# dopisany przed pierwszym wdrożeniem edytora) → nie ma czego kopiować, to nie błąd. Nazwa wolumenu
+# z `docker compose config`, a gdy się nie uda – po regule compose'a (jak scripts/restore.sh dla dj.).
+# Błąd webTEX nie przerywa kopii głównej – jak DJCMS_ERROR.
+WEBTEX_ON=0
+case ",$(printf '%s' "${COMPOSE_PROFILES:-}" | tr -d '[:space:]')," in *,latex,*|*,[*],*) WEBTEX_ON=1 ;; esac
+WEBTEX_ERROR=""
+WEBTEX_FILE=""
+# Program dla `node -e` w kontenerze. Ścieżki wewnątrz kodu, a nie w argumentach: argument zaczynający
+# się od `/` Git Bash pod Windowsem przerabia na ścieżkę Windows, zanim dotrze do dockera.
+WEBTEX_SNAPSHOT_JS="const fs = require('node:fs');
+const { DatabaseSync } = require('node:sqlite');
+const snap = '/data/.backup-webtex.db';
+fs.rmSync(snap, { force: true });
+const db = new DatabaseSync('/data/webtex.db');
+db.exec('PRAGMA busy_timeout = 30000');
+db.exec(\"VACUUM INTO '\" + snap + \"'\");
+db.close();"
+# tar migawki (jako webtex.db) i projektów na stdout; migawka kasowana także po błędzie tar.
+# shellcheck disable=SC2016  # $-zmienne rozwija `sh` w kontenerze, nie ta powłoka
+WEBTEX_TAR_SH='snap=.backup-webtex.db
+cd /data || exit 1
+trap "rm -f /data/$snap" EXIT
+set -- "$snap"
+[ ! -d projects ] || set -- "$@" projects
+tar --sort=name --transform "s,^\\.backup-webtex\\.db\$,webtex.db," -cf - "$@"'
+if [ "$WEBTEX_ON" = "1" ]; then
+    WEBTEX_PLAIN="${WORK_DIR}/webtex-${STAMP}.tar"
+    if [ -n "$(docker compose --profile latex ps -q --status running webtex </dev/null 2>/dev/null || true)" ]; then
+        log "2c/5 Szkice edytora LaTeX (webTEX: migawka webtex.db + projects/)"
+        if docker compose --profile latex exec -T webtex node -e "$WEBTEX_SNAPSHOT_JS" </dev/null \
+            && docker compose --profile latex exec -T webtex sh -c "$WEBTEX_TAR_SH" </dev/null > "$WEBTEX_PLAIN" \
+            && [ -s "$WEBTEX_PLAIN" ]; then
+            WEBTEX_FILE="${BACKUP_DIR}/webtex-${STAMP}.tar.gpg"
+            encrypt "$WEBTEX_PLAIN" "$WEBTEX_FILE"
+            log "    $(du -h "$WEBTEX_FILE" | cut -f1) -> $WEBTEX_FILE"
+        else
+            WEBTEX_ERROR="migawka bazy albo tar wolumenu webtex_data nie powiodły się"
+            printf 'UWAGA: %s – kopia główna idzie dalej.\n' "$WEBTEX_ERROR" >&2
+        fi
+    else
+        WEBTEX_VOLUME="$(docker compose --profile latex config 2>/dev/null </dev/null | sed -n '/^volumes:/,$p' \
+            | sed -n '/^  webtex_data:$/{n;s/^ *name: *//p;}' | head -1 || true)"
+        [ -n "$WEBTEX_VOLUME" ] || WEBTEX_VOLUME="$(printf '%s' "${COMPOSE_PROJECT_NAME:-$(basename "$REPO_DIR")}" \
+            | tr '[:upper:]' '[:lower:]' | tr -cd 'a-z0-9_-')_webtex_data"
+        if docker volume inspect "$WEBTEX_VOLUME" </dev/null >/dev/null 2>&1; then
+            WEBTEX_ERROR="kontener webtex nie działa – brak kopii szkiców LaTeX (wolumen ${WEBTEX_VOLUME} jest)"
+            printf 'UWAGA: %s.\n' "$WEBTEX_ERROR" >&2
+        else
+            log "2c/5 Profil latex, ale wolumenu ${WEBTEX_VOLUME} nie ma – kopia webTEX pominięta"
+        fi
+    fi
+fi
+
 # --- 3. Wysyłka poza serwer ------------------------------------------------------------------
 # Dokąd i jak – scripts/lib/backup_offsite.sh (S3 albo Dysk Google, konfiguracja wybrana wyżej).
 DUMP_NAME="$(basename "$DUMP_FILE")"
 FILES_NAME="$(basename "$FILES_FILE")"
-# Lista paczek tej nocy: zawsze baza i kubełki, przy dj. także jego baza i pliki (1b/2b) – te,
-# które powstały. Bez dj. lista jest ta sama co przed DJ-01, więc i polecenia rclone są te same.
+# Lista paczek tej nocy: zawsze baza i kubełki, przy dj. także jego baza i pliki (1b/2b), przy
+# profilu `latex` szkice webTEX (2c) – te, które powstały. Bez dj. i bez edytora lista jest ta sama
+# co przed DJ-01, więc i polecenia rclone są te same.
 UPLOAD_NAMES=("$DUMP_NAME" "$FILES_NAME")
 [ -z "$DJCMS_DUMP_FILE" ] || UPLOAD_NAMES+=("$(basename "$DJCMS_DUMP_FILE")")
 [ -z "$DJCMS_FILES_FILE" ] || UPLOAD_NAMES+=("$(basename "$DJCMS_FILES_FILE")")
+[ -z "$WEBTEX_FILE" ] || UPLOAD_NAMES+=("$(basename "$WEBTEX_FILE")")
 if [ "$OFFSITE_STATUS" = "failed" ]; then
     log "3/5 Wysyłka poza serwer POMINIĘTA – błąd konfiguracji: ${OFFSITE_ERROR}"
 elif [ "$OFFSITE_TYPE" = "none" ]; then
@@ -376,15 +458,21 @@ record_status() {
     fi
 }
 
-# Kopia dj., która się nie udała (DJCMS_ERROR z 1b/2b), przy udanej kopii głównej to także przebieg
-# NIEUDANY: znaczniki stoją, notatka mówi, że kopia główna jest, a czego brakuje. Przebieg „ok”
-# z brakującą bazą albo plikami dj. znaczyłby, że po awarii serwera wersji porównawczej nie ma
-# z czego odtworzyć, a nikt się o tym nie dowiedział (DJ-01 § 8.11: „status nie ok”).
-if [ -n "$DJCMS_ERROR" ] && { [ "$OFFSITE_STATUS" = "ok" ] || [ "$OFFSITE_STATUS" = "none" ]; }; then
+# Kopia dj. albo szkiców webTEX, która się nie udała (DJCMS_ERROR z 1b/2b, WEBTEX_ERROR z 2c), przy
+# udanej kopii głównej to także przebieg NIEUDANY: znaczniki stoją, notatka mówi, że kopia główna
+# jest, a czego brakuje. Przebieg „ok” z brakującą bazą albo plikami dj. znaczyłby, że po awarii
+# serwera wersji porównawczej nie ma z czego odtworzyć, a nikt się o tym nie dowiedział (DJ-01
+# § 8.11: „status nie ok”); bez paczki webTEX – że nie ma z czego odtworzyć szkiców uczestników.
+EXTRA_MISSING=""
+[ -z "$DJCMS_ERROR" ] || EXTRA_MISSING="kopia dj. NIE: ${DJCMS_ERROR}"
+[ -z "$WEBTEX_ERROR" ] || EXTRA_MISSING="${EXTRA_MISSING:+${EXTRA_MISSING}; }kopia webTEX NIE: ${WEBTEX_ERROR}"
+if [ -n "$EXTRA_MISSING" ] && { [ "$OFFSITE_STATUS" = "ok" ] || [ "$OFFSITE_STATUS" = "none" ]; }; then
     if [ "$OFFSITE_STATUS" = "ok" ]; then where="lokalnie i poza serwerem"; else where="wyłącznie lokalnie"; fi
-    record_status --failed --note "kopia główna ${STAMP} jest (${where}), kopia dj. NIE: ${DJCMS_ERROR}"
-    printf 'BŁĄD: kopia wersji porównawczej dj. niepełna (%s). Kopia główna: %s, %s (%s).\n' \
+    record_status --failed --note "kopia główna ${STAMP} jest (${where}), ${EXTRA_MISSING}"
+    [ -z "$DJCMS_ERROR" ] || printf 'BŁĄD: kopia wersji porównawczej dj. niepełna (%s). Kopia główna: %s, %s (%s).\n' \
         "$DJCMS_ERROR" "$DUMP_FILE" "$FILES_FILE" "$where" >&2
+    [ -z "$WEBTEX_ERROR" ] || printf 'BŁĄD: brak kopii szkiców edytora LaTeX (%s). Kopia główna: %s, %s (%s).\n' \
+        "$WEBTEX_ERROR" "$DUMP_FILE" "$FILES_FILE" "$where" >&2
     exit 1
 fi
 case "$OFFSITE_STATUS" in
@@ -397,7 +485,7 @@ case "$OFFSITE_STATUS" in
         log "Gotowe: kopia WYŁĄCZNIE lokalna (${STAMP})."
         ;;
     *)
-        record_status --failed --note "kopia lokalna ${STAMP} jest, poza serwer NIE dotarła: ${OFFSITE_ERROR:-nieznany błąd}${DJCMS_ERROR:+; dj.: ${DJCMS_ERROR}}"
+        record_status --failed --note "kopia lokalna ${STAMP} jest, poza serwer NIE dotarła: ${OFFSITE_ERROR:-nieznany błąd}${DJCMS_ERROR:+; dj.: ${DJCMS_ERROR}}${WEBTEX_ERROR:+; webTEX: ${WEBTEX_ERROR}}"
         printf 'BŁĄD: kopia poza serwerem nie powiodła się (%s). Kopia lokalna: %s, %s\n' \
             "${OFFSITE_ERROR:-nieznany błąd}" "$DUMP_FILE" "$FILES_FILE" >&2
         exit 1

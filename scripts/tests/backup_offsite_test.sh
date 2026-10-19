@@ -16,6 +16,8 @@ set -uo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/backup-offsite-test.XXXXXX")"
+# Profil `latex` z powłoki uruchamiającej test włączałby webTEX w przypadkach „bez profilu” (12b).
+unset COMPOSE_PROFILES COMPOSE_PROJECT_NAME
 trap '[ -n "${KEEP_WORK:-}" ] || rm -rf "$WORK"' EXIT
 
 failures=0
@@ -66,6 +68,21 @@ case "$*" in
     tar -cf - -C "$FAKE_MEDIA" . ; exit $? ;;
   "compose exec -T db psql -X -U olimpiada -d postgres -Atc SELECT 1 FROM pg_roles WHERE rolname = 'olimpiada_djcms'")
     echo "${MOCK_DJCMS_ROLE-1}" ; exit 0 ;;
+  # --- edytor LaTeX webTEX (przypadki 12b, 13c) ---
+  "compose --profile latex ps -q --status running webtex") echo "${MOCK_WEBTEX_RUNNING-wtcid}" ; exit 0 ;;
+  "compose --profile latex exec -T webtex node -e "*)
+    [ -z "${MOCK_WEBTEX_SNAP_FAIL:-}" ] || { echo "Error: database is locked" >&2; exit 1; }
+    exit 0 ;;
+  "compose --profile latex exec -T webtex sh -c "*)
+    [ -z "${MOCK_WEBTEX_TAR_FAIL:-}" ] || exit 2
+    tar -cf - -C "$FAKE_WEBTEX" . ; exit $? ;;
+  "compose --profile latex config")
+    [ -n "${MOCK_WEBTEX_CONFIG-1}" ] || exit 1
+    printf 'name: projekt\nservices:\n  webtex:\n    image: x\nvolumes:\n  minio_data:\n    name: projekt_minio_data\n  webtex_data:\n    name: projekt_webtex_data\n'
+    exit 0 ;;
+  "volume inspect "*)
+    case " ${MOCK_VOLUMES:-} " in *" ${3:-} "*) echo '[{}]' ; exit 0 ;; esac
+    echo "Error response from daemon: get ${3:-}: no such volume" >&2 ; exit 1 ;;
   # --- backup_verify.sh (OPS-01): żywy web, tymczasowy Postgres, kontener sprawdzeń ---
   "compose ps -q web") echo "${MOCK_WEB-webcid}" ; exit 0 ;;
   "compose ps -q db") echo dbcid ; exit 0 ;;
@@ -184,6 +201,12 @@ setup_case() {
   mkdir -p "$FAKE_MEDIA/filer_public/ab/cd"
   printf 'PNG-ATRAPA' >"$FAKE_MEDIA/filer_public/ab/cd/logo.png"
   printf 'SVG-ATRAPA' >"$FAKE_MEDIA/filer_public/ab/cd/ikona.svg"
+  # Wolumen webtex_data „w kontenerze” (przypadki 12b, 13c): migawka bazy i jeden projekt.
+  FAKE_WEBTEX="$CASE/webtex-data"
+  export FAKE_WEBTEX
+  mkdir -p "$FAKE_WEBTEX/projects/p0123456789abcdef/blobs"
+  printf 'SQLite format 3' >"$FAKE_WEBTEX/webtex.db"
+  printf '\\documentclass{article}' >"$FAKE_WEBTEX/projects/p0123456789abcdef/main.tex"
   : >"$DOCKER_LOG"
 }
 
@@ -506,6 +529,22 @@ for variant in "" "DJCMS_ENABLED=0" "DJCMS_ENABLED=off"; do
   check "dj. wyłączone (${variant:-bez zmiennej}): ani słowa o djcms, dwie paczki" $?
 done
 
+# --- 12b. bez profilu `latex`: ani jednego polecenia webtex -------------------------------------
+# Kontener webtex „działa” i wolumen „jest” (atrapa odpowiada na oba), bo o kopii decyduje profil.
+# Warianty: bez COMPOSE_PROFILES, inne profile, profil o podobnej nazwie, pusta wartość.
+n=0
+for variant in "" "COMPOSE_PROFILES=djcms" "COMPOSE_PROFILES=dev,latexx" "COMPOSE_PROFILES="; do
+  n=$((n + 1))
+  setup_case "noprofile-$n" ${variant:+"$variant"}
+  MOCK_VOLUMES="projekt_webtex_data repo_webtex_data" run_backup; rc=$?
+  got="$(docker_calls)"
+  [ $rc -eq 0 ] && [ "$got" = "$EXPECTED_OFF" ]
+  check "webTEX bez profilu (${variant:-bez zmiennej}): polecenia dockera znak w znak dzisiejsze" $?
+  [ "$got" = "$EXPECTED_OFF" ] || diff <(printf '%s\n' "$EXPECTED_OFF") <(printf '%s\n' "$got") | sed 's/^/     /'
+  ! grep -qi 'webtex\|latex\|2c/5' "$DOCKER_LOG" "$CASE/out.txt" && [ "$(ls "$CASE/backups" | grep -c .)" -eq 2 ]
+  check "webTEX bez profilu (${variant:-bez zmiennej}): ani słowa o webtex, dwie paczki" $?
+done
+
 # 12a. Porównanie z backup.sh / backup_verify.sh / restore.sh z innej rewizji (opcjonalne): cały
 # przebieg bez dj. (polecenia dockera, wyjście, kod, pliki w katalogu kopii) po zamaskowaniu musi
 # być identyczny. Rewizja sprzed DJ-01i:
@@ -517,6 +556,8 @@ if [ -n "${BACKUP_BASELINE_REF:-}" ]; then
   for f in backup.sh restore.sh backup_verify.sh lib/backup_offsite.sh; do
     git -C "$ROOT" show "$BACKUP_BASELINE_REF:scripts/$f" >"$BASE/$f" 2>/dev/null || rc=1
   done
+  # lib/env.sh jest od 10.10.2026 (S17) – rewizje sprzed niego go nie mają i go nie wczytują.
+  git -C "$ROOT" show "$BACKUP_BASELINE_REF:scripts/lib/env.sh" >"$BASE/lib/env.sh" 2>/dev/null || rm -f "$BASE/lib/env.sh"
   check "skrypty kopii z rewizji $BACKUP_BASELINE_REF odczytane" $rc
   compare_runs() {  # compare_runs <opis> <skrypt> [argumenty…]
     local label="$1" script="$2" side scripts
@@ -634,6 +675,104 @@ setup_case dj-upload-fail "BACKUP_DRIVE_TOKEN='$TOKEN_A'" "DJCMS_ENABLED=1"
 MOCK_DJCMS_DB=1 MOCK_DJCMS_RUNNING="" MOCK_FAIL="copy" run_backup; rc=$?
 [ $rc -eq 1 ] && record_calls | grep -q 'poza serwer NIE dotarła: .*; dj.: kontener djcms nie działa'
 check "wysyłka i dj. nieudane naraz: jedna notatka z oboma powodami" $?
+
+# --- 13c. profil `latex`: szkice webTEX w kopii, wysyłce, retencji i meldunku --------------------
+setup_case tex-on "BACKUP_DRIVE_TOKEN='$TOKEN_A'" "COMPOSE_PROFILES=djcms, latex"
+run_backup; rc=$?
+check "webTEX (profil latex): kod 0" $rc
+STAMP_MAIN="$(ls "$CASE/backups" | sed -nE 's/^db-(.*)\.dump\.gpg$/\1/p')"
+[ -f "$CASE/backups/webtex-$STAMP_MAIN.tar.gpg" ] && [ "$(ls "$CASE/backups" | grep -c .)" -eq 3 ]
+check "webTEX: trzy paczki (db, files, webtex-<stamp>.tar.gpg z tym samym znacznikiem)" $?
+tar -tf "$CASE/backups/webtex-$STAMP_MAIN.tar.gpg" | grep -q 'webtex.db$' \
+  && tar -tf "$CASE/backups/webtex-$STAMP_MAIN.tar.gpg" | grep -q 'projects/p0123456789abcdef/main.tex'
+check "webTEX: paczka to tar migawki webtex.db i projects/" $?
+SNAP_JS="$(sed -n '/exec -T webtex node -e /,/^db.close();$/p' "$DOCKER_LOG")"
+printf '%s' "$SNAP_JS" | grep -q "new DatabaseSync('/data/webtex.db')" \
+  && printf '%s' "$SNAP_JS" | grep -q "VACUUM INTO" && printf '%s' "$SNAP_JS" | grep -q "require('node:sqlite')"
+check "webTEX: migawka bazy przez node:sqlite VACUUM INTO w działającym kontenerze" $?
+TAR_SH="$(sed -n '/exec -T webtex sh -c /,/^tar /p' "$DOCKER_LOG")"
+printf '%s' "$TAR_SH" | grep -q 'cd /data' && printf '%s' "$TAR_SH" | grep -q 'projects' \
+  && printf '%s' "$TAR_SH" | grep -q 'webtex.db,' && ! printf '%s' "$TAR_SH" | grep -q 'compiles\|outputs'
+check "webTEX: tar z /data obejmuje migawkę (jako webtex.db) i projects/, bez compiles/ i outputs/" $?
+[ "$(line_of 'run --rm --network')" -lt "$(line_of 'ps -q --status running webtex')" ] \
+  && [ "$(line_of 'ps -q --status running webtex')" -lt "$(line_of 'exec -T webtex node')" ] \
+  && [ "$(line_of 'exec -T webtex node')" -lt "$(line_of 'exec -T webtex sh')" ] \
+  && [ "$(line_of 'exec -T webtex sh')" -lt "$(line_of 'rclone/rclone')" ] \
+  && ! grep -q 'latex config\|volume inspect' "$DOCKER_LOG"
+check "webTEX: kolejność 2 → 2c (czy webtex działa, migawka, tar) → wysyłka; bez szukania wolumenu" $?
+grep -q '^==> 2c/5 ' "$CASE/out.txt" && grep -q '^==> 5/5 ' "$CASE/out.txt"
+check "webTEX: podkrok 2c/5, numeracja /5 zostaje" $?
+[ "$(rclone_calls | grep -c ' copy /data/.* offsite:Olimpiada-kopie-zapasowe/daily/')" -eq 3 ] \
+  && rclone_calls | grep ' check /data offsite:Olimpiada-kopie-zapasowe/daily/ --one-way' \
+     | grep -q -- "--include /webtex-$STAMP_MAIN.tar.gpg" \
+  && [ -f "$CASE/remote/Olimpiada-kopie-zapasowe/daily/webtex-$STAMP_MAIN.tar.gpg" ]
+check "webTEX: paczka do daily/, objęta rclone check, po „tamtej stronie”" $?
+record_calls | grep -q -- '--ok --offsite'
+check "webTEX: meldunek --ok --offsite" $?
+
+setup_case tex-on-monthly "BACKUP_DRIVE_TOKEN='$TOKEN_A'" "COMPOSE_PROFILES=*"
+FAKE_DAY=01 run_backup; rc=$?
+[ $rc -eq 0 ] && [ -f "$CASE/remote/Olimpiada-kopie-zapasowe/monthly/webtex-$(ls "$CASE/backups" | sed -nE 's/^db-(.*)\.dump\.gpg$/\1/p').tar.gpg" ]
+check "webTEX (COMPOSE_PROFILES=*): 1. dzień miesiąca – paczka także w monthly/" $?
+
+# Profil z powłoki (bez wpisu w .env) też się liczy – compose czyta go stamtąd tak samo.
+setup_case tex-env
+COMPOSE_PROFILES=latex run_backup; rc=$?
+[ $rc -eq 0 ] && ls "$CASE/backups"/webtex-*.tar.gpg >/dev/null 2>&1 && record_calls | grep -q -- '--ok$'
+check "webTEX: COMPOSE_PROFILES=latex ze środowiska (kopia lokalna) – paczka i --ok" $?
+
+setup_case tex-retention "COMPOSE_PROFILES=latex"
+printf 'stara' >"$CASE/backups/webtex-20200101T031500Z.tar.gpg"
+touch -d '2020-01-01' "$CASE/backups/webtex-20200101T031500Z.tar.gpg"
+run_backup; rc=$?
+[ $rc -eq 0 ] && [ ! -e "$CASE/backups/webtex-20200101T031500Z.tar.gpg" ] && ls "$CASE/backups"/webtex-2*.tar.gpg >/dev/null 2>&1
+check "webTEX: retencja lokalna kasuje stare paczki webtex, dzisiejsza zostaje" $?
+
+# Kontener nie działa: wolumen jest → przebieg nieudany; wolumenu nie ma → pominięcie, nie błąd.
+setup_case tex-stopped "BACKUP_DRIVE_TOKEN='$TOKEN_A'" "COMPOSE_PROFILES=latex"
+MOCK_WEBTEX_RUNNING="" MOCK_VOLUMES="projekt_webtex_data" run_backup; rc=$?
+[ $rc -eq 1 ] && ! ls "$CASE/backups"/webtex-* >/dev/null 2>&1 && ! grep -q 'exec -T webtex' "$DOCKER_LOG" \
+  && grep -q '^volume inspect projekt_webtex_data$' "$DOCKER_LOG"
+check "webtex nie działa, wolumen (nazwa z compose config) jest: bez paczki, kod 1" $?
+[ "$(rclone_calls | grep -c ' copy /data/')" -eq 2 ] && rclone_calls | grep -q 'delete offsite:'
+check "webtex nie działa: kopia główna wysłana, retencja zdalna rusza" $?
+record_calls | grep -q -- '--failed --note kopia główna .* jest (lokalnie i poza serwerem), kopia webTEX NIE: kontener webtex nie działa' \
+  && grep -q 'UWAGA: kontener webtex nie działa' "$CASE/out.txt" && grep -q 'BŁĄD: brak kopii szkiców edytora LaTeX' "$CASE/out.txt"
+check "webtex nie działa: meldunek --failed z notatką, ostrzeżenie i błąd w logu" $?
+
+setup_case tex-novolume "COMPOSE_PROFILES=latex"
+MOCK_WEBTEX_RUNNING="" MOCK_VOLUMES="" run_backup; rc=$?
+[ $rc -eq 0 ] && ! ls "$CASE/backups"/webtex-* >/dev/null 2>&1 && ! grep -q 'exec -T webtex' "$DOCKER_LOG" \
+  && grep -q '2c/5 Profil latex, ale wolumenu projekt_webtex_data nie ma' "$CASE/out.txt" && record_calls | grep -q -- '--ok$'
+check "profil latex bez wolumenu (przed pierwszym wdrożeniem edytora): pominięte, --ok" $?
+
+setup_case tex-noconfig "COMPOSE_PROFILES=latex"
+MOCK_WEBTEX_RUNNING="" MOCK_WEBTEX_CONFIG="" MOCK_VOLUMES="repo_webtex_data" run_backup; rc=$?
+[ $rc -eq 1 ] && grep -q '^volume inspect repo_webtex_data$' "$DOCKER_LOG" \
+  && record_calls | grep -q 'kopia webTEX NIE: kontener webtex nie działa .*repo_webtex_data'
+check "nieudany compose config: nazwa wolumenu po regule compose'a (<projekt>_webtex_data)" $?
+
+setup_case tex-snap-fail "COMPOSE_PROFILES=latex"
+MOCK_WEBTEX_SNAP_FAIL=1 run_backup; rc=$?
+[ $rc -eq 1 ] && ! ls "$CASE/backups"/webtex-* >/dev/null 2>&1 && ! grep -q 'exec -T webtex sh' "$DOCKER_LOG" \
+  && record_calls | grep -q -- '--failed .*wyłącznie lokalnie), kopia webTEX NIE: migawka bazy'
+check "migawka bazy webtex nieudana: bez tar, bez paczki, --failed" $?
+
+setup_case tex-tar-fail "COMPOSE_PROFILES=latex"
+MOCK_WEBTEX_TAR_FAIL=1 run_backup; rc=$?
+[ $rc -eq 1 ] && ! ls "$CASE/backups"/webtex-* >/dev/null 2>&1 && ls "$CASE/backups"/files-*.tar.gpg >/dev/null 2>&1 \
+  && record_calls | grep -q -- '--failed .*kopia webTEX NIE'
+check "tar wolumenu webtex_data nieudany: kopia główna jest, paczki webtex nie, --failed" $?
+
+setup_case tex-dj-both "DJCMS_ENABLED=1" "COMPOSE_PROFILES=djcms,latex"
+MOCK_DJCMS_DB=1 MOCK_DJCMS_RUNNING="" MOCK_WEBTEX_RUNNING="" MOCK_VOLUMES="projekt_webtex_data" run_backup; rc=$?
+[ $rc -eq 1 ] && record_calls | grep -q 'kopia dj. NIE: kontener djcms nie działa.*; kopia webTEX NIE: kontener webtex nie działa'
+check "dj. i webTEX nieudane naraz: jedna notatka z oboma powodami" $?
+
+setup_case tex-upload-fail "BACKUP_DRIVE_TOKEN='$TOKEN_A'" "COMPOSE_PROFILES=latex"
+MOCK_WEBTEX_SNAP_FAIL=1 MOCK_FAIL="copy" run_backup; rc=$?
+[ $rc -eq 1 ] && record_calls | grep -q 'poza serwer NIE dotarła: .*; webTEX: migawka bazy'
+check "wysyłka i webTEX nieudane naraz: jedna notatka z oboma powodami" $?
 
 # --- 14. backup_verify.sh: baza i pliki djcms z tej samej nocy ----------------------------------
 # Od OPS-01 wyniki dj. idą do aplikacji jako dodatkowe sprawdzenia w nagłówku kontenera sprawdzeń
