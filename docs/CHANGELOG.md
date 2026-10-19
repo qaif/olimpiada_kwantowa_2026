@@ -12,6 +12,14 @@ podsekcją `### <tytuł>` wydania `## v<x.y.z> – <data tagu> – <opis tagu>`.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## [Unreleased] – Serwer MinIO z bitnamilegacy/minio zamiast znikniętego minio/minio
+
+- Usługa `minio` (i jej odpowiednik w `scripts/loadtest/`): `bitnamilegacy/minio:2025.4.22` przypięty digestem
+  zamiast niepobieralnego `minio/minio:RELEASE.2025-04-22T22-12-26Z` – ten sam commit serwera (0d7408f),
+  uruchamiany jak dotąd (`minio server /data`, root, bez skryptów Bitnami), więc wolumen `minio_data` działa
+  bez migracji. Krok operatora przy pierwszym wdrożeniu (wcześniejszy `docker pull`, odtworzenie kontenera
+  `minio` w kroku 4b/8): `OPERACJE.md` § 24.6.
+
 ## [Unreleased] – Edytor LaTeX (webTEX) do pisania rozwiązań (TEX-01) – strona platformy
 
 Specyfikacja: [`tasks/TEX-01.md`](tasks/TEX-01.md); instrukcje: `PODRECZNIK-UCZESTNIKA.md` § 3b,

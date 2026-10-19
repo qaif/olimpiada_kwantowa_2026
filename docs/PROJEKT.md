@@ -40,7 +40,7 @@ Uzasadnienie:
 | `beat` | ten sam obraz, `celery beat` | harmonogram: `close_due_stages` (co 60 s), `finalize_closed_appeal_windows` (co 5 min) |
 | `db` | postgres:18 (do 25.09.2026: 16) | dane |
 | `redis` | redis:7 | broker Celery, cache, rate limiting |
-| `minio` | minio/minio | prywatny bucket `submissions` (presigned URL, brak publicznego dostępu), bucket `public-media` dla Wagtail |
+| `minio` | bitnamilegacy/minio – serwer MinIO (ten sam commit co dawny minio/minio, uruchamiany jako root na `/data`) | prywatny bucket `submissions` (presigned URL, brak publicznego dostępu), bucket `public-media` dla Wagtail |
 | `clamav` | clamav/clamav | skan każdego pliku przed udostępnieniem recenzentom |
 | `minio-init` | bitnamilegacy/minio-client – `mc` (jednorazowo) | buckety, polityki anonimowe, konta serwisowe per bucket (`wagtail-media`, `app-private`) |
 | `e2e` | mcr.microsoft.com/playwright/python (profil `e2e`, dev) | scenariusz end‑to‑end w sieci compose |

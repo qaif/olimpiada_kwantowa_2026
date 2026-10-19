@@ -102,11 +102,15 @@ services:
       retries: 20
 
   minio:
-    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    # Ten sam obraz i to samo uruchomienie co w docker-compose.yml (tam: dlaczego nie minio/minio).
+    image: bitnamilegacy/minio:2025.4.22@sha256:50cec18ac4184af4671a78aedd5554942c8ae105d51a465fa82037949046da01
+    user: "0:0"
+    entrypoint: ["minio"]
     command: server /data
     environment:
       MINIO_ROOT_USER: loadtest
       MINIO_ROOT_PASSWORD: loadtest-minio-password
+      MC_CONFIG_DIR: /tmp/.mc
     volumes:
       - lt_minio:/data
     networks: [lt_internal]
