@@ -14,7 +14,7 @@ requires-python = ">=3.14"
 # Stan na 26.09.2026 (PyPI): wszystkie piny niżej to najnowsze wydania.
 dependencies = [
     # Django 6.1 – ta sama linia co aplikacja główna; django CMS 5.1.3 klasyfikuje 5.2/6.0/6.1.
-    "django==6.1.1",
+    "django==6.1.2",
     "django-cms==5.1.3",
     # django CMS 5.1.3 deklaruje ``django-treebeard>=4.3,<6`` – na PyPI są już 6.x i 7.x
     # (7.0.2 z klasyfikatorem Django 6.1), ale granica jest w metadanych django CMS, więc
@@ -27,7 +27,7 @@ dependencies = [
     # Edytor tekstu i ``HTMLField`` z sanityzacją przez ``nh3`` (reguła 4 z § 7 speca).
     "djangocms-text==1.0.1",
     # Wersje robocze / publikacja / historia – odpowiednik rewizji Wagtaila.
-    "djangocms-versioning==2.7.1",
+    "djangocms-versioning==2.8.0",
     "django-fsm-2==4.2.4",
     # Biblioteka mediów (obrazy); dokumenty urzędowe zostają na domenie głównej (§ 1.2 p. 5).
     "django-filer==3.6.0",
