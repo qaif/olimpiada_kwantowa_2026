@@ -75,7 +75,9 @@ REMOTE_MONTHLY_KEEP_DAYS="${REMOTE_MONTHLY_KEEP_DAYS:-365}"
 
 # Obrazy narzędzi. Przypięte do wydania (nie `latest`), bo kopia zapasowa jest jedyną rzeczą,
 # której nie wolno zepsuć cichą zmianą wersji narzędzia – błąd wyjdzie dopiero przy odtwarzaniu.
-MC_IMAGE="${MC_IMAGE:-minio/mc:RELEASE.2025-04-16T18-13-26Z}"
+# `minio/mc` zniknął z Docker Hub (19.10.2026) – ten sam `mc` (commit b00526b) z zamrożonego
+# wydania Bitnami, przypięty digestem (docker-compose.yml, usługa minio-init).
+MC_IMAGE="${MC_IMAGE:-bitnamilegacy/minio-client:2025.4.16@sha256:8a86e441decf053093c5977d49290298295f850c7843652f93e970ab15871dd1}"
 RCLONE_IMAGE="${RCLONE_IMAGE:-rclone/rclone:1.69}"
 
 log() { printf '==> %s\n' "$*"; }
@@ -256,7 +258,9 @@ mkdir -p "${WORK_DIR}/buckets"
 # kontenera zmienna i tak jest – ale tam widzi ją wyłącznie root, a kontener żyje minuty.
 ( umask 077 && printf 'MC_HOST_src=http://%s:%s@minio:9000\n' "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" \
     > "${WORK_DIR}/mc.env" )
-docker run --rm --network "$NETWORK" --env-file "${WORK_DIR}/mc.env" \
+# `--user 0:0`: obraz Bitnami biegnie domyślnie jako uid 1001, a katalog lustra należy do roota
+# (755) – bez tego `mc mirror` kończy się „Permission denied”. Dawny minio/mc biegł jako root.
+docker run --rm --network "$NETWORK" --env-file "${WORK_DIR}/mc.env" --user 0:0 \
     -v "${WORK_DIR}/buckets:/backup" \
     -e MC_QUIET=1 -e MC_NO_COLOR=1 \
     --entrypoint sh "$MC_IMAGE" -c '

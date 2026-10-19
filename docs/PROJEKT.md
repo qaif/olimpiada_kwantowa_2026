@@ -42,7 +42,7 @@ Uzasadnienie:
 | `redis` | redis:7 | broker Celery, cache, rate limiting |
 | `minio` | minio/minio | prywatny bucket `submissions` (presigned URL, brak publicznego dostępu), bucket `public-media` dla Wagtail |
 | `clamav` | clamav/clamav | skan każdego pliku przed udostępnieniem recenzentom |
-| `minio-init` | minio/mc (jednorazowo) | buckety, polityki anonimowe, konta serwisowe per bucket (`wagtail-media`, `app-private`) |
+| `minio-init` | bitnamilegacy/minio-client – `mc` (jednorazowo) | buckety, polityki anonimowe, konta serwisowe per bucket (`wagtail-media`, `app-private`) |
 | `e2e` | mcr.microsoft.com/playwright/python (profil `e2e`, dev) | scenariusz end‑to‑end w sieci compose |
 | `mailpit` | axllent/mailpit (tylko profil `dev`) | podgląd e‑maili |
 

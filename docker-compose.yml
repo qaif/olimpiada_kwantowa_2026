@@ -662,7 +662,15 @@ services:
     # a nie gotowe `mc anonymous set download`: tamto daje też `s3:ListBucket`, czyli każdy mógł
     # wylistować wszystkie obiekty bucketu (także dokumenty, do których strona nigdzie nie linkuje).
     # `set-json` zastępuje politykę bucketu w całości – dawna znika przy pierwszym przebiegu.
-    image: minio/mc:RELEASE.2025-04-16T18-13-26Z
+    #
+    # Obraz: `minio/mc` zniknął z Docker Hub (wdrożenie v0.51.0, 19.10.2026: „repository does not
+    # exist”), quay.io/minio/mc nie wpuszcza bez logowania, a dl.min.io zwraca 410. Zamiennik to
+    # zamrożone wydanie Bitnami z tym samym `mc` co dotąd (commit b00526b, 2025-04-16T18-13-26Z),
+    # przypięte digestem listy manifestów – ten sam tag nie może już cicho zmienić treści.
+    # `user: "0:0"`, bo obraz biegnie domyślnie jako uid 1001, a dawny minio/mc – jako root: polityki
+    # z deploy/minio/ czyta się wtedy niezależnie od praw, z jakimi wdrożenie położyło je na serwerze.
+    image: bitnamilegacy/minio-client:2025.4.16@sha256:8a86e441decf053093c5977d49290298295f850c7843652f93e970ab15871dd1
+    user: "0:0"
     logging: *default-logging
     entrypoint: >
       /bin/sh -c "
