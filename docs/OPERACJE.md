@@ -2292,7 +2292,9 @@ Oglądanie: adres podpisany na **2 h** (film, osadzony w `<video>`) albo **5 min
    ```bash
    docker run --rm --network olimpiada_internal -v /opt/olimpiada-backups/materialy:/backup \
      -e MC_HOST_src="http://$MINIO_ROOT_USER:$MINIO_ROOT_PASSWORD@minio:9000" \
-     minio/mc mirror --overwrite src/submissions/workshop-materials /backup
+     --user 0:0 --entrypoint mc \
+     bitnamilegacy/minio-client:2025.4.16@sha256:8a86e441decf053093c5977d49290298295f850c7843652f93e970ab15871dd1 \
+     mirror --overwrite src/submissions/workshop-materials /backup
    ```
 
 ### 16.3. Caddy, CSP, CORS
@@ -3763,6 +3765,21 @@ generatora) i `scripts/tests/s3_proxy_test.sh` (żywy Caddy z atrapą MinIO: 25 
   „…(minio)” jest od tej pory **stanem oczekiwanym**, dopóki MinIO nie zostanie zastąpione; serwer
   działa na obrazie, który ma lokalnie – nie usuwać go (`docker image prune -a`), bo nowa instalacja
   ani serwer po utracie obrazu go nie pobiorą.
+- To samo spotkało `minio/mc` (wdrożenie v0.51.0, 19.10.2026: „pull access denied for minio/mc,
+  repository does not exist”; quay.io/minio/mc wymaga logowania, dl.min.io zwraca 410). Klient mc
+  – usługa `minio-init`, lustro kubełków w `scripts/backup.sh` (krok 2/5) i `scripts/restore.sh` –
+  pochodzi od tej wersji z `bitnamilegacy/minio-client:2025.4.16@sha256:8a86e441…` (pełny digest
+  w `docker-compose.yml`): zamrożone wydanie Bitnami z **tym samym** `mc` (commit b00526b,
+  2025-04-16T18-13-26Z), więc składnia `mc mirror`/`mc admin` bez zmian. Obraz biegnie domyślnie
+  jako uid 1001, dlatego `backup.sh` i `restore.sh` uruchamiają go z `--user 0:0` (katalog lustra
+  należy do roota). Bitnami nie wydaje już łatek tego obrazu – to most do czasu zastąpienia MinIO.
+  **Krok operatora przed pierwszą nocną kopią po wdrożeniu tej wersji** (nocna kopia sama obrazu nie
+  pobiera, a `docker run` bez obrazu w cache pobrałby go dopiero w trakcie – albo nie, przy kłopocie
+  z rejestrem): `docker pull
+  bitnamilegacy/minio-client:2025.4.16@sha256:8a86e441decf053093c5977d49290298295f850c7843652f93e970ab15871dd1`.
+  Krok 4/8 wdrożenia pobiera go zresztą sam (usługa `minio-init`), więc wystarczy sprawdzić
+  `docker image ls bitnamilegacy/minio-client`; ostrzeżenie kroku 4/8 wymienia odtąd znowu tylko
+  `(minio)`, bez `minio-init`.
 - Workflow GitHuba (§ 4.2): przypięty klucz hosta (`DEPLOY_SSH_KNOWN_HOSTS`) i
   `SSH_STRICT_HOST_KEY_CHECKING=yes`; `scripts/deploy.sh` przyjmuje wyłącznie `yes` albo `accept-new`.
 

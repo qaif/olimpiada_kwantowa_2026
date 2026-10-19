@@ -516,7 +516,7 @@ docker_calls() { mask "$DOCKER_LOG" | sed -e "s|$CASE|CASE|g" -e "s/ *$//" | gre
 EXPECTED_OFF='compose exec -T db pg_dump -U olimpiada -d olimpiada -Fc
 compose ps -q minio
 inspect -f {{range $name, $_ := .NetworkSettings.Networks}}{{$name}}{{"\n"}}{{end}} cid123
-run --rm --network proj_internal --env-file CASE/backups/.work-X/mc.env -v CASE/backups/.work-X/buckets:/backup -e MC_QUIET=1 -e MC_NO_COLOR=1 --entrypoint sh minio/mc:RELEASE.2025-04-16T18-13-26Z -c
+run --rm --network proj_internal --env-file CASE/backups/.work-X/mc.env --user 0:0 -v CASE/backups/.work-X/buckets:/backup -e MC_QUIET=1 -e MC_NO_COLOR=1 --entrypoint sh bitnamilegacy/minio-client:2025.4.16@sha256:8a86e441decf053093c5977d49290298295f850c7843652f93e970ab15871dd1 -c
 compose exec -T web python manage.py record_backup_status --ok'
 for variant in "" "DJCMS_ENABLED=0" "DJCMS_ENABLED=off"; do
   setup_case "dj-off-${variant#DJCMS_ENABLED=}" ${variant:+"$variant"}

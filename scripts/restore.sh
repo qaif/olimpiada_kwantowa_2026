@@ -32,7 +32,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$REPO_DIR"
 
 BACKUP_DIR="${BACKUP_DIR:-/opt/olimpiada-backups}"
-MC_IMAGE="${MC_IMAGE:-minio/mc:RELEASE.2025-04-16T18-13-26Z}"
+# Ten sam obraz co w scripts/backup.sh (tam: dlaczego nie minio/mc).
+MC_IMAGE="${MC_IMAGE:-bitnamilegacy/minio-client:2025.4.16@sha256:8a86e441decf053093c5977d49290298295f850c7843652f93e970ab15871dd1}"
 RCLONE_IMAGE="${RCLONE_IMAGE:-rclone/rclone:1.69}"
 
 DRY_RUN=0
@@ -377,9 +378,12 @@ else
         # `-e` – argumenty `docker run` widzi `ps` każdego konta (audyt 10.10.2026; jak scripts/backup.sh).
         ( umask 077 && printf 'MC_HOST_dst=http://%s:%s@minio:9000\n' "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" \
             > "${WORK_DIR}/mc.env" )
-        docker run --rm --network "$NETWORK" --env-file "${WORK_DIR}/mc.env" \
+        # MC_QUIET=1, nie `on`: mc czyta zmienną jako bool Go i na `on` kończy pracę błędem „could not
+        # parse on as bool value for flag quiet” – także dawny minio/mc (sprawdzone 19.10.2026), czyli
+        # pliki prac nie odtworzyłyby się nigdy. `--user 0:0` – jak w scripts/backup.sh.
+        docker run --rm --network "$NETWORK" --env-file "${WORK_DIR}/mc.env" --user 0:0 \
             -v "${WORK_DIR}/buckets:/backup:ro" \
-            -e MC_QUIET=on -e MC_NO_COLOR=on \
+            -e MC_QUIET=1 -e MC_NO_COLOR=1 \
             --entrypoint sh "$MC_IMAGE" -c "
                 set -e
                 mc mb --ignore-existing 'dst/${TARGET_BUCKET}'
