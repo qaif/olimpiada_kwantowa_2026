@@ -1,0 +1,323 @@
+# Chinese (Simplified) – katalog aplikacji ``apps.coordinator_stats`` (zadanie STATS-02).
+# Zrodlem (msgid) jest polski. UWAGA: tlumaczenie MASZYNOWE (model jezykowy) – patrz
+# docs/OPERACJE.md (przeglad przez native speakera przed szeroka komunikacja).
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Olimpiada Kwantowa\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-18 21:00+0200\n"
+"PO-Revision-Date: 2026-10-18 21:00+0200\n"
+"Last-Translator: Olimpiada Kwantowa\n"
+"Language-Team: Chinese (Simplified)\n"
+"Language: zh_Hans\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+msgid "Grupa"
+msgstr "组"
+
+msgid "Rejestracje"
+msgstr "注册数"
+
+msgid "Logowanie"
+msgstr "登录"
+
+msgid "Aktywacja"
+msgstr "激活"
+
+msgid "Brak grup powyżej progu."
+msgstr "没有超过阈值的组。"
+
+msgid "Raport wysyłki"
+msgstr "发送报告"
+
+msgid "Raport wysyłki komunikatu"
+msgstr "消息发送报告"
+
+msgid "Wysłany"
+msgstr "发送时间"
+
+msgid "Stan"
+msgstr "状态"
+
+msgid "Wysłał"
+msgstr "发送人"
+
+msgid "Wróć do komunikatów"
+msgstr "返回消息"
+
+msgid "Brak danych o wysyłce tego komunikatu – raporty powstają dla komunikatów wysłanych od 18.10.2026."
+msgstr "此消息没有发送数据——报告仅适用于2026年10月18日起发送的消息。"
+
+msgid "Odbiorców"
+msgstr "收件人"
+
+msgid "Obsłużono"
+msgstr "已处理"
+
+msgid "To nie jest problem adresów odbiorców, tylko reputacji serwera poczty – zgłoś to operatorowi platformy (wniosek o zdjęcie blokady w Microsoft)."
+msgstr "这不是收件人地址的问题，而是邮件服务器信誉的问题——请报告平台运营方（向微软申请解除封锁）。"
+
+msgid "Zakolejkowano"
+msgstr "已排队"
+
+msgid "Pominięto (adres niedoręczalny)"
+msgstr "已跳过（无法投递的地址）"
+
+msgid "Odbite po wysyłce"
+msgstr "发送后退回"
+
+msgid "Grupy domen"
+msgstr "域名组"
+
+msgid "Domena"
+msgstr "域名"
+
+msgid "Pominięto"
+msgstr "已跳过"
+
+msgid "Adres nie istnieje"
+msgstr "地址不存在"
+
+msgid "Polityka serwera"
+msgstr "服务器策略"
+
+msgid "w tym S3150"
+msgstr "其中 S3150"
+
+msgid "Tymczasowe i inne"
+msgstr "临时及其他"
+
+msgid "Wysłane / odbite"
+msgstr "已发送 / 已退回"
+
+msgid "Razem"
+msgstr "合计"
+
+msgid "Górny słupek – listy zakolejkowane, dolny – odbite; oba w tej samej skali. Odbicia przychodzą przez kilka dni po wysyłce (serwery ponawiają doręczenie), więc liczby mogą jeszcze rosnąć."
+msgstr "上方条形为已排队的邮件，下方为退回的邮件，两者比例相同。退信会在发送后数天内陆续到达（服务器会重试投递），因此数字可能仍会增长。"
+
+msgid "Odbite adresy"
+msgstr "退回的地址"
+
+msgid "Adres"
+msgstr "地址"
+
+msgid "Rodzaj"
+msgstr "类型"
+
+msgid "Kod"
+msgstr "代码"
+
+msgid "Powód (odpowiedź serwera odbiorcy)"
+msgstr "原因（收件服务器响应）"
+
+msgid "Kiedy"
+msgstr "时间"
+
+msgid "Żaden list tego komunikatu nie wrócił."
+msgstr "此消息没有任何邮件被退回。"
+
+#, python-format
+msgid "Listy odrzucone przez Microsoft z powodu blokady adresu IP serwera (S3150): %(n)s."
+msgstr "因服务器 IP 地址被封锁而被微软拒收的邮件（S3150）：%(n)s。"
+
+#, python-format
+msgid "Pokazano pierwsze %(n)s adresów – pełne liczby są w tabeli powyżej."
+msgstr "仅显示前 %(n)s 个地址——完整数字见上表。"
+
+msgid "Lejek uczestnika"
+msgstr "参赛者漏斗"
+
+msgid "panel koordynatora"
+msgstr "协调员面板"
+
+msgid "Ilu uczestników przechodzi kolejne kroki – od rejestracji, przez aktywację konta i zapis do etapu, do pierwszej pracy, zaświadczenia i warsztatów."
+msgstr "有多少参赛者完成各个步骤——从注册、账户激活和报名阶段，到首次提交作品、证明和工作坊。"
+
+msgid "Liczby dotyczą uczestników wybranej edycji: zapisanych do jej etapu albo zarejestrowanych w czasie jej trwania. Konta usunięte nie są liczone."
+msgstr "数字涉及所选届次的参赛者：报名其某一阶段或在其期间注册的人。已删除的账户不计入。"
+
+msgid "Eksport CSV"
+msgstr "导出 CSV"
+
+msgid "Ten konkurs nie ma jeszcze żadnej edycji."
+msgstr "本竞赛尚无届次。"
+
+msgid "Filtry lejka"
+msgstr "漏斗筛选"
+
+msgid "Edycja"
+msgstr "届次"
+
+msgid "Pokaż"
+msgstr "显示"
+
+msgid "Wyczyść filtry"
+msgstr "清除筛选"
+
+msgid "Kroki lejka"
+msgstr "漏斗步骤"
+
+msgid "Krok"
+msgstr "步骤"
+
+msgid "Uczestnicy"
+msgstr "参赛者"
+
+msgid "względem poprzedniego kroku"
+msgstr "相对上一步"
+
+msgid "względem rejestracji"
+msgstr "相对注册数"
+
+msgid "brak takiego etapu w tej edycji"
+msgstr "本届没有该阶段"
+
+msgid "Lejek ścisły: krok liczy osoby, które przeszły także wszystkie poprzednie kroki. Wiersze „w tym” rozbijają zapis do etapu i liczą się względem kroku zgód."
+msgstr "严格漏斗：每一步只统计也通过了之前所有步骤的人。“其中”行细分阶段报名，并相对于同意步骤计算。"
+
+msgid "Kroki niezależne: każdy krok liczy wszystkich, którzy spełniają jego warunek – także bez poprzednich kroków (np. obecni na warsztacie bez zaakceptowanego zaświadczenia)."
+msgstr "独立步骤：每一步统计满足其条件的所有人——即使未完成之前的步骤（例如参加了工作坊但证明未被接受）。"
+
+msgid "Zgoda opiekuna jest wymagana od niepełnoletnich według tej samej reguły wieku, co przy rejestracji."
+msgstr "未成年人需要监护人同意，年龄规则与注册时相同。"
+
+msgid "Gdzie odpadają – najniższa aktywacja kont"
+msgstr "流失之处——账户激活率最低"
+
+msgid "Województwa"
+msgstr "省份"
+
+msgid "Województwa – najniższa aktywacja"
+msgstr "省份——激活率最低"
+
+msgid "Szkoły"
+msgstr "学校"
+
+msgid "Szkoły – najniższa aktywacja"
+msgstr "学校——激活率最低"
+
+#, python-format
+msgid "Województwa i szkoły z co najmniej %(k)s rejestracjami, od najniższego odsetka aktywowanych kont."
+msgstr "注册数至少为 %(k)s 的省份和学校，按已激活账户比例从低到高排列。"
+
+msgid "Pominięte"
+msgstr "已跳过"
+
+msgid "Odbite"
+msgstr "已退回"
+
+msgid "Raport"
+msgstr "报告"
+
+msgid "odrzucone przez Microsoft (S3150)"
+msgstr "被微软拒收（S3150）"
+
+msgid "Gmail"
+msgstr "Gmail"
+
+msgid "WP / O2 / Onet / Interia"
+msgstr "WP / O2 / Onet / Interia"
+
+msgid "Microsoft (Outlook, Hotmail, Live)"
+msgstr "Microsoft (Outlook, Hotmail, Live)"
+
+msgid "szkolne (edu)"
+msgstr "学校（edu）"
+
+msgid "inne"
+msgstr "其他"
+
+msgid "wszystkie"
+msgstr "全部"
+
+msgid "Województwo / region"
+msgstr "省份 / 地区"
+
+msgid "Szkoła"
+msgstr "学校"
+
+msgid "Domena adresu e-mail"
+msgstr "电子邮件地址域名"
+
+msgid "Rejestracja od"
+msgstr "注册起始"
+
+msgid "Rejestracja do"
+msgstr "注册截止"
+
+msgid "Sposób liczenia"
+msgstr "计算方式"
+
+msgid "Początek okresu rejestracji jest późniejszy niż jego koniec."
+msgstr "注册期的开始晚于结束。"
+
+msgid "lejek ścisły – krok wymaga wszystkich poprzednich"
+msgstr "严格漏斗——每一步都要求完成之前所有步骤"
+
+msgid "kroki niezależne"
+msgstr "独立步骤"
+
+msgid "Rejestracja (profil uczestnika)"
+msgstr "注册（参赛者资料）"
+
+msgid "Aktywacja konta (potwierdzony adres e-mail)"
+msgstr "账户激活（已确认电子邮件地址）"
+
+msgid "Pierwsze logowanie"
+msgstr "首次登录"
+
+msgid "Zgody (w tym zgoda opiekuna niepełnoletniego)"
+msgstr "同意（含未成年人监护人同意）"
+
+msgid "Zapis do etapu edycji"
+msgstr "报名本届某一阶段"
+
+msgid "w tym etap treningowy"
+msgstr "其中训练阶段"
+
+msgid "w tym Etap I"
+msgstr "其中第一阶段"
+
+msgid "Pierwsza wysłana praca"
+msgstr "首次提交作品"
+
+msgid "Zaświadczenie o statusie ucznia zaakceptowane"
+msgstr "学生身份证明已接受"
+
+msgid "Obecność na co najmniej jednym warsztacie"
+msgstr "至少参加一次工作坊"
+
+msgid "brak szkoły"
+msgstr "无学校"
+
+msgid "nazwa wpisana ręcznie"
+msgstr "手动输入的名称"
+
+msgid "brak województwa"
+msgstr "无省份"
+
+msgid "Filtry"
+msgstr "筛选"
+
+msgid "Lejek"
+msgstr "漏斗"
+
+msgid "Sekcja"
+msgstr "部分"
+
+msgid "Pozycja"
+msgstr "项目"
+
+msgid "Liczba"
+msgstr "数量"
+
+msgid "Odsetek względem poprzedniego kroku (%)"
+msgstr "相对上一步的比例（%）"
+
+msgid "Odsetek względem rejestracji (%)"
+msgstr "相对注册数的比例（%）"

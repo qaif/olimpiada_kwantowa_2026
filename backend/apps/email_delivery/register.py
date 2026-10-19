@@ -39,14 +39,20 @@ def activity():
             "(np. „550 5.1.1 user unknown”), liczba odbić twardych i miękkich, data ostatniego zdarzenia",
             "zawiadomienie o niedoręczeniu (z kopią wysłanego listu) jest czytane i kasowane w ciągu "
             "kilku minut – jego treść nie jest zapisywana",
+            "odbicia listów komunikatów grupowych (STATS-02): adres, komunikat, rodzaj odbicia (także "
+            "odrzucenie z powodu polityki serwera odbiorcy, np. blokada Microsoft S3150), kod i skrócony "
+            "powód; liczba listów zakolejkowanych, pominiętych i odbitych w grupach domen (bez adresów)",
         ],
         recipients=[
             HOSTING_RECIPIENT,
             "koordynator konkursu – lista kont tego konkursu z niedoręczalnym adresem (ekran i CSV)",
+            "koordynator konkursu – lista adresów odbitych przy komunikacie tego konkursu (raport wysyłki)",
         ],
         retention=(
             f"do zmiany adresu konta, potwierdzenia adresu przez właściciela albo koordynatora, usunięcia "
-            f"konta – najdłużej {RETENTION_DAYS} dni od ostatniego zdarzenia (kasowanie automatyczne)"
+            f"konta – najdłużej {RETENTION_DAYS} dni od ostatniego zdarzenia (kasowanie automatyczne); "
+            f"odbicia przy komunikatach – {RETENTION_DAYS} dni od ostatniego odbicia albo do zmiany "
+            f"lub usunięcia adresu konta, liczniki bez adresów – razem z komunikatem"
         ),
         measures=[
             "funkcja działa wyłącznie przy włączonym przełączniku instalacji ``EMAIL_BOUNCE_TRACKING``",

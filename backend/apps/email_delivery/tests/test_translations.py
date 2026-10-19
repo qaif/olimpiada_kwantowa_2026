@@ -29,9 +29,16 @@ def test_messages_are_translated(language):
             translation.gettext("Czy chodziło Ci o %s?"),
             str(field.error_messages["email_typo"]),
             str(field.error_messages["no_mail"]),
+            str(field.error_messages["email_incomplete"]),
+            translation.gettext("Popraw na %(address)s"),
+            translation.gettext("Tak, adres %(address)s jest poprawny"),
         ]
     assert "Nie możemy" not in texts[0] and "%(email)s" in texts[0]
     assert texts[1] != "Mój adres jest poprawny"
     assert texts[2] != "Czy chodziło Ci o %s?" and "%s" in texts[2]
     assert "%(suggestion)s" in texts[3] and not texts[3].startswith("Sprawdź")
     assert "%(domain)s" in texts[4] and not texts[4].startswith("Domena")
+    # REG-UX-01 § 1.2: przyciski „Popraw” / „Tak, adres jest poprawny” i błąd adresu bez kropki.
+    assert "%(suggestion)s" in texts[5] and not texts[5].startswith("Adres")
+    assert "%(address)s" in texts[6] and not texts[6].startswith("Popraw")
+    assert "%(address)s" in texts[7] and not texts[7].startswith("Tak")

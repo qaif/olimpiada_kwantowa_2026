@@ -257,6 +257,10 @@ class StageEditView(CoordinatorRequiredMixin, View):
             "has_submissions": stage_has_submissions(stage),
             "has_bookings": stage_has_interview_bookings(stage),
         }
+        # Blok „Zapis do treningu” (REG-UX-01 § 3.3) – tylko etap treningowy, osobny moduł widoków.
+        from .coordinator_training import training_context
+
+        context.update(training_context(stage))
         return TemplateResponse(request, self.template_name, context, status=status)
 
 

@@ -760,6 +760,13 @@ def groups(stages: list, competition=None) -> list[Group]:
             ),
         )
     reports += (
+        # Lejek uczestnika (STATS-02, lista organizatora z 18.10.2026) – bez flagi, jak ekrany zamówione
+        # dla Konkursu #1; eksport CSV ma własną nazwę adresu z tym samym przedrostkiem.
+        Item(
+            "Lejek uczestnika",
+            ("web:coordinator-stats-funnel",),
+            match=("coordinator-stats-funnel", "coordinator-stats-funnel-"),
+        ),
         Item(
             "Zaświadczenia opiekunów",
             ("web:coordinator-supervisors",),
@@ -773,7 +780,18 @@ def groups(stages: list, competition=None) -> list[Group]:
         ),
     )
     communication: tuple[Item, ...] = (
-        Item("Komunikaty", ("web:coordinator-messages",), match=("coordinator-messages",)),
+        # „coordinator-messages-” – raport wysyłki komunikatu (STATS-02) podświetla tę samą pozycję.
+        Item(
+            "Komunikaty",
+            ("web:coordinator-messages",),
+            match=("coordinator-messages", "coordinator-messages-"),
+        ),
+        # Automatyczne przypomnienia (MSG-AUTO-01) – reguły, z których powstają komunikaty planowane.
+        Item(
+            "Automatyczne przypomnienia",
+            ("web:coordinator-message-rules",),
+            match=("coordinator-message-rules", "coordinator-message-rule-"),
+        ),
         # Ekrany budowane równolegle: kolejka zgłoszeń od ludzi i ogłoszenia serwisu.
         # Nazwa adresu jest tu **przewidywana**, więc każda pozycja ma kilku kandydatów
         # i znika z menu, dopóki żaden z nich nie istnieje w urlconfie.

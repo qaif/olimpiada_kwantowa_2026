@@ -9,7 +9,9 @@ Kształt testu jest ten sam, co w ``accounts/tests/test_migration_memberships_ba
 przewija raz na moduł fikstura w transakcji wycofywanej na końcu modułu
 (``apps/core/tests/migration_helpers.py``). Historycznych modeli nie używamy świadomie –
 ``0019`` dokłada wyłącznie kolumnę, więc na tym stanie prawdziwe klasy opisują bazę tak samo,
-a czytają się lepiej.
+a czytają się lepiej. Wyjątkiem jest etap: od ``competitions.0035`` ma kolumnę, której tabela
+z ``0019`` nie zna, więc zakłada go ``RewoundStageFactory`` (wiersz modelem zastosowanych migracji,
+obiekt prawdziwą klasą z odroczoną kolumną).
 """
 
 import importlib
@@ -19,7 +21,12 @@ from django.apps import apps as django_apps
 from django.db import connection
 
 from apps.competitions.models import Edition
-from apps.core.tests.migration_helpers import applied_state_model, migrate_to, rewound_database
+from apps.core.tests.migration_helpers import (
+    applied_state_model,
+    migrate_to,
+    rewound_database,
+    rewound_factory,
+)
 from apps.tenancy.models import Competition
 
 from .factories import EditionFactory, StageFactory
@@ -29,6 +36,10 @@ AFTER = ("competitions", "0020_backfill_edition_competition")
 
 #: Nazwa modułu zaczyna się od cyfry, więc ``from … import …`` jest tu składniowo niemożliwe.
 backfill = importlib.import_module(f"apps.competitions.migrations.{AFTER[1]}")
+
+#: Etap w tabeli z ``0019``, która nie zna kolumn dołożonych później (``competitions.0035``):
+#: wiersz modelem zastosowanych migracji, obiekt prawdziwą klasą (``migration_helpers.rewound_factory``).
+RewoundStageFactory = rewound_factory(StageFactory)
 
 
 @pytest.fixture(scope="module")
@@ -46,14 +57,16 @@ def before_backfill(django_db_setup, django_db_blocker):
 def test_the_backfill_assigns_every_edition_to_competition_one(before_backfill):
     """Baza jednokonkursowa: wszystko, co w niej stoi, należy do jedynego konkursu."""
     competition = before_backfill
-    stage = StageFactory(competition=None)
+    stage = RewoundStageFactory(competition=None)
     Edition.objects.filter(pk=stage.edition_id).update(competition=None)
 
     migrate_to(AFTER)
 
     assert Edition.objects.get(pk=stage.edition_id).competition_id == competition.pk
     # Etap nie ma własnej kolumny i mieć nie będzie – i właśnie dlatego jest już zakresowany.
-    assert list(stage.__class__.objects.for_competition(competition)) == [stage]
+    assert list(stage.__class__.objects.for_competition(competition).values_list("pk", flat=True)) == [
+        stage.pk
+    ]
 
 
 @pytest.mark.django_db

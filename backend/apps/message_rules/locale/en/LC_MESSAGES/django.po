@@ -1,0 +1,293 @@
+# English - tlumaczenie automatycznych przypomnien (docs/tasks/MSG-AUTO-01.md).
+# Zrodlem (msgid) jest polski. UWAGA: tlumaczenie MASZYNOWE - do przegladu native speakera.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Olimpiada Kwantowa - message_rules\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-18 12:00+0200\n"
+"PO-Revision-Date: 2026-10-18 12:00+0200\n"
+"Last-Translator: Olimpiada Kwantowa\n"
+"Language-Team: English\n"
+"Language: en\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Temat (szablon)"
+msgstr "Subject (template)"
+
+msgid "Treść (szablon)"
+msgstr "Body (template)"
+
+msgid "Nazwa reguły"
+msgstr "Rule name"
+
+msgid "Reguła włączona"
+msgstr "Rule enabled"
+
+msgid "Moment wysyłki"
+msgstr "When to send"
+
+msgid "Ile dni przed"
+msgstr "Days before"
+
+msgid "0 = w dniu warsztatu. Kilka liczb rozdziel przecinkami, np. 30, 7, 1."
+msgstr "0 = on the day of the workshop. Separate several numbers with commas, e.g. 30, 7, 1."
+
+msgid "Godzina wysyłki (czas polski)"
+msgstr "Sending time (Polish time)"
+
+msgid "Ile godzin przed początkiem warsztatu"
+msgstr "Hours before the workshop starts"
+
+msgid "Tylko przy „N godzin przed początkiem”; początek to pierwsza godzina z kolumny „godziny”."
+msgstr "Only with “N hours before the start”; the start is the first time in the “hours” column."
+
+msgid "Link (pole {link})"
+msgstr "Link (field {link})"
+
+msgid "Np. stały link spotkania Google Meet albo adres strony etapu."
+msgstr "E.g. a permanent Google Meet link or the address of the stage page."
+
+#, python-format
+msgid "Pola do wstawienia: %(names)s."
+msgstr "Fields you can insert: %(names)s."
+
+msgid "Etap (termin zgłaszania)"
+msgstr "Stage (submission deadline)"
+
+msgid "Dni przed terminem etapu, rozdzielone przecinkami; 0 = w dniu terminu."
+msgstr "Days before the stage deadline, separated by commas; 0 = on the deadline day."
+
+msgid "Podaj liczbę godzin przed początkiem warsztatu."
+msgstr "Enter the number of hours before the workshop starts."
+
+msgid "Wpisz liczby dni rozdzielone przecinkami, np. 30, 7, 1."
+msgstr "Enter numbers of days separated by commas, e.g. 30, 7, 1."
+
+#, python-format
+msgid "Najwyżej %(days)s dni przed."
+msgstr "At most %(days)s days before."
+
+msgid "Szablon używa pola {link}, a pole „Link” jest puste."
+msgstr "The template uses the {link} field, but the “Link” field is empty."
+
+#, python-format
+msgid "Nieznane pola szablonu: %(unknown)s. Dozwolone: %(allowed)s."
+msgstr "Unknown template fields: %(unknown)s. Allowed: %(allowed)s."
+
+msgid "Reguła nie ma etapu – etap usunięto albo nie wybrano go."
+msgstr "The rule has no stage – the stage was deleted or not selected."
+
+#, python-format
+msgid "Etap „%(stage)s” nie ma terminu do przypomnienia."
+msgstr "Stage “%(stage)s” has no deadline to remind about."
+
+#, python-format
+msgid "„%(topic)s” – bez daty w harmonogramie"
+msgstr "“%(topic)s” – no date in the schedule"
+
+#, python-format
+msgid "„%(topic)s” – odwołany"
+msgstr "“%(topic)s” – cancelled"
+
+#, python-format
+msgid "„%(topic)s” – brak godziny początku"
+msgstr "“%(topic)s” – no start time"
+
+msgid "zostanie zaplanowany w ciągu kilku minut"
+msgstr "will be scheduled within a few minutes"
+
+#, python-format
+msgid "przypomnienie automatyczne „%(name)s”"
+msgstr "automatic reminder “%(name)s”"
+
+msgid "reguła wyłączona – nie zostanie zaplanowany"
+msgstr "rule disabled – will not be scheduled"
+
+msgid "za blisko terminu – nie zostanie wysłany"
+msgstr "too close to the time – will not be sent"
+
+msgid "Reguły przypomnień zmienia wyłącznie koordynator tego konkursu."
+msgstr "Only a coordinator of this competition can change reminder rules."
+
+msgid "Ta grupa odbiorców nie nadaje się do przypomnień automatycznych."
+msgstr "This recipient group cannot be used for automatic reminders."
+
+msgid "obsłużone"
+msgstr "handled"
+
+msgid "zaplanowany – widać go w „Komunikaty → Zaplanowane”"
+msgstr "scheduled – visible in “Messages → Scheduled”"
+
+msgid "anulowany – nie zostanie wygenerowany ponownie"
+msgstr "cancelled – will not be generated again"
+
+#, python-format
+msgid "zostanie zaplanowany %(when)s"
+msgstr "will be scheduled on %(when)s"
+
+msgid "Wybierz etap tego konkursu."
+msgstr "Choose a stage of this competition."
+
+msgid "„N godzin przed” działa wyłącznie dla warsztatów i wymaga liczby godzin."
+msgstr "“N hours before” works only for workshops and needs a number of hours."
+
+msgid "Podaj przynajmniej jedną liczbę dni przed wydarzeniem."
+msgstr "Enter at least one number of days before the event."
+
+msgid "Generowanie nie powiodło się – ponowimy za kilka minut."
+msgstr "Generation failed – we will retry in a few minutes."
+
+#, python-format
+msgid "Nieznane pole reguły: %(name)s."
+msgstr "Unknown rule field: %(name)s."
+
+#, python-format
+msgid "Zaplanowano komunikatów: %(created)s, wycofano nieaktualnych: %(withdrawn)s. Zobacz „Komunikaty → Zaplanowane”."
+msgstr "Messages scheduled: %(created)s, outdated ones withdrawn: %(withdrawn)s. See “Messages → Scheduled”."
+
+#, python-format
+msgid "Nie udało się zaplanować przypomnienia: %(error)s"
+msgstr "The reminder could not be scheduled: %(error)s"
+
+msgid "Nie ma takiej reguły."
+msgstr "There is no such rule."
+
+msgid "Nieznany rodzaj reguły."
+msgstr "Unknown rule type."
+
+#, python-format
+msgid "Reguła „%(name)s” zapisana."
+msgstr "Rule “%(name)s” saved."
+
+msgid "Nic się nie zmieniło."
+msgstr "Nothing has changed."
+
+#, python-format
+msgid "Reguła „%(name)s” usunięta; wycofane komunikaty: %(count)s."
+msgstr "Rule “%(name)s” deleted; messages withdrawn: %(count)s."
+
+#, python-format
+msgid "Zmiany w regule „%(name)s” zapisane."
+msgstr "Changes to rule “%(name)s” saved."
+
+#, python-format
+msgid "Reguła „%(name)s” włączona."
+msgstr "Rule “%(name)s” enabled."
+
+#, python-format
+msgid "Reguła „%(name)s” wyłączona – jej czekające komunikaty zostały wycofane."
+msgstr "Rule “%(name)s” disabled – its pending messages have been withdrawn."
+
+msgid "Nowa reguła"
+msgstr "New rule"
+
+msgid "Automatyczne przypomnienia"
+msgstr "Automatic reminders"
+
+msgid "Wróć do listy reguł"
+msgstr "Back to the list of rules"
+
+msgid "Warsztaty pochodzą z tabeli harmonogramu na stronie „Warsztaty” (/warsztaty/). Wiersz bez daty albo z dopiskiem „odwołane” jest pomijany, a komunikat już zaplanowany dla takiego wiersza – wycofywany."
+msgstr "Workshops come from the schedule table on the “Workshops” page (/warsztaty/). A row without a date or marked “cancelled” is skipped, and a message already scheduled for such a row is withdrawn."
+
+msgid "Termin to „deadline oddania” wybranego etapu (czas polski). Grupa „zapisani do etapu, bez wysłanej pracy” jest liczona w chwili wysyłki – kto zdąży wysłać pracę, listu nie dostanie."
+msgstr "The deadline is the “submission deadline” of the selected stage (Polish time). The group “registered for the stage, no work submitted” is computed at sending time – whoever submits in time will not get the email."
+
+msgid "Podgląd"
+msgstr "Preview"
+
+msgid "Zapisz"
+msgstr "Save"
+
+msgid "Najbliższe wysyłki"
+msgstr "Upcoming sends"
+
+msgid "Komunikat powstaje do 7 dni przed wysyłką i od tej chwili stoi w „Komunikaty → Zaplanowane”, gdzie można go anulować. Odbiorców policzymy w chwili wysyłki."
+msgstr "The message is created up to 7 days before sending and from then on it is listed in “Messages → Scheduled”, where it can be cancelled. Recipients are counted at sending time."
+
+msgid "Temat:"
+msgstr "Subject:"
+
+msgid "Brak nadchodzących wysyłek"
+msgstr "No upcoming sends"
+
+msgid "Reguła nie ma teraz żadnego wydarzenia w przyszłości."
+msgstr "The rule has no future event right now."
+
+msgid "Pominięte:"
+msgstr "Skipped:"
+
+msgid "Automatyczne przypomnienia – panel koordynatora"
+msgstr "Automatic reminders – coordinator panel"
+
+msgid "Reguła zamienia harmonogram warsztatów albo termin etapu w komunikaty planowane – do tygodnia przed wysyłką. Każdy taki komunikat zobaczysz i anulujesz w"
+msgstr "A rule turns the workshop schedule or a stage deadline into scheduled messages – up to a week before sending. You will see and can cancel each such message in"
+
+msgid "Komunikaty → Zaplanowane"
+msgstr "Messages → Scheduled"
+
+msgid "Dodaj: przypomnienie o warsztatach"
+msgstr "Add: workshop reminder"
+
+msgid "Dodaj: przypomnienie przed terminem etapu"
+msgstr "Add: reminder before a stage deadline"
+
+msgid "Reguły"
+msgstr "Rules"
+
+msgid "Nazwa"
+msgstr "Name"
+
+msgid "Rodzaj"
+msgstr "Type"
+
+msgid "Grupa"
+msgstr "Group"
+
+msgid "Kiedy"
+msgstr "When"
+
+msgid "Stan"
+msgstr "Status"
+
+msgid "Akcje"
+msgstr "Actions"
+
+msgid "włączona"
+msgstr "enabled"
+
+msgid "wyłączona"
+msgstr "disabled"
+
+msgid "Ostatni błąd:"
+msgstr "Last error:"
+
+msgid "Edytuj i podgląd"
+msgstr "Edit and preview"
+
+msgid "Wyłącz"
+msgstr "Disable"
+
+msgid "Włącz"
+msgstr "Enable"
+
+msgid "Usuń"
+msgstr "Delete"
+
+msgid "Nie ma jeszcze żadnej reguły."
+msgstr "There are no rules yet."
+
+msgid "Usunąć tę regułę? Jej czekające komunikaty zostaną wycofane; wysłane zostają w historii."
+msgstr "Delete this rule? Its pending messages will be withdrawn; sent ones stay in the history."
+
+#, python-format
+msgid "%(hours)s godz. przed początkiem"
+msgstr "%(hours)s h before the start"
+
+#, python-format
+msgid "dni przed: %(days)s, o %(time)s"
+msgstr "days before: %(days)s, at %(time)s"

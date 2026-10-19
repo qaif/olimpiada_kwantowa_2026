@@ -1,0 +1,77 @@
+{% extends "web/coordinator/base.html" %}
+{% load i18n static web_extras coordinator_extras %}
+{% comment %}
+  Reguła przypomnienia (MSG-AUTO-01): formularz i podgląd trzech najbliższych wysyłek.
+
+  Pola grupy odbiorców są tymi samymi polami, co na ekranie komunikatów (``RuleForm`` dziedziczy
+  z ``BroadcastForm``) i tak samo dostają punkt zaczepienia ``data-broadcast-param`` dla skryptu
+  ``broadcast-groups.js``, który chowa pola nienależące do wybranej grupy. Bez JavaScriptu widać
+  wszystkie pola – serwer bierze pod uwagę wyłącznie pole wybranej grupy.
+
+  „Podgląd” niczego nie zapisuje: liczy wystąpienia z danych formularza i wypełnia szablon.
+{% endcomment %}
+{% block title %}{% if rule %}{{ rule.name }}{% else %}{% translate "Nowa reguła" %}{% endif %} – {% translate "Automatyczne przypomnienia" %}{% endblock %}
+{% block panel_head %}<link rel="stylesheet" href="{% static 'css/coordinator-tools.css' %}">{% endblock %}
+{% block panel_title %}{% if rule %}{{ rule.name }}{% else %}{% translate "Nowa reguła" %}{% endif %}{% endblock %}
+{% block panel_lead %}
+  <p class="lead">{{ kind_label|capfirst }}.
+    <a href="{% url 'web:coordinator-message-rules' %}">{% translate "Wróć do listy reguł" %}</a></p>
+{% endblock %}
+{% block panel_content %}
+
+<section class="section">
+  <div class="card">
+    <form method="post" class="form" data-broadcast-form
+          action="{% if rule %}{% url 'web:coordinator-message-rule-edit' rule.pk %}{% else %}{% url 'web:coordinator-message-rule-create' %}{% endif %}">
+      {% csrf_token %}
+      {% if not rule %}<input type="hidden" name="kind" value="{% if kind == 'WORKSHOP' %}workshop{% else %}stage{% endif %}">{% endif %}
+      {{ form.non_field_errors }}
+      {% for field in form %}
+        <div class="field"{% if field.name in parameter_fields %} data-broadcast-param="{{ field.name }}"{% endif %}>
+          {{ field.as_field_group }}
+        </div>
+      {% endfor %}
+      {{ parameter_map|json_script:"broadcast-parameters" }}
+      {% if kind == "WORKSHOP" %}
+        <p class="hint">{% translate "Warsztaty pochodzą z tabeli harmonogramu na stronie „Warsztaty” (/warsztaty/). Wiersz bez daty albo z dopiskiem „odwołane” jest pomijany, a komunikat już zaplanowany dla takiego wiersza – wycofywany." %}</p>
+      {% else %}
+        <p class="hint">{% translate "Termin to „deadline oddania” wybranego etapu (czas polski). Grupa „zapisani do etapu, bez wysłanej pracy” jest liczona w chwili wysyłki – kto zdąży wysłać pracę, listu nie dostanie." %}</p>
+      {% endif %}
+      <div class="actions">
+        <button type="submit" name="action" value="preview" class="btn btn--secondary">{% translate "Podgląd" %}</button>
+        <button type="submit" name="action" value="save" class="btn btn--primary">{% translate "Zapisz" %}</button>
+      </div>
+    </form>
+  </div>
+</section>
+
+{% if preview %}
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">{% translate "Najbliższe wysyłki" %}</h2>
+    <p class="hint">{% translate "Komunikat powstaje do 7 dni przed wysyłką i od tej chwili stoi w „Komunikaty → Zaplanowane”, gdzie można go anulować. Odbiorców policzymy w chwili wysyłki." %}</p>
+  </div>
+  {% for item in preview.items %}
+    <article class="card card--quiet">
+      <div class="card__head">
+        <h3 class="card__title">{{ item.occurrence.send_at|local_datetime }} – {{ item.occurrence.label }}</h3>
+        <span class="badge">{{ item.state }}</span>
+      </div>
+      <p><strong>{% translate "Temat:" %}</strong> {{ item.occurrence.subject }}</p>
+      <pre class="mail-preview">{{ item.occurrence.body }}</pre>
+    </article>
+  {% empty %}
+    <div class="empty">
+      <span class="empty__title">{% translate "Brak nadchodzących wysyłek" %}</span>
+      <p class="empty__text">{% translate "Reguła nie ma teraz żadnego wydarzenia w przyszłości." %}</p>
+    </div>
+  {% endfor %}
+  {% if preview.skipped %}
+    <p class="hint">{% translate "Pominięte:" %} {{ preview.skipped|join:"; " }}</p>
+  {% endif %}
+</section>
+{% endif %}
+{% endblock %}
+{% block page_scripts %}
+  <script defer nonce="{{ request.csp_nonce }}" src="{% static 'js/broadcast-groups.js' %}"></script>
+{% endblock %}

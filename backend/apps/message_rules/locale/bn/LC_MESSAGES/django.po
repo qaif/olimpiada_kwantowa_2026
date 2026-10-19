@@ -1,0 +1,293 @@
+# Bengali - tlumaczenie automatycznych przypomnien (docs/tasks/MSG-AUTO-01.md).
+# Zrodlem (msgid) jest polski. UWAGA: tlumaczenie MASZYNOWE - do przegladu native speakera.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Olimpiada Kwantowa - message_rules\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-18 12:00+0200\n"
+"PO-Revision-Date: 2026-10-18 12:00+0200\n"
+"Last-Translator: Olimpiada Kwantowa\n"
+"Language-Team: Bengali\n"
+"Language: bn\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Temat (szablon)"
+msgstr "বিষয় (টেমপ্লেট)"
+
+msgid "Treść (szablon)"
+msgstr "বিষয়বস্তু (টেমপ্লেট)"
+
+msgid "Nazwa reguły"
+msgstr "নিয়মের নাম"
+
+msgid "Reguła włączona"
+msgstr "নিয়ম চালু"
+
+msgid "Moment wysyłki"
+msgstr "পাঠানোর সময়বিন্দু"
+
+msgid "Ile dni przed"
+msgstr "কত দিন আগে"
+
+msgid "0 = w dniu warsztatu. Kilka liczb rozdziel przecinkami, np. 30, 7, 1."
+msgstr "0 = কর্মশালার দিনে। একাধিক সংখ্যা কমা দিয়ে আলাদা করুন, যেমন 30, 7, 1।"
+
+msgid "Godzina wysyłki (czas polski)"
+msgstr "পাঠানোর সময় (পোল্যান্ডের সময়)"
+
+msgid "Ile godzin przed początkiem warsztatu"
+msgstr "কর্মশালা শুরুর কত ঘণ্টা আগে"
+
+msgid "Tylko przy „N godzin przed początkiem”; początek to pierwsza godzina z kolumny „godziny”."
+msgstr "শুধু “শুরুর N ঘণ্টা আগে”-এর সাথে; শুরু হলো “সময়” কলামের প্রথম সময়।"
+
+msgid "Link (pole {link})"
+msgstr "লিংক (ফিল্ড {link})"
+
+msgid "Np. stały link spotkania Google Meet albo adres strony etapu."
+msgstr "যেমন Google Meet-এর স্থায়ী লিংক বা পর্বের পৃষ্ঠার ঠিকানা।"
+
+#, python-format
+msgid "Pola do wstawienia: %(names)s."
+msgstr "যোগ করা যায় এমন ফিল্ড: %(names)s।"
+
+msgid "Etap (termin zgłaszania)"
+msgstr "পর্ব (জমা দেওয়ার শেষ সময়)"
+
+msgid "Dni przed terminem etapu, rozdzielone przecinkami; 0 = w dniu terminu."
+msgstr "পর্বের শেষ সময়ের আগের দিন, কমা দিয়ে আলাদা; 0 = শেষ দিনে।"
+
+msgid "Podaj liczbę godzin przed początkiem warsztatu."
+msgstr "কর্মশালা শুরুর আগের ঘণ্টার সংখ্যা লিখুন।"
+
+msgid "Wpisz liczby dni rozdzielone przecinkami, np. 30, 7, 1."
+msgstr "কমা দিয়ে আলাদা দিনের সংখ্যা লিখুন, যেমন 30, 7, 1।"
+
+#, python-format
+msgid "Najwyżej %(days)s dni przed."
+msgstr "সর্বোচ্চ %(days)s দিন আগে।"
+
+msgid "Szablon używa pola {link}, a pole „Link” jest puste."
+msgstr "টেমপ্লেটে {link} ফিল্ড ব্যবহার হয়েছে, কিন্তু “লিংক” ফিল্ড খালি।"
+
+#, python-format
+msgid "Nieznane pola szablonu: %(unknown)s. Dozwolone: %(allowed)s."
+msgstr "অজানা টেমপ্লেট ফিল্ড: %(unknown)s। অনুমোদিত: %(allowed)s।"
+
+msgid "Reguła nie ma etapu – etap usunięto albo nie wybrano go."
+msgstr "নিয়মে কোনো পর্ব নেই – পর্ব মুছে ফেলা হয়েছে বা বাছাই করা হয়নি।"
+
+#, python-format
+msgid "Etap „%(stage)s” nie ma terminu do przypomnienia."
+msgstr "পর্ব “%(stage)s”-এর মনে করিয়ে দেওয়ার মতো কোনো শেষ সময় নেই।"
+
+#, python-format
+msgid "„%(topic)s” – bez daty w harmonogramie"
+msgstr "“%(topic)s” – সূচিতে তারিখ নেই"
+
+#, python-format
+msgid "„%(topic)s” – odwołany"
+msgstr "“%(topic)s” – বাতিল"
+
+#, python-format
+msgid "„%(topic)s” – brak godziny początku"
+msgstr "“%(topic)s” – শুরুর সময় নেই"
+
+msgid "zostanie zaplanowany w ciągu kilku minut"
+msgstr "কয়েক মিনিটের মধ্যে নির্ধারিত হবে"
+
+#, python-format
+msgid "przypomnienie automatyczne „%(name)s”"
+msgstr "স্বয়ংক্রিয় অনুস্মারক “%(name)s”"
+
+msgid "reguła wyłączona – nie zostanie zaplanowany"
+msgstr "নিয়ম বন্ধ – নির্ধারিত হবে না"
+
+msgid "za blisko terminu – nie zostanie wysłany"
+msgstr "সময়ের খুব কাছে – পাঠানো হবে না"
+
+msgid "Reguły przypomnień zmienia wyłącznie koordynator tego konkursu."
+msgstr "অনুস্মারকের নিয়ম শুধু এই প্রতিযোগিতার সমন্বয়ক বদলাতে পারেন।"
+
+msgid "Ta grupa odbiorców nie nadaje się do przypomnień automatycznych."
+msgstr "এই প্রাপক দল স্বয়ংক্রিয় অনুস্মারকের জন্য উপযুক্ত নয়।"
+
+msgid "obsłużone"
+msgstr "সম্পন্ন"
+
+msgid "zaplanowany – widać go w „Komunikaty → Zaplanowane”"
+msgstr "নির্ধারিত – “বার্তা → নির্ধারিত”-এ দেখা যায়"
+
+msgid "anulowany – nie zostanie wygenerowany ponownie"
+msgstr "বাতিল – আবার তৈরি হবে না"
+
+#, python-format
+msgid "zostanie zaplanowany %(when)s"
+msgstr "%(when)s-এ নির্ধারিত হবে"
+
+msgid "Wybierz etap tego konkursu."
+msgstr "এই প্রতিযোগিতার একটি পর্ব বাছুন।"
+
+msgid "„N godzin przed” działa wyłącznie dla warsztatów i wymaga liczby godzin."
+msgstr "“N ঘণ্টা আগে” শুধু কর্মশালার জন্য এবং ঘণ্টার সংখ্যা প্রয়োজন।"
+
+msgid "Podaj przynajmniej jedną liczbę dni przed wydarzeniem."
+msgstr "অনুষ্ঠানের আগের দিনের অন্তত একটি সংখ্যা লিখুন।"
+
+msgid "Generowanie nie powiodło się – ponowimy za kilka minut."
+msgstr "তৈরি ব্যর্থ হয়েছে – কয়েক মিনিট পরে আবার চেষ্টা করব।"
+
+#, python-format
+msgid "Nieznane pole reguły: %(name)s."
+msgstr "অজানা নিয়মের ফিল্ড: %(name)s।"
+
+#, python-format
+msgid "Zaplanowano komunikatów: %(created)s, wycofano nieaktualnych: %(withdrawn)s. Zobacz „Komunikaty → Zaplanowane”."
+msgstr "নির্ধারিত বার্তা: %(created)s, পুরোনো প্রত্যাহার: %(withdrawn)s। “বার্তা → নির্ধারিত” দেখুন।"
+
+#, python-format
+msgid "Nie udało się zaplanować przypomnienia: %(error)s"
+msgstr "অনুস্মারক নির্ধারণ করা যায়নি: %(error)s"
+
+msgid "Nie ma takiej reguły."
+msgstr "এমন কোনো নিয়ম নেই।"
+
+msgid "Nieznany rodzaj reguły."
+msgstr "অজানা নিয়মের ধরন।"
+
+#, python-format
+msgid "Reguła „%(name)s” zapisana."
+msgstr "নিয়ম “%(name)s” সংরক্ষিত।"
+
+msgid "Nic się nie zmieniło."
+msgstr "কিছুই বদলায়নি।"
+
+#, python-format
+msgid "Reguła „%(name)s” usunięta; wycofane komunikaty: %(count)s."
+msgstr "নিয়ম “%(name)s” মুছে ফেলা হয়েছে; প্রত্যাহার করা বার্তা: %(count)s।"
+
+#, python-format
+msgid "Zmiany w regule „%(name)s” zapisane."
+msgstr "নিয়ম “%(name)s”-এর পরিবর্তন সংরক্ষিত।"
+
+#, python-format
+msgid "Reguła „%(name)s” włączona."
+msgstr "নিয়ম “%(name)s” চালু করা হয়েছে।"
+
+#, python-format
+msgid "Reguła „%(name)s” wyłączona – jej czekające komunikaty zostały wycofane."
+msgstr "নিয়ম “%(name)s” বন্ধ – এর অপেক্ষমাণ বার্তা প্রত্যাহার করা হয়েছে।"
+
+msgid "Nowa reguła"
+msgstr "নতুন নিয়ম"
+
+msgid "Automatyczne przypomnienia"
+msgstr "স্বয়ংক্রিয় অনুস্মারক"
+
+msgid "Wróć do listy reguł"
+msgstr "নিয়মের তালিকায় ফিরুন"
+
+msgid "Warsztaty pochodzą z tabeli harmonogramu na stronie „Warsztaty” (/warsztaty/). Wiersz bez daty albo z dopiskiem „odwołane” jest pomijany, a komunikat już zaplanowany dla takiego wiersza – wycofywany."
+msgstr "কর্মশালাগুলো “কর্মশালা” পৃষ্ঠার (/warsztaty/) সূচি-সারণি থেকে আসে। তারিখহীন বা “বাতিল” চিহ্নিত সারি বাদ পড়ে, আর সেই সারির জন্য আগে নির্ধারিত বার্তা প্রত্যাহার করা হয়।"
+
+msgid "Termin to „deadline oddania” wybranego etapu (czas polski). Grupa „zapisani do etapu, bez wysłanej pracy” jest liczona w chwili wysyłki – kto zdąży wysłać pracę, listu nie dostanie."
+msgstr "শেষ সময় হলো বাছাই করা পর্বের “জমা দেওয়ার শেষ সময়” (পোল্যান্ডের সময়)। “পর্বে নিবন্ধিত, কাজ পাঠানো হয়নি” দলটি পাঠানোর সময় গণনা হয় – যে সময়মতো কাজ পাঠাবে সে ইমেল পাবে না।"
+
+msgid "Podgląd"
+msgstr "পূর্বরূপ"
+
+msgid "Zapisz"
+msgstr "সংরক্ষণ"
+
+msgid "Najbliższe wysyłki"
+msgstr "আসন্ন পাঠানো"
+
+msgid "Komunikat powstaje do 7 dni przed wysyłką i od tej chwili stoi w „Komunikaty → Zaplanowane”, gdzie można go anulować. Odbiorców policzymy w chwili wysyłki."
+msgstr "বার্তা পাঠানোর সর্বোচ্চ 7 দিন আগে তৈরি হয় এবং তখন থেকে “বার্তা → নির্ধারিত”-এ থাকে, যেখানে এটি বাতিল করা যায়। প্রাপক পাঠানোর সময় গণনা হয়।"
+
+msgid "Temat:"
+msgstr "বিষয়:"
+
+msgid "Brak nadchodzących wysyłek"
+msgstr "কোনো আসন্ন পাঠানো নেই"
+
+msgid "Reguła nie ma teraz żadnego wydarzenia w przyszłości."
+msgstr "এই মুহূর্তে নিয়মের কোনো ভবিষ্যৎ অনুষ্ঠান নেই।"
+
+msgid "Pominięte:"
+msgstr "বাদ পড়েছে:"
+
+msgid "Automatyczne przypomnienia – panel koordynatora"
+msgstr "স্বয়ংক্রিয় অনুস্মারক – সমন্বয়ক প্যানেল"
+
+msgid "Reguła zamienia harmonogram warsztatów albo termin etapu w komunikaty planowane – do tygodnia przed wysyłką. Każdy taki komunikat zobaczysz i anulujesz w"
+msgstr "নিয়ম কর্মশালার সূচি বা পর্বের শেষ সময়কে নির্ধারিত বার্তায় রূপান্তর করে – পাঠানোর এক সপ্তাহ আগে পর্যন্ত। এমন প্রতিটি বার্তা আপনি এখানে দেখতে ও বাতিল করতে পারবেন:"
+
+msgid "Komunikaty → Zaplanowane"
+msgstr "বার্তা → নির্ধারিত"
+
+msgid "Dodaj: przypomnienie o warsztatach"
+msgstr "যোগ করুন: কর্মশালার অনুস্মারক"
+
+msgid "Dodaj: przypomnienie przed terminem etapu"
+msgstr "যোগ করুন: পর্বের শেষ সময়ের আগে অনুস্মারক"
+
+msgid "Reguły"
+msgstr "নিয়ম"
+
+msgid "Nazwa"
+msgstr "নাম"
+
+msgid "Rodzaj"
+msgstr "ধরন"
+
+msgid "Grupa"
+msgstr "দল"
+
+msgid "Kiedy"
+msgstr "কখন"
+
+msgid "Stan"
+msgstr "অবস্থা"
+
+msgid "Akcje"
+msgstr "কাজ"
+
+msgid "włączona"
+msgstr "চালু"
+
+msgid "wyłączona"
+msgstr "বন্ধ"
+
+msgid "Ostatni błąd:"
+msgstr "শেষ ত্রুটি:"
+
+msgid "Edytuj i podgląd"
+msgstr "সম্পাদনা ও পূর্বরূপ"
+
+msgid "Wyłącz"
+msgstr "বন্ধ করুন"
+
+msgid "Włącz"
+msgstr "চালু করুন"
+
+msgid "Usuń"
+msgstr "মুছুন"
+
+msgid "Nie ma jeszcze żadnej reguły."
+msgstr "এখনো কোনো নিয়ম নেই।"
+
+msgid "Usunąć tę regułę? Jej czekające komunikaty zostaną wycofane; wysłane zostają w historii."
+msgstr "এই নিয়ম মুছবেন? এর অপেক্ষমাণ বার্তা প্রত্যাহার হবে; পাঠানো বার্তা ইতিহাসে থাকবে।"
+
+#, python-format
+msgid "%(hours)s godz. przed początkiem"
+msgstr "শুরুর %(hours)s ঘণ্টা আগে"
+
+#, python-format
+msgid "dni przed: %(days)s, o %(time)s"
+msgstr "দিন আগে: %(days)s, %(time)s-এ"

@@ -1,0 +1,293 @@
+# French - tlumaczenie automatycznych przypomnien (docs/tasks/MSG-AUTO-01.md).
+# Zrodlem (msgid) jest polski. UWAGA: tlumaczenie MASZYNOWE - do przegladu native speakera.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Olimpiada Kwantowa - message_rules\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-18 12:00+0200\n"
+"PO-Revision-Date: 2026-10-18 12:00+0200\n"
+"Last-Translator: Olimpiada Kwantowa\n"
+"Language-Team: French\n"
+"Language: fr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+
+msgid "Temat (szablon)"
+msgstr "Objet (modèle)"
+
+msgid "Treść (szablon)"
+msgstr "Contenu (modèle)"
+
+msgid "Nazwa reguły"
+msgstr "Nom de la règle"
+
+msgid "Reguła włączona"
+msgstr "Règle activée"
+
+msgid "Moment wysyłki"
+msgstr "Moment de l’envoi"
+
+msgid "Ile dni przed"
+msgstr "Jours avant"
+
+msgid "0 = w dniu warsztatu. Kilka liczb rozdziel przecinkami, np. 30, 7, 1."
+msgstr "0 = le jour de l’atelier. Séparez plusieurs nombres par des virgules, p. ex. 30, 7, 1."
+
+msgid "Godzina wysyłki (czas polski)"
+msgstr "Heure d’envoi (heure polonaise)"
+
+msgid "Ile godzin przed początkiem warsztatu"
+msgstr "Heures avant le début de l’atelier"
+
+msgid "Tylko przy „N godzin przed początkiem”; początek to pierwsza godzina z kolumny „godziny”."
+msgstr "Uniquement avec « N heures avant le début » ; le début est la première heure de la colonne « horaires »."
+
+msgid "Link (pole {link})"
+msgstr "Lien (champ {link})"
+
+msgid "Np. stały link spotkania Google Meet albo adres strony etapu."
+msgstr "P. ex. un lien Google Meet permanent ou l’adresse de la page de l’étape."
+
+#, python-format
+msgid "Pola do wstawienia: %(names)s."
+msgstr "Champs à insérer : %(names)s."
+
+msgid "Etap (termin zgłaszania)"
+msgstr "Étape (date limite de dépôt)"
+
+msgid "Dni przed terminem etapu, rozdzielone przecinkami; 0 = w dniu terminu."
+msgstr "Jours avant la date limite de l’étape, séparés par des virgules ; 0 = le jour de la date limite."
+
+msgid "Podaj liczbę godzin przed początkiem warsztatu."
+msgstr "Indiquez le nombre d’heures avant le début de l’atelier."
+
+msgid "Wpisz liczby dni rozdzielone przecinkami, np. 30, 7, 1."
+msgstr "Saisissez des nombres de jours séparés par des virgules, p. ex. 30, 7, 1."
+
+#, python-format
+msgid "Najwyżej %(days)s dni przed."
+msgstr "Au plus %(days)s jours avant."
+
+msgid "Szablon używa pola {link}, a pole „Link” jest puste."
+msgstr "Le modèle utilise le champ {link}, mais le champ « Lien » est vide."
+
+#, python-format
+msgid "Nieznane pola szablonu: %(unknown)s. Dozwolone: %(allowed)s."
+msgstr "Champs de modèle inconnus : %(unknown)s. Autorisés : %(allowed)s."
+
+msgid "Reguła nie ma etapu – etap usunięto albo nie wybrano go."
+msgstr "La règle n’a pas d’étape : elle a été supprimée ou n’a pas été choisie."
+
+#, python-format
+msgid "Etap „%(stage)s” nie ma terminu do przypomnienia."
+msgstr "L’étape « %(stage)s » n’a pas de date limite à rappeler."
+
+#, python-format
+msgid "„%(topic)s” – bez daty w harmonogramie"
+msgstr "« %(topic)s » – sans date dans le calendrier"
+
+#, python-format
+msgid "„%(topic)s” – odwołany"
+msgstr "« %(topic)s » – annulé"
+
+#, python-format
+msgid "„%(topic)s” – brak godziny początku"
+msgstr "« %(topic)s » – pas d’heure de début"
+
+msgid "zostanie zaplanowany w ciągu kilku minut"
+msgstr "sera planifié dans quelques minutes"
+
+#, python-format
+msgid "przypomnienie automatyczne „%(name)s”"
+msgstr "rappel automatique « %(name)s »"
+
+msgid "reguła wyłączona – nie zostanie zaplanowany"
+msgstr "règle désactivée – ne sera pas planifié"
+
+msgid "za blisko terminu – nie zostanie wysłany"
+msgstr "trop proche de l’heure – ne sera pas envoyé"
+
+msgid "Reguły przypomnień zmienia wyłącznie koordynator tego konkursu."
+msgstr "Seul un coordinateur de ce concours peut modifier les règles de rappel."
+
+msgid "Ta grupa odbiorców nie nadaje się do przypomnień automatycznych."
+msgstr "Ce groupe de destinataires ne convient pas aux rappels automatiques."
+
+msgid "obsłużone"
+msgstr "traité"
+
+msgid "zaplanowany – widać go w „Komunikaty → Zaplanowane”"
+msgstr "planifié – visible dans « Messages → Planifiés »"
+
+msgid "anulowany – nie zostanie wygenerowany ponownie"
+msgstr "annulé – ne sera pas généré à nouveau"
+
+#, python-format
+msgid "zostanie zaplanowany %(when)s"
+msgstr "sera planifié le %(when)s"
+
+msgid "Wybierz etap tego konkursu."
+msgstr "Choisissez une étape de ce concours."
+
+msgid "„N godzin przed” działa wyłącznie dla warsztatów i wymaga liczby godzin."
+msgstr "« N heures avant » ne fonctionne que pour les ateliers et exige un nombre d’heures."
+
+msgid "Podaj przynajmniej jedną liczbę dni przed wydarzeniem."
+msgstr "Indiquez au moins un nombre de jours avant l’événement."
+
+msgid "Generowanie nie powiodło się – ponowimy za kilka minut."
+msgstr "La génération a échoué – nouvel essai dans quelques minutes."
+
+#, python-format
+msgid "Nieznane pole reguły: %(name)s."
+msgstr "Champ de règle inconnu : %(name)s."
+
+#, python-format
+msgid "Zaplanowano komunikatów: %(created)s, wycofano nieaktualnych: %(withdrawn)s. Zobacz „Komunikaty → Zaplanowane”."
+msgstr "Messages planifiés : %(created)s, obsolètes retirés : %(withdrawn)s. Voir « Messages → Planifiés »."
+
+#, python-format
+msgid "Nie udało się zaplanować przypomnienia: %(error)s"
+msgstr "Impossible de planifier le rappel : %(error)s"
+
+msgid "Nie ma takiej reguły."
+msgstr "Cette règle n’existe pas."
+
+msgid "Nieznany rodzaj reguły."
+msgstr "Type de règle inconnu."
+
+#, python-format
+msgid "Reguła „%(name)s” zapisana."
+msgstr "Règle « %(name)s » enregistrée."
+
+msgid "Nic się nie zmieniło."
+msgstr "Rien n’a changé."
+
+#, python-format
+msgid "Reguła „%(name)s” usunięta; wycofane komunikaty: %(count)s."
+msgstr "Règle « %(name)s » supprimée ; messages retirés : %(count)s."
+
+#, python-format
+msgid "Zmiany w regule „%(name)s” zapisane."
+msgstr "Modifications de la règle « %(name)s » enregistrées."
+
+#, python-format
+msgid "Reguła „%(name)s” włączona."
+msgstr "Règle « %(name)s » activée."
+
+#, python-format
+msgid "Reguła „%(name)s” wyłączona – jej czekające komunikaty zostały wycofane."
+msgstr "Règle « %(name)s » désactivée – ses messages en attente ont été retirés."
+
+msgid "Nowa reguła"
+msgstr "Nouvelle règle"
+
+msgid "Automatyczne przypomnienia"
+msgstr "Rappels automatiques"
+
+msgid "Wróć do listy reguł"
+msgstr "Retour à la liste des règles"
+
+msgid "Warsztaty pochodzą z tabeli harmonogramu na stronie „Warsztaty” (/warsztaty/). Wiersz bez daty albo z dopiskiem „odwołane” jest pomijany, a komunikat już zaplanowany dla takiego wiersza – wycofywany."
+msgstr "Les ateliers proviennent du tableau du calendrier de la page « Ateliers » (/warsztaty/). Une ligne sans date ou marquée « annulé » est ignorée, et le message déjà planifié pour cette ligne est retiré."
+
+msgid "Termin to „deadline oddania” wybranego etapu (czas polski). Grupa „zapisani do etapu, bez wysłanej pracy” jest liczona w chwili wysyłki – kto zdąży wysłać pracę, listu nie dostanie."
+msgstr "La date limite est la « date limite de dépôt » de l’étape choisie (heure polonaise). Le groupe « inscrits à l’étape, sans travail envoyé » est calculé au moment de l’envoi : qui envoie à temps ne recevra pas le courriel."
+
+msgid "Podgląd"
+msgstr "Aperçu"
+
+msgid "Zapisz"
+msgstr "Enregistrer"
+
+msgid "Najbliższe wysyłki"
+msgstr "Prochains envois"
+
+msgid "Komunikat powstaje do 7 dni przed wysyłką i od tej chwili stoi w „Komunikaty → Zaplanowane”, gdzie można go anulować. Odbiorców policzymy w chwili wysyłki."
+msgstr "Le message est créé jusqu’à 7 jours avant l’envoi et figure dès lors dans « Messages → Planifiés », où il peut être annulé. Les destinataires sont comptés au moment de l’envoi."
+
+msgid "Temat:"
+msgstr "Objet :"
+
+msgid "Brak nadchodzących wysyłek"
+msgstr "Aucun envoi à venir"
+
+msgid "Reguła nie ma teraz żadnego wydarzenia w przyszłości."
+msgstr "La règle n’a actuellement aucun événement à venir."
+
+msgid "Pominięte:"
+msgstr "Ignorés :"
+
+msgid "Automatyczne przypomnienia – panel koordynatora"
+msgstr "Rappels automatiques – panneau du coordinateur"
+
+msgid "Reguła zamienia harmonogram warsztatów albo termin etapu w komunikaty planowane – do tygodnia przed wysyłką. Każdy taki komunikat zobaczysz i anulujesz w"
+msgstr "Une règle transforme le calendrier des ateliers ou la date limite d’une étape en messages planifiés, jusqu’à une semaine avant l’envoi. Vous verrez et pourrez annuler chacun de ces messages dans"
+
+msgid "Komunikaty → Zaplanowane"
+msgstr "Messages → Planifiés"
+
+msgid "Dodaj: przypomnienie o warsztatach"
+msgstr "Ajouter : rappel d’atelier"
+
+msgid "Dodaj: przypomnienie przed terminem etapu"
+msgstr "Ajouter : rappel avant la date limite d’une étape"
+
+msgid "Reguły"
+msgstr "Règles"
+
+msgid "Nazwa"
+msgstr "Nom"
+
+msgid "Rodzaj"
+msgstr "Type"
+
+msgid "Grupa"
+msgstr "Groupe"
+
+msgid "Kiedy"
+msgstr "Quand"
+
+msgid "Stan"
+msgstr "État"
+
+msgid "Akcje"
+msgstr "Actions"
+
+msgid "włączona"
+msgstr "activée"
+
+msgid "wyłączona"
+msgstr "désactivée"
+
+msgid "Ostatni błąd:"
+msgstr "Dernière erreur :"
+
+msgid "Edytuj i podgląd"
+msgstr "Modifier et aperçu"
+
+msgid "Wyłącz"
+msgstr "Désactiver"
+
+msgid "Włącz"
+msgstr "Activer"
+
+msgid "Usuń"
+msgstr "Supprimer"
+
+msgid "Nie ma jeszcze żadnej reguły."
+msgstr "Aucune règle pour l’instant."
+
+msgid "Usunąć tę regułę? Jej czekające komunikaty zostaną wycofane; wysłane zostają w historii."
+msgstr "Supprimer cette règle ? Ses messages en attente seront retirés ; ceux déjà envoyés restent dans l’historique."
+
+#, python-format
+msgid "%(hours)s godz. przed początkiem"
+msgstr "%(hours)s h avant le début"
+
+#, python-format
+msgid "dni przed: %(days)s, o %(time)s"
+msgstr "jours avant : %(days)s, à %(time)s"

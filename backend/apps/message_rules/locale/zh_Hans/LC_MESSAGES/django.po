@@ -1,0 +1,293 @@
+# Chinese (Simplified) - tlumaczenie automatycznych przypomnien (docs/tasks/MSG-AUTO-01.md).
+# Zrodlem (msgid) jest polski. UWAGA: tlumaczenie MASZYNOWE - do przegladu native speakera.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Olimpiada Kwantowa - message_rules\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-18 12:00+0200\n"
+"PO-Revision-Date: 2026-10-18 12:00+0200\n"
+"Last-Translator: Olimpiada Kwantowa\n"
+"Language-Team: Chinese (Simplified)\n"
+"Language: zh_Hans\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+msgid "Temat (szablon)"
+msgstr "主题（模板）"
+
+msgid "Treść (szablon)"
+msgstr "正文（模板）"
+
+msgid "Nazwa reguły"
+msgstr "规则名称"
+
+msgid "Reguła włączona"
+msgstr "规则已启用"
+
+msgid "Moment wysyłki"
+msgstr "发送时间点"
+
+msgid "Ile dni przed"
+msgstr "提前天数"
+
+msgid "0 = w dniu warsztatu. Kilka liczb rozdziel przecinkami, np. 30, 7, 1."
+msgstr "0 = 工作坊当天。多个数字请用逗号分隔，例如 30, 7, 1。"
+
+msgid "Godzina wysyłki (czas polski)"
+msgstr "发送时间（波兰时间）"
+
+msgid "Ile godzin przed początkiem warsztatu"
+msgstr "工作坊开始前的小时数"
+
+msgid "Tylko przy „N godzin przed początkiem”; początek to pierwsza godzina z kolumny „godziny”."
+msgstr "仅用于“开始前 N 小时”；开始时间为“时间”列中的第一个时间。"
+
+msgid "Link (pole {link})"
+msgstr "链接（字段 {link}）"
+
+msgid "Np. stały link spotkania Google Meet albo adres strony etapu."
+msgstr "例如固定的 Google Meet 链接或阶段页面地址。"
+
+#, python-format
+msgid "Pola do wstawienia: %(names)s."
+msgstr "可插入的字段：%(names)s。"
+
+msgid "Etap (termin zgłaszania)"
+msgstr "阶段（提交截止）"
+
+msgid "Dni przed terminem etapu, rozdzielone przecinkami; 0 = w dniu terminu."
+msgstr "阶段截止前的天数，用逗号分隔；0 = 截止当天。"
+
+msgid "Podaj liczbę godzin przed początkiem warsztatu."
+msgstr "请输入工作坊开始前的小时数。"
+
+msgid "Wpisz liczby dni rozdzielone przecinkami, np. 30, 7, 1."
+msgstr "请输入用逗号分隔的天数，例如 30, 7, 1。"
+
+#, python-format
+msgid "Najwyżej %(days)s dni przed."
+msgstr "最多提前 %(days)s 天。"
+
+msgid "Szablon używa pola {link}, a pole „Link” jest puste."
+msgstr "模板使用了字段 {link}，但“链接”字段为空。"
+
+#, python-format
+msgid "Nieznane pola szablonu: %(unknown)s. Dozwolone: %(allowed)s."
+msgstr "未知的模板字段：%(unknown)s。允许的字段：%(allowed)s。"
+
+msgid "Reguła nie ma etapu – etap usunięto albo nie wybrano go."
+msgstr "该规则没有阶段——阶段已被删除或未选择。"
+
+#, python-format
+msgid "Etap „%(stage)s” nie ma terminu do przypomnienia."
+msgstr "阶段“%(stage)s”没有需要提醒的截止时间。"
+
+#, python-format
+msgid "„%(topic)s” – bez daty w harmonogramie"
+msgstr "“%(topic)s”——日程中没有日期"
+
+#, python-format
+msgid "„%(topic)s” – odwołany"
+msgstr "“%(topic)s”——已取消"
+
+#, python-format
+msgid "„%(topic)s” – brak godziny początku"
+msgstr "“%(topic)s”——没有开始时间"
+
+msgid "zostanie zaplanowany w ciągu kilku minut"
+msgstr "将在几分钟内安排"
+
+#, python-format
+msgid "przypomnienie automatyczne „%(name)s”"
+msgstr "自动提醒“%(name)s”"
+
+msgid "reguła wyłączona – nie zostanie zaplanowany"
+msgstr "规则已停用——不会安排"
+
+msgid "za blisko terminu – nie zostanie wysłany"
+msgstr "距离时间太近——不会发送"
+
+msgid "Reguły przypomnień zmienia wyłącznie koordynator tego konkursu."
+msgstr "只有本竞赛的协调员可以修改提醒规则。"
+
+msgid "Ta grupa odbiorców nie nadaje się do przypomnień automatycznych."
+msgstr "此收件人组不适用于自动提醒。"
+
+msgid "obsłużone"
+msgstr "已处理"
+
+msgid "zaplanowany – widać go w „Komunikaty → Zaplanowane”"
+msgstr "已安排——可在“消息 → 已安排”中查看"
+
+msgid "anulowany – nie zostanie wygenerowany ponownie"
+msgstr "已取消——不会再次生成"
+
+#, python-format
+msgid "zostanie zaplanowany %(when)s"
+msgstr "将于 %(when)s 安排"
+
+msgid "Wybierz etap tego konkursu."
+msgstr "请选择本竞赛的一个阶段。"
+
+msgid "„N godzin przed” działa wyłącznie dla warsztatów i wymaga liczby godzin."
+msgstr "“提前 N 小时”仅适用于工作坊，并且需要小时数。"
+
+msgid "Podaj przynajmniej jedną liczbę dni przed wydarzeniem."
+msgstr "请至少输入一个活动前的天数。"
+
+msgid "Generowanie nie powiodło się – ponowimy za kilka minut."
+msgstr "生成失败——我们将在几分钟后重试。"
+
+#, python-format
+msgid "Nieznane pole reguły: %(name)s."
+msgstr "未知的规则字段：%(name)s。"
+
+#, python-format
+msgid "Zaplanowano komunikatów: %(created)s, wycofano nieaktualnych: %(withdrawn)s. Zobacz „Komunikaty → Zaplanowane”."
+msgstr "已安排消息：%(created)s，已撤回过时消息：%(withdrawn)s。请查看“消息 → 已安排”。"
+
+#, python-format
+msgid "Nie udało się zaplanować przypomnienia: %(error)s"
+msgstr "无法安排提醒：%(error)s"
+
+msgid "Nie ma takiej reguły."
+msgstr "没有这条规则。"
+
+msgid "Nieznany rodzaj reguły."
+msgstr "未知的规则类型。"
+
+#, python-format
+msgid "Reguła „%(name)s” zapisana."
+msgstr "规则“%(name)s”已保存。"
+
+msgid "Nic się nie zmieniło."
+msgstr "没有任何更改。"
+
+#, python-format
+msgid "Reguła „%(name)s” usunięta; wycofane komunikaty: %(count)s."
+msgstr "规则“%(name)s”已删除；撤回的消息：%(count)s。"
+
+#, python-format
+msgid "Zmiany w regule „%(name)s” zapisane."
+msgstr "规则“%(name)s”的更改已保存。"
+
+#, python-format
+msgid "Reguła „%(name)s” włączona."
+msgstr "规则“%(name)s”已启用。"
+
+#, python-format
+msgid "Reguła „%(name)s” wyłączona – jej czekające komunikaty zostały wycofane."
+msgstr "规则“%(name)s”已停用——其待发送消息已撤回。"
+
+msgid "Nowa reguła"
+msgstr "新规则"
+
+msgid "Automatyczne przypomnienia"
+msgstr "自动提醒"
+
+msgid "Wróć do listy reguł"
+msgstr "返回规则列表"
+
+msgid "Warsztaty pochodzą z tabeli harmonogramu na stronie „Warsztaty” (/warsztaty/). Wiersz bez daty albo z dopiskiem „odwołane” jest pomijany, a komunikat już zaplanowany dla takiego wiersza – wycofywany."
+msgstr "工作坊来自“工作坊”页面（/warsztaty/）上的日程表。没有日期或标有“已取消”的行会被跳过，已为该行安排的消息会被撤回。"
+
+msgid "Termin to „deadline oddania” wybranego etapu (czas polski). Grupa „zapisani do etapu, bez wysłanej pracy” jest liczona w chwili wysyłki – kto zdąży wysłać pracę, listu nie dostanie."
+msgstr "截止时间是所选阶段的“提交截止时间”（波兰时间）。“已报名该阶段、未提交作品”组在发送时计算——按时提交的人不会收到邮件。"
+
+msgid "Podgląd"
+msgstr "预览"
+
+msgid "Zapisz"
+msgstr "保存"
+
+msgid "Najbliższe wysyłki"
+msgstr "即将发送"
+
+msgid "Komunikat powstaje do 7 dni przed wysyłką i od tej chwili stoi w „Komunikaty → Zaplanowane”, gdzie można go anulować. Odbiorców policzymy w chwili wysyłki."
+msgstr "消息最多在发送前 7 天创建，此后会出现在“消息 → 已安排”中，可在那里取消。收件人在发送时计算。"
+
+msgid "Temat:"
+msgstr "主题："
+
+msgid "Brak nadchodzących wysyłek"
+msgstr "没有即将发送的消息"
+
+msgid "Reguła nie ma teraz żadnego wydarzenia w przyszłości."
+msgstr "该规则目前没有未来的活动。"
+
+msgid "Pominięte:"
+msgstr "已跳过："
+
+msgid "Automatyczne przypomnienia – panel koordynatora"
+msgstr "自动提醒——协调员面板"
+
+msgid "Reguła zamienia harmonogram warsztatów albo termin etapu w komunikaty planowane – do tygodnia przed wysyłką. Każdy taki komunikat zobaczysz i anulujesz w"
+msgstr "规则会把工作坊日程或阶段截止时间转换为已安排的消息——最多在发送前一周。每条此类消息都可以在以下位置查看和取消："
+
+msgid "Komunikaty → Zaplanowane"
+msgstr "消息 → 已安排"
+
+msgid "Dodaj: przypomnienie o warsztatach"
+msgstr "添加：工作坊提醒"
+
+msgid "Dodaj: przypomnienie przed terminem etapu"
+msgstr "添加：阶段截止前提醒"
+
+msgid "Reguły"
+msgstr "规则"
+
+msgid "Nazwa"
+msgstr "名称"
+
+msgid "Rodzaj"
+msgstr "类型"
+
+msgid "Grupa"
+msgstr "组"
+
+msgid "Kiedy"
+msgstr "时间"
+
+msgid "Stan"
+msgstr "状态"
+
+msgid "Akcje"
+msgstr "操作"
+
+msgid "włączona"
+msgstr "已启用"
+
+msgid "wyłączona"
+msgstr "已停用"
+
+msgid "Ostatni błąd:"
+msgstr "最近错误："
+
+msgid "Edytuj i podgląd"
+msgstr "编辑和预览"
+
+msgid "Wyłącz"
+msgstr "停用"
+
+msgid "Włącz"
+msgstr "启用"
+
+msgid "Usuń"
+msgstr "删除"
+
+msgid "Nie ma jeszcze żadnej reguły."
+msgstr "还没有任何规则。"
+
+msgid "Usunąć tę regułę? Jej czekające komunikaty zostaną wycofane; wysłane zostają w historii."
+msgstr "删除此规则？其待发送消息将被撤回；已发送的消息保留在历史记录中。"
+
+#, python-format
+msgid "%(hours)s godz. przed początkiem"
+msgstr "开始前 %(hours)s 小时"
+
+#, python-format
+msgid "dni przed: %(days)s, o %(time)s"
+msgstr "提前天数：%(days)s，时间 %(time)s"

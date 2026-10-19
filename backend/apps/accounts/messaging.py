@@ -628,16 +628,28 @@ def send_broadcast_chunk(self, broadcast_id: int, recipients: list[str]) -> int:
     from apps.email_delivery.services import suppressed_among
 
     suppressed = suppressed_among(recipients)
-    queued = 0
+    # STATS-02 § 2: nagłówek z numerem komunikatu (podpisany) – po nim odbicie wraca do komunikatu
+    # w raporcie wysyłki – i liczniki porcji po grupach domen (bez adresów).
+    from apps.coordinator_stats.broadcasts import headers_for, record_chunk
+
+    headers = headers_for(broadcast_id)
+    queued_addresses: list[str] = []
+    skipped_addresses: list[str] = []
     for recipient in recipients:
         if recipient.strip().lower() in suppressed:
+            skipped_addresses.append(recipient)
             continue
-        send_mail_task.delay(broadcast.subject, broadcast.body, [recipient], from_email)
-        queued += 1
+        send_mail_task.delay(broadcast.subject, broadcast.body, [recipient], from_email, headers=headers)
+        queued_addresses.append(recipient)
+    queued = len(queued_addresses)
     if suppressed:
         logger.info(
             "Komunikat %s: pominięto %s adresów niedoręczalnych.", broadcast_id, len(recipients) - queued
         )
+    try:
+        record_chunk(broadcast_id, queued=queued_addresses, suppressed=skipped_addresses)
+    except Exception:  # noqa: BLE001 - liczniki raportu nie mogą ponowić porcji (listy poszłyby drugi raz)
+        logger.exception("Komunikat %s: nie udało się zapisać liczników raportu wysyłki.", broadcast_id)
     MessageBroadcast.objects.filter(pk=broadcast_id).update(sent_count=F("sent_count") + len(recipients))
     broadcast.refresh_from_db(fields=["sent_count", "recipient_count"])
     if broadcast.sent_count >= broadcast.recipient_count:

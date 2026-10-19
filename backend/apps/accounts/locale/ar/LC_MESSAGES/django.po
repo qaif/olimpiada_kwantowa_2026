@@ -1,0 +1,60 @@
+# Import uczniów i podpowiedź literówek w imporcie (REG-UX-01) – katalog aplikacji apps.accounts.
+# Wyłącznie napisy dodane przez REG-UX-01, żeby nie ruszać wspólnego backend/locale.
+# Angielski przejrzany ręcznie; pozostałe języki maszynowe (do przeglądu native speakerów, I18N-01 § 8).
+msgid ""
+msgstr ""
+"Project-Id-Version: olimpiada\n"
+"Language: ar\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=6; plural=(n==0 ? 0 : n==1 ? 1 : n==2 ? 2 : n%100>=3 && n%100<=10 ? 3 : n%100>=11 ? 4 : 5);\n"
+
+# Podgląd importu: podpowiedź literówki w adresie ucznia (REG-UX-01 § 1.3).
+#, python-format
+msgid "Czy chodziło o %(address)s?"
+msgstr "هل تقصد %(address)s؟"
+
+msgid "Popraw"
+msgstr "تصحيح"
+
+msgid "Tak, adres jest poprawny"
+msgstr "نعم، العنوان صحيح"
+
+# Podgląd importu: status wiersza (REG-UX-01 § 2.1).
+msgid "zaproszenie zostanie wysłane"
+msgstr "سيتم إرسال دعوة"
+
+msgid "ma już konto i jest na Twojej liście"
+msgstr "لديه حساب بالفعل وهو في قائمتك"
+
+msgid "zobacz listę uczniów"
+msgstr "عرض قائمة الطلاب"
+
+msgid "ma już konto, ale nie ma go na Twojej liście"
+msgstr "لديه حساب بالفعل، لكنه ليس في قائمتك"
+
+msgid "błąd"
+msgstr "خطأ"
+
+#, python-format
+msgid "błąd: %(problem)s"
+msgstr "خطأ: %(problem)s"
+
+# Podgląd importu: podsumowanie nad tabelą (REG-UX-01 § 2.2).
+#, python-format
+msgid "Nowe zaproszenia: %(created)s · już na liście: %(on_list)s · inne istniejące konta: %(other)s · pominięte (błędy): %(skipped)s."
+msgstr "دعوات جديدة: %(created)s · موجودون في القائمة: %(on_list)s · حسابات موجودة أخرى: %(other)s · تم تخطيها (أخطاء): %(skipped)s."
+
+# bulk_registration.EXISTING_NOT_ON_LIST_NOTE – zajęty adres spoza listy nauczyciela.
+msgid "Jeśli to uczeń tego konkursu (wskazał innego opiekuna albo nikogo), dostanie prośbę o zgodę na dopisanie Cię jako opiekuna i pojawi się na Twojej liście po jego zgodzie. Jeśli startuje w innym konkursie albo to konto innej osoby, import go nie zmieni."
+msgstr "إذا كان هذا طالبًا في هذه المسابقة (حدّد معلمًا آخر أو لم يحدّد أحدًا)، فسيتلقى طلب موافقة على إضافتك معلمًا له وسيظهر في قائمتك بعد موافقته. وإذا كان يشارك في مسابقة أخرى أو كان الحساب لشخص آخر، فلن يغيّره الاستيراد."
+
+# Komunikat po imporcie nauczyciela (REG-UX-01 § 2.2).
+#, python-format
+msgid "Import zakończony. Wysłano zaproszeń: %(created)s, uczniów już było na Twojej liście: %(on_list)s, pominięto: %(skipped)s."
+msgstr "اكتمل الاستيراد. الدعوات المرسلة: %(created)s، الطلاب الموجودون مسبقًا في قائمتك: %(on_list)s، تم التخطي: %(skipped)s."
+
+#, python-format
+msgid "Adresów z kontem spoza Twojej listy: %(other)s – jeśli to uczniowie tego konkursu, dostają prośbę o zgodę na dopisanie Cię jako opiekuna i pojawią się na liście po jej przyjęciu."
+msgstr "عناوين لها حسابات خارج قائمتك: %(other)s – إذا كانوا طلابًا في هذه المسابقة، فسيتلقون طلب موافقة على إضافتك معلمًا لهم وسيظهرون في القائمة بعد قبوله."

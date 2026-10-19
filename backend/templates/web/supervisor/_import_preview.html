@@ -13,8 +13,13 @@
   <div class="section__head">
     <h2 class="mt-0">{% translate "Co się stanie po zatwierdzeniu" %}</h2>
     <p class="hint">
-      {% blocktranslate trimmed with created=preview.to_create existing=preview.existing skipped=preview.skipped %}
-        Nowe zaproszenia: {{ created }} · adresy z istniejącym kontem: {{ existing }} · pominięci: {{ skipped }}.
+      {% comment %}
+        REG-UX-01 § 2.2: „już na liście” osobno od pozostałych zajętych adresów. U nauczyciela to
+        uczniowie, którzy sami wskazali jego adres (widzi ich na swojej liście), więc liczba nie
+        zdradza niczego nowego.
+      {% endcomment %}
+      {% blocktranslate trimmed with created=preview.to_create on_list=preview.on_list other=preview.other_existing skipped=preview.skipped %}
+        Nowe zaproszenia: {{ created }} · już na liście: {{ on_list }} · inne istniejące konta: {{ other }} · pominięte (błędy): {{ skipped }}.
       {% endblocktranslate %}
     </p>
     {% comment %}
@@ -39,8 +44,12 @@
           <th scope="col">{% translate "Wiersz" %}</th>
           <th scope="col">{% translate "Imię i nazwisko" %}</th>
           <th scope="col">{% translate "E-mail" %}</th>
-          {# Jedna kolumna na wiek, nie dwie: plik niesie datę **albo** rocznik, a podgląd ma
-             odpowiadać na pytanie „czy to jest ten uczeń”, nie na pytanie o postać zapisu. #}
+          {% comment %}
+            Jedna kolumna na wiek, nie dwie: plik niesie datę **albo** rocznik, a podgląd ma
+            odpowiadać na pytanie „czy to jest ten uczeń”, nie na pytanie o postać zapisu.
+            (Komentarz blokowy: {# … #} w Django jest jednowierszowy i w dwóch liniach
+            trafiał na ekran nauczyciela jako tekst nagłówka tabeli – REG-UX-01.)
+          {% endcomment %}
           <th scope="col">{% translate "Data urodzenia" %}</th>
           <th scope="col">{% translate "Klasa" %}</th>
           {% comment %}
@@ -72,15 +81,8 @@
             {% endcomment %}
             {% if show_institution %}<td>{{ row.institution.school|default:"—" }}</td>{% endif %}
             <td>
-              {% if row.action == "create" %}
-                <span class="badge badge--ok">{% translate "zaproszenie" %}</span>
-              {% elif row.action == "existing" %}
-                <span class="badge badge--info">{% translate "adres ma już konto" %}</span>
-              {% else %}
-                <span class="badge badge--warn">{% translate "pominięty" %}</span>
-              {% endif %}
-              {% for problem in row.errors %}<span class="hint">{{ problem }}</span>{% endfor %}
-              {% for note in row.notes %}<span class="hint">{{ note }}</span>{% endfor %}
+              {% include "web/supervisor/_import_row_status.html" %}
+              {% if row.email_suggestion %}{% include "web/supervisor/_import_email_fix.html" %}{% endif %}
             </td>
           </tr>
         {% endfor %}
@@ -92,7 +94,7 @@
 <section class="section">
   <div class="card">
     {% if preview.has_importable %}
-      <form method="post" class="form" action="{{ post_url }}">
+      <form method="post" class="form" action="{{ post_url }}" id="import-confirm">
         {% csrf_token %}
         {% comment %}
           Koszyk wierszy jest podpisany (``bulk_registration.pack_rows``), więc między tym ekranem
@@ -101,6 +103,7 @@
         {% endcomment %}
         <input type="hidden" name="rows" value="{{ preview.token }}">
         <input type="hidden" name="school" value="{{ school_name }}">
+        <input type="hidden" name="skipped" value="{{ preview.skipped }}">
         {% if school_id %}<input type="hidden" name="school_id" value="{{ school_id }}">{% endif %}
         <div class="actions">
           <button type="submit" class="btn btn--primary">

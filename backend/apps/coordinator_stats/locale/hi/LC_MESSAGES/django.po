@@ -1,0 +1,323 @@
+# Hindi – katalog aplikacji ``apps.coordinator_stats`` (zadanie STATS-02).
+# Zrodlem (msgid) jest polski. UWAGA: tlumaczenie MASZYNOWE (model jezykowy) – patrz
+# docs/OPERACJE.md (przeglad przez native speakera przed szeroka komunikacja).
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Olimpiada Kwantowa\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-18 21:00+0200\n"
+"PO-Revision-Date: 2026-10-18 21:00+0200\n"
+"Last-Translator: Olimpiada Kwantowa\n"
+"Language-Team: Hindi\n"
+"Language: hi\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Grupa"
+msgstr "समूह"
+
+msgid "Rejestracje"
+msgstr "पंजीकरण"
+
+msgid "Logowanie"
+msgstr "लॉगिन"
+
+msgid "Aktywacja"
+msgstr "सक्रियण"
+
+msgid "Brak grup powyżej progu."
+msgstr "सीमा से ऊपर कोई समूह नहीं।"
+
+msgid "Raport wysyłki"
+msgstr "भेजने की रिपोर्ट"
+
+msgid "Raport wysyłki komunikatu"
+msgstr "संदेश भेजने की रिपोर्ट"
+
+msgid "Wysłany"
+msgstr "भेजा गया"
+
+msgid "Stan"
+msgstr "स्थिति"
+
+msgid "Wysłał"
+msgstr "भेजने वाला"
+
+msgid "Wróć do komunikatów"
+msgstr "संदेशों पर वापस जाएँ"
+
+msgid "Brak danych o wysyłce tego komunikatu – raporty powstają dla komunikatów wysłanych od 18.10.2026."
+msgstr "इस संदेश के भेजने का कोई डेटा नहीं – रिपोर्ट 18.10.2026 से भेजे गए संदेशों के लिए बनती हैं।"
+
+msgid "Odbiorców"
+msgstr "प्राप्तकर्ता"
+
+msgid "Obsłużono"
+msgstr "संसाधित"
+
+msgid "To nie jest problem adresów odbiorców, tylko reputacji serwera poczty – zgłoś to operatorowi platformy (wniosek o zdjęcie blokady w Microsoft)."
+msgstr "यह प्राप्तकर्ताओं के पतों की समस्या नहीं, बल्कि मेल सर्वर की प्रतिष्ठा की समस्या है – प्लेटफ़ॉर्म संचालक को बताएँ (Microsoft से ब्लॉक हटाने का अनुरोध)।"
+
+msgid "Zakolejkowano"
+msgstr "कतार में डाला गया"
+
+msgid "Pominięto (adres niedoręczalny)"
+msgstr "छोड़ा गया (अप्राप्य पता)"
+
+msgid "Odbite po wysyłce"
+msgstr "भेजने के बाद लौटे"
+
+msgid "Grupy domen"
+msgstr "डोमेन समूह"
+
+msgid "Domena"
+msgstr "डोमेन"
+
+msgid "Pominięto"
+msgstr "छोड़े गए"
+
+msgid "Adres nie istnieje"
+msgstr "पता मौजूद नहीं है"
+
+msgid "Polityka serwera"
+msgstr "सर्वर नीति"
+
+msgid "w tym S3150"
+msgstr "जिनमें S3150"
+
+msgid "Tymczasowe i inne"
+msgstr "अस्थायी और अन्य"
+
+msgid "Wysłane / odbite"
+msgstr "भेजे गए / लौटे"
+
+msgid "Razem"
+msgstr "कुल"
+
+msgid "Górny słupek – listy zakolejkowane, dolny – odbite; oba w tej samej skali. Odbicia przychodzą przez kilka dni po wysyłce (serwery ponawiają doręczenie), więc liczby mogą jeszcze rosnąć."
+msgstr "ऊपरी पट्टी – कतार में डाले गए पत्र, निचली – लौटे पत्र; दोनों एक ही पैमाने पर। लौटने की सूचनाएँ भेजने के बाद कई दिनों तक आती हैं (सर्वर फिर से भेजने का प्रयास करते हैं), इसलिए संख्याएँ अभी बढ़ सकती हैं।"
+
+msgid "Odbite adresy"
+msgstr "लौटे पते"
+
+msgid "Adres"
+msgstr "पता"
+
+msgid "Rodzaj"
+msgstr "प्रकार"
+
+msgid "Kod"
+msgstr "कोड"
+
+msgid "Powód (odpowiedź serwera odbiorcy)"
+msgstr "कारण (प्राप्तकर्ता सर्वर का उत्तर)"
+
+msgid "Kiedy"
+msgstr "कब"
+
+msgid "Żaden list tego komunikatu nie wrócił."
+msgstr "इस संदेश का कोई पत्र नहीं लौटा।"
+
+#, python-format
+msgid "Listy odrzucone przez Microsoft z powodu blokady adresu IP serwera (S3150): %(n)s."
+msgstr "सर्वर के IP पते पर रोक के कारण Microsoft द्वारा अस्वीकृत पत्र (S3150): %(n)s।"
+
+#, python-format
+msgid "Pokazano pierwsze %(n)s adresów – pełne liczby są w tabeli powyżej."
+msgstr "पहले %(n)s पते दिखाए गए हैं – पूरी संख्याएँ ऊपर की तालिका में हैं।"
+
+msgid "Lejek uczestnika"
+msgstr "प्रतिभागी फ़नल"
+
+msgid "panel koordynatora"
+msgstr "समन्वयक पैनल"
+
+msgid "Ilu uczestników przechodzi kolejne kroki – od rejestracji, przez aktywację konta i zapis do etapu, do pierwszej pracy, zaświadczenia i warsztatów."
+msgstr "कितने प्रतिभागी हर चरण से गुज़रते हैं – पंजीकरण, खाता सक्रियण और चरण में नामांकन से लेकर पहले कार्य, प्रमाणपत्र और कार्यशालाओं तक।"
+
+msgid "Liczby dotyczą uczestników wybranej edycji: zapisanych do jej etapu albo zarejestrowanych w czasie jej trwania. Konta usunięte nie są liczone."
+msgstr "संख्याएँ चुने गए संस्करण के प्रतिभागियों की हैं: उसके किसी चरण में नामांकित या उसके दौरान पंजीकृत। हटाए गए खाते नहीं गिने जाते।"
+
+msgid "Eksport CSV"
+msgstr "CSV निर्यात"
+
+msgid "Ten konkurs nie ma jeszcze żadnej edycji."
+msgstr "इस प्रतियोगिता का अभी कोई संस्करण नहीं है।"
+
+msgid "Filtry lejka"
+msgstr "फ़नल फ़िल्टर"
+
+msgid "Edycja"
+msgstr "संस्करण"
+
+msgid "Pokaż"
+msgstr "दिखाएँ"
+
+msgid "Wyczyść filtry"
+msgstr "फ़िल्टर साफ़ करें"
+
+msgid "Kroki lejka"
+msgstr "फ़नल के चरण"
+
+msgid "Krok"
+msgstr "चरण"
+
+msgid "Uczestnicy"
+msgstr "प्रतिभागी"
+
+msgid "względem poprzedniego kroku"
+msgstr "पिछले चरण के सापेक्ष"
+
+msgid "względem rejestracji"
+msgstr "पंजीकरण के सापेक्ष"
+
+msgid "brak takiego etapu w tej edycji"
+msgstr "इस संस्करण में ऐसा कोई चरण नहीं"
+
+msgid "Lejek ścisły: krok liczy osoby, które przeszły także wszystkie poprzednie kroki. Wiersze „w tym” rozbijają zapis do etapu i liczą się względem kroku zgód."
+msgstr "सख़्त फ़नल: कोई चरण उन्हीं लोगों को गिनता है जिन्होंने पिछले सभी चरण भी पार किए। “जिनमें” वाली पंक्तियाँ चरण नामांकन को विभाजित करती हैं और सहमति वाले चरण के सापेक्ष गिनी जाती हैं।"
+
+msgid "Kroki niezależne: każdy krok liczy wszystkich, którzy spełniają jego warunek – także bez poprzednich kroków (np. obecni na warsztacie bez zaakceptowanego zaświadczenia)."
+msgstr "स्वतंत्र चरण: हर चरण उन सभी को गिनता है जो उसकी शर्त पूरी करते हैं – पिछले चरणों के बिना भी (जैसे स्वीकृत प्रमाणपत्र के बिना कार्यशाला में उपस्थित)।"
+
+msgid "Zgoda opiekuna jest wymagana od niepełnoletnich według tej samej reguły wieku, co przy rejestracji."
+msgstr "नाबालिगों से अभिभावक की सहमति उसी आयु नियम के अनुसार आवश्यक है जो पंजीकरण में लागू है।"
+
+msgid "Gdzie odpadają – najniższa aktywacja kont"
+msgstr "कहाँ छूटते हैं – सबसे कम खाता सक्रियण"
+
+msgid "Województwa"
+msgstr "प्रांत"
+
+msgid "Województwa – najniższa aktywacja"
+msgstr "प्रांत – सबसे कम सक्रियण"
+
+msgid "Szkoły"
+msgstr "विद्यालय"
+
+msgid "Szkoły – najniższa aktywacja"
+msgstr "विद्यालय – सबसे कम सक्रियण"
+
+#, python-format
+msgid "Województwa i szkoły z co najmniej %(k)s rejestracjami, od najniższego odsetka aktywowanych kont."
+msgstr "कम से कम %(k)s पंजीकरण वाले प्रांत और विद्यालय, सक्रिय खातों के सबसे कम अनुपात से शुरू।"
+
+msgid "Pominięte"
+msgstr "छोड़े गए"
+
+msgid "Odbite"
+msgstr "लौटे"
+
+msgid "Raport"
+msgstr "रिपोर्ट"
+
+msgid "odrzucone przez Microsoft (S3150)"
+msgstr "Microsoft द्वारा अस्वीकृत (S3150)"
+
+msgid "Gmail"
+msgstr "Gmail"
+
+msgid "WP / O2 / Onet / Interia"
+msgstr "WP / O2 / Onet / Interia"
+
+msgid "Microsoft (Outlook, Hotmail, Live)"
+msgstr "Microsoft (Outlook, Hotmail, Live)"
+
+msgid "szkolne (edu)"
+msgstr "विद्यालय (edu)"
+
+msgid "inne"
+msgstr "अन्य"
+
+msgid "wszystkie"
+msgstr "सभी"
+
+msgid "Województwo / region"
+msgstr "प्रांत / क्षेत्र"
+
+msgid "Szkoła"
+msgstr "विद्यालय"
+
+msgid "Domena adresu e-mail"
+msgstr "ई-मेल पते का डोमेन"
+
+msgid "Rejestracja od"
+msgstr "पंजीकरण से"
+
+msgid "Rejestracja do"
+msgstr "पंजीकरण तक"
+
+msgid "Sposób liczenia"
+msgstr "गणना का तरीका"
+
+msgid "Początek okresu rejestracji jest późniejszy niż jego koniec."
+msgstr "पंजीकरण अवधि की शुरुआत उसके अंत से बाद की है।"
+
+msgid "lejek ścisły – krok wymaga wszystkich poprzednich"
+msgstr "सख़्त फ़नल – हर चरण के लिए पिछले सभी आवश्यक"
+
+msgid "kroki niezależne"
+msgstr "स्वतंत्र चरण"
+
+msgid "Rejestracja (profil uczestnika)"
+msgstr "पंजीकरण (प्रतिभागी प्रोफ़ाइल)"
+
+msgid "Aktywacja konta (potwierdzony adres e-mail)"
+msgstr "खाता सक्रियण (पुष्ट ई-मेल पता)"
+
+msgid "Pierwsze logowanie"
+msgstr "पहला लॉगिन"
+
+msgid "Zgody (w tym zgoda opiekuna niepełnoletniego)"
+msgstr "सहमतियाँ (नाबालिग के अभिभावक की सहमति सहित)"
+
+msgid "Zapis do etapu edycji"
+msgstr "संस्करण के चरण में नामांकन"
+
+msgid "w tym etap treningowy"
+msgstr "जिनमें प्रशिक्षण चरण"
+
+msgid "w tym Etap I"
+msgstr "जिनमें चरण I"
+
+msgid "Pierwsza wysłana praca"
+msgstr "पहला जमा किया गया कार्य"
+
+msgid "Zaświadczenie o statusie ucznia zaakceptowane"
+msgstr "छात्र स्थिति प्रमाणपत्र स्वीकृत"
+
+msgid "Obecność na co najmniej jednym warsztacie"
+msgstr "कम से कम एक कार्यशाला में उपस्थिति"
+
+msgid "brak szkoły"
+msgstr "कोई विद्यालय नहीं"
+
+msgid "nazwa wpisana ręcznie"
+msgstr "हाथ से लिखा गया नाम"
+
+msgid "brak województwa"
+msgstr "कोई प्रांत नहीं"
+
+msgid "Filtry"
+msgstr "फ़िल्टर"
+
+msgid "Lejek"
+msgstr "फ़नल"
+
+msgid "Sekcja"
+msgstr "खंड"
+
+msgid "Pozycja"
+msgstr "मद"
+
+msgid "Liczba"
+msgstr "संख्या"
+
+msgid "Odsetek względem poprzedniego kroku (%)"
+msgstr "पिछले चरण के सापेक्ष अनुपात (%)"
+
+msgid "Odsetek względem rejestracji (%)"
+msgstr "पंजीकरण के सापेक्ष अनुपात (%)"

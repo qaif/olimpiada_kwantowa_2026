@@ -5,9 +5,11 @@ from django.urls import path
 from apps.alumni.urls import urlpatterns as alumni_urlpatterns
 from apps.calendar_feed.urls import urlpatterns as calendar_feed_urlpatterns  # CAL-01
 from apps.consent_gate.urls import urlpatterns as consent_gate_urlpatterns  # CONS-01
+from apps.coordinator_stats.urls import urlpatterns as coordinator_stats_urlpatterns  # STATS-02
 from apps.delegation_logistics.urls import urlpatterns as final_logistics_urlpatterns
 from apps.email_delivery.urls import urlpatterns as email_delivery_urlpatterns  # MAIL-02: odbicia
 from apps.medals.urls import urlpatterns as medal_urlpatterns  # MED-01
+from apps.message_rules.urls import urlpatterns as message_rule_urlpatterns  # MSG-AUTO-01
 
 # Notatniki kwantowe (QC-01) – wzorce w module aplikacji, rozwinięte na końcu listy.
 from apps.notebooks.urls import urlpatterns as notebook_urlpatterns
@@ -43,6 +45,7 @@ from .urls_proctoring import urlpatterns as proctoring_urlpatterns
 from .urls_regions import urlpatterns as region_urlpatterns
 from .urls_scoring import urlpatterns as scoring_urlpatterns
 from .urls_student_status import urlpatterns as student_status_urlpatterns
+from .urls_training import urlpatterns as training_urlpatterns  # REG-UX-01
 from .urls_video import urlpatterns as video_urlpatterns
 from .urls_webinars import urlpatterns as webinar_urlpatterns
 from .urls_workshop_certificates import urlpatterns as workshop_certificate_urlpatterns
@@ -57,6 +60,7 @@ from .views import (
     coordinator_certificates,
     coordinator_competition,
     coordinator_duplicates,
+    coordinator_duplicates_merge,
     coordinator_events,
     coordinator_forum,
     coordinator_forwarding,
@@ -550,6 +554,8 @@ urlpatterns = [
         coordinator_stages.StageEditView.as_view(),
         name="coordinator-stage-edit",
     ),
+    # Zapis do treningu z ekranu etapu: przełącznik i „zapisz wszystkich” (REG-UX-01 § 3.3).
+    *training_urlpatterns,
     path(
         "coordinator/stages/<int:stage_id>/scale/",
         coordinator_stages.StageScaleView.as_view(),
@@ -821,6 +827,12 @@ urlpatterns = [
         "coordinator/accounts/duplicates/export.csv",
         coordinator_duplicates.CoordinatorDuplicatesExportView.as_view(),
         name="coordinator-duplicates-export",
+    ),
+    # ACC-MERGE-01: scalanie zdublowanych kont – podgląd (GET) i „Scal” (POST) pod jednym adresem.
+    path(
+        "coordinator/accounts/duplicates/merge/",
+        coordinator_duplicates_merge.CoordinatorDuplicatesMergeView.as_view(),
+        name="coordinator-duplicates-merge",
     ),
     # ACC-DUP-02: „Usuń” w wierszu duplikatów i ekran „Nieaktywne konta” (przedrostek
     # ``coordinator-inactive`` z tego samego powodu, co ``coordinator-duplicates`` wyżej).
@@ -1276,6 +1288,8 @@ urlpatterns = [
     *staff_mfa_urlpatterns,
     # --- odbicia poczty: potwierdzenie adresu, lista koordynatora (MAIL-02, 5.10.2026) -----------
     *email_delivery_urlpatterns,
+    # --- lejek uczestnika i raport wysyłki komunikatu (STATS-02, 18.10.2026) ---------------------
+    *coordinator_stats_urlpatterns,
     # --- okna czasowe etapu według stref (TZ-01, 4.10.2026; widoki w ``apps.time_windows``) -------
     *time_windows_urlpatterns,
     # --- tłumaczenia zadań przez delegacje (TR-01, 4.10.2026) -----------------------------------
@@ -1298,4 +1312,6 @@ urlpatterns = [
     *consent_gate_urlpatterns,
     # --- edytor LaTeX webTEX przy zadaniu (zadanie TEX-01, flaga ``latex_editor``) ----------------
     *webtex_urlpatterns,
+    # --- automatyczne przypomnienia: reguły → komunikaty planowane (MSG-AUTO-01) ----------------
+    *message_rule_urlpatterns,
 ]

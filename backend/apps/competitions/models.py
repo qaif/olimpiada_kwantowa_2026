@@ -600,6 +600,13 @@ class Stage(models.Model):
     video_base_url = models.URLField(
         "adres serwera wideo", max_length=200, blank=True, default=DEFAULT_VIDEO_BASE_URL
     )
+    # REG-UX-01 § 3: nowe konto uczestnika (pierwsza zgoda RODO na profilu) zapisuje się samo do
+    # tego etapu – wyłącznie etapu treningowego (więz niżej), bo trening jest otwartą piaskownicą,
+    # a do etapów zawodów zapisuje uczeń albo kwalifikacja. Na etapie, a nie w ustawieniach konkursu:
+    # etap treningowy jest jeden na edycję, więc nowa edycja zaczyna z przełącznikiem wyłączonym
+    # i nikt nie musi pamiętać, który etap wskazywało ustawienie z zeszłego roku.
+    # Reguła: ``apps.competitions.auto_registration``.
+    auto_register_new_participants = models.BooleanField("automatyczny zapis nowych kont", default=False)
 
     #: Bez własnej kolumny: etap dochodzi do konkursu przez edycję (§ 3.4). Jedna droga zamiast
     #: dwóch – wtedy nie ma czego uzgadniać i nie ma jak się rozjechać.
@@ -648,6 +655,12 @@ class Stage(models.Model):
             models.CheckConstraint(
                 condition=Q(review_deadline_days__gte=1),
                 name="competitions_stage_review_days_positive",
+            ),
+            # Automatyczny zapis tylko do treningu (REG-UX-01 § 3.1) – druga zapora obok serwisu,
+            # żeby zapis z ``/admin/`` albo z powłoki nie zapisywał nowych kont do eliminacji.
+            models.CheckConstraint(
+                condition=Q(auto_register_new_participants=False) | Q(kind=StageKind.TRAINING),
+                name="competitions_stage_auto_register_training",
             ),
         ]
 

@@ -28,6 +28,7 @@ from typing import Any
 import pytest
 from django.db import connection, transaction
 from django.db.migrations.executor import MigrationExecutor
+from django.db.models import Model
 
 # =================================================================================================
 # Przewinięta baza w **jednej transakcji** (od 25.09.2026, ``docs/TESTY.md`` § testy migracji)
@@ -191,9 +192,9 @@ def live_user(*, email: str | None = None, groups=(), **fields):
     Tabela ``accounts_user`` długo wyglądała na każdym stanie tak samo jak dziś, więc testy migracji
     zakładały konta prawdziwą klasą (``UserFactory``, ``User.objects.create``). Od ``User.blocked_at``
     (``accounts.0042``, audyt 10.10.2026, S5) przewinięcie ``accounts`` zdejmuje tę kolumnę, a prawdziwa
-    klasa wymienia ją w każdym ``INSERT`` i ``SELECT``. Dlatego: wstawienie modelem z
-    :func:`applied_state_model`, a zwrot – prawdziwym ``User`` z odroczonymi kolumnami, których tabela
-    jeszcze nie ma (``defer``). Taki obiekt działa w filtrach i relacjach prawdziwych modeli
+    klasa wymienia ją w każdym ``INSERT`` i ``SELECT``. Dlatego (:func:`live_instance`): wstawienie
+    modelem z :func:`applied_state_model`, a zwrot – prawdziwym ``User`` z odroczonymi kolumnami,
+    których tabela jeszcze nie ma (``defer``). Taki obiekt działa w filtrach i relacjach prawdziwych modeli
     (``Membership.objects.filter(user=…)``, ``user.groups.add``), a jego ``save()`` zapisuje wyłącznie
     wczytane kolumny.
     """
@@ -201,16 +202,63 @@ def live_user(*, email: str | None = None, groups=(), **fields):
 
     from apps.accounts.models import User
 
-    historical = applied_state_model("accounts", "User")
-    row = historical.objects.create(
-        email=email or f"migracja-{next(_live_user_counter)}@example.test", password="!", **fields
+    user = live_instance(
+        User, email=email or f"migracja-{next(_live_user_counter)}@example.test", password="!", **fields
     )
-    present = {field.attname for field in historical._meta.concrete_fields}
-    missing = [field.attname for field in User._meta.concrete_fields if field.attname not in present]
-    user = User.objects.defer(*missing).get(pk=row.pk)
     for name in groups:
         user.groups.add(Group.objects.get_or_create(name=name)[0])
     return user
+
+
+def live_instance(model, **fields):
+    """Dowolny wiersz w przewiniętej bazie – ta sama mechanika, co :func:`live_user`.
+
+    Wstawienie modelem z :func:`applied_state_model` (dokładnie te kolumny, które tabela w tej chwili
+    ma), zwrot prawdziwą klasą ``model`` z odroczonymi (``defer``) kolumnami dołożonymi po punkcie
+    przewinięcia. Wartości będące obiektami modeli (``edition=`` z żywej fabryki) idą jako klucze
+    (``edition_id``): pole relacji modelu historycznego nie przyjmie instancji prawdziwej klasy.
+    """
+    historical = applied_state_model(model._meta.app_label, model._meta.model_name)
+    values = {}
+    for name, value in fields.items():
+        if isinstance(value, Model):
+            values[historical._meta.get_field(name).attname] = value.pk
+        else:
+            values[name] = value
+    row = historical.objects.create(**values)
+    present = {field.attname for field in historical._meta.concrete_fields}
+    missing = [field.attname for field in model._meta.concrete_fields if field.attname not in present]
+    return model.objects.defer(*missing).get(pk=row.pk)
+
+
+def rewound_factory(factory_class):
+    """Ta sama fabryka (te same wartości domyślne), ale wiersz zakłada :func:`live_instance`.
+
+    Dla modeli, do których po punkcie przewinięcia testu przybyła kolumna. Pierwszy był ``Stage``:
+    ``auto_register_new_participants`` (``competitions.0035``, REG-UX-01) – ``StageFactory`` w bazie
+    przewiniętej do ``competitions.0023`` kończyło się „column … does not exist”, tak jak wcześniej
+    ``UserFactory`` po ``accounts.0042``. Podfabryki (np. edycja etapu) zostają zwykłe: ich tabele stoją
+    w tych oknach w kształcie prawdziwej klasy – a gdy przestaną, dostaną tę samą obwolutę.
+    """
+    from apps.tenancy.tests.factories import without_unknown_competition
+
+    class Rewound(factory_class):
+        @classmethod
+        def _create(cls, model_class, *args, **kwargs):
+            return live_instance(model_class, **without_unknown_competition(model_class, kwargs))
+
+    Rewound.__name__ = Rewound.__qualname__ = f"Rewound{factory_class.__name__}"
+    return Rewound
+
+
+def head_of(app_label: str) -> list[tuple[str, str]]:
+    """Ostatnia migracja aplikacji (liść grafu) – cel ``migrate_to`` z powrotem na czoło tej aplikacji.
+
+    Dla asercji, które pytają **dzisiejszy** kod serwisu: ten czyta tabelę pełnym modelem, więc pytamy
+    go dopiero wtedy, gdy tabela ma znów wszystkie kolumny. Dane z przewiniętej bazy przechodzą przez
+    dalsze migracje tak, jak na produkcji, a transakcja fikstury modułu i tak cofnie całość.
+    """
+    return MigrationExecutor(connection).loader.graph.leaf_nodes(app_label)
 
 
 def ensure_competition(apps):

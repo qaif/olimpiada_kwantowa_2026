@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-from apps.email_delivery.typos import KNOWN_DOMAINS, SHORT_DOMAIN_LENGTH, TLD_TYPOS
+from apps.email_delivery.typos import BRAND_DOMAINS, KNOWN_DOMAINS, SHORT_DOMAIN_LENGTH, TLD_TYPOS
 
 BACKEND = Path(__file__).resolve().parents[3]
 SCRIPT = BACKEND / "apps" / "email_delivery" / "static" / "email_delivery" / "email-check.js"
@@ -35,6 +35,10 @@ def test_known_domains_are_identical():
 
 def test_tld_typos_are_identical():
     assert json.loads(_js_literal("TLD_TYPOS", "{", "}")) == TLD_TYPOS
+
+
+def test_brand_domains_are_identical():
+    assert json.loads(_js_literal("BRAND_DOMAINS", "{", "}")) == BRAND_DOMAINS
 
 
 def test_short_domain_threshold_is_identical():

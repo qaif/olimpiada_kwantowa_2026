@@ -240,7 +240,13 @@ esac
 # działające kontenery Jitsi bez pliku, z którego da się nimi zarządzać (audyt 10.10.2026).
 # `deploy-state` (migawka do wycofania i zapis ostatniego udanego wdrożenia, scripts/rollback.sh) –
 # jak `.env`: stan serwera, nie kod; skasowany razem z kodem odebrałby wycofaniu wszystko, co wie.
-"${SSH[@]}" "mkdir -p '$REMOTE_DIR' && find '$REMOTE_DIR' -mindepth 1 -maxdepth 1 ! -name .env ! -name 'e2e' ! -name maintenance ! -name secrets ! -name caddy ! -name jitsi ! -name deploy-state -exec rm -rf {} +"
+# `livekit` (livekit.yaml, egress.yaml i profil seccomp – sekrety serwera webinarów, OPERACJE § 36.2,
+# poza repozytorium): do 18.10.2026 brakowało go na tej liście, więc KAŻDE wdrożenie kasowało pliki,
+# a działający kontener trzymał tylko skasowany i-węzeł – po pierwszym restarcie LiveKit nie wstał
+# (montowanie nieistniejącego pliku, Docker tworzy w jego miejscu pusty katalog).
+# `mail-dns*.txt` (rekordy DKIM z scripts/mail_add_domain.sh – jedyny zapis opublikowanych wartości,
+# OPERACJE § 49.8) – z tego samego powodu.
+"${SSH[@]}" "mkdir -p '$REMOTE_DIR' && find '$REMOTE_DIR' -mindepth 1 -maxdepth 1 ! -name .env ! -name 'e2e' ! -name maintenance ! -name secrets ! -name caddy ! -name jitsi ! -name deploy-state ! -name livekit ! -name 'mail-dns*.txt' -exec rm -rf {} +"
 git archive --format=tar HEAD | "${SSH[@]}" "tar -x -C '$REMOTE_DIR'"
 
 log "2a/8 Migawka do wycofania: obrazy działających kontenerów i zastosowane migracje"

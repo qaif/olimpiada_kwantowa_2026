@@ -1,0 +1,11 @@
+{% load i18n %}{% comment %}
+  Podpowiedź literówki w adresie ucznia (REG-UX-01 § 1.3). Dwa przyciski radiowe przypięte do
+  formularza zatwierdzenia atrybutem ``form`` (tabela stoi poza nim); „Popraw” jest zaznaczone
+  domyślnie. Z formularza jedzie wyłącznie numer wiersza i wybór – poprawiony adres liczy serwer
+  od nowa z podpisanego koszyka (``bulk_registration.apply_email_fixes``).
+{% endcomment %}
+<fieldset class="email-suggestion">
+  <legend>{% blocktranslate trimmed with address=row.email_suggestion %}Czy chodziło o {{ address }}?{% endblocktranslate %}</legend>
+  <label><input type="radio" form="import-confirm" name="email_fix_{{ row.number }}" value="fix" checked> {% translate "Popraw" %}</label>
+  <label><input type="radio" form="import-confirm" name="email_fix_{{ row.number }}" value="keep"> {% translate "Tak, adres jest poprawny" %}</label>
+</fieldset>

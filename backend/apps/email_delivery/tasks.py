@@ -23,16 +23,25 @@ def reporting_mta() -> str:
 @shared_task(name="apps.email_delivery.tasks.process_bounce_mailbox")
 def process_bounce_mailbox() -> dict:
     """Czyta ``MAIL_BOUNCE_MAILDIR/new``: zawiadomienia o niedoręczeniu → ``DeliveryStatus``."""
-    from .bounces import process_maildir
+    from .bounces import original_headers, process_maildir
     from .models import Source
     from .services import record_bounce, tracking_enabled
+    from .signals import bounces_reported
 
     if not tracking_enabled():
         return {}
+
+    def report(bounces, raw):
+        # STATS-02 § 2.3: każde odbicie z nagłówkami listu pierwotnego – raport wysyłki komunikatu.
+        bounces_reported.send_robust(
+            sender=process_bounce_mailbox, bounces=bounces, headers=original_headers(raw), source=Source.DSN
+        )
+
     stats = process_maildir(
         settings.MAIL_BOUNCE_MAILDIR,
         record=lambda bounce: record_bounce(bounce, source=Source.DSN),
         reporting_mta=reporting_mta(),
+        report=report,
     )
     if stats.get("files"):
         logger.info("Skrzynka odbić: %s", stats)
