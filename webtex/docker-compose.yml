@@ -1,0 +1,37 @@
+# webTEX — all-in-one deployment (server + client + TeX Live in one container).
+#
+#   docker compose up -d --build      → http://localhost:3000
+#
+# In this mode LaTeX runs inside the app container (COMPILE_BACKEND=local): fast, but
+# compiles of different projects are not isolated from each other.
+#
+# Alternative (recommended for untrusted users): run the server on the host and let it
+# start a fresh, network-less sandbox container for every compile:
+#   docker build -t webtex-texlive docker/texlive
+#   npm install && npm run build
+#   COMPILE_BACKEND=docker npm start
+# (Running that mode from inside a container would require mounting the Docker socket,
+#  which is intentionally not done here.)
+
+services:
+  webtex:
+    build: .
+    image: webtex:latest
+    restart: unless-stopped
+    ports:
+      - "${PORT:-3000}:3000"
+    volumes:
+      - webtex-data:/data
+    environment:
+      # Accounts
+      ALLOW_REGISTRATION: "${ALLOW_REGISTRATION:-true}"   # set to false after creating your accounts
+      SECURE_COOKIES: "${SECURE_COOKIES:-false}"           # true when served over HTTPS
+      # Uploads (MB per file / imported zip)
+      MAX_UPLOAD_MB: "${MAX_UPLOAD_MB:-50}"
+      # Compilation
+      COMPILE_BACKEND: local                               # TeX Live is installed in this image
+      COMPILE_TIMEOUT: "${COMPILE_TIMEOUT:-90}"            # seconds
+      # Fixed inside the image: PORT=3000, HOST=0.0.0.0, DATA_DIR=/data
+
+volumes:
+  webtex-data:

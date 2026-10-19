@@ -41,6 +41,9 @@ GATED_VIEWS = {
     # Strona laboratorium notatnika przy zadaniu (QC-01) – ``pk`` to zadanie. Sam notatnik startowy
     # (``web:participant-notebook-starter``, adres z tokenem bez zadania w ścieżce) bramkuje widok.
     "web:participant-notebook": "problem",
+    # Edytor LaTeX przy zadaniu (TEX-01): otwarcie (token SSO) i złożenie PDF-u z edytora.
+    "web:problem-latex": "stage",
+    "web:problem-latex-submit": "stage",
 }
 
 

@@ -42,8 +42,10 @@ render() {
   # czyjś plik konfiguracyjny.
   # Argumenty 6–9 (LIVEKIT_PROXY, ERRORS_PROXY, ERRORS_UI_ALLOW, NOTEBOOK_LAB_HOST) – też zawsze, choćby puste.
   # ADMIN_ALLOWED_IPS – dziesiąty argument, z tego samego powodu zawsze przekazywany (pusto = bez ograniczeń).
+  # WEBTEX_HOST (TEX-01) – jedenasty, jw.
   EXTRA_DOMAINS="$1" PLATFORM_SUBDOMAINS="${3:-}" DJCMS_ENABLED="${4:-}" DJCMS_PRIMARY="${5:-}" LIVEKIT_PROXY="${6:-}" \
     ERRORS_PROXY="${7:-}" ERRORS_UI_ALLOW="${8:-}" NOTEBOOK_LAB_HOST="${9:-}" ADMIN_ALLOWED_IPS="${10:-}" \
+    WEBTEX_HOST="${11:-}" \
     CADDYFILE_OUT="$2" bash "$RENDER" >"$WORK/stdout" 2>"$WORK/stderr"
 }
 
@@ -1023,6 +1025,48 @@ PY
   check "caddy adapt (NOTEBOOK_LAB_HOST): 302 laboratorium przed /static/* w każdym bloku aplikacji; host laboratorium: nagłówki → pliki → starter → 404; zwykły certyfikat" $?
 else
   printf 'skip caddy validate/adapt dla NOTEBOOK_LAB_HOST (brak Dockera albo Pythona)\n'
+fi
+
+# --- WEBTEX_HOST: edytor LaTeX na osobnym hoście (docs/tasks/TEX-01.md) ------------------------------
+#
+# Pusty = bajt w bajt jak dotąd; niepusty = jeden blok na końcu, a reszta pliku bez zmian.
+TEX=tex.example.org
+render "" "$WORK/tex-off.caddy" "" "" "" "" "" "" "" "" ""
+cmp -s "$SRC" "$WORK/tex-off.caddy"
+check "WEBTEX_HOST pusty daje kopię deploy/Caddyfile bajt w bajt" $?
+
+for bad in 'tex.example.org:8443' 'https://tex.example.org' 'tex' 'tex.example.org/x' 'a.pl b.pl' 'tex{x}.pl'; do
+  render "" "$WORK/tex-bad.caddy" "" "" "" "" "" "" "" "" "$bad"
+  [ $? -ne 0 ] && grep -qF 'WEBTEX_HOST' "$WORK/stderr"
+  check "generator odmawia dla WEBTEX_HOST=„$bad”" $?
+done
+render "" "$WORK/tex-dup.caddy" "" "" "" "" "" "" "$TEX" "" "$TEX"
+[ $? -ne 0 ] && grep -qF 'NOTEBOOK_LAB_HOST' "$WORK/stderr"
+check "WEBTEX_HOST równy NOTEBOOK_LAB_HOST = odmowa" $?
+render "konkurs.example tex.example.org" "$WORK/tex-dup2.caddy" "" "" "" "" "" "" "" "" "$TEX"
+[ $? -ne 0 ] && grep -qF 'EXTRA_DOMAINS' "$WORK/stderr"
+check "WEBTEX_HOST obecny też w EXTRA_DOMAINS = odmowa" $?
+
+for combo in "|" "olimpiadafizyczna.pl konkurs.example|1"; do
+  extra="${combo%|*}"; sub="${combo#*|}"
+  render "$extra" "$WORK/tex-ref.caddy" "$sub" "" "" "" "" "" "" "" ""
+  render "$extra" "$WORK/tex-on.caddy" "$sub" "" "" "" "" "" "" "" "$TEX"
+  rc=$?
+  sed '/^# Wygenerowane przez scripts\/render_caddyfile.sh z WEBTEX_HOST/,$d' "$WORK/tex-on.caddy" | sed '$ { /^$/d }' \
+    | cmp -s - "$WORK/tex-ref.caddy"
+  check "WEBTEX_HOST (EXTRA=„$extra”, subdomeny=„$sub”): wynik minus blok edytora = wynik bez zmiennej (kod $rc)" $?
+  grep -qF "$TEX {" "$WORK/tex-on.caddy" && grep -qF 'reverse_proxy webtex:3000' "$WORK/tex-on.caddy"
+  check "WEBTEX_HOST: blok hosta edytora z reverse_proxy webtex:3000" $?
+done
+grep -A1 'handle /api/integration/build\*' "$WORK/tex-on.caddy" | grep -qF 'respond 404'
+check "WEBTEX_HOST: API serwer–serwer edytora niedostępne przez proxy" $?
+
+if declare -F caddy_run >/dev/null; then   # zdefiniowana w przypadku 19, gdy jest Docker
+  render "olimpiadafizyczna.pl" "$WORK/tex-validate.caddy" "1" "" "" "" "" "" "" "" "$TEX"
+  caddy_run "$WORK/tex-validate.caddy" validate >"$WORK/validate.out" 2>&1
+  check "caddy validate (WEBTEX_HOST, z subdomenami platformy)" $?
+else
+  printf 'skip caddy validate dla WEBTEX_HOST (brak Dockera albo SKIP_CADDY_VALIDATE=1)\n'
 fi
 
 if [ "$failures" -ne 0 ]; then

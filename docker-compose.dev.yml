@@ -117,6 +117,16 @@ services:
       - "127.0.0.1:8100:8000"
     # Jak minio: publikacja portu wymaga sieci nie-`internal`.
     networks: [internal, edge]
+  webtex:
+    # Edytor LaTeX (TEX-01, profil `latex`): w devie bez Caddy'ego, wprost na localhost:3001
+    # (WEBTEX_URL=http://localhost:3001 w .env). Publikacja portu wymaga sieci nie-`internal`, jak
+    # przy minio; w produkcji edytor stoi wyłącznie w `tex_front` i `tex_api`.
+    environment:
+      SECURE_COOKIES: "false"
+      PLATFORM_URL: http://localhost:8000/
+    ports:
+      - "127.0.0.1:3001:3000"
+    networks: [tex_front, tex_api, edge]
 
 # Sekret BuildKit `extra_ca` dla obrazów djcms i web (etap `dev`). `EXTRA_CA_FILE` w `.env` wskazuje plik PEM z dodatkowym
 # CA (np. Norton, który podpisuje przechwycony HTTPS i psuje `uv sync` błędem `UnknownIssuer`).

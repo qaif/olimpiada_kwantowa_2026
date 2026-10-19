@@ -1,0 +1,3 @@
+{% if show %}
+      <dt>Edytor LaTeX</dt>
+      <dd><a href="{% url 'web:coordinator-stage-latex' stage.pk %}">udostępnianie linków: {% if options.sharing_enabled %}włączone{% else %}wyłączone (praca indywidualna){% endif %}; asystent AI: {% if options.ai_enabled %}włączony{% else %}wyłączony{% endif %}</a></dd>{% endif %}

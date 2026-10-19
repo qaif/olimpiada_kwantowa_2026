@@ -236,6 +236,13 @@ x-app-env: &app-env
   DJCMS_INTERNAL_TOKEN:
   DJCMS_SSO_KEY:
   DJCMS_MAIN_PUBLIC_URL:
+  # Edytor LaTeX webTEX (TEX-01): host (check zgodności z Caddym), adres publiczny, adres w sieci
+  # `tex_api`, wspólny sekret i `iss` tokenów
+  WEBTEX_HOST:
+  WEBTEX_URL:
+  WEBTEX_INTERNAL_URL:
+  WEBTEX_SHARED_KEY:
+  WEBTEX_ISSUER:
 
 x-app-base: &app-base
   build:
@@ -346,6 +353,8 @@ services:
       meet:
       livekit_signal:
       errors_front:
+      # `tex_front`: trasa WEBTEX_HOST -> webtex:3000 (TEX-01). Bez profilu `latex` stoi w niej sam Caddy.
+      tex_front:
     depends_on:
       web: { condition: service_healthy }
     healthcheck:
@@ -399,7 +408,8 @@ services:
     volumes:
       - static_files:/app/staticfiles
       - package_tmp:/var/tmp/packages
-    networks: [edge, internal, cache, mail, errors_ingest]
+    # `tex_api` – wyłącznie web, worker i `webtex` (TEX-01): API serwer–serwer edytora LaTeX.
+    networks: [edge, internal, cache, mail, errors_ingest, tex_api]
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/healthz/', timeout=3).status==200 else 1)"]
       interval: 15s
@@ -413,6 +423,9 @@ services:
 
   worker:
     <<: *app-base
+    # Jak w x-app-base plus `tex_api`: zadanie Celery przesyła do edytora LaTeX zmiany polityki
+    # udostępniania i asystenta AI (TEX-01 § D5, D10).
+    networks: [internal, cache, mail, errors_ingest, tex_api]
     command: celery -A config worker -l info --concurrency ${CELERY_CONCURRENCY:-2} -Q default,scan,mail
     # Patrz komentarz przy `web` – ten sam powód, mniejsza liczba (dwa procesy współbieżne zamiast
     # szesnastu wątków web, a skan antywirusowy trzyma plik w pamięci tylko na czas przesłania do
@@ -1118,6 +1131,52 @@ services:
       retries: 5
       start_period: 60s
 
+  # Edytor LaTeX webTEX (TEX-01, docs/tasks/TEX-01.md): uczestnik pisze rozwiązanie w przeglądarce
+  # i składa skompilowany PDF zwykłą ścieżką `create_submission`. Profil `latex` – instalacja bez
+  # edytora nie ma tego kontenera ani obrazu z pełnym TeX Live (~9 GB): `COMPOSE_PROFILES=latex` w .env
+  # serwera, do tego WEBTEX_HOST (Caddy, scripts/render_caddyfile.sh) i flaga konkursu `latex_editor`.
+  # Izolacja:
+  # - sieci `tex_front` (tylko Caddy) i `tex_api` (tylko web/worker), obie `internal` – TeX, kod
+  #   kompilowany z plików uczniów, nie ma wyjścia do internetu ani dostępu do bazy, Redisa i MinIO,
+  # - każda kompilacja zamknięta w katalogu projektu przez Landlock (jądro hosta musi go mieć,
+  #   docs/OPERACJE.md § 55.2), bez shell-escape, latexmk z `-norc`, LuaLaTeX odrzucany w trybie
+  #   integracji (webtex/README.md), TeX bez środowiska serwera; osobny sekret tylko z tym kluczem,
+  # - `read_only` + tmpfs `/tmp` (cache fontów TeX-a), `cap_drop: ALL`, `no-new-privileges`, limity.
+  # Asystent AI z dostawcami w chmurze potrzebuje wyjścia do internetu – nakładka
+  # docker-compose.webtex-ai.yml (TEX-02), domyślnie bez niej.
+  webtex:
+    profiles: [latex]
+    build:
+      context: ./webtex
+    image: ${WEBTEX_IMAGE:-olimpiada/webtex:${APP_VERSION:-dev}}
+    restart: unless-stopped
+    logging: *default-logging
+    environment:
+      WEBTEX_INTEGRATION: "true"
+      WEBTEX_SHARED_KEY: ${WEBTEX_SHARED_KEY:-}
+      WEBTEX_ISSUER: ${WEBTEX_ISSUER:-olimpiada}
+      PLATFORM_URL: ${WEBTEX_PLATFORM_URL:-https://${SITE_DOMAIN:-localhost}/}
+      SECURE_COOKIES: ${WEBTEX_SECURE_COOKIES:-true}
+      MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-25}
+      COMPILE_TIMEOUT: ${WEBTEX_COMPILE_TIMEOUT:-90}
+    volumes:
+      - webtex_data:/data
+    networks: [tex_front, tex_api]
+    read_only: true
+    tmpfs:
+      - /tmp:size=512m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+    mem_limit: ${WEBTEX_MEM_LIMIT:-2g}
+    pids_limit: 512
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
   mailpit:
     profiles: [dev]
     image: axllent/mailpit:v1.30
@@ -1231,6 +1290,23 @@ networks:
       config:
         - subnet: 172.30.9.0/24
 
+  # Edytor LaTeX (TEX-01): Caddy ⇄ `webtex`. Bez wyjścia do internetu; nie w TRUSTED_PROXY_IPS ani
+  # w `mynetworks` Postfiksa. Bez profilu `latex` stoi w niej sam Caddy.
+  tex_front:
+    driver: bridge
+    internal: true
+    ipam:
+      config:
+        - subnet: 172.30.13.0/24
+  # Edytor LaTeX (TEX-01): web/worker ⇄ `webtex` (API serwer–serwer podpisane HMAC). Bez wyjścia do
+  # internetu; nie w TRUSTED_PROXY_IPS ani w `mynetworks`.
+  tex_api:
+    driver: bridge
+    internal: true
+    ipam:
+      config:
+        - subnet: 172.30.14.0/24
+
 volumes:
   # PostgreSQL 18 – dane bazy (patrz komentarz przy usłudze `db`).
   pg18_data:
@@ -1266,3 +1342,5 @@ volumes:
   glitchtip_uploads:
   # Stan monitora dostępności (trwające awarie, zaległe listy) – żeby restart nie gubił awarii.
   uptime_state:
+  # Edytor LaTeX (TEX-01): SQLite, projekty uczniów, katalogi kompilacji i PDF-y.
+  webtex_data:

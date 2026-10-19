@@ -1,0 +1,64 @@
+# Nakładka: asystent AI edytora LaTeX z dostawcami modeli w chmurze (TEX-02, docs/OPERACJE.md § 55.3).
+#
+#   COMPOSE_FILE=docker-compose.yml:docker-compose.webtex-ai.yml   (w .env serwera, razem z profilem `latex`)
+#
+# Bez nakładki usługa `webtex` nie ma wyjścia do internetu (sieci `tex_front` i `tex_api` są `internal`),
+# więc asystent działa wyłącznie z serwerem modeli osiągalnym w `tex_api` (Ollama, vLLM, LiteLLM).
+# Nakładka dokłada osobną sieć z wyjściem, w której stoi **wyłącznie** `webtex` – kompilacje TeX-a i tak
+# nie mają sieci (piaskownica Landlock, bez shell-escape, LuaLaTeX wyłączony; § 55.2) – i przekazuje
+# klucze dostawców. Klucze zostają w procesie serwera edytora: przeglądarka widzi tylko nazwy modeli,
+# a TeX nie dziedziczy środowiska serwera.
+#
+# Sam przełącznik `LLM_ENABLED` nie włącza asystenta na zawodach: w trybie integracji każdy projekt
+# uczestnika ma AI zablokowane, dopóki koordynator nie włączy go dla etapu (domyślnie wyłączone).
+# Pełna lista zmiennych i domyślnych modeli: webtex/README.md, webtex/.env.example.
+
+services:
+  webtex:
+    networks: [tex_front, tex_api, tex_egress]
+    environment:
+      LLM_ENABLED: ${LLM_ENABLED:-true}
+      LLM_DEFAULT_PROVIDER: ${LLM_DEFAULT_PROVIDER:-}
+      LLM_ENV_PROVIDERS: ${LLM_ENV_PROVIDERS:-}
+      LLM_MAX_TOKENS: ${LLM_MAX_TOKENS:-}
+      LLM_RATE_LIMIT: ${LLM_RATE_LIMIT:-}
+      LLM_RATE_WINDOW: ${LLM_RATE_WINDOW:-}
+      LLM_MAX_CONCURRENT: ${LLM_MAX_CONCURRENT:-}
+      LLM_TIMEOUT: ${LLM_TIMEOUT:-}
+      LLM_IDLE_TIMEOUT: ${LLM_IDLE_TIMEOUT:-}
+      LLM_CONTEXT_CHARS: ${LLM_CONTEXT_CHARS:-}
+      LLM_MAX_INPUT_CHARS: ${LLM_MAX_INPUT_CHARS:-}
+      LLM_TEMPERATURE: ${LLM_TEMPERATURE:-}
+      # Dostawcy – pusty klucz = dostawca nieaktywny.
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      MISTRAL_API_KEY: ${MISTRAL_API_KEY:-}
+      COHERE_API_KEY: ${COHERE_API_KEY:-}
+      AZURE_OPENAI_ENDPOINT: ${AZURE_OPENAI_ENDPOINT:-}
+      AZURE_OPENAI_API_KEY: ${AZURE_OPENAI_API_KEY:-}
+      AZURE_OPENAI_DEPLOYMENTS: ${AZURE_OPENAI_DEPLOYMENTS:-}
+      AZURE_OPENAI_API_VERSION: ${AZURE_OPENAI_API_VERSION:-}
+      BEDROCK_REGION: ${BEDROCK_REGION:-}
+      BEDROCK_MODELS: ${BEDROCK_MODELS:-}
+      AWS_ACCESS_KEY_ID: ${WEBTEX_AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${WEBTEX_AWS_SECRET_ACCESS_KEY:-}
+      AWS_SESSION_TOKEN: ${WEBTEX_AWS_SESSION_TOKEN:-}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-}
+      VLLM_BASE_URL: ${VLLM_BASE_URL:-}
+      LITELLM_BASE_URL: ${LITELLM_BASE_URL:-}
+      LITELLM_API_KEY: ${LITELLM_API_KEY:-}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      XAI_API_KEY: ${XAI_API_KEY:-}
+      TOGETHER_API_KEY: ${TOGETHER_API_KEY:-}
+
+networks:
+  # Wyjście do internetu dla edytora (wywołania API dostawców modeli). Jedyny członek: `webtex`.
+  # Nie `internal` (to jest cały jej sens) i nie w TRUSTED_PROXY_IPS / `mynetworks` Postfiksa.
+  tex_egress:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: ${WEBTEX_EGRESS_SUBNET:-172.30.15.0/24}

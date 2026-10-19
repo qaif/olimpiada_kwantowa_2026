@@ -1,0 +1,110 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-18 22:59+0200\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid ""
+"Edytor LaTeX nie odpowiada. Spróbuj ponownie za chwilę albo pobierz PDF z "
+"edytora i wyślij go zwykłym formularzem."
+msgstr "The LaTeX editor is not responding. Try again in a moment, or download the PDF from the editor and send it with the regular form."
+
+#, python-format
+msgid "PDF z edytora jest większy niż limit pliku tego zadania (%(limit)s MB)."
+msgstr "The PDF from the editor is larger than this problem's file limit (%(limit)s MB)."
+
+msgid ""
+"W edytorze LaTeX nie ma jeszcze Twojego projektu dla tego zadania. Otwórz "
+"edytor przyciskiem „Napisz rozwiązanie w LaTeX”, napisz rozwiązanie i "
+"spróbuj ponownie."
+msgstr "The LaTeX editor has no project of yours for this problem yet. Open the editor with the “Write your solution in LaTeX” button, write your solution and try again."
+
+msgid ""
+"Kompilacja w edytorze nie dała pliku PDF – popraw błędy LaTeX wymienione "
+"niżej i złóż rozwiązanie ponownie. Poprzednia wersja (jeśli była) zostaje "
+"bez zmian."
+msgstr "Compiling in the editor did not produce a PDF – fix the LaTeX errors listed below and submit again. Your previous version (if any) stays unchanged."
+
+msgid ""
+"Kompilator LaTeX jest chwilowo niedostępny. Spróbuj ponownie za kilka minut "
+"– Twoja praca w edytorze jest zapisana."
+msgstr "The LaTeX compiler is temporarily unavailable. Try again in a few minutes – your work in the editor is saved."
+
+msgid "Potwierdzam, że to rozwiązanie właściwego zadania"
+msgstr "I confirm this is the solution to the right problem"
+
+msgid "Zaznacz potwierdzenie, że składasz rozwiązanie właściwego zadania."
+msgstr "Tick the confirmation that you are submitting the solution to the right problem."
+
+msgid "Nie ma takiego zadania."
+msgstr "There is no such problem."
+
+msgid ""
+"Twoje konto ma rolę personelu, więc edytor LaTeX jako uczestnik jest dla "
+"niego wyłączony. Do rozwiązywania zadań używaj osobnego konta uczestnika."
+msgstr "Your account has a staff role, so the LaTeX editor as a participant is disabled for it. Use a separate participant account to solve problems."
+
+msgid "Wpis do etapu jest zdyskwalifikowany."
+msgstr "The stage entry is disqualified."
+
+#, python-format
+msgid "Zadanie %(number)s. %(title)s"
+msgstr "Problem %(number)s. %(title)s"
+
+msgid ""
+"To zadanie nie przyjmuje rozwiązań w PDF – edytor LaTeX nie złoży go za "
+"Ciebie."
+msgstr "This problem does not accept PDF solutions – the LaTeX editor cannot submit one for you."
+
+msgid "Termin oddania rozwiązań minął."
+msgstr "The submission deadline has passed."
+
+msgid "Edytor LaTeX"
+msgstr "LaTeX editor"
+
+msgid "Napisz rozwiązanie w LaTeX"
+msgstr "Write your solution in LaTeX"
+
+msgid ""
+"Edytor otwiera się w nowej karcie, z gotowym szablonem rozwiązania. Twoja "
+"praca zapisuje się w edytorze na bieżąco."
+msgstr "The editor opens in a new tab with a ready-made solution template. Your work is saved in the editor as you go."
+
+#, python-format
+msgid "wiersz %(line)s"
+msgstr "line %(line)s"
+
+#, python-format
+msgid ""
+"Potwierdzam, że to rozwiązanie zadania %(number)s – składam PDF skompilowany "
+"w edytorze."
+msgstr "I confirm this is the solution to problem %(number)s – I am submitting the PDF compiled in the editor."
+
+msgid "Złóż PDF z edytora"
+msgstr "Submit PDF from the editor"
+
+msgid ""
+"Platforma skompiluje Twój projekt na nowo i złoży wynik jako kolejną wersję "
+"rozwiązania. Kompilacja może potrwać do dwóch minut."
+msgstr "The platform will compile your project afresh and submit the result as a new version of your solution. Compiling may take up to two minutes."
+
+msgid "Wróć do zadań"
+msgstr "Back to problems"
+
+#, python-format
+msgid "PDF z edytora został złożony jako wersja %(version)s."
+msgstr "The PDF from the editor was submitted as version %(version)s."

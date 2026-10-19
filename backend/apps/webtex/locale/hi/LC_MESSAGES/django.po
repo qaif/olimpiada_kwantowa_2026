@@ -1,0 +1,110 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-18 22:59+0200\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid ""
+"Edytor LaTeX nie odpowiada. Spróbuj ponownie za chwilę albo pobierz PDF z "
+"edytora i wyślij go zwykłym formularzem."
+msgstr "LaTeX संपादक जवाब नहीं दे रहा है। थोड़ी देर बाद फिर से कोशिश करें, या संपादक से PDF डाउनलोड करके सामान्य फ़ॉर्म से भेजें।"
+
+#, python-format
+msgid "PDF z edytora jest większy niż limit pliku tego zadania (%(limit)s MB)."
+msgstr "संपादक से मिली PDF इस प्रश्न की फ़ाइल सीमा (%(limit)s MB) से बड़ी है।"
+
+msgid ""
+"W edytorze LaTeX nie ma jeszcze Twojego projektu dla tego zadania. Otwórz "
+"edytor przyciskiem „Napisz rozwiązanie w LaTeX”, napisz rozwiązanie i "
+"spróbuj ponownie."
+msgstr "LaTeX संपादक में इस प्रश्न के लिए अभी आपका कोई प्रोजेक्ट नहीं है। “LaTeX में हल लिखें” बटन से संपादक खोलें, हल लिखें और फिर से कोशिश करें।"
+
+msgid ""
+"Kompilacja w edytorze nie dała pliku PDF – popraw błędy LaTeX wymienione "
+"niżej i złóż rozwiązanie ponownie. Poprzednia wersja (jeśli była) zostaje "
+"bez zmian."
+msgstr "संपादक में कंपाइल करने से PDF नहीं बनी – नीचे दी गई LaTeX त्रुटियाँ ठीक करें और फिर से जमा करें। पिछला संस्करण (यदि था) वैसा ही रहेगा।"
+
+msgid ""
+"Kompilator LaTeX jest chwilowo niedostępny. Spróbuj ponownie za kilka minut "
+"– Twoja praca w edytorze jest zapisana."
+msgstr "LaTeX कंपाइलर अभी उपलब्ध नहीं है। कुछ मिनट बाद फिर से कोशिश करें – संपादक में आपका काम सहेजा हुआ है।"
+
+msgid "Potwierdzam, że to rozwiązanie właściwego zadania"
+msgstr "मैं पुष्टि करता/करती हूँ कि यह सही प्रश्न का हल है"
+
+msgid "Zaznacz potwierdzenie, że składasz rozwiązanie właściwego zadania."
+msgstr "पुष्टि पर निशान लगाएँ कि आप सही प्रश्न का हल जमा कर रहे हैं।"
+
+msgid "Nie ma takiego zadania."
+msgstr "ऐसा कोई प्रश्न नहीं है।"
+
+msgid ""
+"Twoje konto ma rolę personelu, więc edytor LaTeX jako uczestnik jest dla "
+"niego wyłączony. Do rozwiązywania zadań używaj osobnego konta uczestnika."
+msgstr "आपके खाते में स्टाफ़ भूमिका है, इसलिए प्रतिभागी के रूप में LaTeX संपादक इसके लिए बंद है। प्रश्न हल करने के लिए अलग प्रतिभागी खाते का उपयोग करें।"
+
+msgid "Wpis do etapu jest zdyskwalifikowany."
+msgstr "चरण में आपका पंजीकरण अयोग्य घोषित है।"
+
+#, python-format
+msgid "Zadanie %(number)s. %(title)s"
+msgstr "प्रश्न %(number)s. %(title)s"
+
+msgid ""
+"To zadanie nie przyjmuje rozwiązań w PDF – edytor LaTeX nie złoży go za "
+"Ciebie."
+msgstr "यह प्रश्न PDF में हल स्वीकार नहीं करता – LaTeX संपादक इसे आपकी ओर से जमा नहीं कर सकता।"
+
+msgid "Termin oddania rozwiązań minął."
+msgstr "हल जमा करने की अंतिम तिथि बीत चुकी है।"
+
+msgid "Edytor LaTeX"
+msgstr "LaTeX संपादक"
+
+msgid "Napisz rozwiązanie w LaTeX"
+msgstr "LaTeX में हल लिखें"
+
+msgid ""
+"Edytor otwiera się w nowej karcie, z gotowym szablonem rozwiązania. Twoja "
+"praca zapisuje się w edytorze na bieżąco."
+msgstr "संपादक नए टैब में तैयार हल-टेम्पलेट के साथ खुलता है। आपका काम संपादक में साथ-साथ सहेजा जाता है।"
+
+#, python-format
+msgid "wiersz %(line)s"
+msgstr "पंक्ति %(line)s"
+
+#, python-format
+msgid ""
+"Potwierdzam, że to rozwiązanie zadania %(number)s – składam PDF skompilowany "
+"w edytorze."
+msgstr "मैं पुष्टि करता/करती हूँ कि यह प्रश्न %(number)s का हल है – मैं संपादक में कंपाइल की गई PDF जमा कर रहा/रही हूँ।"
+
+msgid "Złóż PDF z edytora"
+msgstr "संपादक से PDF जमा करें"
+
+msgid ""
+"Platforma skompiluje Twój projekt na nowo i złoży wynik jako kolejną wersję "
+"rozwiązania. Kompilacja może potrwać do dwóch minut."
+msgstr "प्लेटफ़ॉर्म आपके प्रोजेक्ट को फिर से कंपाइल करेगा और परिणाम को हल के नए संस्करण के रूप में जमा करेगा। कंपाइल होने में दो मिनट तक लग सकते हैं।"
+
+msgid "Wróć do zadań"
+msgstr "प्रश्नों पर वापस जाएँ"
+
+#, python-format
+msgid "PDF z edytora został złożony jako wersja %(version)s."
+msgstr "संपादक से मिली PDF संस्करण %(version)s के रूप में जमा हो गई।"

@@ -232,6 +232,14 @@ fi
 LAB_HOST="$(printf '%s' "${NOTEBOOK_LAB_HOST:-}" | tr '[:upper:]' '[:lower:]' | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')"
 LAB_HOST="${LAB_HOST%.}"
 
+# `WEBTEX_HOST` (TEX-01) – edytor LaTeX na osobnym hoście; ten sam odczyt i te same reguły co
+# NOTEBOOK_LAB_HOST. Pusty = plik bajt w bajt jak bez edytora.
+if [ -z "${WEBTEX_HOST+x}" ] && [ -f "$ROOT/.env" ]; then
+  WEBTEX_HOST="$(sed -n 's/^WEBTEX_HOST=//p' "$ROOT/.env" | tail -n 1 | tr -d '\r\042\047')"
+fi
+TEX_HOST="$(printf '%s' "${WEBTEX_HOST:-}" | tr '[:upper:]' '[:lower:]' | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')"
+TEX_HOST="${TEX_HOST%.}"
+
 # Kontrakt tras aplikacji (DJ-02 § 6): dwa wyrażenia generowane z urlconfu `web` przez
 # `manage.py djcms_routes --write` i commitowane. Potrzebny wyłącznie przy DJCMS_ENABLED=1 – bez
 # przełącznika plik nie jest nawet czytany. Czytany `sed`-em, nie `source` (jak `.env`): wartość
@@ -292,6 +300,25 @@ if [ -n "$LAB_HOST" ]; then
   for host in $EXTRA_DOMAINS; do
     if [ "$(printf '%s' "$host" | tr '[:upper:]' '[:lower:]')" = "$LAB_HOST" ]; then
       echo "render_caddyfile: NOTEBOOK_LAB_HOST=„$LAB_HOST” jest też w EXTRA_DOMAINS – laboratorium musi mieć własny host" >&2
+      exit 1
+    fi
+  done
+fi
+
+# Host edytora LaTeX (TEX-01): te same reguły. Własny origin jest warunkiem bezpieczeństwa – edytor
+# ma własną sesję i własny JavaScript, a ciasteczka platformy (`__Host-`) do niego nie trafiają.
+if [ -n "$TEX_HOST" ]; then
+  if ! [[ $TEX_HOST =~ $LAB_HOST_RE ]]; then
+    echo "render_caddyfile: WEBTEX_HOST=„${WEBTEX_HOST}” nie wygląda na nazwę hosta (bez schematu, portu i ścieżki)" >&2
+    exit 1
+  fi
+  if [ "$TEX_HOST" = "$LAB_HOST" ]; then
+    echo "render_caddyfile: WEBTEX_HOST i NOTEBOOK_LAB_HOST to ten sam host – edytor musi mieć własny" >&2
+    exit 1
+  fi
+  for host in $EXTRA_DOMAINS; do
+    if [ "$(printf '%s' "$host" | tr '[:upper:]' '[:lower:]')" = "$TEX_HOST" ]; then
+      echo "render_caddyfile: WEBTEX_HOST=„$TEX_HOST” jest też w EXTRA_DOMAINS – edytor musi mieć własny host" >&2
       exit 1
     fi
   done
@@ -922,6 +949,61 @@ EOF
   } >> "$tmp"
 fi
 
+if [ -n "$TEX_HOST" ]; then
+  # Blok hosta edytora LaTeX (TEX-01) – na końcu pliku. Całość do usługi `webtex` (profil compose
+  # `latex`), łącznie z WebSocketem współpracy (/ws/*; Caddy przepuszcza Upgrade sam). CSP edytora:
+  # skrypty i style wyłącznie własne (style inline – CodeMirror wstrzykuje <style>), worker pdf.js
+  # z własnego originu, ramki tylko własne (podgląd PDF), osadzanie edytora gdzie indziej – nie.
+  # Limit treści jak upload rozwiązania (`MAX_UPLOAD_MB`): to obrazki i .zip projektu.
+  {
+    printf '\n%s\n' '# Wygenerowane przez scripts/render_caddyfile.sh z WEBTEX_HOST – nie edytuj tego pliku.'
+    printf '%s\n' '# Edytor LaTeX webTEX na osobnym hoście (docs/tasks/TEX-01.md).'
+    printf '%s {\n' "$TEX_HOST"
+    if [ "$SUBDOMAINS_ON" = "1" ]; then
+      printf '%s\n' \
+        '    # Zwykły certyfikat (nie on-demand bloku *.) – scripts/render_caddyfile.sh, PLATFORM_SUBDOMAINS=1.' \
+        '    tls force_automate {' '        key_type p256' '    }'
+    fi
+    cat <<'EOF'
+    encode gzip zstd
+    request_body {
+        max_size {$MAX_UPLOAD_MB}MB
+    }
+    # API serwer–serwer platformy idzie siecią compose (`tex_api`), nigdy przez proxy.
+    handle /api/integration/build* {
+        respond 404
+    }
+    handle /api/integration/sharing* {
+        respond 404
+    }
+    handle /api/integration/health* {
+        respond 404
+    }
+    handle /api/integration/ai* {
+        respond 404
+    }
+    handle {
+        reverse_proxy webtex:3000 {
+            header_up X-Forwarded-Proto {scheme}
+            header_up X-Real-IP {remote_host}
+        }
+    }
+    header {
+        Strict-Transport-Security "max-age=31536000"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "SAMEORIGIN"
+        Referrer-Policy "same-origin"
+        Cross-Origin-Opener-Policy "same-origin"
+        Cross-Origin-Resource-Policy "same-origin"
+        Permissions-Policy "camera=(), microphone=(), geolocation=()"
+        Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; worker-src 'self' blob:; connect-src 'self'; frame-src 'self'; frame-ancestors 'self'; object-src 'none'; base-uri 'none'; form-action 'self'"
+        -Server
+    }
+}
+EOF
+  } >> "$tmp"
+fi
+
 mkdir -p "$(dirname "$OUT")"
 cat "$tmp" > "$OUT"
 # Podsumowanie rozszerzane tylko o przełączniki włączone – przy wyłączonych linijka jest ta sama
@@ -933,4 +1015,5 @@ extras=""
 [ "$LIVEKIT_ON" = "1" ] && extras="$extras, live. (LiveKit): włączone"
 [ "$ERRORS_ON" = "1" ] && extras="$extras, errors. (GlitchTip): włączone"
 [ -n "$LAB_HOST" ] && extras="$extras, laboratorium notatników: $LAB_HOST"
+[ -n "$TEX_HOST" ] && extras="$extras, edytor LaTeX: $TEX_HOST"
 echo "render_caddyfile: $OUT (domen dodatkowych: $added$extras)"

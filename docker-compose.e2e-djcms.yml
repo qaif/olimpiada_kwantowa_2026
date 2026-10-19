@@ -120,6 +120,14 @@ networks:
     ipam: !override
       config:
         - subnet: ${E2E_MEET_SUBNET:-172.31.12.0/24}
+  tex_front:
+    ipam: !override
+      config:
+        - subnet: ${E2E_TEX_FRONT_SUBNET:-172.31.13.0/24}
+  tex_api:
+    ipam: !override
+      config:
+        - subnet: ${E2E_TEX_API_SUBNET:-172.31.14.0/24}
 
 secrets:
   extra_ca:
