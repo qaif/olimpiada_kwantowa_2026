@@ -294,6 +294,12 @@ Dobrze wiedzieć:
   gdy organizator to wyłączy, współpracownicy tracą dostęp od razu,
 - **asystent AI** (czat, pomoc przy błędach kompilacji) działa tylko na etapach, na których
   organizator go dopuścił (zwykle treningowych); na zawodach go nie ma,
+- **podpowiedzi poleceń**: po wpisaniu `\` i kilku liter edytor podpowiada polecenia z krótkim
+  opisem po polsku – we wzorze symbole, litery greckie i notację kwantową (`\ket`, `\braket`,
+  `\expval`, `\comm`…), w tekście polecenia tekstowe; po `\begin{` środowiska (z gotowym `\end{…}`),
+  po `\eqref{` Twoje etykiety, a także Twoje własne `\newcommand`. Wybierasz strzałkami, zatwierdzasz
+  Enter albo Tab, kolejne pola szablonu przechodzisz Tabem; Ctrl+Spacja otwiera listę ręcznie. To
+  zwykłe podpowiedzi składni, nie asystent AI – działają na każdym etapie i nic nie wysyłają poza edytor,
 - źródła projektu (ZIP) możesz pobrać z edytora w każdej chwili,
 - konto z rolą organizatora, recenzenta czy opiekuna nie otwiera edytora jako uczestnik – do
   rozwiązywania zadań potrzebne jest zwykłe konto uczestnika.
