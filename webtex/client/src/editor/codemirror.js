@@ -23,14 +23,22 @@ import {
 } from '@codemirror/language';
 import { defaultKeymap, indentWithTab, toggleComment } from '@codemirror/commands';
 import { highlightSelectionMatches, search, searchKeymap } from '@codemirror/search';
-import { autocompletion, closeBrackets, closeBracketsKeymap, completionKeymap } from '@codemirror/autocomplete';
+import { acceptCompletion, autocompletion, closeBrackets, closeBracketsKeymap, completionKeymap } from '@codemirror/autocomplete';
 import { stex } from '@codemirror/legacy-modes/mode/stex';
 import { tags as t } from '@lezer/highlight';
 import { yCollab, yUndoManagerKeymap } from 'y-codemirror.next';
 import { bibtexLanguage } from './bibtex.js';
-import { latexCompletionSource, scanSymbols } from './completions.js';
+import {
+  completionPhrases,
+  completionUsageTracker,
+  insertEnvironmentEnd,
+  latexCompletionSource,
+  mergeSymbols,
+  scanFile,
+  scanSymbols,
+} from './completions.js';
 
-export { scanSymbols };
+export { mergeSymbols, scanFile, scanSymbols };
 
 const latexLanguage = StreamLanguage.define(stex);
 
@@ -113,6 +121,31 @@ const baseTheme = EditorView.theme({
   '.cm-tooltip-autocomplete > ul > li[aria-selected] .cm-completionDetail': { color: 'inherit', opacity: 0.8 },
   '.cm-completionMatchedText': { textDecoration: 'none', fontWeight: '700' },
   '.cm-snippetField': { backgroundColor: 'var(--cm-selection-match)' },
+  // The info panel is a child of the list's tooltip, placed beside it: it must not be clipped.
+  '.cm-tooltip.cm-tooltip-autocomplete': { overflow: 'visible' },
+  '.cm-tooltip.cm-tooltip-autocomplete > ul': { borderRadius: '6px' },
+  '.cm-latex-completions .cm-completionDetail': {
+    display: 'inline-block',
+    maxWidth: '24em',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    verticalAlign: 'bottom',
+  },
+  '.cm-tooltip.cm-completionInfo': { padding: '6px 10px', maxWidth: '360px' },
+  '.cm-latex-info': { display: 'grid', gap: '4px', fontSize: '0.92em', lineHeight: '1.4' },
+  '.cm-latex-info-syntax': {
+    fontFamily: 'var(--cm-font, ui-monospace, Consolas, monospace)',
+    whiteSpace: 'pre-wrap',
+    wordBreak: 'break-word',
+  },
+  '.cm-latex-field': {
+    backgroundColor: 'var(--cm-selection-match)',
+    borderRadius: '3px',
+    padding: '0 2px',
+    fontStyle: 'italic',
+  },
+  '.cm-latex-info-meta': { color: 'var(--cm-gutter-text)' },
+  '.cm-latex-info-warn': { color: 'var(--syn-error)' },
 });
 
 const fontTheme = (px) =>
@@ -212,7 +245,14 @@ export function createEditor({
   if (lang === 'latex') {
     languageExt.push(
       latexLanguage,
-      autocompletion({ override: [latexCompletionSource(getSymbols)], icons: false, activateOnTyping: true }),
+      autocompletion({
+        override: [latexCompletionSource(getSymbols)],
+        icons: false,
+        activateOnTyping: true,
+        tooltipClass: () => 'cm-latex-completions',
+      }),
+      completionUsageTracker,
+      completionPhrases(),
     );
   } else if (lang === 'bibtex') {
     languageExt.push(bibtexLanguage, autocompletion());
@@ -245,7 +285,10 @@ export function createEditor({
         ...yUndoManagerKeymap,
         ...searchKeymap,
         ...completionKeymap,
+        // Tab accepts the selected completion (Enter works too); otherwise it indents.
+        { key: 'Tab', run: acceptCompletion },
         indentWithTab,
+        ...(lang === 'latex' ? [{ key: 'Enter', run: insertEnvironmentEnd }] : []),
         ...defaultKeymap,
       ]),
       ...languageExt,

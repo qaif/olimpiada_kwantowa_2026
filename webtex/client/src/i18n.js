@@ -178,6 +178,17 @@ const en = {
   'ai.err.notConfigured': 'The AI assistant is not enabled on this server.',
   'ai.err.forbidden': 'Read-only members cannot use the assistant.',
   'ai.err.generic': 'Something went wrong. {message}',
+  'cmp.completions': 'Completions',
+  'cmp.package': 'package {pkg}',
+  'cmp.loaded': 'loaded',
+  'cmp.requires': 'needs \\usepackage{{pkg}}',
+  'cmp.args': 'arguments: {n}',
+  'cmp.definedAt': 'Defined in {file}:{line}',
+  'cmp.labelAt': 'Label in {file}:{line}',
+  'cmp.labelPrefix': 'label prefix',
+  'cmp.offContextMath': 'Normally used in math mode ($…$)',
+  'cmp.offContextText': 'Normally used outside math mode',
+  'cmp.offContextEnv': 'Normally used inside: {envs}',
 };
 
 const pl = {
@@ -358,6 +369,17 @@ const pl = {
   'ai.err.notConfigured': 'Asystent AI nie jest włączony na tym serwerze.',
   'ai.err.forbidden': 'Osoby z dostępem tylko do odczytu nie mogą używać asystenta.',
   'ai.err.generic': 'Coś poszło nie tak. {message}',
+  'cmp.completions': 'Podpowiedzi',
+  'cmp.package': 'pakiet {pkg}',
+  'cmp.loaded': 'załadowany',
+  'cmp.requires': 'wymaga \\usepackage{{pkg}}',
+  'cmp.args': 'argumenty: {n}',
+  'cmp.definedAt': 'Zdefiniowane w {file}:{line}',
+  'cmp.labelAt': 'Etykieta w {file}:{line}',
+  'cmp.labelPrefix': 'prefiks etykiety',
+  'cmp.offContextMath': 'Zwykle w trybie matematycznym ($…$)',
+  'cmp.offContextText': 'Zwykle poza trybem matematycznym',
+  'cmp.offContextEnv': 'Zwykle wewnątrz: {envs}',
 };
 
 const dictionaries = { en, pl };

@@ -12,6 +12,19 @@ podsekcją `### <tytuł>` wydania `## v<x.y.z> – <data tagu> – <opis tagu>`.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## [Unreleased] – Edytor LaTeX (webTEX): kontekstowe autouzupełnianie
+
+- Podpowiedzi w edytorze LaTeX zależne od kontekstu: we wzorze symbole, litery greckie, operatory i
+  notacja kwantowa (`braket`, `physics`, `quantikz` w obwodzie), w tekście polecenia tekstowe; ok. 380
+  poleceń i 60 środowisk z opisem po polsku i szablonem z polami (Tab), `\begin{…}` z automatycznym
+  `\end{…}` (także Enter po ręcznie wpisanym `\begin{x}`), po `\end{` środowisko do zamknięcia, po
+  `\ref{`/`\eqref{` etykiety z plikiem, wierszem i fragmentem, po `\label{` prefiks, po `\usepackage{`
+  pakiety z opisem; własne `\newcommand`, `\DeclareMathOperator`, `\newenvironment`… z projektu.
+- Ranking: dopasowanie rozmyte plus historia użycia zapisywana tylko w przeglądarce (`localStorage`);
+  wszystko działa bez sieci. Skan projektu buforowany per plik (duże projekty nie spowalniają pisania).
+- Opis: `webtex/README.md` („Autouzupełnianie”), `PODRECZNIK-UCZESTNIKA.md` § 3b; testy
+  `webtex/client/test/` (w `npm test`).
+
 ## [Unreleased] – Serwer MinIO z bitnamilegacy/minio zamiast znikniętego minio/minio
 
 - Usługa `minio` (i jej odpowiednik w `scripts/loadtest/`): `bitnamilegacy/minio:2025.4.22` przypięty digestem

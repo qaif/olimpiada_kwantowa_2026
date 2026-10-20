@@ -8,7 +8,7 @@ import { ProjectConnection } from '../editor/provider.js';
 import { FileTree, buildPaths } from '../editor/filetree.js';
 import { LogPanel } from '../editor/logs.js';
 import { Outline } from '../editor/outline.js';
-import { createEditor, scanSymbols } from '../editor/codemirror.js';
+import { createEditor, mergeSymbols, scanFile } from '../editor/codemirror.js';
 import { PdfViewer } from '../editor/pdfviewer.js';
 import { AiPanel } from '../editor/ai.js';
 import { avatar, userColor, userMenuButton } from './common.js';
@@ -304,14 +304,29 @@ export async function renderEditor(root, projectId) {
     return um;
   }
 
+  // Completion symbols (labels, citation keys, \newcommand…) per file; a file is rescanned only after
+  // it changes, so completing in a large project does not re-read every file on each keystroke.
+  const scanned = new Map(); // id -> { ytext, path, result }
+  const observed = new WeakSet();
   function symbols() {
-    const entries = [];
+    const results = [];
     for (const e of entities) {
-      if (e.kind !== 'doc' || !/\.(tex|bib|ltx)$/i.test(e.name)) continue;
+      if (e.kind !== 'doc' || !/\.(tex|bib|ltx|sty|cls)$/i.test(e.name)) continue;
       const yt = texts.get(e.id);
-      if (yt) entries.push([paths.get(e.id), yt.toString()]);
+      if (!yt) continue;
+      const path = paths.get(e.id);
+      let c = scanned.get(e.id);
+      if (!c || c.ytext !== yt || c.path !== path) {
+        if (!observed.has(yt)) {
+          observed.add(yt);
+          yt.observe(() => scanned.delete(e.id));
+        }
+        c = { ytext: yt, path, result: scanFile(path, yt.toString()) };
+        scanned.set(e.id, c);
+      }
+      results.push(c.result);
     }
-    return { ...scanSymbols(entries), files: [...paths.entries()].filter(([id]) => byId(id)?.kind !== 'folder').map(([, p]) => p) };
+    return { ...mergeSymbols(results), files: [...paths.entries()].filter(([id]) => byId(id)?.kind !== 'folder').map(([, p]) => p) };
   }
 
   let outlineTimer = null;
