@@ -33,9 +33,9 @@
   <p class="lead">{{ account|person:participant.public_code }} ·
     {{ participant.school }} ·
     {% if participant.grade %}klasa {{ participant.grade }} · {% endif %}
-    {# ``region_label`` stawia widok i **wyłącznie** wtedy, gdy konkurs ma własny podział
+    {% comment %} ``region_label`` stawia widok i **wyłącznie** wtedy, gdy konkurs ma własny podział
        terytorialny (flaga ``custom_regions``). Pusty napis znaczy „czytaj województwo”, czyli
-       dokładnie to, co ta linia robiła przed etapem 2. #}
+       dokładnie to, co ta linia robiła przed etapem 2. {% endcomment %}
     {{ region_label|default:participant.get_district_display }}</p>
   <p class="hint"><span class="badge badge--danger">dane osobowe</span> Tę stronę widzi wyłącznie
     koordynator. Recenzent zobaczy w swoim panelu sam kod uczestnika.</p>
@@ -92,8 +92,8 @@
         {% if participant.school_ref %}
           <span class="badge badge--neutral">z wykazu SIO</span>
         {% else %}
-          {# Szkoła wpisana ręcznie nie jest błędem (wykaz nie zna placówek zagranicznych ani
-             najnowszych), ale koordynator ma prawo wiedzieć, że nikt jej nie sprawdził. #}
+          {% comment %} Szkoła wpisana ręcznie nie jest błędem (wykaz nie zna placówek zagranicznych ani
+             najnowszych), ale koordynator ma prawo wiedzieć, że nikt jej nie sprawdził. {% endcomment %}
           <span class="badge badge--warn">wpisana ręcznie</span>
         {% endif %}
       </dd>
@@ -107,8 +107,8 @@
         <dd>{{ participant.get_district_display }}</dd>
       {% endif %}
       <dt>Data urodzenia</dt>
-      {# Myślnik, a nie pusta komórka: „nie znamy dnia” jest odpowiedzią na pytanie koordynatora
-         „dlaczego ten uczeń ma zgodę opiekuna mimo rocznika 2007”, a brak wiersza nią nie jest. #}
+      {% comment %} Myślnik, a nie pusta komórka: „nie znamy dnia” jest odpowiedzią na pytanie koordynatora
+         „dlaczego ten uczeń ma zgodę opiekuna mimo rocznika 2007”, a brak wiersza nią nie jest. {% endcomment %}
       <dd>{{ participant.birth_date|default:"—" }}</dd>
       <dt>Rok urodzenia</dt>
       <dd>{{ participant.known_birth_year|default:"—" }}</dd>
@@ -370,9 +370,9 @@
                     <td>
                       <div class="actions">
                         {% if problem.scale_items or problem.score_widget.free %}
-                          {# Punkty ze skali **zadania** (a w jej braku – etapu), nie wolne pole:
+                          {% comment %} Punkty ze skali **zadania** (a w jej braku – etapu), nie wolne pole:
                              ocena spoza skali i tak nie przeszłaby przez serwis. W etapie
-                             z dowolnymi wartościami (0.35.0) – pole liczbowe z zakresem. #}
+                             z dowolnymi wartościami (0.35.0) – pole liczbowe z zakresem. {% endcomment %}
                           <form method="post" action="{% url 'web:coordinator-review-score' review.pk %}">
                             {% csrf_token %}
                             <label class="visually-hidden" for="score-{{ review.pk }}">Punkty recenzji</label>
@@ -392,8 +392,8 @@
                         {% if review.status in withdrawable_statuses %}
                           <form method="post" action="{% url 'web:coordinator-review-unassign' review.pk %}">
                             {% csrf_token %}
-                            {# Dwie nazwy dla dwóch różnych rzeczy: nietknięty przydział się „cofa”,
-                               rozpoczętą albo wystawioną recenzję „odbiera się” recenzentowi. #}
+                            {% comment %} Dwie nazwy dla dwóch różnych rzeczy: nietknięty przydział się „cofa”,
+                               rozpoczętą albo wystawioną recenzję „odbiera się” recenzentowi. {% endcomment %}
                             <button type="submit" class="btn btn--danger btn--small">
                               {% if review.status == assigned_status %}Cofnij{% else %}Odbierz{% endif %}</button>
                           </form>

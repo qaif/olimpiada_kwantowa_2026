@@ -31,8 +31,8 @@
         {% for row in rows %}
           <tr>
             <td class="num">{{ row.problem.number }}</td>
-            {# Tytuł prowadzi na kartę zadania: to ona jest jego stroną główną, a „Edytuj” –
-               jedną z czynności, które się z niej wykonuje. #}
+            {% comment %} Tytuł prowadzi na kartę zadania: to ona jest jego stroną główną, a „Edytuj” –
+               jedną z czynności, które się z niej wykonuje. {% endcomment %}
             <th scope="row"><a href="{% url 'web:coordinator-problem' row.problem.pk %}">{{ row.problem.title }}</a></th>
             <td>
               {% if row.problem.statement_pdf %}
