@@ -1,0 +1,105 @@
+# UX-PANEL-01 – napisy aplikacji notifications (hi). Źródło (msgid) po polsku; poza angielskim
+# tłumaczenie maszynowe – do przeglądu native speakera (I18N-01 § 8).
+msgid ""
+msgstr ""
+"Project-Id-Version: olimpiada notifications\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-21 12:00+0200\n"
+"PO-Revision-Date: 2026-10-21 12:00+0200\n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: hi\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Wiadomość od organizatora"
+msgstr "आयोजक का संदेश"
+
+msgid "Wiadomość od uczestnika"
+msgstr "प्रतिभागी का संदेश"
+
+msgid "Ogłoszenie organizatora"
+msgstr "आयोजक की घोषणा"
+
+msgid "Zaświadczenie zaakceptowane"
+msgstr "प्रमाणपत्र स्वीकृत"
+
+msgid "Zaświadczenie odrzucone"
+msgstr "प्रमाणपत्र अस्वीकृत"
+
+msgid "Odpowiedź na forum"
+msgstr "फ़ोरम पर उत्तर"
+
+msgid "Decyzja moderatora forum"
+msgstr "फ़ोरम मॉडरेटर का निर्णय"
+
+msgid "Ogłoszone wyniki"
+msgstr "घोषित परिणाम"
+
+msgid "Decyzja w sprawie reklamacji"
+msgstr "अपील पर निर्णय"
+
+msgid "Nowa wiadomość od organizatora"
+msgstr "आयोजक का नया संदेश"
+
+msgid "Nowa wiadomość w rozmowie z innym uczestnikiem"
+msgstr "दूसरे प्रतिभागी के साथ बातचीत में नया संदेश"
+
+#, python-format
+msgid "Nowe ogłoszenie organizatora: %(title)s"
+msgstr "आयोजक की नई घोषणा: %(title)s"
+
+msgid "Zaświadczenie o statusie ucznia zostało zaakceptowane"
+msgstr "आपका छात्र स्थिति प्रमाणपत्र स्वीकार कर लिया गया है"
+
+msgid "Zaświadczenie o statusie ucznia zostało odrzucone – sprawdź powód"
+msgstr "आपका छात्र स्थिति प्रमाणपत्र अस्वीकार कर दिया गया है – कारण देखें"
+
+msgid "Nowa odpowiedź w obserwowanym wątku na forum"
+msgstr "आपके फ़ॉलो किए गए फ़ोरम थ्रेड में नया उत्तर"
+
+msgid "Moderator forum podjął decyzję w sprawie Twojego wpisu"
+msgstr "फ़ोरम मॉडरेटर ने आपकी पोस्ट पर निर्णय लिया है"
+
+#, python-format
+msgid "Ogłoszono wyniki: %(stage)s"
+msgstr "परिणाम घोषित: %(stage)s"
+
+msgid "Komisja rozpatrzyła Twoją reklamację"
+msgstr "समिति ने आपकी अपील पर निर्णय ले लिया है"
+
+msgid "Nowe powiadomienie"
+msgstr "नई सूचना"
+
+msgid "Wszystkie powiadomienia oznaczono jako przeczytane."
+msgstr "सभी सूचनाओं को पढ़ा हुआ चिह्नित कर दिया गया है।"
+
+msgid "Powiadomienia"
+msgstr "सूचनाएँ"
+
+msgid "Oznacz wszystkie jako przeczytane"
+msgstr "सभी को पढ़ा हुआ चिह्नित करें"
+
+msgid "nowe"
+msgstr "नया"
+
+msgid "Nowsze"
+msgstr "नए"
+
+msgid "Starsze"
+msgstr "पुराने"
+
+msgid "Nie masz jeszcze powiadomień"
+msgstr "आपके पास अभी कोई सूचना नहीं है"
+
+msgid "Pojawią się tu nowe wiadomości, ogłoszenia organizatora, decyzje w sprawie zaświadczenia i reklamacji oraz ogłoszone wyniki."
+msgstr "नए संदेश, आयोजक की घोषणाएँ, प्रमाणपत्र और अपीलों पर निर्णय तथा घोषित परिणाम यहाँ दिखाई देंगे।"
+
+msgid "Strony powiadomień"
+msgstr "सूचनाओं के पृष्ठ"
+
+#, python-format
+msgid "Nowe wiadomości, ogłoszenia organizatora, decyzje i wyniki – w jednym miejscu. Powiadomienia starsze niż %(days)s dni usuwamy automatycznie."
+msgstr "नए संदेश, आयोजक की घोषणाएँ, निर्णय और परिणाम – एक ही जगह। %(days)s दिनों से पुरानी सूचनाएँ अपने आप हटा दी जाती हैं।"

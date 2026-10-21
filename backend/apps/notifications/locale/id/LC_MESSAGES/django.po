@@ -1,0 +1,105 @@
+# UX-PANEL-01 – napisy aplikacji notifications (id). Źródło (msgid) po polsku; poza angielskim
+# tłumaczenie maszynowe – do przeglądu native speakera (I18N-01 § 8).
+msgid ""
+msgstr ""
+"Project-Id-Version: olimpiada notifications\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-21 12:00+0200\n"
+"PO-Revision-Date: 2026-10-21 12:00+0200\n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: id\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+msgid "Wiadomość od organizatora"
+msgstr "Pesan dari penyelenggara"
+
+msgid "Wiadomość od uczestnika"
+msgstr "Pesan dari peserta"
+
+msgid "Ogłoszenie organizatora"
+msgstr "Pengumuman penyelenggara"
+
+msgid "Zaświadczenie zaakceptowane"
+msgstr "Surat keterangan diterima"
+
+msgid "Zaświadczenie odrzucone"
+msgstr "Surat keterangan ditolak"
+
+msgid "Odpowiedź na forum"
+msgstr "Balasan di forum"
+
+msgid "Decyzja moderatora forum"
+msgstr "Keputusan moderator forum"
+
+msgid "Ogłoszone wyniki"
+msgstr "Hasil yang diumumkan"
+
+msgid "Decyzja w sprawie reklamacji"
+msgstr "Keputusan atas banding"
+
+msgid "Nowa wiadomość od organizatora"
+msgstr "Pesan baru dari penyelenggara"
+
+msgid "Nowa wiadomość w rozmowie z innym uczestnikiem"
+msgstr "Pesan baru dalam percakapan dengan peserta lain"
+
+#, python-format
+msgid "Nowe ogłoszenie organizatora: %(title)s"
+msgstr "Pengumuman baru dari penyelenggara: %(title)s"
+
+msgid "Zaświadczenie o statusie ucznia zostało zaakceptowane"
+msgstr "Surat keterangan status pelajar Anda telah diterima"
+
+msgid "Zaświadczenie o statusie ucznia zostało odrzucone – sprawdź powód"
+msgstr "Surat keterangan status pelajar Anda ditolak – periksa alasannya"
+
+msgid "Nowa odpowiedź w obserwowanym wątku na forum"
+msgstr "Balasan baru di utas forum yang Anda ikuti"
+
+msgid "Moderator forum podjął decyzję w sprawie Twojego wpisu"
+msgstr "Moderator forum telah membuat keputusan tentang kiriman Anda"
+
+#, python-format
+msgid "Ogłoszono wyniki: %(stage)s"
+msgstr "Hasil diumumkan: %(stage)s"
+
+msgid "Komisja rozpatrzyła Twoją reklamację"
+msgstr "Komite telah memutuskan banding Anda"
+
+msgid "Nowe powiadomienie"
+msgstr "Notifikasi baru"
+
+msgid "Wszystkie powiadomienia oznaczono jako przeczytane."
+msgstr "Semua notifikasi telah ditandai sudah dibaca."
+
+msgid "Powiadomienia"
+msgstr "Notifikasi"
+
+msgid "Oznacz wszystkie jako przeczytane"
+msgstr "Tandai semua sudah dibaca"
+
+msgid "nowe"
+msgstr "baru"
+
+msgid "Nowsze"
+msgstr "Lebih baru"
+
+msgid "Starsze"
+msgstr "Lebih lama"
+
+msgid "Nie masz jeszcze powiadomień"
+msgstr "Anda belum memiliki notifikasi"
+
+msgid "Pojawią się tu nowe wiadomości, ogłoszenia organizatora, decyzje w sprawie zaświadczenia i reklamacji oraz ogłoszone wyniki."
+msgstr "Pesan baru, pengumuman penyelenggara, keputusan tentang surat keterangan dan banding, serta hasil yang diumumkan akan muncul di sini."
+
+msgid "Strony powiadomień"
+msgstr "Halaman notifikasi"
+
+#, python-format
+msgid "Nowe wiadomości, ogłoszenia organizatora, decyzje i wyniki – w jednym miejscu. Powiadomienia starsze niż %(days)s dni usuwamy automatycznie."
+msgstr "Pesan baru, pengumuman penyelenggara, keputusan, dan hasil – di satu tempat. Notifikasi yang lebih lama dari %(days)s hari dihapus secara otomatis."

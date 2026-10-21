@@ -46,6 +46,8 @@ SCREENS: tuple[Screen, ...] = (
     Screen("oki-me-upload", "/me/?tab=zadania", "participant"),
     Screen("oki-me-results", "/me/?tab=wyniki", "participant"),
     Screen("oki-me-consents", "/me/?tab=zgody", "participant"),
+    Screen("oki-me-notifications", "/me/notifications/", "participant"),  # UX-PANEL-01
+    Screen("oki-me-calendar", "/me/calendar/", "participant"),
     Screen("oki-password-change", "/account/password/", "participant"),
     Screen("oki-password-change-errors", "/account/password/", "participant", action="submit-empty"),
     Screen("oki-2fa-setup", "/account/2fa/", "participant"),

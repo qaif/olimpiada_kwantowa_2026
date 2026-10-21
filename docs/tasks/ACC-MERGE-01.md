@@ -96,6 +96,7 @@ Dane osobowe konta (imię, nazwisko, szkoła, kod publiczny) zostają z konta do
 | `translation_review.TranslationVote` | przepnij bez duplikatów (klucz propozycja) |
 | `support.SupportTicket`, `translation_review.TranslationReport`, `webinars.WebinarAttendee` i **każdy** inny klucz `SET_NULL`/`PROTECT` do konta w aplikacjach projektu (autor, zgłaszający, „kto zrobił”) | przepnij (u konta czysto uczestnickiego te kolumny „personelu” są puste) |
 | `authtoken.Token`, `accounts.TwoFactorDevice`, `staff_mfa.*`, `account.EmailAddress`, `socialaccount.SocialAccount` | zostaje z kopią (poświadczenia) |
+| `notifications.Notification` (UX-PANEL-01) | znika z kopią – powiadomienie to drogowskaz do aktywności, która przechodzi na konto docelowe własną regułą; przepięcie zderzałoby się z więzem „jedno nieprzeczytane powiadomienie na klucz” (rozmowa, wątek) i dublowało zdarzenia, które docelowe już zna; powiadomienia i tak żyją 90 dni |
 | `admin.*`, `wagtail*`, strony i dokumenty `cms` (właściciel, blokada, wgrał) | zostaje z kopią (personel CMS) |
 | `core.AuditLog.actor` | nie ruszamy |
 

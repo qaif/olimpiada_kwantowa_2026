@@ -86,7 +86,11 @@ QUERY_BUDGETS: dict[str, int] = {
     # ``apps.chat.announcements.visible_announcements``) – jedno zapytanie po indeksie
     # ``(competition, is_published)``, także przy pustej liście. Bez pamięci podręcznej: ogłoszenie
     # ma zniknąć w chwili „Wyłącz”, a okno czasowe liczy się od zegara, nie od zapisu.
-    "/me/": 44,
+    # +2 od 21.10.2026 (UX-PANEL-01): menu panelu uczestnika – licznik nieprzeczytanych powiadomień
+    # (jeden ``COUNT`` po indeksie ``notif_user_unread``, zapamiętany na żądaniu, więc kafel „Co nowego”
+    # go nie powtarza) – i kafel „Najbliższy warsztat” (strona „Warsztaty”, ``cms.workshops_page``).
+    # Zmierzone 46 na zimno – sufit = pomiar; nie rośnie z liczbą uczestników ani powiadomień.
+    "/me/": 46,
     # 50 + 1 od 23.09.2026: odnośnik „Plakaty do pobrania” w stopce – patrz komentarz przy ``"/"``.
     # +1 od 30.09.2026: odznaka „Wiadomości” w menu panelu (zadanie CZ-01,
     # ``apps.chat.services.coordinator_attention``) – przełącznik i cztery liczby jednym zapytaniem,

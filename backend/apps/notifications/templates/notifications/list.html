@@ -1,0 +1,54 @@
+{% extends "participant_panel/base.html" %}
+{% load i18n web_extras %}
+{% comment %}
+  Lista powiadomień uczestnika (UX-PANEL-01). Pozycja to odnośnik ``/me/notifications/<pk>/``: otwarcie
+  oznacza ją jako przeczytaną i przekierowuje do miejsca, którego dotyczy (rozmowa, wyniki, zaświadczenie).
+  Pozycja, której ekranu już nie ma (funkcja wyłączona), zostaje na liście bez odnośnika.
+
+  Nieprzeczytana pozycja ma kropkę **i** słowo „nowe” (ukryte wizualnie) – kolor nie jest jedynym
+  nośnikiem stanu.
+{% endcomment %}
+{% block title %}{% translate "Powiadomienia" %}{% endblock %}
+{% block panel_content %}
+<div class="page-head">
+  <span class="eyebrow">{% translate "Start" %}</span>
+  <h1>{% translate "Powiadomienia" %}</h1>
+  <p class="lead">{% blocktranslate trimmed with days=retention_days %}Nowe wiadomości, ogłoszenia organizatora, decyzje i wyniki – w jednym miejscu.
+    Powiadomienia starsze niż {{ days }} dni usuwamy automatycznie.{% endblocktranslate %}</p>
+  {% if unread %}
+    <form method="post" action="{% url 'web:participant-notifications-read-all' %}" class="actions">
+      {% csrf_token %}
+      <button type="submit" class="btn btn--small btn--secondary">{% translate "Oznacz wszystkie jako przeczytane" %}</button>
+    </form>
+  {% endif %}
+</div>
+
+{% if rows %}
+  <ul class="pp-notes">
+    {% for row in rows %}
+      <li class="pp-note{% if not row.is_read %} pp-note--unread{% endif %}" data-kind="{{ row.kind }}">
+        <svg class="pp-icon pp-note__icon" aria-hidden="true" focusable="false"><use href="#pp-i-{{ row.icon }}"></use></svg>
+        <div class="pp-note__body">
+          {% if row.has_target %}
+            <a class="pp-note__link" href="{% url 'web:participant-notification-open' row.pk %}">{{ row.text }}</a>
+          {% else %}
+            <span class="pp-note__link">{{ row.text }}</span>
+          {% endif %}
+          <time class="pp-note__time" datetime="{{ row.created_at|date:'c' }}">{{ row.created_at|local_datetime }}</time>
+        </div>
+        {% if not row.is_read %}<span class="pp-note__dot" aria-hidden="true"></span><span class="visually-hidden">{% translate "nowe" %}</span>{% endif %}
+      </li>
+    {% endfor %}
+  </ul>
+  {% if page_obj.has_other_pages %}
+    <nav class="pager" aria-label="{% translate 'Strony powiadomień' %}">
+      {% if page_obj.has_previous %}<a class="btn btn--small btn--ghost" href="?page={{ page_obj.previous_page_number }}">{% translate "Nowsze" %}</a>{% endif %}
+      <span class="hint">{% blocktranslate trimmed with number=page_obj.number pages=page_obj.paginator.num_pages %}Strona {{ number }} z {{ pages }}{% endblocktranslate %}</span>
+      {% if page_obj.has_next %}<a class="btn btn--small btn--ghost" href="?page={{ page_obj.next_page_number }}">{% translate "Starsze" %}</a>{% endif %}
+    </nav>
+  {% endif %}
+{% else %}
+  <p class="empty"><span class="empty__title">{% translate "Nie masz jeszcze powiadomień" %}</span>
+    {% translate "Pojawią się tu nowe wiadomości, ogłoszenia organizatora, decyzje w sprawie zaświadczenia i reklamacji oraz ogłoszone wyniki." %}</p>
+{% endif %}
+{% endblock %}

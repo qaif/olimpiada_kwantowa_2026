@@ -1,0 +1,105 @@
+# UX-PANEL-01 – napisy aplikacji notifications (ar). Źródło (msgid) po polsku; poza angielskim
+# tłumaczenie maszynowe – do przeglądu native speakera (I18N-01 § 8).
+msgid ""
+msgstr ""
+"Project-Id-Version: olimpiada notifications\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-21 12:00+0200\n"
+"PO-Revision-Date: 2026-10-21 12:00+0200\n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: ar\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=6; plural=(n==0 ? 0 : n==1 ? 1 : n==2 ? 2 : n%100>=3 && n%100<=10 ? 3 : n%100>=11 ? 4 : 5);\n"
+
+msgid "Wiadomość od organizatora"
+msgstr "رسالة من المنظِّم"
+
+msgid "Wiadomość od uczestnika"
+msgstr "رسالة من مشارك"
+
+msgid "Ogłoszenie organizatora"
+msgstr "إعلان المنظِّم"
+
+msgid "Zaświadczenie zaakceptowane"
+msgstr "تم قبول الشهادة"
+
+msgid "Zaświadczenie odrzucone"
+msgstr "تم رفض الشهادة"
+
+msgid "Odpowiedź na forum"
+msgstr "رد في المنتدى"
+
+msgid "Decyzja moderatora forum"
+msgstr "قرار مشرف المنتدى"
+
+msgid "Ogłoszone wyniki"
+msgstr "النتائج المعلنة"
+
+msgid "Decyzja w sprawie reklamacji"
+msgstr "قرار بشأن الاعتراض"
+
+msgid "Nowa wiadomość od organizatora"
+msgstr "رسالة جديدة من المنظِّم"
+
+msgid "Nowa wiadomość w rozmowie z innym uczestnikiem"
+msgstr "رسالة جديدة في محادثة مع مشارك آخر"
+
+#, python-format
+msgid "Nowe ogłoszenie organizatora: %(title)s"
+msgstr "إعلان جديد من المنظِّم: %(title)s"
+
+msgid "Zaświadczenie o statusie ucznia zostało zaakceptowane"
+msgstr "تم قبول شهادة صفة الطالب الخاصة بك"
+
+msgid "Zaświadczenie o statusie ucznia zostało odrzucone – sprawdź powód"
+msgstr "تم رفض شهادة صفة الطالب – راجع السبب"
+
+msgid "Nowa odpowiedź w obserwowanym wątku na forum"
+msgstr "رد جديد في موضوع تتابعه في المنتدى"
+
+msgid "Moderator forum podjął decyzję w sprawie Twojego wpisu"
+msgstr "اتخذ مشرف المنتدى قرارًا بشأن مشاركتك"
+
+#, python-format
+msgid "Ogłoszono wyniki: %(stage)s"
+msgstr "أُعلنت النتائج: %(stage)s"
+
+msgid "Komisja rozpatrzyła Twoją reklamację"
+msgstr "بتّت اللجنة في اعتراضك"
+
+msgid "Nowe powiadomienie"
+msgstr "إشعار جديد"
+
+msgid "Wszystkie powiadomienia oznaczono jako przeczytane."
+msgstr "تم تعليم جميع الإشعارات كمقروءة."
+
+msgid "Powiadomienia"
+msgstr "الإشعارات"
+
+msgid "Oznacz wszystkie jako przeczytane"
+msgstr "تعليم الكل كمقروء"
+
+msgid "nowe"
+msgstr "جديد"
+
+msgid "Nowsze"
+msgstr "الأحدث"
+
+msgid "Starsze"
+msgstr "الأقدم"
+
+msgid "Nie masz jeszcze powiadomień"
+msgstr "لا توجد لديك إشعارات بعد"
+
+msgid "Pojawią się tu nowe wiadomości, ogłoszenia organizatora, decyzje w sprawie zaświadczenia i reklamacji oraz ogłoszone wyniki."
+msgstr "ستظهر هنا الرسائل الجديدة وإعلانات المنظِّم والقرارات المتعلقة بالشهادة والاعتراضات والنتائج المعلنة."
+
+msgid "Strony powiadomień"
+msgstr "صفحات الإشعارات"
+
+#, python-format
+msgid "Nowe wiadomości, ogłoszenia organizatora, decyzje i wyniki – w jednym miejscu. Powiadomienia starsze niż %(days)s dni usuwamy automatycznie."
+msgstr "الرسائل الجديدة وإعلانات المنظِّم والقرارات والنتائج – في مكان واحد. تُحذف الإشعارات الأقدم من %(days)s يومًا تلقائيًا."

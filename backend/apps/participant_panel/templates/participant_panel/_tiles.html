@@ -1,0 +1,67 @@
+{% load i18n web_extras %}{% comment %}
+  Kafle „Start” na pulpicie (UX-PANEL-01 D12): najważniejsze rzeczy jednym spojrzeniem, każda z jedną
+  czynnością. Treść przychodzi ze znacznika ``participant_start_tiles`` – kafel, którego warunek nie
+  jest spełniony (brak terminu, konkurs bez zaświadczeń, bez notatników…), po prostu się nie rysuje.
+
+  Kafle są listą (``<ul>``): czytnik ekranu mówi „lista, 5 pozycji”, a każdy kafel ma własny
+  nagłówek ``<h3>`` pod ukrytym ``<h2>`` sekcji – spis nagłówków strony zostaje spójny.
+{% endcomment %}
+<section class="pp-tiles" aria-labelledby="pp-tiles-title">
+  <h2 class="visually-hidden" id="pp-tiles-title">{% translate "Na skróty" %}</h2>
+  <ul class="pp-tiles__grid">
+    {% if deadline %}
+      <li class="pp-tile pp-tile--deadline">
+        <h3 class="pp-tile__title"><svg class="pp-icon" aria-hidden="true" focusable="false"><use href="#pp-i-clock"></use></svg>{% translate "Najbliższy termin" %}</h3>
+        <p class="pp-tile__lead">{{ deadline.label }}</p>
+        <p class="pp-tile__value">{{ deadline.at|local_time }}</p>
+        <p class="pp-tile__meta{% if deadline.passed %} pp-tile__meta--passed{% endif %}">{{ deadline.remaining }}</p>
+        <p class="pp-tile__actions"><a class="btn btn--small btn--secondary" href="{% url 'web:me' %}?tab=zadania#sekcja">{% translate "Przejdź do zadań" %}</a></p>
+      </li>
+    {% elif stage_name %}
+      <li class="pp-tile">
+        <h3 class="pp-tile__title"><svg class="pp-icon" aria-hidden="true" focusable="false"><use href="#pp-i-task"></use></svg>{% translate "Bieżący etap" %}</h3>
+        <p class="pp-tile__lead">{{ stage_name }}</p>
+        {% if state_label %}<p><span class="{{ state_tone }}">{{ state_label }}</span></p>{% endif %}
+      </li>
+    {% endif %}
+
+    {% include "web/participant/_student_status_card.html" %}
+
+    {% if workshop %}
+      <li class="pp-tile">
+        <h3 class="pp-tile__title"><svg class="pp-icon" aria-hidden="true" focusable="false"><use href="#pp-i-calendar"></use></svg>{% translate "Najbliższy warsztat" %}</h3>
+        <p class="pp-tile__lead">{{ workshop.topic|default:_("Warsztaty online") }}</p>
+        <p class="pp-tile__value">{{ workshop.date_value|date:"j E Y" }}{% if workshop.time %}, {{ workshop.time }}{% endif %}</p>
+        <p class="pp-tile__meta">{% translate "Link do spotkania organizator podaje w ogłoszeniu." %}</p>
+        <p class="pp-tile__actions"><a class="btn btn--small btn--secondary" href="{% url 'web:participant-calendar' %}">{% translate "Kalendarz" %}</a></p>
+      </li>
+    {% endif %}
+
+    {% include "web/participant/_workshop_materials_card.html" with workshop_materials_available=workshop_materials %}
+
+    {% if chat_visible or notifications_unread %}
+      <li class="pp-tile">
+        <h3 class="pp-tile__title"><svg class="pp-icon" aria-hidden="true" focusable="false"><use href="#pp-i-bell"></use></svg>{% translate "Co nowego" %}</h3>
+        <ul class="pp-tile__list">
+          <li><a href="{% url 'web:participant-notifications' %}">{% translate "Powiadomienia" %}</a>
+            {% if notifications_unread %}<span class="pp-badge">{{ notifications_unread }}<span class="visually-hidden"> {% translate "nowe" %}</span></span>{% else %}<span class="hint">{% translate "brak nowych" %}</span>{% endif %}</li>
+          {% if chat_visible %}
+            <li><a href="{% url 'web:chat' %}">{% translate "Wiadomości" %}</a>
+              {% if chat_unread %}<span class="pp-badge">{{ chat_unread }}<span class="visually-hidden"> {% translate "nieprzeczytane rozmowy" %}</span></span>{% else %}<span class="hint">{% translate "brak nowych" %}</span>{% endif %}</li>
+          {% endif %}
+        </ul>
+      </li>
+    {% endif %}
+
+    {% if notebooks or latex %}
+      <li class="pp-tile pp-tile--tools">
+        <h3 class="pp-tile__title"><svg class="pp-icon" aria-hidden="true" focusable="false"><use href="#pp-i-atom"></use></svg>{% translate "Narzędzia" %}</h3>
+        <p class="pp-tile__meta">{% translate "Pracujesz w przeglądarce – nic nie trzeba instalować." %}</p>
+        <p class="pp-tile__actions">
+          {% if notebooks %}<a class="btn btn--small btn--secondary" href="{% url 'web:participant-notebooks' %}">{% translate "Notatniki Qiskit" %}</a>{% endif %}
+          {% if latex %}<a class="btn btn--small btn--secondary" href="{% url 'web:participant-latex' %}">{% translate "Edytor LaTeX" %}</a>{% endif %}
+        </p>
+      </li>
+    {% endif %}
+  </ul>
+</section>

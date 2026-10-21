@@ -1,0 +1,118 @@
+# UX-PANEL-01 – napisy aplikacji participant_panel (hi). Źródło (msgid) po polsku; poza angielskim
+# tłumaczenie maszynowe – do przeglądu native speakera (I18N-01 § 8).
+msgid ""
+msgstr ""
+"Project-Id-Version: olimpiada participant_panel\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-21 12:00+0200\n"
+"PO-Revision-Date: 2026-10-21 12:00+0200\n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: hi\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Powiadomienia"
+msgstr "सूचनाएँ"
+
+msgid "nowe"
+msgstr "नया"
+
+msgid "Ogłoszenia"
+msgstr "घोषणाएँ"
+
+msgid "Pulpit"
+msgstr "डैशबोर्ड"
+
+msgid "Zadania i moje prace"
+msgstr "प्रश्न और मेरे उत्तर"
+
+msgid "Archiwum zadań"
+msgstr "प्रश्नों का संग्रह"
+
+msgid "Nauka"
+msgstr "सीखना"
+
+msgid "Notatniki Qiskit"
+msgstr "Qiskit नोटबुक"
+
+msgid "Edytor LaTeX (webTEX)"
+msgstr "LaTeX संपादक (webTEX)"
+
+msgid "Profil i dane"
+msgstr "प्रोफ़ाइल और विवरण"
+
+msgid "Weryfikacja dwuetapowa"
+msgstr "दो-चरणीय सत्यापन"
+
+msgid "Menu uczestnika"
+msgstr "प्रतिभागी मेनू"
+
+msgid "Nawigacja panelu uczestnika"
+msgstr "प्रतिभागी पैनल नेविगेशन"
+
+msgid "Powiadomienia – brak nowych"
+msgstr "सूचनाएँ – कोई नई नहीं"
+
+msgid "Na skróty"
+msgstr "शॉर्टकट"
+
+msgid "Najbliższy termin"
+msgstr "अगली समय-सीमा"
+
+msgid "Przejdź do zadań"
+msgstr "प्रश्नों पर जाएँ"
+
+msgid "Bieżący etap"
+msgstr "वर्तमान चरण"
+
+msgid "Najbliższy warsztat"
+msgstr "अगली कार्यशाला"
+
+msgid "Warsztaty online"
+msgstr "ऑनलाइन कार्यशालाएँ"
+
+msgid "Link do spotkania organizator podaje w ogłoszeniu."
+msgstr "बैठक का लिंक आयोजक घोषणा में देते हैं।"
+
+msgid "Co nowego"
+msgstr "नया क्या है"
+
+msgid "brak nowych"
+msgstr "कुछ नया नहीं"
+
+msgid "nieprzeczytane rozmowy"
+msgstr "अपठित बातचीत"
+
+msgid "Narzędzia"
+msgstr "उपकरण"
+
+msgid "Pracujesz w przeglądarce – nic nie trzeba instalować."
+msgstr "आप ब्राउज़र में काम करते हैं – कुछ भी इंस्टॉल नहीं करना है।"
+
+msgid "Edytor LaTeX"
+msgstr "LaTeX संपादक"
+
+msgid "(otwiera się w nowej karcie)"
+msgstr "(नए टैब में खुलता है)"
+
+msgid "Na razie nie ma tu zadań"
+msgstr "यहाँ अभी कोई प्रश्न नहीं है"
+
+msgid "Notatniki pojawiają się przy zadaniach z obliczeń kwantowych, gdy etap, do którego jesteś zapisany, się rozpocznie."
+msgstr "जिस चरण के लिए आपने पंजीकरण किया है, उसके शुरू होते ही क्वांटम कंप्यूटिंग प्रश्नों के साथ नोटबुक दिखाई देती हैं।"
+
+msgid "Edytor jest dostępny przy zadaniach etapu, do którego jesteś zapisany, od chwili jego rozpoczęcia."
+msgstr "जिस चरण के लिए आपने पंजीकरण किया है, उसके शुरू होते ही उसके प्रश्नों के लिए संपादक उपलब्ध हो जाता है।"
+
+msgid "Zadania z obliczeń kwantowych rozwiązujesz w notatniku Jupyter z biblioteką Qiskit, uruchamianym w przeglądarce – nic nie trzeba instalować. Notatnik otwiera się w osobnej karcie, z plikiem startowym zadania."
+msgstr "क्वांटम कंप्यूटिंग प्रश्न आप ब्राउज़र में चलने वाली, Qiskit लाइब्रेरी वाली Jupyter नोटबुक में हल करते हैं – कुछ भी इंस्टॉल नहीं करना है। नोटबुक प्रश्न की शुरुआती फ़ाइल के साथ अलग टैब में खुलती है।"
+
+msgid "Rozwiązanie możesz napisać w edytorze LaTeX (webTEX) z podglądem PDF. Edytor otwiera się w nowej karcie z gotowym szablonem; skompilowany PDF złożysz przyciskiem na karcie zadania."
+msgstr "आप अपना हल PDF पूर्वावलोकन वाले LaTeX संपादक (webTEX) में लिख सकते हैं। संपादक तैयार टेम्पलेट के साथ नए टैब में खुलता है; संकलित PDF आप प्रश्न कार्ड के बटन से जमा करते हैं।"
+
+#, python-format
+msgid "Powiadomienia, nieprzeczytane: %(number)s"
+msgstr "सूचनाएँ, अपठित: %(number)s"

@@ -12,6 +12,26 @@ podsekcją `### <tytuł>` wydania `## v<x.y.z> – <data tagu> – <opis tagu>`.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## [Unreleased] – Panel uczestnika: menu, Start, powiadomienia, wejścia do notatników i webTEX (UX-PANEL-01)
+
+- Menu panelu uczestnika (`apps/participant_panel/nav.py`, odpowiednik `coordinator_nav.py`): sekcje
+  Start, Zawody, Nauka, Wiadomości, Konto, pozycja bieżąca z `aria-current`, na desktopie kolumna z lewej,
+  na telefonie `<details>` „Menu uczestnika” (bez JS). Pozycje warunkowe z istniejących przełączników.
+  Ramę (`participant_panel/base.html`) dostały: pulpit, kalendarz, archiwum, dyplomy, informacja zwrotna,
+  status ucznia, profil, Wiadomości (skrzynka, katalog, szyfrowanie). Pasek zakładek pulpitu bez
+  „odnośników bocznych” (są w menu).
+- Pulpit „Start”: kafle – najbliższy termin, zaświadczenie o statusie ucznia, najbliższy warsztat (bez
+  linku do spotkania), materiały z warsztatów, „Co nowego”, skróty do narzędzi.
+- Nowa aplikacja `apps/notifications`: powiadomienia w panelu (`/me/notifications/`, dzwonek z licznikiem,
+  „Oznacz wszystkie jako przeczytane”) zasilane hakami z Wiadomości, forum, zaświadczenia, wyników,
+  reklamacji i ogłoszeń organizatora; scalanie po rozmowie / wątku; retencja 90 dni (beat
+  `notifications-purge`), ogłoszenia zaplanowane – beat `notifications-announcements` (co 10 min);
+  anonimizacja i eksport danych; rejestr czynności 1.25.
+- `/me/notebooks/` (Notatniki Qiskit) i `/me/latex/` (Edytor LaTeX) – listy zadań otwartych etapów
+  z przyciskiem otwarcia; bramki zostają w widokach docelowych.
+- Migracja `notifications.0001_initial`; budżet zapytań `/me/` 44 → 46. Opis: `docs/tasks/UX-PANEL-01.md`,
+  PODRĘCZNIK-UCZESTNIKA § 2, PODRĘCZNIK-ORGANIZATORA § 6.4c.
+
 ## [Unreleased] – Lejek uczestnika: kroki liczone niezależnie (STATS-02a)
 
 - Decyzja organizatora z 21.10.2026: ekran `/coordinator/stats/funnel/` nie uwzględnia kolejności

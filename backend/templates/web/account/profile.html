@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends is_participant|yesno:"participant_panel/base.html,participant_panel/plain.html" %}
 {% load i18n static %}
 {% comment %}
   Edycja własnych danych. Jeden szablon obsługuje oba widoki (``/me/profile/`` dla uczestnika
@@ -15,7 +15,7 @@
     <script defer nonce="{{ request.csp_nonce }}" src="{% static 'js/school-picker.js' %}"></script>
   {% endif %}
 {% endblock %}
-{% block content %}
+{% block panel_content %}
 <div class="page-head">
   <span class="eyebrow">{% translate "Twoje konto" %}</span>
   <h1>{% translate "Edycja danych" %}</h1>

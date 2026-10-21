@@ -1691,6 +1691,23 @@ Co zostaje w dzienniku zdarzeń (bez linków, przepustek i nazw gości): założ
 linków, wymiana linku, zamknięcie, każde wejście (rola: koordynator, komisja, autor, link gospodarza,
 link gościa), nadanie i odebranie uprawnienia.
 
+### 6.4c Panel uczestnika: menu i powiadomienia (UX-PANEL-01)
+
+Uczestnik ma w panelu menu (Start, Zawody, Nauka, Wiadomości, Konto) i dzwonek **powiadomień**
+(`/me/notifications/`) – opis dla uczestnika: PODRĘCZNIK-UCZESTNIKA § 2. Organizator niczego nie
+konfiguruje: pozycje menu pojawiają się same razem z włączeniem funkcji (forum, Wiadomości, materiały
+z warsztatów, webinary, notatniki kwantowe – flaga `quantum_notebooks`, edytor LaTeX – flaga
+`latex_editor` i skonfigurowany webTEX, zaświadczenie o statusie ucznia).
+
+Powiadomienie w panelu powstaje samo przy zdarzeniach, które i tak wysyłają list albo zmieniają stan:
+Twoja wiadomość do uczestnika (Wiadomości), **opublikowanie ogłoszenia organizatora** (wszyscy
+uczestnicy konkursu; ogłoszenie z polem „widoczne od” – gdy wejdzie w okno, w ciągu 10 minut),
+odpowiedź w wątku forum obserwowanym przez uczestnika, decyzja moderatora, akceptacja albo odrzucenie
+zaświadczenia, decyzja komisji w sprawie reklamacji, publikacja wyników etapu. Komunikaty e-mail
+(§ 6.1 tego podręcznika) powiadomień w panelu **nie** dają. Powiadomienie nie zawiera treści
+wiadomości ani powodu odrzucenia; jest usuwane po 90 dniach i przy usunięciu konta (rejestr czynności
+1.25, wiersz „konta”).
+
 ### 6.5 FAQ
 
 Strona `/faq/` z pytaniami pogrupowanymi w sekcje; każde pytanie ma **trwałą kotwicę**, więc odpowiedź na

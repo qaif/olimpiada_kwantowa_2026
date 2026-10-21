@@ -130,8 +130,12 @@ from apps.competitions.models import DEFAULT_RETENTION_MONTHS
 #: 1.24 (18.10.2026, zadanie STATS-02) – w wierszu doręczalności poczty odbicia przypisane komunikatom
 #: grupowym (także odrzucenia z powodu polityki serwera odbiorcy, których MAIL-02 nie zapisywał) i lista
 #: odbitych adresów w raporcie wysyłki komunikatu dla koordynatora; ta sama podstawa i retencja.
-REGISTER_VERSION = "1.24"
-REGISTER_DATE = date(2026, 10, 18)
+#: 1.25 (21.10.2026, zadanie UX-PANEL-01) – powiadomienia w panelu uczestnika: nowa kategoria danych
+#: w wierszu „konta” (rodzaj zdarzenia, odnośnik, data odczytu) z własnym, krótszym terminem usunięcia
+#: (90 dni). Ten sam cel (obsługa udziału w zawodach) i ta sama podstawa – ale stan „przeczytane”
+#: per konto jest nową daną, więc zmiana jest materialna.
+REGISTER_VERSION = "1.25"
+REGISTER_DATE = date(2026, 10, 21)
 
 #: Zdanie o okresie przechowywania danych uczestnika. Liczba pochodzi z tego samego miejsca, co
 #: domyślna wartość ``Edition.data_retention_months`` – gdyby organizator zmienił ją dla rocznika,
@@ -222,6 +226,13 @@ ACTIVITIES: tuple[ProcessingActivity, ...] = (
             ),
             "adres e-mail opiekuna szkolnego (opcjonalnie)",
             "kod publiczny uczestnika (pseudonim nadawany przez system)",
+            (
+                "powiadomienia w panelu uczestnika (od 21.10.2026): rodzaj zdarzenia (nowa wiadomość, "
+                "ogłoszenie organizatora, decyzja o zaświadczeniu lub reklamacji, ogłoszone wyniki, "
+                "odpowiedź na forum), tytuł ogłoszenia albo nazwa etapu, odnośnik w serwisie, data "
+                "utworzenia i odczytu – bez treści wiadomości, wpisów ani powodów decyzji; usuwane "
+                "automatycznie po 90 dniach, przy anonimizacji i przy usunięciu konta"
+            ),
         ],
         recipients=[HOSTING_RECIPIENT, MAIL_RECIPIENT],
         retention=PARTICIPANT_RETENTION,

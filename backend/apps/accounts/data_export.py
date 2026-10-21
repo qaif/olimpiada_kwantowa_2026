@@ -466,7 +466,15 @@ def export_payload(user: User, competition=None) -> dict:
         "ustawienia_interfejsu": _preferences_section(user),
         "tlumaczenia": _translation_review_section(user),
         "doreczalnosc_poczty": _email_delivery_section(user),
+        "powiadomienia_w_panelu": _panel_notifications_section(user, competition),
     }
+
+
+def _panel_notifications_section(user: User, competition=None) -> list[dict]:
+    """Powiadomienia w panelu uczestnika (UX-PANEL-01) – rodzaj, zdanie, daty; bez treści rozmów."""
+    from apps.notifications.services import export_rows
+
+    return export_rows(user, competition)
 
 
 def _alumni_section(user: User, participant) -> dict:

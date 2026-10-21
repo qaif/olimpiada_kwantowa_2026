@@ -1,0 +1,118 @@
+# UX-PANEL-01 – napisy aplikacji participant_panel (zh_Hans). Źródło (msgid) po polsku; poza angielskim
+# tłumaczenie maszynowe – do przeglądu native speakera (I18N-01 § 8).
+msgid ""
+msgstr ""
+"Project-Id-Version: olimpiada participant_panel\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-21 12:00+0200\n"
+"PO-Revision-Date: 2026-10-21 12:00+0200\n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: zh_Hans\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+msgid "Powiadomienia"
+msgstr "通知"
+
+msgid "nowe"
+msgstr "新"
+
+msgid "Ogłoszenia"
+msgstr "公告"
+
+msgid "Pulpit"
+msgstr "主页"
+
+msgid "Zadania i moje prace"
+msgstr "题目与我的作答"
+
+msgid "Archiwum zadań"
+msgstr "历年题目"
+
+msgid "Nauka"
+msgstr "学习"
+
+msgid "Notatniki Qiskit"
+msgstr "Qiskit 笔记本"
+
+msgid "Edytor LaTeX (webTEX)"
+msgstr "LaTeX 编辑器（webTEX）"
+
+msgid "Profil i dane"
+msgstr "个人资料"
+
+msgid "Weryfikacja dwuetapowa"
+msgstr "两步验证"
+
+msgid "Menu uczestnika"
+msgstr "参赛者菜单"
+
+msgid "Nawigacja panelu uczestnika"
+msgstr "参赛者面板导航"
+
+msgid "Powiadomienia – brak nowych"
+msgstr "通知——暂无新通知"
+
+msgid "Na skróty"
+msgstr "快捷入口"
+
+msgid "Najbliższy termin"
+msgstr "最近的截止时间"
+
+msgid "Przejdź do zadań"
+msgstr "前往题目"
+
+msgid "Bieżący etap"
+msgstr "当前阶段"
+
+msgid "Najbliższy warsztat"
+msgstr "下一场讲习班"
+
+msgid "Warsztaty online"
+msgstr "线上讲习班"
+
+msgid "Link do spotkania organizator podaje w ogłoszeniu."
+msgstr "会议链接由主办方在公告中提供。"
+
+msgid "Co nowego"
+msgstr "最新动态"
+
+msgid "brak nowych"
+msgstr "暂无新内容"
+
+msgid "nieprzeczytane rozmowy"
+msgstr "未读对话"
+
+msgid "Narzędzia"
+msgstr "工具"
+
+msgid "Pracujesz w przeglądarce – nic nie trzeba instalować."
+msgstr "在浏览器中完成——无需安装任何软件。"
+
+msgid "Edytor LaTeX"
+msgstr "LaTeX 编辑器"
+
+msgid "(otwiera się w nowej karcie)"
+msgstr "（在新标签页中打开）"
+
+msgid "Na razie nie ma tu zadań"
+msgstr "这里暂时还没有题目"
+
+msgid "Notatniki pojawiają się przy zadaniach z obliczeń kwantowych, gdy etap, do którego jesteś zapisany, się rozpocznie."
+msgstr "当你报名的阶段开始后，量子计算题目旁会出现笔记本。"
+
+msgid "Edytor jest dostępny przy zadaniach etapu, do którego jesteś zapisany, od chwili jego rozpoczęcia."
+msgstr "你报名的阶段一开始，就可以在该阶段的题目中使用编辑器。"
+
+msgid "Zadania z obliczeń kwantowych rozwiązujesz w notatniku Jupyter z biblioteką Qiskit, uruchamianym w przeglądarce – nic nie trzeba instalować. Notatnik otwiera się w osobnej karcie, z plikiem startowym zadania."
+msgstr "量子计算题目在浏览器中运行的、带 Qiskit 库的 Jupyter 笔记本中完成——无需安装任何软件。笔记本会在单独的标签页中打开，并载入题目的初始文件。"
+
+msgid "Rozwiązanie możesz napisać w edytorze LaTeX (webTEX) z podglądem PDF. Edytor otwiera się w nowej karcie z gotowym szablonem; skompilowany PDF złożysz przyciskiem na karcie zadania."
+msgstr "你可以在带 PDF 预览的 LaTeX 编辑器（webTEX）中撰写解答。编辑器会在新标签页中打开并提供现成模板；编译好的 PDF 通过题目卡片上的按钮提交。"
+
+#, python-format
+msgid "Powiadomienia, nieprzeczytane: %(number)s"
+msgstr "通知，未读：%(number)s"
